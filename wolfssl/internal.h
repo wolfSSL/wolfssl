@@ -2955,6 +2955,10 @@ struct WOLFSSL_CTX {
     #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
         SessionTicketEncCb ticketEncCb;   /* enc/dec session ticket Cb */
         void*              ticketEncCtx;  /* session encrypt context */
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
+          || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
+        ticketCompatCb     ticketEncWrapCb; /* callback for OpenSSL ticket key callback */
+        #endif
         int                ticketHint;    /* ticket hint in seconds */
         #ifndef WOLFSSL_NO_DEF_TICKET_ENC_CB
             TicketEncCbCtx ticketKeyCtx;
