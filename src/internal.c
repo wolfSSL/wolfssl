@@ -19048,6 +19048,12 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 #else
 
     int error = (int)e;
+#ifdef OPENSSL_EXTRA
+    /* OpenSSL uses positive error codes */
+    if (error > 0) {
+        error = -error;
+    }
+#endif
 
     /* pass to wolfCrypt */
     if (error < MAX_CODE_E && error > MIN_CODE_E) {
