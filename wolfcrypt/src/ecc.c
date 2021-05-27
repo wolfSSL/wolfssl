@@ -5312,28 +5312,28 @@ static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
     /* get curve order */
     err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
     if (err == MP_OKAY) {
+        /* if key->sign_k is NULL then create a buffer for the mp_int
+         * if not NULL then assume the user correctly set deterministic flag and
+         *    that the key->sign_k holds a previously malloc'd mp_int buffer */
         if (key->sign_k == NULL) {
             key->sign_k = (mp_int*)XMALLOC(sizeof(mp_int), key->heap,
                                                             DYNAMIC_TYPE_ECC);
-            if (key->sign_k) {
-                /* currently limiting to SHA256 for auto create */
-                if (mp_init(key->sign_k) != MP_OKAY ||
-                    wc_ecc_gen_deterministic_k(in, inlen,
-                            WC_HASH_TYPE_SHA256, &key->k, key->sign_k,
-                            curve->order, key->heap) != 0) {
-                    mp_free(key->sign_k);
-                    XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
-                    key->sign_k = NULL;
-                    wc_ecc_curve_free(curve);
-                    FREE_CURVE_SPECS();
-                    return ECC_PRIV_KEY_E;
-                }
+        }
+
+        if (key->sign_k) {
+            /* currently limiting to SHA256 for auto create */
+            if (mp_init(key->sign_k) != MP_OKAY ||
+                wc_ecc_gen_deterministic_k(in, inlen,
+                        WC_HASH_TYPE_SHA256, &key->k, key->sign_k,
+                        curve->order, key->heap) != 0) {
+                mp_free(key->sign_k);
+                XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
+                key->sign_k = NULL;
+                err = ECC_PRIV_KEY_E;
             }
-            else {
-                wc_ecc_curve_free(curve);
-                FREE_CURVE_SPECS();
-                return MEMORY_E;
-            }
+        }
+        else {
+            err = MEMORY_E;
         }
     }
 
@@ -5855,7 +5855,7 @@ static int _HMAC_K(byte* K, word32 KSz, byte* V, word32 VSz,
 }
 
 
-/* Generates a deterministic key based of the message using RFC6967
+/* Generates a deterministic key based of the message using RFC6979
  * @param  [in]   hash     Hash value to sign
  * @param  [in]   hashSz   Size of 'hash' buffer passed in
  * @param  [in]   hashType Type of hash to use with deterministic k gen, i.e.
@@ -5938,27 +5938,26 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 #endif
 
     VSz = KSz = h1len = hashSz;
+
+    /* 3.2 b. Set V = 0x01 0x01 ... */
     XMEMSET(V, 0x01, VSz);
+
+    /* 3.2 c. Set K = 0x00 0x00 ... */
     XMEMSET(K, 0x00, KSz);
 
-    ret = mp_to_unsigned_bin(priv, x);
-
     mp_init(&z1); /* always init z1 and free z1 */
+    ret = mp_to_unsigned_bin(priv, x);
     if (ret == 0) {
         qbits = mp_count_bits(order);
-    }
-
-    if (ret == 0) {
         ret = mp_read_unsigned_bin(&z1, hash, hashSz);
     }
 
+    /* bits2octets on h1 */
     if (ret == 0) {
         /* right shift by bits in hash minus bits in order */
         mp_rshb(&z1, (hashSz * WOLFSSL_BIT_SIZE) - qbits);
         XMEMSET(h1, 0, sizeof(h1));
-    }
 
-    if (ret == 0) {
         /* mod reduce by order using conditional subtract */
         if (mp_cmp(&z1, order) == MP_GT) {
             mp_sub(&z1, order, &z1);
@@ -5978,71 +5977,74 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     }
     mp_free(&z1);
 
-    /* step d. */
+    /* 3.2 step d. K = HMAC_K(V || 0x00 || int2octests(x) || bits2octests(h1) */
     if (ret == 0) {
         intOct = 0x00;
         ret = _HMAC_K(K, KSz, V, VSz, h1, h1len, x, xSz, &intOct, K,
                 hashType, heap);
     }
 
-    /* step e. */
+    /* 3.2 step e. V = HMAC_K(V) */
     if (ret == 0) {
         ret = _HMAC_K(K, KSz, V, VSz, NULL, 0, NULL, 0, NULL, V, hashType,
                 heap);
     }
 
 
-    /* step f. */
+    /* 3.2 step f. K = HMAC_K(V || 0x01 || int2octests(x) || bits2octests(h1) */
     if (ret == 0) {
         intOct = 0x01;
         ret = _HMAC_K(K, KSz, V, VSz, h1, h1len, x, xSz, &intOct, K, hashType,
                 heap);
     }
 
-    /* step g. */
+    /* 3.2 step g. V = HMAC_K(V) */
     if (ret == 0) {
         ret = _HMAC_K(K, KSz, V, VSz, NULL, 0, NULL, 0, NULL, V, hashType,
                 heap);
     }
 
-    /* step h. */
+    /* 3.2 step h. loop through the next steps until a valid value is found */
     if (ret == 0 ) {
         int err;
+
         intOct = 0x00;
         do {
             err = 0; /* start as good until generated k is tested */
 
+            /* 3.2 step h.2 when tlen < qlen do V = HMAC_K(V); T = T || V */
             ret = _HMAC_K(K, KSz, V, VSz, NULL, 0, NULL, 0, NULL, V, hashType,
                     heap);
             if (ret == 0) {
-                mp_clear(k);
+                mp_clear(k); /* 3.2 step h.1 clear T */
                 ret = mp_read_unsigned_bin(k, V, VSz);
             }
 
             if ((ret == 0) && ((int)(VSz * WOLFSSL_BIT_SIZE) != qbits)) {
-                /* handle odd case where shift of 'k' is needed */
+                /* handle odd case where shift of 'k' is needed with RFC 6979
+                 *  k = bits2int(T) in section 3.2 h.3 */
                 mp_rshb(k, (VSz * WOLFSSL_BIT_SIZE) - qbits);
             }
 
-            /* the key should be smaller than the order of base point */
+            /* 3.2 step h.3 the key should be smaller than the order of base
+             * point */
             if (ret == 0) {
                 if (mp_cmp(k, order) != MP_LT) {
                     err = MP_VAL;
                 }
-            }
 
-            /* no 0 key's */
-            if (ret == 0) {
+                /* no 0 key's */
                 if (mp_iszero(k) == MP_YES)
                     err = MP_ZERO_E;
             }
 
-            /* if there was a problem with 'k' generated then try again */
+            /* 3.2 step h.3 if there was a problem with 'k' generated then try
+             * again K = HMAC_K(V || 0x00) and V = HMAC_K(V) */
             if (ret == 0 && err != 0) {
                 ret = _HMAC_K(K, KSz, V, VSz, NULL, 0, NULL, 0, &intOct, K,
                     hashType, heap);
                 if (ret == 0) {
-                ret = _HMAC_K(K, KSz, V, VSz, NULL, 0, NULL, 0, NULL, V,
+                    ret = _HMAC_K(K, KSz, V, VSz, NULL, 0, NULL, 0, NULL, V,
                     hashType, heap);
                 }
             }
