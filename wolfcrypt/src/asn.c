@@ -2776,6 +2776,14 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 /* Remove PKCS8 header, place inOutIdx at beginning of traditional,
  * return traditional length on success, negative on error */
 int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
+                           word32* algId)
+{
+	word32 crvId;
+	(void) crvId;
+	return ToTraditionalInline_ex2(input, inOutIdx, sz, algId, &crvId);
+}
+
+int ToTraditionalInline_ex2(const byte* input, word32* inOutIdx, word32 sz,
                            word32* algId, word32* crvId)
 {
     word32 idx;
@@ -2808,7 +2816,7 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
 
     if (tag == ASN_OBJECT_ID) {
         #ifdef HAVE_ECC
-        ret = GetObjectId(input, &idx, &oidSum, oidIgnoreType, sz);
+        ret = GetObjectId(input, &idx, &oidSum, oidCurveType, sz);
         if (ret == 0) {
             if ((ret = CheckCurve(oidSum)) < 0){
                 WOLFSSL_MSG("Not found corresponding Curve");
@@ -2839,14 +2847,19 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
 int ToTraditionalInline(const byte* input, word32* inOutIdx, word32 sz)
 {
     word32 oid;
-    word32 cvid = 0;
-    
-    return ToTraditionalInline_ex(input, inOutIdx, sz, &oid, &cvid);
+
+    return ToTraditionalInline_ex(input, inOutIdx, sz, &oid);
 }
 
 /* Remove PKCS8 header, move beginning of traditional to beginning of input */
+int ToTraditional_ex(byte* input, word32 sz, word32* algId)
+{
+    word32 crvId;
+    (void) crvId;
+    return ToTraditional_ex2(input, sz, algId, &crvId, 1);
+}
 /* if remove argument is set 1, otherwise only returns length of traditional*/
-int ToTraditional_ex(byte* input, word32 sz, word32* algId, word32* crvId, 
+int ToTraditional_ex2(byte* input, word32 sz, word32* algId, word32* crvId, 
                                                                 byte remove)
 {
     word32 inOutIdx = 0;
@@ -2855,7 +2868,7 @@ int ToTraditional_ex(byte* input, word32 sz, word32* algId, word32* crvId,
     if (input == NULL)
         return BAD_FUNC_ARG;
 
-    length = ToTraditionalInline_ex(input, &inOutIdx, sz, algId, crvId);
+    length = ToTraditionalInline_ex2(input, &inOutIdx, sz, algId, crvId);
     if (length < 0)
         return length;
 
@@ -2871,9 +2884,8 @@ int ToTraditional_ex(byte* input, word32 sz, word32* algId, word32* crvId,
 int ToTraditional(byte* input, word32 sz)
 {
     word32 oid;
-    word32 crvid = 0;
-    
-    return ToTraditional_ex(input, sz, &oid, &crvid, 1);
+
+    return ToTraditional_ex(input, sz, &oid);
 }
 
 #endif /* HAVE_PKCS8 || HAVE_PKCS12 */
@@ -2888,12 +2900,11 @@ int wc_GetPkcs8TraditionalOffset(byte* input, word32* inOutIdx, word32 sz)
 {
     int length;
     word32 algId;
-    word32 crvId = 0;
-    
+
     if (input == NULL || inOutIdx == NULL || (*inOutIdx > sz))
         return BAD_FUNC_ARG;
 
-    length = ToTraditionalInline_ex(input, inOutIdx, sz, &algId, &crvId);
+    length = ToTraditionalInline_ex(input, inOutIdx, sz, &algId);
 
     return length;
 }
@@ -2960,7 +2971,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         /* check if the key has pkcs8 header                                   */
         /* if found, remove PKCS8 header,                                      */
         /* move beginning of traditional to beginning of input                 */
-        if ((ret = ToTraditionalInline_ex((const byte*)key, &idx, (word32)keySz,
+        if ((ret = ToTraditionalInline_ex2((const byte*)key, &idx, (word32)keySz,
                                                         &algId, &crvId)) > 0) {
             WOLFSSL_MSG("Found PKCS8 header");
             key += idx;
@@ -4271,9 +4282,17 @@ exit_dc:
 }
 
 /* Remove Encrypted PKCS8 header, move beginning of traditional to beginning
-   of input, 
-   if removehd is set 1, otherwise only returns decrypted content length.   */
+   of input */
 int ToTraditionalEnc(byte* input, word32 sz,const char* password,
+                     int passwordSz, word32* algId)
+{
+    word32 crvId;
+    (void) crvId;
+    return ToTraditionalEnc2(input, sz, password, passwordSz, algId, &crvId, 1);
+}
+
+/* if removehd is set 1, otherwise only returns decrypted content length.   */
+int ToTraditionalEnc2(byte* input, word32 sz,const char* password,
                      int passwordSz, word32* algId, word32* crvId, byte removehd)
 {
     int ret;
@@ -4287,7 +4306,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,
         if (ret > 0) {
             XMEMMOVE(input, input + inOutIdx, ret);
             length = ret;
-            ret = ToTraditional_ex(input, ret, algId, crvId, removehd);
+            ret = ToTraditional_ex2(input, ret, algId, crvId, removehd);
             if (removehd == 0) {
                 /* retreive decrypted content length */
                 inOutIdx = 0;
@@ -11503,7 +11522,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 #endif /* WOLFSSL_ENCRYPTED_KEYS */
 
     /* find footer */
-    footerEnd = XSTRNSTR(headerEnd, footer, (unsigned int)((char*)buff + sz - headerEnd));
+    footerEnd = XSTRNSTR(headerEnd, footer, (unsigned int)((char*)buff + sz 
+                                                                  - headerEnd));
     if (!footerEnd) {
         if (info)
             info->consumed = longSz; /* No more certs if no footer */
@@ -11549,7 +11569,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     {
     #ifdef HAVE_PKCS8
         /* check if this is pkcs8 key */
-        if ((ret = ToTraditional_ex(der->buffer, der->length, 
+        if ((ret = ToTraditional_ex2(der->buffer, der->length, 
                              &algId, &crvId, 0/* no remove hader*/)) > 0) {
             if (keyFormat) {
                 *keyFormat = algId;
@@ -11592,7 +11612,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             /* convert and adjust length */
             if (header == BEGIN_ENC_PRIV_KEY) {
             #ifndef NO_PWDBASED
-                ret = ToTraditionalEnc(der->buffer, der->length,
+                ret = ToTraditionalEnc2(der->buffer, der->length,
                                        password, passwordSz, 
                                        &algId, &crvId, 0/*no rm header*/);
 
@@ -16538,7 +16558,8 @@ static int wc_EccPrivateKeyDecode_ex(const byte* input, word32* inOutIdx, ecc_ke
                     ret = BUFFER_E;
                 else {
             #ifdef WOLFSSL_SMALL_STACK
-                    pub = (byte*)XMALLOC(pubSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    pub = (byte*)XMALLOC(pubSz, key->heap, 
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
                     if (pub == NULL)
                         ret = MEMORY_E;
                     else
@@ -16580,7 +16601,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     word32 crvId = ECC_CURVE_DEF;
     
     /* check if input has pkcs8 header */
-    if ((ret = ToTraditionalInline_ex((const byte*)(input), inOutIdx, 
+    if ((ret = ToTraditionalInline_ex2((const byte*)(input), inOutIdx, 
                                         (word32)inSz, &algId, &crvId)) <= 0) {
        WOLFSSL_MSG("key doesn't have PKCS8 header");
     }
@@ -16588,41 +16609,11 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
         (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
      else {
-        key->haspkcs8header = 1;
+        key->hasPkcs8Header = 1;
     }
     #endif
     #endif
     return wc_EccPrivateKeyDecode_ex(input, inOutIdx, key, inSz, crvId);
-}
-/* return ecc key with pkcs 8 header based on input                     */
-/* @param input  DER format key.expect to have pkcs8 header             */
-/* @param inOutIdx index of the input                                   */
-/* @param *key  return value of the control command                     */
-/* @param inSz  size of the input                                       */
-/* @return WOLFSSL_SUCCESS on successful, othewise WOLFSSL_FAILURE      */
-int wc_EccPKCS8PrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
-                        word32 inSz)
-{
-    int ret;
-    word32 algId = 0;
-    word32 crvId = ECC_CURVE_DEF;
-
-    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
-        return BAD_FUNC_ARG;
-    /* check if input has pkcs8 header */
-    if ((ret = ToTraditionalInline_ex((const byte*)(input), inOutIdx,
-                                           (word32)inSz, &algId, &crvId)) > 0) {
-        #if defined(HAVE_PKCS8)
-        #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
-        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
-        key->haspkcs8header = 1;
-        #endif
-        #endif
-        return wc_EccPrivateKeyDecode_ex(input, inOutIdx, key, inSz, crvId);
-    } else {
-        WOLFSSL_MSG("key doesn't have PKCS8 header");
-        return BAD_FUNC_ARG;
-    }
 }
 
 #ifdef WOLFSSL_CUSTOM_CURVES
@@ -17202,7 +17193,8 @@ static int eccToPKCS8(ecc_key* key, byte* output, word32* outLen,
 #endif
     XMEMSET(tmpDer, 0, ECC_BUFSIZE);
 
-    tmpDerSz = wc_BuildEccKeyDer_ex(key, tmpDer, &sz, includePublic, 1/* skip crv*/);
+    tmpDerSz = wc_BuildEccKeyDer_ex(key, tmpDer, &sz, includePublic, 
+                                                                1/* skip crv*/);
     if (tmpDerSz < 0) {
     #ifndef WOLFSSL_NO_MALLOC
         XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);

@@ -6508,7 +6508,7 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, ecc_key* ecc)
         (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
     /* when ecc key has pkcs 8 header   */
     /* pkey will have the pkcs 8 header */
-    if (ecc->haspkcs8header) {
+    if (ecc->hasPkcs8Header) {
         if (wc_EccKeyToPKCS8(ecc, NULL, (word32*)&derSz) == LENGTH_ONLY_E) {
             byte* derBuf = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_OPENSSL);
             if (derBuf) {
@@ -6527,7 +6527,8 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, ecc_key* ecc)
             }
         }
         return WOLFSSL_FAILURE;
-    } else 
+    } 
+    else 
     #endif
     #endif
     {

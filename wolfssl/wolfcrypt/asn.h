@@ -1142,16 +1142,20 @@ WOLFSSL_LOCAL void    FreeTrustedPeerTable(TrustedPeerCert**, int, void*);
 
 WOLFSSL_ASN_API int ToTraditional(byte* buffer, word32 length);
 WOLFSSL_ASN_API int ToTraditional_ex(byte* buffer, word32 length,
+                                     word32* algId);
+WOLFSSL_ASN_API int ToTraditional_ex2(byte* buffer, word32 length,
                                      word32* algId, word32* crvId, byte remove);
 WOLFSSL_LOCAL int ToTraditionalInline(const byte* input, word32* inOutIdx,
                                       word32 length);
 WOLFSSL_LOCAL int ToTraditionalInline_ex(const byte* input, word32* inOutIdx,
+                                         word32 length, word32* algId);
+WOLFSSL_LOCAL int ToTraditionalInline_ex2(const byte* input, word32* inOutIdx,
                                          word32 length, word32* algId, 
                                          word32* curvid);
 WOLFSSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*,int,
+                                   word32* algId);
+WOLFSSL_LOCAL int ToTraditionalEnc2(byte* buffer, word32 length,const char*,int,
                                    word32* algId, word32* crvId, byte removehd);
-WOLFSSL_LOCAL int wc_EccPKCS8PrivateKeyDecode(const byte*, word32*,
-                                           ecc_key*, word32);
 WOLFSSL_ASN_API int UnTraditionalEnc(byte* key, word32 keySz, byte* out,
         word32* outSz, const char* password, int passwordSz, int vPKCS,
         int vAlgo, byte* salt, word32 saltSz, int itt, WC_RNG* rng, void* heap);
