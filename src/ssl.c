@@ -6895,6 +6895,10 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
         /* pass directory read failure to response code */
         if (fileRet != WC_READDIR_NOFILE) {
             ret = fileRet;
+    #if defined(WOLFSSL_QT)
+            /* qssl socket wants to know errors. */
+            WOLFSSL_ERROR(ret);
+    #endif
         }
         /* report failure if no files were loaded or there were failures */
         else if (successCount == 0 || failCount > 0) {
