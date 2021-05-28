@@ -5829,9 +5829,9 @@ static int _HMAC_K(byte* K, word32 KSz, byte* V, word32 VSz,
         const byte* h1, word32 h1Sz, byte* x, word32 xSz, byte* oct,
         byte* out, enum wc_HashType hashType, void* heap) {
     Hmac hmac;
-    int  ret;
+    int  ret, init;
 
-    ret = wc_HmacInit(&hmac, heap, 0);
+    ret = init = wc_HmacInit(&hmac, heap, 0);
     if (ret == 0)
         ret = wc_HmacSetKey(&hmac, hashType, K, KSz);
 
@@ -5850,7 +5850,9 @@ static int _HMAC_K(byte* K, word32 KSz, byte* V, word32 VSz,
     if (ret == 0)
         ret = wc_HmacFinal(&hmac, out);
 
-    wc_HmacFree(&hmac);
+    if (init == 0)
+        wc_HmacFree(&hmac);
+
     return ret;
 }
 
@@ -6031,11 +6033,10 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
             if (ret == 0) {
                 if (mp_cmp(k, order) != MP_LT) {
                     err = MP_VAL;
-                }
-
-                /* no 0 key's */
-                if (mp_iszero(k) == MP_YES)
+                } else if (mp_iszero(k) == MP_YES) {
+                    /* no 0 key's */
                     err = MP_ZERO_E;
+                }
             }
 
             /* 3.2 step h.3 if there was a problem with 'k' generated then try
