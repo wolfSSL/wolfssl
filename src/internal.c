@@ -1836,7 +1836,7 @@ int wolfSSL_session_export_internal(WOLFSSL* ssl, byte* buf, word32* sz,
 
     WOLFSSL_ENTER("wolfSSL_session_export_internal");
 
-    if (buf == NULL || ssl == NULL) {
+    if (ssl == NULL) {
         WOLFSSL_MSG("unexpected null argument");
         ret = BAD_FUNC_ARG;
     }
@@ -1855,8 +1855,8 @@ int wolfSSL_session_export_internal(WOLFSSL* ssl, byte* buf, word32* sz,
     }
 
     /* check is at least the minimum size needed, TLS cipher states add more */
-    if (ret == 0 && totalLen > *sz) {
-        WOLFSSL_MSG("export buffer was too small");
+    if (ret == 0 && (totalLen > *sz || buf == NULL)) {
+        WOLFSSL_MSG("export buffer was too small or null");
         *sz = totalLen;
 
         /* possible AES state needed */
@@ -1921,7 +1921,7 @@ int wolfSSL_session_export_internal(WOLFSSL* ssl, byte* buf, word32* sz,
         }
     }
 
-    if (ret != 0) {
+    if (ret != 0 && buf != NULL) {
         /*in a fail case clear the buffer which could contain partial key info*/
         XMEMSET(buf, 0, *sz);
     }
@@ -1940,6 +1940,10 @@ int wolfSSL_session_export_internal(WOLFSSL* ssl, byte* buf, word32* sz,
             WOLFSSL_MSG(debug);
         }
     #endif /* WOLFSSL_SESSION_EXPORT_DEBUG */
+    }
+
+    if (ret >= 0) {
+        *sz = ret;
     }
 
     WOLFSSL_LEAVE("wolfSSL_session_export_internal", ret);
