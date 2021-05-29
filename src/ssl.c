@@ -6896,15 +6896,30 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
         if (fileRet != WC_READDIR_NOFILE) {
             ret = fileRet;
     #if defined(WOLFSSL_QT)
-            /* qssl socket wants to know errors. */
-            WOLFSSL_ERROR(ret);
+            if (ret == BAD_PATH_ERROR && 
+                flags & WOLFSSL_LOAD_FLAG_IGNORE_BAD_PATH_ERR) {
+           /* QSslSocket always loads certs in system folder 
+            * when it is initialized.
+            * Compliant with OpenSSL when flag sets.*/
+                ret = WOLFSSL_SUCCESS;
+            }
+            else
+                /* qssl socket wants to know errors. */
+                WOLFSSL_ERROR(ret);
     #endif
         }
         /* report failure if no files were loaded or there were failures */
         else if (successCount == 0 || failCount > 0) {
             /* use existing error code if exists */
+    #if defined(WOLFSSL_QT)
+            /* compliant with OpenSSL when flag sets*/
+            if (!(flags & WOLFSSL_LOAD_FLAG_IGNORE_ZEROFILE)) {
+    #endif
             if (ret == WOLFSSL_SUCCESS)
                 ret = WOLFSSL_FAILURE;
+    #if defined(WOLFSSL_QT)
+            }
+    #endif
         }
         else {
             ret = WOLFSSL_SUCCESS;
