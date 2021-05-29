@@ -4305,7 +4305,7 @@ int ToTraditionalEnc_ex(byte* input, word32 sz,const char* password,
             length = ret;
             ret = ToTraditional_ex2(input, ret, algId, crvId, removehd);
             if (removehd == 0) {
-                /* retreive decrypted content length */
+                /* retrieve decrypted content length */
                 inOutIdx = 0;
                 if (GetSequence(input, &inOutIdx, &length, length) < 0) {
                     ret = ASN_PARSE_E;
@@ -16939,8 +16939,8 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
 
 #if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT)
 /* build DER formatted ECC key, include optional public key if requested,
- * if skipcrv is set 1, it skips curve id for write. In the case, curve id
- * is a part of pkcs 8 header.
+ * if skipcrv is set 1, it skips curve id for write. In this case, 
+ * curve id expectes to be included in pkcs 8 header.
  * return length on success, negative on error */
 static int wc_BuildEccKeyDer_ex(ecc_key* key, byte* output, word32 *inLen,
                              int pubIn, byte skipcrv)

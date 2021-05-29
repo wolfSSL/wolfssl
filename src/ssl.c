@@ -5656,7 +5656,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         if ((ret = ToTraditional_ex2(der->buffer, der->length,
                                                     &algId, &crvId, 1)) > 0) {
                 /* Found PKCS8 header */
-                /* ToTraditional_ex moves buff and returns adjusted length */
+                /* ToTraditional_ex2 moves buff and returns adjusted length */
                 der->length = ret;
         }
         ret = 0; /* failures should be ignored */
