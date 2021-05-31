@@ -28054,7 +28054,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     {
         int ret = 0;
         WOLFSSL_SESSION* session;
-
         (void)bogusID;
 
         session = GetSession(ssl, ssl->arrays->masterSecret, 1);
@@ -28070,7 +28069,20 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (!session) {
             WOLFSSL_MSG("Session lookup for resume failed");
             ssl->options.resuming = 0;
+            return ret;
         }
+        #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+        #ifdef WOLFSSL_TLS13
+        word32 born;
+        /* check if the ticket is valid */
+        ato32((const byte*)&(session->ticketSeen), &born);
+        if (LowResTimer() > born + ssl->timeout) {
+            WOLFSSL_MSG("Expired session ticket, fall back to full handshake.");
+            ssl->options.resuming = 0;
+        }
+        #endif /* WOLFSSL_TLS13 */
+        #endif /* HAVE_SESSION_TICKET || !NO_PSK */
+
         else if (session->haveEMS != ssl->options.haveEMS) {
             /* RFC 7627, 5.3, server-side */
             /* if old sess didn't have EMS, but new does, full handshake */
@@ -29485,6 +29497,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* Copy the haveExtendedMasterSecret property from the ticket to
                  * the saved session, so the property may be checked later. */
                 ssl->session.haveEMS = it.haveEMS;
+            #ifdef WOLFSSL_TLS13
+                ssl->session.ticketSeen = it.timestamp;
+            #endif
             #ifndef NO_RESUME_SUITE_CHECK
                 ssl->session.cipherSuite0 = it.suite[0];
                 ssl->session.cipherSuite = it.suite[1];
