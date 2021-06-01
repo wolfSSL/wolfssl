@@ -5515,11 +5515,11 @@ static void test_wolfSSL_PKCS12(void)
     BIO_free(bio);
 
     /* check verify MAC directly */
-    ret = PKCS12_verify_mac(pkcs12, goodPsw,goodPswLen);
+    ret = PKCS12_verify_mac(pkcs12, goodPsw, goodPswLen);
     AssertIntEQ(ret, 1); 
 
     /* check verify MAC fail case directly */
-    ret = PKCS12_verify_mac(pkcs12, badPsw,badPswLen);
+    ret = PKCS12_verify_mac(pkcs12, badPsw, badPswLen);
     AssertIntEQ(ret, 0);
 
     /* check verify MAC fail case */
