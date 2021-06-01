@@ -33,11 +33,11 @@ typedef WOLFSSL_INIT_SETTINGS OPENSSL_INIT_SETTINGS;
 
 typedef struct WOLFSSL_CRYPTO_THREADID {
     int dummy;
-}WOLFSSL_CRYPTO_THREADID;
+} WOLFSSL_CRYPTO_THREADID;
 typedef struct crypto_threadid_st   CRYPTO_THREADID;
 
 typedef struct CRYPTO_EX_DATA            CRYPTO_EX_DATA;
-typedef void (CRYPTO_free_func)(void*parent, void*ptr, CRYPTO_EX_DATA *ad, int idx,
+typedef void (CRYPTO_free_func)(void* parent, void* ptr, CRYPTO_EX_DATA* ad, int idx,
         long argl, void* argp);
 
 #include <wolfssl/openssl/opensslv.h>
