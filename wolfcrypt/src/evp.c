@@ -2345,8 +2345,8 @@ static enum wc_HashType wolfSSL_EVP_md2macType(const WOLFSSL_EVP_MD *md)
     const struct s_ent *ent ;
 
     if (md != NULL) {
-        for( ent = md_tbl; ent->name != NULL; ent++) {
-            if(XSTRNCMP((const char *)md, ent->name, XSTRLEN(ent->name)+1) == 0) {
+        for (ent = md_tbl; ent->name != NULL; ent++) {
+            if (XSTRNCMP((const char *)md, ent->name, XSTRLEN(ent->name)+1) == 0) {
                 return ent->macType;
             }
         }
@@ -2358,8 +2358,8 @@ static const WOLFSSL_EVP_MD* wolfSSL_macType2EVP_md(enum wc_HashType type)
 {
     const struct s_ent *ent ;
 
-    for( ent = md_tbl; ent->name != NULL; ent++) {
-        if(ent->macType == type) {
+    for (ent = md_tbl; ent->name != NULL; ent++) {
+        if (ent->macType == type) {
             return ent->name;
         }
     }

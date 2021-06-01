@@ -2574,8 +2574,10 @@ static void test_EC_i2d(void)
     buf = NULL;
 
     AssertIntGT((len = i2o_ECPublicKey(key, &buf)), 0);
-    AssertNotNull(o2i_ECPublicKey(&copy, (const unsigned char **)&buf, len));
+    tmp = buf;
+    AssertNotNull(o2i_ECPublicKey(&copy, &tmp, len));
     AssertIntEQ(EC_KEY_check_key(key), 1);
+    XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
 
     EC_KEY_free(key);
     EC_KEY_free(copy);
@@ -45900,7 +45902,7 @@ static void test_wolfSSL_DH(void)
 
     AssertNotNull(dh = d2i_DHparams(NULL, &pt, len));
     AssertNotNull(dh->p);
-    AssertNotNull(dh->p);
+    AssertNotNull(dh->g);
     AssertTrue(pt != buf);
     AssertIntEQ(DH_generate_key(dh), WOLFSSL_SUCCESS);
 
@@ -45919,6 +45921,9 @@ static void test_wolfSSL_DH(void)
     AssertPtrEq(pub, dh->pub_key);
     AssertPtrEq(priv, dh->priv_key);
 
+    DH_free(dh);
+
+    AssertNotNull(dh = DH_generate_parameters(2048, 2, NULL, NULL));
     DH_free(dh);
 #endif
 #endif

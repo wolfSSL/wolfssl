@@ -30146,6 +30146,9 @@ int SetDhInternal(WOLFSSL_DH* dh)
         }
     #endif /* WOLFSSL_SMALL_STACK */
 
+        /* Free so that mp_init's don't leak */
+        wc_FreeDhKey((DhKey*)dh->internal);
+
     #ifdef WOLFSSL_DH_EXTRA
         privSz = wolfSSL_BN_bn2bin(dh->priv_key, priv_key);
         pubSz  = wolfSSL_BN_bn2bin(dh->pub_key,  pub_key);
@@ -43615,6 +43618,7 @@ int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len, int generat
 
     WOLFSSL_ENTER("wolfSSL_DH_generate_parameters_ex");
     (void)callback;
+    (void)generator;
 
     if (dh == NULL) {
         WOLFSSL_MSG("Bad parameter");
@@ -43626,23 +43630,21 @@ int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len, int generat
         return WOLFSSL_FAILURE;
     }
 
-    if (dh->inSet == 0) {
-        if (SetDhInternal(dh) != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("Unable to set internal DH structure");
-            return WOLFSSL_FAILURE;
-        }
-    }
+    /* Don't need SetDhInternal call since we are generating
+     * parameters ourselves */
 
     key = (DhKey*)dh->internal;
-    if (mp_set_int(&key->g, generator) != MP_OKAY) {
-        WOLFSSL_MSG("Unable to set generator");
-        return WOLFSSL_FAILURE;
-    }
+
+    /* Free so that mp_init's don't leak */
+    wc_FreeDhKey(key);
 
     if (wc_DhGenerateParams(&globalRNG, prime_len, key) != 0) {
         WOLFSSL_MSG("wc_DhGenerateParams error");
         return WOLFSSL_FAILURE;
     }
+    dh->inSet = 1;
+
+    WOLFSSL_MSG("wolfSSL does not support using a custom generator.");
 
     if (SetDhExternal(dh) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("SetDhExternal error");
@@ -52491,9 +52493,11 @@ void wolfSSL_DH_get0_key(const WOLFSSL_DH *dh,
     WOLFSSL_ENTER("wolfSSL_DH_get0_key");
 
     if (dh != NULL) {
-        if (pub_key != NULL)
+        if (pub_key != NULL && dh->pub_key != NULL &&
+                wolfSSL_BN_is_zero(dh->pub_key) != WOLFSSL_SUCCESS)
             *pub_key = dh->pub_key;
-        if (priv_key != NULL)
+        if (priv_key != NULL && dh->priv_key != NULL &&
+                wolfSSL_BN_is_zero(dh->priv_key) != WOLFSSL_SUCCESS)
             *priv_key = dh->priv_key;
     }
 }
