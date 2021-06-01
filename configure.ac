@@ -2208,7 +2208,7 @@ then
     then
         AC_MSG_ERROR([cannot enable ed448 without enabling sha512.])
     fi
-    if test "$ENABLED_FIPS" = "yes" && "$FIPS_VERSION" = "v2"
+    if test "$FIPS_VERSION" = "v2"
     then
         AC_MSG_ERROR([cannot enabled ed448 w/ dependency shake256 in FIPSv2 mode])
     fi
