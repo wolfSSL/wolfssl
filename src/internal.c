@@ -1640,6 +1640,7 @@ int wolfSSL_session_import_internal(WOLFSSL* ssl, const unsigned char* buf,
             /* check if importing state only */
             return wolfSSL_dtls_import_state_internal(ssl, buf, sz);
         #else
+            WOLFSSL_MSG("Invalid serialized session protocol value");
             ret = BAD_FUNC_ARG;
         #endif
         }
