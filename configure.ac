@@ -2210,7 +2210,7 @@ then
     fi
     if test "$FIPS_VERSION" = "v2"
     then
-        AC_MSG_ERROR([cannot enabled ed448 w/ dependency shake256 in FIPSv2 mode])
+        AC_MSG_ERROR([cannot enable ed448 w/ dependency shake256 in FIPSv2 mode])
     fi
     ENABLED_FE448=yes
     ENABLED_GE448=yes
