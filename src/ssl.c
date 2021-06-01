@@ -56078,6 +56078,7 @@ void wolfSSL_CONF_CTX_free(WOLFSSL_CONF_CTX* cctx)
     if (cctx) {
         XFREE(cctx, NULL, DYNAMIC_TYPE_OPENSSL);
     }
+    WOLFSSL_LEAVE("wolfSSL_CONF_CTX_free", 1);
 }
 /**
  * Set WOLFSSL_CTX instance to WOLFSSL_CONF_CTX
@@ -56097,6 +56098,7 @@ void wolfSSL_CONF_CTX_set_ssl_ctx(WOLFSSL_CONF_CTX* cctx, WOLFSSL_CTX *ctx)
     }
     
     cctx->ctx = ctx;
+    WOLFSSL_LEAVE("wolfSSL_CONF_CTX_set_ssl_ctx", 1);
 }
 /**
  * set flag value into WOLFSSL_CONF_CTX
@@ -56115,36 +56117,431 @@ unsigned int wolfSSL_CONF_CTX_set_flags(WOLFSSL_CONF_CTX* cctx,
     return cctx->flags;
 }
 
-#ifndef NO_WOLFSSL_STUB
 /**
  * finish configuration command operation
  * @param cctx  a pointer to WOLFSSL_CONF_CTX structure to be set
- * @return WOLFSSL_SUCCESS on success, 
- *     otherwise WOLFSSL_FAILURE (stub currently returns WOLFSSL_FAILURE always)
+ * @return WOLFSSL_SUCCESS on success
  */
 int wolfSSL_CONF_CTX_finish(WOLFSSL_CONF_CTX* cctx)
 {
-    WOLFSSL_STUB("wolfSSL_CONF_CTX_finish");
     (void)cctx;
-    return WOLFSSL_FAILURE;
+    return WOLFSSL_SUCCESS;
 }
+/* 
+ * The following definitions and static functions are used for 
+ * wolfSSL_CONF_cmd() to handle command.
+ * 
+ * Definitions below are a part of conf_cmds_tbl[] contents.
+ *  WOLFSSL_CONF_FILE_CMDx  represents command name in configuration file 
+ *  WOLFSSL_CONF_CMDL_CMDx  represents command name on command line
+ * 
+ * The static functions after the definition section process 
+ *                 those FILE or CMDL which are defined in the conf_cmds_tbl.
+ * 
+ * To add a new command handling:
+ *  1. Add new #define to a section of WOLFSSL_CONF_FILE_CMD* and
+ *                                      WOLFSSL_CONF_CMDL_CMD*
+ *  2. Add new static function after #define section, before 
+ *                      "typedef struct conf_cmd_tbl {" line
+ *  3. Add new entry to conf_cmds_tbl[] by following other command entries
+ */ 
+#define WOLFSSL_CONF_FILE_CMD1  "Curves"
+#define WOLFSSL_CONF_FILE_CMD2  "Certificate"
+#define WOLFSSL_CONF_FILE_CMD3  "PrivateKey"
+#define WOLFSSL_CONF_FILE_CMD4  "Protocol"
+#define WOLFSSL_CONF_FILE_CMD5  "Options"
+#define WOLFSSL_CONF_FILE_CMD6  "ServerInfoFile"
+#define WOLFSSL_CONF_FILE_CMD7  "SignatureAlgorithms"
+#define WOLFSSL_CONF_FILE_CMD8  "ClientSignatureAlgorithms"
+#define WOLFSSL_CONF_FILE_CMD9  "CipherString"
+
+#define WOLFSSL_CONF_CMDL_CMD1  "curves"
+#define WOLFSSL_CONF_CMDL_CMD2  "cert"
+#define WOLFSSL_CONF_CMDL_CMD3  "key"
+#define WOLFSSL_CONF_CMDL_CMD4  NULL
+#define WOLFSSL_CONF_CMDL_CMD5  NULL
+#define WOLFSSL_CONF_CMDL_CMD6  NULL
+#define WOLFSSL_CONF_CMDL_CMD7  "sigalgs"
+#define WOLFSSL_CONF_CMDL_CMD8  "client_sigalgs"
+#define WOLFSSL_CONF_CMDL_CMD9  "cipher"
+
+#if !defined(NO_DH) && !defined(NO_BIO)
+#define WOLFSSL_CONF_FILE_CMD10 "DHParameters"
+#define WOLFSSL_CONF_CMDL_CMD10 "dhparam"
+#endif
+
+#ifdef HAVE_ECC
+#define WOLFSSL_CONF_FILE_CMD11 "ECDHParameters"
+#define WOLFSSL_CONF_CMDL_CMD11 "named_curves"
+#endif
+
+/**
+ * process Cipher String command
+ * @param cctx  a pointer to WOLFSSL_CONF_CTX structure
+ * @param value arguments for cmd
+ * @return WOLFSSL_SUCCESS on success, 
+ *     otherwise WOLFSSL_FAILURE or
+ *               -3 if value is null or
+ *               negative value on other failure
+ */
+static int cmdfunc_cipherstring(WOLFSSL_CONF_CTX* cctx, const char* value)
+{
+    int ret = -3;
+    
+    WOLFSSL_ENTER("cmdfunc_cipherstring");
+    
+     /* sanity check */
+    if (cctx == NULL)
+        return WOLFSSL_FAILURE;
+    
+    if (value == NULL) {
+        WOLFSSL_MSG("bad arguments");
+        return ret;
+    }
+    
+    if (cctx->ctx) {
+        ret = wolfSSL_CTX_set_cipher_list(cctx->ctx, value);
+    }
+    
+    if (((cctx->ctx  && ret == WOLFSSL_SUCCESS) ||
+         (!cctx->ctx && ret == -3)) &&
+        cctx->ssl) {
+        ret = wolfSSL_set_cipher_list(cctx->ssl, value);
+    }
+    
+    WOLFSSL_LEAVE("cmdfunc_cipherstring", ret);
+    return ret;
+}
+
+/**
+ * process curves command
+ * @param cctx  a pointer to WOLFSSL_CONF_CTX structure
+ * @param value arguments for cmd
+ * @return WOLFSSL_SUCCESS on success, 
+ *     otherwise WOLFSSL_FAILURE or
+ *               -3 if value is null or
+ *               negative value on other failure
+ */
+#if defined(HAVE_ECC)
+static int cmdfunc_curves(WOLFSSL_CONF_CTX* cctx, const char* value)
+{
+    int ret = -3;
+    
+    WOLFSSL_ENTER("cmdfunc_curves");
+    
+     /* sanity check */
+    if (cctx == NULL)
+        return WOLFSSL_FAILURE;
+    
+    if (value == NULL) {
+        WOLFSSL_MSG("bad arguments");
+        return ret;
+    }
+    
+    if (cctx->ctx) {
+        ret = wolfSSL_CTX_set1_curves_list(cctx->ctx, value);
+    }
+    
+    if (((cctx->ctx  && ret == WOLFSSL_SUCCESS) ||
+         (!cctx->ctx && ret == -3)) &&
+        cctx->ssl) {
+        ret = wolfSSL_set1_curves_list(cctx->ssl, value);
+    }
+    
+    WOLFSSL_LEAVE("cmdfunc_curves", ret);
+    return ret;
+}
+#endif
+
+#ifndef NO_FILESYSTEM
+/**
+ * process cert command
+ * @param cctx  a pointer to WOLFSSL_CONF_CTX structure
+ * @param value arguments for cmd
+ * @return WOLFSSL_SUCCESS on success, 
+ *     otherwise WOLFSSL_FAILURE or
+ *               -3 if value is null or
+ *               negative value on other failure
+ */
+static int cmdfunc_cert(WOLFSSL_CONF_CTX* cctx, const char* value)
+{
+    int ret = -3;
+    
+    WOLFSSL_ENTER("cmdfunc_cert");
+    
+    /* sanity check */
+    if (cctx == NULL)
+        return WOLFSSL_FAILURE;
+    
+    if (value == NULL) {
+        WOLFSSL_MSG("bad arguments");
+        return ret;
+    }
+    
+    if (!(cctx->flags & WOLFSSL_CONF_FLAG_CERTIFICATE)) {
+        WOLFSSL_MSG("certificate flag is not set");
+        return -2;
+    }
+    
+    if (cctx->ctx) {
+        ret = wolfSSL_CTX_use_certificate_chain_file(cctx->ctx, value);
+    }
+    
+    if (((cctx->ctx  && ret == WOLFSSL_SUCCESS) ||
+         (!cctx->ctx && ret == -3)) &&
+        cctx->ssl) {
+        ret = wolfSSL_use_certificate_file(cctx->ssl, value, 
+                                                    WOLFSSL_FILETYPE_PEM);
+    }
+    
+    WOLFSSL_LEAVE("cmdfunc_cert", ret);
+    return ret;
+}
+/**
+ * process key command
+ * @param cctx  a pointer to WOLFSSL_CONF_CTX structure
+ * @param value arguments for cmd
+ * @return WOLFSSL_SUCCESS on success, 
+ *     otherwise WOLFSSL_FAILURE or
+ *               -3 if value is null or
+ *               negative value on other failure
+ */
+static int cmdfunc_key(WOLFSSL_CONF_CTX* cctx, const char* value)
+{
+    int ret = -3;
+    
+    WOLFSSL_ENTER("cmdfunc_key");
+    
+     /* sanity check */
+    if (cctx == NULL)
+        return WOLFSSL_FAILURE;
+    
+    if (value == NULL) {
+        WOLFSSL_MSG("bad arguments");
+        return ret;
+    }
+    
+    if (!(cctx->flags & WOLFSSL_CONF_FLAG_CERTIFICATE)) {
+        WOLFSSL_MSG("certificate flag is not set");
+        return -2;
+    }
+    
+    if (cctx->ctx) {
+        ret = wolfSSL_CTX_use_PrivateKey_file(cctx->ctx, value, 
+                                                    WOLFSSL_FILETYPE_PEM);
+    }
+    
+    if (((cctx->ctx  && ret == WOLFSSL_SUCCESS) ||
+         (!cctx->ctx && ret == -3)) &&
+        cctx->ssl) {
+        ret = wolfSSL_use_PrivateKey_file(cctx->ssl, value, 
+                                                    WOLFSSL_FILETYPE_PEM);
+    }
+    
+    WOLFSSL_LEAVE("cmdfunc_key", ret);
+    return ret;
+}
+#endif /* NO_FILESYSTEM */
+/**
+ * process DH parameter command
+ * @param cctx  a pointer to WOLFSSL_CONF_CTX structure
+ * @param value arguments for cmd
+ * @return WOLFSSL_SUCCESS on success, 
+ *     otherwise WOLFSSL_FAILURE or
+ *               -3 if value is null or
+ *               negative value on other failure
+ */
+#if !defined(NO_DH) && !defined(NO_BIO)
+static int cmdfunc_dhparam(WOLFSSL_CONF_CTX* cctx, const char* value)
+{
+    int ret = -3;
+    WOLFSSL_DH* dh = NULL;
+    WOLFSSL_BIO* bio = NULL;
+    
+    WOLFSSL_MSG("cmdfunc_dhparam");
+    
+     /* sanity check */
+    if (cctx == NULL)
+        return WOLFSSL_FAILURE;
+    
+    if (value == NULL) {
+        WOLFSSL_MSG("bad arguments");
+        return ret;
+    }
+    
+    if (cctx->ctx || cctx->ssl) {
+        bio = wolfSSL_BIO_new_file(value, "rb");
+        if (!bio) {
+            WOLFSSL_MSG("bio new file failed");
+            return WOLFSSL_FAILURE;
+        }
+        dh = wolfSSL_PEM_read_bio_DHparams(bio, NULL, NULL, NULL);
+        if (!dh) {
+            wolfSSL_BIO_free(bio);
+            WOLFSSL_MSG("PEM read bio failed");
+            return WOLFSSL_FAILURE;
+        }
+    } else {
+        return 1;
+    }
+
+    if (cctx->ctx) {
+        ret = (int)wolfSSL_CTX_set_tmp_dh(cctx->ctx, dh);
+    }
+    
+    if (((cctx->ctx  && ret == WOLFSSL_SUCCESS) ||
+         (!cctx->ctx && ret == -3)) &&
+        cctx->ssl) {
+        ret = (int)wolfSSL_CTX_set_tmp_dh(cctx->ssl->ctx, dh);
+    }
+    
+    if (dh)
+        wolfSSL_DH_free(dh);
+    if (bio)
+        wolfSSL_BIO_free(bio);
+        
+    WOLFSSL_LEAVE("cmdfunc_dhparam", ret);
+    return ret;
+}
+#endif /* !NO_DH && !NO_BIO */
+/**
+ * command table
+ */
+typedef struct conf_cmd_tbl {
+    const char* file_cmd;
+    const char* cmdline_cmd;
+    word32 data_type;
+    int (*cmdfunc)(WOLFSSL_CONF_CTX* cctx, const char* value);
+}conf_cmd_tbl;
+
+static const conf_cmd_tbl conf_cmds_tbl[] = {
+#if defined(HAVE_ECC)
+    /* cmd Curves */
+    {WOLFSSL_CONF_FILE_CMD1, WOLFSSL_CONF_CMDL_CMD1, 
+                                    WOLFSSL_CONF_TYPE_STRING, cmdfunc_curves},
+#endif
+#if !defined(NO_FILESYSTEM)
+    /* cmd Certificate */
+    {WOLFSSL_CONF_FILE_CMD2, WOLFSSL_CONF_CMDL_CMD2, 
+                                    WOLFSSL_CONF_TYPE_FILE, cmdfunc_cert},
+    /* cmd PrivateKey */
+    {WOLFSSL_CONF_FILE_CMD3, WOLFSSL_CONF_CMDL_CMD3, 
+                                    WOLFSSL_CONF_TYPE_FILE, cmdfunc_key},
+#endif
+    /* cmd Protocol */
+    {WOLFSSL_CONF_FILE_CMD4, WOLFSSL_CONF_CMDL_CMD4, 
+                                    WOLFSSL_CONF_TYPE_STRING, NULL},
+    /* cmd Options */
+    {WOLFSSL_CONF_FILE_CMD5, WOLFSSL_CONF_CMDL_CMD5, 
+                                    WOLFSSL_CONF_TYPE_STRING, NULL},
+    /* cmd ServerInfoFile */
+    {WOLFSSL_CONF_FILE_CMD6, WOLFSSL_CONF_CMDL_CMD6, 
+                                    WOLFSSL_CONF_TYPE_FILE, NULL},
+    /* cmd SignatureAlgorithms */
+    {WOLFSSL_CONF_FILE_CMD7, WOLFSSL_CONF_CMDL_CMD7, 
+                                    WOLFSSL_CONF_TYPE_STRING, NULL},
+    /* cmd ClientSignatureAlgorithms */
+    {WOLFSSL_CONF_FILE_CMD8, WOLFSSL_CONF_CMDL_CMD8, 
+                                    WOLFSSL_CONF_TYPE_STRING, NULL},
+    /* cmd CipherString */
+    {WOLFSSL_CONF_FILE_CMD9, WOLFSSL_CONF_CMDL_CMD9, 
+                              WOLFSSL_CONF_TYPE_STRING, cmdfunc_cipherstring},
+#if !defined(NO_DH) && !defined(NO_BIO)
+    /* cmd DHParameters */
+    {WOLFSSL_CONF_FILE_CMD10, WOLFSSL_CONF_CMDL_CMD10, 
+                                    WOLFSSL_CONF_TYPE_FILE, cmdfunc_dhparam},
+#endif
+#ifdef HAVE_ECC
+    /* cmd ECHDParameters */
+    {WOLFSSL_CONF_FILE_CMD11, WOLFSSL_CONF_CMDL_CMD11, 
+                                    WOLFSSL_CONF_TYPE_STRING, NULL},
+#endif
+};
+/* size of command table */
+static const size_t size_of_cmd_tbls = sizeof(conf_cmds_tbl) 
+                                                    / sizeof(conf_cmd_tbl);
+
 /**
  * send configuration command
  * @param cctx  a pointer to WOLFSSL_CONF_CTX structure
  * @param cmd   configuration command
  * @param value arguments for cmd
- * @return WOLFSSL_SUCCESS on success, 
- *     otherwise WOLFSSL_FAILURE (stub currently returns WOLFSSL_FAILURE always)
+ * @return 1 when cmd is recognised, but value is not used
+ *         2 both cmd and value are used
+ *  otherwise WOLFSSL_FAILURE
+ *         -2 if cmd is not recognised
+ *         -3 if value is NULL, but cmd is recognized
  */
 int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
 {
-    WOLFSSL_STUB("wolfSSL_CONF_cmd");
+    int ret = WOLFSSL_FAILURE;
+    size_t i = 0;
+    size_t cmdlen = 0;
+    const char* c = NULL;
+    WOLFSSL_ENTER("wolfSSL_CONF_cmd");
+    
     (void)cctx;
     (void)cmd;
     (void)value;
-    return WOLFSSL_FAILURE;
+    
+    /* sanity check */
+    if (cctx == NULL || cmd == NULL) {
+        WOLFSSL_MSG("bad arguments");
+        return ret;
+    }
+    
+    if (cctx->flags & WOLFSSL_CONF_FLAG_CMDLINE) {
+        cmdlen = XSTRLEN(cmd);
+        
+        if (cmdlen < 2) {
+            WOLFSSL_MSG("bad cmdline command");
+            return -2;
+        }
+        /* skip "-" prefix */
+        c = ++cmd;
+    }
+    
+    for (i = 0; i < size_of_cmd_tbls; i++) {
+        /* check if the cmd is valid */
+        if (cctx->flags & WOLFSSL_CONF_FLAG_CMDLINE) {
+            if (c != NULL && conf_cmds_tbl[i].cmdline_cmd != NULL &&
+                XSTRCMP(c, conf_cmds_tbl[i].cmdline_cmd) == 0) {
+                if (conf_cmds_tbl[i].cmdfunc != NULL) {
+                    ret = conf_cmds_tbl[i].cmdfunc(cctx, value);
+                    break;
+                } else {
+                    WOLFSSL_MSG("cmd not yet implemented");
+                    return -2;
+                }
+            }
+        }
+        
+        if (cctx->flags & WOLFSSL_CONF_FLAG_FILE) {
+            if (conf_cmds_tbl[i].file_cmd != NULL &&
+                XSTRCMP(cmd, conf_cmds_tbl[i].file_cmd) == 0) {
+                if (conf_cmds_tbl[i].cmdfunc != NULL) {
+                    ret = conf_cmds_tbl[i].cmdfunc(cctx, value);
+                    break;
+                } else {
+                    WOLFSSL_MSG("cmd not yet implemented");
+                    return -2;
+                }
+            }
+        }
+    }
+    
+    if (i == size_of_cmd_tbls) {
+        WOLFSSL_MSG("invalid command");
+        ret = -2;
+    }
+    
+    /* return code compliant with OpenSSL */
+    if (ret < -3)
+        ret = 0;
+    
+    WOLFSSL_LEAVE("wolfSSL_CONF_cmd", ret);
+    return ret;
 }
-#endif /* !NO_WOLFSSL_STUB */
 
 #if defined(HAVE_EX_DATA) || defined(FORTRESS)
 /**
