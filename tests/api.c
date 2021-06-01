@@ -5500,8 +5500,8 @@ static void test_wolfSSL_PKCS12(void)
     bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
     XFCLOSE(f);
 
-    goodPswLen = XSTRLEN(goodPsw);
-    badPswLen = XSTRLEN(badPsw);
+    goodPswLen = (int)XSTRLEN(goodPsw);
+    badPswLen = (int)XSTRLEN(badPsw);
 
     bio = BIO_new_mem_buf((void*)buffer, bytes);
     AssertNotNull(bio);
