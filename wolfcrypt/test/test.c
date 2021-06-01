@@ -3366,7 +3366,6 @@ WOLFSSL_TEST_SUBROUTINE int sha3_test(void)
 #ifdef WOLFSSL_SHAKE256
 WOLFSSL_TEST_SUBROUTINE int shake256_test(void)
 {
-#ifndef WOLFSSL_NO_SHAKE256
     wc_Shake  sha;
     byte  hash[250];
 
@@ -3507,9 +3506,6 @@ exit:
     wc_Shake256_Free(&sha);
 
     return ret;
-#else
-    return 0;
-#endif
 }
 #endif
 
