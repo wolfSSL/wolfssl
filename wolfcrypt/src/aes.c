@@ -6991,7 +6991,7 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
         /* or harware that does not support partial block */
         || sz == 0 || partial != 0
     #endif
-    #ifndef STM32_AESGCM_PARTIAL
+    #if !defined(CRYP_HEADERWIDTHUNIT_BYTE) && !defined(STM32_AESGCM_PARTIAL)
         /* or authIn is not a multiple of 4  */
         || authPadSz != authInSz
     #endif
@@ -7481,7 +7481,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
         /* or harware that does not support partial block */
         || sz == 0 || partial != 0
     #endif
-    #ifndef STM32_AESGCM_PARTIAL
+    #if !defined(CRYP_HEADERWIDTHUNIT_BYTE) && !defined(STM32_AESGCM_PARTIAL)
         /* or authIn is not a multiple of 4  */
         || authPadSz != authInSz
     #endif
