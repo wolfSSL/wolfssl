@@ -46,7 +46,7 @@
     #define ECHO_OUT
 #endif
 
-#include "examples/echoserver/echoserver.h"
+#include "testApps/echoserver/echoserver.h"
 
 #ifndef NO_WOLFSSL_SERVER
 

@@ -168,7 +168,7 @@ include wolfcrypt/user-crypto/include.am
 include wolfcrypt/benchmark/include.am
 include wolfcrypt/src/include.am
 include wolfcrypt/test/include.am
-include examples/include.am
+include testApps/include.am
 include testsuite/include.am
 include tests/include.am
 include sslSniffer/sslSnifferTest/include.am
@@ -269,10 +269,10 @@ maintainer-clean-local:
 
 # !!!! first line of rule has to start with a hard (real) tab, not spaces
 egs:
-	$(MAKE) examples/client/client; \
-	$(MAKE) examples/echoclient/echoclient;\
-	$(MAKE) examples/server/server; \
-	$(MAKE) examples/echoserver/echoserver;
+	$(MAKE) testApps/client/client; \
+	$(MAKE) testApps/echoclient/echoclient;\
+	$(MAKE) testApps/server/server; \
+	$(MAKE) testApps/echoserver/echoserver;
 
 wc_egs:
 	$(MAKE) wolfcrypt/test/testwolfcrypt; \

@@ -146,7 +146,7 @@ Right-Click each Project and select Build.
 5.) Run the following wolfSSL example client command inside the base of the wolfssl directory.
 
 ```
-./examples/client/client -v 4 -h "ucIPAddress" -p 11111 -A ./certs/1024/ca-cert.pem
+./testApps/client/client -v 4 -h "ucIPAddress" -p 11111 -A ./certs/1024/ca-cert.pem
 ```
 
 **NOTE:** "ucIPAddress" is "192.168.1.241" by default. (See wolfssl_thread_entry.h)
@@ -156,7 +156,7 @@ Right-Click each Project and select Build.
  1.) Run the following wolfSSL example server command inside the base of the wolfssl directory.
 
 ```
-./examples/server/server -v 4 -b -d -p 11111 -c ./certs/1024/server-cert.pem -k ./certs/1024/server-key.pem
+./testApps/server/server -v 4 -b -d -p 11111 -c ./certs/1024/server-cert.pem -k ./certs/1024/server-key.pem
 ```
 
    **NOTE:** The port 11111 is the DEFAULT_PORT inside wolfssl_thread_entry.h.

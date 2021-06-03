@@ -19,7 +19,7 @@ if [[ -z "${RETRIES_REMAINING-}" ]]; then
     export RETRIES_REMAINING=2
 fi
 
-./examples/client/client -v 3 2>&1 | grep -- 'Bad SSL version'
+./testApps/client/client -v 3 2>&1 | grep -- 'Bad SSL version'
 if [ $? -eq 0 ]; then
     echo "TLS 1.2 or lower required"
     echo "Skipped"
@@ -32,7 +32,7 @@ else
     IPV6_SUPPORTED=no
 fi
 
-if ./examples/client/client '-#' | fgrep -q -e ' -DTEST_IPV6 '; then
+if ./testApps/client/client '-#' | fgrep -q -e ' -DTEST_IPV6 '; then
     if [[ "$IPV6_SUPPORTED" == "no" ]]; then
         echo 'Skipping IPV6 test in environment lacking IPV6 support.'
 	exit 0
@@ -55,7 +55,7 @@ WORKSPACE="${PARENTDIR}/workspace.pid$$"
 mkdir "${WORKSPACE}" || exit $?
 cp -pR ${SCRIPT_DIR}/../certs "${WORKSPACE}"/ || exit $?
 cd "$WORKSPACE" || exit $?
-ln -s ../examples
+ln -s ../testApps
 
 CERT_DIR="certs/ocsp"
 
@@ -203,10 +203,10 @@ cleanup()
 }
 trap cleanup EXIT INT TERM HUP
 
-[ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
+[ ! -x ./testApps/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
 
 # check if supported key size is large enough to handle 4096 bit RSA
-size="$(./examples/client/client '-?' | grep "Max RSA key")"
+size="$(./testApps/client/client '-?' | grep "Max RSA key")"
 size="${size//[^0-9]/}"
 if [ ! -z "$size" ]; then
     printf 'check on max key size of %d ...' $size
@@ -246,7 +246,7 @@ port4=$(get_first_free_port $((port3 + 1)))
 port5=$(get_first_free_port $((port4 + 1)))
 
 # 1:
-./examples/server/server -R $ready_file1 -p $port1 &
+./testApps/server/server -R $ready_file1 -p $port1 &
 server_pid1=$!
 wait_for_readyFile $ready_file1 $server_pid1 $port1
 if [ ! -f $ready_file1 ]; then
@@ -254,7 +254,7 @@ if [ ! -f $ready_file1 ]; then
     exit 1
 fi
 # 2:
-./examples/server/server -R $ready_file2 -p $port2 &
+./testApps/server/server -R $ready_file2 -p $port2 &
 server_pid2=$!
 wait_for_readyFile $ready_file2 $server_pid2 $port2
 if [ ! -f $ready_file2 ]; then
@@ -262,7 +262,7 @@ if [ ! -f $ready_file2 ]; then
     exit 1
 fi
 # 3:
-./examples/server/server -R $ready_file3 -p $port3 &
+./testApps/server/server -R $ready_file3 -p $port3 &
 server_pid3=$!
 wait_for_readyFile $ready_file3 $server_pid3 $port3
 if [ ! -f $ready_file3 ]; then
@@ -270,7 +270,7 @@ if [ ! -f $ready_file3 ]; then
     exit 1
 fi
 # 4:
-./examples/server/server -R $ready_file4 -p $port4 &
+./testApps/server/server -R $ready_file4 -p $port4 &
 server_pid4=$!
 wait_for_readyFile $ready_file4 $server_pid4 $port4
 if [ ! -f $ready_file4 ]; then
@@ -283,10 +283,10 @@ printf '%s' "Random ports selected: $port1 $port2"
 printf '%s\n' " $port3 $port4"
 printf '%s\n' "-----------------------------------"
 # Use client connections to cleanly shutdown the servers
-./examples/client/client -p $port1
-./examples/client/client -p $port2
-./examples/client/client -p $port3
-./examples/client/client -p $port4
+./testApps/client/client -p $port1
+./testApps/client/client -p $port2
+./testApps/client/client -p $port3
+./testApps/client/client -p $port4
 create_new_cnf $port1 $port2 $port3 \
                $port4
 
@@ -333,12 +333,12 @@ sleep 0.1
 printf '\n\n%s\n\n' "All OCSP responders started successfully!"
 printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS ------------------------"
 # client test against our own server - GOOD CERTS
-./examples/server/server -c certs/ocsp/server3-cert.pem \
+./testApps/server/server -c certs/ocsp/server3-cert.pem \
                          -k certs/ocsp/server3-key.pem -R $ready_file5 \
                          -p $port5 &
 server_pid5=$!
 wait_for_readyFile $ready_file5 $server_pid5 $port5
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
+./testApps/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
                          -p $port5
 RESULT=$?
 [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 1 failed" && exit 1
@@ -347,11 +347,11 @@ printf '%s\n\n' "Test PASSED!"
 printf '%s\n\n' "TEST CASE 2 DISABLED PENDING REVIEW"
 #printf '%s\n\n' "------------- TEST CASE 2 SHOULD PASS ------------------------"
 #remove_single_rF $ready_file5
-#./examples/server/server -c certs/ocsp/server3-cert.pem \
+#./testApps/server/server -c certs/ocsp/server3-cert.pem \
 #                         -k certs/ocsp/server3-key.pem -R $ready_file5 \
 #                         -p $port5 &
 #wait_for_readyFile $ready_file5 $server_pid5 $port5
-#./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
+#./testApps/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
 #                         -p $port5
 #RESULT=$?
 #[ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 2 failed" && exit 1
@@ -360,12 +360,12 @@ printf '%s\n\n' "TEST CASE 2 DISABLED PENDING REVIEW"
 printf '%s\n\n' "------------- TEST CASE 3 SHOULD REVOKE ----------------------"
 # client test against our own server - REVOKED SERVER CERT
 remove_single_rF $ready_file5
-./examples/server/server -c certs/ocsp/server4-cert.pem \
+./testApps/server/server -c certs/ocsp/server4-cert.pem \
                          -k certs/ocsp/server4-key.pem -R $ready_file5 \
                          -p $port5 &
 server_pid5=$!
 wait_for_readyFile $ready_file5 $server_pid5 $port5
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
+./testApps/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
                          -p $port5
 RESULT=$?
 [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection succeeded $RESULT" && exit 1
@@ -373,11 +373,11 @@ printf '%s\n\n' "Test successfully REVOKED!"
 
 printf '%s\n\n' "------------- TEST CASE 4 SHOULD REVOKE ----------------------"
 remove_single_rF $ready_file5
-./examples/server/server -c certs/ocsp/server4-cert.pem \
+./testApps/server/server -c certs/ocsp/server4-cert.pem \
                          -k certs/ocsp/server4-key.pem -R $ready_file5 \
                          -p $port5 &
 sleep 0.1
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
+./testApps/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
                          -p $port5
 RESULT=$?
 [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection succeeded $RESULT" && exit 1
@@ -386,12 +386,12 @@ printf '%s\n\n' "Test successfully REVOKED!"
 printf '%s\n\n' "------------- TEST CASE 5 SHOULD PASS ------------------------"
 # client test against our own server - REVOKED INTERMEDIATE CERT
 remove_single_rF $ready_file5
-./examples/server/server -c certs/ocsp/server5-cert.pem \
+./testApps/server/server -c certs/ocsp/server5-cert.pem \
                          -k certs/ocsp/server5-key.pem -R $ready_file5 \
                          -p $port5 &
 server_pid5=$!
 wait_for_readyFile $ready_file5 $server_pid5 $port5
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
+./testApps/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
                          -p $port5
 RESULT=$?
 [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 3 failed $RESULT" && exit 1
@@ -399,19 +399,19 @@ printf '%s\n\n' "Test PASSED!"
 
 printf '%s\n\n' "------------- TEST CASE 6 SHOULD REVOKE ----------------------"
 remove_single_rF $ready_file5
-./examples/server/server -c certs/ocsp/server5-cert.pem \
+./testApps/server/server -c certs/ocsp/server5-cert.pem \
                          -k certs/ocsp/server5-key.pem -R $ready_file5 \
                          -p $port5 &
 server_pid5=$!
 wait_for_readyFile $ready_file5 $server_pid5 $port5
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
+./testApps/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
                          -p $port5
 RESULT=$?
 [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection succeeded $RESULT" && exit 1
 printf '%s\n\n' "Test successfully REVOKED!"
 printf '%s\n\n' "------------- TEST CASE 7 LOAD CERT IN SSL -------------------"
 remove_single_rF $ready_file5
-./examples/server/server -c certs/ocsp/server1-cert.pem \
+./testApps/server/server -c certs/ocsp/server1-cert.pem \
                          -k certs/ocsp/server1-key.pem -R $ready_file5 \
                          -p $port5 -H loadSSL &
 server_pid5=$!
@@ -427,12 +427,12 @@ fi
 printf '%s\n\n' "Test successful"
 printf '%s\n\n' "------------- TEST CASE 8 SHOULD REVOKE ----------------------"
 remove_single_rF $ready_file5
-./examples/server/server -c certs/ocsp/server4-cert.pem \
+./testApps/server/server -c certs/ocsp/server4-cert.pem \
                          -k certs/ocsp/server4-key.pem -R $ready_file5 \
                          -p $port5 -H loadSSL &
 server_pid5=$!
 sleep 0.1
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
+./testApps/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
                          -p $port5
 RESULT=$?
 [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection succeeded $RESULT" && exit 1
@@ -456,7 +456,7 @@ sleep 0.1
 
 printf '%s\n\n' "------------- TEST CASE 9 SHOULD PASS ----------------------"
 # client asks for OCSP staple but doesn't fail when none returned
-./examples/client/client -p $port -g -v 3 -W 2
+./testApps/client/client -p $port -g -v 3 -W 2
 
 RESULT=$?
 [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 9 failed" && exit 1
@@ -464,7 +464,7 @@ printf '%s\n\n' "Test PASSED!"
 
 printf '%s\n\n' "------------- TEST CASE 10 SHOULD UNKNOWN -------------------"
 # client asks for OCSP staple but doesn't fail when none returned
-./examples/client/client -p $port -g -v 3 -W 2m
+./testApps/client/client -p $port -g -v 3 -W 2m
 
 RESULT=$?
 [ $RESULT -ne 1 ] \

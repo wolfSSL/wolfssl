@@ -59,7 +59,7 @@
 #include <wolfssl/test.h>
 #include <wolfssl/error-ssl.h>
 
-#include "examples/server/server.h"
+#include "testApps/server/server.h"
 
 #ifndef NO_WOLFSSL_SERVER
 

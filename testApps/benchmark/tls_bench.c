@@ -27,7 +27,7 @@ gcc -lwolfssl -lpthread -o tls_bench tls_bench.c
 
 Or
 
-#include <examples/benchmark/tls_bench.h>
+#include <testApps/benchmark/tls_bench.h>
 bench_tls(args);
 */
 
@@ -43,7 +43,7 @@ bench_tls(args);
 #include <wolfssl/wolfcrypt/hash.h> /* WC_MAX_DIGEST_SIZE */
 #include <wolfssl/test.h>
 
-#include <examples/benchmark/tls_bench.h>
+#include <testApps/benchmark/tls_bench.h>
 
 /* force certificate test buffers to be included via headers */
 #undef  USE_CERT_BUFFERS_2048

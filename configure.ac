@@ -2409,9 +2409,9 @@ then
 fi
 
 
-# STACK SIZE info for testwolfcrypt and examples
+# STACK SIZE info for testwolfcrypt and testApps
 AC_ARG_ENABLE([stacksize],
-    [AS_HELP_STRING([--enable-stacksize],[Enable stack size info on examples (default: disabled)])],
+    [AS_HELP_STRING([--enable-stacksize],[Enable stack size info on testApps (default: disabled)])],
     [ ENABLED_STACKSIZE=$enableval ],
     [ ENABLED_STACKSIZE=no ]
     )
@@ -4813,22 +4813,22 @@ then
 fi
 
 
-# Enable Examples, used to disable examples
+# Enable TestApps, used to disable testApps
 if test "$ENABLED_LINUXKM" = "yes"
 then
-    ENABLED_EXAMPLES_DEFAULT=no
+    ENABLED_TESTAPPS_DEFAULT=no
 else
-    ENABLED_EXAMPLES_DEFAULT=yes
+    ENABLED_TESTAPPS_DEFAULT=yes
 fi
-AC_ARG_ENABLE([examples],
-    [AS_HELP_STRING([--enable-examples],[Enable Examples  (default: enabled)])],
-    [ ENABLED_EXAMPLES=$enableval ],
-    [ ENABLED_EXAMPLES=$ENABLED_EXAMPLES_DEFAULT ]
+AC_ARG_ENABLE([testApps],
+    [AS_HELP_STRING([--enable-testApps],[Enable TestApps  (default: enabled)])],
+    [ ENABLED_TESTAPPS=$enableval ],
+    [ ENABLED_TESTAPPS=$ENABLED_TESTAPPS_DEFAULT ]
     )
 
-AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
-AS_IF([test "x$ENABLED_INLINE" = "xno"], [ENABLED_EXAMPLES="no"])
-AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_EXAMPLES="no"])
+AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_TESTAPPS="no"])
+AS_IF([test "x$ENABLED_INLINE" = "xno"], [ENABLED_TESTAPPS="no"])
+AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_TESTAPPS="no"])
 
 
 # Enable wolfCrypt test and benchmark
@@ -6249,8 +6249,8 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     if test "$ENABLED_FIPS" = "yes"; then
         AC_MSG_ERROR([--enable-fips is incompatible with --enable-linuxkm.])
     fi
-    if test "$ENABLED_EXAMPLES" = "yes"; then
-        AC_MSG_ERROR([--enable-examples is incompatible with --enable-linuxkm.])
+    if test "$ENABLED_TESTAPPS" = "yes"; then
+        AC_MSG_ERROR([--enable-testApps is incompatible with --enable-linuxkm.])
     fi
     if test "$ENABLED_SMALL_STACK" != "yes"; then
         AC_MSG_ERROR([--enable-smallstack is required for --enable-linuxkm.])
@@ -6358,10 +6358,10 @@ AM_CONDITIONAL([BUILD_SCRYPT],[test "x$ENABLED_SCRYPT" = "xyes" || test "x$ENABL
 AM_CONDITIONAL([BUILD_CRYPTONLY],[test "x$ENABLED_CRYPTONLY" = "xyes" && test "x$ENABLED_OPENSSLEXTRA" = "xno"])
 AM_CONDITIONAL([BUILD_FASTMATH],[test "x$ENABLED_FASTMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SLOWMATH],[test "x$ENABLED_SLOWMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_EXAMPLE_SERVERS],[test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
-AM_CONDITIONAL([BUILD_EXAMPLE_CLIENTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
-AM_CONDITIONAL([BUILD_TESTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
-AM_CONDITIONAL([BUILD_THREADED_EXAMPLES],[test "x$ENABLED_SINGLETHREADED" = "xno" && test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
+AM_CONDITIONAL([BUILD_TESTAPP_SERVERS],[test "x$ENABLED_TESTAPPS" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
+AM_CONDITIONAL([BUILD_TESTAPP_CLIENTS],[test "x$ENABLED_TESTAPPS" = "xyes"])
+AM_CONDITIONAL([BUILD_TESTS],[test "x$ENABLED_TESTAPPS" = "xyes"])
+AM_CONDITIONAL([BUILD_THREADED_TESTAPPS],[test "x$ENABLED_SINGLETHREADED" = "xno" && test "x$ENABLED_TESTAPPS" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_WOLFCRYPT_TESTS],[test "x$ENABLED_CRYPT_TESTS" = "xyes"])
 AM_CONDITIONAL([BUILD_LIBZ],[test "x$ENABLED_LIBZ" = "xyes"])
 AM_CONDITIONAL([BUILD_PKCS11],[test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -6711,7 +6711,7 @@ echo "   * Small Stack:                $ENABLED_SMALL_STACK"
 echo "   * Linux Kernel Module:        $ENABLED_LINUXKM"
 echo "   * valgrind unit tests:        $ENABLED_VALGRIND"
 echo "   * LIBZ:                       $ENABLED_LIBZ"
-echo "   * Examples:                   $ENABLED_EXAMPLES"
+echo "   * TestApps:                   $ENABLED_TESTAPPS"
 echo "   * Crypt tests:                $ENABLED_CRYPT_TESTS"
 echo "   * Stack sizes in tests:       $ENABLED_STACKSIZE"
 echo "   * Heap stats in tests:        $ENABLED_TRACKMEMORY"

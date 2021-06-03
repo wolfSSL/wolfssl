@@ -1,5 +1,5 @@
 The wolfSSL examples in the WICED SDK require a server or client application. wolfSSL
-provides an easy solution in the <wolfSSL root>/examples/ directory. The wolfSSL 
+provides an easy solution in the <wolfSSL root>/testApps/ directory. The wolfSSL 
 code repository is located on GitHub at https://github.com/wolfSSL/wolfssl. 
 You can download or clone the repository. Run the autogen script and configure 
 the library with necessary functionality, see ./configure -h 
@@ -8,10 +8,10 @@ build was successful. You can install wolfSSL on your system with make
 install if you wish. See www.wolfssl.com/docs/wolfssl-manual/ch2/, 'Building
 Wolfssl' for more information.
 
-Run ./examples/server/server -h for a list of server options or
-./examples/client/client -h for client options. If you would like
+Run ./testApps/server/server -h for a list of server options or
+./testApps/client/client -h for client options. If you would like
 to test the server or client, you may run them on localhost. Instructions on
-running the client or server can be found in the snip code examples in the
+running the client or server can be found in the snip code testApps in the
 WICED SDK. The snips are meant to be a starting off point for your applications.
 
 Download and install WICED Studio from the Cypress website.

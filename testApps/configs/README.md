@@ -19,4 +19,4 @@ Example wolfSSL configuration file templates for use when autoconf is not availa
 To use these with autoconf:
 
 1. Copy file to root as `user_settings.h`.
-2. Run `./configure --enable-usersettings --disable-examples && make`
+2. Run `./configure --enable-usersettings --disable-testApps && make`

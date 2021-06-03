@@ -9,7 +9,7 @@ You can start with your IDE-based example project for Micrium uC/OS-III and uC/T
 
 wolfSSL supports a compile-time user configurable options in the `IDE/ECLIPSE/MICRIUM/user_settings.h` file.
 
-The `wolfsslRunTests.c` example application provides a simple function to run the selected examples at compile time through the following four #defines in user_settings.h.
+The `wolfsslRunTests.c` example application provides a simple function to run the selected testApps at compile time through the following four #defines in user_settings.h.
 
 ```
        1. #define WOLFSSL_WOLFCRYPT_TEST
@@ -168,7 +168,7 @@ Once you start the TLS server and `Listening for client connection` displays on 
 
 You can connect to the server using the wolfssl TLS client example from your Linux or Windows host as follows:
 
-$ ./examples/client/client.exe -h TLS_SERVER_IP_ADDRES
+$ ./testApps/client/client.exe -h TLS_SERVER_IP_ADDRES
 SSL version is TLSv1.2
 SSL cipher suite is TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
 SSL curve name is SECP256R1

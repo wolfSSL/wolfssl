@@ -50,8 +50,8 @@
     #define VERSION_TOO_OLD -124
 #endif
 
-#include "examples/client/client.h"
-#include "examples/server/server.h"
+#include "testApps/client/client.h"
+#include "testApps/server/server.h"
 
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
 static WOLFSSL_CTX* cipherSuiteCtx = NULL;

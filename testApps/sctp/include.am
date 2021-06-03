@@ -1,0 +1,38 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+
+if BUILD_SCTP
+if BUILD_TESTAPP_SERVERS
+noinst_PROGRAMS += \
+				testApps/sctp/sctp-server \
+				testApps/sctp/sctp-server-dtls
+testApps_sctp_sctp_server_SOURCES      = testApps/sctp/sctp-server.c
+testApps_sctp_sctp_server_LDADD        = $(LIB_STATIC_ADD)
+testApps_sctp_sctp_server_dtls_SOURCES      = testApps/sctp/sctp-server-dtls.c
+testApps_sctp_sctp_server_dtls_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD)
+testApps_sctp_sctp_server_dtls_DEPENDENCIES = src/libwolfssl.la
+endif
+if BUILD_TESTAPP_CLIENTS
+noinst_PROGRAMS += \
+				testApps/sctp/sctp-client \
+				testApps/sctp/sctp-client-dtls
+testApps_sctp_sctp_client_SOURCES      = testApps/sctp/sctp-client.c
+testApps_sctp_sctp_client_LDADD        = $(LIB_STATIC_ADD)
+testApps_sctp_sctp_client_dtls_SOURCES      = testApps/sctp/sctp-client-dtls.c
+testApps_sctp_sctp_client_dtls_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD)
+testApps_sctp_sctp_client_dtls_DEPENDENCIES = src/libwolfssl.la
+endif
+endif
+
+dist_example_DATA += \
+				testApps/sctp/sctp-server.c \
+				testApps/sctp/sctp-server-dtls.c \
+				testApps/sctp/sctp-client.c \
+				testApps/sctp/sctp-client-dtls.c
+DISTCLEANFILES += \
+				testApps/sctp/.libs/sctp-server \
+				testApps/sctp/.libs/sctp-server-dtls \
+				testApps/sctp/.libs/sctp-client \
+				testApps/sctp/.libs/sctp-client-dtls
