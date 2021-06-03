@@ -5471,12 +5471,14 @@ static void test_wolfSSL_PKCS12(void)
     char rc2p12[] = "./certs/test-servercert-rc2.p12";
 #endif
     char pass[] = "a password";
+    const char goodPsw[] = "wolfSSL test";
+    const char badPsw[] = "bad";
 #ifdef HAVE_ECC
     WOLFSSL_X509_NAME* subject;
     WOLFSSL_X509     *x509;
 #endif
     XFILE f;
-    int  bytes, ret;
+    int  bytes, ret, goodPswLen, badPswLen;
     WOLFSSL_BIO      *bio;
     WOLFSSL_EVP_PKEY *pkey;
     WC_PKCS12        *pkcs12;
@@ -5498,6 +5500,9 @@ static void test_wolfSSL_PKCS12(void)
     bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
     XFCLOSE(f);
 
+    goodPswLen = (int)XSTRLEN(goodPsw);
+    badPswLen = (int)XSTRLEN(badPsw);
+
     bio = BIO_new_mem_buf((void*)buffer, bytes);
     AssertNotNull(bio);
 
@@ -5509,12 +5514,20 @@ static void test_wolfSSL_PKCS12(void)
     AssertNotNull(pkcs12);
     BIO_free(bio);
 
+    /* check verify MAC directly */
+    ret = PKCS12_verify_mac(pkcs12, goodPsw, goodPswLen);
+    AssertIntEQ(ret, 1); 
+
+    /* check verify MAC fail case directly */
+    ret = PKCS12_verify_mac(pkcs12, badPsw, badPswLen);
+    AssertIntEQ(ret, 0);
+
     /* check verify MAC fail case */
     ret = PKCS12_parse(pkcs12, "bad", &pkey, &cert, NULL);
     AssertIntEQ(ret, 0);
     AssertNull(pkey);
     AssertNull(cert);
-
+  
     /* check parse with no extra certs kept */
     ret = PKCS12_parse(pkcs12, "wolfSSL test", &pkey, &cert, NULL);
     AssertIntEQ(ret, 1);
