@@ -2615,6 +2615,16 @@ static void test_wolfSSL_EVP_EncodeUpdate(void)
     AssertIntEQ(XSTRNCMP(
         (const char*)encOutBuff,(const char*)enc2,sizeof(enc2) ),0);
 
+    /* test with illeagal parameters */
+    outl = 1;
+    EVP_EncodeFinal(NULL, encOutBuff + outl, &outl);
+    AssertIntEQ(outl, 0);
+    outl = 1;
+    EVP_EncodeFinal(ctx, NULL, &outl);
+    AssertIntEQ(outl, 0);
+    EVP_EncodeFinal(ctx, encOutBuff + outl, NULL);
+    EVP_EncodeFinal(NULL, NULL, NULL);
+
     EVP_ENCODE_CTX_free(ctx);
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA && WOLFSSL_BASE64_ENCODE*/
@@ -2851,6 +2861,12 @@ static void test_wolfSSL_EVP_DecodeUpdate(void)
     );
 
     AssertIntEQ(outl,sizeof(plain4)-1);
+
+    /* test with illegal parameters */
+    AssertIntEQ(EVP_DecodeFinal(NULL,decOutBuff + outl,&outl), -1);
+    AssertIntEQ(EVP_DecodeFinal(ctx,NULL,&outl), -1);
+    AssertIntEQ(EVP_DecodeFinal(ctx,decOutBuff + outl, NULL), -1);
+    AssertIntEQ(EVP_DecodeFinal(NULL,NULL, NULL), -1);
 
     EVP_DecodeFinal(
             ctx,

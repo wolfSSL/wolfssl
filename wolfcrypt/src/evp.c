@@ -6958,9 +6958,10 @@ int  wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
             outsz = BASE64_ENCODE_RESULT_BLOCK_SIZE + 1;
             res = Base64_Encode(ctx->data, BASE64_ENCODE_BLOCK_SIZE, out, 
             &outsz);
-            ctx->remaining = 0;
-            if (res == 0)
+            if (res == 0) {
+                ctx->remaining = 0;
                 *outl = outsz;
+            }
             else
                 return 0;   /* return with error */
         }
