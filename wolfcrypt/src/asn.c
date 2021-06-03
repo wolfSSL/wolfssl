@@ -3990,7 +3990,7 @@ int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
             ret = 0;
     }
     if (ret == 0) {
-        pkcs8Key = (byte*)XMALLOC(pkcs8KeySz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        pkcs8Key = (byte*)XMALLOC(pkcs8KeySz, heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (pkcs8Key == NULL)
             ret = MEMORY_E;
     }
@@ -4009,7 +4009,7 @@ int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
 
     if (pkcs8Key != NULL) {
         ForceZero(pkcs8Key, pkcs8KeySz);
-        XFREE(pkcs8Key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pkcs8Key, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     (void)rng;
