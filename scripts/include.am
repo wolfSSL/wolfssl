@@ -8,7 +8,7 @@ if BUILD_SNIFFTEST
 dist_noinst_SCRIPTS+= scripts/sniffer-testsuite.test
 endif
 
-if BUILD_EXAMPLE_SERVERS
+if BUILD_TESTAPP_SERVERS
 
 dist_noinst_SCRIPTS+= scripts/resume.test
 
@@ -69,9 +69,9 @@ if BUILD_TLS13
 dist_noinst_SCRIPTS+= scripts/tls13.test
 endif
 
-endif # end of BUILD_EXAMPLE_SERVERS
+endif # end of BUILD_TESTAPP_SERVERS
 
-if BUILD_EXAMPLE_CLIENTS
+if BUILD_TESTAPP_CLIENTS
 if !BUILD_IPV6
 dist_noinst_SCRIPTS+= scripts/external.test
 dist_noinst_SCRIPTS+= scripts/google.test

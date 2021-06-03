@@ -1097,7 +1097,7 @@ endif()
 #       - Small stack
 #       - Valgrind
 #       - Test certs
-#       - I/O pool example
+#       - I/O pool testApp
 #       - Certificate service
 #       - wolfSSL JNI
 #       - lighttpd/lighty
@@ -1213,20 +1213,19 @@ endif()
 
 # TODO: - Fast huge math
 
-# Enable examples, used to disable examples
+# Enable testApps, used to disable testApps
 if(WOLFSSL_LINUX_KM)
-    set(EXAMPLES_DEFAULT "no")
+    set(TESTAPPS_DEFAULT "no")
 else()
-    set(EXAMPLES_DEFAULT "yes")
+    set(TESTAPPS_DEFAULT "yes")
 endif()
 
-set(WOLFSSL_EXAMPLES_HELP_STRING "Enable examples (default: enabled)")
-add_option("WOLFSSL_EXAMPLES" ${WOLFSSL_EXAMPLES_HELP_STRING} ${EXAMPLES_DEFAULT} "yes;no")
-
+set(WOLFSSL_TESTAPPS_HELP_STRING "Enable testApps (default: enabled)")add_option("WOLFSSL_TESTAPPS" ${WOLFSSL_TESTAPPS_HELP_STRING} ${TESTAPPS_DEFAULT} "yes;no")
+add_option("WOLFSSL_TESTAPPS" ${WOLFSSL_TESTAPPS_HELP_STRING} ${TESTAPPS_DEFAULT} "yes;no")
 if(NOT WOLFSSL_FILESYSTEM OR
    NOT WOLFSSL_INLINE OR
    WOLFSSL_CRYPT_ONLY)
-    override_cache(WOLFSSL_EXAMPLES "no")
+    override_cache(WOLFSSL_TESTAPPS "no")
 endif()
 
 # Enable wolfCrypt test and benchmark
@@ -1464,52 +1463,52 @@ endif()
 # Tests and Examples
 ####################################################
 
-if(WOLFSSL_EXAMPLES)
-    # Build wolfSSL client example
+if(WOLFSSL_TESTAPPS)
+    # Build wolfSSL client testApp
     add_executable(client
-        ${CMAKE_CURRENT_SOURCE_DIR}/examples/client/client.c)
+        ${CMAKE_CURRENT_SOURCE_DIR}/testApps/client/client.c)
     target_link_libraries(client wolfssl)
     set_property(TARGET client
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
-                 ${CMAKE_CURRENT_SOURCE_DIR}/examples/client)
+                 ${CMAKE_CURRENT_SOURCE_DIR}/testApps/client)
 
-    # Build wolfSSL server example
+    # Build wolfSSL server testApp
     add_executable(server
-        ${CMAKE_CURRENT_SOURCE_DIR}/examples/server/server.c)
+        ${CMAKE_CURRENT_SOURCE_DIR}/testApps/server/server.c)
     target_link_libraries(server wolfssl)
     set_property(TARGET server
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
-                 ${CMAKE_CURRENT_SOURCE_DIR}/examples/server)
+                 ${CMAKE_CURRENT_SOURCE_DIR}/testApps/server)
 
-    # Build echo client example
+    # Build echo client testApp
     add_executable(echoclient
-        ${CMAKE_CURRENT_SOURCE_DIR}/examples/echoclient/echoclient.c)
+        ${CMAKE_CURRENT_SOURCE_DIR}/testApps/echoclient/echoclient.c)
     target_include_directories(echoclient PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR})
     target_link_libraries(echoclient wolfssl)
     set_property(TARGET echoclient
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
-                 ${CMAKE_CURRENT_SOURCE_DIR}/examples/echoclient)
+                 ${CMAKE_CURRENT_SOURCE_DIR}/testApps/echoclient)
 
-    # Build echo server example
+    # Build echo server testApp
     add_executable(echoserver
-        ${CMAKE_CURRENT_SOURCE_DIR}/examples/echoserver/echoserver.c)
+        ${CMAKE_CURRENT_SOURCE_DIR}/testApps/echoserver/echoserver.c)
     target_include_directories(echoserver PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR})
     target_link_libraries(echoserver wolfssl)
     set_property(TARGET echoserver
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
-                 ${CMAKE_CURRENT_SOURCE_DIR}/examples/echoserver)
+                 ${CMAKE_CURRENT_SOURCE_DIR}/testApps/echoserver)
 
     if(NOT WIN32)
-        # Build TLS benchmark example
+        # Build TLS benchmark testApp
         add_executable(tls_bench
-            ${CMAKE_CURRENT_SOURCE_DIR}/examples/benchmark/tls_bench.c)
+            ${CMAKE_CURRENT_SOURCE_DIR}/testApps/benchmark/tls_bench.c)
         target_link_libraries(tls_bench wolfssl)
         target_link_libraries(tls_bench Threads::Threads)
         set_property(TARGET tls_bench
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
-                 ${CMAKE_CURRENT_SOURCE_DIR}/examples/benchmark)
+                 ${CMAKE_CURRENT_SOURCE_DIR}/testApps/benchmark)
     endif()
 
     # Build unit tests
@@ -1519,8 +1518,8 @@ if(WOLFSSL_EXAMPLES)
         tests/srp.c
         tests/suites.c
         tests/unit.c
-        examples/server/server.c
-        examples/client/client.c)
+        testApps/server/server.c
+        testApps/client/client.c)
     target_include_directories(unit_test PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR})
     target_compile_options(unit_test PUBLIC "-DNO_MAIN_DRIVER")
@@ -1586,16 +1585,16 @@ set(EXCLUDED_HEADERS_REGEX
     renesas-tsip-crypt|\
     psoc6_crypto).h")
 
-set(INSTALLED_EXAMPLES
-    ${CMAKE_CURRENT_SOURCE_DIR}/examples/echoserver/echoserver.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/examples/sctp/sctp-server.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/examples/sctp/sctp-client-dtls.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/examples/sctp/sctp-client.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/examples/sctp/sctp-server-dtls.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/examples/echoclient/echoclient.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/examples/server/server.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/examples/benchmark/tls_bench.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/examples/client/client.c)
+set(INSTALLED_TESTAPPS
+    ${CMAKE_CURRENT_SOURCE_DIR}/testApps/echoserver/echoserver.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/testApps/sctp/sctp-server.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/testApps/sctp/sctp-client-dtls.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/testApps/sctp/sctp-client.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/testApps/sctp/sctp-server-dtls.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/testApps/echoclient/echoclient.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/testApps/server/server.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/testApps/benchmark/tls_bench.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/testApps/client/client.c)
 
 # Install the library
 install(TARGETS wolfssl
@@ -1607,9 +1606,9 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/wolfssl/
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wolfssl
         FILES_MATCHING PATTERN "*.h"
         REGEX ${EXCLUDED_HEADERS_REGEX} EXCLUDE)
-# Install the examples
-install(FILES ${INSTALLED_EXAMPLES}
-        DESTINATION ${CMAKE_INSTALL_DOCDIR}/example)
+# Install the testApps
+install(FILES ${INSTALLED_TESTAPPS}
+        DESTINATION ${CMAKE_INSTALL_DOCDIR}/testApp)
 # Install README.txt and taoCert.txt
 install(FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/doc/README.txt

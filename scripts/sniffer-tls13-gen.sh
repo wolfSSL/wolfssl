@@ -8,22 +8,22 @@
 #./configure --enable-sniffer --enable-session-ticket --disable-ecc && make
 
 # TLS v1.3
-./examples/server/server -v 4 -l TLS13-AES128-GCM-SHA256 &
-./examples/client/client -v 4 -l TLS13-AES128-GCM-SHA256
-./examples/server/server -v 4 -l TLS13-AES256-GCM-SHA384 &
-./examples/client/client -v 4 -l TLS13-AES256-GCM-SHA384
-./examples/server/server -v 4 -l TLS13-CHACHA20-POLY1305-SHA256 &
-./examples/client/client -v 4 -l TLS13-CHACHA20-POLY1305-SHA256
+./testApps/server/server -v 4 -l TLS13-AES128-GCM-SHA256 &
+./testApps/client/client -v 4 -l TLS13-AES128-GCM-SHA256
+./testApps/server/server -v 4 -l TLS13-AES256-GCM-SHA384 &
+./testApps/client/client -v 4 -l TLS13-AES256-GCM-SHA384
+./testApps/server/server -v 4 -l TLS13-CHACHA20-POLY1305-SHA256 &
+./testApps/client/client -v 4 -l TLS13-CHACHA20-POLY1305-SHA256
 
 # TLS v1.3 Resumption
-./examples/server/server -v 4 -l TLS13-AES128-GCM-SHA256 -r &
-./examples/client/client -v 4 -l TLS13-AES128-GCM-SHA256 -r
-./examples/server/server -v 4 -l TLS13-AES256-GCM-SHA384 -r &
-./examples/client/client -v 4 -l TLS13-AES256-GCM-SHA384 -r
-./examples/server/server -v 4 -l TLS13-CHACHA20-POLY1305-SHA256 -r &
-./examples/client/client -v 4 -l TLS13-CHACHA20-POLY1305-SHA256 -r
+./testApps/server/server -v 4 -l TLS13-AES128-GCM-SHA256 -r &
+./testApps/client/client -v 4 -l TLS13-AES128-GCM-SHA256 -r
+./testApps/server/server -v 4 -l TLS13-AES256-GCM-SHA384 -r &
+./testApps/client/client -v 4 -l TLS13-AES256-GCM-SHA384 -r
+./testApps/server/server -v 4 -l TLS13-CHACHA20-POLY1305-SHA256 -r &
+./testApps/client/client -v 4 -l TLS13-CHACHA20-POLY1305-SHA256 -r
 
 # TLS v1.3 Hello Retry Request (save this as sniffer-tls13-hrr.pcap)
 # ./configure --enable-sniffer CFLAGS="-DWOLFSSL_SNIFFER_WATCH" --disable-dh && make
-./examples/server/server -v 4 -i -x -g &
-./examples/client/client -v 4 -J
+./testApps/server/server -v 4 -i -x -g &
+./testApps/client/client -v 4 -J

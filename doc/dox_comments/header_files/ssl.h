@@ -819,7 +819,7 @@ WOLFSSL_API int wolfSSL_is_static_memory(WOLFSSL* ssl,
     \brief This function loads a certificate file into the SSL context
     (WOLFSSL_CTX).  The file is provided by the file argument. The
     format argument specifies the format type of the file, either
-    SSL_FILETYPE_ASN1 or SSL_FILETYPE_PEM.  Please see the examples
+    SSL_FILETYPE_ASN1 or SSL_FILETYPE_PEM.  Please see the testApps
     for proper usage.
 
     \return SSL_SUCCESS upon success.
@@ -861,7 +861,7 @@ WOLFSSL_API int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX*, const char*, int)
     \brief This function loads a private key file into the SSL context
     (WOLFSSL_CTX). The file is provided by the file argument. The format
     argument specifies the format type of the file - SSL_FILETYPE_ASN1or
-    SSL_FILETYPE_PEM.  Please see the examples for proper usage.
+    SSL_FILETYPE_PEM.  Please see the testApps for proper usage.
 
     \return SSL_SUCCESS upon success.
     \return SSL_FAILURE The file is in the wrong format, or the wrong format
@@ -1030,7 +1030,7 @@ WOLFSSL_API int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX*, const char*,
     handshake is compared by using the SKID when available and the signature.
     If these two things do not match then any loaded CAs are used. Feature is
     enabled by defining the macro WOLFSSL_TRUST_PEER_CERT. Please see the
-    examples for proper usage.
+    testApps for proper usage.
 
     \return SSL_SUCCES upon success.
     \return SSL_FAILURE will be returned if ctx is NULL, or if both file and
@@ -1442,7 +1442,7 @@ WOLFSSL_API int wolfSSL_CTX_der_load_verify_locations(WOLFSSL_CTX*,
     Context.  It behaves like the normal version, only differing in its
     ability to accept an NTRU raw key file.   This function is needed since
     the format of the file is different than the normal key file (buffer)
-    functions.  Please see the examples for proper usage.
+    functions.  Please see the testApps for proper usage.
 
     \return SSL_SUCCES upon success.
     \return SSL_BAD_FILE will be returned if the file doesn’t exist, can’t
@@ -1849,8 +1849,8 @@ WOLFSSL_API int  wolfSSL_write(WOLFSSL*, const void*, int);
     	// “input” number of bytes returned into buffer “reply”
     }
 
-    See wolfSSL examples (client, server, echoclient, echoserver) for more
-    complete examples of wolfSSL_read().
+    See wolfSSL testApps (client, server, echoclient, echoserver) for more
+    complete testApps of wolfSSL_read().
     \endcode
 
     \sa wolfSSL_recv
@@ -3342,9 +3342,9 @@ WOLFSSL_API int  wolfSSL_dtls_set_timeout_max(WOLFSSL* ssl, int);
 
     _Example_
     \code
-    See the following files for usage examples:
-    <wolfssl_root>/examples/client/client.c
-    <wolfssl_root>/examples/server/server.c
+    See the following files for usage testApps:
+    <wolfssl_root>/testApps/client/client.c
+    <wolfssl_root>/testApps/server/server.c
     \endcode
 
     \sa wolfSSL_dtls_get_current_timeout
@@ -7174,7 +7174,7 @@ WOLFSSL_API int wolfSSL_CTX_Unload_trust_peers(WOLFSSL_CTX*);
     signature. If these two things do not match then any loaded CAs are used.
     Is the same functionality as wolfSSL_CTX_trust_peer_cert except is from
     a buffer instead of a file. Feature is enabled by defining the macro
-    WOLFSSL_TRUST_PEER_CERT Please see the examples for proper usage.
+    WOLFSSL_TRUST_PEER_CERT Please see the testApps for proper usage.
 
     \return SSL_SUCCESS upon success
     \return SSL_FAILURE will be returned if ctx is NULL, or if both file and
@@ -7228,7 +7228,7 @@ WOLFSSL_API int wolfSSL_CTX_trust_peer_buffer(WOLFSSL_CTX*,
     The buffer is provided by the in argument of size sz. format specifies
     the format type of the buffer; SSL_FILETYPE_ASN1 or SSL_FILETYPE_PEM.
     More than one CA certificate may be loaded per buffer as long as the
-    format is in PEM.  Please see the examples for proper usage.
+    format is in PEM.  Please see the testApps for proper usage.
 
     \return SSL_SUCCESS upon success
     \return SSL_BAD_FILETYPE will be returned if the file is the wrong format.
@@ -7281,7 +7281,7 @@ WOLFSSL_API int wolfSSL_CTX_load_verify_buffer(WOLFSSL_CTX*,
     The buffer is provided by the in argument of size sz. format specifies
     the format type of the buffer; SSL_FILETYPE_ASN1 or SSL_FILETYPE_PEM.
     More than one CA certificate may be loaded per buffer as long as the
-    format is in PEM.  Please see the examples for proper usage.
+    format is in PEM.  Please see the testApps for proper usage.
 
     \return SSL_SUCCESS upon success
     \return SSL_BAD_FILETYPE will be returned if the file is the wrong format.
@@ -7334,7 +7334,7 @@ WOLFSSL_API int wolfSSL_CTX_load_verify_chain_buffer_format(WOLFSSL_CTX*,
     to be called with a buffer as input instead of a file.  The buffer is
     provided by the in argument of size sz.  format specifies the format
     type of the buffer; SSL_FILETYPE_ASN1 or SSL_FILETYPE_PEM.  Please
-    see the examples for proper usage.
+    see the testApps for proper usage.
 
     \return SSL_SUCCESS upon success
     \return SSL_BAD_FILETYPE will be returned if the file is the wrong format.
@@ -7382,7 +7382,7 @@ WOLFSSL_API int wolfSSL_CTX_use_certificate_buffer(WOLFSSL_CTX*,
     to be called with a buffer as input instead of a file.  The buffer is
     provided by the in argument of size sz.  format specifies the format type
     of the buffer; SSL_FILETYPE_ASN1or SSL_FILETYPE_PEM.  Please see the
-    examples for proper usage.
+    testApps for proper usage.
 
     \return SSL_SUCCESS upon success
     \return SSL_BAD_FILETYPE will be returned if the file is the wrong format.
@@ -7432,7 +7432,7 @@ WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_buffer(WOLFSSL_CTX*,
     its ability to be called with a buffer as input instead of a file.
     The buffer is provided by the in argument of size sz.  The buffer must
     be in PEM format and start with the subject’s certificate, ending with
-    the root certificate. Please see the examples for proper usage.
+    the root certificate. Please see the testApps for proper usage.
 
     \return SSL_SUCCESS upon success
     \return SSL_BAD_FILETYPE will be returned if the file is the wrong format.
@@ -7481,7 +7481,7 @@ WOLFSSL_API int wolfSSL_CTX_use_certificate_chain_buffer(WOLFSSL_CTX*,
     to be called with a buffer as input instead of a file. The buffer
     is provided by the in argument of size sz.  format specifies the format
     type of the buffer; SSL_FILETYPE_ASN1 or SSL_FILETYPE_PEM.
-    Please see the examples for proper usage.
+    Please see the testApps for proper usage.
 
     \return SSL_SUCCESS upon success.
     \return SSL_BAD_FILETYPE will be returned if the file is the wrong format.
@@ -7529,7 +7529,7 @@ WOLFSSL_API int wolfSSL_use_certificate_buffer(WOLFSSL*, const unsigned char*,
     to be called with a buffer as input instead of a file.  The buffer is
     provided by the in argument of size sz. format specifies the format
     type of the buffer; SSL_FILETYPE_ASN1 or SSL_FILETYPE_PEM.  Please
-    see the examples for proper usage.
+    see the testApps for proper usage.
 
     \return SSL_SUCCESS upon success.
     \return SSL_BAD_FILETYPE will be returned if the file is the wrong format.
@@ -7579,7 +7579,7 @@ WOLFSSL_API int wolfSSL_use_PrivateKey_buffer(WOLFSSL*, const unsigned char*,
     ability to be called with a buffer as input instead of a file. The buffer
     is provided by the in argument of size sz.  The buffer must be in PEM format
     and start with the subject’s certificate, ending with the root certificate.
-    Please see the examples for proper usage.
+    Please see the testApps for proper usage.
 
     \return SSL_SUCCES upon success.
     \return SSL_BAD_FILETYPE will be returned if the file is the wrong format.

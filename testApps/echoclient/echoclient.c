@@ -43,7 +43,7 @@
 
 #include <cyassl/test.h>
 
-#include <examples/echoclient/echoclient.h>
+#include <testApps/echoclient/echoclient.h>
 
 #ifndef NO_WOLFSSL_CLIENT
 

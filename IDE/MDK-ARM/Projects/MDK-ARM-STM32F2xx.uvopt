@@ -569,7 +569,7 @@
       <Focus>0</Focus>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\..\examples\client\client.c</PathWithFileName>
+      <PathWithFileName>..\..\..\testApps\client\client.c</PathWithFileName>
       <FilenameWithoutPath>client.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
@@ -595,7 +595,7 @@
       <Focus>0</Focus>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\..\examples\server\server.c</PathWithFileName>
+      <PathWithFileName>..\..\..\testApps\server\server.c</PathWithFileName>
       <FilenameWithoutPath>server.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
@@ -647,7 +647,7 @@
       <Focus>0</Focus>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\..\examples\echoclient\echoclient.c</PathWithFileName>
+      <PathWithFileName>..\..\..\testApps\echoclient\echoclient.c</PathWithFileName>
       <FilenameWithoutPath>echoclient.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
@@ -660,7 +660,7 @@
       <Focus>0</Focus>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\..\examples\echoserver\echoserver.c</PathWithFileName>
+      <PathWithFileName>..\..\..\testApps\echoserver\echoserver.c</PathWithFileName>
       <FilenameWithoutPath>echoserver.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>

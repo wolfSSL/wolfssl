@@ -455,7 +455,7 @@ void wolfssl_server_test(uintData_t statusPtr)
     }
     /* accept client socket connections */
     printf("Listening for client connection\n");
-    printf("E.g, you can use ./examples/client/client.exe -h 192.168.219.100\n");
+    printf("E.g, you can use ./testApps/client/client.exe -h 192.168.219.100\n");
     printf("    \n");
 
     listen(sock_listen, TCP_SERVER_CONN_Q_SIZE);
