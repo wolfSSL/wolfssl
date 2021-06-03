@@ -2729,7 +2729,8 @@ int sp_count_bits(const sp_int* a)
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
     !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH) || \
-    (defined(HAVE_ECC) && defined(FP_ECC))
+    (defined(HAVE_ECC) && defined(FP_ECC)) || \
+    (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN))
 
 /* Number of entries in array of number of least significant zero bits. */
 #define SP_LNZ_CNT      16
@@ -3460,7 +3461,8 @@ static void _sp_div_10(sp_int* a, sp_int* r, sp_int_digit* rem)
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     defined(WOLFSSL_HAVE_SP_DH) || \
-    (defined(HAVE_ECC) && (defined(FP_ECC) || defined(HAVE_COMP_KEY)))
+    (defined(HAVE_ECC) && (defined(FP_ECC) || defined(HAVE_COMP_KEY))) || \
+    (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN))
 /* Divide by small number: r = a / d and rem = a % d
  *
  * @param  [in]   a    SP integer to be divided.
@@ -3578,7 +3580,8 @@ int sp_div_d(sp_int* a, sp_int_digit d, sp_int* r, sp_int_digit* rem)
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     defined(WOLFSSL_HAVE_SP_DH) || \
-    (defined(HAVE_ECC) && (defined(FP_ECC) || defined(HAVE_COMP_KEY)))
+    (defined(HAVE_ECC) && (defined(FP_ECC) || defined(HAVE_COMP_KEY))) || \
+    (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN))
 /* Calculate a modulo the digit d into r: r = a mod d
  *
  * @param  [in]   a  SP integer to reduce.
@@ -7706,7 +7709,8 @@ int sp_mul(sp_int* a, sp_int* b, sp_int* r)
 /* END SP_MUL implementations. */
 
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
-    defined(WOLFCRYPT_HAVE_ECCSI)
+    defined(WOLFCRYPT_HAVE_ECCSI) || \
+    (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN))
 /* Multiply a by b mod m and store in r: r = (a * b) mod m
  *
  * @param  [in]   a  SP integer to multiply.
@@ -8554,7 +8558,8 @@ static int _sp_exptmod_base_2(sp_int* e, int digits, sp_int* m, sp_int* r)
 #endif /* WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY */
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(WOLFSSL_HAVE_SP_DH)
+    defined(WOLFSSL_HAVE_SP_DH) || \
+    (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN))
 /* Exponentiates b to the power of e modulo m into r: r = b ^ e mod m
  *
  * @param  [in]   b     SP integer that is the base.
@@ -8700,7 +8705,8 @@ int sp_exptmod_ex(sp_int* b, sp_int* e, int digits, sp_int* m, sp_int* r)
 #endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_HAVE_SP_DH */
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(WOLFSSL_HAVE_SP_DH)
+    defined(WOLFSSL_HAVE_SP_DH) || \
+    (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN))
 /* Exponentiates b to the power of e modulo m into r: r = b ^ e mod m
  *
  * @param  [in]   b  SP integer that is the base.
@@ -12891,7 +12897,8 @@ int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
 #endif /* WOLFSSL_KEY_GEN && (!NO_DH || !NO_DSA) && !WC_NO_RNG */
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-    !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH) || \
+    (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN))
 /* Miller-Rabin test of "a" to the base of "b" as described in
  * HAC pp. 139 Algorithm 4.24
  *
