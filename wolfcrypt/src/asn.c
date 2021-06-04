@@ -15964,6 +15964,12 @@ int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, byte* r, word32* rLen,
     if (s)
         XMEMCPY(s, (byte*)sig + idx, len);
 
+#ifndef NO_STRICT_ECDSA_LEN
+    if (idx + len != sigLen) {
+        ret = ASN_ECC_KEY_E;
+    }
+#endif
+
     return ret;
 }
 #endif
@@ -15998,6 +16004,14 @@ int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
         mp_clear(r);
         return ASN_ECC_KEY_E;
     }
+
+#ifndef NO_STRICT_ECDSA_LEN
+    if (idx != sigLen) {
+        mp_clear(r);
+        mp_clear(s);
+        return ASN_ECC_KEY_E;
+    }
+#endif
 
     return 0;
 }
