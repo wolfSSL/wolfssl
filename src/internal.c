@@ -5874,9 +5874,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     #endif
     #if defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
         ssl->dtlsMtuSz                  = ctx->dtlsMtuSz;
-        /* Add 100 bytes so that we can operate with slight difference
+        /* Add some bytes so that we can operate with slight difference
          * in set MTU size on each peer */
-        ssl->dtls_expected_rx           = ssl->dtlsMtuSz + 100;
+        ssl->dtls_expected_rx           = ssl->dtlsMtuSz +
+                                            DTLS_MTU_ADDITIONAL_READ_BUFFER;
     #else
         ssl->dtls_expected_rx = MAX_MTU;
     #endif
