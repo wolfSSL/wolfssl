@@ -968,7 +968,9 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
      WS_RETURN_CODE(WOLFSSL_BAD_FILE,WOLFSSL_FAILURE));
 
 
-#if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_TIRTOS)
+#if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_TIRTOS) && \
+  (defined(WOLFSSL_QT) && \
+  !(WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS & WOLFSSL_LOAD_FLAG_IGNORE_BAD_PATH_ERR))
     /* invalid path */
     AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, NULL, bogusFile),
      WS_RETURN_CODE(BAD_PATH_ERROR,WOLFSSL_FAILURE));
@@ -1313,7 +1315,9 @@ static int test_wolfSSL_CertManagerLoadCABuffer(void)
     #ifdef NO_RSA
     AssertIntEQ(ret, ASN_UNKNOWN_OID_E);
     #else
+    #if !(WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS & WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY)
     AssertIntEQ(ret, ASN_AFTER_DATE_E);
+    #endif
     #endif
 #endif
 
@@ -1991,7 +1995,7 @@ static void test_server_wolfSSL_new(void)
 
     /* invalid context */
     AssertNull(ssl = wolfSSL_new(NULL));
-#ifndef WOLFSSL_SESSION_EXPORT
+#if !defined(WOLFSSL_SESSION_EXPORT) && !defined(WOLFSSL_QT)
     AssertNull(ssl = wolfSSL_new(ctx_nocert));
 #endif
 
