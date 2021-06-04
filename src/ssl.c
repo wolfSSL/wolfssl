@@ -11991,7 +11991,7 @@ static char* buildEnabledCipherList(WOLFSSL_CTX* ctx, Suites* suites,
         }
     }
     
-    len += listsz + 1;
+    len += listsz + 2;
     
     /* build string */
     if (len > 0) {
@@ -12010,8 +12010,9 @@ static char* buildEnabledCipherList(WOLFSSL_CTX* ctx, Suites* suites,
             /* always tls13 suites in the head position */
             XSTRNCPY(locallist, list, len);
             locallist += listsz;
+            *locallist++ = ':';
             *locallist = 0;
-            len -= listsz;
+            len -= listsz + 1;
         }
         
         for(idx = 0; idx < suites->suiteSz; idx++) {
