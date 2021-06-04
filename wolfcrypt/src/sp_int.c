@@ -68,8 +68,8 @@ This library provides single precision (SP) integer math functions.
  * WOLFSSL_SP_PPC               Enable PPC assembly speedups
  * WOLFSSL_SP_MIPS64            Enable MIPS64 assembly speedups
  * WOLFSSL_SP_MIPS              Enable MIPS assembly speedups
- * WOLFSSL_SP_RISCV64           Enable RISCV64 assmebly speedups
- * WOLFSSL_SP_RISCV32           Enable RISCV32 assmebly speedups
+ * WOLFSSL_SP_RISCV64           Enable RISCV64 assembly speedups
+ * WOLFSSL_SP_RISCV32           Enable RISCV32 assembly speedups
  * WOLFSSL_SP_S390X             Enable S390X assembly speedups
  * SP_WORD_SIZE                 Force 32 or 64 bit mode
  * WOLFSSL_SP_NONBLOCK          Enables "non blocking" mode for SP math, which
@@ -8621,8 +8621,8 @@ int sp_exptmod_ex(sp_int* b, sp_int* e, int digits, sp_int* m, sp_int* r)
 
     if ((!done) && (err == MP_OKAY)) {
         /* Use code optimized for specific sizes if possible */
-#if defined(WOLFSSL_SP_MATH_ALL) && (defined(WOLFSSL_HAVE_SP_RSA) || \
-        defined(WOLFSSL_HAVE_SP_DH))
+#if (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+    (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH))
     #ifndef WOLFSSL_SP_NO_2048
         if ((mBits == 1024) && sp_isodd(m) && (bBits <= 1024) &&
             (eBits <= 1024)) {
