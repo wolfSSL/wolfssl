@@ -53027,6 +53027,80 @@ static int SetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo,
 
     WOLFSSL_ENTER("SetStaticEphemeralKey");
 
+    /* if just free'ing key then skip loading */
+    if (key != NULL && keySz > 0) {
+    #ifndef NO_FILESYSTEM
+        /* load file from filesystem */
+        if (key && keySz == 0) {
+            size_t keyBufSz = 0;
+            keyFile = (const char*)key;
+            ret = wc_FileLoad(keyFile, &keyBuf, &keyBufSz, heap);
+            if (ret != 0) {
+                return ret;
+            }
+            keySz = (unsigned int)keyBufSz;
+        }
+        else
+    #endif
+        {
+            /* use as key buffer directly */
+            keyBuf = (byte*)key;
+        }
+
+        if (format == WOLFSSL_FILETYPE_PEM) {
+        #ifdef WOLFSSL_PEM_TO_DER
+            int keyFormat = 0;
+            ret = PemToDer(keyBuf, keySz, PRIVATEKEY_TYPE, &der, 
+                heap, NULL, &keyFormat);
+            /* auto detect key type */
+            if (ret == 0 && keyAlgo == WC_PK_TYPE_NONE) {
+                if (keyFormat == ECDSAk)
+                    keyAlgo = WC_PK_TYPE_ECDH;
+                else
+                    keyAlgo = WC_PK_TYPE_DH;
+            }
+        #else
+            ret = NOT_COMPILED_IN;
+        #endif
+        }
+        else {
+            /* Detect PK type (if required) */
+        #ifdef HAVE_ECC
+            if (keyAlgo == WC_PK_TYPE_NONE) {
+                word32 idx = 0;
+                ecc_key eccKey;
+                ret = wc_ecc_init_ex(&eccKey, heap, INVALID_DEVID);
+                if (ret == 0) {
+                    ret = wc_EccPrivateKeyDecode(keyBuf, &idx, &eccKey, keySz);
+                    if (ret == 0)
+                        keyAlgo = WC_PK_TYPE_ECDH;
+                    wc_ecc_free(&eccKey);
+                }
+            }
+        #endif
+        #if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)
+            if (keyAlgo == WC_PK_TYPE_NONE) {
+                word32 idx = 0;
+                DhKey dhKey;
+                ret = wc_InitDhKey_ex(&dhKey, heap, INVALID_DEVID);
+                if (ret == 0) {
+                    ret = wc_DhKeyDecode(keyBuf, &idx, &dhKey, keySz);
+                    if (ret == 0)
+                        keyAlgo = WC_PK_TYPE_DH;
+                    wc_FreeDhKey(&dhKey);
+                }
+            }
+        #endif
+
+            if (keyAlgo != WC_PK_TYPE_NONE) {
+                ret = AllocDer(&der, keySz, PRIVATEKEY_TYPE, heap);
+                if (ret == 0) {
+                    XMEMCPY(der->buffer, keyBuf, keySz);
+                }
+            }
+        }
+    }
+
     /* if key is already set free it */
 #ifndef NO_DH
     if (keyAlgo == WC_PK_TYPE_DH && staticKE->dhKey && 
@@ -53038,52 +53112,6 @@ static int SetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo,
             (ctx == NULL || staticKE->ecKey != ctx->staticKE.ecKey))
         FreeDer(&staticKE->ecKey);
 #endif
-
-    /* check if just free'ing key */
-    if (key == NULL && keySz == 0) {
-        return 0;
-    }
-
-#ifndef NO_FILESYSTEM
-    /* load file from filesystem */
-    if (key && keySz == 0) {
-        size_t keyBufSz = 0;
-        keyFile = (const char*)key;
-        ret = wc_FileLoad(keyFile, &keyBuf, &keyBufSz, heap);
-        if (ret != 0) {
-            return ret;
-        }
-        keySz = (unsigned int)keyBufSz;
-    }
-    else
-#endif
-    {
-        /* use as key buffer directly */
-        keyBuf = (byte*)key;
-    }
-
-    if (format == WOLFSSL_FILETYPE_PEM) {
-    #ifdef WOLFSSL_PEM_TO_DER
-        int keyFormat = 0;
-        ret = PemToDer(keyBuf, keySz, PRIVATEKEY_TYPE, &der, 
-            heap, NULL, &keyFormat);
-        /* auto detect key type */
-        if (ret == 0 && keyAlgo == 0) {
-            if (keyFormat == ECDSAk)
-                keyAlgo = WC_PK_TYPE_ECDH;
-            else
-                keyAlgo = WC_PK_TYPE_DH;
-        }
-    #else
-        ret = NOT_COMPILED_IN;
-    #endif
-    }
-    else {
-        ret = AllocDer(&der, keySz, PRIVATEKEY_TYPE, heap);
-        if (ret == 0) {
-            XMEMCPY(der->buffer, keyBuf, keySz);
-        }
-    }
 
     switch (keyAlgo) {
     #ifndef NO_DH
