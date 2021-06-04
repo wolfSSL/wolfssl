@@ -182,8 +182,28 @@
 
 /* RNG Masks/Values */
 #ifndef CAAM_ENT_DLY
-    #define CAAM_ENT_DLY   1200 /* @TODO lower value may gain performance */
+    /*less than half the default value to try and increase entropy collection */
+    #define CAAM_ENT_DLY   1200
 #endif
+#ifndef CAAM_ENT_DLY_INCREMENT
+    #define CAAM_ENT_DLY_INCREMENT 500
+#endif
+#ifndef CAAM_ENT_SAMPLE
+    /* default sample value from reference manual */
+    #define CAAM_ENT_SAMPLE 0x09C4
+#endif
+#ifndef CAAM_ENT_DLY_MAX
+    #define CAAM_ENT_DLY_MAX 12000
+#endif
+#ifndef CAAM_ENT_MINSHIFT
+    /* default to the minimum entropy delay of 1/4 */
+    #define CAAM_ENT_MINSHIFT 2
+#endif
+#ifndef CAAM_ENT_MAXSHIFT
+    /* default to the maximum entropy delay of 16 times */
+    #define CAAM_ENT_MAXSHIFT 4
+#endif
+
 #define CAAM_PRGM      0x00010000 /* Set RTMCTL to program state */
 #define CAAM_TRNG      0x00000020 /* Set TRNG access */
 #define CAAM_CTLERR    0x00001000

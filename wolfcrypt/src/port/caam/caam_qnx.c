@@ -1255,8 +1255,8 @@ int main(int argc, char *argv[])
     if (dpp == NULL) {
         exit (1);
     }
-    memset (&rattr, 0, sizeof (rattr));
-    iofunc_func_init (_RESMGR_CONNECT_NFUNCS, &connect_funcs,
+    memset(&rattr, 0, sizeof(rattr));
+    iofunc_func_init(_RESMGR_CONNECT_NFUNCS, &connect_funcs,
             _RESMGR_IO_NFUNCS, &io_funcs);
 
     connect_funcs.open = io_open;
@@ -1266,7 +1266,7 @@ int main(int argc, char *argv[])
     io_funcs.devctl    = io_devctl;
 
     iofunc_attr_init (&ioattr, S_IFCHR | 0666, NULL, NULL);
-    name = resmgr_attach (dpp, &rattr, "/dev/wolfCrypt",
+    name = resmgr_attach(dpp, &rattr, "/dev/wolfCrypt",
             _FTYPE_ANY, 0, &connect_funcs, &io_funcs, &ioattr);
     if (name == -1) {
         exit (1);
@@ -1279,7 +1279,7 @@ int main(int argc, char *argv[])
             CleanupCAAM();
             exit (1);
         }
-        dispatch_handler (ctp);
+        dispatch_handler(ctp);
     }
 
     pthread_mutex_destroy(&sm_mutex);
