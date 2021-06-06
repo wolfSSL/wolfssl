@@ -15732,7 +15732,7 @@ int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
                 oid[i++] = (byte) (((tb++) ? 0x80 : 0) | x);
             }
 
-            if ((idx+(word32)i) > *outSz) {
+            if ((idx+(word32)i) >= *outSz) {
                 XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
                 return BUFFER_E;
             }
