@@ -16166,6 +16166,10 @@ static int ASNToHexString(const byte* input, word32* inOutIdx, char** out,
     }
 
     str = (char*)XMALLOC(len * 2 + 1, heap, heapType);
+    if (str == NULL) {
+        return MEMORY_E;
+    }
+
     for (i=0; i<len; i++)
         ByteToHex(input[*inOutIdx + i], str + i*2);
     str[len*2] = '\0';
