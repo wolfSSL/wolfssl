@@ -8310,6 +8310,14 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
                 return ASN_PARSE_E;
             }
 
+            /* Certiciates issued with this OID in the subject alt name are for
+             * verifying signatures created on a module.
+             * RFC 4108 Section 5. */
+            if (cert->hwType != NULL) {
+                WOLFSSL_MSG("\tAlready seen Hardware Module Name");
+                return ASN_PARSE_E;
+            }
+
             if (GetASNTag(input, &idx, &tag, sz) < 0) {
                 return ASN_PARSE_E;
             }
