@@ -148,6 +148,7 @@ int blake2s_init( blake2s_state *S, const byte outlen )
 int blake2s_init_key( blake2s_state *S, const byte outlen, const void *key,
                       const byte keylen )
 {
+  int ret = 0;
   blake2s_param P[1];
 
   if ( ( !outlen ) || ( outlen > BLAKE2S_OUTBYTES ) ) return BAD_FUNC_ARG;
@@ -174,11 +175,9 @@ int blake2s_init_key( blake2s_state *S, const byte outlen, const void *key,
   P->depth         = 1;
 #endif
 
-  {
-      int ret = blake2s_init_param( S, P );
-      if (ret < 0)
-          return ret;
-  }
+  ret = blake2s_init_param( S, P );
+  if (ret < 0)
+      return ret;
 
   {
 #ifdef WOLFSSL_SMALL_STACK
@@ -193,7 +192,7 @@ int blake2s_init_key( blake2s_state *S, const byte outlen, const void *key,
 
     XMEMSET( block, 0, BLAKE2S_BLOCKBYTES );
     XMEMCPY( block, key, keylen );
-    blake2s_update( S, block, BLAKE2S_BLOCKBYTES );
+    ret = blake2s_update( S, block, BLAKE2S_BLOCKBYTES );
     secure_zero_memory( block, BLAKE2S_BLOCKBYTES ); /* Burn the key from */
                                                      /* memory */
 
@@ -201,7 +200,7 @@ int blake2s_init_key( blake2s_state *S, const byte outlen, const void *key,
     XFREE(block, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
   }
-  return 0;
+  return ret;
 }
 
 static WC_INLINE int blake2s_compress(
