@@ -125,6 +125,8 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
             if (err != 0) break;
         }
 
+        if (err != 0) break;
+
         if (keyLeft) {
             store = min(keyLeft, diestLen);
             XMEMCPY(&key[keyLen - keyLeft], digest, store);
