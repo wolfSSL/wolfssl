@@ -855,6 +855,11 @@ static int ImportCipherSpecState(WOLFSSL* ssl, const byte* exp, word32 len,
     specs->pad_size              = exp[idx++];
     specs->static_ecdh           = exp[idx++];
 
+    if (specs->pad_size != PAD_MD5 && specs->pad_size != PAD_SHA) {
+        WOLFSSL_MSG("Importing bad or unknown pad size");
+        return BAD_STATE_E;
+    }
+
     /* temporarly save the sequence numbers */
     tmp_seq_peer_lo = ssl->keys.peer_sequence_number_lo;
     tmp_seq_peer_hi = ssl->keys.peer_sequence_number_hi;
