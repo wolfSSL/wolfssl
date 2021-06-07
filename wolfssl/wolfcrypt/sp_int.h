@@ -383,7 +383,8 @@ typedef struct sp_ecc_ctx {
             #define SP_INT_DIGITS        (((3072 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
         #endif
     #else
-        #if defined(WOLFSSL_HAVE_SP_DH)
+        #if defined(WOLFSSL_HAVE_SP_DH) || \
+                (defined(WOLFSSL_HAVE_SP_RSA) && defined(WOLFSSL_KEY_GEN))
             #define SP_INT_DIGITS        (((4096 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
         #else
             #define SP_INT_DIGITS        (((2048 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
