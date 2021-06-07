@@ -21038,12 +21038,14 @@ static int test_wc_ecc_signVerify_hash (void)
     #endif
     word32      siglen = ECC_BUFSIZE;
     byte        sig[ECC_BUFSIZE];
+    byte        adjustedSig[ECC_BUFSIZE+1];
     byte        digest[] = TEST_STRING;
     word32      digestlen = (word32)TEST_STRING_SZ;
 
     /* Init stack var */
     XMEMSET(sig, 0, siglen);
     XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(adjustedSig, 0, ECC_BUFSIZE+1);
 
     /* Init structs. */
     ret = wc_InitRng(&rng);
@@ -21095,6 +21097,20 @@ static int test_wc_ecc_signVerify_hash (void)
         if (verify != 1 && ret == 0) {
             ret = WOLFSSL_FATAL_ERROR;
         }
+
+        /* test check on length of signature passed in */
+        XMEMCPY(adjustedSig, sig, siglen);
+        adjustedSig[1] = adjustedSig[1] + 1; /* add 1 to length for extra byte*/
+#ifndef NO_STRICT_ECDSA_LEN
+        AssertIntNE(wc_ecc_verify_hash(adjustedSig, siglen+1, digest, digestlen,
+                    &verify, &key), 0);
+#else
+        /* if NO_STRICT_ECDSA_LEN is set then extra bytes after the signature
+         * is allowed */
+        AssertIntEQ(wc_ecc_verify_hash(adjustedSig, siglen+1, digest, digestlen,
+                    &verify, &key), 0);
+#endif
+
         /* Test bad args. */
         if (ret == 0) {
             verifyH = wc_ecc_verify_hash(NULL, siglen, digest, digestlen,
