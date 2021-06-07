@@ -17480,7 +17480,7 @@ static int DecodeResponseData(byte* source,
 
             single->next->status = (CertStatus*)XMALLOC(sizeof(CertStatus),
                 resp->heap, DYNAMIC_TYPE_OCSP_STATUS);
-            if ( single->next->status == NULL ) {
+            if (single->next->status == NULL) {
                 XFREE(single->next, resp->heap, DYNAMIC_TYPE_OCSP_ENTRY);
                 single->next = NULL;
                 return MEMORY_E;
