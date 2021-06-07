@@ -32057,7 +32057,8 @@ int wolfSSL_RSA_set0_crt_params(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *dmp1,
         r->iqmp = iqmp;
     }
 
-    return WOLFSSL_SUCCESS;
+    return SetRsaInternal(r) == WOLFSSL_SUCCESS ?
+            WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
 
 void wolfSSL_RSA_get0_factors(const WOLFSSL_RSA *r, const WOLFSSL_BIGNUM **p,
@@ -32099,7 +32100,8 @@ int wolfSSL_RSA_set0_factors(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *p, WOLFSSL_BIGNUM *
         r->q = q;
     }
 
-    return WOLFSSL_SUCCESS;
+    return SetRsaInternal(r) == WOLFSSL_SUCCESS ?
+            WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
 
 void wolfSSL_RSA_get0_key(const WOLFSSL_RSA *r, const WOLFSSL_BIGNUM **n,
@@ -33842,7 +33844,8 @@ int SetECKeyInternal(WOLFSSL_EC_KEY* eckey)
         }
 
         /* private key */
-        key->type = ECC_PRIVATEKEY;
+        if (!mp_iszero(&key->k))
+            key->type = ECC_PRIVATEKEY;
     }
 
     eckey->inSet = 1;
@@ -37908,7 +37911,7 @@ void wolfSSL_RSA_set_flags(WOLFSSL_RSA *r, int flags)
 
 int wolfSSL_RSA_test_flags(const WOLFSSL_RSA *r, int flags)
 {
-    return r ? r->meth->flags & flags : 0;
+    return r && r->meth ? r->meth->flags & flags : 0;
 }
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
@@ -38014,7 +38017,8 @@ int wolfSSL_RSA_set0_key(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *n, WOLFSSL_BIGNUM *e,
         r->d = d;
     }
 
-    return 1;
+    return SetRsaInternal(r) == WOLFSSL_SUCCESS ?
+            WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
 #endif /* OPENSSL_EXTRA */
 #endif /* NO_RSA */
@@ -38140,6 +38144,15 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
     else {
         ret = wc_EccPublicKeyDecode(derBuf, &idx, (ecc_key*)key->internal,
                                     derSz);
+    }
+    if (ret < 0 && opt == WOLFSSL_EC_KEY_LOAD_PRIVATE) {
+        /* Might be in PKCS8 format so let's try */
+        idx = 0;
+        ret = ToTraditionalInline(derBuf, &idx, (word32)derSz);
+        if (ret > 0) {
+            ret = wc_EccPrivateKeyDecode(derBuf, &idx,
+                    (ecc_key*)key->internal, derSz);
+        }
     }
     if (ret < 0) {
         if (opt == WOLFSSL_EC_KEY_LOAD_PRIVATE) {
@@ -48134,14 +48147,18 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
 
     key = (RsaKey*)rsa->internal;
 
-    if (SetIndividualInternal(rsa->n, &key->n) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("rsa n key error");
-        return WOLFSSL_FATAL_ERROR;
+    if (rsa->n != NULL) {
+        if (SetIndividualInternal(rsa->n, &key->n) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("rsa n key error");
+            return WOLFSSL_FATAL_ERROR;
+        }
     }
 
-    if (SetIndividualInternal(rsa->e, &key->e) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("rsa e key error");
-        return WOLFSSL_FATAL_ERROR;
+    if (rsa->e != NULL) {
+        if (SetIndividualInternal(rsa->e, &key->e) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("rsa e key error");
+            return WOLFSSL_FATAL_ERROR;
+        }
     }
 
     /* public key */
