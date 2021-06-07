@@ -5515,11 +5515,11 @@ static void test_wolfSSL_PKCS12(void)
     BIO_free(bio);
 
     /* check verify MAC directly */
-    ret = PKCS12_verify_mac(pkcs12, goodPsw,goodPswLen);
+    ret = PKCS12_verify_mac(pkcs12, goodPsw, goodPswLen);
     AssertIntEQ(ret, 1); 
 
     /* check verify MAC fail case directly */
-    ret = PKCS12_verify_mac(pkcs12, badPsw,badPswLen);
+    ret = PKCS12_verify_mac(pkcs12, badPsw, badPswLen);
     AssertIntEQ(ret, 0);
 
     /* check verify MAC fail case */
@@ -15506,7 +15506,7 @@ static int test_wc_RsaPSS_Verify (void)
 {
     int ret = 0;
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST) && \
- !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
+ !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING) && defined(WC_RSA_PSS)
     RsaKey              key;
     WC_RNG              rng;
     int                 sz = 256;
@@ -15591,7 +15591,7 @@ static int test_wc_RsaPSS_VerifyCheck (void)
 {
     int ret = 0;
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST) && \
- !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
+ !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING) && defined(WC_RSA_PSS)
     RsaKey              key;
     WC_RNG              rng;
     int                 sz = 256; /* 2048/8 */
@@ -15686,7 +15686,7 @@ static int test_wc_RsaPSS_VerifyCheckInline (void)
 {
     int ret = 0;
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST) && \
- !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
+ !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING) && defined(WC_RSA_PSS)
     RsaKey              key;
     WC_RNG              rng;
     int                 sz = 256;
