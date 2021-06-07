@@ -37,6 +37,9 @@
 #include <signal.h>
 #include <unistd.h>
 
+/* Deal with parameters that are not used when DTLS is disabled */
+#define UNUSED(x) (void)(x)
+
 #define SERV_PORT   11111           /* define our server port number */
 #define MSGLEN      4096
 
@@ -54,10 +57,11 @@ int main(int argc, char** argv)
 #endif
 
 #ifdef WOLFSSL_DTLS
+
     /* Loc short for "location" */
-    char        caCertLoc[] = "../certs/ca-cert.pem";
-    char        servCertLoc[] = "../certs/server-cert.pem";
-    char        servKeyLoc[] = "../certs/server-key.pem";
+    char        caCertLoc[] = "../../certs/ca-cert.pem";
+    char        servCertLoc[] = "../../certs/server-cert.pem";
+    char        servKeyLoc[] = "../../certs/server-key.pem";
     WOLFSSL_CTX* ctx;
     /* Variables for awaiting datagram */
     int           on = 1;
@@ -84,7 +88,7 @@ int main(int argc, char** argv)
         return 1;
     }
     /* Load CA certificates */
-    if (wolfSSL_CTX_load_verify_locations(ctx,caCertLoc,0) !=
+    if (wolfSSL_CTX_load_verify_locations(ctx, caCertLoc, 0) !=
             SSL_SUCCESS) {
         printf("Error loading %s, please check the file.\n", caCertLoc);
         return 1;
@@ -226,5 +230,9 @@ int main(int argc, char** argv)
     wolfSSL_Cleanup();
 #endif
 
+    UNUSED(argc);
+    UNUSED(argv);
+    UNUSED(cleanup);
+  
     return 0;
 }

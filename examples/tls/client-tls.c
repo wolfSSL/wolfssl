@@ -36,8 +36,7 @@
 
 #define DEFAULT_PORT 11111
 
-#define CERT_FILE "../certs/ca-cert.pem"
-
+#define CERT_FILE "../../certs/ca-cert.pem"
 
 
 int main(int argc, char** argv)
@@ -144,7 +143,7 @@ int main(int argc, char** argv)
     len = strnlen(buff, sizeof(buff));
 
     /* Send the message to the server */
-    if ((ret = wolfSSL_write(ssl, buff, len)) != len) {
+    if ((size_t) (ret = wolfSSL_write(ssl, buff, len)) != len) {
         fprintf(stderr, "ERROR: failed to write entire message\n");
         fprintf(stderr, "%d bytes of %d bytes were sent", ret, (int) len);
         goto cleanup;

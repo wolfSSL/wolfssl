@@ -30,6 +30,9 @@
 #include <signal.h>
 #include <unistd.h>
 
+/* Deal with parameters that are not used when PSK is disabled */
+#define UNUSED(x) (void)(x)
+
 #define     MAXLINE 256      /* max text line length */
 #define     SERV_PORT 11111  /* default port*/
 #define     PSK_KEY_LEN 4
@@ -60,6 +63,12 @@ static inline unsigned int My_Psk_Client_Cb(WOLFSSL* ssl, const char* hint,
 
 int main(int argc, char **argv)
 {
+#ifdef NO_PSK 
+    /* Inform user to enable PSK in wolfSSL */
+    printf("Please enable PSK to run client-psk.c \n");
+#endif
+
+#ifndef NO_PSK
     int ret, sockfd;
     char sendline[MAXLINE]="Hello Server"; /* string to send to the server */
     char recvline[MAXLINE]; /* string received from the server */
@@ -147,4 +156,9 @@ int main(int argc, char **argv)
 
     /* exit client */
     return ret;
+#endif
+    
+    UNUSED(argc);
+    UNUSED(argv);
+    return 0;
 }

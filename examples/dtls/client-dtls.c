@@ -36,6 +36,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Deal with parameters that are not used when DTLS is disabled */
+#define UNUSED(x) (void)(x)
+
 #define MAXLINE   4096
 #define SERV_PORT 11111
 
@@ -55,8 +58,8 @@ int main (int argc, char** argv)
     struct          sockaddr_in servAddr;
     WOLFSSL*        ssl = 0;
     WOLFSSL_CTX*    ctx = 0;
-    char            cert_array[]  = "../certs/ca-cert.pem";
-    char*           certs = cert_array;
+    char            cert_array[]  = "../../certs/ca-cert.pem";
+    char*           certs = cert_array;   
     char            sendLine[MAXLINE];
     char            recvLine[MAXLINE - 1];
 
@@ -102,7 +105,9 @@ int main (int argc, char** argv)
     wolfSSL_dtls_set_peer(ssl, &servAddr, sizeof(servAddr));
 
     if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-       printf("cannot create a socket.");
+        printf("cannot create a socket.");
+        return 1;
+    }
 
     /* Set the file descriptor for ssl and connect with ssl variable */
     wolfSSL_set_fd(ssl, sockfd);
@@ -119,7 +124,7 @@ int main (int argc, char** argv)
     if (fgets(sendLine, MAXLINE, stdin) != NULL) {
 
         /* Send sendLine to the server */
-        if ( ( wolfSSL_write(ssl, sendLine, strlen(sendLine)))
+        if ((size_t) (wolfSSL_write(ssl, sendLine, strlen(sendLine)))
                 != strlen(sendLine)) {
             printf("SSL_write failed");
         }
@@ -148,6 +153,9 @@ int main (int argc, char** argv)
     wolfSSL_CTX_free(ctx);
     wolfSSL_Cleanup();
 #endif
+
+    UNUSED(argc);
+    UNUSED(argv);
 
     return 0;
 }
