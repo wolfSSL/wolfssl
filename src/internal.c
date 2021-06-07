@@ -17850,6 +17850,12 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         #ifndef WOLFSSL_AEAD_ONLY
             if (ssl->specs.cipher_type == block) {
                 word32 blockSz = ssl->specs.block_size;
+
+                if (blockSz == 0) {
+                    WOLFSSL_MSG("Invalid block size with block cipher type");
+                    ERROR_OUT(BAD_STATE_E, exit_buildmsg);
+                }
+
                 if (ssl->options.tls1_1) {
                     args->ivSz = blockSz;
                     args->sz  += args->ivSz;
