@@ -813,10 +813,11 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
                 rng->status = DRBG_FAILED;
             }
 
-            if (ret == DRBG_SUCCESS)
+            if (ret == DRBG_SUCCESS) {
                 ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg,
-                            seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
-                            nonce, nonceSz, rng->heap, devId);
+                        seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
+                        nonce, nonceSz, rng->heap, devId);
+            }
 
             if (ret != DRBG_SUCCESS) {
             #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
