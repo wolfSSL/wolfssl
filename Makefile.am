@@ -169,6 +169,7 @@ include wolfcrypt/benchmark/include.am
 include wolfcrypt/src/include.am
 include wolfcrypt/test/include.am
 include testApps/include.am
+include examples/include.am
 include testsuite/include.am
 include tests/include.am
 include sslSniffer/sslSnifferTest/include.am

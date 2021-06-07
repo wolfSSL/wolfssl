@@ -1,0 +1,21 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+if BUILD_EXAMPLES
+noinst_PROGRAMS += examples/tls/client-tls
+examples_tls_client_tls_SOURCES      = examples/tls/client-tls.c
+examples_tls_client_tls_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD)
+examples_tls_client_tls_DEPENDENCIES = src/libwolfssl.la
+
+dist_example_DATA+= examples/tls/client-tls.c
+DISTCLEANFILES+= examples/tls/.libs/client-tls
+
+noinst_PROGRAMS += examples/tls/server-tls
+examples_tls_server_tls_SOURCES      = examples/tls/server-tls.c
+examples_tls_server_tls_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD)
+examples_tls_server_tls_DEPENDENCIES = src/libwolfssl.la
+
+dist_example_DATA+= examples/tls/server-tls.c
+DISTCLEANFILES+= examples/tls/.libs/server-tls
+endif

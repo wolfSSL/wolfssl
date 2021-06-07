@@ -36,11 +36,12 @@
 #define LISTENQ     1024
 #define SERV_PORT   11111
 #define PSK_KEY_LEN 4
-#define dhParamFile    "../certs/dh2048.pem"
+#define dhParamFile    "../../certs/dh2048.pem"
 
 /*
  * Identify which psk key to use.
  */
+#ifndef NO_PSK
 static unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
                            unsigned char* key, unsigned int key_max_len)
 {
@@ -58,9 +59,16 @@ static unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
 
     return PSK_KEY_LEN;
 }
+#endif
 
 int main()
 {
+#ifdef NO_PSK 
+    /* Inform user to enable PSK in wolfSSL */
+    printf("Please enable PSK to run server-psk.c \n");
+#endif
+
+#ifndef NO_PSK
     int  n;              /* length of string read */
     int                 listenfd, connfd, ret;
     int                 opt;
@@ -192,7 +200,7 @@ int main()
             if (n > 0) {
                 printf("%s\n", buf);
                 /* server response */
-                if (wolfSSL_write(ssl, response, strlen(response)) >
+                if ((size_t) wolfSSL_write(ssl, response, strlen(response)) >
                     strlen(response)) {
                     printf("Fatal error : respond: write error\n");
                     return 1;
@@ -216,6 +224,7 @@ int main()
     /* free up memory used by wolfSSL */
     wolfSSL_CTX_free(ctx);
     wolfSSL_Cleanup();
+#endif
 
     return 0;
 }

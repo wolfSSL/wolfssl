@@ -36,9 +36,8 @@
 
 #define DEFAULT_PORT 11111
 
-#define CERT_FILE "../certs/server-cert.pem"
-#define KEY_FILE  "../certs/server-key.pem"
-
+#define CERT_FILE "../../certs/server-cert.pem"
+#define KEY_FILE  "../../certs/server-key.pem"
 
 
 int main()
@@ -93,7 +92,7 @@ int main()
     if (wolfSSL_CTX_use_PrivateKey_file(ctx, KEY_FILE, SSL_FILETYPE_PEM)
         != SSL_SUCCESS) {
         fprintf(stderr, "ERROR: failed to load %s, please check the file.\n",
-                KEY_FILE);
+                  KEY_FILE);
         return -1;
     }
 
@@ -180,7 +179,7 @@ int main()
         len = strnlen(buff, sizeof(buff));
 
         /* Reply back to the client */
-        if (wolfSSL_write(ssl, buff, len) != len) {
+        if ((size_t) wolfSSL_write(ssl, buff, len) != len) {
             fprintf(stderr, "ERROR: failed to write\n");
             return -1;
         }

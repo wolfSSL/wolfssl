@@ -4812,6 +4812,23 @@ then
     ENABLED_SLOWMATH="no"
 fi
 
+# Enable Examples, used to disable Examples
+if test "$ENABLED_LINUXKM" = "yes"
+then
+    ENABLED_EXAMPLES_DEFAULT=no
+else
+    ENABLED_EXAMPLES_DEFAULT=yes
+fi
+AC_ARG_ENABLE([examples],
+    [AS_HELP_STRING([--enable-examples],[Enable Examples  (default: enabled)])],
+    [ ENABLED_EXAMPLES=$enableval ],
+    [ ENABLED_EXAMPLES=$ENABLED_EXAMPLES_DEFAULT ]
+    )
+
+AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
+AS_IF([test "x$ENABLED_INLINE" = "xno"], [ENABLED_EXAMPLES="no"])
+AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_EXAMPLES="no"])
+
 
 # Enable TestApps, used to disable testApps
 if test "$ENABLED_LINUXKM" = "yes"
@@ -6358,6 +6375,7 @@ AM_CONDITIONAL([BUILD_SCRYPT],[test "x$ENABLED_SCRYPT" = "xyes" || test "x$ENABL
 AM_CONDITIONAL([BUILD_CRYPTONLY],[test "x$ENABLED_CRYPTONLY" = "xyes" && test "x$ENABLED_OPENSSLEXTRA" = "xno"])
 AM_CONDITIONAL([BUILD_FASTMATH],[test "x$ENABLED_FASTMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SLOWMATH],[test "x$ENABLED_SLOWMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_EXAMPLES],[test "x$ENABLED_EXAMPLES" = "xyes"])
 AM_CONDITIONAL([BUILD_TESTAPP_SERVERS],[test "x$ENABLED_TESTAPPS" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_TESTAPP_CLIENTS],[test "x$ENABLED_TESTAPPS" = "xyes"])
 AM_CONDITIONAL([BUILD_TESTS],[test "x$ENABLED_TESTAPPS" = "xyes"])
@@ -6712,6 +6730,7 @@ echo "   * Linux Kernel Module:        $ENABLED_LINUXKM"
 echo "   * valgrind unit tests:        $ENABLED_VALGRIND"
 echo "   * LIBZ:                       $ENABLED_LIBZ"
 echo "   * TestApps:                   $ENABLED_TESTAPPS"
+echo "   * Examples:                   $ENABLED_EXAMPLES"
 echo "   * Crypt tests:                $ENABLED_CRYPT_TESTS"
 echo "   * Stack sizes in tests:       $ENABLED_STACKSIZE"
 echo "   * Heap stats in tests:        $ENABLED_TRACKMEMORY"
