@@ -21045,6 +21045,7 @@ static int test_wc_ecc_signVerify_hash (void)
     /* Init stack var */
     XMEMSET(sig, 0, siglen);
     XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(adjustedSig, 0, ECC_BUFSIZE+1);
 
     /* Init structs. */
     ret = wc_InitRng(&rng);
