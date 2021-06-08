@@ -1817,7 +1817,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *
     switch (ctx->pkey->type) {
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     case EVP_PKEY_RSA:
-        len = wolfSSL_RSA_private_encrypt((int)tbslen, (unsigned char*)tbs, sig,
+        len = wolfSSL_RSA_private_encrypt((int)tbslen, tbs, sig,
               ctx->pkey->rsa, ctx->padding);
         if (len < 0)
             break;
@@ -2443,7 +2443,7 @@ int wolfSSL_EVP_VerifyUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t l
  * returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure
  */
 int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
-        unsigned char*sig, unsigned int siglen, WOLFSSL_EVP_PKEY *pkey)
+        const unsigned char*sig, unsigned int siglen, WOLFSSL_EVP_PKEY *pkey)
 {
     int ret;
     unsigned char md[WC_MAX_DIGEST_SIZE];
