@@ -10360,7 +10360,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         #if defined(HAVE_SESSION_TICKET)
             if (ssl->options.resuming && ssl->session.ticketLen > 0) {
                 WOLFSSL_SESSION* sess = &ssl->session;
-                word32           milli;
+                word32           now, milli;
 
                 if (sess->ticketLen > MAX_PSK_ID_LEN) {
                     WOLFSSL_MSG("Session ticket length for PSK ext is too large");
@@ -10373,8 +10373,13 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 ret = SetCipherSpecs(ssl);
                 if (ret != 0)
                     return ret;
-                milli = TimeNowInMilliseconds() - sess->ticketSeen +
-                        sess->ticketAdd;
+                now = TimeNowInMilliseconds();
+                if (now < sess->ticketSeen)
+                    milli = (0xFFFFFFFFU - sess->ticketSeen) + 1 + now;
+                else
+                    milli = now - sess->ticketSeen;
+                milli += sess->ticketAdd;
+
                 /* Pre-shared key is mandatory extension for resumption. */
                 ret = TLSX_PreSharedKey_Use(ssl, sess->ticket, sess->ticketLen,
                                             milli, ssl->specs.mac_algorithm,

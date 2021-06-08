@@ -592,7 +592,7 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
                                      WOLFSSL_ENGINE *impl);
 WOLFSSL_API int wolfSSL_EVP_SignUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t len);
 WOLFSSL_API int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
-        unsigned char* sig, unsigned int sig_len, WOLFSSL_EVP_PKEY *pkey);
+        const unsigned char* sig, unsigned int sig_len, WOLFSSL_EVP_PKEY *pkey);
 WOLFSSL_API int wolfSSL_EVP_VerifyInit(WOLFSSL_EVP_MD_CTX *ctx, const WOLFSSL_EVP_MD *type);
 WOLFSSL_API int wolfSSL_EVP_VerifyUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t len);
 
@@ -742,6 +742,9 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_MD_CTX_size         wolfSSL_EVP_MD_CTX_size
 #define EVP_MD_CTX_block_size   wolfSSL_EVP_MD_CTX_block_size
 #define EVP_MD_type             wolfSSL_EVP_MD_type
+#ifndef NO_WOLFSSL_STUB
+#define EVP_MD_CTX_set_flags(...)
+#endif
 
 #define EVP_Digest             wolfSSL_EVP_Digest
 #define EVP_DigestInit         wolfSSL_EVP_DigestInit
@@ -935,7 +938,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 
 #define EVP_PKEY_NONE                   NID_undef
 #define EVP_PKEY_DH                     28
-#define EVP_CIPHER_mode                 WOLFSSL_CIPHER_mode
+#define EVP_CIPHER_mode                 WOLFSSL_EVP_CIPHER_mode
 /* WOLFSSL_EVP_CIPHER is just the string name of the cipher */
 #define EVP_CIPHER_name(x)              x
 #define EVP_MD_CTX_reset                wolfSSL_EVP_MD_CTX_cleanup

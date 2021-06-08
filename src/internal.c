@@ -1624,7 +1624,8 @@ void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv)
     method->downgrade  = 0;
 }
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE) || \
+    defined(WOLFSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 int InitSSL_Side(WOLFSSL* ssl, word16 side)
 {
     if (ssl == NULL)
@@ -7925,7 +7926,12 @@ ProtocolVersion MakeDTLSv1_2(void)
         return (word32)XTIME(0);
     }
 #endif
+#else
+    /* user must supply timer function to return elapsed seconds:
+     *   word32 LowResTimer(void);
+     */
 #endif /* !NO_ASN_TIME */
+
 #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
                ((defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
                 (defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)))

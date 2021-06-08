@@ -5515,11 +5515,11 @@ static void test_wolfSSL_PKCS12(void)
     BIO_free(bio);
 
     /* check verify MAC directly */
-    ret = PKCS12_verify_mac(pkcs12, goodPsw,goodPswLen);
+    ret = PKCS12_verify_mac(pkcs12, goodPsw, goodPswLen);
     AssertIntEQ(ret, 1); 
 
     /* check verify MAC fail case directly */
-    ret = PKCS12_verify_mac(pkcs12, badPsw,badPswLen);
+    ret = PKCS12_verify_mac(pkcs12, badPsw, badPswLen);
     AssertIntEQ(ret, 0);
 
     /* check verify MAC fail case */
@@ -15506,7 +15506,7 @@ static int test_wc_RsaPSS_Verify (void)
 {
     int ret = 0;
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST) && \
- !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
+ !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING) && defined(WC_RSA_PSS)
     RsaKey              key;
     WC_RNG              rng;
     int                 sz = 256;
@@ -15591,7 +15591,7 @@ static int test_wc_RsaPSS_VerifyCheck (void)
 {
     int ret = 0;
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST) && \
- !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
+ !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING) && defined(WC_RSA_PSS)
     RsaKey              key;
     WC_RNG              rng;
     int                 sz = 256; /* 2048/8 */
@@ -15686,7 +15686,7 @@ static int test_wc_RsaPSS_VerifyCheckInline (void)
 {
     int ret = 0;
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST) && \
- !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
+ !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING) && defined(WC_RSA_PSS)
     RsaKey              key;
     WC_RNG              rng;
     int                 sz = 256;
@@ -21038,12 +21038,14 @@ static int test_wc_ecc_signVerify_hash (void)
     #endif
     word32      siglen = ECC_BUFSIZE;
     byte        sig[ECC_BUFSIZE];
+    byte        adjustedSig[ECC_BUFSIZE+1];
     byte        digest[] = TEST_STRING;
     word32      digestlen = (word32)TEST_STRING_SZ;
 
     /* Init stack var */
     XMEMSET(sig, 0, siglen);
     XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(adjustedSig, 0, ECC_BUFSIZE+1);
 
     /* Init structs. */
     ret = wc_InitRng(&rng);
@@ -21095,6 +21097,20 @@ static int test_wc_ecc_signVerify_hash (void)
         if (verify != 1 && ret == 0) {
             ret = WOLFSSL_FATAL_ERROR;
         }
+
+        /* test check on length of signature passed in */
+        XMEMCPY(adjustedSig, sig, siglen);
+        adjustedSig[1] = adjustedSig[1] + 1; /* add 1 to length for extra byte*/
+#ifndef NO_STRICT_ECDSA_LEN
+        AssertIntNE(wc_ecc_verify_hash(adjustedSig, siglen+1, digest, digestlen,
+                    &verify, &key), 0);
+#else
+        /* if NO_STRICT_ECDSA_LEN is set then extra bytes after the signature
+         * is allowed */
+        AssertIntEQ(wc_ecc_verify_hash(adjustedSig, siglen+1, digest, digestlen,
+                    &verify, &key), 0);
+#endif
+
         /* Test bad args. */
         if (ret == 0) {
             verifyH = wc_ecc_verify_hash(NULL, siglen, digest, digestlen,
@@ -42244,7 +42260,7 @@ static void test_wolfSSL_RSA_verify(void)
 
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
-    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME)
 static void test_openssl_make_self_signed_certificate(EVP_PKEY* pkey)
 {
     X509* x509 = NULL;
@@ -42325,7 +42341,8 @@ static void test_openssl_generate_key_and_cert(void)
 
             BN_free(exponent);
 
-        #if !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
+        #if !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && \
+                defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME)
             test_openssl_make_self_signed_certificate(pkey);
         #endif
         }
@@ -42349,7 +42366,8 @@ static void test_openssl_generate_key_and_cert(void)
         AssertIntNE(EC_KEY_generate_key(ec_key), 0);
         AssertIntNE(EVP_PKEY_assign_EC_KEY(pkey, ec_key), 0);
 
-    #if !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
+    #if !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && \
+            defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME)
         test_openssl_make_self_signed_certificate(pkey);
     #endif
 
@@ -42938,55 +42956,46 @@ static void test_wolfSSL_CTX_get_min_proto_version(void)
 
     printf(testingFmt, "wolfSSL_CTX_get_min_proto_version()");
 
-    #ifndef NO_OLD_TLS
-        #ifdef WOLFSSL_ALLOW_SSLV3
-            #ifdef NO_WOLFSSL_SERVER
-                AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-            #else
-                AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
-            #endif
-            AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, SSL3_VERSION), WOLFSSL_SUCCESS);
-            AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), SSL3_VERSION);
-            wolfSSL_CTX_free(ctx);
-        #endif
-        #ifdef WOLFSSL_ALLOW_TLSV10
-            #ifdef NO_WOLFSSL_SERVER
-                AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_client_method()));
-            #else
-                AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_server_method()));
-            #endif
-            AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_VERSION), WOLFSSL_SUCCESS);
-            AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_VERSION);
-            wolfSSL_CTX_free(ctx);
-        #endif
-
-        #ifdef NO_WOLFSSL_SERVER
-            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_1_client_method()));
-        #else
-            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_1_server_method()));
-        #endif
-        AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_1_VERSION), WOLFSSL_SUCCESS);
-        AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_1_VERSION);
-        wolfSSL_CTX_free(ctx);
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_method()));
+    AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, SSL3_VERSION), WOLFSSL_SUCCESS);
+    #ifdef WOLFSSL_ALLOW_SSLV3
+        AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), SSL3_VERSION);
+    #else
+        AssertIntGT(wolfSSL_CTX_get_min_proto_version(ctx), SSL3_VERSION);
     #endif
+    wolfSSL_CTX_free(ctx);
+
+    #ifdef WOLFSSL_ALLOW_TLSV10
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_method()));
+    #else
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_method()));
+    #endif
+    AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_VERSION), WOLFSSL_SUCCESS);
+    #ifdef WOLFSSL_ALLOW_TLSV10
+        AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_VERSION);
+    #else
+        AssertIntGT(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_VERSION);
+    #endif
+    wolfSSL_CTX_free(ctx);
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_method()));
+    AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_1_VERSION), WOLFSSL_SUCCESS);
+    #ifndef NO_OLD_TLS
+        AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_1_VERSION);
+    #else
+        AssertIntGT(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_1_VERSION);
+    #endif
+    wolfSSL_CTX_free(ctx);
 
     #ifndef WOLFSSL_NO_TLS12
-        #ifdef NO_WOLFSSL_SERVER
-            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
-        #else
-            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
-        #endif
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_method()));
         AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION), WOLFSSL_SUCCESS);
         AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_2_VERSION);
         wolfSSL_CTX_free(ctx);
     #endif
 
     #ifdef WOLFSSL_TLS13
-        #ifdef NO_WOLFSSL_SERVER
-            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
-        #else
-            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
-        #endif
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_method()));
         AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION), WOLFSSL_SUCCESS);
         AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_3_VERSION);
         wolfSSL_CTX_free(ctx);
