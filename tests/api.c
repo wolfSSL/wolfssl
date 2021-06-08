@@ -42260,7 +42260,7 @@ static void test_wolfSSL_RSA_verify(void)
 
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
-    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME)
 static void test_openssl_make_self_signed_certificate(EVP_PKEY* pkey)
 {
     X509* x509 = NULL;
@@ -42341,7 +42341,8 @@ static void test_openssl_generate_key_and_cert(void)
 
             BN_free(exponent);
 
-        #if !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
+        #if !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && \
+                defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME)
             test_openssl_make_self_signed_certificate(pkey);
         #endif
         }
@@ -42365,7 +42366,8 @@ static void test_openssl_generate_key_and_cert(void)
         AssertIntNE(EC_KEY_generate_key(ec_key), 0);
         AssertIntNE(EVP_PKEY_assign_EC_KEY(pkey, ec_key), 0);
 
-    #if !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
+    #if !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && \
+            defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME)
         test_openssl_make_self_signed_certificate(pkey);
     #endif
 

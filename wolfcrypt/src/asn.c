@@ -12476,6 +12476,7 @@ int wc_Ed448PublicKeyToDer(ed448_key* key, byte* output, word32 inLen,
 
 #ifdef WOLFSSL_CERT_GEN
 
+#ifndef NO_ASN_TIME
 static WC_INLINE byte itob(int number)
 {
     return (byte)number + 0x30;
@@ -12509,7 +12510,7 @@ static void SetTime(struct tm* date, byte* output)
 
     output[i] = 'Z';  /* Zulu profile */
 }
-
+#endif
 
 #ifdef WOLFSSL_ALT_NAMES
 
@@ -13405,6 +13406,7 @@ int SetName(byte* output, word32 outputSz, CertName* name)
  * return size in bytes written to output, 0 on error */
 static int SetValidity(byte* output, int daysValid)
 {
+#ifndef NO_ASN_TIME
     byte before[MAX_DATE_SIZE];
     byte  after[MAX_DATE_SIZE];
 
@@ -13474,6 +13476,11 @@ static int SetValidity(byte* output, int daysValid)
     XMEMCPY(output + seqSz + beforeSz, after, afterSz);
 
     return seqSz + beforeSz + afterSz;
+#else
+    (void)output;
+    (void)daysValid;
+    return NOT_COMPILED_IN;
+#endif
 }
 
 /* encode info from cert into DER encoded format */
