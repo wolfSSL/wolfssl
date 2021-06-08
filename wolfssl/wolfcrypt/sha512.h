@@ -80,7 +80,10 @@
     #include <wolfssl/wolfcrypt/port/silabs/silabs_hash.h>
 #endif
 #if defined(WOLFSSL_PSOC6_CRYPTO)
-   #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
+    #include "cy_crypto_core_sha.h"
+    #include "cy_device_headers.h"
+    #include "cy_crypto_common.h"
+    #include "cy_crypto_core.h"
 #endif
 
 #if defined(_MSC_VER)
