@@ -27315,7 +27315,7 @@ int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
     if (nameSz > 0)
         XMEMCPY(pParam->hostName, name, nameSz);
 
-        pParam->hostName[nameSz] = '\0';
+    pParam->hostName[nameSz] = '\0';
 
     return WOLFSSL_SUCCESS;
 }
