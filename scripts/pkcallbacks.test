@@ -79,7 +79,7 @@ run_test() {
     # starts the server on pk_port, -R generates ready file to be used as a
     # mutex lock, -P does pkcallbacks. We capture the processid
     # into the variable server_pid
-    ./examples/server/server -P -R $ready_file -p $pk_port &
+    ./testApps/server/server -P -R $ready_file -p $pk_port &
     server_pid=$!
 
     while [ ! -s $ready_file -a "$counter" -lt 20 ]; do
@@ -102,7 +102,7 @@ run_test() {
     pk_port=`cat $ready_file`
 
     # starts client on pk_port with pkcallbacks, captures the output from client
-    capture_out=$(./examples/client/client -P -p $pk_port 2>&1)
+    capture_out=$(./testApps/client/client -P -p $pk_port 2>&1)
     client_result=$?
 
     if [ $client_result != 0 ]

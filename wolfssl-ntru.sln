@@ -8,22 +8,22 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testsuite", "testsuite\test
 		{73973223-5EE8-41CA-8E88-1D60E89A237B} = {73973223-5EE8-41CA-8E88-1D60E89A237B}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "echoserver", "examples\echoserver\echoserver-ntru.vcproj", "{07D97C48-E08F-4E34-9F67-3064039FF2CB}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "echoserver", "testApps\echoserver\echoserver-ntru.vcproj", "{07D97C48-E08F-4E34-9F67-3064039FF2CB}"
 	ProjectSection(ProjectDependencies) = postProject
 		{73973223-5EE8-41CA-8E88-1D60E89A237B} = {73973223-5EE8-41CA-8E88-1D60E89A237B}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "echoclient", "examples\echoclient\echoclient-ntru.vcproj", "{8362A816-C5DC-4E22-B5C5-9E6806387073}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "echoclient", "testApps\echoclient\echoclient-ntru.vcproj", "{8362A816-C5DC-4E22-B5C5-9E6806387073}"
 	ProjectSection(ProjectDependencies) = postProject
 		{73973223-5EE8-41CA-8E88-1D60E89A237B} = {73973223-5EE8-41CA-8E88-1D60E89A237B}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "client", "examples\client\client-ntru.vcproj", "{3ADE9549-582D-4D8E-9826-B172197A7959}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "client", "testApps\client\client-ntru.vcproj", "{3ADE9549-582D-4D8E-9826-B172197A7959}"
 	ProjectSection(ProjectDependencies) = postProject
 		{73973223-5EE8-41CA-8E88-1D60E89A237B} = {73973223-5EE8-41CA-8E88-1D60E89A237B}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "server", "examples\server\server-ntru.vcproj", "{E9FB0BA5-BA46-4A59-A953-39C18CD1DCB1}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "server", "testApps\server\server-ntru.vcproj", "{E9FB0BA5-BA46-4A59-A953-39C18CD1DCB1}"
 	ProjectSection(ProjectDependencies) = postProject
 		{73973223-5EE8-41CA-8E88-1D60E89A237B} = {73973223-5EE8-41CA-8E88-1D60E89A237B}
 	EndProjectSection

@@ -74,12 +74,12 @@ do_trap() {
 
 trap do_trap INT TERM
 
-[ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
-./examples/client/client '-?' 2>&1 | grep -- 'Client not compiled in!'
+[ ! -x ./testApps/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
+./testApps/client/client '-?' 2>&1 | grep -- 'Client not compiled in!'
 if [ $? -eq 0 ]; then
     exit 0
 fi
-./examples/server/server '-?' 2>&1 | grep -- 'Server not compiled in!'
+./testApps/server/server '-?' 2>&1 | grep -- 'Server not compiled in!'
 if [ $? -eq 0 ]; then
     exit 0
 fi
@@ -87,10 +87,10 @@ fi
 # Usual psk server / psk client. This use case is tested in
 # tests/unit.test and is used here for just checking if PSK is enabled
 port=0
-./examples/server/server -s -R $ready_file -p $port &
+./testApps/server/server -s -R $ready_file -p $port &
 server_pid=$!
 create_port
-./examples/client/client -s -p $port
+./testApps/client/client -s -p $port
 RESULT=$?
 remove_ready_file
 # if fail here then is a settings issue so return 0
@@ -104,16 +104,16 @@ echo ""
 # client test against the server
 ###############################
 
-./examples/client/client -v 3 2>&1 | grep -- 'Bad SSL version'
+./testApps/client/client -v 3 2>&1 | grep -- 'Bad SSL version'
 if [ $? -ne 0 ]; then
     # Usual server / client. This use case is tested in
     # tests/unit.test and is used here for just checking if cipher suite
     # is available (one case for example is with disable-asn)
     port=0
-    ./examples/server/server -R $ready_file -p $port -l DHE-RSA-AES128-SHA:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-DES-CBC3-SHA &
+    ./testApps/server/server -R $ready_file -p $port -l DHE-RSA-AES128-SHA:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-DES-CBC3-SHA &
     server_pid=$!
     create_port
-    ./examples/client/client -p $port
+    ./testApps/client/client -p $port
     RESULT=$?
     remove_ready_file
     # if fail here then is a settings issue so return 0
@@ -126,10 +126,10 @@ if [ $? -ne 0 ]; then
 
     # psk server with non psk client
     port=0
-    ./examples/server/server -j -R $ready_file -p $port &
+    ./testApps/server/server -j -R $ready_file -p $port &
     server_pid=$!
     create_port
-    ./examples/client/client -p $port
+    ./testApps/client/client -p $port
     RESULT=$?
     remove_ready_file
     if [ $RESULT -ne 0 ]; then
@@ -142,10 +142,10 @@ if [ $? -ne 0 ]; then
     # check fail if no auth, psk server with non psk client
     echo "Checking fail when not sending peer cert"
     port=0
-    ./examples/server/server -j -R $ready_file -p $port &
+    ./testApps/server/server -j -R $ready_file -p $port &
     server_pid=$!
     create_port
-    ./examples/client/client -x -p $port
+    ./testApps/client/client -x -p $port
     RESULT=$?
     remove_ready_file
     if [ $RESULT -eq 0 ]; then

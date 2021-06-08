@@ -39,7 +39,7 @@
 
 #include <wolfssl/test.h>
 
-#include <examples/client/client.h>
+#include <testApps/client/client.h>
 #include <wolfssl/error-ssl.h>
 
 #ifndef NO_WOLFSSL_CLIENT

@@ -70,7 +70,7 @@ run_test() {
     # starts the server on crl_port, -R generates ready file to be used as a
     # mutex lock, -c loads the revoked certificate. We capture the processid
     # into the variable server_pid
-    ./examples/server/server -R $ready_file -p $crl_port \
+    ./testApps/server/server -R $ready_file -p $crl_port \
                              -c ${CERT_DIR}/server-revoked-cert.pem \
                              -k ${CERT_DIR}/server-revoked-key.pem &
     server_pid=$!
@@ -95,7 +95,7 @@ run_test() {
     crl_port="$(cat $ready_file)"
 
     # starts client on crl_port and captures the output from client
-    capture_out=$(./examples/client/client -p $crl_port 2>&1)
+    capture_out=$(./testApps/client/client -p $crl_port 2>&1)
     client_result=$?
 
     wait $server_pid
@@ -147,7 +147,7 @@ run_hashdir_test() {
   # starts the server on crl_port, -R generates ready file to be used as a
   # mutex lock, -c loads the revoked certificate. We capture the processid
   # into the variable server_pid
-  ./examples/server/server -R $ready_file -p $crl_port \
+  ./testApps/server/server -R $ready_file -p $crl_port \
                              -c ${CERT_DIR}/server-revoked-cert.pem \
                              -k ${CERT_DIR}/server-revoked-key.pem &
   server_pid=$!
@@ -161,7 +161,7 @@ run_hashdir_test() {
   crl_port="$(cat $ready_file)"
   
   # starts client on crl_port and captures the output from client
-  capture_out=$(./examples/client/client -p $crl_port -9 2>&1)
+  capture_out=$(./testApps/client/client -p $crl_port -9 2>&1)
   client_result=$?
   
   wait $server_pid
@@ -194,7 +194,7 @@ run_hashdir_test() {
 ######### begin program #########
 
 # Check for enabling hash dir feature
-./examples/client/client -? 2>&1 | grep -- 'hash dir'
+./testApps/client/client -? 2>&1 | grep -- 'hash dir'
 if [ $? -eq 0 ]; then
    hash_dir=yes
    exit_hash_dir_code=1

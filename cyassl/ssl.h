@@ -704,13 +704,13 @@
 #define NO_WOLFSSL_ALLOC_ALIGN NO_CYASSL_ALLOC_ALIGN /* @TODO */
 
 
-/* examples/client/client.h */
+/* testApps/client/client.h */
 #define CYASSL_THREAD WOLFSSL_THREAD
 #ifdef WOLFSSL_DTLS
     #define CYASSL_DTLS   WOLFSSL_DTLS
 #endif
 
-/* examples/client/client.c */
+/* testApps/client/client.c */
 #define LIBCYASSL_VERSION_STRING LIBWOLFSSL_VERSION_STRING
 
 #ifdef __cplusplus

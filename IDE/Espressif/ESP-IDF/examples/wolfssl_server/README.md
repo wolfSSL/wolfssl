@@ -15,8 +15,8 @@ When you want to test the wolfSSL simple server demo
 3. Once the server connects to the wifi, it is waiting for client request.  
     ("Waiting for a connection..." message will be displayed.)
    
-4. You can use <wolfssl>/examples/client to test the server  
+4. You can use <wolfssl>/testApps/client to test the server  
     e.g ./example/client/client -h xx.xx.xx
 
-See the README.md file in the upper level 'examples' directory for more information about examples.
+See the README.md file in the upper level 'testApps' directory for more information about examples.
 
