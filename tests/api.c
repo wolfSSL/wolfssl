@@ -10112,7 +10112,7 @@ static int test_wc_Sha3_GetFlags (void)
 static int test_wc_InitShake256 (void)
 {
     int             ret = 0;
-#if defined(WOLFSSL_SHAKE256) && !defined(WOLFSSL_NO_SHAKE256)
+#ifdef WOLFSSL_SHAKE256
     wc_Shake        shake;
 
     printf(testingFmt, "wc_InitShake256()");
@@ -10139,7 +10139,7 @@ static int testing_wc_Shake256_Update (void)
 {
     int         ret = 0;
 
-#if defined(WOLFSSL_SHAKE256) && !defined(WOLFSSL_NO_SHAKE256)
+#ifdef WOLFSSL_SHAKE256
     wc_Shake    shake;
     byte        msg[] = "Everybody's working for the weekend.";
     byte        msg2[] = "Everybody gets Friday off.";
@@ -10191,7 +10191,7 @@ static int testing_wc_Shake256_Update (void)
     wc_Shake256_Free(&shake);
 
     printf(resultFmt, ret == 0 ? passed : failed);
-#endif /* WOLFSSL_SHAKE256 && !WOLFSSL_NO_SHAKE256 */
+#endif /* WOLFSSL_SHAKE256 */
 
     return ret;
 
@@ -10201,7 +10201,7 @@ static int test_wc_Shake256_Final (void)
 {
     int         ret = 0;
 
-#if defined(WOLFSSL_SHAKE256) && !defined(WOLFSSL_NO_SHAKE256)
+#ifdef WOLFSSL_SHAKE256
     wc_Shake    shake;
     const char* msg    = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnom"
                          "nopnopq";
@@ -10256,7 +10256,7 @@ static int test_wc_Shake256_Final (void)
 static int test_wc_Shake256_Copy (void)
 {
     int         ret = 0;
-#if defined(WOLFSSL_SHAKE256) && !defined(WOLFSSL_NO_SHAKE256)
+#ifdef WOLFSSL_SHAKE256
     wc_Shake    shake, shakeCpy;
     const char* msg = TEST_STRING;
     word32      msglen = (word32)TEST_STRING_SZ;
@@ -10319,7 +10319,7 @@ static int test_wc_Shake256_Copy (void)
 static int test_wc_Shake256Hash(void)
 {
     int ret = 0;
-#if defined(WOLFSSL_SHAKE256) && !defined(WOLFSSL_NO_SHAKE256)
+#ifdef WOLFSSL_SHAKE256
 
     const byte data[] = { /* Hello World */
         0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
