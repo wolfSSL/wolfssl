@@ -14432,9 +14432,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         int wolfSSL_writev(WOLFSSL* ssl, const struct iovec* iov, int iovcnt)
         {
         #ifdef WOLFSSL_SMALL_STACK
-            byte   staticBuffer[1]; /* force heap usage */
+            byte   staticBuffer[1] = { 0 }; /* force heap usage */
         #else
-            byte   staticBuffer[FILE_BUFFER_SIZE];
+            byte   staticBuffer[FILE_BUFFER_SIZE] = { 0 };
         #endif
             byte* myBuffer  = staticBuffer;
             int   dynamic   = 0;
