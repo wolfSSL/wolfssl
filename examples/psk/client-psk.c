@@ -40,6 +40,7 @@
 /*
  *psk client set up.
  */
+#ifndef NO_PSK
 static inline unsigned int My_Psk_Client_Cb(WOLFSSL* ssl, const char* hint,
         char* identity, unsigned int id_max_len, unsigned char* key,
         unsigned int key_max_len)
@@ -60,6 +61,7 @@ static inline unsigned int My_Psk_Client_Cb(WOLFSSL* ssl, const char* hint,
 
     return PSK_KEY_LEN;
 }
+#endif
 
 int main(int argc, char **argv)
 {
