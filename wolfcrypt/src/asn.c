@@ -1464,6 +1464,18 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 #ifdef WOLFSSL_SHA512
     static const byte hashSha512hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 3};
 #endif
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
+    static const byte hashSha3_224hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 7};
+#endif
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+    static const byte hashSha3_256hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 8};
+#endif
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
+    static const byte hashSha3_384hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 9};
+#endif
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
+    static const byte hashSha3_512hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 10};
+#endif
 
 /* hmacType */
 #ifndef NO_HMAC
@@ -1763,6 +1775,30 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                 case SHA512h:
                     oid = hashSha512hOid;
                     *oidSz = sizeof(hashSha512hOid);
+                    break;
+            #endif
+            #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
+                case SHA3_224h:
+                    oid = hashSha3_224hOid;
+                    *oidSz = sizeof(hashSha3_224hOid);
+                    break;
+            #endif
+            #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+                case SHA3_256h:
+                    oid = hashSha3_256hOid;
+                    *oidSz = sizeof(hashSha3_256hOid);
+                    break;
+            #endif
+            #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
+                case SHA3_384h:
+                    oid = hashSha3_384hOid;
+                    *oidSz = sizeof(hashSha3_384hOid);
+                    break;
+            #endif
+            #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
+                case SHA3_512h:
+                    oid = hashSha3_512hOid;
+                    *oidSz = sizeof(hashSha3_512hOid);
                     break;
             #endif
                 default:
