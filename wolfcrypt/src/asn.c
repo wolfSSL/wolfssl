@@ -4811,7 +4811,7 @@ int wc_DhKeyToDer(DhKey* key, byte* output, word32* outSz, int exportPriv)
     else {
         /* bit string: public */
         pubSz = SetASNIntMP(&key->pub, -1, NULL);
-        idx = 1 + SetLength(pubSz, NULL) + pubSz; /* +1 for ASN_BIT_STRING */
+        idx = SetBitString(pubSz, 0, NULL) + pubSz;
     }
     keySz = idx;
 
