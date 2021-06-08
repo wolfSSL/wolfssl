@@ -1262,7 +1262,7 @@ unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
         case AES_128_GCM_TYPE:
         case AES_192_GCM_TYPE:
         case AES_256_GCM_TYPE:
-            return WOLFSSL_EVP_CIPH_GCM_MODE &
+            return WOLFSSL_EVP_CIPH_GCM_MODE |
                     WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER;
     #endif
     #if defined(WOLFSSL_AES_COUNTER)
@@ -1319,7 +1319,7 @@ unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
 unsigned long WOLFSSL_EVP_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
 {
   if (cipher == NULL) return 0;
-  return WOLFSSL_CIPHER_mode(cipher);
+  return WOLFSSL_CIPHER_mode(cipher) & WOLFSSL_EVP_CIPH_MODE;
 }
 
 void wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags)
@@ -1817,7 +1817,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *
     switch (ctx->pkey->type) {
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     case EVP_PKEY_RSA:
-        len = wolfSSL_RSA_private_encrypt((int)tbslen, (unsigned char*)tbs, sig,
+        len = wolfSSL_RSA_private_encrypt((int)tbslen, tbs, sig,
               ctx->pkey->rsa, ctx->padding);
         if (len < 0)
             break;
@@ -2443,7 +2443,7 @@ int wolfSSL_EVP_VerifyUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t l
  * returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure
  */
 int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
-        unsigned char*sig, unsigned int siglen, WOLFSSL_EVP_PKEY *pkey)
+        const unsigned char*sig, unsigned int siglen, WOLFSSL_EVP_PKEY *pkey)
 {
     int ret;
     unsigned char md[WC_MAX_DIGEST_SIZE];
@@ -3724,7 +3724,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     {
         int ret;
         if (src->isHMAC) {
-            ret = wolfSSL_HmacCopy(&des->hash.hmac, (Hmac*)&src->hash.hmac);
+            return wolfSSL_HmacCopy(&des->hash.hmac, (Hmac*)&src->hash.hmac);
         }
         else {
             switch (src->macType) {
@@ -3818,8 +3818,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                     ret = BAD_FUNC_ARG;
                     break;
             }
+            return ret == 0 ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
         }
-        return ret == 0 ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
     }
 
     /* copies structure in to the structure out

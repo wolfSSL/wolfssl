@@ -11021,6 +11021,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                         XSTR_SIZEOF(BEGIN_PRIV_KEY_PREFIX)) != 0 ||
                         beginEnd - headerEnd > PEM_LINE_LEN) {
                     WOLFSSL_MSG("Couldn't find PEM header");
+                    WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
                     return ASN_NO_PEM_HEADER;
                 }
 
@@ -11033,6 +11034,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                                 (unsigned int)((char*)buff + sz - beginEnd));
                 if (!footer) {
                     WOLFSSL_MSG("Couldn't find PEM footer");
+                    WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
                     return ASN_NO_PEM_HEADER;
                 }
 
@@ -11058,6 +11060,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
         if (!headerEnd) {
             WOLFSSL_MSG("Couldn't find PEM header");
+            WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
             return ASN_NO_PEM_HEADER;
         }
 #else
@@ -12476,6 +12479,7 @@ int wc_Ed448PublicKeyToDer(ed448_key* key, byte* output, word32 inLen,
 
 #ifdef WOLFSSL_CERT_GEN
 
+#ifndef NO_ASN_TIME
 static WC_INLINE byte itob(int number)
 {
     return (byte)number + 0x30;
@@ -12509,7 +12513,7 @@ static void SetTime(struct tm* date, byte* output)
 
     output[i] = 'Z';  /* Zulu profile */
 }
-
+#endif
 
 #ifdef WOLFSSL_ALT_NAMES
 
@@ -13405,6 +13409,7 @@ int SetName(byte* output, word32 outputSz, CertName* name)
  * return size in bytes written to output, 0 on error */
 static int SetValidity(byte* output, int daysValid)
 {
+#ifndef NO_ASN_TIME
     byte before[MAX_DATE_SIZE];
     byte  after[MAX_DATE_SIZE];
 
@@ -13474,6 +13479,11 @@ static int SetValidity(byte* output, int daysValid)
     XMEMCPY(output + seqSz + beforeSz, after, afterSz);
 
     return seqSz + beforeSz + afterSz;
+#else
+    (void)output;
+    (void)daysValid;
+    return NOT_COMPILED_IN;
+#endif
 }
 
 /* encode info from cert into DER encoded format */
@@ -15964,6 +15974,14 @@ int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, byte* r, word32* rLen,
     if (s)
         XMEMCPY(s, (byte*)sig + idx, len);
 
+#ifndef NO_STRICT_ECDSA_LEN
+    /* sanity check that the index has been advanced all the way to the end of
+     * the buffer */
+    if (idx + len != sigLen) {
+        ret = ASN_ECC_KEY_E;
+    }
+#endif
+
     return ret;
 }
 #endif
@@ -15998,6 +16016,16 @@ int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
         mp_clear(r);
         return ASN_ECC_KEY_E;
     }
+
+#ifndef NO_STRICT_ECDSA_LEN
+    /* sanity check that the index has been advanced all the way to the end of
+     * the buffer */
+    if (idx != sigLen) {
+        mp_clear(r);
+        mp_clear(s);
+        return ASN_ECC_KEY_E;
+    }
+#endif
 
     return 0;
 }
