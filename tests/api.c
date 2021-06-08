@@ -41614,7 +41614,6 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_server_thread(void* args)
     char msg[] = "I hear you fa shizzle!";
     int  len   = (int) XSTRLEN(msg);
     char input[1024];
-    int  idx;
     int  ret, err;
 
     if (!args)
@@ -41680,11 +41679,10 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_server_thread(void* args)
 
     /* read and write data */
     XMEMSET( input, 0, sizeof(input));
-    idx = 0;
+
     while (1) {
-        ret = wolfSSL_read(ssl, input + idx, sizeof(input));
+        ret = wolfSSL_read(ssl, input, sizeof(input));
         if (ret > 0) {
-            idx += ret;
             break;
         }
         else {
@@ -41696,13 +41694,13 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_server_thread(void* args)
         }
     }
 
-    if (err == WOLFSSL_ERROR_ZERO_RETURN || err == WOLFSSL_ERROR_WANT_READ) {
+    if (err == WOLFSSL_ERROR_ZERO_RETURN) {
         do {
             ret = wolfSSL_write(ssl, msg, len);
             if (ret > 0) {
                 break;
             }
-        } while ( ret < 0);
+        } while (ret < 0);
     }
 
     /* bidirectional shutdown */
@@ -41710,13 +41708,11 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_server_thread(void* args)
         continue;
     }
 
-    ((func_args*)args)->return_code = TEST_SUCCESS;
-
     /* wait for the peer to disconnect the tcp connection */
     do {
         ret = wolfSSL_read(ssl, input, sizeof(input));
         err = wolfSSL_get_error(ssl, ret);
-    } while( ret > 0 || err != WOLFSSL_ERROR_ZERO_RETURN);
+    } while (ret > 0 || err != WOLFSSL_ERROR_ZERO_RETURN);
 
     /* detect TCP disconnect */
     AssertIntLE(ret,WOLFSSL_FAILURE);
