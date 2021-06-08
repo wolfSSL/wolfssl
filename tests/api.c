@@ -42956,55 +42956,46 @@ static void test_wolfSSL_CTX_get_min_proto_version(void)
 
     printf(testingFmt, "wolfSSL_CTX_get_min_proto_version()");
 
-    #ifndef NO_OLD_TLS
-        #ifdef WOLFSSL_ALLOW_SSLV3
-            #ifdef NO_WOLFSSL_SERVER
-                AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-            #else
-                AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
-            #endif
-            AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, SSL3_VERSION), WOLFSSL_SUCCESS);
-            AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), SSL3_VERSION);
-            wolfSSL_CTX_free(ctx);
-        #endif
-        #ifdef WOLFSSL_ALLOW_TLSV10
-            #ifdef NO_WOLFSSL_SERVER
-                AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_client_method()));
-            #else
-                AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_server_method()));
-            #endif
-            AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_VERSION), WOLFSSL_SUCCESS);
-            AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_VERSION);
-            wolfSSL_CTX_free(ctx);
-        #endif
-
-        #ifdef NO_WOLFSSL_SERVER
-            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_1_client_method()));
-        #else
-            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_1_server_method()));
-        #endif
-        AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_1_VERSION), WOLFSSL_SUCCESS);
-        AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_1_VERSION);
-        wolfSSL_CTX_free(ctx);
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_method()));
+    AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, SSL3_VERSION), WOLFSSL_SUCCESS);
+    #ifdef WOLFSSL_ALLOW_SSLV3
+        AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), SSL3_VERSION);
+    #else
+        AssertIntGT(wolfSSL_CTX_get_min_proto_version(ctx), SSL3_VERSION);
     #endif
+    wolfSSL_CTX_free(ctx);
+
+    #ifdef WOLFSSL_ALLOW_TLSV10
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_method()));
+    #else
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_method()));
+    #endif
+    AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_VERSION), WOLFSSL_SUCCESS);
+    #ifdef WOLFSSL_ALLOW_TLSV10
+        AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_VERSION);
+    #else
+        AssertIntGT(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_VERSION);
+    #endif
+    wolfSSL_CTX_free(ctx);
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_method()));
+    AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_1_VERSION), WOLFSSL_SUCCESS);
+    #ifndef NO_OLD_TLS
+        AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_1_VERSION);
+    #else
+        AssertIntGT(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_1_VERSION);
+    #endif
+    wolfSSL_CTX_free(ctx);
 
     #ifndef WOLFSSL_NO_TLS12
-        #ifdef NO_WOLFSSL_SERVER
-            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
-        #else
-            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
-        #endif
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_method()));
         AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION), WOLFSSL_SUCCESS);
         AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_2_VERSION);
         wolfSSL_CTX_free(ctx);
     #endif
 
     #ifdef WOLFSSL_TLS13
-        #ifdef NO_WOLFSSL_SERVER
-            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
-        #else
-            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
-        #endif
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_method()));
         AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION), WOLFSSL_SUCCESS);
         AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_3_VERSION);
         wolfSSL_CTX_free(ctx);

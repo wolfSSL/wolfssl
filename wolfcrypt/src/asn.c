@@ -11021,6 +11021,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                         XSTR_SIZEOF(BEGIN_PRIV_KEY_PREFIX)) != 0 ||
                         beginEnd - headerEnd > PEM_LINE_LEN) {
                     WOLFSSL_MSG("Couldn't find PEM header");
+                    WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
                     return ASN_NO_PEM_HEADER;
                 }
 
@@ -11033,6 +11034,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                                 (unsigned int)((char*)buff + sz - beginEnd));
                 if (!footer) {
                     WOLFSSL_MSG("Couldn't find PEM footer");
+                    WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
                     return ASN_NO_PEM_HEADER;
                 }
 
@@ -11058,6 +11060,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
         if (!headerEnd) {
             WOLFSSL_MSG("Couldn't find PEM header");
+            WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
             return ASN_NO_PEM_HEADER;
         }
 #else
