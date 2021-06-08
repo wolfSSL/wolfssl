@@ -49,17 +49,21 @@ Possible ECC enable options:
  *                        Includes the curve "a" variable in calculation
  * ECC_DUMP_OID:        Enables dump of OID encoding and sum    default: off
  * ECC_CACHE_CURVE:     Enables cache of curve info to improve performance
-                                                                default: off
+ *                                                              default: off
  * FP_ECC:              ECC Fixed Point Cache                   default: off
+ *                      FP cache is not supported for SECP160R1, SECP160R2, 
+ *                      SECP160K1 and SECP224K1. These do not work with scalars
+ *                      that are the length of the order when the order is 
+ *                      longer than the prime.
  * USE_ECC_B_PARAM:     Enable ECC curve B param                default: off
-                         (on for HAVE_COMP_KEY)
+ *                      (on for HAVE_COMP_KEY)
  * WOLFSSL_ECC_CURVE_STATIC:                                    default off (on for windows)
-                        For the ECC curve paramaters `ecc_set_type` use fixed
-                        array for hex string
+ *                      For the ECC curve paramaters `ecc_set_type` use fixed
+ *                      array for hex string
  * WC_ECC_NONBLOCK:     Enable non-blocking support for sign/verify.
-                        Requires SP with WOLFSSL_SP_NONBLOCK
+ *                      Requires SP with WOLFSSL_SP_NONBLOCK
  * WC_ECC_NONBLOCK_ONLY Enable the non-blocking function only, no fall-back to
-                        normal blocking API's
+ *                      normal blocking API's
  * WOLFSSL_ECDSA_SET_K: Enables the setting of the 'k' value to use during ECDSA
  *                      signing. If the value is invalid, a new random 'k' is
  *                      generated in the loop. (For testing)
@@ -296,6 +300,7 @@ enum {
     #endif /* HAVE_ECC_SECPR2 */
 #endif /* ECC128 */
 #ifdef ECC160
+#ifndef FP_ECC
     #ifndef NO_ECC_SECP
         #ifdef HAVE_OID_ENCODING
             #define CODED_SECP160R1    {1,3,132,0,8}
@@ -341,6 +346,7 @@ enum {
         #endif
         #define ecc_oid_secp160k1_sz CODED_SECP160K1_SZ
     #endif /* HAVE_ECC_KOBLITZ */
+#endif /* !FP_ECC */
     #ifdef HAVE_ECC_BRAINPOOL
         #ifdef HAVE_OID_ENCODING
             #define CODED_BRAINPOOLP160R1    {1,3,36,3,3,2,8,1,1,1}
@@ -450,7 +456,7 @@ enum {
         #endif
         #define ecc_oid_secp224r1_sz CODED_SECP224R1_SZ
     #endif /* !NO_ECC_SECP */
-    #ifdef HAVE_ECC_KOBLITZ
+    #if defined(HAVE_ECC_KOBLITZ) && !defined(FP_ECC)
         #ifdef HAVE_OID_ENCODING
             #define CODED_SECP224K1    {1,3,132,0,32}
             #define CODED_SECP224K1_SZ 5
@@ -464,7 +470,7 @@ enum {
             #define ecc_oid_secp224k1 CODED_SECP224K1
         #endif
         #define ecc_oid_secp224k1_sz CODED_SECP224K1_SZ
-    #endif /* HAVE_ECC_KOBLITZ */
+    #endif /* HAVE_ECC_KOBLITZ && !FP_ECC */
     #ifdef HAVE_ECC_BRAINPOOL
         #ifdef HAVE_OID_ENCODING
             #define CODED_BRAINPOOLP224R1    {1,3,36,3,3,2,8,1,1,5}
@@ -738,6 +744,7 @@ const ecc_set_type ecc_sets[] = {
     #endif /* HAVE_ECC_SECPR2 */
 #endif /* ECC128 */
 #ifdef ECC160
+#ifndef FP_ECC
     #ifndef NO_ECC_SECP
     {
         20,                                         /* size/bytes */
@@ -789,6 +796,7 @@ const ecc_set_type ecc_sets[] = {
         1,                                          /* cofactor   */
     },
     #endif /* HAVE_ECC_KOBLITZ */
+#endif /* !FP_ECC */
     #ifdef HAVE_ECC_BRAINPOOL
     {
         20,                                         /* size/bytes */
@@ -912,7 +920,7 @@ const ecc_set_type ecc_sets[] = {
         1,                                                          /* cofactor   */
     },
     #endif /* !NO_ECC_SECP */
-    #ifdef HAVE_ECC_KOBLITZ
+    #if defined(HAVE_ECC_KOBLITZ) && !defined(FP_ECC)
     {
         28,                                                         /* size/bytes */
         ECC_SECP224K1,                                              /* ID         */
@@ -928,7 +936,7 @@ const ecc_set_type ecc_sets[] = {
         ECC_SECP224K1_OID,                                          /* oid sum    */
         1,                                                          /* cofactor   */
     },
-    #endif /* HAVE_ECC_KOBLITZ */
+    #endif /* HAVE_ECC_KOBLITZ && !FP_ECC */
     #ifdef HAVE_ECC_BRAINPOOL
     {
         28,                                                         /* size/bytes */
