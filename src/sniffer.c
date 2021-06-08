@@ -2280,7 +2280,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             /* Derive secret from private key and peer's public key */
             do {
             #ifdef WOLFSSL_ASYNC_CRYPT
-                ret = wc_AsyncWait(ret, &dhPriv.asyncDev,
+                ret = wc_AsyncWait(ret, &dhKey.asyncDev,
                         WC_ASYNC_FLAG_CALL_AGAIN);
             #endif
                 if (ret >= 0) {
