@@ -16318,6 +16318,10 @@ static int ASNToHexString(const byte* input, word32* inOutIdx, char** out,
     }
 
     str = (char*)XMALLOC(len * 2 + 1, heap, heapType);
+    if (str == NULL) {
+        return MEMORY_E;
+    }
+
     for (i=0; i<len; i++)
         ByteToHex(input[*inOutIdx + i], str + i*2);
     str[len*2] = '\0';
@@ -17624,12 +17628,20 @@ static int DecodeResponseData(byte* source,
             if (single->next == NULL) {
                 return MEMORY_E;
             }
-            single = single->next;
-            XMEMSET(single, 0, sizeof(OcspEntry));
-            single->status = (CertStatus*)XMALLOC(sizeof(CertStatus),
+            XMEMSET(single->next, 0, sizeof(OcspEntry));
+
+            single->next->status = (CertStatus*)XMALLOC(sizeof(CertStatus),
                 resp->heap, DYNAMIC_TYPE_OCSP_STATUS);
-            XMEMSET(single->status, 0, sizeof(CertStatus));
-            single->isDynamic = 1;
+            if (single->next->status == NULL) {
+                XFREE(single->next, resp->heap, DYNAMIC_TYPE_OCSP_ENTRY);
+                single->next = NULL;
+                return MEMORY_E;
+            }
+            XMEMSET(single->next->status, 0, sizeof(CertStatus));
+
+            single->next->isDynamic = 1;
+
+            single = single->next;
         }
     }
 
