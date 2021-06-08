@@ -131,7 +131,9 @@ ECC Curve Sizes:
 #include <wolfssl/wolfcrypt/sp.h>
 #endif
 
-#ifdef HAVE_ECC_ENCRYPT
+#if defined(HAVE_ECC_ENCRYPT) || defined(WOLFSSL_ECDSA_SET_K) || \
+    defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K)
     #include <wolfssl/wolfcrypt/hmac.h>
     #include <wolfssl/wolfcrypt/aes.h>
 #endif
@@ -5315,6 +5317,48 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 }
 #endif /* !NO_ASN */
 
+#if defined(WOLFSSL_ECDSA_DETERMINISTIC_K)
+/* returns MP_OKAY on success */
+static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
+{
+    int err;
+    DECLARE_CURVE_SPECS(curve, 1);
+    ALLOC_CURVE_SPECS(1);
+
+    /* get curve order */
+    err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
+    if (err == MP_OKAY) {
+        /* if key->sign_k is NULL then create a buffer for the mp_int
+         * if not NULL then assume the user correctly set deterministic flag and
+         *    that the key->sign_k holds a previously malloc'd mp_int buffer */
+        if (key->sign_k == NULL) {
+            key->sign_k = (mp_int*)XMALLOC(sizeof(mp_int), key->heap,
+                                                            DYNAMIC_TYPE_ECC);
+        }
+
+        if (key->sign_k) {
+            /* currently limiting to SHA256 for auto create */
+            if (mp_init(key->sign_k) != MP_OKAY ||
+                wc_ecc_gen_deterministic_k(in, inlen,
+                        WC_HASH_TYPE_SHA256, &key->k, key->sign_k,
+                        curve->order, key->heap) != 0) {
+                mp_free(key->sign_k);
+                XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
+                key->sign_k = NULL;
+                err = ECC_PRIV_KEY_E;
+            }
+        }
+        else {
+            err = MEMORY_E;
+        }
+    }
+
+    wc_ecc_curve_free(curve);
+    FREE_CURVE_SPECS();
+    return err;
+}
+#endif /* WOLFSSL_ECDSA_DETERMINISTIC_K */
+
 #if defined(WOLFSSL_STM32_PKA)
 int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                      ecc_key* key, mp_int *r, mp_int *s)
@@ -5372,7 +5416,8 @@ static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
              err = RNG_FAILURE_E;
              break;
         }
-#if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP)
+#if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
+           defined(WOLFSSL_ECDSA_DETERMINISTIC_K)
         if (key->sign_k != NULL) {
             if (loop_check > 1) {
                err = RNG_FAILURE_E;
@@ -5390,6 +5435,13 @@ static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
             key->sign_k = NULL;
     #ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
             loop_check = 64;
+    #endif
+    #ifdef WOLFSSL_ECDSA_DETERMINISTIC_K
+            if (key->deterministic == 1) {
+                /* sign_k generated earlier in function for SP calls.
+                 * Only go through the loop once and fail if error */
+                loop_check = 64;
+            }
     #endif
 
             /* compute public key based on provided "k" */
@@ -5490,6 +5542,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 #endif
 
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
     (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
     (defined(HAVE_CAVIUM_V) || defined(HAVE_INTEL_QA)))
    DECLARE_CURVE_SPECS(curve, ECC_CURVE_FIELD_COUNT);
@@ -5520,13 +5573,24 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
     }
 #endif
 
+#if defined(WOLFSSL_ECDSA_DETERMINISTIC_K)
+    /* generate deterministic 'k' value to be used either with SP or normal */
+    if (key->deterministic == 1) {
+        if (deterministic_sign_helper(in, inlen, key)) {
+            WOLFSSL_MSG("Error generating deterministic k to sign");
+            return ECC_PRIV_KEY_E;
+        }
+    }
+#endif
+
 #if defined(WOLFSSL_HAVE_SP_ECC)
     if (key->idx != ECC_CUSTOM_IDX
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
         && key->asyncDev.marker != WOLFSSL_ASYNC_MARKER_ECC
     #endif
     ) {
-    #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP)
+    #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) \
+        || defined(WOLFSSL_ECDSA_DETERMINISTIC_K)
         mp_int* sign_k = key->sign_k;
     #else
         mp_int* sign_k = NULL;
@@ -5627,7 +5691,8 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    }
 
    /* load curve info */
-#if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP)
+#if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K)
    ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
    err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
 #else
@@ -5771,6 +5836,267 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
    return err;
 }
+
+#if defined(WOLFSSL_ECDSA_DETERMINISTIC_K)
+/* helper function to do HMAC operations
+ * returns 0 on success and updates "out" buffer
+ */
+static int _HMAC_K(byte* K, word32 KSz, byte* V, word32 VSz,
+        const byte* h1, word32 h1Sz, byte* x, word32 xSz, byte* oct,
+        byte* out, enum wc_HashType hashType, void* heap) {
+    Hmac hmac;
+    int  ret, init;
+
+    ret = init = wc_HmacInit(&hmac, heap, 0);
+    if (ret == 0)
+        ret = wc_HmacSetKey(&hmac, hashType, K, KSz);
+
+    if (ret == 0)
+        ret = wc_HmacUpdate(&hmac, V, VSz);
+
+    if (ret == 0 && oct != NULL)
+        ret = wc_HmacUpdate(&hmac, oct, 1);
+
+    if (ret == 0)
+        ret = wc_HmacUpdate(&hmac, x, xSz);
+
+    if (ret == 0)
+        ret = wc_HmacUpdate(&hmac, h1, h1Sz);
+
+    if (ret == 0)
+        ret = wc_HmacFinal(&hmac, out);
+
+    if (init == 0)
+        wc_HmacFree(&hmac);
+
+    return ret;
+}
+
+
+/* Generates a deterministic key based of the message using RFC6979
+ * @param  [in]   hash     Hash value to sign
+ * @param  [in]   hashSz   Size of 'hash' buffer passed in
+ * @param  [in]   hashType Type of hash to use with deterministic k gen, i.e.
+ *                WC_HASH_TYPE_SHA256
+ * @param  [in]   priv     Current ECC private key set
+ * @param  [out]  k        An initialized mp_int to set the k value generated in
+ * @param  [in]   order    ECC order parameter to use with generation
+ * @return  0 on success.
+ */
+int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
+        enum wc_HashType hashType, mp_int* priv, mp_int* k, mp_int* order,
+        void* heap)
+{
+    int ret = 0, qbits = 0;
+#ifndef WOLFSSL_SMALL_STACK
+    byte h1[WC_MAX_DIGEST_SIZE];
+    byte V[WC_MAX_DIGEST_SIZE];
+    byte K[WC_MAX_DIGEST_SIZE];
+    byte x[MAX_ECC_BYTES];
+#else
+    byte *h1 = NULL;
+    byte *V  = NULL;
+    byte *K  = NULL;
+    byte *x  = NULL;
+#endif
+    word32 xSz, VSz, KSz, h1len;
+    byte intOct;
+    mp_int z1;
+
+    if (hash == NULL || k == NULL || order == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (hashSz > WC_MAX_DIGEST_SIZE) {
+        WOLFSSL_MSG("hash size was too large!");
+        return BAD_FUNC_ARG;
+    }
+
+    if ((xSz = mp_unsigned_bin_size(priv)) > MAX_ECC_BYTES) {
+        WOLFSSL_MSG("private key larger than max expected!");
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    h1 = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, heap, DYNAMIC_TYPE_DIGEST);
+    if (h1 == NULL) {
+        ret = MEMORY_E;
+    }
+
+    if (ret == 0) {
+        V = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, heap, DYNAMIC_TYPE_ECC_BUFFER);
+        if (V == NULL)
+            ret = MEMORY_E;
+    }
+
+    if (ret == 0) {
+        K = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, heap, DYNAMIC_TYPE_ECC_BUFFER);
+        if (K == NULL)
+            ret = MEMORY_E;
+    }
+
+    if (ret == 0) {
+        x = (byte*)XMALLOC(MAX_ECC_BYTES, heap, DYNAMIC_TYPE_PRIVATE_KEY);
+        if (x == NULL)
+            ret = MEMORY_E;
+    }
+
+    /* bail out if any error has been hit at this point */
+    if (ret != 0) {
+        if (x != NULL)
+            XFREE(x, heap, DYNAMIC_TYPE_PRIVATE_KEY);
+        if (K != NULL)
+            XFREE(K, heap, DYNAMIC_TYPE_ECC_BUFFER);
+        if (V != NULL)
+            XFREE(V, heap, DYNAMIC_TYPE_ECC_BUFFER);
+        if (h1 != NULL)
+            XFREE(h1, heap, DYNAMIC_TYPE_DIGEST);
+        return ret;
+    }
+#endif
+
+    VSz = KSz = h1len = hashSz;
+
+    /* 3.2 b. Set V = 0x01 0x01 ... */
+    XMEMSET(V, 0x01, VSz);
+
+    /* 3.2 c. Set K = 0x00 0x00 ... */
+    XMEMSET(K, 0x00, KSz);
+
+    mp_init(&z1); /* always init z1 and free z1 */
+    ret = mp_to_unsigned_bin(priv, x);
+    if (ret == 0) {
+        qbits = mp_count_bits(order);
+        ret = mp_read_unsigned_bin(&z1, hash, hashSz);
+    }
+
+    /* bits2octets on h1 */
+    if (ret == 0) {
+        /* right shift by bits in hash minus bits in order */
+        mp_rshb(&z1, (hashSz * WOLFSSL_BIT_SIZE) - qbits);
+        XMEMSET(h1, 0, sizeof(h1));
+
+        /* mod reduce by order using conditional subtract */
+        if (mp_cmp(&z1, order) == MP_GT) {
+            mp_sub(&z1, order, &z1);
+            h1len = mp_unsigned_bin_size(&z1);
+            if (h1len < 0 || h1len > WC_MAX_DIGEST_SIZE) {
+                ret = BUFFER_E;
+            }
+            else {
+                ret = mp_to_unsigned_bin(&z1, h1);
+            }
+        }
+        else {
+            /* use original hash and keep leading 0's */
+            h1len = hashSz;
+            XMEMCPY(h1, hash, hashSz);
+        }
+    }
+    mp_free(&z1);
+
+    /* 3.2 step d. K = HMAC_K(V || 0x00 || int2octests(x) || bits2octests(h1) */
+    if (ret == 0) {
+        intOct = 0x00;
+        ret = _HMAC_K(K, KSz, V, VSz, h1, h1len, x, xSz, &intOct, K,
+                hashType, heap);
+    }
+
+    /* 3.2 step e. V = HMAC_K(V) */
+    if (ret == 0) {
+        ret = _HMAC_K(K, KSz, V, VSz, NULL, 0, NULL, 0, NULL, V, hashType,
+                heap);
+    }
+
+
+    /* 3.2 step f. K = HMAC_K(V || 0x01 || int2octests(x) || bits2octests(h1) */
+    if (ret == 0) {
+        intOct = 0x01;
+        ret = _HMAC_K(K, KSz, V, VSz, h1, h1len, x, xSz, &intOct, K, hashType,
+                heap);
+    }
+
+    /* 3.2 step g. V = HMAC_K(V) */
+    if (ret == 0) {
+        ret = _HMAC_K(K, KSz, V, VSz, NULL, 0, NULL, 0, NULL, V, hashType,
+                heap);
+    }
+
+    /* 3.2 step h. loop through the next steps until a valid value is found */
+    if (ret == 0 ) {
+        int err;
+
+        intOct = 0x00;
+        do {
+            err = 0; /* start as good until generated k is tested */
+
+            /* 3.2 step h.2 when tlen < qlen do V = HMAC_K(V); T = T || V */
+            ret = _HMAC_K(K, KSz, V, VSz, NULL, 0, NULL, 0, NULL, V, hashType,
+                    heap);
+            if (ret == 0) {
+                mp_clear(k); /* 3.2 step h.1 clear T */
+                ret = mp_read_unsigned_bin(k, V, VSz);
+            }
+
+            if ((ret == 0) && ((int)(VSz * WOLFSSL_BIT_SIZE) != qbits)) {
+                /* handle odd case where shift of 'k' is needed with RFC 6979
+                 *  k = bits2int(T) in section 3.2 h.3 */
+                mp_rshb(k, (VSz * WOLFSSL_BIT_SIZE) - qbits);
+            }
+
+            /* 3.2 step h.3 the key should be smaller than the order of base
+             * point */
+            if (ret == 0) {
+                if (mp_cmp(k, order) != MP_LT) {
+                    err = MP_VAL;
+                } else if (mp_iszero(k) == MP_YES) {
+                    /* no 0 key's */
+                    err = MP_ZERO_E;
+                }
+            }
+
+            /* 3.2 step h.3 if there was a problem with 'k' generated then try
+             * again K = HMAC_K(V || 0x00) and V = HMAC_K(V) */
+            if (ret == 0 && err != 0) {
+                ret = _HMAC_K(K, KSz, V, VSz, NULL, 0, NULL, 0, &intOct, K,
+                    hashType, heap);
+                if (ret == 0) {
+                    ret = _HMAC_K(K, KSz, V, VSz, NULL, 0, NULL, 0, NULL, V,
+                    hashType, heap);
+                }
+            }
+        } while (ret == 0 && err != 0);
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (x != NULL)
+        XFREE(x, heap, DYNAMIC_TYPE_PRIVATE_KEY);
+    if (K != NULL)
+        XFREE(K, heap, DYNAMIC_TYPE_ECC_BUFFER);
+    if (V != NULL)
+        XFREE(V, heap, DYNAMIC_TYPE_ECC_BUFFER);
+    if (h1 != NULL)
+        XFREE(h1, heap, DYNAMIC_TYPE_DIGEST);
+#endif
+
+    return ret;
+}
+
+
+/* Sets the deterministic flag for 'k' generation with sign.
+ * returns 0 on success
+ */
+int wc_ecc_set_deterministic(ecc_key* key, byte flag)
+{
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    key->deterministic = flag;
+    return 0;
+}
+#endif
+
 
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP)
 int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key)
