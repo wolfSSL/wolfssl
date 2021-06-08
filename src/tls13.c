@@ -384,7 +384,7 @@ static int DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
                      const byte* secret, const byte* label, word32 labelLen,
                      int hashAlgo, int includeMsgs)
 {
-    int         ret = 0;
+    int         ret = -1;
     byte        hash[WC_MAX_DIGEST_SIZE];
     word32      hashSz = 0;
     word32      hashOutSz = 0;
