@@ -124,7 +124,7 @@ int main (int argc, char** argv)
     if (fgets(sendLine, MAXLINE, stdin) != NULL) {
 
         /* Send sendLine to the server */
-        if ((size_t) (wolfSSL_write(ssl, sendLine, strlen(sendLine)))
+        if ((size_t) (wolfSSL_write(ssl, sendLine, (int) strlen(sendLine)))
                 != strlen(sendLine)) {
             printf("SSL_write failed");
         }

@@ -179,7 +179,7 @@ int main()
         len = strnlen(buff, sizeof(buff));
 
         /* Reply back to the client */
-        if ((size_t) wolfSSL_write(ssl, buff, len) != len) {
+        if ((size_t) wolfSSL_write(ssl, buff, (int) len) != len) {
             fprintf(stderr, "ERROR: failed to write\n");
             return -1;
         }

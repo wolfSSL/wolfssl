@@ -198,7 +198,7 @@ int main(int argc, char** argv)
                 break;
             }
         }
-        if (wolfSSL_write(ssl, ack, sizeof(ack)) < 0) {
+        if (wolfSSL_write(ssl, ack, (int) sizeof(ack)) < 0) {
             printf("wolfSSL_write fail.\n");
             break;
         }

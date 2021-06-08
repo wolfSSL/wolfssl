@@ -200,8 +200,8 @@ int main()
             if (n > 0) {
                 printf("%s\n", buf);
                 /* server response */
-                if ((size_t) wolfSSL_write(ssl, response, strlen(response)) >
-                    strlen(response)) {
+                if ((size_t) wolfSSL_write(ssl, response, (int) strlen(response))
+                    > strlen(response)) {
                     printf("Fatal error : respond: write error\n");
                     return 1;
                 }
