@@ -5942,7 +5942,18 @@ int ecc_projective_add_point_safe(ecc_point* A, ecc_point* B, ecc_point* R,
         if ((err == MP_OKAY) && mp_iszero(R->z)) {
             /* When all zero then should have done a double */
             if (mp_iszero(R->x) && mp_iszero(R->y)) {
-                err = ecc_projective_dbl_point(B, R, a, modulus, mp);
+                if (mp_iszero(B->z)) {
+                    err = wc_ecc_copy_point(B, R);
+                    if (err == MP_OKAY) {
+                        err = mp_montgomery_calc_normalization(R->z, modulus);
+                    }
+                    if (err == MP_OKAY) {
+                        err = ecc_projective_dbl_point(R, R, a, modulus, mp);
+                    }
+                }
+                else {
+                    err = ecc_projective_dbl_point(B, R, a, modulus, mp);
+                }
             }
             /* When only Z zero then result is infinity */
             else {

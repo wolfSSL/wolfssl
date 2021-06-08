@@ -4775,25 +4775,28 @@ static int fp_prime_miller_rabin_ex(fp_int * a, fp_int * b, int *result,
                                                      defined(WOLFSSL_HAVE_SP_DH)
 #ifndef WOLFSSL_SP_NO_2048
   if (fp_count_bits(a) == 1024 && fp_isodd(a))
-      sp_ModExp_1024(b, r, a, y);
+      err = sp_ModExp_1024(b, r, a, y);
   else if (fp_count_bits(a) == 2048 && fp_isodd(a))
-      sp_ModExp_2048(b, r, a, y);
+      err = sp_ModExp_2048(b, r, a, y);
   else
 #endif
 #ifndef WOLFSSL_SP_NO_3072
   if (fp_count_bits(a) == 1536 && fp_isodd(a))
-      sp_ModExp_1536(b, r, a, y);
+      err = sp_ModExp_1536(b, r, a, y);
   else if (fp_count_bits(a) == 3072 && fp_isodd(a))
-      sp_ModExp_3072(b, r, a, y);
+      err = sp_ModExp_3072(b, r, a, y);
   else
 #endif
 #ifdef WOLFSSL_SP_4096
   if (fp_count_bits(a) == 4096 && fp_isodd(a))
-      sp_ModExp_4096(b, r, a, y);
+      err = sp_ModExp_4096(b, r, a, y);
   else
 #endif
 #endif
-      fp_exptmod(b, r, a, y);
+      err = fp_exptmod(b, r, a, y);
+   if (err != FP_OKAY) {
+       return err;
+   }
 
   /* if y != 1 and y != n1 do */
   if (fp_cmp_d (y, 1) != FP_EQ && fp_cmp (y, n1) != FP_EQ) {
@@ -4906,6 +4909,7 @@ int fp_isprime_ex(fp_int *a, int t, int* result)
 #endif
    fp_digit d;
    int      r, res;
+   int      err;
 
    if (t <= 0 || t > FP_PRIME_SIZE) {
      *result = FP_NO;
@@ -4930,7 +4934,7 @@ int fp_isprime_ex(fp_int *a, int t, int* result)
        res = fp_mod_d(a, primes[r], &d);
        if (res != MP_OKAY || d == 0) {
            *result = FP_NO;
-           return FP_OKAY;
+           return res;
        }
    }
 
@@ -4943,13 +4947,13 @@ int fp_isprime_ex(fp_int *a, int t, int* result)
    fp_init(b);
    for (r = 0; r < t; r++) {
        fp_set(b, primes[r]);
-       fp_prime_miller_rabin(a, b, &res);
-       if (res == FP_NO) {
-          *result = FP_NO;
+       err = fp_prime_miller_rabin(a, b, &res);
+       if ((err != FP_OKAY) || (res == FP_NO)) {
+          *result = res;
        #ifdef WOLFSSL_SMALL_STACK
           XFREE(b, NULL, DYNAMIC_TYPE_BIGINT);
        #endif
-          return FP_OKAY;
+          return err;
        }
    }
    *result = FP_YES;
@@ -5023,6 +5027,7 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
 
         b = (fp_int*)XMALLOC(sizeof(fp_int) * 5, NULL, DYNAMIC_TYPE_BIGINT);
         if (b == NULL) {
+            XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return FP_MEM;
         }
         c = &b[1]; n1 = &b[2]; y= &b[3]; r = &b[4];
@@ -5063,7 +5068,14 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
                 continue;
             }
 
-            fp_prime_miller_rabin_ex(a, b, &ret, n1, y, r);
+            err = fp_prime_miller_rabin_ex(a, b, &ret, n1, y, r);
+            if (err != FP_OKAY) {
+            #ifdef WOLFSSL_SMALL_STACK
+               XFREE(b, NULL, DYNAMIC_TYPE_BIGINT);
+               XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+               return err;
+            }
             if (ret == FP_NO)
                 break;
             fp_zero(b);
