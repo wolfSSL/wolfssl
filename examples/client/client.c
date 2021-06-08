@@ -2478,7 +2478,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_CTX_SetMinVersion(ctx, minVersion);
     }
     if (simulateWantWrite) {
+    #ifdef USE_WOLFSSL_IO
         wolfSSL_CTX_SetIOSend(ctx, SimulateWantWriteIOSendCb);
+    #endif
     }
 
 #ifdef SINGLE_THREADED
@@ -2607,7 +2609,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifdef HAVE_OCSP
     if (useOcsp) {
-    #ifdef HAVE_IO_TIMEOUT
+    #if defined(HAVE_IO_TIMEOUT) && defined(HAVE_HTTP_CLIENT)
         wolfIO_SetTimeout(DEFAULT_TIMEOUT_SEC);
     #endif
 
@@ -3165,7 +3167,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifdef HAVE_CRL
     if (disableCRL == 0 && !useVerifyCb) {
-    #ifdef HAVE_IO_TIMEOUT
+    #if defined(HAVE_IO_TIMEOUT) && defined(HAVE_HTTP_CLIENT)
         wolfIO_SetTimeout(DEFAULT_TIMEOUT_SEC);
     #endif
 

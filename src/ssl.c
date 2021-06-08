@@ -6296,7 +6296,7 @@ int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm, int options)
                 return WOLFSSL_FAILURE;
             }
 
-        #ifdef HAVE_CRL_IO
+        #if defined(HAVE_CRL_IO) && defined(USE_WOLFSSL_IO)
             cm->crl->crlIOCb = EmbedCrlLookup;
         #endif
         }
@@ -24363,7 +24363,6 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 #endif /* NO_FILESYSTEM */
 
 #endif /* XSNPRINTF */
-#endif /* !NO_BIO */
 
     int wolfSSL_X509_signature_print(WOLFSSL_BIO *bp,
             const WOLFSSL_X509_ALGOR *sigalg, const WOLFSSL_ASN1_STRING *sig)
@@ -24389,6 +24388,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
         return WOLFSSL_SUCCESS;
     }
+#endif /* !NO_BIO */
 
 #ifndef NO_WOLFSSL_STUB
     void wolfSSL_X509_get0_signature(const WOLFSSL_ASN1_BIT_STRING **psig,
@@ -25462,7 +25462,6 @@ cleanup:
 
     return ret;
 }
-#endif /* !NO_BIO */
 
 /* Converts the X509 to DER format and outputs it into bio.
  *
@@ -25482,6 +25481,7 @@ int wolfSSL_i2d_X509_REQ_bio(WOLFSSL_BIO* bio, WOLFSSL_X509* x509)
     return loadX509orX509REQFromBio(bio, x509, 1);
 }
 #endif /* WOLFSSL_CERT_REQ */
+#endif /* !NO_BIO */
 #endif /* WOLFSSL_CERT_GEN */
 
 /* Converts an internal structure to a DER buffer
@@ -25587,7 +25587,6 @@ static WOLFSSL_X509* d2i_X509orX509REQ_bio(WOLFSSL_BIO* bio,
     XFREE(mem, NULL, DYNAMIC_TYPE_OPENSSL);
     return localX509;
 }
-#endif /* !NO_BIO */
 
 WOLFSSL_X509* wolfSSL_d2i_X509_bio(WOLFSSL_BIO* bio, WOLFSSL_X509** x509)
 {
@@ -25600,6 +25599,7 @@ WOLFSSL_X509* wolfSSL_d2i_X509_REQ_bio(WOLFSSL_BIO* bio, WOLFSSL_X509** x509)
     return d2i_X509orX509REQ_bio(bio, x509, 1);
 }
 #endif
+#endif /* !NO_BIO */
 
 #if !defined(NO_ASN) && !defined(NO_PWDBASED)
 #if !defined(NO_BIO) && defined(HAVE_PKCS12)
