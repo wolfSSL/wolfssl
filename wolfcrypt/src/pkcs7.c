@@ -1100,6 +1100,16 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
             return ret;
         }
 
+        if (dCert->pubKeySize > (MAX_RSA_INT_SZ + MAX_RSA_E_SZ) ||
+            dCert->serialSz > MAX_SN_SZ) {
+            WOLFSSL_MSG("Invalid size in certificate\n");
+            FreeDecodedCert(dCert);
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
+#endif
+            return ASN_PARSE_E;
+        }
+
         XMEMCPY(pkcs7->publicKey, dCert->publicKey, dCert->pubKeySize);
         pkcs7->publicKeySz = dCert->pubKeySize;
         pkcs7->publicKeyOID = dCert->keyOID;
