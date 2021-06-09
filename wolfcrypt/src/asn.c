@@ -4292,11 +4292,12 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,
 int ToTraditionalEnc_ex(byte* input, word32 sz,const char* password,
                      int passwordSz, word32* algId, word32* crvId, byte removehd)
 {
-    int ret, length;
+    int ret, length = 0;
     word32 inOutIdx = 0;
 
     ret = wc_DecryptPKCS8Key(input, sz, password, passwordSz);
     if (ret > 0) {
+        length = ret;
         ret = ToTraditional_ex2(input, ret, algId, crvId, removehd);
         if (removehd == 0) {
             /* retrieve decrypted content length */
