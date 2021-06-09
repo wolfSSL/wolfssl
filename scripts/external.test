@@ -34,7 +34,7 @@ if [ $? -ne 0 ]; then
     fi
 
     # is our desired server there?
-    ${SCRIPT_DIR}/ping.test $server 2
+    "${SCRIPT_DIR}"/ping.test $server 2
     RESULT=$?
     [ $RESULT -ne 0 ] && exit 0
 

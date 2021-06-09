@@ -29,9 +29,9 @@ server_pid=$no_pid
 ready_file=`pwd`/wolfssl_crl_ready$$
 
 remove_ready_file() {
-    if test -e $ready_file; then
+    if test -e "$ready_file"; then
         echo -e "removing existing ready file"
-        rm $ready_file
+        rm "$ready_file"
     fi
 }
 
@@ -70,12 +70,12 @@ run_test() {
     # starts the server on crl_port, -R generates ready file to be used as a
     # mutex lock, -c loads the revoked certificate. We capture the processid
     # into the variable server_pid
-    ./examples/server/server -R $ready_file -p $crl_port \
+    ./examples/server/server -R "$ready_file" -p $crl_port \
                              -c ${CERT_DIR}/server-revoked-cert.pem \
                              -k ${CERT_DIR}/server-revoked-key.pem &
     server_pid=$!
 
-    while [ ! -s $ready_file -a "$counter" -lt 20 ]; do
+    while [ ! -s "$ready_file" -a "$counter" -lt 20 ]; do
         echo -e "waiting for ready file..."
         sleep 0.1
         counter=$((counter+ 1))
@@ -84,7 +84,7 @@ run_test() {
     # sleep for an additional 0.1 to mitigate race on write/read of $ready_file:
     sleep 0.1
 
-    if test -e $ready_file; then
+    if test -e "$ready_file"; then
         echo -e "found ready file, starting client..."
     else
         echo -e "NO ready file ending test..."
@@ -92,7 +92,7 @@ run_test() {
     fi
 
     # get created port 0 ephemeral port
-    crl_port="$(cat $ready_file)"
+    crl_port="$(cat "$ready_file")"
 
     # starts client on crl_port and captures the output from client
     capture_out=$(./examples/client/client -p $crl_port 2>&1)
@@ -147,18 +147,18 @@ run_hashdir_test() {
   # starts the server on crl_port, -R generates ready file to be used as a
   # mutex lock, -c loads the revoked certificate. We capture the processid
   # into the variable server_pid
-  ./examples/server/server -R $ready_file -p $crl_port \
+  ./examples/server/server -R "$ready_file" -p $crl_port \
                              -c ${CERT_DIR}/server-revoked-cert.pem \
                              -k ${CERT_DIR}/server-revoked-key.pem &
   server_pid=$!
-  while [ ! -s $ready_file -a "$counter" -lt 20 ]; do
+  while [ ! -s "$ready_file" -a "$counter" -lt 20 ]; do
         echo -e "waiting for ready file..."
         sleep 0.1
         counter=$((counter+ 1))
   done
 
   # get created port 0 ephemeral port
-  crl_port="$(cat $ready_file)"
+  crl_port="$(cat "$ready_file")"
   
   # starts client on crl_port and captures the output from client
   capture_out=$(./examples/client/client -p $crl_port -9 2>&1)
