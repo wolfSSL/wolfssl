@@ -125,6 +125,8 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
             if (err != 0) break;
         }
 
+        if (err != 0) break;
+
         if (keyLeft) {
             store = min(keyLeft, diestLen);
             XMEMCPY(&key[keyLen - keyLeft], digest, store);
@@ -415,10 +417,10 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
 
     dLen = v;
     sLen = v * ((saltLen + v - 1) / v);
-    if (passLen)
-        pLen = v * ((passLen + v - 1) / v);
-    else
-        pLen = 0;
+
+    /* with passLen checked at the top of the function for >= 0 then passLen
+     * must be 1 or greater here and is always 'true' */
+    pLen = v * ((passLen + v - 1) / v);
     iLen = sLen + pLen;
 
     totalLen = dLen + sLen + pLen;

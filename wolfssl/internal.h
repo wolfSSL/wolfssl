@@ -1157,7 +1157,8 @@ enum {
 #endif /* WOLFSSL_MULTICAST */
 
 #ifndef WOLFSSL_MAX_MTU
-    #define WOLFSSL_MAX_MTU 1500
+    /* 1500 - 100 bytes to account for UDP and IP headers */
+    #define WOLFSSL_MAX_MTU 1400
 #endif /* WOLFSSL_MAX_MTU */
 
 
@@ -1248,7 +1249,7 @@ enum Misc {
                                 /* pre RSA and all master */
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) || \
     (defined(USE_FAST_MATH) && defined(FP_MAX_BITS) && FP_MAX_BITS >= 16384)
-#ifndef NO_PSK
+#if !defined(NO_PSK) && defined(USE_FAST_MATH)
     ENCRYPT_LEN     = (FP_MAX_BITS / 2 / 8) + MAX_PSK_ID_LEN + 2,
 #else
     ENCRYPT_LEN     = 1024,     /* allow 8192 bit static buffer */
@@ -1342,9 +1343,9 @@ enum Misc {
     DTLS_EXPORT_PRO          = 165,/* wolfSSL protocol for serialized session */
     DTLS_EXPORT_STATE_PRO    = 166,/* wolfSSL protocol for serialized state */
     DTLS_EXPORT_VERSION      = 4,  /* wolfSSL version for serialized session */
-    DTLS_EXPORT_OPT_SZ       = 60, /* amount of bytes used from Options */
+    DTLS_EXPORT_OPT_SZ       = 61, /* amount of bytes used from Options */
     DTLS_EXPORT_VERSION_3    = 3,  /* wolfSSL version before TLS 1.3 addition */
-    DTLS_EXPORT_OPT_SZ_3     = 59, /* amount of bytes used from Options */
+    DTLS_EXPORT_OPT_SZ_3     = 60, /* amount of bytes used from Options */
     DTLS_EXPORT_KEY_SZ       = 325 + (DTLS_SEQ_SZ * 2),
                                    /* max amount of bytes used from Keys */
     DTLS_EXPORT_MIN_KEY_SZ   = 85 + (DTLS_SEQ_SZ * 2),
@@ -2856,6 +2857,10 @@ struct WOLFSSL_CTX {
     CallbackInfoState* CBIS;      /* used to get info about SSL state */
     WOLFSSL_X509_VERIFY_PARAM* param;    /* verification parameters*/
 #endif
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+    NetworkFilterCallback_t AcceptFilter;
+    void *AcceptFilter_arg;
+#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
 #ifdef WOLFSSL_DTLS
@@ -2970,31 +2975,31 @@ struct WOLFSSL_CTX {
         CallbackEccSign   EccSignCb;    /* User EccSign   Callback handler */
         CallbackEccVerify EccVerifyCb;  /* User EccVerify Callback handler */
         CallbackEccSharedSecret EccSharedSecretCb; /* User EccVerify Callback handler */
-        #ifdef HAVE_ED25519
-            /* User Ed25519Sign   Callback handler */
-            CallbackEd25519Sign   Ed25519SignCb;
-            /* User Ed25519Verify Callback handler */
-            CallbackEd25519Verify Ed25519VerifyCb;
-        #endif
-        #ifdef HAVE_CURVE25519
-            /* User X25519 KeyGen Callback Handler */
-            CallbackX25519KeyGen X25519KeyGenCb;
-            /* User X25519 SharedSecret Callback handler */
-            CallbackX25519SharedSecret X25519SharedSecretCb;
-        #endif
-        #ifdef HAVE_ED448
-            /* User Ed448Sign   Callback handler */
-            CallbackEd448Sign   Ed448SignCb;
-            /* User Ed448Verify Callback handler */
-            CallbackEd448Verify Ed448VerifyCb;
-        #endif
-        #ifdef HAVE_CURVE448
-            /* User X448 KeyGen Callback Handler */
-            CallbackX448KeyGen X448KeyGenCb;
-            /* User X448 SharedSecret Callback handler */
-            CallbackX448SharedSecret X448SharedSecretCb;
-        #endif
     #endif /* HAVE_ECC */
+    #ifdef HAVE_ED25519
+        /* User Ed25519Sign   Callback handler */
+        CallbackEd25519Sign   Ed25519SignCb;
+        /* User Ed25519Verify Callback handler */
+        CallbackEd25519Verify Ed25519VerifyCb;
+    #endif
+    #ifdef HAVE_CURVE25519
+        /* User X25519 KeyGen Callback Handler */
+        CallbackX25519KeyGen X25519KeyGenCb;
+        /* User X25519 SharedSecret Callback handler */
+        CallbackX25519SharedSecret X25519SharedSecretCb;
+    #endif
+    #ifdef HAVE_ED448
+        /* User Ed448Sign   Callback handler */
+        CallbackEd448Sign   Ed448SignCb;
+        /* User Ed448Verify Callback handler */
+        CallbackEd448Verify Ed448VerifyCb;
+    #endif
+    #ifdef HAVE_CURVE448
+        /* User X448 KeyGen Callback Handler */
+        CallbackX448KeyGen X448KeyGenCb;
+        /* User X448 SharedSecret Callback handler */
+        CallbackX448SharedSecret X448SharedSecretCb;
+    #endif
     #ifndef NO_DH
         CallbackDhAgree DhAgreeCb;      /* User DH Agree Callback handler */
     #endif
@@ -3034,6 +3039,10 @@ WOLFSSL_LOCAL
 void FreeSSL_Ctx(WOLFSSL_CTX*);
 WOLFSSL_LOCAL
 void SSL_CtxResourceFree(WOLFSSL_CTX*);
+
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+void wolfSSL_CRYPTO_cleanup_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data);
+#endif
 
 WOLFSSL_LOCAL
 int DeriveTlsKeys(WOLFSSL* ssl);
@@ -3494,6 +3503,9 @@ typedef struct Options {
 #ifndef NO_PSK
     wc_psk_client_callback client_psk_cb;
     wc_psk_server_callback server_psk_cb;
+#ifdef OPENSSL_EXTRA
+    wc_psk_use_session_cb_func session_psk_cb;
+#endif
 #ifdef WOLFSSL_TLS13
     wc_psk_client_tls13_callback client_psk_tls13_cb;  /* client callback */
     wc_psk_server_tls13_callback server_psk_tls13_cb;  /* server callback */
@@ -4071,6 +4083,10 @@ struct WOLFSSL {
 #ifdef OPENSSL_EXTRA
     byte              cbioFlag;  /* WOLFSSL_CBIO_RECV/SEND: CBIORecv/Send is set */
 #endif
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+    NetworkFilterCallback_t AcceptFilter;
+    void *AcceptFilter_arg;
+#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
     CallbackIORecv  CBIORecv;
     CallbackIOSend  CBIOSend;
 #ifdef WOLFSSL_STATIC_MEMORY
@@ -4339,27 +4355,27 @@ struct WOLFSSL {
 #endif
 #ifdef HAVE_PK_CALLBACKS
     #ifdef HAVE_ECC
-        void* EccKeyGenCtx;              /* EccKeyGen  Callback Context */
-        void* EccSignCtx;                /* Ecc Sign   Callback Context */
-        void* EccVerifyCtx;              /* Ecc Verify Callback Context */
-        void* EccSharedSecretCtx;        /* Ecc Pms    Callback Context */
-        #ifdef HAVE_ED25519
-            void* Ed25519SignCtx;        /* ED25519 Sign   Callback Context */
-            void* Ed25519VerifyCtx;      /* ED25519 Verify Callback Context */
-        #endif
-        #ifdef HAVE_CURVE25519
-            void* X25519KeyGenCtx;       /* X25519 KeyGen Callback Context */
-            void* X25519SharedSecretCtx; /* X25519 Pms    Callback Context */
-        #endif
-        #ifdef HAVE_ED448
-            void* Ed448SignCtx;          /* ED448 Sign   Callback Context */
-            void* Ed448VerifyCtx;        /* ED448 Verify Callback Context */
-        #endif
-        #ifdef HAVE_CURVE448
-            void* X448KeyGenCtx;         /* X448 KeyGen Callback Context */
-            void* X448SharedSecretCtx;   /* X448 Pms    Callback Context */
-        #endif
+        void* EccKeyGenCtx;          /* EccKeyGen  Callback Context */
+        void* EccSignCtx;            /* Ecc Sign   Callback Context */
+        void* EccVerifyCtx;          /* Ecc Verify Callback Context */
+        void* EccSharedSecretCtx;    /* Ecc Pms    Callback Context */
     #endif /* HAVE_ECC */
+    #ifdef HAVE_ED25519
+        void* Ed25519SignCtx;        /* ED25519 Sign   Callback Context */
+        void* Ed25519VerifyCtx;      /* ED25519 Verify Callback Context */
+    #endif
+    #ifdef HAVE_CURVE25519
+        void* X25519KeyGenCtx;       /* X25519 KeyGen Callback Context */
+        void* X25519SharedSecretCtx; /* X25519 Pms    Callback Context */
+    #endif
+    #ifdef HAVE_ED448
+        void* Ed448SignCtx;          /* ED448 Sign   Callback Context */
+        void* Ed448VerifyCtx;        /* ED448 Verify Callback Context */
+    #endif
+    #ifdef HAVE_CURVE448
+        void* X448KeyGenCtx;         /* X448 KeyGen Callback Context */
+        void* X448SharedSecretCtx;   /* X448 Pms    Callback Context */
+    #endif
     #ifndef NO_DH
         void* DhAgreeCtx; /* DH Pms Callback Context */
     #endif /* !NO_DH */

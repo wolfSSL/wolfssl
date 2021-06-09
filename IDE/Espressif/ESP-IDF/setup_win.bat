@@ -32,10 +32,10 @@ xcopy /Y/Q %BASEDIR%\src\*.c %WOLFSSLLIB_TRG_DIR%\src\
 xcopy /Y/Q %BASEDIR%\wolfcrypt\src\*.c %WOLFSSLLIB_TRG_DIR%\wolfcrypt\src
 xcopy /Y/Q %BASEDIR%\wolfcrypt\src\*.i %WOLFSSLLIB_TRG_DIR%\wolfcrypt\src
 xcopy /E/Y/Q %BASEDIR%\wolfcrypt\src\port %WOLFSSLLIB_TRG_DIR%\wolfcrypt\src\port\
-xcopy /E/Y/Q %BASEDIR%\wolfcrypt\test\ %WOLFSSLLIB_TRG_DIR%\wolfcrypt\test\
-xcopy /E/Y/Q %BASEDIR%\wolfcrypt\benchmark\ %WOLFSSLLIB_TRG_DIR%\wolfcrypt\benchmark\
+xcopy /E/Y/Q %BASEDIR%\wolfcrypt\test %WOLFSSLLIB_TRG_DIR%\wolfcrypt\test\
+xcopy /E/Y/Q %BASEDIR%\wolfcrypt\benchmark %WOLFSSLLIB_TRG_DIR%\wolfcrypt\benchmark\
 xcopy /Y/Q %BASEDIR%\wolfssl\*.h %WOLFSSLLIB_TRG_DIR%\wolfssl\
-xcopy /E/Y/Q %BASEDIR%\wolfssl\wolfcrypt\ %WOLFSSLLIB_TRG_DIR%\wolfssl\wolfcrypt\
+xcopy /E/Y/Q %BASEDIR%\wolfssl\wolfcrypt %WOLFSSLLIB_TRG_DIR%\wolfssl\wolfcrypt\
 
 rem user_settings.h
 xcopy /F/Q %WOLFSSL_ESPIDFDIR%\user_settings.h %WOLFSSLLIB_TRG_DIR%\include\

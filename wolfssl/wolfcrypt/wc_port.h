@@ -522,8 +522,6 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 #elif defined(WOLFSSL_DEOS)
     #define NO_FILESYSTEM
     #warning "TODO - DDC-I Certifiable Fast File System for Deos is not integrated"
-    /* #define XFILE      bfd * */
-
 #elif defined(MICRIUM)
     #include <fs_api.h>
     #define XFILE      FS_FILE*
@@ -666,7 +664,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define strncasecmp FCL_STRNCASECMP
 
     /* FUSION SPECIFIC ERROR CODE */
-    #define FUSION_IO_SEND_E 63
+    #define FUSION_IO_SEND_E FCL_EWOULDBLOCK
 
 #elif defined(WOLFSSL_USER_FILESYSTEM)
     /* To be defined in user_settings.h */
@@ -699,6 +697,16 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         #define XSTAT       _stat
         #define XS_ISREG(s) (s & _S_IFREG)
         #define SEPARATOR_CHAR ';'
+
+    #elif defined(INTIME_RTOS)
+        #include <sys/stat.h>
+        #define XSTAT _stat64
+        #define XS_ISREG(s) S_ISREG(s)
+        #define SEPARATOR_CHAR ';'
+        #define XWRITE      write
+        #define XREAD       read
+        #define XCLOSE      close
+
     #elif defined(WOLFSSL_ZEPHYR)
         #define XSTAT       fs_stat
         #define XS_ISREG(s) (s == FS_DIR_ENTRY_FILE)
@@ -765,7 +773,12 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         struct M2MB_DIRENT* entry;
         struct M2MB_STAT s;
     #elif defined(INTIME_RTOS)
-        FIND_FILE_DATA FindFileData;
+        struct stat64 s;
+        struct _find64 FindFileData;
+        #define IntimeFindFirst(name, data) (0 == _findfirst64(name, data))
+        #define IntimeFindNext(data)  (0 == _findnext64(data))
+        #define IntimeFindClose(data) (0 == _findclose64(data))
+        #define IntimeFilename(ctx)   ctx->FindFileData.f_filename
     #else
         struct dirent* entry;
         DIR*   dir;
@@ -848,10 +861,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XGMTIME(c, t)   rtpsys_gmtime((c))
 
 #elif defined(WOLFSSL_DEOS)
-    #define XTIME(t1)       deos_time((t1))
-    #define WOLFSSL_GMTIME
-    #define USE_WOLF_TM
-    #define USE_WOLF_TIME_T
+    #include <time.h>
 
 #elif defined(MICRIUM)
     #include <clk.h>

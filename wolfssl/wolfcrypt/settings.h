@@ -218,6 +218,11 @@
 /* Uncomment next line if building for Linux Kernel Module */
 /* #define WOLFSSL_LINUXKM */
 
+/* Uncomment next line if building for devkitPro */
+/* #define DEVKITPRO */
+
+/* Uncomment next line if building for Dolphin Emulator */
+/* #define DOLPHIN_EMULATOR */
 
 #include <wolfssl/wolfcrypt/visibility.h>
 
@@ -1178,8 +1183,11 @@ extern void uITRON4_free(void *p) ;
 
             /* the LTC PKHA hardware limit is 2048 bits (256 bytes) for integer arithmetic.
                the LTC_MAX_INT_BYTES defines the size of local variables that hold big integers. */
-            #ifndef LTC_MAX_INT_BYTES
-                #define LTC_MAX_INT_BYTES (256)
+            /* size is multiplication of 2 big ints */
+            #if !defined(NO_RSA) || !defined(NO_DH)
+                #define LTC_MAX_INT_BYTES   (256*2)
+            #else
+                #define LTC_MAX_INT_BYTES   (48*2)
             #endif
 
             /* This FREESCALE_LTC_TFM_RSA_4096_ENABLE macro can be defined.
@@ -1379,7 +1387,6 @@ extern void uITRON4_free(void *p) ;
     #define WC_RSA_BLINDING
 
     #define HAVE_ECC
-    #define ALT_ECC_SIZE
     #define TFM_ECC192
     #define TFM_ECC224
     #define TFM_ECC256
@@ -2435,6 +2442,12 @@ extern void uITRON4_free(void *p) ;
     /* ECDSA length checks off by default for CAVP testing
      * consider enabling strict checks in production */
     #define NO_STRICT_ECDSA_LEN
+#endif
+
+/* Do not allow using small stack with no malloc */
+#if defined(WOLFSSL_NO_MALLOC) && \
+    (defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_SMALL_STACK_CACHE))
+    #error Small stack cannot be used with no malloc (WOLFSSL_NO_MALLOC)
 #endif
 
 

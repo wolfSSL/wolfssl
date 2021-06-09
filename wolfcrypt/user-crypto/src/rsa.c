@@ -1644,7 +1644,7 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
 {
     int sz, pSz, qSz;
     IppStatus ret;
-    word32 outSz = outLen;
+    word32 outSz;
 
     IppsMontState* pMont = NULL;
     IppsMontState* qMont = NULL;

@@ -1572,7 +1572,7 @@ if test "$ENABLED_AFALG" = "xilinx"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_XILINX -DWOLFSSL_AFALG_XILINX_AES"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_XILINX_SHA3 -DWOLFSSL_AFALG_XILINX_RSA"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA3_224 -DWOLFSSL_NOSHA3_256 -DWOLFSSL_NOSHA3_512 -DWOLFSSL_NO_SHAKE256"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA3_224 -DWOLFSSL_NOSHA3_256 -DWOLFSSL_NOSHA3_512"
     ENABLED_AFALG="yes"
     ENABLED_XILINX="yes"
 fi
@@ -1588,7 +1588,7 @@ if test "$ENABLED_AFALG" = "xilinx-sha3"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_XILINX"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_XILINX_SHA3"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA3_224 -DWOLFSSL_NOSHA3_256 -DWOLFSSL_NOSHA3_512 -DWOLFSSL_NO_SHAKE256"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA3_224 -DWOLFSSL_NOSHA3_256 -DWOLFSSL_NOSHA3_512"
     ENABLED_AFALG="yes"
     ENABLED_XILINX="yes"
 fi
@@ -1792,9 +1792,8 @@ fi
 
 # SHAKE256
 AC_ARG_ENABLE([shake256],
-    [AS_HELP_STRING([--enable-shake256],[Enable wolfSSL SHAKE256 support (default: enabled on x86_64/aarch64)])],
-    [ ENABLED_SHAKE256=$enableval ],
-    [ ENABLED_SHAKE256=$ENABLED_SHA3 ]
+    [AS_HELP_STRING([--enable-shake256],[Enable wolfSSL SHAKE256 support (default: disabled)])],
+    [ ENABLED_SHAKE256=$enableval ]
     )
 
 # SHA512
@@ -2225,6 +2224,10 @@ then
     then
         AC_MSG_ERROR([cannot enable ed448 without enabling sha512.])
     fi
+    if test "$FIPS_VERSION" = "v2"
+    then
+        AC_MSG_ERROR([cannot enable ed448 w/ dependency shake256 in FIPSv2 mode])
+    fi
     ENABLED_FE448=yes
     ENABLED_GE448=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ED448"
@@ -2516,6 +2519,77 @@ if test "$ENABLED_STACKLOG" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STACK_LOG -finstrument-functions"
 fi
+
+
+ENABLED_WOLFSENTRY=no
+
+AC_ARG_WITH([wolfsentry],
+    [AS_HELP_STRING([--with-wolfsentry=PATH],[PATH to directory with wolfSentry installation])],
+    [WOLFSENTRY_INSTALLDIR=$withval],
+    [WOLFSENTRY_INSTALLDIR=""])
+
+AC_ARG_WITH([wolfsentry-lib],
+    [AS_HELP_STRING([--with-wolfsentry-lib=PATH],[PATH to directory with wolfSentry library])],
+    [WOLFSENTRY_LIB=$withval],
+    [WOLFSENTRY_LIB=""])
+
+AC_ARG_WITH([wolfsentry-include],
+    [AS_HELP_STRING([--with-wolfsentry-include=PATH],[PATH to directory with wolfSentry header files])],
+    [WOLFSENTRY_INCLUDE=$withval],
+    [WOLFSENTRY_INCLUDE=""])
+
+if test -n "$WOLFSENTRY_INSTALLDIR" || test -n "$WOLFSENTRY_LIB" || test -n "$WOLFSENTRY_INCLUDE"
+then
+    ENABLED_WOLFSENTRY=yes
+fi
+
+AC_ARG_ENABLE([wolfsentry],
+    [AS_HELP_STRING([--enable-wolfsentry],[Enable wolfSentry hooks and plugins (default: disabled)])],
+    [ ENABLED_WOLFSENTRY=$enableval ],
+    [ ]
+    )
+
+if test "$WOLFSENTRY_LIB" = "" && test -n "$WOLFSENTRY_INSTALLDIR"
+then
+    WOLFSENTRY_LIB="${WOLFSENTRY_INSTALLDIR}/lib"
+fi
+
+if test "$WOLFSENTRY_INCLUDE" = "" && test -n "$WOLFSENTRY_INSTALLDIR"
+then
+    WOLFSENTRY_INCLUDE="${WOLFSENTRY_INSTALLDIR}/include"
+fi
+
+if test -n "$WOLFSENTRY_LIB"
+then
+    AC_MSG_CHECKING([for $WOLFSENTRY_LIB])
+    if ! test -d "$WOLFSENTRY_LIB"
+    then
+        AC_MSG_ERROR([wolfSentry lib dir $WOLFSENTRY_LIB not found.])
+    fi
+    AC_MSG_RESULT([yes])
+    WOLFSENTRY_LIB="-L$WOLFSENTRY_LIB"
+fi
+
+if test -n "$WOLFSENTRY_INCLUDE"
+then
+    AC_MSG_CHECKING([for $WOLFSENTRY_INCLUDE])
+    if ! test -d "$WOLFSENTRY_INCLUDE"
+    then
+        AC_MSG_ERROR([wolfSentry include dir $WOLFSENTRY_INCLUDE not found.])
+    fi
+    AC_MSG_RESULT([yes])
+    WOLFSENTRY_INCLUDE="-I$WOLFSENTRY_INCLUDE"
+fi
+
+if test "$ENABLED_WOLFSENTRY" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WOLFSENTRY_HOOKS -DHAVE_EX_DATA -DHAVE_EX_DATA_CLEANUP_HOOKS"
+    WOLFSENTRY_LIB="$WOLFSENTRY_LIB -lwolfsentry"
+fi
+
+AC_SUBST([WOLFSENTRY_LIB])
+AC_SUBST([WOLFSENTRY_INCLUDE])
+
 
 if test "$ENABLED_QT" = "yes"
 then
@@ -3261,7 +3335,7 @@ fi
 
 if test "$ENABLED_CHACHA" = "noasm" || test "$ENABLED_ASM" = "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DNO_CHACHA_ASM"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_CHACHA -DNO_CHACHA_ASM"
 fi
 
 if test "$ENABLED_CHACHA" = "yes"
@@ -4452,49 +4526,49 @@ if test "$ENABLED_WPAS" = "yes"
 then
     ENABLED_STUNNEL="yes"
 fi
+# stunnel support requires all the features enabled within this conditional.
 if test "$ENABLED_STUNNEL" = "yes"
 then
-    # Requires opensslextra make sure on
     if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
         AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
     fi
 
-    # Requires OCSP make sure on
+    if test "x$ENABLED_SESSION_TICKET" = "xno"
+    then
+        ENABLED_SESSION_TICKET="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_SESSION_TICKET"
+    fi
+
     if test "x$ENABLED_OCSP" = "xno"
     then
         ENABLED_OCSP="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
     fi
 
-    # Requires coding make sure on
     if test "x$ENABLED_CODING" = "xno"
     then
         ENABLED_CODING="yes"
     fi
 
-    # Requires sessioncerts make sure on
     if test "x$ENABLED_SESSIONCERTS" = "xno"
     then
         ENABLED_SESSIONCERTS="yes"
         AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS"
     fi
 
-    # Requires crls, make sure on
     if test "x$ENABLED_CRL" = "xno"
     then
         ENABLED_CRL="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
     fi
 
-    # Requires DES3, make sure on
     if test "x$ENABLED_DES3" = "xno"
     then
         ENABLED_DES3="yes"
     fi
 
-    # Requires tlsx, make sure on
     if test "x$ENABLED_TLSX" = "xno"
     then
         ENABLED_TLSX="yes"
@@ -4506,7 +4580,6 @@ then
                AM_CFLAGS="$AM_CFLAGS -DHAVE_SUPPORTED_CURVES"])
     fi
 
-    # Requires ecc make sure on
     if test "x$ENABLED_ECC" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
@@ -4519,14 +4592,12 @@ then
         fi
     fi
 
-    # Requires wolfSSL_OBJ_txt2nid
     if test "x$ENABLED_CERTEXT" = "xno"
     then
         ENABLED_CERTEXT="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"
     fi
 
-    # Requires certgen
     if test "x$ENABLED_CERTGEN" = "xno"
     then
         ENABLED_CERTGEN="yes"
@@ -4535,7 +4606,7 @@ then
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL -DWOLFSSL_ALWAYS_VERIFY_CB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI -DHAVE_EX_DATA"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB -DWOLFSSL_SIGNER_DER_CERT"
 fi
 
 if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no" \
@@ -6352,7 +6423,7 @@ AM_CONDITIONAL([BUILD_SELFTEST],[test "x$ENABLED_SELFTEST" = "xyes"])
 AM_CONDITIONAL([BUILD_SHA224],[test "x$ENABLED_SHA224" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SHA3],[test "x$ENABLED_SHA3" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_POLY1305],[test "x$ENABLED_POLY1305" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_CHACHA],[test "x$ENABLED_CHACHA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_CHACHA],[test "x$ENABLED_CHACHA" = "xyes" || test "x$ENABLED_CHACHA" = "xnoasm" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_XCHACHA],[test "x$ENABLED_XCHACHA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_INLINE],[test "x$ENABLED_INLINE" = "xyes"])
 AM_CONDITIONAL([BUILD_OCSP],[test "x$ENABLED_OCSP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -6409,6 +6480,7 @@ AM_CONDITIONAL([BUILD_CAAM],[test "x$ENABLED_CAAM" = "xyes" || test "x$ENABLED_C
 AM_CONDITIONAL([BUILD_LINUXKM],[test "$ENABLED_LINUXKM" = "yes"])
 AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "$ENABLED_NO_LIBRARY" = "yes"])
 AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
+AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM" = "xqnx"])
 
 if test "$ax_enable_debug" = "yes" ||
         test "$ENABLED_STACKSIZE" != "no" ||
@@ -6649,8 +6721,8 @@ echo "   * DSA:                        $ENABLED_DSA"
 echo "   * DH:                         $ENABLED_DH"
 echo "   * DH Default Parameters:      $ENABLED_DHDEFAULTPARAMS"
 echo "   * ECC:                        $ENABLED_ECC"
-echo "   * ECC Custom Curves           $ENABLED_ECCCUSTCURVES"
-echo "   * ECC Minimum Bits            $ENABLED_ECCMINSZ"
+echo "   * ECC Custom Curves:          $ENABLED_ECCCUSTCURVES"
+echo "   * ECC Minimum Bits:           $ENABLED_ECCMINSZ"
 echo "   * CURVE25519:                 $ENABLED_CURVE25519"
 echo "   * ED25519:                    $ENABLED_ED25519"
 echo "   * CURVE448:                   $ENABLED_CURVE448"
@@ -6664,6 +6736,7 @@ echo "   * Anonymous cipher:           $ENABLED_ANON"
 echo "   * CODING:                     $ENABLED_CODING"
 echo "   * MEMORY:                     $ENABLED_MEMORY"
 echo "   * I/O POOL:                   $ENABLED_IOPOOL"
+echo "   * wolfSentry:                 $ENABLED_WOLFSENTRY"
 echo "   * LIGHTY:                     $ENABLED_LIGHTY"
 echo "   * HAPROXY:                    $ENABLED_HAPROXY"
 echo "   * STUNNEL:                    $ENABLED_STUNNEL"
@@ -6671,8 +6744,8 @@ echo "   * Apache httpd:               $ENABLED_APACHE_HTTPD"
 echo "   * NGINX:                      $ENABLED_NGINX"
 echo "   * ASIO:                       $ENABLED_ASIO"
 echo "   * LIBWEBSOCKETS:              $ENABLED_LIBWEBSOCKETS"
-echo "   * Qt                          $ENABLED_QT"
-echo "   * Qt Unit Testing             $ENABLED_QT_TEST"
+echo "   * Qt:                         $ENABLED_QT"
+echo "   * Qt Unit Testing:            $ENABLED_QT_TEST"
 echo "   * SIGNAL:                     $ENABLED_SIGNAL"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
@@ -6713,12 +6786,12 @@ echo "   * Secure Renegotiation:       $ENABLED_SECURE_RENEGOTIATION"
 echo "   * Fallback SCSV:              $ENABLED_FALLBACK_SCSV"
 echo "   * Keying Material Exporter:   $ENABLED_KEYING_MATERIAL"
 echo "   * All TLS Extensions:         $ENABLED_TLSX"
-echo "   * PKCS#7                      $ENABLED_PKCS7"
-echo "   * S/MIME                      $ENABLED_SMIME"
-echo "   * wolfSSH                     $ENABLED_WOLFSSH"
-echo "   * wolfTPM                     $ENABLED_WOLFTPM"
-echo "   * wolfSCEP                    $ENABLED_WOLFSCEP"
-echo "   * Secure Remote Password      $ENABLED_SRP"
+echo "   * PKCS#7:                     $ENABLED_PKCS7"
+echo "   * S/MIME:                     $ENABLED_SMIME"
+echo "   * wolfSSH:                    $ENABLED_WOLFSSH"
+echo "   * wolfTPM:                    $ENABLED_WOLFTPM"
+echo "   * wolfSCEP:                   $ENABLED_WOLFSCEP"
+echo "   * Secure Remote Password:     $ENABLED_SRP"
 echo "   * Small Stack:                $ENABLED_SMALL_STACK"
 echo "   * Linux Kernel Module:        $ENABLED_LINUXKM"
 echo "   * valgrind unit tests:        $ENABLED_VALGRIND"

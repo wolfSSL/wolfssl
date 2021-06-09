@@ -89,7 +89,7 @@ void echoclient_test(void* args)
     int argc    = 0;
     char** argv = 0;
 #endif
-    word16 port = yasslPort;
+    word16 port;
     char buffer[CYASSL_MAX_ERROR_SZ];
 
     ((func_args*)args)->return_code = -1; /* error state */
@@ -126,6 +126,8 @@ void echoclient_test(void* args)
 
 #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && !defined(WOLFSSL_MDK_SHELL)
     port = ((func_args*)args)->signal->port;
+#else
+    port = yasslPort;
 #endif
 
 #if defined(CYASSL_DTLS)

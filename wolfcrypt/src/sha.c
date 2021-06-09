@@ -330,6 +330,7 @@
     /* implemented in wolfcrypt/src/port/Renesas/renesas_tsip_sha.c */
 
 #elif defined(WOLFSSL_IMXRT_DCP)
+    #include <wolfssl/wolfcrypt/port/nxp/dcp_port.h>
     /* implemented in wolfcrypt/src/port/nxp/dcp_port.c */
 
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
@@ -793,13 +794,10 @@ int wc_ShaTransform(wc_Sha* sha, const unsigned char* data)
 #endif /* USE_SHA_SOFTWARE_IMPL */
 
 
-
-#if !defined(WOLFSSL_IMXRT_DCP)
 int wc_InitSha(wc_Sha* sha)
 {
     return wc_InitSha_ex(sha, NULL, INVALID_DEVID);
 }
-#endif /* !defined(WOLFSSL_IMXRT_DCP) */
 
 void wc_ShaFree(wc_Sha* sha)
 {

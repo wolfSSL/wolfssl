@@ -119,7 +119,7 @@ int  atmel_ecc_create_pms(int slotId, const uint8_t* peerKey, uint8_t* pms);
 int  atmel_ecc_create_key(int slotId, byte* peerKey);
 int  atmel_ecc_sign(int slotId, const byte* message, byte* signature);
 int  atmel_ecc_verify(const byte* message, const byte* signature,
-    const byte* pubkey, int* verified);
+    const byte* pubkey, int* pVerified);
 
 #endif /* WOLFSSL_ATECC508A */
 

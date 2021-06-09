@@ -508,28 +508,28 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
     XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ - 3);
     XSTRNCPY(ctx->name + pathLen, "\\*", MAX_FILENAME_SZ - pathLen);
 
-    if (!FindFirstRtFile(ctx->name, &ctx->FindFileData, 0)) {
+    if (!IntimeFindFirst(ctx->name, &ctx->FindFileData)) {
         WOLFSSL_MSG("FindFirstFile for path verify locations failed");
         return BAD_PATH_ERROR;
     }
 
     do {
-        if (!(ctx->FindFileData.dwFileAttributes & FILE_ATTR_DIRECTORY)) {
-            dnameLen = (int)XSTRLEN(ctx->FindFileData.cFileName);
+        dnameLen = (int)XSTRLEN(IntimeFilename(ctx));
 
-            if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
-                return BAD_PATH_ERROR;
-            }
-            XSTRNCPY(ctx->name, path, pathLen + 1);
-            ctx->name[pathLen] = '\\';
-            XSTRNCPY(ctx->name + pathLen + 1,
-                     ctx->FindFileData.cFileName,
-                     MAX_FILENAME_SZ - pathLen - 1);
+        if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
+            return BAD_PATH_ERROR;
+        }
+        XSTRNCPY(ctx->name, path, pathLen + 1);
+        ctx->name[pathLen] = '\\';
+        XSTRNCPY(ctx->name + pathLen + 1,
+                 IntimeFilename(ctx),
+                 MAX_FILENAME_SZ - pathLen - 1);
+        if (0 == wc_FileExists(ctx->name)) {
             if (name)
                 *name = ctx->name;
             return 0;
         }
-    } while (FindNextRtFile(&ctx->FindFileData));
+    } while (IntimeFindNext(&ctx->FindFileData));
 
 #elif defined(WOLFSSL_ZEPHYR)
     if (fs_opendir(&ctx->dir, path) != 0) {
@@ -656,18 +656,18 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
     }
 
 #elif defined(INTIME_RTOS)
-    while (FindNextRtFile(&ctx->FindFileData)) {
-        if (!(ctx->FindFileData.dwFileAttributes & FILE_ATTR_DIRECTORY)) {
-            dnameLen = (int)XSTRLEN(ctx->FindFileData.cFileName);
+    while (IntimeFindNext(&ctx->FindFileData)) {
+        dnameLen = (int)XSTRLEN(IntimeFilename(ctx));
 
-            if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
-                return BAD_PATH_ERROR;
-            }
-            XSTRNCPY(ctx->name, path, pathLen + 1);
-            ctx->name[pathLen] = '\\';
-            XSTRNCPY(ctx->name + pathLen + 1,
-                     ctx->FindFileData.cFileName,
-                     MAX_FILENAME_SZ - pathLen - 1);
+        if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
+            return BAD_PATH_ERROR;
+        }
+        XSTRNCPY(ctx->name, path, pathLen + 1);
+        ctx->name[pathLen] = '\\';
+        XSTRNCPY(ctx->name + pathLen + 1,
+                 IntimeFilename(ctx),
+                 MAX_FILENAME_SZ - pathLen - 1);
+        if (0 == wc_FileExists(ctx->name)) {
             if (name)
                 *name = ctx->name;
             return 0;
@@ -758,7 +758,7 @@ void wc_ReadDirClose(ReadDirCtx* ctx)
     }
 
 #elif defined(INTIME_RTOS)
-    FindRtFileClose(&ctx->FindFileData);
+    IntimeFindClose(&ctx->FindFileData);
 
 #elif defined(WOLFSSL_ZEPHYR)
     if (ctx->dirp) {
@@ -1601,7 +1601,7 @@ int wolfSSL_CryptHwMutexUnLock(void)
 
     void *uITRON4_realloc(void *p, size_t sz) {
       ER ercd;
-      void *newp;
+      void *newp = NULL;
       if(p) {
           ercd = get_mpl(ID_wolfssl_MPOOL, sz, (VP)&newp);
           if (ercd == E_OK) {
@@ -1695,7 +1695,7 @@ int wolfSSL_CryptHwMutexUnLock(void)
 
     void *uTKernel_realloc(void *p, unsigned int sz) {
       ER ercd;
-      void *newp;
+      void *newp = NULL;
       if (p) {
           ercd = tk_get_mpl(ID_wolfssl_MPOOL, sz, (VP)&newp, TMO_FEVR);
           if (ercd == E_OK) {
@@ -2252,14 +2252,14 @@ time_t pic32_time(time_t* timer)
 time_t deos_time(time_t* timer)
 {
     const word32 systemTickTimeInHz = 1000000 / systemTickInMicroseconds();
-    word32 *systemTickPtr = systemTickPointer();
+    const volatile word32 *systemTickPtr = systemTickPointer();
 
     if (timer != NULL)
         *timer = *systemTickPtr/systemTickTimeInHz;
 
     #if defined(CURRENT_UNIX_TIMESTAMP)
         /* CURRENT_UNIX_TIMESTAMP is seconds since Jan 01 1970. (UTC) */
-        return (time_t) *systemTickPtr/systemTickTimeInHz + CURRENT_UNIX_TIMESTAMP;
+        return (time_t) (*systemTickPtr/systemTickTimeInHz) + CURRENT_UNIX_TIMESTAMP;
     #else
         return (time_t) *systemTickPtr/systemTickTimeInHz;
     #endif

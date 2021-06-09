@@ -5074,7 +5074,7 @@ static void TLSX_SessionTicket_ValidateRequest(WOLFSSL* ssl)
         }
     }
 }
-#endif /* WLFSSL_TLS13 || !NO_WOLFSSL_CLIENT */
+#endif /* WOLFSSL_TLS13 || !NO_WOLFSSL_CLIENT */
 
 
 static word16 TLSX_SessionTicket_GetSize(SessionTicket* ticket, int isRequest)
@@ -5169,8 +5169,10 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, const byte* input,
                 WOLFSSL_MSG("Process client ticket rejected, bad TLS version");
                 ssl->options.rejectTicket = 1;
                 ret = 0;  /* not fatal */
-            } else if (ret == WOLFSSL_TICKET_RET_FATAL || ret < 0) {
+            } else if (ret == WOLFSSL_TICKET_RET_FATAL) {
                 WOLFSSL_MSG("Process client ticket fatal error, not using");
+            } else if (ret < 0) {
+                WOLFSSL_MSG("Process client ticket unknown error, not using");
             }
         }
     }
@@ -10338,6 +10340,9 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 }
             }
         }
+        if (ret != 0) {
+            return ret;
+        }
 #endif
 
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
@@ -10425,20 +10430,21 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     int set = 0;
                     int i, j;
 
-                    /* Default to first group in supported list. */
-                    namedGroup = ssl->group[0];
-                    /* Try to find preferred in supported list. */
-                    for (i = 0; i < (int)PREFERRED_GROUP_SZ && !set; i++) {
-                        for (j = 0; j < ssl->numGroups; j++) {
-                            if (preferredGroup[i] == ssl->group[j]) {
-                                /* Most preferred that is supported. */
-                                namedGroup = ssl->group[j];
+                    /* try to find the highest element in ssl->group[]
+                     * that is contained in preferredGroup[].
+                     */
+                    namedGroup = preferredGroup[0];
+                    for (i = 0; i < ssl->numGroups && !set; i++) {
+                        for (j = 0; j < (int)PREFERRED_GROUP_SZ; j++) {
+                            if (preferredGroup[j] == ssl->group[i]) {
+                                namedGroup = ssl->group[i];
                                 set = 1;
                                 break;
                             }
                         }
                     }
                 }
+
                 else {
                     /* Choose the most preferred group. */
                     namedGroup = preferredGroup[0];
@@ -10455,7 +10461,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         #if defined(HAVE_SESSION_TICKET)
             if (ssl->options.resuming && ssl->session.ticketLen > 0) {
                 WOLFSSL_SESSION* sess = &ssl->session;
-                word32           milli;
+                word32           now, milli;
 
                 if (sess->ticketLen > MAX_PSK_ID_LEN) {
                     WOLFSSL_MSG("Session ticket length for PSK ext is too large");
@@ -10468,8 +10474,13 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 ret = SetCipherSpecs(ssl);
                 if (ret != 0)
                     return ret;
-                milli = TimeNowInMilliseconds() - sess->ticketSeen +
-                        sess->ticketAdd;
+                now = TimeNowInMilliseconds();
+                if (now < sess->ticketSeen)
+                    milli = (0xFFFFFFFFU - sess->ticketSeen) + 1 + now;
+                else
+                    milli = now - sess->ticketSeen;
+                milli += sess->ticketAdd;
+
                 /* Pre-shared key is mandatory extension for resumption. */
                 ret = TLSX_PreSharedKey_Use(ssl, sess->ticket, sess->ticketLen,
                                             milli, ssl->specs.mac_algorithm,
@@ -11145,7 +11156,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
         ato16(input + offset, &size);
         offset += OPAQUE16_LEN;
 
-        if (offset + size > length)
+        if (length - offset < size)
             return BUFFER_ERROR;
 
         switch (type) {

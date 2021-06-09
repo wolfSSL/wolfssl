@@ -19,7 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
 #ifdef HAVE_CONFIG_H
         #include <config.h>
 #endif
@@ -1521,6 +1520,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    ch;
 #endif
     int    version = CLIENT_INVALID_VERSION;
+    int    minVersion = CLIENT_INVALID_VERSION;
+    int    setMinVersion = 0;
     int    usePsk   = 0;
     int    useAnon  = 0;
     int    sendGET  = 0;
@@ -1529,6 +1530,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     size_t throughput = 0;
     int    doDTLS    = 0;
     int    dtlsUDP   = 0;
+#if (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)) && \
+                                                           defined(WOLFSSL_DTLS)
+    int    dtlsMTU = 0;
+#endif
     int    dtlsSCTP  = 0;
     int    doMcast   = 0;
     int    matchName = 0;
@@ -1713,9 +1718,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifndef WOLFSSL_VXWORKS
     /* Not used: All used */
     while ((ch = mygetopt(argc, argv, "?:"
-            "ab:c:defgh:i;jk:l:mnop:q:rstuv:wxyz"
+            "ab:c:defgh:i;jk:l:mnop:q:rstu;v:wxyz"
             "A:B:CDE:F:GH:IJKL:M:NO:PQRS:TUVW:XYZ:"
-            "01:23:45689"
+            "01:23:4567:89"
             "@#")) != -1) {
         switch (ch) {
             case '?' :
@@ -1753,6 +1758,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case 'u' :
                 doDTLS = 1;
                 dtlsUDP = 1;
+            #if (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)) && \
+                                                           defined(WOLFSSL_DTLS)
+                dtlsMTU = atoi(myoptarg);
+            #endif
                 break;
 
             case 'G' :
@@ -2178,7 +2187,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 nonBlocking = 1;
                 simulateWantWrite = 1;
                 break;
-
+            case '7' :
+                setMinVersion = 1;
+                minVersion = atoi(myoptarg);
+                if (minVersion < 0 || minVersion > 4) {
+                    Usage();
+                    XEXIT_T(MY_EX_USAGE);
+                }
+                break;
             case '8' :
                 #ifdef HAVE_CURVE448
                     useX448 = 1;
@@ -2458,10 +2474,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             err_sys("unable to get ctx");
     }
 #endif
-
-    if (simulateWantWrite)
-    {
+    if (setMinVersion) {
+        wolfSSL_CTX_SetMinVersion(ctx, minVersion);
+    }
+    if (simulateWantWrite) {
+    #ifdef USE_WOLFSSL_IO
         wolfSSL_CTX_SetIOSend(ctx, SimulateWantWriteIOSendCb);
+    #endif
     }
 
 #ifdef SINGLE_THREADED
@@ -2493,6 +2512,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     if (fewerPackets)
         wolfSSL_CTX_set_group_messages(ctx);
+#if (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)) && \
+                                                           defined(WOLFSSL_DTLS)
+    if (dtlsMTU)
+        wolfSSL_CTX_dtls_set_mtu(ctx, dtlsMTU);
+#endif
 
 #ifndef NO_DH
     if (wolfSSL_CTX_SetMinDhKey_Sz(ctx, (word16)minDhKeyBits)
@@ -2585,7 +2609,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifdef HAVE_OCSP
     if (useOcsp) {
-    #ifdef HAVE_IO_TIMEOUT
+    #if defined(HAVE_IO_TIMEOUT) && defined(HAVE_HTTP_CLIENT)
         wolfIO_SetTimeout(DEFAULT_TIMEOUT_SEC);
     #endif
 
@@ -2910,6 +2934,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         err_sys("unable to get SSL object");
     }
 
+#ifndef NO_PSK
+    if (usePsk) {
+    #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && defined(TEST_PSK_USE_SESSION)
+        SSL_set_psk_use_session_callback(ssl, my_psk_use_session_cb);
+    #endif
+    }
+#endif
 
 #ifndef NO_CERTS
     if (useClientCert && loadCertKeyIntoSSLObj){
@@ -3136,7 +3167,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifdef HAVE_CRL
     if (disableCRL == 0 && !useVerifyCb) {
-    #ifdef HAVE_IO_TIMEOUT
+    #if defined(HAVE_IO_TIMEOUT) && defined(HAVE_HTTP_CLIENT)
         wolfIO_SetTimeout(DEFAULT_TIMEOUT_SEC);
     #endif
 

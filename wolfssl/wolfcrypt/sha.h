@@ -52,6 +52,10 @@
     #include "fsl_ltc.h"
 #endif
 
+#ifdef WOLFSSL_IMXRT_DCP
+	#include "fsl_dcp.h"
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -71,9 +75,6 @@
 #endif
 #ifdef WOLFSSL_ESP32WROOM32_CRYPT
     #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
-#endif
-#ifdef WOLFSSL_IMXRT_DCP
-    #include <wolfssl/wolfcrypt/port/nxp/dcp_port.h>
 #endif
 #if defined(WOLFSSL_SILABS_SE_ACCEL)
     #include <wolfssl/wolfcrypt/port/silabs/silabs_hash.h>
@@ -107,8 +108,6 @@ enum {
 #elif defined(WOLFSSL_RENESAS_TSIP_CRYPT) && \
    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
     #include "wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h"
-#elif defined(WOLFSSL_PSOC6_CRYPTO)
-    #include "wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h"
 #else
 
 /* Sha digest */
@@ -119,6 +118,9 @@ struct wc_Sha {
         STM32_HASH_Context stmCtx;
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
         wc_silabs_sha_t silabsCtx;
+#elif defined(WOLFSSL_IMXRT_DCP)
+        dcp_handle_t handle;
+        dcp_hash_ctx_t ctx;
 #else
         word32  buffLen;   /* in bytes          */
         word32  loLen;     /* length in bytes   */

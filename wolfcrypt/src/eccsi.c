@@ -543,7 +543,7 @@ static int eccsi_decode_point(ecc_point* point, word32 size, const byte* data,
 {
     int err = 0;
 
-    if ((err == 0) && (sz != size * 2) && (sz != size * 2 + 1)) {
+    if ((sz != size * 2) && (sz != size * 2 + 1)) {
         err = BUFFER_E;
     }
 
@@ -1666,6 +1666,7 @@ int wc_SetEccsiHash(EccsiKey* key, const byte* hash, byte hashSz)
  * @param  [in]   pvt  Public Validation Token (PVT) as an ECC point.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key, ssk or pvt is NULL.
+ * @return  MP math errors when copy fails
  */
 int wc_SetEccsiPair(EccsiKey* key, const mp_int* ssk, const ecc_point* pvt)
 {
@@ -1674,9 +1675,13 @@ int wc_SetEccsiPair(EccsiKey* key, const mp_int* ssk, const ecc_point* pvt)
     if ((key == NULL) || (ssk == NULL) || (pvt == NULL)) {
         err = BAD_FUNC_ARG;
     }
+
     if (err == 0) {
-        mp_copy(ssk, &key->ssk);
-        wc_ecc_copy_point(pvt, key->pvt);
+        err = mp_copy(ssk, &key->ssk);
+    }
+
+    if (err == 0) {
+        err = wc_ecc_copy_point(pvt, key->pvt);
     }
 
     return err;

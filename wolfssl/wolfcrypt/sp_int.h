@@ -113,29 +113,33 @@ extern "C" {
     #error "Size of unsigned long not detected"
 #endif
 
-#if ULLONG_MAX == 18446744073709551615ULL
-    #define SP_ULLONG_BITS    64
+#ifdef ULLONG_MAX
+    #if ULLONG_MAX == 18446744073709551615ULL
+        #define SP_ULLONG_BITS    64
 
-    #if SP_ULLONG_BITS > SP_ULONG_BITS
-        typedef unsigned long long sp_uint64;
-        typedef          long long  sp_int64;
-    #endif
-#elif ULLONG_MAX == 4294967295UL
-    #define SP_ULLONG_BITS    32
+        #if SP_ULLONG_BITS > SP_ULONG_BITS
+            typedef unsigned long long sp_uint64;
+            typedef          long long  sp_int64;
+        #endif
+    #elif ULLONG_MAX == 4294967295UL
+        #define SP_ULLONG_BITS    32
 
-    #if SP_ULLONG_BITS > SP_ULONG_BITS
-        typedef unsigned long long sp_uint32;
-        typedef          long long  sp_int32;
-    #endif
-#elif ULLONG_MAX == 65535
-    #define SP_ULLONG_BITS    16
+        #if SP_ULLONG_BITS > SP_ULONG_BITS
+            typedef unsigned long long sp_uint32;
+            typedef          long long  sp_int32;
+        #endif
+    #elif ULLONG_MAX == 65535
+        #define SP_ULLONG_BITS    16
 
-    #if SP_ULLONG_BITS > SP_ULONG_BITS
-        typedef unsigned long long sp_uint16;
-        typedef          long long  sp_int16;
+        #if SP_ULLONG_BITS > SP_ULONG_BITS
+            typedef unsigned long long sp_uint16;
+            typedef          long long  sp_int16;
+        #endif
+    #else
+        #error "Size of unsigned long long not detected"
     #endif
 #else
-    #error "Size of unsigned long long not detected"
+    #define SP_ULLONG_BITS    0
 #endif
 
 
@@ -152,7 +156,7 @@ extern "C" {
 #endif
 
 
-/* Detemine the number of bits to use in each word. */
+/* Determine the number of bits to use in each word. */
 #ifdef SP_WORD_SIZE
 #elif defined(WOLFSSL_DSP_BUILD)
     #define SP_WORD_SIZE 32
@@ -379,7 +383,8 @@ typedef struct sp_ecc_ctx {
             #define SP_INT_DIGITS        (((3072 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
         #endif
     #else
-        #if defined(WOLFSSL_HAVE_SP_DH)
+        #if defined(WOLFSSL_HAVE_SP_DH) || \
+                (defined(WOLFSSL_HAVE_SP_RSA) && defined(WOLFSSL_KEY_GEN))
             #define SP_INT_DIGITS        (((4096 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
         #else
             #define SP_INT_DIGITS        (((2048 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
@@ -506,7 +511,7 @@ typedef struct sp_ecc_ctx {
     #define sp_print_digit(a, s)
     #define sp_print_int(a, s)
 
-#endif
+#endif /* !NO_FILESYSTEM */
 
 /* Returns whether multi-precision number is odd
  *
@@ -974,7 +979,11 @@ WOLFSSL_API word32 CheckRunTimeFastMath(void);
 #define mp_gcd                              sp_gcd
 #define mp_lcm                              sp_lcm
 
+#ifdef WOLFSSL_DEBUG_MATH
+#define mp_dump(d, a, v)                    sp_print(a, d)
 #endif
+
+#endif /* WOLFSSL_SP_MATH || WOLFSSL_SP_MATH_ALL */
 
 #ifdef __cplusplus
 } /* extern "C" */

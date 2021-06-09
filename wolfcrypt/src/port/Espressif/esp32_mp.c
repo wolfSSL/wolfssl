@@ -94,6 +94,7 @@ static int esp_mp_hw_lock()
     /* Enable RSA hardware */
     periph_module_enable(PERIPH_RSA_MODULE);
 
+    DPORT_REG_CLR_BIT(DPORT_RSA_PD_CTRL_REG, DPORT_RSA_PD);
     return ret;
 }
 /*
