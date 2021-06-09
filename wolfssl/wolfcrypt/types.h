@@ -1053,6 +1053,14 @@ decouple library dependencies with standard string, memory and so on.
         #define WC_MP_TO_RADIX
     #endif
 
+    #if defined(__GNUC__) && __GNUC__ > 5
+        #define PRAGMA_GCC_IGNORE(str) _Pragma(str);
+        #define PRAGMA_GCC_POP         _Pragma("GCC diagnostic pop");
+    #else
+        #define PRAGMA_GCC_IGNORE(str)
+        #define PRAGMA_GCC_POP
+    #endif
+
     #ifdef __cplusplus
         }   /* extern "C" */
     #endif

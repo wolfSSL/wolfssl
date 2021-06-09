@@ -14458,13 +14458,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             }
 
            /* myBuffer may not initialized fully, but the sending length will be */
-#if defined(__GNUC__) && __GNUC__ > 5
-            _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
-#endif
+            PRAGMA_GCC_IGNORE("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
             ret = wolfSSL_write(ssl, myBuffer, sending);
-#if defined(__GNUC__) && __GNUC__ > 5
-            _Pragma("GCC diagnostic pop");
-#endif
+            PRAGMA_GCC_POP;
 
             if (dynamic)
                 XFREE(myBuffer, ssl->heap, DYNAMIC_TYPE_WRITEV);
