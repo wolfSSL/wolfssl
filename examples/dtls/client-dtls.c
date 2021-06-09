@@ -44,12 +44,8 @@
 
 int main (int argc, char** argv)
 {
-#ifndef WOLFSSL_DTLS 
-    /* Inform user to enable WOLFSSL_DTLS */
-    printf("Please enable DTLS to run client-dtls.c \n");
-#endif
-
 #ifdef WOLFSSL_DTLS
+#ifndef NO_WOLFSSL_CLIENT    
     /* standard variables used in a dtls client*/
     int             n = 0;
     int             sockfd = 0;
@@ -81,7 +77,7 @@ int main (int argc, char** argv)
 
     /* Load certificates into ctx variable */
     if (wolfSSL_CTX_load_verify_locations(ctx, certs, 0)
-	    != SSL_SUCCESS) {
+	    != WOLFSSL_SUCCESS) {
         fprintf(stderr, "Error loading %s, please check the file.\n", certs);
         return 1;
     }
@@ -111,7 +107,7 @@ int main (int argc, char** argv)
 
     /* Set the file descriptor for ssl and connect with ssl variable */
     wolfSSL_set_fd(ssl, sockfd);
-    if (wolfSSL_connect(ssl) != SSL_SUCCESS) {
+    if (wolfSSL_connect(ssl) != WOLFSSL_SUCCESS) {
 	    err1 = wolfSSL_get_error(ssl, 0);
 	    printf("err = %d, %s\n", err1, wolfSSL_ERR_reason_error_string(err1));
 	    printf("SSL_connect failed");
@@ -152,10 +148,23 @@ int main (int argc, char** argv)
     close(sockfd);
     wolfSSL_CTX_free(ctx);
     wolfSSL_Cleanup();
+    return 0;
+#endif
 #endif
 
     UNUSED(argc);
     UNUSED(argv);
+ 
+#ifndef WOLFSSL_DTLS 
+    /* Inform user to enable WOLFSSL_DTLS */
+    printf("Please enable DTLS to run client-dtls.c \n");
+    return -1;    
+#endif
 
-    return 0;
+#ifdef NO_WOLFSSL_CLIENT     
+     /* Inform user to enable WOLFSSL_CLIENT */             
+     printf("Please enable WOLFSSL_CLIENT to run client-dtls.c \n");
+     return -1;
+#endif
+
 }

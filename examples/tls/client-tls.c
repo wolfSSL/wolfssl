@@ -34,6 +34,9 @@
 #include <wolfssl/options.h>
 #include <wolfssl/ssl.h>
 
+/* Deal with parameters that are not used when ASN is disabled */
+#define UNUSED(x) (void)(x)
+
 #define DEFAULT_PORT 11111
 
 #define CERT_FILE "../../certs/ca-cert.pem"
@@ -41,6 +44,9 @@
 
 int main(int argc, char** argv)
 {
+#ifndef WOLFSSL_NO_TLS12
+#ifndef NO_ASN
+#ifndef NO_WOLFSSL_CLIENT
     int                sockfd;
     struct sockaddr_in servAddr;
     char               buff[256];
@@ -107,7 +113,7 @@ int main(int argc, char** argv)
 
     /* Load client certificates into WOLFSSL_CTX */
     if ((ret = wolfSSL_CTX_load_verify_locations(ctx, CERT_FILE, NULL))
-         != SSL_SUCCESS) {
+         != WOLFSSL_SUCCESS) {
         fprintf(stderr, "ERROR: failed to load %s, please check the file.\n",
                 CERT_FILE);
         goto ctx_cleanup;
@@ -127,8 +133,7 @@ int main(int argc, char** argv)
     }
 
     /* Connect to wolfSSL on the server side */
-    if ((ret = wolfSSL_connect(ssl)) != SSL_SUCCESS) {
-        fprintf(stderr, "ERROR: failed to connect to wolfSSL\n");
+    if ((ret = wolfSSL_connect(ssl)) != WOLFSSL_SUCCESS) { fprintf(stderr, "ERROR: failed to connect to wolfSSL\n");
         goto cleanup;
     }
 
@@ -169,4 +174,29 @@ socket_cleanup:
     close(sockfd);          /* Close the connection to the server       */
 end:
     return ret;               /* Return reporting a success               */
+#endif
+#endif
+#endif
+
+    UNUSED(argc);
+    UNUSED(argv);
+
+#ifdef NO_ASN    
+     /* Inform user to enable ASN */             
+     printf("Please enable ASN to run client-tls.c \n");             
+     return -1;
+#endif
+
+#ifdef WOLFSSL_NO_TLS12    
+     /* Inform user to enable TLS12 */             
+     printf("Please enable TLS12 to run client-tls.c \n");             
+     return -1;
+#endif
+
+#ifdef NO_WOLFSSL_CLIENT     
+     /* Inform user to enable WOLFSSL_CLIENT */             
+     printf("Please enable WOLFSSL_CLIENT to run client-tls.c \n");
+     return -1;
+#endif
+
 }

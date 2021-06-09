@@ -42,6 +42,11 @@
 
 int main()
 {
+#ifndef NO_WOLFSSL_SERVER
+#ifndef WOLFSSL_NO_TLS12
+#ifndef WOLFSSL_LEANTLS
+#ifndef NO_ASN
+
     int                sockfd;
     int                connd;
     struct sockaddr_in servAddr;
@@ -81,16 +86,16 @@ int main()
     }
 
     /* Load server certificates into WOLFSSL_CTX */
-    if (wolfSSL_CTX_use_certificate_file(ctx, CERT_FILE, SSL_FILETYPE_PEM)
-        != SSL_SUCCESS) {
+    if (wolfSSL_CTX_use_certificate_file(ctx, CERT_FILE, WOLFSSL_FILETYPE_PEM)
+        != WOLFSSL_SUCCESS) {
         fprintf(stderr, "ERROR: failed to load %s, please check the file.\n",
                 CERT_FILE);
         return -1;
     }
 
     /* Load server key into WOLFSSL_CTX */
-    if (wolfSSL_CTX_use_PrivateKey_file(ctx, KEY_FILE, SSL_FILETYPE_PEM)
-        != SSL_SUCCESS) {
+    if (wolfSSL_CTX_use_PrivateKey_file(ctx, KEY_FILE, WOLFSSL_FILETYPE_PEM)
+        != WOLFSSL_SUCCESS) {
         fprintf(stderr, "ERROR: failed to load %s, please check the file.\n",
                   KEY_FILE);
         return -1;
@@ -144,7 +149,7 @@ int main()
 
         /* Establish TLS connection */
         ret = wolfSSL_accept(ssl);
-        if (ret != SSL_SUCCESS) {
+        if (ret != WOLFSSL_SUCCESS) {
             fprintf(stderr, "wolfSSL_accept error = %d\n",
                 wolfSSL_get_error(ssl, ret));
             return -1;
@@ -200,4 +205,33 @@ int main()
     wolfSSL_Cleanup();      /* Cleanup the wolfSSL environment          */
     close(sockfd);          /* Close the socket listening for clients   */
     return 0;               /* Return reporting a success               */
+#endif
+#endif
+#endif
+#endif
+
+#ifdef WOLFSSL_LEANTLS 
+    /* Inform user to disable WOLFSSL_LEANTLS */
+    printf("Please disable WOLFSSL_LEANTLS to run server-tls.c \n");
+    return -1;
+#endif
+
+#ifdef NO_ASN 
+    /* Inform user to enable ASN */
+    printf("Please enable ASN to run server-tls.c \n");
+    return -1;
+#endif
+
+#ifdef WOLFSSL_NO_TLS12 
+    /* Inform user to enable TLS12 */
+    printf("Please enable TLS12 to run server-tls.c \n");
+    return -1;
+#endif
+
+#ifdef NO_WOLFSSL_SERVER     
+     /* Inform user to enable WOLFSSL_SERVER */             
+     printf("Please enable WOLFSSL_SERVER to run server-tls.c \n");
+     return -1;
+#endif
+
 }

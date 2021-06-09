@@ -51,13 +51,8 @@ void sig_handler(const int sig);
 
 int main(int argc, char** argv)
 {
-#ifndef WOLFSSL_DTLS 
-    /* Inform user to enable WOLFSSL_DTLS */
-    printf("Please enable DTLS to run server-dtls.c \n");
-#endif
-
 #ifdef WOLFSSL_DTLS
-
+#ifndef NO_WOLFSSL_SERVER
     /* Loc short for "location" */
     char        caCertLoc[] = "../../certs/ca-cert.pem";
     char        servCertLoc[] = "../../certs/server-cert.pem";
@@ -89,19 +84,19 @@ int main(int argc, char** argv)
     }
     /* Load CA certificates */
     if (wolfSSL_CTX_load_verify_locations(ctx, caCertLoc, 0) !=
-            SSL_SUCCESS) {
+            WOLFSSL_SUCCESS) {
         printf("Error loading %s, please check the file.\n", caCertLoc);
         return 1;
     }
     /* Load server certificates */
-    if (wolfSSL_CTX_use_certificate_file(ctx, servCertLoc, SSL_FILETYPE_PEM) != 
-                                                                 SSL_SUCCESS) {
+    if (wolfSSL_CTX_use_certificate_file(ctx, servCertLoc, WOLFSSL_FILETYPE_PEM) != 
+                                                                 WOLFSSL_SUCCESS) {
         printf("Error loading %s, please check the file.\n", servCertLoc);
         return 1;
     }
     /* Load server Keys */
     if (wolfSSL_CTX_use_PrivateKey_file(ctx, servKeyLoc,
-                SSL_FILETYPE_PEM) != SSL_SUCCESS) {
+                WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
         printf("Error loading %s, please check the file.\n", servKeyLoc);
         return 1;
     }
@@ -177,7 +172,7 @@ int main(int argc, char** argv)
         /* set the session ssl to client connection port */
         wolfSSL_set_fd(ssl, listenfd);
 
-        if (wolfSSL_accept(ssl) != SSL_SUCCESS) {
+        if (wolfSSL_accept(ssl) != WOLFSSL_SUCCESS) {
 
             int e = wolfSSL_get_error(ssl, 0);
 
@@ -228,11 +223,24 @@ int main(int argc, char** argv)
 
     wolfSSL_CTX_free(ctx);
     wolfSSL_Cleanup();
+    return 0;
+#endif
 #endif
 
     UNUSED(argc);
     UNUSED(argv);
     UNUSED(cleanup);
-  
-    return 0;
+
+#ifndef WOLFSSL_DTLS 
+    /* Inform user to enable WOLFSSL_DTLS */
+    printf("Please enable DTLS to run server-dtls.c \n");
+    return -1;
+#endif
+
+#ifdef NO_WOLFSSL_SERVER
+     /* Inform user to enable WOLFSSL_SERVER */             
+     printf("Please enable WOLFSSL_SERVER to run server-dtls.c \n");
+     return -1;
+#endif
+
 }

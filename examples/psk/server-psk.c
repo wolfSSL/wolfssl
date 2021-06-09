@@ -42,6 +42,7 @@
  * Identify which psk key to use.
  */
 #ifndef NO_PSK
+#ifndef NO_WOLFSSL_SERVER
 static unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
                            unsigned char* key, unsigned int key_max_len)
 {
@@ -60,15 +61,12 @@ static unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
     return PSK_KEY_LEN;
 }
 #endif
+#endif
 
 int main()
 {
-#ifdef NO_PSK 
-    /* Inform user to enable PSK in wolfSSL */
-    printf("Please enable PSK to run server-psk.c \n");
-#endif
-
 #ifndef NO_PSK
+#ifndef NO_WOLFSSL_SERVER
     int  n;              /* length of string read */
     int                 listenfd, connfd, ret;
     int                 opt;
@@ -161,11 +159,13 @@ int main()
     }
 
 #ifndef NO_DH
+#ifndef NO_ASN
     if ((ret = wolfSSL_CTX_SetTmpDH_file(ctx, dhParamFile, WOLFSSL_FILETYPE_PEM)
         ) != WOLFSSL_SUCCESS) {
         printf("Fatal error: server set temp DH params returned %d\n", ret);
         return ret;
     }
+#endif
 #endif
 
     /* main loop for accepting and responding to clients */
@@ -224,8 +224,21 @@ int main()
     /* free up memory used by wolfSSL */
     wolfSSL_CTX_free(ctx);
     wolfSSL_Cleanup();
+    return 0;
+#endif
 #endif
 
-    return 0;
+#ifdef NO_PSK 
+    /* Inform user to enable PSK in wolfSSL */
+    printf("Please enable PSK to run server-psk.c \n");
+    return -1;
+#endif
+
+#ifdef NO_WOLFSSL_SERVER
+     /* Inform user to enable WOLFSSL_SERVER */             
+     printf("Please enable WOLFSSL_SERVER to run server-psk.c \n");
+     return -1;
+#endif
+
 }
 

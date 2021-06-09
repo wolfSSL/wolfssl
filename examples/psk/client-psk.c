@@ -65,12 +65,8 @@ static inline unsigned int My_Psk_Client_Cb(WOLFSSL* ssl, const char* hint,
 
 int main(int argc, char **argv)
 {
-#ifdef NO_PSK 
-    /* Inform user to enable PSK in wolfSSL */
-    printf("Please enable PSK to run client-psk.c \n");
-#endif
-
 #ifndef NO_PSK
+#ifndef NO_WOLFSSL_CLIENT
     int ret, sockfd;
     char sendline[MAXLINE]="Hello Server"; /* string to send to the server */
     char recvline[MAXLINE]; /* string received from the server */
@@ -159,8 +155,21 @@ int main(int argc, char **argv)
     /* exit client */
     return ret;
 #endif
-    
+#endif
+
     UNUSED(argc);
     UNUSED(argv);
-    return 0;
+ 
+#ifdef NO_PSK 
+    /* Inform user to enable PSK in wolfSSL */
+    printf("Please enable PSK to run client-psk.c \n");
+    return -1;
+#endif
+
+#ifdef NO_WOLFSSL_CLIENT     
+     /* Inform user to enable WOLFSSL_CLIENT */             
+     printf("Please enable WOLFSSL_CLIENT to run client-psk.c \n");
+     return -1;
+#endif
+
 }
