@@ -2978,31 +2978,31 @@ struct WOLFSSL_CTX {
         CallbackEccSign   EccSignCb;    /* User EccSign   Callback handler */
         CallbackEccVerify EccVerifyCb;  /* User EccVerify Callback handler */
         CallbackEccSharedSecret EccSharedSecretCb; /* User EccVerify Callback handler */
-        #ifdef HAVE_ED25519
-            /* User Ed25519Sign   Callback handler */
-            CallbackEd25519Sign   Ed25519SignCb;
-            /* User Ed25519Verify Callback handler */
-            CallbackEd25519Verify Ed25519VerifyCb;
-        #endif
-        #ifdef HAVE_CURVE25519
-            /* User X25519 KeyGen Callback Handler */
-            CallbackX25519KeyGen X25519KeyGenCb;
-            /* User X25519 SharedSecret Callback handler */
-            CallbackX25519SharedSecret X25519SharedSecretCb;
-        #endif
-        #ifdef HAVE_ED448
-            /* User Ed448Sign   Callback handler */
-            CallbackEd448Sign   Ed448SignCb;
-            /* User Ed448Verify Callback handler */
-            CallbackEd448Verify Ed448VerifyCb;
-        #endif
-        #ifdef HAVE_CURVE448
-            /* User X448 KeyGen Callback Handler */
-            CallbackX448KeyGen X448KeyGenCb;
-            /* User X448 SharedSecret Callback handler */
-            CallbackX448SharedSecret X448SharedSecretCb;
-        #endif
     #endif /* HAVE_ECC */
+    #ifdef HAVE_ED25519
+        /* User Ed25519Sign   Callback handler */
+        CallbackEd25519Sign   Ed25519SignCb;
+        /* User Ed25519Verify Callback handler */
+        CallbackEd25519Verify Ed25519VerifyCb;
+    #endif
+    #ifdef HAVE_CURVE25519
+        /* User X25519 KeyGen Callback Handler */
+        CallbackX25519KeyGen X25519KeyGenCb;
+        /* User X25519 SharedSecret Callback handler */
+        CallbackX25519SharedSecret X25519SharedSecretCb;
+    #endif
+    #ifdef HAVE_ED448
+        /* User Ed448Sign   Callback handler */
+        CallbackEd448Sign   Ed448SignCb;
+        /* User Ed448Verify Callback handler */
+        CallbackEd448Verify Ed448VerifyCb;
+    #endif
+    #ifdef HAVE_CURVE448
+        /* User X448 KeyGen Callback Handler */
+        CallbackX448KeyGen X448KeyGenCb;
+        /* User X448 SharedSecret Callback handler */
+        CallbackX448SharedSecret X448SharedSecretCb;
+    #endif
     #ifndef NO_DH
         CallbackDhAgree DhAgreeCb;      /* User DH Agree Callback handler */
     #endif
@@ -4358,27 +4358,27 @@ struct WOLFSSL {
 #endif
 #ifdef HAVE_PK_CALLBACKS
     #ifdef HAVE_ECC
-        void* EccKeyGenCtx;              /* EccKeyGen  Callback Context */
-        void* EccSignCtx;                /* Ecc Sign   Callback Context */
-        void* EccVerifyCtx;              /* Ecc Verify Callback Context */
-        void* EccSharedSecretCtx;        /* Ecc Pms    Callback Context */
-        #ifdef HAVE_ED25519
-            void* Ed25519SignCtx;        /* ED25519 Sign   Callback Context */
-            void* Ed25519VerifyCtx;      /* ED25519 Verify Callback Context */
-        #endif
-        #ifdef HAVE_CURVE25519
-            void* X25519KeyGenCtx;       /* X25519 KeyGen Callback Context */
-            void* X25519SharedSecretCtx; /* X25519 Pms    Callback Context */
-        #endif
-        #ifdef HAVE_ED448
-            void* Ed448SignCtx;          /* ED448 Sign   Callback Context */
-            void* Ed448VerifyCtx;        /* ED448 Verify Callback Context */
-        #endif
-        #ifdef HAVE_CURVE448
-            void* X448KeyGenCtx;         /* X448 KeyGen Callback Context */
-            void* X448SharedSecretCtx;   /* X448 Pms    Callback Context */
-        #endif
+        void* EccKeyGenCtx;          /* EccKeyGen  Callback Context */
+        void* EccSignCtx;            /* Ecc Sign   Callback Context */
+        void* EccVerifyCtx;          /* Ecc Verify Callback Context */
+        void* EccSharedSecretCtx;    /* Ecc Pms    Callback Context */
     #endif /* HAVE_ECC */
+    #ifdef HAVE_ED25519
+        void* Ed25519SignCtx;        /* ED25519 Sign   Callback Context */
+        void* Ed25519VerifyCtx;      /* ED25519 Verify Callback Context */
+    #endif
+    #ifdef HAVE_CURVE25519
+        void* X25519KeyGenCtx;       /* X25519 KeyGen Callback Context */
+        void* X25519SharedSecretCtx; /* X25519 Pms    Callback Context */
+    #endif
+    #ifdef HAVE_ED448
+        void* Ed448SignCtx;          /* ED448 Sign   Callback Context */
+        void* Ed448VerifyCtx;        /* ED448 Verify Callback Context */
+    #endif
+    #ifdef HAVE_CURVE448
+        void* X448KeyGenCtx;         /* X448 KeyGen Callback Context */
+        void* X448SharedSecretCtx;   /* X448 Pms    Callback Context */
+    #endif
     #ifndef NO_DH
         void* DhAgreeCtx; /* DH Pms Callback Context */
     #endif /* !NO_DH */

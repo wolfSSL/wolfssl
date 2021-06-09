@@ -3088,6 +3088,8 @@ static WC_INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
     return ret;
 }
 
+#endif /* HAVE_ECC */
+
 #ifdef HAVE_ED25519
 static WC_INLINE int myEd25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
         byte* out, word32* outSz, const byte* key, word32 keySz, void* ctx)
@@ -3409,8 +3411,6 @@ static WC_INLINE int myX448SharedSecret(WOLFSSL* ssl, curve448_key* otherKey,
     return ret;
 }
 #endif /* HAVE_CURVE448 */
-
-#endif /* HAVE_ECC */
 
 #ifndef NO_DH
 static WC_INLINE int myDhCallback(WOLFSSL* ssl, struct DhKey* key,

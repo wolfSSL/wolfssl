@@ -24108,8 +24108,13 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     }
                     else
                 #endif
+                #ifdef HAVE_ECC
                     if (ssl->ctx->EccSharedSecretCb != NULL) {
                         break;
+                    }
+                    else
+                #endif
+                    {
                     }
             #endif /* HAVE_PK_CALLBACKS */
 
