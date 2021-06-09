@@ -112,13 +112,12 @@ int wc_curve25519_generic(int public_size, byte* pub,
                           int private_size, const byte* priv,
                           int basepoint_size, const byte* basepoint)
 {
-    int ret;
-
 #ifdef FREESCALE_LTC_ECC
     /* unsupported with NXP LTC, onlly supports single basepoint with
      * nxp_ltc_curve25519_GetBasePoint() */
     return WC_HW_E;
 #else
+    int ret;
 
     if ((public_size != CURVE25519_KEYSIZE) ||
         (private_size != CURVE25519_KEYSIZE) ||
@@ -147,7 +146,6 @@ int wc_curve25519_generic(int public_size, byte* pub,
     #endif
 
     return ret;
-
 #endif /* FREESCALE_LTC_ECC */
 }
 

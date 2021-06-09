@@ -547,9 +547,11 @@ static int wolfSSL_BIO_MD_write(WOLFSSL_BIO* bio, const void* data, int len)
 int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
 {
     int ret = 0;
+#ifdef WOLFSSL_BASE64_ENCODE
     /* Use extra return var as we want to return how much of input we have
      * written, not how big the base64 encoding ended up being */
     int retB64 = 0;
+#endif
     WOLFSSL_BIO* front = bio;
     void* frmt = NULL;
     word32 frmtSz = 0;
@@ -600,15 +602,15 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
                 if (bio->ptr) {
                     ret = (int)XFWRITE(data, 1, len, (XFILE)bio->ptr);
                 }
+                else {
                 #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR) && \
                     !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
-                else {
                     ret = (int)XWRITE(bio->num, data, len);
-                }
                 #else
-                WOLFSSL_MSG("No file pointer and XWRITE not enabled");
-                ret = NOT_COMPILED_IN;
+                    WOLFSSL_MSG("No file pointer and XWRITE not enabled");
+                    ret = NOT_COMPILED_IN;
                 #endif
+                }
             #else
                 WOLFSSL_MSG("WOLFSSL_BIO_FILE used with NO_FILESYSTEM");
                 ret = NOT_COMPILED_IN;
@@ -671,9 +673,11 @@ exit_chain:
         XFREE(frmt, front->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
+#ifdef WOLFSSL_BASE64_ENCODE
     if (retB64 > 0 && ret > 0)
         return retB64;
     else
+#endif
         return ret;
 }
 

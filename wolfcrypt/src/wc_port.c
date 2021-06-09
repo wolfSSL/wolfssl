@@ -1601,7 +1601,7 @@ int wolfSSL_CryptHwMutexUnLock(void)
 
     void *uITRON4_realloc(void *p, size_t sz) {
       ER ercd;
-      void *newp;
+      void *newp = NULL;
       if(p) {
           ercd = get_mpl(ID_wolfssl_MPOOL, sz, (VP)&newp);
           if (ercd == E_OK) {
@@ -1695,7 +1695,7 @@ int wolfSSL_CryptHwMutexUnLock(void)
 
     void *uTKernel_realloc(void *p, unsigned int sz) {
       ER ercd;
-      void *newp;
+      void *newp = NULL;
       if (p) {
           ercd = tk_get_mpl(ID_wolfssl_MPOOL, sz, (VP)&newp, TMO_FEVR);
           if (ercd == E_OK) {

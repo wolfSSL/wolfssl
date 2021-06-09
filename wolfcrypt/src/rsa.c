@@ -1282,11 +1282,10 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
         }
     }
 
-    #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
-        if (msg != NULL) {
-            XFREE(msg, heap, DYNAMIC_TYPE_RSA_BUFFER);
-        }
-    #endif
+#if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
+    /* msg is always not NULL as we bail on allocation failure */
+    XFREE(msg, heap, DYNAMIC_TYPE_RSA_BUFFER);
+#endif
     return ret;
 }
 #endif /* WC_RSA_PSS */
@@ -2284,16 +2283,19 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     tmp = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_RSA);
     if (tmp == NULL)
         return MEMORY_E;
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
 #ifdef WC_RSA_BLINDING
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
     rnd = (mp_int*)XMALLOC(sizeof(mp_int) * 2, key->heap, DYNAMIC_TYPE_RSA);
     if (rnd == NULL) {
         XFREE(tmp, key->heap, DYNAMIC_TYPE_RSA);
         return MEMORY_E;
     }
     rndi = rnd + 1;
-#endif /* WC_RSA_BLINDING */
+#else
+    rnd = NULL;
+    rndi = NULL;
 #endif
+#endif /* WC_RSA_BLINDING */
 #endif /* WOLFSSL_SMALL_STACK */
 
     if (mp_init(tmp) != MP_OKAY)

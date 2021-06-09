@@ -323,9 +323,7 @@ int wolfssl_server_accept_tcp(WOLFSSL* ssl, SOCKET_T* fd, SOCKET_T* acceptfd)
     if (ret == 0) {
         *acceptfd = clientfd;
         tcp_set_nonblocking(&clientfd);
-    }
 
-    if (ret == 0) {
         printf("Server has client\n");
         if (wolfSSL_set_fd(ssl, clientfd) != WOLFSSL_SUCCESS)
             ret = -1;

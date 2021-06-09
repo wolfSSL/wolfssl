@@ -4289,13 +4289,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                         ret = WOLFSSL_FAILURE;
                         break;
                     }
+                    /* arg is 4...(ctx->ivSz - 8) */
+                    XMEMCPY(ctx->iv, ptr, arg);
                     if (wc_InitRng(&rng) != 0) {
                         WOLFSSL_MSG("wc_InitRng failed");
                         ret = WOLFSSL_FAILURE;
                         break;
-                    }
-                    if (arg) {
-                        XMEMCPY(ctx->iv, ptr, arg);
                     }
                     if (wc_RNG_GenerateBlock(&rng, ctx->iv   + arg,
                                                    ctx->ivSz - arg) != 0) {
@@ -6383,7 +6382,7 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
         ret = wc_DhParamsToDer(dhkey,NULL,&derSz);
     }
 
-    if (derSz <= 0 || ret != LENGTH_ONLY_E) {
+    if (derSz == 0 || ret != LENGTH_ONLY_E) {
        WOLFSSL_MSG("Failed to get size of DH Key");
        return WOLFSSL_FAILURE;
     }

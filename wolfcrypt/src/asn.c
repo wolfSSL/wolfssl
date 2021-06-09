@@ -10235,7 +10235,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                         cert->ca->keyOID, cert->signature,
                         cert->sigLength, cert->signatureOID,
                         tsip_encRsaKeyIdx)) != 0) {
-                    if (ret != 0 && ret != WC_PENDING_E) {
+                    if (ret != WC_PENDING_E) {
                         WOLFSSL_MSG("Confirm signature failed");
                     }
                     return ret;
@@ -11350,8 +11350,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                          * then strip this padding before proceeding:
                          * der->length -= padVal;
                          */
-                        if (der->length > 0 &&
-                            der->length > DES_BLOCK_SIZE &&
+                        if (der->length > DES_BLOCK_SIZE &&
                             (der->length % DES_BLOCK_SIZE) != 0) {
                             padVal = der->buffer[der->length-1];
                             if (padVal < DES_BLOCK_SIZE) {
@@ -16728,10 +16727,12 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
     totalSz = prvidx + pubidx + curveidx + verSz + seqSz;
     if (output == NULL) {
         *inLen = totalSz;
+    #ifndef WOLFSSL_NO_MALLOC
         XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (pubIn) {
+        if (pub) {
             XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
+    #endif
         return LENGTH_ONLY_E;
     }
     if (inLen != NULL && totalSz > (int)*inLen) {
@@ -18346,7 +18347,10 @@ static int ParseCRL_CertList(DecodedCRL* dcrl, const byte* buf,
         word32* inOutIdx, int sz)
 {
     word32 oid, dateIdx, idx, checkIdx;
-    int version, doNextDate = 1;
+    int version;
+#ifdef WOLFSSL_NO_CRL_NEXT_DATE
+    int doNextDate = 1;
+#endif
     byte tag;
 
     if (dcrl == NULL || inOutIdx == NULL || buf == NULL) {
@@ -18385,7 +18389,10 @@ static int ParseCRL_CertList(DecodedCRL* dcrl, const byte* buf,
 #endif
     }
 
-    if (doNextDate) {
+#ifdef WOLFSSL_NO_CRL_NEXT_DATE
+    if (doNextDate)x
+#endif
+    {
 #ifndef NO_ASN_TIME
         if (!XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, AFTER)) {
             WOLFSSL_MSG("CRL after date is no longer valid");
