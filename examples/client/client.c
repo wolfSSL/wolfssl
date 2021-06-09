@@ -580,7 +580,7 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     (void)onlyKeyShare;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
     if (version >= 4) {
-        SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, 0);
+        SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, 1);
     }
 #endif
 
