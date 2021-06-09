@@ -4292,26 +4292,19 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,
 int ToTraditionalEnc_ex(byte* input, word32 sz,const char* password,
                      int passwordSz, word32* algId, word32* crvId, byte removehd)
 {
-    int ret;
+    int ret, length;
+    word32 inOutIdx = 0;
 
-    if (GetSequence(input, &inOutIdx, &length, sz) < 0) {
-        ret = ASN_PARSE_E;
-    }
-    else {
-        ret = DecryptContent(input + inOutIdx, sz - inOutIdx, password,
-                passwordSz);
-        if (ret > 0) {
-            XMEMMOVE(input, input + inOutIdx, ret);
-            length = ret;
-            ret = ToTraditional_ex2(input, ret, algId, crvId, removehd);
-            if (removehd == 0) {
-                /* retrieve decrypted content length */
-                inOutIdx = 0;
-                if (GetSequence(input, &inOutIdx, &length, length) < 0) {
-                    ret = ASN_PARSE_E;
-                } else {
-                    ret  = length + inOutIdx;
-                }
+    ret = wc_DecryptPKCS8Key(input, sz, password, passwordSz);
+    if (ret > 0) {
+        ret = ToTraditional_ex2(input, ret, algId, crvId, removehd);
+        if (removehd == 0) {
+            /* retrieve decrypted content length */
+            inOutIdx = 0;
+            if (GetSequence(input, &inOutIdx, &length, length) < 0) {
+                ret = ASN_PARSE_E;
+            } else {
+                ret  = length + inOutIdx;
             }
         }
     }
