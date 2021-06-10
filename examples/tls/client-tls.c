@@ -145,7 +145,7 @@ int main(int argc, char** argv)
         ret = -1;
         goto cleanup;
     }
-    len = strnlen(buff, sizeof(buff));
+    len = strlen(buff);
 
     /* Send the message to the server */
     if ((size_t) (ret = wolfSSL_write(ssl, buff, (int) len)) != len) {

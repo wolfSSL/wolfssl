@@ -14,6 +14,7 @@ EXTRA_DIST += testApps/echoclient/echoclient.sln
 EXTRA_DIST += testApps/echoclient/echoclient-ntru.vcproj
 EXTRA_DIST += testApps/echoclient/echoclient.vcproj
 EXTRA_DIST += testApps/echoclient/echoclient.vcxproj
+EXTRA_DIST += testApps/echoclient/quit
 
 dist_example_DATA+= testApps/echoclient/echoclient.c
 DISTCLEANFILES+= testApps/echoclient/.libs/echoclient

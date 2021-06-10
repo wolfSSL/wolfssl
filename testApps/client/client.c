@@ -1709,6 +1709,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)onlyKeyShare;
     (void)useSupCurve;
     (void)loadCertKeyIntoSSLObj;
+    (void)nonBlocking;
 
     StackTrap();
 

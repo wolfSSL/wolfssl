@@ -181,7 +181,7 @@ int main()
         /* Write our reply into buff */
         memset(buff, 0, sizeof(buff));
         memcpy(buff, reply, strlen(reply));
-        len = strnlen(buff, sizeof(buff));
+        len = strlen(buff);
 
         /* Reply back to the client */
         if ((size_t) wolfSSL_write(ssl, buff, (int) len) != len) {
