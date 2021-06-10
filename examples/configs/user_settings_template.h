@@ -32,7 +32,7 @@ extern "C" {
 #endif
 
 /* If TARGET_EMBEDDED is defined then small target settings are used */
-#if !((defined(__MACH__) || defined(__FreeBSD__) || defined(__linux__)))
+#if !(defined(__MACH__) || defined(__FreeBSD__) || defined(__linux__) || defined(_WIN32))
     #define TARGET_EMBEDDED
 #endif
 
@@ -52,7 +52,9 @@ extern "C" {
     /* reduce stack use. For variables over 100 bytes allocate from heap */
     #define WOLFSSL_SMALL_STACK
 
-    /* disable the built-in socket support and use the IO callbacks. Set with wolfSSL_CTX_SetIORecv/wolfSSL_CTX_SetIOSend */
+    /* disable the built-in socket support and use the IO callbacks. 
+     * Set with wolfSSL_CTX_SetIORecv/wolfSSL_CTX_SetIOSend 
+     */
     #define WOLFSSL_USER_IO
 #endif
 
@@ -61,8 +63,11 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 #undef USE_FAST_MATH
 #if 1
+    /* fast math (tfmc.) (stack based and timing resistant) */
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
+#else
+    /* normal heap based integer.c (not timing resistant) */
 #endif
 
 /* Wolf Single Precision Math */
@@ -71,12 +76,23 @@ extern "C" {
     #define WOLFSSL_HAVE_SP_RSA
     #define WOLFSSL_HAVE_SP_DH
     #define WOLFSSL_HAVE_SP_ECC
-    #define WOLFSSL_SP_SMALL      /* use smaller version of code */
+    //#define WOLFSSL_SP_4096 /* Enable RSA/RH 4096-bit support */
+    //#define WOLFSSL_SP_384 /* Enable ECC 384-bit SECP384R1 support */
+    
     //#define WOLFSSL_SP_CACHE_RESISTANT
-    #define WOLFSSL_SP_MATH     /* only SP math - eliminates integer.c/tfm.c(fast math) code */
+    #define WOLFSSL_SP_MATH     /* only SP math - disables integer.c/tfm.c */
     #define WOLFSSL_SP_MATH_ALL /* use SP math for all key sizes and curves */
 
-    /* SP Assembly Speedups - specific to chip type */
+    //#define WOLFSSL_SP_NO_MALLOC
+    //#define WOLFSSL_SP_DIV_32 /* do not use 64-bit divides */
+ 
+    #ifdef TARGET_EMBEDDED
+        /* use smaller version of code */
+        #define WOLFSSL_SP_SMALL
+    #else
+        /* SP Assembly Speedups - specific to chip type */
+        #define WOLFSSL_SP_ASM
+    #endif
     //#define WOLFSSL_SP_X86_64
     //#define WOLFSSL_SP_X86
     //#define WOLFSSL_SP_ARM32_ASM
@@ -108,6 +124,21 @@ extern "C" {
     #define NO_RSA
 #endif
 
+/* DH */
+#undef  NO_DH
+#if 1
+    /* Use table for DH instead of -lm (math) lib dependency */
+    #if 1
+        #define WOLFSSL_DH_CONST
+        #define HAVE_FFDHE_2048
+        //#define HAVE_FFDHE_4096
+        //#define HAVE_FFDHE_6144
+        //#define HAVE_FFDHE_8192
+    #endif
+#else
+    #define NO_DH
+#endif
+
 /* ECC */
 #undef HAVE_ECC
 #if 1
@@ -129,9 +160,7 @@ extern "C" {
     //#define FP_ECC
     #ifdef FP_ECC
         /* Bits / Entries */
-        #undef  FP_ENTRIES
         #define FP_ENTRIES  2
-        #undef  FP_LUT
         #define FP_LUT      4
     #endif
 
@@ -148,11 +177,11 @@ extern "C" {
     /* Use alternate ECC size for ECC math */
     #ifdef USE_FAST_MATH
         /* MAX ECC BITS = ROUND8(MAX ECC) * 2 */
-        #ifdef NO_RSA
-            /* Custom fastmath size if not using RSA */
-            #undef  FP_MAX_BITS
+        #if defined(NO_RSA) && defined(NO_DH)
+            /* Custom fastmath size if not using RSA/DH */
             #define FP_MAX_BITS     (256 * 2)
         #else
+            /* use heap allocation for ECC points */
             #define ALT_ECC_SIZE
 
             /* wolfSSL will compute the FP_MAX_BITS_ECC, but it can be overriden */
@@ -166,21 +195,6 @@ extern "C" {
     #endif
 #endif
 
-/* DH */
-#undef  NO_DH
-#if 1
-    /* Use table for DH instead of -lm (math) lib dependency */
-    #if 1
-        #define WOLFSSL_DH_CONST
-        #define HAVE_FFDHE_2048
-        //#define HAVE_FFDHE_4096
-        //#define HAVE_FFDHE_6144
-        //#define HAVE_FFDHE_8192
-    #endif
-#else
-    #define NO_DH
-#endif
-
 
 /* AES */
 #undef NO_AES
@@ -191,6 +205,8 @@ extern "C" {
     #define HAVE_AESGCM
     #ifdef TARGET_EMBEDDED
         #define GCM_SMALL
+    #else
+        #define GCM_TABLE_4BIT
     #endif
 
     //#define WOLFSSL_AES_DIRECT

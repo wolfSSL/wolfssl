@@ -29,11 +29,6 @@
 #ifndef __WOLFSSL_I_CUBE_WOLFSSL_CONF_H__
 #define __WOLFSSL_I_CUBE_WOLFSSL_CONF_H__
 
-/**
-	MiddleWare name : wolfSSL.I-CUBE-wolfSSL.4.6.0
-	MiddleWare fileName : ./wolfSSL.I-CUBE-wolfSSL_conf.h
-	MiddleWare version :
-*/
 
 /*---------- WOLF_CONF_DEBUG -----------*/
 #define WOLF_CONF_DEBUG      0
