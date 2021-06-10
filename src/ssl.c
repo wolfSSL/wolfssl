@@ -2066,14 +2066,16 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
 
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
-        ssl->dtls_expected_rx = max(sz + 100, MAX_MTU);
+        ssl->dtls_expected_rx = max(sz + DTLS_MTU_ADDITIONAL_READ_BUFFER,
+                MAX_MTU);
 #ifdef WOLFSSL_SCTP
         if (ssl->options.dtlsSctp)
 #endif
 #if defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
-            /* Add 100 bytes so that we can operate with slight difference
+            /* Add some bytes so that we can operate with slight difference
              * in set MTU size on each peer */
-            ssl->dtls_expected_rx = max(ssl->dtls_expected_rx, ssl->dtlsMtuSz + 100);
+            ssl->dtls_expected_rx = max(ssl->dtls_expected_rx,
+                    ssl->dtlsMtuSz + DTLS_MTU_ADDITIONAL_READ_BUFFER);
 #endif
     }
 #endif
