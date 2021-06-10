@@ -14467,7 +14467,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 idx += (int)iov[i].iov_len;
             }
 
+           /* myBuffer may not initialized fully, but the sending length will be */
+            PRAGMA_GCC_IGNORE("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
             ret = wolfSSL_write(ssl, myBuffer, sending);
+            PRAGMA_GCC_POP;
 
             if (dynamic)
                 XFREE(myBuffer, ssl->heap, DYNAMIC_TYPE_WRITEV);
@@ -27326,7 +27329,7 @@ int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
     if (nameSz > 0)
         XMEMCPY(pParam->hostName, name, nameSz);
 
-        pParam->hostName[nameSz] = '\0';
+    pParam->hostName[nameSz] = '\0';
 
     return WOLFSSL_SUCCESS;
 }
