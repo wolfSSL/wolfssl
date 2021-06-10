@@ -2530,9 +2530,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         const char *defaultCipherList = cipherList;
 
         wolfSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
-    #ifdef WOLFSSL_TLS13
+#ifdef WOLFSSL_TLS13
+    #if !defined(WOLFSSL_PSK_TLS13_CB) && !defined(WOLFSSL_PSK_ONE_ID)
+        wolfSSL_CTX_set_psk_client_cs_callback(ctx, my_psk_client_cs_cb);
+    #else
         wolfSSL_CTX_set_psk_client_tls13_callback(ctx, my_psk_client_tls13_cb);
     #endif
+#endif
         if (defaultCipherList == NULL) {
         #if defined(HAVE_AESGCM) && !defined(NO_DH)
             #ifdef WOLFSSL_TLS13
@@ -3268,7 +3272,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
      * cipher name, or the requested cipher name is marked as an alias
      * that matches the established cipher.
      */
-    if (cipherList && (! XSTRSTR(cipherList, ":"))) {
+    if (cipherList && !useDefCipherList && (! XSTRSTR(cipherList, ":"))) {
         WOLFSSL_CIPHER* established_cipher = wolfSSL_get_current_cipher(ssl);
         byte requested_cipherSuite0, requested_cipherSuite;
         int requested_cipherFlags;

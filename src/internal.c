@@ -5479,6 +5479,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.server_psk_cb = ctx->server_psk_cb;
     ssl->options.psk_ctx       = ctx->psk_ctx;
 #ifdef WOLFSSL_TLS13
+    ssl->options.client_psk_cs_cb    = ctx->client_psk_cs_cb;
     ssl->options.client_psk_tls13_cb = ctx->client_psk_tls13_cb;
     ssl->options.server_psk_tls13_cb = ctx->server_psk_tls13_cb;
 #endif
@@ -5872,9 +5873,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     #endif
     #if defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
         ssl->dtlsMtuSz                  = ctx->dtlsMtuSz;
-        /* Add 100 bytes so that we can operate with slight difference
+        /* Add some bytes so that we can operate with slight difference
          * in set MTU size on each peer */
-        ssl->dtls_expected_rx           = ssl->dtlsMtuSz + 100;
+        ssl->dtls_expected_rx           = ssl->dtlsMtuSz +
+                                            DTLS_MTU_ADDITIONAL_READ_BUFFER;
     #else
         ssl->dtls_expected_rx = MAX_MTU;
     #endif
@@ -27716,10 +27718,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                                             defined(OPENSSL_ALL)
 
     /* search suites for specific one, idx on success, negative on error */
-#ifndef WOLFSSL_TLS13
-    static
-#endif
-    int FindSuite(Suites* suites, byte first, byte second)
+    static int FindSuite(Suites* suites, byte first, byte second)
     {
         int i;
 

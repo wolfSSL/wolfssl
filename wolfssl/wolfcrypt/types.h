@@ -889,8 +889,9 @@ decouple library dependencies with standard string, memory and so on.
         WC_PK_TYPE_EC_KEYGEN = 9,
         WC_PK_TYPE_RSA_CHECK_PRIV_KEY = 10,
         WC_PK_TYPE_EC_CHECK_PRIV_KEY = 11,
-
-        WC_PK_TYPE_MAX = WC_PK_TYPE_EC_CHECK_PRIV_KEY
+        WC_PK_TYPE_ED448 = 12,
+        WC_PK_TYPE_CURVE448 = 13,
+        WC_PK_TYPE_MAX = WC_PK_TYPE_CURVE448
     };
 
 
@@ -1051,6 +1052,14 @@ decouple library dependencies with standard string, memory and so on.
             (defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT))
         #undef  WC_MP_TO_RADIX
         #define WC_MP_TO_RADIX
+    #endif
+
+    #if defined(__GNUC__) && __GNUC__ > 5
+        #define PRAGMA_GCC_IGNORE(str) _Pragma(str);
+        #define PRAGMA_GCC_POP         _Pragma("GCC diagnostic pop");
+    #else
+        #define PRAGMA_GCC_IGNORE(str)
+        #define PRAGMA_GCC_POP
     #endif
 
     #ifdef __cplusplus

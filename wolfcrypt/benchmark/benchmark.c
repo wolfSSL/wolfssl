@@ -33,6 +33,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
+#include <wolfssl/wolfcrypt/ecc.h>
 
 /* Macro to disable benchmark */
 #ifndef NO_CRYPT_BENCHMARK
