@@ -6224,6 +6224,10 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, const byte* input,
             /* Downgrade the version. */
             ssl->version.minor = minor;
         }
+
+        if (ssl->options.downgrade && (minor < ssl->options.minDowngrade)) {
+            return VERSION_ERROR;
+        }
     }
     else
         return SANITY_MSG_E;
