@@ -2879,7 +2879,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
          * cipher name, or the requested cipher name is marked as an alias
          * that matches the established cipher.
          */
-        if (cipherList && (! XSTRSTR(cipherList, ":"))) {
+        if (cipherList && !useDefCipherList && (! XSTRSTR(cipherList, ":"))) {
             WOLFSSL_CIPHER* established_cipher = wolfSSL_get_current_cipher(ssl);
             byte requested_cipherSuite0, requested_cipherSuite;
             int requested_cipherFlags;
