@@ -201,6 +201,45 @@ byte tsip_rootCAverified( );
 #endif
 
 #ifdef WOLFSSL_SESSION_EXPORT
+/**
+ * Used to import a serialized TLS session. In most cases wolfSSL_get_session
+ * should be used instead, this function is for exporting the state of the
+ * connection and when imported a resumption is not needed.
+ * WARNING: buf contains sensitive information about the state and is best to be
+ *          encrypted before storing if stored.
+ *
+ * @param ssl WOLFSSL structure to import the session into
+ * @param buf serialized session
+ * @param sz  size of buffer 'buf'
+ * @return the number of bytes read from buffer 'buf'
+ */
+int wolfSSL_tls_import(WOLFSSL* ssl, const unsigned char* buf, unsigned int sz)
+{
+    if (ssl == NULL || buf == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    return wolfSSL_session_import_internal(ssl, buf, sz, WOLFSSL_EXPORT_TLS);
+}
+
+
+/**
+ * Used to export a serialized TLS session. In most cases wolfSSL_set_session
+ * should be used instead, this function is for importing a serialized state of
+ * the connection.
+ *
+ * @param ssl WOLFSSL structure to export the session from
+ * @param buf output of serialized session
+ * @param sz  size in bytes set in 'buf'
+ * @return the number of bytes written into buffer 'buf'
+ */
+int wolfSSL_tls_export(WOLFSSL* ssl, unsigned char* buf, unsigned int* sz)
+{
+    if (ssl == NULL || sz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    return wolfSSL_session_export_internal(ssl, buf, sz, WOLFSSL_EXPORT_TLS);
+}
+
 #ifdef WOLFSSL_DTLS
 int wolfSSL_dtls_import(WOLFSSL* ssl, const unsigned char* buf, unsigned int sz)
 {
@@ -211,7 +250,7 @@ int wolfSSL_dtls_import(WOLFSSL* ssl, const unsigned char* buf, unsigned int sz)
     }
 
     /* sanity checks on buffer and protocol are done in internal function */
-    return wolfSSL_dtls_import_internal(ssl, buf, sz);
+    return wolfSSL_session_import_internal(ssl, buf, sz, WOLFSSL_EXPORT_DTLS);
 }
 
 
@@ -281,7 +320,7 @@ int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf, unsigned int* sz)
     }
 
     /* copy over keys, options, and dtls state struct */
-    return wolfSSL_dtls_export_internal(ssl, buf, *sz);
+    return wolfSSL_session_export_internal(ssl, buf, sz, WOLFSSL_EXPORT_DTLS);
 }
 
 
@@ -325,7 +364,7 @@ int wolfSSL_send_session(WOLFSSL* ssl)
 {
     int ret;
     byte* buf;
-    word16 bufSz = MAX_EXPORT_BUFFER;
+    word32 bufSz = MAX_EXPORT_BUFFER;
 
     WOLFSSL_ENTER("wolfSSL_send_session");
 
@@ -346,7 +385,7 @@ int wolfSSL_send_session(WOLFSSL* ssl)
     }
 
     /* copy over keys, options, and dtls state struct */
-    ret = wolfSSL_dtls_export_internal(ssl, buf, bufSz);
+    ret = wolfSSL_session_export_internal(ssl, buf, &bufSz, WOLFSSL_EXPORT_DTLS);
     if (ret < 0) {
         XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
@@ -13305,7 +13344,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             }
 #endif /* WOLFSSL_ASYNC_CRYPT && HAVE_SECURE_RENEGOTIATION */
 
-#ifdef WOLFSSL_SESSION_EXPORT
+#if defined(WOLFSSL_SESSION_EXPORT) && defined(WOLFSSL_DTLS)
             if (ssl->dtls_export) {
                 if ((ssl->error = wolfSSL_send_session(ssl)) != 0) {
                     WOLFSSL_MSG("Export DTLS session error");
