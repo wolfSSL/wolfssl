@@ -11943,16 +11943,17 @@ static int wolfSSL_remove_ciphers(char* list, int sz, const char* toRemove)
 
     return totalSz;
 }
-/*                                                                          */
-/* build enabled cipher list w/ TLS13 or w/o TLS13 suites                   */
-/* @param ctx    a pointer to WOLFSSL_CTX structure                         */
-/* @param suites currently enabled suites                                   */
-/* @param onlytlsv13suites flag whether correcting w/ TLS13 suites          */
-/*                         or w/o TLS13 suties                              */
-/* @param list   suites list that user wants to update                      */
-/* @return suites list on successs, otherwise NULL                          */
+/*
+ * build enabled cipher list w/ TLS13 or w/o TLS13 suites
+ * @param ctx    a pointer to WOLFSSL_CTX structure
+ * @param suites currently enabled suites
+ * @param onlytlsv13suites flag whether correcting w/ TLS13 suites
+ *                         or w/o TLS13 suties
+ * @param list   suites list that user wants to update
+ * @return suites list on successs, otherwise NULL
+ */
 static char* buildEnabledCipherList(WOLFSSL_CTX* ctx, Suites* suites,
-           int onlytlsv13suites, const char* list)
+           int tls13Only, const char* list)
 {
     word32 idx = 0;
     word32 listsz = 0;
@@ -11979,11 +11980,13 @@ static char* buildEnabledCipherList(WOLFSSL_CTX* ctx, Suites* suites,
         cipherSuite0 = suites->suites[idx];
         cipherSuite  = suites->suites[++idx];
         
-        if (onlytlsv13suites && cipherSuite0 == TLS13_BYTE) {
+        if (tls13Only && cipherSuite0 == TLS13_BYTE) {
             enabledcs = GetCipherNameInternal(cipherSuite0, cipherSuite);
-        } else if (!onlytlsv13suites && cipherSuite0 != TLS13_BYTE) {
+        } 
+        else if (!tls13Only && cipherSuite0 != TLS13_BYTE) {
             enabledcs = GetCipherNameInternal(cipherSuite0, cipherSuite);
-        } else
+        } 
+        else
             continue;
         
         if (XSTRNCMP(enabledcs, "None", XSTRLEN(enabledcs)) != 0) {
@@ -11994,7 +11997,7 @@ static char* buildEnabledCipherList(WOLFSSL_CTX* ctx, Suites* suites,
     len += listsz + 2;
     
     /* build string */
-    if (len > 0) {
+    if (len > (listsz + 2)) {
         locallist = (char*)XMALLOC(len, ctx->heap,
                                            DYNAMIC_TYPE_TMP_BUFFER);
         /* sanity check */
@@ -12005,7 +12008,7 @@ static char* buildEnabledCipherList(WOLFSSL_CTX* ctx, Suites* suites,
         
         head = locallist;
         
-        if (!onlytlsv13suites)
+        if (!tls13Only)
         {
             /* always tls13 suites in the head position */
             XSTRNCPY(locallist, list, len);
@@ -12019,11 +12022,13 @@ static char* buildEnabledCipherList(WOLFSSL_CTX* ctx, Suites* suites,
             cipherSuite0 = suites->suites[idx];
             cipherSuite  = suites->suites[++idx];
             
-            if (onlytlsv13suites && cipherSuite0 == TLS13_BYTE) {
+            if (tls13Only && cipherSuite0 == TLS13_BYTE) {
                 enabledcs = GetCipherNameInternal(cipherSuite0, cipherSuite);
-            } else if (!onlytlsv13suites && cipherSuite0 != TLS13_BYTE) {
+            }
+            else if (!tls13Only && cipherSuite0 != TLS13_BYTE) {
                 enabledcs = GetCipherNameInternal(cipherSuite0, cipherSuite);
-            } else
+            } 
+            else
                 continue;
             
             ianasz = (int)XSTRLEN(enabledcs);
@@ -12041,34 +12046,36 @@ static char* buildEnabledCipherList(WOLFSSL_CTX* ctx, Suites* suites,
             }
         }
         
-        if (onlytlsv13suites) {
+        if (tls13Only) {
             XSTRNCPY(locallist, list, len);
             locallist += listsz;
             *locallist = 0;
         }
         
         return head;
-    } else 
+    } 
+    else 
         return NULL;
 }
 
-/*                                                                          */
-/* check if the list has TLS13 and pre-TLS13 suites                         */
-/* @param list cipher suite list that user want to set                      */
-/* @return mixed: 0, only pre-TLS13: 1, only TLS13: 2                       */
+/*
+ * check if the list has TLS13 and pre-TLS13 suites
+ * @param list cipher suite list that user want to set
+ * @return mixed: 0, only pre-TLS13: 1, only TLS13: 2
+ */
 static int CheckcipherList(const char* list)
 {
+    int ret;
     int findTLSv13Suites = 0;
     int findbeforeSuites = 0;
-    const int suiteSz = GetCipherNamesSize();
-    const CipherSuiteInfo* names = GetCipherNames();
-    
+    byte cipherSuite0;
+    byte cipherSuite1;
+    int flags;
     char* next = (char*)list;
     
     do {
         char*  current = next;
         char   name[MAX_SUITE_NAME + 1];
-        int    i;
         word32 length;
         
         next   = XSTRSTR(next, ":");
@@ -12077,20 +12084,19 @@ static int CheckcipherList(const char* list)
         XSTRNCPY(name, current, length);
         name[(length == sizeof(name)) ? length - 1 : length] = 0;
         
-        for (i = 0; i < suiteSz; i++) {
-            if (XSTRNCMP(name, names[i].name, sizeof(name)) == 0)
-            {
-                if (names[i].cipherSuite0 == TLS13_BYTE) {
-                    /* TLSv13 suite */
-                    findTLSv13Suites = 1;
-                    break;
-                } else {
-                    findbeforeSuites = 1;
-                    break;
-                }
+        ret = wolfSSL_get_cipher_suite_from_name(name, &cipherSuite0, 
+                                                        &cipherSuite1, &flags);
+        if (ret == 0) {
+            if (cipherSuite0 == TLS13_BYTE) {
+                /* TLSv13 suite */
+                findTLSv13Suites = 1;
+                break;
+            } 
+            else {
+                findbeforeSuites = 1;
+                break;
             }
-        }
-        
+        } 
         if (findTLSv13Suites == 1 && findbeforeSuites == 1)
             /* list has mixed suites */
             return 0;
@@ -12119,7 +12125,7 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
     int sz = 0;
     int listattribute = 0;
     char*     buildcipherList = NULL;
-    int onlytls13suites = 0;
+    int tls13Only = 0;
     
     if (suites == NULL || list == NULL) {
         WOLFSSL_MSG("NULL argument");
@@ -12173,21 +12179,27 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
         listattribute = CheckcipherList(list);
         
         if (listattribute == 0) {
-            /* list has mixed(pre-TLSv13 and TLSv13) suites    */
-            /* update cipher suites the same as before         */
+            /* list has mixed(pre-TLSv13 and TLSv13) suites
+             * update cipher suites the same as before
+             */
             return (SetCipherList(ctx, suites, list)) ? WOLFSSL_SUCCESS :
             WOLFSSL_FAILURE;
-        } else if (listattribute == 1) {
-        /* list has only pre-TLSv13 suites. Only update before TLSv13 suites.*/
-            onlytls13suites = 1;
-        } else if (listattribute == 2) {
-        /* list has only TLSv13 suites. Only update TLv13 suites    */
-        /* simulate set_ciphersuites() comatibility layer API       */
-            onlytls13suites = 0;
+        } 
+        else if (listattribute == 1) {
+            /* list has only pre-TLSv13 suites. 
+             * Only update before TLSv13 suites.
+             */
+            tls13Only = 1;
+        } 
+        else if (listattribute == 2) {
+        /* list has only TLSv13 suites. Only update TLv13 suites
+         * simulate set_ciphersuites() comatibility layer API
+         */
+            tls13Only = 0;
         }
         
         buildcipherList = buildEnabledCipherList(ctx, ctx->suites, 
-                                                onlytls13suites, list);
+                                                tls13Only, list);
         
         if (buildcipherList) {
             
