@@ -2450,6 +2450,20 @@ extern void uITRON4_free(void *p) ;
     #error Small stack cannot be used with no malloc (WOLFSSL_NO_MALLOC)
 #endif
 
+/* Enable DH Extra for QT, openssl all, openssh and static ephemeral */
+/* Allows export/import of DH key and params as DER */
+#if !defined(WOLFSSL_DH_EXTRA) && \
+    (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH) || \
+     defined(WOLFSSL_STATIC_EPHEMERAL))
+    #define WOLFSSL_DH_EXTRA
+#endif
+
+/* DH Extra is not supported on FIPS v1 or v2 (is missing DhKey .pub/.priv) */
+#if defined(WOLFSSL_DH_EXTRA) && defined(HAVE_FIPS) && \
+        (!defined(HAVE_FIPS_VERSION) || HAVE_FIPS_VERSION <= 2)
+    #undef WOLFSSL_DH_EXTRA
+#endif
+
 
 #ifdef __cplusplus
     }   /* extern "C" */

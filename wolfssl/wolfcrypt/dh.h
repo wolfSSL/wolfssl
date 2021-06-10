@@ -46,13 +46,6 @@
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
-/* Optional support extended DH public / private keys */
-#if !defined(WOLFSSL_DH_EXTRA) && (defined(WOLFSSL_QT) || \
-        defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH) || \
-        defined(WOLFSSL_STATIC_EPHEMERAL))
-    #define WOLFSSL_DH_EXTRA
-#endif
-
 typedef struct DhParams {
 #ifdef HAVE_FFDHE_Q
     const byte* q;
