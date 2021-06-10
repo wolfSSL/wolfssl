@@ -6593,6 +6593,7 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
     if (!pkey || !ecc)
         return WOLFSSL_FAILURE;
     if (ecc->type == ECC_PRIVATEKEY || ecc->type == ECC_PRIVATEKEY_ONLY) {
+#ifdef HAVE_PKCS8
         if (wc_EccKeyToPKCS8(ecc, NULL, &derSz) == LENGTH_ONLY_E) {
             derBuf = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_OPENSSL);
             if (derBuf != NULL) {
@@ -6603,6 +6604,19 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                 }
             }
         }
+#else
+        derSz = (word32)wc_EccKeyDerSize(ecc, 1);
+        if (derSz > 0) {
+            derBuf = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_OPENSSL);
+            if (derBuf != NULL) {
+                if (wc_EccKeyToDer(ecc, derBuf, derSz) < 0) {
+                    XFREE(derBuf, NULL, DYNAMIC_TYPE_OPENSSL);
+                    derBuf = NULL;
+                }
+            }
+        }
+
+#endif /* HAVE_PKCS8 */
     }
 <<<<<<< master
     else {

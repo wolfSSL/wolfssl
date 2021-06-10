@@ -42164,6 +42164,31 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
         return WOLFSSL_FAILURE;
     }
 
+    switch (pkey->type) {
+#if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && !defined(NO_RSA)
+    case EVP_PKEY_RSA:
+        WOLFSSL_MSG("populating RSA key");
+        if (PopulateRSAEvpPkeyDer(pkey) != WOLFSSL_SUCCESS)
+            return WOLFSSL_FAILURE;
+        break;
+#endif /* (WOLFSSL_KEY_GEN || OPENSSL_EXTRA) && !NO_RSA */
+#if !defined(HAVE_SELFTEST) && (defined(WOLFSSL_KEY_GEN) || \
+        defined(WOLFSSL_CERT_GEN)) && !defined(NO_DSA)
+    case EVP_PKEY_DSA:
+        break;
+#endif /* !HAVE_SELFTEST && (WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN) && !NO_DSA */
+#ifdef HAVE_ECC
+    case EVP_PKEY_EC:
+        WOLFSSL_MSG("populating ECC key");
+        if (ECC_populate_EVP_PKEY(pkey, (ecc_key*)pkey->ecc->internal)
+                != WOLFSSL_SUCCESS)
+            return WOLFSSL_FAILURE;
+        break;
+#endif
+    default:
+        return WOLFSSL_FAILURE;
+    }
+
     if (pkey->pkey.ptr != NULL) {
         /* ptr for WOLFSSL_EVP_PKEY struct is expected to be DER format */
         return wolfSSL_CTX_use_PrivateKey_buffer(ctx,
