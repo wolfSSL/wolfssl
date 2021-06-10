@@ -34381,6 +34381,13 @@ static void test_wolfSSL_SHA(void)
 
         /* SHA interface test */
         XMEMSET(out, 0, WC_SHA_DIGEST_SIZE);
+
+        AssertNull(SHA(NULL, XSTRLEN((char*)in), out));
+        AssertNotNull(SHA(in, 0, out));
+        AssertNotNull(SHA(in, XSTRLEN((char*)in), NULL));
+        AssertNotNull(SHA(NULL, 0, out));
+        AssertNotNull(SHA(NULL, 0, NULL));
+
         AssertNotNull(SHA(in, XSTRLEN((char*)in), out));
         AssertIntEQ(XMEMCMP(out, expected, WC_SHA_DIGEST_SIZE), 0);
     }
@@ -34608,6 +34615,16 @@ static void test_wolfSSL_MD5(void)
 
     XMEMSET(&md5, 0, sizeof(md5));
 
+    /* Test cases for illegal parameters */
+    AssertIntEQ(MD5_Init(NULL), 0);
+    AssertIntEQ(MD5_Init(&md5), 1);
+    AssertIntEQ(MD5_Update(NULL, input1, 0), 0);
+    AssertIntEQ(MD5_Update(NULL, NULL, 0), 0);
+    AssertIntEQ(MD5_Update(&md5, NULL, 1), 0);
+    AssertIntEQ(MD5_Final(NULL, &md5), 0);
+    AssertIntEQ(MD5_Final(hash, NULL), 0);
+    AssertIntEQ(MD5_Final(NULL, NULL), 0);
+
     /* Init MD5 CTX */
     AssertIntEQ(wolfSSL_MD5_Init(&md5), 1);
     AssertIntEQ(wolfSSL_MD5_Update(&md5, input1,
@@ -34623,6 +34640,11 @@ static void test_wolfSSL_MD5(void)
     AssertIntEQ(XMEMCMP(&hash, output2, WC_MD5_DIGEST_SIZE), 0);
 #if !defined(NO_OLD_NAMES) && \
   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2)))
+    AssertIntNE(MD5(NULL, 1, (byte*)&hash), 0);
+    AssertIntEQ(MD5(input1, 0, (byte*)&hash), 0);
+    AssertIntNE(MD5(input1, 1, NULL), 0);
+    AssertIntNE(MD5(NULL, 0, NULL), 0);
+
     AssertIntEQ(MD5(input1, (int)XSTRLEN((const char*)&input1), (byte*)&hash), 0);
     AssertIntEQ(XMEMCMP(&hash, output1, WC_MD5_DIGEST_SIZE), 0);
 
@@ -34701,6 +34723,13 @@ static void test_wolfSSL_SHA224(void)
     inLen  = XSTRLEN((char*)input);
 
     XMEMSET(hash, 0, WC_SHA224_DIGEST_SIZE);
+
+    AssertNull(SHA224(NULL, inLen, hash));
+    AssertNotNull(SHA224(input, 0, hash));
+    AssertNotNull(SHA224(input, inLen, NULL));
+    AssertNotNull(SHA224(NULL, 0, hash));
+    AssertNotNull(SHA224(NULL, 0, NULL));
+
     AssertNotNull(SHA224(input, inLen, hash));
     AssertIntEQ(XMEMCMP(hash, output, WC_SHA224_DIGEST_SIZE), 0);
 
