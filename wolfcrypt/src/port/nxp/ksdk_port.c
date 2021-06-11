@@ -100,7 +100,8 @@ static int ltc_get_lsb_bin_from_mp_int(uint8_t *dst, mp_int *A, uint16_t *psz)
 
     sz = mp_unsigned_bin_size(A);
 #ifndef WOLFSSL_SP_MATH
-    res = mp_to_unsigned_lsb_bin(A, dst); /* result is lsbyte at lowest addr as required by LTC */
+    /* result is lsbyte at lowest addr as required by LTC */
+    res = mp_to_unsigned_lsb_bin(A, dst);
 #else
     res = mp_to_unsigned_bin(A, dst);
     if (res == MP_OKAY) {
@@ -133,17 +134,22 @@ int mp_mul(mp_int *A, mp_int *B, mp_int *C)
     szA = mp_unsigned_bin_size(A);
     szB = mp_unsigned_bin_size(B);
 
-    /* if unsigned mul can fit into LTC PKHA let's use it, otherwise call software mul */
+    /* if unsigned mul can fit into LTC PKHA let's use it, otherwise call 
+     * software mul */
     if ((szA <= LTC_MAX_INT_BYTES / 2) && (szB <= LTC_MAX_INT_BYTES / 2)) {
-        int neg = 0;
-        uint8_t *ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrB = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrN = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrC = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL,
+            DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrB = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL,
+            DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrN = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL,
+            DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrC = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL,
+            DYNAMIC_TYPE_BIGINT);
 
         /* unsigned multiply */
-#ifndef WOLFSSL_SP_MATH
-        neg = (A->sign == B->sign) ? MP_ZPOS : MP_NEG;
+#if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
+      defined(WOLFSSL_SP_INT_NEGATIVE)
+        int neg = (A->sign == B->sign) ? MP_ZPOS : MP_NEG;
 #endif
 
         if (ptrA && ptrB && ptrN && ptrC) {
@@ -168,10 +174,11 @@ int mp_mul(mp_int *A, mp_int *B, mp_int *C)
                     ltc_reverse_array(ptrC, sizeC);
                     res = mp_read_unsigned_bin(C, ptrC, sizeC);
 
-                #ifndef WOLFSSL_SP_MATH
+#if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
+      defined(WOLFSSL_SP_INT_NEGATIVE)
                     /* fix sign */
                     C->sign = neg;
-                #endif
+#endif
                 }
                 else {
                     res = MP_VAL;
@@ -230,14 +237,17 @@ int mp_mod(mp_int *a, mp_int *b, mp_int *c)
     szA = mp_unsigned_bin_size(a);
     szB = mp_unsigned_bin_size(b);
     if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES)) {
-        int neg = 0;
-        uint8_t *ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrB = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrC = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL,
+            DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrB = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL,
+            DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrC = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL,
+            DYNAMIC_TYPE_BIGINT);
 
-#ifndef WOLFSSL_SP_MATH
+#if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
+      defined(WOLFSSL_SP_INT_NEGATIVE)
         /* get sign for the result */
-        neg = (a->sign == b->sign) ? MP_ZPOS : MP_NEG;
+        int neg = (a->sign == b->sign) ? MP_ZPOS : MP_NEG;
 #endif
 
         /* get remainder of unsigned a divided by unsigned b */
@@ -255,10 +265,11 @@ int mp_mod(mp_int *a, mp_int *b, mp_int *c)
                     ltc_reverse_array(ptrC, sizeC);
                     res = mp_read_unsigned_bin(c, ptrC, sizeC);
                 
-                #ifndef WOLFSSL_SP_MATH
+#if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
+      defined(WOLFSSL_SP_INT_NEGATIVE)
                     /* fix sign */
                     c->sign = neg;
-                #endif
+#endif
                 }
                 else {
                     res = MP_VAL;
@@ -317,9 +328,12 @@ int mp_invmod(mp_int *a, mp_int *b, mp_int *c)
     szA = mp_unsigned_bin_size(a);
     szB = mp_unsigned_bin_size(b);
     if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES)) {
-        uint8_t *ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrB = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrC = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL,
+            DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrB = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL,
+            DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrC = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL,
+            DYNAMIC_TYPE_BIGINT);
 
         if (ptrA && ptrB && ptrC) {
             uint16_t sizeA, sizeB, sizeC;
@@ -329,6 +343,7 @@ int mp_invmod(mp_int *a, mp_int *b, mp_int *c)
                 res = ltc_get_lsb_bin_from_mp_int(ptrB, b, &sizeB);
             
             /* if a >= b then reduce */
+            /* TODO: Perhaps always do mod reduce depending on hardware performance */
             if (res == MP_OKAY && 
                         LTC_PKHA_CompareBigNum(ptrA, sizeA, ptrB, sizeB) >= 0) {
                 if (LTC_PKHA_ModRed(LTC_BASE, ptrA, sizeA, ptrB, sizeB,
@@ -342,9 +357,11 @@ int mp_invmod(mp_int *a, mp_int *b, mp_int *c)
                     ltc_reverse_array(ptrC, sizeC);
                     res = mp_read_unsigned_bin(c, ptrC, sizeC);
 
-                #ifndef WOLFSSL_SP_MATH
+
+#if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
+      defined(WOLFSSL_SP_INT_NEGATIVE)
                     c->sign = a->sign;
-                #endif
+#endif
                 }
                 else {
                     res = MP_VAL;
@@ -408,7 +425,6 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
     if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES) && 
         (szC <= LTC_MAX_INT_BYTES))
     {
-        int neg = 0;
         uint8_t *ptrA, *ptrB, *ptrC, *ptrD;
 
         ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
@@ -417,8 +433,9 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
         ptrD = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
 
         /* unsigned multiply */
-#ifndef WOLFSSL_SP_MATH
-        neg = (a->sign == b->sign) ? MP_ZPOS : MP_NEG;
+#if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
+      defined(WOLFSSL_SP_INT_NEGATIVE)
+        int neg = (a->sign == b->sign) ? MP_ZPOS : MP_NEG;
 #endif
 
         if (ptrA && ptrB && ptrC && ptrD) {
@@ -461,10 +478,11 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
                 ltc_reverse_array(ptrD, sizeD);
                 res = mp_read_unsigned_bin(d, ptrD, sizeD);
 
-            #ifndef WOLFSSL_SP_MATH
+#if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
+      defined(WOLFSSL_SP_INT_NEGATIVE)
                 /* fix sign */
                 d->sign = neg;
-            #endif
+#endif
             }
         }
         else {
@@ -507,7 +525,7 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
 }
 
 /* Y = G^X mod P */
-int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
+int ltc_mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y, int useConstTime)
 {
     int res = MP_OKAY;
     int szG, szX, szP;
@@ -542,6 +560,7 @@ int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
                 res = ltc_get_lsb_bin_from_mp_int(ptrP, P, &sizeP);
 
             /* if G >= P then reduce */
+            /* TODO: Perhaps always do mod reduce depending on hardware performance */
             if (res == MP_OKAY && 
                         LTC_PKHA_CompareBigNum(ptrG, sizeG, ptrP, sizeP) >= 0) {
                 res = LTC_PKHA_ModRed(LTC_BASE, 
@@ -557,7 +576,8 @@ int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
                     ptrX, sizeX,  /* expenoent */
                     ptrY, &sizeY, /* out */
                     kLTC_PKHA_IntegerArith, kLTC_PKHA_NormalValue,
-                    kLTC_PKHA_TimingEqualized);
+                    useConstTime ? kLTC_PKHA_TimingEqualized :
+                                   kLTC_PKHA_NoTimingEqualized);
                 res = (res == kStatus_Success) ? MP_OKAY: MP_VAL;
             }
             if (res == MP_OKAY) {
@@ -604,10 +624,14 @@ int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
     return res;
 }
 
+int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
+{
+    return ltc_mp_exptmod(G, X, P, Y, 1);
+}
+
 int mp_exptmod_nct(mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
 {
-    /* use hardware implementation even for non-constant time operations */
-    return mp_exptmod(G, X, P, Y);
+    return ltc_mp_exptmod(G, X, P, Y, 0);
 }
 
 #if !defined(NO_DH) || !defined(NO_DSA) || !defined(NO_RSA) || \
@@ -670,7 +694,7 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
     }
     else {
 #if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
-        res = mp_prime_is_prime_ex(a, t, result, rng);
+        res = wolfcrypt_mp_prime_is_prime_ex(a, t, result, rng);
 #else
         res = NOT_COMPILED_IN;
 #endif
@@ -688,7 +712,8 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
 
 int mp_prime_is_prime(mp_int* a, int t, int* result)
 {
-    return mp_prime_is_prime_ex(a, t, result, NULL);
+    /* the NXP LTC prime check requires an RNG, so use software version */
+    return wolfcrypt_mp_prime_is_prime_ex(a, t, result, NULL);
 }
 #endif /* !NO_RSA || !NO_DSA || !NO_DH || WOLFSSL_KEY_GEN */
 
@@ -699,7 +724,8 @@ int mp_prime_is_prime(mp_int* a, int t, int* result)
 #if defined(HAVE_ECC) && defined(FREESCALE_LTC_ECC)
 
 /* convert from mp_int to LTC integer, as array of bytes of size sz.
- * if mp_int has less bytes than sz, add zero bytes at most significant byte positions.
+ * if mp_int has less bytes than sz, add zero bytes at most significant byte 
+ *   positions.
  * This is when for example modulus is 32 bytes (P-256 curve)
  * and mp_int has only 31 bytes, we add leading zeros
  * so that result array has 32 bytes, same as modulus (sz).
@@ -923,7 +949,8 @@ int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     size = szModulus;
 
     /* find LTC friendly parameters for the selected curve */
-    if (ltc_get_ecc_specs(&modbin, &r2modn, &aCurveParam, &bCurveParam, size) != 0) {
+    if (ltc_get_ecc_specs(&modbin, &r2modn, &aCurveParam, &bCurveParam, 
+                                                                   size) != 0) {
         return ECC_BAD_ARG_E;
     }
 
@@ -945,7 +972,8 @@ int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
         /* if k is negative, we compute the multiplication with abs(-k)
          * with result (x, y) and modify the result to (x, -y)
          */
-#ifndef WOLFSSL_SP_MATH
+#if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
+      defined(WOLFSSL_SP_INT_NEGATIVE)
         R->y->sign = k->sign;
 #endif
     }
@@ -993,7 +1021,8 @@ int wc_ecc_point_add(ecc_point *mG, ecc_point *mQ, ecc_point *mR, mp_int *m)
     size = mp_unsigned_bin_size(m);
 
     /* find LTC friendly parameters for the selected curve */
-    if (ltc_get_ecc_specs(&modbin, &r2modn, &aCurveParam, &bCurveParam, size) != 0) {
+    if (ltc_get_ecc_specs(&modbin, &r2modn, &aCurveParam, &bCurveParam,
+                                                                   size) != 0) {
         res = ECC_BAD_ARG_E;
     }
     else {
@@ -1053,7 +1082,8 @@ static const uint8_t invThree[32] = {
 /*
  *
  * finds square root in finite field when modulus congruent to 5 modulo 8
- * this is fixed to curve25519 modulus 2^255 - 19 which is congruent to 5 modulo 8
+ * this is fixed to curve25519 modulus 2^255 - 19 which is congruent to 
+ * 5 modulo 8.
  *
  * This function solves equation: res^2 = a mod (2^255 - 19)
  *
@@ -1115,7 +1145,8 @@ status_t LTC_PKHA_Prime25519SquareRootMod(const uint8_t *A, size_t sizeA,
     }
 
     /* I = I - 1 */
-    XMEMSET(VV, 0xff, sizeof(VV)); /* just temp for maximum integer - for non-modular subtract */
+    /* just temp for maximum integer - for non-modular subtract */
+    XMEMSET(VV, 0xff, sizeof(VV));
     if (LTC_PKHA_CompareBigNum(I, szI, &one, sizeof(one)) >= 0) {
         if (status == kStatus_Success) {
             status = LTC_PKHA_ModSub1(LTC_BASE, I, szI, &one, sizeof(one),
@@ -1769,7 +1800,8 @@ status_t LTC_PKHA_Ed25519_PointDecompress(const uint8_t *pubkey,
     return status;
 }
 
-/* LSByte first of Ed25519 parameter l = 2^252 + 27742317777372353535851937790883648493 */
+/* LSByte first of Ed25519 parameter l = 2^252 + 
+ *   27742317777372353535851937790883648493 */
 static const uint8_t l_coefEdDSA[] = {
     0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7,
     0xa2, 0xde, 0xf9, 0xde, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
