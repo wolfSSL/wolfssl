@@ -396,7 +396,7 @@ static int stm32_get_from_mp_int(uint8_t *dst, const mp_int *a, int sz)
         return BAD_FUNC_ARG;
 
     /* check how many bytes are in the mp_int */
-    szbin = mp_unsigned_bin_size((mp_int*)a);
+    szbin = mp_unsigned_bin_size(a);
     if (szbin < 0 || szbin > sz)
         return BUFFER_E;
 
@@ -672,7 +672,7 @@ int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     }
 
     szModulus = mp_unsigned_bin_size(modulus);
-    szkbin = mp_unsigned_bin_size((mp_int*)k);
+    szkbin = mp_unsigned_bin_size(k);
 
     res = stm32_get_from_mp_int(kbin, k, szkbin);
     if (res == MP_OKAY)
