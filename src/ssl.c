@@ -2053,6 +2053,30 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
     if (ssl == NULL || data == NULL || sz < 0)
         return BAD_FUNC_ARG;
 
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL) && defined(OPENSSL_EXTRA)
+    /* This additional logic is meant to simulate following openSSL behavior:
+     * After bidirectional SSL_shutdown complete, SSL_read returns 0 and
+     * SSL_get_error_code returns SSL_ERROR_ZERO_RETURN.
+     * This behavior is used to know the disconnect of the underlying
+     * transport layer.
+     *
+     * In this logic, CBIORecv is called with a read size of 0 to check the
+     * transport layer status. It also returns WOLFSSL_FAILURE so that
+     * SSL_read does not return a positive number on failure.
+     */
+
+    /* make sure bidirectional TLS shutdown completes */
+    if (ssl->error == WOLFSSL_ERROR_SYSCALL) {
+        /* ask the underlying transport the connection is closed */
+        if (ssl->CBIORecv(ssl, (char*)data, 0, ssl->IOCB_ReadCtx) ==
+                                            WOLFSSL_CBIO_ERR_CONN_CLOSE) {
+            ssl->options.isClosed = 1;
+            ssl->error = WOLFSSL_ERROR_ZERO_RETURN;
+        }
+        return WOLFSSL_FAILURE;
+    }
+#endif
+
 #ifdef HAVE_WRITE_DUP
     if (ssl->dupWrite && ssl->dupSide == WRITE_DUP_SIDE) {
         WOLFSSL_MSG("Write dup side cannot read");
