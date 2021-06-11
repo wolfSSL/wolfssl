@@ -28,3 +28,8 @@ EXTRA_DIST += \
          certs/ed25519/server-ed25519-key.pem \
          certs/ed25519/server-ed25519-priv.der \
          certs/ed25519/server-ed25519-priv.pem
+
+EXTRA_DIST += \
+         certs/ed25519/gen-ed25519.sh \
+         certs/ed25519/gen-ed25519-certs.sh \
+         certs/ed25519/gen-ed25519-keys.sh
