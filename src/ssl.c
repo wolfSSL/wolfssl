@@ -54469,6 +54469,7 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
 
 
             wc_MIME_free_hdrs(allHdrs);
+            allHdrs = NULL;
             section[0] = '\0';
             sectionLen = 0;
             lineLen = wolfSSL_BIO_gets(in, section, remainLen);
@@ -54594,6 +54595,7 @@ error:
     if (canonSection != NULL)
         XFREE(canonSection, NULL, DYNAMIC_TYPE_PKCS7);
     wolfSSL_BIO_free(*bcont);
+    *bcont = NULL; /* reset 'bcount' pointer to NULL on failure */
 
     return NULL;
 }
