@@ -530,6 +530,27 @@ const char* wc_GetErrorString(int error)
     case BAD_LENGTH_E:
         return "Value of length parameter is invalid.";
 
+    case ECDSA_KAT_FIPS_E:
+        return "wolfcrypt FIPS ECDSA Known Answer Test Failure";
+
+    case RSA_PAT_FIPS_E:
+        return "wolfcrypt FIPS RSA Pairwise Agreement Test Failure";
+
+    case KDF_TLS12_KAT_FIPS_E:
+        return "wolfcrypt FIPS TLSv1.2 KDF Known Answer Test Failure";
+
+    case KDF_TLS13_KAT_FIPS_E:
+        return "wolfcrypt FIPS TLSv1.3 KDF Known Answer Test Failure";
+
+    case KDF_SSH_KAT_FIPS_E:
+        return "wolfcrypt FIPS SSH KDF Known Answer Test Failure";
+
+     case DHE_PCT_E:
+        return "wolfcrypt DHE Pairwise Consistency Test Failure";
+
+    case ECC_PCT_E:
+        return "wolfcrypt ECDHE Pairwise Consistency Test Failure";
+
     default:
         return "unknown error number";
 

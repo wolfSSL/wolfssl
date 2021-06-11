@@ -194,9 +194,7 @@ struct WC_RNG {
     #define RNG WC_RNG
 #endif
 
-
-WOLFSSL_LOCAL
-int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
+WOLFSSL_API int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
 
 
 #ifdef HAVE_WNR
@@ -235,7 +233,10 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG*);
 #define wc_FreeRng(rng) (void)NOT_COMPILED_IN
 #endif
 
-
+#ifdef WC_RNG_SEED_CB
+    typedef int (*wc_RngSeed_Cb)(OS_Seed* os, byte* seed, word32 sz);
+    WOLFSSL_API int wc_SetSeed_Cb(wc_RngSeed_Cb cb);
+#endif
 
 #ifdef HAVE_HASHDRBG
     WOLFSSL_LOCAL int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* entropy,

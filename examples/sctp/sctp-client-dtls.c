@@ -70,6 +70,9 @@ int main()
     const char* response = "hello there";
     char buffer[80];
 
+#ifdef WC_RNG_SEED_CB
+    wc_SetSeed_Cb(wc_GenerateSeed);
+#endif
     WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method());
     if (ctx == NULL)
         err_sys("ctx new dtls client failed");

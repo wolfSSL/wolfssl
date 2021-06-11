@@ -36,6 +36,7 @@ Platform is one of:
     stm32l4-v2 (FIPSv2, use for STM32L4)
     wolfrand
     solaris
+    linuxv5 (FIPS 140-3)
 Keep (default off) retains the XXX-fips-test temp dir for inspection.
 
 Example:
@@ -265,6 +266,21 @@ solaris)
   FIPS_OPTION=v2
   MAKE=gmake
   ;;
+linuxv5)
+  FIPS_REPO="git@github.com:ejohnstown/fips.git"
+  FIPS_VERSION="fipsv3"
+  CRYPT_REPO="git@github.com:ejohnstown/wolfssl.git"
+  CRYPT_VERSION="fipsv3"
+  CRYPT_INC_PATH="wolfssl/wolfcrypt"
+  CRYPT_SRC_PATH="wolfcrypt/src"
+  WC_MODS=( aes sha sha256 sha512 rsa hmac random cmac dh ecc sha3 kdf )
+  RNG_VERSION="fipsv3"
+  FIPS_SRCS=( fips.c fips_test.c wolfcrypt_first.c wolfcrypt_last.c )
+  FIPS_INCS=( fips.h )
+  FIPS_OPTION="v5"
+  COPY_DIRECT=( wolfcrypt/src/aes_asm.S wolfcrypt/src/aes_asm.asm
+                wolfcrypt/src/sha256_asm.S wolfcrypt/src/sha512_asm.S )
+  ;;
 *)
   Usage
   exit 1
@@ -304,7 +320,7 @@ then
         cp "old-tree/$CRYPT_SRC_PATH/random.c" $CRYPT_SRC_PATH
         cp "old-tree/$CRYPT_INC_PATH/random.h" $CRYPT_INC_PATH
     fi
-elif [ "x$FIPS_OPTION" == "xv2" ] || [ "x$FIPS_OPTION" == "xrand" ]
+elif [ "x$FIPS_OPTION" == "xv2" ] || [ "x$FIPS_OPTION" == "xrand" ] || [ "x$FIPS_OPTION" == "xv5" ]
 then
     $GIT branch --no-track "my$CRYPT_VERSION" $CRYPT_VERSION
     # Checkout the fips versions of the wolfCrypt files from the repo.
@@ -313,9 +329,14 @@ then
         $GIT checkout "my$CRYPT_VERSION" -- "$CRYPT_SRC_PATH/$MOD.c" "$CRYPT_INC_PATH/$MOD.h"
     done
 
-    $GIT branch --no-track "my$RNG_VERSION" $RNG_VERSION
+    for MOD in "${COPY_DIRECT[@]}"
+    do
+        $GIT checkout "my$CRYPT_VERSION" -- "$MOD"
+    done
+
+    $GIT branch --no-track "myrng$RNG_VERSION" $RNG_VERSION
     # Checkout the fips versions of the wolfCrypt files from the repo.
-    $GIT checkout "my$RNG_VERSION" -- "$CRYPT_SRC_PATH/random.c" "$CRYPT_INC_PATH/random.h"
+    $GIT checkout "myrng$RNG_VERSION" -- "$CRYPT_SRC_PATH/random.c" "$CRYPT_INC_PATH/random.h"
 elif [ "x$FIPS_OPTION" == "xready" ]
 then
     echo "Don't need to copy anything in particular for FIPS Ready."
@@ -325,14 +346,14 @@ else
 fi
 
 # clone the FIPS repository
-if [ "x$FIPS_OPTION" != "xready" ]
+if [ "x$FIPS_OPTION" = "xready" ]
 then
-    if ! $GIT clone --depth 1 -b $FIPS_VERSION $FIPS_REPO fips; then
-        echo "fips-check: Couldn't checkout the FIPS repository."
+    if ! $GIT clone --depth 1 $FIPS_REPO fips; then
+        echo "fips-check: Couldn't checkout the FIPS repository for FIPS Ready."
         exit 1
     fi
 else
-    if ! $GIT clone --depth 1 $FIPS_REPO fips; then
+    if ! $GIT clone --depth 1 -b $FIPS_VERSION $FIPS_REPO fips; then
         echo "fips-check: Couldn't checkout the FIPS repository."
         exit 1
     fi

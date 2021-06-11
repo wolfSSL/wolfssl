@@ -389,6 +389,9 @@ void echoclient_test(void* args)
 #if defined(DEBUG_CYASSL) && !defined(WOLFSSL_MDK_SHELL)
         CyaSSL_Debugging_ON();
 #endif
+#ifdef WC_RNG_SEED_CB
+        wc_SetSeed_Cb(wc_GenerateSeed);
+#endif
 #ifndef CYASSL_TIRTOS
         ChangeToWolfRoot();
 #endif
