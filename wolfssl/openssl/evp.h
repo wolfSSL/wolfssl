@@ -376,7 +376,7 @@ struct WOLFSSL_EVP_PKEY_CTX {
 typedef
 struct WOLFSSL_ASN1_PCTX {
     int dummy;
-}WOLFSSL_ASN1_PCTX;
+} WOLFSSL_ASN1_PCTX;
 
 typedef int WOLFSSL_ENGINE  ;
 typedef WOLFSSL_ENGINE ENGINE;
