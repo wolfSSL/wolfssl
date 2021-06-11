@@ -28050,6 +28050,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifndef WOLFSSL_NO_TLS12
 
+    /**
+     *  Handles session resumption. 
+     *  Session tickets are checked for validity based on the time each ticket
+     *  was created, timeout value and the current time. If the tickets are
+     *  judged expired, falls back to full-handshake. If you want disable this 
+     *  sessin ticket validation check in TLS1.2 and below, define
+     *  WOLFSSL_NO_TICKET_EXPRE.
+     */
     int HandleTlsResumption(WOLFSSL* ssl, int bogusID, Suites* clSuites)
     {
         int ret = 0;
@@ -28071,13 +28079,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ssl->options.resuming = 0;
             return ret;
         }
-#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TICKET_EXPIRE)
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TICKET_EXPIRE) && \
+                                    !defined(NO_ASN_TIME)
         /* check if the ticket is valid */
         if (LowResTimer() > session->bornOn + ssl->timeout) {
             WOLFSSL_MSG("Expired session ticket, fall back to full handshake.");
             ssl->options.resuming = 0;
         }
-#endif /* HAVE_SESSION_TICKET || !WOLFSSL_NO_TICKET_EXPIRE */
+#endif /* HAVE_SESSION_TICKET && !WOLFSSL_NO_TICKET_EXPIRE && !NO_ASN_TIME */
 
         else if (session->haveEMS != ssl->options.haveEMS) {
             /* RFC 7627, 5.3, server-side */
@@ -29323,7 +29332,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         if (!ssl->options.tls1_3) {
             XMEMCPY(it.msecret, ssl->arrays->masterSecret, SECRET_LEN);
+#ifndef NO_ASN_TIME
             c32toa(LowResTimer(), (byte*)&it.timestamp);
+#endif
             it.haveEMS = ssl->options.haveEMS;
         }
         else {
