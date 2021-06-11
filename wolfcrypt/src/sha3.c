@@ -1168,7 +1168,7 @@ int wc_Sha3_GetFlags(wc_Sha3* sha3, word32* flags)
 }
 #endif
 
-#if defined(WOLFSSL_SHAKE256)
+#ifdef WOLFSSL_SHAKE256
 /* Initialize the state for a Shake256 hash operation.
  *
  * shake  wc_Shake object holding state.

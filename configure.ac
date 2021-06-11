@@ -1778,6 +1778,7 @@ fi
 AC_ARG_ENABLE([shake256],
     [AS_HELP_STRING([--enable-shake256],[Enable wolfSSL SHAKE256 support (default: disabled)])],
     [ ENABLED_SHAKE256=$enableval ]
+    [ ENABLED_SHAKE256=no ]
     )
 
 # SHA512
