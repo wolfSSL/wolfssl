@@ -33,7 +33,7 @@
 #include <wolfssl/wolfcrypt/logging.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/hc128.h>
-		#include <wolfssl/wolfcrypt/misc.h>
+    #include <wolfssl/wolfcrypt/misc.h>
 #else
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
@@ -116,23 +116,23 @@ static void generate_keystream(HC128* ctx, word32* keystream)
    }
    else
    {
-	  ctx->counter1024 = (ctx->counter1024 + 16) & 0x3ff;
-      step_Q(ctx, 512+cc+0, 512+cc+1, 0, 6, 13,4, keystream[0]);
-      step_Q(ctx, 512+cc+1, 512+cc+2, 1, 7, 14,5, keystream[1]);
-      step_Q(ctx, 512+cc+2, 512+cc+3, 2, 8, 15,6, keystream[2]);
-      step_Q(ctx, 512+cc+3, 512+cc+4, 3, 9, 0, 7, keystream[3]);
-      step_Q(ctx, 512+cc+4, 512+cc+5, 4, 10,1, 8, keystream[4]);
-      step_Q(ctx, 512+cc+5, 512+cc+6, 5, 11,2, 9, keystream[5]);
-      step_Q(ctx, 512+cc+6, 512+cc+7, 6, 12,3, 10,keystream[6]);
-      step_Q(ctx, 512+cc+7, 512+cc+8, 7, 13,4, 11,keystream[7]);
-      step_Q(ctx, 512+cc+8, 512+cc+9, 8, 14,5, 12,keystream[8]);
-      step_Q(ctx, 512+cc+9, 512+cc+10,9, 15,6, 13,keystream[9]);
-      step_Q(ctx, 512+cc+10,512+cc+11,10,0, 7, 14,keystream[10]);
-      step_Q(ctx, 512+cc+11,512+cc+12,11,1, 8, 15,keystream[11]);
-      step_Q(ctx, 512+cc+12,512+cc+13,12,2, 9, 0, keystream[12]);
-      step_Q(ctx, 512+cc+13,512+cc+14,13,3, 10,1, keystream[13]);
-      step_Q(ctx, 512+cc+14,512+cc+15,14,4, 11,2, keystream[14]);
-      step_Q(ctx, 512+cc+15,512+dd+0, 15,5, 12,3, keystream[15]);
+       ctx->counter1024 = (ctx->counter1024 + 16) & 0x3ff;
+       step_Q(ctx, 512+cc+0, 512+cc+1, 0, 6, 13,4, keystream[0]);
+       step_Q(ctx, 512+cc+1, 512+cc+2, 1, 7, 14,5, keystream[1]);
+       step_Q(ctx, 512+cc+2, 512+cc+3, 2, 8, 15,6, keystream[2]);
+       step_Q(ctx, 512+cc+3, 512+cc+4, 3, 9, 0, 7, keystream[3]);
+       step_Q(ctx, 512+cc+4, 512+cc+5, 4, 10,1, 8, keystream[4]);
+       step_Q(ctx, 512+cc+5, 512+cc+6, 5, 11,2, 9, keystream[5]);
+       step_Q(ctx, 512+cc+6, 512+cc+7, 6, 12,3, 10,keystream[6]);
+       step_Q(ctx, 512+cc+7, 512+cc+8, 7, 13,4, 11,keystream[7]);
+       step_Q(ctx, 512+cc+8, 512+cc+9, 8, 14,5, 12,keystream[8]);
+       step_Q(ctx, 512+cc+9, 512+cc+10,9, 15,6, 13,keystream[9]);
+       step_Q(ctx, 512+cc+10,512+cc+11,10,0, 7, 14,keystream[10]);
+       step_Q(ctx, 512+cc+11,512+cc+12,11,1, 8, 15,keystream[11]);
+       step_Q(ctx, 512+cc+12,512+cc+13,12,2, 9, 0, keystream[12]);
+       step_Q(ctx, 512+cc+13,512+cc+14,13,3, 10,1, keystream[13]);
+       step_Q(ctx, 512+cc+14,512+cc+15,14,4, 11,2, keystream[14]);
+       step_Q(ctx, 512+cc+15,512+dd+0, 15,5, 12,3, keystream[15]);
    }
 }
 
@@ -241,7 +241,7 @@ static void Hc128_SetIV(HC128* ctx, const byte* inIv)
     else
         XMEMSET(iv,    0, sizeof(iv));
 
-	for (i = 0; i < (128 >> 5); i++)
+    for (i = 0; i < (128 >> 5); i++)
         ctx->iv[i] = LITTLE32(iv[i]);
 
     for (; i < 8; i++) ctx->iv[i] = ctx->iv[i-4];
@@ -249,26 +249,26 @@ static void Hc128_SetIV(HC128* ctx, const byte* inIv)
     /* expand the key and IV into the table T */
     /* (expand the key and IV into the table P and Q) */
 
-	for (i = 0; i < 8;  i++)   ctx->T[i] = ctx->key[i];
-	for (i = 8; i < 16; i++)   ctx->T[i] = ctx->iv[i-8];
+    for (i = 0; i < 8;  i++)   ctx->T[i] = ctx->key[i];
+    for (i = 8; i < 16; i++)   ctx->T[i] = ctx->iv[i-8];
 
     for (i = 16; i < (256+16); i++)
-		ctx->T[i] = f2(ctx->T[i-2]) + ctx->T[i-7] + f1(ctx->T[i-15]) +
+        ctx->T[i] = f2(ctx->T[i-2]) + ctx->T[i-7] + f1(ctx->T[i-15]) +
                                                        ctx->T[i-16]+i;
 
-	for (i = 0; i < 16;  i++)  ctx->T[i] = ctx->T[256+i];
+    for (i = 0; i < 16;  i++)  ctx->T[i] = ctx->T[256+i];
 
-	for (i = 16; i < 1024; i++)
-		ctx->T[i] = f2(ctx->T[i-2]) + ctx->T[i-7] + f1(ctx->T[i-15]) +
+    for (i = 16; i < 1024; i++)
+        ctx->T[i] = f2(ctx->T[i-2]) + ctx->T[i-7] + f1(ctx->T[i-15]) +
                                                        ctx->T[i-16]+256+i;
 
     /* initialize counter1024, X and Y */
-	ctx->counter1024 = 0;
-	for (i = 0; i < 16; i++) ctx->X[i] = ctx->T[512-16+i];
+    ctx->counter1024 = 0;
+    for (i = 0; i < 16; i++) ctx->X[i] = ctx->T[512-16+i];
     for (i = 0; i < 16; i++) ctx->Y[i] = ctx->T[512+512-16+i];
 
     /* run the cipher 1024 steps before generating the output */
-	for (i = 0; i < 64; i++)  setup_update(ctx);
+    for (i = 0; i < 64; i++)  setup_update(ctx);
 }
 
 
@@ -342,25 +342,25 @@ static WC_INLINE int DoProcess(HC128* ctx, byte* output, const byte* input,
 
   for ( ; msglen >= 64; msglen -= 64, input += 64, output += 64)
   {
-	  generate_keystream(ctx, keystream);
+      generate_keystream(ctx, keystream);
 
       /* unroll loop */
-	  ((word32*)output)[0]  = ((word32*)input)[0]  ^ LITTLE32(keystream[0]);
-	  ((word32*)output)[1]  = ((word32*)input)[1]  ^ LITTLE32(keystream[1]);
-	  ((word32*)output)[2]  = ((word32*)input)[2]  ^ LITTLE32(keystream[2]);
-	  ((word32*)output)[3]  = ((word32*)input)[3]  ^ LITTLE32(keystream[3]);
-	  ((word32*)output)[4]  = ((word32*)input)[4]  ^ LITTLE32(keystream[4]);
-	  ((word32*)output)[5]  = ((word32*)input)[5]  ^ LITTLE32(keystream[5]);
-	  ((word32*)output)[6]  = ((word32*)input)[6]  ^ LITTLE32(keystream[6]);
-	  ((word32*)output)[7]  = ((word32*)input)[7]  ^ LITTLE32(keystream[7]);
-	  ((word32*)output)[8]  = ((word32*)input)[8]  ^ LITTLE32(keystream[8]);
-	  ((word32*)output)[9]  = ((word32*)input)[9]  ^ LITTLE32(keystream[9]);
-	  ((word32*)output)[10] = ((word32*)input)[10] ^ LITTLE32(keystream[10]);
-	  ((word32*)output)[11] = ((word32*)input)[11] ^ LITTLE32(keystream[11]);
-	  ((word32*)output)[12] = ((word32*)input)[12] ^ LITTLE32(keystream[12]);
-	  ((word32*)output)[13] = ((word32*)input)[13] ^ LITTLE32(keystream[13]);
-	  ((word32*)output)[14] = ((word32*)input)[14] ^ LITTLE32(keystream[14]);
-	  ((word32*)output)[15] = ((word32*)input)[15] ^ LITTLE32(keystream[15]);
+      ((word32*)output)[0]  = ((word32*)input)[0]  ^ LITTLE32(keystream[0]);
+      ((word32*)output)[1]  = ((word32*)input)[1]  ^ LITTLE32(keystream[1]);
+      ((word32*)output)[2]  = ((word32*)input)[2]  ^ LITTLE32(keystream[2]);
+      ((word32*)output)[3]  = ((word32*)input)[3]  ^ LITTLE32(keystream[3]);
+      ((word32*)output)[4]  = ((word32*)input)[4]  ^ LITTLE32(keystream[4]);
+      ((word32*)output)[5]  = ((word32*)input)[5]  ^ LITTLE32(keystream[5]);
+      ((word32*)output)[6]  = ((word32*)input)[6]  ^ LITTLE32(keystream[6]);
+      ((word32*)output)[7]  = ((word32*)input)[7]  ^ LITTLE32(keystream[7]);
+      ((word32*)output)[8]  = ((word32*)input)[8]  ^ LITTLE32(keystream[8]);
+      ((word32*)output)[9]  = ((word32*)input)[9]  ^ LITTLE32(keystream[9]);
+      ((word32*)output)[10] = ((word32*)input)[10] ^ LITTLE32(keystream[10]);
+      ((word32*)output)[11] = ((word32*)input)[11] ^ LITTLE32(keystream[11]);
+      ((word32*)output)[12] = ((word32*)input)[12] ^ LITTLE32(keystream[12]);
+      ((word32*)output)[13] = ((word32*)input)[13] ^ LITTLE32(keystream[13]);
+      ((word32*)output)[14] = ((word32*)input)[14] ^ LITTLE32(keystream[14]);
+      ((word32*)output)[15] = ((word32*)input)[15] ^ LITTLE32(keystream[15]);
   }
 
   if (msglen > 0)
@@ -378,7 +378,7 @@ static WC_INLINE int DoProcess(HC128* ctx, byte* output, const byte* input,
 #endif
 
       for (i = 0; i < msglen; i++)
-	      output[i] = input[i] ^ ((byte*)keystream)[i];
+          output[i] = input[i] ^ ((byte*)keystream)[i];
   }
 
   return 0;

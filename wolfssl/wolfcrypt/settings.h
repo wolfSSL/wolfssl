@@ -218,6 +218,11 @@
 /* Uncomment next line if building for Linux Kernel Module */
 /* #define WOLFSSL_LINUXKM */
 
+/* Uncomment next line if building for devkitPro */
+/* #define DEVKITPRO */
+
+/* Uncomment next line if building for Dolphin Emulator */
+/* #define DOLPHIN_EMULATOR */
 
 #include <wolfssl/wolfcrypt/visibility.h>
 
@@ -1178,8 +1183,11 @@ extern void uITRON4_free(void *p) ;
 
             /* the LTC PKHA hardware limit is 2048 bits (256 bytes) for integer arithmetic.
                the LTC_MAX_INT_BYTES defines the size of local variables that hold big integers. */
-            #ifndef LTC_MAX_INT_BYTES
-                #define LTC_MAX_INT_BYTES (256)
+            /* size is multiplication of 2 big ints */
+            #if !defined(NO_RSA) || !defined(NO_DH)
+                #define LTC_MAX_INT_BYTES   (256*2)
+            #else
+                #define LTC_MAX_INT_BYTES   (48*2)
             #endif
 
             /* This FREESCALE_LTC_TFM_RSA_4096_ENABLE macro can be defined.
@@ -1240,7 +1248,8 @@ extern void uITRON4_free(void *p) ;
 #if defined(WOLFSSL_STM32F2) || defined(WOLFSSL_STM32F4) || \
     defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32F1) || \
     defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
-    defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32H7)
+    defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32H7) || \
+    defined(WOLFSSL_STM32G0)
 
     #define SIZEOF_LONG_LONG 8
     #ifndef CHAR_BIT
@@ -1293,6 +1302,8 @@ extern void uITRON4_free(void *p) ;
             #include "stm32h7xx_hal.h"
         #elif defined(WOLFSSL_STM32WB)
             #include "stm32wbxx_hal.h"
+        #elif defined(WOLFSSL_STM32G0)
+            #include "stm32g0xx_hal.h"
         #endif
         #if defined(WOLFSSL_CUBEMX_USE_LL) && defined(WOLFSSL_STM32L4)
             #include "stm32l4xx_ll_rng.h"
@@ -1343,7 +1354,8 @@ extern void uITRON4_free(void *p) ;
         #endif
     #endif /* WOLFSSL_STM32_CUBEMX */
 #endif /* WOLFSSL_STM32F2 || WOLFSSL_STM32F4 || WOLFSSL_STM32L4 || 
-          WOLFSSL_STM32L5 || WOLFSSL_STM32F7 || WOLFSSL_STMWB || WOLFSSL_STM32H7 */
+          WOLFSSL_STM32L5 || WOLFSSL_STM32F7 || WOLFSSL_STMWB || 
+          WOLFSSL_STM32H7 || WOLFSSL_STM32G0 */
 #ifdef WOLFSSL_DEOS
     #include <deos.h>
     #include <timeout.h>
@@ -1375,7 +1387,6 @@ extern void uITRON4_free(void *p) ;
     #define WC_RSA_BLINDING
 
     #define HAVE_ECC
-    #define ALT_ECC_SIZE
     #define TFM_ECC192
     #define TFM_ECC224
     #define TFM_ECC256
@@ -2431,6 +2442,26 @@ extern void uITRON4_free(void *p) ;
     /* ECDSA length checks off by default for CAVP testing
      * consider enabling strict checks in production */
     #define NO_STRICT_ECDSA_LEN
+#endif
+
+/* Do not allow using small stack with no malloc */
+#if defined(WOLFSSL_NO_MALLOC) && \
+    (defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_SMALL_STACK_CACHE))
+    #error Small stack cannot be used with no malloc (WOLFSSL_NO_MALLOC)
+#endif
+
+/* Enable DH Extra for QT, openssl all, openssh and static ephemeral */
+/* Allows export/import of DH key and params as DER */
+#if !defined(WOLFSSL_DH_EXTRA) && \
+    (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH) || \
+     defined(WOLFSSL_STATIC_EPHEMERAL))
+    #define WOLFSSL_DH_EXTRA
+#endif
+
+/* DH Extra is not supported on FIPS v1 or v2 (is missing DhKey .pub/.priv) */
+#if defined(WOLFSSL_DH_EXTRA) && defined(HAVE_FIPS) && \
+        (!defined(HAVE_FIPS_VERSION) || HAVE_FIPS_VERSION <= 2)
+    #undef WOLFSSL_DH_EXTRA
 #endif
 
 

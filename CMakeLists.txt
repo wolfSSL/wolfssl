@@ -180,6 +180,18 @@ find_package(Threads)
 #       - 32-bit mode
 #       - 16-bit mode
 
+# For reproducible build, gate out from the build anything that might
+# introduce semantically frivolous jitter, maximizing chance of
+# identical object files.
+set(WOLFSSL_REPRODUCIBLE_BUILD_HELP_STRING "Enable maximally reproducible build (default: disabled)")
+add_option("WOLFSSL_REPRODUCIBLE_BUILD" ${WOLFSSL_REPRODUCIBLE_BUILD_HELP_STRING} "no" "yes;no")
+
+if(WOLFSSL_REPRODUCIBLE_BUILD)
+    set(CMAKE_C_ARCHIVE_CREATE "<CMAKE_AR> Dqc <TARGET> <LINK_FLAGS> <OBJECTS>")
+    set(CMAKE_C_ARCHIVE_APPEND "<CMAKE_AR> Dq  <TARGET> <LINK_FLAGS> <OBJECTS>")
+    set(CMAKE_C_ARCHIVE_FINISH "<CMAKE_RANLIB> -D <TARGET>")
+endif()
+
 # Support for disabling all ASM
 set(WOLFSSL_ASM_HELP_STRING "Enables option for assembly (default: enabled)")
 add_option("WOLFSSL_ASM" ${WOLFSSL_ASM_HELP_STRING} "yes" "yes;no")

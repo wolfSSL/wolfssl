@@ -66,16 +66,22 @@ WOLFSSL_API int  wc_AesSetIV(Aes* aes, const byte* iv);
     the resulting cipher text in the output buffer out using cipher block
     chaining with AES. This function requires that the AES object has been
     initialized by calling AesSetKey before a message is able to be encrypted.
-    This function assumes that the input message is AES block length aligned.
-    PKCS#7 style padding should be added beforehand. This differs from the
-    OpenSSL AES-CBC methods which add the padding for you. To make the wolfSSL
-    function and equivalent OpenSSL functions interoperate, one should specify
+    This function assumes that the input message is AES block length aligned,
+    and expects the input length to be a multiple of the block length, which
+    will optionally be checked and enforced if WOLFSSL_AES_CBC_LENGTH_CHECKS
+    is defined in the build configuration.  In order to assure block-multiple
+    input, PKCS#7 style padding should be added beforehand. This differs from
+    the OpenSSL AES-CBC methods which add the padding for you. To make the
+    wolfSSL and corresponding OpenSSL functions interoperate, one should specify
     the -nopad option in the OpenSSL command line function so that it behaves
     like the wolfSSL AesCbcEncrypt method and does not add extra padding
     during encryption.
 
     \return 0 On successfully encrypting message.
-    \return BAD_ALIGN_E: Returned on block align error
+    \return BAD_ALIGN_E: may be returned on block align error
+    \return BAD_LENGTH_E will be returned if the input length isn't a
+    multiple of the AES block length, when the library is built with
+    WOLFSSL_AES_CBC_LENGTH_CHECKS.
 
     \param aes pointer to the AES object used to encrypt data
     \param out pointer to the output buffer in which to store the ciphertext
@@ -110,15 +116,21 @@ WOLFSSL_API int  wc_AesCbcEncrypt(Aes* aes, byte* out,
     with AES. This function requires that the AES structure has been
     initialized by calling AesSetKey before a message is able to be decrypted.
     This function assumes that the original message was AES block length
-    aligned. This differs from the OpenSSL AES-CBC methods which do not
-    require alignment as it adds PKCS#7 padding automatically. To make the
+    aligned, and expects the input length to be a multiple of the block length,
+    which will optionally be checked and enforced if
+    WOLFSSL_AES_CBC_LENGTH_CHECKS is defined in the build configuration.
+    This differs from the OpenSSL AES-CBC methods, which add PKCS#7 padding
+    automatically, and so do not require block-multiple input. To make the
     wolfSSL function and equivalent OpenSSL functions interoperate, one
     should specify the -nopad option in the OpenSSL command line function
     so that it behaves like the wolfSSL AesCbcEncrypt method and does not
     create errors during decryption.
 
     \return 0 On successfully decrypting message.
-    \return BAD_ALIGN_E Returned on block align error.
+    \return BAD_ALIGN_E may be returned on block align error.
+    \return BAD_LENGTH_E will be returned if the input length isn't a
+    multiple of the AES block length, when the library is built with
+    WOLFSSL_AES_CBC_LENGTH_CHECKS.
 
     \param aes pointer to the AES object used to decrypt data.
     \param out pointer to the output buffer in which to store the plain text

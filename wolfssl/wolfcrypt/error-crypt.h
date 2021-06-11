@@ -235,8 +235,11 @@ enum {
     CHACHA_POLY_OVERFLOW =-274,  /* ChaCha20Poly1305 limit overflow */
     ASN_SELF_SIGNED_E   = -275,  /* ASN self-signed certificate error */
     SAKKE_VERIFY_FAIL_E = -276,  /* SAKKE derivation verification error */
+    MISSING_IV          = -277,  /* IV was not set */
+    MISSING_KEY         = -278,  /* Key was not set */
+    BAD_LENGTH_E        = -279,  /* Value of length parameter is invalid. */
 
-    WC_LAST_E           = -276,  /* Update this to indicate last error */
+    WC_LAST_E           = -279,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

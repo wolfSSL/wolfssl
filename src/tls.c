@@ -2024,18 +2024,24 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
 #ifndef NO_WOLFSSL_SERVER
     if (!extension || !extension->data) {
-        #if defined(WOLFSSL_ALWAYS_KEEP_SNI) && !defined(NO_WOLFSSL_SERVER)
-            /* This will keep SNI even though TLSX_UseSNI has not been called.
-            * Enable it so that the received sni is available to functions
-            * that use a custom callback when SNI is received.
-            */
-
+        /* This will keep SNI even though TLSX_UseSNI has not been called.
+         * Enable it so that the received sni is available to functions
+         * that use a custom callback when SNI is received.
+         */
+    #ifdef WOLFSSL_ALWAYS_KEEP_SNI
+        cacheOnly = 1;
+    #endif
+        if (ssl->ctx->sniRecvCb) {
             cacheOnly = 1;
+        }
+
+        if (cacheOnly) {
             WOLFSSL_MSG("Forcing SSL object to store SNI parameter");
-        #else
+        }
+        else {
             /* Skipping, SNI not enabled at server side. */
             return 0;
-        #endif
+        }
     }
 
     if (OPAQUE16_LEN > length)
@@ -2096,7 +2102,7 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
         TLSX_SNI_SetStatus(ssl->extensions, type, (byte)matchStat);
 
-        if(!cacheOnly)
+        if (!cacheOnly)
             TLSX_SetResponse(ssl, TLSX_SERVER_NAME);
     }
     else if (!(sni->options & WOLFSSL_SNI_CONTINUE_ON_MISMATCH)) {
@@ -5034,7 +5040,7 @@ static void TLSX_SessionTicket_ValidateRequest(WOLFSSL* ssl)
         }
     }
 }
-#endif /* WLFSSL_TLS13 || !NO_WOLFSSL_CLIENT */
+#endif /* WOLFSSL_TLS13 || !NO_WOLFSSL_CLIENT */
 
 
 static word16 TLSX_SessionTicket_GetSize(SessionTicket* ticket, int isRequest)
@@ -5129,8 +5135,10 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, const byte* input,
                 WOLFSSL_MSG("Process client ticket rejected, bad TLS version");
                 ssl->options.rejectTicket = 1;
                 ret = 0;  /* not fatal */
-            } else if (ret == WOLFSSL_TICKET_RET_FATAL || ret < 0) {
+            } else if (ret == WOLFSSL_TICKET_RET_FATAL) {
                 WOLFSSL_MSG("Process client ticket fatal error, not using");
+            } else if (ret < 0) {
+                WOLFSSL_MSG("Process client ticket unknown error, not using");
             }
         }
     }
@@ -10236,6 +10244,9 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 }
             }
         }
+        if (ret != 0) {
+            return ret;
+        }
 #endif
 
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
@@ -10323,20 +10334,21 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     int set = 0;
                     int i, j;
 
-                    /* Default to first group in supported list. */
-                    namedGroup = ssl->group[0];
-                    /* Try to find preferred in supported list. */
-                    for (i = 0; i < (int)PREFERRED_GROUP_SZ && !set; i++) {
-                        for (j = 0; j < ssl->numGroups; j++) {
-                            if (preferredGroup[i] == ssl->group[j]) {
-                                /* Most preferred that is supported. */
-                                namedGroup = ssl->group[j];
+                    /* try to find the highest element in ssl->group[]
+                     * that is contained in preferredGroup[].
+                     */
+                    namedGroup = preferredGroup[0];
+                    for (i = 0; i < ssl->numGroups && !set; i++) {
+                        for (j = 0; j < (int)PREFERRED_GROUP_SZ; j++) {
+                            if (preferredGroup[j] == ssl->group[i]) {
+                                namedGroup = ssl->group[i];
                                 set = 1;
                                 break;
                             }
                         }
                     }
                 }
+
                 else {
                     /* Choose the most preferred group. */
                     namedGroup = preferredGroup[0];
@@ -10353,7 +10365,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         #if defined(HAVE_SESSION_TICKET)
             if (ssl->options.resuming && ssl->session.ticketLen > 0) {
                 WOLFSSL_SESSION* sess = &ssl->session;
-                word32           milli;
+                word32           now, milli;
 
                 if (sess->ticketLen > MAX_PSK_ID_LEN) {
                     WOLFSSL_MSG("Session ticket length for PSK ext is too large");
@@ -10366,8 +10378,13 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 ret = SetCipherSpecs(ssl);
                 if (ret != 0)
                     return ret;
-                milli = TimeNowInMilliseconds() - sess->ticketSeen +
-                        sess->ticketAdd;
+                now = TimeNowInMilliseconds();
+                if (now < sess->ticketSeen)
+                    milli = (0xFFFFFFFFU - sess->ticketSeen) + 1 + now;
+                else
+                    milli = now - sess->ticketSeen;
+                milli += sess->ticketAdd;
+
                 /* Pre-shared key is mandatory extension for resumption. */
                 ret = TLSX_PreSharedKey_Use(ssl, sess->ticket, sess->ticketLen,
                                             milli, ssl->specs.mac_algorithm,
@@ -10380,7 +10397,49 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 usingPSK = 1;
             }
         #endif
-        #ifndef NO_PSK
+    #ifndef NO_PSK
+        #ifndef WOLFSSL_PSK_ONE_ID
+            if (ssl->options.client_psk_cs_cb != NULL) {
+                int i;
+                ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0';
+                for (i = 0; i < ssl->suites->suiteSz; i += 2) {
+                    byte cipherSuite0 = ssl->suites->suites[i + 0];
+                    byte cipherSuite = ssl->suites->suites[i + 1];
+                    unsigned int keySz;
+
+                #ifdef HAVE_NULL_CIPHER
+                    if (cipherSuite0 == ECC_BYTE) {
+                        if (cipherSuite != TLS_SHA256_SHA256 &&
+                                             cipherSuite != TLS_SHA384_SHA384) {
+                            continue;
+                        }
+                    }
+                    else
+                #endif
+                    if (cipherSuite0 != TLS13_BYTE)
+                        continue;
+
+                    keySz = ssl->options.client_psk_cs_cb(
+                        ssl, ssl->arrays->server_hint,
+                        ssl->arrays->client_identity, MAX_PSK_ID_LEN,
+                        ssl->arrays->psk_key, MAX_PSK_KEY_LEN,
+                        GetCipherNameInternal(cipherSuite0, cipherSuite));
+                    if (keySz > 0) {
+                        ssl->arrays->psk_keySz = keySz;
+                        ret = TLSX_PreSharedKey_Use(ssl,
+                            (byte*)ssl->arrays->client_identity,
+                            (word16)XSTRLEN(ssl->arrays->client_identity), 0,
+                            SuiteMac(ssl->suites->suites + i),
+                            cipherSuite0, cipherSuite, 0, NULL);
+                        if (ret != 0)
+                            return ret;
+                    }
+                }
+
+                usingPSK = 1;
+            }
+            else
+        #endif
             if (ssl->options.client_psk_cb != NULL ||
                                      ssl->options.client_psk_tls13_cb != NULL) {
                 /* Default ciphersuite. */
@@ -10395,7 +10454,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                         ssl->arrays->client_identity, MAX_PSK_ID_LEN,
                         ssl->arrays->psk_key, MAX_PSK_KEY_LEN, &cipherName);
                     if (GetCipherSuiteFromName(cipherName, &cipherSuite0,
-                                               &cipherSuite, &cipherSuiteFlags) != 0) {
+                                        &cipherSuite, &cipherSuiteFlags) != 0) {
                         return PSK_KEY_ERROR;
                     }
                 }
@@ -10409,6 +10468,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     return PSK_KEY_ERROR;
                 }
                 ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0';
+
                 ssl->options.cipherSuite0 = cipherSuite0;
                 ssl->options.cipherSuite  = cipherSuite;
                 (void)cipherSuiteFlags;
@@ -10427,7 +10487,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 
                 usingPSK = 1;
             }
-        #endif
+    #endif /* !NO_PSK */
         #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
             if (usingPSK) {
                 byte modes;
@@ -11043,7 +11103,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
         ato16(input + offset, &size);
         offset += OPAQUE16_LEN;
 
-        if (offset + size > length)
+        if (length - offset < size)
             return BUFFER_ERROR;
 
         switch (type) {

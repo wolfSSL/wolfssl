@@ -12,10 +12,14 @@
 #endif
 #include <assert.h>
 #include <ctype.h>
+#ifdef HAVE_ERRNO_H
+    #include <errno.h>
+#endif
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/mem_track.h>
+#include <wolfssl/wolfio.h>
 #if defined(SHOW_CERTS) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     #include <wolfssl/wolfcrypt/asn.h> /* for domain component NID value */
@@ -349,6 +353,7 @@
 #define cliEd448CertFile  "certs/ed448/client-ed448.pem"
 #define cliEd448KeyFile   "certs/ed448/client-ed448-priv.pem"
 #define caEd448CertFile   "certs/ed448/ca-ed448.pem"
+#define caCertFolder      "certs/"
 #ifdef HAVE_WNR
     /* Whitewood netRandom default config file */
     #define wnrConfig     "wnr-example.conf"
@@ -382,6 +387,7 @@
 #define cliEd448CertFile  "./certs/ed448/client-ed448.pem"
 #define cliEd448KeyFile   "./certs/ed448/client-ed448-priv.pem"
 #define caEd448CertFile   "./certs/ed448/ca-ed448.pem"
+#define caCertFolder      "./certs/"
 #ifdef HAVE_WNR
     /* Whitewood netRandom default config file */
     #define wnrConfig     "./wnr-example.conf"
@@ -563,7 +569,7 @@ static WC_INLINE int mygetopt(int argc, char** argv, const char* optstring)
     char  c;
     char* cp;
 
-    /* Added sanity check becuase scan-build complains argv[myoptind] access 
+    /* Added sanity check because scan-build complains argv[myoptind] access
      * results in a null pointer dereference. */
     if (argv == NULL)  {
         myoptarg = NULL;
@@ -1295,10 +1301,9 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
 
 static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
                               func_args* args, word16 port, int useAnyAddr,
-                              int udp, int sctp, int ready_file, int do_listen)
+                              int udp, int sctp, int ready_file, int do_listen,
+                              SOCKADDR_IN_T *client_addr, socklen_t *client_len)
 {
-    SOCKADDR_IN_T client_addr;
-    socklen_t client_len = sizeof(client_addr);
     tcp_ready* ready = NULL;
 
     (void) ready; /* Account for case when "ready" is not used */
@@ -1355,8 +1360,8 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         }
     }
 
-    *clientfd = accept(*sockfd, (struct sockaddr*)&client_addr,
-                      (ACCEPT_THIRD_T)&client_len);
+    *clientfd = accept(*sockfd, (struct sockaddr*)client_addr,
+                      (ACCEPT_THIRD_T)client_len);
     if(WOLFSSL_SOCKET_IS_INVALID(*clientfd)) {
         err_sys_with_errno("tcp accept failed");
     }
@@ -1494,14 +1499,18 @@ static WC_INLINE unsigned int my_psk_server_tls13_cb(WOLFSSL* ssl,
 {
     int i;
     int b = 0x01;
+    int kIdLen = (int)XSTRLEN(kIdentityStr);
     const char* userCipher = (const char*)wolfSSL_get_psk_callback_ctx(ssl);
 
     (void)ssl;
     (void)key_max_len;
 
     /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
-    if (XSTRNCMP(identity, kIdentityStr, XSTRLEN(kIdentityStr)) != 0)
+    if (XSTRNCMP(identity, kIdentityStr, kIdLen) != 0)
         return 0;
+    if (identity[kIdLen] != '\0') {
+        userCipher = wolfSSL_get_cipher_name_by_hash(ssl, identity + kIdLen);
+    }
 
     for (i = 0; i < 32; i++, b += 0x22) {
         if (b >= 0x100)
@@ -1510,6 +1519,102 @@ static WC_INLINE unsigned int my_psk_server_tls13_cb(WOLFSSL* ssl,
     }
 
     *ciphersuite = userCipher ? userCipher : "TLS13-AES128-GCM-SHA256";
+
+    return 32;   /* length of key in octets or 0 for error */
+}
+
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+       !defined(NO_FILESYSTEM)
+static unsigned char local_psk[32];
+#endif
+static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl, 
+            const WOLFSSL_EVP_MD* md, const unsigned char **id,
+            size_t* idlen,  WOLFSSL_SESSION **sess)
+{
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+       !defined(NO_FILESYSTEM)
+    int i;
+    int b = 0x01;
+    WOLFSSL_SESSION* lsess;
+    char buf[256];
+    const char* cipher_id = "TLS13-AES128-GCM-SHA256";
+    const SSL_CIPHER* cipher = NULL;
+    STACK_OF(SSL_CIPHER) *supportedCiphers = NULL;
+    int numCiphers = 0;
+    (void)ssl;
+    (void)md;
+    
+    printf("use psk session callback \n");
+    
+    lsess = wolfSSL_SESSION_new();
+    if (lsess == NULL) {
+        return 0;
+    }
+    supportedCiphers = SSL_get_ciphers(ssl);
+    numCiphers = sk_num(supportedCiphers);
+
+    for (i = 0; i < numCiphers; ++i) {
+        
+        if ((cipher = (const WOLFSSL_CIPHER*)sk_value(supportedCiphers, i))) {
+            SSL_CIPHER_description(cipher, buf, sizeof(buf));
+        }
+        
+        if (XMEMCMP(cipher_id, buf, XSTRLEN(cipher_id)) == 0) {
+            break;
+        }
+    }
+    
+    if (i != numCiphers) {
+        SSL_SESSION_set_cipher(lsess, cipher);
+            for (i = 0; i < 32; i++, b += 0x22) {
+            if (b >= 0x100)
+                b = 0x01;
+            local_psk[i] = b;
+        }
+        
+        *id = local_psk;
+        *idlen = 32;
+        *sess = lsess;
+        
+        return 1;
+    }
+    else {
+        *id = NULL;
+        *idlen = 0;
+        *sess = NULL;
+        return 0;
+    }
+#else
+    (void)ssl;
+    (void)md;
+    (void)id;
+    (void)idlen;
+    (void)sess;
+    
+    return 0;
+#endif
+}
+
+static WC_INLINE unsigned int my_psk_client_cs_cb(WOLFSSL* ssl,
+        const char* hint, char* identity, unsigned int id_max_len,
+        unsigned char* key, unsigned int key_max_len, const char* ciphersuite)
+{
+    int i;
+    int b = 0x01;
+
+    (void)ssl;
+    (void)hint;
+    (void)key_max_len;
+
+    /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
+    XSTRNCPY(identity, kIdentityStr, id_max_len);
+    XSTRNCAT(identity, ciphersuite + XSTRLEN(ciphersuite) - 6, id_max_len);
+
+    for (i = 0; i < 32; i++, b += 0x22) {
+        if (b >= 0x100)
+            b = 0x01;
+        key[i] = b;
+    }
 
     return 32;   /* length of key in octets or 0 for error */
 }
@@ -3012,6 +3117,8 @@ static WC_INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
     return ret;
 }
 
+#endif /* HAVE_ECC */
+
 #ifdef HAVE_ED25519
 static WC_INLINE int myEd25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
         byte* out, word32* outSz, const byte* key, word32 keySz, void* ctx)
@@ -3333,8 +3440,6 @@ static WC_INLINE int myX448SharedSecret(WOLFSSL* ssl, curve448_key* otherKey,
     return ret;
 }
 #endif /* HAVE_CURVE448 */
-
-#endif /* HAVE_ECC */
 
 #ifndef NO_DH
 static WC_INLINE int myDhCallback(WOLFSSL* ssl, struct DhKey* key,
@@ -3823,6 +3928,7 @@ static WC_INLINE void SetupPkCallbackContexts(WOLFSSL* ssl, void* myCtx)
 
 #endif /* HAVE_PK_CALLBACKS */
 
+#ifdef USE_WOLFSSL_IO
 static WC_INLINE int SimulateWantWriteIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
     static int wantWriteFlag = 1;
@@ -3865,6 +3971,7 @@ static WC_INLINE int SimulateWantWriteIOSendCb(WOLFSSL *ssl, char *buf, int sz, 
         return WOLFSSL_CBIO_ERR_WANT_WRITE;
     }
 }
+#endif /* USE_WOLFSSL_IO */
 
 #if defined(__hpux__) || defined(__MINGW32__) || defined (WOLFSSL_TIRTOS) \
                       || defined(_MSC_VER)
@@ -4092,8 +4199,11 @@ static WC_INLINE word16 GetRandomPort(void)
 static WC_INLINE void EarlyDataStatus(WOLFSSL* ssl)
 {
     int earlyData_status;
-    
+#ifdef OPENSSL_EXTRA
+    earlyData_status = SSL_get_early_data_status(ssl);
+#else
     earlyData_status = wolfSSL_get_early_data_status(ssl);
+#endif
     if (earlyData_status < 0) return;
     
     printf("Early Data was ");

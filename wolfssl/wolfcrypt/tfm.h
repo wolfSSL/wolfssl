@@ -70,6 +70,11 @@
       #define TFM_X86_64
    #endif
 #endif
+#if defined(__aarch64__) && defined(__APPLE__)
+    #if !defined(TFM_AARCH_64) && !defined(TFM_NO_ASM)
+        #define TFM_AARCH_64
+    #endif
+#endif
 #if defined(TFM_X86_64) || defined(TFM_AARCH_64)
     #if !defined(FP_64BIT)
        #define FP_64BIT
@@ -654,10 +659,6 @@ int fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c);
 int fp_to_unsigned_bin(fp_int *a, unsigned char *b);
 int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c);
 int fp_to_unsigned_bin_at_pos(int x, fp_int *t, unsigned char *b);
-
-/*int fp_signed_bin_size(fp_int *a);*/
-/*void fp_read_signed_bin(fp_int *a, const unsigned char *b, int c);*/
-/*void fp_to_signed_bin(fp_int *a, unsigned char *b);*/
 
 /*int fp_read_radix(fp_int *a, char *str, int radix);*/
 /*int fp_toradix(fp_int *a, char *str, int radix);*/

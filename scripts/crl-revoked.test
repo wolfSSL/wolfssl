@@ -107,9 +107,13 @@ run_test() {
         echo ""
         echo "Successful Revocation!!!!"
         echo ""
-        exit_code=0
-        echo "exiting with $exit_code"
-        exit $exit_code
+        if [ $exit_hash_dir_code -ne 0 ]; then
+           exit_code=1
+        else
+           exit_code=0
+           echo "exiting with $exit_code"
+           exit $exit_code
+        fi
         ;;
     *)
         echo ""
@@ -120,8 +124,87 @@ run_test() {
     esac
 }
 
+run_hashdir_test() {
+  echo -e "\n\nHash dir with CRL and Certificate loading"
 
+  remove_ready_file
+  # create hashed cert and crl
+  pushd ${CERT_DIR}
+  # ca file
+  ca_hash_name=`openssl x509 -in ca-cert.pem -hash -noout`
+  if [ -f "$ca_hash_name".0 ]; then
+     rm "$ca_hash_name".0
+  fi
+  ln -s ca-cert.pem "$ca_hash_name".0
+  # crl file
+  crl_hash_name=`openssl crl -in ./crl/crl.pem -hash -noout`
+  if [ -f "$crl_hash_name".r0 ]; then
+     rm "$crl_hash_name".r0
+  fi
+  ln -s ./crl/crl.pem "$crl_hash_name".r0
+  popd
+  
+  # starts the server on crl_port, -R generates ready file to be used as a
+  # mutex lock, -c loads the revoked certificate. We capture the processid
+  # into the variable server_pid
+  ./examples/server/server -R $ready_file -p $crl_port \
+                             -c ${CERT_DIR}/server-revoked-cert.pem \
+                             -k ${CERT_DIR}/server-revoked-key.pem &
+  server_pid=$!
+  while [ ! -s $ready_file -a "$counter" -lt 20 ]; do
+        echo -e "waiting for ready file..."
+        sleep 0.1
+        counter=$((counter+ 1))
+  done
+
+  # get created port 0 ephemeral port
+  crl_port="$(cat $ready_file)"
+  
+  # starts client on crl_port and captures the output from client
+  capture_out=$(./examples/client/client -p $crl_port -9 2>&1)
+  client_result=$?
+  
+  wait $server_pid
+  server_result=$?
+
+  case  "$capture_out" in
+    *$revocation_code*)
+        # only exit with zero on detection of the expected error code
+        echo ""
+        echo "Successful Revocation!!!! with hash dir"
+        echo ""
+        exit_hash_dir_code=0
+        ;;
+    *)
+        echo ""
+        echo "Certificate was not revoked saw this instead: $capture_out"
+        echo ""
+        echo "configure with --enable-crl and run this script again"
+        echo ""
+        exit_hash_dir_code=1
+    esac
+  
+  # clean up hashed cert and crl
+  pushd ${CERT_DIR}
+  rm "$ca_hash_name".0
+  rm "$crl_hash_name".r0
+  popd
+
+}
 ######### begin program #########
+
+# Check for enabling hash dir feature
+./examples/client/client -? 2>&1 | grep -- 'hash dir'
+if [ $? -eq 0 ]; then
+   hash_dir=yes
+   exit_hash_dir_code=1
+fi
+
+if [ "$hash_dir" = "yes" ]; then
+   run_hashdir_test
+else
+   exit_hash_dir_code=0
+fi
 
 # run the test
 run_test

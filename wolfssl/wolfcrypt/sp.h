@@ -27,9 +27,15 @@
 
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH) || \
                                     defined(WOLFSSL_HAVE_SP_ECC)
-
-#ifndef WOLFSSL_LINUXKM
-#include <stdint.h>
+#ifdef _WIN32_WCE
+    typedef __int8           int8_t;
+    typedef __int32          int32_t;
+    typedef __int64          int64_t;
+    typedef unsigned __int8  uint8_t;
+    typedef unsigned __int32 uint32_t;
+    typedef unsigned __int64 uint64_t;
+#elif !defined(WOLFSSL_LINUXKM)
+    #include <stdint.h>
 #endif
 
 #include <wolfssl/wolfcrypt/integer.h>
@@ -56,7 +62,9 @@
 
 #ifdef WOLFSSL_HAVE_SP_RSA
 
-#if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2
+/* non-const versions only needed for inlined ARM assembly */
+#if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2 \
+    && ( defined(WOLFSSL_SP_ARM32_ASM) || defined(WOLFSSL_SP_ARM64_ASM) )
 
 WOLFSSL_LOCAL int sp_RsaPublic_2048(const byte* in, word32 inLen,
     mp_int* em, mp_int* mm, byte* out, word32* outLen);
@@ -99,13 +107,15 @@ WOLFSSL_LOCAL int sp_RsaPrivate_4096(const byte* in, word32 inLen,
     const mp_int* dqm, const mp_int* qim, const mp_int* mm, byte* out,
     word32* outLen);
 
-#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 */
+#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 && !WOLFSSL_SP_ARM[32|64]_ASM */
 
 #endif /* WOLFSSL_HAVE_SP_RSA */
 
 #if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
 
-#if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2
+/* non-const versions only needed for inlined ARM assembly */
+#if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2 \
+    && ( defined(WOLFSSL_SP_ARM32_ASM) || defined(WOLFSSL_SP_ARM64_ASM) )
 
 WOLFSSL_LOCAL int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod,
     mp_int* res);
@@ -131,13 +141,15 @@ WOLFSSL_LOCAL int sp_ModExp_3072(const mp_int* base, const mp_int* exp,
 WOLFSSL_LOCAL int sp_ModExp_4096(const mp_int* base, const mp_int* exp,
     const mp_int* mod, mp_int* res);
 
-#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 */
+#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 && !WOLFSSL_SP_ARM[32|64]_ASM */
 
 #endif
 
 #ifdef WOLFSSL_HAVE_SP_DH
 
-#if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2
+/* non-const versions only needed for inlined ARM assembly */
+#if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2 \
+    && ( defined(WOLFSSL_SP_ARM32_ASM) || defined(WOLFSSL_SP_ARM64_ASM) )
 
 WOLFSSL_LOCAL int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
     mp_int* mod, byte* out, word32* outLen);
@@ -155,13 +167,15 @@ WOLFSSL_LOCAL int sp_DhExp_3072(const mp_int* base, const byte* exp,
 WOLFSSL_LOCAL int sp_DhExp_4096(const mp_int* base, const byte* exp,
     word32 expLen, const mp_int* mod, byte* out, word32* outLen);
 
-#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 */
+#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 && !WOLFSSL_SP_ARM[32|64]_ASM */
 
 #endif /* WOLFSSL_HAVE_SP_DH */
 
 #ifdef WOLFSSL_HAVE_SP_ECC
 
-#if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2
+/* non-const versions only needed for inlined ARM assembly */
+#if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2 \
+    && ( defined(WOLFSSL_SP_ARM32_ASM) || defined(WOLFSSL_SP_ARM64_ASM) )
 
 int sp_ecc_mulmod_256(mp_int* km, ecc_point* gm, ecc_point* rm, int map,
                       void* heap);
@@ -281,7 +295,7 @@ int sp_ecc_is_point_1024(const mp_int* pX, const mp_int* pY);
 int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
     const mp_int* privm, void* heap);
 
-#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 */
+#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2  && !WOLFSSL_SP_ARM[32|64]_ASM */
 
 #ifdef WOLFSSL_SP_NONBLOCK
 int sp_ecc_sign_256_nb(sp_ecc_ctx_t* ctx, const byte* hash, word32 hashLen,

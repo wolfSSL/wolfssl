@@ -33,6 +33,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
+#include <wolfssl/wolfcrypt/ecc.h>
 
 /* Macro to disable benchmark */
 #ifndef NO_CRYPT_BENCHMARK
@@ -61,6 +62,7 @@
     #define printf PRINTF
 #elif defined(WOLFSSL_DEOS)
     #include <deos.h>
+    #include <printx.h>
     #undef printf
     #define printf printx
 #elif defined(MICRIUM)
@@ -2394,10 +2396,23 @@ static void bench_aesgcm_internal(int doAsync, const byte* key, word32 keySz,
             /* while free pending slots in queue, submit ops */
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0, &times, numBlocks, &pending)) {
+#ifndef BENCHMARK_AESGCM_STREAM
                     ret = wc_AesGcmEncrypt(&enc[i], bench_cipher,
                         bench_plain, BENCH_SIZE,
                         iv, ivSz, bench_tag, AES_AUTH_TAG_SZ,
                         bench_additional, aesAuthAddSz);
+#else
+                    ret = wc_AesGcmEncryptInit(&enc[i], NULL, 0, iv, ivSz);
+                    if (ret == 0) {
+                        ret = wc_AesGcmEncryptUpdate(&enc[i], bench_cipher,
+                            bench_plain, BENCH_SIZE, bench_additional,
+                            aesAuthAddSz);
+                    }
+                    if (ret == 0) {
+                        ret = wc_AesGcmEncryptFinal(&enc[i], bench_tag,
+                            AES_AUTH_TAG_SZ);
+                    }
+#endif
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0, &times, &pending)) {
                         goto exit_aes_gcm;
                     }
@@ -2433,10 +2448,23 @@ exit_aes_gcm:
             /* while free pending slots in queue, submit ops */
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&dec[i]), 0, &times, numBlocks, &pending)) {
+#ifndef BENCHMARK_AESGCM_STREAM
                     ret = wc_AesGcmDecrypt(&dec[i], bench_plain,
                         bench_cipher, BENCH_SIZE,
                         iv, ivSz, bench_tag, AES_AUTH_TAG_SZ,
                         bench_additional, aesAuthAddSz);
+#else
+                    ret = wc_AesGcmDecryptInit(&enc[i], NULL, 0, iv, ivSz);
+                    if (ret == 0) {
+                        ret = wc_AesGcmDecryptUpdate(&enc[i], bench_plain,
+                            bench_cipher, BENCH_SIZE, bench_additional,
+                            aesAuthAddSz);
+                    }
+                    if (ret == 0) {
+                        ret = wc_AesGcmDecryptFinal(&enc[i], bench_tag,
+                            AES_AUTH_TAG_SZ);
+                    }
+#endif
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&dec[i]), 0, &times, &pending)) {
                         goto exit_aes_gcm_dec;
                     }
@@ -4651,18 +4679,17 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
     DECLARE_VAR(message, byte, TEST_STRING_SZ, HEAP_HINT);
 #endif
-    #if !defined(WOLFSSL_MDK5_COMPLv5)
+    #if !defined(WOLFSSL_MDK5_COMPLv5) && !defined(_WIN32_WCE)
     /* MDK5 compiler regard this as a executable statement, and does not allow declarations after the line. */
     DECLARE_ARRAY_DYNAMIC_DEC(enc, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
     #else
         byte* enc[BENCH_MAX_PENDING];
     #endif
     #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-        #if !defined(WOLFSSL_MDK5_COMPLv5)
+        #if !defined(WOLFSSL_MDK5_COMPLv5) && !defined(_WIN32_WCE)
           /* MDK5 compiler regard this as a executable statement, and does not allow declarations after the line. */
             DECLARE_ARRAY_DYNAMIC_DEC(out, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
             #else
-                int idxout;
               byte* out[BENCH_MAX_PENDING];
         #endif
     #else
@@ -6163,7 +6190,7 @@ void bench_eccsiPairGen(void)
     byte id[] = { 0x01, 0x23, 0x34, 0x45 };
     int ret;
 
-    mp_init(&ssk);
+    (void)mp_init(&ssk);
     pvt = wc_ecc_new_point();
     wc_InitEccsiKey(&genKey, NULL, INVALID_DEVID);
     (void)wc_MakeEccsiKey(&genKey, &gRng);
@@ -6202,7 +6229,7 @@ void bench_eccsiValidate(void)
     int valid;
     int ret;
 
-    mp_init(&ssk);
+    (void)mp_init(&ssk);
     pvt = wc_ecc_new_point();
     wc_InitEccsiKey(&genKey, NULL, INVALID_DEVID);
     (void)wc_MakeEccsiKey(&genKey, &gRng);
@@ -6247,7 +6274,7 @@ void bench_eccsi(void)
     int ret;
     int verified;
 
-    mp_init(&ssk);
+    (void)mp_init(&ssk);
     pvt = wc_ecc_new_point();
     (void)wc_InitEccsiKey(&genKey, NULL, INVALID_DEVID);
     (void)wc_MakeEccsiKey(&genKey, &gRng);
@@ -6493,10 +6520,10 @@ void bench_sakke(void)
     bench_stats_asym_finish("SAKKE", 1024, desc[10], 0, count, start, 0);
 
     len = 0;
-    wc_GenerateSakkeRskTable(&genKey, rsk, NULL, &len);
+    (void)wc_GenerateSakkeRskTable(&genKey, rsk, NULL, &len);
     if (len > 0) {
         table = (byte*)XMALLOC(len, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        wc_GenerateSakkeRskTable(&genKey, rsk, table, &len);
+        (void)wc_GenerateSakkeRskTable(&genKey, rsk, table, &len);
     }
     (void)wc_SetSakkeRsk(&genKey, rsk, table, len);
 
@@ -6656,7 +6683,7 @@ void bench_sakke(void)
     double current_time(int reset)
     {
         const uint32_t systemTickTimeInHz = 1000000 / systemTickInMicroseconds();
-        uint32_t *systemTickPtr = systemTickPointer();
+        const volatile uint32_t *systemTickPtr = systemTickPointer();
 
         (void)reset;
 
@@ -6890,7 +6917,7 @@ static int string_matches(const char* arg, const char* str)
 }
 #endif /* MAIN_NO_ARGS */
 
-#ifdef WOLFSSL_ESPIDF
+#if defined(WOLFSSL_ESPIDF) || defined(_WIN32_WCE)
 int wolf_benchmark_task( )
 #elif defined(MAIN_NO_ARGS)
 int main()

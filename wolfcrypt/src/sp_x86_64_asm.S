@@ -26,6 +26,7 @@
 #define HAVE_INTEL_AVX2
 #endif /* NO_AVX2_SUPPORT */
 
+#ifdef WOLFSSL_SP_X86_64_ASM
 #ifndef WOLFSSL_SP_NO_2048
 #ifndef WOLFSSL_SP_NO_2048
 /* Read big endian unsigned byte array into r.
@@ -54745,6 +54746,7 @@ L_1024_from_bin_movbe_zero_end:
 #endif /* __APPLE__ */
 #endif /* !NO_MOVBE_SUPPORT */
 #endif /* WOLFSSL_SP_1024 */
+#endif /* WOLFSSL_SP_X86_64_ASM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits

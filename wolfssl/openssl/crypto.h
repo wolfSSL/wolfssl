@@ -46,6 +46,8 @@ WOLFSSL_API unsigned long wolfSSL_OpenSSL_version_num(void);
 #ifdef OPENSSL_EXTRA
 WOLFSSL_API void wolfSSL_OPENSSL_free(void*);
 WOLFSSL_API void *wolfSSL_OPENSSL_malloc(size_t a);
+WOLFSSL_API int wolfSSL_OPENSSL_hexchar2int(unsigned char c);
+WOLFSSL_API unsigned char *wolfSSL_OPENSSL_hexstr2buf(const char *str, long *len);
 
 WOLFSSL_API int wolfSSL_OPENSSL_init_crypto(word64 opts, const OPENSSL_INIT_SETTINGS *settings);
 #endif
@@ -75,6 +77,8 @@ typedef struct crypto_threadid_st   CRYPTO_THREADID;
 
 #define OPENSSL_free wolfSSL_OPENSSL_free
 #define OPENSSL_malloc wolfSSL_OPENSSL_malloc
+#define OPENSSL_hexchar2int wolfSSL_OPENSSL_hexchar2int
+#define OPENSSL_hexstr2buf wolfSSL_OPENSSL_hexstr2buf
 
 #define OPENSSL_INIT_ENGINE_ALL_BUILTIN 0x00000001L
 #define OPENSSL_INIT_ADD_ALL_CIPHERS    0x00000004L
@@ -83,6 +87,15 @@ typedef struct crypto_threadid_st   CRYPTO_THREADID;
 
 #define OPENSSL_init_crypto wolfSSL_OPENSSL_init_crypto
 
+#ifdef WOLFSSL_OPENVPN
+# define OPENSSL_assert(e) \
+    if (!(e)) { \
+        fprintf(stderr, "%s:%d wolfSSL internal error: assertion failed: " #e, \
+                __FILE__, __LINE__); \
+        raise(SIGABRT); \
+        _exit(3); \
+    }
+#endif
 
 #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
     defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(HAVE_EX_DATA)
@@ -103,6 +116,13 @@ typedef void (CRYPTO_free_func)(void*parent, void*ptr, CRYPTO_EX_DATA *ad, int i
 #define CRYPTO_THREAD_lock wc_LockMutex
 #define CRYPTO_THREAD_r_lock wc_LockMutex
 #define CRYPTO_THREAD_unlock wc_UnLockMutex
+
+#define CRYPTO_THREAD_lock_new wc_InitAndAllocMutex
+#define CRYPTO_THREAD_read_lock wc_LockMutex
+#define CRYPTO_THREAD_write_lock wc_LockMutex
+#define CRYPTO_THREAD_lock_free wc_FreeMutex
+
+#define CRYPTO_set_ex_data wolfSSL_CRYPTO_set_ex_data
 
 #endif /* OPENSSL_ALL || HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY || HAVE_EX_DATA */
 

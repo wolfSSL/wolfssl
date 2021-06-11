@@ -363,10 +363,8 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
     #endif
         if (ret != 0)
             break;
-
-        if (ret == 0)
 #endif
-            ret = wc_Sha256Update(sha, &ctr, sizeof(ctr));
+        ret = wc_Sha256Update(sha, &ctr, sizeof(ctr));
         if (ret == 0) {
             ctr++;
             ret = wc_Sha256Update(sha, (byte*)&bits, sizeof(bits));
@@ -814,7 +812,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
             }
 
             if (ret == DRBG_SUCCESS)
-	      ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg,
+                ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg,
                             seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
                             nonce, nonceSz, rng->heap, devId);
 
@@ -923,7 +921,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         return BAD_FUNC_ARG;
 
     if (sz == 0)
-        return 0; 
+        return 0;
 
 #ifdef WOLF_CRYPTO_CB
     if (rng->devId != INVALID_DEVID) {
@@ -1798,131 +1796,135 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
     #endif /* WOLFSSL_PIC32MZ_RNG */
 
+#elif defined(FREESCALE_K70_RNGA) || defined(FREESCALE_RNGA)
+    /*
+     * wc_Generates a RNG seed using the Random Number Generator Accelerator
+     * on the Kinetis K70. Documentation located in Chapter 37 of
+     * K70 Sub-Family Reference Manual (see Note 3 in the README for link).
+     */
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        word32 i;
+
+        /* turn on RNGA module */
+        #if defined(SIM_SCGC3_RNGA_MASK)
+            SIM_SCGC3 |= SIM_SCGC3_RNGA_MASK;
+        #endif
+        #if defined(SIM_SCGC6_RNGA_MASK)
+            /* additionally needed for at least K64F */
+            SIM_SCGC6 |= SIM_SCGC6_RNGA_MASK;
+        #endif
+
+        /* set SLP bit to 0 - "RNGA is not in sleep mode" */
+        RNG_CR &= ~RNG_CR_SLP_MASK;
+
+        /* set HA bit to 1 - "security violations masked" */
+        RNG_CR |= RNG_CR_HA_MASK;
+
+        /* set GO bit to 1 - "output register loaded with data" */
+        RNG_CR |= RNG_CR_GO_MASK;
+
+        for (i = 0; i < sz; i++) {
+
+            /* wait for RNG FIFO to be full */
+            while((RNG_SR & RNG_SR_OREG_LVL(0xF)) == 0) {}
+
+            /* get value */
+            output[i] = RNG_OR;
+        }
+
+        return 0;
+    }
+
+#elif defined(FREESCALE_K53_RNGB) || defined(FREESCALE_RNGB)
+    /*
+     * wc_Generates a RNG seed using the Random Number Generator (RNGB)
+     * on the Kinetis K53. Documentation located in Chapter 33 of
+     * K53 Sub-Family Reference Manual (see note in the README for link).
+     */
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int i;
+
+        /* turn on RNGB module */
+        SIM_SCGC3 |= SIM_SCGC3_RNGB_MASK;
+
+        /* reset RNGB */
+        RNG_CMD |= RNG_CMD_SR_MASK;
+
+        /* FIFO generate interrupt, return all zeros on underflow,
+         * set auto reseed */
+        RNG_CR |= (RNG_CR_FUFMOD_MASK | RNG_CR_AR_MASK);
+
+        /* gen seed, clear interrupts, clear errors */
+        RNG_CMD |= (RNG_CMD_GS_MASK | RNG_CMD_CI_MASK | RNG_CMD_CE_MASK);
+
+        /* wait for seeding to complete */
+        while ((RNG_SR & RNG_SR_SDN_MASK) == 0) {}
+
+        for (i = 0; i < sz; i++) {
+
+            /* wait for a word to be available from FIFO */
+            while((RNG_SR & RNG_SR_FIFO_LVL_MASK) == 0) {}
+
+            /* get value */
+            output[i] = RNG_OUT;
+        }
+
+        return 0;
+    }
+
+#elif defined(FREESCALE_KSDK_2_0_TRNG)
+    #ifndef TRNG0
+    #define TRNG0 TRNG
+    #endif
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        status_t status;
+        status = TRNG_GetRandomData(TRNG0, output, sz);
+        if (status == kStatus_Success)
+        {
+            return(0);
+        }
+        else
+        {
+            return RAN_BLOCK_E;
+        }
+    }
+
+#elif defined(FREESCALE_KSDK_2_0_RNGA)
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        status_t status;
+        status = RNGA_GetRandomData(RNG, output, sz);
+        if (status == kStatus_Success)
+        {
+            return(0);
+        }
+        else
+        {
+            return RAN_BLOCK_E;
+        }
+    }
+
+
+#elif defined(FREESCALE_RNGA)
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        RNGA_DRV_GetRandomData(RNGA_INSTANCE, output, sz);
+        return 0;
+    }
+
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX) || \
-      defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
-
-    #if defined(FREESCALE_K70_RNGA) || defined(FREESCALE_RNGA)
-        /*
-         * wc_Generates a RNG seed using the Random Number Generator Accelerator
-         * on the Kinetis K70. Documentation located in Chapter 37 of
-         * K70 Sub-Family Reference Manual (see Note 3 in the README for link).
-         */
-        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-        {
-            word32 i;
-
-            /* turn on RNGA module */
-            #if defined(SIM_SCGC3_RNGA_MASK)
-                SIM_SCGC3 |= SIM_SCGC3_RNGA_MASK;
-            #endif
-            #if defined(SIM_SCGC6_RNGA_MASK)
-                /* additionally needed for at least K64F */
-                SIM_SCGC6 |= SIM_SCGC6_RNGA_MASK;
-            #endif
-
-            /* set SLP bit to 0 - "RNGA is not in sleep mode" */
-            RNG_CR &= ~RNG_CR_SLP_MASK;
-
-            /* set HA bit to 1 - "security violations masked" */
-            RNG_CR |= RNG_CR_HA_MASK;
-
-            /* set GO bit to 1 - "output register loaded with data" */
-            RNG_CR |= RNG_CR_GO_MASK;
-
-            for (i = 0; i < sz; i++) {
-
-                /* wait for RNG FIFO to be full */
-                while((RNG_SR & RNG_SR_OREG_LVL(0xF)) == 0) {}
-
-                /* get value */
-                output[i] = RNG_OR;
-            }
-
-            return 0;
-        }
-
-    #elif defined(FREESCALE_K53_RNGB) || defined(FREESCALE_RNGB)
-        /*
-         * wc_Generates a RNG seed using the Random Number Generator (RNGB)
-         * on the Kinetis K53. Documentation located in Chapter 33 of
-         * K53 Sub-Family Reference Manual (see note in the README for link).
-         */
-        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-        {
-            int i;
-
-            /* turn on RNGB module */
-            SIM_SCGC3 |= SIM_SCGC3_RNGB_MASK;
-
-            /* reset RNGB */
-            RNG_CMD |= RNG_CMD_SR_MASK;
-
-            /* FIFO generate interrupt, return all zeros on underflow,
-             * set auto reseed */
-            RNG_CR |= (RNG_CR_FUFMOD_MASK | RNG_CR_AR_MASK);
-
-            /* gen seed, clear interrupts, clear errors */
-            RNG_CMD |= (RNG_CMD_GS_MASK | RNG_CMD_CI_MASK | RNG_CMD_CE_MASK);
-
-            /* wait for seeding to complete */
-            while ((RNG_SR & RNG_SR_SDN_MASK) == 0) {}
-
-            for (i = 0; i < sz; i++) {
-
-                /* wait for a word to be available from FIFO */
-                while((RNG_SR & RNG_SR_FIFO_LVL_MASK) == 0) {}
-
-                /* get value */
-                output[i] = RNG_OUT;
-            }
-
-            return 0;
-        }
-
-    #elif defined(FREESCALE_KSDK_2_0_TRNG)
-
-        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-        {
-            status_t status;
-            status = TRNG_GetRandomData(TRNG0, output, sz);
-            if (status == kStatus_Success)
-            {
-                return(0);
-            }
-            else
-            {
-                return RAN_BLOCK_E;
-            }
-        }
-
-    #elif defined(FREESCALE_KSDK_2_0_RNGA)
-
-        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-        {
-            status_t status;
-            status = RNGA_GetRandomData(RNG, output, sz);
-            if (status == kStatus_Success)
-            {
-                return(0);
-            }
-            else
-            {
-                return RAN_BLOCK_E;
-            }
-        }
-
-
-    #elif defined(FREESCALE_RNGA)
-
-        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-        {
-            RNGA_DRV_GetRandomData(RNGA_INSTANCE, output, sz);
-            return 0;
-        }
-
-    #else
-        #define USE_TEST_GENSEED
-    #endif /* FREESCALE_K70_RNGA */
+    defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
+    /*
+     * Fallback to USE_TEST_GENSEED if a FREESCALE platform did not match any
+     * of the TRNG/RNGA/RNGB support
+     */
+    #define USE_TEST_GENSEED
 
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -2576,6 +2578,18 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                     srand(get_timestamp());
                 }
             }
+            return 0;
+        }
+
+#elif defined(DOLPHIN_EMULATOR)
+
+        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+            word32 i;
+            (void)os;
+            srand(time(NULL));
+            for (i = 0; i < sz; i++)
+                output[i] = (byte)rand();
             return 0;
         }
 

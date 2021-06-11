@@ -14,4 +14,6 @@ EXTRA_DIST += \
 EXTRA_DIST += \
 		certs/statickeys/dh-ffdhe2048-params.pem \
 		certs/statickeys/dh-ffdhe2048.der \
-		certs/statickeys/dh-ffdhe2048.pem
+		certs/statickeys/dh-ffdhe2048.pem \
+		certs/statickeys/dh-ffdhe2048-pub.der \
+		certs/statickeys/dh-ffdhe2048-pub.pem

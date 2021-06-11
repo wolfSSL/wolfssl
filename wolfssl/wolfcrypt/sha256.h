@@ -61,6 +61,16 @@
     #include "fsl_ltc.h"
 #endif
 
+#ifdef WOLFSSL_IMXRT_DCP
+	#include "fsl_dcp.h"
+#endif
+
+#if defined(WOLFSSL_PSOC6_CRYPTO)
+#include "cy_crypto_core_sha.h"
+#include "cy_device_headers.h"
+#include "cy_crypto_common.h"
+#include "cy_crypto_core.h"
+#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -129,10 +139,6 @@ enum {
 #elif defined(WOLFSSL_RENESAS_TSIP_CRYPT) && \
    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
     #include "wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h"
-#elif defined(WOLFSSL_PSOC6_CRYPTO)
-    #include "wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h"
-#elif defined(WOLFSSL_IMXRT_DCP)
-    #include <wolfssl/wolfcrypt/port/nxp/dcp_port.h>
 #else
 
 /* wc_Sha256 digest */
@@ -143,6 +149,13 @@ struct wc_Sha256 {
     STM32_HASH_Context stmCtx;
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
   wc_silabs_sha_t silabsCtx;
+#elif defined(WOLFSSL_IMXRT_DCP)
+    dcp_handle_t handle;
+    dcp_hash_ctx_t ctx;
+#elif defined(WOLFSSL_PSOC6_CRYPTO)
+    cy_stc_crypto_sha_state_t hash_state;
+    cy_en_crypto_sha_mode_t sha_mode;
+    cy_stc_crypto_v2_sha256_buffers_t sha_buffers;
 #else
     /* alignment on digest and buffer speeds up ARMv8 crypto operations */
     ALIGN16 word32  digest[WC_SHA256_DIGEST_SIZE / sizeof(word32)];

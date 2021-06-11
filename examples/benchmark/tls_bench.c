@@ -42,7 +42,7 @@ bench_tls(args);
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/hash.h> /* WC_MAX_DIGEST_SIZE */
 #include <wolfssl/test.h>
-
+#include <wolfssl/wolfio.h>
 #include <examples/benchmark/tls_bench.h>
 
 /* force certificate test buffers to be included via headers */
@@ -121,7 +121,7 @@ bench_tls(args);
 #define SHOW_VERBOSE        0 /* Default output is tab delimited format */
 
 #if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
-    !defined(WOLFCRYPT_ONLY)
+    !defined(WOLFCRYPT_ONLY) && defined(USE_WOLFSSL_IO)
 
 /* shutdown message - nice signal to server, we are done */
 static const char* kShutdown = "shutdown";
@@ -1930,7 +1930,7 @@ exit:
 
     return ret;
 }
-#endif /* (!NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER) && !WOLFCRYPT_ONLY */
+#endif /* (!NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER) && !WOLFCRYPT_ONLY && USE_WOLFSSL_IO */
 
 #ifndef NO_MAIN_DRIVER
 
@@ -1942,7 +1942,8 @@ int main(int argc, char** argv)
     args.argv = argv;
     args.return_code = 0;
 
-#if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && !defined(WOLFCRYPT_ONLY)
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+    !defined(WOLFCRYPT_ONLY) && defined(USE_WOLFSSL_IO)
     bench_tls(&args);
 #endif
 
