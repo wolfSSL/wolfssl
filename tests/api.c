@@ -1749,6 +1749,27 @@ static int test_wolfSSL_CTX_use_certificate_chain_file_format(void)
     return ret;
 }
 
+static void test_wolfSSL_CTX_use_certificate_chain_buffer_format(void)              
+{                
+#if !defined(NO_CERTS) && !defined(NO_RSA) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_CERT_GEN) && defined(USE_CERT_BUFFERS_2048)                 
+    WOLFSSL_CTX* ctx;                                                           
+
+  #ifndef NO_WOLFSSL_CLIENT                                                     
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));           
+  #else                                                                         
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));           
+  #endif    
+  
+    AssertIntEQ(wolfSSL_CTX_use_certificate_chain_buffer_format(ctx, 
+                ca_cert_chain_der, sizeof_ca_cert_chain_der,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    wolfSSL_CTX_free(ctx);  
+#endif   
+                                                                       
+ }/*END test_wolfSSL_CTX_use_certificate_chain_buffer*/
+
 static void test_wolfSSL_CTX_SetTmpDH_file(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_DH)
@@ -43496,6 +43517,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_load_verify_buffer_ex();
     test_wolfSSL_CTX_load_verify_chain_buffer_format();
     test_wolfSSL_CTX_use_certificate_chain_file_format();
+    test_wolfSSL_CTX_use_certificate_chain_buffer_format(); 
     test_wolfSSL_CTX_trust_peer_cert();
     test_wolfSSL_CTX_SetTmpDH_file();
     test_wolfSSL_CTX_SetTmpDH_buffer();
