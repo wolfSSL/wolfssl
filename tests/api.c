@@ -43039,7 +43039,7 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_server_thread(void* args)
     AssertNotNull(ssl);
 
     /* listen and accept */
-    tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0, 0, 1);
+    tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0, 0, 1, 0, 0);
     CloseSocket(sfd);
 
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_set_fd(ssl, cfd));
