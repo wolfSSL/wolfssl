@@ -397,7 +397,7 @@ int wc_InitRsaKey_Label(RsaKey* key, const char* label, void* heap, int devId)
  */
 int wc_InitRsaHw(RsaKey* key)
 {
-    unsigned char* m; /* RSA modulous */
+    unsigned char* m; /* RSA modulus */
     word32 e = 0;     /* RSA public exponent */
     int mSz;
     int eSz;
@@ -673,7 +673,7 @@ int wc_CheckRsaKey(RsaKey* key)
                 break;
     #endif /* WOLFSSL_SP_4096 */
                 default:
-                /* If using only single precsision math then issue key size
+                /* If using only single precision math then issue key size
                  * error, otherwise fall-back to multi-precision math
                  * calculation */
                 #if defined(WOLFSSL_SP_MATH)
