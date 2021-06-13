@@ -33402,7 +33402,7 @@ WOLFSSL_DH* wolfSSL_DH_dup(WOLFSSL_DH* dh)
 #endif /* WOLFSSL_DH_EXTRA */
 
 /* Set the members of DhKey into WOLFSSL_DH
- * DhKey was populated from wc_DhKeyDecode
+ * Specify elements to set via the 2nd parmeter 
  */
 int SetDhExternal_ex(WOLFSSL_DH *dh, Element_Set elm)
 {
@@ -33416,32 +33416,33 @@ int SetDhExternal_ex(WOLFSSL_DH *dh, Element_Set elm)
 
     key = (DhKey*)dh->internal;
 
-    if( elm & ELEMENT_P) {
+    if (elm & ELEMENT_P) {
         if (SetIndividualExternal(&dh->p, &key->p) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("dh param p error");
             return WOLFSSL_FATAL_ERROR;
         }
     }
-    if( elm & ELEMENT_Q) {
+    if (elm & ELEMENT_Q) {
         if (SetIndividualExternal(&dh->q, &key->q) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("dh param q error");
             return WOLFSSL_FATAL_ERROR;
         }
     }
-    if( elm & ELEMENT_G) {
+    if (elm & ELEMENT_G) {
         if (SetIndividualExternal(&dh->g, &key->g) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("dh param g error");
             return WOLFSSL_FATAL_ERROR;
         }
     }
 #ifdef WOLFSSL_DH_EXTRA
-    if( elm & ELEMENT_PRV) {
-        if (SetIndividualExternal(&dh->priv_key, &key->priv) != WOLFSSL_SUCCESS) {
+    if (elm & ELEMENT_PRV) {
+        if (SetIndividualExternal(&dh->priv_key, &key->priv) != 
+                                                      WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("No DH Private Key");
             return WOLFSSL_FATAL_ERROR;
         }
     }
-    if( elm & ELEMENT_PUB) {
+    if (elm & ELEMENT_PUB) {
         if (SetIndividualExternal(&dh->pub_key, &key->pub) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("No DH Public Key");
             return WOLFSSL_FATAL_ERROR;
@@ -33455,16 +33456,12 @@ int SetDhExternal_ex(WOLFSSL_DH *dh, Element_Set elm)
 }
 /* Set the members of DhKey into WOLFSSL_DH
  * DhKey was populated from wc_DhKeyDecode
+ * p, g, pub_key and pri_key are set.
  */
 int SetDhExternal(WOLFSSL_DH *dh)
 {
-    Element_Set elements = ELEMENT_P | ELEMENT_G;
+    Element_Set elements = ELEMENT_P | ELEMENT_G | ELEMENT_PUB | ELEMENT_PRV;
     WOLFSSL_MSG("Entering SetDhExternal");
-
-#ifdef WOLFSSL_DH_EXTRA
-    elements |= ( ELEMENT_PUB | ELEMENT_PRV );
-#endif /* WOLFSSL_DH_EXTRA */
-
     return SetDhExternal_ex(dh, elements);
 }
 #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
