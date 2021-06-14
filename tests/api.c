@@ -21188,6 +21188,23 @@ static int test_wc_ecc_shared_secret (void)
     byte        out[KEY16];
     word32      outlen = (word32)sizeof(out);
 
+#if defined(HAVE_ECC) && !defined(NO_ECC256)
+    const char* qx =
+        "bb33ac4c27504ac64aa504c33cde9f36db722dce94ea2bfacb2009392c16e861";
+    const char* qy =
+        "02e9af4dd302939a315b9792217ff0cf18da9111023486e82058330b803489d8";
+    const char* d  =
+        "45b66902739c6c85a1385b72e8e8c7acc4038d533504fa6c28dc348de1a8098c";
+    const char* curveName = "SECP256R1";
+    const byte expected_shared_secret[] =
+        {
+            0x65, 0xc0, 0xd4, 0x61, 0x17, 0xe6, 0x09, 0x75,
+            0xf0, 0x12, 0xa0, 0x4d, 0x0b, 0x41, 0x30, 0x7a,
+            0x51, 0xf0, 0xb3, 0xaf, 0x23, 0x8f, 0x0f, 0xdf,
+            0xf1, 0xff, 0x23, 0x64, 0x28, 0xca, 0xf8, 0x06
+        };
+#endif
+
     /* Initialize variables. */
     XMEMSET(out, 0, keySz);
     XMEMSET(&rng, 0, sizeof(rng));
@@ -21201,12 +21218,22 @@ static int test_wc_ecc_shared_secret (void)
             ret = wc_ecc_init(&pubKey);
         }
     }
+
+#if defined(HAVE_ECC) && !defined(NO_ECC256)
+    if (ret == 0) {
+        ret = wc_ecc_import_raw(&key, qx, qy, d, curveName);
+    }
+    if (ret == 0) {
+        ret = wc_ecc_import_raw(&pubKey, qx, qy, NULL, curveName);
+    }
+#else
     if (ret == 0) {
         ret = wc_ecc_make_key(&rng, keySz, &key);
     }
     if (ret == 0) {
         ret = wc_ecc_make_key(&rng, keySz, &pubKey);
     }
+#endif
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
@@ -21219,6 +21246,15 @@ static int test_wc_ecc_shared_secret (void)
     printf(testingFmt, "wc_ecc_shared_secret()");
     if (ret == 0) {
         ret = wc_ecc_shared_secret(&key, &pubKey, out, &outlen);
+
+#if defined(HAVE_ECC) && !defined(NO_ECC256)
+        if (ret == 0) {
+            if (0 != XMEMCMP(out, expected_shared_secret, outlen)) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
+#endif
+
         /* Test bad args. */
         if (ret == 0) {
             ret = wc_ecc_shared_secret(NULL, &pubKey, out, &outlen);
@@ -21232,6 +21268,12 @@ static int test_wc_ecc_shared_secret (void)
                 ret = wc_ecc_shared_secret(&key, &pubKey, out, NULL);
             }
             if (ret == BAD_FUNC_ARG) {
+                /* Invalid length */
+                outlen = 1;
+                ret = wc_ecc_shared_secret(&key, &pubKey, out, &outlen);
+            }
+
+            if (ret == BUFFER_E) {
                 ret = 0;
             } else if (ret == 0) {
                 ret = WOLFSSL_FATAL_ERROR;
