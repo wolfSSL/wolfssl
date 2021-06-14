@@ -10463,10 +10463,20 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                         ssl->arrays->server_hint, ssl->arrays->client_identity,
                         MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
                 }
+        #if defined(OPENSSL_EXTRA)
+                /* OpenSSL treats 0 as a PSK key length of 0
+                 * and meaning no PSK available.
+                 */
+                if (ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
+                    return PSK_KEY_ERROR;
+                }
+                if (ssl->arrays->psk_keySz > 0) {
+        #else
                 if (ssl->arrays->psk_keySz == 0 ||
                                      ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
                     return PSK_KEY_ERROR;
                 }
+        #endif
                 ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0';
 
                 ssl->options.cipherSuite0 = cipherSuite0;
@@ -10486,6 +10496,9 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     return ret;
 
                 usingPSK = 1;
+        #if defined(OPENSSL_EXTRA)
+                }
+        #endif
             }
     #endif /* !NO_PSK */
         #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
