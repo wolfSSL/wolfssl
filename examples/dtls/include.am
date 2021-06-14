@@ -2,7 +2,7 @@
 # included from Top Level Makefile.am
 # All paths should be given relative to the root
 
-if BUILD_EXAMPLES
+if BUILD_EXAMPLE_CLIENTS
 noinst_PROGRAMS += examples/dtls/client-dtls
 examples_dtls_client_dtls_SOURCES      = examples/dtls/client-dtls.c
 examples_dtls_client_dtls_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD)
@@ -10,7 +10,9 @@ examples_dtls_client_dtls_DEPENDENCIES = src/libwolfssl.la
 
 dist_example_DATA+= examples/dtls/client-dtls.c
 DISTCLEANFILES+= examples/dtls/.libs/client-dtls
+endif
 
+if BUILD_EXAMPLE_SERVERS
 noinst_PROGRAMS += examples/dtls/server-dtls
 examples_dtls_server_dtls_SOURCES      = examples/dtls/server-dtls.c
 examples_dtls_server_dtls_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD)

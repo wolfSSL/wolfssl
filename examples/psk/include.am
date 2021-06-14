@@ -2,7 +2,7 @@
 # included from Top Level Makefile.am
 # All paths should be given relative to the root
 
-if BUILD_EXAMPLES
+if BUILD_EXAMPLE_CLIENTS
 noinst_PROGRAMS += examples/psk/client-psk
 examples_psk_client_psk_SOURCES      = examples/psk/client-psk.c
 examples_psk_client_psk_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD)
@@ -10,7 +10,9 @@ examples_psk_client_psk_DEPENDENCIES = src/libwolfssl.la
 
 dist_example_DATA+= examples/psk/client-psk.c
 DISTCLEANFILES+= examples/psk/.libs/client-psk
+endif
 
+if BUILD_EXAMPLE_SERVERS
 noinst_PROGRAMS += examples/psk/server-psk
 examples_psk_server_psk_SOURCES      = examples/psk/server-psk.c
 examples_psk_server_psk_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD)

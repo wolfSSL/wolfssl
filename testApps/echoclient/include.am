@@ -3,7 +3,7 @@
 # All paths should be given relative to the root
 
 
-if BUILD_TESTAPP_CLIENTS
+if BUILD_EXAMPLE_CLIENTS
 noinst_PROGRAMS += testApps/echoclient/echoclient
 noinst_HEADERS += testApps/echoclient/echoclient.h
 testApps_echoclient_echoclient_SOURCES      = testApps/echoclient/echoclient.c

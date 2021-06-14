@@ -3,7 +3,7 @@
 # All paths should be given relative to the root
 
 
-if BUILD_TESTAPP_SERVERS
+if BUILD_EXAMPLE_SERVERS
 noinst_PROGRAMS += testApps/server/server
 noinst_HEADERS += testApps/server/server.h
 testApps_server_server_SOURCES      = testApps/server/server.c

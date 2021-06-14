@@ -1556,7 +1556,7 @@ if test "$ENABLED_AFALG" = "xilinx"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_XILINX -DWOLFSSL_AFALG_XILINX_AES"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_XILINX_SHA3 -DWOLFSSL_AFALG_XILINX_RSA"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA3_224 -DWOLFSSL_NOSHA3_256 -DWOLFSSL_NOSHA3_512 -DWOLFSSL_NO_SHAKE256"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA3_224 -DWOLFSSL_NOSHA3_256 -DWOLFSSL_NOSHA3_512"
     ENABLED_AFALG="yes"
     ENABLED_XILINX="yes"
 fi
@@ -1572,7 +1572,7 @@ if test "$ENABLED_AFALG" = "xilinx-sha3"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_XILINX"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_XILINX_SHA3"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA3_224 -DWOLFSSL_NOSHA3_256 -DWOLFSSL_NOSHA3_512 -DWOLFSSL_NO_SHAKE256"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA3_224 -DWOLFSSL_NOSHA3_256 -DWOLFSSL_NOSHA3_512"
     ENABLED_AFALG="yes"
     ENABLED_XILINX="yes"
 fi
@@ -1776,9 +1776,9 @@ fi
 
 # SHAKE256
 AC_ARG_ENABLE([shake256],
-    [AS_HELP_STRING([--enable-shake256],[Enable wolfSSL SHAKE256 support (default: enabled on x86_64/aarch64)])],
-    [ ENABLED_SHAKE256=$enableval ],
-    [ ENABLED_SHAKE256=$ENABLED_SHA3 ]
+    [AS_HELP_STRING([--enable-shake256],[Enable wolfSSL SHAKE256 support (default: disabled)])],
+    [ ENABLED_SHAKE256=$enableval ]
+    [ ENABLED_SHAKE256=no ]
     )
 
 # SHA512
@@ -2209,6 +2209,10 @@ then
     then
         AC_MSG_ERROR([cannot enable ed448 without enabling sha512.])
     fi
+    if test "$FIPS_VERSION" = "v2"
+    then
+        AC_MSG_ERROR([cannot enable ed448 w/ dependency shake256 in FIPSv2 mode])
+    fi
     ENABLED_FE448=yes
     ENABLED_GE448=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ED448"
@@ -2409,9 +2413,9 @@ then
 fi
 
 
-# STACK SIZE info for testwolfcrypt and testApps
+# STACK SIZE info for testwolfcrypt and examples
 AC_ARG_ENABLE([stacksize],
-    [AS_HELP_STRING([--enable-stacksize],[Enable stack size info on testApps (default: disabled)])],
+    [AS_HELP_STRING([--enable-stacksize],[Enable stack size info on examples (default: disabled)])],
     [ ENABLED_STACKSIZE=$enableval ],
     [ ENABLED_STACKSIZE=no ]
     )
@@ -3106,8 +3110,6 @@ AS_CASE([$FIPS_VERSION],
         AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q"
         ENABLED_KEYGEN="yes"
         ENABLED_SHA224="yes"
-        # Shake256 is a SHA-3 algorithm not in our FIPS algorithm list
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
         AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
               [ENABLED_AESCCM="yes"
                AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
@@ -4812,7 +4814,8 @@ then
     ENABLED_SLOWMATH="no"
 fi
 
-# Enable Examples, used to disable Examples
+
+# Enable Examples, used to disable examples
 if test "$ENABLED_LINUXKM" = "yes"
 then
     ENABLED_EXAMPLES_DEFAULT=no
@@ -4828,24 +4831,6 @@ AC_ARG_ENABLE([examples],
 AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_INLINE" = "xno"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_EXAMPLES="no"])
-
-
-# Enable TestApps, used to disable testApps
-if test "$ENABLED_LINUXKM" = "yes"
-then
-    ENABLED_TESTAPPS_DEFAULT=no
-else
-    ENABLED_TESTAPPS_DEFAULT=yes
-fi
-AC_ARG_ENABLE([testApps],
-    [AS_HELP_STRING([--enable-testApps],[Enable TestApps  (default: enabled)])],
-    [ ENABLED_TESTAPPS=$enableval ],
-    [ ENABLED_TESTAPPS=$ENABLED_TESTAPPS_DEFAULT ]
-    )
-
-AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_TESTAPPS="no"])
-AS_IF([test "x$ENABLED_INLINE" = "xno"], [ENABLED_TESTAPPS="no"])
-AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_TESTAPPS="no"])
 
 
 # Enable wolfCrypt test and benchmark
@@ -6266,8 +6251,8 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     if test "$ENABLED_FIPS" = "yes"; then
         AC_MSG_ERROR([--enable-fips is incompatible with --enable-linuxkm.])
     fi
-    if test "$ENABLED_TESTAPPS" = "yes"; then
-        AC_MSG_ERROR([--enable-testApps is incompatible with --enable-linuxkm.])
+    if test "$ENABLED_EXAMPLES" = "yes"; then
+        AC_MSG_ERROR([--enable-examples is incompatible with --enable-linuxkm.])
     fi
     if test "$ENABLED_SMALL_STACK" != "yes"; then
         AC_MSG_ERROR([--enable-smallstack is required for --enable-linuxkm.])
@@ -6375,11 +6360,10 @@ AM_CONDITIONAL([BUILD_SCRYPT],[test "x$ENABLED_SCRYPT" = "xyes" || test "x$ENABL
 AM_CONDITIONAL([BUILD_CRYPTONLY],[test "x$ENABLED_CRYPTONLY" = "xyes" && test "x$ENABLED_OPENSSLEXTRA" = "xno"])
 AM_CONDITIONAL([BUILD_FASTMATH],[test "x$ENABLED_FASTMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SLOWMATH],[test "x$ENABLED_SLOWMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_EXAMPLES],[test "x$ENABLED_EXAMPLES" = "xyes"])
-AM_CONDITIONAL([BUILD_TESTAPP_SERVERS],[test "x$ENABLED_TESTAPPS" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
-AM_CONDITIONAL([BUILD_TESTAPP_CLIENTS],[test "x$ENABLED_TESTAPPS" = "xyes"])
-AM_CONDITIONAL([BUILD_TESTS],[test "x$ENABLED_TESTAPPS" = "xyes"])
-AM_CONDITIONAL([BUILD_THREADED_TESTAPPS],[test "x$ENABLED_SINGLETHREADED" = "xno" && test "x$ENABLED_TESTAPPS" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
+AM_CONDITIONAL([BUILD_EXAMPLE_SERVERS],[test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
+AM_CONDITIONAL([BUILD_EXAMPLE_CLIENTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
+AM_CONDITIONAL([BUILD_TESTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
+AM_CONDITIONAL([BUILD_THREADED_EXAMPLES],[test "x$ENABLED_SINGLETHREADED" = "xno" && test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_WOLFCRYPT_TESTS],[test "x$ENABLED_CRYPT_TESTS" = "xyes"])
 AM_CONDITIONAL([BUILD_LIBZ],[test "x$ENABLED_LIBZ" = "xyes"])
 AM_CONDITIONAL([BUILD_PKCS11],[test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -6729,7 +6713,6 @@ echo "   * Small Stack:                $ENABLED_SMALL_STACK"
 echo "   * Linux Kernel Module:        $ENABLED_LINUXKM"
 echo "   * valgrind unit tests:        $ENABLED_VALGRIND"
 echo "   * LIBZ:                       $ENABLED_LIBZ"
-echo "   * TestApps:                   $ENABLED_TESTAPPS"
 echo "   * Examples:                   $ENABLED_EXAMPLES"
 echo "   * Crypt tests:                $ENABLED_CRYPT_TESTS"
 echo "   * Stack sizes in tests:       $ENABLED_STACKSIZE"

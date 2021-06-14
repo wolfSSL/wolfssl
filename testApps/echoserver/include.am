@@ -3,7 +3,7 @@
 # All paths should be given relative to the root
 
 
-if BUILD_TESTAPP_SERVERS
+if BUILD_EXAMPLE_SERVERS
 noinst_PROGRAMS += testApps/echoserver/echoserver
 noinst_HEADERS += testApps/echoserver/echoserver.h
 testApps_echoserver_echoserver_SOURCES      = testApps/echoserver/echoserver.c

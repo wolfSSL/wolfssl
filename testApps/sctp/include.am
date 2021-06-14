@@ -4,7 +4,7 @@
 
 
 if BUILD_SCTP
-if BUILD_TESTAPP_SERVERS
+if BUILD_EXAMPLE_SERVERS
 noinst_PROGRAMS += \
 				testApps/sctp/sctp-server \
 				testApps/sctp/sctp-server-dtls
@@ -14,7 +14,7 @@ testApps_sctp_sctp_server_dtls_SOURCES      = testApps/sctp/sctp-server-dtls.c
 testApps_sctp_sctp_server_dtls_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD)
 testApps_sctp_sctp_server_dtls_DEPENDENCIES = src/libwolfssl.la
 endif
-if BUILD_TESTAPP_CLIENTS
+if BUILD_EXAMPLE_CLIENTS
 noinst_PROGRAMS += \
 				testApps/sctp/sctp-client \
 				testApps/sctp/sctp-client-dtls

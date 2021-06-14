@@ -3,7 +3,7 @@
 # All paths should be given relative to the root
 
 
-if BUILD_THREADED_TESTAPPS
+if BUILD_THREADED_EXAMPLES
 noinst_PROGRAMS += testApps/benchmark/tls_bench
 noinst_HEADERS += testApps/benchmark/tls_bench.h
 testApps_benchmark_tls_bench_SOURCES      = testApps/benchmark/tls_bench.c
