@@ -1283,7 +1283,7 @@ enum ecc_curve_load_mask {
     #endif
 
     #define DECLARE_CURVE_SPECS(curve, intcount) ecc_curve_spec* curve = NULL
-    #define ALLOC_CURVE_SPECS(intcount)
+    #define ALLOC_CURVE_SPECS(intcount, err)
     #define FREE_CURVE_SPECS()
 #elif defined(WOLFSSL_SMALL_STACK)
     #define DECLARE_CURVE_SPECS(curve, intcount)                        \
@@ -1293,12 +1293,13 @@ enum ecc_curve_load_mask {
         XMEMSET(curve, 0, sizeof(ecc_curve_spec));                      \
         curve->spec_count = intcount
 
-    #define ALLOC_CURVE_SPECS(intcount)                                 \
+    #define ALLOC_CURVE_SPECS(intcount, err)                                 \
         spec_ints = (mp_int*)XMALLOC(sizeof(mp_int) * (intcount), NULL, \
                             DYNAMIC_TYPE_ECC);                          \
         if (spec_ints == NULL)                                          \
-            return MEMORY_E;                                            \
-        curve->spec_ints = spec_ints
+            err = MEMORY_E;                                             \
+        else                                                            \
+            curve->spec_ints = spec_ints
     #define FREE_CURVE_SPECS()                                          \
         XFREE(spec_ints, NULL, DYNAMIC_TYPE_ECC)
 #else
@@ -1309,7 +1310,7 @@ enum ecc_curve_load_mask {
         XMEMSET(curve, 0, sizeof(ecc_curve_spec)); \
         curve->spec_ints = spec_ints; \
         curve->spec_count = intcount
-    #define ALLOC_CURVE_SPECS(intcount)
+    #define ALLOC_CURVE_SPECS(intcount, err)
     #define FREE_CURVE_SPECS()
 #endif /* ECC_CACHE_CURVE */
 
@@ -4132,7 +4133,7 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
 int wc_ecc_shared_secret_gen(ecc_key* private_key, ecc_point* point,
                                                     byte* out, word32 *outlen)
 {
-    int err;
+    int err = MP_OKAY;
     DECLARE_CURVE_SPECS(curve, 3);
 
     if (private_key == NULL || point == NULL || out == NULL ||
@@ -4141,9 +4142,12 @@ int wc_ecc_shared_secret_gen(ecc_key* private_key, ecc_point* point,
     }
 
     /* load curve info */
-    ALLOC_CURVE_SPECS(3);
-    err = wc_ecc_curve_load(private_key->dp, &curve,
+    ALLOC_CURVE_SPECS(3, err);
+    if (err == MP_OKAY) {
+        err = wc_ecc_curve_load(private_key->dp, &curve,
         (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF | ECC_CURVE_FIELD_ORDER));
+    }
+
     if (err != MP_OKAY) {
         FREE_CURVE_SPECS();
         return err;
@@ -4254,7 +4258,7 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
 /* Checks if a point p lies on the curve with index curve_idx */
 int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx)
 {
-    int err;
+    int err = MP_OKAY;
     DECLARE_CURVE_SPECS(curve, 3);
 
     if (p == NULL)
@@ -4265,10 +4269,12 @@ int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx)
        return ECC_BAD_ARG_E;
     }
 
-    ALLOC_CURVE_SPECS(3);
-    err = wc_ecc_curve_load(wc_ecc_get_curve_params(curve_idx), &curve,
+    ALLOC_CURVE_SPECS(3, err);
+    if (err == MP_OKAY) {
+        err = wc_ecc_curve_load(wc_ecc_get_curve_params(curve_idx), &curve,
                                 ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF |
                                 ECC_CURVE_FIELD_BF);
+    }
     if (err == MP_OKAY) {
         err = wc_ecc_is_point(p, curve->Af, curve->Bf, curve->prime);
     }
@@ -4404,7 +4410,9 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
     else {
         /* load curve info */
         if (err == MP_OKAY) {
-            ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
+            ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT, err);
+        }
+        if (err == MP_OKAY) {
             err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
         }
     }
@@ -4720,7 +4728,9 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
 
         /* load curve info */
         if (err == MP_OKAY) {
-            ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
+            ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT, err);
+        }
+        if (err == MP_OKAY) {
             err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
         }
 
@@ -5005,12 +5015,15 @@ int wc_ecc_set_flags(ecc_key* key, word32 flags)
 
 static int wc_ecc_get_curve_order_bit_count(const ecc_set_type* dp)
 {
-    int err;
+    int err = MP_OKAY;
     word32 orderBits;
     DECLARE_CURVE_SPECS(curve, 1);
 
-    ALLOC_CURVE_SPECS(1);
-    err = wc_ecc_curve_load(dp, &curve, ECC_CURVE_FIELD_ORDER);
+    ALLOC_CURVE_SPECS(1, err);
+    if (err == MP_OKAY) {
+        err = wc_ecc_curve_load(dp, &curve, ECC_CURVE_FIELD_ORDER);
+    }
+
     if (err != 0) {
        FREE_CURVE_SPECS();
        return err;
@@ -5319,12 +5332,15 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 /* returns MP_OKAY on success */
 static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
 {
-    int err;
+    int err = MP_OKAY;
     DECLARE_CURVE_SPECS(curve, 1);
-    ALLOC_CURVE_SPECS(1);
+    ALLOC_CURVE_SPECS(1, err);
 
     /* get curve order */
-    err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
+    if (err == MP_OKAY) {
+        err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
+    }
+
     if (err == MP_OKAY) {
         /* if key->sign_k is NULL then create a buffer for the mp_int
          * if not NULL then assume the user correctly set deterministic flag and
@@ -5691,21 +5707,24 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    /* load curve info */
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K)
-   ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
-   err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
+    ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT, err);
+    if (err == MP_OKAY)
+        err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
 #else
-   #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
       (defined(HAVE_CAVIUM_V) || defined(HAVE_INTEL_QA))
-   if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
-      ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
-      err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
-   }
-   else
-   #endif
-   {
-      ALLOC_CURVE_SPECS(1);
-      err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
-   }
+    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
+        ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT, err);
+        if (err == MP_OKAY)
+            err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
+    }
+    else
+    #endif
+    {
+        ALLOC_CURVE_SPECS(1, err);
+        if (err == MP_OKAY)
+            err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
+    }
 #endif
 
    /* load digest into e */
@@ -6099,15 +6118,18 @@ int wc_ecc_set_deterministic(ecc_key* key, byte flag)
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP)
 int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key)
 {
-    int ret;
+    int ret = MP_OKAY;
     DECLARE_CURVE_SPECS(curve, 1);
 
     if (k == NULL || klen == 0 || key == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    ALLOC_CURVE_SPECS(1);
-    ret = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
+    ALLOC_CURVE_SPECS(1, ret);
+    if (ret == MP_OKAY) {
+        ret = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
+    }
+
     if (ret != 0) {
         FREE_CURVE_SPECS();
         return ret;
@@ -6798,11 +6820,13 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 
 static int wc_ecc_check_r_s_range(ecc_key* key, mp_int* r, mp_int* s)
 {
-    int err;
+    int err = MP_OKAY;
     DECLARE_CURVE_SPECS(curve, 1);
 
-    ALLOC_CURVE_SPECS(1);
-    err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
+    ALLOC_CURVE_SPECS(1, err);
+    if (err == MP_OKAY) {
+        err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
+    }
     if (err != 0) {
         FREE_CURVE_SPECS();
         return err;
@@ -7080,7 +7104,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #endif
 
 #if !defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC)
-   ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
+   ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT, err);
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM_V)
    err = wc_ecc_alloc_mpint(key, &key->e);
@@ -7426,12 +7450,14 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
             mp_int t1, t2;
             DECLARE_CURVE_SPECS(curve, 3);
 
-            ALLOC_CURVE_SPECS(3);
+            ALLOC_CURVE_SPECS(3, err);
 
-            if (mp_init_multi(&t1, &t2, NULL, NULL, NULL, NULL) != MP_OKAY)
-                err = MEMORY_E;
-            else
-                did_init = 1;
+            if (err == MP_OKAY) {
+                if (mp_init_multi(&t1, &t2, NULL, NULL, NULL, NULL) != MP_OKAY)
+                    err = MEMORY_E;
+                else
+                    did_init = 1;
+            }
 
             /* load curve info */
             if (err == MP_OKAY)
@@ -7930,7 +7956,7 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
     if (key == NULL)
         return BAD_FUNC_ARG;
 
-    ALLOC_CURVE_SPECS(3);
+    ALLOC_CURVE_SPECS(3, err);
 
 #ifdef WOLFSSL_NO_MALLOC
     res = &lcl_res;
@@ -8027,11 +8053,13 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
     /* Hardware based private key, so this operation is not supported */
     err = MP_OKAY; /* just report success */
 #else
-    ALLOC_CURVE_SPECS(2);
+    err = MP_OKAY;
+    ALLOC_CURVE_SPECS(2, err);
 
     /* load curve info */
-    err = wc_ecc_curve_load(key->dp, &curve,
-        (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF));
+    if (err == MP_OKAY)
+        err = wc_ecc_curve_load(key->dp, &curve,
+            (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF));
 
     if (err == MP_OKAY)
         err = ecc_check_privkey_gen(key, curve->Af, curve->prime);
@@ -8111,9 +8139,10 @@ int wc_ecc_get_generator(ecc_point* ecp, int curve_idx)
     if (!ecp || curve_idx < 0 || curve_idx > (int)(ECC_SET_COUNT-1))
         return BAD_FUNC_ARG;
 
-    ALLOC_CURVE_SPECS(2);
+    ALLOC_CURVE_SPECS(2, err);
 
-    err = wc_ecc_curve_load(&ecc_sets[curve_idx], &curve,
+    if (err == MP_OKAY)
+        err = wc_ecc_curve_load(&ecc_sets[curve_idx], &curve,
                             (ECC_CURVE_FIELD_GX | ECC_CURVE_FIELD_GY));
     if (err == MP_OKAY)
         err = mp_copy(curve->Gx, ecp->x);
@@ -8133,7 +8162,7 @@ int wc_ecc_get_generator(ecc_point* ecp, int curve_idx)
 int wc_ecc_check_key(ecc_key* key)
 {
 #ifndef WOLFSSL_SP_MATH
-    int    err;
+    int    err = MP_OKAY;
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_CRYPTOCELL)
     mp_int* b = NULL;
@@ -8181,9 +8210,9 @@ int wc_ecc_check_key(ecc_key* key)
 
 #else
     #ifdef USE_ECC_B_PARAM
-        ALLOC_CURVE_SPECS(4);
+        ALLOC_CURVE_SPECS(4, err);
     #else
-        ALLOC_CURVE_SPECS(3);
+        ALLOC_CURVE_SPECS(3, err);
         #ifndef WOLFSSL_SMALL_STACK
             b = &b_lcl;
         #else
@@ -8219,7 +8248,8 @@ int wc_ecc_check_key(ecc_key* key)
     }
 
     /* load curve info */
-    err = wc_ecc_curve_load(key->dp, &curve, (ECC_CURVE_FIELD_PRIME |
+    if (err == MP_OKAY)
+        err = wc_ecc_curve_load(key->dp, &curve, (ECC_CURVE_FIELD_PRIME |
             ECC_CURVE_FIELD_AF | ECC_CURVE_FIELD_ORDER
 #ifdef USE_ECC_B_PARAM
             | ECC_CURVE_FIELD_BF
@@ -8386,9 +8416,10 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
         int did_init = 0;
 
         DECLARE_CURVE_SPECS(curve, 3);
-        ALLOC_CURVE_SPECS(3);
+        ALLOC_CURVE_SPECS(3, err);
 
-        if (mp_init_multi(&t1, &t2, NULL, NULL, NULL, NULL) != MP_OKAY)
+        if (err == MP_OKAY &&
+                mp_init_multi(&t1, &t2, NULL, NULL, NULL, NULL) != MP_OKAY)
             err = MEMORY_E;
         else
             did_init = 1;
