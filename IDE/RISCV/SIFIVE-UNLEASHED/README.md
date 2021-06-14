@@ -83,8 +83,8 @@ Copy files to device (replace IP address):
 ```sh
 scp ./wolfcrypt/test/testwolfcrypt root@192.168.0.144:~
 scp ./wolfcrypt/benchmark/benchmark root@192.168.0.144:~
-scp ./testApps/client/client root@192.168.0.144:~
-scp ./testApps/server/server root@192.168.0.144:~
+scp ./test_apps/client/client root@192.168.0.144:~
+scp ./test_apps/server/server root@192.168.0.144:~
 
 # manually `mkdir certs` on target
 scp ./certs/* root@192.168.0.144:~/certs
@@ -150,7 +150,7 @@ Benchmark complete
 
 ```
 echo 1400000000 > /sys/devices/platform/soc/10000000.prci/rate
-./testApps/benchmark/tls_bench -p 8192 -m
+./test_apps/benchmark/tls_bench -p 8192 -m
 Side    Cipher                             Total Bytes  Num Conns      Rx ms      Tx ms    Rx MB/s    Tx MB/s   Connect Total ms   Connect Avg ms
 Server  DHE-RSA-AES128-SHA                      557056         18     94.722     34.548      2.804      7.689            915.005           50.834
 Client  DHE-RSA-AES128-SHA                      557056         18    113.339     34.464      2.344      7.707            896.122           49.785

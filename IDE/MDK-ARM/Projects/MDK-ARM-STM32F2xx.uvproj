@@ -409,7 +409,7 @@
             <File>
               <FileName>client.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\testApps\client\client.c</FilePath>
+              <FilePath>..\..\..\test_apps\client\client.c</FilePath>
             </File>
             <File>
               <FileName>shell.c</FileName>
@@ -419,7 +419,7 @@
             <File>
               <FileName>server.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\testApps\server\server.c</FilePath>
+              <FilePath>..\..\..\test_apps\server\server.c</FilePath>
             </File>
             <File>
               <FileName>main.c</FileName>
@@ -439,12 +439,12 @@
             <File>
               <FileName>echoclient.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\testApps\echoclient\echoclient.c</FilePath>
+              <FilePath>..\..\..\test_apps\echoclient\echoclient.c</FilePath>
             </File>
             <File>
               <FileName>echoserver.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\testApps\echoserver\echoserver.c</FilePath>
+              <FilePath>..\..\..\test_apps\echoserver\echoserver.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1069,7 +1069,7 @@
             <File>
               <FileName>client.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\testApps\client\client.c</FilePath>
+              <FilePath>..\..\..\test_apps\client\client.c</FilePath>
               <FileOption>
                 <CommonProperty>
                   <UseCPPCompiler>2</UseCPPCompiler>
@@ -1122,7 +1122,7 @@
             <File>
               <FileName>server.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\testApps\server\server.c</FilePath>
+              <FilePath>..\..\..\test_apps\server\server.c</FilePath>
               <FileOption>
                 <CommonProperty>
                   <UseCPPCompiler>2</UseCPPCompiler>
@@ -1185,7 +1185,7 @@
             <File>
               <FileName>echoclient.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\testApps\echoclient\echoclient.c</FilePath>
+              <FilePath>..\..\..\test_apps\echoclient\echoclient.c</FilePath>
               <FileOption>
                 <CommonProperty>
                   <UseCPPCompiler>2</UseCPPCompiler>
@@ -1233,7 +1233,7 @@
             <File>
               <FileName>echoserver.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\testApps\echoserver\echoserver.c</FilePath>
+              <FilePath>..\..\..\test_apps\echoserver\echoserver.c</FilePath>
               <FileOption>
                 <CommonProperty>
                   <UseCPPCompiler>2</UseCPPCompiler>
@@ -2049,7 +2049,7 @@
             <File>
               <FileName>client.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\testApps\client\client.c</FilePath>
+              <FilePath>..\..\..\test_apps\client\client.c</FilePath>
               <FileOption>
                 <CommonProperty>
                   <UseCPPCompiler>2</UseCPPCompiler>
@@ -2145,7 +2145,7 @@
             <File>
               <FileName>server.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\testApps\server\server.c</FilePath>
+              <FilePath>..\..\..\test_apps\server\server.c</FilePath>
               <FileOption>
                 <CommonProperty>
                   <UseCPPCompiler>2</UseCPPCompiler>
@@ -2294,7 +2294,7 @@
             <File>
               <FileName>echoclient.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\testApps\echoclient\echoclient.c</FilePath>
+              <FilePath>..\..\..\test_apps\echoclient\echoclient.c</FilePath>
               <FileOption>
                 <CommonProperty>
                   <UseCPPCompiler>2</UseCPPCompiler>
@@ -2342,7 +2342,7 @@
             <File>
               <FileName>echoserver.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\testApps\echoserver\echoserver.c</FilePath>
+              <FilePath>..\..\..\test_apps\echoserver\echoserver.c</FilePath>
               <FileOption>
                 <CommonProperty>
                   <UseCPPCompiler>2</UseCPPCompiler>

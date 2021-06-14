@@ -124,7 +124,7 @@
 		A46FE16A2493E8F800A25BE7 /* fe_448.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = fe_448.c; path = ../../../wolfcrypt/src/fe_448.c; sourceTree = "<group>"; };
 		A46FE16E2493E8F800A25BE7 /* sp_c32.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sp_c32.c; path = ../../../wolfcrypt/src/sp_c32.c; sourceTree = "<group>"; };
 		A47546241FD9042D005176B9 /* user_settings.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = user_settings.h; path = ../user_settings.h; sourceTree = "<group>"; };
-		A47546251FD90492005176B9 /* tls_bench.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = tls_bench.c; path = ../../../testApps/benchmark/tls_bench.c; sourceTree = "<group>"; };
+		A47546251FD90492005176B9 /* tls_bench.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = tls_bench.c; path = ../../../test_apps/benchmark/tls_bench.c; sourceTree = "<group>"; };
 		A4ADF82A1FCE0BD300A06E90 /* wolfBench.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = wolfBench.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A4ADF82D1FCE0BD300A06E90 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		A4ADF82E1FCE0BD300A06E90 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };

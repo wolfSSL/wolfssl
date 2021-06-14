@@ -59,7 +59,7 @@ do_test() {
     #make sure we support session resumption (!NO_SESSION_CACHE)
     # Check the client for the extended master secret disable option. If
     # present we need to run the test twice.
-    options_check=`./testApps/client/client '-?'`
+    options_check=`./test_apps/client/client '-?'`
     case "$options_check" in
     *$resume_sup_string*)
         echo -e "\nResume test supported";;
@@ -69,7 +69,7 @@ do_test() {
     esac
 
     remove_ready_file
-    ./testApps/server/server -r -R $ready_file -p $resume_port &
+    ./test_apps/server/server -r -R $ready_file -p $resume_port &
     server_pid=$!
 
     while [ ! -s $ready_file -a "$counter" -lt 20 ]; do
@@ -92,7 +92,7 @@ do_test() {
     # get created port 0 ephemeral port
     resume_port=`cat $ready_file`
 
-    capture_out=$(./testApps/client/client $1 -r -p $resume_port 2>&1)
+    capture_out=$(./test_apps/client/client $1 -r -p $resume_port 2>&1)
     client_result=$?
 
     if [ $client_result != 0 ]
@@ -124,15 +124,15 @@ do_test() {
 
 trap do_trap INT TERM
 
-./testApps/client/client '-?' 2>&1 | grep -- 'Client not compiled in!'
+./test_apps/client/client '-?' 2>&1 | grep -- 'Client not compiled in!'
 if [ $? -ne 0 ]; then
-    ./testApps/server/server '-?' 2>&1 | grep -- 'Server not compiled in!'
+    ./test_apps/server/server '-?' 2>&1 | grep -- 'Server not compiled in!'
     if [ $? -ne 0 ]; then
         RUN_TEST="Y"
     fi
 fi
 
-./testApps/client/client '-?' 2>&1 | grep -- 'Resume session'
+./test_apps/client/client '-?' 2>&1 | grep -- 'Resume session'
 if [ $? -ne 0 ]; then
     RUN_TEST="Y"
 fi
@@ -142,7 +142,7 @@ if [ "$RUN_TEST" = "Y" ]; then
 
     # Check the client for the extended master secret disable option. If
     # present we need to run the test twice.
-    options_check=`./testApps/client/client -?`
+    options_check=`./test_apps/client/client -?`
     case "$options_check" in
     *$ems_string*)
         echo -e "\nRepeating resume test without extended master secret..."

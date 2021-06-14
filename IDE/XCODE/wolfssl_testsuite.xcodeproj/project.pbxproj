@@ -64,7 +64,7 @@
 				A45EA69E1BC5922C00A8614A /* client.h */,
 			);
 			name = client;
-			path = ../../testApps/client;
+			path = ../../test_apps/client;
 			sourceTree = "<group>";
 		};
 		A45EA6A61BC5922C00A8614A /* echoclient */ = {
@@ -74,7 +74,7 @@
 				A45EA6B11BC5922C00A8614A /* echoclient.h */,
 			);
 			name = echoclient;
-			path = ../../testApps/echoclient;
+			path = ../../test_apps/echoclient;
 			sourceTree = "<group>";
 		};
 		A45EA6B91BC5922C00A8614A /* echoserver */ = {
@@ -84,7 +84,7 @@
 				A45EA6C41BC5922C00A8614A /* echoserver.h */,
 			);
 			name = echoserver;
-			path = ../../testApps/echoserver;
+			path = ../../test_apps/echoserver;
 			sourceTree = "<group>";
 		};
 		A45EA6CB1BC5922C00A8614A /* server */ = {
@@ -94,7 +94,7 @@
 				A45EA6D81BC5922C00A8614A /* server.h */,
 			);
 			name = server;
-			path = ../../testApps/server;
+			path = ../../test_apps/server;
 			sourceTree = "<group>";
 		};
 		A45EA6ED1BC5929500A8614A /* test */ = {

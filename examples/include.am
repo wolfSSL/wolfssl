@@ -1,6 +1,0 @@
-# vim:ft=automake
-# All paths should be given relative to the root
-
-include examples/tls/include.am
-include examples/dtls/include.am
-include examples/psk/include.am

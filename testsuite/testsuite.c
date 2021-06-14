@@ -39,10 +39,10 @@
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 
-#include <testApps/echoclient/echoclient.h>
-#include <testApps/echoserver/echoserver.h>
-#include <testApps/server/server.h>
-#include <testApps/client/client.h>
+#include <test_apps/echoclient/echoclient.h>
+#include <test_apps/echoserver/echoserver.h>
+#include <test_apps/server/server.h>
+#include <test_apps/client/client.h>
 
 
 #ifndef NO_SHA256

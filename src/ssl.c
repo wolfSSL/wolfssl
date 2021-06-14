@@ -4012,7 +4012,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_get1_certs(
 * wolfSSL_X509_STORE_GetCerts - retrieve stack of X509 in a certificate store ctx
 *
 * This API can be used in SSL verify callback function to view cert chain
-* See testApps/client/client.c and myVerify() function in test.h
+* See test_apps/client/client.c and myVerify() function in test.h
 *
 * RETURNS:
 * returns stack of X509 certs on success, otherwise returns a NULL.

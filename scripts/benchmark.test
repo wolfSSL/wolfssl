@@ -55,7 +55,7 @@ remove_ready_file
 if [ $1 -eq 1 ]
 then
     # start server in loop mode with port
-    ./testApps/server/server -i -p $bench_port $4 &
+    ./test_apps/server/server -i -p $bench_port $4 &
     server_pid=$!
 fi
 
@@ -63,7 +63,7 @@ fi
 if [ $1 -eq 2 ]
 then
     # start server in loop mode, non-blocking, benchmark throughput with port
-    ./testApps/server/server -i -N -B $2 -p $bench_port $4 &
+    ./test_apps/server/server -i -N -B $2 -p $bench_port $4 &
     server_pid=$!
 fi
 
@@ -81,7 +81,7 @@ if [ $1 -eq 1 ]
 then
     echo "Starting example client to benchmark connection average time"
     # start client to benchmark average time for each connection using port
-    ./testApps/client/client -b $2 -p $bench_port $3
+    ./test_apps/client/client -b $2 -p $bench_port $3
     client_result=$?
 fi
 
@@ -90,7 +90,7 @@ if [ $1 -eq 2 ]
 then
     echo "Starting example client to benchmark throughput"
     # start client in non-blocking mode, benchmark throughput using port
-    ./testApps/client/client -N -B $2 -p $bench_port $3
+    ./test_apps/client/client -N -B $2 -p $bench_port $3
     client_result=$?
 fi
 

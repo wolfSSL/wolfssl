@@ -1213,14 +1213,14 @@ endif()
 
 # TODO: - Fast huge math
 
-# Enable testApps, used to disable testApps
+# Enable test_apps, used to disable test_apps
 if(WOLFSSL_LINUX_KM)
     set(TESTAPPS_DEFAULT "no")
 else()
     set(TESTAPPS_DEFAULT "yes")
 endif()
 
-set(WOLFSSL_TESTAPPS_HELP_STRING "Enable testApps (default: enabled)")add_option("WOLFSSL_TESTAPPS" ${WOLFSSL_TESTAPPS_HELP_STRING} ${TESTAPPS_DEFAULT} "yes;no")
+set(WOLFSSL_TESTAPPS_HELP_STRING "Enable test_apps (default: enabled)")add_option("WOLFSSL_TESTAPPS" ${WOLFSSL_TESTAPPS_HELP_STRING} ${TESTAPPS_DEFAULT} "yes;no")
 add_option("WOLFSSL_TESTAPPS" ${WOLFSSL_TESTAPPS_HELP_STRING} ${TESTAPPS_DEFAULT} "yes;no")
 if(NOT WOLFSSL_FILESYSTEM OR
    NOT WOLFSSL_INLINE OR
@@ -1466,49 +1466,49 @@ endif()
 if(WOLFSSL_TESTAPPS)
     # Build wolfSSL client testApp
     add_executable(client
-        ${CMAKE_CURRENT_SOURCE_DIR}/testApps/client/client.c)
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/client/client.c)
     target_link_libraries(client wolfssl)
     set_property(TARGET client
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
-                 ${CMAKE_CURRENT_SOURCE_DIR}/testApps/client)
+                 ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/client)
 
     # Build wolfSSL server testApp
     add_executable(server
-        ${CMAKE_CURRENT_SOURCE_DIR}/testApps/server/server.c)
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/server/server.c)
     target_link_libraries(server wolfssl)
     set_property(TARGET server
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
-                 ${CMAKE_CURRENT_SOURCE_DIR}/testApps/server)
+                 ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/server)
 
     # Build echo client testApp
     add_executable(echoclient
-        ${CMAKE_CURRENT_SOURCE_DIR}/testApps/echoclient/echoclient.c)
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/echoclient/echoclient.c)
     target_include_directories(echoclient PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR})
     target_link_libraries(echoclient wolfssl)
     set_property(TARGET echoclient
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
-                 ${CMAKE_CURRENT_SOURCE_DIR}/testApps/echoclient)
+                 ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/echoclient)
 
     # Build echo server testApp
     add_executable(echoserver
-        ${CMAKE_CURRENT_SOURCE_DIR}/testApps/echoserver/echoserver.c)
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/echoserver/echoserver.c)
     target_include_directories(echoserver PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR})
     target_link_libraries(echoserver wolfssl)
     set_property(TARGET echoserver
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
-                 ${CMAKE_CURRENT_SOURCE_DIR}/testApps/echoserver)
+                 ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/echoserver)
 
     if(NOT WIN32)
         # Build TLS benchmark testApp
         add_executable(tls_bench
-            ${CMAKE_CURRENT_SOURCE_DIR}/testApps/benchmark/tls_bench.c)
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/benchmark/tls_bench.c)
         target_link_libraries(tls_bench wolfssl)
         target_link_libraries(tls_bench Threads::Threads)
         set_property(TARGET tls_bench
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
-                 ${CMAKE_CURRENT_SOURCE_DIR}/testApps/benchmark)
+                 ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/benchmark)
     endif()
 
     # Build unit tests
@@ -1518,8 +1518,8 @@ if(WOLFSSL_TESTAPPS)
         tests/srp.c
         tests/suites.c
         tests/unit.c
-        testApps/server/server.c
-        testApps/client/client.c)
+        test_apps/server/server.c
+        test_apps/client/client.c)
     target_include_directories(unit_test PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR})
     target_compile_options(unit_test PUBLIC "-DNO_MAIN_DRIVER")
@@ -1586,15 +1586,15 @@ set(EXCLUDED_HEADERS_REGEX
     psoc6_crypto).h")
 
 set(INSTALLED_TESTAPPS
-    ${CMAKE_CURRENT_SOURCE_DIR}/testApps/echoserver/echoserver.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/testApps/sctp/sctp-server.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/testApps/sctp/sctp-client-dtls.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/testApps/sctp/sctp-client.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/testApps/sctp/sctp-server-dtls.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/testApps/echoclient/echoclient.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/testApps/server/server.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/testApps/benchmark/tls_bench.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/testApps/client/client.c)
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/echoserver/echoserver.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/sctp/sctp-server.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/sctp/sctp-client-dtls.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/sctp/sctp-client.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/sctp/sctp-server-dtls.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/echoclient/echoclient.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/server/server.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/benchmark/tls_bench.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/client/client.c)
 
 # Install the library
 install(TARGETS wolfssl
@@ -1606,7 +1606,7 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/wolfssl/
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wolfssl
         FILES_MATCHING PATTERN "*.h"
         REGEX ${EXCLUDED_HEADERS_REGEX} EXCLUDE)
-# Install the testApps
+# Install the test_apps
 install(FILES ${INSTALLED_TESTAPPS}
         DESTINATION ${CMAKE_INSTALL_DOCDIR}/testApp)
 # Install README.txt and taoCert.txt

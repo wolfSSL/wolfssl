@@ -18,7 +18,7 @@ if [[ -z "${RETRIES_REMAINING-}" ]]; then
     export RETRIES_REMAINING=2
 fi
 
-./testApps/client/client -v 3 2>&1 | grep -- 'Bad SSL version'
+./test_apps/client/client -v 3 2>&1 | grep -- 'Bad SSL version'
 if [ $? -eq 0 ]; then
     echo "TLS 1.2 or lower required"
     echo "Skipped"
@@ -36,7 +36,7 @@ WORKSPACE="${PARENTDIR}/workspace.pid$$"
 mkdir "${WORKSPACE}" || exit $?
 cp -pR ${SCRIPT_DIR}/../certs "${WORKSPACE}"/ || exit $?
 cd "$WORKSPACE" || exit $?
-ln -s ../testApps
+ln -s ../test_apps
 
 CERT_DIR="certs/ocsp"
 
@@ -169,7 +169,7 @@ trap cleanup EXIT INT TERM HUP
 server=login.live.com
 ca=certs/external/baltimore-cybertrust-root.pem
 
-[ ! -x ./testApps/client/client ] && printf '\n\n%s\n' "Client doesn't exist" && exit 1
+[ ! -x ./test_apps/client/client ] && printf '\n\n%s\n' "Client doesn't exist" && exit 1
 
 
 # choose consecutive ports based on the PID, skipping any that are
@@ -197,7 +197,7 @@ port2=$(get_first_free_port $((port1 + 1)))
 
 
 # create a port to use with openssl ocsp responder
-./testApps/server/server -R $ready_file -p $port1 &
+./test_apps/server/server -R $ready_file -p $port1 &
 wolf_pid=$!
 wait_for_readyFile $ready_file $wolf_pid $port1
 if [ ! -f $ready_file ]; then
@@ -206,7 +206,7 @@ if [ ! -f $ready_file ]; then
 else
     printf '%s\n' "Random port selected: $port1"
     # Use client connection to shutdown the server cleanly
-    ./testApps/client/client -p $port1
+    ./test_apps/client/client -p $port1
     create_new_cnf $port1
 fi
 sleep 0.1
@@ -217,7 +217,7 @@ sleep 0.1
 # client test against the server
 # external test case was never running, disable for now but retain case in event
 # we wish to re-activate in the future.
-#./testApps/client/client -X -C -h $server -p 443 -A $ca -g -W 1
+#./test_apps/client/client -X -C -h $server -p 443 -A $ca -g -W 1
 #RESULT=$?
 #[ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
 
@@ -239,12 +239,12 @@ sleep 0.1
 
 printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS ------------------------"
 # client test against our own server - GOOD CERT
-./testApps/server/server -c certs/ocsp/server1-cert.pem \
+./test_apps/server/server -c certs/ocsp/server1-cert.pem \
                          -k certs/ocsp/server1-key.pem -R $ready_file2 \
                          -p $port2 &
 wolf_pid2=$!
 wait_for_readyFile $ready_file2 $wolf_pid2 $port2
-./testApps/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 \
+./test_apps/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 \
                          -p $port2
 RESULT=$?
 [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection failed" && exit 1
@@ -253,12 +253,12 @@ printf '%s\n\n' "Test PASSED!"
 printf '%s\n\n' "------------- TEST CASE 2 SHOULD REVOKE ----------------------"
 # client test against our own server - REVOKED CERT
 remove_single_rF $ready_file2
-./testApps/server/server -c certs/ocsp/server2-cert.pem \
+./test_apps/server/server -c certs/ocsp/server2-cert.pem \
                          -k certs/ocsp/server2-key.pem -R $ready_file2 \
                          -p $port2 &
 wolf_pid2=$!
 wait_for_readyFile $ready_file2 $wolf_pid2 $port2
-./testApps/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 \
+./test_apps/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 \
                          -p $port2
 RESULT=$?
 [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection succeeded $RESULT" && exit 1

@@ -319,10 +319,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\testApps\client\client.c" />
-    <ClCompile Include="..\testApps\echoclient\echoclient.c" />
-    <ClCompile Include="..\testApps\echoserver\echoserver.c" />
-    <ClCompile Include="..\testApps\server\server.c" />
+    <ClCompile Include="..\test_apps\client\client.c" />
+    <ClCompile Include="..\test_apps\echoclient\echoclient.c" />
+    <ClCompile Include="..\test_apps\echoserver\echoserver.c" />
+    <ClCompile Include="..\test_apps\server\server.c" />
     <ClCompile Include="..\wolfcrypt\test\test.c" />
     <ClCompile Include="testsuite.c" />
   </ItemGroup>

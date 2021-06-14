@@ -1,0 +1,19 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+
+if BUILD_EXAMPLE_SERVERS
+noinst_PROGRAMS += test_apps/echoserver/echoserver
+noinst_HEADERS += test_apps/echoserver/echoserver.h
+test_apps_echoserver_echoserver_SOURCES      = test_apps/echoserver/echoserver.c
+test_apps_echoserver_echoserver_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD)
+test_apps_echoserver_echoserver_DEPENDENCIES = src/libwolfssl.la
+endif
+EXTRA_DIST += test_apps/echoserver/echoserver.sln
+EXTRA_DIST += test_apps/echoserver/echoserver-ntru.vcproj
+EXTRA_DIST += test_apps/echoserver/echoserver.vcproj
+EXTRA_DIST += test_apps/echoserver/echoserver.vcxproj
+
+dist_example_DATA+= test_apps/echoserver/echoserver.c
+DISTCLEANFILES+= test_apps/echoserver/.libs/echoserver

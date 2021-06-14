@@ -40,7 +40,7 @@ The TLS connection was successful.
     + Run the following wolfSSL example client command inside wolfssl directory.
 
 ```
-./testApps/client/client -h "Server IP Address" -p 11111 -A ./certs/ca-cert.pem
+./test_apps/client/client -h "Server IP Address" -p 11111 -A ./certs/ca-cert.pem
 ```
 
 ### Client
@@ -53,7 +53,7 @@ to a example server at an IP address of `192.168.1.200`.
 The example server could be started with the following command:
 
 ```
-./testApps/server/server -b -d -p 11111 -c ./certs/server-cert.pem -k ./certs/server-key.pem
+./test_apps/server/server -b -d -p 11111 -c ./certs/server-cert.pem -k ./certs/server-key.pem
 ```
 
 Server Options Explanation:
@@ -97,7 +97,7 @@ and uploaded to the MT3620 Development board.
 The following wolfSSL example client can connect to a server on the MT3620 board:
 
 ```
-./testApps/client/client -h "Server IP Address" -p 11111 -A ./certs/ca-cert.pem
+./test_apps/client/client -h "Server IP Address" -p 11111 -A ./certs/ca-cert.pem
 ```
 
 Client Options Explanation:

@@ -41,7 +41,7 @@ Note: To work wolfssl directory must not be under the workspace directory.
 ### Setting up a Deos project with wolfSSL
 
 The `tls_wolfssl.c` example application provides a simple function to
-run the selected testApps at compile time through the following four
+run the selected test_apps at compile time through the following four
 `#defines` in `user_settings.h`. You can undefine any of these macro
 options to run a test.
 
@@ -238,7 +238,7 @@ You can connect to the server using the wolfssl TLS client example
 from your Linux or Windows host as follows:
 
 ```
-$ ./testApps/client/client.exe -h TLS_SERVER_IP_ADDRESS
+$ ./test_apps/client/client.exe -h TLS_SERVER_IP_ADDRESS
 
 The client outputs messages similar to the following:
 

@@ -15,8 +15,8 @@ The Example contains of wolfSSL tls client demo.
 When you want to test the wolfSSL client
 
 1. "make flash monitor" to load the firmware and see the context  
-2. You can use <wolfssl>/testApps/server/server program for test.  
+2. You can use <wolfssl>/test_apps/server/server program for test.  
 
-         e.g. Launch ./testApps/server/server -v 4 -b -i
+         e.g. Launch ./test_apps/server/server -v 4 -b -i
 
-See the README.md file in the upper level 'testApps' directory for more information about examples.
+See the README.md file in the upper level 'test_apps' directory for more information about examples.

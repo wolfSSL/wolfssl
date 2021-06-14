@@ -1,0 +1,21 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+
+if BUILD_EXAMPLE_CLIENTS
+noinst_PROGRAMS += test_apps/echoclient/echoclient
+noinst_HEADERS += test_apps/echoclient/echoclient.h
+test_apps_echoclient_echoclient_SOURCES      = test_apps/echoclient/echoclient.c
+test_apps_echoclient_echoclient_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD)
+test_apps_echoclient_echoclient_DEPENDENCIES = src/libwolfssl.la
+endif
+EXTRA_DIST += test_apps/echoclient/echoclient.sln
+EXTRA_DIST += test_apps/echoclient/echoclient-ntru.vcproj
+EXTRA_DIST += test_apps/echoclient/echoclient.vcproj
+EXTRA_DIST += test_apps/echoclient/echoclient.vcxproj
+EXTRA_DIST += test_apps/echoclient/quit
+
+dist_example_DATA+= test_apps/echoclient/echoclient.c
+DISTCLEANFILES+= test_apps/echoclient/.libs/echoclient
+

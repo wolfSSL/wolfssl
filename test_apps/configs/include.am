@@ -1,0 +1,7 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+
+EXTRA_DIST += test_apps/configs/README.md
+EXTRA_DIST += test_apps/configs/user_settings_all.h
+EXTRA_DIST += test_apps/configs/user_settings_min_ecc.h
+EXTRA_DIST += test_apps/configs/user_settings_wolfboot_keytools.h

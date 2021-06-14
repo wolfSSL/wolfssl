@@ -8,10 +8,10 @@ check_PROGRAMS += testsuite/testsuite.test
 noinst_PROGRAMS += testsuite/testsuite.test
 testsuite_testsuite_test_SOURCES = \
 			      wolfcrypt/test/test.c \
-			      testApps/client/client.c \
-			      testApps/echoclient/echoclient.c \
-			      testApps/echoserver/echoserver.c \
-			      testApps/server/server.c \
+			      test_apps/client/client.c \
+			      test_apps/echoclient/echoclient.c \
+			      test_apps/echoserver/echoserver.c \
+			      test_apps/server/server.c \
 			      testsuite/testsuite.c
 testsuite_testsuite_test_CFLAGS       = -DNO_MAIN_DRIVER $(AM_CFLAGS) $(WOLFSENTRY_INCLUDE)
 testsuite_testsuite_test_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD) $(WOLFSENTRY_LIB)

@@ -4,13 +4,13 @@
 Project and then selecting VxWorks Image Project.
 
 2. Right click on the project and go to Import > General > Filesystem. Click Next.
-Choose the path to the wolfSSL library here. Uncheck everything except the testApps,
+Choose the path to the wolfSSL library here. Uncheck everything except the test_apps,
 src and wolfcrypt directories. Uncheck the following:
 
         wolfcrypt/src/aes_asm.asm
         wolfcrypt/src/aes_asm.s
-        testApps/echoclient/
-        testApps/echoserver/
+        test_apps/echoclient/
+        test_apps/echoserver/
         wolfcrypt/user-crypto
 
     Uncheck "Create top level folder". Click Finish.
@@ -86,18 +86,18 @@ by adding the following to the usrAppInit() function:
 4. To run the VxWorks simulator, click the dropdown list next to "VxWorks Simulator" at the top of Workbench and go to "Open Connection Details". Add the correct Kernel Image file. This will be located in ```workspace/<project_name>/default/vxWorks```. Click Apply. Start the simulator by clicking the green, "Connect 'VxWorks Simulator'" button to the right of the "VxWorks Simulator" dropdown list. Verify in the simulator terminal that all wolfCrypt tests pass.
 
 ##### 2.2 Example Client
-The wolfSSL example client.c file can be found in ```<path_to_wolfssl>/wolfssl/testApps/client```.
+The wolfSSL example client.c file can be found in ```<path_to_wolfssl>/wolfssl/test_apps/client```.
 
 1. Add the following include to usrAppInit.c:
 
-        #include <testApps/client/client.h>
+        #include <test_apps/client/client.h>
 
 2. In usrAppInit.c, include the func\_args as described in the Test Application
 section, and add a call to the client function:
 
         client_test(&args);
 
-3. The char* host in ```testApps/client/client.c``` will need to be changed to the IP address to connect to. For example:
+3. The char* host in ```test_apps/client/client.c``` will need to be changed to the IP address to connect to. For example:
 
         char* host = "192.168.15.1";
 
@@ -107,7 +107,7 @@ section, and add a call to the client function:
 
 6. There is an example server in ```<path_to_wolfssl>``` that can be used for testing the client. wolfSSL will first need to be built. Follow the instructions [here](https://www.wolfssl.com/wolfSSL/Docs-wolfssl-manual-2-building-wolfssl.html) to do so. See the [wolfSSL manual]( https://wolfssl.com/wolfSSL/Docs-wolfssl-manual-3-getting-started.html) for instructions on setting up the example server. From within ```<path_to_wolfssl>/wolfssl```, the following command can be used to run the server on the host machine:
 
-        ./testApps/server/server -d -b
+        ./test_apps/server/server -d -b
 
 7. Start the example client in Workbench by following step 3 in section 3.1.
 
@@ -125,7 +125,7 @@ Note: The wolfSSL example server and client cannot run at the same time on the V
 
 1. Add the following include to usrAppInit.c:
 
-        #include </testApps/server/server.h>
+        #include </test_apps/server/server.h>
 
 2. In usrAppInit.c, after the ```func_args args;``` call, add:
 
@@ -154,9 +154,9 @@ Note: The wolfSSL example server and client cannot run at the same time on the V
 
     This will start the vxsimnetd application. Leave it running in the background.
 
-5. There is an example client in ```<path_to_wolfssl>/wolfssl/testApps``` . Again, wolfSSL will first need to be built. Follow the instructions [here](https://www.wolfssl.com/wolfSSL/Docs-wolfssl-manual-2-building-wolfssl.html) to do so. See the [wolfSSL manual]( https://wolfssl.com/wolfSSL/Docs-wolfssl-manual-3-getting-started.html) for instructions on how to set up the client. From within ```<path_to_wolfssl>/wolfssl``` , the following command can be used to run the client on the host machine:
+5. There is an example client in ```<path_to_wolfssl>/wolfssl/test_apps``` . Again, wolfSSL will first need to be built. Follow the instructions [here](https://www.wolfssl.com/wolfSSL/Docs-wolfssl-manual-2-building-wolfssl.html) to do so. See the [wolfSSL manual]( https://wolfssl.com/wolfSSL/Docs-wolfssl-manual-3-getting-started.html) for instructions on how to set up the client. From within ```<path_to_wolfssl>/wolfssl``` , the following command can be used to run the client on the host machine:
 
-        ./testApps/client/client -h 192.168.200.1
+        ./test_apps/client/client -h 192.168.200.1
 
 6. The following output should be expected in the simulator terminal:
 

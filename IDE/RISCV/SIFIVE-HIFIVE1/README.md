@@ -80,7 +80,7 @@ AS=riscv64-unknown-elf-as \
 RANLIB=$RISCV_PATH/bin/riscv64-unknown-elf-gcc-ranlib \
 LD=riscv64-unknown-elf-ld \
 CXX=riscv64-unknown-elf-g++ \
---disable-testApps --enable-static --disable-shared \
+--disable-examples --enable-static --disable-shared \
 CFLAGS="-march=rv32imac -mabi=ilp32 -mcmodel=medlow -ffunction-sections -fdata-sections -I~/freedom-e-sdk/bsp/sifive-hifive1/install/include -O0 -g -DNO_FILESYSTEM -DWOLFSSL_NO_SOCK -DNO_WRITEV -DWOLFCRYPT_ONLY -DWOLFSSL_SIFIVE_RISC_V"
 
 $make

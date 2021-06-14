@@ -177,19 +177,19 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath="..\testApps\client\client.c"
+				RelativePath="..\test_apps\client\client.c"
 				>
 			</File>
 			<File
-				RelativePath="..\testApps\echoclient\echoclient.c"
+				RelativePath="..\test_apps\echoclient\echoclient.c"
 				>
 			</File>
 			<File
-				RelativePath="..\testApps\echoserver\echoserver.c"
+				RelativePath="..\test_apps\echoserver\echoserver.c"
 				>
 			</File>
 			<File
-				RelativePath="..\testApps\server\server.c"
+				RelativePath="..\test_apps\server\server.c"
 				>
 			</File>
 			<File

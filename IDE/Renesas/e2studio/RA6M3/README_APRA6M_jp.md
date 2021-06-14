@@ -147,7 +147,7 @@ wolfSSL のプロジェクトファイルは、wolfSSL と wolfCrypt の両方�
 5.)以下のサンプルのクライアントプログラムを実行
 
 ```
-./testApps/client/client -v 4 -h "ucIPAddress" -p 11111 -A ./certs/1024/ca-cert.pem
+./test_apps/client/client -v 4 -h "ucIPAddress" -p 11111 -A ./certs/1024/ca-cert.pem
 ```
 
 **NOTE:** "ucIPAddress" はデフォルトでは "192.168.1.241"  (参照： wolfssl_thread_entry.h)
@@ -156,12 +156,12 @@ wolfSSL のプロジェクトファイルは、wolfSSL と wolfCrypt の両方�
 1.)以下のサンプルのサーバープログラムを実行
 
 ```
-./testApps/server/server -b -d -p 11111 -c ./certs/1024/server-cert.pem -k ./certs/1024/server-key.pem
+./test_apps/server/server -b -d -p 11111 -c ./certs/1024/server-cert.pem -k ./certs/1024/server-key.pem
 ```
 
 TLS 1.3 で接続する際には、引数に "-v 4" を追加します。
 ```
-./testApps/server/server -v 4 -b -d -p 11111 -c ./certs/1024/server-cert.pem -k ./certs/1024/server-key.pem
+./test_apps/server/server -v 4 -b -d -p 11111 -c ./certs/1024/server-cert.pem -k ./certs/1024/server-key.pem
 ```
 **NOTE:** wolfssl_thread_entry.h中にデフォルトのポート番号 11111 定義(DEFAULT_PORT)
 もし、DEFAULT_PORTを変更している場合、、上記のコマンドの "-p" の値は対応するポート番号に要変更

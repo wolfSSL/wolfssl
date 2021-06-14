@@ -11,8 +11,8 @@ tests_unit_test_SOURCES = \
                   tests/suites.c \
                   tests/hash.c \
                   tests/srp.c \
-                  testApps/client/client.c \
-                  testApps/server/server.c
+                  test_apps/client/client.c \
+                  test_apps/server/server.c
 tests_unit_test_CFLAGS       = -DNO_MAIN_DRIVER $(AM_CFLAGS) $(WOLFSENTRY_INCLUDE)
 tests_unit_test_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD) $(WOLFSENTRY_LIB)
 tests_unit_test_DEPENDENCIES = src/libwolfssl.la

@@ -90,11 +90,11 @@ c: simple client. Specify IP address and port as following.
    
 
 4. Testing TLS Connection
-   You can use wolfssl/testApps/server and client on your PC for TLS peer test.
+   You can use wolfssl/test_apps/server and client on your PC for TLS peer test.
    
    
 PC side
-$ ./testApps/server/server -b -d
+$ ./test_apps/server/server -b -d
 
 Board side
 > c <IP Addr> 11111
@@ -103,7 +103,7 @@ Board side
 > s
 
 PC side
-$ ./testApps/client/client -h <IP Addr> -p 50000
+$ ./test_apps/client/client -h <IP Addr> -p 50000
 
 ---
 If you have any question, please contact support@wolfssl.com.
