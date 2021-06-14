@@ -230,6 +230,7 @@ IDE/MDK-ARM/LPC43xx/LPC43xx/
 *.gcno
 *.gcda
 *.gcov
+*.dgcov
 !linuxkm/Makefile
 /Kbuild
 linuxkm/*.ko
