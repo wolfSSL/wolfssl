@@ -182,7 +182,8 @@
 
 /* RNG Masks/Values */
 #ifndef CAAM_ENT_DLY
-    /*less than half the default value to try and increase entropy collection */
+    /* Less than half the default value to try and increase entropy collection.
+     * Value is system clock cycles. */
     #define CAAM_ENT_DLY   1200
 #endif
 #ifndef CAAM_ENT_DLY_INCREMENT
@@ -206,6 +207,7 @@
 
 #define CAAM_PRGM      0x00010000 /* Set RTMCTL to program state */
 #define CAAM_TRNG      0x00000020 /* Set TRNG access */
+#define CAAM_RTMCTL_RESET 0x40    /* TRNG reset to defaults */
 #define CAAM_CTLERR    0x00001000
 #define CAAM_ENTVAL    0x00000400 /* checking RTMCTL for entropy ready */
 

@@ -436,6 +436,7 @@ static void print_jdkek()
 
 
 /* instantiate RNG and create JDKEK, TDKEK, and TDSK key */
+#define WC_RNG_START_SIZE 6
 static unsigned int wc_rng_start[] = {
     CAAM_HEAD | 0x00000006,
     CAAM_OP | CAAM_CLASS1 | CAAM_RNG | 0x00000004, /* Instantiate RNG handle 0
@@ -459,7 +460,7 @@ int caamInitRng(struct CAAM_DEVICE* dev)
     /* set up the job description for RNG initialization */
     memset(&desc, 0, sizeof(DESCSTRUCT));
     desc.desc[desc.idx++] = CAAM_HEAD; /* later will put size to header*/
-    for (i = 1; i < 6; i = i + 1) {
+    for (i = 1; i < WC_RNG_START_SIZE; i = i + 1) {
         desc.desc[desc.idx++] = wc_rng_start[i];
     }
     desc.caam = dev;
@@ -474,7 +475,7 @@ int caamInitRng(struct CAAM_DEVICE* dev)
         /* Set up use of the TRNG for seeding wolfSSL HASH-DRBG */
         /* check out the status and see if already setup */
         CAAM_WRITE(CAAM_RTMCTL, CAAM_PRGM);
-        CAAM_WRITE(CAAM_RTMCTL, CAAM_READ(CAAM_RTMCTL) | 0x40); /* reset */
+        CAAM_WRITE(CAAM_RTMCTL, CAAM_READ(CAAM_RTMCTL) | CAAM_RTMCTL_RESET);
 
         /* Set up reading from TRNG */
         CAAM_WRITE(CAAM_RTMCTL, CAAM_READ(CAAM_RTMCTL) | CAAM_TRNG);
@@ -494,7 +495,7 @@ int caamInitRng(struct CAAM_DEVICE* dev)
     #endif
 
         /* Set back to run mode and clear RTMCL error bit */
-        reg = CAAM_READ(CAAM_RTMCTL) ^ CAAM_PRGM;
+        reg = CAAM_READ(CAAM_RTMCTL) & (~CAAM_PRGM);
         CAAM_WRITE(CAAM_RTMCTL, reg);
         reg = CAAM_READ(CAAM_RTMCTL);
         reg |= CAAM_CTLERR;
@@ -1440,6 +1441,8 @@ int InitCAAM(void)
             break;
     }
     if (ret != Success) {
+        WOLFSSL_MSG("Failed to find a partition on startup");
+        INTERRUPT_Panic();
         return -1;
     }
 
