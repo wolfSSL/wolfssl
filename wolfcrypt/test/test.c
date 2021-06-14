@@ -89,7 +89,7 @@
 #endif
 
 #ifdef __GNUC__
-_Pragma("GCC diagnostic ignored \"-Wunused-function\"");
+_Pragma("GCC diagnostic ignored \"-Wunused-function\"")
 #endif
 
 #ifdef USE_FLAT_TEST_H
@@ -26610,7 +26610,7 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
     WOLFSSL_SMALL_STACK_STATIC const byte* sigs[] = {sig1, sig2, sig3, sig4, sig5, sig6};
     #define SIGSZ sizeof(sig1)
 
-    WOLFSSL_SMALL_STACK_STATIC const byte msg1[]  = { };
+    PEDANTIC_EXTENSION WOLFSSL_SMALL_STACK_STATIC const byte msg1[]  = { };
     WOLFSSL_SMALL_STACK_STATIC const byte msg2[]  = { 0x03 };
     WOLFSSL_SMALL_STACK_STATIC const byte msg3[]  = { 0x64, 0xa6, 0x5f, 0x3c, 0xde, 0xdc, 0xdd,
                                   0x66, 0x81, 0x1e, 0x29, 0x15 };
@@ -36510,7 +36510,7 @@ WOLFSSL_TEST_SUBROUTINE int mutex_test(void)
 
 #if defined(USE_WOLFSSL_MEMORY) && !defined(FREERTOS)
 
-#ifndef WOLFSSL_NO_MALLOC
+#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_STATIC_MEMORY)
 static int malloc_cnt = 0;
 static int realloc_cnt = 0;
 static int free_cnt = 0;
@@ -36553,7 +36553,7 @@ static void *my_Realloc_cb(void *ptr, size_t size)
 WOLFSSL_TEST_SUBROUTINE int memcb_test(void)
 {
     int ret = 0;
-#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_LINUXKM)
+#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_STATIC_MEMORY)
     byte* b = NULL;
 #endif
     wolfSSL_Malloc_cb  mc;
@@ -36564,7 +36564,8 @@ WOLFSSL_TEST_SUBROUTINE int memcb_test(void)
     if (wolfSSL_GetAllocators(&mc, &fc, &rc) != 0)
         return -13800;
 
-#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_LINUXKM)
+#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_STATIC_MEMORY)
+
     /* test realloc */
     b = (byte*)XREALLOC(b, 1024, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (b == NULL) {
@@ -36574,9 +36575,9 @@ WOLFSSL_TEST_SUBROUTINE int memcb_test(void)
     b = NULL;
 
     /* Use API. */
-    if (wolfSSL_SetAllocators((wolfSSL_Malloc_cb)(void*)&my_Malloc_cb,
-                              (wolfSSL_Free_cb)(void*)&my_Free_cb,
-                              (wolfSSL_Realloc_cb)(void*)&my_Realloc_cb) != 0) {
+    if (wolfSSL_SetAllocators((wolfSSL_Malloc_cb)my_Malloc_cb,
+                              (wolfSSL_Free_cb)my_Free_cb,
+                              (wolfSSL_Realloc_cb)my_Realloc_cb) != 0) {
         ERROR_OUT(-13802, exit_memcb);
     }
 
@@ -36592,7 +36593,7 @@ WOLFSSL_TEST_SUBROUTINE int memcb_test(void)
         ret = -13803;
 #endif /* !WOLFSSL_NO_MALLOC */
 
-#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_LINUXKM)
+#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_STATIC_MEMORY)
 exit_memcb:
 #endif
 
