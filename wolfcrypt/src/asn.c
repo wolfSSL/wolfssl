@@ -7706,7 +7706,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     }
                     if ((ret = wc_DsaPublicKeyDecode(key, &idx, sigCtx->key.dsa,
                                                                  keySz)) != 0) {
-                        WOLFSSL_MSG("ASN Key decode error RSA");
+                        WOLFSSL_MSG("ASN Key decode error DSA");
                         goto exit_cs;
                     }
                     if (sigSz != DSA_SIG_SIZE) {
