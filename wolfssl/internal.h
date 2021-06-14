@@ -4827,7 +4827,7 @@ typedef enum elem_set {
     ELEMENT_PUB = 0x08,
     ELEMENT_PRV = 0x10,
 } Element_Set;
-WOLFSSL_LOCAL int SetDhExternal_ex(WOLFSSL_DH *dh, Element_Set elm );
+WOLFSSL_LOCAL int SetDhExternal_ex(WOLFSSL_DH *dh, int elm );
 WOLFSSL_LOCAL int SetDhInternal(WOLFSSL_DH* dh);
 WOLFSSL_LOCAL int SetDhExternal(WOLFSSL_DH *dh);
 

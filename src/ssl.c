@@ -33404,7 +33404,7 @@ WOLFSSL_DH* wolfSSL_DH_dup(WOLFSSL_DH* dh)
 /* Set the members of DhKey into WOLFSSL_DH
  * Specify elements to set via the 2nd parmeter 
  */
-int SetDhExternal_ex(WOLFSSL_DH *dh, Element_Set elm)
+int SetDhExternal_ex(WOLFSSL_DH *dh, int elm)
 {
     DhKey *key;
     WOLFSSL_MSG("Entering SetDhExternal_ex");
@@ -33460,7 +33460,7 @@ int SetDhExternal_ex(WOLFSSL_DH *dh, Element_Set elm)
  */
 int SetDhExternal(WOLFSSL_DH *dh)
 {
-    Element_Set elements = ELEMENT_P | ELEMENT_G | ELEMENT_PUB | ELEMENT_PRV;
+    int elements = ELEMENT_P | ELEMENT_G | ELEMENT_PUB | ELEMENT_PRV;
     WOLFSSL_MSG("Entering SetDhExternal");
     return SetDhExternal_ex(dh, elements);
 }

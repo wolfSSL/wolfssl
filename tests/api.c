@@ -2607,7 +2607,6 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     char line1[256] = { 0 };
     int i;
 
-    (void)line1;
     printf(testingFmt, "EVP_PKEY_print_public()");
     /* test error cases */
     AssertIntEQ( EVP_PKEY_print_public(NULL,NULL,0,NULL),0L);
@@ -2862,6 +2861,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     (void)wbio;
     (void)rbio;
     (void)line;
+    (void)line1;
     (void)i;
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA */

@@ -7225,9 +7225,10 @@ static int PrintHexWithColon(WOLFSSL_BIO* out, const byte* input,
 
     for (in = 0; in < (word32)inlen && ret == WOLFSSL_SUCCESS; in += 15 ) {
         Indent(out, indent);
-        for (i = 0; i < 15 && in + i < (word32)inlen; i++) {
+        for (i = 0; (i < 15) && (in + i < (word32)inlen); i++) {
             
             if (ret == WOLFSSL_SUCCESS) {
+                outSz = sizeof(outHex);
                 ret = Base16_Encode((const byte*)&data[in + i], 1, 
                                                     outHex, &outSz) == 0;
             }
@@ -7368,7 +7369,6 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     if (wolfSSL_BIO_write(out, line, (int)XSTRLEN(line)) <= 0) {
         return WOLFSSL_FAILURE;
     }
-    idx = 0;
     XMEMSET(buff, 0, sizeof(buff));
     if (mp_tohex(&a, (char*)buff) != 0) {
         return WOLFSSL_FAILURE;
@@ -7530,7 +7530,7 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         XFREE(pub, NULL, DYNAMIC_TYPE_ECC_BUFFER);
         pub = NULL;
     }
-   
+
     return res;
 }
 #endif /* HAVE_ECC */
