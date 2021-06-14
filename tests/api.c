@@ -2190,6 +2190,76 @@ static void test_wolfSSL_SetMinMaxDhKey_Sz(void)
 #endif
 }
 
+static void test_wolfSSL_enable_disable(void)
+{
+#ifndef NO_CERTS
+    WOLFSSL_CTX* ctx;
+    WOLFSSL* ssl = NULL;
+
+  
+  #ifdef HAVE_CRL
+    AssertIntEQ(wolfSSL_DisableCRL(ssl), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_EnableCRL(ssl, 0), BAD_FUNC_ARG);
+  #endif
+
+  #ifdef HAVE_OCSP
+    AssertIntEQ(wolfSSL_DisableOCSP(ssl), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_EnableOCSP(ssl, 0), BAD_FUNC_ARG);
+  #endif
+
+  #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+      defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    AssertIntEQ(wolfSSL_DisableOCSPStapling(ssl), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_EnableOCSPStapling(ssl), BAD_FUNC_ARG);
+  #endif
+
+  #ifndef NO_WOLFSSL_CLIENT
+
+    #ifdef HAVE_EXTENDED_MASTER
+    AssertIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl), BAD_FUNC_ARG);
+    #endif
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    AssertNotNull(ctx);
+    
+    ssl = wolfSSL_new(ctx);
+    AssertNotNull(ssl);
+
+    #ifdef HAVE_EXTENDED_MASTER
+    AssertIntEQ(wolfSSL_DisableExtendedMasterSecret(ssl), WOLFSSL_SUCCESS);
+    #endif
+
+  #elif !defined(NO_WOLFSSL_SERVER)
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    AssertNotNull(ssl = wolfSSL_new(ctx)); 
+  #else
+    return;
+  #endif
+
+  #ifdef HAVE_CRL
+    AssertIntEQ(wolfSSL_DisableCRL(ssl), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_EnableCRL(ssl, 0), WOLFSSL_SUCCESS);
+  #endif
+
+  #ifdef HAVE_OCSP
+    AssertIntEQ(wolfSSL_DisableOCSP(ssl), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_EnableOCSP(ssl, WOLFSSL_OCSP_URL_OVERRIDE),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_EnableOCSP(ssl, WOLFSSL_OCSP_NO_NONCE),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_EnableOCSP(ssl, WOLFSSL_OCSP_CHECKALL),
+                WOLFSSL_SUCCESS);
+  #endif
+
+  #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+      defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    AssertIntEQ(wolfSSL_DisableOCSPStapling(ssl), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_EnableOCSPStapling(ssl), WOLFSSL_SUCCESS);
+  #endif
+    wolfSSL_free(ssl);  
+    wolfSSL_CTX_free(ctx);
+#endif /* NO_CERTS */
+}
+
 
 /* Test function for wolfSSL_SetMinVersion. Sets the minimum downgrade version
  * allowed.
@@ -43531,6 +43601,7 @@ void ApiTest(void)
     test_wolfSSL_SetTmpDH_buffer();
     test_wolfSSL_SetMinMaxDhKey_Sz();
     test_SetTmpEC_DHE_Sz();
+    test_wolfSSL_enable_disable(); 
     test_wolfSSL_dtls_set_mtu();
     test_wolfSSL_DH_get0_pqg();
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
