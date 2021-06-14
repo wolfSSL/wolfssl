@@ -65,6 +65,13 @@
 	#include "fsl_dcp.h"
 #endif
 
+#if defined(WOLFSSL_PSOC6_CRYPTO)
+#include "cy_crypto_core_sha.h"
+#include "cy_device_headers.h"
+#include "cy_crypto_common.h"
+#include "cy_crypto_core.h"
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -93,9 +100,6 @@
 #endif
 #if defined(WOLFSSL_SILABS_SE_ACCEL)
     #include <wolfssl/wolfcrypt/port/silabs/silabs_hash.h>
-#endif
-#if defined(WOLFSSL_PSOC6_CRYPTO)
-   #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
 #endif
 
 #if defined(_MSC_VER)

@@ -13576,6 +13576,7 @@ static void sp_256_mont_sub_5(sp_digit* r, const sp_digit* a, const sp_digit* b,
         const sp_digit* m)
 {
     (void)sp_256_sub_5(r, a, b);
+    sp_256_norm_5(r);
     sp_256_cond_add_5(r, r, m, r[4] >> 48);
     sp_256_norm_5(r);
 }
@@ -20205,6 +20206,7 @@ static void sp_384_mont_sub_7(sp_digit* r, const sp_digit* a, const sp_digit* b,
         const sp_digit* m)
 {
     (void)sp_384_sub_7(r, a, b);
+    sp_384_norm_7(r);
     sp_384_cond_add_7(r, r, m, r[6] >> 54);
     sp_384_norm_7(r);
 }
@@ -27890,6 +27892,7 @@ static void sp_1024_mont_sub_18(sp_digit* r, const sp_digit* a, const sp_digit* 
         const sp_digit* m)
 {
     (void)sp_1024_sub_18(r, a, b);
+    sp_1024_norm_18(r);
     sp_1024_cond_add_18(r, r, m, r[17] >> 55);
     sp_1024_norm_18(r);
 }

@@ -12,10 +12,14 @@
 #endif
 #include <assert.h>
 #include <ctype.h>
+#ifdef HAVE_ERRNO_H
+    #include <errno.h>
+#endif
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/mem_track.h>
+#include <wolfssl/wolfio.h>
 #if defined(SHOW_CERTS) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     #include <wolfssl/wolfcrypt/asn.h> /* for domain component NID value */
@@ -1495,14 +1499,18 @@ static WC_INLINE unsigned int my_psk_server_tls13_cb(WOLFSSL* ssl,
 {
     int i;
     int b = 0x01;
+    int kIdLen = (int)XSTRLEN(kIdentityStr);
     const char* userCipher = (const char*)wolfSSL_get_psk_callback_ctx(ssl);
 
     (void)ssl;
     (void)key_max_len;
 
     /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
-    if (XSTRNCMP(identity, kIdentityStr, XSTRLEN(kIdentityStr)) != 0)
+    if (XSTRNCMP(identity, kIdentityStr, kIdLen) != 0)
         return 0;
+    if (identity[kIdLen] != '\0') {
+        userCipher = wolfSSL_get_cipher_name_by_hash(ssl, identity + kIdLen);
+    }
 
     for (i = 0; i < 32; i++, b += 0x22) {
         if (b >= 0x100)
@@ -1586,6 +1594,31 @@ static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl,
     return 0;
 #endif
 }
+
+static WC_INLINE unsigned int my_psk_client_cs_cb(WOLFSSL* ssl,
+        const char* hint, char* identity, unsigned int id_max_len,
+        unsigned char* key, unsigned int key_max_len, const char* ciphersuite)
+{
+    int i;
+    int b = 0x01;
+
+    (void)ssl;
+    (void)hint;
+    (void)key_max_len;
+
+    /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
+    XSTRNCPY(identity, kIdentityStr, id_max_len);
+    XSTRNCAT(identity, ciphersuite + XSTRLEN(ciphersuite) - 6, id_max_len);
+
+    for (i = 0; i < 32; i++, b += 0x22) {
+        if (b >= 0x100)
+            b = 0x01;
+        key[i] = b;
+    }
+
+    return 32;   /* length of key in octets or 0 for error */
+}
+
 #endif /* !NO_PSK */
 
 
@@ -3084,6 +3117,8 @@ static WC_INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
     return ret;
 }
 
+#endif /* HAVE_ECC */
+
 #ifdef HAVE_ED25519
 static WC_INLINE int myEd25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
         byte* out, word32* outSz, const byte* key, word32 keySz, void* ctx)
@@ -3405,8 +3440,6 @@ static WC_INLINE int myX448SharedSecret(WOLFSSL* ssl, curve448_key* otherKey,
     return ret;
 }
 #endif /* HAVE_CURVE448 */
-
-#endif /* HAVE_ECC */
 
 #ifndef NO_DH
 static WC_INLINE int myDhCallback(WOLFSSL* ssl, struct DhKey* key,
@@ -3895,6 +3928,7 @@ static WC_INLINE void SetupPkCallbackContexts(WOLFSSL* ssl, void* myCtx)
 
 #endif /* HAVE_PK_CALLBACKS */
 
+#ifdef USE_WOLFSSL_IO
 static WC_INLINE int SimulateWantWriteIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
     static int wantWriteFlag = 1;
@@ -3937,6 +3971,7 @@ static WC_INLINE int SimulateWantWriteIOSendCb(WOLFSSL *ssl, char *buf, int sz, 
         return WOLFSSL_CBIO_ERR_WANT_WRITE;
     }
 }
+#endif /* USE_WOLFSSL_IO */
 
 #if defined(__hpux__) || defined(__MINGW32__) || defined (WOLFSSL_TIRTOS) \
                       || defined(_MSC_VER)
