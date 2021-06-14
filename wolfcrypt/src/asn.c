@@ -8871,8 +8871,10 @@ int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
     val = in[inIdx++];
 
     w = XSNPRINTF(out, outSz, "%u.%u", val / 40, val % 40);
-    if (w < 0)
+    if (w < 0) {
+        w = BUFFER_E;
         goto exit;
+    }
     outIdx += w;
     val = 0;
 
@@ -8887,8 +8889,10 @@ int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
             /* write val as text into out */
             val += in[inIdx];
             w = XSNPRINTF(out + outIdx, outSz - outIdx, ".%u", val);
-            if (w < 0 || (word32)w > outSz - outIdx)
+            if (w < 0 || (word32)w > outSz - outIdx) {
+                w = BUFFER_E;
                 goto exit;
+            }
             outIdx += w;
             val = 0;
         }
