@@ -20136,11 +20136,13 @@ WOLFSSL_TEST_SUBROUTINE int pwdbased_test(void)
 
 #endif /* NO_PWDBASED */
 
-#if defined(HAVE_HKDF) && (!defined(NO_SHA) || !defined(NO_SHA256))
+#if defined(HAVE_HKDF) && !defined(NO_HMAC)
 
 /* WOLFSSL_TEST_SUBROUTINE */ static int hkdf_test(void)
 {
-    int ret;
+    int ret = 0;
+
+#if !defined(NO_SHA) || !defined(NO_SHA256)
     int L = 42;
     byte okm1[42];
     byte ikm1[22] = { 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
@@ -20150,6 +20152,7 @@ WOLFSSL_TEST_SUBROUTINE int pwdbased_test(void)
                       0x08, 0x09, 0x0a, 0x0b, 0x0c };
     byte info1[10] ={ 0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
                       0xf8, 0xf9 };
+#ifndef NO_SHA
     byte res1[42] = { 0x0a, 0xc1, 0xaf, 0x70, 0x02, 0xb3, 0xd7, 0x61,
                       0xd1, 0xe5, 0x52, 0x98, 0xda, 0x9d, 0x05, 0x06,
                       0xb9, 0xae, 0x52, 0x05, 0x72, 0x20, 0xa3, 0x06,
@@ -20162,6 +20165,8 @@ WOLFSSL_TEST_SUBROUTINE int pwdbased_test(void)
                       0x68, 0xa9, 0xcd, 0xd4, 0xf1, 0x55, 0xfd, 0xa2,
                       0xc2, 0x2e, 0x42, 0x24, 0x78, 0xd3, 0x05, 0xf3,
                       0xf8, 0x96 };
+#endif
+#ifndef NO_SHA256
     byte res3[42] = { 0x8d, 0xa4, 0xe7, 0x75, 0xa5, 0x63, 0xc1, 0x8f,
                       0x71, 0x5f, 0x80, 0x2a, 0x06, 0x3c, 0x5a, 0x31,
                       0xb8, 0xa1, 0x1f, 0x5c, 0x5e, 0xe1, 0x87, 0x9e,
@@ -20174,13 +20179,7 @@ WOLFSSL_TEST_SUBROUTINE int pwdbased_test(void)
                       0x5d, 0xb0, 0x2d, 0x56, 0xec, 0xc4, 0xc5, 0xbf,
                       0x34, 0x00, 0x72, 0x08, 0xd5, 0xb8, 0x87, 0x18,
                       0x58, 0x65 };
-
-    (void)res1;
-    (void)res2;
-    (void)res3;
-    (void)res4;
-    (void)salt1;
-    (void)info1;
+#endif
 
 #ifndef NO_SHA
     ret = wc_HKDF(WC_SHA, ikm1, 22, NULL, 0, NULL, 0, okm1, L);
@@ -20218,9 +20217,10 @@ WOLFSSL_TEST_SUBROUTINE int pwdbased_test(void)
     if (XMEMCMP(okm1, res4, L) != 0)
         return -9707;
 #endif /* HAVE_FIPS */
-#endif /* NO_SHA256 */
+#endif /* !NO_SHA256 */
+#endif /* !NO_SHA || !NO_SHA256 */
 
-    return 0;
+    return ret;
 }
 
 #endif /* HAVE_HKDF */
