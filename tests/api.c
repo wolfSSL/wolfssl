@@ -3343,7 +3343,7 @@ done:
 
 typedef int (*cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);
 
-static void test_client_nofail(void* args, void *cb)
+static void test_client_nofail(void* args, cbType cb)
 {
     SOCKET_T sockfd = 0;
     callback_functions* cbf;
@@ -3510,7 +3510,7 @@ static void test_client_nofail(void* args, void *cb)
 #endif
 
     if (cb != NULL)
-        ((cbType)cb)(ctx, ssl);
+        (cb)(ctx, ssl);
 
     if (wolfSSL_write(ssl, msg, msgSz) != msgSz) {
         /*err_sys("SSL_write failed");*/
@@ -21188,6 +21188,23 @@ static int test_wc_ecc_shared_secret (void)
     byte        out[KEY16];
     word32      outlen = (word32)sizeof(out);
 
+#if defined(HAVE_ECC) && !defined(NO_ECC256)
+    const char* qx =
+        "bb33ac4c27504ac64aa504c33cde9f36db722dce94ea2bfacb2009392c16e861";
+    const char* qy =
+        "02e9af4dd302939a315b9792217ff0cf18da9111023486e82058330b803489d8";
+    const char* d  =
+        "45b66902739c6c85a1385b72e8e8c7acc4038d533504fa6c28dc348de1a8098c";
+    const char* curveName = "SECP256R1";
+    const byte expected_shared_secret[] =
+        {
+            0x65, 0xc0, 0xd4, 0x61, 0x17, 0xe6, 0x09, 0x75,
+            0xf0, 0x12, 0xa0, 0x4d, 0x0b, 0x41, 0x30, 0x7a,
+            0x51, 0xf0, 0xb3, 0xaf, 0x23, 0x8f, 0x0f, 0xdf,
+            0xf1, 0xff, 0x23, 0x64, 0x28, 0xca, 0xf8, 0x06
+        };
+#endif
+
     /* Initialize variables. */
     XMEMSET(out, 0, keySz);
     XMEMSET(&rng, 0, sizeof(rng));
@@ -21201,12 +21218,22 @@ static int test_wc_ecc_shared_secret (void)
             ret = wc_ecc_init(&pubKey);
         }
     }
+
+#if defined(HAVE_ECC) && !defined(NO_ECC256)
+    if (ret == 0) {
+        ret = wc_ecc_import_raw(&key, qx, qy, d, curveName);
+    }
+    if (ret == 0) {
+        ret = wc_ecc_import_raw(&pubKey, qx, qy, NULL, curveName);
+    }
+#else
     if (ret == 0) {
         ret = wc_ecc_make_key(&rng, keySz, &key);
     }
     if (ret == 0) {
         ret = wc_ecc_make_key(&rng, keySz, &pubKey);
     }
+#endif
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
@@ -21219,6 +21246,15 @@ static int test_wc_ecc_shared_secret (void)
     printf(testingFmt, "wc_ecc_shared_secret()");
     if (ret == 0) {
         ret = wc_ecc_shared_secret(&key, &pubKey, out, &outlen);
+
+#if defined(HAVE_ECC) && !defined(NO_ECC256)
+        if (ret == 0) {
+            if (0 != XMEMCMP(out, expected_shared_secret, outlen)) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
+#endif
+
         /* Test bad args. */
         if (ret == 0) {
             ret = wc_ecc_shared_secret(NULL, &pubKey, out, &outlen);
@@ -21232,6 +21268,12 @@ static int test_wc_ecc_shared_secret (void)
                 ret = wc_ecc_shared_secret(&key, &pubKey, out, NULL);
             }
             if (ret == BAD_FUNC_ARG) {
+                /* Invalid length */
+                outlen = 1;
+                ret = wc_ecc_shared_secret(&key, &pubKey, out, &outlen);
+            }
+
+            if (ret == BUFFER_E) {
                 ret = 0;
             } else if (ret == 0) {
                 ret = WOLFSSL_FATAL_ERROR;
@@ -23932,9 +23974,9 @@ static void test_wc_PKCS7_EncodeSignedData(void)
     PKCS7*      pkcs7;
     WC_RNG      rng;
     byte        output[FOURK_BUF];
-    byte        badOut[0];
+    byte        badOut[1];
     word32      outputSz = (word32)sizeof(output);
-    word32      badOutSz = (word32)sizeof(badOut);
+    word32      badOutSz = 0;
     byte        data[] = "Test data to encode.";
 
 #ifndef NO_RSA
@@ -24413,8 +24455,8 @@ static void test_wc_PKCS7_VerifySignedData(void)
     byte   output[FOURK_BUF];
     word32 outputSz = sizeof(output);
     byte   data[] = "Test data to encode.";
-    byte   badOut[0];
-    word32 badOutSz = (word32)sizeof(badOut);
+    byte   badOut[1];
+    word32 badOutSz = 0;
     byte   badContent[] = "This is different content than was signed";
 
     AssertIntGT((outputSz = CreatePKCS7SignedData(output, outputSz, data,
@@ -29890,7 +29932,7 @@ static void test_wolfSSL_msgCb(void)
 #ifndef SINGLE_THREADED
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
-    test_client_nofail(&client_args, (void *)msgCb);
+    test_client_nofail(&client_args, msgCb);
     join_thread(serverThread);
 #endif
 
@@ -34416,6 +34458,13 @@ static void test_wolfSSL_SHA(void)
 
         /* SHA interface test */
         XMEMSET(out, 0, WC_SHA_DIGEST_SIZE);
+
+        AssertNull(SHA(NULL, XSTRLEN((char*)in), out));
+        AssertNotNull(SHA(in, 0, out));
+        AssertNotNull(SHA(in, XSTRLEN((char*)in), NULL));
+        AssertNotNull(SHA(NULL, 0, out));
+        AssertNotNull(SHA(NULL, 0, NULL));
+
         AssertNotNull(SHA(in, XSTRLEN((char*)in), out));
         AssertIntEQ(XMEMCMP(out, expected, WC_SHA_DIGEST_SIZE), 0);
     }
@@ -34638,6 +34687,16 @@ static void test_wolfSSL_MD5(void)
 
     XMEMSET(&md5, 0, sizeof(md5));
 
+    /* Test cases for illegal parameters */
+    AssertIntEQ(MD5_Init(NULL), 0);
+    AssertIntEQ(MD5_Init(&md5), 1);
+    AssertIntEQ(MD5_Update(NULL, input1, 0), 0);
+    AssertIntEQ(MD5_Update(NULL, NULL, 0), 0);
+    AssertIntEQ(MD5_Update(&md5, NULL, 1), 0);
+    AssertIntEQ(MD5_Final(NULL, &md5), 0);
+    AssertIntEQ(MD5_Final(hash, NULL), 0);
+    AssertIntEQ(MD5_Final(NULL, NULL), 0);
+
     /* Init MD5 CTX */
     AssertIntEQ(wolfSSL_MD5_Init(&md5), 1);
     AssertIntEQ(wolfSSL_MD5_Update(&md5, input1,
@@ -34653,6 +34712,11 @@ static void test_wolfSSL_MD5(void)
     AssertIntEQ(XMEMCMP(&hash, output2, WC_MD5_DIGEST_SIZE), 0);
 #if !defined(NO_OLD_NAMES) && \
   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2)))
+    AssertIntNE(MD5(NULL, 1, (byte*)&hash), 0);
+    AssertIntEQ(MD5(input1, 0, (byte*)&hash), 0);
+    AssertIntNE(MD5(input1, 1, NULL), 0);
+    AssertIntNE(MD5(NULL, 0, NULL), 0);
+
     AssertIntEQ(MD5(input1, (int)XSTRLEN((const char*)&input1), (byte*)&hash), 0);
     AssertIntEQ(XMEMCMP(&hash, output1, WC_MD5_DIGEST_SIZE), 0);
 
@@ -34731,6 +34795,13 @@ static void test_wolfSSL_SHA224(void)
     inLen  = XSTRLEN((char*)input);
 
     XMEMSET(hash, 0, WC_SHA224_DIGEST_SIZE);
+
+    AssertNull(SHA224(NULL, inLen, hash));
+    AssertNotNull(SHA224(input, 0, hash));
+    AssertNotNull(SHA224(input, inLen, NULL));
+    AssertNotNull(SHA224(NULL, 0, hash));
+    AssertNotNull(SHA224(NULL, 0, NULL));
+
     AssertNotNull(SHA224(input, inLen, hash));
     AssertIntEQ(XMEMCMP(hash, output, WC_SHA224_DIGEST_SIZE), 0);
 
@@ -40327,7 +40398,7 @@ static int my_DhCallback(WOLFSSL* ssl, struct DhKey* key,
     (void)ssl;
     /* return 0 on success */
     return wc_DhAgree(key, out, outlen, priv, privSz, pubKeyDer, pubKeySz);
-};
+}
 
 static void test_dh_ctx_setup(WOLFSSL_CTX* ctx) {
     wolfSSL_CTX_SetDhAgreeCb(ctx, my_DhCallback);
@@ -41457,7 +41528,7 @@ static void test_wolfssl_EVP_aes_gcm_zeroLen(void)
     byte iv[]  = {
         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
     }; /* align */
-    byte plaintxt[0];
+    byte plaintxt[1];
     int ivSz  = 12;
     int plaintxtSz = 0;
     unsigned char tag[16];
@@ -41830,9 +41901,9 @@ typedef struct {
 ASN1_SEQUENCE(DPP_BOOTSTRAPPING_KEY) = {
     ASN1_SIMPLE(DPP_BOOTSTRAPPING_KEY, alg, X509_ALGOR),
     ASN1_SIMPLE(DPP_BOOTSTRAPPING_KEY, pub_key, ASN1_BIT_STRING)
-} ASN1_SEQUENCE_END(DPP_BOOTSTRAPPING_KEY);
+} ASN1_SEQUENCE_END(DPP_BOOTSTRAPPING_KEY)
 
-IMPLEMENT_ASN1_FUNCTIONS(DPP_BOOTSTRAPPING_KEY);
+IMPLEMENT_ASN1_FUNCTIONS(DPP_BOOTSTRAPPING_KEY)
 #endif
 
 static void test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS(void)
@@ -42937,7 +43008,7 @@ static void test_export_keying_material(void)
 
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
-    test_client_nofail(&client_args, (void*)test_export_keying_material_cb);
+    test_client_nofail(&client_args, test_export_keying_material_cb);
     join_thread(serverThread);
 
     AssertTrue(client_args.return_code);
@@ -43039,7 +43110,7 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_server_thread(void* args)
     AssertNotNull(ssl);
 
     /* listen and accept */
-    tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0, 0, 1);
+    tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0, 0, 1, 0, 0);
     CloseSocket(sfd);
 
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_set_fd(ssl, cfd));

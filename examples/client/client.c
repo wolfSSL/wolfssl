@@ -273,8 +273,9 @@ static void ShowVersions(void)
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
 #define MAX_GROUP_NUMBER 4
 static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
-                        int useX448)
+                        int useX448, int setGroups)
 {
+    int ret;
     int groups[MAX_GROUP_NUMBER] = {0};
     int count = 0;
 
@@ -283,49 +284,78 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
 
     WOLFSSL_START(WC_FUNC_CLIENT_KEY_EXCHANGE_SEND);
     if (onlyKeyShare == 0 || onlyKeyShare == 2) {
-    #ifdef HAVE_CURVE25519
         if (useX25519) {
-            groups[count++] = WOLFSSL_ECC_X25519;
-            if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519) != WOLFSSL_SUCCESS)
-                err_sys("unable to use curve x25519");
-        }
-        else
+    #ifdef HAVE_CURVE25519
+            do {
+                ret = wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519);
+                if (ret == WOLFSSL_SUCCESS)
+                    groups[count++] = WOLFSSL_ECC_X25519;
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                else if (ret == WC_PENDING_E)
+                    wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+            #endif
+                else
+                    err_sys("unable to use curve x25519");
+            } while (ret == WC_PENDING_E);
     #endif
+        }
+        else if (useX448) {
     #ifdef HAVE_CURVE448
-        if (useX448) {
-            groups[count++] = WOLFSSL_ECC_X448;
-            if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X448) != WOLFSSL_SUCCESS)
-                err_sys("unable to use curve x448");
-        }
-        else
+            do {
+                ret = wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X448);
+                if (ret == WOLFSSL_SUCCESS)
+                    groups[count++] = WOLFSSL_ECC_X448;
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                else if (ret == WC_PENDING_E)
+                    wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+            #endif
+                else
+                    err_sys("unable to use curve x448");
+            } while (ret == WC_PENDING_E);
     #endif
-        {
+        }
+        else {
     #ifdef HAVE_ECC
         #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
-            groups[count++] = WOLFSSL_ECC_SECP256R1;
-            if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP256R1)
-                                                           != WOLFSSL_SUCCESS) {
-                err_sys("unable to use curve secp256r1");
-            }
+            do {
+                ret = wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP256R1);
+                if (ret == WOLFSSL_SUCCESS)
+                    groups[count++] = WOLFSSL_ECC_SECP256R1;
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                else if (ret == WC_PENDING_E)
+                    wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+            #endif
+                else
+                    err_sys("unable to use curve secp256r1");
+            } while (ret == WC_PENDING_E);
         #endif
     #endif
         }
     }
     if (onlyKeyShare == 0 || onlyKeyShare == 1) {
     #ifdef HAVE_FFDHE_2048
-        groups[count++] = WOLFSSL_FFDHE_2048;
-        if (wolfSSL_UseKeyShare(ssl, WOLFSSL_FFDHE_2048) != WOLFSSL_SUCCESS)
-            err_sys("unable to use DH 2048-bit parameters");
+        do {
+            ret = wolfSSL_UseKeyShare(ssl, WOLFSSL_FFDHE_2048);
+            if (ret == WOLFSSL_SUCCESS)
+                groups[count++] = WOLFSSL_FFDHE_2048;
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            else if (ret == WC_PENDING_E)
+                wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+        #endif
+            else
+                err_sys("unable to use DH 2048-bit parameters");
+        } while (ret == WC_PENDING_E);
     #endif
     }
-
     if (count >= MAX_GROUP_NUMBER)
         err_sys("example group array size error");
-    if (wolfSSL_set_groups(ssl, groups, count) != WOLFSSL_SUCCESS)
-        err_sys("unable to set groups");
+    if (setGroups && count > 0) {
+        if (wolfSSL_set_groups(ssl, groups, count) != WOLFSSL_SUCCESS)
+            err_sys("unable to set groups");
+    }
     WOLFSSL_END(WC_FUNC_CLIENT_KEY_EXCHANGE_SEND);
 }
-#endif
+#endif /* WOLFSSL_TLS13 && HAVE_SUPPORTED_CURVES */
 
 #ifdef WOLFSSL_EARLY_DATA
 static void EarlyData(WOLFSSL_CTX* ctx, WOLFSSL* ssl, const char* msg,
@@ -443,7 +473,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
         #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
             else if (version >= 4) {
                 if (!helloRetry)
-                    SetKeyShare(ssl, onlyKeyShare, useX25519, useX448);
+                    SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, 1);
                 else
                     wolfSSL_NoKeyShares(ssl);
             }
@@ -527,7 +557,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 /* Measures throughput in mbps. Throughput = number of bytes */
 static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     int dtlsUDP, int dtlsSCTP, int block, size_t throughput, int useX25519,
-    int useX448, int exitWithRet)
+    int useX448, int exitWithRet, int version, int onlyKeyShare)
 {
     double start, conn_time = 0, tx_time = 0, rx_time = 0;
     SOCKET_T sockfd;
@@ -546,24 +576,13 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
 
     (void)useX25519;
     (void)useX448;
-    #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
-        #ifdef HAVE_CURVE25519
-            if (useX25519) {
-                if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519)
-                        != WOLFSSL_SUCCESS) {
-                    err_sys("unable to use curve x25519");
-                }
-            }
-        #endif
-        #ifdef HAVE_CURVE448
-            if (useX448) {
-                if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X448)
-                        != WOLFSSL_SUCCESS) {
-                    err_sys("unable to use curve x448");
-                }
-            }
-        #endif
-    #endif
+    (void)version;
+    (void)onlyKeyShare;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
+    if (version >= 4) {
+        SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, 1);
+    }
+#endif
 
     do {
         err = 0; /* reset error */
@@ -2778,7 +2797,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (ret < 0) {
         printf("Async device open failed\nRunning without async\n");
     }
-    wolfSSL_CTX_UseAsync(ctx, devId);
+    wolfSSL_CTX_SetDevId(ctx, devId);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifdef HAVE_SNI
@@ -2885,7 +2904,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         ((func_args*)args)->return_code =
             ClientBenchmarkThroughput(ctx, host, port, dtlsUDP, dtlsSCTP,
                                       block, throughput, useX25519, useX448,
-                                      exitWithRet);
+                                      exitWithRet, version, onlyKeyShare);
         wolfSSL_CTX_free(ctx); ctx = NULL;
         if (!exitWithRet)
             XEXIT_T(EXIT_SUCCESS);
@@ -3002,43 +3021,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
     if (!helloRetry && version >= 4) {
-    #if defined(WOLFSSL_TLS13) && (!defined(NO_DH) || defined(HAVE_ECC) || \
-                             defined(HAVE_CURVE25519) || defined(HAVE_CURVE448))
-        if (onlyKeyShare == 0 || onlyKeyShare == 2) {
-        #ifdef HAVE_CURVE25519
-            if (useX25519) {
-                if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519)
-                                                           != WOLFSSL_SUCCESS) {
-                    err_sys("unable to use curve x25519");
-                }
-            }
-        #endif
-        #ifdef HAVE_CURVE448
-            if (useX448) {
-                if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X448)
-                                                           != WOLFSSL_SUCCESS) {
-                    err_sys("unable to use curve x448");
-                }
-            }
-        #endif
-        #ifdef HAVE_ECC
-            #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
-            if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP256R1)
-                                                           != WOLFSSL_SUCCESS) {
-                err_sys("unable to use curve secp256r1");
-            }
-            #endif
-        #endif
-        }
-        if (onlyKeyShare == 0 || onlyKeyShare == 1) {
-        #ifdef HAVE_FFDHE_2048
-            if (wolfSSL_UseKeyShare(ssl, WOLFSSL_FFDHE_2048)
-                                                           != WOLFSSL_SUCCESS) {
-                err_sys("unable to use DH 2048-bit parameters");
-            }
-        #endif
-        }
-    #endif
+        SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, 0);
     }
     else {
         wolfSSL_NoKeyShares(ssl);
@@ -3379,7 +3362,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         if (bio != NULL) {
             if (wolfSSL_SESSION_print(bio, wolfSSL_get_session(ssl)) !=
                     WOLFSSL_SUCCESS) {
-                wolfSSL_BIO_printf(bio, "ERROR: Unable to print out session\n");
+                wolfSSL_BIO_printf(bio, "BIO error printing session\n");
             }
         }
         wolfSSL_BIO_free(bio);

@@ -109,7 +109,7 @@ static word32 cpu_flags_set = 0;
 
     #elif defined(__GNUC__)
         #if defined(__SIZEOF_INT128__)
-            typedef unsigned __int128 word128;
+            PEDANTIC_EXTENSION typedef unsigned __int128 word128;
         #else
             typedef unsigned word128 __attribute__((mode(TI)));
         #endif

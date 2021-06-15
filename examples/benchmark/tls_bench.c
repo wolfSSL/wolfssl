@@ -127,7 +127,7 @@ bench_tls(args);
 static const char* kShutdown = "shutdown";
 
 #ifndef NO_WOLFSSL_CLIENT
-static const char* kTestStr =
+PEDANTIC_EXTENSION static const char* kTestStr =
 "Biodiesel cupidatat marfa, cliche aute put a bird on it incididunt elit\n"
 "polaroid. Sunt tattooed bespoke reprehenderit. Sint twee organic id\n"
 "marfa. Commodo veniam ad esse gastropub. 3 wolf moon sartorial vero,\n"

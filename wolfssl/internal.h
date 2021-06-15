@@ -2627,17 +2627,23 @@ typedef struct KeyShareEntry {
     word16                group;     /* NamedGroup               */
     byte*                 ke;        /* Key exchange data        */
     word32                keLen;     /* Key exchange data length */
-    void*                 key;       /* Private key              */
-    word32                keyLen;    /* Private key length       */
+    void*                 key;       /* Key struct               */
+    word32                keyLen;    /* Key size (bytes)         */
     byte*                 pubKey;    /* Public key               */
     word32                pubKeyLen; /* Public key length        */
+#ifndef NO_DH
+    byte*                 privKey;   /* Private key - DH only    */
+#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    int                   lastRet;
+#endif
     struct KeyShareEntry* next;      /* List pointer             */
 } KeyShareEntry;
 
 WOLFSSL_LOCAL int TLSX_KeyShare_Use(WOLFSSL* ssl, word16 group, word16 len,
                                     byte* data, KeyShareEntry **kse);
 WOLFSSL_LOCAL int TLSX_KeyShare_Empty(WOLFSSL* ssl);
-WOLFSSL_LOCAL int TLSX_KeyShare_Establish(WOLFSSL* ssl);
+WOLFSSL_LOCAL int TLSX_KeyShare_Establish(WOLFSSL* ssl, int* doHelloRetry);
 WOLFSSL_LOCAL int TLSX_KeyShare_DeriveSecret(WOLFSSL* ssl);
 
 
@@ -2963,6 +2969,10 @@ struct WOLFSSL_CTX {
     #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
         SessionTicketEncCb ticketEncCb;   /* enc/dec session ticket Cb */
         void*              ticketEncCtx;  /* session encrypt context */
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
+          || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
+        ticketCompatCb     ticketEncWrapCb; /* callback for OpenSSL ticket key callback */
+        #endif
         int                ticketHint;    /* ticket hint in seconds */
         #ifndef WOLFSSL_NO_DEF_TICKET_ENC_CB
             TicketEncCbCtx ticketKeyCtx;
@@ -4822,14 +4832,15 @@ WOLFSSL_LOCAL int SetRsaInternal(WOLFSSL_RSA* rsa);
 WOLFSSL_LOCAL int SetDhInternal(WOLFSSL_DH* dh);
 WOLFSSL_LOCAL int SetDhExternal(WOLFSSL_DH *dh);
 
-#ifndef NO_DH
+#if !defined(NO_DH) && (!defined(NO_CERTS) || !defined(NO_PSK))
     WOLFSSL_LOCAL int DhGenKeyPair(WOLFSSL* ssl, DhKey* dhKey,
         byte* priv, word32* privSz,
         byte* pub, word32* pubSz);
     WOLFSSL_LOCAL int DhAgree(WOLFSSL* ssl, DhKey* dhKey,
         const byte* priv, word32 privSz,
         const byte* otherPub, word32 otherPubSz,
-        byte* agree, word32* agreeSz);
+        byte* agree, word32* agreeSz,
+        const byte* prime, word32 primeSz);
 #endif /* !NO_DH */
 
 #ifdef HAVE_ECC

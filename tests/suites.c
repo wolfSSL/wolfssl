@@ -809,7 +809,7 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
-    wolfSSL_CTX_UseAsync(cipherSuiteCtx, devId);
+    wolfSSL_CTX_SetDevId(cipherSuiteCtx, devId);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
     /* support for custom command line tests */

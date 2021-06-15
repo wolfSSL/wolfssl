@@ -1552,7 +1552,7 @@ const char* wc_ecc_get_name(int curve_id)
 
 int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id)
 {
-    if (keysize <= 0 && curve_id < 0) {
+    if (key == NULL || (keysize <= 0 && curve_id < 0)) {
         return BAD_FUNC_ARG;
     }
 
@@ -6818,6 +6818,7 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 }
 #endif /* !NO_ASN */
 
+#if !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_PSOC6_CRYPTO)
 static int wc_ecc_check_r_s_range(ecc_key* key, mp_int* r, mp_int* s)
 {
     int err = MP_OKAY;
@@ -6846,6 +6847,8 @@ static int wc_ecc_check_r_s_range(ecc_key* key, mp_int* r, mp_int* s)
     FREE_CURVE_SPECS();
     return err;
 }
+#endif /* !WOLFSSL_STM32_PKA && !WOLFSSL_PSOC6_CRYPTO */
+
 
 /**
    Verify an ECC signature
