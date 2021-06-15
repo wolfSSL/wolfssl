@@ -4417,15 +4417,14 @@ int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer)
     /* get key size */
     if (peer == NULL || peer->dp == NULL) {
         keySz = ssl->eccTempKeySz;
+        /* get curve type */
+        if (ssl->ecdhCurveOID > 0) {
+            ecc_curve = wc_ecc_get_oid(ssl->ecdhCurveOID, NULL, NULL);
+        }
     }
     else {
         keySz = peer->dp->size;
         ecc_curve = peer->dp->id;
-    }
-
-    /* get curve type */
-    if (ssl->ecdhCurveOID > 0) {
-        ecc_curve = wc_ecc_get_oid(ssl->ecdhCurveOID, NULL, NULL);
     }
 
 #ifdef HAVE_PK_CALLBACKS
@@ -4765,6 +4764,8 @@ static int X25519MakeKey(WOLFSSL* ssl, curve25519_key* key,
 }
 #endif /* HAVE_CURVE25519 */
 
+#endif /* !WOLFSSL_NO_TLS12 */
+
 #ifdef HAVE_ED448
 /* Check whether the key contains a public key.
  * If not then pull it out of the leaf certificate.
@@ -4933,6 +4934,8 @@ int Ed448Verify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
 }
 #endif /* HAVE_ED448 */
 
+#ifndef WOLFSSL_NO_TLS12
+
 #ifdef HAVE_CURVE448
 #ifdef HAVE_PK_CALLBACKS
     /* Gets X448 key for shared secret callback testing
@@ -5067,6 +5070,8 @@ static int X448MakeKey(WOLFSSL* ssl, curve448_key* key, curve448_key* peer)
 }
 #endif /* HAVE_CURVE448 */
 
+#endif /* !WOLFSSL_NO_TLS12 */
+
 #if !defined(NO_CERTS) || !defined(NO_PSK)
 #if !defined(NO_DH)
 
@@ -5102,7 +5107,8 @@ int DhGenKeyPair(WOLFSSL* ssl, DhKey* dhKey,
 int DhAgree(WOLFSSL* ssl, DhKey* dhKey,
     const byte* priv, word32 privSz,
     const byte* otherPub, word32 otherPubSz,
-    byte* agree, word32* agreeSz)
+    byte* agree, word32* agreeSz,
+    const byte* prime, word32 primeSz)
 {
     int ret;
 
@@ -5129,9 +5135,18 @@ int DhAgree(WOLFSSL* ssl, DhKey* dhKey,
 #endif
     {
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-        ret = wc_DhCheckPubValue(ssl->buffers.serverDH_P.buffer,
-                    ssl->buffers.serverDH_P.length, otherPub, otherPubSz);
+        /* check the public key has valid number */
+        if (dhKey != NULL && (prime == NULL || primeSz == 0)) {
+            /* wc_DhCheckPubKey does not do exponentiation */
+            ret = wc_DhCheckPubKey(dhKey, otherPub, otherPubSz);
+        }
+        else {
+            ret = wc_DhCheckPubValue(prime, primeSz, otherPub, otherPubSz);
+        }
         if (ret != 0) {
+            /* translate to valid error (wc_DhCheckPubValue returns MP_VAL -1) */
+            ret = PEER_KEY_ERROR;
+
     #ifdef OPENSSL_EXTRA
             SendAlert(ssl, alert_fatal, illegal_parameter);
     #endif
@@ -5153,12 +5168,13 @@ int DhAgree(WOLFSSL* ssl, DhKey* dhKey,
 
     WOLFSSL_LEAVE("DhAgree", ret);
 
+    (void)prime;
+    (void)primeSz;
+
     return ret;
 }
 #endif /* !NO_DH */
 #endif /* !NO_CERTS || !NO_PSK */
-
-#endif /* !WOLFSSL_NO_TLS12 */
 
 
 #ifdef HAVE_PK_CALLBACKS
@@ -8179,7 +8195,7 @@ static void AddFragHeaders(byte* output, word32 fragSz, word32 fragOffset,
 #endif /* NO_CERTS */
 
 /**
- * Send the handshake message. This funcion handles fragmenting the message
+ * Send the handshake message. This function handles fragmenting the message
  * so that it will fit into the desired MTU or the max fragment size.
  * @param ssl     Connection object
  * @param input   Input starting at the record layer header. This function
@@ -24643,7 +24659,9 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         ssl->buffers.serverDH_Pub.buffer,
                         ssl->buffers.serverDH_Pub.length,
                         ssl->arrays->preMasterSecret,
-                        &ssl->arrays->preMasterSz);
+                        &ssl->arrays->preMasterSz,
+                        ssl->buffers.serverDH_P.buffer,
+                        ssl->buffers.serverDH_P.length);
                     break;
                 }
             #endif /* !NO_DH */
@@ -24661,7 +24679,9 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         ssl->buffers.serverDH_Pub.buffer,
                         ssl->buffers.serverDH_Pub.length,
                         ssl->arrays->preMasterSecret + OPAQUE16_LEN,
-                        &ssl->arrays->preMasterSz);
+                        &ssl->arrays->preMasterSz,
+                        ssl->buffers.serverDH_P.buffer,
+                        ssl->buffers.serverDH_P.length);
                     break;
                 }
             #endif /* !NO_DH && !NO_PSK */
@@ -27649,7 +27669,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #endif /* !WOLFSSL_NO_TLS12 */
 
-    /* Make sure server cert/key are valid for this suite, true on success */
+    /* Make sure server cert/key are valid for this suite, true on success
+     * Returns 1 for valid server suite or 0 if not found
+     * For asynchronous this can return WC_PENDING_E
+     */
     static int VerifyServerSuite(WOLFSSL* ssl, word16 idx)
     {
         int  haveRSA = !ssl->options.haveStaticECC;
@@ -27772,13 +27795,20 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (IsAtLeastTLSv1_3(ssl->version) &&
                                       ssl->options.side == WOLFSSL_SERVER_END) {
     #ifdef HAVE_SUPPORTED_CURVES
+            int doHelloRetry = 0;
             /* Try to establish a key share. */
-            int ret = TLSX_KeyShare_Establish(ssl);
-            if (ret == KEY_SHARE_ERROR)
+            int ret = TLSX_KeyShare_Establish(ssl, &doHelloRetry);
+            if (doHelloRetry) {
                 ssl->options.serverState = SERVER_HELLO_RETRY_REQUEST_COMPLETE;
-            else if (ret != 0)
-                return 0;
-    #endif
+            }
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (ret == WC_PENDING_E)
+                return ret;
+        #endif
+            if (!doHelloRetry && ret != 0) {
+                return 0; /* not found */
+            }
+    #endif /* HAVE_SUPPORTED_CURVES */
         }
         else if (first == TLS13_BYTE || (first == ECC_BYTE &&
                 (second == TLS_SHA256_SHA256 || second == TLS_SHA384_SHA384))) {
@@ -27786,7 +27816,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
              * version. */
             return 0;
         }
-#endif
+#endif /* WOLFSSL_TLS13 */
 
         return 1;
     }
@@ -27798,17 +27828,21 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ssl->suites->suites[i]   == peerSuites->suites[j] &&
             ssl->suites->suites[i+1] == peerSuites->suites[j+1] ) {
 
-            if (VerifyServerSuite(ssl, i)) {
-                int result;
+            int ret = VerifyServerSuite(ssl, i);
+            #ifdef WOLFSSL_ASYNC_CRYPT
+            if (ret == WC_PENDING_E)
+                return ret;
+            #endif
+            if (ret) {
                 WOLFSSL_MSG("Verified suite validity");
                 ssl->options.cipherSuite0 = ssl->suites->suites[i];
                 ssl->options.cipherSuite  = ssl->suites->suites[i+1];
-                result = SetCipherSpecs(ssl);
-                if (result == 0) {
-                    result = PickHashSigAlgo(ssl, peerSuites->hashSigAlgo,
+                ret = SetCipherSpecs(ssl);
+                if (ret == 0) {
+                    ret = PickHashSigAlgo(ssl, peerSuites->hashSigAlgo,
                                                      peerSuites->hashSigAlgoSz);
                 }
-                return result;
+                return ret;
             }
             else {
                 WOLFSSL_MSG("Could not verify suite validity, continue");
@@ -31209,7 +31243,9 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                             input + args->idx,
                             (word16)args->sigSz,
                             ssl->arrays->preMasterSecret,
-                            &ssl->arrays->preMasterSz);
+                            &ssl->arrays->preMasterSz,
+                            ssl->buffers.serverDH_P.buffer,
+                            ssl->buffers.serverDH_P.length);
                         break;
                     }
                 #endif /* !NO_DH */
@@ -31222,7 +31258,9 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                             input + args->idx,
                             (word16)args->sigSz,
                             ssl->arrays->preMasterSecret + OPAQUE16_LEN,
-                            &ssl->arrays->preMasterSz);
+                            &ssl->arrays->preMasterSz,
+                            ssl->buffers.serverDH_P.buffer,
+                            ssl->buffers.serverDH_P.length);
                         break;
                     }
                 #endif /* !NO_DH && !NO_PSK */

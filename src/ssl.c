@@ -548,7 +548,6 @@ WOLFSSL* wolfSSL_new(WOLFSSL_CTX* ctx)
     WOLFSSL* ssl = NULL;
     int ret = 0;
 
-    (void)ret;
     WOLFSSL_ENTER("SSL_new");
 
     if (ctx == NULL)
@@ -562,6 +561,8 @@ WOLFSSL* wolfSSL_new(WOLFSSL_CTX* ctx)
         }
 
     WOLFSSL_LEAVE("SSL_new", ret);
+    (void)ret;
+
     return ssl;
 }
 
@@ -52972,10 +52973,10 @@ int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str,
         }
         str_len++;
         if (flags & ASN1_STRFLGS_DUMP_DER){
-            hex_tmp[0] = hex_char[str->type >> 4];
-            hex_tmp[1] = hex_char[str->type & 0xf];
-            hex_tmp[2] = hex_char[str->length >> 4];
-            hex_tmp[3] = hex_char[str->length & 0xf];
+            hex_tmp[0] = hex_char[(str->type & 0xf0) >> 4];
+            hex_tmp[1] = hex_char[(str->type & 0x0f)];
+            hex_tmp[2] = hex_char[(str->length & 0xf0) >> 4];
+            hex_tmp[3] = hex_char[(str->length & 0x0f)];
             if (wolfSSL_BIO_write(out, hex_tmp, 4) != 4){
                 goto err_exit;
             }
@@ -54625,8 +54626,10 @@ error:
     XFREE(section, NULL, DYNAMIC_TYPE_PKCS7);
     if (canonSection != NULL)
         XFREE(canonSection, NULL, DYNAMIC_TYPE_PKCS7);
-    wolfSSL_BIO_free(*bcont);
-    *bcont = NULL; /* reset 'bcount' pointer to NULL on failure */
+    if (bcont) {
+        wolfSSL_BIO_free(*bcont);
+        *bcont = NULL; /* reset 'bcount' pointer to NULL on failure */
+    }
 
     return NULL;
 }
