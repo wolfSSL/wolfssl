@@ -161,11 +161,11 @@ start_openssl_server() {
 
         if [ "$cert_file" != "" ]
         then
-            echo "# " $OPENSSL s_server -accept $server_port $OPENSSL_ENGINE_ID -cert $cert_file -key $key_file  -quiet -CAfile $ca_file -www -dhparam ${CERT_DIR}/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe
-            $OPENSSL s_server -accept $server_port $OPENSSL_ENGINE_ID -cert $cert_file -key $key_file  -quiet -CAfile $ca_file -www -dhparam ${CERT_DIR}/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe &
+            echo "# " $OPENSSL s_server -accept $server_port $OPENSSL_ENGINE_ID -cert \"$cert_file\" -key \"$key_file\"  -quiet -CAfile \"$ca_file\" -www -dhparam \"${CERT_DIR}/dh2048.pem\" -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe
+            $OPENSSL s_server -accept $server_port $OPENSSL_ENGINE_ID -cert "$cert_file" -key "$key_file"  -quiet -CAfile "$ca_file" -www -dhparam "${CERT_DIR}/dh2048.pem" -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe &
         else
-            echo "# " $OPENSSL s_server -accept $server_port $OPENSSL_ENGINE_ID -quiet -nocert -www -dhparam ${CERT_DIR}/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe
-            $OPENSSL s_server -accept $server_port $OPENSSL_ENGINE_ID -quiet -nocert -www -dhparam ${CERT_DIR}/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe &
+            echo "# " $OPENSSL s_server -accept $server_port $OPENSSL_ENGINE_ID -quiet -nocert -www -dhparam \"${CERT_DIR}/dh2048.pem\" -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe
+            $OPENSSL s_server -accept $server_port $OPENSSL_ENGINE_ID -quiet -nocert -www -dhparam "${CERT_DIR}/dh2048.pem" -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe &
         fi
         server_pid=$!
         # wait to see if s_server successfully starts before continuing
@@ -229,8 +229,8 @@ start_wolfssl_server() {
         echo -e "\n# Trying to start $wolfssl_suite wolfSSL server on port $server_port..."
 
         echo "#"
-        echo "# $WOLFSSL_SERVER -p $server_port $wolfssl_cert $wolfssl_key $wolfssl_caCert -g -v d -x -i $psk $crl -l ALL"
-        $WOLFSSL_SERVER -p $server_port $wolfssl_cert $wolfssl_key $wolfssl_caCert -g -v d -x -i $psk $crl -l ALL &
+        echo "# $WOLFSSL_SERVER -p $server_port -g -v d -x -i $psk $crl -l ALL \"$wolfssl_cert\" \"$wolfssl_key\" \"$wolfssl_caCert\""
+        $WOLFSSL_SERVER -p $server_port -g -v d -x -i $psk $crl -l ALL "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" &
         server_pid=$!
         # wait to see if server successfully starts before continuing
         sleep 0.1
@@ -316,13 +316,13 @@ do_wolfssl_client() {
     if [ "$version" != "5" -a "$version" != "" ]
     then
         echo "#"
-        echo "# $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite -v $version $psk $adh $wolfssl_cert $wolfssl_key $wolfssl_caCert $crl"
-        $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite -v $version $psk $adh $wolfssl_cert $wolfssl_key $wolfssl_caCert $crl
+        echo "# $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite -v $version $psk $adh "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" $crl"
+        $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite -v $version $psk $adh "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" $crl
     else
         echo "#"
-        echo "# $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite $psk $adh $wolfssl_cert $wolfssl_key $wolfssl_caCert $crl"
+        echo "# $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite $psk $adh "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" $crl"
         # do all versions
-        $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite $psk $adh $wolfssl_cert $wolfssl_key $wolfssl_caCert $crl
+        $WOLFSSL_CLIENT -p $port -g $wolfssl_resume -l $wolfSuite $psk $adh "$wolfssl_cert" "$wolfssl_key" "$wolfssl_caCert" $crl
     fi
 
     client_result=$?
@@ -370,12 +370,12 @@ do_openssl_client() {
     if [ "$tls13_cipher" = "" ]
     then
         echo "#"
-        echo "# $OPENSSL s_client -connect localhost:$port -reconnect -cipher $cmpSuite $openssl_version $openssl_psk $openssl_cert1 $openssl_cert2 $openssl_key1 $openssl_key2 $openssl_caCert1 $openssl_caCert2"
-        echo "Hello" | eval "$OPENSSL s_client -connect localhost:$port -reconnect -cipher $cmpSuite $openssl_version $openssl_psk $openssl_cert1 $openssl_cert2 $openssl_key1 $openssl_key2 $openssl_caCert1 $openssl_caCert2"
+        echo "# $OPENSSL s_client -connect localhost:$port -reconnect -cipher $cmpSuite $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
+        echo "Hello" | eval "$OPENSSL s_client -connect localhost:$port -reconnect -cipher $cmpSuite $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
     else
         echo "#"
-        echo "# $OPENSSL s_client -connect localhost:$port -reconnect -ciphersuites=$cmpSuite $openssl_version $openssl_psk $openssl_cert1 $openssl_cert2 $openssl_key1 $openssl_key2 $openssl_caCert1 $openssl_caCert2"
-        echo "Hello" | eval "$OPENSSL s_client -connect localhost:$port -reconnect -ciphersuites=$cmpSuite $openssl_version $openssl_psk $openssl_cert1 $openssl_cert2 $openssl_key1 $openssl_key2 $openssl_caCert1 $openssl_caCert2"
+        echo "# $OPENSSL s_client -connect localhost:$port -reconnect -ciphersuites=$cmpSuite $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
+        echo "Hello" | eval "$OPENSSL s_client -connect localhost:$port -reconnect -ciphersuites=$cmpSuite $openssl_version $openssl_psk $openssl_cert1 \"$openssl_cert2\" $openssl_key1 \"$openssl_key2\" $openssl_caCert1 \"$openssl_caCert2\""
     fi
 
     client_result=$?
@@ -407,7 +407,7 @@ command -v $OPENSSL >/dev/null 2>&1 || { echo >&2 "Requires openssl command, but
 
 echo -e "\nTesting for _build directory as part of distcheck, different paths"
 currentDir=`pwd`
-if [ $currentDir = *"_build" ]
+if [ "$currentDir" = *"_build" ]
 then
     echo -e "_build directory detected, moving a directory back"
     cd ..
@@ -479,7 +479,7 @@ esac
 if [ "$wolf_certs" != "" ]
 then
     # Check if ECC certificates supported in wolfSSL
-    wolf_ecc=`$WOLFSSL_CLIENT -A ${CERT_DIR}/ed25519/ca-ecc-cert.pem 2>&1`
+    wolf_ecc=`$WOLFSSL_CLIENT -A "${CERT_DIR}/ed25519/ca-ecc-cert.pem" 2>&1`
     case $wolf_ecc in
     *"ca file"*)
         wolf_ecc=""
@@ -488,7 +488,7 @@ then
         ;;
     esac
     # Check if Ed25519 certificates supported in wolfSSL
-    wolf_ed25519=`$WOLFSSL_CLIENT -A ${CERT_DIR}/ed25519/root-ed25519.pem 2>&1`
+    wolf_ed25519=`$WOLFSSL_CLIENT -A "${CERT_DIR}/ed25519/root-ed25519.pem" 2>&1`
     case $wolf_ed25519 in
     *"ca file"*)
         wolf_ed25519=""
@@ -497,7 +497,7 @@ then
         ;;
     esac
     # Check if Ed25519 certificates supported in OpenSSL
-    openssl_ed25519=`$OPENSSL s_client -cert ${CERT_DIR}/ed25519/client-ed25519.pem -key ${CERT_DIR}/ed25519/client-ed25519-priv.pem 2>&1`
+    openssl_ed25519=`$OPENSSL s_client -cert "${CERT_DIR}/ed25519/client-ed25519.pem" -key "${CERT_DIR}/ed25519/client-ed25519-priv.pem" 2>&1`
     case $openssl_ed25519 in
     *"unable to load"*)
         wolf_ed25519=""
@@ -506,7 +506,7 @@ then
         ;;
     esac
     # Check if Ed448 certificates supported in wolfSSL
-    wolf_ed448=`$WOLFSSL_CLIENT -A ${CERT_DIR}/ed448/root-ed448.pem 2>&1`
+    wolf_ed448=`$WOLFSSL_CLIENT -A "${CERT_DIR}/ed448/root-ed448.pem" 2>&1`
     case $wolf_ed448 in
     *"ca file"*)
         wolf_ed448=""
@@ -515,7 +515,7 @@ then
         ;;
     esac
     # Check if Ed448 certificates supported in OpenSSL
-    openssl_ed448=`$OPENSSL s_client -cert ${CERT_DIR}/ed448/client-ed448.pem -key ${CERT_DIR}/ed448/client-ed448-priv.pem 2>&1`
+    openssl_ed448=`$OPENSSL s_client -cert "${CERT_DIR}/ed448/client-ed448.pem" -key "${CERT_DIR}/ed448/client-ed448-priv.pem" 2>&1`
     case $openssl_ed448 in
     *"unable to load"*)
         wolf_ed448=""
@@ -757,7 +757,7 @@ do
 
         # double check that can actually do a sslv3 connection using
         # client-cert.pem to send but any file with EOF works
-        $OPENSSL s_client -ssl3 -no_ign_eof -host localhost -port $openssl_port < ${CERT_DIR}/client-cert.pem
+        $OPENSSL s_client -ssl3 -no_ign_eof -host localhost -port $openssl_port < "${CERT_DIR}/client-cert.pem"
         sslv3_sup=$?
         if [ $sslv3_sup != 0 ]
         then

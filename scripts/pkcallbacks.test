@@ -27,9 +27,9 @@ server_pid=$no_pid
 ready_file=`pwd`/wolfssl_pk_ready$$
 
 remove_ready_file() {
-    if test -e $ready_file; then
+    if test -e "$ready_file"; then
         echo -e "removing existing ready file"
-        rm $ready_file
+        rm "$ready_file"
     fi
 }
 
@@ -79,16 +79,16 @@ run_test() {
     # starts the server on pk_port, -R generates ready file to be used as a
     # mutex lock, -P does pkcallbacks. We capture the processid
     # into the variable server_pid
-    ./examples/server/server -P -R $ready_file -p $pk_port &
+    ./examples/server/server -P -R "$ready_file" -p $pk_port &
     server_pid=$!
 
-    while [ ! -s $ready_file -a "$counter" -lt 20 ]; do
+    while [ ! -s "$ready_file" -a "$counter" -lt 20 ]; do
         echo -e "waiting for ready file..."
         sleep 0.1
         counter=$((counter+ 1))
     done
 
-    if test -e $ready_file; then
+    if test -e "$ready_file"; then
         echo -e "found ready file, starting client..."
     else
         echo -e "NO ready file ending test..."
@@ -99,7 +99,7 @@ run_test() {
     sleep 0.1
 
     # get created port 0 ephemeral port
-    pk_port=`cat $ready_file`
+    pk_port=`cat "$ready_file"`
 
     # starts client on pk_port with pkcallbacks, captures the output from client
     capture_out=$(./examples/client/client -P -p $pk_port 2>&1)
