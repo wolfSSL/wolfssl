@@ -1655,6 +1655,11 @@ WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_EVP(WOLFSSL_EVP_PKEY** key,
         unsigned char** in, long inSz);
 WOLFSSL_API int wolfSSL_i2d_PrivateKey(const WOLFSSL_EVP_PKEY* key,
         unsigned char** der);
+#if defined(OPENSSL_EXTRA)
+WOLFSSL_API int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
+                                    const WOLFSSL_EVP_PKEY* pkey,
+                                    int indent, WOLFSSL_ASN1_PCTX* pctx);
+#endif /* OPENSSL_EXTRA */
 WOLFSSL_API int       wolfSSL_X509_cmp_current_time(const WOLFSSL_ASN1_TIME*);
 #ifdef OPENSSL_EXTRA
 WOLFSSL_API int wolfSSL_X509_cmp_time(const WOLFSSL_ASN1_TIME* asnTime,

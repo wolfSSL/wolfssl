@@ -8067,6 +8067,76 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
     #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
     #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
 
+    #if !defined(NO_DH) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_DH_EXTRA)
+    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+            (HAVE_FIPS_VERSION > 2))
+    {
+        DhKey   dh;
+        word32  keyIdx = 0;
+        DhKey*  key = NULL;
+        int ret;
+        Element_Set elements;
+        /* test if DH-public key */
+        if (wc_InitDhKey(&dh) != 0)
+            return NULL;
+
+        ret = wc_DhPublicKeyDecode(mem, &keyIdx, &dh, (word32)memSz);
+        wc_FreeDhKey(&dh);
+
+        if (ret == 0) {
+            pkey = wolfSSL_EVP_PKEY_new();
+            if (pkey != NULL) {
+                pkey->type     = EVP_PKEY_DH;
+                pkey->pkey_sz  = (int)memSz;
+                pkey->pkey.ptr = (char*)XMALLOC(memSz, NULL,
+                    DYNAMIC_TYPE_PUBLIC_KEY);
+                if (pkey->pkey.ptr == NULL) {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    return NULL;
+                }
+                XMEMCPY(pkey->pkey.ptr, mem, memSz);
+                if (out != NULL) {
+                    *out = pkey;
+                }
+                pkey->ownDh = 1;
+                pkey->dh = wolfSSL_DH_new();
+                if (pkey->dh == NULL) {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    return NULL;
+                }
+
+                key = (DhKey*)pkey->dh->internal;
+
+                keyIdx = 0;
+                if (wc_DhPublicKeyDecode(mem, &keyIdx, key, (word32)memSz) == 0)
+                {
+                    elements = ELEMENT_P | ELEMENT_G | ELEMENT_Q | ELEMENT_PUB;
+                    if( SetDhExternal_ex(pkey->dh, elements)
+                                                         == WOLFSSL_SUCCESS ){
+                        return pkey;
+                    }
+                    /*
+                    if (SetIndividualExternal(&(pkey->dh->p), &key->p)
+                        == WOLFSSL_SUCCESS &&
+                        SetIndividualExternal(&(pkey->dh->g), &key->g)
+                        == WOLFSSL_SUCCESS &&
+                        SetIndividualExternal(&(pkey->dh->q), &key->q)
+                        == WOLFSSL_SUCCESS &&
+                        SetIndividualExternal(&(pkey->dh->pub_key), &key->pub)
+                        == WOLFSSL_SUCCESS) {
+                        return pkey;
+                    } */
+                }
+                else {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    return NULL;
+                }
+            }
+        }
+    }
+    #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
+    #endif /* !NO_DH &&  OPENSSL_EXTRA && WOLFSSL_DH_EXTRA */
+
     if (pkey == NULL) {
         WOLFSSL_MSG("wolfSSL_d2i_PUBKEY couldn't determine key type");
     }
@@ -33291,7 +33361,7 @@ int SetDhInternal(WOLFSSL_DH* dh)
 }
 
 #if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) \
-    || defined(WOLFSSL_OPENSSH))
+    || defined(WOLFSSL_OPENSSH)) || defined(OPENSSL_EXTRA)
 
 #ifdef WOLFSSL_DH_EXTRA
 WOLFSSL_DH* wolfSSL_DH_dup(WOLFSSL_DH* dh)
@@ -33333,12 +33403,12 @@ WOLFSSL_DH* wolfSSL_DH_dup(WOLFSSL_DH* dh)
 #endif /* WOLFSSL_DH_EXTRA */
 
 /* Set the members of DhKey into WOLFSSL_DH
- * DhKey was populated from wc_DhKeyDecode
+ * Specify elements to set via the 2nd parmeter 
  */
-int SetDhExternal(WOLFSSL_DH *dh)
+int SetDhExternal_ex(WOLFSSL_DH *dh, int elm)
 {
     DhKey *key;
-    WOLFSSL_MSG("Entering SetDhExternal");
+    WOLFSSL_MSG("Entering SetDhExternal_ex");
 
     if (dh == NULL || dh->internal == NULL) {
         WOLFSSL_MSG("dh key NULL error");
@@ -33347,31 +33417,53 @@ int SetDhExternal(WOLFSSL_DH *dh)
 
     key = (DhKey*)dh->internal;
 
-    if (SetIndividualExternal(&dh->p, &key->p) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("dh param p error");
-        return WOLFSSL_FATAL_ERROR;
+    if (elm & ELEMENT_P) {
+        if (SetIndividualExternal(&dh->p, &key->p) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("dh param p error");
+            return WOLFSSL_FATAL_ERROR;
+        }
     }
-
-    if (SetIndividualExternal(&dh->g, &key->g) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("dh param g error");
-        return WOLFSSL_FATAL_ERROR;
+    if (elm & ELEMENT_Q) {
+        if (SetIndividualExternal(&dh->q, &key->q) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("dh param q error");
+            return WOLFSSL_FATAL_ERROR;
+        }
     }
-
+    if (elm & ELEMENT_G) {
+        if (SetIndividualExternal(&dh->g, &key->g) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("dh param g error");
+            return WOLFSSL_FATAL_ERROR;
+        }
+    }
 #ifdef WOLFSSL_DH_EXTRA
-    if (SetIndividualExternal(&dh->priv_key, &key->priv) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("No DH Private Key");
-        return WOLFSSL_FATAL_ERROR;
+    if (elm & ELEMENT_PRV) {
+        if (SetIndividualExternal(&dh->priv_key, &key->priv) != 
+                                                      WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("No DH Private Key");
+            return WOLFSSL_FATAL_ERROR;
+        }
     }
-
-    if (SetIndividualExternal(&dh->pub_key, &key->pub) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("No DH Public Key");
-        return WOLFSSL_FATAL_ERROR;
+    if (elm & ELEMENT_PUB) {
+        if (SetIndividualExternal(&dh->pub_key, &key->pub) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("No DH Public Key");
+            return WOLFSSL_FATAL_ERROR;
+        }
     }
 #endif /* WOLFSSL_DH_EXTRA */
 
     dh->exSet = 1;
 
     return WOLFSSL_SUCCESS;
+}
+/* Set the members of DhKey into WOLFSSL_DH
+ * DhKey was populated from wc_DhKeyDecode
+ * p, g, pub_key and pri_key are set.
+ */
+int SetDhExternal(WOLFSSL_DH *dh)
+{
+    int elements = ELEMENT_P | ELEMENT_G | ELEMENT_PUB | ELEMENT_PRV;
+    WOLFSSL_MSG("Entering SetDhExternal");
+    return SetDhExternal_ex(dh, elements);
 }
 #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
 

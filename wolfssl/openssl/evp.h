@@ -373,6 +373,11 @@ struct WOLFSSL_EVP_PKEY_CTX {
     int nbits;
 };
 
+typedef
+struct WOLFSSL_ASN1_PCTX {
+    int dummy;
+} WOLFSSL_ASN1_PCTX;
+
 typedef int WOLFSSL_ENGINE  ;
 typedef WOLFSSL_ENGINE ENGINE;
 typedef WOLFSSL_EVP_PKEY_CTX EVP_PKEY_CTX;
@@ -381,6 +386,8 @@ typedef WOLFSSL_EVP_PKEY_CTX EVP_PKEY_CTX;
 #define EVP_PKEY_OP_ENCRYPT (1 << 6)
 #define EVP_PKEY_OP_DECRYPT (1 << 7)
 #define EVP_PKEY_OP_DERIVE  (1 << 8)
+
+#define EVP_PKEY_PRINT_INDENT_MAX    128
 
 WOLFSSL_API void wolfSSL_EVP_init(void);
 WOLFSSL_API int  wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* md);
@@ -673,6 +680,7 @@ typedef WOLFSSL_EVP_MD         EVP_MD;
 typedef WOLFSSL_EVP_CIPHER     EVP_CIPHER;
 typedef WOLFSSL_EVP_MD_CTX     EVP_MD_CTX;
 typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
+typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
 
 #ifndef NO_MD4
     #define EVP_md4       wolfSSL_EVP_md4
@@ -907,6 +915,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_CTRL_GCM_SET_TAG           EVP_CTRL_AEAD_SET_TAG
 #define EVP_CTRL_GCM_SET_IV_FIXED      EVP_CTRL_AEAD_SET_IV_FIXED
 
+#define EVP_PKEY_print_public           wolfSSL_EVP_PKEY_print_public
 #define EVP_PKEY_print_private(arg1, arg2, arg3, arg4)
 
 #ifndef EVP_MAX_MD_SIZE

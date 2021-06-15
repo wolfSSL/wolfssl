@@ -2596,6 +2596,277 @@ static void test_ED448(void)
  | EVP
  *----------------------------------------------------------------------------*/
 
+static void test_wolfSSL_EVP_PKEY_print_public(void)
+{
+#if defined(OPENSSL_EXTRA)
+
+    WOLFSSL_BIO* rbio = NULL;
+    WOLFSSL_BIO* wbio = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    char line[256] = { 0 };
+    char line1[256] = { 0 };
+    int i;
+
+    printf(testingFmt, "EVP_PKEY_print_public()");
+    /* test error cases */
+    AssertIntEQ( EVP_PKEY_print_public(NULL,NULL,0,NULL),0L);
+
+    /*
+     *  test RSA public key print
+     *  in this test, pass '3' for indent
+     */
+#if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_1024)
+
+    rbio = BIO_new_mem_buf( client_keypub_der_1024,
+                            sizeof_client_keypub_der_1024);
+    AssertNotNull(rbio);
+
+    wolfSSL_d2i_PUBKEY_bio(rbio, &pkey);
+    AssertNotNull(pkey);
+
+    wbio = BIO_new(BIO_s_mem());
+    AssertNotNull(wbio);
+
+    AssertIntEQ(EVP_PKEY_print_public(wbio, pkey,3,NULL),1);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "   RSA Public-Key: (1024 bit)\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "   Modulus:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "       00:BC:73:0E:A8:49:F3:74:A2:A9:EF:18:A5:DA:55:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+
+    /* skip to the end of modulus element*/
+    for( i = 0; i < 8 ;i++) {
+        BIO_gets(wbio, line, sizeof(line));
+    }
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "   Exponent: 65537 (0x010001)\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+
+    /* should reach EOF */
+    AssertIntLE(BIO_gets(wbio, line, sizeof(line)) ,0);
+
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(rbio);
+    BIO_free(wbio);
+    rbio = NULL;
+    wbio = NULL;
+
+#endif  /* !NO_RSA && USE_CERT_BUFFERS_1024*/
+
+    /*
+     *  test DSA public key print
+     */
+#if !defined(NO_DSA) && defined(USE_CERT_BUFFERS_2048)
+    rbio = BIO_new_mem_buf( dsa_pub_key_der_2048,
+                            sizeof_dsa_pub_key_der_2048);
+    AssertNotNull(rbio);
+
+    wolfSSL_d2i_PUBKEY_bio(rbio, &pkey);
+    AssertNotNull(pkey);
+
+    wbio = BIO_new(BIO_s_mem());
+    AssertNotNull(wbio);
+
+    AssertIntEQ(EVP_PKEY_print_public(wbio, pkey,0,NULL),1);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "DSA Public-Key: (2048 bit)\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "pub:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1,
+        "    00:C2:35:2D:EC:83:83:6C:73:13:9E:52:7C:74:C8:\n"); 
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    /* skip to the end of pub element*/
+    for( i = 0; i < 17 ;i++) {
+        BIO_gets(wbio, line, sizeof(line));
+    }
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "P:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    /* skip to the end of P element*/
+    for( i = 0; i < 18 ;i++) {
+        BIO_gets(wbio, line, sizeof(line));
+    }
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "Q:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    /* skip to the end of Q element*/
+    for( i = 0; i < 3 ;i++) {
+        BIO_gets(wbio, line, sizeof(line));
+    }
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "G:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    /* skip to the end of G element*/
+    for( i = 0; i < 18 ;i++) {
+        BIO_gets(wbio, line, sizeof(line));
+    }
+    /* should reach EOF */
+    AssertIntLE(BIO_gets(wbio, line, sizeof(line)) ,0);
+
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(rbio);
+    BIO_free(wbio);
+    rbio = NULL;
+    wbio = NULL;
+
+#endif /* !NO_DSA && USE_CERT_BUFFERS_2048 */
+
+    /*
+     *  test ECC public key print
+     */
+#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+
+    rbio = BIO_new_mem_buf( ecc_clikeypub_der_256,
+                            sizeof_ecc_clikeypub_der_256);
+    AssertNotNull(rbio);
+
+    wolfSSL_d2i_PUBKEY_bio(rbio, &pkey);
+    AssertNotNull(pkey);
+
+    wbio = BIO_new(BIO_s_mem());
+    AssertNotNull(wbio);
+
+    AssertIntEQ(EVP_PKEY_print_public(wbio, pkey,0,NULL),1);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "Public-Key: (256 bit)\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "pub:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1,
+            "    04:55:BF:F4:0F:44:50:9A:3D:CE:9B:B7:F0:C5:4D:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    /* skip to the end of pub element*/
+    for( i = 0; i < 4 ;i++) {
+        BIO_gets(wbio, line, sizeof(line));
+    }
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "ASN1 OID: prime256v1\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "NIST CURVE: P-256\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+
+    /* should reach EOF */
+    AssertIntLE(BIO_gets(wbio, line, sizeof(line)) ,0);
+
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(rbio);
+    BIO_free(wbio);
+    rbio = NULL;
+    wbio = NULL;
+
+#endif /* HAVE_ECC && USE_CERT_BUFFERS_256 */
+
+    /*
+     *  test DH public key print
+     */
+#if defined(WOLFSSL_DH_EXTRA) && defined(USE_CERT_BUFFERS_2048)
+
+    rbio = BIO_new_mem_buf( dh_pub_key_der_2048,
+                            sizeof_dh_pub_key_der_2048);
+    AssertNotNull(rbio);
+
+    wolfSSL_d2i_PUBKEY_bio(rbio, &pkey);
+    AssertNotNull(pkey);
+
+    wbio = BIO_new(BIO_s_mem());
+    AssertNotNull(wbio);
+
+    AssertIntEQ(EVP_PKEY_print_public(wbio, pkey,0,NULL),1);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "DH Public-Key: (2048 bit)\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "public-key:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1,
+        "    34:41:BF:E9:F2:11:BF:05:DB:B2:72:A8:29:CC:BD:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    /* skip to the end of public-key element*/
+    for( i = 0; i < 17 ;i++) {
+        BIO_gets(wbio, line, sizeof(line));
+    }
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "prime:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1,
+        "    00:D3:B2:99:84:5C:0A:4C:E7:37:CC:FC:18:37:01:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    /* skip to the end of prime element*/
+    for( i = 0; i < 17 ;i++) {
+        BIO_gets(wbio, line, sizeof(line));
+    }
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "generator: 2 (0x02)\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    /* should reach EOF */
+    AssertIntLE(BIO_gets(wbio, line, sizeof(line)) ,0);
+
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(rbio);
+    BIO_free(wbio);
+    rbio = NULL;
+    wbio = NULL;
+
+#endif /* WOLFSSL_DH_EXTRA && USE_CERT_BUFFERS_2048 */
+
+    /* to prevent "unused variable" warning */
+    (void)pkey;
+    (void)wbio;
+    (void)rbio;
+    (void)line;
+    (void)line1;
+    (void)i;
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA */
+}
+
 /* Test function for wolfSSL_EVP_get_cipherbynid.
  */
 
@@ -23104,6 +23375,45 @@ static int test_wc_EccPrivateKeyToDer (void)
 }/* End test_wc_EccPrivateKeyToDer*/
 
 /*
+ * Testing wc_DhPublicKeyDecode
+ */
+static int test_wc_DhPublicKeyDecode(void)
+{
+    int ret = 0;
+    word32 inOutIdx;
+
+#if defined(WOLFSSL_DH_EXTRA) && defined(USE_CERT_BUFFERS_2048)
+    DhKey  key;
+    AssertIntEQ(wc_InitDhKey(&key), 0);
+    printf(testingFmt, "wc_DhPublicKeyDecode()");
+
+    AssertIntEQ(wc_DhPublicKeyDecode(NULL,NULL,NULL,0),
+                                                        BAD_FUNC_ARG);
+    AssertIntEQ(wc_DhPublicKeyDecode(dh_pub_key_der_2048,NULL,NULL,0),
+                                                        BAD_FUNC_ARG);
+    AssertIntEQ(wc_DhPublicKeyDecode(dh_pub_key_der_2048,NULL,NULL,0),
+                                                        BAD_FUNC_ARG);
+    inOutIdx = 0;
+    AssertIntEQ(wc_DhPublicKeyDecode(dh_pub_key_der_2048,&inOutIdx,NULL, 0),
+                                                        BAD_FUNC_ARG);
+    inOutIdx = 0;
+    AssertIntEQ(wc_DhPublicKeyDecode(dh_pub_key_der_2048,&inOutIdx,&key, 0),
+                                                        BAD_FUNC_ARG);
+    inOutIdx = 0;
+    AssertIntEQ(wc_DhPublicKeyDecode(dh_pub_key_der_2048,&inOutIdx,&key,
+                                            sizeof_dh_pub_key_der_2048), 0);
+    AssertTrue(key.p.used != 0 && key.g.used != 0 && key.q.used == 0 &&
+              key.pub.used != 0 && key.priv.used == 0);
+
+    wc_FreeDhKey(&key);
+    printf(resultFmt, passed);
+
+#endif
+    (void)inOutIdx;
+    return ret;
+}
+
+/*
  * Testing wc_Ed25519KeyToDer
  */
 static int test_wc_Ed25519KeyToDer (void)
@@ -33684,6 +33994,26 @@ static void test_wolfSSL_d2i_PUBKEY(void)
     EVP_PKEY_free(pkey);
 #endif
 
+#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_DSA)
+    /* DSA PUBKEY test */
+    AssertIntGT(BIO_write(bio, dsa_pub_key_der_2048,
+                sizeof_dsa_pub_key_der_2048), 0);
+    AssertNotNull(pkey = d2i_PUBKEY_bio(bio, NULL));
+    EVP_PKEY_free(pkey);
+#endif
+
+#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_DH) && \
+defined(OPENSSL_EXTRA) && defined(WOLFSSL_DH_EXTRA)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+            (HAVE_FIPS_VERSION > 2))
+    /* DH PUBKEY test */
+    AssertIntGT(BIO_write(bio, dh_pub_key_der_2048,
+                sizeof_dh_pub_key_der_2048), 0);
+    AssertNotNull(pkey = d2i_PUBKEY_bio(bio, NULL));
+    EVP_PKEY_free(pkey);
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
+#endif /*  USE_CERT_BUFFERS_2048 && !NO_DH &&  && OPENSSL_EXTRA */
+
     BIO_free(bio);
 
     (void)pkey;
@@ -43968,6 +44298,7 @@ void ApiTest(void)
     test_wolfSSL_EVP_MD_hmac_signing();
     test_wolfSSL_EVP_MD_rsa_signing();
     test_wolfSSL_EVP_MD_ecc_signing();
+    test_wolfSSL_EVP_PKEY_print_public();
     test_wolfSSL_CTX_add_extra_chain_cert();
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     test_wolfSSL_ERR_peek_last_error_line();
@@ -44576,6 +44907,7 @@ void ApiTest(void)
 
     AssertIntEQ(test_ToTraditional(), 0);
     AssertIntEQ(test_wc_EccPrivateKeyToDer(), 0);
+    AssertIntEQ(test_wc_DhPublicKeyDecode(), 0);
     AssertIntEQ(test_wc_Ed25519KeyToDer(), 0);
     AssertIntEQ(test_wc_Ed25519PrivateKeyToDer(), 0);
     AssertIntEQ(test_wc_Ed448KeyToDer(), 0);
