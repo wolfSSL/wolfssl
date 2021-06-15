@@ -148,6 +148,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define CRYPTO_EX_free                  WOLFSSL_CRYPTO_EX_free
 #define CRYPTO_EX_DATA                  WOLFSSL_CRYPTO_EX_DATA
 
+#define CRYPTO_set_mem_functions        wolfSSL_CRYPTO_set_mem_functions
+
 /* depreciated */
 #define CRYPTO_thread_id                wolfSSL_thread_id
 #define CRYPTO_set_id_callback          wolfSSL_set_id_callback
@@ -305,6 +307,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_pending                     wolfSSL_pending
 #define SSL_load_error_strings          wolfSSL_load_error_strings
 #define SSL_library_init                wolfSSL_library_init
+#define OPENSSL_cleanup                 (void)wolfSSL_Cleanup
 #define OPENSSL_init_ssl                wolfSSL_OPENSSL_init_ssl
 #define OpenSSL_add_ssl_algorithms      wolfSSL_library_init
 #define SSL_CTX_set_session_cache_mode  wolfSSL_CTX_set_session_cache_mode

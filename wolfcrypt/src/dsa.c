@@ -104,6 +104,9 @@ static int CheckDsaLN(int modLen, int divLen)
     int ret = -1;
 
     switch (modLen) {
+#ifdef WOLFSSL_DSA_768_MODULUS
+        case 768:
+#endif
         case 1024:
             if (divLen == 160)
                 ret = 0;
@@ -237,6 +240,9 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
      * FIPS 186-4 defines valid values (1024, 160) (2048, 256) (3072, 256)
      */
     switch (modulus_size) {
+#ifdef WOLFSSL_DSA_768_MODULUS
+        case 768:
+#endif
         case 1024:
             qsize = 20;
             break;
