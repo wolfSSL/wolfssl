@@ -628,6 +628,72 @@ int wc_CryptoCb_Sha256Hash(wc_Sha256* sha256, const byte* in,
 }
 #endif /* !NO_SHA256 */
 
+#ifdef WOLFSSL_SHA384
+int wc_CryptoCb_Sha384Hash(wc_Sha384* sha384, const byte* in,
+    word32 inSz, byte* digest)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    if (sha384) {
+        dev = wc_CryptoCb_FindDevice(sha384->devId);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_HASH;
+        cryptoInfo.hash.type = WC_HASH_TYPE_SHA384;
+        cryptoInfo.hash.sha384 = sha384;
+        cryptoInfo.hash.in = in;
+        cryptoInfo.hash.inSz = inSz;
+        cryptoInfo.hash.digest = digest;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* WOLFSSL_SHA384 */
+
+#ifdef WOLFSSL_SHA512
+int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
+    word32 inSz, byte* digest)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    if (sha512) {
+        dev = wc_CryptoCb_FindDevice(sha512->devId);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_HASH;
+        cryptoInfo.hash.type = WC_HASH_TYPE_SHA512;
+        cryptoInfo.hash.sha512 = sha512;
+        cryptoInfo.hash.in = in;
+        cryptoInfo.hash.inSz = inSz;
+        cryptoInfo.hash.digest = digest;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* WOLFSSL_SHA512 */
+
 #ifndef NO_HMAC
 int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in, word32 inSz,
     byte* digest)

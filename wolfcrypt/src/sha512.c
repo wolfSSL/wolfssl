@@ -45,6 +45,10 @@
 #include <wolfssl/wolfcrypt/cpuid.h>
 #include <wolfssl/wolfcrypt/hash.h>
 
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
 /* deprecated USE_SLOW_SHA2 (replaced with USE_SLOW_SHA512) */
 #if defined(USE_SLOW_SHA2) && !defined(USE_SLOW_SHA512)
     #define USE_SLOW_SHA512
@@ -429,6 +433,10 @@ int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     sha512->W = NULL;
 #endif
+#ifdef WOLF_CRYPTO_CB
+    sha512->devId = devId;
+    sha512->devCtx = NULL;
+#endif
 
     ret = InitSha512(sha512);
     if (ret != 0)
@@ -734,6 +742,14 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    if (sha512->devId != INVALID_DEVID) {
+        int ret = wc_CryptoCb_Sha512Hash(sha512, data, len, NULL);
+        if (ret != CRYPTOCB_UNAVAILABLE)
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
     if (sha512->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA512) {
     #if defined(HAVE_INTEL_QA)
@@ -877,7 +893,14 @@ int wc_Sha512Final(wc_Sha512* sha512, byte* hash)
     if (sha512 == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
-
+#ifdef WOLF_CRYPTO_CB
+    if (sha512->devId != INVALID_DEVID) {
+        ret = wc_CryptoCb_Sha512Hash(sha512, NULL, 0, hash);
+        if (ret != CRYPTOCB_UNAVAILABLE)
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
     if (sha512->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA512) {
     #if defined(HAVE_INTEL_QA)
@@ -1032,6 +1055,14 @@ int wc_Sha384Update(wc_Sha384* sha384, const byte* data, word32 len)
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    if (sha384->devId != INVALID_DEVID) {
+        int ret = wc_CryptoCb_Sha384Hash(sha384, data, len, NULL);
+        if (ret != CRYPTOCB_UNAVAILABLE)
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA384)
     if (sha384->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA384) {
     #if defined(HAVE_INTEL_QA)
@@ -1073,6 +1104,14 @@ int wc_Sha384Final(wc_Sha384* sha384, byte* hash)
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    if (sha384->devId != INVALID_DEVID) {
+        ret = wc_CryptoCb_Sha384Hash(sha384, NULL, 0, hash);
+        if (ret != CRYPTOCB_UNAVAILABLE)
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA384)
     if (sha384->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA384) {
     #if defined(HAVE_INTEL_QA)
@@ -1102,6 +1141,10 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
     sha384->heap = heap;
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     sha384->W = NULL;
+#endif
+#ifdef WOLF_CRYPTO_CB
+    sha384->devId = devId;
+    sha384->devCtx = NULL;
 #endif
 
     ret = InitSha384(sha384);

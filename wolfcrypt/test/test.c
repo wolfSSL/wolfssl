@@ -36960,7 +36960,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif /* !NO_DES3 */
 #endif /* !NO_AES || !NO_DES3 */
     }
-#if !defined(NO_SHA) || !defined(NO_SHA256)
+#if !defined(NO_SHA) || !defined(NO_SHA256) || \
+    defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
     else if (info->algo_type == WC_ALGO_TYPE_HASH) {
     #if !defined(NO_SHA)
         if (info->hash.type == WC_HASH_TYPE_SHA) {
@@ -37009,6 +37010,56 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
             /* reset devId */
             info->hash.sha256->devId = devIdArg;
+        }
+        else
+    #endif
+    #ifdef WOLFSSL_SHA384
+        if (info->hash.type == WC_HASH_TYPE_SHA384) {
+            if (info->hash.sha384 == NULL)
+                return NOT_COMPILED_IN;
+
+            /* set devId to invalid, so software is used */
+            info->hash.sha384->devId = INVALID_DEVID;
+
+            if (info->hash.in != NULL) {
+                ret = wc_Sha384Update(
+                    info->hash.sha384,
+                    info->hash.in,
+                    info->hash.inSz);
+            }
+            if (info->hash.digest != NULL) {
+                ret = wc_Sha384Final(
+                    info->hash.sha384,
+                    info->hash.digest);
+            }
+
+            /* reset devId */
+            info->hash.sha384->devId = devIdArg;
+        }
+        else
+    #endif
+    #ifdef WOLFSSL_SHA512
+        if (info->hash.type == WC_HASH_TYPE_SHA512) {
+            if (info->hash.sha512 == NULL)
+                return NOT_COMPILED_IN;
+
+            /* set devId to invalid, so software is used */
+            info->hash.sha512->devId = INVALID_DEVID;
+
+            if (info->hash.in != NULL) {
+                ret = wc_Sha512Update(
+                    info->hash.sha512,
+                    info->hash.in,
+                    info->hash.inSz);
+            }
+            if (info->hash.digest != NULL) {
+                ret = wc_Sha512Final(
+                    info->hash.sha512,
+                    info->hash.digest);
+            }
+
+            /* reset devId */
+            info->hash.sha512->devId = devIdArg;
         }
         else
     #endif
@@ -37085,15 +37136,21 @@ WOLFSSL_TEST_SUBROUTINE int cryptocb_test(void)
     if (ret == 0)
         ret = des3_test();
 #endif /* !NO_DES3 */
-#if !defined(NO_SHA) || !defined(NO_SHA256)
-    #ifndef NO_SHA
+#ifndef NO_SHA
     if (ret == 0)
         ret = sha_test();
-    #endif
-    #ifndef NO_SHA256
+#endif
+#ifndef NO_SHA256
     if (ret == 0)
         ret = sha256_test();
-    #endif
+#endif
+#ifdef WOLFSSL_SHA384
+    if (ret == 0)
+        ret = sha384_test();
+#endif
+#ifdef WOLFSSL_SHA512
+    if (ret == 0)
+        ret = sha512_test();
 #endif
 #ifndef NO_HMAC
     #ifndef NO_SHA
