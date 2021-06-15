@@ -2464,6 +2464,27 @@ extern void uITRON4_free(void *p) ;
     #undef WOLFSSL_DH_EXTRA
 #endif
 
+/* Check for insecure build combination:
+ * secure renegotiation   [enabled]
+ * extended master secret [disabled]
+ * session resumption     [enabled]
+ */
+#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(HAVE_EXTENDED_MASTER) && \
+    (defined(HAVE_SESSION_TICKET) || !defined(NO_SESSION_CACHE))
+    /* secure renegotiation requires extended master secret with resumption */
+    #ifndef _MSC_VER
+        #warning Extended master secret must be enabled with secure renegotiation and session resumption
+    #else
+        #pragma message("Warning: Extended master secret must be enabled with secure renegotiation and session resumption")
+    #endif
+
+    /* Note: "--enable-renegotiation-indication" ("HAVE_RENEGOTIATION_INDICATION")
+     * only sends the secure renegotiation extension, but is not actually supported. 
+     * This was added because some TLS peers required it even if not used, so we call 
+     * this "(FAKE Secure Renegotiation)"
+     */
+#endif
+
 
 #ifdef __cplusplus
     }   /* extern "C" */
