@@ -3976,6 +3976,10 @@ WOLFSSL_API WOLFSSL_X509 *wolfSSL_X509_to_X509_REQ(WOLFSSL_X509 *x,
 
 #include <wolfssl/openssl/crypto.h>
 
+WOLFSSL_API int wolfSSL_CRYPTO_set_mem_functions(
+        wolfSSL_Malloc_cb  m,
+        wolfSSL_Realloc_cb r,
+        wolfSSL_Free_cb    f);
 WOLFSSL_API int wolfSSL_CRYPTO_set_mem_ex_functions(void *(*m) (size_t, const char *, int),
     void *(*r) (void *, size_t, const char *, int), void (*f) (void *));
 

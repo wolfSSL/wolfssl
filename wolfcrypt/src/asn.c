@@ -16128,7 +16128,7 @@ int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
 }
 #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || !defined(NO_DSA)
 
 /* Der Encode r & s ints into out, outLen is (in/out) size */
 int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r, mp_int* s)
@@ -16293,9 +16293,7 @@ int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, byte* r, word32* rLen,
 
     return ret;
 }
-#endif
 
-#if defined(HAVE_ECC) || !defined(NO_DSA)
 int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
 {
     word32 idx = 0;

@@ -35954,7 +35954,10 @@ static void test_wolfSSL_RSA_meth(void)
     AssertIntEQ(RSA_flags(rsa), RSA_METHOD_FLAG_NO_CHECK);
     RSA_set_flags(rsa, RSA_FLAG_CACHE_PUBLIC);
     AssertIntNE(RSA_test_flags(rsa, RSA_FLAG_CACHE_PUBLIC), 0);
-    AssertIntEQ(RSA_flags(rsa), RSA_FLAG_CACHE_PUBLIC);
+    AssertIntEQ(RSA_flags(rsa), RSA_FLAG_CACHE_PUBLIC | RSA_METHOD_FLAG_NO_CHECK);
+    RSA_clear_flags(rsa, RSA_FLAG_CACHE_PUBLIC);
+    AssertIntEQ(RSA_test_flags(rsa, RSA_FLAG_CACHE_PUBLIC), 0);
+    AssertIntNE(RSA_flags(rsa), RSA_FLAG_CACHE_PUBLIC);
 
     /* rsa_meth is freed here */
     RSA_free(rsa);
@@ -38199,6 +38202,50 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_DSA(void)
     EVP_PKEY_free(set1Pkey);
 #endif /* !NO_DSA && !HAVE_SELFTEST && WOLFSSL_KEY_GEN */
 } /* END test_EVP_PKEY_set1_get1_DSA */
+
+static void test_wolfSSL_DSA_SIG(void)
+{
+#if !defined (NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)
+    DSA          *dsa  = NULL;
+    DSA          *dsa2 = NULL;
+    DSA_SIG      *sig  = NULL;
+    const BIGNUM *p    = NULL;
+    const BIGNUM *q    = NULL;
+    const BIGNUM *g    = NULL;
+    const BIGNUM *pub  = NULL;
+    const BIGNUM *priv = NULL;
+    const byte digest[WC_SHA_DIGEST_SIZE] = {0};
+
+    printf(testingFmt, "wolfSSL_DSA_SIG");
+
+    AssertNotNull(dsa = DSA_generate_parameters(2048,
+            NULL, 0, NULL, NULL, NULL, NULL));
+    DSA_free(dsa);
+    AssertNotNull(dsa = DSA_new());
+    AssertIntEQ(DSA_generate_parameters_ex(dsa, 2048,
+            NULL, 0, NULL, NULL, NULL), 1);
+    AssertIntEQ(DSA_generate_key(dsa), 1);
+    DSA_get0_pqg(dsa, &p, &q, &g);
+    DSA_get0_key(dsa, &pub, &priv);
+    AssertNotNull(p    = BN_dup(p));
+    AssertNotNull(q    = BN_dup(q));
+    AssertNotNull(g    = BN_dup(g));
+    AssertNotNull(pub  = BN_dup(pub));
+    AssertNotNull(priv = BN_dup(priv));
+
+    AssertNotNull(sig = DSA_do_sign(digest, sizeof(digest), dsa));
+    AssertNotNull(dsa2 = DSA_new());
+    AssertIntEQ(DSA_set0_pqg(dsa2, (BIGNUM*)p, (BIGNUM*)q, (BIGNUM*)g), 1);
+    AssertIntEQ(DSA_set0_key(dsa2, (BIGNUM*)pub, (BIGNUM*)priv), 1);
+    AssertIntEQ(DSA_do_verify(digest, sizeof(digest), sig, dsa2), 1);
+
+    printf(resultFmt, passed);
+
+    DSA_free(dsa);
+    DSA_free(dsa2);
+    DSA_SIG_free(sig);
+#endif
+}
 
 static void test_wolfSSL_EVP_PKEY_set1_get1_EC_KEY (void)
 {
@@ -46325,6 +46372,7 @@ void ApiTest(void)
     test_wolfSSL_ASN1_UNIVERSALSTRING_to_string();
     test_wolfSSL_EC_KEY_dup();
     test_wolfSSL_EVP_PKEY_set1_get1_DSA();
+    test_wolfSSL_DSA_SIG();
     test_wolfSSL_EVP_PKEY_set1_get1_EC_KEY();
     test_wolfSSL_EVP_PKEY_set1_get1_DH();
     test_wolfSSL_CTX_ctrl();

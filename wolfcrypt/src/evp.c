@@ -1938,6 +1938,11 @@ int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
         return (int)wolfSSL_RSA_size((const WOLFSSL_RSA*)(pkey->rsa));
 #endif /* !NO_RSA */
 
+#ifndef NO_DSA
+    case EVP_PKEY_DSA:
+        return DSA_SIG_SIZE;
+#endif
+
 #ifdef HAVE_ECC
     case EVP_PKEY_EC:
         if (pkey->ecc == NULL || pkey->ecc->internal == NULL) {
@@ -2381,29 +2386,44 @@ int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
     unsigned int mdsize;
     unsigned char md[WC_MAX_DIGEST_SIZE];
     int ret;
-    if (ctx == NULL) return WOLFSSL_FAILURE;
-    WOLFSSL_ENTER("EVP_SignFinal");
-
-    ret = wolfSSL_EVP_DigestFinal(ctx, md, &mdsize);
-    if (ret <= 0) return ret;
-
     (void)sigret;
     (void)siglen;
+
+    WOLFSSL_ENTER("EVP_SignFinal");
+    if (ctx == NULL)
+        return WOLFSSL_FAILURE;
+
+    ret = wolfSSL_EVP_DigestFinal(ctx, md, &mdsize);
+    if (ret <= 0)
+        return ret;
 
     switch (pkey->type) {
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     case EVP_PKEY_RSA: {
         int nid;
-        const WOLFSSL_EVP_MD *ctxmd = wolfSSL_EVP_MD_CTX_md(ctx);
-        if (ctxmd == NULL) break;
+        const WOLFSSL_EVP_MD *ctxmd;
+
+        ctxmd = wolfSSL_EVP_MD_CTX_md(ctx);
+        if (ctxmd == NULL)
+            return WOLFSSL_FAILURE;
+
         nid = wolfSSL_EVP_MD_type(ctxmd);
-        if (nid < 0) break;
+        if (nid < 0)
+            return WOLFSSL_FAILURE;
         return wolfSSL_RSA_sign(nid, md, mdsize, sigret,
                                 siglen, pkey->rsa);
     }
 #endif /* NO_RSA */
-
+#ifndef NO_DSA
     case EVP_PKEY_DSA:
+        if (wolfSSL_DSA_do_sign(md, sigret, pkey->dsa) == WOLFSSL_SUCCESS) {
+            *siglen = DSA_SIG_SIZE;
+            return WOLFSSL_SUCCESS;
+        }
+        else {
+            return WOLFSSL_FAILURE;
+        }
+#endif
     case EVP_PKEY_EC:
         WOLFSSL_MSG("not implemented");
         FALL_THROUGH;

@@ -2005,7 +2005,7 @@ AC_ARG_ENABLE([dsa],
     [ ENABLED_DSA=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_BIND" = "yes"
 then
     ENABLED_DSA="yes"
 fi
@@ -4375,7 +4375,7 @@ fi
 
 if test "$ENABLED_BIND" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_BIND"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_BIND -DWOLFSSL_DSA_768_MODULUS"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DWOLFSSL_DES_ECB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA224 -DWOLFSSL_SHA384 -DWOLFSSL_SHA512"
     ENABLED_SHA224="yes"

@@ -159,6 +159,7 @@ WOLFSSL_API int wolfSSL_RSA_set0_key(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *n, WOLFSSL_
                                      WOLFSSL_BIGNUM *d);
 WOLFSSL_API int wolfSSL_RSA_flags(const WOLFSSL_RSA *r);
 WOLFSSL_API void wolfSSL_RSA_set_flags(WOLFSSL_RSA *r, int flags);
+WOLFSSL_API void wolfSSL_RSA_clear_flags(WOLFSSL_RSA *r, int flags);
 WOLFSSL_API int wolfSSL_RSA_test_flags(const WOLFSSL_RSA *r, int flags);
 
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSAPublicKey_dup(WOLFSSL_RSA *rsa);
@@ -212,6 +213,7 @@ WOLFSSL_API int wolfSSL_RSA_set_ex_data_with_cleanup(
 #define RSA_set0_key            wolfSSL_RSA_set0_key
 #define RSA_flags               wolfSSL_RSA_flags
 #define RSA_set_flags           wolfSSL_RSA_set_flags
+#define RSA_clear_flags         wolfSSL_RSA_clear_flags
 #define RSA_test_flags          wolfSSL_RSA_test_flags
 
 #define RSAPublicKey_dup        wolfSSL_RSAPublicKey_dup
