@@ -2607,6 +2607,12 @@ static int _sp_cmp(sp_int* a, sp_int* b)
 #endif
         ret = _sp_cmp_abs(a, b);
 #ifdef WOLFSSL_SP_INT_NEGATIVE
+        if (a->sign == MP_NEG) {
+            /* MP_GT = 1, MP_LT = -1, MP_EQ = 0
+             * Swapping MP_GT and MP_LT results.
+             */
+            ret = -ret;
+        }
     }
     else if (a->sign > b->sign) {
         ret = MP_LT;
