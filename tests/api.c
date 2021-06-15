@@ -2631,15 +2631,15 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1, "   RSA Public-Key: (1024 bit)\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1, "   Modulus:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1, "       00:BC:73:0E:A8:49:F3:74:A2:A9:EF:18:A5:DA:55:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
 
     /* skip to the end of modulus element*/
@@ -2649,7 +2649,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1, "   Exponent: 65537 (0x010001)\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
 
     /* should reach EOF */
@@ -2682,16 +2682,16 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1, "DSA Public-Key: (2048 bit)\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1, "pub:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1,
         "    00:C2:35:2D:EC:83:83:6C:73:13:9E:52:7C:74:C8:\n"); 
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     /* skip to the end of pub element*/
     for( i = 0; i < 17 ;i++) {
@@ -2700,7 +2700,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1, "P:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     /* skip to the end of P element*/
     for( i = 0; i < 18 ;i++) {
@@ -2709,7 +2709,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1, "Q:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     /* skip to the end of Q element*/
     for( i = 0; i < 3 ;i++) {
@@ -2717,7 +2717,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     }
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1, "G:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     /* skip to the end of G element*/
     for( i = 0; i < 18 ;i++) {
@@ -2754,16 +2754,16 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1, "Public-Key: (256 bit)\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1, "pub:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1,
             "    04:55:BF:F4:0F:44:50:9A:3D:CE:9B:B7:F0:C5:4D:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     /* skip to the end of pub element*/
     for( i = 0; i < 4 ;i++) {
@@ -2772,11 +2772,11 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1, "ASN1 OID: prime256v1\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1, "NIST CURVE: P-256\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
 
     /* should reach EOF */
@@ -2810,16 +2810,16 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1, "DH Public-Key: (2048 bit)\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1, "public-key:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1,
         "    34:41:BF:E9:F2:11:BF:05:DB:B2:72:A8:29:CC:BD:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     /* skip to the end of public-key element*/
     for( i = 0; i < 17 ;i++) {
@@ -2828,12 +2828,12 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1, "prime:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1,
         "    00:D3:B2:99:84:5C:0A:4C:E7:37:CC:FC:18:37:01:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     /* skip to the end of prime element*/
     for( i = 0; i < 17 ;i++) {
@@ -2842,7 +2842,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
 
     BIO_gets(wbio, line, sizeof(line));
     strcpy(line1, "generator: 2 (0x02)\n");
-    AssertIntEQ(XSTRNCMP( line, line1, strlen(line1)), 0);
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
 
     /* should reach EOF */
     AssertIntLE(BIO_gets(wbio, line, sizeof(line)) ,0);

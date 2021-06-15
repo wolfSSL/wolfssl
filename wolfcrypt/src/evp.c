@@ -178,6 +178,7 @@ static const char EVP_NULL[] = "NULL";
 #define EVP_NULL_SIZE 4
 
 #define EVP_PKEY_PRINT_LINE_WIDTH_MAX  80
+#define EVP_PKEY_PRINT_DIGITS_PER_LINE 15
 
 static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher);
 
@@ -7223,9 +7224,11 @@ static int PrintHexWithColon(WOLFSSL_BIO* out, const byte* input,
     /* print pub element */
     idx = 0;
 
-    for (in = 0; in < (word32)inlen && ret == WOLFSSL_SUCCESS; in += 15 ) {
+    for (in = 0; in < (word32)inlen && ret == WOLFSSL_SUCCESS; in += 
+                                        EVP_PKEY_PRINT_DIGITS_PER_LINE ) {
         Indent(out, indent);
-        for (i = 0; (i < 15) && (in + i < (word32)inlen); i++) {
+        for (i = 0; (i < EVP_PKEY_PRINT_DIGITS_PER_LINE) && 
+                                        (in + i < (word32)inlen); i++) {
             
             if (ret == WOLFSSL_SUCCESS) {
                 outSz = sizeof(outHex);
@@ -7940,7 +7943,7 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
     const WOLFSSL_EVP_PKEY* pkey, int indent, ASN1_PCTX* pctx)
 {
-    int res = 1;
+    int res;
     int keybits;    /* bit length of the key */
 
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_print_public");
