@@ -467,7 +467,7 @@ IFS=$OIFS #restore separator
 #
 
 # Check for cerificate support in wolfSSL
-wolf_certs=`$WOLFSSL_CLIENT -help 2>&1`
+wolf_certs=`$WOLFSSL_CLIENT -? 2>&1`
 case $wolf_certs in
 *"cert"*)
     ;;
@@ -666,7 +666,7 @@ if [ "$wolf_ed25519" != "" ];
 then
     cert_file="${CERT_DIR}/ed25519/server-ed25519.pem"
     key_file="${CERT_DIR}/ed25519/server-ed25519-priv.pem"
-    ca_file="${CERT_DIR}/ed25519/root-ed25519.pem"
+    ca_file="${CERT_DIR}/ed25519/client-ed25519.pem"
 
     openssl_suite="Ed25519"
     start_openssl_server
@@ -974,8 +974,8 @@ do
             fi
             if [ $ed25519_openssl_pid != $no_pid -a "$version" != "0" -a "$version" != "1" -a "$version" != "2" ]
             then
-                cert="${CERT_DIR}/ed25519/server-ed25519.pem"
-                key="${CERT_DIR}/ed25519/server-ed25519-priv.pem"
+                cert="${CERT_DIR}/ed25519/client-ed25519.pem"
+                key="${CERT_DIR}/ed25519/client-ed25519-priv.pem"
                 caCert="${CERT_DIR}/ed25519/server-ed25519.pem"
 
                 wolf_temp_cases_total=$((wolf_temp_cases_total + 1))
@@ -1112,8 +1112,8 @@ do
             # Ed25519
             if [ $ed25519_openssl_pid != $no_pid ]
             then
-                cert="${CERT_DIR}/ed25519/server-ed25519.pem"
-                key="${CERT_DIR}/ed25519/server-ed25519-priv.pem"
+                cert="${CERT_DIR}/ed25519/client-ed25519.pem"
+                key="${CERT_DIR}/ed25519/client-ed25519-priv.pem"
                 caCert="${CERT_DIR}/ed25519/server-ed25519.pem"
 
                 wolf_temp_cases_total=$((wolf_temp_cases_total + 1))

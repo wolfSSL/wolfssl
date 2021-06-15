@@ -13693,6 +13693,7 @@ static void sp_256_mont_sub_10(sp_digit* r, const sp_digit* a, const sp_digit* b
         const sp_digit* m)
 {
     (void)sp_256_sub_10(r, a, b);
+    sp_256_norm_10(r);
     sp_256_cond_add_10(r, r, m, r[9] >> 22);
     sp_256_norm_10(r);
 }
@@ -20803,6 +20804,7 @@ static void sp_384_mont_sub_15(sp_digit* r, const sp_digit* a, const sp_digit* b
         const sp_digit* m)
 {
     (void)sp_384_sub_15(r, a, b);
+    sp_384_norm_15(r);
     sp_384_cond_add_15(r, r, m, r[14] >> 20);
     sp_384_norm_15(r);
 }

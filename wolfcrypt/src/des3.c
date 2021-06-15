@@ -719,9 +719,17 @@
     int wc_Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
     {
         int ret = 0;
-        byte* dkey1 = (byte*)des->key[0];
-        byte* dkey2 = (byte*)des->key[1];
-        byte* dkey3 = (byte*)des->key[2];
+        byte* dkey1;
+        byte* dkey2;
+        byte* dkey3;
+
+        if (des == NULL || key == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        dkey1 = (byte*)des->key[0];
+        dkey2 = (byte*)des->key[1];
+        dkey3 = (byte*)des->key[2];
 
         XMEMCPY(dkey1, key, 8);         /* set key 1 */
         XMEMCPY(dkey2, key + 8, 8);     /* set key 2 */
@@ -835,9 +843,17 @@
     int wc_Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
     {
         int i = 0, ret = 0;
-        byte* dkey1 = (byte*)des->key[0];
-        byte* dkey2 = (byte*)des->key[1];
-        byte* dkey3 = (byte*)des->key[2];
+        byte* dkey1;
+        byte* dkey2;
+        byte* dkey3;
+
+        if (des == NULL || key == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        dkey1 = (byte*)des->key[0];
+        dkey2 = (byte*)des->key[1];
+        dkey3 = (byte*)des->key[2];
 
         XMEMCPY(dkey1, key, 8);         /* set key 1 */
         XMEMCPY(dkey2, key + 8, 8);     /* set key 2 */
@@ -1771,9 +1787,9 @@ int wc_Des3_SetIV(Des3* des, const byte* iv)
     if (des == NULL) {
         return BAD_FUNC_ARG;
     }
-    if (des && iv)
+    if (iv)
         XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
-    else if (des)
+    else
         XMEMSET(des->reg,  0, DES_BLOCK_SIZE);
 
     return 0;

@@ -10,3 +10,6 @@ openssl ec -inform pem -in certs/statickeys/ecc-secp256r1.pem -outform der -out 
 # Using one generated and capture with wolfSSL using wc_DhGenerateKeyPair (openssl generates DH keys with 2048-bits... based on the DH "p" prime size)
 #openssl genpkey -paramfile certs/statickeys/dh-ffdhe2048-params.pem -out certs/statickeys/dh-ffdhe2048.der
 openssl pkey -inform der -in certs/statickeys/dh-ffdhe2048.der -outform pem -out certs/statickeys/dh-ffdhe2048.pem
+# Export DH public key as DER and convert to PEM
+openssl pkey -inform der -in certs/statickeys/dh-ffdhe2048.der -outform der -out certs/statickeys/dh-ffdhe2048-pub.der -pubout
+openssl pkey -inform der -in certs/statickeys/dh-ffdhe2048.der -outform pem -out certs/statickeys/dh-ffdhe2048-pub.pem -pubout

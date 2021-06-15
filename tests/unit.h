@@ -53,10 +53,10 @@
 #define AssertFalse(x)   Assert(!(x), ("%s is false",    #x), (#x " => TRUE"))
 #define AssertNotNull(x) Assert( (x), ("%s is not null", #x), (#x " => NULL"))
 
-#define AssertNull(x) do {                                                     \
-    void* _x = (void *) (x);                                                   \
-                                                                               \
-    Assert(!_x, ("%s is null", #x), (#x " => %p", _x));                        \
+#define AssertNull(x) do {                              \
+    PEDANTIC_EXTENSION void* _x = (void *) (x);         \
+                                                        \
+    Assert(!_x, ("%s is null", #x), (#x " => %p", _x)); \
 } while(0)
 
 #define AssertInt(x, y, op, er) do {                                           \

@@ -159,7 +159,7 @@ decouple library dependencies with standard string, memory and so on.
     #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
          defined(__mips64)  || defined(__x86_64__) || defined(_M_X64)) || \
          defined(__aarch64__) || defined(__sparc64__) || defined(__s390x__ ) || \
-        (defined(__riscv_xlen) && (__riscv_xlen == 64))
+        (defined(__riscv_xlen) && (__riscv_xlen == 64)) || defined(_M_ARM64)
         typedef word64 wolfssl_word;
         #define WC_64BIT_CPU
     #elif (defined(sun) || defined(__sun)) && \
@@ -889,8 +889,9 @@ decouple library dependencies with standard string, memory and so on.
         WC_PK_TYPE_EC_KEYGEN = 9,
         WC_PK_TYPE_RSA_CHECK_PRIV_KEY = 10,
         WC_PK_TYPE_EC_CHECK_PRIV_KEY = 11,
-
-        WC_PK_TYPE_MAX = WC_PK_TYPE_EC_CHECK_PRIV_KEY
+        WC_PK_TYPE_ED448 = 12,
+        WC_PK_TYPE_CURVE448 = 13,
+        WC_PK_TYPE_MAX = WC_PK_TYPE_CURVE448
     };
 
 
@@ -1007,6 +1008,14 @@ decouple library dependencies with standard string, memory and so on.
         #endif
     #endif /* WOLFSSL_AESNI || WOLFSSL_ARMASM */
 
+    #if !defined(PEDANTIC_EXTENSION)
+        #if defined(__GNUC__)
+            #define PEDANTIC_EXTENSION __extension__
+        #else
+            #define PEDANTIC_EXTENSION
+        #endif
+    #endif /* !PEDANTIC_EXTENSION */
+
 
     #ifndef TRUE
         #define TRUE  1
@@ -1051,6 +1060,14 @@ decouple library dependencies with standard string, memory and so on.
             (defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT))
         #undef  WC_MP_TO_RADIX
         #define WC_MP_TO_RADIX
+    #endif
+
+    #if defined(__GNUC__) && __GNUC__ > 5
+        #define PRAGMA_GCC_IGNORE(str) _Pragma(str);
+        #define PRAGMA_GCC_POP         _Pragma("GCC diagnostic pop");
+    #else
+        #define PRAGMA_GCC_IGNORE(str)
+        #define PRAGMA_GCC_POP
     #endif
 
     #ifdef __cplusplus

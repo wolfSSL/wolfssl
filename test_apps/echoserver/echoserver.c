@@ -293,7 +293,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     if (ret < 0) {
         printf("Async device open failed\nRunning without async\n");
     }
-    wolfSSL_CTX_UseAsync(ctx, devId);
+    wolfSSL_CTX_SetDevId(ctx, devId);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
     SignalReady(args, port);

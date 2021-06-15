@@ -543,7 +543,7 @@ static int eccsi_decode_point(ecc_point* point, word32 size, const byte* data,
 {
     int err = 0;
 
-    if ((err == 0) && (sz != size * 2) && (sz != size * 2 + 1)) {
+    if ((sz != size * 2) && (sz != size * 2 + 1)) {
         err = BUFFER_E;
     }
 

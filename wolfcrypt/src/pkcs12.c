@@ -58,6 +58,7 @@ enum {
     WC_PKCS12_ENCRYPTED_DATA = 656,
 
     WC_PKCS12_DATA_OBJ_SZ = 11,
+    WC_PKCS12_MAC_SALT_SZ = 8,
 };
 
 static const byte WC_PKCS12_ENCRYPTED_OID[] =
@@ -1442,7 +1443,7 @@ static int wc_PKCS12_shroud_key(WC_PKCS12* pkcs12, WC_RNG* rng,
     word32 sz;
     word32 totalSz = 0;
     int ret;
-
+    byte* pkcs8Key = NULL;
 
     if (outSz == NULL || pkcs12 == NULL || rng == NULL || key == NULL ||
             pass == NULL) {
@@ -1455,6 +1456,7 @@ static int wc_PKCS12_shroud_key(WC_PKCS12* pkcs12, WC_RNG* rng,
     if (out != NULL) {
         tmpIdx += MAX_LENGTH_SZ + 1; /* save room for length and tag (+1) */
         sz = *outSz - tmpIdx;
+        pkcs8Key = out + tmpIdx;
     }
 
     /* case of no encryption */
@@ -1472,8 +1474,8 @@ static int wc_PKCS12_shroud_key(WC_PKCS12* pkcs12, WC_RNG* rng,
         }
 
         /* PKCS#8 wrapping around key */
-        ret = wc_CreatePKCS8Key(out + tmpIdx, &sz, key, keySz, algoID,
-                curveOID, oidSz);
+        ret = wc_CreatePKCS8Key(pkcs8Key, &sz, key, keySz, algoID, curveOID,
+                oidSz);
     }
     else {
         WOLFSSL_MSG("creating PKCS12 Shrouded Key Bag");
@@ -1483,7 +1485,7 @@ static int wc_PKCS12_shroud_key(WC_PKCS12* pkcs12, WC_RNG* rng,
             vAlgo = 10;
         }
 
-        ret = UnTraditionalEnc(key, keySz, out + tmpIdx, &sz, pass, passSz,
+        ret = UnTraditionalEnc(key, keySz, pkcs8Key, &sz, pass, passSz,
                 vPKCS, vAlgo, NULL, 0, itt, rng, heap);
     }
     if (ret == LENGTH_ONLY_E) {
@@ -2354,8 +2356,9 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
         mac->itt = macIter;
 
         /* set mac salt */
-        mac->saltSz = 8;
-        mac->salt = (byte*)XMALLOC(mac->saltSz, heap, DYNAMIC_TYPE_PKCS);
+        mac->saltSz = WC_PKCS12_MAC_SALT_SZ;
+        mac->salt = (byte*)XMALLOC(WC_PKCS12_MAC_SALT_SZ, heap,
+                DYNAMIC_TYPE_PKCS);
         if (mac->salt == NULL) {
             wc_PKCS12_free(pkcs12);
             wc_FreeRng(&rng);

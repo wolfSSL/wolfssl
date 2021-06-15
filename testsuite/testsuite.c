@@ -56,6 +56,10 @@ static THREAD_RETURN simple_test(func_args*);
 #else
 static void simple_test(func_args*);
 #endif
+static int test_tls(func_args* server_args);
+static void show_ciphers(void);
+static void cleanup_output(void);
+static int validate_cleanup_output(void);
 
 enum {
     NUMARGS = 3
@@ -79,6 +83,7 @@ char* myoptarg = NULL;
 #endif /* NO_TESTSUITE_MAIN_DRIVER */
 
 #ifdef HAVE_STACK_SIZE
+/* Wrap TLS echo client to free thread locals. */
 static void *echoclient_test_wrapper(void* args) {
     echoclient_test(args);
 
@@ -108,8 +113,9 @@ int testsuite_test(int argc, char** argv)
     int num = 6;
 #endif
 #ifdef HAVE_STACK_SIZE
-    void *serverThreadStackContext = 0;
+    void *serverThreadStackContext = NULL;
 #endif
+    int ret;
 
 #ifdef HAVE_WNR
     if (wc_InitNetRandom(wnrConfig, NULL, 5000) != 0) {
@@ -158,94 +164,42 @@ int testsuite_test(int argc, char** argv)
     if (server_args.return_code != 0) return server_args.return_code;
     /* Echo input wolfSSL client server test */
     #ifdef HAVE_STACK_SIZE
-        StackSizeCheck_launch(&server_args, echoserver_test, &serverThread, &serverThreadStackContext);
+        StackSizeCheck_launch(&server_args, echoserver_test, &serverThread,
+                              &serverThreadStackContext);
     #else
         start_thread(echoserver_test, &server_args, &serverThread);
     #endif
-    wait_tcp_ready(&server_args);
-    {
-        func_args echo_args;
-        char* myArgv[NUMARGS];
 
-        char arg[3][32];
+    /* Create unique file name */
+    outputName = mymktemp(tempName, len, num);
+    if (outputName == NULL) {
+        printf("Could not create unique file name");
+        return EXIT_FAILURE;
+    }
 
-        myArgv[0] = arg[0];
-        myArgv[1] = arg[1];
-        myArgv[2] = arg[2];
+    ret = test_tls(&server_args);
+    if (ret != 0) {
+        cleanup_output();
+        return ret;
+    }
 
-        echo_args.argc = 3;
-        echo_args.argv = myArgv;
-
-        /* Create unique file name */
-        outputName = mymktemp(tempName, len, num);
-        if (outputName == NULL) {
-            printf("Could not create unique file name");
-            return EXIT_FAILURE;
-        }
-
-        strcpy(arg[0], "testsuite");
-        strcpy(arg[1], "input");
-        strcpy(arg[2], outputName);
-
-        /* Share the signal, it has the new port number in it. */
-        echo_args.signal = server_args.signal;
-
-        /* make sure OK */
-
-    #ifdef HAVE_STACK_SIZE
-        fputs("echoclient_test #1: ", stdout);
-        StackSizeCheck(&echo_args, echoclient_test_wrapper);
-    #else
-        echoclient_test(&echo_args);
-    #endif
-        if (echo_args.return_code != 0) return echo_args.return_code;
-
-#ifdef WOLFSSL_DTLS
-        wait_tcp_ready(&server_args);
+    /* Server won't quit unless TLS test has worked. */
+#ifdef HAVE_STACK_SIZE
+    fputs("reaping echoserver_test: ", stdout);
+    StackSizeCheck_reap(serverThread, serverThreadStackContext);
+#else
+    join_thread(serverThread);
 #endif
-        /* send quit to echoserver */
-        echo_args.argc = 2;
-        strcpy(echo_args.argv[1], "quit");
-
-    #ifdef HAVE_STACK_SIZE
-        fputs("echoclient_test #2: ", stdout);
-        StackSizeCheck(&echo_args, echoclient_test_wrapper);
-    #else
-        echoclient_test(&echo_args);
-    #endif
-        if (echo_args.return_code != 0) return echo_args.return_code;
-        #ifdef HAVE_STACK_SIZE
-            fputs("reaping echoserver_test: ", stdout);
-            StackSizeCheck_reap(serverThread, serverThreadStackContext);
-        #else
-            join_thread(serverThread);
-        #endif
-        if (server_args.return_code != 0) return server_args.return_code;
+    if (server_args.return_code != 0) {
+        cleanup_output();
+        return server_args.return_code;
     }
 
-    /* show ciphers */
-    {
-        char ciphers[WOLFSSL_CIPHER_LIST_MAX_SIZE];
-        XMEMSET(ciphers, 0, sizeof(ciphers));
-        wolfSSL_get_ciphers(ciphers, sizeof(ciphers)-1);
-        printf("ciphers = %s\n", ciphers);
-    }
+    show_ciphers();
 
-    /* validate output equals input */
-    {
-    #ifndef NO_SHA256
-        byte input[WC_SHA256_DIGEST_SIZE];
-        byte output[WC_SHA256_DIGEST_SIZE];
-
-        file_test("input",  input);
-        file_test(outputName, output);
-    #endif
-        remove(outputName);
-    #ifndef NO_SHA256
-        if (memcmp(input, output, sizeof(input)) != 0)
-            return EXIT_FAILURE;
-    #endif
-    }
+    ret = validate_cleanup_output();
+    if (ret != 0)
+        return EXIT_FAILURE;
 
     wolfSSL_Cleanup();
     FreeTcpReady(&ready);
@@ -270,6 +224,114 @@ int testsuite_test(int argc, char** argv)
 }
 
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
+/* Perform a basic TLS handshake.
+ *
+ * First connection to echo a file.
+ * Second to tell TLS server to quit.
+ *
+ * @param [in,out] server_args   Object sent to server thread.
+ * @return  0 on success.
+ * @return  echoclient error return code on failure.
+ */
+static int test_tls(func_args* server_args)
+{
+    func_args echo_args;
+    char* myArgv[NUMARGS];
+    char arg[3][32];
+
+    /* Set up command line arguments for echoclient to send input file
+     * and write echoed data to temporary output file. */
+    myArgv[0] = arg[0];
+    myArgv[1] = arg[1];
+    myArgv[2] = arg[2];
+
+    echo_args.argc = 3;
+    echo_args.argv = myArgv;
+
+    strcpy(arg[0], "testsuite");
+    strcpy(arg[1], "input");
+    strcpy(arg[2], outputName);
+
+    /* Share the signal, it has the new port number in it. */
+    echo_args.signal = server_args->signal;
+
+    /* Ready to execute client - wait for server to be ready. */
+    wait_tcp_ready(server_args);
+
+    /* Do a client TLS connection. */
+#ifdef HAVE_STACK_SIZE
+    fputs("echoclient_test #1: ", stdout);
+    StackSizeCheck(&echo_args, echoclient_test_wrapper);
+#else
+    echoclient_test(&echo_args);
+#endif
+    if (echo_args.return_code != 0)
+        return echo_args.return_code;
+
+#ifdef WOLFSSL_DTLS
+    /* Ensure server is ready for UDP data. */
+    wait_tcp_ready(server_args);
+#endif
+
+    /* Next client connection - send quit to shutdown server. */
+    echo_args.argc = 2;
+    strcpy(echo_args.argv[1], "quit");
+
+    /* Do a client TLS connection. */
+#ifdef HAVE_STACK_SIZE
+    fputs("echoclient_test #2: ", stdout);
+    StackSizeCheck(&echo_args, echoclient_test_wrapper);
+#else
+    echoclient_test(&echo_args);
+#endif
+    if (echo_args.return_code != 0)
+        return echo_args.return_code;
+
+    return 0;
+}
+
+/* Show cipher suites available. */
+static void show_ciphers()
+{
+    char ciphers[WOLFSSL_CIPHER_LIST_MAX_SIZE];
+    XMEMSET(ciphers, 0, sizeof(ciphers));
+    wolfSSL_get_ciphers(ciphers, sizeof(ciphers)-1);
+    printf("ciphers = %s\n", ciphers);
+}
+
+/* Cleanup temporary output file. */
+static void cleanup_output()
+{
+    remove(outputName);
+}
+
+/* Validate output equals input using a hash. Remove temporary output file.
+ *
+ * @return  0 on success.
+ * @return  1 on failure.
+ */
+static int validate_cleanup_output()
+{
+#ifndef NO_SHA256
+    byte input[WC_SHA256_DIGEST_SIZE];
+    byte output[WC_SHA256_DIGEST_SIZE];
+
+    file_test("input",  input);
+    file_test(outputName, output);
+#endif
+    cleanup_output();
+#ifndef NO_SHA256
+    if (memcmp(input, output, sizeof(input)) != 0)
+        return 1;
+#endif
+    return 0;
+}
+
+/* Simple server.
+ *
+ * @param [in] args  Object for server data in thread.
+ * @return  Return code.
+ */
 #ifdef HAVE_STACK_SIZE
 static THREAD_RETURN simple_test(func_args* args)
 #else
@@ -313,13 +375,13 @@ static void simple_test(func_args* args)
     strcpy(argvc[0], "SimpleClient");
     cliArgs.argv = cliArgv;
     cliArgs.return_code = 0;
-    #ifndef USE_WINDOWS_API
-        cliArgs.argc = NUMARGS;
-        strcpy(argvc[1], "-p");
-        snprintf(argvc[2], sizeof(argvc[2]), "%d", svrArgs.signal->port);
-    #else
-        cliArgs.argc = 1;
-    #endif
+#ifndef USE_WINDOWS_API
+    cliArgs.argc = NUMARGS;
+    strcpy(argvc[1], "-p");
+    snprintf(argvc[2], sizeof(argvc[2]), "%d", svrArgs.signal->port);
+#else
+    cliArgs.argc = 1;
+#endif
 
     client_test(&cliArgs);
     if (cliArgs.return_code != 0) {
@@ -339,6 +401,10 @@ static void simple_test(func_args* args)
 #endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */
 
 
+/* Wait for the server to be ready for a connection.
+ *
+ * @param [in] args  Object to send to thread.
+ */
 void wait_tcp_ready(func_args* args)
 {
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
@@ -355,6 +421,12 @@ void wait_tcp_ready(func_args* args)
 }
 
 
+/* Start a thread.
+ *
+ * @param [in]  fun     Function to executre in thread.
+ * @param [in]  args    Object to send to function in thread.
+ * @param [out] thread  Handle to thread.
+ */
 void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
 {
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
@@ -377,6 +449,10 @@ void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
 }
 
 
+/* Join thread to wait for completion.
+ *
+ * @param [in] thread  Handle to thread.
+ */
 void join_thread(THREAD_TYPE thread)
 {
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
@@ -400,6 +476,11 @@ void join_thread(THREAD_TYPE thread)
 
 
 #ifndef NO_SHA256
+/* Create SHA-256 hash of the file based on filename.
+ *
+ * @param [in]  file   Name of file.
+ * @parma [out] check  Buffer to hold SHA-256 hash.
+ */
 void file_test(const char* file, byte* check)
 {
     FILE* f;
@@ -455,16 +536,18 @@ char* myoptarg = NULL;
 
 int main(int argc, char** argv)
 {
-    func_args server_args;
+    func_args wolfcrypt_test_args;
 
-    server_args.argc = argc;
-    server_args.argv = argv;
+    wolfcrypt_test_args.argc = argc;
+    wolfcrypt_test_args.argv = argv;
 
     wolfSSL_Init();
     ChangeToWolfRoot();
 
-    wolfcrypt_test(&server_args);
-    if (server_args.return_code != 0) return server_args.return_code;
+    /* No TLS - only doing cryptographic algorithm testing. */
+    wolfcrypt_test(&wolfcrypt_test_args);
+    if (wolfcrypt_test_args.return_code != 0)
+        return wolfcrypt_test_args.return_code;
 
     wolfSSL_Cleanup();
     printf("\nAll tests passed!\n");

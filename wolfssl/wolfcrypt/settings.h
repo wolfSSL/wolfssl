@@ -2450,6 +2450,41 @@ extern void uITRON4_free(void *p) ;
     #error Small stack cannot be used with no malloc (WOLFSSL_NO_MALLOC)
 #endif
 
+/* Enable DH Extra for QT, openssl all, openssh and static ephemeral */
+/* Allows export/import of DH key and params as DER */
+#if !defined(WOLFSSL_DH_EXTRA) && \
+    (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH) || \
+     defined(WOLFSSL_STATIC_EPHEMERAL))
+    #define WOLFSSL_DH_EXTRA
+#endif
+
+/* DH Extra is not supported on FIPS v1 or v2 (is missing DhKey .pub/.priv) */
+#if defined(WOLFSSL_DH_EXTRA) && defined(HAVE_FIPS) && \
+        (!defined(HAVE_FIPS_VERSION) || HAVE_FIPS_VERSION <= 2)
+    #undef WOLFSSL_DH_EXTRA
+#endif
+
+/* Check for insecure build combination:
+ * secure renegotiation   [enabled]
+ * extended master secret [disabled]
+ * session resumption     [enabled]
+ */
+#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(HAVE_EXTENDED_MASTER) && \
+    (defined(HAVE_SESSION_TICKET) || !defined(NO_SESSION_CACHE))
+    /* secure renegotiation requires extended master secret with resumption */
+    #ifndef _MSC_VER
+        #warning Extended master secret must be enabled with secure renegotiation and session resumption
+    #else
+        #pragma message("Warning: Extended master secret must be enabled with secure renegotiation and session resumption")
+    #endif
+
+    /* Note: "--enable-renegotiation-indication" ("HAVE_RENEGOTIATION_INDICATION")
+     * only sends the secure renegotiation extension, but is not actually supported. 
+     * This was added because some TLS peers required it even if not used, so we call 
+     * this "(FAKE Secure Renegotiation)"
+     */
+#endif
+
 
 #ifdef __cplusplus
     }   /* extern "C" */

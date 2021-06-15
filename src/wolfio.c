@@ -47,7 +47,7 @@ Possible IO enable options:
  * WOLFSSL_USER_IO:     Disables default Embed* callbacks and     default: off
                         allows user to define their own using
                         wolfSSL_CTX_SetIORecv and wolfSSL_CTX_SetIOSend
- * USE_WOLFSSL_IO:      Enables the wolfSSL IO functions          default: off
+ * USE_WOLFSSL_IO:      Enables the wolfSSL IO functions          default: on
  * HAVE_HTTP_CLIENT:    Enables HTTP client API's                 default: off
                                      (unless HAVE_OCSP or HAVE_CRL_IO defined)
  * HAVE_IO_TIMEOUT:     Enables support for connect timeout       default: off
@@ -106,8 +106,38 @@ static WC_INLINE int wolfSSL_LastError(int err)
 #endif
 }
 
-#endif /* USE_WOLFSSL_IO || HAVE_HTTP_CLIENT */
+static int TranslateIoError(int err)
+{
+    if (err > 0)
+        return err;
 
+    err = wolfSSL_LastError(err);
+#if SOCKET_EWOULDBLOCK != SOCKET_EAGAIN
+    if ((err == SOCKET_EWOULDBLOCK) || (err == SOCKET_EAGAIN))
+#else
+    if (err == SOCKET_EWOULDBLOCK)
+#endif
+    {
+        WOLFSSL_MSG("\tWould block");
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+    }
+    else if (err == SOCKET_ECONNRESET) {
+        WOLFSSL_MSG("\tConnection reset");
+        return WOLFSSL_CBIO_ERR_CONN_RST;
+    }
+    else if (err == SOCKET_EINTR) {
+        WOLFSSL_MSG("\tSocket interrupted");
+        return WOLFSSL_CBIO_ERR_ISR;
+    }
+    else if (err == SOCKET_ECONNABORTED) {
+        WOLFSSL_MSG("\tConnection aborted");
+        return WOLFSSL_CBIO_ERR_CONN_CLOSE;
+    }
+
+    WOLFSSL_MSG("\tGeneral error");
+    return WOLFSSL_CBIO_ERR_GENERAL;
+}
+#endif /* USE_WOLFSSL_IO || HAVE_HTTP_CLIENT */
 
 #ifdef OPENSSL_EXTRA
 #ifndef NO_BIO
@@ -140,34 +170,14 @@ int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
             return WOLFSSL_CBIO_ERR_WANT_READ;
         }
         else if (ssl->biord->type == WOLFSSL_BIO_SOCKET) {
-            int err;
-
             if (recvd == 0) {
                 WOLFSSL_MSG("BioReceive connection closed");
                 return WOLFSSL_CBIO_ERR_CONN_CLOSE;
             }
-
-            err = wolfSSL_LastError(recvd);
-            if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
-                WOLFSSL_MSG("\tWould block");
-                return WOLFSSL_CBIO_ERR_WANT_READ;
-            }
-            else if (err == SOCKET_ECONNRESET) {
-                WOLFSSL_MSG("\tConnection reset");
-                return WOLFSSL_CBIO_ERR_CONN_RST;
-            }
-            else if (err == SOCKET_EINTR) {
-                WOLFSSL_MSG("\tSocket interrupted");
-                return WOLFSSL_CBIO_ERR_ISR;
-            }
-            else if (err == SOCKET_ECONNABORTED) {
-                WOLFSSL_MSG("\tConnection aborted");
-                return WOLFSSL_CBIO_ERR_CONN_CLOSE;
-            }
-            else {
-                WOLFSSL_MSG("\tGeneral error");
-                return WOLFSSL_CBIO_ERR_GENERAL;
-            }
+        #ifdef USE_WOLFSSL_IO
+            recvd = TranslateIoError(recvd);
+        #endif
+            return recvd;
         }
 
         WOLFSSL_MSG("BIO general error");
@@ -203,27 +213,10 @@ int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     sent = wolfSSL_BIO_write(ssl->biowr, buf, sz);
     if (sent < 0) {
         if (ssl->biowr->type == WOLFSSL_BIO_SOCKET) {
-            int err = wolfSSL_LastError(sent);
-            if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
-                WOLFSSL_MSG("\tWould Block");
-                return WOLFSSL_CBIO_ERR_WANT_WRITE;
-            }
-            else if (err == SOCKET_ECONNRESET) {
-                WOLFSSL_MSG("\tConnection reset");
-                return WOLFSSL_CBIO_ERR_CONN_RST;
-            }
-            else if (err == SOCKET_EINTR) {
-                WOLFSSL_MSG("\tSocket interrupted");
-                return WOLFSSL_CBIO_ERR_ISR;
-            }
-            else if (err == SOCKET_EPIPE) {
-                WOLFSSL_MSG("\tSocket EPIPE");
-                return WOLFSSL_CBIO_ERR_CONN_CLOSE;
-            }
-            else {
-                WOLFSSL_MSG("\tGeneral error");
-                return WOLFSSL_CBIO_ERR_GENERAL;
-            }
+        #ifdef USE_WOLFSSL_IO
+            sent = TranslateIoError(sent);
+        #endif
+            return sent;
         }
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
@@ -251,34 +244,8 @@ int EmbedReceive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
     recvd = wolfIO_Recv(sd, buf, sz, ssl->rflags);
     if (recvd < 0) {
-        int err = wolfSSL_LastError(recvd);
         WOLFSSL_MSG("Embed Receive error");
-
-#if SOCKET_EWOULDBLOCK != SOCKET_EAGAIN
-        if ((err == SOCKET_EWOULDBLOCK) || (err == SOCKET_EAGAIN))
-#else
-        if (err == SOCKET_EWOULDBLOCK)
-#endif
-        {
-            WOLFSSL_MSG("\tWould block");
-            return WOLFSSL_CBIO_ERR_WANT_READ;
-        }
-        else if (err == SOCKET_ECONNRESET) {
-            WOLFSSL_MSG("\tConnection reset");
-            return WOLFSSL_CBIO_ERR_CONN_RST;
-        }
-        else if (err == SOCKET_EINTR) {
-            WOLFSSL_MSG("\tSocket interrupted");
-            return WOLFSSL_CBIO_ERR_ISR;
-        }
-        else if (err == SOCKET_ECONNABORTED) {
-            WOLFSSL_MSG("\tConnection aborted");
-            return WOLFSSL_CBIO_ERR_CONN_CLOSE;
-        }
-        else {
-            WOLFSSL_MSG("\tGeneral error");
-            return WOLFSSL_CBIO_ERR_GENERAL;
-        }
+        return TranslateIoError(recvd);
     }
     else if (recvd == 0) {
         WOLFSSL_MSG("Embed receive connection closed");
@@ -307,34 +274,8 @@ int EmbedSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 
     sent = wolfIO_Send(sd, buf, sz, ssl->wflags);
     if (sent < 0) {
-        int err = wolfSSL_LastError(sent);
         WOLFSSL_MSG("Embed Send error");
-
-#if SOCKET_EWOULDBLOCK != SOCKET_EAGAIN
-        if ((err == SOCKET_EWOULDBLOCK) || (err == SOCKET_EAGAIN))
-#else
-        if (err == SOCKET_EWOULDBLOCK)
-#endif
-        {
-            WOLFSSL_MSG("\tWould Block");
-            return WOLFSSL_CBIO_ERR_WANT_WRITE;
-        }
-        else if (err == SOCKET_ECONNRESET) {
-            WOLFSSL_MSG("\tConnection reset");
-            return WOLFSSL_CBIO_ERR_CONN_RST;
-        }
-        else if (err == SOCKET_EINTR) {
-            WOLFSSL_MSG("\tSocket interrupted");
-            return WOLFSSL_CBIO_ERR_ISR;
-        }
-        else if (err == SOCKET_EPIPE) {
-            WOLFSSL_MSG("\tSocket EPIPE");
-            return WOLFSSL_CBIO_ERR_CONN_CLOSE;
-        }
-        else {
-            WOLFSSL_MSG("\tGeneral error");
-            return WOLFSSL_CBIO_ERR_GENERAL;
-        }
+        return TranslateIoError(sent);
     }
 
     return sent;
@@ -356,7 +297,6 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
     WOLFSSL_DTLS_CTX* dtlsCtx = (WOLFSSL_DTLS_CTX*)ctx;
     int recvd;
-    int err;
     int sd = dtlsCtx->rfd;
     int dtls_timeout = wolfSSL_dtls_get_current_timeout(ssl);
     SOCKADDR_S peer;
@@ -401,35 +341,13 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     recvd = TranslateReturnCode(recvd, sd);
 
     if (recvd < 0) {
-        err = wolfSSL_LastError(recvd);
         WOLFSSL_MSG("Embed Receive From error");
-
-        if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
-            if (wolfSSL_dtls_get_using_nonblock(ssl)) {
-                WOLFSSL_MSG("\tWould block");
-                return WOLFSSL_CBIO_ERR_WANT_READ;
-            }
-            else {
-                WOLFSSL_MSG("\tSocket timeout");
-                return WOLFSSL_CBIO_ERR_TIMEOUT;
-            }
+        recvd = TranslateIoError(recvd);
+        if (recvd == WOLFSSL_CBIO_ERR_WANT_READ && 
+            !wolfSSL_dtls_get_using_nonblock(ssl)) {
+            recvd = WOLFSSL_CBIO_ERR_TIMEOUT;
         }
-        else if (err == SOCKET_ECONNRESET) {
-            WOLFSSL_MSG("\tConnection reset");
-            return WOLFSSL_CBIO_ERR_CONN_RST;
-        }
-        else if (err == SOCKET_EINTR) {
-            WOLFSSL_MSG("\tSocket interrupted");
-            return WOLFSSL_CBIO_ERR_ISR;
-        }
-        else if (err == SOCKET_ECONNREFUSED) {
-            WOLFSSL_MSG("\tConnection refused");
-            return WOLFSSL_CBIO_ERR_WANT_READ;
-        }
-        else {
-            WOLFSSL_MSG("\tGeneral error");
-            return WOLFSSL_CBIO_ERR_GENERAL;
-        }
+        return recvd;
     }
     else {
         if (dtlsCtx->peer.sz > 0
@@ -455,7 +373,6 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     WOLFSSL_DTLS_CTX* dtlsCtx = (WOLFSSL_DTLS_CTX*)ctx;
     int sd = dtlsCtx->wfd;
     int sent;
-    int err;
 
     WOLFSSL_ENTER("EmbedSendTo()");
 
@@ -466,29 +383,8 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     sent = TranslateReturnCode(sent, sd);
 
     if (sent < 0) {
-        err = wolfSSL_LastError(sent);
         WOLFSSL_MSG("Embed Send To error");
-
-        if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
-            WOLFSSL_MSG("\tWould Block");
-            return WOLFSSL_CBIO_ERR_WANT_WRITE;
-        }
-        else if (err == SOCKET_ECONNRESET) {
-            WOLFSSL_MSG("\tConnection reset");
-            return WOLFSSL_CBIO_ERR_CONN_RST;
-        }
-        else if (err == SOCKET_EINTR) {
-            WOLFSSL_MSG("\tSocket interrupted");
-            return WOLFSSL_CBIO_ERR_ISR;
-        }
-        else if (err == SOCKET_EPIPE) {
-            WOLFSSL_MSG("\tSocket EPIPE");
-            return WOLFSSL_CBIO_ERR_CONN_CLOSE;
-        }
-        else {
-            WOLFSSL_MSG("\tGeneral error");
-            return WOLFSSL_CBIO_ERR_GENERAL;
-        }
+        return TranslateIoError(sent);
     }
 
     return sent;
@@ -504,7 +400,6 @@ int EmbedReceiveFromMcast(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
     WOLFSSL_DTLS_CTX* dtlsCtx = (WOLFSSL_DTLS_CTX*)ctx;
     int recvd;
-    int err;
     int sd = dtlsCtx->rfd;
 
     WOLFSSL_ENTER("EmbedReceiveFromMcast()");
@@ -514,35 +409,13 @@ int EmbedReceiveFromMcast(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     recvd = TranslateReturnCode(recvd, sd);
 
     if (recvd < 0) {
-        err = wolfSSL_LastError(recvd);
         WOLFSSL_MSG("Embed Receive From error");
-
-        if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
-            if (wolfSSL_dtls_get_using_nonblock(ssl)) {
-                WOLFSSL_MSG("\tWould block");
-                return WOLFSSL_CBIO_ERR_WANT_READ;
-            }
-            else {
-                WOLFSSL_MSG("\tSocket timeout");
-                return WOLFSSL_CBIO_ERR_TIMEOUT;
-            }
+        recvd = TranslateIoError(recvd);
+        if (recvd == WOLFSSL_CBIO_ERR_WANT_READ && 
+            !wolfSSL_dtls_get_using_nonblock(ssl)) {
+            recvd = WOLFSSL_CBIO_ERR_TIMEOUT;
         }
-        else if (err == SOCKET_ECONNRESET) {
-            WOLFSSL_MSG("\tConnection reset");
-            return WOLFSSL_CBIO_ERR_CONN_RST;
-        }
-        else if (err == SOCKET_EINTR) {
-            WOLFSSL_MSG("\tSocket interrupted");
-            return WOLFSSL_CBIO_ERR_ISR;
-        }
-        else if (err == SOCKET_ECONNREFUSED) {
-            WOLFSSL_MSG("\tConnection refused");
-            return WOLFSSL_CBIO_ERR_WANT_READ;
-        }
-        else {
-            WOLFSSL_MSG("\tGeneral error");
-            return WOLFSSL_CBIO_ERR_GENERAL;
-        }
+        return recvd;
     }
 
     return recvd;

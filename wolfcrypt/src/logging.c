@@ -141,7 +141,7 @@ const char *wolfSSL_configure_args(void) {
 #endif
 }
 
-const char *wolfSSL_global_cflags(void) {
+PEDANTIC_EXTENSION const char *wolfSSL_global_cflags(void) {
 #ifdef LIBWOLFSSL_GLOBAL_CFLAGS
   /* the spaces on either side are to make matching simple and efficient. */
   return " " LIBWOLFSSL_GLOBAL_CFLAGS " ";

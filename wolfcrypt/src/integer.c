@@ -686,7 +686,8 @@ int mp_mod_2d (mp_int * a, int b, mp_int * c)
   /* clear the digit that is not completely outside/inside the modulus */
   x = DIGIT_BIT - (b % DIGIT_BIT);
   if (x != DIGIT_BIT) {
-    c->dp[b / DIGIT_BIT] &= ~((mp_digit)0) >> (x + ((sizeof(mp_digit)*8) - DIGIT_BIT));
+    c->dp[b / DIGIT_BIT] &=
+         ((mp_digit)~((mp_digit)0)) >> (x + ((sizeof(mp_digit)*8) - DIGIT_BIT));
   }
   mp_clamp (c);
   return MP_OKAY;
@@ -1450,7 +1451,7 @@ int mp_is_bit_set (mp_int *a, mp_digit b)
     mp_digit s = b % DIGIT_BIT;  /* bit index */
 
     if ((mp_digit)a->used <= i) {
-        /* no words avaialable at that bit count */
+        /* no words available at that bit count */
         return 0;
     }
 

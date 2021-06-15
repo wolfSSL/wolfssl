@@ -197,6 +197,7 @@ FILE * wolfSSL_fopen(const char *name, const char *openmode)
     #define PATHSIZE 100
     char path[PATHSIZE] ; char *p ;
 
+    if (name == NULL) return NULL;
     if(strlen(name) > PATHSIZE)return(NULL) ;
 
     for(i = 0; i<= strlen(name); i++) {

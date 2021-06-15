@@ -1353,6 +1353,9 @@ enum Misc {
     DTLS_EXPORT_SPC_SZ       = 16, /* amount of bytes used from CipherSpecs */
     DTLS_EXPORT_LEN          = 2,  /* 2 bytes for length and protocol */
     DTLS_EXPORT_IP           = 46, /* max ip size IPv4 mapped IPv6 */
+    DTLS_MTU_ADDITIONAL_READ_BUFFER = 100, /* Additional bytes to read so that
+                                            * we can work with a peer that has
+                                            * a slightly different MTU than us. */
     MAX_EXPORT_BUFFER        = 514, /* max size of buffer for exporting */
     MAX_EXPORT_STATE_BUFFER  = (DTLS_EXPORT_MIN_KEY_SZ) + (3 * DTLS_EXPORT_LEN),
                                     /* max size of buffer for exporting state */
@@ -1732,7 +1735,7 @@ WOLFSSL_LOCAL int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
 WOLFSSL_LOCAL int  HandleTlsResumption(WOLFSSL* ssl, int bogusID,
                                        Suites* clSuites);
 #ifdef WOLFSSL_TLS13
-WOLFSSL_LOCAL int FindSuite(Suites* suites, byte first, byte second);
+WOLFSSL_LOCAL byte SuiteMac(byte* suite);
 #endif
 WOLFSSL_LOCAL int  DoClientHello(WOLFSSL* ssl, const byte* input, word32*,
                                  word32);
@@ -1899,11 +1902,15 @@ WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
     typedef unsigned int (*wc_psk_server_callback)(WOLFSSL*, const char*,
                           unsigned char*, unsigned int);
 #ifdef WOLFSSL_TLS13
+    typedef unsigned int (*wc_psk_client_cs_callback)(WOLFSSL*, const char*,
+                          char*, unsigned int, unsigned char*, unsigned int,
+                          const char* cipherName);
     typedef unsigned int (*wc_psk_client_tls13_callback)(WOLFSSL*, const char*,
                           char*, unsigned int, unsigned char*, unsigned int,
-                          const char**);
+                          const char** cipherName);
     typedef unsigned int (*wc_psk_server_tls13_callback)(WOLFSSL*, const char*,
-                          unsigned char*, unsigned int, const char**);
+                          unsigned char*, unsigned int,
+                          const char** cipherName);
 #endif
 #endif /* PSK_TYPES_DEFINED */
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SESSION_EXPORT) && \
@@ -2620,17 +2627,23 @@ typedef struct KeyShareEntry {
     word16                group;     /* NamedGroup               */
     byte*                 ke;        /* Key exchange data        */
     word32                keLen;     /* Key exchange data length */
-    void*                 key;       /* Private key              */
-    word32                keyLen;    /* Private key length       */
+    void*                 key;       /* Key struct               */
+    word32                keyLen;    /* Key size (bytes)         */
     byte*                 pubKey;    /* Public key               */
     word32                pubKeyLen; /* Public key length        */
+#ifndef NO_DH
+    byte*                 privKey;   /* Private key - DH only    */
+#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    int                   lastRet;
+#endif
     struct KeyShareEntry* next;      /* List pointer             */
 } KeyShareEntry;
 
 WOLFSSL_LOCAL int TLSX_KeyShare_Use(WOLFSSL* ssl, word16 group, word16 len,
                                     byte* data, KeyShareEntry **kse);
 WOLFSSL_LOCAL int TLSX_KeyShare_Empty(WOLFSSL* ssl);
-WOLFSSL_LOCAL int TLSX_KeyShare_Establish(WOLFSSL* ssl);
+WOLFSSL_LOCAL int TLSX_KeyShare_Establish(WOLFSSL* ssl, int* doHelloRetry);
 WOLFSSL_LOCAL int TLSX_KeyShare_DeriveSecret(WOLFSSL* ssl);
 
 
@@ -2894,6 +2907,7 @@ struct WOLFSSL_CTX {
     wc_psk_client_callback client_psk_cb;  /* client callback */
     wc_psk_server_callback server_psk_cb;  /* server callback */
 #ifdef WOLFSSL_TLS13
+    wc_psk_client_cs_callback    client_psk_cs_cb;     /* client callback */
     wc_psk_client_tls13_callback client_psk_tls13_cb;  /* client callback */
     wc_psk_server_tls13_callback server_psk_tls13_cb;  /* server callback */
 #endif
@@ -2955,6 +2969,10 @@ struct WOLFSSL_CTX {
     #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
         SessionTicketEncCb ticketEncCb;   /* enc/dec session ticket Cb */
         void*              ticketEncCtx;  /* session encrypt context */
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
+          || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
+        ticketCompatCb     ticketEncWrapCb; /* callback for OpenSSL ticket key callback */
+        #endif
         int                ticketHint;    /* ticket hint in seconds */
         #ifndef WOLFSSL_NO_DEF_TICKET_ENC_CB
             TicketEncCbCtx ticketKeyCtx;
@@ -2978,31 +2996,31 @@ struct WOLFSSL_CTX {
         CallbackEccSign   EccSignCb;    /* User EccSign   Callback handler */
         CallbackEccVerify EccVerifyCb;  /* User EccVerify Callback handler */
         CallbackEccSharedSecret EccSharedSecretCb; /* User EccVerify Callback handler */
-        #ifdef HAVE_ED25519
-            /* User Ed25519Sign   Callback handler */
-            CallbackEd25519Sign   Ed25519SignCb;
-            /* User Ed25519Verify Callback handler */
-            CallbackEd25519Verify Ed25519VerifyCb;
-        #endif
-        #ifdef HAVE_CURVE25519
-            /* User X25519 KeyGen Callback Handler */
-            CallbackX25519KeyGen X25519KeyGenCb;
-            /* User X25519 SharedSecret Callback handler */
-            CallbackX25519SharedSecret X25519SharedSecretCb;
-        #endif
-        #ifdef HAVE_ED448
-            /* User Ed448Sign   Callback handler */
-            CallbackEd448Sign   Ed448SignCb;
-            /* User Ed448Verify Callback handler */
-            CallbackEd448Verify Ed448VerifyCb;
-        #endif
-        #ifdef HAVE_CURVE448
-            /* User X448 KeyGen Callback Handler */
-            CallbackX448KeyGen X448KeyGenCb;
-            /* User X448 SharedSecret Callback handler */
-            CallbackX448SharedSecret X448SharedSecretCb;
-        #endif
     #endif /* HAVE_ECC */
+    #ifdef HAVE_ED25519
+        /* User Ed25519Sign   Callback handler */
+        CallbackEd25519Sign   Ed25519SignCb;
+        /* User Ed25519Verify Callback handler */
+        CallbackEd25519Verify Ed25519VerifyCb;
+    #endif
+    #ifdef HAVE_CURVE25519
+        /* User X25519 KeyGen Callback Handler */
+        CallbackX25519KeyGen X25519KeyGenCb;
+        /* User X25519 SharedSecret Callback handler */
+        CallbackX25519SharedSecret X25519SharedSecretCb;
+    #endif
+    #ifdef HAVE_ED448
+        /* User Ed448Sign   Callback handler */
+        CallbackEd448Sign   Ed448SignCb;
+        /* User Ed448Verify Callback handler */
+        CallbackEd448Verify Ed448VerifyCb;
+    #endif
+    #ifdef HAVE_CURVE448
+        /* User X448 KeyGen Callback Handler */
+        CallbackX448KeyGen X448KeyGenCb;
+        /* User X448 SharedSecret Callback handler */
+        CallbackX448SharedSecret X448SharedSecretCb;
+    #endif
     #ifndef NO_DH
         CallbackDhAgree DhAgreeCb;      /* User DH Agree Callback handler */
     #endif
@@ -3510,6 +3528,7 @@ typedef struct Options {
     wc_psk_use_session_cb_func session_psk_cb;
 #endif
 #ifdef WOLFSSL_TLS13
+    wc_psk_client_cs_callback    client_psk_cs_cb;     /* client callback */
     wc_psk_client_tls13_callback client_psk_tls13_cb;  /* client callback */
     wc_psk_server_tls13_callback server_psk_tls13_cb;  /* server callback */
 #endif
@@ -4358,27 +4377,27 @@ struct WOLFSSL {
 #endif
 #ifdef HAVE_PK_CALLBACKS
     #ifdef HAVE_ECC
-        void* EccKeyGenCtx;              /* EccKeyGen  Callback Context */
-        void* EccSignCtx;                /* Ecc Sign   Callback Context */
-        void* EccVerifyCtx;              /* Ecc Verify Callback Context */
-        void* EccSharedSecretCtx;        /* Ecc Pms    Callback Context */
-        #ifdef HAVE_ED25519
-            void* Ed25519SignCtx;        /* ED25519 Sign   Callback Context */
-            void* Ed25519VerifyCtx;      /* ED25519 Verify Callback Context */
-        #endif
-        #ifdef HAVE_CURVE25519
-            void* X25519KeyGenCtx;       /* X25519 KeyGen Callback Context */
-            void* X25519SharedSecretCtx; /* X25519 Pms    Callback Context */
-        #endif
-        #ifdef HAVE_ED448
-            void* Ed448SignCtx;          /* ED448 Sign   Callback Context */
-            void* Ed448VerifyCtx;        /* ED448 Verify Callback Context */
-        #endif
-        #ifdef HAVE_CURVE448
-            void* X448KeyGenCtx;         /* X448 KeyGen Callback Context */
-            void* X448SharedSecretCtx;   /* X448 Pms    Callback Context */
-        #endif
+        void* EccKeyGenCtx;          /* EccKeyGen  Callback Context */
+        void* EccSignCtx;            /* Ecc Sign   Callback Context */
+        void* EccVerifyCtx;          /* Ecc Verify Callback Context */
+        void* EccSharedSecretCtx;    /* Ecc Pms    Callback Context */
     #endif /* HAVE_ECC */
+    #ifdef HAVE_ED25519
+        void* Ed25519SignCtx;        /* ED25519 Sign   Callback Context */
+        void* Ed25519VerifyCtx;      /* ED25519 Verify Callback Context */
+    #endif
+    #ifdef HAVE_CURVE25519
+        void* X25519KeyGenCtx;       /* X25519 KeyGen Callback Context */
+        void* X25519SharedSecretCtx; /* X25519 Pms    Callback Context */
+    #endif
+    #ifdef HAVE_ED448
+        void* Ed448SignCtx;          /* ED448 Sign   Callback Context */
+        void* Ed448VerifyCtx;        /* ED448 Verify Callback Context */
+    #endif
+    #ifdef HAVE_CURVE448
+        void* X448KeyGenCtx;         /* X448 KeyGen Callback Context */
+        void* X448SharedSecretCtx;   /* X448 Pms    Callback Context */
+    #endif
     #ifndef NO_DH
         void* DhAgreeCtx; /* DH Pms Callback Context */
     #endif /* !NO_DH */
@@ -4735,6 +4754,8 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
 
 #if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
     WOLFSSL_LOCAL word32 TimeNowInMilliseconds(void);
+
+    WOLFSSL_LOCAL int FindSuiteMac(WOLFSSL* ssl, byte* suite);
 #endif
 WOLFSSL_LOCAL word32  LowResTimer(void);
 
@@ -4811,14 +4832,15 @@ WOLFSSL_LOCAL int SetRsaInternal(WOLFSSL_RSA* rsa);
 WOLFSSL_LOCAL int SetDhInternal(WOLFSSL_DH* dh);
 WOLFSSL_LOCAL int SetDhExternal(WOLFSSL_DH *dh);
 
-#ifndef NO_DH
+#if !defined(NO_DH) && (!defined(NO_CERTS) || !defined(NO_PSK))
     WOLFSSL_LOCAL int DhGenKeyPair(WOLFSSL* ssl, DhKey* dhKey,
         byte* priv, word32* privSz,
         byte* pub, word32* pubSz);
     WOLFSSL_LOCAL int DhAgree(WOLFSSL* ssl, DhKey* dhKey,
         const byte* priv, word32 privSz,
         const byte* otherPub, word32 otherPubSz,
-        byte* agree, word32* agreeSz);
+        byte* agree, word32* agreeSz,
+        const byte* prime, word32 primeSz);
 #endif /* !NO_DH */
 
 #ifdef HAVE_ECC

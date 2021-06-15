@@ -107,6 +107,9 @@ static int hashGetHash(wolfssl_TI_Hash *hash, byte* result, word32 algo, word32 
 
     XMEMSET(h, 0, sizeof(h));
 #endif
+    if (result == NULL) {
+        return BAD_FUNC_ARG;
+    }
     XMEMCPY(result, h, hsize);
 
     return 0;
