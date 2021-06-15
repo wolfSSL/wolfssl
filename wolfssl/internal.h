@@ -2746,6 +2746,13 @@ typedef struct {
 #ifdef HAVE_ECC
     DerBuffer* ecKey;
 #endif
+    /* bits */
+#ifndef NO_DH
+    byte weOwnDH:1;
+#endif
+#ifdef HAVE_ECC
+    byte weOwnEC:1;
+#endif
 } StaticKeyExchangeInfo_t;
 #endif
 

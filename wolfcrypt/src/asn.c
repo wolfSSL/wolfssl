@@ -10729,7 +10729,7 @@ void FreeDer(DerBuffer** pDer)
         DerBuffer* der = (DerBuffer*)*pDer;
 
         /* ForceZero private keys */
-        if (der->type == PRIVATEKEY_TYPE) {
+        if (der->type == PRIVATEKEY_TYPE && der->buffer != NULL) {
             ForceZero(der->buffer, der->length);
         }
         der->buffer = NULL;

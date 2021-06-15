@@ -2016,11 +2016,11 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #endif
 #ifdef WOLFSSL_STATIC_EPHEMERAL
     #ifndef NO_DH
-    if (ctx->staticKE.dhKey)
+    if (ctx->staticKE.dhKey && ctx->staticKE.weOwnDH)
         FreeDer(&ctx->staticKE.dhKey);
     #endif
     #ifdef HAVE_ECC
-    if (ctx->staticKE.ecKey)
+    if (ctx->staticKE.ecKey && ctx->staticKE.weOwnEC)
         FreeDer(&ctx->staticKE.ecKey);
     #endif
 #endif
@@ -5925,7 +5925,13 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.mutualAuth = ctx->mutualAuth;
 
 #ifdef WOLFSSL_STATIC_EPHEMERAL
-    ssl->staticKE = ctx->staticKE;
+    XMEMCPY(&ssl->staticKE, &ctx->staticKE, sizeof(StaticKeyExchangeInfo_t));
+    #ifdef HAVE_ECC
+    ssl->staticKE.weOwnEC = 0;
+    #endif
+    #ifndef NO_DH
+    ssl->staticKE.weOwnDH = 0;
+    #endif
 #endif
 
 #ifdef WOLFSSL_TLS13
@@ -6669,11 +6675,11 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif
 #ifdef WOLFSSL_STATIC_EPHEMERAL
     #ifndef NO_DH
-    if (ssl->staticKE.dhKey && ssl->staticKE.dhKey != ssl->ctx->staticKE.dhKey)
+    if (ssl->staticKE.dhKey && ssl->staticKE.weOwnDH)
         FreeDer(&ssl->staticKE.dhKey);
     #endif
     #ifdef HAVE_ECC
-    if (ssl->staticKE.ecKey && ssl->staticKE.ecKey != ssl->ctx->staticKE.ecKey)
+    if (ssl->staticKE.ecKey && ssl->staticKE.weOwnEC)
         FreeDer(&ssl->staticKE.ecKey);
     #endif
 #endif
