@@ -12672,7 +12672,7 @@ int wc_PKCS7_EncodeCompressedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     compressedDataSeqSz = SetSequence(totalSz, compressedDataSeq);
     totalSz += compressedDataSeqSz;
 
-    if (pkcs7->version == 3 && pkcs7->contentOID == COMPRESSED_DATA) {
+    if (pkcs7->version == 3) {
         /* RFC 4108 section 2
          * When the SignedData is version 3 and eContent is compressedData then
          * the encoding is :
@@ -12687,10 +12687,7 @@ int wc_PKCS7_EncodeCompressedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         contentInfoContentSeqSz = 0;
     }
     else {
-        /* pkcs7->contentOID should be ENCRYPTED_DATA, FIRMWARE_PKG_DATA is just
-         * an octet string for eContent.
-         *
-         * EncryptedData eContent type is encoded with:
+        /* EncryptedData eContent type is encoded with:
          * EncryptedData {
          *  version
          *  EncryptedContentInfo {
