@@ -66,6 +66,7 @@ check_result(){
 run_renewcerts(){
     cd certs/ || { echo "Couldn't cd to certs directory"; exit 1; }
     echo ""
+
     #move the custom cnf into our working directory
     cp renewcerts/wolfssl.cnf wolfssl.cnf || exit 1
 
@@ -583,6 +584,17 @@ run_renewcerts(){
     cd ./test || { echo "Failed to switch to dir ./test"; exit 1; }
     ./gen-badsig.sh
     check_result $? "gen-badsig.sh"
+    cd ../ || exit 1
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
+    ###### calling gen-testcerts.sh           ##################
+    ############################################################
+    echo "Calling gen-testcerts.sh"
+    echo ""
+    cd ./test || { echo "Failed to switch to dir ./test"; exit 1; }
+    ./gen-testcerts.sh
+    check_result $? "gen-testcerts.sh"
     cd ../ || exit 1
     echo "End of section"
     echo "---------------------------------------------------------------------"
