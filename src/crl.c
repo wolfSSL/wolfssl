@@ -354,7 +354,7 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
             ret = crl->crlIOCb(crl, (const char*)cert->extCrlInfo,
                                                         cert->extCrlInfoSz);
             if (ret == WOLFSSL_CBIO_ERR_WANT_READ) {
-                ret = WANT_READ;
+                ret = OCSP_WANT_READ;
             }
             else if (ret >= 0) {
                 /* try again */
@@ -372,7 +372,7 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
     /* Loading <issuer-hash>.rN form CRL file if find at the folder,        */
     /* and try again checking Cert in the CRL list.                         */
     /* When not set the folder or not use hash_dir, do nothing.             */
-    if (foundEntry == 0) {
+    if ((foundEntry == 0) && (ret != OCSP_WANT_READ)) {
         if (crl->cm->x509_store_p != NULL) {
             ret = LoadCertByIssuer(crl->cm->x509_store_p, 
                           (WOLFSSL_X509_NAME*)cert->issuerName, X509_LU_CRL);
