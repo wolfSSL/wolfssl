@@ -8075,7 +8075,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
         word32  keyIdx = 0;
         DhKey*  key = NULL;
         int ret;
-        Element_Set elements;
+        int elements;
         /* test if DH-public key */
         if (wc_InitDhKey(&dh) != 0)
             return NULL;
