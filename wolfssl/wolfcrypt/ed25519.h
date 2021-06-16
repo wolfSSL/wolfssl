@@ -87,6 +87,9 @@ struct ed25519_key {
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif
+#if defined(WOLF_CRYPTO_CB)
+    int devId;
+#endif
 };
 
 
@@ -111,6 +114,10 @@ int wc_ed25519ph_sign_msg(const byte* in, word32 inLen, byte* out,
                           word32 *outLen, ed25519_key* key, const byte* context,
                           byte contextLen);
 WOLFSSL_API
+int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
+                            word32 *outLen, ed25519_key* key, byte type,
+                            const byte* context, byte contextLen);
+WOLFSSL_API
 int wc_ed25519_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
                           word32 msgLen, int* stat, ed25519_key* key);
 WOLFSSL_API
@@ -126,7 +133,14 @@ int wc_ed25519ph_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
                             word32 msgLen, int* stat, ed25519_key* key,
                             const byte* context, byte contextLen);
 WOLFSSL_API
+int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
+                              word32 msgLen, int* res, ed25519_key* key,
+                              byte type, const byte* context, byte contextLen);
+
+WOLFSSL_API
 int wc_ed25519_init(ed25519_key* key);
+WOLFSSL_API
+int wc_ed25519_init_ex(ed25519_key* key, void* heap, int devId);
 WOLFSSL_API
 void wc_ed25519_free(ed25519_key* key);
 WOLFSSL_API

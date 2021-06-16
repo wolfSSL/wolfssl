@@ -140,13 +140,47 @@ typedef struct wc_CryptoInfo {
         #endif
         #ifdef HAVE_CURVE25519
             struct {
+                WC_RNG*  rng;
+                int      size;
                 curve25519_key* key;
+                int      curveId;
+            } curve25519kg;
+            struct {
+                curve25519_key* private_key;
+                curve25519_key* public_key;
+                byte*    out;
+                word32*  outlen;
+                int      endian;
             } curve25519;
         #endif
         #ifdef HAVE_ED25519
             struct {
+                WC_RNG*  rng;
+                int      size;
                 ed25519_key* key;
-            } ed25519;
+                int      curveId;
+            } ed25519kg;
+            struct {
+                const byte*  in;
+                word32       inLen;
+                byte*        out;
+                word32*      outLen;
+                ed25519_key* key;
+                byte         type;
+                const byte*  context;
+                byte         contextLen;
+            } ed25519sign;
+            struct {
+                const byte*  sig;
+                word32       sigLen;
+                const byte*  msg;
+                word32       msgLen;
+                int*         res;
+                ed25519_key* key;
+                byte         type;
+                const byte*  context;
+                byte         contextLen;
+            } ed25519verify;
         #endif
         };
     } pk;
@@ -302,6 +336,25 @@ WOLFSSL_LOCAL int wc_CryptoCb_EccVerify(const byte* sig, word32 siglen,
 WOLFSSL_LOCAL int wc_CryptoCb_EccCheckPrivKey(ecc_key* key, const byte* pubKey,
     word32 pubKeySz);
 #endif /* HAVE_ECC */
+
+#ifdef HAVE_CURVE25519
+WOLFSSL_LOCAL int wc_CryptoCb_Curve25519Gen(WC_RNG* rng, int keySize,
+    curve25519_key* key);
+
+WOLFSSL_LOCAL int wc_CryptoCb_Curve25519(curve25519_key* private_key,
+    curve25519_key* public_key, byte* out, word32* outlen, int endian);
+#endif /* HAVE_CURVE25519 */
+
+#ifdef HAVE_ED25519
+WOLFSSL_LOCAL int wc_CryptoCb_Ed25519Gen(WC_RNG* rng, int keySize,
+    ed25519_key* key);
+WOLFSSL_LOCAL int wc_CryptoCb_Ed25519Sign(const byte* in, word32 inLen,
+    byte* out, word32 *outLen, ed25519_key* key, byte type, const byte* context,
+    byte contextLen);
+WOLFSSL_LOCAL int wc_CryptoCb_Ed25519Verify(const byte* sig, word32 sigLen,
+    const byte* msg, word32 msgLen, int* res, ed25519_key* key, byte type,
+    const byte* context, byte contextLen);
+#endif /* HAVE_ED25519 */
 
 #ifndef NO_AES
 #ifdef HAVE_AESGCM

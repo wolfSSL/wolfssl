@@ -344,6 +344,155 @@ int wc_CryptoCb_EccCheckPrivKey(ecc_key* key, const byte* pubKey,
 }
 #endif /* HAVE_ECC */
 
+#ifdef HAVE_CURVE25519
+int wc_CryptoCb_Curve25519Gen(WC_RNG* rng, int keySize,
+    curve25519_key* key)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_CURVE25519_KEYGEN;
+        cryptoInfo.pk.curve25519kg.rng = rng;
+        cryptoInfo.pk.curve25519kg.size = keySize;
+        cryptoInfo.pk.curve25519kg.key = key;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_Curve25519(curve25519_key* private_key,
+    curve25519_key* public_key, byte* out, word32* outlen, int endian)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    CryptoCb* dev;
+
+    if (private_key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(private_key->devId);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_CURVE25519;
+        cryptoInfo.pk.curve25519.private_key = private_key;
+        cryptoInfo.pk.curve25519.public_key = public_key;
+        cryptoInfo.pk.curve25519.out = out;
+        cryptoInfo.pk.curve25519.outlen = outlen;
+        cryptoInfo.pk.curve25519.endian = endian;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);   
+}
+#endif /* HAVE_CURVE25519 */
+
+#ifdef HAVE_ED25519
+int wc_CryptoCb_Ed25519Gen(WC_RNG* rng, int keySize,
+    ed25519_key* key)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_ED25519_KEYGEN;
+        cryptoInfo.pk.ed25519kg.rng = rng;
+        cryptoInfo.pk.ed25519kg.size = keySize;
+        cryptoInfo.pk.ed25519kg.key = key;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_Ed25519Sign(const byte* in, word32 inLen, byte* out,
+                            word32 *outLen, ed25519_key* key, byte type,
+                            const byte* context, byte contextLen)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_ED25519_SIGN;
+        cryptoInfo.pk.ed25519sign.in = in;
+        cryptoInfo.pk.ed25519sign.inLen = inLen;
+        cryptoInfo.pk.ed25519sign.out = out;
+        cryptoInfo.pk.ed25519sign.outLen = outLen;
+        cryptoInfo.pk.ed25519sign.key = key;
+        cryptoInfo.pk.ed25519sign.type = type;
+        cryptoInfo.pk.ed25519sign.context = context;
+        cryptoInfo.pk.ed25519sign.contextLen = contextLen;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_Ed25519Verify(const byte* sig, word32 sigLen,
+    const byte* msg, word32 msgLen, int* res, ed25519_key* key, byte type,
+    const byte* context, byte contextLen)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_ED25519_VERIFY;
+        cryptoInfo.pk.ed25519verify.sig = sig;
+        cryptoInfo.pk.ed25519verify.sigLen = sigLen;
+        cryptoInfo.pk.ed25519verify.msg = msg;
+        cryptoInfo.pk.ed25519verify.msgLen = msgLen;
+        cryptoInfo.pk.ed25519verify.res = res;
+        cryptoInfo.pk.ed25519verify.key = key;
+        cryptoInfo.pk.ed25519verify.type = type;
+        cryptoInfo.pk.ed25519verify.context = context;
+        cryptoInfo.pk.ed25519verify.contextLen = contextLen;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* HAVE_ED25519 */
+
 #ifndef NO_AES
 #ifdef HAVE_AESGCM
 int wc_CryptoCb_AesGcmEncrypt(Aes* aes, byte* out,

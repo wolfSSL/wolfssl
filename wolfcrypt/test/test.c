@@ -36853,6 +36853,69 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             info->pk.ecdh.private_key->devId = devIdArg;
         }
     #endif /* HAVE_ECC */
+    #ifdef HAVE_CURVE25519
+        if (info->pk.type == WC_PK_TYPE_CURVE25519_KEYGEN) {
+            /* set devId to invalid, so software is used */
+            info->pk.curve25519kg.key->devId = INVALID_DEVID;
+
+            ret = wc_curve25519_make_key(info->pk.curve25519kg.rng,
+                info->pk.curve25519kg.size, info->pk.curve25519kg.key);
+
+            /* reset devId */
+            info->pk.curve25519kg.key->devId = devIdArg;
+        }
+        else if (info->pk.type == WC_PK_TYPE_CURVE25519) {
+            /* set devId to invalid, so software is used */
+            info->pk.curve25519.private_key->devId = INVALID_DEVID;
+
+            ret = wc_curve25519_shared_secret_ex(
+                info->pk.curve25519.private_key, info->pk.curve25519.public_key,
+                info->pk.curve25519.out, info->pk.curve25519.outlen,
+                info->pk.curve25519.endian);
+
+            /* reset devId */
+            info->pk.curve25519.private_key->devId = devIdArg;
+        }
+    #endif /* HAVE_CURVE25519 */
+    #ifdef HAVE_ED25519
+        if (info->pk.type == WC_PK_TYPE_ED25519_KEYGEN) {
+            /* set devId to invalid, so software is used */
+            info->pk.ed25519kg.key->devId = INVALID_DEVID;
+
+            ret = wc_ed25519_make_key(info->pk.ed25519kg.rng,
+                info->pk.ed25519kg.size, info->pk.ed25519kg.key);
+
+            /* reset devId */
+            info->pk.ed25519kg.key->devId = devIdArg;
+        }
+        else if (info->pk.type == WC_PK_TYPE_ED25519_SIGN) {
+            /* set devId to invalid, so software is used */
+            info->pk.ed25519sign.key->devId = INVALID_DEVID;
+
+            ret = wc_ed25519_sign_msg_ex(
+                info->pk.ed25519sign.in, info->pk.ed25519sign.inLen,
+                info->pk.ed25519sign.out, info->pk.ed25519sign.outLen,
+                info->pk.ed25519sign.key, info->pk.ed25519sign.type,
+                info->pk.ed25519sign.context, info->pk.ed25519sign.contextLen);
+
+            /* reset devId */
+            info->pk.ed25519sign.key->devId = devIdArg;
+        }
+        else if (info->pk.type == WC_PK_TYPE_ED25519_VERIFY) {
+            /* set devId to invalid, so software is used */
+            info->pk.ed25519verify.key->devId = INVALID_DEVID;
+
+            ret = wc_ed25519_verify_msg_ex(
+                info->pk.ed25519verify.sig, info->pk.ed25519verify.sigLen,
+                info->pk.ed25519verify.msg, info->pk.ed25519verify.msgLen,
+                info->pk.ed25519verify.res, info->pk.ed25519verify.key,
+                info->pk.ed25519verify.type, info->pk.ed25519verify.context,
+                info->pk.ed25519verify.contextLen);
+
+            /* reset devId */
+            info->pk.ed25519verify.key->devId = devIdArg;
+        }
+    #endif /* HAVE_ED25519 */
     }
     else if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
 #if !defined(NO_AES) || !defined(NO_DES3)
@@ -37121,6 +37184,14 @@ WOLFSSL_TEST_SUBROUTINE int cryptocb_test(void)
 #ifdef HAVE_ECC
     if (ret == 0)
         ret = ecc_test();
+#endif
+#ifdef HAVE_ED25519
+    if (ret == 0)
+        ret = ed25519_test();
+#endif
+#ifdef HAVE_CURVE25519
+    if (ret == 0)
+        ret = curve25519_test();
 #endif
 #ifndef NO_AES
     #ifdef HAVE_AESGCM
