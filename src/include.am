@@ -444,6 +444,12 @@ if !BUILD_FIPS_V2
 if BUILD_ECC
 src_libwolfssl_la_SOURCES += wolfcrypt/src/ecc.c
 endif
+if BUILD_ECCSI
+src_libwolfssl_la_SOURCES += wolfcrypt/src/eccsi.c
+endif
+if BUILD_SAKKE
+src_libwolfssl_la_SOURCES += wolfcrypt/src/sakke.c
+endif
 endif
 
 if BUILD_CURVE25519

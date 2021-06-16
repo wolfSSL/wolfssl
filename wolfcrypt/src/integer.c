@@ -1,6 +1,6 @@
 /* integer.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -238,7 +238,7 @@ void mp_forcezero(mp_int * a)
 
 
 /* get the size for an unsigned equivalent */
-int mp_unsigned_bin_size (mp_int * a)
+int mp_unsigned_bin_size (const mp_int * a)
 {
   int     size = mp_count_bits (a);
   return (size / 8 + ((size & 7) != 0 ? 1 : 0));
@@ -246,7 +246,7 @@ int mp_unsigned_bin_size (mp_int * a)
 
 
 /* returns the number of bits in an int */
-int mp_count_bits (mp_int * a)
+int mp_count_bits (const mp_int * a)
 {
   int     r;
   mp_digit q;
@@ -350,7 +350,7 @@ int mp_init_copy (mp_int * a, mp_int * b)
 
 
 /* copy, b = a */
-int mp_copy (mp_int * a, mp_int * b)
+int mp_copy (const mp_int * a, mp_int * b)
 {
   int     res, n;
 
@@ -686,7 +686,8 @@ int mp_mod_2d (mp_int * a, int b, mp_int * c)
   /* clear the digit that is not completely outside/inside the modulus */
   x = DIGIT_BIT - (b % DIGIT_BIT);
   if (x != DIGIT_BIT) {
-    c->dp[b / DIGIT_BIT] &= ~((mp_digit)0) >> (x + ((sizeof(mp_digit)*8) - DIGIT_BIT));
+    c->dp[b / DIGIT_BIT] &=
+         ((mp_digit)~((mp_digit)0)) >> (x + ((sizeof(mp_digit)*8) - DIGIT_BIT));
   }
   mp_clamp (c);
   return MP_OKAY;
@@ -868,16 +869,13 @@ int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
      return MP_VAL;
   }
   if (mp_isone(P)) {
-     mp_set(Y, 0);
-     return MP_OKAY;
+     return mp_set(Y, 0);
   }
   if (mp_iszero(X)) {
-     mp_set(Y, 1);
-     return MP_OKAY;
+     return mp_set(Y, 1);
   }
   if (mp_iszero(G)) {
-     mp_set(Y, 0);
-     return MP_OKAY;
+     return mp_set(Y, 0);
   }
 
   /* if exponent X is negative we have to recurse */
@@ -1449,10 +1447,16 @@ int mp_set (mp_int * a, mp_digit b)
 /* check if a bit is set */
 int mp_is_bit_set (mp_int *a, mp_digit b)
 {
-    if ((mp_digit)a->used < b/DIGIT_BIT)
-        return 0;
+    mp_digit i = b / DIGIT_BIT;  /* word index */
+    mp_digit s = b % DIGIT_BIT;  /* bit index */
 
-    return (int)((a->dp[b/DIGIT_BIT] >> b%DIGIT_BIT) & (mp_digit)1);
+    if ((mp_digit)a->used <= i) {
+        /* no words available at that bit count */
+        return 0;
+    }
+
+    /* get word and shift bit to check down to index 0 */
+    return (int)((a->dp[i] >> s) & (mp_digit)1);
 }
 
 /* c = a mod b, 0 <= c < b */
@@ -2409,7 +2413,7 @@ int mp_exptmod_base_2(mp_int * X, mp_int * P, mp_int * Y)
   }
 
   /* swap res with Y */
-  mp_copy(res, Y);
+  err = mp_copy(res, Y);
 
 LBL_RES:mp_clear (res);
 LBL_M:
@@ -4302,6 +4306,8 @@ int mp_add_d (mp_int* a, mp_digit b, mp_int* c)
   int     res, ix, oldused;
   mp_digit *tmpa, *tmpc, mu;
 
+  if (b > MP_DIGIT_MAX) return MP_VAL;
+
   /* grow c as required */
   if (c->alloc < a->used + 1) {
      if ((res = mp_grow(c, a->used + 1)) != MP_OKAY) {
@@ -5039,6 +5045,11 @@ int mp_lcm (mp_int * a, mp_int * b, mp_int * c)
   int     res;
   mp_int  t1, t2;
 
+  /* LCM of 0 and any number is undefined as 0 is not in the set of values
+   * being used. */
+  if (mp_iszero (a) == MP_YES || mp_iszero (b) == MP_YES) {
+    return MP_VAL;
+  }
 
   if ((res = mp_init_multi (&t1, &t2, NULL, NULL, NULL, NULL)) != MP_OKAY) {
     return res;
@@ -5083,6 +5094,10 @@ int mp_gcd (mp_int * a, mp_int * b, mp_int * c)
 
     /* either zero than gcd is the largest */
     if (mp_iszero (a) == MP_YES) {
+        /* GCD of 0 and 0 is undefined as all integers divide 0. */
+        if (mp_iszero (b) == MP_YES) {
+           return MP_VAL;
+        }
         return mp_abs (b, c);
     }
     if (mp_iszero (b) == MP_YES) {
@@ -5218,9 +5233,11 @@ int mp_read_radix (mp_int * a, const char *str, int radix)
      */
     if (y < radix) {
       if ((res = mp_mul_d (a, (mp_digit) radix, a)) != MP_OKAY) {
+         mp_zero(a);
          return res;
       }
       if ((res = mp_add_d (a, (mp_digit) y, a)) != MP_OKAY) {
+         mp_zero(a);
          return res;
       }
     } else {

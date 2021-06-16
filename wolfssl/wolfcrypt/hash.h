@@ -1,6 +1,6 @@
 /* hash.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -88,7 +88,7 @@ enum wc_HashFlags {
 #endif
 };
 
-
+#ifndef NO_HASH_WRAPPER
 typedef union {
     #ifndef NO_MD5
         wc_Md5 md5;
@@ -112,6 +112,7 @@ typedef union {
         wc_Sha3 sha3;
     #endif
 } wc_HashAlg;
+#endif /* !NO_HASH_WRAPPER */
 
 /* Find largest possible digest size
    Note if this gets up to the size of 80 or over check smallstack build */
@@ -150,6 +151,8 @@ WOLFSSL_API enum wc_HashType wc_OidGetHash(int oid);
 #endif
 
 WOLFSSL_API enum wc_HashType wc_HashTypeConvert(int hashType);
+
+#ifndef NO_HASH_WRAPPER
 
 WOLFSSL_API int wc_HashGetDigestSize(enum wc_HashType hash_type);
 WOLFSSL_API int wc_HashGetBlockSize(enum wc_HashType hash_type);
@@ -214,6 +217,8 @@ WOLFSSL_API int wc_Sha3_512Hash(const byte*, word32, byte*);
 WOLFSSL_API int wc_Shake256Hash(const byte*, word32, byte*, word32);
 #endif
 #endif /* WOLFSSL_SHA3 */
+
+#endif /* !NO_HASH_WRAPPER */
 
 enum max_prf {
 #ifdef HAVE_FFDHE_8192

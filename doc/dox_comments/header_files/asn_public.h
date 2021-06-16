@@ -1210,7 +1210,7 @@ int wc_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz);
     and storing it as a pem file
     \return MEMORY_E Returned if there is an error allocating memory
     with XMALLOC
-    \return ASN_INPUT_E Returned in the case of a base 64 encoding error
+    \return ASN_INPUT_E Returned in the case of a base64 encoding error
     \return BUFFER_E May be returned if the output buffer is too small to
     store the pem formatted certificate
 
@@ -1253,7 +1253,7 @@ WOLFSSL_API int wc_DerToPem(const byte* der, word32 derSz, byte* output,
     and storing it as a pem file
     \return MEMORY_E Returned if there is an error allocating memory
     with XMALLOC
-    \return ASN_INPUT_E Returned in the case of a base 64 encoding error
+    \return ASN_INPUT_E Returned in the case of a base64 encoding error
     \return BUFFER_E May be returned if the output buffer is too small to
     store the pem formatted certificate
 

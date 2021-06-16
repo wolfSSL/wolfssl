@@ -25,23 +25,23 @@ counter=0
 # per source tree
 ready_file=`pwd`/wolfssl_psk_ready$$
 
-echo "ready file $ready_file"
+echo "ready file \"$ready_file\""
 
 create_port() {
-    while [ ! -s $ready_file -a "$counter" -lt 20 ]; do
+    while [ ! -s "$ready_file" -a "$counter" -lt 20 ]; do
         echo -e "waiting for ready file..."
         sleep 0.1
         counter=$((counter+ 1))
     done
 
-    if test -e $ready_file; then
+    if test -e "$ready_file"; then
         echo -e "found ready file, starting client..."
 
         # sleep for an additional 0.1 to mitigate race on write/read of $ready_file:
         sleep 0.1
 
         # get created port 0 ephemeral port
-        port=`cat $ready_file`
+        port=`cat "$ready_file"`
     else
         echo -e "NO ready file ending test..."
         do_cleanup
@@ -49,9 +49,9 @@ create_port() {
 }
 
 remove_ready_file() {
-    if test -e $ready_file; then
+    if test -e "$ready_file"; then
         echo -e "removing existing ready file"
-    rm $ready_file
+    rm "$ready_file"
     fi
 }
 
@@ -87,7 +87,7 @@ fi
 # Usual psk server / psk client. This use case is tested in
 # tests/unit.test and is used here for just checking if PSK is enabled
 port=0
-./examples/server/server -s -R $ready_file -p $port &
+./examples/server/server -s -R "$ready_file" -p $port &
 server_pid=$!
 create_port
 ./examples/client/client -s -p $port
@@ -110,7 +110,7 @@ if [ $? -ne 0 ]; then
     # tests/unit.test and is used here for just checking if cipher suite
     # is available (one case for example is with disable-asn)
     port=0
-    ./examples/server/server -R $ready_file -p $port -l DHE-RSA-AES128-SHA:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-DES-CBC3-SHA &
+    ./examples/server/server -R "$ready_file" -p $port -l DHE-RSA-AES128-SHA:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-DES-CBC3-SHA &
     server_pid=$!
     create_port
     ./examples/client/client -p $port
@@ -126,7 +126,7 @@ if [ $? -ne 0 ]; then
 
     # psk server with non psk client
     port=0
-    ./examples/server/server -j -R $ready_file -p $port &
+    ./examples/server/server -j -R "$ready_file" -p $port &
     server_pid=$!
     create_port
     ./examples/client/client -p $port
@@ -142,7 +142,7 @@ if [ $? -ne 0 ]; then
     # check fail if no auth, psk server with non psk client
     echo "Checking fail when not sending peer cert"
     port=0
-    ./examples/server/server -j -R $ready_file -p $port &
+    ./examples/server/server -j -R "$ready_file" -p $port &
     server_pid=$!
     create_port
     ./examples/client/client -x -p $port

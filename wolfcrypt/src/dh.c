@@ -1,6 +1,6 @@
 /* dh.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -2126,7 +2126,6 @@ int wc_DhImportKeyPair(DhKey* key, const byte* priv, word32 privSz,
                        const byte* pub, word32 pubSz)
 {
     byte havePriv, havePub;
-    mp_int *keyPriv = NULL, *keyPub  = NULL;
 
     if (key == NULL) {
         return BAD_FUNC_ARG;
@@ -2154,7 +2153,6 @@ int wc_DhImportKeyPair(DhKey* key, const byte* priv, word32 privSz,
             mp_clear(&key->priv);
             havePriv = 0;
         } else {
-            keyPriv = &key->priv;
             WOLFSSL_MSG("DH Private Key Set");
         }
     }
@@ -2172,16 +2170,14 @@ int wc_DhImportKeyPair(DhKey* key, const byte* priv, word32 privSz,
         if (mp_read_unsigned_bin(&key->pub, pub, pubSz) != MP_OKAY) {
             mp_clear(&key->pub);
             havePub = 0;
+            if (havePriv) {
+                mp_clear(&key->priv);
+                havePriv = 0; /* set to 0 to error out with failed read pub */
+            }
         } else {
-            keyPub = &key->pub;
             WOLFSSL_MSG("DH Public Key Set");
         }
     }
-    /* Free Memory if error occurred */
-    if (havePriv == 0 && keyPriv != NULL)
-        mp_clear(keyPriv);
-    if (havePub == 0 && keyPub != NULL)
-        mp_clear(keyPub);
 
     if (havePriv == 0 && havePub == 0) {
         return MEMORY_E;

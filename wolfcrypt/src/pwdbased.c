@@ -1,6 +1,6 @@
 /* pwdbased.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -124,6 +124,8 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
             err = wc_HashFinal(hash, hashT, digest);
             if (err != 0) break;
         }
+
+        if (err != 0) break;
 
         if (keyLeft) {
             store = min(keyLeft, diestLen);
@@ -376,7 +378,7 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
 
     (void)heap;
 
-    if (output == NULL || passLen < 0 || saltLen < 0 || kLen < 0) {
+    if (output == NULL || passLen <= 0 || saltLen <= 0 || kLen < 0) {
         return BAD_FUNC_ARG;
     }
 
@@ -387,11 +389,15 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     ret = wc_HashGetDigestSize(hashT);
     if (ret < 0)
         return ret;
+    if (ret == 0)
+        return BAD_STATE_E;
     u = ret;
 
     ret = wc_HashGetBlockSize(hashT);
     if (ret < 0)
         return ret;
+    if (ret == 0)
+        return BAD_STATE_E;
     v = ret;
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -411,10 +417,10 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
 
     dLen = v;
     sLen = v * ((saltLen + v - 1) / v);
-    if (passLen)
-        pLen = v * ((passLen + v - 1) / v);
-    else
-        pLen = 0;
+
+    /* with passLen checked at the top of the function for >= 0 then passLen
+     * must be 1 or greater here and is always 'true' */
+    pLen = v * ((passLen + v - 1) / v);
     iLen = sLen + pLen;
 
     totalLen = dLen + sLen + pLen;

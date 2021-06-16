@@ -12,7 +12,7 @@
 */
 /* blake2b.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -152,6 +152,7 @@ int blake2b_init( blake2b_state *S, const byte outlen )
 int blake2b_init_key( blake2b_state *S, const byte outlen, const void *key,
                       const byte keylen )
 {
+  int ret = 0;
   blake2b_param P[1];
 
   if ( ( !outlen ) || ( outlen > BLAKE2B_OUTBYTES ) ) return BAD_FUNC_ARG;
@@ -178,10 +179,8 @@ int blake2b_init_key( blake2b_state *S, const byte outlen, const void *key,
   P->depth         = 1;
 #endif
 
-  {
-    int ret = blake2b_init_param( S, P );
-    if ( ret < 0 ) return ret;
-  }
+  ret = blake2b_init_param( S, P );
+  if ( ret < 0 ) return ret;
 
   {
 #ifdef WOLFSSL_SMALL_STACK
@@ -196,7 +195,7 @@ int blake2b_init_key( blake2b_state *S, const byte outlen, const void *key,
 
     XMEMSET( block, 0, BLAKE2B_BLOCKBYTES );
     XMEMCPY( block, key, keylen );
-    blake2b_update( S, block, BLAKE2B_BLOCKBYTES );
+    ret = blake2b_update( S, block, BLAKE2B_BLOCKBYTES );
     secure_zero_memory( block, BLAKE2B_BLOCKBYTES ); /* Burn the key from */
                                                      /* memory */
 
@@ -204,7 +203,7 @@ int blake2b_init_key( blake2b_state *S, const byte outlen, const void *key,
     XFREE(block, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
   }
-  return 0;
+  return ret;
 }
 
 static WC_INLINE int blake2b_compress(

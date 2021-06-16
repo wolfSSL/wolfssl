@@ -1,6 +1,6 @@
 /* sniffer.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -2280,7 +2280,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             /* Derive secret from private key and peer's public key */
             do {
             #ifdef WOLFSSL_ASYNC_CRYPT
-                ret = wc_AsyncWait(ret, &dhPriv.asyncDev,
+                ret = wc_AsyncWait(ret, &dhKey.asyncDev,
                         WC_ASYNC_FLAG_CALL_AGAIN);
             #endif
                 if (ret >= 0) {
@@ -4828,7 +4828,7 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
     word32 length;
     WOLFSSL* ssl = ((*session)->flags.side == WOLFSSL_SERVER_END) ?
                                   (*session)->sslServer : (*session)->sslClient;
-    byte  skipPartial = ((*session)->flags.side == WOLFSSL_SERVER_END) ?
+    byte skipPartial = ((*session)->flags.side == WOLFSSL_SERVER_END) ?
                         (*session)->flags.srvSkipPartial :
                         (*session)->flags.cliSkipPartial;
     /* remove SnifferSession on 2nd FIN or RST */
@@ -4865,7 +4865,8 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
 
     /* if current partial data, add to end of partial */
     /* if skipping, the data is already at the end of partial */
-    if ( !skipPartial && (length = ssl->buffers.inputBuffer.length) ) {
+    length = ssl->buffers.inputBuffer.length;
+    if ( !skipPartial && length ) {
         Trace(PARTIAL_ADD_STR);
 
         if ( (*sslBytes + length) > ssl->buffers.inputBuffer.bufferSize) {
@@ -4882,46 +4883,46 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
             *sslFrame = ssl->buffers.inputBuffer.buffer;
             *end = *sslFrame + *sslBytes;
         }
-    }
 
-    if (vChain != NULL) {
-#ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
-        struct iovec* chain = (struct iovec*)vChain;
-        word32 i, offset, headerSz, qty, remainder;
+        if (vChain != NULL) {
+    #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
+            struct iovec* chain = (struct iovec*)vChain;
+            word32 i, offset, headerSz, qty, remainder;
 
-        Trace(CHAIN_INPUT_STR);
-        headerSz = (word32)((const byte*)*sslFrame - (const byte*)chain[0].iov_base);
-        remainder = *sslBytes;
+            Trace(CHAIN_INPUT_STR);
+            headerSz = (word32)((const byte*)*sslFrame - (const byte*)chain[0].iov_base);
+            remainder = *sslBytes;
 
-        if ( (*sslBytes + length) > ssl->buffers.inputBuffer.bufferSize) {
-            if (GrowInputBuffer(ssl, *sslBytes, length) < 0) {
-                SetError(MEMORY_STR, error, *session, FATAL_ERROR_STATE);
-                return -1;
+            if ( (*sslBytes + length) > ssl->buffers.inputBuffer.bufferSize) {
+                if (GrowInputBuffer(ssl, *sslBytes, length) < 0) {
+                    SetError(MEMORY_STR, error, *session, FATAL_ERROR_STATE);
+                    return -1;
+                }
             }
+
+            qty = min(*sslBytes, (word32)chain[0].iov_len - headerSz);
+            XMEMCPY(&ssl->buffers.inputBuffer.buffer[length],
+                (byte*)chain[0].iov_base + headerSz, qty);
+            offset = length;
+            for (i = 1; i < chainSz; i++) {
+                offset += qty;
+                remainder -= qty;
+
+                if (chain[i].iov_len > remainder)
+                    qty = remainder;
+                else
+                    qty = (word32)chain[i].iov_len;
+                XMEMCPY(ssl->buffers.inputBuffer.buffer + offset,
+                        chain[i].iov_base, qty);
+            }
+
+            *sslBytes += length;
+            ssl->buffers.inputBuffer.length = *sslBytes;
+            *sslFrame = ssl->buffers.inputBuffer.buffer;
+            *end = *sslFrame + *sslBytes;
+    #endif
+            (void)chainSz;
         }
-
-        qty = min(*sslBytes, (word32)chain[0].iov_len - headerSz);
-        XMEMCPY(&ssl->buffers.inputBuffer.buffer[length],
-               (byte*)chain[0].iov_base + headerSz, qty);
-        offset = length;
-        for (i = 1; i < chainSz; i++) {
-            offset += qty;
-            remainder -= qty;
-
-            if (chain[i].iov_len > remainder)
-                qty = remainder;
-            else
-                qty = (word32)chain[i].iov_len;
-            XMEMCPY(ssl->buffers.inputBuffer.buffer + offset,
-                    chain[i].iov_base, qty);
-        }
-
-        *sslBytes += length;
-        ssl->buffers.inputBuffer.length = *sslBytes;
-        *sslFrame = ssl->buffers.inputBuffer.buffer;
-        *end = *sslFrame + *sslBytes;
-#endif
-        (void)chainSz;
     }
 
     if ((*session)->flags.clientHello == 0 && **sslFrame != handshake) {
@@ -5334,7 +5335,10 @@ static int RemoveFatalSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
 
 
 /* Passes in an IP/TCP packet for decoding (ethernet/localhost frame) removed */
-/* returns Number of bytes on success, 0 for no data yet, and -1 on error */
+/* returns Number of bytes on success, 0 for no data yet, and
+ * WOLFSSL_SNIFFER_ERROR on error and WOLFSSL_SNIFFER_FATAL_ERROR on fatal state
+ * error
+ */
 static int ssl_DecodePacketInternal(const byte* packet, int length,
                                     void* vChain, word32 chainSz,
                                     byte** data, SSLInfo* sslInfo,
@@ -5362,13 +5366,14 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
 
     if (CheckHeaders(&ipInfo, &tcpInfo, packet, length, &sslFrame, &sslBytes,
                      error) != 0)
-        return -1;
+        return WOLFSSL_SNIFFER_ERROR;
 
     end = sslFrame + sslBytes;
 
     ret = CheckSession(&ipInfo, &tcpInfo, sslBytes, &session, error);
-    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
-    else if (ret == -1) return -1;
+    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error))
+        return WOLFSSL_SNIFFER_FATAL_ERROR;
+    else if (ret == -1) return WOLFSSL_SNIFFER_ERROR;
     else if (ret ==  1) {
 #ifdef WOLFSSL_SNIFFER_STATS
         if (sslBytes > 0) {
@@ -5384,8 +5389,9 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
     }
 
     ret = CheckSequence(&ipInfo, &tcpInfo, session, &sslBytes, &sslFrame,error);
-    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
-    else if (ret == -1) return -1;
+    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error))
+        return WOLFSSL_SNIFFER_FATAL_ERROR;
+    else if (ret == -1) return WOLFSSL_SNIFFER_ERROR;
     else if (ret ==  1) {
 #ifdef WOLFSSL_SNIFFER_STATS
         INC_STAT(SnifferStats.sslDecryptedPackets);
@@ -5395,8 +5401,9 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
 
     ret = CheckPreRecord(&ipInfo, &tcpInfo, &sslFrame, &session, &sslBytes,
                          &end, vChain, chainSz, error);
-    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
-    else if (ret == -1) return -1;
+    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error))
+        return WOLFSSL_SNIFFER_FATAL_ERROR;
+    else if (ret == -1) return WOLFSSL_SNIFFER_ERROR;
     else if (ret ==  1) {
 #ifdef WOLFSSL_SNIFFER_STATS
         INC_STAT(SnifferStats.sslDecryptedPackets);
@@ -5416,7 +5423,8 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
 #endif
 
     ret = ProcessMessage(sslFrame, session, sslBytes, data, end, ctx, error);
-    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
+    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error))
+        return WOLFSSL_SNIFFER_FATAL_ERROR;
     if (CheckFinCapture(&ipInfo, &tcpInfo, session) == 0) {
         CopySessionInfo(session, sslInfo);
     }
@@ -5426,7 +5434,8 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
 
 
 /* Passes in an IP/TCP packet for decoding (ethernet/localhost frame) removed */
-/* returns Number of bytes on success, 0 for no data yet, and -1 on error */
+/* returns Number of bytes on success, 0 for no data yet, WOLFSSL_SNIFFER_ERROR.
+ * on error and WOLFSSL_SNIFFER_FATAL_ERROR on fatal state error */
 /* Also returns Session Info if available */
 int ssl_DecodePacketWithSessionInfo(const unsigned char* packet, int length,
     unsigned char** data, SSLInfo* sslInfo, char* error)
@@ -5437,7 +5446,8 @@ int ssl_DecodePacketWithSessionInfo(const unsigned char* packet, int length,
 
 
 /* Passes in an IP/TCP packet for decoding (ethernet/localhost frame) removed */
-/* returns Number of bytes on success, 0 for no data yet, and -1 on error */
+/* returns Number of bytes on success, 0 for no data yet, WOLFSSL_SNIFFER_ERROR.
+ * on error and WOLFSSL_SNIFFER_FATAL_ERROR on fatal state error */
 int ssl_DecodePacket(const byte* packet, int length, byte** data, char* error)
 {
     return ssl_DecodePacketInternal(packet, length, NULL, 0, data, NULL, NULL,
@@ -5447,6 +5457,8 @@ int ssl_DecodePacket(const byte* packet, int length, byte** data, char* error)
 
 #ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
 
+/* returns Number of bytes on success, 0 for no data yet, WOLFSSL_SNIFFER_ERROR.
+ * on error and WOLFSSL_SNIFFER_FATAL_ERROR on fatal state error */
 int ssl_DecodePacketWithSessionInfoStoreData(const unsigned char* packet,
         int length, void* ctx, SSLInfo* sslInfo, char* error)
 {
@@ -5459,6 +5471,8 @@ int ssl_DecodePacketWithSessionInfoStoreData(const unsigned char* packet,
 
 #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
 
+/* returns Number of bytes on success, 0 for no data yet, WOLFSSL_SNIFFER_ERROR.
+ * on error and WOLFSSL_SNIFFER_FATAL_ERROR on fatal state error */
 int ssl_DecodePacketWithChain(void* vChain, word32 chainSz, byte** data,
         char* error)
 {
@@ -5472,6 +5486,10 @@ int ssl_DecodePacketWithChain(void* vChain, word32 chainSz, byte** data,
 #if defined(WOLFSSL_SNIFFER_CHAIN_INPUT) && \
      defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
 
+/*
+ * returns WOLFSSL_SNIFFER_ERROR on error and WOLFSSL_SNIFFER_FATAL_ERROR on
+ * fatal state error
+ */
 int ssl_DecodePacketWithChainSessionInfoStoreData(void* vChain, word32 chainSz,
         void* ctx, SSLInfo* sslInfo, char* error)
 {
@@ -5517,7 +5535,7 @@ int ssl_Trace(const char* traceFile, char* error)
     if (traceFile) {
         /* Don't try to reopen the file */
         if (TraceFile == NULL) {
-            TraceFile = fopen(traceFile, "a");
+            TraceFile = XFOPEN(traceFile, "a");
             if (!TraceFile) {
                 SetError(BAD_TRACE_FILE_STR, error, NULL, 0);
                 return -1;

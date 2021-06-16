@@ -1,6 +1,6 @@
 /* crypto.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -46,11 +46,19 @@ WOLFSSL_API unsigned long wolfSSL_OpenSSL_version_num(void);
 #ifdef OPENSSL_EXTRA
 WOLFSSL_API void wolfSSL_OPENSSL_free(void*);
 WOLFSSL_API void *wolfSSL_OPENSSL_malloc(size_t a);
+WOLFSSL_API int wolfSSL_OPENSSL_hexchar2int(unsigned char c);
+WOLFSSL_API unsigned char *wolfSSL_OPENSSL_hexstr2buf(const char *str, long *len);
 
 WOLFSSL_API int wolfSSL_OPENSSL_init_crypto(word64 opts, const OPENSSL_INIT_SETTINGS *settings);
 #endif
 
-#define CRYPTO_THREADID void
+typedef struct WOLFSSL_CRYPTO_THREADID {
+    int dummy;
+}WOLFSSL_CRYPTO_THREADID;
+typedef struct crypto_threadid_st   CRYPTO_THREADID;
+
+#define crypto_threadid_st          WOLFSSL_CRYPTO_THREADID
+#define CRYPTO_THREADID             WOLFSSL_CRYPTO_THREADID
 
 #define SSLeay_version wolfSSLeay_version
 #define SSLeay wolfSSLeay
@@ -69,6 +77,8 @@ WOLFSSL_API int wolfSSL_OPENSSL_init_crypto(word64 opts, const OPENSSL_INIT_SETT
 
 #define OPENSSL_free wolfSSL_OPENSSL_free
 #define OPENSSL_malloc wolfSSL_OPENSSL_malloc
+#define OPENSSL_hexchar2int wolfSSL_OPENSSL_hexchar2int
+#define OPENSSL_hexstr2buf wolfSSL_OPENSSL_hexstr2buf
 
 #define OPENSSL_INIT_ENGINE_ALL_BUILTIN 0x00000001L
 #define OPENSSL_INIT_ADD_ALL_CIPHERS    0x00000004L
@@ -77,6 +87,15 @@ WOLFSSL_API int wolfSSL_OPENSSL_init_crypto(word64 opts, const OPENSSL_INIT_SETT
 
 #define OPENSSL_init_crypto wolfSSL_OPENSSL_init_crypto
 
+#ifdef WOLFSSL_OPENVPN
+# define OPENSSL_assert(e) \
+    if (!(e)) { \
+        fprintf(stderr, "%s:%d wolfSSL internal error: assertion failed: " #e, \
+                __FILE__, __LINE__); \
+        raise(SIGABRT); \
+        _exit(3); \
+    }
+#endif
 
 #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
     defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(HAVE_EX_DATA)
@@ -88,6 +107,8 @@ typedef void (CRYPTO_free_func)(void*parent, void*ptr, CRYPTO_EX_DATA *ad, int i
         long argl, void* argp);
 #define CRYPTO_THREADID_set_callback wolfSSL_THREADID_set_callback
 #define CRYPTO_THREADID_set_numeric wolfSSL_THREADID_set_numeric
+#define CRYPTO_THREADID_current      wolfSSL_THREADID_current
+#define CRYPTO_THREADID_hash         wolfSSL_THREADID_hash
 
 #define CRYPTO_r_lock wc_LockMutex_ex
 #define CRYPTO_unlock wc_LockMutex_ex
@@ -95,6 +116,13 @@ typedef void (CRYPTO_free_func)(void*parent, void*ptr, CRYPTO_EX_DATA *ad, int i
 #define CRYPTO_THREAD_lock wc_LockMutex
 #define CRYPTO_THREAD_r_lock wc_LockMutex
 #define CRYPTO_THREAD_unlock wc_UnLockMutex
+
+#define CRYPTO_THREAD_lock_new wc_InitAndAllocMutex
+#define CRYPTO_THREAD_read_lock wc_LockMutex
+#define CRYPTO_THREAD_write_lock wc_LockMutex
+#define CRYPTO_THREAD_lock_free wc_FreeMutex
+
+#define CRYPTO_set_ex_data wolfSSL_CRYPTO_set_ex_data
 
 #endif /* OPENSSL_ALL || HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY || HAVE_EX_DATA */
 

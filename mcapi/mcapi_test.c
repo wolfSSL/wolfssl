@@ -1,6 +1,6 @@
 /* mcapi_test.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -238,7 +238,7 @@ static int check_md5(void)
         return -1;
     }
 
-    if (ret == 0 && memcmp(mcDigest, defDigest, CRYPT_MD5_DIGEST_SIZE) != 0) {
+    if (memcmp(mcDigest, defDigest, CRYPT_MD5_DIGEST_SIZE) != 0) {
         printf("md5 final memcmp failed\n");
         return -1;
     }

@@ -1,6 +1,6 @@
 /* atmel.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -190,7 +190,11 @@ int wolfCrypt_ATECC_SetConfig(ATCAIfaceCfg* cfg)
     XMEMSET(&cfg_ateccx08a_i2c_pi, 0, sizeof(cfg_ateccx08a_i2c_pi));
     cfg_ateccx08a_i2c_pi.iface_type            = cfg->iface_type;
     cfg_ateccx08a_i2c_pi.devtype               = cfg->devtype;
-    cfg_ateccx08a_i2c_pi.atcai2c.slave_address = cfg->atcai2c.slave_address;
+#ifdef ATCA_ENABLE_DEPRECATED
+    cfg_ateccx08a_i2c_pi.atcai2c.slave_address       = cfg->atcai2c.slave_address;
+#else
+    cfg_ateccx08a_i2c_pi.atcai2c.address       = cfg->atcai2c.address;
+#endif
     cfg_ateccx08a_i2c_pi.atcai2c.bus           = cfg->atcai2c.bus;
     cfg_ateccx08a_i2c_pi.atcai2c.baud          = cfg->atcai2c.baud;
     cfg_ateccx08a_i2c_pi.wake_delay            = cfg->wake_delay;
@@ -259,7 +263,12 @@ int atmel_ecc_alloc(int slotType)
                 goto exit;
             case ATMEL_SLOT_ECDHE:
                 slotId = ATECC_SLOT_ECDHE_PRIV;
+            #ifdef WOLFSSL_ATECC_TNGTLS
+                /* not reserved in mSlotList, so return */
+                goto exit;
+            #else
                 break;
+            #endif
             case ATMEL_SLOT_ECDHE_ENC:
                 slotId = ATECC_SLOT_ENC_PARENT;
             #ifdef WOLFSSL_ATECC_TNGTLS
@@ -389,7 +398,7 @@ void atmel_show_rev_info(void)
 #ifdef WOLFSSL_ATECC_DEBUG
     word32 revision = 0;
     atmel_get_rev_info(&revision);
-    printf("ATECC508A Revision: %x\n", (word32)revision);
+    printf("ATECC608 Revision: %x\n", (word32)revision);
 #endif
 }
 
@@ -453,12 +462,15 @@ int atmel_ecc_sign(int slotId, const byte* message, byte* signature)
 }
 
 int atmel_ecc_verify(const byte* message, const byte* signature,
-    const byte* pubkey, int* verified)
+    const byte* pubkey, int* pVerified)
 {
     int ret;
+    bool verified = false;
 
-    ret = atcab_verify_extern(message, signature, pubkey, (bool*)verified);
+    ret = atcab_verify_extern(message, signature, pubkey, &verified);
     ret = atmel_ecc_translate_err(ret);
+    if (pVerified)
+        *pVerified = (int)verified;
     return ret;
 }
 
@@ -513,7 +525,11 @@ int atmel_init(void)
             XMEMSET(&cfg_ateccx08a_i2c_pi, 0, sizeof(cfg_ateccx08a_i2c_pi));
             cfg_ateccx08a_i2c_pi.iface_type             = ATCA_I2C_IFACE;
             cfg_ateccx08a_i2c_pi.devtype                = ATECC_DEV_TYPE;
+#ifdef ATCA_ENABLE_DEPRECATED
             cfg_ateccx08a_i2c_pi.atcai2c.slave_address  = ATECC_I2C_ADDR;
+#else
+            cfg_ateccx08a_i2c_pi.atcai2c.address        = ATECC_I2C_ADDR;
+#endif
             cfg_ateccx08a_i2c_pi.atcai2c.bus            = ATECC_I2C_BUS;
             cfg_ateccx08a_i2c_pi.atcai2c.baud           = 400000;
             cfg_ateccx08a_i2c_pi.wake_delay             = 1500;
@@ -915,62 +931,72 @@ exit:
 
 static int atcatls_set_certificates(WOLFSSL_CTX *ctx) 
 {
-    #ifndef ATCATLS_TNGTLS_SIGNER_CERT_SIZE
-        #define ATCATLS_TNGTLS_SIGNER_CERT_SIZE 0x208
-    #endif
-    #ifndef ATCATLS_TNGTLS_DEVICE_CERT_SIZE
-        #define ATCATLS_TNGTLS_DEVICE_CERT_SIZE 0x222
-    #endif
-    #ifndef ATCATLS_TNGTLS_CERT_BUFF_SIZE
-        #define ATCATLS_TNGTLS_CERT_BUFF_SIZE (ATCATLS_TNGTLS_SIGNER_CERT_SIZE +\
-                                               ATCATLS_TNGTLS_DEVICE_CERT_SIZE)
-    #endif
-
     int ret = 0;
     ATCA_STATUS status;
-    size_t signerCertSize = ATCATLS_TNGTLS_SIGNER_CERT_SIZE;
-    size_t deviceCertSize = ATCATLS_TNGTLS_DEVICE_CERT_SIZE;
-    uint8_t certBuffer[ATCATLS_TNGTLS_CERT_BUFF_SIZE];
+    size_t signerCertSize=0;
+    size_t deviceCertSize=0;
+    uint8_t *certBuffer;
 
-    /*Read signer cert*/
-    status = tng_atcacert_read_signer_cert(&certBuffer[ATCATLS_TNGTLS_DEVICE_CERT_SIZE],
+    /* fetch signer cert size */
+    status=tng_atcacert_read_signer_cert(NULL, &signerCertSize);
+    if (ATCA_SUCCESS != status) {
+        #ifdef WOLFSSL_ATECC_DEBUG
+        printf("Failed reading Signer cert size(0x%x)\r\n", status);
+        #endif
+        return WOLFSSL_FAILURE;
+    }
+
+    /* fetch device cert size */
+    status=tng_atcacert_read_device_cert(NULL, &deviceCertSize, NULL);
+    if (ATCA_SUCCESS != status) {
+        #ifdef WOLFSSL_ATECC_DEBUG
+        printf("Failed reading device cert size(0x%x)\r\n", status);
+        #endif
+        return WOLFSSL_FAILURE;
+    }    
+    certBuffer=(uint8_t*)XMALLOC(signerCertSize+deviceCertSize, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if(NULL == certBuffer){
+        #ifdef WOLFSSL_ATECC_DEBUG
+        printf("Failed allocating space for certBuffer\r\n");
+        #endif
+        return WOLFSSL_FAILURE;
+    }
+    
+    /* Read signer cert */
+    status = tng_atcacert_read_signer_cert(&certBuffer[deviceCertSize],
                                            &signerCertSize);
     if (ATCA_SUCCESS != status) {
+        #ifdef WOLFSSL_ATECC_DEBUG
+        printf("Error reading signer cert(0x%x)\r\n", status);
+        #endif
+        XFREE(certBuffer,NULL,DYNAMIC_TYPE_TMP_BUFFER);
         ret = atmel_ecc_translate_err(ret);
         return ret;
-    }
-    if (signerCertSize != ATCATLS_TNGTLS_SIGNER_CERT_SIZE) {
-        #ifdef WOLFSSL_ATECC_DEBUG
-        printf("signer cert size != ATCATLS_TNGTLS_SIGNER_CERT_SIZE.(%d)\r\n",
-               signerCertSize);
-        #endif
-        return WOLFSSL_FAILURE;
     }
 
-    /*Read device cert signed by the signer above*/
-    status = tng_atcacert_read_device_cert(certBuffer, &deviceCertSize,\
-     	                  &certBuffer[ATCATLS_TNGTLS_DEVICE_CERT_SIZE]);
+    /* Read device cert signed by the signer above */
+    status = tng_atcacert_read_device_cert(certBuffer, &deviceCertSize,
+     	                                   &certBuffer[deviceCertSize]);
     if (ATCA_SUCCESS != status) {
+        #ifdef WOLFSSL_ATECC_DEBUG
+        printf("Error reading device cert(0x%x)\r\n", status);
+        #endif
+        XFREE(certBuffer,NULL,DYNAMIC_TYPE_TMP_BUFFER);
         ret = atmel_ecc_translate_err(ret);
         return ret;
-    }
-    if (deviceCertSize != ATCATLS_TNGTLS_DEVICE_CERT_SIZE) {
-        #ifdef WOLFSSL_ATECC_DEBUG
-        printf("device cert size != ATCATLS_TNGTLS_DEVICE_CERT_SIZE.(%d)\r\n",
-               deviceCertSize);
-        #endif
-        return WOLFSSL_FAILURE;
     }
 
     ret = wolfSSL_CTX_use_certificate_chain_buffer_format(ctx,
-          (const unsigned char*)certBuffer, ATCATLS_TNGTLS_CERT_BUFF_SIZE,
+          (const unsigned char*)certBuffer, signerCertSize+deviceCertSize,
           WOLFSSL_FILETYPE_ASN1);
     if (ret != WOLFSSL_SUCCESS) {
+        printf("Error registering certificate chain\r\n");
         ret = -1;
     }
     else {
-	ret = 0;
+	    ret = 0;
     }
+    XFREE(certBuffer,NULL,DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -985,7 +1011,7 @@ int atcatls_set_callbacks(WOLFSSL_CTX* ctx)
     ret = atcatls_set_certificates(ctx);
     if (ret != 0) {
         #ifdef WOLFSSL_ATECC_DEBUG
-        printf("atcatls_set_certificates failed. (%d)\r\n",ret);
+        printf("atcatls_set_certificates failed. (%d)\r\n", ret);
         #endif
     }
 #endif

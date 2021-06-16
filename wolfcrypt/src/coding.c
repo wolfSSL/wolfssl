@@ -1,6 +1,6 @@
 /* coding.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -118,22 +118,39 @@ int Base64_SkipNewline(const byte* in, word32 *inLen,
 {
     word32 len = *inLen;
     word32 j = *outJ;
-    if (len && (in[j] == ' ' || in[j] == '\r' || in[j] == '\n')) {
-        byte endLine = in[j++];
+    byte curChar;
+
+    if (len == 0) {
+        return BUFFER_E;
+    }
+    curChar = in[j];
+
+    while (len > 1 && curChar == ' ') {
+        /* skip whitespace in the middle or end of line */
+        curChar = in[++j];
         len--;
-        while (len && endLine == ' ') {   /* allow trailing whitespace */
-            endLine = in[j++];
-            len--;
-        }
-        if (endLine == '\r') {
+    }
+    if (len && (curChar == '\r' || curChar == '\n')) {
+        j++;
+        len--;
+        if (curChar == '\r') {
             if (len) {
-                endLine = in[j++];
+                curChar = in[j++];
                 len--;
             }
         }
-        if (endLine != '\n') {
+        if (curChar != '\n') {
             WOLFSSL_MSG("Bad end of line in Base64 Decode");
             return ASN_INPUT_E;
+        }
+
+        if (len) {
+            curChar = in[j];
+        }
+    }
+    while (len && curChar == ' ') {
+        if (--len > 0) {
+            curChar = in[++j];
         }
     }
     if (!len) {

@@ -1,6 +1,6 @@
 /* tls_bench.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -42,7 +42,7 @@ bench_tls(args);
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/hash.h> /* WC_MAX_DIGEST_SIZE */
 #include <wolfssl/test.h>
-
+#include <wolfssl/wolfio.h>
 #include <examples/benchmark/tls_bench.h>
 
 /* force certificate test buffers to be included via headers */
@@ -121,13 +121,13 @@ bench_tls(args);
 #define SHOW_VERBOSE        0 /* Default output is tab delimited format */
 
 #if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
-    !defined(WOLFCRYPT_ONLY)
+    !defined(WOLFCRYPT_ONLY) && defined(USE_WOLFSSL_IO)
 
 /* shutdown message - nice signal to server, we are done */
 static const char* kShutdown = "shutdown";
 
 #ifndef NO_WOLFSSL_CLIENT
-static const char* kTestStr =
+PEDANTIC_EXTENSION static const char* kTestStr =
 "Biodiesel cupidatat marfa, cliche aute put a bird on it incididunt elit\n"
 "polaroid. Sunt tattooed bespoke reprehenderit. Sint twee organic id\n"
 "marfa. Commodo veniam ad esse gastropub. 3 wolf moon sartorial vero,\n"
@@ -1930,7 +1930,7 @@ exit:
 
     return ret;
 }
-#endif /* (!NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER) && !WOLFCRYPT_ONLY */
+#endif /* (!NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER) && !WOLFCRYPT_ONLY && USE_WOLFSSL_IO */
 
 #ifndef NO_MAIN_DRIVER
 
@@ -1942,7 +1942,8 @@ int main(int argc, char** argv)
     args.argv = argv;
     args.return_code = 0;
 
-#if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && !defined(WOLFCRYPT_ONLY)
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+    !defined(WOLFCRYPT_ONLY) && defined(USE_WOLFSSL_IO)
     bench_tls(&args);
 #endif
 

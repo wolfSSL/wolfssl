@@ -1,6 +1,6 @@
 /* echoclient.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -89,7 +89,7 @@ void echoclient_test(void* args)
     int argc    = 0;
     char** argv = 0;
 #endif
-    word16 port = yasslPort;
+    word16 port;
     char buffer[CYASSL_MAX_ERROR_SZ];
 
     ((func_args*)args)->return_code = -1; /* error state */
@@ -126,6 +126,8 @@ void echoclient_test(void* args)
 
 #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && !defined(WOLFSSL_MDK_SHELL)
     port = ((func_args*)args)->signal->port;
+#else
+    port = yasslPort;
 #endif
 
 #if defined(CYASSL_DTLS)
@@ -217,7 +219,7 @@ void echoclient_test(void* args)
     if (ret < 0) {
         printf("Async device open failed\nRunning without async\n");
     }
-    wolfSSL_CTX_UseAsync(ctx, devId);
+    wolfSSL_CTX_SetDevId(ctx, devId);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
     ssl = SSL_new(ctx);

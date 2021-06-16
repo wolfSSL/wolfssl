@@ -1,6 +1,6 @@
 /* sniffer_error.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -23,6 +23,13 @@
 
 #ifndef WOLFSSL_SNIFFER_ERROR_H
 #define WOLFSSL_SNIFFER_ERROR_H
+
+
+/* General Sniffer Error */
+#define WOLFSSL_SNIFFER_ERROR -1
+
+/* Sniffer failed and is in Fatal state */
+#define WOLFSSL_SNIFFER_FATAL_ERROR -2
 
 /* need to have errors as #defines since .rc files can't handle enums */
 /* need to start at 1 and go in order for same reason */

@@ -1,6 +1,6 @@
 /* armv8-32-curve25519
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -23,7 +23,7 @@
  *   cd ../scripts
  *   ruby ./x25519/x25519.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-curve25519.c
  */
-#ifdef WOLFSSL_ARMASM
+#if defined(WOLFSSL_ARMASM) && defined(HAVE_CURVE25519)
 #ifndef __aarch64__
 #include <stdint.h>
 #ifdef HAVE_CONFIG_H
@@ -5573,4 +5573,4 @@ void fe_ge_sub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz
 }
 
 #endif /* !__aarch64__ */
-#endif /* WOLFSSL_ARMASM */
+#endif /* WOLFSSL_ARMASM && HAVE_CURVE25519 */

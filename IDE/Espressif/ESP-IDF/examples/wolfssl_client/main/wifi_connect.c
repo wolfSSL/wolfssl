@@ -1,6 +1,6 @@
 /* wifi_connect.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -51,10 +51,10 @@ static void set_time()
     time_t now;
     struct tm timeinfo;
     char strftime_buf[64];
-    /* please update the time if seeing unknown failure. */
-    /* this could cause TLS communication failure due to time expiration */
-    /* incleasing 31536000 seconds is close to spend 356 days.           */
-    utctime.tv_sec = 1598661910; /* dummy time: Fri Aug 29 09:45:00 2020 */
+    /* please update the time if seeing unknown failure when loading cert.  */
+    /* this could cause TLS communication failure due to time expiration    */
+    /* incleasing 31536000 seconds is close to spend 356 days.              */
+    utctime.tv_sec = 1619650800; /* dummy time: Wed April 28 23:00:00 2021 */
     utctime.tv_usec = 0;
     tz.tz_minuteswest = 0;
     tz.tz_dsttime = 0;

@@ -1,6 +1,6 @@
 /* poly1305.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -109,7 +109,7 @@ static word32 cpu_flags_set = 0;
 
     #elif defined(__GNUC__)
         #if defined(__SIZEOF_INT128__)
-            typedef unsigned __int128 word128;
+            PEDANTIC_EXTENSION typedef unsigned __int128 word128;
         #else
             typedef unsigned word128 __attribute__((mode(TI)));
         #endif
@@ -723,8 +723,10 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
                 poly1305_calc_powers_avx2(ctx);
             poly1305_blocks_avx2(ctx, ctx->buffer, sizeof(ctx->buffer));
             ctx->leftover = 0;
-        } else
+        }
+        else {
             SAVE_VECTOR_REGISTERS();
+        }
 
         /* process full blocks */
         if (bytes >= sizeof(ctx->buffer)) {
@@ -804,8 +806,8 @@ int wc_Poly1305_Pad(Poly1305* ctx, word32 lenToPad)
     XMEMSET(padding, 0, sizeof(padding));
 
     /* Pad length to 16 bytes */
-    paddingLen = -(int)lenToPad & (WC_POLY1305_PAD_SZ - 1);
-    if (paddingLen > 0) {
+    paddingLen = (-(int)lenToPad) & (WC_POLY1305_PAD_SZ - 1);
+    if ((paddingLen > 0) && (paddingLen < WC_POLY1305_PAD_SZ)) {
         ret = wc_Poly1305Update(ctx, padding, paddingLen);
     }
     return ret;
@@ -870,8 +872,8 @@ int wc_Poly1305_EncodeSizes64(Poly1305* ctx, word64 aadSz, word64 dataSz)
     tagSz      : Size of input tag buffer (must be at least
                  WC_POLY1305_MAC_SZ(16))
  */
-int wc_Poly1305_MAC(Poly1305* ctx, byte* additional, word32 addSz,
-                    byte* input, word32 sz, byte* tag, word32 tagSz)
+int wc_Poly1305_MAC(Poly1305* ctx, const byte* additional, word32 addSz,
+                    const byte* input, word32 sz, byte* tag, word32 tagSz)
 {
     int ret;
 

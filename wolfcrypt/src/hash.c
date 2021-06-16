@@ -1,6 +1,6 @@
 /* hash.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1381,7 +1381,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
     }
 #endif /* !WOLFSSL_NOSHA3_512 */
 
-#if defined(WOLFSSL_SHAKE256) && !defined(WOLFSSL_NO_SHAKE256)
+#ifdef WOLFSSL_SHAKE256
     int wc_Shake256Hash(const byte* data, word32 len, byte* hash,
                         word32 hashLen)
     {
@@ -1418,7 +1418,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
 
         return ret;
     }
-#endif /* WOLFSSL_SHAKE_256 && !WOLFSSL_NO_SHAKE256 */
+#endif /* WOLFSSL_SHAKE_256 */
 #endif /* WOLFSSL_SHA3 */
 
 #endif /* !NO_HASH_WRAPPER */

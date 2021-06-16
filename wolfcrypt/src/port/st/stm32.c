@@ -1,6 +1,6 @@
 /* stm32.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -294,6 +294,9 @@ int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp)
     hcryp->Init.pKey = (STM_CRYPT_TYPE*)aes->key;
 #ifdef STM32_HAL_V2
     hcryp->Init.DataWidthUnit = CRYP_DATAWIDTHUNIT_BYTE;
+    #ifdef CRYP_HEADERWIDTHUNIT_BYTE
+    hcryp->Init.HeaderWidthUnit = CRYP_HEADERWIDTHUNIT_BYTE;
+    #endif
 #endif
 
     return 0;
@@ -383,19 +386,19 @@ extern PKA_HandleTypeDef hpka;
  * and mp_int has only 31 bytes, we add leading zeros
  * so that result array has 32 bytes, same as modulus (sz).
  */
-static int stm32_get_from_mp_int(uint8_t *dst, mp_int *a, int sz)
+static int stm32_get_from_mp_int(uint8_t *dst, const mp_int *a, int sz)
 {
     int res;
     int szbin;
     int offset;
 
-    if (!a || !dst || (sz < 0))
-        return -1;
+    if (a == NULL || dst == NULL || sz < 0)
+        return BAD_FUNC_ARG;
 
     /* check how many bytes are in the mp_int */
     szbin = mp_unsigned_bin_size(a);
-    if ((szbin < 0) || (szbin > sz))
-        return -1;
+    if (szbin < 0 || szbin > sz)
+        return BUFFER_E;
 
     /* compute offset from dst */
     offset = sz - szbin;
@@ -409,7 +412,7 @@ static int stm32_get_from_mp_int(uint8_t *dst, mp_int *a, int sz)
         XMEMSET(dst, 0, offset);
 
     /* convert mp_int to array of bytes */
-    res = mp_to_unsigned_bin(a, dst + offset);
+    res = mp_to_unsigned_bin((mp_int*)a, dst + offset);
     return res;
 }
 
@@ -460,7 +463,6 @@ static const uint8_t stm32_ecc192_order[ECC192_KEYSIZE] = {
     0xFF, 0xFF, 0xFF, 0xFF,  0x99, 0xDE, 0xF8, 0x36,
     0x14, 0x6B, 0xC9, 0xB1,  0xB4, 0xD2, 0x28, 0x31
 };
-static const uint32_t stm32_ecc192_cofactor = 1U;
 #endif /* ECC192 */
 
 /* P-224 */
@@ -497,8 +499,6 @@ static const uint8_t stm32_ecc224_order[ECC224_KEYSIZE] = {
     0xE0, 0xB8, 0xF0, 0x3E, 0x13, 0xDD, 0x29, 0x45, 
     0x5C, 0x5C, 0x2A, 0x3D
 };
-static const uint32_t stm32_ecc224_cofactor = 1U;
-
 #endif /* ECC224 */
 
 /* P-256 */
@@ -535,8 +535,6 @@ static const uint8_t stm32_ecc256_order[ECC256_KEYSIZE] = {
     0xbc, 0xe6, 0xfa, 0xad, 0xa7, 0x17, 0x9e, 0x84,
     0xf3, 0xb9, 0xca, 0xc2, 0xfc, 0x63, 0x25, 0x51
 };
-static const uint32_t stm32_ecc256_cofactor = 1U;
-
 #endif /* ECC256 */
 
 /* P-384 */
@@ -583,7 +581,6 @@ static const uint8_t stm32_ecc384_order[ECC384_KEYSIZE] = {
     0x58, 0x1A, 0x0D, 0xB2, 0x48, 0xB0, 0xA7, 0x7A,
     0xEC, 0xEC, 0x19, 0x6A, 0xCC, 0xC5, 0x29, 0x73
 };
-static const uint32_t stm32_ecc384_cofactor = 1U;
 #endif /* ECC384 */
 
 static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
@@ -597,7 +594,7 @@ static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
         *GenPointX = stm32_ecc256_pointX;
         *GenPointY = stm32_ecc256_pointY;
         *coef_sign = &stm32_ecc256_coef_sign;
-        *order = stm32_ecc256_order;
+        if (order) *order = stm32_ecc256_order;
         break;
 #ifdef ECC224
     case 28:
@@ -606,7 +603,7 @@ static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
         *GenPointX = stm32_ecc224_pointX;
         *GenPointY = stm32_ecc224_pointY;
         *coef_sign = &stm32_ecc224_coef;
-        *order = stm32_ecc224_order;
+        if (order) *order = stm32_ecc224_order;
         break;
 #endif
 #ifdef ECC192
@@ -616,7 +613,7 @@ static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
         *GenPointX = stm32_ecc192_pointX;
         *GenPointY = stm32_ecc192_pointY;
         *coef_sign = &stm32_ecc192_coef;
-        *order = stm32_ecc192_order;
+        if (order) *order = stm32_ecc192_order;
         break;
 #endif
 #ifdef ECC384
@@ -626,11 +623,11 @@ static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
         *GenPointX = stm32_ecc384_pointX;
         *GenPointY = stm32_ecc384_pointY;
         *coef_sign = &stm32_ecc384_coef;
-        *order = stm32_ecc384_order;
+        if (order) *order = stm32_ecc384_order;
         break;
 #endif
     default:
-        return -1;
+        return NOT_COMPILED_IN;
     }
     return 0;
 }
@@ -646,7 +643,7 @@ static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
             (1==map, 0 == leave in projective)
    return MP_OKAY on success
 */
-int wc_ecc_mulmod_ex(mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
+int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     mp_int *modulus, int map, void* heap)
 {
     PKA_ECCMulInTypeDef pka_mul;
@@ -661,7 +658,7 @@ int wc_ecc_mulmod_ex(mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     uint8_t kbin[STM32_MAX_ECC_SIZE];
     uint8_t PtXbin[STM32_MAX_ECC_SIZE];
     uint8_t PtYbin[STM32_MAX_ECC_SIZE];
-    const uint8_t *prime, *coef, *gen_x, *gen_y, *order;
+    const uint8_t *prime, *coef, *gen_x, *gen_y;
     const uint32_t *coef_sign;
     (void)a;
     (void)heap;
@@ -688,10 +685,9 @@ int wc_ecc_mulmod_ex(mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
 
     size = (uint8_t)szModulus;
     /* find STM32_PKA friendly parameters for the selected curve */
-    if (0 != stm32_get_ecc_specs(&prime, &coef, &coef_sign, &gen_x, &gen_y, &order, size)) {
+    if (0 != stm32_get_ecc_specs(&prime, &coef, &coef_sign, &gen_x, &gen_y, NULL, size)) {
         return ECC_BAD_ARG_E;
     }
-    (void)order;
 
     pka_mul.modulusSize = szModulus;
     pka_mul.coefSign = *coef_sign;
@@ -725,13 +721,23 @@ int wc_ecc_mulmod_ex(mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     return res;
 }
 
-int wc_ecc_mulmod_ex2(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
+int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
                       mp_int* modulus, mp_int* order, WC_RNG* rng, int map,
                       void* heap)
 {
     (void)order;
     (void)rng;
     return wc_ecc_mulmod_ex(k, G, R, a, modulus, map, heap);
+}
+
+int ecc_map_ex(ecc_point* P, mp_int* modulus, mp_digit mp, int ct)
+{
+    /* this is handled in hardware, so no projective mapping needed */
+    (void)P;
+    (void)modulus;
+    (void)mp;
+    (void)ct;
+    return MP_OKAY;
 }
 
 int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
@@ -823,7 +829,7 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
     const uint8_t *prime, *coef, *gen_x, *gen_y, *order;
     const uint32_t *coef_sign;
     XMEMSET(&pka_ecc, 0x00, sizeof(PKA_ECDSASignInTypeDef));
-    XMEMSET(&pka_ecc, 0x00, sizeof(PKA_ECDSASignOutTypeDef));
+    XMEMSET(&pka_ecc_out, 0x00, sizeof(PKA_ECDSASignOutTypeDef));
 
     if (r == NULL || s == NULL || hash == NULL || key == NULL) {
         return ECC_BAD_ARG_E;

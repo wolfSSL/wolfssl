@@ -271,6 +271,14 @@ keyUsage=critical, digitalSignature, keyEncipherment, keyAgreement
 extendedKeyUsage=serverAuth
 nsCertType=server
 
+# server-ecc extensions
+[ client_ecc ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always
+basicConstraints=critical, CA:FALSE
+keyUsage=critical, digitalSignature, keyEncipherment, keyAgreement
+extendedKeyUsage=clientAuth
+
 # test parsing URI
 [ uri ]
 subjectKeyIdentifier=hash

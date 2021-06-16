@@ -1,6 +1,6 @@
 /* asn_public.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -32,6 +32,7 @@ This library defines the interface APIs for X509 certificates.
 #define WOLF_CRYPT_ASN_PUBLIC_H
 
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/dsa.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -57,6 +58,10 @@ This library defines the interface APIs for X509 certificates.
 #ifndef WC_RNG_TYPE_DEFINED
     typedef struct WC_RNG WC_RNG;
     #define WC_RNG_TYPE_DEFINED
+#endif
+#ifndef WC_DH_TYPE_DEFINED
+    typedef struct DhKey DhKey;
+    #define WC_DH_TYPE_DEFINED
 #endif
 
 enum Ecc_Sum {
@@ -509,6 +514,20 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
     WOLFSSL_API int wc_RsaPublicKeyDerSize(RsaKey* key, int with_header);
 #endif
 
+#ifndef NO_DSA
+    /* DSA parameter DER helper functions */
+    WOLFSSL_API int wc_DsaParamsDecode(const byte* input, word32* inOutIdx,
+                                       DsaKey*, word32);
+    WOLFSSL_API int wc_DsaKeyToParamsDer(DsaKey* key, byte* output, word32 inLen);
+#endif
+
+#if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)
+WOLFSSL_LOCAL int wc_DhKeyToDer(DhKey* key, byte* output, word32* outSz, int exportPriv);
+WOLFSSL_API int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz);
+WOLFSSL_API int wc_DhPubKeyToDer(DhKey* key, byte* out, word32* outSz);
+WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
+#endif
+
 #ifdef HAVE_ECC
     /* private key helpers */
     WOLFSSL_API int wc_EccPrivateKeyDecode(const byte*, word32*,
@@ -516,6 +535,7 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
     WOLFSSL_API int wc_EccKeyToDer(ecc_key*, byte* output, word32 inLen);
     WOLFSSL_API int wc_EccPrivateKeyToDer(ecc_key* key, byte* output,
                                           word32 inLen);
+    WOLFSSL_API int wc_EccKeyDerSize(ecc_key*, int pub);
     WOLFSSL_API int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output,
                                             word32* outLen);
     WOLFSSL_API int wc_EccKeyToPKCS8(ecc_key* key, byte* output,
@@ -574,6 +594,9 @@ WOLFSSL_API int wc_GetPkcs8TraditionalOffset(byte* input,
                                              word32* inOutIdx, word32 sz);
 WOLFSSL_API int wc_CreatePKCS8Key(byte* out, word32* outSz,
        byte* key, word32 keySz, int algoID, const byte* curveOID, word32 oidSz);
+WOLFSSL_API int wc_EncryptPKCS8Key(byte*, word32, byte*, word32, const char*,
+        int, int, int, int, byte*, word32, int, WC_RNG*, void*);
+WOLFSSL_API int wc_DecryptPKCS8Key(byte*, word32, const char*, int);
 
 #ifndef NO_ASN_TIME
 /* Time */

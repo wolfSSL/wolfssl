@@ -1,6 +1,6 @@
 /* suites.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -82,6 +82,8 @@ static int GetTlsVersion(const char* line)
 
     if (begin) {
         begin += 3;
+        if (*begin == 'd' || *begin == 'e')
+            begin += 2;
 
         version = atoi(begin);
     }
@@ -807,7 +809,7 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
-    wolfSSL_CTX_UseAsync(cipherSuiteCtx, devId);
+    wolfSSL_CTX_SetDevId(cipherSuiteCtx, devId);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
     /* support for custom command line tests */
@@ -978,6 +980,19 @@ int SuiteTest(int argc, char** argv)
         goto exit;
     }
 #endif
+#ifdef WOLFSSL_DTLS_MTU
+    /* Add dtls different MTU size tests.
+     * These also use grouping to force wolfSSL to
+     * bounce off the MTU limit more */
+    strcpy(argv0[1], "tests/test-dtls-mtu.conf");
+    printf("starting dtls MTU tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
 #ifdef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
     /* add dtls extra suites */
     strcpy(argv0[1], "tests/test-dtls-sha2.conf");
@@ -995,6 +1010,20 @@ int SuiteTest(int argc, char** argv)
     strcpy(argv0[1], "tests/test-dtls-fails.conf");
     strcpy(argv0[2], "expFail"); /* tests are expected to fail */
     printf("starting dtls tests that expect failure\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    strcpy(argv0[2], "");
+#endif
+#ifdef WOLFSSL_EXTRA_ALERTS
+    /* failure tests */
+    args.argc = 3;
+    strcpy(argv0[1], "tests/test-dtls-fails-cipher.conf");
+    strcpy(argv0[2], "expFail"); /* tests are expected to fail */
+    printf("starting dtls cipher mismatch tests that expect failure\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);

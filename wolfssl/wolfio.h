@@ -1,6 +1,6 @@
 /* io.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -248,13 +248,17 @@
     #define SOCKET_ECONNREFUSED NU_CONNECTION_REFUSED
     #define SOCKET_ECONNABORTED NU_NOT_CONNECTED
 #elif defined(WOLFSSL_DEOS)
-     #define SOCKET_EWOULDBLOCK EAGAIN
-     #define SOCKET_EAGAIN      EAGAIN
-     #define SOCKET_ECONNRESET  EINTR
-     #define SOCKET_EINTR       EINTR
-     #define SOCKET_EPIPE       EPIPE
-     #define SOCKET_ECONNREFUSED SOCKET_ERROR
-     #define SOCKET_ECONNABORTED SOCKET_ERROR
+    /* `sockaddr_storage` is not defined in DEOS. This workaround will
+     * work for IPV4, but not IPV6
+     */
+    #define sockaddr_storage   sockaddr_in
+    #define SOCKET_EWOULDBLOCK EAGAIN
+    #define SOCKET_EAGAIN      EAGAIN
+    #define SOCKET_ECONNRESET  EINTR
+    #define SOCKET_EINTR       EINTR
+    #define SOCKET_EPIPE       EPIPE
+    #define SOCKET_ECONNREFUSED SOCKET_ERROR
+    #define SOCKET_ECONNABORTED SOCKET_ERROR
 #elif defined(HAVE_NETX)
     #define SOCKET_EWOULDBLOCK NX_NOT_CONNECTED
     #define SOCKET_EAGAIN      NX_NOT_CONNECTED
@@ -283,8 +287,7 @@
 
 #ifdef DEVKITPRO
     /* from network.h */
-    int net_send(int, const void*, int, unsigned int);
-    int net_recv(int, void*, int, unsigned int);
+    #include <network.h>
     #define SEND_FUNCTION net_send
     #define RECV_FUNCTION net_recv
 #elif defined(WOLFSSL_LWIP) && !defined(WOLFSSL_APACHE_MYNEWT)

@@ -67,6 +67,8 @@ my @fileList_2048 = (
         [ "./certs/client-keyPub.der", "client_keypub_der_2048" ],
         [ "./certs/client-cert.der", "client_cert_der_2048" ],
         [ "./certs/dh2048.der", "dh_key_der_2048" ],
+        [ "./certs/dh-pubkey-2048.der", "dh_pub_key_der_2048" ],
+        [ "./certs/dsa-pubkey-2048.der", "dsa_pub_key_der_2048" ],
         [ "./certs/dsa2048.der", "dsa_key_der_2048" ],
         [ "./certs/rsa2048.der", "rsa_key_der_2048" ],
         [ "./certs/ca-key.der", "ca_key_der_2048" ],

@@ -1,6 +1,6 @@
 /* ec.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -192,6 +192,7 @@ WOLFSSL_BIGNUM *wolfSSL_EC_KEY_get0_private_key(const WOLFSSL_EC_KEY *key);
 WOLFSSL_API
 WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_by_curve_name(int nid);
 WOLFSSL_API const char* wolfSSL_EC_curve_nid2nist(int nid);
+WOLFSSL_API int wolfSSL_EC_curve_nist2nid(const char* name);
 WOLFSSL_API
 WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new(void);
 WOLFSSL_API
@@ -351,6 +352,7 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 #define EC_get_builtin_curves           wolfSSL_EC_get_builtin_curves
 
 #define EC_curve_nid2nist               wolfSSL_EC_curve_nid2nist
+#define EC_curve_nist2nid               wolfSSL_EC_curve_nist2nid
 
 #ifdef __cplusplus
 }  /* extern "C" */

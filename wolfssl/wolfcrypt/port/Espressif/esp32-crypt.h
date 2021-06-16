@@ -1,6 +1,6 @@
 /* esp32-crypt.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -89,11 +89,13 @@ uint64_t  wc_esp32elapsedTime();
 
 /* RAW hash function APIs are not implemented with esp32 hardware acceleration*/
 #define WOLFSSL_NO_HASH_RAW
+#define SHA_CTX ETS_SHAContext
 #if ESP_IDF_VERSION_MAJOR >= 4
 #include "esp32/rom/sha.h"
 #else
 #include "rom/sha.h"
 #endif
+#undef SHA_CTX
 
 typedef enum {
     ESP32_SHA_INIT = 0,

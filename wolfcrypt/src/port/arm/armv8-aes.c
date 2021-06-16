@@ -1,6 +1,6 @@
 /* armv8-aes.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -461,9 +461,19 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     {
         word32 numBlocks = sz / AES_BLOCK_SIZE;
 
-        if (aes == NULL || out == NULL || (in == NULL && sz > 0)) {
+        if (aes == NULL || out == NULL || in == NULL) {
             return BAD_FUNC_ARG;
         }
+
+        if (sz == 0) {
+            return 0;
+        }
+
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        if (sz % AES_BLOCK_SIZE) {
+            return BAD_LENGTH_E;
+        }
+#endif
 
         /* do as many block size ops as possible */
         if (numBlocks > 0) {
@@ -665,9 +675,20 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     {
         word32 numBlocks = sz / AES_BLOCK_SIZE;
 
-        if (aes == NULL || out == NULL || (in == NULL && sz > 0)
-                || sz % AES_BLOCK_SIZE != 0) {
+        if (aes == NULL || out == NULL || in == NULL) {
             return BAD_FUNC_ARG;
+        }
+
+        if (sz == 0) {
+            return 0;
+        }
+
+        if (sz % AES_BLOCK_SIZE) {
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+            return BAD_LENGTH_E;
+#else
+            return BAD_FUNC_ARG;
+#endif
         }
 
         /* do as many block size ops as possible */
@@ -3043,9 +3064,19 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     {
         word32 numBlocks = sz / AES_BLOCK_SIZE;
 
-        if (aes == NULL || out == NULL || (in == NULL && sz > 0)) {
+        if (aes == NULL || out == NULL || in == NULL) {
             return BAD_FUNC_ARG;
         }
+
+        if (sz == 0) {
+            return 0;
+        }
+
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        if (sz % AES_BLOCK_SIZE) {
+            return BAD_LENGTH_E;
+        }
+#endif
 
         /* do as many block size ops as possible */
         if (numBlocks > 0) {
@@ -3275,9 +3306,20 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     {
         word32 numBlocks = sz / AES_BLOCK_SIZE;
 
-        if (aes == NULL || out == NULL || (in == NULL && sz > 0)
-                || sz % AES_BLOCK_SIZE != 0) {
+        if (aes == NULL || out == NULL || in == NULL) {
             return BAD_FUNC_ARG;
+        }
+
+        if (sz == 0) {
+            return 0;
+        }
+
+        if (sz % AES_BLOCK_SIZE) {
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+            return BAD_LENGTH_E;
+#else
+            return BAD_FUNC_ARG;
+#endif
         }
 
         /* do as many block size ops as possible */

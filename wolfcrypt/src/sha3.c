@@ -1,6 +1,6 @@
 /* sha3.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -545,7 +545,7 @@ static void BlockSha3(word64 *s)
  */
 static word64 Load64BitBigEndian(const byte* a)
 {
-#ifdef BIG_ENDIAN_ORDER
+#if defined(BIG_ENDIAN_ORDER) || (WOLFSSL_GENERAL_ALIGNMENT == 1)
     word64 n = 0;
     int i;
 
@@ -553,8 +553,24 @@ static word64 Load64BitBigEndian(const byte* a)
         n |= (word64)a[i] << (8 * i);
 
     return n;
+#elif ((WOLFSSL_GENERAL_ALIGNMENT > 0) && (WOLFSSL_GENERAL_ALIGNMENT == 4))
+    word64 n;
+
+    n  =          *(word32*) a;
+    n |= ((word64)*(word32*)(a + 4)) << 32;
+
+    return n;
+#elif ((WOLFSSL_GENERAL_ALIGNMENT > 0) && (WOLFSSL_GENERAL_ALIGNMENT == 2))
+    word64 n;
+
+    n  =          *(word16*) a;
+    n |= ((word64)*(word16*)(a + 2)) << 16;
+    n |= ((word64)*(word16*)(a + 4)) << 32;
+    n |= ((word64)*(word16*)(a + 6)) << 48;
+
+    return n;
 #else
-    return *(word64*)a;
+    return *(const word64*)a;
 #endif
 }
 
@@ -636,30 +652,38 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
  * len   Number of bytes in output.
  * returns 0 on success.
  */
-static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, byte l)
+static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
 {
+    word32 rate = p * 8;
+    word32 j;
     byte i;
-    byte *state = (byte *)sha3->s;
 
-    sha3->t[p * 8 - 1]  = 0x00;
+    sha3->t[rate - 1]  = 0x00;
 #ifdef WOLFSSL_HASH_FLAGS
-    if (p == WC_SHA3_256_COUNT && sha3->flags & WC_HASH_SHA3_KECCAK256) {
+    if (p == WC_SHA3_256_COUNT && sha3->flags & WC_HASH_SHA3_KECCAK256)
         padChar = 0x01;
-    }
 #endif
-    sha3->t[  sha3->i]  = padChar;
-    sha3->t[p * 8 - 1] |= 0x80;
-    for (i=sha3->i + 1; i < p * 8 - 1; i++)
+    sha3->t[sha3->i ]  = padChar;
+    sha3->t[rate - 1] |= 0x80;
+    for (i=sha3->i + 1; i < rate - 1; i++)
         sha3->t[i] = 0;
     for (i = 0; i < p; i++)
         sha3->s[i] ^= Load64BitBigEndian(sha3->t + 8 * i);
-    BlockSha3(sha3->s);
-#if defined(BIG_ENDIAN_ORDER)
-    ByteReverseWords64(sha3->s, sha3->s, ((l+7)/8)*8);
-#endif
-    for (i = 0; i < l; i++)
-        hash[i] = state[i];
-
+    for (j = 0; l - j >= rate; j += rate) {
+        BlockSha3(sha3->s);
+    #if defined(BIG_ENDIAN_ORDER)
+        ByteReverseWords64((word64*)(hash + j), sha3->s, rate);
+    #else
+        XMEMCPY(hash + j, sha3->s, rate);
+    #endif
+    }
+    if (j != l) {
+        BlockSha3(sha3->s);
+    #if defined(BIG_ENDIAN_ORDER)
+        ByteReverseWords64(sha3->s, sha3->s, rate);
+    #endif
+        XMEMCPY(hash + j, sha3->s, l - j);
+    }
     return 0;
 }
 
@@ -763,7 +787,7 @@ static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, byte p, byte len)
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-    ret = Sha3Final(sha3, 0x06, hash, p, len);
+    ret = Sha3Final(sha3, 0x06, hash, p, (word32)len);
     if (ret != 0)
         return ret;
 
@@ -1144,7 +1168,7 @@ int wc_Sha3_GetFlags(wc_Sha3* sha3, word32* flags)
 }
 #endif
 
-#if defined(WOLFSSL_SHAKE256)
+#ifdef WOLFSSL_SHAKE256
 /* Initialize the state for a Shake256 hash operation.
  *
  * shake  wc_Shake object holding state.

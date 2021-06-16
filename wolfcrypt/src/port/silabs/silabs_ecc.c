@@ -1,6 +1,6 @@
 /* silabs_ecc.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -303,21 +303,30 @@ int silabs_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     sl_se_command_context_t cmd;
     sl_se_key_descriptor_t key_out;
     sl_se_key_descriptor_t pub_key;
-
     uint32_t pub_sz = 0;
     sl_status_t sl_stat;
+
+    /* `sl_se_ecdh_compute_shared_secret` returns the full coordinate
+     * point, but `wc_ecc_shared_secret` should only return the x
+     * coordinate. This buffer is used to hold the output of the
+     * secure element output and only the first half is copied to the
+     * `out` buffer.
+     */
+    byte fullpoint[2 * ECC_MAX_CRYPTO_HW_SIZE];
 
     pub_key = public_key->key;
     pub_key.flags = SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PUBLIC_KEY;
 
-    *outlen = pub_key.size * 2;
-    pub_sz = pub_key.size * 2;
+    if (*outlen < pub_key.size) {
+        return BUFFER_E;
+    }
 
+    pub_sz = pub_key.size * 2;
 
     XMEMSET(&key_out, 0, sizeof(key_out));
     key_out.type = SL_SE_KEY_TYPE_SYMMETRIC;
     key_out.storage.method = SL_SE_KEY_STORAGE_EXTERNAL_PLAINTEXT;
-    key_out.storage.location.buffer.pointer = out;
+    key_out.storage.location.buffer.pointer = fullpoint;
     key_out.size = pub_sz;
     key_out.storage.location.buffer.size = pub_sz;
 
@@ -326,6 +335,11 @@ int silabs_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
         &(private_key->key),
         &pub_key,
         &key_out);
+
+    if (sl_stat == SL_STATUS_OK) {
+        *outlen = pub_key.size;
+        XMEMCPY(out, fullpoint, *outlen);
+    }
 
     return (sl_stat == SL_STATUS_OK) ? 0 : WC_HW_E;
 }

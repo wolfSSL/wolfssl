@@ -43,7 +43,7 @@ CERT_DIR="certs/ocsp"
 
 ready_file="${WORKSPACE}"/wolf_ocsp_s1_readyF$$
 ready_file2="${WORKSPACE}"/wolf_ocsp_s1_readyF2$$
-printf '%s\n' "ready files:  $ready_file $ready_file2"
+printf '%s\n' "ready files:  \"$ready_file\" \"$ready_file2\""
 
 test_cnf="ocsp_s_w_ca_a_r.cnf"
 
@@ -51,7 +51,7 @@ wait_for_readyFile(){
 
     counter=0
 
-    while [ ! -s $1 -a "$counter" -lt 20 ]; do
+    while [ ! -s "$1" -a "$counter" -lt 20 ]; do
 	if [[ -n "${2-}" ]]; then
 	    if ! kill -0 $2 2>&-; then
 		echo "pid $2 for port ${3-} exited before creating ready file.  bailing..."
@@ -63,19 +63,19 @@ wait_for_readyFile(){
         counter=$((counter+ 1))
     done
 
-    if test -e $1; then
+    if test -e "$1"; then
         echo -e "found ready file, starting client..."
     else
-        echo -e "NO ready file at $1 -- ending test..."
+        echo -e "NO ready file at \"$1\" -- ending test..."
         exit 1
     fi
 
 }
 
 remove_single_rF(){
-    if test -e $1; then
-        printf '%s\n' "removing ready file: $1"
-        rm $1
+    if test -e "$1"; then
+        printf '%s\n' "removing ready file: \"$1\""
+        rm "$1"
     fi
 }
 
@@ -135,13 +135,13 @@ create_new_cnf() {
 }
 
 remove_ready_file() {
-    if test -e $ready_file; then
+    if test -e "$ready_file"; then
         printf '%s\n' "removing ready file"
-        rm $ready_file
+        rm "$ready_file"
     fi
-    if test -e $ready_file2; then
-        printf '%s\n' "removing ready file: $ready_file2"
-        rm $ready_file2
+    if test -e "$ready_file2"; then
+        printf '%s\n' "removing ready file: \"$ready_file2\""
+        rm "$ready_file2"
     fi
 }
 
@@ -197,10 +197,10 @@ port2=$(get_first_free_port $((port1 + 1)))
 
 
 # create a port to use with openssl ocsp responder
-./examples/server/server -R $ready_file -p $port1 &
+./examples/server/server -R "$ready_file" -p $port1 &
 wolf_pid=$!
-wait_for_readyFile $ready_file $wolf_pid $port1
-if [ ! -f $ready_file ]; then
+wait_for_readyFile "$ready_file" $wolf_pid $port1
+if [ ! -f "$ready_file" ]; then
     printf '%s\n' "Failed to create ready file: \"$ready_file\""
     exit 1
 else
@@ -240,10 +240,10 @@ sleep 0.1
 printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS ------------------------"
 # client test against our own server - GOOD CERT
 ./examples/server/server -c certs/ocsp/server1-cert.pem \
-                         -k certs/ocsp/server1-key.pem -R $ready_file2 \
+                         -k certs/ocsp/server1-key.pem -R "$ready_file2" \
                          -p $port2 &
 wolf_pid2=$!
-wait_for_readyFile $ready_file2 $wolf_pid2 $port2
+wait_for_readyFile "$ready_file2" $wolf_pid2 $port2
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 \
                          -p $port2
 RESULT=$?
@@ -252,12 +252,12 @@ printf '%s\n\n' "Test PASSED!"
 
 printf '%s\n\n' "------------- TEST CASE 2 SHOULD REVOKE ----------------------"
 # client test against our own server - REVOKED CERT
-remove_single_rF $ready_file2
+remove_single_rF "$ready_file2"
 ./examples/server/server -c certs/ocsp/server2-cert.pem \
-                         -k certs/ocsp/server2-key.pem -R $ready_file2 \
+                         -k certs/ocsp/server2-key.pem -R "$ready_file2" \
                          -p $port2 &
 wolf_pid2=$!
-wait_for_readyFile $ready_file2 $wolf_pid2 $port2
+wait_for_readyFile "$ready_file2" $wolf_pid2 $port2
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 \
                          -p $port2
 RESULT=$?

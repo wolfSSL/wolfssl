@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # tls13.test
-# copyright wolfSSL 2016
+# Copyright wolfSSL 2016-2021
 
 # if we can, isolate the network namespace to eliminate port collisions.
 if [ "${AM_BWRAPPED-}" != "yes" ]; then
@@ -30,10 +30,10 @@ server_out_file=`pwd`/wolfssl_tls13_server_out$$
 # Client output
 client_out_file=`pwd`/wolfssl_tls13_client_out$$
 
-echo "ready file $ready_file"
+echo "ready file "$ready_file""
 
 create_port() {
-    while [ ! -s $ready_file ]; do
+    while [ ! -s "$ready_file" ]; do
         if [ "$counter" -gt 50 ]; then
             break
         fi
@@ -42,14 +42,14 @@ create_port() {
         counter=$((counter+ 1))
     done
 
-    if [ -e $ready_file ]; then
+    if [ -e "$ready_file" ]; then
         echo -e "found ready file, starting client..."
 
         # sleep for an additional 0.1 to mitigate race on write/read of $ready_file:
         sleep 0.1
 
         # get created port 0 ephemeral port
-        port=`cat $ready_file`
+        port=`cat "$ready_file"`
     else
         echo -e "NO ready file ending test..."
         do_cleanup
@@ -57,9 +57,9 @@ create_port() {
 }
 
 remove_ready_file() {
-    if [ -e $ready_file ]; then
+    if [ -e "$ready_file" ]; then
         echo -e "removing existing ready file"
-        rm $ready_file
+        rm "$ready_file"
     fi
 }
 
@@ -73,17 +73,17 @@ do_cleanup() {
         server_pid=$no_pid
     fi
     remove_ready_file
-    if [ -e $client_file ]; then
+    if [ -e "$client_file" ]; then
         echo -e "removing existing client file"
-        rm $client_file
+        rm "$client_file"
     fi
-    if [ -e $server_out_file ]; then
+    if [ -e "$server_out_file" ]; then
         echo -e "removing existing server output file"
-        rm $server_out_file
+        rm "$server_out_file"
     fi
-    if [ -e $client_out_file ]; then
+    if [ -e "$client_out_file" ]; then
         echo -e "removing existing client output file"
-        rm $client_out_file
+        rm "$client_out_file"
     fi
 }
 
@@ -108,10 +108,10 @@ fi
 # Usual TLS v1.3 server / TLS v1.3 client.
 echo -e "\n\nTLS v1.3 server with TLS v1.3 client"
 port=0
-./examples/server/server -v 4 -R $ready_file -p $port &
+./examples/server/server -v 4 -R "$ready_file" -p $port &
 server_pid=$!
 create_port
-./examples/client/client -v 4 -p $port | tee $client_file
+./examples/client/client -v 4 -p $port | tee "$client_file"
 RESULT=$?
 remove_ready_file
 if [ $RESULT -ne 0 ]; then
@@ -124,7 +124,7 @@ echo ""
 # TLS 1.3 cipher suites server / client.
 echo -e "\n\nTLS v1.3 cipher suite mismatch"
 port=0
-./examples/server/server -v 4 -R $ready_file -p $port -l TLS13-CHACHA20-POLY1305-SHA256 &
+./examples/server/server -v 4 -R "$ready_file" -p $port -l TLS13-CHACHA20-POLY1305-SHA256 &
 server_pid=$!
 create_port
 ./examples/client/client -v 4 -p $port -l TLS13-AES256-GCM-SHA384
@@ -146,7 +146,7 @@ if [ $NO_CERTS -ne 0 -a $NO_CLIENT_AUTH -ne 0 ]; then
     # TLS 1.3 mutual auth required but client doesn't send certificates.
     echo -e "\n\nTLS v1.3 mutual auth fail"
     port=0
-    ./examples/server/server -v 4 -F -R $ready_file -p $port &
+    ./examples/server/server -v 4 -F -R "$ready_file" -p $port &
     server_pid=$!
     create_port
     ./examples/client/client -v 4 -x -p $port
@@ -167,7 +167,7 @@ if [ $? -ne 0 ]; then
     # TLS 1.3 server / TLS 1.2 client.
     echo -e "\n\nTLS v1.3 server downgrading to TLS v1.2"
     port=0
-    ./examples/server/server -v 4 -R $ready_file -p $port &
+    ./examples/server/server -v 4 -R "$ready_file" -p $port &
     server_pid=$!
     create_port
     ./examples/client/client -v 3 -p $port
@@ -184,7 +184,7 @@ if [ $? -ne 0 ]; then
     # TLS 1.2 server / TLS 1.3 client.
     echo -e "\n\nTLS v1.3 client upgrading server to TLS v1.3"
     port=0
-    ./examples/server/server -v 3 -R $ready_file -p $port &
+    ./examples/server/server -v 3 -R "$ready_file" -p $port &
     server_pid=$!
     create_port
     ./examples/client/client -v 4 -p $port
@@ -215,7 +215,7 @@ if [ $? -ne 0 ]; then
         port=0
         SERVER_CS="TLS13-AES256-GCM-SHA384:$TLS12_CS"
         CLIENT_CS="TLS13-AES128-GCM-SHA256:$TLS12_CS"
-        ./examples/server/server -v d -l $SERVER_CS -R $ready_file -p $port &
+        ./examples/server/server -v d -l $SERVER_CS -R "$ready_file" -p $port &
         server_pid=$!
         create_port
         ./examples/client/client -v d -l $CLIENT_CS -p $port
@@ -246,18 +246,18 @@ fi
 if [ "$early_data" = "yes" ]; then
     echo -e "\n\nTLS v1.3 Early Data - session ticket"
     port=0
-    (./examples/server/server -v 4 -r -0 -R $ready_file -p $port 2>&1 | \
-            tee $server_out_file) &
+    (./examples/server/server -v 4 -r -0 -R "$ready_file" -p $port 2>&1 | \
+            tee "$server_out_file") &
     server_pid=$!
     create_port
-    ./examples/client/client -v 4 -r -0 -p $port 2>&1 >$client_out_file
+    ./examples/client/client -v 4 -r -0 -p $port 2>&1 >"$client_out_file"
     RESULT=$?
-    cat $client_out_file
+    cat "$client_out_file"
     remove_ready_file
-    grep 'Session Ticket' $client_out_file
+    grep 'Session Ticket' "$client_out_file"
     session_ticket=$?
-    early_data_cnt=`grep 'Early Data' $server_out_file | wc -l`
-    if [ $session_ticket -eq 0 -a $early_data_cnt -ne 2 ]; then
+    early_data_cnt=`grep 'Early Data' "$server_out_file" | wc -l`
+    if [ $session_ticket -eq 0 -a $early_data_cnt -ne 4 ]; then
         RESULT=1
     fi
     if [ $RESULT -ne 0 ]; then
@@ -272,19 +272,30 @@ fi
 if [ "$early_data" = "yes" -a "$psk" = "yes" ]; then
     echo -e "\n\nTLS v1.3 Early Data - PSK"
     port=0
-    (./examples/server/server -v 4 -s -0 -R $ready_file -p $port 2>&1 | \
-            tee $server_out_file) &
+    (./examples/server/server -v 4 -s -0 -R "$ready_file" -p $port 2>&1 | \
+            tee "$server_out_file") &
     server_pid=$!
     create_port
     ./examples/client/client -v 4 -s -0 -p $port
     RESULT=$?
     remove_ready_file
-    early_data_cnt=`grep 'Early Data' $server_out_file | wc -l`
-    if [ $early_data_cnt -ne 2 -a $early_data_cnt -ne 4 ]; then
+
+    # wait for the server to quit and write output
+    wait $server_pid
+
+    early_data_cnt=`grep 'Early Data' "$server_out_file" | wc -l`
+    if [ $early_data_cnt -ne 3 -a $early_data_cnt -ne 5 ]; then
+        echo
+        echo "Server out file"
+        cat "$server_out_file"
+        echo
+        echo "Found lines"
+        grep 'Early Data' "$server_out_file"
+        echo -e "\n\nToo few 'Early Data' lines - $early_data_cnt"
         RESULT=1
     fi
     if [ $RESULT -ne 0 ]; then
-        echo -e "\n\nIssue with TLS v1.3 Early Data - session ticket"
+        echo -e "\n\nIssue with TLS v1.3 Early Data - PSK"
         do_cleanup
         exit 1
     fi

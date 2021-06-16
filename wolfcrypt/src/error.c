@@ -1,6 +1,6 @@
 /* error.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -517,6 +517,18 @@ const char* wc_GetErrorString(int error)
 
     case ASN_SELF_SIGNED_E:
         return "ASN self-signed certificate error";
+
+    case SAKKE_VERIFY_FAIL_E:
+        return "SAKKE derivation verification error";
+
+    case MISSING_IV:
+        return "Required IV not set";
+
+    case MISSING_KEY:
+        return "Required key not set";
+
+    case BAD_LENGTH_E:
+        return "Value of length parameter is invalid.";
 
     default:
         return "unknown error number";

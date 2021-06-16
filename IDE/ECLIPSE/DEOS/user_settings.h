@@ -1,6 +1,6 @@
 /* user_setting.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -65,6 +65,8 @@ You can get the current time from https://www.unixtimestamp.com/
 #define HAVE_ED25519
 #define ED25519_SMALL
 
+#define WOLFSSL_DTLS
+
 /* TLS 1.3 */
 #if 0
     #define WOLFSSL_TLS13
@@ -102,8 +104,6 @@ You can get the current time from https://www.unixtimestamp.com/
     #define XREALLOC(p, n, h, t) realloc_deos(p, n)
 
 #endif
-
-#define printf printx
 
 #ifdef __cplusplus
     }   /* extern "C" */

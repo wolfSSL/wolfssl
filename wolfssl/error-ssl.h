@@ -1,6 +1,6 @@
 /* error-ssl.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -170,6 +170,9 @@ enum wolfSSL_ErrorCodes {
     DTLS_SIZE_ERROR              = -439,   /* Trying to send too much data */
     NO_CERT_ERROR                = -440,   /* TLS1.3 - no cert set error */
     APP_DATA_READY               = -441,   /* DTLS1.2 application data ready for read */
+    TOO_MUCH_EARLY_DATA          = -442,   /* Too much Early data */
+
+    SOCKET_FILTERED_E            = -443,   /* Session stopped by network filter */
 
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 

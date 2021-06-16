@@ -1,6 +1,6 @@
 /* md5.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -127,7 +127,7 @@ static int Transform(wc_Md5* md5, const byte* data)
 #ifdef FREESCALE_MMCAU_CLASSIC_SHA
         cau_md5_hash_n((byte*)data, 1, (unsigned char*)md5->digest);
 #else
-        MMCAU_MD5_HashN((byte*)data, 1, (word32*)md5->digest);
+        MMCAU_MD5_HashN((byte*)data, 1, (uint32_t*)md5->digest);
 #endif
         wolfSSL_CryptHwMutexUnLock();
     }
@@ -148,7 +148,7 @@ static int Transform_Len(wc_Md5* md5, const byte* data, word32 len)
             #ifdef FREESCALE_MMCAU_CLASSIC_SHA
                 cau_md5_hash_n(local, 1, (unsigned char*)md5->digest);
             #else
-                MMCAU_MD5_HashN(local, 1, (word32*)md5->digest);
+                MMCAU_MD5_HashN(local, 1, (uint32_t*)md5->digest);
             #endif
                 data += WC_MD5_BLOCK_SIZE;
                 len  -= WC_MD5_BLOCK_SIZE;
@@ -162,7 +162,7 @@ static int Transform_Len(wc_Md5* md5, const byte* data, word32 len)
             (unsigned char*)md5->digest);
 #else
         MMCAU_MD5_HashN((byte*)data, len / WC_MD5_BLOCK_SIZE,
-            (word32*)md5->digest);
+            (uint32_t*)md5->digest);
 #endif
         }
         wolfSSL_CryptHwMutexUnLock();
@@ -174,7 +174,8 @@ static int Transform_Len(wc_Md5* md5, const byte* data, word32 len)
 #include <wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h>
 #define HAVE_MD5_CUST_API
 
-#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
+#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH) && \
+    !defined(WOLFSSL_QNX_CAAM)
 /* functions implemented in wolfcrypt/src/port/caam/caam_sha.c */
 #define HAVE_MD5_CUST_API
 #else
@@ -195,7 +196,7 @@ static int Transform_Len(wc_Md5* md5, const byte* data, word32 len)
 
 static int Transform(wc_Md5* md5, const byte* data)
 {
-    word32* buffer = (word32*)data;
+    const word32* buffer = (const word32*)data;
     /* Copy context->state[] to working vars  */
     word32 a = md5->digest[0];
     word32 b = md5->digest[1];
@@ -550,7 +551,20 @@ int wc_Md5Copy(wc_Md5* src, wc_Md5* dst)
 
     return ret;
 }
-
+#ifdef OPENSSL_EXTRA
+/* Apply MD5 transformation to the data                   */
+/* @param md5  a pointer to wc_MD5 structure              */
+/* @param data data to be applied MD5 transformation      */
+/* @return 0 on successful, otherwise non-zero on failure */
+int wc_Md5Transform(wc_Md5* md5, const byte* data)
+{
+    /* sanity check */
+    if (md5 == NULL || data == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    return Transform(md5, data);
+}
+#endif
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
 int wc_Md5SetFlags(wc_Md5* md5, word32 flags)
 {

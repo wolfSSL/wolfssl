@@ -1,6 +1,6 @@
 /* obj_mac.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -42,6 +42,8 @@
 #define NID_sect571k1 733
 #define NID_sect571r1 734
 
+/* the definition is for Qt Unit test */
+#define SN_jurisdictionCountryName "jurisdictionC"
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

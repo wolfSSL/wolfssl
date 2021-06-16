@@ -1,6 +1,6 @@
 /* sha512.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -79,6 +79,12 @@
 #if defined(WOLFSSL_SILABS_SE_ACCEL)
     #include <wolfssl/wolfcrypt/port/silabs/silabs_hash.h>
 #endif
+#if defined(WOLFSSL_PSOC6_CRYPTO)
+    #include "cy_crypto_core_sha.h"
+    #include "cy_device_headers.h"
+    #include "cy_crypto_common.h"
+    #include "cy_crypto_core.h"
+#endif
 
 #if defined(_MSC_VER)
     #define SHA512_NOINLINE __declspec(noinline)
@@ -114,13 +120,16 @@ enum {
 };
 
 
-#ifdef WOLFSSL_IMX6_CAAM
+#if defined(WOLFSSL_IMX6_CAAM) && !defined(WOLFSSL_QNX_CAAM)
     #include "wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h"
-#elif defined (WOLFSSL_PSOC6_CRYPTO)
-    #include "wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h"
 #else
 /* wc_Sha512 digest */
 struct wc_Sha512 {
+#ifdef WOLFSSL_PSOC6_CRYPTO
+    cy_stc_crypto_sha_state_t hash_state;
+    cy_en_crypto_sha_mode_t sha_mode;
+    cy_stc_crypto_v2_sha512_buffers_t sha_buffers;
+#else
     word64  digest[WC_SHA512_DIGEST_SIZE / sizeof(word64)];
     word64  buffer[WC_SHA512_BLOCK_SIZE  / sizeof(word64)];
     word32  buffLen;   /* in bytes          */
@@ -147,6 +156,7 @@ struct wc_Sha512 {
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif
+#endif /* WOLFSSL_PSOC6_CRYPTO */
 };
 
 #ifndef WC_SHA512_TYPE_DEFINED
@@ -180,6 +190,9 @@ WOLFSSL_API int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst);
     WOLFSSL_API int wc_Sha512GetFlags(wc_Sha512* sha512, word32* flags);
 #endif
 
+#if defined(OPENSSL_EXTRA)
+WOLFSSL_API int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data);
+#endif
 #endif /* WOLFSSL_SHA512 */
 
 #if defined(WOLFSSL_SHA384)

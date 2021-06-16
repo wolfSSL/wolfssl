@@ -1,6 +1,6 @@
 /* ed25519.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -450,8 +450,8 @@ int wc_ed25519_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
    msgLen      length of msg array
    res         will be 1 on successful verify and 0 on unsuccessful
    key         Ed25519 public key
-   context     extra sigining data
-   contextLen  length of extra sigining data
+   context     extra signing data
+   contextLen  length of extra signing data
    return  0 and res of 1 on success
 */
 int wc_ed25519ctx_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
@@ -469,8 +469,8 @@ int wc_ed25519ctx_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
    hashLen     length of hash array
    res         will be 1 on successful verify and 0 on unsuccessful
    key         Ed25519 public key
-   context     extra sigining data
-   contextLen  length of extra sigining data
+   context     extra signing data
+   contextLen  length of extra signing data
    return  0 and res of 1 on success
 */
 int wc_ed25519ph_verify_hash(const byte* sig, word32 sigLen, const byte* hash,
@@ -488,8 +488,8 @@ int wc_ed25519ph_verify_hash(const byte* sig, word32 sigLen, const byte* hash,
    msgLen      length of msg array
    res         will be 1 on successful verify and 0 on unsuccessful
    key         Ed25519 public key
-   context     extra sigining data
-   contextLen  length of extra sigining data
+   context     extra signing data
+   contextLen  length of extra signing data
    return  0 and res of 1 on success
 */
 int wc_ed25519ph_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
@@ -811,4 +811,3 @@ int wc_ed25519_sig_size(ed25519_key* key)
 }
 
 #endif /* HAVE_ED25519 */
-

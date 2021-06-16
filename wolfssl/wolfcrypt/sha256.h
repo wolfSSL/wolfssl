@@ -1,6 +1,6 @@
 /* sha256.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -61,6 +61,16 @@
     #include "fsl_ltc.h"
 #endif
 
+#ifdef WOLFSSL_IMXRT_DCP
+	#include "fsl_dcp.h"
+#endif
+
+#if defined(WOLFSSL_PSOC6_CRYPTO)
+#include "cy_crypto_core_sha.h"
+#include "cy_device_headers.h"
+#include "cy_crypto_common.h"
+#include "cy_crypto_core.h"
+#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -122,17 +132,13 @@ enum {
 
 #ifdef WOLFSSL_TI_HASH
     #include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
-#elif defined(WOLFSSL_IMX6_CAAM)
+#elif defined(WOLFSSL_IMX6_CAAM) && !defined(WOLFSSL_QNX_CAAM)
     #include "wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h"
 #elif defined(WOLFSSL_AFALG_HASH)
     #include "wolfssl/wolfcrypt/port/af_alg/afalg_hash.h"
 #elif defined(WOLFSSL_RENESAS_TSIP_CRYPT) && \
    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
     #include "wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h"
-#elif defined(WOLFSSL_PSOC6_CRYPTO)
-    #include "wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h"
-#elif defined(WOLFSSL_IMXRT_DCP)
-    #include <wolfssl/wolfcrypt/port/nxp/dcp_port.h>
 #else
 
 /* wc_Sha256 digest */
@@ -143,6 +149,13 @@ struct wc_Sha256 {
     STM32_HASH_Context stmCtx;
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
   wc_silabs_sha_t silabsCtx;
+#elif defined(WOLFSSL_IMXRT_DCP)
+    dcp_handle_t handle;
+    dcp_hash_ctx_t ctx;
+#elif defined(WOLFSSL_PSOC6_CRYPTO)
+    cy_stc_crypto_sha_state_t hash_state;
+    cy_en_crypto_sha_mode_t sha_mode;
+    cy_stc_crypto_v2_sha256_buffers_t sha_buffers;
 #else
     /* alignment on digest and buffer speeds up ARMv8 crypto operations */
     ALIGN16 word32  digest[WC_SHA256_DIGEST_SIZE / sizeof(word32)];
@@ -198,7 +211,9 @@ WOLFSSL_API int wc_Sha256Update(wc_Sha256*, const byte*, word32);
 WOLFSSL_API int wc_Sha256FinalRaw(wc_Sha256*, byte*);
 WOLFSSL_API int wc_Sha256Final(wc_Sha256*, byte*);
 WOLFSSL_API void wc_Sha256Free(wc_Sha256*);
-
+#if defined(OPENSSL_EXTRA)
+WOLFSSL_API int wc_Sha256Transform(wc_Sha256*, const byte*);
+#endif
 WOLFSSL_API int wc_Sha256GetHash(wc_Sha256*, byte*);
 WOLFSSL_API int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst);
 
@@ -216,9 +231,12 @@ WOLFSSL_API void wc_Sha256SizeSet(wc_Sha256*, word32);
 #if !defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 
+#if !defined(NO_OLD_SHA_NAMES)
+    #define SHA224             WC_SHA224
+#endif
+
 #ifndef NO_OLD_WC_NAMES
     #define Sha224             wc_Sha224
-    #define SHA224             WC_SHA224
     #define SHA224_BLOCK_SIZE  WC_SHA224_BLOCK_SIZE
     #define SHA224_DIGEST_SIZE WC_SHA224_DIGEST_SIZE
     #define SHA224_PAD_SIZE    WC_SHA224_PAD_SIZE

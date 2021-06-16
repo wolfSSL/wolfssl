@@ -1,6 +1,6 @@
 /* dcp_port.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,24 +19,19 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
-#ifdef NO_INLINE
-    #include <wolfssl/wolfcrypt/misc.h>
-#else
-    #define WOLFSSL_MISC_INCLUDED
-    #include <wolfcrypt/src/misc.c>
-#endif
 
+#ifdef WOLFSSL_IMXRT_DCP
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-#ifdef WOLFSSL_IMXRT_DCP
 #if defined(__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U) && defined(DCP_USE_DCACHE) && (DCP_USE_DCACHE == 1U)
 #error "DCACHE not supported by this driver. Please undefine DCP_USE_DCACHE."
 #endif
@@ -45,14 +40,14 @@
 #define DCP_USE_OTP_KEY 0 /* Set to 1 to select OTP key for AES encryption/decryption. */
 #endif
 
-#include "fsl_device_registers.h"
-#include "fsl_debug_console.h"
 #include "fsl_dcp.h"
 
 #ifndef SINGLE_THREADED
+#define dcp_lock_init() wolfSSL_CryptHwMutexInit()
 #define dcp_lock() wolfSSL_CryptHwMutexLock()
-#define dcp_unlock() wolfSSL_CryptHwMutexLock()
+#define dcp_unlock() wolfSSL_CryptHwMutexUnLock()
 #else
+#define dcp_lock_init() do{}while(0)
 #define dcp_lock() do{}while(0)
 #define dcp_unlock() do{}while(0)
 #endif
@@ -126,6 +121,7 @@ static int dcp_get_channel(void)
         if (dcp_status[i] == 0) {
             dcp_status[i]++;
             ret = dcp_channels[i];
+            break;
         }
     }
     dcp_unlock();
@@ -161,6 +157,7 @@ static int dcp_key_slot(int ch)
 int wc_dcp_init(void)
 {
     dcp_config_t dcpConfig;
+    dcp_lock_init();
     dcp_lock();
     DCP_GetDefaultConfig(&dcpConfig);
 
@@ -202,8 +199,8 @@ int DCPAesInit(Aes *aes)
     if (ch == 0)
         return WC_PENDING_E;
     XMEMSET(&aes->handle, 0, sizeof(aes->handle));
-    aes->handle.channel = ch;
-    aes->handle.keySlot = dcp_key_slot(aes->handle.channel);
+    aes->handle.channel = (dcp_channel_t)ch;
+    aes->handle.keySlot = (dcp_key_slot_t)dcp_key_slot(aes->handle.channel);
     aes->handle.swapConfig = kDCP_NoSwap;
     return 0;
 }
@@ -211,8 +208,11 @@ int DCPAesInit(Aes *aes)
 void DCPAesFree(Aes *aes)
 {
     dcp_free(aes->handle.channel);
+    aes->handle.channel = 0;
 }
 
+
+static unsigned char  aes_key_aligned[16] __attribute__((aligned(0x10)));
 int  DCPAesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
                           int dir)
 {
@@ -227,10 +227,12 @@ int  DCPAesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
     if (len != 16)
         return BAD_FUNC_ARG;
     if (aes->handle.channel == 0) {
-        return BAD_FUNC_ARG;
+        if (DCPAesInit(aes) != 0)
+            return WC_HW_E;
     }
     dcp_lock();
-    status = DCP_AES_SetKey(DCP, &aes->handle, key, 16);
+    memcpy(aes_key_aligned, key, 16);
+    status = DCP_AES_SetKey(DCP, &aes->handle, aes_key_aligned, 16);
     if (status != kStatus_Success)
         status = WC_HW_E;
     else {
@@ -317,8 +319,8 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     dcp_lock();
     (void)devId;
     XMEMSET(sha256, 0, sizeof(wc_Sha256));
-    sha256->handle.channel    = ch;
-    sha256->handle.keySlot    = keyslot;
+    sha256->handle.channel    = (dcp_channel_t)ch;
+    sha256->handle.keySlot    = (dcp_key_slot_t)keyslot;
     sha256->handle.swapConfig = kDCP_NoSwap;
     ret = DCP_HASH_Init(DCP, &sha256->handle, &sha256->ctx, kDCP_Sha256);
     if (ret != kStatus_Success)
@@ -326,11 +328,6 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     dcp_unlock();
 
     return ret;
-}
-
-int wc_InitSha256(wc_Sha256* sha256)
-{
-    return wc_InitSha256_ex(sha256, NULL, INVALID_DEVID);
 }
 
 void DCPSha256Free(wc_Sha256* sha256)
@@ -434,19 +431,14 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
     dcp_lock();
     (void)devId;
     XMEMSET(sha, 0, sizeof(wc_Sha));
-    sha->handle.channel    = ch;
-    sha->handle.keySlot    = keyslot;
+    sha->handle.channel    = (dcp_channel_t)ch;
+    sha->handle.keySlot    = (dcp_key_slot_t)keyslot;
     sha->handle.swapConfig = kDCP_NoSwap;
     ret = DCP_HASH_Init(DCP, &sha->handle, &sha->ctx, kDCP_Sha1);
     if (ret != kStatus_Success)
         ret = WC_HW_E;
     dcp_unlock();
     return ret;
-}
-
-int wc_InitSha(wc_Sha* sha)
-{
-    return wc_InitSha_ex(sha, NULL, INVALID_DEVID);
 }
 
 void DCPShaFree(wc_Sha* sha)

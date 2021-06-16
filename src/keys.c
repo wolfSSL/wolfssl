@@ -1,6 +1,6 @@
 /* keys.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1203,6 +1203,8 @@ int SetCipherSpecs(WOLFSSL* ssl)
             break;
     #endif
 #endif /* WOLFSSL_TLS13 */
+        default:
+            break;
         }
     }
 
@@ -3084,10 +3086,10 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 #ifdef WOLFSSL_DEBUG_TLS
             WOLFSSL_MSG("Provisioning ENCRYPT key");
             if (ssl->options.side == WOLFSSL_CLIENT_END) {
-                WOLFSSL_BUFFER(ssl->keys.client_write_key, ssl->specs.key_size);
+                WOLFSSL_BUFFER(keys->client_write_key, ssl->specs.key_size);
             }
             else {
-                WOLFSSL_BUFFER(ssl->keys.server_write_key, ssl->specs.key_size);
+                WOLFSSL_BUFFER(keys->server_write_key, ssl->specs.key_size);
             }
 #endif
             wc_encrypt = &ssl->encrypt;
@@ -3097,10 +3099,10 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 #ifdef WOLFSSL_DEBUG_TLS
             WOLFSSL_MSG("Provisioning DECRYPT key");
             if (ssl->options.side == WOLFSSL_CLIENT_END) {
-                WOLFSSL_BUFFER(ssl->keys.server_write_key, ssl->specs.key_size);
+                WOLFSSL_BUFFER(keys->server_write_key, ssl->specs.key_size);
             }
             else {
-                WOLFSSL_BUFFER(ssl->keys.client_write_key, ssl->specs.key_size);
+                WOLFSSL_BUFFER(keys->client_write_key, ssl->specs.key_size);
             }
 #endif
             wc_decrypt = &ssl->decrypt;
@@ -3110,17 +3112,17 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 #ifdef WOLFSSL_DEBUG_TLS
             WOLFSSL_MSG("Provisioning ENCRYPT key");
             if (ssl->options.side == WOLFSSL_CLIENT_END) {
-                WOLFSSL_BUFFER(ssl->keys.client_write_key, ssl->specs.key_size);
+                WOLFSSL_BUFFER(keys->client_write_key, ssl->specs.key_size);
             }
             else {
-                WOLFSSL_BUFFER(ssl->keys.server_write_key, ssl->specs.key_size);
+                WOLFSSL_BUFFER(keys->server_write_key, ssl->specs.key_size);
             }
             WOLFSSL_MSG("Provisioning DECRYPT key");
             if (ssl->options.side == WOLFSSL_CLIENT_END) {
-                WOLFSSL_BUFFER(ssl->keys.server_write_key, ssl->specs.key_size);
+                WOLFSSL_BUFFER(keys->server_write_key, ssl->specs.key_size);
             }
             else {
-                WOLFSSL_BUFFER(ssl->keys.client_write_key, ssl->specs.key_size);
+                WOLFSSL_BUFFER(keys->client_write_key, ssl->specs.key_size);
             }
 #endif
             wc_encrypt = &ssl->encrypt;

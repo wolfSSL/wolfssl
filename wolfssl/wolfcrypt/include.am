@@ -23,6 +23,8 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/ed448.h \
                          wolfssl/wolfcrypt/fe_448.h \
                          wolfssl/wolfcrypt/ge_448.h \
+                         wolfssl/wolfcrypt/eccsi.h \
+                         wolfssl/wolfcrypt/sakke.h \
                          wolfssl/wolfcrypt/error-crypt.h \
                          wolfssl/wolfcrypt/fips_test.h \
                          wolfssl/wolfcrypt/hash.h \
@@ -78,8 +80,8 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/nxp/dcp_port.h \
                          wolfssl/wolfcrypt/port/xilinx/xil-sha3.h \
                          wolfssl/wolfcrypt/port/caam/caam_driver.h \
-                         wolfssl/wolfcrypt/port/caam/wolfcaam.h \
-                         wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h \
+                         wolfssl/wolfcrypt/port/caam/caam_error.h \
+                         wolfssl/wolfcrypt/port/caam/caam_qnx.h \
                          wolfssl/wolfcrypt/port/silabs/silabs_aes.h \
                          wolfssl/wolfcrypt/port/silabs/silabs_ecc.h \
                          wolfssl/wolfcrypt/port/silabs/silabs_hash.h \
@@ -145,4 +147,12 @@ endif
 
 if BUILD_FIPS_RAND
 nobase_include_HEADERS+= wolfssl/wolfcrypt/fips.h
+endif
+
+if BUILD_QNXCAAM
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/caam/wolfcaam.h \
+                         wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h \
+                         wolfssl/wolfcrypt/port/caam/wolfcaam_ecdsa.h \
+                         wolfssl/wolfcrypt/port/caam/wolfcaam_cmac.h \
+                         wolfssl/wolfcrypt/port/caam/wolfcaam_qnx.h
 endif

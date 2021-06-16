@@ -1,6 +1,6 @@
 /* bio.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -68,6 +68,7 @@
 #define BIO_set_fp                      wolfSSL_BIO_set_fp
 #define BIO_get_fp                      wolfSSL_BIO_get_fp
 #define BIO_seek                        wolfSSL_BIO_seek
+#define BIO_tell                        wolfSSL_BIO_tell
 #define BIO_write_filename              wolfSSL_BIO_write_filename
 #define BIO_set_mem_eof_return          wolfSSL_BIO_set_mem_eof_return
 

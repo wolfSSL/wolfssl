@@ -1,6 +1,6 @@
 /* cryptocb.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -15,7 +15,8 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
 #ifndef _WOLF_CRYPTO_CB_H_
@@ -57,6 +58,9 @@
 #endif
 #ifndef NO_DES3
     #include <wolfssl/wolfcrypt/des3.h>
+#endif
+#ifdef WOLFSSL_CMAC
+    #include <wolfssl/wolfcrypt/cmac.h>
 #endif
 
 
@@ -216,6 +220,19 @@ typedef struct wc_CryptoInfo {
         word32 sz;
     } seed;
 #endif
+#ifdef WOLFSSL_CMAC
+    struct {
+        Cmac* cmac;
+        void* ctx;
+        const byte* key;
+        const byte* in;
+        byte*       out;
+        word32* outSz;
+        word32  keySz;
+        word32  inSz;
+        int type;
+    } cmac;
+#endif
 } wc_CryptoInfo;
 
 
@@ -304,6 +321,12 @@ WOLFSSL_LOCAL int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in,
 #ifndef WC_NO_RNG
 WOLFSSL_LOCAL int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz);
 WOLFSSL_LOCAL int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz);
+#endif
+
+#ifdef WOLFSSL_CMAC
+WOLFSSL_LOCAL int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
+        const byte* in, word32 inSz, byte* out, word32* outSz, int type,
+        void* ctx);
 #endif
 
 #endif /* WOLF_CRYPTO_CB */

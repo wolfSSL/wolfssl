@@ -1,6 +1,6 @@
 /* aes.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -59,12 +59,20 @@ WOLFSSL_API void wolfSSL_AES_ecb_encrypt
 WOLFSSL_API void wolfSSL_AES_cfb128_encrypt
     (const unsigned char *in, unsigned char* out, size_t len,
      AES_KEY *key, unsigned char* iv, int* num, const int enc);
+WOLFSSL_API int wolfSSL_AES_wrap_key(AES_KEY *key, const unsigned char *iv,
+                 unsigned char *out,
+                 const unsigned char *in, unsigned int inlen);
+WOLFSSL_API int wolfSSL_AES_unwrap_key(AES_KEY *key, const unsigned char *iv,
+                   unsigned char *out,
+                   const unsigned char *in, unsigned int inlen);
 
 #define AES_cbc_encrypt     wolfSSL_AES_cbc_encrypt
 #define AES_ecb_encrypt     wolfSSL_AES_ecb_encrypt
 #define AES_cfb128_encrypt  wolfSSL_AES_cfb128_encrypt
 #define AES_set_encrypt_key wolfSSL_AES_set_encrypt_key
 #define AES_set_decrypt_key wolfSSL_AES_set_decrypt_key
+#define AES_wrap_key        wolfSSL_AES_wrap_key
+#define AES_unwrap_key      wolfSSL_AES_unwrap_key
 
 #ifdef WOLFSSL_AES_DIRECT
 WOLFSSL_API void wolfSSL_AES_encrypt

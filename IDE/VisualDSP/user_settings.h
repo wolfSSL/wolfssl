@@ -350,9 +350,6 @@ extern "C" {
 #undef WOLFSSL_SHA3
 #if 1
     #define WOLFSSL_SHA3
-    #ifdef HAVE_FIPS
-        #define WOLFSSL_NO_SHAKE256
-    #endif
 #endif
 
 /* MD5 */

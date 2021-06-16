@@ -1,6 +1,6 @@
 /* srp.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -479,7 +479,7 @@ int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size)
         return MP_INIT_E;
 
     /* v = g ^ x % N */
-    if (!r) r = mp_exptmod(&srp->g, &srp->auth, &srp->N, &v);
+    r = mp_exptmod(&srp->g, &srp->auth, &srp->N, &v);
     if (!r) r = *size < (word32)mp_unsigned_bin_size(&v) ? BUFFER_E : MP_OKAY;
     if (!r) r = mp_to_unsigned_bin(&v, verifier);
     if (!r) *size = mp_unsigned_bin_size(&v);
@@ -511,7 +511,7 @@ int wc_SrpSetPrivate(Srp* srp, const byte* priv, word32 size)
     r = mp_init(&p);
     if (r != MP_OKAY)
         return MP_INIT_E;
-    if (!r) r = mp_read_unsigned_bin(&p, priv, size);
+    r = mp_read_unsigned_bin(&p, priv, size);
     if (!r) r = mp_mod(&p, &srp->N, &srp->priv);
     if (!r) r = mp_iszero(&srp->priv) == MP_YES ? SRP_BAD_KEY_E : 0;
 

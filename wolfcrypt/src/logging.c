@@ -1,6 +1,6 @@
 /* logging.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -34,11 +34,19 @@
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
-static wolfSSL_Mutex debug_mutex; /* mutex for access to debug structure */
+static
+#ifdef ERROR_QUEUE_PER_THREAD
+THREAD_LS_T
+#endif
+wolfSSL_Mutex debug_mutex; /* mutex for access to debug structure */
 
 /* accessing any node from the queue should be wrapped in a lock of
  * debug_mutex */
-static void* wc_error_heap;
+static
+#ifdef ERROR_QUEUE_PER_THREAD
+THREAD_LS_T
+#endif
+void* wc_error_heap;
 struct wc_error_queue {
     void*  heap; /* the heap hint used with nodes creation */
     struct wc_error_queue* next;
@@ -48,9 +56,20 @@ struct wc_error_queue {
     int    value;
     int    line;
 };
+#ifdef ERROR_QUEUE_PER_THREAD
+THREAD_LS_T
+#endif
 volatile struct wc_error_queue* wc_errors;
-static struct wc_error_queue* wc_current_node;
-static struct wc_error_queue* wc_last_node;
+static
+#ifdef ERROR_QUEUE_PER_THREAD
+THREAD_LS_T
+#endif
+struct wc_error_queue* wc_current_node;
+static
+#ifdef ERROR_QUEUE_PER_THREAD
+THREAD_LS_T
+#endif
+struct wc_error_queue* wc_last_node;
 /* pointer to last node in queue to make insertion O(1) */
 #endif
 
@@ -122,7 +141,7 @@ const char *wolfSSL_configure_args(void) {
 #endif
 }
 
-const char *wolfSSL_global_cflags(void) {
+PEDANTIC_EXTENSION const char *wolfSSL_global_cflags(void) {
 #ifdef LIBWOLFSSL_GLOBAL_CFLAGS
   /* the spaces on either side are to make matching simple and efficient. */
   return " " LIBWOLFSSL_GLOBAL_CFLAGS " ";
@@ -208,20 +227,24 @@ void wolfSSL_Debugging_OFF(void)
  */
 void WOLFSSL_START(int funcNum)
 {
-    double now = current_time(0) * 1000.0;
-#ifdef WOLFSSL_FUNC_TIME_LOG
-    fprintf(stderr, "%17.3f: START - %s\n", now, wc_func_name[funcNum]);
-#endif
-    wc_func_start[funcNum] = now;
+    if (funcNum < WC_FUNC_COUNT) {
+        double now = current_time(0) * 1000.0;
+    #ifdef WOLFSSL_FUNC_TIME_LOG
+        fprintf(stderr, "%17.3f: START - %s\n", now, wc_func_name[funcNum]);
+    #endif
+        wc_func_start[funcNum] = now;
+    }
 }
 
 void WOLFSSL_END(int funcNum)
 {
-    double now = current_time(0) * 1000.0;
-    wc_func_time[funcNum] += now - wc_func_start[funcNum];
-#ifdef WOLFSSL_FUNC_TIME_LOG
-    fprintf(stderr, "%17.3f: END   - %s\n", now, wc_func_name[funcNum]);
-#endif
+    if (funcNum < WC_FUNC_COUNT) {
+        double now = current_time(0) * 1000.0;
+        wc_func_time[funcNum] += now - wc_func_start[funcNum];
+    #ifdef WOLFSSL_FUNC_TIME_LOG
+        fprintf(stderr, "%17.3f: END   - %s\n", now, wc_func_name[funcNum]);
+    #endif
+    }
 }
 
 void WOLFSSL_TIME(int count)

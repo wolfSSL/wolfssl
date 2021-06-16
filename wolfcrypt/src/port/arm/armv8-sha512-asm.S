@@ -1,6 +1,6 @@
 /* armv8-sha512-asm
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -28,7 +28,7 @@
  *   cd ../scripts
  *   ruby ./sha2/sha512.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-sha512-asm.S
  */
-#ifdef WOLFSSL_ARMASM
+#if defined(WOLFSSL_ARMASM) && defined(WOLFSSL_SHA512)
 #ifdef __aarch64__
 #ifndef __APPLE__
 	.text
@@ -162,16 +162,18 @@ _Transform_Sha512_Len:
 	stp	d8, d9, [x29, #96]
 	stp	d10, d11, [x29, #112]
 #ifndef __APPLE__
-	adr	x3, L_SHA512_transform_neon_len_k
+	adrp x3, L_SHA512_transform_neon_len_k
+	add  x3, x3, :lo12:L_SHA512_transform_neon_len_k
 #else
-	adrp	x3, L_SHA512_transform_neon_len_k@PAGE
-	add	x3, x3, :lo12:L_SHA512_transform_neon_len_k@PAGEOFF
+	adrp x3, L_SHA512_transform_neon_len_k@PAGE
+	add  x3, x3, :lo12:L_SHA512_transform_neon_len_k@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adr	x27, L_SHA512_transform_neon_len_ror8
+	adrp x27, L_SHA512_transform_neon_len_ror8
+	add  x27, x27, :lo12:L_SHA512_transform_neon_len_ror8
 #else
-	adrp	x27, L_SHA512_transform_neon_len_ror8@PAGE
-	add	x27, x27, :lo12:L_SHA512_transform_neon_len_ror8@PAGEOFF
+	adrp x27, L_SHA512_transform_neon_len_ror8@PAGE
+	add  x27, x27, :lo12:L_SHA512_transform_neon_len_ror8@PAGEOFF
 #endif /* __APPLE__ */
 	ld1	{v11.16b}, [x27]
 	# Load digest into working vars
@@ -1065,10 +1067,11 @@ L_sha512_len_neon_start:
 	add	x5, x5, x20
 	add	x4, x4, x19
 #ifndef __APPLE__
-	adr	x3, L_SHA512_transform_neon_len_k
+	adrp x3, L_SHA512_transform_neon_len_k
+	add  x3, x3, :lo12:L_SHA512_transform_neon_len_k
 #else
-	adrp	x3, L_SHA512_transform_neon_len_k@PAGE
-	add	x3, x3, :lo12:L_SHA512_transform_neon_len_k@PAGEOFF
+	adrp x3, L_SHA512_transform_neon_len_k@PAGE
+	add  x3, x3, :lo12:L_SHA512_transform_neon_len_k@PAGEOFF
 #endif /* __APPLE__ */
 	subs	w2, w2, #0x80
 	bne	L_sha512_len_neon_begin
@@ -1090,7 +1093,7 @@ L_sha512_len_neon_start:
 	.size	Transform_Sha512_Len,.-Transform_Sha512_Len
 #endif /* __APPLE__ */
 #endif /* __aarch64__ */
-#endif /* WOLFSSL_ARMASM */
+#endif /* WOLFSSL_ARMASM && WOLFSSL_SHA512 */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits

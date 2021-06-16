@@ -1,6 +1,6 @@
 /* pkcs7.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1098,6 +1098,16 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
             XFREE(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
 #endif
             return ret;
+        }
+
+        if (dCert->pubKeySize > (MAX_RSA_INT_SZ + MAX_RSA_E_SZ) ||
+            dCert->serialSz > MAX_SN_SZ) {
+            WOLFSSL_MSG("Invalid size in certificate\n");
+            FreeDecodedCert(dCert);
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
+#endif
+            return ASN_PARSE_E;
         }
 
         XMEMCPY(pkcs7->publicKey, dCert->publicKey, dCert->pubKeySize);
@@ -4917,9 +4927,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                     der = pkcs7->der;
                     pkcs7->der = NULL;
         #endif
-                    contentDynamic = pkcs7->contentDynamic;
                     version = pkcs7->version;
-
 
                     if (ret == 0) {
                         byte isDynamic = pkcs7->isDynamic;
@@ -4927,6 +4935,19 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                         PKCS7State* stream = pkcs7->stream;
                         pkcs7->stream = NULL;
                     #endif
+
+                        /* Save dynamic content before freeing PKCS7 struct */
+                        if (pkcs7->contentDynamic != NULL) {
+                            contentDynamic = (byte*)XMALLOC(contentSz,
+                                               pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                            if (contentDynamic == NULL) {
+                                ret = MEMORY_E;
+                                break;
+                            }
+                            XMEMCPY(contentDynamic, pkcs7->contentDynamic,
+                                    contentSz);
+                        }
+
                         /* Free pkcs7 resources but not the structure itself */
                         pkcs7->isDynamic = 0;
                         wc_PKCS7_Free(pkcs7);
@@ -4934,11 +4955,18 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                         /* This will reset PKCS7 structure and then set the
                          * certificate */
                         ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+
+                        /* Restore pkcs7->contentDynamic from above, will be
+                         * freed by application with wc_PKCS7_Free() */
+                        if (contentDynamic != NULL) {
+                            pkcs7->contentDynamic = contentDynamic;
+                            contentDynamic = NULL;
+                        }
+
                     #ifndef NO_PKCS7_STREAM
                         pkcs7->stream = stream;
                     #endif
                     }
-                    pkcs7->contentDynamic = contentDynamic;
                     pkcs7->version = version;
         #ifdef ASN_BER_TO_DER
                     pkcs7->der = der;
@@ -5059,6 +5087,11 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             wc_PKCS7_StreamGetVar(pkcs7, &pkiMsg2Sz, 0, &length);
             if (pkcs7->stream->flagOne) {
                 pkiMsg2 = pkiMsg;
+
+                /* check if using internal stream buffer and should adjust sz */
+                if (pkiMsg != in && pkcs7->stream->length > 0) {
+                    pkiMsg2Sz = pkcs7->stream->length;
+                }
             }
 
             /* restore content type */
@@ -5118,7 +5151,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 }
             }
             else {
-                /* last state expect the reset of the buffer */
+                /* last state expect the rest of the buffer */
                 pkcs7->stream->expected = (pkcs7->stream->maxLen -
                     pkcs7->stream->totalRd) + pkcs7->stream->length;
             }
@@ -5137,6 +5170,11 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             wc_PKCS7_StreamGetVar(pkcs7, &pkiMsg2Sz, 0, &length);
             if (pkcs7->stream->flagOne) {
                 pkiMsg2 = pkiMsg;
+
+                /* check if using internal stream buffer and should adjust sz */
+                if (pkiMsg != in && pkcs7->stream->length > 0) {
+                    pkiMsg2Sz = pkcs7->stream->length;
+                }
             }
 
             /* restore content */
@@ -8308,18 +8346,14 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
         case WC_PKCS7_DECRYPT_KTRI_2:
         #ifndef NO_PKCS7_STREAM
 
-            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz, pkcs7->stream->expected,
-                            &pkiMsg, idx)) != 0) {
+            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
+                            pkcs7->stream->expected, &pkiMsg, idx)) != 0) {
                 return ret;
             }
 
-            rc = wc_PKCS7_GetMaxStream(pkcs7, PKCS7_DEFAULT_PEEK,
-                    in, inSz);
-            if (rc < 0) {
-                ret = (int)rc;
-                break;
+            if (in != pkiMsg) {
+                pkiMsgSz =  pkcs7->stream->length;
             }
-            pkiMsgSz = (word32)rc;
 
             wc_PKCS7_StreamGetVar(pkcs7, NULL, &sidType, &version);
 
@@ -8404,6 +8438,9 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
 
                 if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
                     return ASN_PARSE_E;
+
+                if (KEYID_SIZE > pkiMsgSz - (*idx))
+                    return BUFFER_E;
 
                 /* if we found correct recipient, SKID will match */
                 if (XMEMCMP(pkiMsg + (*idx), pkcs7->issuerSubjKeyId,
@@ -11369,6 +11406,10 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
             if (ret == 0 && wc_GetContentType(pkiMsg, &idx, &contentType,
                         pkiMsgSz) < 0) {
                 ret = ASN_PARSE_E;
+            }
+
+            if (ret == 0) {
+                pkcs7->contentOID = contentType;
             }
 
             if (ret == 0 && GetAlgoId(pkiMsg, &idx, &encOID, oidBlkType,
