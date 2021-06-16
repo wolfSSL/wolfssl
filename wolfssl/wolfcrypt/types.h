@@ -198,7 +198,15 @@ decouple library dependencies with standard string, memory and so on.
         WOLFSSL_WORD_BITS  = WOLFSSL_WORD_SIZE * WOLFSSL_BIT_SIZE
     };
 
-    #define WOLFSSL_MAX_16BIT 0xffffU
+    #define WOLFSSL_MAX_16BIT  0xffffU
+
+#ifdef WOLFSSL_OTHER_MAX_TYPES
+    #define WOLFSSL_MAX_BYTE   0xff
+    #define WOLFSSL_MAX_32BIT (~((word32)0U))
+  #ifdef WORD64_AVAILABLE
+    #define WOLFSSL_MAX_WORD64 W64LIT(0xffffffffffffffff)
+  #endif
+#endif /* WOLFSSL_OTHER_MAX_TYPES */
 
     /* use inlining if compiler allows */
     #ifndef WC_INLINE
