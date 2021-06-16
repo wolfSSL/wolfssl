@@ -24284,29 +24284,35 @@ static int curve25519_overflow_test(void)
 #endif
     };
 
+    int ret = 0;
     int            i;
     word32         y;
     byte           shared[32];
     curve25519_key userA;
 
-    wc_curve25519_init(&userA);
+    wc_curve25519_init_ex(&userA, HEAP_HINT, devId);
 
     for (i = 0; i < X25519_TEST_CNT; i++) {
         if (wc_curve25519_import_private_raw(sa[i], sizeof(sa[i]), pb[i],
-                                                    sizeof(pb[i]), &userA) != 0)
-            return -10500 - i;
+                                                  sizeof(pb[i]), &userA) != 0) {
+            ret = -10500 - i; break;
+        }
 
         /* test against known test vector */
         XMEMSET(shared, 0, sizeof(shared));
         y = sizeof(shared);
-        if (wc_curve25519_shared_secret(&userA, &userA, shared, &y) != 0)
-            return -10510 - i;
+        if (wc_curve25519_shared_secret(&userA, &userA, shared, &y) != 0) {
+            ret = -10510 - i; break;
+        }
 
-        if (XMEMCMP(ss[i], shared, y))
-            return -10520 - i;
+        if (XMEMCMP(ss[i], shared, y)) {
+            ret = -10520 - i; break;
+        }
     }
 
-    return 0;
+    wc_curve25519_free(&userA);
+
+    return ret;
 }
 
 /* Test the wc_curve25519_check_public API.
@@ -24498,9 +24504,9 @@ WOLFSSL_TEST_SUBROUTINE int curve25519_test(void)
     if (ret != 0)
         return -10700;
 
-    wc_curve25519_init(&userA);
-    wc_curve25519_init(&userB);
-    wc_curve25519_init(&pubKey);
+    wc_curve25519_init_ex(&userA, HEAP_HINT, devId);
+    wc_curve25519_init_ex(&userB, HEAP_HINT, devId);
+    wc_curve25519_init_ex(&pubKey, HEAP_HINT, devId);
 
     /* make curve25519 keys */
     if (wc_curve25519_make_key(&rng, 32, &userA) != 0)
@@ -24799,10 +24805,11 @@ done:
     defined(HAVE_ED25519_KEY_IMPORT)
 static int ed25519ctx_test(void)
 {
+    int ret;
     byte   out[ED25519_SIG_SIZE];
     word32 outlen;
 #ifdef HAVE_ED25519_VERIFY
-    int    verify;
+    int    verify = 0;
 #endif /* HAVE_ED25519_VERIFY */
     ed25519_key key;
 
@@ -24854,50 +24861,55 @@ static int ed25519ctx_test(void)
     outlen = sizeof(out);
     XMEMSET(out, 0, sizeof(out));
 
-    if (wc_ed25519_import_private_key(sKeyCtx, ED25519_KEY_SIZE, pKeyCtx,
-                                      sizeof(pKeyCtx), &key) != 0)
-        return -10800;
+    ret = wc_ed25519_init_ex(&key, HEAP_HINT, devId);
+    if (ret != 0)
+        return 10800;
 
-    if (wc_ed25519ctx_sign_msg(msgCtx, sizeof(msgCtx), out, &outlen, &key,
-                               contextCtx, sizeof(contextCtx)) != 0)
-        return -10801;
-
-    if (XMEMCMP(out, sigCtx1, 64))
-        return -10802;
+    ret = wc_ed25519_import_private_key(sKeyCtx, ED25519_KEY_SIZE, pKeyCtx,
+                                      sizeof(pKeyCtx), &key);
+    if (ret == 0)
+        ret = wc_ed25519ctx_sign_msg(msgCtx, sizeof(msgCtx), out, &outlen, &key,
+                               contextCtx, sizeof(contextCtx));
+    if (ret == 0 && XMEMCMP(out, sigCtx1, 64) != 0)
+        ret = -10801;
 
 #if defined(HAVE_ED25519_VERIFY)
     /* test verify on good msg */
-    if (wc_ed25519ctx_verify_msg(out, outlen, msgCtx, sizeof(msgCtx), &verify,
-                                 &key, contextCtx, sizeof(contextCtx)) != 0 ||
-            verify != 1)
-        return -10803;
+    if (ret == 0)
+        ret = wc_ed25519ctx_verify_msg(out, outlen, msgCtx, sizeof(msgCtx),
+            &verify, &key, contextCtx, sizeof(contextCtx));
+    if (ret == 0 && verify != 1)
+        ret = -10802;
 #endif
 
-    if (wc_ed25519ctx_sign_msg(msgCtx, sizeof(msgCtx), out, &outlen, &key, NULL,
-                               0) != 0)
-        return -10804;
+    if (ret == 0)
+        ret = wc_ed25519ctx_sign_msg(msgCtx, sizeof(msgCtx), out, &outlen, &key,
+            NULL, 0);
 
-    if (XMEMCMP(out, sigCtx2, 64))
-        return -10805;
+    if (ret == 0 && XMEMCMP(out, sigCtx2, 64) != 0)
+        ret = -10803;
 
 #if defined(HAVE_ED25519_VERIFY)
     /* test verify on good msg */
-    if (wc_ed25519ctx_verify_msg(out, outlen, msgCtx, sizeof(msgCtx), &verify,
-                                 &key, NULL, 0) != 0 || verify != 1)
-        return -10806;
+    if (ret == 0)
+        ret = wc_ed25519ctx_verify_msg(out, outlen, msgCtx, sizeof(msgCtx),
+            &verify, &key, NULL, 0);
+    if (ret == 0 && verify != 1)
+        ret = -10804;
 #endif
 
     wc_ed25519_free(&key);
 
-    return 0;
+    return ret;
 }
 
 static int ed25519ph_test(void)
 {
+    int ret;
     byte   out[ED25519_SIG_SIZE];
     word32 outlen;
 #ifdef HAVE_ED25519_VERIFY
-    int    verify;
+    int    verify = 0;
 #endif /* HAVE_ED25519_VERIFY */
     ed25519_key key;
 
@@ -24960,75 +24972,71 @@ static int ed25519ph_test(void)
     outlen = sizeof(out);
     XMEMSET(out, 0, sizeof(out));
 
-    if (wc_ed25519_import_private_key(sKeyPh, ED25519_KEY_SIZE, pKeyPh,
-                                      sizeof(pKeyPh), &key) != 0) {
+    ret = wc_ed25519_init_ex(&key, HEAP_HINT, devId);
+    if (ret != 0)
         return -10900;
-    }
 
-    if (wc_ed25519ph_sign_msg(msgPh, sizeof(msgPh), out, &outlen, &key, NULL,
-                              0) != 0) {
-        return -10901;
-    }
+    ret = wc_ed25519_import_private_key(sKeyPh, ED25519_KEY_SIZE, pKeyPh,
+                                      sizeof(pKeyPh), &key);
+    if (ret == 0)
+        ret = wc_ed25519ph_sign_msg(msgPh, sizeof(msgPh), out, &outlen, &key,
+            NULL, 0);
 
-    if (XMEMCMP(out, sigPh1, 64))
-        return -10902;
-
-#if defined(HAVE_ED25519_VERIFY)
-    /* test verify on good msg */
-    if (wc_ed25519ph_verify_msg(out, outlen, msgPh, sizeof(msgPh), &verify,
-                                &key, NULL, 0) != 0 ||
-            verify != 1) {
-        return -10903;
-    }
-#endif
-
-    if (wc_ed25519ph_sign_msg(msgPh, sizeof(msgPh), out, &outlen, &key,
-                              contextPh2, sizeof(contextPh2)) != 0) {
-        return -10904;
-    }
-
-    if (XMEMCMP(out, sigPh2, 64))
-        return -10905;
+    if (ret == 0 && XMEMCMP(out, sigPh1, 64) != 0)
+        ret = -10901;
 
 #if defined(HAVE_ED25519_VERIFY)
     /* test verify on good msg */
-    if (wc_ed25519ph_verify_msg(out, outlen, msgPh, sizeof(msgPh), &verify,
-                                &key, contextPh2, sizeof(contextPh2)) != 0 ||
-            verify != 1) {
-        return -10906;
-    }
+    if (ret == 0)
+        ret = wc_ed25519ph_verify_msg(out, outlen, msgPh, sizeof(msgPh),
+            &verify, &key, NULL, 0);
+    if (ret == 0 && verify != 1)
+        ret = -10902;
 #endif
 
-    if (wc_ed25519ph_sign_hash(hashPh, sizeof(hashPh), out, &outlen, &key, NULL,
-                              0) != 0) {
-        return -10907;
-    }
+    if (ret == 0)
+        ret = wc_ed25519ph_sign_msg(msgPh, sizeof(msgPh), out, &outlen, &key,
+                              contextPh2, sizeof(contextPh2));
 
-    if (XMEMCMP(out, sigPh1, 64))
-        return -10908;
+    if (ret == 0 && XMEMCMP(out, sigPh2, 64) != 0)
+        ret = -10903;
 
 #if defined(HAVE_ED25519_VERIFY)
-    if (wc_ed25519ph_verify_hash(out, outlen, hashPh, sizeof(hashPh), &verify,
-                                &key, NULL, 0) != 0 ||
-            verify != 1) {
-        return -10909;
-    }
+    /* test verify on good msg */
+    if (ret == 0)
+        ret = wc_ed25519ph_verify_msg(out, outlen, msgPh, sizeof(msgPh), &verify,
+                                &key, contextPh2, sizeof(contextPh2));
+    if (ret == 0 && verify != 1)
+        ret = -10904;
 #endif
 
-    if (wc_ed25519ph_sign_hash(hashPh, sizeof(hashPh), out, &outlen, &key,
-                              contextPh2, sizeof(contextPh2)) != 0) {
-        return -10910;
-    }
+    if (ret == 0)
+        ret = wc_ed25519ph_sign_hash(hashPh, sizeof(hashPh), out, &outlen, &key,
+        NULL, 0);
 
-    if (XMEMCMP(out, sigPh2, 64))
-        return -10911;
+    if (ret == 0 && XMEMCMP(out, sigPh1, 64) != 0)
+        ret = -10905;
 
 #if defined(HAVE_ED25519_VERIFY)
-    if (wc_ed25519ph_verify_hash(out, outlen, hashPh, sizeof(hashPh), &verify,
-                                &key, contextPh2, sizeof(contextPh2)) != 0 ||
-            verify != 1) {
-        return -10912;
-    }
+    if (ret == 0)
+        ret = wc_ed25519ph_verify_hash(out, outlen, hashPh, sizeof(hashPh),
+            &verify, &key, NULL, 0);
+    if (ret == 0 && verify != 1)
+        ret = -10906;
+#endif
+
+    if (ret == 0)
+        ret = wc_ed25519ph_sign_hash(hashPh, sizeof(hashPh), out, &outlen, &key,
+                              contextPh2, sizeof(contextPh2));
+    if (ret == 0 && XMEMCMP(out, sigPh2, 64) != 0)
+        ret = -10907;
+
+#if defined(HAVE_ED25519_VERIFY)
+    if (ret == 0)
+        ret = wc_ed25519ph_verify_hash(out, outlen, hashPh, sizeof(hashPh), &verify,
+                                &key, contextPh2, sizeof(contextPh2));
+    if (ret == 0 && verify != 1)
+        ret = -10908;
 #endif
 
     wc_ed25519_free(&key);
@@ -25422,10 +25430,10 @@ WOLFSSL_TEST_SUBROUTINE int ed25519_test(void)
     if (ret != 0)
         return -11000;
 
-    wc_ed25519_init(&key);
-    wc_ed25519_init(&key2);
+    wc_ed25519_init_ex(&key, HEAP_HINT, devId);
+    wc_ed25519_init_ex(&key2, HEAP_HINT, devId);
 #ifndef NO_ASN
-    wc_ed25519_init(&key3);
+    wc_ed25519_init_ex(&key3, HEAP_HINT, devId);
 #endif
     wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key);
     wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key2);
