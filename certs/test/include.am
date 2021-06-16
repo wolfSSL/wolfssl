@@ -16,7 +16,8 @@ EXTRA_DIST += \
          certs/test/cert-ext-ndir-exc.der \
          certs/test/gen-ext-certs.sh \
          certs/test/server-duplicate-policy.pem \
-         certs/test/cert-ext-joi.pem
+         certs/test/cert-ext-joi.der \
+         certs/test/cert-ext-joi.cfg
 
 # The certs/server-cert with the last byte (signature byte) changed
 EXTRA_DIST += \
