@@ -12672,15 +12672,40 @@ int wc_PKCS7_EncodeCompressedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     compressedDataSeqSz = SetSequence(totalSz, compressedDataSeq);
     totalSz += compressedDataSeqSz;
 
-    /* ContentInfo content EXPLICIT SEQUENCE */
-    contentInfoContentSeqSz = SetExplicit(0, totalSz, contentInfoContentSeq);
-    totalSz += contentInfoContentSeqSz;
-
-    /* ContentInfo ContentType (compressedData) */
-    if (pkcs7->version == 3) {
-        contentInfoTypeOidSz = 0;
+    if (pkcs7->version == 3 && pkcs7->contentOID == COMPRESSED_DATA) {
+        /* RFC 4108 section 2
+         * When the SignedData is version 3 and eContent is compressedData then
+         * the encoding is :
+         * CompressedData {
+         *   version
+         *   compressionAlgorithm
+         *   encapContentInfo
+         * }
+         */
+        contentInfoSeqSz        = 0;
+        contentInfoTypeOidSz    = 0;
+        contentInfoContentSeqSz = 0;
     }
     else {
+        /* pkcs7->contentOID should be ENCRYPTED_DATA, FIRMWARE_PKG_DATA is just
+         * an octet string for eContent.
+         *
+         * EncryptedData eContent type is encoded with:
+         * EncryptedData {
+         *  version
+         *  EncryptedContentInfo {
+         *      contentType (i.e id-ct-compressedData)
+         *      contentEncryptionAlgorithm
+         *      octet string of CompressedData or FirmwarePkgData
+         *  }
+         *  attributes
+         * }
+         */
+
+        /* ContentInfo content EXPLICIT SEQUENCE */
+        contentInfoContentSeqSz = SetExplicit(0, totalSz, contentInfoContentSeq);
+        totalSz += contentInfoContentSeqSz;
+
         ret = wc_SetContentType(COMPRESSED_DATA, contentInfoTypeOid,
                                 sizeof(contentInfoTypeOid));
         if (ret < 0) {
@@ -12690,11 +12715,11 @@ int wc_PKCS7_EncodeCompressedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
         contentInfoTypeOidSz = ret;
         totalSz += contentInfoTypeOidSz;
-    }
 
-    /* ContentInfo SEQUENCE */
-    contentInfoSeqSz = SetSequence(totalSz, contentInfoSeq);
-    totalSz += contentInfoSeqSz;
+        /* ContentInfo SEQUENCE */
+        contentInfoSeqSz = SetSequence(totalSz, contentInfoSeq);
+        totalSz += contentInfoSeqSz;
+    }
 
     if (outputSz < totalSz) {
         XFREE(compressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -12702,12 +12727,18 @@ int wc_PKCS7_EncodeCompressedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
     idx = 0;
-    XMEMCPY(output + idx, contentInfoSeq, contentInfoSeqSz);
-    idx += contentInfoSeqSz;
-    XMEMCPY(output + idx, contentInfoTypeOid, contentInfoTypeOidSz);
-    idx += contentInfoTypeOidSz;
-    XMEMCPY(output + idx, contentInfoContentSeq, contentInfoContentSeqSz);
-    idx += contentInfoContentSeqSz;
+    if (contentInfoSeqSz > 0) {
+        XMEMCPY(output + idx, contentInfoSeq, contentInfoSeqSz);
+        idx += contentInfoSeqSz;
+    }
+    if (contentInfoTypeOidSz > 0) {
+        XMEMCPY(output + idx, contentInfoTypeOid, contentInfoTypeOidSz);
+        idx += contentInfoTypeOidSz;
+    }
+    if (contentInfoContentSeqSz > 0) {
+        XMEMCPY(output + idx, contentInfoContentSeq, contentInfoContentSeqSz);
+        idx += contentInfoContentSeqSz;
+    }
     XMEMCPY(output + idx, compressedDataSeq, compressedDataSeqSz);
     idx += compressedDataSeqSz;
     XMEMCPY(output + idx, cmsVersion, cmsVersionSz);
