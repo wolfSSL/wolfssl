@@ -5616,6 +5616,8 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
     ssl->AcceptFilter = ctx->AcceptFilter;
     ssl->AcceptFilter_arg = ctx->AcceptFilter_arg;
+    ssl->ConnectFilter = ctx->ConnectFilter;
+    ssl->ConnectFilter_arg = ctx->ConnectFilter_arg;
 #endif
 
     ssl->CBIORecv = ctx->CBIORecv;

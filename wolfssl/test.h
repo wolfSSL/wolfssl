@@ -646,6 +646,131 @@ static WC_INLINE int mygetopt(int argc, char** argv, const char* optstring)
     return c;
 }
 
+struct mygetopt_long_config {
+    const char *name;
+    int takes_arg;
+    int value;
+};
+
+/**
+ *
+ * @param argc Number of argv strings
+ * @param argv Array of string arguments
+ * @param optstring String containing the supported alphanumeric arguments.
+ *                  A ':' following a character means that it requires a
+ *                  value in myoptarg to be set. A ';' means that the
+ *                  myoptarg is optional. myoptarg is set to "" if not
+ *                  present.
+ * @return Option letter in argument
+ */
+static WC_INLINE int mygetopt_long(int argc, char** argv, const char* optstring, const struct mygetopt_long_config *longopts, int *longindex)
+{
+    static char* next = NULL;
+
+    int  c;
+    char* cp;
+
+    /* Added sanity check because scan-build complains argv[myoptind] access
+     * results in a null pointer dereference. */
+    if (argv == NULL)  {
+        myoptarg = NULL;
+        return -1;
+    }
+
+    if (myoptind == 0)
+        next = NULL;   /* we're starting new/over */
+
+    if (next == NULL || *next == '\0') {
+        if (myoptind == 0)
+            myoptind++;
+
+        if (myoptind >= argc || argv[myoptind] == NULL ||
+                argv[myoptind][0] != '-' || argv[myoptind][1] == '\0') {
+            myoptarg = NULL;
+            if (myoptind < argc)
+                myoptarg = argv[myoptind];
+
+            return -1;
+        }
+
+        if (strcmp(argv[myoptind], "--") == 0) {
+            myoptind++;
+            myoptarg = NULL;
+
+            if (myoptind < argc)
+                myoptarg = argv[myoptind];
+
+            return -1;
+        }
+
+        if (strncmp(argv[myoptind], "--", 2) == 0) {
+            const struct mygetopt_long_config *i;
+            c = -1;
+            myoptarg = NULL;
+            for (i = longopts; i->name; ++i) {
+                if (! strcmp(argv[myoptind] + 2, i->name)) {
+                    c = i->value;
+                    myoptind++;
+                    if (longindex)
+                        *longindex = (int)((i - longopts) / sizeof *i);
+                    if (i->takes_arg) {
+                        if (myoptind < argc) {
+                            myoptarg = argv[myoptind];
+                            myoptind++;
+                        } else
+                            return -1;
+                    }
+                    break;
+                }
+            }
+
+            return c;
+        }
+
+        next = argv[myoptind];
+        next++;                  /* skip - */
+        myoptind++;
+    }
+
+    c  = *next++;
+    /* The C++ strchr can return a different value */
+    cp = (char*)strchr(optstring, c);
+
+    if (cp == NULL || c == ':' || c == ';')
+        return '?';
+
+    cp++;
+
+    if (*cp == ':') {
+        if (*next != '\0') {
+            myoptarg = next;
+            next     = NULL;
+        }
+        else if (myoptind < argc) {
+            myoptarg = argv[myoptind];
+            myoptind++;
+        }
+        else
+            return '?';
+    }
+    else if (*cp == ';') {
+        myoptarg = (char*)"";
+        if (*next != '\0') {
+            myoptarg = next;
+            next     = NULL;
+        }
+        else if (myoptind < argc) {
+            /* Check if next argument is not a parameter argument */
+            if (argv[myoptind] && argv[myoptind][0] != '-') {
+                myoptarg = argv[myoptind];
+                myoptind++;
+            }
+        }
+    }
+
+    return c;
+}
+
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS
 
@@ -1050,6 +1175,255 @@ static WC_INLINE void tcp_socket(SOCKET_T* sockfd, int udp, int sctp)
 #endif
 #endif  /* USE_WINDOWS_API */
 }
+
+#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && defined(WOLFSENTRY_H)
+
+struct wolfsentry_data {
+    struct wolfsentry_sockaddr remote;
+    byte remote_addrbuf[16];
+    struct wolfsentry_sockaddr local;
+    byte local_addrbuf[16];
+    wolfsentry_route_flags_t flags;
+    void *heap;
+    int alloctype;
+};
+
+static void free_wolfsentry_data(struct wolfsentry_data *data) {
+    XFREE(data, data->heap, data->alloctype);
+}
+
+static int wolfsentry_data_index = -1;
+
+static WC_INLINE int wolfsentry_store_endpoints(
+    WOLFSSL *ssl,
+    SOCKADDR_IN_T *remote,
+    SOCKADDR_IN_T *local,
+    int proto,
+    wolfsentry_route_flags_t flags,
+    struct wolfsentry_data **wolfsentry_data_out)
+{
+    struct wolfsentry_data *wolfsentry_data = (struct wolfsentry_data *)XMALLOC(
+        sizeof *wolfsentry_data, NULL, DYNAMIC_TYPE_SOCKADDR);
+    if (wolfsentry_data == NULL)
+        return WOLFSSL_FAILURE;
+
+    wolfsentry_data->heap = NULL;
+    wolfsentry_data->alloctype = DYNAMIC_TYPE_SOCKADDR;
+
+#ifdef TEST_IPV6
+    if ((sizeof wolfsentry_data->remote_addrbuf < sizeof remote->sin6_addr) ||
+        (sizeof wolfsentry_data->local_addrbuf < sizeof local->sin6_addr))
+        return WOLFSSL_FAILURE;
+    wolfsentry_data->remote.sa_family = wolfsentry_data->local.sa_family = remote->sin6_family;
+    wolfsentry_data->remote.sa_port = ntohs(remote->sin6_port);
+    wolfsentry_data->local.sa_port = ntohs(local->sin6_port);
+    if (WOLFSENTRY_CHECK_BITS(flags, WOLFSENTRY_ROUTE_FLAG_SA_REMOTE_ADDR_WILDCARD)) {
+        wolfsentry_data->remote.addr_len = 0;
+        XMEMSET(wolfsentry_data->remote.addr, 0, sizeof remote->sin6_addr);
+    } else {
+        wolfsentry_data->remote.addr_len = sizeof remote->sin6_addr * BITS_PER_BYTE;
+        XMEMCPY(wolfsentry_data->remote.addr, &remote->sin6_addr, sizeof remote->sin6_addr);
+    }
+    if (WOLFSENTRY_CHECK_BITS(flags, WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_ADDR_WILDCARD)) {
+        wolfsentry_data->local.addr_len = 0;
+        XMEMSET(wolfsentry_data->local.addr, 0, sizeof local->sin6_addr);
+    } else {
+        wolfsentry_data->local.addr_len = sizeof local->sin6_addr * BITS_PER_BYTE;
+        XMEMCPY(wolfsentry_data->local.addr, &local->sin6_addr, sizeof local->sin6_addr);
+    }
+#else
+    if ((sizeof wolfsentry_data->remote_addrbuf < sizeof remote->sin_addr) ||
+        (sizeof wolfsentry_data->local_addrbuf < sizeof local->sin_addr))
+        return WOLFSSL_FAILURE;
+    wolfsentry_data->remote.sa_family = wolfsentry_data->local.sa_family = remote->sin_family;
+    wolfsentry_data->remote.sa_port = ntohs(remote->sin_port);
+    wolfsentry_data->local.sa_port = ntohs(local->sin_port);
+    if (WOLFSENTRY_CHECK_BITS(flags, WOLFSENTRY_ROUTE_FLAG_SA_REMOTE_ADDR_WILDCARD)) {
+        wolfsentry_data->remote.addr_len = 0;
+        XMEMSET(wolfsentry_data->remote.addr, 0, sizeof remote->sin_addr);
+    } else {
+        wolfsentry_data->remote.addr_len = sizeof remote->sin_addr * BITS_PER_BYTE;
+        XMEMCPY(wolfsentry_data->remote.addr, &remote->sin_addr, sizeof remote->sin_addr);
+    }
+    if (WOLFSENTRY_CHECK_BITS(flags, WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_ADDR_WILDCARD)) {
+        wolfsentry_data->local.addr_len = 0;
+        XMEMSET(wolfsentry_data->local.addr, 0, sizeof local->sin_addr);
+    } else {
+        wolfsentry_data->local.addr_len = sizeof local->sin_addr * BITS_PER_BYTE;
+        XMEMCPY(wolfsentry_data->local.addr, &local->sin_addr, sizeof local->sin_addr);
+    }
+#endif
+    wolfsentry_data->remote.sa_proto = wolfsentry_data->local.sa_proto = proto;
+    wolfsentry_data->remote.interface = wolfsentry_data->local.interface = 0;
+    wolfsentry_data->flags = flags;
+
+    if (wolfSSL_set_ex_data_with_cleanup(
+            ssl, wolfsentry_data_index, wolfsentry_data,
+            (wolfSSL_ex_data_cleanup_routine_t)free_wolfsentry_data) !=
+        WOLFSSL_SUCCESS) {
+        free_wolfsentry_data(wolfsentry_data);
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfsentry_data_out != NULL)
+        *wolfsentry_data_out = wolfsentry_data;
+
+    return WOLFSSL_SUCCESS;
+}
+
+static int wolfSentry_NetworkFilterCallback(
+    WOLFSSL *ssl,
+    struct wolfsentry_context *_wolfsentry,
+    wolfSSL_netfilter_decision_t *decision)
+{
+    struct wolfsentry_data *data;
+    char inet_ntop_buf[INET6_ADDRSTRLEN], inet_ntop_buf2[INET6_ADDRSTRLEN];
+    wolfsentry_errcode_t ret;
+    wolfsentry_action_res_t action_results;
+
+    if ((data = wolfSSL_get_ex_data(ssl, wolfsentry_data_index)) == NULL)
+        return WOLFSSL_FAILURE;
+
+    ret = wolfsentry_route_event_dispatch(
+        _wolfsentry,
+        &data->remote,
+        &data->local,
+        data->flags,
+        NULL /* event_label */,
+        0 /* event_label_len */,
+        NULL /* caller_context */,
+        NULL /* id */,
+        NULL /* inexact_matches */,
+        &action_results);
+
+    if (ret >= 0) {
+        if (WOLFSENTRY_CHECK_BITS(action_results, WOLFSENTRY_ACTION_RES_REJECT))
+            *decision = WOLFSSL_NETFILTER_REJECT;
+        else if (WOLFSENTRY_CHECK_BITS(action_results, WOLFSENTRY_ACTION_RES_ACCEPT))
+            *decision = WOLFSSL_NETFILTER_ACCEPT;
+        else
+            *decision = WOLFSSL_NETFILTER_PASS;
+    } else {
+        printf("wolfsentry_route_event_dispatch error "
+               WOLFSENTRY_ERROR_FMT "\n", WOLFSENTRY_ERROR_FMT_ARGS(ret));
+        *decision = WOLFSSL_NETFILTER_PASS;
+    }
+
+    printf("wolfSentry got network filter callback: family=%d proto=%d rport=%d"
+           " lport=%d raddr=%s laddr=%s interface=%d; decision=%d (%s)\n",
+           data->remote.sa_family,
+           data->remote.sa_proto,
+           data->remote.sa_port,
+           data->local.sa_port,
+           inet_ntop(data->remote.sa_family, data->remote.addr, inet_ntop_buf,
+                     sizeof inet_ntop_buf),
+           inet_ntop(data->local.sa_family, data->local.addr, inet_ntop_buf2,
+                     sizeof inet_ntop_buf2),
+           data->remote.interface,
+           *decision,
+           *decision == WOLFSSL_NETFILTER_REJECT ? "REJECT" :
+           *decision == WOLFSSL_NETFILTER_ACCEPT ? "ACCEPT" :
+           *decision == WOLFSSL_NETFILTER_PASS ? "PASS" :
+           "???");
+
+    return WOLFSSL_SUCCESS;
+}
+
+static WC_INLINE int tcp_connect_with_wolfSentry(
+    SOCKET_T* sockfd,
+    const char* ip,
+    word16 port,
+    int udp,
+    int sctp,
+    WOLFSSL* ssl,
+    struct wolfsentry_context *_wolfsentry)
+{
+    SOCKADDR_IN_T remote_addr;
+    struct wolfsentry_data *wolfsentry_data;
+    char inet_ntop_buf[INET6_ADDRSTRLEN], inet_ntop_buf2[INET6_ADDRSTRLEN];
+    wolfsentry_errcode_t ret;
+    wolfsentry_action_res_t action_results;
+    wolfSSL_netfilter_decision_t decision;
+
+    build_addr(&remote_addr, ip, port, udp, sctp);
+
+    {
+        SOCKADDR_IN_T local_addr;
+#ifdef TEST_IPV6
+        local_addr.sin6_port = 0;
+#else
+        local_addr.sin_port = 0;
+#endif
+        ((struct sockaddr *)&local_addr)->sa_family = ((struct sockaddr *)&remote_addr)->sa_family;
+
+        if (wolfsentry_store_endpoints(
+                ssl, &remote_addr, &local_addr,
+                udp ? IPPROTO_UDP : IPPROTO_TCP,
+                WOLFSENTRY_ROUTE_FLAG_DIRECTION_OUT|
+                WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_ADDR_WILDCARD|
+                WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_PORT_WILDCARD, &wolfsentry_data) != WOLFSSL_SUCCESS)
+            return WOLFSSL_FAILURE;
+    }
+
+    ret = wolfsentry_route_event_dispatch(
+        _wolfsentry,
+        &wolfsentry_data->remote,
+        &wolfsentry_data->local,
+        wolfsentry_data->flags,
+        NULL /* event_label */,
+        0 /* event_label_len */,
+        NULL /* caller_context */,
+        NULL /* id */,
+        NULL /* inexact_matches */,
+        &action_results);
+
+    if (ret < 0) {
+        printf("wolfsentry_route_event_dispatch error "
+               WOLFSENTRY_ERROR_FMT "\n", WOLFSENTRY_ERROR_FMT_ARGS(ret));
+        decision = WOLFSSL_NETFILTER_PASS;
+    } else {
+        if (WOLFSENTRY_CHECK_BITS(action_results, WOLFSENTRY_ACTION_RES_REJECT))
+            decision = WOLFSSL_NETFILTER_REJECT;
+        else if (WOLFSENTRY_CHECK_BITS(action_results, WOLFSENTRY_ACTION_RES_ACCEPT))
+            decision = WOLFSSL_NETFILTER_ACCEPT;
+        else
+            decision = WOLFSSL_NETFILTER_PASS;
+    }
+
+    printf("wolfSentry callin from tcp_connect_with_wolfSentry: family=%d proto=%d rport=%d"
+           " lport=%d raddr=%s laddr=%s interface=%d; decision=%d (%s)\n",
+           wolfsentry_data->remote.sa_family,
+           wolfsentry_data->remote.sa_proto,
+           wolfsentry_data->remote.sa_port,
+           wolfsentry_data->local.sa_port,
+           inet_ntop(wolfsentry_data->remote.sa_family, wolfsentry_data->remote.addr, inet_ntop_buf,
+                     sizeof inet_ntop_buf),
+           inet_ntop(wolfsentry_data->local.sa_family, wolfsentry_data->local.addr, inet_ntop_buf2,
+                     sizeof inet_ntop_buf2),
+           wolfsentry_data->remote.interface,
+           decision,
+           decision == WOLFSSL_NETFILTER_REJECT ? "REJECT" :
+           decision == WOLFSSL_NETFILTER_ACCEPT ? "ACCEPT" :
+           decision == WOLFSSL_NETFILTER_PASS ? "PASS" :
+           "???");
+
+    if (decision == WOLFSSL_NETFILTER_REJECT)
+        return SOCKET_FILTERED_E;
+
+    if (udp) {
+        wolfSSL_dtls_set_peer(ssl, &remote_addr, sizeof(remote_addr));
+    }
+    tcp_socket(sockfd, udp, sctp);
+
+    if (!udp) {
+        if (connect(*sockfd, (const struct sockaddr*)&remote_addr, sizeof(remote_addr)) != 0)
+            err_sys_with_errno("tcp connect failed");
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
+#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
 
 static WC_INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
                                int udp, int sctp, WOLFSSL* ssl)

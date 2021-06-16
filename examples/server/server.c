@@ -37,6 +37,13 @@
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
 #    include <wolfsentry/wolfsentry.h>
+#    include <wolfsentry/wolfsentry_util.h>
+#    include <wolfsentry/wolfsentry_json.h>
+
+#if !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+static const char *wolfsentry_config_path = NULL;
+#endif
+
 #endif
 
 #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
@@ -278,137 +285,6 @@ static int TestEmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     return sent;
 }
 #endif /* WOLFSSL_DTLS && USE_WOLFSSL_IO */
-
-#ifdef WOLFSSL_WOLFSENTRY_HOOKS
-
-struct wolfsentry_data {
-    struct wolfsentry_sockaddr remote;
-    byte remote_addrbuf[16];
-    struct wolfsentry_sockaddr local;
-    byte local_addrbuf[16];
-    wolfsentry_route_flags_t flags;
-    void *heap;
-    int alloctype;
-};
-
-static void free_wolfsentry_data(struct wolfsentry_data *data) {
-    XFREE(data, data->heap, data->alloctype);
-}
-
-static int wolfsentry_data_index = -1;
-
-static int wolfsentry_store_endpoints(
-    WOLFSSL *ssl,
-    SOCKADDR_IN_T *remote,
-    SOCKADDR_IN_T *local,
-    int proto,
-    wolfsentry_route_flags_t flags)
-{
-    struct wolfsentry_data *data = (struct wolfsentry_data *)XMALLOC(
-        sizeof *data, NULL, DYNAMIC_TYPE_SOCKADDR);
-    if (data == NULL)
-        return WOLFSSL_FAILURE;
-
-    data->heap = NULL;
-    data->alloctype = DYNAMIC_TYPE_SOCKADDR;
-
-#ifdef TEST_IPV6
-    if ((sizeof data->remote_addrbuf < sizeof remote->sin6_addr) ||
-        (sizeof data->local_addrbuf < sizeof local->sin6_addr))
-        return WOLFSSL_FAILURE;
-    data->remote.sa_family = data->local.sa_family = remote->sin6_family;
-    data->remote.sa_port = ntohs(remote->sin6_port);
-    data->local.sa_port = ntohs(local->sin6_port);
-    data->remote.addr_len = sizeof remote->sin6_addr * BITS_PER_BYTE;
-    XMEMCPY(data->remote.addr, &remote->sin6_addr, sizeof remote->sin6_addr);
-    data->local.addr_len = sizeof local->sin6_addr * BITS_PER_BYTE;
-    XMEMCPY(data->local.addr, &local->sin6_addr, sizeof local->sin6_addr);
-#else
-    if ((sizeof data->remote_addrbuf < sizeof remote->sin_addr) ||
-        (sizeof data->local_addrbuf < sizeof local->sin_addr))
-        return WOLFSSL_FAILURE;
-    data->remote.sa_family = data->local.sa_family = remote->sin_family;
-    data->remote.sa_port = ntohs(remote->sin_port);
-    data->local.sa_port = ntohs(local->sin_port);
-    data->remote.addr_len = sizeof remote->sin_addr * BITS_PER_BYTE;
-    XMEMCPY(data->remote.addr, &remote->sin_addr, sizeof remote->sin_addr);
-    data->local.addr_len = sizeof local->sin_addr * BITS_PER_BYTE;
-    XMEMCPY(data->local.addr, &local->sin_addr, sizeof local->sin_addr);
-#endif
-    data->remote.sa_proto = data->local.sa_proto = proto;
-    data->remote.interface = data->local.interface = 0;
-    data->flags = flags;
-
-    if (wolfSSL_set_ex_data_with_cleanup(
-            ssl, wolfsentry_data_index, data,
-            (wolfSSL_ex_data_cleanup_routine_t)free_wolfsentry_data) !=
-        WOLFSSL_SUCCESS) {
-        free_wolfsentry_data(data);
-        return WOLFSSL_FAILURE;
-    }
-
-    return WOLFSSL_SUCCESS;
-}
-
-static int wolfSentry_NetworkFilterCallback(
-    WOLFSSL *ssl,
-    struct wolfsentry_context *wolfsentry,
-    wolfSSL_netfilter_decision_t *decision)
-{
-    struct wolfsentry_data *data;
-    char inet_ntop_buf[INET6_ADDRSTRLEN], inet_ntop_buf2[INET6_ADDRSTRLEN];
-    wolfsentry_errcode_t ret;
-    wolfsentry_action_res_t action_results;
-
-    if ((data = wolfSSL_get_ex_data(ssl, wolfsentry_data_index)) == NULL)
-        return WOLFSSL_FAILURE;
-
-    ret = wolfsentry_route_event_dispatch(
-        wolfsentry,
-        &data->remote,
-        &data->local,
-        data->flags,
-        NULL /* event_label */,
-        0 /* event_label_len */,
-        NULL /* caller_context */,
-        NULL /* id */,
-        NULL /* inexact_matches */,
-        &action_results);
-
-    if (ret >= 0) {
-        if (WOLFSENTRY_CHECK_BITS(action_results, WOLFSENTRY_ACTION_RES_REJECT))
-            *decision = WOLFSSL_NETFILTER_REJECT;
-        else if (WOLFSENTRY_CHECK_BITS(action_results, WOLFSENTRY_ACTION_RES_ACCEPT))
-            *decision = WOLFSSL_NETFILTER_ACCEPT;
-        else
-            *decision = WOLFSSL_NETFILTER_PASS;
-    } else {
-        printf("wolfsentry_route_event_dispatch error "
-               WOLFSENTRY_ERROR_FMT "\n", WOLFSENTRY_ERROR_FMT_ARGS(ret));
-        *decision = WOLFSSL_NETFILTER_PASS;
-    }
-
-    printf("wolfSentry got network filter callback: family=%d proto=%d rport=%d"
-           "lport=%d raddr=%s laddr=%s interface=%d; decision=%d (%s)\n",
-           data->remote.sa_family,
-           data->remote.sa_proto,
-           data->remote.sa_port,
-           data->local.sa_port,
-           inet_ntop(data->remote.sa_family, data->remote.addr, inet_ntop_buf,
-                     sizeof inet_ntop_buf),
-           inet_ntop(data->local.sa_family, data->local.addr, inet_ntop_buf2,
-                     sizeof inet_ntop_buf2),
-           data->remote.interface,
-           *decision,
-           *decision == WOLFSSL_NETFILTER_REJECT ? "REJECT" :
-           *decision == WOLFSSL_NETFILTER_ACCEPT ? "ACCEPT" :
-           *decision == WOLFSSL_NETFILTER_PASS ? "PASS" :
-           "???");
-
-    return WOLFSSL_SUCCESS;
-}
-
-#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
 
 static int NonBlockingSSL_Accept(SSL* ssl)
 {
@@ -804,12 +680,13 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* server_usage_msg[][57] = {
+static const char* server_usage_msg[][58] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",               /* 0 */
         "-? <num>    Help, print this usage\n"
-        "            0: English, 1: Japanese\n",                         /* 1 */
+        "            0: English, 1: Japanese\n"
+        "--help      Help, in English\n",                                /* 1 */
         "-p <num>    Port to listen on, not 0, default",                 /* 2 */
 #ifndef WOLFSSL_TLS13
         "-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default", /* 3 */
@@ -938,6 +815,10 @@ static const char* server_usage_msg[][57] = {
         "            ln -s client-ca.pem  `openssl x509 -in client-ca.pem -hash -noout`.0\n",
                                                                        /* 57 */
 #endif
+#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+        "--wolfsentry-config <file>    Path for JSON wolfSentry config\n",
+                                                                       /* 58 */
+#endif
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -946,7 +827,8 @@ static const char* server_usage_msg[][57] = {
         " 注意 : 全てのファイルは"
         " wolfSSL ホーム・ディレクトリからの相対です。\n",               /* 0 */
         "-? <num>    ヘルプ, 使い方を表示\n"
-        "            0: 英語、 1: 日本語\n",                             /* 1 */
+        "            0: 英語、 1: 日本語\n"
+        "--ヘルプ     使い方を表示, 日本語で\n",                         /* 1 */
         "-p <num>    接続先ポート, 0は無効, 既定値",                     /* 2 */
 #ifndef WOLFSSL_TLS13
         "-v <num>    SSL バージョン [0-3], SSLv3(0) - TLS1.2(3)),"
@@ -1080,6 +962,10 @@ static const char* server_usage_msg[][57] = {
         "            以下の例ではca-cert.pemにシンボリックリンクを設定します\n"
         "            ln -s client-ca.pem  `openssl x509 -in client-ca.pem -hash -noout`.0\n",
                                                                         /* 57 */
+#endif
+#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+        "--wolfsentry-config <file>    wolfSentry コンフィグファイル\n",
+                                                                       /* 58 */
 #endif
         NULL,
     },
@@ -1217,6 +1103,9 @@ static void Usage(void)
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
     printf("%s", msg[++msgId]); /* -9 */
 #endif
+#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+    printf("%s", msg[++msgId]); /* --wolfsentry-config */
+#endif
 }
 
 THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
@@ -1238,6 +1127,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     char   input[SRV_READ_SZ];
 #ifndef WOLFSSL_VXWORKS
     int    ch;
+    static const struct mygetopt_long_config long_options[] = {
+#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+        { "wolfsentry-config", 1, 256 },
+#endif
+        { "help", 0, 257 },
+        { "ヘルプ", 0, 258 },
+        { 0, 0, 0 }
+    };
 #endif
     int    version = SERVER_DEFAULT_VERSION;
 #ifndef WOLFSSL_NO_CLIENT_AUTH
@@ -1450,12 +1347,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     /* Reinitialize the global myVerifyAction. */
     myVerifyAction = VERIFY_OVERRIDE_ERROR;
 
-    /* Not Used: h, z, W, X, 7, 9 */
-    while ((ch = mygetopt(argc, argv, "?:"
+    /* Not Used: h, z, W, X, 7 */
+    while ((ch = mygetopt_long(argc, argv, "?:"
                 "abc:defgijk:l:mnop:q:rstu;v:wxy"
                 "A:B:C:D:E:FGH:IJKL:MNO:PQR:S:T;UVYZ:"
                 "01:23:4:5689"
-                "@#")) != -1) {
+                "@#", long_options, 0)) != -1) {
         switch (ch) {
             case '?' :
                 if(myoptarg!=NULL) {
@@ -1464,6 +1361,16 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                         lng_index = 0;
                     }
                 }
+                Usage();
+                XEXIT_T(EXIT_SUCCESS);
+
+            case 257 :
+                lng_index = 0;
+                Usage();
+                XEXIT_T(EXIT_SUCCESS);
+
+            case 258 :
+                lng_index = 1;
                 Usage();
                 XEXIT_T(EXIT_SUCCESS);
 
@@ -1928,6 +1835,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
             }
 
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+            case 256:
+#if !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+                wolfsentry_config_path = myoptarg;
+#endif
+                break;
+#endif
+
             default:
                 Usage();
                 XEXIT_T(MY_EX_USAGE);
@@ -2081,6 +1996,52 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         wolfsentry_data_index = wolfSSL_get_ex_new_index(0, NULL, NULL, NULL,
                                                          NULL);
 
+#if !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+    if (wolfsentry_config_path != NULL) {
+        char buf[512], err_buf[512];
+        struct wolfsentry_json_process_state *jps;
+
+        FILE *f = fopen(wolfsentry_config_path, "r");
+
+        if (f == NULL) {
+            fprintf(stderr, "fopen(%s): %s\n",wolfsentry_config_path,strerror(errno));
+            err_sys_ex(catastrophic, "unable to open wolfSentry config file");
+        }
+
+        if ((wolfsentry_ret = wolfsentry_config_json_init(
+                 wolfsentry,
+                 WOLFSENTRY_CONFIG_LOAD_FLAG_NONE,
+                 &jps)) < 0) {
+            fprintf(stderr, "wolfsentry_config_json_init() returned "
+                    WOLFSENTRY_ERROR_FMT "\n",
+                    WOLFSENTRY_ERROR_FMT_ARGS(wolfsentry_ret));
+            err_sys_ex(catastrophic, "error while initlalizing wolfSentry config parser");
+        }
+
+        for (;;) {
+            size_t n = fread(buf, 1, sizeof buf, f);
+            if ((n < sizeof buf) && ferror(f)) {
+                fprintf(stderr,"fread(%s): %s\n",wolfsentry_config_path, strerror(errno));
+                err_sys_ex(catastrophic, "error while reading wolfSentry config file");
+            }
+
+            wolfsentry_ret = wolfsentry_config_json_feed(jps, buf, n, err_buf, sizeof err_buf);
+            if (wolfsentry_ret < 0) {
+                fprintf(stderr, "%.*s\n", (int)sizeof err_buf, err_buf);
+                err_sys_ex(catastrophic, "error while loading wolfSentry config file");
+            }
+            if ((n < sizeof buf) && feof(f))
+                break;
+        }
+        fclose(f);
+
+        if ((wolfsentry_ret = wolfsentry_config_json_fini(jps, err_buf, sizeof err_buf)) < 0) {
+            fprintf(stderr, "%.*s\n", (int)sizeof err_buf, err_buf);
+            err_sys_ex(catastrophic, "error while loading wolfSentry config file");
+        }
+
+    } else
+#endif /* !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON) */
     {
         struct wolfsentry_route_table *table;
 
@@ -2124,7 +2085,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                  (wolfsentry, NULL /* caller_context */, &remote.sa, &local.sa,
                   WOLFSENTRY_ROUTE_FLAG_GREENLISTED              |
                   WOLFSENTRY_ROUTE_FLAG_DIRECTION_IN             |
-                  WOLFSENTRY_ROUTE_FLAG_TRIGGER_WILDCARD         |
+                  WOLFSENTRY_ROUTE_FLAG_PARENT_EVENT_WILDCARD    |
                   WOLFSENTRY_ROUTE_FLAG_REMOTE_INTERFACE_WILDCARD|
                   WOLFSENTRY_ROUTE_FLAG_LOCAL_INTERFACE_WILDCARD |
                   WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_ADDR_WILDCARD   |
@@ -2807,7 +2768,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             if (wolfsentry_store_endpoints(
                     ssl, &client_addr, &local_addr,
                     dtlsUDP ? IPPROTO_UDP : IPPROTO_TCP,
-                    WOLFSENTRY_ROUTE_FLAG_DIRECTION_IN) != WOLFSSL_SUCCESS)
+                    WOLFSENTRY_ROUTE_FLAG_DIRECTION_IN, NULL) != WOLFSSL_SUCCESS)
                 err_sys_ex(catastrophic,
                            "error in wolfsentry_store_endpoints()");
         }

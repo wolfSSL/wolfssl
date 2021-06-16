@@ -30,6 +30,19 @@
 
 #include <wolfssl/ssl.h>
 
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+#    include <wolfsentry/wolfsentry.h>
+#    include <wolfsentry/wolfsentry_util.h>
+#    include <wolfsentry/wolfsentry_json.h>
+
+static struct wolfsentry_context *wolfsentry = NULL;
+
+#if !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+static const char *wolfsentry_config_path = NULL;
+#endif
+
+#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
+
 #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
         #include <stdio.h>
         #include <string.h>
@@ -38,6 +51,10 @@
 #endif
 
 #include <wolfssl/test.h>
+
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+#define tcp_connect(sockfd, ip, port, udp, sctp, ssl) tcp_connect_with_wolfSentry(sockfd, ip, port, udp, sctp, ssl, wolfsentry)
+#endif
 
 #include <examples/client/client.h>
 #include <wolfssl/error-ssl.h>
@@ -967,7 +984,7 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* client_usage_msg[][67] = {
+static const char* client_usage_msg[][68] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",          /* 0 */
@@ -989,7 +1006,8 @@ static const char* client_usage_msg[][67] = {
         "INFINITE\n",                                               /* 2 */
 #endif
         "-? <num>    Help, print this usage\n"
-        "            0: English, 1: Japanese\n",                    /* 3 */
+        "            0: English, 1: Japanese\n"
+        "--help      Help, in English\n",                           /* 3 */
         "-h <host>   Host to connect to, default",                  /* 4 */
         "-p <num>    Port to connect on, not 0, default",           /* 5 */
 
@@ -1148,6 +1166,10 @@ static const char* client_usage_msg[][67] = {
         "            ln -s ca-cert.pem  `openssl x509 -in ca-cert.pem -hash -noout`.0\n",
                                                                        /* 67 */
 #endif
+#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+        "--wolfsentry-config <file>    Path for JSON wolfSentry config\n",
+                                                                       /* 68 */
+#endif
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1171,7 +1193,8 @@ static const char* client_usage_msg[][67] = {
         "無限\n",                                                        /* 2 */
 #endif
         "-? <num>    ヘルプ, 使い方を表示\n"
-                            "            0: 英語、 1: 日本語\n",         /* 3 */
+        "            0: 英語、 1: 日本語\n"
+        "--ヘルプ     使い方を表示, 日本語で\n",                          /* 3 */
         "-h <host>   接続先ホスト, 既定値",                              /* 4 */
         "-p <num>    接続先ポート, 0は無効, 既定値",                     /* 5 */
 
@@ -1333,6 +1356,10 @@ static const char* client_usage_msg[][67] = {
         "            ln -s ca-cert.pem  `openssl x509 -in ca-cert.pem -hash -noout`.0\n",
                                                                         /* 67 */
 #endif
+#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+        "--wolfsentry-config <file>    wolfSentry コンフィグファイル\n",
+                                                                       /* 68 */
+#endif
         NULL,
     },
 #endif
@@ -1446,6 +1473,7 @@ static void Usage(void)
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     printf("%s", msg[++msgid]); /* -W */
+    printf("%s", msg[++msgid]); /* note for -W */
 #endif
 #if defined(ATOMIC_USER) && !defined(WOLFSSL_AEAD_ONLY)
     printf("%s", msg[++msgid]); /* -U */
@@ -1510,6 +1538,9 @@ static void Usage(void)
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
     printf("%s", msg[++msgid]); /* -9 */
 #endif
+#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+    printf("%s", msg[++msgid]); /* --wolfsentry-config */
+#endif
 }
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
@@ -1519,6 +1550,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     wolfSSL_method_func method = NULL;
     WOLFSSL_CTX*     ctx     = 0;
     WOLFSSL*         ssl     = 0;
+
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+    wolfsentry_errcode_t wolfsentry_ret;
+#endif
 
     WOLFSSL*         sslResume = 0;
     WOLFSSL_SESSION* session = 0;
@@ -1537,6 +1572,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                                        */
 #ifndef WOLFSSL_VXWORKS
     int    ch;
+    static const struct mygetopt_long_config long_options[] = {
+#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+        { "wolfsentry-config", 1, 256 },
+#endif
+        { "help", 0, 257 },
+        { "ヘルプ", 0, 258 },
+        { 0, 0, 0 }
+    };
 #endif
     int    version = CLIENT_INVALID_VERSION;
     int    minVersion = CLIENT_INVALID_VERSION;
@@ -1736,11 +1779,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef WOLFSSL_VXWORKS
     /* Not used: All used */
-    while ((ch = mygetopt(argc, argv, "?:"
+    while ((ch = mygetopt_long(argc, argv, "?:"
             "ab:c:defgh:i;jk:l:mnop:q:rstu;v:wxyz"
             "A:B:CDE:F:GH:IJKL:M:NO:PQRS:TUVW:XYZ:"
             "01:23:4567:89"
-            "@#")) != -1) {
+            "@#", long_options, 0)) != -1) {
         switch (ch) {
             case '?' :
                 if(myoptarg!=NULL) {
@@ -1749,6 +1792,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                         lng_index = 0;
                     }
                 }
+                Usage();
+                XEXIT_T(EXIT_SUCCESS);
+
+            case 257 :
+                lng_index = 0;
+                Usage();
+                XEXIT_T(EXIT_SUCCESS);
+
+            case 258 :
+                lng_index = 1;
                 Usage();
                 XEXIT_T(EXIT_SUCCESS);
 
@@ -2231,8 +2284,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
                     useCertFolder = 1;
-                    break;
 #endif
+                    break;
             case '@' :
             {
 #ifdef HAVE_WC_INTROSPECTION
@@ -2266,6 +2319,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 XEXIT_T(MY_EX_USAGE);
 #endif
             }
+
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+            case 256:
+#if !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+                wolfsentry_config_path = myoptarg;
+#endif
+                break;
+#endif
 
             default:
                 Usage();
@@ -2507,6 +2568,136 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_CTX_free(ctx); ctx = NULL;
         err_sys("Single Threaded new rng at CTX failed");
     }
+#endif
+
+
+
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+    wolfsentry_ret =  wolfsentry_init(NULL /* hpi */, NULL /* default config */,
+                                      &wolfsentry);
+    if (wolfsentry_ret < 0) {
+        fprintf(stderr, "wolfsentry_init() returned " WOLFSENTRY_ERROR_FMT "\n",
+                WOLFSENTRY_ERROR_FMT_ARGS(wolfsentry_ret));
+        err_sys("unable to initialize wolfSentry");
+    }
+
+    if (wolfsentry_data_index < 0)
+        wolfsentry_data_index = wolfSSL_get_ex_new_index(0, NULL, NULL, NULL,
+                                                         NULL);
+
+#if !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+    if (wolfsentry_config_path != NULL) {
+        char buf[512], err_buf[512];
+        struct wolfsentry_json_process_state *jps;
+
+        FILE *f = fopen(wolfsentry_config_path, "r");
+
+        if (f == NULL) {
+            fprintf(stderr, "fopen(%s): %s\n",wolfsentry_config_path,strerror(errno));
+            err_sys("unable to open wolfSentry config file");
+        }
+
+        if ((wolfsentry_ret = wolfsentry_config_json_init(
+                 wolfsentry,
+                 WOLFSENTRY_CONFIG_LOAD_FLAG_NONE,
+                 &jps)) < 0) {
+            fprintf(stderr, "wolfsentry_config_json_init() returned "
+                    WOLFSENTRY_ERROR_FMT "\n",
+                    WOLFSENTRY_ERROR_FMT_ARGS(wolfsentry_ret));
+            err_sys("error while initlalizing wolfSentry config parser");
+        }
+
+        for (;;) {
+            size_t n = fread(buf, 1, sizeof buf, f);
+            if ((n < sizeof buf) && ferror(f)) {
+                fprintf(stderr,"fread(%s): %s\n",wolfsentry_config_path, strerror(errno));
+                err_sys("error while reading wolfSentry config file");
+            }
+
+            wolfsentry_ret = wolfsentry_config_json_feed(jps, buf, n, err_buf, sizeof err_buf);
+            if (wolfsentry_ret < 0) {
+                fprintf(stderr, "%.*s\n", (int)sizeof err_buf, err_buf);
+                err_sys("error while loading wolfSentry config file");
+            }
+            if ((n < sizeof buf) && feof(f))
+                break;
+        }
+        fclose(f);
+
+        if ((wolfsentry_ret = wolfsentry_config_json_fini(jps, err_buf, sizeof err_buf)) < 0) {
+            fprintf(stderr, "%.*s\n", (int)sizeof err_buf, err_buf);
+            err_sys("error while loading wolfSentry config file");
+        }
+
+    } else
+#endif /* !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON) */
+    {
+
+        struct wolfsentry_route_table *table;
+
+        if ((wolfsentry_ret = wolfsentry_route_get_table_static(wolfsentry,
+                                                                &table)) < 0)
+            fprintf(stderr, "wolfsentry_route_get_table_static() returned "
+                    WOLFSENTRY_ERROR_FMT "\n",
+                    WOLFSENTRY_ERROR_FMT_ARGS(wolfsentry_ret));
+        if (wolfsentry_ret >= 0) {
+            if ((wolfsentry_ret = wolfsentry_route_table_default_policy_set(
+                     wolfsentry, table,
+                     WOLFSENTRY_ACTION_RES_ACCEPT))
+                < 0)
+                fprintf(stderr,
+                        "wolfsentry_route_table_default_policy_set() returned "
+                        WOLFSENTRY_ERROR_FMT "\n",
+                        WOLFSENTRY_ERROR_FMT_ARGS(wolfsentry_ret));
+        }
+
+        if (wolfsentry_ret >= 0) {
+            struct {
+                struct wolfsentry_sockaddr sa;
+                byte buf[16];
+            } remote, local;
+            wolfsentry_ent_id_t id;
+            wolfsentry_action_res_t action_results;
+
+            memset(&remote, 0, sizeof remote);
+            memset(&local, 0, sizeof local);
+#ifdef TEST_IPV6
+            remote.sa.sa_family = local.sa.sa_family = AF_INET6;
+            remote.sa.addr_len = 128;
+            memcpy(remote.sa.addr, "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\001", 16);
+#else
+            remote.sa.sa_family = local.sa.sa_family = AF_INET;
+            remote.sa.addr_len = 32;
+            memcpy(remote.sa.addr, "\177\000\000\001", 4);
+#endif
+
+            if ((wolfsentry_ret = wolfsentry_route_insert_static
+                 (wolfsentry, NULL /* caller_context */, &remote.sa, &local.sa,
+                  WOLFSENTRY_ROUTE_FLAG_GREENLISTED              |
+                  WOLFSENTRY_ROUTE_FLAG_DIRECTION_OUT            |
+                  WOLFSENTRY_ROUTE_FLAG_PARENT_EVENT_WILDCARD    |
+                  WOLFSENTRY_ROUTE_FLAG_REMOTE_INTERFACE_WILDCARD|
+                  WOLFSENTRY_ROUTE_FLAG_LOCAL_INTERFACE_WILDCARD |
+                  WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_ADDR_WILDCARD   |
+                  WOLFSENTRY_ROUTE_FLAG_SA_PROTO_WILDCARD        |
+                  WOLFSENTRY_ROUTE_FLAG_SA_REMOTE_PORT_WILDCARD  |
+                  WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_PORT_WILDCARD,
+                  0 /* event_label_len */, 0 /* event_label */, &id,
+                  &action_results)) < 0)
+                fprintf(stderr, "wolfsentry_route_insert_static() returned "
+                        WOLFSENTRY_ERROR_FMT "\n",
+                        WOLFSENTRY_ERROR_FMT_ARGS(wolfsentry_ret));
+        }
+
+        if (wolfsentry_ret < 0)
+            err_sys("unable to configure route table");
+    }
+
+    if (wolfSSL_CTX_set_ConnectFilter(
+            ctx,
+            (NetworkFilterCallback_t)wolfSentry_NetworkFilterCallback,
+            wolfsentry) < 0)
+        err_sys("unable to install wolfSentry_NetworkFilterCallback");
 #endif
 
     if (cipherList && !useDefCipherList) {
@@ -3853,6 +4044,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     ((func_args*)args)->return_code = 0;
 
 exit:
+
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+    wolfsentry_ret = wolfsentry_shutdown(&wolfsentry);
+    if (wolfsentry_ret < 0) {
+        fprintf(stderr,
+                "wolfsentry_shutdown() returned " WOLFSENTRY_ERROR_FMT "\n",
+                WOLFSENTRY_ERROR_FMT_ARGS(wolfsentry_ret));
+    }
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     wolfAsync_DevClose(&devId);
