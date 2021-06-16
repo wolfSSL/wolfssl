@@ -16601,7 +16601,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
-    int wolfSSL_BIO_free_all(WOLFSSL_BIO* bio)
+    void wolfSSL_BIO_free_all(WOLFSSL_BIO* bio)
     {
         WOLFSSL_ENTER("BIO_free_all");
         while (bio) {
@@ -16609,7 +16609,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             wolfSSL_BIO_free(bio);
             bio = next;
         }
-        return 0;
     }
 
 
