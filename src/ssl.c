@@ -47179,8 +47179,7 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
         int i;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         int j;
-#endif
-#if defined(WOLFSSL_QT)
+
         /* higher priority of cipher suite will be on top of stack */
         for (i = suites->suiteSz - 2; i >=0; i-=2) {
 #else
