@@ -12097,17 +12097,21 @@ static int CheckcipherList(const char* list)
                 break;
             }
         } 
-        if (findTLSv13Suites == 1 && findbeforeSuites == 1)
+        if (findTLSv13Suites == 1 && findbeforeSuites == 1) {
             /* list has mixed suites */
             return 0;
+        }
     }  while (next++); /* ++ needed to skip ':' */
     
-    if (findTLSv13Suites == 0 && findbeforeSuites == 1)
+    if (findTLSv13Suites == 0 && findbeforeSuites == 1) {
         return 1;/* only before TLSv13 sutes */
-    else if (findTLSv13Suites == 1 && findbeforeSuites == 0)
+    }
+    else if (findTLSv13Suites == 1 && findbeforeSuites == 0) {
         return 2;/* only TLSv13 suties */
-    else 
+    }
+    else { 
         return 0;/* handle as mixed */
+    }
 }
 
 /* parse some bulk lists like !eNULL / !aNULL
@@ -12179,22 +12183,22 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
         listattribute = CheckcipherList(list);
         
         if (listattribute == 0) {
-            /* list has mixed(pre-TLSv13 and TLSv13) suites
-             * update cipher suites the same as before
-             */
+           /* list has mixed(pre-TLSv13 and TLSv13) suites
+            * update cipher suites the same as before
+            */
             return (SetCipherList(ctx, suites, list)) ? WOLFSSL_SUCCESS :
             WOLFSSL_FAILURE;
         } 
         else if (listattribute == 1) {
-            /* list has only pre-TLSv13 suites. 
-             * Only update before TLSv13 suites.
-             */
+           /* list has only pre-TLSv13 suites. 
+            * Only update before TLSv13 suites.
+            */
             tls13Only = 1;
         } 
         else if (listattribute == 2) {
-        /* list has only TLSv13 suites. Only update TLv13 suites
-         * simulate set_ciphersuites() comatibility layer API
-         */
+           /* list has only TLSv13 suites. Only update TLv13 suites
+            * simulate set_ciphersuites() comatibility layer API
+            */
             tls13Only = 0;
         }
         
@@ -12202,13 +12206,13 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
                                                 tls13Only, list);
         
         if (buildcipherList) {
-            
             ret = SetCipherList(ctx, suites, buildcipherList);
             XFREE(buildcipherList, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
-        else
+        else {
             ret = SetCipherList(ctx, suites, list);
-        
+        }
+
         return ret;
     }
 }
