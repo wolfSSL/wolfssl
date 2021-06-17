@@ -588,7 +588,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     #ifndef NO_WOLFSSL_ALLOC_ALIGN
         byte* tmp = NULL;
     #endif
-        if ((wolfssl_word)in % WOLFSSL_XILINX_ALIGN) {
+        if ((wc_ptr_t)in % WOLFSSL_XILINX_ALIGN) {
         #ifndef NO_WOLFSSL_ALLOC_ALIGN
             byte* tmp_align;
             tmp = (byte*)XMALLOC(sz + WOLFSSL_XILINX_ALIGN +
@@ -787,7 +787,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     /* it is assumed that in buffer size is large enough to hold TAG */
     XMEMCPY((byte*)in + sz, tag, AES_BLOCK_SIZE);
-    if ((wolfssl_word)in % WOLFSSL_XILINX_ALIGN) {
+    if ((wc_ptr_t)in % WOLFSSL_XILINX_ALIGN) {
     #ifndef NO_WOLFSSL_ALLOC_ALIGN
         byte* tmp_align;
         tmp = (byte*)XMALLOC(sz + WOLFSSL_XILINX_ALIGN +

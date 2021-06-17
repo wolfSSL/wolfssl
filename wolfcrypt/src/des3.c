@@ -888,7 +888,7 @@
         iv = (byte*)des->reg;
 
     #ifdef FREESCALE_MMCAU_CLASSIC
-        if ((wolfssl_word)out % WOLFSSL_MMCAU_ALIGNMENT) {
+        if ((wc_ptr_t)out % WOLFSSL_MMCAU_ALIGNMENT) {
             WOLFSSL_MSG("Bad cau_des_encrypt alignment");
             return BAD_ALIGN_E;
         }
@@ -935,7 +935,7 @@
         iv = (byte*)des->reg;
 
     #ifdef FREESCALE_MMCAU_CLASSIC
-        if ((wolfssl_word)out % WOLFSSL_MMCAU_ALIGNMENT) {
+        if ((wc_ptr_t)out % WOLFSSL_MMCAU_ALIGNMENT) {
             WOLFSSL_MSG("Bad cau_des_decrypt alignment");
             return BAD_ALIGN_E;
         }
@@ -984,7 +984,7 @@
         iv = (byte*)des->reg;
 
     #ifdef FREESCALE_MMCAU_CLASSIC
-        if ((wolfssl_word)out % WOLFSSL_MMCAU_ALIGNMENT) {
+        if ((wc_ptr_t)out % WOLFSSL_MMCAU_ALIGNMENT) {
             WOLFSSL_MSG("Bad 3ede cau_des_encrypt alignment");
             return BAD_ALIGN_E;
         }
@@ -1036,7 +1036,7 @@
         iv = (byte*)des->reg;
 
     #ifdef FREESCALE_MMCAU_CLASSIC
-        if ((wolfssl_word)out % WOLFSSL_MMCAU_ALIGNMENT) {
+        if ((wc_ptr_t)out % WOLFSSL_MMCAU_ALIGNMENT) {
             WOLFSSL_MSG("Bad 3ede cau_des_decrypt alignment");
             return BAD_ALIGN_E;
         }

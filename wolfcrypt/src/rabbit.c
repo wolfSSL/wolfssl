@@ -230,7 +230,7 @@ int wc_RabbitSetKey(Rabbit* ctx, const byte* key, const byte* iv)
         ctx->heap = NULL;
     #endif /* WOLFSSL_HEAP_TEST */
 
-    if ((wolfssl_word)key % 4) {
+    if ((wc_ptr_t)key % 4) {
         int alignKey[4];
 
         /* iv aligned in SetIV */
@@ -314,7 +314,7 @@ int wc_RabbitProcess(Rabbit* ctx, byte* output, const byte* input, word32 msglen
     }
 
 #ifdef XSTREAM_ALIGN
-    if ((wolfssl_word)input % 4 || (wolfssl_word)output % 4) {
+    if ((wc_ptr_t)input % 4 || (wc_ptr_t)output % 4) {
         #ifndef NO_WOLFSSL_ALLOC_ALIGN
             byte* tmp;
             WOLFSSL_MSG("wc_RabbitProcess unaligned");

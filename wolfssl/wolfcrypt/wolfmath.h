@@ -50,7 +50,7 @@ This library provides big integer math functions.
     ((defined(HAVE_ECC) && defined(ECC_TIMING_RESISTANT)) || \
      (defined(USE_FAST_MATH) && defined(TFM_TIMING_RESISTANT)))
 
-    extern const wolfssl_word wc_off_on_addr[2];
+    extern const wc_ptr_t wc_off_on_addr[2];
 #endif
 
 

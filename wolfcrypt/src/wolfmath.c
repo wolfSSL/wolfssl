@@ -54,7 +54,7 @@
 
     /* all off / all on pointer addresses for constant calculations */
     /* ecc.c uses same table */
-    const wolfssl_word wc_off_on_addr[2] =
+    const wc_ptr_t wc_off_on_addr[2] =
     {
     #if defined(WC_64BIT_CPU)
         W64LIT(0x0000000000000000),

@@ -255,7 +255,7 @@ counts, placing the result in <*buf>. */
 WC_STATIC WC_INLINE void xorbufout(void*out, const void* buf, const void* mask,
                                    word32 count)
 {
-    if (((wolfssl_word)out | (wolfssl_word)buf | (wolfssl_word)mask | count) % \
+    if (((wc_ptr_t)out | (wc_ptr_t)buf | (wc_ptr_t)mask | count) %
                                                          WOLFSSL_WORD_SIZE == 0)
         XorWordsOut( (wolfssl_word*)out, (wolfssl_word*)buf,
                      (const wolfssl_word*)mask, count / WOLFSSL_WORD_SIZE);
@@ -283,7 +283,7 @@ counts, placing the result in <*buf>. */
 
 WC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
 {
-    if (((wolfssl_word)buf | (wolfssl_word)mask | count) % WOLFSSL_WORD_SIZE == 0)
+    if (((wc_ptr_t)buf | (wc_ptr_t)mask | count) % WOLFSSL_WORD_SIZE == 0)
         XorWords( (wolfssl_word*)buf,
                   (const wolfssl_word*)mask, count / WOLFSSL_WORD_SIZE);
     else {
