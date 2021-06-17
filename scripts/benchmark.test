@@ -6,9 +6,9 @@ if [ "$#" -lt 2 ]; then
     echo "Usage: $0 [mode] [num] [clientargs] [serverargs]" >&2
     echo "    [mode]: 1=Connection Rate (TPS), 2=Throughput Bytes" >&2
     echo "    [num]: Mode 1=Connection Count, Mode 2=Bytes to TX/RX" >&2
-    echo "    [clientargs]: Passed to client (see \"./example/client/client -?\" for help)" >&2
+    echo "    [clientargs]: Passed to client (see \"./test_apps/client/test_client -?\" for help)" >&2
     echo "                  Example: Use different cipher suite: \"-l DHE-RSA-AES256-SHA\"" >&2
-    echo "    [serverargs]: Passed to server (see \"./example/server/server -?\" for help)" >&2
+    echo "    [serverargs]: Passed to server (see \"./test_apps/server/test_server -?\" for help)" >&2
     echo "                  Example: Disable client certificate check: \"-d\"" >&2
     echo "Note: If additional client or server args contains spaces wrap with double quotes" >&2
     exit 1
@@ -55,7 +55,7 @@ remove_ready_file
 if [ $1 -eq 1 ]
 then
     # start server in loop mode with port
-    ./examples/server/server -i -p $bench_port $4 &
+    ./test_apps/server/test_server -i -p $bench_port $4 &
     server_pid=$!
 fi
 
@@ -63,7 +63,7 @@ fi
 if [ $1 -eq 2 ]
 then
     # start server in loop mode, non-blocking, benchmark throughput with port
-    ./examples/server/server -i -N -B $2 -p $bench_port $4 &
+    ./test_apps/server/test_server -i -N -B $2 -p $bench_port $4 &
     server_pid=$!
 fi
 
@@ -81,7 +81,7 @@ if [ $1 -eq 1 ]
 then
     echo "Starting example client to benchmark connection average time"
     # start client to benchmark average time for each connection using port
-    ./examples/client/client -b $2 -p $bench_port $3
+    ./test_apps/client/test_client -b $2 -p $bench_port $3
     client_result=$?
 fi
 
@@ -90,7 +90,7 @@ if [ $1 -eq 2 ]
 then
     echo "Starting example client to benchmark throughput"
     # start client in non-blocking mode, benchmark throughput using port
-    ./examples/client/client -N -B $2 -p $bench_port $3
+    ./test_apps/client/test_client -N -B $2 -p $bench_port $3
     client_result=$?
 fi
 

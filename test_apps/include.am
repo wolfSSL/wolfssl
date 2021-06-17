@@ -1,0 +1,7 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+
+include test_apps/client/include.am
+include test_apps/server/include.am
+
+

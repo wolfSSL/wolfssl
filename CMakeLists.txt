@@ -1465,21 +1465,37 @@ endif()
 ####################################################
 
 if(WOLFSSL_EXAMPLES)
-    # Build wolfSSL client example
+    # Build wolfSSL simple client example
     add_executable(client
         ${CMAKE_CURRENT_SOURCE_DIR}/examples/client/client.c)
     target_link_libraries(client wolfssl)
     set_property(TARGET client
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
                  ${CMAKE_CURRENT_SOURCE_DIR}/examples/client)
-
-    # Build wolfSSL server example
+    
+    # Build wolfSSL simple server example
     add_executable(server
         ${CMAKE_CURRENT_SOURCE_DIR}/examples/server/server.c)
     target_link_libraries(server wolfssl)
     set_property(TARGET server
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
                  ${CMAKE_CURRENT_SOURCE_DIR}/examples/server)
+
+    # Build wolfSSL client example
+    add_executable(test_client
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/client/test_client.c)
+    target_link_libraries(test_client wolfssl)
+    set_property(TARGET test_client
+                 PROPERTY RUNTIME_OUTPUT_DIRECTORY
+                 ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/client)
+
+    # Build wolfSSL server example
+    add_executable(test_server
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/server/test_server.c)
+    target_link_libraries(test_server wolfssl)
+    set_property(TARGET test_server
+                 PROPERTY RUNTIME_OUTPUT_DIRECTORY
+                 ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/server)
 
     # Build echo client example
     add_executable(echoclient
@@ -1519,8 +1535,8 @@ if(WOLFSSL_EXAMPLES)
         tests/srp.c
         tests/suites.c
         tests/unit.c
-        examples/server/server.c
-        examples/client/client.c)
+        test_apps/server/test_server.c
+        test_apps/client/test_client.c)
     target_include_directories(unit_test PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR})
     target_compile_options(unit_test PUBLIC "-DNO_MAIN_DRIVER")
@@ -1593,8 +1609,10 @@ set(INSTALLED_EXAMPLES
     ${CMAKE_CURRENT_SOURCE_DIR}/examples/sctp/sctp-client.c
     ${CMAKE_CURRENT_SOURCE_DIR}/examples/sctp/sctp-server-dtls.c
     ${CMAKE_CURRENT_SOURCE_DIR}/examples/echoclient/echoclient.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/examples/server/server.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/server/test_server.c
     ${CMAKE_CURRENT_SOURCE_DIR}/examples/benchmark/tls_bench.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/client/test_client.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/examples/server/server.c
     ${CMAKE_CURRENT_SOURCE_DIR}/examples/client/client.c)
 
 # Install the library

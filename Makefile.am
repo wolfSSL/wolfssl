@@ -168,6 +168,7 @@ include wolfcrypt/user-crypto/include.am
 include wolfcrypt/benchmark/include.am
 include wolfcrypt/src/include.am
 include wolfcrypt/test/include.am
+include test_apps/include.am
 include examples/include.am
 include testsuite/include.am
 include tests/include.am

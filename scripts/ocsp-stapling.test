@@ -11,7 +11,7 @@ if [[ -z "${RETRIES_REMAINING-}" ]]; then
     export RETRIES_REMAINING=2
 fi
 
-./examples/client/client -v 3 2>&1 | grep -- 'Bad SSL version'
+./test_apps/client/test_client -v 3 2>&1 | grep -- 'Bad SSL version'
 if [ $? -eq 0 ]; then
     echo "TLS 1.2 or lower required"
     echo "Skipped"
@@ -24,7 +24,7 @@ else
     IPV6_SUPPORTED=no
 fi
 
-if ./examples/client/client '-#' | fgrep -q -e ' -DTEST_IPV6 '; then
+if ./test_apps/client/test_client '-#' | fgrep -q -e ' -DTEST_IPV6 '; then
     if [[ "$IPV6_SUPPORTED" == "no" ]]; then
         echo 'Skipping IPV6 test in environment lacking IPV6 support.'
 	exit 0
@@ -55,7 +55,7 @@ WORKSPACE="${PARENTDIR}/workspace.pid$$"
 mkdir "${WORKSPACE}" || exit $?
 cp -pR ${SCRIPT_DIR}/../certs "${WORKSPACE}"/ || exit $?
 cd "$WORKSPACE" || exit $?
-ln -s ../examples
+ln -s ../test_apps
 
 CERT_DIR="./certs/ocsp"
 ready_file="$WORKSPACE"/wolf_ocsp_s1_readyF$$
@@ -182,14 +182,14 @@ cleanup()
 }
 trap cleanup EXIT INT TERM HUP
 
-[ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
-./examples/client/client '-?' 2>&1 | grep -- 'Client not compiled in!'
+[ ! -x ./test_apps/client/test_client ] && echo -e "\n\nClient doesn't exist" && exit 1
+./test_apps/client/test_client '-?' 2>&1 | grep -- 'Client not compiled in!'
 if [ $? -eq 0 ]; then
     exit 0
 fi
 
 # check if supported key size is large enough to handle 4096 bit RSA
-size="$(./examples/client/client '-?' | grep "Max RSA key")"
+size="$(./test_apps/client/test_client '-?' | grep "Max RSA key")"
 size="${size//[^0-9]/}"
 if [ ! -z "$size" ]; then
     printf 'check on max key size of %d ...' $size
@@ -228,7 +228,7 @@ port3=$(get_first_free_port $((port2 + 1)))
 # test interop fail case
 ready_file=$PWD/wolf_ocsp_readyF$$
 printf '%s\n' "ready file:  \"$ready_file\""
-./examples/server/server -b -p $port1 -o -R "$ready_file" &
+./test_apps/server/test_server -b -p $port1 -o -R "$ready_file" &
 wolf_pid=$!
 wait_for_readyFile "$ready_file" $wolf_pid $port1
 if [ ! -f "$ready_file" ]; then
@@ -252,7 +252,7 @@ fi
 
 
 # create a port to use with openssl ocsp responder
-./examples/server/server -b -p $port2 -R "$ready_file" &
+./test_apps/server/test_server -b -p $port2 -R "$ready_file" &
 wolf_pid2=$!
 wait_for_readyFile "$ready_file" $wolf_pid2 $port2
 if [ ! -f "$ready_file" ]; then
@@ -261,7 +261,7 @@ if [ ! -f "$ready_file" ]; then
 else
     printf '%s\n' "Random port selected: $port2"
     # Use client connection to shutdown the server cleanly
-    ./examples/client/client -p $port2
+    ./test_apps/client/test_client -p $port2
     create_new_cnf $port2
 fi
 sleep 0.1
@@ -275,7 +275,7 @@ server=login.live.com
 ca=./certs/external/ca_collection.pem
 
 if [[ "$V4V6" == "4" ]]; then
-    ./examples/client/client -C -h $server -p 443 -A $ca -g -W 1
+    ./test_apps/client/test_client -C -h $server -p 443 -A $ca -g -W 1
     RESULT=$?
     [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
 else
@@ -284,7 +284,7 @@ fi
 
 # Test with example server
 
-./examples/server/server '-?' 2>&1 | grep -- 'Server not compiled in!'
+./test_apps/server/test_server '-?' 2>&1 | grep -- 'Server not compiled in!'
 if [ $? -eq 0 ]; then
     exit 0
 fi
@@ -307,11 +307,11 @@ sleep 0.1
 
 printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS ------------------------"
 # client test against our own server - GOOD CERT
-./examples/server/server -c certs/ocsp/server1-cert.pem -R "$ready_file2" \
+./test_apps/server/test_server -c certs/ocsp/server1-cert.pem -R "$ready_file2" \
                          -k certs/ocsp/server1-key.pem -p $port3 &
 wolf_pid3=$!
 wait_for_readyFile "$ready_file2" $wolf_pid3 $port3
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p $port3
+./test_apps/client/test_client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p $port3
 RESULT=$?
 [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 1 failed" && exit 1
 printf '%s\n\n' "Test PASSED!"
@@ -319,29 +319,29 @@ printf '%s\n\n' "Test PASSED!"
 printf '%s\n\n' "------------- TEST CASE 2 SHOULD REVOKE ----------------------"
 # client test against our own server - REVOKED CERT
 remove_single_rF "$ready_file2"
-./examples/server/server -c certs/ocsp/server2-cert.pem -R "$ready_file2" \
+./test_apps/server/test_server -c certs/ocsp/server2-cert.pem -R "$ready_file2" \
                          -k certs/ocsp/server2-key.pem -p $port3 &
 wolf_pid3=$!
 wait_for_readyFile "$ready_file2" $wolf_pid3 $port3
 sleep 0.1
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p $port3
+./test_apps/client/test_client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p $port3
 RESULT=$?
 [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection 2 succeeded $RESULT" \
                   && exit 1
 printf '%s\n\n' "Test successfully REVOKED!"
 
 
-./examples/client/client -v 4 2>&1 | grep -- 'Bad SSL version'
+./test_apps/client/test_client -v 4 2>&1 | grep -- 'Bad SSL version'
 if [ $? -ne 0 ]; then
     printf '%s\n\n' "------------- TEST CASE 3 SHOULD PASS --------------------"
     # client test against our own server - GOOD CERT
     remove_single_rF "$ready_file2"
-    ./examples/server/server -c certs/ocsp/server1-cert.pem -R "$ready_file2" \
+    ./test_apps/server/test_server -c certs/ocsp/server1-cert.pem -R "$ready_file2" \
                              -k certs/ocsp/server1-key.pem -v 4 \
                              -p $port3 &
     wolf_pid3=$!
     wait_for_readyFile "$ready_file2" $wolf_pid3 $port3
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
+    ./test_apps/client/test_client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
                              -p $port3
     RESULT=$?
     [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 3 failed" && exit 1
@@ -350,12 +350,12 @@ if [ $? -ne 0 ]; then
     printf '%s\n\n' "------------- TEST CASE 4 SHOULD PASS --------------------"
     # client test against our own server, must staple - GOOD CERT
     remove_single_rF "$ready_file2"
-    ./examples/server/server -c certs/ocsp/server1-cert.pem -R "$ready_file2" \
+    ./test_apps/server/test_server -c certs/ocsp/server1-cert.pem -R "$ready_file2" \
                              -k certs/ocsp/server1-key.pem -v 4 \
                              -p $port3 &
     wolf_pid3=$!
     wait_for_readyFile "$ready_file2" $wolf_pid3 $port3
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1m -v 4 -F 1 \
+    ./test_apps/client/test_client -C -A certs/ocsp/root-ca-cert.pem -W 1m -v 4 -F 1 \
                              -p $port3
     RESULT=$?
     [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 4 failed" && exit 1
@@ -364,12 +364,12 @@ if [ $? -ne 0 ]; then
     printf '%s\n\n' "------------- TEST CASE 5 SHOULD REVOKE ------------------"
     # client test against our own server - REVOKED CERT
     remove_single_rF "$ready_file2"
-    ./examples/server/server -c certs/ocsp/server2-cert.pem -R "$ready_file2" \
+    ./test_apps/server/test_server -c certs/ocsp/server2-cert.pem -R "$ready_file2" \
                              -k certs/ocsp/server2-key.pem -v 4 \
                              -p $port3 &
     wolf_pid3=$!
     wait_for_readyFile "$ready_file2" $wolf_pid3 $port3
-    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
+    ./test_apps/client/test_client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
                              -p $port3
     RESULT=$?
     [ $RESULT -ne 1 ] && \
@@ -391,7 +391,7 @@ sleep 0.1
 
 printf '%s\n\n' "------------- TEST CASE 6 SHOULD PASS ----------------------"
 # client asks for OCSP staple but doesn't fail when none returned
-./examples/client/client -p $port -g -v 3 -W 1
+./test_apps/client/test_client -p $port -g -v 3 -W 1
 
 RESULT=$?
 [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 6 failed" && exit 1
@@ -399,7 +399,7 @@ printf '%s\n\n' "Test PASSED!"
 
 printf '%s\n\n' "------------- TEST CASE 7 SHOULD UNKNOWN -------------------"
 # client asks for OCSP staple but doesn't fail when none returned
-./examples/client/client -p $port -g -v 3 -W 1m
+./test_apps/client/test_client -p $port -g -v 3 -W 1m
 
 RESULT=$?
 [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection 7 succeeded $RESULT" \
@@ -408,12 +408,12 @@ printf '%s\n\n' "Test PASSED!"
 
 openssl ciphers -tls1_3
 openssl_tls13=$?
-./examples/client/client -v 4 2>&1 | grep -- 'Bad SSL version'
+./test_apps/client/test_client -v 4 2>&1 | grep -- 'Bad SSL version'
 wolfssl_not_tls13=$?
 if [ "$openssl_tls13" = "0" -a "$wolfssl_not_tls13" != "0" ]; then
     printf '%s\n\n' "------------- TEST CASE 8 SHOULD PASS --------------------"
     # client asks for OCSP staple but doesn't fail when none returned
-    ./examples/client/client -p $port -g -v 4 -W 1
+    ./test_apps/client/test_client -p $port -g -v 4 -W 1
 
     RESULT=$?
     [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 8 failed" && exit 1
@@ -421,7 +421,7 @@ if [ "$openssl_tls13" = "0" -a "$wolfssl_not_tls13" != "0" ]; then
 
     printf '%s\n\n' "------------- TEST CASE 9 SHOULD UNKNOWN -----------------"
     # client asks for OCSP staple but doesn't fail when none returned
-    ./examples/client/client -p $port -g -v 4 -W 1m
+    ./test_apps/client/test_client -p $port -g -v 4 -W 1m
 
     RESULT=$?
     [ $RESULT -ne 1 ] \

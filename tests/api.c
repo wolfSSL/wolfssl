@@ -132,7 +132,7 @@
 #include <wolfssl/ssl.h>  /* compatibility layer */
 #include <wolfssl/test.h>
 #include <tests/unit.h>
-#include "examples/server/server.h"
+#include "test_apps/server/test_server.h"
      /* for testing compatibility layer callbacks */
 
 #ifndef NO_MD5
@@ -953,7 +953,7 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
 #endif
 #if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_TIRTOS)
     const char* load_certs_path = "./certs/external";
-    const char* load_no_certs_path = "./examples";
+    const char* load_no_certs_path = "./test_apps";
     const char* load_expired_path = "./certs/test/expired";
 #endif
 
