@@ -484,7 +484,13 @@ extern ${variable.value} ${variable.name};
 /* RNG */
 /* ------------------------------------------------------------------------- */
 #define NO_OLD_RNGNAME /* conflicts with STM RNG macro */
-#define HAVE_HASHDRBG
+#if !defined(WOLF_CONF_RNG) || WOLF_CONF_RNG == 1
+    /* default is enabled */
+    #define HAVE_HASHDRBG
+#else /* WOLF_CONF_RNG == 0 */
+    #define WC_NO_HASHDRBG
+    #define WC_NO_RNG
+#endif
 
 
 /* ------------------------------------------------------------------------- */
