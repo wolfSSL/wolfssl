@@ -53835,6 +53835,30 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
     return ret;
 }
 
+/**
+ * Return DH p, q and g parameters
+ * @param dh a pointer to WOLFSSL_DH
+ * @param p  a pointer to WOLFSSL_BIGNUM to be obtained from dh
+ * @param q  a pointer to WOLFSSL_BIGNUM to be obtained from dh
+ * @param q  a pointer to WOLFSSL_BIGNUM to be obtained from dh
+ */
+void wolfSSL_DH_get0_pqg(const WOLFSSL_DH *dh, const WOLFSSL_BIGNUM **p, 
+                    const WOLFSSL_BIGNUM **q, const WOLFSSL_BIGNUM **g)
+{
+    WOLFSSL_ENTER("wolfSSL_DH_get0_pqg");
+    if (dh == NULL)
+        return;
+
+    if (p != NULL)
+        *p = dh->p;
+    if (q != NULL)
+        *q = dh->q;
+    if (g != NULL)
+        *g = dh->g;
+}
+
+#endif /* OPENSSL_EXTRA */
+
 #if defined(HAVE_EX_DATA) || defined(FORTRESS)
 /**
  * Issues unique index for the class specified by class_index.
@@ -53866,30 +53890,6 @@ int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
     return get_ex_new_index(class_index);
 }
 #endif /* HAVE_EX_DATA || FORTRESS */
-
-/**
- * Return DH p, q and g parameters
- * @param dh a pointer to WOLFSSL_DH
- * @param p  a pointer to WOLFSSL_BIGNUM to be obtained from dh
- * @param q  a pointer to WOLFSSL_BIGNUM to be obtained from dh
- * @param q  a pointer to WOLFSSL_BIGNUM to be obtained from dh
- */
-void wolfSSL_DH_get0_pqg(const WOLFSSL_DH *dh, const WOLFSSL_BIGNUM **p, 
-                    const WOLFSSL_BIGNUM **q, const WOLFSSL_BIGNUM **g)
-{
-    WOLFSSL_ENTER("wolfSSL_DH_get0_pqg");
-    if (dh == NULL)
-        return;
-
-    if (p != NULL)
-        *p = dh->p;
-    if (q != NULL)
-        *q = dh->q;
-    if (g != NULL)
-        *g = dh->g;
-}
-
-#endif /* OPENSSL_EXTRA */
 
 #ifndef NO_CERTS
 
