@@ -11625,7 +11625,12 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
     }
 
 #ifdef HAVE_EXTENDED_MASTER
-    if (!isRequest && ssl->options.haveEMS && !pendingEMS)
+    if (IsAtLeastTLSv1_3(ssl->version) && msgType == hello_retry_request) {
+        /* Don't change EMS status until server_hello received.
+         * Second ClientHello must have same extensions.
+         */
+    }
+    else if (!isRequest && ssl->options.haveEMS && !pendingEMS)
         ssl->options.haveEMS = 0;
 #endif
 
