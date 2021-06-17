@@ -36546,8 +36546,15 @@ static int malloc_cnt = 0;
 static int realloc_cnt = 0;
 static int free_cnt = 0;
 
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void *my_Malloc_cb(size_t size, const char* func, unsigned int line)
+{
+  (void) func;
+  (void) line;
+#else
 static void *my_Malloc_cb(size_t size)
 {
+#endif
     malloc_cnt++;
     #ifndef WOLFSSL_NO_MALLOC
         return malloc(size);
@@ -36557,8 +36564,16 @@ static void *my_Malloc_cb(size_t size)
         return NULL;
     #endif
 }
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void my_Free_cb(void *ptr, const char* func, unsigned int line)
+{
+  (void) func;
+  (void) line;
+#else
 static void my_Free_cb(void *ptr)
 {
+#endif
     free_cnt++;
     #ifndef WOLFSSL_NO_MALLOC
         free(ptr);
@@ -36567,8 +36582,16 @@ static void my_Free_cb(void *ptr)
         (void)ptr;
     #endif
 }
+
+#ifdef WOLFSSL_DEBUG_MEMORY
+static void *my_Realloc_cb(void *ptr, size_t size, const char* func, unsigned int line)
+{
+  (void) func;
+  (void) line;
+#else
 static void *my_Realloc_cb(void *ptr, size_t size)
 {
+#endif
     realloc_cnt++;
     #ifndef WOLFSSL_NO_MALLOC
         return realloc(ptr, size);

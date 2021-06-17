@@ -5810,9 +5810,13 @@ AC_ARG_ENABLE([memtest],
 
 if test "x$ENABLED_MEMTEST" != "xno"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DWOLFSSL_FORCE_MALLOC_FAIL_TEST"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY"
 fi
 
+if test "x$ENABLED_MEMTEST" == "xfail"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FORCE_MALLOC_FAIL_TEST"
+fi
 
 # Enable hash flags support
 # Hash flags are useful for runtime options such as SHA3 KECCAK256 selection
