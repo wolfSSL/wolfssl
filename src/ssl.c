@@ -12215,6 +12215,7 @@ int wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list)
             WOLFSSL_MSG("Suites Memory error");
             return MEMORY_E;
         }
+        *ssl->suites = *ssl->ctx->suites;
         ssl->options.ownSuites = 1;
     }
 #endif
@@ -24639,30 +24640,11 @@ int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
 }
 #endif /* OPENSSL_ALL || WOLFSSL_QT */
 
-char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
-                                 int len)
+static WC_INLINE const char* wolfssl_kea_to_string(int kea)
 {
-    char *ret = in;
-    const char *keaStr, *authStr, *encStr, *macStr;
-    size_t strLen;
-    WOLFSSL_ENTER("wolfSSL_CIPHER_description");
+    const char* keaStr;
 
-    if (cipher == NULL || in == NULL)
-        return NULL;
-
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-    /* if cipher is in the stack from wolfSSL_get_ciphers_compat then
-     * Return the description based on cipher_names[cipher->offset]
-     */
-    if (cipher->in_stack == TRUE) {
-        wolfSSL_sk_CIPHER_description((WOLFSSL_CIPHER*)cipher);
-        XSTRNCPY(in,cipher->description,len);
-        return ret;
-    }
-#endif
-
-    /* Get the cipher description based on the SSL session cipher */
-    switch (cipher->ssl->specs.kea) {
+    switch (kea) {
         case no_kea:
             keaStr = "None";
             break;
@@ -24712,7 +24694,14 @@ char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
             break;
     }
 
-    switch (cipher->ssl->specs.sig_algo) {
+    return keaStr;
+}
+
+static WC_INLINE const char* wolfssl_sigalg_to_string(int sig_algo)
+{
+    const char* authStr;
+
+    switch (sig_algo) {
         case anonymous_sa_algo:
             authStr = "None";
             break;
@@ -24720,6 +24709,11 @@ char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
         case rsa_sa_algo:
             authStr = "RSA";
             break;
+    #ifdef WC_RSA_PSS
+        case rsa_pss_sa_algo:
+            authStr = "RSA-PSS";
+            break;
+    #endif
 #endif
 #ifndef NO_DSA
         case dsa_sa_algo:
@@ -24731,12 +24725,31 @@ char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
             authStr = "ECDSA";
             break;
 #endif
+#ifdef HAVE_ED25519
+        case ed25519_sa_algo:
+            authStr = "Ed25519";
+            break;
+#endif
+#ifdef HAVE_ED448
+        case ed448_sa_algo:
+            authStr = "Ed448";
+            break;
+#endif
         default:
             authStr = "unknown";
             break;
     }
 
-    switch (cipher->ssl->specs.bulk_cipher_algorithm) {
+    return authStr;
+}
+
+static WC_INLINE const char* wolfssl_cipher_to_string(int cipher, int key_size)
+{
+    const char* encStr;
+
+    (void)key_size;
+
+    switch (cipher) {
         case wolfssl_cipher_null:
             encStr = "None";
             break;
@@ -24757,18 +24770,18 @@ char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
 #endif
 #ifndef NO_AES
         case wolfssl_aes:
-            if (cipher->ssl->specs.key_size == 128)
+            if (key_size == 128)
                 encStr = "AES(128)";
-            else if (cipher->ssl->specs.key_size == 256)
+            else if (key_size == 256)
                 encStr = "AES(256)";
             else
                 encStr = "AES(?)";
             break;
     #ifdef HAVE_AESGCM
         case wolfssl_aes_gcm:
-            if (cipher->ssl->specs.key_size == 128)
+            if (key_size == 128)
                 encStr = "AESGCM(128)";
-            else if (cipher->ssl->specs.key_size == 256)
+            else if (key_size == 256)
                 encStr = "AESGCM(256)";
             else
                 encStr = "AESGCM(?)";
@@ -24776,9 +24789,9 @@ char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
     #endif
     #ifdef HAVE_AESCCM
         case wolfssl_aes_ccm:
-            if (cipher->ssl->specs.key_size == 128)
+            if (key_size == 128)
                 encStr = "AESCCM(128)";
-            else if (cipher->ssl->specs.key_size == 256)
+            else if (key_size == 256)
                 encStr = "AESCCM(256)";
             else
                 encStr = "AESCCM(?)";
@@ -24792,9 +24805,9 @@ char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
 #endif
 #ifdef HAVE_CAMELLIA
         case wolfssl_camellia:
-            if (cipher->ssl->specs.key_size == 128)
+            if (key_size == 128)
                 encStr = "Camellia(128)";
-            else if (cipher->ssl->specs.key_size == 256)
+            else if (key_size == 256)
                 encStr = "Camellia(256)";
             else
                 encStr = "Camellia(?)";
@@ -24815,7 +24828,14 @@ char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
             break;
     }
 
-    switch (cipher->ssl->specs.mac_algorithm) {
+    return encStr;
+}
+
+static WC_INLINE const char* wolfssl_mac_to_string(int mac)
+{
+    const char* macStr;
+
+    switch (mac) {
         case no_mac:
             macStr = "None";
             break;
@@ -24853,6 +24873,38 @@ char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
             macStr = "unknown";
             break;
     }
+
+    return macStr;
+}
+
+char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
+                                 int len)
+{
+    char *ret = in;
+    const char *keaStr, *authStr, *encStr, *macStr;
+    size_t strLen;
+    WOLFSSL_ENTER("wolfSSL_CIPHER_description");
+
+    if (cipher == NULL || in == NULL)
+        return NULL;
+
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    /* if cipher is in the stack from wolfSSL_get_ciphers_compat then
+     * Return the description based on cipher_names[cipher->offset]
+     */
+    if (cipher->in_stack == TRUE) {
+        wolfSSL_sk_CIPHER_description((WOLFSSL_CIPHER*)cipher);
+        XSTRNCPY(in,cipher->description,len);
+        return ret;
+    }
+#endif
+
+    /* Get the cipher description based on the SSL session cipher */
+    keaStr = wolfssl_kea_to_string(cipher->ssl->specs.kea);
+    authStr = wolfssl_sigalg_to_string(cipher->ssl->specs.sig_algo);
+    encStr = wolfssl_cipher_to_string(cipher->ssl->specs.bulk_cipher_algorithm,
+                                      cipher->ssl->specs.key_size);
+    macStr = wolfssl_mac_to_string(cipher->ssl->specs.mac_algorithm);
 
     /* Build up the string by copying onto the end. */
     XSTRNCPY(in, wolfSSL_CIPHER_get_name(cipher), len);
@@ -36059,6 +36111,156 @@ int wolfSSL_PEM_write_RSAPrivateKey(XFILE fp, WOLFSSL_RSA *rsa,
 #endif /* NO_FILESYSTEM */
 #endif /* WOLFSSL_KEY_GEN && !NO_RSA && !HAVE_USER_RSA && WOLFSSL_PEM_TO_DER */
 
+/* Colon separated list of <public key>+<digest> algorithms.
+ * Replaces list in context.
+ */
+int wolfSSL_CTX_set1_sigalgs_list(WOLFSSL_CTX* ctx, const char* list)
+{
+    WOLFSSL_MSG("wolfSSL_CTX_set1_sigalg_list");
+
+    if (ctx == NULL || list == NULL) {
+        WOLFSSL_MSG("Bad function arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* alloc/init on demand only */
+    if (ctx->suites == NULL) {
+        ctx->suites = (Suites*)XMALLOC(sizeof(Suites), ctx->heap,
+                                       DYNAMIC_TYPE_SUITES);
+        if (ctx->suites == NULL) {
+            WOLFSSL_MSG("Memory alloc for Suites failed");
+            return WOLFSSL_FAILURE;
+        }
+        XMEMSET(ctx->suites, 0, sizeof(Suites));
+    }
+
+    return SetSuitesHashSigAlgo(ctx->suites, list);
+}
+
+/* Colon separated list of <public key>+<digest> algorithms.
+ * Replaces list in SSL.
+ */
+int wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list)
+{
+    WOLFSSL_MSG("wolfSSL_set1_sigalg_list");
+
+    if (ssl == NULL) {
+        WOLFSSL_MSG("Bad function arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+#ifdef SINGLE_THREADED
+    if (ssl->ctx->suites == ssl->suites) {
+        ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
+                                       DYNAMIC_TYPE_SUITES);
+        if (ssl->suites == NULL) {
+            WOLFSSL_MSG("Suites Memory error");
+            return MEMORY_E;
+        }
+        *ssl->suites = *ssl->ctx->suites;
+        ssl->options.ownSuites = 1;
+    }
+#endif
+    if (ssl == NULL || list == NULL) {
+        WOLFSSL_MSG("Bad function arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+    return SetSuitesHashSigAlgo(ssl->suites, list);
+}
+
+struct WOLFSSL_HashSigInfo {
+    int hashAlgo;
+    int sigAlgo;
+    int nid;
+}  wolfssl_hash_sig_info[] =
+{
+#ifndef NO_RSA
+    #ifndef NO_SHA256
+        { sha256_mac, rsa_sa_algo, CTC_SHA256wRSA },
+    #endif
+    #ifdef WOLFSSL_SHA384
+        { sha384_mac, rsa_sa_algo, CTC_SHA384wRSA },
+    #endif
+    #ifdef WOLFSSL_SHA512
+        { sha512_mac, rsa_sa_algo, CTC_SHA512wRSA },
+    #endif
+    #ifdef WOLFSSL_SHA224
+        { sha224_mac, rsa_sa_algo, CTC_SHA224wRSA },
+    #endif
+    #ifndef NO_SHA
+        { sha_mac,    rsa_sa_algo, CTC_SHAwRSA    },
+    #endif
+    #ifdef WC_RSA_PSS
+        #ifndef NO_SHA256
+            { sha256_mac, rsa_pss_sa_algo, CTC_SHA256wRSA },
+        #endif
+        #ifdef WOLFSSL_SHA384
+            { sha384_mac, rsa_pss_sa_algo, CTC_SHA384wRSA },
+        #endif
+        #ifdef WOLFSSL_SHA512
+            { sha512_mac, rsa_pss_sa_algo, CTC_SHA512wRSA },
+        #endif
+        #ifdef WOLFSSL_SHA224
+            { sha224_mac, rsa_pss_sa_algo, CTC_SHA224wRSA },
+        #endif
+    #endif
+#endif
+#ifdef HAVE_ECC
+    #ifndef NO_SHA256
+        { sha256_mac, ecc_dsa_sa_algo, CTC_SHA256wECDSA },
+    #endif
+    #ifdef WOLFSSL_SHA384
+        { sha384_mac, ecc_dsa_sa_algo, CTC_SHA384wECDSA },
+    #endif
+    #ifdef WOLFSSL_SHA512
+        { sha512_mac, ecc_dsa_sa_algo, CTC_SHA512wECDSA },
+    #endif
+    #ifdef WOLFSSL_SHA224
+        { sha224_mac, ecc_dsa_sa_algo, CTC_SHA224wECDSA },
+    #endif
+    #ifndef NO_SHA
+        { sha_mac,    ecc_dsa_sa_algo, CTC_SHAwECDSA    },
+    #endif
+#endif
+#ifdef HAVE_ED25519
+    { no_mac, ed25519_sa_algo, CTC_ED25519 },
+#endif
+#ifdef HAVE_ED25519
+    { no_mac, ed448_sa_algo,   CTC_ED448   },
+#endif
+#ifndef NO_DSA
+    #ifndef NO_SHA
+        { sha_mac,    dsa_sa_algo, CTC_SHAwDSA    },
+    #endif
+#endif
+};
+#define WOLFSSL_HASH_SIG_INFO_SZ \
+    (int)(sizeof(wolfssl_hash_sig_info)/sizeof(*wolfssl_hash_sig_info))
+
+int wolfSSL_get_signature_nid(WOLFSSL *ssl, int* nid)
+{
+    int i;
+    int ret = WOLFSSL_FAILURE;
+
+    WOLFSSL_MSG("wolfSSL_get_signature_nid");
+
+    if (ssl == NULL) {
+        WOLFSSL_MSG("Bad function arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+    for (i = 0; i < WOLFSSL_HASH_SIG_INFO_SZ; i++) {
+        if (ssl->suites->hashAlgo == wolfssl_hash_sig_info[i].hashAlgo &&
+                     ssl->suites->sigAlgo == wolfssl_hash_sig_info[i].sigAlgo) {
+            *nid = wolfssl_hash_sig_info[i].nid;
+            ret = WOLFSSL_SUCCESS;
+            break;
+        }
+    }
+
+    return ret;
+}
 
 #ifdef HAVE_ECC
 
