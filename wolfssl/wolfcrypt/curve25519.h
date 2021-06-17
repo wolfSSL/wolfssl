@@ -79,6 +79,9 @@ typedef struct curve25519_key {
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif
+#if defined(WOLF_CRYPTO_CB)
+    int devId;
+#endif
 } curve25519_key;
 
 enum {
@@ -113,6 +116,8 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
 
 WOLFSSL_API
 int wc_curve25519_init(curve25519_key* key);
+WOLFSSL_API
+int wc_curve25519_init_ex(curve25519_key* key, void* heap, int devId);
 
 WOLFSSL_API
 void wc_curve25519_free(curve25519_key* key);

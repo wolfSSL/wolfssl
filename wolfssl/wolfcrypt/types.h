@@ -899,7 +899,7 @@ decouple library dependencies with standard string, memory and so on.
         WC_PK_TYPE_ECDH = 3,
         WC_PK_TYPE_ECDSA_SIGN = 4,
         WC_PK_TYPE_ECDSA_VERIFY = 5,
-        WC_PK_TYPE_ED25519 = 6,
+        WC_PK_TYPE_ED25519_SIGN = 6,
         WC_PK_TYPE_CURVE25519 = 7,
         WC_PK_TYPE_RSA_KEYGEN = 8,
         WC_PK_TYPE_EC_KEYGEN = 9,
@@ -907,7 +907,10 @@ decouple library dependencies with standard string, memory and so on.
         WC_PK_TYPE_EC_CHECK_PRIV_KEY = 11,
         WC_PK_TYPE_ED448 = 12,
         WC_PK_TYPE_CURVE448 = 13,
-        WC_PK_TYPE_MAX = WC_PK_TYPE_CURVE448
+        WC_PK_TYPE_ED25519_VERIFY = 14,
+        WC_PK_TYPE_ED25519_KEYGEN = 15,
+        WC_PK_TYPE_CURVE25519_KEYGEN = 16,
+        WC_PK_TYPE_MAX = WC_PK_TYPE_CURVE25519_KEYGEN
     };
 
 
