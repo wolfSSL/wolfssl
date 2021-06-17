@@ -24905,7 +24905,7 @@ static int ed25519ctx_test(void)
 
 static int ed25519ph_test(void)
 {
-    int ret;
+    int ret = 0;
     byte   out[ED25519_SIG_SIZE];
     word32 outlen;
 #ifdef HAVE_ED25519_VERIFY
@@ -25041,7 +25041,7 @@ static int ed25519ph_test(void)
 
     wc_ed25519_free(&key);
 
-    return 0;
+    return ret;
 }
 #endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_EXPORT && HAVE_ED25519_KEY_IMPORT */
 
