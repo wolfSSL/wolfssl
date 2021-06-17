@@ -34974,6 +34974,31 @@ static int mp_test_cmp(mp_int* a, mp_int* b)
     if (ret != MP_EQ)
         return -13010;
 
+#if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
+    defined(WOLFSSL_SP_INT_NEGATIVE)
+    mp_read_radix(a, "-1", MP_RADIX_HEX);
+    mp_read_radix(a, "1", MP_RADIX_HEX);
+    ret = mp_cmp(a, b);
+    if (ret != MP_LT)
+        return -13011;
+    ret = mp_cmp(b, a);
+    if (ret != MP_GT)
+        return -13012;
+
+    mp_read_radix(b, "-2", MP_RADIX_HEX);
+    ret = mp_cmp(a, b);
+    if (ret != MP_GT)
+        return -13013;
+    ret = mp_cmp(b, a);
+    if (ret != MP_LT)
+        return -13014;
+
+    mp_read_radix(a, "-2", MP_RADIX_HEX);
+    ret = mp_cmp(a, b);
+    if (ret != MP_EQ)
+        return -13015;
+#endif
+
     return 0;
 }
 

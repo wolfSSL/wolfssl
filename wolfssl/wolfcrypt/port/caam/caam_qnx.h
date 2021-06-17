@@ -25,7 +25,12 @@
 #ifndef CAAM_QNX_H
 #define CAAM_QNX_H
 
+#ifdef WOLFSSL_CAAM_PRINT
+#include <stdio.h>
+#define WOLFSSL_MSG(in) printf("%s\n", (in))
+#else
 #define WOLFSSL_MSG(in)
+#endif
 
 #include <sys/mman.h>
 #include <hw/inout.h>

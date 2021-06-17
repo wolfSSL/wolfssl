@@ -163,12 +163,11 @@ int s_fp_add(fp_int *a, fp_int *b, fp_int *c)
       c->dp[x]   = (fp_digit)t;
       t        >>= DIGIT_BIT;
   }
-  if (t != 0 && x < FP_SIZE) {
+  if (t != 0) {
+     if (x == FP_SIZE)
+         return FP_VAL;
      c->dp[c->used++] = (fp_digit)t;
      ++x;
-  }
-  if (x == FP_SIZE) {
-     return FP_VAL;
   }
 
   c->used = x;
@@ -450,7 +449,9 @@ int fp_mul_d(fp_int *a, fp_digit b, fp_int *c)
        c->dp[x]  = (fp_digit)w;
        w         = w >> DIGIT_BIT;
    }
-   if (w != 0 && (a->used != FP_SIZE)) {
+   if (w != 0) {
+      if (a->used == FP_SIZE)
+          return FP_VAL;
       c->dp[c->used++] = (fp_digit) w;
       ++x;
    }
@@ -460,8 +461,6 @@ int fp_mul_d(fp_int *a, fp_digit b, fp_int *c)
    for (; x < oldused && x < FP_SIZE; x++) {
       c->dp[x] = 0;
    }
-   if (x == FP_SIZE)
-     return FP_VAL;
 
    fp_clamp(c);
    return FP_OKAY;

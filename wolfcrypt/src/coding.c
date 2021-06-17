@@ -117,8 +117,14 @@ static WC_INLINE int Base64_SkipNewline(const byte* in, word32 *inLen, word32 *o
 {
     word32 len = *inLen;
     word32 j = *outJ;
-    byte curChar = in[j];
-    while (len && curChar == ' ') {
+    byte curChar;
+
+    if (len == 0) {
+        return BUFFER_E;
+    }
+    curChar = in[j];
+
+    while (len > 1 && curChar == ' ') {
         /* skip whitespace in the middle or end of line */
         curChar = in[++j];
         len--;

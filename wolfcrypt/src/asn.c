@@ -4686,6 +4686,60 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
 #endif /* !NO_RSA */
 
 #ifndef NO_DH
+#if defined(WOLFSSL_DH_EXTRA)
+/*
+ * Decodes DH public key to fill specified DhKey.
+ *
+ * return 0 on success, negative on failure
+ */
+int wc_DhPublicKeyDecode(const byte* input, word32* inOutIdx,
+                DhKey* key, word32 inSz)
+{
+    int ret = 0;
+    int length;
+    word32 oid = 0;
+
+    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
+        return BAD_FUNC_ARG;
+
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+        return ASN_PARSE_E;
+
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+        return ASN_PARSE_E;
+
+    ret = GetObjectId(input, inOutIdx, &oid, oidKeyType, inSz);
+    if (oid != DHk || ret < 0)
+        return ASN_DH_KEY_E;
+
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+        return ASN_PARSE_E;
+
+    if (GetInt(&key->p, input, inOutIdx, inSz) < 0)
+        return ASN_DH_KEY_E;
+
+    if (GetInt(&key->g, input, inOutIdx, inSz) < 0) {
+        mp_clear(&key->p);
+        return ASN_DH_KEY_E;
+    }
+    ret = (CheckBitString(input, inOutIdx, &length, inSz, 0, NULL) == 0);
+    if (ret > 0) {
+        /* Found Bit String WOLFSSL_DH_EXTRA is required to access DhKey.pub */
+        if (GetInt(&key->pub, input, inOutIdx, inSz) < 0) {
+            mp_clear(&key->p);
+            mp_clear(&key->g);
+            return ASN_DH_KEY_E;
+        }
+    }
+    else {
+        mp_clear(&key->p);
+        mp_clear(&key->g);
+        return ASN_DH_KEY_E;
+    }
+    return 0;
+}
+#endif /* WOLFSSL_DH_EXTRA */
+
 /* Supports either:
  * - DH params G/P (PKCS#3 DH) file or
  * - DH key file (if WOLFSSL_DH_EXTRA enabled) */
