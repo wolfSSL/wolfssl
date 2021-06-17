@@ -436,15 +436,16 @@ static void print_jdkek()
 
 
 /* instantiate RNG and create JDKEK, TDKEK, and TDSK key */
-static unsigned int wc_rng_start[] = {
+#define WC_RNG_START_SIZE 6
+static unsigned int wc_rng_start[WC_RNG_START_SIZE] = {
     CAAM_HEAD | 0x00000006,
-    CAAM_OP | CAAM_CLASS1 | CAAM_RNG | 0x00000004, /* Instantiate RNG handle 0 with TRNG */
+    CAAM_OP | CAAM_CLASS1 | CAAM_RNG | 0x00000004, /* Instantiate RNG handle 0
+                                                      with TRNG */
     CAAM_JUMP | 0x02000001,  /* wait for Class1 RNG and jump to next cmd */
     CAAM_LOAD | 0x00880004,  /* Load to clear written register */
     0x00000001, /* reset done interrupt */
     CAAM_OP | CAAM_CLASS1 | CAAM_RNG | 0x00001000   /* Generate secure keys */
 };
-
 
 
 /* Initialize CAAM RNG
@@ -453,79 +454,77 @@ int caamInitRng(struct CAAM_DEVICE* dev);
 int caamInitRng(struct CAAM_DEVICE* dev)
 {
     DESCSTRUCT desc;
-    unsigned int reg, status;
-    int ret = 0;
+    unsigned int reg, entropy_delay;
+    int ret = 0, i;
 
+    /* set up the job description for RNG initialization */
     memset(&desc, 0, sizeof(DESCSTRUCT));
-
-    /* Set up use of the TRNG for seeding wolfSSL HASH-DRBG */
-    /* check out the status and see if already setup */
-    CAAM_WRITE(CAAM_RTMCTL, CAAM_PRGM);
-    CAAM_WRITE(CAAM_RTMCTL, CAAM_READ(CAAM_RTMCTL) | 0x40); /* reset */
-
-    /* Set up reading from TRNG */
-    CAAM_WRITE(CAAM_RTMCTL, CAAM_READ(CAAM_RTMCTL) | CAAM_TRNG);
-
-    /* Set up delay for TRNG @TODO Optimizations?
-     * Shift left with RTSDCTL because 0-15 is for sample number
-     * Also setting the max and min frequencies */
-    CAAM_WRITE(CAAM_RTSDCTL, (CAAM_ENT_DLY << 16) | 0x09C4);
-    CAAM_WRITE(CAAM_RTFRQMIN, CAAM_ENT_DLY >> 1); /* 1/2      */
-    CAAM_WRITE(CAAM_RTFRQMAX, CAAM_ENT_DLY << 3); /* up to 8x */
-
-    /* Set back to run mode and clear RTMCL error bit */
-    reg = CAAM_READ(CAAM_RTMCTL) ^ CAAM_PRGM;
-
-    CAAM_WRITE(CAAM_RTMCTL, reg);
-    reg = CAAM_READ(CAAM_RTMCTL);
-    reg |= CAAM_CTLERR;
-    CAAM_WRITE(CAAM_RTMCTL, reg);
-
-    /* check out the status and see if already setup */
-    reg = CAAM_READ(CAAM_RDSTA);
-    if (((reg >> 16) & 0xF) > 0) {
-        WOLFSSL_MSG("RNG is in error state");
-        caamReset();
+    desc.desc[desc.idx++] = CAAM_HEAD; /* later will put size to header*/
+    for (i = 1; i < WC_RNG_START_SIZE; i++) {
+        desc.desc[desc.idx++] = wc_rng_start[i];
     }
+    desc.caam = dev;
 
-    if (reg & (1U << 30)) {
-        WOLFSSL_MSG("JKDKEK rng was setup using a non determinstic key");
-        return 0;
-    }
+    /* Attempt to start the RNG, first trying the fastest entropy delay value
+     * and increasing it after each failed attempt until either a success is hit
+     * or the max delay value is.
+     */
+    for (entropy_delay = CAAM_ENT_DLY; entropy_delay <= CAAM_ENT_DLY_MAX;
+            entropy_delay = entropy_delay + CAAM_ENT_DLY_INCREMENT) {
 
-    if (CAAM_READ(0x1014) > 0) {
-        int i;
-    #ifdef CAAM_DEBUG_MODE
-        for (i = 0; i < 6; i = i + 1) {
-            desc.desc[desc.idx++] = wc_rng_start[i];
+        /* Set up use of the TRNG for seeding wolfSSL HASH-DRBG */
+        /* check out the status and see if already setup */
+        CAAM_WRITE(CAAM_RTMCTL, CAAM_PRGM);
+        CAAM_WRITE(CAAM_RTMCTL, CAAM_READ(CAAM_RTMCTL) | CAAM_RTMCTL_RESET);
+
+        /* Set up reading from TRNG */
+        CAAM_WRITE(CAAM_RTMCTL, CAAM_READ(CAAM_RTMCTL) | CAAM_TRNG);
+
+        /* Set up delay for TRNG
+         * Shift left with RTSDCTL because 0-15 is for sample number
+         * Also setting the max and min frequencies */
+        CAAM_WRITE(CAAM_RTSDCTL, (entropy_delay << 16) | CAAM_ENT_SAMPLE);
+        CAAM_WRITE(CAAM_RTFRQMIN, entropy_delay >> CAAM_ENT_MINSHIFT);
+        CAAM_WRITE(CAAM_RTFRQMAX, entropy_delay << CAAM_ENT_MAXSHIFT);
+
+    #ifdef WOLFSSL_CAAM_PRINT
+        printf("Attempt with entropy delay set to %d\n", entropy_delay);
+        printf("Min delay of %d and max of %d\n",
+                entropy_delay >> CAAM_ENT_MINSHIFT,
+                entropy_delay << CAAM_ENT_MAXSHIFT);
+    #endif
+
+        /* Set back to run mode and clear RTMCL error bit */
+        reg = CAAM_READ(CAAM_RTMCTL) & (~CAAM_PRGM);
+        CAAM_WRITE(CAAM_RTMCTL, reg);
+        reg = CAAM_READ(CAAM_RTMCTL);
+        reg |= CAAM_CTLERR;
+        CAAM_WRITE(CAAM_RTMCTL, reg);
+
+        /* check out the status and see if already setup */
+        reg = CAAM_READ(CAAM_RDSTA);
+        if (((reg >> 16) & 0xF) > 0) {
+            WOLFSSL_MSG("RNG is in error state, resetting");
+            caamReset();
         }
 
-        desc.caam = dev;
-        ret = caamDoJob(&desc);
-    #else
-       unsigned int *pt = (unsigned int*)caam.ring.VirtualDesc;
-       for (i = 0; i < 6; i = i + 1) {
-          pt[i] = wc_rng_start[i];
-       }
-       pt    = (unsigned int*)caam.ring.VirtualIn;
-       pt[0] = (unsigned int)caam.ring.Desc;
+        if (reg & (1U << 30)) {
+            WOLFSSL_MSG("JKDKEK rng was setup using a non determinstic key");
+            return 0;
+        }
 
-        /* start process */
-    #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
-        printf("incrementing job count\n");
-        fflush(stdout);
-    #endif
-        CAAM_WRITE(CAAM_IRJAR0, 0x00000001);
-    #endif
-    }
-    else {
-        return CAAM_WAITING;
-    }
+        do {
+            ret = caamDoJob(&desc);
+        } while (ret == CAAM_WAITING);
 
-    do {
-        ret = caamGetJob(dev, &status);
-        CAAM_CPU_CHILL();
-    } while (ret == CAAM_WAITING);
+        /* if this entropy delay frequency succeeded then break out, otherwise
+         * try again with increasing the delay value */
+        if (ret == Success) {
+            WOLFSSL_MSG("Init RNG success");
+            break;
+        }
+        WOLFSSL_MSG("Increasing entropy delay");
+    }
 
     if (ret == Success)
         return 0;
@@ -1442,6 +1441,8 @@ int InitCAAM(void)
             break;
     }
     if (ret != Success) {
+        WOLFSSL_MSG("Failed to find a partition on startup");
+        INTERRUPT_Panic();
         return -1;
     }
 
@@ -1457,16 +1458,31 @@ int InitCAAM(void)
             CAAM_JOBRING_SIZE * sizeof(unsigned int),
             PROT_READ | PROT_WRITE | PROT_NOCACHE,
             MAP_SHARED | MAP_PHYS, caam.ring.JobIn);
+    if (caam.ring.VirtualIn == MAP_FAILED) {
+        WOLFSSL_MSG("Error mapping virtual in");
+        INTERRUPT_Panic();
+        return -1;
+    }
     memset(caam.ring.VirtualIn, 0, CAAM_JOBRING_SIZE * sizeof(unsigned int));
     caam.ring.VirtualOut  = mmap_device_memory(NULL,
             2 * CAAM_JOBRING_SIZE * sizeof(unsigned int),
             PROT_READ | PROT_WRITE | PROT_NOCACHE,
             MAP_SHARED | MAP_PHYS, caam.ring.JobOut);
+    if (caam.ring.VirtualOut == MAP_FAILED) {
+        WOLFSSL_MSG("Error mapping virtual out");
+        INTERRUPT_Panic();
+        return -1;
+    }
     memset(caam.ring.VirtualOut, 0, 2 * CAAM_JOBRING_SIZE * sizeof(unsigned int));
     caam.ring.VirtualDesc = mmap_device_memory(NULL,
             CAAM_DESC_MAX * CAAM_JOBRING_SIZE,
             PROT_READ | PROT_WRITE | PROT_NOCACHE,
             MAP_SHARED | MAP_PHYS, caam.ring.Desc);
+    if (caam.ring.VirtualDesc == MAP_FAILED) {
+        WOLFSSL_MSG("Error mapping virtual desc");
+        INTERRUPT_Panic();
+        return -1;
+    }
     memset(caam.ring.VirtualDesc, 0, CAAM_DESC_MAX * CAAM_JOBRING_SIZE);
 
     #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
@@ -1497,6 +1513,9 @@ int InitCAAM(void)
     printf("RTMCTL = 0x%08X\n", CAAM_READ(0x0600));
     #endif
     WOLFSSL_MSG("Successfully initilazed CAAM driver");
+    #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
+    fflush(stdout);
+    #endif
     return 0;
 }
 
