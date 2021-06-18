@@ -59,7 +59,7 @@ extern "C" {
 #define WOLFSSL_SP_MATH
 #define WOLFSSL_HAVE_SP_ECC
 
-/* Enable Timing Resistanace */
+/* Enable Timing Resistance */
 #define TFM_TIMING_RESISTANT
 #define ECC_TIMING_RESISTANT
 

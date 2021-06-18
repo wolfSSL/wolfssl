@@ -5,7 +5,6 @@
 EXTRA_DIST+= IDE/STM32Cube/README.md
 EXTRA_DIST+= IDE/STM32Cube/main.c
 EXTRA_DIST+= IDE/STM32Cube/wolfssl_example.c
-EXTRA_DIST+= IDE/STM32Cube/wolfSSL_conf.h
 EXTRA_DIST+= IDE/STM32Cube/wolfssl_example.h
 EXTRA_DIST+= IDE/STM32Cube/STM32_Benchmarks.md
 EXTRA_DIST+= IDE/STM32Cube/default_conf.ftl
