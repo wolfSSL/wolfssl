@@ -12397,7 +12397,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
 
         #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-            /* limit compliant with OpenSSL verify Depth + 1 */
+           /* limit compliant with OpenSSL verify Depth + 1
+            * OpenSSL tries to expand the chain one longer than limit until
+            * reaching an ultimately trusted issuer. Becoming failure if
+            * we hit the limit, with X509_V_ERR_CERT_CHAIN_TOO_LONG
+            */
             if (args->untrustedDepth > (ssl->options.verifyDepth + 1)) {
                 ssl->peerVerifyRet = X509_V_ERR_CERT_CHAIN_TOO_LONG;
                 ret = MAX_CHAIN_ERROR;
