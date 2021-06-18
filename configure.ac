@@ -6436,6 +6436,22 @@ AC_CONFIG_FILES([scripts/unit.test],[chmod +x scripts/unit.test])
 AX_CREATE_GENERIC_CONFIG
 AX_AM_JOBSERVER([yes])
 
+AC_CONFIG_FILES([wolfssl/wolfcrypt/async.h:])
+AC_CONFIG_FILES([wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h:])
+AC_CONFIG_FILES([wolfssl/wolfcrypt/port/intel/quickassist.h:])
+AC_CONFIG_FILES([wolfssl/wolfcrypt/port/intel/quickassist_mem.h:])
+AC_CONFIG_FILES([wolfssl/wolfcrypt/fips.h:])
+AC_CONFIG_FILES([ctaocrypt/src/fips.c:])
+AC_CONFIG_FILES([ctaocrypt/src/fips_test.c:])
+AC_CONFIG_FILES([wolfcrypt/src/wolfcrypt_first.c:])
+AC_CONFIG_FILES([wolfcrypt/src/fips.c:])
+AC_CONFIG_FILES([wolfcrypt/src/fips_test.c:])
+AC_CONFIG_FILES([wolfcrypt/src/wolfcrypt_last.c:])
+AC_CONFIG_FILES([wolfcrypt/src/selftest.c:])
+AC_CONFIG_FILES([wolfcrypt/src/async.c:])
+AC_CONFIG_FILES([wolfcrypt/src/port/cavium/cavium_nitrox.c:])
+AC_CONFIG_FILES([wolfcrypt/src/port/intel/quickassist.c:])
+AC_CONFIG_FILES([wolfcrypt/src/port/intel/quickassist_mem.c:])
 AC_OUTPUT
 
 
