@@ -47273,8 +47273,9 @@ void wolfSSL_OPENSSL_config(char *config_name)
 #endif /* !NO_WOLFSSL_STUB */
 #endif /* OPENSSL_ALL || WOLFSSL_NGINX || WOLFSSL_HAPROXY || HAVE_STUNNEL*/
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
-    || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
+#if defined(HAVE_EX_DATA) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) \
+     || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)                   \
+     || defined(HAVE_LIGHTY))
 
 int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a, void *b, void *c)
 {
