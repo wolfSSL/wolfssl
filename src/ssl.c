@@ -12076,13 +12076,19 @@ static int CheckcipherList(const char* list)
     do {
         char*  current = next;
         char   name[MAX_SUITE_NAME + 1];
-        word32 length;
-        
+        word32 length = MAX_SUITE_NAME;
+        word32 current_length;
+
         next   = XSTRSTR(next, ":");
-        length = min(sizeof(name), !next ? (word32)XSTRLEN(current) /* last */
-                                         : (word32)(next - current));
+        
+        current_length = (!next) ? (word32)XSTRLEN(current)
+                                 : (word32)(next - current);
+        
+        if (current_length < length) {
+            length = current_length;
+        }
         XSTRNCPY(name, current, length);
-        name[(length == sizeof(name)) ? length - 1 : length] = 0;
+        name[length] = 0;
         
         ret = wolfSSL_get_cipher_suite_from_name(name, &cipherSuite0, 
                                                         &cipherSuite1, &flags);
@@ -12142,14 +12148,19 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
             char*  current = next;
             char   name[MAX_SUITE_NAME + 1];
             int    i;
-            word32 length;
+            word32 length = MAX_SUITE_NAME;
+            word32 current_length;
 
             next   = XSTRSTR(next, ":");
-            length = min(sizeof(name), !next ? (word32)XSTRLEN(current) /*last*/
-                                             : (word32)(next - current));
-
+            
+            current_length = (!next) ? (word32)XSTRLEN(current)
+                                     : (word32)(next - current);
+            
+            if (current_length < length) {
+                length = current_length;
+            }
             XSTRNCPY(name, current, length);
-            name[(length == sizeof(name)) ? length - 1 : length] = 0;
+            name[length] = 0;
 
             /* check for "not" case */
             if (name[0] == '!' && suiteSz > 0) {
