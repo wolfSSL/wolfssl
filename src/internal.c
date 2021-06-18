@@ -1873,10 +1873,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->noPskDheKe = 1;
 #endif
 
-#if defined(WOLFSSL_QT)
+#if defined(WOLFSSL_QT) && !defined(NO_PSK)
     /* Qt retrieves supported cipher list at initialization 
      * from get_cipher_compat().
-     * Qt doesn't not allow to use a cipher if it is not in the supported list.
+     * Qt doesn't allow to use a cipher if it is not in the supported list.
      * Therefore, we need to enable PSK cipher at the beginning.
      */
     ctx->havePSK = 1;

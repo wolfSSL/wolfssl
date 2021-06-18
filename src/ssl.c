@@ -6898,14 +6898,16 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
     #if defined(WOLFSSL_QT)
             if (ret == BAD_PATH_ERROR && 
                 flags & WOLFSSL_LOAD_FLAG_IGNORE_BAD_PATH_ERR) {
-           /* QSslSocket always loads certs in system folder 
-            * when it is initialized.
-            * Compliant with OpenSSL when flag sets.*/
+               /* QSslSocket always loads certs in system folder 
+                * when it is initialized.
+                * Compliant with OpenSSL when flag sets.
+                */
                 ret = WOLFSSL_SUCCESS;
             }
-            else
+            else {
                 /* qssl socket wants to know errors. */
                 WOLFSSL_ERROR(ret);
+            }
     #endif
         }
         /* report failure if no files were loaded or there were failures */
@@ -18834,7 +18836,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
     if (sk == NULL) {
         WOLFSSL_MSG("Null session chain");
     }
-#if defined(WOLFSSL_QT)
+#if defined(OPENSSL_ALL)
     else if (ssl->options.side == WOLFSSL_SERVER_END) {
         /* to be compliant with openssl 
            first element is kept as peer cert on server side.*/
