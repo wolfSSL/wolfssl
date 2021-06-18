@@ -31,16 +31,10 @@
 #include <wolfssl/ssl.h>
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
-#    include <wolfsentry/wolfsentry.h>
-#    include <wolfsentry/wolfsentry_util.h>
-#    include <wolfsentry/wolfsentry_json.h>
-
-static struct wolfsentry_context *wolfsentry = NULL;
-
+#include <wolfsentry/wolfsentry.h>
 #if !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
 static const char *wolfsentry_config_path = NULL;
 #endif
-
 #endif /* WOLFSSL_WOLFSENTRY_HOOKS */
 
 #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
@@ -51,10 +45,6 @@ static const char *wolfsentry_config_path = NULL;
 #endif
 
 #include <wolfssl/test.h>
-
-#ifdef WOLFSSL_WOLFSENTRY_HOOKS
-#define tcp_connect(sockfd, ip, port, udp, sctp, ssl) tcp_connect_with_wolfSentry(sockfd, ip, port, udp, sctp, ssl, wolfsentry)
-#endif
 
 #include <examples/client/client.h>
 #include <wolfssl/error-ssl.h>
@@ -2573,125 +2563,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
-    wolfsentry_ret =  wolfsentry_init(NULL /* hpi */, NULL /* default config */,
-                                      &wolfsentry);
-    if (wolfsentry_ret < 0) {
-        fprintf(stderr, "wolfsentry_init() returned " WOLFSENTRY_ERROR_FMT "\n",
-                WOLFSENTRY_ERROR_FMT_ARGS(wolfsentry_ret));
+    if (wolfsentry_setup(&wolfsentry, wolfsentry_config_path, WOLFSENTRY_ROUTE_FLAG_DIRECTION_OUT) < 0)
         err_sys("unable to initialize wolfSentry");
-    }
-
-    if (wolfsentry_data_index < 0)
-        wolfsentry_data_index = wolfSSL_get_ex_new_index(0, NULL, NULL, NULL,
-                                                         NULL);
-
-#if !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
-    if (wolfsentry_config_path != NULL) {
-        char buf[512], err_buf[512];
-        struct wolfsentry_json_process_state *jps;
-
-        FILE *f = fopen(wolfsentry_config_path, "r");
-
-        if (f == NULL) {
-            fprintf(stderr, "fopen(%s): %s\n",wolfsentry_config_path,strerror(errno));
-            err_sys("unable to open wolfSentry config file");
-        }
-
-        if ((wolfsentry_ret = wolfsentry_config_json_init(
-                 wolfsentry,
-                 WOLFSENTRY_CONFIG_LOAD_FLAG_NONE,
-                 &jps)) < 0) {
-            fprintf(stderr, "wolfsentry_config_json_init() returned "
-                    WOLFSENTRY_ERROR_FMT "\n",
-                    WOLFSENTRY_ERROR_FMT_ARGS(wolfsentry_ret));
-            err_sys("error while initlalizing wolfSentry config parser");
-        }
-
-        for (;;) {
-            size_t n = fread(buf, 1, sizeof buf, f);
-            if ((n < sizeof buf) && ferror(f)) {
-                fprintf(stderr,"fread(%s): %s\n",wolfsentry_config_path, strerror(errno));
-                err_sys("error while reading wolfSentry config file");
-            }
-
-            wolfsentry_ret = wolfsentry_config_json_feed(jps, buf, n, err_buf, sizeof err_buf);
-            if (wolfsentry_ret < 0) {
-                fprintf(stderr, "%.*s\n", (int)sizeof err_buf, err_buf);
-                err_sys("error while loading wolfSentry config file");
-            }
-            if ((n < sizeof buf) && feof(f))
-                break;
-        }
-        fclose(f);
-
-        if ((wolfsentry_ret = wolfsentry_config_json_fini(jps, err_buf, sizeof err_buf)) < 0) {
-            fprintf(stderr, "%.*s\n", (int)sizeof err_buf, err_buf);
-            err_sys("error while loading wolfSentry config file");
-        }
-
-    } else
-#endif /* !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON) */
-    {
-
-        struct wolfsentry_route_table *table;
-
-        if ((wolfsentry_ret = wolfsentry_route_get_table_static(wolfsentry,
-                                                                &table)) < 0)
-            fprintf(stderr, "wolfsentry_route_get_table_static() returned "
-                    WOLFSENTRY_ERROR_FMT "\n",
-                    WOLFSENTRY_ERROR_FMT_ARGS(wolfsentry_ret));
-        if (wolfsentry_ret >= 0) {
-            if ((wolfsentry_ret = wolfsentry_route_table_default_policy_set(
-                     wolfsentry, table,
-                     WOLFSENTRY_ACTION_RES_ACCEPT))
-                < 0)
-                fprintf(stderr,
-                        "wolfsentry_route_table_default_policy_set() returned "
-                        WOLFSENTRY_ERROR_FMT "\n",
-                        WOLFSENTRY_ERROR_FMT_ARGS(wolfsentry_ret));
-        }
-
-        if (wolfsentry_ret >= 0) {
-            struct {
-                struct wolfsentry_sockaddr sa;
-                byte buf[16];
-            } remote, local;
-            wolfsentry_ent_id_t id;
-            wolfsentry_action_res_t action_results;
-
-            memset(&remote, 0, sizeof remote);
-            memset(&local, 0, sizeof local);
-#ifdef TEST_IPV6
-            remote.sa.sa_family = local.sa.sa_family = AF_INET6;
-            remote.sa.addr_len = 128;
-            memcpy(remote.sa.addr, "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\001", 16);
-#else
-            remote.sa.sa_family = local.sa.sa_family = AF_INET;
-            remote.sa.addr_len = 32;
-            memcpy(remote.sa.addr, "\177\000\000\001", 4);
-#endif
-
-            if ((wolfsentry_ret = wolfsentry_route_insert_static
-                 (wolfsentry, NULL /* caller_context */, &remote.sa, &local.sa,
-                  WOLFSENTRY_ROUTE_FLAG_GREENLISTED              |
-                  WOLFSENTRY_ROUTE_FLAG_DIRECTION_OUT            |
-                  WOLFSENTRY_ROUTE_FLAG_PARENT_EVENT_WILDCARD    |
-                  WOLFSENTRY_ROUTE_FLAG_REMOTE_INTERFACE_WILDCARD|
-                  WOLFSENTRY_ROUTE_FLAG_LOCAL_INTERFACE_WILDCARD |
-                  WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_ADDR_WILDCARD   |
-                  WOLFSENTRY_ROUTE_FLAG_SA_PROTO_WILDCARD        |
-                  WOLFSENTRY_ROUTE_FLAG_SA_REMOTE_PORT_WILDCARD  |
-                  WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_PORT_WILDCARD,
-                  0 /* event_label_len */, 0 /* event_label */, &id,
-                  &action_results)) < 0)
-                fprintf(stderr, "wolfsentry_route_insert_static() returned "
-                        WOLFSENTRY_ERROR_FMT "\n",
-                        WOLFSENTRY_ERROR_FMT_ARGS(wolfsentry_ret));
-        }
-
-        if (wolfsentry_ret < 0)
-            err_sys("unable to configure route table");
-    }
 
     if (wolfSSL_CTX_set_ConnectFilter(
             ctx,

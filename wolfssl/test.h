@@ -1053,7 +1053,7 @@ static WC_INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
         struct zsock_addrinfo hints, *addrInfo;
         char portStr[6];
         XSNPRINTF(portStr, sizeof(portStr), "%d", port);
-        memset(&hints, 0, sizeof(hints));
+        XMEMSET(&hints, 0, sizeof(hints));
         hints.ai_family = AF_UNSPEC;
         hints.ai_socktype = udp ? SOCK_DGRAM : SOCK_STREAM;
         hints.ai_protocol = udp ? IPPROTO_UDP : IPPROTO_TCP;
@@ -1178,6 +1178,12 @@ static WC_INLINE void tcp_socket(SOCKET_T* sockfd, int udp, int sctp)
 
 #if defined(WOLFSSL_WOLFSENTRY_HOOKS) && defined(WOLFSENTRY_H)
 
+#include <wolfsentry/wolfsentry_util.h>
+
+#if !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+#include <wolfsentry/wolfsentry_json.h>
+#endif
+
 struct wolfsentry_data {
     struct wolfsentry_sockaddr remote;
     byte remote_addrbuf[16];
@@ -1191,6 +1197,8 @@ struct wolfsentry_data {
 static void free_wolfsentry_data(struct wolfsentry_data *data) {
     XFREE(data, data->heap, data->alloctype);
 }
+
+static struct wolfsentry_context *wolfsentry = NULL;
 
 static int wolfsentry_data_index = -1;
 
@@ -1329,6 +1337,186 @@ static int wolfSentry_NetworkFilterCallback(
     return WOLFSSL_SUCCESS;
 }
 
+static int wolfsentry_setup(
+    struct wolfsentry_context **_wolfsentry,
+    const char *_wolfsentry_config_path,
+    wolfsentry_route_flags_t route_flags)
+{
+    wolfsentry_errcode_t ret;
+    ret =  wolfsentry_init(NULL /* hpi */, NULL /* default config */,
+                           _wolfsentry);
+    if (ret < 0) {
+        fprintf(stderr, "wolfsentry_init() returned " WOLFSENTRY_ERROR_FMT "\n",
+                WOLFSENTRY_ERROR_FMT_ARGS(ret));
+        err_sys("unable to initialize wolfSentry");
+    }
+
+    if (wolfsentry_data_index < 0)
+        wolfsentry_data_index = wolfSSL_get_ex_new_index(0, NULL, NULL, NULL,
+                                                         NULL);
+
+#if !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+    if (_wolfsentry_config_path != NULL) {
+        char buf[512], err_buf[512];
+        struct wolfsentry_json_process_state *jps;
+
+        FILE *f = fopen(_wolfsentry_config_path, "r");
+
+        if (f == NULL) {
+            fprintf(stderr, "fopen(%s): %s\n",_wolfsentry_config_path,strerror(errno));
+            err_sys("unable to open wolfSentry config file");
+        }
+
+        if ((ret = wolfsentry_config_json_init(
+                 *_wolfsentry,
+                 WOLFSENTRY_CONFIG_LOAD_FLAG_NONE,
+                 &jps)) < 0) {
+            fprintf(stderr, "wolfsentry_config_json_init() returned "
+                    WOLFSENTRY_ERROR_FMT "\n",
+                    WOLFSENTRY_ERROR_FMT_ARGS(ret));
+            err_sys("error while initlalizing wolfSentry config parser");
+        }
+
+        for (;;) {
+            size_t n = fread(buf, 1, sizeof buf, f);
+            if ((n < sizeof buf) && ferror(f)) {
+                fprintf(stderr,"fread(%s): %s\n",_wolfsentry_config_path, strerror(errno));
+                err_sys("error while reading wolfSentry config file");
+            }
+
+            ret = wolfsentry_config_json_feed(jps, buf, n, err_buf, sizeof err_buf);
+            if (ret < 0) {
+                fprintf(stderr, "%.*s\n", (int)sizeof err_buf, err_buf);
+                err_sys("error while loading wolfSentry config file");
+            }
+            if ((n < sizeof buf) && feof(f))
+                break;
+        }
+        fclose(f);
+
+        if ((ret = wolfsentry_config_json_fini(jps, err_buf, sizeof err_buf)) < 0) {
+            fprintf(stderr, "%.*s\n", (int)sizeof err_buf, err_buf);
+            err_sys("error while loading wolfSentry config file");
+        }
+
+    } else
+#endif /* !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON) */
+    {
+        struct wolfsentry_route_table *table;
+
+        if ((ret = wolfsentry_route_get_table_static(*_wolfsentry,
+                                                                &table)) < 0)
+            fprintf(stderr, "wolfsentry_route_get_table_static() returned "
+                    WOLFSENTRY_ERROR_FMT "\n",
+                    WOLFSENTRY_ERROR_FMT_ARGS(ret));
+
+        if (ret < 0)
+            return ret;
+
+        if (WOLFSENTRY_CHECK_BITS(route_flags, WOLFSENTRY_ROUTE_FLAG_DIRECTION_OUT)) {
+            struct {
+                struct wolfsentry_sockaddr sa;
+                byte buf[16];
+            } remote, local;
+            wolfsentry_ent_id_t id;
+            wolfsentry_action_res_t action_results;
+
+            if ((ret = wolfsentry_route_table_default_policy_set(
+                     *_wolfsentry, table,
+                     WOLFSENTRY_ACTION_RES_ACCEPT))
+                < 0) {
+                fprintf(stderr,
+                        "wolfsentry_route_table_default_policy_set() returned "
+                        WOLFSENTRY_ERROR_FMT "\n",
+                        WOLFSENTRY_ERROR_FMT_ARGS(ret));
+                return ret;
+            }
+
+            XMEMSET(&remote, 0, sizeof remote);
+            XMEMSET(&local, 0, sizeof local);
+#ifdef TEST_IPV6
+            remote.sa.sa_family = local.sa.sa_family = AF_INET6;
+            remote.sa.addr_len = 128;
+            XMEMCPY(remote.sa.addr, "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\001", 16);
+#else
+            remote.sa.sa_family = local.sa.sa_family = AF_INET;
+            remote.sa.addr_len = 32;
+            XMEMCPY(remote.sa.addr, "\177\000\000\001", 4);
+#endif
+
+            if ((ret = wolfsentry_route_insert_static
+                 (*_wolfsentry, NULL /* caller_context */, &remote.sa, &local.sa,
+                  route_flags                                    |
+                  WOLFSENTRY_ROUTE_FLAG_GREENLISTED              |
+                  WOLFSENTRY_ROUTE_FLAG_PARENT_EVENT_WILDCARD    |
+                  WOLFSENTRY_ROUTE_FLAG_REMOTE_INTERFACE_WILDCARD|
+                  WOLFSENTRY_ROUTE_FLAG_LOCAL_INTERFACE_WILDCARD |
+                  WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_ADDR_WILDCARD   |
+                  WOLFSENTRY_ROUTE_FLAG_SA_PROTO_WILDCARD        |
+                  WOLFSENTRY_ROUTE_FLAG_SA_REMOTE_PORT_WILDCARD  |
+                  WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_PORT_WILDCARD,
+                  0 /* event_label_len */, 0 /* event_label */, &id,
+                  &action_results)) < 0) {
+                fprintf(stderr, "wolfsentry_route_insert_static() returned "
+                        WOLFSENTRY_ERROR_FMT "\n",
+                        WOLFSENTRY_ERROR_FMT_ARGS(ret));
+                return ret;
+            }
+        } else if (WOLFSENTRY_CHECK_BITS(route_flags, WOLFSENTRY_ROUTE_FLAG_DIRECTION_IN)) {
+            struct {
+                struct wolfsentry_sockaddr sa;
+                byte buf[16];
+            } remote, local;
+            wolfsentry_ent_id_t id;
+            wolfsentry_action_res_t action_results;
+
+            if ((ret = wolfsentry_route_table_default_policy_set(
+                     *_wolfsentry, table,
+                     WOLFSENTRY_ACTION_RES_REJECT|WOLFSENTRY_ACTION_RES_STOP))
+                < 0) {
+                fprintf(stderr,
+                        "wolfsentry_route_table_default_policy_set() returned "
+                        WOLFSENTRY_ERROR_FMT "\n",
+                        WOLFSENTRY_ERROR_FMT_ARGS(ret));
+                return ret;
+            }
+
+            XMEMSET(&remote, 0, sizeof remote);
+            XMEMSET(&local, 0, sizeof local);
+#ifdef TEST_IPV6
+            remote.sa.sa_family = local.sa.sa_family = AF_INET6;
+            remote.sa.addr_len = 128;
+            XMEMCPY(remote.sa.addr, "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\001", 16);
+#else
+            remote.sa.sa_family = local.sa.sa_family = AF_INET;
+            remote.sa.addr_len = 32;
+            XMEMCPY(remote.sa.addr, "\177\000\000\001", 4);
+#endif
+
+            if ((ret = wolfsentry_route_insert_static
+                 (*_wolfsentry, NULL /* caller_context */, &remote.sa, &local.sa,
+                  route_flags                                    |
+                  WOLFSENTRY_ROUTE_FLAG_GREENLISTED              |
+                  WOLFSENTRY_ROUTE_FLAG_PARENT_EVENT_WILDCARD    |
+                  WOLFSENTRY_ROUTE_FLAG_REMOTE_INTERFACE_WILDCARD|
+                  WOLFSENTRY_ROUTE_FLAG_LOCAL_INTERFACE_WILDCARD |
+                  WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_ADDR_WILDCARD   |
+                  WOLFSENTRY_ROUTE_FLAG_SA_PROTO_WILDCARD        |
+                  WOLFSENTRY_ROUTE_FLAG_SA_REMOTE_PORT_WILDCARD  |
+                  WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_PORT_WILDCARD,
+                  0 /* event_label_len */, 0 /* event_label */, &id,
+                  &action_results)) < 0) {
+                fprintf(stderr, "wolfsentry_route_insert_static() returned "
+                        WOLFSENTRY_ERROR_FMT "\n",
+                        WOLFSENTRY_ERROR_FMT_ARGS(ret));
+                return ret;
+            }
+        }
+    }
+
+    return 0;
+}
+
 static WC_INLINE int tcp_connect_with_wolfSentry(
     SOCKET_T* sockfd,
     const char* ip,
@@ -1423,7 +1611,9 @@ static WC_INLINE int tcp_connect_with_wolfSentry(
     return WOLFSSL_SUCCESS;
 }
 
-#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
+#define tcp_connect(sockfd, ip, port, udp, sctp, ssl) tcp_connect_with_wolfSentry(sockfd, ip, port, udp, sctp, ssl, wolfsentry)
+
+#else /* !WOLFSSL_WOLFSENTRY_HOOKS */
 
 static WC_INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
                                int udp, int sctp, WOLFSSL* ssl)
@@ -1440,6 +1630,8 @@ static WC_INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
             err_sys_with_errno("tcp connect failed");
     }
 }
+
+#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
 
 
 static WC_INLINE void udp_connect(SOCKET_T* sockfd, void* addr, int addrSz)

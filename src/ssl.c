@@ -1025,7 +1025,7 @@ int wolfSSL_CTX_set_AcceptFilter(
         return BAD_FUNC_ARG;
     ctx->AcceptFilter = AcceptFilter;
     ctx->AcceptFilter_arg = AcceptFilter_arg;
-    return WOLFSSL_SUCCESS;
+    return 0;
 }
 
 int wolfSSL_set_AcceptFilter(
@@ -1037,7 +1037,7 @@ int wolfSSL_set_AcceptFilter(
         return BAD_FUNC_ARG;
     ssl->AcceptFilter = AcceptFilter;
     ssl->AcceptFilter_arg = AcceptFilter_arg;
-    return WOLFSSL_SUCCESS;
+    return 0;
 }
 
 int wolfSSL_CTX_set_ConnectFilter(
@@ -1049,7 +1049,7 @@ int wolfSSL_CTX_set_ConnectFilter(
         return BAD_FUNC_ARG;
     ctx->ConnectFilter = ConnectFilter;
     ctx->ConnectFilter_arg = ConnectFilter_arg;
-    return WOLFSSL_SUCCESS;
+    return 0;
 }
 
 int wolfSSL_set_ConnectFilter(
@@ -1061,7 +1061,7 @@ int wolfSSL_set_ConnectFilter(
         return BAD_FUNC_ARG;
     ssl->ConnectFilter = ConnectFilter;
     ssl->ConnectFilter_arg = ConnectFilter_arg;
-    return WOLFSSL_SUCCESS;
+    return 0;
 }
 
 #endif /* WOLFSSL_WOLFSENTRY_HOOKS */
