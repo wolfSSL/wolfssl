@@ -4722,6 +4722,11 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
     if ((a == NULL) || (m == NULL) || (r == NULL)) {
         err = MP_VAL;
     }
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    if ((err == MP_OKAY) && (a->used >= SP_INT_DIGITS)) {
+        err = MP_VAL;
+    }
+#endif
 
 #ifndef WOLFSSL_SP_INT_NEGATIVE
     if (err == MP_OKAY) {
