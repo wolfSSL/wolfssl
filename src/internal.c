@@ -16110,9 +16110,33 @@ int ProcessReply(WOLFSSL* ssl)
                                       in->buffer + in->idx,
                                       ssl->curSize - (word16)digestSz);
                         if (ret == 0) {
-                            ssl->keys.padSz =
-                                    in->buffer[in->idx + ssl->curSize -
-                                               digestSz - 1];
+                            byte invalid = 0;
+                            byte padding = (byte)-1;
+                            word32 i;
+                            word32 off = in->idx + ssl->curSize - digestSz - 1;
+
+                            /* Last of padding bytes - indicates length. */
+                            ssl->keys.padSz = in->buffer[off];
+                            /* Constant time checking of padding - don't leak
+                             * the length of the data.
+                             */
+                            /* Compare max pad bytes or at most data + pad. */
+                            for (i = 1; i < MAX_PAD_SIZE && off >= i; i++) {
+                                /* Mask on indicates this is expected to be a
+                                 * padding byte.
+                                 */
+                                padding &= ctMaskLTE(i, ssl->keys.padSz);
+                                /* When this is a padding byte and not equal
+                                 * to length then mask is set.
+                                 */
+                                invalid |= padding &
+                                           ctMaskNotEq(in->buffer[off - i],
+                                                       ssl->keys.padSz);
+                            }
+                            /* If mask is set then there was an error. */
+                            if (invalid) {
+                                ret = DECRYPT_ERROR;
+                            }
                             ssl->keys.padSz += 1;
                             ssl->keys.decryptedCur = 1;
                         }
