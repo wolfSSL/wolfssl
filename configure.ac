@@ -6436,6 +6436,17 @@ AC_CONFIG_FILES([scripts/unit.test],[chmod +x scripts/unit.test])
 AX_CREATE_GENERIC_CONFIG
 AX_AM_JOBSERVER([yes])
 
+# See Automake 9.4.1 Built Sources Example
+AC_DEFUN([AX_OUT_OF_TREE_FILE],[
+  AC_CONFIG_COMMANDS([$1], [test ! -f $srcdir/$1 && >> $srcdir/$1])
+])
+
+AX_OUT_OF_TREE_FILE([wolfssl/wolfcrypt/async.h])
+AX_OUT_OF_TREE_FILE([wolfssl/wolfcrypt/fips.h])
+AX_OUT_OF_TREE_FILE([wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h])
+AX_OUT_OF_TREE_FILE([wolfssl/wolfcrypt/port/intel/quickassist.h])
+AX_OUT_OF_TREE_FILE([wolfssl/wolfcrypt/port/intel/quickassist_mem.h])
+
 AC_OUTPUT
 
 

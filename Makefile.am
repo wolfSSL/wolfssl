@@ -3,6 +3,7 @@ SUFFIXES =
 TESTS =
 CLEANFILES =
 DISTCLEANFILES =
+MAINTAINERCLEANFILES =
 bin_PROGRAMS =
 noinst_HEADERS =
 lib_LTLIBRARIES =
@@ -237,6 +238,12 @@ scripts/unit.log: testsuite/testsuite.log
 
 DISTCLEANFILES+= cyassl-config
 DISTCLEANFILES+= wolfssl-config
+
+MAINTAINERCLEANFILES+= wolfssl/wolfcrypt/async.h
+MAINTAINERCLEANFILES+= wolfssl/wolfcrypt/fips.h
+MAINTAINERCLEANFILES+= wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h
+MAINTAINERCLEANFILES+= wolfssl/wolfcrypt/port/intel/quickassist.h
+MAINTAINERCLEANFILES+= wolfssl/wolfcrypt/port/intel/quickassist_mem.h
 
 SUBDIRS=$(SUBDIRS_OPT)
 DIST_SUBDIRS=$(DIST_SUBDIRS_OPT)
