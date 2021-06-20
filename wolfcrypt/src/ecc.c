@@ -7108,6 +7108,9 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
 #if !defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC)
    ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT, err);
+   if (err != 0) {
+      return err;
+   }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM_V)
    err = wc_ecc_alloc_mpint(key, &key->e);
