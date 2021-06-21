@@ -44235,7 +44235,318 @@ static int test_wolfSSL_CTX_set_ecdh_auto(void)
     return ret;
 }
 
-#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL)
+#if defined(HAVE_SESSION_TICKET) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_ERROR_CODE_OPENSSL)
+static THREAD_RETURN WOLFSSL_THREAD test_server_set_timeout_loop(void* args)
+{
+    callback_functions* callbacks = NULL;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+    SOCKET_T     sfd = 0;
+    SOCKET_T     cfd = 0;
+    word16       port;
+    char msg[] = "I hear you fa shizzle!";
+    int  len   = (int) XSTRLEN(msg);
+    char input[1024];
+    int  ret, err;
+    int  count;
+
+    (void)port;
+
+    if (!args)
+        return 0;
+
+    ((func_args*)args)->return_code = TEST_FAIL;
+
+    callbacks   = ((func_args*)args)->callbacks;
+    ctx         = wolfSSL_CTX_new(callbacks->method());
+
+#if defined(USE_WINDOWS_API)
+    port = ((func_args*)args)->signal->port;
+#else
+    /* Let tcp_listen assign port */
+    port = 0;
+#endif
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
+
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+                                        WOLFSSL_FILETYPE_PEM));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+                                        WOLFSSL_FILETYPE_PEM));
+
+    if (callbacks->ctx_ready)
+        callbacks->ctx_ready(ctx);
+
+    /* set session ticket timeout to 1 sec */
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CTX_set_timeout(ctx, 1));
+
+
+    for (count = 0; count < 2; count++) {
+
+        ssl = wolfSSL_new(ctx);
+        AssertNotNull(ssl);
+
+        /* listen and accept */
+        tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0, 0, 1, 0, 0);
+
+        AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_set_fd(ssl, cfd));
+
+        if (callbacks->ssl_ready)
+            callbacks->ssl_ready(ssl);
+
+        do {
+            err = 0; /* Reset error */
+            ret = wolfSSL_accept(ssl);
+            if (ret != WOLFSSL_SUCCESS) {
+                err = wolfSSL_get_error(ssl, 0);
+            }
+        } while (ret != WOLFSSL_SUCCESS && err == WC_PENDING_E);
+
+        if (ret != WOLFSSL_SUCCESS) {
+            wolfSSL_free(ssl);
+            wolfSSL_CTX_free(ctx);
+            CloseSocket(cfd);
+            ((func_args*)args)->return_code = TEST_FAIL;
+            return 0;
+        }
+
+        /* read and write data */
+        XMEMSET( input, 0, sizeof(input));
+
+        while (1) {
+            ret = wolfSSL_read(ssl, input, sizeof(input));
+            if (ret > 0) {
+                break;
+            }
+            else {
+                err = wolfSSL_get_error(ssl, ret);
+                if (err == WOLFSSL_ERROR_WANT_READ) {
+                    continue;
+                }
+                break;
+            }
+        }
+
+        if (err == WOLFSSL_ERROR_ZERO_RETURN) {
+            do {
+                ret = wolfSSL_write(ssl, msg, len);
+                if (ret > 0) {
+                    break;
+                }
+            } while (ret < 0);
+        }
+
+        /* bidirectional shutdown */
+        while ((ret = wolfSSL_shutdown(ssl)) != WOLFSSL_SUCCESS) {
+            continue;
+        }     
+
+        wolfSSL_free(ssl);
+        ssl = NULL;
+        CloseSocket(cfd);
+    }
+
+    CloseSocket(sfd);
+    wolfSSL_CTX_free(ctx);
+    
+    /* set thread's result */
+    ((func_args*)args)->return_code = TEST_SUCCESS;
+
+    return 0;
+}
+
+static THREAD_RETURN WOLFSSL_THREAD test_client_try_resumption(void* args)
+{
+    callback_functions* callbacks = NULL;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
+    SOCKET_T     sfd = 0;
+    char msg[] = "hello wolfssl server!";
+    int  len   = (int) XSTRLEN(msg);
+    char input[1024];
+    int  idx;
+    int  ret, err;
+    int  count;
+    WOLFSSL_SESSION* session = NULL;
+    if (!args)
+        return 0;
+
+    ((func_args*)args)->return_code = TEST_FAIL;
+    callbacks   = ((func_args*)args)->callbacks;
+    ctx         = wolfSSL_CTX_new(callbacks->method());
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    AssertIntEQ(WOLFSSL_SUCCESS,
+                wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
+
+    AssertIntEQ(WOLFSSL_SUCCESS,
+                wolfSSL_CTX_use_certificate_file(ctx, cliCertFile,
+                WOLFSSL_FILETYPE_PEM));
+
+    AssertIntEQ(WOLFSSL_SUCCESS,
+                wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile,
+                WOLFSSL_FILETYPE_PEM));
+
+    /* Show a request to the server to issue a session ticket */
+    AssertIntEQ(WOLFSSL_SUCCESS,
+                wolfSSL_CTX_UseSessionTicket(ctx));
+
+    for( count = 0; count < 2; count++) {
+
+        AssertNotNull((ssl = wolfSSL_new(ctx)));
+
+        if (count == 1) {
+            /*  wolfSSL_set_session should accept the expired session ticket
+             *  when WOLFSSL_ERROR_CODE_OPENSSL is defined.
+             */
+            AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_set_session(ssl, session));
+        }
+
+        tcp_connect(&sfd, wolfSSLIP, ((func_args*)args)->signal->port, 0, 0, 
+                                                                        ssl);
+        AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_set_fd(ssl, sfd));
+
+        do {
+            err = 0; /* Reset error */
+            ret = wolfSSL_connect(ssl);
+            if (ret != WOLFSSL_SUCCESS) {
+                err = wolfSSL_get_error(ssl, 0);
+            }
+        } while (ret != WOLFSSL_SUCCESS && err == WC_PENDING_E);
+
+        ret = wolfSSL_write(ssl, msg, len);
+
+        if (0 < (idx = wolfSSL_read(ssl, input, sizeof(input)-1))) {
+            input[idx] = 0;
+        }
+
+        ret = wolfSSL_shutdown(ssl);
+        if ( ret == WOLFSSL_SHUTDOWN_NOT_DONE) {
+            ret = wolfSSL_shutdown(ssl);
+        }
+        AssertIntEQ(ret, WOLFSSL_SUCCESS);
+
+        if (count == 0) {
+            /* get session ticket */
+            session = wolfSSL_get_session(ssl);
+            AssertNotNull(session);
+
+            /* add delay of 2 sec to ensure the session ticket expires */
+            XSLEEP_MS(2000);
+        }
+        else {
+            /* make sure the session resumption failed as expected */
+            AssertIntEQ(WOLFSSL_FAILURE, wolfSSL_session_reused(ssl));
+        }
+
+        /* close the underlying transport connection */
+        CloseSocket(sfd);
+
+        wolfSSL_free(ssl);
+    }
+    /* report that session resumption was failed as expected */
+    ((func_args*)args)->return_code = TEST_SUCCESS;
+
+    wolfSSL_CTX_free(ctx);
+     
+    return 0;
+}
+#endif /* HAVE_SESSION_TICKET && OPENSSL_EXTRA && WOLFSSL_ERROR_CODE_OPENSSL */
+
+/*  This test function is to check if the expired session ticket
+ *  is rejected by server in TLS1.2. In this test, server thread sets 
+ *  session-ticket-timeout to 1 sec and client thread tries session resumption
+ *  after 2 sec delay from the first session. The session resumption should fail
+ *  due to the expired session ticket and fall back to hull handshake.
+ *  
+ *  To test this server side behavior, the client must intentionally set 
+ *  an expired session ticket with wolfSSL_set_session API.
+ *  However, the API rejects the expired session ticket by default.
+ *  To solve this dilemma, define WOLFSSL_ERROR_CODE_OPENSSL and
+ *  OPENSSL_EXTRA macros to make the API accept the expired ticket.
+ *  
+ *  For this test, following macros are essential:
+ *  - HAVE_SESSION_TICKET
+ *  - OPENSSL_EXTRA
+ *  - WOLFSSL_ERROR_CODE_OPENSSL
+ * 
+ */
+static int test_expired_ticket_rejection(void)
+{
+#if defined(HAVE_SESSION_TICKET) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_ERROR_CODE_OPENSSL)
+
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+    THREAD_TYPE clientThread;
+    callback_functions server_cbf;
+    callback_functions client_cbf;
+
+    (void)serverThread;
+    (void)clientThread;
+
+    printf(testingFmt, "test_expired_ticket_rejection()");
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+    StartTCP();
+    InitTcpReady(&ready);
+
+#if defined(USE_WINDOWS_API)
+    /* use RNG to get random port if using windows */
+    ready.port = GetRandomPort();
+#endif
+
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+
+    XMEMSET(&server_cbf, 0, sizeof(callback_functions));
+    XMEMSET(&client_cbf, 0, sizeof(callback_functions));
+
+    server_cbf.method = wolfTLSv1_2_server_method; /* TLS1.2 */
+    client_cbf.method = wolfTLSv1_2_client_method; /* TLS1.2 */
+
+    server_args.callbacks = &server_cbf;
+    client_args.callbacks = &client_cbf;
+
+    server_args.signal = &ready;
+    client_args.signal = &ready;
+
+    start_thread(test_server_set_timeout_loop, &server_args, &serverThread);
+
+    wait_tcp_ready(&server_args);
+
+    start_thread(test_client_try_resumption, &client_args, &clientThread);
+
+    join_thread(clientThread);
+    join_thread(serverThread);
+
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+
+    FreeTcpReady(&ready);
+
+    printf(resultFmt, passed);
+#endif /* HAVE_SESSION_TICKET && OPENSSL_EXTRA && WOLFSSL_ERROR_CODE_OPENSSL */
+    return 0;
+}
+
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_TLS13)
 static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_server_thread(void* args)
 {
     callback_functions* callbacks = NULL;
@@ -44426,15 +44737,16 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_client_thread(void* args)
     CloseSocket(sfd);
     return 0;
 }
-#endif /* OPENSSL_EXTRA && WOLFSSL_ERROR_CODE_OPENSSL */
+#endif /* HAVE_SESSION_TICKET && !WOLFSSL_TLS13 */
 
 /* This test is to check wolfSSL_read behaves as same as
  * openSSL when it is called after SSL_shutdown completes.
  */
 static int test_wolfSSL_read_detect_TCP_disconnect(void)
 {
+
     int ret = 0;
-#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL)
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_TLS13)
     tcp_ready ready;
     func_args client_args;
     func_args server_args;
@@ -44487,7 +44799,8 @@ static int test_wolfSSL_read_detect_TCP_disconnect(void)
     FreeTcpReady(&ready);
 
     printf(resultFmt, passed);
-#endif
+
+#endif /* HAVE_SESSION_TICKET && !WOLFSSL_TLS13*/
     return ret;
 }
 static void test_wolfSSL_CTX_get_min_proto_version(void)
@@ -45052,6 +45365,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_der_load_verify_locations();
     test_wolfSSL_CTX_enable_disable();
     test_wolfSSL_CTX_ticket_API();
+    test_expired_ticket_rejection();
     test_server_wolfSSL_new();
     test_client_wolfSSL_new();
     test_wolfSSL_SetTmpDH_file();
