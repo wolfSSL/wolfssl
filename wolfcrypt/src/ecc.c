@@ -7131,8 +7131,10 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #endif /* WOLFSSL_ASYNC_CRYPT && HAVE_CAVIUM_V */
 
    err = mp_init(e);
-   if (err != MP_OKAY)
+   if (err != MP_OKAY) {
+      FREE_CURVE_SPECS();
       return MEMORY_E;
+   }
 
    /* read in the specs for this curve */
    err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
