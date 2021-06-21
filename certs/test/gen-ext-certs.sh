@@ -159,4 +159,32 @@ stateOrProvinceName = California
 EOF
 gen_cert
 
+OUT=certs/test/cert-ext-joi.der
+KEYFILE=certs/ca-key.der
+CONFIG=certs/test/cert-ext-joi.cfg
+tee >$CONFIG <<EOF
+[ req ]
+distinguished_name = req_distinguished_name
+prompt             = no
+x509_extensions    = constraints
+
+[ req_distinguished_name ]
+C             = US
+ST            = Montana
+L             = Bozeman
+O             = Sawtooth
+OU            = Consulting
+CN            = www.wolfssl.com
+emailAddress  = info@wolfsssl.com
+jurisdictionC = US
+jurisdictionST = California
+
+[constraints]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:TRUE
+
+EOF
+gen_cert
+
 

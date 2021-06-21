@@ -139,7 +139,7 @@ static int Transform_Len(wc_Md5* md5, const byte* data, word32 len)
     int ret = wolfSSL_CryptHwMutexLock();
     if (ret == 0) {
     #if defined(WC_HASH_DATA_ALIGNMENT) && WC_HASH_DATA_ALIGNMENT > 0
-        if ((size_t)data % WC_HASH_DATA_ALIGNMENT) {
+        if ((wc_ptr_t)data % WC_HASH_DATA_ALIGNMENT) {
             /* data pointer is NOT aligned,
              * so copy and perform one block at a time */
             byte* local = (byte*)md5->buffer;
@@ -405,7 +405,7 @@ int wc_Md5Update(wc_Md5* md5, const byte* data, word32 len)
         /* optimization to avoid memcpy if data pointer is properly aligned */
         /* Big Endian requires byte swap, so can't use data directly */
     #if defined(WC_HASH_DATA_ALIGNMENT) && !defined(BIG_ENDIAN_ORDER)
-        if (((size_t)data % WC_HASH_DATA_ALIGNMENT) == 0) {
+        if (((wc_ptr_t)data % WC_HASH_DATA_ALIGNMENT) == 0) {
             local32 = (word32*)data;
         }
         else

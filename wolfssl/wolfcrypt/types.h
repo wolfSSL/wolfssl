@@ -154,13 +154,12 @@ decouple library dependencies with standard string, memory and so on.
         typedef unsigned long long word64;
     #endif
 
-#if !defined(NO_64BIT) && defined(WORD64_AVAILABLE) && !defined(WC_16BIT_CPU)
+#if defined(WORD64_AVAILABLE) && !defined(WC_16BIT_CPU)
     /* These platforms have 64-bit CPU registers.  */
     #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
          defined(__mips64)  || defined(__x86_64__) || defined(_M_X64)) || \
          defined(__aarch64__) || defined(__sparc64__) || defined(__s390x__ ) || \
         (defined(__riscv_xlen) && (__riscv_xlen == 64)) || defined(_M_ARM64)
-        typedef word64 wolfssl_word;
         #define WC_64BIT_CPU
     #elif (defined(sun) || defined(__sun)) && \
           (defined(LP64) || defined(_LP64))
@@ -168,14 +167,23 @@ decouple library dependencies with standard string, memory and so on.
          * and int uses 32 bits. When using Solaris Studio sparc and __sparc are
          * available for 32 bit detection but __sparc64__ could be missed. This
          * uses LP64 for checking 64 bit CPU arch. */
-        typedef word64 wolfssl_word;
         #define WC_64BIT_CPU
     #else
-        typedef word32 wolfssl_word;
-        #ifdef WORD64_AVAILABLE
-            #define WOLFCRYPT_SLOW_WORD64
-        #endif
         #define WC_32BIT_CPU
+    #endif
+
+    #if defined(NO_64BIT)
+          typedef word32 wolfssl_word;
+          #undef WORD64_AVAILABLE
+    #else
+        #ifdef WC_64BIT_CPU
+          typedef word64 wolfssl_word;
+        #else
+          typedef word32 wolfssl_word;
+          #ifdef WORD64_AVAILABLE
+              #define WOLFCRYPT_SLOW_WORD64
+          #endif
+        #endif
     #endif
 
 #elif defined(WC_16BIT_CPU)
@@ -189,7 +197,15 @@ decouple library dependencies with standard string, memory and so on.
         typedef word32 wolfssl_word;
         #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as
                              mp_digit, no 64 bit type so make mp_digit 16 bit */
-        #define WC_32BIT_CPU
+#endif
+
+#ifdef WC_PTR_TYPE /* Allow user suppied type */
+    typedef WC_PTR_TYPE wc_ptr_t;
+#elif defined(HAVE_UINTPTR_T)
+    #include <stdint.h>
+    typedef uintptr_t wc_ptr_t;
+#else /* fallback to architecture size_t for pointer size */
+    typedef size_t wc_ptr_t;
 #endif
 
     enum {
@@ -883,7 +899,7 @@ decouple library dependencies with standard string, memory and so on.
         WC_PK_TYPE_ECDH = 3,
         WC_PK_TYPE_ECDSA_SIGN = 4,
         WC_PK_TYPE_ECDSA_VERIFY = 5,
-        WC_PK_TYPE_ED25519 = 6,
+        WC_PK_TYPE_ED25519_SIGN = 6,
         WC_PK_TYPE_CURVE25519 = 7,
         WC_PK_TYPE_RSA_KEYGEN = 8,
         WC_PK_TYPE_EC_KEYGEN = 9,
@@ -891,7 +907,10 @@ decouple library dependencies with standard string, memory and so on.
         WC_PK_TYPE_EC_CHECK_PRIV_KEY = 11,
         WC_PK_TYPE_ED448 = 12,
         WC_PK_TYPE_CURVE448 = 13,
-        WC_PK_TYPE_MAX = WC_PK_TYPE_CURVE448
+        WC_PK_TYPE_ED25519_VERIFY = 14,
+        WC_PK_TYPE_ED25519_KEYGEN = 15,
+        WC_PK_TYPE_CURVE25519_KEYGEN = 16,
+        WC_PK_TYPE_MAX = WC_PK_TYPE_CURVE25519_KEYGEN
     };
 
 

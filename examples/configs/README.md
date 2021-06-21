@@ -4,9 +4,12 @@ Example wolfSSL configuration file templates for use when autoconf is not availa
 
 ## Files
 
+* `user_settings_template.h`: Template that allows modular algorithm and feature selection using `#if 0` logic.
 * `user_settings_all.h`: This is wolfSSL with all features enabled. Equivalent to `./configure --enable-all`.
 * `user_settings_min_ecc.h`: This is ECC and SHA-256 only. For ECC verify only add `BUILD_VERIFY_ONLY`.
 * `user_settings_wolfboot_keytools.h`: This from wolfBoot tools/keytools and is ECC, RSA, ED25519 and ChaCha20.
+* `user_settings_fipsv2.h`: The FIPS v2 (3389) 140-2 certificate build options.
+* `user_settings_stm32.h`: Example configuration file generated from the wolfSSL STM32 Cube pack.
 
 ## Usage
 

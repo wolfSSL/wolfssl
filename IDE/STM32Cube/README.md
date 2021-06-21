@@ -14,9 +14,18 @@ These examples use the Cube HAL for STM32.
 
 ## Configuration
 
-The settings for the wolfSSL CubeMX pack are in the generated `wolfSSL.I-CUBE-wolfSSL_conf.h` file. An example of this is located in `IDE/STM32Cube/wolfSSL_conf.h` (renamed to avoid possible conflicts with generated file).
+The settings for the wolfSSL CubeMX pack are in the generated `wolfSSL.I-CUBE-wolfSSL_conf.h` file. An example of a generated file can be found at `examples/configs/user_settings_stm32.h`.
 
-The template used for generation is `IDE/STM32Cube/default_conf.ftl` which can be updated at `STM32Cube/Repository/Packs/wolfSSL/wolfSSL/[Version]/CubeMX/templates/default_conf.ftl`.
+The template used for generation is `IDE/STM32Cube/default_conf.ftl`, which is stored in the pack here: `STM32Cube/Repository/Packs/wolfSSL/wolfSSL/[Version]/CubeMX/templates/default_conf.ftl`.
+
+If the default settings for the Cube GUI are insufficient you can customize the build using one of these methods to prevent the changes from being overwritten when generating the code:
+
+* Copy the `wolfSSL.I-CUBE-wolfSSL_conf.h` to `Core/Inc` and rename to `user_settings.h`. Then add the preprocessor macro `WOLFSSL_USER_SETTINGS` to your project. This will use the `user_settings.h` instead of the generated configuration.
+
+OR
+
+* Edit the source template file used for Cube pack generation here: `STM32Cube/Repository/Packs/wolfSSL/wolfSSL/[Version]/CubeMX/templates/default_conf.ftl`.
+
 
 The section for "Hardware platform" may need to be adjusted depending on your processor and board:
 

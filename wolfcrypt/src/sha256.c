@@ -498,7 +498,7 @@ static int InitSha256(wc_Sha256* sha256)
         int ret = wolfSSL_CryptHwMutexLock();
         if (ret == 0) {
         #if defined(WC_HASH_DATA_ALIGNMENT) && WC_HASH_DATA_ALIGNMENT > 0
-            if ((size_t)data % WC_HASH_DATA_ALIGNMENT) {
+            if ((wc_ptr_t)data % WC_HASH_DATA_ALIGNMENT) {
                 /* data pointer is NOT aligned,
                  * so copy and perform one block at a time */
                 byte* local = (byte*)sha256->buffer;
@@ -1055,7 +1055,7 @@ static int InitSha256(wc_Sha256* sha256)
             #if defined(WC_HASH_DATA_ALIGNMENT) && !defined(LITTLE_ENDIAN_ORDER) && \
                 !(defined(USE_INTEL_SPEEDUP) && \
                          (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)))
-                if (((size_t)data % WC_HASH_DATA_ALIGNMENT) == 0) {
+                if (((wc_ptr_t)data % WC_HASH_DATA_ALIGNMENT) == 0) {
                     local32 = (word32*)data;
                 }
                 else

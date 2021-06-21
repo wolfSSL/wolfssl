@@ -39035,7 +39035,7 @@ static void test_wc_SetSubjectRaw(void)
 {
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && !defined(NO_RSA)
-    const char* joiCertFile = "./certs/test/cert-ext-joi.pem";
+    const char* joiCertFile = "./certs/test/cert-ext-joi.der";
     WOLFSSL_X509* x509;
     int peerCertSz;
     const byte* peerCertBuf;
@@ -39043,7 +39043,7 @@ static void test_wc_SetSubjectRaw(void)
 
     printf(testingFmt, "test_wc_SetSubjectRaw()");
 
-    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(joiCertFile, WOLFSSL_FILETYPE_PEM));
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(joiCertFile, WOLFSSL_FILETYPE_ASN1));
 
     AssertNotNull(peerCertBuf = wolfSSL_X509_get_der(x509, &peerCertSz));
 
@@ -39077,7 +39077,7 @@ static void test_wc_SetIssuerRaw(void)
 {
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && !defined(NO_RSA)
-    const char* joiCertFile = "./certs/test/cert-ext-joi.pem";
+    const char* joiCertFile = "./certs/test/cert-ext-joi.der";
     WOLFSSL_X509* x509;
     int peerCertSz;
     const byte* peerCertBuf;
@@ -39085,7 +39085,7 @@ static void test_wc_SetIssuerRaw(void)
 
     printf(testingFmt, "test_wc_SetIssuerRaw()");
 
-    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(joiCertFile, WOLFSSL_FILETYPE_PEM));
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(joiCertFile, WOLFSSL_FILETYPE_ASN1));
 
     AssertNotNull(peerCertBuf = wolfSSL_X509_get_der(x509, &peerCertSz));
 
@@ -39103,7 +39103,7 @@ static void test_wc_SetIssueBuffer(void)
 {
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && !defined(NO_RSA)
-    const char* joiCertFile = "./certs/test/cert-ext-joi.pem";
+    const char* joiCertFile = "./certs/test/cert-ext-joi.der";
     WOLFSSL_X509* x509;
     int peerCertSz;
     const byte* peerCertBuf;
@@ -39111,7 +39111,7 @@ static void test_wc_SetIssueBuffer(void)
 
     printf(testingFmt, "test_wc_SetIssuerBuffer()");
 
-    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(joiCertFile, WOLFSSL_FILETYPE_PEM));
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(joiCertFile, WOLFSSL_FILETYPE_ASN1));
 
     AssertNotNull(peerCertBuf = wolfSSL_X509_get_der(x509, &peerCertSz));
 

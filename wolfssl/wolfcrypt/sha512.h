@@ -152,7 +152,10 @@ struct wc_Sha512 {
 #if defined(WOLFSSL_SILABS_SE_ACCEL)
   wc_silabs_sha_t silabsCtx;
 #endif
-
+#ifdef WOLF_CRYPTO_CB
+    int    devId;
+    void*  devCtx; /* generic crypto callback context */
+#endif
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif

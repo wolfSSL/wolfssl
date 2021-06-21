@@ -35,7 +35,7 @@ extern "C" {
 #endif
 
 /* Features */
-#define WOLFSSL_PUBLIC_MP /* Make math API's pbulic */
+#define WOLFSSL_PUBLIC_MP /* Make math API's public */
 #define KEEP_PEER_CERT /* Retain peer's certificate */
 #define KEEP_OUR_CERT /* Keep our certificate */
 #define WOLFSSL_ALWAYS_VERIFY_CB /* Always call verify callback (configured via wolfSSL_CTX_set_verify API) */
@@ -60,6 +60,7 @@ extern "C" {
 #define ASN_BER_TO_DER /* BER to DER support */
 #define WOLFSSL_SIGNER_DER_CERT
 //#define HAVE_THREAD_LS /* DG Commented: Thread local storage - may not be portable */
+//#define WOLFSSL_AEAD_ONLY /* automatically set if TLS v1.3 only, but can be enabled for TLS v1.2 manually */
 
 /* TLS Features */
 #define WOLFSSL_DTLS
@@ -109,7 +110,7 @@ extern "C" {
 #define FP_MAX_BITS 8192
 //#define HAVE___UINT128_T 1 /* DG commented: May not be portable */
 
-/* Timing Resistence */
+/* Timing Resistance */
 #define TFM_TIMING_RESISTANT
 #define ECC_TIMING_RESISTANT
 #define WC_RSA_BLINDING
@@ -127,7 +128,7 @@ extern "C" {
 #define HAVE_ECC_SECPR3
 #define HAVE_ECC_BRAINPOOL
 #define HAVE_ECC_KOBLITZ
-#define HAVE_ECC_CDH /* Cofactor */
+#define HAVE_ECC_CDH /* Co-factor */
 #define HAVE_COMP_KEY /* Compressed key support */
 #define FP_ECC /* Fixed point caching - speed repeated operations against same key */
 #define HAVE_ECC_ENCRYPT
@@ -208,6 +209,19 @@ extern "C" {
     #define WOLFSSL_ASIO
     #define ASIO_USE_WOLFSSL
     #define BOOST_ASIO_USE_WOLFSSL
+#endif
+
+/* TLS static cipher support - off by default */
+#if 0
+    #define WOLFSSL_STATIC_RSA
+    #define WOLFSSL_STATIC_DH
+    #define WOLFSSL_STATIC_PSK
+#endif
+
+/* TLS sniffer support - off by default */
+#if 0
+    #define WOLFSSL_STATIC_EPHEMERAL
+    #define WOLFSSL_SNIFFER
 #endif
 
 
