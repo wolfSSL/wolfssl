@@ -241,6 +241,7 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
      */
     switch (modulus_size) {
 #ifdef WOLFSSL_DSA_768_MODULUS
+    /* This key length is unsecure and only included for bind 9 testing */
         case 768:
 #endif
         case 1024:
@@ -685,10 +686,10 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
 #ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
     mp_int  b[1];
 #endif
-    byte    buffer[DSA_HALF_SIZE];
+    byte    buffer[DSA_MAX_HALF_SIZE];
 #endif
     mp_int* qMinus1;
-    int     ret = 0, sz = 0;
+    int     ret = 0, halfSz = 0;
     byte*   tmp;  /* initial output pointer */
 
     do {
@@ -707,7 +708,7 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
 #ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
         b = (mp_int *)XMALLOC(sizeof *b, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-        buffer = (byte *)XMALLOC(DSA_HALF_SIZE, key->heap,
+        buffer = (byte *)XMALLOC(DSA_MAX_HALF_SIZE, key->heap,
                                  DYNAMIC_TYPE_TMP_BUFFER);
 
         if ((k == NULL) ||
@@ -734,7 +735,7 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
                     break;
                 }
 
-        sz = min(DSA_HALF_SIZE, mp_unsigned_bin_size(&key->q));
+        halfSz = min(DSA_MAX_HALF_SIZE, mp_unsigned_bin_size(&key->q));
         tmp = out;
         qMinus1 = kInv;
 
@@ -751,12 +752,12 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
 
         do {
             /* Step 4: generate k */
-            if ((ret = wc_RNG_GenerateBlock(rng, buffer, sz))) {
+            if ((ret = wc_RNG_GenerateBlock(rng, buffer, halfSz))) {
                 break;
             }
 
             /* Step 5 */
-            if (mp_read_unsigned_bin(k, buffer, sz) != MP_OKAY) {
+            if (mp_read_unsigned_bin(k, buffer, halfSz) != MP_OKAY) {
                 ret = MP_READ_E;
                 break;
             }
@@ -820,10 +821,10 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
          * Generate b in range [1, q-1].
          */
         do {
-            if ((ret = wc_RNG_GenerateBlock(rng, buffer, sz))) {
+            if ((ret = wc_RNG_GenerateBlock(rng, buffer, halfSz))) {
                 break;
             }
-            if (mp_read_unsigned_bin(b, buffer, sz) != MP_OKAY) {
+            if (mp_read_unsigned_bin(b, buffer, halfSz) != MP_OKAY) {
                 ret = MP_READ_E;
                 break;
             }
@@ -916,15 +917,15 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
             int rSz = mp_unsigned_bin_size(r);
             int sSz = mp_unsigned_bin_size(s);
 
-            while (rSz++ < DSA_HALF_SIZE) {
+            while (rSz++ < halfSz) {
                 *out++ = 0x00;  /* pad front with zeros */
             }
 
             if (mp_to_unsigned_bin(r, out) != MP_OKAY)
                 ret = MP_TO_E;
             else {
-                out = tmp + DSA_HALF_SIZE;  /* advance to s in output */
-                while (sSz++ < DSA_HALF_SIZE) {
+                out = tmp + halfSz;  /* advance to s in output */
+                while (sSz++ < halfSz) {
                     *out++ = 0x00;  /* pad front with zeros */
                 }
                 ret = mp_to_unsigned_bin(s, out);
@@ -971,7 +972,7 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
     }
 #else /* !WOLFSSL_SMALL_STACK */
     if (ret != MP_INIT_E) {
-        ForceZero(buffer, sz);
+        ForceZero(buffer, halfSz);
         mp_forcezero(kInv);
         mp_forcezero(k);
 #ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
@@ -1000,6 +1001,7 @@ int wc_DsaVerify(const byte* digest, const byte* sig, DsaKey* key, int* answer)
     mp_int w[1], u1[1], u2[1], v[1], r[1], s[1];
 #endif
     int    ret = 0;
+    int    qSz;
 
     do {
         if (digest == NULL || sig == NULL || key == NULL || answer == NULL) {
@@ -1031,9 +1033,15 @@ int wc_DsaVerify(const byte* digest, const byte* sig, DsaKey* key, int* answer)
             break;
         }
 
+        qSz = mp_unsigned_bin_size(&key->q);
+        if (qSz <= 0) {
+            ret = BAD_FUNC_ARG;
+            break;
+        }
+
         /* set r and s from signature */
-        if (mp_read_unsigned_bin(r, sig, DSA_HALF_SIZE) != MP_OKAY ||
-            mp_read_unsigned_bin(s, sig + DSA_HALF_SIZE, DSA_HALF_SIZE) != MP_OKAY) {
+        if (mp_read_unsigned_bin(r, sig, qSz) != MP_OKAY ||
+            mp_read_unsigned_bin(s, sig + qSz, qSz) != MP_OKAY) {
             ret = MP_READ_E;
             break;
         }
