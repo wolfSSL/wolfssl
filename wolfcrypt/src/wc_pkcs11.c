@@ -3266,12 +3266,12 @@ static int Pkcs11AesCbcDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
     }
     if (ret == 0) {
         outLen = info->cipher.aescbc.sz;
-        rv = session->func->C_DecryptUpdate(session->handle,
+        rv = session->func->C_Decrypt(session->handle,
                                         (CK_BYTE_PTR)info->cipher.aescbc.in,
                                         info->cipher.aescbc.sz,
                                         info->cipher.aescbc.out,
                                         &outLen);
-        PKCS11_RV("C_DecryptUpdate", rv);
+        PKCS11_RV("C_Decrypt", rv);
         if (rv != CKR_OK) {
             ret = WC_HW_E;
         }
