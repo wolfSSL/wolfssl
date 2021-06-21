@@ -1940,7 +1940,11 @@ int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
 
 #ifndef NO_DSA
     case EVP_PKEY_DSA:
-        return DSA_SIG_SIZE;
+        if (pkey->dsa == NULL ||
+                (!pkey->dsa->exSet &&
+                        SetDsaExternal(pkey->dsa) != WOLFSSL_SUCCESS))
+            return WOLFSSL_FAILURE;
+        return wolfSSL_BN_num_bytes(pkey->dsa->p);
 #endif
 
 #ifdef HAVE_ECC
@@ -2417,7 +2421,7 @@ int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
 #ifndef NO_DSA
     case EVP_PKEY_DSA:
         if (wolfSSL_DSA_do_sign(md, sigret, pkey->dsa) == WOLFSSL_SUCCESS) {
-            *siglen = DSA_SIG_SIZE;
+            *siglen = wolfSSL_BN_num_bytes(pkey->dsa->q);
             return WOLFSSL_SUCCESS;
         }
         else {
