@@ -663,7 +663,8 @@ struct mygetopt_long_config {
  *                  present.
  * @return Option letter in argument
  */
-static WC_INLINE int mygetopt_long(int argc, char** argv, const char* optstring, const struct mygetopt_long_config *longopts, int *longindex)
+static WC_INLINE int mygetopt_long(int argc, char** argv, const char* optstring,
+    const struct mygetopt_long_config *longopts, int *longindex)
 {
     static char* next = NULL;
 
@@ -1374,7 +1375,7 @@ static int wolfsentry_setup(
             fprintf(stderr, "wolfsentry_config_json_init() returned "
                     WOLFSENTRY_ERROR_FMT "\n",
                     WOLFSENTRY_ERROR_FMT_ARGS(ret));
-            err_sys("error while initlalizing wolfSentry config parser");
+            err_sys("error while initializing wolfSentry config parser");
         }
 
         for (;;) {
@@ -1400,7 +1401,7 @@ static int wolfsentry_setup(
         }
 
     } else
-#endif /* !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON) */
+#endif /* !NO_FILESYSTEM && !WOLFSENTRY_NO_JSON */
     {
         struct wolfsentry_route_table *table;
 
@@ -1559,7 +1560,7 @@ static WC_INLINE int tcp_connect_with_wolfSentry(
         &wolfsentry_data->local,
         wolfsentry_data->flags,
         NULL /* event_label */,
-        0 /* event_label_len */,
+        0    /* event_label_len */,
         NULL /* caller_context */,
         NULL /* id */,
         NULL /* inexact_matches */,
@@ -1592,7 +1593,7 @@ static WC_INLINE int tcp_connect_with_wolfSentry(
            decision,
            decision == WOLFSSL_NETFILTER_REJECT ? "REJECT" :
            decision == WOLFSSL_NETFILTER_ACCEPT ? "ACCEPT" :
-           decision == WOLFSSL_NETFILTER_PASS ? "PASS" :
+           decision == WOLFSSL_NETFILTER_PASS ?   "PASS" :
            "???");
 
     if (decision == WOLFSSL_NETFILTER_REJECT)
@@ -1611,7 +1612,8 @@ static WC_INLINE int tcp_connect_with_wolfSentry(
     return WOLFSSL_SUCCESS;
 }
 
-#define tcp_connect(sockfd, ip, port, udp, sctp, ssl) tcp_connect_with_wolfSentry(sockfd, ip, port, udp, sctp, ssl, wolfsentry)
+#define tcp_connect(sockfd, ip, port, udp, sctp, ssl) \
+    tcp_connect_with_wolfSentry(sockfd, ip, port, udp, sctp, ssl, wolfsentry)
 
 #else /* !WOLFSSL_WOLFSENTRY_HOOKS */
 

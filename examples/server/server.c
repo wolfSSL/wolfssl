@@ -1099,7 +1099,8 @@ static void Usage(void)
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
     printf("%s", msg[++msgId]); /* -9 */
 #endif
-#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSENTRY_NO_JSON)
     printf("%s", msg[++msgId]); /* --wolfsentry-config */
 #endif
 }
@@ -1123,7 +1124,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifndef WOLFSSL_VXWORKS
     int    ch;
     static const struct mygetopt_long_config long_options[] = {
-#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSENTRY_NO_JSON)
         { "wolfsentry-config", 1, 256 },
 #endif
         { "help", 0, 257 },
@@ -1979,15 +1981,18 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         err_sys_ex(catastrophic, "unable to get ctx");
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
-    if (wolfsentry_setup(&wolfsentry, wolfsentry_config_path, WOLFSENTRY_ROUTE_FLAG_DIRECTION_IN) < 0)
+    if (wolfsentry_setup(&wolfsentry, wolfsentry_config_path,
+                                      WOLFSENTRY_ROUTE_FLAG_DIRECTION_IN) < 0) {
         err_sys("unable to initialize wolfSentry");
+    }
 
     if (wolfSSL_CTX_set_AcceptFilter(
             ctx,
             (NetworkFilterCallback_t)wolfSentry_NetworkFilterCallback,
-            wolfsentry) < 0)
+            wolfsentry) < 0) {
         err_sys_ex(catastrophic,
                    "unable to install wolfSentry_NetworkFilterCallback");
+    }
 #endif
 
     if (simulateWantWrite)
