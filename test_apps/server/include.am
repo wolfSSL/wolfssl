@@ -12,7 +12,6 @@ test_apps_server_test_server_DEPENDENCIES = src/libwolfssl.la
 test_apps_server_test_server_CFLAGS = $(WOLFSENTRY_INCLUDE) $(AM_CFLAGS)
 endif
 EXTRA_DIST += test_apps/server/test_server.sln
-EXTRA_DIST += test_apps/server/test_server-ntru.vcproj
 EXTRA_DIST += test_apps/server/test_server.vcproj
 EXTRA_DIST += test_apps/server/test_server.vcxproj
 

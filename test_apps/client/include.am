@@ -9,7 +9,6 @@ test_apps_client_test_client_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD)
 test_apps_client_test_client_DEPENDENCIES = src/libwolfssl.la                   
 endif
 EXTRA_DIST += test_apps/client/test_client.sln                                  
-EXTRA_DIST += test_apps/client/test_client-ntru.vcproj                          
 EXTRA_DIST += test_apps/client/test_client.vcproj                               
 EXTRA_DIST += test_apps/client/test_client.vcxproj                              
                                                                                  
