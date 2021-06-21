@@ -1537,6 +1537,8 @@ if(WOLFSSL_EXAMPLES)
         tests/unit.c
         test_apps/server/test_server.c
         test_apps/client/test_client.c)
+    # examples/client and examples/server aren't included because they no longer
+    # contain testing code
     target_include_directories(unit_test PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR})
     target_compile_options(unit_test PUBLIC "-DNO_MAIN_DRIVER")
@@ -1609,11 +1611,11 @@ set(INSTALLED_EXAMPLES
     ${CMAKE_CURRENT_SOURCE_DIR}/examples/sctp/sctp-client.c
     ${CMAKE_CURRENT_SOURCE_DIR}/examples/sctp/sctp-server-dtls.c
     ${CMAKE_CURRENT_SOURCE_DIR}/examples/echoclient/echoclient.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/server/test_server.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/examples/benchmark/tls_bench.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/client/test_client.c
     ${CMAKE_CURRENT_SOURCE_DIR}/examples/server/server.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/examples/client/client.c)
+    ${CMAKE_CURRENT_SOURCE_DIR}/examples/client/client.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/examples/benchmark/tls_bench.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/server/test_server.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_apps/client/test_client.c)
 
 # Install the library
 install(TARGETS wolfssl
