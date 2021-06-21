@@ -2452,7 +2452,7 @@ extern void uITRON4_free(void *p) ;
 
 /* Enable DH Extra for QT, openssl all, openssh and static ephemeral */
 /* Allows export/import of DH key and params as DER */
-#if !defined(WOLFSSL_DH_EXTRA) && \
+#if !defined(NO_DH) && !defined(WOLFSSL_DH_EXTRA) && \
     (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH) || \
      defined(WOLFSSL_STATIC_EPHEMERAL))
     #define WOLFSSL_DH_EXTRA
