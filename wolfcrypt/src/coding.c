@@ -113,7 +113,8 @@ static WC_INLINE byte Base64_Char2Val(byte c)
 }
 #endif
 
-static WC_INLINE int Base64_SkipNewline(const byte* in, word32 *inLen, word32 *outJ)
+int Base64_SkipNewline(const byte* in, word32 *inLen,
+  word32 *outJ)
 {
     word32 len = *inLen;
     word32 j = *outJ;

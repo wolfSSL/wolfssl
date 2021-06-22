@@ -79,6 +79,8 @@ WOLFSSL_API int Base64_Decode(const byte* in, word32 inLen, byte* out,
     int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen);
 #endif
 
+ WOLFSSL_LOCAL int Base64_SkipNewline(const byte* in, word32* inLen,
+            word32* outJ);
 
 #ifdef __cplusplus
     } /* extern "C" */
