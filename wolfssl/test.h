@@ -2043,7 +2043,7 @@ static WC_INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identit
     }
 }
 
-
+#ifdef WOLFSSL_TLS13
 static WC_INLINE unsigned int my_psk_client_tls13_cb(WOLFSSL* ssl,
         const char* hint, char* identity, unsigned int id_max_len,
         unsigned char* key, unsigned int key_max_len, const char** ciphersuite)
@@ -2100,6 +2100,7 @@ static WC_INLINE unsigned int my_psk_server_tls13_cb(WOLFSSL* ssl,
 
     return 32;   /* length of key in octets or 0 for error */
 }
+#endif
 
 #if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
        !defined(NO_FILESYSTEM)
