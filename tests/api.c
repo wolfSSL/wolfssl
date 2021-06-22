@@ -44537,7 +44537,7 @@ static int test_expired_ticket_rejection(void)
     return 0;
 }
 
-#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_TLS13)
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL)
 static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_server_thread(void* args)
 {
     callback_functions* callbacks = NULL;
@@ -44728,16 +44728,15 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_client_thread(void* args)
     CloseSocket(sfd);
     return 0;
 }
-#endif /* HAVE_SESSION_TICKET && !WOLFSSL_TLS13 */
+#endif /* OPENSSL_EXTRA && WOLFSSL_ERROR_CODE_OPENSSL */
 
 /* This test is to check wolfSSL_read behaves as same as
  * openSSL when it is called after SSL_shutdown completes.
  */
 static int test_wolfSSL_read_detect_TCP_disconnect(void)
 {
-
     int ret = 0;
-#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_TLS13)
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL)
     tcp_ready ready;
     func_args client_args;
     func_args server_args;
@@ -44790,8 +44789,7 @@ static int test_wolfSSL_read_detect_TCP_disconnect(void)
     FreeTcpReady(&ready);
 
     printf(resultFmt, passed);
-
-#endif /* HAVE_SESSION_TICKET && !WOLFSSL_TLS13*/
+#endif
     return ret;
 }
 static void test_wolfSSL_CTX_get_min_proto_version(void)
