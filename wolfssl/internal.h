@@ -2877,6 +2877,8 @@ struct WOLFSSL_CTX {
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
     NetworkFilterCallback_t AcceptFilter;
     void *AcceptFilter_arg;
+    NetworkFilterCallback_t ConnectFilter;
+    void *ConnectFilter_arg;
 #endif /* WOLFSSL_WOLFSENTRY_HOOKS */
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
@@ -4109,6 +4111,8 @@ struct WOLFSSL {
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
     NetworkFilterCallback_t AcceptFilter;
     void *AcceptFilter_arg;
+    NetworkFilterCallback_t ConnectFilter;
+    void *ConnectFilter_arg;
 #endif /* WOLFSSL_WOLFSENTRY_HOOKS */
     CallbackIORecv  CBIORecv;
     CallbackIOSend  CBIOSend;

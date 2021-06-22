@@ -8236,6 +8236,18 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         return WOLFSSL_FATAL_ERROR;
     }
 
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+    if (ssl->ConnectFilter) {
+        wolfSSL_netfilter_decision_t res;
+        if ((ssl->ConnectFilter(ssl, ssl->ConnectFilter_arg, &res) ==
+             WOLFSSL_SUCCESS) &&
+            (res == WOLFSSL_NETFILTER_REJECT)) {
+            WOLFSSL_ERROR(ssl->error = SOCKET_FILTERED_E);
+            return WOLFSSL_FATAL_ERROR;
+        }
+    }
+#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
+
     if (ssl->buffers.outputBuffer.length > 0
     #ifdef WOLFSSL_ASYNC_CRYPT
         /* do not send buffered or advance state if last error was an

@@ -1187,6 +1187,14 @@ WOLFSSL_API int wolfSSL_set_AcceptFilter(
     WOLFSSL *ssl,
     NetworkFilterCallback_t AcceptFilter,
     void *AcceptFilter_arg);
+WOLFSSL_API int wolfSSL_CTX_set_ConnectFilter(
+    WOLFSSL_CTX *ctx,
+    NetworkFilterCallback_t ConnectFilter,
+    void *ConnectFilter_arg);
+WOLFSSL_API int wolfSSL_set_ConnectFilter(
+    WOLFSSL *ssl,
+    NetworkFilterCallback_t ConnectFilter,
+    void *ConnectFilter_arg);
 
 #endif /* WOLFSSL_WOLFSENTRY_HOOKS */
 
@@ -4445,13 +4453,13 @@ WOLFSSL_API int wolfSSL_CONF_CTX_finish(WOLFSSL_CONF_CTX* cctx);
 #define WOLFSSL_CONF_TYPE_FILE          0x2
 
 WOLFSSL_API int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value);
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+#endif /* OPENSSL_EXTRA */
+#if defined(HAVE_EX_DATA) || defined(FORTRESS) || defined(WOLFSSL_WPAS_SMALL)
 WOLFSSL_API int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
                                            WOLFSSL_CRYPTO_EX_new* new_func,
                                            WOLFSSL_CRYPTO_EX_dup* dup_func,
                                            WOLFSSL_CRYPTO_EX_free* free_func);
 #endif /* HAVE_EX_DATA || FORTRESS */
-#endif /* OPENSSL_EXTRA */
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

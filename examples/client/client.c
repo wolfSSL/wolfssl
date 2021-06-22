@@ -30,6 +30,13 @@
 
 #include <wolfssl/ssl.h>
 
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+#include <wolfsentry/wolfsentry.h>
+#if !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+static const char *wolfsentry_config_path = NULL;
+#endif
+#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
+
 #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
         #include <stdio.h>
         #include <string.h>
@@ -967,7 +974,7 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* client_usage_msg[][67] = {
+static const char* client_usage_msg[][68] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",          /* 0 */
@@ -989,7 +996,8 @@ static const char* client_usage_msg[][67] = {
         "INFINITE\n",                                               /* 2 */
 #endif
         "-? <num>    Help, print this usage\n"
-        "            0: English, 1: Japanese\n",                    /* 3 */
+        "            0: English, 1: Japanese\n"
+        "--help      Help, in English\n",                           /* 3 */
         "-h <host>   Host to connect to, default",                  /* 4 */
         "-p <num>    Port to connect on, not 0, default",           /* 5 */
 
@@ -1148,6 +1156,11 @@ static const char* client_usage_msg[][67] = {
         "            ln -s ca-cert.pem  `openssl x509 -in ca-cert.pem -hash -noout`.0\n",
                                                                        /* 67 */
 #endif
+#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSENTRY_NO_JSON)
+        "--wolfsentry-config <file>    Path for JSON wolfSentry config\n",
+                                                                       /* 68 */
+#endif
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1171,7 +1184,8 @@ static const char* client_usage_msg[][67] = {
         "無限\n",                                                        /* 2 */
 #endif
         "-? <num>    ヘルプ, 使い方を表示\n"
-                            "            0: 英語、 1: 日本語\n",         /* 3 */
+        "            0: 英語、 1: 日本語\n"
+        "--ヘルプ     使い方を表示, 日本語で\n",                          /* 3 */
         "-h <host>   接続先ホスト, 既定値",                              /* 4 */
         "-p <num>    接続先ポート, 0は無効, 既定値",                     /* 5 */
 
@@ -1333,6 +1347,11 @@ static const char* client_usage_msg[][67] = {
         "            ln -s ca-cert.pem  `openssl x509 -in ca-cert.pem -hash -noout`.0\n",
                                                                         /* 67 */
 #endif
+#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSENTRY_NO_JSON)
+        "--wolfsentry-config <file>    wolfSentry コンフィグファイル\n",
+                                                                       /* 68 */
+#endif
         NULL,
     },
 #endif
@@ -1446,6 +1465,7 @@ static void Usage(void)
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     printf("%s", msg[++msgid]); /* -W */
+    printf("%s", msg[++msgid]); /* note for -W */
 #endif
 #if defined(ATOMIC_USER) && !defined(WOLFSSL_AEAD_ONLY)
     printf("%s", msg[++msgid]); /* -U */
@@ -1510,6 +1530,10 @@ static void Usage(void)
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
     printf("%s", msg[++msgid]); /* -9 */
 #endif
+#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSENTRY_NO_JSON)
+    printf("%s", msg[++msgid]); /* --wolfsentry-config */
+#endif
 }
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
@@ -1519,6 +1543,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     wolfSSL_method_func method = NULL;
     WOLFSSL_CTX*     ctx     = 0;
     WOLFSSL*         ssl     = 0;
+
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+    wolfsentry_errcode_t wolfsentry_ret;
+#endif
 
     WOLFSSL*         sslResume = 0;
     WOLFSSL_SESSION* session = 0;
@@ -1537,6 +1565,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                                        */
 #ifndef WOLFSSL_VXWORKS
     int    ch;
+    static const struct mygetopt_long_config long_options[] = {
+#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSENTRY_NO_JSON)
+        { "wolfsentry-config", 1, 256 },
+#endif
+        { "help", 0, 257 },
+        { "ヘルプ", 0, 258 },
+        { 0, 0, 0 }
+    };
 #endif
     int    version = CLIENT_INVALID_VERSION;
     int    minVersion = CLIENT_INVALID_VERSION;
@@ -1736,11 +1773,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef WOLFSSL_VXWORKS
     /* Not used: All used */
-    while ((ch = mygetopt(argc, argv, "?:"
+    while ((ch = mygetopt_long(argc, argv, "?:"
             "ab:c:defgh:i;jk:l:mnop:q:rstu;v:wxyz"
             "A:B:CDE:F:GH:IJKL:M:NO:PQRS:TUVW:XYZ:"
             "01:23:4567:89"
-            "@#")) != -1) {
+            "@#", long_options, 0)) != -1) {
         switch (ch) {
             case '?' :
                 if(myoptarg!=NULL) {
@@ -1749,6 +1786,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                         lng_index = 0;
                     }
                 }
+                Usage();
+                XEXIT_T(EXIT_SUCCESS);
+
+            case 257 :
+                lng_index = 0;
+                Usage();
+                XEXIT_T(EXIT_SUCCESS);
+
+            case 258 :
+                lng_index = 1;
                 Usage();
                 XEXIT_T(EXIT_SUCCESS);
 
@@ -2231,8 +2278,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
                     useCertFolder = 1;
-                    break;
 #endif
+                    break;
             case '@' :
             {
 #ifdef HAVE_WC_INTROSPECTION
@@ -2266,6 +2313,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 XEXIT_T(MY_EX_USAGE);
 #endif
             }
+
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+            case 256:
+#if !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
+                wolfsentry_config_path = myoptarg;
+#endif
+                break;
+#endif
 
             default:
                 Usage();
@@ -2506,6 +2561,22 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (wolfSSL_CTX_new_rng(ctx) != WOLFSSL_SUCCESS) {
         wolfSSL_CTX_free(ctx); ctx = NULL;
         err_sys("Single Threaded new rng at CTX failed");
+    }
+#endif
+
+
+
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+    if (wolfsentry_setup(&wolfsentry, wolfsentry_config_path,
+                                     WOLFSENTRY_ROUTE_FLAG_DIRECTION_OUT) < 0) {
+        err_sys("unable to initialize wolfSentry");
+    }
+
+    if (wolfSSL_CTX_set_ConnectFilter(
+            ctx,
+            (NetworkFilterCallback_t)wolfSentry_NetworkFilterCallback,
+            wolfsentry) < 0) {
+        err_sys("unable to install wolfSentry_NetworkFilterCallback");
     }
 #endif
 
@@ -3853,6 +3924,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     ((func_args*)args)->return_code = 0;
 
 exit:
+
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+    wolfsentry_ret = wolfsentry_shutdown(&wolfsentry);
+    if (wolfsentry_ret < 0) {
+        fprintf(stderr,
+                "wolfsentry_shutdown() returned " WOLFSENTRY_ERROR_FMT "\n",
+                WOLFSENTRY_ERROR_FMT_ARGS(wolfsentry_ret));
+    }
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     wolfAsync_DevClose(&devId);

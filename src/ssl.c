@@ -1025,7 +1025,7 @@ int wolfSSL_CTX_set_AcceptFilter(
         return BAD_FUNC_ARG;
     ctx->AcceptFilter = AcceptFilter;
     ctx->AcceptFilter_arg = AcceptFilter_arg;
-    return WOLFSSL_SUCCESS;
+    return 0;
 }
 
 int wolfSSL_set_AcceptFilter(
@@ -1037,7 +1037,31 @@ int wolfSSL_set_AcceptFilter(
         return BAD_FUNC_ARG;
     ssl->AcceptFilter = AcceptFilter;
     ssl->AcceptFilter_arg = AcceptFilter_arg;
-    return WOLFSSL_SUCCESS;
+    return 0;
+}
+
+int wolfSSL_CTX_set_ConnectFilter(
+    WOLFSSL_CTX *ctx,
+    NetworkFilterCallback_t ConnectFilter,
+    void *ConnectFilter_arg)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+    ctx->ConnectFilter = ConnectFilter;
+    ctx->ConnectFilter_arg = ConnectFilter_arg;
+    return 0;
+}
+
+int wolfSSL_set_ConnectFilter(
+    WOLFSSL *ssl,
+    NetworkFilterCallback_t ConnectFilter,
+    void *ConnectFilter_arg)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+    ssl->ConnectFilter = ConnectFilter;
+    ssl->ConnectFilter_arg = ConnectFilter_arg;
+    return 0;
 }
 
 #endif /* WOLFSSL_WOLFSENTRY_HOOKS */
@@ -12581,6 +12605,18 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             return wolfSSL_connect_TLSv13(ssl);
         #endif
 
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+        if (ssl->ConnectFilter) {
+            wolfSSL_netfilter_decision_t res;
+            if ((ssl->ConnectFilter(ssl, ssl->ConnectFilter_arg, &res) ==
+                 WOLFSSL_SUCCESS) &&
+                (res == WOLFSSL_NETFILTER_REJECT)) {
+                WOLFSSL_ERROR(ssl->error = SOCKET_FILTERED_E);
+                return WOLFSSL_FATAL_ERROR;
+            }
+        }
+#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
+
         if (ssl->options.side != WOLFSSL_CLIENT_END) {
             WOLFSSL_ERROR(ssl->error = SIDE_ERROR);
             return WOLFSSL_FATAL_ERROR;
@@ -12942,6 +12978,15 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         }
     #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
 
+#if defined(WOLFSSL_NO_TLS12) && defined(NO_OLD_TLS) && defined(WOLFSSL_TLS13)
+        return wolfSSL_accept_TLSv13(ssl);
+#else
+    #ifdef WOLFSSL_TLS13
+        if (ssl->options.tls1_3)
+            return wolfSSL_accept_TLSv13(ssl);
+    #endif
+        WOLFSSL_ENTER("SSL_accept()");
+
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
         if (ssl->AcceptFilter) {
             wolfSSL_netfilter_decision_t res;
@@ -12953,15 +12998,6 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             }
         }
 #endif /* WOLFSSL_WOLFSENTRY_HOOKS */
-
-#if defined(WOLFSSL_NO_TLS12) && defined(NO_OLD_TLS) && defined(WOLFSSL_TLS13)
-        return wolfSSL_accept_TLSv13(ssl);
-#else
-    #ifdef WOLFSSL_TLS13
-        if (ssl->options.tls1_3)
-            return wolfSSL_accept_TLSv13(ssl);
-    #endif
-        WOLFSSL_ENTER("SSL_accept()");
 
         #ifdef HAVE_ERRNO_H
             errno = 0;
@@ -43660,10 +43696,7 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
 
 #endif /* OPENSSL_EXTRA */
 
-#if ((defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && defined(HAVE_EX_DATA) || \
-      defined(FORTRESS) || defined(WOLFSSL_WPAS_SMALL) || defined(OPENSSL_EXTRA) || \
-      defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-      defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY))
+#if defined(HAVE_EX_DATA) || defined(FORTRESS) || defined(WOLFSSL_WPAS_SMALL)
 /**
  * get_ex_new_index is a helper function for the following
  * xx_get_ex_new_index functions:
@@ -43713,7 +43746,7 @@ static int get_ex_new_index(int class_index)
     }
     return index;
 }
-#endif /* HAVE_EX_DATA || FORTRESS */
+#endif /* HAVE_EX_DATA || FORTRESS || WOLFSSL_WPAS_SMALL */
 
 #if defined(HAVE_EX_DATA) || defined(FORTRESS) || defined(WOLFSSL_WPAS_SMALL)
 void* wolfSSL_CTX_get_ex_data(const WOLFSSL_CTX* ctx, int idx)
@@ -47442,8 +47475,9 @@ void wolfSSL_OPENSSL_config(char *config_name)
 #endif /* !NO_WOLFSSL_STUB */
 #endif /* OPENSSL_ALL || WOLFSSL_NGINX || WOLFSSL_HAPROXY || HAVE_STUNNEL*/
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
-    || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
+#if defined(HAVE_EX_DATA) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) \
+     || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)                   \
+     || defined(HAVE_LIGHTY))
 
 int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a, void *b, void *c)
 {
@@ -48547,6 +48581,7 @@ int wolfSSL_sk_WOLFSSL_STRING_num(WOLF_STACK_OF(WOLFSSL_STRING)* strings)
         return (int)strings->num;
     return 0;
 }
+
 #endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || OPENSSL_EXTRA || OPENSSL_ALL */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
@@ -54003,6 +54038,30 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
     return ret;
 }
 
+/**
+ * Return DH p, q and g parameters
+ * @param dh a pointer to WOLFSSL_DH
+ * @param p  a pointer to WOLFSSL_BIGNUM to be obtained from dh
+ * @param q  a pointer to WOLFSSL_BIGNUM to be obtained from dh
+ * @param q  a pointer to WOLFSSL_BIGNUM to be obtained from dh
+ */
+void wolfSSL_DH_get0_pqg(const WOLFSSL_DH *dh, const WOLFSSL_BIGNUM **p, 
+                    const WOLFSSL_BIGNUM **q, const WOLFSSL_BIGNUM **g)
+{
+    WOLFSSL_ENTER("wolfSSL_DH_get0_pqg");
+    if (dh == NULL)
+        return;
+
+    if (p != NULL)
+        *p = dh->p;
+    if (q != NULL)
+        *q = dh->q;
+    if (g != NULL)
+        *g = dh->g;
+}
+
+#endif /* OPENSSL_EXTRA */
+
 #if defined(HAVE_EX_DATA) || defined(FORTRESS)
 /**
  * Issues unique index for the class specified by class_index.
@@ -54034,30 +54093,6 @@ int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
     return get_ex_new_index(class_index);
 }
 #endif /* HAVE_EX_DATA || FORTRESS */
-
-/**
- * Return DH p, q and g parameters
- * @param dh a pointer to WOLFSSL_DH
- * @param p  a pointer to WOLFSSL_BIGNUM to be obtained from dh
- * @param q  a pointer to WOLFSSL_BIGNUM to be obtained from dh
- * @param q  a pointer to WOLFSSL_BIGNUM to be obtained from dh
- */
-void wolfSSL_DH_get0_pqg(const WOLFSSL_DH *dh, const WOLFSSL_BIGNUM **p, 
-                    const WOLFSSL_BIGNUM **q, const WOLFSSL_BIGNUM **g)
-{
-    WOLFSSL_ENTER("wolfSSL_DH_get0_pqg");
-    if (dh == NULL)
-        return;
-
-    if (p != NULL)
-        *p = dh->p;
-    if (q != NULL)
-        *q = dh->q;
-    if (g != NULL)
-        *g = dh->g;
-}
-
-#endif /* OPENSSL_EXTRA */
 
 #ifndef NO_CERTS
 
@@ -56858,4 +56893,3 @@ int wolfSSL_PKCS12_verify_mac(WC_PKCS12 *pkcs12, const char *psw,
 /*******************************************************************************
  * END OF CRYPTO-ONLY APIs
  ******************************************************************************/
-
