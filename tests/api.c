@@ -44235,8 +44235,8 @@ static int test_wolfSSL_CTX_set_ecdh_auto(void)
     return ret;
 }
 
-#if defined(HAVE_SESSION_TICKET) && defined(OPENSSL_EXTRA) && \
-    defined(WOLFSSL_ERROR_CODE_OPENSSL)
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TICKET_EXPIRE) && \
+    !defined(NO_ASN_TIME)
 static THREAD_RETURN WOLFSSL_THREAD test_server_set_timeout_loop(void* args)
 {
     callback_functions* callbacks = NULL;
@@ -44250,9 +44250,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_set_timeout_loop(void* args)
     char input[1024];
     int  ret, err;
     int  count;
-
-    (void)port;
-
+    int  lstn;
     if (!args)
         return 0;
 
@@ -44285,10 +44283,14 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_set_timeout_loop(void* args)
     if (callbacks->ctx_ready)
         callbacks->ctx_ready(ctx);
 
-    /* set session ticket timeout to 1 sec */
-    AssertIntEQ(WOLFSSL_SUCCESS,
-        wolfSSL_CTX_set_timeout(ctx, 1));
-
+    /* set session ticket timeout to 1 sec.
+     * wolfSSL_CTX_setTicketHint modifies the "Session Ticket Lifetime
+     * Hint" in NewSessionTicket packet, but does not affect session
+     * resumption.
+     * wolfSSL_CTX_set_timeout is essential for resuming decisions.
+     */
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_set_TicketHint(ctx, 1));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_set_timeout(ctx, 1));
 
     for (count = 0; count < 2; count++) {
 
@@ -44296,7 +44298,8 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_set_timeout_loop(void* args)
         AssertNotNull(ssl);
 
         /* listen and accept */
-        tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0, 0, 1, 0, 0);
+        lstn = (count == 0)?1:0;
+        tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0, 0, lstn, 0, 0);
 
         AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_set_fd(ssl, cfd));
 
@@ -44399,7 +44402,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_client_try_resumption(void* args)
                 wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile,
                 WOLFSSL_FILETYPE_PEM));
 
-    /* Show a request to the server to issue a session ticket */
+    /* use session ticket */
     AssertIntEQ(WOLFSSL_SUCCESS,
                 wolfSSL_CTX_UseSessionTicket(ctx));
 
@@ -44408,10 +44411,11 @@ static THREAD_RETURN WOLFSSL_THREAD test_client_try_resumption(void* args)
         AssertNotNull((ssl = wolfSSL_new(ctx)));
 
         if (count == 1) {
-            /*  wolfSSL_set_session should accept the expired session ticket
-             *  when WOLFSSL_ERROR_CODE_OPENSSL is defined.
-             */
+            /*  set session ticket got in the previous session */
             AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_set_session(ssl, session));
+
+            /* add delay of 2 sec to ensure the session ticket expires */
+            XSLEEP_MS(2000);
         }
 
         tcp_connect(&sfd, wolfSSLIP, ((func_args*)args)->signal->port, 0, 0, 
@@ -44424,6 +44428,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_client_try_resumption(void* args)
             if (ret != WOLFSSL_SUCCESS) {
                 err = wolfSSL_get_error(ssl, 0);
             }
+
         } while (ret != WOLFSSL_SUCCESS && err == WC_PENDING_E);
 
         ret = wolfSSL_write(ssl, msg, len);
@@ -44443,8 +44448,6 @@ static THREAD_RETURN WOLFSSL_THREAD test_client_try_resumption(void* args)
             session = wolfSSL_get_session(ssl);
             AssertNotNull(session);
 
-            /* add delay of 2 sec to ensure the session ticket expires */
-            XSLEEP_MS(2000);
         }
         else {
             /* make sure the session resumption failed as expected */
@@ -44460,33 +44463,21 @@ static THREAD_RETURN WOLFSSL_THREAD test_client_try_resumption(void* args)
     ((func_args*)args)->return_code = TEST_SUCCESS;
 
     wolfSSL_CTX_free(ctx);
-     
+
     return 0;
 }
-#endif /* HAVE_SESSION_TICKET && OPENSSL_EXTRA && WOLFSSL_ERROR_CODE_OPENSSL */
+#endif /* HAVE_SESSION_TICKET && !WOLFSSL_NO_TICKET_EXPIRE && !NO_ASN_TIME */
 
 /*  This test function is to check if the expired session ticket
  *  is rejected by server in TLS1.2. In this test, server thread sets 
  *  session-ticket-timeout to 1 sec and client thread tries session resumption
  *  after 2 sec delay from the first session. The session resumption should fail
  *  due to the expired session ticket and fall back to hull handshake.
- *  
- *  To test this server side behavior, the client must intentionally set 
- *  an expired session ticket with wolfSSL_set_session API.
- *  However, the API rejects the expired session ticket by default.
- *  To solve this dilemma, define WOLFSSL_ERROR_CODE_OPENSSL and
- *  OPENSSL_EXTRA macros to make the API accept the expired ticket.
- *  
- *  For this test, following macros are essential:
- *  - HAVE_SESSION_TICKET
- *  - OPENSSL_EXTRA
- *  - WOLFSSL_ERROR_CODE_OPENSSL
- * 
  */
 static int test_expired_ticket_rejection(void)
 {
-#if defined(HAVE_SESSION_TICKET) && defined(OPENSSL_EXTRA) && \
-    defined(WOLFSSL_ERROR_CODE_OPENSSL)
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TICKET_EXPIRE) && \
+    !defined(NO_ASN_TIME)
 
     tcp_ready ready;
     func_args client_args;
@@ -44542,7 +44533,7 @@ static int test_expired_ticket_rejection(void)
     FreeTcpReady(&ready);
 
     printf(resultFmt, passed);
-#endif /* HAVE_SESSION_TICKET && OPENSSL_EXTRA && WOLFSSL_ERROR_CODE_OPENSSL */
+#endif /* HAVE_SESSION_TICKET && !WOLFSSL_NO_TICKET_EXPIRE && !NO_ASN_TIME */
     return 0;
 }
 
