@@ -6919,12 +6919,33 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
         /* pass directory read failure to response code */
         if (fileRet != WC_READDIR_NOFILE) {
             ret = fileRet;
+    #if defined(WOLFSSL_QT)
+            if (ret == BAD_PATH_ERROR && 
+                flags & WOLFSSL_LOAD_FLAG_IGNORE_BAD_PATH_ERR) {
+               /* QSslSocket always loads certs in system folder 
+                * when it is initialized.
+                * Compliant with OpenSSL when flag sets.
+                */
+                ret = WOLFSSL_SUCCESS;
+            }
+            else {
+                /* qssl socket wants to know errors. */
+                WOLFSSL_ERROR(ret);
+            }
+    #endif
         }
         /* report failure if no files were loaded or there were failures */
         else if (successCount == 0 || failCount > 0) {
             /* use existing error code if exists */
+    #if defined(WOLFSSL_QT)
+            /* compliant with OpenSSL when flag sets*/
+            if (!(flags & WOLFSSL_LOAD_FLAG_IGNORE_ZEROFILE)) {
+    #endif
             if (ret == WOLFSSL_SUCCESS)
                 ret = WOLFSSL_FAILURE;
+    #if defined(WOLFSSL_QT)
+            }
+    #endif
         }
         else {
             ret = WOLFSSL_SUCCESS;
@@ -18828,6 +18849,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
         }
         ret = DecodeToX509(x509, ssl->session.chain.certs[i].buffer,
                              ssl->session.chain.certs[i].length);
+#if !defined(WOLFSSL_QT)
         if (ret == 0 && i == ssl->session.chain.count-1) {
             /* On the last element in the chain try to add the CA chain
              * first if we have one for this cert */
@@ -18836,6 +18858,9 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
                 ret = WOLFSSL_FATAL_ERROR;
             }
         }
+#else
+        (void)pushCAx509Chain;
+#endif
 
         if (ret != 0 || wolfSSL_sk_X509_push(sk, x509) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Error decoding cert");
@@ -18848,6 +18873,13 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
     if (sk == NULL) {
         WOLFSSL_MSG("Null session chain");
     }
+#if defined(OPENSSL_ALL)
+    else if (ssl->options.side == WOLFSSL_SERVER_END) {
+        /* to be compliant with openssl 
+           first element is kept as peer cert on server side.*/
+        wolfSSL_sk_X509_shift(sk);
+    }
+#endif
     /* This is Free'd when ssl is Free'd */
     ssl->peerCertChain = sk;
     return sk;

@@ -1873,6 +1873,14 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->noPskDheKe = 1;
 #endif
 
+#if defined(WOLFSSL_QT) && !defined(NO_PSK)
+    /* Qt retrieves supported cipher list at initialization 
+     * from get_cipher_compat().
+     * Qt doesn't allow to use a cipher if it is not in the supported list.
+     * Therefore, we need to enable PSK cipher at the beginning.
+     */
+    ctx->havePSK = 1;
+#endif
     ctx->heap = heap; /* wolfSSL_CTX_load_static_memory sets */
 
 #ifdef HAVE_WOLF_EVENT
@@ -19092,6 +19100,12 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 #else
 
     int error = (int)e;
+#ifdef OPENSSL_EXTRA
+    /* OpenSSL uses positive error codes */
+    if (error > 0) {
+        error = -error;
+    }
+#endif
 
     /* pass to wolfCrypt */
     if (error < MAX_CODE_E && error > MIN_CODE_E) {
