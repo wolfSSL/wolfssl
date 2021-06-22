@@ -13611,6 +13611,20 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     }
 #endif /* WOLFSSL_ASYNC_CRYPT || WOLFSSL_NONBLOCK_OCSP */
 
+#ifdef WOLFSSL_DTLS
+    if (ret == 0) {
+        if (type == client_hello) {
+            /* Advance expected number only if cookie exchange complete */
+            if (ssl->msgsReceived.got_client_hello)
+                ssl->keys.dtls_expected_peer_handshake_number =
+                    ssl->keys.dtls_peer_handshake_number + 1;
+        }
+        else if (type != finished) {
+            ssl->keys.dtls_expected_peer_handshake_number++;
+        }
+    }
+#endif
+
     WOLFSSL_LEAVE("DoHandShakeMsgType()", ret);
     return ret;
 }
@@ -13977,8 +13991,6 @@ static int DtlsMsgDrain(WOLFSSL* ssl)
         word32 idx = 0;
         if ((ret = DoHandShakeMsgType(ssl, item->msg, &idx, item->type,
                                       item->sz, item->sz)) == 0) {
-            if (item->type != finished)
-                ssl->keys.dtls_expected_peer_handshake_number++;
             DtlsTxMsgListClean(ssl);
         }
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -14067,8 +14079,8 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
          * number. (If the cookie changes multiple times in quick succession,
          * the client could be sending multiple new client hello messages
          * with newer and newer cookies.) */
-        WOLFSSL_MSG("Current message is out of order");
         if (type != client_hello) {
+            WOLFSSL_MSG("Current message is out of order");
             if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
                 DtlsMsgStore(ssl, ssl->keys.curEpoch,
                              ssl->keys.dtls_peer_handshake_number,
@@ -14102,10 +14114,6 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         }
         else {
             ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
-            if (ret == 0) {
-                ssl->keys.dtls_expected_peer_handshake_number =
-                    ssl->keys.dtls_peer_handshake_number + 1;
-            }
         }
     }
     else if (ssl->keys.dtls_peer_handshake_number <
@@ -14202,8 +14210,6 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
         if (ret == 0) {
             DtlsTxMsgListClean(ssl);
-            if (type != finished)
-                ssl->keys.dtls_expected_peer_handshake_number++;
             if (ssl->dtls_rx_msg_list != NULL) {
                 ret = DtlsMsgDrain(ssl);
             }
