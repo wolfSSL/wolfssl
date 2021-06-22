@@ -665,11 +665,12 @@ static WC_INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userda
 
 #endif
 
-static const char* client_showpeer_msg[][8] = {
+static const char* client_showpeer_msg[][9] = {
     /* English */
     {
         "SSL version is",
         "SSL cipher suite is",
+        "SSL signature algorithm is",
         "SSL curve name is",
         "SSL DH size is",
         "SSL reused session",
@@ -682,6 +683,7 @@ static const char* client_showpeer_msg[][8] = {
     {
         "SSL バージョンは",
         "SSL 暗号スイートは",
+        "SSL signature algorithm is",
         "SSL 曲線名は",
         "SSL DH サイズは",
         "SSL 再利用セッション",
@@ -829,6 +831,9 @@ static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
 #ifndef NO_DH
     int bits;
 #endif
+#ifdef OPENSSL_EXTRA
+    int nid;
+#endif
 #ifdef KEEP_PEER_CERT
     WOLFSSL_X509* peer = wolfSSL_get_peer_certificate(ssl);
     if (peer)
@@ -851,20 +856,25 @@ static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
 #else
     printf("%s %s\n", words[1], wolfSSL_CIPHER_get_name(cipher));
 #endif
+#ifdef OPENSSL_EXTRA
+    if (wolfSSL_get_signature_nid(ssl, &nid) == WOLFSSL_SUCCESS) {
+        printf("%s %s\n", words[2], OBJ_nid2sn(nid));
+    }
+#endif
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || \
                                                                  !defined(NO_DH)
     if ((name = wolfSSL_get_curve_name(ssl)) != NULL)
-        printf("%s %s\n", words[2], name);
+        printf("%s %s\n", words[3], name);
 #endif
 #ifndef NO_DH
     else if ((bits = wolfSSL_GetDhKey_Sz(ssl)) > 0)
-        printf("%s %d bits\n", words[3], bits);
+        printf("%s %d bits\n", words[4], bits);
 #endif
     if (wolfSSL_session_reused(ssl))
-        printf("%s\n", words[4]);
+        printf("%s\n", words[5]);
 #ifdef WOLFSSL_ALT_CERT_CHAINS
     if (wolfSSL_is_peer_alt_cert_chain(ssl))
-        printf("%s\n", words[5]);
+        printf("%s\n", words[6]);
 #endif
 
 #if defined(SHOW_CERTS) && defined(SESSION_CERTS) && \

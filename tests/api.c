@@ -30558,6 +30558,128 @@ static void test_wolfSSL_sk_SSL_CIPHER(void)
              !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
 }
 
+static void test_wolfSSL_set1_sigalgs_list(void)
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA)
+    SSL*     ssl;
+    SSL_CTX* ctx;
+
+#ifndef NO_WOLFSSL_SERVER
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+#else
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
+#endif
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile,
+               SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+    AssertNotNull(ssl = SSL_new(ctx));
+
+    AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(NULL, NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_set1_sigalgs_list(NULL, NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_set1_sigalgs_list(ssl, NULL), WOLFSSL_FAILURE);
+
+    AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, ""), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_set1_sigalgs_list(ssl, ""), WOLFSSL_FAILURE);
+
+#ifndef NO_RSA
+    #ifndef NO_SHA256
+        AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(NULL, "RSA+SHA256"),
+                    WOLFSSL_FAILURE);
+        AssertIntEQ(wolfSSL_set1_sigalgs_list(NULL, "RSA+SHA256"),
+                    WOLFSSL_FAILURE);
+
+        AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "RSA+SHA256"),
+                    WOLFSSL_SUCCESS);
+        AssertIntEQ(wolfSSL_set1_sigalgs_list(ssl, "RSA+SHA256"),
+                    WOLFSSL_SUCCESS);
+        AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "RSA-SHA256"),
+                    WOLFSSL_FAILURE);
+        AssertIntEQ(wolfSSL_set1_sigalgs_list(ssl, "RSA-SHA256"),
+                    WOLFSSL_FAILURE);
+        #ifdef WC_RSA_PSS
+            AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "RSA-PSS+SHA256"),
+                        WOLFSSL_SUCCESS);
+            AssertIntEQ(wolfSSL_set1_sigalgs_list(ssl, "RSA-PSS+SHA256"),
+                        WOLFSSL_SUCCESS);
+            AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "PSS+SHA256"),
+                        WOLFSSL_SUCCESS);
+            AssertIntEQ(wolfSSL_set1_sigalgs_list(ssl, "PSS+SHA256"),
+                        WOLFSSL_SUCCESS);
+        #endif
+        #ifdef WOLFSSL_SHA512
+            AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx,
+                       "RSA+SHA256:RSA+SHA512"), WOLFSSL_SUCCESS);
+            AssertIntEQ(wolfSSL_set1_sigalgs_list(ssl,
+                       "RSA+SHA256:RSA+SHA512"), WOLFSSL_SUCCESS);
+        #elif defined(WOLFSSL_SHA384)
+            AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx,
+                       "RSA+SHA256:RSA+SHA384"), WOLFSSL_SUCCESS);
+            AssertIntEQ(wolfSSL_set1_sigalgs_list(ssl,
+                       "RSA+SHA256:RSA+SHA384"), WOLFSSL_SUCCESS);
+        #endif
+        AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "RSA"), WOLFSSL_FAILURE);
+        AssertIntEQ(wolfSSL_set1_sigalgs_list(ssl, "RSA"), WOLFSSL_FAILURE);
+        AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "RSA:RSA+SHA256"),
+                    WOLFSSL_FAILURE);
+        AssertIntEQ(wolfSSL_set1_sigalgs_list(ssl, "RSA:RSA+SHA256"),
+                    WOLFSSL_FAILURE);
+
+        AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "RSA+SHA256+SHA256"),
+                    WOLFSSL_FAILURE);
+        AssertIntEQ(wolfSSL_set1_sigalgs_list(ssl, "RSA+SHA256+RSA"),
+                    WOLFSSL_FAILURE);
+    #endif
+#endif
+#ifdef HAVE_ECC
+    #ifndef NO_SHA256
+        AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "ECDSA+SHA256"),
+                    WOLFSSL_SUCCESS);
+        AssertIntEQ(wolfSSL_set1_sigalgs_list(ssl, "ECDSA+SHA256"), WOLFSSL_SUCCESS);
+        #ifdef WOLFSSL_SHA512
+            AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx,
+                       "ECDSA+SHA256:ECDSA+SHA512"), WOLFSSL_SUCCESS);
+            AssertIntEQ(wolfSSL_set1_sigalgs_list(ssl,
+                       "ECDSA+SHA256:ECDSA+SHA512"), WOLFSSL_SUCCESS);
+        #elif defined(WOLFSSL_SHA384)
+            AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx,
+                       "ECDSA+SHA256:ECDSA+SHA384"), WOLFSSL_SUCCESS);
+            AssertIntEQ(wolfSSL_set1_sigalgs_list(ssl,
+                       "ECDSA+SHA256:ECDSA+SHA384"), WOLFSSL_SUCCESS);
+        #endif
+    #endif
+#endif
+#ifdef HAVE_ED25519
+    AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "ED25519"), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_set1_sigalgs_list(ssl, "ED25519"), WOLFSSL_SUCCESS);
+#endif
+#ifdef HAVE_ED448
+    AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "ED448"), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_set1_sigalgs_list(ssl, "ED448"), WOLFSSL_SUCCESS);
+#endif
+#ifndef NO_DSA
+    #ifndef NO_SHA256
+        AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "DSA+SHA256"),
+                    WOLFSSL_SUCCESS);
+        AssertIntEQ(wolfSSL_set1_sigalgs_list(ssl, "DSA+SHA256"),
+                    WOLFSSL_SUCCESS);
+    #endif
+    #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+                                                defined(WOLFSSL_ALLOW_TLS_SHA1))
+        AssertIntEQ(wolfSSL_CTX_set1_sigalgs_list(ctx, "DSA+SHA1"),
+                    WOLFSSL_SUCCESS);
+        AssertIntEQ(wolfSSL_set1_sigalgs_list(ssl, "DSA+SHA1"),
+                    WOLFSSL_SUCCESS);
+    #endif
+#endif
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+    #endif
+}
+
 /* Testing  wolfSSL_set_tlsext_status_type function.
  * PRE: OPENSSL and HAVE_CERTIFICATE_STATUS_REQUEST defined.
  */
@@ -44312,6 +44434,7 @@ void ApiTest(void)
 #endif
     test_wolfSSL_set_options();
     test_wolfSSL_sk_SSL_CIPHER();
+    test_wolfSSL_set1_sigalgs_list();
     test_wolfSSL_PKCS7_certs();
     test_wolfSSL_X509_STORE_CTX();
     test_wolfSSL_X509_STORE_CTX_trusted_stack_cleanup();

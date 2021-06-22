@@ -2228,8 +2228,8 @@ static int GetMacDigestSize(byte macAlgo)
 }
 #endif /* USE_ECDSA_KEYSZ_HASH_ALGO */
 
-static WC_INLINE void AddSuiteHashSigAlgo(Suites* suites, byte macAlgo, byte sigAlgo,
-    int keySz, word16* inOutIdx)
+static WC_INLINE void AddSuiteHashSigAlgo(Suites* suites, byte macAlgo,
+    byte sigAlgo, int keySz, word16* inOutIdx)
 {
     int addSigAlgo = 1;
 
@@ -2246,6 +2246,24 @@ static WC_INLINE void AddSuiteHashSigAlgo(Suites* suites, byte macAlgo, byte sig
 #endif /* USE_ECDSA_KEYSZ_HASH_ALGO */
 
     if (addSigAlgo) {
+    #ifdef HAVE_ED25519
+        if (sigAlgo == ed25519_sa_algo) {
+            suites->hashSigAlgo[*inOutIdx] = ED25519_SA_MAJOR;
+            *inOutIdx += 1;
+            suites->hashSigAlgo[*inOutIdx] = ED25519_SA_MINOR;
+            *inOutIdx += 1;
+        }
+        else
+    #endif
+    #ifdef HAVE_ED448
+        if (sigAlgo == ed448_sa_algo) {
+            suites->hashSigAlgo[*inOutIdx] = ED448_SA_MAJOR;
+            *inOutIdx += 1;
+            suites->hashSigAlgo[*inOutIdx] = ED448_SA_MINOR;
+            *inOutIdx += 1;
+        }
+        else
+    #endif
 #ifdef WC_RSA_PSS
         if (sigAlgo == rsa_pss_sa_algo) {
             /* RSA PSS is sig then mac */
@@ -2298,12 +2316,10 @@ void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
     #endif
 #endif
     #ifdef HAVE_ED25519
-        AddSuiteHashSigAlgo(suites, ED25519_SA_MAJOR, ED25519_SA_MINOR, keySz,
-                                                                          &idx);
+        AddSuiteHashSigAlgo(suites, no_mac, ed25519_sa_algo, keySz, &idx);
     #endif
     #ifdef HAVE_ED448
-        AddSuiteHashSigAlgo(suites, ED448_SA_MAJOR, ED448_SA_MINOR, keySz,
-                                                                          &idx);
+        AddSuiteHashSigAlgo(suites, no_mac, ed448_sa_algo, keySz, &idx);
     #endif
     }
 #endif /* HAVE_ECC || HAVE_ED25519 || defined(HAVE_ED448 */
@@ -3356,8 +3372,10 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 
     suites->suiteSz = idx;
 
-    InitSuitesHashSigAlgo(suites, haveECDSAsig | haveECC, haveRSAsig | haveRSA,
-                                                              0, tls1_2, keySz);
+    if (suites->hashSigAlgoSz == 0) {
+        InitSuitesHashSigAlgo(suites, haveECDSAsig | haveECC,
+                                        haveRSAsig | haveRSA, 0, tls1_2, keySz);
+    }
 }
 
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS) || \
@@ -6751,7 +6769,7 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     if (!ssl->options.tls1_3)
 #endif
     {
-    #ifndef OPENSSL_ALL
+    #ifndef OPENSSL_EXTRA
         /* free suites unless using compatibility layer */
         FreeSuites(ssl);
     #endif
@@ -20490,6 +20508,161 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
     return ret;
 }
 
+#ifdef OPENSSL_EXTRA
+
+struct mac_algs {
+    byte alg;
+    const char* name;
+} mac_names[] = {
+#ifndef NO_SHA256
+    { sha256_mac, "SHA256" },
+#endif
+#ifdef WOLFSSL_SHA384
+    { sha384_mac, "SHA384" },
+#endif
+#ifdef WOLFSSL_SHA512
+    { sha512_mac, "SHA512" },
+#endif
+#ifdef WOLFSSL_SHA224
+    { sha224_mac, "SHA224" },
+#endif
+#if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+                                                defined(WOLFSSL_ALLOW_TLS_SHA1))
+    { sha_mac,    "SHA1" },
+#endif
+};
+#define MAC_NAMES_SZ    (int)(sizeof(mac_names)/sizeof(*mac_names))
+
+/* Convert the hash algorithm string to a TLS MAC algorithm num. */
+static byte GetMacAlgFromName(const char* name, int len)
+{
+    byte alg = no_mac;
+    int i;
+
+    for (i = 0; i < MAC_NAMES_SZ; i++) {
+        if (((int)XSTRLEN(mac_names[i].name) == len) &&
+                                 (XMEMCMP(mac_names[i].name, name, len) == 0)) {
+            alg = mac_names[i].alg;
+            break;
+        }
+    }
+
+    return alg;
+}
+
+struct sig_algs {
+    byte alg;
+    const char* name;
+} sig_names[] = {
+#ifndef NO_RSA
+    { rsa_sa_algo,     "RSA" },
+#ifdef WC_RSA_PSS
+    { rsa_pss_sa_algo, "RSA-PSS" },
+    { rsa_pss_sa_algo, "PSS" },
+#endif
+#endif
+#ifdef HAVE_ECC
+    { ecc_dsa_sa_algo, "ECDSA" },
+#endif
+#ifdef HAVE_ED25519
+    { ed25519_sa_algo, "ED25519" },
+#endif
+#ifdef HAVE_ED448
+    { ed448_sa_algo,   "ED448" },
+#endif
+#ifndef NO_DSA
+    { dsa_sa_algo,     "DSA" },
+#endif
+};
+#define SIG_NAMES_SZ    (int)(sizeof(sig_names)/sizeof(*sig_names))
+
+/* Convert the signature algorithm string to a TLS signature algorithm num. */
+static byte GetSigAlgFromName(const char* name, int len)
+{
+    byte alg = anonymous_sa_algo;
+    int i;
+
+    for (i = 0; i < SIG_NAMES_SZ; i++) {
+        if (((int)XSTRLEN(sig_names[i].name) == len) &&
+                                 (XMEMCMP(sig_names[i].name, name, len) == 0)) {
+            alg = sig_names[i].alg;
+            break;
+        }
+    }
+
+    return alg;
+}
+
+/* Set the hash/signature algorithms that are supported for certificate signing.
+ *
+ * suites  [in,out]  Cipher suites and signature algorithms.
+ * list    [in]      String representing hash/signature algorithms to set.
+ * returns  0 on failure.
+ *          1 on success.
+ */
+int SetSuitesHashSigAlgo(Suites* suites, const char* list)
+{
+    int ret = 1;
+    word16 idx = 0;
+    const char* s = list;
+    byte sig_alg = 0;
+    byte mac_alg = no_mac;
+
+    /* Setting is destructive on error. */
+    suites->hashSigAlgoSz = 0;
+
+    do {
+        if (*list == '+') {
+            if (mac_alg != 0) {
+                ret = 0;
+                break;
+            }
+            sig_alg = GetSigAlgFromName(s, (int)(list - s));
+            if (sig_alg == 0) {
+                ret = 0;
+                break;
+            }
+            s = list + 1;
+        }
+        else if (*list == ':' || *list == '\0') {
+            if (sig_alg == 0) {
+                /* No signature algorithm set yet.
+                 * Ed25519 and Ed448 have implied MAC algorithm.
+                 */
+                sig_alg = GetSigAlgFromName(s, (int)(list - s));
+                if (sig_alg != ed25519_sa_algo && sig_alg != ed448_sa_algo) {
+                    ret = 0;
+                    break;
+                }
+            }
+            else {
+                mac_alg = GetMacAlgFromName(s, (int)(list - s));
+                if (mac_alg == 0) {
+                    ret = 0;
+                    break;
+                }
+            }
+            AddSuiteHashSigAlgo(suites, mac_alg, sig_alg, 0, &idx);
+            sig_alg = 0;
+            mac_alg = no_mac;
+            s = list + 1;
+        }
+
+        list++;
+    }
+    while (*(list-1) != '\0');
+
+    if (s != list && (sig_alg != 0 || mac_alg != 0)) {
+        ret = 0;
+    }
+    else {
+        suites->hashSigAlgoSz = idx;
+    }
+
+    return ret;
+}
+
+#endif /* OPENSSL_EXTRA */
 
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS)
 static int MatchSigAlgo(WOLFSSL* ssl, int sigAlgo)
@@ -20681,7 +20854,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
             case sha512_mac:
         #endif
             #ifdef WOLFSSL_STRONGEST_HASH_SIG
-            /* Is hash algorithm weaker than chosen/min? */
+                /* Is hash algorithm weaker than chosen/min? */
                 if (hashAlgo < ssl->suites->hashAlgo)
                     break;
             #else
