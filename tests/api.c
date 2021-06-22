@@ -25238,7 +25238,7 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
     wc_FreeRng(&rng);
 #endif
 
-#ifdef USE_CERT_BUFFERS_2048
+#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_DES3)
     {
         byte   out[7];
         byte   *cms;
@@ -25265,7 +25265,7 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
         AssertIntEQ(XMEMCMP(out, "test", 4), 0);
         wc_PKCS7_Free(pkcs7);
     }
-#endif /* USE_CERT_BUFFERS_2048 */
+#endif /* USE_CERT_BUFFERS_2048 && !NO_DES3 */
 #endif /* HAVE_PKCS7 */
 } /* END test_wc_PKCS7_EncodeEnvelopedData() */
 
