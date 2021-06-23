@@ -11988,6 +11988,182 @@ static int wolfSSL_remove_ciphers(char* list, int sz, const char* toRemove)
 
     return totalSz;
 }
+/*
+ * build enabled cipher list w/ TLS13 or w/o TLS13 suites
+ * @param ctx    a pointer to WOLFSSL_CTX structure
+ * @param suites currently enabled suites
+ * @param onlytlsv13suites flag whether correcting w/ TLS13 suites
+ *                         or w/o TLS13 suties
+ * @param list   suites list that user wants to update
+ * @return suites list on successs, otherwise NULL
+ */
+static char* buildEnabledCipherList(WOLFSSL_CTX* ctx, Suites* suites,
+           int tls13Only, const char* list)
+{
+    word32 idx = 0;
+    word32 listsz = 0;
+    word32 len = 0;
+    word32 ianasz = 0;
+    const char* enabledcs = NULL;
+    char* locallist = NULL;
+    char* head = NULL;
+    byte cipherSuite0;
+    byte cipherSuite;
+    
+    /* sanity check */
+    if (ctx == NULL || suites == NULL || list == NULL)
+        return NULL;
+        
+    if (!suites->setSuites)
+        return NULL;
+    
+    listsz = (word32)XSTRLEN(list);
+    
+    /* calculate necessary buffer length */
+    for(idx = 0; idx < suites->suiteSz; idx++) {
+        
+        cipherSuite0 = suites->suites[idx];
+        cipherSuite  = suites->suites[++idx];
+        
+        if (tls13Only && cipherSuite0 == TLS13_BYTE) {
+            enabledcs = GetCipherNameInternal(cipherSuite0, cipherSuite);
+        } 
+        else if (!tls13Only && cipherSuite0 != TLS13_BYTE) {
+            enabledcs = GetCipherNameInternal(cipherSuite0, cipherSuite);
+        } 
+        else
+            continue;
+        
+        if (XSTRNCMP(enabledcs, "None", XSTRLEN(enabledcs)) != 0) {
+            len += (word32)XSTRLEN(enabledcs) + 2;
+        }
+    }
+    
+    len += listsz + 2;
+    
+    /* build string */
+    if (len > (listsz + 2)) {
+        locallist = (char*)XMALLOC(len, ctx->heap,
+                                           DYNAMIC_TYPE_TMP_BUFFER);
+        /* sanity check */
+        if (!locallist)
+            return NULL;
+        
+        XMEMSET(locallist, 0, len);
+        
+        head = locallist;
+        
+        if (!tls13Only)
+        {
+            /* always tls13 suites in the head position */
+            XSTRNCPY(locallist, list, len);
+            locallist += listsz;
+            *locallist++ = ':';
+            *locallist = 0;
+            len -= listsz + 1;
+        }
+        
+        for(idx = 0; idx < suites->suiteSz; idx++) {
+            cipherSuite0 = suites->suites[idx];
+            cipherSuite  = suites->suites[++idx];
+            
+            if (tls13Only && cipherSuite0 == TLS13_BYTE) {
+                enabledcs = GetCipherNameInternal(cipherSuite0, cipherSuite);
+            }
+            else if (!tls13Only && cipherSuite0 != TLS13_BYTE) {
+                enabledcs = GetCipherNameInternal(cipherSuite0, cipherSuite);
+            } 
+            else
+                continue;
+            
+            ianasz = (int)XSTRLEN(enabledcs);
+            if (ianasz + 1 < len) {
+                XSTRNCPY(locallist, enabledcs, len);
+                locallist += ianasz;
+                
+                *locallist++ = ':';
+                *locallist = 0;
+                len -= ianasz + 1;
+            }
+            else{
+                XFREE(locallist, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                return NULL;
+            }
+        }
+        
+        if (tls13Only) {
+            XSTRNCPY(locallist, list, len);
+            locallist += listsz;
+            *locallist = 0;
+        }
+        
+        return head;
+    } 
+    else 
+        return NULL;
+}
+
+/*
+ * check if the list has TLS13 and pre-TLS13 suites
+ * @param list cipher suite list that user want to set
+ * @return mixed: 0, only pre-TLS13: 1, only TLS13: 2
+ */
+static int CheckcipherList(const char* list)
+{
+    int ret;
+    int findTLSv13Suites = 0;
+    int findbeforeSuites = 0;
+    byte cipherSuite0;
+    byte cipherSuite1;
+    int flags;
+    char* next = (char*)list;
+    
+    do {
+        char*  current = next;
+        char   name[MAX_SUITE_NAME + 1];
+        word32 length = MAX_SUITE_NAME;
+        word32 current_length;
+
+        next   = XSTRSTR(next, ":");
+        
+        current_length = (!next) ? (word32)XSTRLEN(current)
+                                 : (word32)(next - current);
+        
+        if (current_length < length) {
+            length = current_length;
+        }
+        XSTRNCPY(name, current, length);
+        name[length] = 0;
+        
+        ret = wolfSSL_get_cipher_suite_from_name(name, &cipherSuite0, 
+                                                        &cipherSuite1, &flags);
+        if (ret == 0) {
+            if (cipherSuite0 == TLS13_BYTE) {
+                /* TLSv13 suite */
+                findTLSv13Suites = 1;
+                break;
+            } 
+            else {
+                findbeforeSuites = 1;
+                break;
+            }
+        } 
+        if (findTLSv13Suites == 1 && findbeforeSuites == 1) {
+            /* list has mixed suites */
+            return 0;
+        }
+    }  while (next++); /* ++ needed to skip ':' */
+    
+    if (findTLSv13Suites == 0 && findbeforeSuites == 1) {
+        return 1;/* only before TLSv13 sutes */
+    }
+    else if (findTLSv13Suites == 1 && findbeforeSuites == 0) {
+        return 2;/* only TLSv13 suties */
+    }
+    else { 
+        return 0;/* handle as mixed */
+    }
+}
 
 /* parse some bulk lists like !eNULL / !aNULL
  *
@@ -12002,7 +12178,10 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
     const CipherSuiteInfo* names = GetCipherNames();
     char*     localList    = NULL;
     int sz = 0;
-
+    int listattribute = 0;
+    char*     buildcipherList = NULL;
+    int tls13Only = 0;
+    
     if (suites == NULL || list == NULL) {
         WOLFSSL_MSG("NULL argument");
         return WOLFSSL_FAILURE;
@@ -12014,14 +12193,19 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
             char*  current = next;
             char   name[MAX_SUITE_NAME + 1];
             int    i;
-            word32 length;
+            word32 length = MAX_SUITE_NAME;
+            word32 current_length;
 
             next   = XSTRSTR(next, ":");
-            length = min(sizeof(name), !next ? (word32)XSTRLEN(current) /*last*/
-                                             : (word32)(next - current));
-
+            
+            current_length = (!next) ? (word32)XSTRLEN(current)
+                                     : (word32)(next - current);
+            
+            if (current_length < length) {
+                length = current_length;
+            }
             XSTRNCPY(name, current, length);
-            name[(length == sizeof(name)) ? length - 1 : length] = 0;
+            name[length] = 0;
 
             /* check for "not" case */
             if (name[0] == '!' && suiteSz > 0) {
@@ -12051,8 +12235,41 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
         return (ret)? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
     }
     else {
-        return (SetCipherList(ctx, suites, list)) ? WOLFSSL_SUCCESS :
+        
+        listattribute = CheckcipherList(list);
+        
+        if (listattribute == 0) {
+           /* list has mixed(pre-TLSv13 and TLSv13) suites
+            * update cipher suites the same as before
+            */
+            return (SetCipherList(ctx, suites, list)) ? WOLFSSL_SUCCESS :
             WOLFSSL_FAILURE;
+        } 
+        else if (listattribute == 1) {
+           /* list has only pre-TLSv13 suites. 
+            * Only update before TLSv13 suites.
+            */
+            tls13Only = 1;
+        } 
+        else if (listattribute == 2) {
+           /* list has only TLSv13 suites. Only update TLv13 suites
+            * simulate set_ciphersuites() comatibility layer API
+            */
+            tls13Only = 0;
+        }
+        
+        buildcipherList = buildEnabledCipherList(ctx, ctx->suites, 
+                                                tls13Only, list);
+        
+        if (buildcipherList) {
+            ret = SetCipherList(ctx, suites, buildcipherList);
+            XFREE(buildcipherList, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+        else {
+            ret = SetCipherList(ctx, suites, list);
+        }
+
+        return ret;
     }
 }
 
