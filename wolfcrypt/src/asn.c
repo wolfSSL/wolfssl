@@ -8769,6 +8769,57 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
 }
 
 
+static int DecodePolicyConstraints(const byte* input, int sz, DecodedCert* cert)
+{
+    word32 idx = 0;
+    int length = 0;
+    int skipLength = 0;
+    int ret;
+    byte tag;
+
+    WOLFSSL_ENTER("DecodePolicyConstraints");
+
+    if (GetSequence(input, &idx, &length, sz) < 0) {
+        WOLFSSL_MSG("\tfail: bad SEQUENCE");
+        return ASN_PARSE_E;
+    }
+
+    if (length == 0)
+        return ASN_PARSE_E;
+
+    if (GetASNTag(input, &idx, &tag, sz) < 0) {
+        WOLFSSL_MSG("\tfail: bad TAG");
+        return ASN_PARSE_E;
+    }
+
+    if (tag == (ASN_CONTEXT_SPECIFIC | 0)) {
+        /* requireExplicitPolicy */
+        cert->extPolicyConstRxpSet = 1;
+    }
+    else if (tag == (ASN_CONTEXT_SPECIFIC | 1)) {
+        /* inhibitPolicyMapping */
+        cert->extPolicyConstIpmSet = 1;
+    }
+    else {
+        WOLFSSL_MSG("\tfail: invalid TAG");
+        return ASN_PARSE_E;
+    }
+
+    ret = GetLength(input, &idx, &skipLength, sz);
+    if (ret < 0) {
+        WOLFSSL_MSG("\tfail: invalid length");
+        return ret;
+    }
+    if (skipLength > 1) {
+        WOLFSSL_MSG("\tfail: skip value too big");
+        return BUFFER_E;
+    }
+    cert->policyConstSkip = input[idx];
+
+    return 0;
+}
+
+
 #define CRLDP_FULL_NAME 0
     /* From RFC3280 SS4.2.1.14, Distribution Point Name*/
 #define GENERALNAME_URI 6
@@ -9611,6 +9662,14 @@ static int DecodeCertExtensions(DecodedCert* cert)
                     return ASN_PARSE_E;
                 break;
         #endif
+            case POLICY_CONST_OID:
+                VERIFY_AND_SET_OID(cert->extPolicyConstSet);
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                    cert->extPolicyConstCrit = critical;
+                #endif
+                if (DecodePolicyConstraints(&input[idx], length, cert) < 0)
+                    return ASN_PARSE_E;
+                break;
             default:
             #ifndef WOLFSSL_NO_ASN_STRICT
                 /* While it is a failure to not support critical extensions,
