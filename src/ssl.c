@@ -22671,268 +22671,7 @@ void wolfSSL_sk_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk)
     /* free head of stack */
     XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
 }
-
-/**
- * This function reads a tab delimetered CSV input and returns
- * a populated WOLFSSL_TXT_DB structure.
- * @param in Tab delimetered CSV input
- * @param num Number of fields in each row.
- * @return
- */
-WOLFSSL_TXT_DB *wolfSSL_TXT_DB_read(WOLFSSL_BIO *in, int num)
-{
-    WOLFSSL_TXT_DB *ret = NULL;
-    char *buf = NULL;
-    char *bufEnd = NULL;
-    char *idx = NULL;
-    char* lineEnd = NULL;
-    int bufSz;
-    int failed = 1;
-    /* Space in front of str reserved for field pointers + \0 */
-    int fieldsSz = (num + 1) * sizeof(char *);
-    WOLFSSL_ENTER("wolfSSL_TXT_DB_read");
-
-    if (!in || num <= 0 || num > WOLFSSL_TXT_DB_MAX_FIELDS) {
-        WOLFSSL_MSG("Bad parameter or too many fields");
-        return NULL;
-    }
-
-    if (!(ret = (WOLFSSL_TXT_DB*)XMALLOC(sizeof(WOLFSSL_TXT_DB), NULL,
-            DYNAMIC_TYPE_OPENSSL))) {
-        WOLFSSL_MSG("malloc error");
-        goto error;
-    }
-    XMEMSET (ret, 0, sizeof(WOLFSSL_TXT_DB));
-    ret->num_fields = num;
-
-    if (!(ret->data = wolfSSL_sk_WOLFSSL_STRING_new())) {
-        WOLFSSL_MSG("wolfSSL_sk_WOLFSSL_STRING_new error");
-        goto error;
-    }
-
-    bufSz = wolfSSL_BIO_get_len(in);
-    if (bufSz <= 0 ||
-            !(buf = (char*)XMALLOC(bufSz+1, NULL,
-                    DYNAMIC_TYPE_TMP_BUFFER))) {
-        WOLFSSL_MSG("malloc error or no data in BIO");
-        goto error;
-    }
-
-    if (wolfSSL_BIO_read(in, buf, bufSz) != bufSz) {
-        WOLFSSL_MSG("malloc error or no data in BIO");
-        goto error;
-    }
-
-    buf[bufSz] = '\0';
-    idx = buf;
-    for (bufEnd = buf + bufSz; idx < bufEnd; idx = lineEnd + 1) {
-        char* strBuf = NULL;
-        char** fieldPtr = NULL;
-        int fieldPtrIdx = 0;
-        char* fieldCheckIdx = NULL;
-        lineEnd = XSTRNSTR(idx, "\n", (unsigned int)(bufEnd - idx));
-        if (!lineEnd)
-            lineEnd = bufEnd;
-        if (idx == lineEnd) /* empty line */
-            continue;
-        if (*idx == '#')
-            continue;
-        *lineEnd = '\0';
-        strBuf = (char*)XMALLOC(fieldsSz + lineEnd - idx + 1, NULL,
-                                DYNAMIC_TYPE_OPENSSL);
-        if (!strBuf) {
-            WOLFSSL_MSG("malloc error");
-            goto error;
-        }
-        XMEMCPY(strBuf + fieldsSz, idx, lineEnd - idx + 1); /* + 1 for NULL */
-        XMEMSET(strBuf, 0, fieldsSz);
-        /* Check for appropriate number of fields */
-        fieldPtr = (char**)strBuf;
-        fieldCheckIdx = strBuf + fieldsSz;
-        fieldPtr[fieldPtrIdx++] = fieldCheckIdx;
-        while (*fieldCheckIdx != '\0') {
-            /* Handle escaped tabs */
-            if (*fieldCheckIdx == '\t' && fieldCheckIdx[-1] != '\\') {
-                fieldPtr[fieldPtrIdx++] = fieldCheckIdx + 1;
-                *fieldCheckIdx = '\0';
-                if (fieldPtrIdx > num) {
-                    WOLFSSL_MSG("too many fields");
-                    XFREE(strBuf, NULL, DYNAMIC_TYPE_OPENSSL);
-                    goto error;
-                }
-            }
-            fieldCheckIdx++;
-        }
-        if (fieldPtrIdx != num) {
-            WOLFSSL_MSG("wrong number of fields");
-            XFREE(strBuf, NULL, DYNAMIC_TYPE_OPENSSL);
-            goto error;
-        }
-        if (wolfSSL_sk_push(ret->data, strBuf) != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("wolfSSL_sk_push error");
-            XFREE(strBuf, NULL, DYNAMIC_TYPE_OPENSSL);
-            goto error;
-        }
-    }
-
-    failed = 0;
-error:
-    if (failed && ret) {
-        XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
-        ret = NULL;
-    }
-    if (buf) {
-        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    return ret;
-}
-
-long wolfSSL_TXT_DB_write(WOLFSSL_BIO *out, WOLFSSL_TXT_DB *db)
-{
-    const WOLF_STACK_OF(WOLFSSL_STRING)* data;
-    long totalLen = 0;
-    char buf[512]; /* Should be more than enough for a single row */
-    char* bufEnd = buf + sizeof(buf);
-    int sz;
-    int i;
-
-    WOLFSSL_ENTER("wolfSSL_TXT_DB_write");
-
-    if (!out || !db || !db->num_fields) {
-        WOLFSSL_MSG("Bad parameter");
-        return WOLFSSL_FAILURE;
-    }
-
-    data = db->data;
-    while (data) {
-        char** fields = (char**)data->data.string;
-        char* idx = buf;
-
-        if (!fields) {
-            WOLFSSL_MSG("Missing row");
-            return WOLFSSL_FAILURE;
-        }
-
-        for (i = 0; i < db->num_fields; i++) {
-            const char* fieldValue = fields[i];
-            if (!fieldValue) {
-                fieldValue = "";
-            }
-
-            /* Copy over field escaping tabs */
-            while (*fieldValue != '\0') {
-                if (idx+1 < bufEnd) {
-                    if (*fieldValue == '\t')
-                        *idx++ = '\\';
-                    *idx++ = *fieldValue++;
-                }
-                else {
-                    WOLFSSL_MSG("Data row is too big");
-                    return WOLFSSL_FAILURE;
-                }
-            }
-            if (idx < bufEnd) {
-                *idx++ = '\t';
-            }
-            else {
-                WOLFSSL_MSG("Data row is too big");
-                return WOLFSSL_FAILURE;
-            }
-        }
-        idx[-1] = '\n';
-        sz = (int)(idx - buf);
-
-        if (wolfSSL_BIO_write(out, buf, sz) != sz) {
-            WOLFSSL_MSG("wolfSSL_BIO_write error");
-            return WOLFSSL_FAILURE;
-        }
-        totalLen += sz;
-
-        data = data->next;
-    }
-
-    return totalLen;
-}
-
-int wolfSSL_TXT_DB_insert(WOLFSSL_TXT_DB *db, WOLFSSL_STRING *row)
-{
-    WOLFSSL_ENTER("wolfSSL_TXT_DB_insert");
-
-    if (!db || !row || !db->data) {
-        WOLFSSL_MSG("Bad parameter");
-        return WOLFSSL_FAILURE;
-    }
-
-    if (wolfSSL_sk_push(db->data, row) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("wolfSSL_sk_push error");
-        return WOLFSSL_FAILURE;
-    }
-
-    return WOLFSSL_SUCCESS;
-}
-
-void wolfSSL_TXT_DB_free(WOLFSSL_TXT_DB *db)
-{
-    WOLFSSL_ENTER("wolfSSL_TXT_DB_free");
-    if (db) {
-        if (db->data) {
-            wolfSSL_sk_free(db->data);
-        }
-        XFREE(db, NULL, DYNAMIC_TYPE_OPENSSL);
-    }
-}
-
-int wolfSSL_TXT_DB_create_index(WOLFSSL_TXT_DB *db, int field,
-        void* qual, wolf_sk_hash_cb hash, wolf_sk_compare_cb cmp)
-{
-    WOLFSSL_ENTER("wolfSSL_TXT_DB_create_index");
-    (void)qual;
-
-    if (!db || !hash || !cmp || field >= db->num_fields || field < 0) {
-        WOLFSSL_MSG("Bad parameter");
-        return WOLFSSL_FAILURE;
-    }
-
-    db->hash_fn[field] = hash;
-    db->comp[field] = cmp;
-
-    return WOLFSSL_SUCCESS;
-}
-
-WOLFSSL_STRING *wolfSSL_TXT_DB_get_by_index(WOLFSSL_TXT_DB *db, int idx,
-        WOLFSSL_STRING *value)
-{
-    WOLFSSL_ENTER("wolfSSL_TXT_DB_get_by_index");
-
-    if (!db || !db->data || idx < 0 || idx >= db->num_fields) {
-        WOLFSSL_MSG("Bad parameter");
-        return NULL;
-    }
-
-    if (!db->hash_fn[idx] || !db->comp[idx]) {
-        WOLFSSL_MSG("Missing hash or cmp functions");
-        return NULL;
-    }
-
-    /* If first data struct has correct hash and cmp function then
-     * assume others do too */
-    if (db->data->hash_fn != db->hash_fn[idx] ||
-            db->data->comp != db->comp[idx]) {
-        /* Set the hash and comp functions */
-        WOLF_STACK_OF(WOLFSSL_STRING)* data = db->data;
-        while (data) {
-            if (data->comp != db->comp[idx] ||
-                    data->hash_fn != db->hash_fn[idx]) {
-                data->comp = db->comp[idx];
-                data->hash_fn = db->hash_fn[idx];
-                data->hash = 0;
-            }
-            data= data->next;
-        }
-    }
-    return (WOLFSSL_STRING*) wolfSSL_lh_retrieve(db->data, value);
-}
-#endif
+#endif /* OPENSSL_ALL */
 
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || \
                                                                  !defined(NO_DH)
@@ -44268,111 +44007,6 @@ WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp, WOLFSSL_DSA **x,
 #endif /* NO_DSA */
 #endif /* OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA)
-
-/* Begin functions for openssl/buffer.h */
-WOLFSSL_BUF_MEM* wolfSSL_BUF_MEM_new(void)
-{
-    WOLFSSL_BUF_MEM* buf;
-    buf = (WOLFSSL_BUF_MEM*)XMALLOC(sizeof(WOLFSSL_BUF_MEM), NULL,
-                                                        DYNAMIC_TYPE_OPENSSL);
-    if (buf) {
-        XMEMSET(buf, 0, sizeof(WOLFSSL_BUF_MEM));
-    }
-    return buf;
-}
-
-
-/* returns length of buffer on success */
-int wolfSSL_BUF_MEM_grow(WOLFSSL_BUF_MEM* buf, size_t len)
-{
-    int len_int = (int)len;
-    int mx;
-
-    /* verify provided arguments */
-    if (buf == NULL || len_int < 0) {
-        return 0; /* BAD_FUNC_ARG; */
-    }
-
-    /* check to see if fits in existing length */
-    if (buf->length > len) {
-        buf->length = len;
-        return len_int;
-    }
-
-    /* check to see if fits in max buffer */
-    if (buf->max >= len) {
-        if (buf->data != NULL) {
-            XMEMSET(&buf->data[buf->length], 0, len - buf->length);
-        }
-        buf->length = len;
-        return len_int;
-    }
-
-    /* expand size, to handle growth */
-    mx = (len_int + 3) / 3 * 4;
-
-    /* use realloc */
-    buf->data = (char*)XREALLOC(buf->data, mx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (buf->data == NULL) {
-        return 0; /* ERR_R_MALLOC_FAILURE; */
-    }
-
-    buf->max = mx;
-    XMEMSET(&buf->data[buf->length], 0, len - buf->length);
-    buf->length = len;
-
-    return len_int;
-}
-
-void wolfSSL_BUF_MEM_free(WOLFSSL_BUF_MEM* buf)
-{
-    if (buf) {
-        if (buf->data) {
-            XFREE(buf->data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            buf->data = NULL;
-        }
-        buf->max = 0;
-        buf->length = 0;
-        XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
-    }
-}
-/* End Functions for openssl/buffer.h */
-
-size_t wolfSSL_strlcpy(char *dst, const char *src, size_t dstSize)
-{
-    size_t i;
-
-    if (!dstSize || !dst || !src)
-        return 0;
-
-    /* Always have to leave a space for NULL */
-    for (i = 0; i < (dstSize - 1) && *src != '\0'; i++) {
-        *dst++ = *src++;
-    }
-    *dst = '\0';
-
-    return i; /* return length without NULL */
-}
-
-size_t wolfSSL_strlcat(char *dst, const char *src, size_t dstSize)
-{
-    size_t dstLen;
-
-    if (!dstSize)
-        return 0;
-
-    dstLen = XSTRLEN(dst);
-
-    if (dstSize < dstLen)
-        return dstLen + XSTRLEN(src);
-
-    return dstLen + wolfSSL_strlcpy(dst + dstLen, src, dstSize - dstLen);
-
-}
-#endif /* OPENSSL_EXTRA */
-
-
 #if defined(HAVE_LIGHTY) || defined(HAVE_STUNNEL) \
     || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA)
 
@@ -45571,26 +45205,6 @@ int wolfSSL_SESSION_get_ex_new_index(long idx, void* data, void* cb1,
         return 1;
     }
     return WOLFSSL_FAILURE;
-}
-
-#ifndef NO_WOLFSSL_STUB
-int wolfSSL_CRYPTO_set_mem_ex_functions(void *(*m) (size_t, const char *, int),
-                                void *(*r) (void *, size_t, const char *,
-                                            int), void (*f) (void *))
-{
-    (void) m;
-    (void) r;
-    (void) f;
-    WOLFSSL_ENTER("wolfSSL_CRYPTO_set_mem_ex_functions");
-    WOLFSSL_STUB("CRYPTO_set_mem_ex_functions");
-
-    return WOLFSSL_FAILURE;
-}
-#endif
-
-
-void wolfSSL_CRYPTO_cleanup_all_ex_data(void){
-    WOLFSSL_ENTER("CRYPTO_cleanup_all_ex_data");
 }
 
 
@@ -47745,65 +47359,6 @@ int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a, void *b, void *c)
     return get_ex_new_index(CRYPTO_EX_INDEX_X509);
 }
 #endif
-
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
-void* wolfSSL_CRYPTO_get_ex_data(const WOLFSSL_CRYPTO_EX_DATA* ex_data, int idx)
-{
-    WOLFSSL_ENTER("wolfSSL_CTX_get_ex_data");
-#ifdef MAX_EX_DATA
-    if(ex_data && idx < MAX_EX_DATA && idx >= 0) {
-        return ex_data->ex_data[idx];
-    }
-#else
-    (void)ex_data;
-    (void)idx;
-#endif
-    return NULL;
-}
-
-int wolfSSL_CRYPTO_set_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data, int idx, void *data)
-{
-    WOLFSSL_ENTER("wolfSSL_CRYPTO_set_ex_data");
-#ifdef MAX_EX_DATA
-    if (ex_data && idx < MAX_EX_DATA && idx >= 0) {
-#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
-        if (ex_data->ex_data_cleanup_routines[idx]) {
-            if (ex_data->ex_data[idx])
-                ex_data->ex_data_cleanup_routines[idx](ex_data->ex_data[idx]);
-            ex_data->ex_data_cleanup_routines[idx] = NULL;
-        }
-#endif
-        ex_data->ex_data[idx] = data;
-        return WOLFSSL_SUCCESS;
-    }
-#else
-    (void)ex_data;
-    (void)idx;
-    (void)data;
-#endif
-    return WOLFSSL_FAILURE;
-}
-
-#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
-int wolfSSL_CRYPTO_set_ex_data_with_cleanup(
-    WOLFSSL_CRYPTO_EX_DATA* ex_data,
-    int idx,
-    void *data,
-    wolfSSL_ex_data_cleanup_routine_t cleanup_routine)
-{
-    WOLFSSL_ENTER("wolfSSL_CRYPTO_set_ex_data_with_cleanup");
-    if (ex_data && idx < MAX_EX_DATA && idx >= 0) {
-        if (ex_data->ex_data_cleanup_routines[idx] && ex_data->ex_data[idx])
-            ex_data->ex_data_cleanup_routines[idx](ex_data->ex_data[idx]);
-        ex_data->ex_data[idx] = data;
-        ex_data->ex_data_cleanup_routines[idx] = cleanup_routine;
-        return WOLFSSL_SUCCESS;
-    }
-    return WOLFSSL_FAILURE;
-}
-#endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
-
-#endif /* HAVE_EX_DATA || FORTRESS */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
     defined(WOLFSSL_WPAS_SMALL)
@@ -53796,33 +53351,6 @@ int wolfSSL_SESSION_is_resumable(const WOLFSSL_SESSION *s)
     return 0;
 }
 
-
-
-/**
- * free allocated memory resouce
- * @param str  a pointer to resource to be freed
- * @param file dummy argument
- * @param line dummy argument
- */
-void wolfSSL_CRYPTO_free(void *str, const char *file, int line)
-{
-    (void)file;
-    (void)line;
-    XFREE(str, 0, DYNAMIC_TYPE_TMP_BUFFER);
-}
-/**
- * allocate memory with size of num
- * @param num  size of memory allocation to be malloced
- * @param file dummy argument
- * @param line dummy argument
- * @return a pointer to allocated memory on succssesful, otherwise NULL
- */
-void *wolfSSL_CRYPTO_malloc(size_t num, const char *file, int line)
-{
-    (void)file;
-    (void)line;
-    return XMALLOC(num, 0, DYNAMIC_TYPE_TMP_BUFFER);
-}
 /**
  * Allocate WOLFSSL_CONF_CTX instance
  * @return pointer to WOLFSSL_CONF_CTX structure on success and NULL on fail
@@ -54344,7 +53872,162 @@ void wolfSSL_DH_get0_pqg(const WOLFSSL_DH *dh, const WOLFSSL_BIGNUM **p,
 
 #endif /* OPENSSL_EXTRA */
 
+/*******************************************************************************
+ * START OF standard C library wrapping APIs
+ ******************************************************************************/
+#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || \
+                             defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY) || \
+                             defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_OPENSSH)))
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_CRYPTO_set_mem_ex_functions(void *(*m) (size_t, const char *, int),
+                                void *(*r) (void *, size_t, const char *,
+                                            int), void (*f) (void *))
+{
+    (void) m;
+    (void) r;
+    (void) f;
+    WOLFSSL_ENTER("wolfSSL_CRYPTO_set_mem_ex_functions");
+    WOLFSSL_STUB("CRYPTO_set_mem_ex_functions");
+
+    return WOLFSSL_FAILURE;
+}
+#endif
+#endif
+
+#if defined(OPENSSL_EXTRA)
+
+/**
+ * free allocated memory resouce
+ * @param str  a pointer to resource to be freed
+ * @param file dummy argument
+ * @param line dummy argument
+ */
+void wolfSSL_CRYPTO_free(void *str, const char *file, int line)
+{
+    (void)file;
+    (void)line;
+    XFREE(str, 0, DYNAMIC_TYPE_TMP_BUFFER);
+}
+/**
+ * allocate memory with size of num
+ * @param num  size of memory allocation to be malloced
+ * @param file dummy argument
+ * @param line dummy argument
+ * @return a pointer to allocated memory on succssesful, otherwise NULL
+ */
+void *wolfSSL_CRYPTO_malloc(size_t num, const char *file, int line)
+{
+    (void)file;
+    (void)line;
+    return XMALLOC(num, 0, DYNAMIC_TYPE_TMP_BUFFER);
+}
+
+size_t wolfSSL_strlcpy(char *dst, const char *src, size_t dstSize)
+{
+    size_t i;
+
+    if (!dstSize || !dst || !src)
+        return 0;
+
+    /* Always have to leave a space for NULL */
+    for (i = 0; i < (dstSize - 1) && *src != '\0'; i++) {
+        *dst++ = *src++;
+    }
+    *dst = '\0';
+
+    return i; /* return length without NULL */
+}
+
+size_t wolfSSL_strlcat(char *dst, const char *src, size_t dstSize)
+{
+    size_t dstLen;
+
+    if (!dstSize)
+        return 0;
+
+    dstLen = XSTRLEN(dst);
+
+    if (dstSize < dstLen)
+        return dstLen + XSTRLEN(src);
+
+    return dstLen + wolfSSL_strlcpy(dst + dstLen, src, dstSize - dstLen);
+
+}
+
+#endif
+
+/*******************************************************************************
+ * END OF standard C library wrapping APIs
+ ******************************************************************************/
+
+/*******************************************************************************
+ * START OF EX_DATA APIs
+ ******************************************************************************/
+#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || \
+                             defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY) || \
+                             defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_OPENSSH)))
+void wolfSSL_CRYPTO_cleanup_all_ex_data(void){
+    WOLFSSL_ENTER("CRYPTO_cleanup_all_ex_data");
+}
+#endif
+
 #if defined(HAVE_EX_DATA) || defined(FORTRESS)
+void* wolfSSL_CRYPTO_get_ex_data(const WOLFSSL_CRYPTO_EX_DATA* ex_data, int idx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_get_ex_data");
+#ifdef MAX_EX_DATA
+    if(ex_data && idx < MAX_EX_DATA && idx >= 0) {
+        return ex_data->ex_data[idx];
+    }
+#else
+    (void)ex_data;
+    (void)idx;
+#endif
+    return NULL;
+}
+
+int wolfSSL_CRYPTO_set_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data, int idx, void *data)
+{
+    WOLFSSL_ENTER("wolfSSL_CRYPTO_set_ex_data");
+#ifdef MAX_EX_DATA
+    if (ex_data && idx < MAX_EX_DATA && idx >= 0) {
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+        if (ex_data->ex_data_cleanup_routines[idx]) {
+            if (ex_data->ex_data[idx])
+                ex_data->ex_data_cleanup_routines[idx](ex_data->ex_data[idx]);
+            ex_data->ex_data_cleanup_routines[idx] = NULL;
+        }
+#endif
+        ex_data->ex_data[idx] = data;
+        return WOLFSSL_SUCCESS;
+    }
+#else
+    (void)ex_data;
+    (void)idx;
+    (void)data;
+#endif
+    return WOLFSSL_FAILURE;
+}
+
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+int wolfSSL_CRYPTO_set_ex_data_with_cleanup(
+    WOLFSSL_CRYPTO_EX_DATA* ex_data,
+    int idx,
+    void *data,
+    wolfSSL_ex_data_cleanup_routine_t cleanup_routine)
+{
+    WOLFSSL_ENTER("wolfSSL_CRYPTO_set_ex_data_with_cleanup");
+    if (ex_data && idx < MAX_EX_DATA && idx >= 0) {
+        if (ex_data->ex_data_cleanup_routines[idx] && ex_data->ex_data[idx])
+            ex_data->ex_data_cleanup_routines[idx](ex_data->ex_data[idx]);
+        ex_data->ex_data[idx] = data;
+        ex_data->ex_data_cleanup_routines[idx] = cleanup_routine;
+        return WOLFSSL_SUCCESS;
+    }
+    return WOLFSSL_FAILURE;
+}
+#endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
+
 /**
  * Issues unique index for the class specified by class_index.
  * Other parameter except class_index are ignored.
@@ -54375,6 +54058,362 @@ int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
     return get_ex_new_index(class_index);
 }
 #endif /* HAVE_EX_DATA || FORTRESS */
+
+/*******************************************************************************
+ * END OF EX_DATA APIs
+ ******************************************************************************/
+
+/*******************************************************************************
+ * START OF BUF_MEM API
+ ******************************************************************************/
+
+#if defined(OPENSSL_EXTRA)
+
+/* Begin functions for openssl/buffer.h */
+WOLFSSL_BUF_MEM* wolfSSL_BUF_MEM_new(void)
+{
+    WOLFSSL_BUF_MEM* buf;
+    buf = (WOLFSSL_BUF_MEM*)XMALLOC(sizeof(WOLFSSL_BUF_MEM), NULL,
+                                                        DYNAMIC_TYPE_OPENSSL);
+    if (buf) {
+        XMEMSET(buf, 0, sizeof(WOLFSSL_BUF_MEM));
+    }
+    return buf;
+}
+
+
+/* returns length of buffer on success */
+int wolfSSL_BUF_MEM_grow(WOLFSSL_BUF_MEM* buf, size_t len)
+{
+    int len_int = (int)len;
+    int mx;
+
+    /* verify provided arguments */
+    if (buf == NULL || len_int < 0) {
+        return 0; /* BAD_FUNC_ARG; */
+    }
+
+    /* check to see if fits in existing length */
+    if (buf->length > len) {
+        buf->length = len;
+        return len_int;
+    }
+
+    /* check to see if fits in max buffer */
+    if (buf->max >= len) {
+        if (buf->data != NULL) {
+            XMEMSET(&buf->data[buf->length], 0, len - buf->length);
+        }
+        buf->length = len;
+        return len_int;
+    }
+
+    /* expand size, to handle growth */
+    mx = (len_int + 3) / 3 * 4;
+
+    /* use realloc */
+    buf->data = (char*)XREALLOC(buf->data, mx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf->data == NULL) {
+        return 0; /* ERR_R_MALLOC_FAILURE; */
+    }
+
+    buf->max = mx;
+    XMEMSET(&buf->data[buf->length], 0, len - buf->length);
+    buf->length = len;
+
+    return len_int;
+}
+
+void wolfSSL_BUF_MEM_free(WOLFSSL_BUF_MEM* buf)
+{
+    if (buf) {
+        if (buf->data) {
+            XFREE(buf->data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            buf->data = NULL;
+        }
+        buf->max = 0;
+        buf->length = 0;
+        XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+}
+/* End Functions for openssl/buffer.h */
+
+#endif /* OPENSSL_EXTRA */
+
+/*******************************************************************************
+ * END OF BUF_MEM API
+ ******************************************************************************/
+
+/*******************************************************************************
+ * START OF TXT_DB API
+ ******************************************************************************/
+
+#if defined(OPENSSL_ALL)
+/**
+ * This function reads a tab delimetered CSV input and returns
+ * a populated WOLFSSL_TXT_DB structure.
+ * @param in Tab delimetered CSV input
+ * @param num Number of fields in each row.
+ * @return
+ */
+WOLFSSL_TXT_DB *wolfSSL_TXT_DB_read(WOLFSSL_BIO *in, int num)
+{
+    WOLFSSL_TXT_DB *ret = NULL;
+    char *buf = NULL;
+    char *bufEnd = NULL;
+    char *idx = NULL;
+    char* lineEnd = NULL;
+    int bufSz;
+    int failed = 1;
+    /* Space in front of str reserved for field pointers + \0 */
+    int fieldsSz = (num + 1) * sizeof(char *);
+    WOLFSSL_ENTER("wolfSSL_TXT_DB_read");
+
+    if (!in || num <= 0 || num > WOLFSSL_TXT_DB_MAX_FIELDS) {
+        WOLFSSL_MSG("Bad parameter or too many fields");
+        return NULL;
+    }
+
+    if (!(ret = (WOLFSSL_TXT_DB*)XMALLOC(sizeof(WOLFSSL_TXT_DB), NULL,
+            DYNAMIC_TYPE_OPENSSL))) {
+        WOLFSSL_MSG("malloc error");
+        goto error;
+    }
+    XMEMSET (ret, 0, sizeof(WOLFSSL_TXT_DB));
+    ret->num_fields = num;
+
+    if (!(ret->data = wolfSSL_sk_WOLFSSL_STRING_new())) {
+        WOLFSSL_MSG("wolfSSL_sk_WOLFSSL_STRING_new error");
+        goto error;
+    }
+
+    bufSz = wolfSSL_BIO_get_len(in);
+    if (bufSz <= 0 ||
+            !(buf = (char*)XMALLOC(bufSz+1, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER))) {
+        WOLFSSL_MSG("malloc error or no data in BIO");
+        goto error;
+    }
+
+    if (wolfSSL_BIO_read(in, buf, bufSz) != bufSz) {
+        WOLFSSL_MSG("malloc error or no data in BIO");
+        goto error;
+    }
+
+    buf[bufSz] = '\0';
+    idx = buf;
+    for (bufEnd = buf + bufSz; idx < bufEnd; idx = lineEnd + 1) {
+        char* strBuf = NULL;
+        char** fieldPtr = NULL;
+        int fieldPtrIdx = 0;
+        char* fieldCheckIdx = NULL;
+        lineEnd = XSTRNSTR(idx, "\n", (unsigned int)(bufEnd - idx));
+        if (!lineEnd)
+            lineEnd = bufEnd;
+        if (idx == lineEnd) /* empty line */
+            continue;
+        if (*idx == '#')
+            continue;
+        *lineEnd = '\0';
+        strBuf = (char*)XMALLOC(fieldsSz + lineEnd - idx + 1, NULL,
+                                DYNAMIC_TYPE_OPENSSL);
+        if (!strBuf) {
+            WOLFSSL_MSG("malloc error");
+            goto error;
+        }
+        XMEMCPY(strBuf + fieldsSz, idx, lineEnd - idx + 1); /* + 1 for NULL */
+        XMEMSET(strBuf, 0, fieldsSz);
+        /* Check for appropriate number of fields */
+        fieldPtr = (char**)strBuf;
+        fieldCheckIdx = strBuf + fieldsSz;
+        fieldPtr[fieldPtrIdx++] = fieldCheckIdx;
+        while (*fieldCheckIdx != '\0') {
+            /* Handle escaped tabs */
+            if (*fieldCheckIdx == '\t' && fieldCheckIdx[-1] != '\\') {
+                fieldPtr[fieldPtrIdx++] = fieldCheckIdx + 1;
+                *fieldCheckIdx = '\0';
+                if (fieldPtrIdx > num) {
+                    WOLFSSL_MSG("too many fields");
+                    XFREE(strBuf, NULL, DYNAMIC_TYPE_OPENSSL);
+                    goto error;
+                }
+            }
+            fieldCheckIdx++;
+        }
+        if (fieldPtrIdx != num) {
+            WOLFSSL_MSG("wrong number of fields");
+            XFREE(strBuf, NULL, DYNAMIC_TYPE_OPENSSL);
+            goto error;
+        }
+        if (wolfSSL_sk_push(ret->data, strBuf) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_sk_push error");
+            XFREE(strBuf, NULL, DYNAMIC_TYPE_OPENSSL);
+            goto error;
+        }
+    }
+
+    failed = 0;
+error:
+    if (failed && ret) {
+        XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
+        ret = NULL;
+    }
+    if (buf) {
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    return ret;
+}
+
+long wolfSSL_TXT_DB_write(WOLFSSL_BIO *out, WOLFSSL_TXT_DB *db)
+{
+    const WOLF_STACK_OF(WOLFSSL_STRING)* data;
+    long totalLen = 0;
+    char buf[512]; /* Should be more than enough for a single row */
+    char* bufEnd = buf + sizeof(buf);
+    int sz;
+    int i;
+
+    WOLFSSL_ENTER("wolfSSL_TXT_DB_write");
+
+    if (!out || !db || !db->num_fields) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    data = db->data;
+    while (data) {
+        char** fields = (char**)data->data.string;
+        char* idx = buf;
+
+        if (!fields) {
+            WOLFSSL_MSG("Missing row");
+            return WOLFSSL_FAILURE;
+        }
+
+        for (i = 0; i < db->num_fields; i++) {
+            const char* fieldValue = fields[i];
+            if (!fieldValue) {
+                fieldValue = "";
+            }
+
+            /* Copy over field escaping tabs */
+            while (*fieldValue != '\0') {
+                if (idx+1 < bufEnd) {
+                    if (*fieldValue == '\t')
+                        *idx++ = '\\';
+                    *idx++ = *fieldValue++;
+                }
+                else {
+                    WOLFSSL_MSG("Data row is too big");
+                    return WOLFSSL_FAILURE;
+                }
+            }
+            if (idx < bufEnd) {
+                *idx++ = '\t';
+            }
+            else {
+                WOLFSSL_MSG("Data row is too big");
+                return WOLFSSL_FAILURE;
+            }
+        }
+        idx[-1] = '\n';
+        sz = (int)(idx - buf);
+
+        if (wolfSSL_BIO_write(out, buf, sz) != sz) {
+            WOLFSSL_MSG("wolfSSL_BIO_write error");
+            return WOLFSSL_FAILURE;
+        }
+        totalLen += sz;
+
+        data = data->next;
+    }
+
+    return totalLen;
+}
+
+int wolfSSL_TXT_DB_insert(WOLFSSL_TXT_DB *db, WOLFSSL_STRING *row)
+{
+    WOLFSSL_ENTER("wolfSSL_TXT_DB_insert");
+
+    if (!db || !row || !db->data) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_sk_push(db->data, row) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_sk_push error");
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
+void wolfSSL_TXT_DB_free(WOLFSSL_TXT_DB *db)
+{
+    WOLFSSL_ENTER("wolfSSL_TXT_DB_free");
+    if (db) {
+        if (db->data) {
+            wolfSSL_sk_free(db->data);
+        }
+        XFREE(db, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+}
+
+int wolfSSL_TXT_DB_create_index(WOLFSSL_TXT_DB *db, int field,
+        void* qual, wolf_sk_hash_cb hash, wolf_sk_compare_cb cmp)
+{
+    WOLFSSL_ENTER("wolfSSL_TXT_DB_create_index");
+    (void)qual;
+
+    if (!db || !hash || !cmp || field >= db->num_fields || field < 0) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    db->hash_fn[field] = hash;
+    db->comp[field] = cmp;
+
+    return WOLFSSL_SUCCESS;
+}
+
+WOLFSSL_STRING *wolfSSL_TXT_DB_get_by_index(WOLFSSL_TXT_DB *db, int idx,
+        WOLFSSL_STRING *value)
+{
+    WOLFSSL_ENTER("wolfSSL_TXT_DB_get_by_index");
+
+    if (!db || !db->data || idx < 0 || idx >= db->num_fields) {
+        WOLFSSL_MSG("Bad parameter");
+        return NULL;
+    }
+
+    if (!db->hash_fn[idx] || !db->comp[idx]) {
+        WOLFSSL_MSG("Missing hash or cmp functions");
+        return NULL;
+    }
+
+    /* If first data struct has correct hash and cmp function then
+     * assume others do too */
+    if (db->data->hash_fn != db->hash_fn[idx] ||
+            db->data->comp != db->comp[idx]) {
+        /* Set the hash and comp functions */
+        WOLF_STACK_OF(WOLFSSL_STRING)* data = db->data;
+        while (data) {
+            if (data->comp != db->comp[idx] ||
+                    data->hash_fn != db->hash_fn[idx]) {
+                data->comp = db->comp[idx];
+                data->hash_fn = db->hash_fn[idx];
+                data->hash = 0;
+            }
+            data= data->next;
+        }
+    }
+    return (WOLFSSL_STRING*) wolfSSL_lh_retrieve(db->data, value);
+}
+#endif
+
+/*******************************************************************************
+ * END OF TXT_DB API
+ ******************************************************************************/
 
 #ifndef NO_CERTS
 
