@@ -15894,6 +15894,7 @@ exit_rsa:
 
     (void)res;
     (void)bytes;
+    (void)idx;
     (void)in;
     (void)out;
     (void)plain;
@@ -33480,6 +33481,8 @@ static int mp_test_div_3(mp_int* a, mp_int* r, WC_RNG* rng)
     mp_digit rem;
     mp_digit rem2;
 
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
     for (i = 0; i < 10; i++) {
         for (j = 1; j < 10; j++) {
             if (randNum(a, j, rng, NULL) != 0)
@@ -33501,6 +33504,7 @@ static int mp_test_div_3(mp_int* a, mp_int* r, WC_RNG* rng)
         return -12626;
     if (mp_cmp(r, a) != MP_EQ)
         return -12627;
+#endif
 
 #if defined(WOLFSSL_SP_MATH_ALL)
     if (mp_div_d(a, 10, r, &rem) != 0)
@@ -33527,9 +33531,15 @@ static int mp_test_div_3(mp_int* a, mp_int* r, WC_RNG* rng)
         return -12637;
     if (rem != rem2)
         return -12638;
-#else
-    (void)rem2;
 #endif
+
+    (void)a;
+    (void)r;
+    (void)rng;
+    (void)i;
+    (void)j;
+    (void)rem;
+    (void)rem2;
 
     return 0;
 }
@@ -33602,7 +33612,8 @@ static int mp_test_radix_10(mp_int* a, mp_int* r, WC_RNG* rng)
 }
 #endif
 
-#if defined(WOLFSSL_SP_MATH_ALL) || defined(HAVE_ECC)
+#if defined(WOLFSSL_SP_MATH_ALL) || (!defined WOLFSSL_SP_MATH && \
+                                                              defined(HAVE_ECC))
 static int mp_test_radix_16(mp_int* a, mp_int* r, WC_RNG* rng)
 {
     int ret;
@@ -33698,6 +33709,7 @@ static int mp_test_shift(mp_int* a, mp_int* r1, WC_RNG* rng)
         if (mp_cmp(a, r1) != MP_EQ)
             return -12682;
     }
+#ifndef WOLFSSL_SP_MATH
     for (i = 0; i < DIGIT_BIT+1; i++) {
         if (mp_mul_2d(a, i, r1) != MP_OKAY)
             return -12683;
@@ -33705,6 +33717,7 @@ static int mp_test_shift(mp_int* a, mp_int* r1, WC_RNG* rng)
         if (mp_cmp(a, r1) != MP_EQ)
             return -12684;
     }
+#endif
 
     return 0;
 }
@@ -33739,21 +33752,6 @@ static int mp_test_add_sub_d(mp_int* a, mp_int* r1)
         return -12696;
     if (r1->used != 0)
         return -12697;
-
-#ifdef WOLFSSL_SP_MATH
-    if (mp_set(r1, 1) != MP_OKAY)
-        return -12698;
-    if (mp_mul_2d(r1, SP_INT_MAX_BITS - 1, r1) != MP_OKAY)
-        return -12699;
-    if (mp_sub_d(r1, 1, r1) != MP_OKAY)
-        return -12700;
-    if (mp_mul_2d(r1, 1, r1) != MP_OKAY)
-        return -12701;
-    if (mp_add_d(r1, 1, r1) != MP_OKAY)
-        return -12702;
-    if (mp_add_d(r1, 1, r1) == MP_OKAY)
-        return -12703;
-#endif
 
     return 0;
 }
@@ -34303,8 +34301,8 @@ static int mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
         return -12821;
 #endif
 
-#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
-    (defined(HAVE_ECC) && defined(FP_ECC))
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
     ret = mp_div_d(NULL, 0, NULL, NULL);
     if (ret != MP_VAL)
         return -12822;
@@ -34353,7 +34351,7 @@ static int mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
         return -12834;
 #endif
 
-#ifdef HAVE_ECC
+#if !defined(WOLFSSL_SP_MATH) && defined(HAVE_ECC)
     ret = mp_div_2_mod_ct(NULL, NULL, NULL);
     if (ret != MP_VAL)
         return -12835;
@@ -34412,7 +34410,7 @@ static int mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
         return -12851;
 #endif
 
-#ifdef HAVE_ECC
+#if !defined(WOLFSSL_SP_MATH) && defined(HAVE_ECC)
     ret = mp_invmod_mont_ct(NULL, NULL, NULL, 1);
     if (ret != MP_VAL)
         return -12852;
@@ -34436,7 +34434,7 @@ static int mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
         return -12858;
 #endif
 
-#if defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(WC_RSA_BLINDING)
     ret = mp_lcm(NULL, NULL, NULL);
     if (ret != MP_VAL)
         return -12859;
@@ -35022,6 +35020,7 @@ static int mp_test_shbd(mp_int* a, mp_int* b, WC_RNG* rng)
     int ret;
     int i, j, k;
 
+#ifndef WOLFSSL_SP_MATH
     for (i = 0; i < 10; i++) {
         for (j = 1; j < (DIGIT_BIT + 7) / 8 * 3; j++) {
             ret = randNum(a, j, rng, NULL);
@@ -35038,6 +35037,7 @@ static int mp_test_shbd(mp_int* a, mp_int* b, WC_RNG* rng)
             }
         }
     }
+#endif
 
     for (i = 0; i < 10; i++) {
         for (j = 1; j < (DIGIT_BIT + 7) / 8 * 3; j++) {
@@ -35075,6 +35075,7 @@ static int mp_test_shbd(mp_int* a, mp_int* b, WC_RNG* rng)
 }
 #endif
 
+#ifndef WOLFSSL_SP_MATH
 static int mp_test_div(mp_int* a, mp_int* d, mp_int* r, mp_int* rem,
                        WC_RNG* rng)
 {
@@ -35192,6 +35193,7 @@ static int mp_test_div(mp_int* a, mp_int* d, mp_int* r, mp_int* rem,
 
     return 0;
 }
+#endif
 
 #if defined(WOLFSSL_KEY_GEN) && (!defined(NO_DH) || !defined(NO_DSA)) && \
     !defined(WC_NO_RNG)
@@ -35201,20 +35203,28 @@ static int mp_test_prime(mp_int* a, WC_RNG* rng)
     int res;
 
     ret = mp_rand_prime(a, 1, rng, NULL);
-#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+#if defined(WOLFSSL_SP_MATH_ALL)
     if (ret != 0)
+        return -13060;
 #else
     if (ret != MP_VAL)
-#endif
         return -13060;
+#endif
+#ifndef WOLFSSL_SP_MATH
     ret = mp_rand_prime(a, -5, rng, NULL);
     if (ret != 0)
         return -13061;
+#endif
     ret = mp_prime_is_prime(a, 1, &res);
     if (ret != MP_OKAY)
         return -13062;
+#ifndef WOLFSSL_SP_MATH
     if (res != MP_YES)
         return -13063;
+#else
+    if (res != MP_NO)
+        return -13063;
+#endif
 
     ret = mp_prime_is_prime(a, 0, &res);
     if (ret != MP_VAL)
@@ -35290,8 +35300,7 @@ static int mp_test_prime(mp_int* a, WC_RNG* rng)
 }
 #endif
 
-#if defined(WOLFSSL_KEY_GEN) && (!defined(WOLFSSL_SP_MATH_ALL) || \
-    !defined(NO_RSA))
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(WC_RSA_BLINDING)
 static int mp_test_lcm_gcd(mp_int* a, mp_int* b, mp_int* r, mp_int* exp,
                            WC_RNG* rng)
 {
@@ -35490,7 +35499,7 @@ static int mp_test_mul_sqr(mp_int* a, mp_int* b, mp_int* r1, mp_int* r2,
     if (!mp_iszero(r1))
         return -13148;
 
-#ifdef WOLFSSL_SP_MATH
+#ifdef WOLFSSL_SP_MATH_ALL
     ret = mp_set(a, 1);
     if (ret != MP_OKAY)
         return -13149;
@@ -35535,7 +35544,7 @@ static int mp_test_mul_sqr(mp_int* a, mp_int* b, mp_int* r1, mp_int* r2,
         return -13160;
 #endif /* HAVE_ECC && (ECC_SHAMIR || FP_ECC) */
 #endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_HAVE_SP_DH || (HAVE_ECC && FP_ECC) */
-#endif /* WOLFSSL_SP_MATH */
+#endif /* WOLFSSL_SP_MATH_ALL */
 
     return 0;
 }
@@ -35586,8 +35595,7 @@ static int mp_test_invmod(mp_int* a, mp_int* m, mp_int* r)
         return -13177;
 #endif
 
-#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
-#ifdef HAVE_ECC
+#if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
     mp_set(a, 0);
     mp_set(m, 3);
     ret = mp_invmod_mont_ct(a, m, r, 1);
@@ -35614,7 +35622,6 @@ static int mp_test_invmod(mp_int* a, mp_int* m, mp_int* r)
     ret = mp_invmod_mont_ct(a, m, r, 1);
     if (ret != MP_OKAY)
         return -13182;
-#endif
 #endif
 
     return 0;
@@ -35704,6 +35711,7 @@ static int mp_test_exptmod(mp_int* b, mp_int* e, mp_int* m, mp_int* r)
     if (!mp_iszero(r))
         return -13209;
 
+#ifndef WOLFSSL_SP_MATH
     mp_set(b, 0x01);
     mp_mul_2d(b, DIGIT_BIT, b);
     mp_add_d(b, 1, b);
@@ -35719,6 +35727,7 @@ static int mp_test_exptmod(mp_int* b, mp_int* e, mp_int* m, mp_int* r)
         return -13212;
     if (!mp_iszero(r))
         return -13213;
+#endif
 
     mp_set(b, 0x2);
     mp_set(e, 0x3);
@@ -35730,7 +35739,7 @@ static int mp_test_exptmod(mp_int* b, mp_int* e, mp_int* m, mp_int* r)
     if (ret != MP_OKAY)
         return -13215;
 
-#ifdef WOLFSSL_SP_MATH
+#ifdef WOLFSSL_SP_MATH_ALL
     mp_set(b, 0x2);
     mp_set(e, 0x3);
     mp_set(m, 0x01);
@@ -35829,7 +35838,10 @@ WOLFSSL_TEST_SUBROUTINE int mp_test(void)
     WC_RNG rng;
     int    ret;
 #if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN)
-    int    i, j, k;
+    int    i, j;
+#ifndef WOLFSSL_SP_MATH
+    int    k;
+#endif
     mp_digit d;
 #endif
     mp_int a, b, r1, r2, p;
@@ -35889,6 +35901,7 @@ WOLFSSL_TEST_SUBROUTINE int mp_test(void)
                 return -13309;
          #endif
 
+     #if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
          #if defined(WOLFSSL_SP_MATH) || (defined(WOLFSSL_SP_MATH_ALL) && \
                                               !defined(WOLFSSL_SP_INT_NEGATIVE))
             ret = mp_addmod(&a, &b, &p, &r1);
@@ -35914,6 +35927,7 @@ WOLFSSL_TEST_SUBROUTINE int mp_test(void)
             if (mp_cmp(&r1, &r2) != 0)
                 return -13316;
          #endif
+    #endif
 
             /* Ensure add digit produce same result as sub digit. */
             ret = mp_add_d(&a, d, &r1);
@@ -35933,6 +35947,7 @@ WOLFSSL_TEST_SUBROUTINE int mp_test(void)
                 return -13320;
             ret = 0;
 
+        #ifndef WOLFSSL_SP_MATH
             /* Shift up and down number all bits in a digit. */
             for (k = 0; k < DIGIT_BIT; k++) {
                 mp_mul_2d(&a, k, &r1);
@@ -35945,6 +35960,7 @@ WOLFSSL_TEST_SUBROUTINE int mp_test(void)
                 if (mp_cmp(&a, &r1) != 0)
                     return -13323;
             }
+        #endif
         }
     }
 
@@ -35990,7 +36006,8 @@ WOLFSSL_TEST_SUBROUTINE int mp_test(void)
     if ((ret = mp_test_radix_10(&a, &r1, &rng)) != 0)
         return ret;
 #endif
-#if defined(WOLFSSL_SP_MATH_ALL) || defined(HAVE_ECC)
+#if defined(WOLFSSL_SP_MATH_ALL) || (!defined WOLFSSL_SP_MATH && \
+                                                              defined(HAVE_ECC))
     if ((ret = mp_test_radix_16(&a, &r1, &rng)) != 0)
         return ret;
 #endif
@@ -36015,15 +36032,16 @@ WOLFSSL_TEST_SUBROUTINE int mp_test(void)
     if ((ret = mp_test_set_is_bit(&a)) != 0)
         return ret;
 #endif
+#ifdef WOLFSSL_SP_MATH_ALL
     if ((ret = mp_test_div(&a, &b, &r1, &r2, &rng)) != 0)
         return ret;
+#endif
 #if defined(WOLFSSL_KEY_GEN) && (!defined(NO_DH) || !defined(NO_DSA)) && \
     !defined(WC_NO_RNG)
     if ((ret = mp_test_prime(&a, &rng)) != 0)
         return ret;
 #endif
-#if defined(WOLFSSL_KEY_GEN) && (!defined(WOLFSSL_SP_MATH_ALL) || \
-    !defined(NO_RSA))
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(WC_RSA_BLINDING)
     if ((ret = mp_test_lcm_gcd(&a, &b, &r1, &r2, &rng)) != 0)
         return ret;
 #endif

@@ -1259,7 +1259,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         WOLFSSL_MEM_STATS mem_stats;
     #endif
 #endif
-#if defined(WOLFSSL_TLS13)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
     int onlyKeyShare = 0;
 #endif
 #if defined(HAVE_SESSION_TICKET)
@@ -1643,13 +1643,15 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 break;
 
             case 'y' :
-                #if defined(WOLFSSL_TLS13) && !defined(NO_DH)
+                #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) \
+                    && !defined(NO_DH)
                     onlyKeyShare = 1;
                 #endif
                 break;
 
             case 'Y' :
-                #if defined(WOLFSSL_TLS13) && defined(HAVE_ECC)
+                #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES) \
+                    && defined(HAVE_ECC)
                     onlyKeyShare = 2;
                 #endif
                 break;
@@ -1657,7 +1659,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             case 't' :
                 #ifdef HAVE_CURVE25519
                     useX25519 = 1;
-                    #if defined(WOLFSSL_TLS13) && defined(HAVE_ECC)
+                    #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
                         onlyKeyShare = 2;
                     #endif
                 #endif
@@ -1786,7 +1788,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             case '8' :
                 #ifdef HAVE_CURVE448
                     useX448 = 1;
-                    #if defined(WOLFSSL_TLS13) && defined(HAVE_ECC)
+                    #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
                         onlyKeyShare = 2;
                     #endif
                 #endif
@@ -2558,7 +2560,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             SetupPkCallbackContexts(ssl, &pkCbInfo);
 #endif
 
-    #ifdef WOLFSSL_TLS13
+    #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
         if (version >= 4) {
             SetKeyShare(ssl, onlyKeyShare, useX25519, useX448);   
         }

@@ -3260,10 +3260,10 @@ fi
 
 if test "$ENABLED_CHACHA" = "noasm" || test "$ENABLED_ASM" = "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_CHACHA -DNO_CHACHA_ASM"
+    AM_CFLAGS="$AM_CFLAGS -DNO_CHACHA_ASM"
 fi
 
-if test "$ENABLED_CHACHA" = "yes"
+if test "$ENABLED_CHACHA" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_CHACHA"
 fi
