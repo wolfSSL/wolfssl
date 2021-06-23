@@ -19553,6 +19553,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case NO_CERT_ERROR:
         return "TLS1.3 No Certificate Set Error";
 
+    case APP_DATA_READY:
+        return "Application data is available for reading";
+
     case TOO_MUCH_EARLY_DATA:
         return "Too much early data";
 
