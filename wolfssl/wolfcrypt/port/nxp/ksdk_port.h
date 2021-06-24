@@ -46,6 +46,7 @@ int ksdk_port_init(void);
 	int wolfcrypt_mp_mod(mp_int *a, mp_int *b, mp_int *c);
 	int wolfcrypt_mp_invmod(mp_int *a, mp_int *b, mp_int *c);
 	int wolfcrypt_mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y);
+	int wolfcrypt_mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng);
 
     /* Exported mp_mulmod function */
     int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d);

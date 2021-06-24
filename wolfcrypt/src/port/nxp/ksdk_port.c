@@ -405,6 +405,7 @@ int mp_invmod(mp_int *a, mp_int *b, mp_int *c)
 }
 
 /* d = a * b (mod c) */
+/* with blinding enabled ptr a can equal ptr d */
 int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
 {
     int res = MP_OKAY;
@@ -422,8 +423,9 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
     szB = mp_unsigned_bin_size(b);
     szC = mp_unsigned_bin_size(c);
 
-    if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES) && 
-        (szC <= LTC_MAX_INT_BYTES))
+    /* LTC hardware seems to have issue with ModMul with 511 bytes or more,
+        so use software math */
+    if ((szA + szB < LTC_MAX_INT_BYTES-1) && (szC <=  LTC_MAX_INT_BYTES))
     {
         uint8_t *ptrA, *ptrB, *ptrC, *ptrD;
 
@@ -432,14 +434,14 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
         ptrC = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
         ptrD = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
 
-        /* unsigned multiply */
-#if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
-      defined(WOLFSSL_SP_INT_NEGATIVE)
-        int neg = (a->sign == b->sign) ? MP_ZPOS : MP_NEG;
-#endif
-
         if (ptrA && ptrB && ptrC && ptrD) {
             uint16_t sizeA, sizeB, sizeC, sizeD = 0;
+
+            /* unsigned multiply */
+#if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
+      defined(WOLFSSL_SP_INT_NEGATIVE)
+            int neg = (a->sign == b->sign) ? MP_ZPOS : MP_NEG;
+#endif
 
             /* Multiply A * B = D */
             res = ltc_get_lsb_bin_from_mp_int(ptrA, a, &sizeA);

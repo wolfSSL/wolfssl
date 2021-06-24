@@ -2434,7 +2434,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
             /* unblind */
             if (ret == 0 && mp_mulmod(tmp, rndi, &key->n, tmp) != MP_OKAY)
                 ret = MP_MULMOD_E;
-        #endif   /* WC_RSA_BLINDING */
+        #endif /* WC_RSA_BLINDING */
 
             break;
         }
