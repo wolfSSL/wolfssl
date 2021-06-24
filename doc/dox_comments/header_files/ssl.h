@@ -7272,6 +7272,68 @@ WOLFSSL_API int wolfSSL_CTX_trust_peer_buffer(WOLFSSL_CTX*,
 WOLFSSL_API int wolfSSL_CTX_load_verify_buffer(WOLFSSL_CTX*,
                                                const unsigned char*, long, int);
 
+
+/*!
+    \ingroup CertsKeys
+
+    \brief This function loads a CA certificate buffer into the WOLFSSL
+    Context. It behaves like the non-buffered version, only differing in
+    its ability to be called with a buffer as input instead of a file.
+    The buffer is provided by the in argument of size sz. format specifies
+    the format type of the buffer; SSL_FILETYPE_ASN1 or SSL_FILETYPE_PEM.
+    More than one CA certificate may be loaded per buffer as long as the
+    format is in PEM.  The _ex version was added in PR 2413 and supports 
+    additional arguments for userChain and flags.
+
+    \return SSL_SUCCESS upon success
+    \return SSL_BAD_FILETYPE will be returned if the file is the wrong format.
+    \return SSL_BAD_FILE will be returned if the file doesn’t exist,
+    can’t be read, or is corrupted.
+    \return MEMORY_E will be returned if an out of memory condition occurs.
+    \return ASN_INPUT_E will be returned if Base16 decoding fails on the file.
+    \return BUFFER_E will be returned if a chain buffer is bigger than
+    the receiving buffer.
+
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
+    \param in pointer to the CA certificate buffer.
+    \param sz size of the input CA certificate buffer, in.
+    \param format format of the buffer certificate, either SSL_FILETYPE_ASN1
+    or SSL_FILETYPE_PEM.
+    \param userChain If using format WOLFSSL_FILETYPE_ASN1 this set to non-zero
+    indicates a chain of DER's is being presented.
+    \param flags: See ssl.h around WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS.
+
+    _Example_
+    \code
+    int ret = 0;
+    int sz = 0;
+    WOLFSSL_CTX* ctx;
+    byte certBuff[...];
+    ...
+
+    // Example for force loading an expired certificate
+    ret = wolfSSL_CTX_load_verify_buffer_ex(ctx, certBuff, sz, SSL_FILETYPE_PEM,
+        0, (WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY));
+    if (ret != SSL_SUCCESS) {
+    	// error loading CA certs from buffer
+    }
+    ...
+    \endcode
+
+    \sa wolfSSL_CTX_load_verify_buffer
+    \sa wolfSSL_CTX_load_verify_locations
+    \sa wolfSSL_CTX_use_certificate_buffer
+    \sa wolfSSL_CTX_use_PrivateKey_buffer
+    \sa wolfSSL_CTX_use_NTRUPrivateKey_file
+    \sa wolfSSL_CTX_use_certificate_chain_buffer
+    \sa wolfSSL_use_certificate_buffer
+    \sa wolfSSL_use_PrivateKey_buffer
+    \sa wolfSSL_use_certificate_chain_buffer
+*/
+WOLFSSL_API int wolfSSL_CTX_load_verify_buffer_ex(WOLFSSL_CTX*,
+                                               const unsigned char*, long, int,
+                                               int, word32);
+
 /*!
     \ingroup CertsKeys
 
