@@ -56765,7 +56765,7 @@ int sp_ecc_mulmod_table_1024(const mp_int* km, const ecc_point* gm, byte* table,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     point = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024), heap,
         DYNAMIC_TYPE_ECC);
-    if (point == NULL)
+    if (point == NULL) {
         err = MEMORY_E;
     }
     if (err == MP_OKAY) {

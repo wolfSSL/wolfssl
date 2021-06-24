@@ -27728,6 +27728,34 @@ static const sp_point_1024 p1024_base = {
     0
 };
 
+/* Normalize the values in each word to 25.
+ *
+ * a  Array of sp_digit to normalize.
+ */
+static void sp_1024_norm_42(sp_digit* a)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int i;
+    for (i = 0; i < 41; i++) {
+        a[i+1] += a[i] >> 25;
+        a[i] &= 0x1ffffff;
+    }
+#else
+    int i;
+    for (i = 0; i < 40; i += 8) {
+        a[i+1] += a[i+0] >> 25; a[i+0] &= 0x1ffffff;
+        a[i+2] += a[i+1] >> 25; a[i+1] &= 0x1ffffff;
+        a[i+3] += a[i+2] >> 25; a[i+2] &= 0x1ffffff;
+        a[i+4] += a[i+3] >> 25; a[i+3] &= 0x1ffffff;
+        a[i+5] += a[i+4] >> 25; a[i+4] &= 0x1ffffff;
+        a[i+6] += a[i+5] >> 25; a[i+5] &= 0x1ffffff;
+        a[i+7] += a[i+6] >> 25; a[i+6] &= 0x1ffffff;
+        a[i+8] += a[i+7] >> 25; a[i+7] &= 0x1ffffff;
+    }
+    a[40+1] += a[40] >> 25; a[40] &= 0x1ffffff;
+#endif
+}
+
 /* Multiply a by scalar b into r. (r = a * b)
  *
  * r  A single precision integer.
@@ -28398,34 +28426,6 @@ SP_NOINLINE static void sp_1024_mul_add_42(sp_digit* r, const sp_digit* a,
     t[1] = tb * a[41]; r[41] += (sp_digit)((t[0] >> 25) + (t[1] & 0x1ffffff));
     r[42] +=  (sp_digit)(t[1] >> 25);
 #endif /* WOLFSSL_SP_SMALL */
-}
-
-/* Normalize the values in each word to 25.
- *
- * a  Array of sp_digit to normalize.
- */
-static void sp_1024_norm_42(sp_digit* a)
-{
-#ifdef WOLFSSL_SP_SMALL
-    int i;
-    for (i = 0; i < 41; i++) {
-        a[i+1] += a[i] >> 25;
-        a[i] &= 0x1ffffff;
-    }
-#else
-    int i;
-    for (i = 0; i < 40; i += 8) {
-        a[i+1] += a[i+0] >> 25; a[i+0] &= 0x1ffffff;
-        a[i+2] += a[i+1] >> 25; a[i+1] &= 0x1ffffff;
-        a[i+3] += a[i+2] >> 25; a[i+2] &= 0x1ffffff;
-        a[i+4] += a[i+3] >> 25; a[i+3] &= 0x1ffffff;
-        a[i+5] += a[i+4] >> 25; a[i+4] &= 0x1ffffff;
-        a[i+6] += a[i+5] >> 25; a[i+5] &= 0x1ffffff;
-        a[i+7] += a[i+6] >> 25; a[i+6] &= 0x1ffffff;
-        a[i+8] += a[i+7] >> 25; a[i+7] &= 0x1ffffff;
-    }
-    a[40+1] += a[40] >> 25; a[40] &= 0x1ffffff;
-#endif
 }
 
 /* Shift the result in the high 1024 bits down to the bottom.
@@ -34760,7 +34760,7 @@ int sp_ecc_mulmod_table_1024(const mp_int* km, const ecc_point* gm, byte* table,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     point = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024), heap,
         DYNAMIC_TYPE_ECC);
-    if (point == NULL)
+    if (point == NULL) {
         err = MEMORY_E;
     }
     if (err == MP_OKAY) {
