@@ -13698,8 +13698,15 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         if (inputLength > pendSz)
             inputLength = pendSz;
 
-        XMEMCPY(ssl->arrays->pendingMsg + ssl->arrays->pendingMsgOffset,
-                input + *inOutIdx, inputLength);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        if (ssl->error != WC_PENDING_E)
+    #endif
+        {
+            /* for async this copy was already done, do not replace, since
+             * conents may have been changed for inline operations */
+            XMEMCPY(ssl->arrays->pendingMsg + ssl->arrays->pendingMsgOffset,
+                    input + *inOutIdx, inputLength);
+        }
         ssl->arrays->pendingMsgOffset += inputLength;
         *inOutIdx += inputLength;
 
@@ -25767,6 +25774,12 @@ int SendCertificateVerify(WOLFSSL* ssl)
                         args->sigAlgo, ssl->suites->hashAlgo, key,
                         ssl->buffers.key
                     );
+
+                    /* free temporary buffer now */
+                    if (ret != WC_PENDING_E) {
+                        XFREE(args->verifySig, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
+                        args->verifySig = NULL;
+                    }
                     break;
                 }
             #endif /* !NO_RSA */
@@ -25799,8 +25812,9 @@ int SendCertificateVerify(WOLFSSL* ssl)
 
         case TLS_ASYNC_END:
         {
-            ret = SendHandshakeMsg(ssl, args->output, (word32)args->length + args->extraSz +
-                    VERIFY_HEADER, certificate_verify, "CertificateVerify");
+            ret = SendHandshakeMsg(ssl, args->output,
+                (word32)args->length + args->extraSz + VERIFY_HEADER,
+                certificate_verify, "CertificateVerify");
             if (ret != 0)
                 goto exit_scv;
 
@@ -29352,14 +29366,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         else
                     #endif
                         {
-                        #ifdef WOLFSSL_SMALL_STACK
-                            byte* encodedSig;
-                        #else
+                        #ifndef WOLFSSL_SMALL_STACK
                             byte  encodedSig[MAX_ENCODED_SIG_SZ];
-                        #endif
-
-                        #ifdef WOLFSSL_SMALL_STACK
-                            encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
+                        #else
+                            byte* encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
                                              ssl->heap, DYNAMIC_TYPE_SIGNATURE);
                             if (encodedSig == NULL) {
                                 ERROR_OUT(MEMORY_E, exit_dcv);
