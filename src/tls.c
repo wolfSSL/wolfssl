@@ -870,13 +870,13 @@ static int Hmac_OuterHash(Hmac* hmac, unsigned char* mac)
  * returns 0 on success, otherwise failure.
  */
 static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
-                               word32 sz, byte* header)
+                               word32 sz, int macLen, byte* header)
 {
     byte         lenBytes[8];
     int          i, j;
     unsigned int k;
     int          blockBits, blockMask;
-    int          lastBlockLen, macLen, extraLen, eocIndex;
+    int          lastBlockLen, extraLen, eocIndex;
     int          blocks, safeBlocks, lenBlock, eocBlock;
     unsigned int maxLen;
     int          blockSz, padSz;
@@ -889,7 +889,6 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
         case WC_SHA:
             blockSz = WC_SHA_BLOCK_SIZE;
             blockBits = 6;
-            macLen = WC_SHA_DIGEST_SIZE;
             padSz = WC_SHA_BLOCK_SIZE - WC_SHA_PAD_SIZE + 1;
             break;
     #endif /* !NO_SHA */
@@ -898,7 +897,6 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
         case WC_SHA256:
             blockSz = WC_SHA256_BLOCK_SIZE;
             blockBits = 6;
-            macLen = WC_SHA256_DIGEST_SIZE;
             padSz = WC_SHA256_BLOCK_SIZE - WC_SHA256_PAD_SIZE + 1;
             break;
     #endif /* !NO_SHA256 */
@@ -907,7 +905,6 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
         case WC_SHA384:
             blockSz = WC_SHA384_BLOCK_SIZE;
             blockBits = 7;
-            macLen = WC_SHA384_DIGEST_SIZE;
             padSz = WC_SHA384_BLOCK_SIZE - WC_SHA384_PAD_SIZE + 1;
             break;
     #endif /* WOLFSSL_SHA384 */
@@ -916,7 +913,6 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
         case WC_SHA512:
             blockSz = WC_SHA512_BLOCK_SIZE;
             blockBits = 7;
-            macLen = WC_SHA512_DIGEST_SIZE;
             padSz = WC_SHA512_BLOCK_SIZE - WC_SHA512_PAD_SIZE + 1;
             break;
     #endif /* WOLFSSL_SHA512 */
@@ -1225,7 +1221,7 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     #endif
             {
                 ret = Hmac_UpdateFinal_CT(&hmac, digest, in,
-                                              sz + hashSz + padSz + 1, myInner);
+                                      sz + hashSz + padSz + 1, hashSz, myInner);
             }
 #else
             ret = Hmac_UpdateFinal(&hmac, digest, in, sz + hashSz + padSz + 1,

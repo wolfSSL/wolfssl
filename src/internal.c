@@ -15433,7 +15433,7 @@ int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
      * either increment the size by (macSz + padLen + 1) before use or check on
      * the size to make sure is valid. */
     ret = ssl->hmac(ssl, verify, input, pLen - macSz - padLen - 1, padLen,
-                                                                    content, 1, PEER_ORDER);
+                                                        content, 1, PEER_ORDER);
     good |= MaskMac(input, pLen, ssl->specs.hash_size, verify);
 
     /* Non-zero on failure. */
