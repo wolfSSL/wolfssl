@@ -14761,6 +14761,545 @@ exit_rsa:
 }
 #endif
 
+#if defined(WOLFSSL_CERT_GEN) && defined(HAVE_NTRU)
+static int rsa_ntru_test(RsaKey* caKey, WC_RNG* rng, byte* tmp)
+{
+    int ret;
+    
+    Cert        myCert;
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+    XFILE       caFile;
+#endif
+#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
+    XFILE       ntruPrivFile;
+#endif
+    int         certSz;
+    word32      idx3 = 0;
+#ifdef WOLFSSL_TEST_CERT
+    DecodedCert decode;
+#endif
+    byte   public_key[557];          /* sized for EES401EP2 */
+    word16 public_key_len;           /* no. of octets in public key */
+    byte   private_key[607];         /* sized for EES401EP2 */
+    word16 private_key_len;          /* no. of octets in private key */
+    DRBG_HANDLE drbg;
+    static uint8_t const pers_str[] = {
+            'C', 'y', 'a', 'S', 'S', 'L', ' ', 't', 'e', 's', 't'
+    };
+    word32 rc = ntru_crypto_drbg_instantiate(112, pers_str,
+                      sizeof(pers_str), GetEntropy, &drbg);
+    if (rc != DRBG_OK) {
+        ERROR_OUT(-7946, exit_rsa);
+    }
+
+    rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
+                                         &public_key_len, NULL,
+                                         &private_key_len, NULL);
+    if (rc != NTRU_OK) {
+        ERROR_OUT(-7947, exit_rsa);
+    }
+
+    rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
+                                         &public_key_len, public_key,
+                                         &private_key_len, private_key);
+    if (rc != NTRU_OK) {
+        ERROR_OUT(-7948, exit_rsa);
+    }
+
+    rc = ntru_crypto_drbg_uninstantiate(drbg);
+    if (rc != NTRU_OK) {
+        ERROR_OUT(-7949, exit_rsa);
+    }
+
+#ifdef USE_CERT_BUFFERS_1024
+    XMEMCPY(tmp, ca_key_der_1024, sizeof_ca_key_der_1024);
+    bytes = sizeof_ca_key_der_1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+    XMEMCPY(tmp, ca_key_der_2048, sizeof_ca_key_der_2048);
+    bytes = sizeof_ca_key_der_2048;
+#else
+    caFile = XFOPEN(rsaCaKeyFile, "rb");
+    if (!caFile) {
+        ERROR_OUT(-7950, exit_rsa);
+    }
+
+    bytes = XFREAD(tmp, 1, FOURK_BUF, caFile);
+    XFCLOSE(caFile);
+#endif /* USE_CERT_BUFFERS */
+
+    ret = wc_InitRsaKey(caKey, HEAP_HINT);
+    if (ret != 0) {
+        ERROR_OUT(-7951, exit_rsa);
+    }
+    ret = wc_RsaPrivateKeyDecode(tmp, &idx3, caKey, (word32)bytes);
+    if (ret != 0) {
+        ERROR_OUT(-7952, exit_rsa);
+    }
+
+    if (wc_InitCert(&myCert)) {
+        ERROR_OUT(-7953, exit_rsa);
+    }
+
+    XMEMCPY(&myCert.subject, &certDefaultName, sizeof(CertName));
+    myCert.daysValid = 1000;
+
+#ifdef WOLFSSL_CERT_EXT
+    /* add SKID from the Public Key */
+    if (wc_SetSubjectKeyIdFromNtruPublicKey(&myCert, public_key,
+                                            public_key_len) != 0) {
+        ERROR_OUT(-7954, exit_rsa);
+    }
+
+    /* add AKID from the CA certificate */
+#if defined(USE_CERT_BUFFERS_2048)
+    ret = wc_SetAuthKeyIdFromCert(&myCert, ca_cert_der_2048,
+                                        sizeof_ca_cert_der_2048);
+#elif defined(USE_CERT_BUFFERS_1024)
+    ret = wc_SetAuthKeyIdFromCert(&myCert, ca_cert_der_1024,
+                                        sizeof_ca_cert_der_1024);
+#else
+    ret = wc_SetAuthKeyId(&myCert, rsaCaCertFile);
+#endif
+    if (ret != 0) {
+        ERROR_OUT(-7955, exit_rsa);
+    }
+
+    /* add Key Usage */
+    if (wc_SetKeyUsage(&myCert, certKeyUsage2) != 0) {
+        ERROR_OUT(-7956, exit_rsa);
+    }
+#endif /* WOLFSSL_CERT_EXT */
+
+#if defined(USE_CERT_BUFFERS_2048)
+    ret = wc_SetIssuerBuffer(&myCert, ca_cert_der_2048,
+                                      sizeof_ca_cert_der_2048);
+#elif defined(USE_CERT_BUFFERS_1024)
+    ret = wc_SetIssuerBuffer(&myCert, ca_cert_der_1024,
+                                      sizeof_ca_cert_der_1024);
+#else
+    ret = wc_SetIssuer(&myCert, rsaCaCertFile);
+#endif
+    if (ret < 0) {
+        ERROR_OUT(-7957, exit_rsa);
+    }
+
+    der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
+        ERROR_OUT(-7958, exit_rsa);
+    }
+
+    certSz = wc_MakeNtruCert(&myCert, der, FOURK_BUF, public_key,
+                          public_key_len, rng);
+    if (certSz < 0) {
+        ERROR_OUT(-7959, exit_rsa);
+    }
+
+    ret = 0;
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &caKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret >= 0) {
+            ret = wc_SignCert(myCert.bodySz, myCert.sigType, der, FOURK_BUF,
+                      caKey, NULL, rng);
+        }
+    } while (ret == WC_PENDING_E);
+    wc_FreeRsaKey(caKey);
+    if (ret < 0) {
+        ERROR_OUT(-7960, exit_rsa);
+    }
+    certSz = ret;
+
+#ifdef WOLFSSL_TEST_CERT
+    InitDecodedCert(&decode, der, certSz, HEAP_HINT);
+    ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
+    if (ret != 0) {
+        FreeDecodedCert(&decode);
+        ERROR_OUT(-7961, exit_rsa);
+    }
+    FreeDecodedCert(&decode);
+#endif
+
+    ret = SaveDerAndPem(der, certSz, "./ntru-cert.der", "./ntru-cert.pem",
+        CERT_TYPE, -5637);
+    if (ret != 0) {
+        goto exit_rsa;
+    }
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
+    ntruPrivFile = XFOPEN("./ntru-key.raw", "wb");
+    if (!ntruPrivFile) {
+        ERROR_OUT(-7962, exit_rsa);
+    }
+    ret = (int)XFWRITE(private_key, 1, private_key_len, ntruPrivFile);
+    XFCLOSE(ntruPrivFile);
+    if (ret != private_key_len) {
+        ERROR_OUT(-7963, exit_rsa);
+    }
+#endif
+
+exit_rsa:
+    if (der != NULL) {
+        XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        der = NULL;
+     }
+   
+    if (ret >= 0)
+        ret = 0;
+    else 
+        return ret;
+}
+#endif
+
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
+#if !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG) && \
+    !defined(HAVE_FAST_RSA) && !defined(HAVE_USER_RSA) && \
+     (!defined(HAVE_FIPS) || \
+      (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
+static int rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
+{
+    int ret = 0;
+    word32 idx = 0;
+    const char inStr[] = TEST_STRING;
+	const word32 inLen = (word32)TEST_STRING_SZ;
+    const word32 outSz   = RSA_TEST_BYTES;
+    const word32 plainSz = RSA_TEST_BYTES;
+    byte*  res = NULL; 
+    
+    DECLARE_VAR(in, byte, TEST_STRING_SZ, HEAP_HINT);
+    DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+    DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
+
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    if (in == NULL || out == NULL || plain == NULL)
+        ERROR_OUT(MEMORY_E, exit_rsa);
+#endif
+
+    XMEMCPY(in, inStr, inLen);
+
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    if (in == NULL || out == NULL || plain == NULL)
+        ERROR_OUT(MEMORY_E, exit_rsa);
+#endif
+
+#ifndef NO_SHA
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
+        
+        if (ret >= 0) {
+            ret = wc_RsaPublicEncrypt_ex(in, inLen, out, outSz, key, rng,
+                       WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
+        }
+    } while (ret == WC_PENDING_E);
+    if (ret < 0) {
+        ERROR_OUT(-7918, exit_rsa);
+    }
+    TEST_SLEEP();
+
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+    idx = (word32)ret;
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, plainSz, key,
+                       WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
+        }
+    } while (ret == WC_PENDING_E);
+    if (ret < 0) {
+        ERROR_OUT(-7919, exit_rsa);
+    }
+
+    if (XMEMCMP(plain, in, inLen)) {
+        ERROR_OUT(-7920, exit_rsa);
+    }
+    TEST_SLEEP();
+    #endif /* NO_SHA */
+#endif
+
+    #ifndef NO_SHA256
+    XMEMSET(plain, 0, plainSz);
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPublicEncrypt_ex(in, inLen, out, outSz, key, rng,
+                  WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
+        }
+    } while (ret == WC_PENDING_E);
+    if (ret < 0) {
+        ERROR_OUT(-7921, exit_rsa);
+    }
+    TEST_SLEEP();
+#endif /* WOLFSSL_RSA_VERIFY_ONLY */
+
+    idx = (word32)ret;
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, plainSz, key,
+                  WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
+        }
+    } while (ret == WC_PENDING_E);
+    if (ret < 0) {
+        ERROR_OUT(-7922, exit_rsa);
+    }
+
+    if (XMEMCMP(plain, in, inLen)) {
+        ERROR_OUT(-7923, exit_rsa);
+    }
+    TEST_SLEEP();
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
+
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPrivateDecryptInline_ex(out, idx, &res, key,
+                WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
+        }
+    } while (ret == WC_PENDING_E);
+    if (ret < 0) {
+        ERROR_OUT(-7924, exit_rsa);
+    }
+    if (ret != (int)inLen) {
+        ERROR_OUT(-7925, exit_rsa);
+    }
+    if (XMEMCMP(res, in, inLen)) {
+        ERROR_OUT(-7926, exit_rsa);
+    }
+    TEST_SLEEP();
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
+
+    /* check fails if not using the same optional label */
+    XMEMSET(plain, 0, plainSz);
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPublicEncrypt_ex(in, inLen, out, outSz, key, rng,
+                  WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
+        }
+    } while (ret == WC_PENDING_E);
+    if (ret < 0) {
+        ERROR_OUT(-7927, exit_rsa);
+    }
+    TEST_SLEEP();
+#endif /* WOLFSSL_RSA_VERIFY_ONLY */
+
+/* TODO: investigate why Cavium Nitrox doesn't detect decrypt error here */
+#if !defined(HAVE_CAVIUM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_CRYPTOCELL)
+/* label is unused in cryptocell so it won't detect decrypt error due to label */
+    idx = (word32)ret;
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, plainSz, key,
+               WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, inLen);
+        }
+    } while (ret == WC_PENDING_E);
+    if (ret > 0) { /* in this case decrypt should fail */
+        ERROR_OUT(-7928, exit_rsa);
+    }
+    ret = 0;
+    TEST_SLEEP();
+#endif /* !HAVE_CAVIUM */
+
+    /* check using optional label with encrypt/decrypt */
+    XMEMSET(plain, 0, plainSz);
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPublicEncrypt_ex(in, inLen, out, outSz, key, rng,
+               WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, inLen);
+        }
+    } while (ret == WC_PENDING_E);
+    if (ret < 0) {
+        ERROR_OUT(-7929, exit_rsa);
+    }
+    TEST_SLEEP();
+#endif /* WOLFSSL_RSA_VERIFY_ONLY */
+
+    idx = (word32)ret;
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, plainSz, key,
+               WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, inLen);
+        }
+    } while (ret == WC_PENDING_E);
+    if (ret < 0) {
+        ERROR_OUT(-7930, exit_rsa);
+    }
+
+    if (XMEMCMP(plain, in, inLen)) {
+        ERROR_OUT(-7931, exit_rsa);
+    }
+    TEST_SLEEP();
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
+
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
+    #ifndef NO_SHA
+        /* check fail using mismatch hash algorithms */
+        XMEMSET(plain, 0, plainSz);
+        do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+            if (ret >= 0) {
+                ret = wc_RsaPublicEncrypt_ex(in, inLen, out, outSz, key, rng,
+                    WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, in, inLen);
+            }
+        } while (ret == WC_PENDING_E);
+        if (ret < 0) {
+            ERROR_OUT(-7932, exit_rsa);
+        }
+        TEST_SLEEP();
+
+/* TODO: investigate why Cavium Nitrox doesn't detect decrypt error here */
+#if !defined(HAVE_CAVIUM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_CRYPTOCELL)
+        idx = (word32)ret;
+        do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+            if (ret >= 0) {
+                ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, plainSz, key,
+                    WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                    in, inLen);
+            }
+        } while (ret == WC_PENDING_E);
+        if (ret > 0) { /* should fail */
+            ERROR_OUT(-7933, exit_rsa);
+        }
+        ret = 0;
+        TEST_SLEEP();
+    #endif /* !HAVE_CAVIUM */
+    #endif /* NO_SHA */
+#endif /* WOLFSSL_RSA_VERIFY_ONLY */
+#endif /* NO_SHA256 */
+
+#ifdef WOLFSSL_SHA512
+    /* Check valid RSA key size is used while using hash length of SHA512
+       If key size is less than (hash length * 2) + 2 then is invalid use
+       and test, since OAEP padding requires this.
+       BAD_FUNC_ARG is returned when this case is not met */
+    if (wc_RsaEncryptSize(key) > ((int)WC_SHA512_DIGEST_SIZE * 2) + 2) {
+        XMEMSET(plain, 0, plainSz);
+        do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+            if (ret >= 0) {
+                ret = wc_RsaPublicEncrypt_ex(in, inLen, out, outSz, key, rng,
+                  WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA512, WC_MGF1SHA512, NULL, 0);
+            }
+        } while (ret == WC_PENDING_E);
+        if (ret < 0) {
+            ERROR_OUT(-7934, exit_rsa);
+        }
+        TEST_SLEEP();
+
+        idx = ret;
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+        do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+            if (ret >= 0) {
+                ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, plainSz, key,
+                  WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA512, WC_MGF1SHA512, NULL, 0);
+            }
+        } while (ret == WC_PENDING_E);
+        if (ret < 0) {
+            ERROR_OUT(-7935, exit_rsa);
+        }
+
+        if (XMEMCMP(plain, in, inLen)) {
+            ERROR_OUT(-7936, exit_rsa);
+        }
+        TEST_SLEEP();
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
+    }
+#endif /* WOLFSSL_SHA512 */
+
+    /* check using pkcsv15 padding with _ex API */
+    XMEMSET(plain, 0, plainSz);
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPublicEncrypt_ex(in, inLen, out, outSz, key, rng,
+                  WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0);
+        }
+    } while (ret == WC_PENDING_E);
+    if (ret < 0) {
+        ERROR_OUT(-7937, exit_rsa);
+    }
+    TEST_SLEEP();
+
+    idx = (word32)ret;
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, plainSz, key,
+                  WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0);
+        }
+    } while (ret == WC_PENDING_E);
+    if (ret < 0) {
+        ERROR_OUT(-7938, exit_rsa);
+    }
+
+    if (XMEMCMP(plain, in, inLen)) {
+        ERROR_OUT(-7939, exit_rsa);
+    }
+    TEST_SLEEP();
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
+
+exit_rsa:
+    FREE_VAR(in, HEAP_HINT);
+    FREE_VAR(out, HEAP_HINT);
+    FREE_VAR(plain, HEAP_HINT);
+
+    (void)idx;   
+    (void)inStr;
+    (void)res;
+    
+    if (ret >= 0)
+        ret = 0;
+    
+    return ret;
+
+}
+#endif 
+#endif 
+
 WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 {
     int    ret;
@@ -15121,310 +15660,13 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
     #if !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG)
-    /* OAEP padding testing */
     #if !defined(HAVE_FAST_RSA) && !defined(HAVE_USER_RSA) && \
         (!defined(HAVE_FIPS) || \
          (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
-    #ifndef NO_SHA
-    XMEMSET(plain, 0, plainSz);
+    ret = rsa_oaep_padding_test(key, &rng);
+    if (ret != 0)
+        return ret;
 
-    do {
-#if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-#endif
-        if (ret >= 0) {
-            ret = wc_RsaPublicEncrypt_ex(in, inLen, out, outSz, key, &rng,
-                       WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
-        }
-    } while (ret == WC_PENDING_E);
-    if (ret < 0) {
-        ERROR_OUT(-7918, exit_rsa);
-    }
-    TEST_SLEEP();
-
-#ifndef WOLFSSL_RSA_PUBLIC_ONLY
-    idx = (word32)ret;
-    do {
-#if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-#endif
-        if (ret >= 0) {
-            ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, plainSz, key,
-                       WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
-        }
-    } while (ret == WC_PENDING_E);
-    if (ret < 0) {
-        ERROR_OUT(-7919, exit_rsa);
-    }
-
-    if (XMEMCMP(plain, in, inLen)) {
-        ERROR_OUT(-7920, exit_rsa);
-    }
-    TEST_SLEEP();
-    #endif /* NO_SHA */
-#endif
-
-    #ifndef NO_SHA256
-    XMEMSET(plain, 0, plainSz);
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
-    do {
-#if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-#endif
-        if (ret >= 0) {
-            ret = wc_RsaPublicEncrypt_ex(in, inLen, out, outSz, key, &rng,
-                  WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
-        }
-    } while (ret == WC_PENDING_E);
-    if (ret < 0) {
-        ERROR_OUT(-7921, exit_rsa);
-    }
-    TEST_SLEEP();
-#endif /* WOLFSSL_RSA_VERIFY_ONLY */
-
-    idx = (word32)ret;
-#ifndef WOLFSSL_RSA_PUBLIC_ONLY
-    do {
-#if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-#endif
-        if (ret >= 0) {
-            ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, plainSz, key,
-                  WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
-        }
-    } while (ret == WC_PENDING_E);
-    if (ret < 0) {
-        ERROR_OUT(-7922, exit_rsa);
-    }
-
-    if (XMEMCMP(plain, in, inLen)) {
-        ERROR_OUT(-7923, exit_rsa);
-    }
-    TEST_SLEEP();
-#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
-
-#ifndef WOLFSSL_RSA_PUBLIC_ONLY
-    do {
-#if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-#endif
-        if (ret >= 0) {
-            ret = wc_RsaPrivateDecryptInline_ex(out, idx, &res, key,
-                WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
-        }
-    } while (ret == WC_PENDING_E);
-    if (ret < 0) {
-        ERROR_OUT(-7924, exit_rsa);
-    }
-    if (ret != (int)inLen) {
-        ERROR_OUT(-7925, exit_rsa);
-    }
-    if (XMEMCMP(res, in, inLen)) {
-        ERROR_OUT(-7926, exit_rsa);
-    }
-    TEST_SLEEP();
-#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
-
-    /* check fails if not using the same optional label */
-    XMEMSET(plain, 0, plainSz);
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
-    do {
-#if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-#endif
-        if (ret >= 0) {
-            ret = wc_RsaPublicEncrypt_ex(in, inLen, out, outSz, key, &rng,
-                  WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
-        }
-    } while (ret == WC_PENDING_E);
-    if (ret < 0) {
-        ERROR_OUT(-7927, exit_rsa);
-    }
-    TEST_SLEEP();
-#endif /* WOLFSSL_RSA_VERIFY_ONLY */
-
-/* TODO: investigate why Cavium Nitrox doesn't detect decrypt error here */
-#if !defined(HAVE_CAVIUM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
-    !defined(WOLFSSL_CRYPTOCELL)
-/* label is unused in cryptocell so it won't detect decrypt error due to label */
-    idx = (word32)ret;
-    do {
-#if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-#endif
-        if (ret >= 0) {
-            ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, plainSz, key,
-               WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, inLen);
-        }
-    } while (ret == WC_PENDING_E);
-    if (ret > 0) { /* in this case decrypt should fail */
-        ERROR_OUT(-7928, exit_rsa);
-    }
-    ret = 0;
-    TEST_SLEEP();
-#endif /* !HAVE_CAVIUM */
-
-    /* check using optional label with encrypt/decrypt */
-    XMEMSET(plain, 0, plainSz);
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
-    do {
-#if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-#endif
-        if (ret >= 0) {
-            ret = wc_RsaPublicEncrypt_ex(in, inLen, out, outSz, key, &rng,
-               WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, inLen);
-        }
-    } while (ret == WC_PENDING_E);
-    if (ret < 0) {
-        ERROR_OUT(-7929, exit_rsa);
-    }
-    TEST_SLEEP();
-#endif /* WOLFSSL_RSA_VERIFY_ONLY */
-
-    idx = (word32)ret;
-#ifndef WOLFSSL_RSA_PUBLIC_ONLY
-    do {
-#if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-#endif
-        if (ret >= 0) {
-            ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, plainSz, key,
-               WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, inLen);
-        }
-    } while (ret == WC_PENDING_E);
-    if (ret < 0) {
-        ERROR_OUT(-7930, exit_rsa);
-    }
-
-    if (XMEMCMP(plain, in, inLen)) {
-        ERROR_OUT(-7931, exit_rsa);
-    }
-    TEST_SLEEP();
-#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
-
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
-    #ifndef NO_SHA
-        /* check fail using mismatch hash algorithms */
-        XMEMSET(plain, 0, plainSz);
-        do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-            ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-            if (ret >= 0) {
-                ret = wc_RsaPublicEncrypt_ex(in, inLen, out, outSz, key, &rng,
-                    WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, in, inLen);
-            }
-        } while (ret == WC_PENDING_E);
-        if (ret < 0) {
-            ERROR_OUT(-7932, exit_rsa);
-        }
-        TEST_SLEEP();
-
-/* TODO: investigate why Cavium Nitrox doesn't detect decrypt error here */
-#if !defined(HAVE_CAVIUM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
-    !defined(WOLFSSL_CRYPTOCELL)
-        idx = (word32)ret;
-        do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-            ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-            if (ret >= 0) {
-                ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, plainSz, key,
-                    WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
-                    in, inLen);
-            }
-        } while (ret == WC_PENDING_E);
-        if (ret > 0) { /* should fail */
-            ERROR_OUT(-7933, exit_rsa);
-        }
-        ret = 0;
-        TEST_SLEEP();
-    #endif /* !HAVE_CAVIUM */
-    #endif /* NO_SHA */
-#endif /* WOLFSSL_RSA_VERIFY_ONLY */
-#endif /* NO_SHA256 */
-
-#ifdef WOLFSSL_SHA512
-    /* Check valid RSA key size is used while using hash length of SHA512
-       If key size is less than (hash length * 2) + 2 then is invalid use
-       and test, since OAEP padding requires this.
-       BAD_FUNC_ARG is returned when this case is not met */
-    if (wc_RsaEncryptSize(key) > ((int)WC_SHA512_DIGEST_SIZE * 2) + 2) {
-        XMEMSET(plain, 0, plainSz);
-        do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-            ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-            if (ret >= 0) {
-                ret = wc_RsaPublicEncrypt_ex(in, inLen, out, outSz, key, &rng,
-                  WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA512, WC_MGF1SHA512, NULL, 0);
-            }
-        } while (ret == WC_PENDING_E);
-        if (ret < 0) {
-            ERROR_OUT(-7934, exit_rsa);
-        }
-        TEST_SLEEP();
-
-        idx = ret;
-#ifndef WOLFSSL_RSA_PUBLIC_ONLY
-        do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-            ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-            if (ret >= 0) {
-                ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, plainSz, key,
-                  WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA512, WC_MGF1SHA512, NULL, 0);
-            }
-        } while (ret == WC_PENDING_E);
-        if (ret < 0) {
-            ERROR_OUT(-7935, exit_rsa);
-        }
-
-        if (XMEMCMP(plain, in, inLen)) {
-            ERROR_OUT(-7936, exit_rsa);
-        }
-        TEST_SLEEP();
-#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
-    }
-#endif /* WOLFSSL_SHA512 */
-
-    /* check using pkcsv15 padding with _ex API */
-    XMEMSET(plain, 0, plainSz);
-    do {
-#if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-#endif
-        if (ret >= 0) {
-            ret = wc_RsaPublicEncrypt_ex(in, inLen, out, outSz, key, &rng,
-                  WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0);
-        }
-    } while (ret == WC_PENDING_E);
-    if (ret < 0) {
-        ERROR_OUT(-7937, exit_rsa);
-    }
-    TEST_SLEEP();
-
-    idx = (word32)ret;
-#ifndef WOLFSSL_RSA_PUBLIC_ONLY
-    do {
-#if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-#endif
-        if (ret >= 0) {
-            ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, plainSz, key,
-                  WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0);
-        }
-    } while (ret == WC_PENDING_E);
-    if (ret < 0) {
-        ERROR_OUT(-7938, exit_rsa);
-    }
-
-    if (XMEMCMP(plain, in, inLen)) {
-        ERROR_OUT(-7939, exit_rsa);
-    }
-    TEST_SLEEP();
-#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
     #endif /* !HAVE_FAST_RSA && !HAVE_FIPS */
     #endif /* WC_NO_RSA_OAEP && !WC_NO_RNG */
 #endif /* WOLFSSL_RSA_VERIFY_ONLY */
@@ -15551,183 +15793,12 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 #endif
 
 #ifdef HAVE_NTRU
-    {
-        Cert        myCert;
-    #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
-        XFILE       caFile;
-    #endif
-    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-        XFILE       ntruPrivFile;
-    #endif
-        int         certSz;
-        word32      idx3 = 0;
-    #ifdef WOLFSSL_TEST_CERT
-        DecodedCert decode;
-    #endif
-        byte   public_key[557];          /* sized for EES401EP2 */
-        word16 public_key_len;           /* no. of octets in public key */
-        byte   private_key[607];         /* sized for EES401EP2 */
-        word16 private_key_len;          /* no. of octets in private key */
-        DRBG_HANDLE drbg;
-        static uint8_t const pers_str[] = {
-                'C', 'y', 'a', 'S', 'S', 'L', ' ', 't', 'e', 's', 't'
-        };
-        word32 rc = ntru_crypto_drbg_instantiate(112, pers_str,
-                          sizeof(pers_str), GetEntropy, &drbg);
-        if (rc != DRBG_OK) {
-            ERROR_OUT(-7946, exit_rsa);
-        }
-
-        rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
-                                             &public_key_len, NULL,
-                                             &private_key_len, NULL);
-        if (rc != NTRU_OK) {
-            ERROR_OUT(-7947, exit_rsa);
-        }
-
-        rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
-                                             &public_key_len, public_key,
-                                             &private_key_len, private_key);
-        if (rc != NTRU_OK) {
-            ERROR_OUT(-7948, exit_rsa);
-        }
-
-        rc = ntru_crypto_drbg_uninstantiate(drbg);
-        if (rc != NTRU_OK) {
-            ERROR_OUT(-7949, exit_rsa);
-        }
-
-    #ifdef USE_CERT_BUFFERS_1024
-        XMEMCPY(tmp, ca_key_der_1024, sizeof_ca_key_der_1024);
-        bytes = sizeof_ca_key_der_1024;
-    #elif defined(USE_CERT_BUFFERS_2048)
-        XMEMCPY(tmp, ca_key_der_2048, sizeof_ca_key_der_2048);
-        bytes = sizeof_ca_key_der_2048;
-    #else
-        caFile = XFOPEN(rsaCaKeyFile, "rb");
-        if (!caFile) {
-            ERROR_OUT(-7950, exit_rsa);
-        }
-
-        bytes = XFREAD(tmp, 1, FOURK_BUF, caFile);
-        XFCLOSE(caFile);
-    #endif /* USE_CERT_BUFFERS */
-
-        ret = wc_InitRsaKey(caKey, HEAP_HINT);
-        if (ret != 0) {
-            ERROR_OUT(-7951, exit_rsa);
-        }
-        ret = wc_RsaPrivateKeyDecode(tmp, &idx3, caKey, (word32)bytes);
-        if (ret != 0) {
-            ERROR_OUT(-7952, exit_rsa);
-        }
-
-        if (wc_InitCert(&myCert)) {
-            ERROR_OUT(-7953, exit_rsa);
-        }
-
-        XMEMCPY(&myCert.subject, &certDefaultName, sizeof(CertName));
-        myCert.daysValid = 1000;
-
-    #ifdef WOLFSSL_CERT_EXT
-        /* add SKID from the Public Key */
-        if (wc_SetSubjectKeyIdFromNtruPublicKey(&myCert, public_key,
-                                                public_key_len) != 0) {
-            ERROR_OUT(-7954, exit_rsa);
-        }
-
-        /* add AKID from the CA certificate */
-    #if defined(USE_CERT_BUFFERS_2048)
-        ret = wc_SetAuthKeyIdFromCert(&myCert, ca_cert_der_2048,
-                                            sizeof_ca_cert_der_2048);
-    #elif defined(USE_CERT_BUFFERS_1024)
-        ret = wc_SetAuthKeyIdFromCert(&myCert, ca_cert_der_1024,
-                                            sizeof_ca_cert_der_1024);
-    #else
-        ret = wc_SetAuthKeyId(&myCert, rsaCaCertFile);
-    #endif
-        if (ret != 0) {
-            ERROR_OUT(-7955, exit_rsa);
-        }
-
-        /* add Key Usage */
-        if (wc_SetKeyUsage(&myCert, certKeyUsage2) != 0) {
-            ERROR_OUT(-7956, exit_rsa);
-        }
-    #endif /* WOLFSSL_CERT_EXT */
-
-    #if defined(USE_CERT_BUFFERS_2048)
-        ret = wc_SetIssuerBuffer(&myCert, ca_cert_der_2048,
-                                          sizeof_ca_cert_der_2048);
-    #elif defined(USE_CERT_BUFFERS_1024)
-        ret = wc_SetIssuerBuffer(&myCert, ca_cert_der_1024,
-                                          sizeof_ca_cert_der_1024);
-    #else
-        ret = wc_SetIssuer(&myCert, rsaCaCertFile);
-    #endif
-        if (ret < 0) {
-            ERROR_OUT(-7957, exit_rsa);
-        }
-
-        der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        if (der == NULL) {
-            ERROR_OUT(-7958, exit_rsa);
-        }
-
-        certSz = wc_MakeNtruCert(&myCert, der, FOURK_BUF, public_key,
-                              public_key_len, &rng);
-        if (certSz < 0) {
-            ERROR_OUT(-7959, exit_rsa);
-        }
-
-        ret = 0;
-        do {
-        #if defined(WOLFSSL_ASYNC_CRYPT)
-            ret = wc_AsyncWait(ret, &caKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-        #endif
-            if (ret >= 0) {
-                ret = wc_SignCert(myCert.bodySz, myCert.sigType, der, FOURK_BUF,
-                          caKey, NULL, &rng);
-            }
-        } while (ret == WC_PENDING_E);
-        wc_FreeRsaKey(caKey);
-        if (ret < 0) {
-            ERROR_OUT(-7960, exit_rsa);
-        }
-        certSz = ret;
-
-    #ifdef WOLFSSL_TEST_CERT
-        InitDecodedCert(&decode, der, certSz, HEAP_HINT);
-        ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
-        if (ret != 0) {
-            FreeDecodedCert(&decode);
-            ERROR_OUT(-7961, exit_rsa);
-        }
-        FreeDecodedCert(&decode);
-    #endif
-
-        ret = SaveDerAndPem(der, certSz, "./ntru-cert.der", "./ntru-cert.pem",
-            CERT_TYPE, -5637);
-        if (ret != 0) {
-            goto exit_rsa;
-        }
-
-    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-        ntruPrivFile = XFOPEN("./ntru-key.raw", "wb");
-        if (!ntruPrivFile) {
-            ERROR_OUT(-7962, exit_rsa);
-        }
-        ret = (int)XFWRITE(private_key, 1, private_key_len, ntruPrivFile);
-        XFCLOSE(ntruPrivFile);
-        if (ret != private_key_len) {
-            ERROR_OUT(-7963, exit_rsa);
-        }
-    #endif
-
-        XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        der = NULL;
-    }
+    ret = rsa_ntru_test(caKey, &rng, tmp);
+    if (ret != 0)
+        goto exit_rsa;
+  
 #endif /* HAVE_NTRU */
+
 #ifdef WOLFSSL_CERT_REQ
     {
         Cert        *req;
@@ -15898,6 +15969,8 @@ exit_rsa:
     (void)in;
     (void)out;
     (void)plain;
+    (void)idx; 
+    (void)inStr; 
     (void)inLen;
     (void)outSz;
     (void)plainSz;
