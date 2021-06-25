@@ -354,17 +354,22 @@ static long wc_PKCS7_GetMaxStream(PKCS7* pkcs7, byte flag, byte* in,
                                 NO_USER_CHECK)) < 0) {
                     return ret;
                 }
+                pkcs7->stream->maxLen = length + idx;
 
             #ifdef ASN_BER_TO_DER
                 if (length == 0 && ret == 0) {
-                    idx = 0;
                     if ((ret = wc_BerToDer(pt, defSz, NULL,
                                     (word32*)&length)) != LENGTH_ONLY_E) {
                         return ret;
                     }
+
+                    /* BER encoding can have 0's padded to the end. As long as
+                     * we were able to parse out a length that was less than the
+                     * 'defSz' passed in then set the max index that can be read
+                     * to include the potential padding */
+                    pkcs7->stream->maxLen = defSz;
                 }
             #endif /* ASN_BER_TO_DER */
-                pkcs7->stream->maxLen = length + idx;
             }
         }
 
