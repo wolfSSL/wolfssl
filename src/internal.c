@@ -14240,7 +14240,7 @@ static WC_INLINE void AeadIncrementExpIV(WOLFSSL* ssl)
 #endif
 
 
-#if defined(HAVE_POLY1305) && defined(HAVE_CHACHA)
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_CHAPOL_AEAD)
 /* Used for the older version of creating AEAD tags with Poly1305 */
 static int Poly1305TagOld(WOLFSSL* ssl, byte* additional, const byte* out,
                        byte* cipher, word16 sz, byte* tag)
@@ -14630,7 +14630,7 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 
     return ret;
 }
-#endif /* HAVE_CHACHA && HAVE_POLY1305 */
+#endif /* HAVE_CHACHA && HAVE_POLY1305 && !NO_CHAPOL_AEAD*/
 #endif /* HAVE_AEAD */
 
 
@@ -14814,7 +14814,8 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
             break;
     #endif
 
-    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
+        !defined(NO_CHAPOL_AEAD)
         case wolfssl_chacha:
             ret = ChachaAEADEncrypt(ssl, out, input, sz);
             break;
@@ -15085,7 +15086,8 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
             break;
     #endif
 
-    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
+        !defined(NO_CHAPOL_AEAD)
         case wolfssl_chacha:
             ret = ChachaAEADDecrypt(ssl, plain, input, sz);
             break;
@@ -20451,9 +20453,14 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
         int    i;
         word32 length;
 
-        next   = XSTRSTR(next, ":");
-        length = min(sizeof(name), !next ? (word32)XSTRLEN(current) /* last */
-                                         : (word32)(next - current));
+        next = XSTRSTR(next, ":");
+        length = MAX_SUITE_NAME + 1;
+        if (next != NULL) {
+            word32 currLen = (word32)(next - current);
+            if (length > currLen) {
+                length = currLen;
+            }
+        }
 
         XSTRNCPY(name, current, length);
         name[(length == sizeof(name)) ? length - 1 : length] = 0;
@@ -26572,8 +26579,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     case ecdhe_psk_kea:
                         /* Fall through to create temp ECC key */
                 #endif /* (HAVE_ECC || CURVE25519 || CURVE448) && !NO_PSK */
-                #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
-                                                          defined(HAVE_CURVE448)
+                #if defined(HAVE_ECC) || \
+                    ((defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)) && \
+                     (defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+                      !defined(NO_RSA)))
                     case ecc_diffie_hellman_kea:
                     {
                     #ifdef HAVE_CURVE25519
@@ -26661,7 +26670,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             case TLS_ASYNC_BUILD:
             {
             #if (!defined(NO_DH) && !defined(NO_RSA)) || (defined(HAVE_ECC) || \
-                             defined(HAVE_CURVE25519) || defined(HAVE_CURVE448))
+                    (defined(HAVE_CURVE25519) && defined(HAVE_ED25519)) || \
+                    (defined(HAVE_CURVE448) && defined(HAVE_ED448)))
                 word32 preSigSz, preSigIdx;
             #endif
 
@@ -26918,8 +26928,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif /* (HAVE_ECC || CURVE25519 || CURVE448) && !NO_PSK */
-                #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
-                                                          defined(HAVE_CURVE448)
+                #if defined(HAVE_ECC) || \
+                    ((defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)) && \
+                     (defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+                      !defined(NO_RSA)))
                     case ecc_diffie_hellman_kea:
                     {
                         enum wc_HashType hashType;
@@ -26963,7 +26975,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                        args->exportBuf, &args->exportSz) != 0) {
                                 ERROR_OUT(ECC_EXPORT_ERROR, exit_sske);
                             }
-                     #endif
+                    #endif
                         }
                         args->length += args->exportSz;
 

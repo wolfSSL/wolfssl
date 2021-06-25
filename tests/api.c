@@ -1131,7 +1131,7 @@ static int test_cm_load_ca_file(const char* ca_cert_file)
 
 static void test_wolfSSL_CertManagerCheckOCSPResponse(void)
 {
-#ifdef HAVE_OCSP
+#if defined(HAVE_OCSP) && !defined(NO_RSA)
 /* Need one of these for wolfSSL_OCSP_REQUEST_new. */
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
     defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_APACHE_HTTPD) || \
@@ -5744,7 +5744,8 @@ static void test_wolfSSL_UseSNI(void)
 
 static void test_wolfSSL_UseTrustedCA(void)
 {
-#if defined(HAVE_TRUSTED_CA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+#if defined(HAVE_TRUSTED_CA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) \
+    && !defined(NO_RSA)
     WOLFSSL_CTX *ctx;
     WOLFSSL     *ssl;
     byte        id[20];
@@ -5791,7 +5792,8 @@ static void test_wolfSSL_UseTrustedCA(void)
 
 static void test_wolfSSL_UseMaxFragment(void)
 {
-#if defined(HAVE_MAX_FRAGMENT) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+#if defined(HAVE_MAX_FRAGMENT) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
   #ifndef NO_WOLFSSL_SERVER
     WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
     AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, WOLFSSL_FILETYPE_PEM));
@@ -5833,7 +5835,8 @@ static void test_wolfSSL_UseMaxFragment(void)
 
 static void test_wolfSSL_UseTruncatedHMAC(void)
 {
-#if defined(HAVE_TRUNCATED_HMAC) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+#if defined(HAVE_TRUNCATED_HMAC) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
   #ifndef NO_WOLFSSL_SERVER
     WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
     AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, WOLFSSL_FILETYPE_PEM));
@@ -6721,7 +6724,7 @@ static void test_wolfSSL_PKCS8(void)
     XFILE f;
     int bytes;
     WOLFSSL_CTX* ctx;
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && !defined(NO_CODING)
     int ret;
     ecc_key key;
     word32 x = 0;
@@ -6737,6 +6740,8 @@ static void test_wolfSSL_PKCS8(void)
     #endif
     int flag;
 #endif
+
+    (void)der;
 
     printf(testingFmt, "wolfSSL_PKCS8()");
 
@@ -6867,6 +6872,7 @@ static void test_wolfSSL_PKCS8(void)
     AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, bytes,
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
+#ifndef NO_CODING
     /* decrypt PKCS8 PEM to key in DER format */
     AssertIntGT((bytes = wc_KeyPemToDer(buff, bytes, der,
         (word32)sizeof(der), NULL)), 0);
@@ -6876,6 +6882,7 @@ static void test_wolfSSL_PKCS8(void)
         wc_ecc_free(&key);
     }
     AssertIntEQ(ret, 0);
+#endif
 
     /* Test PKCS8 DER ECC key no crypt */
     f = XFOPEN(eccPkcs8PrivKeyDerFile, "rb");
@@ -27182,7 +27189,7 @@ static void test_wolfSSL_X509_NAME(void)
 #ifndef NO_BIO
 static void test_wolfSSL_X509_INFO(void)
 {
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_ALL) && !defined(NO_RSA)
     STACK_OF(X509_INFO) *info_stack;
     X509_INFO *info;
     BIO *cert;
@@ -27289,7 +27296,7 @@ static void test_wolfSSL_X509_check_host(void)
 
 static void test_wolfSSL_X509_check_email(void)
 {
-#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
     X509* x509;
     const char goodEmail[] = "info@wolfssl.com";
     const char badEmail[] = "disinfo@wolfssl.com";
@@ -29548,7 +29555,7 @@ static void test_wolfSSL_X509_Name_canon(void)
 #if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
     !defined(NO_FILESYSTEM) && !defined(NO_SHA) && \
      defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT))
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && !defined(NO_RSA)
     
     const long ex_hash1 = 0x0fdb2da4;
     const long ex_hash2 = 0x9f3e8c9e;
@@ -30546,8 +30553,8 @@ static void test_wolfSSL_X509_STORE(void)
 
 static void test_wolfSSL_X509_STORE_load_locations(void)
 {
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && !defined(NO_FILESYSTEM)\
-    && !defined(NO_WOLFSSL_DIR)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR) && !defined(NO_RSA)
     SSL_CTX *ctx;
     X509_STORE *store;
 
@@ -31951,7 +31958,8 @@ static void test_wolfSSL_X509(void)
 
 static void test_wolfSSL_X509_get_ext_count(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA)
     int ret = 0;
     WOLFSSL_X509* x509;
     const char ocspRootCaFile[] = "./certs/ocsp/root-ca-cert.pem";
@@ -31992,7 +32000,7 @@ static void test_wolfSSL_X509_get_ext_count(void)
 
 static void test_wolfSSL_X509_sign2(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_CERTS) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_ALT_NAMES) && \
     defined(WOLFSSL_CERT_EXT) && \
     (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME))
@@ -32189,7 +32197,7 @@ static void test_wolfSSL_X509_sign2(void)
 static void test_wolfSSL_X509_sign(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
-    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && !defined(NO_RSA)
     int ret;
     char *caSubject;
     X509_NAME *name;
@@ -32382,7 +32390,8 @@ static void test_wolfSSL_X509_get0_tbs_sigalg(void)
 
 static void test_wolfSSL_X509_ALGOR_get0(void)
 {
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && !defined(NO_SHA256)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && \
+    !defined(NO_SHA256) && !defined(NO_RSA)
     X509* x509 = NULL;
     const ASN1_OBJECT* obj = NULL;
     const X509_ALGOR* alg;
@@ -32571,7 +32580,8 @@ static void test_wolfSSL_X509_get_X509_PUBKEY(void)
 
 static void test_wolfSSL_X509_PUBKEY(void)
 {
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && !defined(NO_SHA256)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && \
+    !defined(NO_SHA256) && !defined(NO_RSA)
     X509* x509 = NULL;
     ASN1_OBJECT* obj = NULL;
     X509_PUBKEY* pubKey;
@@ -35215,7 +35225,7 @@ static void test_wolfSSL_RSA_meth(void)
 
 static void test_wolfSSL_verify_mode(void)
 {
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_ALL) && !defined(NO_RSA)
     WOLFSSL*     ssl;
     WOLFSSL_CTX* ctx;
 
@@ -36894,6 +36904,7 @@ static void test_wolfSSL_AES_cbc_encrypt(void)
 #if !defined(NO_ASN)
 static void test_wolfSSL_ASN1_STRING_to_UTF8(void)
 {
+#if !defined(NO_RSA)
     WOLFSSL_X509* x509;
     WOLFSSL_X509_NAME* subject;
     WOLFSSL_X509_NAME_ENTRY* e;
@@ -36937,6 +36948,7 @@ static void test_wolfSSL_ASN1_STRING_to_UTF8(void)
 
     wolfSSL_X509_free(x509);
     XFREE(actual_output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 }
 
 static void test_wolfSSL_ASN1_UNIVERSALSTRING_to_string(void)
@@ -36972,6 +36984,7 @@ static void test_wolfSSL_ASN1_UNIVERSALSTRING_to_string(void)
 
 static void test_wolfSSL_sk_CIPHER_description(void)
 {
+#if !defined(NO_RSA)
     const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_COMPRESSION;
     int i,j,k;
     int numCiphers = 0;
@@ -37033,10 +37046,12 @@ static void test_wolfSSL_sk_CIPHER_description(void)
     SSL_CTX_free(ctx);
 
     printf(resultFmt, passed);
+#endif
 }
 
 static void test_wolfSSL_get_ciphers_compat(void)
 {
+#if !defined(NO_RSA)
     const SSL_METHOD *method = NULL;
     const char certPath[] = "./certs/client-cert.pem";
     STACK_OF(SSL_CIPHER) *supportedCiphers = NULL;
@@ -37070,6 +37085,7 @@ static void test_wolfSSL_get_ciphers_compat(void)
     SSL_CTX_free(ctx);
 
     printf(resultFmt, passed);
+#endif
 }
 
 static void test_wolfSSL_X509_PUBKEY_get(void)
@@ -38870,7 +38886,7 @@ static void test_wolfSSL_EC_KEY_set_group(void)
 }
 
 static void test_wolfSSL_X509V3_EXT_get(void) {
-#if !defined(NO_FILESYSTEM) && defined (OPENSSL_ALL)
+#if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
     FILE* f;
     int numOfExt =0;
     int extNid = 0;
@@ -38902,7 +38918,7 @@ static void test_wolfSSL_X509V3_EXT_get(void) {
 }
 
 static void test_wolfSSL_X509V3_EXT(void) {
-#if !defined(NO_FILESYSTEM) && defined (OPENSSL_ALL)
+#if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
     FILE* f;
     int numOfExt = 0, nid = 0, i = 0, expected, actual;
     char* str;
@@ -39046,7 +39062,7 @@ static void test_wolfSSL_X509V3_EXT(void) {
 }
 
 static void test_wolfSSL_X509_get_ext(void){
-#if !defined(NO_FILESYSTEM) && defined (OPENSSL_ALL)
+#if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
     int ret = 0;
     FILE* f;
     WOLFSSL_X509* x509;
@@ -39081,7 +39097,7 @@ static void test_wolfSSL_X509_get_ext(void){
 
 static void test_wolfSSL_X509_get_ext_by_NID(void)
 {
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_ALL) && !defined(NO_RSA)
     int rc;
     FILE* f;
     WOLFSSL_X509* x509;
@@ -39127,7 +39143,7 @@ static void test_wolfSSL_X509_EXTENSION_new(void)
 
 static void test_wolfSSL_X509_EXTENSION_get_object(void)
 {
-#if !defined(NO_FILESYSTEM) && defined (OPENSSL_ALL)
+#if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
     WOLFSSL_X509* x509;
     WOLFSSL_X509_EXTENSION* ext;
     WOLFSSL_ASN1_OBJECT* o;
@@ -39155,7 +39171,7 @@ static void test_wolfSSL_X509_EXTENSION_get_object(void)
 
 static void test_wolfSSL_X509_EXTENSION_get_data(void)
 {
-#if !defined(NO_FILESYSTEM) && defined (OPENSSL_ALL)
+#if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
     WOLFSSL_X509* x509;
     WOLFSSL_X509_EXTENSION* ext;
     WOLFSSL_ASN1_STRING* str;
@@ -39177,7 +39193,7 @@ static void test_wolfSSL_X509_EXTENSION_get_data(void)
 
 static void test_wolfSSL_X509_EXTENSION_get_critical(void)
 {
-#if !defined(NO_FILESYSTEM) && defined (OPENSSL_ALL)
+#if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_RSA)
     WOLFSSL_X509* x509;
     WOLFSSL_X509_EXTENSION* ext;
     FILE* file;
@@ -39200,7 +39216,8 @@ static void test_wolfSSL_X509_EXTENSION_get_critical(void)
 
 static void test_wolfSSL_X509V3_EXT_print(void)
 {
-#if !defined(NO_FILESYSTEM) && defined (OPENSSL_ALL) && !defined(NO_BIO)
+#if !defined(NO_FILESYSTEM) && defined(OPENSSL_ALL) && !defined(NO_BIO) && \
+    !defined(NO_RSA)
     printf(testingFmt, "wolfSSL_X509V3_EXT_print");
 
     {
@@ -39275,7 +39292,7 @@ static void test_wolfSSL_X509V3_EXT_print(void)
 
 static void test_wolfSSL_X509_cmp(void)
 {
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_ALL) && !defined(NO_RSA)
     FILE* file1;
     FILE* file2;
     WOLFSSL_X509* cert1;
@@ -39387,7 +39404,8 @@ static void test_wolfSSL_i2d_PrivateKey(void)
 
 static void test_wolfSSL_OCSP_id_get0_info(void)
 {
-#if defined(OPENSSL_ALL) && defined(HAVE_OCSP) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_ALL) && defined(HAVE_OCSP) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA)
     X509* cert;
     X509* issuer;
     OCSP_CERTID* id;
@@ -40889,7 +40907,8 @@ static void test_wolfSSL_PEM_write_bio_PKCS7(void)
 #ifdef HAVE_SMIME
 static void test_wolfSSL_SMIME_read_PKCS7(void)
 {
-#if defined(OPENSSL_ALL) && defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_ALL) && defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA)
     PKCS7* pkcs7 = NULL;
     BIO* bio = NULL;
     BIO* bcont = NULL;
@@ -42193,7 +42212,8 @@ static void test_wolfSSL_X509_CRL(void)
 
 static void test_wolfSSL_X509_load_crl_file(void)
 {
-#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA)
     int i;
     char pem[][100] = {
         "./certs/crl/crl.pem",
@@ -42282,7 +42302,8 @@ static void test_wolfSSL_X509_load_crl_file(void)
 
 static void test_wolfSSL_d2i_X509_REQ(void)
 {
-#if defined(WOLFSSL_CERT_REQ) && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
+#if defined(WOLFSSL_CERT_REQ) && !defined(NO_RSA) && \
+    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
     /* ./certs/csr.signed.der, ./certs/csr.ext.der, and ./certs/csr.attr.der were
      * generated by libest
      * ./certs/csr.attr.der contains sample attributes
@@ -42844,7 +42865,7 @@ static void test_wolfssl_EVP_aes_gcm(void)
 #ifndef NO_BIO
 static void test_wolfSSL_PEM_X509_INFO_read_bio(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
     BIO* bio;
     X509_INFO* info;
     STACK_OF(X509_INFO)* sk;
@@ -42995,7 +43016,7 @@ static void test_wolfSSL_ASN1_INTEGER_set(void)
 static void test_wolfSSL_X509_STORE_get1_certs(void)
 {
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SIGNER_DER_CERT) && \
-    !defined(NO_FILESYSTEM)
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
     X509_STORE_CTX *storeCtx;
     X509_STORE *store;
     X509 *caX509;
@@ -44098,7 +44119,7 @@ static int test_various_pathlen_chains(void)
 }
 #endif /* !NO_RSA && !NO_SHA && !NO_FILESYSTEM && !NO_CERTS */
 
-#ifdef HAVE_KEYING_MATERIAL
+#if defined(HAVE_KEYING_MATERIAL) && defined(HAVE_IO_TESTS_DEPENDENCIES)
 static int test_export_keying_material_cb(WOLFSSL_CTX *ctx, WOLFSSL *ssl)
 {
     byte ekm[100] = {0};
@@ -44665,7 +44686,7 @@ static void test_CONF_CTX_CMDLINE(void)
     
     /* cmd Certificate and Private Key*/
     {
-    #ifndef NO_CERTS
+    #if !defined(NO_CERTS) && !defined(NO_RSA)
         const char*  ourCert = svrCertFile;
         const char*  ourKey  = svrKeyFile;
         
@@ -44701,7 +44722,7 @@ static void test_CONF_CTX_CMDLINE(void)
     /* cmd DH parameter */
     {
     #if !defined(NO_DH) && !defined(NO_BIO)
-        const char* ourdhcert = "./certs/dh4096.pem";
+        const char* ourdhcert = "./certs/dh2048.pem";
         
         AssertIntEQ(SSL_CONF_cmd(cctx, "-dhparam", NULL), 
                                                         -3);
@@ -44745,7 +44766,7 @@ static void test_CONF_CTX_FILE(void)
     
     /* cmd Certificate and Private Key*/
     {
-    #ifndef NO_CERTS
+    #if !defined(NO_CERTS) && !defined(NO_RSA)
         const char*  ourCert = svrCertFile;
         const char*  ourKey  = svrKeyFile;
         
@@ -45449,7 +45470,7 @@ void ApiTest(void)
 #endif
 
 
-#ifdef HAVE_KEYING_MATERIAL
+#if defined(HAVE_KEYING_MATERIAL) && defined(HAVE_IO_TESTS_DEPENDENCIES)
     test_export_keying_material();
 #endif /* HAVE_KEYING_MATERIAL */
 

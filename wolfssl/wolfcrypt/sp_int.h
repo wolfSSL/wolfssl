@@ -802,7 +802,10 @@ MP_API int sp_cmp_d(sp_int* a, sp_int_digit d);
 MP_API int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r);
 MP_API int sp_sub_d(sp_int* a, sp_int_digit d, sp_int* r);
 MP_API int sp_mul_d(sp_int* a, sp_int_digit d, sp_int* r);
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
 MP_API int sp_div_d(sp_int* a, sp_int_digit d, sp_int* r, sp_int_digit* rem);
+#endif
 #if defined(WOLFSSL_SP_MATH_ALL) || (defined(HAVE_ECC) && \
     defined(HAVE_COMP_KEY))
 MP_API int sp_mod_d(sp_int* a, const sp_int_digit d, sp_int_digit* r);
@@ -883,8 +886,12 @@ MP_API int sp_radix_size(mp_int* a, int radix, int* size);
 MP_API int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap);
 MP_API int sp_prime_is_prime(mp_int* a, int t, int* result);
 MP_API int sp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng);
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
 MP_API int sp_gcd(sp_int* a, sp_int* b, sp_int* r);
+#endif
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(WC_RSA_BLINDING)
 MP_API int sp_lcm(sp_int* a, sp_int* b, sp_int* r);
+#endif
 
 WOLFSSL_API word32 CheckRunTimeFastMath(void);
 

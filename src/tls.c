@@ -10244,10 +10244,11 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
     int usingPSK = 0;
 #endif
-#if defined(HAVE_SUPPORTED_CURVES) || defined(HAVE_QSH)
+#if (defined(HAVE_SUPPORTED_CURVES) && defined(WOLFSSL_TLS13)) || \
+                                                               defined(HAVE_QSH)
     TLSX* extension = NULL;
 #endif
-#if defined(HAVE_SUPPORTED_CURVES)
+#if defined(HAVE_SUPPORTED_CURVES) && defined(WOLFSSL_TLS13)
     word16 namedGroup = 0;
 #endif
 #ifdef HAVE_QSH
@@ -10623,8 +10624,6 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
     (void)public_key;
     (void)public_key_len;
     (void)ssl;
-    (void)extension;
-    (void)namedGroup;
 
     return ret;
 }
