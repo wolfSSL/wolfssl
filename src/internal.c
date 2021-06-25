@@ -11407,7 +11407,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                 if (args->totalCerts >= MAX_CHAIN_DEPTH) {
-                    if (!ssl->peerVerifyRet) /* Return first cert error here */
+                    if (ssl->peerVerifyRet == 0) /* Return first cert error here */
                         ssl->peerVerifyRet = X509_V_ERR_CERT_CHAIN_TOO_LONG;
                     ret = MAX_CHAIN_ERROR;
                     WOLFSSL_MSG("Too many certs for MAX_CHAIN_DEPTH");
@@ -11625,7 +11625,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     else {
                         WOLFSSL_MSG("Failed to verify CA from chain");
                     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                        if (!ssl->peerVerifyRet) /* Return first cert error here */
+                        if (ssl->peerVerifyRet == 0) /* Return first cert error here */
                             ssl->peerVerifyRet = X509_V_ERR_INVALID_CA;
                     #endif
                     }
@@ -11685,7 +11685,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         /* extend the limit "+1" until reaching
                          * an ultimately trusted issuer.*/
                         args->count > (ssl->verifyDepth + 1)) {
-                        if (!ssl->peerVerifyRet) /* Return first cert error here */
+                        if (ssl->peerVerifyRet == 0) /* Return first cert error here */
                             ssl->peerVerifyRet = X509_V_ERR_CERT_CHAIN_TOO_LONG;
                         ret = MAX_CHAIN_ERROR;
                     }
@@ -11823,7 +11823,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 if (ret == 0) {
                     WOLFSSL_MSG("Verified Peer's cert");
                 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                    if (!ssl->peerVerifyRet) /* Return first cert error here */
+                    if (ssl->peerVerifyRet == 0) /* Return first cert error here */
                         ssl->peerVerifyRet = X509_V_OK;
                 #endif
                 #if defined(SESSION_CERTS) && defined(WOLFSSL_ALT_CERT_CHAINS)
@@ -11863,7 +11863,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     DoCertFatalAlert(ssl, ret);
                 #endif
                 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                    if (!ssl->peerVerifyRet) /* Return first cert error here */
+                    if (ssl->peerVerifyRet == 0) /* Return first cert error here */
                         ssl->peerVerifyRet = X509_V_ERR_CERT_REJECTED;
                 #endif
                     args->fatal = 1;
@@ -11871,14 +11871,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 else {
                     WOLFSSL_MSG("Failed to verify Peer's cert");
                     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                    if (!ssl->peerVerifyRet) { /* Return first cert error here */
+                    if (ssl->peerVerifyRet == 0) { /* Return first cert error here */
                         if (ret == ASN_BEFORE_DATE_E)
                             ssl->peerVerifyRet = X509_V_ERR_CERT_NOT_YET_VALID;
                         else if (ret == ASN_AFTER_DATE_E)
                             ssl->peerVerifyRet = X509_V_ERR_CERT_HAS_EXPIRED;
-                        else
+                        else {
                             ssl->peerVerifyRet =
                                     X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE;
+                        }
                     }
                     #endif
                     if (ssl->verifyCallback) {
@@ -12003,11 +12004,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             WOLFSSL_MSG("\tOCSP Lookup not ok");
                             args->fatal = 0;
                         #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                            if (!ssl->peerVerifyRet) /* Return first cert error here */
+                            if (ssl->peerVerifyRet == 0) {
+                                /* Return first cert error here */
                                 ssl->peerVerifyRet =
                                         ret == OCSP_CERT_REVOKED
                                             ? X509_V_ERR_CERT_REVOKED
                                             : X509_V_ERR_CERT_REJECTED;
+                            }
                         #endif
                         }
                     }
@@ -12026,11 +12029,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             WOLFSSL_MSG("\tCRL check not ok");
                             args->fatal = 0;
                         #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                            if (!ssl->peerVerifyRet) /* Return first cert error here */
+                            if (ssl->peerVerifyRet == 0) {
+                                /* Return first cert error here */
                                 ssl->peerVerifyRet =
                                         ret == CRL_CERT_REVOKED
                                             ? X509_V_ERR_CERT_REVOKED
                                             : X509_V_ERR_CERT_REJECTED;;
+                            }
                         #endif
                         }
                     }
@@ -12128,7 +12133,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     ssl->error = ret;
                 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     SendAlert(ssl, alert_fatal, bad_certificate);
-                    if (!ssl->peerVerifyRet) /* Return first cert error here */
+                    if (ssl->peerVerifyRet == 0) /* Return first cert error here */
                         ssl->peerVerifyRet = X509_V_ERR_CERT_REJECTED;
                 #endif
                     goto exit_ppc;
@@ -12472,7 +12477,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             * we hit the limit, with X509_V_ERR_CERT_CHAIN_TOO_LONG
             */
             if (args->untrustedDepth > (ssl->options.verifyDepth + 1)) {
-                if (!ssl->peerVerifyRet) /* Return first cert error here */
+                if (ssl->peerVerifyRet == 0) /* Return first cert error here */
                     ssl->peerVerifyRet = X509_V_ERR_CERT_CHAIN_TOO_LONG;
                 ret = MAX_CHAIN_ERROR;
             }
@@ -18199,10 +18204,11 @@ int SendCertificateRequest(WOLFSSL* ssl)
         byte seq[MAX_SEQ_SZ];
         WOLFSSL_X509_NAME* name = names->data.name;
 
-        if (name != NULL)
+        if (name != NULL) {
             /* 16-bit length | SEQ | Len | DER of name */
             dnLen += OPAQUE16_LEN + SetSequence(name->rawLen, seq) +
                         name->rawLen;
+        }
         names = names->next;
     }
     reqSz += dnLen;

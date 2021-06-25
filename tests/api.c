@@ -39622,7 +39622,7 @@ static void test_wolfSSL_i2d_PrivateKey(void)
 static void test_wolfSSL_OCSP_id_get0_info(void)
 {
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)) && defined(HAVE_OCSP) && \
-    !defined(NO_FILESYSTEM) || !defined(NO_RSA)
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
     X509* cert;
     X509* issuer;
     OCSP_CERTID* id;

@@ -438,19 +438,17 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
 
 #ifdef OPENSSL_COMPATIBLE_DEFAULTS
     if (ctx) {
+        wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
         if (wolfSSL_CTX_set_min_proto_version(ctx,
                 SSL3_VERSION) != WOLFSSL_SUCCESS ||
 #ifdef HAVE_ANON
                 wolfSSL_CTX_allow_anon_cipher(ctx) != WOLFSSL_SUCCESS ||
 #endif
-                wolfSSL_CTX_set_group_messages(ctx) != WOLFSSL_SUCCESS
-                ) {
+                wolfSSL_CTX_set_group_messages(ctx) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Setting OpenSSL CTX defaults failed");
             wolfSSL_CTX_free(ctx);
             ctx = NULL;
         }
-        else
-            wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
     }
 #endif
 
@@ -11125,27 +11123,14 @@ void wolfSSL_set_verify(WOLFSSL* ssl, int mode, VerifyCallback vc)
     if (ssl == NULL)
         return;
 
-    ssl->options.verifyPeer     = 0;
-    ssl->options.verifyNone     = 0;
-    ssl->options.failNoCert     = 0;
-    ssl->options.failNoCertxPSK = 0;
-
-    if (mode != WOLFSSL_VERIFY_DEFAULT) {
-        if (mode == WOLFSSL_VERIFY_NONE) {
-            ssl->options.verifyNone = 1;
-        }
-        else {
-            if (mode & WOLFSSL_VERIFY_PEER) {
-                ssl->options.verifyPeer = 1;
-            }
-            if (mode & WOLFSSL_VERIFY_FAIL_EXCEPT_PSK) {
-                ssl->options.failNoCertxPSK = 1;
-            }
-            if (mode & WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT) {
-                ssl->options.failNoCert = 1;
-            }
-        }
-    }
+    /* Special case for verifyNone since WOLFSSL_VERIFY_NONE == 0  */
+    ssl->options.verifyNone     =  mode == WOLFSSL_VERIFY_NONE;
+    ssl->options.verifyPeer     = (mode & WOLFSSL_VERIFY_PEER)
+                                        == WOLFSSL_VERIFY_PEER;
+    ssl->options.failNoCert     = (mode & WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT)
+                                        == WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+    ssl->options.failNoCertxPSK = (mode & WOLFSSL_VERIFY_FAIL_EXCEPT_PSK)
+                                        == WOLFSSL_VERIFY_FAIL_EXCEPT_PSK;
 
     ssl->verifyCallback = vc;
 }
@@ -46410,10 +46395,9 @@ void wolfSSL_THREADID_set_numeric(void* id, unsigned long val)
 WOLFSSL_X509_LOOKUP_TYPE wolfSSL_X509_OBJECT_get_type(
         const WOLFSSL_X509_OBJECT* obj)
 {
-    if (obj != NULL)
-        return obj->type;
-    else
+    if (obj == NULL)
         return WOLFSSL_X509_LU_NONE;
+    return obj->type;
 }
 
 WOLFSSL_X509_OBJECT* wolfSSL_X509_OBJECT_new(void)
@@ -46458,16 +46442,14 @@ WOLFSSL_X509 *wolfSSL_X509_OBJECT_get0_X509(const WOLFSSL_X509_OBJECT *obj)
 {
     if (obj != NULL && obj->type == WOLFSSL_X509_LU_X509)
         return obj->data.x509;
-    else
-        return NULL;
+    return NULL;
 }
 
 WOLFSSL_X509_CRL *wolfSSL_X509_OBJECT_get0_X509_CRL(WOLFSSL_X509_OBJECT *obj)
 {
     if (obj != NULL && obj->type == WOLFSSL_X509_LU_CRL)
         return obj->data.crl;
-    else
-        return NULL;
+    return NULL;
 }
 
 #endif /* OPENSSL_ALL || (OPENSSL_EXTRA && (HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_LIGHTY)) */
