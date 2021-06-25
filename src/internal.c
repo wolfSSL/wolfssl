@@ -3765,7 +3765,9 @@ void InitX509(WOLFSSL_X509* x509, int dynamicFlag, void* heap)
     x509->dynamicMemory  = (byte)dynamicFlag;
     #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
         x509->refCount = 1;
+    #ifndef SINGLE_THREADED
         (void)wc_InitMutex(&x509->refMutex);
+    #endif
     #endif
 }
 
@@ -3841,7 +3843,9 @@ void FreeX509(WOLFSSL_X509* x509)
     }
 
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+    #ifndef SINGLE_THREADED
         wc_FreeMutex(&x509->refMutex);
+    #endif
     #endif
 }
 

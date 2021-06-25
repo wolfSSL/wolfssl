@@ -36485,15 +36485,15 @@ static void test_wolfSSL_MD5(void)
     AssertIntEQ(XMEMCMP(&hash, output2, WC_MD5_DIGEST_SIZE), 0);
 #if !defined(NO_OLD_NAMES) && \
   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2)))
-    AssertIntNE(MD5(NULL, 1, (byte*)&hash), 0);
-    AssertIntEQ(MD5(input1, 0, (byte*)&hash), 0);
-    AssertIntNE(MD5(input1, 1, NULL), 0);
-    AssertIntNE(MD5(NULL, 0, NULL), 0);
+    AssertPtrNE(MD5(NULL, 1, (byte*)&hash), &hash);
+    AssertPtrEq(MD5(input1, 0, (byte*)&hash), &hash);
+    AssertPtrNE(MD5(input1, 1, NULL), NULL);
+    AssertPtrNE(MD5(NULL, 0, NULL), NULL);
 
-    AssertIntEQ(MD5(input1, (int)XSTRLEN((const char*)&input1), (byte*)&hash), 0);
+    AssertPtrEq(MD5(input1, (int)XSTRLEN((const char*)&input1), (byte*)&hash), &hash);
     AssertIntEQ(XMEMCMP(&hash, output1, WC_MD5_DIGEST_SIZE), 0);
 
-    AssertIntEQ(MD5(input2, (int)XSTRLEN((const char*)&input2), (byte*)&hash), 0);
+    AssertPtrEq(MD5(input2, (int)XSTRLEN((const char*)&input2), (byte*)&hash), &hash);
     AssertIntEQ(XMEMCMP(&hash, output2, WC_MD5_DIGEST_SIZE), 0);
     {
         byte data[] = "Data to be hashed.";

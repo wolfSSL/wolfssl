@@ -347,7 +347,9 @@ struct WOLFSSL_EVP_PKEY {
     int save_type;    /* openssh dereference */
     int pkey_sz;
     int references;  /*number of times free should be called for complete free*/
+#ifndef SINGLE_THREADED
     wolfSSL_Mutex    refMutex; /* ref count mutex */
+#endif
 
     union {
         char* ptr; /* der format of key / or raw for NTRU */
@@ -559,7 +561,9 @@ struct WOLFSSL_X509_STORE {
 #ifdef HAVE_CRL
     WOLFSSL_X509_CRL *crl; /* points to cm->crl */
 #endif
+#ifndef SINGLE_THREADED
     wolfSSL_Mutex   refMutex;   /* reference count mutex */
+#endif
     int             refCount;         /* reference count */
 };
 

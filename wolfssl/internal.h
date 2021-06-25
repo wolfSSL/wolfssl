@@ -2107,7 +2107,9 @@ struct WOLFSSL_CERT_MANAGER {
                                         /* CTX has ownership and free this   */
                                         /* with CTX free.                    */
 #endif
+#ifndef SINGLE_THREADED
     wolfSSL_Mutex   refMutex;   /* reference count mutex */
+#endif
     int             refCount;         /* reference count */
 };
 
@@ -3356,7 +3358,9 @@ struct WOLFSSL_SESSION {
 #ifdef OPENSSL_EXTRA
     byte               sessionCtxSz;              /* sessionCtx length        */
     byte               sessionCtx[ID_LEN];        /* app specific context id  */
+#ifndef SINGLE_THREADED
     wolfSSL_Mutex      refMutex;                  /* ref count mutex */
+#endif
     int                refCount;                  /* reference count */
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -3881,8 +3885,10 @@ struct WOLFSSL_X509 {
     char             certPolicies[MAX_CERTPOL_NB][MAX_CERTPOL_SZ];
     int              certPoliciesNb;
 #endif /* WOLFSSL_CERT_EXT */
-#if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+#ifndef SINGLE_THREADED
     wolfSSL_Mutex    refMutex;                       /* ref count mutex */
+#endif
     int              refCount;                       /* reference count */
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)

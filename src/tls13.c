@@ -9211,6 +9211,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     if (!havePSK)
 #endif
+    {
     #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
         defined(WOLFSSL_NGINX) || defined (WOLFSSL_HAPROXY)
         if (ssl->ctx->certSetupCb != NULL) {
