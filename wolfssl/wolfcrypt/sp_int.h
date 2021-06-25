@@ -648,9 +648,12 @@ typedef struct sp_ecc_ctx {
 #define CheckFastMathSettings()   (SP_WORD_SIZE == CheckRunTimeFastMath())
 
 
-/* The number of bytes to a sp_int with 'cnt' digits. */
+/* The number of bytes to a sp_int with 'cnt' digits.
+ * Must have at least one digit.
+ */
 #define MP_INT_SIZEOF(cnt) \
-    (sizeof(sp_int) - (SP_INT_DIGITS - (cnt)) * sizeof(sp_int_digit))
+    (sizeof(sp_int) - (SP_INT_DIGITS - (((cnt) == 0) ? 1 : (cnt))) * \
+     sizeof(sp_int_digit))
 /* The address of the next sp_int after one with 'cnt' digits. */
 #define MP_INT_NEXT(t, cnt) \
         (sp_int*)(((byte*)(t)) + MP_INT_SIZEOF(cnt))
