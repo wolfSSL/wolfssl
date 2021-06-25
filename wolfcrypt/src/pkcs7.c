@@ -12322,6 +12322,10 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
                         pkiMsgSz) < 0)
                 ret = ASN_PARSE_E;
 
+            if (ret == 0) {
+                pkcs7->contentOID = contentType;
+            }
+
             if (ret == 0 && (ret = GetAlgoId(pkiMsg, &idx, &encOID, oidBlkType,
                         pkiMsgSz)) < 0)
                 ret = ASN_PARSE_E;
