@@ -18527,34 +18527,36 @@ int SendCertificateStatus(WOLFSSL* ssl)
                     chain = ssl->buffers.certificate;
                 }
 
-                while (chain && idx + OPAQUE24_LEN < chain->length) {
-                    c24to32(chain->buffer + idx, &der.length);
-                    idx += OPAQUE24_LEN;
+                if (chain && chain->buffer) {
+		    while (idx + OPAQUE24_LEN < chain->length) {
+			c24to32(chain->buffer + idx, &der.length);
+			idx += OPAQUE24_LEN;
 
-                    der.buffer = chain->buffer + idx;
-                    idx += der.length;
+			der.buffer = chain->buffer + idx;
+			idx += der.length;
 
-                    if (idx > chain->length)
-                        break;
+			if (idx > chain->length)
+			    break;
 
-                    ret = CreateOcspRequest(ssl, request, cert, der.buffer,
-                                                                    der.length);
-                    if (ret == 0) {
-                        request->ssl = ssl;
-                        ret = CheckOcspRequest(ssl->ctx->cm->ocsp_stapling,
-                                                    request, &responses[i + 1]);
+			ret = CreateOcspRequest(ssl, request, cert, der.buffer,
+						der.length);
+			if (ret == 0) {
+			    request->ssl = ssl;
+			    ret = CheckOcspRequest(ssl->ctx->cm->ocsp_stapling,
+						   request, &responses[i + 1]);
 
-                        /* Suppressing, not critical */
-                        if (ret == OCSP_CERT_REVOKED ||
-                            ret == OCSP_CERT_UNKNOWN ||
-                            ret == OCSP_LOOKUP_FAIL) {
-                            ret = 0;
-                        }
+			    /* Suppressing, not critical */
+			    if (ret == OCSP_CERT_REVOKED ||
+				ret == OCSP_CERT_UNKNOWN ||
+				ret == OCSP_LOOKUP_FAIL) {
+				ret = 0;
+			    }
 
 
-                        i++;
-                        FreeOcspRequest(request);
-                    }
+			    i++;
+			    FreeOcspRequest(request);
+			}
+		    }
                 }
 
                 XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
