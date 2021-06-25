@@ -538,6 +538,18 @@ static void BlockSha3(word64 *s)
 }
 #endif /* WOLFSSL_SHA3_SMALL */
 
+static WC_INLINE word64 Load64Unaligned(const unsigned char *a)
+{
+    return ((word64)a[0] <<  0) |
+           ((word64)a[1] <<  8) |
+           ((word64)a[2] << 16) |
+           ((word64)a[3] << 24) |
+           ((word64)a[4] << 32) |
+           ((word64)a[5] << 40) |
+           ((word64)a[6] << 48) |
+           ((word64)a[7] << 56);
+}
+
 /* Convert the array of bytes, in little-endian order, to a 64-bit integer.
  *
  * a  Array of bytes.
@@ -632,7 +644,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
     while (len >= ((word32)(p * 8)))
     {
         for (i = 0; i < p; i++)
-            sha3->s[i] ^= Load64BitBigEndian(data + 8 * i);
+            sha3->s[i] ^= Load64Unaligned(data + 8 * i);
         BlockSha3(sha3->s);
         len -= p * 8;
         data += p * 8;
