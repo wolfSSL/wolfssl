@@ -15287,8 +15287,10 @@ exit_rsa:
     FREE_VAR(out, HEAP_HINT);
     FREE_VAR(plain, HEAP_HINT);
 
+    (void)idx;   
     (void)inStr;
-
+    (void)res;
+    
     if (ret >= 0)
         ret = 0;
     
