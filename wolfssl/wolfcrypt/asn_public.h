@@ -144,6 +144,17 @@ enum Ctc_SigType {
     CTC_SHA384wECDSA = 525,
     CTC_SHA512wRSA   = 657,
     CTC_SHA512wECDSA = 526,
+
+    /* https://csrc.nist.gov/projects/computer-security-objects-register/algorithm-registration */
+    CTC_SHA3_224wECDSA = 423,
+    CTC_SHA3_256wECDSA = 424,
+    CTC_SHA3_384wECDSA = 425,
+    CTC_SHA3_512wECDSA = 426,
+    CTC_SHA3_224wRSA = 427,
+    CTC_SHA3_256wRSA = 428,
+    CTC_SHA3_384wRSA = 429,
+    CTC_SHA3_512wRSA = 430,
+
     CTC_ED25519      = 256,
     CTC_ED448        = 257
 };

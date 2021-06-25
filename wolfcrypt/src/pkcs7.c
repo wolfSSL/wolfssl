@@ -2003,6 +2003,28 @@ static int wc_PKCS7_SignedDataGetEncAlgoId(PKCS7* pkcs7, int* digEncAlgoId,
                 algoId = CTC_SHA512wRSA;
                 break;
         #endif
+        #ifdef WOLFSSL_SHA3
+        #ifndef WOLFSSL_NOSHA3_224
+            case SHA3_224h:
+                algoId = CTC_SHA3_224wRSA;
+                break;
+        #endif
+        #ifndef WOLFSSL_NOSHA3_256
+            case SHA3_256h:
+                algoId = CTC_SHA3_256wRSA;
+                break;
+        #endif
+        #ifndef WOLFSSL_NOSHA3_384
+            case SHA3_384h:
+                algoId = CTC_SHA3_384wRSA;
+                break;
+        #endif
+        #ifndef WOLFSSL_NOSHA3_512
+            case SHA3_512h:
+                algoId = CTC_SHA3_512wRSA;
+                break;
+        #endif
+        #endif
         }
 
     }
@@ -2036,6 +2058,28 @@ static int wc_PKCS7_SignedDataGetEncAlgoId(PKCS7* pkcs7, int* digEncAlgoId,
             case SHA512h:
                 algoId = CTC_SHA512wECDSA;
                 break;
+        #endif
+        #ifdef WOLFSSL_SHA3
+        #ifndef WOLFSSL_NOSHA3_224
+            case SHA3_224h:
+                algoId = CTC_SHA3_224wECDSA;
+                break;
+        #endif
+        #ifndef WOLFSSL_NOSHA3_256
+            case SHA3_256h:
+                algoId = CTC_SHA3_256wECDSA;
+                break;
+        #endif
+        #ifndef WOLFSSL_NOSHA3_384
+            case SHA3_384h:
+                algoId = CTC_SHA3_384wECDSA;
+                break;
+        #endif
+        #ifndef WOLFSSL_NOSHA3_512
+            case SHA3_512h:
+                algoId = CTC_SHA3_512wECDSA;
+                break;
+        #endif
         #endif
         }
     }
@@ -3936,6 +3980,10 @@ static int wc_PKCS7_SetPublicKeyOID(PKCS7* pkcs7, int sigOID)
         case CTC_SHA256wRSA:
         case CTC_SHA384wRSA:
         case CTC_SHA512wRSA:
+        case CTC_SHA3_224wRSA:
+        case CTC_SHA3_256wRSA:
+        case CTC_SHA3_384wRSA:
+        case CTC_SHA3_512wRSA:
             pkcs7->publicKeyOID = RSAk;
             break;
 
@@ -3964,6 +4012,10 @@ static int wc_PKCS7_SetPublicKeyOID(PKCS7* pkcs7, int sigOID)
         case CTC_SHA256wECDSA:
         case CTC_SHA384wECDSA:
         case CTC_SHA512wECDSA:
+        case CTC_SHA3_224wECDSA:
+        case CTC_SHA3_256wECDSA:
+        case CTC_SHA3_384wECDSA:
+        case CTC_SHA3_512wECDSA:
             pkcs7->publicKeyOID = ECDSAk;
             break;
 
