@@ -861,6 +861,13 @@
     #endif
 #endif
 
+#if !defined(WOLFCRYPT_ONLY) && defined(NO_PSK) && \
+    (defined(NO_DH) || !defined(HAVE_ANON)) && \
+    defined(NO_RSA) && !defined(HAVE_ECC) && \
+    !defined(HAVE_ED25519) && !defined(HAVE_ED448)
+   #error "No cipher suites avaialble with this build"
+#endif
+
 #ifdef WOLFSSL_MULTICAST
     #if defined(HAVE_NULL_CIPHER) && !defined(NO_SHA256)
         #define BUILD_WDM_WITH_NULL_SHA256

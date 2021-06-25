@@ -6708,7 +6708,7 @@ static void test_wolfSSL_PKCS8(void)
     XFILE f;
     int bytes;
     WOLFSSL_CTX* ctx;
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && !defined(NO_CODING)
     int ret;
     ecc_key key;
     word32 x = 0;
@@ -6724,6 +6724,8 @@ static void test_wolfSSL_PKCS8(void)
     #endif
     int flag;
 #endif
+
+    (void)der;
 
     printf(testingFmt, "wolfSSL_PKCS8()");
 
@@ -6854,6 +6856,7 @@ static void test_wolfSSL_PKCS8(void)
     AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, bytes,
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
+#ifndef NO_CODING
     /* decrypt PKCS8 PEM to key in DER format */
     AssertIntGT((bytes = wc_KeyPemToDer(buff, bytes, der,
         (word32)sizeof(der), NULL)), 0);
@@ -6863,6 +6866,7 @@ static void test_wolfSSL_PKCS8(void)
         wc_ecc_free(&key);
     }
     AssertIntEQ(ret, 0);
+#endif
 
     /* Test PKCS8 DER ECC key no crypt */
     f = XFOPEN(eccPkcs8PrivKeyDerFile, "rb");

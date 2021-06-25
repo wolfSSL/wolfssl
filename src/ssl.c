@@ -6762,8 +6762,10 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
     long   sz = 0;
     XFILE  file;
     void*  heapHint = wolfSSL_CTX_GetHeap(ctx, ssl);
+#ifndef NO_CODING
     const char* header = NULL;
     const char* footer = NULL;
+#endif
 
     (void)crl;
     (void)heapHint;
@@ -6800,6 +6802,7 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
     else {
         /* Try to detect type by parsing cert header and footer */
         if (type == DETECT_CERT_TYPE) {
+#ifndef NO_CODING
             if (wc_PemGetHeaderFooter(CA_TYPE, &header, &footer) == 0 &&
                (XSTRNSTR((char*)myBuffer, header, (int)sz) != NULL)) {
                 type = CA_TYPE;
@@ -6814,7 +6817,9 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
                     (XSTRNSTR((char*)myBuffer, header, (int)sz) != NULL)) {
                 type = CERT_TYPE;
             }
-            else {
+            else
+#endif
+            {
                 WOLFSSL_MSG("Failed to detect certificate type");
                 if (dynamic)
                     XFREE(myBuffer, heapHint, DYNAMIC_TYPE_FILE);

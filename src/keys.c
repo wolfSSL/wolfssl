@@ -2273,7 +2273,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif /* BUILD_ARC4 */
 
 
-#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_CHAPOL_AEAD)
     /* Check that the max implicit iv size is suffecient */
     #if (AEAD_MAX_IMP_SZ < 12) /* CHACHA20_IMP_IV_SZ */
         #error AEAD_MAX_IMP_SZ is too small for ChaCha20
