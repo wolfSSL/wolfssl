@@ -39771,6 +39771,50 @@ static void test_wolfSSL_CRYPTO_memcmp(void)
  | wolfCrypt ASN
  *----------------------------------------------------------------------------*/
 
+static void test_wc_CreateEncryptedPKCS8Key(void)
+{
+#if defined(HAVE_PKCS8) && !defined(NO_PWDBASED) && defined(WOLFSSL_AES_256) \
+ && !defined(NO_AES_CBC) && !defined(NO_RSA) && !defined(NO_SHA)
+    WC_RNG rng;
+    byte* encKey = NULL;
+    word32 encKeySz = 0;
+    word32 decKeySz = 0;
+    const char password[] = "Lorem ipsum dolor sit amet";
+    word32 passwordSz = (word32)XSTRLEN(password);
+    word32 tradIdx = 0;
+
+    printf(testingFmt, "test_wc_CreateEncryptedPKCS8Key");
+
+    AssertIntEQ(wc_InitRng(&rng), 0);
+    /* Call with NULL for out buffer to get necessary length. */
+    AssertIntEQ(wc_CreateEncryptedPKCS8Key((byte*)server_key_der_2048,
+        sizeof_server_key_der_2048, NULL, &encKeySz, password, passwordSz,
+        PKCS5, PBES2, AES256CBCb, NULL, 0, WC_PKCS12_ITT_DEFAULT, &rng, NULL),
+        LENGTH_ONLY_E);
+    AssertNotNull(encKey = (byte*)XMALLOC(encKeySz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    /* Call with the allocated out buffer. */
+    AssertIntGT(wc_CreateEncryptedPKCS8Key((byte*)server_key_der_2048,
+        sizeof_server_key_der_2048, encKey, &encKeySz, password, passwordSz,
+        PKCS5, PBES2, AES256CBCb, NULL, 0, WC_PKCS12_ITT_DEFAULT, &rng, NULL),
+        0);
+    /* Decrypt the encrypted PKCS8 key we just made. */
+    AssertIntGT((decKeySz = wc_DecryptPKCS8Key(encKey, encKeySz, password,
+        passwordSz)), 0);
+    /* encKey now holds the decrypted key (decrypted in place). */
+    AssertIntGT(wc_GetPkcs8TraditionalOffset(encKey, &tradIdx, decKeySz), 0);
+    /* Check that the decrypted key matches the key prior to encryption. */
+    AssertIntEQ(XMEMCMP(encKey + tradIdx, server_key_der_2048,
+        sizeof_server_key_der_2048), 0);
+
+    if (encKey != NULL)
+        XFREE(encKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeRng(&rng);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wc_GetPkcs8TraditionalOffset(void)
 {
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(HAVE_PKCS8)
@@ -45371,6 +45415,7 @@ void ApiTest(void)
 #endif
 
     /* wolfCrypt ASN tests */
+    test_wc_CreateEncryptedPKCS8Key();
     test_wc_GetPkcs8TraditionalOffset();
     test_wc_SetSubjectRaw();
     test_wc_GetSubjectRaw();

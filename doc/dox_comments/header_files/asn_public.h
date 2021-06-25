@@ -1629,3 +1629,245 @@ WOLFSSL_API int wc_GetCTC_HashOID(int type);
 */
 WOLFSSL_API void wc_SetCert_Free(Cert* cert);
 
+/*!
+    \ingroup ASN
+
+    \brief This function finds the beginning of the traditional private key
+     inside a PKCS#8 unencrypted buffer.
+
+    \return Length of traditional private key on success.
+    \return Negative values on failure.
+
+    \param input Buffer containing unencrypted PKCS#8 private key. 
+    \param inOutIdx Index into the input buffer. On input, it should be a byte
+    offset to the beginning of the the PKCS#8 buffer. On output, it will be the
+    byte offset to the traditional private key within the input buffer.
+    \param sz The number of bytes in the input buffer.
+
+    _Example_
+    \code
+    byte* pkcs8Buf; // Buffer containing PKCS#8 key.
+    word32 idx = 0;
+    word32 sz; // Size of pkcs8Buf.
+    ...
+    ret = wc_GetPkcs8TraditionalOffset(pkcs8Buf, &idx, sz);
+    // pkcs8Buf + idx is now the beginning of the traditional private key bytes.
+    \endcode
+
+    \sa wc_CreatePKCS8Key
+    \sa wc_EncryptPKCS8Key
+    \sa wc_DecryptPKCS8Key
+    \sa wc_CreateEncryptedPKCS8Key
+*/
+WOLFSSL_API int wc_GetPkcs8TraditionalOffset(byte* input,
+                                             word32* inOutIdx, word32 sz);
+
+/*!
+    \ingroup ASN
+
+    \brief This function takes in a DER private key and converts it to PKCS#8
+    format. Also used in creating PKCS#12 shrouded key bags. See RFC 5208.
+    
+    \return The size of the PKCS#8 key placed into out on success.
+    \return LENGTH_ONLY_E if out is NULL, with required output buffer size in
+    outSz.
+    \return Other negative values on failure.
+
+    \param out Buffer to place result in. If NULL, required out buffer size
+    returned in outSz.
+    \param outSz Size of out buffer.
+    \param key Buffer with traditional DER key.
+    \param keySz Size of key buffer.
+    \param algoID Algorithm ID (e.g. RSAk).
+    \param curveOID ECC curve OID if used. Should be NULL for RSA keys.
+    \param oidSz Size of curve OID. Is set to 0 if curveOID is NULL.
+
+    _Example_
+    \code
+    ecc_key eccKey;              // wolfSSL ECC key object.
+    byte* der;                   // DER-encoded ECC key.
+    word32 derSize;              // Size of der.
+    const byte* curveOid = NULL; // OID of curve used by eccKey.
+    word32 curveOidSz = 0;       // Size of curve OID.
+    byte* pkcs8;                 // Output buffer for PKCS#8 key.
+    word32 pkcs8Sz;              // Size of output buffer.
+
+    derSize = wc_EccKeyDerSize(&eccKey, 1);
+    ...
+    derSize = wc_EccKeyToDer(&eccKey, der, derSize);
+    ...
+    ret = wc_ecc_get_oid(eccKey.dp->oidSum, &curveOid, &curveOidSz);
+    ...
+    ret = wc_CreatePKCS8Key(NULL, &pkcs8Sz, der,
+        derSize, ECDSAk, curveOid, curveOidSz); // Get size needed in pkcs8Sz.
+    ...
+    ret = wc_CreatePKCS8Key(pkcs8, &pkcs8Sz, der,
+        derSize, ECDSAk, curveOid, curveOidSz);
+    \endcode
+
+    \sa wc_GetPkcs8TraditionalOffset
+    \sa wc_EncryptPKCS8Key
+    \sa wc_DecryptPKCS8Key
+    \sa wc_CreateEncryptedPKCS8Key
+*/
+WOLFSSL_API int wc_CreatePKCS8Key(byte* out, word32* outSz,
+        byte* key, word32 keySz, int algoID, const byte* curveOID,
+        word32 oidSz);
+
+/*!
+    \ingroup ASN
+
+    \brief This function takes in an unencrypted PKCS#8 DER key (e.g. one
+     created by wc_CreatePKCS8Key) and converts it to PKCS#8 encrypted format.
+     The resulting encrypted key can be decrypted using wc_DecryptPKCS8Key. See
+     RFC 5208.
+
+    \return The size of the encrypted key placed in out on success.
+    \return LENGTH_ONLY_E if out is NULL, with required output buffer size in
+    outSz.
+    \return Other negative values on failure.
+
+    \param key Buffer with traditional DER key.
+    \param keySz Size of key buffer.
+    \param out Buffer to place result in. If NULL, required out buffer size
+    returned in outSz.
+    \param outSz Size of out buffer.
+    \param password The password to use for the password-based encryption
+    algorithm.
+    \param passwordSz The length of the password (not including the NULL
+    terminator).
+    \param vPKCS The PKCS version to use. Can be 1 for PKCS12 or PKCS5.
+    \param pbeOid The OID of the PBE scheme to use (e.g. PBES2 or one of the
+    OIDs for PBES1 in RFC 2898 A.3).
+    \param encAlgId The encryption algorithm ID to use (e.g. AES256CBCb).
+    \param salt The salt buffer to use. If NULL, a random salt will be used.
+    \param saltSz The length of the salt buffer. Can be 0 if passing NULL for
+    salt.
+    \param itt The number of iterations to use for the KDF.
+    \param rng A pointer to an initialized WC_RNG object.
+    \param heap A pointer to the heap used for dynamic allocation. Can be NULL.
+
+    _Example_
+    \code
+    byte* pkcs8;          // Unencrypted PKCS#8 key.
+    word32 pkcs8Sz;       // Size of pkcs8.
+    byte* pkcs8Enc;       // Encrypted PKCS#8 key.
+    word32 pkcs8EncSz;    // Size of pkcs8Enc.
+    const char* password; // Password to use for encryption.
+    int passwordSz;       // Length of password (not including NULL terminator).
+    WC_RNG rng;
+
+    // The following produces an encrypted version of pkcs8 in pkcs8Enc. The
+    // encryption uses password-based encryption scheme 2 (PBE2) from PKCS#5 and
+    // the AES cipher in CBC mode with a 256-bit key. See RFC 8018 for more on
+    // PKCS#5.
+    ret = wc_EncryptPKCS8Key(pkcs8, pkcs8Sz, pkcs8Enc, &pkcs8EncSz, password,
+            passwordSz, PKCS5, PBES2, AES256CBCb, NULL, 0,
+            WC_PKCS12_ITT_DEFAULT, &rng, NULL);
+    \endcode
+
+    \sa wc_GetPkcs8TraditionalOffset
+    \sa wc_CreatePKCS8Key
+    \sa wc_DecryptPKCS8Key
+    \sa wc_CreateEncryptedPKCS8Key
+*/
+WOLFSSL_API int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out,
+        word32* outSz, const char* password, int passwordSz, int vPKCS,
+        int pbeOid, int encAlgId, byte* salt, word32 saltSz, int itt,
+        WC_RNG* rng, void* heap);
+
+/*!
+    \ingroup ASN
+
+    \brief This function takes an encrypted PKCS#8 DER key and decrypts it to
+     PKCS#8 unencrypted DER. Undoes the encryption done by wc_EncryptPKCS8Key.
+     See RFC5208. The input buffer is overwritten with the decrypted data.
+
+    \return The length of the decrypted buffer on success.
+    \return Negative values on failure.
+
+    \param input On input, buffer containing encrypted PKCS#8 key. On successful
+    output, contains the decrypted key.
+    \param sz Size of the input buffer.
+    \param password The password used to encrypt the key.
+    \param passwordSz The length of the password (not including NULL
+    terminator).
+
+    _Example_
+    \code
+    byte* pkcs8Enc;       // Encrypted PKCS#8 key made with wc_EncryptPKCS8Key.
+    word32 pkcs8EncSz;    // Size of pkcs8Enc.
+    const char* password; // Password to use for decryption.
+    int passwordSz;       // Length of password (not including NULL terminator).
+
+    ret = wc_DecryptPKCS8Key(pkcs8Enc, pkcs8EncSz, password, passwordSz);
+    \endcode
+
+    \sa wc_GetPkcs8TraditionalOffset
+    \sa wc_CreatePKCS8Key
+    \sa wc_EncryptPKCS8Key
+    \sa wc_CreateEncryptedPKCS8Key
+*/
+WOLFSSL_API int wc_DecryptPKCS8Key(byte* input, word32 sz, const char* password,
+        int passwordSz);
+
+/*!
+    \ingroup ASN
+
+    \brief This function takes a traditional, DER key, converts it to PKCS#8
+     format, and encrypts it. It uses wc_CreatePKCS8Key and wc_EncryptPKCS8Key
+     to do this. 
+
+    \return The size of the encrypted key placed in out on success.
+    \return LENGTH_ONLY_E if out is NULL, with required output buffer size in
+    outSz.
+    \return Other negative values on failure.
+
+    \param key Buffer with traditional DER key.
+    \param keySz Size of key buffer.
+    \param out Buffer to place result in. If NULL, required out buffer size
+    returned in outSz.
+    \param outSz Size of out buffer.
+    \param password The password to use for the password-based encryption
+    algorithm.
+    \param passwordSz The length of the password (not including the NULL
+    terminator).
+    \param vPKCS The PKCS version to use. Can be 1 for PKCS12 or PKCS5.
+    \param pbeOid The OID of the PBE scheme to use (e.g. PBES2 or one of the
+    OIDs for PBES1 in RFC 2898 A.3).
+    \param encAlgId The encryption algorithm ID to use (e.g. AES256CBCb).
+    \param salt The salt buffer to use. If NULL, a random salt will be used.
+    \param saltSz The length of the salt buffer. Can be 0 if passing NULL for
+    salt.
+    \param itt The number of iterations to use for the KDF.
+    \param rng A pointer to an initialized WC_RNG object.
+    \param heap A pointer to the heap used for dynamic allocation. Can be NULL.
+
+    _Example_
+    \code
+    byte* key;            // Traditional private key (DER formatted).
+    word32 keySz;         // Size of key.
+    byte* pkcs8Enc;       // Encrypted PKCS#8 key.
+    word32 pkcs8EncSz;    // Size of pkcs8Enc.
+    const char* password; // Password to use for encryption.
+    int passwordSz;       // Length of password (not including NULL terminator).
+    WC_RNG rng;
+
+    // The following produces an encrypted, PKCS#8 version of key in pkcs8Enc.
+    // The encryption uses password-based encryption scheme 2 (PBE2) from PKCS#5
+    // and the AES cipher in CBC mode with a 256-bit key. See RFC 8018 for more
+    // on PKCS#5.
+    ret = wc_CreateEncryptedPKCS8Key(key, keySz, pkcs8Enc, &pkcs8EncSz,
+            password, passwordSz, PKCS5, PBES2, AES256CBCb, NULL, 0,
+            WC_PKCS12_ITT_DEFAULT, &rng, NULL);
+    \endcode
+
+    \sa wc_GetPkcs8TraditionalOffset
+    \sa wc_CreatePKCS8Key
+    \sa wc_EncryptPKCS8Key
+    \sa wc_DecryptPKCS8Key
+*/
+WOLFSSL_API int wc_CreateEncryptedPKCS8Key(byte* key, word32 keySz, byte* out,
+        word32* outSz, const char* password, int passwordSz, int vPKCS,
+        int pbeOid, int encAlgId, byte* salt, word32 saltSz, int itt,
+        WC_RNG* rng, void* heap);

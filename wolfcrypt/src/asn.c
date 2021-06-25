@@ -3000,10 +3000,6 @@ int ToTraditional(byte* input, word32 sz)
 
 #if defined(HAVE_PKCS8) && !defined(NO_CERTS)
 
-/* find beginning of traditional key inside PKCS#8 unencrypted buffer
- * return traditional length on success, with inOutIdx at beginning of
- * traditional
- * return negative on failure/error */
 int wc_GetPkcs8TraditionalOffset(byte* input, word32* inOutIdx, word32 sz)
 {
     int length;
@@ -3017,33 +3013,6 @@ int wc_GetPkcs8TraditionalOffset(byte* input, word32* inOutIdx, word32 sz)
     return length;
 }
 
-
-/* PKCS#8 from RFC 5208
- * This function takes in a DER key and converts it to PKCS#8 format. Used
- * in creating PKCS#12 shrouded key bags.
- * Reverse of ToTraditional
- *
- * PrivateKeyInfo ::= SEQUENCE {
- *  version Version,
- *  privateKeyAlgorithm PrivateKeyAlgorithmIdentifier,
- *  privateKey          PrivateKey,
- *  attributes          optional
- *  }
- *  Version ::= INTEGER
- *  PrivateKeyAlgorithmIdentifier ::= AlgorithmIdentifier
- *  PrivateKey ::= OCTET STRING
- *
- * out      buffer to place result in
- * outSz    size of out buffer
- * key      buffer with DER key
- * keySz    size of key buffer
- * algoID   algorithm ID i.e. RSAk
- * curveOID ECC curve oid if used. Should be NULL for RSA keys.
- * oidSz    size of curve oid. Is set to 0 if curveOID is NULL.
- *
- * Returns the size of PKCS#8 placed into out. In error cases returns negative
- * values.
- */
 int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         int algoID, const byte* curveOID, word32 oidSz)
 {
@@ -3654,234 +3623,16 @@ static int Pkcs8Pad(byte* buf, int sz, int blockSz)
 #ifdef HAVE_PKCS8
 
 /*
- * Used when creating PKCS12 shrouded key bags
- * vPKCS is the version of PKCS to use
- * vAlgo is the algorithm version to use
- *
- * if salt is NULL a random number is generated
- *
- * returns the size of encrypted data on success
+ * Equivalent to calling TraditionalEnc with the same parameters but with
+ * encAlgId set to 0. This function must be kept alive because it's sometimes
+ * part of the API (WOLFSSL_ASN_API).
  */
 int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
         const char* password, int passwordSz, int vPKCS, int vAlgo,
         byte* salt, word32 saltSz, int itt, WC_RNG* rng, void* heap)
 {
-    int algoID = 0;
-    byte*  tmp;
-    word32 tmpSz = 0;
-    word32 sz;
-    word32 seqSz;
-    word32 inOutIdx = 0;
-    word32 totalSz = 0;
-    int    version, id;
-    int    ret;
-    int    blockSz = 0;
-
-    const byte* curveOID = NULL;
-    word32 oidSz   = 0;
-
-#ifdef WOLFSSL_SMALL_STACK
-    byte*  saltTmp = NULL;
-    byte*  cbcIv   = NULL;
-#else
-    byte   saltTmp[MAX_IV_SIZE];
-    byte   cbcIv[MAX_IV_SIZE];
-#endif
-
-    WOLFSSL_ENTER("UnTraditionalEnc()");
-
-    if (saltSz > MAX_SALT_SIZE)
-        return ASN_PARSE_E;
-
-
-    inOutIdx += MAX_SEQ_SZ; /* leave room for size of finished shroud */
-    if (CheckAlgo(vPKCS, vAlgo, &id, &version, &blockSz) < 0) {
-        WOLFSSL_MSG("Bad/Unsupported algorithm ID");
-        return ASN_INPUT_E;  /* Algo ID error */
-    }
-
-    if (out != NULL) {
-        if (*outSz < inOutIdx + MAX_ALGO_SZ + MAX_SALT_SIZE + MAX_SEQ_SZ + 1 +
-                MAX_LENGTH_SZ + MAX_SHORT_SZ + 1)
-                return BUFFER_E;
-
-        if (version == PKCS5v2) {
-            WOLFSSL_MSG("PKCS5v2 Not supported yet\n");
-            return ASN_VERSION_E;
-        }
-
-        if (salt == NULL || saltSz == 0) {
-            saltSz = 8;
-        #ifdef WOLFSSL_SMALL_STACK
-            saltTmp = (byte*)XMALLOC(saltSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
-            if (saltTmp == NULL)
-                return MEMORY_E;
-        #endif
-            salt = saltTmp;
-
-            if ((ret = wc_RNG_GenerateBlock(rng, saltTmp, saltSz)) != 0) {
-                WOLFSSL_MSG("Error generating random salt");
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-                return ret;
-            }
-        }
-
-
-        /* leave room for a sequence (contains salt and iterations int) */
-        inOutIdx += MAX_SEQ_SZ; sz = 0;
-        inOutIdx += MAX_ALGO_SZ;
-
-        /* place salt in buffer */
-        out[inOutIdx++] = ASN_OCTET_STRING; sz++;
-        tmpSz = SetLength(saltSz, out + inOutIdx);
-        inOutIdx += tmpSz; sz += tmpSz;
-        XMEMCPY(out + inOutIdx, salt, saltSz);
-        inOutIdx += saltSz; sz += saltSz;
-
-        /* place iteration count in buffer */
-        ret = SetShortInt(out, &inOutIdx, itt, *outSz);
-        if (ret < 0) {
-        #ifdef WOLFSSL_SMALL_STACK
-            if (saltTmp != NULL)
-                XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-            return ret;
-        }
-        sz += (word32)ret;
-
-        /* wind back index and set sequence then clean up buffer */
-        inOutIdx -= (sz + MAX_SEQ_SZ);
-        tmpSz = SetSequence(sz, out + inOutIdx);
-        XMEMMOVE(out + inOutIdx + tmpSz, out + inOutIdx + MAX_SEQ_SZ, sz);
-        totalSz += tmpSz + sz; sz += tmpSz;
-
-        /* add in algo ID */
-        inOutIdx -= MAX_ALGO_SZ;
-        tmpSz =  SetAlgoID(id, out + inOutIdx, oidPBEType, sz);
-        XMEMMOVE(out + inOutIdx + tmpSz, out + inOutIdx + MAX_ALGO_SZ, sz);
-        totalSz += tmpSz; inOutIdx += tmpSz + sz;
-
-        /* octet string containing encrypted key */
-        out[inOutIdx++] = ASN_OCTET_STRING; totalSz++;
-    }
-
-    /* check key type and get OID if ECC */
-    if ((ret = wc_GetKeyOID(key, keySz, &curveOID, &oidSz, &algoID, heap))< 0) {
-        WOLFSSL_MSG("Error getting key OID");
-    #ifdef WOLFSSL_SMALL_STACK
-        if (saltTmp != NULL)
-            XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
-    }
-
-    /* PKCS#8 wrapping around key */
-    if (wc_CreatePKCS8Key(NULL, &tmpSz, key, keySz, algoID, curveOID, oidSz)
-            != LENGTH_ONLY_E) {
-    #ifdef WOLFSSL_SMALL_STACK
-        if (saltTmp != NULL)
-            XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return MEMORY_E;
-    }
-
-    /* check if should return max size */
-    if (out == NULL) {
-        /* account for salt size */
-        if (salt == NULL || saltSz == 0) {
-            tmpSz += MAX_SALT_SIZE;
-        }
-        else {
-            tmpSz += saltSz;
-        }
-
-        /* plus 3 for tags */
-        *outSz = tmpSz + MAX_ALGO_SZ + MAX_LENGTH_SZ +MAX_LENGTH_SZ + MAX_SEQ_SZ
-            + MAX_LENGTH_SZ + MAX_SEQ_SZ + 3;
-    #ifdef WOLFSSL_SMALL_STACK
-        if (saltTmp != NULL)
-            XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return LENGTH_ONLY_E;
-    }
-
-    /* reserve buffer for crypto and make sure it supports full blocks */
-    tmp = (byte*)XMALLOC(tmpSz + (blockSz-1), heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (tmp == NULL) {
-    #ifdef WOLFSSL_SMALL_STACK
-        if (saltTmp != NULL)
-            XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return MEMORY_E;
-    }
-
-    if ((ret = wc_CreatePKCS8Key(tmp, &tmpSz, key, keySz, algoID, curveOID,
-                    oidSz)) < 0) {
-        XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        WOLFSSL_MSG("Error wrapping key with PKCS#8");
-    #ifdef WOLFSSL_SMALL_STACK
-        if (saltTmp != NULL)
-            XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
-    }
-    tmpSz = ret;
-
-    /* adjust size to pad */
-    tmpSz = Pkcs8Pad(tmp, tmpSz, blockSz);
-
-#ifdef WOLFSSL_SMALL_STACK
-    cbcIv = (byte*)XMALLOC(MAX_IV_SIZE, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (cbcIv == NULL) {
-        if (saltTmp != NULL)
-            XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return MEMORY_E;
-    }
-#endif
-
-    /* encrypt PKCS#8 wrapped key */
-    if ((ret = wc_CryptKey(password, passwordSz, salt, saltSz, itt, id,
-               tmp, tmpSz, version, cbcIv, 1, 0)) < 0) {
-        XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        WOLFSSL_MSG("Error encrypting key");
-    #ifdef WOLFSSL_SMALL_STACK
-        if (saltTmp != NULL)
-            XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (cbcIv != NULL)
-            XFREE(cbcIv, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;  /* encryption failure */
-    }
-    totalSz += tmpSz;
-
-#ifdef WOLFSSL_SMALL_STACK
-    if (saltTmp != NULL)
-        XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (cbcIv != NULL)
-        XFREE(cbcIv, heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-    if (*outSz < inOutIdx + tmpSz + MAX_LENGTH_SZ) {
-        XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return BUFFER_E;
-    }
-
-    /* set length of key and copy over encrypted key */
-    seqSz = SetLength(tmpSz, out + inOutIdx);
-    inOutIdx += seqSz; totalSz += seqSz;
-    XMEMCPY(out + inOutIdx, tmp, tmpSz);
-    XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
-
-    /* set total size at beginning */
-    sz = SetSequence(totalSz, out);
-    XMEMMOVE(out + sz, out + MAX_SEQ_SZ, totalSz);
-
-    (void)rng;
-
-    return totalSz + sz;
+    return TraditionalEnc(key, keySz, out, outSz, password, passwordSz,
+                vPKCS, vAlgo, 0, salt, saltSz, itt, rng, heap);
 }
 
 static int GetAlgoV2(int encAlgId, const byte** oid, int *len, int* id,
@@ -3923,37 +3674,7 @@ static int GetAlgoV2(int encAlgId, const byte** oid, int *len, int* id,
     return ret;
 }
 
-/* PKCS#8 encryption from RFC 5208
- * This function takes in an unencrypted PKCS#8 DER key and converts it to
- * PKCS#8 encrypted format. The resulting encrypted key can be decrypted using
- * wc_DecryptPKCS8Key.
- *
- * EncryptedPrivateKeyInfo ::= SEQUENCE {
- *      encryptionAlgorithm  EncryptionAlgorithmIdentifier,
- *      encryptedData        EncryptedData }
- * EncryptionAlgorithmIdentifier ::= AlgorithmIdentifier
- * EncryptedData ::= OCTET STRING
- *
- * key        DER buffer containing the unencrypted PKCS#8 key.
- * keySz      The size of the key buffer.
- * out        The buffer to place the encrypted key in.
- * outSz      The size of the out buffer.
- * password   The password to use for the password-based encryption algorithm.
- * passwordSz The length of the password (not including the NULL terminator).
- * vPKCS      The PKCS version to use. Can be 1 for PKCS12 or PKCS5.
- * pbeOid     The OID of the PBE scheme to use (e.g. PBES2 or one of the OIDs
-              for PBES1 in RFC 2898 A.3)
- * encAlgId   The encryption algorithm ID to use (e.g. AES256CBCb).
- * salt       The salt buffer to use. If NULL, a random salt will be used.
- * saltSz     The length of the salt buffer. Can be 0 if passing NULL for salt.
- * itt        The number of iterations to use for the KDF.
- * rng        A pointer to an initialized WC_RNG object.
- * heap       A pointer to the heap use for dynamic allocation. Can be NULL.
- *
- * Returns the size of the encrypted key placed in out. In error cases, returns
- * negative values.
- */
-int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32 outSz,
+int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
         const char* password, int passwordSz, int vPKCS, int pbeOid,
         int encAlgId, byte* salt, word32 saltSz, int itt, WC_RNG* rng,
         void* heap)
@@ -3963,6 +3684,7 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32 outSz,
 #else
     byte saltTmp[MAX_SALT_SIZE];
 #endif
+    int genSalt = 0;
     int ret = 0;
     int version = 0;
     int pbeId = 0;
@@ -3985,27 +3707,20 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32 outSz,
 
     WOLFSSL_ENTER("wc_EncryptPKCS8Key");
 
-    ret = CheckAlgo(vPKCS, pbeOid, &pbeId, &version, &blockSz);
-    if (ret == 0 && (salt == NULL || saltSz == 0)) {
-        saltSz = 8;
-    #ifdef WOLFSSL_SMALL_STACK
-        saltTmp = (byte*)XMALLOC(saltSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (saltTmp == NULL)
-            ret = MEMORY_E;
-    #endif
-        salt = saltTmp;
-
-        if ((ret = wc_RNG_GenerateBlock(rng, saltTmp, saltSz)) != 0) {
-            WOLFSSL_MSG("Error generating random salt");
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-        }
+    if (key == NULL || outSz == NULL || password == NULL) {
+        ret = BAD_FUNC_ARG;
     }
 
-    if (ret == 0 && version == PKCS5v2)
+    if (ret == 0) {
+        ret = CheckAlgo(vPKCS, pbeOid, &pbeId, &version, &blockSz);
+    }
+    if (ret == 0 && (salt == NULL || saltSz == 0)) {
+        genSalt = 1;
+        saltSz = 8;
+    }
+    if (ret == 0 && version == PKCS5v2) {
         ret = GetAlgoV2(encAlgId, &encOid, &encOidSz, &pbeId, &blockSz);
-
+    }
     if (ret == 0) {
         padSz = (blockSz - (keySz & (blockSz - 1))) & (blockSz - 1);
         /* inner = OCT salt INT itt */
@@ -4030,10 +3745,19 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32 outSz,
         }
     }
     if (ret == 0) {
-        /* outer = SEQ [ pbe ] OCT encrypted_PKCS#8_key */
+        /* outerLen = length of PBE encoding + octet string data */
+        /* Plus 2 for tag and length for pbe */
         outerLen = 2 + pbeLen;
-        outerLen += SetOctetString(keySz + padSz, out);
+        /* Octet string tag, length */
+        outerLen += 1 + SetLength(keySz + padSz, NULL); 
+        /* Octet string bytes */
         outerLen += keySz + padSz;
+        if (out == NULL) {
+            /* Sequence tag, length */
+            *outSz = 1 + SetLength(outerLen, NULL) + outerLen;
+            return LENGTH_ONLY_E;
+        }
+        SetOctetString(keySz + padSz, out);
 
         idx += SetSequence(outerLen, out + idx);
 
@@ -4044,8 +3768,26 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32 outSz,
             XMEMSET(out + encIdx + keySz, padSz, padSz);
             keySz += padSz;
         }
+
+        if (genSalt == 1) {
+        #ifdef WOLFSSL_SMALL_STACK
+            saltTmp = (byte*)XMALLOC(saltSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (saltTmp == NULL) {
+                ret = MEMORY_E;
+            }
+            else
+        #endif
+            {
+                salt = saltTmp;
+                if ((ret = wc_RNG_GenerateBlock(rng, saltTmp, saltSz)) != 0) {
+                    WOLFSSL_MSG("Error generating random salt");
+                }
+            }
+        }
+    }
+    if (ret == 0) {
         ret = wc_CryptKey(password, passwordSz, salt, saltSz, itt, pbeId,
-                          out + encIdx, keySz, version, cbcIv, 1, 0);
+                  out + encIdx, keySz, version, cbcIv, 1, 0);
     }
     if (ret == 0) {
         if (version != PKCS5v2) {
@@ -4072,7 +3814,7 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32 outSz,
         idx += SetSequence(innerLen, out + idx);
         idx += SetOctetString(saltSz, out + idx);
         XMEMCPY(out + idx, salt, saltSz); idx += saltSz;
-        ret = SetShortInt(out, &idx, itt, outSz);
+        ret = SetShortInt(out, &idx, itt, *outSz);
         if (ret > 0)
             ret = 0;
     }
@@ -4106,20 +3848,16 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32 outSz,
     return ret;
 }
 
-/* PKCS#8 decryption from RFC 5208
- *
- * NOTE: input buffer is overwritten with decrypted data!
- *
- * This function takes an encrypted PKCS#8 DER key and decrypts it to PKCS#8
- * unencrypted DER. Undoes the encryption done by wc_EncryptPKCS8Key. Returns
- * the length of the decrypted buffer or a negative value if there was an error.
- */
 int wc_DecryptPKCS8Key(byte* input, word32 sz, const char* password,
         int passwordSz)
 {
     int ret;
     int length;
     word32 inOutIdx = 0;
+
+    if (input == NULL || password == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     if (GetSequence(input, &inOutIdx, &length, sz) < 0) {
         ret = ASN_PARSE_E;
@@ -4149,7 +3887,9 @@ int wc_DecryptPKCS8Key(byte* input, word32 sz, const char* password,
 }
 
 /* Takes an unencrypted, traditional DER-encoded key and converts it to a PKCS#8
- * encrypted key. */
+ * encrypted key. If out is not NULL, it will hold the encrypted key. If it's
+ * NULL, LENGTH_ONLY_E will be returned and outSz will have the required out
+ * buffer size. */
 int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
         const char* password, int passwordSz, int vPKCS, int vAlgo,
         int encAlgId, byte* salt, word32 saltSz, int itt, WC_RNG* rng,
@@ -4188,7 +3928,7 @@ int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
         }
     }
     if (ret == 0) {
-        ret = wc_EncryptPKCS8Key(pkcs8Key, pkcs8KeySz, out, *outSz, password,
+        ret = wc_EncryptPKCS8Key(pkcs8Key, pkcs8KeySz, out, outSz, password,
             passwordSz, vPKCS, vAlgo, encAlgId, salt, saltSz, itt, rng, heap);
     }
 
@@ -4201,6 +3941,17 @@ int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
 
     return ret;
 }
+
+/* Same as TraditionalEnc, but in the public API. */
+int wc_CreateEncryptedPKCS8Key(byte* key, word32 keySz, byte* out,
+        word32* outSz, const char* password, int passwordSz, int vPKCS,
+        int pbeOid, int encAlgId, byte* salt, word32 saltSz, int itt,
+        WC_RNG* rng, void* heap)
+{
+    return TraditionalEnc(key, keySz, out, outSz, password, passwordSz, vPKCS,
+        pbeOid, encAlgId, salt, saltSz, itt, rng, heap);
+}
+
 
 #endif /* HAVE_PKCS8 */
 
