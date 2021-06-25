@@ -44236,7 +44236,8 @@ static int test_wolfSSL_CTX_set_ecdh_auto(void)
 }
 
 #if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TICKET_EXPIRE) && \
-    !defined(NO_ASN_TIME)
+    !defined(NO_ASN_TIME) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_SESSION_CACHE) && !defined(SINGLE_THREADED)
 static THREAD_RETURN WOLFSSL_THREAD test_server_set_timeout_loop(void* args)
 {
     callback_functions* callbacks = NULL;
@@ -44284,7 +44285,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_set_timeout_loop(void* args)
         callbacks->ctx_ready(ctx);
 
     /* set session ticket timeout to 1 sec.
-     * wolfSSL_CTX_setTicketHint modifies the "Session Ticket Lifetime
+     * wolfSSL_CTX_set_TicketHint modifies the "Session Ticket Lifetime
      * Hint" in NewSessionTicket packet, but does not affect session
      * resumption.
      * wolfSSL_CTX_set_timeout is essential for resuming decisions.
@@ -44432,6 +44433,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_client_try_resumption(void* args)
         } while (ret != WOLFSSL_SUCCESS && err == WC_PENDING_E);
 
         ret = wolfSSL_write(ssl, msg, len);
+        AssertIntEQ(ret, len);
 
         if (0 < (idx = wolfSSL_read(ssl, input, sizeof(input)-1))) {
             input[idx] = 0;
@@ -44466,7 +44468,8 @@ static THREAD_RETURN WOLFSSL_THREAD test_client_try_resumption(void* args)
 
     return 0;
 }
-#endif /* HAVE_SESSION_TICKET && !WOLFSSL_NO_TICKET_EXPIRE && !NO_ASN_TIME */
+#endif /* HAVE_SESSION_TICKET && !WOLFSSL_NO_TICKET_EXPIRE && !NO_ASN_TIME &&
+         !NO_WOLFSSL_SERVER && !NO_SESSION_CACHE && !SINGLE_THREADED */
 
 /*  This test function is to check if the expired session ticket
  *  is rejected by server in TLS1.2. In this test, server thread sets 
@@ -44477,7 +44480,8 @@ static THREAD_RETURN WOLFSSL_THREAD test_client_try_resumption(void* args)
 static int test_expired_ticket_rejection(void)
 {
 #if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TICKET_EXPIRE) && \
-    !defined(NO_ASN_TIME)
+    !defined(NO_ASN_TIME) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_SESSION_CACHE) && !defined(SINGLE_THREADED)
 
     tcp_ready ready;
     func_args client_args;
@@ -44533,7 +44537,8 @@ static int test_expired_ticket_rejection(void)
     FreeTcpReady(&ready);
 
     printf(resultFmt, passed);
-#endif /* HAVE_SESSION_TICKET && !WOLFSSL_NO_TICKET_EXPIRE && !NO_ASN_TIME */
+#endif /* HAVE_SESSION_TICKET && !WOLFSSL_NO_TICKET_EXPIRE && !NO_ASN_TIME && 
+          !NO_SESSION_CACHE && !SINGLE_THREADED */
     return 0;
 }
 
