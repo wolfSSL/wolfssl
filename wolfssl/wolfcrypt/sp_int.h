@@ -158,6 +158,9 @@ extern "C" {
 
 /* Determine the number of bits to use in each word. */
 #ifdef SP_WORD_SIZE
+#elif defined(WOLFSSL_SP_X86_64) && !defined(WOLFSSL_SP_X86_64_ASM) && \
+      !defined(HAVE___UINT128_T)
+    #define SP_WORD_SIZE 32
 #elif defined(WOLFSSL_SP_X86_64_ASM) || defined(WOLFSSL_SP_X86_64)
     #if SP_ULONG_BITS == 64 || SP_ULLONG_BITS == 64
         #define SP_WORD_SIZE 64
