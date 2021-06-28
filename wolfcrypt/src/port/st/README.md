@@ -1,6 +1,11 @@
 # ST Ports
 
-Support for the STM32 L4, F1, F2, F4 and F7 on-board crypto hardware acceleration for symmetric AES (ECB/CBC/CTR/GCM) and MD5/SHA1/SHA224/SHA256.
+Support for the STM32 L4, F1, F2, F4 and F7 on-board crypto hardware acceleration:
+ - symmetric AES (ECB/CBC/CTR/GCM)
+ - MD5/SHA1/SHA224/SHA256
+
+Support for the STM32 PKA on WB55, H7 and other devices with on-board public-key acceleration:
+ - ECC192/ECC224/ECC256/ECC384
 
 Support for the STSAFE-A100 crypto hardware accelerator co-processor via I2C for ECC supporting NIST or Brainpool 256-bit and 384-bit curves. It requires the ST-Safe SDK including wolf stsafe_interface.c/.h files. Please contact ST for these.
 
@@ -44,6 +49,19 @@ In your application you must include <wolfssl/wolfcrypt/settings.h> before any o
 See our [benchmarks](https://www.wolfssl.com/docs/benchmarks/) on the wolfSSL website.
 
 
+## STM32 PKA (Public Key Acceleration)
+
+STM32 PKA is present in STM32WB55 as well as STM32H7 series.
+
+### Building
+
+To enable support define the following
+
+`WOLFSSL_STM32_PKA`
+
+### Using
+
+When the support is enabled, the ECC operations will be accelerated using the PKA crypto co-processor.
 
 ## STSAFE-A100 ECC Acceleration
 
