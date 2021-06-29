@@ -26502,11 +26502,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif /* !NO_PSK */
-                #if !defined(NO_DH) && (!defined(NO_PSK) || !defined(NO_RSA))
+                #if !defined(NO_DH) && (!defined(NO_PSK) || !defined(NO_RSA) \
+                          || (defined(HAVE_ANON) && !defined(WOLFSSL_NO_TLS12)))
                 #if !defined(NO_PSK)
                     case dhe_psk_kea:
                 #endif
-                #if !defined(NO_RSA)
+                #if !defined(NO_RSA) || (defined(HAVE_ANON) && \
+                                         !defined(WOLFSSL_NO_TLS12))
                     case diffie_hellman_kea:
                 #endif
                     {
@@ -27277,7 +27279,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
-                #if !defined(NO_DH) && !defined(NO_RSA)
+                #if !defined(NO_DH) && (!defined(NO_RSA) || \
+                             (defined(HAVE_ANON) && !defined(WOLFSSL_NO_TLS12)))
                     case diffie_hellman_kea:
                     {
                         enum wc_HashType hashType;
