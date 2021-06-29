@@ -2717,7 +2717,7 @@ int sp_count_bits(const sp_int* a)
             r *= SP_WORD_SIZE;
             if (d > SP_HALF_MAX) {
                 r += SP_WORD_SIZE;
-                while ((d & (1UL << (SP_WORD_SIZE - 1))) == 0) {
+                while ((d & ((sp_digit)1 << (SP_WORD_SIZE - 1))) == 0) {
                     r--;
                     d <<= 1;
                 }
