@@ -6546,8 +6546,10 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, ecc_key* ecc)
     if (ecc->type == ECC_PRIVATEKEY || ecc->type == ECC_PRIVATEKEY_ONLY) {
 #ifdef HAVE_PKCS8
         if (wc_EccKeyToPKCS8(ecc, NULL, &derSz) == LENGTH_ONLY_E) {
-            derBuf = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_OPENSSL);
+            derBuf = (byte*)XREALLOC(pkey->pkey.ptr, derSz, NULL,
+                    DYNAMIC_TYPE_OPENSSL);
             if (derBuf != NULL) {
+                pkey->pkey.ptr = (char*)derBuf;
                 if (wc_EccKeyToPKCS8(ecc, derBuf, &derSz) < 0) {
                     XFREE(derBuf, NULL, DYNAMIC_TYPE_OPENSSL);
                     derBuf = NULL;
@@ -6557,8 +6559,10 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, ecc_key* ecc)
 #else
         derSz = (word32)wc_EccKeyDerSize(ecc, 1);
         if (derSz > 0) {
-            derBuf = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_OPENSSL);
+            derBuf = (byte*)XREALLOC(pkey->pkey.ptr, derSz, NULL,
+                    DYNAMIC_TYPE_OPENSSL);
             if (derBuf != NULL) {
+                pkey->pkey.ptr = (char*)derBuf;
                 if (wc_EccKeyToDer(ecc, derBuf, derSz) < 0) {
                     XFREE(derBuf, NULL, DYNAMIC_TYPE_OPENSSL);
                     derBuf = NULL;
@@ -6570,8 +6574,10 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, ecc_key* ecc)
     }
     else if (ecc->type == ECC_PUBLICKEY) {
         if ((derSz = (word32)wc_EccPublicKeyDerSize(ecc, 1)) > 0) {
-            derBuf = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_OPENSSL);
+            derBuf = (byte*)XREALLOC(pkey->pkey.ptr, derSz, NULL,
+                    DYNAMIC_TYPE_OPENSSL);
             if (derBuf != NULL) {
+                pkey->pkey.ptr = (char*)derBuf;
                 if (wc_EccPublicKeyToDer(ecc, derBuf, derSz, 1) < 0) {
                     XFREE(derBuf, NULL, DYNAMIC_TYPE_OPENSSL);
                     derBuf = NULL;
@@ -6581,7 +6587,6 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, ecc_key* ecc)
     }
     if (derBuf != NULL) {
         pkey->pkey_sz = (int)derSz;
-        pkey->pkey.ptr = (char*)derBuf;
         return WOLFSSL_SUCCESS;
     }
     else {
