@@ -19704,14 +19704,6 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
 }
 #endif /* SESSION_CERTS && OPENSSL_EXTRA */
 
-#ifdef OPENSSL_EXTRA
-WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
-        WOLF_STACK_OF(WOLFSSL_X509) *sk)
-{
-    return wolfSSL_sk_dup(sk);
-}
-#endif
-
 #ifndef NO_CERTS
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
     defined(OPENSSL_EXTRA)  || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -40421,7 +40413,7 @@ int wolfSSL_DH_LoadDer(WOLFSSL_DH* dh, const unsigned char* derBuf, int derSz)
 #endif /* OPENSSL_EXTRA */
 
 
-#if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 
 /* increments ref count of WOLFSSL_RSA. Return 1 on success, 0 on error */
 int wolfSSL_RSA_up_ref(WOLFSSL_RSA* rsa)
@@ -43935,6 +43927,34 @@ err:
         return WOLFSSL_SUCCESS;
     }
 
+    static int pushCertToDerBuffer(DerBuffer** inOutDer, int weOwn,
+            byte* cert, word32 certSz, void* heap)
+    {
+        int ret;
+        DerBuffer* inChain = NULL;
+        DerBuffer* der = NULL;
+        word32 len = 0;
+        if (inOutDer == NULL)
+            return BAD_FUNC_ARG;
+        inChain = *inOutDer;
+        if (inChain != NULL)
+            len = inChain->length;
+        ret = AllocDer(&der, len + CERT_HEADER_SZ + certSz, CERT_TYPE,
+                heap);
+        if (ret != 0) {
+            WOLFSSL_MSG("AllocDer error");
+            return ret;
+        }
+        if (inChain != NULL)
+            XMEMCPY(der->buffer, inChain->buffer, len);
+        c32to24(certSz, der->buffer + len);
+        XMEMCPY(der->buffer + len + CERT_HEADER_SZ, cert, certSz);
+        if (weOwn)
+            FreeDer(inOutDer);
+        *inOutDer = der;
+        return WOLFSSL_SUCCESS;
+    }
+
     /**
      * wolfSSL_CTX_add1_chain_cert makes a copy of the cert so we free it
      * on success
@@ -43957,37 +43977,104 @@ err:
             return WOLFSSL_FAILURE;
         }
 
-        ret = wolfSSL_CTX_load_verify_buffer(ctx, x509->derCert->buffer,
-            x509->derCert->length, WOLFSSL_FILETYPE_ASN1);
+        if (ctx->certificate == NULL)
+            ret = wolfSSL_CTX_use_certificate(ctx, x509);
+        else {
+            if (wolfSSL_X509_up_ref(x509) != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("wolfSSL_X509_up_ref error");
+                return WOLFSSL_FAILURE;
+            }
+            ret = wolfSSL_CTX_load_verify_buffer(ctx, x509->derCert->buffer,
+                x509->derCert->length, WOLFSSL_FILETYPE_ASN1);
+            if (ret == WOLFSSL_SUCCESS) {
+                /* push to ctx->certChain */
+                ret = pushCertToDerBuffer(&ctx->certChain, 1,
+                    x509->derCert->buffer, x509->derCert->length, ctx->heap);
+            }
+            /* Store cert to free it later */
+            if (ret == WOLFSSL_SUCCESS && ctx->x509Chain == NULL) {
+                ctx->x509Chain = wolfSSL_sk_X509_new();
+                if (ctx->x509Chain == NULL) {
+                    WOLFSSL_MSG("wolfSSL_sk_X509_new error");
+                    ret =  WOLFSSL_FAILURE;
+                }
+            }
+            if (ret == WOLFSSL_SUCCESS &&
+                    wolfSSL_sk_X509_push(ctx->x509Chain, x509)
+                        != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("wolfSSL_sk_X509_push error");
+                ret = WOLFSSL_FAILURE;
+            }
+            if (ret != WOLFSSL_SUCCESS)
+                wolfSSL_X509_free(x509); /* Decrease ref counter */
+        }
 
-        return (ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+        return (ret == WOLFSSL_SUCCESS) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
     }
 
-    /**
-     * wolfSSL_add1_chain_cert makes a copy of the cert so we free it
-     * on success
-     */
+#ifdef KEEP_OUR_CERT
     int wolfSSL_add0_chain_cert(WOLFSSL* ssl, WOLFSSL_X509* x509)
     {
+        int ret;
+
         WOLFSSL_ENTER("wolfSSL_add0_chain_cert");
-        WOLFSSL_MSG("WARNING: This function modifies the certs used by all "
-                    "SSL objects created using the same CTX");
-        if (wolfSSL_add1_chain_cert(ssl, x509) != WOLFSSL_SUCCESS) {
+
+        if (ssl == NULL || ssl->ctx == NULL || x509 == NULL ||
+                x509->derCert == NULL)
             return WOLFSSL_FAILURE;
+
+        if (ssl->buffers.certificate == NULL) {
+            ret = wolfSSL_use_certificate(ssl, x509);
+            /* Store cert to free it later */
+            if (ret == WOLFSSL_SUCCESS) {
+                wolfSSL_X509_free(ssl->ourCert);
+                ssl->ourCert = x509;
+            }
         }
-        wolfSSL_X509_free(x509);
-        return WOLFSSL_SUCCESS;
+        else {
+            ret = pushCertToDerBuffer(&ssl->buffers.certChain,
+                    ssl->buffers.weOwnCertChain, x509->derCert->buffer,
+                    x509->derCert->length, ssl->heap);
+            if (ret == WOLFSSL_SUCCESS) {
+                ssl->buffers.weOwnCertChain = 1;
+                /* Store cert to free it later */
+                if (ssl->ourCertChain == NULL) {
+                    ssl->ourCertChain = wolfSSL_sk_X509_new();
+                    if (ssl->ourCertChain == NULL) {
+                        WOLFSSL_MSG("wolfSSL_sk_X509_new error");
+                        return WOLFSSL_FAILURE;
+                    }
+                }
+                if (wolfSSL_sk_X509_push(ssl->ourCertChain, x509)
+                        != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("wolfSSL_sk_X509_push error");
+                    return WOLFSSL_FAILURE;
+                }
+            }
+        }
+        return ret == WOLFSSL_SUCCESS ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
     }
 
     int wolfSSL_add1_chain_cert(WOLFSSL* ssl, WOLFSSL_X509* x509)
     {
+        int ret;
+
         WOLFSSL_ENTER("wolfSSL_add1_chain_cert");
-        WOLFSSL_MSG("WARNING: This function modifies the certs used by all "
-                    "SSL objects created using the same CTX");
-        if (ssl == NULL || ssl->ctx == NULL)
+        if (ssl == NULL || ssl->ctx == NULL || x509 == NULL ||
+                x509->derCert == NULL)
             return WOLFSSL_FAILURE;
-        return wolfSSL_CTX_add1_chain_cert(ssl->ctx, x509);
+
+        if (wolfSSL_X509_up_ref(x509) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_X509_up_ref error");
+            return WOLFSSL_FAILURE;
+        }
+        ret = wolfSSL_add0_chain_cert(ssl, x509);
+        /* Decrease ref counter on error */
+        if (ret != WOLFSSL_SUCCESS)
+            wolfSSL_X509_free(x509);
+        return ret;
     }
+#endif
 
 #ifndef NO_BIO
     int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, const char *name) {
@@ -49108,6 +49195,30 @@ int wolfSSL_CTX_set_tlsext_status_cb(WOLFSSL_CTX* ctx, tlsextStatusCb cb)
     return WOLFSSL_SUCCESS;
 }
 
+int wolfSSL_CTX_get0_chain_certs(WOLFSSL_CTX *ctx,
+        WOLF_STACK_OF(WOLFSSL_X509) **sk)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_get0_chain_certs");
+    if (ctx == NULL || sk == NULL) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+    *sk = ctx->x509Chain;
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_get0_chain_certs(WOLFSSL *ssl,
+        WOLF_STACK_OF(WOLFSSL_X509) **sk)
+{
+    WOLFSSL_ENTER("wolfSSL_get0_chain_certs");
+    if (ssl == NULL || sk == NULL) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+    *sk = ssl->ourCertChain;
+    return WOLFSSL_SUCCESS;
+}
+
 /**
  * Find the issuing cert of the input cert. On a self-signed cert this
  * function will return an error.
@@ -52857,7 +52968,7 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
         wolfSSL_CRYPTO_cleanup_ex_data(&rsa->ex_data);
 #endif
-#if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
         int doFree = 0;
 #ifndef SINGLE_THREADED
         if (wc_LockMutex(&rsa->refMutex) != 0) {
@@ -52993,7 +53104,7 @@ WOLFSSL_RSA* wolfSSL_RSA_new(void)
 
     external->internal = key;
     external->inSet = 0;
-#if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
     external->refCount = 1;
 #ifndef SINGLE_THREADED
     wc_InitMutex(&external->refMutex);
@@ -56654,8 +56765,6 @@ err_cleanup:
     return NULL;
 }
 #endif /* OPENSSL_ALL */
-
-#endif /* OPENSSL_EXTRA */
 
 /*******************************************************************************
  * END OF X509_STORE APIs

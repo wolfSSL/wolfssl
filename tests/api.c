@@ -1789,6 +1789,49 @@ static void test_wolfSSL_CTX_load_verify_chain_buffer_format(void)
 #endif
 }
 
+static void test_wolfSSL_CTX_add1_chain_cert(void)
+{
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA) && \
+    defined(KEEP_OUR_CERT)
+    WOLFSSL_CTX*        ctx;
+    WOLFSSL*            ssl;
+    const char *certChain[] = {
+            "./certs/intermediate/client-int-cert.pem",
+            "./certs/intermediate/ca-int2-cert.pem",
+            "./certs/intermediate/ca-int-cert.pem",
+            "./certs/ca-cert.pem",
+            NULL
+    };
+    const char** cert;
+    WOLFSSL_X509* x509;
+    WOLF_STACK_OF(X509)* chain = NULL;
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+
+    for (cert = certChain; *cert != NULL; cert++) {
+        x509 = wolfSSL_X509_load_certificate_file(*cert, WOLFSSL_FILETYPE_PEM);
+        AssertNotNull(x509);
+        AssertIntEQ(SSL_CTX_add1_chain_cert(ctx, x509), 1);
+        X509_free(x509);
+    }
+    for (cert = certChain; *cert != NULL; cert++) {
+        x509 = wolfSSL_X509_load_certificate_file(*cert, WOLFSSL_FILETYPE_PEM);
+        AssertNotNull(x509);
+        AssertIntEQ(SSL_add1_chain_cert(ssl, x509), 1);
+        X509_free(x509);
+    }
+
+    AssertIntEQ(SSL_CTX_get0_chain_certs(ctx, &chain), 1);
+    AssertIntEQ(sk_X509_num(chain), 3);
+    AssertIntEQ(SSL_get0_chain_certs(ssl, &chain), 1);
+    AssertIntEQ(sk_X509_num(chain), 3);
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+#endif
+}
+
 static int test_wolfSSL_CTX_use_certificate_chain_file_format(void)
 {
     int ret = 0;
@@ -45908,6 +45951,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_load_verify_locations_ex();
     test_wolfSSL_CTX_load_verify_buffer_ex();
     test_wolfSSL_CTX_load_verify_chain_buffer_format();
+    test_wolfSSL_CTX_add1_chain_cert();
     test_wolfSSL_CTX_use_certificate_chain_file_format();
     test_wolfSSL_CTX_trust_peer_cert();
     test_wolfSSL_CTX_SetTmpDH_file();
