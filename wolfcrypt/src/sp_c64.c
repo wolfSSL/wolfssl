@@ -54,7 +54,7 @@
 #if SP_WORD_SIZE == 64
 #if ((!defined(WC_NO_CACHE_RESISTANT) && \
       (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH))) || \
-     defined(WOLFSSL_SP_SMALL)) && \
+     (defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP))) && \
     (defined(WOLFSSL_HAVE_SP_ECC) || !defined(WOLFSSL_RSA_PUBLIC_ONLY))
 /* Mask for address to obfuscate which of the two address will be used. */
 static const size_t addr_mask[2] = { 0, (size_t)-1 };
@@ -1530,7 +1530,7 @@ static int sp_2048_mod_18(sp_digit* r, const sp_digit* a, const sp_digit* m)
 static int sp_2048_mod_exp_18(sp_digit* r, const sp_digit* a, const sp_digit* e, int bits,
     const sp_digit* m, int reduceA)
 {
-#ifdef WOLFSSL_SP_SMALL
+#if defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP)
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td = NULL;
 #else
@@ -2414,7 +2414,7 @@ static int sp_2048_mod_36(sp_digit* r, const sp_digit* a, const sp_digit* m)
 static int sp_2048_mod_exp_36(sp_digit* r, const sp_digit* a, const sp_digit* e, int bits,
     const sp_digit* m, int reduceA)
 {
-#ifdef WOLFSSL_SP_SMALL
+#if defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP)
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td = NULL;
 #else
@@ -5759,7 +5759,7 @@ static int sp_3072_mod_27(sp_digit* r, const sp_digit* a, const sp_digit* m)
 static int sp_3072_mod_exp_27(sp_digit* r, const sp_digit* a, const sp_digit* e, int bits,
     const sp_digit* m, int reduceA)
 {
-#ifdef WOLFSSL_SP_SMALL
+#if defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP)
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td = NULL;
 #else
@@ -6648,7 +6648,7 @@ static int sp_3072_mod_54(sp_digit* r, const sp_digit* a, const sp_digit* m)
 static int sp_3072_mod_exp_54(sp_digit* r, const sp_digit* a, const sp_digit* e, int bits,
     const sp_digit* m, int reduceA)
 {
-#ifdef WOLFSSL_SP_SMALL
+#if defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP)
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td = NULL;
 #else
@@ -10104,7 +10104,7 @@ static int sp_4096_mod_39(sp_digit* r, const sp_digit* a, const sp_digit* m)
 static int sp_4096_mod_exp_39(sp_digit* r, const sp_digit* a, const sp_digit* e, int bits,
     const sp_digit* m, int reduceA)
 {
-#ifdef WOLFSSL_SP_SMALL
+#if defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP)
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td = NULL;
 #else
@@ -11052,7 +11052,7 @@ static int sp_4096_mod_78(sp_digit* r, const sp_digit* a, const sp_digit* m)
 static int sp_4096_mod_exp_78(sp_digit* r, const sp_digit* a, const sp_digit* e, int bits,
     const sp_digit* m, int reduceA)
 {
-#ifdef WOLFSSL_SP_SMALL
+#if defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_FAST_MODEXP)
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td = NULL;
 #else
