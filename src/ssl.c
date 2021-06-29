@@ -30927,6 +30927,42 @@ int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
 #endif /* v1.1.0 or later */
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
+void wolfSSL_DH_get0_key(const WOLFSSL_DH *dh,
+        const WOLFSSL_BIGNUM **pub_key, const WOLFSSL_BIGNUM **priv_key)
+{
+    WOLFSSL_ENTER("wolfSSL_DH_get0_key");
+
+    if (dh != NULL) {
+        if (pub_key != NULL && dh->pub_key != NULL &&
+                wolfSSL_BN_is_zero(dh->pub_key) != WOLFSSL_SUCCESS)
+            *pub_key = dh->pub_key;
+        if (priv_key != NULL && dh->priv_key != NULL &&
+                wolfSSL_BN_is_zero(dh->priv_key) != WOLFSSL_SUCCESS)
+            *priv_key = dh->priv_key;
+    }
+}
+
+int wolfSSL_DH_set0_key(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *pub_key,
+        WOLFSSL_BIGNUM *priv_key)
+{
+    WOLFSSL_ENTER("wolfSSL_DH_set0_key");
+
+    if (dh == NULL)
+        return WOLFSSL_FAILURE;
+
+    if (pub_key != NULL) {
+        wolfSSL_BN_free(dh->pub_key);
+        dh->pub_key = pub_key;
+    }
+
+    if (priv_key != NULL) {
+        wolfSSL_BN_free(dh->priv_key);
+        dh->priv_key = priv_key;
+    }
+
+    return SetDhInternal(dh);
+}
+
 #endif /* NO_DH */
 #endif /* OPENSSL_EXTRA */
 
@@ -31500,34 +31536,6 @@ WOLFSSL_DSA_SIG* wolfSSL_DSA_SIG_new(void)
     return sig;
 }
 
-/**
- * Same as wolfSSL_DSA_SIG_new but also initializes the internal bignums as well.
- * @return New WOLFSSL_DSA_SIG with r and s created as well
- */
-static WOLFSSL_DSA_SIG* wolfSSL_DSA_SIG_new_bn(void)
-{
-    WOLFSSL_DSA_SIG* ret;
-
-    if ((ret = wolfSSL_DSA_SIG_new()) == NULL) {
-        WOLFSSL_MSG("wolfSSL_DSA_SIG_new error");
-        return NULL;
-    }
-
-    if ((ret->r = wolfSSL_BN_new()) == NULL) {
-        WOLFSSL_MSG("wolfSSL_BN_new error");
-        wolfSSL_DSA_SIG_free(ret);
-        return NULL;
-    }
-
-    if ((ret->s = wolfSSL_BN_new()) == NULL) {
-        WOLFSSL_MSG("wolfSSL_BN_new error");
-        wolfSSL_DSA_SIG_free(ret);
-        return NULL;
-    }
-
-    return ret;
-}
-
 void wolfSSL_DSA_SIG_free(WOLFSSL_DSA_SIG *sig)
 {
     WOLFSSL_ENTER("wolfSSL_DSA_SIG_free");
@@ -31569,6 +31577,7 @@ int wolfSSL_DSA_SIG_set0(WOLFSSL_DSA_SIG *sig, WOLFSSL_BIGNUM *r,
     return WOLFSSL_SUCCESS;
 }
 
+#ifndef HAVE_SELFTEST
 /**
  *
  * @param sig The input signature to encode
@@ -31611,6 +31620,34 @@ int wolfSSL_i2d_DSA_SIG(const WOLFSSL_DSA_SIG *sig, byte **out)
 }
 
 /**
+ * Same as wolfSSL_DSA_SIG_new but also initializes the internal bignums as well.
+ * @return New WOLFSSL_DSA_SIG with r and s created as well
+ */
+static WOLFSSL_DSA_SIG* wolfSSL_DSA_SIG_new_bn(void)
+{
+    WOLFSSL_DSA_SIG* ret;
+
+    if ((ret = wolfSSL_DSA_SIG_new()) == NULL) {
+        WOLFSSL_MSG("wolfSSL_DSA_SIG_new error");
+        return NULL;
+    }
+
+    if ((ret->r = wolfSSL_BN_new()) == NULL) {
+        WOLFSSL_MSG("wolfSSL_BN_new error");
+        wolfSSL_DSA_SIG_free(ret);
+        return NULL;
+    }
+
+    if ((ret->s = wolfSSL_BN_new()) == NULL) {
+        WOLFSSL_MSG("wolfSSL_BN_new error");
+        wolfSSL_DSA_SIG_free(ret);
+        return NULL;
+    }
+
+    return ret;
+}
+
+/**
  * This parses a DER encoded ASN.1 structure. The ASN.1 encoding is:
  * ASN1_SEQUENCE
  *   ASN1_INTEGER (DSA r)
@@ -31645,16 +31682,16 @@ WOLFSSL_DSA_SIG* wolfSSL_d2i_DSA_SIG(WOLFSSL_DSA_SIG **sig,
     r = (mp_int*)ret->r->internal;
     s = (mp_int*)ret->s->internal;
 
-    if (DecodeECC_DSA_Sig(*pp, length, r, s) != 0) {
+    if (DecodeECC_DSA_Sig(*pp, (word32)length, r, s) != 0) {
         if (length == DSA_160_SIG_SIZE || length == DSA_256_SIG_SIZE) {
             /* Two raw numbers of length/2 size each */
-            if (mp_read_unsigned_bin(r, *pp, length/2) != 0) {
+            if (mp_read_unsigned_bin(r, *pp, (int)length/2) != 0) {
                 WOLFSSL_MSG("r mp_read_unsigned_bin error");
                 wolfSSL_DSA_SIG_free(ret);
                 return NULL;
             }
 
-            if (mp_read_unsigned_bin(s, *pp + (length/2), length/2) != 0) {
+            if (mp_read_unsigned_bin(s, *pp + (length/2), (int)length/2) != 0) {
                 WOLFSSL_MSG("s mp_read_unsigned_bin error");
                 wolfSSL_DSA_SIG_free(ret);
                 return NULL;
@@ -31695,6 +31732,7 @@ WOLFSSL_DSA_SIG* wolfSSL_d2i_DSA_SIG(WOLFSSL_DSA_SIG **sig,
 
     return ret;
 }
+#endif
 
 /* return WOLFSSL_SUCCESS on success, < 0 otherwise */
 int wolfSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
@@ -32974,7 +33012,7 @@ const WOLFSSL_EVP_MD *wolfSSL_HMAC_CTX_get_md(const WOLFSSL_HMAC_CTX *ctx)
         return NULL;
     }
 
-    return wolfSSL_macType2EVP_md(ctx->type);
+    return wolfSSL_macType2EVP_md((enum wc_HashType)ctx->type);
 }
 
 #ifndef NO_DES3
@@ -42427,7 +42465,7 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
     }
 
     switch (pkey->type) {
-#if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && !defined(NO_RSA)
+#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA) && !defined(NO_RSA)
     case EVP_PKEY_RSA:
         WOLFSSL_MSG("populating RSA key");
         if (PopulateRSAEvpPkeyDer(pkey) != WOLFSSL_SUCCESS)
@@ -43893,26 +43931,7 @@ int wolfSSL_CRYPTO_set_mem_functions(
         return WOLFSSL_FAILURE;
 }
 
-#ifndef NO_WOLFSSL_STUB
-int wolfSSL_CRYPTO_set_mem_ex_functions(void *(*m) (size_t, const char *, int),
-                                void *(*r) (void *, size_t, const char *,
-                                            int), void (*f) (void *))
-{
-    (void) m;
-    (void) r;
-    (void) f;
-    WOLFSSL_ENTER("wolfSSL_CRYPTO_set_mem_ex_functions");
-    WOLFSSL_STUB("CRYPTO_set_mem_ex_functions");
-
-    return WOLFSSL_FAILURE;
-}
-#endif
-
-
-void wolfSSL_CRYPTO_cleanup_all_ex_data(void){
-    WOLFSSL_ENTER("CRYPTO_cleanup_all_ex_data");
-}
-
+#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST)
 WOLFSSL_DH *wolfSSL_DH_generate_parameters(int prime_len, int generator,
                            void (*callback) (int, int, void *), void *cb_arg)
 {
@@ -43979,6 +43998,7 @@ int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len, int generat
 
     return WOLFSSL_SUCCESS;
 }
+#endif /* WOLFSSL_KEY_GEN && !HAVE_SELFTEST */
 
 void wolfSSL_ERR_load_crypto_strings(void)
 {
@@ -52809,6 +52829,8 @@ WOLFSSL_STRING *wolfSSL_TXT_DB_get_by_index(WOLFSSL_TXT_DB *db, int idx,
     }
     return (WOLFSSL_STRING*) wolfSSL_lh_retrieve(db->data, value);
 }
+
+#endif /* OPENSSL_ALL */
 
 /*******************************************************************************
  * END OF TXT_DB API

@@ -20025,7 +20025,6 @@ static int test_wc_curve25519_shared_secret_ex(void)
     word32          outLen = sizeof(out);
     int             endian = EC25519_BIG_ENDIAN;
 
-
     printf(testingFmt, "wc_curve25519_shared_secret_ex()");
 
     ret = wc_curve25519_init(&private_key);
@@ -20040,7 +20039,6 @@ static int test_wc_curve25519_shared_secret_ex(void)
     }
     if (ret == 0) {
         ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &public_key);
-
     }
     if (ret == 0) {
         ret = wc_curve25519_shared_secret_ex(&private_key, &public_key, out,
@@ -28470,7 +28468,8 @@ static void test_wolfSSL_PEM_PrivateKey(void)
 
     /* key is DES encrypted */
     #if !defined(NO_DES3) && defined(WOLFSSL_ENCRYPTED_KEYS) && \
-    !defined(NO_RSA) && !defined(NO_FILESYSTEM) && !defined(NO_MD5)
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM) && !defined(NO_MD5) && \
+    defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA) && !defined(NO_RSA)
     {
         XFILE f;
         pem_password_cb* passwd_cb;
@@ -45931,7 +45930,7 @@ static void test_wolfSSL_DH(void)
     (void)pub;
     (void)priv;
 
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_KEY_GEN)
 #if !defined(HAVE_FIPS) || \
         (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
     FILE* f = NULL;

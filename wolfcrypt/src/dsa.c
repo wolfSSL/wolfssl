@@ -967,7 +967,7 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
     }
 #endif
     if (buffer) {
-        ForceZero(buffer, sz);
+        ForceZero(buffer, halfSz);
         XFREE(buffer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #else /* !WOLFSSL_SMALL_STACK */
