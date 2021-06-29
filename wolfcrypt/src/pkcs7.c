@@ -6325,9 +6325,8 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
     byte issuerSeq[MAX_SEQ_SZ];
     byte encKeyOctetStr[MAX_OCTET_STR_SZ];
 
-    byte issuerSKIDSeq[MAX_SEQ_SZ];
-    byte issuerSKID[MAX_OCTET_STR_SZ];
-    word32 issuerSKIDSeqSz = 0, issuerSKIDSz = 0;
+    byte issuerSKID[MAX_LENGTH_SZ];
+    word32 issuerSKIDSz = 0;
 
 #ifdef WOLFSSL_SMALL_STACK
     byte*   serial;
@@ -6482,9 +6481,7 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
         verSz = SetMyVersion(2, ver, 0);
         recip->recipVersion = 2;
 
-        issuerSKIDSz = SetOctetString(KEYID_SIZE, issuerSKID);
-        issuerSKIDSeqSz = SetExplicit(0, issuerSKIDSz + KEYID_SIZE,
-                                      issuerSKIDSeq);
+        issuerSKIDSz = SetLength(KEYID_SIZE, issuerSKID);
     } else {
         FreeDecodedCert(decoded);
 #ifdef WOLFSSL_SMALL_STACK
@@ -6643,11 +6640,11 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
         }
 
     } else {
-        recipSeqSz = SetSequence(verSz + issuerSKIDSeqSz + issuerSKIDSz +
+        recipSeqSz = SetSequence(verSz + ASN_TAG_SZ + issuerSKIDSz +
                                  KEYID_SIZE + keyEncAlgSz + encKeyOctetStrSz +
                                  encryptedKeySz, recipSeq);
 
-        if (recipSeqSz + verSz + issuerSKIDSeqSz + issuerSKIDSz + KEYID_SIZE +
+        if (recipSeqSz + verSz + ASN_TAG_SZ + issuerSKIDSz + KEYID_SIZE +
             keyEncAlgSz + encKeyOctetStrSz + encryptedKeySz > MAX_RECIP_SZ) {
             WOLFSSL_MSG("RecipientInfo output buffer too small");
             FreeDecodedCert(decoded);
@@ -6677,8 +6674,8 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
         XMEMCPY(recip->recip + idx, serial, snSz);
         idx += snSz;
     } else {
-        XMEMCPY(recip->recip + idx, issuerSKIDSeq, issuerSKIDSeqSz);
-        idx += issuerSKIDSeqSz;
+        recip->recip[idx] = ASN_CONTEXT_SPECIFIC;
+        idx += ASN_TAG_SZ;
         XMEMCPY(recip->recip + idx, issuerSKID, issuerSKIDSz);
         idx += issuerSKIDSz;
         XMEMCPY(recip->recip + idx, pkcs7->issuerSubjKeyId, KEYID_SIZE);
@@ -8472,21 +8469,25 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
         #endif
 
             } else {
-                /* remove SubjectKeyIdentifier */
+                /* parse SubjectKeyIdentifier
+                 * RFC 5652 lists SubjectKeyIdentifier as [0] followed by
+                 * simple type of octet string
+                 *
+                 *  RecipientIdentifier ::= CHOICE {
+                 *  issuerAndSerialNumber IssuerAndSerialNumber,
+                 *  subjectKeyIdentifier [0] SubjectKeyIdentifier }
+                 *
+                 * The choice of subjectKeyIdentifer (where version was 2) is
+                 * context specific with tag number 0 within the class.
+                 */
+
                 if (GetASNTag(pkiMsg, idx, &tag, pkiMsgSz) < 0)
                     return ASN_PARSE_E;
 
-                if (tag != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC))
+                /* should be context specific and tag number 0: [0] (0x80) */
+                if (tag != ASN_CONTEXT_SPECIFIC) {
                     return ASN_PARSE_E;
-
-                if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
-                    return ASN_PARSE_E;
-
-                if (GetASNTag(pkiMsg, idx, &tag, pkiMsgSz) < 0)
-                    return ASN_PARSE_E;
-
-                if (tag != ASN_OCTET_STRING)
-                    return ASN_PARSE_E;
+                }
 
                 if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
                     return ASN_PARSE_E;

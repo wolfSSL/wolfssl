@@ -599,6 +599,17 @@ run_renewcerts(){
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ############################################################
+    ###### generate cms bundles in test directory ##############
+    ############################################################
+    echo "Generating CMS bundle"
+    echo ""
+    cd ./test || { echo "Failed to switch to dir ./test"; exit 1; }
+    echo "test" | openssl cms -encrypt -binary -keyid -out ktri-keyid-cms.msg -outform der -recip ../client-cert.pem -nocerts
+    check_result $? "generate ktri-keyid-cms.msg"
+    cd ../ || exit 1
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
     ########## generate ocsp certs        ######################
     ############################################################
     echo "Changing directory to ocsp..."

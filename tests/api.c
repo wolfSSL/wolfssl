@@ -25789,6 +25789,34 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
     wc_FreeRng(&rng);
 #endif
 
+#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_DES3)
+    {
+        byte   out[7];
+        byte   *cms;
+        word32 cmsSz;
+        XFILE  cmsFile;
+
+        XMEMSET(out, 0, sizeof(out));
+        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+        cmsFile = XFOPEN("./certs/test/ktri-keyid-cms.msg", "rb");
+        AssertTrue(cmsFile != XBADFILE);
+        cmsSz = (word32)FOURK_BUF;
+        AssertNotNull(cms =
+                (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
+        cmsSz = (word32)XFREAD(cms, 1, cmsSz, cmsFile);
+        XFCLOSE(cmsFile);
+
+        AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+                    sizeof_client_cert_der_2048), 0);
+        pkcs7->privateKey   = (byte*)client_key_der_2048;
+        pkcs7->privateKeySz = sizeof_client_key_der_2048;
+        AssertIntGT(wc_PKCS7_DecodeEnvelopedData(pkcs7, cms, cmsSz, out,
+                    sizeof(out)), 0);
+        XFREE(cms, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        AssertIntEQ(XMEMCMP(out, "test", 4), 0);
+        wc_PKCS7_Free(pkcs7);
+    }
+#endif /* USE_CERT_BUFFERS_2048 && !NO_DES3 */
 #endif /* HAVE_PKCS7 */
 } /* END test_wc_PKCS7_EncodeEnvelopedData() */
 
