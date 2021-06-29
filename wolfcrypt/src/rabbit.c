@@ -38,6 +38,11 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#define LOAD_LE32(a)           \
+    (((word32)(a)[0] <<  0) |  \
+     ((word32)(a)[1] <<  8) |  \
+     ((word32)(a)[2] << 16) |  \
+     ((word32)(a)[3] << 24))
 
 #ifdef BIG_ENDIAN_ORDER
     #define LITTLE32(x) ByteReverseWord32(x)
@@ -256,16 +261,16 @@ static WC_INLINE int DoProcess(Rabbit* ctx, byte* output, const byte* input,
         RABBIT_next_state(&(ctx->workCtx));
 
         /* Encrypt/decrypt 16 bytes of data */
-        *(word32*)(output+ 0) = *(word32*)(input+ 0) ^
+        *(word32*)(output+ 0) = LOAD_LE32(input+ 0) ^
                    LITTLE32(ctx->workCtx.x[0] ^ (ctx->workCtx.x[5]>>16) ^
                    U32V(ctx->workCtx.x[3]<<16));
-        *(word32*)(output+ 4) = *(word32*)(input+ 4) ^
+        *(word32*)(output+ 4) = LOAD_LE32(input+ 4) ^
                    LITTLE32(ctx->workCtx.x[2] ^ (ctx->workCtx.x[7]>>16) ^
                    U32V(ctx->workCtx.x[5]<<16));
-        *(word32*)(output+ 8) = *(word32*)(input+ 8) ^
+        *(word32*)(output+ 8) = LOAD_LE32(input+ 8) ^
                    LITTLE32(ctx->workCtx.x[4] ^ (ctx->workCtx.x[1]>>16) ^
                    U32V(ctx->workCtx.x[7]<<16));
-        *(word32*)(output+12) = *(word32*)(input+12) ^
+        *(word32*)(output+12) = LOAD_LE32(input+12) ^
                    LITTLE32(ctx->workCtx.x[6] ^ (ctx->workCtx.x[3]>>16) ^
                    U32V(ctx->workCtx.x[1]<<16));
 
