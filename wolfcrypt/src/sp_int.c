@@ -82,6 +82,7 @@ This library provides single precision (SP) integer math functions.
  *                              pointer is not allowed.
  * WOLFSSL_SP_NO_DYN_STACK      Disable use of dynamic stack items.
  *                              Used with small code size and not small stack.
+ * WOLFSSL_SP_FAST_MODEXP       Allow fast mod_exp with small C code
  */
 
 #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
