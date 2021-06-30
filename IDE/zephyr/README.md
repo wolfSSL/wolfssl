@@ -20,7 +20,7 @@ It provides the following zephyr code.
 
 ## How to setup
 
-### delopy wolfssl source to zephyr project
+### deploy wolfssl source to zephyr project
 Specify the path of the zephyr project and execute  `wolfssl/IDE/zephyr/setup.sh`.
 
 ```bash
