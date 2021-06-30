@@ -12938,7 +12938,7 @@ int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
 #endif /* LITTLE_ENDIAN_ORDER */
 #ifdef WOLFSSL_SP_MATH_ALL
         if (bits > 0) {
-            r->dp[r->used - 1] &= (1L << bits) - 1;
+            r->dp[r->used - 1] &= ((sp_digit)1 << bits) - 1;
         }
 #endif /* WOLFSSL_SP_MATH_ALL */
 
@@ -13322,7 +13322,7 @@ int sp_prime_is_prime_ex(sp_int* a, int t, int* result, WC_RNG* rng)
                 b->used = a->used;
                 /* Ensure the top word has no more bits than necessary. */
                 if (bits > 0) {
-                    b->dp[b->used - 1] &= (1L << bits) - 1;
+                    b->dp[b->used - 1] &= ((sp_digit)1 << bits) - 1;
                 }
 
                 if ((sp_cmp_d(b, 2) != MP_GT) || (_sp_cmp(b, c) != MP_LT)) {
