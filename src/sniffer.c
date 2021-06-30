@@ -349,6 +349,9 @@ static const char* const msgTable[] =
 /* *nix version uses table above */
 static void GetError(int idx, char* str)
 {
+    if (str == NULL || 
+            idx < 0 || idx > (int)(sizeof(msgTable)/sizeof(const char* const)))
+        return;
     XSTRNCPY(str, msgTable[idx - 1], MAX_ERROR_LEN-1);
     str[MAX_ERROR_LEN-1] = '\0';
 }
@@ -360,6 +363,8 @@ static void GetError(int idx, char* str)
 /* Windows version uses .rc table */
 static void GetError(int idx, char* buffer)
 {
+    if (buffer == NULL)
+        return;
     if (!LoadStringA(dllModule, idx, buffer, MAX_ERROR_LEN))
         buffer[0] = 0;
 }
@@ -517,9 +522,8 @@ typedef struct SnifferSession {
 
 
 /* Sniffer Server List and mutex */
-static WOLFSSL_GLOBAL SnifferServer* ServerList = 0;
+static WOLFSSL_GLOBAL SnifferServer* ServerList = NULL;
 static WOLFSSL_GLOBAL wolfSSL_Mutex ServerListMutex;
-
 
 /* Session Hash Table, mutex, and count */
 static WOLFSSL_GLOBAL SnifferSession* SessionTable[HASH_SIZE];
@@ -536,7 +540,7 @@ static WOLFSSL_GLOBAL word32 MissedDataSessions = 0;
 
 /* Connection Info Callback */
 static WOLFSSL_GLOBAL SSLConnCb ConnectionCb;
-static WOLFSSL_GLOBAL void* ConnectionCbCtx = NULL;
+static WOLFSSL_GLOBAL void*     ConnectionCbCtx = NULL;
 
 #ifdef WOLFSSL_SNIFFER_STATS
 /* Sessions Statistics */
@@ -544,10 +548,15 @@ static WOLFSSL_GLOBAL SSLStats SnifferStats;
 static WOLFSSL_GLOBAL wolfSSL_Mutex StatsMutex;
 #endif
 
+#ifdef WOLFSSL_SNIFFER_KEY_CALLBACK
+static WOLFSSL_GLOBAL SSLKeyCb KeyCb;
+static WOLFSSL_GLOBAL void*    KeyCbCtx = NULL;
+#endif
+
 #ifdef WOLFSSL_SNIFFER_WATCH
 /* Watch Key Callback */
 static WOLFSSL_GLOBAL SSLWatchCb WatchCb;
-static WOLFSSL_GLOBAL void* WatchCbCtx = NULL;
+static WOLFSSL_GLOBAL void*      WatchCbCtx = NULL;
 #endif
 
 #ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
@@ -993,16 +1002,24 @@ typedef struct TcpHdr {
 
 
 /* Use platform specific GetError to write to trace file if tracing */
-static void Trace(int idx)
+static void TraceError(int idx, char* error)
 {
     if (TraceOn) {
         char myBuffer[MAX_ERROR_LEN];
-        GetError(idx, myBuffer);
-        XFPRINTF(TraceFile, "\t%s\n", myBuffer);
+        if (error == NULL) {
+            error = myBuffer;
+            GetError(idx, myBuffer);
+        }
+        XFPRINTF(TraceFile, "\t%s\n", error);
 #ifdef DEBUG_SNIFFER
-        XFPRINTF(stderr,    "\t%s\n", myBuffer);
+        XFPRINTF(stderr,    "\t%s\n", error);
 #endif
     }
+}
+
+static void Trace(int idx)
+{
+    TraceError(idx, NULL);
 }
 
 
@@ -1255,7 +1272,7 @@ static void TraceStat(const char* name, int add)
 static void SetError(int idx, char* error, SnifferSession* session, int fatal)
 {
     GetError(idx, error);
-    Trace(idx);
+    TraceError(idx, error);
     if (session && fatal == FATAL_ERROR_STATE)
         session->flags.fatalError = 1;
 }
@@ -1563,7 +1580,7 @@ static int CreateWatchSnifferServer(char* error)
         return -1;
     }
     InitSnifferServer(sniffer);
-    sniffer->ctx = wolfSSL_CTX_new(SSLv23_client_method());
+    sniffer->ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
     if (!sniffer->ctx) {
         SetError(MEMORY_STR, error, NULL, 0);
         FreeSnifferServer(sniffer);
@@ -1573,7 +1590,12 @@ static int CreateWatchSnifferServer(char* error)
     if (CryptoDeviceId != INVALID_DEVID)
 	    wolfSSL_CTX_SetDevId(sniffer->ctx, CryptoDeviceId);
 #endif
+
+    /* add to server list */
+    wc_LockMutex(&ServerListMutex);
+    sniffer->next = ServerList;
     ServerList = sniffer;
+    wc_UnLockMutex(&ServerListMutex);
 
     return 0;
 }
@@ -1659,7 +1681,7 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
         sniffer->server = serverIp;
         sniffer->port = port;
 
-        sniffer->ctx = wolfSSL_CTX_new(SSLv23_client_method());
+        sniffer->ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
         if (!sniffer->ctx) {
             SetError(MEMORY_STR, error, NULL, 0);
 #ifdef HAVE_SNI
@@ -2140,6 +2162,10 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
     if (ksInfo && ksInfo->curve_id != 0)
         useEccCurveId = ksInfo->curve_id;
 #endif
+    int devId = INVALID_DEVID;
+#ifdef WOLF_CRYPTO_CB
+    devId = CryptoDeviceId;
+#endif
 
 #ifndef NO_RSA
     /* Static RSA */
@@ -2149,7 +2175,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 
         keyBuf = keys->rsaKey;
 
-        ret = wc_InitRsaKey(&key, 0);
+        ret = wc_InitRsaKey_ex(&key, NULL, devId);
         if (ret == 0) {
             ret = wc_RsaPrivateKeyDecode(keyBuf->buffer, &idx, &key, keyBuf->length);
             if (ret != 0) {
@@ -2227,6 +2253,19 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         
         keyBuf = keys->dhKey;
 
+#ifdef WOLFSSL_SNIFFER_KEY_CALLBACK
+        if (KeyCb != NULL) {
+            ret = KeyCb(session, ksInfo->named_group,
+                session->srvKs.key, session->srvKs.key_len,
+                session->cliKs.key, session->cliKs.key_len,
+                keyBuf, KeyCbCtx, error);
+            if (ret != 0) {
+                SetError(-1, error, session, FATAL_ERROR_STATE);
+                return ret;
+            }
+        }
+#endif
+
         /* get DH params */
         switch (ksInfo->named_group) {
         #ifdef HAVE_FFDHE_2048
@@ -2263,7 +2302,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                 return BAD_FUNC_ARG;
         }
 
-        ret = wc_InitDhKey(&dhKey);
+        ret = wc_InitDhKey_ex(&dhKey, NULL, devId);
         if (ret == 0) {
             ret = wc_DhSetKey(&dhKey,
                 (byte*)params->p, params->p_len,
@@ -2315,8 +2354,22 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         int length, keyInit = 0, pubKeyInit = 0;
 
         keyBuf = keys->ecKey;
+
+#ifdef WOLFSSL_SNIFFER_KEY_CALLBACK
+        if (KeyCb != NULL && ksInfo) {
+            ret = KeyCb(session, ksInfo->named_group,
+                session->srvKs.key, session->srvKs.key_len,
+                session->cliKs.key, session->cliKs.key_len,
+                keyBuf, KeyCbCtx, error);
+            if (ret != 0) {
+                SetError(-1, error, session, FATAL_ERROR_STATE);
+                return ret;
+            }
+        }
+#endif
+
         idx = 0;
-        ret = wc_ecc_init(&key);
+        ret = wc_ecc_init_ex(&key, NULL, devId);
         if (ret == 0) {
             keyInit = 1;
             ret = wc_ecc_init(&pubKey);
@@ -3100,6 +3153,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         keys.ecKey = session->sslServer->staticKE.ecKey;
         #endif
     #endif
+
         ret = SetupKeys(session->cliKs.key, &session->cliKs.key_len, 
             session, error, &session->cliKs, &keys);
         if (ret != 0) {
@@ -3507,7 +3561,7 @@ static int ProcessCertificate(const byte* input, int* sslBytes,
     return KeyWatchCall(session, input, certSz, error);
 }
 
-#endif
+#endif /* WOLFSSL_SNIFFER_WATCH */
 
 
 /* Process Finished */
@@ -3813,8 +3867,11 @@ static int DoHandShake(const byte* input, int* sslBytes,
                 session->sslClient->options.haveEMS = 0;
             }
 #endif
-            if (ret == 0)
+            if (ret == 0) {
                 ret = ProcessClientKeyExchange(input, sslBytes, session, error);
+                if (ret != 0)
+                    SetError(GOT_CLIENT_KEY_EX_STR, error, session, FATAL_ERROR_STATE);
+            }
             break;
         case certificate_verify:
             Trace(GOT_CERT_VER_STR);
@@ -5676,11 +5733,15 @@ int ssl_ReadResetStatistics(SSLStats* stats)
 
 int ssl_SetWatchKeyCallback_ex(SSLWatchCb cb, int devId, char* error)
 {
+#ifdef WOLF_CRYPTO_CB
+    if (CryptoDeviceId == INVALID_DEVID)
+        CryptoDeviceId = devId;
+#else
     (void)devId;
+#endif
     WatchCb = cb;
     return CreateWatchSnifferServer(error);
 }
-
 
 int ssl_SetWatchKeyCallback(SSLWatchCb cb, char* error)
 {
@@ -5688,14 +5749,12 @@ int ssl_SetWatchKeyCallback(SSLWatchCb cb, char* error)
     return CreateWatchSnifferServer(error);
 }
 
-
 int ssl_SetWatchKeyCtx(void* ctx, char* error)
 {
     (void)error;
     WatchCbCtx = ctx;
     return 0;
 }
-
 
 int ssl_SetWatchKey_buffer(void* vSniffer, const byte* key, word32 keySz,
         int keyType, char* error)
@@ -5738,7 +5797,6 @@ int ssl_SetWatchKey_buffer(void* vSniffer, const byte* key, word32 keySz,
 
     return 0;
 }
-
 
 int ssl_SetWatchKey_file(void* vSniffer, const char* keyFile, int keyType,
         const char* password, char* error)
@@ -5785,6 +5843,15 @@ int ssl_SetStoreDataCallback(SSLStoreDataCb cb)
 }
 
 #endif /* WOLFSSL_SNIFFER_STORE_DATA_CB */
+
+#ifdef WOLFSSL_SNIFFER_KEY_CALLBACK
+int ssl_SetKeyCallback(SSLKeyCb cb, void* cbCtx)
+{
+    KeyCb = cb;
+    KeyCbCtx = cbCtx;
+    return 0;
+}
+#endif
 
 #endif /* WOLFSSL_SNIFFER */
 #endif /* WOLFCRYPT_ONLY */
