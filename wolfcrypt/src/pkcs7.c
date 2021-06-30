@@ -4375,7 +4375,6 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 if ((ret = wc_PKCS7_SetMaxStream(pkcs7, in, inSz)) != 0) {
                     break;
                 }
-                rc = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
             #endif
         #else
                 ret = BER_INDEF_E;
