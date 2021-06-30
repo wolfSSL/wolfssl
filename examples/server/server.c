@@ -1135,7 +1135,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     wolfsentry_errcode_t wolfsentry_ret;
 #endif
     int    minVersion = SERVER_INVALID_VERSION;
-    int    setMinVersion = 0;
     int    useWebServerMsg = 0;
     char   input[SRV_READ_SZ];
 #ifndef WOLFSSL_VXWORKS
@@ -1800,7 +1799,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 simulateWantWrite = 1;
                 break;
             case '7' :
-                setMinVersion = 1;
                 minVersion = atoi(myoptarg);
                 if (minVersion < 0 || minVersion > 4) {
                     Usage();
@@ -2004,7 +2002,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     if (ctx == NULL)
         err_sys_ex(catastrophic, "unable to get ctx");
     
-    if (setMinVersion) {
+    if (minVersion != SERVER_INVALID_VERSION) {
         wolfSSL_CTX_SetMinVersion(ctx, minVersion);
     }
 

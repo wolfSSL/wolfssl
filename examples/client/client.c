@@ -1592,7 +1592,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
     int    version = CLIENT_INVALID_VERSION;
     int    minVersion = CLIENT_INVALID_VERSION;
-    int    setMinVersion = 0;
     int    usePsk   = 0;
     int    useAnon  = 0;
     int    sendGET  = 0;
@@ -2269,7 +2268,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 simulateWantWrite = 1;
                 break;
             case '7' :
-                setMinVersion = 1;
                 minVersion = atoi(myoptarg);
                 if (minVersion < 0 || minVersion > 4) {
                     Usage();
@@ -2563,7 +2561,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             err_sys("unable to get ctx");
     }
 #endif
-    if (setMinVersion) {
+    if (minVersion != CLIENT_INVALID_VERSION) {
         wolfSSL_CTX_SetMinVersion(ctx, minVersion);
     }
     if (simulateWantWrite) {
