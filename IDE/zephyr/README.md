@@ -7,13 +7,15 @@ This port is for Zephyr Project available [here](https://www.zephyrproject.org/)
 
 It provides the following zephyr code.
 
-- zephyr/ext/lib/crypto/wolfssl
-    - wolfssl library
-- zephyr/samples/crypto/wolfssl_test
+- modules/crypto/wolfssl
+    - wolfssl library code
+- zephyr/modules/crypto/wolfssl
+    - Configuration and make files for wolfSSL
+- zephyr/samples/modules/wolfssl_test
     - wolfcrypt unit test application
-- zephyr/samples/crypto/wolfssl_tls_sock
+- zephyr/samples/modules/wolfssl_tls_sock
     - socket based sample of TLS
-- zephyr/samples/crypto/wolfssl_tls_thread
+- zephyr/samples/modules/wolfssl_tls_thread
     - socket based sample of TLS using threads
 
 ## How to setup
@@ -25,17 +27,15 @@ Specify the path of the zephyr project and execute  `wolfssl/IDE/zephyr/setup.sh
 ./IDE/zephyr/setup.sh　/path/to/zephyrproject
 ```
 
-This script will deploy wolfssl's library code and samples as described in the Overview to the zephyr project.
+This script will deploy wolfssl's library code, configuration and samples as described in the Overview to the zephyr project.
 
 ## build & test
 
 build and execute wolfssl_test
 
 ```
-cd [zephyrproject]/zephyr/samples/crypto/wolfssl_test
-mkdir build && cd build
-cmake -GNinja -DBOARD=qemu_x86 ..
-ninja
-ninja run
+cd [zephyrproject]
+west build -p auto -b qemu_x86 zephyr/samples/modules/wolfssl_test
+west build -t run
 ```
 

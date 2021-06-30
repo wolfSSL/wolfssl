@@ -16,6 +16,7 @@ fi
 cd `dirname $0`
 
 (cd lib; ./install_lib.sh $ZEPHYR_DIR)
+(cd module; ./install_module.sh $ZEPHYR_DIR)
 (cd wolfssl_test; ./install_test.sh $ZEPHYR_DIR)
 (cd wolfssl_tls_sock; ./install_sample.sh $ZEPHYR_DIR)
 (cd wolfssl_tls_thread; ./install_sample.sh $ZEPHYR_DIR)

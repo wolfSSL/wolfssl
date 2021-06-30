@@ -1,9 +1,7 @@
 common:
-  harness: crypto
-  tags: crypto
-sample:
-  description: wolfSSL test application
-  name: wolfSSL Test
+  min_flash: 65
+  min_ram: 36
+  tags: crypto wolfssl userspace random
 tests:
-  test:
+  crypto.wolfssl_test:
     platform_whitelist: qemu_x86

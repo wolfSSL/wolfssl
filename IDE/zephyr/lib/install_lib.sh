@@ -22,42 +22,45 @@ if [ ! -d $ZEPHR_DIR ]; then
     echo "Zephyr project directory does not exist: $ZEPHYR_DIR"
     exit 1
 fi
-ZEPHYR_CRYPTO_DIR=$ZEPHYR_DIR/zephyr/ext/lib/crypto
+ZEPHYR_CRYPTO_DIR=$ZEPHYR_DIR/modules/crypto
 if [ ! -d $ZEPHYR_CRYPTO_DIR ]; then
     echo "Zephyr crypto directory does not exist: $ZEPHYR_CRYPTO_DIR"
     exit 1
 fi
 ZEPHYR_WOLFSSL_DIR=$ZEPHYR_CRYPTO_DIR/wolfssl
+ZEPHYR_WOLFSSL_LIB_DIR=$ZEPHYR_CRYPTO_DIR/wolfssl/wolfssl
 
 echo "wolfSSL directory in Zephyr:"
 echo "  $ZEPHYR_WOLFSSL_DIR"
 rm -rf $ZEPHYR_WOLFSSL_DIR
 mkdir $ZEPHYR_WOLFSSL_DIR
+mkdir $ZEPHYR_WOLFSSL_LIB_DIR
 
 echo "Copy in Build files ..."
-cp -r * $ZEPHYR_WOLFSSL_DIR/
-rm $ZEPHYR_WOLFSSL_DIR/$0
+cp -r * $ZEPHYR_WOLFSSL_LIB_DIR/
+rm $ZEPHYR_WOLFSSL_LIB_DIR/$0
+mv $ZEPHYR_WOLFSSL_LIB_DIR/zephyr $ZEPHYR_WOLFSSL_DIR/zephyr
 
 echo "Copy Source Code ..."
-rm -rf $ZEPHYR_WOLFSSL_DIR/library
-mkdir $ZEPHYR_WOLFSSL_DIR/library
-mkdir $ZEPHYR_WOLFSSL_DIR/library/src
-mkdir -p $ZEPHYR_WOLFSSL_DIR/library/wolfcrypt/src
+rm -rf $ZEPHYR_WOLFSSL_LIB_DIR/library
+mkdir $ZEPHYR_WOLFSSL_LIB_DIR/library
+mkdir $ZEPHYR_WOLFSSL_LIB_DIR/library/src
+mkdir -p $ZEPHYR_WOLFSSL_LIB_DIR/library/wolfcrypt/src
 
-cp -rf ${WOLFSSL_SRC_DIR}/src/*.c $ZEPHYR_WOLFSSL_DIR/library/src/
-cp -rf ${WOLFSSL_SRC_DIR}/wolfcrypt/src/*.c $ZEPHYR_WOLFSSL_DIR/library/wolfcrypt/src/
-cp -rf ${WOLFSSL_SRC_DIR}/wolfcrypt/src/*.i $ZEPHYR_WOLFSSL_DIR/library/wolfcrypt/src/
-cp -rf ${WOLFSSL_SRC_DIR}/wolfcrypt/src/*.S $ZEPHYR_WOLFSSL_DIR/library/wolfcrypt/src/
+cp -rf ${WOLFSSL_SRC_DIR}/src/*.c $ZEPHYR_WOLFSSL_LIB_DIR/library/src/
+cp -rf ${WOLFSSL_SRC_DIR}/wolfcrypt/src/*.c $ZEPHYR_WOLFSSL_LIB_DIR/library/wolfcrypt/src/
+cp -rf ${WOLFSSL_SRC_DIR}/wolfcrypt/src/*.i $ZEPHYR_WOLFSSL_LIB_DIR/library/wolfcrypt/src/
+cp -rf ${WOLFSSL_SRC_DIR}/wolfcrypt/src/*.S $ZEPHYR_WOLFSSL_LIB_DIR/library/wolfcrypt/src/
 
 echo "Copy Header Files ..."
-rm -rf $ZEPHYR_WOLFSSL_DIR/include
-mkdir $ZEPHYR_WOLFSSL_DIR/include
+rm -rf $ZEPHYR_WOLFSSL_LIB_DIR/include
+mkdir $ZEPHYR_WOLFSSL_LIB_DIR/include
 
-cp $ZEPHYR_WOLFSSL_DIR/user_settings.h $ZEPHYR_WOLFSSL_DIR/include/
-cp -rf ${WOLFSSL_SRC_DIR}/wolfssl $ZEPHYR_WOLFSSL_DIR/include/
-rm -f $ZEPHYR_WOLFSSL_DIR/include/wolfssl/options.h
-touch $ZEPHYR_WOLFSSL_DIR/include/wolfssl/options.h
-rm -rf $ZEPHYR_WOLFSSL_DIR/include/wolfssl/wolfcrypt/port
+cp $ZEPHYR_WOLFSSL_LIB_DIR/user_settings.h $ZEPHYR_WOLFSSL_LIB_DIR/include/
+cp -rf ${WOLFSSL_SRC_DIR}/wolfssl $ZEPHYR_WOLFSSL_LIB_DIR/include/
+rm -f $ZEPHYR_WOLFSSL_LIB_DIR/include/wolfssl/options.h
+touch $ZEPHYR_WOLFSSL_LIB_DIR/include/wolfssl/options.h
+rm -rf $ZEPHYR_WOLFSSL_LIB_DIR/include/wolfssl/wolfcrypt/port
 
 
 echo "Done"

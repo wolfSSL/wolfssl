@@ -9,7 +9,7 @@
 #include "user_settings.h"
 #include "wolfssl/ssl.h"
 
-static int _wolfssl_init(struct device *device)
+static int _wolfssl_init(const struct device *device)
 {
     ARG_UNUSED(device);
 

@@ -146,7 +146,7 @@ extern "C" {
 #define WOLFSSL_HAVE_SP_ECC
 #endif
 
-#if 0
+#if defined(CONFIG_WOLFSSL_DEBUG)
 #undef  DEBUG_WOLFSSL
 #define DEBUG_WOLFSSL
 #endif

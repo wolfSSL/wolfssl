@@ -118,7 +118,6 @@
     #include <net/socket.h>
     #define SOCKET_T int
     #define SOL_SOCKET 1
-    #define SO_REUSEADDR 201
     #define WOLFSSL_USE_GETADDRINFO
 
     static unsigned long inet_addr(const char *cp)
