@@ -20470,7 +20470,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
         word32 length;
 
         next = XSTRSTR(next, ":");
-        length = MAX_SUITE_NAME + 1;
+        length = MAX_SUITE_NAME;
         if (next != NULL) {
             word32 currLen = (word32)(next - current);
             if (length > currLen) {

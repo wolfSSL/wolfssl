@@ -156,10 +156,10 @@ static WC_INLINE int DoKey(Rabbit* ctx, const byte* key, const byte* iv)
     word32 k0, k1, k2, k3, i;
 
     /* Generate four subkeys */
-    k0 = LITTLE32(((word32*)key)[0]);
-    k1 = LITTLE32(((word32*)key)[1]);
-    k2 = LITTLE32(((word32*)key)[2]);
-    k3 = LITTLE32(((word32*)key)[3]);
+    k0 = LOAD_LE32(key +  0);
+    k1 = LOAD_LE32(key +  4);
+    k2 = LOAD_LE32(key +  8);
+    k3 = LOAD_LE32(key + 12);
 
     /* Generate initial state variables */
     ctx->masterCtx.x[0] = k0;
