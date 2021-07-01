@@ -33987,8 +33987,7 @@ static int mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
     ret = mp_read_unsigned_bin(a, NULL, sizeof(buffer));
     if (ret != MP_VAL)
         return -12740;
-    ret = mp_read_unsigned_bin(a, buffer,
-            (SP_INT_DIGITS - 1) * SP_WORD_SIZEOF + 1);
+    ret = mp_read_unsigned_bin(a, buffer, SP_INT_DIGITS * SP_WORD_SIZEOF + 1);
     if (ret != MP_VAL)
         return -12741;
 
