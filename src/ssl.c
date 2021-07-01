@@ -8162,6 +8162,15 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
                                                                  &algId)) > 0) {
         WOLFSSL_MSG("Found PKCS8 header");
         hasPkcs8Header = 1;
+
+        if ((type == EVP_PKEY_RSA && algId != RSAk) ||
+            (type == EVP_PKEY_EC && algId != ECDSAk) ||
+            (type == EVP_PKEY_DSA && algId != DSAk) ||
+            (type == EVP_PKEY_DH && algId != DHk)) {
+            WOLFSSL_MSG("PKCS8 does not match EVP key type");
+            return NULL;
+        }
+
         (void)idx; /* not used */
     }
     else {

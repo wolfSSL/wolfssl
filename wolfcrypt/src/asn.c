@@ -3030,6 +3030,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         word32 keyIdx = 0;
         word32 tmpSz  = 0;
         word32 sz;
+        word32 tmpAlgId = 0;
 
         /* If out is NULL then return the max size needed
          * + 2 for ASN_OBJECT_ID and ASN_OCTET_STRING tags */
@@ -3064,8 +3065,14 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
                 return BUFFER_E;
         }
 
+        /* sanity check: make sure the out doesn't already have a PKCS 8 header */
+        if (ToTraditionalInline_ex(out, &keyIdx, *outSz, &tmpAlgId) >= 0) {
+            (void)tmpAlgId;
+            return ASN_PARSE_E;
+        }
+
         /* PrivateKeyInfo ::= SEQUENCE */
-        keyIdx += MAX_SEQ_SZ; /* save room for sequence */
+        keyIdx = MAX_SEQ_SZ; /* save room for sequence */
 
         /*  version Version
          *  no header information just INTEGER */
@@ -11626,7 +11633,17 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 int wc_PemToDer(const unsigned char* buff, long longSz, int type,
               DerBuffer** pDer, void* heap, EncryptedInfo* info, int* keyFormat)
 {
-    return PemToDer(buff, longSz, type, pDer, heap, info, keyFormat);
+    int ret = PemToDer(buff, longSz, type, pDer, heap, info, keyFormat);
+    if (ret == 0 && type == PRIVATEKEY_TYPE) {
+        DerBuffer* der = *pDer;
+        /* if a PKCS8 key header exists remove it */
+        ret = ToTraditional(der->buffer, der->length);
+        if (ret > 0) {
+            der->length = ret;
+            ret = 0;
+        }
+    }
+    return ret;
 }
 
 
@@ -11647,7 +11664,6 @@ int wc_KeyPemToDer(const unsigned char* pem, int pemSz,
                         unsigned char* buff, int buffSz, const char* pass)
 {
     int ret;
-    int keyFormat = 0;
     DerBuffer* der = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     EncryptedInfo* info = NULL;
@@ -11673,7 +11689,7 @@ int wc_KeyPemToDer(const unsigned char* pem, int pemSz,
     info->passwd_cb = KeyPemToDerPassCb;
     info->passwd_userdata = (void*)pass;
 
-    ret = PemToDer(pem, pemSz, PRIVATEKEY_TYPE, &der, NULL, info, &keyFormat);
+    ret = PemToDer(pem, pemSz, PRIVATEKEY_TYPE, &der, NULL, info, NULL);
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(info, NULL, DYNAMIC_TYPE_ENCRYPTEDINFO);
@@ -11692,7 +11708,6 @@ int wc_KeyPemToDer(const unsigned char* pem, int pemSz,
             ret = BAD_FUNC_ARG;
         }
     }
-    (void)keyFormat;
 
     FreeDer(&der);
     return ret;
@@ -11704,7 +11719,6 @@ int wc_CertPemToDer(const unsigned char* pem, int pemSz,
                         unsigned char* buff, int buffSz, int type)
 {
     int ret;
-    int keyFormat = 0;
     DerBuffer* der = NULL;
 
     WOLFSSL_ENTER("wc_CertPemToDer");
@@ -11720,7 +11734,7 @@ int wc_CertPemToDer(const unsigned char* pem, int pemSz,
     }
 
 
-    ret = PemToDer(pem, pemSz, type, &der, NULL, NULL, &keyFormat);
+    ret = PemToDer(pem, pemSz, type, &der, NULL, NULL, NULL);
     if (ret < 0 || der == NULL) {
         WOLFSSL_MSG("Bad Pem To Der");
     }
@@ -11734,7 +11748,6 @@ int wc_CertPemToDer(const unsigned char* pem, int pemSz,
             ret = BAD_FUNC_ARG;
         }
     }
-    (void)keyFormat;
 
     FreeDer(&der);
     return ret;
@@ -11751,7 +11764,6 @@ int wc_PubKeyPemToDer(const unsigned char* pem, int pemSz,
                            unsigned char* buff, int buffSz)
 {
     int ret;
-    int keyFormat = 0;
     DerBuffer* der = NULL;
 
     WOLFSSL_ENTER("wc_PubKeyPemToDer");
@@ -11761,7 +11773,7 @@ int wc_PubKeyPemToDer(const unsigned char* pem, int pemSz,
         return BAD_FUNC_ARG;
     }
 
-    ret = PemToDer(pem, pemSz, PUBLICKEY_TYPE, &der, NULL, NULL, &keyFormat);
+    ret = PemToDer(pem, pemSz, PUBLICKEY_TYPE, &der, NULL, NULL, NULL);
     if (ret < 0 || der == NULL) {
         WOLFSSL_MSG("Bad Pem To Der");
     }
@@ -11775,7 +11787,6 @@ int wc_PubKeyPemToDer(const unsigned char* pem, int pemSz,
             ret = BAD_FUNC_ARG;
         }
     }
-    (void)keyFormat;
 
     FreeDer(&der);
     return ret;
@@ -16794,7 +16805,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
 #if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT)
 /* build DER formatted ECC key, include optional public key if requested,
  * return length on success, negative on error */
-static int wc_BuildEccKeyDer_ex(ecc_key* key, byte* output, word32 *inLen,
+static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
                              int pubIn, int curveIn)
 {
     byte   curve[MAX_ALGO_SZ+2];
@@ -16964,17 +16975,11 @@ static int wc_BuildEccKeyDer_ex(ecc_key* key, byte* output, word32 *inLen,
     return totalSz;
 }
 
-static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
-                             int pubIn)
-{
-    return wc_BuildEccKeyDer_ex(key, output, inLen, pubIn, 1);
-}
-
 /* Write a Private ecc key, including public to DER format,
  * length on success else < 0 */
 int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
 {
-    return wc_BuildEccKeyDer(key, output, &inLen, 1);
+    return wc_BuildEccKeyDer(key, output, &inLen, 1, 1);
 }
 
 /* Write only private ecc key to DER format,
@@ -16984,7 +16989,7 @@ int wc_EccKeyDerSize(ecc_key* key, int pub)
     word32 sz = 0;
     int ret;
 
-    ret = wc_BuildEccKeyDer(key, NULL, &sz, pub);
+    ret = wc_BuildEccKeyDer(key, NULL, &sz, pub, 1);
 
     if (ret != LENGTH_ONLY_E) {
         return ret;
@@ -16996,7 +17001,7 @@ int wc_EccKeyDerSize(ecc_key* key, int pub)
  * length on success else < 0 */
 int wc_EccPrivateKeyToDer(ecc_key* key, byte* output, word32 inLen)
 {
-    return wc_BuildEccKeyDer(key, output, &inLen, 0);
+    return wc_BuildEccKeyDer(key, output, &inLen, 0, 1);
 }
 
 
@@ -17042,7 +17047,7 @@ static int eccToPKCS8(ecc_key* key, byte* output, word32* outLen,
     XMEMSET(tmpDer, 0, ECC_BUFSIZE);
 
     /* The outer PKCS8 has the curve info (so don't include here */
-    ret = wc_BuildEccKeyDer_ex(key, tmpDer, &sz, includePublic, 0);
+    ret = wc_BuildEccKeyDer(key, tmpDer, &sz, includePublic, 0);
     if (ret < 0) {
     #ifndef WOLFSSL_NO_MALLOC
         XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
