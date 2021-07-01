@@ -352,28 +352,31 @@ struct WOLFSSL_EVP_PKEY {
     union {
         char* ptr; /* der format of key / or raw for NTRU */
     } pkey;
-    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     #ifndef NO_RSA
-        WOLFSSL_RSA* rsa;
-        byte      ownRsa; /* if struct owns RSA and should free it */
+    WOLFSSL_RSA* rsa;
     #endif
-    #ifndef NO_DSA
-        WOLFSSL_DSA* dsa;
-        byte      ownDsa; /* if struct owns DSA and should free it */
+#ifndef NO_DSA
+    WOLFSSL_DSA* dsa;
     #endif
     #ifdef HAVE_ECC
-        WOLFSSL_EC_KEY* ecc;
-        byte      ownEcc; /* if struct owns ECC and should free it */
+    WOLFSSL_EC_KEY* ecc;
     #endif
     #ifndef NO_DH
-        WOLFSSL_DH* dh;
-        byte      ownDh; /* if struct owns DH and should free it */
+    WOLFSSL_DH* dh;
     #endif
     WC_RNG rng;
-    #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
-    #ifdef HAVE_ECC
-        int pkey_curve;
-    #endif
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#ifdef HAVE_ECC
+    int pkey_curve;
+#endif
+
+    /* option bits */
+    byte ownDh:1;  /* if struct owns DH  and should free it */
+    byte ownEcc:1; /* if struct owns ECC and should free it */
+    byte ownDsa:1; /* if struct owns DSA and should free it */
+    byte ownRsa:1; /* if struct owns RSA and should free it */
+    byte hasPkcs8Header:1;
 };
 typedef struct WOLFSSL_EVP_PKEY WOLFSSL_PKCS8_PRIV_KEY_INFO;
 #ifndef WOLFSSL_EVP_TYPE_DEFINED /* guard on redeclaration */
