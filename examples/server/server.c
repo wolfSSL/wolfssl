@@ -676,7 +676,7 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* server_usage_msg[][58] = {
+static const char* server_usage_msg[][59] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",               /* 0 */
@@ -814,6 +814,14 @@ static const char* server_usage_msg[][58] = {
 #if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
         "--wolfsentry-config <file>    Path for JSON wolfSentry config\n",
                                                                        /* 58 */
+#endif
+
+#ifndef WOLFSSL_TLS13
+        "-7          Set minimum downgrade protocol version [0-3] "
+        " SSLv3(0) - TLS1.2(3)\n",
+#else
+        "-7          Set minimum downgrade protocol version [0-4] "
+        " SSLv3(0) - TLS1.3(4)\n",                           /* 59 */
 #endif
         NULL,
     },
@@ -963,6 +971,13 @@ static const char* server_usage_msg[][58] = {
         "--wolfsentry-config <file>    wolfSentry コンフィグファイル\n",
                                                                        /* 58 */
 #endif
+#ifndef WOLFSSL_TLS13
+        "-7          最小ダウングレード可能なプロトコルバージョンを設定します [0-3] "
+        " SSLv3(0) - TLS1.2(3)\n",
+#else
+        "-7          最小ダウングレード可能なプロトコルバージョンを設定します [0-4] "
+        " SSLv3(0) - TLS1.3(4)\n",                            /* 59 */
+#endif
         NULL,
     },
 #endif
@@ -1103,6 +1118,7 @@ static void Usage(void)
     !defined(WOLFSENTRY_NO_JSON)
     printf("%s", msg[++msgId]); /* --wolfsentry-config */
 #endif
+    printf("%s", msg[++msgId]); /* -7 */
 }
 
 THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
@@ -1118,7 +1134,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
     wolfsentry_errcode_t wolfsentry_ret;
 #endif
-
+    int    minVersion = SERVER_INVALID_VERSION;
     int    useWebServerMsg = 0;
     char   input[SRV_READ_SZ];
 #ifndef WOLFSSL_VXWORKS
@@ -1784,7 +1800,13 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 nonBlocking = 1;
                 simulateWantWrite = 1;
                 break;
-
+            case '7' :
+                minVersion = atoi(myoptarg);
+                if (minVersion < 0 || minVersion > 4) {
+                    Usage();
+                    XEXIT_T(MY_EX_USAGE);
+                }
+                break;
             case '8' :
                 #ifdef HAVE_CURVE448
                     useX448 = 1;
@@ -1981,6 +2003,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif /* WOLFSSL_STATIC_MEMORY */
     if (ctx == NULL)
         err_sys_ex(catastrophic, "unable to get ctx");
+    
+    if (minVersion != SERVER_INVALID_VERSION) {
+        wolfSSL_CTX_SetMinVersion(ctx, minVersion);
+    }
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
     if (wolfsentry_setup(&wolfsentry, wolfsentry_config_path,

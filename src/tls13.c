@@ -3450,10 +3450,6 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return VERSION_ERROR;
             ssl->version.minor = args->pv.minor;
         }
-        if (foundVersion && ssl->options.downgrade && 
-                                 (args->pv.minor < ssl->options.minDowngrade)) {
-            return VERSION_ERROR;
-        }
     }
     
     /* Advance state and proceed */
