@@ -485,7 +485,7 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
 
 #ifdef WOLFSSL_PEM_TO_DER
     WOLFSSL_API int wc_PemToDer(const unsigned char* buff, long longSz, int type,
-              DerBuffer** pDer, void* heap, EncryptedInfo* info, int* eccKey);
+              DerBuffer** pDer, void* heap, EncryptedInfo* info, int* keyFormat);
 
     WOLFSSL_API int wc_KeyPemToDer(const unsigned char*, int,
                                    unsigned char*, int, const char*);
