@@ -1625,12 +1625,11 @@ extern void uITRON4_free(void *p) ;
 
 #ifdef WOLFSSL_ZEPHYR
     #include <zephyr.h>
-    #include <misc/printk.h>
-    #include <misc/util.h>
+    #include <sys/printk.h>
+    #include <sys/util.h>
     #include <stdlib.h>
 
     #define WOLFSSL_DH_CONST
-    #define WOLFSSL_HAVE_MIN
     #define WOLFSSL_HAVE_MAX
     #define NO_WRITEV
 
@@ -1642,7 +1641,9 @@ extern void uITRON4_free(void *p) ;
     void *z_realloc(void *ptr, size_t size);
     #define realloc   z_realloc
 
+    #ifndef CONFIG_NET_SOCKETS_POSIX_NAMES
     #define CONFIG_NET_SOCKETS_POSIX_NAMES
+    #endif
 #endif
 
 #ifdef WOLFSSL_IMX6

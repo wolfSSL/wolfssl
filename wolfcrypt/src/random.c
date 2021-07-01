@@ -2530,7 +2530,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(WOLFSSL_ZEPHYR)
 
-        #include <entropy.h>
+        #include <random/rand32.h>
     #ifndef _POSIX_C_SOURCE
         #include <posix/time.h>
     #else
@@ -2539,19 +2539,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
-            int ret = 0;
-            word32 rand;
-            while (sz > 0) {
-                word32 len = sizeof(rand);
-                if (sz < len)
-                    len = sz;
-                rand = sys_rand32_get();
-                XMEMCPY(output, &rand, len);
-                output += len;
-                sz -= len;
-            }
-
-            return ret;
+            sys_rand_get(output, sz);
+            return 0;
         }
 
 #elif defined(WOLFSSL_TELIT_M2MB)

@@ -1,0 +1,33 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+EXTRA_DIST+= IDE/zephyr/lib/settings/user_settings-tls-generic.h
+EXTRA_DIST+= IDE/zephyr/lib/zephyr/module.yml
+EXTRA_DIST+= IDE/zephyr/lib/install_lib.sh
+EXTRA_DIST+= IDE/zephyr/lib/README
+EXTRA_DIST+= IDE/zephyr/lib/user_settings.h
+EXTRA_DIST+= IDE/zephyr/module/CMakeLists.txt
+EXTRA_DIST+= IDE/zephyr/module/install_module.sh
+EXTRA_DIST+= IDE/zephyr/module/Kconfig
+EXTRA_DIST+= IDE/zephyr/module/Kconfig.tls-generic
+EXTRA_DIST+= IDE/zephyr/module/zephyr_init.c
+EXTRA_DIST+= IDE/zephyr/wolfssl_test/CMakeLists.txt
+EXTRA_DIST+= IDE/zephyr/wolfssl_test/install_test.sh
+EXTRA_DIST+= IDE/zephyr/wolfssl_test/prj.conf
+EXTRA_DIST+= IDE/zephyr/wolfssl_test/README
+EXTRA_DIST+= IDE/zephyr/wolfssl_test/sample.yaml
+EXTRA_DIST+= IDE/zephyr/wolfssl_tls_sock/src/tls_sock.c
+EXTRA_DIST+= IDE/zephyr/wolfssl_tls_sock/CMakeLists.txt
+EXTRA_DIST+= IDE/zephyr/wolfssl_tls_sock/install_sample.sh
+EXTRA_DIST+= IDE/zephyr/wolfssl_tls_sock/prj.conf
+EXTRA_DIST+= IDE/zephyr/wolfssl_tls_sock/README
+EXTRA_DIST+= IDE/zephyr/wolfssl_tls_sock/sample.yaml
+EXTRA_DIST+= IDE/zephyr/wolfssl_tls_thread/src/tls_threaded.c
+EXTRA_DIST+= IDE/zephyr/wolfssl_tls_thread/CMakeLists.txt
+EXTRA_DIST+= IDE/zephyr/wolfssl_tls_thread/install_sample.sh
+EXTRA_DIST+= IDE/zephyr/wolfssl_tls_thread/prj.conf
+EXTRA_DIST+= IDE/zephyr/wolfssl_tls_thread/README
+EXTRA_DIST+= IDE/zephyr/wolfssl_tls_thread/sample.yaml
+EXTRA_DIST+= IDE/zephyr/README.md
+EXTRA_DIST+= IDE/zephyr/setup.sh

@@ -98,9 +98,6 @@ static int wolfssl_client_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
     }
 
     if (ret == 0) {
-        /* make wolfSSL object nonblocking */
-        wolfSSL_set_using_nonblock(client_ssl, 1);
-
         /* Return newly created wolfSSL context and object */
         *ctx = client_ctx;
         *ssl = client_ssl;
@@ -174,9 +171,6 @@ static int wolfssl_server_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
     }
 
     if (ret == 0) {
-        /* make wolfSSL object nonblocking */
-        wolfSSL_set_using_nonblock(server_ssl, 1);
-
         /* Return newly created wolfSSL context and object */
         *ctx = server_ctx;
         *ssl = server_ssl;
@@ -358,7 +352,7 @@ void server_thread(void* arg1, void* arg2, void* arg3)
         ret = wolfssl_server_accept_tcp(server_ssl, &sockfd, &clientfd);
 
     while (ret == 0) {
-        k_sleep(100);
+        k_sleep(Z_TIMEOUT_TICKS(100));
         ret = wolfssl_server_accept(server_ssl);
         if (ret == 0 && wolfSSL_is_init_finished(server_ssl))
             break;
@@ -451,7 +445,7 @@ void client_thread()
         ret = wolfssl_client_connect_tcp(client_ssl, &sockfd);
 
     while (ret == 0) {
-        k_sleep(10);
+        k_sleep(Z_TIMEOUT_TICKS(10));
         ret = wolfssl_client_connect(client_ssl);
         if (ret == 0 && wolfSSL_is_init_finished(client_ssl))
             break;
@@ -465,7 +459,7 @@ void client_thread()
     }
     /* Receive HTTP response */
     while (ret == 0) {
-        k_sleep(10);
+        k_sleep(Z_TIMEOUT_TICKS(10));
         ret = wolfssl_recv(client_ssl);
     }
     if (ret == 1)
@@ -484,15 +478,17 @@ void client_thread()
 
 int main()
 {
-    int          ret = 0;
     THREAD_TYPE  serverThread;
 
     wolfSSL_Init();
+#ifdef DEBUG_WOLFSSL
+    wolfSSL_Debugging_ON();
+#endif
 
     /* Start server */
     start_thread(server_thread, NULL, &serverThread);
 
-    k_sleep(100);
+    k_sleep(Z_TIMEOUT_TICKS(100));
     client_thread();
 
     join_thread(serverThread);

@@ -11,12 +11,12 @@ if [ ! -d $ZEPHR_DIR ]; then
     echo "Zephyr project directory does not exist: $ZEPHYR_DIR"
     exit 1
 fi
-ZEPHYR_CRYPTO_DIR=$ZEPHYR_DIR/zephyr/samples/crypto
-if [ ! -d $ZEPHYR_CRYPTO_DIR ]; then
-    echo "Zephyr crypto directory does not exist: $ZEPHYR_CRYPTO_DIR"
+ZEPHYR_SAMPLES_DIR=$ZEPHYR_DIR/zephyr/samples/modules
+if [ ! -d $ZEPHYR_SAMPLES_DIR ]; then
+    echo "Zephyr samples/modules directory does not exist: $ZEPHYR_SAMPLES_DIR"
     exit 1
 fi
-ZEPHYR_WOLFSSL_DIR=$ZEPHYR_CRYPTO_DIR/wolfssl_tls_thread
+ZEPHYR_WOLFSSL_DIR=$ZEPHYR_SAMPLES_DIR/wolfssl_tls_thread
 
 echo "wolfSSL directory:"
 echo "  $ZEPHYR_WOLFSSL_DIR"
