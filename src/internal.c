@@ -5927,8 +5927,13 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->dtls_timeout_init              = DTLS_TIMEOUT_INIT;
     ssl->dtls_timeout_max               = DTLS_TIMEOUT_MAX;
     ssl->dtls_timeout                   = ssl->dtls_timeout_init;
+
     ssl->buffers.dtlsCtx.rfd            = -1;
     ssl->buffers.dtlsCtx.wfd            = -1;
+
+    ssl->IOCB_ReadCtx  = &ssl->buffers.dtlsCtx;  /* prevent invalid pointer access if not */
+    ssl->IOCB_WriteCtx = &ssl->buffers.dtlsCtx;  /* correctly set */
+
 #endif
 
 #ifndef WOLFSSL_AEAD_ONLY
@@ -10008,7 +10013,9 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     XMEMCPY(x509->subject.raw, dCert->subjectRaw, x509->subject.rawLen);
 #ifdef WOLFSSL_CERT_EXT
     x509->issuer.rawLen = min(dCert->issuerRawLen, sizeof(x509->issuer.raw));
-    XMEMCPY(x509->issuer.raw, dCert->issuerRaw, x509->issuer.rawLen);
+    if (x509->issuer.rawLen) {
+      XMEMCPY(x509->issuer.raw, dCert->issuerRaw, x509->issuer.rawLen);
+    }
 #endif
 #endif
 
@@ -18520,34 +18527,36 @@ int SendCertificateStatus(WOLFSSL* ssl)
                     chain = ssl->buffers.certificate;
                 }
 
-                while (chain && idx + OPAQUE24_LEN < chain->length) {
-                    c24to32(chain->buffer + idx, &der.length);
-                    idx += OPAQUE24_LEN;
+                if (chain && chain->buffer) {
+		    while (idx + OPAQUE24_LEN < chain->length) {
+			c24to32(chain->buffer + idx, &der.length);
+			idx += OPAQUE24_LEN;
 
-                    der.buffer = chain->buffer + idx;
-                    idx += der.length;
+			der.buffer = chain->buffer + idx;
+			idx += der.length;
 
-                    if (idx > chain->length)
-                        break;
+			if (idx > chain->length)
+			    break;
 
-                    ret = CreateOcspRequest(ssl, request, cert, der.buffer,
-                                                                    der.length);
-                    if (ret == 0) {
-                        request->ssl = ssl;
-                        ret = CheckOcspRequest(ssl->ctx->cm->ocsp_stapling,
-                                                    request, &responses[i + 1]);
+			ret = CreateOcspRequest(ssl, request, cert, der.buffer,
+						der.length);
+			if (ret == 0) {
+			    request->ssl = ssl;
+			    ret = CheckOcspRequest(ssl->ctx->cm->ocsp_stapling,
+						   request, &responses[i + 1]);
 
-                        /* Suppressing, not critical */
-                        if (ret == OCSP_CERT_REVOKED ||
-                            ret == OCSP_CERT_UNKNOWN ||
-                            ret == OCSP_LOOKUP_FAIL) {
-                            ret = 0;
-                        }
+			    /* Suppressing, not critical */
+			    if (ret == OCSP_CERT_REVOKED ||
+				ret == OCSP_CERT_UNKNOWN ||
+				ret == OCSP_LOOKUP_FAIL) {
+				ret = 0;
+			    }
 
 
-                        i++;
-                        FreeOcspRequest(request);
-                    }
+			    i++;
+			    FreeOcspRequest(request);
+			}
+		    }
                 }
 
                 XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
@@ -20461,7 +20470,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
         word32 length;
 
         next = XSTRSTR(next, ":");
-        length = MAX_SUITE_NAME + 1;
+        length = MAX_SUITE_NAME;
         if (next != NULL) {
             word32 currLen = (word32)(next - current);
             if (length > currLen) {

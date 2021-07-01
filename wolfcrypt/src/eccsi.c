@@ -1476,18 +1476,21 @@ int wc_ValidateEccsiPair(EccsiKey* key, enum wc_HashType hashType,
     mp_int* hs = NULL;
     mp_digit mp = 0;
     byte hashSz = 0;
-    EccsiKeyParams* params = &key->params;
+    EccsiKeyParams* params = NULL;
 
     if ((key == NULL) || (id == NULL) || (ssk == NULL) || (pvt == NULL) ||
             (valid == NULL)) {
         err = BAD_FUNC_ARG;
     }
+
     if ((err == 0) && (key->ecc.type != ECC_PRIVATEKEY) &&
             (key->ecc.type != ECC_PUBLICKEY)) {
         err = BAD_STATE_E;
     }
 
     if (err == 0) {
+        params = &key->params;
+
         hs = &key->tmp;
         res = &key->pubkey.pubkey;
 
@@ -2146,7 +2149,7 @@ int wc_VerifyEccsiHash(EccsiKey* key, enum wc_HashType hashType,
     ecc_point* y = NULL;
     ecc_point* j = NULL;
     mp_digit mp = 0;
-    EccsiKeyParams* params = &key->params;
+    EccsiKeyParams* params = NULL;
 
     if ((key == NULL) || (msg == NULL) || (sig == NULL) || (verified == NULL)) {
         err = BAD_FUNC_ARG;
@@ -2174,6 +2177,7 @@ int wc_VerifyEccsiHash(EccsiKey* key, enum wc_HashType hashType,
         err = eccsi_load_ecc_params(key);
     }
     if (err == 0) {
+        params = &key->params;
         err = mp_montgomery_setup(&params->prime, &mp);
     }
 

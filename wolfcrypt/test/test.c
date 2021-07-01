@@ -36872,7 +36872,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     }
     else if (info->algo_type == WC_ALGO_TYPE_SEED) {
     #ifndef WC_NO_RNG
-        static byte seed[sizeof(word32)] = { 0x00, 0x00, 0x00, 0x01 };
+        ALIGN32 static byte seed[sizeof(word32)] = { 0x00, 0x00, 0x00, 0x01 };
         word32* seedWord32 = (word32*)seed;
         word32 len;
 

@@ -953,6 +953,12 @@ decouple library dependencies with standard string, memory and so on.
      * Xilinx RSA operations require alignment */
     #if defined(WOLFSSL_AESNI) || defined(WOLFSSL_ARMASM) || \
         defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_AFALG_XILINX)
+          #ifndef WOLFSSL_USE_ALIGN
+              #define WOLFSSL_USE_ALIGN
+          #endif
+    #endif /* WOLFSSL_AESNI || WOLFSSL_ARMASM || USE_INTEL_SPEEDUP || WOLFSSL_AFALG_XILINX */
+
+    #ifdef WOLFSSL_USE_ALIGN
         #if !defined(ALIGN16)
             #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
                 #define ALIGN16 __attribute__ ( (aligned (16)))
@@ -1025,7 +1031,7 @@ decouple library dependencies with standard string, memory and so on.
         #ifndef ALIGN256
             #define ALIGN256
         #endif
-    #endif /* WOLFSSL_AESNI || WOLFSSL_ARMASM */
+    #endif /* WOLFSSL_USE_ALIGN */
 
     #if !defined(PEDANTIC_EXTENSION)
         #if defined(__GNUC__)

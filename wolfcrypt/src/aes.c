@@ -9292,6 +9292,10 @@ WOLFSSL_API int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
                               const byte* authIn, word32 authInSz,
                               byte* authTag, word32 authTagSz)
 {
+    if (gmac == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     return wc_AesGcmEncrypt(&gmac->aes, NULL, NULL, 0, iv, ivSz,
                                          authTag, authTagSz, authIn, authInSz);
 }

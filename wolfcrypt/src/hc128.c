@@ -40,6 +40,12 @@
 #endif
 
 
+#define LOAD_LE32(a)           \
+    (((word32)(a)[0] <<  0) |  \
+     ((word32)(a)[1] <<  8) |  \
+     ((word32)(a)[2] << 16) |  \
+     ((word32)(a)[3] << 24))
+
 #ifdef BIG_ENDIAN_ORDER
     #define LITTLE32(x) ByteReverseWord32(x)
 #else
@@ -271,14 +277,14 @@ static void Hc128_SetIV(HC128* ctx, const byte* inIv)
     for (i = 0; i < 64; i++)  setup_update(ctx);
 }
 
-
+#define HC128_KEY_NUMBYTES (128 >> 5)
 static WC_INLINE int DoKey(HC128* ctx, const byte* key, const byte* iv)
 {
   word32 i;
 
   /* Key size in bits 128 */
-  for (i = 0; i < (128 >> 5); i++)
-      ctx->key[i] = LITTLE32(((word32*)key)[i]);
+  for (i = 0; i < HC128_KEY_NUMBYTES; i++)
+      ctx->key[i] = LOAD_LE32(key + i * 4);
 
   for ( ; i < 8 ; i++) ctx->key[i] = ctx->key[i-4];
 
