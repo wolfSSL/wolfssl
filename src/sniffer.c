@@ -25,6 +25,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
 
 /* xctime */
@@ -2159,10 +2160,13 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
     DerBuffer* keyBuf;
 #ifdef HAVE_ECC
     int useEccCurveId = ECC_CURVE_DEF;
+#endif
+    int devId = INVALID_DEVID;
+
+#ifdef HAVE_ECC
     if (ksInfo && ksInfo->curve_id != 0)
         useEccCurveId = ksInfo->curve_id;
 #endif
-    int devId = INVALID_DEVID;
 #ifdef WOLF_CRYPTO_CB
     devId = CryptoDeviceId;
 #endif
