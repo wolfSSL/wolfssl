@@ -25,6 +25,7 @@
 #                       ecc-privOnlyCert.pem
 #                       client-uri-cert.pem
 #                       client-relative-uri.pem
+#                       entity-no-ca-bool-cert.pem
 # updates the following crls:
 #                       crl/cliCrl.pem
 #                       crl/crl.pem
@@ -483,6 +484,31 @@ run_renewcerts(){
     mv digsigku.pem test/digsigku.pem
     echo "End of section"
     echo "---------------------------------------------------------------------"
+
+
+    ###########################################################
+    #### update and sign entity-no-ca-bool-cert.pem ###########
+    ###########################################################
+    echo "Updating entity-no-ca-bool-cert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\nNoCaBool\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key entity-no-ca-bool-key.pem -config ./wolfssl.cnf  -nodes > entity-no-ca-bool-req.pem
+    check_result $? "Step 1"
+
+    openssl x509 -req -in entity-no-ca-bool-req.pem -extfile ./wolfssl.cnf -extensions "entity_no_CA_BOOL" -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 01 > entity-no-ca-bool-cert.pem
+    check_result $? "Step 2"
+
+    rm entity-no-ca-bool-req.pem
+
+    openssl x509 -in ca-cert.pem -text > ca_tmp.pem
+    check_result $? "Step 3"
+    openssl x509 -in entity-no-ca-bool-cert.pem -text > entity_tmp.pem
+    check_result $? "Step 4"
+    mv entity_tmp.pem entity-no-ca-bool-cert.pem
+    cat ca_tmp.pem >> entity-no-ca-bool-cert.pem
+    rm ca_tmp.pem
+    echo "End of section"
+
     ############################################################
     ########## make .der files from .pem files #################
     ############################################################
