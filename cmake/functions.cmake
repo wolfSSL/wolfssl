@@ -800,7 +800,10 @@ function(generate_lib_src_list LIB_SOURCES)
                    src/wolfio.c 
                    src/keys.c 
                    src/ssl.c 
-                   src/tls.c)
+                   src/tls.c
+                   src/tlsx_base.c
+                   src/tlsx_sni.c
+              )
 
               if(BUILD_TLS13)
                    list(APPEND LIB_SOURCES src/tls13.c)

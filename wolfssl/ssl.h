@@ -3175,55 +3175,7 @@ WOLFSSL_API void* wolfSSL_CTX_GetHeap(WOLFSSL_CTX* ctx, WOLFSSL* ssl);
 
 /* Server Name Indication */
 #ifdef HAVE_SNI
-
-/* SNI types */
-enum {
-    WOLFSSL_SNI_HOST_NAME = 0
-};
-
-WOLFSSL_ABI WOLFSSL_API int wolfSSL_UseSNI(WOLFSSL*, unsigned char,
-                                                   const void*, unsigned short);
-WOLFSSL_ABI WOLFSSL_API int wolfSSL_CTX_UseSNI(WOLFSSL_CTX*, unsigned char,
-                                                   const void*, unsigned short);
-
-#ifndef NO_WOLFSSL_SERVER
-
-/* SNI options */
-enum {
-    /* Do not abort the handshake if the requested SNI didn't match. */
-    WOLFSSL_SNI_CONTINUE_ON_MISMATCH = 0x01,
-
-    /* Behave as if the requested SNI matched in a case of mismatch.  */
-    /* In this case, the status will be set to WOLFSSL_SNI_FAKE_MATCH. */
-    WOLFSSL_SNI_ANSWER_ON_MISMATCH   = 0x02,
-
-    /* Abort the handshake if the client didn't send a SNI request. */
-    WOLFSSL_SNI_ABORT_ON_ABSENCE     = 0x04,
-};
-
-WOLFSSL_API void wolfSSL_SNI_SetOptions(WOLFSSL* ssl, unsigned char type,
-                                                         unsigned char options);
-WOLFSSL_API void wolfSSL_CTX_SNI_SetOptions(WOLFSSL_CTX* ctx,
-                                     unsigned char type, unsigned char options);
-WOLFSSL_API int wolfSSL_SNI_GetFromBuffer(
-                 const unsigned char* clientHello, unsigned int helloSz,
-                 unsigned char type, unsigned char* sni, unsigned int* inOutSz);
-
-#endif /* NO_WOLFSSL_SERVER */
-
-/* SNI status */
-enum {
-    WOLFSSL_SNI_NO_MATCH   = 0,
-    WOLFSSL_SNI_FAKE_MATCH = 1, /**< @see WOLFSSL_SNI_ANSWER_ON_MISMATCH */
-    WOLFSSL_SNI_REAL_MATCH = 2,
-    WOLFSSL_SNI_FORCE_KEEP = 3  /** Used with -DWOLFSSL_ALWAYS_KEEP_SNI */
-};
-
-WOLFSSL_API unsigned char wolfSSL_SNI_Status(WOLFSSL* ssl, unsigned char type);
-
-WOLFSSL_API unsigned short wolfSSL_SNI_GetRequest(WOLFSSL *ssl,
-                                               unsigned char type, void** data);
-
+#include <wolfssl/tlsx_sni.h>
 #endif /* HAVE_SNI */
 
 /* Trusted CA Key Indication - RFC 6066 (Section 6) */
@@ -4080,32 +4032,11 @@ WOLFSSL_API const unsigned char* wolfSSL_SESSION_get_id(WOLFSSL_SESSION*,
 
 WOLFSSL_API int wolfSSL_SESSION_print(WOLFSSL_BIO*, const WOLFSSL_SESSION*);
 
-WOLFSSL_API int wolfSSL_set_tlsext_host_name(WOLFSSL *, const char *);
-
-WOLFSSL_API const char* wolfSSL_get_servername(WOLFSSL *, unsigned char);
-
 WOLFSSL_API WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL*,WOLFSSL_CTX*);
 
 WOLFSSL_API VerifyCallback wolfSSL_CTX_get_verify_callback(WOLFSSL_CTX*);
 
 WOLFSSL_API VerifyCallback wolfSSL_get_verify_callback(WOLFSSL*);
-
-#endif /* OPENSSL_ALL || HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY || HAVE_LIGHTY */
-
-#ifdef HAVE_SNI
-/* SNI received callback type */
-typedef int (*CallbackSniRecv)(WOLFSSL *ssl, int *ret, void* exArg);
-
-WOLFSSL_API void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX *,
-        CallbackSniRecv);
-WOLFSSL_API int wolfSSL_CTX_set_tlsext_servername_callback(WOLFSSL_CTX *,
-        CallbackSniRecv);
-
-WOLFSSL_API int  wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX *, void*);
-#endif
-
-#if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) \
-    || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
 
 WOLFSSL_API void wolfSSL_ERR_remove_thread_state(void*);
 

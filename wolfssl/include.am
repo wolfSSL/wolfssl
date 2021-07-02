@@ -10,6 +10,7 @@ EXTRA_DIST+= wolfssl/sniffer_error.rc
 nobase_include_HEADERS+= \
                          wolfssl/error-ssl.h \
                          wolfssl/ssl.h \
+                         wolfssl/tlsx_sni.h \
                          wolfssl/sniffer_error.h \
                          wolfssl/sniffer.h \
                          wolfssl/callbacks.h \
@@ -21,6 +22,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfio.h
 
 noinst_HEADERS+= \
+                         wolfssl/tlsx_base.h \
                          wolfssl/internal.h
 
 # For distro build don't install options.h.
