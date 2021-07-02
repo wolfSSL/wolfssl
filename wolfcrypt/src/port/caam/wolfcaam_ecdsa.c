@@ -292,14 +292,13 @@ int wc_CAAM_EccVerify(const byte* sig, word32 siglen, const byte* hash,
     int ret;
     mp_int r, s;
 
+    ret = DecodeECC_DSA_Sig(sig, siglen, &r, &s);
+    if (ret == 0) {
+        ret = wc_CAAM_EccVerify_ex(&r, &s, hash, hashlen, res, key);
+        mp_free(&r);
+        mp_free(&s);
+    }
 
-    mp_init(&r);
-    mp_init(&s);
-    DecodeECC_DSA_Sig(sig, siglen, &r, &s);
-    ret = wc_CAAM_EccVerify_ex(&r, &s, hash, hashlen, res, key);
-
-    mp_free(&r);
-    mp_free(&s);
     return ret;
 }
 
