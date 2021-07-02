@@ -7605,6 +7605,12 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out,
         return BUFFER_E;
     }
 
+    /* Sanity check the ordinates' sizes. */
+    if (((word32)mp_unsigned_bin_size(point->x) > numlen) ||
+        ((word32)mp_unsigned_bin_size(point->y) > numlen)) {
+        return ECC_BAD_ARG_E;
+    }
+
     /* store byte point type */
     out[0] = ECC_POINT_UNCOMP;
 
@@ -7674,6 +7680,11 @@ int wc_ecc_export_point_der_compressed(const int curve_idx, ecc_point* point,
     if (*outLen < output_len) {
         *outLen = output_len;
         return BUFFER_E;
+    }
+
+    /* Sanity check the ordinate's size. */
+    if ((word32)mp_unsigned_bin_size(point->x) > numlen) {
+        return ECC_BAD_ARG_E;
     }
 
     /* store byte point type */
