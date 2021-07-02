@@ -48,6 +48,9 @@
     #endif
 #endif
 
+#ifndef USE_WINDOWS_API
+    #include <arpa/inet.h>
+#endif
 
 #if defined(USE_WOLFSSL_IO) || defined(HAVE_HTTP_CLIENT)
 
@@ -155,7 +158,6 @@
                 && !defined(WOLFSSL_CONTIKI) && !defined(WOLFSSL_WICED) \
                 && !defined(WOLFSSL_GNRC) && !defined(WOLFSSL_RIOT_OS)
             #include <sys/socket.h>
-            #include <arpa/inet.h>
             #include <netinet/in.h>
             #include <netdb.h>
             #ifdef __PPU
