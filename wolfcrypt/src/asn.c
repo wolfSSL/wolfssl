@@ -3065,8 +3065,8 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
                 return BUFFER_E;
         }
 
-        /* sanity check: make sure the out doesn't already have a PKCS 8 header */
-        if (ToTraditionalInline_ex(out, &keyIdx, *outSz, &tmpAlgId) >= 0) {
+        /* sanity check: make sure the key doesn't already have a PKCS 8 header */
+        if (ToTraditionalInline_ex(key, &keyIdx, keySz, &tmpAlgId) >= 0) {
             (void)tmpAlgId;
             return ASN_PARSE_E;
         }
