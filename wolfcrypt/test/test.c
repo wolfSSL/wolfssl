@@ -30632,9 +30632,11 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         }
 
         /* decode envelopedData */
+        pkcs7->contentOID = 0;
         decodedSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, enveloped, envelopedSz,
                                                  decoded, PKCS7_BUF_SIZE);
-        if (decodedSz <= 0) {
+        if (pkcs7->contentOID != testVectors[i].contentOID ||
+            decodedSz <= 0) {
             wc_PKCS7_Free(pkcs7);
             ERROR_OUT(-12187, out);
         }
@@ -31584,6 +31586,11 @@ static int getFirmwareKey(PKCS7* pkcs7, byte* key, word32 keySz)
                 envPkcs7->contentOID = FIRMWARE_PKG_DATA;
                 ret = wc_PKCS7_DecodeEnvelopedData(envPkcs7, atr, atrSz,
                     key, keySz);
+                if (envPkcs7->contentOID != FIRMWARE_PKG_DATA) {
+                    /* the contentOID should have been set to the inner
+                     * FIRMWARE_PKG_DATA content */
+                    ret = BAD_STATE_E;
+                }
             }
             wc_PKCS7_Free(envPkcs7);
         }
@@ -33319,7 +33326,7 @@ static int pkcs7signed_run_SingleShotVectors(
                                                pkcs7->contentSz, encryptedTmp,
                                                encryptedTmpSz);
 
-            if (encryptedTmpSz < 0) {
+            if (encryptedTmpSz < 0 || pkcs7->contentOID != COMPRESSED_DATA) {
                 XFREE(encryptedTmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);

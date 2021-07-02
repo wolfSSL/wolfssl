@@ -10105,7 +10105,11 @@ static int wc_PKCS7_ParseToRecipientInfoSet(PKCS7* pkcs7, byte* in,
         return BAD_FUNC_ARG;
 
     if ((type != ENVELOPED_DATA) && (type != AUTH_ENVELOPED_DATA) &&
-            pkcs7->contentOID != FIRMWARE_PKG_DATA)
+            pkcs7->contentOID != FIRMWARE_PKG_DATA
+        #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
+            && pkcs7->contentOID != COMPRESSED_DATA
+        #endif
+       )
         return BAD_FUNC_ARG;
 
 #ifndef NO_PKCS7_STREAM
@@ -10552,6 +10556,10 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
             if (ret == 0 && wc_GetContentType(pkiMsg, &idx, &contentType,
                         pkiMsgSz) < 0) {
                 ret = ASN_PARSE_E;
+            }
+
+            if (ret == 0) {
+                pkcs7->contentOID = contentType;
             }
 
             if (ret == 0 && GetAlgoId(pkiMsg, &idx, &encOID, oidBlkType,
@@ -12369,6 +12377,10 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
                         pkiMsgSz) < 0)
                 ret = ASN_PARSE_E;
 
+            if (ret == 0) {
+                pkcs7->contentOID = contentType;
+            }
+
             if (ret == 0 && (ret = GetAlgoId(pkiMsg, &idx, &encOID, oidBlkType,
                         pkiMsgSz)) < 0)
                 ret = ASN_PARSE_E;
@@ -12723,15 +12735,37 @@ int wc_PKCS7_EncodeCompressedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     compressedDataSeqSz = SetSequence(totalSz, compressedDataSeq);
     totalSz += compressedDataSeqSz;
 
-    /* ContentInfo content EXPLICIT SEQUENCE */
-    contentInfoContentSeqSz = SetExplicit(0, totalSz, contentInfoContentSeq);
-    totalSz += contentInfoContentSeqSz;
-
-    /* ContentInfo ContentType (compressedData) */
     if (pkcs7->version == 3) {
-        contentInfoTypeOidSz = 0;
+        /* RFC 4108 section 2
+         * When the SignedData is version 3 and eContent is compressedData then
+         * the encoding is :
+         * CompressedData {
+         *   version
+         *   compressionAlgorithm
+         *   encapContentInfo
+         * }
+         */
+        contentInfoSeqSz        = 0;
+        contentInfoTypeOidSz    = 0;
+        contentInfoContentSeqSz = 0;
     }
     else {
+        /* EncryptedData eContent type is encoded with:
+         * EncryptedData {
+         *  version
+         *  EncryptedContentInfo {
+         *      contentType (i.e id-ct-compressedData)
+         *      contentEncryptionAlgorithm
+         *      octet string of CompressedData or FirmwarePkgData
+         *  }
+         *  attributes
+         * }
+         */
+
+        /* ContentInfo content EXPLICIT SEQUENCE */
+        contentInfoContentSeqSz = SetExplicit(0, totalSz, contentInfoContentSeq);
+        totalSz += contentInfoContentSeqSz;
+
         ret = wc_SetContentType(COMPRESSED_DATA, contentInfoTypeOid,
                                 sizeof(contentInfoTypeOid));
         if (ret < 0) {
@@ -12741,11 +12775,11 @@ int wc_PKCS7_EncodeCompressedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
         contentInfoTypeOidSz = ret;
         totalSz += contentInfoTypeOidSz;
-    }
 
-    /* ContentInfo SEQUENCE */
-    contentInfoSeqSz = SetSequence(totalSz, contentInfoSeq);
-    totalSz += contentInfoSeqSz;
+        /* ContentInfo SEQUENCE */
+        contentInfoSeqSz = SetSequence(totalSz, contentInfoSeq);
+        totalSz += contentInfoSeqSz;
+    }
 
     if (outputSz < totalSz) {
         XFREE(compressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -12753,12 +12787,18 @@ int wc_PKCS7_EncodeCompressedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
     idx = 0;
-    XMEMCPY(output + idx, contentInfoSeq, contentInfoSeqSz);
-    idx += contentInfoSeqSz;
-    XMEMCPY(output + idx, contentInfoTypeOid, contentInfoTypeOidSz);
-    idx += contentInfoTypeOidSz;
-    XMEMCPY(output + idx, contentInfoContentSeq, contentInfoContentSeqSz);
-    idx += contentInfoContentSeqSz;
+    if (contentInfoSeqSz > 0) {
+        XMEMCPY(output + idx, contentInfoSeq, contentInfoSeqSz);
+        idx += contentInfoSeqSz;
+    }
+    if (contentInfoTypeOidSz > 0) {
+        XMEMCPY(output + idx, contentInfoTypeOid, contentInfoTypeOidSz);
+        idx += contentInfoTypeOidSz;
+    }
+    if (contentInfoContentSeqSz > 0) {
+        XMEMCPY(output + idx, contentInfoContentSeq, contentInfoContentSeqSz);
+        idx += contentInfoContentSeqSz;
+    }
     XMEMCPY(output + idx, compressedDataSeq, compressedDataSeqSz);
     idx += compressedDataSeqSz;
     XMEMCPY(output + idx, cmsVersion, cmsVersionSz);
@@ -12782,6 +12822,7 @@ int wc_PKCS7_EncodeCompressedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 }
 
 /* unwrap and decompress PKCS#7/CMS compressedData object,
+ * Handles content wrapped compressed data and raw compressed data packet
  * returned decoded size */
 int wc_PKCS7_DecodeCompressedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
                                   byte* output, word32 outputSz)
@@ -12798,28 +12839,46 @@ int wc_PKCS7_DecodeCompressedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
         return BAD_FUNC_ARG;
     }
 
-    /* get ContentInfo SEQUENCE */
-    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
-        return ASN_PARSE_E;
+    /* unwarp content surrounding if found */
+    {
+        word32 localIdx = idx;
+        int err = 0;
 
-    if (pkcs7->version != 3) {
-        /* get ContentInfo contentType */
-        if (wc_GetContentType(pkiMsg, &idx, &contentType, pkiMsgSz) < 0)
-            return ASN_PARSE_E;
+        /* get ContentInfo SEQUENCE */
+        if (GetSequence(pkiMsg, &localIdx, &length, pkiMsgSz) < 0)
+            err = ASN_PARSE_E;
 
-        if (contentType != COMPRESSED_DATA)
-            return ASN_PARSE_E;
+        if (err == 0 && pkcs7->version != 3) {
+            /* get ContentInfo contentType */
+            if (wc_GetContentType(pkiMsg, &localIdx, &contentType, pkiMsgSz)
+                    < 0)
+                err = ASN_PARSE_E;
+
+            if (err == 0 && contentType != COMPRESSED_DATA)
+                err = ASN_PARSE_E;
+        }
+
+        /* get ContentInfo content EXPLICIT SEQUENCE */
+        if (err == 0) {
+            if (GetASNTag(pkiMsg, &localIdx, &tag, pkiMsgSz) < 0)
+                err = ASN_PARSE_E;
+        }
+
+        if (err == 0) {
+            if (tag != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+                err = ASN_PARSE_E;
+        }
+
+        if (err == 0) {
+            if (GetLength(pkiMsg, &localIdx, &length, pkiMsgSz) < 0)
+                err = ASN_PARSE_E;
+        }
+
+        /* successful content unwrap, update index */
+        if (err == 0) {
+            idx = localIdx;
+        }
     }
-
-    /* get ContentInfo content EXPLICIT SEQUENCE */
-    if (GetASNTag(pkiMsg, &idx, &tag, pkiMsgSz) < 0)
-        return ASN_PARSE_E;
-
-    if (tag != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
-        return ASN_PARSE_E;
-
-    if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
-        return ASN_PARSE_E;
 
     /* get CompressedData SEQUENCE */
     if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)

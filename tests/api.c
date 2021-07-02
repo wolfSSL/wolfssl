@@ -26570,6 +26570,7 @@ static void test_wc_PKCS7_DecodeCompressedData(void)
 
     /* test decompression */
     AssertNotNull((pkcs7 = wc_PKCS7_New(heap, devId)));
+    AssertIntEQ(pkcs7->contentOID, 0);
 
     /* fail case with out buffer too small */
     AssertIntLT(wc_PKCS7_DecodeCompressedData(pkcs7, out, outSz,
@@ -26578,6 +26579,7 @@ static void test_wc_PKCS7_DecodeCompressedData(void)
     /* success case */
     AssertIntEQ(wc_PKCS7_DecodeCompressedData(pkcs7, out, outSz,
                 decompressed, decompressedSz), cert_sz);
+    AssertIntEQ(pkcs7->contentOID, DATA);
     AssertIntEQ(XMEMCMP(decompressed, cert_buf, cert_sz), 0);
     XFREE(decompressed, heap, DYNAMIC_TYPE_TMP_BUFFER);
     decompressed = NULL;
