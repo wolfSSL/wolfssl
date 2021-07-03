@@ -18899,7 +18899,7 @@ int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
     sp_point_256 p[2];
 #endif
     sp_point_256* q = NULL;
-    int err;
+    int err = MP_OKAY;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
@@ -26099,7 +26099,7 @@ int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
     sp_point_384 p[2];
 #endif
     sp_point_384* q = NULL;
-    int err;
+    int err = MP_OKAY;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {

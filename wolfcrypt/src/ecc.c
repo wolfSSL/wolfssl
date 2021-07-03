@@ -2490,22 +2490,23 @@ done:
 
    return err;
 #else
-    if (P == NULL || modulus == NULL)
-        return ECC_BAD_ARG_E;
+   if (P == NULL || modulus == NULL)
+       return ECC_BAD_ARG_E;
 
-    (void)mp;
+   (void)mp;
+   (void)ct;
 
 #ifndef WOLFSSL_SP_NO_256
-    if (mp_count_bits(modulus) == 256) {
-        return sp_ecc_map_256(P->x, P->y, P->z);
-    }
+   if (mp_count_bits(modulus) == 256) {
+       return sp_ecc_map_256(P->x, P->y, P->z);
+   }
 #endif
 #ifdef WOLFSSL_SP_384
-    if (mp_count_bits(modulus) == 384) {
-        return sp_ecc_map_384(P->x, P->y, P->z);
-    }
+   if (mp_count_bits(modulus) == 384) {
+       return sp_ecc_map_384(P->x, P->y, P->z);
+   }
 #endif
-    return ECC_BAD_ARG_E;
+   return ECC_BAD_ARG_E;
 #endif
 }
 #endif /* !FREESCALE_LTC_ECC && !WOLFSSL_STM32_PKA */
