@@ -35852,6 +35852,7 @@ static int mp_test_mont(mp_int* a, mp_int* m, mp_int* n, mp_int* r, WC_RNG* rng)
                                0x01,  0x9f,  0x13,  0xbd,
                                0x1f, 0x13d,  0x45, 0x615
                             };
+    int bits[] = { 256, 384, 2048, 3072 };
     int i;
     int j;
 
@@ -35907,6 +35908,31 @@ static int mp_test_mont(mp_int* a, mp_int* m, mp_int* n, mp_int* r, WC_RNG* rng)
             if (mp_cmp(a, r) != MP_EQ)
                 return -13231;
         }
+    }
+
+    /* Force carries. */
+    for (i = 0; i < (int)(sizeof(bits) / sizeof(*bits)); i++) {
+        /* a = 2^(bits*2) - 1 */
+        mp_zero(a);
+        mp_set_bit(a, bits[i] * 2);
+        mp_sub_d(a, 1, a);
+        /* m = 2^(bits) - 1 */
+        mp_zero(m);
+        mp_set_bit(m, bits[i]);
+        mp_sub_d(m, 1, m);
+        mp = 1;
+        /* result = r = 2^(bits) - 1 */
+        mp_zero(r);
+        mp_set_bit(r, bits[i]);
+        mp_sub_d(r, 1, r);
+
+        ret = mp_montgomery_reduce(a, m, mp);
+        if (ret != MP_OKAY)
+            return -13240;
+
+        /* Result is m or 0 if reduced to range of modulus. */
+        if (mp_cmp(a, r) != MP_EQ && mp_iszero(a) != MP_YES)
+            return -13241;
     }
 
     return 0;
