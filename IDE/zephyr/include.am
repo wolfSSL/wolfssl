@@ -31,3 +31,4 @@ EXTRA_DIST+= IDE/zephyr/wolfssl_tls_thread/README
 EXTRA_DIST+= IDE/zephyr/wolfssl_tls_thread/sample.yaml
 EXTRA_DIST+= IDE/zephyr/README.md
 EXTRA_DIST+= IDE/zephyr/setup.sh
+EXTRA_DIST+= IDE/zephyr/wolfssl_zephyr.diff
