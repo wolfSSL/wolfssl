@@ -616,11 +616,30 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
         #define XINET_PTON(a,b,c)   InetPton((a),(b),(c))
     #endif
 #endif
+
 #ifndef XHTONS
-    #define XHTONS(a) htons((a))
+    #if !defined(WOLFSSL_NO_SOCK) && (defined(USE_WOLFSSL_IO) || defined(HAVE_HTTP_CLIENT))
+        #define XHTONS(a) htons((a))
+    #else
+        /* we don't have sockets, so define our own htons and ntohs */
+        #ifdef BIG_ENDIAN_ORDER
+            #define XHTONS(a) (a)
+        #else
+            #define XHTONS(a) ((((a) >> 8) & 0xff) | (((a) & 0xff) << 8))
+        #endif
+    #endif
 #endif
 #ifndef XNTOHS
-    #define XNTOHS(a) ntohs((a))
+    #if !defined(WOLFSSL_NO_SOCK) && (defined(USE_WOLFSSL_IO) || defined(HAVE_HTTP_CLIENT))
+        #define XNTOHS(a) ntohs((a))
+    #else
+        /* we don't have sockets, so define our own htons and ntohs */
+        #ifdef BIG_ENDIAN_ORDER
+            #define XNTOHS(a) (a)
+        #else
+            #define XNTOHS(a) ((((a) >> 8) & 0xff) | (((a) & 0xff) << 8))
+        #endif
+    #endif
 #endif
 
 #ifndef WOLFSSL_IP4
