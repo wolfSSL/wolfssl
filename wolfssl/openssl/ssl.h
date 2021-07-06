@@ -444,10 +444,10 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_REQ_get_pubkey             wolfSSL_X509_get_pubkey
 #define X509_get_notBefore              wolfSSL_X509_get_notBefore
 #define X509_get0_notBefore             wolfSSL_X509_get_notBefore
-#define X509_getm_notBefore             (ASN1_TIME*)wolfSSL_X509_get_notBefore
+#define X509_getm_notBefore             wolfSSL_X509_get_notBefore
 #define X509_get_notAfter               wolfSSL_X509_get_notAfter
 #define X509_get0_notAfter              wolfSSL_X509_get_notAfter
-#define X509_getm_notAfter              (ASN1_TIME*)wolfSSL_X509_get_notAfter
+#define X509_getm_notAfter              wolfSSL_X509_get_notAfter
 #define X509_get_serialNumber           wolfSSL_X509_get_serialNumber
 #define X509_get0_pubkey_bitstr         wolfSSL_X509_get0_pubkey_bitstr
 #define X509_get_ex_new_index           wolfSSL_X509_get_ex_new_index

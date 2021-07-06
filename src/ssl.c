@@ -7641,6 +7641,10 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
 #endif /* !NO_CHECK_PRIVATE_KEY */
 
 #ifdef OPENSSL_ALL
+/**
+ * Return the private key of the WOLFSSL_CTX struct
+ * @return WOLFSSL_EVP_PKEY* The caller doesn *NOT*` free the returned object.
+ */
 WOLFSSL_EVP_PKEY* wolfSSL_CTX_get0_privatekey(const WOLFSSL_CTX* ctx)
 {
     const unsigned char *key;
@@ -10471,6 +10475,16 @@ err_cleanup:
     return NULL;
 }
 
+/**
+ * Create a WOLFSSL_X509_EXTENSION from the input arguments.
+ * @param conf  Not used
+ * @param ctx   Not used
+ * @param nid   Interprets the value parameter as the x509 extension that
+ *              corresponds to this NID.
+ * @param value A NULL terminated string that is taken as the value of the
+ *              newly created extension object.
+ * @return WOLFSSL_X509_EXTENSION* on success or NULL on failure.
+ */
 WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf_nid(WOLFSSL_CONF* conf,
         WOLFSSL_X509V3_CTX *ctx, int nid, const char *value)
 {
@@ -10489,6 +10503,16 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf_nid(WOLFSSL_CONF* conf,
     return createExtFromStr(nid, value);
 }
 
+/**
+ * Create a WOLFSSL_X509_EXTENSION from the input arguments.
+ * @param conf  Not used
+ * @param ctx   Not used
+ * @param sName The textual representation of the NID that the value parameter
+ *              should be interpreted as.
+ * @param value A NULL terminated string that is taken as the value of the
+ *              newly created extension object.
+ * @return WOLFSSL_X509_EXTENSION* on success or NULL on failure.
+ */
 WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf(WOLFSSL_CONF *conf,
         WOLFSSL_X509V3_CTX *ctx, const char *sName, const char *value)
 {
@@ -17336,20 +17360,129 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int ver)
 
 int wolfSSL_set_min_proto_version(WOLFSSL* ssl, int ver)
 {
-    /* TODO Return true for now because proto version selection logic
-     *      is refactored in https://github.com/wolfSSL/wolfssl/pull/3871 */
-    (void)ssl;
-    (void)ver;
-    return WOLFSSL_SUCCESS;
+    WOLFSSL_ENTER("wolfSSL_set_min_proto_version");
+
+    if (ssl == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    switch (ver) {
+#ifndef NO_TLS
+        case SSL3_VERSION:
+#if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
+            ssl->options.minDowngrade = SSLv3_MINOR;
+            break;
+#endif
+        case TLS1_VERSION:
+        #ifdef WOLFSSL_ALLOW_TLSV10
+            ssl->options.minDowngrade = TLSv1_MINOR;
+            break;
+        #endif
+        case TLS1_1_VERSION:
+        #ifndef NO_OLD_TLS
+            ssl->options.minDowngrade = TLSv1_1_MINOR;
+            break;
+        #endif
+        case TLS1_2_VERSION:
+        #ifndef WOLFSSL_NO_TLS12
+            ssl->options.minDowngrade = TLSv1_2_MINOR;
+            break;
+        #endif
+        case TLS1_3_VERSION:
+        #ifdef WOLFSSL_TLS13
+            ssl->options.minDowngrade = TLSv1_3_MINOR;
+            break;
+        #endif
+#endif
+#ifdef WOLFSSL_DTLS
+        case DTLS1_VERSION:
+    #ifndef NO_OLD_TLS
+            ssl->options.minDowngrade = DTLS_MINOR;
+            break;
+    #endif
+        case DTLS1_2_VERSION:
+            ssl->options.minDowngrade = DTLSv1_2_MINOR;
+            break;
+#endif
+        default:
+            WOLFSSL_MSG("Unrecognized protocol version or not compiled in");
+            return WOLFSSL_FAILURE;
+    }
+
+    switch (ver) {
+#ifndef NO_TLS
+    case TLS1_3_VERSION:
+        ssl->options.mask |= WOLFSSL_OP_NO_TLSv1_2;
+        FALL_THROUGH;
+    case TLS1_2_VERSION:
+        ssl->options.mask |= WOLFSSL_OP_NO_TLSv1_1;
+        FALL_THROUGH;
+    case TLS1_1_VERSION:
+        ssl->options.mask |= WOLFSSL_OP_NO_TLSv1;
+        FALL_THROUGH;
+    case TLS1_VERSION:
+        ssl->options.mask |= WOLFSSL_OP_NO_SSLv3;
+        break;
+    case SSL3_VERSION:
+    case SSL2_VERSION:
+        /* Nothing to do here */
+        break;
+#endif
+#ifdef WOLFSSL_DTLS
+    case DTLS1_VERSION:
+    case DTLS1_2_VERSION:
+        break;
+#endif
+    default:
+        WOLFSSL_MSG("Unrecognized protocol version or not compiled in");
+        return WOLFSSL_FAILURE;
+    }
+
+    return CheckSslMethodVersion(ssl->version.major, ssl->options.mask);
 }
 
 int wolfSSL_set_max_proto_version(WOLFSSL* ssl, int ver)
 {
-    /* TODO Return true for now because proto version selection logic
-     *      is refactored in https://github.com/wolfSSL/wolfssl/pull/3871 */
-    (void)ssl;
-    (void)ver;
-    return WOLFSSL_SUCCESS;
+
+    WOLFSSL_ENTER("wolfSSL_set_max_proto_version");
+
+    if (!ssl) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    switch (ver) {
+    case SSL2_VERSION:
+        WOLFSSL_MSG("wolfSSL does not support SSLv2");
+        return WOLFSSL_FAILURE;
+#ifndef NO_TLS
+    case SSL3_VERSION:
+        ssl->options.mask |= WOLFSSL_OP_NO_TLSv1;
+        FALL_THROUGH;
+    case TLS1_VERSION:
+        ssl->options.mask |= WOLFSSL_OP_NO_TLSv1_1;
+        FALL_THROUGH;
+    case TLS1_1_VERSION:
+        ssl->options.mask |= WOLFSSL_OP_NO_TLSv1_2;
+        FALL_THROUGH;
+    case TLS1_2_VERSION:
+        ssl->options.mask |= WOLFSSL_OP_NO_TLSv1_3;
+        FALL_THROUGH;
+    case TLS1_3_VERSION:
+        /* Nothing to do here */
+        break;
+#endif
+#ifdef WOLFSSL_DTLS
+    case DTLS1_VERSION:
+    case DTLS1_2_VERSION:
+        break;
+#endif
+    default:
+        WOLFSSL_MSG("Unrecognized protocol version or not compiled in");
+        return WOLFSSL_FAILURE;
+    }
+
+    return CheckSslMethodVersion(ssl->version.major, ssl->options.mask);
 }
 
 static int GetMinProtoVersion(int minDowngrade)

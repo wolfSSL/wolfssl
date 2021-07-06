@@ -8423,6 +8423,17 @@ retry:
     if (recvd < 0) {
         switch (recvd) {
             case WOLFSSL_CBIO_ERR_GENERAL:        /* general/unknown error */
+                #ifdef WOLFSSL_APACHE_HTTPD
+                #ifndef NO_BIO
+                    if (ssl->biord) {
+                        /* If retry and read flags are set, return WANT_READ */
+                        if ((ssl->biord->flags & WOLFSSL_BIO_FLAG_READ) &&
+                            (ssl->biord->flags & WOLFSSL_BIO_FLAG_RETRY)) {
+                            return WANT_READ;
+                        }
+                    }
+                #endif
+                #endif
                 return -1;
 
             case WOLFSSL_CBIO_ERR_WANT_READ:      /* want read, would block */
@@ -28633,7 +28644,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             if (!ssl->options.downgrade) {
                 WOLFSSL_MSG("Client trying to connect with lesser version");
-#ifdef OPENSSL_EXTRA
+#if defined(WOLFSSL_EXTRA_ALERTS) ||  defined(OPENSSL_EXTRA)
                 SendAlert(ssl, alert_fatal, handshake_failure);
 #endif
                 ret = VERSION_ERROR;
@@ -28641,7 +28652,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
             if (pv.minor < ssl->options.minDowngrade) {
                 WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
-#ifdef OPENSSL_EXTRA
+#if defined(WOLFSSL_EXTRA_ALERTS) ||  defined(OPENSSL_EXTRA)
                 SendAlert(ssl, alert_fatal, handshake_failure);
 #endif
                 ret = VERSION_ERROR;
