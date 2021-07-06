@@ -3941,7 +3941,7 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, byte* suite, int* err)
  */
 static int DoPreSharedKeys(WOLFSSL* ssl, byte* suite, int* usingPSK, int* first)
 {
-    int           ret;
+    int           ret = 0;
     TLSX*         ext;
     PreSharedKey* current;
     byte          binderKey[WC_MAX_DIGEST_SIZE];
@@ -3951,6 +3951,10 @@ static int DoPreSharedKeys(WOLFSSL* ssl, byte* suite, int* usingPSK, int* first)
     WOLFSSL_ENTER("DoPreSharedKeys");
 
     ext = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
+    if (ext == NULL) {
+        WOLFSSL_MSG("No pre shared extension keys found");
+        return BAD_FUNC_ARG;
+    }
 
     /* Look through all client's pre-shared keys for a match. */
     current = (PreSharedKey*)ext->data;

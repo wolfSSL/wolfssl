@@ -17702,24 +17702,24 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
         (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
     /* Apply SHA512 transformation to the data */
-    int wolfSSL_SHA512_Transform(WOLFSSL_SHA512_CTX* sha512, 
+    int wolfSSL_SHA512_Transform(WOLFSSL_SHA512_CTX* sha512,
                                           const unsigned char* data)
     {
-       int ret = WOLFSSL_SUCCESS;
-       
+       int ret;
+
        WOLFSSL_ENTER("SHA512_Transform");
        /* sanity check */
        if (sha512 == NULL || data == NULL) {
-            return 0;
+            return WOLFSSL_FAILURE;
        }
-       
+
        ret = wc_Sha512Transform((wc_Sha512*)sha512, data);
 
        /* return 1 on success, 0 otherwise */
         if (ret == 0)
-            return 1;
+            return WOLFSSL_SUCCESS;
         else
-            return 0;
+            return WOLFSSL_FAILURE;
     }
     #endif /* !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
               (HAVE_FIPS_VERSION > 2)) */

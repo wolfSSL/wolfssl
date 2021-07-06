@@ -5318,6 +5318,7 @@ static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32 inLen,
     if (ints > DSA_INTS)
         return BAD_FUNC_ARG;
 
+    XMEMSET(sizes, 0, sizeof(sizes));
     for (i = 0; i < ints; i++)
         tmps[i] = NULL;
 

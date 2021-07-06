@@ -10335,7 +10335,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
 #ifndef NO_PKCS7_STREAM
     word32 tmpIdx = 0;
 #endif
-    word32 contentType, encOID = 0;
+    word32 contentType = 0, encOID = 0;
     word32 decryptedKeySz = MAX_ENCRYPTED_KEY_SZ;
 
     int expBlockSz = 0, blockKeySz = 0;
@@ -11230,7 +11230,7 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
 #ifndef NO_PKCS7_STREAM
     word32 tmpIdx = 0;
 #endif
-    word32 contentType, encOID = 0;
+    word32 contentType = 0, encOID = 0;
     word32 decryptedKeySz = 0;
     byte* pkiMsg = in;
     word32 pkiMsgSz = inSz;
@@ -12104,7 +12104,7 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
 #ifndef NO_PKCS7_STREAM
     word32 tmpIdx = 0;
 #endif
-    word32 contentType, encOID;
+    word32 contentType = 0, encOID;
 
     int expBlockSz = 0;
     byte tmpIvBuf[MAX_CONTENT_IV_SIZE];

@@ -6673,7 +6673,7 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
 {
     int ret = 0;
 #if !defined(NO_DH) && (!defined(NO_CERTS) || !defined(NO_PSK))
-    word32 keySz;
+    word32 keySz = 0;
     const DhParams* params = NULL;
     DhKey* dhKey = (DhKey*)kse->key;
 
