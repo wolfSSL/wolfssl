@@ -1197,10 +1197,7 @@ int mp_invmod_slow (mp_int * a, mp_int * b, mp_int * c)
     goto LBL_ERR;
   }
   if (mp_isone(&x)) {
-    if ((res = mp_set(c, 1)) != MP_OKAY) {
-        goto LBL_ERR;
-    }
-    res = MP_OKAY;
+    res = mp_set(c, 1);
     goto LBL_ERR;
   }
   if ((res = mp_copy (b, &y)) != MP_OKAY) {
