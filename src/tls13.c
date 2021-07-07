@@ -531,6 +531,15 @@ static int DeriveEarlyTrafficSecret(WOLFSSL* ssl, byte* key)
             return TLS13_SECRET_CB_E;
         }
     }
+#ifdef OPENSSL_EXTRA
+    if (ret == 0 && ssl->tls13KeyLogCb != NULL) {
+        ret = ssl->tls13KeyLogCb(ssl, CLIENT_EARLY_TRAFFIC_SECRET, key,
+                                ssl->specs.hash_size, NULL);
+        if (ret != 0) {
+            return TLS13_SECRET_CB_E;
+        }
+    }
+#endif /* OPENSSL_EXTRA */
 #endif /* HAVE_SECRET_CALLBACK */
     return ret;
 }
@@ -560,12 +569,21 @@ static int DeriveEarlyExporterSecret(WOLFSSL* ssl, byte* key)
                     ssl->specs.mac_algorithm, 1);
 #ifdef HAVE_SECRET_CALLBACK
     if (ret == 0 && ssl->tls13SecretCb != NULL) {
-        ret = ssl->tls13SecretCb(ssl, EARLY_EXPORTER_SECRET, key
+        ret = ssl->tls13SecretCb(ssl, EARLY_EXPORTER_SECRET, key,
                                  ssl->specs.hash_size, ssl->tls13SecretCtx);
         if (ret != 0) {
             return TLS13_SECRET_CB_E;
         }
     }
+#ifdef OPENSSL_EXTRA
+    if (ret == 0 && ssl->tls13KeyLogCb != NULL) {
+        ret = ssl->tls13KeyLogCb(ssl, EARLY_EXPORTER_SECRET, key,
+                                ssl->specs.hash_size, NULL);
+        if (ret != 0) {
+            return TLS13_SECRET_CB_E;
+        }
+    }
+#endif /* OPENSSL_EXTRA */
 #endif /* HAVE_SECRET_CALLBACK */
     return ret;
 }
@@ -602,6 +620,15 @@ static int DeriveClientHandshakeSecret(WOLFSSL* ssl, byte* key)
             return TLS13_SECRET_CB_E;
         }
     }
+#ifdef OPENSSL_EXTRA
+    if (ret == 0 && ssl->tls13KeyLogCb != NULL) {
+        ret = ssl->tls13KeyLogCb(ssl, CLIENT_HANDSHAKE_TRAFFIC_SECRET, key,
+                                ssl->specs.hash_size, NULL);
+        if (ret != 0) {
+            return TLS13_SECRET_CB_E;
+        }
+    }
+#endif /* OPENSSL_EXTRA */
 #endif /* HAVE_SECRET_CALLBACK */
     return ret;
 }
@@ -636,6 +663,15 @@ static int DeriveServerHandshakeSecret(WOLFSSL* ssl, byte* key)
             return TLS13_SECRET_CB_E;
         }
     }
+#ifdef OPENSSL_EXTRA
+    if (ret == 0 && ssl->tls13KeyLogCb != NULL) {
+        ret = ssl->tls13KeyLogCb(ssl, SERVER_HANDSHAKE_TRAFFIC_SECRET, key,
+                                ssl->specs.hash_size, NULL);
+        if (ret != 0) {
+            return TLS13_SECRET_CB_E;
+        }
+    }
+#endif /* OPENSSL_EXTRA */
 #endif /* HAVE_SECRET_CALLBACK */
     return ret;
 }
@@ -670,6 +706,15 @@ static int DeriveClientTrafficSecret(WOLFSSL* ssl, byte* key)
             return TLS13_SECRET_CB_E;
         }
     }
+#ifdef OPENSSL_EXTRA
+    if (ret == 0 && ssl->tls13KeyLogCb != NULL) {
+        ret = ssl->tls13KeyLogCb(ssl, CLIENT_TRAFFIC_SECRET, key,
+                                ssl->specs.hash_size, NULL);
+        if (ret != 0) {
+            return TLS13_SECRET_CB_E;
+        }
+    }
+#endif /* OPENSSL_EXTRA */
 #endif /* HAVE_SECRET_CALLBACK */
     return ret;
 }
@@ -704,6 +749,15 @@ static int DeriveServerTrafficSecret(WOLFSSL* ssl, byte* key)
             return TLS13_SECRET_CB_E;
         }
     }
+#ifdef OPENSSL_EXTRA
+    if (ret == 0 && ssl->tls13KeyLogCb != NULL) {
+        ret = ssl->tls13KeyLogCb(ssl, SERVER_TRAFFIC_SECRET, key,
+                                ssl->specs.hash_size, NULL);
+        if (ret != 0) {
+            return TLS13_SECRET_CB_E;
+        }
+    }
+#endif /* OPENSSL_EXTRA */
 #endif /* HAVE_SECRET_CALLBACK */
     return ret;
 }
@@ -739,6 +793,15 @@ static int DeriveExporterSecret(WOLFSSL* ssl, byte* key)
             return TLS13_SECRET_CB_E;
         }
     }
+#ifdef OPENSSL_EXTRA
+    if (ret == 0 && ssl->tls13KeyLogCb != NULL) {
+        ret = ssl->tls13KeyLogCb(ssl, EXPORTER_SECRET, key,
+                                ssl->specs.hash_size, NULL);
+        if (ret != 0) {
+            return TLS13_SECRET_CB_E;
+        }
+    }
+#endif /* OPENSSL_EXTRA */
 #endif /* HAVE_SECRET_CALLBACK */
     return ret;
 }
@@ -3847,6 +3910,7 @@ static void RefineSuites(WOLFSSL* ssl, Suites* peerSuites)
     }
 #endif
 }
+
 
 #ifndef NO_PSK
 /* Attempt to find the PSK (not session ticket) that matches.

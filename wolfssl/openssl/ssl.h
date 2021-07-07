@@ -815,6 +815,10 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTX_set_info_callback       wolfSSL_CTX_set_info_callback
 #define SSL_CTX_set_alpn_protos         wolfSSL_CTX_set_alpn_protos
 
+#define SSL_CTX_keylog_cb_func          wolfSSL_CTX_keylog_cb_func
+#define SSL_CTX_set_keylog_callback     wolfSSL_CTX_set_keylog_callback
+#define SSL_CTX_get_keylog_callback     wolfSSL_CTX_get_keylog_callback
+
 #define SSL_alert_type_string           wolfSSL_alert_type_string
 #define SSL_alert_desc_string           wolfSSL_alert_desc_string
 #define SSL_state_string                wolfSSL_state_string

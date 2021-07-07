@@ -3066,6 +3066,9 @@ struct WOLFSSL_CTX {
     Srp*  srp;  /* TLS Secure Remote Password Protocol*/
     byte* srp_password;
 #endif
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SECRET_CALLBACK)
+    wolfSSL_CTX_keylog_cb_func keyLogCb;
+#endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK */
 #ifdef WOLFSSL_STATIC_EPHEMERAL
     StaticKeyExchangeInfo_t staticKE;
 #endif
@@ -4437,6 +4440,12 @@ struct WOLFSSL {
     #ifdef WOLFSSL_TLS13
         Tls13SecretCb   tls13SecretCb;
         void*           tls13SecretCtx;
+    #endif
+    #ifdef OPENSSL_EXTRA
+        SessionSecretCb keyLogCb;
+    #ifdef WOLFSSL_TLS13
+        Tls13SecretCb   tls13KeyLogCb;
+    #endif
     #endif
 #endif /* HAVE_SECRET_CALLBACK */
 #ifdef WOLFSSL_JNI
