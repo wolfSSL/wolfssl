@@ -119,11 +119,11 @@ struct WOLFSSL_EC_KEY {
     void*          internal;     /* our ECC Key */
     char           form;         /* Either POINT_CONVERSION_UNCOMPRESSED or
                                   * POINT_CONVERSION_COMPRESSED */
+    word16 pkcs8HeaderSz;
 
     /* option bits */
     byte inSet:1;        /* internal set from external ? */
     byte exSet:1;        /* external set from internal ? */
-    byte hasPkcs8Header:1;
 };
 
 struct WOLFSSL_EC_BUILTIN_CURVE {

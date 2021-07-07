@@ -87,12 +87,12 @@ typedef struct WOLFSSL_RSA {
     wolfSSL_Mutex    refMutex;                       /* ref count mutex */
     int              refCount;                       /* reference count */
 #endif
+    word16 pkcs8HeaderSz;
 
     /* bits */
     byte inSet:1;     /* internal set from external ? */
     byte exSet:1;     /* external set from internal ? */
     byte ownRng:1;    /* flag for if the rng should be free'd */
-    byte hasPkcs8Header:1;
 } WOLFSSL_RSA;
 #endif
 
