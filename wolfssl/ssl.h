@@ -370,13 +370,13 @@ struct WOLFSSL_EVP_PKEY {
 #ifdef HAVE_ECC
     int pkey_curve;
 #endif
+    word16 pkcs8HeaderSz;
 
     /* option bits */
     byte ownDh:1;  /* if struct owns DH  and should free it */
     byte ownEcc:1; /* if struct owns ECC and should free it */
     byte ownDsa:1; /* if struct owns DSA and should free it */
     byte ownRsa:1; /* if struct owns RSA and should free it */
-    byte hasPkcs8Header:1;
 };
 typedef struct WOLFSSL_EVP_PKEY WOLFSSL_PKCS8_PRIV_KEY_INFO;
 #ifndef WOLFSSL_EVP_TYPE_DEFINED /* guard on redeclaration */

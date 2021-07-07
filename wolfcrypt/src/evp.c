@@ -6108,7 +6108,7 @@ int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
     pkey->rsa    = key;
     pkey->ownRsa = 1; /* pkey does not own RSA but needs to call free on it */
     pkey->type   = EVP_PKEY_RSA;
-    pkey->hasPkcs8Header = key->hasPkcs8Header;
+    pkey->pkcs8HeaderSz = key->pkcs8HeaderSz;
     if (key->inSet == 0) {
         if (SetRsaInternal(key) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("SetRsaInternal failed");
@@ -6126,7 +6126,7 @@ int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
         if (ret > 0) {
             derSz = ret;
         #ifdef HAVE_PKCS8
-            if (key->hasPkcs8Header) {
+            if (key->pkcs8HeaderSz) {
                 ret = wc_CreatePKCS8Key(NULL, (word32*)&pkcs8Sz, NULL, derSz,
                     RSAk, NULL, 0);
                 if (ret == LENGTH_ONLY_E) ret = 0;
@@ -6152,7 +6152,7 @@ int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
             if (ret > 0) {
                 derSz = ret;
             #ifdef HAVE_PKCS8
-                if (key->hasPkcs8Header) {
+                if (key->pkcs8HeaderSz) {
                     byte* keyBuf = derBuf;
                     int keySz = derSz;
                     derSz = pkcs8Sz;
@@ -6548,7 +6548,7 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
         return WOLFSSL_FAILURE;
 
     ecc = (ecc_key*)key->internal;
-    if (key->hasPkcs8Header) {
+    if (key->pkcs8HeaderSz) {
         /* when key has pkcs8 header the pkey should too */
         if (wc_EccKeyToPKCS8(ecc, NULL, (word32*)&derSz) == LENGTH_ONLY_E) {
             byte* derBuf = (byte*)XMALLOC(derSz, pkey->heap, DYNAMIC_TYPE_OPENSSL);
@@ -6559,7 +6559,7 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                     }
                     pkey->pkey_sz = (int)derSz;
                     pkey->pkey.ptr = (char*)derBuf;
-                    pkey->hasPkcs8Header = 1;
+                    pkey->pkcs8HeaderSz = key->pkcs8HeaderSz;
                     return WOLFSSL_SUCCESS;
                 }
                 else {
