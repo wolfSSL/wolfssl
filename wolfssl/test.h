@@ -163,7 +163,7 @@
     #define SNPRINTF snprintf
 
     #define XSELECT_WAIT(x,y) do { \
-        struct timeval tv = {(x),(y)}; \
+        struct timeval tv = {((x) + ((y) / 1000000)),((y) % 1000000)}; \
         select(0, NULL, NULL, NULL, &tv); \
     } while (0)
     #define XSLEEP_US(u) XSELECT_WAIT(0,u)
