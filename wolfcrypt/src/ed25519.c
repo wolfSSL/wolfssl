@@ -70,7 +70,7 @@ static int ed25519_hash(ed25519_key* key, const byte* in, word32 inLen,
 #ifdef WOLF_CRYPTO_CB
     devId = key->devId;
 #endif
-    
+
     ret = wc_InitSha512_ex(&sha, NULL, devId);
     if (ret == 0) {
         ret = wc_Sha512Update(&sha, in, inLen);
@@ -79,6 +79,7 @@ static int ed25519_hash(ed25519_key* key, const byte* in, word32 inLen,
         wc_Sha512Free(&sha);
     }
 
+    (void)devId;
     return ret;
 }
 
@@ -300,6 +301,7 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     sc_muladd(out + (ED25519_SIG_SIZE/2), hram, az, nonce);
 #endif
 
+    (void)devId;
     return ret;
 }
 
@@ -489,6 +491,7 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
     /* set the verification status */
     *res = 1;
 
+    (void)devId;
     return ret;
 }
 

@@ -32156,7 +32156,7 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
 
     printf(testingFmt, "wolfSSL_ASN1_TIME_adj()");
 
-    s = wolfSSL_ASN1_TIME_new();
+    AssertNotNull(s = wolfSSL_ASN1_TIME_new());
     /* UTC notation test */
     /* 2000/2/15 20:30:00 */
     t = (time_t)30 * year + 45 * day + 20 * hour + 30 * mini + 7 * day;

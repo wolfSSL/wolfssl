@@ -5318,6 +5318,7 @@ static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32 inLen,
     if (ints > DSA_INTS)
         return BAD_FUNC_ARG;
 
+    XMEMSET(sizes, 0, sizeof(sizes));
     for (i = 0; i < ints; i++)
         tmps[i] = NULL;
 
@@ -19093,13 +19094,11 @@ int wc_MIME_parse_headers(char* in, int inLen, MimeHdr** headers)
     }
 
     *headers = curHdr;
-    XFREE(nextHdr, NULL, DYNAMIC_TYPE_PKCS7);
-    XFREE(nextParam, NULL, DYNAMIC_TYPE_PKCS7);
-
-    return 0;
+    ret = 0; /* success if at this point */
 
 error:
-    wc_MIME_free_hdrs(curHdr);
+    if (ret != 0)
+        wc_MIME_free_hdrs(curHdr);
     wc_MIME_free_hdrs(nextHdr);
     if (nameAttr != NULL)
         XFREE(nameAttr, NULL, DYNAMIC_TYPE_PKCS7);
