@@ -1700,17 +1700,15 @@ static void test_wolfSSL_CTX_load_verify_locations_ex(void)
             WOLFSSL_LOAD_FLAG_NONE));
 
     /* test expired CA */
-    AssertTrue(
 #ifndef OPENSSL_COMPATIBLE_DEFAULTS
-            WOLFSSL_SUCCESS !=
+    AssertIntNE(wolfSSL_CTX_load_verify_locations_ex(ctx, ca_expired_cert, NULL,
+            WOLFSSL_LOAD_FLAG_NONE), WOLFSSL_SUCCESS);
 #else
-            WOLFSSL_SUCCESS ==
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx, ca_expired_cert, NULL,
+            WOLFSSL_LOAD_FLAG_NONE), WOLFSSL_SUCCESS);
 #endif
-        wolfSSL_CTX_load_verify_locations_ex(ctx, ca_expired_cert, NULL,
-            WOLFSSL_LOAD_FLAG_NONE));
-    AssertTrue(WOLFSSL_SUCCESS ==
-        wolfSSL_CTX_load_verify_locations_ex(ctx, ca_expired_cert, NULL,
-            WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY));
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx, ca_expired_cert, NULL,
+            WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY), WOLFSSL_SUCCESS);
 
     wolfSSL_CTX_free(ctx);
 
@@ -1749,21 +1747,21 @@ static void test_wolfSSL_CTX_load_verify_buffer_ex(void)
     XFCLOSE(fp);
 
     /* test expired CA failure */
-    AssertTrue(
-#ifndef OPENSSL_COMPATIBLE_DEFAULTS
-            WOLFSSL_SUCCESS !=
-#else
-            WOLFSSL_SUCCESS ==
-#endif
-        wolfSSL_CTX_load_verify_buffer_ex(ctx, ca_expired_cert,
-            sizeof_ca_expired_cert, WOLFSSL_FILETYPE_ASN1, 0,
-            WOLFSSL_LOAD_FLAG_NONE));
 
-    /* test expired CA success */
-    AssertTrue(WOLFSSL_SUCCESS ==
-        wolfSSL_CTX_load_verify_buffer_ex(ctx, ca_expired_cert,
+
+#ifndef OPENSSL_COMPATIBLE_DEFAULTS
+    AssertIntNE(wolfSSL_CTX_load_verify_buffer_ex(ctx, ca_expired_cert,
             sizeof_ca_expired_cert, WOLFSSL_FILETYPE_ASN1, 0,
-            WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY));
+            WOLFSSL_LOAD_FLAG_NONE), WOLFSSL_SUCCESS);
+#else
+    AssertIntEQ(wolfSSL_CTX_load_verify_buffer_ex(ctx, ca_expired_cert,
+            sizeof_ca_expired_cert, WOLFSSL_FILETYPE_ASN1, 0,
+            WOLFSSL_LOAD_FLAG_NONE), WOLFSSL_SUCCESS);
+#endif
+    /* test expired CA success */
+    AssertIntEQ(wolfSSL_CTX_load_verify_buffer_ex(ctx, ca_expired_cert,
+            sizeof_ca_expired_cert, WOLFSSL_FILETYPE_ASN1, 0,
+            WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY), WOLFSSL_SUCCESS);
 
     wolfSSL_CTX_free(ctx);
 
