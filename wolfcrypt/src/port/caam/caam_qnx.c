@@ -1190,7 +1190,7 @@ static int getSupported(char* in)
 #endif
 
 char cannedResponse[] = {
-        "wolfCrypt QNX CAAM driver version 4.7.1 (9)\n"
+        "wolfCrypt QNX CAAM driver version 4.8.0\n"
         "Supports:\n"
         "\tAES-CMAC\n"
         "\tECC (sign, verify, ecdh, keygen)\n"

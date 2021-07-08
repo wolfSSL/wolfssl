@@ -74,7 +74,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
 %{_libdir}/libwolfssl.so.24
-%{_libdir}/libwolfssl.so.24.4.0
+%{_libdir}/libwolfssl.so.24.5.0
 
 %files devel
 %defattr(-,root,root,-)
@@ -256,6 +256,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/dh.h
 %{_includedir}/wolfssl/wolfcrypt/dsa.h
 %{_includedir}/wolfssl/wolfcrypt/ecc.h
+%{_includedir}/wolfssl/wolfcrypt/eccsi.h
 %{_includedir}/wolfssl/wolfcrypt/ed25519.h
 %{_includedir}/wolfssl/wolfcrypt/ed448.h
 %{_includedir}/wolfssl/wolfcrypt/error-crypt.h
@@ -287,6 +288,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/ripemd.h
 %{_includedir}/wolfssl/wolfcrypt/rc2.h
 %{_includedir}/wolfssl/wolfcrypt/rsa.h
+%{_includedir}/wolfssl/wolfcrypt/sakke.h
 %{_includedir}/wolfssl/wolfcrypt/settings.h
 %{_includedir}/wolfssl/wolfcrypt/sha.h
 %{_includedir}/wolfssl/wolfcrypt/sha256.h
@@ -305,6 +307,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Thu Jul 08 2021 Jacob Barthelmeh <jacob@wolfssl.com>
+- Add a missing header eccsi, sakke.
 * Mon Aug 17 2020 John Safranek <john@wolfssl.com>
 - Add a missing header.
 - Update for release.
