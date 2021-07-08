@@ -170,6 +170,8 @@ static void DumpStats(void)
             sslStats.sslResumedConns);
     printf("SSL Stats (sslEphemeralMisses):%lu\n",
             sslStats.sslEphemeralMisses);
+    printf("SSL Stats (sslResumptionInserts):%lu\n",
+            sslStats.sslResumptionInserts);
     printf("SSL Stats (sslResumeMisses):%lu\n",
             sslStats.sslResumeMisses);
     printf("SSL Stats (sslCiphersUnsupported):%lu\n",
