@@ -366,6 +366,15 @@ static int load_key(const char* name, const char* server, int port,
     return ret;
 }
 
+static void TrimNewLine(char* str)
+{
+    word32 strSz = 0;
+    if (str)
+        strSz = (word32)XSTRLEN(str);
+    if (strSz > 0 && (str[strSz-1] == '\n' || str[strSz-1] == '\r'))
+        str[strSz-1] = '\0';
+}
+
 int main(int argc, char** argv)
 {
     int          ret = 0;
@@ -504,13 +513,10 @@ int main(int argc, char** argv)
         XMEMSET(keyFilesBuf, 0, sizeof(keyFilesBuf));
         XMEMSET(keyFilesUser, 0, sizeof(keyFilesUser));
         if (XFGETS(keyFilesUser, sizeof(keyFilesUser), stdin)) {
-            word32 strSz;
-            if (keyFilesUser[0] != '\r' && keyFilesUser[0] != '\n') {
+            TrimNewLine(keyFilesUser);
+            if (XSTRLEN(keyFilesUser) > 0) {
                 keyFilesSrc = keyFilesUser;
             }
-            strSz = (word32)XSTRLEN(keyFilesUser);
-            if (keyFilesUser[strSz-1] == '\n')
-                keyFilesUser[strSz-1] = '\0';
         }
         XSTRNCPY(keyFilesBuf, keyFilesSrc, sizeof(keyFilesBuf));
 
@@ -519,6 +525,7 @@ int main(int argc, char** argv)
         printf("Enter alternate SNI [default: none]: ");
         XMEMSET(cmdLineArg, 0, sizeof(cmdLineArg));
         if (XFGETS(cmdLineArg, sizeof(cmdLineArg), stdin)) {
+            TrimNewLine(cmdLineArg);
             if (XSTRLEN(cmdLineArg) > 0) {
                 sniName = cmdLineArg;
             }
