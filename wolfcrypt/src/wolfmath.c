@@ -210,26 +210,37 @@ int wc_export_int(mp_int* mp, byte* buf, word32* len, word32 keySz,
 {
     int err;
 
-    if (mp == NULL)
+    if (mp == NULL || buf == NULL || len == NULL)
         return BAD_FUNC_ARG;
 
-    /* check buffer size */
-    if (*len < keySz) {
-        *len = keySz;
-        return BUFFER_E;
-    }
-
-    *len = keySz;
-    XMEMSET(buf, 0, *len);
-
     if (encType == WC_TYPE_HEX_STR) {
+        /* for WC_TYPE_HEX_STR the keySz is not used.
+         * The size is computed via mp_radix_size and checked with len input */
     #ifdef WC_MP_TO_RADIX
-        err = mp_tohex(mp, (char*)buf);
+        int size = 0;
+        err = mp_radix_size(mp, MP_RADIX_HEX, &size);
+        if (err == MP_OKAY) {
+            /* make sure we can fit result */
+            if (*len < (word32)size) {
+                *len = (word32)size;
+                return BUFFER_E;
+            }
+            *len = (word32)size;
+            err = mp_tohex(mp, (char*)buf);
+        }        
     #else
         err = NOT_COMPILED_IN;
     #endif
     }
     else {
+        /* for WC_TYPE_UNSIGNED_BIN keySz is used to zero pad.
+         * The key size is always returned as the size */
+        if (*len < keySz) {
+            *len = keySz;
+            return BUFFER_E;
+        }
+        *len = keySz;
+        XMEMSET(buf, 0, *len);
         err = mp_to_unsigned_bin(mp, buf + (keySz - mp_unsigned_bin_size(mp)));
     }
 
