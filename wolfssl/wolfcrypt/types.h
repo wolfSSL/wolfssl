@@ -205,6 +205,7 @@ decouple library dependencies with standard string, memory and so on.
     #include <stdint.h>
     typedef uintptr_t wc_ptr_t;
 #else /* fallback to architecture size_t for pointer size */
+    #include <stddef.h> /* included for getting size_t type */
     typedef size_t wc_ptr_t;
 #endif
 
