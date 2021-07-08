@@ -2797,11 +2797,11 @@ static int DoResume(SnifferSession* session, char* error)
                             session->sslServer->arrays->masterSecret, 0);
     }
     if (resume == NULL) {
-        /* a session id without resume is okay with hello_retry_request */
     #ifdef WOLFSSL_SNIFFER_STATS
-        INC_STAT(SnifferStats.sslStandardConns);
+        INC_STAT(SnifferStats.sslResumeMisses);
     #endif
-        return 0;
+        SetError(BAD_SESSION_RESUME_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
     }
 
     /* make sure client has master secret too */
