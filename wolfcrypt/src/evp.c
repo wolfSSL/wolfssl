@@ -3279,6 +3279,7 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
         {EVP_DES_ECB, "des-ecb"},
         {EVP_DES_EDE3_CBC, "DES3"},
         {EVP_DES_EDE3_CBC, "des3"},
+        {EVP_DES_EDE3_CBC, "3des"},
         {EVP_DES_EDE3_ECB, "DES-EDE3"},
         {EVP_DES_EDE3_ECB, "des-ede3"},
         {EVP_DES_EDE3_ECB, "des-ede3-ecb"},
@@ -3292,6 +3293,7 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
         #ifdef WOLFSSL_AES_128
             {EVP_AES_128_CBC, "AES128-CBC"},
             {EVP_AES_128_CBC, "aes128-cbc"},
+            {EVP_AES_128_CBC, "aes128"},
         #endif
         #ifdef WOLFSSL_AES_192
             {EVP_AES_192_CBC, "AES192-CBC"},
@@ -3300,6 +3302,7 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
         #ifdef WOLFSSL_AES_256
             {EVP_AES_256_CBC, "AES256-CBC"},
             {EVP_AES_256_CBC, "aes256-cbc"},
+            {EVP_AES_256_CBC, "aes256"},
         #endif
     #endif
     #ifdef HAVE_AES_ECB

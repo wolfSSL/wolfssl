@@ -4557,6 +4557,27 @@ then
     ENABLED_PSK=yes
 fi
 
+# tcpdump support
+AC_ARG_ENABLE([tcpdump],
+    [AS_HELP_STRING([--enable-tcpdump],[Enable tcpdump (default: disabled)])],
+    [ ENABLED_TCPDUMP=$enableval ],
+    [ ENABLED_TCPDUMP=no ]
+    )
+# tcpdump support requires all the features enabled within this conditional.
+if test "$ENABLED_TCPDUMP" = "yes"
+then
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+    then
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
+    fi
+
+    if test "x$ENABLED_DES3" = "xno"
+    then
+        ENABLED_DES3="yes"
+    fi
+fi
+
 # libest Support
 AC_ARG_ENABLE([libest],
     [AS_HELP_STRING([--enable-libest],[Enable libest (default: disabled)])],
@@ -6684,6 +6705,7 @@ echo "   * wolfSentry:                 $ENABLED_WOLFSENTRY"
 echo "   * LIGHTY:                     $ENABLED_LIGHTY"
 echo "   * HAPROXY:                    $ENABLED_HAPROXY"
 echo "   * STUNNEL:                    $ENABLED_STUNNEL"
+echo "   * tcpdump:                    $ENABLED_TCPDUMP"
 echo "   * Apache httpd:               $ENABLED_APACHE_HTTPD"
 echo "   * NGINX:                      $ENABLED_NGINX"
 echo "   * ASIO:                       $ENABLED_ASIO"
