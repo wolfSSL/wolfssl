@@ -4803,6 +4803,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                     pkiMsg2   = pkiMsg;
                     pkiMsg2Sz = pkiMsgSz;
                 #ifndef NO_PKCS7_STREAM
+                    pkiMsg2Sz = pkcs7->stream->maxLen;
                     pkcs7->stream->varOne = pkiMsg2Sz;
                     pkcs7->stream->flagOne = 1;
                 #endif
@@ -4812,6 +4813,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 pkiMsg2 = pkiMsg;
                 pkiMsg2Sz = pkiMsgSz;
             #ifndef NO_PKCS7_STREAM
+                pkiMsg2Sz = pkcs7->stream->maxLen;
                 pkcs7->stream->varOne = pkiMsg2Sz;
                 pkcs7->stream->flagOne = 1;
             #endif

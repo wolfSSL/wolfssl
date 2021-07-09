@@ -16568,7 +16568,7 @@ static int EccKeyParamCopy(char** dst, char* src)
         ret = BUFFER_E;
     }
     else {
-        XSTRNCPY(*dst, src, length);
+        XSTRNCPY(*dst, src, MAX_ECC_STRING);
     }
     XFREE(src, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
