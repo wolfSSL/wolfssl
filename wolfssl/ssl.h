@@ -86,6 +86,7 @@
     #endif
 
 #elif (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+    #include <wolfssl/openssl/compat_types.h>
     #include <wolfssl/openssl/bn.h>
     #include <wolfssl/openssl/hmac.h>
 

@@ -35,9 +35,9 @@
 #include "prefix_hmac.h"
 #endif
 
+#include <wolfssl/openssl/compat_types.h>
 #include <wolfssl/openssl/evp.h>
 #include <wolfssl/openssl/opensslv.h>
-#include <wolfssl/wolfcrypt/hmac.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -48,15 +48,6 @@ WOLFSSL_API unsigned char* wolfSSL_HMAC(const WOLFSSL_EVP_MD* evp_md,
                                const void* key, int key_len,
                                const unsigned char* d, int n, unsigned char* md,
                                unsigned int* md_len);
-
-
-typedef struct WOLFSSL_HMAC_CTX {
-    Hmac hmac;
-    int  type;
-    word32  save_ipad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];  /* same block size all*/
-    word32  save_opad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];
-} WOLFSSL_HMAC_CTX;
-
 
 WOLFSSL_API WOLFSSL_HMAC_CTX* wolfSSL_HMAC_CTX_new(void);
 WOLFSSL_API int wolfSSL_HMAC_CTX_Init(WOLFSSL_HMAC_CTX* ctx);
