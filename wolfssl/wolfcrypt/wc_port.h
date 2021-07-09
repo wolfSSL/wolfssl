@@ -82,6 +82,10 @@
     _Pragma("GCC diagnostic ignored \"-Wpointer-sign\"");
     _Pragma("GCC diagnostic ignored \"-Wbad-function-cast\"");
     _Pragma("GCC diagnostic ignored \"-Wdiscarded-qualifiers\"");
+    _Pragma("GCC diagnostic ignored \"-Wtype-limits\"");
+
+    /* suppress inclusion of stdint-gcc.h to avoid conflicts with Linux native include/linux/types.h: */
+    #define _GCC_STDINT_H
 
     #include <linux/kconfig.h>
     #include <linux/kernel.h>
