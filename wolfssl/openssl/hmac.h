@@ -35,15 +35,7 @@
 #include "prefix_hmac.h"
 #endif
 
-#include <wolfssl/wolfcrypt/hmac.h>
-
-typedef struct WOLFSSL_HMAC_CTX {
-    Hmac hmac;
-    int  type;
-    word32  save_ipad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];  /* same block size all*/
-    word32  save_opad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];
-} WOLFSSL_HMAC_CTX;
-
+#include <wolfssl/openssl/compat_types.h>
 #include <wolfssl/openssl/evp.h>
 #include <wolfssl/openssl/opensslv.h>
 

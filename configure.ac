@@ -793,6 +793,7 @@ AC_ARG_ENABLE([mcast],
 # HAVE_POCO_LIB
 # WOLFSSL_MYSQL_COMPATIBLE
 # web server (--enable-webserver) HAVE_WEBSERVER
+# net-snmp (--enable-net-snmp)
 
 
 # Bind DNS compatibility Build
@@ -3124,6 +3125,13 @@ AS_IF([test "x$ENABLED_XTS" = "xyes"],
 
 
 # Web Server Build
+AC_ARG_ENABLE([net-snmp],
+    [AS_HELP_STRING([--enable-net-snmp],[Enable net-snmp (default: disabled)])],
+    [ ENABLED_NETSNMP=$enableval ],
+    [ ENABLED_NETSNMP=no ]
+    )
+    
+# Web Server Build
 AC_ARG_ENABLE([webserver],
     [AS_HELP_STRING([--enable-webserver],[Enable Web Server (default: disabled)])],
     [ ENABLED_WEBSERVER=$enableval ],
@@ -4382,6 +4390,32 @@ then
         AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS"
     fi
 
+fi
+
+if test "$ENABLED_NETSNMP" = "yes"
+then
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
+    then
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
+    fi
+
+    if test "x$ENABLED_DES3" = "xno"
+    then
+        ENABLED_DES3="yes"
+    fi
+
+    if test "x$ENABLED_AESCFB" = "xno"
+    then
+        ENABLED_AESCFB="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_CFB"
+    fi
+
+    if test "x$ENABLED_DTLS" = "xno"
+    then
+        ENABLED_DTLS="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS"
+    fi
 fi
 
 if test "$ENABLED_SIGNAL" = "yes"
