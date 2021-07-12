@@ -1009,6 +1009,8 @@ static int wolfIO_HttpProcessResponseBuf(int sfd, byte **recvBuf,
 int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
     byte** respBuf, byte* httpBuf, int httpBufSz, int dynType, void* heap)
 {
+    static const char HTTP_PROTO[] = "HTTP/1.";
+    static const char HTTP_STATUS_200[] = "200";
     int result = 0;
     int len = 0;
     char *start, *end;
@@ -1018,6 +1020,8 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                      phr_wait_end, phr_get_chunk_len, phr_get_chunk_data,
                      phr_http_end
     } state = phr_init;
+
+    WOLFSSL_ENTER("wolfIO_HttpProcessResponse");
 
     *respBuf = NULL;
     start = end = NULL;
@@ -1082,20 +1086,28 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
 
             switch (state) {
                 case phr_init:
-                    if (XSTRLEN(start) < 15) { /* 15 is the length of the two
-                                          constant strings we're about to
-                                          compare against. */
-                        WOLFSSL_MSG("wolfIO_HttpProcessResponse HTTP header too short.");
+                    /* length of "HTTP/1.x 200" == 12*/
+                    if (XSTRLEN(start) < 12) {
+                        WOLFSSL_MSG("wolfIO_HttpProcessResponse HTTP header "
+                            "too short.");
                         return -1;
                     }
-                    if (XSTRNCASECMP(start, "HTTP/1", 6) == 0) {
-                        start += 9;
-                        if (XSTRNCASECMP(start, "200 OK", 6) != 0) {
-                            WOLFSSL_MSG("wolfIO_HttpProcessResponse not OK");
-                            return -1;
-                        }
-                        state = phr_http_start;
+                    if (XSTRNCASECMP(start, HTTP_PROTO,
+                                     sizeof(HTTP_PROTO) - 1) != 0) {
+                        WOLFSSL_MSG("wolfIO_HttpProcessResponse HTTP header "
+                            "doesn't start with HTTP/1.");
+                        return -1;
                     }
+                    /* +2 for HTTP minor version and space between version and
+                     * status code. */
+                    start += sizeof(HTTP_PROTO) - 1 + 2 ;
+                    if (XSTRNCASECMP(start, HTTP_STATUS_200,
+                                     sizeof(HTTP_STATUS_200) - 1) != 0) {
+                        WOLFSSL_MSG("wolfIO_HttpProcessResponse HTTP header "
+                            "doesn't have status code 200.");
+                        return -1;
+                    }
+                    state = phr_http_start;
                     break;
                 case phr_http_start:
                 case phr_have_length:
