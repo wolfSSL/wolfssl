@@ -1165,7 +1165,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define DTLS1_2_VERSION                  0xFEFD
 #define DTLS_MAX_VERSION                 DTLS1_2_VERSION
 
-#ifndef WOLFSSL_APACHE_HTTPD /* apache uses SSL_CONF_FLAG_FILE to enable conf support */
+/* apache and lighty use SSL_CONF_FLAG_FILE to enable conf support */
+#if !defined(WOLFSSL_APACHE_HTTPD) && !defined(HAVE_LIGHTY)
 #define SSL_CONF_FLAG_CMDLINE            WOLFSSL_CONF_FLAG_CMDLINE
 #define SSL_CONF_FLAG_FILE               WOLFSSL_CONF_FLAG_FILE
 #define SSL_CONF_FLAG_CERTIFICATE        WOLFSSL_CONF_FLAG_CERTIFICATE
