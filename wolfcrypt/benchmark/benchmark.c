@@ -1295,7 +1295,7 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
         }
     }
 
-    /* caclulcate blocks per second */
+    /* calculate blocks per second */
     if (total > 0) {
         persec = (1 / total) * blocks;
     }
