@@ -24589,12 +24589,12 @@ static void test_wc_PKCS7_InitWithCert (void)
 
 #ifndef NO_RSA
     #if defined(USE_CERT_BUFFERS_2048)
-        unsigned char    cert[sizeof_client_cert_der_2048];
+        unsigned char    cert[sizeof(client_cert_der_2048)];
         int              certSz = (int)sizeof(cert);
         XMEMSET(cert, 0, certSz);
-        XMEMCPY(cert, client_cert_der_2048, sizeof_client_cert_der_2048);
+        XMEMCPY(cert, client_cert_der_2048, sizeof(client_cert_der_2048));
     #elif defined(USE_CERT_BUFFERS_1024)
-        unsigned char    cert[sizeof_client_cert_der_1024];
+        unsigned char    cert[sizeof(client_cert_der_1024)];
         int              certSz = (int)sizeof(cert);
         XMEMSET(cert, 0, certSz);
         XMEMCPY(cert, client_cert_der_1024, sizeof_client_cert_der_1024);
@@ -24610,10 +24610,10 @@ static void test_wc_PKCS7_InitWithCert (void)
     #endif
 #elif defined(HAVE_ECC)
     #if defined(USE_CERT_BUFFERS_256)
-        unsigned char    cert[sizeof_cliecc_cert_der_256];
+        unsigned char    cert[sizeof(cliecc_cert_der_256)];
         int              certSz = (int)sizeof(cert);
         XMEMSET(cert, 0, certSz);
-        XMEMCPY(cert, cliecc_cert_der_256, sizeof_cliecc_cert_der_256);
+        XMEMCPY(cert, cliecc_cert_der_256, sizeof(cliecc_cert_der_256));
     #else
         unsigned char   cert[ONEK_BUF];
         XFILE           fp;
@@ -24622,7 +24622,7 @@ static void test_wc_PKCS7_InitWithCert (void)
 
         AssertTrue(fp != XBADFILE);
 
-        certSz = (int)XFREAD(cert, 1, sizeof_cliecc_cert_der_256, fp);
+        certSz = (int)XFREAD(cert, 1, sizeof(cliecc_cert_der_256), fp);
         XFCLOSE(fp);
     #endif
 #else
@@ -24748,8 +24748,8 @@ static void test_wc_PKCS7_EncodeData (void)
 
 #ifndef NO_RSA
     #if defined(USE_CERT_BUFFERS_2048)
-        unsigned char cert[sizeof_client_cert_der_2048];
-        unsigned char key[sizeof_client_key_der_2048];
+        unsigned char cert[sizeof(client_cert_der_2048)];
+        unsigned char key[sizeof(client_key_der_2048)];
         int certSz = (int)sizeof(cert);
         int keySz = (int)sizeof(key);
         XMEMSET(cert, 0, certSz);
@@ -24758,7 +24758,7 @@ static void test_wc_PKCS7_EncodeData (void)
         XMEMCPY(key, client_key_der_2048, keySz);
 
     #elif defined(USE_CERT_BUFFERS_1024)
-        unsigned char cert[sizeof_client_cert_der_1024];
+        unsigned char cert[sizeof(sizeof_client_cert_der_1024)];
         unsigned char key[sizeof_client_key_der_1024];
         int certSz = (int)sizeof(cert);
         int keySz = (int)sizeof(key);
@@ -24785,8 +24785,8 @@ static void test_wc_PKCS7_EncodeData (void)
     #endif
 #elif defined(HAVE_ECC)
     #if defined(USE_CERT_BUFFERS_256)
-        unsigned char    cert[sizeof_cliecc_cert_der_256];
-        unsigned char    key[sizeof_ecc_clikey_der_256];
+        unsigned char    cert[sizeof(cliecc_cert_der_256)];
+        unsigned char    key[sizeof(ecc_clikey_der_256)];
         int              certSz = (int)sizeof(cert);
         int              keySz = (int)sizeof(key);
         XMEMSET(cert, 0, certSz);
@@ -24921,8 +24921,8 @@ static void test_wc_PKCS7_EncodeSignedData(void)
 
 #ifndef NO_RSA
     #if defined(USE_CERT_BUFFERS_2048)
-        byte        key[sizeof_client_key_der_2048];
-        byte        cert[sizeof_client_cert_der_2048];
+        byte        key[sizeof(client_key_der_2048)];
+        byte        cert[sizeof(client_cert_der_2048)];
         word32      keySz = (word32)sizeof(key);
         word32      certSz = (word32)sizeof(cert);
         XMEMSET(key, 0, keySz);
@@ -24931,7 +24931,7 @@ static void test_wc_PKCS7_EncodeSignedData(void)
         XMEMCPY(cert, client_cert_der_2048, certSz);
     #elif defined(USE_CERT_BUFFERS_1024)
         byte        key[sizeof_client_key_der_1024];
-        byte        cert[sizeof_client_cert_der_1024];
+        byte        cert[sizeof(sizeof_client_cert_der_1024)];
         word32      keySz = (word32)sizeof(key);
         word32      certSz = (word32)sizeof(cert);
         XMEMSET(key, 0, keySz);
@@ -24957,14 +24957,14 @@ static void test_wc_PKCS7_EncodeSignedData(void)
     #endif
 #elif defined(HAVE_ECC)
     #if defined(USE_CERT_BUFFERS_256)
-        unsigned char    cert[sizeof_cliecc_cert_der_256];
-        unsigned char    key[sizeof_ecc_clikey_der_256];
+        unsigned char    cert[sizeof(cliecc_cert_der_256)];
+        unsigned char    key[sizeof(ecc_clikey_der_256)];
         int              certSz = (int)sizeof(cert);
         int              keySz = (int)sizeof(key);
         XMEMSET(cert, 0, certSz);
         XMEMSET(key, 0, keySz);
-        XMEMCPY(cert, cliecc_cert_der_256, sizeof_cliecc_cert_der_256);
-        XMEMCPY(key, ecc_clikey_der_256, sizeof_ecc_clikey_der_256);
+        XMEMCPY(cert, cliecc_cert_der_256, certSz);
+        XMEMCPY(key, ecc_clikey_der_256, keySz);
     #else
         unsigned char   cert[ONEK_BUF];
         unsigned char   key[ONEK_BUF];
@@ -24973,12 +24973,12 @@ static void test_wc_PKCS7_EncodeSignedData(void)
 
         fp = XOPEN("./certs/client-ecc-cert.der", "rb");
         AssertTrue(fp != XBADFILE);
-        certSz = (int)XFREAD(cert, 1, sizeof_cliecc_cert_der_256, fp);
+        certSz = (int)XFREAD(cert, 1, ONEK_BUF, fp);
         XFCLOSE(fp);
 
         fp = XFOPEN("./certs/client-ecc-key.der", "rb");
         AssertTrue(fp != XBADFILE);
-        keySz = (int)XFREAD(key, 1, sizeof_ecc_clikey_der_256, fp);
+        keySz = (int)XFREAD(key, 1, ONEK_BUF, fp);
         XFCLOSE(fp);
     #endif
 #endif
@@ -25067,8 +25067,8 @@ static void test_wc_PKCS7_EncodeSignedData_ex(void)
 
 #ifndef NO_RSA
     #if defined(USE_CERT_BUFFERS_2048)
-        byte        key[sizeof_client_key_der_2048];
-        byte        cert[sizeof_client_cert_der_2048];
+        byte        key[sizeof(client_key_der_2048)];
+        byte        cert[sizeof(client_cert_der_2048)];
         word32      keySz = (word32)sizeof(key);
         word32      certSz = (word32)sizeof(cert);
         XMEMSET(key, 0, keySz);
@@ -25077,7 +25077,7 @@ static void test_wc_PKCS7_EncodeSignedData_ex(void)
         XMEMCPY(cert, client_cert_der_2048, certSz);
     #elif defined(USE_CERT_BUFFERS_1024)
         byte        key[sizeof_client_key_der_1024];
-        byte        cert[sizeof_client_cert_der_1024];
+        byte        cert[sizeof(sizeof_client_cert_der_1024)];
         word32      keySz = (word32)sizeof(key);
         word32      certSz = (word32)sizeof(cert);
         XMEMSET(key, 0, keySz);
@@ -25103,8 +25103,8 @@ static void test_wc_PKCS7_EncodeSignedData_ex(void)
     #endif
 #elif defined(HAVE_ECC)
     #if defined(USE_CERT_BUFFERS_256)
-        unsigned char    cert[sizeof_cliecc_cert_der_256];
-        unsigned char    key[sizeof_ecc_clikey_der_256];
+        unsigned char    cert[sizeof(cliecc_cert_der_256)];
+        unsigned char    key[sizeof(ecc_clikey_der_256)];
         int              certSz = (int)sizeof(cert);
         int              keySz = (int)sizeof(key);
         XMEMSET(cert, 0, certSz);
@@ -25279,8 +25279,8 @@ static int CreatePKCS7SignedData(unsigned char* output, int outputSz,
 
 #ifndef NO_RSA
     #if defined(USE_CERT_BUFFERS_2048)
-        byte        key[sizeof_client_key_der_2048];
-        byte        cert[sizeof_client_cert_der_2048];
+        byte        key[sizeof(client_key_der_2048)];
+        byte        cert[sizeof(client_cert_der_2048)];
         word32      keySz = (word32)sizeof(key);
         word32      certSz = (word32)sizeof(cert);
         XMEMSET(key, 0, keySz);
@@ -25289,7 +25289,7 @@ static int CreatePKCS7SignedData(unsigned char* output, int outputSz,
         XMEMCPY(cert, client_cert_der_2048, certSz);
     #elif defined(USE_CERT_BUFFERS_1024)
         byte        key[sizeof_client_key_der_1024];
-        byte        cert[sizeof_client_cert_der_1024];
+        byte        cert[sizeof(sizeof_client_cert_der_1024)];
         word32      keySz = (word32)sizeof(key);
         word32      certSz = (word32)sizeof(cert);
         XMEMSET(key, 0, keySz);
@@ -25315,8 +25315,8 @@ static int CreatePKCS7SignedData(unsigned char* output, int outputSz,
     #endif
 #elif defined(HAVE_ECC)
     #if defined(USE_CERT_BUFFERS_256)
-        unsigned char    cert[sizeof_cliecc_cert_der_256];
-        unsigned char    key[sizeof_ecc_clikey_der_256];
+        unsigned char    cert[sizeof(cliecc_cert_der_256)];
+        unsigned char    key[sizeof(ecc_clikey_der_256)];
         int              certSz = (int)sizeof(cert);
         int              keySz = (int)sizeof(key);
         XMEMSET(cert, 0, certSz);
@@ -36954,8 +36954,8 @@ static void test_wolfSSL_OPENSSL_hexstr2buf(void)
         {{0xaa, 0xbc, 0xd1, 0x35, 0x7e}, 5},
         {{0x01, 0x12, 0x23, 0x34, 0xa5, 0xb6, 0xc7, 0xd8, 0xe9}, 9},
         {{0x01, 0x02}, 2},
-        {{}, 0},
-        {{}, 0}
+        {{0x00}, 0},
+        {{0x00}, 0}
     };
     long len = 0;
     unsigned char* returnedBuf = NULL;
@@ -41511,7 +41511,7 @@ static void test_wolfssl_PKCS7(void)
     byte   content[] = "Test data to encode.";
 #if !defined(NO_RSA) & defined(USE_CERT_BUFFERS_2048)
     BIO*   bio;
-    byte   key[sizeof_client_key_der_2048];
+    byte   key[sizeof(client_key_der_2048)];
     word32 keySz = (word32)sizeof(key);
 #endif
 
@@ -41589,8 +41589,8 @@ static void test_wolfSSL_PEM_write_bio_PKCS7(void)
     };
 #ifndef NO_RSA
     #if defined(USE_CERT_BUFFERS_2048)
-        byte        key[sizeof_client_key_der_2048];
-        byte        cert[sizeof_client_cert_der_2048];
+        byte        key[sizeof(client_key_der_2048)];
+        byte        cert[sizeof(client_cert_der_2048)];
         word32      keySz = (word32)sizeof(key);
         word32      certSz = (word32)sizeof(cert);
         XMEMSET(key, 0, keySz);
@@ -41599,7 +41599,7 @@ static void test_wolfSSL_PEM_write_bio_PKCS7(void)
         XMEMCPY(cert, client_cert_der_2048, certSz);
     #elif defined(USE_CERT_BUFFERS_1024)
         byte        key[sizeof_client_key_der_1024];
-        byte        cert[sizeof_client_cert_der_1024];
+        byte        cert[sizeof(sizeof_client_cert_der_1024)];
         word32      keySz = (word32)sizeof(key);
         word32      certSz = (word32)sizeof(cert);
         XMEMSET(key, 0, keySz);
@@ -41625,8 +41625,8 @@ static void test_wolfSSL_PEM_write_bio_PKCS7(void)
     #endif
 #elif defined(HAVE_ECC)
     #if defined(USE_CERT_BUFFERS_256)
-        unsigned char    cert[sizeof_cliecc_cert_der_256];
-        unsigned char    key[sizeof_ecc_clikey_der_256];
+        unsigned char    cert[sizeof(cliecc_cert_der_256)];
+        unsigned char    key[sizeof(ecc_clikey_der_256)];
         int              certSz = (int)sizeof(cert);
         int              keySz = (int)sizeof(key);
         XMEMSET(cert, 0, certSz);
@@ -44161,9 +44161,8 @@ static void test_wolfSSL_ASN1_STRING_print(void){
     ASN1_STRING* asnStr = NULL;
     const char HELLO_DATA[]= \
                       {'H','e','l','l','o',' ','w','o','l','f','S','S','L','!'};
-    const unsigned int MAX_UNPRINTABLE_CHAR = 32;
-    const unsigned int MAX_BUF = 255;
-    const int LF = 10, CR = 13;
+    #define MAX_UNPRINTABLE_CHAR 32
+    #define MAX_BUF 255
     unsigned char unprintableData[MAX_UNPRINTABLE_CHAR + sizeof(HELLO_DATA)];
     unsigned char expected[sizeof(unprintableData)+1];
     unsigned char rbuf[MAX_BUF];
@@ -44183,7 +44182,7 @@ static void test_wolfSSL_ASN1_STRING_print(void){
     for (i = 0; i < (int)MAX_UNPRINTABLE_CHAR; i++) {
         unprintableData[sizeof(HELLO_DATA)+i] = i;
 
-        if (i == LF || i == CR)
+        if (i == (int)'\n' || i == (int)'\r')
             expected[sizeof(HELLO_DATA)+i] = i;
         else
             expected[sizeof(HELLO_DATA)+i] = '.';
