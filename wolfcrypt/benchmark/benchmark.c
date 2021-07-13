@@ -1900,6 +1900,14 @@ static void* benchmarks_do(void* args)
             }
 
             do {
+            #ifdef WOLFCRYPT_HAVE_SAKKE
+                /* SAKKE is not useable with ECDH/ECDSA. Run separate test. */
+                if (curveId == ECC_SAKKE_1) {
+                    curveId++;
+                    continue;
+                }
+            #endif
+
                 if (wc_ecc_get_curve_size_from_id(curveId) !=
                         ECC_BAD_ARG_E) {
                     bench_ecc_curve(curveId);
