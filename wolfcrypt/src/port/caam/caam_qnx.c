@@ -20,6 +20,7 @@
  */
 
 #include "caam_driver.h"
+#include "wolfssl/version.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -1190,8 +1191,9 @@ static int getSupported(char* in)
 #endif
 
 char cannedResponse[] = {
-        "wolfCrypt QNX CAAM driver version 4.8.0\n"
-        "Supports:\n"
+        "wolfCrypt QNX CAAM driver version "
+        LIBWOLFSSL_VERSION_STRING
+        "\nSupports:\n"
         "\tAES-CMAC\n"
         "\tECC (sign, verify, ecdh, keygen)\n"
         "\tBlobs (black and red)\n"
