@@ -1683,7 +1683,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #include "rtprand.h"   /* rtp_rand () */
 #include "rtptime.h"   /* rtp_get_system_msec() */
-
+#warning "potential for not enough entropy, currently being used for testing"
 int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
     word32 i;
@@ -1781,6 +1781,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return 0;
         }
     #else  /* WOLFSSL_PIC32MZ_RNG */
+        #warning "potential for not enough entropy, currently being used for testing"
         /* uses the core timer, in nanoseconds to seed srand */
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
@@ -2078,6 +2079,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     #include <xdc/runtime/Timestamp.h>
     #include <stdlib.h>
+    #warning "potential for not enough entropy, currently being used for testing"
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int i;
@@ -2378,6 +2380,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(WOLFSSL_APACHE_MYNEWT)
 
+    #warning "potential for not enough entropy, currently being used for testing"
     #include <stdlib.h>
     #include "os/os_time.h"
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -2557,6 +2560,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             }
             return myTime;
         }
+        #warning "potential for not enough entropy, currently being used for testing"
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
             int i;
