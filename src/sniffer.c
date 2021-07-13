@@ -1603,7 +1603,7 @@ static int CreateWatchSnifferServer(char* error)
 
 #endif
 
-
+/* Caller locks ServerListMutex */
 static int SetNamedPrivateKey(const char* name, const char* address, int port,
     const char* keyFile, int keySz, int typeKey, const char* password,
     char* error, int isEphemeralKey)
@@ -1658,6 +1658,7 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
             serverIp.version = IPV6;
         }
     }
+
     sniffer = ServerList;
     while (sniffer != NULL &&
             (!MatchAddr(sniffer->server, serverIp) || sniffer->port != port)) {
@@ -2170,6 +2171,12 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 #ifdef WOLF_CRYPTO_CB
     devId = CryptoDeviceId;
 #endif
+
+    if (session->sslServer->arrays == NULL || session->sslClient->arrays == NULL) {
+        /* secret's have already been established and released */
+        /* this can happen with secure renegotiation */
+        return 0;
+    }
 
 #ifndef NO_RSA
     /* Static RSA */
@@ -2773,8 +2780,10 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
         }
         /* store session with macID as sessionID */
         session->sslServer->options.haveSessionId = 1;
-        XMEMCPY(session->sslServer->arrays->sessionID, 
-            input + len - ID_LEN, ID_LEN);
+        if (session->sslServer->arrays) {
+            XMEMCPY(session->sslServer->arrays->sessionID, 
+                input + len - ID_LEN, ID_LEN);
+        }
     }
 
     return 0;
@@ -3011,6 +3020,9 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                          FATAL_ERROR_STATE);
                 return -1;
             }
+        #ifdef DEBUG_SNIFFER
+            printf("\tserver_hello ext: 0x%02x (len %d)\n", extType, extLen);
+        #endif
 
             switch (extType) {
         #ifdef WOLFSSL_TLS13
@@ -3070,7 +3082,14 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                 session->flags.expectEms = 1;
             #endif
                 break;
-            }
+            case EXT_RENEGOTIATION_INFO:
+            #if defined(HAVE_SECURE_RENEGOTIATION) || \
+                defined(HAVE_SERVER_RENEGOTIATION_INFO)
+                session->sslServer->secure_renegotiation->enabled = 1;
+                session->sslClient->secure_renegotiation->enabled = 1;
+            #endif
+                break;
+            } /* switch (extType) */
 
             input     += extLen;
             *sslBytes -= extLen;
@@ -3179,6 +3198,48 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
     return 0;
 }
 
+#ifdef HAVE_SNI
+static int LoadNamedKey(SnifferSession* session, const byte* name, word16 nameSz)
+{
+    int ret = 0;
+    WOLFSSL* ssl = session->sslServer;
+    NamedKey* namedKey;
+
+    wc_LockMutex(&session->context->namedKeysMutex);
+    namedKey = session->context->namedKeys;
+    while (namedKey != NULL) {
+        if (nameSz == namedKey->nameSz &&
+                    XSTRNCMP((char*)name, namedKey->name, nameSz) == 0) {
+        #ifdef WOLFSSL_STATIC_EPHEMERAL
+            if (namedKey->isEphemeralKey) {
+                /* auto detect key type with WC_PK_TYPE_NONE */
+                ret = wolfSSL_set_ephemeral_key(ssl, 
+                    WC_PK_TYPE_NONE, (const char*)namedKey->key, 
+                    namedKey->keySz, WOLFSSL_FILETYPE_ASN1);
+                if (ret == 0)
+                    ret = WOLFSSL_SUCCESS;
+            }
+            else
+        #endif
+            {
+                ret = wolfSSL_use_PrivateKey_buffer(ssl,
+                    namedKey->key, namedKey->keySz, 
+                    WOLFSSL_FILETYPE_ASN1);
+            }
+            if (ret != WOLFSSL_SUCCESS) {
+                ret = -1;
+                break;
+            }
+            session->sni = namedKey->name;
+            break;
+        }
+        else
+            namedKey = namedKey->next;
+    }
+    wc_UnLockMutex(&session->context->namedKeysMutex);
+    return ret;
+}
+#endif
 
 /* Process normal Client Hello */
 static int ProcessClientHello(const byte* input, int* sslBytes,
@@ -3193,65 +3254,6 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
     WOLFSSL* ssl = session->sslServer;
     int didHash = 0;
 
-#ifdef HAVE_SNI
-    {
-        byte name[MAX_SERVER_NAME];
-        word32 nameSz = sizeof(name);
-
-        ret = wolfSSL_SNI_GetFromBuffer(
-                             input - HANDSHAKE_HEADER_SZ - RECORD_HEADER_SZ,
-                             *sslBytes + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ,
-                             WOLFSSL_SNI_HOST_NAME, name, &nameSz);
-
-        if (ret == WOLFSSL_SUCCESS) {
-            NamedKey* namedKey;
-
-            if (nameSz > sizeof(name) - 1)
-                nameSz = sizeof(name) - 1;
-            name[nameSz] = 0;
-            wc_LockMutex(&session->context->namedKeysMutex);
-            namedKey = session->context->namedKeys;
-            while (namedKey != NULL) {
-                if (nameSz == namedKey->nameSz &&
-                           XSTRNCMP((char*)name, namedKey->name, nameSz) == 0) {
-                #ifdef WOLFSSL_STATIC_EPHEMERAL
-                    if (namedKey->isEphemeralKey) {
-                        /* auto detect key type with WC_PK_TYPE_NONE */
-                        ret = wolfSSL_set_ephemeral_key(ssl, 
-                            WC_PK_TYPE_NONE, (const char*)namedKey->key, 
-                            namedKey->keySz, WOLFSSL_FILETYPE_ASN1);
-                        if (ret == 0)
-                            ret = WOLFSSL_SUCCESS;
-                    }
-                    else
-                #endif
-                    {
-                        ret = wolfSSL_use_PrivateKey_buffer(ssl,
-                            namedKey->key, namedKey->keySz, 
-                            WOLFSSL_FILETYPE_ASN1);
-                    }
-                    if (ret != WOLFSSL_SUCCESS) {
-                        wc_UnLockMutex(&session->context->namedKeysMutex);
-                        SetError(CLIENT_HELLO_LATE_KEY_STR, error, session,
-                                                             FATAL_ERROR_STATE);
-                        return -1;
-                    }
-                    session->sni = namedKey->name;
-                    break;
-                }
-                else
-                    namedKey = namedKey->next;
-            }
-            wc_UnLockMutex(&session->context->namedKeysMutex);
-        }
-        /* SSLv3 does not support the SNI TLS Extension and may return SNI_UNSUPPORTED */
-        if (ret > 0 || ret == SNI_UNSUPPORTED) {
-            /* make sure WOLFSSL_SUCCESS is converted to zero error code */
-            ret = 0;
-        }
-    }
-#endif
-
     session->flags.clientHello = 1;  /* don't process again */
 
     /* make sure can read up to session len */
@@ -3264,8 +3266,11 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
     input     += VERSION_SZ;
     *sslBytes -= VERSION_SZ;
 
-    XMEMCPY(session->sslServer->arrays->clientRandom, input, RAN_LEN);
-    XMEMCPY(session->sslClient->arrays->clientRandom, input, RAN_LEN);
+    /* for secure renegotiation server arrays can be NULL */
+    if (session->sslServer->arrays)
+        XMEMCPY(session->sslServer->arrays->clientRandom, input, RAN_LEN);
+    if (session->sslClient->arrays)
+        XMEMCPY(session->sslClient->arrays->clientRandom, input, RAN_LEN);
 
     input     += RAN_LEN;
     *sslBytes -= RAN_LEN;
@@ -3287,7 +3292,8 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
     }
 
 #ifdef SHOW_SECRETS
-    PrintSecret("client random", ssl->arrays->clientRandom, RAN_LEN);
+    if (ssl->arrays)
+        PrintSecret("client random", ssl->arrays->clientRandom, RAN_LEN);
 #endif
 
     input     += bLen;
@@ -3359,7 +3365,46 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
             return -1;
         }
 
+    #ifdef DEBUG_SNIFFER
+        printf("\tclient_hello ext: 0x%02x (len %d)\n", extType, extLen);
+    #endif
+
         switch (extType) {
+    #ifdef HAVE_SNI
+        case EXT_SERVER_NAME:
+        {
+            word16 listLen = 0, offset = 0;
+
+            ato16(input + offset, &listLen);
+            offset += OPAQUE16_LEN;
+
+            if (extLen < offset + listLen)
+                return BUFFER_ERROR;
+
+            while (listLen > ENUM_LEN + OPAQUE16_LEN) {
+                byte   sniType = input[offset++];
+                word16 sniLen;
+
+                ato16(input + offset, &sniLen);
+                offset += OPAQUE16_LEN;
+
+                if (extLen < offset + sniLen)
+                    return BUFFER_ERROR;
+
+                if (sniType == WOLFSSL_SNI_HOST_NAME) {
+                    ret = LoadNamedKey(session, input + offset, sniLen);
+                    if (ret < 0) {
+                        /* don't treat this as fatal error */
+                        SetError(CLIENT_HELLO_LATE_KEY_STR, error, session, 0);
+                        break;
+                    }
+                }
+                offset  += sniLen;
+                listLen -= min(ENUM_LEN + OPAQUE16_LEN + sniLen, listLen);
+            }
+            break;
+        }
+    #endif
     #ifdef WOLFSSL_TLS13
         case EXT_KEY_SHARE:
         {
@@ -3674,6 +3719,9 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
         }
     }
 #endif
+
+
+    /* TODO: Do not free yet if Extension: renegotiation_info (len=1) provided - secure reneg */
 
     /* If receiving a finished message from one side, free the resources
      * from the other side's tracker. */
