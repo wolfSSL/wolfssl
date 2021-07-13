@@ -35193,6 +35193,76 @@ static void test_wolfSSL_BIO_connect(void)
 #endif
 }
 
+#if defined(OPENSSL_ALL) && defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_HTTP_CLIENT)
+static THREAD_RETURN WOLFSSL_THREAD test_wolfSSL_BIO_accept_client(void* args)
+{
+    BIO* clientBio;
+    SSL* sslClient;
+    SSL_CTX* ctx;
+    char connectAddr[20]; /* IP + port */;
+
+    (void)args;
+
+    AssertIntGT(snprintf(connectAddr, sizeof(connectAddr), "%s:%d", wolfSSLIP, wolfSSLPort), 0);
+    AssertNotNull(clientBio = BIO_new_connect(connectAddr));
+    AssertIntEQ(BIO_do_connect(clientBio), 1);
+    AssertNotNull(ctx = SSL_CTX_new(SSLv23_method()));
+    AssertNotNull(sslClient = SSL_new(ctx));
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0), WOLFSSL_SUCCESS);
+    SSL_set_bio(sslClient, clientBio, clientBio);
+    AssertIntEQ(SSL_connect(sslClient), 1);
+
+    SSL_free(sslClient);
+    SSL_CTX_free(ctx);
+
+    return 0;
+}
+#endif
+
+static void test_wolfSSL_BIO_accept(void)
+{
+#if defined(OPENSSL_ALL) && defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_HTTP_CLIENT)
+
+    BIO* serverBindBio;
+    BIO* serverAcceptBio;
+    SSL* sslServer;
+    SSL_CTX* ctx;
+    func_args args;
+    THREAD_TYPE thread;
+    char port[10]; /* 10 bytes should be enough to store the string
+                    * representation of the port */
+
+    printf(testingFmt, "wolfSSL_BIO_new_accept()");
+
+    AssertIntGT(snprintf(port, sizeof(port), "%d", wolfSSLPort), 0);
+    AssertNotNull(serverBindBio = BIO_new_accept(port));
+
+    /* First BIO_do_accept binds the port */
+    AssertIntEQ(BIO_do_accept(serverBindBio), 1);
+
+    XMEMSET(&args, 0, sizeof(func_args));
+    start_thread(test_wolfSSL_BIO_accept_client, &args, &thread);
+
+    AssertIntEQ(BIO_do_accept(serverBindBio), 1);
+    /* Let's plug it into SSL to test */
+    AssertNotNull(ctx = SSL_CTX_new(SSLv23_method()));
+    AssertIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    AssertNotNull(sslServer = SSL_new(ctx));
+    AssertNotNull(serverAcceptBio = BIO_pop(serverBindBio));
+    SSL_set_bio(sslServer, serverAcceptBio, serverAcceptBio);
+    AssertIntEQ(SSL_accept(sslServer), 1);
+
+    join_thread(thread);
+
+    BIO_free(serverBindBio);
+    SSL_free(sslServer);
+    SSL_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_BIO_write(void)
 {
     #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_BASE64_ENCODE)
@@ -46841,6 +46911,7 @@ void ApiTest(void)
     test_wolfSSL_d2i_PUBKEY();
     test_wolfSSL_BIO_write();
     test_wolfSSL_BIO_connect();
+    test_wolfSSL_BIO_accept();
     test_wolfSSL_BIO_printf();
     test_wolfSSL_BIO_f_md();
 #endif
