@@ -37,6 +37,8 @@
 #define RSA_R_UNKNOWN_PADDING_TYPE              RSA_PAD_E
 #define EC_R_BUFFER_TOO_SMALL                   BUFFER_E
 
+#define ERR_TXT_MALLOCED                        1
+
 /* SSL function codes */
 #define RSA_F_RSA_OSSL_PRIVATE_ENCRYPT          1
 #define SSL_F_SSL_CTX_USE_CERTIFICATE_FILE      2
