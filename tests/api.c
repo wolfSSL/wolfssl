@@ -30601,7 +30601,8 @@ static void test_wolfSSL_Tls12_Key_Logging_test(void)
 }
 static void test_wolfSSL_Tls13_Key_Logging_test(void)
 {
- #if defined(OPENSSL_EXTRA) && defined(HAVE_SECRET_CALLBACK)
+ #if defined(WOLFSSL_TLS13) && defined(OPENSSL_EXTRA) && \
+    defined(HAVE_SECRET_CALLBACK)
  /* This test is intended for checking whether keylog callback is called
   * in client during TLS handshake between the client and a server.
   */
