@@ -4771,6 +4771,16 @@ int Ed25519CheckPubKey(WOLFSSL* ssl)
 int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
                 word32* outSz, ed25519_key* key, DerBuffer* keyBufInfo)
 {
+#ifndef HAVE_ED25519_SIGN
+    (void)ssl;
+    (void)in;
+    (void)inSz;
+    (void)out;
+    (void)outSz;
+    (void)key;
+    (void)keyBufInfo;
+    return NOT_COMPILED_IN;
+#else /* HAVE_ED25519_SIGN */
     int ret;
 #ifdef HAVE_PK_CALLBACKS
     const byte* keyBuf = NULL;
@@ -4816,6 +4826,7 @@ int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
     WOLFSSL_LEAVE("Ed25519Sign", ret);
 
     return ret;
+#endif /* HAVE_ED25519_SIGN */
 }
 
 /* Verify the data using EdDSA and key using Ed25519.
@@ -4833,6 +4844,16 @@ int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 int Ed25519Verify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
                   word32 msgSz, ed25519_key* key, buffer* keyBufInfo)
 {
+#ifndef HAVE_ED25519_VERIFY
+    (void)ssl;
+    (void)in;
+    (void)inSz;
+    (void)msg;
+    (void)msgSz;
+    (void)key;
+    (void)keyBufInfo;
+    return NOT_COMPILED_IN;
+#else /* HAVE_ED25519_VERIFY */
     int ret;
 #ifdef HAVE_PK_CALLBACKS
     const byte* keyBuf = NULL;
@@ -4883,6 +4904,7 @@ int Ed25519Verify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
     WOLFSSL_LEAVE("Ed25519Verify", ret);
 
     return ret;
+#endif /* HAVE_ED25519_VERIFY */
 }
 #endif /* HAVE_ED25519 */
 
@@ -5078,6 +5100,16 @@ int Ed448CheckPubKey(WOLFSSL* ssl)
 int Ed448Sign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
               word32* outSz, ed448_key* key, DerBuffer* keyBufInfo)
 {
+#ifndef HAVE_ED448_SIGN
+    (void)ssl;
+    (void)in;
+    (void)inSz;
+    (void)out;
+    (void)outSz;
+    (void)key;
+    (void)keyBufInfo;
+    return NOT_COMPILED_IN;
+#else /* HAVE_ED448_SIGN */
     int ret;
 #ifdef HAVE_PK_CALLBACKS
     const byte* keyBuf = NULL;
@@ -5123,6 +5155,7 @@ int Ed448Sign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
     WOLFSSL_LEAVE("Ed448Sign", ret);
 
     return ret;
+#endif /* HAVE_ED448_SIGN */
 }
 
 /* Verify the data using EdDSA and key using Ed448.
@@ -5140,6 +5173,16 @@ int Ed448Sign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 int Ed448Verify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
                 word32 msgSz, ed448_key* key, buffer* keyBufInfo)
 {
+#ifndef HAVE_ED448_VERIFY
+    (void)ssl;
+    (void)in;
+    (void)inSz;
+    (void)msg;
+    (void)msgSz;
+    (void)key;
+    (void)keyBufInfo;
+    return NOT_COMPILED_IN;
+#else /* HAVE_ED448_VERIFY */
     int ret;
 #ifdef HAVE_PK_CALLBACKS
     const byte* keyBuf = NULL;
@@ -5190,6 +5233,7 @@ int Ed448Verify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
     WOLFSSL_LEAVE("Ed448Verify", ret);
 
     return ret;
+#endif /* HAVE_ED448_VERIFY */
 }
 #endif /* HAVE_ED448 */
 

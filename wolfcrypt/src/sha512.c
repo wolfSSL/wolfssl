@@ -544,14 +544,14 @@ static int _Transform_Sha512(wc_Sha512* sha512)
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     word64* W = sha512->W;
     if (W == NULL) {
-        W = (word64*)XMALLOC(sizeof(word64) * 16, NULL,DYNAMIC_TYPE_TMP_BUFFER);
+        W = (word64*)XMALLOC(sizeof(word64) * 16, sha512->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (W == NULL)
             return MEMORY_E;
         sha512->W = W;
     }
 #elif defined(WOLFSSL_SMALL_STACK)
     word64* W;
-    W = (word64*) XMALLOC(sizeof(word64) * 16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    W = (word64*) XMALLOC(sizeof(word64) * 16, sha512->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (W == NULL)
         return MEMORY_E;
 #else
@@ -595,7 +595,7 @@ static int _Transform_Sha512(wc_Sha512* sha512)
     ForceZero(T, sizeof(T));
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
-    XFREE(W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(W, sha512->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return 0;
@@ -940,7 +940,7 @@ void wc_Sha512Free(wc_Sha512* sha512)
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     if (sha512->W != NULL) {
-        XFREE(sha512->W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(sha512->W, sha512->heap, DYNAMIC_TYPE_TMP_BUFFER);
         sha512->W = NULL;
     }
 #endif
@@ -960,7 +960,7 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
     /* back up buffer */
     #if defined(WOLFSSL_SMALL_STACK)
     word64* buffer;
-    buffer = (word64*) XMALLOC(sizeof(word64) * 16, NULL, 
+    buffer = (word64*) XMALLOC(sizeof(word64) * 16, sha->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
     if (buffer == NULL)
         return MEMORY_E;
@@ -971,7 +971,7 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
     /* sanity check */
     if (sha == NULL || data == NULL) {
         #if defined(WOLFSSL_SMALL_STACK)
-        XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(buffer, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
         return BAD_FUNC_ARG;
     }
@@ -998,7 +998,7 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 
     XMEMCPY(sha->buffer, buffer, WC_SHA512_BLOCK_SIZE);
     #if defined(WOLFSSL_SMALL_STACK)
-    XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(buffer, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
     return ret;
 }
@@ -1191,7 +1191,7 @@ void wc_Sha384Free(wc_Sha384* sha384)
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     if (sha384->W != NULL) {
-        XFREE(sha384->W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(sha384->W, sha384->heap, DYNAMIC_TYPE_TMP_BUFFER);
         sha384->W = NULL;
     }
 #endif

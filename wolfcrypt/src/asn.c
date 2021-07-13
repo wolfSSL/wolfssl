@@ -7904,7 +7904,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     break;
                 }
             #endif /* HAVE_ECC */
-            #ifdef HAVE_ED25519
+            #if defined(HAVE_ED25519) && defined(HAVE_ED25519_VERIFY)
                 case ED25519k:
                 {
                     ret = wc_ed25519_verify_msg(sig, sigSz, buf, bufSz,
@@ -7912,7 +7912,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     break;
                 }
             #endif
-            #ifdef HAVE_ED448
+            #if defined(HAVE_ED448) && defined(HAVE_ED448_VERIFY)
                 case ED448k:
                 {
                     ret = wc_ed448_verify_msg(sig, sigSz, buf, bufSz,
@@ -14322,7 +14322,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, int sz,
         }
     #endif /* HAVE_ECC */
 
-    #ifdef HAVE_ED25519
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_SIGN)
         if (!rsaKey && !eccKey && ed25519Key) {
             word32 outSz = sigSz;
 
@@ -14330,9 +14330,9 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, int sz,
             if (ret == 0)
                 ret = outSz;
         }
-    #endif /* HAVE_ECC */
+    #endif /* HAVE_ED25519 && HAVE_ED25519_SIGN */
 
-    #ifdef HAVE_ED448
+    #if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN)
         if (!rsaKey && !eccKey && !ed25519Key && ed448Key) {
             word32 outSz = sigSz;
 
@@ -14340,7 +14340,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, int sz,
             if (ret == 0)
                 ret = outSz;
         }
-    #endif /* HAVE_ECC */
+    #endif /* HAVE_ED448 && HAVE_ED448_SIGN */
         break;
     }
 

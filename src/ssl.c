@@ -47205,8 +47205,12 @@ int wolfSSL_ED25519_sign(const unsigned char *msg, unsigned int msgSz,
                          const unsigned char *priv, unsigned int privSz,
                          unsigned char *sig, unsigned int *sigSz)
 {
-#ifndef WOLFSSL_KEY_GEN
-    WOLFSSL_MSG("No Key Gen built in");
+#if !defined(HAVE_ED25519_SIGN) || !defined(WOLFSSL_KEY_GEN)
+#if !defined(HAVE_ED25519_SIGN)
+    WOLFSSL_MSG("No ED25519 sign built in");
+#elif !defined(WOLFSSL_KEY_GEN)
+     WOLFSSL_MSG("No Key Gen built in");
+#endif
     (void) msg;
     (void) msgSz;
     (void) priv;
@@ -47214,7 +47218,7 @@ int wolfSSL_ED25519_sign(const unsigned char *msg, unsigned int msgSz,
     (void) sig;
     (void) sigSz;
     return WOLFSSL_FAILURE;
-#else /* WOLFSSL_KEY_GEN */
+#else /* HAVE_ED25519_SIGN && WOLFSSL_KEY_GEN */
     ed25519_key key;
     int ret = WOLFSSL_FAILURE;
 
@@ -47247,7 +47251,7 @@ int wolfSSL_ED25519_sign(const unsigned char *msg, unsigned int msgSz,
     wc_ed25519_free(&key);
 
     return ret;
-#endif /* WOLFSSL_KEY_GEN */
+#endif /* HAVE_ED25519_SIGN && WOLFSSL_KEY_GEN */
 }
 
 /* return 1 if success, 0 if error
@@ -47258,8 +47262,12 @@ int wolfSSL_ED25519_verify(const unsigned char *msg, unsigned int msgSz,
                            const unsigned char *pub, unsigned int pubSz,
                            const unsigned char *sig, unsigned int sigSz)
 {
-#ifndef WOLFSSL_KEY_GEN
-    WOLFSSL_MSG("No Key Gen built in");
+#if !defined(HAVE_ED25519_VERIFY) || !defined(WOLFSSL_KEY_GEN)
+#if !defined(HAVE_ED25519_VERIFY)
+    WOLFSSL_MSG("No ED25519 verify built in");
+#elif !defined(WOLFSSL_KEY_GEN)
+     WOLFSSL_MSG("No Key Gen built in");
+#endif
     (void) msg;
     (void) msgSz;
     (void) pub;
@@ -47267,7 +47275,7 @@ int wolfSSL_ED25519_verify(const unsigned char *msg, unsigned int msgSz,
     (void) sig;
     (void) sigSz;
     return WOLFSSL_FAILURE;
-#else /* WOLFSSL_KEY_GEN */
+#else /* HAVE_ED25519_VERIFY && WOLFSSL_KEY_GEN */
     ed25519_key key;
     int ret = WOLFSSL_FAILURE, check = 0;
 
@@ -47302,7 +47310,7 @@ int wolfSSL_ED25519_verify(const unsigned char *msg, unsigned int msgSz,
     wc_ed25519_free(&key);
 
     return ret;
-#endif /* WOLFSSL_KEY_GEN */
+#endif /* HAVE_ED25519_VERIFY && WOLFSSL_KEY_GEN */
 }
 
 #endif /* OPENSSL_EXTRA && HAVE_ED25519 */
@@ -47538,8 +47546,12 @@ int wolfSSL_ED448_sign(const unsigned char *msg, unsigned int msgSz,
                        const unsigned char *priv, unsigned int privSz,
                        unsigned char *sig, unsigned int *sigSz)
 {
-#ifndef WOLFSSL_KEY_GEN
+#if !defined(HAVE_ED448_SIGN) || !defined(WOLFSSL_KEY_GEN)
+#if !defined(HAVE_ED448_SIGN)
+    WOLFSSL_MSG("No ED448 sign built in");
+#elif !defined(WOLFSSL_KEY_GEN)
     WOLFSSL_MSG("No Key Gen built in");
+#endif
     (void) msg;
     (void) msgSz;
     (void) priv;
@@ -47547,7 +47559,7 @@ int wolfSSL_ED448_sign(const unsigned char *msg, unsigned int msgSz,
     (void) sig;
     (void) sigSz;
     return WOLFSSL_FAILURE;
-#else /* WOLFSSL_KEY_GEN */
+#else /* HAVE_ED448_SIGN && WOLFSSL_KEY_GEN */
     ed448_key key;
     int ret = WOLFSSL_FAILURE;
 
@@ -47579,7 +47591,7 @@ int wolfSSL_ED448_sign(const unsigned char *msg, unsigned int msgSz,
     wc_ed448_free(&key);
 
     return ret;
-#endif /* WOLFSSL_KEY_GEN */
+#endif /* HAVE_ED448_SIGN && WOLFSSL_KEY_GEN */
 }
 
 /* return 1 if success, 0 if error
@@ -47590,8 +47602,12 @@ int wolfSSL_ED448_verify(const unsigned char *msg, unsigned int msgSz,
                          const unsigned char *pub, unsigned int pubSz,
                          const unsigned char *sig, unsigned int sigSz)
 {
-#ifndef WOLFSSL_KEY_GEN
+#if !defined(HAVE_ED448_VERIFY) || !defined(WOLFSSL_KEY_GEN)
+#if !defined(HAVE_ED448_VERIFY)
+    WOLFSSL_MSG("No ED448 verify built in");
+#elif !defined(WOLFSSL_KEY_GEN)
     WOLFSSL_MSG("No Key Gen built in");
+#endif
     (void) msg;
     (void) msgSz;
     (void) pub;
@@ -47599,7 +47615,7 @@ int wolfSSL_ED448_verify(const unsigned char *msg, unsigned int msgSz,
     (void) sig;
     (void) sigSz;
     return WOLFSSL_FAILURE;
-#else /* WOLFSSL_KEY_GEN */
+#else /* HAVE_ED448_VERIFY && WOLFSSL_KEY_GEN */
     ed448_key key;
     int ret = WOLFSSL_FAILURE, check = 0;
 
@@ -47634,7 +47650,7 @@ int wolfSSL_ED448_verify(const unsigned char *msg, unsigned int msgSz,
     wc_ed448_free(&key);
 
     return ret;
-#endif /* WOLFSSL_KEY_GEN */
+#endif /* HAVE_ED448_VERIFY && WOLFSSL_KEY_GEN */
 }
 
 #endif /* OPENSSL_EXTRA && HAVE_ED448 */

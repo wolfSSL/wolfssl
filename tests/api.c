@@ -2608,22 +2608,28 @@ static void test_ED25519(void)
     unsigned int privSz = (unsigned int)sizeof(priv);
     byte         pub[ED25519_PUB_KEY_SIZE];
     unsigned int pubSz = (unsigned int)sizeof(pub);
+#ifdef HAVE_ED25519_SIGN
     const char*  msg = TEST_STRING;
     unsigned int msglen = (unsigned int)TEST_STRING_SZ;
     byte         sig[ED25519_SIG_SIZE];
     unsigned int sigSz = (unsigned int)sizeof(sig);
+#endif /* HAVE_ED25519_SIGN */
 
     AssertIntEQ(wolfSSL_ED25519_generate_key(priv, &privSz, pub, &pubSz),
                 WOLFSSL_SUCCESS);
     AssertIntEQ(privSz, ED25519_PRV_KEY_SIZE);
     AssertIntEQ(pubSz, ED25519_PUB_KEY_SIZE);
 
+#ifdef HAVE_ED25519_SIGN
     AssertIntEQ(wolfSSL_ED25519_sign((byte*)msg, msglen, priv, privSz, sig,
                                       &sigSz), WOLFSSL_SUCCESS);
     AssertIntEQ(sigSz, ED25519_SIG_SIZE);
 
+#ifdef HAVE_ED25519_VERIFY
     AssertIntEQ(wolfSSL_ED25519_verify((byte*)msg, msglen, pub, pubSz, sig,
                                        sigSz), WOLFSSL_SUCCESS);
+#endif /* HAVE_ED25519_VERIFY */
+#endif /* HAVE_ED25519_SIGN */
 #endif /* HAVE_ED25519 && WOLFSSL_KEY_GEN */
 }
 
@@ -2634,22 +2640,28 @@ static void test_ED448(void)
     unsigned int privSz = (unsigned int)sizeof(priv);
     byte         pub[ED448_PUB_KEY_SIZE];
     unsigned int pubSz = (unsigned int)sizeof(pub);
+#ifdef HAVE_ED448_SIGN
     const char*  msg = TEST_STRING;
     unsigned int msglen = (unsigned int)TEST_STRING_SZ;
     byte         sig[ED448_SIG_SIZE];
     unsigned int sigSz = (unsigned int)sizeof(sig);
+#endif /* HAVE_ED448_SIGN */
 
     AssertIntEQ(wolfSSL_ED448_generate_key(priv, &privSz, pub, &pubSz),
                 WOLFSSL_SUCCESS);
     AssertIntEQ(privSz, ED448_PRV_KEY_SIZE);
     AssertIntEQ(pubSz, ED448_PUB_KEY_SIZE);
 
+#ifdef HAVE_ED448_SIGN
     AssertIntEQ(wolfSSL_ED448_sign((byte*)msg, msglen, priv, privSz, sig,
                                    &sigSz), WOLFSSL_SUCCESS);
     AssertIntEQ(sigSz, ED448_SIG_SIZE);
 
+#ifdef HAVE_ED448_VERIFY
     AssertIntEQ(wolfSSL_ED448_verify((byte*)msg, msglen, pub, pubSz, sig,
                                      sigSz), WOLFSSL_SUCCESS);
+#endif /* HAVE_ED448_VERIFY */
+#endif /* HAVE_ED448_SIGN */
 #endif /* HAVE_ED448 && WOLFSSL_KEY_GEN */
 }
 #endif /* OPENSSL_EXTRA */
@@ -18723,7 +18735,9 @@ static int test_wc_ed25519_sign_msg (void)
     word32          msglen = sizeof(msg);
     word32          siglen = sizeof(sig);
     word32          badSigLen = sizeof(sig) - 1;
+#ifdef HAVE_ED25519_VERIFY
     int             verify_ok = 0; /*1 = Verify success.*/
+#endif
 
     /* Initialize stack variables. */
     XMEMSET(sig, 0, siglen);
@@ -18902,6 +18916,8 @@ static int test_wc_ed25519_import_private_key (void)
     const byte  pubKey[] = "Ed25519PublicKeyUnitTest......\n";
     word32      privKeySz = sizeof(privKey);
     word32      pubKeySz = sizeof(pubKey);
+    byte        bothKeys[sizeof(privKey) + sizeof(pubKey)];
+    word32      bothKeysSz = sizeof(bothKeys);
 
     ret = wc_InitRng(&rng);
     if (ret != 0) {
@@ -18925,6 +18941,19 @@ static int test_wc_ed25519_import_private_key (void)
         }
     }
 
+#ifdef HAVE_ED25519_KEY_EXPORT
+    if (ret == 0)
+        ret = wc_ed25519_export_private(&key, bothKeys, &bothKeysSz);
+
+    if (ret == 0) {
+        ret = wc_ed25519_import_private_key(bothKeys, bothKeysSz, NULL, 0, &key);
+        if (ret == 0 && (XMEMCMP(pubKey, key.p, privKeySz) != 0
+                                || XMEMCMP(privKey, key.k, pubKeySz) != 0)) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+#endif
+
     /* Test bad args. */
     if (ret == 0) {
         ret = wc_ed25519_import_private_key(NULL, privKeySz, pubKey, pubKeySz,
@@ -18944,6 +18973,10 @@ static int test_wc_ed25519_import_private_key (void)
         if (ret == BAD_FUNC_ARG) {
             ret = wc_ed25519_import_private_key(privKey, privKeySz, pubKey,
                                                             pubKeySz - 1, &key);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ed25519_import_private_key(privKey, privKeySz, NULL,
+                                                            0, &key);
         }
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
@@ -20514,7 +20547,9 @@ static int test_wc_ed448_sign_msg (void)
     word32        msglen = sizeof(msg);
     word32        siglen = sizeof(sig);
     word32        badSigLen = sizeof(sig) - 1;
+#ifdef HAVE_ED448_VERIFY
     int           verify_ok = 0; /*1 = Verify success.*/
+#endif
 
     /* Initialize stack variables. */
     XMEMSET(sig, 0, siglen);
@@ -20700,6 +20735,8 @@ static int test_wc_ed448_import_private_key (void)
                     "Ed448PublicKeyUnitTest.................................\n";
     word32      privKeySz = sizeof(privKey);
     word32      pubKeySz = sizeof(pubKey);
+    byte        bothKeys[sizeof(privKey) + sizeof(pubKey)];
+    word32      bothKeysSz = sizeof(bothKeys);
 
     ret = wc_InitRng(&rng);
     if (ret != 0) {
@@ -20723,6 +20760,19 @@ static int test_wc_ed448_import_private_key (void)
         }
     }
 
+#ifdef HAVE_ED448_KEY_EXPORT
+    if (ret == 0)
+        ret = wc_ed448_export_private(&key, bothKeys, &bothKeysSz);
+
+    if (ret == 0) {
+        ret = wc_ed448_import_private_key(bothKeys, bothKeysSz, NULL, 0, &key);
+        if (ret == 0 && (XMEMCMP(pubKey, key.p, privKeySz) != 0 ||
+                                      XMEMCMP(privKey, key.k, pubKeySz) != 0)) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+#endif
+
     /* Test bad args. */
     if (ret == 0) {
         ret = wc_ed448_import_private_key(NULL, privKeySz, pubKey, pubKeySz,
@@ -20743,6 +20793,11 @@ static int test_wc_ed448_import_private_key (void)
             ret = wc_ed448_import_private_key(privKey, privKeySz, pubKey,
                                                             pubKeySz - 1, &key);
         }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ed448_import_private_key(privKey, privKeySz, NULL,
+                                                            0, &key);
+        }
+
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         } else if (ret == 0) {

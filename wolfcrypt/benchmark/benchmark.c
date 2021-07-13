@@ -5953,8 +5953,8 @@ void bench_ed25519KeySign(void)
     byte   sig[ED25519_SIG_SIZE];
     byte   msg[512];
     word32 x = 0;
-#endif
     const char**desc = bench_desc_words[lng_index];
+#endif
 
     wc_ed25519_init(&genKey);
 
@@ -6110,8 +6110,8 @@ void bench_ed448KeySign(void)
     byte   sig[ED448_SIG_SIZE];
     byte   msg[512];
     word32 x = 0;
-#endif
     const char**desc = bench_desc_words[lng_index];
+#endif
 
     wc_ed448_init(&genKey);
 

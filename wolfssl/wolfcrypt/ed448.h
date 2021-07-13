@@ -34,6 +34,9 @@
 #include <wolfssl/wolfcrypt/fe_448.h>
 #include <wolfssl/wolfcrypt/ge_448.h>
 #include <wolfssl/wolfcrypt/random.h>
+#ifndef WOLFSSL_SHAKE256
+#error ED448 requires SHAKE256
+#endif
 #include <wolfssl/wolfcrypt/sha3.h>
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -86,6 +89,12 @@ struct ed448_key {
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif
+#if defined(WOLF_CRYPTO_CB)
+    int devId;
+#endif
+    void *heap;
+    wc_Shake sha;
+    int sha_clean_flag;
 };
 
 
@@ -94,6 +103,7 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey,
                          word32 pubKeySz);
 WOLFSSL_API
 int wc_ed448_make_key(WC_RNG* rng, int keysize, ed448_key* key);
+#ifdef HAVE_ED448_SIGN
 WOLFSSL_API
 int wc_ed448_sign_msg(const byte* in, word32 inLen, byte* out, word32 *outLen,
                       ed448_key* key, const byte* context, byte contextLen);
@@ -102,9 +112,28 @@ int wc_ed448ph_sign_hash(const byte* hash, word32 hashLen, byte* out,
                          word32 *outLen, ed448_key* key,
                          const byte* context, byte contextLen);
 WOLFSSL_API
+int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
+                         word32 *outLen, ed448_key* key, byte type,
+                         const byte* context, byte contextLen);
+WOLFSSL_API
 int wc_ed448ph_sign_msg(const byte* in, word32 inLen, byte* out,
                         word32 *outLen, ed448_key* key, const byte* context,
                         byte contextLen);
+#endif /* HAVE_ED448_SIGN */
+#ifdef HAVE_ED448_VERIFY
+WOLFSSL_API
+int wc_ed448_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
+                            word32 msgLen, int* res, ed448_key* key,
+                            byte type, const byte* context, byte contextLen);
+WOLFSSL_API
+int wc_ed448_verify_msg_init(const byte* sig, word32 sigLen, ed448_key* key,
+                        byte type, const byte* context, byte contextLen);
+WOLFSSL_API
+int wc_ed448_verify_msg_update(const byte* msgSegment, word32 msgSegmentLen,
+                             ed448_key* key);
+WOLFSSL_API
+int wc_ed448_verify_msg_final(const byte* sig, word32 sigLen,
+                              int* stat, ed448_key* key);
 WOLFSSL_API
 int wc_ed448_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
                         word32 msgLen, int* stat, ed448_key* key,
@@ -117,6 +146,9 @@ WOLFSSL_API
 int wc_ed448ph_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
                           word32 msgLen, int* stat, ed448_key* key,
                           const byte* context, byte contextLen);
+#endif /* HAVE_ED448_VERIFY */
+WOLFSSL_API
+int wc_ed448_init_ex(ed448_key* key, void *heap, int devId);
 WOLFSSL_API
 int wc_ed448_init(ed448_key* key);
 WOLFSSL_API
