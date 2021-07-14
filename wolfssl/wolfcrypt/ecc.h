@@ -722,8 +722,8 @@ WOLFSSL_API
 int wc_ecc_import_raw_ex(ecc_key* key, const char* qx, const char* qy,
                    const char* d, int curve_id);
 WOLFSSL_API
-int wc_ecc_import_unsigned(ecc_key* key, byte* qx, byte* qy,
-                   byte* d, int curve_id);
+int wc_ecc_import_unsigned(ecc_key* key, const byte* qx, const byte* qy,
+                   const byte* d, int curve_id);
 #endif /* HAVE_ECC_KEY_IMPORT */
 
 #ifdef HAVE_ECC_KEY_EXPORT
