@@ -2257,12 +2257,12 @@ fi
 
 # ECC encrypt
 AC_ARG_ENABLE([eccencrypt],
-    [AS_HELP_STRING([--enable-eccencrypt],[Enable ECC encrypt (default: disabled)])],
+    [AS_HELP_STRING([--enable-eccencrypt],[Enable ECC encrypt (default: disabled). yes = SEC1 standard, iso18033 = ISO 18033 standard, old = original wolfSSL algorithm])],
     [ ENABLED_ECC_ENCRYPT=$enableval ],
     [ ENABLED_ECC_ENCRYPT=no ]
     )
 
-if test "$ENABLED_ECC_ENCRYPT" = "yes"
+if test "$ENABLED_ECC_ENCRYPT" != "no"
 then
     if test "$ENABLED_ECC" = "no"
     then
@@ -2273,6 +2273,14 @@ then
         AC_MSG_ERROR([cannot enable eccencrypt without enabling hkdf.])
     fi
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_ENCRYPT"
+    if test "$ENABLED_ECC_ENCRYPT" = "old"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECIES_OLD"
+    fi
+    if test "$ENABLED_ECC_ENCRYPT" = "iso18033"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECIES_ISO18033"
+    fi
 fi
 
 # Elliptic Curve-Based Certificateless Signatures for Identity-Based Encryption (ECCSI)
