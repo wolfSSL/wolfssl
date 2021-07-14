@@ -1,0 +1,21 @@
+name: ubuntu-latest
+
+on: [push, pull_request]
+
+jobs:
+  ubuntu-latest:
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v1
+    - name: autogen.sh
+      run: ./autogen.sh
+    - name: configure
+      run: ./configure
+    - name: make
+      run: make
+    - name: make check
+      run: make check || (cat ./test-suite.log && exit 1)
+    - name: make distcheck
+      run: make distcheck
