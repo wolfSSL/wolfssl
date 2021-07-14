@@ -231,8 +231,10 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 
     static int  SessionSecret_callback(WOLFSSL* ssl, void* secret,
                                                   int* secretSz, void* ctx);
+#ifdef WOLFSSL_TLS13
     static int  SessionSecret_callback_Tls13(WOLFSSL* ssl, int id,
                        const unsigned char* secret, int secretSz, void* ctx);
+#endif
 
     /*
      * This function builds up string for key-logging then call user's
