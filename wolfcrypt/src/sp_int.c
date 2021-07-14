@@ -12209,8 +12209,7 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
         err = MP_VAL;
     }
 
-    /* Extra digit added to SP_INT_DIGITS to be used in calculations. */
-    if ((err == MP_OKAY) && (inSz > ((word32)a->size - 1) * SP_WORD_SIZEOF)) {
+    if ((err == MP_OKAY) && (inSz > (word32)a->size * SP_WORD_SIZEOF)) {
         err = MP_VAL;
     }
 
@@ -12219,6 +12218,8 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
         int i;
         int j;
         int s;
+
+        a->used = (inSz + SP_WORD_SIZEOF - 1) / SP_WORD_SIZEOF;
 
     #ifndef WOLFSSL_SP_INT_DIGIT_ALIGN
         for (i = inSz-1,j = 0; i > SP_WORD_SIZEOF-1; i -= SP_WORD_SIZEOF,j++) {
@@ -12243,11 +12244,13 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
             j++;
         }
     #endif
-        a->dp[j] = 0;
-        for (s = 0; i >= 0; i--,s += 8) {
-            a->dp[j] |= ((sp_int_digit)in[i]) << s;
+        if (i >= 0) {
+            a->dp[a->used - 1] = 0;
+            for (s = 0; i >= 0; i--,s += 8) {
+                a->dp[j] |= ((sp_int_digit)in[i]) << s;
+            }
         }
-        a->used = j + 1;
+
         sp_clamp(a);
     }
 #else
@@ -12274,7 +12277,6 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
         #endif
             j++;
         }
-        a->dp[j] = 0;
 
     #if SP_WORD_SIZE >= 16
         if (i >= 0) {
