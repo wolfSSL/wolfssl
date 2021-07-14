@@ -25143,7 +25143,9 @@ WOLFSSL_TEST_SUBROUTINE int ed25519_test(void)
     int    i;
     word32 outlen;
 #ifdef HAVE_ED25519_VERIFY
+#ifdef WOLFSSL_ED25519_STREAMING_VERIFY
     int    j;
+#endif
     int    verify;
 #endif /* HAVE_ED25519_VERIFY */
 #endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_EXPORT && HAVE_ED25519_KEY_IMPORT */
@@ -25551,6 +25553,7 @@ WOLFSSL_TEST_SUBROUTINE int ed25519_test(void)
                     &key) != 0 || verify != 1)
             return -11031 - i;
 
+#ifdef WOLFSSL_ED25519_STREAMING_VERIFY
         /* test verify on good msg using streaming interface directly */
         if (wc_ed25519_verify_msg_init(out, outlen,
                                        &key, (byte)Ed25519, NULL, 0) != 0)
@@ -25562,6 +25565,7 @@ WOLFSSL_TEST_SUBROUTINE int ed25519_test(void)
         if (wc_ed25519_verify_msg_final(out, outlen, &verify,
                                         &key) != 0 || verify != 1)
             return -11231 - i;
+#endif /* WOLFSSL_ED25519_STREAMING_VERIFY */
 
         /* test verify on bad msg */
         out[outlen-1] = out[outlen-1] + 1;
@@ -26455,7 +26459,9 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
     int    i;
     word32 outlen;
 #ifdef HAVE_ED448_VERIFY
+#ifdef WOLFSSL_ED448_STREAMING_VERIFY
     int    j;
+#endif /* WOLFSSL_ED448_STREAMING_VERIFY */
     int    verify;
 #endif /* HAVE_ED448_VERIFY */
 #endif /* HAVE_ED448_SIGN && HAVE_ED448_KEY_EXPORT && HAVE_ED448_KEY_IMPORT */
@@ -26966,6 +26972,7 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
             return -11731 - i;
         }
 
+#ifdef WOLFSSL_ED448_STREAMING_VERIFY
         /* test verify on good msg using streaming interface directly */
         if (wc_ed448_verify_msg_init(out, outlen,
                                        &key, (byte)Ed448, NULL, 0) != 0)
@@ -26977,6 +26984,7 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
         if (wc_ed448_verify_msg_final(out, outlen, &verify,
                                         &key) != 0 || verify != 1)
             return -11931 - i;
+#endif /* WOLFSSL_ED448_STREAMING_VERIFY */
 
         /* test verify on bad msg */
         out[outlen-2] = out[outlen-2] + 1;

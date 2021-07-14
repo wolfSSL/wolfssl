@@ -65,6 +65,7 @@
 /* both private and public key */
 #define ED448_PRV_KEY_SIZE (ED448_PUB_KEY_SIZE+ED448_KEY_SIZE)
 
+#define ED448_PREHASH_SIZE 64
 
 enum {
     Ed448    = 0,
@@ -93,8 +94,10 @@ struct ed448_key {
     int devId;
 #endif
     void *heap;
+#ifdef WOLFSSL_ED448_PERSISTENT_SHA
     wc_Shake sha;
     int sha_clean_flag;
+#endif
 };
 
 
@@ -125,6 +128,7 @@ WOLFSSL_API
 int wc_ed448_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
                             word32 msgLen, int* res, ed448_key* key,
                             byte type, const byte* context, byte contextLen);
+#ifdef WOLFSSL_ED448_STREAMING_VERIFY
 WOLFSSL_API
 int wc_ed448_verify_msg_init(const byte* sig, word32 sigLen, ed448_key* key,
                         byte type, const byte* context, byte contextLen);
@@ -134,6 +138,7 @@ int wc_ed448_verify_msg_update(const byte* msgSegment, word32 msgSegmentLen,
 WOLFSSL_API
 int wc_ed448_verify_msg_final(const byte* sig, word32 sigLen,
                               int* stat, ed448_key* key);
+#endif /* WOLFSSL_ED448_STREAMING_VERIFY */
 WOLFSSL_API
 int wc_ed448_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
                         word32 msgLen, int* stat, ed448_key* key,

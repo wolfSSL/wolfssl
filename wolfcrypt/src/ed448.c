@@ -51,6 +51,28 @@
 static const byte ed448Ctx[ED448CTX_SIZE+1] = "SigEd448";
 #endif
 
+
+static int ed448_hash_init(ed448_key* key, wc_Shake *sha)
+{
+    int ret;
+
+    ret = wc_InitShake256(sha, key->heap,
+#if defined(WOLF_CRYPTO_CB)
+                           key->devId
+#else
+                           INVALID_DEVID
+#endif
+        );
+
+#ifdef WOLFSSL_ED448_PERSISTENT_SHA
+    if (ret == 0)
+        key->sha_clean_flag = 1;
+#endif
+
+    return ret;
+}
+
+#ifdef WOLFSSL_ED448_PERSISTENT_SHA
 static int ed448_hash_reset(ed448_key* key)
 {
     int ret;
@@ -71,36 +93,74 @@ static int ed448_hash_reset(ed448_key* key)
     }
     return ret;
 }
+#endif /* WOLFSSL_ED448_PERSISTENT_SHA */
 
-static int ed448_hash_update(ed448_key* key, const byte* data, word32 len)
+static int ed448_hash_update(ed448_key* key, wc_Shake *sha, const byte* data,
+                             word32 len)
 {
+#ifdef WOLFSSL_ED448_PERSISTENT_SHA
     if (key->sha_clean_flag)
         key->sha_clean_flag = 0;
-    return wc_Shake256_Update(&key->sha, data, len);
+#else
+    (void)key;
+#endif
+    return wc_Shake256_Update(sha, data, len);
 }
 
-static int ed448_hash_final(ed448_key* key, byte* hash, word32 hashLen)
+static int ed448_hash_final(ed448_key* key, wc_Shake *sha, byte* hash,
+                            word32 hashLen)
 {
-    int ret = wc_Shake256_Final(&key->sha, hash, hashLen);
+    int ret = wc_Shake256_Final(sha, hash, hashLen);
+#ifdef WOLFSSL_ED448_PERSISTENT_SHA
     if (ret == 0)
         key->sha_clean_flag = 1;
+#else
+    (void)key;
+#endif
     return ret;
 }
+
+static void ed448_hash_free(ed448_key* key, wc_Shake *sha)
+{
+    wc_Shake256_Free(sha);
+#ifdef WOLFSSL_ED448_PERSISTENT_SHA
+    key->sha_clean_flag = 0;
+#else
+    (void)key;
+#endif
+}
+
 
 static int ed448_hash(ed448_key* key, const byte* in, word32 inLen,
                       byte* hash, word32 hashLen)
 {
     int ret;
+#ifndef WOLFSSL_ED448_PERSISTENT_SHA
+    wc_Shake sha[1];
+#else
+    wc_Shake *sha;
+#endif
 
     if (key == NULL || (in == NULL && inLen > 0) || hash == NULL) {
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLFSSL_ED448_PERSISTENT_SHA
+    sha = &key->sha;
     ret = ed448_hash_reset(key);
+#else
+    ret = ed448_hash_init(key, sha);
+#endif
+    if (ret < 0)
+        return ret;
+
+    ret = ed448_hash_update(key, sha, in, inLen);
     if (ret == 0)
-        ret = ed448_hash_update(key, in, inLen);
-    if (ret == 0)
-        ret = ed448_hash_final(key, hash, hashLen);
+        ret = ed448_hash_final(key, sha, hash, hashLen);
+
+#ifndef WOLFSSL_ED448_PERSISTENT_SHA
+    ed448_hash_free(key, sha);
+#endif
 
     return ret;
 }
@@ -234,34 +294,52 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
         ret = ed448_hash(key, key->k, ED448_KEY_SIZE, az, sizeof(az));
     }
     if (ret == 0) {
+#ifdef WOLFSSL_ED448_PERSISTENT_SHA
+        wc_Shake *sha = &key->sha;
+#else
+        wc_Shake sha[1];
+        ret = ed448_hash_init(key, sha);
+        if (ret < 0)
+            return ret;
+#endif
         /* apply clamp */
         az[0]  &= 0xfc;
         az[55] |= 0x80;
         az[56]  = 0x00;
 
+        ret = ed448_hash_update(key, sha, ed448Ctx, ED448CTX_SIZE);
+
         if (ret == 0) {
-            ret = ed448_hash_update(key, ed448Ctx, ED448CTX_SIZE);
+            ret = ed448_hash_update(key, sha, &type, sizeof(type));
         }
         if (ret == 0) {
-            ret = ed448_hash_update(key, &type, sizeof(type));
-        }
-        if (ret == 0) {
-            ret = ed448_hash_update(key, &contextLen, sizeof(contextLen));
+            ret = ed448_hash_update(key, sha, &contextLen, sizeof(contextLen));
         }
         if ((ret == 0) && (context != NULL)) {
-            ret = ed448_hash_update(key, context, contextLen);
+            ret = ed448_hash_update(key, sha, context, contextLen);
         }
         if (ret == 0) {
-            ret = ed448_hash_update(key, az + ED448_KEY_SIZE, ED448_KEY_SIZE);
+            ret = ed448_hash_update(key, sha, az + ED448_KEY_SIZE, ED448_KEY_SIZE);
         }
         if (ret == 0) {
-            ret = ed448_hash_update(key, in, inLen);
+            ret = ed448_hash_update(key, sha, in, inLen);
         }
         if (ret == 0) {
-            ret = ed448_hash_final(key, nonce, sizeof(nonce));
+            ret = ed448_hash_final(key, sha, nonce, sizeof(nonce));
         }
+#ifndef WOLFSSL_ED448_PERSISTENT_SHA
+        ed448_hash_free(key, sha);
+#endif
     }
     if (ret == 0) {
+#ifdef WOLFSSL_ED448_PERSISTENT_SHA
+        wc_Shake *sha = &key->sha;
+#else
+        wc_Shake sha[1];
+        ret = ed448_hash_init(key, sha);
+        if (ret < 0)
+            return ret;
+#endif
         sc448_reduce(nonce);
 
         /* step 2: computing R = rB where rB is the scalar multiplication of
@@ -271,30 +349,32 @@ int wc_ed448_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 
         /* step 3: hash R + public key + message getting H(R,A,M) then
            creating S = (r + H(R,A,M)a) mod l */
+
+        ret = ed448_hash_update(key, sha, ed448Ctx, ED448CTX_SIZE);
         if (ret == 0) {
-            ret = ed448_hash_update(key, ed448Ctx, ED448CTX_SIZE);
-            if (ret == 0) {
-                ret = ed448_hash_update(key, &type, sizeof(type));
-            }
-            if (ret == 0) {
-                ret = ed448_hash_update(key, &contextLen, sizeof(contextLen));
-            }
-            if ((ret == 0) && (context != NULL)) {
-                ret = ed448_hash_update(key, context, contextLen);
-            }
-            if (ret == 0) {
-                ret = ed448_hash_update(key, out, ED448_SIG_SIZE/2);
-            }
-            if (ret == 0) {
-                ret = ed448_hash_update(key, key->p, ED448_PUB_KEY_SIZE);
-            }
-            if (ret == 0) {
-                ret = ed448_hash_update(key, in, inLen);
-            }
-            if (ret == 0) {
-                ret = ed448_hash_final(key, hram, sizeof(hram));
-            }
+            ret = ed448_hash_update(key, sha, &type, sizeof(type));
         }
+        if (ret == 0) {
+            ret = ed448_hash_update(key, sha, &contextLen, sizeof(contextLen));
+        }
+        if ((ret == 0) && (context != NULL)) {
+            ret = ed448_hash_update(key, sha, context, contextLen);
+        }
+        if (ret == 0) {
+            ret = ed448_hash_update(key, sha, out, ED448_SIG_SIZE/2);
+        }
+        if (ret == 0) {
+            ret = ed448_hash_update(key, sha, key->p, ED448_PUB_KEY_SIZE);
+        }
+        if (ret == 0) {
+            ret = ed448_hash_update(key, sha, in, inLen);
+        }
+        if (ret == 0) {
+            ret = ed448_hash_final(key, sha, hram, sizeof(hram));
+        }
+#ifndef WOLFSSL_ED448_PERSISTENT_SHA
+        ed448_hash_free(key, sha);
+#endif
     }
 
     if (ret == 0) {
@@ -374,8 +454,8 @@ int wc_ed448ph_sign_hash(const byte* hash, word32 hashLen, byte* out,
 int wc_ed448ph_sign_msg(const byte* in, word32 inLen, byte* out, word32 *outLen,
                         ed448_key* key, const byte* context, byte contextLen)
 {
-    int  ret = 0;
-    byte hash[64];
+    int  ret;
+    byte hash[ED448_PREHASH_SIZE];
 
     ret = ed448_hash(key, in, inLen, hash, sizeof(hash));
 
@@ -404,8 +484,10 @@ int wc_ed448ph_sign_msg(const byte* in, word32 inLen, byte* out, word32 *outLen,
  *          other -ve values when hash fails,
  *          0 otherwise.
  */
-int wc_ed448_verify_msg_init(const byte* sig, word32 sigLen, ed448_key* key,
-                        byte type, const byte* context, byte contextLen)
+
+static int ed448_verify_msg_init_with_sha(const byte* sig, word32 sigLen,
+                                      ed448_key* key, wc_Shake *sha, byte type,
+                                      const byte* context, byte contextLen)
 {
     int ret;
 
@@ -421,25 +503,27 @@ int wc_ed448_verify_msg_init(const byte* sig, word32 sigLen, ed448_key* key,
     }
 
     /* find H(R,A,M) and store it as h */
+#ifdef WOLFSSL_ED448_PERSISTENT_SHA
     ret = ed448_hash_reset(key);
     if (ret < 0)
         return ret;
+#endif
 
-    ret = ed448_hash_update(key, ed448Ctx, ED448CTX_SIZE);
+    ret = ed448_hash_update(key, sha, ed448Ctx, ED448CTX_SIZE);
     if (ret == 0) {
-        ret = ed448_hash_update(key, &type, sizeof(type));
+        ret = ed448_hash_update(key, sha, &type, sizeof(type));
     }
     if (ret == 0) {
-        ret = ed448_hash_update(key, &contextLen, sizeof(contextLen));
+        ret = ed448_hash_update(key, sha, &contextLen, sizeof(contextLen));
     }
     if ((ret == 0) && (context != NULL)) {
-        ret = ed448_hash_update(key, context, contextLen);
+        ret = ed448_hash_update(key, sha, context, contextLen);
     }
     if (ret == 0) {
-        ret = ed448_hash_update(key, sig, ED448_SIG_SIZE/2);
+        ret = ed448_hash_update(key, sha, sig, ED448_SIG_SIZE/2);
     }
     if (ret == 0) {
-        ret = ed448_hash_update(key, key->p, ED448_PUB_KEY_SIZE);
+        ret = ed448_hash_update(key, sha, key->p, ED448_PUB_KEY_SIZE);
     }
 
     return ret;
@@ -451,14 +535,16 @@ int wc_ed448_verify_msg_init(const byte* sig, word32 sigLen, ed448_key* key,
    key            Ed448 public key
    return         0 on success
 */
-int wc_ed448_verify_msg_update(const byte* msgSegment, word32 msgSegmentLen,
-                             ed448_key* key)
+static int ed448_verify_msg_update_with_sha(const byte* msgSegment,
+                                        word32 msgSegmentLen,
+                                        ed448_key* key,
+                                        wc_Shake *sha)
 {
     /* sanity check on arguments */
     if (msgSegment == NULL || key == NULL)
         return BAD_FUNC_ARG;
 
-    return ed448_hash_update(key, msgSegment, msgSegmentLen);
+    return ed448_hash_update(key, sha, msgSegment, msgSegmentLen);
 }
 
 /* Verify the message using the ed448 public key.
@@ -472,8 +558,8 @@ int wc_ed448_verify_msg_update(const byte* msgSegment, word32 msgSegmentLen,
  *          other -ve values when hash fails,
  *          0 otherwise.
  */
-int wc_ed448_verify_msg_final(const byte* sig, word32 sigLen,
-                              int* res, ed448_key* key)
+static int ed448_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
+                                     int* res, ed448_key* key, wc_Shake *sha)
 {
     byte     rcheck[ED448_KEY_SIZE];
     byte     h[ED448_SIG_SIZE];
@@ -496,7 +582,7 @@ int wc_ed448_verify_msg_final(const byte* sig, word32 sigLen,
     if (ge448_from_bytes_negate_vartime(&A, key->p) != 0)
         return BAD_FUNC_ARG;
 
-    ret = ed448_hash_final(key,  h, sizeof(h));
+    ret = ed448_hash_final(key, sha, h, sizeof(h));
     if (ret != 0)
         return ret;
 
@@ -524,6 +610,28 @@ int wc_ed448_verify_msg_final(const byte* sig, word32 sigLen,
     return ret;
 }
 
+#ifdef WOLFSSL_ED448_STREAMING_VERIFY
+int wc_ed448_verify_msg_init(const byte* sig, word32 sigLen, ed448_key* key,
+                        byte type, const byte* context, byte contextLen)
+{
+    return ed448_verify_msg_init_with_sha(sig, sigLen, key, &key->sha, type,
+                                      context, contextLen);
+}
+
+int wc_ed448_verify_msg_update(const byte* msgSegment, word32 msgSegmentLen,
+                             ed448_key* key)
+{
+    return ed448_verify_msg_update_with_sha(msgSegment, msgSegmentLen, key,
+                                        &key->sha);
+}
+
+int wc_ed448_verify_msg_final(const byte* sig, word32 sigLen,
+                              int* res, ed448_key* key)
+{
+    return ed448_verify_msg_final_with_sha(sig, sigLen, res, key, &key->sha);
+}
+#endif
+
 /* Verify the message using the ed448 public key.
  *
  *  sig         [in]  Signature to verify.
@@ -546,16 +654,35 @@ int wc_ed448_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
                             byte type, const byte* context, byte contextLen)
 {
     int ret;
-    ret = wc_ed448_verify_msg_init(sig, sigLen, key,
+#ifdef WOLFSSL_ED448_PERSISTENT_SHA
+    wc_Shake *sha;
+#else
+    wc_Shake sha[1];
+#endif
+
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_ED448_PERSISTENT_SHA
+    sha = &key->sha;
+#else
+    ret = ed448_hash_init(key, sha);
+    if (ret < 0)
+        return ret;
+#endif
+
+    ret = ed448_verify_msg_init_with_sha(sig, sigLen, key, sha,
                                    type, context, contextLen);
-    if (ret < 0)
-        return ret;
+    if (ret == 0)
+        ret = ed448_verify_msg_update_with_sha(msg, msgLen, key, sha);
+    if (ret == 0)
+        ret = ed448_verify_msg_final_with_sha(sig, sigLen, res, key, sha);
 
-    ret = wc_ed448_verify_msg_update(msg, msgLen, key);
-    if (ret < 0)
-        return ret;
+#ifndef WOLFSSL_ED448_PERSISTENT_SHA
+    ed448_hash_free(key, sha);
+#endif
 
-    return wc_ed448_verify_msg_final(sig, sigLen, res, key);
+    return ret;
 }
 
 /* Verify the message using the ed448 public key.
@@ -627,7 +754,7 @@ int wc_ed448ph_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
                           const byte* context, byte contextLen)
 {
     int  ret = 0;
-    byte hash[64];
+    byte hash[ED448_PREHASH_SIZE];
 
     ret = ed448_hash(key, msg, msgLen, hash, sizeof(hash));
 
@@ -648,8 +775,6 @@ int wc_ed448ph_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
  */
 int wc_ed448_init_ex(ed448_key* key, void *heap, int devId)
 {
-    int ret;
-
     if (key == NULL)
         return BAD_FUNC_ARG;
 
@@ -664,18 +789,11 @@ int wc_ed448_init_ex(ed448_key* key, void *heap, int devId)
 
     fe448_init();
 
-    ret = wc_InitShake256(&key->sha, heap,
-#if defined(WOLF_CRYPTO_CB)
-                          key->devId
-#else
-                          INVALID_DEVID
-#endif
-        );
-
-    if (ret == 0)
-        key->sha_clean_flag = 1;
-
-    return ret;
+#ifdef WOLFSSL_ED448_PERSISTENT_SHA
+    return ed448_hash_init(key, &key->sha);
+#else /* !WOLFSSL_ED448_PERSISTENT_SHA */
+    return 0;
+#endif /* WOLFSSL_ED448_PERSISTENT_SHA */
 }
 
 /* Initialize the ed448 private/public key.
@@ -694,7 +812,9 @@ int wc_ed448_init(ed448_key* key) {
 void wc_ed448_free(ed448_key* key)
 {
     if (key != NULL) {
-        wc_Shake256_Free(&key->sha);
+#ifdef WOLFSSL_ED448_PERSISTENT_SHA
+        ed448_hash_free(key, &key->sha);
+#endif
         ForceZero(key, sizeof(ed448_key));
     }
 }

@@ -94,8 +94,10 @@ struct ed25519_key {
     int devId;
 #endif
     void *heap;
+#ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     wc_Sha512 sha;
     int sha_clean_flag;
+#endif
 };
 
 
@@ -145,6 +147,7 @@ WOLFSSL_API
 int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
                               word32 msgLen, int* res, ed25519_key* key,
                               byte type, const byte* context, byte contextLen);
+#ifdef WOLFSSL_ED25519_STREAMING_VERIFY
 WOLFSSL_API
 int wc_ed25519_verify_msg_init(const byte* sig, word32 sigLen, ed25519_key* key,
                                byte type, const byte* context, byte contextLen);
@@ -154,6 +157,7 @@ int wc_ed25519_verify_msg_update(const byte* msgSegment, word32 msgSegmentLen,
 WOLFSSL_API
 int wc_ed25519_verify_msg_final(const byte* sig, word32 sigLen, int* res,
                                 ed25519_key* key);
+#endif /* WOLFSSL_ED25519_STREAMING_VERIFY */
 #endif /* HAVE_ED25519_VERIFY */
 
 

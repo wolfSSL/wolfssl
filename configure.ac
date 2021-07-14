@@ -350,6 +350,7 @@ then
     test "$enable_atomicuser" = "" && enable_atomicuser=yes
     test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
+    test "$enable_aesgcm_stream" = "" && enable_aesgcm_stream=yes
     test "$enable_aesccm" = "" && enable_aesccm=yes
     test "$enable_aesctr" = "" && enable_aesctr=yes
     test "$enable_aesofb" = "" && enable_aesofb=yes
@@ -459,7 +460,9 @@ then
         test "$enable_scep" = "" && enable_scep=yes
         test "$enable_pkcs7" = "" && enable_pkcs7=yes
         test "$enable_ed25519" = "" && enable_ed25519=yes
+        test "$enable_ed25519_stream" = "" && enable_ed25519_stream=yes
         test "$enable_ed448" = "" && enable_ed448=yes
+        test "$enable_ed448_stream" = "" && enable_ed448_stream=yes
 
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
         then
@@ -493,6 +496,7 @@ then
     test "$enable_atomicuser" = "" && enable_atomicuser=yes
     test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
+    test "$enable_aesgcm_stream" = "" && enable_aesgcm_stream=yes
     test "$enable_aesccm" = "" && enable_aesccm=yes
     test "$enable_aesctr" = "" && enable_aesctr=yes
     test "$enable_aesofb" = "" && enable_aesofb=yes
@@ -561,7 +565,9 @@ then
     then
         test "$enable_xchacha" = "" && enable_xchacha=yes
         test "$enable_ed25519" = "" && enable_ed25519=yes
+        test "$enable_ed25519_stream" = "" && enable_ed25519_stream=yes
         test "$enable_ed448" = "" && enable_ed448=yes
+        test "$enable_ed448_stream" = "" && enable_ed448_stream=yes
         test "$enable_pkcs7" = "" && enable_pkcs7=yes
 
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
@@ -1311,7 +1317,7 @@ AC_ARG_ENABLE([aesgcm],
     [ ENABLED_AESGCM=yes ]
     )
 AC_ARG_ENABLE([aesgcm-stream],
-    [AS_HELP_STRING([--enable-aesgcm-stream],[Enable wolfSSL AES-GCM support with streaming APIs (default: enabled)])],
+    [AS_HELP_STRING([--enable-aesgcm-stream],[Enable wolfSSL AES-GCM support with streaming APIs (default: disabled)])],
     [ ENABLED_AESGCM_STREAM=$enableval ],
     [ ENABLED_AESGCM_STREAM=no ]
     )
@@ -2141,6 +2147,11 @@ AC_ARG_ENABLE([ed25519],
     [ ENABLED_ED25519=$enableval ],
     [ ENABLED_ED25519=no ]
     )
+AC_ARG_ENABLE([ed25519-stream],
+    [AS_HELP_STRING([--enable-ed25519-stream],[Enable wolfSSL ED25519 support with streaming verify APIs (default: disabled)])],
+    [ ENABLED_ED25519_STREAM=$enableval ],
+    [ ENABLED_ED25519_STREAM=no ]
+    )
 
 
 if test "$ENABLED_OPENSSH" = "yes"
@@ -2167,6 +2178,17 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519"
 
     ENABLED_CERTS=yes
+fi
+
+if test "$ENABLED_ED25519_STREAM" != "no"
+then
+    if test "$ENABLED_ED25519" = "no"
+    then
+        AC_MSG_ERROR([ED25519 verify streaming enabled but ED25519 is disabled])
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ED25519_STREAMING_VERIFY"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ED25519_STREAMING_VERIFY"
+    fi
 fi
 
 
@@ -2206,6 +2228,11 @@ AC_ARG_ENABLE([ed448],
     [ ENABLED_ED448=$enableval ],
     [ ENABLED_ED448=no ]
     )
+AC_ARG_ENABLE([ed448-stream],
+    [AS_HELP_STRING([--enable-ed448-stream],[Enable wolfSSL ED448 support with streaming verify APIs (default: disabled)])],
+    [ ENABLED_ED448_STREAM=$enableval ],
+    [ ENABLED_ED448_STREAM=no ]
+    )
 
 if test "$ENABLED_ED448" != "no" && test "$ENABLED_32BIT" = "no"
 then
@@ -2234,6 +2261,17 @@ then
     ENABLED_SHAKE256=yes
 
     ENABLED_CERTS=yes
+fi
+
+if test "$ENABLED_ED448_STREAM" != "no"
+then
+    if test "$ENABLED_ED448" = "no"
+    then
+        AC_MSG_ERROR([ED448 verify streaming enabled but ED448 is disabled])
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ED448_STREAMING_VERIFY"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ED448_STREAMING_VERIFY"
+    fi
 fi
 
 
@@ -6671,6 +6709,7 @@ echo "   * AES-NI:                     $ENABLED_AESNI"
 echo "   * AES-CBC:                    $ENABLED_AESCBC"
 echo "   * AES-CBC length checks:      $ENABLED_AESCBC_LENGTH_CHECKS"
 echo "   * AES-GCM:                    $ENABLED_AESGCM"
+echo "   * AES-GCM streaming:          $ENABLED_AESGCM_STREAM"
 echo "   * AES-CCM:                    $ENABLED_AESCCM"
 echo "   * AES-CTR:                    $ENABLED_AESCTR"
 echo "   * AES-CFB:                    $ENABLED_AESCFB"
@@ -6722,8 +6761,10 @@ echo "   * ECC Custom Curves:          $ENABLED_ECCCUSTCURVES"
 echo "   * ECC Minimum Bits:           $ENABLED_ECCMINSZ"
 echo "   * CURVE25519:                 $ENABLED_CURVE25519"
 echo "   * ED25519:                    $ENABLED_ED25519"
+echo "   * ED25519 streaming:          $ENABLED_ED25519_STREAM"
 echo "   * CURVE448:                   $ENABLED_CURVE448"
 echo "   * ED448:                      $ENABLED_ED448"
+echo "   * ED448 streaming:            $ENABLED_ED448_STREAM"
 echo "   * FPECC:                      $ENABLED_FPECC"
 echo "   * ECC_ENCRYPT:                $ENABLED_ECC_ENCRYPT"
 echo "   * ECCSI                       $ENABLED_ECCSI"
