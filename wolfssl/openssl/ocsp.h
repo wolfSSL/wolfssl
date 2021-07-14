@@ -79,6 +79,7 @@
 
 #define i2d_OCSP_CERTID           wolfSSL_i2d_OCSP_CERTID
 #define OCSP_SINGLERESP_get0_id   wolfSSL_OCSP_SINGLERESP_get0_id
+#define OCSP_id_cmp               wolfSSL_OCSP_id_cmp
 #define OCSP_single_get0_status   wolfSSL_OCSP_single_get0_status
 #define OCSP_resp_count           wolfSSL_OCSP_resp_count
 #define OCSP_resp_get0            wolfSSL_OCSP_resp_get0

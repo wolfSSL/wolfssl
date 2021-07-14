@@ -180,6 +180,12 @@ int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
             return recvd;
         }
 
+        /* If retry and read flags are set, return WANT_READ */
+        if ((ssl->biord->flags & WOLFSSL_BIO_FLAG_READ) &&
+            (ssl->biord->flags & WOLFSSL_BIO_FLAG_RETRY)) {
+            return WOLFSSL_CBIO_ERR_WANT_READ;
+        }
+
         WOLFSSL_MSG("BIO general error");
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
@@ -211,13 +217,20 @@ int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     }
 
     sent = wolfSSL_BIO_write(ssl->biowr, buf, sz);
-    if (sent < 0) {
+    if (sent <= 0) {
         if (ssl->biowr->type == WOLFSSL_BIO_SOCKET) {
         #ifdef USE_WOLFSSL_IO
             sent = TranslateIoError(sent);
         #endif
             return sent;
         }
+
+        /* If retry and write flags are set, return WANT_WRITE */
+        if ((ssl->biord->flags & WOLFSSL_BIO_FLAG_WRITE) &&
+            (ssl->biord->flags & WOLFSSL_BIO_FLAG_RETRY)) {
+            return WOLFSSL_CBIO_ERR_WANT_WRITE;
+        }
+
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
     (void)ctx;

@@ -316,7 +316,11 @@ enum Misc_ASN {
     MAX_DATE_SIZE       =  32,
     ASN_GEN_TIME_SZ     =  15,     /* 7 numbers * 2 + Zulu tag */
 #ifndef NO_RSA
-    MAX_ENCODED_SIG_SZ  = 512,
+#ifdef WOLFSSL_HAPROXY
+    MAX_ENCODED_SIG_SZ  = 1024,    /* Supports 8192 bit keys */
+#else
+    MAX_ENCODED_SIG_SZ  = 512,     /* Supports 4096 bit keys */
+#endif
 #elif defined(HAVE_ECC)
     MAX_ENCODED_SIG_SZ  = 140,
 #elif defined(HAVE_CURVE448)

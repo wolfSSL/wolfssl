@@ -928,7 +928,7 @@ AC_ARG_ENABLE([opensslall],
 [ ENABLED_OPENSSLALL=$enableval ],
 [ ENABLED_OPENSSLALL=no ]
 )
-if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_WPAS_DPP" = "yes" || test "$ENABLED_SMIME" = "yes"
+if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_WPAS_DPP" = "yes" || test "$ENABLED_SMIME" = "yes" || test "$ENABLED_HAPROXY" = "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
@@ -2771,7 +2771,7 @@ AC_ARG_ENABLE([anon],
     [ ENABLED_ANON=no ]
     )
 
-if test "x$ENABLED_WPAS" = "xyes" || test "$ENABLED_NGINX" = "yes"
+if test "x$ENABLED_WPAS" = "xyes" || test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes"
 then
     ENABLED_ANON=yes
 fi
@@ -3722,6 +3722,11 @@ AC_ARG_ENABLE([secure-renegotiation],
     [ ENABLED_SECURE_RENEGOTIATION=no ]
     )
 
+if test "x$ENABLED_HAPROXY" = "xyes"
+then
+    ENABLED_SECURE_RENEGOTIATION=yes
+fi
+
 if test "x$ENABLED_SECURE_RENEGOTIATION" = "xyes"
 then
     if test "x$ENABLED_RENEGOTIATION_INDICATION" = "xyes"
@@ -4266,13 +4271,40 @@ fi
 
 if test "$ENABLED_HAPROXY" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAPROXY"
-    # Requires opensslextra make sure on
-    if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAPROXY -DOPENSSL_COMPATIBLE_DEFAULTS"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIGNER_DER_CERT"
+    # --enable-all defines its own FP_MAX_BITS
+	if test "$ENABLED_ALL" != "yes"
+	then
+	    AM_CFLAGS="$AM_CFLAGS -DFP_MAX_BITS=16384"
+	fi
+    # Requires opensslextra and opensslall
+    if test "x$ENABLED_OPENSSLALL" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
     then
+        ENABLED_OPENSSLALL="yes"
         ENABLED_OPENSSLEXTRA="yes"
-        AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
+        AM_CFLAGS="-DOPENSSL_EXTRA -DOPENSSL_ALL $AM_CFLAGS"
     fi
+    
+    if test "x$ENABLED_CERTGEN" = "xno"
+    then
+        ENABLED_CERTGEN="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN"
+    fi
+    
+    if test "x$ENABLED_CERTREQ" = "xno"
+    then
+        ENABLED_CERTREQ="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_REQ"
+    fi
+    
+    # Requires sessioncerts make sure on
+    if test "x$ENABLED_SESSIONCERTS" = "xno"
+    then
+        ENABLED_SESSIONCERTS="yes"
+        AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS"
+    fi
+    
 fi
 
 if test "$ENABLED_SIGNAL" = "yes"

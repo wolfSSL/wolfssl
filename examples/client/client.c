@@ -933,7 +933,7 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
             }
             else
         #endif
-            if (err != WOLFSSL_ERROR_WANT_READ) {
+            if (err != WOLFSSL_ERROR_WANT_READ && err != APP_DATA_READY) {
                 printf("SSL_read reply error %d, %s\n", err,
                                          wolfSSL_ERR_error_string(err, buffer));
                 if (!exitWithRet) {
@@ -957,6 +957,7 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
     #ifdef WOLFSSL_ASYNC_CRYPT
         || err == WC_PENDING_E
     #endif
+        || err == APP_DATA_READY
     );
     if (ret > 0) {
         reply[ret] = 0; /* null terminate */
@@ -2577,7 +2578,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
-
+#ifdef OPENSSL_COMPATIBLE_DEFAULTS
+    /* Restore wolfSSL verify defaults */
+    if (ctx) {
+        wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_DEFAULT, NULL);
+    }
+#endif
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
     if (wolfsentry_setup(&wolfsentry, wolfsentry_config_path,
