@@ -4648,6 +4648,30 @@ then
     fi
 fi
 
+# sblim-sfcb support
+AC_ARG_ENABLE([sblim-sfcb],
+    [AS_HELP_STRING([--enable-sblim-sfcb],[Enable sblim-sfcb support (default: disabled)])],
+    [ ENABLED_SBLIM_SFCB=$enableval ],
+    [ ENABLED_SBLIM_SFCB=no ]
+    )
+# sblim-sfcb support requires all the features enabled within this conditional.
+if test "$ENABLED_SBLIM_SFCB" = "yes"
+then
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+    then
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
+    fi
+
+    if test "x$ENABLED_CERTGEN" = "xno"
+    then
+        ENABLED_CERTGEN="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN"
+    fi
+
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_SBLIM_SFCB -DWOLFSSL_SIGNER_DER_CERT"
+fi
+
 # libest Support
 AC_ARG_ENABLE([libest],
     [AS_HELP_STRING([--enable-libest],[Enable libest (default: disabled)])],

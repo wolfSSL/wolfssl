@@ -45694,12 +45694,12 @@ void* wolfSSL_SESSION_get_ex_data(const WOLFSSL_SESSION* session, int idx)
 }
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL || FORTRESS */
 
-/* Note: This is a huge section of API's - through wolfSSL_SESSION_print */
-#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || \
-                             defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY) || \
-                             defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_OPENSSH)))
-
-
+/* Note: This is a huge section of API's - through
+ *       wolfSSL_X509_OBJECT_get0_X509_CRL */
+#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && \
+    (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB)))
 int wolfSSL_SESSION_get_ex_new_index(long idx, void* data, void* cb1,
        void* cb2, CRYPTO_free_func* cb3)
 {
@@ -45716,7 +45716,6 @@ int wolfSSL_SESSION_get_ex_new_index(long idx, void* data, void* cb1,
     }
     return WOLFSSL_FAILURE;
 }
-
 
 #ifndef NO_WOLFSSL_STUB
 WOLFSSL_DH *wolfSSL_DH_generate_parameters(int prime_len, int generator,
@@ -45839,7 +45838,6 @@ WOLFSSL_STACK* wolfSSL_sk_X509_INFO_new_null(void)
     return sk;
 }
 
-
 /* returns value less than 0 on fail to match
  * On a successful match the priority level found is returned
  */
@@ -45870,7 +45868,6 @@ static void wolfSSL_CIPHER_free(WOLFSSL_CIPHER* in)
 {
     (void)in;
 }
-
 
 /* free's all nodes in the stack and there data */
 void wolfSSL_sk_SSL_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk)
@@ -45978,7 +45975,6 @@ void wolfSSL_sk_X509_INFO_free(WOLF_STACK_OF(WOLFSSL_X509_INFO) *sk)
     wolfSSL_sk_X509_INFO_pop_free(sk, NULL);
 }
 
-
 /* Adds the WOLFSSL_X509_INFO to the stack "sk". "sk" takes control of "in" and
  * tries to free it when the stack is free'd.
  *
@@ -46020,7 +46016,6 @@ int wolfSSL_sk_X509_INFO_push(WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk,
     return WOLFSSL_SUCCESS;
 }
 
-
 WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_sk_X509_NAME_new(wolf_sk_compare_cb cb)
 {
     WOLFSSL_STACK* sk;
@@ -46035,7 +46030,6 @@ WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_sk_X509_NAME_new(wolf_sk_compare_cb cb
 
     return sk;
 }
-
 
 /* Creates a duplicate of WOLF_STACK_OF(WOLFSSL_X509_NAME).
  * Returns a new WOLF_STACK_OF(WOLFSSL_X509_NAME) or NULL on failure */
@@ -46066,7 +46060,6 @@ WOLF_STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list(
 
     return copy;
 }
-
 
 int wolfSSL_sk_X509_NAME_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
     WOLFSSL_X509_NAME* name)
@@ -46125,7 +46118,6 @@ int wolfSSL_sk_X509_NAME_find(const WOLF_STACK_OF(WOLFSSL_X509_NAME) *sk,
     return -1;
 }
 
-
 void* wolfSSL_sk_X509_OBJECT_value(WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* sk, int i)
 {
     WOLFSSL_ENTER("wolfSSL_sk_X509_OBJECT_value");
@@ -46146,7 +46138,6 @@ int wolfSSL_sk_X509_OBJECT_num(const WOLF_STACK_OF(WOLFSSL_X509_OBJECT) *s)
         return 0;
     }
 }
-
 
 int wolfSSL_sk_X509_NAME_set_cmp_func(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
     wolf_sk_compare_cb cb)
@@ -46660,7 +46651,9 @@ WOLFSSL_X509_CRL *wolfSSL_X509_OBJECT_get0_X509_CRL(WOLFSSL_X509_OBJECT *obj)
     return NULL;
 }
 
-#endif /* OPENSSL_ALL || (OPENSSL_EXTRA && (HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_LIGHTY)) */
+#endif /* OPENSSL_ALL || (OPENSSL_EXTRA && (HAVE_STUNNEL || WOLFSSL_NGINX ||
+        * HAVE_LIGHTY || WOLFSSL_HAPROXY || WOLFSSL_OPENSSH ||
+        * HAVE_SBLIM_SFCB)) */
 
 
 #if defined(OPENSSL_EXTRA)
