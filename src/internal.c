@@ -8525,7 +8525,7 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
     /* Make sure input is not the ssl output buffer as this
      * function doesn't handle that */
     if (input >= ssl->buffers.outputBuffer.buffer &&
-            input <= ssl->buffers.outputBuffer.buffer +
+            input < ssl->buffers.outputBuffer.buffer +
                      ssl->buffers.outputBuffer.bufferSize) {
         WOLFSSL_MSG("Can't use output buffer for input in SendHandshakeMsg");
         return BAD_FUNC_ARG;
