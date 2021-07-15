@@ -4377,7 +4377,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if ((ctx->cipherType == AES_128_GCM_TYPE) ||
                 (ctx->cipherType == AES_192_GCM_TYPE) ||
                 (ctx->cipherType == AES_256_GCM_TYPE)) {
-               wc_AesFree(&ctx->cipher.aes);
+                wc_AesFree(&ctx->cipher.aes);
             }
     #endif /* HAVE_AESGCM && WOLFSSL_AESGCM_STREAM */
 #endif /* not FIPS or new FIPS */
