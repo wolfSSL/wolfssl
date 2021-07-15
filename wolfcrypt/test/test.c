@@ -16781,6 +16781,10 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
         bytes = (word32)XFREAD(tmp, 1, DH_TEST_TMP_SIZE, file);
         XFCLOSE(file);
 
+        /* for HAVE_WOLF_BIGINT prevent leak */
+        wc_FreeDhKey(key);
+        (void)wc_InitDhKey_ex(key, HEAP_HINT, devId);
+
         idx = 0;
         XMEMSET(tmp2, 0, DH_TEST_TMP_SIZE);
 
