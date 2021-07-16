@@ -439,6 +439,7 @@ typedef struct Flags {
     byte           expectEms;       /* expect extended master secret */
 #endif
     byte           gotFinished;     /* processed finished */
+    byte           secRenegEn;      /* secure renegotiation enabled */
 } Flags;
 
 
@@ -3083,11 +3084,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
             #endif
                 break;
             case EXT_RENEGOTIATION_INFO:
-            #if defined(HAVE_SECURE_RENEGOTIATION) || \
-                defined(HAVE_SERVER_RENEGOTIATION_INFO)
-                session->sslServer->secure_renegotiation->enabled = 1;
-                session->sslClient->secure_renegotiation->enabled = 1;
-            #endif
+                session->flags.secRenegEn = 1;
                 break;
             } /* switch (extType) */
 
@@ -3719,15 +3716,15 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
     }
 #endif
 
-
-    /* TODO: Do not free yet if Extension: renegotiation_info (len=1) provided - secure reneg */
-
-    /* If receiving a finished message from one side, free the resources
-     * from the other side's tracker. */
-    if (session->flags.side == WOLFSSL_SERVER_END)
-        FreeHandshakeResources(session->sslClient);
-    else
-        FreeHandshakeResources(session->sslServer);
+    /* Do not free handshake resources yet if secure renegotiation */
+    if (session->flags.secRenegEn == 0) {
+        /* If receiving a finished message from one side, free the resources
+         * from the other side's tracker. */
+        if (session->flags.side == WOLFSSL_SERVER_END)
+            FreeHandshakeResources(session->sslClient);
+        else
+            FreeHandshakeResources(session->sslServer);
+    }
 
     return ret;
 }
@@ -3783,18 +3780,6 @@ static int DoHandShake(const byte* input, int* sslBytes,
         ssl = session->sslServer;
     else
         ssl = session->sslClient;
-
-#ifdef HAVE_SECURE_RENEGOTIATION
-    if (!IsAtLeastTLSv1_3(ssl->version)) {
-        /* A session's arrays are released when the handshake is completed. */
-        if (session->sslServer->arrays == NULL &&
-            session->sslClient->arrays == NULL) {
-
-            SetError(NO_SECURE_RENEGOTIATION, error, session, FATAL_ERROR_STATE);
-            return -1;
-        }
-    }
-#endif
 
 #ifdef HAVE_MAX_FRAGMENT
     if (rhSize < size) {
@@ -4083,6 +4068,7 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
         *error = ret;
         return NULL;
     }
+
     ssl->keys.encryptSz = sz;
     if (ssl->options.tls1_1 && ssl->specs.cipher_type == block) {
         output += ssl->specs.block_size; /* go past TLSv1.1 IV */
@@ -4097,8 +4083,15 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
     else
         ssl->keys.padSz = ssl->specs.hash_size;
 
-    if (ssl->specs.cipher_type == block)
-        ssl->keys.padSz += *(output + sz - ivExtra - 1) + 1;
+    if (ssl->specs.cipher_type == block) {
+        /* last pad bytes indicates length */
+        word32 pad = 0;
+        if ((int)sz > ivExtra) {
+            /* get value of last pad byte */
+            pad = *(output + sz - ivExtra - 1) + 1;
+        }
+        ssl->keys.padSz += pad;
+    }
 
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(ssl->version)) {
@@ -5345,7 +5338,8 @@ doPart:
                     }
                 }
                 else {
-                    SetError(BAD_APP_DATA_STR, error,session,FATAL_ERROR_STATE);
+                    /* set error, but do not treat fatal */
+                    SetError(BAD_APP_DATA_STR, error,session, 0);
                     return -1;
                 }
                 if (ssl->buffers.outputBuffer.dynamicFlag)
