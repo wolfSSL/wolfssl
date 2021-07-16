@@ -3199,6 +3199,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
 }
 
 #ifdef HAVE_SNI
+/* Function return value must be 0 for success */
 static int LoadNamedKey(SnifferSession* session, const byte* name, word16 nameSz)
 {
     int ret = 0;
@@ -3216,8 +3217,6 @@ static int LoadNamedKey(SnifferSession* session, const byte* name, word16 nameSz
                 ret = wolfSSL_set_ephemeral_key(ssl, 
                     WC_PK_TYPE_NONE, (const char*)namedKey->key, 
                     namedKey->keySz, WOLFSSL_FILETYPE_ASN1);
-                if (ret == 0)
-                    ret = WOLFSSL_SUCCESS;
             }
             else
         #endif
@@ -3225,16 +3224,15 @@ static int LoadNamedKey(SnifferSession* session, const byte* name, word16 nameSz
                 ret = wolfSSL_use_PrivateKey_buffer(ssl,
                     namedKey->key, namedKey->keySz, 
                     WOLFSSL_FILETYPE_ASN1);
+                /* translate return code */
+                ret = (ret == WOLFSSL_SUCCESS) ? 0 : -1;
             }
-            if (ret != WOLFSSL_SUCCESS) {
-                ret = -1;
-                break;
+            if (ret == 0) {
+                session->sni = namedKey->name;
             }
-            session->sni = namedKey->name;
             break;
         }
-        else
-            namedKey = namedKey->next;
+        namedKey = namedKey->next;
     }
     wc_UnLockMutex(&session->context->namedKeysMutex);
     return ret;
@@ -3287,7 +3285,8 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
 #ifdef WOLFSSL_TLS13
         XMEMCPY(session->sslClient->session.sessionID, input, ID_LEN);
 #endif
-        XMEMCPY(session->sslClient->arrays->sessionID, input, ID_LEN);
+        if (session->sslClient->arrays)
+            XMEMCPY(session->sslClient->arrays->sessionID, input, ID_LEN);
         session->sslClient->options.haveSessionId = 1;
     }
 
