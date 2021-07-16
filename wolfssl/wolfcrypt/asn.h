@@ -595,6 +595,7 @@ enum VerifyType {
     VERIFY_OCSP = 3,
     VERIFY_NAME = 4,
     VERIFY_SKIP_DATE = 5,
+    VERIFY_OCSP_CERT = 6,
 };
 
 #ifdef WOLFSSL_CERT_EXT
