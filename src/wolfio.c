@@ -872,7 +872,11 @@ int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port)
                    && !defined(WOLFSSL_KEIL_TCP_NET) && !defined(WOLFSSL_ZEPHYR)
     {
         int optval  = 1;
+#ifndef USE_WINDOWS_API
         socklen_t optlen = sizeof(optval);
+#else
+        int optlen = sizeof(optval);
+#endif
         if (setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, optlen) < 0) {
             WOLFSSL_MSG("setsockopt SO_REUSEADDR failed");
             CloseSocket(*sockfd);
@@ -905,7 +909,11 @@ int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port)
 }
 
 #ifdef HAVE_SOCKADDR
+#ifndef USE_WINDOWS_API
 int wolfIO_TcpAccept(SOCKET_T sockfd, SOCKADDR* peer_addr, socklen_t* peer_len)
+#else
+int wolfIO_TcpAccept(SOCKET_T sockfd, SOCKADDR* peer_addr, int* peer_len)
+#endif
 {
     return accept(sockfd, peer_addr, peer_len);
 }
