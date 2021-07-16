@@ -217,7 +217,7 @@ ENDIF
 ;  * a  Byte array.
 ;  */
 _text SEGMENT READONLY PARA
-sp_2048_to_bin_bswap PROC
+sp_2048_to_bin_bswap_32 PROC
         mov	rax, QWORD PTR [rcx+248]
         mov	r8, QWORD PTR [rcx+240]
         bswap	rax
@@ -315,7 +315,7 @@ sp_2048_to_bin_bswap PROC
         mov	QWORD PTR [rdx+240], rax
         mov	QWORD PTR [rdx+248], r8
         ret
-sp_2048_to_bin_bswap ENDP
+sp_2048_to_bin_bswap_32 ENDP
 _text ENDS
 IFNDEF NO_MOVBE_SUPPORT
 ; /* Write r as big endian to byte array.
@@ -326,7 +326,7 @@ IFNDEF NO_MOVBE_SUPPORT
 ;  * a  Byte array.
 ;  */
 _text SEGMENT READONLY PARA
-sp_2048_to_bin_movbe PROC
+sp_2048_to_bin_movbe_32 PROC
         movbe	rax, QWORD PTR [rcx+248]
         movbe	r8, QWORD PTR [rcx+240]
         mov	QWORD PTR [rdx], rax
@@ -392,7 +392,7 @@ sp_2048_to_bin_movbe PROC
         mov	QWORD PTR [rdx+240], rax
         mov	QWORD PTR [rdx+248], r8
         ret
-sp_2048_to_bin_movbe ENDP
+sp_2048_to_bin_movbe_32 ENDP
 _text ENDS
 ENDIF
 ; /* Multiply a and b into r. (r = a * b)
@@ -12502,7 +12502,7 @@ ENDIF
 ;  * a  Byte array.
 ;  */
 _text SEGMENT READONLY PARA
-sp_3072_to_bin_bswap PROC
+sp_3072_to_bin_bswap_48 PROC
         mov	rax, QWORD PTR [rcx+376]
         mov	r8, QWORD PTR [rcx+368]
         bswap	rax
@@ -12648,7 +12648,7 @@ sp_3072_to_bin_bswap PROC
         mov	QWORD PTR [rdx+368], rax
         mov	QWORD PTR [rdx+376], r8
         ret
-sp_3072_to_bin_bswap ENDP
+sp_3072_to_bin_bswap_48 ENDP
 _text ENDS
 IFNDEF NO_MOVBE_SUPPORT
 ; /* Write r as big endian to byte array.
@@ -12659,7 +12659,7 @@ IFNDEF NO_MOVBE_SUPPORT
 ;  * a  Byte array.
 ;  */
 _text SEGMENT READONLY PARA
-sp_3072_to_bin_movbe PROC
+sp_3072_to_bin_movbe_48 PROC
         movbe	rax, QWORD PTR [rcx+376]
         movbe	r8, QWORD PTR [rcx+368]
         mov	QWORD PTR [rdx], rax
@@ -12757,7 +12757,7 @@ sp_3072_to_bin_movbe PROC
         mov	QWORD PTR [rdx+368], rax
         mov	QWORD PTR [rdx+376], r8
         ret
-sp_3072_to_bin_movbe ENDP
+sp_3072_to_bin_movbe_48 ENDP
 _text ENDS
 ENDIF
 ; /* Multiply a and b into r. (r = a * b)
@@ -27384,7 +27384,7 @@ ENDIF
 ;  * a  Byte array.
 ;  */
 _text SEGMENT READONLY PARA
-sp_4096_to_bin_bswap PROC
+sp_4096_to_bin_bswap_64 PROC
         mov	rax, QWORD PTR [rcx+504]
         mov	r8, QWORD PTR [rcx+496]
         bswap	rax
@@ -27578,7 +27578,7 @@ sp_4096_to_bin_bswap PROC
         mov	QWORD PTR [rdx+496], rax
         mov	QWORD PTR [rdx+504], r8
         ret
-sp_4096_to_bin_bswap ENDP
+sp_4096_to_bin_bswap_64 ENDP
 _text ENDS
 IFNDEF NO_MOVBE_SUPPORT
 ; /* Write r as big endian to byte array.
@@ -27589,7 +27589,7 @@ IFNDEF NO_MOVBE_SUPPORT
 ;  * a  Byte array.
 ;  */
 _text SEGMENT READONLY PARA
-sp_4096_to_bin_movbe PROC
+sp_4096_to_bin_movbe_64 PROC
         movbe	rax, QWORD PTR [rcx+504]
         movbe	r8, QWORD PTR [rcx+496]
         mov	QWORD PTR [rdx], rax
@@ -27719,7 +27719,7 @@ sp_4096_to_bin_movbe PROC
         mov	QWORD PTR [rdx+496], rax
         mov	QWORD PTR [rdx+504], r8
         ret
-sp_4096_to_bin_movbe ENDP
+sp_4096_to_bin_movbe_64 ENDP
 _text ENDS
 ENDIF
 ; /* Sub b from a into a. (a -= b)
@@ -39716,7 +39716,7 @@ ENDIF
 ;  * a  Byte array.
 ;  */
 _text SEGMENT READONLY PARA
-sp_256_to_bin_bswap PROC
+sp_256_to_bin_bswap_4 PROC
         mov	rax, QWORD PTR [rcx+24]
         mov	r8, QWORD PTR [rcx+16]
         bswap	rax
@@ -39730,7 +39730,7 @@ sp_256_to_bin_bswap PROC
         mov	QWORD PTR [rdx+16], rax
         mov	QWORD PTR [rdx+24], r8
         ret
-sp_256_to_bin_bswap ENDP
+sp_256_to_bin_bswap_4 ENDP
 _text ENDS
 IFNDEF NO_MOVBE_SUPPORT
 ; /* Write r as big endian to byte array.
@@ -39741,7 +39741,7 @@ IFNDEF NO_MOVBE_SUPPORT
 ;  * a  Byte array.
 ;  */
 _text SEGMENT READONLY PARA
-sp_256_to_bin_movbe PROC
+sp_256_to_bin_movbe_4 PROC
         movbe	rax, QWORD PTR [rcx+24]
         movbe	r8, QWORD PTR [rcx+16]
         mov	QWORD PTR [rdx], rax
@@ -39751,7 +39751,7 @@ sp_256_to_bin_movbe PROC
         mov	QWORD PTR [rdx+16], rax
         mov	QWORD PTR [rdx+24], r8
         ret
-sp_256_to_bin_movbe ENDP
+sp_256_to_bin_movbe_4 ENDP
 _text ENDS
 ENDIF
 IFDEF HAVE_INTEL_AVX2
@@ -43467,7 +43467,7 @@ ENDIF
 ;  * a  Byte array.
 ;  */
 _text SEGMENT READONLY PARA
-sp_384_to_bin_bswap PROC
+sp_384_to_bin_bswap_6 PROC
         mov	rax, QWORD PTR [rcx+40]
         mov	r8, QWORD PTR [rcx+32]
         bswap	rax
@@ -43487,7 +43487,7 @@ sp_384_to_bin_bswap PROC
         mov	QWORD PTR [rdx+32], rax
         mov	QWORD PTR [rdx+40], r8
         ret
-sp_384_to_bin_bswap ENDP
+sp_384_to_bin_bswap_6 ENDP
 _text ENDS
 IFNDEF NO_MOVBE_SUPPORT
 ; /* Write r as big endian to byte array.
@@ -43498,7 +43498,7 @@ IFNDEF NO_MOVBE_SUPPORT
 ;  * a  Byte array.
 ;  */
 _text SEGMENT READONLY PARA
-sp_384_to_bin_movbe PROC
+sp_384_to_bin_movbe_6 PROC
         movbe	rax, QWORD PTR [rcx+40]
         movbe	r8, QWORD PTR [rcx+32]
         mov	QWORD PTR [rdx], rax
@@ -43512,7 +43512,7 @@ sp_384_to_bin_movbe PROC
         mov	QWORD PTR [rdx+32], rax
         mov	QWORD PTR [rdx+40], r8
         ret
-sp_384_to_bin_movbe ENDP
+sp_384_to_bin_movbe_6 ENDP
 _text ENDS
 ENDIF
 ; /* Sub b from a into a. (a -= b)
