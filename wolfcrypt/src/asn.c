@@ -10212,9 +10212,13 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             }
 
         #ifdef HAVE_OCSP
-            /* trust for the lifetime of the responder's cert*/
-            if (cert->ocspNoCheckSet && verify == VERIFY_OCSP)
-                verify = NO_VERIFY;
+            if (verify == VERIFY_OCSP_CERT) {
+                /* trust for the lifetime of the responder's cert*/
+                if (cert->ocspNoCheckSet)
+                    verify = VERIFY;
+                else
+                    verify = VERIFY_OCSP;
+            }
         #endif
             /* advance past extensions */
             cert->srcIdx = cert->sigIndex;
@@ -17957,7 +17961,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 
         /* Don't verify if we don't have access to Cert Manager. */
         ret = ParseCertRelative(&cert, CERT_TYPE,
-                                noVerify ? NO_VERIFY : VERIFY_OCSP, cm);
+                                noVerify ? NO_VERIFY : VERIFY_OCSP_CERT, cm);
         if (ret < 0) {
             WOLFSSL_MSG("\tOCSP Responder certificate parsing failed");
             FreeDecodedCert(&cert);
