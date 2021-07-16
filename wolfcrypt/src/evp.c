@@ -4328,8 +4328,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                     WOLFSSL_MSG("Key or IV not set");
                     break;
                 }
-                if ((ret = wc_AesGcmSetExtIV(&ctx->cipher.aes, ctx->iv,
-                                                             ctx->ivSz)) != 0) {
+                if (wc_AesGcmSetExtIV(&ctx->cipher.aes, ctx->iv,
+                                                             ctx->ivSz) != 0) {
                     WOLFSSL_MSG("wc_AesGcmSetIV failed");
                     break;
                 }
@@ -4337,7 +4337,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 /* Initialize using IV cached in Aes object. */
                 if (wc_AesGcmInit(&ctx->cipher.aes, NULL, 0, NULL, 0) != 0) {
                     WOLFSSL_MSG("wc_AesGcmInit failed");
-                    ret = WOLFSSL_FAILURE;
                     break;
                 }
 #endif /* WOLFSSL_AESGCM_STREAM */
