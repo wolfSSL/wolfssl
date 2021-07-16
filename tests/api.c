@@ -39295,28 +39295,23 @@ static void test_wolfSSL_EVP_BytesToKey(void)
 }
 static void test_IncCtr(void)
 {
-#if defined(OPENSSL_ALL) && defined(HAVE_AESGCM) && !defined(NO_DES3)
-    byte key[DES3_KEY_SIZE] = {0};
-    byte iv[DES_IV_SIZE] = {0};
+#if defined(OPENSSL_ALL) && defined(HAVE_AESGCM) && !defined(HAVE_FIPS)
+    byte key[AES_128_KEY_SIZE] = {0};
+    byte iv[GCM_NONCE_MID_SZ] = {0};
     int type = EVP_CTRL_GCM_IV_GEN;
     int arg = 0;
-    void *ptr;
-            ptr = NULL;
+    void *ptr = NULL;
 
     printf(testingFmt, "IncCtr");
 
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-    const EVP_CIPHER *init = EVP_des_ede3_cbc();
+    const EVP_CIPHER *init = EVP_aes_128_gcm();
 
     AssertNotNull(ctx);
     wolfSSL_EVP_CIPHER_CTX_init(ctx);
     AssertIntEQ(EVP_CipherInit(ctx, init, key, iv, 1), WOLFSSL_SUCCESS);
 
-
-    ctx->cipher.aes.keylen = 128;
-
-    AssertIntEQ(wolfSSL_EVP_CIPHER_CTX_ctrl(ctx, type, arg, ptr), 0);
-
+    AssertIntEQ(wolfSSL_EVP_CIPHER_CTX_ctrl(ctx, type, arg, ptr), WOLFSSL_SUCCESS);
 
     EVP_CIPHER_CTX_free(ctx);
     printf(resultFmt, passed);
