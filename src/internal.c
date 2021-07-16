@@ -5057,6 +5057,10 @@ static int X25519MakeKey(WOLFSSL* ssl, curve25519_key* key,
  */
 int Ed448CheckPubKey(WOLFSSL* ssl)
 {
+#ifndef HAVE_ED448_KEY_IMPORT
+    (void)ssl;
+    return NOT_COMPILED_IN;
+#else /* HAVE_ED448_KEY_IMPORT */
     ed448_key* key = (ed448_key*)ssl->hsKey;
     int ret = 0;
 
@@ -5083,6 +5087,7 @@ int Ed448CheckPubKey(WOLFSSL* ssl)
     }
 
     return ret;
+#endif /* HAVE_ED448_KEY_IMPORT */
 }
 
 /* Sign the data using EdDSA and key using Ed448.
@@ -12680,7 +12685,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif /* HAVE_ED25519 */
-                #ifdef HAVE_ED448
+                #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
                     case ED448k:
                     {
                         int keyRet = 0;
@@ -12732,7 +12737,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             ssl->ecdhCurveOID = ECC_X448_OID;
                         break;
                     }
-                #endif /* HAVE_ED448 */
+                #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
                     default:
                         break;
                 }
@@ -21757,7 +21762,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         }
     }
 #endif /* HAVE_ED25519 */
-#ifdef HAVE_ED448
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
     #if !defined(NO_RSA) || defined(HAVE_ECC)
         FreeKey(ssl, ssl->hsType, (void**)&ssl->hsKey);
     #endif
@@ -21800,7 +21805,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
             goto exit_dpk;
         }
     }
-#endif /* HAVE_ED448 */
+#endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
 
     (void)idx;
     (void)keySz;

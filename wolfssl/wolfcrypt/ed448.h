@@ -158,6 +158,8 @@ WOLFSSL_API
 int wc_ed448_init(ed448_key* key);
 WOLFSSL_API
 void wc_ed448_free(ed448_key* key);
+
+#ifdef HAVE_ED448_KEY_IMPORT
 WOLFSSL_API
 int wc_ed448_import_public(const byte* in, word32 inLen, ed448_key* key);
 WOLFSSL_API
@@ -166,6 +168,9 @@ int wc_ed448_import_private_only(const byte* priv, word32 privSz,
 WOLFSSL_API
 int wc_ed448_import_private_key(const byte* priv, word32 privSz,
                                 const byte* pub, word32 pubSz, ed448_key* key);
+#endif /* HAVE_ED448_KEY_IMPORT */
+
+#ifdef HAVE_ED448_KEY_EXPORT
 WOLFSSL_API
 int wc_ed448_export_public(ed448_key*, byte* out, word32* outLen);
 WOLFSSL_API
@@ -175,6 +180,7 @@ int wc_ed448_export_private(ed448_key* key, byte* out, word32* outLen);
 WOLFSSL_API
 int wc_ed448_export_key(ed448_key* key, byte* priv, word32 *privSz,
                         byte* pub, word32 *pubSz);
+#endif /* HAVE_ED448_KEY_EXPORT */
 
 WOLFSSL_API
 int wc_ed448_check_key(ed448_key* key);

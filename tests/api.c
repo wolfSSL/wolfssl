@@ -20735,8 +20735,10 @@ static int test_wc_ed448_import_private_key (void)
                     "Ed448PublicKeyUnitTest.................................\n";
     word32      privKeySz = sizeof(privKey);
     word32      pubKeySz = sizeof(pubKey);
+#ifdef HAVE_ED448_KEY_EXPORT
     byte        bothKeys[sizeof(privKey) + sizeof(pubKey)];
     word32      bothKeysSz = sizeof(bothKeys);
+#endif
 
     ret = wc_InitRng(&rng);
     if (ret != 0) {
@@ -21106,8 +21108,8 @@ static int test_wc_Ed448PublicKeyToDer (void)
 {
     int ret = 0;
 
-#if defined(HAVE_ED448) && (defined(WOLFSSL_CERT_GEN) || \
-                              defined(WOLFSSL_KEY_GEN))
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT) && \
+    (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
     int       tmp;
     ed448_key key;
     byte      derBuf[1024];
@@ -24177,8 +24179,8 @@ static int test_wc_Ed25519PrivateKeyToDer (void)
 static int test_wc_Ed448KeyToDer (void)
 {
     int ret = 0;
-#if defined(HAVE_ED448) && (defined(WOLFSSL_CERT_GEN) || \
-                              defined(WOLFSSL_KEY_GEN))
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT) && \
+    (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
 
     byte            output[ONEK_BUF];
     ed448_key       ed448Key;
@@ -24242,8 +24244,8 @@ static int test_wc_Ed448KeyToDer (void)
 static int test_wc_Ed448PrivateKeyToDer (void)
 {
     int ret = 0;
-#if defined(HAVE_ED448) && (defined(WOLFSSL_CERT_GEN) || \
-                              defined(WOLFSSL_KEY_GEN))
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT) && \
+    (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
 
     byte            output[ONEK_BUF];
     ed448_key       ed448PrivKey;

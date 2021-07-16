@@ -5379,7 +5379,7 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
     #endif
     }
 #endif /* HAVE_ED25519 */
-#ifdef HAVE_ED448
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
     if (ret == 0 && (*keyFormat == 0 || *keyFormat == ED448k)) {
         /* make sure Ed448 key can be used */
     #ifdef WOLFSSL_SMALL_STACK
@@ -5435,7 +5435,7 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
         XFREE(key, heap, DYNAMIC_TYPE_ED448);
     #endif
     }
-#endif /* HAVE_ED448 */
+#endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
     return ret;
 }
 
@@ -47476,7 +47476,14 @@ int wolfSSL_ED448_generate_key(unsigned char *priv, unsigned int *privSz,
     (void) pub;
     (void) pubSz;
     return WOLFSSL_FAILURE;
-#else /* WOLFSSL_KEY_GEN */
+#elif !defined(HAVE_ED448_KEY_EXPORT)
+    WOLFSSL_MSG("No ED448 key export built in");
+    (void) priv;
+    (void) privSz;
+    (void) pub;
+    (void) pubSz;
+    return WOLFSSL_FAILURE;
+#else /* WOLFSSL_KEY_GEN && HAVE_ED448_KEY_EXPORT */
     int ret = WOLFSSL_FAILURE;
     int initTmpRng = 0;
     WC_RNG *rng = NULL;
@@ -47535,7 +47542,7 @@ int wolfSSL_ED448_generate_key(unsigned char *priv, unsigned int *privSz,
 #endif
 
     return ret;
-#endif /* WOLFSSL_KEY_GEN */
+#endif /* WOLFSSL_KEY_GEN && HAVE_ED448_KEY_EXPORT */
 }
 
 /* return 1 if success, 0 if error
@@ -47546,11 +47553,13 @@ int wolfSSL_ED448_sign(const unsigned char *msg, unsigned int msgSz,
                        const unsigned char *priv, unsigned int privSz,
                        unsigned char *sig, unsigned int *sigSz)
 {
-#if !defined(HAVE_ED448_SIGN) || !defined(WOLFSSL_KEY_GEN)
+#if !defined(HAVE_ED448_SIGN) || !defined(WOLFSSL_KEY_GEN) || !defined(HAVE_ED448_KEY_IMPORT)
 #if !defined(HAVE_ED448_SIGN)
     WOLFSSL_MSG("No ED448 sign built in");
 #elif !defined(WOLFSSL_KEY_GEN)
     WOLFSSL_MSG("No Key Gen built in");
+#elif !defined(HAVE_ED448_KEY_IMPORT)
+    WOLFSSL_MSG("No ED448 Key import built in");
 #endif
     (void) msg;
     (void) msgSz;
@@ -47559,7 +47568,7 @@ int wolfSSL_ED448_sign(const unsigned char *msg, unsigned int msgSz,
     (void) sig;
     (void) sigSz;
     return WOLFSSL_FAILURE;
-#else /* HAVE_ED448_SIGN && WOLFSSL_KEY_GEN */
+#else /* HAVE_ED448_SIGN && WOLFSSL_KEY_GEN && HAVE_ED448_KEY_IMPORT */
     ed448_key key;
     int ret = WOLFSSL_FAILURE;
 
@@ -47591,7 +47600,7 @@ int wolfSSL_ED448_sign(const unsigned char *msg, unsigned int msgSz,
     wc_ed448_free(&key);
 
     return ret;
-#endif /* HAVE_ED448_SIGN && WOLFSSL_KEY_GEN */
+#endif /* HAVE_ED448_SIGN && WOLFSSL_KEY_GEN && HAVE_ED448_KEY_IMPORT */
 }
 
 /* return 1 if success, 0 if error
@@ -47602,11 +47611,13 @@ int wolfSSL_ED448_verify(const unsigned char *msg, unsigned int msgSz,
                          const unsigned char *pub, unsigned int pubSz,
                          const unsigned char *sig, unsigned int sigSz)
 {
-#if !defined(HAVE_ED448_VERIFY) || !defined(WOLFSSL_KEY_GEN)
+#if !defined(HAVE_ED448_VERIFY) || !defined(WOLFSSL_KEY_GEN) || !defined(HAVE_ED448_KEY_IMPORT)
 #if !defined(HAVE_ED448_VERIFY)
     WOLFSSL_MSG("No ED448 verify built in");
 #elif !defined(WOLFSSL_KEY_GEN)
     WOLFSSL_MSG("No Key Gen built in");
+#elif !defined(HAVE_ED448_KEY_IMPORT)
+    WOLFSSL_MSG("No ED448 Key import built in");
 #endif
     (void) msg;
     (void) msgSz;
@@ -47615,7 +47626,7 @@ int wolfSSL_ED448_verify(const unsigned char *msg, unsigned int msgSz,
     (void) sig;
     (void) sigSz;
     return WOLFSSL_FAILURE;
-#else /* HAVE_ED448_VERIFY && WOLFSSL_KEY_GEN */
+#else /* HAVE_ED448_VERIFY && WOLFSSL_KEY_GEN && HAVE_ED448_KEY_IMPORT */
     ed448_key key;
     int ret = WOLFSSL_FAILURE, check = 0;
 
