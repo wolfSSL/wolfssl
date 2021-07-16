@@ -5304,7 +5304,7 @@ int wc_DsaKeyToPublicDer(DsaKey* key, byte* output, word32 inLen)
 }
 #endif /* !HAVE_SELFTEST && (WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN) */
 
-static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32 inLen,
+static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen,
                            int ints, int includeVersion)
 {
     word32 seqSz = 0, verSz = 0, rawLen, intTotalLen = 0;
@@ -5353,7 +5353,12 @@ static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32 inLen,
     seqSz = SetSequence(verSz + intTotalLen, seq);
 
     outLen = seqSz + verSz + intTotalLen;
-    if (outLen > (int)inLen) {
+    *inLen = outLen;
+    if (output == NULL) {
+        FreeTmpDsas(tmps, key->heap, ints);
+        return LENGTH_ONLY_E;
+    }
+    if (outLen > (int)*inLen) {
         FreeTmpDsas(tmps, key->heap, ints);
         return BAD_FUNC_ARG;
     }
@@ -5385,7 +5390,7 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
     if (key->type != DSA_PRIVATE)
         return BAD_FUNC_ARG;
 
-    return DsaKeyIntsToDer(key, output, inLen, DSA_INTS, 1);
+    return DsaKeyIntsToDer(key, output, &inLen, DSA_INTS, 1);
 }
 
 /* Convert DsaKey parameters to DER format, write to output (inLen),
@@ -5394,6 +5399,17 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
 int wc_DsaKeyToParamsDer(DsaKey* key, byte* output, word32 inLen)
 {
     if (!key || !output)
+        return BAD_FUNC_ARG;
+
+    return DsaKeyIntsToDer(key, output, &inLen, DSA_PARAM_INTS, 0);
+}
+
+/* This version of the function allows output to be NULL. In that case, the
+   DsaKeyIntsToDer will return LENGTH_ONLY_E and the required output buffer
+   size will be point to by inLen. */
+int wc_DsaKeyToParamsDer_ex(DsaKey* key, byte* output, word32* inLen)
+{
+    if (!key || !inLen)
         return BAD_FUNC_ARG;
 
     return DsaKeyIntsToDer(key, output, inLen, DSA_PARAM_INTS, 0);
@@ -5926,6 +5942,7 @@ int wc_OBJ_sn2nid(const char *sn)
         {WOLFSSL_ORG_NAME, NID_organizationName},
         {WOLFSSL_ORGUNIT_NAME, NID_organizationalUnitName},
         {WOLFSSL_EMAIL_ADDR, NID_emailAddress},
+        {"SHA1", NID_sha1},
         {NULL, -1}};
     int i;
     #ifdef HAVE_ECC

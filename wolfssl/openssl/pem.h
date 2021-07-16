@@ -215,6 +215,7 @@ int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh);
 #define PEM_write_X509                  wolfSSL_PEM_write_X509
 #define PEM_write_bio_PrivateKey        wolfSSL_PEM_write_bio_PrivateKey
 #define PEM_write_bio_PKCS8PrivateKey   wolfSSL_PEM_write_bio_PKCS8PrivateKey
+#define PEM_write_PKCS8PrivateKey       wolfSSL_PEM_write_PKCS8PrivateKey
 
 /* DH */
 #define PEM_write_DHparams              wolfSSL_PEM_write_DHparams
