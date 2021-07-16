@@ -110,7 +110,10 @@
     #undef  NO_FILESYSTEM
     #define NO_FILESYSTEM
 
-#elif defined(ANDROID) && !defined(ANDROID_v454)
+/* ANDROID_V454 (for android studio) displays information in a textview
+ * and redirects printf to the textview output instead of using
+ * __android_log_print() */
+#elif defined(ANDROID) && !defined(ANDROID_V454)
     #ifdef XMALLOC_USER
         #include <stdlib.h>  /* we're using malloc / free direct here */
     #endif

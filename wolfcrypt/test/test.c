@@ -172,15 +172,15 @@ _Pragma("GCC diagnostic ignored \"-Wunused-function\"")
     #endif
     #include <android/log.h>
 
-    #ifndef ANDROID_v454 /* See fips/android/wolfCrypt_v454_android */
-    #define printf(...)       \
-                      __android_log_print(ANDROID_LOG_DEBUG, "TAG", __VA_ARGS__)
-    #define fprintf(fp, ...)  \
-                      __android_log_print(ANDROID_LOG_DEBUG, "TAG", __VA_ARGS__)
-    #else
+    #ifdef ANDROID_V454 /* See fips/android/wolfCrypt_v454_android */
         #ifndef NO_FILESYSTEM
             #define NO_FILESYSTEM /* Turn off tests that want to call SaveDerAndPem() */
         #endif
+    #else
+        #define printf(...)       \
+                      __android_log_print(ANDROID_LOG_DEBUG, "TAG", __VA_ARGS__)
+        #define fprintf(fp, ...)  \
+                      __android_log_print(ANDROID_LOG_DEBUG, "TAG", __VA_ARGS__)
     #endif
 #elif defined(WOLFSSL_DEOS)
     #include <printx.h>
