@@ -2603,24 +2603,25 @@ static void test_ECDSA_size_sign(void)
 
 static void test_ED25519(void)
 {
-#if defined(HAVE_ED25519) && defined(WOLFSSL_KEY_GEN)
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    defined(WOLFSSL_KEY_GEN)
     byte         priv[ED25519_PRV_KEY_SIZE];
     unsigned int privSz = (unsigned int)sizeof(priv);
     byte         pub[ED25519_PUB_KEY_SIZE];
     unsigned int pubSz = (unsigned int)sizeof(pub);
-#ifdef HAVE_ED25519_SIGN
+#if defined(HAVE_ED25519_SIGN) && defined(HAVE_ED25519_KEY_IMPORT)
     const char*  msg = TEST_STRING;
     unsigned int msglen = (unsigned int)TEST_STRING_SZ;
     byte         sig[ED25519_SIG_SIZE];
     unsigned int sigSz = (unsigned int)sizeof(sig);
-#endif /* HAVE_ED25519_SIGN */
+#endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_IMPORT */
 
     AssertIntEQ(wolfSSL_ED25519_generate_key(priv, &privSz, pub, &pubSz),
                 WOLFSSL_SUCCESS);
     AssertIntEQ(privSz, ED25519_PRV_KEY_SIZE);
     AssertIntEQ(pubSz, ED25519_PUB_KEY_SIZE);
 
-#ifdef HAVE_ED25519_SIGN
+#if defined(HAVE_ED25519_SIGN) && defined(HAVE_ED25519_KEY_IMPORT)
     AssertIntEQ(wolfSSL_ED25519_sign((byte*)msg, msglen, priv, privSz, sig,
                                       &sigSz), WOLFSSL_SUCCESS);
     AssertIntEQ(sigSz, ED25519_SIG_SIZE);
@@ -2629,30 +2630,31 @@ static void test_ED25519(void)
     AssertIntEQ(wolfSSL_ED25519_verify((byte*)msg, msglen, pub, pubSz, sig,
                                        sigSz), WOLFSSL_SUCCESS);
 #endif /* HAVE_ED25519_VERIFY */
-#endif /* HAVE_ED25519_SIGN */
-#endif /* HAVE_ED25519 && WOLFSSL_KEY_GEN */
+#endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_IMPORT */
+#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_EXPORT && WOLFSSL_KEY_GEN */
 }
 
 static void test_ED448(void)
 {
-#if defined(HAVE_ED448) && defined(WOLFSSL_KEY_GEN)
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT) && \
+    defined(WOLFSSL_KEY_GEN)
     byte         priv[ED448_PRV_KEY_SIZE];
     unsigned int privSz = (unsigned int)sizeof(priv);
     byte         pub[ED448_PUB_KEY_SIZE];
     unsigned int pubSz = (unsigned int)sizeof(pub);
-#ifdef HAVE_ED448_SIGN
+#if defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_KEY_IMPORT)
     const char*  msg = TEST_STRING;
     unsigned int msglen = (unsigned int)TEST_STRING_SZ;
     byte         sig[ED448_SIG_SIZE];
     unsigned int sigSz = (unsigned int)sizeof(sig);
-#endif /* HAVE_ED448_SIGN */
+#endif /* HAVE_ED448_SIGN && HAVE_ED448_KEY_IMPORT */
 
     AssertIntEQ(wolfSSL_ED448_generate_key(priv, &privSz, pub, &pubSz),
                 WOLFSSL_SUCCESS);
     AssertIntEQ(privSz, ED448_PRV_KEY_SIZE);
     AssertIntEQ(pubSz, ED448_PUB_KEY_SIZE);
 
-#ifdef HAVE_ED448_SIGN
+#if defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_KEY_IMPORT)
     AssertIntEQ(wolfSSL_ED448_sign((byte*)msg, msglen, priv, privSz, sig,
                                    &sigSz), WOLFSSL_SUCCESS);
     AssertIntEQ(sigSz, ED448_SIG_SIZE);
@@ -2661,8 +2663,8 @@ static void test_ED448(void)
     AssertIntEQ(wolfSSL_ED448_verify((byte*)msg, msglen, pub, pubSz, sig,
                                      sigSz), WOLFSSL_SUCCESS);
 #endif /* HAVE_ED448_VERIFY */
-#endif /* HAVE_ED448_SIGN */
-#endif /* HAVE_ED448 && WOLFSSL_KEY_GEN */
+#endif /* HAVE_ED448_SIGN && HAVE_ED448_KEY_IMPORT */
+#endif /* HAVE_ED448 && HAVE_ED448_KEY_EXPORT && WOLFSSL_KEY_GEN */
 }
 #endif /* OPENSSL_EXTRA */
 
@@ -6941,7 +6943,8 @@ static void test_wolfSSL_PKCS8(void)
 static void test_wolfSSL_PKCS8_ED25519(void)
 {
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
-    defined(WOLFSSL_ENCRYPTED_KEYS) && defined(HAVE_ED25519)
+    defined(WOLFSSL_ENCRYPTED_KEYS) && defined(HAVE_ED25519) && \
+    defined(HAVE_ED25519_KEY_IMPORT)
     const byte encPrivKey[] = \
     "-----BEGIN ENCRYPTED PRIVATE KEY-----\n"
     "MIGbMFcGCSqGSIb3DQEFDTBKMCkGCSqGSIb3DQEFDDAcBAheCGLmWGh7+AICCAAw\n"
@@ -6972,7 +6975,8 @@ static void test_wolfSSL_PKCS8_ED25519(void)
 static void test_wolfSSL_PKCS8_ED448(void)
 {
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
-    defined(WOLFSSL_ENCRYPTED_KEYS) && defined(HAVE_ED448)
+    defined(WOLFSSL_ENCRYPTED_KEYS) && defined(HAVE_ED448) && \
+    defined(HAVE_ED448_KEY_IMPORT)
     const byte encPrivKey[] = \
     "-----BEGIN ENCRYPTED PRIVATE KEY-----\n"
     "MIGrMFcGCSqGSIb3DQEFDTBKMCkGCSqGSIb3DQEFDDAcBAjSbZKnG4EPggICCAAw\n"
@@ -18916,8 +18920,10 @@ static int test_wc_ed25519_import_private_key (void)
     const byte  pubKey[] = "Ed25519PublicKeyUnitTest......\n";
     word32      privKeySz = sizeof(privKey);
     word32      pubKeySz = sizeof(pubKey);
+#ifdef HAVE_ED25519_KEY_EXPORT
     byte        bothKeys[sizeof(privKey) + sizeof(pubKey)];
     word32      bothKeysSz = sizeof(bothKeys);
+#endif
 
     ret = wc_InitRng(&rng);
     if (ret != 0) {
@@ -19286,8 +19292,8 @@ static int test_wc_Ed25519PublicKeyToDer (void)
 {
     int ret = 0;
 
-#if defined(HAVE_ED25519) && (defined(WOLFSSL_CERT_GEN) || \
-                              defined(WOLFSSL_KEY_GEN))
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
     int tmp;
     ed25519_key key;
     byte derBuf[1024];
@@ -24048,8 +24054,8 @@ static int test_wc_DhPublicKeyDecode(void)
 static int test_wc_Ed25519KeyToDer (void)
 {
     int ret = 0;
-#if defined(HAVE_ED25519) && (defined(WOLFSSL_CERT_GEN) || \
-                              defined(WOLFSSL_KEY_GEN))
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
 
     byte            output[ONEK_BUF];
     ed25519_key     ed25519Key;
@@ -24113,8 +24119,8 @@ static int test_wc_Ed25519KeyToDer (void)
 static int test_wc_Ed25519PrivateKeyToDer (void)
 {
     int ret = 0;
-#if defined(HAVE_ED25519) && (defined(WOLFSSL_CERT_GEN) || \
-                              defined(WOLFSSL_KEY_GEN))
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
 
     byte            output[ONEK_BUF];
     ed25519_key     ed25519PrivKey;
@@ -24361,7 +24367,7 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex (void)
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
     WC_RNG          rng;
     Cert            cert;
-#if defined(HAVE_ED25519)
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
     ed25519_key     ed25519Key;
 #endif
 #if !defined(NO_RSA) && defined(HAVE_RSA)
@@ -24371,7 +24377,7 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex (void)
 #if defined(HAVE_ECC)
     ecc_key         eccKey;
 #endif
-#if defined(HAVE_ED448)
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
     ed448_key       ed448Key;
 #endif
 
@@ -24384,7 +24390,7 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex (void)
 #endif
 
     wc_InitCert(&cert);
-#if defined(HAVE_ED25519)
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
     if (ret == 0) { /*ED25519*/
         ret = wc_ed25519_init(&ed25519Key);
         if (ret == 0) {
@@ -24421,9 +24427,7 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex (void)
         wc_ecc_free(&eccKey);
     }
 #endif
-#if defined(HAVE_ED448) && (defined(WOLFSSL_CERT_GEN) || \
-                              defined(WOLFSSL_KEY_GEN))
-
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
     if (ret == 0) { /*ED448*/
         ret = wc_ed448_init(&ed448Key);
         if (ret == 0) {
@@ -24452,7 +24456,7 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex (void)
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
     WC_RNG          rng;
     Cert            cert;
-#if defined(HAVE_ED25519)
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
     ed25519_key     ed25519Key;
 #endif
 #if !defined(NO_RSA) && defined(HAVE_RSA)
@@ -24462,7 +24466,7 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex (void)
 #if defined(HAVE_ECC)
     ecc_key         eccKey;
 #endif
-#if defined(HAVE_ED448)
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
     ed448_key       ed448Key;
 #endif
 
@@ -24475,7 +24479,7 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex (void)
 #endif
 
     wc_InitCert(&cert);
-#if defined(HAVE_ED25519)
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
     if (ret == 0) { /*ED25519*/
         ret = wc_ed25519_init(&ed25519Key);
         if (ret == 0) {
@@ -24512,9 +24516,7 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex (void)
         wc_ecc_free(&eccKey);
     }
 #endif
-#if defined(HAVE_ED448) && (defined(WOLFSSL_CERT_GEN) || \
-                              defined(WOLFSSL_KEY_GEN))
-
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
     if (ret == 0) { /*ED448*/
         ret = wc_ed448_init(&ed448Key);
         if (ret == 0) {
@@ -28163,7 +28165,7 @@ static void test_wolfSSL_private_keys(void)
     SSL_CTX_free(ctx);
 #endif /* end of ECC private key match tests */
 
-#ifdef HAVE_ED25519
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
     #ifndef NO_WOLFSSL_SERVER
     AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
     #else
@@ -28189,7 +28191,7 @@ static void test_wolfSSL_private_keys(void)
     SSL_CTX_free(ctx);
 #endif /* end of Ed25519 private key match tests */
 
-#ifdef HAVE_ED448
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
     #ifndef NO_WOLFSSL_SERVER
     AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
     #else
