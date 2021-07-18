@@ -634,12 +634,12 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
                                byte* serverPubKey, word32 serverPubKeySz)
 {
 #ifdef WOLFSSL_SMALL_STACK
-    SrpHash *hash = (SrpHash *)XMALLOC(sizeof *hash, srp->heap, DYNAMIC_TYPE_SRP);
-    byte *digest = (byte *)XMALLOC(SRP_MAX_DIGEST_SIZE, srp->heap, DYNAMIC_TYPE_SRP);
-    mp_int *u = (mp_int *)XMALLOC(sizeof *u, srp->heap, DYNAMIC_TYPE_SRP);
-    mp_int *s = (mp_int *)XMALLOC(sizeof *s, srp->heap, DYNAMIC_TYPE_SRP);
-    mp_int *temp1 = (mp_int *)XMALLOC(sizeof *temp1, srp->heap, DYNAMIC_TYPE_SRP);
-    mp_int *temp2 = (mp_int *)XMALLOC(sizeof *temp2, srp->heap, DYNAMIC_TYPE_SRP);
+    SrpHash *hash = NULL;
+    byte *digest = NULL;
+    mp_int *u = NULL;
+    mp_int *s = NULL;
+    mp_int *temp1 = NULL;
+    mp_int *temp2 = NULL;
 #else
     SrpHash hash[1];
     byte digest[SRP_MAX_DIGEST_SIZE];
@@ -652,11 +652,6 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
 
     /* validating params */
 
-    if ((mp_init_multi(u, s, temp1, temp2, 0, 0)) != MP_OKAY) {
-        r = MP_INIT_E;
-        goto out;
-    }
-
     if (!srp || !clientPubKey || clientPubKeySz == 0
         || !serverPubKey || serverPubKeySz == 0) {
         r = BAD_FUNC_ARG;
@@ -664,6 +659,13 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
+    hash = (SrpHash *)XMALLOC(sizeof *hash, srp->heap, DYNAMIC_TYPE_SRP);
+    digest = (byte *)XMALLOC(SRP_MAX_DIGEST_SIZE, srp->heap, DYNAMIC_TYPE_SRP);
+    u = (mp_int *)XMALLOC(sizeof *u, srp->heap, DYNAMIC_TYPE_SRP);
+    s = (mp_int *)XMALLOC(sizeof *s, srp->heap, DYNAMIC_TYPE_SRP);
+    temp1 = (mp_int *)XMALLOC(sizeof *temp1, srp->heap, DYNAMIC_TYPE_SRP);
+    temp2 = (mp_int *)XMALLOC(sizeof *temp2, srp->heap, DYNAMIC_TYPE_SRP);
+
     if ((hash == NULL) ||
         (digest == NULL) ||
         (u == NULL) ||
@@ -674,6 +676,11 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
         goto out;
     }
 #endif
+
+    if ((mp_init_multi(u, s, temp1, temp2, 0, 0)) != MP_OKAY) {
+        r = MP_INIT_E;
+        goto out;
+    }
 
     if (mp_iszero(&srp->priv) == MP_YES) {
         r = SRP_CALL_ORDER_E;

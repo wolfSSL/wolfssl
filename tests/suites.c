@@ -887,7 +887,9 @@ int SuiteTest(int argc, char** argv)
     }
     #endif
 #endif
-#if defined(HAVE_CURVE25519) && defined(HAVE_ED25519)
+#if defined(HAVE_CURVE25519) && defined(HAVE_ED25519) && \
+    defined(HAVE_ED25519_SIGN) && defined(HAVE_ED25519_VERIFY) && \
+    defined(HAVE_ED25519_KEY_IMPORT) && defined(HAVE_ED25519_KEY_EXPORT)
     /* add ED25519 certificate cipher suite tests */
     strcpy(argv0[1], "tests/test-ed25519.conf");
     printf("starting ED25519 extra cipher suite tests\n");
@@ -898,7 +900,9 @@ int SuiteTest(int argc, char** argv)
         goto exit;
     }
 #endif
-#if defined(HAVE_CURVE448) && defined(HAVE_ED448)
+#if defined(HAVE_CURVE448) && defined(HAVE_ED448) && \
+    defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_VERIFY) && \
+    defined(HAVE_ED448_KEY_IMPORT) && defined(HAVE_ED448_KEY_EXPORT)
     /* add ED448 certificate cipher suite tests */
     strcpy(argv0[1], "tests/test-ed448.conf");
     printf("starting ED448 extra cipher suite tests\n");

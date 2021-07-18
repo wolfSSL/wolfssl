@@ -1867,6 +1867,10 @@ extern void uITRON4_free(void *p) ;
     #ifndef NO_ED25519_VERIFY
         #undef HAVE_ED25519_VERIFY
         #define HAVE_ED25519_VERIFY
+        #ifdef WOLFSSL_ED25519_STREAMING_VERIFY
+            #undef WOLFSSL_ED25519_PERSISTENT_SHA
+            #define WOLFSSL_ED25519_PERSISTENT_SHA
+        #endif
     #endif
     #ifndef NO_ED25519_KEY_EXPORT
         #undef HAVE_ED25519_KEY_EXPORT
@@ -1905,6 +1909,10 @@ extern void uITRON4_free(void *p) ;
     #ifndef NO_ED448_VERIFY
         #undef HAVE_ED448_VERIFY
         #define HAVE_ED448_VERIFY
+        #ifdef WOLFSSL_ED448_STREAMING_VERIFY
+            #undef WOLFSSL_ED448_PERSISTENT_SHA
+            #define WOLFSSL_ED448_PERSISTENT_SHA
+        #endif
     #endif
     #ifndef NO_ED448_KEY_EXPORT
         #undef HAVE_ED448_KEY_EXPORT

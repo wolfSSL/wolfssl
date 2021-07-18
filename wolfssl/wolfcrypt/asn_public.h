@@ -562,17 +562,24 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
 
 #ifdef HAVE_ED25519
     /* private key helpers */
+#ifdef HAVE_ED25519_KEY_IMPORT
     WOLFSSL_API int wc_Ed25519PrivateKeyDecode(const byte*, word32*,
                                                ed25519_key*, word32);
+#endif
+
+#ifdef HAVE_ED25519_KEY_EXPORT
     WOLFSSL_API int wc_Ed25519KeyToDer(ed25519_key* key, byte* output,
                                        word32 inLen);
     WOLFSSL_API int wc_Ed25519PrivateKeyToDer(ed25519_key* key, byte* output,
                                               word32 inLen);
+#endif
 
     /* public key helper */
     WOLFSSL_API int wc_Ed25519PublicKeyDecode(const byte*, word32*,
                                               ed25519_key*, word32);
-    #if (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
+    #if (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN)) && \
+        defined(HAVE_ED25519_KEY_EXPORT)
+
         WOLFSSL_API int wc_Ed25519PublicKeyToDer(ed25519_key*, byte* output,
                                                word32 inLen, int with_AlgCurve);
     #endif
@@ -580,17 +587,23 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
 
 #ifdef HAVE_ED448
     /* private key helpers */
+#ifdef HAVE_ED448_KEY_IMPORT
     WOLFSSL_API int wc_Ed448PrivateKeyDecode(const byte*, word32*,
                                              ed448_key*, word32);
+#endif
+
+#ifdef HAVE_ED448_KEY_EXPORT
     WOLFSSL_API int wc_Ed448KeyToDer(ed448_key* key, byte* output,
                                      word32 inLen);
     WOLFSSL_API int wc_Ed448PrivateKeyToDer(ed448_key* key, byte* output,
                                             word32 inLen);
+#endif
 
     /* public key helper */
     WOLFSSL_API int wc_Ed448PublicKeyDecode(const byte*, word32*,
                                             ed448_key*, word32);
-    #if (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
+    #if (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN)) && \
+        defined(HAVE_ED448_KEY_EXPORT)
         WOLFSSL_API int wc_Ed448PublicKeyToDer(ed448_key*, byte* output,
                                                word32 inLen, int with_AlgCurve);
     #endif

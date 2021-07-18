@@ -4728,6 +4728,10 @@ int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer)
  */
 int Ed25519CheckPubKey(WOLFSSL* ssl)
 {
+#ifndef HAVE_ED25519_KEY_IMPORT
+    (void)ssl;
+    return NOT_COMPILED_IN;
+#else /* HAVE_ED25519_KEY_IMPORT */
     ed25519_key* key = (ed25519_key*)ssl->hsKey;
     int ret = 0;
 
@@ -4754,6 +4758,7 @@ int Ed25519CheckPubKey(WOLFSSL* ssl)
     }
 
     return ret;
+#endif /* HAVE_ED25519_KEY_IMPORT */
 }
 
 /* Sign the data using EdDSA and key using Ed25519.
@@ -4771,6 +4776,16 @@ int Ed25519CheckPubKey(WOLFSSL* ssl)
 int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
                 word32* outSz, ed25519_key* key, DerBuffer* keyBufInfo)
 {
+#ifndef HAVE_ED25519_SIGN
+    (void)ssl;
+    (void)in;
+    (void)inSz;
+    (void)out;
+    (void)outSz;
+    (void)key;
+    (void)keyBufInfo;
+    return NOT_COMPILED_IN;
+#else /* HAVE_ED25519_SIGN */
     int ret;
 #ifdef HAVE_PK_CALLBACKS
     const byte* keyBuf = NULL;
@@ -4816,6 +4831,7 @@ int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
     WOLFSSL_LEAVE("Ed25519Sign", ret);
 
     return ret;
+#endif /* HAVE_ED25519_SIGN */
 }
 
 /* Verify the data using EdDSA and key using Ed25519.
@@ -4833,6 +4849,16 @@ int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 int Ed25519Verify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
                   word32 msgSz, ed25519_key* key, buffer* keyBufInfo)
 {
+#ifndef HAVE_ED25519_VERIFY
+    (void)ssl;
+    (void)in;
+    (void)inSz;
+    (void)msg;
+    (void)msgSz;
+    (void)key;
+    (void)keyBufInfo;
+    return NOT_COMPILED_IN;
+#else /* HAVE_ED25519_VERIFY */
     int ret;
 #ifdef HAVE_PK_CALLBACKS
     const byte* keyBuf = NULL;
@@ -4883,6 +4909,7 @@ int Ed25519Verify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
     WOLFSSL_LEAVE("Ed25519Verify", ret);
 
     return ret;
+#endif /* HAVE_ED25519_VERIFY */
 }
 #endif /* HAVE_ED25519 */
 
@@ -5035,6 +5062,10 @@ static int X25519MakeKey(WOLFSSL* ssl, curve25519_key* key,
  */
 int Ed448CheckPubKey(WOLFSSL* ssl)
 {
+#ifndef HAVE_ED448_KEY_IMPORT
+    (void)ssl;
+    return NOT_COMPILED_IN;
+#else /* HAVE_ED448_KEY_IMPORT */
     ed448_key* key = (ed448_key*)ssl->hsKey;
     int ret = 0;
 
@@ -5061,6 +5092,7 @@ int Ed448CheckPubKey(WOLFSSL* ssl)
     }
 
     return ret;
+#endif /* HAVE_ED448_KEY_IMPORT */
 }
 
 /* Sign the data using EdDSA and key using Ed448.
@@ -5078,6 +5110,16 @@ int Ed448CheckPubKey(WOLFSSL* ssl)
 int Ed448Sign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
               word32* outSz, ed448_key* key, DerBuffer* keyBufInfo)
 {
+#ifndef HAVE_ED448_SIGN
+    (void)ssl;
+    (void)in;
+    (void)inSz;
+    (void)out;
+    (void)outSz;
+    (void)key;
+    (void)keyBufInfo;
+    return NOT_COMPILED_IN;
+#else /* HAVE_ED448_SIGN */
     int ret;
 #ifdef HAVE_PK_CALLBACKS
     const byte* keyBuf = NULL;
@@ -5123,6 +5165,7 @@ int Ed448Sign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
     WOLFSSL_LEAVE("Ed448Sign", ret);
 
     return ret;
+#endif /* HAVE_ED448_SIGN */
 }
 
 /* Verify the data using EdDSA and key using Ed448.
@@ -5140,6 +5183,16 @@ int Ed448Sign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 int Ed448Verify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
                 word32 msgSz, ed448_key* key, buffer* keyBufInfo)
 {
+#ifndef HAVE_ED448_VERIFY
+    (void)ssl;
+    (void)in;
+    (void)inSz;
+    (void)msg;
+    (void)msgSz;
+    (void)key;
+    (void)keyBufInfo;
+    return NOT_COMPILED_IN;
+#else /* HAVE_ED448_VERIFY */
     int ret;
 #ifdef HAVE_PK_CALLBACKS
     const byte* keyBuf = NULL;
@@ -5190,6 +5243,7 @@ int Ed448Verify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
     WOLFSSL_LEAVE("Ed448Verify", ret);
 
     return ret;
+#endif /* HAVE_ED448_VERIFY */
 }
 #endif /* HAVE_ED448 */
 
@@ -12582,7 +12636,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif /* HAVE_ECC */
-                #ifdef HAVE_ED25519
+                #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
                     case ED25519k:
                     {
                         int keyRet = 0;
@@ -12635,8 +12689,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             ssl->ecdhCurveOID = ECC_X25519_OID;
                         break;
                     }
-                #endif /* HAVE_ED25519 */
-                #ifdef HAVE_ED448
+                #endif /* HAVE_ED25519 && HAVE_ED25519_KEY_IMPORT */
+                #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
                     case ED448k:
                     {
                         int keyRet = 0;
@@ -12688,7 +12742,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             ssl->ecdhCurveOID = ECC_X448_OID;
                         break;
                     }
-                #endif /* HAVE_ED448 */
+                #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
                     default:
                         break;
                 }
@@ -21671,7 +21725,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         }
     }
 #endif
-#ifdef HAVE_ED25519
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
     #if !defined(NO_RSA) || defined(HAVE_ECC)
         FreeKey(ssl, ssl->hsType, (void**)&ssl->hsKey);
     #endif
@@ -21712,8 +21766,8 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
             goto exit_dpk;
         }
     }
-#endif /* HAVE_ED25519 */
-#ifdef HAVE_ED448
+#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_IMPORT */
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
     #if !defined(NO_RSA) || defined(HAVE_ECC)
         FreeKey(ssl, ssl->hsType, (void**)&ssl->hsKey);
     #endif
@@ -21756,7 +21810,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
             goto exit_dpk;
         }
     }
-#endif /* HAVE_ED448 */
+#endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
 
     (void)idx;
     (void)keySz;

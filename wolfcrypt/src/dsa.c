@@ -665,22 +665,15 @@ int wc_DsaExportKeyRaw(DsaKey* dsa, byte* x, word32* xSz, byte* y, word32* ySz)
 int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
 {
 #ifdef WOLFSSL_SMALL_STACK
-    mp_int  *k = (mp_int *)XMALLOC(sizeof *k,
-                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    mp_int  *kInv = (mp_int *)XMALLOC(sizeof *kInv,
-                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    mp_int  *r = (mp_int *)XMALLOC(sizeof *r,
-                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    mp_int  *s = (mp_int *)XMALLOC(sizeof *s,
-                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    mp_int  *H = (mp_int *)XMALLOC(sizeof *H,
-                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    mp_int  *k = NULL;
+    mp_int  *kInv = NULL;
+    mp_int  *r = NULL;
+    mp_int  *s = NULL;
+    mp_int  *H = NULL;
 #ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
-    mp_int  *b = (mp_int *)XMALLOC(sizeof *b,
-                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    mp_int  *b = NULL;
 #endif
-    byte    *buffer = (byte *)XMALLOC(DSA_HALF_SIZE, key->heap,
-                                      DYNAMIC_TYPE_TMP_BUFFER);
+    byte    *buffer = NULL;
 #else
     mp_int  k[1], kInv[1], r[1], s[1], H[1];
 #ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
@@ -693,17 +686,24 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
     byte*   tmp;  /* initial output pointer */
 
     do {
-#ifdef WOLFSSL_MP_INVMOD_CONSTANT_TIME
-        if (mp_init_multi(k, kInv, r, s, H, 0) != MP_OKAY)
-#else
-            if (mp_init_multi(k, kInv, r, s, H, b) != MP_OKAY)
-#endif
-                {
-                    ret = MP_INIT_E;
-                    break;
-                }
+        if (digest == NULL || out == NULL || key == NULL || rng == NULL) {
+            ret = BAD_FUNC_ARG;
+            break;
+        }
 
 #ifdef WOLFSSL_SMALL_STACK
+        k = (mp_int *)XMALLOC(sizeof *k, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        kInv = (mp_int *)XMALLOC(sizeof *kInv, key->heap,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
+        r = (mp_int *)XMALLOC(sizeof *r, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        s = (mp_int *)XMALLOC(sizeof *s, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        H = (mp_int *)XMALLOC(sizeof *H, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
+        b = (mp_int *)XMALLOC(sizeof *b, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        buffer = (byte *)XMALLOC(DSA_HALF_SIZE, key->heap,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
+
         if ((k == NULL) ||
             (kInv == NULL) ||
             (r == NULL) ||
@@ -718,10 +718,15 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
         }
 #endif
 
-        if (digest == NULL || out == NULL || key == NULL || rng == NULL) {
-            ret = BAD_FUNC_ARG;
-            break;
-        }
+#ifdef WOLFSSL_MP_INVMOD_CONSTANT_TIME
+        if (mp_init_multi(k, kInv, r, s, H, 0) != MP_OKAY)
+#else
+            if (mp_init_multi(k, kInv, r, s, H, b) != MP_OKAY)
+#endif
+                {
+                    ret = MP_INIT_E;
+                    break;
+                }
 
         sz = min(DSA_HALF_SIZE, mp_unsigned_bin_size(&key->q));
         tmp = out;
@@ -979,35 +984,31 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
 int wc_DsaVerify(const byte* digest, const byte* sig, DsaKey* key, int* answer)
 {
 #ifdef WOLFSSL_SMALL_STACK
-    mp_int *w = (mp_int *)XMALLOC(sizeof *w,
-                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    mp_int *u1 = (mp_int *)XMALLOC(sizeof *u1,
-                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    mp_int *u2 = (mp_int *)XMALLOC(sizeof *u2,
-                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    mp_int *v = (mp_int *)XMALLOC(sizeof *v,
-                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    mp_int *r = (mp_int *)XMALLOC(sizeof *r,
-                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    mp_int *s = (mp_int *)XMALLOC(sizeof *s,
-                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    mp_int *w = NULL;
+    mp_int *u1 = NULL;
+    mp_int *u2 = NULL;
+    mp_int *v = NULL;
+    mp_int *r = NULL;
+    mp_int *s = NULL;
 #else
     mp_int w[1], u1[1], u2[1], v[1], r[1], s[1];
 #endif
     int    ret = 0;
 
     do {
-        if (mp_init_multi(w, u1, u2, v, r, s) != MP_OKAY) {
-            ret = MP_INIT_E;
-            break;
-        }
-
         if (digest == NULL || sig == NULL || key == NULL || answer == NULL) {
             ret = BAD_FUNC_ARG;
             break;
         }
 
 #ifdef WOLFSSL_SMALL_STACK
+        w = (mp_int *)XMALLOC(sizeof *w, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        u1 = (mp_int *)XMALLOC(sizeof *u1, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        u2 = (mp_int *)XMALLOC(sizeof *u2, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        v = (mp_int *)XMALLOC(sizeof *v, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        r = (mp_int *)XMALLOC(sizeof *r, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        s = (mp_int *)XMALLOC(sizeof *s, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
         if ((w == NULL) ||
             (u1 == NULL) ||
             (u2 == NULL) ||
@@ -1018,6 +1019,11 @@ int wc_DsaVerify(const byte* digest, const byte* sig, DsaKey* key, int* answer)
             break;
         }
 #endif
+
+        if (mp_init_multi(w, u1, u2, v, r, s) != MP_OKAY) {
+            ret = MP_INIT_E;
+            break;
+        }
 
         /* set r and s from signature */
         if (mp_read_unsigned_bin(r, sig, DSA_HALF_SIZE) != MP_OKAY ||

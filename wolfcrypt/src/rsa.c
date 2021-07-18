@@ -4098,11 +4098,11 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 {
 #ifndef WC_NO_RNG
 #ifdef WOLFSSL_SMALL_STACK
-    mp_int *p = (mp_int *)XMALLOC(sizeof *p, key->heap, DYNAMIC_TYPE_RSA);
-    mp_int *q = (mp_int *)XMALLOC(sizeof *q, key->heap, DYNAMIC_TYPE_RSA);
-    mp_int *tmp1 = (mp_int *)XMALLOC(sizeof *tmp1, key->heap, DYNAMIC_TYPE_RSA);
-    mp_int *tmp2 = (mp_int *)XMALLOC(sizeof *tmp2, key->heap, DYNAMIC_TYPE_RSA);
-    mp_int *tmp3 = (mp_int *)XMALLOC(sizeof *tmp3, key->heap, DYNAMIC_TYPE_RSA);
+    mp_int *p = NULL;
+    mp_int *q = NULL;
+    mp_int *tmp1 = NULL;
+    mp_int *tmp2 = NULL;
+    mp_int *tmp3 = NULL;
 #else
     mp_int p_buf, *p = &p_buf;
     mp_int q_buf, *q = &q_buf;
@@ -4113,7 +4113,18 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     int err, i, failCount, primeSz, isPrime = 0;
     byte* buf = NULL;
 
+    if (key == NULL || rng == NULL) {
+        err = BAD_FUNC_ARG;
+        goto out;
+    }
+
 #ifdef WOLFSSL_SMALL_STACK
+    p = (mp_int *)XMALLOC(sizeof *p, key->heap, DYNAMIC_TYPE_RSA);
+    q = (mp_int *)XMALLOC(sizeof *q, key->heap, DYNAMIC_TYPE_RSA);
+    tmp1 = (mp_int *)XMALLOC(sizeof *tmp1, key->heap, DYNAMIC_TYPE_RSA);
+    tmp2 = (mp_int *)XMALLOC(sizeof *tmp2, key->heap, DYNAMIC_TYPE_RSA);
+    tmp3 = (mp_int *)XMALLOC(sizeof *tmp3, key->heap, DYNAMIC_TYPE_RSA);
+
     if ((p == NULL) ||
 	(q == NULL) ||
 	(tmp1 == NULL) ||
@@ -4123,11 +4134,6 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
       goto out;
     }
 #endif
-
-    if (key == NULL || rng == NULL) {
-        err = BAD_FUNC_ARG;
-        goto out;
-    }
 
     if (!RsaSizeCheck(size)) {
         err = BAD_FUNC_ARG;

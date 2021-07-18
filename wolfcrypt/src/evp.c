@@ -4277,41 +4277,42 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 break;
 #if defined(HAVE_AESGCM) && !defined(HAVE_SELFTEST) && !defined(WC_NO_RNG)
             case EVP_CTRL_GCM_SET_IVLEN:
+                if ((ctx->flags & WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER) == 0)
+                    break;
                 if(arg <= 0 || arg > 16)
-                    return WOLFSSL_FAILURE;
+                    break;
                 ret = wolfSSL_EVP_CIPHER_CTX_set_iv_length(ctx, arg);
                 break;
             case EVP_CTRL_AEAD_SET_IV_FIXED:
+                if ((ctx->flags & WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER) == 0)
+                    break;
                 if (arg == -1) {
                     /* arg == -1 copies ctx->ivSz from ptr */
                     ret = wolfSSL_EVP_CIPHER_CTX_set_iv(ctx, (byte*)ptr, ctx->ivSz);
-                }
-                else {
+                } else {
                     /*
                      * Fixed field must be at least 4 bytes and invocation
                      * field at least 8.
                      */
                     if ((arg < 4) || (ctx->ivSz - arg) < 8) {
                         WOLFSSL_MSG("Fixed field or invocation field too short");
-                        ret = WOLFSSL_FAILURE;
                         break;
                     }
                     /* arg is 4...(ctx->ivSz - 8) */
                     XMEMCPY(ctx->iv, ptr, arg);
                     if (wc_InitRng(&rng) != 0) {
                         WOLFSSL_MSG("wc_InitRng failed");
-                        ret = WOLFSSL_FAILURE;
                         break;
                     }
                     if (wc_RNG_GenerateBlock(&rng, ctx->iv   + arg,
-                                                   ctx->ivSz - arg) != 0) {
+                                                   ctx->ivSz - arg) == 0) {
+                        ret = WOLFSSL_SUCCESS;
+                    } else {
                         /* rng is freed immediately after if block so no need
                          * to do it here
                          */
                         WOLFSSL_MSG("wc_RNG_GenerateBlock failed");
-                        ret = WOLFSSL_FAILURE;
                     }
-
                     if (wc_FreeRng(&rng) != 0) {
                         WOLFSSL_MSG("wc_FreeRng failed");
                         ret = WOLFSSL_FAILURE;
@@ -4321,39 +4322,44 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 break;
 #if !defined(_WIN32) && !defined(HAVE_FIPS)
             case EVP_CTRL_GCM_IV_GEN:
+                if ((ctx->flags & WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER) == 0)
+                    break;
                 if (ctx->cipher.aes.keylen == 0 || ctx->ivSz == 0) {
-                    ret = WOLFSSL_FAILURE;
                     WOLFSSL_MSG("Key or IV not set");
                     break;
                 }
-                if ((ret = wc_AesGcmSetExtIV(&ctx->cipher.aes, ctx->iv,
-                                                             ctx->ivSz)) != 0) {
+                if (wc_AesGcmSetExtIV(&ctx->cipher.aes, ctx->iv,
+                                                             ctx->ivSz) != 0) {
                     WOLFSSL_MSG("wc_AesGcmSetIV failed");
-                    ret = WOLFSSL_FAILURE;
+                    break;
                 }
 #ifdef WOLFSSL_AESGCM_STREAM
                 /* Initialize using IV cached in Aes object. */
                 if (wc_AesGcmInit(&ctx->cipher.aes, NULL, 0, NULL, 0) != 0) {
                     WOLFSSL_MSG("wc_AesGcmInit failed");
-                    ret = WOLFSSL_FAILURE;
+                    break;
                 }
 #endif /* WOLFSSL_AESGCM_STREAM */
                 /* OpenSSL increments the IV. Not sure why */
                 IncCtr(ctx->iv, ctx->ivSz);
+                ret = WOLFSSL_SUCCESS;
                 break;
 #endif
             case EVP_CTRL_AEAD_SET_TAG:
+                if ((ctx->flags & WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER) == 0)
+                    break;
                 if(arg <= 0 || arg > 16 || (ptr == NULL))
-                    return WOLFSSL_FAILURE;
+                    break;
 
                 XMEMCPY(ctx->authTag, ptr, arg);
                 ctx->authTagSz = arg;
                 ret = WOLFSSL_SUCCESS;
-
                 break;
             case EVP_CTRL_AEAD_GET_TAG:
+                if ((ctx->flags & WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER) == 0)
+                    break;
                 if(arg <= 0 || arg > 16)
-                    return WOLFSSL_FAILURE;
+                    break;
 
                 XMEMCPY(ptr, ctx->authTag, arg);
                 ret = WOLFSSL_SUCCESS;
@@ -4361,7 +4367,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 #endif /* HAVE_AESGCM && !HAVE_SELFTEST && !WC_NO_RNG */
             default:
                 WOLFSSL_MSG("EVP_CIPHER_CTX_ctrl operation not yet handled");
-                ret = WOLFSSL_FAILURE;
+                break;
         }
         return ret;
     }
@@ -4377,7 +4383,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if ((ctx->cipherType == AES_128_GCM_TYPE) ||
                 (ctx->cipherType == AES_192_GCM_TYPE) ||
                 (ctx->cipherType == AES_256_GCM_TYPE)) {
-               wc_AesFree(&ctx->cipher.aes);
+                wc_AesFree(&ctx->cipher.aes);
             }
     #endif /* HAVE_AESGCM && WOLFSSL_AESGCM_STREAM */
 #endif /* not FIPS or new FIPS */
@@ -5406,8 +5412,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_key_length");
         if (ctx)
             return ctx->keyLen;
-
-        return 0;   /* failure */
+        else
+            return WOLFSSL_FAILURE;
     }
 
     /* WOLFSSL_SUCCESS on ok */
@@ -5418,7 +5424,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         if (ctx)
             ctx->keyLen = keylen;
         else
-            return 0;  /* failure */
+            return WOLFSSL_FAILURE;
 
         return WOLFSSL_SUCCESS;
     }

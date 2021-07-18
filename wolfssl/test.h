@@ -3697,7 +3697,8 @@ static WC_INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
 
 #endif /* HAVE_ECC */
 
-#ifdef HAVE_ED25519
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
+#ifdef HAVE_ED25519_SIGN
 static WC_INLINE int myEd25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
         byte* out, word32* outSz, const byte* key, word32 keySz, void* ctx)
 {
@@ -3734,8 +3735,10 @@ static WC_INLINE int myEd25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
 
     return ret;
 }
+#endif /* HAVE_ED25519_SIGN */
 
 
+#ifdef HAVE_ED25519_VERIFY
 static WC_INLINE int myEd25519Verify(WOLFSSL* ssl, const byte* sig, word32 sigSz,
         const byte* msg, word32 msgSz, const byte* key, word32 keySz,
         int* result, void* ctx)
@@ -3762,7 +3765,8 @@ static WC_INLINE int myEd25519Verify(WOLFSSL* ssl, const byte* sig, word32 sigSz
 
     return ret;
 }
-#endif /* HAVE_ED25519 */
+#endif /* HAVE_ED25519_VERIFY */
+#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_IMPORT */
 
 #ifdef HAVE_CURVE25519
 static WC_INLINE int myX25519KeyGen(WOLFSSL* ssl, curve25519_key* key,
@@ -3857,7 +3861,8 @@ static WC_INLINE int myX25519SharedSecret(WOLFSSL* ssl, curve25519_key* otherKey
 }
 #endif /* HAVE_CURVE25519 */
 
-#ifdef HAVE_ED448
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
+#ifdef HAVE_ED448_SIGN
 static WC_INLINE int myEd448Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
         byte* out, word32* outSz, const byte* key, word32 keySz, void* ctx)
 {
@@ -3894,8 +3899,10 @@ static WC_INLINE int myEd448Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
 
     return ret;
 }
+#endif /* HAVE_ED448_SIGN */
 
 
+#ifdef HAVE_ED448_VERIFY
 static WC_INLINE int myEd448Verify(WOLFSSL* ssl, const byte* sig, word32 sigSz,
         const byte* msg, word32 msgSz, const byte* key, word32 keySz,
         int* result, void* ctx)
@@ -3924,7 +3931,8 @@ static WC_INLINE int myEd448Verify(WOLFSSL* ssl, const byte* sig, word32 sigSz,
 
     return ret;
 }
-#endif /* HAVE_ED448 */
+#endif /* HAVE_ED448_VERIFY */
+#endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
 
 #ifdef HAVE_CURVE448
 static WC_INLINE int myX448KeyGen(WOLFSSL* ssl, curve448_key* key,
@@ -4435,17 +4443,25 @@ static WC_INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx)
     #ifndef NO_DH
         wolfSSL_CTX_SetDhAgreeCb(ctx, myDhCallback);
     #endif
-    #ifdef HAVE_ED25519
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
+        #ifdef HAVE_ED25519_SIGN
         wolfSSL_CTX_SetEd25519SignCb(ctx, myEd25519Sign);
+        #endif
+        #ifdef HAVE_ED25519_VERIFY
         wolfSSL_CTX_SetEd25519VerifyCb(ctx, myEd25519Verify);
+        #endif
     #endif
     #ifdef HAVE_CURVE25519
         wolfSSL_CTX_SetX25519KeyGenCb(ctx, myX25519KeyGen);
         wolfSSL_CTX_SetX25519SharedSecretCb(ctx, myX25519SharedSecret);
     #endif
-    #ifdef HAVE_ED448
+    #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
+        #if defined(HAVE_ED448_SIGN)
         wolfSSL_CTX_SetEd448SignCb(ctx, myEd448Sign);
+        #endif
+        #if defined(HAVE_ED448_VERIFY)
         wolfSSL_CTX_SetEd448VerifyCb(ctx, myEd448Verify);
+        #endif
     #endif
     #ifdef HAVE_CURVE448
         wolfSSL_CTX_SetX448KeyGenCb(ctx, myX448KeyGen);

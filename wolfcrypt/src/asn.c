@@ -3255,7 +3255,7 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
     else
     #endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT && !NO_ASN_CRYPT */
 
-    #if defined(HAVE_ED25519) && !defined(NO_ASN_CRYPT)
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT) && !defined(NO_ASN_CRYPT)
     if (ks == ED25519k) {
     #ifdef WOLFSSL_SMALL_STACK
         ed25519_key* key_pair;
@@ -3296,9 +3296,9 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
     #endif
     }
     else
-    #endif /* HAVE_ED25519 && !NO_ASN_CRYPT */
+    #endif /* HAVE_ED25519 && HAVE_ED25519_KEY_IMPORT && !NO_ASN_CRYPT */
 
-    #if defined(HAVE_ED448) && !defined(NO_ASN_CRYPT)
+    #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && !defined(NO_ASN_CRYPT)
     if (ks == ED448k) {
     #ifdef WOLFSSL_SMALL_STACK
         ed448_key* key_pair = NULL;
@@ -3339,7 +3339,7 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
     #endif
     }
     else
-    #endif /* HAVE_ED448 && !NO_ASN_CRYPT */
+    #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT && !NO_ASN_CRYPT */
     {
         ret = 0;
     }
@@ -3534,7 +3534,7 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         XFREE(ecc, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* HAVE_ECC && !NO_ASN_CRYPT */
-#if defined(HAVE_ED25519) && !defined(NO_ASN_CRYPT)
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT) && !defined(NO_ASN_CRYPT)
     if (*algoID != RSAk && *algoID != ECDSAk) {
         ed25519_key *ed25519 = (ed25519_key *)XMALLOC(sizeof *ed25519, heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (ed25519 == NULL)
@@ -3555,8 +3555,8 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         }
         XFREE(ed25519, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
-#endif /* HAVE_ED25519 && !NO_ASN_CRYPT */
-#if defined(HAVE_ED448) && !defined(NO_ASN_CRYPT)
+#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_IMPORT && !NO_ASN_CRYPT */
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && !defined(NO_ASN_CRYPT)
     if (*algoID != RSAk && *algoID != ECDSAk && *algoID != ED25519k) {
         ed448_key *ed448 = (ed448_key *)XMALLOC(sizeof *ed448, heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (ed448 == NULL)
@@ -3577,7 +3577,7 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         }
         XFREE(ed448, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
-#endif /* HAVE_ED448 && !NO_ASN_CRYPT */
+#endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT && !NO_ASN_CRYPT */
 
     /* if flag is not set then is neither RSA or ECC key that could be
      * found */
@@ -7762,7 +7762,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     break;
                 }
             #endif /* HAVE_ECC */
-            #ifdef HAVE_ED25519
+            #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
                 case ED25519k:
                 {
                     sigCtx->verify = 0;
@@ -7786,7 +7786,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     break;
                 }
             #endif
-            #ifdef HAVE_ED448
+            #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
                 case ED448k:
                 {
                     sigCtx->verify = 0;
@@ -7904,7 +7904,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     break;
                 }
             #endif /* HAVE_ECC */
-            #ifdef HAVE_ED25519
+            #if defined(HAVE_ED25519) && defined(HAVE_ED25519_VERIFY)
                 case ED25519k:
                 {
                     ret = wc_ed25519_verify_msg(sig, sigSz, buf, bufSz,
@@ -7912,7 +7912,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     break;
                 }
             #endif
-            #ifdef HAVE_ED448
+            #if defined(HAVE_ED448) && defined(HAVE_ED448_VERIFY)
                 case ED448k:
                 {
                     ret = wc_ed448_verify_msg(sig, sigSz, buf, bufSz,
@@ -12607,8 +12607,8 @@ int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve)
 
 #endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
 
-#if defined(HAVE_ED25519) && (defined(WOLFSSL_CERT_GEN) || \
-                              defined(WOLFSSL_KEY_GEN))
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
 
 /* Write a public ECC key to output */
 static int SetEd25519PublicKey(byte* output, ed25519_key* key, int with_header)
@@ -12710,9 +12710,9 @@ int wc_Ed25519PublicKeyToDer(ed25519_key* key, byte* output, word32 inLen,
 
     return SetEd25519PublicKey(output, key, withAlg);
 }
-#endif /* HAVE_ED25519 && (WOLFSSL_CERT_GEN || WOLFSSL_KEY_GEN) */
-#if defined(HAVE_ED448) && (defined(WOLFSSL_CERT_GEN) || \
-                                                       defined(WOLFSSL_KEY_GEN))
+#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_EXPORT && (WOLFSSL_CERT_GEN || WOLFSSL_KEY_GEN) */
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT) && \
+    (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
 
 /* Write a public ECC key to output */
 static int SetEd448PublicKey(byte* output, ed448_key* key, int with_header)
@@ -12814,7 +12814,7 @@ int wc_Ed448PublicKeyToDer(ed448_key* key, byte* output, word32 inLen,
 
     return SetEd448PublicKey(output, key, withAlg);
 }
-#endif /* HAVE_ED448 && (WOLFSSL_CERT_GEN || WOLFSSL_KEY_GEN) */
+#endif /* HAVE_ED448 && HAVE_ED448_KEY_EXPORT && (WOLFSSL_CERT_GEN || WOLFSSL_KEY_GEN) */
 
 
 #ifdef WOLFSSL_CERT_GEN
@@ -13895,7 +13895,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     }
 #endif
 
-#ifdef HAVE_ED25519
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
     if (cert->keyType == ED25519_KEY) {
         if (ed25519Key == NULL)
             return PUBLIC_KEY_E;
@@ -13903,7 +13903,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     }
 #endif
 
-#ifdef HAVE_ED448
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
     if (cert->keyType == ED448_KEY) {
         if (ed448Key == NULL)
             return PUBLIC_KEY_E;
@@ -14322,7 +14322,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, int sz,
         }
     #endif /* HAVE_ECC */
 
-    #ifdef HAVE_ED25519
+    #if defined(HAVE_ED25519) && defined(HAVE_ED25519_SIGN)
         if (!rsaKey && !eccKey && ed25519Key) {
             word32 outSz = sigSz;
 
@@ -14330,9 +14330,9 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, int sz,
             if (ret == 0)
                 ret = outSz;
         }
-    #endif /* HAVE_ECC */
+    #endif /* HAVE_ED25519 && HAVE_ED25519_SIGN */
 
-    #ifdef HAVE_ED448
+    #if defined(HAVE_ED448) && defined(HAVE_ED448_SIGN)
         if (!rsaKey && !eccKey && !ed25519Key && ed448Key) {
             word32 outSz = sigSz;
 
@@ -14340,7 +14340,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, int sz,
             if (ret == 0)
                 ret = outSz;
         }
-    #endif /* HAVE_ECC */
+    #endif /* HAVE_ED448 && HAVE_ED448_SIGN */
         break;
     }
 
@@ -14652,7 +14652,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
     }
 #endif
 
-#ifdef HAVE_ED25519
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
     if (cert->keyType == ED25519_KEY) {
         if (ed25519Key == NULL)
             return PUBLIC_KEY_E;
@@ -14660,7 +14660,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
     }
 #endif
 
-#ifdef HAVE_ED448
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
     if (cert->keyType == ED448_KEY) {
         if (ed448Key == NULL)
             return PUBLIC_KEY_E;
@@ -15116,12 +15116,12 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
 #else
     (void)ntruKeySz;
 #endif
-#ifdef HAVE_ED25519
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
     /* ED25519 public key */
     if (ed25519Key != NULL)
         bufferSz = SetEd25519PublicKey(buf, ed25519Key, 0);
 #endif
-#ifdef HAVE_ED448
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
     /* ED448 public key */
     if (ed448Key != NULL)
         bufferSz = SetEd448PublicKey(buf, ed448Key, 0);
@@ -17139,6 +17139,8 @@ int wc_EccKeyToPKCS8(ecc_key* key, byte* output,
 
 #ifdef HAVE_ED25519
 
+#ifdef HAVE_ED25519_KEY_IMPORT
+
 int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
                                ed25519_key* key, word32 inSz)
 {
@@ -17239,8 +17241,9 @@ int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
     return 0;
 }
 
+#endif /* HAVE_ED25519_KEY_IMPORT */
 
-#ifdef WOLFSSL_KEY_GEN
+#if defined(WOLFSSL_KEY_GEN) && defined(HAVE_ED25519_KEY_EXPORT)
 
 /* build DER formatted ED25519 key,
  * return length on success, negative on error */
@@ -17312,12 +17315,13 @@ int wc_Ed25519PrivateKeyToDer(ed25519_key* key, byte* output, word32 inLen)
     return wc_BuildEd25519KeyDer(key, output, inLen, 0);
 }
 
-#endif /* WOLFSSL_KEY_GEN */
+#endif /* WOLFSSL_KEY_GEN && HAVE_ED25519_KEY_EXPORT */
 
 #endif /* HAVE_ED25519 */
 
 #ifdef HAVE_ED448
 
+#ifdef HAVE_ED448_KEY_IMPORT
 int wc_Ed448PrivateKeyDecode(const byte* input, word32* inOutIdx,
                              ed448_key* key, word32 inSz)
 {
@@ -17417,9 +17421,9 @@ int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
 
     return 0;
 }
+#endif /* HAVE_ED448_KEY_IMPORT */
 
-
-#ifdef WOLFSSL_KEY_GEN
+#if defined(WOLFSSL_KEY_GEN) && defined(HAVE_ED448_KEY_EXPORT)
 
 /* build DER formatted ED448 key,
  * return length on success, negative on error */
@@ -17492,7 +17496,7 @@ int wc_Ed448PrivateKeyToDer(ed448_key* key, byte* output, word32 inLen)
     return wc_BuildEd448KeyDer(key, output, inLen, 0);
 }
 
-#endif /* WOLFSSL_KEY_GEN */
+#endif /* WOLFSSL_KEY_GEN && HAVE_ED448_KEY_EXPORT */
 
 #endif /* HAVE_ED448 */
 

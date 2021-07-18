@@ -25143,6 +25143,9 @@ WOLFSSL_TEST_SUBROUTINE int ed25519_test(void)
     int    i;
     word32 outlen;
 #ifdef HAVE_ED25519_VERIFY
+#ifdef WOLFSSL_ED25519_STREAMING_VERIFY
+    int    j;
+#endif
     int    verify;
 #endif /* HAVE_ED25519_VERIFY */
 #endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_EXPORT && HAVE_ED25519_KEY_IMPORT */
@@ -25501,9 +25504,11 @@ WOLFSSL_TEST_SUBROUTINE int ed25519_test(void)
     };
 
     word32 idx;
-    ed25519_key key3;
 #endif /* NO_ASN */
 #endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_EXPORT && HAVE_ED25519_KEY_IMPORT */
+#if !defined(NO_ASN) && defined(HAVE_ED25519_SIGN)
+    ed25519_key key3;
+#endif
 
     /* create ed25519 keys */
 #ifndef HAVE_FIPS
@@ -25516,7 +25521,7 @@ WOLFSSL_TEST_SUBROUTINE int ed25519_test(void)
 
     wc_ed25519_init_ex(&key, HEAP_HINT, devId);
     wc_ed25519_init_ex(&key2, HEAP_HINT, devId);
-#ifndef NO_ASN
+#if !defined(NO_ASN) && defined(HAVE_ED25519_SIGN)
     wc_ed25519_init_ex(&key3, HEAP_HINT, devId);
 #endif
     wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key);
@@ -25547,6 +25552,20 @@ WOLFSSL_TEST_SUBROUTINE int ed25519_test(void)
         if (wc_ed25519_verify_msg(out, outlen, msgs[i], msgSz[i], &verify,
                     &key) != 0 || verify != 1)
             return -11031 - i;
+
+#ifdef WOLFSSL_ED25519_STREAMING_VERIFY
+        /* test verify on good msg using streaming interface directly */
+        if (wc_ed25519_verify_msg_init(out, outlen,
+                                       &key, (byte)Ed25519, NULL, 0) != 0)
+            return -11211 - i;
+        for (j = 0; j < msgSz[i]; j += i) {
+            if (wc_ed25519_verify_msg_update(msgs[i] + j, MIN(i, msgSz[i] - j), &key) != 0)
+                return -11221 - i;
+        }
+        if (wc_ed25519_verify_msg_final(out, outlen, &verify,
+                                        &key) != 0 || verify != 1)
+            return -11231 - i;
+#endif /* WOLFSSL_ED25519_STREAMING_VERIFY */
 
         /* test verify on bad msg */
         out[outlen-1] = out[outlen-1] + 1;
@@ -26232,22 +26251,25 @@ static int ed448_ctx_test(void)
     outlen = sizeof(out);
     XMEMSET(out, 0, sizeof(out));
 
+    if (wc_ed448_init_ex(&key, HEAP_HINT, devId) != 0)
+        return -11500;
+
     if (wc_ed448_import_private_key(sKeyCtx, ED448_KEY_SIZE, pKeyCtx,
                                     sizeof(pKeyCtx), &key) != 0)
-        return -11500;
+        return -11501;
 
     if (wc_ed448_sign_msg(msgCtx, sizeof(msgCtx), out, &outlen, &key,
                           contextCtx, sizeof(contextCtx)) != 0)
-        return -11501;
+        return -11502;
 
     if (XMEMCMP(out, sigCtx, sizeof(sigCtx)))
-        return -11502;
+        return -11503;
 
 #if defined(HAVE_ED448_VERIFY)
     /* test verify on good msg */
     if (wc_ed448_verify_msg(out, outlen, msgCtx, sizeof(msgCtx), &verify, &key,
                             contextCtx, sizeof(contextCtx)) != 0 || verify != 1)
-        return -11503;
+        return -11504;
 #endif
 
     wc_ed448_free(&key);
@@ -26345,72 +26367,75 @@ static int ed448ph_test(void)
     outlen = sizeof(out);
     XMEMSET(out, 0, sizeof(out));
 
+    if (wc_ed448_init_ex(&key, HEAP_HINT, devId) != 0)
+        return -11600;
+
     if (wc_ed448_import_private_key(sKeyPh, ED448_KEY_SIZE, pKeyPh,
                                     sizeof(pKeyPh), &key) != 0) {
-        return -11600;
+        return -11601;
     }
 
     if (wc_ed448ph_sign_msg(msgPh, sizeof(msgPh), out, &outlen, &key, NULL,
                             0) != 0) {
-        return -11601;
+        return -11602;
     }
 
     if (XMEMCMP(out, sigPh1, sizeof(sigPh1)))
-        return -11602;
+        return -11603;
 
 #if defined(HAVE_ED448_VERIFY)
     /* test verify on good msg */
     if (wc_ed448ph_verify_msg(out, outlen, msgPh, sizeof(msgPh), &verify, &key,
                               NULL, 0) != 0 || verify != 1) {
-        return -11603;
+        return -11604;
     }
 #endif
 
     if (wc_ed448ph_sign_msg(msgPh, sizeof(msgPh), out, &outlen, &key,
                             contextPh2, sizeof(contextPh2)) != 0) {
-        return -11604;
+        return -11605;
     }
 
     if (XMEMCMP(out, sigPh2, sizeof(sigPh2)))
-        return -11605;
+        return -11606;
 
 #if defined(HAVE_ED448_VERIFY)
     /* test verify on good msg */
     if (wc_ed448ph_verify_msg(out, outlen, msgPh, sizeof(msgPh), &verify, &key,
                               contextPh2, sizeof(contextPh2)) != 0 ||
             verify != 1) {
-        return -11606;
+        return -11607;
     }
 #endif
 
     if (wc_ed448ph_sign_hash(hashPh, sizeof(hashPh), out, &outlen, &key, NULL,
                              0) != 0) {
-        return -11607;
+        return -11608;
     }
 
     if (XMEMCMP(out, sigPh1, sizeof(sigPh1)))
-        return -11608;
+        return -11609;
 
 #if defined(HAVE_ED448_VERIFY)
     if (wc_ed448ph_verify_hash(out, outlen, hashPh, sizeof(hashPh), &verify,
                                &key, NULL, 0) != 0 || verify != 1) {
-        return -11609;
+        return -11610;
     }
 #endif
 
     if (wc_ed448ph_sign_hash(hashPh, sizeof(hashPh), out, &outlen, &key,
                              contextPh2, sizeof(contextPh2)) != 0) {
-        return -11610;
+        return -11611;
     }
 
     if (XMEMCMP(out, sigPh2, sizeof(sigPh2)))
-        return -11611;
+        return -11612;
 
 #if defined(HAVE_ED448_VERIFY)
     if (wc_ed448ph_verify_hash(out, outlen, hashPh, sizeof(hashPh), &verify,
                                &key, contextPh2, sizeof(contextPh2)) != 0 ||
             verify != 1) {
-        return -11612;
+        return -11613;
     }
 #endif
 
@@ -26434,6 +26459,9 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
     int    i;
     word32 outlen;
 #ifdef HAVE_ED448_VERIFY
+#ifdef WOLFSSL_ED448_STREAMING_VERIFY
+    int    j;
+#endif /* WOLFSSL_ED448_STREAMING_VERIFY */
     int    verify;
 #endif /* HAVE_ED448_VERIFY */
 #endif /* HAVE_ED448_SIGN && HAVE_ED448_KEY_EXPORT && HAVE_ED448_KEY_IMPORT */
@@ -26892,9 +26920,11 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
     };
 
     word32 idx;
-    ed448_key key3;
 #endif /* NO_ASN */
 #endif /* HAVE_ED448_SIGN && HAVE_ED448_KEY_EXPORT && HAVE_ED448_KEY_IMPORT */
+#if !defined(NO_ASN) && defined(HAVE_ED448_SIGN)
+    ed448_key key3;
+#endif
 
     /* create ed448 keys */
 #ifndef HAVE_FIPS
@@ -26907,7 +26937,7 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
 
     wc_ed448_init(&key);
     wc_ed448_init(&key2);
-#ifndef NO_ASN
+#if !defined(NO_ASN) && defined(HAVE_ED448_SIGN)
     wc_ed448_init(&key3);
 #endif
     wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key);
@@ -26941,6 +26971,20 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
                                                  NULL, 0) != 0 || verify != 1) {
             return -11731 - i;
         }
+
+#ifdef WOLFSSL_ED448_STREAMING_VERIFY
+        /* test verify on good msg using streaming interface directly */
+        if (wc_ed448_verify_msg_init(out, outlen,
+                                       &key, (byte)Ed448, NULL, 0) != 0)
+            return -11911 - i;
+        for (j = 0; j < msgSz[i]; j += i) {
+            if (wc_ed448_verify_msg_update(msgs[i] + j, MIN(i, msgSz[i] - j), &key) != 0)
+                return -11921 - i;
+        }
+        if (wc_ed448_verify_msg_final(out, outlen, &verify,
+                                        &key) != 0 || verify != 1)
+            return -11931 - i;
+#endif /* WOLFSSL_ED448_STREAMING_VERIFY */
 
         /* test verify on bad msg */
         out[outlen-2] = out[outlen-2] + 1;
@@ -30219,7 +30263,7 @@ static int myDecryptionFunc(PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
             keyId = 1;
         }
 #else
-        keyId = *(int*)(keyIdRaw + 2);
+        XMEMCPY(&keyId, keyIdRaw + 2, sizeof(keyId));
 #endif
     }
 
@@ -37052,6 +37096,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             /* reset devId */
             info->pk.ed25519kg.key->devId = devIdArg;
         }
+        #ifdef HAVE_ED25519_SIGN
         else if (info->pk.type == WC_PK_TYPE_ED25519_SIGN) {
             /* set devId to invalid, so software is used */
             info->pk.ed25519sign.key->devId = INVALID_DEVID;
@@ -37065,6 +37110,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             /* reset devId */
             info->pk.ed25519sign.key->devId = devIdArg;
         }
+        #endif
+        #ifdef HAVE_ED25519_VERIFY
         else if (info->pk.type == WC_PK_TYPE_ED25519_VERIFY) {
             /* set devId to invalid, so software is used */
             info->pk.ed25519verify.key->devId = INVALID_DEVID;
@@ -37079,6 +37126,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             /* reset devId */
             info->pk.ed25519verify.key->devId = devIdArg;
         }
+        #endif
     #endif /* HAVE_ED25519 */
     }
     else if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
