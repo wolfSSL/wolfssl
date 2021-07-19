@@ -54,8 +54,8 @@ versionName="Invalid"
 if [ "$OPENSSL" = "" ]; then
     OPENSSL=openssl
 fi
-WOLFSSL_SERVER=./examples/server/server
-WOLFSSL_CLIENT=./examples/client/client
+WOLFSSL_SERVER=./test_apps/server/test_server
+WOLFSSL_CLIENT=./test_apps/client/test_client
 
 version_name() {
     case $version in "0")
