@@ -24591,7 +24591,7 @@ int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
     sp_point_256 p[2];
 #endif
     sp_point_256* q = NULL;
-    int err;
+    int err = MP_OKAY;
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
 #endif
@@ -24621,6 +24621,10 @@ int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
         sp_256_from_mp(q->x, 4, qX);
         sp_256_from_mp(q->y, 4, qY);
         sp_256_from_mp(q->z, 4, qZ);
+        p->infinity = sp_256_iszero_4(p->x) &
+                      sp_256_iszero_4(p->y);
+        q->infinity = sp_256_iszero_4(q->x) &
+                      sp_256_iszero_4(q->y);
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
@@ -24695,6 +24699,8 @@ int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
         sp_256_from_mp(p->x, 4, pX);
         sp_256_from_mp(p->y, 4, pY);
         sp_256_from_mp(p->z, 4, pZ);
+        p->infinity = sp_256_iszero_4(p->x) &
+                      sp_256_iszero_4(p->y);
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
@@ -24765,6 +24771,8 @@ int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
         sp_256_from_mp(p->x, 4, pX);
         sp_256_from_mp(p->y, 4, pY);
         sp_256_from_mp(p->z, 4, pZ);
+        p->infinity = sp_256_iszero_4(p->x) &
+                      sp_256_iszero_4(p->y);
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
@@ -49165,7 +49173,7 @@ int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
     sp_point_384 p[2];
 #endif
     sp_point_384* q = NULL;
-    int err;
+    int err = MP_OKAY;
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
 #endif
@@ -49195,6 +49203,10 @@ int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
         sp_384_from_mp(q->x, 6, qX);
         sp_384_from_mp(q->y, 6, qY);
         sp_384_from_mp(q->z, 6, qZ);
+        p->infinity = sp_384_iszero_6(p->x) &
+                      sp_384_iszero_6(p->y);
+        q->infinity = sp_384_iszero_6(q->x) &
+                      sp_384_iszero_6(q->y);
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
@@ -49269,6 +49281,8 @@ int sp_ecc_proj_dbl_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
         sp_384_from_mp(p->x, 6, pX);
         sp_384_from_mp(p->y, 6, pY);
         sp_384_from_mp(p->z, 6, pZ);
+        p->infinity = sp_384_iszero_6(p->x) &
+                      sp_384_iszero_6(p->y);
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
@@ -49339,6 +49353,8 @@ int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
         sp_384_from_mp(p->x, 6, pX);
         sp_384_from_mp(p->y, 6, pY);
         sp_384_from_mp(p->z, 6, pZ);
+        p->infinity = sp_384_iszero_6(p->x) &
+                      sp_384_iszero_6(p->y);
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
