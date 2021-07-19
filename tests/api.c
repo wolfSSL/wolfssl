@@ -35259,6 +35259,10 @@ static void test_wolfSSL_BIO_accept(void)
     SSL_free(sslServer);
     SSL_CTX_free(ctx);
 
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+
     printf(resultFmt, passed);
 #endif
 }
