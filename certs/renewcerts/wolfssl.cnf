@@ -210,6 +210,13 @@ subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid:always,issuer:always
 basicConstraints=CA:false
 
+[ entity_no_CA_BOOL ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=pathlen:0
+keyUsage=digitalSignature
+extendedKeyUsage=clientAuth,serverAuth
+
 # Extensions to add to a certificate request
 [ v3_req ]
 basicConstraints = CA:FALSE

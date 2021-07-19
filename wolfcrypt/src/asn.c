@@ -8675,22 +8675,15 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
 
     ret = GetBoolean(input, &idx, sz);
 
-#ifndef WOLFSSL_X509_BASICCONS_INT
+/* Removed logic for WOLFSSL_X509_BASICCONS_INT which was mistreating the
+ * pathlen value as if it were the CA Boolean value 7/2/2021 - KH.
+ * When CA Boolean not asserted use the default value "False" */
     if (ret < 0) {
-        WOLFSSL_MSG("\tfail: constraint not valid BOOLEAN");
-        return ret;
+        WOLFSSL_MSG("\tfail: constraint not valid BOOLEAN, set default FALSE");
+        ret = 0;
     }
 
     cert->isCA = (byte)ret;
-#else
-    if (ret < 0) {
-        if(input[idx] == ASN_INTEGER) {
-            /* For OpenSSL compatibility, if ASN_INTEGER it is valid format */
-            cert->isCA = FALSE;
-        } else return ret;
-    } else
-        cert->isCA = (byte)ret;
-#endif
 
     /* If there isn't any more data, return. */
     if (idx >= (word32)sz) {
