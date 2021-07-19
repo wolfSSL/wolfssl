@@ -19985,6 +19985,9 @@ static int test_wc_curve25519_shared_secret_ex(void)
 
     ret = wc_curve25519_init(&private_key);
     if (ret == 0) {
+        ret = wc_curve25519_init(&public_key);
+    }
+    if (ret == 0) {
         ret = wc_InitRng(&rng);
     }
     if (ret == 0) {
@@ -34890,6 +34893,10 @@ static void test_wolfSSL_BIO_accept(void)
     BIO_free(serverBindBio);
     SSL_free(sslServer);
     SSL_CTX_free(ctx);
+
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
 
     printf(resultFmt, passed);
 #endif
