@@ -25,6 +25,7 @@
 #define WOLFSSL_SNIFFER_H
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/asn_public.h>
 
 #ifdef _WIN32
     #ifdef SSL_SNIFFER_EXPORTS
@@ -182,8 +183,6 @@ typedef struct SSLStats
     unsigned long int sslDecryptedPackets;
     unsigned long int sslKeyMatches;
     unsigned long int sslEncryptedConns;
-
-    unsigned long int sslResumptionValid;
     unsigned long int sslResumptionInserts;
 } SSLStats;
 
@@ -199,7 +198,21 @@ SSL_SNIFFER_API int ssl_ReadStatistics(SSLStats* stats);
 WOLFSSL_API
 SSL_SNIFFER_API int ssl_ReadResetStatistics(SSLStats* stats);
 
+typedef int (*SSLKeyCb)(void* vSniffer, int namedGroup,
+    const unsigned char* srvPub, unsigned int srvPubSz,
+    const unsigned char* cliPub, unsigned int cliPubSz,
+    DerBuffer* privKey, void* cbCtx, char* error);
 
+#if defined(WOLFSSL_STATIC_EPHEMERAL) && defined(WOLFSSL_TLS13)
+/* macro indicating support for key callback */
+#undef  WOLFSSL_SNIFFER_KEY_CALLBACK
+#define WOLFSSL_SNIFFER_KEY_CALLBACK
+WOLFSSL_API 
+SSL_SNIFFER_API int ssl_SetKeyCallback(SSLKeyCb cb, void* cbCtx);
+#endif
+
+
+#ifdef WOLFSSL_SNIFFER_WATCH
 typedef int (*SSLWatchCb)(void* vSniffer,
                         const unsigned char* certHash,
                         unsigned int certHashSz,
@@ -226,29 +239,37 @@ WOLFSSL_API
 SSL_SNIFFER_API int ssl_SetWatchKey_file(void* vSniffer,
                         const char* keyFile, int keyType,
                         const char* password, char* error);
+#endif
 
-
+#ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
 typedef int (*SSLStoreDataCb)(const unsigned char* decryptBuf,
         unsigned int decryptBufSz, unsigned int decryptBufOffset, void* ctx);
 
 WOLFSSL_API
 SSL_SNIFFER_API int ssl_SetStoreDataCallback(SSLStoreDataCb cb);
+#endif
 
+#ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
 WOLFSSL_API
 SSL_SNIFFER_API int ssl_DecodePacketWithSessionInfoStoreData(
         const unsigned char* packet, int length, void* ctx,
         SSLInfo* sslInfo, char* error);
+#endif
 
-
+#ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
 WOLFSSL_API
 SSL_SNIFFER_API int ssl_DecodePacketWithChain(void* vChain,
         unsigned int chainSz, unsigned char** data, char* error);
+#endif
 
-
+#if defined(WOLFSSL_SNIFFER_CHAIN_INPUT) && \
+    defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
 WOLFSSL_API
 SSL_SNIFFER_API int ssl_DecodePacketWithChainSessionInfoStoreData(
         void* vChain, unsigned int chainSz, void* ctx, SSLInfo* sslInfo,
         char* error);
+#endif
+
 
 #ifdef __cplusplus
     }  /* extern "C" */

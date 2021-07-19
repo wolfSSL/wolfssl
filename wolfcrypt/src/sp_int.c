@@ -12732,7 +12732,8 @@ int sp_todecimal(sp_int* a, char* str)
 }
 #endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_KEY_GEN || HAVE_COMP_KEY */
 
-#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    defined(WC_MP_TO_RADIX)
 /* Put the string version, big-endian, of a in str using the given radix.
  *
  * @param  [in]   a      SP integer to convert.
@@ -12765,9 +12766,10 @@ int sp_toradix(sp_int* a, char* str, int radix)
 
     return err;
 }
-#endif /* WOLFSSL_SP_MATH_ALL */
+#endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) || WC_MP_TO_RADIX */
 
-#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    defined(WC_MP_TO_RADIX)
 /* Calculate the length of the string version, big-endian, of a using the given
  * radix.
  *
@@ -12858,7 +12860,7 @@ int sp_radix_size(sp_int* a, int radix, int* size)
 
     return err;
 }
-#endif /* WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY */
+#endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) || WC_MP_TO_RADIX */
 
 /***************************************
  * Prime number generation and checking.

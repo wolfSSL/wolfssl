@@ -369,6 +369,32 @@ Return Values:
 * -1 if a problem occurred
 
 
+### ssl_SetKeyCallback
+
+This feature is enabled by default and will be called when a key is required for a session using static ephemeral keys with TLS v1.3.
+
+The public key being used will be provided allowing lookup of the corresponding private key.
+
+The `privKey` buffer is a dynamic buffer assigned via a call to setup a static ephemeral key via `ssl_SetNamedEphemeralKey` or `ssl_SetEphemeralKey`.
+
+```c
+typedef int (*SSLKeyCb)(void* vSniffer, int namedGroup,
+    const unsigned char* srvPub, unsigned int srvPubSz,
+    const unsigned char* cliPub, unsigned int cliPubSz,
+    unsigned char* privKey, unsigned int* privKeySz,
+    void* ctx, char* error);
+
+int ssl_SetKeyCallback(SSLKeyCb cb, void* ctx, char* error);
+```
+
+The parameter `vSniffer` is a typeless pointer to the current sniffer session (`SnifferSession`). The `namedGroup` is the TLS defined named groups like `WOLFSSL_ECC_SECP256R1` or `WOLFSSL_FFDHE_2048`. The server and client public key information are provided to lookup the private key to be used for this session. The loaded private key to be used will be passed in `key`. If a different key should be used it can optionally be returned in `privKey` and `privKeySz`.
+
+Return Values:
+
+* 0 on success
+* -1 if a problem occurred, the string error will hold a message describing the problem
+
+
 ## API Usage: SSL Statistics options
 
 For an example on the use of the sniffer stats option, search the source `snifftest.c` for `WOLFSSL_SNIFFER_STATS`.
@@ -460,7 +486,7 @@ typedef int (*SSLWatchCb)(void* vSniffer,
     void* ctx, char* error);
 ```
 
-The parameter `vSniffer` is a typeless pointer to the current sniffer session and is meant to be passed directly to the function `ssl_SetWatchKey`. `certHash` is a SHA-256 hash of the certificate sent by the server, and its size is `certHashSz`. A pointer to certificate message’s payload is provided in the parameter `certChain`, and the certificate chain’s size in `certChainSz`. This will be a list of pairs of 24-bit certificate sizes and raw DER certificates in network order from the wire. The application space callback context data is provided in parameter ctx and is set by the function `ssl_SetWatchKeyCtx`. Any error string is copied into parameter error. Your callback function can use these values to locate the appropriate private key and load it into the sniffer session with the function `ssl_SetWatchKey`.
+The parameter `vSniffer` is a typeless pointer to the current sniffer session and is meant to be passed directly to the function `ssl_SetWatchKey_file` or `ssl_SetWatchKey_buffer`. The `certHash` is a SHA-256 hash of the certificate sent by the server, and its size is `certHashSz`. A pointer to certificate message’s payload is provided in the parameter `certChain`, and the certificate chain’s size in `certChainSz`. This will be a list of pairs of 24-bit certificate sizes and raw DER certificates in network order from the wire. The application space callback context data is provided in parameter ctx and is set by the function `ssl_SetWatchKeyCtx`. Any error string is copied into parameter error. Your callback function can use these values to locate the appropriate private key and load it into the sniffer session with the function `ssl_SetWatchKey_file` or `ssl_SetWatchKey_buffer`.
 
 Return Values:
 

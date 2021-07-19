@@ -881,7 +881,7 @@ MP_API int sp_to_unsigned_bin_at_pos(int o, sp_int* a, unsigned char* out);
 MP_API int sp_read_radix(sp_int* a, const char* in, int radix);
 MP_API int sp_tohex(sp_int* a, char* str);
 MP_API int sp_todecimal(mp_int* a, char* str);
-#ifdef WOLFSSL_SP_MATH_ALL
+#if defined(WOLFSSL_SP_MATH_ALL) || defined(WC_MP_TO_RADIX)
 MP_API int sp_toradix(mp_int* a, char* str, int radix);
 MP_API int sp_radix_size(mp_int* a, int radix, int* size);
 #endif

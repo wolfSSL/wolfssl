@@ -42745,17 +42745,14 @@ static int test_get_digit (void)
 /*
  * Testing wc_export_int
  */
-static int test_wc_export_int (void)
+static int test_wc_export_int(void)
 {
     int         ret = 0;
 #if defined(WOLFSSL_PUBLIC_MP)
     mp_int      mp;
-    byte        buf[256];
+    byte        buf[32];
     word32      keySz = (word32)sizeof(buf);
     word32      len = (word32)sizeof(buf);
-
-
-    int encType = WC_TYPE_UNSIGNED_BIN;
 
     printf(testingFmt, "wc_export_int()");
 
@@ -42763,24 +42760,39 @@ static int test_wc_export_int (void)
         ret = -1;
     }
     if (ret == 0) {
-        ret = wc_export_int(NULL, buf, &len, keySz, encType);
+        ret = mp_set_int(&mp, 1234);
+    }
+    if (ret == 0) {
+        ret = wc_export_int(NULL, buf, &len, keySz, WC_TYPE_UNSIGNED_BIN);
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
     }
-    len = sizeof(buf)-1;
     if (ret == 0) {
-        ret = wc_export_int(&mp, buf, &len, keySz, encType);
+        len = sizeof(buf)-1;
+        ret = wc_export_int(&mp, buf, &len, keySz, WC_TYPE_UNSIGNED_BIN);
         if (ret == BUFFER_E) {
             ret = 0;
         }
     }
-    len = sizeof(buf);
     if (ret == 0) {
-        ret = wc_export_int(&mp, buf, &len, keySz, WC_TYPE_HEX_STR);
+        len = sizeof(buf);
+        ret = wc_export_int(&mp, buf, &len, keySz, WC_TYPE_UNSIGNED_BIN);
     }
     if (ret == 0) {
-        ret = wc_export_int(&mp, buf, &len, keySz, encType);
+        len = 4; /* test input too small */
+        ret = wc_export_int(&mp, buf, &len, 0, WC_TYPE_HEX_STR);
+        if (ret == BUFFER_E) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        len = sizeof(buf);
+        ret = wc_export_int(&mp, buf, &len, 0, WC_TYPE_HEX_STR);
+        /* hex version of 1234 is 04D2 and should be 4 digits + 1 null */
+        if (ret == 0 && len != 5) {
+            ret = BAD_FUNC_ARG;
+        }
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
