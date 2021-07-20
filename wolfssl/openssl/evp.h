@@ -785,6 +785,7 @@ typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
 #define EVP_MD_CTX_type         wolfSSL_EVP_MD_CTX_type
 #define EVP_MD_CTX_size         wolfSSL_EVP_MD_CTX_size
 #define EVP_MD_CTX_block_size   wolfSSL_EVP_MD_CTX_block_size
+#define EVP_MD_block_size       wolfSSL_EVP_MD_block_size
 #define EVP_MD_type             wolfSSL_EVP_MD_type
 #ifndef NO_WOLFSSL_STUB
 #define EVP_MD_CTX_set_flags(...)

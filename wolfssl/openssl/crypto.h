@@ -26,18 +26,26 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+typedef struct WOLFSSL_INIT_SETTINGS {
+    char* appname;
+} WOLFSSL_INIT_SETTINGS;
+typedef WOLFSSL_INIT_SETTINGS OPENSSL_INIT_SETTINGS;
+
+typedef struct WOLFSSL_CRYPTO_THREADID {
+    int dummy;
+} WOLFSSL_CRYPTO_THREADID;
+typedef struct crypto_threadid_st   CRYPTO_THREADID;
+
+typedef struct CRYPTO_EX_DATA            CRYPTO_EX_DATA;
+typedef void (CRYPTO_free_func)(void* parent, void* ptr, CRYPTO_EX_DATA* ad, int idx,
+        long argl, void* argp);
+
 #include <wolfssl/openssl/opensslv.h>
 #include <wolfssl/openssl/conf.h>
 
 #ifdef WOLFSSL_PREFIX
 #include "prefix_crypto.h"
 #endif
-
-typedef struct WOLFSSL_INIT_SETTINGS {
-    char* appname;
-} WOLFSSL_INIT_SETTINGS;
-
-typedef WOLFSSL_INIT_SETTINGS OPENSSL_INIT_SETTINGS;
 
 WOLFSSL_API const char*   wolfSSLeay_version(int type);
 WOLFSSL_API unsigned long wolfSSLeay(void);
@@ -51,11 +59,6 @@ WOLFSSL_API unsigned char *wolfSSL_OPENSSL_hexstr2buf(const char *str, long *len
 
 WOLFSSL_API int wolfSSL_OPENSSL_init_crypto(word64 opts, const OPENSSL_INIT_SETTINGS *settings);
 #endif
-
-typedef struct WOLFSSL_CRYPTO_THREADID {
-    int dummy;
-}WOLFSSL_CRYPTO_THREADID;
-typedef struct crypto_threadid_st   CRYPTO_THREADID;
 
 #define crypto_threadid_st          WOLFSSL_CRYPTO_THREADID
 #define CRYPTO_THREADID             WOLFSSL_CRYPTO_THREADID
@@ -102,9 +105,6 @@ typedef struct crypto_threadid_st   CRYPTO_THREADID;
 #define CRYPTO_set_mem_ex_functions      wolfSSL_CRYPTO_set_mem_ex_functions
 #define FIPS_mode                        wolfSSL_FIPS_mode
 #define FIPS_mode_set                    wolfSSL_FIPS_mode_set
-typedef struct CRYPTO_EX_DATA            CRYPTO_EX_DATA;
-typedef void (CRYPTO_free_func)(void*parent, void*ptr, CRYPTO_EX_DATA *ad, int idx,
-        long argl, void* argp);
 #define CRYPTO_THREADID_set_callback wolfSSL_THREADID_set_callback
 #define CRYPTO_THREADID_set_numeric wolfSSL_THREADID_set_numeric
 #define CRYPTO_THREADID_current      wolfSSL_THREADID_current

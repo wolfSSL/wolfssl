@@ -167,6 +167,12 @@ int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
     if (recvd <= 0) {
         if (wolfSSL_BIO_supports_pending(ssl->biord) &&
             wolfSSL_BIO_ctrl_pending(ssl->biord) == 0) {
+            if (ssl->biowr->type == WOLFSSL_BIO_BIO &&
+                    ssl->biowr->wrIdx != 0) {
+                /* Let's signal to the app layer that we have
+                 * data pending that needs to be sent. */
+                return WOLFSSL_CBIO_ERR_WANT_WRITE;
+            }
             return WOLFSSL_CBIO_ERR_WANT_READ;
         }
         else if (ssl->biord->type == WOLFSSL_BIO_SOCKET) {
@@ -223,6 +229,12 @@ int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
             sent = TranslateIoError(sent);
         #endif
             return sent;
+        }
+        else if (ssl->biowr->type == WOLFSSL_BIO_BIO) {
+            if (sent == WOLFSSL_BIO_ERROR) {
+                WOLFSSL_MSG("\tWould Block");
+                return WOLFSSL_CBIO_ERR_WANT_WRITE;
+            }
         }
 
         /* If retry and write flags are set, return WANT_WRITE */
