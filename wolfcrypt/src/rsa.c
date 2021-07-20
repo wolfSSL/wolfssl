@@ -823,6 +823,9 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
     int ret;
     word32 counter;
     word32 idx;
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    wc_HashAlg *hash;
+#endif
     hLen    = wc_HashGetDigestSize(hType);
     counter = 0;
     idx     = 0;
@@ -847,10 +850,30 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
     }
     else {
         /* use array on the stack */
+    #ifndef WOLFSSL_SMALL_STACK_CACHE
         tmpSz = sizeof(tmpA);
+    #endif
         tmp  = tmpA;
         tmpF = 0; /* no need to free memory at end */
     }
+
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    hash = (wc_HashAlg*)XMALLOC(sizeof(*hash), heap, DYNAMIC_TYPE_DIGEST);
+    if (hash == NULL) {
+        if (tmpF) {
+            XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
+        }
+        return MEMORY_E;
+    }
+    ret = wc_HashInit_ex(hash, hType, heap, INVALID_DEVID);
+    if (ret != 0) {
+        XFREE(hash, heap, DYNAMIC_TYPE_DIGEST);
+        if (tmpF) {
+            XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
+        }
+        return ret;
+    }
+#endif
 
     do {
         int i = 0;
@@ -863,7 +886,15 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
         tmp[seedSz + 3] = (byte)((counter)       & 0xFF);
 
         /* hash and append to existing output */
-        if ((ret = wc_Hash(hType, tmp, (seedSz + 4), tmp, tmpSz)) != 0) {
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+        ret = wc_HashUpdate(hash, hType, tmp, (seedSz + 4));
+        if (ret == 0) {
+            ret = wc_HashFinal(hash, hType, tmp);
+        }
+#else
+        ret = wc_Hash(hType, tmp, (seedSz + 4), tmp, tmpSz);
+#endif
+        if (ret != 0) {
             /* check for if dynamic memory was needed, then free */
             if (tmpF) {
                 XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
@@ -881,6 +912,10 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
     if (tmpF) {
         XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
     }
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    wc_HashFree(hash, hType);
+    XFREE(hash, heap, DYNAMIC_TYPE_DIGEST);
+#endif
 
     return 0;
 }

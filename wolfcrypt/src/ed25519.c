@@ -699,16 +699,18 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
         return ret;
 #endif
 
-    ret = ed25519_verify_msg_init_with_sha(sig, sigLen, key, sha,
-                                     type, context, contextLen);
-    if (ret < 0)
-        return ret;
+    ret = ed25519_verify_msg_init_with_sha(sig, sigLen, key, sha, type, context,
+        contextLen);
+    if (ret == 0)
+        ret = ed25519_verify_msg_update_with_sha(msg, msgLen, key, sha);
+    if (ret == 0)
+        ret = ed25519_verify_msg_final_with_sha(sig, sigLen, res, key, sha);
 
-    ret = ed25519_verify_msg_update_with_sha(msg, msgLen, key, sha);
-    if (ret < 0)
-        return ret;
+#ifndef WOLFSSL_ED25519_PERSISTENT_SHA
+    ed25519_hash_free(key, sha);
+#endif
 
-    return ed25519_verify_msg_final_with_sha(sig, sigLen, res, key, sha);
+    return ret;
 }
 
 /*

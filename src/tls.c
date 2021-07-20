@@ -7043,8 +7043,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
         kse->pubKeyLen = keySize * 2 + 1;
 
         /* Allocate an ECC key to hold private key. */
-        kse->key = (byte*)XMALLOC(sizeof(ecc_key), ssl->heap,
-                                                      DYNAMIC_TYPE_PRIVATE_KEY);
+        kse->key = (byte*)XMALLOC(sizeof(ecc_key), ssl->heap, DYNAMIC_TYPE_ECC);
         if (kse->key == NULL) {
             WOLFSSL_MSG("EccTempKey Memory error");
             return MEMORY_E;
