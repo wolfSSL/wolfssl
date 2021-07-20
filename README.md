@@ -76,6 +76,12 @@ macro ```NO_OLD_SHA_NAMES```. These names get mapped to the OpenSSL API for a
 single call hash function. Instead the name WC_SHA, WC_SHA256, WC_SHA384 and
 WC_SHA512 should be used for the enum name.
 
+# wolfSSL Release 4.8.1 (July 16, 2021)
+Release 4.8.1 of wolfSSL embedded TLS has an OCSP vulnerability fix:
+
+### Vulnerabilities
+* [High] OCSP verification issue when response is for a certificate with no relation to the chain in question BUT that response contains the NoCheck extension which effectively disables ALL verification of that one cert. Users who should upgrade to 4.8.1 are TLS client users doing OCSP, TLS server users doing mutual auth with OCSP, and CertManager users doing OCSP independent of TLS. Thanks to Jan Nauber, Marco Smeets, Werner Rueschenbaum and Alissa Kim of Volkswagen Infotainment for the report.
+
 # wolfSSL Release 4.8.0 (July 09, 2021)
 Release 4.8.0 of wolfSSL embedded TLS has bug fixes and new features including:
 
