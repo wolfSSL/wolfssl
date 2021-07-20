@@ -246,7 +246,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">
     <ClCompile>
       <AdditionalIncludeDirectories>.\;..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;HAVE_FIPS;HAVE_FIPS_VERSION=2;USE_CERT_BUFFERS_2048;USE_CERT_BUFFERS_256;WOLFSSL_USER_SETTINGS;WOLFSSL_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;HAVE_FIPS;HAVE_FIPS_VERSION=2;USE_CERT_BUFFERS_2048;USE_CERT_BUFFERS_256;WOLFSSL_USER_SETTINGS;WOLFSSL_DLL;WOLFSSL_PUBLIC_MP;HAVE_FORCE_FIPS_FAILURE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <PrecompiledHeader />
       <WarningLevel>Level3</WarningLevel>

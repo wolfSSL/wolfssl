@@ -399,7 +399,7 @@ WOLFSSL_TEST_SUBROUTINE int  hmac_sha256_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha384_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha512_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha3_test(void);
-/* WOLFSSL_TEST_SUBROUTINE */ static int  hkdf_test(void);
+WOLFSSL_TEST_SUBROUTINE int  wc_hkdf_test(void);
 WOLFSSL_TEST_SUBROUTINE int  x963kdf_test(void);
 WOLFSSL_TEST_SUBROUTINE int  arc4_test(void);
 WOLFSSL_TEST_SUBROUTINE int  rc2_test(void);
@@ -966,7 +966,7 @@ initDefaultName();
     #endif
 
     #ifdef HAVE_HKDF
-        if ( (ret = hkdf_test()) != 0)
+        if ( (ret = wc_hkdf_test()) != 0)
             return err_sys("HMAC-KDF    test failed!\n", ret);
         else
             test_pass("HMAC-KDF    test passed!\n");
@@ -20221,7 +20221,7 @@ WOLFSSL_TEST_SUBROUTINE int pwdbased_test(void)
 
 #if defined(HAVE_HKDF) && !defined(NO_HMAC)
 
-/* WOLFSSL_TEST_SUBROUTINE */ static int hkdf_test(void)
+WOLFSSL_TEST_SUBROUTINE int wc_hkdf_test(void)
 {
     int ret = 0;
 
