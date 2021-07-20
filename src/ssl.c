@@ -2897,8 +2897,13 @@ static int _Rehandshake(WOLFSSL* ssl)
 /* do a secure renegotiation handshake, user forced, we discourage */
 int wolfSSL_Rehandshake(WOLFSSL* ssl)
 {
-    int ret = WOLFSSL_SUCCESS;
+    int ret;
     WOLFSSL_ENTER("wolfSSL_Rehandshake");
+
+    if (ssl == NULL)
+        return WOLFSSL_FAILURE;
+
+    ret = WOLFSSL_SUCCESS;
 
     if (ssl->options.side == WOLFSSL_SERVER_END) {
         /* Reset option to send certificate verify. */
@@ -4082,6 +4087,9 @@ WOLFSSL_ABI
 int wolfSSL_pending(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("SSL_pending");
+    if (ssl == NULL)
+        return WOLFSSL_FAILURE;
+
     return ssl->buffers.clearOutputBuffer.length;
 }
 
@@ -11693,6 +11701,10 @@ WOLFSSL_ABI
 long wolfSSL_CTX_set_session_cache_mode(WOLFSSL_CTX* ctx, long mode)
 {
     WOLFSSL_ENTER("SSL_CTX_set_session_cache_mode");
+
+    if (ctx == NULL)
+        return WOLFSSL_FAILURE;
+
     if (mode == WOLFSSL_SESS_CACHE_OFF)
         ctx->sessionCacheOff = 1;
 
@@ -16323,6 +16335,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     void wolfSSL_set_accept_state(WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("wolfSSL_set_accept_state");
+
+        if (ssl == NULL)
+            return;
+
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
     #ifdef HAVE_ECC
             ecc_key key;
