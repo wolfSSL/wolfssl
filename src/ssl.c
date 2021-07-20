@@ -17732,6 +17732,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         WOLFSSL_ENTER("MD5_Final");
         ret = wc_Md5Final((wc_Md5*)md5, input);
 
+        /* have to actually free the resources (if any) here, because the
+         * OpenSSL API doesn't include SHA*_Free().
+         */
+        wc_Md5Free((wc_Md5*)md5);
+
         /* return 1 on success, 0 otherwise */
         if (ret == 0)
             return 1;
@@ -17807,6 +17812,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         WOLFSSL_ENTER("SHA_Final");
         ret = wc_ShaFinal((wc_Sha*)sha, input);
+
+        /* have to actually free the resources (if any) here, because the
+         * OpenSSL API doesn't include SHA*_Free().
+         */
+        wc_ShaFree((wc_Sha*)sha);
 
         /* return 1 on success, 0 otherwise */
         if (ret == 0)
@@ -17922,6 +17932,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         WOLFSSL_ENTER("SHA224_Final");
         ret = wc_Sha224Final((wc_Sha224*)sha, input);
 
+        /* have to actually free the resources (if any) here, because the
+         * OpenSSL API doesn't include SHA*_Free().
+         */
+        wc_Sha224Free((wc_Sha224*)sha);
+
         /* return 1 on success, 0 otherwise */
         if (ret == 0)
             return 1;
@@ -17972,6 +17987,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         WOLFSSL_ENTER("SHA256_Final");
         ret = wc_Sha256Final((wc_Sha256*)sha, input);
+
+        /* have to actually free the resources (if any) here, because the
+         * OpenSSL API doesn't include SHA*_Free().
+         */
+        wc_Sha256Free((wc_Sha256*)sha);
 
         /* return 1 on success, 0 otherwise */
         if (ret == 0)
@@ -18053,6 +18073,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         WOLFSSL_ENTER("SHA384_Final");
         ret = wc_Sha384Final((wc_Sha384*)sha, input);
 
+        /* have to actually free the resources (if any) here, because the
+         * OpenSSL API doesn't include SHA*_Free().
+         */
+        wc_Sha384Free((wc_Sha384*)sha);
+
         /* return 1 on success, 0 otherwise */
         if (ret == 0)
             return 1;
@@ -18105,6 +18130,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         WOLFSSL_ENTER("SHA512_Final");
         ret = wc_Sha512Final((wc_Sha512*)sha, input);
+
+        /* have to actually free the resources (if any) here, because the
+         * OpenSSL API doesn't include SHA*_Free().
+         */
+        wc_Sha512Free((wc_Sha512*)sha);
 
         /* return 1 on success, 0 otherwise */
         if (ret == 0)
@@ -18183,6 +18213,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         WOLFSSL_ENTER("SHA3_224_Final");
         ret = wc_Sha3_224_Final((wc_Sha3*)sha, input);
 
+        /* have to actually free the resources (if any) here, because the
+         * OpenSSL API doesn't include SHA*_Free().
+         */
+        wc_Sha3_224_Free((wc_Sha3*)sha);
+
         /* return 1 on success, 0 otherwise */
         if (ret == 0)
             return 1;
@@ -18235,6 +18270,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         WOLFSSL_ENTER("SHA3_256_Final");
         ret = wc_Sha3_256_Final((wc_Sha3*)sha, input);
 
+        /* have to actually free the resources (if any) here, because the
+         * OpenSSL API doesn't include SHA*_Free().
+         */
+        wc_Sha3_256_Free((wc_Sha3*)sha);
+
         /* return 1 on success, 0 otherwise */
         if (ret == 0)
             return 1;
@@ -18284,6 +18324,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         WOLFSSL_ENTER("SHA3_384_Final");
         ret = wc_Sha3_384_Final((wc_Sha3*)sha, input);
+
+        /* have to actually free the resources (if any) here, because the
+         * OpenSSL API doesn't include SHA*_Free().
+         */
+        wc_Sha3_384_Free((wc_Sha3*)sha);
 
         /* return 1 on success, 0 otherwise */
         if (ret == 0)
@@ -18336,6 +18381,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         WOLFSSL_ENTER("SHA3_512_Final");
         ret = wc_Sha3_512_Final((wc_Sha3*)sha, input);
+
+        /* have to actually free the resources (if any) here, because the
+         * OpenSSL API doesn't include SHA*_Free().
+         */
+        wc_Sha3_512_Free((wc_Sha3*)sha);
 
         /* return 1 on success, 0 otherwise */
         if (ret == 0)
