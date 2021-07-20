@@ -1,0 +1,27 @@
+diff --git a/modules/Kconfig b/modules/Kconfig
+index 5144af3703..67864bc7e1 100644
+--- a/modules/Kconfig
++++ b/modules/Kconfig
+@@ -52,6 +52,9 @@ comment "hal_nordic module not available."
+ comment "mbedtls module not available."
+ 	depends on !ZEPHYR_MBEDTLS_MODULE
+ 
++comment "wolfssl module not available."
++	depends on !ZEPHYR_WOLFSSL_MODULE
++
+ comment "Trusted-firmware-m module not available."
+ 	depends on !ZEPHYR_TRUSTED_FIRMWARE_M_MODULE
+ 
+diff --git a/west.yml b/west.yml
+index 2aeb21ba83..eb4a15401a 100644
+--- a/west.yml
++++ b/west.yml
+@@ -158,6 +158,8 @@ manifest:
+     - name: lz4
+       path: modules/lib/lz4
+       revision: 8e303c264fc21c2116dc612658003a22e933124d
++    - name: wolfssl
++      path: modules/crypto/wolfssl
+ 
+   self:
+     path: zephyr
