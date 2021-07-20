@@ -1769,28 +1769,25 @@ then
 fi
 
 
-# set sha3 default
-SHA3_DEFAULT=no
-if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
-then
-    if test "x$ENABLED_FIPS" = "xno" || test "x$FIPS_VERSION" = "xv2"
-    then
-        SHA3_DEFAULT=yes
-    fi
-fi
-
 # SHA3
-AC_ARG_ENABLE([sha3],
-    [AS_HELP_STRING([--enable-sha3],[Enable wolfSSL SHA-3 support (default: enabled on x86_64/aarch64)])],
-    [ ENABLED_SHA3=$enableval ],
-    [ ENABLED_SHA3=$SHA3_DEFAULT ]
-    )
 
-if test "$ENABLED_SHA3" = "small"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA3_SMALL"
-    ENABLED_SHA3="yes"
-fi
+AC_ARG_ENABLE([sha3],
+    [AS_HELP_STRING([--enable-sha3],
+		   [Enable SHA-3 support @<:@default=yes@:>@ for x86_64/aarch64])],
+    [AS_CASE(${enableval}, [yes], [], [no], [], [small], [],
+             [AC_MSG_ERROR([bad value ${enableval} for --enable-sha3])])
+    AS_IF([test "x$enableval" = "xsmall"],[
+       AC_DEFINE([WOLFSSL_SHA3_SMALL],[1],[trade off performance for resource use])
+       enable_sha3="yes"
+       ],
+       [enable_sha3=$enableval])
+    ],
+    [AS_IF([test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"],
+	   [AS_IF([test "x$ENABLED_FIPS" = "xno" || test "x$FIPS_VERSION" = "xv2"],
+		  [enable_sha3=yes])
+	   ])
+    ])
+
 
 # SHAKE256
 AC_ARG_ENABLE([shake256],
@@ -2257,7 +2254,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ED448"
 
     # EdDSA448 requires SHAKE256 which requires SHA-3
-    ENABLED_SHA3=yes
+    enable_sha3=yes
     ENABLED_SHAKE256=yes
 
     ENABLED_CERTS=yes
@@ -3248,10 +3245,9 @@ fi
 
 # Set SHA-3 and SHAKE256 flags
 
-if test "$ENABLED_SHA3" = "yes" && test "$ENABLED_32BIT" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA3"
-fi
+AS_IF([test "$enable_sha3" = "yes" && test "$ENABLED_32BIT" = "no"],[
+    AC_DEFINE([WOLFSSL_SHA3],[1],[turns on build for SHA3 use])
+])
 
 
 if test "$ENABLED_SHAKE256" = "yes" || test "$ENABLED_SHAKE256" = "small"
@@ -3259,10 +3255,8 @@ then
     if test "$ENABLED_32BIT" = "no"
     then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHAKE256"
-        if test "$ENABLED_SHA3" = "no"
-        then
-            AC_MSG_ERROR([Must have SHA-3 enabled: --enable-sha3])
-        fi
+        AS_IF([test "$enable_sha3" = "no"],[
+            AC_MSG_ERROR([Must have SHA-3 enabled: --enable-sha3])])
     fi
 fi
 
@@ -6469,7 +6463,7 @@ AM_CONDITIONAL([BUILD_FIPS_READY],[test "x$FIPS_READY" = "xyes"])
 AM_CONDITIONAL([BUILD_CMAC],[test "x$ENABLED_CMAC" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SELFTEST],[test "x$ENABLED_SELFTEST" = "xyes"])
 AM_CONDITIONAL([BUILD_SHA224],[test "x$ENABLED_SHA224" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_SHA3],[test "x$ENABLED_SHA3" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_SHA3],[test "x$enable_sha3" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_POLY1305],[test "x$ENABLED_POLY1305" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CHACHA],[test "x$ENABLED_CHACHA" = "xyes" || test "x$ENABLED_CHACHA" = "xnoasm" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_XCHACHA],[test "x$ENABLED_XCHACHA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -6750,7 +6744,7 @@ echo "   * SHA:                        $ENABLED_SHA"
 echo "   * SHA-224:                    $ENABLED_SHA224"
 echo "   * SHA-384:                    $ENABLED_SHA384"
 echo "   * SHA-512:                    $ENABLED_SHA512"
-echo "   * SHA3:                       $ENABLED_SHA3"
+echo "   * SHA3:                       $enable_sha3"
 echo "   * SHAKE256:                   $ENABLED_SHAKE256"
 echo "   * BLAKE2:                     $ENABLED_BLAKE2"
 echo "   * BLAKE2S:                    $ENABLED_BLAKE2S"
