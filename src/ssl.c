@@ -8109,7 +8109,7 @@ static int wolfSSL_EVP_PKEY_get_der(const WOLFSSL_EVP_PKEY* key, unsigned char**
     /* return the key without PKCS8 for compatibility */
     /* if pkcs8HeaderSz is invalid, use 0 and return all of pkey */
     pkcs8HeaderSz = 0;
-    if (key->pkey_sz < key->pkcs8HeaderSz)
+    if (key->pkey_sz > key->pkcs8HeaderSz)
         pkcs8HeaderSz = key->pkcs8HeaderSz;
     sz = key->pkey_sz - pkcs8HeaderSz;
     if (der) {
