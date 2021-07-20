@@ -654,8 +654,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
 
     if (!srp || !clientPubKey || clientPubKeySz == 0
         || !serverPubKey || serverPubKeySz == 0) {
-        r = BAD_FUNC_ARG;
-        goto out;
+        return BAD_FUNC_ARG;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
