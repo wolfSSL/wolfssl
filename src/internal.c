@@ -22683,7 +22683,7 @@ exit_dpk:
                 return WOLFSSL_ERROR_WANT_X509_LOOKUP;
             }
         }
-        if ((ret = callCertSetupCb(ssl)) != 0)
+        if ((ret = CertSetupCbWrapper(ssl)) != 0)
             return ret;
     #endif
 
@@ -29426,7 +29426,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifdef OPENSSL_EXTRA
         if (ret == 0)
-            ret = callCertSetupCb(ssl);
+            ret = CertSetupCbWrapper(ssl);
 #endif
 
         return ret;

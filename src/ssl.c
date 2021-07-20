@@ -15996,11 +15996,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
      * @param ssl
      * @return 0 on success
      */
-    int callCertSetupCb(WOLFSSL* ssl)
+    int CertSetupCbWrapper(WOLFSSL* ssl)
     {
         int ret = 0;
         if (ssl->ctx->certSetupCb != NULL) {
-            WOLFSSL_ENTER("callCertSetupCb");
+            WOLFSSL_ENTER("CertSetupCbWrapper");
             WOLFSSL_MSG("Calling user cert setup callback");
             ret = ssl->ctx->certSetupCb(ssl, ssl->ctx->certSetupCbArg);
             if (ret == 1) {
@@ -43927,7 +43927,7 @@ err:
         return WOLFSSL_SUCCESS;
     }
 
-    static int pushCertToDerBuffer(DerBuffer** inOutDer, int weOwn,
+    static int PushCertToDerBuffer(DerBuffer** inOutDer, int weOwn,
             byte* cert, word32 certSz, void* heap)
     {
         int ret;
@@ -43988,7 +43988,7 @@ err:
                 x509->derCert->length, WOLFSSL_FILETYPE_ASN1);
             if (ret == WOLFSSL_SUCCESS) {
                 /* push to ctx->certChain */
-                ret = pushCertToDerBuffer(&ctx->certChain, 1,
+                ret = PushCertToDerBuffer(&ctx->certChain, 1,
                     x509->derCert->buffer, x509->derCert->length, ctx->heap);
             }
             /* Store cert to free it later */
@@ -44032,7 +44032,7 @@ err:
             }
         }
         else {
-            ret = pushCertToDerBuffer(&ssl->buffers.certChain,
+            ret = PushCertToDerBuffer(&ssl->buffers.certChain,
                     ssl->buffers.weOwnCertChain, x509->derCert->buffer,
                     x509->derCert->length, ssl->heap);
             if (ret == WOLFSSL_SUCCESS) {
@@ -56057,6 +56057,17 @@ WOLFSSL_X509_STORE_CTX *wolfSSL_X509_STORE_CTX_get0_parent_ctx(
     WOLFSSL_STUB("wolfSSL_X509_STORE_CTX_get0_parent_ctx");
     return NULL;
 }
+
+int wolfSSL_X509_STORE_get_by_subject(WOLFSSL_X509_STORE_CTX* ctx, int idx,
+                            WOLFSSL_X509_NAME* name, WOLFSSL_X509_OBJECT* obj)
+{
+    (void)ctx;
+    (void)idx;
+    (void)name;
+    (void)obj;
+    WOLFSSL_STUB("X509_STORE_get_by_subject");
+    return 0;
+}
 #endif
 
 
@@ -56475,19 +56486,6 @@ int wolfSSL_X509_CA_num(WOLFSSL_X509_STORE* store)
 
     return cnt_ret;
 }
-
-#ifndef NO_WOLFSSL_STUB
-int wolfSSL_X509_STORE_get_by_subject(WOLFSSL_X509_STORE_CTX* ctx, int idx,
-                            WOLFSSL_X509_NAME* name, WOLFSSL_X509_OBJECT* obj)
-{
-    (void)ctx;
-    (void)idx;
-    (void)name;
-    (void)obj;
-    WOLFSSL_STUB("X509_STORE_get_by_subject");
-    return 0;
-}
-#endif
 
 #ifndef NO_FILESYSTEM
 #if defined(WOLFSSL_SIGNER_DER_CERT)

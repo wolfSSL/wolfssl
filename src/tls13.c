@@ -5779,7 +5779,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
     }
     else {
 #ifdef OPENSSL_EXTRA
-        if ((ret = callCertSetupCb(ssl)) != 0)
+        if ((ret = CertSetupCbWrapper(ssl)) != 0)
             return ret;
 #endif
 

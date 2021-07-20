@@ -2955,9 +2955,11 @@ struct WOLFSSL_CTX {
     pem_password_cb* passwd_cb;
     void*            passwd_userdata;
 #endif
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
+#ifdef WOLFSSL_LOCAL_X509_STORE
     WOLFSSL_X509_STORE x509_store; /* points to ctx->cm */
     WOLFSSL_X509_STORE* x509_store_pt; /* take ownership of external store */
+#endif
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
     byte            readAhead;
     void*           userPRFArg; /* passed to prf callback */
 #endif
@@ -4336,7 +4338,7 @@ struct WOLFSSL {
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     CertReqCtx*     certReqCtx;
 #endif
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
+#ifdef WOLFSSL_LOCAL_X509_STORE
     WOLFSSL_X509_STORE* x509_store_pt; /* take ownership of external store */
 #endif
 #ifdef KEEP_PEER_CERT
@@ -4505,15 +4507,13 @@ struct WOLFSSL {
  * logic for choosing which WOLFSSL_CERT_MANAGER and WOLFSSL_X509_STORE to use.
  * Always use SSL specific objects when available and revert to CTX otherwise.
  */
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
+#ifdef WOLFSSL_LOCAL_X509_STORE
 #define SSL_CM(ssl) (ssl->x509_store_pt ? ssl->x509_store_pt->cm : ssl->ctx->cm)
 #define SSL_STORE(ssl) (ssl->x509_store_pt ? ssl->x509_store_pt : \
                   (ssl->ctx->x509_store_pt ? ssl->ctx->x509_store_pt : \
                                             &ssl->ctx->x509_store))
 #else
 #define SSL_CM(ssl) ssl->ctx->cm
-#define SSL_STORE(ssl) (ssl->ctx->x509_store_pt ? ssl->ctx->x509_store_pt : \
-                                                 &ssl->ctx->x509_store)
 #endif
 
 WOLFSSL_LOCAL int  SSL_CTX_RefCount(WOLFSSL_CTX* ctx, int incr);
