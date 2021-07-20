@@ -788,6 +788,7 @@ AC_ARG_ENABLE([mcast],
 # HAVE_POCO_LIB
 # WOLFSSL_MYSQL_COMPATIBLE
 # web server (--enable-webserver) HAVE_WEBSERVER
+# net-snmp (--enable-net-snmp)
 
 
 # OpenSSH compatibility Build
@@ -867,6 +868,13 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_OPENSSH -DHAVE_EX_DATA -DWOLFSSL_BASE16"
 fi
 
+# net-snmp Build
+AC_ARG_ENABLE([net-snmp],
+    [AS_HELP_STRING([--enable-net-snmp],[Enable net-snmp (default: disabled)])],
+    [ ENABLED_NETSNMP=$enableval ],
+    [ ENABLED_NETSNMP=no ]
+    )
+
 #IP alternative name Support
 AC_ARG_ENABLE([ip-alt-name],
     [AS_HELP_STRING([--enable-ip-alt-name],[Enable IP subject alternative name (default: disabled)])],
@@ -934,7 +942,7 @@ AC_ARG_ENABLE([opensslall],
 [ ENABLED_OPENSSLALL=$enableval ],
 [ ENABLED_OPENSSLALL=no ]
 )
-if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_WPAS_DPP" = "yes" || test "$ENABLED_SMIME" = "yes" || test "$ENABLED_HAPROXY" = "yes"
+if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_WPAS_DPP" = "yes" || test "$ENABLED_SMIME" = "yes" || test "$ENABLED_HAPROXY" = "yes" || test "$ENABLED_NETSNMP" = "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
@@ -1856,7 +1864,7 @@ AC_ARG_ENABLE([sessioncerts],
     [ ENABLED_SESSIONCERTS=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes" || test "x$ENABLED_NETSNMP" = "xyes"
 then
     ENABLED_SESSIONCERTS=yes
 fi
@@ -2975,7 +2983,7 @@ AC_ARG_ENABLE([des3],
     [ ENABLED_DES3=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "x$ENABLED_WPAS" != "xno"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "x$ENABLED_WPAS" != "xno" || test "$ENABLED_NETSNMP" = "yes"
 then
     ENABLED_DES3="yes"
 fi
@@ -3081,8 +3089,7 @@ AC_ARG_ENABLE([xts],
 
 AS_IF([test "x$ENABLED_XTS" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_XTS -DWOLFSSL_AES_DIRECT"])
-
-
+    
 # Web Server Build
 AC_ARG_ENABLE([webserver],
     [AS_HELP_STRING([--enable-webserver],[Enable Web Server (default: disabled)])],
@@ -3486,7 +3493,7 @@ AC_ARG_ENABLE([crl],
     )
 
 
-if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes" || test "x$ENABLED_WPAS" != "xno" || test "x$ENABLED_LIGHTY" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes" || test "x$ENABLED_WPAS" != "xno" || test "x$ENABLED_LIGHTY" = "xyes" || test "x$ENABLED_NETSNMP" = "xyes"
 then
     ENABLED_CRL=yes
 fi
@@ -4343,6 +4350,23 @@ then
         AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS"
     fi
     
+fi
+
+if test "$ENABLED_NETSNMP" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
+
+    if test "x$ENABLED_AESCFB" = "xno"
+    then
+        ENABLED_AESCFB="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_CFB"
+    fi
+
+    if test "x$ENABLED_DTLS" = "xno"
+    then
+        ENABLED_DTLS="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS"
+    fi
 fi
 
 if test "$ENABLED_SIGNAL" = "yes"

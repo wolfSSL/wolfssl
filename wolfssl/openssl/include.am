@@ -9,6 +9,7 @@ nobase_include_HEADERS+= \
                          wolfssl/openssl/bn.h \
                          wolfssl/openssl/buffer.h \
                          wolfssl/openssl/cms.h \
+                         wolfssl/openssl/compat_types.h \
                          wolfssl/openssl/conf.h \
                          wolfssl/openssl/crypto.h \
                          wolfssl/openssl/des.h \
