@@ -11467,6 +11467,9 @@ WOLFSSL_TEST_SUBROUTINE int XChaCha20Poly1305_test(void) {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte *buf1 = (byte *)XMALLOC(sizeof Ciphertext + sizeof Tag, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     byte *buf2 = (byte *)XMALLOC(sizeof Plaintext, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if ((buf1 == NULL) || (buf2 == NULL))
+        ERROR_OUT(-6480, out);
 #else
     byte buf1[sizeof Ciphertext + sizeof Tag];
     byte buf2[sizeof Plaintext];
@@ -11479,31 +11482,33 @@ WOLFSSL_TEST_SUBROUTINE int XChaCha20Poly1305_test(void) {
                                        Key, sizeof Key);
 
     if (ret < 0)
-        ERROR_OUT(-6840, out);
-
-    if (XMEMCMP(buf1, Ciphertext, sizeof Plaintext))
         ERROR_OUT(-6841, out);
 
-    if (XMEMCMP(buf1 + sizeof Plaintext, Tag, CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE))
+    if (XMEMCMP(buf1, Ciphertext, sizeof Ciphertext))
         ERROR_OUT(-6842, out);
 
+    if (XMEMCMP(buf1 + sizeof Ciphertext, Tag, CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE))
+        ERROR_OUT(-6843, out);
+
     ret = wc_XChaCha20Poly1305_Decrypt(buf2, sizeof Plaintext,
-                                 buf1, sizeof Plaintext + sizeof Tag,
+                                 buf1, sizeof Ciphertext + sizeof Tag,
                                        AAD, sizeof AAD,
                                        IV, sizeof IV,
                                        Key, sizeof Key);
 
     if (ret < 0)
-        ERROR_OUT(-6843, out);
+        ERROR_OUT(-6844, out);
 
     if (XMEMCMP(buf2, Plaintext, sizeof Plaintext))
-        ERROR_OUT(-6844, out);
+        ERROR_OUT(-6845, out);
 
   out:
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    XFREE(buf1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(buf2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf1 != NULL)
+        XFREE(buf1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf2 != NULL)
+        XFREE(buf2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;

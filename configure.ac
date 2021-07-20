@@ -95,16 +95,16 @@ AC_ARG_ENABLE([reproducible-build],
 xxx_ar_flags=$(ar --help 2>&1)
 if test "$ENABLED_REPRODUCIBLE_BUILD" = "yes"
 then
-    AS_CASE([$xxx_ar_flags],[*'use zero for timestamps and uids/gids'*],[: ${AR_FLAGS="Dcr"}])
+    AS_CASE([$xxx_ar_flags],[*'use zero for timestamps and uids/gids'*],[AR_FLAGS="Dcr"])
 else
-    AS_CASE([$xxx_ar_flags],[*'use actual timestamps and uids/gids'*],[: ${AR_FLAGS="Ucru"}])
+    AS_CASE([$xxx_ar_flags],[*'use actual timestamps and uids/gids'*],[AR_FLAGS="Ucru"])
 fi
 xxx_ranlib_flags=$(ranlib --help 2>&1)
 if test "$ENABLED_REPRODUCIBLE_BUILD" = "yes"
 then
-    AS_CASE([$xxx_ranlib_flags],[*'Use zero for symbol map timestamp'*],[: ${RANLIB="ranlib -D"}])
+    AS_CASE([$xxx_ranlib_flags],[*'Use zero for symbol map timestamp'*],[RANLIB="ranlib -D"])
 else
-    AS_CASE([$xxx_ranlib_flags],[*'Use actual symbol map timestamp'*],[: ${RANLIB="ranlib -U"}])
+    AS_CASE([$xxx_ranlib_flags],[*'Use actual symbol map timestamp'*],[RANLIB="ranlib -U"])
 fi
 
 

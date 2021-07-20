@@ -8,8 +8,12 @@ if test -d .git; then
   if ! test -d .git/hooks; then
     mkdir .git/hooks
   fi
-  ln -s -f ../../pre-commit.sh .git/hooks/pre-commit
-  ln -s -f ../../pre-push.sh .git/hooks/pre-push
+  if [ ! -e .git/hooks/pre-commit ]; then
+      ln -s ../../pre-commit.sh .git/hooks/pre-commit
+  fi
+  if [ ! -e .git/hooks/pre-push ]; then
+      ln -s ../../pre-push.sh .git/hooks/pre-push
+  fi
 fi
 
 # touch options.h (make sure it exists)
