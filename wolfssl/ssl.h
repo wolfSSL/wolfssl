@@ -356,7 +356,7 @@ struct WOLFSSL_EVP_PKEY {
     #ifndef NO_RSA
     WOLFSSL_RSA* rsa;
     #endif
-#ifndef NO_DSA
+    #ifndef NO_DSA
     WOLFSSL_DSA* dsa;
     #endif
     #ifdef HAVE_ECC
