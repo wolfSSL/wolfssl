@@ -41942,7 +41942,7 @@ int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
     sp_point_256 p[2];
 #endif
     sp_point_256* q = NULL;
-    int err;
+    int err = MP_OKAY;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
@@ -41969,6 +41969,10 @@ int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
         sp_256_from_mp(q->x, 8, qX);
         sp_256_from_mp(q->y, 8, qY);
         sp_256_from_mp(q->z, 8, qZ);
+        p->infinity = sp_256_iszero_8(p->x) &
+                      sp_256_iszero_8(p->y);
+        q->infinity = sp_256_iszero_8(q->x) &
+                      sp_256_iszero_8(q->y);
 
             sp_256_proj_point_add_8(p, p, q, tmp);
     }
@@ -42035,6 +42039,8 @@ int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
         sp_256_from_mp(p->x, 8, pX);
         sp_256_from_mp(p->y, 8, pY);
         sp_256_from_mp(p->z, 8, pZ);
+        p->infinity = sp_256_iszero_8(p->x) &
+                      sp_256_iszero_8(p->y);
 
             sp_256_proj_point_dbl_8(p, p, tmp);
     }
@@ -42097,6 +42103,8 @@ int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
         sp_256_from_mp(p->x, 8, pX);
         sp_256_from_mp(p->y, 8, pY);
         sp_256_from_mp(p->z, 8, pZ);
+        p->infinity = sp_256_iszero_8(p->x) &
+                      sp_256_iszero_8(p->y);
 
             sp_256_map_8(p, p, tmp);
     }
@@ -52340,7 +52348,7 @@ int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
     sp_point_384 p[2];
 #endif
     sp_point_384* q = NULL;
-    int err;
+    int err = MP_OKAY;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
@@ -52367,6 +52375,10 @@ int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
         sp_384_from_mp(q->x, 12, qX);
         sp_384_from_mp(q->y, 12, qY);
         sp_384_from_mp(q->z, 12, qZ);
+        p->infinity = sp_384_iszero_12(p->x) &
+                      sp_384_iszero_12(p->y);
+        q->infinity = sp_384_iszero_12(q->x) &
+                      sp_384_iszero_12(q->y);
 
             sp_384_proj_point_add_12(p, p, q, tmp);
     }
@@ -52433,6 +52445,8 @@ int sp_ecc_proj_dbl_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
         sp_384_from_mp(p->x, 12, pX);
         sp_384_from_mp(p->y, 12, pY);
         sp_384_from_mp(p->z, 12, pZ);
+        p->infinity = sp_384_iszero_12(p->x) &
+                      sp_384_iszero_12(p->y);
 
             sp_384_proj_point_dbl_12(p, p, tmp);
     }
@@ -52495,6 +52509,8 @@ int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
         sp_384_from_mp(p->x, 12, pX);
         sp_384_from_mp(p->y, 12, pY);
         sp_384_from_mp(p->z, 12, pZ);
+        p->infinity = sp_384_iszero_12(p->x) &
+                      sp_384_iszero_12(p->y);
 
             sp_384_map_12(p, p, tmp);
     }

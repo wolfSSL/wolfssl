@@ -19143,6 +19143,10 @@ int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
         sp_256_from_mp(q->x, 10, qX);
         sp_256_from_mp(q->y, 10, qY);
         sp_256_from_mp(q->z, 10, qZ);
+        p->infinity = sp_256_iszero_10(p->x) &
+                      sp_256_iszero_10(p->y);
+        q->infinity = sp_256_iszero_10(q->x) &
+                      sp_256_iszero_10(q->y);
 
             sp_256_proj_point_add_10(p, p, q, tmp);
     }
@@ -19209,6 +19213,8 @@ int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
         sp_256_from_mp(p->x, 10, pX);
         sp_256_from_mp(p->y, 10, pY);
         sp_256_from_mp(p->z, 10, pZ);
+        p->infinity = sp_256_iszero_10(p->x) &
+                      sp_256_iszero_10(p->y);
 
             sp_256_proj_point_dbl_10(p, p, tmp);
     }
@@ -19271,6 +19277,8 @@ int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
         sp_256_from_mp(p->x, 10, pX);
         sp_256_from_mp(p->y, 10, pY);
         sp_256_from_mp(p->z, 10, pZ);
+        p->infinity = sp_256_iszero_10(p->x) &
+                      sp_256_iszero_10(p->y);
 
             sp_256_map_10(p, p, tmp);
     }
@@ -26872,6 +26880,10 @@ int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
         sp_384_from_mp(q->x, 15, qX);
         sp_384_from_mp(q->y, 15, qY);
         sp_384_from_mp(q->z, 15, qZ);
+        p->infinity = sp_384_iszero_15(p->x) &
+                      sp_384_iszero_15(p->y);
+        q->infinity = sp_384_iszero_15(q->x) &
+                      sp_384_iszero_15(q->y);
 
             sp_384_proj_point_add_15(p, p, q, tmp);
     }
@@ -26938,6 +26950,8 @@ int sp_ecc_proj_dbl_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
         sp_384_from_mp(p->x, 15, pX);
         sp_384_from_mp(p->y, 15, pY);
         sp_384_from_mp(p->z, 15, pZ);
+        p->infinity = sp_384_iszero_15(p->x) &
+                      sp_384_iszero_15(p->y);
 
             sp_384_proj_point_dbl_15(p, p, tmp);
     }
@@ -27000,6 +27014,8 @@ int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
         sp_384_from_mp(p->x, 15, pX);
         sp_384_from_mp(p->y, 15, pY);
         sp_384_from_mp(p->z, 15, pZ);
+        p->infinity = sp_384_iszero_15(p->x) &
+                      sp_384_iszero_15(p->y);
 
             sp_384_map_15(p, p, tmp);
     }
