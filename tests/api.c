@@ -20024,6 +20024,9 @@ static int test_wc_curve25519_shared_secret_ex(void)
 
     ret = wc_curve25519_init(&private_key);
     if (ret == 0) {
+        ret = wc_curve25519_init(&public_key);
+    }
+    if (ret == 0) {
         ret = wc_InitRng(&rng);
     }
     if (ret == 0) {
@@ -36564,6 +36567,8 @@ static void test_wolfSSL_SHA_Transform(void)
     AssertIntEQ(SHA_Transform(&sha, (const byte*)&local[0]), 1);
     AssertIntEQ(XMEMCMP(&((wc_Sha*)&sha)->digest[0], output1,
                                                         WC_SHA_DIGEST_SIZE), 0);
+    AssertIntEQ(SHA_Final(local, &sha), 1); /* frees resources */
+
     /* Init SHA CTX */
     AssertIntEQ(SHA_Init(&sha), 1);
     sLen = (word32)XSTRLEN((char*)input2);
@@ -36572,6 +36577,8 @@ static void test_wolfSSL_SHA_Transform(void)
     AssertIntEQ(SHA_Transform(&sha, (const byte*)&local[0]), 1);
     AssertIntEQ(XMEMCMP(&((wc_Sha*)&sha)->digest[0], output2,
                                                         WC_SHA_DIGEST_SIZE), 0);
+    AssertIntEQ(SHA_Final(local, &sha), 1); /* frees resources */
+
     /* SHA1 */
     XMEMSET(local, 0, WC_SHA_BLOCK_SIZE);
     /* Init SHA CTX */
@@ -36582,6 +36589,8 @@ static void test_wolfSSL_SHA_Transform(void)
     AssertIntEQ(SHA1_Transform(&sha1, (const byte*)&local[0]), 1);
     AssertIntEQ(XMEMCMP(&((wc_Sha*)&sha1)->digest[0], output1,
                                                         WC_SHA_DIGEST_SIZE), 0);
+    AssertIntEQ(SHA_Final(local, &sha), 1); /* frees resources */
+
     /* Init SHA CTX */
     AssertIntEQ(SHA1_Init(&sha1), 1);
     sLen = (word32)XSTRLEN((char*)input2);
@@ -36590,7 +36599,8 @@ static void test_wolfSSL_SHA_Transform(void)
     AssertIntEQ(SHA1_Transform(&sha1, (const byte*)&local[0]), 1);
     AssertIntEQ(XMEMCMP(&((wc_Sha*)&sha1)->digest[0], output2,
                                                         WC_SHA_DIGEST_SIZE), 0);
-                                                        
+    AssertIntEQ(SHA_Final(local, &sha), 1); /* frees resources */
+
     printf(resultFmt, passed);
 #endif
 #endif
@@ -36643,6 +36653,7 @@ static void test_wolfSSL_SHA256_Transform(void)
     AssertIntEQ(SHA256_Transform(&sha256, (const byte*)&local[0]), 1);
     AssertIntEQ(XMEMCMP(&((wc_Sha256*)&sha256)->digest[0], output1,
                                                     WC_SHA256_DIGEST_SIZE), 0);
+    AssertIntEQ(SHA256_Final(local, &sha256), 1); /* frees resources */
 
     /* Init SHA256 CTX */
     AssertIntEQ(SHA256_Init(&sha256), 1);
@@ -36652,6 +36663,7 @@ static void test_wolfSSL_SHA256_Transform(void)
     AssertIntEQ(SHA256_Transform(&sha256, (const byte*)&local[0]), 1);
     AssertIntEQ(XMEMCMP(&((wc_Sha256*)&sha256)->digest[0], output2,
                                                     WC_SHA256_DIGEST_SIZE), 0);
+    AssertIntEQ(SHA256_Final(local, &sha256), 1); /* frees resources */
 
     printf(resultFmt, passed);
 #endif
@@ -36736,8 +36748,9 @@ static void test_wolfSSL_SHA512_Transform(void)
     sLen = (word32)XSTRLEN((char*)input1);
     XMEMCPY(local, input1, sLen);
     AssertIntEQ(SHA512_Transform(&sha512, (const byte*)&local[0]), 1);
-   AssertIntEQ(XMEMCMP(&((wc_Sha512*)&sha512)->digest[0], output1,
+    AssertIntEQ(XMEMCMP(&((wc_Sha512*)&sha512)->digest[0], output1,
                                                     WC_SHA512_DIGEST_SIZE), 0);
+    AssertIntEQ(SHA512_Final(local, &sha512), 1); /* frees resources */
 
     /* Init SHA512 CTX */
     AssertIntEQ(SHA512_Init(&sha512), 1);
@@ -36747,6 +36760,8 @@ static void test_wolfSSL_SHA512_Transform(void)
     AssertIntEQ(SHA512_Transform(&sha512, (const byte*)&local[0]), 1);
     AssertIntEQ(XMEMCMP(&((wc_Sha512*)&sha512)->digest[0], output2,
                                                     WC_SHA512_DIGEST_SIZE), 0);
+    AssertIntEQ(SHA512_Final(local, &sha512), 1); /* frees resources */
+
     (void)input1;
     printf(resultFmt, passed);
 #endif
