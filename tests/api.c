@@ -45890,6 +45890,47 @@ static void test_wolfSSL_DH_get0_pqg(void)
 #endif /* OPENSSL_EXTRA && !NO_DH */
 }
 
+static void test_wolfSSL_ERR_strings()
+{
+    const char* err1 = "unsupported cipher suite";
+    const char* err2 = "wolfSSL PEM routines";
+    const char* err  = NULL;
+
+    (void)err;
+    (void)err1;
+    (void)err2;
+#if !defined(NO_ERROR_STRINGS)
+    printf(testingFmt, "test_wolfSSL_ERR_strings");
+    
+#if defined(OPENSSL_EXTRA)
+    err = ERR_reason_error_string(UNSUPPORTED_SUITE);
+    AssertTrue(err != NULL);
+    AssertIntEQ(XSTRNCMP(err, err1, XSTRLEN(err1)), 0);
+
+    err = ERR_func_error_string(UNSUPPORTED_SUITE);
+    AssertTrue(err != NULL);
+    AssertIntEQ((*err == '\0'), 1);
+    
+    err = ERR_lib_error_string(PEM_R_PROBLEMS_GETTING_PASSWORD);
+    AssertTrue(err != NULL);
+    AssertIntEQ(XSTRNCMP(err, err2, XSTRLEN(err2)), 0);
+#else
+    err = wolfSSL_ERR_reason_error_string(UNSUPPORTED_SUITE);
+    AssertTrue(err != NULL);
+    AssertIntEQ(XSTRNCMP(err, err1, XSTRLEN(err1)), 0);
+
+    err = wolfSSL_ERR_func_error_string(UNSUPPORTED_SUITE);
+    AssertTrue(err != NULL);
+    AssertIntEQ((*err == '\0'), 1);
+    
+    err = wolfSSL_ERR_lib_error_string(PEM_R_PROBLEMS_GETTING_PASSWORD);
+    AssertTrue(err != NULL);
+    AssertIntEQ((*err == ('\0')), 1);
+#endif
+    printf(resultFmt, passed);
+
+#endif
+}
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -45910,6 +45951,7 @@ void ApiTest(void)
 (!defined(NO_RSA) || defined(HAVE_ECC))
     test_for_double_Free();
 #endif
+    test_wolfSSL_ERR_strings();
     test_wolfSSL_CTX_use_certificate_file();
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_buffer(), WOLFSSL_SUCCESS);
     test_wolfSSL_CTX_use_PrivateKey_file();
