@@ -35569,6 +35569,30 @@ static int mp_test_mod_2d(mp_int* a, mp_int* r, mp_int* t, WC_RNG* rng)
         }
     }
 
+#if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_INT_NEGATIVE)
+    /* Test negative value being moded. */
+    for (j = 0; j < 20; j++) {
+        ret = randNum(a, 2, rng, NULL);
+        if (ret != 0)
+            return -13122;
+        a->sign = MP_NEG;
+        for (i = 1; i < DIGIT_BIT * 3 + 1; i++) {
+            ret = mp_mod_2d(a, i, r);
+            if (ret != 0)
+                return -13124;
+            mp_zero(t);
+            ret = mp_set_bit(t, i);
+            if (ret != 0)
+                return -13125;
+            ret = mp_mod(a, t, t);
+            if (ret != 0)
+                return -13126;
+            if (mp_cmp(r, t) != MP_EQ)
+                return -13127;
+        }
+    }
+#endif
+
     return 0;
 }
 #endif
