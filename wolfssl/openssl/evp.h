@@ -291,6 +291,8 @@ enum {
     NID_sha3_256        = 1097,
     NID_sha3_384        = 1098,
     NID_sha3_512        = 1099,
+    NID_blake2b512      = 1056,
+    NID_blake2s256      = 1057,
 };
 
 enum {

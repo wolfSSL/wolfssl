@@ -45933,19 +45933,23 @@ static void test_wolfSSL_ERR_strings()
 
 static void test_EVP_blake2()
 {
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && (defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S))
     printf(testingFmt, "test_EVP_blake2");
     
     const EVP_MD* md = NULL;
+    (void)md;
     
+#if defined(HAVE_BLAKE2)
     md = EVP_blake2b512();
     AssertTrue(md != NULL);
-    AssertIntEQ(XSTRNCMP(md, "BLAKE2b512", XSTRLEN("BLAKE2b512")), 0);
-    
+    AssertIntEQ(XSTRNCMP(md, "BLAKE2B512", XSTRLEN("BLAKE2B512")), 0);
+#endif
+
+#if defined(HAVE_BLAKE2S)
     md = EVP_blake2s256();
     AssertTrue(md != NULL);
-    AssertIntEQ(XSTRNCMP(md, "BLAKE2s256", XSTRLEN("BLAKE2s256")), 0);
-    
+    AssertIntEQ(XSTRNCMP(md, "BLAKE2S256", XSTRLEN("BLAKE2S256")), 0);
+#endif
     printf(resultFmt, passed);
     
 #endif
