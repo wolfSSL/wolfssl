@@ -7151,6 +7151,23 @@ int wolfSSL_EVP_PKEY_assign_DH(EVP_PKEY* pkey, WOLFSSL_DH* key)
 }
 #endif /* !NO_DH */
 
+/* return EVP_MD
+ * @param none
+ * @return "BLAKE2b512"
+ */
+const WOLFSSL_EVP_MD* wolfSSL_EVP_blake2b512()
+{
+    return (const WOLFSSL_EVP_MD*)"BLAKE2b512";
+}
+/* return EVP_MD
+ * @param none
+ * @return "BLAKE2s256"
+ */
+const WOLFSSL_EVP_MD* wolfSSL_EVP_blake2s256()
+{
+    return (const WOLFSSL_EVP_MD*)"BLAKE2s256";
+}
+
 #endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)

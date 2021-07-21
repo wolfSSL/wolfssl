@@ -45928,7 +45928,26 @@ static void test_wolfSSL_ERR_strings()
     AssertIntEQ((*err == ('\0')), 1);
 #endif
     printf(resultFmt, passed);
+#endif
+}
 
+static void test_EVP_blake2()
+{
+#if defined(OPENSSL_EXTRA)
+    printf(testingFmt, "test_EVP_blake2");
+    
+    const EVP_MD* md = NULL;
+    
+    md = EVP_blake2b512();
+    AssertTrue(md != NULL);
+    AssertIntEQ(XSTRNCMP(md, "BLAKE2b512", XSTRLEN("BLAKE2b512")), 0);
+    
+    md = EVP_blake2s256();
+    AssertTrue(md != NULL);
+    AssertIntEQ(XSTRNCMP(md, "BLAKE2s256", XSTRLEN("BLAKE2s256")), 0);
+    
+    printf(resultFmt, passed);
+    
 #endif
 }
 /*----------------------------------------------------------------------------*
@@ -45952,6 +45971,7 @@ void ApiTest(void)
     test_for_double_Free();
 #endif
     test_wolfSSL_ERR_strings();
+    test_EVP_blake2();
     test_wolfSSL_CTX_use_certificate_file();
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_buffer(), WOLFSSL_SUCCESS);
     test_wolfSSL_CTX_use_PrivateKey_file();
