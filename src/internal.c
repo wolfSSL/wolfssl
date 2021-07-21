@@ -19879,6 +19879,33 @@ const char* wolfSSL_ERR_func_error_string(unsigned long e)
     return "";
 }
 
+/* return library name
+ * @param e error code
+ * @return text library name, 
+ *    if there is no suitable library found, returns empty string
+ */
+const char* wolfSSL_ERR_lib_error_string(unsigned long e)
+{
+    int libe = 0;
+    
+    (void)libe;
+    (void)e;
+
+#if defined(OPENSSL_EXTRA)
+    libe = wolfSSL_ERR_GET_LIB(e);
+    switch (libe) {
+    case ERR_LIB_PEM:
+        return "wolfSSL PEM routines";
+    case ERR_LIB_EVP:
+        return "wolfSSL digital envelope routines";
+    default:
+        return "";
+    }
+#else
+    return "";
+#endif
+}
+
 void SetErrorString(int error, char* str)
 {
     XSTRNCPY(str, wolfSSL_ERR_reason_error_string(error), WOLFSSL_MAX_ERROR_SZ);

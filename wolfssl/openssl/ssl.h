@@ -917,6 +917,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ERR_error_string_n              wolfSSL_ERR_error_string_n
 #define ERR_reason_error_string         wolfSSL_ERR_reason_error_string
 #define ERR_func_error_string           wolfSSL_ERR_func_error_string
+#define ERR_lib_error_string            wolfSSL_ERR_lib_error_string
 #define ERR_load_BIO_strings            wolfSSL_ERR_load_BIO_strings
 
 #ifndef WOLFCRYPT_ONLY

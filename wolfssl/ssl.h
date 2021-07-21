@@ -1272,6 +1272,7 @@ WOLFSSL_API void  wolfSSL_ERR_error_string_n(unsigned long e, char* buf,
                                            unsigned long sz);
 WOLFSSL_API const char* wolfSSL_ERR_reason_error_string(unsigned long);
 WOLFSSL_API const char* wolfSSL_ERR_func_error_string(unsigned long);
+WOLFSSL_API const char* wolfSSL_ERR_lib_error_string(unsigned long);
 
 /* extras */
 
