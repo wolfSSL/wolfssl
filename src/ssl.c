@@ -5544,6 +5544,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     /* Found PKCS8 header */
                     /* ToTraditional_ex moves buff and returns adjusted length */
                     der->length = ret;
+                    keyFormat = algId;
                 }
                 ret = 0; /* failures should be ignored */
             }
@@ -5661,10 +5662,6 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         /* No operation, just skip the next section */
     }
     else if (type == PRIVATEKEY_TYPE && format != WOLFSSL_FILETYPE_RAW) {
-    #if defined(WOLFSSL_ENCRYPTED_KEYS) || defined(HAVE_PKCS8)
-        keyFormat = algId;
-    #endif
-
         ret = ProcessBufferTryDecode(ctx, ssl, der, &keySz, &idx, &resetSuites,
                 &keyFormat, heap, devId);
 
@@ -8112,17 +8109,23 @@ static int wolfSSL_EVP_PKEY_get_der(const WOLFSSL_EVP_PKEY* key, unsigned char**
 {
     unsigned char* pt;
     int sz;
+    word16 pkcs8HeaderSz;
 
     if (!key || !key->pkey_sz)
         return WOLFSSL_FATAL_ERROR;
 
-    sz = key->pkey_sz;
+    /* return the key without PKCS8 for compatibility */
+    /* if pkcs8HeaderSz is invalid, use 0 and return all of pkey */
+    pkcs8HeaderSz = 0;
+    if (key->pkey_sz > key->pkcs8HeaderSz)
+        pkcs8HeaderSz = key->pkcs8HeaderSz;
+    sz = key->pkey_sz - pkcs8HeaderSz;
     if (der) {
         pt = (unsigned char*)key->pkey.ptr;
         if (*der) {
             /* since this function signature has no size value passed in it is
              * assumed that the user has allocated a large enough buffer */
-            XMEMCPY(*der, pt, sz);
+            XMEMCPY(*der, pt + pkcs8HeaderSz, sz);
             *der += sz;
         }
         else {
@@ -8130,7 +8133,7 @@ static int wolfSSL_EVP_PKEY_get_der(const WOLFSSL_EVP_PKEY* key, unsigned char**
             if (*der == NULL) {
                 return WOLFSSL_FATAL_ERROR;
             }
-            XMEMCPY(*der, pt, sz);
+            XMEMCPY(*der, pt + pkcs8HeaderSz, sz);
         }
     }
     return sz;
@@ -8155,10 +8158,10 @@ int wolfSSL_i2d_PUBKEY(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
 WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
         const unsigned char **in, long inSz)
 {
+    int ret;
+    word32 idx = 0, algId;
+    word16 pkcs8HeaderSz = 0;
     WOLFSSL_EVP_PKEY* local;
-    word32 idx = 0;
-    int    ret;
-    word32 algId;
 
     WOLFSSL_ENTER("wolfSSL_d2i_PrivateKey");
 
@@ -8171,7 +8174,18 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
      * have a PKCS8 header then do not error out. */
     if ((ret = ToTraditionalInline_ex((const byte*)(*in), &idx, (word32)inSz,
                                                                  &algId)) > 0) {
-        WOLFSSL_MSG("Found and removed PKCS8 header");
+        WOLFSSL_MSG("Found PKCS8 header");
+        pkcs8HeaderSz = (word16)idx;
+
+        if ((type == EVP_PKEY_RSA && algId != RSAk) ||
+            (type == EVP_PKEY_EC && algId != ECDSAk) ||
+            (type == EVP_PKEY_DSA && algId != DSAk) ||
+            (type == EVP_PKEY_DH && algId != DHk)) {
+            WOLFSSL_MSG("PKCS8 does not match EVP key type");
+            return NULL;
+        }
+
+        (void)idx; /* not used */
     }
     else {
         if (ret != ASN_PARSE_E) {
@@ -8189,24 +8203,17 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
         return NULL;
     }
 
-    /* sanity check on idx before use */
-    if ((int)idx > inSz) {
-        WOLFSSL_MSG("Issue with index pointer");
-        wolfSSL_EVP_PKEY_free(local);
-        local = NULL;
-        return NULL;
-    }
-
     local->type     = type;
-    local->pkey_sz  = (int)inSz - idx;
-    local->pkey.ptr = (char*)XMALLOC(inSz - idx, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    local->pkey_sz  = (int)inSz;
+    local->pkcs8HeaderSz = pkcs8HeaderSz;
+    local->pkey.ptr = (char*)XMALLOC(inSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     if (local->pkey.ptr == NULL) {
         wolfSSL_EVP_PKEY_free(local);
         local = NULL;
         return NULL;
     }
     else {
-        XMEMCPY(local->pkey.ptr, *in + idx, inSz - idx);
+        XMEMCPY(local->pkey.ptr, *in, inSz);
     }
 
     switch (type) {
@@ -8286,8 +8293,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
 
     /* advance pointer with success */
     if (local != NULL) {
-        if ((idx + local->pkey_sz) <= (word32)inSz) {
-            *in = *in + idx + local->pkey_sz;
+        if (local->pkey_sz <= (int)inSz) {
+            *in += local->pkey_sz;
         }
 
         if (out != NULL) {
@@ -21894,6 +21901,7 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
 
     dup->pub_key->inSet = src->pub_key->inSet;
     dup->pub_key->exSet = src->pub_key->exSet;
+    dup->pkcs8HeaderSz = src->pkcs8HeaderSz;
 
     /* Copy private key */
     if (src->priv_key->internal == NULL || dup->priv_key->internal == NULL) {
@@ -39032,11 +39040,13 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
         XMEMSET(info, 0, sizeof(EncryptedInfo));
         info->passwd_cb       = localCb;
         info->passwd_userdata = pass;
+
+        /* Do not strip PKCS8 header */
         ret = PemToDer((const unsigned char*)mem, memSz, keyType, der,
             NULL, info, eccFlag);
 
         if (ret < 0) {
-            WOLFSSL_MSG("Bad Pem To Der");
+            WOLFSSL_MSG("Bad PEM To DER");
         }
         else {
             /* write left over data back to bio */
@@ -39653,9 +39663,9 @@ int wolfSSL_RSA_LoadDer(WOLFSSL_RSA* rsa, const unsigned char* derBuf, int derSz
 int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
                                                      int derSz, int opt)
 {
-
+    int ret;
     word32 idx = 0;
-    int    ret;
+    word32 algId;
 
     WOLFSSL_ENTER("wolfSSL_RSA_LoadDer");
 
@@ -39663,6 +39673,23 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
         WOLFSSL_MSG("Bad function arguments");
         return WOLFSSL_FATAL_ERROR;
     }
+
+    rsa->pkcs8HeaderSz = 0;
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
+    /* Check if input buffer has PKCS8 header. In the case that it does not
+     * have a PKCS8 header then do not error out. */
+    if ((ret = ToTraditionalInline_ex((const byte*)derBuf, &idx, (word32)derSz,
+                                                                 &algId)) > 0) {
+        WOLFSSL_MSG("Found PKCS8 header");
+        rsa->pkcs8HeaderSz = (word16)idx;
+    }
+    else {
+        if (ret != ASN_PARSE_E) {
+            WOLFSSL_MSG("Unexpected error with trying to remove PKCS8 header");
+            return WOLFSSL_FATAL_ERROR;
+        }
+    }
+#endif
 
     if (opt == WOLFSSL_RSA_LOAD_PRIVATE) {
         ret = wc_RsaPrivateKeyDecode(derBuf, &idx, (RsaKey*)rsa->internal, derSz);
@@ -40183,8 +40210,9 @@ int wolfSSL_EC_KEY_LoadDer(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
 int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
                               int derSz, int opt)
 {
+    int ret;
     word32 idx = 0;
-    int    ret;
+    word32 algId;
 
     WOLFSSL_ENTER("wolfSSL_EC_KEY_LoadDer");
 
@@ -40192,6 +40220,23 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
         WOLFSSL_MSG("Bad function arguments");
         return WOLFSSL_FATAL_ERROR;
     }
+
+    key->pkcs8HeaderSz = 0;
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
+    /* Check if input buffer has PKCS8 header. In the case that it does not
+     * have a PKCS8 header then do not error out. */
+    if ((ret = ToTraditionalInline_ex((const byte*)derBuf, &idx, (word32)derSz,
+                                                                 &algId)) > 0) {
+        WOLFSSL_MSG("Found PKCS8 header");
+        key->pkcs8HeaderSz = (word16)idx;
+    }
+    else {
+        if (ret != ASN_PARSE_E) {
+            WOLFSSL_MSG("Unexpected error with trying to remove PKCS8 header");
+            return WOLFSSL_FATAL_ERROR;
+        }
+    }
+#endif
 
     if (opt == WOLFSSL_EC_KEY_LOAD_PRIVATE) {
         ret = wc_EccPrivateKeyDecode(derBuf, &idx, (ecc_key*)key->internal,

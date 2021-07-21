@@ -77,9 +77,6 @@ typedef struct WOLFSSL_RSA {
     WOLFSSL_BIGNUM* iqmp;      /* u */
     void*          heap;
     void*          internal;  /* our RSA */
-    char           inSet;     /* internal set from external ? */
-    char           exSet;     /* external set from internal ? */
-    char           ownRng;    /* flag for if the rng should be free'd */
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_RSA_METHOD* meth;
 #endif
@@ -90,6 +87,12 @@ typedef struct WOLFSSL_RSA {
     wolfSSL_Mutex    refMutex;                       /* ref count mutex */
     int              refCount;                       /* reference count */
 #endif
+    word16 pkcs8HeaderSz;
+
+    /* bits */
+    byte inSet:1;     /* internal set from external ? */
+    byte exSet:1;     /* external set from internal ? */
+    byte ownRng:1;    /* flag for if the rng should be free'd */
 } WOLFSSL_RSA;
 #endif
 
