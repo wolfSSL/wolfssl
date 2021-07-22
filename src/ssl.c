@@ -38445,15 +38445,6 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
         ret = wc_EccPublicKeyDecode(derBuf, &idx, (ecc_key*)key->internal,
                                     derSz);
     }
-    if (ret < 0 && opt == WOLFSSL_EC_KEY_LOAD_PRIVATE) {
-        /* Might be in PKCS8 format so let's try */
-        idx = 0;
-        ret = ToTraditionalInline(derBuf, &idx, (word32)derSz);
-        if (ret > 0) {
-            ret = wc_EccPrivateKeyDecode(derBuf, &idx,
-                    (ecc_key*)key->internal, derSz);
-        }
-    }
     if (ret < 0) {
         if (opt == WOLFSSL_EC_KEY_LOAD_PRIVATE) {
             WOLFSSL_MSG("wc_EccPrivateKeyDecode failed");
