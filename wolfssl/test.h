@@ -1235,14 +1235,14 @@ static WC_INLINE int wolfsentry_store_endpoints(
     wolfsentry_data->remote.sa_family = wolfsentry_data->local.sa_family = remote->sin6_family;
     wolfsentry_data->remote.sa_port = ntohs(remote->sin6_port);
     wolfsentry_data->local.sa_port = ntohs(local->sin6_port);
-    if (WOLFSENTRY_CHECK_BITS(flags, WOLFSENTRY_ROUTE_FLAG_SA_REMOTE_ADDR_WILDCARD)) {
+    if (WOLFSENTRY_MASKIN_BITS(flags, WOLFSENTRY_ROUTE_FLAG_SA_REMOTE_ADDR_WILDCARD)) {
         wolfsentry_data->remote.addr_len = 0;
         XMEMSET(wolfsentry_data->remote.addr, 0, sizeof remote->sin6_addr);
     } else {
         wolfsentry_data->remote.addr_len = sizeof remote->sin6_addr * BITS_PER_BYTE;
         XMEMCPY(wolfsentry_data->remote.addr, &remote->sin6_addr, sizeof remote->sin6_addr);
     }
-    if (WOLFSENTRY_CHECK_BITS(flags, WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_ADDR_WILDCARD)) {
+    if (WOLFSENTRY_MASKIN_BITS(flags, WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_ADDR_WILDCARD)) {
         wolfsentry_data->local.addr_len = 0;
         XMEMSET(wolfsentry_data->local.addr, 0, sizeof local->sin6_addr);
     } else {
@@ -1256,14 +1256,14 @@ static WC_INLINE int wolfsentry_store_endpoints(
     wolfsentry_data->remote.sa_family = wolfsentry_data->local.sa_family = remote->sin_family;
     wolfsentry_data->remote.sa_port = ntohs(remote->sin_port);
     wolfsentry_data->local.sa_port = ntohs(local->sin_port);
-    if (WOLFSENTRY_CHECK_BITS(flags, WOLFSENTRY_ROUTE_FLAG_SA_REMOTE_ADDR_WILDCARD)) {
+    if (WOLFSENTRY_MASKIN_BITS(flags, WOLFSENTRY_ROUTE_FLAG_SA_REMOTE_ADDR_WILDCARD)) {
         wolfsentry_data->remote.addr_len = 0;
         XMEMSET(wolfsentry_data->remote.addr, 0, sizeof remote->sin_addr);
     } else {
         wolfsentry_data->remote.addr_len = sizeof remote->sin_addr * BITS_PER_BYTE;
         XMEMCPY(wolfsentry_data->remote.addr, &remote->sin_addr, sizeof remote->sin_addr);
     }
-    if (WOLFSENTRY_CHECK_BITS(flags, WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_ADDR_WILDCARD)) {
+    if (WOLFSENTRY_MASKIN_BITS(flags, WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_ADDR_WILDCARD)) {
         wolfsentry_data->local.addr_len = 0;
         XMEMSET(wolfsentry_data->local.addr, 0, sizeof local->sin_addr);
     } else {
@@ -1315,9 +1315,9 @@ static int wolfSentry_NetworkFilterCallback(
         &action_results);
 
     if (ret >= 0) {
-        if (WOLFSENTRY_CHECK_BITS(action_results, WOLFSENTRY_ACTION_RES_REJECT))
+        if (WOLFSENTRY_MASKIN_BITS(action_results, WOLFSENTRY_ACTION_RES_REJECT))
             *decision = WOLFSSL_NETFILTER_REJECT;
-        else if (WOLFSENTRY_CHECK_BITS(action_results, WOLFSENTRY_ACTION_RES_ACCEPT))
+        else if (WOLFSENTRY_MASKIN_BITS(action_results, WOLFSENTRY_ACTION_RES_ACCEPT))
             *decision = WOLFSSL_NETFILTER_ACCEPT;
         else
             *decision = WOLFSSL_NETFILTER_PASS;
@@ -1423,7 +1423,7 @@ static int wolfsentry_setup(
         if (ret < 0)
             return ret;
 
-        if (WOLFSENTRY_CHECK_BITS(route_flags, WOLFSENTRY_ROUTE_FLAG_DIRECTION_OUT)) {
+        if (WOLFSENTRY_MASKIN_BITS(route_flags, WOLFSENTRY_ROUTE_FLAG_DIRECTION_OUT)) {
             struct {
                 struct wolfsentry_sockaddr sa;
                 byte buf[16];
@@ -1472,7 +1472,7 @@ static int wolfsentry_setup(
                         WOLFSENTRY_ERROR_FMT_ARGS(ret));
                 return ret;
             }
-        } else if (WOLFSENTRY_CHECK_BITS(route_flags, WOLFSENTRY_ROUTE_FLAG_DIRECTION_IN)) {
+        } else if (WOLFSENTRY_MASKIN_BITS(route_flags, WOLFSENTRY_ROUTE_FLAG_DIRECTION_IN)) {
             struct {
                 struct wolfsentry_sockaddr sa;
                 byte buf[16];
@@ -1580,9 +1580,9 @@ static WC_INLINE int tcp_connect_with_wolfSentry(
                WOLFSENTRY_ERROR_FMT "\n", WOLFSENTRY_ERROR_FMT_ARGS(ret));
         decision = WOLFSSL_NETFILTER_PASS;
     } else {
-        if (WOLFSENTRY_CHECK_BITS(action_results, WOLFSENTRY_ACTION_RES_REJECT))
+        if (WOLFSENTRY_MASKIN_BITS(action_results, WOLFSENTRY_ACTION_RES_REJECT))
             decision = WOLFSSL_NETFILTER_REJECT;
-        else if (WOLFSENTRY_CHECK_BITS(action_results, WOLFSENTRY_ACTION_RES_ACCEPT))
+        else if (WOLFSENTRY_MASKIN_BITS(action_results, WOLFSENTRY_ACTION_RES_ACCEPT))
             decision = WOLFSSL_NETFILTER_ACCEPT;
         else
             decision = WOLFSSL_NETFILTER_PASS;
