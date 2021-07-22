@@ -1133,8 +1133,9 @@ static int test_cm_load_ca_file(const char* ca_cert_file)
         }
     #endif
 
-        free(cert_buf);
     }
+    free(cert_buf);
+
     return ret;
 }
 #endif /* !NO_FILESYSTEM && !NO_CERTS */
