@@ -42480,7 +42480,7 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
 #ifdef HAVE_ECC
     case EVP_PKEY_EC:
         WOLFSSL_MSG("populating ECC key");
-        if (ECC_populate_EVP_PKEY(pkey, (ecc_key*)pkey->ecc->internal)
+        if (ECC_populate_EVP_PKEY(pkey, pkey->ecc)
                 != WOLFSSL_SUCCESS)
             return WOLFSSL_FAILURE;
         break;

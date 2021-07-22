@@ -6587,82 +6587,60 @@ int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
 /* try and populate public pkey_sz and pkey.ptr */
 static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
 {
-<<<<<<< master
     int derSz = 0;
+    byte* derBuf = NULL;
     ecc_key* ecc;
 
     if (pkey == NULL || key == NULL || key->internal == NULL)
         return WOLFSSL_FAILURE;
 
     ecc = (ecc_key*)key->internal;
-    if (key->pkcs8HeaderSz) {
-        /* when key has pkcs8 header the pkey should too */
-        if (wc_EccKeyToPKCS8(ecc, NULL, (word32*)&derSz) == LENGTH_ONLY_E) {
-            byte* derBuf = (byte*)XMALLOC(derSz, pkey->heap, DYNAMIC_TYPE_OPENSSL);
-            if (derBuf) {
-                if (wc_EccKeyToPKCS8(ecc, derBuf, (word32*)&derSz) >= 0) {
-                    if (pkey->pkey.ptr) {
-                        XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_OPENSSL);
-                    }
-                    pkey->pkey_sz = (int)derSz;
-                    pkey->pkey.ptr = (char*)derBuf;
-                    pkey->pkcs8HeaderSz = key->pkcs8HeaderSz;
-                    return WOLFSSL_SUCCESS;
-                }
-                else {
-                    XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_OPENSSL);
-=======
-    word32 derSz = 0;
-    byte* derBuf = NULL;
-    if (!pkey || !ecc)
-        return WOLFSSL_FAILURE;
     if (ecc->type == ECC_PRIVATEKEY || ecc->type == ECC_PRIVATEKEY_ONLY) {
 #ifdef HAVE_PKCS8
-        if (wc_EccKeyToPKCS8(ecc, NULL, &derSz) == LENGTH_ONLY_E) {
-            derBuf = (byte*)XREALLOC(pkey->pkey.ptr, derSz, NULL,
-                    DYNAMIC_TYPE_OPENSSL);
-            if (derBuf != NULL) {
-                pkey->pkey.ptr = (char*)derBuf;
-                if (wc_EccKeyToPKCS8(ecc, derBuf, &derSz) < 0) {
-                    XFREE(derBuf, NULL, DYNAMIC_TYPE_OPENSSL);
->>>>>>> WIP
-                    derBuf = NULL;
-                }
-            }
-        }
-#else
-        derSz = (word32)wc_EccKeyDerSize(ecc, 1);
-        if (derSz > 0) {
-            derBuf = (byte*)XREALLOC(pkey->pkey.ptr, derSz, NULL,
-                    DYNAMIC_TYPE_OPENSSL);
-            if (derBuf != NULL) {
-                pkey->pkey.ptr = (char*)derBuf;
-                if (wc_EccKeyToDer(ecc, derBuf, derSz) < 0) {
-                    XFREE(derBuf, NULL, DYNAMIC_TYPE_OPENSSL);
-                    derBuf = NULL;
-                }
-            }
-        }
-
-#endif /* HAVE_PKCS8 */
-    }
-<<<<<<< master
-    else {
-        /* if not, the pkey will be traditional ecc key */
-        if ((derSz = wc_EccKeyDerSize(ecc, 1)) > 0) {
-            byte* derBuf = (byte*)XMALLOC(derSz, pkey->heap, DYNAMIC_TYPE_OPENSSL);
-            if (derBuf) {
-                if (wc_EccKeyToDer(ecc, derBuf, derSz) >= 0) {
-                    if (pkey->pkey.ptr) {
-                        XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+        if (key->pkcs8HeaderSz) {
+            /* when key has pkcs8 header the pkey should too */
+            if (wc_EccKeyToPKCS8(ecc, NULL, (word32*)&derSz) == LENGTH_ONLY_E) {
+                derBuf = (byte*)XMALLOC(derSz, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+                if (derBuf) {
+                    if (wc_EccKeyToPKCS8(ecc, derBuf, (word32*)&derSz) >= 0) {
+                        if (pkey->pkey.ptr) {
+                            XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+                        }
+                        pkey->pkey_sz = (int)derSz;
+                        pkey->pkey.ptr = (char*)derBuf;
+                        pkey->pkcs8HeaderSz = key->pkcs8HeaderSz;
+                        return WOLFSSL_SUCCESS;
                     }
-                    pkey->pkey_sz = (int)derSz;
-                    pkey->pkey.ptr = (char*)derBuf;
-                    return WOLFSSL_SUCCESS;
+                    else {
+                        XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+                        derBuf = NULL;
+                    }
                 }
-                else {
-                    XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_OPENSSL);
-=======
+            }
+        }
+        else
+#endif /* HAVE_PKCS8 */
+        {
+            /* if not, the pkey will be traditional ecc key */
+            if ((derSz = wc_EccKeyDerSize(ecc, 1)) > 0) {
+                derBuf = (byte*)XMALLOC(derSz, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+                if (derBuf) {
+                    if (wc_EccKeyToDer(ecc, derBuf, derSz) >= 0) {
+                        if (pkey->pkey.ptr) {
+                            XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+                        }
+                        pkey->pkey_sz = (int)derSz;
+                        pkey->pkey.ptr = (char*)derBuf;
+                        return WOLFSSL_SUCCESS;
+                    }
+                    else {
+                        XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+                        derBuf = NULL;
+                    }
+                }
+            }
+        }
+    }
     else if (ecc->type == ECC_PUBLICKEY) {
         if ((derSz = (word32)wc_EccPublicKeyDerSize(ecc, 1)) > 0) {
             derBuf = (byte*)XREALLOC(pkey->pkey.ptr, derSz, NULL,
@@ -6671,7 +6649,6 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                 pkey->pkey.ptr = (char*)derBuf;
                 if (wc_EccPublicKeyToDer(ecc, derBuf, derSz, 1) < 0) {
                     XFREE(derBuf, NULL, DYNAMIC_TYPE_OPENSSL);
->>>>>>> WIP
                     derBuf = NULL;
                 }
             }
