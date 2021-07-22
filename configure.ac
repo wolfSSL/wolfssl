@@ -5238,6 +5238,21 @@ do
     fi
     ;;
 
+  smallfast)
+    ENABLED_SP_SMALL=yes
+    ENABLED_SP_RSA=yes
+    ENABLED_SP_DH=yes
+    ENABLED_SP_FF_2048=yes
+    ENABLED_SP_FF_3072=yes
+    ENABLED_SP_ECC=yes
+    ENABLED_SP_EC_256=yes
+    if test "$host_cpu" = "x86_64"; then
+      ENABLED_SP_FF_4096=yes
+      ENABLED_SP_EC_384=yes
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_FAST_MODEXP"
+    ;;
+
   yes)
     ENABLED_SP_RSA=yes
     ENABLED_SP_DH=yes
@@ -5390,6 +5405,14 @@ if test "$ENABLED_SP_RSA" = "yes" || test "$ENABLED_SP_DH" = "yes"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_4096"
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_4096"
     fi
+
+    case $host_cpu in
+    *x86_64* | *aarch64*)
+      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_LARGE_CODE"
+      ;;
+    *)
+      ;;
+    esac
 fi
 if test "$ENABLED_ECC" != "no" && test "$ENABLED_SP_ECC" = "yes"; then
     ENABLED_SP=yes

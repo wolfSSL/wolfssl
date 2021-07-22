@@ -219,15 +219,15 @@ L_2048_from_bin_movbe_zero_end:
  */
 #ifndef __APPLE__
 .text
-.globl	sp_2048_to_bin_bswap
-.type	sp_2048_to_bin_bswap,@function
+.globl	sp_2048_to_bin_bswap_32
+.type	sp_2048_to_bin_bswap_32,@function
 .align	16
-sp_2048_to_bin_bswap:
+sp_2048_to_bin_bswap_32:
 #else
 .section	__TEXT,__text
-.globl	_sp_2048_to_bin_bswap
+.globl	_sp_2048_to_bin_bswap_32
 .p2align	4
-_sp_2048_to_bin_bswap:
+_sp_2048_to_bin_bswap_32:
 #endif /* __APPLE__ */
         movq	248(%rdi), %rdx
         movq	240(%rdi), %rax
@@ -327,7 +327,7 @@ _sp_2048_to_bin_bswap:
         movq	%rax, 248(%rsi)
         repz retq
 #ifndef __APPLE__
-.size	sp_2048_to_bin_bswap,.-sp_2048_to_bin_bswap
+.size	sp_2048_to_bin_bswap_32,.-sp_2048_to_bin_bswap_32
 #endif /* __APPLE__ */
 #ifndef NO_MOVBE_SUPPORT
 /* Write r as big endian to byte array.
@@ -339,15 +339,15 @@ _sp_2048_to_bin_bswap:
  */
 #ifndef __APPLE__
 .text
-.globl	sp_2048_to_bin_movbe
-.type	sp_2048_to_bin_movbe,@function
+.globl	sp_2048_to_bin_movbe_32
+.type	sp_2048_to_bin_movbe_32,@function
 .align	16
-sp_2048_to_bin_movbe:
+sp_2048_to_bin_movbe_32:
 #else
 .section	__TEXT,__text
-.globl	_sp_2048_to_bin_movbe
+.globl	_sp_2048_to_bin_movbe_32
 .p2align	4
-_sp_2048_to_bin_movbe:
+_sp_2048_to_bin_movbe_32:
 #endif /* __APPLE__ */
         movbeq	248(%rdi), %rdx
         movbeq	240(%rdi), %rax
@@ -415,7 +415,7 @@ _sp_2048_to_bin_movbe:
         movq	%rax, 248(%rsi)
         repz retq
 #ifndef __APPLE__
-.size	sp_2048_to_bin_movbe,.-sp_2048_to_bin_movbe
+.size	sp_2048_to_bin_movbe_32,.-sp_2048_to_bin_movbe_32
 #endif /* __APPLE__ */
 #endif /* NO_MOVBE_SUPPORT */
 /* Multiply a and b into r. (r = a * b)
@@ -12889,15 +12889,15 @@ L_3072_from_bin_movbe_zero_end:
  */
 #ifndef __APPLE__
 .text
-.globl	sp_3072_to_bin_bswap
-.type	sp_3072_to_bin_bswap,@function
+.globl	sp_3072_to_bin_bswap_48
+.type	sp_3072_to_bin_bswap_48,@function
 .align	16
-sp_3072_to_bin_bswap:
+sp_3072_to_bin_bswap_48:
 #else
 .section	__TEXT,__text
-.globl	_sp_3072_to_bin_bswap
+.globl	_sp_3072_to_bin_bswap_48
 .p2align	4
-_sp_3072_to_bin_bswap:
+_sp_3072_to_bin_bswap_48:
 #endif /* __APPLE__ */
         movq	376(%rdi), %rdx
         movq	368(%rdi), %rax
@@ -13045,7 +13045,7 @@ _sp_3072_to_bin_bswap:
         movq	%rax, 376(%rsi)
         repz retq
 #ifndef __APPLE__
-.size	sp_3072_to_bin_bswap,.-sp_3072_to_bin_bswap
+.size	sp_3072_to_bin_bswap_48,.-sp_3072_to_bin_bswap_48
 #endif /* __APPLE__ */
 #ifndef NO_MOVBE_SUPPORT
 /* Write r as big endian to byte array.
@@ -13057,15 +13057,15 @@ _sp_3072_to_bin_bswap:
  */
 #ifndef __APPLE__
 .text
-.globl	sp_3072_to_bin_movbe
-.type	sp_3072_to_bin_movbe,@function
+.globl	sp_3072_to_bin_movbe_48
+.type	sp_3072_to_bin_movbe_48,@function
 .align	16
-sp_3072_to_bin_movbe:
+sp_3072_to_bin_movbe_48:
 #else
 .section	__TEXT,__text
-.globl	_sp_3072_to_bin_movbe
+.globl	_sp_3072_to_bin_movbe_48
 .p2align	4
-_sp_3072_to_bin_movbe:
+_sp_3072_to_bin_movbe_48:
 #endif /* __APPLE__ */
         movbeq	376(%rdi), %rdx
         movbeq	368(%rdi), %rax
@@ -13165,7 +13165,7 @@ _sp_3072_to_bin_movbe:
         movq	%rax, 376(%rsi)
         repz retq
 #ifndef __APPLE__
-.size	sp_3072_to_bin_movbe,.-sp_3072_to_bin_movbe
+.size	sp_3072_to_bin_movbe_48,.-sp_3072_to_bin_movbe_48
 #endif /* __APPLE__ */
 #endif /* NO_MOVBE_SUPPORT */
 /* Multiply a and b into r. (r = a * b)
@@ -28258,15 +28258,15 @@ L_4096_from_bin_movbe_zero_end:
  */
 #ifndef __APPLE__
 .text
-.globl	sp_4096_to_bin_bswap
-.type	sp_4096_to_bin_bswap,@function
+.globl	sp_4096_to_bin_bswap_64
+.type	sp_4096_to_bin_bswap_64,@function
 .align	16
-sp_4096_to_bin_bswap:
+sp_4096_to_bin_bswap_64:
 #else
 .section	__TEXT,__text
-.globl	_sp_4096_to_bin_bswap
+.globl	_sp_4096_to_bin_bswap_64
 .p2align	4
-_sp_4096_to_bin_bswap:
+_sp_4096_to_bin_bswap_64:
 #endif /* __APPLE__ */
         movq	504(%rdi), %rdx
         movq	496(%rdi), %rax
@@ -28462,7 +28462,7 @@ _sp_4096_to_bin_bswap:
         movq	%rax, 504(%rsi)
         repz retq
 #ifndef __APPLE__
-.size	sp_4096_to_bin_bswap,.-sp_4096_to_bin_bswap
+.size	sp_4096_to_bin_bswap_64,.-sp_4096_to_bin_bswap_64
 #endif /* __APPLE__ */
 #ifndef NO_MOVBE_SUPPORT
 /* Write r as big endian to byte array.
@@ -28474,15 +28474,15 @@ _sp_4096_to_bin_bswap:
  */
 #ifndef __APPLE__
 .text
-.globl	sp_4096_to_bin_movbe
-.type	sp_4096_to_bin_movbe,@function
+.globl	sp_4096_to_bin_movbe_64
+.type	sp_4096_to_bin_movbe_64,@function
 .align	16
-sp_4096_to_bin_movbe:
+sp_4096_to_bin_movbe_64:
 #else
 .section	__TEXT,__text
-.globl	_sp_4096_to_bin_movbe
+.globl	_sp_4096_to_bin_movbe_64
 .p2align	4
-_sp_4096_to_bin_movbe:
+_sp_4096_to_bin_movbe_64:
 #endif /* __APPLE__ */
         movbeq	504(%rdi), %rdx
         movbeq	496(%rdi), %rax
@@ -28614,7 +28614,7 @@ _sp_4096_to_bin_movbe:
         movq	%rax, 504(%rsi)
         repz retq
 #ifndef __APPLE__
-.size	sp_4096_to_bin_movbe,.-sp_4096_to_bin_movbe
+.size	sp_4096_to_bin_movbe_64,.-sp_4096_to_bin_movbe_64
 #endif /* __APPLE__ */
 #endif /* NO_MOVBE_SUPPORT */
 /* Sub b from a into a. (a -= b)
@@ -41080,15 +41080,15 @@ L_256_from_bin_movbe_zero_end:
  */
 #ifndef __APPLE__
 .text
-.globl	sp_256_to_bin_bswap
-.type	sp_256_to_bin_bswap,@function
+.globl	sp_256_to_bin_bswap_4
+.type	sp_256_to_bin_bswap_4,@function
 .align	16
-sp_256_to_bin_bswap:
+sp_256_to_bin_bswap_4:
 #else
 .section	__TEXT,__text
-.globl	_sp_256_to_bin_bswap
+.globl	_sp_256_to_bin_bswap_4
 .p2align	4
-_sp_256_to_bin_bswap:
+_sp_256_to_bin_bswap_4:
 #endif /* __APPLE__ */
         movq	24(%rdi), %rdx
         movq	16(%rdi), %rax
@@ -41104,7 +41104,7 @@ _sp_256_to_bin_bswap:
         movq	%rax, 24(%rsi)
         repz retq
 #ifndef __APPLE__
-.size	sp_256_to_bin_bswap,.-sp_256_to_bin_bswap
+.size	sp_256_to_bin_bswap_4,.-sp_256_to_bin_bswap_4
 #endif /* __APPLE__ */
 #ifndef NO_MOVBE_SUPPORT
 /* Write r as big endian to byte array.
@@ -41116,15 +41116,15 @@ _sp_256_to_bin_bswap:
  */
 #ifndef __APPLE__
 .text
-.globl	sp_256_to_bin_movbe
-.type	sp_256_to_bin_movbe,@function
+.globl	sp_256_to_bin_movbe_4
+.type	sp_256_to_bin_movbe_4,@function
 .align	16
-sp_256_to_bin_movbe:
+sp_256_to_bin_movbe_4:
 #else
 .section	__TEXT,__text
-.globl	_sp_256_to_bin_movbe
+.globl	_sp_256_to_bin_movbe_4
 .p2align	4
-_sp_256_to_bin_movbe:
+_sp_256_to_bin_movbe_4:
 #endif /* __APPLE__ */
         movbeq	24(%rdi), %rdx
         movbeq	16(%rdi), %rax
@@ -41136,7 +41136,7 @@ _sp_256_to_bin_movbe:
         movq	%rax, 24(%rsi)
         repz retq
 #ifndef __APPLE__
-.size	sp_256_to_bin_movbe,.-sp_256_to_bin_movbe
+.size	sp_256_to_bin_movbe_4,.-sp_256_to_bin_movbe_4
 #endif /* __APPLE__ */
 #endif /* NO_MOVBE_SUPPORT */
 #ifdef HAVE_INTEL_AVX2
@@ -45179,15 +45179,15 @@ L_384_from_bin_movbe_zero_end:
  */
 #ifndef __APPLE__
 .text
-.globl	sp_384_to_bin_bswap
-.type	sp_384_to_bin_bswap,@function
+.globl	sp_384_to_bin_bswap_6
+.type	sp_384_to_bin_bswap_6,@function
 .align	16
-sp_384_to_bin_bswap:
+sp_384_to_bin_bswap_6:
 #else
 .section	__TEXT,__text
-.globl	_sp_384_to_bin_bswap
+.globl	_sp_384_to_bin_bswap_6
 .p2align	4
-_sp_384_to_bin_bswap:
+_sp_384_to_bin_bswap_6:
 #endif /* __APPLE__ */
         movq	40(%rdi), %rdx
         movq	32(%rdi), %rax
@@ -45209,7 +45209,7 @@ _sp_384_to_bin_bswap:
         movq	%rax, 40(%rsi)
         repz retq
 #ifndef __APPLE__
-.size	sp_384_to_bin_bswap,.-sp_384_to_bin_bswap
+.size	sp_384_to_bin_bswap_6,.-sp_384_to_bin_bswap_6
 #endif /* __APPLE__ */
 #ifndef NO_MOVBE_SUPPORT
 /* Write r as big endian to byte array.
@@ -45221,15 +45221,15 @@ _sp_384_to_bin_bswap:
  */
 #ifndef __APPLE__
 .text
-.globl	sp_384_to_bin_movbe
-.type	sp_384_to_bin_movbe,@function
+.globl	sp_384_to_bin_movbe_6
+.type	sp_384_to_bin_movbe_6,@function
 .align	16
-sp_384_to_bin_movbe:
+sp_384_to_bin_movbe_6:
 #else
 .section	__TEXT,__text
-.globl	_sp_384_to_bin_movbe
+.globl	_sp_384_to_bin_movbe_6
 .p2align	4
-_sp_384_to_bin_movbe:
+_sp_384_to_bin_movbe_6:
 #endif /* __APPLE__ */
         movbeq	40(%rdi), %rdx
         movbeq	32(%rdi), %rax
@@ -45245,7 +45245,7 @@ _sp_384_to_bin_movbe:
         movq	%rax, 40(%rsi)
         repz retq
 #ifndef __APPLE__
-.size	sp_384_to_bin_movbe,.-sp_384_to_bin_movbe
+.size	sp_384_to_bin_movbe_6,.-sp_384_to_bin_movbe_6
 #endif /* __APPLE__ */
 #endif /* NO_MOVBE_SUPPORT */
 /* Sub b from a into a. (a -= b)

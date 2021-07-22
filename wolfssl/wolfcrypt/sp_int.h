@@ -314,6 +314,25 @@ extern "C" {
 /* Mask of word size. */
 #define SP_WORD_MASK    (SP_WORD_SIZE - 1)
 
+/* For debugging only - format string for different digit sizes. */
+#if SP_WORD_SIZE == 64
+    #if SP_ULONG_BITS == 64
+        #define SP_PRINT_FMT       "%016lx"
+    #else
+        #define SP_PRINT_FMT       "%016llx"
+    #endif
+#elif SP_WORD_SIZE == 32
+    #if SP_UINT_BITS == 32
+        #define SP_PRINT_FMT       "%08x"
+    #else
+        #define SP_PRINT_FMT       "%08lx"
+    #endif
+#elif SP_WORD_SIZE == 16
+    #define SP_PRINT_FMT       "%04x"
+#elif SP_WORD_SIZE == 8
+    #define SP_PRINT_FMT       "%02x"
+#endif
+
 
 #if defined(WOLFSSL_HAVE_SP_ECC) && defined(WOLFSSL_SP_NONBLOCK)
 /* Non-blocking ECC operation context. */
@@ -416,25 +435,6 @@ typedef struct sp_ecc_ctx {
     #endif
 #endif
 
-
-/* For debugging only - format string for different digit sizes. */
-#if SP_WORD_SIZE == 64
-    #if SP_ULONG_BITS == 64
-        #define SP_PRINT_FMT       "%016lx"
-    #else
-        #define SP_PRINT_FMT       "%016llx"
-    #endif
-#elif SP_WORD_SIZE == 32
-    #if SP_UINT_BITS == 32
-        #define SP_PRINT_FMT       "%08x"
-    #else
-        #define SP_PRINT_FMT       "%08lx"
-    #endif
-#elif SP_WORD_SIZE == 16
-    #define SP_PRINT_FMT       "%04x"
-#elif SP_WORD_SIZE == 8
-    #define SP_PRINT_FMT       "%02x"
-#endif
 
 #ifndef NO_FILESYSTEM
 /* Output is formatted to be used with script that checks calculations. */
