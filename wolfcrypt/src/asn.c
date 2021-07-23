@@ -10965,12 +10965,22 @@ int wc_EncryptedInfoGet(EncryptedInfo* info, const char* cipherInfo)
     if (XSTRNCMP(cipherInfo, kEncTypeDes, XSTRLEN(kEncTypeDes)) == 0) {
         info->cipherType = WC_CIPHER_DES;
         info->keySz = DES_KEY_SIZE;
+/* DES_IV_SIZE is incorrectly 16 in FIPS v2. It should be 8, same as the
+ * block size. */
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2)
+        if (info->ivSz == 0) info->ivSz  = DES_BLOCK_SIZE;
+#else
         if (info->ivSz == 0) info->ivSz  = DES_IV_SIZE;
+#endif
     }
     else if (XSTRNCMP(cipherInfo, kEncTypeDes3, XSTRLEN(kEncTypeDes3)) == 0) {
         info->cipherType = WC_CIPHER_DES3;
         info->keySz = DES3_KEY_SIZE;
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2)
+        if (info->ivSz == 0) info->ivSz  = DES_BLOCK_SIZE;
+#else
         if (info->ivSz == 0) info->ivSz  = DES_IV_SIZE;
+#endif
     }
     else
 #endif /* !NO_DES3 */

@@ -38772,7 +38772,7 @@ static void test_wolfSSL_EVP_CIPHER_CTX_set_iv(void)
 {
 #if defined(OPENSSL_ALL) && defined(HAVE_AESGCM) && !defined(NO_DES3)
     byte key[DES3_KEY_SIZE] = {0};
-    byte iv[DES_IV_SIZE] = {0};
+    byte iv[DES_BLOCK_SIZE] = {0};
     int ivLen, keyLen;
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     const EVP_CIPHER *init = EVP_des_ede3_cbc();
