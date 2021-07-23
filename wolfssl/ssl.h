@@ -3901,13 +3901,22 @@ WOLFSSL_API int wolfSSL_X509_check_ca(WOLFSSL_X509 *x509);
 #ifndef NO_FILESYSTEM
 WOLFSSL_API long wolfSSL_BIO_set_fp(WOLFSSL_BIO *bio, XFILE fp, int c);
 WOLFSSL_API long wolfSSL_BIO_get_fp(WOLFSSL_BIO *bio, XFILE* fp);
-WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_fp(XFILE fp, int c);
 #endif
 
 #endif /* OPENSSL_EXTRA || OPENSSL_ALL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
 #endif /* OPENSSL_EXTRA || OPENSSL_ALL */
 
+#if defined(HAVE_LIGHTY) || defined(HAVE_STUNNEL) \
+    || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA)
+#ifndef NO_BIO
+WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_file(const char *filename,
+    const char *mode);
+#ifndef NO_FILESYSTEM
+WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_fp(XFILE fp, int c);
+#endif /* !NO_FILESYSTEM */
+#endif /* !NO_BIO */
+#endif
 
 #if defined(OPENSSL_ALL) \
     || defined(HAVE_STUNNEL) \
@@ -3917,7 +3926,6 @@ WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_fp(XFILE fp, int c);
     || defined(OPENSSL_EXTRA)
 #define X509_BUFFER_SZ 8192
 
-WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_file(const char *filename, const char *mode);
 WOLFSSL_API long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX*, WOLFSSL_DH*);
 WOLFSSL_API WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bp,
     WOLFSSL_DH **x, pem_password_cb *cb, void *u);
