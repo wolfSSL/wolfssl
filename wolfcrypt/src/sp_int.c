@@ -9281,22 +9281,39 @@ int sp_mod_2d(sp_int* a, int e, sp_int* r)
         int digits = (e + SP_WORD_SIZE - 1) >> SP_WORD_SHIFT;
         if (a != r) {
             XMEMCPY(r->dp, a->dp, digits * sizeof(sp_int_digit));
+            r->used = a->used;
         }
-        /* Set used and mask off top digit of result. */
-        r->used = digits;
-        e &= SP_WORD_MASK;
-        if (e > 0) {
-            r->dp[r->used - 1] &= ((sp_int_digit)1 << e) - 1;
-        }
-        sp_clamp(r);
-    #ifdef WOLFSSL_SP_INT_NEGATIVE
-        if (sp_iszero(r)) {
-            r->sign = MP_ZPOS;
-        }
-        else if (a != r) {
-            r->sign = a->sign;
-        }
+    #ifndef WOLFSSL_SP_INT_NEGATIVE
+        if (digits <= a->used)
+    #else
+        if ((a->sign != MP_ZPOS) || (digits <= a->used))
     #endif
+        {
+        #ifdef WOLFSSL_SP_INT_NEGATIVE
+            if (a->sign == MP_NEG) {
+                int i;
+                sp_int_digit carry = 0;
+
+                /* Negate value. */
+                for (i = 0; i < r->used; i++) {
+                    sp_int_digit next = r->dp[i] > 0;
+                    r->dp[i] = (sp_int_digit)0 - r->dp[i] - carry;
+                    carry |= next;
+                }
+                for (; i < digits; i++) {
+                    r->dp[i] = (sp_int_digit)0 - carry;
+                }
+                r->sign = MP_ZPOS;
+            }
+        #endif
+            /* Set used and mask off top digit of result. */
+            r->used = digits;
+            e &= SP_WORD_MASK;
+            if (e > 0) {
+                r->dp[r->used - 1] &= ((sp_int_digit)1 << e) - 1;
+            }
+            sp_clamp(r);
+        }
     }
 
     return err;
