@@ -191,7 +191,7 @@ int wolfCrypt_ATECC_SetConfig(ATCAIfaceCfg* cfg)
     cfg_ateccx08a_i2c_pi.iface_type            = cfg->iface_type;
     cfg_ateccx08a_i2c_pi.devtype               = cfg->devtype;
 #ifdef ATCA_ENABLE_DEPRECATED
-    cfg_ateccx08a_i2c_pi.atcai2c.slave_address       = cfg->atcai2c.slave_address;
+    cfg_ateccx08a_i2c_pi.atcai2c.slave_address = cfg->atcai2c.slave_address;
 #else
     cfg_ateccx08a_i2c_pi.atcai2c.address       = cfg->atcai2c.address;
 #endif
@@ -525,11 +525,11 @@ int atmel_init(void)
             XMEMSET(&cfg_ateccx08a_i2c_pi, 0, sizeof(cfg_ateccx08a_i2c_pi));
             cfg_ateccx08a_i2c_pi.iface_type             = ATCA_I2C_IFACE;
             cfg_ateccx08a_i2c_pi.devtype                = ATECC_DEV_TYPE;
-#ifdef ATCA_ENABLE_DEPRECATED
+        #ifdef ATCA_ENABLE_DEPRECATED
             cfg_ateccx08a_i2c_pi.atcai2c.slave_address  = ATECC_I2C_ADDR;
-#else
+        #else
             cfg_ateccx08a_i2c_pi.atcai2c.address        = ATECC_I2C_ADDR;
-#endif
+        #endif
             cfg_ateccx08a_i2c_pi.atcai2c.bus            = ATECC_I2C_BUS;
             cfg_ateccx08a_i2c_pi.atcai2c.baud           = 400000;
             cfg_ateccx08a_i2c_pi.wake_delay             = 1500;

@@ -289,22 +289,24 @@ decouple library dependencies with standard string, memory and so on.
         #define THREAD_LS_T
     #endif
 
-    /* GCC 7 has new switch() fall-through detection */
-    /* default to FALL_THROUGH stub */
     #ifndef FALL_THROUGH
-    #define FALL_THROUGH
-
-    #if defined(__GNUC__)
-        #if ((__GNUC__ > 7) || ((__GNUC__ == 7) && (__GNUC_MINOR__ >= 1)))
-            #undef  FALL_THROUGH
-            #if defined(WOLFSSL_LINUXKM) && defined(fallthrough)
-                #define FALL_THROUGH fallthrough
-            #else
-                #define FALL_THROUGH ; __attribute__ ((fallthrough))
+        /* GCC 7 has new switch() fall-through detection */
+        #if defined(__GNUC__)
+            #if ((__GNUC__ > 7) || ((__GNUC__ == 7) && (__GNUC_MINOR__ >= 1)))
+                #undef  FALL_THROUGH
+                #if defined(WOLFSSL_LINUXKM) && defined(fallthrough)
+                    #define FALL_THROUGH fallthrough
+                #else
+                    #define FALL_THROUGH ; __attribute__ ((fallthrough))
+                #endif
             #endif
         #endif
-    #endif
     #endif /* FALL_THROUGH */
+    #if !defined(FALL_THROUGH) || defined(__XC32)
+        /* use stub for fall through by default or for Microchip compiler */
+        #undef  FALL_THROUGH
+        #define FALL_THROUGH
+    #endif
 
     /* Micrium will use Visual Studio for compilation but not the Win32 API */
     #if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \

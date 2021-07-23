@@ -8959,9 +8959,8 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
     byte key_raw[ECC_MAX_CRYPTO_HW_SIZE*2 + 1];
 #endif
 
-#if (defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_ATECC508A) &&      \
-     !defined(WOLFSSL_ATECC608A))  ||                                   \
-  defined(WOLFSSL_SILABS_SE_ACCEL)
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_SILABS_SE_ACCEL) || defined(WOLFSSL_CRYPTOCELL)
     word32 keySz = 0;
 #endif
 
