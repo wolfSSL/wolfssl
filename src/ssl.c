@@ -16045,6 +16045,19 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     #endif
     }
 
+    void wolfSSL_set_client_CA_list(WOLFSSL* ssl,
+                                       WOLF_STACK_OF(WOLFSSL_X509_NAME)* names)
+    {
+        WOLFSSL_ENTER("wolfSSL_set_client_CA_list");
+    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
+        if (ssl != NULL)
+            ssl->ca_names = names;
+    #else
+        (void)ssl;
+        (void)names;
+    #endif
+    }
+
 
     /* returns the CA's set on server side or the CA's sent from server when
      * on client side */
@@ -16089,8 +16102,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return NULL;
         }
         else {
-            /* currently only can be set in the CTX */
-            return ssl->ctx->ca_names;
+            return SSL_CA_NAMES(ssl);
         }
     }
 #endif /* SESSION_CERTS */
@@ -16154,14 +16166,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_CTX_get_client_CA_list(
-            const WOLFSSL_CTX *s)
+            const WOLFSSL_CTX *ctx)
     {
         WOLFSSL_ENTER("wolfSSL_CTX_get_client_CA_list");
 
-        if (s == NULL)
+        if (ctx == NULL)
             return NULL;
 
-        return s->ca_names;
+        return ctx->ca_names;
     }
 #endif
 

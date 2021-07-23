@@ -7075,6 +7075,14 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     wolfSSL_sk_X509_free(ssl->peerCertChain);
     wolfSSL_sk_X509_free(ssl->ourCertChain);
 #endif
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
+    while (ssl->ca_names != NULL) {
+        WOLFSSL_STACK *next = ssl->ca_names->next;
+        wolfSSL_X509_NAME_free(ssl->ca_names->data.name);
+        XFREE(ssl->ca_names, NULL, DYNAMIC_TYPE_OPENSSL);
+        ssl->ca_names = next;
+    }
+#endif
 }
 
 /* Free any handshake resources no longer needed */
@@ -18688,7 +18696,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
     /* Certificate Authorities */
-    names = ssl->ctx->ca_names;
+    names = SSL_CA_NAMES(ssl);
     while (names != NULL) {
         byte seq[MAX_SEQ_SZ];
         WOLFSSL_X509_NAME* name = names->data.name;
@@ -18759,7 +18767,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     c16toa((word16)dnLen, &output[i]);  /* auth's */
     i += REQ_HEADER_SZ;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
-    names = ssl->ctx->ca_names;
+    names = SSL_CA_NAMES(ssl);
     while (names != NULL) {
         byte seq[MAX_SEQ_SZ];
         WOLFSSL_X509_NAME* name = names->data.name;
@@ -21105,7 +21113,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
     }
 
     if (next[0] == 0 || XSTRNCMP(next, "ALL", 3) == 0 ||
-                        XSTRNCMP(next, "DEFAULT", 7) == 0)
+        XSTRNCMP(next, "DEFAULT", 7) == 0 || XSTRNCMP(next, "HIGH", 4) == 0)
         return 1; /* wolfSSL default */
 
     do {

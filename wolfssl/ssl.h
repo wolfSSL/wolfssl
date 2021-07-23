@@ -1807,11 +1807,13 @@ WOLFSSL_API void wolfSSL_ASN1_TIME_free(WOLFSSL_ASN1_TIME* t);
 
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_load_client_CA_file(const char*);
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_CTX_get_client_CA_list(
-        const WOLFSSL_CTX *s);
+        const WOLFSSL_CTX *ctx);
 /* deprecated function name */
 #define wolfSSL_SSL_CTX_get_client_CA_list wolfSSL_CTX_get_client_CA_list
 
-WOLFSSL_API void  wolfSSL_CTX_set_client_CA_list(WOLFSSL_CTX*,
+WOLFSSL_API void wolfSSL_CTX_set_client_CA_list(WOLFSSL_CTX*,
+                                               WOLF_STACK_OF(WOLFSSL_X509_NAME)*);
+WOLFSSL_API void wolfSSL_set_client_CA_list(WOLFSSL*,
                                                WOLF_STACK_OF(WOLFSSL_X509_NAME)*);
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_get_client_CA_list(
             const WOLFSSL* ssl);

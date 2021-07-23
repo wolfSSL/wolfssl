@@ -30772,16 +30772,17 @@ static void test_wolfSSL_CTX_set_client_CA_list(void)
 #if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_CERTS) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_BIO)
     WOLFSSL_CTX* ctx;
+    WOLFSSL* ssl;
     X509_NAME* name = NULL;
     STACK_OF(X509_NAME)* names = NULL;
     STACK_OF(X509_NAME)* ca_list = NULL;
     int i, names_len;
 
     printf(testingFmt, "wolfSSL_CTX_set_client_CA_list()");
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
     names = SSL_load_client_CA_file(cliCertFile);
     AssertNotNull(names);
-    SSL_CTX_set_client_CA_list(ctx,names);
+    SSL_CTX_set_client_CA_list(ctx, names);
     AssertNotNull(ca_list = SSL_CTX_get_client_CA_list(ctx));
 
     AssertIntGT((names_len = sk_X509_NAME_num(names)), 0);
@@ -30790,6 +30791,23 @@ static void test_wolfSSL_CTX_set_client_CA_list(void)
         AssertIntEQ(sk_X509_NAME_find(names, name), i);
     }
 
+    /* Needed to be able to create ssl object */
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+    /* laod again as old names are responsibility of ctx to free */
+    names = SSL_load_client_CA_file(cliCertFile);
+    AssertNotNull(names);
+    SSL_set_client_CA_list(ssl, names);
+    AssertNotNull(ca_list = SSL_get_client_CA_list(ssl));
+
+    AssertIntGT((names_len = sk_X509_NAME_num(names)), 0);
+    for (i=0; i<names_len; i++) {
+        AssertNotNull(name = sk_X509_NAME_value(names, i));
+        AssertIntEQ(sk_X509_NAME_find(names, name), i);
+    }
+
+    wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA && !NO_RSA && !NO_CERTS && !NO_WOLFSSL_CLIENT && !NO_BIO */
