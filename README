@@ -76,7 +76,7 @@ should be used for the enum name.
 Release 4.8.1 of wolfSSL embedded TLS has an OCSP vulnerability fix:
 
 ### Vulnerabilities
-* [High] OCSP verification issue when response is for a certificate with no relation to the chain in question BUT that response contains the NoCheck extension which effectively disables ALL verification of that one cert. Users who should upgrade to 4.8.1 are TLS client users doing OCSP, TLS server users doing mutual auth with OCSP, and CertManager users doing OCSP independent of TLS. Thanks to Jan Nauber, Marco Smeets, Werner Rueschenbaum and Alissa Kim of Volkswagen Infotainment for the report.
+* [High] OCSP verification issue when response is for a certificate with no relation to the chain in question BUT that response contains the NoCheck extension which effectively disables ALL verification of that one cert. Users who should upgrade to 4.8.1 are TLS client users doing OCSP, TLS server users doing mutual auth with OCSP, and CertManager users doing OCSP independent of TLS. Thanks to Jan Nauber, Marco Smeets, Werner Rueschenbaum and Alissa Kim for the report.
 
 
 # wolfSSL Release 4.8.0 (July 09, 2021)

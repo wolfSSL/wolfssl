@@ -9,7 +9,7 @@ CC = qcc -Vgcc_nto$(PLATFORM)
 CXX = qcc -lang-c++ -Vgcc_nto$(PLATFORM)
 LD = $(CC)
 
-INCLUDES += -I../../../ -I../../../wolfssl/wolfcrypt/port/caam/
+INCLUDES += -I../../../wolfssl/wolfcrypt/port/caam/
 CCFLAGS += -O2 -Wall
 
 SRCS = \
