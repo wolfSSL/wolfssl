@@ -31247,7 +31247,7 @@ static void test_X509_STORE_get0_objects(void)
 #endif
 #endif
     for (i = 0; i < sk_X509_OBJECT_num(objs); i++) {
-        obj = sk_X509_OBJECT_value(objs, i);
+        obj = (X509_OBJECT*)sk_X509_OBJECT_value(objs, i);
         switch (X509_OBJECT_get_type(obj)) {
         case X509_LU_X509:
             AssertNotNull(X509_OBJECT_get0_X509(obj));
