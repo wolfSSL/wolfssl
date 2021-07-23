@@ -2549,8 +2549,9 @@ exit_buildmsg:
     return ret;
 }
 
-#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK) || \
-    !defined(NO_WOLFSSL_CLIENT)
+#if !defined(NO_WOLFSSL_CLIENT) || (!defined(NO_WOLFSSL_SERVER) && \
+    (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
+    defined(WOLFSSL_PSK_ONE_ID)) \
 /* Find the cipher suite in the suites set in the SSL.
  *
  * ssl    SSL/TLS object.

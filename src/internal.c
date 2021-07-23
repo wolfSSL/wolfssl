@@ -8536,6 +8536,9 @@ static void AddFragHeaders(byte* output, word32 fragSz, word32 fragOffset,
 }
 #endif /* NO_CERTS */
 
+#if !defined(NO_WOLFSSL_SERVER) || \
+    (!defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS) && \
+     !defined(WOLFSSL_NO_CLIENT_AUTH))
 /**
  * Send the handshake message. This function handles fragmenting the message
  * so that it will fit into the desired MTU or the max fragment size.
@@ -8691,6 +8694,9 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
     ssl->fragOffset = 0;
     return ret;
 }
+#endif /* !NO_WOLFSSL_SERVER || (!NO_WOLFSSL_CLIENT && !NO_CERTS &&
+        *  !WOLFSSL_NO_CLIENT_AUTH) */
+
 #endif /* !WOLFSSL_NO_TLS12 */
 
 
