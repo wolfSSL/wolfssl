@@ -8536,6 +8536,9 @@ static void AddFragHeaders(byte* output, word32 fragSz, word32 fragOffset,
 }
 #endif /* NO_CERTS */
 
+#if !defined(NO_WOLFSSL_SERVER) || \
+    (!defined(NO_WOLFSSL_CLIENT) && !defined(NO_CERTS) && \
+     !defined(WOLFSSL_NO_CLIENT_AUTH))
 /**
  * Send the handshake message. This function handles fragmenting the message
  * so that it will fit into the desired MTU or the max fragment size.
@@ -8691,6 +8694,9 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
     ssl->fragOffset = 0;
     return ret;
 }
+#endif /* !NO_WOLFSSL_SERVER || (!NO_WOLFSSL_CLIENT && !NO_CERTS &&
+        *  !WOLFSSL_NO_CLIENT_AUTH) */
+
 #endif /* !WOLFSSL_NO_TLS12 */
 
 
@@ -19931,6 +19937,33 @@ const char* wolfSSL_ERR_func_error_string(unsigned long e)
                 "the function that failed. Please inspect the wolfSSL debug "
                 "logs to determine where the error occurred.");
     return "";
+}
+
+/* return library name
+ * @param e error code
+ * @return text library name, 
+ *    if there is no suitable library found, returns empty string
+ */
+const char* wolfSSL_ERR_lib_error_string(unsigned long e)
+{
+    int libe = 0;
+    
+    (void)libe;
+    (void)e;
+
+#if defined(OPENSSL_EXTRA)
+    libe = wolfSSL_ERR_GET_LIB(e);
+    switch (libe) {
+    case ERR_LIB_PEM:
+        return "wolfSSL PEM routines";
+    case ERR_LIB_EVP:
+        return "wolfSSL digital envelope routines";
+    default:
+        return "";
+    }
+#else
+    return "";
+#endif
 }
 
 void SetErrorString(int error, char* str)

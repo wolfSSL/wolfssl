@@ -117,10 +117,13 @@ struct WOLFSSL_EC_KEY {
     WOLFSSL_BIGNUM *priv_key;
 
     void*          internal;     /* our ECC Key */
-    char           inSet;        /* internal set from external ? */
-    char           exSet;        /* external set from internal ? */
     char           form;         /* Either POINT_CONVERSION_UNCOMPRESSED or
                                   * POINT_CONVERSION_COMPRESSED */
+    word16 pkcs8HeaderSz;
+
+    /* option bits */
+    byte inSet:1;        /* internal set from external ? */
+    byte exSet:1;        /* external set from internal ? */
 };
 
 struct WOLFSSL_EC_BUILTIN_CURVE {

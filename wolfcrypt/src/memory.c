@@ -137,6 +137,13 @@ void* wolfSSL_Malloc(size_t size)
     }
     else {
     #ifndef WOLFSSL_NO_MALLOC
+        #ifdef WOLFSSL_TRAP_MALLOC_SZ
+        if (size > WOLFSSL_TRAP_MALLOC_SZ) {
+            WOLFSSL_MSG("Malloc too big!");
+            return NULL;
+        }
+        #endif
+    
         res = malloc(size);
     #else
         WOLFSSL_MSG("No malloc available");

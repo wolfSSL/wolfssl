@@ -110,7 +110,10 @@
     #undef  NO_FILESYSTEM
     #define NO_FILESYSTEM
 
-#elif defined(ANDROID)
+/* ANDROID_V454 (for android studio) displays information in a textview
+ * and redirects printf to the textview output instead of using
+ * __android_log_print() */
+#elif defined(ANDROID) && !defined(ANDROID_V454)
     #ifdef XMALLOC_USER
         #include <stdlib.h>  /* we're using malloc / free direct here */
     #endif
@@ -5053,7 +5056,11 @@ exit_bench_rsa_key:
     #endif
 #endif
 
+#ifdef HAVE_FFDHE_4096
+#define BENCH_DH_KEY_SIZE  512 /* for 4096 bit */
+#else
 #define BENCH_DH_KEY_SIZE  384 /* for 3072 bit */
+#endif
 #define BENCH_DH_PRIV_SIZE (BENCH_DH_KEY_SIZE/8)
 
 void bench_dh(int doAsync)
@@ -5122,6 +5129,12 @@ void bench_dh(int doAsync)
     else if (use_ffdhe == 3072) {
         params = wc_Dh_ffdhe3072_Get();
         dhKeySz = 3072;
+    }
+#endif
+#ifdef HAVE_FFDHE_4096
+    else if (use_ffdhe == 4096) {
+        params = wc_Dh_ffdhe4096_Get();
+        dhKeySz = 4096;
     }
 #endif
 
@@ -7001,6 +7014,10 @@ int main(int argc, char** argv)
 #if !defined(NO_DH) && defined(HAVE_FFDHE_3072)
         else if (string_matches(argv[1], "-ffdhe3072"))
             use_ffdhe = 3072;
+#endif
+#if !defined(NO_DH) && defined(HAVE_FFDHE_4096)
+        else if (string_matches(argv[1], "-ffdhe4096"))
+            use_ffdhe = 4096;
 #endif
 #if defined(HAVE_ECC) && !defined(NO_ECC256)
         else if (string_matches(argv[1], "-p256"))

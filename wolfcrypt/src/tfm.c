@@ -998,6 +998,7 @@ int fp_mod(fp_int *a, fp_int *b, fp_int *c)
 void fp_mod_2d(fp_int *a, int b, fp_int *c)
 {
    int x;
+   int bmax;
 
    /* zero if count less than or equal to zero */
    if (b <= 0) {
@@ -1009,18 +1010,35 @@ void fp_mod_2d(fp_int *a, int b, fp_int *c)
    fp_copy(a, c);
 
    /* if 2**d is larger than we just return */
-   if (b >= (DIGIT_BIT * a->used)) {
+   if (c->sign == FP_ZPOS && b >= (DIGIT_BIT * a->used)) {
       return;
    }
 
+  bmax = (b + DIGIT_BIT - 1) / DIGIT_BIT;
   /* zero digits above the last digit of the modulus */
-  for (x = (b / DIGIT_BIT) + ((b % DIGIT_BIT) == 0 ? 0 : 1); x < c->used; x++) {
+  for (x = bmax; x < c->used; x++) {
     c->dp[x] = 0;
   }
+
+  if (c->sign == FP_NEG) {
+     fp_digit carry = 0;
+     /* negate value */
+     for (x = 0; x < c->used; x++) {
+         fp_digit next = c->dp[x] > 0;
+         c->dp[x] = (fp_digit)0 - c->dp[x] - carry;
+         carry |= next;
+     }
+     for (; x < bmax; x++) {
+         c->dp[x] = (fp_digit)0 - carry;
+     }
+     c->used = bmax;
+     c->sign = FP_ZPOS;
+  }
+
   /* clear the digit that is not completely outside/inside the modulus */
   x = DIGIT_BIT - (b % DIGIT_BIT);
   if (x != DIGIT_BIT) {
-     c->dp[b / DIGIT_BIT] &= ~((fp_digit)0) >> x;
+     c->dp[bmax - 1] &= ~((fp_digit)0) >> x;
   }
 
   fp_clamp (c);

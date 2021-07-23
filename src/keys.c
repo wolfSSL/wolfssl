@@ -306,7 +306,13 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = DES3_KEY_SIZE;
         ssl->specs.block_size            = DES_BLOCK_SIZE;
+/* DES_IV_SIZE is incorrectly 16 in FIPS v2. It should be 8, same as the
+ * block size. */
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2)
+        ssl->specs.iv_size               = DES_BLOCK_SIZE;
+#else
         ssl->specs.iv_size               = DES_IV_SIZE;
+#endif
 
         break;
 #endif
@@ -468,7 +474,11 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = DES3_KEY_SIZE;
         ssl->specs.block_size            = DES_BLOCK_SIZE;
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2)
+        ssl->specs.iv_size               = DES_BLOCK_SIZE;
+#else
         ssl->specs.iv_size               = DES_IV_SIZE;
+#endif
 
         break;
 #endif
@@ -732,7 +742,11 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 1;
         ssl->specs.key_size              = DES3_KEY_SIZE;
         ssl->specs.block_size            = DES_BLOCK_SIZE;
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2)
+        ssl->specs.iv_size               = DES_BLOCK_SIZE;
+#else
         ssl->specs.iv_size               = DES_IV_SIZE;
+#endif
 
         break;
 #endif
@@ -766,7 +780,11 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 1;
         ssl->specs.key_size              = DES3_KEY_SIZE;
         ssl->specs.block_size            = DES_BLOCK_SIZE;
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2)
+        ssl->specs.iv_size               = DES_BLOCK_SIZE;
+#else
         ssl->specs.iv_size               = DES_IV_SIZE;
+#endif
 
         break;
 #endif
@@ -1276,7 +1294,11 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = DES3_KEY_SIZE;
         ssl->specs.block_size            = DES_BLOCK_SIZE;
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2)
+        ssl->specs.iv_size               = DES_BLOCK_SIZE;
+#else
         ssl->specs.iv_size               = DES_IV_SIZE;
+#endif
 
         break;
 #endif

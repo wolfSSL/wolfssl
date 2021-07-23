@@ -172,10 +172,16 @@ _Pragma("GCC diagnostic ignored \"-Wunused-function\"")
     #endif
     #include <android/log.h>
 
-    #define printf(...)       \
+    #ifdef ANDROID_V454 /* See fips/android/wolfCrypt_v454_android */
+        #ifndef NO_FILESYSTEM
+            #define NO_FILESYSTEM /* Turn off tests that want to call SaveDerAndPem() */
+        #endif
+    #else
+        #define printf(...)       \
                       __android_log_print(ANDROID_LOG_DEBUG, "TAG", __VA_ARGS__)
-    #define fprintf(fp, ...)  \
+        #define fprintf(fp, ...)  \
                       __android_log_print(ANDROID_LOG_DEBUG, "TAG", __VA_ARGS__)
+    #endif
 #elif defined(WOLFSSL_DEOS)
     #include <printx.h>
     #undef printf
@@ -35562,6 +35568,30 @@ static int mp_test_mod_2d(mp_int* a, mp_int* r, mp_int* t, WC_RNG* rng)
                 return -13121;
         }
     }
+
+#if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_INT_NEGATIVE)
+    /* Test negative value being moded. */
+    for (j = 0; j < 20; j++) {
+        ret = randNum(a, 2, rng, NULL);
+        if (ret != 0)
+            return -13122;
+        a->sign = MP_NEG;
+        for (i = 1; i < DIGIT_BIT * 3 + 1; i++) {
+            ret = mp_mod_2d(a, i, r);
+            if (ret != 0)
+                return -13124;
+            mp_zero(t);
+            ret = mp_set_bit(t, i);
+            if (ret != 0)
+                return -13125;
+            ret = mp_mod(a, t, t);
+            if (ret != 0)
+                return -13126;
+            if (mp_cmp(r, t) != MP_EQ)
+                return -13127;
+        }
+    }
+#endif
 
     return 0;
 }

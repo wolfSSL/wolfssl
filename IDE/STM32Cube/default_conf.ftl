@@ -21,6 +21,7 @@
  extern "C" {
 #endif
 
+
 /* Includes ------------------------------------------------------------------*/
 [#if includes??]
 [#list includes as include]
@@ -175,7 +176,14 @@ extern ${variable.value} ${variable.name};
 /* ------------------------------------------------------------------------- */
 /* Math Configuration */
 /* ------------------------------------------------------------------------- */
-/* 1=Fast, 2=Normal, 3=SP C, 4=SP Cortex-M */
+/* 1=Fast (stack)
+ * 2=Normal (heap)
+ * 3=Single Precision C (only common curves/key sizes)
+ * 4=Single Precision ASM Cortex-M3+
+ * 5=Single Precision ASM Cortex-M0 (Generic Thumb)
+ * 6=Single Precision C all small
+ * 7=Single Precision C all big
+ */
 #if defined(WOLF_CONF_MATH) && WOLF_CONF_MATH != 2
     /* fast (stack) math */
     #define USE_FAST_MATH
@@ -185,23 +193,41 @@ extern ${variable.value} ${variable.name};
     //#define TFM_NO_ASM
     //#define TFM_ASM
 #endif
-#if defined(WOLF_CONF_MATH) && (WOLF_CONF_MATH == 3 || WOLF_CONF_MATH == 4)
+#if defined(WOLF_CONF_MATH) && (WOLF_CONF_MATH >= 3)
     /* single precision only */
     #define WOLFSSL_SP
-    #define WOLFSSL_SP_SMALL      /* use smaller version of code */
-    #define WOLFSSL_HAVE_SP_RSA
-    #define WOLFSSL_HAVE_SP_DH
-    #define WOLFSSL_HAVE_SP_ECC
-    #define WOLFSSL_SP_MATH
+    #if WOLF_CONF_MATH != 7
+        #define WOLFSSL_SP_SMALL      /* use smaller version of code */
+    #endif
+    #if defined(WOLF_CONF_RSA) && WOLF_CONF_RSA == 1
+        #define WOLFSSL_HAVE_SP_RSA
+    #endif
+    #if defined(WOLF_CONF_DH) && WOLF_CONF_DH == 1
+        #define WOLFSSL_HAVE_SP_DH
+    #endif
+    #if defined(WOLF_CONF_ECC) && WOLF_CONF_ECC == 1
+        #define WOLFSSL_HAVE_SP_ECC
+    #endif
+    #if WOLF_CONF_MATH == 6 || WOLF_CONF_MATH == 7
+        #define WOLFSSL_SP_MATH    /* disable non-standard curves / key sizes */
+    #endif
     #define SP_WORD_SIZE 32
 
+    /* Enable to put all math on stack (no heap) */
     //#define WOLFSSL_SP_NO_MALLOC
+    /* Enable for SP cache resistance (not usually enabled for embedded micros) */
     //#define WOLFSSL_SP_CACHE_RESISTANT
 
-    /* single precision Cortex-M only */
-    #if WOLF_CONF_MATH == 4
+    #if WOLF_CONF_MATH == 4 || WOLF_CONF_MATH == 5
         #define WOLFSSL_SP_ASM /* required if using the ASM versions */
-        #define WOLFSSL_SP_ARM_CORTEX_M_ASM
+        #if WOLF_CONF_MATH == 4
+            /* ARM Cortex-M3+ */
+            #define WOLFSSL_SP_ARM_CORTEX_M_ASM
+        #endif
+        #if WOLF_CONF_MATH == 5
+            /* Generic ARM Thumb (Cortex-M0) Assembly */
+            #define WOLFSSL_SP_ARM_THUMB_ASM
+        #endif
     #endif
 #endif
 

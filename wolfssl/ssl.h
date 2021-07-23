@@ -352,28 +352,31 @@ struct WOLFSSL_EVP_PKEY {
     union {
         char* ptr; /* der format of key / or raw for NTRU */
     } pkey;
-    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     #ifndef NO_RSA
-        WOLFSSL_RSA* rsa;
-        byte      ownRsa; /* if struct owns RSA and should free it */
+    WOLFSSL_RSA* rsa;
     #endif
     #ifndef NO_DSA
-        WOLFSSL_DSA* dsa;
-        byte      ownDsa; /* if struct owns DSA and should free it */
+    WOLFSSL_DSA* dsa;
     #endif
     #ifdef HAVE_ECC
-        WOLFSSL_EC_KEY* ecc;
-        byte      ownEcc; /* if struct owns ECC and should free it */
+    WOLFSSL_EC_KEY* ecc;
     #endif
     #ifndef NO_DH
-        WOLFSSL_DH* dh;
-        byte      ownDh; /* if struct owns DH and should free it */
+    WOLFSSL_DH* dh;
     #endif
     WC_RNG rng;
-    #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
-    #ifdef HAVE_ECC
-        int pkey_curve;
-    #endif
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#ifdef HAVE_ECC
+    int pkey_curve;
+#endif
+    word16 pkcs8HeaderSz;
+
+    /* option bits */
+    byte ownDh:1;  /* if struct owns DH  and should free it */
+    byte ownEcc:1; /* if struct owns ECC and should free it */
+    byte ownDsa:1; /* if struct owns DSA and should free it */
+    byte ownRsa:1; /* if struct owns RSA and should free it */
 };
 typedef struct WOLFSSL_EVP_PKEY WOLFSSL_PKCS8_PRIV_KEY_INFO;
 #ifndef WOLFSSL_EVP_TYPE_DEFINED /* guard on redeclaration */
@@ -1272,6 +1275,7 @@ WOLFSSL_API void  wolfSSL_ERR_error_string_n(unsigned long e, char* buf,
                                            unsigned long sz);
 WOLFSSL_API const char* wolfSSL_ERR_reason_error_string(unsigned long);
 WOLFSSL_API const char* wolfSSL_ERR_func_error_string(unsigned long);
+WOLFSSL_API const char* wolfSSL_ERR_lib_error_string(unsigned long);
 
 /* extras */
 
@@ -3897,13 +3901,22 @@ WOLFSSL_API int wolfSSL_X509_check_ca(WOLFSSL_X509 *x509);
 #ifndef NO_FILESYSTEM
 WOLFSSL_API long wolfSSL_BIO_set_fp(WOLFSSL_BIO *bio, XFILE fp, int c);
 WOLFSSL_API long wolfSSL_BIO_get_fp(WOLFSSL_BIO *bio, XFILE* fp);
-WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_fp(XFILE fp, int c);
 #endif
 
 #endif /* OPENSSL_EXTRA || OPENSSL_ALL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
 #endif /* OPENSSL_EXTRA || OPENSSL_ALL */
 
+#if defined(HAVE_LIGHTY) || defined(HAVE_STUNNEL) \
+    || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA)
+#ifndef NO_BIO
+WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_file(const char *filename,
+    const char *mode);
+#ifndef NO_FILESYSTEM
+WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_fp(XFILE fp, int c);
+#endif /* !NO_FILESYSTEM */
+#endif /* !NO_BIO */
+#endif
 
 #if defined(OPENSSL_ALL) \
     || defined(HAVE_STUNNEL) \
@@ -3913,7 +3926,6 @@ WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_fp(XFILE fp, int c);
     || defined(OPENSSL_EXTRA)
 #define X509_BUFFER_SZ 8192
 
-WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_file(const char *filename, const char *mode);
 WOLFSSL_API long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX*, WOLFSSL_DH*);
 WOLFSSL_API WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bp,
     WOLFSSL_DH **x, pem_password_cb *cb, void *u);
