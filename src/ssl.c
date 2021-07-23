@@ -33015,52 +33015,6 @@ const WOLFSSL_EVP_MD *wolfSSL_HMAC_CTX_get_md(const WOLFSSL_HMAC_CTX *ctx)
     return wolfSSL_macType2EVP_md((enum wc_HashType)ctx->type);
 }
 
-#ifndef NO_DES3
-
-void wolfSSL_3des_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, int doset,
-                            unsigned char* iv, int len)
-{
-    (void)len;
-
-    WOLFSSL_MSG("wolfSSL_3des_iv");
-
-    if (ctx == NULL || iv == NULL) {
-        WOLFSSL_MSG("Bad function argument");
-        return;
-    }
-
-    if (doset)
-        wc_Des3_SetIV(&ctx->cipher.des3, iv);  /* OpenSSL compat, no ret */
-    else
-        XMEMCPY(iv, &ctx->cipher.des3.reg, DES_BLOCK_SIZE);
-}
-
-#endif /* NO_DES3 */
-
-
-#ifndef NO_AES
-
-void wolfSSL_aes_ctr_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, int doset,
-                      unsigned char* iv, int len)
-{
-    (void)len;
-
-    WOLFSSL_MSG("wolfSSL_aes_ctr_iv");
-
-    if (ctx == NULL || iv == NULL) {
-        WOLFSSL_MSG("Bad function argument");
-        return;
-    }
-
-    if (doset)
-       (void)wc_AesSetIV(&ctx->cipher.aes, iv);  /* OpenSSL compat, no ret */
-    else
-        XMEMCPY(iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
-}
-
-#endif /* NO_AES */
-
-
 /* Free the dynamically allocated data.
  *
  * p  Pointer to dynamically allocated memory.
@@ -52826,43 +52780,6 @@ WOLFSSL_STRING *wolfSSL_TXT_DB_get_by_index(WOLFSSL_TXT_DB *db, int idx,
 /*******************************************************************************
  * END OF TXT_DB API
  ******************************************************************************/
-
-void wolfSSL_DH_get0_key(const WOLFSSL_DH *dh,
-        const WOLFSSL_BIGNUM **pub_key, const WOLFSSL_BIGNUM **priv_key)
-{
-    WOLFSSL_ENTER("wolfSSL_DH_get0_key");
-
-    if (dh != NULL) {
-        if (pub_key != NULL && dh->pub_key != NULL &&
-                wolfSSL_BN_is_zero(dh->pub_key) != WOLFSSL_SUCCESS)
-            *pub_key = dh->pub_key;
-        if (priv_key != NULL && dh->priv_key != NULL &&
-                wolfSSL_BN_is_zero(dh->priv_key) != WOLFSSL_SUCCESS)
-            *priv_key = dh->priv_key;
-    }
-}
-
-int wolfSSL_DH_set0_key(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *pub_key,
-        WOLFSSL_BIGNUM *priv_key)
-{
-    WOLFSSL_ENTER("wolfSSL_DH_set0_key");
-
-    if (dh == NULL)
-        return WOLFSSL_FAILURE;
-
-    if (pub_key != NULL) {
-        wolfSSL_BN_free(dh->pub_key);
-        dh->pub_key = pub_key;
-    }
-
-    if (priv_key != NULL) {
-        wolfSSL_BN_free(dh->priv_key);
-        dh->priv_key = priv_key;
-    }
-
-    return SetDhInternal(dh);
-}
-#endif
 
 /*******************************************************************************
  * START OF CONF API
