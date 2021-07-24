@@ -2412,7 +2412,9 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 #if defined(HAVE_EX_DATA) || defined(FORTRESS)
+    #ifndef MAX_EX_DATA
     #define MAX_EX_DATA 5  /* allow for five items of ex_data */
+    #endif
 #endif
 
 #ifdef NO_WOLFSSL_SMALL_STACK

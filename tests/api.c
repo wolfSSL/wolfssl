@@ -35716,8 +35716,8 @@ static void test_wolfSSL_RSA(void)
     */
 
     AssertNull(RSA_generate_key(-1, 3, NULL, NULL));
-    AssertNull(RSA_generate_key(511, 3, NULL, NULL)); /* RSA_MIN_SIZE - 1 */
-    AssertNull(RSA_generate_key(4097, 3, NULL, NULL)); /* RSA_MAX_SIZE + 1 */
+    AssertNull(RSA_generate_key(RSA_MIN_SIZE - 1, 3, NULL, NULL));
+    AssertNull(RSA_generate_key(RSA_MAX_SIZE + 1, 3, NULL, NULL));
     AssertNull(RSA_generate_key(2048, 0, NULL, NULL));
 
 
@@ -45890,7 +45890,7 @@ static void test_wolfSSL_DH_get0_pqg(void)
 #endif /* OPENSSL_EXTRA && !NO_DH */
 }
 
-static void test_wolfSSL_ERR_strings()
+static void test_wolfSSL_ERR_strings(void)
 {
     const char* err1 = "unsupported cipher suite";
     const char* err2 = "wolfSSL PEM routines";

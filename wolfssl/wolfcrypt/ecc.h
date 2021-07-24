@@ -86,30 +86,39 @@
 
 /* Determine max ECC bits based on enabled curves */
 #if defined(WOLFCRYPT_HAVE_SAKKE)
-    #define MAX_ECC_BITS    1024
+    #define MAX_ECC_BITS_NEEDED    1024
 #elif defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
-    #define MAX_ECC_BITS    521
+    #define MAX_ECC_BITS_NEEDED    521
 #elif defined(HAVE_ECC512)
-    #define MAX_ECC_BITS    512
+    #define MAX_ECC_BITS_NEEDED    512
 #elif defined(HAVE_ECC384)
-    #define MAX_ECC_BITS    384
+    #define MAX_ECC_BITS_NEEDED    384
 #elif defined(HAVE_ECC320)
-    #define MAX_ECC_BITS    320
+    #define MAX_ECC_BITS_NEEDED    320
 #elif !defined(NO_ECC256)
-    #define MAX_ECC_BITS    256
+    #define MAX_ECC_BITS_NEEDED    256
 #elif defined(HAVE_ECC239)
-    #define MAX_ECC_BITS    239
+    #define MAX_ECC_BITS_NEEDED    239
 #elif defined(HAVE_ECC224)
-    #define MAX_ECC_BITS    224
+    #define MAX_ECC_BITS_NEEDED    224
 #elif defined(HAVE_ECC192)
-    #define MAX_ECC_BITS    192
+    #define MAX_ECC_BITS_NEEDED    192
 #elif defined(HAVE_ECC160)
-    #define MAX_ECC_BITS    160
+    #define MAX_ECC_BITS_NEEDED    160
 #elif defined(HAVE_ECC128)
-    #define MAX_ECC_BITS    128
+    #define MAX_ECC_BITS_NEEDED    128
 #elif defined(HAVE_ECC112)
-    #define MAX_ECC_BITS    112
+    #define MAX_ECC_BITS_NEEDED    112
 #endif
+
+#ifndef MAX_ECC_BITS
+    #define MAX_ECC_BITS MAX_ECC_BITS_NEEDED
+#else
+    #if MAX_ECC_BITS_NEEDED > MAX_ECC_BITS
+        #error configured MAX_ECC_BITS is less than required by enabled curves.
+    #endif
+#endif
+
 
 /* calculate max ECC bytes */
 #if ((MAX_ECC_BITS * 2) % 8) == 0
