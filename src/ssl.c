@@ -20540,6 +20540,9 @@ WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh, const unsigned char **pp,
 }
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
+#define ASN_LEN_SIZE(l)             \
+    (((l) < 128) ? 1 : (((l) < 256) ? 2 : 3))
+
 /* Converts internal WOLFSSL_DH structure to DER encoded DH.
  *
  * dh   : structure to copy DH parameters from.
@@ -20551,6 +20554,8 @@ int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out)
 {
     word32 len;
     int ret = 0;
+    int pSz;
+    int gSz;
 
     WOLFSSL_ENTER("wolfSSL_i2d_DHparams");
 
@@ -20560,15 +20565,17 @@ int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out)
     }
 
     /* Get total length */
-    len = 2 + mp_leading_bit((mp_int*)dh->p->internal) +
-              mp_unsigned_bin_size((mp_int*)dh->p->internal) +
-          2 + mp_leading_bit((mp_int*)dh->g->internal) +
-              mp_unsigned_bin_size((mp_int*)dh->g->internal);
+    pSz = mp_unsigned_bin_size((mp_int*)dh->p->internal);
+    gSz = mp_unsigned_bin_size((mp_int*)dh->g->internal);
+    len = 1 + ASN_LEN_SIZE(pSz) + mp_leading_bit((mp_int*)dh->p->internal) +
+          pSz +
+          1 + ASN_LEN_SIZE(gSz) + mp_leading_bit((mp_int*)dh->g->internal) +
+          gSz;
 
     /* Two bytes required for length if ASN.1 SEQ data greater than 127 bytes
      * and less than 256 bytes.
      */
-    len = ((len > 127) ? 2 : 1) + len;
+    len += 1 + ASN_LEN_SIZE(len);
 
     if (out != NULL && *out != NULL) {
         ret = StoreDHparams(*out, &len, (mp_int*)dh->p->internal,
