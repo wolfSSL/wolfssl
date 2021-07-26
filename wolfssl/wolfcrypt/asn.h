@@ -1262,7 +1262,7 @@ WOLFSSL_LOCAL int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
 WOLFSSL_LOCAL int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g);
 WOLFSSL_LOCAL int FlattenAltNames( byte*, word32, const DNS_entry*);
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || !defined(NO_DSA)
     /* ASN sig helpers */
     WOLFSSL_LOCAL int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r,
                                       mp_int* s);
@@ -1270,8 +1270,6 @@ WOLFSSL_LOCAL int FlattenAltNames( byte*, word32, const DNS_entry*);
         const byte* r, word32 rLen, const byte* s, word32 sLen);
     WOLFSSL_LOCAL int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, 
         byte* r, word32* rLen, byte* s, word32* sLen);
-#endif
-#if defined(HAVE_ECC) || !defined(NO_DSA)
     WOLFSSL_LOCAL int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen,
                                        mp_int* r, mp_int* s);
 #endif

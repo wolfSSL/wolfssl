@@ -770,6 +770,7 @@ AC_ARG_ENABLE([mcast],
 
 
 # List of open source project defines using our openssl compatibility layer:
+# bind dns (--enable-bind) WOLFSSL_BIND
 # openssh (--enable-openssh) WOLFSSL_OPENSSH
 # openvpn (--enable-openvpn) WOLFSSL_OPENVPN
 # nginix (--enable-nginx) WOLFSSL_NGINX
@@ -789,6 +790,12 @@ AC_ARG_ENABLE([mcast],
 # WOLFSSL_MYSQL_COMPATIBLE
 # web server (--enable-webserver) HAVE_WEBSERVER
 
+
+# Bind DNS compatibility Build
+AC_ARG_ENABLE([bind],
+    [AS_HELP_STRING([--enable-bind],[Enable Bind DNS compatibility build (default: disabled)])],
+    [ENABLED_BIND=$enableval],
+    [ENABLED_BIND=no])
 
 # OpenSSH compatibility Build
 AC_ARG_ENABLE([openssh],
@@ -934,7 +941,7 @@ AC_ARG_ENABLE([opensslall],
 [ ENABLED_OPENSSLALL=$enableval ],
 [ ENABLED_OPENSSLALL=no ]
 )
-if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_WPAS_DPP" = "yes" || test "$ENABLED_SMIME" = "yes" || test "$ENABLED_HAPROXY" = "yes"
+if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_WPAS_DPP" = "yes" || test "$ENABLED_SMIME" = "yes" || test "$ENABLED_HAPROXY" = "yes" || test "$ENABLED_BIND" = "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
@@ -1878,6 +1885,11 @@ AC_ARG_ENABLE([keygen],
     [ ENABLED_KEYGEN=no ]
     )
 
+if test "$ENABLED_BIND" = "yes"
+then
+    ENABLED_KEYGEN=yes
+fi 
+
 if test "$ENABLED_KEYGEN" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"
@@ -1890,7 +1902,7 @@ AC_ARG_ENABLE([certgen],
     [ ENABLED_CERTGEN=$enableval ],
     [ ENABLED_CERTGEN=no ]
     )
-if test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_OPENSSH" = "yes"
+if test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_BIND" = "yes"
 then
     ENABLED_CERTGEN=yes
 fi
@@ -1993,7 +2005,7 @@ AC_ARG_ENABLE([dsa],
     [ ENABLED_DSA=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_BIND" = "yes"
 then
     ENABLED_DSA="yes"
 fi
@@ -4359,6 +4371,16 @@ then
         ENABLED_OPENSSLEXTRA="yes"
         AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
     fi
+fi
+
+if test "$ENABLED_BIND" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_BIND -DWOLFSSL_DSA_768_MODULUS"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DWOLFSSL_DES_ECB"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA224 -DWOLFSSL_SHA384 -DWOLFSSL_SHA512"
+    ENABLED_SHA224="yes"
+    ENABLED_SHA384="yes"
+    ENABLED_SHA512="yes"
 fi
 
 if test "$ENABLED_OPENVPN" = "yes"

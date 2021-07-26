@@ -35,6 +35,7 @@
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/memory.h>
 
 #ifdef HAVE_WOLF_EVENT
     #include <wolfssl/wolfcrypt/wolfevent.h>
@@ -3976,6 +3977,10 @@ WOLFSSL_API WOLFSSL_X509 *wolfSSL_X509_to_X509_REQ(WOLFSSL_X509 *x,
 
 #include <wolfssl/openssl/crypto.h>
 
+WOLFSSL_API int wolfSSL_CRYPTO_set_mem_functions(
+        wolfSSL_Malloc_cb  m,
+        wolfSSL_Realloc_cb r,
+        wolfSSL_Free_cb    f);
 WOLFSSL_API int wolfSSL_CRYPTO_set_mem_ex_functions(void *(*m) (size_t, const char *, int),
     void *(*r) (void *, size_t, const char *, int), void (*f) (void *));
 
@@ -4234,7 +4239,12 @@ WOLFSSL_API void *wolfSSL_OPENSSL_memdup(const void *data,
 WOLFSSL_API void wolfSSL_OPENSSL_cleanse(void *ptr, size_t len);
 WOLFSSL_API void wolfSSL_ERR_load_BIO_strings(void);
 WOLFSSL_API void wolfSSL_DH_get0_pqg(const WOLFSSL_DH* dh,
-const WOLFSSL_BIGNUM** p, const WOLFSSL_BIGNUM** q, const WOLFSSL_BIGNUM** g);
+        const WOLFSSL_BIGNUM** p, const WOLFSSL_BIGNUM** q,
+        const WOLFSSL_BIGNUM** g);
+WOLFSSL_API void wolfSSL_DH_get0_key(const WOLFSSL_DH *dh,
+        const WOLFSSL_BIGNUM **pub_key, const WOLFSSL_BIGNUM **priv_key);
+WOLFSSL_API int wolfSSL_DH_set0_key(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *pub_key,
+        WOLFSSL_BIGNUM *priv_key);
 #endif
 
 #if defined(HAVE_OCSP) && !defined(NO_ASN_TIME)

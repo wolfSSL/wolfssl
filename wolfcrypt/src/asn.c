@@ -7709,7 +7709,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 {
                     word32 idx = 0;
 
-                    if (sigSz < DSA_SIG_SIZE) {
+                    if (sigSz < DSA_MIN_SIG_SIZE) {
                         WOLFSSL_MSG("Verify Signature is too small");
                         ERROR_OUT(BUFFER_E, exit_cs);
                     }
@@ -7729,10 +7729,12 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                         WOLFSSL_MSG("ASN Key decode error DSA");
                         goto exit_cs;
                     }
-                    if (sigSz != DSA_SIG_SIZE) {
-                #ifdef HAVE_ECC
+                    if (sigSz != DSA_160_SIG_SIZE &&
+                            sigSz != DSA_256_SIG_SIZE) {
                         /* Try to parse it as the contents of a bitstring */
                         mp_int r, s;
+                        int rSz;
+                        int sSz;
                         idx = 0;
                         if (DecodeECC_DSA_Sig(sig + idx, sigSz - idx,
                                               &r, &s) != 0) {
@@ -7740,25 +7742,25 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                                         "incorrect format");
                             ERROR_OUT(ASN_SIG_CONFIRM_E, exit_cs);
                         }
-                        if (mp_to_unsigned_bin_len(&r, sigCtx->sigCpy,
-                                DSA_HALF_SIZE) != MP_OKAY ||
-                            mp_to_unsigned_bin_len(&s,
-                                    sigCtx->sigCpy + DSA_HALF_SIZE,
-                                    DSA_HALF_SIZE) != MP_OKAY) {
+                        rSz = mp_unsigned_bin_size(&r);
+                        sSz = mp_unsigned_bin_size(&s);
+                        if (rSz + sSz > (int)sigSz) {
+                            WOLFSSL_MSG("DSA Sig is in unrecognized or "
+                                        "incorrect format");
+                            ERROR_OUT(ASN_SIG_CONFIRM_E, exit_cs);
+                        }
+                        if (mp_to_unsigned_bin(&r, sigCtx->sigCpy) != MP_OKAY ||
+                                mp_to_unsigned_bin(&s,
+                                        sigCtx->sigCpy + rSz) != MP_OKAY) {
                             WOLFSSL_MSG("DSA Sig is in unrecognized or "
                                         "incorrect format");
                             ERROR_OUT(ASN_SIG_CONFIRM_E, exit_cs);
                         }
                         mp_free(&r);
                         mp_free(&s);
-                #else
-                        WOLFSSL_MSG("DSA Sig is in unrecognized or "
-                                    "incorrect format");
-                        ERROR_OUT(ASN_SIG_CONFIRM_E, exit_cs);
-                #endif
                     }
                     else {
-                        XMEMCPY(sigCtx->sigCpy, sig, DSA_SIG_SIZE);
+                        XMEMCPY(sigCtx->sigCpy, sig, sigSz);
                     }
                     break;
                 }
@@ -16138,7 +16140,7 @@ int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
 }
 #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || !defined(NO_DSA)
 
 /* Der Encode r & s ints into out, outLen is (in/out) size */
 int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r, mp_int* s)
@@ -16303,9 +16305,7 @@ int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, byte* r, word32* rLen,
 
     return ret;
 }
-#endif
 
-#if defined(HAVE_ECC) || !defined(NO_DSA)
 int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
 {
     word32 idx = 0;

@@ -68,6 +68,17 @@ WOLFSSL_API int wolfSSL_DSA_generate_parameters_ex(WOLFSSL_DSA*, int bits,
                    unsigned char* seed, int seedLen, int* counterRet,
                    unsigned long* hRet, void* cb);
 
+WOLFSSL_API void wolfSSL_DSA_get0_pqg(const WOLFSSL_DSA *d, const WOLFSSL_BIGNUM **p,
+        const WOLFSSL_BIGNUM **q, const WOLFSSL_BIGNUM **g);
+WOLFSSL_API int wolfSSL_DSA_set0_pqg(WOLFSSL_DSA *d, WOLFSSL_BIGNUM *p,
+        WOLFSSL_BIGNUM *q, WOLFSSL_BIGNUM *g);
+
+WOLFSSL_API void wolfSSL_DSA_get0_key(const WOLFSSL_DSA *d,
+        const WOLFSSL_BIGNUM **pub_key, const WOLFSSL_BIGNUM **priv_key);
+WOLFSSL_API int wolfSSL_DSA_set0_key(WOLFSSL_DSA *d, WOLFSSL_BIGNUM *pub_key,
+        WOLFSSL_BIGNUM *priv_key);
+
+
 WOLFSSL_API int wolfSSL_DSA_LoadDer(WOLFSSL_DSA*, const unsigned char*, int sz);
 
 WOLFSSL_API int wolfSSL_DSA_LoadDer_ex(WOLFSSL_DSA*, const unsigned char*,
@@ -84,8 +95,17 @@ WOLFSSL_API int wolfSSL_DSA_bits(const WOLFSSL_DSA *d);
 
 WOLFSSL_API WOLFSSL_DSA_SIG* wolfSSL_DSA_SIG_new(void);
 WOLFSSL_API void wolfSSL_DSA_SIG_free(WOLFSSL_DSA_SIG *sig);
+
+WOLFSSL_API void wolfSSL_DSA_SIG_get0(const WOLFSSL_DSA_SIG *sig,
+        const WOLFSSL_BIGNUM **r, const WOLFSSL_BIGNUM **s);
+WOLFSSL_API int wolfSSL_DSA_SIG_set0(WOLFSSL_DSA_SIG *sig, WOLFSSL_BIGNUM *r,
+        WOLFSSL_BIGNUM *s);
+
+WOLFSSL_API int wolfSSL_i2d_DSA_SIG(const WOLFSSL_DSA_SIG *sig, byte **out);
+WOLFSSL_API WOLFSSL_DSA_SIG* wolfSSL_d2i_DSA_SIG(WOLFSSL_DSA_SIG **sig,
+        const unsigned char **pp, long length);
 WOLFSSL_API WOLFSSL_DSA_SIG* wolfSSL_DSA_do_sign_ex(const unsigned char* digest,
-                                                    int outLen, WOLFSSL_DSA* dsa);
+                                                    int inLen, WOLFSSL_DSA* dsa);
 WOLFSSL_API int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest_len,
                                          WOLFSSL_DSA_SIG* sig, WOLFSSL_DSA* dsa);
 
@@ -99,9 +119,17 @@ WOLFSSL_API int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest
 #define DSA_generate_key           wolfSSL_DSA_generate_key
 #define DSA_generate_parameters    wolfSSL_DSA_generate_parameters
 #define DSA_generate_parameters_ex wolfSSL_DSA_generate_parameters_ex
+#define DSA_get0_pqg               wolfSSL_DSA_get0_pqg
+#define DSA_set0_pqg               wolfSSL_DSA_set0_pqg
+#define DSA_get0_key               wolfSSL_DSA_get0_key
+#define DSA_set0_key               wolfSSL_DSA_set0_key
 
 #define DSA_SIG_new                wolfSSL_DSA_SIG_new
 #define DSA_SIG_free               wolfSSL_DSA_SIG_free
+#define DSA_SIG_get0               wolfSSL_DSA_SIG_get0
+#define DSA_SIG_set0               wolfSSL_DSA_SIG_set0
+#define i2d_DSA_SIG                wolfSSL_i2d_DSA_SIG
+#define d2i_DSA_SIG                wolfSSL_d2i_DSA_SIG
 #define DSA_do_sign                wolfSSL_DSA_do_sign_ex
 #define DSA_do_verify              wolfSSL_DSA_do_verify_ex
 

@@ -2930,7 +2930,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
                             byte* label, word32 labelSz, int saltLen,
                             WC_RNG* rng)
 {
-    int ret, sz;
+    int ret, sz, state;
 
     if (in == NULL || inLen == 0 || out == NULL || key == NULL) {
         return BAD_FUNC_ARG;
@@ -2954,7 +2954,17 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         return RSA_BUFFER_E;
     }
 
-    switch (key->state) {
+#ifndef WOLFSSL_BIND
+    state = key->state;
+#else
+    /* Bind9 shares the EVP_PKEY struct across multiple threads so let's just
+     * force a restart on each RsaPublicEncryptEx call for it. */
+    state = RSA_STATE_NONE;
+#ifdef WOLFSSL_ASYNC_CRYPT
+#error wolfSSL does not handle building bind support with async crypto
+#endif
+#endif
+    switch (state) {
     case RSA_STATE_NONE:
     case RSA_STATE_ENCRYPT_PAD:
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA) && \

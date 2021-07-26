@@ -1938,6 +1938,15 @@ int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
         return (int)wolfSSL_RSA_size((const WOLFSSL_RSA*)(pkey->rsa));
 #endif /* !NO_RSA */
 
+#ifndef NO_DSA
+    case EVP_PKEY_DSA:
+        if (pkey->dsa == NULL ||
+                (!pkey->dsa->exSet &&
+                        SetDsaExternal(pkey->dsa) != WOLFSSL_SUCCESS))
+            return WOLFSSL_FAILURE;
+        return wolfSSL_BN_num_bytes(pkey->dsa->p);
+#endif
+
 #ifdef HAVE_ECC
     case EVP_PKEY_EC:
         if (pkey->ecc == NULL || pkey->ecc->internal == NULL) {
@@ -2345,13 +2354,25 @@ static enum wc_HashType wolfSSL_EVP_md2macType(const WOLFSSL_EVP_MD *md)
     const struct s_ent *ent ;
 
     if (md != NULL) {
-        for( ent = md_tbl; ent->name != NULL; ent++) {
-            if(XSTRNCMP((const char *)md, ent->name, XSTRLEN(ent->name)+1) == 0) {
+        for (ent = md_tbl; ent->name != NULL; ent++) {
+            if (XSTRNCMP((const char *)md, ent->name, XSTRLEN(ent->name)+1) == 0) {
                 return ent->macType;
             }
         }
     }
     return WC_HASH_TYPE_NONE;
+}
+
+static const WOLFSSL_EVP_MD* wolfSSL_macType2EVP_md(enum wc_HashType type)
+{
+    const struct s_ent *ent ;
+
+    for (ent = md_tbl; ent->name != NULL; ent++) {
+        if (ent->macType == type) {
+            return ent->name;
+        }
+    }
+    return NULL;
 }
 
 /* Finalize structure for signing
@@ -2369,29 +2390,44 @@ int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
     unsigned int mdsize;
     unsigned char md[WC_MAX_DIGEST_SIZE];
     int ret;
-    if (ctx == NULL) return WOLFSSL_FAILURE;
-    WOLFSSL_ENTER("EVP_SignFinal");
-
-    ret = wolfSSL_EVP_DigestFinal(ctx, md, &mdsize);
-    if (ret <= 0) return ret;
-
     (void)sigret;
     (void)siglen;
+
+    WOLFSSL_ENTER("EVP_SignFinal");
+    if (ctx == NULL)
+        return WOLFSSL_FAILURE;
+
+    ret = wolfSSL_EVP_DigestFinal(ctx, md, &mdsize);
+    if (ret <= 0)
+        return ret;
 
     switch (pkey->type) {
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     case EVP_PKEY_RSA: {
         int nid;
-        const WOLFSSL_EVP_MD *ctxmd = wolfSSL_EVP_MD_CTX_md(ctx);
-        if (ctxmd == NULL) break;
+        const WOLFSSL_EVP_MD *ctxmd;
+
+        ctxmd = wolfSSL_EVP_MD_CTX_md(ctx);
+        if (ctxmd == NULL)
+            return WOLFSSL_FAILURE;
+
         nid = wolfSSL_EVP_MD_type(ctxmd);
-        if (nid < 0) break;
+        if (nid < 0)
+            return WOLFSSL_FAILURE;
         return wolfSSL_RSA_sign(nid, md, mdsize, sigret,
                                 siglen, pkey->rsa);
     }
 #endif /* NO_RSA */
-
+#ifndef NO_DSA
     case EVP_PKEY_DSA:
+        if (wolfSSL_DSA_do_sign(md, sigret, pkey->dsa) == WOLFSSL_SUCCESS) {
+            *siglen = wolfSSL_BN_num_bytes(pkey->dsa->q);
+            return WOLFSSL_SUCCESS;
+        }
+        else {
+            return WOLFSSL_FAILURE;
+        }
+#endif
     case EVP_PKEY_EC:
         WOLFSSL_MSG("not implemented");
         FALL_THROUGH;
@@ -4212,6 +4248,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             #endif
                     break;
                 case WC_HASH_TYPE_NONE:
+                    /* Not an error since an unused struct could be free'd or
+                     * reset. */
+                    break;
                 case WC_HASH_TYPE_MD2:
                 case WC_HASH_TYPE_MD4:
                 case WC_HASH_TYPE_MD5_SHA:
@@ -6045,48 +6084,123 @@ const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int id)
 }
 
 #ifndef NO_RSA
-WOLFSSL_RSA* wolfSSL_EVP_PKEY_get0_RSA(WOLFSSL_EVP_PKEY *pkey)
+#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)
+static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
 {
-    if (!pkey) {
-        return NULL;
-    }
-    return pkey->rsa;
-}
+    int ret = 0;
+    int derSz = 0;
+    word32 pkcs8Sz = 0;
+    byte* derBuf = NULL;
+    RsaKey* rsa = NULL;
+    WOLFSSL_RSA *key = NULL;
 
-WOLFSSL_RSA* wolfSSL_EVP_PKEY_get1_RSA(WOLFSSL_EVP_PKEY* key)
-{
-    WOLFSSL_RSA* local;
-
-    WOLFSSL_MSG("wolfSSL_EVP_PKEY_get1_RSA");
-
-    if (key == NULL) {
-        return NULL;
+    if (pkey == NULL || pkey->rsa == NULL || pkey->rsa->internal == NULL) {
+        WOLFSSL_MSG("bad parameter");
+        return WOLFSSL_FAILURE;
     }
 
-    local = wolfSSL_RSA_new();
-    if (local == NULL) {
-        WOLFSSL_MSG("Error creating a new WOLFSSL_RSA structure");
-        return NULL;
-    }
+    key = pkey->rsa;
+    rsa = (RsaKey*)pkey->rsa->internal;
 
-    if (key->type == EVP_PKEY_RSA) {
-        if (wolfSSL_RSA_LoadDer(local, (const unsigned char*)key->pkey.ptr,
-                    key->pkey_sz) != SSL_SUCCESS) {
-            /* now try public key */
-            if (wolfSSL_RSA_LoadDer_ex(local,
-                        (const unsigned char*)key->pkey.ptr, key->pkey_sz,
-                        WOLFSSL_RSA_LOAD_PUBLIC) != SSL_SUCCESS) {
-                wolfSSL_RSA_free(local);
-                local = NULL;
+    /* Get DER size */
+    if (rsa->type == RSA_PRIVATE) {
+        ret = wc_RsaKeyToDer(rsa, NULL, 0);
+        if (ret > 0) {
+            derSz = ret;
+        #ifdef HAVE_PKCS8
+            if (key->pkcs8HeaderSz) {
+                ret = wc_CreatePKCS8Key(NULL, &pkcs8Sz, NULL, derSz,
+                    RSAk, NULL, 0);
+                if (ret == LENGTH_ONLY_E)
+                    ret = 0;
             }
+        #endif
         }
     }
     else {
-        WOLFSSL_MSG("WOLFSSL_EVP_PKEY does not hold an RSA key");
-        wolfSSL_RSA_free(local);
-        local = NULL;
+        ret = wc_RsaKeyToPublicDer(rsa, NULL, 0);
+        if (ret > 0)
+            derSz = ret;
     }
-    return local;
+
+    if (derSz == 0 || ret < 0) {
+        WOLFSSL_MSG("Error getting RSA DER size");
+        return WOLFSSL_FAILURE;
+    }
+
+    derBuf = (byte*)XREALLOC(pkey->pkey.ptr, derSz,
+            pkey->heap, DYNAMIC_TYPE_DER);
+    if (derBuf == NULL) {
+        WOLFSSL_MSG("EVP_PKEY_set1_RSA malloc failed");
+        return WOLFSSL_FAILURE;
+    }
+    /* Old pointer is invalid from this point on */
+    pkey->pkey.ptr = (char*)derBuf;
+
+    if (rsa->type == RSA_PRIVATE) {
+        ret = wc_RsaKeyToDer(rsa, derBuf, derSz);
+        if (ret > 0) {
+            derSz = ret;
+        #ifdef HAVE_PKCS8
+            if (key->pkcs8HeaderSz) {
+                byte* keyBuf = derBuf;
+                int keySz = derSz;
+                derSz = pkcs8Sz;
+                /* Need new buffer for PKCS8 since we can't
+                 * do this in-place */
+                derBuf = (byte*)XMALLOC(pkcs8Sz, pkey->heap,
+                    DYNAMIC_TYPE_DER);
+                if (derBuf != NULL) {
+                    ret = wc_CreatePKCS8Key(derBuf, (word32*)&derSz, keyBuf,
+                        keySz, RSAk, NULL, 0);
+                    XFREE(keyBuf, pkey->heap, DYNAMIC_TYPE_DER);
+                    pkey->pkey.ptr = (char*)derBuf;
+                }
+                else
+                    ret = MEMORY_E;
+            }
+        #endif
+        }
+    }
+    else {
+        /* Public key to DER */
+        ret = wc_RsaKeyToPublicDer(rsa, derBuf, derSz);
+        if (ret > 0)
+            derSz = ret;
+    }
+
+    if (ret < 0) {
+        WOLFSSL_MSG("PopulateRSAEvpPkeyDer failed");
+        return WOLFSSL_FAILURE;
+    }
+    else {
+        pkey->pkey_sz = derSz;
+        return WOLFSSL_SUCCESS;
+    }
+}
+#endif
+
+WOLFSSL_RSA* wolfSSL_EVP_PKEY_get0_RSA(WOLFSSL_EVP_PKEY *pkey)
+{
+    WOLFSSL_MSG("wolfSSL_EVP_PKEY_get0_RSA");
+
+    if (pkey == NULL)
+        return NULL;
+
+    return pkey->rsa;
+}
+
+WOLFSSL_RSA* wolfSSL_EVP_PKEY_get1_RSA(WOLFSSL_EVP_PKEY* pkey)
+{
+    WOLFSSL_MSG("wolfSSL_EVP_PKEY_get1_RSA");
+
+    if (pkey == NULL || pkey->rsa == NULL)
+        return NULL;
+
+    if (wolfSSL_RSA_up_ref(pkey->rsa) != WOLFSSL_SUCCESS)
+        return NULL;
+
+    return pkey->rsa;
 }
 
 /* with set1 functions the pkey struct does not own the RSA structure
@@ -6095,13 +6209,6 @@ WOLFSSL_RSA* wolfSSL_EVP_PKEY_get1_RSA(WOLFSSL_EVP_PKEY* key)
  */
 int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
 {
-#if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && !defined(HAVE_USER_RSA)
-    int ret;
-    int derSz  = 0;
-    int pkcs8Sz = 0;
-    byte* derBuf = NULL;
-    RsaKey* rsa  = NULL;
-#endif
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_RSA");
     if (pkey == NULL || key == NULL)
         return WOLFSSL_FAILURE;
@@ -6125,82 +6232,12 @@ int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
         }
     }
 
-#if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && !defined(HAVE_USER_RSA)
-    rsa = (RsaKey*)key->internal;
-
-    /* Get DER size */
-    derSz = 0;
-    if (rsa->type == RSA_PRIVATE) {
-        ret = wc_RsaKeyToDer(rsa, NULL, 0);
-        if (ret > 0) {
-            derSz = ret;
-        #ifdef HAVE_PKCS8
-            if (key->pkcs8HeaderSz) {
-                ret = wc_CreatePKCS8Key(NULL, (word32*)&pkcs8Sz, NULL, derSz,
-                    RSAk, NULL, 0);
-                if (ret == LENGTH_ONLY_E) ret = 0;
-            }
-        #endif
-        }
-    }
-    else {
-        ret = wc_RsaKeyToPublicDer(rsa, NULL, 0);
-        if (ret > 0)
-            derSz = ret;
-    }
-
-    if (ret >= 0 && derSz >= 0) {
-        derBuf = (byte*)XMALLOC(derSz, pkey->heap, DYNAMIC_TYPE_DER);
-        if (derBuf == NULL) {
-            WOLFSSL_MSG("EVP_PKEY_set1_RSA malloc failed");
-            return WOLFSSL_FAILURE;
-        }
-
-        if (rsa->type == RSA_PRIVATE) {
-            ret = wc_RsaKeyToDer(rsa, derBuf, derSz);
-            if (ret > 0) {
-                derSz = ret;
-            #ifdef HAVE_PKCS8
-                if (key->pkcs8HeaderSz) {
-                    byte* keyBuf = derBuf;
-                    int keySz = derSz;
-                    derSz = pkcs8Sz;
-                    derBuf = (byte*)XMALLOC(pkcs8Sz, pkey->heap,
-                        DYNAMIC_TYPE_DER);
-                    if (derBuf == NULL)
-                        ret = MEMORY_E;
-                    else {
-                        ret = wc_CreatePKCS8Key(derBuf, (word32*)&derSz, keyBuf,
-                            keySz, RSAk, NULL, 0);
-                    }
-                    XFREE(keyBuf, pkey->heap, DYNAMIC_TYPE_DER);
-                }
-            #endif
-            }
-        }
-        else {
-            /* Public key to DER */
-            ret = wc_RsaKeyToPublicDer(rsa, derBuf, derSz);
-            if (ret > 0)
-                derSz = ret;
-        }
-    }
-
-    if (ret < 0) {
-        if (rsa->type == RSA_PRIVATE) {
-            WOLFSSL_MSG("EVP_PKEY_set1_RSA private failed");
-        }
-        else {
-            WOLFSSL_MSG("EVP_PKEY_set1_RSA public failed");
-        }
-        if (derBuf)
-            XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_DER);
+#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)
+    if (PopulateRSAEvpPkeyDer(pkey) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("PopulateRSAEvpPkeyDer failed");
         return WOLFSSL_FAILURE;
     }
-
-    pkey->pkey.ptr = (char*)derBuf;
-    pkey->pkey_sz = derSz;
-#endif /* (WOLFSSL_KEY_GEN || OPENSSL_EXTRA) && !HAVE_USER_RSA */
+#endif /* WOLFSSL_KEY_GEN && !HAVE_USER_RSA */
 
 #ifdef WC_RSA_BLINDING
     if (key->ownRng == 0) {
@@ -6551,54 +6588,79 @@ int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
 static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
 {
     int derSz = 0;
+    byte* derBuf = NULL;
     ecc_key* ecc;
 
     if (pkey == NULL || key == NULL || key->internal == NULL)
         return WOLFSSL_FAILURE;
 
     ecc = (ecc_key*)key->internal;
-    if (key->pkcs8HeaderSz) {
-        /* when key has pkcs8 header the pkey should too */
-        if (wc_EccKeyToPKCS8(ecc, NULL, (word32*)&derSz) == LENGTH_ONLY_E) {
-            byte* derBuf = (byte*)XMALLOC(derSz, pkey->heap, DYNAMIC_TYPE_OPENSSL);
-            if (derBuf) {
-                if (wc_EccKeyToPKCS8(ecc, derBuf, (word32*)&derSz) >= 0) {
-                    if (pkey->pkey.ptr) {
-                        XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+    if (ecc->type == ECC_PRIVATEKEY || ecc->type == ECC_PRIVATEKEY_ONLY) {
+#ifdef HAVE_PKCS8
+        if (key->pkcs8HeaderSz) {
+            /* when key has pkcs8 header the pkey should too */
+            if (wc_EccKeyToPKCS8(ecc, NULL, (word32*)&derSz) == LENGTH_ONLY_E) {
+                derBuf = (byte*)XMALLOC(derSz, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+                if (derBuf) {
+                    if (wc_EccKeyToPKCS8(ecc, derBuf, (word32*)&derSz) >= 0) {
+                        if (pkey->pkey.ptr) {
+                            XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+                        }
+                        pkey->pkey_sz = (int)derSz;
+                        pkey->pkey.ptr = (char*)derBuf;
+                        pkey->pkcs8HeaderSz = key->pkcs8HeaderSz;
+                        return WOLFSSL_SUCCESS;
                     }
-                    pkey->pkey_sz = (int)derSz;
-                    pkey->pkey.ptr = (char*)derBuf;
-                    pkey->pkcs8HeaderSz = key->pkcs8HeaderSz;
-                    return WOLFSSL_SUCCESS;
+                    else {
+                        XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+                        derBuf = NULL;
+                    }
                 }
-                else {
-                    XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+            }
+        }
+        else
+#endif /* HAVE_PKCS8 */
+        {
+            /* if not, the pkey will be traditional ecc key */
+            if ((derSz = wc_EccKeyDerSize(ecc, 1)) > 0) {
+                derBuf = (byte*)XMALLOC(derSz, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+                if (derBuf) {
+                    if (wc_EccKeyToDer(ecc, derBuf, derSz) >= 0) {
+                        if (pkey->pkey.ptr) {
+                            XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+                        }
+                        pkey->pkey_sz = (int)derSz;
+                        pkey->pkey.ptr = (char*)derBuf;
+                        return WOLFSSL_SUCCESS;
+                    }
+                    else {
+                        XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+                        derBuf = NULL;
+                    }
+                }
+            }
+        }
+    }
+    else if (ecc->type == ECC_PUBLICKEY) {
+        if ((derSz = (word32)wc_EccPublicKeyDerSize(ecc, 1)) > 0) {
+            derBuf = (byte*)XREALLOC(pkey->pkey.ptr, derSz, NULL,
+                    DYNAMIC_TYPE_OPENSSL);
+            if (derBuf != NULL) {
+                pkey->pkey.ptr = (char*)derBuf;
+                if (wc_EccPublicKeyToDer(ecc, derBuf, derSz, 1) < 0) {
+                    XFREE(derBuf, NULL, DYNAMIC_TYPE_OPENSSL);
                     derBuf = NULL;
                 }
             }
         }
+    }
+    if (derBuf != NULL) {
+        pkey->pkey_sz = (int)derSz;
+        return WOLFSSL_SUCCESS;
     }
     else {
-        /* if not, the pkey will be traditional ecc key */
-        if ((derSz = wc_EccKeyDerSize(ecc, 1)) > 0) {
-            byte* derBuf = (byte*)XMALLOC(derSz, pkey->heap, DYNAMIC_TYPE_OPENSSL);
-            if (derBuf) {
-                if (wc_EccKeyToDer(ecc, derBuf, derSz) >= 0) {
-                    if (pkey->pkey.ptr) {
-                        XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_OPENSSL);
-                    }
-                    pkey->pkey_sz = (int)derSz;
-                    pkey->pkey.ptr = (char*)derBuf;
-                    return WOLFSSL_SUCCESS;
-                }
-                else {
-                    XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_OPENSSL);
-                    derBuf = NULL;
-                }
-            }
-        }
+        return WOLFSSL_FAILURE;
     }
-    return WOLFSSL_FAILURE;
 }
 
 int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_EC_KEY *key)

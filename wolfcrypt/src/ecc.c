@@ -7390,6 +7390,11 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
         return ECC_BAD_ARG_E;
     }
 
+    /* clear if previously allocated */
+    mp_clear(point->x);
+    mp_clear(point->y);
+    mp_clear(point->z);
+
     /* init point */
 #ifdef ALT_ECC_SIZE
     point->x = (mp_int*)&point->xyz[0];
