@@ -252,6 +252,7 @@ enum {
     NID_md4           = 257,
     NID_md5           =  4,
     NID_hmac          = 855,
+    NID_cmac          = 894,
     NID_dhKeyAgreement= 28,
     EVP_PKEY_DH       = NID_dhKeyAgreement,
     EVP_PKEY_HMAC     = NID_hmac,
@@ -435,9 +436,10 @@ typedef WOLFSSL_EVP_PKEY_CTX EVP_PKEY_CTX;
 #define EVP_PKEY_PRINT_INDENT_MAX    128
 
 WOLFSSL_API void wolfSSL_EVP_init(void);
-WOLFSSL_API int  wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* md);
-WOLFSSL_API int  wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md);
-WOLFSSL_API int  wolfSSL_EVP_MD_block_size(const WOLFSSL_EVP_MD *md);
+WOLFSSL_API int  wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* );
+WOLFSSL_API int  wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD*);
+WOLFSSL_API int  wolfSSL_EVP_MD_block_size(const WOLFSSL_EVP_MD*);
+WOLFSSL_API int  wolfSSL_EVP_MD_pkey_type(const WOLFSSL_EVP_MD*);
 
 WOLFSSL_API WOLFSSL_EVP_MD_CTX *wolfSSL_EVP_MD_CTX_new (void);
 WOLFSSL_API void                wolfSSL_EVP_MD_CTX_free(WOLFSSL_EVP_MD_CTX* ctx);
@@ -785,6 +787,7 @@ typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
 #define EVP_enc_null       wolfSSL_EVP_enc_null
 
 #define EVP_MD_size             wolfSSL_EVP_MD_size
+#define EVP_MD_pkey_type        wolfSSL_EVP_MD_pkey_type
 #define EVP_MD_CTX_new          wolfSSL_EVP_MD_CTX_new
 #define EVP_MD_CTX_create       wolfSSL_EVP_MD_CTX_new
 #define EVP_MD_CTX_free         wolfSSL_EVP_MD_CTX_free

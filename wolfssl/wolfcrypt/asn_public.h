@@ -529,7 +529,10 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
     /* DSA parameter DER helper functions */
     WOLFSSL_API int wc_DsaParamsDecode(const byte* input, word32* inOutIdx,
                                        DsaKey*, word32);
-    WOLFSSL_API int wc_DsaKeyToParamsDer(DsaKey* key, byte* output, word32 inLen);
+    WOLFSSL_API int wc_DsaKeyToParamsDer(DsaKey* key, byte* output,
+        word32 inLen);
+    WOLFSSL_API int wc_DsaKeyToParamsDer_ex(DsaKey* key, byte* output,
+        word32* inLen);
 #endif
 
 #if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)
