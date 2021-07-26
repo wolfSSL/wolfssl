@@ -8048,6 +8048,11 @@ static void AesGcmFinal_C(Aes* aes, byte* authTag, word32 authTagSz)
 }
 
 #ifdef WOLFSSL_AESNI
+
+#ifdef __cplusplus
+    extern "C" {
+#endif
+
 /* Assembly code implementations in: aes_gcm_asm.S */
 #ifdef HAVE_INTEL_AVX2
 extern void AES_GCM_init_avx2(const unsigned char* key, int nr,
@@ -8101,6 +8106,10 @@ extern void AES_GCM_encrypt_update_aesni(const unsigned char* key, int nr,
 extern void AES_GCM_encrypt_final_aesni(unsigned char* tag,
     unsigned char* authTag, unsigned int tbytes, unsigned int nbytes,
     unsigned int abytes, unsigned char* h, unsigned char* initCtr);
+
+#ifdef __cplusplus
+    } /* extern "C" */
+#endif
 
 /* Initialize the AES GCM cipher with an IV. AES-NI implementations.
  *
@@ -8450,6 +8459,11 @@ static void AesGcmEncryptFinal_aesni(Aes* aes, byte* authTag, word32 authTagSz)
 }
 
 #if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
+
+#ifdef __cplusplus
+    extern "C" {
+#endif
+
 /* Assembly code implementations in: aes_gcm_asm.S */
 #ifdef HAVE_INTEL_AVX2
 extern void AES_GCM_decrypt_update_avx2(const unsigned char* key, int nr,
@@ -8473,6 +8487,10 @@ extern void AES_GCM_decrypt_update_aesni(const unsigned char* key, int nr,
 extern void AES_GCM_decrypt_final_aesni(unsigned char* tag,
     const unsigned char* authTag, unsigned int tbytes, unsigned int nbytes,
     unsigned int abytes, unsigned char* h, unsigned char* initCtr, int* res);
+
+#ifdef __cplusplus
+    } /* extern "C" */
+#endif
 
 /* Update the AES GCM for decryption with data and/or authentication data.
  *

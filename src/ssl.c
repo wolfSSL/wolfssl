@@ -31903,7 +31903,7 @@ int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest_len,
         }
     }
 
-    key = dsa->internal;
+    key = (DsaKey*)dsa->internal;
 
     if (key == NULL) {
         WOLFSSL_MSG("dsa->internal is null");
@@ -56994,7 +56994,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
         goto err_cleanup;
     }
 
-#ifdef WOLFSSL_SIGNER_DER_CERT
+#if defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM)
     cert_stack = wolfSSL_CertManagerGetCerts(store->cm);
     /* wolfSSL_sk_X509_pop checks for NULL */
     while ((x509 = wolfSSL_sk_X509_pop(cert_stack)) != NULL) {
