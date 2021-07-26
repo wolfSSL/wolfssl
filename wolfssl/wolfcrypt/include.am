@@ -156,3 +156,7 @@ nobase_include_HEADERS+= wolfssl/wolfcrypt/port/caam/wolfcaam.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_cmac.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_qnx.h
 endif
+
+if BUILD_IOTSAFE
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/iotsafe/iotsafe.h
+endif

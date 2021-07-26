@@ -256,6 +256,10 @@
     #define WC_MD5_DIGEST_SIZE 16
 #endif
 
+#ifdef WOLFSSL_IOTSAFE
+    #include <wolfssl/wolfcrypt/port/iotsafe/iotsafe.h>
+#endif
+
 
 #ifdef __cplusplus
     extern "C" {
@@ -4511,6 +4515,9 @@ struct WOLFSSL {
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* ca_names;
 #endif
+#if defined(WOLFSSL_IOTSAFE) && defined(HAVE_PK_CALLBACKS)
+    IOTSAFE iotsafe;
+#endif
 };
 
 /*
@@ -4699,6 +4706,11 @@ WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
 
 WOLFSSL_LOCAL int SetTicket(WOLFSSL*, const byte*, word32);
 WOLFSSL_LOCAL int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment);
+
+#if defined(WOLFSSL_IOTSAFE) && defined(HAVE_PK_CALLBACKS)
+WOLFSSL_LOCAL IOTSAFE *wolfSSL_get_iotsafe_ctx(WOLFSSL *ssl);
+WOLFSSL_LOCAL int wolfSSL_set_iotsafe_ctx(WOLFSSL *ssl, IOTSAFE *iotsafe);
+#endif
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
 WOLFSSL_LOCAL int SetECKeyInternal(WOLFSSL_EC_KEY* eckey);
