@@ -83,7 +83,7 @@ Release 4.8.1 of wolfSSL embedded TLS has an OCSP vulnerability fix:
 Release 4.8.0 of wolfSSL embedded TLS has bug fixes and new features including:
 
 ### Vulnerabilities
-* [Low] OCSP request/response verification issue. In the case that the serial number in the OCSP request differs from the serial number in the OCSP response the error from the comparison was not resulting in a failed verification. We recommend users that have wolfSSL version 4.6.0 and 4.7.0 with OCSP enabled update their version of wolfSSL. Version 4.5.0 and earlier are not affected by this report. Thanks to Rainer, Roee, Barak, Hila and Shoshi (from Cymotive and CARIAD) for the report.
+* [Low] CVE-2021-37155: OCSP request/response verification issue. In the case that the serial number in the OCSP request differs from the serial number in the OCSP response the error from the comparison was not resulting in a failed verification. We recommend users that have wolfSSL version 4.6.0 and 4.7.0 with OCSP enabled update their version of wolfSSL. Version 4.5.0 and earlier are not affected by this report. Thanks to Rainer Mueller-Amersdorffer, Roee Yankelevsky, Barak Gutman, Hila Cohen and Shoshi Berko (from CYMOTIVE Technologies and CARIAD) for the report.
 * [Low] CVE-2021-24116: Side-Channel cache look up vulnerability in base64 PEM decoding for versions of wolfSSL 4.5.0 and earlier. Versions 4.6.0 and up contain a fix and do not need to be updated for this report. If decoding a PEM format private key using version 4.5.0 and older of wolfSSL then we recommend updating the version of wolfSSL used. Thanks to Florian Sieck, Jan Wichelmann, Sebastian Berndt and Thomas Eisenbarth for the report. 
 
 ### New Feature Additions
