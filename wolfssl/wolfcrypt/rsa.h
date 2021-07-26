@@ -94,10 +94,13 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
     extern "C" {
 #endif
 
-enum {
-    RSA_MIN_SIZE = 512,
-    RSA_MAX_SIZE = 4096,
-};
+#ifndef RSA_MIN_SIZE
+#define RSA_MIN_SIZE 512
+#endif
+
+#ifndef RSA_MAX_SIZE
+#define RSA_MAX_SIZE 4096
+#endif
 
 /* avoid redefinition of structs */
 #if !defined(HAVE_FIPS) || \

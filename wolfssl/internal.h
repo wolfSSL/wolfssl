@@ -1195,8 +1195,8 @@ enum {
 #if (WOLFSSL_MAX_DHKEY_BITS % 8)
     #error DH maximum bit size must be multiple of 8
 #endif
-#if (WOLFSSL_MAX_DHKEY_BITS > 16000)
-    #error DH maximum bit size must not be greater than 16000
+#if (WOLFSSL_MAX_DHKEY_BITS > 16384)
+    #error DH maximum bit size must not be greater than 16384
 #endif
 #define MAX_DHKEY_SZ (WOLFSSL_MAX_DHKEY_BITS / 8)
 

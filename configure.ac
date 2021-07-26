@@ -472,7 +472,8 @@ then
     fi
 
     # Enable DH const table speedups (eliminates `-lm` math lib dependency)
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072 -DFP_MAX_BITS=8192"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
+    DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
 
     # Enable multiple attribute additions such as DC
     AM_CFLAGS="-DWOLFSSL_MULTI_ATTRIB $AM_CFLAGS"
@@ -581,7 +582,8 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD"
 
     # Enable DH const table speedups (eliminates `-lm` math lib dependency)
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072 -DFP_MAX_BITS=8192"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
+    DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
 
     # Enable multiple attribute additions such as DC
     AM_CFLAGS="-DWOLFSSL_MULTI_ATTRIB $AM_CFLAGS"
@@ -1062,7 +1064,8 @@ fi
 
 if test "$ENABLED_BUMP" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DLARGE_STATIC_BUFFERS -DWOLFSSL_CERT_GEN -DWOLFSSL_KEY_GEN -DHUGE_SESSION_CACHE -DFP_MAX_BITS=8192 -DWOLFSSL_DER_LOAD -DWOLFSSL_ALT_NAMES -DWOLFSSL_TEST_CERT"
+    AM_CFLAGS="$AM_CFLAGS -DLARGE_STATIC_BUFFERS -DWOLFSSL_CERT_GEN -DWOLFSSL_KEY_GEN -DHUGE_SESSION_CACHE -DWOLFSSL_DER_LOAD -DWOLFSSL_ALT_NAMES -DWOLFSSL_TEST_CERT"
+    DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
 fi
 
 ENABLED_SLOWMATH="yes"
@@ -4328,11 +4331,11 @@ if test "$ENABLED_HAPROXY" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAPROXY -DOPENSSL_COMPATIBLE_DEFAULTS"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIGNER_DER_CERT"
-    # --enable-all defines its own FP_MAX_BITS
-	if test "$ENABLED_ALL" != "yes"
-	then
-	    AM_CFLAGS="$AM_CFLAGS -DFP_MAX_BITS=16384"
-	fi
+    # --enable-all defines its own DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS
+    if test -z "$DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS"
+    then
+        DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=8192
+    fi
     # Requires opensslextra and opensslall
     if test "x$ENABLED_OPENSSLALL" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
     then
@@ -4340,26 +4343,26 @@ then
         ENABLED_OPENSSLEXTRA="yes"
         AM_CFLAGS="-DOPENSSL_EXTRA -DOPENSSL_ALL $AM_CFLAGS"
     fi
-    
+
     if test "x$ENABLED_CERTGEN" = "xno"
     then
         ENABLED_CERTGEN="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN"
     fi
-    
+
     if test "x$ENABLED_CERTREQ" = "xno"
     then
         ENABLED_CERTREQ="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_REQ"
     fi
-    
+
     # Requires sessioncerts make sure on
     if test "x$ENABLED_SESSIONCERTS" = "xno"
     then
         ENABLED_SESSIONCERTS="yes"
         AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS"
     fi
-    
+
 fi
 
 if test "$ENABLED_SIGNAL" = "yes"
@@ -4520,7 +4523,7 @@ then
     # Requires Secure Renegotiation
     if test "x$ENABLED_SECURE_RENEGOTIATION" = "xno"
     then
-	    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SECURE_RENEGOTIATION -DHAVE_SERVER_RENEGOTIATION_INFO"
+            AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SECURE_RENEGOTIATION -DHAVE_SERVER_RENEGOTIATION_INFO"
     fi
 fi
 
@@ -4705,7 +4708,7 @@ AC_ARG_ENABLE([libest],
     [ ENABLED_LIBEST=$enableval ],
     [ ENABLED_LIBEST=no ]
     )
-    
+
 if test "$ENABLED_LIBEST" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA -DHAVE_LIBEST -DWOLFSSL_ALT_NAMES"
@@ -4727,13 +4730,13 @@ then
         ENABLED_OCSP="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
     fi
-    
+
     # Requires PKCS7
     if test "x$ENABLED_PKCS7" = "xno"
     then
         ENABLED_PKCS7="yes"
     fi
-    
+
     # Requires Certificate Generation and Request
     if test "x$ENABLED_CERTGEN" = "xno"
     then
@@ -4750,34 +4753,34 @@ then
         ENABLED_CERTEXT="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"
     fi
-    
+
     # Requires CRL
     if test "x$ENABLED_CRL" = "xno"
     then
         ENABLED_CRL="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
     fi
-    
-	if test "x$ENABLED_SRP" = "xno"
-	then
+
+    if test "x$ENABLED_SRP" = "xno"
+    then
         ENABLED_SRP="yes"
-	    AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_HAVE_SRP"
-	fi
-	
+        AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_HAVE_SRP"
+    fi
+
     # Enable prereqs if not already enabled
     if test "x$ENABLED_KEYGEN" = "xno"
     then
         ENABLED_KEYGEN="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"
     fi
-    
+
     # Requires sessioncerts make sure on
     if test "x$ENABLED_SESSIONCERTS" = "xno"
     then
         ENABLED_SESSIONCERTS="yes"
         AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS"
     fi
-    
+
     if test "x$ENABLED_DSA" = "xno"
     then
         AC_MSG_WARN([Enabling DSA with --enable-dsa is recommended for libest])
@@ -5511,7 +5514,10 @@ do
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_INT_LARGE_COMBA"
     ;;
   256 | 384 | 521 | 1024 | 2048 | 3072 | 4096)
-    AM_CFLAGS="$AM_CFLAGS -DSP_INT_BITS=$v"
+    if test -z "$DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS" -o "$DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS" -lt "$v"
+    then
+        DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS="$v"
+    fi
     ENABLED_SP_MATH_ALL="yes"
     ;;
   nomalloc)
@@ -6019,6 +6025,62 @@ then
     ENABLED_DHDEFAULTPARAMS=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_DH_DEFAULT_PARAMS"
 fi
+
+
+AC_ARG_WITH([max-rsa-bits],
+    [AS_HELP_STRING([--with-max-rsa-bits=number],[number of bits to support for RSA, DH, and DSA keys])],
+    [WITH_MAX_CLASSIC_ASYM_KEY_BITS=$withval],
+    [WITH_MAX_CLASSIC_ASYM_KEY_BITS="$DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS"])
+
+if test -n "$WITH_MAX_CLASSIC_ASYM_KEY_BITS"; then
+   if test "$WITH_MAX_CLASSIC_ASYM_KEY_BITS" -lt 1024 -o "$WITH_MAX_CLASSIC_ASYM_KEY_BITS" -gt 16384; then
+       AC_MSG_ERROR([--with-max-rsa-bits argument must be between 1024 and 16384 inclusive])
+   fi
+   AM_CFLAGS="$AM_CFLAGS -DRSA_MAX_SIZE=$WITH_MAX_CLASSIC_ASYM_KEY_BITS"
+   MPI_MAX_KEY_BITS=$WITH_MAX_CLASSIC_ASYM_KEY_BITS
+fi
+
+AC_ARG_WITH([max-ecc-bits],
+    [AS_HELP_STRING([--with-max-ecc-bits=number],[number of bits to support for ECC algorithms])],
+    [WITH_MAX_ECC_BITS=$withval],
+    [WITH_MAX_ECC_BITS="$DEFAULT_MAX_ECC_BITS"])
+
+if test -n "$WITH_MAX_ECC_BITS"; then
+   if test "$WITH_MAX_ECC_BITS" -lt 112 -o "$WITH_MAX_ECC_BITS" -gt 1024; then
+       AC_MSG_ERROR([--with-max-ecc-bits argument must be between 112 and 1024 inclusive])
+   fi
+   AM_CFLAGS="$AM_CFLAGS -DMAX_ECC_BITS=$WITH_MAX_ECC_BITS"
+fi
+
+if test -n "$MPI_MAX_KEY_BITS" -o -n "$WITH_MAX_ECC_BITS"; then
+   if test -n "$MAX_MPI_KEY_BITS" -a -n "$WITH_MAX_ECC_BITS"; then
+       if test -n "$MAX_MPI_KEY_BITS" -lt "$WITH_MAX_ECC_BITS"; then
+           MPI_MAX_KEY_BITS="$WITH_MAX_ECC_BITS"
+       fi
+   elif test -n "$WITH_MAX_ECC_BITS"; then
+       MPI_MAX_KEY_BITS="$WITH_MAX_ECC_BITS"
+   fi
+   if test "$MPI_MAX_KEY_BITS" -gt 1024; then
+       AM_CFLAGS="$AM_CFLAGS -DFP_MAX_BITS=$((MPI_MAX_KEY_BITS * 2)) -DSP_INT_BITS=$MPI_MAX_KEY_BITS"
+   fi
+fi
+
+
+AC_ARG_ENABLE([context-extra-user-data],
+    [AS_HELP_STRING([--enable-context-extra-user-data],[Enables option for storing user-defined data in TLS API contexts, with optional argument the number of slots to allocate (default: disabled)])],
+    [ ENABLED_EX_DATA=$enableval ],
+    [ ENABLED_EX_DATA=no ]
+    )
+case "$ENABLED_EX_DATA" in
+no) ;;
+yes) AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
+     ;;
+[[1-9]]|[[1-9]][[0-9]]) AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA -DMAX_EX_DATA=$ENABLED_EX_DATA"
+       ;;
+*) AC_MSG_ERROR([Invalid argument to --enable-context-extra-user-data -- must be yes, no, or a number from 1 to 99])
+   ;;
+esac
+
 
 # User Settings
 AC_ARG_ENABLE([usersettings],
