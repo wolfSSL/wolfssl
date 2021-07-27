@@ -300,7 +300,7 @@ decouple library dependencies with standard string, memory and so on.
             #if defined(WOLFSSL_LINUXKM) && defined(fallthrough)
                 #define FALL_THROUGH fallthrough
             #else
-                #define FALL_THROUGH __attribute__ ((fallthrough));
+                #define FALL_THROUGH ; __attribute__ ((fallthrough))
             #endif
         #endif
     #endif
