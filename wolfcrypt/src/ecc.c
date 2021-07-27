@@ -11176,8 +11176,10 @@ ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng)
 void wc_ecc_ctx_free(ecEncCtx* ctx)
 {
     if (ctx) {
+        void* heap = ctx->heap;
         ForceZero(ctx, sizeof(ecEncCtx));
-        XFREE(ctx, ctx->heap, DYNAMIC_TYPE_ECC);
+        XFREE(ctx, heap, DYNAMIC_TYPE_ECC);
+        (void)heap;
     }
 }
 
