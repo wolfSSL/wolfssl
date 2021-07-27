@@ -4474,9 +4474,11 @@ static PacketBuffer* CreateBuffer(word32* begin, word32 end, const byte* data,
                                   int* bytesLeft)
 {
     PacketBuffer* pb;
+    int added = (int)(end - *begin + 1);
 
-    int added = end - *begin + 1;
-    assert(*begin <= end);
+    if (added <= 0) {
+        return NULL;
+    }
 
     pb = (PacketBuffer*)XMALLOC(sizeof(PacketBuffer),
             NULL, DYNAMIC_TYPE_SNIFFER_PB);
@@ -4485,7 +4487,7 @@ static PacketBuffer* CreateBuffer(word32* begin, word32 end, const byte* data,
     pb->next  = 0;
     pb->begin = *begin;
     pb->end   = end;
-    pb->data = (byte*)XMALLOC(added, NULL, DYNAMIC_TYPE_SNIFFER_PB_BUFFER);
+    pb->data  = (byte*)XMALLOC(added, NULL, DYNAMIC_TYPE_SNIFFER_PB_BUFFER);
 
     if (pb->data == NULL) {
         XFREE(pb, NULL, DYNAMIC_TYPE_SNIFFER_PB);
@@ -4514,7 +4516,7 @@ static int AddToReassembly(byte from, word32 seq, const byte* sslFrame,
     word32* reassemblyMemory = (from == WOLFSSL_SERVER_END) ?
                   &session->cliReassemblyMemory : &session->srvReassemblyMemory;
     word32  startSeq = seq;
-    word32  added;
+    int     added;
     int     bytesLeft = sslBytes;  /* could be overlapping fragment */
 
     /* if list is empty add full frame to front */
@@ -4577,10 +4579,10 @@ static int AddToReassembly(byte from, word32 seq, const byte* sslFrame,
             added = bytesLeft;
         else
             /* we're in between two frames */
-            added = min((word32)bytesLeft, curr->begin - seq);
+            added = min(bytesLeft, (int)(curr->begin - seq));
 
         /* data already there */
-        if (added == 0)
+        if (added <= 0)
             continue;
 
         if (MaxRecoveryMemory != -1 &&
@@ -4667,8 +4669,8 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
 
                     /* may be past reassembly list end (could have more on list)
                        so try to add what's past the front->end */
-                    AddToReassembly(session->flags.side, reassemblyList->end +1,
-                                *sslFrame + reassemblyList->end - *expected + 1,
+                    AddToReassembly(session->flags.side, reassemblyList->end + 1,
+                             *sslFrame + (reassemblyList->end - *expected + 1),
                                  newEnd - reassemblyList->end, session, error);
                 }
             }
@@ -4718,8 +4720,8 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
 
                 /* may be past reassembly list end (could have more on list)
                    so try to add what's past the front->end */
-                AddToReassembly(session->flags.side, reassemblyList->end +1,
-                            *sslFrame + reassemblyList->end - *expected + 1,
+                AddToReassembly(session->flags.side, reassemblyList->end + 1,
+                         *sslFrame + (reassemblyList->end - *expected + 1),
                              newEnd - reassemblyList->end, session, error);
             }
         }
@@ -4745,9 +4747,9 @@ static int FindNextRecordInAssembly(SnifferSession* session,
     byte*        skipPartial = (session->flags.side == WOLFSSL_SERVER_END) ?
                                     &session->flags.srvSkipPartial :
                                     &session->flags.cliSkipPartial;
-    word32* reassemblyMemory = (session->flags.side == WOLFSSL_SERVER_END) ?
-                                    &session->cliReassemblyMemory :
-                                    &session->srvReassemblyMemory;
+    int* reassemblyMemory = (session->flags.side == WOLFSSL_SERVER_END) ?
+                                    (int*)&session->cliReassemblyMemory :
+                                    (int*)&session->srvReassemblyMemory;
     WOLFSSL*             ssl = (session->flags.side == WOLFSSL_SERVER_END) ?
                                     session->sslServer :
                                     session->sslClient;
@@ -4766,8 +4768,8 @@ static int FindNextRecordInAssembly(SnifferSession* session,
             if (ssl->buffers.inputBuffer.length > 0)
                 Trace(DROPPING_PARTIAL_RECORD);
 
-            *sslBytes = curr->end - curr->begin + 1;
-            if ( (word32)*sslBytes > ssl->buffers.inputBuffer.bufferSize) {
+            *sslBytes = (int)(curr->end - curr->begin + 1);
+            if ( *sslBytes > (int)ssl->buffers.inputBuffer.bufferSize) {
                 if (GrowInputBuffer(ssl, *sslBytes, 0) < 0) {
                     SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
                     return -1;
@@ -4788,18 +4790,18 @@ static int FindNextRecordInAssembly(SnifferSession* session,
             return 0;
         }
         else if (ssl->specs.cipher_type == block) {
+            int ivPos = (int)(curr->end - curr->begin - 
+                                                     ssl->specs.block_size + 1);
             if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes) {
 #ifdef BUILD_AES
-                wc_AesSetIV(ssl->decrypt.aes,
-                            curr->data + curr->end - curr->begin
-                                       - ssl->specs.block_size + 1);
+                if (ivPos >= 0)
+                    wc_AesSetIV(ssl->decrypt.aes, curr->data + ivPos);
 #endif
             }
             else if (ssl->specs.bulk_cipher_algorithm == wolfssl_triple_des) {
 #ifdef BUILD_DES3
-                wc_Des3_SetIV(ssl->decrypt.des3,
-                              curr->data + curr->end - curr->begin
-                                         - ssl->specs.block_size + 1);
+                if (ivPos >= 0)
+                    wc_Des3_SetIV(ssl->decrypt.des3, curr->data + ivPos);
 #endif
             }
         }
@@ -4810,7 +4812,7 @@ static int FindNextRecordInAssembly(SnifferSession* session,
 #endif
         prev = curr;
         curr = curr->next;
-        *reassemblyMemory -= (prev->end - prev->begin + 1);
+        *reassemblyMemory -= (int)(prev->end - prev->begin + 1);
         FreePacketBuffer(prev);
     }
 
@@ -5086,8 +5088,8 @@ static int HaveMoreInput(SnifferSession* session, const byte** sslFrame,
                   &session->cliReassemblyMemory : &session->srvReassemblyMemory;
 
     while (*front && ((*front)->begin == *expected) ) {
-        word32 room = *bufferSize - *length;
-        word32 packetLen = (*front)->end - (*front)->begin + 1;
+        int room = (int)(*bufferSize - *length);
+        int packetLen = (int)((*front)->end - (*front)->begin + 1);
 
         if (packetLen > room && *bufferSize < MAX_INPUT_SZ) {
             if (GrowInputBuffer(ssl, packetLen, *length) < 0) {
