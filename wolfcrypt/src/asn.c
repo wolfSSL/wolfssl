@@ -16093,47 +16093,36 @@ int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
 int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
 {
     word32 idx = 0;
-    int pSz;
-    int gSz;
-    unsigned int tmp;
-    word32 headerSz = 4; /* 2*ASN_TAG + 2*LEN(ENUM) */
-
-    /* If the leading bit on the INTEGER is a 1, add a leading zero */
-    int pLeadingZero = mp_leading_bit(p);
-    int gLeadingZero = mp_leading_bit(g);
-    int pLen = mp_unsigned_bin_size(p);
-    int gLen = mp_unsigned_bin_size(g);
+    word32 total;
 
     WOLFSSL_ENTER("StoreDHparams");
+
     if (out == NULL) {
         WOLFSSL_MSG("Null buffer error");
         return BUFFER_E;
     }
 
-    tmp = pLeadingZero + gLeadingZero + pLen + gLen;
-    if (*outLen < (tmp + headerSz)) {
+    /* determine size */
+    /* integer - g */
+    idx = SetASNIntMP(g, -1, NULL);
+    /* integer - p */
+    idx += SetASNIntMP(p, -1, NULL);
+    total = idx;
+     /* sequence */
+    idx += SetSequence(idx, NULL);
+
+    /* make sure output fits in buffer */
+    if (idx > *outLen) {
         return BUFFER_E;
     }
 
-    /* Set sequence */
-    idx = SetSequence(tmp + headerSz + 2, out);
-
-    /* Encode p */
-    pSz = SetASNIntMP(p, -1, &out[idx]);
-    if (pSz < 0) {
-        WOLFSSL_MSG("SetASNIntMP failed");
-        return pSz;
-    }
-    idx += pSz;
-
-    /* Encode g */
-    gSz = SetASNIntMP(g, -1, &out[idx]);
-    if (gSz < 0) {
-        WOLFSSL_MSG("SetASNIntMP failed");
-        return gSz;
-    }
-    idx += gSz;
-
+    /* write DH parameters */
+    /* sequence - for P and G only */
+    idx = SetSequence(total, out);
+    /* integer - p */
+    idx += SetASNIntMP(p, -1, out + idx);
+    /* integer - g */
+    idx += SetASNIntMP(g, -1, out + idx);
     *outLen = idx;
 
     return 0;

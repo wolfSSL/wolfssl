@@ -37995,9 +37995,11 @@ static void test_wolfSSL_i2d_DHparams(void)
     AssertIntEQ(DH_generate_key(dh), 1);
     AssertIntEQ(wolfSSL_i2d_DHparams(dh, &pt2), 268);
 
-    /* Invalid cases */
+    /* Invalid case */
     AssertIntEQ(wolfSSL_i2d_DHparams(NULL, &pt2), 0);
-    AssertIntEQ(wolfSSL_i2d_DHparams(dh, NULL), 264);
+
+    /* Return length only */
+    AssertIntEQ(wolfSSL_i2d_DHparams(dh, NULL), 268);
 
     DH_free(dh);
     printf(resultFmt, passed);
@@ -38019,9 +38021,11 @@ static void test_wolfSSL_i2d_DHparams(void)
     AssertIntEQ(DH_generate_key(dh), 1);
     AssertIntEQ(wolfSSL_i2d_DHparams(dh, &pt2), 396);
 
-    /* Invalid cases */
+    /* Invalid case */
     AssertIntEQ(wolfSSL_i2d_DHparams(NULL, &pt2), 0);
-    AssertIntEQ(wolfSSL_i2d_DHparams(dh, NULL), 392);
+
+    /* Return length only */
+    AssertIntEQ(wolfSSL_i2d_DHparams(dh, NULL), 396);
 
     DH_free(dh);
     printf(resultFmt, passed);
