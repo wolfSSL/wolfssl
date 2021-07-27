@@ -39042,7 +39042,7 @@ static void test_wolfSSL_EVP_get_digestbynid(void)
 }
 static void test_wolfSSL_EVP_PKEY_get0_EC_KEY(void)
 {
-#if defined(OPENSSL_ALL)
+#if defined(HAVE_ECC) && defined(OPENSSL_ALL)
     WOLFSSL_EVP_PKEY*   pkey;
 
 
@@ -40626,7 +40626,7 @@ static void test_wolfSSL_RSA_padding_add_PKCS1_PSS(void)
 
 static void test_wolfSSL_RSA_sign_sha3(void)
 {
-#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+#if !defined(NO_RSA) && defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
 #if defined(OPENSSL_ALL) && defined(WC_RSA_PSS) && !defined(WC_NO_RNG)
     RSA *rsa;
     const unsigned char *derBuf = client_key_der_2048;
@@ -40649,7 +40649,7 @@ static void test_wolfSSL_RSA_sign_sha3(void)
 
     printf(resultFmt, passed);
 #endif /* OPENSSL_ALL && WC_RSA_PSS && !WC_NO_RNG*/
-#endif /* WOLFSSL_NOSHA3_256*/
+#endif /* !NO_RSA && WOLFSSL_SHA3 && !WOLFSSL_NOSHA3_256*/
 }
 
 static void test_wolfSSL_EC_get_builtin_curves(void)
@@ -44273,7 +44273,7 @@ static void test_wolfSSL_RSA_print(void)
     AssertIntEQ(RSA_print(bio, rsa, 0), SSL_SUCCESS);
 
     BIO_free(bio);
-    wolfSSL_RSA_free(rsa);
+    RSA_free(rsa);
     printf(resultFmt, passed);
 #endif
 }
