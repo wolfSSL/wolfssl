@@ -66,7 +66,6 @@
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_FILESYSTEM)
 #ifdef WOLFSSL_SNIFFER
 
-#include <assert.h>
 #include <time.h>
 
 #ifdef FUSION_RTOS
@@ -1432,8 +1431,6 @@ static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
     SnifferSession* session;
     time_t          currTime = XTIME(NULL);
     word32          row = SessionHash(ipInfo, tcpInfo);
-
-    assert(row <= HASH_SIZE);
 
     wc_LockMutex(&SessionMutex);
 
@@ -4121,13 +4118,15 @@ static void RemoveSession(SnifferSession* session, IpInfo* ipInfo,
     word32          row = rowHint;
     int             haveLock = 0;
 
+    Trace(REMOVE_SESSION_STR);
+
     if (ipInfo && tcpInfo)
         row = SessionHash(ipInfo, tcpInfo);
     else
         haveLock = 1;
 
-    assert(row <= HASH_SIZE);
-    Trace(REMOVE_SESSION_STR);
+    if (row >= HASH_SIZE)
+        return;
 
     if (!haveLock)
         wc_LockMutex(&SessionMutex);
