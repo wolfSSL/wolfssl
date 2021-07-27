@@ -50,7 +50,7 @@
 #ifdef WOLFSSL_SP_ARM32_ASM
 #define SP_PRINT_NUM(var, name, total, words, bits)     \
     do {                                                \
-        int ii                                          \
+        int ii;                                         \
         fprintf(stderr, name "=0x");                    \
         for (ii = words - 1; ii >= 0; ii--)             \
             fprintf(stderr, SP_PRINT_FMT, (var)[ii]);   \
