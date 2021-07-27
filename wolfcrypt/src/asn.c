@@ -10696,13 +10696,13 @@ int GetSerialNumber(const byte* input, word32* inOutIdx,
     if (ret != 0)
         return ret;
 
-    if (*serialSz > EXTERNAL_SERIAL_SIZE) {
+    if (*serialSz > EXTERNAL_SERIAL_SIZE || *serialSz <= 0) {
         WOLFSSL_MSG("Serial size bad");
         return ASN_PARSE_E;
     }
 
     /* return serial */
-    XMEMCPY(serial, &input[*inOutIdx], *serialSz);
+    XMEMCPY(serial, &input[*inOutIdx], (size_t)*serialSz);
     *inOutIdx += *serialSz;
 
     return result;
