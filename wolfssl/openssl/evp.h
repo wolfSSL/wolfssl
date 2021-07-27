@@ -291,6 +291,8 @@ enum {
     NID_sha3_256        = 1097,
     NID_sha3_384        = 1098,
     NID_sha3_512        = 1099,
+    NID_blake2b512      = 1056,
+    NID_blake2s256      = 1057,
 };
 
 enum {
@@ -413,6 +415,9 @@ WOLFSSL_API int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
 WOLFSSL_API int wolfSSL_EVP_DecodeFinal(WOLFSSL_EVP_ENCODE_CTX* ctx,
                 unsigned char*out, int *outl);
 #endif /* WOLFSSL_BASE64_DECODE */
+
+WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_blake2b512(void);
+WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_blake2s256(void);
 
 typedef int WOLFSSL_ENGINE  ;
 typedef WOLFSSL_ENGINE ENGINE;
@@ -1008,6 +1013,9 @@ typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
 #define EVP_DecodeUpdate     wolfSSL_EVP_DecodeUpdate
 #define EVP_DecodeFinal      wolfSSL_EVP_DecodeFinal
 #endif /* WOLFSSL_BASE64_DECODE */
+
+#define EVP_blake2b512       wolfSSL_EVP_blake2b512
+#define EVP_blake2s256       wolfSSL_EVP_blake2s256
 
 WOLFSSL_API void printPKEY(WOLFSSL_EVP_PKEY *k);
 

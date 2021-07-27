@@ -2346,6 +2346,12 @@ static const struct s_ent {
 #ifndef WOLFSSL_NOSHA3_512
     {WC_HASH_TYPE_SHA3_512, NID_sha3_512, "SHA3_512"},
 #endif
+#ifdef HAVE_BLAKE2
+    {WC_HASH_TYPE_BLAKE2B, NID_blake2b512, "BLAKE2B512"},
+#endif
+#ifdef HAVE_BLAKE2S
+    {WC_HASH_TYPE_BLAKE2S, NID_blake2s256, "BLAKE2S256"},
+#endif
     {WC_HASH_TYPE_NONE, 0, NULL}
 };
 
@@ -3539,6 +3545,12 @@ const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
         {"MD5", "ssl3-md5"},
         {"SHA1", "ssl3-sha1"},
         {"SHA1", "SHA"},
+#ifdef HAVE_BLAKE2
+        {"BLAKE2b512", "blake2b512"},
+#endif
+#ifdef HAVE_BLAKE2S
+        {"BLAKE2s256", "blake2s256"},
+#endif
         { NULL, NULL}
     };
     char nameUpper[15]; /* 15 bytes should be enough for any name */
@@ -3602,6 +3614,32 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     }
 
 #endif /* !NO_MD5 */
+
+#ifdef HAVE_BLAKE2
+    /* return EVP_MD
+     * @param none
+     * @return "blake2b512"
+     */
+    const WOLFSSL_EVP_MD* wolfSSL_EVP_blake2b512()
+    {
+        WOLFSSL_ENTER("EVP_blake2b512");
+        return EVP_get_digestbyname("BLAKE2b512");
+    }
+    
+#endif
+
+#ifdef HAVE_BLAKE2S
+    /* return EVP_MD
+     * @param none
+     * @return "blake2s256"
+     */
+    const WOLFSSL_EVP_MD* wolfSSL_EVP_blake2s256()
+    {
+        WOLFSSL_ENTER("EVP_blake2s256");
+        return EVP_get_digestbyname("BLAKE2s256");
+    }
+
+#endif
 
 
 #ifndef NO_WOLFSSL_STUB
@@ -7212,6 +7250,8 @@ int wolfSSL_EVP_PKEY_assign_DH(EVP_PKEY* pkey, WOLFSSL_DH* key)
     return WOLFSSL_SUCCESS;
 }
 #endif /* !NO_DH */
+
+
 
 #endif /* OPENSSL_EXTRA */
 
