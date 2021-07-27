@@ -23113,11 +23113,15 @@ static int test_wc_ecc_encryptDecrypt (void)
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && defined(WOLFSSL_AES_128) \
      && !defined(WC_NO_RNG)
-    ecc_key     srvKey, cliKey;
+    ecc_key     srvKey, cliKey, tmpKey;
     WC_RNG      rng;
     const char* msg   = "EccBlock Size 16";
     word32      msgSz = (word32)XSTRLEN(msg);
+#ifdef WOLFSSL_ECIES_OLD
     byte        out[XSTRLEN(msg) + WC_SHA256_DIGEST_SIZE];
+#else
+    byte        out[KEY20 * 2 + 1 + XSTRLEN(msg) + WC_SHA256_DIGEST_SIZE];
+#endif
     word32      outSz = (word32)sizeof(out);
     byte        plain[XSTRLEN(msg) + 1];
     word32      plainSz = (word32)sizeof(plain);
@@ -23141,6 +23145,9 @@ static int test_wc_ecc_encryptDecrypt (void)
         }
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, keySz, &srvKey);
+        }
+        if (ret == 0) {
+            ret = wc_ecc_init(&tmpKey);
         }
     }
 
@@ -23190,27 +23197,38 @@ static int test_wc_ecc_encryptDecrypt (void)
     printf(resultFmt, ret == 0 ? passed : failed);
     printf(testingFmt, "wc_ecc_decrypt()");
 
+#ifdef WOLFSSL_ECIES_OLD
     if (ret == 0) {
-        ret = wc_ecc_decrypt(&srvKey, &cliKey, out, outSz, plain,
+        tmpKey.dp = cliKey.dp;
+        ret = wc_ecc_copy_point(&cliKey.pubkey, &tmpKey.pubkey);
+    }
+#endif
+
+    if (ret == 0) {
+        ret = wc_ecc_decrypt(&srvKey, &tmpKey, out, outSz, plain,
                                                         &plainSz, NULL);
     }
     if (ret == 0) {
-        ret = wc_ecc_decrypt(NULL, &cliKey, out, outSz, plain,
+        ret = wc_ecc_decrypt(NULL, &tmpKey, out, outSz, plain,
                                                         &plainSz, NULL);
+    #ifdef WOLFSSL_ECIES_OLD
+        /* NULL parameter allowed in new implementations - public key comes from
+         * the message. */
         if (ret == BAD_FUNC_ARG) {
             ret = wc_ecc_decrypt(&srvKey, NULL, out, outSz, plain,
                                                         &plainSz, NULL);
         }
+    #endif
         if (ret == BAD_FUNC_ARG) {
-            ret = wc_ecc_decrypt(&srvKey, &cliKey, NULL, outSz, plain,
+            ret = wc_ecc_decrypt(&srvKey, &tmpKey, NULL, outSz, plain,
                                                         &plainSz, NULL);
         }
         if (ret == BAD_FUNC_ARG) {
-            ret = wc_ecc_decrypt(&srvKey, &cliKey, out, outSz, NULL,
+            ret = wc_ecc_decrypt(&srvKey, &tmpKey, out, outSz, NULL,
                                                         &plainSz, NULL);
         }
         if (ret == BAD_FUNC_ARG) {
-            ret = wc_ecc_decrypt(&srvKey, &cliKey, out, outSz,
+            ret = wc_ecc_decrypt(&srvKey, &tmpKey, out, outSz,
                                                         plain, NULL, NULL);
         }
         if (ret == BAD_FUNC_ARG) {
@@ -23229,6 +23247,7 @@ static int test_wc_ecc_encryptDecrypt (void)
     if (wc_FreeRng(&rng) && ret == 0) {
         ret = WOLFSSL_FATAL_ERROR;
     }
+    wc_ecc_free(&tmpKey);
     wc_ecc_free(&cliKey);
     wc_ecc_free(&srvKey);
 
