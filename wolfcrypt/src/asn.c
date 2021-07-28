@@ -8360,6 +8360,11 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
         return ASN_PARSE_E;
     }
 
+#ifdef OPENSSL_ALL
+    cert->extSubjAltNameSrc = input;
+    cert->extSubjAltNameSz = sz;
+#endif
+
     cert->weOwnAltNames = 1;
 
     while (length > 0) {

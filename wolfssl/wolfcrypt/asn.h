@@ -856,6 +856,10 @@ struct DecodedCert {
     const byte* extSubjKeyIdSrc;
     word32  extSubjKeyIdSz;
 #endif
+#ifdef OPENSSL_ALL
+    const byte* extSubjAltNameSrc;
+    word32  extSubjAltNameSz;
+#endif
 
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     word32  pkCurveOID;           /* Public Key's curve OID */

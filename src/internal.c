@@ -3828,6 +3828,10 @@ void FreeX509(WOLFSSL_X509* x509)
             wolfSSL_EVP_PKEY_free(x509->key.pkey);
             x509->key.pkey = NULL;
         }
+        if (x509->subjAltNameSrc != NULL) {
+            XFREE(x509->subjAltNameSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
+            x509->subjAltNameSrc= NULL;
+        }
     #endif /* OPENSSL_ALL */
     #if defined(WOLFSSL_CERT_REQ) && defined(OPENSSL_ALL)
         if (x509->challengePwAttr) {
@@ -10620,6 +10624,19 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         }
     #endif /* WOLFSSL_CERT_EXT */
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#ifdef OPENSSL_ALL
+    if (dCert->extSubjAltNameSrc != NULL && dCert->extSubjAltNameSz != 0) {
+        x509->subjAltNameSrc = (byte*)XMALLOC(dCert->extSubjAltNameSz, x509->heap,
+                                         DYNAMIC_TYPE_X509_EXT);
+        if (x509->subjAltNameSrc != NULL) {
+            XMEMCPY(x509->subjAltNameSrc,
+                                 dCert->extSubjAltNameSrc, dCert->extSubjAltNameSz);
+            x509->subjAltNameSz = dCert->extSubjAltNameSz;
+        }
+        else
+            ret = MEMORY_E;
+    }
+#endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     x509->pkCurveOID = dCert->pkCurveOID;
 #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
