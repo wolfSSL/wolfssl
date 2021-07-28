@@ -31,7 +31,7 @@
   #error Please undefine NO_WOLFSSL_SERVER for this example
 #endif
 
-const int port = 11111; // port to listen on
+const int port = 11111; /* port to listen on */
 
 int EthernetSend(WOLFSSL* ssl, char* msg, int sz, void* ctx);
 int EthernetReceive(WOLFSSL* ssl, char* reply, int sz, void* ctx);
@@ -59,12 +59,12 @@ void setup() {
     return;
   }
 
-  // initialize wolfSSL using callback functions
+  /* initialize wolfSSL using callback functions */
   wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
   wolfSSL_SetIOSend(ctx, EthernetSend);
   wolfSSL_SetIORecv(ctx, EthernetReceive);
 
-  // setup the private key and certificate
+  /* setup the private key and certificate */
   err = wolfSSL_CTX_use_PrivateKey_buffer(ctx, ecc_key_der_256, 
     sizeof_ecc_key_der_256, WOLFSSL_FILETYPE_ASN1);
   if (err != WOLFSSL_SUCCESS) {
@@ -78,7 +78,7 @@ void setup() {
     return;
   }
 
-  // Start the server
+  /* Start the server */
   server.begin();
   
   return;
@@ -110,7 +110,7 @@ void loop() {
   int replySz = 0;
   const char* cipherName;
 
-  // Listen for incoming client requests.
+  /* Listen for incoming client requests. */
   client = server.available();
   if (!client) {
     return;
@@ -142,7 +142,10 @@ void loop() {
     Serial.println(cipherName);
 
     Serial.print("Server Read: ");
-    while (client.available() || wolfSSL_pending(ssl)) {
+    /* wait for data */
+    while (!client.available()) {}
+    /* read data */
+    while (wolfSSL_pending(ssl)) {
       input = wolfSSL_read(ssl, reply, sizeof(reply) - 1);
       if (input < 0) {
         err = wolfSSL_get_error(ssl, 0);
@@ -159,7 +162,7 @@ void loop() {
       }
     }
 
-    // echo data
+    /* echo data */
     if ((wolfSSL_write(ssl, reply, replySz)) != replySz) {
       err = wolfSSL_get_error(ssl, 0);
       wolfSSL_ERR_error_string(err, errBuf);
