@@ -1082,7 +1082,10 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #include <wolfssl/openssl/pem.h>
 
 #define SSL_CTRL_CHAIN       88
+#define ERR_LIB_RSA          4
+#define ERR_LIB_EC           16
 #define ERR_LIB_SSL          20
+#define ERR_LIB_PKCS12       35
 #define SSL_R_SHORT_READ     10
 #define ERR_R_PEM_LIB        9
 #define SSL_CTRL_MODE        33
