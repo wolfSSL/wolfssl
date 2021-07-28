@@ -1,17 +1,21 @@
 /*!
     \ingroup Memory
 
-    \brief This function calls the custom malloc function, if one has been
-    defined, or simply calls the default C malloc function if no custom
-    function exists. It is not called directly by wolfSSL, but instead
-    generally called by using XMALLOC, which may be replaced by
-    wolfSSL_Malloc during preprocessing.
+    \brief This function is similar to malloc(), but calls the memory
+    allocation function which wolfSSL has been configured to use. By default,
+    wolfSSL uses malloc().  This can be changed using the wolfSSL memory
+    abstraction layer - see wolfSSL_SetAllocators(). Note wolfSSL_Malloc is not 
+    called directly by wolfSSL, but instead called by macro XMALLOC.
+    For the default build only the size argument exists. If using 
+    WOLFSSL_STATIC_MEMORY build then heap and type arguments are included.
 
-    \return Success On successfully allocating the desired memory,
-    returns a void* to that location
-    \return NULL Returned when there is a failure to allocate memory
+    \return pointer If successful, this function returns a pointer to
+    allocated memory.
+    \return error If there is an error, NULL will be returned.
 
     \param size size, in bytes, of the memory to allocate
+    \param heap heap hint to use for memory. Can be NULL
+    \param type dynamic type (see DYNAMIC_TYPE_ list in types.h)
 
     _Example_
     \code
@@ -20,24 +24,29 @@
 
     \sa wolfSSL_Free
     \sa wolfSSL_Realloc
+    \sa wolfSSL_SetAllocators
     \sa XMALLOC
     \sa XFREE
     \sa XREALLOC
 */
-WOLFSSL_API void* wolfSSL_Malloc(size_t size, void* heap, int type, const char* func, unsigned int line);
+WOLFSSL_API void* wolfSSL_Malloc(size_t size, void* heap, int type);
 
 /*!
     \ingroup Memory
 
-    \brief This function calls a custom free function, if one has been
-    defined, or simply calls the default C free function if no custom
-    function exists. It is not called directly by wolfSSL, but instead
-    generally called by using XFREE, which may be replaced by wolfSSL_Free
-    during preprocessing.
+    \brief This function is similar to free(), but calls the memory free
+    function which wolfSSL has been configured to use. By default, wolfSSL
+    uses free(). This can be changed using the wolfSSL memory abstraction
+    layer - see wolfSSL_SetAllocators(). Note wolfSSL_Free is not 
+    called directly by wolfSSL, but instead called by macro XFREE.
+    For the default build only the ptr argument exists. If using 
+    WOLFSSL_STATIC_MEMORY build then heap and type arguments are included.
 
     \return none No returns.
 
-    \param ptr pointer to the memory to free
+    \param ptr pointer to the memory to be freed.
+    \param heap heap hint to use for memory. Can be NULL
+    \param type dynamic type (see DYNAMIC_TYPE_ list in types.h)
 
     _Example_
     \code
@@ -49,74 +58,14 @@ WOLFSSL_API void* wolfSSL_Malloc(size_t size, void* heap, int type, const char* 
     }
     \endcode
 
-    \sa wolfSSL_Malloc
-    \sa wolfSSL_Realloc
-    \sa XMALLOC
-    \sa XFREE
-    \sa XREALLOC
-*/
-WOLFSSL_API void  wolfSSL_Free(void *ptr, void* heap, int type, const char* func, unsigned int line);
-
-/*!
-    \ingroup Memory
-
-    \brief This function calls a custom realloc function, if one has been
-    defined, or simply calls the default C realloc function if no custom
-    function exists. It is not called directly by wolfSSL, but instead
-    generally called by using XREALLOC, which may be replaced by
-    wolfSSL_Realloc during preprocessing.
-
-    \return Success On successfully reallocating the desired memory,
-    returns a void* to that location
-    \return NULL Returned when there is a failure to reallocate memory
-
-    \param ptr pointer to the memory to the memory to reallocate
-    \param size desired size after reallocation
-
-    _Example_
-    \code
-    int* tenInts = (int*)wolfSSL_Malloc(sizeof(int)*10);
-    int* twentyInts = (int*)realloc(tenInts, sizeof(tenInts)*2);
-    \endcode
-
-    \sa wolfSSL_Malloc
-    \sa wolfSSL_Free
-    \sa XMALLOC
-    \sa XFREE
-    \sa XREALLOC
-*/
-WOLFSSL_API void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type, const char* func, unsigned int line);
-
-/*!
-    \ingroup Memory
-
-    \brief This function is similar to malloc(), but calls the memory
-    allocation function which wolfSSL has been configured to use. By default,
-    wolfSSL uses malloc().  This can be changed using the wolfSSL memory
-    abstraction layer - see wolfSSL_SetAllocators().
-
-    \return pointer If successful, this function returns a pointer to
-    allocated memory.
-    \return error If there is an error, NULL will be returned.
-    \return other Specific return values may be dependent on the underlying
-    memory allocation function being used (if not using the default malloc()).
-
-    \param size number of bytes to allocate.
-
-    _Example_
-    \code
-    char* buffer;
-    buffer = (char*) wolfSSL_Malloc(20);
-    if (buffer == NULL) {
-	    // failed to allocate memory
-    }
-    \endcode
-
-    \sa wolfSSL_Free
+    \sa wolfSSL_Alloc
     \sa wolfSSL_Realloc
     \sa wolfSSL_SetAllocators
+    \sa XMALLOC
+    \sa XFREE
+    \sa XREALLOC
 */
-WOLFSSL_API void* wolfSSL_Malloc(size_t size, void* heap, int type);
+WOLFSSL_API void  wolfSSL_Free(void *ptr, void* heap, int type);
 
 /*!
     \ingroup Memory
@@ -124,59 +73,35 @@ WOLFSSL_API void* wolfSSL_Malloc(size_t size, void* heap, int type);
     \brief This function is similar to realloc(), but calls the memory
     re-allocation function which wolfSSL has been configured to use.
     By default, wolfSSL uses realloc().  This can be changed using the
-    wolfSSL memory abstraction layer - see wolfSSL_SetAllocators().
+    wolfSSL memory abstraction layer - see wolfSSL_SetAllocators(). 
+    Note wolfSSL_Realloc is not called directly by wolfSSL, but instead called 
+    by macro XREALLOC. For the default build only the size argument exists.
+    If using WOLFSSL_STATIC_MEMORY build then heap and type arguments are included.
 
     \return pointer If successful, this function returns a pointer to
     re-allocated memory. This may be the same pointer as ptr, or a
     new pointer location.
     \return Null If there is an error, NULL will be returned.
-    \return other Specific return values may be dependent on the
-    underlying memory re-allocation function being used
-    (if not using the default realloc()).
 
     \param ptr pointer to the previously-allocated memory, to be reallocated.
     \param size number of bytes to allocate.
+    \param heap heap hint to use for memory. Can be NULL
+    \param type dynamic type (see DYNAMIC_TYPE_ list in types.h)
 
     _Example_
     \code
-    char* buffer;
-
-    buffer = (char*) wolfSSL_Realloc(30);
-    if (buffer == NULL) {
-    	// failed to re-allocate memory
-    }
+    int* tenInts = (int*)wolfSSL_Malloc(sizeof(int)*10);
+    int* twentyInts = (int*)wolfSSL_Realloc(tenInts, sizeof(int)*20);
     \endcode
 
     \sa wolfSSL_Free
     \sa wolfSSL_Malloc
     \sa wolfSSL_SetAllocators
+    \sa XMALLOC
+    \sa XFREE
+    \sa XREALLOC
 */
 WOLFSSL_API void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type);
-
-/*!
-    \ingroup Memory
-
-    \brief This function is similar to free(), but calls the memory free
-    function which wolfSSL has been configured to use. By default, wolfSSL
-    uses free(). This can be changed using the wolfSSL memory abstraction
-    layer - see wolfSSL_SetAllocators().
-
-    \return none No returns.
-
-    \param ptr pointer to the memory to be freed.
-
-    _Example_
-    \code
-    char* buffer;
-    ...
-    wolfSSL_Free(buffer);
-    \endcode
-
-    \sa wolfSSL_Alloc
-    \sa wolfSSL_Realloc
-    \sa wolfSSL_SetAllocators
-*/
-WOLFSSL_API void  wolfSSL_Free(void *ptr, const char* func, unsigned int line);
 
 /*!
     \ingroup Memory
@@ -199,31 +124,25 @@ WOLFSSL_API void  wolfSSL_Free(void *ptr, const char* func, unsigned int line);
 
     _Example_
     \code
-    int ret = 0;
-    // Memory function prototypes
-    void* MyMalloc(size_t size);
-    void  MyFree(void* ptr);
-    void* MyRealloc(void* ptr, size_t size);
-
-    // Register custom memory functions with wolfSSL
-    ret = wolfSSL_SetAllocators(MyMalloc, MyFree, MyRealloc);
-    if (ret != 0) {
-    	// failed to set memory functions
-    }
-
-    void* MyMalloc(size_t size)
+    static void* MyMalloc(size_t size)
     {
     	// custom malloc function
     }
 
-    void MyFree(void* ptr)
+    static void MyFree(void* ptr)
     {
     	// custom free function
     }
 
-    void* MyRealloc(void* ptr, size_t size)
+    static void* MyRealloc(void* ptr, size_t size)
     {
     	// custom realloc function
+    }
+
+    // Register custom memory functions with wolfSSL
+    int ret = wolfSSL_SetAllocators(MyMalloc, MyFree, MyRealloc);
+    if (ret != 0) {
+    	// failed to set memory functions
     }
     \endcode
 
