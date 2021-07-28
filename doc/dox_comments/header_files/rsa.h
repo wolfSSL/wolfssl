@@ -144,8 +144,6 @@ WOLFSSL_API int  wc_FreeRsaKey(RsaKey* key);
     \return Success Upon successfully encrypting the input message, returns
     0 for success and less than zero for failure. Also returns the number
     bytes written to out by storing the value in outLen
-    \return -1 Returned if there is an error during RSA encryption and
-    hardware acceleration via Cavium is enabled
     \return BAD_FUNC_ARG Returned if any of the input parameters are invalid
     \return RSA_BUFFER_E Returned if the output buffer is too small to store
     the ciphertext
@@ -907,7 +905,7 @@ WOLFSSL_API int  wc_RsaPSS_CheckPadding(const byte* in, word32 inLen, byte* sig,
     \param saltLen   Length of salt used. RSA_PSS_SALT_LEN_DEFAULT (-1) indicates salt
         length is the same as the hash length. RSA_PSS_SALT_LEN_DISCOVER
         indicates salt length is determined from the data.
-    \param bits      igonred
+    \param bits      Can be used to calculate salt size in FIPS case
 
     _Example_
     \code
@@ -951,8 +949,7 @@ WOLFSSL_API int  wc_RsaPSS_CheckPadding(const byte* in, word32 inLen, byte* sig,
     \sa wc_RsaPSS_CheckPadding
 */
 WOLFSSL_API int  wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inLen, byte* sig,
-                                        word32 sigSz,
-                                        enum wc_HashType hashType, int saltLen, int bits);
+                word32 sigSz, enum wc_HashType hashType, int saltLen, int bits);
 /*!
     \ingroup RSA
 
@@ -970,7 +967,6 @@ WOLFSSL_API int  wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inLen, byte* s
     \sa wc_InitRsaKey
     \sa wc_InitRsaKey_ex
     \sa wc_MakeRsaKey
-    \sa XMEMSET
 */
 WOLFSSL_API int  wc_RsaEncryptSize(RsaKey* key);
 
@@ -1195,7 +1191,7 @@ WOLFSSL_API int wc_RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
 */
 WOLFSSL_API int  wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
                    word32 outLen, RsaKey* key, WC_RNG* rng, int type,
-                   enum wc_HashType hash, int mgf, byte* label, word32 lableSz);
+                   enum wc_HashType hash, int mgf, byte* label, word32 labelSz);
 
 /*!
     \ingroup RSA
@@ -1248,7 +1244,7 @@ WOLFSSL_API int  wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
 */
 WOLFSSL_API int  wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen,
                    byte* out, word32 outLen, RsaKey* key, int type,
-                   enum wc_HashType hash, int mgf, byte* label, word32 lableSz);
+                   enum wc_HashType hash, int mgf, byte* label, word32 labelSz);
 
 /*!
     \ingroup RSA
@@ -1306,7 +1302,7 @@ WOLFSSL_API int  wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen,
 */
 WOLFSSL_API int  wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen,
                       byte** out, RsaKey* key, int type, enum wc_HashType hash,
-                      int mgf, byte* label, word32 lableSz);
+                      int mgf, byte* label, word32 labelSz);
 
 /*!
     \ingroup RSA
@@ -1348,7 +1344,6 @@ WOLFSSL_API int  wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen,
     \sa wc_InitRsaKey
     \sa wc_InitRsaKey_ex
     \sa wc_MakeRsaKey
-    \sa XMEMSET
 */
 WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
                                                                        word32*);
@@ -1365,7 +1360,7 @@ WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
     \return <0 Error
 
     \param key The RSA key structure to convert.
-    \param output Output buffer to hold DER.
+    \param output Output buffer to hold DER. (if NULL will return length only)
     \param inLen Length of buffer.
 
     _Example_
@@ -1375,18 +1370,55 @@ WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
     wc_RsaInitKey(&key, NULL);
     // Use key
 
-    int BUFFER_SIZE = // Some adequate size for the buffer
+    const int BUFFER_SIZE = 1024; // Some adequate size for the buffer
     byte output[BUFFER_SIZE];
-    if(wc_RsaKeyToPublicDer(&key, output, sizeof(output)) != 0)
-    {
+    if (wc_RsaKeyToPublicDer(&key, output, sizeof(output)) != 0) {
         // Handle Error
     }
     \endcode
 
+    \sa wc_RsaPublicKeyDerSize
+    \sa wc_RsaKeyToPublicDer_ex
+    \sa wc_RsaInitKey
+*/
+WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen);
+
+/*!
+    \ingroup RSA
+
+    \brief Convert RSA Public key to DER format. Writes to output, and
+    returns count of bytes written. If with_header is 0 then only the 
+    ( seq + n + e) is returned in ASN.1 DER format and will exclude the header.
+
+    \return >0 Success, number of bytes written.
+    \return BAD_FUNC_ARG Returned if key or output is null.
+    \return MEMORY_E Returned when an error allocating memory occurs.
+    \return <0 Error
+
+    \param key The RSA key structure to convert.
+    \param output Output buffer to hold DER. (if NULL will return length only)
+    \param inLen Length of buffer.
+
+    _Example_
+    \code
+    RsaKey key;
+
+    wc_RsaInitKey(&key, NULL);
+    // Use key
+
+    const int BUFFER_SIZE = 1024; // Some adequate size for the buffer
+    byte output[BUFFER_SIZE];
+    if (wc_RsaKeyToPublicDer_ex(&key, output, sizeof(output), 0) != 0) {
+        // Handle Error
+    }
+    \endcode
+
+    \sa wc_RsaPublicKeyDerSize
     \sa wc_RsaKeyToPublicDer
     \sa wc_RsaInitKey
 */
-WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
+WOLFSSL_API int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
+    int with_header);
 
 /*!
     \ingroup RSA
@@ -1432,7 +1464,7 @@ WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
 
     \param key pointer to the RsaKey structure in which to store the
     generated private key
-    \param size desired keylenth, in bits. Required to be greater than
+    \param size desired key length, in bits. Required to be greater than
     RSA_MIN_SIZE and less than RSA_MAX_SIZE
     \param e exponent parameter to use for generating the key. A secure
     choice is 65537

@@ -2769,6 +2769,13 @@ int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
     return SetRsaPublicKey(output, key, inLen, 1);
 }
 
+/* Returns public DER version of the RSA key. If with_header is 0 then only a 
+ * seq + n + e is returned in ASN.1 DER format */
+int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
+    int with_header)
+{
+    return SetRsaPublicKey(output, key, inLen, with_header);
+}
 
 #endif /* WOLFSSL_KEY_GEN || OPENSSL_EXTRA */
 

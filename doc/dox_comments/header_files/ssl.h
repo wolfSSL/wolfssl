@@ -7818,7 +7818,6 @@ WOLFSSL_API void wolfSSL_SetFuzzerCb(WOLFSSL* ssl, CallbackFuzzer cbf, void* fCt
 
     \sa ForceZero
     \sa wc_RNG_GenerateBlock
-    \sa XMEMCPY
 */
 WOLFSSL_API int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL*,
                                                const unsigned char*,
