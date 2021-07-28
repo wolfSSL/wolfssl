@@ -1918,6 +1918,7 @@ WOLFSSL_TEST_SUBROUTINE int asn_test(void)
 #ifdef WOLFSSL_MD2
 WOLFSSL_TEST_SUBROUTINE int md2_test(void)
 {
+    int ret = 0; 
     Md2  md2;
     byte hash[MD2_DIGEST_SIZE];
 
@@ -1987,6 +1988,18 @@ WOLFSSL_TEST_SUBROUTINE int md2_test(void)
             return -1500 - i;
     }
 
+    for (i = 0; i < times; ++i) {
+        ret = wc_Md2Hash((byte*)test_md2[i].input, (word32)test_md2[i].inLen, hash);
+         if (ret != 0) {
+            return -1507 - i;
+        }
+
+        if (XMEMCMP(hash, test_md2[i].output, MD2_DIGEST_SIZE) != 0) {
+            return -1507 - i;
+        }
+
+    }        
+    
     return 0;
 }
 #endif
