@@ -2245,11 +2245,15 @@ extern void uITRON4_free(void *p) ;
     #ifndef OPENSSL_EXTRA
         #define OPENSSL_EXTRA
     #endif
-    #ifndef HAVE_SESSION_TICKET
+    /* Session Tickets will be enabled when --enable-opensslall is used.
+     * Time is required for ticket expiration checking */
+    #if !defined(HAVE_SESSION_TICKET) && !defined(NO_ASN_TIME)
         #define HAVE_SESSION_TICKET
     #endif
+    /* OCSP will be enabled in configure.ac when --enable-opensslall is used,
+     * but do not force all users to have it enabled. */
     #ifndef HAVE_OCSP
-        #define HAVE_OCSP
+        /*#define HAVE_OCSP*/
     #endif
     #ifndef KEEP_OUR_CERT
         #define KEEP_OUR_CERT
@@ -2266,14 +2270,14 @@ extern void uITRON4_free(void *p) ;
 
 /* both CURVE and ED small math should be enabled */
 #ifdef CURVED25519_SMALL
-        #define CURVE25519_SMALL
-        #define ED25519_SMALL
+    #define CURVE25519_SMALL
+    #define ED25519_SMALL
 #endif
 
 /* both CURVE and ED small math should be enabled */
 #ifdef CURVED448_SMALL
-        #define CURVE448_SMALL
-        #define ED448_SMALL
+    #define CURVE448_SMALL
+    #define ED448_SMALL
 #endif
 
 
