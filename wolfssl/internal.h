@@ -2102,7 +2102,7 @@ struct WOLFSSL_CERT_MANAGER {
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     short           minEccKeySz;         /* minimum allowed ECC key size */
 #endif
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     WOLFSSL_X509_STORE  *x509_store_p;  /* a pointer back to CTX x509 store  */
                                         /* CTX has ownership and free this   */
                                         /* with CTX free.                    */
