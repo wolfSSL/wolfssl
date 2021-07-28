@@ -3534,25 +3534,20 @@ int wolfSSL_EVP_Digest(const unsigned char* in, int inSz, unsigned char* out,
     return WOLFSSL_SUCCESS;
 }
 
+static const struct alias {
+            const char *name;
+            const char *alias;
+} alias_tbl[] =
+{
+    {"MD4", "ssl3-md4"},
+    {"MD5", "ssl3-md5"},
+    {"SHA1", "ssl3-sha1"},
+    {"SHA1", "SHA"},
+    { NULL, NULL}
+};
+
 const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
 {
-    static const struct alias {
-        const char *name;
-        const char *alias;
-    } alias_tbl[] =
-    {
-        {"MD4", "ssl3-md4"},
-        {"MD5", "ssl3-md5"},
-        {"SHA1", "ssl3-sha1"},
-        {"SHA1", "SHA"},
-#ifdef HAVE_BLAKE2
-        {"BLAKE2b512", "blake2b512"},
-#endif
-#ifdef HAVE_BLAKE2S
-        {"BLAKE2s256", "blake2s256"},
-#endif
-        { NULL, NULL}
-    };
     char nameUpper[15]; /* 15 bytes should be enough for any name */
     size_t i;
 
@@ -3941,7 +3936,49 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         }
         return (WOLFSSL_EVP_MD *)NULL;
     }
-
+    
+    /* return alias name if has
+     * @param n message digest type name
+     * @return alias name, otherwise NULL
+     */
+    static const char* hasAliasName(const char* n) 
+    {
+        
+        const char* aliasnm = NULL;
+        const struct alias  *al;
+        
+        for (al = alias_tbl; al->name != NULL; al++)
+            if(XSTRNCMP(n, al->name, XSTRLEN(al->name)+1) == 0) {
+                aliasnm = al->alias;
+                break;
+            }
+        
+        return aliasnm;
+    }
+    
+    /* do all md algorithm through a callback function
+     * @param fn a callback function to be called with all 'md'
+     * @param args arguments to pass to the callback
+     * @return none
+     */
+    void wolfSSL_EVP_MD_do_all(void (*fn) (const WOLFSSL_EVP_MD *m,
+                 const char* from, const char* to, void* xx), void* args)
+    {
+        const char* alias = NULL;
+        const struct s_ent *ent;
+        
+        /* loop all md */
+        for (ent = md_tbl; ent->name != NULL; ent++){
+            /* check if the md has alias */
+            if((alias = hasAliasName(ent->name)) != NULL) {
+                fn(NULL, ent->name, ent->name, args);
+            }
+            else {
+                fn(ent->name, ent->name, NULL, args);
+            }
+        }
+    }
+    
     #ifndef NO_AES
 
     #ifdef HAVE_AES_CBC

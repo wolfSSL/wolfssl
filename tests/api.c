@@ -46089,7 +46089,56 @@ static void test_EVP_blake2()
     AssertIntEQ(XSTRNCMP(md, "BLAKE2S256", XSTRLEN("BLAKE2S256")), 0);
 #endif
     printf(resultFmt, passed);
+#endif
+}
+
+#if defined(OPENSSL_EXTRA)
+static void list_md_fn(const EVP_MD* m, const char* from,
+                       const char* to, void* arg)
+{
+    const char* mn;
+    BIO *bio;
     
+    (void) from;
+    (void) to;
+    (void) arg;
+    (void) mn;
+    (void) bio;
+    
+    if (!m) {
+        /* alias */
+        AssertNull(m);
+        AssertNotNull(to);
+    }
+    else {
+        AssertNotNull(m);
+        AssertNull(to);
+    }
+    AssertNotNull(from);
+    mn = EVP_get_digestbyname(from);
+
+#if !defined(NO_FILESYSTEM) && defined(DEBUG_WOLFSSL_VERBOSE)
+    /* print to stdout */
+    AssertNotNull(arg);
+    
+    bio = BIO_new(BIO_s_file());
+    BIO_set_fp(bio, arg, BIO_NOCLOSE);
+    BIO_printf(bio, "-%-14s to use the %s message digest algorithm\n", mn, mn);
+    BIO_free(bio);
+#endif
+}
+#endif
+
+static void test_EVP_MD_do_all()
+{
+#if defined(OPENSSL_EXTRA)
+    printf(testingFmt, "test_EVP_MD_do_all");
+    
+    EVP_MD_do_all(list_md_fn, stdout);
+    /* to confirm previous call gives no harm */
+    AssertTrue(1);
+    
+    printf(resultFmt, passed);
 #endif
 }
 /*----------------------------------------------------------------------------*
@@ -46114,6 +46163,7 @@ void ApiTest(void)
 #endif
     test_wolfSSL_ERR_strings();
     test_EVP_blake2();
+    test_EVP_MD_do_all();
     test_wolfSSL_CTX_use_certificate_file();
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_buffer(), WOLFSSL_SUCCESS);
     test_wolfSSL_CTX_use_PrivateKey_file();
