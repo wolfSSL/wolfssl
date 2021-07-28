@@ -676,9 +676,15 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
     XMEMSET(&ssl->encrypt, 0, sizeof(Ciphers));
 
     dup->IOCB_WriteCtx = ssl->IOCB_WriteCtx;
+    dup->CBIOSend = ssl->CBIOSend;
+#ifdef OPENSSL_EXTRA
+    dup->cbioFlag = ssl->cbioFlag;
+#endif
     dup->wfd    = ssl->wfd;
     dup->wflags = ssl->wflags;
+#ifndef WOLFSSL_AEAD_ONLY
     dup->hmac   = ssl->hmac;
+#endif
 #ifdef HAVE_TRUNCATED_HMAC
     dup->truncated_hmac = ssl->truncated_hmac;
 #endif
