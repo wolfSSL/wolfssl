@@ -43023,7 +43023,8 @@ err:
      *
      * returns the buffer size on success
      */
-    int wolfSSL_OBJ_obj2txt(char *buf, int bufLen, WOLFSSL_ASN1_OBJECT *a, int no_name)
+    int wolfSSL_OBJ_obj2txt(char *buf, int bufLen, const WOLFSSL_ASN1_OBJECT *a,
+                            int no_name)
     {
         int bufSz;
         const char* desc;
