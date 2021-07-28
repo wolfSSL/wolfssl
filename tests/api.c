@@ -30780,10 +30780,17 @@ static void test_wolfSSL_CTX_set_client_CA_list(void)
 
     printf(testingFmt, "wolfSSL_CTX_set_client_CA_list()");
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    /* Send two X501 names in cert request */
     names = SSL_load_client_CA_file(cliCertFile);
     AssertNotNull(names);
+    ca_list = SSL_load_client_CA_file(caCertFile);
+    AssertNotNull(ca_list);
+    AssertIntEQ(sk_X509_NAME_push(names, sk_X509_NAME_value(ca_list, 0)), 1);
     SSL_CTX_set_client_CA_list(ctx, names);
+    /* This should only free the stack structure */
+    sk_X509_NAME_free(ca_list);
     AssertNotNull(ca_list = SSL_CTX_get_client_CA_list(ctx));
+    AssertIntEQ(sk_X509_NAME_num(ca_list), sk_X509_NAME_num(names));
 
     AssertIntGT((names_len = sk_X509_NAME_num(names)), 0);
     for (i=0; i<names_len; i++) {
@@ -30795,11 +30802,12 @@ static void test_wolfSSL_CTX_set_client_CA_list(void)
     AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
     AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
     AssertNotNull(ssl = wolfSSL_new(ctx));
-    /* laod again as old names are responsibility of ctx to free */
+    /* load again as old names are responsibility of ctx to free*/
     names = SSL_load_client_CA_file(cliCertFile);
     AssertNotNull(names);
     SSL_set_client_CA_list(ssl, names);
     AssertNotNull(ca_list = SSL_get_client_CA_list(ssl));
+    AssertIntEQ(sk_X509_NAME_num(ca_list), sk_X509_NAME_num(names));
 
     AssertIntGT((names_len = sk_X509_NAME_num(names)), 0);
     for (i=0; i<names_len; i++) {
@@ -30807,9 +30815,75 @@ static void test_wolfSSL_CTX_set_client_CA_list(void)
         AssertIntEQ(sk_X509_NAME_find(names, name), i);
     }
 
+    printf(resultFmt, passed);
+
+#if !defined(SINGLE_THREADED) && defined(SESSION_CERTS)
+    {
+        tcp_ready ready;
+        func_args server_args;
+        callback_functions server_cb;
+        THREAD_TYPE serverThread;
+        WOLFSSL* ssl_client;
+        WOLFSSL_CTX* ctx_client;
+        SOCKET_T sockfd = 0;
+
+        printf(testingFmt, "wolfSSL_get_client_CA_list() with handshake");
+
+        StartTCP();
+        InitTcpReady(&ready);
+
+        XMEMSET(&server_args, 0, sizeof(func_args));
+        XMEMSET(&server_cb, 0, sizeof(callback_functions));
+
+        server_args.signal    = &ready;
+        server_args.callbacks = &server_cb;
+
+        /* we are responsible for free'ing WOLFSSL_CTX */
+        server_cb.ctx = ctx;
+        server_cb.isSharedCtx = 1;
+
+        AssertIntEQ(WOLFSSL_SUCCESS,
+                wolfSSL_CTX_load_verify_locations(ctx, cliCertFile, 0));
+
+        start_thread(test_server_nofail, &server_args, &serverThread);
+        wait_tcp_ready(&server_args);
+
+        tcp_connect(&sockfd, wolfSSLIP, server_args.signal->port, 0, 0, NULL);
+        AssertNotNull(ctx_client = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+        AssertIntEQ(WOLFSSL_SUCCESS,
+                wolfSSL_CTX_load_verify_locations(ctx_client, caCertFile, 0));
+        AssertIntEQ(WOLFSSL_SUCCESS,
+              wolfSSL_CTX_use_certificate_file(ctx_client, cliCertFile, SSL_FILETYPE_PEM));
+        AssertIntEQ(WOLFSSL_SUCCESS,
+                wolfSSL_CTX_use_PrivateKey_file(ctx_client, cliKeyFile, SSL_FILETYPE_PEM));
+
+        AssertNotNull(ssl_client = wolfSSL_new(ctx_client));
+        AssertIntEQ(wolfSSL_set_fd(ssl_client, sockfd), WOLFSSL_SUCCESS);
+        AssertIntEQ(wolfSSL_connect(ssl_client), WOLFSSL_SUCCESS);
+
+        AssertNotNull(ca_list = SSL_get_client_CA_list(ssl_client));
+        /* We are expecting two cert names to be sent */
+        AssertIntEQ(sk_X509_NAME_num(ca_list), 2);
+
+        AssertNotNull(names = SSL_CTX_get_client_CA_list(ctx));
+        for (i=0; i<sk_X509_NAME_num(ca_list); i++) {
+            AssertNotNull(name = sk_X509_NAME_value(ca_list, i));
+            AssertIntGE(sk_X509_NAME_find(names, name), 0);
+        }
+
+        wolfSSL_shutdown(ssl_client);
+        wolfSSL_free(ssl_client);
+        wolfSSL_CTX_free(ctx_client);
+
+        join_thread(serverThread);
+        FreeTcpReady(&ready);
+
+        printf(resultFmt, passed);
+    }
+#endif
+
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
-    printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA && !NO_RSA && !NO_CERTS && !NO_WOLFSSL_CLIENT && !NO_BIO */
 }
 

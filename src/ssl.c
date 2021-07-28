@@ -16037,8 +16037,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("wolfSSL_CTX_set_client_CA_list");
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
-        if (ctx != NULL)
+        if (ctx != NULL) {
+            wolfSSL_sk_X509_NAME_pop_free(ctx->ca_names, NULL);
             ctx->ca_names = names;
+        }
     #else
         (void)ctx;
         (void)names;
@@ -16050,8 +16052,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("wolfSSL_set_client_CA_list");
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
-        if (ssl != NULL)
+        if (ssl != NULL) {
+            if (ssl->ca_names != ssl->ctx->ca_names)
+                wolfSSL_sk_X509_NAME_pop_free(ssl->ca_names, NULL);
             ssl->ca_names = names;
+        }
     #else
         (void)ssl;
         (void)names;
@@ -16061,7 +16066,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     /* returns the CA's set on server side or the CA's sent from server when
      * on client side */
-#if defined(SESSION_CERTS) && defined(OPENSSL_ALL)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_get_client_CA_list(
             const WOLFSSL* ssl)
     {
@@ -16072,9 +16076,13 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return NULL;
         }
 
+#ifdef SESSION_CERTS
         /* return list of CAs sent from the server */
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
             WOLF_STACK_OF(WOLFSSL_X509)* sk;
+
+            if (ssl->ca_names != NULL)
+                return ssl->ca_names;
 
             sk = wolfSSL_get_peer_cert_chain(ssl);
             if (sk != NULL) {
@@ -16086,26 +16094,38 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                     x509 = wolfSSL_sk_X509_pop(sk);
                     if (x509 != NULL) {
                         if (wolfSSL_X509_get_isCA(x509)) {
-                            if (wolfSSL_sk_X509_NAME_push(ret,
-                                    wolfSSL_X509_get_subject_name(x509)) != 0) {
-                                WOLFSSL_MSG("Error pushing X509 name to stack");
+                            WOLFSSL_X509_NAME* name = wolfSSL_X509_NAME_dup(
+                                    wolfSSL_X509_get_subject_name(x509));
+
+                            if (name != NULL) {
                                 /* continue on to try other certificates and
                                  * do not fail out here */
+                                if (wolfSSL_sk_X509_NAME_push(ret,
+                                        name) != WOLFSSL_SUCCESS) {
+                                    WOLFSSL_MSG("Error pushing X509 "
+                                                "name to stack");
+                                    wolfSSL_X509_NAME_free(name);
+                                }
+                            }
+                            else {
+                                WOLFSSL_MSG("Error copying X509 name");
                             }
                         }
                         wolfSSL_X509_free(x509);
                     }
                 } while (x509 != NULL);
-                wolfSSL_sk_X509_free(sk);
+                /* Save return value to free later */
+                ((WOLFSSL*)ssl)->ca_names = ret;
                 return ret;
             }
             return NULL;
         }
-        else {
+        else
+#endif /* SESSION_CERTS */
+        {
             return SSL_CA_NAMES(ssl);
         }
     }
-#endif /* SESSION_CERTS */
 
 
     #ifdef OPENSSL_EXTRA
@@ -19048,7 +19068,9 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
     if (ssl == NULL)
         return NULL;
 
-    if (ssl->peerCertChain == NULL)
+    /* Try to populate if NULL or empty */
+    if (ssl->peerCertChain == NULL ||
+            wolfSSL_sk_X509_num(ssl->peerCertChain) == 0)
         wolfSSL_set_peer_cert_chain((WOLFSSL*) ssl);
     return ssl->peerCertChain;
 }
@@ -19113,7 +19135,10 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
     if ((ssl == NULL) || (ssl->session.chain.count == 0))
         return NULL;
 
-    sk = wolfSSL_sk_X509_new();
+    if (ssl->peerCertChain == NULL)
+        sk = wolfSSL_sk_X509_new();
+    else /* Try to re-use old chain if available */
+        sk = ssl->peerCertChain;
     i = ssl->session.chain.count-1;
     for (; i >= 0; i--) {
         x509 = wolfSSL_X509_new();
@@ -45094,10 +45119,7 @@ void* wolfSSL_SESSION_get_ex_data(const WOLFSSL_SESSION* session, int idx)
 
 /* Note: This is a huge section of API's - through
  *       wolfSSL_X509_OBJECT_get0_X509_CRL */
-#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && \
-    (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
-    defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
-    defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB)))
+#if defined(OPENSSL_EXTRA)
 int wolfSSL_SESSION_get_ex_new_index(long idx, void* data, void* cb1,
        void* cb2, CRYPTO_free_func* cb3)
 {
@@ -45491,7 +45513,7 @@ WOLF_STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list(
 
     WOLFSSL_ENTER("wolfSSL_dup_CA_list");
 
-    copy = wolfSSL_sk_X509_NAME_new(NULL);
+    copy = wolfSSL_sk_X509_NAME_new(sk->comp);
     if (copy == NULL) {
         WOLFSSL_MSG("Memory error");
         return NULL;
@@ -46099,9 +46121,7 @@ WOLFSSL_X509_CRL *wolfSSL_X509_OBJECT_get0_X509_CRL(WOLFSSL_X509_OBJECT *obj)
     return NULL;
 }
 
-#endif /* OPENSSL_ALL || (OPENSSL_EXTRA && (HAVE_STUNNEL || WOLFSSL_NGINX ||
-        * HAVE_LIGHTY || WOLFSSL_HAPROXY || WOLFSSL_OPENSSH ||
-        * HAVE_SBLIM_SFCB)) */
+#endif /* OPENSSL_EXTRA */
 
 
 #if defined(OPENSSL_EXTRA)

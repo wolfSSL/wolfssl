@@ -24,7 +24,6 @@
 #define WOLFSSL_OBJECTS_H_
 
 #include <wolfssl/wolfcrypt/settings.h>
-//#include <wolfssl/openssl/ssl.h>
 #ifndef OPENSSL_EXTRA_SSL_GUARD
 #define OPENSSL_EXTRA_SSL_GUARD
 #include <wolfssl/ssl.h>

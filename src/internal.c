@@ -2195,14 +2195,10 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
             ctx->x509_store.objs = NULL;
         }
     #endif
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
         wolfSSL_X509_STORE_free(ctx->x509_store_pt);
-        while (ctx->ca_names != NULL) {
-            WOLFSSL_STACK *next = ctx->ca_names->next;
-            wolfSSL_X509_NAME_free(ctx->ca_names->data.name);
-            XFREE(ctx->ca_names, NULL, DYNAMIC_TYPE_OPENSSL);
-            ctx->ca_names = next;
-        }
+        wolfSSL_sk_X509_NAME_pop_free(ctx->ca_names, NULL);
+        ctx->ca_names = NULL;
     #endif
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
         if (ctx->x509Chain) {
@@ -7076,12 +7072,8 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     wolfSSL_sk_X509_free(ssl->ourCertChain);
 #endif
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
-    while (ssl->ca_names != NULL) {
-        WOLFSSL_STACK *next = ssl->ca_names->next;
-        wolfSSL_X509_NAME_free(ssl->ca_names->data.name);
-        XFREE(ssl->ca_names, NULL, DYNAMIC_TYPE_OPENSSL);
-        ssl->ca_names = next;
-    }
+    wolfSSL_sk_X509_NAME_pop_free(ssl->ca_names, NULL);
+    ssl->ca_names = NULL;
 #endif
 }
 
@@ -10299,6 +10291,30 @@ static void AddSessionCertToChain(WOLFSSL_X509_CHAIN* chain,
 
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
     defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+static void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nameType)
+{
+    if (nameType == SUBJECT) {
+        XSTRNCPY(name->name, dCert->subject, ASN_NAME_MAX);
+        name->name[ASN_NAME_MAX - 1] = '\0';
+        name->sz = (int)XSTRLEN(name->name) + 1;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+        name->rawLen = min(dCert->subjectRawLen, ASN_NAME_MAX);
+        XMEMCPY(name->raw, dCert->subjectRaw, name->rawLen);
+#endif
+    }
+    else {
+        XSTRNCPY(name->name, dCert->issuer, ASN_NAME_MAX);
+        name->name[ASN_NAME_MAX - 1] = '\0';
+        name->sz = (int)XSTRLEN(name->name) + 1;
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)) && defined(WOLFSSL_CERT_EXT)
+        name->rawLen = min(dCert->issuerRawLen, ASN_NAME_MAX);
+        if (name->rawLen) {
+            XMEMCPY(name->raw, dCert->issuerRaw, name->rawLen);
+        }
+#endif
+    }
+}
+
 /* Copy parts X509 needs from Decoded cert, 0 on success */
 /* The same DecodedCert cannot be copied to WOLFSSL_X509 twice otherwise the
  * altNames pointers could be free'd by second x509 still active by first */
@@ -10317,9 +10333,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 
     x509->version = dCert->version + 1;
 
-    XSTRNCPY(x509->issuer.name, dCert->issuer, ASN_NAME_MAX);
-    x509->issuer.name[ASN_NAME_MAX - 1] = '\0';
-    x509->issuer.sz = (int)XSTRLEN(x509->issuer.name) + 1;
+    CopyDecodedName(&x509->issuer, dCert, ISSUER);
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     if (dCert->issuerName != NULL) {
         wolfSSL_X509_set_issuer_name(x509,
@@ -10327,10 +10341,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         x509->issuer.x509 = x509;
     }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
-
-    XSTRNCPY(x509->subject.name, dCert->subject, ASN_NAME_MAX);
-    x509->subject.name[ASN_NAME_MAX - 1] = '\0';
-    x509->subject.sz = (int)XSTRLEN(x509->subject.name) + 1;
+    CopyDecodedName(&x509->subject, dCert, SUBJECT);
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     if (dCert->subjectName != NULL) {
         wolfSSL_X509_set_subject_name(x509,
@@ -10338,16 +10349,6 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         x509->subject.x509 = x509;
     }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
-    x509->subject.rawLen = min(dCert->subjectRawLen, sizeof(x509->subject.raw));
-    XMEMCPY(x509->subject.raw, dCert->subjectRaw, x509->subject.rawLen);
-#ifdef WOLFSSL_CERT_EXT
-    x509->issuer.rawLen = min(dCert->issuerRawLen, sizeof(x509->issuer.raw));
-    if (x509->issuer.rawLen) {
-      XMEMCPY(x509->issuer.raw, dCert->issuerRaw, x509->issuer.rawLen);
-    }
-#endif
-#endif
 
     XMEMCPY(x509->serial, dCert->serial, EXTERNAL_SERIAL_SIZE);
     x509->serialSz = dCert->serialSz;
@@ -22936,8 +22937,11 @@ exit_dpk:
     {
         word16 len;
         word32 begin = *inOutIdx;
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+        defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
         int ret;
+    #endif
+    #ifdef OPENSSL_EXTRA
         WOLFSSL_X509* x509 = NULL;
         WOLFSSL_EVP_PKEY* pkey = NULL;
     #endif
@@ -22999,11 +23003,21 @@ exit_dpk:
         if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
             return BUFFER_ERROR;
 
+        /* DN seq length */
         ato16(input + *inOutIdx, &len);
         *inOutIdx += OPAQUE16_LEN;
 
         if ((*inOutIdx - begin) + len > size)
             return BUFFER_ERROR;
+
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
+        if (ssl->ca_names != ssl->ctx->ca_names)
+            wolfSSL_sk_X509_NAME_pop_free(ssl->ca_names, NULL);
+        ssl->ca_names = wolfSSL_sk_X509_NAME_new(NULL);
+        if (ssl->ca_names == NULL) {
+            return MEMORY_ERROR;
+        }
+    #endif
 
         while (len) {
             word16 dnSz;
@@ -23016,6 +23030,37 @@ exit_dpk:
 
             if ((*inOutIdx - begin) + dnSz > size)
                 return BUFFER_ERROR;
+
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
+            {
+                /* Use a DecodedCert struct to get access to GetName to
+                 * parse DN name */
+                DecodedCert cert;
+                WOLFSSL_X509_NAME* name;
+
+                InitDecodedCert(&cert, input + *inOutIdx, dnSz, ssl->heap);
+
+                if ((ret = GetName(&cert, SUBJECT, dnSz)) != 0) {
+                    FreeDecodedCert(&cert);
+                    return ret;
+                }
+
+                if ((name = wolfSSL_X509_NAME_new()) == NULL) {
+                    FreeDecodedCert(&cert);
+                    return MEMORY_ERROR;
+                }
+
+                CopyDecodedName(name, &cert, SUBJECT);
+
+                if (wolfSSL_sk_X509_NAME_push(ssl->ca_names, name)
+                        == WOLFSSL_FAILURE) {
+                    FreeDecodedCert(&cert);
+                    return MEMORY_ERROR;
+                }
+
+                FreeDecodedCert(&cert);
+            }
+        #endif
 
             *inOutIdx += dnSz;
             len -= OPAQUE16_LEN + dnSz;

@@ -136,6 +136,7 @@ extern int wc_InitRsaHw(RsaKey* key);
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    #include <wolfssl/internal.h>
     #include <wolfssl/openssl/objects.h>
 #endif
 
@@ -6542,9 +6543,17 @@ int GetName(DecodedCert* cert, int nameType, int maxIdx)
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
             !defined(WOLFCRYPT_ONLY)
     if (nameType == ISSUER) {
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)) && defined(WOLFSSL_CERT_EXT)
+        dName->rawLen = min(cert->issuerRawLen, ASN_NAME_MAX);
+        XMEMCPY(dName->raw, cert->issuerRaw, dName->rawLen);
+#endif
         cert->issuerName = dName;
     }
     else {
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+        dName->rawLen = min(cert->subjectRawLen, ASN_NAME_MAX);
+        XMEMCPY(dName->raw, cert->subjectRaw, dName->rawLen);
+#endif
         cert->subjectName = dName;
     }
 #endif
@@ -9694,7 +9703,9 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
     return ret;
 }
 
-/* from SSL proper, for locking can't do find here anymore */
+#if !defined(OPENSSL_EXTRA) && !defined(OPENSSL_EXTRA_X509_SMALL)
+/* from SSL proper, for locking can't do find here anymore.
+ * brought in from internal.h if built with compat layer */
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -9704,6 +9715,7 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
     #endif
 #ifdef __cplusplus
     }
+#endif
 #endif
 
 #if defined(WOLFCRYPT_ONLY) || defined(NO_CERTS)
