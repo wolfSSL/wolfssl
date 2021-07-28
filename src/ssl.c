@@ -44309,6 +44309,49 @@ end:
     return NULL;
 #endif
 }
+
+/* Reads DH parameters from a file pointer into WOLFSSL_DH structure.
+ *
+ * fp  file pointer to read DH parameter file from
+ * x   output WOLFSSL_DH to be created and populated from fp
+ * cb  password callback, to be used to decrypt encrypted DH parameters PEM
+ * u   context pointer to user-defined data to be received back in password cb
+ *
+ * Returns new WOLFSSL_DH structure pointer on success, NULL on failure. */
+WOLFSSL_DH *wolfSSL_PEM_read_DHparams(XFILE fp, WOLFSSL_DH **x,
+        pem_password_cb *cb, void *u)
+{
+#ifndef NO_FILESYSTEM
+    WOLFSSL_BIO* fbio = NULL;
+    WOLFSSL_DH* dh = NULL;
+
+    if (fp == NULL) {
+        WOLFSSL_MSG("DH parameter file cannot be NULL");
+        return NULL;
+    }
+
+    fbio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
+    if (fbio == NULL) {
+        WOLFSSL_MSG("Unable to create file BIO to process DH PEM");
+        return NULL;
+    }
+
+    if (wolfSSL_BIO_set_fp(fbio, fp, BIO_NOCLOSE) != WOLFSSL_SUCCESS) {
+        wolfSSL_BIO_free(fbio);
+        WOLFSSL_MSG("wolfSSL_BIO_set_fp error");
+        return NULL;
+    }
+
+    /* wolfSSL_PEM_read_bio_DHparams() sanitizes x, cb, u args */
+    dh = wolfSSL_PEM_read_bio_DHparams(fbio, x, cb, u);
+
+    wolfSSL_BIO_free(fbio);
+    return dh;
+#else
+    return NULL;
+#endif
+}
+
 #endif /* !NO_BIO */
 
 #if defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM)

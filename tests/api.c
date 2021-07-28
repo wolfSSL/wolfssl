@@ -37636,7 +37636,50 @@ static int test_wolfSSL_EVP_Cipher_extra(void)
     return 0;
 }
 
+static void test_wolfSSL_PEM_read_DHparams(void)
+{
+#if defined(OPENSSL_ALL) && !defined(NO_BIO) && \
+    !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM)
+    DH* dh;
+    XFILE fp;
+    unsigned char derOut[300];
+    unsigned char* derOutBuf = derOut;
+    int derOutSz = 0;
 
+    unsigned char derExpected[300];
+    int derExpectedSz = 0;
+
+    printf(testingFmt, "wolfSSL_PEM_read_DHparams()");
+
+    XMEMSET(derOut, 0, sizeof(derOut));
+    XMEMSET(derExpected, 0, sizeof(derExpected));
+
+    /* open DH param file, read into DH struct */
+    AssertNotNull(fp = XFOPEN(dhParamFile, "rb"));
+
+    /* bad args */
+    AssertNull(dh = PEM_read_DHparams(NULL, &dh, NULL, NULL));
+    AssertNull(dh = PEM_read_DHparams(NULL, NULL, NULL, NULL));
+
+    /* good args */
+    AssertNotNull(dh = PEM_read_DHparams(fp, &dh, NULL, NULL));
+    XFCLOSE(fp);
+
+    /* read in certs/dh2048.der for comparison against exported params */
+    fp = XFOPEN("./certs/dh2048.der", "rb");
+    AssertTrue(fp != XBADFILE);
+    derExpectedSz = (int)XFREAD(derExpected, 1, sizeof(derExpected), fp);
+    XFCLOSE(fp);
+
+    /* export DH back to DER and compare */
+    derOutSz = wolfSSL_i2d_DHparams(dh, &derOutBuf);
+    AssertIntEQ(derOutSz, derExpectedSz);
+    AssertIntEQ(XMEMCMP(derOut, derExpected, derOutSz), 0);
+    DH_free(dh);
+
+    printf(resultFmt, passed);
+#endif
+}
 
 static void test_wolfSSL_AES_ecb_encrypt(void)
 {
@@ -47943,6 +47986,7 @@ void ApiTest(void)
     test_wolfSSL_SHA();
     test_wolfSSL_DH_1536_prime();
     test_wolfSSL_PEM_write_DHparams();
+    test_wolfSSL_PEM_read_DHparams();
     test_wolfSSL_AES_ecb_encrypt();
     test_wolfSSL_MD5();
     test_wolfSSL_MD5_Transform();
