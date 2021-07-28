@@ -2681,14 +2681,11 @@ then
     # Requires PSK make sure on
     if test "x$ENABLED_PSK" = "xno"
     then
-       ENABLED_PSK="yes"
+        ENABLED_PSK="yes"
     fi
 
-    # Requires RC4 make sure on
-    if test "x$ENABLED_ARC4" = "xno"
-    then
-       ENABLED_ARC4="yes"
-    fi
+    # Requires RC4 make sure on (if not forcefully disabled with --disable-arc4)
+    test "$enable_arc4" = "" && enable_arc4=yes
 
     if test "x$ENABLED_CERTEXT" = "xno"
     then
@@ -3021,16 +3018,17 @@ then
 fi
 
 # ARC4
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_WPAS" = "yes"
+then
+    # Requires RC4 make sure on (if not forcefully disabled with --disable-arc4)
+    test "$enable_arc4" = "" && enable_arc4=yes
+fi
+
 AC_ARG_ENABLE([arc4],
     [AS_HELP_STRING([--enable-arc4],[Enable ARC4 (default: disabled)])],
     [ ENABLED_ARC4=$enableval ],
     [ ENABLED_ARC4=no ]
     )
-
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_WPAS" = "yes"
-then
-    ENABLED_ARC4="yes"
-fi
 
 if test "$ENABLED_ARC4" = "no"
 then
@@ -4415,7 +4413,7 @@ fi
 
 if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes"
 then
-    ENABLED_ARC4="yes"
+    test "$enable_arc4" = "" && enable_arc4=yes
 fi
 
 if test "$ENABLED_ARC4" = "no"
@@ -6378,6 +6376,15 @@ fi
 if test "x$ENABLED_CERTS" = "xno" || test "x$ENABLED_LEANPSK" = "xyes" || test "x$ENABLED_ASN" = "xno"; then
    AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS"
 fi
+
+
+# Depricated Algorithm Handling
+if test "$ENABLED_ARC4" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_RC4"
+fi
+
+
 ################################################################################
 
 # USER SETTINGS
