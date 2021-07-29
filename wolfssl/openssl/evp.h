@@ -599,6 +599,7 @@ WOLFSSL_API int  wolfSSL_EVP_Cipher(WOLFSSL_EVP_CIPHER_CTX* ctx,
 
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_get_cipherbynid(int);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int);
+WOLFSSL_API int wolfSSL_EVP_MD_nid(const WOLFSSL_EVP_MD* md);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_CIPHER_CTX_cipher(const WOLFSSL_EVP_CIPHER_CTX *ctx);
 
 WOLFSSL_API int wolfSSL_EVP_PKEY_assign_RSA(WOLFSSL_EVP_PKEY* pkey,
@@ -895,6 +896,7 @@ typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
 
 #define EVP_get_cipherbynid           wolfSSL_EVP_get_cipherbynid
 #define EVP_get_digestbynid           wolfSSL_EVP_get_digestbynid
+#define EVP_MD_nid                    wolfSSL_EVP_MD_nid
 #define EVP_get_cipherbyname          wolfSSL_EVP_get_cipherbyname
 #define EVP_get_digestbyname          wolfSSL_EVP_get_digestbyname
 

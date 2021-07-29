@@ -40258,6 +40258,26 @@ static void test_wolfSSL_EVP_get_digestbynid(void)
     printf(resultFmt, passed);
 #endif
 }
+static void test_wolfSSL_EVP_MD_nid(void)
+{
+#if defined(OPENSSL_ALL)
+
+    printf(testingFmt, "wolfSSL_EVP_MD_nid");
+
+#ifndef NO_MD5
+    AssertIntEQ(EVP_MD_nid(EVP_md5()), NID_md5);
+#endif
+#ifndef NO_SHA
+    AssertIntEQ(EVP_MD_nid(EVP_sha1()), NID_sha1);
+#endif
+#ifndef NO_SHA256
+    AssertIntEQ(EVP_MD_nid(EVP_sha256()), NID_sha256);
+#endif
+    AssertIntEQ(EVP_MD_nid(NULL), BAD_FUNC_ARG);
+
+    printf(resultFmt, passed);
+#endif
+}
 static void test_wolfSSL_EVP_PKEY_get0_EC_KEY(void)
 {
 #if defined(HAVE_ECC) && defined(OPENSSL_ALL)
@@ -48079,6 +48099,7 @@ void ApiTest(void)
     test_wolfSSL_EVP_aes_192_gcm();
     test_wolfSSL_EVP_ripemd160();
     test_wolfSSL_EVP_get_digestbynid();
+    test_wolfSSL_EVP_MD_nid();
     test_wolfSSL_EVP_PKEY_get0_EC_KEY();
     test_wolfSSL_EVP_X_STATE();
     test_wolfSSL_EVP_X_STATE_LEN();
