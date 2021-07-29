@@ -2409,6 +2409,10 @@ WOLFSSL_API long wolfSSL_SSL_get_mode(WOLFSSL* ssl);
 
 
 WOLFSSL_API int  wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX*);
+WOLFSSL_API const char* wolfSSL_X509_get_default_cert_file_env(void);
+WOLFSSL_API const char* wolfSSL_X509_get_default_cert_file(void);
+WOLFSSL_API const char* wolfSSL_X509_get_default_cert_dir_env(void);
+WOLFSSL_API const char* wolfSSL_X509_get_default_cert_dir(void);
 WOLFSSL_API int  wolfSSL_CTX_set_session_id_context(WOLFSSL_CTX*,
                                             const unsigned char*, unsigned int);
 WOLFSSL_ABI WOLFSSL_API WOLFSSL_X509* wolfSSL_get_peer_certificate(WOLFSSL*);

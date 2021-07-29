@@ -970,6 +970,10 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define SSL_CTX_sess_set_cache_size     wolfSSL_CTX_sess_set_cache_size
 #define SSL_CTX_set_default_verify_paths wolfSSL_CTX_set_default_verify_paths
+#define X509_get_default_cert_file_env  wolfSSL_X509_get_default_cert_file_env
+#define X509_get_default_cert_file      wolfSSL_X509_get_default_cert_file
+#define X509_get_default_cert_dir_env   wolfSSL_X509_get_default_cert_dir_env
+#define X509_get_default_cert_dir       wolfSSL_X509_get_default_cert_dir
 
 #define SSL_CTX_set_session_id_context  wolfSSL_CTX_set_session_id_context
 #define SSL_get_peer_certificate        wolfSSL_get_peer_certificate

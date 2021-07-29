@@ -16384,6 +16384,30 @@ cleanup:
         WOLFSSL_STUB("SSL_CTX_set_default_verify_paths");
         return SSL_NOT_IMPLEMENTED;
     }
+
+    const char* wolfSSL_X509_get_default_cert_file_env(void)
+    {
+        WOLFSSL_STUB("X509_get_default_cert_file_env");
+        return NULL;
+    }
+
+    const char* wolfSSL_X509_get_default_cert_file(void)
+    {
+        WOLFSSL_STUB("X509_get_default_cert_file");
+        return NULL;
+    }
+
+    const char* wolfSSL_X509_get_default_cert_dir_env(void)
+    {
+        WOLFSSL_STUB("X509_get_default_cert_dir_env");
+        return NULL;
+    }
+
+    const char* wolfSSL_X509_get_default_cert_dir(void)
+    {
+        WOLFSSL_STUB("X509_get_default_cert_dir");
+        return NULL;
+    }
     #endif
 
     #if defined(WOLFCRYPT_HAVE_SRP) && !defined(NO_SHA256) \
