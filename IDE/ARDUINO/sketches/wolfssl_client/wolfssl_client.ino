@@ -24,8 +24,8 @@
 #include <wolfssl/ssl.h>
 #include <Ethernet.h>
 
-const char host[] = "192.168.1.148"; // server to connect to
-const int port = 11111; // port on server to connect to
+const char host[] = "192.168.1.148"; /* server to connect to */
+const int port = 11111; /* port on server to connect to */
 
 int EthernetSend(WOLFSSL* ssl, char* msg, int sz, void* ctx);
 int EthernetReceive(WOLFSSL* ssl, char* reply, int sz, void* ctx);
@@ -51,7 +51,7 @@ void setup() {
     Serial.println("unable to get ctx");
     return;
   }
-  // initialize wolfSSL using callback functions
+  /* initialize wolfSSL using callback functions */
   wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
   wolfSSL_SetIOSend(ctx, EthernetSend);
   wolfSSL_SetIORecv(ctx, EthernetReceive);
@@ -119,7 +119,10 @@ void loop() {
       if ((wolfSSL_write(ssl, msg, msgSz)) == msgSz) {
         
         Serial.print("Server response: ");
-        while (client.available() || wolfSSL_pending(ssl)) {
+        /* wait for data */
+        while (!client.available()) {}
+        /* read data */
+        while (wolfSSL_pending(ssl)) {
           input = wolfSSL_read(ssl, reply, sizeof(reply) - 1);
           total_input += input;
           if (input < 0) {
