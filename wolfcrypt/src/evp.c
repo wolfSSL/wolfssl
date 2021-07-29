@@ -3956,7 +3956,43 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return aliasnm;
     }
     
-    /* do all md algorithm through a callback function
+    
+    struct do_all_md {
+        void *arg;
+        void (*fn) (const WOLFSSL_EVP_MD *m, 
+                    const char* from, const char* to, void *arg);
+    };
+    
+    /* do all md algorithm
+     * @param nm a pointer to WOLFSSL_OBJ_NAME
+     * @param arg arguments to pass to the callback
+     * @return none
+     */
+    static void md_do_all_func(const WOLFSSL_OBJ_NAME* nm, void* arg)
+    {
+        struct do_all_md *md = arg;
+        
+        const char* alias = NULL;
+        const struct s_ent *ent;
+        
+        /* sanity check */
+        if (md == NULL || nm == NULL || md->fn == NULL ||
+            nm->type != WOLFSSL_OBJ_NAME_TYPE_MD_METH)
+            return;
+        
+        /* loop all md */
+        for (ent = md_tbl; ent->name != NULL; ent++){
+            /* check if the md has alias */
+            if((alias = hasAliasName(ent->name)) != NULL) {
+                md->fn(NULL, ent->name, ent->name, md->arg);
+            }
+            else {
+                md->fn(ent->name, ent->name, NULL, md->arg);
+            }
+        }
+    }
+    
+    /* call md_do_all function to do all md algorithm via a callback function
      * @param fn a callback function to be called with all 'md'
      * @param args arguments to pass to the callback
      * @return none
@@ -3964,18 +4000,45 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     void wolfSSL_EVP_MD_do_all(void (*fn) (const WOLFSSL_EVP_MD *m,
                  const char* from, const char* to, void* xx), void* args)
     {
-        const char* alias = NULL;
-        const struct s_ent *ent;
+        struct do_all_md md;
         
-        /* loop all md */
-        for (ent = md_tbl; ent->name != NULL; ent++){
-            /* check if the md has alias */
-            if((alias = hasAliasName(ent->name)) != NULL) {
-                fn(NULL, ent->name, ent->name, args);
-            }
-            else {
-                fn(ent->name, ent->name, NULL, args);
-            }
+        md.fn = fn;
+        md.arg = args;
+        
+        return wolfSSL_OBJ_NAME_do_all(WOLFSSL_OBJ_NAME_TYPE_MD_METH,
+                        md_do_all_func, &md);
+    }
+    
+    /* call "fn" based on OBJ_NAME type
+     * @param type OBJ_NAME type
+     * @param fn a callback function
+     * @param args arguments to pass to the callback
+     * @return none
+     */
+    void wolfSSL_OBJ_NAME_do_all(int type, 
+                void (*fn)(const WOLFSSL_OBJ_NAME*, void* arg), void* arg)
+    {
+        WOLFSSL_OBJ_NAME objnm;
+        
+        /* sanity check */
+        if (!fn)
+            return;
+        
+        objnm.type = type;
+        
+        switch(type) {
+            case WOLFSSL_OBJ_NAME_TYPE_MD_METH:
+                fn(&objnm, arg);
+                break;
+            case WOLFSSL_OBJ_NAME_TYPE_CIPHER_METH:
+            case WOLFSSL_OBJ_NAME_TYPE_PKEY_METH:
+            case WOLFSSL_OBJ_NAME_TYPE_COMP_METH:
+            case WOLFSSL_OBJ_NAME_TYPE_NUM:
+                WOLFSSL_MSG("not implemented");
+                FALL_THROUGH;
+            case WOLFSSL_OBJ_NAME_TYPE_UNDEF:
+            default:
+                break;
         }
     }
     
