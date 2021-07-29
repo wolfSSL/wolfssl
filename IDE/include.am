@@ -38,7 +38,7 @@ include IDE/XilinxSDK/include.am
 include IDE/VisualDSP/include.am
 include IDE/QNX/include.am
 include IDE/WINCE/include.am
-include IDE/zephyr/include.am
+#include IDE/zephyr/include.am
 
 EXTRA_DIST+= IDE/IAR-EWARM IDE/MDK-ARM IDE/MDK5-ARM IDE/MYSQL IDE/LPCXPRESSO IDE/HEXIWEAR IDE/Espressif
 EXTRA_DIST+= IDE/OPENSTM32/README.md
