@@ -2501,6 +2501,19 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 
+/* ---------------------------------------------------------------------------
+ * Depricated Algorithm Handling
+ *   Unless allowed via a build macro, disable support
+ * ---------------------------------------------------------------------------*/
+
+/* RC4: Per RFC7465 Feb 2015, the cipher suite has been deprecated due to a
+ * number of exploits capable of decrypting portions of encrypted messages. */
+#ifndef WOLFSSL_ALLOW_RC4
+    #undef  NO_RC4
+    #define NO_RC4
+#endif
+
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif
