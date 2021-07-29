@@ -16031,36 +16031,26 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #endif /* !NO_BIO */
 #endif /* OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
     void wolfSSL_CTX_set_client_CA_list(WOLFSSL_CTX* ctx,
                                        WOLF_STACK_OF(WOLFSSL_X509_NAME)* names)
     {
         WOLFSSL_ENTER("wolfSSL_CTX_set_client_CA_list");
-    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
         if (ctx != NULL) {
             wolfSSL_sk_X509_NAME_pop_free(ctx->ca_names, NULL);
             ctx->ca_names = names;
         }
-    #else
-        (void)ctx;
-        (void)names;
-    #endif
     }
 
     void wolfSSL_set_client_CA_list(WOLFSSL* ssl,
                                        WOLF_STACK_OF(WOLFSSL_X509_NAME)* names)
     {
         WOLFSSL_ENTER("wolfSSL_set_client_CA_list");
-    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
         if (ssl != NULL) {
             if (ssl->ca_names != ssl->ctx->ca_names)
                 wolfSSL_sk_X509_NAME_pop_free(ssl->ca_names, NULL);
             ssl->ca_names = names;
         }
-    #else
-        (void)ssl;
-        (void)names;
-    #endif
     }
 
 
@@ -16198,7 +16188,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return ctx->ca_names;
     }
 
-
     /* returns the CA's set on server side or the CA's sent from server when
      * on client side */
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_get_client_CA_list(
@@ -16217,48 +16206,35 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     #if !defined(NO_RSA) && !defined(NO_CERTS)
     int wolfSSL_CTX_add_client_CA(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
     {
-        WOLFSSL_STACK *node = NULL;
-        WOLFSSL_X509_NAME *subjectName = NULL;
+        WOLFSSL_X509_NAME *nameCopy = NULL;
 
         WOLFSSL_ENTER("wolfSSL_CTX_add_client_CA");
 
         if (ctx == NULL || x509 == NULL){
             WOLFSSL_MSG("Bad argument");
-            return SSL_FAILURE;
+            return WOLFSSL_FAILURE;
         }
 
-        subjectName = wolfSSL_X509_get_subject_name(x509);
-        if (subjectName == NULL){
-            WOLFSSL_MSG("invalid x509 data");
-            return SSL_FAILURE;
+        if (ctx->ca_names == NULL) {
+            ctx->ca_names = wolfSSL_sk_X509_NAME_new(NULL);
+            if (ctx->ca_names == NULL) {
+                WOLFSSL_MSG("wolfSSL_sk_X509_NAME_new error");
+                return WOLFSSL_FAILURE;
+            }
         }
 
-        /* Alloc stack struct */
-        node = (WOLF_STACK_OF(WOLFSSL_X509_NAME)*)XMALLOC(
-                                           sizeof(WOLF_STACK_OF(WOLFSSL_X509_NAME)),
-                                           NULL, DYNAMIC_TYPE_OPENSSL);
-        if (node == NULL){
-            WOLFSSL_MSG("memory allocation error");
-            return SSL_FAILURE;
+        nameCopy = wolfSSL_X509_NAME_dup(wolfSSL_X509_get_subject_name(x509));
+        if (nameCopy == NULL) {
+            WOLFSSL_MSG("wolfSSL_X509_NAME_dup error");
+            return WOLFSSL_FAILURE;
         }
-        XMEMSET(node, 0, sizeof(WOLF_STACK_OF(WOLFSSL_X509_NAME)));
 
-        /* Alloc and copy WOLFSSL_X509_NAME */
-        node->data.name = (WOLFSSL_X509_NAME*)XMALLOC(
-                                              sizeof(WOLFSSL_X509_NAME),
-                                              NULL, DYNAMIC_TYPE_OPENSSL);
-        if (node->data.name == NULL) {
-            XFREE(node, NULL, DYNAMIC_TYPE_OPENSSL);
-            WOLFSSL_MSG("memory allocation error");
-            return SSL_FAILURE;
+        if (wolfSSL_sk_X509_NAME_push(ctx->ca_names, nameCopy) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_sk_X509_NAME_push error");
+            wolfSSL_X509_NAME_free(nameCopy);
+            return WOLFSSL_FAILURE;
         }
-        XMEMCPY(node->data.name, subjectName, sizeof(WOLFSSL_X509_NAME));
-        XMEMSET(subjectName, 0, sizeof(WOLFSSL_X509_NAME));
 
-        /* push new node onto head of stack */
-        node->num = (ctx->ca_names == NULL) ? 1 : ctx->ca_names->num + 1;
-        node->next = ctx->ca_names;
-        ctx->ca_names = node;
         return WOLFSSL_SUCCESS;
     }
     #endif
@@ -16273,43 +16249,49 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
              * the function. */
         #ifdef OPENSSL_EXTRA
             WOLFSSL_STACK *list = NULL;
-            WOLFSSL_STACK *node;
-            WOLFSSL_BIO* bio;
+            WOLFSSL_BIO* bio = NULL;
             WOLFSSL_X509 *cert = NULL;
-            WOLFSSL_X509_NAME *subjectName = NULL;
-            unsigned long err;
+            WOLFSSL_X509_NAME *nameCopy = NULL;
+            unsigned long err = WOLFSSL_FAILURE;
 
             WOLFSSL_ENTER("wolfSSL_load_client_CA_file");
 
             bio = wolfSSL_BIO_new_file(fname, "rb");
-            if (bio == NULL)
-                return NULL;
+            if (bio == NULL) {
+                WOLFSSL_MSG("wolfSSL_BIO_new_file error");
+                goto cleanup;
+            }
+
+            list = wolfSSL_sk_X509_NAME_new(NULL);
+            if (list == NULL) {
+                WOLFSSL_MSG("wolfSSL_sk_X509_NAME_new error");
+                goto cleanup;
+            }
 
             /* Read each certificate in the chain out of the file. */
             while (wolfSSL_PEM_read_bio_X509(bio, &cert, NULL, NULL) != NULL) {
-                subjectName = wolfSSL_X509_get_subject_name(cert);
-                if (subjectName == NULL)
-                    break;
-
-                node = wolfSSL_sk_new_node(NULL);
-                if (node == NULL)
-                    break;
-                node->type = STACK_TYPE_X509_NAME;
-
                 /* Need a persistent copy of the subject name. */
-                node->data.name = wolfSSL_X509_NAME_dup(subjectName);
-                if (node->data.name != NULL) {
-                    /*
-                    * Original cert will be freed so make sure not to try to access
-                    * it in the future.
-                    */
-                    node->data.name->x509 = NULL;
+                nameCopy = wolfSSL_X509_NAME_dup(
+                        wolfSSL_X509_get_subject_name(cert));
+                if (nameCopy == NULL) {
+                    WOLFSSL_MSG("wolfSSL_X509_NAME_dup error");
+                    goto cleanup;
                 }
+                /*
+                * Original cert will be freed so make sure not to try to access
+                * it in the future.
+                */
+                nameCopy->x509 = NULL;
 
-                /* Put node on the front of the list. */
-                node->num  = (list == NULL) ? 1 : list->num + 1;
-                node->next = list;
-                list = node;
+                if (wolfSSL_sk_X509_NAME_push(list, nameCopy) !=
+                        WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("wolfSSL_sk_X509_NAME_push error");
+                    /* Do free in loop because nameCopy is now responsibility
+                     * of list to free and adding jumps to cleanup after this
+                     * might result in a double free. */
+                    wolfSSL_X509_NAME_free(nameCopy);
+                    goto cleanup;
+                }
 
                 wolfSSL_X509_free(cert);
                 cert = NULL;
@@ -16327,8 +16309,15 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 wc_RemoveErrorNode(-1);
             }
 
+            err = WOLFSSL_SUCCESS;
+cleanup:
             wolfSSL_X509_free(cert);
             wolfSSL_BIO_free(bio);
+            if (err != WOLFSSL_SUCCESS) {
+                /* We failed so return NULL */
+                wolfSSL_sk_X509_NAME_pop_free(list, NULL);
+                list = NULL;
+            }
             return list;
         #else
             (void)fname;
