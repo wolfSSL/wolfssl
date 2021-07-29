@@ -6073,6 +6073,10 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
 
         case TLS_ASYNC_BUILD:
         {
+            int rem = ssl->buffers.outputBuffer.bufferSize
+              - ssl->buffers.outputBuffer.length
+              - RECORD_HEADER_SZ - HANDSHAKE_HEADER_SZ;
+
             /* idx is used to track verify pointer offset to output */
             args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
             args->verify =
@@ -6090,6 +6094,10 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 ret = DecodePrivateKey(ssl, &args->length);
                 if (ret != 0)
                     goto exit_scv;
+            }
+
+            if (rem < 0 || args->length > rem) {
+                ERROR_OUT(BUFFER_E, exit_scv);
             }
 
             if (args->length == 0) {
