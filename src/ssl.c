@@ -50969,7 +50969,7 @@ int wolfSSL_sk_X509_OBJECT_push(WOLFSSL_STACK* sk, WOLFSSL_X509_OBJECT* obj)
     return wolfSSL_sk_push(sk, obj);
 }
 
-#ifndef NO_BIO
+#if !defined(NO_BIO) && !defined(NO_PWDBASED) && defined(HAVE_PKCS8)
 int wolfSSL_PEM_write_bio_PKCS8PrivateKey(WOLFSSL_BIO* bio,
                                           WOLFSSL_EVP_PKEY* pkey,
                                           const WOLFSSL_EVP_CIPHER* enc,
@@ -51159,8 +51159,6 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PKCS8PrivateKey_bio(WOLFSSL_BIO* bio,
     byte* der;
     int len;
     byte* p;
-    char password[NAME_SZ];
-    int passwordSz;
     word32 algId;
     WOLFSSL_EVP_PKEY* key;
 
@@ -51168,7 +51166,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PKCS8PrivateKey_bio(WOLFSSL_BIO* bio,
         return NULL;
 
     if (cb != NULL) {
-        passwordSz = cb(password, sizeof(password), PEM_PASS_READ, ctx);
+        char password[NAME_SZ];
+        int passwordSz = cb(password, sizeof(password), PEM_PASS_READ, ctx);
         if (passwordSz < 0) {
             XFREE(der, bio->heap, DYNAMIC_TYPE_OPENSSL);
             return NULL;
@@ -51180,7 +51179,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PKCS8PrivateKey_bio(WOLFSSL_BIO* bio,
             return NULL;
         }
 
-        XMEMSET(password, 0, passwordSz);
+        ForceZero(password, passwordSz);
     }
 
     p = der;
@@ -51189,7 +51188,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PKCS8PrivateKey_bio(WOLFSSL_BIO* bio,
     return key;
 }
 
-#endif /* !NO_BIO */
+#endif /* !NO_BIO && !NO_PWDBASED && HAVE_PKCS8 */
 
 /* Detect which type of key it is before decoding. */
 WOLFSSL_EVP_PKEY* wolfSSL_d2i_AutoPrivateKey(WOLFSSL_EVP_PKEY** pkey,
@@ -51250,7 +51249,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_AutoPrivateKey(WOLFSSL_EVP_PKEY** pkey,
 
     return key;
 }
-#endif
+#endif /* OPENSSL_ALL */
 
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
     !defined(WOLFCRYPT_ONLY)

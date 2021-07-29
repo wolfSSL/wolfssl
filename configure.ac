@@ -3425,17 +3425,16 @@ fi
 
 
 # OCSP
+if test "x$ENABLED_OPENSSLALL" = "xyes" || test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes"
+then
+    test "$enable_ocsp" = "" && enable_ocsp=yes
+fi
+
 AC_ARG_ENABLE([ocsp],
     [AS_HELP_STRING([--enable-ocsp],[Enable OCSP (default: disabled)])],
     [ ENABLED_OCSP=$enableval ],
-    [ ENABLED_OCSP=no ],
+    [ ENABLED_OCSP=no ]
     )
-
-if test "x$ENABLED_OPENSSLALL" = "xyes" || test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes"
-then
-    ENABLED_OCSP=yes
-fi
-
 if test "$ENABLED_OCSP" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
