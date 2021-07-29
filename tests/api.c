@@ -46114,10 +46114,11 @@ static void list_md_fn(const EVP_MD* m, const char* from,
         AssertNotNull(m);
         AssertNull(to);
     }
+    
     AssertNotNull(from);
-    mn = EVP_get_digestbyname(from);
 
 #if !defined(NO_FILESYSTEM) && defined(DEBUG_WOLFSSL_VERBOSE)
+    mn = EVP_get_digestbyname(from);
     /* print to stdout */
     AssertNotNull(arg);
     
