@@ -3036,6 +3036,12 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
        goto exit;
    }
 
+   /* k can't have more bits than modulus count plus 1 */
+   if (mp_count_bits(k) > mp_count_bits(modulus) + 1) {
+       err = ECC_OUT_OF_RANGE_E;
+       goto exit;
+   }
+
 #ifdef WOLFSSL_SMALL_STACK_CACHE
    if (key == NULL) {
        err = MP_MEM;
@@ -3168,6 +3174,11 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 
    if (k == NULL || G == NULL || R == NULL || modulus == NULL) {
       return ECC_BAD_ARG_E;
+   }
+
+   /* k can't have more bits than order */
+   if (mp_count_bits(k) > mp_count_bits(order)) {
+      return ECC_OUT_OF_RANGE_E;
    }
 
    /* init variables */
@@ -10695,6 +10706,11 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
        return ECC_BAD_ARG_E;
    }
 
+   /* k can't have more bits than modulus count plus 1 */
+   if (mp_count_bits(k) > mp_count_bits(modulus) + 1) {
+      return ECC_OUT_OF_RANGE_E;
+   }
+
    if (mp_init(&mu) != MP_OKAY)
        return MP_INIT_E;
 
@@ -10805,13 +10821,13 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
        return ECC_BAD_ARG_E;
    }
 
-   if (mp_init(&mu) != MP_OKAY)
-       return MP_INIT_E;
-
    /* k can't have more bits than order */
    if (mp_count_bits(k) > mp_count_bits(order)) {
       return ECC_OUT_OF_RANGE_E;
    }
+
+   if (mp_init(&mu) != MP_OKAY)
+       return MP_INIT_E;
 
 #ifndef HAVE_THREAD_LS
    if (initMutex == 0) { /* extra sanity check if wolfCrypt_Init not called */
