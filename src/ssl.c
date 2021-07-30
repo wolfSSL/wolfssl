@@ -10787,7 +10787,6 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
             ext->value.data = ext->value.strData;
         }
 
-        ext->obj = wolfSSL_ASN1_OBJECT_new();
         if (!(ext->obj = wolfSSL_OBJ_nid2obj(nid))) {
             WOLFSSL_MSG("wolfSSL_ASN1_OBJECT_new failed");
             goto err_cleanup;
@@ -10849,7 +10848,6 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
             }
             ext->value.type = akey->keyid->type;
 
-            ext->obj = wolfSSL_ASN1_OBJECT_new();
             if (!(ext->obj = wolfSSL_OBJ_nid2obj(nid))) {
                 WOLFSSL_MSG("wolfSSL_ASN1_OBJECT_new failed");
                 goto err_cleanup;
