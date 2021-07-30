@@ -214,7 +214,7 @@ struct RsaKey {
     #define WC_RSAKEY_TYPE_DEFINED
 #endif
 
-#endif /*HAVE_FIPS */
+#endif /* HAVE_FIPS */
 
 WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void* heap);
 WOLFSSL_API int  wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId);
@@ -354,10 +354,6 @@ WOLFSSL_API int wc_RsaExportKey(RsaKey* key,
                                 byte* d, word32* dSz,
                                 byte* p, word32* pSz,
                                 byte* q, word32* qSz);
-
-WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen);
-WOLFSSL_API int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
-    int with_header);
 
 #ifdef WOLFSSL_KEY_GEN
     WOLFSSL_API int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng);

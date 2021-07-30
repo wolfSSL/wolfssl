@@ -16859,8 +16859,6 @@ static int test_wc_RsaKeyToPublicDer (void)
         }
     }
 
-    #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
-        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2)))
     if (ret == 0) {
         /* test getting size only */
         ret = wc_RsaKeyToPublicDer_ex(&key, NULL, derLen, 0);
@@ -16875,7 +16873,6 @@ static int test_wc_RsaKeyToPublicDer (void)
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
-    #endif
 
     #ifndef HAVE_USER_RSA
         /* Pass in bad args. */
