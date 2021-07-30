@@ -1009,6 +1009,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define i2d_SSL_SESSION                 wolfSSL_i2d_SSL_SESSION
 #define d2i_SSL_SESSION                 wolfSSL_d2i_SSL_SESSION
+#define SSL_SESSION_has_ticket          wolfSSL_SESSION_has_ticket
 #define SSL_SESSION_set_timeout         wolfSSL_SSL_SESSION_set_timeout
 #define SSL_SESSION_get_timeout         wolfSSL_SESSION_get_timeout
 #define SSL_SESSION_get_time            wolfSSL_SESSION_get_time

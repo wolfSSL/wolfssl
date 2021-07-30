@@ -30023,6 +30023,26 @@ end:
     return s;
 }
 
+/* Returns 1 if there is a session ticket associated with this WOLFSSL_SESSION.
+ *
+ * sess - pointer to WOLFSSL_SESSION struct
+ *
+ * Returns 1 if has session ticket, otherwise 0 */
+int wolfSSL_SESSION_has_ticket(const WOLFSSL_SESSION* sess)
+{
+    WOLFSSL_ENTER("wolfSSL_SESSION_get_timeout");
+#ifdef HAVE_SESSION_TICKET
+    if (sess) {
+        if ((sess->ticketLen > 0) && (sess->ticket != NULL)) {
+            return 1;
+        }
+    }
+#else
+    (void)sess;
+#endif
+    return 0;
+}
+
 long wolfSSL_SESSION_get_timeout(const WOLFSSL_SESSION* sess)
 {
     long timeout = 0;
