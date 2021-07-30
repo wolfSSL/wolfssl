@@ -30030,7 +30030,7 @@ end:
  * Returns 1 if has session ticket, otherwise 0 */
 int wolfSSL_SESSION_has_ticket(const WOLFSSL_SESSION* sess)
 {
-    WOLFSSL_ENTER("wolfSSL_SESSION_get_timeout");
+    WOLFSSL_ENTER("wolfSSL_SESSION_has_ticket");
 #ifdef HAVE_SESSION_TICKET
     if (sess) {
         if ((sess->ticketLen > 0) && (sess->ticket != NULL)) {
@@ -30040,6 +30040,16 @@ int wolfSSL_SESSION_has_ticket(const WOLFSSL_SESSION* sess)
 #else
     (void)sess;
 #endif
+    return 0;
+}
+
+unsigned long wolfSSL_SESSION_get_ticket_lifetime_hint(
+                  const WOLFSSL_SESSION* sess)
+{
+    WOLFSSL_ENTER("wolfSSL_SESSION_get_ticket_lifetime_hint");
+    if (sess) {
+        return sess->timeout;
+    }
     return 0;
 }
 

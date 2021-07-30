@@ -2489,6 +2489,8 @@ WOLFSSL_API WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION**,
                                                    const unsigned char**, long);
 
 WOLFSSL_API int wolfSSL_SESSION_has_ticket(const WOLFSSL_SESSION*);
+WOLFSSL_API unsigned long wolfSSL_SESSION_get_ticket_lifetime_hint(
+                              const WOLFSSL_SESSION* sess);
 WOLFSSL_API long wolfSSL_SESSION_get_timeout(const WOLFSSL_SESSION*);
 WOLFSSL_API long wolfSSL_SESSION_get_time(const WOLFSSL_SESSION*);
 WOLFSSL_API int  wolfSSL_CTX_get_ex_new_index(long, void*, void*, void*, void*);
