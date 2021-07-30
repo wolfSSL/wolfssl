@@ -35133,7 +35133,6 @@ int wolfSSL_ECPoint_i2d(const WOLFSSL_EC_GROUP *group,
     return WOLFSSL_SUCCESS;
 }
 
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -35147,7 +35146,8 @@ int wolfSSL_ECPoint_d2i(unsigned char *in, unsigned int len,
         return WOLFSSL_FAILURE;
     }
 
-#ifndef HAVE_SELFTEST
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2)))
     if (wc_ecc_import_point_der_ex(in, len, group->curve_idx,
                                    (ecc_point*)p->internal, 0) != MP_OKAY) {
         WOLFSSL_MSG("wc_ecc_import_point_der_ex failed");
@@ -35185,7 +35185,8 @@ size_t wolfSSL_EC_POINT_point2oct(const WOLFSSL_EC_GROUP *group,
                                   byte *buf, size_t len, WOLFSSL_BN_CTX *ctx)
 {
     word32 min_len = (word32)len;
-#ifndef HAVE_SELFTEST
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
     int compressed = form == POINT_CONVERSION_COMPRESSED ? 1 : 0;
 #endif /* !HAVE_SELFTEST */
 
@@ -35220,7 +35221,8 @@ size_t wolfSSL_EC_POINT_point2oct(const WOLFSSL_EC_GROUP *group,
         return WOLFSSL_FAILURE;
     }
 
-#ifndef HAVE_SELFTEST
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
     if (wc_ecc_export_point_der_ex(group->curve_idx, (ecc_point*)p->internal,
                buf, &min_len, compressed) != (buf ? MP_OKAY : LENGTH_ONLY_E)) {
         return WOLFSSL_FAILURE;
@@ -35467,7 +35469,6 @@ WOLFSSL_BIGNUM *wolfSSL_EC_POINT_point2bn(const WOLFSSL_EC_GROUP *group,
 
     return ret;
 }
-#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
 #ifdef USE_ECC_B_PARAM
 int wolfSSL_EC_POINT_is_on_curve(const WOLFSSL_EC_GROUP *group,
