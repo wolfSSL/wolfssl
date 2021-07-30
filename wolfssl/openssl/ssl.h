@@ -1136,6 +1136,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_get_tlsext_status_ocsp_resp  wolfSSL_get_tlsext_status_ocsp_resp
 
 #define SSL_CTX_add_extra_chain_cert    wolfSSL_CTX_add_extra_chain_cert
+#define SSL_get_read_ahead              wolfSSL_get_read_ahead
+#define SSL_set_read_ahead              wolfSSL_set_read_ahead
 #define SSL_CTX_get_read_ahead          wolfSSL_CTX_get_read_ahead
 #define SSL_CTX_set_read_ahead          wolfSSL_CTX_set_read_ahead
 #define SSL_CTX_set_tlsext_status_arg   wolfSSL_CTX_set_tlsext_status_arg

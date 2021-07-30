@@ -1914,6 +1914,8 @@ WOLFSSL_API long wolfSSL_CTX_sess_set_cache_size(WOLFSSL_CTX*, long);
 WOLFSSL_API long wolfSSL_CTX_sess_get_cache_size(WOLFSSL_CTX*);
 
 WOLFSSL_API long wolfSSL_CTX_get_session_cache_mode(WOLFSSL_CTX*);
+WOLFSSL_API int  wolfSSL_get_read_ahead(WOLFSSL*);
+WOLFSSL_API int  wolfSSL_set_read_ahead(WOLFSSL*, int v);
 WOLFSSL_API int  wolfSSL_CTX_get_read_ahead(WOLFSSL_CTX*);
 WOLFSSL_API int  wolfSSL_CTX_set_read_ahead(WOLFSSL_CTX*, int v);
 WOLFSSL_API long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX*, void* arg);

@@ -28432,6 +28432,28 @@ WOLFSSL_API long wolfSSL_CTX_get_session_cache_mode(WOLFSSL_CTX* ctx)
 }
 
 
+int wolfSSL_get_read_ahead(WOLFSSL* ssl)
+{
+    if (ssl == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return ssl->readAhead;
+}
+
+
+int wolfSSL_set_read_ahead(WOLFSSL* ssl, int v)
+{
+    if (ssl == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    ssl->readAhead = (byte)v;
+
+    return WOLFSSL_SUCCESS;
+}
+
+
 int wolfSSL_CTX_get_read_ahead(WOLFSSL_CTX* ctx)
 {
     if (ctx == NULL) {
