@@ -27880,6 +27880,12 @@ static void test_wolfSSL_certs(void)
     ext = X509V3_EXT_i2d(NID_basic_constraints, crit, bc);
     AssertNotNull(ext);
     X509_EXTENSION_free(ext);
+
+    AssertNotNull(ext = X509_EXTENSION_new());
+    X509_EXTENSION_set_critical(ext, 1);
+    AssertIntEQ(X509_EXTENSION_set_object(ext,
+        OBJ_nid2obj(NID_basic_constraints)), SSL_SUCCESS);
+    X509_EXTENSION_free(ext);
 #endif
     AssertIntEQ(crit, 0);
     BASIC_CONSTRAINTS_free(bc);
