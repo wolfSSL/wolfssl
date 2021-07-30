@@ -1272,6 +1272,30 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define sk_ACCESS_DESCRIPTION_free      wolfSSL_sk_ACCESS_DESCRIPTION_free
 #define ACCESS_DESCRIPTION_free         wolfSSL_ACCESS_DESCRIPTION_free
 
+/* Alert types, matched to AlertDescription enum in wolfssl/ssl.h */
+#define SSL_AD_CLOSE_NOTIFY             close_notify
+#define SSL_AD_UNEXPECTED_MESSAGE       unexpected_message
+#define SSL_AD_BAD_RECORD_MAC           bad_record_mac
+#define SSL_AD_RECORD_OVERFLOW          record_overflow
+#define SSL_AD_DECOMPRESSION_FAILURE    decompression_failure
+#define SSL_AD_HANDSHAKE_FAILURE        handshake_failure
+#define SSL_AD_UNSUPPORTED_CERTIFICATE  unsupported_certificate
+#define SSL_AD_CERTIFICATE_REVOKED      certificate_revoked
+#define SSL_AD_CERTIFICATE_EXPIRED      certificate_expired
+#define SSL_AD_CERTIFICATE_UNKNOWN      certificate_unknown
+#define SSL_AD_ILLEGAL_PARAMETER        illegal_parameter
+#define SSL_AD_UNKNOWN_CA               unknown_ca
+#define SSL_AD_ACCESS_DENIED            access_denied
+#define SSL_AD_DECODE_ERROR             decode_error
+#define SSL_AD_DECRYPT_ERROR            decrypt_error
+#ifdef WOLFSSL_MYSQL_COMPATIBLE
+    #define SSL_AD_PROTOCOL_VERSION     wc_protocol_version
+#else
+    #define SSL_AD_PROTOCOL_VERSION     protocol_version
+#endif
+#define SSL_AD_INSUFFICIENT_SECURITY    insufficient_security
+#define SSL_AD_USER_CANCELLED           user_canceled
+
 #define SSL3_AL_FATAL                   2
 #define SSL_TLSEXT_ERR_OK               0
 #define SSL_TLSEXT_ERR_ALERT_WARNING    warning_return

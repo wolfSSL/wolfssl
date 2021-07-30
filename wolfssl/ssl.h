@@ -717,6 +717,7 @@ enum AlertDescription {
     certificate_unknown             =  46,
     illegal_parameter               =  47,
     unknown_ca                      =  48,
+    access_denied                   =  49,
     decode_error                    =  50,
     decrypt_error                   =  51,
     #ifdef WOLFSSL_MYSQL_COMPATIBLE
@@ -725,8 +726,10 @@ enum AlertDescription {
     #else
     protocol_version                =  70,
     #endif
+    insufficient_security           =  71,
     internal_error                  =  80,
     inappropriate_fallback          =  86,
+    user_canceled                   =  90,
     no_renegotiation                = 100,
     missing_extension               = 109,
     unsupported_extension           = 110, /**< RFC 5246, section 7.2.2 */
