@@ -4005,7 +4005,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         md.fn = fn;
         md.arg = args;
         
-        return wolfSSL_OBJ_NAME_do_all(WOLFSSL_OBJ_NAME_TYPE_MD_METH,
+        wolfSSL_OBJ_NAME_do_all(WOLFSSL_OBJ_NAME_TYPE_MD_METH,
                         md_do_all_func, &md);
     }
     
