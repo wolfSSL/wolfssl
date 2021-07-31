@@ -457,7 +457,9 @@ enum Hash_Sum  {
     SHA3_224h = 420,
     SHA3_256h = 421,
     SHA3_384h = 422,
-    SHA3_512h = 423
+    SHA3_512h = 423,
+    SHAKE128h = 424,
+    SHAKE256h = 425
 };
 
 

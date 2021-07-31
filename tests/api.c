@@ -46109,6 +46109,31 @@ static void test_wolfSSL_ERR_strings(void)
     printf(resultFmt, passed);
 #endif
 }
+static void test_wolfSSL_EVP_shake128()
+{
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SHA3) && \
+                                            defined(WOLFSSL_SHAKE128)
+    printf(testingFmt, "test_wolfSSL_EVP_shake128");
+    const EVP_MD* md = NULL;
+    md = EVP_shake128();
+    AssertTrue(md != NULL);
+    AssertIntEQ(XSTRNCMP(md, "SHAKE128", XSTRLEN("SHAKE128")), 0);
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_EVP_shake256()
+{
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SHA3) && \
+                                            defined(WOLFSSL_SHAKE256)
+    printf(testingFmt, "test_wolfSSL_EVP_shake256");
+    const EVP_MD* md = NULL;
+    md = EVP_shake256();
+    AssertTrue(md != NULL);
+    AssertIntEQ(XSTRNCMP(md, "SHAKE256", XSTRLEN("SHAKE256")), 0);
+    printf(resultFmt, passed);
+#endif
+}
 
 static void test_EVP_blake2()
 {
@@ -46154,6 +46179,8 @@ void ApiTest(void)
     test_for_double_Free();
 #endif
     test_wolfSSL_ERR_strings();
+    test_wolfSSL_EVP_shake128();
+    test_wolfSSL_EVP_shake256();
     test_EVP_blake2();
     test_wolfSSL_CTX_use_certificate_file();
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_buffer(), WOLFSSL_SUCCESS);

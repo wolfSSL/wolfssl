@@ -2352,6 +2352,12 @@ static const struct s_ent {
 #ifdef HAVE_BLAKE2S
     {WC_HASH_TYPE_BLAKE2S, NID_blake2s256, "BLAKE2S256"},
 #endif
+#ifdef WOLFSSL_SHAKE128
+    {WC_HASH_TYPE_SHAKE128, NID_shake128, "SHAKE128"},
+#endif
+#ifdef WOLFSSL_SHAKE256
+    {WC_HASH_TYPE_SHAKE256, NID_shake256, "SHAKE256"},
+#endif
     {WC_HASH_TYPE_NONE, 0, NULL}
 };
 
@@ -3736,7 +3742,26 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_get_digestbyname("SHA3_512");
     }
 #endif /* WOLFSSL_NOSHA3_512 */
+
+#ifdef WOLFSSL_SHAKE128
+    const WOLFSSL_EVP_MD* wolfSSL_EVP_shake128(void)
+    {
+        WOLFSSL_ENTER("EVP_shake128");
+        return EVP_get_digestbyname("SHAKE128");
+    }
+#endif /* WOLFSSL_SHAKE128 */
+
+#ifdef WOLFSSL_SHAKE256
+    const WOLFSSL_EVP_MD* wolfSSL_EVP_shake256(void)
+    {
+        WOLFSSL_ENTER("EVP_shake256");
+        return EVP_get_digestbyname("SHAKE256");
+    }
+#endif /* WOLFSSL_SHAKE256 */
+
 #endif /* WOLFSSL_SHA3 */
+
+
 
     WOLFSSL_EVP_MD_CTX *wolfSSL_EVP_MD_CTX_new(void)
     {
@@ -3895,6 +3920,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 case WC_HASH_TYPE_MD5_SHA:
                 case WC_HASH_TYPE_BLAKE2B:
                 case WC_HASH_TYPE_BLAKE2S:
+                case WC_HASH_TYPE_SHAKE128:
+                case WC_HASH_TYPE_SHAKE256:
                 default:
                     ret = BAD_FUNC_ARG;
                     break;
@@ -4294,6 +4321,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 case WC_HASH_TYPE_MD5_SHA:
                 case WC_HASH_TYPE_BLAKE2B:
                 case WC_HASH_TYPE_BLAKE2S:
+                case WC_HASH_TYPE_SHAKE128:
+                case WC_HASH_TYPE_SHAKE256:
                 default:
                     ret = WOLFSSL_FAILURE;
                     break;
@@ -5988,6 +6017,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             case WC_HASH_TYPE_MD5_SHA:
             case WC_HASH_TYPE_BLAKE2B:
             case WC_HASH_TYPE_BLAKE2S:
+            case WC_HASH_TYPE_SHAKE128:
+            case WC_HASH_TYPE_SHAKE256:
             default:
                 return WOLFSSL_FAILURE;
         }
@@ -6077,6 +6108,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             case WC_HASH_TYPE_MD5_SHA:
             case WC_HASH_TYPE_BLAKE2B:
             case WC_HASH_TYPE_BLAKE2S:
+            case WC_HASH_TYPE_SHAKE128:
+            case WC_HASH_TYPE_SHAKE256:
             default:
                 return WOLFSSL_FAILURE;
         }
