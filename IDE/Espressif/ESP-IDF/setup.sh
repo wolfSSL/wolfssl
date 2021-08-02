@@ -22,6 +22,20 @@ BASEDIR=`cd ${BASEDIR} && pwd -P`
 WOLFSSLLIB_TRG_DIR=${IDF_PATH}/components/wolfssl
 WOLFSSLEXP_TRG_DIR=${IDF_PATH}/examples/protocols
 
+if [ "$1" == "--verbose" ]; then
+  WOLFSSSL_SETUP_VERBOSE=true
+fi
+
+if [ "${WOLFSSSL_SETUP_VERBOSE}" == "true" ]; then
+  echo Verbose mode on!
+  echo BASEDIR=${BASEDIR}
+  echo SCRIPTDIR=${SCRIPTDIR}
+  echo WOLFSSL_ESPIDFDIR=${WOLFSSL_ESPIDFDIR}
+  echo WOLFSSLLIB_TRG_DIR=${WOLFSSLLIB_TRG_DIR}
+  echo WOLFSSLEXP_TRG_DIR=${WOLFSSLEXP_TRG_DIR}
+  echo ""
+fi
+
 if [ ! -d $IDF_PATH ]; then
     echo "ESP-IDF Development Framework doesn't exist.: $IDF_PATH"
     exit 1
@@ -31,7 +45,12 @@ fi
 pushd $IDF_PATH > /dev/null
 
 echo "Copy files into $IDF_PATH"
+
 # Remove/Create directories
+if [ "${WOLFSSSL_SETUP_VERBOSE}" == "true" ]; then
+  echo "Remove/Create directories..."
+fi
+
 ${RMDCMD} ${WOLFSSLLIB_TRG_DIR}/
 ${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/
 
@@ -46,6 +65,11 @@ popd > /dev/null             # $WOLFSSL_ESPIDFDIR
 pushd ${BASEDIR} > /dev/null # WOLFSSL TOP DIR
 
 # copying ... files in src/ into $WOLFSSLLIB_TRG_DIR/src
+
+if [ "${WOLFSSSL_SETUP_VERBOSE}" == "true" ]; then
+  echo "Copying ... files in src/ into \$WOLFSSLLIB_TRG_DIR/srcs ..."
+fi
+
 ${CPDCMD} ./src/*.c ${WOLFSSLLIB_TRG_DIR}/src/
 
 
@@ -56,7 +80,12 @@ ${CPDCMD} -r ./wolfcrypt/benchmark ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/
 
 ${CPDCMD} -r ./wolfssl/*.h ${WOLFSSLLIB_TRG_DIR}/wolfssl/
 ${CPDCMD} -r ./wolfssl/wolfcrypt ${WOLFSSLLIB_TRG_DIR}/wolfssl/
+
 # user_settings.h
+if [ "${WOLFSSSL_SETUP_VERBOSE}" == "true" ]; then
+  echo "Copying user_settings.h to ${WOLFSSLLIB_TRG_DIR}/include/"
+fi
+
 ${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/user_settings.h ${WOLFSSLLIB_TRG_DIR}/include/
 ${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/dummy_config_h ${WOLFSSLLIB_TRG_DIR}/include/config.h
 
@@ -71,15 +100,24 @@ ${CPDCMD} ./libs/component.mk ${WOLFSSLLIB_TRG_DIR}/
 pushd ${BASEDIR} > /dev/null # WOLFSSL TOP DIR
 
 # Benchmark program
+if [ "${WOLFSSSL_SETUP_VERBOSE}" == "true" ]; then
+  echo ""
+fi
 ${RMDCMD} ${WOLFSSLEXP_TRG_DIR}/wolfssl_benchmark/
 ${MKDCMD} ${WOLFSSLEXP_TRG_DIR}/wolfssl_benchmark/
 ${MKDCMD} ${WOLFSSLEXP_TRG_DIR}/wolfssl_benchmark/main/
+
+${CPDCMD}    ${BASEDIR}/wolfcrypt/benchmark/benchmark.h ${BASEDIR}/IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/main/benchmark.h
+${CPDCMD}    ${BASEDIR}/wolfcrypt/benchmark/benchmark.c ${BASEDIR}/IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark/main/benchmark.c
 
 ${CPDCMD} -r ./wolfcrypt/benchmark/benchmark.c ${WOLFSSLEXP_TRG_DIR}/wolfssl_benchmark/main/
 ${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/examples/wolfssl_benchmark/* ${WOLFSSLEXP_TRG_DIR}/wolfssl_benchmark/
 ${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/examples/wolfssl_benchmark/main/* ${WOLFSSLEXP_TRG_DIR}/wolfssl_benchmark/main/
 
 # Crypt Test program
+if [ "${WOLFSSSL_SETUP_VERBOSE}" == "true" ]; then
+  echo "Copying wolfssl_test to ${WOLFSSLEXP_TRG_DIR}/wolfssl_test/main/"
+fi
 ${RMDCMD} ${WOLFSSLEXP_TRG_DIR}/wolfssl_test/
 ${MKDCMD} ${WOLFSSLEXP_TRG_DIR}/wolfssl_test/
 ${MKDCMD} ${WOLFSSLEXP_TRG_DIR}/wolfssl_test/main/
@@ -89,6 +127,9 @@ ${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/examples/wolfssl_test/* ${WOLFSSLEXP_TRG_DIR}/
 ${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/examples/wolfssl_test/main/* ${WOLFSSLEXP_TRG_DIR}/wolfssl_test/main/
 
 # TLS Client program
+if [ "${WOLFSSSL_SETUP_VERBOSE}" == "true" ]; then
+  echo "Copying TLS Client program to ${WOLFSSLEXP_TRG_DIR}/wolfssl_client/..."
+fi
 ${RMDCMD} ${WOLFSSLEXP_TRG_DIR}/wolfssl_client/
 ${MKDCMD} ${WOLFSSLEXP_TRG_DIR}/wolfssl_client/
 ${MKDCMD} ${WOLFSSLEXP_TRG_DIR}/wolfssl_client/main/
@@ -99,6 +140,9 @@ ${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/examples/wolfssl_client/main/* ${WOLFSSLEXP_TR
 ${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/examples/wolfssl_client/main/include/* ${WOLFSSLEXP_TRG_DIR}/wolfssl_client/main/include/
 
 # TLS Server program
+if [ "${WOLFSSSL_SETUP_VERBOSE}" == "true" ]; then
+  echo "Copying TLS Server program to ${WOLFSSLEXP_TRG_DIR}/wolfssl_server/..."
+fi
 ${RMDCMD} ${WOLFSSLEXP_TRG_DIR}/wolfssl_server/
 ${MKDCMD} ${WOLFSSLEXP_TRG_DIR}/wolfssl_server/
 ${MKDCMD} ${WOLFSSLEXP_TRG_DIR}/wolfssl_server/main/
@@ -109,5 +153,9 @@ ${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/examples/wolfssl_server/main/* ${WOLFSSLEXP_TR
 ${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/examples/wolfssl_server/main/include/* ${WOLFSSLEXP_TRG_DIR}/wolfssl_server/main/include/
 
 popd > /dev/null # 
+
+if [ "${WOLFSSSL_SETUP_VERBOSE}" == "true" ]; then
+  echo "Copy complete!"
+fi
 
 exit 1
