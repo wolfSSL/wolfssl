@@ -49,6 +49,10 @@ xcopy /F/Q   %WOLFSSL_ESPIDFDIR%\libs\component.mk   %WOLFSSLLIB_TRG_DIR%\
 rem Benchmark program
 rmdir /S/Q %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\
 mkdir      %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\main\
+
+xcopy      %BASEDIR%\wolfcrypt\benchmark\benchmark.h  %BASEDIR%\IDE\Espressif\ESP-IDF\examples\wolfssl_benchmark\main\benchmark.h
+xcopy      %BASEDIR%\wolfcrypt\benchmark\benchmark.c  %BASEDIR%\IDE\Espressif\ESP-IDF\examples\wolfssl_benchmark\main\benchmark.c
+
 xcopy /F/Q %BASEDIR%\wolfcrypt\benchmark\benchmark.c %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\main\
 xcopy /E/F/Q %WOLFSSL_ESPIDFDIR%\examples\wolfssl_benchmark %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\
 
