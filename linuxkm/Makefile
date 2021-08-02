@@ -33,7 +33,7 @@ ifndef SRC_TOP
     SRC_TOP=$(shell dirname $(MODULE_TOP))
 endif
 
-WOLFSSL_CFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CFLAGS) $(CFLAGS) -Wno-declaration-after-statement -Wno-redundant-decls -ffreestanding
+WOLFSSL_CFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CFLAGS) $(CFLAGS) -Wno-declaration-after-statement -Wno-redundant-decls
 ifdef KERNEL_EXTRA_CFLAGS
     WOLFSSL_CFLAGS += $(KERNEL_EXTRA_CFLAGS)
 endif
@@ -48,7 +48,12 @@ else
     WOLFSSL_CFLAGS+=-DNO_CRYPT_TEST
 endif
 
-export WOLFSSL_CFLAGS WOLFSSL_ASFLAGS WOLFSSL_OBJ_FILES
+ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
+    WOLFSSL_OBJ_FILES += linuxkm/pie_redirect_table.o
+    WOLFCRYPT_PIE_FILES=$(filter wolfcrypt/%,$(WOLFSSL_OBJ_FILES)) linuxkm/pie_redirect_table.o
+endif
+
+export WOLFSSL_CFLAGS WOLFSSL_ASFLAGS WOLFSSL_OBJ_FILES WOLFCRYPT_PIE_FILES
 
 libwolfssl.ko:
 	@if test -z "$(KERNEL_ROOT)"; then echo '$$KERNEL_ROOT is unset' >&2; exit 1; fi

@@ -93,6 +93,13 @@
     #include <linux/ctype.h>
     #include <linux/init.h>
     #include <linux/module.h>
+    #ifdef __PIE__
+        /* without this, mm.h brings in static, but not inline, pmd_to_page(),
+         * with direct references to global vmem variables.
+         */
+        #undef USE_SPLIT_PMD_PTLOCKS
+        #define USE_SPLIT_PMD_PTLOCKS 0
+    #endif
     #include <linux/mm.h>
     #ifndef SINGLE_THREADED
         #include <linux/kthread.h>
@@ -135,6 +142,148 @@
      */
     #define HAVE_ANONYMOUS_INLINE_AGGREGATES 1
 
+    #define NO_THREAD_LS
+    #define NO_ATTRIBUTE_CONSTRUCTOR
+
+    #ifdef HAVE_FIPS
+        extern int wolfCrypt_FIPS_first(void);
+        extern int wolfCrypt_FIPS_last(void);
+    #endif
+
+    #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
+        /* work around backward dependency of asn.c on ssl.c. */
+        struct Signer;
+        struct Signer *GetCA(void *signers, unsigned char *hash);
+        struct Signer *GetCAByName(void* signers, unsigned char *hash);
+    #endif
+
+    #if defined(__PIE__) && !defined(HAVE_LINUXKM_PIE_SUPPORT)
+        #error "compiling -fPIE without PIE support."
+    #endif
+
+    #if defined(HAVE_FIPS) && !defined(HAVE_LINUXKM_PIE_SUPPORT)
+        #error "FIPS build requires PIE support."
+    #endif
+
+    #ifdef HAVE_LINUXKM_PIE_SUPPORT
+
+    struct wolfssl_linuxkm_pie_redirect_table {
+        typeof(memcmp) *memcmp;
+        typeof(memcpy) *memcpy;
+        typeof(memset) *memset;
+        typeof(memmove) *memmove;
+        typeof(strncmp) *strncmp;
+        typeof(strlen) *strlen;
+        typeof(strstr) *strstr;
+        typeof(strncpy) *strncpy;
+        typeof(strncat) *strncat;
+        typeof(strncasecmp) *strncasecmp;
+        typeof(kstrtoll) *kstrtoll;
+
+        typeof(printk) *printk;
+        typeof(snprintf) *snprintf;
+
+        const unsigned char *_ctype;
+
+        typeof(kvfree) *kvfree;
+        typeof(kvmalloc_node) *kvmalloc_node;
+        typeof(kmalloc) *kmalloc;
+        typeof(kfree) *kfree;
+        typeof(ksize) *ksize;
+        typeof(krealloc) *krealloc;
+        typeof(is_vmalloc_addr) *is_vmalloc_addr;
+        typeof(kmem_cache_alloc_trace) *kmem_cache_alloc_trace;
+        typeof(kmalloc_order_trace) *kmalloc_order_trace;
+
+        typeof(get_random_bytes) *get_random_bytes;
+        typeof(ktime_get_real_seconds) *ktime_get_real_seconds;
+        typeof(ktime_get_with_offset) *ktime_get_with_offset;
+
+        #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP)
+        typeof(kernel_fpu_begin_mask) *kernel_fpu_begin_mask;
+        typeof(kernel_fpu_end) *kernel_fpu_end;
+        #endif
+
+        typeof(__mutex_init) *__mutex_init;
+        typeof(mutex_lock) *mutex_lock;
+        typeof(mutex_unlock) *mutex_unlock;
+
+        #ifdef HAVE_FIPS
+        typeof(wolfCrypt_FIPS_first) *wolfCrypt_FIPS_first;
+        typeof(wolfCrypt_FIPS_last) *wolfCrypt_FIPS_last;
+        #endif
+
+        #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
+        typeof(GetCA) *GetCA;
+        typeof(GetCAByName) *GetCAByName;
+        #endif
+
+        const void *_last_slot;
+    };
+
+    extern const struct wolfssl_linuxkm_pie_redirect_table *wolfssl_linuxkm_get_pie_redirect_table(void);
+
+    #ifdef __PIE__
+
+    #define memcmp (wolfssl_linuxkm_get_pie_redirect_table()->memcmp)
+    #define memcpy (wolfssl_linuxkm_get_pie_redirect_table()->memcpy)
+    #define memset (wolfssl_linuxkm_get_pie_redirect_table()->memset)
+    #define memmove (wolfssl_linuxkm_get_pie_redirect_table()->memmove)
+    #define strncmp (wolfssl_linuxkm_get_pie_redirect_table()->strncmp)
+    #define strlen (wolfssl_linuxkm_get_pie_redirect_table()->strlen)
+    #define strstr (wolfssl_linuxkm_get_pie_redirect_table()->strstr)
+    #define strncpy (wolfssl_linuxkm_get_pie_redirect_table()->strncpy)
+    #define strncat (wolfssl_linuxkm_get_pie_redirect_table()->strncat)
+    #define strncasecmp (wolfssl_linuxkm_get_pie_redirect_table()->strncasecmp)
+    #define kstrtoll (wolfssl_linuxkm_get_pie_redirect_table()->kstrtoll)
+
+    #define printk (wolfssl_linuxkm_get_pie_redirect_table()->printk)
+    #define snprintf (wolfssl_linuxkm_get_pie_redirect_table()->snprintf)
+
+    #define _ctype (wolfssl_linuxkm_get_pie_redirect_table()->_ctype)
+
+    #define kvfree (wolfssl_linuxkm_get_pie_redirect_table()->kvfree)
+    #define kvmalloc_node (wolfssl_linuxkm_get_pie_redirect_table()->kvmalloc_node)
+    #define kmalloc (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc)
+    #define kfree (wolfssl_linuxkm_get_pie_redirect_table()->kfree)
+    #define ksize (wolfssl_linuxkm_get_pie_redirect_table()->ksize)
+    #define krealloc (wolfssl_linuxkm_get_pie_redirect_table()->krealloc)
+    #define is_vmalloc_addr (wolfssl_linuxkm_get_pie_redirect_table()->is_vmalloc_addr)
+    #define kmem_cache_alloc_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmem_cache_alloc_trace)
+    #define kmalloc_order_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_order_trace)
+
+    #define get_random_bytes (wolfssl_linuxkm_get_pie_redirect_table()->get_random_bytes)
+    #define ktime_get_real_seconds (wolfssl_linuxkm_get_pie_redirect_table()->ktime_get_real_seconds)
+    #define ktime_get_with_offset (wolfssl_linuxkm_get_pie_redirect_table()->ktime_get_with_offset)
+
+    #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP)
+        #define kernel_fpu_begin_mask (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_begin_mask)
+        #define kernel_fpu_begin() kernel_fpu_begin_mask(KFPU_MXCSR)
+        #define kernel_fpu_end (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_end)
+    #endif
+
+    #define __mutex_init (wolfssl_linuxkm_get_pie_redirect_table()->__mutex_init)
+    #define mutex_lock (wolfssl_linuxkm_get_pie_redirect_table()->mutex_lock)
+    #define mutex_unlock (wolfssl_linuxkm_get_pie_redirect_table()->mutex_unlock)
+
+    /* per linux/ctype.h, tolower() and toupper() are macros bound to static inlines
+     * that use macros that bring in the _ctype global.  for __PIE__, this needs to
+     * be masked out.
+     */
+    #undef tolower
+    #undef toupper
+    #define tolower(c) (islower(c) ? (c) : ((c) + ('a'-'A')))
+    #define toupper(c) (isupper(c) ? (c) : ((c) - ('a'-'A')))
+
+    #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
+        #define GetCA (wolfssl_linuxkm_get_pie_redirect_table()->GetCA)
+        #define GetCAByName (wolfssl_linuxkm_get_pie_redirect_table()->GetCAByName)
+    #endif
+
+    #endif /* __PIE__ */
+
+    #endif /* HAVE_LINUXKM_PIE_SUPPORT */
+
     /* Linux headers define these using C expressions, but we need
      * them to be evaluable by the preprocessor, for use in sp_int.h.
      */
@@ -168,7 +317,7 @@
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
     /* kvmalloc()/kvfree() and friends added in linux commit a7c3e901 */
-    #define malloc(x) kvmalloc(x, GFP_KERNEL)
+    #define malloc(x) kvmalloc_node(x, GFP_KERNEL, NUMA_NO_NODE)
     #define free(x) kvfree(x)
     void *lkm_realloc(void *ptr, size_t newsize);
     #define realloc(x, y) lkm_realloc(x, y)
@@ -192,15 +341,19 @@
     #define lkm_printf(format, args...) printk(KERN_INFO "wolfssl: %s(): " format, __func__, ## args)
     #define printf(...) lkm_printf(__VA_ARGS__)
 
+    #ifdef HAVE_FIPS
+        extern void fipsEntry(void);
+    #endif
+
     #endif /* BUILDING_WOLFSSL */
 
     /* needed to suppress inclusion of stdio.h in wolfssl/wolfcrypt/types.h */
     #define XSNPRINTF snprintf
 
-    /* the rigmarole around kstrtol() here is to accommodate its warn-unused-result attribute. */
+    /* the rigmarole around kstrtoll() here is to accommodate its warn-unused-result attribute. */
     #define XATOI(s) ({                                 \
-          long _xatoi_res = 0;                          \
-          int _xatoi_ret = kstrtol(s, 10, &_xatoi_res); \
+          long long _xatoi_res = 0;                     \
+          int _xatoi_ret = kstrtoll(s, 10, &_xatoi_res); \
           if (_xatoi_ret != 0) {                        \
             _xatoi_res = 0;                             \
           }                                             \

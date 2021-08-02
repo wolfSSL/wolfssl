@@ -9706,7 +9706,8 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
 
 #if !defined(OPENSSL_EXTRA) && !defined(OPENSSL_EXTRA_X509_SMALL)
 /* from SSL proper, for locking can't do find here anymore.
- * brought in from internal.h if built with compat layer */
+ * brought in from internal.h if built with compat layer.
+ */
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -9717,7 +9718,7 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
 #ifdef __cplusplus
     }
 #endif
-#endif
+#endif /* !OPENSSL_EXTRA && !OPENSSL_EXTRA_X509_SMALL */
 
 #if defined(WOLFCRYPT_ONLY) || defined(NO_CERTS)
 

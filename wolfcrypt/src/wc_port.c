@@ -2542,7 +2542,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         }
 
         if (unlikely(ptr == NULL))
-            return kvmalloc(newsize, GFP_KERNEL);
+            return kvmalloc_node(newsize, GFP_KERNEL, NUMA_NO_NODE);
 
         if (is_vmalloc_addr(ptr)) {
             /* no way to discern the size of the old allocation,
@@ -2552,21 +2552,25 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
              */
             return NULL;
         } else {
+#ifndef __PIE__
             struct page *page;
 
             page = virt_to_head_page(ptr);
             if (PageSlab(page) || PageCompound(page)) {
                 if (newsize < PAGE_SIZE)
+#endif /* ! __PIE__ */
                     return krealloc(ptr, newsize, GFP_KERNEL);
+#ifndef __PIE__
                 oldsize = ksize(ptr);
             } else {
                 oldsize = page->private;
                 if (newsize <= oldsize)
                     return ptr;
             }
+#endif /* ! __PIE__ */
 	}
 
-	nptr = kvmalloc(newsize, GFP_KERNEL);
+	nptr = kvmalloc_node(newsize, GFP_KERNEL, NUMA_NO_NODE);
 	if (nptr != NULL) {
             memcpy(nptr, ptr, oldsize);
             kvfree(ptr);

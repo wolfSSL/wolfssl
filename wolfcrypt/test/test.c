@@ -194,7 +194,7 @@ _Pragma("GCC diagnostic ignored \"-Wunused-function\"")
         #include <stdio.h>
     #endif
 
-    #if defined(WOLFSSL_LINUXKM) && !defined(DEBUG_WOLFSSL_VERBOSE)
+    #if defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_LINUXKM_VERBOSE_DEBUG)
         #undef printf
         #define printf(...) ({})
     #endif
@@ -582,8 +582,7 @@ typedef struct func_args {
 } func_args;
 #endif /* !HAVE_WOLFCRYPT_TEST_OPTIONS */
 
-#ifdef HAVE_FIPS
-
+#if defined(HAVE_FIPS) && !defined(WOLFSSL_LINUXKM)
 static void myFipsCb(int ok, int err, const char* hash)
 {
     printf("in my Fips callback, ok = %d, err = %d\n", ok, err);
@@ -595,8 +594,7 @@ static void myFipsCb(int ok, int err, const char* hash)
         printf("into verifyCore[] in fips_test.c and rebuild\n");
     }
 }
-
-#endif /* HAVE_FIPS */
+#endif /* HAVE_FIPS && !WOLFSSL_LINUXKM */
 
 #ifdef WOLFSSL_STATIC_MEMORY
     #ifdef BENCH_EMBEDDED
@@ -731,7 +729,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     wc_SetLoggingHeap(HEAP_HINT);
 #endif
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && !defined(WOLFSSL_LINUXKM)
     wolfCrypt_SetCb_fips(myFipsCb);
 #endif
 
