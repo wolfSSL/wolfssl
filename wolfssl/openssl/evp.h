@@ -93,6 +93,8 @@ WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha256(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha384(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha512(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_ripemd160(void);
+WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_shake128(void);
+WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_shake256(void);
 
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_224(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_256(void);
@@ -293,6 +295,8 @@ enum {
     NID_sha3_512        = 1099,
     NID_blake2b512      = 1056,
     NID_blake2s256      = 1057,
+    NID_shake128        = 1100,
+    NID_shake256        = 1101,
 };
 
 enum {
@@ -737,6 +741,8 @@ typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
 #define EVP_sha384        wolfSSL_EVP_sha384
 #define EVP_sha512        wolfSSL_EVP_sha512
 #define EVP_ripemd160     wolfSSL_EVP_ripemd160
+#define EVP_shake128      wolfSSL_EVP_shake128
+#define EVP_shake256      wolfSSL_EVP_shake256
 #define EVP_set_pw_prompt wolfSSL_EVP_set_pw_prompt
 
 #define EVP_sha3_224    wolfSSL_EVP_sha3_224
