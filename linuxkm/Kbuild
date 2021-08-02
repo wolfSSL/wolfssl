@@ -97,7 +97,9 @@ rename-pie-text-and-data-sections: $(WOLFSSL_OBJ_TARGETS)
 
 .PHONY: rename-pie-text-and-data-sections
 rename-pie-text-and-data-sections:
+ifneq "$(quiet)" "silent_"
 	@echo -n '  Checking wolfCrypt for unresolved symbols and forbidden relocations... '
+endif
 	@cd "$(obj)" || exit $$?; \
 	ld -relocatable -o wolfcrypt_test_link.o $(WOLFCRYPT_PIE_FILES) || exit $$?; \
 	undefined=$$(nm --undefined-only wolfcrypt_test_link.o) || exit $$?; \
@@ -113,12 +115,16 @@ rename-pie-text-and-data-sections:
 	    echo "$$GOT_relocs" 1>&2; \
 	    exit 1; \
 	fi
+ifneq "$(quiet)" "silent_"
 	@echo 'OK.'
+endif
 	@cd "$(obj)" || exit $$?; \
 	for file in $(WOLFCRYPT_PIE_FILES); do \
 	    objcopy --rename-section .text=.text.wolfcrypt --rename-section .data=.data.wolfcrypt "$$file" || exit $$?; \
 	done
+ifneq "$(quiet)" "silent_"
 	@echo '  wolfCrypt .{text,data} sections containerized to .{text,data}.wolfcrypt'
+endif
 
 $(src)/linuxkm/module_exports.c: rename-pie-text-and-data-sections
 

@@ -214,13 +214,13 @@ if BUILD_LINUXKM
         ASFLAGS_FPUSIMD_DISABLE ASFLAGS_FPUSIMD_ENABLE
 
 module:
-	+make -C linuxkm libwolfssl.ko
+	+$(MAKE) -C linuxkm libwolfssl.ko
 
 clean_module:
-	+make -C linuxkm clean
+	+$(MAKE) -C linuxkm clean
 
 install_module modules_install:
-	+make -C linuxkm modules_install
+	+$(MAKE) -C linuxkm modules_install
 
 endif
 
