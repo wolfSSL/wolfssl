@@ -2841,6 +2841,7 @@ struct WOLFSSL_CTX {
     byte        noTicketTls12:1;  /* TLS 1.2 server won't send ticket */
 #endif
 #ifdef WOLFSSL_TLS13
+    byte        maxTicketTls13;   /* maximum number of tickets to send */
     byte        noTicketTls13:1;  /* TLS 1.3 Server won't create new Ticket */
     byte        noPskDheKe:1;     /* Don't use (EC)DHE with PSK */
 #endif
@@ -3626,6 +3627,7 @@ typedef struct Options {
     word16            rejectTicket:1;     /* Callback rejected ticket */
     word16            noTicketTls12:1;    /* TLS 1.2 server won't send ticket */
 #ifdef WOLFSSL_TLS13
+    byte              maxTicketTls13;     /* maximum number of tickets to send */
     word16            noTicketTls13:1;    /* Server won't create new Ticket */
 #endif
 #endif
