@@ -23360,6 +23360,197 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
 #ifdef OPENSSL_EXTRA
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+/* return authentication NID corresponding to cipher sutie
+ * @param cipher a pointer to WOLFSSL_CIPHER
+ * return NID if found, NID_undef if not found
+ */
+int wolfSSL_CIPHER_get_auth_nid(const WOLFSSL_CIPHER* cipher)
+{
+    static const struct authnid {
+        const char* alg_name;
+        const int  nid;
+    } authnid_tbl[] = {
+        {"RSA",     NID_auth_rsa},
+        {"PSK",     NID_auth_psk},
+        {"SRP",     NID_auth_srp},
+        {"ECDSA",   NID_auth_ecdsa},
+        {"None",    NID_auth_null},
+        {NULL,      NID_undef}
+    };
+    
+    const struct authnid* sa;
+    const char* name;
+    const char* authStr;
+    char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
+    (void)name;
+    
+    name = GetCipherSegment(cipher, n);
+    authStr = GetCipherAuthStr(n);
+    
+    if (authStr != NULL) {
+        for(sa = authnid_tbl; sa->alg_name != NULL; sa++) {
+            if (XSTRNCMP(sa->alg_name, authStr, XSTRLEN(sa->alg_name)) == 0) {
+                return sa->nid;
+            }
+        }
+    }
+    
+    return NID_undef;
+}
+/* return cipher NID corresponding to cipher sutie
+ * @param cipher a pointer to WOLFSSL_CIPHER
+ * return NID if found, NID_undef if not found
+ */
+int wolfSSL_CIPHER_get_cipher_nid(const WOLFSSL_CIPHER* cipher)
+{
+    static const struct ciphernid {
+        const char* alg_name;
+        const int  nid;
+    } ciphernid_tbl[] = {
+        {"AESGCM(256)",             NID_aes_256_gcm},
+        {"AESGCM(128)",             NID_aes_128_gcm},
+        {"AESCCM(128)",             NID_aes_128_ccm},
+        {"AES(128)",                NID_aes_128_cbc},
+        {"AES(256)",                NID_aes_256_cbc},
+        {"CAMELLIA(256)",           NID_camellia_256_cbc},
+        {"CAMELLIA(128)",           NID_camellia_128_cbc},
+        {"RC4",                     NID_rc4},
+        {"3DES",                    NID_des_ede3_cbc},
+        {"CHACHA20/POLY1305(256)",  NID_chacha20_poly1305},
+        {"None",                    NID_undef},
+        {"IDEA",                    NID_idea_cbc},
+        {"RABBIT",                  NID_undef},
+        {"HC128",                   NID_undef},
+        {NULL,                      NID_undef}
+    };
+    
+    const struct ciphernid* c;
+    const char* name;
+    const char* encStr;
+    char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
+    (void)name;
+    
+    WOLFSSL_ENTER("wolfSSL_CIPHER_get_cipher_nid");
+    
+    name = GetCipherSegment(cipher, n);
+    encStr = GetCipherEncStr(n);
+    
+    if (encStr != NULL) {
+        for(c = ciphernid_tbl; c->alg_name != NULL; c++) {
+            if (XSTRNCMP(c->alg_name, encStr, XSTRLEN(c->alg_name)) == 0) {
+                return c->nid;
+            }
+        }
+    }
+    
+    return NID_undef;
+}
+/* return digest NID corresponding to cipher sutie
+ * @param cipher a pointer to WOLFSSL_CIPHER
+ * return NID if found, NID_undef if not found
+ */
+int wolfSSL_CIPHER_get_digest_nid(const WOLFSSL_CIPHER* cipher)
+{
+    static const struct macnid {
+        const char* alg_name;
+        const int  nid;
+    } macnid_tbl[] = {
+        {"SHA1",    NID_sha1},
+        {"SHA256",  NID_sha256},
+        {"SHA384",  NID_sha384},
+        {NULL,      NID_undef}
+    };
+    
+    const struct macnid* mc;
+    const char* name;
+    const char* macStr;
+    char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
+    (void)name;
+    
+    WOLFSSL_ENTER("wolfSSL_CIPHER_get_digest_nid");
+    
+    name = GetCipherSegment(cipher, n);
+    /* in MD5 case, NID will be NID_md5 */
+    if (XSTRSTR(name, "MD5") != NULL) {
+        return NID_md5;
+    }
+    
+    macStr = GetCipherMacStr(n);
+    
+    if (macStr != NULL) {
+        for(mc = macnid_tbl; mc->alg_name != NULL; mc++) {
+            if (XSTRNCMP(mc->alg_name, macStr, XSTRLEN(mc->alg_name)) == 0) {
+                return mc->nid;
+            }
+        }
+    }
+    
+    return NID_undef;
+}
+/* return key exchange NID corresponding to cipher sutie
+ * @param cipher a pointer to WOLFSSL_CIPHER
+ * return NID if found, NID_undef if not found
+ */
+int wolfSSL_CIPHER_get_kx_nid(const WOLFSSL_CIPHER* cipher)
+{
+static const struct kxnid {
+        const char* name;
+        const int  nid;
+    } kxnid_table[] = {
+        {"ECDHEPSK",  NID_kx_ecdhe_psk},
+        {"ECDH",      NID_kx_ecdhe},
+        {"DHEPSK",    NID_kx_dhe_psk},
+        {"DH",        NID_kx_dhe},
+        {"RSAPSK",    NID_kx_rsa_psk},
+        {"SRP",       NID_kx_srp},
+        {"EDH",       NID_kx_dhe},
+        {"RSA",       NID_kx_rsa},
+        {NULL,        NID_undef}
+    };
+    
+    const struct kxnid* k;
+    const char* name;
+    const char* keaStr;
+    char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
+    (void)name;
+    
+    WOLFSSL_ENTER("wolfSSL_CIPHER_get_kx_nid");
+    
+    name = GetCipherSegment(cipher, n);
+    
+    /* in TLS 1.3 case, NID will be NID_kx_any */
+    if (XSTRNCMP(name, "TLS13", 5) == 0) {
+        return NID_kx_any;
+    }
+    
+    keaStr = GetCipherKeaStr(n);
+    
+    if (keaStr != NULL) {
+        for(k = kxnid_table; k->name != NULL; k++) {
+            if (XSTRNCMP(k->name, keaStr, XSTRLEN(k->name)) == 0) {
+                printf("k->name %s k->nid %d\n", k->name, k->nid);
+                return k->nid;
+            }
+        }
+    }
+    
+    return NID_undef;
+}
+/* check if cipher suite is AEAD
+ * @param cipher a pointer to WOLFSSL_CIPHER
+ * return 1 if cipher is AEAD, 0 otherwise
+ */
+int wolfSSL_CIPHER_is_aead(const WOLFSSL_CIPHER* cipher)
+{
+    const char* name;
+    char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
+    (void)name;
+    
+    WOLFSSL_ENTER("wolfSSL_CIPHER_is_aead");
+    
+    name = GetCipherSegment(cipher, n);
+    return IsAEAD(n);
+}
 /* Creates cipher->description based on cipher->offset
  * cipher->offset is set in wolfSSL_get_ciphers_compat when it is added
  * to a stack of ciphers.
@@ -23368,8 +23559,6 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
  */
 int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
 {
-    int ret = WOLFSSL_FAILURE;
-    int i,j,k;
     int strLen;
     unsigned long offset;
     char* dp;
@@ -23396,36 +23585,9 @@ int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
     pv.major = cipher_names[offset].major;
     pv.minor = cipher_names[offset].minor;
     protocol = wolfSSL_internal_get_version(&pv);
+    
+    name = GetCipherSegment(cipher, n);
 
-    name = cipher_names[offset].name;
-
-    if (name == NULL)
-        return ret;
-
-    /* Segment cipher name into n[n0,n1,n2,n4]
-     * These are used later for comparisons to create:
-     * keaStr, authStr, encStr, macStr
-     *
-     * If cipher_name = ECDHE-ECDSA-AES256-SHA
-     * then n0 = "ECDHE", n1 = "ECDSA", n2 = "AES256", n3 = "SHA"
-     * and n = [n0,n1,n2,n3,0]
-     */
-    strLen = (int)XSTRLEN(name);
-
-    for (i = 0, j = 0, k = 0; i <= strLen; i++) {
-        if (k >= MAX_SEGMENTS || j >= MAX_SEGMENT_SZ)
-            break;
-
-        if (name[i] != '-' && name[i] != '\0') {
-            n[k][j] = name[i]; /* Fill kth segment string until '-' */
-            j++;
-        }
-        else {
-            n[k][j] = '\0';
-            j = 0;
-            k++;
-        }
-    }
     /* keaStr */
     keaStr = GetCipherKeaStr(n);
     /* authStr */

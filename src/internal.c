@@ -20535,6 +20535,61 @@ const char* GetCipherNameInternal(const byte cipherSuite0, const byte cipherSuit
 }
 
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+/* Segment cipher name into n[n0,n1,n2,n4]
+ * @param cipher a pointer to WOLFSSL_CIPHER
+ * @param n return segment cipher name
+ * return cipher name if cipher is in the list,
+ *        otherwise NULL
+ */
+const char* GetCipherSegment(const WOLFSSL_CIPHER* cipher, char n[][MAX_SEGMENT_SZ])
+{
+    int i,j,k;
+    int strLen;
+    unsigned long offset;
+    const char* name;
+    
+    /* sanity check */
+    if (cipher == NULL)
+        return NULL;
+    
+    offset = cipher->offset;
+    
+    if (offset >= (unsigned long)GetCipherNamesSize())
+        return WOLFSSL_FAILURE;
+    
+    name = cipher_names[offset].name;
+    
+    if (name == NULL)
+        return NULL;
+
+    /* Segment cipher name into n[n0,n1,n2,n4]
+     * These are used later for comparisons to create:
+     * keaStr, authStr, encStr, macStr
+     *
+     * If cipher_name = ECDHE-ECDSA-AES256-SHA
+     * then n0 = "ECDHE", n1 = "ECDSA", n2 = "AES256", n3 = "SHA"
+     * and n = [n0,n1,n2,n3,0]
+     */
+    strLen = (int)XSTRLEN(name);
+    
+    for (i = 0, j = 0, k = 0; i <= strLen; i++) {
+        if (k >= MAX_SEGMENTS || j >= MAX_SEGMENT_SZ)
+            break;
+        
+        if (name[i] != '-' && name[i] != '\0') {
+            n[k][j] = name[i]; /* Fill kth segment string until '-' */
+            j++;
+        }
+        else {
+            n[k][j] = '\0';
+            j = 0;
+            k++;
+        }
+    }
+    
+    return name;
+}
+
 const char* GetCipherKeaStr(char n[][MAX_SEGMENT_SZ]) {
     const char* keaStr = NULL;
     const char *n0,*n1,*n2,*n3,*n4;
@@ -20679,7 +20734,27 @@ const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]) {
 
     return encStr;
 }
-
+/* Check if a cipher is AEAD
+ * @param n return segment cipher name
+ * return 1 if the cipher is AEAD, otherwise 0
+ */
+int IsAEAD(char n[][MAX_SEGMENT_SZ])
+{
+    const char *n1,*n2,*n3;
+    n1 = n[1];
+    n2 = n[2];
+    n3 = n[3];
+    
+    printf("n1 %s n2 %s n3 %s\n", n1, n2, n3);
+    
+    if ((XSTRNCMP(n2,"GCM",3) == 0) || (XSTRNCMP(n3,"GCM",3) == 0) ||
+        (XSTRNCMP(n1,"CCM",3) == 0) ||
+        (XSTRNCMP(n2,"CCM",3) == 0) || (XSTRNCMP(n3,"CCM",3) == 0) ||
+        (XSTRNCMP(n1,"CHACHA20",8) == 0 && XSTRNCMP(n2,"POLY1305",8) == 0) ||
+        (XSTRNCMP(n2,"CHACHA20",8) == 0 && XSTRNCMP(n3,"POLY1305",8) == 0))
+        return 1;
+    return 0;
+}
 /* Returns the MAC string of a cipher or "unknown" on failure */
 const char* GetCipherMacStr(char n[][MAX_SEGMENT_SZ]) {
 

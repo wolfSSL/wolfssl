@@ -254,6 +254,7 @@ enum {
     NID_hmac          = 855,
     NID_cmac          = 894,
     NID_dhKeyAgreement= 28,
+    NID_rc4           = 5,
     EVP_PKEY_DH       = NID_dhKeyAgreement,
     EVP_PKEY_HMAC     = NID_hmac,
     AES_128_CFB1_TYPE = 24,
@@ -304,6 +305,8 @@ enum {
     NID_aes_128_cbc = 419,
     NID_aes_192_cbc = 423,
     NID_aes_256_cbc = 427,
+    NID_aes_128_ccm = 896,
+    NID_aes_256_ccm = 902,
     NID_aes_128_gcm = 895,
     NID_aes_192_gcm = 898,
     NID_aes_256_gcm = 901,
@@ -331,7 +334,34 @@ enum {
     NID_aes_192_ofb = 424,
     NID_aes_256_ofb = 428,
     NID_aes_128_xts = 913,
-    NID_aes_256_xts = 914
+    NID_aes_256_xts = 914,
+    NID_camellia_128_cbc = 751,
+    NID_camellia_256_cbc = 753,
+    NID_chacha20_poly1305 = 1018
+};
+
+enum {
+    /* key exchange */
+    NID_kx_rsa    = 1037,
+    NID_kx_ecdhe  = 1038,
+    NID_kx_dhe    = 1039,
+    NID_kx_ecdhe_psk= 1040,
+    NID_kx_dhe_psk  = 1041,
+    NID_kx_rsa_psk= 1042,
+    NID_kx_psk    = 1043,
+    NID_kx_srp    = 1044,
+    NID_kx_gost   = 1045,
+    NID_kx_any    = 1063,
+    
+    /* server authentication */
+    NID_auth_rsa = 1046,
+    NID_auth_ecdsa = 1047,
+    NID_auth_psk = 1048,
+    NID_auth_dss = 1049,
+    NID_auth_srp = 1052,
+    NID_auth_null = 1054,
+    NID_auth_any = 1055
+    
 };
 
 #define NID_X9_62_id_ecPublicKey EVP_PKEY_EC

@@ -46715,6 +46715,143 @@ static void test_OBJ_NAME_do_all()
 #endif
 }
 
+static void test_SSL_CIPHER_get_xxx()
+{
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+       !defined(NO_FILESYSTEM)
+    
+    printf(testingFmt, "test_SSL_CIPHER_get_xxx");
+    
+    const SSL_CIPHER* cipher = NULL;
+    STACK_OF(SSL_CIPHER) *supportedCiphers = NULL;
+    int i, numCiphers = 0;
+    SSL_CTX* ctx;
+    SSL*     ssl;
+    const char* testCertFile;
+    const char* testKeyFile;
+    char buf[256] = {0};
+    
+    const char* cipher_id = NULL;
+    int   expect_nid1 = NID_undef;
+    int   expect_nid2 = NID_undef;
+    int   expect_nid3 = NID_undef;
+    int   expect_nid4 = NID_undef;
+    int   expect_nid5 = 0;
+
+    const char* cipher_id2 = NULL;
+    int   expect_nid21 = NID_undef;
+    int   expect_nid22 = NID_undef;
+    int   expect_nid23 = NID_undef;
+    int   expect_nid24 = NID_undef;
+    int   expect_nid25 = 0;
+    
+    (void)cipher;
+    (void)supportedCiphers;
+    (void)i;
+    (void)numCiphers;
+    (void)ctx;
+    (void)ssl;
+    (void)testCertFile;
+    (void)testKeyFile;
+
+#if defined(WOLFSSL_TLS13)
+    cipher_id = "TLS13-AES128-GCM-SHA256";
+    expect_nid1 = NID_auth_rsa;
+    expect_nid2 = NID_aes_128_gcm;
+    expect_nid3 = NID_sha256;
+    expect_nid4 = NID_kx_any;
+    expect_nid5 = 1;
+
+    #if !defined(WOLFSSL_NO_TLS12)
+    cipher_id2 = "ECDHE-RSA-AES256-GCM-SHA384";
+    expect_nid21 = NID_auth_rsa;
+    expect_nid22 = NID_aes_256_gcm;
+    expect_nid23 = NID_sha384;
+    expect_nid24 = NID_kx_ecdhe;
+    expect_nid25 = 1;
+    #endif
+#endif
+
+    #ifdef NO_WOLFSSL_SERVER
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    #else
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    #endif
+    
+    if (cipher_id) {
+    #ifndef NO_RSA
+        testCertFile = svrCertFile;
+        testKeyFile = svrKeyFile;
+    #elif defined(HAVE_ECC)
+        testCertFile = eccCertFile;
+        testKeyFile = eccKeyFile;
+    #else
+        testCertFile = NULL;
+        testKeyFile = NULL;
+    #endif
+        if  (testCertFile != NULL && testKeyFile != NULL) {
+            AssertTrue(SSL_CTX_use_certificate_file(ctx, testCertFile,
+                                                    SSL_FILETYPE_PEM));
+            AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, testKeyFile,
+                                                    SSL_FILETYPE_PEM));
+        }
+        
+        ssl = SSL_new(ctx);
+        AssertNotNull(ssl);
+        AssertIntEQ(SSL_in_init(ssl), 1);
+        
+        supportedCiphers = SSL_get_ciphers(ssl);
+        numCiphers = sk_num(supportedCiphers);
+        
+        for (i = 0; i < numCiphers; ++i) {
+            
+            if ((cipher = (const WOLFSSL_CIPHER*)sk_value(supportedCiphers, i))) {
+                SSL_CIPHER_description(cipher, buf, sizeof(buf));
+            }
+
+            if (XMEMCMP(cipher_id, buf, XSTRLEN(cipher_id)) == 0) {
+                break;
+            }
+        }
+        /* test case for */
+        if (i != numCiphers) {
+            AssertIntEQ(wolfSSL_CIPHER_get_auth_nid(cipher), expect_nid1);
+            AssertIntEQ(wolfSSL_CIPHER_get_cipher_nid(cipher), expect_nid2);
+            AssertIntEQ(wolfSSL_CIPHER_get_digest_nid(cipher), expect_nid3);
+            AssertIntEQ(wolfSSL_CIPHER_get_kx_nid(cipher), expect_nid4);
+            AssertIntEQ(wolfSSL_CIPHER_is_aead(cipher), expect_nid5);
+        }
+        
+        if (cipher_id2) {
+            
+            for (i = 0; i < numCiphers; ++i) {
+                
+                if ((cipher = (const WOLFSSL_CIPHER*)sk_value(supportedCiphers, i))) {
+                    SSL_CIPHER_description(cipher, buf, sizeof(buf));
+                }
+
+                if (XMEMCMP(cipher_id2, buf, XSTRLEN(cipher_id2)) == 0) {
+                    break;
+                }
+            }
+            /* test case for */
+            if (i != numCiphers) {
+                AssertIntEQ(wolfSSL_CIPHER_get_auth_nid(cipher), expect_nid21);
+                AssertIntEQ(wolfSSL_CIPHER_get_cipher_nid(cipher), expect_nid22);
+                AssertIntEQ(wolfSSL_CIPHER_get_digest_nid(cipher), expect_nid23);
+                AssertIntEQ(wolfSSL_CIPHER_get_kx_nid(cipher), expect_nid24);
+                AssertIntEQ(wolfSSL_CIPHER_is_aead(cipher), expect_nid25);
+            }
+        }
+    }
+    
+    SSL_CTX_free(ctx);
+    SSL_free(ssl);
+    
+    printf(resultFmt, passed);
+#endif
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -46735,6 +46872,7 @@ void ApiTest(void)
 (!defined(NO_RSA) || defined(HAVE_ECC))
     test_for_double_Free();
 #endif
+    test_SSL_CIPHER_get_xxx();
     test_wolfSSL_ERR_strings();
     test_wolfSSL_EVP_shake128();
     test_wolfSSL_EVP_shake256();
