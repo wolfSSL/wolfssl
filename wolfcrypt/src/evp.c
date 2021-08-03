@@ -6730,7 +6730,7 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                     DYNAMIC_TYPE_OPENSSL);
             if (derBuf != NULL) {
                 pkey->pkey.ptr = (char*)derBuf;
-                if (wc_EccPublicKeyToDer(ecc, derBuf, derSz, 1) < 0) {
+                if ((derSz = wc_EccPublicKeyToDer(ecc, derBuf, derSz, 1)) < 0) {
                     XFREE(derBuf, NULL, DYNAMIC_TYPE_OPENSSL);
                     derBuf = NULL;
                 }

@@ -28843,7 +28843,10 @@ static void test_wolfSSL_PEM_PUBKEY(void)
         const char* fname = "./certs/ecc-client-keyPub.pem";
         size_t sz;
         byte* buf;
-
+        
+        EVP_PKEY* pkey2;
+        EC_KEY*   ec_key;
+        
         file = XFOPEN(fname, "rb");
         AssertTrue((file != XBADFILE));
         XFSEEK(file, 0, XSEEK_END);
@@ -28860,6 +28863,19 @@ static void test_wolfSSL_PEM_PUBKEY(void)
         XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
         BIO_free(bio);
         bio = NULL;
+        
+        /* Qt unit test case*/
+        AssertNotNull(pkey2 = EVP_PKEY_new());
+        AssertNotNull(ec_key = EVP_PKEY_get1_EC_KEY(pkey));
+        AssertIntEQ(EVP_PKEY_set1_EC_KEY(pkey2, ec_key), WOLFSSL_SUCCESS);
+        #ifdef WOLFSSL_ERROR_CODE_OPENSSL
+        AssertIntEQ(EVP_PKEY_cmp(pkey, pkey2), 1/* match */);
+        #else
+        AssertIntEQ(EVP_PKEY_cmp(pkey, pkey2), 0);
+        #endif
+        
+        EC_KEY_free(ec_key);
+        EVP_PKEY_free(pkey2);
         EVP_PKEY_free(pkey);
         pkey  = NULL;
     }
