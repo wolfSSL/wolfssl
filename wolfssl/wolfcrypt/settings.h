@@ -2147,17 +2147,18 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-#if !defined(NO_PKCS12) && !defined(NO_PKCS8)
+#ifndef NO_PKCS12
     #undef  HAVE_PKCS12
     #define HAVE_PKCS12
 #endif
 
-#ifndef NO_PKCS8
+#if !defined(NO_PKCS8) || defined(HAVE_PKCS12)
     #undef  HAVE_PKCS8
     #define HAVE_PKCS8
 #endif
 
-#if !defined(NO_PBKDF1) || defined(WOLFSSL_ENCRYPTED_KEYS) || defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
+#if !defined(NO_PBKDF1) || defined(WOLFSSL_ENCRYPTED_KEYS) || \
+    defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
     #undef  HAVE_PBKDF1
     #define HAVE_PBKDF1
 #endif

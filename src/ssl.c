@@ -37830,7 +37830,6 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
     }
 
     rsa->pkcs8HeaderSz = 0;
-#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
     /* Check if input buffer has PKCS8 header. In the case that it does not
      * have a PKCS8 header then do not error out. */
     if ((ret = ToTraditionalInline_ex((const byte*)derBuf, &idx, (word32)derSz,
@@ -37844,7 +37843,6 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
             return WOLFSSL_FATAL_ERROR;
         }
     }
-#endif
 
     if (opt == WOLFSSL_RSA_LOAD_PRIVATE) {
         ret = wc_RsaPrivateKeyDecode(derBuf, &idx, (RsaKey*)rsa->internal, derSz);
@@ -38390,7 +38388,7 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
     }
 
     key->pkcs8HeaderSz = 0;
-#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
+
     /* Check if input buffer has PKCS8 header. In the case that it does not
      * have a PKCS8 header then do not error out. */
     if ((ret = ToTraditionalInline_ex((const byte*)derBuf, &idx, (word32)derSz,
@@ -38404,7 +38402,6 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
             return WOLFSSL_FATAL_ERROR;
         }
     }
-#endif
 
     if (opt == WOLFSSL_EC_KEY_LOAD_PRIVATE) {
         ret = wc_EccPrivateKeyDecode(derBuf, &idx, (ecc_key*)key->internal,
