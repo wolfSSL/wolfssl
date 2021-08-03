@@ -19,6 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* For simpler wolfSSL TLS client examples, visit
+ * https://github.com/wolfSSL/wolfssl-examples/tree/master/tls 
+ */
+
 #ifdef HAVE_CONFIG_H
         #include <config.h>
 #endif
@@ -975,7 +979,7 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* client_usage_msg[][69] = {
+static const char* client_usage_msg[][70] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",          /* 0 */
@@ -1167,8 +1171,10 @@ static const char* client_usage_msg[][69] = {
         " SSLv3(0) - TLS1.2(3)\n",
 #else
         "-7          Set minimum downgrade protocol version [0-4] "
-        " SSLv3(0) - TLS1.3(4)\n",                           /* 69 */
+        " SSLv3(0) - TLS1.3(4)\n\n",                  /* 69 */
 #endif
+        "For simpler wolfSSL TLS client examples, visit\n"
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 70 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1365,8 +1371,10 @@ static const char* client_usage_msg[][69] = {
         " SSLv3(0) - TLS1.2(3)\n",
 #else
         "-7          最小ダウングレード可能なプロトコルバージョンを設定します [0-4] "
-        " SSLv3(0) - TLS1.3(4)\n",                            /* 69 */
+        " SSLv3(0) - TLS1.3(4)\n\n",                            /* 69 */
 #endif
+        "For simpler wolfSSL TLS client examples, visit\n"
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 70 */
         NULL,
     },
 #endif
@@ -1550,6 +1558,7 @@ static void Usage(void)
     printf("%s", msg[++msgid]); /* --wolfsentry-config */
 #endif
     printf("%s", msg[++msgid]); /* -7 */
+    printf("%s", msg[++msgid]); /* Examples repo link */ 
 }
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
