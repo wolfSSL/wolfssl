@@ -777,6 +777,7 @@ AC_ARG_ENABLE([mcast],
 # openssh (--enable-openssh) WOLFSSL_OPENSSH
 # openvpn (--enable-openvpn) WOLFSSL_OPENVPN
 # nginix (--enable-nginx) WOLFSSL_NGINX
+# ntp (--enable-ntp)
 # haproxy (--enable-haproxy) WOLFSSL_HAPROXY
 # wpa_supplicant (--enable-wpas) WOLFSSL_WPAS
 # ssl fortress (--enable-fortress) FORTRESS
@@ -850,6 +851,13 @@ AC_ARG_ENABLE([wpas-dpp],
     [AS_HELP_STRING([--enable-wpas-dpp],[Enable wpa_supplicant support with dpp (default: disabled)])],
     [ ENABLED_WPAS_DPP=$enableval ],
     [ ENABLED_WPAS_DPP=no ]
+    )
+
+# ntp support
+AC_ARG_ENABLE([ntp],
+    [AS_HELP_STRING([--enable-ntp],[Enable ntp support (default: disabled)])],
+    [ ENABLED_NTP=$enableval ],
+    [ ENABLED_NTP=no ]
     )
 
 if test "$ENABLED_WPAS_DPP" = "yes"
@@ -949,7 +957,7 @@ AC_ARG_ENABLE([opensslall],
 [ ENABLED_OPENSSLALL=$enableval ],
 [ ENABLED_OPENSSLALL=no ]
 )
-if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_WPAS_DPP" = "yes" || test "$ENABLED_SMIME" = "yes" || test "$ENABLED_HAPROXY" = "yes" || test "$ENABLED_BIND" = "yes"
+if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_WPAS_DPP" = "yes" || test "$ENABLED_SMIME" = "yes" || test "$ENABLED_HAPROXY" = "yes" || test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" == "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
@@ -965,7 +973,7 @@ AC_ARG_ENABLE([opensslextra],
     [ ENABLED_OPENSSLEXTRA=$enableval ],
     [ ENABLED_OPENSSLEXTRA=no ]
     )
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_SIGNAL" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_BUMP" = "yes" || test "$ENABLED_SNIFFER" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "x$ENABLED_LIGHTY" = "xyes" || test "$ENABLED_LIBSSH2" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_SIGNAL" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_BUMP" = "yes" || test "$ENABLED_SNIFFER" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "x$ENABLED_LIGHTY" = "xyes" || test "$ENABLED_LIBSSH2" = "yes" || test "x$ENABLED_NTP" = "xyes"
 then
     ENABLED_OPENSSLEXTRA="yes"
 fi
@@ -1894,7 +1902,7 @@ AC_ARG_ENABLE([keygen],
     [ ENABLED_KEYGEN=no ]
     )
 
-if test "$ENABLED_BIND" = "yes" || test "$ENABLED_LIBSSH2" = "yes"
+if test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" = "yes" || test "$ENABLED_LIBSSH2" = "yes"
 then
     ENABLED_KEYGEN=yes
 fi 
@@ -1911,7 +1919,7 @@ AC_ARG_ENABLE([certgen],
     [ ENABLED_CERTGEN=$enableval ],
     [ ENABLED_CERTGEN=no ]
     )
-if test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_BIND" = "yes"
+if test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" = "yes"
 then
     ENABLED_CERTGEN=yes
 fi
@@ -2014,7 +2022,7 @@ AC_ARG_ENABLE([dsa],
     [ ENABLED_DSA=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_BIND" = "yes" || test "$ENABLED_LIBSSH2" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_BIND" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_NTP" = "yes"
 then
     ENABLED_DSA="yes"
 fi
@@ -3095,7 +3103,7 @@ AC_ARG_ENABLE([cmac],
     [ ENABLED_CMAC=no ]
     )
 
-if test "$ENABLED_WPAS" != "no"
+if test "$ENABLED_WPAS" != "no" || test "$ENABLED_NTP" = "yes"
 then
     ENABLED_CMAC=yes
 fi
@@ -6936,6 +6944,7 @@ echo "   * HAPROXY:                    $ENABLED_HAPROXY"
 echo "   * STUNNEL:                    $ENABLED_STUNNEL"
 echo "   * tcpdump:                    $ENABLED_TCPDUMP"
 echo "   * libssh2:                    $ENABLED_LIBSSH2"
+echo "   * ntp:                        $ENABLED_NTP"
 echo "   * Apache httpd:               $ENABLED_APACHE_HTTPD"
 echo "   * NGINX:                      $ENABLED_NGINX"
 echo "   * ASIO:                       $ENABLED_ASIO"

@@ -205,6 +205,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define i2d_PUBKEY                      wolfSSL_i2d_PUBKEY
 #define d2i_PUBKEY                      wolfSSL_d2i_PUBKEY
 #define d2i_PUBKEY_bio                  wolfSSL_d2i_PUBKEY_bio
+#define d2i_PublicKey                   wolfSSL_d2i_PublicKey
 #define d2i_PrivateKey                  wolfSSL_d2i_PrivateKey
 #define d2i_AutoPrivateKey              wolfSSL_d2i_AutoPrivateKey
 #define SSL_use_PrivateKey              wolfSSL_use_PrivateKey
@@ -378,7 +379,6 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
     #define X509_EXTENSION_get_data     wolfSSL_X509_EXTENSION_get_data
     #define X509_EXTENSION_new          wolfSSL_X509_EXTENSION_new
     #define X509_EXTENSION_free         wolfSSL_X509_EXTENSION_free
-    #define X509_gmtime_adj             wolfSSL_X509_gmtime_adj
 #endif
 
 #define DSA_dup_DH                      wolfSSL_DSA_dup_DH
@@ -405,6 +405,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define PEM_write_bio_X509_AUX          wolfSSL_PEM_write_bio_X509_AUX
 #define PEM_X509_INFO_read_bio          wolfSSL_PEM_X509_INFO_read_bio
 #define i2d_PrivateKey                  wolfSSL_i2d_PrivateKey
+#define i2d_PublicKey                   wolfSSL_i2d_PublicKey
 
 #define i2d_X509_REQ                    wolfSSL_i2d_X509_REQ
 #define d2i_X509_REQ                    wolfSSL_d2i_X509_REQ
@@ -554,6 +555,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_cmp_time                   wolfSSL_X509_cmp_time
 #define X509_time_adj                   wolfSSL_X509_time_adj
 #define X509_time_adj_ex                wolfSSL_X509_time_adj_ex
+#define X509_gmtime_adj                 wolfSSL_X509_gmtime_adj
 
 #define sk_ACCESS_DESCRIPTION_num       wolfSSL_sk_ACCESS_DESCRIPTION_num
 #define sk_ACCESS_DESCRIPTION_value     wolfSSL_sk_ACCESS_DESCRIPTION_value
@@ -843,6 +845,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define RSA_generate_key                wolfSSL_RSA_generate_key
 #define SSL_CTX_set_tmp_rsa_callback    wolfSSL_CTX_set_tmp_rsa_callback
 #define RSA_print                       wolfSSL_RSA_print
+#define RSA_print_fp                    wolfSSL_RSA_print_fp
 #define RSA_bits                        wolfSSL_RSA_bits
 #define RSA_up_ref                      wolfSSL_RSA_up_ref
 #define RSA_padding_add_PKCS1_PSS       wolfSSL_RSA_padding_add_PKCS1_PSS
@@ -1399,6 +1402,11 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define LN_pkcs9_emailAddress           "emailAddress"
 #define NID_pkcs9_emailAddress          48
 #define OBJ_pkcs9_emailAddress          1L,2L,840L,113539L,1L,9L,1L
+
+#define LN_basic_constraints            "X509v3 Basic Constraints"
+#define LN_key_usage                    "X509v3 Key Usage"
+#define LN_subject_key_identifier       "X509v3 Subject Key Identifier"
+#define LN_ext_key_usage                "X509v3 Extended Key Usage"
 
 #define SSL_get_rbio                    wolfSSL_SSL_get_rbio
 #define SSL_get_wbio                    wolfSSL_SSL_get_wbio

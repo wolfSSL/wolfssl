@@ -3587,12 +3587,12 @@ const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
     return NULL;
 }
 
-int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
+int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
 {
     const struct s_ent *ent ;
     WOLFSSL_ENTER("EVP_MD_type");
     for( ent = md_tbl; ent->name != NULL; ent++){
-        if(XSTRNCMP((const char *)md, ent->name, XSTRLEN(ent->name)+1) == 0) {
+        if(XSTRNCMP((const char *)type, ent->name, XSTRLEN(ent->name)+1) == 0) {
             return ent->nid;
         }
     }
@@ -6143,9 +6143,21 @@ const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int id)
         case NID_sha1:
             return wolfSSL_EVP_sha1();
 #endif
+#ifdef WOLFSSL_SHA224
+        case NID_sha224:
+            return wolfSSL_EVP_sha224();
+#endif
 #ifndef NO_SHA256
         case NID_sha256:
             return wolfSSL_EVP_sha256();
+#endif
+#ifdef WOLFSSL_SHA384
+        case NID_sha384:
+            return wolfSSL_EVP_sha384();
+#endif
+#ifdef WOLFSSL_SHA512
+        case NID_sha512:
+            return wolfSSL_EVP_sha512();
 #endif
         default:
             WOLFSSL_MSG("Bad digest id value");
@@ -6940,6 +6952,39 @@ int wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* type)
 
     return BAD_FUNC_ARG;
 }
+
+int wolfSSL_EVP_MD_pkey_type(const WOLFSSL_EVP_MD* type)
+{
+    int ret = BAD_FUNC_ARG;
+
+    WOLFSSL_ENTER("wolfSSL_EVP_MD_pkey_type");
+
+    if (type != NULL) {
+        if (XSTRNCMP(type, "MD5", 3) == 0) {
+            ret = NID_md5WithRSAEncryption;
+        }
+        else if (XSTRNCMP(type, "SHA1", 4) == 0) {
+            ret = NID_sha1WithRSAEncryption;
+        }
+        else if (XSTRNCMP(type, "SHA224", 6) == 0) {
+            ret = NID_sha224WithRSAEncryption;
+        }
+        else if (XSTRNCMP(type, "SHA256", 6) == 0) {
+            ret = NID_sha256WithRSAEncryption;
+        }
+        else if (XSTRNCMP(type, "SHA384", 6) == 0) {
+            ret = NID_sha384WithRSAEncryption;
+        }
+        else if (XSTRNCMP(type, "SHA512", 6) == 0) {
+            ret = NID_sha512WithRSAEncryption;
+        }
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_EVP_MD_pkey_type", ret);
+
+    return ret;
+}
+
 
 
 int wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX* ctx)
