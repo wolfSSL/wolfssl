@@ -29,7 +29,11 @@ ifeq "$(WOLFSSL_CFLAGS)" ""
     $(error $$WOLFSSL_CFLAGS is unset.)
 endif
 
-WOLFSSL_CFLAGS += -ffreestanding -Wframe-larger-than=$(MAX_STACK_FRAME_SIZE) -mpreferred-stack-boundary=4
+WOLFSSL_CFLAGS += -ffreestanding -Wframe-larger-than=$(MAX_STACK_FRAME_SIZE)
+
+ifeq "$(KERNEL_ARCH)" "x86"
+    WOLFSSL_CFLAGS += -mpreferred-stack-boundary=4
+endif
 
 obj-m := libwolfssl.o
 
@@ -70,7 +74,10 @@ $(obj)/wolfcrypt/test/test.o: ccflags-y += -DNO_MAIN_DRIVER
 $(obj)/wolfcrypt/src/aes.o: ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFCRYPT_CFLAGS) $(WOLFSSL_CFLAGS_YES_VECTOR_INSNS)
 
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
-    PIE_FLAGS := -mcmodel=small -fPIE -fno-stack-protector -mindirect-branch=keep -mfunction-return=keep -fno-toplevel-reorder
+    PIE_FLAGS := -mcmodel=small -fPIE -fno-stack-protector -fno-toplevel-reorder
+    ifeq "$(KERNEL_ARCH)" "x86"
+        PIE_FLAGS += -mindirect-branch=keep -mfunction-return=keep
+    endif
     $(WOLFCRYPT_PIE_FILES): ccflags-y += $(PIE_FLAGS)
     $(WOLFCRYPT_PIE_FILES): ccflags-remove-y += -pg
     # disabling retpoline generation leads to profuse warnings without this:

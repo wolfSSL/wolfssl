@@ -2529,8 +2529,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
 #endif /* WOLFSSL_NUCLEUS_1_2 */
 
-#ifdef WOLFSSL_LINUXKM
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+#if defined(WOLFSSL_LINUXKM) && defined(HAVE_KVMALLOC)
     /* adapted from kvrealloc() draft by Changli Gao, 2010-05-13 */
     void *lkm_realloc(void *ptr, size_t newsize) {
         void *nptr;
@@ -2578,8 +2577,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
 	return nptr;
     }
-#endif /* >= 4.12 */
-#endif /* WOLFSSL_LINUXKM */
+#endif /* WOLFSSL_LINUXKM && HAVE_KVMALLOC */
 
 #if defined(WOLFSSL_TI_CRYPT) || defined(WOLFSSL_TI_HASH)
     #include <wolfcrypt/src/port/ti/ti-ccm.c>  /* initialize and Mutex for TI Crypt Engine */

@@ -206,12 +206,14 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
     wolfssl_linuxkm_pie_redirect_table._ctype = _ctype;
 
-    wolfssl_linuxkm_pie_redirect_table.kvfree = kvfree;
-    wolfssl_linuxkm_pie_redirect_table.kvmalloc_node = kvmalloc_node;
     wolfssl_linuxkm_pie_redirect_table.kmalloc = kmalloc;
     wolfssl_linuxkm_pie_redirect_table.kfree = kfree;
     wolfssl_linuxkm_pie_redirect_table.ksize = ksize;
     wolfssl_linuxkm_pie_redirect_table.krealloc = krealloc;
+    #ifdef HAVE_KVMALLOC
+    wolfssl_linuxkm_pie_redirect_table.kvmalloc_node = kvmalloc_node;
+    wolfssl_linuxkm_pie_redirect_table.kvfree = kvfree;
+    #endif
     wolfssl_linuxkm_pie_redirect_table.is_vmalloc_addr = is_vmalloc_addr;
     wolfssl_linuxkm_pie_redirect_table.kmem_cache_alloc_trace =
         kmem_cache_alloc_trace;
@@ -225,8 +227,13 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
         ktime_get_with_offset;
 
 #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP)
+    #ifdef kernel_fpu_begin
     wolfssl_linuxkm_pie_redirect_table.kernel_fpu_begin_mask =
         kernel_fpu_begin_mask;
+    #else
+    wolfssl_linuxkm_pie_redirect_table.kernel_fpu_begin =
+        kernel_fpu_begin;
+    #endif
     wolfssl_linuxkm_pie_redirect_table.kernel_fpu_end = kernel_fpu_end;
 #endif
 

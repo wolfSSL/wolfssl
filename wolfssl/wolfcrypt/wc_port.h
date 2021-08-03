@@ -146,6 +146,11 @@
     #define NO_THREAD_LS
     #define NO_ATTRIBUTE_CONSTRUCTOR
 
+    /* kvmalloc()/kvfree() and friends added in linux commit a7c3e901 */
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+        #define HAVE_KVMALLOC
+    #endif
+
     #ifdef HAVE_FIPS
         extern int wolfCrypt_FIPS_first(void);
         extern int wolfCrypt_FIPS_last(void);
@@ -186,12 +191,14 @@
 
         const unsigned char *_ctype;
 
-        typeof(kvfree) *kvfree;
-        typeof(kvmalloc_node) *kvmalloc_node;
         typeof(kmalloc) *kmalloc;
         typeof(kfree) *kfree;
         typeof(ksize) *ksize;
         typeof(krealloc) *krealloc;
+        #ifdef HAVE_KVMALLOC
+        typeof(kvmalloc_node) *kvmalloc_node;
+        typeof(kvfree) *kvfree;
+        #endif
         typeof(is_vmalloc_addr) *is_vmalloc_addr;
         typeof(kmem_cache_alloc_trace) *kmem_cache_alloc_trace;
         typeof(kmalloc_order_trace) *kmalloc_order_trace;
@@ -201,7 +208,14 @@
         typeof(ktime_get_with_offset) *ktime_get_with_offset;
 
         #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP)
-        typeof(kernel_fpu_begin_mask) *kernel_fpu_begin_mask;
+        /* kernel_fpu_begin() replaced by kernel_fpu_begin_mask() in commit e4512289,
+         * released in kernel 5.11, backported to 5.4.93
+         */
+        #ifdef kernel_fpu_begin
+            typeof(kernel_fpu_begin_mask) *kernel_fpu_begin_mask;
+        #else
+            typeof(kernel_fpu_begin) *kernel_fpu_begin;
+        #endif
         typeof(kernel_fpu_end) *kernel_fpu_end;
         #endif
 
@@ -243,12 +257,14 @@
 
     #define _ctype (wolfssl_linuxkm_get_pie_redirect_table()->_ctype)
 
-    #define kvfree (wolfssl_linuxkm_get_pie_redirect_table()->kvfree)
-    #define kvmalloc_node (wolfssl_linuxkm_get_pie_redirect_table()->kvmalloc_node)
     #define kmalloc (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc)
     #define kfree (wolfssl_linuxkm_get_pie_redirect_table()->kfree)
     #define ksize (wolfssl_linuxkm_get_pie_redirect_table()->ksize)
     #define krealloc (wolfssl_linuxkm_get_pie_redirect_table()->krealloc)
+    #ifdef HAVE_KVMALLOC
+        #define kvmalloc_node (wolfssl_linuxkm_get_pie_redirect_table()->kvmalloc_node)
+        #define kvfree (wolfssl_linuxkm_get_pie_redirect_table()->kvfree)
+    #endif
     #define is_vmalloc_addr (wolfssl_linuxkm_get_pie_redirect_table()->is_vmalloc_addr)
     #define kmem_cache_alloc_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmem_cache_alloc_trace)
     #define kmalloc_order_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_order_trace)
@@ -258,8 +274,11 @@
     #define ktime_get_with_offset (wolfssl_linuxkm_get_pie_redirect_table()->ktime_get_with_offset)
 
     #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP)
-        #define kernel_fpu_begin_mask (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_begin_mask)
-        #define kernel_fpu_begin() kernel_fpu_begin_mask(KFPU_MXCSR)
+        #ifdef kernel_fpu_begin
+            #define kernel_fpu_begin_mask (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_begin_mask)
+        #else
+            #define kernel_fpu_begin (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_begin)
+        #endif
         #define kernel_fpu_end (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_end)
     #endif
 
@@ -288,23 +307,58 @@
     /* Linux headers define these using C expressions, but we need
      * them to be evaluable by the preprocessor, for use in sp_int.h.
      */
-    _Static_assert(sizeof(ULONG_MAX) == 8, "WOLFSSL_LINUXKM supported only on targets with 64 bit long words.");
-    #undef UCHAR_MAX
-    #define UCHAR_MAX 255
-    #undef USHRT_MAX
-    #define USHRT_MAX 65535
-    #undef UINT_MAX
-    #define UINT_MAX 4294967295U
-    #undef ULONG_MAX
-    #define ULONG_MAX 18446744073709551615UL
-    #undef ULLONG_MAX
-    #define ULLONG_MAX ULONG_MAX
-    #undef INT_MAX
-    #define INT_MAX 2147483647
-    #undef LONG_MAX
-    #define LONG_MAX 9223372036854775807L
-    #undef LLONG_MAX
-    #define LLONG_MAX LONG_MAX
+    #if BITS_PER_LONG == 64
+        _Static_assert(sizeof(ULONG_MAX) == 8, "BITS_PER_LONG is 64, but ULONG_MAX is not.");
+
+        #undef UCHAR_MAX
+        #define UCHAR_MAX 255
+        #undef USHRT_MAX
+        #define USHRT_MAX 65535
+        #undef UINT_MAX
+        #define UINT_MAX 4294967295U
+        #undef ULONG_MAX
+        #define ULONG_MAX 18446744073709551615UL
+        #undef ULLONG_MAX
+        #define ULLONG_MAX ULONG_MAX
+        #undef INT_MAX
+        #define INT_MAX 2147483647
+        #undef LONG_MAX
+        #define LONG_MAX 9223372036854775807L
+        #undef LLONG_MAX
+        #define LLONG_MAX LONG_MAX
+
+    #elif BITS_PER_LONG == 32
+
+        _Static_assert(sizeof(ULONG_MAX) == 4, "BITS_PER_LONG is 32, but ULONG_MAX is not.");
+
+        #undef UCHAR_MAX
+        #define UCHAR_MAX 255
+        #undef USHRT_MAX
+        #define USHRT_MAX 65535
+        #undef UINT_MAX
+        #define UINT_MAX 4294967295U
+        #undef ULONG_MAX
+        #define ULONG_MAX 4294967295UL
+        #undef INT_MAX
+        #define INT_MAX 2147483647
+        #undef LONG_MAX
+        #define LONG_MAX 2147483647L
+
+        #undef ULLONG_MAX
+        #undef LLONG_MAX
+        #if BITS_PER_LONG_LONG == 64
+            #define ULONG_MAX 18446744073709551615UL
+            #define LLONG_MAX 9223372036854775807L
+        #else
+            #undef NO_64BIT
+            #define NO_64BIT
+            #define ULLONG_MAX ULONG_MAX
+            #define LLONG_MAX LONG_MAX
+        #endif
+
+#else
+        #error unexpected BITS_PER_LONG value.
+#endif
 
     /* remove this multifariously conflicting macro, picked up from
      * Linux arch/<arch>/include/asm/current.h.
@@ -316,17 +370,16 @@
      */
     #define _MM_MALLOC_H_INCLUDED
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
-    /* kvmalloc()/kvfree() and friends added in linux commit a7c3e901 */
-    #define malloc(x) kvmalloc_node(x, GFP_KERNEL, NUMA_NO_NODE)
-    #define free(x) kvfree(x)
-    void *lkm_realloc(void *ptr, size_t newsize);
-    #define realloc(x, y) lkm_realloc(x, y)
-#else
-    #define malloc(x) kmalloc(x, GFP_KERNEL)
-    #define free(x) kfree(x)
-    #define realloc(x,y) krealloc(x, y, GFP_KERNEL)
-#endif
+    #ifdef HAVE_KVMALLOC
+        #define malloc(x) kvmalloc_node(x, GFP_KERNEL, NUMA_NO_NODE)
+        #define free(x) kvfree(x)
+        void *lkm_realloc(void *ptr, size_t newsize);
+        #define realloc(x, y) lkm_realloc(x, y)
+    #else
+        #define malloc(x) kmalloc(x, GFP_KERNEL)
+        #define free(x) kfree(x)
+        #define realloc(x,y) krealloc(x, y, GFP_KERNEL)
+    #endif
 
     /* min() and max() in linux/kernel.h over-aggressively type-check, producing
      * myriad spurious -Werrors throughout the codebase.
