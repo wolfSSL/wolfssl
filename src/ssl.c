@@ -14072,6 +14072,22 @@ static WC_INLINE void RestoreSession(WOLFSSL* ssl, WOLFSSL_SESSION* session,
 #endif
 }
 
+static int SslSessionCacheOn(const WOLFSSL* ssl, const WOLFSSL_SESSION* session)
+{
+    (void)session;
+    if (ssl->options.sessionCacheOff
+    #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_FORCE_CACHE_ON_TICKET)
+                && session->ticketLen == 0
+    #endif
+    #ifdef OPENSSL_EXTRA
+                && ssl->options.side != WOLFSSL_CLIENT_END
+    #endif
+                )
+        return WOLFSSL_FAILURE;
+    else
+        return WOLFSSL_SUCCESS;
+}
+
 WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
         byte restoreSessionCerts)
 {
@@ -14084,14 +14100,7 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
 
     (void)       restoreSessionCerts;
 
-    if (ssl->options.sessionCacheOff
-#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_FORCE_CACHE_ON_TICKET)
-            && ssl->session.ticketLen == 0
-#endif
-#ifdef OPENSSL_EXTRA
-            && ssl->options.side != WOLFSSL_CLIENT_END
-#endif
-            )
+    if (!SslSessionCacheOn(ssl, &ssl->session))
         return NULL;
 
     if (ssl->options.haveSessionId == 0)
@@ -14295,17 +14304,9 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
     return ret;
 }
 
-
 int SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 {
-    if (ssl == NULL || (ssl->options.sessionCacheOff
-#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_FORCE_CACHE_ON_TICKET)
-            && session->ticketLen == 0
-#endif
-#ifdef OPENSSL_EXTRA
-            && ssl->options.side != WOLFSSL_CLIENT_END
-#endif
-            ))
+    if (ssl == NULL || !SslSessionCacheOn(ssl, session))
         return WOLFSSL_FAILURE;
 
 #ifdef OPENSSL_EXTRA
@@ -14370,14 +14371,7 @@ int AddSession(WOLFSSL* ssl)
     int cbRet = 0;
 #endif
 
-    if (ssl->options.sessionCacheOff
-#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_FORCE_CACHE_ON_TICKET)
-            && ssl->session.ticketLen == 0
-#endif
-#ifdef OPENSSL_EXTRA
-            && ssl->options.side != WOLFSSL_CLIENT_END
-#endif
-            )
+    if (!SslSessionCacheOn(ssl, &ssl->session))
         return 0;
 
     if (ssl->options.haveSessionId == 0)
