@@ -19,8 +19,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#include "caam_driver.h"
-#include "wolfssl/version.h"
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
+#include <wolfssl/wolfcrypt/settings.h>
+
+#if defined(__QNX__) || defined(__QNXNTO__)
+
+#include <wolfssl/wolfcrypt/port/caam/caam_driver.h>
+#include <wolfssl/version.h>
 
 #include <errno.h>
 #include <stdio.h>
@@ -193,7 +201,7 @@ void CAAM_ADR_UNMAP(void* vaddr, unsigned int out, int outSz,
 }
 
 
-/* syncoronize virtual buffer with physical
+/* synchronize virtual buffer with physical
  * return 0 on success */
 int CAAM_ADR_SYNC(void* vaddr, int sz)
 {
@@ -1115,7 +1123,7 @@ int io_devctl (resmgr_context_t *ctp, io_devctl_t *msg, iofunc_ocb_t *ocb)
             break;
 
         case WC_CAAM_FIND_PART:
-            ret = caamFindUnusuedPartition();
+            ret = caamFindUnusedPartition();
             if (ret < 0) {
                 /* none found, try again later */
                 return EAGAIN;
@@ -1289,3 +1297,4 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+#endif /* __QNX__ || __QNXNTO__ */

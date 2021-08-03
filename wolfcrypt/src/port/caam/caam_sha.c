@@ -19,6 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
 
 #include <wolfssl/wolfcrypt/settings.h>
 
@@ -35,7 +38,9 @@
 #endif
 
 
+#if defined(__INTEGRITY) || defined(INTEGRITY)
 #include <INTEGRITY.h>
+#endif
 #include <wolfssl/wolfcrypt/port/caam/caam_driver.h>
 #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 
@@ -393,5 +398,4 @@ int wc_Sha512Final(wc_Sha512* sha, byte* out)
 }
 #endif /* WOLFSSL_SHA512 */
 
-#endif /* WOLFSSL_IMX6_CAAM */
-
+#endif /* WOLFSSL_IMX6_CAAM && !NO_IMX6_CAAM_HASH */

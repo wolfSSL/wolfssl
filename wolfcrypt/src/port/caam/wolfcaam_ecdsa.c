@@ -25,7 +25,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(HAVE_ECC) && defined(WOLFSSL_QNX_CAAM)
+#if defined(WOLFSSL_QNX_CAAM) && defined(HAVE_ECC)
 
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -466,4 +466,4 @@ int wc_CAAM_EccCheckPrivKey(ecc_key* key, const byte* pubKey, word32 pubKeySz) {
     return CRYPTOCB_UNAVAILABLE;
 }
 
-#endif /* HAVE_ECC && WOLFSSL_QNX_CAAM */
+#endif /* WOLFSSL_QNX_CAAM && HAVE_ECC */

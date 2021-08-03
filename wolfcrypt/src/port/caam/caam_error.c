@@ -19,8 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#include "caam_driver.h"
-#include "caam_error.h"
+#if (defined(__INTEGRITY) || defined(INTEGRITY)) || \
+    (defined(__QNX__) || defined(__QNXNTO__))
+
+#include <wolfssl/wolfcrypt/port/caam/caam_driver.h>
+#include <wolfssl/wolfcrypt/port/caam/caam_error.h>
 
 /* return a negative value if CAAM reset needed */
 int caamParseCCBError(unsigned int error)
@@ -205,3 +208,4 @@ unsigned int caamParseJRError(unsigned int error)
     return err;
 }
 
+#endif

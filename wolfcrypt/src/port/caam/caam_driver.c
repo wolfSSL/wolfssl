@@ -19,7 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
 #if (defined(__INTEGRITY) || defined(INTEGRITY)) || \
     (defined(__QNX__) || defined(__QNXNTO__))
 
@@ -29,11 +28,11 @@
     #include <sys/iofunc.h>
     #include <sys/neutrino.h>
 
-    #include "caam_qnx.h"
+    #include <wolfssl/wolfcrypt/port/caam/caam_qnx.h>
 #endif
 
-#include "caam_driver.h"
-#include "caam_error.h"
+#include <wolfssl/wolfcrypt/port/caam/caam_driver.h>
+#include <wolfssl/wolfcrypt/port/caam/caam_error.h>
 
 #include <string.h> /* for memcpy / memset */
 
@@ -265,7 +264,7 @@ static Error caamFreeAllPart()
 /* search through the partitions to find an unused one
  * returns negative value on failure, on success returns 0 or greater
  */
-int caamFindUnusuedPartition()
+int caamFindUnusedPartition()
 {
     unsigned int SMPO;
     unsigned int i;
@@ -870,7 +869,7 @@ int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
     desc->desc[desc->idx++] = pdECDSEL;
     if (isBlackKey == 1) {
         /* create secure partition for private key out */
-        part = caamFindUnusuedPartition();
+        part = caamFindUnusedPartition();
         if (part < 0) {
             WOLFSSL_MSG("error finding an unused partition for new key");
             return -1;
@@ -1527,4 +1526,5 @@ int CleanupCAAM()
     caamFreeAllPart();
     return 0;
 }
-#endif
+
+#endif /* __INTEGRITY || INTEGRITY || __QNX__ || __QNXNTO__ */
