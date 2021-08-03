@@ -11646,6 +11646,7 @@ int wc_PemToDer(const unsigned char* buff, long longSz, int type,
               DerBuffer** pDer, void* heap, EncryptedInfo* info, int* keyFormat)
 {
     int ret = PemToDer(buff, longSz, type, pDer, heap, info, keyFormat);
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
     if (ret == 0 && type == PRIVATEKEY_TYPE) {
         DerBuffer* der = *pDer;
         /* if a PKCS8 key header exists remove it */
@@ -11655,6 +11656,7 @@ int wc_PemToDer(const unsigned char* buff, long longSz, int type,
             ret = 0;
         }
     }
+#endif
     return ret;
 }
 

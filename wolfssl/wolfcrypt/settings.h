@@ -2147,7 +2147,7 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-#ifndef NO_PKCS12
+#if !defined(NO_PKCS12) && !defined(NO_PKCS8)
     #undef  HAVE_PKCS12
     #define HAVE_PKCS12
 #endif
