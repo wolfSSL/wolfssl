@@ -69,7 +69,8 @@ static void lkmFipsCb(int ok, int err, const char* hash)
         pr_err("libwolfssl FIPS error: %s\n", wc_GetErrorString(err));
     if (err == IN_CORE_FIPS_E) {
         pr_err("In-core integrity hash check failure.\n");
-        pr_err("Update verifyCore[] in fips_test.c with new hash \"%s\" and rebuild.\n", hash ? hash : "<null>");
+        pr_err("Update verifyCore[] in fips_test.c with new hash \"%s\" and rebuild.\n",
+               hash ? hash : "<null>");
     }
 }
 #endif
@@ -104,7 +105,8 @@ static int wolfssl_init(void)
         pr_err("wolfCrypt_GetStatus_fips() failed: %s", wc_GetErrorString(ret));
         if (ret == IN_CORE_FIPS_E) {
             const char *newhash = wolfCrypt_GetCoreHash_fips();
-            pr_err("Update verifyCore[] in fips_test.c with new hash \"%s\" and rebuild.\n", newhash ? newhash : "<null>");
+            pr_err("Update verifyCore[] in fips_test.c with new hash \"%s\" and rebuild.\n",
+                   newhash ? newhash : "<null>");
         }
         return -ECANCELED;
     }
@@ -113,7 +115,8 @@ static int wolfssl_init(void)
 
 #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 3)
             "ready"
-#elif defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2) && defined(WOLFCRYPT_FIPS_RAND)
+#elif defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2) \
+    && defined(WOLFCRYPT_FIPS_RAND)
             "140-2 rand"
 #elif defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2)
             "140-2"
@@ -181,7 +184,10 @@ MODULE_VERSION(LIBWOLFSSL_VERSION_STRING);
 #ifdef HAVE_LINUXKM_PIE_SUPPORT
 
 static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
-    memset(&wolfssl_linuxkm_pie_redirect_table, 0, sizeof wolfssl_linuxkm_pie_redirect_table);
+    memset(
+        &wolfssl_linuxkm_pie_redirect_table,
+        0,
+        sizeof wolfssl_linuxkm_pie_redirect_table);
 
     wolfssl_linuxkm_pie_redirect_table.memcmp = memcmp;
     wolfssl_linuxkm_pie_redirect_table.memcpy = memcpy;
@@ -207,15 +213,20 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.ksize = ksize;
     wolfssl_linuxkm_pie_redirect_table.krealloc = krealloc;
     wolfssl_linuxkm_pie_redirect_table.is_vmalloc_addr = is_vmalloc_addr;
-    wolfssl_linuxkm_pie_redirect_table.kmem_cache_alloc_trace = kmem_cache_alloc_trace;
-    wolfssl_linuxkm_pie_redirect_table.kmalloc_order_trace = kmalloc_order_trace;
+    wolfssl_linuxkm_pie_redirect_table.kmem_cache_alloc_trace =
+        kmem_cache_alloc_trace;
+    wolfssl_linuxkm_pie_redirect_table.kmalloc_order_trace =
+        kmalloc_order_trace;
 
     wolfssl_linuxkm_pie_redirect_table.get_random_bytes = get_random_bytes;
-    wolfssl_linuxkm_pie_redirect_table.ktime_get_real_seconds = ktime_get_real_seconds;
-    wolfssl_linuxkm_pie_redirect_table.ktime_get_with_offset = ktime_get_with_offset;
+    wolfssl_linuxkm_pie_redirect_table.ktime_get_real_seconds =
+        ktime_get_real_seconds;
+    wolfssl_linuxkm_pie_redirect_table.ktime_get_with_offset =
+        ktime_get_with_offset;
 
 #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP)
-    wolfssl_linuxkm_pie_redirect_table.kernel_fpu_begin_mask = kernel_fpu_begin_mask;
+    wolfssl_linuxkm_pie_redirect_table.kernel_fpu_begin_mask =
+        kernel_fpu_begin_mask;
     wolfssl_linuxkm_pie_redirect_table.kernel_fpu_end = kernel_fpu_end;
 #endif
 
@@ -224,8 +235,10 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.mutex_unlock = mutex_unlock;
 
 #ifdef HAVE_FIPS
-    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_first = wolfCrypt_FIPS_first;
-    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_last = wolfCrypt_FIPS_last;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_first =
+        wolfCrypt_FIPS_first;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_last =
+        wolfCrypt_FIPS_last;
 #endif
 
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)

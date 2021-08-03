@@ -19,8 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#define FIPS_NO_WRAPPERS
-
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -41,10 +39,12 @@ void *_GLOBAL_OFFSET_TABLE_ = 0;
 
 struct wolfssl_linuxkm_pie_redirect_table wolfssl_linuxkm_pie_redirect_table;
 
-const struct wolfssl_linuxkm_pie_redirect_table *wolfssl_linuxkm_get_pie_redirect_table(void) {
+const struct wolfssl_linuxkm_pie_redirect_table
+*wolfssl_linuxkm_get_pie_redirect_table(void) {
     return &wolfssl_linuxkm_pie_redirect_table;
 }
 
 const unsigned int wolfCrypt_All_ro_end[];
 const unsigned int wolfCrypt_All_ro_end[] =
+/* random values, analogous to wolfCrypt_FIPS_ro_{start,end} */
 { 0xa4aaaf71, 0x55c4b7d0 };

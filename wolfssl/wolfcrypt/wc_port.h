@@ -83,6 +83,7 @@
     _Pragma("GCC diagnostic ignored \"-Wbad-function-cast\"");
     _Pragma("GCC diagnostic ignored \"-Wdiscarded-qualifiers\"");
     _Pragma("GCC diagnostic ignored \"-Wtype-limits\"");
+    _Pragma("GCC diagnostic ignored \"-Wswitch-enum\"");
 
     /* suppress inclusion of stdint-gcc.h to avoid conflicts with Linux native include/linux/types.h: */
     #define _GCC_STDINT_H

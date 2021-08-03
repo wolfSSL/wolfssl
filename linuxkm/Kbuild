@@ -31,10 +31,6 @@ endif
 
 WOLFSSL_CFLAGS += -ffreestanding -Wframe-larger-than=$(MAX_STACK_FRAME_SIZE) -mpreferred-stack-boundary=4
 
-ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
-    PIE_FLAGS := -mcmodel=small -fPIE -mindirect-branch=keep -mfunction-return=keep -fno-toplevel-reorder
-endif
-
 obj-m := libwolfssl.o
 
 WOLFSSL_OBJ_TARGETS := $(patsubst %, $(obj)/%, $(WOLFSSL_OBJ_FILES))
@@ -74,7 +70,9 @@ $(obj)/wolfcrypt/test/test.o: ccflags-y += -DNO_MAIN_DRIVER
 $(obj)/wolfcrypt/src/aes.o: ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFCRYPT_CFLAGS) $(WOLFSSL_CFLAGS_YES_VECTOR_INSNS)
 
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
+    PIE_FLAGS := -mcmodel=small -fPIE -fno-stack-protector -mindirect-branch=keep -mfunction-return=keep -fno-toplevel-reorder
     $(WOLFCRYPT_PIE_FILES): ccflags-y += $(PIE_FLAGS)
+    $(WOLFCRYPT_PIE_FILES): ccflags-remove-y += -pg
     # disabling retpoline generation leads to profuse warnings without this:
     $(WOLFCRYPT_PIE_FILES): OBJECT_FILES_NON_STANDARD := y
 endif
@@ -89,7 +87,6 @@ $(obj)/wolfcrypt/src/aes_gcm_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU
 # these _asms are kernel-compatible, but they still irritate objtool:
 $(obj)/wolfcrypt/src/aes_asm.o: OBJECT_FILES_NON_STANDARD := y
 $(obj)/wolfcrypt/src/aes_gcm_asm.o: OBJECT_FILES_NON_STANDARD := y
-
 
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 
