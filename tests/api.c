@@ -27802,6 +27802,7 @@ static void test_wolfSSL_certs(void)
 #ifdef OPENSSL_ALL
     X509*  x509;
     WOLFSSL_X509_EXTENSION* ext;
+    ASN1_OBJECT* obj;
 #endif
     WOLFSSL*     ssl;
     WOLFSSL_CTX* ctx;
@@ -27883,8 +27884,9 @@ static void test_wolfSSL_certs(void)
 
     AssertNotNull(ext = X509_EXTENSION_new());
     X509_EXTENSION_set_critical(ext, 1);
-    AssertIntEQ(X509_EXTENSION_set_object(ext,
-        OBJ_nid2obj(NID_basic_constraints)), SSL_SUCCESS);
+    AssertNotNull(obj = OBJ_nid2obj(NID_basic_constraints));
+    AssertIntEQ(X509_EXTENSION_set_object(ext, obj), SSL_SUCCESS);
+    ASN1_OBJECT_free(obj);
     X509_EXTENSION_free(ext);
 #endif
     AssertIntEQ(crit, 0);
