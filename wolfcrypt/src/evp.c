@@ -3540,25 +3540,20 @@ int wolfSSL_EVP_Digest(const unsigned char* in, int inSz, unsigned char* out,
     return WOLFSSL_SUCCESS;
 }
 
+static const struct alias {
+            const char *name;
+            const char *alias;
+} alias_tbl[] =
+{
+    {"MD4", "ssl3-md4"},
+    {"MD5", "ssl3-md5"},
+    {"SHA1", "ssl3-sha1"},
+    {"SHA1", "SHA"},
+    { NULL, NULL}
+};
+
 const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
 {
-    static const struct alias {
-        const char *name;
-        const char *alias;
-    } alias_tbl[] =
-    {
-        {"MD4", "ssl3-md4"},
-        {"MD5", "ssl3-md5"},
-        {"SHA1", "ssl3-sha1"},
-        {"SHA1", "SHA"},
-#ifdef HAVE_BLAKE2
-        {"BLAKE2b512", "blake2b512"},
-#endif
-#ifdef HAVE_BLAKE2S
-        {"BLAKE2s256", "blake2s256"},
-#endif
-        { NULL, NULL}
-    };
     char nameUpper[15]; /* 15 bytes should be enough for any name */
     size_t i;
 
@@ -3968,7 +3963,112 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         }
         return (WOLFSSL_EVP_MD *)NULL;
     }
-
+    
+    /* return alias name if has
+     * @param n message digest type name
+     * @return alias name, otherwise NULL
+     */
+    static const char* hasAliasName(const char* n) 
+    {
+        
+        const char* aliasnm = NULL;
+        const struct alias  *al;
+        
+        for (al = alias_tbl; al->name != NULL; al++)
+            if(XSTRNCMP(n, al->name, XSTRLEN(al->name)+1) == 0) {
+                aliasnm = al->alias;
+                break;
+            }
+        
+        return aliasnm;
+    }
+    
+    
+    struct do_all_md {
+        void *arg;
+        void (*fn) (const WOLFSSL_EVP_MD *m, 
+                    const char* from, const char* to, void *arg);
+    };
+    
+    /* do all md algorithm
+     * @param nm a pointer to WOLFSSL_OBJ_NAME
+     * @param arg arguments to pass to the callback
+     * @return none
+     */
+    static void md_do_all_func(const WOLFSSL_OBJ_NAME* nm, void* arg)
+    {
+        struct do_all_md *md = (struct do_all_md*)arg;
+        
+        const char* alias = NULL;
+        const struct s_ent *ent;
+        
+        /* sanity check */
+        if (md == NULL || nm == NULL || md->fn == NULL ||
+            nm->type != WOLFSSL_OBJ_NAME_TYPE_MD_METH)
+            return;
+        
+        /* loop all md */
+        for (ent = md_tbl; ent->name != NULL; ent++){
+            /* check if the md has alias */
+            if((alias = hasAliasName(ent->name)) != NULL) {
+                md->fn(NULL, ent->name, ent->name, md->arg);
+            }
+            else {
+                md->fn(ent->name, ent->name, NULL, md->arg);
+            }
+        }
+    }
+    
+    /* call md_do_all function to do all md algorithm via a callback function
+     * @param fn a callback function to be called with all 'md'
+     * @param args arguments to pass to the callback
+     * @return none
+     */
+    void wolfSSL_EVP_MD_do_all(void (*fn) (const WOLFSSL_EVP_MD *m,
+                 const char* from, const char* to, void* xx), void* args)
+    {
+        struct do_all_md md;
+        
+        md.fn = fn;
+        md.arg = args;
+        
+        wolfSSL_OBJ_NAME_do_all(WOLFSSL_OBJ_NAME_TYPE_MD_METH,
+                        md_do_all_func, &md);
+    }
+    
+    /* call "fn" based on OBJ_NAME type
+     * @param type OBJ_NAME type
+     * @param fn a callback function
+     * @param args arguments to pass to the callback
+     * @return none
+     */
+    void wolfSSL_OBJ_NAME_do_all(int type, 
+                void (*fn)(const WOLFSSL_OBJ_NAME*, void* arg), void* arg)
+    {
+        WOLFSSL_OBJ_NAME objnm;
+        
+        /* sanity check */
+        if (!fn)
+            return;
+        
+        objnm.type = type;
+        
+        switch(type) {
+            case WOLFSSL_OBJ_NAME_TYPE_MD_METH:
+                fn(&objnm, arg);
+                break;
+            case WOLFSSL_OBJ_NAME_TYPE_CIPHER_METH:
+            case WOLFSSL_OBJ_NAME_TYPE_PKEY_METH:
+            case WOLFSSL_OBJ_NAME_TYPE_COMP_METH:
+            case WOLFSSL_OBJ_NAME_TYPE_NUM:
+                WOLFSSL_MSG("not implemented");
+                FALL_THROUGH;
+            case WOLFSSL_OBJ_NAME_TYPE_UNDEF:
+            default:
+                break;
+        }
+    }
+    
     #ifndef NO_AES
 
     #ifdef HAVE_AES_CBC

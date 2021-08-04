@@ -694,6 +694,10 @@ WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
 WOLFSSL_LOCAL int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
                                            int* pHash, int* pHashSz);
 
+WOLFSSL_API void wolfSSL_EVP_MD_do_all(void (*fn) (const WOLFSSL_EVP_MD *md,
+                                                   const char* from, const char* to,
+                                                   void* xx), void* args);
+                                                   
 #define EVP_CIPH_STREAM_CIPHER WOLFSSL_EVP_CIPH_STREAM_CIPHER
 #define EVP_CIPH_ECB_MODE WOLFSSL_EVP_CIPH_ECB_MODE
 #define EVP_CIPH_CBC_MODE WOLFSSL_EVP_CIPH_CBC_MODE
@@ -1025,6 +1029,7 @@ typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
 
 #define EVP_blake2b512       wolfSSL_EVP_blake2b512
 #define EVP_blake2s256       wolfSSL_EVP_blake2s256
+#define EVP_MD_do_all        wolfSSL_EVP_MD_do_all
 
 WOLFSSL_API void printPKEY(WOLFSSL_EVP_PKEY *k);
 

@@ -197,6 +197,7 @@ typedef struct WOLFSSL_ASN1_OBJECT    WOLFSSL_ASN1_OBJECT;
 typedef struct WOLFSSL_ASN1_OTHERNAME WOLFSSL_ASN1_OTHERNAME;
 typedef struct WOLFSSL_X509V3_CTX     WOLFSSL_X509V3_CTX;
 typedef struct WOLFSSL_v3_ext_method  WOLFSSL_v3_ext_method;
+typedef struct WOLFSSL_OBJ_NAME       WOLFSSL_OBJ_NAME;
 
 typedef struct WOLFSSL_ASN1_STRING      WOLFSSL_ASN1_STRING;
 typedef struct WOLFSSL_dynlock_value    WOLFSSL_dynlock_value;
@@ -216,6 +217,10 @@ typedef struct WOLFSSL_ACCESS_DESCRIPTION WOLFSSL_ACCESS_DESCRIPTION;
 typedef struct WOLFSSL_CONF_CTX     WOLFSSL_CONF_CTX;
 
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+
+struct WOLFSSL_OBJ_NAME {
+    int type;
+};
 
 struct WOLFSSL_AUTHORITY_KEYID {
     WOLFSSL_ASN1_STRING *keyid;
@@ -3692,6 +3697,18 @@ WOLFSSL_API int wolfSSL_OBJ_create(const char *oid, const char *sn, const char *
 #ifdef HAVE_ECC
 WOLFSSL_LOCAL int NIDToEccEnum(int n);
 #endif
+
+#define WOLFSSL_OBJ_NAME_TYPE_UNDEF         0x00
+#define WOLFSSL_OBJ_NAME_TYPE_MD_METH       0x01
+#define WOLFSSL_OBJ_NAME_TYPE_CIPHER_METH   0x02
+#define WOLFSSL_OBJ_NAME_TYPE_PKEY_METH     0x03
+#define WOLFSSL_OBJ_NAME_TYPE_COMP_METH     0x04
+#define WOLFSSL_OBJ_NAME_TYPE_NUM           0x05
+#define WOLFSSL_OBJ_NAME_ALIAS              0x8000
+
+WOLFSSL_API void wolfSSL_OBJ_NAME_do_all(int type, 
+                           void (*fn) (const WOLFSSL_OBJ_NAME* , void *arg),
+                           void* arg);
 /* end of object functions */
 
 WOLFSSL_API unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line);

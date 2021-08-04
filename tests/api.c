@@ -46604,9 +46604,117 @@ static void test_EVP_blake2()
     AssertIntEQ(XSTRNCMP(md, "BLAKE2S256", XSTRLEN("BLAKE2S256")), 0);
 #endif
     printf(resultFmt, passed);
-    
 #endif
 }
+
+#if defined(OPENSSL_EXTRA)
+static void list_md_fn(const EVP_MD* m, const char* from,
+                       const char* to, void* arg)
+{
+    const char* mn;
+    BIO *bio;
+    
+    (void) from;
+    (void) to;
+    (void) arg;
+    (void) mn;
+    (void) bio;
+    
+    if (!m) {
+        /* alias */
+        AssertNull(m);
+        AssertNotNull(to);
+    }
+    else {
+        AssertNotNull(m);
+        AssertNull(to);
+    }
+    
+    AssertNotNull(from);
+
+#if !defined(NO_FILESYSTEM) && defined(DEBUG_WOLFSSL_VERBOSE)
+    mn = EVP_get_digestbyname(from);
+    /* print to stdout */
+    AssertNotNull(arg);
+    
+    bio = BIO_new(BIO_s_file());
+    BIO_set_fp(bio, arg, BIO_NOCLOSE);
+    BIO_printf(bio, "Use %s message digest algorithm\n", mn);
+    BIO_free(bio);
+#endif
+}
+#endif
+
+static void test_EVP_MD_do_all()
+{
+#if defined(OPENSSL_EXTRA)
+    printf(testingFmt, "test_EVP_MD_do_all");
+    
+    EVP_MD_do_all(NULL, stdout);
+    /* to confirm previous call gives no harm */
+    AssertTrue(1);
+    
+    
+    EVP_MD_do_all(list_md_fn, stdout);
+    /* to confirm previous call gives no harm */
+    AssertTrue(1);
+    
+    printf(resultFmt, passed);
+#endif
+}
+
+#if defined(OPENSSL_EXTRA)
+static void obj_name_t(const OBJ_NAME* nm, void* arg)
+{
+    (void)arg;
+    (void)nm;
+    
+    AssertIntGT(nm->type, OBJ_NAME_TYPE_UNDEF);
+    
+#if !defined(NO_FILESYSTEM) && defined(DEBUG_WOLFSSL_VERBOSE)
+    /* print to stdout */
+    AssertNotNull(arg);
+    
+    bio = BIO_new(BIO_s_file());
+    BIO_set_fp(bio, arg, BIO_NOCLOSE);
+    BIO_printf(bio, "%s\n", mn);
+    BIO_free(bio);
+#endif
+}
+
+#endif
+static void test_OBJ_NAME_do_all()
+{
+#if defined(OPENSSL_EXTRA)
+    printf(testingFmt, "test_OBJ_NAME_do_all");
+    
+    OBJ_NAME_do_all(OBJ_NAME_TYPE_MD_METH, NULL, NULL);
+    /* to confirm previous call gives no harm */
+    AssertTrue(1);
+    
+    OBJ_NAME_do_all(OBJ_NAME_TYPE_CIPHER_METH, NULL, stdout);
+    /* to confirm previous call gives no harm */
+    AssertTrue(1);
+    
+    OBJ_NAME_do_all(OBJ_NAME_TYPE_MD_METH, obj_name_t, stdout);
+    AssertTrue(1);
+    OBJ_NAME_do_all(OBJ_NAME_TYPE_PKEY_METH, obj_name_t, stdout);
+    AssertTrue(1);
+    OBJ_NAME_do_all(OBJ_NAME_TYPE_COMP_METH, obj_name_t, stdout);
+    AssertTrue(1);
+    OBJ_NAME_do_all(OBJ_NAME_TYPE_NUM, obj_name_t, stdout);
+    AssertTrue(1);
+    OBJ_NAME_do_all(OBJ_NAME_TYPE_UNDEF, obj_name_t, stdout);
+    AssertTrue(1);
+    OBJ_NAME_do_all(OBJ_NAME_TYPE_CIPHER_METH, obj_name_t, stdout);
+    AssertTrue(1);
+    OBJ_NAME_do_all(-1, obj_name_t, stdout);
+    AssertTrue(1);
+    
+    printf(resultFmt, passed);
+#endif
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -46631,6 +46739,8 @@ void ApiTest(void)
     test_wolfSSL_EVP_shake128();
     test_wolfSSL_EVP_shake256();
     test_EVP_blake2();
+    test_EVP_MD_do_all();
+    test_OBJ_NAME_do_all();
     test_wolfSSL_CTX_use_certificate_file();
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_buffer(), WOLFSSL_SUCCESS);
     test_wolfSSL_CTX_use_PrivateKey_file();
