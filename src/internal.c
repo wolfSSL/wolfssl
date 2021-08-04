@@ -2087,6 +2087,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->ticketEncCtx = (void*)&ctx->ticketKeyCtx;
 #endif
     ctx->ticketHint = SESSION_TICKET_HINT_DEFAULT;
+#if defined(WOLFSSL_TLS13)
+    ctx->maxTicketTls13 = 1; /* default to sending a session ticket if compiled
+                                in */
+#endif
 #endif
 
 #ifdef WOLFSSL_EARLY_DATA
