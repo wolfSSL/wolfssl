@@ -6309,6 +6309,12 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     XMEMCPY(ssl->sessionCtx, ctx->sessionCtx, ctx->sessionCtxSz);
     ssl->cbioFlag = ctx->cbioFlag;
 
+    ssl->protoMsgCb  = ctx->protoMsgCb;
+    ssl->protoMsgCtx = ctx->protoMsgCtx;
+
+    if (ctx->protoMsgCb != NULL) {
+        ssl->toInfoOn = 1;
+    }
 #endif
 
     InitCiphers(ssl);

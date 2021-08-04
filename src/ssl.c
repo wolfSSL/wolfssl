@@ -47894,15 +47894,25 @@ int wolfSSL_set1_curves_list(WOLFSSL* ssl, const char* names)
 #endif /* OPENSSL_EXTRA && HAVE_ECC */
 
 #ifdef OPENSSL_EXTRA
-#ifndef NO_WOLFSSL_STUB
+/* Sets a callback for when sending and receiving protocol messages.
+ * This callback is copied to all WOLFSSL objects created from the ctx.
+ *
+ * ctx WOLFSSL_CTX structure to set callback in
+ * cb  callback to use
+ *
+ * return WOLFSSL_SUCCESS on success and SSL_FAILURE with error case
+ */
 int wolfSSL_CTX_set_msg_callback(WOLFSSL_CTX *ctx, SSL_Msg_Cb cb)
 {
-    WOLFSSL_STUB("SSL_CTX_set_msg_callback");
-    (void)ctx;
-    (void)cb;
-    return WOLFSSL_FAILURE;
+    WOLFSSL_ENTER("wolfSSL_CTX_set_msg_callback");
+    if (ctx == NULL) {
+        WOLFSSL_MSG("Null ctx passed in");
+        return WOLFSSL_FAILURE;
+    }
+
+    ctx->protoMsgCb = cb;
+    return WOLFSSL_SUCCESS;
 }
-#endif
 
 
 /* Sets a callback for when sending and receiving protocol messages.
@@ -47927,15 +47937,22 @@ int wolfSSL_set_msg_callback(WOLFSSL *ssl, SSL_Msg_Cb cb)
     ssl->protoMsgCb = cb;
     return WOLFSSL_SUCCESS;
 }
-#ifndef NO_WOLFSSL_STUB
+
+
+/* set the user argument to pass to the msg callback when called
+ * return WOLFSSL_SUCCESS on success */
 int wolfSSL_CTX_set_msg_callback_arg(WOLFSSL_CTX *ctx, void* arg)
 {
-    WOLFSSL_STUB("SSL_CTX_set_msg_callback_arg");
-    (void)ctx;
-    (void)arg;
-    return WOLFSSL_FAILURE;
+    WOLFSSL_ENTER("wolfSSL_CTX_set_msg_callback_arg");
+    if (ctx == NULL) {
+        WOLFSSL_MSG("Null WOLFSSL_CTX passed in");
+        return WOLFSSL_FAILURE;
+    }
+
+    ctx->protoMsgCtx = arg;
+    return WOLFSSL_SUCCESS;
 }
-#endif
+
 
 int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg)
 {

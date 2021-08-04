@@ -31959,6 +31959,7 @@ static void test_wolfSSL_set_options(void)
 #endif
     AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
     AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_set_msg_callback(ctx, msg_cb) == SSL_SUCCESS);
 
     AssertNotNull(ssl = SSL_new(ctx));
 #if defined(HAVE_EX_DATA) || defined(FORTRESS)
