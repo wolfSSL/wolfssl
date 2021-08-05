@@ -74,9 +74,12 @@ $(obj)/wolfcrypt/test/test.o: ccflags-y += -DNO_MAIN_DRIVER
 $(obj)/wolfcrypt/src/aes.o: ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFCRYPT_CFLAGS) $(WOLFSSL_CFLAGS_YES_VECTOR_INSNS)
 
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
-    PIE_FLAGS := -mcmodel=small -fPIE -fno-stack-protector -fno-toplevel-reorder
+    PIE_FLAGS := -fPIE -fno-stack-protector -fno-toplevel-reorder
     ifeq "$(KERNEL_ARCH)" "x86"
-        PIE_FLAGS += -mindirect-branch=keep -mfunction-return=keep
+        PIE_FLAGS += -mcmodel=small -mindirect-branch=keep -mfunction-return=keep
+    endif
+    ifeq "$(KERNEL_ARCH)" "mips"
+        PIE_FLAGS += -mabicalls
     endif
     $(WOLFCRYPT_PIE_FILES): ccflags-y += $(PIE_FLAGS)
     $(WOLFCRYPT_PIE_FILES): ccflags-remove-y += -pg
@@ -99,15 +102,23 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 
 rename-pie-text-and-data-sections: $(WOLFSSL_OBJ_TARGETS)
 
+ifndef NM
+    NM := nm
+endif
+
+ifndef READELF
+    READELF := readelf
+endif
+
 .PHONY: rename-pie-text-and-data-sections
 rename-pie-text-and-data-sections:
 ifneq "$(quiet)" "silent_"
 	@echo -n '  Checking wolfCrypt for unresolved symbols and forbidden relocations... '
 endif
 	@cd "$(obj)" || exit $$?; \
-	ld -relocatable -o wolfcrypt_test_link.o $(WOLFCRYPT_PIE_FILES) || exit $$?; \
-	undefined=$$(nm --undefined-only wolfcrypt_test_link.o) || exit $$?; \
-	GOT_relocs=$$(readelf --relocs --wide wolfcrypt_test_link.o | egrep '^[^ ]+ +[^ ]+ +[^ ]*GOT[^ ]* ') || [ $$? = 1 ] || exit 2; \
+	$(LD) -relocatable -o wolfcrypt_test_link.o $(WOLFCRYPT_PIE_FILES) || exit $$?; \
+	undefined=$$($(NM) --undefined-only wolfcrypt_test_link.o) || exit $$?; \
+	GOT_relocs=$$($(READELF) --relocs --wide wolfcrypt_test_link.o | egrep '^[^ ]+ +[^ ]+ +[^ ]*GOT[^ ]* ') || [ $$? = 1 ] || exit 2; \
 	rm wolfcrypt_test_link.o; \
 	if [ -n "$$undefined" ]; then \
 	    echo "wolfCrypt container has unresolved symbols:" 1>&2; \
