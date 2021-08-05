@@ -585,6 +585,7 @@ struct WOLFSSL_X509_STORE {
     int             refCount;         /* reference count */
 };
 
+#define WOLFSSL_ALWAYS_CHECK_SUBJECT 0x1
 #define WOLFSSL_NO_WILDCARDS         0x2
 #define WOLFSSL_NO_PARTIAL_WILDCARDS 0x4
 
