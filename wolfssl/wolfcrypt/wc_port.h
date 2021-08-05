@@ -130,6 +130,11 @@
 
     _Pragma("GCC diagnostic pop");
 
+    /* the kernel uses -std=c89, but not -pedantic, and makes full use of anon
+     * structs/unions, so we should too.
+     */
+    #define HAVE_ANONYMOUS_INLINE_AGGREGATES 1
+
     /* Linux headers define these using C expressions, but we need
      * them to be evaluable by the preprocessor, for use in sp_int.h.
      */
