@@ -42,6 +42,7 @@
 #ifndef NO_MD5
     #include <wolfssl/openssl/md5.h>
 #endif
+#include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/openssl/sha.h>
 #include <wolfssl/openssl/sha3.h>
 #include <wolfssl/openssl/ripemd.h>
