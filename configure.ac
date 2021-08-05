@@ -4837,10 +4837,16 @@ fi
 
 
 # PKCS#12
+# set PKCS#12 default
+PKCS12_DEFAULT=yes
+if test "$ENABLED_ASN" = "no"
+then
+    PKCS12_DEFAULT=no
+fi
 AC_ARG_ENABLE([pkcs12],
     [AS_HELP_STRING([--enable-pkcs12],[Enable pkcs12 (default: enabled)])],
     [ ENABLED_PKCS12=$enableval ],
-    [ ENABLED_PKCS12=yes ]
+    [ ENABLED_PKCS12=$PKCS12_DEFAULT ]
     )
 
 if test "x$ENABLED_PKCS12" = "xno"
