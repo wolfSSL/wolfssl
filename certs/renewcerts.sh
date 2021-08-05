@@ -25,6 +25,7 @@
 #                       ecc-privOnlyCert.pem
 #                       client-uri-cert.pem
 #                       client-relative-uri.pem
+#                       client-crl-dist.pem
 #                       entity-no-ca-bool-cert.pem
 # updates the following crls:
 #                       crl/cliCrl.pem
@@ -102,6 +103,27 @@ run_renewcerts(){
     openssl x509 -in client-relative-uri.pem -text > tmp.pem
     check_result $? "Step 3"
     mv tmp.pem client-relative-uri.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
+    #### update the self-signed (2048-bit) client-crl-dist.pem
+    ############################################################
+    echo "Updating 2048-bit client-crl-dist.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_2048\\nCRL_DIST\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key client-key.pem -config ./wolfssl.cnf -nodes -out client-cert.csr
+    check_result $? "Step 1"
+
+
+    openssl x509 -req -in client-cert.csr -days 1000 -extfile wolfssl.cnf -extensions crl_dist_points -signkey client-key.pem -out client-crl-dist.pem
+    check_result $? "Step 2"
+    rm client-cert.csr
+
+    openssl x509 -in client-crl-dist.pem -text > tmp.pem
+    check_result $? "Step 3"
+    mv tmp.pem client-crl-dist.pem
+
+    openssl x509 -in client-crl-dist.pem -outform der -out client-crl-dist.der
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ############################################################

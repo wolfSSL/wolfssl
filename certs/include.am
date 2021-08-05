@@ -11,6 +11,8 @@ EXTRA_DIST += \
 	     certs/client-key.pem \
 	     certs/client-uri-cert.pem \
 	     certs/client-relative-uri.pem \
+	     certs/client-crl-dist.pem \
+	     certs/client-crl-dist.der \
 	     certs/ecc-key.pem \
 	     certs/ecc-privkey.pem \
 	     certs/ecc-privkeyPkcs8.der \

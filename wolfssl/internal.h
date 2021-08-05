@@ -3726,6 +3726,7 @@ typedef struct Arrays {
 #define STACK_TYPE_BY_DIR_entry       12
 #define STACK_TYPE_BY_DIR_hash        13
 #define STACK_TYPE_X509_OBJ           14
+#define STACK_TYPE_DIST_POINT         15
 
 struct WOLFSSL_STACK {
     unsigned long num; /* number of nodes in stack
@@ -3754,6 +3755,7 @@ struct WOLFSSL_STACK {
         WOLFSSL_BY_DIR_entry*  dir_entry;
         WOLFSSL_BY_DIR_HASH*   dir_hash;
         WOLFSSL_X509_OBJECT*   x509_obj;
+        WOLFSSL_DIST_POINT*    dp;
     } data;
     void* heap; /* memory heap hint */
     WOLFSSL_STACK* next;

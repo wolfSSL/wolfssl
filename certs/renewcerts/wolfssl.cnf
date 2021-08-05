@@ -300,6 +300,10 @@ authorityKeyIdentifier=keyid:always,issuer:always
 basicConstraints=CA:false
 subjectAltName=URI:../relative/page.html
 
+# test CRL distribution points
+[ crl_dist_points ]
+crlDistributionPoints=URI:http://www.wolfssl.com/crl.pem
+
 #tsa default
 [ tsa ]
 default_tsa = tsa_config1
