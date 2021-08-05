@@ -22002,6 +22002,9 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
             else if (x509->pubKeyOID == DSAk) {
                 key->type = EVP_PKEY_DSA;
             }
+            else if (x509->pubKeyOID == ED25519k) {
+                key->type = EVP_PKEY_ED25519;
+            }
             else {
                 key->type = EVP_PKEY_EC;
             }
@@ -22069,6 +22072,24 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                 key->ecc->inSet = 1;
             }
             #endif /* HAVE_ECC */
+
+            /* decode ED25519 key */
+            #ifdef HAVE_ED25519
+            if (key->type == EVP_PKEY_ED25519) {
+                key->ed25519 = wolfSSL_ED25519_new();
+                if (key->ed25519 == NULL) {
+                    wolfSSL_EVP_PKEY_free(key);
+                    return NULL;
+                }
+
+                if (wc_ed25519_import_public((const unsigned char*)key->pkey.ptr,
+                       key->pkey_sz, (ed25519_key*)key->ed25519->internal) != 0) {
+                    WOLFSSL_MSG("wc_ed25519_import_public failed");
+                    wolfSSL_EVP_PKEY_free(key);
+                    return NULL;
+                }
+            }
+            #endif /* HAVE_ED25519 */
 
             #ifndef NO_DSA
             if (key->type == EVP_PKEY_DSA) {
@@ -31295,6 +31316,75 @@ int SetDsaInternal(WOLFSSL_DSA* dsa)
     return WOLFSSL_SUCCESS;
 }
 #endif /* !NO_DSA && OPENSSL_EXTRA */
+
+
+#if defined(HAVE_ED25519) && defined(OPENSSL_EXTRA)
+static void InitwolfSSL_ED25519(WOLFSSL_ED25519* ed25519)
+{
+    if (ed25519) {
+        ed25519->p        = NULL;
+        ed25519->k        = NULL;
+        ed25519->internal = NULL;
+        ed25519->inSet    = 0;
+        ed25519->exSet    = 0;
+    }
+}
+
+
+WOLFSSL_ED25519* wolfSSL_ED25519_new(void)
+{
+    WOLFSSL_ED25519* external;
+    ed25519_key*     key;
+
+    WOLFSSL_ENTER("wolfSSL_ED25519_new");
+
+    key = (ed25519_key*) XMALLOC(sizeof(ed25519_key), NULL, DYNAMIC_TYPE_ED25519);
+    if (key == NULL) {
+        WOLFSSL_MSG("wolfSSL_ED25519_new malloc ed25519_key failure");
+        return NULL;
+    }
+
+    external = (WOLFSSL_ED25519*) XMALLOC(sizeof(WOLFSSL_ED25519), NULL,
+                                     DYNAMIC_TYPE_ED25519);
+    if (external == NULL) {
+        WOLFSSL_MSG("wolfSSL_ED25519_new malloc WOLFSSL_ED25519 failure");
+        XFREE(key, NULL, DYNAMIC_TYPE_ED25519);
+        return NULL;
+    }
+
+    InitwolfSSL_ED25519(external);
+    if (wc_ed25519_init(key) != 0) {
+        WOLFSSL_MSG("wc_ed25519_init failure");
+        XFREE(external, NULL, DYNAMIC_TYPE_ED25519);
+        XFREE(key, NULL, DYNAMIC_TYPE_ED25519);
+        return NULL;
+    }
+    external->internal = key;
+
+    return external;
+}
+
+
+void wolfSSL_ED25519_free(WOLFSSL_ED25519* ed25519)
+{
+    WOLFSSL_MSG("wolfSSL_ED25519_free");
+
+    if (ed25519) {
+        if (ed25519->internal) {
+            FreeEd25519Key((ed25519_key*)ed25519->internal);
+            XFREE(ed25519->internal, NULL, DYNAMIC_TYPE_ED25519);
+            ed25519->internal = NULL;
+        }
+        wolfSSL_BN_free(ed25519->p);
+        wolfSSL_BN_free(ed25519->k);
+        InitwolfSSL_ED25519(ed25519);  /* set back to NULLs for safety */
+
+        XFREE(ed25519, NULL, DYNAMIC_TYPE_ED25519);
+
+        /* ed25519 = NULL, don't try to access or double free it */
+    }
+}
+#endif /* HAVE_ED25519 */
 
 
 #ifdef OPENSSL_EXTRA

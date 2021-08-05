@@ -7541,6 +7541,15 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
                     break;
                 #endif /* ! NO_DH ... */
 
+                #if defined(HAVE_ED25519)
+                case EVP_PKEY_ED25519:
+                    if (key->ed25519 != NULL && key->ownEd25519 == 1) {
+                        wolfSSL_ED25519_free(key->ed25519);
+                        key->ed25519 = NULL;
+                    }
+                    break;
+                #endif /* ! HAVE_ED25519 */
+
                 default:
                 break;
             }
