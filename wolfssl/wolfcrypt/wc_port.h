@@ -347,7 +347,7 @@
         #undef ULLONG_MAX
         #undef LLONG_MAX
         #if BITS_PER_LONG_LONG == 64
-            #define ULONG_MAX 18446744073709551615UL
+            #define ULLONG_MAX 18446744073709551615UL
             #define LLONG_MAX 9223372036854775807L
         #else
             #undef NO_64BIT
