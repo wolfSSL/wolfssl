@@ -34338,7 +34338,7 @@ static void test_wolfSSL_HMAC(void)
 #endif
 }
 
-static void test_wolfSSL_CMAC()
+static void test_wolfSSL_CMAC(void)
 {
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CMAC)
 
@@ -36727,7 +36727,7 @@ static int check_result(unsigned char *data, int len)
 static int r_offset;
 static int w_offset;
 
-static void init_offset()
+static void init_offset(void)
 {
     r_offset = 0;
     w_offset = 0;
@@ -46558,7 +46558,7 @@ static void test_wolfSSL_ERR_strings(void)
     printf(resultFmt, passed);
 #endif
 }
-static void test_wolfSSL_EVP_shake128()
+static void test_wolfSSL_EVP_shake128(void)
 {
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SHA3) && \
                                             defined(WOLFSSL_SHAKE128)
@@ -46571,7 +46571,7 @@ static void test_wolfSSL_EVP_shake128()
 #endif
 }
 
-static void test_wolfSSL_EVP_shake256()
+static void test_wolfSSL_EVP_shake256(void)
 {
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SHA3) && \
                                             defined(WOLFSSL_SHAKE256)
@@ -46584,7 +46584,7 @@ static void test_wolfSSL_EVP_shake256()
 #endif
 }
 
-static void test_EVP_blake2()
+static void test_EVP_blake2(void)
 {
 #if defined(OPENSSL_EXTRA) && (defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S))
     printf(testingFmt, "test_EVP_blake2");
@@ -46645,7 +46645,7 @@ static void list_md_fn(const EVP_MD* m, const char* from,
 }
 #endif
 
-static void test_EVP_MD_do_all()
+static void test_EVP_MD_do_all(void)
 {
 #if defined(OPENSSL_EXTRA)
     printf(testingFmt, "test_EVP_MD_do_all");
@@ -46683,7 +46683,7 @@ static void obj_name_t(const OBJ_NAME* nm, void* arg)
 }
 
 #endif
-static void test_OBJ_NAME_do_all()
+static void test_OBJ_NAME_do_all(void)
 {
 #if defined(OPENSSL_EXTRA)
     printf(testingFmt, "test_OBJ_NAME_do_all");
