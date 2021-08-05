@@ -47,6 +47,7 @@
     extern "C" {
 #endif
 
+#define FreeEd25519Key wc_ed25519_free
 
 /* info about EdDSA curve specifically ed25519, defined as an elliptic curve
    over GF(p) */

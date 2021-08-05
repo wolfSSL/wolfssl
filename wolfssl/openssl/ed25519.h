@@ -28,6 +28,26 @@
 extern "C" {
 #endif
 
+#ifndef WOLFSSL_ED25519_TYPE_DEFINED /* guard on redeclaration */
+typedef struct WOLFSSL_ED25519   WOLFSSL_ED25519;
+#define WOLFSSL_ED25519_TYPE_DEFINED
+#endif
+
+typedef struct WOLFSSL_ED25519 {
+    WOLFSSL_BIGNUM* p; /* public key */
+    WOLFSSL_BIGNUM* k; /* private key */
+    void* internal;
+    /* bits */
+    byte inSet:1;     /* internal set from external ? */
+    byte exSet:1;     /* external set from internal ? */
+} WOLFSSL_ED25519;
+
+WOLFSSL_API
+WOLFSSL_ED25519* wolfSSL_ED25519_new(void);
+
+WOLFSSL_API
+void wolfSSL_ED25519_free(WOLFSSL_ED25519 *key);
+
 WOLFSSL_API
 int wolfSSL_ED25519_generate_key(unsigned char *priv, unsigned int *privSz,
                                  unsigned char *pub, unsigned int *pubSz);

@@ -240,6 +240,7 @@ enum {
     EVP_PKEY_RSA      = 16,
     EVP_PKEY_DSA      = 17,
     EVP_PKEY_EC       = 18,
+    EVP_PKEY_ED25519  = NID_ED25519,
 #ifdef HAVE_IDEA
     IDEA_CBC_TYPE     = 19,
 #endif

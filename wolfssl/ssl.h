@@ -184,6 +184,11 @@ typedef struct WOLFSSL_ECDSA_SIG      WOLFSSL_ECDSA_SIG;
 #define WOLFSSL_ECDSA_TYPE_DEFINED
 #endif
 
+#ifndef WOLFSSL_ED25519_TYPE_DEFINED /* guard on redeclaration */
+typedef struct WOLFSSL_ED25519        WOLFSSL_ED25519;
+#define WOLFSSL_ED25519_TYPE_DEFINED
+#endif
+
 typedef struct WOLFSSL_CIPHER         WOLFSSL_CIPHER;
 typedef struct WOLFSSL_X509_LOOKUP    WOLFSSL_X509_LOOKUP;
 typedef struct WOLFSSL_X509_LOOKUP_METHOD WOLFSSL_X509_LOOKUP_METHOD;
@@ -371,6 +376,9 @@ struct WOLFSSL_EVP_PKEY {
     #ifndef NO_DH
     WOLFSSL_DH* dh;
     #endif
+    #ifdef HAVE_ED25519
+    WOLFSSL_ED25519* ed25519;
+    #endif
     WC_RNG rng;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 #ifdef HAVE_ECC
@@ -383,6 +391,7 @@ struct WOLFSSL_EVP_PKEY {
     byte ownEcc:1; /* if struct owns ECC and should free it */
     byte ownDsa:1; /* if struct owns DSA and should free it */
     byte ownRsa:1; /* if struct owns RSA and should free it */
+    byte ownEd25519:1; /* if struct owns ED25519 and should free it */
 };
 typedef struct WOLFSSL_EVP_PKEY WOLFSSL_PKCS8_PRIV_KEY_INFO;
 #ifndef WOLFSSL_EVP_TYPE_DEFINED /* guard on redeclaration */
