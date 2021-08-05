@@ -38789,6 +38789,9 @@ static void test_wolfSSL_CTX_ctrl(void)
     DSA* dsa;
     DH*  dh;
 #endif
+#if defined(HAVE_ED25519)
+    char edFile[] = "./certs/client-ed25519.pem";
+#endif
 #ifdef HAVE_ECC
     WOLFSSL_EC_KEY* ecKey;
 #endif
@@ -38823,6 +38826,21 @@ static void test_wolfSSL_CTX_ctrl(void)
     /* Initialize WOLFSSL_EC_KEY */
     AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
     AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey),1);
+#endif
+
+#ifdef HAVE_ED25519
+    {
+        WOLFSSL_EVP_KEY* pKey;
+
+        x509 = wolfSSL_X509_load_certificate_file(edFile, WOLFSSL_FILETYPE_PEM);
+        AssertNotNull(x509);
+
+        AssertNotNull(pkey = X509_get_pubkey(X509));
+        /* ED25519 public key size is 32 bytes */
+        AssertIntEQ(EVP_PKEY_size(pkey), 32);
+
+        EVP_PKEY_free(pkey);
+    }
 #endif
 
 #if !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
