@@ -42,7 +42,7 @@
     extern void *_GLOBAL_OFFSET_TABLE_;
     void *_GLOBAL_OFFSET_TABLE_ = 0;
 #elif defined(CONFIG_MIPS)
-  extern void *gp_disp;
+  extern void *_gp_disp;
   void *_gp_disp = 0;
 #endif
 
