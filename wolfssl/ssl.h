@@ -2125,9 +2125,6 @@ enum {
     BIO_NOCLOSE = 0,
 
     X509_FILETYPE_PEM = 8,
-    X509_LU_NONE      = WOLFSSL_X509_LU_NONE,
-    X509_LU_X509      = WOLFSSL_X509_LU_X509,
-    X509_LU_CRL       = WOLFSSL_X509_LU_CRL,
 
     X509_V_OK                                    = 0,
     X509_V_ERR_CRL_SIGNATURE_FAILURE             = 8,
