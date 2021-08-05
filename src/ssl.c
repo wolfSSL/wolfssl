@@ -46467,6 +46467,42 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 
+/* converts an IPv6 or IPv4 address into an octet string for use with rfc3280
+ * example input would be "127.0.0.1" and the returned value would be 7F000001
+ */
+WOLFSSL_ASN1_STRING* wolfSSL_a2i_IPADDRESS(const char* ipa)
+{
+    int ipaSz = WOLFSSL_IP4_ADDR_LEN;
+    char buf[WOLFSSL_IP6_ADDR_LEN + 1]; /* plus 1 for terminator */
+    int  af = WOLFSSL_IP4;
+    WOLFSSL_ASN1_STRING *ret = NULL;
+
+    if (ipa == NULL)
+        return NULL;
+
+    if (XSTRSTR(ipa, ":") != NULL) {
+        af = WOLFSSL_IP6;
+        ipaSz = WOLFSSL_IP6_ADDR_LEN;
+    }
+
+    buf[WOLFSSL_IP6_ADDR_LEN] = '\0';
+    if (XINET_PTON(af, ipa, (void*)buf) != 1) {
+        WOLFSSL_MSG("Error parsing IP address");
+        return NULL;
+    }
+
+    ret = wolfSSL_ASN1_STRING_new();
+    if (ret != NULL) {
+        if (wolfSSL_ASN1_STRING_set(ret, buf, ipaSz) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Error setting the string");
+            wolfSSL_ASN1_STRING_free(ret);
+            ret = NULL;
+        }
+    }
+
+    return ret;
+}
+
 
 /* Is the specified cipher suite a fake one used an an extension proxy? */
 static WC_INLINE int SCSV_Check(byte suite0, byte suite)
