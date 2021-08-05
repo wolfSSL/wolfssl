@@ -35189,6 +35189,10 @@ static void test_wolfSSL_BIO_connect(void)
     join_thread(serverThread);
     FreeTcpReady(&ready);
 
+#if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS)
+    wc_ecc_fp_free();  /* free per thread cache */
+#endif
+
     printf(resultFmt, passed);
 #endif
 }
@@ -35214,6 +35218,10 @@ static THREAD_RETURN WOLFSSL_THREAD test_wolfSSL_BIO_accept_client(void* args)
 
     SSL_free(sslClient);
     SSL_CTX_free(ctx);
+
+#if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS)
+    wc_ecc_fp_free();  /* free per thread cache */
+#endif
 
     return 0;
 }
@@ -35259,8 +35267,8 @@ static void test_wolfSSL_BIO_accept(void)
     SSL_free(sslServer);
     SSL_CTX_free(ctx);
 
-#ifdef FP_ECC
-    wc_ecc_fp_free();
+#if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS)
+    wc_ecc_fp_free();  /* free per thread cache */
 #endif
 
     printf(resultFmt, passed);
