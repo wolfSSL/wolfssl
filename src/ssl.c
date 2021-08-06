@@ -46208,7 +46208,8 @@ void wolfSSL_ERR_load_BIO_strings(void) {
 #endif
 
 #ifndef NO_WOLFSSL_STUB
-void wolfSSL_THREADID_set_callback(void(*threadid_func)(void*))
+void wolfSSL_THREADID_set_callback(
+        void(*threadid_func)(WOLFSSL_CRYPTO_THREADID*))
 {
     WOLFSSL_ENTER("wolfSSL_THREADID_set_callback");
     WOLFSSL_STUB("CRYPTO_THREADID_set_callback");
