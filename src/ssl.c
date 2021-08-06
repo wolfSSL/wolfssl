@@ -25186,6 +25186,133 @@ int wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(WOLFSSL_X509_VERIFY_PARAM *param,
 
     return ret;
 }
+/* Sets the expected IP address to ip(asc) 
+ *          by re-constructing IP address in ascii
+ * @param  param is a pointer to the X509_VERIFY_PARAM structure
+ * @param  ip    in binary format of ip address
+ * @param  iplen size of ip, 4 for ipv4, 16 for ipv6
+ * @return 1 for success and 0 for failure
+ */
+int wolfSSL_X509_VERIFY_PARAM_set1_ip(WOLFSSL_X509_VERIFY_PARAM* param,
+    const unsigned char* ip, size_t iplen)
+{
+    int ret = WOLFSSL_FAILURE;
+    char* buf = NULL;
+    char* p = NULL;
+    word32 val = 0;
+    int i;
+    const int max_ipv6_len = 40;
+    byte write_zero = 0;
+
+    /* sanity check */
+    if (param == NULL || (iplen != 0 && iplen != 4 && iplen != 16)) {
+        WOLFSSL_MSG("bad function arg");
+        return ret;
+    }
+#ifndef NO_FILESYSTEM
+    if (iplen == 4) {
+        /* ipv4 www.xxx.yyy.zzz max 15 length + Null termination */
+        buf = XMALLOC(16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (!buf) {
+            WOLFSSL_MSG("failed malloc");
+            return ret;
+        }
+
+        XSPRINTF(buf, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+        buf[15] = '\0';
+    }
+    else if (iplen == 16) {
+        /* ipv6 normal address scheme
+        *   y1:y2:y3:y4:y5:y6:y7:y8, len(yx):4, len(y1-y8):32. len(":"):7
+        *   Max len is 32 + 7 + 1(Termination) = 40 bytes
+        *  
+        *   ipv6 dual address
+        *   Or y1:y2:y3:y4:y:y6:x.x.x.x yx is 4, y1-y6 is 24, ":" is 6
+        *   x.x.x.x is 15.
+        *   Max len is 24 + 6 + 15 + 1(Termination) = 46 bytes
+        * 
+        *   Expect data in ip[16]
+        *   e.g (aaaa):(bbbb):(cccc):....(hhhh)
+        *   (aaaa) = (ip[0<<8)|ip[1]
+        *   ......
+        *   (hhhh) = (ip[14]<<8)|(ip[15])
+        * 
+        *   e.g ::(gggg):(hhhh)
+        *   ip[0]-[11] = 0
+        *   (gggg) = (ip[12]<<8) |(ip[13])
+        *   (hhhh) = (ip[14]<<8) |(ip[15])
+        * 
+        *   Because it is not able to know which ivp6 scheme uses from data to
+        *   reconstruct IP address, this function assumes 
+        *   ivp6 normal address scheme, not dual adress scheme, 
+        *   to re-construct IP address in ascii.
+        */
+        buf = XMALLOC(max_ipv6_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (!buf) {
+            WOLFSSL_MSG("failed malloc");
+            return ret;
+        }
+        p = buf;
+        for (i = 0;i < 16;i += 2) {
+           val = (((word32)(ip[i]<<8)) | (ip[i+1])) & 0xFFFF;
+           if (val == 0){
+               if (!write_zero) {
+                    *p = ':';
+               }
+               p++;
+               *p = '\0';
+               write_zero = 1;
+           }
+           else {
+               if (i != 0)
+                *p++ = ':';
+               XSPRINTF(p, "%x", val);
+           }
+           /* sanity check */
+           if (XSTRLEN(buf) > max_ipv6_len) {
+               printf("The target ip adress exceeds buffer length(40)\n");
+               XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+               buf = NULL;
+               break;
+           }
+           /* move the pointer to the last */
+           /* XSTRLEN includes NULL because of XSPRINTF use */
+           p = buf + (XSTRLEN(buf));
+        }
+        /* termination */
+        if(i == 16 && buf) {
+            p--;
+            if ((*p) == ':') {
+            /* when the last character is :, the followig segments are zero
+             * Therefore, adding : and null termination
+             */ 
+                 p++;
+                 *p++ = ':';
+                *p = '\0';
+            }
+        }
+    }
+    else {
+        WOLFSSL_MSG("iplen is zero, do nothig");
+        return WOLFSSL_SUCCESS;
+    }
+
+    if (buf) {
+         /* set address to ip asc */
+        ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(param, buf);
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#else
+    (void)param;
+    (void)ip;
+    (void)iplen;
+    (void)buf;
+#endif
+    
+    return ret;
+}
 
 #ifndef NO_WOLFSSL_STUB
 void wolfSSL_X509_OBJECT_free_contents(WOLFSSL_X509_OBJECT* obj)
