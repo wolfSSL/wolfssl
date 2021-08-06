@@ -15373,6 +15373,12 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 #else
     DecodedCert cert[1];
 #endif
+#ifndef NO_ASN_TIME
+    struct tm   timearg;
+    const byte* date;
+    byte        dateFormat;
+    int         dateLength;
+#endif
 #endif
 
     DECLARE_VAR(in, byte, TEST_STRING_SZ, HEAP_HINT);
@@ -15748,14 +15754,27 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 #ifdef sizeof
     #undef sizeof
 #endif
+    InitDecodedCert(cert, tmp, (word32)bytes, NULL);
 
-    InitDecodedCert(cert, tmp, (word32)bytes, 0);
-
-    ret = ParseCert(cert, CERT_TYPE, NO_VERIFY, 0);
+    ret = ParseCert(cert, CERT_TYPE, NO_VERIFY, NULL);
     if (ret != 0) {
         FreeDecodedCert(cert);
         ERROR_OUT(-7942, exit_rsa);
     }
+
+#ifndef NO_ASN_TIME
+    ret = wc_GetDateInfo(cert->afterDate, cert->afterDateLen, &date,
+                         &dateFormat, &dateLength);
+    if (ret != 0) {
+        FreeDecodedCert(cert);
+        ERROR_OUT(-7943, exit_rsa);
+    }
+    ret = wc_GetDateAsCalendarTime(date, dateLength, dateFormat, &timearg);
+    if (ret != 0) {
+        FreeDecodedCert(cert);
+        ERROR_OUT(-7944, exit_rsa);
+    }
+#endif
 
     FreeDecodedCert(cert);
 #endif /* WOLFSSL_TEST_CERT */
@@ -15779,7 +15798,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     if (!file) {
         err_sys("can't open ./certs/client-keyPub.der, "
                 "Please run from wolfSSL home dir", -40);
-        ERROR_OUT(-7943, exit_rsa);
+        ERROR_OUT(-7945, exit_rsa);
     }
 
     bytes = XFREAD(tmp, 1, FOURK_BUF, file);
@@ -15788,13 +15807,13 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 
     ret = wc_InitRsaKey(keypub, HEAP_HINT);
     if (ret != 0) {
-        ERROR_OUT(-7944, exit_rsa);
+        ERROR_OUT(-7946, exit_rsa);
     }
     idx = 0;
 
     ret = wc_RsaPublicKeyDecode(tmp, &idx, keypub, (word32)bytes);
     if (ret != 0) {
-        ERROR_OUT(-7945, exit_rsa);
+        ERROR_OUT(-7947, exit_rsa);
     }
 #endif /* WOLFSSL_CERT_EXT */
 
