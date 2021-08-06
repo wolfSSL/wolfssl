@@ -250,7 +250,7 @@ static int InitSha512(wc_Sha512* sha512)
     /*****
     Intel AVX1/AVX2 Macro Control Structure
 
-    #if defined(HAVE_INteL_SPEEDUP)
+    #if defined(HAVE_INTEL_SPEEDUP)
         #define HAVE_INTEL_AVX1
         #define HAVE_INTEL_AVX2
     #endif
@@ -294,7 +294,7 @@ static int InitSha512(wc_Sha512* sha512)
 
     #endif
 
-    #if defnied(HAVE_INTEL_AVX1)
+    #if defined(HAVE_INTEL_AVX1)
 
       int Transform_Sha512_AVX1() {
           Stitched Message Sched/Round
@@ -302,7 +302,7 @@ static int InitSha512(wc_Sha512* sha512)
 
     #endif
 
-    #if defnied(HAVE_INTEL_AVX2)
+    #if defined(HAVE_INTEL_AVX2)
 
       int Transform_Sha512_AVX2() {
           Stitched Message Sched/Round
