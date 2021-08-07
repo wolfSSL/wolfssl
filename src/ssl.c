@@ -25201,7 +25201,7 @@ int wolfSSL_X509_VERIFY_PARAM_set1_ip(WOLFSSL_X509_VERIFY_PARAM* param,
     char* p = NULL;
     word32 val = 0;
     int i;
-    const int max_ipv6_len = 40;
+    const size_t max_ipv6_len = 40;
     byte write_zero = 0;
 
     /* sanity check */
