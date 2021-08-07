@@ -23379,12 +23379,10 @@ int wolfSSL_CIPHER_get_auth_nid(const WOLFSSL_CIPHER* cipher)
     };
     
     const struct authnid* sa;
-    const char* name;
     const char* authStr;
     char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
-    (void)name;
     
-    name = GetCipherSegment(cipher, n);
+    GetCipherSegment(cipher, n);
     authStr = GetCipherAuthStr(n);
     
     if (authStr != NULL) {
@@ -23425,14 +23423,12 @@ int wolfSSL_CIPHER_get_cipher_nid(const WOLFSSL_CIPHER* cipher)
     };
     
     const struct ciphernid* c;
-    const char* name;
     const char* encStr;
     char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
-    (void)name;
     
     WOLFSSL_ENTER("wolfSSL_CIPHER_get_cipher_nid");
     
-    name = GetCipherSegment(cipher, n);
+    GetCipherSegment(cipher, n);
     encStr = GetCipherEncStr(n);
     
     if (encStr != NULL) {
@@ -23542,13 +23538,12 @@ static const struct kxnid {
  */
 int wolfSSL_CIPHER_is_aead(const WOLFSSL_CIPHER* cipher)
 {
-    const char* name;
     char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
-    (void)name;
     
     WOLFSSL_ENTER("wolfSSL_CIPHER_is_aead");
     
-    name = GetCipherSegment(cipher, n);
+    GetCipherSegment(cipher, n);
+    
     return IsAEAD(n);
 }
 /* Creates cipher->description based on cipher->offset
