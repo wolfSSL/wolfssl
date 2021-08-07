@@ -46725,8 +46725,8 @@ static void test_SSL_CIPHER_get_xxx()
     const SSL_CIPHER* cipher = NULL;
     STACK_OF(SSL_CIPHER) *supportedCiphers = NULL;
     int i, numCiphers = 0;
-    SSL_CTX* ctx;
-    SSL*     ssl;
+    SSL_CTX* ctx = NULL;
+    SSL*     ssl = NULL;
     const char* testCertFile;
     const char* testKeyFile;
     char buf[256] = {0};
@@ -46845,8 +46845,10 @@ static void test_SSL_CIPHER_get_xxx()
         }
     }
     
-    SSL_CTX_free(ctx);
-    SSL_free(ssl);
+    if (ctx)
+        SSL_CTX_free(ctx);
+    if(ssl)
+        SSL_free(ssl);
     
     printf(resultFmt, passed);
 #endif

@@ -20555,7 +20555,7 @@ const char* GetCipherSegment(const WOLFSSL_CIPHER* cipher, char n[][MAX_SEGMENT_
     offset = cipher->offset;
     
     if (offset >= (unsigned long)GetCipherNamesSize())
-        return WOLFSSL_FAILURE;
+        return NULL;
     
     name = cipher_names[offset].name;
     
