@@ -36786,13 +36786,15 @@ static int test_wolfSSL_EVP_Cipher_extra(void)
 
     int ret = 0;
     EVP_CIPHER_CTX *evp = NULL;
-        
+
+    int ilen = 0; 
     int klen = 0;
     int i, j;
 
     const EVP_CIPHER *type;
     byte *iv;
     byte *key;
+    int ivlen;
     int keylen;
 
     #define RECORDS 16
@@ -36805,6 +36807,7 @@ static int test_wolfSSL_EVP_Cipher_extra(void)
     int outl, inl;
 
     iv = aes128_cbc_iv;
+    ivlen = sizeof(aes128_cbc_iv);
     key = aes128_cbc_key;
     keylen = sizeof(aes128_cbc_key);
     type = EVP_aes_128_cbc();
@@ -36819,6 +36822,10 @@ static int test_wolfSSL_EVP_Cipher_extra(void)
     klen = EVP_CIPHER_CTX_key_length(evp);
     if (klen > 0 && keylen != klen) {
         AssertIntNE(EVP_CIPHER_CTX_set_key_length(evp, keylen), 0);
+    }
+    ilen = EVP_CIPHER_CTX_iv_length(evp);
+    if (ilen > 0 && ivlen != ilen) {
+        AssertIntNE(EVP_CIPHER_CTX_set_iv_length(evp, ivlen), 0);
     }
 
     AssertIntNE((ret = EVP_CipherInit(evp, NULL, key, iv, 1)), 0);

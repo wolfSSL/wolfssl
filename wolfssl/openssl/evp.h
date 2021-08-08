@@ -831,6 +831,7 @@ typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
 #define EVP_CIPHER_CTX_iv_length      wolfSSL_EVP_CIPHER_CTX_iv_length
 #define EVP_CIPHER_CTX_key_length     wolfSSL_EVP_CIPHER_CTX_key_length
 #define EVP_CIPHER_CTX_set_key_length wolfSSL_EVP_CIPHER_CTX_set_key_length
+#define EVP_CIPHER_CTX_set_iv_length  wolfSSL_EVP_CIPHER_CTX_set_iv_length
 #define EVP_CIPHER_CTX_mode           wolfSSL_EVP_CIPHER_CTX_mode
 #define EVP_CIPHER_CTX_cipher         wolfSSL_EVP_CIPHER_CTX_cipher
 
