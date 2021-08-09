@@ -6543,7 +6543,8 @@ int GetName(DecodedCert* cert, int nameType, int maxIdx)
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
             !defined(WOLFCRYPT_ONLY)
     if (nameType == ISSUER) {
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)) && defined(WOLFSSL_CERT_EXT)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) && \
+    (defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT))
         dName->rawLen = min(cert->issuerRawLen, ASN_NAME_MAX);
         XMEMCPY(dName->raw, cert->issuerRaw, dName->rawLen);
 #endif

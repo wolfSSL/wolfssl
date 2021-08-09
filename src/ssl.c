@@ -16203,7 +16203,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return SSL_CA_NAMES(ssl);
     }
 
-    #if !defined(NO_RSA) && !defined(NO_CERTS)
+    #if !defined(NO_CERTS)
     int wolfSSL_CTX_add_client_CA(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
     {
         WOLFSSL_X509_NAME *nameCopy = NULL;
@@ -16326,7 +16326,7 @@ cleanup:
         }
         #endif
     #endif /* !NO_BIO */
-#endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA || HAVE_WEBSERVER */
+#endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA */
 
 
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
@@ -19156,10 +19156,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
     if ((ssl == NULL) || (ssl->session.chain.count == 0))
         return NULL;
 
-    if (ssl->peerCertChain == NULL)
-        sk = wolfSSL_sk_X509_new();
-    else /* Try to re-use old chain if available */
-        sk = ssl->peerCertChain;
+    sk = wolfSSL_sk_X509_new();
     i = ssl->session.chain.count-1;
     for (; i >= 0; i--) {
         x509 = wolfSSL_X509_new();
@@ -19199,6 +19196,8 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
         wolfSSL_sk_X509_shift(sk);
     }
 #endif
+    if (ssl->peerCertChain != NULL)
+        wolfSSL_sk_X509_free(ssl->peerCertChain);
     /* This is Free'd when ssl is Free'd */
     ssl->peerCertChain = sk;
     return sk;
@@ -58242,7 +58241,8 @@ int wolfSSL_X509_STORE_CTX_get1_issuer(WOLFSSL_X509 **issuer,
  * START OF X509_STORE APIs
  ******************************************************************************/
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+    defined(WOLFSSL_WPAS_SMALL)
 WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
 {
     WOLFSSL_X509_STORE* store = NULL;
@@ -58435,7 +58435,7 @@ int wolfSSL_X509_STORE_set_ex_data_with_cleanup(
 
 #endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
 
-#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+#endif /* OPENSSL_EXTRA || HAVE_WEBSERVER || WOLFSSL_WPAS_SMALL */
 
 #ifdef OPENSSL_EXTRA
 

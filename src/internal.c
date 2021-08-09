@@ -2195,8 +2195,11 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
             ctx->x509_store.objs = NULL;
         }
     #endif
-    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
+    #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+        defined(WOLFSSL_WPAS_SMALL)
         wolfSSL_X509_STORE_free(ctx->x509_store_pt);
+    #endif
+    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
         wolfSSL_sk_X509_NAME_pop_free(ctx->ca_names, NULL);
         ctx->ca_names = NULL;
     #endif
@@ -10297,7 +10300,7 @@ static void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nam
         XSTRNCPY(name->name, dCert->subject, ASN_NAME_MAX);
         name->name[ASN_NAME_MAX - 1] = '\0';
         name->sz = (int)XSTRLEN(name->name) + 1;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
         name->rawLen = min(dCert->subjectRawLen, ASN_NAME_MAX);
         XMEMCPY(name->raw, dCert->subjectRaw, name->rawLen);
 #endif
@@ -10306,7 +10309,8 @@ static void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nam
         XSTRNCPY(name->name, dCert->issuer, ASN_NAME_MAX);
         name->name[ASN_NAME_MAX - 1] = '\0';
         name->sz = (int)XSTRLEN(name->name) + 1;
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)) && defined(WOLFSSL_CERT_EXT)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) \
+    && (defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT))
         name->rawLen = min(dCert->issuerRawLen, ASN_NAME_MAX);
         if (name->rawLen) {
             XMEMCPY(name->raw, dCert->issuerRaw, name->rawLen);
@@ -23055,6 +23059,7 @@ exit_dpk:
                 if (wolfSSL_sk_X509_NAME_push(ssl->ca_names, name)
                         == WOLFSSL_FAILURE) {
                     FreeDecodedCert(&cert);
+                    wolfSSL_X509_NAME_free(name);
                     return MEMORY_ERROR;
                 }
 
