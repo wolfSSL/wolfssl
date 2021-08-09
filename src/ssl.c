@@ -3033,12 +3033,12 @@ void* wolfSSL_CTX_get_TicketEncCtx(WOLFSSL_CTX* ctx)
 /* set the maximum number of tickets to send
  * return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on fail
  */
-int wolfSSL_CTX_set_num_tickets(WOLFSSL_CTX* ctx, size_t max)
+int wolfSSL_CTX_set_num_tickets(WOLFSSL_CTX* ctx, size_t mxTickets)
 {
     if (ctx == NULL)
         return WOLFSSL_FAILURE;
 
-    ctx->maxTicketTls13 = max;
+    ctx->maxTicketTls13 = mxTickets;
     return WOLFSSL_SUCCESS;
 }
 
