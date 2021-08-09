@@ -25197,12 +25197,14 @@ int wolfSSL_X509_VERIFY_PARAM_set1_ip(WOLFSSL_X509_VERIFY_PARAM* param,
     const unsigned char* ip, size_t iplen)
 {
     int ret = WOLFSSL_FAILURE;
+#ifndef NO_FILESYSTEM
     char* buf = NULL;
     char* p = NULL;
     word32 val = 0;
     int i;
     const size_t max_ipv6_len = 40;
     byte write_zero = 0;
+#endif
 
     /* sanity check */
     if (param == NULL || (iplen != 0 && iplen != 4 && iplen != 16)) {
@@ -25212,7 +25214,7 @@ int wolfSSL_X509_VERIFY_PARAM_set1_ip(WOLFSSL_X509_VERIFY_PARAM* param,
 #ifndef NO_FILESYSTEM
     if (iplen == 4) {
         /* ipv4 www.xxx.yyy.zzz max 15 length + Null termination */
-        buf = XMALLOC(16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        buf = (char*)XMALLOC(16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         if (!buf) {
             WOLFSSL_MSG("failed malloc");
@@ -25248,7 +25250,7 @@ int wolfSSL_X509_VERIFY_PARAM_set1_ip(WOLFSSL_X509_VERIFY_PARAM* param,
         *   ivp6 normal address scheme, not dual adress scheme, 
         *   to re-construct IP address in ascii.
         */
-        buf = XMALLOC(max_ipv6_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        buf = (char*)XMALLOC(max_ipv6_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         if (!buf) {
             WOLFSSL_MSG("failed malloc");
@@ -25308,7 +25310,6 @@ int wolfSSL_X509_VERIFY_PARAM_set1_ip(WOLFSSL_X509_VERIFY_PARAM* param,
     (void)param;
     (void)ip;
     (void)iplen;
-    (void)buf;
 #endif
     
     return ret;
