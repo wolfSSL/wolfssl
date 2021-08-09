@@ -95,6 +95,17 @@ decouple library dependencies with standard string, memory and so on.
         typedef const char* const wcchar;
     #endif
 
+    #ifndef HAVE_ANONYMOUS_INLINE_AGGREGATES
+        /* if __STDC__, pivot on the version, otherwise guess it's allowed,
+         * subject to override.
+         */
+        #if !defined(__STDC__) \
+            || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201101L))
+            #define HAVE_ANONYMOUS_INLINE_AGGREGATES 1
+        #else
+            #define HAVE_ANONYMOUS_INLINE_AGGREGATES 0
+        #endif
+    #endif
 
     /* try to set SIZEOF_LONG or SIZEOF_LONG_LONG if user didn't */
     #if defined(_MSC_VER) || defined(HAVE_LIMITS_H)
