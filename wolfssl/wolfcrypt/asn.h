@@ -457,7 +457,9 @@ enum Hash_Sum  {
     SHA3_224h = 420,
     SHA3_256h = 421,
     SHA3_384h = 422,
-    SHA3_512h = 423
+    SHA3_512h = 423,
+    SHAKE128h = 424,
+    SHAKE256h = 425
 };
 
 
@@ -1272,6 +1274,10 @@ WOLFSSL_LOCAL int FlattenAltNames( byte*, word32, const DNS_entry*);
         byte* r, word32* rLen, byte* s, word32* sLen);
     WOLFSSL_LOCAL int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen,
                                        mp_int* r, mp_int* s);
+#endif
+#ifndef NO_DSA
+WOLFSSL_LOCAL int StoreDSAParams(byte*, word32*, const mp_int*, const mp_int*,
+    const mp_int*);
 #endif
 #if defined HAVE_ECC && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 WOLFSSL_API int EccEnumToNID(int n);

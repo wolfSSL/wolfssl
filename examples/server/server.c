@@ -19,6 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* For simpler wolfSSL TLS server examples, visit
+ * https://github.com/wolfSSL/wolfssl-examples/tree/master/tls 
+ */
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -676,7 +679,7 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* server_usage_msg[][59] = {
+static const char* server_usage_msg[][60] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",               /* 0 */
@@ -821,8 +824,10 @@ static const char* server_usage_msg[][59] = {
         " SSLv3(0) - TLS1.2(3)\n",
 #else
         "-7          Set minimum downgrade protocol version [0-4] "
-        " SSLv3(0) - TLS1.3(4)\n",                           /* 59 */
+        " SSLv3(0) - TLS1.3(4)\n\n",                          /* 59 */
 #endif
+        "For simpler wolfSSL TLS server examples, visit\n"
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 60 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -976,8 +981,10 @@ static const char* server_usage_msg[][59] = {
         " SSLv3(0) - TLS1.2(3)\n",
 #else
         "-7          最小ダウングレード可能なプロトコルバージョンを設定します [0-4] "
-        " SSLv3(0) - TLS1.3(4)\n",                            /* 59 */
+        " SSLv3(0) - TLS1.3(4)\n\n",                          /* 59 */
 #endif
+        "For simpler wolfSSL TLS server examples, visit\n"
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 60 */
         NULL,
     },
 #endif
@@ -1119,6 +1126,7 @@ static void Usage(void)
     printf("%s", msg[++msgId]); /* --wolfsentry-config */
 #endif
     printf("%s", msg[++msgId]); /* -7 */
+    printf("%s", msg[++msgId]); /* Examples repo link */
 }
 
 THREAD_RETURN WOLFSSL_THREAD server_test(void* args)

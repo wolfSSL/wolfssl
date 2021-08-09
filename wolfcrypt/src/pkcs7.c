@@ -8357,6 +8357,11 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
 
             /* @TODO getting total amount left because of GetInt call later on
              * this could be optimized to stream better */
+            if (pkcs7->stream->totalRd > pkcs7->stream->maxLen) {
+                WOLFSSL_MSG("PKCS7 read more than expected");
+                ret = BUFFER_E;
+                break;
+            }
             pkcs7->stream->expected = (pkcs7->stream->maxLen -
                                 pkcs7->stream->totalRd) + pkcs7->stream->length;
         #endif

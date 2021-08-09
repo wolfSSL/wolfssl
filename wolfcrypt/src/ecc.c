@@ -6003,7 +6003,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     if (ret == 0) {
         /* right shift by bits in hash minus bits in order */
         mp_rshb(&z1, (hashSz * WOLFSSL_BIT_SIZE) - qbits);
-        XMEMSET(h1, 0, sizeof(h1));
+        XMEMSET(h1, 0, WC_MAX_DIGEST_SIZE);
 
         /* mod reduce by order using conditional subtract */
         if (mp_cmp(&z1, order) == MP_GT) {

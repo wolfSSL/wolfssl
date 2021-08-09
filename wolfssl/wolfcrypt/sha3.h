@@ -58,6 +58,8 @@ enum {
     WC_SHA3_512_DIGEST_SIZE  = 64,
     WC_SHA3_512_COUNT        =  9,
 
+    WC_SHAKE128              = WC_HASH_TYPE_SHAKE128,
+    WC_SHAKE256              = WC_HASH_TYPE_SHAKE256,
 #if !defined(HAVE_SELFTEST) || \
     defined(HAVE_SELFTEST_VERSION) && (HAVE_SELFTEST_VERSION >= 2)
     /* These values are used for HMAC, not SHA-3 directly.
@@ -79,6 +81,8 @@ enum {
     #define SHA3_512             WC_SHA3_512
     #define SHA3_512_DIGEST_SIZE WC_SHA3_512_DIGEST_SIZE
     #define Sha3 wc_Sha3
+    #define SHAKE128             WC_SHAKE128
+    #define SHAKE256             WC_SHAKE256
 #endif
 
 

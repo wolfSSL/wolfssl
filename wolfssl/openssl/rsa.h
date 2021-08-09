@@ -106,6 +106,7 @@ WOLFSSL_API int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA*, int bits, WOLFSSL_BIGN
                                           void* cb);
 
 WOLFSSL_API int wolfSSL_RSA_blinding_on(WOLFSSL_RSA*, WOLFSSL_BN_CTX*);
+WOLFSSL_API int wolfSSL_RSA_check_key(const WOLFSSL_RSA*);
 WOLFSSL_API int wolfSSL_RSA_public_encrypt(int len, const unsigned char* fr,
 	                               unsigned char* to, WOLFSSL_RSA*, int padding);
 WOLFSSL_API int wolfSSL_RSA_private_decrypt(int len, const unsigned char* fr,
@@ -184,6 +185,7 @@ WOLFSSL_API int wolfSSL_RSA_set_ex_data_with_cleanup(
 #define RSA_generate_key_ex wolfSSL_RSA_generate_key_ex
 
 #define RSA_blinding_on     wolfSSL_RSA_blinding_on
+#define RSA_check_key       wolfSSL_RSA_check_key
 #define RSA_public_encrypt  wolfSSL_RSA_public_encrypt
 #define RSA_private_decrypt wolfSSL_RSA_private_decrypt
 #define RSA_private_encrypt wolfSSL_RSA_private_encrypt

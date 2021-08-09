@@ -6675,7 +6675,7 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
 }
 
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-    defined(HAVE_CURVE25519) || defined(HHAVE_ED448) || defined(HAVE_CURVE448)
+    defined(HAVE_CURVE25519) || defined(HAVE_ED448) || defined(HAVE_CURVE448)
 static int ReuseKey(WOLFSSL* ssl, int type, void* pKey)
 {
     int ret = 0;

@@ -2352,6 +2352,12 @@ static const struct s_ent {
 #ifdef HAVE_BLAKE2S
     {WC_HASH_TYPE_BLAKE2S, NID_blake2s256, "BLAKE2S256"},
 #endif
+#ifdef WOLFSSL_SHAKE128
+    {WC_HASH_TYPE_SHAKE128, NID_shake128, "SHAKE128"},
+#endif
+#ifdef WOLFSSL_SHAKE256
+    {WC_HASH_TYPE_SHAKE256, NID_shake256, "SHAKE256"},
+#endif
     {WC_HASH_TYPE_NONE, 0, NULL}
 };
 
@@ -3534,25 +3540,20 @@ int wolfSSL_EVP_Digest(const unsigned char* in, int inSz, unsigned char* out,
     return WOLFSSL_SUCCESS;
 }
 
+static const struct alias {
+            const char *name;
+            const char *alias;
+} alias_tbl[] =
+{
+    {"MD4", "ssl3-md4"},
+    {"MD5", "ssl3-md5"},
+    {"SHA1", "ssl3-sha1"},
+    {"SHA1", "SHA"},
+    { NULL, NULL}
+};
+
 const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
 {
-    static const struct alias {
-        const char *name;
-        const char *alias;
-    } alias_tbl[] =
-    {
-        {"MD4", "ssl3-md4"},
-        {"MD5", "ssl3-md5"},
-        {"SHA1", "ssl3-sha1"},
-        {"SHA1", "SHA"},
-#ifdef HAVE_BLAKE2
-        {"BLAKE2b512", "blake2b512"},
-#endif
-#ifdef HAVE_BLAKE2S
-        {"BLAKE2s256", "blake2s256"},
-#endif
-        { NULL, NULL}
-    };
     char nameUpper[15]; /* 15 bytes should be enough for any name */
     size_t i;
 
@@ -3581,12 +3582,12 @@ const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
     return NULL;
 }
 
-int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
+int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
 {
     const struct s_ent *ent ;
     WOLFSSL_ENTER("EVP_MD_type");
     for( ent = md_tbl; ent->name != NULL; ent++){
-        if(XSTRNCMP((const char *)md, ent->name, XSTRLEN(ent->name)+1) == 0) {
+        if(XSTRNCMP((const char *)type, ent->name, XSTRLEN(ent->name)+1) == 0) {
             return ent->nid;
         }
     }
@@ -3736,7 +3737,26 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_get_digestbyname("SHA3_512");
     }
 #endif /* WOLFSSL_NOSHA3_512 */
+
+#ifdef WOLFSSL_SHAKE128
+    const WOLFSSL_EVP_MD* wolfSSL_EVP_shake128(void)
+    {
+        WOLFSSL_ENTER("EVP_shake128");
+        return EVP_get_digestbyname("SHAKE128");
+    }
+#endif /* WOLFSSL_SHAKE128 */
+
+#ifdef WOLFSSL_SHAKE256
+    const WOLFSSL_EVP_MD* wolfSSL_EVP_shake256(void)
+    {
+        WOLFSSL_ENTER("EVP_shake256");
+        return EVP_get_digestbyname("SHAKE256");
+    }
+#endif /* WOLFSSL_SHAKE256 */
+
 #endif /* WOLFSSL_SHA3 */
+
+
 
     WOLFSSL_EVP_MD_CTX *wolfSSL_EVP_MD_CTX_new(void)
     {
@@ -3895,6 +3915,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 case WC_HASH_TYPE_MD5_SHA:
                 case WC_HASH_TYPE_BLAKE2B:
                 case WC_HASH_TYPE_BLAKE2S:
+                case WC_HASH_TYPE_SHAKE128:
+                case WC_HASH_TYPE_SHAKE256:
                 default:
                     ret = BAD_FUNC_ARG;
                     break;
@@ -3941,7 +3963,112 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         }
         return (WOLFSSL_EVP_MD *)NULL;
     }
-
+    
+    /* return alias name if has
+     * @param n message digest type name
+     * @return alias name, otherwise NULL
+     */
+    static const char* hasAliasName(const char* n) 
+    {
+        
+        const char* aliasnm = NULL;
+        const struct alias  *al;
+        
+        for (al = alias_tbl; al->name != NULL; al++)
+            if(XSTRNCMP(n, al->name, XSTRLEN(al->name)+1) == 0) {
+                aliasnm = al->alias;
+                break;
+            }
+        
+        return aliasnm;
+    }
+    
+    
+    struct do_all_md {
+        void *arg;
+        void (*fn) (const WOLFSSL_EVP_MD *m, 
+                    const char* from, const char* to, void *arg);
+    };
+    
+    /* do all md algorithm
+     * @param nm a pointer to WOLFSSL_OBJ_NAME
+     * @param arg arguments to pass to the callback
+     * @return none
+     */
+    static void md_do_all_func(const WOLFSSL_OBJ_NAME* nm, void* arg)
+    {
+        struct do_all_md *md = (struct do_all_md*)arg;
+        
+        const char* alias = NULL;
+        const struct s_ent *ent;
+        
+        /* sanity check */
+        if (md == NULL || nm == NULL || md->fn == NULL ||
+            nm->type != WOLFSSL_OBJ_NAME_TYPE_MD_METH)
+            return;
+        
+        /* loop all md */
+        for (ent = md_tbl; ent->name != NULL; ent++){
+            /* check if the md has alias */
+            if((alias = hasAliasName(ent->name)) != NULL) {
+                md->fn(NULL, ent->name, ent->name, md->arg);
+            }
+            else {
+                md->fn(ent->name, ent->name, NULL, md->arg);
+            }
+        }
+    }
+    
+    /* call md_do_all function to do all md algorithm via a callback function
+     * @param fn a callback function to be called with all 'md'
+     * @param args arguments to pass to the callback
+     * @return none
+     */
+    void wolfSSL_EVP_MD_do_all(void (*fn) (const WOLFSSL_EVP_MD *m,
+                 const char* from, const char* to, void* xx), void* args)
+    {
+        struct do_all_md md;
+        
+        md.fn = fn;
+        md.arg = args;
+        
+        wolfSSL_OBJ_NAME_do_all(WOLFSSL_OBJ_NAME_TYPE_MD_METH,
+                        md_do_all_func, &md);
+    }
+    
+    /* call "fn" based on OBJ_NAME type
+     * @param type OBJ_NAME type
+     * @param fn a callback function
+     * @param args arguments to pass to the callback
+     * @return none
+     */
+    void wolfSSL_OBJ_NAME_do_all(int type, 
+                void (*fn)(const WOLFSSL_OBJ_NAME*, void* arg), void* arg)
+    {
+        WOLFSSL_OBJ_NAME objnm;
+        
+        /* sanity check */
+        if (!fn)
+            return;
+        
+        objnm.type = type;
+        
+        switch(type) {
+            case WOLFSSL_OBJ_NAME_TYPE_MD_METH:
+                fn(&objnm, arg);
+                break;
+            case WOLFSSL_OBJ_NAME_TYPE_CIPHER_METH:
+            case WOLFSSL_OBJ_NAME_TYPE_PKEY_METH:
+            case WOLFSSL_OBJ_NAME_TYPE_COMP_METH:
+            case WOLFSSL_OBJ_NAME_TYPE_NUM:
+                WOLFSSL_MSG("not implemented");
+                FALL_THROUGH;
+            case WOLFSSL_OBJ_NAME_TYPE_UNDEF:
+            default:
+                break;
+        }
+    }
+    
     #ifndef NO_AES
 
     #ifdef HAVE_AES_CBC
@@ -4294,6 +4421,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 case WC_HASH_TYPE_MD5_SHA:
                 case WC_HASH_TYPE_BLAKE2B:
                 case WC_HASH_TYPE_BLAKE2S:
+                case WC_HASH_TYPE_SHAKE128:
+                case WC_HASH_TYPE_SHAKE256:
                 default:
                     ret = WOLFSSL_FAILURE;
                     break;
@@ -5988,6 +6117,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             case WC_HASH_TYPE_MD5_SHA:
             case WC_HASH_TYPE_BLAKE2B:
             case WC_HASH_TYPE_BLAKE2S:
+            case WC_HASH_TYPE_SHAKE128:
+            case WC_HASH_TYPE_SHAKE256:
             default:
                 return WOLFSSL_FAILURE;
         }
@@ -6077,6 +6208,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             case WC_HASH_TYPE_MD5_SHA:
             case WC_HASH_TYPE_BLAKE2B:
             case WC_HASH_TYPE_BLAKE2S:
+            case WC_HASH_TYPE_SHAKE128:
+            case WC_HASH_TYPE_SHAKE256:
             default:
                 return WOLFSSL_FAILURE;
         }
@@ -6110,9 +6243,21 @@ const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int id)
         case NID_sha1:
             return wolfSSL_EVP_sha1();
 #endif
+#ifdef WOLFSSL_SHA224
+        case NID_sha224:
+            return wolfSSL_EVP_sha224();
+#endif
 #ifndef NO_SHA256
         case NID_sha256:
             return wolfSSL_EVP_sha256();
+#endif
+#ifdef WOLFSSL_SHA384
+        case NID_sha384:
+            return wolfSSL_EVP_sha384();
+#endif
+#ifdef WOLFSSL_SHA512
+        case NID_sha512:
+            return wolfSSL_EVP_sha512();
 #endif
         default:
             WOLFSSL_MSG("Bad digest id value");
@@ -6685,7 +6830,7 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
                     DYNAMIC_TYPE_OPENSSL);
             if (derBuf != NULL) {
                 pkey->pkey.ptr = (char*)derBuf;
-                if (wc_EccPublicKeyToDer(ecc, derBuf, derSz, 1) < 0) {
+                if ((derSz = wc_EccPublicKeyToDer(ecc, derBuf, derSz, 1)) < 0) {
                     XFREE(derBuf, NULL, DYNAMIC_TYPE_OPENSSL);
                     derBuf = NULL;
                 }
@@ -6907,6 +7052,39 @@ int wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* type)
 
     return BAD_FUNC_ARG;
 }
+
+int wolfSSL_EVP_MD_pkey_type(const WOLFSSL_EVP_MD* type)
+{
+    int ret = BAD_FUNC_ARG;
+
+    WOLFSSL_ENTER("wolfSSL_EVP_MD_pkey_type");
+
+    if (type != NULL) {
+        if (XSTRNCMP(type, "MD5", 3) == 0) {
+            ret = NID_md5WithRSAEncryption;
+        }
+        else if (XSTRNCMP(type, "SHA1", 4) == 0) {
+            ret = NID_sha1WithRSAEncryption;
+        }
+        else if (XSTRNCMP(type, "SHA224", 6) == 0) {
+            ret = NID_sha224WithRSAEncryption;
+        }
+        else if (XSTRNCMP(type, "SHA256", 6) == 0) {
+            ret = NID_sha256WithRSAEncryption;
+        }
+        else if (XSTRNCMP(type, "SHA384", 6) == 0) {
+            ret = NID_sha384WithRSAEncryption;
+        }
+        else if (XSTRNCMP(type, "SHA512", 6) == 0) {
+            ret = NID_sha512WithRSAEncryption;
+        }
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_EVP_MD_pkey_type", ret);
+
+    return ret;
+}
+
 
 
 int wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX* ctx)

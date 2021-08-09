@@ -1860,6 +1860,8 @@ int wc_hash2mgf(enum wc_HashType hType)
     case WC_HASH_TYPE_SHA3_512:
     case WC_HASH_TYPE_BLAKE2B:
     case WC_HASH_TYPE_BLAKE2S:
+    case WC_HASH_TYPE_SHAKE128:
+    case WC_HASH_TYPE_SHAKE256:
     default:
         break;
     }

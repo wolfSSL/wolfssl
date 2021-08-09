@@ -176,6 +176,7 @@ include tests/include.am
 include sslSniffer/sslSnifferTest/include.am
 include rpm/include.am
 include linuxkm/include.am
+include zephyr/include.am
 
 # Exclude references to non-DFSG sources from build files
 if !BUILD_DISTRO

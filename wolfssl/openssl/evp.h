@@ -93,6 +93,8 @@ WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha256(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha384(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha512(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_ripemd160(void);
+WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_shake128(void);
+WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_shake256(void);
 
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_224(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_256(void);
@@ -250,6 +252,7 @@ enum {
     NID_md4           = 257,
     NID_md5           =  4,
     NID_hmac          = 855,
+    NID_cmac          = 894,
     NID_dhKeyAgreement= 28,
     EVP_PKEY_DH       = NID_dhKeyAgreement,
     EVP_PKEY_HMAC     = NID_hmac,
@@ -293,6 +296,8 @@ enum {
     NID_sha3_512        = 1099,
     NID_blake2b512      = 1056,
     NID_blake2s256      = 1057,
+    NID_shake128        = 1100,
+    NID_shake256        = 1101,
 };
 
 enum {
@@ -431,9 +436,10 @@ typedef WOLFSSL_EVP_PKEY_CTX EVP_PKEY_CTX;
 #define EVP_PKEY_PRINT_INDENT_MAX    128
 
 WOLFSSL_API void wolfSSL_EVP_init(void);
-WOLFSSL_API int  wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* md);
-WOLFSSL_API int  wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md);
-WOLFSSL_API int  wolfSSL_EVP_MD_block_size(const WOLFSSL_EVP_MD *md);
+WOLFSSL_API int  wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* );
+WOLFSSL_API int  wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD*);
+WOLFSSL_API int  wolfSSL_EVP_MD_block_size(const WOLFSSL_EVP_MD*);
+WOLFSSL_API int  wolfSSL_EVP_MD_pkey_type(const WOLFSSL_EVP_MD*);
 
 WOLFSSL_API WOLFSSL_EVP_MD_CTX *wolfSSL_EVP_MD_CTX_new (void);
 WOLFSSL_API void                wolfSSL_EVP_MD_CTX_free(WOLFSSL_EVP_MD_CTX* ctx);
@@ -688,6 +694,10 @@ WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
 WOLFSSL_LOCAL int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
                                            int* pHash, int* pHashSz);
 
+WOLFSSL_API void wolfSSL_EVP_MD_do_all(void (*fn) (const WOLFSSL_EVP_MD *md,
+                                                   const char* from, const char* to,
+                                                   void* xx), void* args);
+                                                   
 #define EVP_CIPH_STREAM_CIPHER WOLFSSL_EVP_CIPH_STREAM_CIPHER
 #define EVP_CIPH_ECB_MODE WOLFSSL_EVP_CIPH_ECB_MODE
 #define EVP_CIPH_CBC_MODE WOLFSSL_EVP_CIPH_CBC_MODE
@@ -737,6 +747,8 @@ typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
 #define EVP_sha384        wolfSSL_EVP_sha384
 #define EVP_sha512        wolfSSL_EVP_sha512
 #define EVP_ripemd160     wolfSSL_EVP_ripemd160
+#define EVP_shake128      wolfSSL_EVP_shake128
+#define EVP_shake256      wolfSSL_EVP_shake256
 #define EVP_set_pw_prompt wolfSSL_EVP_set_pw_prompt
 
 #define EVP_sha3_224    wolfSSL_EVP_sha3_224
@@ -779,6 +791,7 @@ typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
 #define EVP_enc_null       wolfSSL_EVP_enc_null
 
 #define EVP_MD_size             wolfSSL_EVP_MD_size
+#define EVP_MD_pkey_type        wolfSSL_EVP_MD_pkey_type
 #define EVP_MD_CTX_new          wolfSSL_EVP_MD_CTX_new
 #define EVP_MD_CTX_create       wolfSSL_EVP_MD_CTX_new
 #define EVP_MD_CTX_free         wolfSSL_EVP_MD_CTX_free
@@ -1016,6 +1029,7 @@ typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
 
 #define EVP_blake2b512       wolfSSL_EVP_blake2b512
 #define EVP_blake2s256       wolfSSL_EVP_blake2s256
+#define EVP_MD_do_all        wolfSSL_EVP_MD_do_all
 
 WOLFSSL_API void printPKEY(WOLFSSL_EVP_PKEY *k);
 

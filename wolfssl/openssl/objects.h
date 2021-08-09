@@ -34,6 +34,14 @@
     extern "C" {
 #endif
 
+#define OBJ_NAME_TYPE_UNDEF     WOLFSSL_OBJ_NAME_TYPE_UNDEF
+#define OBJ_NAME_TYPE_MD_METH   WOLFSSL_OBJ_NAME_TYPE_MD_METH
+#define OBJ_NAME_TYPE_CIPHER_METH   WOLFSSL_OBJ_NAME_TYPE_CIPHER_METH
+#define OBJ_NAME_TYPE_PKEY_METH     WOLFSSL_OBJ_NAME_TYPE_PKEY_METH
+#define OBJ_NAME_TYPE_COMP_METH     WOLFSSL_OBJ_NAME_TYPE_COMP_METH
+#define OBJ_NAME_TYPE_NUM           WOLFSSL_OBJ_NAME_TYPE_NUM
+#define OBJ_NAME_ALIAS              WOLFSSL_OBJ_NAME_ALIAS
+
 #define OBJ_nid2sn  wolfSSL_OBJ_nid2sn
 #define OBJ_obj2nid wolfSSL_OBJ_obj2nid
 #define OBJ_sn2nid  wolfSSL_OBJ_sn2nid
@@ -47,6 +55,7 @@
 #define OBJ_cmp     wolfSSL_OBJ_cmp
 #define OBJ_create  wolfSSL_OBJ_create
 #define ASN1_OBJECT_free wolfSSL_ASN1_OBJECT_free
+#define OBJ_NAME_do_all wolfSSL_OBJ_NAME_do_all
 
 /* not required for wolfSSL */
 #define OPENSSL_load_builtin_modules()

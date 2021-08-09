@@ -8,3 +8,4 @@ include examples/echoserver/include.am
 include examples/server/include.am
 include examples/sctp/include.am
 include examples/configs/include.am
+EXTRA_DIST += examples/README.md

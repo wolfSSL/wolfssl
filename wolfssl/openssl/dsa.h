@@ -57,6 +57,9 @@ struct WOLFSSL_DSA {
 
 WOLFSSL_API WOLFSSL_DSA* wolfSSL_DSA_new(void);
 WOLFSSL_API void wolfSSL_DSA_free(WOLFSSL_DSA*);
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
+WOLFSSL_API int wolfSSL_DSA_print_fp(XFILE, WOLFSSL_DSA*, int);
+#endif /* !NO_FILESYSTEM && NO_STDIO_FILESYSTEM */
 
 WOLFSSL_API int wolfSSL_DSA_generate_key(WOLFSSL_DSA*);
 
@@ -109,11 +112,16 @@ WOLFSSL_API WOLFSSL_DSA_SIG* wolfSSL_DSA_do_sign_ex(const unsigned char* digest,
 WOLFSSL_API int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest_len,
                                          WOLFSSL_DSA_SIG* sig, WOLFSSL_DSA* dsa);
 
+WOLFSSL_API int wolfSSL_i2d_DSAparams(const WOLFSSL_DSA*, unsigned char**);
+WOLFSSL_API WOLFSSL_DSA* wolfSSL_d2i_DSAparams(WOLFSSL_DSA**,
+                                               const unsigned char **, long);
+
 #define WOLFSSL_DSA_LOAD_PRIVATE 1
 #define WOLFSSL_DSA_LOAD_PUBLIC  2
 
 #define DSA_new wolfSSL_DSA_new
 #define DSA_free wolfSSL_DSA_free
+#define DSA_print_fp wolfSSL_DSA_print_fp
 
 #define DSA_LoadDer                wolfSSL_DSA_LoadDer
 #define DSA_generate_key           wolfSSL_DSA_generate_key
@@ -132,7 +140,8 @@ WOLFSSL_API int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest
 #define d2i_DSA_SIG                wolfSSL_d2i_DSA_SIG
 #define DSA_do_sign                wolfSSL_DSA_do_sign_ex
 #define DSA_do_verify              wolfSSL_DSA_do_verify_ex
-
+#define i2d_DSAparams              wolfSSL_i2d_DSAparams
+#define d2i_DSAparams              wolfSSL_d2i_DSAparams
 
 #define DSA_SIG                    WOLFSSL_DSA_SIG
 
