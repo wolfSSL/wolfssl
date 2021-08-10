@@ -2035,6 +2035,47 @@ static void test_wolfSSL_CTX_ticket_API(void)
 #endif /* HAVE_SESSION_TICKET && !NO_WOLFSSL_SERVER */
 }
 
+static void test_wolfSSL_set_minmax_proto_version(void)
+{
+#ifdef OPENSSL_EXTRA
+WOLFSSL_CTX *ctx;
+WOLFSSL *ssl;
+int ret;
+(void)ret;
+(void)ssl;
+printf(testingFmt, "test_wolfSSL_set_minmax_proto_version");
+
+#ifndef NO_WOLFSSL_CLIENT
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+
+    AssertIntEQ(wolfSSL_CTX_set_min_proto_version(NULL, 0), SSL_FAILURE);
+    AssertIntEQ(wolfSSL_CTX_set_max_proto_version(NULL, 0), SSL_FAILURE);
+    AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, 0), SSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_set_max_proto_version(ctx, 0), SSL_SUCCESS);
+
+    AssertIntEQ(wolfSSL_set_min_proto_version(NULL, 0), SSL_FAILURE);
+    AssertIntEQ(wolfSSL_set_min_proto_version(ssl, 0), SSL_SUCCESS);
+    AssertIntEQ(wolfSSL_set_max_proto_version(NULL, 0), SSL_FAILURE);
+    AssertIntEQ(wolfSSL_set_max_proto_version(ssl, 0), SSL_SUCCESS);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+
+#else
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+
+    AssertIntEQ(wolfSSL_CTX_set_min_proto_version(NULL, 0), SSL_FAILURE);
+    AssertIntEQ(wolfSSL_CTX_set_max_proto_version(NULL, 0), SSL_FAILURE);
+    AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, 0), SSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_set_max_proto_version(ctx, 0), SSL_SUCCESS);
+
+    wolfSSL_CTX_free(ctx);
+#endif
+
+    printf(resultFmt, passed);
+#endif
+}
 
 /*----------------------------------------------------------------------------*
  | SSL
@@ -16929,7 +16970,7 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
     if (in == NULL || plain == NULL || cipher == NULL) {
         printf("test_wc_RsaPublicEncryptDecrypt malloc failed\n");
         return MEMORY_E;
-    }
+}
 #endif
     XMEMCPY(in, inStr, inLen);
 
@@ -46936,6 +46977,7 @@ void ApiTest(void)
     test_wolfSSL_Tls12_Key_Logging_test();
     test_wolfSSL_Tls13_Key_Logging_test();
     test_wolfSSL_CTX_set_ecdh_auto();
+    test_wolfSSL_set_minmax_proto_version();
     test_wolfSSL_THREADID_hash();
     test_wolfSSL_RAND_set_rand_method();
     test_wolfSSL_RAND_bytes();

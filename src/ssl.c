@@ -16840,14 +16840,17 @@ static int CheckSslMethodVersion(byte major, unsigned long options)
 }
 
 /**
- * This function attempts to set the minimum protocol version to use by SSL
- * objects created from this WOLFSSL_CTX. This API guarantees that a version
- * of SSL/TLS lower than specified here will not be allowed. If the version
- * specified is not compiled in then this API sets the lowest compiled in
- * protocol version. CheckSslMethodVersion() is called to check if any
- * remaining protocol versions are enabled.
+ * wolfSSL_CTX_set_min_proto_version attempts to set the minimum protocol
+ * version to use by SSL objects created from this WOLFSSL_CTX.
+ * This API guarantees that a version of SSL/TLS lower than specified
+ * here will not be allowed. If the version specified is not compiled in 
+ * then this API sets the lowest compiled in protocol version. 
+ * This API also accept 0 as version, to set the minimum version automatically.
+ * CheckSslMethodVersion() is called to check if any remaining protocol versions
+ * are enabled.
  * @param ctx
  * @param version Any of the following
+ *          * 0
  *          * SSL3_VERSION
  *          * TLS1_VERSION
  *          * TLS1_1_VERSION
@@ -16858,9 +16861,9 @@ static int CheckSslMethodVersion(byte major, unsigned long options)
  * @return WOLFSSL_SUCCESS on valid settings and WOLFSSL_FAILURE when no
  *         protocol versions are left enabled.
  */
-int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
+static int Set_CTX_min_proto_version(WOLFSSL_CTX* ctx, int version)
 {
-    WOLFSSL_ENTER("wolfSSL_CTX_set_min_proto_version");
+    WOLFSSL_ENTER("wolfSSL_CTX_set_min_proto_version_ex");
 
     if (ctx == NULL) {
         return WOLFSSL_FAILURE;
@@ -16941,15 +16944,51 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
     return CheckSslMethodVersion(ctx->method->version.major, ctx->mask);
 }
 
+int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
+{
+    const int verTbl[] = {SSL3_VERSION, TLS1_VERSION, TLS1_1_VERSION, 
+                          TLS1_2_VERSION, TLS1_3_VERSION,DTLS1_VERSION,
+                          DTLS1_2_VERSION};
+    int tblSz = sizeof(verTbl);
+    int i;
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_set_min_proto_version");
+
+    (void)verTbl;
+    (void)tblSz;
+    (void)i;
+    (void)ret;
+
+    if (ctx == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    if (version != 0) {
+        return Set_CTX_min_proto_version(ctx, version);
+    }
+
+    /* when 0 is specified as version, try to find out the min version */
+    for (i= 0; i < tblSz; i++) {
+        ret = Set_CTX_min_proto_version(ctx, verTbl[i]);
+        if (ret == WOLFSSL_SUCCESS)
+            break;
+    }
+
+    return ret;
+}
+
 /**
- * This function attempts to set the maximum protocol version to use by SSL
- * objects created from this WOLFSSL_CTX. This API guarantees that a version
- * of SSL/TLS higher than specified here will not be allowed. If the version
- * specified is not compiled in then this API sets the highest compiled in
- * protocol version. CheckSslMethodVersion() is called to check if any
- * remaining protocol versions are enabled.
+ * wolfSSL_CTX_set_max_proto_version attempts to set the maximum protocol
+ * version to use by SSL objects created from this WOLFSSL_CTX.
+ * This API guarantees that a version of SSL/TLS higher than specified
+ * here will not be allowed. If the version specified is not compiled in 
+ * then this API sets the highest compiled in protocol version. 
+ * This API also accept 0 as version, to set the maximum version automatically.
+ * CheckSslMethodVersion() is called to check if any remaining protocol versions
+ * are enabled.
  * @param ctx
  * @param version Any of the following
+ *          * 0
  *          * SSL3_VERSION
  *          * TLS1_VERSION
  *          * TLS1_1_VERSION
@@ -16960,9 +16999,9 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
  * @return WOLFSSL_SUCCESS on valid settings and WOLFSSL_FAILURE when no
  *         protocol versions are left enabled.
  */
-int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int ver)
+static int Set_CTX_max_proto_version(WOLFSSL_CTX* ctx, int ver)
 {
-    WOLFSSL_ENTER("wolfSSL_CTX_set_max_proto_version");
+    WOLFSSL_ENTER("Set_CTX_max_proto_version");
 
     if (!ctx || !ctx->method) {
         WOLFSSL_MSG("Bad parameter");
@@ -17003,9 +17042,44 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int ver)
     return CheckSslMethodVersion(ctx->method->version.major, ctx->mask);
 }
 
-int wolfSSL_set_min_proto_version(WOLFSSL* ssl, int ver)
+int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
 {
-    WOLFSSL_ENTER("wolfSSL_set_min_proto_version");
+    const int verTbl[] = {DTLS1_2_VERSION, DTLS1_VERSION, TLS1_3_VERSION, 
+                          TLS1_2_VERSION, TLS1_1_VERSION, TLS1_VERSION, 
+                          SSL3_VERSION};
+    int tblSz = sizeof(verTbl);
+    int i;
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_set_max_proto_version");
+
+    (void)verTbl;
+    (void)tblSz;
+    (void)i;
+    (void)ret;
+
+    if (ctx == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    if (version != 0) {
+        return Set_CTX_max_proto_version(ctx, version);
+    }
+
+    /* when 0 is specified as version, try to find out the min version */
+    for (i= 0; i < tblSz; i++) {
+        ret = Set_CTX_max_proto_version(ctx, verTbl[i]);
+        if (ret == WOLFSSL_SUCCESS) {      
+            break;
+        }
+    }
+
+    return ret;
+}
+
+
+static int Set_SSL_min_proto_version(WOLFSSL* ssl, int ver)
+{
+    WOLFSSL_ENTER("Set_SSL_min_proto_version");
 
     if (ssl == NULL) {
         return WOLFSSL_FAILURE;
@@ -17086,10 +17160,43 @@ int wolfSSL_set_min_proto_version(WOLFSSL* ssl, int ver)
     return CheckSslMethodVersion(ssl->version.major, ssl->options.mask);
 }
 
-int wolfSSL_set_max_proto_version(WOLFSSL* ssl, int ver)
+int wolfSSL_set_min_proto_version(WOLFSSL* ssl, int version)
+{
+    const int verTbl[] = {SSL3_VERSION, TLS1_VERSION, TLS1_1_VERSION, 
+                          TLS1_2_VERSION, TLS1_3_VERSION,DTLS1_VERSION,
+                          DTLS1_2_VERSION};
+    int tblSz = sizeof(verTbl);
+    int i;
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_set_min_proto_version");
+
+    (void)verTbl;
+    (void)tblSz;
+    (void)i;
+    (void)ret;
+
+    if (ssl == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    if (version != 0) {
+        return Set_SSL_min_proto_version(ssl, version);
+    }
+
+    /* when 0 is specified as version, try to find out the min version */
+    for (i= 0; i < tblSz; i++) {
+        ret = Set_SSL_min_proto_version(ssl, verTbl[i]);
+        if (ret == WOLFSSL_SUCCESS)
+            break;
+    }
+
+    return ret;
+}
+
+static int Set_SSL_max_proto_version(WOLFSSL* ssl, int ver)
 {
 
-    WOLFSSL_ENTER("wolfSSL_set_max_proto_version");
+    WOLFSSL_ENTER("Set_SSL_max_proto_version");
 
     if (!ssl) {
         WOLFSSL_MSG("Bad parameter");
@@ -17128,6 +17235,39 @@ int wolfSSL_set_max_proto_version(WOLFSSL* ssl, int ver)
     }
 
     return CheckSslMethodVersion(ssl->version.major, ssl->options.mask);
+}
+
+int wolfSSL_set_max_proto_version(WOLFSSL* ssl, int version)
+{
+    const int verTbl[] = {DTLS1_2_VERSION, DTLS1_VERSION, TLS1_3_VERSION, 
+                          TLS1_2_VERSION, TLS1_1_VERSION, TLS1_VERSION, 
+                          SSL3_VERSION};
+    int tblSz = sizeof(verTbl);
+    int i;
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_set_max_proto_version");
+
+    (void)verTbl;
+    (void)tblSz;
+    (void)i;
+    (void)ret;
+
+    if (ssl == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    if (version != 0) {
+        return Set_SSL_max_proto_version(ssl, version);
+    }
+
+    /* when 0 is specified as version, try to find out the max version */
+    for (i= 0; i < tblSz; i++) {
+        ret = Set_SSL_max_proto_version(ssl, verTbl[i]);
+        if (ret == WOLFSSL_SUCCESS)
+            break;
+    }
+
+    return ret;
 }
 
 static int GetMinProtoVersion(int minDowngrade)
@@ -43865,17 +44005,9 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
         break;
     case SSL_CTRL_SET_MIN_PROTO_VERSION:
         WOLFSSL_MSG("set min proto version");
-        if (opt == 0) {
-            /* do nothing */
-            return WOLFSSL_SUCCESS;
-        }
         return wolfSSL_CTX_set_min_proto_version(ctx, (int)opt);
     case SSL_CTRL_SET_MAX_PROTO_VERSION:
         WOLFSSL_MSG("set max proto version");
-        if (opt == 0) {
-            /* do nothing */
-            return WOLFSSL_SUCCESS;
-        }
         return wolfSSL_CTX_set_max_proto_version(ctx, (int)opt);
     default:
         WOLFSSL_MSG("CTX_ctrl cmd not implemented");
