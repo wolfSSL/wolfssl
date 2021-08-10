@@ -3891,6 +3891,9 @@ struct WOLFSSL_X509 {
     byte*            authKeyId;
     byte*            subjKeyId;
     byte*            extKeyUsageSrc;
+#ifdef OPENSSL_ALL
+    byte*            subjAltNameSrc;
+#endif
     const byte*      CRLInfo;
     byte*            authInfo;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
@@ -3905,6 +3908,9 @@ struct WOLFSSL_X509 {
     word32           subjKeyIdSz;
     word32           extKeyUsageSz;
     word32           extKeyUsageCount;
+#ifdef OPENSSL_ALL
+    word32           subjAltNameSz;
+#endif
 
     byte             CRLdistSet:1;
     byte             CRLdistCrit:1;

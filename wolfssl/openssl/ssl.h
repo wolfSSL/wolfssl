@@ -496,6 +496,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 
 #define X509_EXTENSION_get_object       wolfSSL_X509_EXTENSION_get_object
 #define X509_EXTENSION_get_data         wolfSSL_X509_EXTENSION_get_data
+#define X509_EXTENSION_dup              wolfSSL_X509_EXTENSION_dup
 
 #define sk_X509_new                     wolfSSL_sk_X509_new
 #define sk_X509_new_null                wolfSSL_sk_X509_new

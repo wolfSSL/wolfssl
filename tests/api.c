@@ -40440,7 +40440,41 @@ static void test_wolfSSL_X509_get_ext_by_NID(void)
     AssertIntEQ(rc, -1);
 
     wolfSSL_X509_free(x509);
+#endif
+}
 
+static void test_wolfSSL_X509_get_ext_subj_alt_name(void)
+{
+#if defined(OPENSSL_ALL) && !defined(NO_RSA)
+    int rc;
+    XFILE f;
+    WOLFSSL_X509* x509;
+    WOLFSSL_X509_EXTENSION* ext;
+    WOLFSSL_ASN1_STRING* sanString;
+    byte* sanDer;
+
+    const byte expectedDer[] = {
+        0x30, 0x13, 0x82, 0x0b, 0x65, 0x78, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x2e,
+        0x63, 0x6f, 0x6d, 0x87, 0x04, 0x7f, 0x00, 0x00, 0x01};
+
+    printf(testingFmt, "test_wolfSSL_X509_get_ext_subj_alt_name");
+
+    f = XFOPEN("./certs/server-cert.pem", "rb");
+    AssertTrue(f != XBADFILE);
+    AssertNotNull(x509 = PEM_read_X509(f, NULL, NULL, NULL));
+    fclose(f);
+
+    rc = X509_get_ext_by_NID(x509, NID_subject_alt_name, -1);
+    AssertIntNE(rc, -1);
+    AssertNotNull(ext = X509_get_ext(x509, rc));
+    AssertNotNull(sanString = X509_EXTENSION_get_data(ext));
+    AssertIntEQ(ASN1_STRING_length(sanString), sizeof(expectedDer));
+    AssertNotNull(sanDer = ASN1_STRING_data(sanString));
+    AssertIntEQ(XMEMCMP(sanDer, expectedDer, sizeof(expectedDer)), 0);
+
+    X509_free(x509);
+
+    printf(resultFmt, passed);
 #endif
 }
 
@@ -47116,6 +47150,7 @@ void ApiTest(void)
     test_wolfSSL_X509V3_EXT();
     test_wolfSSL_X509_get_ext();
     test_wolfSSL_X509_get_ext_by_NID();
+    test_wolfSSL_X509_get_ext_subj_alt_name();
     test_wolfSSL_X509_get_ext_count();
     test_wolfSSL_X509_EXTENSION_new();
     test_wolfSSL_X509_EXTENSION_get_object();

@@ -8525,6 +8525,45 @@ void wolfSSL_X509_EXTENSION_free(WOLFSSL_X509_EXTENSION* x)
     XFREE(x, NULL, DYNAMIC_TYPE_X509_EXT);
 }
 
+WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_dup(WOLFSSL_X509_EXTENSION* src)
+{
+    WOLFSSL_X509_EXTENSION* ret = NULL;
+    int err = 0;
+
+    WOLFSSL_ENTER("wolfSSL_X509_EXTENSION_dup");
+
+    if (src == NULL) {
+        err = 1;
+    }
+
+    if (err == 0) {
+        ret = wolfSSL_X509_EXTENSION_new();
+        if (ret == NULL) {
+            err = 1;
+        }
+    }
+    if (err == 0 && src->obj != NULL) {
+        ret->obj = wolfSSL_ASN1_OBJECT_dup(src->obj);
+        if (ret->obj == NULL) {
+            err = 1;
+        }
+    }
+    if (err == 0) {
+        ret->crit = src->crit;
+        if (wolfSSL_ASN1_STRING_copy(&ret->value, &src->value) != 
+                WOLFSSL_SUCCESS) {
+            err = 1;
+        }
+    }
+
+    if (err == 1 && ret != NULL) {
+        wolfSSL_X509_EXTENSION_free(ret);
+        ret = NULL;
+    }
+
+    return ret;
+}
+
 /* Creates and returns a new WOLFSSL_X509_EXTENSION stack. */
 WOLFSSL_STACK* wolfSSL_sk_new_x509_ext(void)
 {
@@ -9048,10 +9087,23 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                 if (!isSet)
                     break;
 
+            #ifdef OPENSSL_ALL
+                ret = wolfSSL_ASN1_STRING_set(&ext->value, x509->subjAltNameSrc,
+                          x509->subjAltNameSz);
+                if (ret != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("ASN1_STRING_set() failed");
+                    wolfSSL_X509_EXTENSION_free(ext);
+                    FreeDecodedCert(&cert);
+                    return NULL;
+                }
+            #endif
+
                 sk = (WOLFSSL_GENERAL_NAMES*)XMALLOC(
                           sizeof(WOLFSSL_GENERAL_NAMES), NULL,
                           DYNAMIC_TYPE_ASN1);
                 if (sk == NULL) {
+                    wolfSSL_X509_EXTENSION_free(ext);
+                    FreeDecodedCert(&cert);
                     return NULL;
                 }
                 XMEMSET(sk, 0, sizeof(WOLFSSL_GENERAL_NAMES));
@@ -9065,6 +9117,8 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                         gn = wolfSSL_GENERAL_NAME_new();
                         if (gn == NULL) {
                             WOLFSSL_MSG("Error creating GENERAL_NAME");
+                            wolfSSL_X509_EXTENSION_free(ext);
+                            FreeDecodedCert(&cert);
                             wolfSSL_sk_free(sk);
                             return NULL;
                         }
@@ -9074,6 +9128,8 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                         if (wolfSSL_ASN1_STRING_set(gn->d.ia5, dns->name,
                                     gn->d.ia5->length) != WOLFSSL_SUCCESS) {
                             WOLFSSL_MSG("ASN1_STRING_set failed");
+                            wolfSSL_X509_EXTENSION_free(ext);
+                            FreeDecodedCert(&cert);
                             wolfSSL_GENERAL_NAME_free(gn);
                             wolfSSL_sk_free(sk);
                             return NULL;
@@ -9084,19 +9140,23 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                         if (dns != NULL) {
                             if (wolfSSL_sk_GENERAL_NAME_push(sk, gn) !=
                                                           WOLFSSL_SUCCESS) {
-                            WOLFSSL_MSG("Error pushing onto stack");
-                            wolfSSL_GENERAL_NAME_free(gn);
-                            wolfSSL_sk_free(sk);
-                            sk = NULL;
+                                WOLFSSL_MSG("Error pushing onto stack");
+                                wolfSSL_X509_EXTENSION_free(ext);
+                                FreeDecodedCert(&cert);
+                                wolfSSL_GENERAL_NAME_free(gn);
+                                wolfSSL_sk_free(sk);
+                                return NULL;
                             }
                         }
                     }
                     if (wolfSSL_sk_GENERAL_NAME_push(sk,gn) !=
                                                           WOLFSSL_SUCCESS) {
                         WOLFSSL_MSG("Error pushing onto stack");
+                        wolfSSL_X509_EXTENSION_free(ext);
+                        FreeDecodedCert(&cert);
                         wolfSSL_GENERAL_NAME_free(gn);
                         wolfSSL_sk_free(sk);
-                        sk = NULL;
+                        return NULL;
                     }
                 }
                 ext->ext_sk = sk;
