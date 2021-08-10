@@ -26,8 +26,9 @@
 #ifndef WOLFSSL_OPENSSL_COMPAT_TYPES_H_
 #define WOLFSSL_OPENSSL_COMPAT_TYPES_H_
 
-#include <wolfssl/wolfcrypt/hmac.h>
+#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/hmac.h>
 
 typedef struct WOLFSSL_HMAC_CTX {
     Hmac hmac;

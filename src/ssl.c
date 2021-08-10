@@ -54967,8 +54967,8 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
             else
                 port = str + XSTRLEN(str); /* point to null terminator */
 
-            bio->ip = (char*)XMALLOC(1 + port - str, bio->heap,
-                                        DYNAMIC_TYPE_OPENSSL);
+            bio->ip = (char*)XMALLOC((port - str) + 1, /* +1 for null char */
+                    bio->heap, DYNAMIC_TYPE_OPENSSL);
             XMEMCPY(bio->ip, str, port - str);
             bio->ip[port - str] = '\0';
             bio->type  = WOLFSSL_BIO_SOCKET;
@@ -55055,13 +55055,14 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
         return WOLFSSL_SUCCESS;
     }
 
+#ifdef HAVE_SOCKADDR
     int wolfSSL_BIO_do_accept(WOLFSSL_BIO *b)
     {
         SOCKET_T sfd = SOCKET_INVALID;
         WOLFSSL_ENTER("wolfSSL_BIO_do_accept");
 
         if (!b) {
-            WOLFSSL_ENTER("Bad parameter");
+            WOLFSSL_MSG("Bad parameter");
             return WOLFSSL_FAILURE;
         }
 
@@ -55102,13 +55103,15 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
             /* Push onto bio chain for user retrieval */
             if (wolfSSL_BIO_push(b, new_bio) == NULL) {
                 WOLFSSL_ENTER("wolfSSL_BIO_push error");
-                CloseSocket(newfd);
+                /* newfd is closed when bio is free'd */
+                wolfSSL_BIO_free(new_bio);
                 return WOLFSSL_FAILURE;
             }
         }
 
         return WOLFSSL_SUCCESS;
     }
+#endif /* HAVE_SOCKADDR */
 #endif /* HAVE_HTTP_CLIENT */
 
     int wolfSSL_BIO_eof(WOLFSSL_BIO* b)
@@ -55312,7 +55315,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
             #ifdef CloseSocket
                 if (bio->type == WOLFSSL_BIO_SOCKET && bio->num)
                     CloseSocket(bio->num);
-             #endif
+            #endif
             }
 
         #ifndef NO_FILESYSTEM
