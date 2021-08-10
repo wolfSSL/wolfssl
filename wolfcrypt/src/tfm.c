@@ -37,14 +37,15 @@
 
 /* in case user set USE_FAST_MATH there */
 #include <wolfssl/wolfcrypt/settings.h>
+
+#ifdef USE_FAST_MATH
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
-
-#ifdef USE_FAST_MATH
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/tfm.h>

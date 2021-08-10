@@ -31,6 +31,9 @@ This library provides single precision (SP) integer math functions.
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -84,8 +87,6 @@ This library provides single precision (SP) integer math functions.
  *                              Used with small code size and not small stack.
  * WOLFSSL_SP_FAST_MODEXP       Allow fast mod_exp with small C code
  */
-
-#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
 
 #include <wolfssl/wolfcrypt/sp_int.h>
 
