@@ -12162,7 +12162,7 @@ static mp_int* GetRsaInt(RsaKey* key, int idx)
 int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 {
     int ret = 0, i, j, outLen = 0, mpSz;
-    word32 seqSz = 0, verSz, rawLen, intTotalLen = 0;
+    word32 seqSz = 0, verSz = 0, rawLen, intTotalLen = 0;
     word32 sizes[RSA_INTS];
     byte  seq[MAX_SEQ_SZ];
     byte  ver[MAX_VERSION_SZ];
@@ -16487,15 +16487,6 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
 
 
 #ifdef WOLFSSL_CUSTOM_CURVES
-static void ByteToHex(byte n, char* str)
-{
-    const char hexChar[] = { '0', '1', '2', '3', '4', '5', '6', '7',
-                                    '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
-
-    str[0] = hexChar[n >> 4];
-    str[1] = hexChar[n & 0xf];
-}
-
 /* returns 0 on success */
 static int ASNToHexString(const byte* input, word32* inOutIdx, char** out,
                           word32 inSz, void* heap, int heapType)
@@ -16526,7 +16517,7 @@ static int ASNToHexString(const byte* input, word32* inOutIdx, char** out,
     }
 
     for (i=0; i<len; i++)
-        ByteToHex(input[*inOutIdx + i], str + i*2);
+        ByteToHexStr(input[*inOutIdx + i], str + i*2);
     str[len*2] = '\0';
 
     *inOutIdx += len;

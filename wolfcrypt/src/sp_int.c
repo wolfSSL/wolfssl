@@ -31,6 +31,9 @@ This library provides single precision (SP) integer math functions.
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -84,8 +87,6 @@ This library provides single precision (SP) integer math functions.
  *                              Used with small code size and not small stack.
  * WOLFSSL_SP_FAST_MODEXP       Allow fast mod_exp with small C code
  */
-
-#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
 
 #include <wolfssl/wolfcrypt/sp_int.h>
 
@@ -12448,17 +12449,8 @@ static int _sp_read_radix_16(sp_int* a, const char* in)
 
     a->dp[0] = 0;
     for (i = (int)(XSTRLEN(in) - 1); i >= 0; i--) {
-        char ch = in[i];
-        if ((ch >= '0') && (ch <= '9')) {
-            ch -= '0';
-        }
-        else if ((ch >= 'A') && (ch <= 'F')) {
-            ch -= 'A' - 10;
-        }
-        else if ((ch >= 'a') && (ch <= 'f')) {
-            ch -= 'a' - 10;
-        }
-        else {
+        int ch = (int)HexCharToByte(in[i]);
+        if (ch < 0) {
             err = MP_VAL;
             break;
         }
@@ -12597,11 +12589,6 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     defined(WC_MP_TO_RADIX)
-/* Hex string characters. */
-static const char sp_hex_char[16] = {
-    '0', '1', '2', '3', '4', '5', '6', '7',
-    '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
-};
 
 /* Put the big-endian, hex string encoding of a into str.
  *
@@ -12668,11 +12655,11 @@ int sp_tohex(sp_int* a, char* str)
     #endif /* WC_DISABLE_RADIX_ZERO_PAD */
             /* Most-significant word. */
             for (; j >= 0; j -= 4) {
-                *(str++) = sp_hex_char[(a->dp[i] >> j) & 0xf];
+                *(str++) = ByteToHex(a->dp[i] >> j);
             }
             for (--i; i >= 0; i--) {
                 for (j = SP_WORD_SIZE - 4; j >= 0; j -= 4) {
-                    *(str++) = sp_hex_char[(a->dp[i] >> j) & 0xf];
+                    *(str++) = ByteToHex(a->dp[i] >> j);
                 }
             }
             *str = '\0';

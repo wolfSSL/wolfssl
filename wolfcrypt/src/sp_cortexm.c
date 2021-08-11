@@ -26,6 +26,10 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH) || \
+    defined(WOLFSSL_HAVE_SP_ECC)
+
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 #ifdef NO_INLINE
@@ -34,9 +38,6 @@
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
-
-#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH) || \
-                                    defined(WOLFSSL_HAVE_SP_ECC)
 
 #ifdef RSA_LOW_MEM
 #ifndef WOLFSSL_SP_SMALL
