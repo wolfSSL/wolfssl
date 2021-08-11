@@ -86,4 +86,4 @@ and
 
  This directory contains example wolfSSL configuration file templates for use when autoconf is not available, such as building with a custom IDE.
 
- See [examples/configs/README.md](examples/configs/README.md) for more details.
+ See [configs/README.md](configs/README.md) for more details.
