@@ -2866,20 +2866,16 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
                         word32 inSz)
 {
     int version, length;
-#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
     word32 algId = 0;
-#endif
 
     if (inOutIdx == NULL || input == NULL || key == NULL) {
         return BAD_FUNC_ARG;
     }
     
-#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
     /* if has pkcs8 header skip it */
     if (ToTraditionalInline_ex(input, inOutIdx, inSz, &algId) < 0) {
         /* ignore error, did not have pkcs8 header */ 
     }
-#endif
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
@@ -2924,10 +2920,9 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 #endif /* HAVE_USER_RSA */
 #endif /* NO_RSA */
 
-#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
-
 /* Remove PKCS8 header, place inOutIdx at beginning of traditional,
- * return traditional length on success, negative on error */
+ * return traditional length on success, negative on error.
+ * Keeping this function for all builds */
 int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
                            word32* algId)
 {
@@ -2978,6 +2973,8 @@ int ToTraditionalInline(const byte* input, word32* inOutIdx, word32 sz)
 
     return ToTraditionalInline_ex(input, inOutIdx, sz, &oid);
 }
+
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
 
 /* Remove PKCS8 header, move beginning of traditional to beginning of input */
 int ToTraditional_ex(byte* input, word32 sz, word32* algId)
@@ -3388,6 +3385,7 @@ int wc_CheckPrivateKeyCert(const byte* key, word32 keySz, DecodedCert* der)
 #ifndef NO_PWDBASED
 
 #if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
+
 /* Check To see if PKCS version algo is supported, set id if it is return 0
    < 0 on error */
 static int CheckAlgo(int first, int second, int* id, int* version, int* blockSz)
@@ -3459,6 +3457,10 @@ static int CheckAlgo(int first, int second, int* id, int* version, int* blockSz)
     }
 }
 
+#endif /* HAVE_PKCS8 || HAVE_PKCS12 */
+
+#ifdef HAVE_PKCS8
+
 /* Check To see if PKCS v2 algo is supported, set id if it is return 0
    < 0 on error */
 static int CheckAlgoV2(int oid, int* id, int* blockSz)
@@ -3495,9 +3497,9 @@ static int CheckAlgoV2(int oid, int* id, int* blockSz)
     }
 }
 
-#endif /* HAVE_PKCS8 || HAVE_PKCS12 */
+#endif /* HAVE_PKCS8 */
 
-#ifdef HAVE_PKCS8
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
 
 int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         int* algoID, void* heap)
@@ -3611,29 +3613,6 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
     (void)heap;
 
     return 1;
-}
-
-#endif /* HAVE_PKCS8 */
-
-#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
-
-#define PKCS8_MIN_BLOCK_SIZE 8
-static int Pkcs8Pad(byte* buf, int sz, int blockSz)
-{
-    int i, padSz;
-
-    /* calculate pad size */
-    padSz = blockSz - (sz & (blockSz - 1));
-
-    /* pad with padSz value */
-    if (buf) {
-        for (i = 0; i < padSz; i++) {
-            buf[sz+i] = (byte)(padSz & 0xFF);
-        }
-    }
-
-    /* return adjusted length */
-    return sz + padSz;
 }
 
 #endif /* HAVE_PKCS8 || HAVE_PKCS12 */
@@ -3970,10 +3949,6 @@ int wc_CreateEncryptedPKCS8Key(byte* key, word32 keySz, byte* out,
         pbeOid, encAlgId, salt, saltSz, itt, rng, heap);
 }
 
-
-#endif /* HAVE_PKCS8 */
-
-#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
 /* decrypt PKCS
  *
  * NOTE: input buffer is overwritten with decrypted data!
@@ -4157,9 +4132,28 @@ int ToTraditionalEnc(byte* input, word32 sz, const char* password,
     return ret;
 }
 
-#endif /* HAVE_PKCS8 || HAVE_PKCS12 */
+#endif /* HAVE_PKCS8 */
 
 #ifdef HAVE_PKCS12
+
+#define PKCS8_MIN_BLOCK_SIZE 8
+static int Pkcs8Pad(byte* buf, int sz, int blockSz)
+{
+    int i, padSz;
+
+    /* calculate pad size */
+    padSz = blockSz - (sz & (blockSz - 1));
+
+    /* pad with padSz value */
+    if (buf) {
+        for (i = 0; i < padSz; i++) {
+            buf[sz+i] = (byte)(padSz & 0xFF);
+        }
+    }
+
+    /* return adjusted length */
+    return sz + padSz;
+}
 
 /* encrypt PKCS 12 content
  *
@@ -5029,21 +5023,17 @@ int DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
                         word32 inSz)
 {
     int length, version, ret = 0, temp = 0;
-#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
     word32 algId = 0;
-#endif
 
     /* Sanity checks on input */
     if (input == NULL || inOutIdx == NULL || key == NULL) {
         return BAD_FUNC_ARG;
     }
 
-#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
     /* if has pkcs8 header skip it */
     if (ToTraditionalInline_ex(input, inOutIdx, inSz, &algId) < 0) {
         /* ignore error, did not have pkcs8 header */ 
     }
-#endif
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
@@ -11328,9 +11318,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     int         sz          = (int)longSz;
     int         encrypted_key = 0;
     DerBuffer*  der;
-#if defined(HAVE_PKCS8) || defined(WOLFSSL_ENCRYPTED_KEYS)
     word32      algId = 0;
     word32      idx;
+#if defined(WOLFSSL_ENCRYPTED_KEYS)
     #if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3) && !defined(NO_WOLFSSL_SKIP_TRAILING_PAD)
         int     padVal = 0;
     #endif
@@ -11541,7 +11531,6 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 #endif
         ) && !encrypted_key)
     {
-    #ifdef HAVE_PKCS8
         /* detect pkcs8 key and get alg type */
         /* keep PKCS8 header */
         idx = 0;
@@ -11553,9 +11542,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         else {
             /* ignore failure here and assume key is not pkcs8 wrapped */
         }
-    #endif
         return 0;
     }
+    
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     if (encrypted_key || header == BEGIN_ENC_PRIV_KEY) {
@@ -11668,6 +11657,7 @@ int wc_PemToDer(const unsigned char* buff, long longSz, int type,
               DerBuffer** pDer, void* heap, EncryptedInfo* info, int* keyFormat)
 {
     int ret = PemToDer(buff, longSz, type, pDer, heap, info, keyFormat);
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
     if (ret == 0 && type == PRIVATEKEY_TYPE) {
         DerBuffer* der = *pDer;
         /* if a PKCS8 key header exists remove it */
@@ -11677,6 +11667,7 @@ int wc_PemToDer(const unsigned char* buff, long longSz, int type,
             ret = 0;
         }
     }
+#endif
     return ret;
 }
 
@@ -16378,20 +16369,16 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     byte priv[ECC_MAXSIZE+1];
     byte pub[2*(ECC_MAXSIZE+1)]; /* public key has two parts plus header */
 #endif
-#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
     word32 algId = 0;
-#endif
     byte* pubData = NULL;
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
         return BAD_FUNC_ARG;
 
-#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
     /* if has pkcs8 header skip it */
     if (ToTraditionalInline_ex(input, inOutIdx, inSz, &algId) < 0) {
         /* ignore error, did not have pkcs8 header */ 
     }
-#endif
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;

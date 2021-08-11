@@ -4844,6 +4844,24 @@ then
 fi
 
 
+# PKCS#12
+# set PKCS#12 default
+PKCS12_DEFAULT=yes
+if test "$ENABLED_ASN" = "no"
+then
+    PKCS12_DEFAULT=no
+fi
+AC_ARG_ENABLE([pkcs12],
+    [AS_HELP_STRING([--enable-pkcs12],[Enable pkcs12 (default: enabled)])],
+    [ ENABLED_PKCS12=$enableval ],
+    [ ENABLED_PKCS12=$PKCS12_DEFAULT ]
+    )
+
+if test "x$ENABLED_PKCS12" = "xno"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_PKCS12"
+fi
+
 # PWDBASED has to come after certservice since we want it on w/o explicit on
 # PWDBASED
 AC_ARG_ENABLE([pwdbased],
@@ -4854,9 +4872,11 @@ AC_ARG_ENABLE([pwdbased],
 
 if test "$ENABLED_PWDBASED" = "no"
 then
-    if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || test "$ENABLED_WEBSERVER" = "yes" || test "$ENABLED_ENCKEYS" = "yes"
+    if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || \
+       test "$ENABLED_WEBSERVER" = "yes" || test "$ENABLED_ENCKEYS" = "yes" || \
+       test "$ENABLED_PKCS12" = "yes"
     then
-        # opensslextra, opensslall, webserver, and enckeys needs pwdbased
+        # opensslextra, opensslall, webserver, enckeys and pkcs12 need pwdbased
         ENABLED_PWDBASED=yes
     else
         AM_CFLAGS="$AM_CFLAGS -DNO_PWDBASED"
@@ -5076,16 +5096,16 @@ then
 fi
 
 
-# PKCS#12
-AC_ARG_ENABLE([pkcs12],
-    [AS_HELP_STRING([--enable-pkcs12],[Enable pkcs12 (default: enabled)])],
-    [ ENABLED_PKCS12=$enableval ],
-    [ ENABLED_PKCS12=yes ]
+# PKCS#8
+AC_ARG_ENABLE([pkcs8],
+    [AS_HELP_STRING([--enable-pkcs8],[Enable PKCS #8 key packages (default: enabled)])],
+    [ ENABLED_PKCS8=$enableval ],
+    [ ENABLED_PKCS8=yes ]
     )
 
-if test "x$ENABLED_PKCS12" = "xno"
+if test "x$ENABLED_PKCS8" = "xno"
 then
-    AM_CFLAGS="$AM_CFLAGS -DNO_PKCS12"
+    AM_CFLAGS="$AM_CFLAGS -DNO_PKCS8"
 fi
 
 
@@ -6639,6 +6659,7 @@ AM_CONDITIONAL([BUILD_WOLFCRYPT_TESTS],[test "x$ENABLED_CRYPT_TESTS" = "xyes"])
 AM_CONDITIONAL([BUILD_LIBZ],[test "x$ENABLED_LIBZ" = "xyes"])
 AM_CONDITIONAL([BUILD_PKCS11],[test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_PKCS12],[test "x$ENABLED_PKCS12" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_PKCS8],[test "x$ENABLED_PKCS8" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CAVIUM],[test "x$ENABLED_CAVIUM" = "xyes"])
 AM_CONDITIONAL([BUILD_CAVIUM_V],[test "x$ENABLED_CAVIUM_V" = "xyes"])
 AM_CONDITIONAL([BUILD_OCTEON_SYNC],[test "x$ENABLED_OCTEON_SYNC" = "xyes"])
@@ -7021,6 +7042,7 @@ else
 fi
 echo "   * SP math implementation:     $ENABLED_SP_MATH_DESC"
 echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
+echo "   * PKCS#8:                     $ENABLED_PKCS8"
 echo "   * PKCS#11:                    $ENABLED_PKCS11"
 echo "   * PKCS#12:                    $ENABLED_PKCS12"
 echo "   * Cavium Nitrox:              $ENABLED_CAVIUM"
