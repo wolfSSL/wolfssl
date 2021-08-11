@@ -151,6 +151,8 @@
  *     Enable default behaviour that is compatible with OpenSSL. For example
  *     SSL_CTX by default doesn't verify the loaded certs. Enabling this
  *     should make porting to new projects easier.
+ * WOLFSSL_CHECK_ALERT_ON_ERR:
+ *     Check for alerts during the handshake in the event of an error.
  */
 
 #define WOLFSSL_EVP_INCLUDED
@@ -13318,6 +13320,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 #endif
                 if (ssl->options.sendVerify) {
                     if ( (ssl->error = SendCertificate(ssl)) != 0) {
+                    #ifdef WOLFSSL_CHECK_ALERT_ON_ERR
+                        ProcessReplyEx(ssl, 1); /* See if an alert was sent. */
+                    #endif
                         WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;
                     }
@@ -13336,6 +13341,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         #endif
             if (!ssl->options.resuming) {
                 if ( (ssl->error = SendClientKeyExchange(ssl)) != 0) {
+                #ifdef WOLFSSL_CHECK_ALERT_ON_ERR
+                    ProcessReplyEx(ssl, 1); /* See if an alert was sent. */
+                #endif
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
@@ -13351,6 +13359,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
                 if (ssl->options.sendVerify) {
                     if ( (ssl->error = SendCertificateVerify(ssl)) != 0) {
+                    #ifdef WOLFSSL_CHECK_ALERT_ON_ERR
+                        ProcessReplyEx(ssl, 1); /* See if an alert was sent. */
+                    #endif
                         WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;
                     }
@@ -13363,6 +13374,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         case FIRST_REPLY_THIRD :
             if ( (ssl->error = SendChangeCipher(ssl)) != 0) {
+            #ifdef WOLFSSL_CHECK_ALERT_ON_ERR
+                ProcessReplyEx(ssl, 1); /* See if an alert was sent. */
+            #endif
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
@@ -13373,6 +13387,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         case FIRST_REPLY_FOURTH :
             if ( (ssl->error = SendFinished(ssl)) != 0) {
+            #ifdef WOLFSSL_CHECK_ALERT_ON_ERR
+                ProcessReplyEx(ssl, 1); /* See if an alert was sent. */
+            #endif
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
@@ -25788,7 +25805,6 @@ int wolfSSL_ERR_GET_REASON(unsigned long err)
     return ret;
 }
 
-
 /* returns a string that describes the alert
  *
  * alertID the alert value to look up
@@ -25797,178 +25813,16 @@ const char* wolfSSL_alert_type_string_long(int alertID)
 {
     WOLFSSL_ENTER("wolfSSL_alert_type_string_long");
 
-    switch (alertID) {
-        case close_notify:
-            {
-                static const char close_notify_str[] =
-                    "close_notify";
-                return close_notify_str;
-            }
-
-        case unexpected_message:
-            {
-                static const char unexpected_message_str[] =
-                    "unexpected_message";
-                return unexpected_message_str;
-            }
-
-        case bad_record_mac:
-            {
-                static const char bad_record_mac_str[] =
-                    "bad_record_mac";
-                return bad_record_mac_str;
-            }
-
-        case record_overflow:
-            {
-                static const char record_overflow_str[] =
-                    "record_overflow";
-                return record_overflow_str;
-            }
-
-        case decompression_failure:
-            {
-                static const char decompression_failure_str[] =
-                    "decompression_failure";
-                return decompression_failure_str;
-            }
-
-        case handshake_failure:
-            {
-                static const char handshake_failure_str[] =
-                    "handshake_failure";
-                return handshake_failure_str;
-            }
-
-        case no_certificate:
-            {
-                static const char no_certificate_str[] =
-                    "no_certificate";
-                return no_certificate_str;
-            }
-
-        case bad_certificate:
-            {
-                static const char bad_certificate_str[] =
-                    "bad_certificate";
-                return bad_certificate_str;
-            }
-
-        case unsupported_certificate:
-            {
-                static const char unsupported_certificate_str[] =
-                    "unsupported_certificate";
-                return unsupported_certificate_str;
-            }
-
-        case certificate_revoked:
-            {
-                static const char certificate_revoked_str[] =
-                    "certificate_revoked";
-                return certificate_revoked_str;
-            }
-
-        case certificate_expired:
-            {
-                static const char certificate_expired_str[] =
-                    "certificate_expired";
-                return certificate_expired_str;
-            }
-
-        case certificate_unknown:
-            {
-                static const char certificate_unknown_str[] =
-                    "certificate_unknown";
-                return certificate_unknown_str;
-            }
-
-        case illegal_parameter:
-            {
-                static const char illegal_parameter_str[] =
-                    "illegal_parameter";
-                return illegal_parameter_str;
-            }
-
-        case unknown_ca:
-            {
-                static const char unknown_ca_str[] =
-                    "unknown_ca";
-                return unknown_ca_str;
-            }
-
-        case decode_error:
-            {
-                static const char decode_error_str[] =
-                    "decode_error";
-                return decode_error_str;
-            }
-
-        case decrypt_error:
-            {
-                static const char decrypt_error_str[] =
-                    "decrypt_error";
-                return decrypt_error_str;
-            }
-
-    #ifdef WOLFSSL_MYSQL_COMPATIBLE
-    /* catch name conflict for enum protocol with MYSQL build */
-        case wc_protocol_version:
-            {
-                static const char wc_protocol_version_str[] =
-                    "wc_protocol_version";
-                return wc_protocol_version_str;
-            }
-
-    #else
-        case protocol_version:
-            {
-                static const char protocol_version_str[] =
-                    "protocol_version";
-                return protocol_version_str;
-            }
-
-    #endif
-        case no_renegotiation:
-            {
-                static const char no_renegotiation_str[] =
-                    "no_renegotiation";
-                return no_renegotiation_str;
-            }
-
-        case unrecognized_name:
-            {
-                static const char unrecognized_name_str[] =
-                    "unrecognized_name";
-                return unrecognized_name_str;
-            }
-
-        case bad_certificate_status_response:
-            {
-                static const char bad_certificate_status_response_str[] =
-                    "bad_certificate_status_response";
-                return bad_certificate_status_response_str;
-            }
-
-        case no_application_protocol:
-            {
-                static const char no_application_protocol_str[] =
-                    "no_application_protocol";
-                return no_application_protocol_str;
-            }
-
-        default:
-            WOLFSSL_MSG("Unknown Alert");
-            return NULL;
-    }
+    return AlertTypeToString(alertID);
 }
 
 
 const char* wolfSSL_alert_desc_string_long(int alertID)
 {
     WOLFSSL_ENTER("wolfSSL_alert_desc_string_long");
-    return wolfSSL_alert_type_string_long(alertID);
-}
 
+    return AlertTypeToString(alertID);
+}
 
 /* Gets the current state of the WOLFSSL structure
  *

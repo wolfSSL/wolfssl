@@ -69,6 +69,8 @@
  *    When only one PSK ID is used and only one call to the PSK callback can
  *    be made per connect.
  *    You cannot use wc_psk_client_cs_callback type callback on client.
+ * WOLFSSL_CHECK_ALERT_ON_ERR
+ *    Check for alerts during the handshake in the event of an error.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -8479,6 +8481,9 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 ssl->error = SendTls13Certificate(ssl);
                 if (ssl->error != 0) {
+                #ifdef WOLFSSL_CHECK_ALERT_ON_ERR
+                    ProcessReplyEx(ssl, 1); /* See if an alert was sent. */
+                #endif
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
@@ -8497,6 +8502,9 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 ssl->error = SendTls13CertificateVerify(ssl);
                 if (ssl->error != 0) {
+                #ifdef WOLFSSL_CHECK_ALERT_ON_ERR
+                    ProcessReplyEx(ssl, 1); /* See if an alert was sent. */
+                #endif
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
@@ -8510,6 +8518,9 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 
         case FIRST_REPLY_FOURTH:
             if ((ssl->error = SendTls13Finished(ssl)) != 0) {
+            #ifdef WOLFSSL_CHECK_ALERT_ON_ERR
+                ProcessReplyEx(ssl, 1); /* See if an alert was sent. */
+            #endif
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }

@@ -4641,6 +4641,9 @@ WOLFSSL_LOCAL int ReceiveData(WOLFSSL*, byte*, int, int);
 WOLFSSL_LOCAL int SendFinished(WOLFSSL*);
 WOLFSSL_LOCAL int SendAlert(WOLFSSL*, int, int);
 WOLFSSL_LOCAL int ProcessReply(WOLFSSL*);
+WOLFSSL_LOCAL int ProcessReplyEx(WOLFSSL*, int);
+
+WOLFSSL_LOCAL const char* AlertTypeToString(int);
 
 WOLFSSL_LOCAL int SetCipherSpecs(WOLFSSL*);
 WOLFSSL_LOCAL int MakeMasterSecret(WOLFSSL*);

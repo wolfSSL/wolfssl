@@ -12206,21 +12206,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             "\tCallback override available, will continue");
                         /* check if fatal error */
                         args->fatal = (args->verifyErr) ? 1 : 0;
-                    #if defined(WOLFSSL_EXTRA_ALERTS) || \
-                                                     defined(OPENSSL_EXTRA) || \
-                                               defined(OPENSSL_EXTRA_X509_SMALL)
                         if (args->fatal)
                             DoCertFatalAlert(ssl, ret);
-                    #endif
                     }
                     else {
                         WOLFSSL_MSG("\tNo callback override available, fatal");
                         args->fatal = 1;
-                    #if defined(WOLFSSL_EXTRA_ALERTS) || \
-                                                     defined(OPENSSL_EXTRA) || \
-                                               defined(OPENSSL_EXTRA_X509_SMALL)
                         DoCertFatalAlert(ssl, ret);
-                    #endif
                     }
                 }
 
@@ -15941,6 +15933,187 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
     return 0;
 }
 
+const char* AlertTypeToString(int type)
+{
+    switch (type) {
+        case close_notify:
+            {
+                static const char close_notify_str[] =
+                    "close_notify";
+                return close_notify_str;
+            }
+
+        case unexpected_message:
+            {
+                static const char unexpected_message_str[] =
+                    "unexpected_message";
+                return unexpected_message_str;
+            }
+
+        case bad_record_mac:
+            {
+                static const char bad_record_mac_str[] =
+                    "bad_record_mac";
+                return bad_record_mac_str;
+            }
+
+        case record_overflow:
+            {
+                static const char record_overflow_str[] =
+                    "record_overflow";
+                return record_overflow_str;
+            }
+
+        case decompression_failure:
+            {
+                static const char decompression_failure_str[] =
+                    "decompression_failure";
+                return decompression_failure_str;
+            }
+
+        case handshake_failure:
+            {
+                static const char handshake_failure_str[] =
+                    "handshake_failure";
+                return handshake_failure_str;
+            }
+
+        case no_certificate:
+            {
+                static const char no_certificate_str[] =
+                    "no_certificate";
+                return no_certificate_str;
+            }
+
+        case bad_certificate:
+            {
+                static const char bad_certificate_str[] =
+                    "bad_certificate";
+                return bad_certificate_str;
+            }
+
+        case unsupported_certificate:
+            {
+                static const char unsupported_certificate_str[] =
+                    "unsupported_certificate";
+                return unsupported_certificate_str;
+            }
+
+        case certificate_revoked:
+            {
+                static const char certificate_revoked_str[] =
+                    "certificate_revoked";
+                return certificate_revoked_str;
+            }
+
+        case certificate_expired:
+            {
+                static const char certificate_expired_str[] =
+                    "certificate_expired";
+                return certificate_expired_str;
+            }
+
+        case certificate_unknown:
+            {
+                static const char certificate_unknown_str[] =
+                    "certificate_unknown";
+                return certificate_unknown_str;
+            }
+
+        case illegal_parameter:
+            {
+                static const char illegal_parameter_str[] =
+                    "illegal_parameter";
+                return illegal_parameter_str;
+            }
+
+        case unknown_ca:
+            {
+                static const char unknown_ca_str[] =
+                    "unknown_ca";
+                return unknown_ca_str;
+            }
+
+        case decode_error:
+            {
+                static const char decode_error_str[] =
+                    "decode_error";
+                return decode_error_str;
+            }
+
+        case decrypt_error:
+            {
+                static const char decrypt_error_str[] =
+                    "decrypt_error";
+                return decrypt_error_str;
+            }
+
+    #ifdef WOLFSSL_MYSQL_COMPATIBLE
+    /* catch name conflict for enum protocol with MYSQL build */
+        case wc_protocol_version:
+            {
+                static const char wc_protocol_version_str[] =
+                    "wc_protocol_version";
+                return wc_protocol_version_str;
+            }
+
+    #else
+        case protocol_version:
+            {
+                static const char protocol_version_str[] =
+                    "protocol_version";
+                return protocol_version_str;
+            }
+
+    #endif
+        case no_renegotiation:
+            {
+                static const char no_renegotiation_str[] =
+                    "no_renegotiation";
+                return no_renegotiation_str;
+            }
+
+        case unrecognized_name:
+            {
+                static const char unrecognized_name_str[] =
+                    "unrecognized_name";
+                return unrecognized_name_str;
+            }
+
+        case bad_certificate_status_response:
+            {
+                static const char bad_certificate_status_response_str[] =
+                    "bad_certificate_status_response";
+                return bad_certificate_status_response_str;
+            }
+
+        case no_application_protocol:
+            {
+                static const char no_application_protocol_str[] =
+                    "no_application_protocol";
+                return no_application_protocol_str;
+            }
+
+        default:
+            WOLFSSL_MSG("Unknown Alert");
+            return NULL;
+    }
+}
+
+static void LogAlert(int type)
+{
+    (void)type;
+#ifdef DEBUG_WOLFSSL
+    const char* typeStr;
+    char buff[60];
+
+    typeStr = AlertTypeToString(type);
+    if (typeStr != NULL) {
+        XSNPRINTF(buff, sizeof(buff), "Alert type: %s", typeStr);
+        WOLFSSL_MSG(buff);
+    }
+#endif /* DEBUG_WOLFSSL */
+}
 
 /* process alert, return level */
 static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type,
@@ -15994,20 +16167,12 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type,
         return ALERT_COUNT_E;
     }
 
-    WOLFSSL_MSG("Got alert");
+    LogAlert(*type);
     if (*type == close_notify) {
-        WOLFSSL_MSG("\tclose notify");
         ssl->options.closeNotify = 1;
     }
-#ifdef WOLFSSL_TLS13
-    if (*type == decode_error) {
-        WOLFSSL_MSG("\tdecode error");
-    }
-    if (*type == illegal_parameter) {
-        WOLFSSL_MSG("\tillegal parameter");
-    }
-#endif
     WOLFSSL_ERROR(*type);
+
     if (IsEncryptionOn(ssl, 0)) {
         *inOutIdx += ssl->keys.padSz;
     #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
@@ -16200,10 +16365,16 @@ static WC_INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
     return 0;
 }
 
-
-/* process input requests, return 0 is done, 1 is call again to complete, and
-   negative number is error */
 int ProcessReply(WOLFSSL* ssl)
+{
+    return ProcessReplyEx(ssl, 0);
+}
+
+/* Process input requests. Return 0 is done, 1 is call again to complete, and
+   negative number is error. If allowSocketErr is set, SOCKET_ERROR_E in
+   ssl->error will be whitelisted. This is useful when the connection has been
+   closed and the endpoint wants to check for an alert sent by the other end. */
+int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 {
     int    ret = 0, type, readSz;
     int    atomicUser = 0;
@@ -16227,6 +16398,7 @@ int ProcessReply(WOLFSSL* ssl)
     #ifdef WOLFSSL_NONBLOCK_OCSP
         && ssl->error != OCSP_WANT_READ
     #endif
+        && (allowSocketErr != 1 || ssl->error != SOCKET_ERROR_E)
     ) {
         WOLFSSL_MSG("ProcessReply retry in error state, not allowed");
         return ssl->error;
@@ -17104,7 +17276,6 @@ int ProcessReply(WOLFSSL* ssl)
         }
     }
 }
-
 
 #if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS) || \
              (defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT))
