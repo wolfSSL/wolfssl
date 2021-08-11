@@ -55,12 +55,11 @@ static int libwolfssl_cleanup(void) {
     return ret;
 }
 
-#ifdef HAVE_LINUXKM_PIE_SUPPORT
-
+#ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
 extern struct wolfssl_linuxkm_pie_redirect_table wolfssl_linuxkm_pie_redirect_table;
+static int set_up_wolfssl_linuxkm_pie_redirect_table(void);
 extern const unsigned int wolfCrypt_All_ro_end[];
-
-#endif /* HAVE_LINUXKM_PIE_SUPPORT */
+#endif
 
 #ifdef HAVE_FIPS
 static void lkmFipsCb(int ok, int err, const char* hash)
@@ -75,10 +74,6 @@ static void lkmFipsCb(int ok, int err, const char* hash)
 }
 #endif
 
-#ifdef HAVE_LINUXKM_PIE_SUPPORT
-static int set_up_wolfssl_linuxkm_pie_redirect_table(void);
-#endif
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 static int __init wolfssl_init(void)
 #else
@@ -87,7 +82,7 @@ static int wolfssl_init(void)
 {
     int ret;
 
-#ifdef HAVE_LINUXKM_PIE_SUPPORT
+#ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
     ret = set_up_wolfssl_linuxkm_pie_redirect_table();
     if (ret < 0)
         return ret;
@@ -181,7 +176,7 @@ MODULE_AUTHOR("https://www.wolfssl.com/");
 MODULE_DESCRIPTION("libwolfssl cryptographic and protocol facilities");
 MODULE_VERSION(LIBWOLFSSL_VERSION_STRING);
 
-#ifdef HAVE_LINUXKM_PIE_SUPPORT
+#ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
 
 static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     memset(
@@ -189,16 +184,36 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
         0,
         sizeof wolfssl_linuxkm_pie_redirect_table);
 
+#ifndef __ARCH_MEMCMP_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.memcmp = memcmp;
+#endif
+#ifndef __ARCH_MEMCPY_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.memcpy = memcpy;
+#endif
+#ifndef __ARCH_MEMSET_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.memset = memset;
+#endif
+#ifndef __ARCH_MEMMOVE_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.memmove = memmove;
+#endif
+#ifndef __ARCH_STRNCMP_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.strncmp = strncmp;
+#endif
+#ifndef __ARCH_STRLEN_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.strlen = strlen;
+#endif
+#ifndef __ARCH_STRSTR_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.strstr = strstr;
+#endif
+#ifndef __ARCH_STRNCPY_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.strncpy = strncpy;
+#endif
+#ifndef __ARCH_STRNCAT_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.strncat = strncat;
+#endif
+#ifndef __ARCH_STRNCASECMP_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.strncasecmp = strncasecmp;
+#endif
     wolfssl_linuxkm_pie_redirect_table.kstrtoll = kstrtoll;
 
     wolfssl_linuxkm_pie_redirect_table.printk = printk;
@@ -210,10 +225,10 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.kfree = kfree;
     wolfssl_linuxkm_pie_redirect_table.ksize = ksize;
     wolfssl_linuxkm_pie_redirect_table.krealloc = krealloc;
-    #ifdef HAVE_KVMALLOC
+#ifdef HAVE_KVMALLOC
     wolfssl_linuxkm_pie_redirect_table.kvmalloc_node = kvmalloc_node;
     wolfssl_linuxkm_pie_redirect_table.kvfree = kvfree;
-    #endif
+#endif
     wolfssl_linuxkm_pie_redirect_table.is_vmalloc_addr = is_vmalloc_addr;
     wolfssl_linuxkm_pie_redirect_table.kmem_cache_alloc_trace =
         kmem_cache_alloc_trace;
@@ -268,4 +283,4 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     return 0;
 }
 
-#endif /* HAVE_LINUXKM_PIE_SUPPORT */
+#endif /* USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE */

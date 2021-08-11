@@ -71,20 +71,22 @@ ccflags-y := $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
 $(obj)/libwolfssl.mod.o: ccflags-y :=
 $(obj)/wolfcrypt/test/test.o: ccflags-y += -DNO_MAIN_DRIVER
 
-$(obj)/wolfcrypt/src/aes.o: ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFCRYPT_CFLAGS) $(WOLFSSL_CFLAGS_YES_VECTOR_INSNS)
+$(obj)/wolfcrypt/src/aes.o: ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_YES_VECTOR_INSNS)
 
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
     PIE_FLAGS := -fPIE -fno-stack-protector -fno-toplevel-reorder
+    PIE_SUPPORT_FLAGS := -DUSE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
     ifeq "$(KERNEL_ARCH)" "x86"
         PIE_FLAGS += -mcmodel=small -mindirect-branch=keep -mfunction-return=keep
     endif
     ifeq "$(KERNEL_ARCH)" "mips"
         PIE_FLAGS += -mabicalls
     endif
-    $(WOLFCRYPT_PIE_FILES): ccflags-y += $(PIE_FLAGS)
+    $(WOLFCRYPT_PIE_FILES): ccflags-y += $(PIE_SUPPORT_FLAGS) $(PIE_FLAGS)
     $(WOLFCRYPT_PIE_FILES): ccflags-remove-y += -pg
     # disabling retpoline generation leads to profuse warnings without this:
     $(WOLFCRYPT_PIE_FILES): OBJECT_FILES_NON_STANDARD := y
+    $(obj)/linuxkm/module_hooks.o: ccflags-y += $(PIE_SUPPORT_FLAGS)
 endif
 
 asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPUSIMD_DISABLE)
@@ -108,6 +110,10 @@ endif
 
 ifndef READELF
     READELF := readelf
+endif
+
+ifndef OBJCOPY
+    OBJCOPY := objcopy
 endif
 
 .PHONY: rename-pie-text-and-data-sections
@@ -135,7 +141,7 @@ ifneq "$(quiet)" "silent_"
 endif
 	@cd "$(obj)" || exit $$?; \
 	for file in $(WOLFCRYPT_PIE_FILES); do \
-	    objcopy --rename-section .text=.text.wolfcrypt --rename-section .data=.data.wolfcrypt "$$file" || exit $$?; \
+	    $(OBJCOPY) --rename-section .text=.text.wolfcrypt --rename-section .data=.data.wolfcrypt "$$file" || exit $$?; \
 	done
 ifneq "$(quiet)" "silent_"
 	@echo '  wolfCrypt .{text,data} sections containerized to .{text,data}.wolfcrypt'

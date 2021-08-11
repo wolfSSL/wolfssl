@@ -57,3 +57,25 @@ const unsigned int wolfCrypt_All_ro_end[];
 const unsigned int wolfCrypt_All_ro_end[] =
 /* random values, analogous to wolfCrypt_FIPS_ro_{start,end} */
 { 0xa4aaaf71, 0x55c4b7d0 };
+
+/* placeholder implementations for missing functions. */
+#if defined(CONFIG_MIPS)
+    #undef memcpy
+    void *memcpy(void *dest, const void *src, size_t n) {
+        char *dest_i = (char *)dest;
+        char *dest_end = dest_i + n;
+        char *src_i = (char *)src;
+        while (dest_i < dest_end)
+            *dest_i++ = *src_i++;
+        return dest;
+    }
+
+    #undef memset
+    void *memset(void *dest, int c, size_t n) {
+        char *dest_i = (char *)dest;
+        char *dest_end = dest_i + n;
+        while (dest_i < dest_end)
+            *dest_i++ = c;
+        return dest;
+    }
+#endif

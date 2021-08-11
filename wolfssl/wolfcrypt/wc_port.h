@@ -68,6 +68,21 @@
 
     #ifdef BUILDING_WOLFSSL
 
+    #if defined(CONFIG_MIPS) && defined(HAVE_LINUXKM_PIE_SUPPORT)
+        /* __ZBOOT__ disables some unhelpful macros around the mem*() funcs in
+         * legacy arch/mips/include/asm/string.h
+         */
+        #define __ZBOOT__
+        #define memcmp __builtin_memcmp
+        #define __ARCH_MEMCMP_NO_REDIRECT
+        #define __ARCH_MEMCPY_NO_REDIRECT
+        #define __builtin_memcpy memcpy
+        extern void *memcpy(void *dest, const void *src, unsigned int n);
+        #define __ARCH_MEMCPY_NO_REDIRECT
+        #define __builtin_memset memset
+        extern void *memset(void *dest, int c, unsigned int n);
+    #endif
+
     _Pragma("GCC diagnostic push");
 
     /* we include all the needed kernel headers with these masked out. else
@@ -163,7 +178,7 @@
         struct Signer *GetCAByName(void* signers, unsigned char *hash);
     #endif
 
-    #if defined(__PIE__) && !defined(HAVE_LINUXKM_PIE_SUPPORT)
+    #if defined(__PIE__) && !defined(USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE)
         #error "compiling -fPIE without PIE support."
     #endif
 
@@ -171,19 +186,45 @@
         #error "FIPS build requires PIE support."
     #endif
 
-    #ifdef HAVE_LINUXKM_PIE_SUPPORT
+    #ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
+
+#ifdef CONFIG_MIPS
+    #undef __ARCH_MEMCMP_NO_REDIRECT
+    #undef memcmp
+    extern int memcmp(const void *s1, const void *s2, size_t n);
+#endif
 
     struct wolfssl_linuxkm_pie_redirect_table {
+    #ifndef __ARCH_MEMCMP_NO_REDIRECT
         typeof(memcmp) *memcmp;
+    #endif
+    #ifndef __ARCH_MEMCPY_NO_REDIRECT
         typeof(memcpy) *memcpy;
+    #endif
+    #ifndef __ARCH_MEMSET_NO_REDIRECT
         typeof(memset) *memset;
+    #endif
+    #ifndef __ARCH_MEMMOVE_NO_REDIRECT
         typeof(memmove) *memmove;
+    #endif
+    #ifndef __ARCH_STRNCMP_NO_REDIRECT
         typeof(strncmp) *strncmp;
+    #endif
+    #ifndef __ARCH_STRLEN_NO_REDIRECT
         typeof(strlen) *strlen;
+    #endif
+    #ifndef __ARCH_STRSTR_NO_REDIRECT
         typeof(strstr) *strstr;
+    #endif
+    #ifndef __ARCH_STRNCPY_NO_REDIRECT
         typeof(strncpy) *strncpy;
+    #endif
+    #ifndef __ARCH_STRNCAT_NO_REDIRECT
         typeof(strncat) *strncat;
+    #endif
+    #ifndef __ARCH_STRNCASECMP_NO_REDIRECT
         typeof(strncasecmp) *strncasecmp;
+    #endif
         typeof(kstrtoll) *kstrtoll;
 
         typeof(printk) *printk;
@@ -240,16 +281,36 @@
 
     #ifdef __PIE__
 
-    #define memcmp (wolfssl_linuxkm_get_pie_redirect_table()->memcmp)
-    #define memcpy (wolfssl_linuxkm_get_pie_redirect_table()->memcpy)
-    #define memset (wolfssl_linuxkm_get_pie_redirect_table()->memset)
-    #define memmove (wolfssl_linuxkm_get_pie_redirect_table()->memmove)
-    #define strncmp (wolfssl_linuxkm_get_pie_redirect_table()->strncmp)
-    #define strlen (wolfssl_linuxkm_get_pie_redirect_table()->strlen)
-    #define strstr (wolfssl_linuxkm_get_pie_redirect_table()->strstr)
-    #define strncpy (wolfssl_linuxkm_get_pie_redirect_table()->strncpy)
-    #define strncat (wolfssl_linuxkm_get_pie_redirect_table()->strncat)
-    #define strncasecmp (wolfssl_linuxkm_get_pie_redirect_table()->strncasecmp)
+    #ifndef __ARCH_MEMCMP_NO_REDIRECT
+        #define memcmp (wolfssl_linuxkm_get_pie_redirect_table()->memcmp)
+    #endif
+    #ifndef __ARCH_MEMCPY_NO_REDIRECT
+        #define memcpy (wolfssl_linuxkm_get_pie_redirect_table()->memcpy)
+    #endif
+    #ifndef __ARCH_MEMSET_NO_REDIRECT
+        #define memset (wolfssl_linuxkm_get_pie_redirect_table()->memset)
+    #endif
+    #ifndef __ARCH_MEMMOVE_NO_REDIRECT
+        #define memmove (wolfssl_linuxkm_get_pie_redirect_table()->memmove)
+    #endif
+    #ifndef __ARCH_STRNCMP_NO_REDIRECT
+        #define strncmp (wolfssl_linuxkm_get_pie_redirect_table()->strncmp)
+    #endif
+    #ifndef __ARCH_STRLEN_NO_REDIRECT
+        #define strlen (wolfssl_linuxkm_get_pie_redirect_table()->strlen)
+    #endif
+    #ifndef __ARCH_STRSTR_NO_REDIRECT
+        #define strstr (wolfssl_linuxkm_get_pie_redirect_table()->strstr)
+    #endif
+    #ifndef __ARCH_STRNCPY_NO_REDIRECT
+        #define strncpy (wolfssl_linuxkm_get_pie_redirect_table()->strncpy)
+    #endif
+    #ifndef __ARCH_STRNCAT_NO_REDIRECT
+        #define strncat (wolfssl_linuxkm_get_pie_redirect_table()->strncat)
+    #endif
+    #ifndef __ARCH_STRNCASECMP_NO_REDIRECT
+        #define strncasecmp (wolfssl_linuxkm_get_pie_redirect_table()->strncasecmp)
+    #endif
     #define kstrtoll (wolfssl_linuxkm_get_pie_redirect_table()->kstrtoll)
 
     #define printk (wolfssl_linuxkm_get_pie_redirect_table()->printk)
@@ -302,7 +363,7 @@
 
     #endif /* __PIE__ */
 
-    #endif /* HAVE_LINUXKM_PIE_SUPPORT */
+    #endif /* USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE */
 
     /* Linux headers define these using C expressions, but we need
      * them to be evaluable by the preprocessor, for use in sp_int.h.
