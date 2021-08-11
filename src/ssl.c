@@ -25257,7 +25257,7 @@ int wolfSSL_X509_VERIFY_PARAM_set1_ip(WOLFSSL_X509_VERIFY_PARAM* param,
             return ret;
         }
         p = buf;
-        for (i = 0;i < 16;i += 2) {
+        for (i = 0; i < 16; i += 2) {
            val = (((word32)(ip[i]<<8)) | (ip[i+1])) & 0xFFFF;
            if (val == 0){
                if (!write_zero) {
@@ -25274,7 +25274,7 @@ int wolfSSL_X509_VERIFY_PARAM_set1_ip(WOLFSSL_X509_VERIFY_PARAM* param,
            }
            /* sanity check */
            if (XSTRLEN(buf) > max_ipv6_len) {
-               printf("The target ip adress exceeds buffer length(40)\n");
+               WOLFSSL_MSG("The target ip adress exceeds buffer length(40)\n");
                XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                buf = NULL;
                break;
@@ -25297,7 +25297,7 @@ int wolfSSL_X509_VERIFY_PARAM_set1_ip(WOLFSSL_X509_VERIFY_PARAM* param,
         }
     }
     else {
-        WOLFSSL_MSG("iplen is zero, do nothig");
+        WOLFSSL_MSG("iplen is zero, do nothing");
         return WOLFSSL_SUCCESS;
     }
 
