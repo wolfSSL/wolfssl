@@ -755,9 +755,18 @@ static int SetupSocketAndConnect(info_t* info, const char* host,
     }
 
     /* Connect to the server */
-    while (info->serverListening == 0) {
-        fprintf(stderr, "Waiting for server to listen...\n");
-        usleep(1);
+#ifdef HAVE_PTHREAD
+    while ((info->serverListening == 0) && (info->server.shutdown == 0)) {
+        if (info->showVerbose) {
+            fprintf(stderr, "Waiting for server to listen...\n");
+        }
+        XSLEEP_MS(1);
+    }
+#endif
+
+    if (info->server.shutdown == 1) {
+        fprintf(stderr, "ERROR: server side has shutdown\n");
+        return -1;
     }
 
     if (connect(info->client.sockFd, (struct sockaddr*)&servAddr,
@@ -1163,7 +1172,9 @@ static int SocketWaitClient(info_t* info)
         info->server.sockFd = info->listenFd;
     } else {
 #endif
+#ifdef HAVE_PTHREAD
     info->serverListening = 1;
+#endif
     if ((connd = accept(info->listenFd, (struct sockaddr*)&clientAddr, &size)) == -1) {
         if (errno == SOCKET_EWOULDBLOCK)
             return -2;
