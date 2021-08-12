@@ -4848,7 +4848,7 @@ WOLFSSL_LOCAL const char* GetCipherAuthStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherMacStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL int SetCipherBits(const char* enc);
-WOLFSSL_LOCAL int IsAEAD(char n[][MAX_SEGMENT_SZ]);
+WOLFSSL_LOCAL int IsCipherAEAD(char n[][MAX_SEGMENT_SZ]);
 #endif
 WOLFSSL_LOCAL const char* GetCipherNameIana(const byte cipherSuite0, const byte cipherSuite);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl);

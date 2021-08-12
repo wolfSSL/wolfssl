@@ -23360,7 +23360,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
 #ifdef OPENSSL_EXTRA
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-/* return authentication NID corresponding to cipher sutie
+/* return authentication NID corresponding to cipher suite
  * @param cipher a pointer to WOLFSSL_CIPHER
  * return NID if found, NID_undef if not found
  */
@@ -23380,9 +23380,14 @@ int wolfSSL_CIPHER_get_auth_nid(const WOLFSSL_CIPHER* cipher)
     
     const struct authnid* sa;
     const char* authStr;
+    const char* name;
     char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
     
-    GetCipherSegment(cipher, n);
+    if ((name = GetCipherSegment(cipher, n)) == NULL) {
+        WOLFSSL_MSG("no suitable cipher name found");
+        return NID_undef;
+    }
+
     authStr = GetCipherAuthStr(n);
     
     if (authStr != NULL) {
@@ -23395,7 +23400,7 @@ int wolfSSL_CIPHER_get_auth_nid(const WOLFSSL_CIPHER* cipher)
     
     return NID_undef;
 }
-/* return cipher NID corresponding to cipher sutie
+/* return cipher NID corresponding to cipher suite
  * @param cipher a pointer to WOLFSSL_CIPHER
  * return NID if found, NID_undef if not found
  */
@@ -23424,11 +23429,16 @@ int wolfSSL_CIPHER_get_cipher_nid(const WOLFSSL_CIPHER* cipher)
     
     const struct ciphernid* c;
     const char* encStr;
+    const char* name;
     char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
     
     WOLFSSL_ENTER("wolfSSL_CIPHER_get_cipher_nid");
     
-    GetCipherSegment(cipher, n);
+    if ((name = GetCipherSegment(cipher, n)) == NULL) {
+        WOLFSSL_MSG("no suitable cipher name found");
+        return NID_undef;
+    }
+
     encStr = GetCipherEncStr(n);
     
     if (encStr != NULL) {
@@ -23441,7 +23451,7 @@ int wolfSSL_CIPHER_get_cipher_nid(const WOLFSSL_CIPHER* cipher)
     
     return NID_undef;
 }
-/* return digest NID corresponding to cipher sutie
+/* return digest NID corresponding to cipher suite
  * @param cipher a pointer to WOLFSSL_CIPHER
  * return NID if found, NID_undef if not found
  */
@@ -23465,7 +23475,11 @@ int wolfSSL_CIPHER_get_digest_nid(const WOLFSSL_CIPHER* cipher)
     
     WOLFSSL_ENTER("wolfSSL_CIPHER_get_digest_nid");
     
-    name = GetCipherSegment(cipher, n);
+    if ((name = GetCipherSegment(cipher, n)) == NULL) {
+        WOLFSSL_MSG("no suitable cipher name found");
+        return NID_undef;
+    }
+    
     /* in MD5 case, NID will be NID_md5 */
     if (XSTRSTR(name, "MD5") != NULL) {
         return NID_md5;
@@ -23483,7 +23497,7 @@ int wolfSSL_CIPHER_get_digest_nid(const WOLFSSL_CIPHER* cipher)
     
     return NID_undef;
 }
-/* return key exchange NID corresponding to cipher sutie
+/* return key exchange NID corresponding to cipher suite
  * @param cipher a pointer to WOLFSSL_CIPHER
  * return NID if found, NID_undef if not found
  */
@@ -23512,7 +23526,10 @@ static const struct kxnid {
     
     WOLFSSL_ENTER("wolfSSL_CIPHER_get_kx_nid");
     
-    name = GetCipherSegment(cipher, n);
+    if ((name = GetCipherSegment(cipher, n)) == NULL) {
+        WOLFSSL_MSG("no suitable cipher name found");
+        return NID_undef;
+    }
     
     /* in TLS 1.3 case, NID will be NID_kx_any */
     if (XSTRNCMP(name, "TLS13", 5) == 0) {
@@ -23539,12 +23556,16 @@ static const struct kxnid {
 int wolfSSL_CIPHER_is_aead(const WOLFSSL_CIPHER* cipher)
 {
     char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
-    
+    const char* name;
+
     WOLFSSL_ENTER("wolfSSL_CIPHER_is_aead");
     
-    GetCipherSegment(cipher, n);
+    if ((name = GetCipherSegment(cipher, n)) == NULL) {
+        WOLFSSL_MSG("no suitable cipher name found");
+        return NID_undef;
+    }
     
-    return IsAEAD(n);
+    return IsCipherAEAD(n);
 }
 /* Creates cipher->description based on cipher->offset
  * cipher->offset is set in wolfSSL_get_ciphers_compat when it is added
@@ -23581,7 +23602,10 @@ int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
     pv.minor = cipher_names[offset].minor;
     protocol = wolfSSL_internal_get_version(&pv);
     
-    name = GetCipherSegment(cipher, n);
+    if ((name = GetCipherSegment(cipher, n)) == NULL) {
+        WOLFSSL_MSG("no suitable cipher name found");
+        return WOLFSSL_FAILURE;
+    }
 
     /* keaStr */
     keaStr = GetCipherKeaStr(n);

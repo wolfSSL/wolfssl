@@ -20549,7 +20549,7 @@ const char* GetCipherSegment(const WOLFSSL_CIPHER* cipher, char n[][MAX_SEGMENT_
     const char* name;
     
     /* sanity check */
-    if (cipher == NULL)
+    if (cipher == NULL || n == NULL)
         return NULL;
     
     offset = cipher->offset;
@@ -20738,14 +20738,19 @@ const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]) {
  * @param n return segment cipher name
  * return 1 if the cipher is AEAD, otherwise 0
  */
-int IsAEAD(char n[][MAX_SEGMENT_SZ])
+int IsCipherAEAD(char n[][MAX_SEGMENT_SZ])
 {
     const char *n1,*n2,*n3;
     n1 = n[1];
     n2 = n[2];
     n3 = n[3];
     
-    printf("n1 %s n2 %s n3 %s\n", n1, n2, n3);
+    WOLFSSL_ENTER("IsCipherAEAD");
+
+    if (n == NULL) {
+        WOLFSSL_MSG("bad function argumet. n is NULL.");
+        return 0;
+    }
     
     if ((XSTRNCMP(n2,"GCM",3) == 0) || (XSTRNCMP(n3,"GCM",3) == 0) ||
         (XSTRNCMP(n1,"CCM",3) == 0) ||
