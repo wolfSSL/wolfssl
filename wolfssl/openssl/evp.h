@@ -768,6 +768,9 @@ typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
 #define EVP_aes_128_cfb128 wolfSSL_EVP_aes_128_cfb128
 #define EVP_aes_192_cfb128 wolfSSL_EVP_aes_192_cfb128
 #define EVP_aes_256_cfb128 wolfSSL_EVP_aes_256_cfb128
+#define EVP_aes_128_cfb    wolfSSL_EVP_aes_128_cfb128
+#define EVP_aes_192_cfb    wolfSSL_EVP_aes_192_cfb128
+#define EVP_aes_256_cfb    wolfSSL_EVP_aes_256_cfb128
 #define EVP_aes_128_ofb    wolfSSL_EVP_aes_128_ofb
 #define EVP_aes_192_ofb    wolfSSL_EVP_aes_192_ofb
 #define EVP_aes_256_ofb    wolfSSL_EVP_aes_256_ofb

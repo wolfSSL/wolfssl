@@ -87,6 +87,7 @@
     #endif
 
 #elif (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+    #include <wolfssl/openssl/compat_types.h>
     #include <wolfssl/openssl/bn.h>
     #include <wolfssl/openssl/hmac.h>
 
@@ -426,7 +427,6 @@ struct WOLFSSL_X509_PUBKEY {
     int pubKeyOID;
 };
 
-
 enum BIO_TYPE {
     WOLFSSL_BIO_BUFFER = 1,
     WOLFSSL_BIO_SOCKET = 2,
@@ -504,7 +504,7 @@ struct WOLFSSL_BIO {
     void*        heap;          /* user heap hint */
     void*        ptr;           /* WOLFSSL, file descriptor, MD, or mem buf */
     void*        usrCtx;        /* user set pointer */
-    const char*  ip;            /* IP address for wolfIO_TcpConnect */
+    char*        ip;            /* IP address for wolfIO_TcpConnect */
     word16       port;          /* Port for wolfIO_TcpConnect */
     char*        infoArg;       /* BIO callback argument */
     wolf_bio_info_cb infoCb;    /* BIO callback */
@@ -1450,6 +1450,7 @@ WOLFSSL_API WOLFSSL_BIO_METHOD* wolfSSL_BIO_s_mem(void);
 WOLFSSL_API WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_base64(void);
 WOLFSSL_API void wolfSSL_BIO_set_flags(WOLFSSL_BIO*, int);
 WOLFSSL_API void wolfSSL_BIO_clear_flags(WOLFSSL_BIO *bio, int flags);
+WOLFSSL_API int wolfSSL_BIO_get_fd(WOLFSSL_BIO *bio, int* fd);
 WOLFSSL_API int wolfSSL_BIO_set_ex_data(WOLFSSL_BIO *bio, int idx, void *data);
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
 WOLFSSL_API int wolfSSL_BIO_set_ex_data_with_cleanup(
@@ -1498,8 +1499,10 @@ WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_bio(void);
 WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_socket(void);
 
 WOLFSSL_API WOLFSSL_BIO *wolfSSL_BIO_new_connect(const char *str);
+WOLFSSL_API WOLFSSL_BIO *wolfSSL_BIO_new_accept(const char *port);
 WOLFSSL_API long wolfSSL_BIO_set_conn_port(WOLFSSL_BIO *b, char* port);
 WOLFSSL_API long wolfSSL_BIO_do_connect(WOLFSSL_BIO *b);
+WOLFSSL_API int wolfSSL_BIO_do_accept(WOLFSSL_BIO *b);
 
 WOLFSSL_API long wolfSSL_BIO_do_handshake(WOLFSSL_BIO *b);
 

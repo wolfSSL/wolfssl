@@ -109,6 +109,8 @@
 #define BIO_get_shutdown           wolfSSL_BIO_get_shutdown
 #define BIO_set_shutdown           wolfSSL_BIO_set_shutdown
 
+#define BIO_get_fd                 wolfSSL_BIO_get_fd
+
 #define BIO_clear_flags            wolfSSL_BIO_clear_flags
 #define BIO_set_ex_data            wolfSSL_BIO_set_ex_data
 #define BIO_get_ex_data            wolfSSL_BIO_get_ex_data

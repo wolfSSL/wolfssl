@@ -862,6 +862,67 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
 #endif /* HAVE_SOCKADDR */
 }
 
+int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port)
+{
+#ifdef HAVE_SOCKADDR
+    int ret = 0;
+    SOCKADDR_S addr;
+    int sockaddr_len = sizeof(SOCKADDR_IN);
+    SOCKADDR_IN *sin = (SOCKADDR_IN *)&addr;
+
+    if (sockfd == NULL || port < 1) {
+        return -1;
+    }
+
+    XMEMSET(&addr, 0, sizeof(addr));
+
+    sin->sin_family = AF_INET;
+    sin->sin_addr.s_addr = INADDR_ANY;
+    sin->sin_port = XHTONS(port);
+    *sockfd = (SOCKET_T)socket(AF_INET, SOCK_STREAM, 0);
+
+    if (*sockfd < 0) {
+        WOLFSSL_MSG("socket failed");
+        *sockfd = SOCKET_INVALID;
+        return -1;
+    }
+
+#if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_MDK_ARM)\
+                   && !defined(WOLFSSL_KEIL_TCP_NET) && !defined(WOLFSSL_ZEPHYR)
+    {
+        int optval  = 1;
+        XSOCKLENT optlen = sizeof(optval);
+        ret = setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, optlen);
+    }
+#endif
+
+    if (ret == 0)
+        ret = bind(*sockfd, (SOCKADDR *)sin, sockaddr_len);
+    if (ret == 0)
+        ret = listen(*sockfd, SOMAXCONN);
+
+    if (ret != 0) {
+        WOLFSSL_MSG("wolfIO_TcpBind failed");
+        CloseSocket(*sockfd);
+        *sockfd = SOCKET_INVALID;
+        ret = -1;
+    }
+
+    return ret;
+#else
+    (void)sockfd;
+    (void)port;
+    return -1;
+#endif /* HAVE_SOCKADDR */
+}
+
+#ifdef HAVE_SOCKADDR
+int wolfIO_TcpAccept(SOCKET_T sockfd, SOCKADDR* peer_addr, XSOCKLENT* peer_len)
+{
+    return accept(sockfd, peer_addr, peer_len);
+}
+#endif /* HAVE_SOCKADDR */
+
 #ifndef HTTP_SCRATCH_BUFFER_SIZE
     #define HTTP_SCRATCH_BUFFER_SIZE 512
 #endif
