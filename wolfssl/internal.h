@@ -2107,7 +2107,9 @@ struct WOLFSSL_CERT_MANAGER {
                                         /* CTX has ownership and free this   */
                                         /* with CTX free.                    */
 #endif
+#ifndef SINGLE_THREADED
     wolfSSL_Mutex   refMutex;   /* reference count mutex */
+#endif
     int             refCount;         /* reference count */
 };
 
@@ -2789,10 +2791,11 @@ struct WOLFSSL_CTX {
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* ca_names;
     #endif
-    #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
-        defined(WOLFSSL_NGINX) || defined (WOLFSSL_HAPROXY)
+    #ifdef OPENSSL_EXTRA
     WOLF_STACK_OF(WOLFSSL_X509)* x509Chain;
     client_cert_cb CBClientCert;  /* client certificate callback */
+    CertSetupCallback  certSetupCb;
+    void*              certSetupCbArg;
     #endif
 #ifdef WOLFSSL_TLS13
     int         certChainCnt;
@@ -2952,9 +2955,11 @@ struct WOLFSSL_CTX {
     pem_password_cb* passwd_cb;
     void*            passwd_userdata;
 #endif
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
+#ifdef WOLFSSL_LOCAL_X509_STORE
     WOLFSSL_X509_STORE x509_store; /* points to ctx->cm */
     WOLFSSL_X509_STORE* x509_store_pt; /* take ownership of external store */
+#endif
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
     byte            readAhead;
     void*           userPRFArg; /* passed to prf callback */
 #endif
@@ -3355,7 +3360,9 @@ struct WOLFSSL_SESSION {
 #ifdef OPENSSL_EXTRA
     byte               sessionCtxSz;              /* sessionCtx length        */
     byte               sessionCtx[ID_LEN];        /* app specific context id  */
+#ifndef SINGLE_THREADED
     wolfSSL_Mutex      refMutex;                  /* ref count mutex */
+#endif
     int                refCount;                  /* reference count */
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -3881,7 +3888,9 @@ struct WOLFSSL_X509 {
     int              certPoliciesNb;
 #endif /* WOLFSSL_CERT_EXT */
 #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
+#ifndef SINGLE_THREADED
     wolfSSL_Mutex    refMutex;                       /* ref count mutex */
+#endif
     int              refCount;                       /* reference count */
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -4335,6 +4344,9 @@ struct WOLFSSL {
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     CertReqCtx*     certReqCtx;
 #endif
+#ifdef WOLFSSL_LOCAL_X509_STORE
+    WOLFSSL_X509_STORE* x509_store_pt; /* take ownership of external store */
+#endif
 #ifdef KEEP_PEER_CERT
     WOLFSSL_X509     peerCert;           /* X509 peer cert */
 #endif
@@ -4480,6 +4492,9 @@ struct WOLFSSL {
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_STACK* supportedCiphers; /* Used in wolfSSL_get_ciphers_compat */
     WOLFSSL_STACK* peerCertChain;    /* Used in wolfSSL_get_peer_cert_chain */
+#ifdef KEEP_OUR_CERT
+    WOLFSSL_STACK* ourCertChain;    /* Used in wolfSSL_add1_chain_cert */
+#endif
 #endif
 #ifdef WOLFSSL_STATIC_EPHEMERAL
     StaticKeyExchangeInfo_t staticKE;
@@ -4495,6 +4510,19 @@ struct WOLFSSL {
 #endif
 };
 
+/*
+ * The SSL object may have its own certificate store. The below macros simplify
+ * logic for choosing which WOLFSSL_CERT_MANAGER and WOLFSSL_X509_STORE to use.
+ * Always use SSL specific objects when available and revert to CTX otherwise.
+ */
+#ifdef WOLFSSL_LOCAL_X509_STORE
+#define SSL_CM(ssl) (ssl->x509_store_pt ? ssl->x509_store_pt->cm : ssl->ctx->cm)
+#define SSL_STORE(ssl) (ssl->x509_store_pt ? ssl->x509_store_pt : \
+                  (ssl->ctx->x509_store_pt ? ssl->ctx->x509_store_pt : \
+                                            &ssl->ctx->x509_store))
+#else
+#define SSL_CM(ssl) ssl->ctx->cm
+#endif
 
 WOLFSSL_LOCAL int  SSL_CTX_RefCount(WOLFSSL_CTX* ctx, int incr);
 WOLFSSL_LOCAL int  SetSSL_CTX(WOLFSSL*, WOLFSSL_CTX*, int);

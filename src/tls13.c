@@ -3842,12 +3842,16 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     }
     *inOutIdx += len;
 
-    if (ssl->buffers.certificate && ssl->buffers.certificate->buffer &&
+    if ((ssl->buffers.certificate && ssl->buffers.certificate->buffer &&
         ((ssl->buffers.key && ssl->buffers.key->buffer)
         #ifdef HAVE_PK_CALLBACKS
             || wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)
         #endif
-    )) {
+    ))
+        #ifdef OPENSSL_EXTRA
+            || ssl->ctx->certSetupCb != NULL
+        #endif
+            ) {
         if (PickHashSigAlgo(ssl, peerSuites.hashSigAlgo,
                                                peerSuites.hashSigAlgoSz) != 0) {
             return INVALID_PARAMETER;
@@ -5777,6 +5781,11 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         listSz = 0;
     }
     else {
+#ifdef OPENSSL_EXTRA
+        if ((ret = CertSetupCbWrapper(ssl)) != 0)
+            return ret;
+#endif
+
         if (!ssl->buffers.certificate) {
             WOLFSSL_MSG("Send Cert missing certificate buffer");
             return BUFFER_ERROR;
@@ -9223,24 +9232,34 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
     if (!havePSK)
 #endif
     {
-        if (!ssl->buffers.certificate ||
-            !ssl->buffers.certificate->buffer) {
-
-            WOLFSSL_MSG("accept error: server cert required");
-            WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
-            return WOLFSSL_FATAL_ERROR;
-        }
-
-    #ifdef HAVE_PK_CALLBACKS
-        if (wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)) {
-            WOLFSSL_MSG("Using PK for server private key");
+    #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+        defined(WOLFSSL_NGINX) || defined (WOLFSSL_HAPROXY)
+        if (ssl->ctx->certSetupCb != NULL) {
+            WOLFSSL_MSG("CertSetupCb set. server cert and "
+                        "key not checked");
         }
         else
     #endif
-        if (!ssl->buffers.key || !ssl->buffers.key->buffer) {
-            WOLFSSL_MSG("accept error: server key required");
-            WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
-            return WOLFSSL_FATAL_ERROR;
+        {
+            if (!ssl->buffers.certificate ||
+                !ssl->buffers.certificate->buffer) {
+
+                WOLFSSL_MSG("accept error: server cert required");
+                WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
+                return WOLFSSL_FATAL_ERROR;
+            }
+
+        #ifdef HAVE_PK_CALLBACKS
+            if (wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)) {
+                WOLFSSL_MSG("Using PK for server private key");
+            }
+            else
+        #endif
+            if (!ssl->buffers.key || !ssl->buffers.key->buffer) {
+                WOLFSSL_MSG("accept error: server key required");
+                WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
+                return WOLFSSL_FATAL_ERROR;
+            }
         }
     }
 #endif /* NO_CERTS */
