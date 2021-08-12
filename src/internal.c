@@ -13196,7 +13196,7 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
         ssl->secure_renegotiation->verifySet = 1;
     }
 #endif
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
     if (ssl->options.side == WOLFSSL_CLIENT_END)
         XMEMCPY(ssl->serverFinished,
                 input + *inOutIdx, TLS_FINISHED_SZ);
@@ -18166,7 +18166,7 @@ int SendFinished(WOLFSSL* ssl)
                     TLS_FINISHED_SZ);
     }
 #endif
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
     if (ssl->options.side == WOLFSSL_CLIENT_END)
         XMEMCPY(ssl->clientFinished,
                 hashes, TLS_FINISHED_SZ);

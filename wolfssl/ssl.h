@@ -4440,7 +4440,7 @@ WOLFSSL_API int wolfSSL_X509_check_email(WOLFSSL_X509 *x, const char *chk,
 #endif /* OPENSSL_EXTRA && WOLFSSL_CERT_GEN */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
 WOLFSSL_API const unsigned char *SSL_SESSION_get0_id_context(
         const WOLFSSL_SESSION *sess, unsigned int *sid_ctx_length);
 WOLFSSL_API size_t wolfSSL_get_finished(const WOLFSSL *ssl, void *buf, size_t count);

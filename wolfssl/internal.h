@@ -4484,7 +4484,7 @@ struct WOLFSSL {
 #ifdef WOLFSSL_STATIC_EPHEMERAL
     StaticKeyExchangeInfo_t staticKE;
 #endif
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
     /* Added in libest port: allow applications to get the 'tls-unique' Channel
      * Binding Type (https://tools.ietf.org/html/rfc5929#section-3). This is
      * used in the EST protocol to bind an enrollment to a TLS session through
