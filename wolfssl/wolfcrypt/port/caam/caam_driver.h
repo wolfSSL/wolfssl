@@ -332,7 +332,7 @@ int caamBlob(DESCSTRUCT *desc);
 
 CAAM_ADDRESS caamGetPartition(unsigned int part, int partSz, unsigned int flag);
 int caamFreePart(unsigned int part);
-int caamFindUnusuedPartition(void);
+int caamFindUnusedPartition(void);
 
 
 

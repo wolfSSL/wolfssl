@@ -8789,7 +8789,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
     }
 #elif defined(WOLFSSL_QNX_CAAM)
     if ((wc_ecc_size(key) + WC_CAAM_MAC_SZ) == (int)privSz) {
-        int part = caamFindUnusuedPartition();
+        int part = caamFindUnusedPartition();
         if (part >= 0) {
             CAAM_ADDRESS vaddr = caamGetPartition(part, privSz*3);
             if (vaddr == 0) {

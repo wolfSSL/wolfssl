@@ -49,7 +49,7 @@ WOLFSSL_LOCAL void wc_caamWriteRegister(word32 reg, word32 value);
 WOLFSSL_LOCAL int  wc_caamAddAndWait(CAAM_BUFFER* buf, int sz, word32 arg[4],
         word32 type);
 
-WOLFSSL_LOCAL int caamFindUnusuedPartition(void);
+WOLFSSL_LOCAL int caamFindUnusedPartition(void);
 WOLFSSL_LOCAL CAAM_ADDRESS caamGetPartition(int part, int sz);
 WOLFSSL_LOCAL int caamFreePart(int partNum);
 WOLFSSL_LOCAL int caamWriteToPartition(CAAM_ADDRESS addr, const unsigned char* in, int inSz);

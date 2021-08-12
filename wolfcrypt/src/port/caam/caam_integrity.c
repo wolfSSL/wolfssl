@@ -19,11 +19,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
+#include <wolfssl/wolfcrypt/settings.h>
+
 #if defined(__INTEGRITY) || defined(INTEGRITY)
 
 /* build into Integrity kernel */
 #include <bsp.h>
-#include "wolfssl/wolfcrypt/port/caam/caam_driver.h"
+#include <wolfssl/wolfcrypt/port/caam/caam_driver.h>
 
 #define CAAM_READ(reg) *(volatile unsigned int*)(reg)
 #define CAAM_WRITE(reg, in) *(volatile unsigned int*)(reg) = (in);

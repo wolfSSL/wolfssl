@@ -25,7 +25,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_QNX_CAAM)
+#if defined(WOLFSSL_QNX_CAAM) && (defined(__QNX__) || defined(__QNXNTO__))
 
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -349,4 +349,4 @@ int SynchronousSendRequest(int type, unsigned int args[4], CAAM_BUFFER *buf,
     return Success;
 }
 
-#endif
+#endif /* WOLFSSL_QNX_CAAM && (__QNX__ || __QNXNTO__) */

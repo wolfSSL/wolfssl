@@ -26,4 +26,5 @@ int caamParseError(unsigned int error);
 int caamParseDECOError(unsigned int error);
 int caamParseCCBError(unsigned int error);
 unsigned int caamParseJRError(unsigned int error);
+
 #endif /* CAAM_ERROR_H */
