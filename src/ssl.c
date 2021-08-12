@@ -20294,6 +20294,145 @@ void wolfSSL_GENERAL_NAMES_free(WOLFSSL_GENERAL_NAMES *gens)
     wolfSSL_sk_free(gens);
 }
 
+#ifdef OPENSSL_ALL
+/* Outputs name string of the given WOLFSSL_GENERAL_NAME_OBJECT to WOLFSSL_BIO. 
+ * Can handle following GENERAL_NAME_OBJECT types:
+ *  - GEN_OTHERNAME #
+ *  - GEN_EMAIL
+ *  - GEN_DNS
+ *  - GEN_X400  #
+ *  - GEN_DIRNAME
+ *  - GEN_EDIPARTY #
+ *  - GEN_URI
+ *  - GEN_RID
+ * The each name string to be output has "typename:namestring" format.
+ * For instance, email name string will be output as "email:info@wolfssl.com".
+ * However,some types above marked with "#" will be output with 
+ * "typename:<unsupported>".
+ * 
+ * Parameters:
+ *  - out: WOLFSSL_BIO object which is the output destination
+ *  - gen: WOLFSSL_GENERAL_NAME object to be output its name
+ * 
+ * Returns WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE on failure.
+ */
+int wolfSSL_GENERAL_NAME_print(WOLFSSL_BIO* out, WOLFSSL_GENERAL_NAME* gen)
+{
+    int ret, i;
+    unsigned int wd;
+    unsigned char* p;
+    (void)wd;
+    (void)p;
+    (void)i;
+    WOLFSSL_ENTER("wolfSSL_GENERAL_NAME_print");
+
+    if (out == NULL || gen == NULL)
+        return WOLFSSL_FAILURE;
+
+    ret = WOLFSSL_FAILURE;
+    switch (gen->type)
+    {
+    case GEN_OTHERNAME:
+        ret = wolfSSL_BIO_printf(out, "othername:<unsupported>");
+        ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+        break;
+
+    case GEN_EMAIL:
+        ret = wolfSSL_BIO_printf(out, "email:");
+        ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+        if (ret == WOLFSSL_SUCCESS)
+        {
+            ret = wolfSSL_ASN1_STRING_print(out, gen->d.rfc822Name);
+        }
+        break;
+
+    case GEN_DNS:
+        ret = wolfSSL_BIO_printf(out, "DNS:");
+        ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+        if (ret == WOLFSSL_SUCCESS) {
+            ret = wolfSSL_BIO_printf(out, gen->d.dNSName->strData);
+            ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+        }
+        break;
+
+    case GEN_X400:
+        ret = wolfSSL_BIO_printf(out, "X400Name:<unsupported>");
+        ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+        break;
+
+    case GEN_DIRNAME:
+        ret = wolfSSL_BIO_printf(out, "DirName:");
+        if (ret == WOLFSSL_SUCCESS) {
+            ret = wolfSSL_X509_NAME_print_ex(out, gen->d.directoryName, 0,
+                                                         XN_FLAG_ONELINE);
+        }
+        break;
+        
+    case GEN_EDIPARTY:
+        ret = wolfSSL_BIO_printf(out, "EdiPartyName:<unsupported>");
+        ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+        break;
+
+    case GEN_URI:
+        ret = wolfSSL_BIO_printf(out, "URI:");
+        ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+        if (ret == WOLFSSL_SUCCESS) {
+            ret = wolfSSL_ASN1_STRING_print(out,
+                                    gen->d.uniformResourceIdentifier);
+        }
+        break;
+
+    case GEN_IPADD:
+        ret = wolfSSL_BIO_printf(out, "IP Address");
+        ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+        if (ret == WOLFSSL_SUCCESS) {
+
+            if (!gen->d.iPAddress->length) {
+                ret = WOLFSSL_FAILURE;
+                break;
+            }
+            p = (unsigned char*)gen->d.iPAddress->strData;
+
+            if (gen->d.iPAddress->length == 4) {
+                ret = wolfSSL_BIO_printf(out, ":%d.%d.%d.%d", 
+                                  p[0],p[1],p[2],p[3]);
+            }
+            else if (gen->d.iPAddress->length == 16) {
+
+                for (i = 0; i < 16 && ret == WOLFSSL_SUCCESS;) {
+                    wd = p[i] << 8 | p[i+1];
+                  
+                    i += 2;
+                    ret = wolfSSL_BIO_printf(out, ":%X", wd);
+                    ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+                }
+            }
+            else {
+                ret = wolfSSL_BIO_printf(out, "<unsupported>");
+            }
+            ret = (ret > 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+        }
+        break;
+
+    case GEN_RID:
+        ret = wolfSSL_BIO_printf(out, "Registered ID:");
+        if (ret == WOLFSSL_SUCCESS) {
+            ret = wolfSSL_i2a_ASN1_OBJECT(out, gen->d.registeredID);
+        }
+        break;
+
+    default:
+        /* unsupported type */
+        break;
+    }
+
+    if (ret == WOLFSSL_FAILURE)
+        return WOLFSSL_FAILURE;
+    else
+        return WOLFSSL_SUCCESS;
+}
+#endif /* OPENSSL_ALL */
+
 #if defined(OPENSSL_ALL)
 
 void *wolfSSL_lh_retrieve(WOLFSSL_STACK *sk, void *data)
@@ -50684,7 +50823,8 @@ WOLFSSL_BIGNUM *wolfSSL_BN_mod_inverse(WOLFSSL_BIGNUM *r,
     return  r;
 }
 #endif  /* OPENSSL_EXTRA */
-#if (defined(WOLFSSL_QT) || defined(OPENSSL_ALL)) && !defined(NO_ASN)
+#if (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
+    !defined(NO_ASN)
 #ifndef NO_BIO
 static int unprintable_char(char c)
 {
@@ -50719,7 +50859,7 @@ int wolfSSL_ASN1_STRING_print(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str)
     return str->length;
 }
 #endif /* !NO_BIO */
-#endif /* (WOLFSSL_QT || OPENSSL_ALL) && !NO_ASN */
+#endif /* (WOLFSSL_QT || OPENSSL_ALL || OPENSSL_EXTRA) && !NO_ASN */
 
 #if defined(OPENSSL_EXTRA)
 int wolfSSL_X509_check_ca(WOLFSSL_X509 *x509)

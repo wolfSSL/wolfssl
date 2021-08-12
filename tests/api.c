@@ -35886,6 +35886,187 @@ static void test_wolfSSL_sk_GENERAL_NAME(void)
 #endif
 }
 
+static void test_wolfSSL_GENERAL_NAME_print(void)
+{
+#if defined(OPENSSL_ALL)
+
+    X509* x509;
+    GENERAL_NAME* gn;
+    unsigned char buf[4096];
+    const unsigned char* bufPt;
+    int bytes;
+    XFILE f;
+    STACK_OF(GENERAL_NAME)* sk;
+    BIO* out;
+    unsigned char outbuf[128];
+
+    X509_EXTENSION* ext;
+    AUTHORITY_INFO_ACCESS* aia;
+    ACCESS_DESCRIPTION* ad;
+
+    const unsigned char v4Addr[] = {192,168,53,1};
+    const unsigned char v6Addr[] = 
+                            {0x20, 0x21, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00,
+                             0x00, 0x00, 0xff, 0x00, 0x00, 0x42, 0x77, 0x77};
+    const unsigned char email[]  =
+                             {'i', 'n', 'f', 'o', '@', 'w', 'o', 'l',
+                              'f', 's', 's', 'l', '.', 'c', 'o', 'm'};
+    
+    const char* dnsStr   = "DNS:example.com";
+    const char* uriStr   = "URI:http://127.0.0.1:22220";
+    const char* v4addStr = "IP Address:192.168.53.1";
+    const char* v6addStr = "IP Address:2021:DB8:0:0:0:FF00:42:7777";
+    const char* emailStr = "email:info@wolfssl.com";
+    const char* othrStr  = "othername:<unsupported>";
+    const char* x400Str  = "X400Name:<unsupported>";
+    const char* ediStr   = "EdiPartyName:<unsupported>";
+    
+
+    printf(testingFmt, "test_wolfSSL_GENERAL_NAME_print()");
+
+    /* BIO to output */
+    AssertNotNull(out = BIO_new(BIO_s_mem()));
+
+    /* test for NULL param */
+    gn = NULL;
+
+    AssertIntEQ(GENERAL_NAME_print(NULL, NULL), 0);
+    AssertIntEQ(GENERAL_NAME_print(NULL, gn), 0);
+    AssertIntEQ(GENERAL_NAME_print(out, NULL), 0);
+
+
+    /* test for GEN_DNS */
+    f = XFOPEN(cliCertDerFileExt, "rb");
+    AssertTrue((f != XBADFILE));
+    AssertIntGT((bytes = (int)XFREAD(buf, 1, sizeof(buf), f)), 0);
+    XFCLOSE(f);
+
+    bufPt = buf;
+    AssertNotNull(x509 = d2i_X509(NULL, &bufPt, bytes));
+    AssertNotNull(sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509,
+                NID_subject_alt_name, NULL, NULL));
+
+    AssertNotNull(gn = sk_GENERAL_NAME_value(sk, 0));
+    AssertIntEQ(GENERAL_NAME_print(out, gn), 1);
+
+    XMEMSET(outbuf,0,sizeof(outbuf));
+    BIO_read(out, outbuf, sizeof(outbuf));
+    AssertIntEQ(XSTRNCMP((const char*)outbuf, dnsStr, XSTRLEN(dnsStr)), 0);
+
+    sk_GENERAL_NAME_pop_free(sk, GENERAL_NAME_free);
+    X509_free(x509);
+
+    /* test for GEN_URI */
+
+    f = XFOPEN("./certs/ocsp/root-ca-cert.pem", "rb");
+    AssertTrue((f != XBADFILE));
+    AssertNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
+    XFCLOSE(f);
+
+    AssertNotNull(ext = wolfSSL_X509_get_ext(x509, 4));
+    aia = (WOLFSSL_AUTHORITY_INFO_ACCESS*)wolfSSL_X509V3_EXT_d2i(ext);
+    AssertNotNull(aia);
+    ad = (WOLFSSL_ACCESS_DESCRIPTION *)wolfSSL_sk_value(aia, 0);
+
+    gn = ad->location;
+    AssertIntEQ(GENERAL_NAME_print(out, gn), 1);
+
+    XMEMSET(outbuf,0,sizeof(outbuf));
+    AssertIntGT(BIO_read(out, outbuf, sizeof(outbuf)), 0);
+    AssertIntEQ(XSTRNCMP((const char*)outbuf, uriStr, XSTRLEN(uriStr)), 0);
+    
+    wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(aia, NULL);
+    XFREE(ad, NULL, DYNAMIC_TYPE_X509_EXT);
+    X509_free(x509);
+
+    /* test for GEN_IPADD */
+
+    /* ip v4 address */
+    AssertNotNull(gn = wolfSSL_GENERAL_NAME_new());
+    gn->type = GEN_IPADD;
+    gn->d.iPAddress->length = sizeof(v4Addr);
+    AssertIntEQ(wolfSSL_ASN1_STRING_set(gn->d.iPAddress, v4Addr,
+                                                        sizeof(v4Addr)), 1);
+
+    AssertIntEQ(GENERAL_NAME_print(out, gn), 1);
+    XMEMSET(outbuf,0,sizeof(outbuf));
+    AssertIntGT(BIO_read(out, outbuf, sizeof(outbuf)), 0);
+    AssertIntEQ(XSTRNCMP((const char*)outbuf, v4addStr, XSTRLEN(v4addStr)), 0);
+
+    GENERAL_NAME_free(gn);
+
+    /* ip v6 address */
+
+    AssertNotNull(gn = wolfSSL_GENERAL_NAME_new());
+    gn->type = GEN_IPADD;
+    gn->d.iPAddress->length = sizeof(v6Addr);
+    AssertIntEQ(wolfSSL_ASN1_STRING_set(gn->d.iPAddress, v6Addr,
+                                                        sizeof(v6Addr)), 1);
+
+    AssertIntEQ(GENERAL_NAME_print(out, gn), 1);
+    XMEMSET(outbuf,0,sizeof(outbuf));
+    AssertIntGT(BIO_read(out, outbuf, sizeof(outbuf)), 0);
+    AssertIntEQ(XSTRNCMP((const char*)outbuf, v6addStr, XSTRLEN(v6addStr)), 0);
+
+    GENERAL_NAME_free(gn);
+
+    /* test for GEN_EMAIL */
+
+    AssertNotNull(gn = wolfSSL_GENERAL_NAME_new());
+    gn->type = GEN_EMAIL;
+    gn->d.rfc822Name->length = sizeof(email);
+    AssertIntEQ(wolfSSL_ASN1_STRING_set(gn->d.rfc822Name, email,
+                                                        sizeof(email)), 1);
+
+    AssertIntEQ(GENERAL_NAME_print(out, gn), 1);
+    XMEMSET(outbuf,0,sizeof(outbuf));
+    AssertIntGT(BIO_read(out, outbuf, sizeof(outbuf)), 0);
+    AssertIntEQ(XSTRNCMP((const char*)outbuf, emailStr, XSTRLEN(emailStr)), 0);
+
+    GENERAL_NAME_free(gn);
+
+    /* test for  GEN_OTHERNAME */
+
+    AssertNotNull(gn = wolfSSL_GENERAL_NAME_new());
+    gn->type = GEN_OTHERNAME;
+
+    AssertIntEQ(GENERAL_NAME_print(out, gn), 1);
+    XMEMSET(outbuf,0,sizeof(outbuf));
+    AssertIntGT(BIO_read(out, outbuf, sizeof(outbuf)), 0);
+    AssertIntEQ(XSTRNCMP((const char*)outbuf, othrStr, XSTRLEN(othrStr)), 0);
+
+    GENERAL_NAME_free(gn);
+
+    /* test for  GEN_X400 */
+
+    AssertNotNull(gn = wolfSSL_GENERAL_NAME_new());
+    gn->type = GEN_X400;
+
+    AssertIntEQ(GENERAL_NAME_print(out, gn), 1);
+    XMEMSET(outbuf,0,sizeof(outbuf));
+    AssertIntGT(BIO_read(out, outbuf, sizeof(outbuf)), 0);
+    AssertIntEQ(XSTRNCMP((const char*)outbuf, x400Str, XSTRLEN(x400Str)), 0);
+
+    GENERAL_NAME_free(gn);
+
+    /* test for GEN_EDIPARTY */
+
+    AssertNotNull(gn = wolfSSL_GENERAL_NAME_new());
+    gn->type = GEN_EDIPARTY;
+
+    AssertIntEQ(GENERAL_NAME_print(out, gn), 1);
+    XMEMSET(outbuf,0,sizeof(outbuf));
+    AssertIntGT(BIO_read(out, outbuf, sizeof(outbuf)), 0);
+    AssertIntEQ(XSTRNCMP((const char*)outbuf, ediStr, XSTRLEN(ediStr)), 0);
+
+    GENERAL_NAME_free(gn);
+
+    BIO_free(out);
+ 
+    printf(resultFmt, passed);
+#endif /* OPENSSL_ALL */
+}
+
 static void test_wolfSSL_MD4(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_MD4)
@@ -47015,6 +47196,7 @@ void ApiTest(void)
     test_wolfSSL_ticket_keys();
     test_wolfSSL_DES_ecb_encrypt();
     test_wolfSSL_sk_GENERAL_NAME();
+    test_wolfSSL_GENERAL_NAME_print();
     test_wolfSSL_MD4();
     test_wolfSSL_RSA();
     test_wolfSSL_RSA_DER();
