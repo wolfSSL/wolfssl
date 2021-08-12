@@ -785,6 +785,7 @@ AC_ARG_ENABLE([mcast],
 # ssl bump (--enable-bump)
 # signal (--enable-signal)
 # lighty (--enable-lighty) HAVE_LIGHTY
+# rsyslog (--enable-rsyslog)
 # stunnel (--enable-stunnel) HAVE_STUNNEL
 # libest (--enable-libest) HAVE_LIBEST
 # asio (--enable-asio) WOLFSSL_ASIO
@@ -844,6 +845,12 @@ AC_ARG_ENABLE([lighty],
     [AS_HELP_STRING([--enable-lighty],[Enable lighttpd/lighty (default: disabled)])],
     [ ENABLED_LIGHTY=$enableval ],
     [ ENABLED_LIGHTY=no ]
+    )
+# rsyslog Support
+AC_ARG_ENABLE([rsyslog],
+    [AS_HELP_STRING([--enable-rsyslog],[Enable rsyslog (default: disabled)])],
+    [ ENABLED_RSYSLOG=$enableval ],
+    [ ENABLED_RSYSLOG=no ]
     )
 
 # haproxy compatibility build
@@ -978,7 +985,11 @@ AC_ARG_ENABLE([opensslall],
 [ ENABLED_OPENSSLALL=$enableval ],
 [ ENABLED_OPENSSLALL=no ]
 )
-if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_WPAS_DPP" = "yes" || test "$ENABLED_SMIME" = "yes" || test "$ENABLED_HAPROXY" = "yes" || test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" == "yes" || test "$ENABLED_NETSNMP" = "yes" || test "$ENABLED_OPENRESTY" = "yes"
+if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || \
+   test "$ENABLED_WPAS_DPP" = "yes" || test "$ENABLED_SMIME" = "yes" || \
+   test "$ENABLED_HAPROXY" = "yes" || test "$ENABLED_BIND" = "yes" || \
+   test "$ENABLED_NTP" == "yes" || test "$ENABLED_NETSNMP" = "yes" || \
+   test "$ENABLED_OPENRESTY" = "yes" || test "$ENABLED_RSYSLOG" == "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
@@ -994,7 +1005,13 @@ AC_ARG_ENABLE([opensslextra],
     [ ENABLED_OPENSSLEXTRA=$enableval ],
     [ ENABLED_OPENSSLEXTRA=no ]
     )
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_SIGNAL" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_BUMP" = "yes" || test "$ENABLED_SNIFFER" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "x$ENABLED_LIGHTY" = "xyes" || test "$ENABLED_LIBSSH2" = "yes" || test "x$ENABLED_NTP" = "xyes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || \
+   test "$ENABLED_SIGNAL" = "yes" || test "$ENABLED_WPAS" = "yes" || \
+   test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_BUMP" = "yes" || \
+   test "$ENABLED_SNIFFER" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || \
+   test "$ENABLED_LIBWEBSOCKETS" = "yes" || \
+   test "x$ENABLED_LIGHTY" = "xyes" || test "$ENABLED_LIBSSH2" = "yes" || \
+   test "x$ENABLED_NTP" = "xyes" || test "$ENABLED_RSYSLOG" == "yes"
 then
     ENABLED_OPENSSLEXTRA="yes"
 fi
@@ -2869,7 +2886,7 @@ AC_ARG_ENABLE([anon],
     [ ENABLED_ANON=no ]
     )
 
-if test "x$ENABLED_WPAS" = "xyes" || test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes"
+if test "x$ENABLED_WPAS" = "xyes" || test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "$ENABLED_RSYSLOG" == "yes"
 then
     ENABLED_ANON=yes
 fi
@@ -4440,6 +4457,13 @@ then
     ENABLED_SHA224="yes"
     ENABLED_SHA384="yes"
     ENABLED_SHA512="yes"
+fi
+
+if test "$ENABLED_RSYSLOG" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RSYSLOG -DFP_MAX_BITS=16384"
+    AM_CFLAGS="$AM_CFLAGS -DRSA_MAX_SIZE=8196 -DWOLFSSL_ERROR_CODE_OPENSSL"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA -DOPENSSL_COMPATIBLE_DEFAULTS"
 fi
 
 if test "$ENABLED_OPENVPN" = "yes"
@@ -7009,6 +7033,7 @@ echo "   * STUNNEL:                    $ENABLED_STUNNEL"
 echo "   * tcpdump:                    $ENABLED_TCPDUMP"
 echo "   * libssh2:                    $ENABLED_LIBSSH2"
 echo "   * ntp:                        $ENABLED_NTP"
+echo "   * rsyslog:                    $ENABLED_RSYSLOG"
 echo "   * Apache httpd:               $ENABLED_APACHE_HTTPD"
 echo "   * NGINX:                      $ENABLED_NGINX"
 echo "   * OpenResty:                  $ENABLED_OPENRESTY"

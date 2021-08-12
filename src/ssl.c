@@ -5733,6 +5733,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             if (info->passwd_cb)
                 EVPerr(0, EVP_R_BAD_DECRYPT);
 #endif
+            WOLFSSL_ERROR(WOLFSSL_BAD_FILE);
             return WOLFSSL_BAD_FILE;
         }
 
