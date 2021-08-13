@@ -12078,55 +12078,7 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
 #if !defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA))
 int wc_RsaPublicKeyDerSize(RsaKey* key, int with_header)
 {
-    int  idx = 0;
-    int  nSz, eSz, seqSz, bitStringSz, algoSz;
-
-    if (key == NULL)
-        return BAD_FUNC_ARG;
-
-    /* n */
-#ifdef HAVE_USER_RSA
-    nSz = SetASNIntRSA(key->n, NULL);
-#else
-    nSz = SetASNIntMP(&key->n, MAX_RSA_INT_SZ, NULL);
-#endif
-    if (nSz < 0) {
-        return nSz;
-    }
-
-    /* e */
-#ifdef HAVE_USER_RSA
-    eSz = SetASNIntRSA(key->e, NULL);
-#else
-    eSz = SetASNIntMP(&key->e, MAX_RSA_INT_SZ, NULL);
-#endif
-    if (eSz < 0) {
-        return eSz;
-    }
-
-    seqSz  = SetSequence(nSz + eSz, NULL);
-
-    /* headers */
-    if (with_header) {
-        algoSz = SetAlgoID(RSAk, NULL, oidKeyType, 0);
-        bitStringSz = SetBitString(seqSz + nSz + eSz, 0, NULL);
-
-        idx += SetSequence(nSz + eSz + seqSz + bitStringSz + algoSz, NULL);
-
-        /* algo */
-        idx += algoSz;
-        /* bit string */
-        idx += bitStringSz;
-    }
-
-    /* seq */
-    idx += seqSz;
-    /* n */
-    idx += nSz;
-    /* e */
-    idx += eSz;
-
-    return idx;
+    return SetRsaPublicKey(NULL, key, 0, with_header);
 }
 
 #endif /* !NO_RSA && WOLFSSL_CERT_GEN */
@@ -12238,6 +12190,13 @@ int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
     return SetRsaPublicKey(output, key, inLen, 1);
 }
 
+/* Returns public DER version of the RSA key. If with_header is 0 then only a 
+ * seq + n + e is returned in ASN.1 DER format */
+int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
+    int with_header)
+{
+    return SetRsaPublicKey(output, key, inLen, with_header);
+}
 #endif /* (WOLFSSL_KEY_GEN || OPENSSL_EXTRA) && !NO_RSA && !HAVE_USER_RSA */
 
 

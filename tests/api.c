@@ -16902,6 +16902,21 @@ static int test_wc_RsaKeyToPublicDer (void)
         }
     }
 
+    if (ret == 0) {
+        /* test getting size only */
+        ret = wc_RsaKeyToPublicDer_ex(&key, NULL, derLen, 0);
+        if (ret >= 0)
+            ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_RsaKeyToPublicDer_ex(&key, der, derLen, 0);
+        if (ret >= 0) {
+            ret = 0;
+        } else {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
     #ifndef HAVE_USER_RSA
         /* Pass in bad args. */
         if (ret == 0) {
