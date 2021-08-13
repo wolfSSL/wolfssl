@@ -4877,12 +4877,15 @@ WOLFSSL_LOCAL const char* GetCipherNameInternal(const byte cipherSuite0, const b
 #define MAX_SEGMENTS    5
 #define MAX_SEGMENT_SZ 20
 WOLFSSL_LOCAL int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER*);
+WOLFSSL_LOCAL const char* GetCipherSegment(const WOLFSSL_CIPHER* cipher, 
+                                           char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherProtocol(const byte minor);
 WOLFSSL_LOCAL const char* GetCipherKeaStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherAuthStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherMacStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL int SetCipherBits(const char* enc);
+WOLFSSL_LOCAL int IsCipherAEAD(char n[][MAX_SEGMENT_SZ]);
 #endif
 WOLFSSL_LOCAL const char* GetCipherNameIana(const byte cipherSuite0, const byte cipherSuite);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl);

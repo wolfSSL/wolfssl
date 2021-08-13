@@ -361,6 +361,11 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_CIPHER_get_id               wolfSSL_CIPHER_get_id
 #define SSL_CIPHER_get_rfc_name         wolfSSL_CIPHER_get_name
 #define SSL_CIPHER_standard_name        wolfSSL_CIPHER_get_name
+#define SSL_CIPHER_get_auth_nid         wolfSSL_CIPHER_get_auth_nid
+#define SSL_CIPHER_get_cipher_nid       wolfSSL_CIPHER_get_cipher_nid
+#define SSL_CIPHER_get_digest_nid       wolfSSL_CIPHER_get_digest_nid
+#define SSL_CIPHER_get_kx_nid           wolfSSL_CIPHER_get_kx_nid
+#define SSL_CIPHER_is_aead              wolfSSL_CIPHER_is_aead
 #define SSL_get_cipher_by_value         wolfSSL_get_cipher_by_value
 
 #define SSL_get1_session                wolfSSL_get1_session
