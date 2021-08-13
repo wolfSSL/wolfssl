@@ -30661,6 +30661,71 @@ static void test_wolfSSL_X509_VERIFY_PARAM_set1_host(void)
 #endif /* OPENSSL_EXTRA */
 }
 
+static void test_wolfSSL_X509_VERIFY_PARAM_set1_ip(void)
+{
+#if defined(OPENSSL_EXTRA)
+    unsigned char buf[16] = {0};
+    WOLFSSL_X509_VERIFY_PARAM* param;
+
+    printf(testingFmt, "test_wolfSSL_X509_VERIFY_PARAM_set1_ip()");
+
+    AssertNotNull(param = X509_VERIFY_PARAM_new());
+
+    /* test 127.0.0.1 */
+    buf[0] =0x7f; buf[1] = 0; buf[2] = 0; buf[3] = 1;
+    AssertIntEQ(X509_VERIFY_PARAM_set1_ip(param, &buf[0], 4), SSL_SUCCESS);
+    AssertIntEQ(XSTRNCMP(param->ipasc, "127.0.0.1", sizeof(param->ipasc)), 0);
+
+    /* test 2001:db8:3333:4444:5555:6666:7777:8888 */
+    buf[0]=32;buf[1]=1;buf[2]=13;buf[3]=184;
+    buf[4]=51;buf[5]=51;buf[6]=68;buf[7]=68;
+    buf[8]=85;buf[9]=85;buf[10]=102;buf[11]=102;
+    buf[12]=119;buf[13]=119;buf[14]=136;buf[15]=136;
+    AssertIntEQ(X509_VERIFY_PARAM_set1_ip(param, &buf[0], 16), SSL_SUCCESS);
+    AssertIntEQ(XSTRNCMP(param->ipasc, 
+        "2001:db8:3333:4444:5555:6666:7777:8888", sizeof(param->ipasc)), 0);
+    
+    /* test 2001:db8:: */
+    buf[0]=32;buf[1]=1;buf[2]=13;buf[3]=184;
+    buf[4]=0;buf[5]=0;buf[6]=0;buf[7]=0;
+    buf[8]=0;buf[9]=0;buf[10]=0;buf[11]=0;
+    buf[12]=0;buf[13]=0;buf[14]=0;buf[15]=0;
+    AssertIntEQ(X509_VERIFY_PARAM_set1_ip(param, &buf[0], 16), SSL_SUCCESS);
+    AssertIntEQ(XSTRNCMP(param->ipasc, "2001:db8::", sizeof(param->ipasc)), 0);
+    
+    /* test ::1234:5678 */
+    buf[0]=0;buf[1]=0;buf[2]=0;buf[3]=0;
+    buf[4]=0;buf[5]=0;buf[6]=0;buf[7]=0;
+    buf[8]=0;buf[9]=0;buf[10]=0;buf[11]=0;
+    buf[12]=18;buf[13]=52;buf[14]=86;buf[15]=120;
+    AssertIntEQ(X509_VERIFY_PARAM_set1_ip(param, &buf[0], 16), SSL_SUCCESS);
+    AssertIntEQ(XSTRNCMP(param->ipasc, "::1234:5678", sizeof(param->ipasc)), 0);
+    
+    
+    /* test 2001:db8::1234:5678 */
+    buf[0]=32;buf[1]=1;buf[2]=13;buf[3]=184;
+    buf[4]=0;buf[5]=0;buf[6]=0;buf[7]=0;
+    buf[8]=0;buf[9]=0;buf[10]=0;buf[11]=0;
+    buf[12]=18;buf[13]=52;buf[14]=86;buf[15]=120;
+    AssertIntEQ(X509_VERIFY_PARAM_set1_ip(param, &buf[0], 16), SSL_SUCCESS);
+    AssertIntEQ(XSTRNCMP(param->ipasc, "2001:db8::1234:5678", 
+                                                sizeof(param->ipasc)), 0);
+    
+    /* test 2001:0db8:0001:0000:0000:0ab9:c0a8:0102*/
+    /*      2001:db8:1::ab9:c0a8:102 */
+    buf[0]=32;buf[1]=1;buf[2]=13;buf[3]=184;
+    buf[4]=0;buf[5]=1;buf[6]=0;buf[7]=0;
+    buf[8]=0;buf[9]=0;buf[10]=10;buf[11]=185;
+    buf[12]=192;buf[13]=168;buf[14]=1;buf[15]=2;
+    AssertIntEQ(X509_VERIFY_PARAM_set1_ip(param, &buf[0], 16), SSL_SUCCESS);
+    AssertIntEQ(XSTRNCMP(param->ipasc, "2001:db8:1::ab9:c0a8:102", 
+                                                sizeof(param->ipasc)), 0);
+    
+    XFREE(param, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA */
+}
+
 static void test_wolfSSL_X509_STORE_CTX_get0_store(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -47404,6 +47469,7 @@ void ApiTest(void)
     test_wolfSSL_X509_STORE_CTX_set_time();
     test_wolfSSL_get0_param();
     test_wolfSSL_X509_VERIFY_PARAM_set1_host();
+    test_wolfSSL_X509_VERIFY_PARAM_set1_ip();
     test_wolfSSL_X509_STORE_CTX_get0_store();
     test_wolfSSL_X509_STORE();
     test_wolfSSL_X509_STORE_load_locations();
