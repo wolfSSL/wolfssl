@@ -1626,47 +1626,73 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
 
 /* Uses the WOLFSSL_EVP_PKEY_CTX to decrypt a buffer.
  *
- * ctx    structure to decrypt with
- * out    buffer to hold the results
- * outlen initially holds size of out buffer and gets set to decrypt result size
- * in     buffer decrypt
- * inlen  length of in buffer
+ * ctx    EVP_PKEY context of operation.
+ * out    Decrypted output buffer. If NULL, puts the maximum output buffer size
+          in outLen and returns success.
+ * outLen If out is NULL, see above. If out is non-NULL, on input outLen holds
+ *        the size of out. On output holds the length of actual decryption.
+ * in     Encrypted input buffer.
+ * inLen  Length of encrypted data.
  *
- * returns WOLFSSL_SUCCESS on success.
+ * Returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure.
  */
 int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
-                     unsigned char *out, size_t *outlen,
-                     const unsigned char *in, size_t inlen)
+                     unsigned char *out, size_t *outLen,
+                     const unsigned char *in, size_t inLen)
 {
     int len = 0;
 
-    if (ctx == NULL) return 0;
     WOLFSSL_ENTER("EVP_PKEY_decrypt");
 
+    if (ctx == NULL || ctx->pkey == NULL) {
+        WOLFSSL_MSG("Bad parameter.");
+        return 0;
+    }
+
     (void)out;
-    (void)outlen;
+    (void)outLen;
     (void)in;
-    (void)inlen;
+    (void)inLen;
     (void)len;
 
     switch (ctx->pkey->type) {
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     case EVP_PKEY_RSA:
-        len = wolfSSL_RSA_private_decrypt((int)inlen, (unsigned char*)in, out,
+        if (out == NULL) {
+            if (ctx->pkey->rsa == NULL) {
+                WOLFSSL_MSG("Internal wolfCrypt RSA object is NULL.");
+                return WOLFSSL_FAILURE;
+            }
+            len = wolfSSL_RSA_size(ctx->pkey->rsa);
+            if (len <= 0) {
+                WOLFSSL_MSG("Error getting RSA size.");
+                return WOLFSSL_FAILURE;
+            }
+            if (outLen == NULL) {
+                WOLFSSL_MSG("outLen is NULL.");
+                return WOLFSSL_FAILURE;
+            }
+
+            *outLen = len;
+            return WOLFSSL_SUCCESS;
+        }
+
+        len = wolfSSL_RSA_private_decrypt((int)inLen, (unsigned char*)in, out,
               ctx->pkey->rsa, ctx->padding);
         if (len < 0) break;
         else {
-            *outlen = len;
+            *outLen = len;
             return WOLFSSL_SUCCESS;
         }
 #endif /* NO_RSA */
 
     case EVP_PKEY_EC:
-        WOLFSSL_MSG("not implemented");
+        WOLFSSL_MSG("EVP_PKEY_EC not implemented.");
         FALL_THROUGH;
     default:
         break;
     }
+
     return WOLFSSL_FAILURE;
 }
 
@@ -1695,49 +1721,82 @@ int wolfSSL_EVP_PKEY_decrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
 }
 
 
-/* Use a WOLFSSL_EVP_PKEY_CTX structure to encrypt data
+/* Uses the WOLFSSL_EVP_PKEY_CTX to encrypt a buffer.
  *
- * ctx    WOLFSSL_EVP_PKEY_CTX structure to use with encryption
- * out    buffer to hold encrypted data
- * outlen length of out buffer
- * in     data to be encrypted
- * inlen  length of in buffer
+ * ctx    EVP_PKEY context of operation.
+ * out    Encrypted output buffer. If NULL, puts the maximum output buffer size
+ *        in outlen and returns success.
+ * outLen If out is NULL, see above. If out is non-NULL, on input outLen holds
+ *        the size of out. On output holds the length of actual encryption.
+ * in     Plaintext input buffer.
+ * inLen  Length of plaintext.
  *
- * Returns WOLFSSL_FAILURE on failure and WOLFSSL_SUCCESS on success
+ * Returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure.
  */
 int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
-                     unsigned char *out, size_t *outlen,
-                     const unsigned char *in, size_t inlen)
+                     unsigned char *out, size_t *outLen,
+                     const unsigned char *in, size_t inLen)
 {
     int len = 0;
-    if (ctx == NULL) return WOLFSSL_FAILURE;
+
     WOLFSSL_ENTER("EVP_PKEY_encrypt");
-    if (ctx->op != EVP_PKEY_OP_ENCRYPT) return WOLFSSL_FAILURE;
+
+    if (ctx == NULL || ctx->pkey == NULL) {
+        WOLFSSL_MSG("Bad parameter.");
+        return 0;
+    }
+
+    if (ctx->op != EVP_PKEY_OP_ENCRYPT) {
+        WOLFSSL_MSG("ctx->op must be set to EVP_PKEY_OP_ENCRYPT. Use "
+            "wolfSSL_EVP_PKEY_encrypt_init.");
+        return WOLFSSL_FAILURE;
+    }
 
     (void)out;
-    (void)outlen;
+    (void)outLen;
     (void)in;
-    (void)inlen;
+    (void)inLen;
     (void)len;
+
     switch (ctx->pkey->type) {
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     case EVP_PKEY_RSA:
-        len = wolfSSL_RSA_public_encrypt((int)inlen, (unsigned char *)in, out,
+        if (out == NULL) {
+            if (ctx->pkey->rsa == NULL) {
+                WOLFSSL_MSG("Internal wolfCrypt RSA object is NULL.");
+                return WOLFSSL_FAILURE;
+            }
+            len = wolfSSL_RSA_size(ctx->pkey->rsa);
+            if (len <= 0) {
+                WOLFSSL_MSG("Error getting RSA size.");
+                return WOLFSSL_FAILURE;
+            }
+            if (outLen == NULL) {
+                WOLFSSL_MSG("outLen is NULL.");
+                return WOLFSSL_FAILURE;
+            }
+
+            *outLen = len;
+            return WOLFSSL_SUCCESS;
+        }
+
+        len = wolfSSL_RSA_public_encrypt((int)inLen, (unsigned char *)in, out,
                   ctx->pkey->rsa, ctx->padding);
         if (len < 0)
             break;
         else {
-            *outlen = len;
+            *outLen = len;
             return WOLFSSL_SUCCESS;
         }
 #endif /* NO_RSA */
 
     case EVP_PKEY_EC:
-        WOLFSSL_MSG("not implemented");
+        WOLFSSL_MSG("EVP_PKEY_EC not implemented");
         FALL_THROUGH;
     default:
         break;
     }
+
     return WOLFSSL_FAILURE;
 }
 

@@ -42226,12 +42226,23 @@ static void test_wolfSSL_EVP_PKEY_encrypt(void)
     AssertIntEQ(pkey->references, 1);
 
     /* Encrypt data */
+    /* Check that we can get the required output buffer length by passing in a
+     * NULL output buffer. */
+    AssertIntEQ(EVP_PKEY_encrypt(ctx, NULL, &outEncLen,
+                            (const unsigned char*)in, inlen), WOLFSSL_SUCCESS);
+    AssertIntEQ(rsaKeySz, outEncLen);
+    /* Now do the actual encryption. */
     AssertIntEQ(EVP_PKEY_encrypt(ctx, outEnc, &outEncLen,
                             (const unsigned char*)in, inlen), WOLFSSL_SUCCESS);
 
     /* Decrypt data */
     AssertIntEQ(EVP_PKEY_decrypt_init(ctx), WOLFSSL_SUCCESS);
-
+    /* Check that we can get the required output buffer length by passing in a
+     * NULL output buffer. */
+    AssertIntEQ(EVP_PKEY_decrypt(ctx, NULL, &outDecLen, outEnc, outEncLen),
+                                 WOLFSSL_SUCCESS);
+    AssertIntEQ(rsaKeySz, outDecLen);
+    /* Now do the actual decryption. */
     AssertIntEQ(EVP_PKEY_decrypt(ctx, outDec, &outDecLen, outEnc, outEncLen),
                                  WOLFSSL_SUCCESS);
 
