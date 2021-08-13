@@ -3118,7 +3118,7 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                     return BUFFER_ERROR;
 
                 /* is able to send OCSP response? */
-                if (ssl->ctx->cm == NULL || !ssl->ctx->cm->ocspStaplingEnabled)
+                if (SSL_CM(ssl) == NULL || !SSL_CM(ssl)->ocspStaplingEnabled)
                     return 0;
             }
             break;
@@ -3149,7 +3149,7 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             }
             InitDecodedCert(cert, ssl->buffers.certificate->buffer,
                             ssl->buffers.certificate->length, ssl->heap);
-            ret = ParseCert(cert, CERT_TYPE, 1, ssl->ctx->cm);
+            ret = ParseCert(cert, CERT_TYPE, 1, SSL_CM(ssl));
             if (ret != 0 ) {
                 XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
                 return ret;
@@ -3241,9 +3241,9 @@ int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
     if (csr) {
         switch (csr->status_type) {
             case WOLFSSL_CSR_OCSP:
-                if (ssl->ctx->cm->ocspEnabled) {
+                if (SSL_CM(ssl)->ocspEnabled) {
                     csr->request.ocsp.ssl = ssl;
-                    return CheckOcspRequest(ssl->ctx->cm->ocsp,
+                    return CheckOcspRequest(SSL_CM(ssl)->ocsp,
                                                       &csr->request.ocsp, NULL);
                 }
                 else
@@ -3548,8 +3548,8 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                         return BUFFER_ERROR;
 
                     /* is able to send OCSP response? */
-                    if (ssl->ctx->cm == NULL
-                    || !ssl->ctx->cm->ocspStaplingEnabled)
+                    if (SSL_CM(ssl) == NULL
+                    || !SSL_CM(ssl)->ocspStaplingEnabled)
                         continue;
                 break;
 
@@ -3669,9 +3669,9 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
                 /* followed by */
 
             case WOLFSSL_CSR2_OCSP_MULTI:
-                if (ssl->ctx->cm->ocspEnabled) {
+                if (SSL_CM(ssl)->ocspEnabled) {
                     csr2->request.ocsp[0].ssl = ssl;
-                    return CheckOcspRequest(ssl->ctx->cm->ocsp,
+                    return CheckOcspRequest(SSL_CM(ssl)->ocsp,
                                                   &csr2->request.ocsp[0], NULL);
                 }
                 else
@@ -10680,7 +10680,7 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word16* pLength)
 #endif
     #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
      || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-        if (!ssl->ctx->cm->ocspStaplingEnabled) {
+        if (!SSL_CM(ssl)->ocspStaplingEnabled) {
             /* mark already sent, so it won't send it */
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST_V2));
@@ -10781,7 +10781,7 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
     #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
      || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
          /* mark already sent, so it won't send it */
-        if (!ssl->ctx->cm->ocspStaplingEnabled) {
+        if (!SSL_CM(ssl)->ocspStaplingEnabled) {
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST_V2));
         }

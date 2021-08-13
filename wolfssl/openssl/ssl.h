@@ -301,6 +301,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 
 #define SSL_CTX_set_verify              wolfSSL_CTX_set_verify
 #define SSL_CTX_set_cert_verify_callback wolfSSL_CTX_set_cert_verify_callback
+#define SSL_CTX_set_cert_cb             wolfSSL_CTX_set_cert_cb
 #define SSL_set_verify                  wolfSSL_set_verify
 #define SSL_set_verify_result           wolfSSL_set_verify_result
 #define SSL_verify_client_post_handshake wolfSSL_verify_client_post_handshake
@@ -824,10 +825,16 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTX_set_client_CA_list      wolfSSL_CTX_set_client_CA_list
 #define SSL_CTX_set_client_cert_cb      wolfSSL_CTX_set_client_cert_cb
 #define SSL_CTX_set_cert_store          wolfSSL_CTX_set_cert_store
+#define SSL_set0_verify_cert_store      wolfSSL_set0_verify_cert_store
+#define SSL_set1_verify_cert_store      wolfSSL_set1_verify_cert_store
 #define SSL_CTX_get_cert_store(x)       wolfSSL_CTX_get_cert_store ((WOLFSSL_CTX*) (x))
 #define SSL_get_client_CA_list          wolfSSL_get_client_CA_list
 #define SSL_get_ex_data_X509_STORE_CTX_idx wolfSSL_get_ex_data_X509_STORE_CTX_idx
 #define SSL_get_ex_data                 wolfSSL_get_ex_data
+
+#ifndef WOLFSSL_NO_STUB
+#define SSL_set_client_CA_list(...)
+#endif /* WOLFSSL_NO_STUB */
 
 #define SSL_CTX_set_default_passwd_cb_userdata wolfSSL_CTX_set_default_passwd_cb_userdata
 #define SSL_CTX_set_default_passwd_cb   wolfSSL_CTX_set_default_passwd_cb
@@ -1031,7 +1038,10 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #endif
 
 #define SSL_CTX_use_certificate         wolfSSL_CTX_use_certificate
+#define SSL_CTX_add0_chain_cert         wolfSSL_CTX_add0_chain_cert
 #define SSL_CTX_add1_chain_cert         wolfSSL_CTX_add1_chain_cert
+#define SSL_add0_chain_cert             wolfSSL_add0_chain_cert
+#define SSL_add1_chain_cert             wolfSSL_add1_chain_cert
 #define SSL_CTX_use_PrivateKey          wolfSSL_CTX_use_PrivateKey
 #define BIO_read_filename               wolfSSL_BIO_read_filename
 #define SSL_CTX_set_verify_depth        wolfSSL_CTX_set_verify_depth
@@ -1109,6 +1119,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_renegotiate_pending         wolfSSL_SSL_renegotiate_pending
 #define SSL_set_tlsext_debug_arg        wolfSSL_set_tlsext_debug_arg
 #define SSL_set_tlsext_status_type      wolfSSL_set_tlsext_status_type
+#define SSL_get_tlsext_status_type      wolfSSL_get_tlsext_status_type
 #define SSL_set_tlsext_status_exts      wolfSSL_set_tlsext_status_exts
 #define SSL_get_tlsext_status_ids       wolfSSL_get_tlsext_status_ids
 #define SSL_set_tlsext_status_ids       wolfSSL_set_tlsext_status_ids
@@ -1146,6 +1157,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTRL_SET_SESS_CACHE_MODE              44
 #define SSL_CTRL_SET_TLSEXT_DEBUG_ARG             57
 #define SSL_CTRL_SET_TLSEXT_STATUS_REQ_TYPE       65
+#define SSL_CTRL_GET_TLSEXT_STATUS_REQ_TYPE       651
 #define SSL_CTRL_GET_TLSEXT_STATUS_REQ_EXTS       66
 #define SSL_CTRL_SET_TLSEXT_STATUS_REQ_EXTS       67
 #define SSL_CTRL_GET_TLSEXT_STATUS_REQ_IDS        68
@@ -1274,6 +1286,9 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define SSL_CTX_add_server_custom_ext(...) 0
 
+#define SSL_get0_verified_chain         wolfSSL_get0_verified_chain
+#define X509_chain_up_ref               wolfSSL_X509_chain_up_ref
+
 #endif /* HAVE_STUNNEL || WOLFSSL_NGINX */
 
 #ifndef NO_WOLFSSL_STUB
@@ -1291,6 +1306,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define SSL_CTX_clear_extra_chain_certs wolfSSL_CTX_clear_extra_chain_certs
 
+#define SSL_certs_clear                 wolfSSL_certs_clear
 
 /* Nginx uses this to determine if reached end of certs in file.
  * PEM_read_bio_X509 is called and the return error is lost.
@@ -1347,6 +1363,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_R_HTTP_REQUEST                         PARSE_ERROR
 #define SSL_R_UNSUPPORTED_PROTOCOL                 VERSION_ERROR
 #define SSL_R_CERTIFICATE_VERIFY_FAILED            VERIFY_CERT_ERROR
+#define SSL_R_CERT_CB_ERROR                        CLIENT_CERT_CB_ERROR
 
 
 #ifdef HAVE_SESSION_TICKET
@@ -1369,6 +1386,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTX_set_tlsext_ticket_key_cb wolfSSL_CTX_set_tlsext_ticket_key_cb
 #define SSL_CTX_set_tlsext_status_cb    wolfSSL_CTX_set_tlsext_status_cb
 #define SSL_CTX_get_extra_chain_certs   wolfSSL_CTX_get_extra_chain_certs
+#define SSL_CTX_get0_chain_certs        wolfSSL_CTX_get0_chain_certs
+#define SSL_get0_chain_certs            wolfSSL_get0_chain_certs
 #define sk_OPENSSL_STRING_num           wolfSSL_sk_WOLFSSL_STRING_num
 #define sk_OPENSSL_STRING_value         wolfSSL_sk_WOLFSSL_STRING_value
 #define sk_OPENSSL_PSTRING_num          wolfSSL_sk_WOLFSSL_STRING_num

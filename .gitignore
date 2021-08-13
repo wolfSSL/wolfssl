@@ -369,3 +369,7 @@ IDE/XCODE/Index
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
+
+# GDB Settings
+\.gdbinit
+

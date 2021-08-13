@@ -7354,11 +7354,15 @@ int wolfSSL_EVP_PKEY_get_default_digest_nid(WOLFSSL_EVP_PKEY *pkey, int *pnid)
 int wolfSSL_EVP_PKEY_up_ref(WOLFSSL_EVP_PKEY* pkey)
 {
     if (pkey) {
+#ifndef SINGLE_THREADED
         if (wc_LockMutex(&pkey->refMutex) != 0) {
             WOLFSSL_MSG("Failed to lock pkey mutex");
         }
+#endif
         pkey->references++;
+#ifndef SINGLE_THREADED
         wc_UnLockMutex(&pkey->refMutex);
+#endif
 
         return WOLFSSL_SUCCESS;
     }
@@ -7453,6 +7457,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_ex(void* heap)
         pkey->heap = heap;
         pkey->type = WOLFSSL_EVP_PKEY_DEFAULT;
 
+#ifndef SINGLE_THREADED
         /* init of mutex needs to come before wolfSSL_EVP_PKEY_free */
         ret = wc_InitMutex(&pkey->refMutex);
         if (ret != 0){
@@ -7460,6 +7465,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_ex(void* heap)
             WOLFSSL_MSG("Issue initializing mutex");
             return NULL;
         }
+#endif
 
 #ifndef HAVE_FIPS
         ret = wc_InitRng_ex(&pkey->rng, heap, INVALID_DEVID);
@@ -7485,16 +7491,20 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
     int doFree = 0;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_free");
     if (key != NULL) {
+        #ifndef SINGLE_THREADED
         if (wc_LockMutex(&key->refMutex) != 0) {
             WOLFSSL_MSG("Couldn't lock pkey mutex");
         }
+        #endif
 
         /* only free if all references to it are done */
         key->references--;
         if (key->references == 0) {
             doFree = 1;
         }
+        #ifndef SINGLE_THREADED
         wc_UnLockMutex(&key->refMutex);
+        #endif
 
         if (doFree) {
             wc_FreeRng(&key->rng);
@@ -7545,9 +7555,11 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
                 break;
             }
 
+            #ifndef SINGLE_THREADED
             if (wc_FreeMutex(&key->refMutex) != 0) {
                 WOLFSSL_MSG("Couldn't free pkey mutex");
             }
+            #endif
             XFREE(key, key->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         }
     }
