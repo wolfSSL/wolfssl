@@ -839,10 +839,6 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_get_ex_data_X509_STORE_CTX_idx wolfSSL_get_ex_data_X509_STORE_CTX_idx
 #define SSL_get_ex_data                 wolfSSL_get_ex_data
 
-#ifndef WOLFSSL_NO_STUB
-#define SSL_set_client_CA_list(...)
-#endif /* WOLFSSL_NO_STUB */
-
 #define SSL_CTX_set_default_passwd_cb_userdata wolfSSL_CTX_set_default_passwd_cb_userdata
 #define SSL_CTX_set_default_passwd_cb   wolfSSL_CTX_set_default_passwd_cb
 

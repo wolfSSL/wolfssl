@@ -16053,71 +16053,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
     }
 
-
-    /* returns the CA's set on server side or the CA's sent from server when
-     * on client side */
-    WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_get_client_CA_list(
-            const WOLFSSL* ssl)
-    {
-        WOLFSSL_ENTER("wolfSSL_get_client_CA_list");
-
-        if (ssl == NULL) {
-            WOLFSSL_MSG("Bad argument passed to wolfSSL_get_client_CA_list");
-            return NULL;
-        }
-
-#ifdef SESSION_CERTS
-        /* return list of CAs sent from the server */
-        if (ssl->options.side == WOLFSSL_CLIENT_END) {
-            WOLF_STACK_OF(WOLFSSL_X509)* sk;
-
-            if (ssl->ca_names != NULL)
-                return ssl->ca_names;
-
-            sk = wolfSSL_get_peer_cert_chain(ssl);
-            if (sk != NULL) {
-                WOLF_STACK_OF(WOLFSSL_X509_NAME)* ret;
-                WOLFSSL_X509* x509;
-
-                ret = wolfSSL_sk_X509_NAME_new(NULL);
-                do {
-                    x509 = wolfSSL_sk_X509_pop(sk);
-                    if (x509 != NULL) {
-                        if (wolfSSL_X509_get_isCA(x509)) {
-                            WOLFSSL_X509_NAME* name = wolfSSL_X509_NAME_dup(
-                                    wolfSSL_X509_get_subject_name(x509));
-
-                            if (name != NULL) {
-                                /* continue on to try other certificates and
-                                 * do not fail out here */
-                                if (wolfSSL_sk_X509_NAME_push(ret,
-                                        name) != WOLFSSL_SUCCESS) {
-                                    WOLFSSL_MSG("Error pushing X509 "
-                                                "name to stack");
-                                    wolfSSL_X509_NAME_free(name);
-                                }
-                            }
-                            else {
-                                WOLFSSL_MSG("Error copying X509 name");
-                            }
-                        }
-                        wolfSSL_X509_free(x509);
-                    }
-                } while (x509 != NULL);
-                /* Save return value to free later */
-                ((WOLFSSL*)ssl)->ca_names = ret;
-                return ret;
-            }
-            return NULL;
-        }
-        else
-#endif /* SESSION_CERTS */
-        {
-            return SSL_CA_NAMES(ssl);
-        }
-    }
-
-
     #ifdef OPENSSL_EXTRA
     /* registers client cert callback, called during handshake if server
        requests client auth but user has not loaded client cert/key */
@@ -16327,21 +16262,6 @@ cleanup:
         #endif
     #endif /* !NO_BIO */
 #endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA */
-
-
-#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
-    defined(WOLFSSL_NGINX) || defined (WOLFSSL_HAPROXY)
-    /* registers client cert callback, called during handshake if server
-       requests client auth but user has not loaded client cert/key */
-    void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb cb)
-    {
-        WOLFSSL_ENTER("wolfSSL_CTX_set_client_cert_cb");
-
-        if (ctx != NULL) {
-            ctx->CBClientCert = cb;
-        }
-    }
-#endif /* OPENSSL_ALL || OPENSSL_EXTRA || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
 #ifdef OPENSSL_EXTRA
 
