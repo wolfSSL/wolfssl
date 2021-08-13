@@ -2854,6 +2854,8 @@ struct WOLFSSL_CTX {
     byte        mutualAuth:1;     /* Mutual authentication required */
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     byte        postHandshakeAuth:1;  /* Post-handshake auth supported. */
+    byte        verifyPostHandshake:1; /* Only send client cert req post
+                                        * handshake, not also during */
 #endif
 #ifndef NO_DH
     #if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
@@ -3662,6 +3664,8 @@ typedef struct Options {
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     word16            postHandshakeAuth:1;/* Client send post_handshake_auth
                                            * extension */
+    word16            verifyPostHandshake:1; /* Only send client cert req post
+                                              * handshake, not also during */
 #endif
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
     word16            sendCookie:1;       /* Server creates a Cookie in HRR */
