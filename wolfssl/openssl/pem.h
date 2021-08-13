@@ -224,6 +224,7 @@ int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh);
 #define PEM_read_bio_RSAPrivateKey      wolfSSL_PEM_read_bio_RSAPrivateKey
 #define PEM_write_bio_RSA_PUBKEY        wolfSSL_PEM_write_bio_RSA_PUBKEY
 #define PEM_read_bio_RSA_PUBKEY         wolfSSL_PEM_read_bio_RSA_PUBKEY
+#define PEM_read_bio_RSAPublicKey       wolfSSL_PEM_read_bio_RSA_PUBKEY
 #define PEM_read_bio_ECPKParameters     wolfSSL_PEM_read_bio_ECPKParameters
 #define PEM_write_RSAPrivateKey         wolfSSL_PEM_write_RSAPrivateKey
 #define PEM_write_RSA_PUBKEY            wolfSSL_PEM_write_RSA_PUBKEY
