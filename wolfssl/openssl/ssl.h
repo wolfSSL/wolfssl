@@ -1207,6 +1207,12 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define DTLS1_VERSION                    0xFEFF
 #define DTLS1_2_VERSION                  0xFEFD
 
+/* Used as message callback types */
+#define SSL3_RT_CHANGE_CIPHER_SPEC       20
+#define SSL3_RT_ALERT                    21
+#define SSL3_RT_HANDSHAKE                22
+#define SSL3_RT_APPLICATION_DATA         23
+
 #define OPENSSL_INIT_LOAD_SSL_STRINGS    0x00200000L
 #define OPENSSL_INIT_LOAD_CRYPTO_STRINGS 0x00000002L
 
