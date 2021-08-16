@@ -2189,6 +2189,9 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             ret = wc_RsaPrivateKeyDecode(keyBuf->buffer, &idx, &key, keyBuf->length);
             if (ret != 0) {
             #ifndef HAVE_ECC
+                #ifdef WOLFSSL_SNIFFER_STATS
+                INC_STAT(SnifferStats.sslKeyFails);
+                #endif
                 SetError(RSA_DECODE_STR, error, session, FATAL_ERROR_STATE);
             #else
                 /* If we can do ECC, this isn't fatal. Not loading an ECC
@@ -2342,6 +2345,11 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 
             wc_FreeDhKey(&dhKey);
         
+
+        #ifdef WOLFSSL_SNIFFER_STATS
+            if (ret != 0)
+                INC_STAT(SnifferStats.sslKeyFails);
+        #endif
             /* left-padded with zeros up to the size of the prime */
             if (params->p_len > session->sslServer->arrays->preMasterSz) {
                 word32 diff = params->p_len - session->sslServer->arrays->preMasterSz;

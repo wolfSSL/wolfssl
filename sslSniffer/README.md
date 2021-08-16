@@ -404,25 +404,23 @@ See the header file `sniffer.h` for the structure `SSLStats` for the list of sta
 ```c
 typedef struct SSLStats
 {
-    unsigned long int sslStandardConns;
-    unsigned long int sslClientAuthConns;
-    unsigned long int sslResumedConns;
-    unsigned long int sslEphemeralMisses;
-    unsigned long int sslResumeMisses;
-    unsigned long int sslCiphersUnsupported;
-    unsigned long int sslKeysUnmatched;
-    unsigned long int sslKeyFails;
-    unsigned long int sslDecodeFails;
-    unsigned long int sslAlerts;
-    unsigned long int sslDecryptedBytes;
-    unsigned long int sslEncryptedBytes;
-    unsigned long int sslEncryptedPackets;
-    unsigned long int sslDecryptedPackets;
-    unsigned long int sslKeyMatches;
-    unsigned long int sslEncryptedConns;
-
-    unsigned long int sslResumptionValid;
-    unsigned long int sslResumptionInserts;
+    unsigned long int sslStandardConns;      /* server_hello count not including resumed sessions */
+    unsigned long int sslClientAuthConns;    /* client's who have presented certificates (mutual authentication) */
+    unsigned long int sslResumedConns;       /* resumed connections */
+    unsigned long int sslEphemeralMisses;    /* TLS v1.2 and older PFS / ephemeral connections missed (not able to decrypt) */
+    unsigned long int sslResumeMisses;       /* Resumption sessions not found */
+    unsigned long int sslCiphersUnsupported; /* No cipher suite match found when compared to supported */
+    unsigned long int sslKeysUnmatched;      /* Key callback failures (not found). Applies to WOLFSSL_SNIFFER_WATCH only */
+    unsigned long int sslKeyFails;           /* Failures loading or using keys */
+    unsigned long int sslDecodeFails;        /* Dropped packets (not application_data or match protocol version) */
+    unsigned long int sslAlerts;             /* Number of decoded alert messages */
+    unsigned long int sslDecryptedBytes;     /* Number of decrypted bytes */
+    unsigned long int sslEncryptedBytes;     /* Number of encrypted bytes */
+    unsigned long int sslEncryptedPackets;   /* Number of encrypted packets */
+    unsigned long int sslDecryptedPackets;   /* Number of decrypted packets */
+    unsigned long int sslKeyMatches;         /* Key callback successes (failures tracked in sslKeysUnmatched). Applies to WOLFSSL_SNIFFER_WATCH only. */
+    unsigned long int sslEncryptedConns;     /* Number of created sniffer sessions */
+    unsigned long int sslResumptionInserts;  /* Number of sessions reused with resumption */
 } SSLStats;
 ```
 
