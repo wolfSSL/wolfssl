@@ -4922,6 +4922,9 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
        with titanic amounts of memory with long session ID timeouts and high
        levels of traffic.
 
+       ENABLE_SESSION_CACHE_ROW_LOCK: Allows row level locking for increased
+       performance with large session caches
+
        HUGE_SESSION_CACHE yields 65,791 sessions, for servers under heavy load,
        allows over 13,000 new sessions per minute or over 200 new sessions per
        second
@@ -4940,6 +4943,9 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     #if defined(TITAN_SESSION_CACHE)
         #define SESSIONS_PER_ROW 31
         #define SESSION_ROWS 64937
+        #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
+        #define ENABLE_SESSION_CACHE_ROW_LOCK
+        #endif
     #elif defined(HUGE_SESSION_CACHE)
         #define SESSIONS_PER_ROW 11
         #define SESSION_ROWS 5981
@@ -4957,11 +4963,21 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         #define SESSION_ROWS 11
     #endif
 
+    #ifdef NO_SESSION_CACHE_ROW_LOCK
+        #undef ENABLE_SESSION_CACHE_ROW_LOCK
+    #endif
+
     typedef struct SessionRow {
         int nextIdx;                           /* where to place next one   */
         int totalCount;                        /* sessions ever on this row */
         WOLFSSL_SESSION Sessions[SESSIONS_PER_ROW];
+
+    #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
+        /* not included in import/export */
+        wolfSSL_Mutex row_mutex;
+    #endif
     } SessionRow;
+    #define SIZEOF_SESSION_ROW (sizeof(WOLFSSL_SESSION) + (sizeof(int) * 2))
 
     static WOLFSSL_GLOBAL SessionRow SessionCache[SESSION_ROWS];
 
@@ -4969,7 +4985,14 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         static WOLFSSL_GLOBAL word32 PeakSessions;
     #endif
 
+    #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
+    #define SESSION_ROW_LOCK(row)   wc_LockMutex(&row->row_mutex)
+    #define SESSION_ROW_UNLOCK(row) wc_UnLockMutex(&row->row_mutex);
+    #else
     static WOLFSSL_GLOBAL wolfSSL_Mutex session_mutex; /* SessionCache mutex */
+    #define SESSION_ROW_LOCK(row)   wc_LockMutex(&session_mutex)
+    #define SESSION_ROW_UNLOCK(row) wc_UnLockMutex(&session_mutex);
+    #endif
 
     #ifndef NO_CLIENT_CACHE
 
@@ -4987,9 +5010,11 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         static WOLFSSL_GLOBAL ClientRow ClientCache[SESSION_ROWS];
                                                      /* Client Cache */
                                                      /* uses session mutex */
-    #endif  /* NO_CLIENT_CACHE */
 
-#endif /* NO_SESSION_CACHE */
+        static WOLFSSL_GLOBAL wolfSSL_Mutex clisession_mutex; /* ClientCache mutex */
+    #endif /* !NO_CLIENT_CACHE */
+
+#endif /* !NO_SESSION_CACHE */
 
 #if defined(OPENSSL_EXTRA) || \
     (defined(OPENSSL_EXTRA_X509_SMALL) && !defined(NO_RSA))
@@ -5007,6 +5032,10 @@ static int wolfSSL_RAND_InitMutex(void);
 WOLFSSL_ABI
 int wolfSSL_Init(void)
 {
+#if !defined(NO_SESSION_CACHE) && defined(ENABLE_SESSION_CACHE_ROW_LOCK)
+    int i;
+#endif
+
     WOLFSSL_ENTER("wolfSSL_Init");
 
     if (initRefCount == 0) {
@@ -5036,10 +5065,25 @@ int wolfSSL_Init(void)
 #endif
 
 #ifndef NO_SESSION_CACHE
+    #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
+        for (i = 0; i < SESSION_ROWS; ++i) {
+            if (wc_InitMutex(&&SessionCache[i].row_mutex) != 0) {
+                WOLFSSL_MSG("Bad Init Mutex session");
+                return BAD_MUTEX_E;
+            }
+        }
+    #else
         if (wc_InitMutex(&session_mutex) != 0) {
             WOLFSSL_MSG("Bad Init Mutex session");
             return BAD_MUTEX_E;
         }
+    #endif
+    #ifndef NO_CLIENT_CACHE
+        if (wc_InitMutex(&clisession_mutex) != 0) {
+            WOLFSSL_MSG("Bad Init Mutex session");
+            return BAD_MUTEX_E;
+        }
+    #endif
 #endif
         if (wc_InitMutex(&count_mutex) != 0) {
             WOLFSSL_MSG("Bad Init Mutex count");
@@ -11480,7 +11524,7 @@ int wolfSSL_SetServerID(WOLFSSL* ssl, const byte* id, int len, int newSession)
     return WOLFSSL_SUCCESS;
 }
 
-#endif /* NO_CLIENT_CACHE */
+#endif /* !NO_CLIENT_CACHE */
 
 #if defined(PERSIST_SESSION_CACHE)
 
@@ -11511,11 +11555,9 @@ typedef struct {
 int wolfSSL_get_session_cache_memsize(void)
 {
     int sz  = (int)(sizeof(SessionCache) + sizeof(cache_header_t));
-
-    #ifndef NO_CLIENT_CACHE
-        sz += (int)(sizeof(ClientCache));
-    #endif
-
+#ifndef NO_CLIENT_CACHE
+    sz += (int)(sizeof(ClientCache));
+#endif
     return sz;
 }
 
@@ -11543,21 +11585,41 @@ int wolfSSL_memsave_session_cache(void* mem, int sz)
     cache_header.sessionSz = (int)sizeof(WOLFSSL_SESSION);
     XMEMCPY(mem, &cache_header, sizeof(cache_header));
 
+#ifndef ENABLE_SESSION_CACHE_ROW_LOCK
     if (wc_LockMutex(&session_mutex) != 0) {
         WOLFSSL_MSG("Session cache mutex lock failed");
         return BAD_MUTEX_E;
     }
+#endif
+    for (i = 0; i < cache_header.rows; ++i) {
+    #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
+        if (SESSION_ROW_LOCK(&SessionCache[i]) != 0) {
+            WOLFSSL_MSG("Session row cache mutex lock failed");
+            return BAD_MUTEX_E;
+        }
+    #endif
 
-    for (i = 0; i < cache_header.rows; ++i)
-        XMEMCPY(row++, SessionCache + i, sizeof(SessionRow));
-
-#ifndef NO_CLIENT_CACHE
-    clRow = (ClientRow*)row;
-    for (i = 0; i < cache_header.rows; ++i)
-        XMEMCPY(clRow++, ClientCache + i, sizeof(ClientRow));
+        XMEMCPY(row++, &SessionCache[i], SIZEOF_SESSION_ROW);
+    #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
+        SESSION_ROW_UNLOCK(&SessionCache[i]);
+    #endif
+    }
+#ifndef ENABLE_SESSION_CACHE_ROW_LOCK
+    wc_UnLockMutex(&session_mutex);
 #endif
 
-    wc_UnLockMutex(&session_mutex);
+#ifndef NO_CLIENT_CACHE
+    if (wc_LockMutex(&clisession_mutex) != 0) {
+        WOLFSSL_MSG("Client cache mutex lock failed");
+        return BAD_MUTEX_E;
+    }
+
+    clRow = (ClientRow*)row;
+    for (i = 0; i < cache_header.rows; ++i) {
+        XMEMCPY(clRow++, ClientCache + i, sizeof(ClientRow));
+    }
+    wc_UnLockMutex(&clisession_mutex);
+#endif
 
     WOLFSSL_LEAVE("wolfSSL_memsave_session_cache", WOLFSSL_SUCCESS);
 
@@ -11592,21 +11654,41 @@ int wolfSSL_memrestore_session_cache(const void* mem, int sz)
         return CACHE_MATCH_ERROR;
     }
 
+#ifndef ENABLE_SESSION_CACHE_ROW_LOCK
     if (wc_LockMutex(&session_mutex) != 0) {
         WOLFSSL_MSG("Session cache mutex lock failed");
         return BAD_MUTEX_E;
     }
+#endif
+    for (i = 0; i < cache_header.rows; ++i) {
+    #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
+        if (SESSION_ROW_LOCK(&SessionCache[i]) != 0) {
+            WOLFSSL_MSG("Session row cache mutex lock failed");
+            return BAD_MUTEX_E;
+        }
+    #endif
 
-    for (i = 0; i < cache_header.rows; ++i)
-        XMEMCPY(SessionCache + i, row++, sizeof(SessionRow));
-
-#ifndef NO_CLIENT_CACHE
-    clRow = (ClientRow*)row;
-    for (i = 0; i < cache_header.rows; ++i)
-        XMEMCPY(ClientCache + i, clRow++, sizeof(ClientRow));
+        XMEMCPY(&SessionCache[i], row++, SIZEOF_SESSION_ROW);
+    #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
+        SESSION_ROW_UNLOCK(&SessionCache[i]);
+    #endif
+    }
+#ifndef ENABLE_SESSION_CACHE_ROW_LOCK
+    wc_UnLockMutex(&session_mutex);
 #endif
 
-    wc_UnLockMutex(&session_mutex);
+#ifndef NO_CLIENT_CACHE
+    if (wc_LockMutex(&clisession_mutex) != 0) {
+        WOLFSSL_MSG("Client cache mutex lock failed");
+        return BAD_MUTEX_E;
+    }
+
+    clRow = (ClientRow*)row;
+    for (i = 0; i < cache_header.rows; ++i) {
+        XMEMCPY(ClientCache + i, clRow++, sizeof(ClientRow));
+    }
+    wc_UnLockMutex(&clisession_mutex);
+#endif
 
     WOLFSSL_LEAVE("wolfSSL_memrestore_session_cache", WOLFSSL_SUCCESS);
 
@@ -11645,24 +11727,42 @@ int wolfSSL_save_session_cache(const char *fname)
         return FWRITE_ERROR;
     }
 
+#ifndef ENABLE_SESSION_CACHE_ROW_LOCK
     if (wc_LockMutex(&session_mutex) != 0) {
         WOLFSSL_MSG("Session cache mutex lock failed");
-        XFCLOSE(file);
         return BAD_MUTEX_E;
     }
-
+#endif
     /* session cache */
     for (i = 0; i < cache_header.rows; ++i) {
-        ret = (int)XFWRITE(SessionCache + i, sizeof(SessionRow), 1, file);
+    #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
+        if (SESSION_ROW_LOCK(&SessionCache[i]) != 0) {
+            WOLFSSL_MSG("Session row cache mutex lock failed");
+            return BAD_MUTEX_E;
+        }
+    #endif
+
+        ret = (int)XFWRITE(&SessionCache[i], SIZEOF_SESSION_ROW, 1, file);
+    #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
+        SESSION_ROW_UNLOCK(&SessionCache[i]);
+    #endif
         if (ret != 1) {
             WOLFSSL_MSG("Session cache member file write failed");
             rc = FWRITE_ERROR;
             break;
         }
     }
+#ifndef ENABLE_SESSION_CACHE_ROW_LOCK
+    wc_UnLockMutex(&session_mutex);
+#endif
 
 #ifndef NO_CLIENT_CACHE
     /* client cache */
+    if (wc_LockMutex(&clisession_mutex) != 0) {
+        WOLFSSL_MSG("Client cache mutex lock failed");
+        return BAD_MUTEX_E;
+    }
+
     for (i = 0; i < cache_header.rows; ++i) {
         ret = (int)XFWRITE(ClientCache + i, sizeof(ClientRow), 1, file);
         if (ret != 1) {
@@ -11671,9 +11771,8 @@ int wolfSSL_save_session_cache(const char *fname)
             break;
         }
     }
-#endif /* NO_CLIENT_CACHE */
-
-    wc_UnLockMutex(&session_mutex);
+    wc_UnLockMutex(&clisession_mutex);
+#endif /* !NO_CLIENT_CACHE */
 
     XFCLOSE(file);
     WOLFSSL_LEAVE("wolfSSL_save_session_cache", rc);
@@ -11700,7 +11799,7 @@ int wolfSSL_restore_session_cache(const char *fname)
         return WOLFSSL_BAD_FILE;
     }
     /* cache header */
-    ret = (int)XFREAD(&cache_header, sizeof cache_header, 1, file);
+    ret = (int)XFREAD(&cache_header, sizeof(cache_header), 1, file);
     if (ret != 1) {
         WOLFSSL_MSG("Session cache header file read failed");
         XFCLOSE(file);
@@ -11716,15 +11815,25 @@ int wolfSSL_restore_session_cache(const char *fname)
         return CACHE_MATCH_ERROR;
     }
 
+#ifndef ENABLE_SESSION_CACHE_ROW_LOCK
     if (wc_LockMutex(&session_mutex) != 0) {
         WOLFSSL_MSG("Session cache mutex lock failed");
-        XFCLOSE(file);
         return BAD_MUTEX_E;
     }
-
+#endif
     /* session cache */
     for (i = 0; i < cache_header.rows; ++i) {
-        ret = (int)XFREAD(SessionCache + i, sizeof(SessionRow), 1, file);
+    #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
+        if (SESSION_ROW_LOCK(&SessionCache[i]) != 0) {
+            WOLFSSL_MSG("Session row cache mutex lock failed");
+            return BAD_MUTEX_E;
+        }
+    #endif
+
+        ret = (int)XFREAD(&SessionCache[i], SIZEOF_SESSION_ROW, 1, file);
+    #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
+        SESSION_ROW_UNLOCK(&SessionCache[i]);
+    #endif
         if (ret != 1) {
             WOLFSSL_MSG("Session cache member file read failed");
             XMEMSET(SessionCache, 0, sizeof SessionCache);
@@ -11732,9 +11841,16 @@ int wolfSSL_restore_session_cache(const char *fname)
             break;
         }
     }
+#ifndef ENABLE_SESSION_CACHE_ROW_LOCK
+    wc_UnLockMutex(&session_mutex);
+#endif
 
 #ifndef NO_CLIENT_CACHE
     /* client cache */
+    if (wc_LockMutex(&clisession_mutex) != 0) {
+        WOLFSSL_MSG("Client cache mutex lock failed");
+        return BAD_MUTEX_E;
+    }
     for (i = 0; i < cache_header.rows; ++i) {
         ret = (int)XFREAD(ClientCache + i, sizeof(ClientRow), 1, file);
         if (ret != 1) {
@@ -11744,10 +11860,8 @@ int wolfSSL_restore_session_cache(const char *fname)
             break;
         }
     }
-
-#endif /* NO_CLIENT_CACHE */
-
-    wc_UnLockMutex(&session_mutex);
+    wc_UnLockMutex(&clisession_mutex);
+#endif /* !NO_CLIENT_CACHE */
 
     XFCLOSE(file);
     WOLFSSL_LEAVE("wolfSSL_restore_session_cache", rc);
@@ -13914,6 +14028,9 @@ int wolfSSL_Cleanup(void)
 {
     int ret = WOLFSSL_SUCCESS;
     int release = 0;
+#if !defined(NO_SESSION_CACHE) && defined(ENABLE_SESSION_CACHE_ROW_LOCK)
+    int i;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_Cleanup");
 
@@ -13942,9 +14059,21 @@ int wolfSSL_Cleanup(void)
 #endif
 
 #ifndef NO_SESSION_CACHE
+    #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
+    for (i = 0; i < SESSION_ROWS; ++i) {
+        if (wc_FreeMutex(&&SessionCache[i].row_mutex) != 0)
+            ret = BAD_MUTEX_E;
+    }
+    #else
     if (wc_FreeMutex(&session_mutex) != 0)
         ret = BAD_MUTEX_E;
-#endif
+    #endif
+    #ifndef NO_CLIENT_CACHE
+        if (wc_FreeMutex(&clisession_mutex) != 0)
+            ret = BAD_MUTEX_E;
+    #endif
+#endif /* !NO_SESSION_CACHE */
+
     if (wc_FreeMutex(&count_mutex) != 0)
         ret = BAD_MUTEX_E;
 
@@ -14084,6 +14213,7 @@ WOLFSSL_SESSION* GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
     int             idx;
     int             count;
     int             error = 0;
+    ClientSession*  clSess;
 
     WOLFSSL_ENTER("GetSessionClient");
 
@@ -14113,34 +14243,42 @@ WOLFSSL_SESSION* GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
         return NULL;
     }
 
-    if (wc_LockMutex(&session_mutex) != 0) {
-        WOLFSSL_MSG("Lock session mutex failed");
+    if (wc_LockMutex(&clisession_mutex) != 0) {
+        WOLFSSL_MSG("Client cache mutex lock failed");
         return NULL;
     }
 
     /* start from most recently used */
     count = min((word32)ClientCache[row].totalCount, SESSIONS_PER_ROW);
     idx = ClientCache[row].nextIdx - 1;
-    if (idx < 0)
+    if (idx < 0 || idx >= SESSIONS_PER_ROW) {
         idx = SESSIONS_PER_ROW - 1; /* if back to front, the previous was end */
+    }
+    clSess = ClientCache[row].Clients;
 
     for (; count > 0; --count) {
         WOLFSSL_SESSION* current;
-        ClientSession   clSess;
+        SessionRow* sessRow;
 
-        if (idx >= SESSIONS_PER_ROW || idx < 0) { /* sanity check */
-            WOLFSSL_MSG("Bad idx");
+        if (clSess[idx].serverRow >= SESSION_ROWS) {
+            WOLFSSL_MSG("Client cache serverRow invalid");
             break;
         }
 
-        clSess = ClientCache[row].Clients[idx];
+        /* lock row */
+        sessRow = &SessionCache[clSess[idx].serverRow];
+        if (SESSION_ROW_LOCK(sessRow) != 0) {
+            WOLFSSL_MSG("Session cache row lock failure");
+            break;
+        }
 
-        current = &SessionCache[clSess.serverRow].Sessions[clSess.serverIdx];
+        current = &sessRow->Sessions[clSess[idx].serverIdx];
         if (XMEMCMP(current->serverID, id, len) == 0) {
             WOLFSSL_MSG("Found a serverid match for client");
             if (LowResTimer() < (current->bornOn + current->timeout)) {
                 WOLFSSL_MSG("Session valid");
                 ret = current;
+                SESSION_ROW_UNLOCK(sessRow);
                 break;
             } else {
                 WOLFSSL_MSG("Session timed out");  /* could have more for id */
@@ -14148,16 +14286,17 @@ WOLFSSL_SESSION* GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
         } else {
             WOLFSSL_MSG("ServerID not a match from client table");
         }
+        SESSION_ROW_UNLOCK(sessRow);
 
-        idx = idx ? idx - 1 : SESSIONS_PER_ROW - 1;
+        idx = idx > 0 ? idx - 1 : SESSIONS_PER_ROW - 1;
     }
 
-    wc_UnLockMutex(&session_mutex);
+    wc_UnLockMutex(&clisession_mutex);
 
     return ret;
 }
 
-#endif /* NO_CLIENT_CACHE */
+#endif /* !NO_CLIENT_CACHE */
 
 /* Restore the master secret and session information for certificates.
  *
@@ -14218,6 +14357,7 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
     int          idx;
     int          count;
     int          error = 0;
+    SessionRow*  sessRow;
 
     (void)       restoreSessionCerts;
 
@@ -14258,30 +14398,31 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
         return NULL;
     }
 
-    if (wc_LockMutex(&session_mutex) != 0)
-        return 0;
+    /* lock row */
+    sessRow = &SessionCache[row];
+    if (SESSION_ROW_LOCK(sessRow) != 0) {
+        WOLFSSL_MSG("Session cache row lock failure");
+        return NULL;
+    }
 
     /* start from most recently used */
-    count = min((word32)SessionCache[row].totalCount, SESSIONS_PER_ROW);
-    idx = SessionCache[row].nextIdx - 1;
-    if (idx < 0)
+    count = min((word32)sessRow->totalCount, SESSIONS_PER_ROW);
+    idx = sessRow->nextIdx - 1;
+    if (idx < 0 || idx >= SESSIONS_PER_ROW) {
         idx = SESSIONS_PER_ROW - 1; /* if back to front, the previous was end */
+    }
 
     for (; count > 0; --count) {
         WOLFSSL_SESSION* current;
 
-        if (idx >= SESSIONS_PER_ROW || idx < 0) { /* sanity check */
-            WOLFSSL_MSG("Bad idx");
-            break;
-        }
-
-        current = &SessionCache[row].Sessions[idx];
+        current = &sessRow->Sessions[idx];
         if (XMEMCMP(current->sessionID, id, ID_LEN) == 0 &&
                 current->side == ssl->options.side) {
             WOLFSSL_MSG("Found a session match");
             if (LowResTimer() < (current->bornOn + current->timeout)) {
                 WOLFSSL_MSG("Session valid");
                 ret = current;
+
                 RestoreSession(ssl, ret, masterSecret, restoreSessionCerts);
             } else {
                 WOLFSSL_MSG("Session timed out");
@@ -14291,10 +14432,10 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
             WOLFSSL_MSG("SessionID not a match at this idx");
         }
 
-        idx = idx ? idx - 1 : SESSIONS_PER_ROW - 1;
+        idx = idx > 0 ? idx - 1 : SESSIONS_PER_ROW - 1;
     }
 
-    wc_UnLockMutex(&session_mutex);
+    SESSION_ROW_UNLOCK(sessRow);
 
     return ret;
 }
@@ -14302,18 +14443,27 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
 
 static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
 {
-    WOLFSSL_SESSION* copyInto = &ssl->session;
-    void* tmpBuff             = NULL;
-    int ticketLen             = 0;
-    int doDynamicCopy         = 0;
     int ret                   = WOLFSSL_SUCCESS;
+    WOLFSSL_SESSION* copyInto = &ssl->session;
+    int lockedRow;
+#ifdef HAVE_SESSION_TICKET
+    int   ticLen = 0;
+    void* ticBuff = NULL;
+    int isDynamic = 0;
+#endif
 
-    (void)ticketLen;
-    (void)doDynamicCopy;
-    (void)tmpBuff;
-
-    if (!ssl || !copyFrom)
+    if (ssl == NULL || copyFrom == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    lockedRow = copyFrom->cacheRow;
+    if (lockedRow >= SESSION_ROWS) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (lockedRow >= 0 && SESSION_ROW_LOCK(&SessionCache[lockedRow]) != 0) {
+        return BAD_MUTEX_E;
+    }
 
 #ifdef HAVE_SESSION_TICKET
     /* Free old dynamic ticket if we had one to avoid leak */
@@ -14324,104 +14474,61 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
     }
 #endif
 
-    if (wc_LockMutex(&session_mutex) != 0)
-        return BAD_MUTEX_E;
-
 #ifdef HAVE_SESSION_TICKET
     /* Size of ticket to alloc if needed; Use later for alloc outside lock */
-    doDynamicCopy = copyFrom->isDynamic;
-    ticketLen = copyFrom->ticketLen;
+    isDynamic = copyFrom->isDynamic;
+    ticLen = copyFrom->ticketLen;
 #endif
 
-    *copyInto = *copyFrom;
+    /* copy ticket structure */
+    XMEMCPY(copyInto, copyFrom, sizeof(WOLFSSL_SESSION));
 
-    /* Default ticket to non dynamic. This will avoid crash if we fail below */
+    if (lockedRow >= 0) {
+        SESSION_ROW_UNLOCK(&SessionCache[lockedRow]);
+    }
+
 #ifdef HAVE_SESSION_TICKET
+    /* Default ticket to non dynamic. This will avoid crash if we fail below */
     copyInto->ticket = copyInto->staticTicket;
     copyInto->isDynamic = 0;
-#endif
 
-#ifndef NO_RESUME_SUITE_CHECK
-    copyInto->cipherSuite0   = copyFrom->cipherSuite0;
-    copyInto->cipherSuite    = copyFrom->cipherSuite;
-#endif
-
-    if (wc_UnLockMutex(&session_mutex) != 0) {
-        return BAD_MUTEX_E;
-    }
-
-#ifdef HAVE_SESSION_TICKET
-#ifdef WOLFSSL_TLS13
-    if (wc_LockMutex(&session_mutex) != 0) {
-        XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
-        return BAD_MUTEX_E;
-    }
-
-#ifdef NO_RESUME_SUITE_CHECK
-    copyInto->cipherSuite0   = copyFrom->cipherSuite0;
-    copyInto->cipherSuite    = copyFrom->cipherSuite;
-#endif
-    copyInto->namedGroup     = copyFrom->namedGroup;
-    copyInto->ticketSeen     = copyFrom->ticketSeen;
-    copyInto->ticketAdd      = copyFrom->ticketAdd;
-    copyInto->side           = copyFrom->side;
-    XMEMCPY(&copyInto->ticketNonce, &copyFrom->ticketNonce,
-                                                           sizeof(TicketNonce));
-#ifdef WOLFSSL_EARLY_DATA
-    copyInto->maxEarlyDataSz = copyFrom->maxEarlyDataSz;
-#endif
-    XMEMCPY(copyInto->masterSecret, copyFrom->masterSecret, SECRET_LEN);
-
-    if (wc_UnLockMutex(&session_mutex) != 0) {
-        if (ret == WOLFSSL_SUCCESS)
-            ret = BAD_MUTEX_E;
-    }
-#endif
     /* If doing dynamic copy, need to alloc outside lock, then inside a lock
      * confirm the size still matches and memcpy */
-    if (doDynamicCopy) {
-        tmpBuff = (byte*)XMALLOC(ticketLen, ssl->heap,
+    if (isDynamic) {
+        ticBuff = (byte*)XMALLOC(ticLen, ssl->heap,
                                                      DYNAMIC_TYPE_SESSION_TICK);
-        if (!tmpBuff)
-            return MEMORY_ERROR;
-
-        if (wc_LockMutex(&session_mutex) != 0) {
-            XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
-            return BAD_MUTEX_E;
+        if (ticBuff == NULL) {
+            ret = MEMORY_ERROR;
         }
-
-        if ((word16)ticketLen != copyFrom->ticketLen) {
+        if (ret == WOLFSSL_SUCCESS && lockedRow >= 0 &&
+                SESSION_ROW_LOCK(&SessionCache[lockedRow]) != 0) {
+            ret = BAD_MUTEX_E;
+        }
+        if (ret == WOLFSSL_SUCCESS && (word16)ticLen != copyFrom->ticketLen) {
             /* Another thread modified the ssl-> session ticket during alloc.
              * Treat as error, since ticket different than when copy requested */
             ret = VAR_STATE_CHANGE_E;
         }
-
         if (ret == WOLFSSL_SUCCESS) {
-            copyInto->ticket = (byte*)tmpBuff;
+            copyInto->ticket = (byte*)ticBuff;
             copyInto->isDynamic = 1;
-            XMEMCPY(copyInto->ticket, copyFrom->ticket, ticketLen);
+            XMEMCPY(copyInto->ticket, copyFrom->ticket, ticLen);
         }
-    } else {
-        /* Need to ensure ticket pointer gets updated to own buffer
-         * and is not pointing to buff of session copied from */
-        copyInto->ticket = copyInto->staticTicket;
-    }
-
-    if (doDynamicCopy) {
-        if (wc_UnLockMutex(&session_mutex) != 0) {
-            if (ret == WOLFSSL_SUCCESS)
-                ret = BAD_MUTEX_E;
+        if (ret != BAD_MUTEX_E && lockedRow >= 0) {
+            SESSION_ROW_UNLOCK(&SessionCache[lockedRow]);
         }
     }
 
     if (ret != WOLFSSL_SUCCESS) {
         /* cleanup */
-        if (tmpBuff)
-            XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        if (ticBuff) {
+            XFREE(ticBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        }
         copyInto->ticket = copyInto->staticTicket;
         copyInto->isDynamic = 0;
     }
 #endif /* HAVE_SESSION_TICKET */
+
     return ret;
 }
 
@@ -14482,7 +14589,7 @@ int AddSession(WOLFSSL* ssl)
     int    error = 0;
     const byte* id = NULL;
 #ifdef HAVE_SESSION_TICKET
-    byte*  tmpBuff = NULL;
+    byte*  ticBuff = NULL;
     int    ticLen  = 0;
 #endif
     WOLFSSL_SESSION* session;
@@ -14491,6 +14598,7 @@ int AddSession(WOLFSSL* ssl)
 #ifdef HAVE_EXT_CACHE
     int cbRet = 0;
 #endif
+    SessionRow* sessRow = NULL;
 
     if (SslSessionCacheOff(ssl, &ssl->session))
         return 0;
@@ -14503,13 +14611,11 @@ int AddSession(WOLFSSL* ssl)
         return 0;
 #endif
 
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
-    if (ssl->options.tls1_3)
-        id = ssl->session.sessionID;
-    else
-#endif
-    if (ssl->arrays)
+    if (!ssl->options.tls1_3 && ssl->arrays != NULL)
         id = ssl->arrays->sessionID;
+    else
+        id = ssl->session.sessionID;
+
     if (id == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -14518,10 +14624,10 @@ int AddSession(WOLFSSL* ssl)
     ticLen = ssl->session.ticketLen;
     /* Alloc Memory here so if Malloc fails can exit outside of lock */
     if (ticLen > SESSION_TICKET_LEN) {
-        tmpBuff = (byte*)XMALLOC(ticLen, ssl->heap,
-                DYNAMIC_TYPE_SESSION_TICK);
-        if(!tmpBuff)
+        ticBuff = (byte*)XMALLOC(ticLen, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        if (ticBuff == NULL) {
             return MEMORY_E;
+        }
     }
 #endif
 
@@ -14530,36 +14636,37 @@ int AddSession(WOLFSSL* ssl)
         /* Create a new session object to be stored. */
         session = wolfSSL_SESSION_new();
         if (session == NULL) {
-#ifdef HAVE_SESSION_TICKET
-            XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
-#endif
+        #ifdef HAVE_SESSION_TICKET
+            XFREE(ticBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        #endif
             return MEMORY_E;
         }
     }
     else
 #endif
     {
-        /* Use the session object in the cache for external cache if required.
-         */
+        /* Use the session object in the cache for external cache if required */
         row = HashSession(id, ID_LEN, &error) % SESSION_ROWS;
         if (error != 0) {
             WOLFSSL_MSG("Hash session failed");
-#ifdef HAVE_SESSION_TICKET
-            XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
-#endif
+        #ifdef HAVE_SESSION_TICKET
+            XFREE(ticBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        #endif
             return error;
         }
 
-        if (wc_LockMutex(&session_mutex) != 0) {
-#ifdef HAVE_SESSION_TICKET
-            XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
-#endif
+        sessRow = &SessionCache[row];
+        if (SESSION_ROW_LOCK(sessRow) != 0) {
+        #ifdef HAVE_SESSION_TICKET
+            XFREE(ticBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        #endif
             return BAD_MUTEX_E;
         }
 
         for (i=0; i<SESSIONS_PER_ROW; i++) {
-            if (XMEMCMP(id, SessionCache[row].Sessions[i].sessionID, ID_LEN) == 0 &&
-                    SessionCache[row].Sessions[i].side == ssl->options.side) {
+            if (XMEMCMP(id,
+                    sessRow->Sessions[i].sessionID, ID_LEN) == 0 &&
+                    sessRow->Sessions[i].side == ssl->options.side) {
                 WOLFSSL_MSG("Session already exists. Overwriting.");
                 overwrite = 1;
                 idx = i;
@@ -14568,14 +14675,15 @@ int AddSession(WOLFSSL* ssl)
         }
 
         if (!overwrite) {
-            idx = SessionCache[row].nextIdx++;
+            idx = sessRow->nextIdx++;
         }
 #ifdef SESSION_INDEX
         ssl->sessionIndex = (row << SESSIDX_ROW_SHIFT) | idx;
 #endif
-        session = &SessionCache[row].Sessions[idx];
+        session = &sessRow->Sessions[idx];
     }
 
+    session->cacheRow = row;
     session->side = (byte)ssl->options.side;
 
 #ifdef WOLFSSL_TLS13
@@ -14585,7 +14693,7 @@ int AddSession(WOLFSSL* ssl)
     }
     else
 #endif
-    {
+    if (ssl->arrays != NULL) {
         XMEMCPY(session->masterSecret, ssl->arrays->masterSecret, SECRET_LEN);
         session->sessionIDSz = ssl->arrays->sessionIDSz;
     }
@@ -14618,7 +14726,7 @@ int AddSession(WOLFSSL* ssl)
 
         /* If too large to store in static buffer, use dyn buffer */
         if (ticLen > SESSION_TICKET_LEN) {
-            session->ticket = tmpBuff;
+            session->ticket = ticBuff;
             session->isDynamic = 1;
         } else {
             session->ticket = session->staticTicket;
@@ -14631,9 +14739,9 @@ int AddSession(WOLFSSL* ssl)
         session->ticket    = session->staticTicket;
         session->isDynamic = 0;
         session->ticketLen = 0;
-        if (tmpBuff) {
-            XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
-            tmpBuff = NULL;
+        if (ticBuff) {
+            XFREE(ticBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+            ticBuff = NULL;
         }
     }
 #endif
@@ -14641,10 +14749,8 @@ int AddSession(WOLFSSL* ssl)
 #ifdef SESSION_CERTS
     if (error == 0) {
         if (!overwrite || ssl->session.chain.count > 0) {
-            /*
-             * If we are overwriting and no certs present in ssl->session.chain
-             * then keep the old chain.
-             */
+            /* If we are overwriting and no certs present in ssl->session.chain
+             * then keep the old chain. */
             session->chain.count = ssl->session.chain.count;
             XMEMCPY(session->chain.certs, ssl->session.chain.certs,
                     sizeof(x509_buffer) * session->chain.count);
@@ -14685,16 +14791,14 @@ int AddSession(WOLFSSL* ssl)
     #endif
     }
 #endif /* WOLFSSL_TLS13 && HAVE_SESSION_TICKET */
-#ifdef HAVE_EXT_CACHE
-    if (!ssl->options.internalCacheOff)
-#endif
-    {
-        if (error == 0) {
-            SessionCache[row].totalCount++;
-            if (SessionCache[row].nextIdx == SESSIONS_PER_ROW)
-                SessionCache[row].nextIdx = 0;
+
+    if (error == 0 && sessRow != NULL) {
+        sessRow->totalCount++;
+        if (sessRow->nextIdx == SESSIONS_PER_ROW) {
+            sessRow->nextIdx = 0;
         }
     }
+
 #ifndef NO_CLIENT_CACHE
     if (error == 0) {
         if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->session.idLen) {
@@ -14706,38 +14810,37 @@ int AddSession(WOLFSSL* ssl)
             XMEMCPY(session->serverID, ssl->session.serverID,
                     ssl->session.idLen);
 
-#ifdef HAVE_EXT_CACHE
-            if (!ssl->options.internalCacheOff)
-#endif
-            {
+            if (sessRow != NULL) {
                 clientRow = HashSession(ssl->session.serverID,
                         ssl->session.idLen, &error) % SESSION_ROWS;
-                if (error != 0) {
-                    WOLFSSL_MSG("Hash session failed");
-                } else {
+                if (error == 0 && wc_LockMutex(&clisession_mutex) == 0) {
                     clientIdx = ClientCache[clientRow].nextIdx++;
-
                     ClientCache[clientRow].Clients[clientIdx].serverRow =
-                                                                   (word16)row;
+                                                                    (word16)row;
                     ClientCache[clientRow].Clients[clientIdx].serverIdx =
-                                                                   (word16)idx;
-
+                                                                    (word16)idx;
                     ClientCache[clientRow].totalCount++;
-                    if (ClientCache[clientRow].nextIdx == SESSIONS_PER_ROW)
+                    if (ClientCache[clientRow].nextIdx == SESSIONS_PER_ROW) {
                         ClientCache[clientRow].nextIdx = 0;
+                    }
+
+                    wc_UnLockMutex(&clisession_mutex);
+                }
+                else {
+                    WOLFSSL_MSG("Hash session failed");
                 }
             }
         }
-        else
+        else {
             session->idLen = 0;
+        }
     }
-#endif /* NO_CLIENT_CACHE */
+#endif /* !NO_CLIENT_CACHE */
 
-#if defined(WOLFSSL_SESSION_STATS) && defined(WOLFSSL_PEAK_SESSIONS)
-#ifdef HAVE_EXT_CACHE
-    if (!ssl->options.internalCacheOff)
-#endif
-    {
+    if (sessRow != NULL) {
+        SESSION_ROW_UNLOCK(sessRow);
+
+    #if defined(WOLFSSL_SESSION_STATS) && defined(WOLFSSL_PEAK_SESSIONS)
         if (error == 0) {
             word32 active = 0;
 
@@ -14745,26 +14848,21 @@ int AddSession(WOLFSSL* ssl)
             if (error == WOLFSSL_SUCCESS) {
                 error = 0;  /* back to this function ok */
 
-                if (active > PeakSessions)
+                if (PeakSessions < active) {
                     PeakSessions = active;
+                }
             }
         }
-    }
-#endif /* defined(WOLFSSL_SESSION_STATS) && defined(WOLFSSL_PEAK_SESSIONS) */
-
-#ifdef HAVE_EXT_CACHE
-    if (!ssl->options.internalCacheOff)
-#endif
-    {
-        if (wc_UnLockMutex(&session_mutex) != 0)
-            return BAD_MUTEX_E;
+    #endif /* WOLFSSL_SESSION_STATS && WOLFSSL_PEAK_SESSIONS */
     }
 
 #ifdef HAVE_EXT_CACHE
-    if (error == 0 && ssl->ctx->new_sess_cb != NULL)
+    if (error == 0 && ssl->ctx->new_sess_cb != NULL) {
         cbRet = ssl->ctx->new_sess_cb(ssl, session);
-    if (ssl->options.internalCacheOff && cbRet == 0)
+    }
+    if (ssl->options.internalCacheOff && cbRet == 0) {
         FreeSession(session, 1);
+    }
 #endif
 
     return error;
@@ -14784,25 +14882,27 @@ int wolfSSL_GetSessionIndex(WOLFSSL* ssl)
 int wolfSSL_GetSessionAtIndex(int idx, WOLFSSL_SESSION* session)
 {
     int row, col, result = WOLFSSL_FAILURE;
+    SessionRow* sessRow;
 
     WOLFSSL_ENTER("wolfSSL_GetSessionAtIndex");
 
     row = idx >> SESSIDX_ROW_SHIFT;
     col = idx & SESSIDX_IDX_MASK;
 
-    if (wc_LockMutex(&session_mutex) != 0) {
+    if (session == NULL || 
+            row < 0 || row >= SESSION_ROWS || col >= SESSIONS_PER_ROW) {
+        return WOLFSSL_FAILURE;
+    }
+
+    sessRow = &SessionCache[row];
+    if (SESSION_ROW_LOCK(sessRow) != 0) {
         return BAD_MUTEX_E;
     }
 
-    if (row < SESSION_ROWS &&
-        col < (int)min(SessionCache[row].totalCount, SESSIONS_PER_ROW)) {
-        XMEMCPY(session,
-                 &SessionCache[row].Sessions[col], sizeof(WOLFSSL_SESSION));
-        result = WOLFSSL_SUCCESS;
-    }
+    XMEMCPY(session, &sessRow->Sessions[col], sizeof(WOLFSSL_SESSION));
+    result = WOLFSSL_SUCCESS;
 
-    if (wc_UnLockMutex(&session_mutex) != 0)
-        result = BAD_MUTEX_E;
+    SESSION_ROW_UNLOCK(sessRow);
 
     WOLFSSL_LEAVE("wolfSSL_GetSessionAtIndex", result);
     return result;
@@ -14855,7 +14955,6 @@ WOLFSSL_X509* wolfSSL_SESSION_get0_peer(WOLFSSL_SESSION* session)
 
 #ifdef WOLFSSL_SESSION_STATS
 
-/* requires session_mutex lock held, WOLFSSL_SUCCESS on ok */
 static int get_locked_session_stats(word32* active, word32* total, word32* peak)
 {
     int result = WOLFSSL_SUCCESS;
@@ -14866,44 +14965,61 @@ static int get_locked_session_stats(word32* active, word32* total, word32* peak)
     word32 seen  = 0;
     word32 ticks = LowResTimer();
 
-    (void)peak;
-
     WOLFSSL_ENTER("get_locked_session_stats");
 
     for (i = 0; i < SESSION_ROWS; i++) {
-        seen += SessionCache[i].totalCount;
+        SessionRow* row = &SessionCache[i];
+    #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
+        if (SESSION_ROW_LOCK(row) != 0) {
+            WOLFSSL_MSG("Session row cache mutex lock failed");
+            return BAD_MUTEX_E;
+        }
+    #endif
 
-        if (active == NULL)
-            continue;  /* no need to calculate what we can't set */
+        seen += row->totalCount;
 
-        count = min((word32)SessionCache[i].totalCount, SESSIONS_PER_ROW);
-        idx   = SessionCache[i].nextIdx - 1;
-        if (idx < 0)
+        if (active == NULL) {
+            SESSION_ROW_UNLOCK(row);
+            continue;
+        }
+
+        count = min((word32)row->totalCount, SESSIONS_PER_ROW);
+        idx   = row->nextIdx - 1;
+        if (idx < 0 || idx >= SESSIONS_PER_ROW) {
             idx = SESSIONS_PER_ROW - 1; /* if back to front previous was end */
+        }
 
-        for (; count > 0; --count, idx = idx ? idx - 1 : SESSIONS_PER_ROW - 1) {
-            if (idx >= SESSIONS_PER_ROW || idx < 0) {  /* sanity check */
-                WOLFSSL_MSG("Bad idx");
-                break;
-            }
-
+        for (; count > 0; --count) {
             /* if not expired then good */
-            if (ticks < (SessionCache[i].Sessions[idx].bornOn +
-                         SessionCache[i].Sessions[idx].timeout) ) {
+            if (ticks < (row->Sessions[idx].bornOn +
+                            row->Sessions[idx].timeout) ) {
                 now++;
             }
+
+            idx = idx > 0 ? idx - 1 : SESSIONS_PER_ROW - 1;
         }
+
+    #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
+        SESSION_ROW_UNLOCK(row);
+    #endif
+    }
+#ifndef ENABLE_SESSION_CACHE_ROW_LOCK
+    wc_UnLockMutex(&session_mutex);
+#endif
+
+    if (active) {
+        *active = now;
+    }
+    if (total) {
+        *total = seen;
     }
 
-    if (active)
-        *active = now;
-
-    if (total)
-        *total = seen;
-
 #ifdef WOLFSSL_PEAK_SESSIONS
-    if (peak)
+    if (peak) {
         *peak = PeakSessions;
+    }
+#else
+    (void)peak;
 #endif
 
     WOLFSSL_LEAVE("get_locked_session_stats", result);
@@ -14928,17 +15044,11 @@ int wolfSSL_get_session_stats(word32* active, word32* total, word32* peak,
     }
 
     /* user must provide at least one query value */
-    if (active == NULL && total == NULL && peak == NULL)
+    if (active == NULL && total == NULL && peak == NULL) {
         return BAD_FUNC_ARG;
-
-    if (wc_LockMutex(&session_mutex) != 0) {
-        return BAD_MUTEX_E;
     }
 
     result = get_locked_session_stats(active, total, peak);
-
-    if (wc_UnLockMutex(&session_mutex) != 0)
-        result = BAD_MUTEX_E;
 
     WOLFSSL_LEAVE("wolfSSL_get_session_stats", result);
 
@@ -21723,6 +21833,7 @@ WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
     if (copy != NULL) {
         XMEMCPY(copy, session, sizeof(WOLFSSL_SESSION));
         copy->isAlloced = 1;
+        copy->cacheRow = -1; /* not in cache */
 #ifdef OPENSSL_EXTRA
 #ifndef SINGLE_THREADED
         if (wc_InitMutex(&copy->refMutex) != 0) {
@@ -28149,7 +28260,7 @@ long wolfSSL_CTX_sess_number(WOLFSSL_CTX* ctx)
     WOLFSSL_ENTER("wolfSSL_CTX_sess_number");
     (void)ctx;
 
-#ifdef WOLFSSL_SESSION_STATS
+#if defined(WOLFSSL_SESSION_STATS) && !defined(NO_SESSION_CACHE)
     if (wolfSSL_get_session_stats(NULL, &total, NULL, NULL) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Error getting session stats");
     }

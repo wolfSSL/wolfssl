@@ -2452,7 +2452,6 @@ WOLFSSL_API int wolfSSL_GetSessionAtIndex(int index, WOLFSSL_SESSION* session);
     }
     \endcode
 
-    \sa get_locked_session_stats
     \sa wolfSSL_GetSessionAtIndex
     \sa wolfSSL_GetSessionIndex
     \sa AddSession
@@ -11510,7 +11509,6 @@ WOLFSSL_API int wolfSSL_PrintSessionStats(void);
     return ret;
     \endcode
 
-    \sa get_locked_session_stats
     \sa wolfSSL_PrintSessionStats
 */
 WOLFSSL_API int wolfSSL_get_session_stats(unsigned int* active,
