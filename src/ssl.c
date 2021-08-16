@@ -55994,9 +55994,8 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
             bio->shutdown = BIO_CLOSE; /* default to close things */
             bio->num = SOCKET_INVALID; /* Default to invalid socket */
             bio->init = 1;
-            if (method->type != WOLFSSL_BIO_FILE &&
-                    method->type != WOLFSSL_BIO_SOCKET &&
-                    method->type != WOLFSSL_BIO_MD) {
+            if (method->type == WOLFSSL_BIO_MEMORY ||
+                    method->type == WOLFSSL_BIO_BIO) {
                 bio->mem_buf =(WOLFSSL_BUF_MEM*)XMALLOC(sizeof(WOLFSSL_BUF_MEM),
                                                        0, DYNAMIC_TYPE_OPENSSL);
                 if (bio->mem_buf == NULL) {
