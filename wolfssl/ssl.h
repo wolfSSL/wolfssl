@@ -2218,7 +2218,20 @@ enum { /* ssl Constants */
     WOLFSSL_ERROR_NONE      =  0,   /* for most functions */
     WOLFSSL_FAILURE         =  0,   /* for some functions */
     WOLFSSL_SUCCESS         =  1,
-    WOLFSSL_SHUTDOWN_NOT_DONE =  2,  /* call wolfSSL_shutdown again to complete */
+
+/* WOLFSSL_SHUTDOWN_NOT_DONE is returned by wolfSSL_shutdown when the other end
+ * of the connection has yet to send its close notify alert as part of the
+ * bidirectional shutdown. To complete the shutdown, either keep calling
+ * wolfSSL_shutdown until it returns WOLFSSL_SUCCESS or call wolfSSL_read until
+ * it returns <= 0 AND SSL_get_error returns SSL_ERROR_ZERO_RETURN. See OpenSSL
+ * docs for more: https://www.openssl.org/docs/man1.1.1/man3/SSL_shutdown.html
+ */
+#ifdef WOLFSSL_ERROR_CODE_OPENSSL
+/* SSL_shutdown returns 0 when not done, per OpenSSL documentation. */
+    WOLFSSL_SHUTDOWN_NOT_DONE = 0,
+#else
+    WOLFSSL_SHUTDOWN_NOT_DONE =  2,
+#endif
 
     WOLFSSL_ALPN_NOT_FOUND  = -9,
     WOLFSSL_BAD_CERTTYPE    = -8,

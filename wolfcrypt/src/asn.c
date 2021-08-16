@@ -11519,8 +11519,10 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     der = *pDer;
 
     if (Base64_Decode((byte*)headerEnd, (word32)neededSz,
-                      der->buffer, &der->length) < 0)
+                      der->buffer, &der->length) < 0) {
+        WOLFSSL_ERROR(BUFFER_E);
         return BUFFER_E;
+    }
 
     if ((header == BEGIN_PRIV_KEY
 #ifdef OPENSSL_EXTRA

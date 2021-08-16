@@ -30,7 +30,9 @@
     defined(OPENSSL_VERSION_NUMBER) && (OPENSSL_VERSION_NUMBER == 0x10100000L) ||\
     defined(OPENSSL_VERSION_NUMBER) && (OPENSSL_VERSION_NUMBER == 0x10001040L)  
      /* valid version */
-#elif defined(WOLFSSL_APACHE_HTTPD) || defined(HAVE_LIBEST) || defined(WOLFSSL_BIND) || defined(WOLFSSL_NGINX)
+#elif defined(WOLFSSL_APACHE_HTTPD) || defined(HAVE_LIBEST) || \
+      defined(WOLFSSL_BIND) || defined(WOLFSSL_NGINX) || \
+      defined(WOLFSSL_RSYSLOG)
     /* For Apache httpd, Use 1.1.0 compatibility */
      #define OPENSSL_VERSION_NUMBER 0x10100000L
 #elif  defined(WOLFSSL_QT)
