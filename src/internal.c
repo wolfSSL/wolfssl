@@ -60,6 +60,11 @@
  *     Default callback will not request creation of new ticket on successful
  *     decryption.
  *     Server only.
+ * WOLFSSL_TLS13_NO_PEEK_HANDSHAKE_DONE
+ *     Once a normal TLS 1.3 handshake is complete, a session ticket message
+ *     may be received by a client. To support detecting this, peek will
+ *     return WOLFSSL_ERROR_WANT_READ.
+ *     This define turns off this behaviour.
  */
 
 
@@ -19411,7 +19416,7 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
     WOLFSSL_ENTER("ReceiveData()");
 
     /* reset error state */
-    if (ssl->error == WANT_READ) {
+    if (ssl->error == WANT_READ || ssl->error == WOLFSSL_ERROR_WANT_READ) {
         ssl->error = 0;
     }
 
@@ -19521,6 +19526,7 @@ startScr:
                 }
             }
         #endif
+#ifndef WOLFSSL_TLS13_NO_PEEK_HANDSHAKE_DONE
     #ifdef WOLFSSL_TLS13
         if (IsAtLeastTLSv1_3(ssl->version) && ssl->options.handShakeDone &&
                                          ssl->curRL.type == handshake && peek) {
@@ -19531,6 +19537,7 @@ startScr:
             }
         }
     #endif
+#endif
     }
 
     size = min(sz, (int)ssl->buffers.clearOutputBuffer.length);
