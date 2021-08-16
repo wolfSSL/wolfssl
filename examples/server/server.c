@@ -2401,16 +2401,17 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     }
 
 #ifdef HAVE_PK_CALLBACKS
-        if (pkCallbacks)
-            SetupPkCallbacks(ctx);
+    if (pkCallbacks)
+        SetupPkCallbacks(ctx);
 #endif
 
-        ssl = SSL_new(ctx);
-        if (ssl == NULL)
-            err_sys_ex(catastrophic, "unable to create an SSL object");
-        #ifdef OPENSSL_EXTRA
-        wolfSSL_KeepArrays(ssl);
-        #endif
+    ssl = SSL_new(ctx);
+    if (ssl == NULL)
+        err_sys_ex(catastrophic, "unable to create an SSL object");
+
+#ifdef OPENSSL_EXTRA
+    wolfSSL_KeepArrays(ssl);
+#endif
 
     /* Support for loading private key and cert using WOLFSSL object */
 #if !defined(NO_CERTS)
@@ -2594,10 +2595,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif /* NO_RSA */
 #endif /* HAVE_OCSP */
 
-#ifdef HAVE_PK_CALLBACKS
-        if (pkCallbacks)
+    #ifdef HAVE_PK_CALLBACKS
+        /* This must be before SetKeyShare */
+        if (pkCallbacks) {
             SetupPkCallbackContexts(ssl, &pkCbInfo);
-#endif
+        }
+    #endif
 
     #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
         if (version >= 4) {

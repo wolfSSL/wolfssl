@@ -3110,6 +3110,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     wolfSSL_KeepArrays(ssl);
 #endif
 
+#ifdef HAVE_PK_CALLBACKS
+    /* This must be before SetKeyShare */
+    if (pkCallbacks) {
+        SetupPkCallbackContexts(ssl, &pkCbInfo);
+    }
+#endif
+
 #if defined(WOLFSSL_STATIC_MEMORY) && defined(DEBUG_WOLFSSL)
     fprintf(stderr, "After creating SSL\n");
     if (wolfSSL_CTX_is_static_memory(ctx, &mem_stats) != 1)
@@ -3288,10 +3295,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (atomicUser)
         SetupAtomicUser(ctx, ssl);
 #endif
-#ifdef HAVE_PK_CALLBACKS
-    if (pkCallbacks)
-        SetupPkCallbackContexts(ssl, &pkCbInfo);
-#endif
+
     if (matchName && doPeerCheck)
         wolfSSL_check_domain_name(ssl, domain);
 #ifndef WOLFSSL_CALLBACKS
@@ -3743,6 +3747,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
         if (!doDhKeyCheck)
             wolfSSL_SetEnableDhKeyTest(sslResume, 0);
+#endif
+#ifdef HAVE_PK_CALLBACKS
+        if (pkCallbacks) {
+            SetupPkCallbackContexts(sslResume, &pkCbInfo);
+        }
 #endif
 
         if (dtlsUDP) {
