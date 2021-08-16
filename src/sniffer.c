@@ -2344,14 +2344,14 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             } while (ret == WC_PENDING_E);
 
             wc_FreeDhKey(&dhKey);
-        
 
         #ifdef WOLFSSL_SNIFFER_STATS
             if (ret != 0)
                 INC_STAT(SnifferStats.sslKeyFails);
         #endif
+
             /* left-padded with zeros up to the size of the prime */
-            if (params->p_len > session->sslServer->arrays->preMasterSz) {
+            if (ret == 0 && params->p_len > session->sslServer->arrays->preMasterSz) {
                 word32 diff = params->p_len - session->sslServer->arrays->preMasterSz;
                 XMEMMOVE(session->sslServer->arrays->preMasterSecret + diff,
                         session->sslServer->arrays->preMasterSecret, 
