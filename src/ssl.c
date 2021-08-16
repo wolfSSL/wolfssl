@@ -16032,70 +16032,27 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #endif /* !NO_BIO */
 #endif /* OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
     void wolfSSL_CTX_set_client_CA_list(WOLFSSL_CTX* ctx,
                                        WOLF_STACK_OF(WOLFSSL_X509_NAME)* names)
     {
         WOLFSSL_ENTER("wolfSSL_CTX_set_client_CA_list");
-    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
-        if (ctx != NULL)
+        if (ctx != NULL) {
+            wolfSSL_sk_X509_NAME_pop_free(ctx->ca_names, NULL);
             ctx->ca_names = names;
-    #else
-        (void)ctx;
-        (void)names;
-    #endif
+        }
     }
 
-
-    /* returns the CA's set on server side or the CA's sent from server when
-     * on client side */
-#if defined(SESSION_CERTS) && defined(OPENSSL_ALL)
-    WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_get_client_CA_list(
-            const WOLFSSL* ssl)
+    void wolfSSL_set_client_CA_list(WOLFSSL* ssl,
+                                       WOLF_STACK_OF(WOLFSSL_X509_NAME)* names)
     {
-        WOLFSSL_ENTER("wolfSSL_get_client_CA_list");
-
-        if (ssl == NULL) {
-            WOLFSSL_MSG("Bad argument passed to wolfSSL_get_client_CA_list");
-            return NULL;
-        }
-
-        /* return list of CAs sent from the server */
-        if (ssl->options.side == WOLFSSL_CLIENT_END) {
-            WOLF_STACK_OF(WOLFSSL_X509)* sk;
-
-            sk = wolfSSL_get_peer_cert_chain(ssl);
-            if (sk != NULL) {
-                WOLF_STACK_OF(WOLFSSL_X509_NAME)* ret;
-                WOLFSSL_X509* x509;
-
-                ret = wolfSSL_sk_X509_NAME_new(NULL);
-                do {
-                    x509 = wolfSSL_sk_X509_pop(sk);
-                    if (x509 != NULL) {
-                        if (wolfSSL_X509_get_isCA(x509)) {
-                            if (wolfSSL_sk_X509_NAME_push(ret,
-                                    wolfSSL_X509_get_subject_name(x509)) != 0) {
-                                WOLFSSL_MSG("Error pushing X509 name to stack");
-                                /* continue on to try other certificates and
-                                 * do not fail out here */
-                            }
-                        }
-                        wolfSSL_X509_free(x509);
-                    }
-                } while (x509 != NULL);
-                wolfSSL_sk_X509_free(sk);
-                return ret;
-            }
-            return NULL;
-        }
-        else {
-            /* currently only can be set in the CTX */
-            return ssl->ctx->ca_names;
+        WOLFSSL_ENTER("wolfSSL_set_client_CA_list");
+        if (ssl != NULL) {
+            if (ssl->ca_names != ssl->ctx->ca_names)
+                wolfSSL_sk_X509_NAME_pop_free(ssl->ca_names, NULL);
+            ssl->ca_names = names;
         }
     }
-#endif /* SESSION_CERTS */
-
 
     #ifdef OPENSSL_EXTRA
     /* registers client cert callback, called during handshake if server
@@ -16155,143 +16112,159 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_CTX_get_client_CA_list(
-            const WOLFSSL_CTX *s)
+            const WOLFSSL_CTX *ctx)
     {
         WOLFSSL_ENTER("wolfSSL_CTX_get_client_CA_list");
 
-        if (s == NULL)
+        if (ctx == NULL) {
+            WOLFSSL_MSG("Bad argument passed to wolfSSL_CTX_get_client_CA_list");
             return NULL;
+        }
 
-        return s->ca_names;
+        return ctx->ca_names;
     }
-#endif
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-#ifndef NO_BIO
-    #if !defined(NO_RSA) && !defined(NO_CERTS)
-    WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_load_client_CA_file(const char* fname)
+    /* returns the CA's set on server side or the CA's sent from server when
+     * on client side */
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_get_client_CA_list(
+            const WOLFSSL* ssl)
     {
-        /* The webserver build is using this to load a CA into the server
-         * for client authentication as an option. Have this return NULL in
-         * that case. If OPENSSL_EXTRA is enabled, go ahead and include
-         * the function. */
-    #ifdef OPENSSL_EXTRA
-        WOLFSSL_STACK *list = NULL;
-        WOLFSSL_STACK *node;
-        WOLFSSL_BIO* bio;
-        WOLFSSL_X509 *cert = NULL;
-        WOLFSSL_X509_NAME *subjectName = NULL;
-        unsigned long err;
+        WOLFSSL_ENTER("wolfSSL_get_client_CA_list");
 
-        WOLFSSL_ENTER("wolfSSL_load_client_CA_file");
-
-        bio = wolfSSL_BIO_new_file(fname, "rb");
-        if (bio == NULL)
+        if (ssl == NULL) {
+            WOLFSSL_MSG("Bad argument passed to wolfSSL_get_client_CA_list");
             return NULL;
-
-        /* Read each certificate in the chain out of the file. */
-        while (wolfSSL_PEM_read_bio_X509(bio, &cert, NULL, NULL) != NULL) {
-            subjectName = wolfSSL_X509_get_subject_name(cert);
-            if (subjectName == NULL)
-                break;
-
-            node = wolfSSL_sk_new_node(NULL);
-            if (node == NULL)
-                break;
-            node->type = STACK_TYPE_X509_NAME;
-
-            /* Need a persistent copy of the subject name. */
-            node->data.name = wolfSSL_X509_NAME_dup(subjectName);
-            if (node->data.name != NULL) {
-                /*
-                * Original cert will be freed so make sure not to try to access
-                * it in the future.
-                */
-                node->data.name->x509 = NULL;
-            }
-
-            /* Put node on the front of the list. */
-            node->num  = (list == NULL) ? 1 : list->num + 1;
-            node->next = list;
-            list = node;
-
-            wolfSSL_X509_free(cert);
-            cert = NULL;
         }
 
-        err = wolfSSL_ERR_peek_last_error();
-
-        if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
-                ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
-            /*
-             * wolfSSL_PEM_read_bio_X509 pushes an ASN_NO_PEM_HEADER error
-             * to the error queue on file end. This should not be left
-             * for the caller to find so we clear the last error.
-             */
-            wc_RemoveErrorNode(-1);
-        }
-
-        wolfSSL_X509_free(cert);
-        wolfSSL_BIO_free(bio);
-        return list;
-    #else
-        (void)fname;
-        return NULL;
-    #endif
+        return SSL_CA_NAMES(ssl);
     }
-    #endif
-#endif /* !NO_BIO */
-#endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
 
-#ifdef OPENSSL_EXTRA
-    #if !defined(NO_RSA) && !defined(NO_CERTS)
+    #if !defined(NO_CERTS)
     int wolfSSL_CTX_add_client_CA(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
     {
-        WOLFSSL_STACK *node = NULL;
-        WOLFSSL_X509_NAME *subjectName = NULL;
+        WOLFSSL_X509_NAME *nameCopy = NULL;
 
         WOLFSSL_ENTER("wolfSSL_CTX_add_client_CA");
 
         if (ctx == NULL || x509 == NULL){
             WOLFSSL_MSG("Bad argument");
-            return SSL_FAILURE;
+            return WOLFSSL_FAILURE;
         }
 
-        subjectName = wolfSSL_X509_get_subject_name(x509);
-        if (subjectName == NULL){
-            WOLFSSL_MSG("invalid x509 data");
-            return SSL_FAILURE;
+        if (ctx->ca_names == NULL) {
+            ctx->ca_names = wolfSSL_sk_X509_NAME_new(NULL);
+            if (ctx->ca_names == NULL) {
+                WOLFSSL_MSG("wolfSSL_sk_X509_NAME_new error");
+                return WOLFSSL_FAILURE;
+            }
         }
 
-        /* Alloc stack struct */
-        node = (WOLF_STACK_OF(WOLFSSL_X509_NAME)*)XMALLOC(
-                                           sizeof(WOLF_STACK_OF(WOLFSSL_X509_NAME)),
-                                           NULL, DYNAMIC_TYPE_OPENSSL);
-        if (node == NULL){
-            WOLFSSL_MSG("memory allocation error");
-            return SSL_FAILURE;
+        nameCopy = wolfSSL_X509_NAME_dup(wolfSSL_X509_get_subject_name(x509));
+        if (nameCopy == NULL) {
+            WOLFSSL_MSG("wolfSSL_X509_NAME_dup error");
+            return WOLFSSL_FAILURE;
         }
-        XMEMSET(node, 0, sizeof(WOLF_STACK_OF(WOLFSSL_X509_NAME)));
 
-        /* Alloc and copy WOLFSSL_X509_NAME */
-        node->data.name = (WOLFSSL_X509_NAME*)XMALLOC(
-                                              sizeof(WOLFSSL_X509_NAME),
-                                              NULL, DYNAMIC_TYPE_OPENSSL);
-        if (node->data.name == NULL) {
-            XFREE(node, NULL, DYNAMIC_TYPE_OPENSSL);
-            WOLFSSL_MSG("memory allocation error");
-            return SSL_FAILURE;
+        if (wolfSSL_sk_X509_NAME_push(ctx->ca_names, nameCopy) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_sk_X509_NAME_push error");
+            wolfSSL_X509_NAME_free(nameCopy);
+            return WOLFSSL_FAILURE;
         }
-        XMEMCPY(node->data.name, subjectName, sizeof(WOLFSSL_X509_NAME));
-        XMEMSET(subjectName, 0, sizeof(WOLFSSL_X509_NAME));
 
-        /* push new node onto head of stack */
-        node->num = (ctx->ca_names == NULL) ? 1 : ctx->ca_names->num + 1;
-        node->next = ctx->ca_names;
-        ctx->ca_names = node;
         return WOLFSSL_SUCCESS;
     }
     #endif
+
+    #ifndef NO_BIO
+        #if !defined(NO_RSA) && !defined(NO_CERTS)
+        WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_load_client_CA_file(const char* fname)
+        {
+            /* The webserver build is using this to load a CA into the server
+             * for client authentication as an option. Have this return NULL in
+             * that case. If OPENSSL_EXTRA is enabled, go ahead and include
+             * the function. */
+        #ifdef OPENSSL_EXTRA
+            WOLFSSL_STACK *list = NULL;
+            WOLFSSL_BIO* bio = NULL;
+            WOLFSSL_X509 *cert = NULL;
+            WOLFSSL_X509_NAME *nameCopy = NULL;
+            unsigned long err = WOLFSSL_FAILURE;
+
+            WOLFSSL_ENTER("wolfSSL_load_client_CA_file");
+
+            bio = wolfSSL_BIO_new_file(fname, "rb");
+            if (bio == NULL) {
+                WOLFSSL_MSG("wolfSSL_BIO_new_file error");
+                goto cleanup;
+            }
+
+            list = wolfSSL_sk_X509_NAME_new(NULL);
+            if (list == NULL) {
+                WOLFSSL_MSG("wolfSSL_sk_X509_NAME_new error");
+                goto cleanup;
+            }
+
+            /* Read each certificate in the chain out of the file. */
+            while (wolfSSL_PEM_read_bio_X509(bio, &cert, NULL, NULL) != NULL) {
+                /* Need a persistent copy of the subject name. */
+                nameCopy = wolfSSL_X509_NAME_dup(
+                        wolfSSL_X509_get_subject_name(cert));
+                if (nameCopy == NULL) {
+                    WOLFSSL_MSG("wolfSSL_X509_NAME_dup error");
+                    goto cleanup;
+                }
+                /*
+                * Original cert will be freed so make sure not to try to access
+                * it in the future.
+                */
+                nameCopy->x509 = NULL;
+
+                if (wolfSSL_sk_X509_NAME_push(list, nameCopy) !=
+                        WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("wolfSSL_sk_X509_NAME_push error");
+                    /* Do free in loop because nameCopy is now responsibility
+                     * of list to free and adding jumps to cleanup after this
+                     * might result in a double free. */
+                    wolfSSL_X509_NAME_free(nameCopy);
+                    goto cleanup;
+                }
+
+                wolfSSL_X509_free(cert);
+                cert = NULL;
+            }
+
+            err = wolfSSL_ERR_peek_last_error();
+
+            if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
+                    ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
+                /*
+                 * wolfSSL_PEM_read_bio_X509 pushes an ASN_NO_PEM_HEADER error
+                 * to the error queue on file end. This should not be left
+                 * for the caller to find so we clear the last error.
+                 */
+                wc_RemoveErrorNode(-1);
+            }
+
+            err = WOLFSSL_SUCCESS;
+cleanup:
+            wolfSSL_X509_free(cert);
+            wolfSSL_BIO_free(bio);
+            if (err != WOLFSSL_SUCCESS) {
+                /* We failed so return NULL */
+                wolfSSL_sk_X509_NAME_pop_free(list, NULL);
+                list = NULL;
+            }
+            return list;
+        #else
+            (void)fname;
+            return NULL;
+        #endif
+        }
+        #endif
+    #endif /* !NO_BIO */
+#endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA */
+
+#ifdef OPENSSL_EXTRA
 
     #ifndef NO_WOLFSSL_STUB
     int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
@@ -19037,7 +19010,9 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
     if (ssl == NULL)
         return NULL;
 
-    if (ssl->peerCertChain == NULL)
+    /* Try to populate if NULL or empty */
+    if (ssl->peerCertChain == NULL ||
+            wolfSSL_sk_X509_num(ssl->peerCertChain) == 0)
         wolfSSL_set_peer_cert_chain((WOLFSSL*) ssl);
     return ssl->peerCertChain;
 }
@@ -19142,6 +19117,8 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
         wolfSSL_sk_X509_shift(sk);
     }
 #endif
+    if (ssl->peerCertChain != NULL)
+        wolfSSL_sk_X509_free(ssl->peerCertChain);
     /* This is Free'd when ssl is Free'd */
     ssl->peerCertChain = sk;
     return sk;
@@ -45081,6 +45058,204 @@ void* wolfSSL_SESSION_get_ex_data(const WOLFSSL_SESSION* session, int idx)
 }
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL || FORTRESS */
 
+#if defined(OPENSSL_EXTRA) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+        defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
+        defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB)
+
+WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_sk_X509_NAME_new(wolf_sk_compare_cb cb)
+{
+    WOLFSSL_STACK* sk;
+    (void)cb;
+
+    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_new");
+
+    sk = wolfSSL_sk_new_node(NULL);
+    if (sk != NULL) {
+        sk->type = STACK_TYPE_X509_NAME;
+#ifdef OPENSSL_ALL
+        sk->comp = cb;
+#endif
+    }
+
+    return sk;
+}
+
+int wolfSSL_sk_X509_NAME_num(const WOLF_STACK_OF(WOLFSSL_X509_NAME) *sk)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_num");
+
+    if (sk == NULL)
+        return BAD_FUNC_ARG;
+
+    return (int)sk->num;
+}
+
+/* Getter function for WOLFSSL_X509_NAME pointer
+ *
+ * sk is the stack to retrieve pointer from
+ * i  is the index value in stack
+ *
+ * returns a pointer to a WOLFSSL_X509_NAME structure on success and NULL on
+ *         fail
+ */
+WOLFSSL_X509_NAME* wolfSSL_sk_X509_NAME_value(const STACK_OF(WOLFSSL_X509_NAME)* sk,
+    int i)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_value");
+
+    for (; sk != NULL && i > 0; i--) {
+        sk = sk->next;
+    }
+
+    if (i != 0 || sk == NULL)
+        return NULL;
+
+    return sk->data.name;
+}
+
+WOLFSSL_X509_NAME* wolfSSL_sk_X509_NAME_pop(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
+{
+    WOLFSSL_STACK* node;
+    WOLFSSL_X509_NAME* name;
+
+    if (sk == NULL) {
+        return NULL;
+    }
+
+    node = sk->next;
+    name = sk->data.name;
+
+    if (node != NULL) { /* update sk and remove node from stack */
+        sk->data.name = node->data.name;
+        sk->next = node->next;
+        XFREE(node, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    else { /* last x509 in stack */
+        sk->data.name = NULL;
+    }
+
+    if (sk->num > 0) {
+        sk->num -= 1;
+    }
+
+    return name;
+}
+
+void wolfSSL_sk_X509_NAME_pop_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
+    void (*f) (WOLFSSL_X509_NAME*))
+{
+    WOLFSSL_STACK* node;
+    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_pop_free");
+
+    if (sk == NULL)
+        return;
+
+    node = sk->next;
+    while (node && sk->num > 1) {
+        WOLFSSL_STACK* tmp = node;
+        node = node->next;
+        if (f)
+            f(tmp->data.name);
+        else
+            wolfSSL_X509_NAME_free(tmp->data.name);
+        tmp->data.name = NULL;
+        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+        sk->num -= 1;
+    }
+
+    /* free head of stack */
+    if (sk->num == 1) {
+        if (f)
+            f(sk->data.name);
+        else
+            wolfSSL_X509_NAME_free(sk->data.name);
+        sk->data.name = NULL;
+    }
+
+    XFREE(sk, sk->heap, DYNAMIC_TYPE_OPENSSL);
+}
+
+/* Free only the sk structure, NOT X509_NAME members */
+void wolfSSL_sk_X509_NAME_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
+{
+    WOLFSSL_STACK* node;
+    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_free");
+
+    if (sk == NULL)
+        return;
+
+    node = sk->next;
+    while (sk->num > 1) {
+        WOLFSSL_STACK* tmp = node;
+        node = node->next;
+        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+        sk->num -= 1;
+    }
+
+    XFREE(sk, sk->heap, DYNAMIC_TYPE_OPENSSL);
+}
+
+int wolfSSL_sk_X509_NAME_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
+    WOLFSSL_X509_NAME* name)
+{
+    WOLFSSL_STACK* node;
+
+    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_push");
+
+    if (sk == NULL || name == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* no previous values in stack */
+    if (sk->data.name == NULL) {
+        sk->data.name = name;
+        sk->num += 1;
+        return WOLFSSL_SUCCESS;
+    }
+
+    /* stack already has value(s) create a new node and add more */
+    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
+        DYNAMIC_TYPE_OPENSSL);
+    if (node == NULL) {
+        WOLFSSL_MSG("Memory error");
+        return WOLFSSL_FAILURE;
+    }
+    XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
+
+    /* push new obj onto head of stack */
+    node->data.name = sk->data.name;
+    node->next      = sk->next;
+    sk->type        = STACK_TYPE_X509_NAME;
+    sk->next        = node;
+    sk->data.name   = name;
+    sk->num        += 1;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* return index of found, or negative to indicate not found */
+int wolfSSL_sk_X509_NAME_find(const WOLF_STACK_OF(WOLFSSL_X509_NAME) *sk,
+    WOLFSSL_X509_NAME *name)
+{
+    int i;
+
+    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_find");
+
+    if (sk == NULL)
+        return BAD_FUNC_ARG;
+
+    for (i = 0; sk; i++, sk = sk->next) {
+        if (wolfSSL_X509_NAME_cmp(sk->data.name, name) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+#endif /* OPENSSL_EXTRA || HAVE_STUNNEL || WOLFSSL_NGINX ||
+            HAVE_LIGHTY || WOLFSSL_HAPROXY ||
+            WOLFSSL_OPENSSH || HAVE_SBLIM_SFCB */
+
 /* Note: This is a huge section of API's - through
  *       wolfSSL_X509_OBJECT_get0_X509_CRL */
 #if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && \
@@ -45453,21 +45628,6 @@ int wolfSSL_sk_X509_INFO_push(WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk,
     return WOLFSSL_SUCCESS;
 }
 
-WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_sk_X509_NAME_new(wolf_sk_compare_cb cb)
-{
-    WOLFSSL_STACK* sk;
-
-    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_new");
-
-    sk = wolfSSL_sk_new_node(NULL);
-    if (sk != NULL) {
-        sk->type = STACK_TYPE_X509_NAME;
-        sk->comp = cb;
-    }
-
-    return sk;
-}
-
 /* Creates a duplicate of WOLF_STACK_OF(WOLFSSL_X509_NAME).
  * Returns a new WOLF_STACK_OF(WOLFSSL_X509_NAME) or NULL on failure */
 WOLF_STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list(
@@ -45480,7 +45640,7 @@ WOLF_STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list(
 
     WOLFSSL_ENTER("wolfSSL_dup_CA_list");
 
-    copy = wolfSSL_sk_X509_NAME_new(NULL);
+    copy = wolfSSL_sk_X509_NAME_new(sk->comp);
     if (copy == NULL) {
         WOLFSSL_MSG("Memory error");
         return NULL;
@@ -45496,63 +45656,6 @@ WOLF_STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list(
     }
 
     return copy;
-}
-
-int wolfSSL_sk_X509_NAME_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
-    WOLFSSL_X509_NAME* name)
-{
-    WOLFSSL_STACK* node;
-
-    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_push");
-
-    if (sk == NULL || name == NULL) {
-        return WOLFSSL_FAILURE;
-    }
-
-    /* no previous values in stack */
-    if (sk->data.name == NULL) {
-        sk->data.name = name;
-        sk->num += 1;
-        return WOLFSSL_SUCCESS;
-    }
-
-    /* stack already has value(s) create a new node and add more */
-    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
-        DYNAMIC_TYPE_OPENSSL);
-    if (node == NULL) {
-        WOLFSSL_MSG("Memory error");
-        return WOLFSSL_FAILURE;
-    }
-    XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
-
-    /* push new obj onto head of stack */
-    node->data.name = sk->data.name;
-    node->next      = sk->next;
-    sk->type        = STACK_TYPE_X509_NAME;
-    sk->next        = node;
-    sk->data.name   = name;
-    sk->num        += 1;
-
-    return WOLFSSL_SUCCESS;
-}
-
-/* return index of found, or negative to indicate not found */
-int wolfSSL_sk_X509_NAME_find(const WOLF_STACK_OF(WOLFSSL_X509_NAME) *sk,
-    WOLFSSL_X509_NAME *name)
-{
-    int i;
-
-    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_find");
-
-    if (sk == NULL)
-        return BAD_FUNC_ARG;
-
-    for (i = 0; sk; i++, sk = sk->next) {
-        if (wolfSSL_X509_NAME_cmp(sk->data.name, name) == 0) {
-            return i;
-        }
-    }
-    return -1;
 }
 
 void* wolfSSL_sk_X509_OBJECT_value(WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* sk, int i)
@@ -45588,121 +45691,6 @@ int wolfSSL_sk_X509_NAME_set_cmp_func(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
     return 0;
 }
 #endif /* OPENSSL_ALL */
-
-int wolfSSL_sk_X509_NAME_num(const WOLF_STACK_OF(WOLFSSL_X509_NAME) *sk)
-{
-    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_num");
-
-    if (sk == NULL)
-        return BAD_FUNC_ARG;
-
-    return (int)sk->num;
-}
-
-/* Getter function for WOLFSSL_X509_NAME pointer
- *
- * sk is the stack to retrieve pointer from
- * i  is the index value in stack
- *
- * returns a pointer to a WOLFSSL_X509_NAME structure on success and NULL on
- *         fail
- */
-WOLFSSL_X509_NAME* wolfSSL_sk_X509_NAME_value(const STACK_OF(WOLFSSL_X509_NAME)* sk,
-    int i)
-{
-    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_value");
-
-    for (; sk != NULL && i > 0; i--) {
-        sk = sk->next;
-    }
-
-    if (i != 0 || sk == NULL)
-        return NULL;
-
-    return sk->data.name;
-}
-
-WOLFSSL_X509_NAME* wolfSSL_sk_X509_NAME_pop(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
-{
-    WOLFSSL_STACK* node;
-    WOLFSSL_X509_NAME* name;
-
-    if (sk == NULL) {
-        return NULL;
-    }
-
-    node = sk->next;
-    name = sk->data.name;
-
-    if (node != NULL) { /* update sk and remove node from stack */
-        sk->data.name = node->data.name;
-        sk->next = node->next;
-        XFREE(node, NULL, DYNAMIC_TYPE_OPENSSL);
-    }
-    else { /* last x509 in stack */
-        sk->data.name = NULL;
-    }
-
-    if (sk->num > 0) {
-        sk->num -= 1;
-    }
-
-    return name;
-}
-
-void wolfSSL_sk_X509_NAME_pop_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
-    void (*f) (WOLFSSL_X509_NAME*))
-{
-    WOLFSSL_STACK* node;
-    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_pop_free");
-
-    if (sk == NULL)
-        return;
-
-    node = sk->next;
-    while (node && sk->num > 1) {
-        WOLFSSL_STACK* tmp = node;
-        node = node->next;
-        if (f)
-            f(tmp->data.name);
-        else
-            wolfSSL_X509_NAME_free(tmp->data.name);
-        tmp->data.name = NULL;
-        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
-        sk->num -= 1;
-    }
-
-    /* free head of stack */
-    if (sk->num == 1) {
-        if (f)
-            f(sk->data.name);
-        else
-            wolfSSL_X509_NAME_free(sk->data.name);
-        sk->data.name = NULL;
-    }
-
-    XFREE(sk, sk->heap, DYNAMIC_TYPE_OPENSSL);
-}
-
-/* Free only the sk structure, NOT X509_NAME members */
-void wolfSSL_sk_X509_NAME_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
-{
-    WOLFSSL_STACK* node;
-    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_free");
-
-    if (sk == NULL)
-        return;
-
-    node = sk->next;
-    while (sk->num > 1) {
-        WOLFSSL_STACK* tmp = node;
-        node = node->next;
-        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
-        sk->num -= 1;
-    }
-
-    XFREE(sk, sk->heap, DYNAMIC_TYPE_OPENSSL);
-}
 
 #ifndef NO_BIO
 
@@ -58174,7 +58162,8 @@ int wolfSSL_X509_STORE_CTX_get1_issuer(WOLFSSL_X509 **issuer,
  * START OF X509_STORE APIs
  ******************************************************************************/
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+    defined(WOLFSSL_WPAS_SMALL)
 WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
 {
     WOLFSSL_X509_STORE* store = NULL;
@@ -58367,7 +58356,7 @@ int wolfSSL_X509_STORE_set_ex_data_with_cleanup(
 
 #endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
 
-#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+#endif /* OPENSSL_EXTRA || HAVE_WEBSERVER || WOLFSSL_WPAS_SMALL */
 
 #ifdef OPENSSL_EXTRA
 

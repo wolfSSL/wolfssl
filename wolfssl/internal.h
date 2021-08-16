@@ -4508,6 +4508,9 @@ struct WOLFSSL {
     byte clientFinished[TLS_FINISHED_SZ];
     byte serverFinished[TLS_FINISHED_SZ];
 #endif
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* ca_names;
+#endif
 };
 
 /*
@@ -4523,6 +4526,9 @@ struct WOLFSSL {
 #else
 #define SSL_CM(ssl) ssl->ctx->cm
 #endif
+
+#define SSL_CA_NAMES(ssl) (ssl->ca_names != NULL ? ssl->ca_names : \
+        ssl->ctx->ca_names)
 
 WOLFSSL_LOCAL int  SSL_CTX_RefCount(WOLFSSL_CTX* ctx, int incr);
 WOLFSSL_LOCAL int  SetSSL_CTX(WOLFSSL*, WOLFSSL_CTX*, int);
