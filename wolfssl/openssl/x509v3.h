@@ -121,6 +121,7 @@ WOLFSSL_API int wolfSSL_X509V3_EXT_add_nconf(WOLFSSL_CONF *conf, WOLFSSL_X509V3_
 #define X509V3_set_ctx            wolfSSL_X509V3_set_ctx
 #ifndef NO_WOLFSSL_STUB
 #define X509V3_set_nconf(...)
+#define X509V3_EXT_cleanup(...)
 #endif
 #define X509V3_set_ctx_test(ctx)  wolfSSL_X509V3_set_ctx(ctx, NULL, NULL, NULL, NULL, CTX_TEST)
 #define X509V3_set_ctx_nodb       wolfSSL_X509V3_set_ctx_nodb

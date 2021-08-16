@@ -1473,6 +1473,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #ifndef NO_WOLFSSL_STUB
 #define OBJ_create_objects(...)
+#define sk_SSL_COMP_free(...)
 #endif
 
 #define SSL_set_psk_use_session_callback    wolfSSL_set_psk_use_session_callback
