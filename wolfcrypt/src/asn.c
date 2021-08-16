@@ -17262,9 +17262,7 @@ int wc_Ed25519KeyToDer(ed25519_key* key, byte* output, word32 inLen)
     return wc_BuildEd25519KeyDer(key, output, inLen, 1);
 }
 
-
-
-/* Write only private ecc key to DER format,
+/* Write only private Ed25519 key to DER format,
  * length on success else < 0 */
 int wc_Ed25519PrivateKeyToDer(ed25519_key* key, byte* output, word32 inLen)
 {
