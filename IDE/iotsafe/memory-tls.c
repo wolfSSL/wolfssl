@@ -77,9 +77,21 @@
  * activates mutual authentication */
 #define CLIENT_AUTH
 
-
 #define CLIENT_IOTSAFE
 #define CA_ECC
+
+
+static int client_state = 0;
+static int server_state = 0;
+
+static uint8_t cert_buffer[2048];
+static uint32_t cert_buffer_size;
+
+static WOLFSSL_CTX* srv_ctx = NULL;
+static WOLFSSL* srv_ssl = NULL;
+static WOLFSSL_CTX *cli_ctx = NULL;
+static WOLFSSL *cli_ssl = NULL;
+
 
 /* client messages to server in memory */
 #define TLS_BUFFERS_SZ (1024 * 8)
@@ -89,18 +101,20 @@ static int server_write_idx;
 static int server_read_idx;
 
 /* server messages to client in memory */
-unsigned char to_client[TLS_BUFFERS_SZ];
-int client_bytes;
-int client_write_idx;
-int client_read_idx;
+static unsigned char to_client[TLS_BUFFERS_SZ];
+static int client_bytes;
+static int client_write_idx;
+static int client_read_idx;
+
 
 /* server send callback */
 int ServerSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
-    if (client_write_idx + sz > TLS_BUFFERS_SZ)
-        return -SSL_ERROR_WANT_WRITE;
+    if (client_write_idx + sz > TLS_BUFFERS_SZ) {
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+    }
     printf("=== Srv-Cli: %d\n", sz);
-    memcpy(&to_client[client_write_idx], buf, sz);
+    XMEMCPY(&to_client[client_write_idx], buf, sz);
     client_write_idx += sz;
     client_bytes += sz;
     return sz;
@@ -110,10 +124,10 @@ int ServerSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 /* server recv callback */
 int ServerRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
-
-    if (server_bytes - server_read_idx < sz)
-        return -SSL_ERROR_WANT_READ;
-    memcpy(buf, &to_server[server_read_idx], sz);
+    if (server_bytes - server_read_idx < sz) {
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+    }
+    XMEMCPY(buf, &to_server[server_read_idx], sz);
     server_read_idx += sz;
 
     if (server_read_idx == server_write_idx) {
@@ -129,10 +143,10 @@ int ServerRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 int ClientSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
     if (server_write_idx + sz > TLS_BUFFERS_SZ)
-        return -SSL_ERROR_WANT_WRITE;
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
 
     printf("=== Cli->Srv: %d\n", sz);
-    memcpy(&to_server[server_write_idx], buf, sz);
+    XMEMCPY(&to_server[server_write_idx], buf, sz);
     server_write_idx += sz;
     server_bytes += sz;
 
@@ -143,11 +157,11 @@ int ClientSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 /* client recv callback */
 int ClientRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
+    if (client_bytes - client_read_idx < sz) {
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+    }
 
-    if (client_bytes - client_read_idx < sz)
-        return -SSL_ERROR_WANT_READ;
-
-    memcpy(buf, &to_client[client_read_idx], sz);
+    XMEMCPY(buf, &to_client[client_read_idx], sz);
     client_read_idx += sz;
 
     if (client_read_idx == client_write_idx) {
@@ -158,28 +172,23 @@ int ClientRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
     return sz;
 }
 
-static int client_state = 0;
-static int server_state = 0;
-
-static uint8_t cert_buffer[2048];
-static uint32_t cert_buffer_size;
-
-
 /* wolfSSL Client loop */
 static int client_loop(void)
 {
     /* set up client */
     int ret;
-    static WOLFSSL_CTX *cli_ctx = NULL;
-    static WOLFSSL *cli_ssl = NULL;
-
+    const char* helloStr = "hello iot-safe wolfSSL";
 
     printf("=== CLIENT step %d ===\n", client_state);
     if (client_state == 0) {
         printf("Client: Creating new CTX\n");
+    #ifdef WOLFSSL_TLS13
+        cli_ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+    #else
         cli_ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    #endif
         if (cli_ctx == NULL) {
-            printf("bad client ctx new");
+            printf("Bad client ctx new");
             return 0;
         }
         printf("Client: Enabling IoT Safe in CTX\n");
@@ -187,38 +196,39 @@ static int client_loop(void)
 
         printf("Loading CA\n");
         ret = wolfSSL_CTX_load_verify_buffer(cli_ctx, ca_ecc_cert_der_256,
-                sizeof_ca_ecc_cert_der_256, SSL_FILETYPE_ASN1);
-        if (ret != SSL_SUCCESS) {
+                sizeof_ca_ecc_cert_der_256, WOLFSSL_FILETYPE_ASN1);
+        if (ret != WOLFSSL_SUCCESS) {
             printf("Bad CA\n");
             return -1;
         }
 
-        cert_buffer_size = wolfIoTSafe_GetCert(CRT_SERVER_FILE_ID, cert_buffer, 2048);
+        cert_buffer_size = wolfIoTSafe_GetCert(CRT_SERVER_FILE_ID, cert_buffer,
+            sizeof(cert_buffer));
         if (cert_buffer_size < 1) {
             printf("Bad server cert\n");
             return -1;
         }
         printf("Loaded Server certificate from IoT-Safe, size = %lu\n",
                 cert_buffer_size);
-        WOLFSSL_BUFFER(cert_buffer, cert_buffer_size);
         if (wolfSSL_CTX_load_verify_buffer(cli_ctx, cert_buffer, cert_buffer_size,
-                    SSL_FILETYPE_ASN1) != SSL_SUCCESS) {
+                    WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
             printf("Cannot load server cert\n");
             return -1;
         }
         printf("Server certificate successfully imported.\n");
-        wolfSSL_CTX_set_verify(cli_ctx, SSL_VERIFY_PEER, 0);
+        wolfSSL_CTX_set_verify(cli_ctx, WOLFSSL_VERIFY_PEER, NULL);
 
 #ifdef CLIENT_AUTH
-        cert_buffer_size = wolfIoTSafe_GetCert(CRT_CLIENT_FILE_ID, cert_buffer, 2048);
+        cert_buffer_size = wolfIoTSafe_GetCert(CRT_CLIENT_FILE_ID, cert_buffer,
+            sizeof(cert_buffer));
         if (cert_buffer_size < 1) {
-            printf("Bad cli cert\n");
+            printf("Bad client cert\n");
             return -1;
         }
-        printf("Loaded Client certificate from IoT-Safe, size = %lu\n", cert_buffer_size);
-        WOLFSSL_BUFFER(cert_buffer, cert_buffer_size);
+        printf("Loaded Client certificate from IoT-Safe, size = %lu\n",
+            cert_buffer_size);
         if (wolfSSL_CTX_use_certificate_buffer(cli_ctx, cert_buffer,
-                    cert_buffer_size, SSL_FILETYPE_ASN1) != SSL_SUCCESS) {
+                  cert_buffer_size, WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
             printf("Cannot load client cert\n");
             return -1;
         }
@@ -226,135 +236,140 @@ static int client_loop(void)
 #endif
 
         /* Setting IO Send/Receive functions to local memory-based message
-         * passing (ClientSend, ClientRecv)
-         */
-        wolfSSL_SetIOSend(cli_ctx, ClientSend);
-        wolfSSL_SetIORecv(cli_ctx, ClientRecv);
+         * passing (ClientSend, ClientRecv) */
+        wolfSSL_CTX_SetIOSend(cli_ctx, ClientSend);
+        wolfSSL_CTX_SetIORecv(cli_ctx, ClientRecv);
 
-        printf("Creating new SSL\n");
+        printf("Creating new SSL object\n");
         cli_ssl = wolfSSL_new(cli_ctx);
         if (cli_ssl == NULL)  {
             printf("bad client new");
             return 0;
         }
-        printf("Setting SSL options: non blocking\n");
-        wolfSSL_set_using_nonblock(cli_ssl, 1);
-        printf("Setting SSL options: turn on IoT-safe for this socket\n");
-        wolfSSL_iotsafe_on(cli_ssl, PRIVKEY_ID, ECDH_KEYPAIR_ID, PEER_PUBKEY_ID,
-                PEER_CERT_ID);
+
+        printf("Setting TLS options: turn on IoT-safe for this socket\n");
+        wolfSSL_iotsafe_on(cli_ssl, PRIVKEY_ID, ECDH_KEYPAIR_ID,
+            PEER_PUBKEY_ID, PEER_CERT_ID);
+
+    #ifdef WOLFSSL_TLS13
+        printf("Setting TLSv1.3 for SECP256R1 key share\n");
+        wolfSSL_UseKeyShare(cli_ssl, WOLFSSL_ECC_SECP256R1);
+    #endif
+
         client_state++;
     }
 
     if (client_state == 1) {
-        int err;
         printf("Connecting to server...\n");
         ret = wolfSSL_connect(cli_ssl);
-        if (ret != SSL_SUCCESS) {
-            if (wolfSSL_want_read(cli_ssl))
+        if (ret != WOLFSSL_SUCCESS) {
+            if (wolfSSL_want_read(cli_ssl) || wolfSSL_want_write(cli_ssl)) {
                 return 0;
-            printf("error in client tls connect: %d\n", wolfSSL_get_error(cli_ssl, ret));
+            }
+            printf("Error in client tls connect: %d\n",
+                wolfSSL_get_error(cli_ssl, ret));
             client_state = 0;
-            wolfSSL_free(cli_ssl);
-            wolfSSL_CTX_free(cli_ctx);
-            cli_ssl = NULL;
-            cli_ctx = NULL;
             return -1;
         }
-        printf("Client connected! Sending hello message...\n");
+        printf("Client connected!\n");
         client_state++;
     }
 
-    ret = wolfSSL_write(cli_ssl, "hello iot-safe wolfSSL",22);
-    if (ret >= 0) {
-        printf("wolfSSL client success!\n");
-    } else if (wolfSSL_get_error(cli_ssl, ret) != SSL_ERROR_WANT_WRITE) {
-        printf("error in client tls write");
-        client_state = 0;
-        wolfSSL_free(cli_ssl);
-        wolfSSL_CTX_free(cli_ctx);
-        cli_ssl = NULL;
-        cli_ctx = NULL;
-        return -1;
-    }
-    /* clean up */
-    wolfSSL_free(cli_ssl);
-    wolfSSL_CTX_free(cli_ctx);
-    return 1;
-}
+    if (client_state == 2) {
+        printf("Sending message: %s\n", helloStr);
+        ret = wolfSSL_write(cli_ssl, helloStr, XSTRLEN(helloStr));
+        if (ret >= 0) {
+            printf("wolfSSL client test success!\n");
 
-uint8_t srv_cert[1260];
-uint32_t srv_cert_size;
+            wolfSSL_free(cli_ssl); cli_ssl = NULL;
+            wolfSSL_CTX_free(cli_ctx); cli_ctx = NULL;
+            client_state = 0;
+        }
+        else if (wolfSSL_get_error(cli_ssl, ret) != WOLFSSL_ERROR_WANT_WRITE) {
+            printf("Error in client tls write");
+            client_state = 0;
+            return -1;
+        }
+    }
+
+    return ret;
+}
 
 /* wolfSSL Server Loop */
 static int server_loop(void)
 {
-    static WOLFSSL_CTX* srv_ctx = NULL;
-    static WOLFSSL* srv_ssl = NULL;
-    unsigned char buf[80];
     int ret;
+    unsigned char buf[80];
+
     printf("=== SERVER step %d ===\n", server_state);
 
     if (server_state == 0) {
+    #ifdef WOLFSSL_TLS13
+        srv_ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
+    #else
         srv_ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
+    #endif
         if (srv_ctx == NULL) {
             printf("bad server ctx new");
             return -1;
         }
 #ifdef CLIENT_AUTH
         ret = wolfSSL_CTX_load_verify_buffer(srv_ctx, ca_ecc_cert_der_256,
-                sizeof_ca_ecc_cert_der_256, SSL_FILETYPE_ASN1);
-        if (ret != SSL_SUCCESS) {
+            sizeof_ca_ecc_cert_der_256, WOLFSSL_FILETYPE_ASN1);
+        if (ret != WOLFSSL_SUCCESS) {
             printf("Bad CA load: %d\n", ret);
         }
         ret = wolfSSL_CTX_load_verify_buffer(srv_ctx, cliecc_cert_der_256,
-                sizeof_cliecc_cert_der_256, SSL_FILETYPE_ASN1);
-        if (ret != SSL_SUCCESS) {
+            sizeof_cliecc_cert_der_256, WOLFSSL_FILETYPE_ASN1);
+        if (ret != WOLFSSL_SUCCESS) {
             printf("Bad Client cert load: %d\n", ret);
         }
-        wolfSSL_CTX_set_verify(srv_ctx, SSL_VERIFY_PEER, 0);
+        wolfSSL_CTX_set_verify(srv_ctx, WOLFSSL_VERIFY_PEER, NULL);
 #endif
 
         if (wolfSSL_CTX_use_PrivateKey_buffer(srv_ctx, ecc_key_der_256,
-                    sizeof_ecc_key_der_256, SSL_FILETYPE_ASN1)
-                != SSL_SUCCESS) {
+            sizeof_ecc_key_der_256, WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
             printf("Cannot load server private key\n");
         }
         if (wolfSSL_CTX_use_certificate_buffer(srv_ctx, serv_ecc_der_256,
-                    sizeof_serv_ecc_der_256, SSL_FILETYPE_ASN1) != SSL_SUCCESS)
-        {
+           sizeof_serv_ecc_der_256, WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
             printf("Cannot load server cert\n");
         }
-        wolfSSL_SetIOSend(srv_ctx, ServerSend);
-        wolfSSL_SetIORecv(srv_ctx, ServerRecv);
+        wolfSSL_CTX_SetIOSend(srv_ctx, ServerSend);
+        wolfSSL_CTX_SetIORecv(srv_ctx, ServerRecv);
+
         srv_ssl = wolfSSL_new(srv_ctx);
         if (srv_ssl == NULL) {
             printf("bad server new");
             return -1;
         }
-        wolfSSL_set_using_nonblock(srv_ssl, 1);
+
+    #ifdef WOLFSSL_TLS13
+        printf("Setting TLSv1.3 for SECP256R1 key share\n");
+        wolfSSL_UseKeyShare(srv_ssl, WOLFSSL_ECC_SECP256R1);
+    #endif
         server_state++;
     }
 
     if (server_state == 1) {
         /* accept tls connection without tcp sockets */
         ret = wolfSSL_accept(srv_ssl);
-        if (ret != SSL_SUCCESS) {
-            if (wolfSSL_want_read(srv_ssl))
+        if (ret != WOLFSSL_SUCCESS) {
+            if (wolfSSL_want_read(srv_ssl) || wolfSSL_want_write(srv_ssl)) {
                 return 0;
-            printf("error in server tls accept");
+            }
+            printf("Error in server tls accept: %d\n",
+                wolfSSL_get_error(srv_ssl, ret));
             server_state = 0;
-            wolfSSL_free(srv_ssl);
-            wolfSSL_CTX_free(srv_ctx);
-            srv_ssl = NULL;
-            srv_ctx = NULL;
             return -1;
         }
         printf("wolfSSL accept success!\n");
         server_state++;
     }
+
     if (server_state == 2) {
         ret = wolfSSL_read(srv_ssl, buf, sizeof(buf)-1);
-        if (wolfSSL_get_error(srv_ssl, ret) == SSL_ERROR_WANT_READ) {
+        if (wolfSSL_get_error(srv_ssl, ret) == WOLFSSL_ERROR_WANT_READ) {
             return 0;
         }
         if (ret < 0) {
@@ -364,8 +379,14 @@ static int server_loop(void)
         if (ret > 0) {
             printf("++++++ Server received msg from client: '%s'\n", buf);
             printf("IoT-Safe TEST SUCCESSFUL\n");
+
+            wolfSSL_free(srv_ssl); srv_ssl = NULL;
+            wolfSSL_CTX_free(srv_ctx); srv_ctx = NULL;
+
+            server_state = 0;
         }
     }
+
     return 0;
 }
 
@@ -378,7 +399,13 @@ int memory_tls_test(void)
     do {
         ret_s = server_loop();
         ret_c = client_loop();
-
     } while ((ret_s >= 0) && (ret_c >= 0));
+
+    /* clean up */
+    wolfSSL_free(cli_ssl);
+    wolfSSL_CTX_free(cli_ctx);
+    wolfSSL_free(srv_ssl);
+    wolfSSL_CTX_free(srv_ctx);
+
     return 0;
 }

@@ -19,63 +19,70 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-/* Example 'user-settings.h' for IoT-Safe demo */
+/* Example 'user_settings.h' for IoT-Safe demo */
 
 #ifndef IOTSAFE_EXAMPLE_USER_SETTINGS_H
 #define IOTSAFE_EXAMPLE_USER_SETTINGS_H
+
 #include <stdint.h>
 
+/* Platform */
 #define WOLFSSL_IOTSAFE
-#define HAVE_IOTSAFE_HWRNG
-#define HAVE_HASHDRBG
 #define WOLFSSL_SMALL_STACK
-
 #define WOLFSSL_GENERAL_ALIGNMENT 4
-#define DEBUG_WOLFSSL
-#define WOLFSSL_LOG_PRINTF
-#define DEBUG_WOLFSSL_VERBOSE
 #define SINGLE_THREADED
 #define WOLFSSL_USER_IO
 
-#define TIME_OVERRIDES
+/* Debugging */
+#define WOLFSSL_LOG_PRINTF
+#if 0
+    #define DEBUG_WOLFSSL
+    #define WOLFSSL_DEBUG_TLS
+    #define DEBUG_IOTSAFE
+#endif
 
+/* Features */
+#define HAVE_PK_CALLBACKS /* Connect IoT-safe with PK_CALLBACKS */
+#define SMALL_SESSION_CACHE
+#define USE_CERT_BUFFERS_256
+
+/* RNG */
+#define HAVE_IOTSAFE_HWRNG
+#define HAVE_HASHDRBG
+#define NO_OLD_RNGNAME
+
+/* Time porting */
+#define TIME_OVERRIDES
 extern volatile unsigned long jiffies;
 static inline long XTIME(long *x) { return jiffies;}
-#define NO_ASN_TIME
 #define WOLFSSL_USER_CURRTIME
-#define NO_OLD_RNGNAME
-#define SMALL_SESSION_CACHE
-#define WOLFSSL_SMALL_STACK
-#define TFM_ARM
+#define NO_ASN_TIME
+
+/* Math */
 #define TFM_TIMING_RESISTANT
-#define ECC_TIMING_RESISTANT
-
-
-/* Connect IoT-safe with PK_CALLBACKS */
-#define HAVE_PK_CALLBACKS
-
-/* ECC definitions */
-#   define HAVE_ECC
-#   define ECC_ALT_SIZE
-#   define WOLFSSL_HAVE_SP_ECC
-#   define USE_CERT_BUFFERS_256
-
-/* SP math */
+#define TFM_ARM
 #define WOLFSSL_SP_MATH
 #define WOLFSSL_SP_MATH_ALL
 #define WOLFSSL_SP_SMALL
 #define WOLFSSL_HAVE_SP_DH
+#define WOLFSSL_HAVE_SP_ECC
 #define SP_WORD_SIZE 32
+
+/* ECC */
+#define HAVE_ECC
+#define ECC_ALT_SIZE
+#define ECC_TIMING_RESISTANT
 
 /* RSA */
 #define RSA_LOW_MEM
 #define WC_RSA_BLINDING
+#define WC_RSA_PSS
 
+/* DH - on by default */
 #define WOLFSSL_DH_CONST
+#define HAVE_FFDHE_2048
 
-/* TLS settings */
-#define NO_OLD_TLS
-#define HAVE_TLS_EXTENSIONS
+/* AES */
 #define HAVE_AES_DECRYPT
 #define HAVE_AESGCM
 #define GCM_SMALL
@@ -83,25 +90,44 @@ static inline long XTIME(long *x) { return jiffies;}
 #define WOLFSSL_AES_COUNTER
 #define WOLFSSL_AES_DIRECT
 
-/* TLS 1.3 */
-#define WOLFSSL_TLS13
-#define HAVE_SUPPORTED_CURVES
-#define HAVE_HKDF
-#define HAVE_AEAD
-#define WC_RSA_PSS
-#define HAVE_FFDHE_2048
+/* Hashing */
 #define HAVE_SHA384
 #define HAVE_SHA512
+#define HAVE_HKDF
+
+/* TLS */
+#if 0
+    /* TLS v1.3 only */
+    #define WOLFSSL_TLS13
+    #define WOLFSSL_NO_TLS12
+#else
+    /* TLS v1.2 only */
+#endif
+#define NO_OLD_TLS
+#define HAVE_TLS_EXTENSIONS
+#define HAVE_SUPPORTED_CURVES
+
+/* Disable Features */
 #define NO_WRITEV
 #define NO_FILESYSTEM
 #define NO_MAIN_DRIVER
+//#define NO_ERROR_STRINGS
 
-#define NO_RC4
+/* Disable Algorithms */
 #define NO_DES3
+#define NO_DSA
+#define NO_RC4
+#define NO_MD4
+#define NO_MD5
+#define NO_SHA
+#define NO_HC128
+#define NO_RABBIT
+#define NO_PKCS12
 
+/* helpers */
 #define htons(x) __builtin_bswap16(x)
 #define ntohs(x) __builtin_bswap16(x)
 #define ntohl(x) __builtin_bswap32(x)
 #define htonl(x) __builtin_bswap32(x)
 
-#endif /* IOTSAFE_EXAMPLE_USER_SETTINGS_H */
+#endif /* !IOTSAFE_EXAMPLE_USER_SETTINGS_H */

@@ -16,7 +16,7 @@ WOLFSSL_BUILD=build/wolfssl
 
 OBJCOPY:=$(CROSS_COMPILE)objcopy
 
-CFLAGS:=-mthumb -g -ggdb -Wall -Wno-main -Wstack-usage=65535 -Wno-unused -I$(WOLFSSL_ROOT) -I.
+CFLAGS:=-mthumb -g -ggdb -Wall -Wextra -Wno-main -fsigned-char -Wstack-usage=65535 -Wno-unused -I$(WOLFSSL_ROOT) -I.
 CFLAGS+=-lc -lg -lm -Wno-pointer-sign 
 #CFLAGS+=-mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -lm
 CFLAGS+=-mcpu=cortex-m3
@@ -26,6 +26,7 @@ LDFLAGS:=-T $(LSCRIPT) -Wl,-gc-sections -Wl,-Map=image.map -mthumb  -mthumb-inte
 #LDFLAGS+=-mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -lm
 LDFLAGS+=-mcpu=cortex-m3
 LDFLAGS+=-lc -lg -lm
+LDFLAGS+=--specs=nosys.specs
 
 
 OBJS:=main.o startup.o devices.o memory-tls.o
