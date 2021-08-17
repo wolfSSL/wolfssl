@@ -17183,14 +17183,14 @@ static int generate_random_salt(byte *buf, word32 size)
     return ret;
 }
 
-WOLFSSL_TEST_SUBROUTINE int srp_test(void)
+static int srp_test_digest(int dgstType)
 {
     int r;
 
-    byte clientPubKey[80]; /* A */
-    byte serverPubKey[80]; /* B */
-    word32 clientPubKeySz = 80;
-    word32 serverPubKeySz = 80;
+    byte clientPubKey[128]; /* A */
+    byte serverPubKey[128]; /* B */
+    word32 clientPubKeySz = 128;
+    word32 serverPubKeySz = 128;
 
     byte username[] = "user";
     word32 usernameSz = 4;
@@ -17199,13 +17199,22 @@ WOLFSSL_TEST_SUBROUTINE int srp_test(void)
     word32 passwordSz = 8;
 
     WOLFSSL_SMALL_STACK_STATIC const byte N[] = {
-        0xC9, 0x4D, 0x67, 0xEB, 0x5B, 0x1A, 0x23, 0x46, 0xE8, 0xAB, 0x42, 0x2F,
-        0xC6, 0xA0, 0xED, 0xAE, 0xDA, 0x8C, 0x7F, 0x89, 0x4C, 0x9E, 0xEE, 0xC4,
-        0x2F, 0x9E, 0xD2, 0x50, 0xFD, 0x7F, 0x00, 0x46, 0xE5, 0xAF, 0x2C, 0xF7,
-        0x3D, 0x6B, 0x2F, 0xA2, 0x6B, 0xB0, 0x80, 0x33, 0xDA, 0x4D, 0xE3, 0x22,
-        0xE1, 0x44, 0xE7, 0xA8, 0xE9, 0xB1, 0x2A, 0x0E, 0x46, 0x37, 0xF6, 0x37,
-        0x1F, 0x34, 0xA2, 0x07, 0x1C, 0x4B, 0x38, 0x36, 0xCB, 0xEE, 0xAB, 0x15,
-        0x03, 0x44, 0x60, 0xFA, 0xA7, 0xAD, 0xF4, 0x83
+        0xEE, 0xAF, 0x0A, 0xB9, 0xAD, 0xB3, 0x8D, 0xD6,
+        0x9C, 0x33, 0xF8, 0x0A, 0xFA, 0x8F, 0xC5, 0xE8,
+        0x60, 0x72, 0x61, 0x87, 0x75, 0xFF, 0x3C, 0x0B,
+        0x9E, 0xA2, 0x31, 0x4C, 0x9C, 0x25, 0x65, 0x76,
+        0xD6, 0x74, 0xDF, 0x74, 0x96, 0xEA, 0x81, 0xD3,
+        0x38, 0x3B, 0x48, 0x13, 0xD6, 0x92, 0xC6, 0xE0,
+        0xE0, 0xD5, 0xD8, 0xE2, 0x50, 0xB9, 0x8B, 0xE4,
+        0x8E, 0x49, 0x5C, 0x1D, 0x60, 0x89, 0xDA, 0xD1,
+        0x5D, 0xC7, 0xD7, 0xB4, 0x61, 0x54, 0xD6, 0xB6,
+        0xCE, 0x8E, 0xF4, 0xAD, 0x69, 0xB1, 0x5D, 0x49,
+        0x82, 0x55, 0x9B, 0x29, 0x7B, 0xCF, 0x18, 0x85,
+        0xC5, 0x29, 0xF5, 0x66, 0x66, 0x0E, 0x57, 0xEC,
+        0x68, 0xED, 0xBC, 0x3C, 0x05, 0x72, 0x6C, 0xC0,
+        0x2F, 0xD4, 0xCB, 0xF4, 0x97, 0x6E, 0xAA, 0x9A,
+        0xFD, 0x51, 0x38, 0xFE, 0x83, 0x76, 0x43, 0x5B,
+        0x9F, 0xC6, 0x1D, 0x2F, 0xC0, 0xEB, 0x06, 0xE3
     };
 
     WOLFSSL_SMALL_STACK_STATIC const byte g[] = {
@@ -17214,7 +17223,7 @@ WOLFSSL_TEST_SUBROUTINE int srp_test(void)
 
     byte salt[10];
 
-    byte verifier[80];
+    byte verifier[128];
     word32 v_size = sizeof(verifier);
 
     word32 clientProofSz = SRP_MAX_DIGEST_SIZE;
@@ -17222,8 +17231,10 @@ WOLFSSL_TEST_SUBROUTINE int srp_test(void)
 #ifdef WOLFSSL_SMALL_STACK
     Srp *cli = (Srp *)XMALLOC(sizeof *cli, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     Srp *srv = (Srp *)XMALLOC(sizeof *srv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    byte *clientProof = (byte *)XMALLOC(SRP_MAX_DIGEST_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER); /* M1 */
-    byte *serverProof = (byte *)XMALLOC(SRP_MAX_DIGEST_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER); /* M2 */
+    byte *clientProof = (byte *)XMALLOC(SRP_MAX_DIGEST_SIZE, HEAP_HINT,
+                                        DYNAMIC_TYPE_TMP_BUFFER); /* M1 */
+    byte *serverProof = (byte *)XMALLOC(SRP_MAX_DIGEST_SIZE, HEAP_HINT,
+                                        DYNAMIC_TYPE_TMP_BUFFER); /* M2 */
 
     if ((cli == NULL) ||
         (srv == NULL) ||
@@ -17251,7 +17262,7 @@ WOLFSSL_TEST_SUBROUTINE int srp_test(void)
     /* client knows username and password.   */
     /* server knows N, g, salt and verifier. */
 
-    if (!r) r = wc_SrpInit(cli, SRP_TYPE_SHA, SRP_CLIENT_SIDE);
+    if (!r) r = wc_SrpInit(cli, dgstType, SRP_CLIENT_SIDE);
     if (!r) r = wc_SrpSetUsername(cli, username, usernameSz);
 
     /* loading N, g and salt in advance to generate the verifier. */
@@ -17264,7 +17275,7 @@ WOLFSSL_TEST_SUBROUTINE int srp_test(void)
 
     /* client sends username to server */
 
-    if (!r) r = wc_SrpInit(srv, SRP_TYPE_SHA, SRP_SERVER_SIDE);
+    if (!r) r = wc_SrpInit(srv, dgstType, SRP_SERVER_SIDE);
     if (!r) r = wc_SrpSetUsername(srv, username, usernameSz);
     if (!r) r = wc_SrpSetParams(srv, N,    sizeof(N),
                                       g,    sizeof(g),
@@ -17307,6 +17318,34 @@ WOLFSSL_TEST_SUBROUTINE int srp_test(void)
 #endif
 
     return r;
+}
+
+WOLFSSL_TEST_SUBROUTINE int srp_test(void)
+{
+    int ret;
+
+#ifndef NO_SHA
+    ret = srp_test_digest(SRP_TYPE_SHA);
+    if (ret != 0)
+        return ret;
+#endif
+#ifndef NO_SHA256
+    srp_test_digest(SRP_TYPE_SHA256);
+    if (ret != 0)
+        return ret;
+#endif
+#ifdef WOLFSSL_SHA384
+    srp_test_digest(SRP_TYPE_SHA384);
+    if (ret != 0)
+        return ret;
+#endif
+#ifdef WOLFSSL_SHA512
+    srp_test_digest(SRP_TYPE_SHA512);
+    if (ret != 0)
+        return ret;
+#endif
+
+    return ret;
 }
 
 #endif /* WOLFCRYPT_HAVE_SRP */
