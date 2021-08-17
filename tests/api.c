@@ -3733,9 +3733,8 @@ static int nonblocking_accept_read(void* args, WOLFSSL* ssl, SOCKET_T* sockfd)
 #endif /* WOLFSSL_SESSION_EXPORT */
 
 /* TODO: Expand and enable this when EVP_chacha20_poly1305 is supported */
-#if defined(HAVE_SESSION_TICKET) && \
-  defined(HAVE_AESGCM) && \
-    defined(OPENSSL_EXTRA)
+#if defined(HAVE_SESSION_TICKET) && defined(OPENSSL_EXTRA) && \
+    defined(HAVE_AES_CBC) 
 
     typedef struct openssl_key_ctx {
         byte name[WOLFSSL_TICKET_NAME_SZ]; /* server name */
@@ -3847,7 +3846,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 
 #if defined(HAVE_SESSION_TICKET) && \
     ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM))
-#if defined(OPENSSL_EXTRA) && defined(HAVE_AESGCM)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_AES_CBC)
     OpenSSLTicketInit();
     wolfSSL_CTX_set_tlsext_ticket_key_cb(ctx, myTicketEncCbOpenSSL);
 #elif defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
@@ -4039,7 +4038,7 @@ done:
 
 #if defined(HAVE_SESSION_TICKET) && \
     ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM))
-#if defined(OPENSSL_EXTRA) && defined(HAVE_AESGCM)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_AES_CBC)
     OpenSSLTicketCleanup();
 #elif defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
     TicketCleanup();
@@ -25535,7 +25534,8 @@ static void test_wc_PKCS7_VerifySignedData(void)
 } /* END test_wc_PKCS7_VerifySignedData() */
 
 
-#if defined(HAVE_PKCS7) && !defined(NO_AES) && !defined(NO_AES_256)
+#if defined(HAVE_PKCS7) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    !defined(NO_AES_256)
 static const byte defKey[] = {
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
@@ -25634,7 +25634,7 @@ static int myCEKwrapFunc(PKCS7* pkcs7, byte* cek, word32 cekSz, byte* keyId,
     (void)orginKeySz;
     return ret;
 }
-#endif /* HAVE_PKCS7 && !NO_AES && !NO_AES_256 */
+#endif /* HAVE_PKCS7 && !NO_AES && HAVE_AES_CBC && !NO_AES_256 */
 
 
 /*
@@ -25777,7 +25777,7 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
         {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, DES3b, 0, 0,
             rsaCert, rsaCertSz, rsaPrivKey, rsaPrivKeySz},
     #endif /* NO_DES3 */
-    #ifndef NO_AES
+    #if !defined(NO_AES) && defined(HAVE_AES_CBC)
         #ifndef NO_AES_128
         {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, AES128CBCb,
             0, 0, rsaCert, rsaCertSz, rsaPrivKey, rsaPrivKeySz},
@@ -25790,11 +25790,11 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
         {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, AES256CBCb,
             0, 0, rsaCert, rsaCertSz, rsaPrivKey, rsaPrivKeySz},
         #endif
-    #endif /* NO_AES */
+    #endif /* NO_AES && HAVE_AES_CBC */
 
 #endif /* NO_RSA */
 #if defined(HAVE_ECC)
-    #ifndef NO_AES
+    #if !defined(NO_AES) && defined(HAVE_AES_CBC)
         #if !defined(NO_SHA) && !defined(NO_AES_128)
             {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, AES128CBCb,
                 AES128_WRAP, dhSinglePass_stdDH_sha1kdf_scheme, eccCert,
@@ -25810,7 +25810,7 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
                 AES256_WRAP, dhSinglePass_stdDH_sha512kdf_scheme, eccCert,
                 eccCertSz, eccPrivKey, eccPrivKeySz},
         #endif
-    #endif /* NO_AES */
+    #endif /* NO_AES && HAVE_AES_CBC*/
 #endif /* END HAVE_ECC */
     }; /* END pkcs7EnvelopedVector */
 
@@ -25877,7 +25877,7 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
     AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output, 0, decoded,
         (word32)sizeof(decoded)), BAD_FUNC_ARG);
     /* Should get a return of BAD_FUNC_ARG with structure data. Order matters.*/
-#if defined(HAVE_ECC) && !defined(NO_AES)
+#if defined(HAVE_ECC) && !defined(NO_AES) && defined(HAVE_AES_CBC)
     /* only a failure for KARI test cases */
     tempWrd32 = pkcs7->singleCertSz;
     pkcs7->singleCertSz = 0;
@@ -25894,17 +25894,29 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
     tempWrd32 = pkcs7->privateKeySz;
     pkcs7->privateKeySz = 0;
     AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
-        (word32)sizeof(output), decoded, (word32)sizeof(decoded)), BAD_FUNC_ARG);
+        (word32)sizeof(output), decoded, (word32)sizeof(decoded)), 
+    #ifndef HAVE_AES_CBC
+        ASN_PARSE_E
+    #else
+        BAD_FUNC_ARG
+    #endif
+    );
     pkcs7->privateKeySz = tempWrd32;
 
     tmpBytePtr = pkcs7->privateKey;
     pkcs7->privateKey = NULL;
     AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
-        (word32)sizeof(output), decoded, (word32)sizeof(decoded)), BAD_FUNC_ARG);
+        (word32)sizeof(output), decoded, (word32)sizeof(decoded)), 
+    #ifndef HAVE_AES_CBC
+        ASN_PARSE_E
+    #else
+        BAD_FUNC_ARG
+    #endif
+    );
     pkcs7->privateKey = tmpBytePtr;
     wc_PKCS7_Free(pkcs7);
 
-#if !defined(NO_AES) && !defined(NO_AES_256)
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && !defined(NO_AES_256)
     /* test of decrypt callback with KEKRI enveloped data */
     {
         int envelopedSz;
@@ -26021,7 +26033,7 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
         };
     #endif
 
-    #ifndef NO_AES
+    #if !defined(NO_AES) && defined(HAVE_AES_CBC)
         #ifndef NO_AES_128
         byte aes128Key[] = {
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
@@ -26043,15 +26055,15 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
         };
         #endif
-    #endif
+    #endif /* !NO_AES && HAVE_AES_CBC */
     const pkcs7EncryptedVector testVectors[] =
     {
     #ifndef NO_DES3
         {data, (word32)sizeof(data), DATA, DES3b, des3Key, sizeof(des3Key)},
 
         {data, (word32)sizeof(data), DATA, DESb, desKey, sizeof(desKey)},
-    #endif /* NO_DES3 */
-    #ifndef NO_AES
+    #endif /* !NO_DES3 */
+    #if !defined(NO_AES) && defined(HAVE_AES_CBC)
         #ifndef NO_AES_128
         {data, (word32)sizeof(data), DATA, AES128CBCb, aes128Key,
          sizeof(aes128Key)},
@@ -26067,7 +26079,7 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
          sizeof(aes256Key)},
         #endif
 
-    #endif /* NO_AES */
+    #endif /* !NO_AES && HAVE_AES_CBC */
     };
 
     testSz = sizeof(testVectors) / sizeof(pkcs7EncryptedVector);
@@ -26088,7 +26100,7 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
                                                    sizeof(encrypted));
         AssertIntGT(encryptedSz, 0);
 
-       /* Decode encryptedData */
+        /* Decode encryptedData */
         decodedSz = wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, encryptedSz,
                                                     decoded, sizeof(decoded));
 
@@ -26477,11 +26489,13 @@ static void test_wc_PKCS7_BER(void)
 
 static void test_PKCS7_signed_enveloped(void)
 {
-#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) \
-    && !defined(NO_AES)
+#if defined(HAVE_PKCS7) && !defined(NO_RSA) && !defined(NO_AES) && \
+    !defined(NO_FILESYSTEM)
     XFILE  f;
     PKCS7* pkcs7;
+#ifdef HAVE_AES_CBC
     PKCS7* inner;
+#endif
     void*  pt;
     WC_RNG rng;
     unsigned char key[FOURK_BUF/2];
@@ -26493,8 +26507,10 @@ static void test_PKCS7_signed_enveloped(void)
 
     unsigned char sig[FOURK_BUF * 2];
     int sigSz = FOURK_BUF * 2;
+#ifdef HAVE_AES_CBC
     unsigned char decoded[FOURK_BUF];
     int decodedSz = FOURK_BUF;
+#endif
 
     printf(testingFmt, "PKCS7_signed_enveloped");
 
@@ -26525,6 +26541,7 @@ static void test_PKCS7_signed_enveloped(void)
     wc_PKCS7_Free(pkcs7);
     wc_FreeRng(&rng);
 
+#ifdef HAVE_AES_CBC
     /* create envelope */
     AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
@@ -26536,6 +26553,7 @@ static void test_PKCS7_signed_enveloped(void)
     pkcs7->privateKeySz = keySz;
     AssertIntGT((envSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, env, envSz)), 0);
     wc_PKCS7_Free(pkcs7);
+#endif
 
     /* create bad signed enveloped data */
     sigSz = FOURK_BUF * 2;
@@ -26614,6 +26632,7 @@ static void test_PKCS7_signed_enveloped(void)
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, sigSz), 0);
     AssertNotNull(pkcs7->content);
 
+#ifdef HAVE_AES_CBC
     /* check decode */
     AssertNotNull(inner = wc_PKCS7_New(NULL, 0));
     AssertIntEQ(wc_PKCS7_InitWithCert(inner, cert, certSz), 0);
@@ -26622,8 +26641,10 @@ static void test_PKCS7_signed_enveloped(void)
     AssertIntGT((decodedSz = wc_PKCS7_DecodeEnvelopedData(inner, pkcs7->content,
                    pkcs7->contentSz, decoded, decodedSz)), 0);
     wc_PKCS7_Free(inner);
+#endif
     wc_PKCS7_Free(pkcs7);
 
+#ifdef HAVE_AES_CBC
     /* check cert set */
     AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
@@ -26631,10 +26652,11 @@ static void test_PKCS7_signed_enveloped(void)
     AssertNotNull(pkcs7->singleCert);
     AssertIntNE(pkcs7->singleCertSz, 0);
     wc_PKCS7_Free(pkcs7);
+#endif
 
     printf(resultFmt, passed);
 
-#endif
+#endif /* HAVE_PKCS7 && !NO_RSA && !NO_AES */
 }
 static void test_wc_PKCS7_NoDefaultSignedAttribs (void)
 {
@@ -34156,7 +34178,8 @@ static void test_wolfSSL_PKCS8_d2i(void)
                                                                      file)), 0);
     XFCLOSE(file);
 #if defined(OPENSSL_ALL) && \
-    !defined(NO_BIO) && !defined(NO_PWDBASED) && defined(HAVE_PKCS8)
+    !defined(NO_BIO) && !defined(NO_PWDBASED) && defined(HAVE_PKCS8) && \
+    defined(HAVE_AES_CBC)
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
     /* Write PKCS#8 PEM to BIO. */
     AssertIntEQ(PEM_write_bio_PKCS8PrivateKey(bio, pkey, NULL, NULL, 0, NULL,
@@ -34174,7 +34197,7 @@ static void test_wolfSSL_PKCS8_d2i(void)
                                                             (void*)"yassl123"));
     EVP_PKEY_free(evpPkey);
     BIO_free(bio);
-#endif /* OPENSSL_ALL && !NO_BIO && !NO_PWDBASED && HAVE_PKCS8 */
+#endif /* OPENSSL_ALL && !NO_BIO && !NO_PWDBASED && HAVE_PKCS8 && HAVE_AES_CBC */
     EVP_PKEY_free(pkey);
 
     /* PKCS#8 encrypted EC key */
@@ -34580,9 +34603,8 @@ static void test_wolfSSL_HMAC(void)
 
 static void test_wolfSSL_CMAC(void)
 {
-#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CMAC)
-
-    int i = 0;
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CMAC) && defined(HAVE_AES_CBC)
+    int i;
     byte key[AES_128_KEY_SIZE];
     CMAC_CTX* cmacCtx = NULL;
     byte out[AES_BLOCK_SIZE];
@@ -34590,7 +34612,7 @@ static void test_wolfSSL_CMAC(void)
 
     printf(testingFmt, "test_wolfSSL_CMAC()");
 
-    for (; i < AES_128_KEY_SIZE; ++i) {
+    for (i=0; i < AES_128_KEY_SIZE; ++i) {
         key[i] = i;
     }
     AssertNotNull(cmacCtx = CMAC_CTX_new());
@@ -34606,7 +34628,7 @@ static void test_wolfSSL_CMAC(void)
     CMAC_CTX_free(cmacCtx);
 
     printf(resultFmt, passed);
-#endif /* OPENSSL_EXTRA && WOLFSSL_CMAC */
+#endif /* OPENSSL_EXTRA && WOLFSSL_CMAC && HAVE_AES_CBC */
 }
 
 

@@ -6707,7 +6707,7 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
     int ret;
 #ifndef NO_AES
 #ifdef WOLFSSL_SMALL_STACK
-    Aes  *aes;
+    Aes* aes;
 #else
     Aes  aes[1];
 #endif
@@ -6722,6 +6722,7 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
 
     switch (encryptOID) {
 #ifndef NO_AES
+    #ifdef HAVE_AES_CBC
     #ifdef WOLFSSL_AES_128
         case AES128CBCb:
     #endif
@@ -6760,6 +6761,7 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
             XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
             break;
+    #endif /* HAVE_AES_CBC */
     #ifdef HAVE_AESGCM
         #ifdef WOLFSSL_AES_128
         case AES128GCMb:
@@ -6828,7 +6830,7 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
             break;
         #endif
     #endif /* HAVE_AESCCM */
-#endif /* NO_AES */
+#endif /* !NO_AES */
 #ifndef NO_DES3
         case DESb:
             if (keySz != DES_KEYLEN || ivSz != DES_BLOCK_SIZE)
@@ -6852,7 +6854,7 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
                 wc_Des3Free(&des3);
             }
             break;
-#endif
+#endif /* !NO_DES3 */
         default:
             WOLFSSL_MSG("Unsupported content cipher type");
             return ALGO_ID_E;
@@ -6901,6 +6903,7 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
 
     switch (encryptOID) {
 #ifndef NO_AES
+    #ifdef HAVE_AES_CBC
     #ifdef WOLFSSL_AES_128
         case AES128CBCb:
     #endif
@@ -6938,6 +6941,7 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
             XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
             break;
+    #endif /* HAVE_AES_CBC */
     #ifdef HAVE_AESGCM
         #ifdef WOLFSSL_AES_128
         case AES128GCMb:
@@ -7006,7 +7010,7 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
             break;
         #endif
     #endif /* HAVE_AESCCM */
-#endif /* NO_AES */
+#endif /* !NO_AES */
 #ifndef NO_DES3
         case DESb:
             if (keySz != DES_KEYLEN || ivSz != DES_BLOCK_SIZE)
@@ -7030,7 +7034,7 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
             }
 
             break;
-#endif
+#endif /* !NO_DES3 */
         default:
             WOLFSSL_MSG("Unsupported content cipher type");
             return ALGO_ID_E;

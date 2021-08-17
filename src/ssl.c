@@ -33894,8 +33894,13 @@ int wolfSSL_CMAC_Init(WOLFSSL_CMAC_CTX* ctx, const void *key, size_t keyLen,
 
     WOLFSSL_ENTER("wolfSSL_CMAC_Init");
 
-    if (ctx == NULL || cipher == NULL || (cipher != EVP_AES_128_CBC &&
-        cipher != EVP_AES_192_CBC && cipher != EVP_AES_256_CBC)) {
+    if (ctx == NULL || cipher == NULL 
+    #ifdef HAVE_AES_CBC
+        || (cipher != EVP_AES_128_CBC && 
+            cipher != EVP_AES_192_CBC && 
+            cipher != EVP_AES_256_CBC)
+    #endif
+    ) {
         ret = WOLFSSL_FAILURE;
     }
 

@@ -271,7 +271,7 @@ int _InitHmac(Hmac* hmac, int type, void* heap)
 
     /* default to NULL heap hint or test value */
 #ifdef WOLFSSL_HEAP_TEST
-    hmac->heap = (void)WOLFSSL_HEAP_TEST;
+    hmac->heap = (void*)WOLFSSL_HEAP_TEST;
 #else
     hmac->heap = heap;
 #endif /* WOLFSSL_HEAP_TEST */

@@ -3053,7 +3053,7 @@ typedef struct AtomicDecCtx {
     Aes  aes;                /* for aes example */
 } AtomicDecCtx;
 
-
+#if !defined(NO_HMAC) && !defined(NO_AES) && defined(HAVE_AES_CBC)
 static WC_INLINE int myMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
        const unsigned char* macIn, unsigned int macInSz, int macContent,
        int macVerify, unsigned char* encOut, const unsigned char* encIn,
@@ -3123,7 +3123,6 @@ static WC_INLINE int myMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
     /* encrypt */
     return wc_AesCbcEncrypt(&encCtx->aes, encOut, encIn, encSz);
 }
-
 
 static WC_INLINE int myDecryptVerifyCb(WOLFSSL* ssl,
        unsigned char* decOut, const unsigned char* decIn,
@@ -3225,7 +3224,7 @@ static WC_INLINE int myDecryptVerifyCb(WOLFSSL* ssl,
     return ret;
 }
 
-#if defined(HAVE_ENCRYPT_THEN_MAC)
+#ifdef HAVE_ENCRYPT_THEN_MAC
 
 static WC_INLINE int myEncryptMacCb(WOLFSSL* ssl, unsigned char* macOut,
        int content, int macVerify, unsigned char* encOut,
@@ -3379,7 +3378,8 @@ static WC_INLINE int myVerifyDecryptCb(WOLFSSL* ssl,
     return 0;
 }
 
-#endif
+#endif /* HAVE_ENCRYPT_THEN_MAC */
+#endif /* !NO_HMAC && !NO_AES && HAVE_AES_CBC */
 
 
 static WC_INLINE void SetupAtomicUser(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
@@ -3399,18 +3399,23 @@ static WC_INLINE void SetupAtomicUser(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
     }
     XMEMSET(decCtx, 0, sizeof(AtomicDecCtx));
 
+#if !defined(NO_HMAC) && !defined(NO_AES) && defined(HAVE_AES_CBC)
     wolfSSL_CTX_SetMacEncryptCb(ctx, myMacEncryptCb);
     wolfSSL_SetMacEncryptCtx(ssl, encCtx);
 
     wolfSSL_CTX_SetDecryptVerifyCb(ctx, myDecryptVerifyCb);
     wolfSSL_SetDecryptVerifyCtx(ssl, decCtx);
 
-#if defined(HAVE_ENCRYPT_THEN_MAC)
+    #ifdef HAVE_ENCRYPT_THEN_MAC
     wolfSSL_CTX_SetEncryptMacCb(ctx, myEncryptMacCb);
     wolfSSL_SetEncryptMacCtx(ssl, encCtx);
 
     wolfSSL_CTX_SetVerifyDecryptCb(ctx, myVerifyDecryptCb);
     wolfSSL_SetVerifyDecryptCtx(ssl, decCtx);
+    #endif
+#else
+    (void)ctx;
+    (void)ssl;
 #endif
 }
 
