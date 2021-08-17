@@ -288,7 +288,7 @@ int wc_SrpInit_ex(Srp* srp, SrpType type, SrpSide side, void* heap, int devId)
 
     /* default heap hint to NULL or test value */
 #ifdef WOLFSSL_HEAP_TEST
-    srp->heap = (void)WOLFSSL_HEAP_TEST;
+    srp->heap = (void*)WOLFSSL_HEAP_TEST;
 #else
     srp->heap = heap;
 #endif /* WOLFSSL_HEAP_TEST */
