@@ -26098,6 +26098,10 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
             wc_PKCS7_Free(pkcs7);
         }
     }
+    if (pkcs7 == NULL || testSz == 0) {
+        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+        AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, devId), 0);
+    }
 
     printf(testingFmt, "wc_PKCS7_EncodeEncryptedData()");
     AssertIntEQ(wc_PKCS7_EncodeEncryptedData(NULL, encrypted,
