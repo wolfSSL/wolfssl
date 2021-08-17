@@ -25893,26 +25893,25 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
 #endif
     tempWrd32 = pkcs7->privateKeySz;
     pkcs7->privateKeySz = 0;
-    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
-        (word32)sizeof(output), decoded, (word32)sizeof(decoded)), 
-    #ifndef HAVE_AES_CBC
-        ASN_PARSE_E
-    #else
-        BAD_FUNC_ARG
-    #endif
-    );
+    
+    i = wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
+        (word32)sizeof(output), decoded, (word32)sizeof(decoded)); 
+#ifndef HAVE_AES_CBC
+    AssertIntEQ(i, ASN_PARSE_E);
+#else
+    AssertIntEQ(i, BAD_FUNC_ARG);
+#endif
     pkcs7->privateKeySz = tempWrd32;
 
     tmpBytePtr = pkcs7->privateKey;
     pkcs7->privateKey = NULL;
-    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
-        (word32)sizeof(output), decoded, (word32)sizeof(decoded)), 
-    #ifndef HAVE_AES_CBC
-        ASN_PARSE_E
-    #else
-        BAD_FUNC_ARG
-    #endif
-    );
+    i = wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
+        (word32)sizeof(output), decoded, (word32)sizeof(decoded));
+#ifndef HAVE_AES_CBC
+    AssertIntEQ(i, ASN_PARSE_E);
+#else
+    AssertIntEQ(i, BAD_FUNC_ARG);
+#endif
     pkcs7->privateKey = tmpBytePtr;
     wc_PKCS7_Free(pkcs7);
 
