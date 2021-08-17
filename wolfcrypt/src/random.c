@@ -173,6 +173,9 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #include <wolfssl/wolfcrypt/port/silabs/silabs_random.h>
 #endif
 
+#if defined(WOLFSSL_IOTSAFE) && defined(HAVE_IOTSAFE_HWRNG)
+#include <wolfssl/wolfcrypt/port/iotsafe/iotsafe.h>
+#endif
 
 #if defined(HAVE_INTEL_RDRAND) || defined(HAVE_INTEL_RDSEED)
     static word32 intel_flags = 0;

@@ -327,6 +327,10 @@ IDE/HEXIWEAR/wolfSSL_HW/Debug
 # Linux-SGX
 IDE/LINUX-SGX/*.a
 
+IDE/iotsafe/*.map
+IDE/iotsafe/*.elf
+IDE/iotsafe/*.bin
+
 # Binaries
 wolfcrypt/src/port/intel/qat_test
 /mplabx/wolfssl.X/dist/default/

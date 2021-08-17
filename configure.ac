@@ -6187,6 +6187,18 @@ yes) AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
    ;;
 esac
 
+# IoT-Safe support
+AC_ARG_ENABLE([iotsafe],
+    [AS_HELP_STRING([--enable-iotsafe],[Enables support for IoT-Safe secure applet (default: disabled)])],
+    [ ENABLED_IOTSAFE=$enableval ],
+    [ ENABLED_IOTSAFE=no ]
+    )
+
+AC_ARG_ENABLE([iotsafe-hwrng],
+    [AS_HELP_STRING([--enable-iotsafe-hwrng],[Enables support for IoT-Safe RNG (default: disabled)])],
+    [ ENABLED_IOTSAFE_HWRNG=$enableval ],
+    [ ENABLED_IOTSAFE_HWRNG=no ]
+    )
 
 # User Settings
 AC_ARG_ENABLE([usersettings],
@@ -6417,6 +6429,18 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESGCM_STREAM"
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AESGCM_STREAM"
     fi
+fi
+
+if test "$ENABLED_IOTSAFE" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_IOTSAFE"
+    ENABLED_IOTSAFE=yes
+fi
+
+if test "$ENABLED_IOTSAFE_HWRNG" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_IOTSAFE_HWRNG"
+    ENABLED_IOTSAFE_HWRNG=yes
 fi
 
 
@@ -6757,6 +6781,8 @@ AM_CONDITIONAL([BUILD_LINUXKM],[test "$ENABLED_LINUXKM" = "yes"])
 AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "$ENABLED_NO_LIBRARY" = "yes"])
 AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
 AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM" = "xqnx"])
+AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])
+AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
 
 if test "$ax_enable_debug" = "yes" ||
         test "$ENABLED_STACKSIZE" != "no" ||
@@ -7126,6 +7152,8 @@ echo "   * Linux AF_ALG:               $ENABLED_AFALG"
 echo "   * Linux devcrypto:            $ENABLED_DEVCRYPTO"
 echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
 echo "   * i.MX6 CAAM:                 $ENABLED_CAAM"
+echo "   * IoT-Safe:                   $ENABLED_IOTSAFE"
+echo "   * IoT-Safe HWRNG:             $ENABLED_IOTSAFE_HWRNG"
 echo ""
 echo "---"
 

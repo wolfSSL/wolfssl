@@ -32790,6 +32790,27 @@ int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment)
 
     return maxFragment;
 }
+
+#if defined(WOLFSSL_IOTSAFE) && defined(HAVE_PK_CALLBACKS)
+
+IOTSAFE *wolfSSL_get_iotsafe_ctx(WOLFSSL *ssl)
+{
+    if (ssl == NULL)
+        return NULL;
+    return &ssl->iotsafe;
+
+}
+
+int wolfSSL_set_iotsafe_ctx(WOLFSSL *ssl, IOTSAFE *iotsafe)
+{
+    if ((ssl == NULL) || (iotsafe == NULL))
+        return BAD_FUNC_ARG;
+    XMEMCPY(&ssl->iotsafe, iotsafe, sizeof(IOTSAFE));
+    return 0;
+}
+
+#endif
+
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
 /* create an instance of WOLFSSL_BY_DIR_HASH structure */
 WOLFSSL_BY_DIR_HASH* wolfSSL_BY_DIR_HASH_new(void)
