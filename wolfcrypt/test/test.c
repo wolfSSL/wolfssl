@@ -17331,17 +17331,17 @@ WOLFSSL_TEST_SUBROUTINE int srp_test(void)
         return ret;
 #endif
 #ifndef NO_SHA256
-    srp_test_digest(SRP_TYPE_SHA256);
+    ret = srp_test_digest(SRP_TYPE_SHA256);
     if (ret != 0)
         return ret;
 #endif
 #ifdef WOLFSSL_SHA384
-    srp_test_digest(SRP_TYPE_SHA384);
+    ret = srp_test_digest(SRP_TYPE_SHA384);
     if (ret != 0)
         return ret;
 #endif
 #ifdef WOLFSSL_SHA512
-    srp_test_digest(SRP_TYPE_SHA512);
+    ret = srp_test_digest(SRP_TYPE_SHA512);
     if (ret != 0)
         return ret;
 #endif
