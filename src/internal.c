@@ -15841,19 +15841,14 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
         int process = 0;
 
         if (ssl->options.side == WOLFSSL_SERVER_END) {
-            ssl->earlyDataSz += ssl->curSize;
             if ((ssl->earlyData != no_early_data) &&
                           (ssl->options.clientState == CLIENT_HELLO_COMPLETE)) {
                 process = 1;
             }
-            if (!process && (ssl->earlyDataSz <= ssl->options.maxEarlyDataSz)) {
+            if (!process) {
                 WOLFSSL_MSG("Ignoring EarlyData!");
                 *inOutIdx = ssl->buffers.inputBuffer.length;
                 return 0;
-            }
-            if (ssl->earlyDataSz > ssl->options.maxEarlyDataSz) {
-                WOLFSSL_MSG("Too much EarlyData!");
-                process = 0;
             }
         }
         if (!process) {
