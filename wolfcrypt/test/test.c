@@ -17262,7 +17262,7 @@ static int srp_test_digest(int dgstType)
     /* client knows username and password.   */
     /* server knows N, g, salt and verifier. */
 
-    if (!r) r = wc_SrpInit(cli, dgstType, SRP_CLIENT_SIDE);
+    if (!r) r = wc_SrpInit_ex(cli, dgstType, SRP_CLIENT_SIDE, HEAP_HINT, devId);
     if (!r) r = wc_SrpSetUsername(cli, username, usernameSz);
 
     /* loading N, g and salt in advance to generate the verifier. */
@@ -17275,7 +17275,7 @@ static int srp_test_digest(int dgstType)
 
     /* client sends username to server */
 
-    if (!r) r = wc_SrpInit(srv, dgstType, SRP_SERVER_SIDE);
+    if (!r) r = wc_SrpInit_ex(srv, dgstType, SRP_SERVER_SIDE, HEAP_HINT, devId);
     if (!r) r = wc_SrpSetUsername(srv, username, usernameSz);
     if (!r) r = wc_SrpSetParams(srv, N,    sizeof(N),
                                       g,    sizeof(g),
