@@ -37047,6 +37047,37 @@ WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_SIG_new(void)
     return sig;
 }
 
+void wolfSSL_ECDSA_SIG_get0(const WOLFSSL_ECDSA_SIG* sig,
+    const WOLFSSL_BIGNUM** r, const WOLFSSL_BIGNUM** s)
+{
+    if (sig == NULL) {
+        return;
+    }
+
+    if (r != NULL) {
+        *r = sig->r;
+    }
+    if (s != NULL) {
+        *s = sig->s;
+    }
+}
+
+int wolfSSL_ECDSA_SIG_set0(WOLFSSL_ECDSA_SIG* sig, WOLFSSL_BIGNUM* r,
+    WOLFSSL_BIGNUM* s)
+{
+    if (sig == NULL || r == NULL || s == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    wolfSSL_BN_free(sig->r);
+    wolfSSL_BN_free(sig->s);
+
+    sig->r = r;
+    sig->s = s;
+
+    return WOLFSSL_SUCCESS;
+}
+
 /* return signature structure on success, NULL otherwise */
 WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_do_sign(const unsigned char *d, int dlen,
                                          WOLFSSL_EC_KEY *key)
