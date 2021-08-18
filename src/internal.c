@@ -30672,7 +30672,7 @@ static int TicketEncCbCtx_Init(WOLFSSL_CTX* ctx, TicketEncCbCtx* keyCtx)
 
 /* Setup the session ticket encryption context for this.
  *
- * Initialize RNG, generate name, generate primeary key and set primary key
+ * Initialize RNG, generate name, generate primary key and set primary key
  * expirary.
  *
  * @param [in]  keyCtx  Context for session ticket encryption.

@@ -9577,7 +9577,7 @@ int wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz)
  *
  * ssl    The SSL/TLS object.
  * data   Early data to write
- * sz     The size of the eary data in bytes.
+ * sz     The size of the early data in bytes.
  * outSz  The number of early data bytes written.
  * returns BAD_FUNC_ARG when: ssl, data or outSz is NULL; sz is negative;
  * or not using TLS v1.3. SIDE ERROR when not a server. Otherwise the number of
