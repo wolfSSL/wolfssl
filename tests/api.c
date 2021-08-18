@@ -34876,6 +34876,33 @@ static void test_wolfSSL_OBJ_txt2obj(void)
 #endif
 }
 
+static void test_wolfSSL_i2t_ASN1_OBJECT(void)
+{
+#if defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
+
+    char buf[50] = {0};
+    ASN1_OBJECT* obj;
+    const char* oid = "2.5.29.19";
+    const char* ln  = "X509v3 Basic Constraints";
+
+    printf(testingFmt, "test_wolfSSL_i2t_ASN1_OBJECT()");
+
+    obj = NULL;
+    AssertIntEQ(i2t_ASN1_OBJECT(NULL, sizeof(buf), obj), WOLFSSL_FAILURE);
+    AssertIntEQ(i2t_ASN1_OBJECT(buf, sizeof(buf), NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(i2t_ASN1_OBJECT(buf, 0, NULL), WOLFSSL_FAILURE);
+
+    AssertNotNull(obj = OBJ_txt2obj(oid, 0));
+    XMEMSET(buf, 0, sizeof(buf));
+    AssertIntEQ(i2t_ASN1_OBJECT(buf, sizeof(buf), obj), XSTRLEN(ln));
+    AssertIntEQ(XSTRNCMP(buf, ln, XSTRLEN(ln)), 0);
+    ASN1_OBJECT_free(obj);
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA && WOLFSSL_CERT_EXT && WOLFSSL_CERT_GEN */
+}
+
 static void test_wolfSSL_X509_NAME_ENTRY(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
@@ -47773,6 +47800,7 @@ void ApiTest(void)
     test_wolfSSL_OBJ_cmp();
     test_wolfSSL_OBJ_txt2nid();
     test_wolfSSL_OBJ_txt2obj();
+    test_wolfSSL_i2t_ASN1_OBJECT();
     test_wolfSSL_X509_NAME_ENTRY();
     test_wolfSSL_X509_set_name();
     test_wolfSSL_X509_set_notAfter();

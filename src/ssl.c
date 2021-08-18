@@ -27667,17 +27667,23 @@ WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
-/*** TBD ***/
-WOLFSSL_API int i2t_ASN1_OBJECT(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a)
+/**
+ * Get a textual representation of given WOLFSSL_ASN1_OBJECT then write it to
+ * buf at most buf_len bytes. 
+ * 
+ * params
+ * - buf: buffer where the textual representation is to be written to
+ * - buf_len: buffer size in bytes
+ * - a: WOLFSSL_ASN1_OBJECT
+ * 
+ * return the string length written on success, WOLFSSL_FAILURE on failure.
+ */
+WOLFSSL_API int wolfSSL_i2t_ASN1_OBJECT(char *buf, int buf_len, 
+                                                WOLFSSL_ASN1_OBJECT *a)
 {
-    (void)buf;
-    (void)buf_len;
-    (void)a;
-    WOLFSSL_STUB("i2t_ASN1_OBJECT");
-    return -1;
+    WOLFSSL_ENTER("wolfSSL_i2t_ASN1_OBJECT");
+    return wolfSSL_OBJ_obj2txt(buf, buf_len, a, 0);
 }
-#endif
 
 WOLFSSL_ASN1_OBJECT *wolfSSL_d2i_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT **a,
                                              const unsigned char **der,

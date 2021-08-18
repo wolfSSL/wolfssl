@@ -55,6 +55,7 @@
 #define OBJ_create  wolfSSL_OBJ_create
 #define ASN1_OBJECT_free wolfSSL_ASN1_OBJECT_free
 #define OBJ_NAME_do_all wolfSSL_OBJ_NAME_do_all
+#define i2t_ASN1_OBJECT wolfSSL_i2t_ASN1_OBJECT
 
 /* not required for wolfSSL */
 #define OPENSSL_load_builtin_modules()
