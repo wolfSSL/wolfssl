@@ -3508,7 +3508,8 @@ static void test_wolfSSL_EVP_get_cipherbynid(void)
     const WOLFSSL_EVP_CIPHER* c;
 
     c = wolfSSL_EVP_get_cipherbynid(419);
-    #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
+    #if (defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)) && \
+         defined(WOLFSSL_AES_128)
         AssertNotNull(c);
         AssertNotNull(strcmp("EVP_AES_128_CBC", c));
     #else
@@ -3516,7 +3517,8 @@ static void test_wolfSSL_EVP_get_cipherbynid(void)
     #endif
 
     c = wolfSSL_EVP_get_cipherbynid(423);
-    #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_192)
+    #if (defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)) && \
+         defined(WOLFSSL_AES_192)
         AssertNotNull(c);
         AssertNotNull(strcmp("EVP_AES_192_CBC", c));
     #else
@@ -3524,7 +3526,8 @@ static void test_wolfSSL_EVP_get_cipherbynid(void)
     #endif
 
     c = wolfSSL_EVP_get_cipherbynid(427);
-    #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
+    #if (defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)) && \
+         defined(WOLFSSL_AES_256)
         AssertNotNull(c);
         AssertNotNull(strcmp("EVP_AES_256_CBC", c));
     #else
@@ -6993,7 +6996,7 @@ static void test_wolfSSL_PKCS8(void)
 
 static void test_wolfSSL_PKCS8_ED25519(void)
 {
-#if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
+#if !defined(NO_ASN) && defined(HAVE_PKCS8) && defined(HAVE_AES_CBC) && \
     defined(WOLFSSL_ENCRYPTED_KEYS) && defined(HAVE_ED25519) && \
     defined(HAVE_ED25519_KEY_IMPORT)
     const byte encPrivKey[] = \
@@ -7025,7 +7028,7 @@ static void test_wolfSSL_PKCS8_ED25519(void)
 
 static void test_wolfSSL_PKCS8_ED448(void)
 {
-#if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
+#if !defined(NO_ASN) && defined(HAVE_PKCS8) && defined(HAVE_AES_CBC) && \
     defined(WOLFSSL_ENCRYPTED_KEYS) && defined(HAVE_ED448) && \
     defined(HAVE_ED448_KEY_IMPORT)
     const byte encPrivKey[] = \
@@ -23168,8 +23171,8 @@ static int test_wc_ecc_encryptDecrypt (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && defined(WOLFSSL_AES_128) \
-     && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
     ecc_key     srvKey, cliKey, tmpKey;
     WC_RNG      rng;
     const char* msg   = "EccBlock Size 16";
@@ -25894,25 +25897,16 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
     tempWrd32 = pkcs7->privateKeySz;
     pkcs7->privateKeySz = 0;
     
-    i = wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
-        (word32)sizeof(output), decoded, (word32)sizeof(decoded)); 
-#ifndef HAVE_AES_CBC
-    AssertIntEQ(i, ASN_PARSE_E);
-#else
-    AssertIntEQ(i, BAD_FUNC_ARG);
-#endif
+    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
+        (word32)sizeof(output), decoded, (word32)sizeof(decoded)), BAD_FUNC_ARG);
     pkcs7->privateKeySz = tempWrd32;
 
     tmpBytePtr = pkcs7->privateKey;
     pkcs7->privateKey = NULL;
-    i = wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
-        (word32)sizeof(output), decoded, (word32)sizeof(decoded));
-#ifndef HAVE_AES_CBC
-    AssertIntEQ(i, ASN_PARSE_E);
-#else
-    AssertIntEQ(i, BAD_FUNC_ARG);
-#endif
+    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
+        (word32)sizeof(output), decoded, (word32)sizeof(decoded)), BAD_FUNC_ARG);
     pkcs7->privateKey = tmpBytePtr;
+
     wc_PKCS7_Free(pkcs7);
 
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && !defined(NO_AES_256)
@@ -34602,7 +34596,8 @@ static void test_wolfSSL_HMAC(void)
 
 static void test_wolfSSL_CMAC(void)
 {
-#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CMAC) && defined(HAVE_AES_CBC)
+#if defined(WOLFSSL_CMAC) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_AES_DIRECT)
     int i;
     byte key[AES_128_KEY_SIZE];
     CMAC_CTX* cmacCtx = NULL;
@@ -34627,7 +34622,7 @@ static void test_wolfSSL_CMAC(void)
     CMAC_CTX_free(cmacCtx);
 
     printf(resultFmt, passed);
-#endif /* OPENSSL_EXTRA && WOLFSSL_CMAC && HAVE_AES_CBC */
+#endif /* WOLFSSL_CMAC && OPENSSL_EXTRA && WOLFSSL_AES_DIRECT */
 }
 
 
@@ -40279,9 +40274,9 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
 
 
     int enumArray[] = {
-
-    #ifdef HAVE_AES_CBC
-         NID_aes_128_cbc,
+    #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
+    #ifdef WOLFSSL_AES_128
+        NID_aes_128_cbc,
     #endif
     #ifdef WOLFSSL_AES_192
         NID_aes_192_cbc,
@@ -40289,6 +40284,7 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
     #ifdef WOLFSSL_AES_256
         NID_aes_256_cbc,
     #endif
+    #endif /* HAVE_AES_CBC || WOLFSSL_AES_DIRECT */
     #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
         (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
     #ifdef HAVE_AESGCM
@@ -40322,8 +40318,10 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
          NID_idea_cbc,
     #endif
     };
+
     int iv_lengths[] = {
-    #ifdef HAVE_AES_CBC
+    #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
+    #ifdef WOLFSSL_AES_128
             AES_BLOCK_SIZE,
     #endif
     #ifdef WOLFSSL_AES_192
@@ -40332,6 +40330,7 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
     #ifdef WOLFSSL_AES_256
             AES_BLOCK_SIZE,
     #endif
+    #endif /* HAVE_AES_CBC || WOLFSSL_AES_DIRECT */
     #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
         (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
     #ifdef HAVE_AESGCM
@@ -40370,8 +40369,8 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
     enumlen = (sizeof(enumArray)/sizeof(int));
     for(i = 0; i < enumlen; i++)
     {
-        const EVP_CIPHER *c = wolfSSL_EVP_get_cipherbynid(enumArray[i]);
-        AssertIntEQ(wolfSSL_EVP_CIPHER_iv_length(c), iv_lengths[i]);
+        const EVP_CIPHER *c = EVP_get_cipherbynid(enumArray[i]);
+        AssertIntEQ(EVP_CIPHER_iv_length(c), iv_lengths[i]);
     }
 
     printf(resultFmt, passed);
@@ -40551,7 +40550,7 @@ static void test_wolfSSL_EVP_PKEY_param_check(void)
 }
 static void test_wolfSSL_EVP_BytesToKey(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_DES3)
+#if defined(OPENSSL_ALL) && !defined(NO_AES) && defined(HAVE_AES_CBC)
     byte                key[AES_BLOCK_SIZE] = {0};
     byte                iv[AES_BLOCK_SIZE] = {0};
     int                 sz = 5;
@@ -40567,20 +40566,20 @@ static void test_wolfSSL_EVP_BytesToKey(void)
 
     type = wolfSSL_EVP_get_cipherbynid(NID_aes_128_cbc);
 
-    printf(testingFmt, "wolfSSL_EVP_BytesToKey");
+    printf(testingFmt, "EVP_BytesToKey");
 
     /* Bad cases */
-    AssertIntEQ(wolfSSL_EVP_BytesToKey(NULL, md, salt, data, sz, count, key, iv),
+    AssertIntEQ(EVP_BytesToKey(NULL, md, salt, data, sz, count, key, iv),
                  0);
-    AssertIntEQ(wolfSSL_EVP_BytesToKey(type, md, salt, NULL, sz, count, key, iv),
+    AssertIntEQ(EVP_BytesToKey(type, md, salt, NULL, sz, count, key, iv),
                 16);
     md = "2";
-    AssertIntEQ(wolfSSL_EVP_BytesToKey(type, md, salt, data, sz, count, key, iv),
+    AssertIntEQ(EVP_BytesToKey(type, md, salt, data, sz, count, key, iv),
                  WOLFSSL_FAILURE);
 
     /* Good case */
     md = "SHA256";
-    AssertIntEQ(wolfSSL_EVP_BytesToKey(type, md, salt, data, sz, count, key, iv),
+    AssertIntEQ(EVP_BytesToKey(type, md, salt, data, sz, count, key, iv),
                  16);
 
     printf(resultFmt, passed);
@@ -43667,7 +43666,8 @@ static int test_tls13_apis(void)
 #if defined(HAVE_PK_CALLBACKS) && (!defined(WOLFSSL_NO_TLS12) || \
     !defined(NO_OLD_TLS))
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
-        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_DH) && !defined(NO_AES) && \
+        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_DH) && \
+        !defined(NO_AES) && defined(HAVE_AES_CBC) && \
          defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(SINGLE_THREADED)
 static int my_DhCallback(WOLFSSL* ssl, struct DhKey* key,
         const unsigned char* priv, unsigned int privSz,
@@ -43687,11 +43687,11 @@ static int my_DhCallback(WOLFSSL* ssl, struct DhKey* key,
 
 static void test_dh_ctx_setup(WOLFSSL_CTX* ctx) {
     wolfSSL_CTX_SetDhAgreeCb(ctx, my_DhCallback);
-#ifdef WOLFSSL_AES_128
+#if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
     AssertIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "DHE-RSA-AES128-SHA256"),
             WOLFSSL_SUCCESS);
 #endif
-#ifdef WOLFSSL_AES_256
+#if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
     AssertIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "DHE-RSA-AES256-SHA256"),
             WOLFSSL_SUCCESS);
 #endif
@@ -43726,7 +43726,8 @@ static void test_dh_ssl_setup_fail(WOLFSSL* ssl)
 static void test_DhCallbacks(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
-        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_DH) && !defined(NO_AES) && \
+        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_DH) && \
+        !defined(NO_AES) && defined(HAVE_AES_CBC) && \
          defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(SINGLE_THREADED)
     WOLFSSL_CTX *ctx;
     WOLFSSL     *ssl;

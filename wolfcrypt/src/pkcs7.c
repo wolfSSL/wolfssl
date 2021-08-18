@@ -643,23 +643,42 @@ static int wc_PKCS7_GetOIDBlockSize(int oid)
     switch (oid) {
 #ifndef NO_AES
     #ifdef WOLFSSL_AES_128
+        #ifdef HAVE_AES_CBC
         case AES128CBCb:
+        #endif
+        #ifdef HAVE_AESGCM
         case AES128GCMb:
+        #endif
+        #ifdef HAVE_AESCCM
         case AES128CCMb:
+        #endif
     #endif
     #ifdef WOLFSSL_AES_192
+        #ifdef HAVE_AES_CBC
         case AES192CBCb:
+        #endif
+        #ifdef HAVE_AESGCM
         case AES192GCMb:
+        #endif
+        #ifdef HAVE_AESCCM
         case AES192CCMb:
+        #endif
     #endif
     #ifdef WOLFSSL_AES_256
+        #ifdef HAVE_AES_CBC
         case AES256CBCb:
+        #endif
+        #ifdef HAVE_AESGCM
         case AES256GCMb:
+        #endif
+        #ifdef HAVE_AESCCM
         case AES256CCMb:
+        #endif
     #endif
             blockSz = AES_BLOCK_SIZE;
             break;
-#endif
+#endif /* !NO_AES */
+
 #ifndef NO_DES3
         case DESb:
         case DES3b:
@@ -683,35 +702,53 @@ static int wc_PKCS7_GetOIDKeySize(int oid)
     switch (oid) {
 #ifndef NO_AES
     #ifdef WOLFSSL_AES_128
+        #ifdef HAVE_AES_CBC
         case AES128CBCb:
+        #endif
+        #ifdef HAVE_AESGCM
         case AES128GCMb:
+        #endif
+        #ifdef HAVE_AESCCM
         case AES128CCMb:
+        #endif
         case AES128_WRAP:
             blockKeySz = 16;
             break;
     #endif
     #ifdef WOLFSSL_AES_192
+        #ifdef HAVE_AES_CBC
         case AES192CBCb:
+        #endif
+        #ifdef HAVE_AESGCM
         case AES192GCMb:
+        #endif
+        #ifdef HAVE_AESCCM
         case AES192CCMb:
+        #endif
         case AES192_WRAP:
             blockKeySz = 24;
             break;
     #endif
     #ifdef WOLFSSL_AES_256
+        #ifdef HAVE_AES_CBC
         case AES256CBCb:
+        #endif
+        #ifdef HAVE_AESGCM
         case AES256GCMb:
+        #endif
+        #ifdef HAVE_AESCCM
         case AES256CCMb:
+        #endif
         case AES256_WRAP:
             blockKeySz = 32;
             break;
     #endif
-#endif
+#endif /* !NO_AES */
+
 #ifndef NO_DES3
         case DESb:
             blockKeySz = DES_KEYLEN;
             break;
-
         case DES3b:
             blockKeySz = DES3_KEYLEN;
             break;
@@ -7513,7 +7550,7 @@ int wc_PKCS7_AddRecipient_PWRI(PKCS7* pkcs7, byte* passwd, word32 pLen,
     word32 kdfAlgoIdSeqSz, kdfAlgoIdSz;
     word32 kdfParamsSeqSz, kdfSaltOctetStrSz, kdfIterationsSz;
     /* OPTIONAL: keyLength, not supported yet */
-    /* OPTIONAL: prf AlgorithIdentifier, not supported yet */
+    /* OPTIONAL: prf AlgorithmIdentifier, not supported yet */
 
     /* KeyEncryptionAlgorithmIdentifier */
     byte keyEncAlgoIdSeq[MAX_SEQ_SZ];

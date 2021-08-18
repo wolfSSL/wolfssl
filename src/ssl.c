@@ -33835,7 +33835,8 @@ const WOLFSSL_EVP_MD *wolfSSL_HMAC_CTX_get_md(const WOLFSSL_HMAC_CTX *ctx)
     return wolfSSL_macType2EVP_md((enum wc_HashType)ctx->type);
 }
 
-#if defined(WOLFSSL_CMAC) && defined(OPENSSL_EXTRA)
+#if defined(WOLFSSL_CMAC) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_AES_DIRECT)
 WOLFSSL_CMAC_CTX* wolfSSL_CMAC_CTX_new(void)
 {
     WOLFSSL_CMAC_CTX* ctx = NULL;
@@ -33894,13 +33895,10 @@ int wolfSSL_CMAC_Init(WOLFSSL_CMAC_CTX* ctx, const void *key, size_t keyLen,
 
     WOLFSSL_ENTER("wolfSSL_CMAC_Init");
 
-    if (ctx == NULL || cipher == NULL 
-    #ifdef HAVE_AES_CBC
-        || (cipher != EVP_AES_128_CBC && 
+    if (ctx == NULL || cipher == NULL || (
+            cipher != EVP_AES_128_CBC && 
             cipher != EVP_AES_192_CBC && 
-            cipher != EVP_AES_256_CBC)
-    #endif
-    ) {
+            cipher != EVP_AES_256_CBC)) {
         ret = WOLFSSL_FAILURE;
     }
 
@@ -33986,7 +33984,7 @@ int wolfSSL_CMAC_Final(WOLFSSL_CMAC_CTX* ctx, unsigned char* out,
 
     return ret;
 }
-#endif /* WOLFSSL_CMAC && OPENSSL_EXTRA */
+#endif /* WOLFSSL_CMAC && OPENSSL_EXTRA && WOLFSSL_AES_DIRECT */
 
 /* Free the dynamically allocated data.
  *
@@ -57256,9 +57254,8 @@ int wolfSSL_RAND_poll(void)
         }
 
         switch (ctx->cipherType) {
-
 #ifndef NO_AES
-#ifdef HAVE_AES_CBC
+#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
             case AES_128_CBC_TYPE :
             case AES_192_CBC_TYPE :
             case AES_256_CBC_TYPE :
@@ -57379,7 +57376,7 @@ int wolfSSL_RAND_poll(void)
         switch (ctx->cipherType) {
 
 #ifndef NO_AES
-#ifdef HAVE_AES_CBC
+#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
             case AES_128_CBC_TYPE :
             case AES_192_CBC_TYPE :
             case AES_256_CBC_TYPE :

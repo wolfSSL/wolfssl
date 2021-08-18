@@ -454,7 +454,8 @@ WOLFSSL_TEST_SUBROUTINE int pbkdf2_test(void);
 WOLFSSL_TEST_SUBROUTINE int scrypt_test(void);
 #ifdef HAVE_ECC
     WOLFSSL_TEST_SUBROUTINE int  ecc_test(void);
-    #ifdef HAVE_ECC_ENCRYPT
+    #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_AES_CBC) && \
+        defined(WOLFSSL_AES_128)
         WOLFSSL_TEST_SUBROUTINE int  ecc_encrypt_test(void);
     #endif
     #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
@@ -1215,7 +1216,8 @@ initDefaultName();
         return err_sys("ECC      test failed!\n", ret);
     else
         test_pass("ECC      test passed!\n");
-    #if defined(HAVE_ECC_ENCRYPT) && defined(WOLFSSL_AES_128)
+    #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_AES_CBC) && \
+        defined(WOLFSSL_AES_128)
         if ( (ret = ecc_encrypt_test()) != 0)
             return err_sys("ECC Enc  test failed!\n", ret);
         else
@@ -23976,7 +23978,8 @@ done:
     return ret;
 }
 
-#if defined(HAVE_ECC_ENCRYPT) && defined(WOLFSSL_AES_128)
+#if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_128)
 
 #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
 static int ecc_encrypt_kat(WC_RNG *rng)
@@ -24431,7 +24434,7 @@ done:
     return ret;
 }
 
-#endif /* HAVE_ECC_ENCRYPT */
+#endif /* HAVE_ECC_ENCRYPT && HAVE_AES_CBC && WOLFSSL_AES_128 */
 
 #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
@@ -24513,7 +24516,8 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test_buffers(void)
 #endif
 #endif /* !WC_NO_RNG */
 
-#if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_HKDF)
+#if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_HKDF) && \
+    defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
     {
         word32 y;
         /* test encrypt and decrypt if they're available */
@@ -30754,7 +30758,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
          "pkcs7envelopedDataDES3.der"},
     #endif
 
-    #ifndef NO_AES
+    #if !defined(NO_AES) && defined(HAVE_AES_CBC)
         #ifdef WOLFSSL_AES_128
         {data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL,
@@ -30785,7 +30789,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
          NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0,
          0, 0, 0, 0, "pkcs7envelopedDataAES256CBC_IANDS.der"},
         #endif
-    #endif /* NO_AES */
+    #endif /* !NO_AES && HAVE_AES_CBC */
 #endif
 
         /* key agreement key encryption technique*/
@@ -31328,7 +31332,7 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 #endif
 
 #if !defined(NO_PWDBASED) && !defined(NO_AES) && defined(HAVE_AESGCM) && \
-    !defined(NO_SHA) && defined(WOLFSSL_AES_128)
+    !defined(NO_SHA) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
 
     #ifndef HAVE_FIPS
     WOLFSSL_SMALL_STACK_STATIC const char password[] = "password";
@@ -31501,7 +31505,7 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 
         /* pwri (PasswordRecipientInfo) recipient types */
 #if !defined(NO_PWDBASED) && !defined(NO_AES) && defined(HAVE_AESGCM)
-        #if !defined(NO_SHA) && defined(WOLFSSL_AES_128)
+        #if !defined(NO_SHA) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
         ADD_PKCS7_TEST_VEC(
         {data, (word32)sizeof(data), DATA, AES128GCMb, 0, 0,
          NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, 0, 0, NULL, 0,
@@ -32372,7 +32376,7 @@ WOLFSSL_TEST_SUBROUTINE int pkcs7encrypted_test(void)
     };
 #endif
 
-#ifndef NO_AES
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
 #ifdef WOLFSSL_AES_128
     byte aes128Key[] = {
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
@@ -32440,7 +32444,7 @@ WOLFSSL_TEST_SUBROUTINE int pkcs7encrypted_test(void)
          NULL, 0, "pkcs7encryptedDataDES.der"},
 #endif /* NO_DES3 */
 
-#ifndef NO_AES
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
     #ifdef WOLFSSL_AES_128
         {data, (word32)sizeof(data), DATA, AES128CBCb, aes128Key,
          sizeof(aes128Key), NULL, 0, "pkcs7encryptedDataAES128CBC.der"},
@@ -32469,7 +32473,7 @@ WOLFSSL_TEST_SUBROUTINE int pkcs7encrypted_test(void)
          sizeof(aes256Key), NULL, 0,
          "pkcs7encryptedDataAES256CBC_firmwarePkgData.der"},
     #endif
-#endif /* NO_AES */
+#endif /* !NO_AES && HAVE_AES_CBC */
     };
 
     encrypted = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -33277,7 +33281,8 @@ static int pkcs7signed_run_SingleShotVectors(
         0x72,0x6c,0x64
     };
 
-#if defined(WOLFSSL_AES_256) && !defined(NO_PKCS7_ENCRYPTED_DATA)
+#if !defined(NO_PKCS7_ENCRYPTED_DATA) && \
+     defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
     static byte aes256Key[] = {
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
@@ -33330,7 +33335,8 @@ static int pkcs7signed_run_SingleShotVectors(
          "pkcs7signedFirmwarePkgData_RSA_SHA256_with_ca_cert.der", 0, NULL,
          0, 0, 0, 0, NULL, 0, NULL, 0, 0},
 
-    #if defined(WOLFSSL_AES_256) && !defined(NO_PKCS7_ENCRYPTED_DATA)
+    #if !defined(NO_PKCS7_ENCRYPTED_DATA) && \
+         defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
         /* Signed Encrypted FirmwarePkgData, RSA, SHA256, no attribs */
         {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
@@ -33410,7 +33416,8 @@ static int pkcs7signed_run_SingleShotVectors(
          "pkcs7signedFirmwarePkgData_ECDSA_SHA256_SKID.der", 0, NULL,
          0, CMS_SKID, 0, 0, NULL, 0, NULL, 0, 0},
 
-    #if defined(WOLFSSL_AES_256) && !defined(NO_PKCS7_ENCRYPTED_DATA)
+    #if !defined(NO_PKCS7_ENCRYPTED_DATA) && \
+         defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
         /* Signed Encrypted FirmwarePkgData, ECDSA, SHA256, no attribs */
         {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
