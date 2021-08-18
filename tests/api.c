@@ -39046,6 +39046,9 @@ static void test_wolfSSL_d2i_DHparams(void)
     AssertNotNull(dh->p);
     AssertNotNull(dh->g);
     AssertTrue(pt != buf);
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+    AssertIntEQ(DH_set_length(dh, BN_num_bits(dh->p)), WOLFSSL_SUCCESS);
+#endif
     AssertIntEQ(DH_generate_key(dh), WOLFSSL_SUCCESS);
 
     /* Invalid cases */

@@ -31501,6 +31501,20 @@ int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
 
 
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+int wolfSSL_DH_set_length(WOLFSSL_DH *dh, long len)
+{
+    WOLFSSL_ENTER("wolfSSL_DH_set_length");
+
+    /* len is checked at generation */
+    if (dh == NULL) {
+        WOLFSSL_MSG("Bad function arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+    dh->length = (int)len;
+    return WOLFSSL_SUCCESS;
+}
+
 /* ownership of p,q,and g get taken over by "dh" on success and should be free'd
  * with a call to wolfSSL_DH_free -- not individually.
  *
