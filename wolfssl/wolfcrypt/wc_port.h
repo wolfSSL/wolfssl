@@ -175,7 +175,9 @@
         /* work around backward dependency of asn.c on ssl.c. */
         struct Signer;
         struct Signer *GetCA(void *signers, unsigned char *hash);
-        struct Signer *GetCAByName(void* signers, unsigned char *hash);
+        #ifndef NO_SKID
+            struct Signer *GetCAByName(void* signers, unsigned char *hash);
+        #endif
     #endif
 
     #if defined(__PIE__) && !defined(USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE)
@@ -271,7 +273,9 @@
 
         #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
         typeof(GetCA) *GetCA;
+        #ifndef NO_SKID
         typeof(GetCAByName) *GetCAByName;
+        #endif
         #endif
 
         const void *_last_slot;
@@ -358,7 +362,9 @@
 
     #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
         #define GetCA (wolfssl_linuxkm_get_pie_redirect_table()->GetCA)
-        #define GetCAByName (wolfssl_linuxkm_get_pie_redirect_table()->GetCAByName)
+        #ifndef NO_SKID
+            #define GetCAByName (wolfssl_linuxkm_get_pie_redirect_table()->GetCAByName)
+        #endif
     #endif
 
     #endif /* __PIE__ */

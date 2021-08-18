@@ -49,8 +49,8 @@ else
 endif
 
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
-    WOLFSSL_OBJ_FILES += linuxkm/pie_redirect_table.o
-    WOLFCRYPT_PIE_FILES=$(filter wolfcrypt/%,$(WOLFSSL_OBJ_FILES)) linuxkm/pie_redirect_table.o
+    WOLFCRYPT_PIE_FILES := linuxkm/pie_first.o $(filter wolfcrypt/%,$(WOLFSSL_OBJ_FILES)) linuxkm/pie_redirect_table.o linuxkm/pie_last.o
+    WOLFSSL_OBJ_FILES := $(WOLFCRYPT_PIE_FILES) $(filter-out $(WOLFCRYPT_PIE_FILES),$(WOLFSSL_OBJ_FILES))
 endif
 
 export WOLFSSL_CFLAGS WOLFSSL_ASFLAGS WOLFSSL_OBJ_FILES WOLFCRYPT_PIE_FILES

@@ -55,11 +55,33 @@ static int libwolfssl_cleanup(void) {
     return ret;
 }
 
+#ifdef HAVE_LINUXKM_PIE_SUPPORT
+
+extern int wolfCrypt_PIE_first_function(void);
+extern int wolfCrypt_PIE_last_function(void);
+extern const unsigned int wolfCrypt_PIE_rodata_start[];
+extern const unsigned int wolfCrypt_PIE_rodata_end[];
+
+/* cheap portable ad-hoc hash function to confirm bitwise stability of the PIE
+ * binary image.
+ */
+static unsigned int hash_span(char *start, char *end) {
+    unsigned int sum = 1;
+    while (start < end) {
+        unsigned int rotate_by;
+        sum ^= *start++;
+        rotate_by = (sum ^ (sum >> 5)) & 31;
+        sum = (sum << rotate_by) | (sum >> (32 - rotate_by));
+    }
+    return sum;
+}
+
 #ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
 extern struct wolfssl_linuxkm_pie_redirect_table wolfssl_linuxkm_pie_redirect_table;
 static int set_up_wolfssl_linuxkm_pie_redirect_table(void);
-extern const unsigned int wolfCrypt_All_ro_end[];
-#endif
+#endif /* USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE */
+
+#endif /* HAVE_LINUXKM_PIE_SUPPORT */
 
 #ifdef HAVE_FIPS
 static void lkmFipsCb(int ok, int err, const char* hash)
@@ -86,7 +108,59 @@ static int wolfssl_init(void)
     ret = set_up_wolfssl_linuxkm_pie_redirect_table();
     if (ret < 0)
         return ret;
+
 #endif
+
+#ifdef HAVE_LINUXKM_PIE_SUPPORT
+    {
+        char *pie_text_start = (char *)wolfCrypt_PIE_first_function;
+        char *pie_text_end = (char *)wolfCrypt_PIE_last_function;
+        char *pie_rodata_start = (char *)wolfCrypt_PIE_rodata_start;
+        char *pie_rodata_end = (char *)wolfCrypt_PIE_rodata_end;
+        unsigned int text_hash, rodata_hash;
+
+        if ((pie_text_start < pie_text_end) &&
+            (pie_text_start >= (char *)(THIS_MODULE->core_layout.base)) &&
+            (pie_text_end - (char *)(THIS_MODULE->core_layout.base) <= THIS_MODULE->core_layout.text_size))
+        {
+            text_hash = hash_span(pie_text_start, pie_text_end);
+        } else {
+            pr_info("out-of-bounds PIE fenceposts! pie_text_start=%px pie_text_end=%px (span=%lu)"
+                    " core_layout.base=%px text_end=%px\n",
+                    pie_text_start,
+                    pie_text_end,
+                    pie_text_end-pie_text_start,
+                    THIS_MODULE->core_layout.base,
+                    (char *)(THIS_MODULE->core_layout.base) + THIS_MODULE->core_layout.text_size);
+            text_hash = 0;
+        }
+
+        if ((pie_rodata_start < pie_rodata_end) &&
+            (pie_rodata_start >= (char *)(THIS_MODULE->core_layout.base) + THIS_MODULE->core_layout.text_size) &&
+            (pie_rodata_end - (char *)(THIS_MODULE->core_layout.base) <= THIS_MODULE->core_layout.ro_size))
+        {
+            rodata_hash = hash_span(pie_rodata_start, pie_rodata_end);
+        } else {
+            pr_info("out-of-bounds PIE fenceposts! pie_rodata_start=%px pie_rodata_end=%px (span=%lu)"
+                    " core_layout.base+core_layout.text_size=%px rodata_end=%px\n",
+                    pie_rodata_start,
+                    pie_rodata_end,
+                    pie_rodata_end-pie_rodata_start,
+                    (char *)(THIS_MODULE->core_layout.base) + THIS_MODULE->core_layout.text_size,
+                    (char *)(THIS_MODULE->core_layout.base) + THIS_MODULE->core_layout.ro_size);
+            rodata_hash = 0;
+        }
+
+        /* note, "%pK" conceals the actual layout information.  "%px" exposes
+         * the true module start address, which is potentially useful to an
+         * attacker.
+         */
+        pr_info("wolfCrypt container hashes (spans): %x (%lu) %x (%lu), module base %pK\n",
+                text_hash, pie_text_end-pie_text_start,
+                rodata_hash, pie_rodata_end-pie_rodata_start,
+                THIS_MODULE->core_layout.base);
+    }
+#endif /* HAVE_LINUXKM_PIE_SUPPORT */
 
 #ifdef HAVE_FIPS
     ret = wolfCrypt_SetCb_fips(lkmFipsCb);
@@ -265,7 +339,9 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
     wolfssl_linuxkm_pie_redirect_table.GetCA = GetCA;
+#ifndef NO_SKID
     wolfssl_linuxkm_pie_redirect_table.GetCAByName = GetCAByName;
+#endif
 #endif
 
     /* runtime assert that the table has no null slots after initialization. */

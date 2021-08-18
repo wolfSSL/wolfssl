@@ -39,11 +39,11 @@
  * symbol.
  */
 #if defined(CONFIG_X86)
-    extern void *_GLOBAL_OFFSET_TABLE_;
-    void *_GLOBAL_OFFSET_TABLE_ = 0;
+    extern void * const _GLOBAL_OFFSET_TABLE_;
+    void * const _GLOBAL_OFFSET_TABLE_ = 0;
 #elif defined(CONFIG_MIPS)
-  extern void *_gp_disp;
-  void *_gp_disp = 0;
+  extern void * const _gp_disp;
+  void * const _gp_disp = 0;
 #endif
 
 struct wolfssl_linuxkm_pie_redirect_table wolfssl_linuxkm_pie_redirect_table;
@@ -52,11 +52,6 @@ const struct wolfssl_linuxkm_pie_redirect_table
 *wolfssl_linuxkm_get_pie_redirect_table(void) {
     return &wolfssl_linuxkm_pie_redirect_table;
 }
-
-const unsigned int wolfCrypt_All_ro_end[];
-const unsigned int wolfCrypt_All_ro_end[] =
-/* random values, analogous to wolfCrypt_FIPS_ro_{start,end} */
-{ 0xa4aaaf71, 0x55c4b7d0 };
 
 /* placeholder implementations for missing functions. */
 #if defined(CONFIG_MIPS)
