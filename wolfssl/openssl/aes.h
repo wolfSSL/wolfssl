@@ -82,7 +82,7 @@ WOLFSSL_API void wolfSSL_AES_decrypt
 
 #define AES_encrypt         wolfSSL_AES_encrypt
 #define AES_decrypt         wolfSSL_AES_decrypt
-#endif /* HAVE_AES_DIRECT */
+#endif /* WOLFSSL_AES_DIRECT */
 
 #ifndef AES_ENCRYPT
 #define AES_ENCRYPT AES_ENCRYPTION

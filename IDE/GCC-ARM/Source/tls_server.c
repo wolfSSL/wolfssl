@@ -1,4 +1,4 @@
-/* tls_client.c
+/* tls_server.c
  *
  * Copyright (C) 2006-2021 wolfSSL Inc.
  *
@@ -23,7 +23,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT)
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_SERVER)
 
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/logging.h>
@@ -32,7 +32,7 @@
 #define MAXSZ              1024
 
 /*------------------------------------------------------------------------*/
-/* TLS CLIENT */
+/* TLS SERVER */
 /*------------------------------------------------------------------------*/
 static int CbIORecv(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
@@ -74,15 +74,14 @@ static int CbIOSend(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 #endif
 }
 
-static int tls_client(void)
+static int tls_server(void)
 {
-    char msg[] = "Hello WolfSSL!\r\n";
     char reply[MAXSZ];
-    int ret, msgSz, error;
+    int ret, error;
     WOLFSSL* ssl = NULL;
     WOLFSSL_CTX* ctx = NULL;
 
-    if ((ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method())) == NULL) {
+    if ((ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method())) == NULL) {
         printf("CTXnew failed.\n");
         goto fail;
     }
@@ -126,13 +125,13 @@ static int tls_client(void)
     ret = WOLFSSL_FAILURE;
 
     while (ret != WOLFSSL_SUCCESS) {
-        /* client connect */
-        ret = wolfSSL_connect(ssl);
+        /* server accept */
+        ret = wolfSSL_accept(ssl);
         error = wolfSSL_get_error(ssl, 0);
         if (ret != WOLFSSL_SUCCESS) {
             if (error != WOLFSSL_ERROR_WANT_READ && error != WOLFSSL_ERROR_WANT_WRITE) {
                 /* Fail */
-                printf("wolfSSL connect failed with return code %d\n", error);
+                printf("wolfSSL accept failed with return code %d\n", error);
                 goto fail;
             }
         }
@@ -141,28 +140,14 @@ static int tls_client(void)
 
     /* read and write */
     while (1) {
-        /* client send/read */
-        msgSz = sizeof(msg);
-        ret   = wolfSSL_write(ssl, msg, msgSz);
-        error = wolfSSL_get_error(ssl, 0);
-        if (ret != msgSz) {
-            if (error != WOLFSSL_ERROR_WANT_READ && error != WOLFSSL_ERROR_WANT_WRITE) {
-                /* Write failed */
-                goto fail;
-            }
-        }
-        /* Write succeeded */
-        break;
-    }
-
-    while (1) {
+        /* server read */
         ret = wolfSSL_read(ssl, reply, sizeof(reply) - 1);
         error = wolfSSL_get_error(ssl, 0);
         if (ret < 0) {
             if (error != WOLFSSL_ERROR_WANT_READ && error != WOLFSSL_ERROR_WANT_WRITE) {
                 /* Can put print here, the server enters a loop waiting to read
                  * a confirmation message at this point */
-                // printf("client read failed\n");
+                // printf("server read failed\n");
                 goto fail;
             }
             continue;
@@ -171,10 +156,24 @@ static int tls_client(void)
             /* Can put print here, the server enters a loop waiting to read
              * a confirmation message at this point */
             reply[ret] = '\0';
-            // printf("Client Received Reply: %s\n", reply);
+            // printf("Server Received Reply: %s\n", reply);
             break;
         }
 
+    }
+
+    while (1) {
+        /* server write / echo */
+        ret   = wolfSSL_write(ssl, reply, XSTRLEN(reply));
+        error = wolfSSL_get_error(ssl, 0);
+        if (ret != XSTRLEN(reply)) {
+            if (error != WOLFSSL_ERROR_WANT_READ && error != WOLFSSL_ERROR_WANT_WRITE) {
+                /* Write failed */
+                goto fail;
+            }
+        }
+        /* Write succeeded */
+        break;
     }
 
     return 0;
@@ -186,17 +185,17 @@ fail:
 
     return -1;
 }
-#endif /* !WOLFCRYPT_ONLY && !NO_WOLFSSL_CLIENT */
+#endif /* !WOLFCRYPT_ONLY && !NO_WOLFSSL_SERVER */
 
 
 int main(void)
 {
     int ret;
 
-#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT)
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_SERVER)
     wolfSSL_Init();
 
-    ret = tls_client();
+    ret = tls_server();
 
     wolfSSL_Cleanup();
 #else
