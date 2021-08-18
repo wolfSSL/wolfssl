@@ -4550,70 +4550,13 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
     return ret;
 }
 
-#ifdef HAVE_PK_CALLBACKS
-    /* Gets ECC key for shared secret callback testing
-     * Client side: returns peer key
-     * Server side: returns private key
-     */
-    static int EccGetKey(WOLFSSL* ssl, ecc_key** otherKey)
-    {
-        int ret = NO_PEER_KEY;
-        ecc_key* tmpKey = NULL;
-
-        if (ssl == NULL || otherKey == NULL) {
-            return BAD_FUNC_ARG;
-        }
-
-        if (ssl->options.side == WOLFSSL_CLIENT_END) {
-            if (ssl->specs.static_ecdh) {
-                if (!ssl->peerEccDsaKey || !ssl->peerEccDsaKeyPresent ||
-                                           !ssl->peerEccDsaKey->dp) {
-                    return NO_PEER_KEY;
-                }
-                tmpKey = (struct ecc_key*)ssl->peerEccDsaKey;
-            }
-            else {
-                if (!ssl->peerEccKey || !ssl->peerEccKeyPresent ||
-                                        !ssl->peerEccKey->dp) {
-                    return NO_PEER_KEY;
-                }
-                tmpKey = (struct ecc_key*)ssl->peerEccKey;
-            }
-        }
-        else if (ssl->options.side == WOLFSSL_SERVER_END) {
-            if (ssl->specs.static_ecdh) {
-                if (ssl->hsKey == NULL) {
-                    return NO_PRIVATE_KEY;
-                }
-                tmpKey = (struct ecc_key*)ssl->hsKey;
-            }
-            else {
-                if (!ssl->eccTempKeyPresent) {
-                    return NO_PRIVATE_KEY;
-                }
-                tmpKey = (struct ecc_key*)ssl->eccTempKey;
-            }
-        }
-
-        if (tmpKey) {
-            *otherKey = tmpKey;
-            ret = 0;
-        }
-
-        return ret;
-    }
-#endif /* HAVE_PK_CALLBACKS */
-
 int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
         byte* pubKeyDer, word32* pubKeySz, byte* out, word32* outlen,
         int side)
 {
     int ret;
-#ifdef HAVE_PK_CALLBACKS
-    ecc_key* otherKey = NULL;
-#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
-    WC_ASYNC_DEV* asyncDev = &priv_key->asyncDev;
+    WC_ASYNC_DEV* asyncDev = NULL;
 #endif
 
     (void)ssl;
@@ -4623,19 +4566,11 @@ int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
 
     WOLFSSL_ENTER("EccSharedSecret");
 
-#ifdef HAVE_PK_CALLBACKS
-    if (ssl->ctx->EccSharedSecretCb) {
-        ret = EccGetKey(ssl, &otherKey);
-        if (ret != 0)
-            return ret;
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        asyncDev = &otherKey->asyncDev;
-    #endif
-    }
-#endif
-
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* initialize event */
+    if (priv_key != NULL) {
+        asyncDev = &priv_key->asyncDev;
+    }
     ret = wolfSSL_AsyncInit(ssl, asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     if (ret != 0)
         return ret;
@@ -4644,6 +4579,7 @@ int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
 #ifdef HAVE_PK_CALLBACKS
     if (ssl->ctx->EccSharedSecretCb) {
         void* ctx = wolfSSL_GetEccSharedSecretCtx(ssl);
+        ecc_key* otherKey = (side == WOLFSSL_CLIENT_END) ? pub_key : priv_key;
         ret = ssl->ctx->EccSharedSecretCb(ssl, otherKey, pubKeyDer,
             pubKeySz, out, outlen, side, ctx);
     }
@@ -22685,6 +22621,12 @@ exit_dpk:
 
         ssl->options.cipherSuite0 = cs0;
         ssl->options.cipherSuite  = cs1;
+    #ifdef WOLFSSL_DEBUG_TLS
+        WOLFSSL_MSG("Chosen cipher suite:");
+        WOLFSSL_MSG(GetCipherNameInternal(ssl->options.cipherSuite0,
+                                          ssl->options.cipherSuite));
+    #endif
+
         compression = input[i++];
 
 #ifndef WOLFSSL_NO_STRICT_CIPHER_SUITE

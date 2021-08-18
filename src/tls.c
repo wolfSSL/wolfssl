@@ -7415,6 +7415,7 @@ static int TLSX_KeyShare_ProcessX25519(WOLFSSL* ssl,
     if (ssl->peerEccKey != NULL) {
         wc_ecc_free(ssl->peerEccKey);
         ssl->peerEccKey = NULL;
+        ssl->peerEccKeyPresent = 0;
     }
 #endif
 
@@ -7491,6 +7492,7 @@ static int TLSX_KeyShare_ProcessX448(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     if (ssl->peerEccKey != NULL) {
         wc_ecc_free(ssl->peerEccKey);
         ssl->peerEccKey = NULL;
+        ssl->peerEccKeyPresent = 0;
     }
 #endif
 
@@ -7607,6 +7609,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         if (ssl->peerEccKey != NULL) {
             wc_ecc_free(ssl->peerEccKey);
             XFREE(ssl->peerEccKey, ssl->heap, DYNAMIC_TYPE_ECC);
+            ssl->peerEccKeyPresent = 0;
         }
 
         ssl->peerEccKey = (ecc_key*)XMALLOC(sizeof(ecc_key), ssl->heap,
@@ -7631,6 +7634,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
 
         if (ret == 0) {
             ssl->ecdhCurveOID = ssl->peerEccKey->dp->oidSum;
+            ssl->peerEccKeyPresent = 1;
         }
     }
 
@@ -7649,10 +7653,15 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     }
 
     /* done with key share, release resources */
-    if (ssl->peerEccKey != NULL) {
+    if (ssl->peerEccKey != NULL
+    #ifdef HAVE_PK_CALLBACKS
+        && ssl->ctx->EccSharedSecretCb == NULL
+    #endif
+    ) {
         wc_ecc_free(ssl->peerEccKey);
         XFREE(ssl->peerEccKey, ssl->heap, DYNAMIC_TYPE_ECC);
         ssl->peerEccKey = NULL;
+        ssl->peerEccKeyPresent = 0;
     }
     if (keyShareEntry->key) {
         wc_ecc_free((ecc_key*)keyShareEntry->key);
