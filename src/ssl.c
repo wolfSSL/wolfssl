@@ -31327,7 +31327,11 @@ WOLFSSL_BIGNUM* wolfSSL_DH_8192_prime(WOLFSSL_BIGNUM* bn)
     return bn;
 }
 
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
+/* The functions inside the macro guard below are fine to use with FIPS provided
+ * WOLFSSL_DH_EXTRA isn't defined. That define will cause SetDhInternal to have
+ * a call to wc_DhImportKeyPair, which isn't defined in the FIPS v2 module. */
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS) && !defined(WOLFSSL_DH_EXTRA)) \
+ || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -31561,9 +31565,9 @@ int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
 
     return WOLFSSL_SUCCESS;
 }
-
 #endif /* v1.1.0 or later */
-#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
+#endif /* !HAVE_FIPS || (HAVE_FIPS && !WOLFSSL_DH_EXTRA) || 
+        * HAVE_FIPS_VERSION > 2 */
 
 void wolfSSL_DH_get0_key(const WOLFSSL_DH *dh,
         const WOLFSSL_BIGNUM **pub_key, const WOLFSSL_BIGNUM **priv_key)
