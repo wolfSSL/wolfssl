@@ -39323,7 +39323,8 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_DSA(void)
 
 static void test_wolfSSL_DSA_SIG(void)
 {
-#if !defined (NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)
+#if !defined(NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(HAVE_FIPS)
     DSA          *dsa  = NULL;
     DSA          *dsa2 = NULL;
     DSA_SIG      *sig  = NULL;
