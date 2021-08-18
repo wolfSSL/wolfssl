@@ -221,12 +221,14 @@ static void sp_2048_to_bin_64(sp_digit* r, byte* a)
     }
 }
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && (!defined(WOLFSSL_RSA_PUBLIC_ONLY) || !defined(WOLFSSL_SP_SMALL))) || defined(WOLFSSL_HAVE_SP_DH)
 /* Normalize the values in each word to 32.
  *
  * a  Array of sp_digit to normalize.
  */
 #define sp_2048_norm_64(a)
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && (!WOLFSSL_RSA_PUBLIC_ONLY || !WOLFSSL_SP_SMALL)) || WOLFSSL_HAVE_SP_DH */
 /* Normalize the values in each word to 32.
  *
  * a  Array of sp_digit to normalize.
@@ -6820,7 +6822,7 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
 
 #endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) | WOLFSSL_HAVE_SP_DH */
 
-#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 2048 bits, just need to subtract.
  *
@@ -6835,7 +6837,7 @@ static void sp_2048_mont_norm_64(sp_digit* r, const sp_digit* m)
     sp_2048_sub_in_place_64(r, m);
 }
 
-#endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH */
+#endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) | WOLFSSL_HAVE_SP_DH */
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
@@ -7312,6 +7314,640 @@ static void sp_2048_mont_sqr_64(sp_digit* r, const sp_digit* a,
     sp_2048_mont_reduce_64(r, m, mp);
 }
 
+#ifdef WOLFSSL_SP_SMALL
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_2048_sub_64(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    __asm__ __volatile__ (
+        "movs	r6, %[a]\n\t"
+        "movs	r3, #0\n\t"
+        "movs	r5, #0xff\n\t"
+#ifdef __clang__
+        "adds	r5, r5, #1\n\t"
+#else
+        "add	r5, r5, #1\n\t"
+#endif
+#ifdef __clang__
+        "adds	r6, r6, r5\n\t"
+#else
+        "add	r6, r6, r5\n\t"
+#endif
+        "\n"
+    "L_sp_2048_sub_64_word_%=: \n\t"
+        "movs	r5, #0\n\t"
+#ifdef __clang__
+        "subs	r5, r5, r3\n\t"
+#else
+        "sub	r5, r5, r3\n\t"
+#endif
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[b]]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r5\n\t"
+#else
+        "sbc	r4, r5\n\t"
+#endif
+        "str	r4, [%[r]]\n\t"
+#ifdef __clang__
+        "sbcs	r3, r3\n\t"
+#else
+        "sbc	r3, r3\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[a], %[a], #4\n\t"
+#else
+        "add	%[a], %[a], #4\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[b], %[b], #4\n\t"
+#else
+        "add	%[b], %[b], #4\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[r], %[r], #4\n\t"
+#else
+        "add	%[r], %[r], #4\n\t"
+#endif
+        "cmp	%[a], r6\n\t"
+        "bne	L_sp_2048_sub_64_word_%=\n\t"
+        "movs	%[r], r3\n\t"
+        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r3", "r4", "r5", "r6"
+    );
+    return (uint32_t)(size_t)r;
+}
+
+#else
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_2048_sub_64(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    __asm__ __volatile__ (
+        "movs	r3, #0\n\t"
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b]]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+#ifdef __clang__
+        "subs	r4, r4, r6\n\t"
+#else
+        "sub	r4, r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r]]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[a], #52]\n\t"
+        "ldr	r6, [%[b], #48]\n\t"
+        "ldr	r7, [%[b], #52]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #48]\n\t"
+        "str	r5, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[a], #60]\n\t"
+        "ldr	r6, [%[b], #56]\n\t"
+        "ldr	r7, [%[b], #60]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #56]\n\t"
+        "str	r5, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[a], #68]\n\t"
+        "ldr	r6, [%[b], #64]\n\t"
+        "ldr	r7, [%[b], #68]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #64]\n\t"
+        "str	r5, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[a], #76]\n\t"
+        "ldr	r6, [%[b], #72]\n\t"
+        "ldr	r7, [%[b], #76]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #72]\n\t"
+        "str	r5, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[a], #84]\n\t"
+        "ldr	r6, [%[b], #80]\n\t"
+        "ldr	r7, [%[b], #84]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #80]\n\t"
+        "str	r5, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[a], #92]\n\t"
+        "ldr	r6, [%[b], #88]\n\t"
+        "ldr	r7, [%[b], #92]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #88]\n\t"
+        "str	r5, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[a], #100]\n\t"
+        "ldr	r6, [%[b], #96]\n\t"
+        "ldr	r7, [%[b], #100]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #96]\n\t"
+        "str	r5, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[a], #108]\n\t"
+        "ldr	r6, [%[b], #104]\n\t"
+        "ldr	r7, [%[b], #108]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #104]\n\t"
+        "str	r5, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[a], #116]\n\t"
+        "ldr	r6, [%[b], #112]\n\t"
+        "ldr	r7, [%[b], #116]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #112]\n\t"
+        "str	r5, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[a], #124]\n\t"
+        "ldr	r6, [%[b], #120]\n\t"
+        "ldr	r7, [%[b], #124]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #120]\n\t"
+        "str	r5, [%[r], #124]\n\t"
+#ifdef __clang__
+        "sbcs	r3, r3\n\t"
+#else
+        "sbc	r3, r3\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[a], %[a], #0x80\n\t"
+#else
+        "add	%[a], %[a], #0x80\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[b], %[b], #0x80\n\t"
+#else
+        "add	%[b], %[b], #0x80\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[r], %[r], #0x80\n\t"
+#else
+        "add	%[r], %[r], #0x80\n\t"
+#endif
+        "movs	r6, #0\n\t"
+#ifdef __clang__
+        "subs	r6, r6, r3\n\t"
+#else
+        "sub	r6, r6, r3\n\t"
+#endif
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b]]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r]]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[a], #52]\n\t"
+        "ldr	r6, [%[b], #48]\n\t"
+        "ldr	r7, [%[b], #52]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #48]\n\t"
+        "str	r5, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[a], #60]\n\t"
+        "ldr	r6, [%[b], #56]\n\t"
+        "ldr	r7, [%[b], #60]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #56]\n\t"
+        "str	r5, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[a], #68]\n\t"
+        "ldr	r6, [%[b], #64]\n\t"
+        "ldr	r7, [%[b], #68]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #64]\n\t"
+        "str	r5, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[a], #76]\n\t"
+        "ldr	r6, [%[b], #72]\n\t"
+        "ldr	r7, [%[b], #76]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #72]\n\t"
+        "str	r5, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[a], #84]\n\t"
+        "ldr	r6, [%[b], #80]\n\t"
+        "ldr	r7, [%[b], #84]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #80]\n\t"
+        "str	r5, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[a], #92]\n\t"
+        "ldr	r6, [%[b], #88]\n\t"
+        "ldr	r7, [%[b], #92]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #88]\n\t"
+        "str	r5, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[a], #100]\n\t"
+        "ldr	r6, [%[b], #96]\n\t"
+        "ldr	r7, [%[b], #100]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #96]\n\t"
+        "str	r5, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[a], #108]\n\t"
+        "ldr	r6, [%[b], #104]\n\t"
+        "ldr	r7, [%[b], #108]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #104]\n\t"
+        "str	r5, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[a], #116]\n\t"
+        "ldr	r6, [%[b], #112]\n\t"
+        "ldr	r7, [%[b], #116]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #112]\n\t"
+        "str	r5, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[a], #124]\n\t"
+        "ldr	r6, [%[b], #120]\n\t"
+        "ldr	r7, [%[b], #124]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #120]\n\t"
+        "str	r5, [%[r], #124]\n\t"
+#ifdef __clang__
+        "sbcs	r3, r3\n\t"
+#else
+        "sbc	r3, r3\n\t"
+#endif
+        "movs	%[r], r3\n\t"
+        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r3", "r4", "r5", "r6", "r7"
+    );
+    return (uint32_t)(size_t)r;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
  * d1   The high order half of the number to divide.
@@ -7832,6 +8468,67 @@ SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1, sp_digit d0,
     return (uint32_t)(size_t)d1;
 }
 
+/* Divide d in a and put remainder into r (m*d + r = a)
+ * m is not calculated as it is not needed at this time.
+ *
+ * a  Number to be divided.
+ * d  Number to divide with.
+ * m  Multiplier result.
+ * r  Remainder from the division.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_2048_div_64_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
+        sp_digit* r)
+{
+    sp_digit t1[128], t2[65];
+    sp_digit div, r1;
+    int i;
+
+    (void)m;
+
+    div = d[63];
+    XMEMCPY(t1, a, sizeof(*t1) * 2 * 64);
+    for (i=63; i>=0; i--) {
+        sp_digit hi = t1[64 + i] - (t1[64 + i] == div);
+        r1 = div_2048_word_64(hi, t1[64 + i - 1], div);
+
+        sp_2048_mul_d_64(t2, d, r1);
+        t1[64 + i] += sp_2048_sub_in_place_64(&t1[i], t2);
+        t1[64 + i] -= t2[64];
+        if (t1[64 + i] != 0) {
+            t1[64 + i] += sp_2048_add_64(&t1[i], &t1[i], d);
+            if (t1[64 + i] != 0)
+                t1[64 + i] += sp_2048_add_64(&t1[i], &t1[i], d);
+        }
+    }
+
+    for (i = 63; i > 0; i--) {
+        if (t1[i] != d[i])
+            break;
+    }
+    if (t1[i] >= d[i]) {
+        sp_2048_sub_64(r, t1, d);
+    }
+    else {
+        XMEMCPY(r, t1, sizeof(*t1) * 64);
+    }
+
+    return MP_OKAY;
+}
+
+/* Reduce a modulo m into r. (r = a mod m)
+ *
+ * r  A single precision number that is the reduced result.
+ * a  A single precision number that is to be reduced.
+ * m  A single precision number that is the modulus to reduce with.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_2048_mod_64_cond(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    return sp_2048_div_64_cond(a, m, NULL, r);
+}
+
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* AND m into each word of a and store in r.
  *
  * r  A single precision integer.
@@ -8009,58 +8706,6 @@ static WC_INLINE int sp_2048_div_64(const sp_digit* a, const sp_digit* d, sp_dig
 static WC_INLINE int sp_2048_mod_64(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
     return sp_2048_div_64(a, m, NULL, r);
-}
-
-/* Divide d in a and put remainder into r (m*d + r = a)
- * m is not calculated as it is not needed at this time.
- *
- * a  Number to be divided.
- * d  Number to divide with.
- * m  Multiplier result.
- * r  Remainder from the division.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_2048_div_64_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
-        sp_digit* r)
-{
-    sp_digit t1[128], t2[65];
-    sp_digit div, r1;
-    int i;
-
-    (void)m;
-
-    div = d[63];
-    XMEMCPY(t1, a, sizeof(*t1) * 2 * 64);
-    for (i=63; i>=0; i--) {
-        sp_digit hi = t1[64 + i] - (t1[64 + i] == div);
-        r1 = div_2048_word_64(hi, t1[64 + i - 1], div);
-
-        sp_2048_mul_d_64(t2, d, r1);
-        t1[64 + i] += sp_2048_sub_in_place_64(&t1[i], t2);
-        t1[64 + i] -= t2[64];
-        if (t1[64 + i] != 0) {
-            t1[64 + i] += sp_2048_add_64(&t1[i], &t1[i], d);
-            if (t1[64 + i] != 0)
-                t1[64 + i] += sp_2048_add_64(&t1[i], &t1[i], d);
-        }
-    }
-
-    r1 = sp_2048_cmp_64(t1, d) >= 0;
-    sp_2048_cond_sub_64(r, t1, d, (sp_digit)0 - r1);
-
-    return MP_OKAY;
-}
-
-/* Reduce a modulo m into r. (r = a mod m)
- *
- * r  A single precision number that is the reduced result.
- * a  A single precision number that is to be reduced.
- * m  A single precision number that is the modulus to reduce with.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_2048_mod_64_cond(sp_digit* r, const sp_digit* a, const sp_digit* m)
-{
-    return sp_2048_div_64_cond(a, m, NULL, r);
 }
 
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
@@ -8339,6 +8984,7 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif /* WOLFSSL_SP_SMALL */
 #endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *
@@ -10704,12 +11350,14 @@ static void sp_3072_to_bin_96(sp_digit* r, byte* a)
     }
 }
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && (!defined(WOLFSSL_RSA_PUBLIC_ONLY) || !defined(WOLFSSL_SP_SMALL))) || defined(WOLFSSL_HAVE_SP_DH)
 /* Normalize the values in each word to 32.
  *
  * a  Array of sp_digit to normalize.
  */
 #define sp_3072_norm_96(a)
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && (!WOLFSSL_RSA_PUBLIC_ONLY || !WOLFSSL_SP_SMALL)) || WOLFSSL_HAVE_SP_DH */
 /* Normalize the values in each word to 32.
  *
  * a  Array of sp_digit to normalize.
@@ -18375,7 +19023,7 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
 
 #endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) | WOLFSSL_HAVE_SP_DH */
 
-#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 3072 bits, just need to subtract.
  *
@@ -18390,7 +19038,7 @@ static void sp_3072_mont_norm_96(sp_digit* r, const sp_digit* m)
     sp_3072_sub_in_place_96(r, m);
 }
 
-#endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH */
+#endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) | WOLFSSL_HAVE_SP_DH */
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
@@ -18872,6 +19520,922 @@ static void sp_3072_mont_sqr_96(sp_digit* r, const sp_digit* a,
     sp_3072_mont_reduce_96(r, m, mp);
 }
 
+#ifdef WOLFSSL_SP_SMALL
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_3072_sub_96(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    __asm__ __volatile__ (
+        "movs	r6, %[a]\n\t"
+        "movs	r3, #0\n\t"
+        "movs	r5, #0xff\n\t"
+#ifdef __clang__
+        "adds	r5, r5, #0x81\n\t"
+#else
+        "add	r5, r5, #0x81\n\t"
+#endif
+#ifdef __clang__
+        "adds	r6, r6, r5\n\t"
+#else
+        "add	r6, r6, r5\n\t"
+#endif
+        "\n"
+    "L_sp_3072_sub_96_word_%=: \n\t"
+        "movs	r5, #0\n\t"
+#ifdef __clang__
+        "subs	r5, r5, r3\n\t"
+#else
+        "sub	r5, r5, r3\n\t"
+#endif
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[b]]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r5\n\t"
+#else
+        "sbc	r4, r5\n\t"
+#endif
+        "str	r4, [%[r]]\n\t"
+#ifdef __clang__
+        "sbcs	r3, r3\n\t"
+#else
+        "sbc	r3, r3\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[a], %[a], #4\n\t"
+#else
+        "add	%[a], %[a], #4\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[b], %[b], #4\n\t"
+#else
+        "add	%[b], %[b], #4\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[r], %[r], #4\n\t"
+#else
+        "add	%[r], %[r], #4\n\t"
+#endif
+        "cmp	%[a], r6\n\t"
+        "bne	L_sp_3072_sub_96_word_%=\n\t"
+        "movs	%[r], r3\n\t"
+        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r3", "r4", "r5", "r6"
+    );
+    return (uint32_t)(size_t)r;
+}
+
+#else
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_3072_sub_96(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    __asm__ __volatile__ (
+        "movs	r3, #0\n\t"
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b]]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+#ifdef __clang__
+        "subs	r4, r4, r6\n\t"
+#else
+        "sub	r4, r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r]]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[a], #52]\n\t"
+        "ldr	r6, [%[b], #48]\n\t"
+        "ldr	r7, [%[b], #52]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #48]\n\t"
+        "str	r5, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[a], #60]\n\t"
+        "ldr	r6, [%[b], #56]\n\t"
+        "ldr	r7, [%[b], #60]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #56]\n\t"
+        "str	r5, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[a], #68]\n\t"
+        "ldr	r6, [%[b], #64]\n\t"
+        "ldr	r7, [%[b], #68]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #64]\n\t"
+        "str	r5, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[a], #76]\n\t"
+        "ldr	r6, [%[b], #72]\n\t"
+        "ldr	r7, [%[b], #76]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #72]\n\t"
+        "str	r5, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[a], #84]\n\t"
+        "ldr	r6, [%[b], #80]\n\t"
+        "ldr	r7, [%[b], #84]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #80]\n\t"
+        "str	r5, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[a], #92]\n\t"
+        "ldr	r6, [%[b], #88]\n\t"
+        "ldr	r7, [%[b], #92]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #88]\n\t"
+        "str	r5, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[a], #100]\n\t"
+        "ldr	r6, [%[b], #96]\n\t"
+        "ldr	r7, [%[b], #100]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #96]\n\t"
+        "str	r5, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[a], #108]\n\t"
+        "ldr	r6, [%[b], #104]\n\t"
+        "ldr	r7, [%[b], #108]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #104]\n\t"
+        "str	r5, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[a], #116]\n\t"
+        "ldr	r6, [%[b], #112]\n\t"
+        "ldr	r7, [%[b], #116]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #112]\n\t"
+        "str	r5, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[a], #124]\n\t"
+        "ldr	r6, [%[b], #120]\n\t"
+        "ldr	r7, [%[b], #124]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #120]\n\t"
+        "str	r5, [%[r], #124]\n\t"
+#ifdef __clang__
+        "sbcs	r3, r3\n\t"
+#else
+        "sbc	r3, r3\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[a], %[a], #0x80\n\t"
+#else
+        "add	%[a], %[a], #0x80\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[b], %[b], #0x80\n\t"
+#else
+        "add	%[b], %[b], #0x80\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[r], %[r], #0x80\n\t"
+#else
+        "add	%[r], %[r], #0x80\n\t"
+#endif
+        "movs	r6, #0\n\t"
+#ifdef __clang__
+        "subs	r6, r6, r3\n\t"
+#else
+        "sub	r6, r6, r3\n\t"
+#endif
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b]]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r]]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[a], #52]\n\t"
+        "ldr	r6, [%[b], #48]\n\t"
+        "ldr	r7, [%[b], #52]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #48]\n\t"
+        "str	r5, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[a], #60]\n\t"
+        "ldr	r6, [%[b], #56]\n\t"
+        "ldr	r7, [%[b], #60]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #56]\n\t"
+        "str	r5, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[a], #68]\n\t"
+        "ldr	r6, [%[b], #64]\n\t"
+        "ldr	r7, [%[b], #68]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #64]\n\t"
+        "str	r5, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[a], #76]\n\t"
+        "ldr	r6, [%[b], #72]\n\t"
+        "ldr	r7, [%[b], #76]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #72]\n\t"
+        "str	r5, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[a], #84]\n\t"
+        "ldr	r6, [%[b], #80]\n\t"
+        "ldr	r7, [%[b], #84]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #80]\n\t"
+        "str	r5, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[a], #92]\n\t"
+        "ldr	r6, [%[b], #88]\n\t"
+        "ldr	r7, [%[b], #92]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #88]\n\t"
+        "str	r5, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[a], #100]\n\t"
+        "ldr	r6, [%[b], #96]\n\t"
+        "ldr	r7, [%[b], #100]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #96]\n\t"
+        "str	r5, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[a], #108]\n\t"
+        "ldr	r6, [%[b], #104]\n\t"
+        "ldr	r7, [%[b], #108]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #104]\n\t"
+        "str	r5, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[a], #116]\n\t"
+        "ldr	r6, [%[b], #112]\n\t"
+        "ldr	r7, [%[b], #116]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #112]\n\t"
+        "str	r5, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[a], #124]\n\t"
+        "ldr	r6, [%[b], #120]\n\t"
+        "ldr	r7, [%[b], #124]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #120]\n\t"
+        "str	r5, [%[r], #124]\n\t"
+#ifdef __clang__
+        "sbcs	r3, r3\n\t"
+#else
+        "sbc	r3, r3\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[a], %[a], #0x80\n\t"
+#else
+        "add	%[a], %[a], #0x80\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[b], %[b], #0x80\n\t"
+#else
+        "add	%[b], %[b], #0x80\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[r], %[r], #0x80\n\t"
+#else
+        "add	%[r], %[r], #0x80\n\t"
+#endif
+        "movs	r6, #0\n\t"
+#ifdef __clang__
+        "subs	r6, r6, r3\n\t"
+#else
+        "sub	r6, r6, r3\n\t"
+#endif
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b]]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r]]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[a], #52]\n\t"
+        "ldr	r6, [%[b], #48]\n\t"
+        "ldr	r7, [%[b], #52]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #48]\n\t"
+        "str	r5, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[a], #60]\n\t"
+        "ldr	r6, [%[b], #56]\n\t"
+        "ldr	r7, [%[b], #60]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #56]\n\t"
+        "str	r5, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[a], #68]\n\t"
+        "ldr	r6, [%[b], #64]\n\t"
+        "ldr	r7, [%[b], #68]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #64]\n\t"
+        "str	r5, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[a], #76]\n\t"
+        "ldr	r6, [%[b], #72]\n\t"
+        "ldr	r7, [%[b], #76]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #72]\n\t"
+        "str	r5, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[a], #84]\n\t"
+        "ldr	r6, [%[b], #80]\n\t"
+        "ldr	r7, [%[b], #84]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #80]\n\t"
+        "str	r5, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[a], #92]\n\t"
+        "ldr	r6, [%[b], #88]\n\t"
+        "ldr	r7, [%[b], #92]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #88]\n\t"
+        "str	r5, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[a], #100]\n\t"
+        "ldr	r6, [%[b], #96]\n\t"
+        "ldr	r7, [%[b], #100]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #96]\n\t"
+        "str	r5, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[a], #108]\n\t"
+        "ldr	r6, [%[b], #104]\n\t"
+        "ldr	r7, [%[b], #108]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #104]\n\t"
+        "str	r5, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[a], #116]\n\t"
+        "ldr	r6, [%[b], #112]\n\t"
+        "ldr	r7, [%[b], #116]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #112]\n\t"
+        "str	r5, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[a], #124]\n\t"
+        "ldr	r6, [%[b], #120]\n\t"
+        "ldr	r7, [%[b], #124]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #120]\n\t"
+        "str	r5, [%[r], #124]\n\t"
+#ifdef __clang__
+        "sbcs	r3, r3\n\t"
+#else
+        "sbc	r3, r3\n\t"
+#endif
+        "movs	%[r], r3\n\t"
+        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r3", "r4", "r5", "r6", "r7"
+    );
+    return (uint32_t)(size_t)r;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
  * d1   The high order half of the number to divide.
@@ -19392,6 +20956,67 @@ SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1, sp_digit d0,
     return (uint32_t)(size_t)d1;
 }
 
+/* Divide d in a and put remainder into r (m*d + r = a)
+ * m is not calculated as it is not needed at this time.
+ *
+ * a  Number to be divided.
+ * d  Number to divide with.
+ * m  Multiplier result.
+ * r  Remainder from the division.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_3072_div_96_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
+        sp_digit* r)
+{
+    sp_digit t1[192], t2[97];
+    sp_digit div, r1;
+    int i;
+
+    (void)m;
+
+    div = d[95];
+    XMEMCPY(t1, a, sizeof(*t1) * 2 * 96);
+    for (i=95; i>=0; i--) {
+        sp_digit hi = t1[96 + i] - (t1[96 + i] == div);
+        r1 = div_3072_word_96(hi, t1[96 + i - 1], div);
+
+        sp_3072_mul_d_96(t2, d, r1);
+        t1[96 + i] += sp_3072_sub_in_place_96(&t1[i], t2);
+        t1[96 + i] -= t2[96];
+        if (t1[96 + i] != 0) {
+            t1[96 + i] += sp_3072_add_96(&t1[i], &t1[i], d);
+            if (t1[96 + i] != 0)
+                t1[96 + i] += sp_3072_add_96(&t1[i], &t1[i], d);
+        }
+    }
+
+    for (i = 95; i > 0; i--) {
+        if (t1[i] != d[i])
+            break;
+    }
+    if (t1[i] >= d[i]) {
+        sp_3072_sub_96(r, t1, d);
+    }
+    else {
+        XMEMCPY(r, t1, sizeof(*t1) * 96);
+    }
+
+    return MP_OKAY;
+}
+
+/* Reduce a modulo m into r. (r = a mod m)
+ *
+ * r  A single precision number that is the reduced result.
+ * a  A single precision number that is to be reduced.
+ * m  A single precision number that is the modulus to reduce with.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_3072_mod_96_cond(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    return sp_3072_div_96_cond(a, m, NULL, r);
+}
+
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* AND m into each word of a and store in r.
  *
  * r  A single precision integer.
@@ -19574,58 +21199,6 @@ static WC_INLINE int sp_3072_div_96(const sp_digit* a, const sp_digit* d, sp_dig
 static WC_INLINE int sp_3072_mod_96(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
     return sp_3072_div_96(a, m, NULL, r);
-}
-
-/* Divide d in a and put remainder into r (m*d + r = a)
- * m is not calculated as it is not needed at this time.
- *
- * a  Number to be divided.
- * d  Number to divide with.
- * m  Multiplier result.
- * r  Remainder from the division.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_3072_div_96_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
-        sp_digit* r)
-{
-    sp_digit t1[192], t2[97];
-    sp_digit div, r1;
-    int i;
-
-    (void)m;
-
-    div = d[95];
-    XMEMCPY(t1, a, sizeof(*t1) * 2 * 96);
-    for (i=95; i>=0; i--) {
-        sp_digit hi = t1[96 + i] - (t1[96 + i] == div);
-        r1 = div_3072_word_96(hi, t1[96 + i - 1], div);
-
-        sp_3072_mul_d_96(t2, d, r1);
-        t1[96 + i] += sp_3072_sub_in_place_96(&t1[i], t2);
-        t1[96 + i] -= t2[96];
-        if (t1[96 + i] != 0) {
-            t1[96 + i] += sp_3072_add_96(&t1[i], &t1[i], d);
-            if (t1[96 + i] != 0)
-                t1[96 + i] += sp_3072_add_96(&t1[i], &t1[i], d);
-        }
-    }
-
-    r1 = sp_3072_cmp_96(t1, d) >= 0;
-    sp_3072_cond_sub_96(r, t1, d, (sp_digit)0 - r1);
-
-    return MP_OKAY;
-}
-
-/* Reduce a modulo m into r. (r = a mod m)
- *
- * r  A single precision number that is the reduced result.
- * a  A single precision number that is to be reduced.
- * m  A single precision number that is the modulus to reduce with.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_3072_mod_96_cond(sp_digit* r, const sp_digit* a, const sp_digit* m)
-{
-    return sp_3072_div_96_cond(a, m, NULL, r);
 }
 
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
@@ -19904,6 +21477,7 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif /* WOLFSSL_SP_SMALL */
 #endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *
@@ -23003,12 +24577,14 @@ static void sp_4096_to_bin_128(sp_digit* r, byte* a)
     }
 }
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && (!defined(WOLFSSL_RSA_PUBLIC_ONLY) || !defined(WOLFSSL_SP_SMALL))) || defined(WOLFSSL_HAVE_SP_DH)
 /* Normalize the values in each word to 32.
  *
  * a  Array of sp_digit to normalize.
  */
 #define sp_4096_norm_128(a)
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && (!WOLFSSL_RSA_PUBLIC_ONLY || !WOLFSSL_SP_SMALL)) || WOLFSSL_HAVE_SP_DH */
 /* Normalize the values in each word to 32.
  *
  * a  Array of sp_digit to normalize.
@@ -26424,7 +28000,7 @@ SP_NOINLINE static void sp_4096_mul_d_128(sp_digit* r, const sp_digit* a,
     );
 }
 
-#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 4096 bits, just need to subtract.
  *
@@ -26439,7 +28015,7 @@ static void sp_4096_mont_norm_128(sp_digit* r, const sp_digit* m)
     sp_4096_sub_in_place_128(r, m);
 }
 
-#endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH */
+#endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) | WOLFSSL_HAVE_SP_DH */
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
@@ -26921,6 +28497,1204 @@ static void sp_4096_mont_sqr_128(sp_digit* r, const sp_digit* a,
     sp_4096_mont_reduce_128(r, m, mp);
 }
 
+#ifdef WOLFSSL_SP_SMALL
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_4096_sub_128(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    __asm__ __volatile__ (
+        "movs	r6, %[a]\n\t"
+        "movs	r3, #0\n\t"
+        "movs	r5, #2\n\t"
+#ifdef __clang__
+        "lsls	r5, r5, #8\n\t"
+#else
+        "lsl	r5, r5, #8\n\t"
+#endif
+#ifdef __clang__
+        "adds	r6, r6, r5\n\t"
+#else
+        "add	r6, r6, r5\n\t"
+#endif
+        "\n"
+    "L_sp_4096_sub_128_word_%=: \n\t"
+        "movs	r5, #0\n\t"
+#ifdef __clang__
+        "subs	r5, r5, r3\n\t"
+#else
+        "sub	r5, r5, r3\n\t"
+#endif
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[b]]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r5\n\t"
+#else
+        "sbc	r4, r5\n\t"
+#endif
+        "str	r4, [%[r]]\n\t"
+#ifdef __clang__
+        "sbcs	r3, r3\n\t"
+#else
+        "sbc	r3, r3\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[a], %[a], #4\n\t"
+#else
+        "add	%[a], %[a], #4\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[b], %[b], #4\n\t"
+#else
+        "add	%[b], %[b], #4\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[r], %[r], #4\n\t"
+#else
+        "add	%[r], %[r], #4\n\t"
+#endif
+        "cmp	%[a], r6\n\t"
+        "bne	L_sp_4096_sub_128_word_%=\n\t"
+        "movs	%[r], r3\n\t"
+        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r3", "r4", "r5", "r6"
+    );
+    return (uint32_t)(size_t)r;
+}
+
+#else
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_4096_sub_128(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    __asm__ __volatile__ (
+        "movs	r3, #0\n\t"
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b]]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+#ifdef __clang__
+        "subs	r4, r4, r6\n\t"
+#else
+        "sub	r4, r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r]]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[a], #52]\n\t"
+        "ldr	r6, [%[b], #48]\n\t"
+        "ldr	r7, [%[b], #52]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #48]\n\t"
+        "str	r5, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[a], #60]\n\t"
+        "ldr	r6, [%[b], #56]\n\t"
+        "ldr	r7, [%[b], #60]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #56]\n\t"
+        "str	r5, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[a], #68]\n\t"
+        "ldr	r6, [%[b], #64]\n\t"
+        "ldr	r7, [%[b], #68]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #64]\n\t"
+        "str	r5, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[a], #76]\n\t"
+        "ldr	r6, [%[b], #72]\n\t"
+        "ldr	r7, [%[b], #76]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #72]\n\t"
+        "str	r5, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[a], #84]\n\t"
+        "ldr	r6, [%[b], #80]\n\t"
+        "ldr	r7, [%[b], #84]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #80]\n\t"
+        "str	r5, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[a], #92]\n\t"
+        "ldr	r6, [%[b], #88]\n\t"
+        "ldr	r7, [%[b], #92]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #88]\n\t"
+        "str	r5, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[a], #100]\n\t"
+        "ldr	r6, [%[b], #96]\n\t"
+        "ldr	r7, [%[b], #100]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #96]\n\t"
+        "str	r5, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[a], #108]\n\t"
+        "ldr	r6, [%[b], #104]\n\t"
+        "ldr	r7, [%[b], #108]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #104]\n\t"
+        "str	r5, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[a], #116]\n\t"
+        "ldr	r6, [%[b], #112]\n\t"
+        "ldr	r7, [%[b], #116]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #112]\n\t"
+        "str	r5, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[a], #124]\n\t"
+        "ldr	r6, [%[b], #120]\n\t"
+        "ldr	r7, [%[b], #124]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #120]\n\t"
+        "str	r5, [%[r], #124]\n\t"
+#ifdef __clang__
+        "sbcs	r3, r3\n\t"
+#else
+        "sbc	r3, r3\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[a], %[a], #0x80\n\t"
+#else
+        "add	%[a], %[a], #0x80\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[b], %[b], #0x80\n\t"
+#else
+        "add	%[b], %[b], #0x80\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[r], %[r], #0x80\n\t"
+#else
+        "add	%[r], %[r], #0x80\n\t"
+#endif
+        "movs	r6, #0\n\t"
+#ifdef __clang__
+        "subs	r6, r6, r3\n\t"
+#else
+        "sub	r6, r6, r3\n\t"
+#endif
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b]]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r]]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[a], #52]\n\t"
+        "ldr	r6, [%[b], #48]\n\t"
+        "ldr	r7, [%[b], #52]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #48]\n\t"
+        "str	r5, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[a], #60]\n\t"
+        "ldr	r6, [%[b], #56]\n\t"
+        "ldr	r7, [%[b], #60]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #56]\n\t"
+        "str	r5, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[a], #68]\n\t"
+        "ldr	r6, [%[b], #64]\n\t"
+        "ldr	r7, [%[b], #68]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #64]\n\t"
+        "str	r5, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[a], #76]\n\t"
+        "ldr	r6, [%[b], #72]\n\t"
+        "ldr	r7, [%[b], #76]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #72]\n\t"
+        "str	r5, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[a], #84]\n\t"
+        "ldr	r6, [%[b], #80]\n\t"
+        "ldr	r7, [%[b], #84]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #80]\n\t"
+        "str	r5, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[a], #92]\n\t"
+        "ldr	r6, [%[b], #88]\n\t"
+        "ldr	r7, [%[b], #92]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #88]\n\t"
+        "str	r5, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[a], #100]\n\t"
+        "ldr	r6, [%[b], #96]\n\t"
+        "ldr	r7, [%[b], #100]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #96]\n\t"
+        "str	r5, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[a], #108]\n\t"
+        "ldr	r6, [%[b], #104]\n\t"
+        "ldr	r7, [%[b], #108]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #104]\n\t"
+        "str	r5, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[a], #116]\n\t"
+        "ldr	r6, [%[b], #112]\n\t"
+        "ldr	r7, [%[b], #116]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #112]\n\t"
+        "str	r5, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[a], #124]\n\t"
+        "ldr	r6, [%[b], #120]\n\t"
+        "ldr	r7, [%[b], #124]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #120]\n\t"
+        "str	r5, [%[r], #124]\n\t"
+#ifdef __clang__
+        "sbcs	r3, r3\n\t"
+#else
+        "sbc	r3, r3\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[a], %[a], #0x80\n\t"
+#else
+        "add	%[a], %[a], #0x80\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[b], %[b], #0x80\n\t"
+#else
+        "add	%[b], %[b], #0x80\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[r], %[r], #0x80\n\t"
+#else
+        "add	%[r], %[r], #0x80\n\t"
+#endif
+        "movs	r6, #0\n\t"
+#ifdef __clang__
+        "subs	r6, r6, r3\n\t"
+#else
+        "sub	r6, r6, r3\n\t"
+#endif
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b]]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r]]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[a], #52]\n\t"
+        "ldr	r6, [%[b], #48]\n\t"
+        "ldr	r7, [%[b], #52]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #48]\n\t"
+        "str	r5, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[a], #60]\n\t"
+        "ldr	r6, [%[b], #56]\n\t"
+        "ldr	r7, [%[b], #60]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #56]\n\t"
+        "str	r5, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[a], #68]\n\t"
+        "ldr	r6, [%[b], #64]\n\t"
+        "ldr	r7, [%[b], #68]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #64]\n\t"
+        "str	r5, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[a], #76]\n\t"
+        "ldr	r6, [%[b], #72]\n\t"
+        "ldr	r7, [%[b], #76]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #72]\n\t"
+        "str	r5, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[a], #84]\n\t"
+        "ldr	r6, [%[b], #80]\n\t"
+        "ldr	r7, [%[b], #84]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #80]\n\t"
+        "str	r5, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[a], #92]\n\t"
+        "ldr	r6, [%[b], #88]\n\t"
+        "ldr	r7, [%[b], #92]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #88]\n\t"
+        "str	r5, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[a], #100]\n\t"
+        "ldr	r6, [%[b], #96]\n\t"
+        "ldr	r7, [%[b], #100]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #96]\n\t"
+        "str	r5, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[a], #108]\n\t"
+        "ldr	r6, [%[b], #104]\n\t"
+        "ldr	r7, [%[b], #108]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #104]\n\t"
+        "str	r5, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[a], #116]\n\t"
+        "ldr	r6, [%[b], #112]\n\t"
+        "ldr	r7, [%[b], #116]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #112]\n\t"
+        "str	r5, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[a], #124]\n\t"
+        "ldr	r6, [%[b], #120]\n\t"
+        "ldr	r7, [%[b], #124]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #120]\n\t"
+        "str	r5, [%[r], #124]\n\t"
+#ifdef __clang__
+        "sbcs	r3, r3\n\t"
+#else
+        "sbc	r3, r3\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[a], %[a], #0x80\n\t"
+#else
+        "add	%[a], %[a], #0x80\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[b], %[b], #0x80\n\t"
+#else
+        "add	%[b], %[b], #0x80\n\t"
+#endif
+#ifdef __clang__
+        "adds	%[r], %[r], #0x80\n\t"
+#else
+        "add	%[r], %[r], #0x80\n\t"
+#endif
+        "movs	r6, #0\n\t"
+#ifdef __clang__
+        "subs	r6, r6, r3\n\t"
+#else
+        "sub	r6, r6, r3\n\t"
+#endif
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b]]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r]]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[a], #52]\n\t"
+        "ldr	r6, [%[b], #48]\n\t"
+        "ldr	r7, [%[b], #52]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #48]\n\t"
+        "str	r5, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[a], #60]\n\t"
+        "ldr	r6, [%[b], #56]\n\t"
+        "ldr	r7, [%[b], #60]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #56]\n\t"
+        "str	r5, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[a], #68]\n\t"
+        "ldr	r6, [%[b], #64]\n\t"
+        "ldr	r7, [%[b], #68]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #64]\n\t"
+        "str	r5, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[a], #76]\n\t"
+        "ldr	r6, [%[b], #72]\n\t"
+        "ldr	r7, [%[b], #76]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #72]\n\t"
+        "str	r5, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[a], #84]\n\t"
+        "ldr	r6, [%[b], #80]\n\t"
+        "ldr	r7, [%[b], #84]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #80]\n\t"
+        "str	r5, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[a], #92]\n\t"
+        "ldr	r6, [%[b], #88]\n\t"
+        "ldr	r7, [%[b], #92]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #88]\n\t"
+        "str	r5, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[a], #100]\n\t"
+        "ldr	r6, [%[b], #96]\n\t"
+        "ldr	r7, [%[b], #100]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #96]\n\t"
+        "str	r5, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[a], #108]\n\t"
+        "ldr	r6, [%[b], #104]\n\t"
+        "ldr	r7, [%[b], #108]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #104]\n\t"
+        "str	r5, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[a], #116]\n\t"
+        "ldr	r6, [%[b], #112]\n\t"
+        "ldr	r7, [%[b], #116]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #112]\n\t"
+        "str	r5, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[a], #124]\n\t"
+        "ldr	r6, [%[b], #120]\n\t"
+        "ldr	r7, [%[b], #124]\n\t"
+#ifdef __clang__
+        "sbcs	r4, r6\n\t"
+#else
+        "sbc	r4, r6\n\t"
+#endif
+#ifdef __clang__
+        "sbcs	r5, r7\n\t"
+#else
+        "sbc	r5, r7\n\t"
+#endif
+        "str	r4, [%[r], #120]\n\t"
+        "str	r5, [%[r], #124]\n\t"
+#ifdef __clang__
+        "sbcs	r3, r3\n\t"
+#else
+        "sbc	r3, r3\n\t"
+#endif
+        "movs	%[r], r3\n\t"
+        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r3", "r4", "r5", "r6", "r7"
+    );
+    return (uint32_t)(size_t)r;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
  * d1   The high order half of the number to divide.
@@ -27441,6 +30215,67 @@ SP_NOINLINE static sp_digit div_4096_word_128(sp_digit d1, sp_digit d0,
     return (uint32_t)(size_t)d1;
 }
 
+/* Divide d in a and put remainder into r (m*d + r = a)
+ * m is not calculated as it is not needed at this time.
+ *
+ * a  Number to be divided.
+ * d  Number to divide with.
+ * m  Multiplier result.
+ * r  Remainder from the division.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_4096_div_128_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
+        sp_digit* r)
+{
+    sp_digit t1[256], t2[129];
+    sp_digit div, r1;
+    int i;
+
+    (void)m;
+
+    div = d[127];
+    XMEMCPY(t1, a, sizeof(*t1) * 2 * 128);
+    for (i=127; i>=0; i--) {
+        sp_digit hi = t1[128 + i] - (t1[128 + i] == div);
+        r1 = div_4096_word_128(hi, t1[128 + i - 1], div);
+
+        sp_4096_mul_d_128(t2, d, r1);
+        t1[128 + i] += sp_4096_sub_in_place_128(&t1[i], t2);
+        t1[128 + i] -= t2[128];
+        if (t1[128 + i] != 0) {
+            t1[128 + i] += sp_4096_add_128(&t1[i], &t1[i], d);
+            if (t1[128 + i] != 0)
+                t1[128 + i] += sp_4096_add_128(&t1[i], &t1[i], d);
+        }
+    }
+
+    for (i = 127; i > 0; i--) {
+        if (t1[i] != d[i])
+            break;
+    }
+    if (t1[i] >= d[i]) {
+        sp_4096_sub_128(r, t1, d);
+    }
+    else {
+        XMEMCPY(r, t1, sizeof(*t1) * 128);
+    }
+
+    return MP_OKAY;
+}
+
+/* Reduce a modulo m into r. (r = a mod m)
+ *
+ * r  A single precision number that is the reduced result.
+ * a  A single precision number that is to be reduced.
+ * m  A single precision number that is the modulus to reduce with.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_4096_mod_128_cond(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    return sp_4096_div_128_cond(a, m, NULL, r);
+}
+
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* AND m into each word of a and store in r.
  *
  * r  A single precision integer.
@@ -27624,58 +30459,6 @@ static WC_INLINE int sp_4096_div_128(const sp_digit* a, const sp_digit* d, sp_di
 static WC_INLINE int sp_4096_mod_128(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
     return sp_4096_div_128(a, m, NULL, r);
-}
-
-/* Divide d in a and put remainder into r (m*d + r = a)
- * m is not calculated as it is not needed at this time.
- *
- * a  Number to be divided.
- * d  Number to divide with.
- * m  Multiplier result.
- * r  Remainder from the division.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_4096_div_128_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
-        sp_digit* r)
-{
-    sp_digit t1[256], t2[129];
-    sp_digit div, r1;
-    int i;
-
-    (void)m;
-
-    div = d[127];
-    XMEMCPY(t1, a, sizeof(*t1) * 2 * 128);
-    for (i=127; i>=0; i--) {
-        sp_digit hi = t1[128 + i] - (t1[128 + i] == div);
-        r1 = div_4096_word_128(hi, t1[128 + i - 1], div);
-
-        sp_4096_mul_d_128(t2, d, r1);
-        t1[128 + i] += sp_4096_sub_in_place_128(&t1[i], t2);
-        t1[128 + i] -= t2[128];
-        if (t1[128 + i] != 0) {
-            t1[128 + i] += sp_4096_add_128(&t1[i], &t1[i], d);
-            if (t1[128 + i] != 0)
-                t1[128 + i] += sp_4096_add_128(&t1[i], &t1[i], d);
-        }
-    }
-
-    r1 = sp_4096_cmp_128(t1, d) >= 0;
-    sp_4096_cond_sub_128(r, t1, d, (sp_digit)0 - r1);
-
-    return MP_OKAY;
-}
-
-/* Reduce a modulo m into r. (r = a mod m)
- *
- * r  A single precision number that is the reduced result.
- * a  A single precision number that is to be reduced.
- * m  A single precision number that is the modulus to reduce with.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_4096_mod_128_cond(sp_digit* r, const sp_digit* a, const sp_digit* m)
-{
-    return sp_4096_div_128_cond(a, m, NULL, r);
 }
 
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
@@ -27954,6 +30737,7 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
 #endif /* WOLFSSL_SP_SMALL */
 #endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *

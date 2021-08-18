@@ -2317,7 +2317,7 @@ int sp_grow(sp_int* a, int l)
 }
 #endif /* !WOLFSSL_RSA_VERIFY_ONLY || !NO_DH || HAVE_ECC */
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(HAVE_ECC)
 /* Set the multi-precision number to zero.
  *
  * @param  [out]  a  SP integer to set to zero.
@@ -2629,7 +2629,7 @@ static int _sp_cmp(sp_int* a, sp_int* b)
 }
 #endif
 
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(HAVE_ECC)
 /* Compare two multi-precision numbers.
  *
  * Pointers are compared such that NULL is less than not NULL.
@@ -3318,8 +3318,23 @@ int sp_mul_d(sp_int* a, sp_int_digit d, sp_int* r)
 #endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) ||
         * (WOLFSSL_KEY_GEN && !NO_RSA) */
 
-#if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
-    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+/* Predefine complicated rules of when to compile in sp_div_d and sp_mod_d. */
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
+    defined(WC_MP_TO_RADIX)
+#define WOLFSSL_SP_DIV_D
+#endif
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    defined(WOLFSSL_HAVE_SP_DH) || \
+    (defined(HAVE_ECC) && (defined(FP_ECC) || defined(HAVE_COMP_KEY))) || \
+    (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN))
+#define WOLFSSL_SP_MOD_D
+#endif
+
+#if (defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
+     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+      !defined(WOLFSSL_RSA_PUBLIC_ONLY))) || \
+    defined(WOLFSSL_SP_DIV_D) || defined(WOLFSSL_SP_MOD_D)
 #ifndef SP_ASM_DIV_WORD
 /* Divide a two digit number by a digit number and return. (hi | lo) / d
  *
@@ -3381,18 +3396,6 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 #endif /* !SP_ASM_DIV_WORD */
 #endif /* WOLFSSL_SP_MATH_ALL || !NO_DH || HAVE_ECC ||
         * (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) */
-
-/* Predefine complicated rules of when to compile in sp_div_d and sp_mod_d. */
-#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
-#define WOLFSSL_SP_DIV_D
-#endif
-#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(WOLFSSL_HAVE_SP_DH) || \
-    (defined(HAVE_ECC) && (defined(FP_ECC) || defined(HAVE_COMP_KEY))) || \
-    (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN))
-#define WOLFSSL_SP_MOD_D
-#endif
 
 #if (defined(WOLFSSL_SP_DIV_D) || defined(WOLFSSL_SP_MOD_D)) && \
     !defined(WOLFSSL_SP_SMALL)
@@ -3809,7 +3812,7 @@ int sp_div_2(sp_int* a, sp_int* r)
  * Add/Subtract Functions
  ************************/
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_SP_INVMOD)
 /* Add offset b to a into r: r = a + (b << (o * SP_WORD_SIZEOF))
  *
  * @param  [in]   a  SP integer to add to.
@@ -3915,7 +3918,7 @@ static int _sp_sub_off(sp_int* a, sp_int* b, sp_int* r, int o)
 #endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_SP_INT_NEGATIVE || !NO_DH ||
         * HAVE_ECC || (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) */
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_SP_INVMOD)
 /* Add b to a into r: r = a + b
  *
  * @param  [in]   a  SP integer to add to.
@@ -12329,7 +12332,8 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
 }
 
 #if (!defined(NO_DH) || defined(HAVE_ECC) || defined(WC_RSA_BLINDING) || \
-    defined(WOLFSSL_RSA_PUBLIC_ONLY)) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+    defined(WOLFSSL_RSA_PUBLIC_ONLY)) && (!defined(WOLFSSL_RSA_VERIFY_ONLY) || \
+    defined(HAVE_ECC_KEY_EXPORT))
 /* Convert the multi-precision number to an array of bytes in big-endian format.
  *
  * The array must be large enough for encoded number - use mp_unsigned_bin_size
@@ -12671,7 +12675,8 @@ int sp_tohex(sp_int* a, char* str)
 #endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) || WC_MP_TO_RADIX */
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
+    defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
+    defined(WC_MP_TO_RADIX)
 /* Put the big-endian, decimal string encoding of a into str.
  *
  * Assumes str is large enough for result.
