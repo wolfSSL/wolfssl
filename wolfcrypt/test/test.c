@@ -17186,7 +17186,7 @@ static int generate_random_salt(byte *buf, word32 size)
     return ret;
 }
 
-static int srp_test_digest(int dgstType)
+static int srp_test_digest(SrpType dgstType)
 {
     int r;
 
