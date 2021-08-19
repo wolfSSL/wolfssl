@@ -145,6 +145,9 @@ struct Hmac {
     void*   heap;                 /* heap hint */
     byte    macType;              /* md5 sha or sha256 */
     byte    innerHashKeyed;       /* keyed flag */
+#ifdef WOLFSSL_KCAPI_HMAC
+    struct kcapi_handle* handle;
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
@@ -176,6 +179,12 @@ struct Hmac {
 WOLFSSL_API int wc_HmacSetKey(Hmac*, int type, const byte* key, word32 keySz);
 WOLFSSL_API int wc_HmacUpdate(Hmac*, const byte*, word32);
 WOLFSSL_API int wc_HmacFinal(Hmac*, byte*);
+#ifdef WOLFSSL_KCAPI_HMAC
+WOLFSSL_API int wc_HmacSetKey_Software(Hmac*, int type, const byte* key,
+                                       word32 keySz);
+WOLFSSL_API int wc_HmacUpdate_Software(Hmac*, const byte*, word32);
+WOLFSSL_API int wc_HmacFinal_Software(Hmac*, byte*);
+#endif
 WOLFSSL_API int wc_HmacSizeByType(int type);
 
 WOLFSSL_API int wc_HmacInit(Hmac* hmac, void* heap, int devId);

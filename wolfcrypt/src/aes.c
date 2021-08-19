@@ -260,15 +260,20 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         (void)h;
         (void)i;
 
-        /* FIPS doesn't support:
-            return AesInit(aes, h, i); */
+        /* FIPS doesn't support */
+    #ifdef WOLFSSL_KCAPI_AES
+        return AesInit(aes, h, i);
+    #else
         return 0;
+    #endif
     }
     void wc_AesFree(Aes* aes)
     {
         (void)aes;
-        /* FIPS doesn't support:
-            AesFree(aes); */
+        /* FIPS doesn't support */
+    #ifdef WOLFSSL_KCAPI_AES
+        AesFree(aes);
+    #endif
     }
 
 #else /* else build without fips, or for FIPS v2 */
@@ -1004,6 +1009,10 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         return AES_ECB_decrypt(aes, inBlock, outBlock, AES_BLOCK_SIZE);
     }
     #endif
+
+#elif defined(WOLFSSL_KCAPI_AES)
+    /* Only CBC and GCM that are in wolfcrypt/src/port/kcapi/kcapi_aes.c */
+
 #else
 
     /* using wolfCrypt software implementation */
@@ -2800,6 +2809,16 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         }
     #endif /* WOLFSSL_AESNI */
 
+    #ifdef WOLFSSL_KCAPI_AES
+        XMEMCPY(aes->devKey, userKey, keylen);
+        if (aes->init != 0) {
+            kcapi_cipher_destroy(aes->handle);
+            aes->handle = NULL;
+            aes->init = 0;
+        }
+        (void)dir;
+    #endif
+
         if (keylen > sizeof(aes->key)) {
             return BAD_FUNC_ARG;
         }
@@ -3805,6 +3824,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #elif defined(WOLFSSL_AFALG)
     /* implemented in wolfcrypt/src/port/af_alg/afalg_aes.c */
 
+#elif defined(WOLFSSL_KCAPI_AES) && !defined(WOLFSSL_NO_KCAPI_AES_CBC)
+    /* implemented in wolfcrypt/src/port/kcapi/kcapi_aes.c */
+
 #elif defined(WOLFSSL_DEVCRYPTO_CBC)
     /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
 
@@ -4367,6 +4389,9 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 
 #elif defined(WOLFSSL_AFALG)
     /* implemented in wolfcrypt/src/port/afalg/afalg_aes.c */
+
+#elif defined(WOLFSSL_KCAPI_AES)
+    /* implemented in wolfcrypt/src/port/kcapi/kcapi_aes.c */
 
 #elif defined(WOLFSSL_DEVCRYPTO_AES)
     /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
@@ -10180,6 +10205,10 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
     aes->alFd = -1;
     aes->rdFd = -1;
 #endif
+#ifdef WOLFSSL_KCAPI_AES
+    aes->handle = NULL;
+    aes->init   = 0;
+#endif
 #if defined(WOLFSSL_DEVCRYPTO) && \
    (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
     aes->ctx.cfd = -1;
@@ -10276,6 +10305,14 @@ void wc_AesFree(Aes* aes)
         close(aes->alFd);
     }
 #endif /* WOLFSSL_AFALG */
+#ifdef WOLFSSL_KCAPI_AES
+    ForceZero((byte*)aes->devKey, AES_MAX_KEY_SIZE/WOLFSSL_BIT_SIZE);
+    if (aes->init == 1) {
+        kcapi_cipher_destroy(aes->handle);
+    }
+    aes->init = 0;
+    aes->handle = NULL;
+#endif
 #if defined(WOLFSSL_DEVCRYPTO) && \
     (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
     wc_DevCryptoFree(&aes->ctx);

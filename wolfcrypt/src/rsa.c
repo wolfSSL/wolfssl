@@ -333,6 +333,10 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     key->rdFd = WC_SOCK_NOTSET;
 #endif
 
+#ifdef WOLFSSL_KCAPI_RSA
+    key->handle = NULL;
+#endif
+
     return ret;
 }
 
@@ -592,6 +596,10 @@ int wc_FreeRsaKey(RsaKey* key)
         close(key->rdFd);
         key->rdFd = WC_SOCK_NOTSET;
     }
+#endif
+
+#ifdef WOLFSSL_KCAPI_RSA
+    KcapiRsa_Free(key);
 #endif
 
     return ret;
@@ -2194,6 +2202,32 @@ done:
     return ret;
 }
 
+#elif defined(WOLFSSL_KCAPI_RSA)
+static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
+                              word32* outLen, int type, RsaKey* key,
+                              WC_RNG* rng)
+{
+    int ret;
+
+    (void)rng;
+
+    switch(type) {
+        case RSA_PRIVATE_DECRYPT:
+        case RSA_PRIVATE_ENCRYPT:
+            ret = KcapiRsa_Decrypt(key, in, inLen, out, outLen);
+            break;
+
+        case RSA_PUBLIC_DECRYPT:
+        case RSA_PUBLIC_ENCRYPT:
+            ret = KcapiRsa_Encrypt(key, in, inLen, out, outLen);
+            break;
+
+        default:
+            ret = RSA_WRONG_TYPE_E;
+    }
+
+    return ret;
+}
 #else
 static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key, WC_RNG* rng)

@@ -102,6 +102,15 @@ nobase_include_HEADERS+= wolfssl/wolfcrypt/port/af_alg/afalg_hash.h
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/af_alg/wc_afalg.h
 endif
 
+if BUILD_KCAPI
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/kcapi/wc_kcapi.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/kcapi/kcapi_hash.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/kcapi/kcapi_hmac.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/kcapi/kcapi_ecc.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/kcapi/kcapi_rsa.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/kcapi/kcapi_dh.h
+endif
+
 if BUILD_DEVCRYPTO
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h
 endif
