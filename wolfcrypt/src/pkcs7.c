@@ -4314,8 +4314,8 @@ static int wc_PKCS7_ParseSignerInfo(PKCS7* pkcs7, byte* in, word32 inSz,
             idx += length;
         }
 
-        /* Get digestEncryptionAlgorithm */
-        if (ret == 0 && GetAlgoId(in, &idx, &sigOID, oidSigType, inSz) < 0) {
+        /* Get digestEncryptionAlgorithm - key type or signature type */
+        if (ret == 0 && GetAlgoId(in, &idx, &sigOID, oidIgnoreType, inSz) < 0) {
             ret = ASN_PARSE_E;
         }
 

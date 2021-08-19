@@ -375,6 +375,7 @@ typedef struct Cert {
    keyType    = RSA_KEY (default)
 */
 WOLFSSL_API int wc_InitCert(Cert*);
+WOLFSSL_API int wc_InitCert_ex(Cert*, void*, int);
 WOLFSSL_API int wc_MakeCert_ex(Cert* cert, byte* derBuffer, word32 derSz,
                                 int keyType, void* key, WC_RNG* rng);
 WOLFSSL_API int wc_MakeCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,

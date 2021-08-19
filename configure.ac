@@ -2924,6 +2924,12 @@ AC_ARG_ENABLE([asn],
     [ ENABLED_ASN=yes ]
     )
 
+if test "$ENABLED_ASN" = "template"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_TEMPLATE"
+    ENABLED_ASN=yes
+fi
+
 if test "$ENABLED_ASN" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_ASN"
