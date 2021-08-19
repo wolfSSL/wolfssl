@@ -47448,7 +47448,7 @@ static void test_OBJ_NAME_do_all(void)
 #endif
 }
 
-static void test_SSL_CIPHER_get_xxx()
+static void test_SSL_CIPHER_get_xxx(void)
 {
 #if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
        !defined(NO_FILESYSTEM)

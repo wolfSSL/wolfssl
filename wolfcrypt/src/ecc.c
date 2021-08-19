@@ -28,9 +28,6 @@
 /* in case user set HAVE_ECC there */
 #include <wolfssl/wolfcrypt/settings.h>
 
-/* public ASN interface */
-#include <wolfssl/wolfcrypt/asn_public.h>
-
 /*
 Possible ECC enable options:
  * HAVE_ECC:            Overall control of ECC                  default: on
@@ -120,6 +117,9 @@ ECC Curve Sizes:
 		#pragma const_seg(".fipsB$f")
 	#endif
 #endif
+
+/* public ASN interface */
+#include <wolfssl/wolfcrypt/asn_public.h>
 
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/asn.h>

@@ -241,6 +241,21 @@ AC_ARG_ENABLE([linuxkm-defaults],
     [ENABLED_LINUXKM_DEFAULTS=$ENABLED_LINUXKM]
     )
 
+AC_ARG_ENABLE([linuxkm-pie],
+    [AS_HELP_STRING([--enable-linuxkm-pie],[Enable relocatable object build of Linux kernel module (default: disabled)])],
+    [ENABLED_LINUXKM_PIE=$enableval],
+    [ENABLED_LINUXKM_PIE=$ENABLED_FIPS]
+    )
+if test "$ENABLED_LINUXKM_PIE" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_LINUXKM_PIE_SUPPORT"
+elif test "$ENABLED_FIPS" = yes
+then
+    AC_MSG_ERROR([FIPS requires linuxkm-pie.])
+fi
+AC_SUBST([ENABLED_LINUXKM_PIE])
+
+
 if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_CONST -DWOLFSSL_SP_MOD_WORD_RP -DWOLFSSL_OLD_PRIME_CHECK -DWOLFSSL_SP_DIV_64 -DWOLFSSL_SP_DIV_WORD_HALF -DWOLFSSL_SMALL_STACK_STATIC -DWOLFSSL_TEST_SUBROUTINE=static"
@@ -6628,10 +6643,6 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     if test "$ENABLED_IOPOOL" = "yes"; then
         AC_MSG_ERROR([--enable-iopool is incompatible with --enable-linuxkm.])
     fi
-    #FIPS currently depends on thread-local storage
-    if test "$ENABLED_FIPS" = "yes"; then
-        AC_MSG_ERROR([--enable-fips is incompatible with --enable-linuxkm.])
-    fi
     if test "$ENABLED_EXAMPLES" = "yes"; then
         AC_MSG_ERROR([--enable-examples is incompatible with --enable-linuxkm.])
     fi
@@ -6953,8 +6964,9 @@ echo "   * Auto-vectorize C flags:     $CFLAGS_AUTO_VECTORIZE_ENABLE" && \
 echo "   * SIMD enable as flags:       $ASFLAGS_FPU_DISABLE_SIMD_ENABLE" && \
 echo "   * FPU enable as flags:        $ASFLAGS_FPU_ENABLE_SIMD_DISABLE" && \
 echo "   * SIMD+FPU disable as flags:  $ASFLAGS_FPUSIMD_DISABLE" && \
+echo "   * SIMD+FPU enable as flags:   $ASFLAGS_FPUSIMD_ENABLE" && \
+echo "   * Linux kernel module PIE:    $ENABLED_LINUXKM_PIE"
 
-echo "   * SIMD+FPU enable as flags:   $ASFLAGS_FPUSIMD_ENABLE"
 echo "   * Debug enabled:              $ax_enable_debug"
 echo "   * Coverage enabled:           $ax_enable_coverage"
 echo "   * Warnings as failure:        $ac_cv_warnings_as_errors"

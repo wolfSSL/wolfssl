@@ -68,6 +68,21 @@
 
     #ifdef BUILDING_WOLFSSL
 
+    #if defined(CONFIG_MIPS) && defined(HAVE_LINUXKM_PIE_SUPPORT)
+        /* __ZBOOT__ disables some unhelpful macros around the mem*() funcs in
+         * legacy arch/mips/include/asm/string.h
+         */
+        #define __ZBOOT__
+        #define memcmp __builtin_memcmp
+        #define __ARCH_MEMCMP_NO_REDIRECT
+        #define __ARCH_MEMCPY_NO_REDIRECT
+        #define __builtin_memcpy memcpy
+        extern void *memcpy(void *dest, const void *src, unsigned int n);
+        #define __ARCH_MEMCPY_NO_REDIRECT
+        #define __builtin_memset memset
+        extern void *memset(void *dest, int c, unsigned int n);
+    #endif
+
     _Pragma("GCC diagnostic push");
 
     /* we include all the needed kernel headers with these masked out. else
@@ -83,6 +98,7 @@
     _Pragma("GCC diagnostic ignored \"-Wbad-function-cast\"");
     _Pragma("GCC diagnostic ignored \"-Wdiscarded-qualifiers\"");
     _Pragma("GCC diagnostic ignored \"-Wtype-limits\"");
+    _Pragma("GCC diagnostic ignored \"-Wswitch-enum\"");
 
     /* suppress inclusion of stdint-gcc.h to avoid conflicts with Linux native include/linux/types.h: */
     #define _GCC_STDINT_H
@@ -93,6 +109,13 @@
     #include <linux/ctype.h>
     #include <linux/init.h>
     #include <linux/module.h>
+    #ifdef __PIE__
+        /* without this, mm.h brings in static, but not inline, pmd_to_page(),
+         * with direct references to global vmem variables.
+         */
+        #undef USE_SPLIT_PMD_PTLOCKS
+        #define USE_SPLIT_PMD_PTLOCKS 0
+    #endif
     #include <linux/mm.h>
     #ifndef SINGLE_THREADED
         #include <linux/kthread.h>
@@ -135,26 +158,274 @@
      */
     #define HAVE_ANONYMOUS_INLINE_AGGREGATES 1
 
+    #define NO_THREAD_LS
+    #define NO_ATTRIBUTE_CONSTRUCTOR
+
+    /* kvmalloc()/kvfree() and friends added in linux commit a7c3e901 */
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+        #define HAVE_KVMALLOC
+    #endif
+
+    #ifdef HAVE_FIPS
+        extern int wolfCrypt_FIPS_first(void);
+        extern int wolfCrypt_FIPS_last(void);
+    #endif
+
+    #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
+        /* work around backward dependency of asn.c on ssl.c. */
+        struct Signer;
+        struct Signer *GetCA(void *signers, unsigned char *hash);
+        #ifndef NO_SKID
+            struct Signer *GetCAByName(void* signers, unsigned char *hash);
+        #endif
+    #endif
+
+    #if defined(__PIE__) && !defined(USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE)
+        #error "compiling -fPIE without PIE support."
+    #endif
+
+    #if defined(HAVE_FIPS) && !defined(HAVE_LINUXKM_PIE_SUPPORT)
+        #error "FIPS build requires PIE support."
+    #endif
+
+    #ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
+
+#ifdef CONFIG_MIPS
+    #undef __ARCH_MEMCMP_NO_REDIRECT
+    #undef memcmp
+    extern int memcmp(const void *s1, const void *s2, size_t n);
+#endif
+
+    struct wolfssl_linuxkm_pie_redirect_table {
+    #ifndef __ARCH_MEMCMP_NO_REDIRECT
+        typeof(memcmp) *memcmp;
+    #endif
+    #ifndef __ARCH_MEMCPY_NO_REDIRECT
+        typeof(memcpy) *memcpy;
+    #endif
+    #ifndef __ARCH_MEMSET_NO_REDIRECT
+        typeof(memset) *memset;
+    #endif
+    #ifndef __ARCH_MEMMOVE_NO_REDIRECT
+        typeof(memmove) *memmove;
+    #endif
+    #ifndef __ARCH_STRNCMP_NO_REDIRECT
+        typeof(strncmp) *strncmp;
+    #endif
+    #ifndef __ARCH_STRLEN_NO_REDIRECT
+        typeof(strlen) *strlen;
+    #endif
+    #ifndef __ARCH_STRSTR_NO_REDIRECT
+        typeof(strstr) *strstr;
+    #endif
+    #ifndef __ARCH_STRNCPY_NO_REDIRECT
+        typeof(strncpy) *strncpy;
+    #endif
+    #ifndef __ARCH_STRNCAT_NO_REDIRECT
+        typeof(strncat) *strncat;
+    #endif
+    #ifndef __ARCH_STRNCASECMP_NO_REDIRECT
+        typeof(strncasecmp) *strncasecmp;
+    #endif
+        typeof(kstrtoll) *kstrtoll;
+
+        typeof(printk) *printk;
+        typeof(snprintf) *snprintf;
+
+        const unsigned char *_ctype;
+
+        typeof(kmalloc) *kmalloc;
+        typeof(kfree) *kfree;
+        typeof(ksize) *ksize;
+        typeof(krealloc) *krealloc;
+        #ifdef HAVE_KVMALLOC
+        typeof(kvmalloc_node) *kvmalloc_node;
+        typeof(kvfree) *kvfree;
+        #endif
+        typeof(is_vmalloc_addr) *is_vmalloc_addr;
+        typeof(kmem_cache_alloc_trace) *kmem_cache_alloc_trace;
+        typeof(kmalloc_order_trace) *kmalloc_order_trace;
+
+        typeof(get_random_bytes) *get_random_bytes;
+        typeof(ktime_get_real_seconds) *ktime_get_real_seconds;
+        typeof(ktime_get_with_offset) *ktime_get_with_offset;
+
+        #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP)
+        /* kernel_fpu_begin() replaced by kernel_fpu_begin_mask() in commit e4512289,
+         * released in kernel 5.11, backported to 5.4.93
+         */
+        #ifdef kernel_fpu_begin
+            typeof(kernel_fpu_begin_mask) *kernel_fpu_begin_mask;
+        #else
+            typeof(kernel_fpu_begin) *kernel_fpu_begin;
+        #endif
+        typeof(kernel_fpu_end) *kernel_fpu_end;
+        #endif
+
+        typeof(__mutex_init) *__mutex_init;
+        typeof(mutex_lock) *mutex_lock;
+        typeof(mutex_unlock) *mutex_unlock;
+
+        #ifdef HAVE_FIPS
+        typeof(wolfCrypt_FIPS_first) *wolfCrypt_FIPS_first;
+        typeof(wolfCrypt_FIPS_last) *wolfCrypt_FIPS_last;
+        #endif
+
+        #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
+        typeof(GetCA) *GetCA;
+        #ifndef NO_SKID
+        typeof(GetCAByName) *GetCAByName;
+        #endif
+        #endif
+
+        const void *_last_slot;
+    };
+
+    extern const struct wolfssl_linuxkm_pie_redirect_table *wolfssl_linuxkm_get_pie_redirect_table(void);
+
+    #ifdef __PIE__
+
+    #ifndef __ARCH_MEMCMP_NO_REDIRECT
+        #define memcmp (wolfssl_linuxkm_get_pie_redirect_table()->memcmp)
+    #endif
+    #ifndef __ARCH_MEMCPY_NO_REDIRECT
+        #define memcpy (wolfssl_linuxkm_get_pie_redirect_table()->memcpy)
+    #endif
+    #ifndef __ARCH_MEMSET_NO_REDIRECT
+        #define memset (wolfssl_linuxkm_get_pie_redirect_table()->memset)
+    #endif
+    #ifndef __ARCH_MEMMOVE_NO_REDIRECT
+        #define memmove (wolfssl_linuxkm_get_pie_redirect_table()->memmove)
+    #endif
+    #ifndef __ARCH_STRNCMP_NO_REDIRECT
+        #define strncmp (wolfssl_linuxkm_get_pie_redirect_table()->strncmp)
+    #endif
+    #ifndef __ARCH_STRLEN_NO_REDIRECT
+        #define strlen (wolfssl_linuxkm_get_pie_redirect_table()->strlen)
+    #endif
+    #ifndef __ARCH_STRSTR_NO_REDIRECT
+        #define strstr (wolfssl_linuxkm_get_pie_redirect_table()->strstr)
+    #endif
+    #ifndef __ARCH_STRNCPY_NO_REDIRECT
+        #define strncpy (wolfssl_linuxkm_get_pie_redirect_table()->strncpy)
+    #endif
+    #ifndef __ARCH_STRNCAT_NO_REDIRECT
+        #define strncat (wolfssl_linuxkm_get_pie_redirect_table()->strncat)
+    #endif
+    #ifndef __ARCH_STRNCASECMP_NO_REDIRECT
+        #define strncasecmp (wolfssl_linuxkm_get_pie_redirect_table()->strncasecmp)
+    #endif
+    #define kstrtoll (wolfssl_linuxkm_get_pie_redirect_table()->kstrtoll)
+
+    #define printk (wolfssl_linuxkm_get_pie_redirect_table()->printk)
+    #define snprintf (wolfssl_linuxkm_get_pie_redirect_table()->snprintf)
+
+    #define _ctype (wolfssl_linuxkm_get_pie_redirect_table()->_ctype)
+
+    #define kmalloc (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc)
+    #define kfree (wolfssl_linuxkm_get_pie_redirect_table()->kfree)
+    #define ksize (wolfssl_linuxkm_get_pie_redirect_table()->ksize)
+    #define krealloc (wolfssl_linuxkm_get_pie_redirect_table()->krealloc)
+    #ifdef HAVE_KVMALLOC
+        #define kvmalloc_node (wolfssl_linuxkm_get_pie_redirect_table()->kvmalloc_node)
+        #define kvfree (wolfssl_linuxkm_get_pie_redirect_table()->kvfree)
+    #endif
+    #define is_vmalloc_addr (wolfssl_linuxkm_get_pie_redirect_table()->is_vmalloc_addr)
+    #define kmem_cache_alloc_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmem_cache_alloc_trace)
+    #define kmalloc_order_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_order_trace)
+
+    #define get_random_bytes (wolfssl_linuxkm_get_pie_redirect_table()->get_random_bytes)
+    #define ktime_get_real_seconds (wolfssl_linuxkm_get_pie_redirect_table()->ktime_get_real_seconds)
+    #define ktime_get_with_offset (wolfssl_linuxkm_get_pie_redirect_table()->ktime_get_with_offset)
+
+    #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP)
+        #ifdef kernel_fpu_begin
+            #define kernel_fpu_begin_mask (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_begin_mask)
+        #else
+            #define kernel_fpu_begin (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_begin)
+        #endif
+        #define kernel_fpu_end (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_end)
+    #endif
+
+    #define __mutex_init (wolfssl_linuxkm_get_pie_redirect_table()->__mutex_init)
+    #define mutex_lock (wolfssl_linuxkm_get_pie_redirect_table()->mutex_lock)
+    #define mutex_unlock (wolfssl_linuxkm_get_pie_redirect_table()->mutex_unlock)
+
+    /* per linux/ctype.h, tolower() and toupper() are macros bound to static inlines
+     * that use macros that bring in the _ctype global.  for __PIE__, this needs to
+     * be masked out.
+     */
+    #undef tolower
+    #undef toupper
+    #define tolower(c) (islower(c) ? (c) : ((c) + ('a'-'A')))
+    #define toupper(c) (isupper(c) ? (c) : ((c) - ('a'-'A')))
+
+    #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
+        #define GetCA (wolfssl_linuxkm_get_pie_redirect_table()->GetCA)
+        #ifndef NO_SKID
+            #define GetCAByName (wolfssl_linuxkm_get_pie_redirect_table()->GetCAByName)
+        #endif
+    #endif
+
+    #endif /* __PIE__ */
+
+    #endif /* USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE */
+
     /* Linux headers define these using C expressions, but we need
      * them to be evaluable by the preprocessor, for use in sp_int.h.
      */
-    _Static_assert(sizeof(ULONG_MAX) == 8, "WOLFSSL_LINUXKM supported only on targets with 64 bit long words.");
-    #undef UCHAR_MAX
-    #define UCHAR_MAX 255
-    #undef USHRT_MAX
-    #define USHRT_MAX 65535
-    #undef UINT_MAX
-    #define UINT_MAX 4294967295U
-    #undef ULONG_MAX
-    #define ULONG_MAX 18446744073709551615UL
-    #undef ULLONG_MAX
-    #define ULLONG_MAX ULONG_MAX
-    #undef INT_MAX
-    #define INT_MAX 2147483647
-    #undef LONG_MAX
-    #define LONG_MAX 9223372036854775807L
-    #undef LLONG_MAX
-    #define LLONG_MAX LONG_MAX
+    #if BITS_PER_LONG == 64
+        _Static_assert(sizeof(ULONG_MAX) == 8, "BITS_PER_LONG is 64, but ULONG_MAX is not.");
+
+        #undef UCHAR_MAX
+        #define UCHAR_MAX 255
+        #undef USHRT_MAX
+        #define USHRT_MAX 65535
+        #undef UINT_MAX
+        #define UINT_MAX 4294967295U
+        #undef ULONG_MAX
+        #define ULONG_MAX 18446744073709551615UL
+        #undef ULLONG_MAX
+        #define ULLONG_MAX ULONG_MAX
+        #undef INT_MAX
+        #define INT_MAX 2147483647
+        #undef LONG_MAX
+        #define LONG_MAX 9223372036854775807L
+        #undef LLONG_MAX
+        #define LLONG_MAX LONG_MAX
+
+    #elif BITS_PER_LONG == 32
+
+        _Static_assert(sizeof(ULONG_MAX) == 4, "BITS_PER_LONG is 32, but ULONG_MAX is not.");
+
+        #undef UCHAR_MAX
+        #define UCHAR_MAX 255
+        #undef USHRT_MAX
+        #define USHRT_MAX 65535
+        #undef UINT_MAX
+        #define UINT_MAX 4294967295U
+        #undef ULONG_MAX
+        #define ULONG_MAX 4294967295UL
+        #undef INT_MAX
+        #define INT_MAX 2147483647
+        #undef LONG_MAX
+        #define LONG_MAX 2147483647L
+
+        #undef ULLONG_MAX
+        #undef LLONG_MAX
+        #if BITS_PER_LONG_LONG == 64
+            #define ULLONG_MAX 18446744073709551615UL
+            #define LLONG_MAX 9223372036854775807L
+        #else
+            #undef NO_64BIT
+            #define NO_64BIT
+            #define ULLONG_MAX ULONG_MAX
+            #define LLONG_MAX LONG_MAX
+        #endif
+
+#else
+        #error unexpected BITS_PER_LONG value.
+#endif
 
     /* remove this multifariously conflicting macro, picked up from
      * Linux arch/<arch>/include/asm/current.h.
@@ -166,17 +437,16 @@
      */
     #define _MM_MALLOC_H_INCLUDED
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
-    /* kvmalloc()/kvfree() and friends added in linux commit a7c3e901 */
-    #define malloc(x) kvmalloc(x, GFP_KERNEL)
-    #define free(x) kvfree(x)
-    void *lkm_realloc(void *ptr, size_t newsize);
-    #define realloc(x, y) lkm_realloc(x, y)
-#else
-    #define malloc(x) kmalloc(x, GFP_KERNEL)
-    #define free(x) kfree(x)
-    #define realloc(x,y) krealloc(x, y, GFP_KERNEL)
-#endif
+    #ifdef HAVE_KVMALLOC
+        #define malloc(x) kvmalloc_node(x, GFP_KERNEL, NUMA_NO_NODE)
+        #define free(x) kvfree(x)
+        void *lkm_realloc(void *ptr, size_t newsize);
+        #define realloc(x, y) lkm_realloc(x, y)
+    #else
+        #define malloc(x) kmalloc(x, GFP_KERNEL)
+        #define free(x) kfree(x)
+        #define realloc(x,y) krealloc(x, y, GFP_KERNEL)
+    #endif
 
     /* min() and max() in linux/kernel.h over-aggressively type-check, producing
      * myriad spurious -Werrors throughout the codebase.
@@ -192,15 +462,19 @@
     #define lkm_printf(format, args...) printk(KERN_INFO "wolfssl: %s(): " format, __func__, ## args)
     #define printf(...) lkm_printf(__VA_ARGS__)
 
+    #ifdef HAVE_FIPS
+        extern void fipsEntry(void);
+    #endif
+
     #endif /* BUILDING_WOLFSSL */
 
     /* needed to suppress inclusion of stdio.h in wolfssl/wolfcrypt/types.h */
     #define XSNPRINTF snprintf
 
-    /* the rigmarole around kstrtol() here is to accommodate its warn-unused-result attribute. */
+    /* the rigmarole around kstrtoll() here is to accommodate its warn-unused-result attribute. */
     #define XATOI(s) ({                                 \
-          long _xatoi_res = 0;                          \
-          int _xatoi_ret = kstrtol(s, 10, &_xatoi_res); \
+          long long _xatoi_res = 0;                     \
+          int _xatoi_ret = kstrtoll(s, 10, &_xatoi_res); \
           if (_xatoi_ret != 0) {                        \
             _xatoi_res = 0;                             \
           }                                             \

@@ -136,12 +136,19 @@ AC_DEFUN([AX_SIMD_CC_COMPILER_FLAGS], [
         fi
 
         if test "$ASFLAGS_FPUSIMD_ENABLE" = ""; then
-            AX_APPEND_COMPILE_FLAGS([-Wa,-march="${BASE_TARGET_ARCH}+fpu+simd"],[$ASFLAGS_FPUSIMD_ENABLE])
+            AX_APPEND_COMPILE_FLAGS([-Wa,-march="${BASE_TARGET_ARCH}+fpu+simd"],[ASFLAGS_FPUSIMD_ENABLE])
         fi
 
         ;;
     *)
-        AC_MSG_ERROR([Don't know how to construct assembler flags for target "${host_cpu}".])
+        # fall back to defining only $ASFLAGS_FPUSIMD_DISABLE
+        if test "$BASE_TARGET_ARCH" = ""; then
+            BASE_TARGET_ARCH=all
+        fi
+
+        if test "$ASFLAGS_FPUSIMD_DISABLE" = ""; then
+            AX_APPEND_COMPILE_FLAGS([-Wa,-march="${BASE_TARGET_ARCH}+nofpu+nosimd"],[ASFLAGS_FPUSIMD_DISABLE])
+        fi
         ;;
     esac
 

@@ -207,20 +207,20 @@ if BUILD_LINUXKM
     DIST_SUBDIRS_OPT += linuxkm
 
     export KERNEL_ROOT KERNEL_ARCH KERNEL_EXTRA_CFLAGS AM_CFLAGS CFLAGS AM_CCASFLAGS CCASFLAGS \
-        src_libwolfssl_la_OBJECTS ENABLED_CRYPT_TESTS ENABLED_ASM CFLAGS_FPU_DISABLE \
-        CFLAGS_FPU_ENABLE CFLAGS_SIMD_DISABLE CFLAGS_SIMD_ENABLE \
+        src_libwolfssl_la_OBJECTS ENABLED_CRYPT_TESTS ENABLED_LINUXKM_PIE ENABLED_ASM \
+        CFLAGS_FPU_DISABLE CFLAGS_FPU_ENABLE CFLAGS_SIMD_DISABLE CFLAGS_SIMD_ENABLE \
         CFLAGS_AUTO_VECTORIZE_DISABLE CFLAGS_AUTO_VECTORIZE_ENABLE \
         ASFLAGS_FPU_DISABLE_SIMD_ENABLE ASFLAGS_FPU_ENABLE_SIMD_DISABLE \
         ASFLAGS_FPUSIMD_DISABLE ASFLAGS_FPUSIMD_ENABLE
 
 module:
-	+make -C linuxkm libwolfssl.ko
+	+$(MAKE) -C linuxkm libwolfssl.ko
 
 clean_module:
-	+make -C linuxkm clean
+	+$(MAKE) -C linuxkm clean
 
 install_module modules_install:
-	+make -C linuxkm modules_install
+	+$(MAKE) -C linuxkm modules_install
 
 endif
 
