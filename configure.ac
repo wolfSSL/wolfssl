@@ -253,7 +253,7 @@ AS_CASE([$ENABLED_FIPS],
         FIPS_VERSION="v1"
     ],
     [
-        AC_MSG_ERROR([Invalid value for --enable-fips \"$ENABLED_FIPS\" (allowed: ready, rand, v1, v2, v5)])
+        AC_MSG_ERROR([Invalid value for --enable-fips "$ENABLED_FIPS" (allowed: ready, rand, v1, v2, v5)])
     ])
 
 AS_CASE([$FIPS_VERSION],

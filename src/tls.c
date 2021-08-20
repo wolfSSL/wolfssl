@@ -4255,7 +4255,7 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
                     break;
             }
             if (params == NULL)
-                 return BAD_FUNC_ARG;
+                return BAD_FUNC_ARG;
             if (params->p_len >= ssl->options.minDhKeySz &&
                                      params->p_len <= ssl->options.maxDhKeySz) {
                  break;
@@ -6816,11 +6816,7 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
 
     while ((current = list) != NULL) {
         list = current->next;
-        if (current->group >= MIN_FFHDE_GROUP &&
-            current->group <= MAX_FFHDE_GROUP) {
-#ifndef NO_DH
-            wc_FreeDhKey((DhKey*)current->key);
-#endif
+        if ((current->group & NAMED_DH_MASK) == NAMED_DH_MASK) {
         }
         else if (current->group == WOLFSSL_ECC_X25519) {
 #ifdef HAVE_CURVE25519

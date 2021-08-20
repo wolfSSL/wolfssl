@@ -9475,6 +9475,7 @@ int wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz)
 
     if (aes == NULL || iv == NULL || !CheckAesGcmIvSize(ivSz)) {
         ret = BAD_FUNC_ARG;
+    }
 
     if (ret == 0) {
         XMEMCPY((byte*)aes->reg, iv, ivSz);

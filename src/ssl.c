@@ -46857,7 +46857,7 @@ int wolfSSL_CRYPTO_set_mem_functions(
         return WOLFSSL_FAILURE;
 }
 
-#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST)
+#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST) && !defined(NO_DH)
 WOLFSSL_DH *wolfSSL_DH_generate_parameters(int prime_len, int generator,
                            void (*callback) (int, int, void *), void *cb_arg)
 {
@@ -46924,7 +46924,7 @@ int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len, int generat
 
     return WOLFSSL_SUCCESS;
 }
-#endif /* WOLFSSL_KEY_GEN && !HAVE_SELFTEST */
+#endif /* WOLFSSL_KEY_GEN && !HAVE_SELFTEST && !NO_DH */
 
 int wolfSSL_ERR_load_ERR_strings(void)
 {

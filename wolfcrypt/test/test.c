@@ -16368,11 +16368,11 @@ static int dh_ffdhe_test(WC_RNG *rng, int name)
         ERROR_OUT(-8050, done);
 #endif
 
-    pubSz = FFDHE_KEY_SIZE;
-    pubSz2 = FFDHE_KEY_SIZE;
+    pubSz = MAX_DH_KEY_SZ;
+    pubSz2 = MAX_DH_KEY_SZ;
     #ifdef HAVE_PUBLIC_FFDHE
-    privSz = FFDHE_KEY_SIZE;
-    privSz2 = FFDHE_KEY_SIZE;
+    privSz = MAX_DH_PRIV_SZ;
+    privSz2 = MAX_DH_PRIV_SZ;
     #else
     privSz = wc_DhGetNamedKeyMinSize(name);
     privSz2 = privSz;
