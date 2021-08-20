@@ -26546,6 +26546,8 @@ int wolfSSL_ERR_GET_LIB(unsigned long err)
     case EVP_R_DECODE_ERROR:
     case EVP_R_PRIVATE_KEY_DECODE_ERROR:
         return ERR_LIB_EVP;
+    case ASN1_R_HEADER_TOO_LONG:
+        return ERR_LIB_ASN1;
     default:
         return 0;
     }
