@@ -49,6 +49,10 @@
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
+#ifdef WOLFSSL_SE050
+    #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
+#endif
+
 /* deprecated USE_SLOW_SHA2 (replaced with USE_SLOW_SHA512) */
 #if defined(USE_SLOW_SHA2) && !defined(USE_SLOW_SHA512)
     #define USE_SLOW_SHA512
@@ -200,7 +204,6 @@
     /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
 
 #elif defined(WOLFSSL_SE050)
-    //#include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
     int wc_InitSha512(wc_Sha512* sha512)
     {
         if (sha512 == NULL)
@@ -224,17 +227,31 @@
     int wc_Sha512Final(wc_Sha512* sha512, byte* hash)
     {
         int ret = 0;
+        int devId = INVALID_DEVID;
+        if (sha512 == NULL) {
+            return BAD_FUNC_ARG;
+        }
+    #ifdef WOLF_CRYPTO_CB
+        devId = sha512->devId;
+    #endif
         ret = se050_hash_final(&sha512->se050Ctx, hash, WC_SHA512_DIGEST_SIZE,
                                kAlgorithm_SSS_SHA512);
-        (void)wc_InitSha512_ex(sha512);
+        (void)wc_InitSha512_ex(sha512, sha512->heap, devId);
         return ret;
     }
     int wc_Sha512FinalRaw(wc_Sha512* sha512, byte* hash)
     {
         int ret = 0;
+        int devId = INVALID_DEVID;
+        if (sha512 == NULL) {
+            return BAD_FUNC_ARG;
+        }
+    #ifdef WOLF_CRYPTO_CB
+        devId = sha512->devId;
+    #endif
         ret = se050_hash_final(&sha512->se050Ctx, hash, WC_SHA512_DIGEST_SIZE,
                                kAlgorithm_SSS_SHA512);
-        (void)wc_InitSha512(sha512);
+        (void)wc_InitSha512_ex(sha512, sha512->heap, devId);
         return ret;
     }
     void wc_Sha512Free(wc_Sha512* sha512)
@@ -948,6 +965,7 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
 
 #else
 
+#ifndef WOLFSSL_SE050
 static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 {
     byte* local = (byte*)sha512->buffer;
@@ -1207,6 +1225,7 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 }
 #endif /* OPENSSL_EXTRA */
 #endif /* WOLFSSL_SHA512 */
+#endif /* WOLFSSL_SE050 */
 
 /* -------------------------------------------------------------------------- */
 /* SHA384 */
@@ -1217,8 +1236,6 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
     !defined(WOLFSSL_QNX_CAAM)
     /* functions defined in wolfcrypt/src/port/caam/caam_sha.c */
 #elif defined(WOLFSSL_SE050)
-    #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
-    
     int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
     {
         if (sha384 == NULL) {

@@ -262,11 +262,12 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
                             word32 *outLen, ed25519_key* key, byte type,
                             const byte* context, byte contextLen)
 {
+    int    ret;
 #ifdef WOLFSSL_SE050
     (void)context;
     (void)contextLen;
     (void)type;
-    int ret = se050_ed25519_sign_msg(in, inLen, out, outLen, key);
+    ret = se050_ed25519_sign_msg(in, inLen, out, outLen, key);
 #else
 #ifdef FREESCALE_LTC_ECC
     byte   tempBuf[ED25519_PRV_KEY_SIZE];
@@ -277,7 +278,6 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     byte   nonce[WC_SHA512_DIGEST_SIZE];
     byte   hram[WC_SHA512_DIGEST_SIZE];
     byte   az[ED25519_PRV_KEY_SIZE];
-    int    ret;
 
     /* sanity check on arguments */
     if (in == NULL || out == NULL || outLen == NULL || key == NULL ||
@@ -681,8 +681,7 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
     (void)type;
     (void)context;
     (void)contextLen;
-    if (ed25519Ctx != NULL)
-        (void)ed25519Ctx;
+    (void)ed25519Ctx;
     ret = se050_ed25519_verify_msg(sig, sigLen, msg, msgLen, key, res);
 #else
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA

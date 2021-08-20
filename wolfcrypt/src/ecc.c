@@ -4701,8 +4701,7 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
       err = NOT_COMPILED_IN;
    }
 #elif defined(WOLFSSL_SE050)
-    key->keyId = se050_allocate_key();
-    err = se050_ecc_create_key(key, key->keyId, keysize);
+    err = se050_ecc_create_key(key, curve_id, keysize);
     key->type = ECC_PRIVATEKEY;
 #elif defined(WOLFSSL_CRYPTOCELL)
 
@@ -5008,6 +5007,11 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 #if defined(WOLFSSL_DSP)
     key->handle = -1;
 #endif
+
+#ifdef WOLFSSL_SE050
+    key->keyId = -1;
+#endif
+
     return ret;
 }
 
@@ -5190,7 +5194,7 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
     #elif defined(WOLFSSL_KCAPI_ECC)
         err = KcapiEcc_Sign(key, in, inlen, out, outlen);
         (void)rng;
-    #elif defined (WOLFSSL_SE050)
+    #elif defined(WOLFSSL_SE050)
         err = se050_ecc_sign_hash_ex(in, inlen, out, outlen, key);
         if (err == 0) 
             err = DecodeECC_DSA_Sig(out, *outlen, r, s);
@@ -6295,7 +6299,7 @@ int wc_ecc_free(ecc_key* key)
 #endif
 
 #ifdef WOLFSSL_SE050
-        se050_ecc_free_key(key);
+    se050_ecc_free_key(key);
 #endif
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
@@ -7116,22 +7120,23 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
    err = KcapiEcc_Verify(key, hash, hashlen, sigRS, key->dp->size * 2);
 #elif defined(WOLFSSL_SE050)
-    /* Used when following a hardware sign operation */
+    {
+        /* Used when following a hardware sign operation */
+        int rLeadingZero = mp_leading_bit(r);
+        int sLeadingZero = mp_leading_bit(s);
+        int rLen = mp_unsigned_bin_size(r);
+        int sLen = mp_unsigned_bin_size(s);
+        word32 signatureLen = rLeadingZero + sLeadingZero + 
+            rLen + sLen + SIG_HEADER_SZ; /* see StoreECC_DSA_Sig */
 
-    int rLeadingZero = mp_leading_bit(r);
-    int sLeadingZero = mp_leading_bit(s);
-    int rLen = mp_unsigned_bin_size(r);
-    int sLen = mp_unsigned_bin_size(s);
-
-    word32 signatureLen = rLeadingZero + sLeadingZero + rLen + sLen + SIG_HEADER_SZ; /* see StoreECC_DSA_Sig */
-
-    err = StoreECC_DSA_Sig(sigRS, &signatureLen, r, s);
-    if (err != 0)
-        return err;
-
-    err = se050_ecc_verify_hash_ex(hash, hashlen, sigRS, signatureLen, key, res);
-    if (err != 0)
-       return err;
+        err = StoreECC_DSA_Sig(sigRS, &signatureLen, r, s);
+        if (err == 0) {
+            err = se050_ecc_verify_hash_ex(hash, hashlen, sigRS,
+                signatureLen, key, res);
+        }
+        if (err != 0)
+            return err;
+    }
 #else
   /* checking if private key with no public part */
   if (key->type == ECC_PRIVATEKEY_ONLY) {

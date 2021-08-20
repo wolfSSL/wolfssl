@@ -22,7 +22,6 @@
 #ifndef _SE050_PORT_H_
 #define _SE050_PORT_H_
 
-
 #include <wolfssl/wolfcrypt/settings.h>
 
 #include "fsl_sss_api.h"
@@ -39,27 +38,25 @@ typedef struct {
 } SE050_HASH_Context;
 
 
-WOLFSSL_API int wolfcrypt_se050_SetConfig(sss_session_t *pSession, sss_key_store_t *pHostKeyStore, sss_key_store_t *pKeyStore);
+WOLFSSL_API int wc_se050_SetConfig(sss_session_t *pSession,
+    sss_key_store_t *pHostKeyStore, sss_key_store_t *pKeyStore);
 
-int se050_allocate_key(void);
+WOLFSSL_LOCAL int se050_allocate_key(void);
+WOLFSSL_LOCAL int se050_get_random_number(uint32_t count, uint8_t* rand_out);
 
-int se050_get_random_number(uint32_t count, uint8_t* rand_out);
-
-
-
-int se050_hash_init(SE050_HASH_Context* se050Ctx, void* heap);
-int se050_hash_update(SE050_HASH_Context* se050Ctx, const byte* data, word32 len);
-int se050_hash_final(SE050_HASH_Context* se050Ctx, byte* hash, size_t digestLen, word32 algo);
-void se050_hash_free(SE050_HASH_Context* se050Ctx);
-
-
+WOLFSSL_LOCAL int se050_hash_init(SE050_HASH_Context* se050Ctx, void* heap);
+WOLFSSL_LOCAL int se050_hash_update(SE050_HASH_Context* se050Ctx,
+    const byte* data, word32 len);
+WOLFSSL_LOCAL int se050_hash_final(SE050_HASH_Context* se050Ctx, byte* hash,
+    size_t digestLen, word32 algo);
+WOLFSSL_LOCAL void se050_hash_free(SE050_HASH_Context* se050Ctx);
 
 struct Aes;
-int se050_aes_set_key(struct Aes* aes, const byte* key, word32 len, const byte* iv, int dir);
-int se050_aes_crypt(struct Aes* aes, const byte* in, byte* out, word32 sz, int dir, sss_algorithm_t algorithm);
-void se050_aes_free(struct Aes* aes);
-//int se050_aes_ctr_crypt(struct Aes* aes, const byte* in, byte* out, word32 sz);
-
+WOLFSSL_LOCAL int se050_aes_set_key(struct Aes* aes, const byte* key,
+    word32 len, const byte* iv, int dir);
+WOLFSSL_LOCAL int se050_aes_crypt(struct Aes* aes, const byte* in, byte* out,
+    word32 sz, int dir, sss_algorithm_t algorithm);
+WOLFSSL_LOCAL void se050_aes_free(struct Aes* aes);
 
 
 struct ecc_key;
@@ -74,25 +71,26 @@ struct WC_RNG;
     struct mp_int;
 	#define MATH_INT_T struct mp_int
 #endif
-int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
-                         word32 *outLen, struct ecc_key* key);
 
-int se050_ecc_verify_hash_ex(const byte* hash, word32 hashlen, byte* signature,
-                             word32 signatureLen, struct ecc_key* key, int* res);
+WOLFSSL_LOCAL int se050_ecc_sign_hash_ex(const byte* in, word32 inLen,
+    byte* out, word32 *outLen, struct ecc_key* key);
 
-int se050_ecc_create_key(struct ecc_key* key, int keyId, int keySize);
-int se050_ecc_shared_secret(struct ecc_key* private_key, struct ecc_key* public_key, byte* out,
-                      word32* outlen);
-int se050_ecc_free_key(struct ecc_key* key);
+WOLFSSL_LOCAL int se050_ecc_verify_hash_ex(const byte* hash, word32 hashlen,
+    byte* signature, word32 signatureLen, struct ecc_key* key, int* res);
+
+WOLFSSL_LOCAL int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize);
+WOLFSSL_LOCAL int se050_ecc_shared_secret(struct ecc_key* private_key,
+    struct ecc_key* public_key, byte* out, word32* outlen);
+WOLFSSL_LOCAL int se050_ecc_free_key(struct ecc_key* key);
 
 struct ed25519_key;
-//#include <wolfssl/wolfcrypt/ed25519.h>
-int se050_ed25519_create_key(struct ed25519_key* key);
-void se050_ed25519_free_key(struct ed25519_key* key);
-int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
-                         word32 *outLen, struct ed25519_key* key);
+WOLFSSL_LOCAL int se050_ed25519_create_key(struct ed25519_key* key);
+WOLFSSL_LOCAL void se050_ed25519_free_key(struct ed25519_key* key);
+WOLFSSL_LOCAL int se050_ed25519_sign_msg(const byte* in, word32 inLen,
+    byte* out, word32 *outLen, struct ed25519_key* key);
 
-int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen, const byte* msg,
-                             word32 msgLen, struct ed25519_key* key, int* res);
+WOLFSSL_LOCAL int se050_ed25519_verify_msg(const byte* signature,
+    word32 signatureLen, const byte* msg, word32 msgLen,
+    struct ed25519_key* key, int* res);
 
 #endif /* _SE050_PORT_H_ */

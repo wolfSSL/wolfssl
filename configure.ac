@@ -1337,16 +1337,15 @@ AC_ARG_WITH([cryptoauthlib],
 )
 
 # NXP SE050
-#current configure options line: "./configure --with-se050=/home/pi/Downloads/new_simw_top"
+# current configure options line: "./configure --with-se050=/home/pi/Downloads/new_simw_top"
 ENABLED_SE050="no"
 trylibse050dir=""
 AC_ARG_WITH([se050],
     [AS_HELP_STRING([--with-se050=PATH],[PATH to SE050 install (default /usr/local/lib/)])],
     [
         AC_MSG_CHECKING([for SE050])
-        CPPFLAGS="$CPPFLAGS -DWOLFSSL_SE050"
-        LIBS="$LIBS -lSSS_APIs"
 
+        LIBS="$LIBS -lSSS_APIs"
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <fsl_sss_api.h>]], [[ sss_mac_init(0);]])],[ libse050_linked=yes ],[ libse050_linked=no ])
 
         if test "x$libse050_linked" = "xno" ; then
@@ -1356,20 +1355,25 @@ AC_ARG_WITH([se050],
             if test "x$withval" = "xyes" ; then
                 trylibse050dir="/usr/local/lib/"
             fi
-            LDFLAGS="$LDFLAGS -L$trylibse050dir/simw-top_build/raspbian_native_se050_t1oi2c/sss/"
-            CPPFLAGS="$CPPFLAGS  -I$trylibse050dir/simw-top/sss/inc   -I$trylibse050dir/simw-top/sss/port/default \ 
-            -I$trylibse050dir/simw-top/hostlib/hostLib/inc/  -I$trylibse050dir/simw-top/hostlib/hostLib/libCommon/infra "
+            LDFLAGS="$LDFLAGS -L$trylibse050dir/build/sss"
+            CPPFLAGS="$CPPFLAGS -I$trylibse050dir/sss/inc"
+            CPPFLAGS="$CPPFLAGS -I$trylibse050dir/sss/port/default"
+            CPPFLAGS="$CPPFLAGS -I$trylibse050dir/hostlib/hostLib/inc"
+            CPPFLAGS="$CPPFLAGS -I$trylibse050dir/hostlib/hostLib/libCommon/infra"
 
-
-            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <fsl_sss_api.h>]], [[ sss_mac_init(0); ]])],[ libse050_linked=yes ],[ libse050_linked=no ])
-
-            if test "x$libse050_linked" = "xno" ; then
-                AC_MSG_ERROR([SE050 isn't found.
-                If it's already installed, specify its path using --with-SE050=/dir/])
+            AC_CHECK_FILES([$trylibse050dir/build/sss/libSSS_APIs.a], [SE050_STATIC=yes], [SE050_STATIC=no])
+            if test "x$SE050_STATIC" = "xyes"; then
+                LIB_STATIC_ADD="$trylibse050dir/build/sss/libSSS_APIs.a $LIB_STATIC_ADD"
+            else
+                AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <fsl_sss_api.h>]], [[ sss_mac_init(0); ]])],[ libse050_linked=yes ],[ libse050_linked=no ])
+                if test "x$libse050_linked" = "xno" ; then
+                    AC_MSG_ERROR([SE050 isn't found.
+                    If it's already installed, specify its path using --with-se050=/dir/])
+                fi
             fi
-            AM_LDFLAGS="$AM_LDFLAGS -L$trylibse050dir/simw-top_build/raspbian_native_se050_t1oi2c/sss/"
-            AM_CFLAGS="$AM_CFLAGS -I$trylibse050dir/simw-top/sss/inc/  \
-            -DWOLFSSL_AES_DIRECT"   
+
+            # Requires AES direct
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT"
 
             AC_MSG_RESULT([yes])
         else
@@ -7079,6 +7083,7 @@ AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
 AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM" = "xqnx"])
 AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
+AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
 
 if test "$ax_enable_debug" = "yes" ||
         test "$ENABLED_STACKSIZE" != "no" ||
@@ -7453,6 +7458,7 @@ echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
 echo "   * i.MX6 CAAM:                 $ENABLED_CAAM"
 echo "   * IoT-Safe:                   $ENABLED_IOTSAFE"
 echo "   * IoT-Safe HWRNG:             $ENABLED_IOTSAFE_HWRNG"
+echo "   * NXP SE050:                  $ENABLED_SE050"
 echo ""
 echo "---"
 

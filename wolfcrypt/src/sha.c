@@ -347,7 +347,6 @@
         (void)devId;
 
         return se050_hash_init(&sha->se050Ctx, heap);
-
     }
 
     int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)

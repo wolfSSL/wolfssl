@@ -871,15 +871,16 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #elif defined(WOLFSSL_SE050)
     static int AES_ECB_encrypt(Aes* aes, const byte* inBlock, byte* outBlock,
-            int sz)
+        int sz)
     {
-        return se050_aes_crypt(aes, inBlock, outBlock, sz, AES_ENCRYPTION, kAlgorithm_SSS_AES_ECB);
+        return se050_aes_crypt(aes, inBlock, outBlock, sz, AES_ENCRYPTION,
+            kAlgorithm_SSS_AES_ECB);
     }
-    
     static int AES_ECB_decrypt(Aes* aes, const byte* inBlock, byte* outBlock,
-            int sz)
+        int sz)
     {
-        return se050_aes_crypt(aes, inBlock, outBlock, sz, AES_DECRYPTION, kAlgorithm_SSS_AES_ECB);
+        return se050_aes_crypt(aes, inBlock, outBlock, sz, AES_DECRYPTION,
+            kAlgorithm_SSS_AES_ECB);
     }
     static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
@@ -2603,24 +2604,27 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
                   int dir)
     {   
-        int ret = 0;
+        int ret;
         
-    if (aes == NULL ||  !((keylen == 16) || (keylen == 24) || (keylen == 32))) {
-        return BAD_FUNC_ARG;
-    }
+        if (aes == NULL || (keylen != 16 && keylen != 24 && keylen != 32)) {
+            return BAD_FUNC_ARG;
+        }
+
         aes->ctxInitDone = 0;
     #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
         defined(WOLFSSL_AES_OFB)
         aes->left = 0;
     #endif
+
         ret = se050_aes_set_key(aes, userKey, keylen, iv, dir);
         if (ret == 0) {
             ret = wc_AesSetIV(aes, iv);
         }
         return ret;
     }
-        int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
-                        const byte* iv, int dir)
+
+    int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
+        const byte* iv, int dir)
     {
         return wc_AesSetKey(aes, userKey, keylen, iv, dir);
     }
@@ -3883,12 +3887,12 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
         return se050_aes_crypt(aes, in, out, sz, AES_ENCRYPTION,
-         kAlgorithm_SSS_AES_CBC);
+            kAlgorithm_SSS_AES_CBC);
     }
     int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
         return se050_aes_crypt(aes, in, out, sz, AES_DECRYPTION,
-         kAlgorithm_SSS_AES_CBC);
+            kAlgorithm_SSS_AES_CBC);
     }
 
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
