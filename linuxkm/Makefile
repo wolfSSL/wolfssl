@@ -33,7 +33,7 @@ ifndef SRC_TOP
     SRC_TOP=$(shell dirname $(MODULE_TOP))
 endif
 
-WOLFSSL_CFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CFLAGS) $(CFLAGS) -Wno-declaration-after-statement -Wno-redundant-decls
+WOLFSSL_CFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -Wno-declaration-after-statement -Wno-redundant-decls
 ifdef KERNEL_EXTRA_CFLAGS
     WOLFSSL_CFLAGS += $(KERNEL_EXTRA_CFLAGS)
 endif
