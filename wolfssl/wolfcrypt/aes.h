@@ -70,6 +70,10 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #include "xsecure_aes.h"
 #endif
 
+#ifdef WOLFSSL_SE050
+    #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
+#endif
+
 #if defined(WOLFSSL_AFALG) || defined(WOLFSSL_AFALG_XILINX_AES)
 /* included for struct msghdr */
 #include <wolfssl/wolfcrypt/port/af_alg/wc_afalg.h>
@@ -176,6 +180,12 @@ struct Aes {
 #ifdef OPENSSL_EXTRA
     word32 aadH[4]; /* additional authenticated data GHASH */
     word32 aadLen;  /* additional authenticated data len */
+#endif
+
+#ifdef WOLFSSL_SE050
+    sss_symmetric_t aes_ctx; /* used as the function context */
+    int ctxInitDone;
+    int keyId;
 #endif
 
 #ifdef GCM_TABLE

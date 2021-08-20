@@ -184,7 +184,7 @@ where 0 <= L < 2^64.
     (!defined(WOLFSSL_ESP32WROOM32_CRYPT) || defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)) && \
     (!defined(WOLFSSL_RENESAS_TSIP_CRYPT) || defined(NO_WOLFSSL_RENESAS_TSIP_HASH)) && \
     !defined(WOLFSSL_PSOC6_CRYPTO) && !defined(WOLFSSL_IMXRT_DCP) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
-    !defined(WOLFSSL_KCAPI_HASH)
+    !defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_SE050)
 
 
 static int InitSha256(wc_Sha256* sha256)
@@ -596,6 +596,41 @@ static int InitSha256(wc_Sha256* sha256)
 #elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH) && \
     !defined(WOLFSSL_QNX_CAAM)
     /* functions defined in wolfcrypt/src/port/caam/caam_sha256.c */
+
+#elif defined(WOLFSSL_SE050)
+
+    #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
+    int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
+    {
+        if (sha256 == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        (void)devId;
+
+        return se050_hash_init(&sha256->se050Ctx, heap);
+    }
+
+    int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
+    {
+        return se050_hash_update(&sha256->se050Ctx, data, len);
+    }
+
+    int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
+    {      
+        int ret = 0;
+        ret = se050_hash_final(&sha256->se050Ctx, hash, WC_SHA256_DIGEST_SIZE,
+                               kAlgorithm_SSS_SHA256);
+        (void)wc_InitSha256(sha256);
+        return ret;
+    }
+    int wc_Sha256FinalRaw(wc_Sha256* sha256, byte* hash)
+    {
+        int ret = 0;
+        ret = se050_hash_final(&sha256->se050Ctx, hash, WC_SHA256_DIGEST_SIZE, 
+                               kAlgorithm_SSS_SHA256);
+        (void)wc_InitSha256(sha256);
+        return ret;
+    }
 
 #elif defined(WOLFSSL_AFALG_HASH)
     /* implemented in wolfcrypt/src/port/af_alg/afalg_hash.c */
@@ -1386,6 +1421,32 @@ static int InitSha256(wc_Sha256* sha256)
 
         (void)wc_InitSha224(sha224); /* reset state */
 
+        return ret;
+    }
+#elif defined(WOLFSSL_SE050)
+
+    #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
+    int wc_InitSha224_ex(wc_Sha224* sha224, void* heap, int devId)
+    {
+        if (sha224 == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        (void)devId;
+        
+        return se050_hash_init(&sha224->se050Ctx, heap);
+    }
+
+    int wc_Sha224Update(wc_Sha224* sha224, const byte* data, word32 len)
+    {
+        return se050_hash_update(&sha224->se050Ctx, data, len);
+    }
+
+    int wc_Sha224Final(wc_Sha224* sha224, byte* hash)
+    {
+        int ret = 0;   
+        ret = se050_hash_final(&sha224->se050Ctx, hash, WC_SHA224_DIGEST_SIZE,
+                               kAlgorithm_SSS_SHA224);
+        (void)wc_InitSha224(sha224);
         return ret;
     }
 

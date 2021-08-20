@@ -1336,6 +1336,50 @@ AC_ARG_WITH([cryptoauthlib],
     ]
 )
 
+# NXP SE050
+#current configure options line: "./configure --with-se050=/home/pi/Downloads/new_simw_top"
+ENABLED_SE050="no"
+trylibse050dir=""
+AC_ARG_WITH([se050],
+    [AS_HELP_STRING([--with-se050=PATH],[PATH to SE050 install (default /usr/local/lib/)])],
+    [
+        AC_MSG_CHECKING([for SE050])
+        CPPFLAGS="$CPPFLAGS -DWOLFSSL_SE050"
+        LIBS="$LIBS -lSSS_APIs"
+
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <fsl_sss_api.h>]], [[ sss_mac_init(0);]])],[ libse050_linked=yes ],[ libse050_linked=no ])
+
+        if test "x$libse050_linked" = "xno" ; then
+            if test "x$withval" != "xno" ; then
+                trylibse050dir=$withval
+            fi
+            if test "x$withval" = "xyes" ; then
+                trylibse050dir="/usr/local/lib/"
+            fi
+            LDFLAGS="$LDFLAGS -L$trylibse050dir/simw-top_build/raspbian_native_se050_t1oi2c/sss/"
+            CPPFLAGS="$CPPFLAGS  -I$trylibse050dir/simw-top/sss/inc   -I$trylibse050dir/simw-top/sss/port/default \ 
+            -I$trylibse050dir/simw-top/hostlib/hostLib/inc/  -I$trylibse050dir/simw-top/hostlib/hostLib/libCommon/infra "
+
+
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <fsl_sss_api.h>]], [[ sss_mac_init(0); ]])],[ libse050_linked=yes ],[ libse050_linked=no ])
+
+            if test "x$libse050_linked" = "xno" ; then
+                AC_MSG_ERROR([SE050 isn't found.
+                If it's already installed, specify its path using --with-SE050=/dir/])
+            fi
+            AM_LDFLAGS="$AM_LDFLAGS -L$trylibse050dir/simw-top_build/raspbian_native_se050_t1oi2c/sss/"
+            AM_CFLAGS="$AM_CFLAGS -I$trylibse050dir/simw-top/sss/inc/  \
+            -DWOLFSSL_AES_DIRECT"   
+
+            AC_MSG_RESULT([yes])
+        else
+            AC_MSG_RESULT([yes])
+        fi
+
+        ENABLED_SE050="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SE050"
+    ]
+)
 
 # sniffer doesn't work in maxstrength mode
 if test "$ENABLED_SNIFFER" = "yes" && test "$ENABLED_MAXSTRENGTH" = "yes"

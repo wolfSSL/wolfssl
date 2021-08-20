@@ -3943,6 +3943,8 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
     err = silabs_ecc_shared_secret(private_key, public_key, out, outlen);
 #elif defined(WOLFSSL_KCAPI_ECC)
    err = KcapiEcc_SharedSecret(private_key, public_key, out, outlen);
+#elif defined(WOLFSSL_SE050)
+    err = se050_ecc_shared_secret(private_key, public_key, out, outlen);
 #else
    err = wc_ecc_shared_secret_ex(private_key, &public_key->pubkey, out, outlen);
 #endif /* WOLFSSL_ATECC508A */
@@ -4698,6 +4700,10 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
    else {
       err = NOT_COMPILED_IN;
    }
+#elif defined(WOLFSSL_SE050)
+    key->keyId = se050_allocate_key();
+    err = se050_ecc_create_key(key, key->keyId, keysize);
+    key->type = ECC_PRIVATEKEY;
 #elif defined(WOLFSSL_CRYPTOCELL)
 
     pDomain = CRYS_ECPKI_GetEcDomain(cc310_mapCurve(key->dp->id));
@@ -5098,7 +5104,8 @@ static int wc_ecc_get_curve_order_bit_count(const ecc_set_type* dp)
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) ||  \
     defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL) || \
-    defined(WOLFSSL_SILABS_SE_ACCEL) || defined(WOLFSSL_KCAPI_ECC)
+    defined(WOLFSSL_SILABS_SE_ACCEL) || defined(WOLFSSL_KCAPI_ECC) || \
+    defined(WOLFSSL_SE050)
 static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
     mp_int* r, mp_int* s, byte* out, word32 *outlen, WC_RNG* rng,
     ecc_key* key)
@@ -5183,6 +5190,12 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
     #elif defined(WOLFSSL_KCAPI_ECC)
         err = KcapiEcc_Sign(key, in, inlen, out, outlen);
         (void)rng;
+    #elif defined (WOLFSSL_SE050)
+        err = se050_ecc_sign_hash_ex(in, inlen, out, outlen, key);
+        if (err == 0) 
+            err = DecodeECC_DSA_Sig(out, *outlen, r, s);
+
+        return err;
     #endif
 
         /* Load R and S */
@@ -5357,7 +5370,8 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 /* hardware crypto */
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
     defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL) || \
-    defined(WOLFSSL_SILABS_SE_ACCEL) || defined(WOLFSSL_KCAPI_ECC)
+    defined(WOLFSSL_SILABS_SE_ACCEL) || defined(WOLFSSL_KCAPI_ECC) || \
+    defined(WOLFSSL_SE050)
     err = wc_ecc_sign_hash_hw(in, inlen, r, s, out, outlen, rng, key);
 #else
     err = wc_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
@@ -6280,6 +6294,10 @@ int wc_ecc_free(ecc_key* key)
     }
 #endif
 
+#ifdef WOLFSSL_SE050
+        se050_ecc_free_key(key);
+#endif
+
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
     atmel_ecc_free(key->slot);
     key->slot = ATECC_INVALID_SLOT;
@@ -6952,6 +6970,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    byte sigRS[ECC_MAX_CRYPTO_HW_SIZE * 2];
 #elif defined(WOLFSSL_KCAPI_ECC)
    byte sigRS[MAX_ECC_BYTES*2];
+#elif defined(WOLFSSL_SE050)
+   byte sigRS[ECC_MAX_CRYPTO_HW_SIZE * 2];
 #elif !defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC)
    int          did_init = 0;
    ecc_point    *mG = NULL, *mQ = NULL;
@@ -7095,6 +7115,23 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     }
 
    err = KcapiEcc_Verify(key, hash, hashlen, sigRS, key->dp->size * 2);
+#elif defined(WOLFSSL_SE050)
+    /* Used when following a hardware sign operation */
+
+    int rLeadingZero = mp_leading_bit(r);
+    int sLeadingZero = mp_leading_bit(s);
+    int rLen = mp_unsigned_bin_size(r);
+    int sLen = mp_unsigned_bin_size(s);
+
+    word32 signatureLen = rLeadingZero + sLeadingZero + rLen + sLen + SIG_HEADER_SZ; /* see StoreECC_DSA_Sig */
+
+    err = StoreECC_DSA_Sig(sigRS, &signatureLen, r, s);
+    if (err != 0)
+        return err;
+
+    err = se050_ecc_verify_hash_ex(hash, hashlen, sigRS, signatureLen, key, res);
+    if (err != 0)
+       return err;
 #else
   /* checking if private key with no public part */
   if (key->type == ECC_PRIVATEKEY_ONLY) {

@@ -138,6 +138,9 @@ enum {
 #if defined(WOLFSSL_IMX6_CAAM) && !defined(WOLFSSL_QNX_CAAM)
     #include "wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h"
 #else
+#if defined(WOLFSSL_SE050)
+    #include "wolfssl/wolfcrypt/port/nxp/se050_port.h"
+#endif
 /* wc_Sha512 digest */
 struct wc_Sha512 {
 #ifdef WOLFSSL_PSOC6_CRYPTO
@@ -169,6 +172,9 @@ struct wc_Sha512 {
 #endif
 #ifdef WOLFSSL_KCAPI_HASH
     wolfssl_KCAPI_Hash kcapi;
+#endif
+#if defined(WOLFSSL_SE050)
+    SE050_HASH_Context se050Ctx;
 #endif
 #ifdef WOLF_CRYPTO_CB
     int    devId;
