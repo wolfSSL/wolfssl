@@ -30549,6 +30549,18 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
     #ifdef WOLFSSL_SHA512
         { NID_sha512, SHA512h, oidHashType, "SHA512", "sha512"},
     #endif
+    #ifndef WOLFSSL_NOSHA3_224
+        { NID_sha3_224, SHA3_224h, oidHashType, "SHA3-224", "sha3-224"},
+    #endif
+    #ifndef WOLFSSL_NOSHA3_256
+        { NID_sha3_256, SHA3_256h, oidHashType, "SHA3-256", "sha3-256"},
+    #endif
+    #ifndef WOLFSSL_NOSHA3_384
+        { NID_sha3_384, SHA3_384h, oidHashType, "SHA3-384", "sha3-384"},
+    #endif
+    #ifndef WOLFSSL_NOSHA3_512
+        { NID_sha3_512, SHA3_512h, oidHashType, "SHA3-512", "sha3-512"},
+    #endif
 
         /* oidSigType */
     #ifndef NO_DSA
