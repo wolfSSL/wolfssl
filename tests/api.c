@@ -28758,6 +28758,12 @@ static void test_wolfSSL_PEM_bio_RSAKey(void)
     BIO_free(bio);
     RSA_free(rsa);
 
+    /* Ensure that keys beginning with BEGIN RSA PUBLIC KEY can be read, too. */
+    AssertNotNull(bio = BIO_new_file("./certs/server-pub-key.pem", "rb"));
+    AssertNotNull((rsa = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL)));
+    BIO_free(bio);
+    RSA_free(rsa);
+
     #ifdef HAVE_ECC
     /* ensure that non-rsa keys do not work */
     AssertNotNull(bio = BIO_new_file(eccKeyFile, "rb")); /* ecc key */
