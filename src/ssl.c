@@ -4986,8 +4986,8 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     #endif
 
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
-    #define SESSION_ROW_LOCK(row)   wc_LockMutex(&row->row_mutex)
-    #define SESSION_ROW_UNLOCK(row) wc_UnLockMutex(&row->row_mutex);
+    #define SESSION_ROW_LOCK(row)   wc_LockMutex(&(row)->row_mutex)
+    #define SESSION_ROW_UNLOCK(row) wc_UnLockMutex(&(row)->row_mutex);
     #else
     static WOLFSSL_GLOBAL wolfSSL_Mutex session_mutex; /* SessionCache mutex */
     #define SESSION_ROW_LOCK(row)   wc_LockMutex(&session_mutex)
@@ -5067,7 +5067,7 @@ int wolfSSL_Init(void)
 #ifndef NO_SESSION_CACHE
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         for (i = 0; i < SESSION_ROWS; ++i) {
-            if (wc_InitMutex(&&SessionCache[i].row_mutex) != 0) {
+            if (wc_InitMutex(&SessionCache[i].row_mutex) != 0) {
                 WOLFSSL_MSG("Bad Init Mutex session");
                 return BAD_MUTEX_E;
             }
@@ -14061,7 +14061,7 @@ int wolfSSL_Cleanup(void)
 #ifndef NO_SESSION_CACHE
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
     for (i = 0; i < SESSION_ROWS; ++i) {
-        if (wc_FreeMutex(&&SessionCache[i].row_mutex) != 0)
+        if (wc_FreeMutex(&SessionCache[i].row_mutex) != 0)
             ret = BAD_MUTEX_E;
     }
     #else
