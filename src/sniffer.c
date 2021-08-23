@@ -3654,6 +3654,7 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
 
     if (ret == 0 && session->flags.cached == 0) {
         if (session->sslServer->options.haveSessionId) {
+        #ifndef NO_SESSION_CACHE
             WOLFSSL_SESSION* sess = GetSession(session->sslServer, NULL, 0);
             if (sess == NULL) {
                 AddSession(session->sslServer);  /* don't re add */
@@ -3662,6 +3663,7 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
             #endif
             }
             session->flags.cached = 1;
+        #endif
          }
     }
 
@@ -5682,7 +5684,7 @@ int ssl_EnableRecovery(int onOff, int maxMemory, char* error)
 
 
 
-#ifdef WOLFSSL_SESSION_STATS
+#if defined(WOLFSSL_SESSION_STATS) && !defined(NO_SESSION_CACHE)
 
 int ssl_GetSessionStats(unsigned int* active,     unsigned int* total,
                         unsigned int* peak,       unsigned int* maxSessions,

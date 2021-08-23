@@ -3333,6 +3333,7 @@ struct WOLFSSL_X509_CHAIN {
 
 /* wolfSSL session type */
 struct WOLFSSL_SESSION {
+    int                cacheRow;                  /* row in session cache     */
     word32             bornOn;                    /* create time in seconds   */
     word32             timeout;                   /* timeout in seconds       */
     byte               sessionID[ID_LEN];         /* id for protocol          */
@@ -3368,7 +3369,7 @@ struct WOLFSSL_SESSION {
     wolfSSL_Mutex      refMutex;                  /* ref count mutex */
 #endif
     int                refCount;                  /* reference count */
-#endif
+#endif /* OPENSSL_EXTRA */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     byte               peerVerifyRet;             /* cert verify error */
 #endif
@@ -3398,7 +3399,7 @@ struct WOLFSSL_SESSION {
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
     byte               side;                      /* Either WOLFSSL_CLIENT_END or
-                                                     WOLFSSL_SERVER_END */
+                                                            WOLFSSL_SERVER_END */
 };
 
 
