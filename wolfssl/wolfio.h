@@ -151,6 +151,8 @@
         #elif defined(EBSNET)
             #include "rtipapi.h"  /* errno */
             #include "socket.h"
+        #elif defined(NETOS)
+            #include <sockapi.h>
         #elif !defined(DEVKITPRO) && !defined(WOLFSSL_PICOTCP) \
                 && !defined(WOLFSSL_CONTIKI) && !defined(WOLFSSL_WICED) \
                 && !defined(WOLFSSL_GNRC) && !defined(WOLFSSL_RIOT_OS)

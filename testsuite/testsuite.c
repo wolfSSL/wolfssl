@@ -162,6 +162,7 @@ int testsuite_test(int argc, char** argv)
         simple_test(&server_args);
     #endif
     if (server_args.return_code != 0) return server_args.return_code;
+#if !defined(NETOS)
     /* Echo input wolfSSL client server test */
     #ifdef HAVE_STACK_SIZE
         StackSizeCheck_launch(&server_args, echoserver_test, &serverThread,
@@ -194,12 +195,15 @@ int testsuite_test(int argc, char** argv)
         cleanup_output();
         return server_args.return_code;
     }
+#endif /* !NETOS */
 
     show_ciphers();
 
+#if !defined(NETOS)
     ret = validate_cleanup_output();
     if (ret != 0)
         return EXIT_FAILURE;
+#endif
 
     wolfSSL_Cleanup();
     FreeTcpReady(&ready);
@@ -415,6 +419,16 @@ void wait_tcp_ready(func_args* args)
     args->signal->ready = 0; /* reset */
 
     pthread_mutex_unlock(&args->signal->mutex);
+#elif defined(NETOS)
+    (void)tx_mutex_get(&args->signal->mutex, TX_WAIT_FOREVER);
+
+    /* TODO:
+     * if (!args->signal->ready)
+     *    pthread_cond_wait(&args->signal->cond, &args->signal->mutex);
+     * args->signal->ready = 0; */
+
+    (void)tx_mutex_put(&args->signal->mutex);
+
 #else
     (void)args;
 #endif
@@ -443,6 +457,49 @@ void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
         printf("Failed to create new Task\n");
     }
     Task_yield();
+#elif defined(NETOS)
+    /* This can be adjusted by defining in user_settings.h, will default to 65k
+     * in the event it is undefined */
+    #ifndef TESTSUITE_THREAD_STACK_SZ
+        #define TESTSUITE_THREAD_STACK_SZ 65535
+    #endif
+    int result;
+    static void * TestSuiteThreadStack = NULL;
+
+    /* Assume only one additional thread is created concurrently. */
+    if (TestSuiteThreadStack == NULL)
+    {
+        TestSuiteThreadStack = (void *)malloc(TESTSUITE_THREAD_STACK_SZ);
+        if (TestSuiteThreadStack == NULL)
+        {
+            printf ("Stack allocation failure.\n");
+            return;
+        }
+    }
+
+    memset (thread, 0, sizeof *thread);
+
+    /* first create the idle thread:
+     * ARGS:
+     * Param1: pointer to thread
+     * Param2: name
+     * Param3 and 4: entry function and input
+     * Param5: pointer to thread stack
+     * Param6: stack size
+     * Param7 and 8: priority level and preempt threshold
+     * Param9 and 10: time slice and auto-start indicator */
+    result = tx_thread_create(thread,
+                       "WolfSSL TestSuiteThread",
+                       (entry_functionType)fun, (ULONG)args,
+                       TestSuiteThreadStack,
+                       TESTSUITE_THREAD_STACK_SZ,
+                       2, 2,
+                       1, TX_AUTO_START);
+    if (result != TX_SUCCESS)
+    {
+        printf("Ethernet Bypass Application: failed to create idle thread!\n");
+    }
+
 #else
     *thread = (THREAD_TYPE)_beginthreadex(0, 0, fun, args, 0, 0);
 #endif
@@ -465,6 +522,8 @@ void join_thread(THREAD_TYPE thread)
         }
         Task_yield();
     }
+#elif defined(NETOS)
+    /* TODO: */
 #else
     int res = WaitForSingleObject((HANDLE)thread, INFINITE);
     assert(res == WAIT_OBJECT_0);
