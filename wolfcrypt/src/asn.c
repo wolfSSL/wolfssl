@@ -16789,9 +16789,8 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
     return ret;
 }
 
-#if defined(WOLFCRYPT_ONLY) || defined(NO_CERTS) \
-    || (!defined(OPENSSL_EXTRA) && !defined(OPENSSL_EXTRA_X509_SMALL) \
-        && !defined(GetCA))
+#if !defined(OPENSSL_EXTRA) && !defined(OPENSSL_EXTRA_X509_SMALL) && \
+    !defined(GetCA)
 /* from SSL proper, for locking can't do find here anymore.
  * brought in from internal.h if built with compat layer.
  * if defined(GetCA), it's a predefined macro and these prototypes
@@ -16808,9 +16807,9 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
     }
 #endif
 
-#endif /* WOLFCRYPT_ONLY || NO_CERTS || (!OPENSSL_EXTRA && !OPENSSL_EXTRA_X509_SMALL && !GetCA) */
+#endif /* !OPENSSL_EXTRA && !OPENSSL_EXTRA_X509_SMALL && !GetCA */
 
-#if defined(WOLFCRYPT_ONLY) || defined(NO_CERTS)
+#if defined(WOLFCRYPT_ONLY)
 
 /* dummy functions, not using wolfSSL so don't need actual ones */
 Signer* GetCA(void* signers, byte* hash)
@@ -16829,7 +16828,7 @@ Signer* GetCAByName(void* signers, byte* hash)
 }
 #endif /* NO_SKID */
 
-#endif /* WOLFCRYPT_ONLY || NO_CERTS */
+#endif /* WOLFCRYPT_ONLY */
 
 #if defined(WOLFSSL_NO_TRUSTED_CERTS_VERIFY) && !defined(NO_SKID)
 static Signer* GetCABySubjectAndPubKey(DecodedCert* cert, void* cm)
