@@ -16867,7 +16867,7 @@ static int test_wc_RsaKeyToPublicDer (void)
     word32      derLen = 162;
     #else
     int         bits = 2048;
-    word32      derLen = 290;
+    word32      derLen = 294;
     #endif
 
     XMEMSET(&rng, 0, sizeof(rng));

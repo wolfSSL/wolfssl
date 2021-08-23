@@ -10780,185 +10780,115 @@ ENDIF
         ret
 sp_2048_mont_reduce_32 ENDP
 _text ENDS
-IFDEF HAVE_INTEL_AVX2
-; /* Conditionally subtract b from a using the mask m.
-;  * m is -1 to subtract and 0 when not copying.
+; /* Sub b from a into r. (r = a - b)
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * r  A single precision integer.
+;  * a  A single precision integer.
+;  * b  A single precision integer.
 ;  */
 _text SEGMENT READONLY PARA
-sp_2048_cond_sub_avx2_32 PROC
-        push	r12
-        mov	rax, 0
-        mov	r12, QWORD PTR [r8]
-        mov	r10, QWORD PTR [rdx]
-        pext	r12, r12, r9
-        sub	r10, r12
-        mov	r12, QWORD PTR [r8+8]
-        mov	r11, QWORD PTR [rdx+8]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+16]
-        mov	r12, QWORD PTR [rdx+16]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+8], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+24]
+sp_2048_sub_32 PROC
+        mov	r9, QWORD PTR [rdx]
+        xor	rax, rax
+        sub	r9, QWORD PTR [r8]
+        mov	r10, QWORD PTR [rdx+8]
+        mov	QWORD PTR [rcx], r9
+        sbb	r10, QWORD PTR [r8+8]
+        mov	r9, QWORD PTR [rdx+16]
+        mov	QWORD PTR [rcx+8], r10
+        sbb	r9, QWORD PTR [r8+16]
         mov	r10, QWORD PTR [rdx+24]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+16], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+32]
-        mov	r11, QWORD PTR [rdx+32]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+16], r9
+        sbb	r10, QWORD PTR [r8+24]
+        mov	r9, QWORD PTR [rdx+32]
         mov	QWORD PTR [rcx+24], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+40]
-        mov	r12, QWORD PTR [rdx+40]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+32], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+48]
-        mov	r10, QWORD PTR [rdx+48]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+40], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+56]
-        mov	r11, QWORD PTR [rdx+56]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+48], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+64]
-        mov	r12, QWORD PTR [rdx+64]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+56], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+72]
+        sbb	r9, QWORD PTR [r8+32]
+        mov	r10, QWORD PTR [rdx+40]
+        mov	QWORD PTR [rcx+32], r9
+        sbb	r10, QWORD PTR [r8+40]
+        mov	r9, QWORD PTR [rdx+48]
+        mov	QWORD PTR [rcx+40], r10
+        sbb	r9, QWORD PTR [r8+48]
+        mov	r10, QWORD PTR [rdx+56]
+        mov	QWORD PTR [rcx+48], r9
+        sbb	r10, QWORD PTR [r8+56]
+        mov	r9, QWORD PTR [rdx+64]
+        mov	QWORD PTR [rcx+56], r10
+        sbb	r9, QWORD PTR [r8+64]
         mov	r10, QWORD PTR [rdx+72]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+64], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+80]
-        mov	r11, QWORD PTR [rdx+80]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+64], r9
+        sbb	r10, QWORD PTR [r8+72]
+        mov	r9, QWORD PTR [rdx+80]
         mov	QWORD PTR [rcx+72], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+88]
-        mov	r12, QWORD PTR [rdx+88]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+80], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+96]
-        mov	r10, QWORD PTR [rdx+96]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+88], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+104]
-        mov	r11, QWORD PTR [rdx+104]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+96], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+112]
-        mov	r12, QWORD PTR [rdx+112]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+104], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+120]
+        sbb	r9, QWORD PTR [r8+80]
+        mov	r10, QWORD PTR [rdx+88]
+        mov	QWORD PTR [rcx+80], r9
+        sbb	r10, QWORD PTR [r8+88]
+        mov	r9, QWORD PTR [rdx+96]
+        mov	QWORD PTR [rcx+88], r10
+        sbb	r9, QWORD PTR [r8+96]
+        mov	r10, QWORD PTR [rdx+104]
+        mov	QWORD PTR [rcx+96], r9
+        sbb	r10, QWORD PTR [r8+104]
+        mov	r9, QWORD PTR [rdx+112]
+        mov	QWORD PTR [rcx+104], r10
+        sbb	r9, QWORD PTR [r8+112]
         mov	r10, QWORD PTR [rdx+120]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+112], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+128]
-        mov	r11, QWORD PTR [rdx+128]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+112], r9
+        sbb	r10, QWORD PTR [r8+120]
+        mov	r9, QWORD PTR [rdx+128]
         mov	QWORD PTR [rcx+120], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+136]
-        mov	r12, QWORD PTR [rdx+136]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+128], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+144]
-        mov	r10, QWORD PTR [rdx+144]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+136], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+152]
-        mov	r11, QWORD PTR [rdx+152]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+144], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+160]
-        mov	r12, QWORD PTR [rdx+160]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+152], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+168]
+        sbb	r9, QWORD PTR [r8+128]
+        mov	r10, QWORD PTR [rdx+136]
+        mov	QWORD PTR [rcx+128], r9
+        sbb	r10, QWORD PTR [r8+136]
+        mov	r9, QWORD PTR [rdx+144]
+        mov	QWORD PTR [rcx+136], r10
+        sbb	r9, QWORD PTR [r8+144]
+        mov	r10, QWORD PTR [rdx+152]
+        mov	QWORD PTR [rcx+144], r9
+        sbb	r10, QWORD PTR [r8+152]
+        mov	r9, QWORD PTR [rdx+160]
+        mov	QWORD PTR [rcx+152], r10
+        sbb	r9, QWORD PTR [r8+160]
         mov	r10, QWORD PTR [rdx+168]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+160], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+176]
-        mov	r11, QWORD PTR [rdx+176]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+160], r9
+        sbb	r10, QWORD PTR [r8+168]
+        mov	r9, QWORD PTR [rdx+176]
         mov	QWORD PTR [rcx+168], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+184]
-        mov	r12, QWORD PTR [rdx+184]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+176], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+192]
-        mov	r10, QWORD PTR [rdx+192]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+184], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+200]
-        mov	r11, QWORD PTR [rdx+200]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+192], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+208]
-        mov	r12, QWORD PTR [rdx+208]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+200], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+216]
+        sbb	r9, QWORD PTR [r8+176]
+        mov	r10, QWORD PTR [rdx+184]
+        mov	QWORD PTR [rcx+176], r9
+        sbb	r10, QWORD PTR [r8+184]
+        mov	r9, QWORD PTR [rdx+192]
+        mov	QWORD PTR [rcx+184], r10
+        sbb	r9, QWORD PTR [r8+192]
+        mov	r10, QWORD PTR [rdx+200]
+        mov	QWORD PTR [rcx+192], r9
+        sbb	r10, QWORD PTR [r8+200]
+        mov	r9, QWORD PTR [rdx+208]
+        mov	QWORD PTR [rcx+200], r10
+        sbb	r9, QWORD PTR [r8+208]
         mov	r10, QWORD PTR [rdx+216]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+208], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+224]
-        mov	r11, QWORD PTR [rdx+224]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+208], r9
+        sbb	r10, QWORD PTR [r8+216]
+        mov	r9, QWORD PTR [rdx+224]
         mov	QWORD PTR [rcx+216], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+232]
-        mov	r12, QWORD PTR [rdx+232]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+224], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+240]
-        mov	r10, QWORD PTR [rdx+240]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+232], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+248]
-        mov	r11, QWORD PTR [rdx+248]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+240], r10
-        sbb	r11, r12
-        mov	QWORD PTR [rcx+248], r11
+        sbb	r9, QWORD PTR [r8+224]
+        mov	r10, QWORD PTR [rdx+232]
+        mov	QWORD PTR [rcx+224], r9
+        sbb	r10, QWORD PTR [r8+232]
+        mov	r9, QWORD PTR [rdx+240]
+        mov	QWORD PTR [rcx+232], r10
+        sbb	r9, QWORD PTR [r8+240]
+        mov	r10, QWORD PTR [rdx+248]
+        mov	QWORD PTR [rcx+240], r9
+        sbb	r10, QWORD PTR [r8+248]
+        mov	QWORD PTR [rcx+248], r10
         sbb	rax, 0
-        pop	r12
         ret
-sp_2048_cond_sub_avx2_32 ENDP
+sp_2048_sub_32 ENDP
 _text ENDS
-ENDIF
 IFDEF HAVE_INTEL_AVX2
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
@@ -11186,6 +11116,185 @@ div_2048_word_asm_32 PROC
         div	r8
         ret
 div_2048_word_asm_32 ENDP
+_text ENDS
+ENDIF
+IFDEF HAVE_INTEL_AVX2
+; /* Conditionally subtract b from a using the mask m.
+;  * m is -1 to subtract and 0 when not copying.
+;  *
+;  * r  A single precision number representing condition subtract result.
+;  * a  A single precision number to subtract from.
+;  * b  A single precision number to subtract.
+;  * m  Mask value to apply.
+;  */
+_text SEGMENT READONLY PARA
+sp_2048_cond_sub_avx2_32 PROC
+        push	r12
+        mov	rax, 0
+        mov	r12, QWORD PTR [r8]
+        mov	r10, QWORD PTR [rdx]
+        pext	r12, r12, r9
+        sub	r10, r12
+        mov	r12, QWORD PTR [r8+8]
+        mov	r11, QWORD PTR [rdx+8]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+16]
+        mov	r12, QWORD PTR [rdx+16]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+8], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+24]
+        mov	r10, QWORD PTR [rdx+24]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+16], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+32]
+        mov	r11, QWORD PTR [rdx+32]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+24], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+40]
+        mov	r12, QWORD PTR [rdx+40]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+32], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+48]
+        mov	r10, QWORD PTR [rdx+48]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+40], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+56]
+        mov	r11, QWORD PTR [rdx+56]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+48], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+64]
+        mov	r12, QWORD PTR [rdx+64]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+56], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+72]
+        mov	r10, QWORD PTR [rdx+72]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+64], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+80]
+        mov	r11, QWORD PTR [rdx+80]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+72], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+88]
+        mov	r12, QWORD PTR [rdx+88]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+80], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+96]
+        mov	r10, QWORD PTR [rdx+96]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+88], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+104]
+        mov	r11, QWORD PTR [rdx+104]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+96], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+112]
+        mov	r12, QWORD PTR [rdx+112]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+104], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+120]
+        mov	r10, QWORD PTR [rdx+120]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+112], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+128]
+        mov	r11, QWORD PTR [rdx+128]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+120], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+136]
+        mov	r12, QWORD PTR [rdx+136]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+128], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+144]
+        mov	r10, QWORD PTR [rdx+144]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+136], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+152]
+        mov	r11, QWORD PTR [rdx+152]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+144], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+160]
+        mov	r12, QWORD PTR [rdx+160]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+152], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+168]
+        mov	r10, QWORD PTR [rdx+168]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+160], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+176]
+        mov	r11, QWORD PTR [rdx+176]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+168], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+184]
+        mov	r12, QWORD PTR [rdx+184]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+176], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+192]
+        mov	r10, QWORD PTR [rdx+192]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+184], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+200]
+        mov	r11, QWORD PTR [rdx+200]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+192], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+208]
+        mov	r12, QWORD PTR [rdx+208]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+200], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+216]
+        mov	r10, QWORD PTR [rdx+216]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+208], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+224]
+        mov	r11, QWORD PTR [rdx+224]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+216], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+232]
+        mov	r12, QWORD PTR [rdx+232]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+224], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+240]
+        mov	r10, QWORD PTR [rdx+240]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+232], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+248]
+        mov	r11, QWORD PTR [rdx+248]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+240], r10
+        sbb	r11, r12
+        mov	QWORD PTR [rcx+248], r11
+        sbb	rax, 0
+        pop	r12
+        ret
+sp_2048_cond_sub_avx2_32 ENDP
 _text ENDS
 ENDIF
 ; /* Compare a with b in constant time.
@@ -11462,115 +11571,6 @@ sp_2048_cmp_32 PROC
         pop	r12
         ret
 sp_2048_cmp_32 ENDP
-_text ENDS
-; /* Sub b from a into r. (r = a - b)
-;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
-;  */
-_text SEGMENT READONLY PARA
-sp_2048_sub_32 PROC
-        mov	r9, QWORD PTR [rdx]
-        xor	rax, rax
-        sub	r9, QWORD PTR [r8]
-        mov	r10, QWORD PTR [rdx+8]
-        mov	QWORD PTR [rcx], r9
-        sbb	r10, QWORD PTR [r8+8]
-        mov	r9, QWORD PTR [rdx+16]
-        mov	QWORD PTR [rcx+8], r10
-        sbb	r9, QWORD PTR [r8+16]
-        mov	r10, QWORD PTR [rdx+24]
-        mov	QWORD PTR [rcx+16], r9
-        sbb	r10, QWORD PTR [r8+24]
-        mov	r9, QWORD PTR [rdx+32]
-        mov	QWORD PTR [rcx+24], r10
-        sbb	r9, QWORD PTR [r8+32]
-        mov	r10, QWORD PTR [rdx+40]
-        mov	QWORD PTR [rcx+32], r9
-        sbb	r10, QWORD PTR [r8+40]
-        mov	r9, QWORD PTR [rdx+48]
-        mov	QWORD PTR [rcx+40], r10
-        sbb	r9, QWORD PTR [r8+48]
-        mov	r10, QWORD PTR [rdx+56]
-        mov	QWORD PTR [rcx+48], r9
-        sbb	r10, QWORD PTR [r8+56]
-        mov	r9, QWORD PTR [rdx+64]
-        mov	QWORD PTR [rcx+56], r10
-        sbb	r9, QWORD PTR [r8+64]
-        mov	r10, QWORD PTR [rdx+72]
-        mov	QWORD PTR [rcx+64], r9
-        sbb	r10, QWORD PTR [r8+72]
-        mov	r9, QWORD PTR [rdx+80]
-        mov	QWORD PTR [rcx+72], r10
-        sbb	r9, QWORD PTR [r8+80]
-        mov	r10, QWORD PTR [rdx+88]
-        mov	QWORD PTR [rcx+80], r9
-        sbb	r10, QWORD PTR [r8+88]
-        mov	r9, QWORD PTR [rdx+96]
-        mov	QWORD PTR [rcx+88], r10
-        sbb	r9, QWORD PTR [r8+96]
-        mov	r10, QWORD PTR [rdx+104]
-        mov	QWORD PTR [rcx+96], r9
-        sbb	r10, QWORD PTR [r8+104]
-        mov	r9, QWORD PTR [rdx+112]
-        mov	QWORD PTR [rcx+104], r10
-        sbb	r9, QWORD PTR [r8+112]
-        mov	r10, QWORD PTR [rdx+120]
-        mov	QWORD PTR [rcx+112], r9
-        sbb	r10, QWORD PTR [r8+120]
-        mov	r9, QWORD PTR [rdx+128]
-        mov	QWORD PTR [rcx+120], r10
-        sbb	r9, QWORD PTR [r8+128]
-        mov	r10, QWORD PTR [rdx+136]
-        mov	QWORD PTR [rcx+128], r9
-        sbb	r10, QWORD PTR [r8+136]
-        mov	r9, QWORD PTR [rdx+144]
-        mov	QWORD PTR [rcx+136], r10
-        sbb	r9, QWORD PTR [r8+144]
-        mov	r10, QWORD PTR [rdx+152]
-        mov	QWORD PTR [rcx+144], r9
-        sbb	r10, QWORD PTR [r8+152]
-        mov	r9, QWORD PTR [rdx+160]
-        mov	QWORD PTR [rcx+152], r10
-        sbb	r9, QWORD PTR [r8+160]
-        mov	r10, QWORD PTR [rdx+168]
-        mov	QWORD PTR [rcx+160], r9
-        sbb	r10, QWORD PTR [r8+168]
-        mov	r9, QWORD PTR [rdx+176]
-        mov	QWORD PTR [rcx+168], r10
-        sbb	r9, QWORD PTR [r8+176]
-        mov	r10, QWORD PTR [rdx+184]
-        mov	QWORD PTR [rcx+176], r9
-        sbb	r10, QWORD PTR [r8+184]
-        mov	r9, QWORD PTR [rdx+192]
-        mov	QWORD PTR [rcx+184], r10
-        sbb	r9, QWORD PTR [r8+192]
-        mov	r10, QWORD PTR [rdx+200]
-        mov	QWORD PTR [rcx+192], r9
-        sbb	r10, QWORD PTR [r8+200]
-        mov	r9, QWORD PTR [rdx+208]
-        mov	QWORD PTR [rcx+200], r10
-        sbb	r9, QWORD PTR [r8+208]
-        mov	r10, QWORD PTR [rdx+216]
-        mov	QWORD PTR [rcx+208], r9
-        sbb	r10, QWORD PTR [r8+216]
-        mov	r9, QWORD PTR [rdx+224]
-        mov	QWORD PTR [rcx+216], r10
-        sbb	r9, QWORD PTR [r8+224]
-        mov	r10, QWORD PTR [rdx+232]
-        mov	QWORD PTR [rcx+224], r9
-        sbb	r10, QWORD PTR [r8+232]
-        mov	r9, QWORD PTR [rdx+240]
-        mov	QWORD PTR [rcx+232], r10
-        sbb	r9, QWORD PTR [r8+240]
-        mov	r10, QWORD PTR [rdx+248]
-        mov	QWORD PTR [rcx+240], r9
-        sbb	r10, QWORD PTR [r8+248]
-        mov	QWORD PTR [rcx+248], r10
-        sbb	rax, 0
-        ret
-sp_2048_sub_32 ENDP
 _text ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Reduce the number back to 2048 bits using Montgomery reduction.
@@ -24990,265 +24990,163 @@ ENDIF
         ret
 sp_3072_mont_reduce_48 ENDP
 _text ENDS
-IFDEF HAVE_INTEL_AVX2
-; /* Conditionally subtract b from a using the mask m.
-;  * m is -1 to subtract and 0 when not copying.
+; /* Sub b from a into r. (r = a - b)
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * r  A single precision integer.
+;  * a  A single precision integer.
+;  * b  A single precision integer.
 ;  */
 _text SEGMENT READONLY PARA
-sp_3072_cond_sub_avx2_48 PROC
-        push	r12
-        mov	rax, 0
-        mov	r12, QWORD PTR [r8]
-        mov	r10, QWORD PTR [rdx]
-        pext	r12, r12, r9
-        sub	r10, r12
-        mov	r12, QWORD PTR [r8+8]
-        mov	r11, QWORD PTR [rdx+8]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+16]
-        mov	r12, QWORD PTR [rdx+16]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+8], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+24]
+sp_3072_sub_48 PROC
+        mov	r9, QWORD PTR [rdx]
+        xor	rax, rax
+        sub	r9, QWORD PTR [r8]
+        mov	r10, QWORD PTR [rdx+8]
+        mov	QWORD PTR [rcx], r9
+        sbb	r10, QWORD PTR [r8+8]
+        mov	r9, QWORD PTR [rdx+16]
+        mov	QWORD PTR [rcx+8], r10
+        sbb	r9, QWORD PTR [r8+16]
         mov	r10, QWORD PTR [rdx+24]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+16], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+32]
-        mov	r11, QWORD PTR [rdx+32]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+16], r9
+        sbb	r10, QWORD PTR [r8+24]
+        mov	r9, QWORD PTR [rdx+32]
         mov	QWORD PTR [rcx+24], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+40]
-        mov	r12, QWORD PTR [rdx+40]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+32], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+48]
-        mov	r10, QWORD PTR [rdx+48]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+40], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+56]
-        mov	r11, QWORD PTR [rdx+56]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+48], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+64]
-        mov	r12, QWORD PTR [rdx+64]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+56], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+72]
+        sbb	r9, QWORD PTR [r8+32]
+        mov	r10, QWORD PTR [rdx+40]
+        mov	QWORD PTR [rcx+32], r9
+        sbb	r10, QWORD PTR [r8+40]
+        mov	r9, QWORD PTR [rdx+48]
+        mov	QWORD PTR [rcx+40], r10
+        sbb	r9, QWORD PTR [r8+48]
+        mov	r10, QWORD PTR [rdx+56]
+        mov	QWORD PTR [rcx+48], r9
+        sbb	r10, QWORD PTR [r8+56]
+        mov	r9, QWORD PTR [rdx+64]
+        mov	QWORD PTR [rcx+56], r10
+        sbb	r9, QWORD PTR [r8+64]
         mov	r10, QWORD PTR [rdx+72]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+64], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+80]
-        mov	r11, QWORD PTR [rdx+80]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+64], r9
+        sbb	r10, QWORD PTR [r8+72]
+        mov	r9, QWORD PTR [rdx+80]
         mov	QWORD PTR [rcx+72], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+88]
-        mov	r12, QWORD PTR [rdx+88]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+80], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+96]
-        mov	r10, QWORD PTR [rdx+96]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+88], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+104]
-        mov	r11, QWORD PTR [rdx+104]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+96], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+112]
-        mov	r12, QWORD PTR [rdx+112]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+104], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+120]
+        sbb	r9, QWORD PTR [r8+80]
+        mov	r10, QWORD PTR [rdx+88]
+        mov	QWORD PTR [rcx+80], r9
+        sbb	r10, QWORD PTR [r8+88]
+        mov	r9, QWORD PTR [rdx+96]
+        mov	QWORD PTR [rcx+88], r10
+        sbb	r9, QWORD PTR [r8+96]
+        mov	r10, QWORD PTR [rdx+104]
+        mov	QWORD PTR [rcx+96], r9
+        sbb	r10, QWORD PTR [r8+104]
+        mov	r9, QWORD PTR [rdx+112]
+        mov	QWORD PTR [rcx+104], r10
+        sbb	r9, QWORD PTR [r8+112]
         mov	r10, QWORD PTR [rdx+120]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+112], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+128]
-        mov	r11, QWORD PTR [rdx+128]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+112], r9
+        sbb	r10, QWORD PTR [r8+120]
+        mov	r9, QWORD PTR [rdx+128]
         mov	QWORD PTR [rcx+120], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+136]
-        mov	r12, QWORD PTR [rdx+136]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+128], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+144]
-        mov	r10, QWORD PTR [rdx+144]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+136], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+152]
-        mov	r11, QWORD PTR [rdx+152]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+144], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+160]
-        mov	r12, QWORD PTR [rdx+160]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+152], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+168]
+        sbb	r9, QWORD PTR [r8+128]
+        mov	r10, QWORD PTR [rdx+136]
+        mov	QWORD PTR [rcx+128], r9
+        sbb	r10, QWORD PTR [r8+136]
+        mov	r9, QWORD PTR [rdx+144]
+        mov	QWORD PTR [rcx+136], r10
+        sbb	r9, QWORD PTR [r8+144]
+        mov	r10, QWORD PTR [rdx+152]
+        mov	QWORD PTR [rcx+144], r9
+        sbb	r10, QWORD PTR [r8+152]
+        mov	r9, QWORD PTR [rdx+160]
+        mov	QWORD PTR [rcx+152], r10
+        sbb	r9, QWORD PTR [r8+160]
         mov	r10, QWORD PTR [rdx+168]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+160], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+176]
-        mov	r11, QWORD PTR [rdx+176]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+160], r9
+        sbb	r10, QWORD PTR [r8+168]
+        mov	r9, QWORD PTR [rdx+176]
         mov	QWORD PTR [rcx+168], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+184]
-        mov	r12, QWORD PTR [rdx+184]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+176], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+192]
-        mov	r10, QWORD PTR [rdx+192]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+184], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+200]
-        mov	r11, QWORD PTR [rdx+200]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+192], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+208]
-        mov	r12, QWORD PTR [rdx+208]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+200], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+216]
+        sbb	r9, QWORD PTR [r8+176]
+        mov	r10, QWORD PTR [rdx+184]
+        mov	QWORD PTR [rcx+176], r9
+        sbb	r10, QWORD PTR [r8+184]
+        mov	r9, QWORD PTR [rdx+192]
+        mov	QWORD PTR [rcx+184], r10
+        sbb	r9, QWORD PTR [r8+192]
+        mov	r10, QWORD PTR [rdx+200]
+        mov	QWORD PTR [rcx+192], r9
+        sbb	r10, QWORD PTR [r8+200]
+        mov	r9, QWORD PTR [rdx+208]
+        mov	QWORD PTR [rcx+200], r10
+        sbb	r9, QWORD PTR [r8+208]
         mov	r10, QWORD PTR [rdx+216]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+208], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+224]
-        mov	r11, QWORD PTR [rdx+224]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+208], r9
+        sbb	r10, QWORD PTR [r8+216]
+        mov	r9, QWORD PTR [rdx+224]
         mov	QWORD PTR [rcx+216], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+232]
-        mov	r12, QWORD PTR [rdx+232]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+224], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+240]
-        mov	r10, QWORD PTR [rdx+240]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+232], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+248]
-        mov	r11, QWORD PTR [rdx+248]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+240], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+256]
-        mov	r12, QWORD PTR [rdx+256]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+248], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+264]
+        sbb	r9, QWORD PTR [r8+224]
+        mov	r10, QWORD PTR [rdx+232]
+        mov	QWORD PTR [rcx+224], r9
+        sbb	r10, QWORD PTR [r8+232]
+        mov	r9, QWORD PTR [rdx+240]
+        mov	QWORD PTR [rcx+232], r10
+        sbb	r9, QWORD PTR [r8+240]
+        mov	r10, QWORD PTR [rdx+248]
+        mov	QWORD PTR [rcx+240], r9
+        sbb	r10, QWORD PTR [r8+248]
+        mov	r9, QWORD PTR [rdx+256]
+        mov	QWORD PTR [rcx+248], r10
+        sbb	r9, QWORD PTR [r8+256]
         mov	r10, QWORD PTR [rdx+264]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+256], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+272]
-        mov	r11, QWORD PTR [rdx+272]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+256], r9
+        sbb	r10, QWORD PTR [r8+264]
+        mov	r9, QWORD PTR [rdx+272]
         mov	QWORD PTR [rcx+264], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+280]
-        mov	r12, QWORD PTR [rdx+280]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+272], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+288]
-        mov	r10, QWORD PTR [rdx+288]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+280], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+296]
-        mov	r11, QWORD PTR [rdx+296]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+288], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+304]
-        mov	r12, QWORD PTR [rdx+304]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+296], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+312]
+        sbb	r9, QWORD PTR [r8+272]
+        mov	r10, QWORD PTR [rdx+280]
+        mov	QWORD PTR [rcx+272], r9
+        sbb	r10, QWORD PTR [r8+280]
+        mov	r9, QWORD PTR [rdx+288]
+        mov	QWORD PTR [rcx+280], r10
+        sbb	r9, QWORD PTR [r8+288]
+        mov	r10, QWORD PTR [rdx+296]
+        mov	QWORD PTR [rcx+288], r9
+        sbb	r10, QWORD PTR [r8+296]
+        mov	r9, QWORD PTR [rdx+304]
+        mov	QWORD PTR [rcx+296], r10
+        sbb	r9, QWORD PTR [r8+304]
         mov	r10, QWORD PTR [rdx+312]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+304], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+320]
-        mov	r11, QWORD PTR [rdx+320]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+304], r9
+        sbb	r10, QWORD PTR [r8+312]
+        mov	r9, QWORD PTR [rdx+320]
         mov	QWORD PTR [rcx+312], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+328]
-        mov	r12, QWORD PTR [rdx+328]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+320], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+336]
-        mov	r10, QWORD PTR [rdx+336]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+328], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+344]
-        mov	r11, QWORD PTR [rdx+344]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+336], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+352]
-        mov	r12, QWORD PTR [rdx+352]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+344], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+360]
+        sbb	r9, QWORD PTR [r8+320]
+        mov	r10, QWORD PTR [rdx+328]
+        mov	QWORD PTR [rcx+320], r9
+        sbb	r10, QWORD PTR [r8+328]
+        mov	r9, QWORD PTR [rdx+336]
+        mov	QWORD PTR [rcx+328], r10
+        sbb	r9, QWORD PTR [r8+336]
+        mov	r10, QWORD PTR [rdx+344]
+        mov	QWORD PTR [rcx+336], r9
+        sbb	r10, QWORD PTR [r8+344]
+        mov	r9, QWORD PTR [rdx+352]
+        mov	QWORD PTR [rcx+344], r10
+        sbb	r9, QWORD PTR [r8+352]
         mov	r10, QWORD PTR [rdx+360]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+352], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+368]
-        mov	r11, QWORD PTR [rdx+368]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+352], r9
+        sbb	r10, QWORD PTR [r8+360]
+        mov	r9, QWORD PTR [rdx+368]
         mov	QWORD PTR [rcx+360], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+376]
-        mov	r12, QWORD PTR [rdx+376]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+368], r11
-        sbb	r12, r10
-        mov	QWORD PTR [rcx+376], r12
+        sbb	r9, QWORD PTR [r8+368]
+        mov	r10, QWORD PTR [rdx+376]
+        mov	QWORD PTR [rcx+368], r9
+        sbb	r10, QWORD PTR [r8+376]
+        mov	QWORD PTR [rcx+376], r10
         sbb	rax, 0
-        pop	r12
         ret
-sp_3072_cond_sub_avx2_48 ENDP
+sp_3072_sub_48 ENDP
 _text ENDS
-ENDIF
 IFDEF HAVE_INTEL_AVX2
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
@@ -25572,6 +25470,265 @@ div_3072_word_asm_48 PROC
         div	r8
         ret
 div_3072_word_asm_48 ENDP
+_text ENDS
+ENDIF
+IFDEF HAVE_INTEL_AVX2
+; /* Conditionally subtract b from a using the mask m.
+;  * m is -1 to subtract and 0 when not copying.
+;  *
+;  * r  A single precision number representing condition subtract result.
+;  * a  A single precision number to subtract from.
+;  * b  A single precision number to subtract.
+;  * m  Mask value to apply.
+;  */
+_text SEGMENT READONLY PARA
+sp_3072_cond_sub_avx2_48 PROC
+        push	r12
+        mov	rax, 0
+        mov	r12, QWORD PTR [r8]
+        mov	r10, QWORD PTR [rdx]
+        pext	r12, r12, r9
+        sub	r10, r12
+        mov	r12, QWORD PTR [r8+8]
+        mov	r11, QWORD PTR [rdx+8]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+16]
+        mov	r12, QWORD PTR [rdx+16]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+8], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+24]
+        mov	r10, QWORD PTR [rdx+24]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+16], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+32]
+        mov	r11, QWORD PTR [rdx+32]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+24], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+40]
+        mov	r12, QWORD PTR [rdx+40]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+32], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+48]
+        mov	r10, QWORD PTR [rdx+48]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+40], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+56]
+        mov	r11, QWORD PTR [rdx+56]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+48], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+64]
+        mov	r12, QWORD PTR [rdx+64]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+56], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+72]
+        mov	r10, QWORD PTR [rdx+72]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+64], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+80]
+        mov	r11, QWORD PTR [rdx+80]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+72], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+88]
+        mov	r12, QWORD PTR [rdx+88]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+80], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+96]
+        mov	r10, QWORD PTR [rdx+96]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+88], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+104]
+        mov	r11, QWORD PTR [rdx+104]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+96], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+112]
+        mov	r12, QWORD PTR [rdx+112]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+104], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+120]
+        mov	r10, QWORD PTR [rdx+120]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+112], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+128]
+        mov	r11, QWORD PTR [rdx+128]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+120], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+136]
+        mov	r12, QWORD PTR [rdx+136]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+128], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+144]
+        mov	r10, QWORD PTR [rdx+144]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+136], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+152]
+        mov	r11, QWORD PTR [rdx+152]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+144], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+160]
+        mov	r12, QWORD PTR [rdx+160]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+152], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+168]
+        mov	r10, QWORD PTR [rdx+168]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+160], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+176]
+        mov	r11, QWORD PTR [rdx+176]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+168], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+184]
+        mov	r12, QWORD PTR [rdx+184]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+176], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+192]
+        mov	r10, QWORD PTR [rdx+192]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+184], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+200]
+        mov	r11, QWORD PTR [rdx+200]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+192], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+208]
+        mov	r12, QWORD PTR [rdx+208]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+200], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+216]
+        mov	r10, QWORD PTR [rdx+216]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+208], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+224]
+        mov	r11, QWORD PTR [rdx+224]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+216], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+232]
+        mov	r12, QWORD PTR [rdx+232]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+224], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+240]
+        mov	r10, QWORD PTR [rdx+240]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+232], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+248]
+        mov	r11, QWORD PTR [rdx+248]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+240], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+256]
+        mov	r12, QWORD PTR [rdx+256]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+248], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+264]
+        mov	r10, QWORD PTR [rdx+264]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+256], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+272]
+        mov	r11, QWORD PTR [rdx+272]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+264], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+280]
+        mov	r12, QWORD PTR [rdx+280]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+272], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+288]
+        mov	r10, QWORD PTR [rdx+288]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+280], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+296]
+        mov	r11, QWORD PTR [rdx+296]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+288], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+304]
+        mov	r12, QWORD PTR [rdx+304]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+296], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+312]
+        mov	r10, QWORD PTR [rdx+312]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+304], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+320]
+        mov	r11, QWORD PTR [rdx+320]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+312], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+328]
+        mov	r12, QWORD PTR [rdx+328]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+320], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+336]
+        mov	r10, QWORD PTR [rdx+336]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+328], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+344]
+        mov	r11, QWORD PTR [rdx+344]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+336], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+352]
+        mov	r12, QWORD PTR [rdx+352]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+344], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+360]
+        mov	r10, QWORD PTR [rdx+360]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+352], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+368]
+        mov	r11, QWORD PTR [rdx+368]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+360], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+376]
+        mov	r12, QWORD PTR [rdx+376]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+368], r11
+        sbb	r12, r10
+        mov	QWORD PTR [rcx+376], r12
+        sbb	rax, 0
+        pop	r12
+        ret
+sp_3072_cond_sub_avx2_48 ENDP
 _text ENDS
 ENDIF
 ; /* Compare a with b in constant time.
@@ -25976,163 +26133,6 @@ sp_3072_cmp_48 PROC
         pop	r12
         ret
 sp_3072_cmp_48 ENDP
-_text ENDS
-; /* Sub b from a into r. (r = a - b)
-;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
-;  */
-_text SEGMENT READONLY PARA
-sp_3072_sub_48 PROC
-        mov	r9, QWORD PTR [rdx]
-        xor	rax, rax
-        sub	r9, QWORD PTR [r8]
-        mov	r10, QWORD PTR [rdx+8]
-        mov	QWORD PTR [rcx], r9
-        sbb	r10, QWORD PTR [r8+8]
-        mov	r9, QWORD PTR [rdx+16]
-        mov	QWORD PTR [rcx+8], r10
-        sbb	r9, QWORD PTR [r8+16]
-        mov	r10, QWORD PTR [rdx+24]
-        mov	QWORD PTR [rcx+16], r9
-        sbb	r10, QWORD PTR [r8+24]
-        mov	r9, QWORD PTR [rdx+32]
-        mov	QWORD PTR [rcx+24], r10
-        sbb	r9, QWORD PTR [r8+32]
-        mov	r10, QWORD PTR [rdx+40]
-        mov	QWORD PTR [rcx+32], r9
-        sbb	r10, QWORD PTR [r8+40]
-        mov	r9, QWORD PTR [rdx+48]
-        mov	QWORD PTR [rcx+40], r10
-        sbb	r9, QWORD PTR [r8+48]
-        mov	r10, QWORD PTR [rdx+56]
-        mov	QWORD PTR [rcx+48], r9
-        sbb	r10, QWORD PTR [r8+56]
-        mov	r9, QWORD PTR [rdx+64]
-        mov	QWORD PTR [rcx+56], r10
-        sbb	r9, QWORD PTR [r8+64]
-        mov	r10, QWORD PTR [rdx+72]
-        mov	QWORD PTR [rcx+64], r9
-        sbb	r10, QWORD PTR [r8+72]
-        mov	r9, QWORD PTR [rdx+80]
-        mov	QWORD PTR [rcx+72], r10
-        sbb	r9, QWORD PTR [r8+80]
-        mov	r10, QWORD PTR [rdx+88]
-        mov	QWORD PTR [rcx+80], r9
-        sbb	r10, QWORD PTR [r8+88]
-        mov	r9, QWORD PTR [rdx+96]
-        mov	QWORD PTR [rcx+88], r10
-        sbb	r9, QWORD PTR [r8+96]
-        mov	r10, QWORD PTR [rdx+104]
-        mov	QWORD PTR [rcx+96], r9
-        sbb	r10, QWORD PTR [r8+104]
-        mov	r9, QWORD PTR [rdx+112]
-        mov	QWORD PTR [rcx+104], r10
-        sbb	r9, QWORD PTR [r8+112]
-        mov	r10, QWORD PTR [rdx+120]
-        mov	QWORD PTR [rcx+112], r9
-        sbb	r10, QWORD PTR [r8+120]
-        mov	r9, QWORD PTR [rdx+128]
-        mov	QWORD PTR [rcx+120], r10
-        sbb	r9, QWORD PTR [r8+128]
-        mov	r10, QWORD PTR [rdx+136]
-        mov	QWORD PTR [rcx+128], r9
-        sbb	r10, QWORD PTR [r8+136]
-        mov	r9, QWORD PTR [rdx+144]
-        mov	QWORD PTR [rcx+136], r10
-        sbb	r9, QWORD PTR [r8+144]
-        mov	r10, QWORD PTR [rdx+152]
-        mov	QWORD PTR [rcx+144], r9
-        sbb	r10, QWORD PTR [r8+152]
-        mov	r9, QWORD PTR [rdx+160]
-        mov	QWORD PTR [rcx+152], r10
-        sbb	r9, QWORD PTR [r8+160]
-        mov	r10, QWORD PTR [rdx+168]
-        mov	QWORD PTR [rcx+160], r9
-        sbb	r10, QWORD PTR [r8+168]
-        mov	r9, QWORD PTR [rdx+176]
-        mov	QWORD PTR [rcx+168], r10
-        sbb	r9, QWORD PTR [r8+176]
-        mov	r10, QWORD PTR [rdx+184]
-        mov	QWORD PTR [rcx+176], r9
-        sbb	r10, QWORD PTR [r8+184]
-        mov	r9, QWORD PTR [rdx+192]
-        mov	QWORD PTR [rcx+184], r10
-        sbb	r9, QWORD PTR [r8+192]
-        mov	r10, QWORD PTR [rdx+200]
-        mov	QWORD PTR [rcx+192], r9
-        sbb	r10, QWORD PTR [r8+200]
-        mov	r9, QWORD PTR [rdx+208]
-        mov	QWORD PTR [rcx+200], r10
-        sbb	r9, QWORD PTR [r8+208]
-        mov	r10, QWORD PTR [rdx+216]
-        mov	QWORD PTR [rcx+208], r9
-        sbb	r10, QWORD PTR [r8+216]
-        mov	r9, QWORD PTR [rdx+224]
-        mov	QWORD PTR [rcx+216], r10
-        sbb	r9, QWORD PTR [r8+224]
-        mov	r10, QWORD PTR [rdx+232]
-        mov	QWORD PTR [rcx+224], r9
-        sbb	r10, QWORD PTR [r8+232]
-        mov	r9, QWORD PTR [rdx+240]
-        mov	QWORD PTR [rcx+232], r10
-        sbb	r9, QWORD PTR [r8+240]
-        mov	r10, QWORD PTR [rdx+248]
-        mov	QWORD PTR [rcx+240], r9
-        sbb	r10, QWORD PTR [r8+248]
-        mov	r9, QWORD PTR [rdx+256]
-        mov	QWORD PTR [rcx+248], r10
-        sbb	r9, QWORD PTR [r8+256]
-        mov	r10, QWORD PTR [rdx+264]
-        mov	QWORD PTR [rcx+256], r9
-        sbb	r10, QWORD PTR [r8+264]
-        mov	r9, QWORD PTR [rdx+272]
-        mov	QWORD PTR [rcx+264], r10
-        sbb	r9, QWORD PTR [r8+272]
-        mov	r10, QWORD PTR [rdx+280]
-        mov	QWORD PTR [rcx+272], r9
-        sbb	r10, QWORD PTR [r8+280]
-        mov	r9, QWORD PTR [rdx+288]
-        mov	QWORD PTR [rcx+280], r10
-        sbb	r9, QWORD PTR [r8+288]
-        mov	r10, QWORD PTR [rdx+296]
-        mov	QWORD PTR [rcx+288], r9
-        sbb	r10, QWORD PTR [r8+296]
-        mov	r9, QWORD PTR [rdx+304]
-        mov	QWORD PTR [rcx+296], r10
-        sbb	r9, QWORD PTR [r8+304]
-        mov	r10, QWORD PTR [rdx+312]
-        mov	QWORD PTR [rcx+304], r9
-        sbb	r10, QWORD PTR [r8+312]
-        mov	r9, QWORD PTR [rdx+320]
-        mov	QWORD PTR [rcx+312], r10
-        sbb	r9, QWORD PTR [r8+320]
-        mov	r10, QWORD PTR [rdx+328]
-        mov	QWORD PTR [rcx+320], r9
-        sbb	r10, QWORD PTR [r8+328]
-        mov	r9, QWORD PTR [rdx+336]
-        mov	QWORD PTR [rcx+328], r10
-        sbb	r9, QWORD PTR [r8+336]
-        mov	r10, QWORD PTR [rdx+344]
-        mov	QWORD PTR [rcx+336], r9
-        sbb	r10, QWORD PTR [r8+344]
-        mov	r9, QWORD PTR [rdx+352]
-        mov	QWORD PTR [rcx+344], r10
-        sbb	r9, QWORD PTR [r8+352]
-        mov	r10, QWORD PTR [rdx+360]
-        mov	QWORD PTR [rcx+352], r9
-        sbb	r10, QWORD PTR [r8+360]
-        mov	r9, QWORD PTR [rdx+368]
-        mov	QWORD PTR [rcx+360], r10
-        sbb	r9, QWORD PTR [r8+368]
-        mov	r10, QWORD PTR [rdx+376]
-        mov	QWORD PTR [rcx+368], r9
-        sbb	r10, QWORD PTR [r8+376]
-        mov	QWORD PTR [rcx+376], r10
-        sbb	rax, 0
-        ret
-sp_3072_sub_48 ENDP
 _text ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Reduce the number back to 3072 bits using Montgomery reduction.
@@ -34638,345 +34638,211 @@ ENDIF
         ret
 sp_4096_mont_reduce_64 ENDP
 _text ENDS
-IFDEF HAVE_INTEL_AVX2
-; /* Conditionally subtract b from a using the mask m.
-;  * m is -1 to subtract and 0 when not copying.
+; /* Sub b from a into r. (r = a - b)
 ;  *
-;  * r  A single precision number representing condition subtract result.
-;  * a  A single precision number to subtract from.
-;  * b  A single precision number to subtract.
-;  * m  Mask value to apply.
+;  * r  A single precision integer.
+;  * a  A single precision integer.
+;  * b  A single precision integer.
 ;  */
 _text SEGMENT READONLY PARA
-sp_4096_cond_sub_avx2_64 PROC
-        push	r12
-        mov	rax, 0
-        mov	r12, QWORD PTR [r8]
-        mov	r10, QWORD PTR [rdx]
-        pext	r12, r12, r9
-        sub	r10, r12
-        mov	r12, QWORD PTR [r8+8]
-        mov	r11, QWORD PTR [rdx+8]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+16]
-        mov	r12, QWORD PTR [rdx+16]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+8], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+24]
+sp_4096_sub_64 PROC
+        mov	r9, QWORD PTR [rdx]
+        xor	rax, rax
+        sub	r9, QWORD PTR [r8]
+        mov	r10, QWORD PTR [rdx+8]
+        mov	QWORD PTR [rcx], r9
+        sbb	r10, QWORD PTR [r8+8]
+        mov	r9, QWORD PTR [rdx+16]
+        mov	QWORD PTR [rcx+8], r10
+        sbb	r9, QWORD PTR [r8+16]
         mov	r10, QWORD PTR [rdx+24]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+16], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+32]
-        mov	r11, QWORD PTR [rdx+32]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+16], r9
+        sbb	r10, QWORD PTR [r8+24]
+        mov	r9, QWORD PTR [rdx+32]
         mov	QWORD PTR [rcx+24], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+40]
-        mov	r12, QWORD PTR [rdx+40]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+32], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+48]
-        mov	r10, QWORD PTR [rdx+48]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+40], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+56]
-        mov	r11, QWORD PTR [rdx+56]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+48], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+64]
-        mov	r12, QWORD PTR [rdx+64]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+56], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+72]
+        sbb	r9, QWORD PTR [r8+32]
+        mov	r10, QWORD PTR [rdx+40]
+        mov	QWORD PTR [rcx+32], r9
+        sbb	r10, QWORD PTR [r8+40]
+        mov	r9, QWORD PTR [rdx+48]
+        mov	QWORD PTR [rcx+40], r10
+        sbb	r9, QWORD PTR [r8+48]
+        mov	r10, QWORD PTR [rdx+56]
+        mov	QWORD PTR [rcx+48], r9
+        sbb	r10, QWORD PTR [r8+56]
+        mov	r9, QWORD PTR [rdx+64]
+        mov	QWORD PTR [rcx+56], r10
+        sbb	r9, QWORD PTR [r8+64]
         mov	r10, QWORD PTR [rdx+72]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+64], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+80]
-        mov	r11, QWORD PTR [rdx+80]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+64], r9
+        sbb	r10, QWORD PTR [r8+72]
+        mov	r9, QWORD PTR [rdx+80]
         mov	QWORD PTR [rcx+72], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+88]
-        mov	r12, QWORD PTR [rdx+88]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+80], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+96]
-        mov	r10, QWORD PTR [rdx+96]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+88], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+104]
-        mov	r11, QWORD PTR [rdx+104]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+96], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+112]
-        mov	r12, QWORD PTR [rdx+112]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+104], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+120]
+        sbb	r9, QWORD PTR [r8+80]
+        mov	r10, QWORD PTR [rdx+88]
+        mov	QWORD PTR [rcx+80], r9
+        sbb	r10, QWORD PTR [r8+88]
+        mov	r9, QWORD PTR [rdx+96]
+        mov	QWORD PTR [rcx+88], r10
+        sbb	r9, QWORD PTR [r8+96]
+        mov	r10, QWORD PTR [rdx+104]
+        mov	QWORD PTR [rcx+96], r9
+        sbb	r10, QWORD PTR [r8+104]
+        mov	r9, QWORD PTR [rdx+112]
+        mov	QWORD PTR [rcx+104], r10
+        sbb	r9, QWORD PTR [r8+112]
         mov	r10, QWORD PTR [rdx+120]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+112], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+128]
-        mov	r11, QWORD PTR [rdx+128]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+112], r9
+        sbb	r10, QWORD PTR [r8+120]
+        mov	r9, QWORD PTR [rdx+128]
         mov	QWORD PTR [rcx+120], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+136]
-        mov	r12, QWORD PTR [rdx+136]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+128], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+144]
-        mov	r10, QWORD PTR [rdx+144]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+136], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+152]
-        mov	r11, QWORD PTR [rdx+152]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+144], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+160]
-        mov	r12, QWORD PTR [rdx+160]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+152], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+168]
+        sbb	r9, QWORD PTR [r8+128]
+        mov	r10, QWORD PTR [rdx+136]
+        mov	QWORD PTR [rcx+128], r9
+        sbb	r10, QWORD PTR [r8+136]
+        mov	r9, QWORD PTR [rdx+144]
+        mov	QWORD PTR [rcx+136], r10
+        sbb	r9, QWORD PTR [r8+144]
+        mov	r10, QWORD PTR [rdx+152]
+        mov	QWORD PTR [rcx+144], r9
+        sbb	r10, QWORD PTR [r8+152]
+        mov	r9, QWORD PTR [rdx+160]
+        mov	QWORD PTR [rcx+152], r10
+        sbb	r9, QWORD PTR [r8+160]
         mov	r10, QWORD PTR [rdx+168]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+160], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+176]
-        mov	r11, QWORD PTR [rdx+176]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+160], r9
+        sbb	r10, QWORD PTR [r8+168]
+        mov	r9, QWORD PTR [rdx+176]
         mov	QWORD PTR [rcx+168], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+184]
-        mov	r12, QWORD PTR [rdx+184]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+176], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+192]
-        mov	r10, QWORD PTR [rdx+192]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+184], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+200]
-        mov	r11, QWORD PTR [rdx+200]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+192], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+208]
-        mov	r12, QWORD PTR [rdx+208]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+200], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+216]
+        sbb	r9, QWORD PTR [r8+176]
+        mov	r10, QWORD PTR [rdx+184]
+        mov	QWORD PTR [rcx+176], r9
+        sbb	r10, QWORD PTR [r8+184]
+        mov	r9, QWORD PTR [rdx+192]
+        mov	QWORD PTR [rcx+184], r10
+        sbb	r9, QWORD PTR [r8+192]
+        mov	r10, QWORD PTR [rdx+200]
+        mov	QWORD PTR [rcx+192], r9
+        sbb	r10, QWORD PTR [r8+200]
+        mov	r9, QWORD PTR [rdx+208]
+        mov	QWORD PTR [rcx+200], r10
+        sbb	r9, QWORD PTR [r8+208]
         mov	r10, QWORD PTR [rdx+216]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+208], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+224]
-        mov	r11, QWORD PTR [rdx+224]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+208], r9
+        sbb	r10, QWORD PTR [r8+216]
+        mov	r9, QWORD PTR [rdx+224]
         mov	QWORD PTR [rcx+216], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+232]
-        mov	r12, QWORD PTR [rdx+232]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+224], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+240]
-        mov	r10, QWORD PTR [rdx+240]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+232], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+248]
-        mov	r11, QWORD PTR [rdx+248]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+240], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+256]
-        mov	r12, QWORD PTR [rdx+256]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+248], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+264]
+        sbb	r9, QWORD PTR [r8+224]
+        mov	r10, QWORD PTR [rdx+232]
+        mov	QWORD PTR [rcx+224], r9
+        sbb	r10, QWORD PTR [r8+232]
+        mov	r9, QWORD PTR [rdx+240]
+        mov	QWORD PTR [rcx+232], r10
+        sbb	r9, QWORD PTR [r8+240]
+        mov	r10, QWORD PTR [rdx+248]
+        mov	QWORD PTR [rcx+240], r9
+        sbb	r10, QWORD PTR [r8+248]
+        mov	r9, QWORD PTR [rdx+256]
+        mov	QWORD PTR [rcx+248], r10
+        sbb	r9, QWORD PTR [r8+256]
         mov	r10, QWORD PTR [rdx+264]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+256], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+272]
-        mov	r11, QWORD PTR [rdx+272]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+256], r9
+        sbb	r10, QWORD PTR [r8+264]
+        mov	r9, QWORD PTR [rdx+272]
         mov	QWORD PTR [rcx+264], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+280]
-        mov	r12, QWORD PTR [rdx+280]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+272], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+288]
-        mov	r10, QWORD PTR [rdx+288]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+280], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+296]
-        mov	r11, QWORD PTR [rdx+296]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+288], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+304]
-        mov	r12, QWORD PTR [rdx+304]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+296], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+312]
+        sbb	r9, QWORD PTR [r8+272]
+        mov	r10, QWORD PTR [rdx+280]
+        mov	QWORD PTR [rcx+272], r9
+        sbb	r10, QWORD PTR [r8+280]
+        mov	r9, QWORD PTR [rdx+288]
+        mov	QWORD PTR [rcx+280], r10
+        sbb	r9, QWORD PTR [r8+288]
+        mov	r10, QWORD PTR [rdx+296]
+        mov	QWORD PTR [rcx+288], r9
+        sbb	r10, QWORD PTR [r8+296]
+        mov	r9, QWORD PTR [rdx+304]
+        mov	QWORD PTR [rcx+296], r10
+        sbb	r9, QWORD PTR [r8+304]
         mov	r10, QWORD PTR [rdx+312]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+304], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+320]
-        mov	r11, QWORD PTR [rdx+320]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+304], r9
+        sbb	r10, QWORD PTR [r8+312]
+        mov	r9, QWORD PTR [rdx+320]
         mov	QWORD PTR [rcx+312], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+328]
-        mov	r12, QWORD PTR [rdx+328]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+320], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+336]
-        mov	r10, QWORD PTR [rdx+336]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+328], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+344]
-        mov	r11, QWORD PTR [rdx+344]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+336], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+352]
-        mov	r12, QWORD PTR [rdx+352]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+344], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+360]
+        sbb	r9, QWORD PTR [r8+320]
+        mov	r10, QWORD PTR [rdx+328]
+        mov	QWORD PTR [rcx+320], r9
+        sbb	r10, QWORD PTR [r8+328]
+        mov	r9, QWORD PTR [rdx+336]
+        mov	QWORD PTR [rcx+328], r10
+        sbb	r9, QWORD PTR [r8+336]
+        mov	r10, QWORD PTR [rdx+344]
+        mov	QWORD PTR [rcx+336], r9
+        sbb	r10, QWORD PTR [r8+344]
+        mov	r9, QWORD PTR [rdx+352]
+        mov	QWORD PTR [rcx+344], r10
+        sbb	r9, QWORD PTR [r8+352]
         mov	r10, QWORD PTR [rdx+360]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+352], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+368]
-        mov	r11, QWORD PTR [rdx+368]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+352], r9
+        sbb	r10, QWORD PTR [r8+360]
+        mov	r9, QWORD PTR [rdx+368]
         mov	QWORD PTR [rcx+360], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+376]
-        mov	r12, QWORD PTR [rdx+376]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+368], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+384]
-        mov	r10, QWORD PTR [rdx+384]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+376], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+392]
-        mov	r11, QWORD PTR [rdx+392]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+384], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+400]
-        mov	r12, QWORD PTR [rdx+400]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+392], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+408]
+        sbb	r9, QWORD PTR [r8+368]
+        mov	r10, QWORD PTR [rdx+376]
+        mov	QWORD PTR [rcx+368], r9
+        sbb	r10, QWORD PTR [r8+376]
+        mov	r9, QWORD PTR [rdx+384]
+        mov	QWORD PTR [rcx+376], r10
+        sbb	r9, QWORD PTR [r8+384]
+        mov	r10, QWORD PTR [rdx+392]
+        mov	QWORD PTR [rcx+384], r9
+        sbb	r10, QWORD PTR [r8+392]
+        mov	r9, QWORD PTR [rdx+400]
+        mov	QWORD PTR [rcx+392], r10
+        sbb	r9, QWORD PTR [r8+400]
         mov	r10, QWORD PTR [rdx+408]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+400], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+416]
-        mov	r11, QWORD PTR [rdx+416]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+400], r9
+        sbb	r10, QWORD PTR [r8+408]
+        mov	r9, QWORD PTR [rdx+416]
         mov	QWORD PTR [rcx+408], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+424]
-        mov	r12, QWORD PTR [rdx+424]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+416], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+432]
-        mov	r10, QWORD PTR [rdx+432]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+424], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+440]
-        mov	r11, QWORD PTR [rdx+440]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+432], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+448]
-        mov	r12, QWORD PTR [rdx+448]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+440], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+456]
+        sbb	r9, QWORD PTR [r8+416]
+        mov	r10, QWORD PTR [rdx+424]
+        mov	QWORD PTR [rcx+416], r9
+        sbb	r10, QWORD PTR [r8+424]
+        mov	r9, QWORD PTR [rdx+432]
+        mov	QWORD PTR [rcx+424], r10
+        sbb	r9, QWORD PTR [r8+432]
+        mov	r10, QWORD PTR [rdx+440]
+        mov	QWORD PTR [rcx+432], r9
+        sbb	r10, QWORD PTR [r8+440]
+        mov	r9, QWORD PTR [rdx+448]
+        mov	QWORD PTR [rcx+440], r10
+        sbb	r9, QWORD PTR [r8+448]
         mov	r10, QWORD PTR [rdx+456]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+448], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+464]
-        mov	r11, QWORD PTR [rdx+464]
-        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+448], r9
+        sbb	r10, QWORD PTR [r8+456]
+        mov	r9, QWORD PTR [rdx+464]
         mov	QWORD PTR [rcx+456], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+472]
-        mov	r12, QWORD PTR [rdx+472]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+464], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+480]
-        mov	r10, QWORD PTR [rdx+480]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+472], r12
-        sbb	r10, r11
-        mov	r12, QWORD PTR [r8+488]
-        mov	r11, QWORD PTR [rdx+488]
-        pext	r12, r12, r9
-        mov	QWORD PTR [rcx+480], r10
-        sbb	r11, r12
-        mov	r10, QWORD PTR [r8+496]
-        mov	r12, QWORD PTR [rdx+496]
-        pext	r10, r10, r9
-        mov	QWORD PTR [rcx+488], r11
-        sbb	r12, r10
-        mov	r11, QWORD PTR [r8+504]
+        sbb	r9, QWORD PTR [r8+464]
+        mov	r10, QWORD PTR [rdx+472]
+        mov	QWORD PTR [rcx+464], r9
+        sbb	r10, QWORD PTR [r8+472]
+        mov	r9, QWORD PTR [rdx+480]
+        mov	QWORD PTR [rcx+472], r10
+        sbb	r9, QWORD PTR [r8+480]
+        mov	r10, QWORD PTR [rdx+488]
+        mov	QWORD PTR [rcx+480], r9
+        sbb	r10, QWORD PTR [r8+488]
+        mov	r9, QWORD PTR [rdx+496]
+        mov	QWORD PTR [rcx+488], r10
+        sbb	r9, QWORD PTR [r8+496]
         mov	r10, QWORD PTR [rdx+504]
-        pext	r11, r11, r9
-        mov	QWORD PTR [rcx+496], r12
-        sbb	r10, r11
+        mov	QWORD PTR [rcx+496], r9
+        sbb	r10, QWORD PTR [r8+504]
         mov	QWORD PTR [rcx+504], r10
         sbb	rax, 0
-        pop	r12
         ret
-sp_4096_cond_sub_avx2_64 ENDP
+sp_4096_sub_64 ENDP
 _text ENDS
-ENDIF
 IFDEF HAVE_INTEL_AVX2
 ; /* Mul a by digit b into r. (r = a * b)
 ;  *
@@ -35396,6 +35262,345 @@ div_4096_word_asm_64 PROC
         div	r8
         ret
 div_4096_word_asm_64 ENDP
+_text ENDS
+ENDIF
+IFDEF HAVE_INTEL_AVX2
+; /* Conditionally subtract b from a using the mask m.
+;  * m is -1 to subtract and 0 when not copying.
+;  *
+;  * r  A single precision number representing condition subtract result.
+;  * a  A single precision number to subtract from.
+;  * b  A single precision number to subtract.
+;  * m  Mask value to apply.
+;  */
+_text SEGMENT READONLY PARA
+sp_4096_cond_sub_avx2_64 PROC
+        push	r12
+        mov	rax, 0
+        mov	r12, QWORD PTR [r8]
+        mov	r10, QWORD PTR [rdx]
+        pext	r12, r12, r9
+        sub	r10, r12
+        mov	r12, QWORD PTR [r8+8]
+        mov	r11, QWORD PTR [rdx+8]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+16]
+        mov	r12, QWORD PTR [rdx+16]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+8], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+24]
+        mov	r10, QWORD PTR [rdx+24]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+16], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+32]
+        mov	r11, QWORD PTR [rdx+32]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+24], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+40]
+        mov	r12, QWORD PTR [rdx+40]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+32], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+48]
+        mov	r10, QWORD PTR [rdx+48]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+40], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+56]
+        mov	r11, QWORD PTR [rdx+56]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+48], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+64]
+        mov	r12, QWORD PTR [rdx+64]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+56], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+72]
+        mov	r10, QWORD PTR [rdx+72]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+64], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+80]
+        mov	r11, QWORD PTR [rdx+80]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+72], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+88]
+        mov	r12, QWORD PTR [rdx+88]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+80], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+96]
+        mov	r10, QWORD PTR [rdx+96]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+88], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+104]
+        mov	r11, QWORD PTR [rdx+104]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+96], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+112]
+        mov	r12, QWORD PTR [rdx+112]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+104], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+120]
+        mov	r10, QWORD PTR [rdx+120]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+112], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+128]
+        mov	r11, QWORD PTR [rdx+128]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+120], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+136]
+        mov	r12, QWORD PTR [rdx+136]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+128], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+144]
+        mov	r10, QWORD PTR [rdx+144]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+136], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+152]
+        mov	r11, QWORD PTR [rdx+152]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+144], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+160]
+        mov	r12, QWORD PTR [rdx+160]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+152], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+168]
+        mov	r10, QWORD PTR [rdx+168]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+160], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+176]
+        mov	r11, QWORD PTR [rdx+176]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+168], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+184]
+        mov	r12, QWORD PTR [rdx+184]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+176], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+192]
+        mov	r10, QWORD PTR [rdx+192]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+184], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+200]
+        mov	r11, QWORD PTR [rdx+200]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+192], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+208]
+        mov	r12, QWORD PTR [rdx+208]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+200], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+216]
+        mov	r10, QWORD PTR [rdx+216]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+208], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+224]
+        mov	r11, QWORD PTR [rdx+224]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+216], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+232]
+        mov	r12, QWORD PTR [rdx+232]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+224], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+240]
+        mov	r10, QWORD PTR [rdx+240]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+232], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+248]
+        mov	r11, QWORD PTR [rdx+248]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+240], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+256]
+        mov	r12, QWORD PTR [rdx+256]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+248], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+264]
+        mov	r10, QWORD PTR [rdx+264]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+256], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+272]
+        mov	r11, QWORD PTR [rdx+272]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+264], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+280]
+        mov	r12, QWORD PTR [rdx+280]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+272], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+288]
+        mov	r10, QWORD PTR [rdx+288]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+280], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+296]
+        mov	r11, QWORD PTR [rdx+296]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+288], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+304]
+        mov	r12, QWORD PTR [rdx+304]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+296], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+312]
+        mov	r10, QWORD PTR [rdx+312]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+304], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+320]
+        mov	r11, QWORD PTR [rdx+320]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+312], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+328]
+        mov	r12, QWORD PTR [rdx+328]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+320], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+336]
+        mov	r10, QWORD PTR [rdx+336]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+328], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+344]
+        mov	r11, QWORD PTR [rdx+344]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+336], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+352]
+        mov	r12, QWORD PTR [rdx+352]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+344], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+360]
+        mov	r10, QWORD PTR [rdx+360]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+352], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+368]
+        mov	r11, QWORD PTR [rdx+368]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+360], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+376]
+        mov	r12, QWORD PTR [rdx+376]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+368], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+384]
+        mov	r10, QWORD PTR [rdx+384]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+376], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+392]
+        mov	r11, QWORD PTR [rdx+392]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+384], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+400]
+        mov	r12, QWORD PTR [rdx+400]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+392], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+408]
+        mov	r10, QWORD PTR [rdx+408]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+400], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+416]
+        mov	r11, QWORD PTR [rdx+416]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+408], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+424]
+        mov	r12, QWORD PTR [rdx+424]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+416], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+432]
+        mov	r10, QWORD PTR [rdx+432]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+424], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+440]
+        mov	r11, QWORD PTR [rdx+440]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+432], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+448]
+        mov	r12, QWORD PTR [rdx+448]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+440], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+456]
+        mov	r10, QWORD PTR [rdx+456]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+448], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+464]
+        mov	r11, QWORD PTR [rdx+464]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+456], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+472]
+        mov	r12, QWORD PTR [rdx+472]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+464], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+480]
+        mov	r10, QWORD PTR [rdx+480]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+472], r12
+        sbb	r10, r11
+        mov	r12, QWORD PTR [r8+488]
+        mov	r11, QWORD PTR [rdx+488]
+        pext	r12, r12, r9
+        mov	QWORD PTR [rcx+480], r10
+        sbb	r11, r12
+        mov	r10, QWORD PTR [r8+496]
+        mov	r12, QWORD PTR [rdx+496]
+        pext	r10, r10, r9
+        mov	QWORD PTR [rcx+488], r11
+        sbb	r12, r10
+        mov	r11, QWORD PTR [r8+504]
+        mov	r10, QWORD PTR [rdx+504]
+        pext	r11, r11, r9
+        mov	QWORD PTR [rcx+496], r12
+        sbb	r10, r11
+        mov	QWORD PTR [rcx+504], r10
+        sbb	rax, 0
+        pop	r12
+        ret
+sp_4096_cond_sub_avx2_64 ENDP
 _text ENDS
 ENDIF
 ; /* Compare a with b in constant time.
@@ -35928,211 +36133,6 @@ sp_4096_cmp_64 PROC
         pop	r12
         ret
 sp_4096_cmp_64 ENDP
-_text ENDS
-; /* Sub b from a into r. (r = a - b)
-;  *
-;  * r  A single precision integer.
-;  * a  A single precision integer.
-;  * b  A single precision integer.
-;  */
-_text SEGMENT READONLY PARA
-sp_4096_sub_64 PROC
-        mov	r9, QWORD PTR [rdx]
-        xor	rax, rax
-        sub	r9, QWORD PTR [r8]
-        mov	r10, QWORD PTR [rdx+8]
-        mov	QWORD PTR [rcx], r9
-        sbb	r10, QWORD PTR [r8+8]
-        mov	r9, QWORD PTR [rdx+16]
-        mov	QWORD PTR [rcx+8], r10
-        sbb	r9, QWORD PTR [r8+16]
-        mov	r10, QWORD PTR [rdx+24]
-        mov	QWORD PTR [rcx+16], r9
-        sbb	r10, QWORD PTR [r8+24]
-        mov	r9, QWORD PTR [rdx+32]
-        mov	QWORD PTR [rcx+24], r10
-        sbb	r9, QWORD PTR [r8+32]
-        mov	r10, QWORD PTR [rdx+40]
-        mov	QWORD PTR [rcx+32], r9
-        sbb	r10, QWORD PTR [r8+40]
-        mov	r9, QWORD PTR [rdx+48]
-        mov	QWORD PTR [rcx+40], r10
-        sbb	r9, QWORD PTR [r8+48]
-        mov	r10, QWORD PTR [rdx+56]
-        mov	QWORD PTR [rcx+48], r9
-        sbb	r10, QWORD PTR [r8+56]
-        mov	r9, QWORD PTR [rdx+64]
-        mov	QWORD PTR [rcx+56], r10
-        sbb	r9, QWORD PTR [r8+64]
-        mov	r10, QWORD PTR [rdx+72]
-        mov	QWORD PTR [rcx+64], r9
-        sbb	r10, QWORD PTR [r8+72]
-        mov	r9, QWORD PTR [rdx+80]
-        mov	QWORD PTR [rcx+72], r10
-        sbb	r9, QWORD PTR [r8+80]
-        mov	r10, QWORD PTR [rdx+88]
-        mov	QWORD PTR [rcx+80], r9
-        sbb	r10, QWORD PTR [r8+88]
-        mov	r9, QWORD PTR [rdx+96]
-        mov	QWORD PTR [rcx+88], r10
-        sbb	r9, QWORD PTR [r8+96]
-        mov	r10, QWORD PTR [rdx+104]
-        mov	QWORD PTR [rcx+96], r9
-        sbb	r10, QWORD PTR [r8+104]
-        mov	r9, QWORD PTR [rdx+112]
-        mov	QWORD PTR [rcx+104], r10
-        sbb	r9, QWORD PTR [r8+112]
-        mov	r10, QWORD PTR [rdx+120]
-        mov	QWORD PTR [rcx+112], r9
-        sbb	r10, QWORD PTR [r8+120]
-        mov	r9, QWORD PTR [rdx+128]
-        mov	QWORD PTR [rcx+120], r10
-        sbb	r9, QWORD PTR [r8+128]
-        mov	r10, QWORD PTR [rdx+136]
-        mov	QWORD PTR [rcx+128], r9
-        sbb	r10, QWORD PTR [r8+136]
-        mov	r9, QWORD PTR [rdx+144]
-        mov	QWORD PTR [rcx+136], r10
-        sbb	r9, QWORD PTR [r8+144]
-        mov	r10, QWORD PTR [rdx+152]
-        mov	QWORD PTR [rcx+144], r9
-        sbb	r10, QWORD PTR [r8+152]
-        mov	r9, QWORD PTR [rdx+160]
-        mov	QWORD PTR [rcx+152], r10
-        sbb	r9, QWORD PTR [r8+160]
-        mov	r10, QWORD PTR [rdx+168]
-        mov	QWORD PTR [rcx+160], r9
-        sbb	r10, QWORD PTR [r8+168]
-        mov	r9, QWORD PTR [rdx+176]
-        mov	QWORD PTR [rcx+168], r10
-        sbb	r9, QWORD PTR [r8+176]
-        mov	r10, QWORD PTR [rdx+184]
-        mov	QWORD PTR [rcx+176], r9
-        sbb	r10, QWORD PTR [r8+184]
-        mov	r9, QWORD PTR [rdx+192]
-        mov	QWORD PTR [rcx+184], r10
-        sbb	r9, QWORD PTR [r8+192]
-        mov	r10, QWORD PTR [rdx+200]
-        mov	QWORD PTR [rcx+192], r9
-        sbb	r10, QWORD PTR [r8+200]
-        mov	r9, QWORD PTR [rdx+208]
-        mov	QWORD PTR [rcx+200], r10
-        sbb	r9, QWORD PTR [r8+208]
-        mov	r10, QWORD PTR [rdx+216]
-        mov	QWORD PTR [rcx+208], r9
-        sbb	r10, QWORD PTR [r8+216]
-        mov	r9, QWORD PTR [rdx+224]
-        mov	QWORD PTR [rcx+216], r10
-        sbb	r9, QWORD PTR [r8+224]
-        mov	r10, QWORD PTR [rdx+232]
-        mov	QWORD PTR [rcx+224], r9
-        sbb	r10, QWORD PTR [r8+232]
-        mov	r9, QWORD PTR [rdx+240]
-        mov	QWORD PTR [rcx+232], r10
-        sbb	r9, QWORD PTR [r8+240]
-        mov	r10, QWORD PTR [rdx+248]
-        mov	QWORD PTR [rcx+240], r9
-        sbb	r10, QWORD PTR [r8+248]
-        mov	r9, QWORD PTR [rdx+256]
-        mov	QWORD PTR [rcx+248], r10
-        sbb	r9, QWORD PTR [r8+256]
-        mov	r10, QWORD PTR [rdx+264]
-        mov	QWORD PTR [rcx+256], r9
-        sbb	r10, QWORD PTR [r8+264]
-        mov	r9, QWORD PTR [rdx+272]
-        mov	QWORD PTR [rcx+264], r10
-        sbb	r9, QWORD PTR [r8+272]
-        mov	r10, QWORD PTR [rdx+280]
-        mov	QWORD PTR [rcx+272], r9
-        sbb	r10, QWORD PTR [r8+280]
-        mov	r9, QWORD PTR [rdx+288]
-        mov	QWORD PTR [rcx+280], r10
-        sbb	r9, QWORD PTR [r8+288]
-        mov	r10, QWORD PTR [rdx+296]
-        mov	QWORD PTR [rcx+288], r9
-        sbb	r10, QWORD PTR [r8+296]
-        mov	r9, QWORD PTR [rdx+304]
-        mov	QWORD PTR [rcx+296], r10
-        sbb	r9, QWORD PTR [r8+304]
-        mov	r10, QWORD PTR [rdx+312]
-        mov	QWORD PTR [rcx+304], r9
-        sbb	r10, QWORD PTR [r8+312]
-        mov	r9, QWORD PTR [rdx+320]
-        mov	QWORD PTR [rcx+312], r10
-        sbb	r9, QWORD PTR [r8+320]
-        mov	r10, QWORD PTR [rdx+328]
-        mov	QWORD PTR [rcx+320], r9
-        sbb	r10, QWORD PTR [r8+328]
-        mov	r9, QWORD PTR [rdx+336]
-        mov	QWORD PTR [rcx+328], r10
-        sbb	r9, QWORD PTR [r8+336]
-        mov	r10, QWORD PTR [rdx+344]
-        mov	QWORD PTR [rcx+336], r9
-        sbb	r10, QWORD PTR [r8+344]
-        mov	r9, QWORD PTR [rdx+352]
-        mov	QWORD PTR [rcx+344], r10
-        sbb	r9, QWORD PTR [r8+352]
-        mov	r10, QWORD PTR [rdx+360]
-        mov	QWORD PTR [rcx+352], r9
-        sbb	r10, QWORD PTR [r8+360]
-        mov	r9, QWORD PTR [rdx+368]
-        mov	QWORD PTR [rcx+360], r10
-        sbb	r9, QWORD PTR [r8+368]
-        mov	r10, QWORD PTR [rdx+376]
-        mov	QWORD PTR [rcx+368], r9
-        sbb	r10, QWORD PTR [r8+376]
-        mov	r9, QWORD PTR [rdx+384]
-        mov	QWORD PTR [rcx+376], r10
-        sbb	r9, QWORD PTR [r8+384]
-        mov	r10, QWORD PTR [rdx+392]
-        mov	QWORD PTR [rcx+384], r9
-        sbb	r10, QWORD PTR [r8+392]
-        mov	r9, QWORD PTR [rdx+400]
-        mov	QWORD PTR [rcx+392], r10
-        sbb	r9, QWORD PTR [r8+400]
-        mov	r10, QWORD PTR [rdx+408]
-        mov	QWORD PTR [rcx+400], r9
-        sbb	r10, QWORD PTR [r8+408]
-        mov	r9, QWORD PTR [rdx+416]
-        mov	QWORD PTR [rcx+408], r10
-        sbb	r9, QWORD PTR [r8+416]
-        mov	r10, QWORD PTR [rdx+424]
-        mov	QWORD PTR [rcx+416], r9
-        sbb	r10, QWORD PTR [r8+424]
-        mov	r9, QWORD PTR [rdx+432]
-        mov	QWORD PTR [rcx+424], r10
-        sbb	r9, QWORD PTR [r8+432]
-        mov	r10, QWORD PTR [rdx+440]
-        mov	QWORD PTR [rcx+432], r9
-        sbb	r10, QWORD PTR [r8+440]
-        mov	r9, QWORD PTR [rdx+448]
-        mov	QWORD PTR [rcx+440], r10
-        sbb	r9, QWORD PTR [r8+448]
-        mov	r10, QWORD PTR [rdx+456]
-        mov	QWORD PTR [rcx+448], r9
-        sbb	r10, QWORD PTR [r8+456]
-        mov	r9, QWORD PTR [rdx+464]
-        mov	QWORD PTR [rcx+456], r10
-        sbb	r9, QWORD PTR [r8+464]
-        mov	r10, QWORD PTR [rdx+472]
-        mov	QWORD PTR [rcx+464], r9
-        sbb	r10, QWORD PTR [r8+472]
-        mov	r9, QWORD PTR [rdx+480]
-        mov	QWORD PTR [rcx+472], r10
-        sbb	r9, QWORD PTR [r8+480]
-        mov	r10, QWORD PTR [rdx+488]
-        mov	QWORD PTR [rcx+480], r9
-        sbb	r10, QWORD PTR [r8+488]
-        mov	r9, QWORD PTR [rdx+496]
-        mov	QWORD PTR [rcx+488], r10
-        sbb	r9, QWORD PTR [r8+496]
-        mov	r10, QWORD PTR [rdx+504]
-        mov	QWORD PTR [rcx+496], r9
-        sbb	r10, QWORD PTR [r8+504]
-        mov	QWORD PTR [rcx+504], r10
-        sbb	rax, 0
-        ret
-sp_4096_sub_64 ENDP
 _text ENDS
 IFDEF HAVE_INTEL_AVX2
 ; /* Reduce the number back to 4096 bits using Montgomery reduction.

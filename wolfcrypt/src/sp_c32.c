@@ -249,6 +249,7 @@ static void sp_2048_to_bin_72(sp_digit* r, byte* a)
     }
 }
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && (!defined(WOLFSSL_RSA_PUBLIC_ONLY) || !defined(WOLFSSL_SP_SMALL))) || defined(WOLFSSL_HAVE_SP_DH)
 /* Normalize the values in each word to 29 bits.
  *
  * a  Array of sp_digit to normalize.
@@ -279,6 +280,7 @@ static void sp_2048_norm_36(sp_digit* a)
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && (!WOLFSSL_RSA_PUBLIC_ONLY || !WOLFSSL_SP_SMALL)) || WOLFSSL_HAVE_SP_DH */
 /* Normalize the values in each word to 29 bits.
  *
  * a  Array of sp_digit to normalize.
@@ -3221,6 +3223,7 @@ static int sp_2048_mod_72(sp_digit* r, const sp_digit* a, const sp_digit* m)
     return sp_2048_div_72(a, m, NULL, r);
 }
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
                                                      defined(WOLFSSL_HAVE_SP_DH)
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
@@ -3535,6 +3538,7 @@ static int sp_2048_mod_exp_72(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) || */
        /* WOLFSSL_HAVE_SP_DH */
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *
@@ -5030,6 +5034,7 @@ static void sp_3072_to_bin_106(sp_digit* r, byte* a)
     }
 }
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* Normalize the values in each word to 29 bits.
  *
  * a  Array of sp_digit to normalize.
@@ -5043,6 +5048,7 @@ static void sp_3072_norm_53(sp_digit* a)
     }
 }
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 /* Normalize the values in each word to 29 bits.
  *
  * a  Array of sp_digit to normalize.
@@ -6728,6 +6734,7 @@ static int sp_3072_mod_106(sp_digit* r, const sp_digit* a, const sp_digit* m)
     return sp_3072_div_106(a, m, NULL, r);
 }
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * r     A single precision number that is the result of the operation.
@@ -7038,6 +7045,7 @@ static int sp_3072_mod_exp_106(sp_digit* r, const sp_digit* a, const sp_digit* e
 #endif
 }
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *
@@ -8380,6 +8388,7 @@ static void sp_3072_to_bin_112(sp_digit* r, byte* a)
     }
 }
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* Normalize the values in each word to 28 bits.
  *
  * a  Array of sp_digit to normalize.
@@ -8406,6 +8415,7 @@ static void sp_3072_norm_56(sp_digit* a)
     a[55] += a[54] >> 28; a[54] &= 0xfffffff;
 }
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 /* Normalize the values in each word to 28 bits.
  *
  * a  Array of sp_digit to normalize.
@@ -10812,6 +10822,7 @@ static int sp_3072_mod_112(sp_digit* r, const sp_digit* a, const sp_digit* m)
     return sp_3072_div_112(a, m, NULL, r);
 }
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
                                                      defined(WOLFSSL_HAVE_SP_DH)
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
@@ -11126,6 +11137,7 @@ static int sp_3072_mod_exp_112(sp_digit* r, const sp_digit* a, const sp_digit* e
 #endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) || */
        /* WOLFSSL_HAVE_SP_DH */
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *
@@ -12693,6 +12705,7 @@ static void sp_4096_to_bin_142(sp_digit* r, byte* a)
     }
 }
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 #if defined(WOLFSSL_HAVE_SP_RSA) && !defined(SP_RSA_PRIVATE_EXP_D)
 /* Normalize the values in each word to 29 bits.
  *
@@ -12708,6 +12721,7 @@ static void sp_4096_norm_71(sp_digit* a)
 }
 
 #endif /* WOLFSSL_HAVE_SP_RSA & !SP_RSA_PRIVATE_EXP_D */
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 /* Normalize the values in each word to 29 bits.
  *
  * a  Array of sp_digit to normalize.
@@ -14401,6 +14415,7 @@ static int sp_4096_mod_142(sp_digit* r, const sp_digit* a, const sp_digit* m)
     return sp_4096_div_142(a, m, NULL, r);
 }
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * r     A single precision number that is the result of the operation.
@@ -14711,6 +14726,7 @@ static int sp_4096_mod_exp_142(sp_digit* r, const sp_digit* a, const sp_digit* e
 #endif
 }
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *
@@ -15911,6 +15927,7 @@ static void sp_4096_to_bin_162(sp_digit* r, byte* a)
     }
 }
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 #if defined(WOLFSSL_HAVE_SP_RSA) && !defined(SP_RSA_PRIVATE_EXP_D)
 /* Normalize the values in each word to 26 bits.
  *
@@ -15932,6 +15949,7 @@ static void sp_4096_norm_81(sp_digit* a)
 }
 
 #endif /* WOLFSSL_HAVE_SP_RSA & !SP_RSA_PRIVATE_EXP_D */
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 /* Normalize the values in each word to 26 bits.
  *
  * a  Array of sp_digit to normalize.
@@ -18293,6 +18311,7 @@ static int sp_4096_mod_162(sp_digit* r, const sp_digit* a, const sp_digit* m)
     return sp_4096_div_162(a, m, NULL, r);
 }
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
                                                      defined(WOLFSSL_HAVE_SP_DH)
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
@@ -18607,6 +18626,7 @@ static int sp_4096_mod_exp_162(sp_digit* r, const sp_digit* a, const sp_digit* e
 #endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) || */
        /* WOLFSSL_HAVE_SP_DH */
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *

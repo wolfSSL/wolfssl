@@ -193,12 +193,14 @@ static void sp_2048_to_bin_32(sp_digit* r, byte* a)
     }
 }
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && (!defined(WOLFSSL_RSA_PUBLIC_ONLY) || !defined(WOLFSSL_SP_SMALL))) || defined(WOLFSSL_HAVE_SP_DH)
 /* Normalize the values in each word to 64.
  *
  * a  Array of sp_digit to normalize.
  */
 #define sp_2048_norm_32(a)
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && (!WOLFSSL_RSA_PUBLIC_ONLY || !WOLFSSL_SP_SMALL)) || WOLFSSL_HAVE_SP_DH */
 /* Normalize the values in each word to 64.
  *
  * a  Array of sp_digit to normalize.
@@ -830,7 +832,7 @@ static int sp_2048_mod_exp_avx2_16(sp_digit* r, const sp_digit* a, const sp_digi
 
 #endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) | WOLFSSL_HAVE_SP_DH */
 
-#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 2048 bits, just need to subtract.
  *
@@ -845,7 +847,7 @@ static void sp_2048_mont_norm_32(sp_digit* r, const sp_digit* m)
     sp_2048_sub_in_place_32(r, m);
 }
 
-#endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH */
+#endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) | WOLFSSL_HAVE_SP_DH */
 extern sp_digit sp_2048_cond_sub_32(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
 extern void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m, sp_digit mp);
 /* Multiply two Montogmery form numbers mod the modulus (prime).
@@ -878,8 +880,7 @@ static void sp_2048_mont_sqr_32(sp_digit* r, const sp_digit* a,
     sp_2048_mont_reduce_32(r, m, mp);
 }
 
-#if defined(WOLFSSL_HAVE_SP_DH) || !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-extern sp_digit sp_2048_cond_sub_avx2_32(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
+extern sp_digit sp_2048_sub_32(sp_digit* r, const sp_digit* a, const sp_digit* b);
 extern void sp_2048_mul_d_avx2_32(sp_digit* r, const sp_digit* a, const sp_digit b);
 #ifdef _WIN64
 #if _MSC_VER < 1920
@@ -922,6 +923,86 @@ static WC_INLINE sp_digit div_2048_word_32(sp_digit d1, sp_digit d0,
     return r;
 }
 #endif /* _WIN64 */
+/* Divide d in a and put remainder into r (m*d + r = a)
+ * m is not calculated as it is not needed at this time.
+ *
+ * a  Number to be divided.
+ * d  Number to divide with.
+ * m  Multiplier result.
+ * r  Remainder from the division.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_2048_div_32_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
+        sp_digit* r)
+{
+    sp_digit t1[64];
+    sp_digit t2[33];
+    sp_digit div;
+    sp_digit r1;
+    int i;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    (void)m;
+
+    div = d[31];
+    XMEMCPY(t1, a, sizeof(*t1) * 2 * 32);
+    for (i = 31; i > 0; i--) {
+        if (t1[i + 32] != d[i])
+            break;
+    }
+    if (t1[i + 32] >= d[i]) {
+        sp_2048_sub_in_place_32(&t1[32], d);
+    }
+    for (i=31; i>=0; i--) {
+        sp_digit hi = t1[32 + i] - (t1[32 + i] == div);
+        r1 = div_2048_word_32(hi, t1[32 + i - 1], div);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+            sp_2048_mul_d_avx2_32(t2, d, r1);
+        else
+#endif
+            sp_2048_mul_d_32(t2, d, r1);
+        t1[32 + i] += sp_2048_sub_in_place_32(&t1[i], t2);
+        t1[32 + i] -= t2[32];
+        if (t1[32 + i] != 0) {
+            t1[32 + i] += sp_2048_add_32(&t1[i], &t1[i], d);
+            if (t1[32 + i] != 0)
+                t1[32 + i] += sp_2048_add_32(&t1[i], &t1[i], d);
+        }
+    }
+
+    for (i = 31; i > 0; i--) {
+        if (t1[i] != d[i])
+            break;
+    }
+    if (t1[i] >= d[i]) {
+        sp_2048_sub_32(r, t1, d);
+    }
+    else {
+        XMEMCPY(r, t1, sizeof(*t1) * 32);
+    }
+
+    return MP_OKAY;
+}
+
+/* Reduce a modulo m into r. (r = a mod m)
+ *
+ * r  A single precision number that is the reduced result.
+ * a  A single precision number that is to be reduced.
+ * m  A single precision number that is the modulus to reduce with.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_2048_mod_32_cond(sp_digit* r, const sp_digit* a,
+        const sp_digit* m)
+{
+    return sp_2048_div_32_cond(a, m, NULL, r);
+}
+
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
+extern sp_digit sp_2048_cond_sub_avx2_32(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
 /* AND m into each word of a and store in r.
  *
  * r  A single precision integer.
@@ -1014,6 +1095,7 @@ static WC_INLINE int sp_2048_div_32(const sp_digit* a, const sp_digit* d, sp_dig
     return MP_OKAY;
 }
 
+#if defined(WOLFSSL_HAVE_SP_DH) || !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* Reduce a modulo m into r. (r = a mod m)
  *
  * r  A single precision number that is the reduced result.
@@ -1028,86 +1110,6 @@ static WC_INLINE int sp_2048_mod_32(sp_digit* r, const sp_digit* a,
 }
 
 #endif /* WOLFSSL_HAVE_SP_DH || !WOLFSSL_RSA_PUBLIC_ONLY */
-extern sp_digit sp_2048_sub_32(sp_digit* r, const sp_digit* a, const sp_digit* b);
-/* Divide d in a and put remainder into r (m*d + r = a)
- * m is not calculated as it is not needed at this time.
- *
- * a  Number to be divided.
- * d  Number to divide with.
- * m  Multiplier result.
- * r  Remainder from the division.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_2048_div_32_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
-        sp_digit* r)
-{
-    sp_digit t1[64];
-    sp_digit t2[33];
-    sp_digit div;
-    sp_digit r1;
-    int i;
-#ifdef HAVE_INTEL_AVX2
-    word32 cpuid_flags = cpuid_get_flags();
-#endif
-
-    (void)m;
-
-    div = d[31];
-    XMEMCPY(t1, a, sizeof(*t1) * 2 * 32);
-    for (i = 31; i > 0; i--) {
-        if (t1[i + 32] != d[i])
-            break;
-    }
-    if (t1[i + 32] >= d[i]) {
-        sp_2048_sub_in_place_32(&t1[32], d);
-    }
-    for (i=31; i>=0; i--) {
-        sp_digit hi = t1[32 + i] - (t1[32 + i] == div);
-        r1 = div_2048_word_32(hi, t1[32 + i - 1], div);
-
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-            sp_2048_mul_d_avx2_32(t2, d, r1);
-        else
-#endif
-            sp_2048_mul_d_32(t2, d, r1);
-        t1[32 + i] += sp_2048_sub_in_place_32(&t1[i], t2);
-        t1[32 + i] -= t2[32];
-        if (t1[32 + i] != 0) {
-            t1[32 + i] += sp_2048_add_32(&t1[i], &t1[i], d);
-            if (t1[32 + i] != 0)
-                t1[32 + i] += sp_2048_add_32(&t1[i], &t1[i], d);
-        }
-    }
-
-    for (i = 31; i > 0; i--) {
-        if (t1[i] != d[i])
-            break;
-    }
-    if (t1[i] >= d[i]) {
-        sp_2048_sub_32(r, t1, d);
-    }
-    else {
-        XMEMCPY(r, t1, sizeof(*t1) * 32);
-    }
-
-    return MP_OKAY;
-}
-
-/* Reduce a modulo m into r. (r = a mod m)
- *
- * r  A single precision number that is the reduced result.
- * a  A single precision number that is to be reduced.
- * m  A single precision number that is the modulus to reduce with.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_2048_mod_32_cond(sp_digit* r, const sp_digit* a,
-        const sp_digit* m)
-{
-    return sp_2048_div_32_cond(a, m, NULL, r);
-}
-
-#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * r     A single precision number that is the result of the operation.
@@ -1263,8 +1265,8 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
 
     return err;
 }
-#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 extern void sp_2048_mont_reduce_avx2_32(sp_digit* a, const sp_digit* m, sp_digit mp);
 #ifdef HAVE_INTEL_AVX2
 /* Multiply two Montogmery form numbers mod the modulus (prime).
@@ -1458,8 +1460,8 @@ static int sp_2048_mod_exp_avx2_32(sp_digit* r, const sp_digit* a, const sp_digi
     return err;
 }
 #endif /* HAVE_INTEL_AVX2 */
-#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *
@@ -1619,6 +1621,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
     return err;
 }
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
 /* RSA private key operation.
  *
@@ -1868,6 +1871,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
     return err;
 }
 #endif /* SP_RSA_PRIVATE_EXP_D | RSA_LOW_MEM */
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
                                               !defined(WOLFSSL_RSA_PUBLIC_ONLY))
@@ -2510,12 +2514,14 @@ static void sp_3072_to_bin_48(sp_digit* r, byte* a)
     }
 }
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && (!defined(WOLFSSL_RSA_PUBLIC_ONLY) || !defined(WOLFSSL_SP_SMALL))) || defined(WOLFSSL_HAVE_SP_DH)
 /* Normalize the values in each word to 64.
  *
  * a  Array of sp_digit to normalize.
  */
 #define sp_3072_norm_48(a)
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && (!WOLFSSL_RSA_PUBLIC_ONLY || !WOLFSSL_SP_SMALL)) || WOLFSSL_HAVE_SP_DH */
 /* Normalize the values in each word to 64.
  *
  * a  Array of sp_digit to normalize.
@@ -3157,7 +3163,7 @@ static int sp_3072_mod_exp_avx2_24(sp_digit* r, const sp_digit* a, const sp_digi
 
 #endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) | WOLFSSL_HAVE_SP_DH */
 
-#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 3072 bits, just need to subtract.
  *
@@ -3172,7 +3178,7 @@ static void sp_3072_mont_norm_48(sp_digit* r, const sp_digit* m)
     sp_3072_sub_in_place_48(r, m);
 }
 
-#endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH */
+#endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) | WOLFSSL_HAVE_SP_DH */
 extern sp_digit sp_3072_cond_sub_48(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
 extern void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m, sp_digit mp);
 /* Multiply two Montogmery form numbers mod the modulus (prime).
@@ -3205,8 +3211,7 @@ static void sp_3072_mont_sqr_48(sp_digit* r, const sp_digit* a,
     sp_3072_mont_reduce_48(r, m, mp);
 }
 
-#if defined(WOLFSSL_HAVE_SP_DH) || !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-extern sp_digit sp_3072_cond_sub_avx2_48(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
+extern sp_digit sp_3072_sub_48(sp_digit* r, const sp_digit* a, const sp_digit* b);
 extern void sp_3072_mul_d_avx2_48(sp_digit* r, const sp_digit* a, const sp_digit b);
 #ifdef _WIN64
 #if _MSC_VER < 1920
@@ -3249,6 +3254,86 @@ static WC_INLINE sp_digit div_3072_word_48(sp_digit d1, sp_digit d0,
     return r;
 }
 #endif /* _WIN64 */
+/* Divide d in a and put remainder into r (m*d + r = a)
+ * m is not calculated as it is not needed at this time.
+ *
+ * a  Number to be divided.
+ * d  Number to divide with.
+ * m  Multiplier result.
+ * r  Remainder from the division.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_3072_div_48_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
+        sp_digit* r)
+{
+    sp_digit t1[96];
+    sp_digit t2[49];
+    sp_digit div;
+    sp_digit r1;
+    int i;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    (void)m;
+
+    div = d[47];
+    XMEMCPY(t1, a, sizeof(*t1) * 2 * 48);
+    for (i = 47; i > 0; i--) {
+        if (t1[i + 48] != d[i])
+            break;
+    }
+    if (t1[i + 48] >= d[i]) {
+        sp_3072_sub_in_place_48(&t1[48], d);
+    }
+    for (i=47; i>=0; i--) {
+        sp_digit hi = t1[48 + i] - (t1[48 + i] == div);
+        r1 = div_3072_word_48(hi, t1[48 + i - 1], div);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+            sp_3072_mul_d_avx2_48(t2, d, r1);
+        else
+#endif
+            sp_3072_mul_d_48(t2, d, r1);
+        t1[48 + i] += sp_3072_sub_in_place_48(&t1[i], t2);
+        t1[48 + i] -= t2[48];
+        if (t1[48 + i] != 0) {
+            t1[48 + i] += sp_3072_add_48(&t1[i], &t1[i], d);
+            if (t1[48 + i] != 0)
+                t1[48 + i] += sp_3072_add_48(&t1[i], &t1[i], d);
+        }
+    }
+
+    for (i = 47; i > 0; i--) {
+        if (t1[i] != d[i])
+            break;
+    }
+    if (t1[i] >= d[i]) {
+        sp_3072_sub_48(r, t1, d);
+    }
+    else {
+        XMEMCPY(r, t1, sizeof(*t1) * 48);
+    }
+
+    return MP_OKAY;
+}
+
+/* Reduce a modulo m into r. (r = a mod m)
+ *
+ * r  A single precision number that is the reduced result.
+ * a  A single precision number that is to be reduced.
+ * m  A single precision number that is the modulus to reduce with.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_3072_mod_48_cond(sp_digit* r, const sp_digit* a,
+        const sp_digit* m)
+{
+    return sp_3072_div_48_cond(a, m, NULL, r);
+}
+
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
+extern sp_digit sp_3072_cond_sub_avx2_48(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
 /* AND m into each word of a and store in r.
  *
  * r  A single precision integer.
@@ -3341,6 +3426,7 @@ static WC_INLINE int sp_3072_div_48(const sp_digit* a, const sp_digit* d, sp_dig
     return MP_OKAY;
 }
 
+#if defined(WOLFSSL_HAVE_SP_DH) || !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* Reduce a modulo m into r. (r = a mod m)
  *
  * r  A single precision number that is the reduced result.
@@ -3355,86 +3441,6 @@ static WC_INLINE int sp_3072_mod_48(sp_digit* r, const sp_digit* a,
 }
 
 #endif /* WOLFSSL_HAVE_SP_DH || !WOLFSSL_RSA_PUBLIC_ONLY */
-extern sp_digit sp_3072_sub_48(sp_digit* r, const sp_digit* a, const sp_digit* b);
-/* Divide d in a and put remainder into r (m*d + r = a)
- * m is not calculated as it is not needed at this time.
- *
- * a  Number to be divided.
- * d  Number to divide with.
- * m  Multiplier result.
- * r  Remainder from the division.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_3072_div_48_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
-        sp_digit* r)
-{
-    sp_digit t1[96];
-    sp_digit t2[49];
-    sp_digit div;
-    sp_digit r1;
-    int i;
-#ifdef HAVE_INTEL_AVX2
-    word32 cpuid_flags = cpuid_get_flags();
-#endif
-
-    (void)m;
-
-    div = d[47];
-    XMEMCPY(t1, a, sizeof(*t1) * 2 * 48);
-    for (i = 47; i > 0; i--) {
-        if (t1[i + 48] != d[i])
-            break;
-    }
-    if (t1[i + 48] >= d[i]) {
-        sp_3072_sub_in_place_48(&t1[48], d);
-    }
-    for (i=47; i>=0; i--) {
-        sp_digit hi = t1[48 + i] - (t1[48 + i] == div);
-        r1 = div_3072_word_48(hi, t1[48 + i - 1], div);
-
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-            sp_3072_mul_d_avx2_48(t2, d, r1);
-        else
-#endif
-            sp_3072_mul_d_48(t2, d, r1);
-        t1[48 + i] += sp_3072_sub_in_place_48(&t1[i], t2);
-        t1[48 + i] -= t2[48];
-        if (t1[48 + i] != 0) {
-            t1[48 + i] += sp_3072_add_48(&t1[i], &t1[i], d);
-            if (t1[48 + i] != 0)
-                t1[48 + i] += sp_3072_add_48(&t1[i], &t1[i], d);
-        }
-    }
-
-    for (i = 47; i > 0; i--) {
-        if (t1[i] != d[i])
-            break;
-    }
-    if (t1[i] >= d[i]) {
-        sp_3072_sub_48(r, t1, d);
-    }
-    else {
-        XMEMCPY(r, t1, sizeof(*t1) * 48);
-    }
-
-    return MP_OKAY;
-}
-
-/* Reduce a modulo m into r. (r = a mod m)
- *
- * r  A single precision number that is the reduced result.
- * a  A single precision number that is to be reduced.
- * m  A single precision number that is the modulus to reduce with.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_3072_mod_48_cond(sp_digit* r, const sp_digit* a,
-        const sp_digit* m)
-{
-    return sp_3072_div_48_cond(a, m, NULL, r);
-}
-
-#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * r     A single precision number that is the result of the operation.
@@ -3590,8 +3596,8 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
 
     return err;
 }
-#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 extern void sp_3072_mont_reduce_avx2_48(sp_digit* a, const sp_digit* m, sp_digit mp);
 #ifdef HAVE_INTEL_AVX2
 /* Multiply two Montogmery form numbers mod the modulus (prime).
@@ -3785,8 +3791,8 @@ static int sp_3072_mod_exp_avx2_48(sp_digit* r, const sp_digit* a, const sp_digi
     return err;
 }
 #endif /* HAVE_INTEL_AVX2 */
-#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *
@@ -3946,6 +3952,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
     return err;
 }
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
 /* RSA private key operation.
  *
@@ -4195,6 +4202,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
     return err;
 }
 #endif /* SP_RSA_PRIVATE_EXP_D | RSA_LOW_MEM */
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
                                               !defined(WOLFSSL_RSA_PUBLIC_ONLY))
@@ -4837,12 +4845,14 @@ static void sp_4096_to_bin_64(sp_digit* r, byte* a)
     }
 }
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && (!defined(WOLFSSL_RSA_PUBLIC_ONLY) || !defined(WOLFSSL_SP_SMALL))) || defined(WOLFSSL_HAVE_SP_DH)
 /* Normalize the values in each word to 64.
  *
  * a  Array of sp_digit to normalize.
  */
 #define sp_4096_norm_64(a)
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && (!WOLFSSL_RSA_PUBLIC_ONLY || !WOLFSSL_SP_SMALL)) || WOLFSSL_HAVE_SP_DH */
 /* Normalize the values in each word to 64.
  *
  * a  Array of sp_digit to normalize.
@@ -4882,7 +4892,7 @@ static void sp_4096_mont_setup(const sp_digit* a, sp_digit* rho)
 }
 
 extern void sp_4096_mul_d_64(sp_digit* r, const sp_digit* a, sp_digit b);
-#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 4096 bits, just need to subtract.
  *
@@ -4897,7 +4907,7 @@ static void sp_4096_mont_norm_64(sp_digit* r, const sp_digit* m)
     sp_4096_sub_in_place_64(r, m);
 }
 
-#endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH */
+#endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) | WOLFSSL_HAVE_SP_DH */
 extern sp_digit sp_4096_cond_sub_64(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
 extern void sp_4096_mont_reduce_64(sp_digit* a, const sp_digit* m, sp_digit mp);
 /* Multiply two Montogmery form numbers mod the modulus (prime).
@@ -4930,8 +4940,7 @@ static void sp_4096_mont_sqr_64(sp_digit* r, const sp_digit* a,
     sp_4096_mont_reduce_64(r, m, mp);
 }
 
-#if defined(WOLFSSL_HAVE_SP_DH) || !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-extern sp_digit sp_4096_cond_sub_avx2_64(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
+extern sp_digit sp_4096_sub_64(sp_digit* r, const sp_digit* a, const sp_digit* b);
 extern void sp_4096_mul_d_avx2_64(sp_digit* r, const sp_digit* a, const sp_digit b);
 #ifdef _WIN64
 #if _MSC_VER < 1920
@@ -4974,6 +4983,86 @@ static WC_INLINE sp_digit div_4096_word_64(sp_digit d1, sp_digit d0,
     return r;
 }
 #endif /* _WIN64 */
+/* Divide d in a and put remainder into r (m*d + r = a)
+ * m is not calculated as it is not needed at this time.
+ *
+ * a  Number to be divided.
+ * d  Number to divide with.
+ * m  Multiplier result.
+ * r  Remainder from the division.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_4096_div_64_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
+        sp_digit* r)
+{
+    sp_digit t1[128];
+    sp_digit t2[65];
+    sp_digit div;
+    sp_digit r1;
+    int i;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    (void)m;
+
+    div = d[63];
+    XMEMCPY(t1, a, sizeof(*t1) * 2 * 64);
+    for (i = 63; i > 0; i--) {
+        if (t1[i + 64] != d[i])
+            break;
+    }
+    if (t1[i + 64] >= d[i]) {
+        sp_4096_sub_in_place_64(&t1[64], d);
+    }
+    for (i=63; i>=0; i--) {
+        sp_digit hi = t1[64 + i] - (t1[64 + i] == div);
+        r1 = div_4096_word_64(hi, t1[64 + i - 1], div);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+            sp_4096_mul_d_avx2_64(t2, d, r1);
+        else
+#endif
+            sp_4096_mul_d_64(t2, d, r1);
+        t1[64 + i] += sp_4096_sub_in_place_64(&t1[i], t2);
+        t1[64 + i] -= t2[64];
+        if (t1[64 + i] != 0) {
+            t1[64 + i] += sp_4096_add_64(&t1[i], &t1[i], d);
+            if (t1[64 + i] != 0)
+                t1[64 + i] += sp_4096_add_64(&t1[i], &t1[i], d);
+        }
+    }
+
+    for (i = 63; i > 0; i--) {
+        if (t1[i] != d[i])
+            break;
+    }
+    if (t1[i] >= d[i]) {
+        sp_4096_sub_64(r, t1, d);
+    }
+    else {
+        XMEMCPY(r, t1, sizeof(*t1) * 64);
+    }
+
+    return MP_OKAY;
+}
+
+/* Reduce a modulo m into r. (r = a mod m)
+ *
+ * r  A single precision number that is the reduced result.
+ * a  A single precision number that is to be reduced.
+ * m  A single precision number that is the modulus to reduce with.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_4096_mod_64_cond(sp_digit* r, const sp_digit* a,
+        const sp_digit* m)
+{
+    return sp_4096_div_64_cond(a, m, NULL, r);
+}
+
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
+extern sp_digit sp_4096_cond_sub_avx2_64(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
 /* AND m into each word of a and store in r.
  *
  * r  A single precision integer.
@@ -5066,6 +5155,7 @@ static WC_INLINE int sp_4096_div_64(const sp_digit* a, const sp_digit* d, sp_dig
     return MP_OKAY;
 }
 
+#if defined(WOLFSSL_HAVE_SP_DH) || !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* Reduce a modulo m into r. (r = a mod m)
  *
  * r  A single precision number that is the reduced result.
@@ -5080,86 +5170,6 @@ static WC_INLINE int sp_4096_mod_64(sp_digit* r, const sp_digit* a,
 }
 
 #endif /* WOLFSSL_HAVE_SP_DH || !WOLFSSL_RSA_PUBLIC_ONLY */
-extern sp_digit sp_4096_sub_64(sp_digit* r, const sp_digit* a, const sp_digit* b);
-/* Divide d in a and put remainder into r (m*d + r = a)
- * m is not calculated as it is not needed at this time.
- *
- * a  Number to be divided.
- * d  Number to divide with.
- * m  Multiplier result.
- * r  Remainder from the division.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_4096_div_64_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
-        sp_digit* r)
-{
-    sp_digit t1[128];
-    sp_digit t2[65];
-    sp_digit div;
-    sp_digit r1;
-    int i;
-#ifdef HAVE_INTEL_AVX2
-    word32 cpuid_flags = cpuid_get_flags();
-#endif
-
-    (void)m;
-
-    div = d[63];
-    XMEMCPY(t1, a, sizeof(*t1) * 2 * 64);
-    for (i = 63; i > 0; i--) {
-        if (t1[i + 64] != d[i])
-            break;
-    }
-    if (t1[i + 64] >= d[i]) {
-        sp_4096_sub_in_place_64(&t1[64], d);
-    }
-    for (i=63; i>=0; i--) {
-        sp_digit hi = t1[64 + i] - (t1[64 + i] == div);
-        r1 = div_4096_word_64(hi, t1[64 + i - 1], div);
-
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-            sp_4096_mul_d_avx2_64(t2, d, r1);
-        else
-#endif
-            sp_4096_mul_d_64(t2, d, r1);
-        t1[64 + i] += sp_4096_sub_in_place_64(&t1[i], t2);
-        t1[64 + i] -= t2[64];
-        if (t1[64 + i] != 0) {
-            t1[64 + i] += sp_4096_add_64(&t1[i], &t1[i], d);
-            if (t1[64 + i] != 0)
-                t1[64 + i] += sp_4096_add_64(&t1[i], &t1[i], d);
-        }
-    }
-
-    for (i = 63; i > 0; i--) {
-        if (t1[i] != d[i])
-            break;
-    }
-    if (t1[i] >= d[i]) {
-        sp_4096_sub_64(r, t1, d);
-    }
-    else {
-        XMEMCPY(r, t1, sizeof(*t1) * 64);
-    }
-
-    return MP_OKAY;
-}
-
-/* Reduce a modulo m into r. (r = a mod m)
- *
- * r  A single precision number that is the reduced result.
- * a  A single precision number that is to be reduced.
- * m  A single precision number that is the modulus to reduce with.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_4096_mod_64_cond(sp_digit* r, const sp_digit* a,
-        const sp_digit* m)
-{
-    return sp_4096_div_64_cond(a, m, NULL, r);
-}
-
-#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
  * r     A single precision number that is the result of the operation.
@@ -5315,8 +5325,8 @@ static int sp_4096_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
 
     return err;
 }
-#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 extern void sp_4096_mont_reduce_avx2_64(sp_digit* a, const sp_digit* m, sp_digit mp);
 #ifdef HAVE_INTEL_AVX2
 /* Multiply two Montogmery form numbers mod the modulus (prime).
@@ -5510,8 +5520,8 @@ static int sp_4096_mod_exp_avx2_64(sp_digit* r, const sp_digit* a, const sp_digi
     return err;
 }
 #endif /* HAVE_INTEL_AVX2 */
-#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *
@@ -5671,6 +5681,7 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
     return err;
 }
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
 /* RSA private key operation.
  *
@@ -5920,6 +5931,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
     return err;
 }
 #endif /* SP_RSA_PRIVATE_EXP_D | RSA_LOW_MEM */
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
                                               !defined(WOLFSSL_RSA_PUBLIC_ONLY))

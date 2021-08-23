@@ -215,12 +215,14 @@ static void sp_2048_to_bin_32(sp_digit* r, byte* a)
     }
 }
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && (!defined(WOLFSSL_RSA_PUBLIC_ONLY) || !defined(WOLFSSL_SP_SMALL))) || defined(WOLFSSL_HAVE_SP_DH)
 /* Normalize the values in each word to 64.
  *
  * a  Array of sp_digit to normalize.
  */
 #define sp_2048_norm_32(a)
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && (!WOLFSSL_RSA_PUBLIC_ONLY || !WOLFSSL_SP_SMALL)) || WOLFSSL_HAVE_SP_DH */
 /* Normalize the values in each word to 64.
  *
  * a  Array of sp_digit to normalize.
@@ -2402,108 +2404,6 @@ static void sp_2048_mont_norm_16(sp_digit* r, const sp_digit* m)
     sp_2048_sub_in_place_16(r, m);
 }
 
-/* Conditionally subtract b from a using the mask m.
- * m is -1 to subtract and 0 when not copying.
- *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
- */
-static sp_digit sp_2048_cond_sub_16(sp_digit* r, const sp_digit* a, const sp_digit* b,
-        sp_digit m)
-{
-#ifdef WOLFSSL_SP_SMALL
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "mov	x8, #0\n\t"
-        "1:\n\t"
-        "subs	%[c], xzr, %[c]\n\t"
-        "ldr	x4, [%[a], x8]\n\t"
-        "ldr	x5, [%[b], x8]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "csetm	%[c], cc\n\t"
-        "str	x4, [%[r], x8]\n\t"
-        "add	x8, x8, #8\n\t"
-        "cmp	x8, 128\n\t"
-        "b.lt	1b\n\t"
-        : [c] "+r" (c)
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return c;
-#else
-    __asm__ __volatile__ (
-
-        "ldp	x5, x7, [%[b], 0]\n\t"
-        "ldp	x11, x12, [%[b], 16]\n\t"
-        "ldp	x4, x6, [%[a], 0]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 16]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "subs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 0]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 16]\n\t"
-        "ldp	x5, x7, [%[b], 32]\n\t"
-        "ldp	x11, x12, [%[b], 48]\n\t"
-        "ldp	x4, x6, [%[a], 32]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 48]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 32]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 48]\n\t"
-        "ldp	x5, x7, [%[b], 64]\n\t"
-        "ldp	x11, x12, [%[b], 80]\n\t"
-        "ldp	x4, x6, [%[a], 64]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 80]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 64]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 80]\n\t"
-        "ldp	x5, x7, [%[b], 96]\n\t"
-        "ldp	x11, x12, [%[b], 112]\n\t"
-        "ldp	x4, x6, [%[a], 96]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 112]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 96]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 112]\n\t"
-        "csetm	%[r], cc\n\t"
-        : [r] "+r" (r)
-        : [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return (sp_digit)r;
-#endif /* WOLFSSL_SP_SMALL */
-}
-
 /* Reduce the number back to 2048 bits using Montgomery reduction.
  *
  * a   A single precision number to reduce in place.
@@ -2765,6 +2665,108 @@ static void sp_2048_mont_sqr_16(sp_digit* r, const sp_digit* a,
 {
     sp_2048_sqr_16(r, a);
     sp_2048_mont_reduce_16(r, m, mp);
+}
+
+/* Conditionally subtract b from a using the mask m.
+ * m is -1 to subtract and 0 when not copying.
+ *
+ * r  A single precision number representing condition subtract result.
+ * a  A single precision number to subtract from.
+ * b  A single precision number to subtract.
+ * m  Mask value to apply.
+ */
+static sp_digit sp_2048_cond_sub_16(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+#ifdef WOLFSSL_SP_SMALL
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	x8, #0\n\t"
+        "1:\n\t"
+        "subs	%[c], xzr, %[c]\n\t"
+        "ldr	x4, [%[a], x8]\n\t"
+        "ldr	x5, [%[b], x8]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "csetm	%[c], cc\n\t"
+        "str	x4, [%[r], x8]\n\t"
+        "add	x8, x8, #8\n\t"
+        "cmp	x8, 128\n\t"
+        "b.lt	1b\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return c;
+#else
+    __asm__ __volatile__ (
+
+        "ldp	x5, x7, [%[b], 0]\n\t"
+        "ldp	x11, x12, [%[b], 16]\n\t"
+        "ldp	x4, x6, [%[a], 0]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 16]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "subs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 0]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 16]\n\t"
+        "ldp	x5, x7, [%[b], 32]\n\t"
+        "ldp	x11, x12, [%[b], 48]\n\t"
+        "ldp	x4, x6, [%[a], 32]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 48]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 32]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 48]\n\t"
+        "ldp	x5, x7, [%[b], 64]\n\t"
+        "ldp	x11, x12, [%[b], 80]\n\t"
+        "ldp	x4, x6, [%[a], 64]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 80]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 64]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 80]\n\t"
+        "ldp	x5, x7, [%[b], 96]\n\t"
+        "ldp	x11, x12, [%[b], 112]\n\t"
+        "ldp	x4, x6, [%[a], 96]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 112]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 96]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 112]\n\t"
+        "csetm	%[r], cc\n\t"
+        : [r] "+r" (r)
+        : [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return (sp_digit)r;
+#endif /* WOLFSSL_SP_SMALL */
 }
 
 /* Mul a by digit b into r. (r = a * b)
@@ -3514,7 +3516,7 @@ static int sp_2048_mod_exp_16(sp_digit* r, const sp_digit* a, const sp_digit* e,
 
 #endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) | WOLFSSL_HAVE_SP_DH */
 
-#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 2048 bits, just need to subtract.
  *
@@ -3529,165 +3531,7 @@ static void sp_2048_mont_norm_32(sp_digit* r, const sp_digit* m)
     sp_2048_sub_in_place_32(r, m);
 }
 
-#endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH */
-/* Conditionally subtract b from a using the mask m.
- * m is -1 to subtract and 0 when not copying.
- *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
- */
-static sp_digit sp_2048_cond_sub_32(sp_digit* r, const sp_digit* a, const sp_digit* b,
-        sp_digit m)
-{
-#ifdef WOLFSSL_SP_SMALL
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "mov	x8, #0\n\t"
-        "1:\n\t"
-        "subs	%[c], xzr, %[c]\n\t"
-        "ldr	x4, [%[a], x8]\n\t"
-        "ldr	x5, [%[b], x8]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "csetm	%[c], cc\n\t"
-        "str	x4, [%[r], x8]\n\t"
-        "add	x8, x8, #8\n\t"
-        "cmp	x8, 256\n\t"
-        "b.lt	1b\n\t"
-        : [c] "+r" (c)
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return c;
-#else
-    __asm__ __volatile__ (
-
-        "ldp	x5, x7, [%[b], 0]\n\t"
-        "ldp	x11, x12, [%[b], 16]\n\t"
-        "ldp	x4, x6, [%[a], 0]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 16]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "subs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 0]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 16]\n\t"
-        "ldp	x5, x7, [%[b], 32]\n\t"
-        "ldp	x11, x12, [%[b], 48]\n\t"
-        "ldp	x4, x6, [%[a], 32]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 48]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 32]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 48]\n\t"
-        "ldp	x5, x7, [%[b], 64]\n\t"
-        "ldp	x11, x12, [%[b], 80]\n\t"
-        "ldp	x4, x6, [%[a], 64]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 80]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 64]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 80]\n\t"
-        "ldp	x5, x7, [%[b], 96]\n\t"
-        "ldp	x11, x12, [%[b], 112]\n\t"
-        "ldp	x4, x6, [%[a], 96]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 112]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 96]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 112]\n\t"
-        "ldp	x5, x7, [%[b], 128]\n\t"
-        "ldp	x11, x12, [%[b], 144]\n\t"
-        "ldp	x4, x6, [%[a], 128]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 144]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 128]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 144]\n\t"
-        "ldp	x5, x7, [%[b], 160]\n\t"
-        "ldp	x11, x12, [%[b], 176]\n\t"
-        "ldp	x4, x6, [%[a], 160]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 176]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 160]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 176]\n\t"
-        "ldp	x5, x7, [%[b], 192]\n\t"
-        "ldp	x11, x12, [%[b], 208]\n\t"
-        "ldp	x4, x6, [%[a], 192]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 208]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 192]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 208]\n\t"
-        "ldp	x5, x7, [%[b], 224]\n\t"
-        "ldp	x11, x12, [%[b], 240]\n\t"
-        "ldp	x4, x6, [%[a], 224]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 240]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 224]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 240]\n\t"
-        "csetm	%[r], cc\n\t"
-        : [r] "+r" (r)
-        : [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return (sp_digit)r;
-#endif /* WOLFSSL_SP_SMALL */
-}
-
+#endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) | WOLFSSL_HAVE_SP_DH */
 /* Reduce the number back to 2048 bits using Montgomery reduction.
  *
  * a   A single precision number to reduce in place.
@@ -4167,6 +4011,144 @@ static void sp_2048_mont_sqr_32(sp_digit* r, const sp_digit* a,
     sp_2048_mont_reduce_32(r, m, mp);
 }
 
+#ifdef WOLFSSL_SP_SMALL
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+static sp_digit sp_2048_sub_32(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "add	x11, %[a], 256\n\t"
+        "\n1:\n\t"
+        "subs	%[c], xzr, %[c]\n\t"
+        "ldp	x3, x4, [%[a]], #16\n\t"
+        "ldp	x5, x6, [%[a]], #16\n\t"
+        "ldp	x7, x8, [%[b]], #16\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x9, x10, [%[b]], #16\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r]], #16\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r]], #16\n\t"
+        "csetm	%[c], cc\n\t"
+        "cmp	%[a], x11\n\t"
+        "b.ne	1b\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11"
+    );
+
+    return c;
+}
+
+#else
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+static sp_digit sp_2048_sub_32(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    __asm__ __volatile__ (
+        "ldp	x3, x4, [%[a], 0]\n\t"
+        "ldp	x7, x8, [%[b], 0]\n\t"
+        "subs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 16]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 16]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 0]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 16]\n\t"
+        "ldp	x3, x4, [%[a], 32]\n\t"
+        "ldp	x7, x8, [%[b], 32]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 48]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 48]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 32]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 48]\n\t"
+        "ldp	x3, x4, [%[a], 64]\n\t"
+        "ldp	x7, x8, [%[b], 64]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 80]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 80]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 64]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 80]\n\t"
+        "ldp	x3, x4, [%[a], 96]\n\t"
+        "ldp	x7, x8, [%[b], 96]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 112]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 112]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 96]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 112]\n\t"
+        "ldp	x3, x4, [%[a], 128]\n\t"
+        "ldp	x7, x8, [%[b], 128]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 144]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 144]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 128]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 144]\n\t"
+        "ldp	x3, x4, [%[a], 160]\n\t"
+        "ldp	x7, x8, [%[b], 160]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 176]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 176]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 160]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 176]\n\t"
+        "ldp	x3, x4, [%[a], 192]\n\t"
+        "ldp	x7, x8, [%[b], 192]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 208]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 208]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 192]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 208]\n\t"
+        "ldp	x3, x4, [%[a], 224]\n\t"
+        "ldp	x7, x8, [%[b], 224]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 240]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 240]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 224]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 240]\n\t"
+        "csetm	%[r], cc\n\t"
+        : [r] "+r" (r)
+        : [a] "r" (a), [b] "r" (b)
+        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10"
+    );
+
+    return (sp_digit)r;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
  * d1   The high order half of the number to divide.
@@ -4224,6 +4206,225 @@ static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0, sp_digit div)
     );
 
     return r;
+}
+
+/* Divide d in a and put remainder into r (m*d + r = a)
+ * m is not calculated as it is not needed at this time.
+ *
+ * a  Number to be divided.
+ * d  Number to divide with.
+ * m  Multiplier result.
+ * r  Remainder from the division.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_2048_div_32_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
+        sp_digit* r)
+{
+    sp_digit t1[64], t2[33];
+    sp_digit div, r1;
+    int i;
+
+    (void)m;
+
+    div = d[31];
+    XMEMCPY(t1, a, sizeof(*t1) * 2 * 32);
+    for (i=31; i>=0; i--) {
+        sp_digit hi = t1[32 + i] - (t1[32 + i] == div);
+        r1 = div_2048_word_32(hi, t1[32 + i - 1], div);
+
+        sp_2048_mul_d_32(t2, d, r1);
+        t1[32 + i] += sp_2048_sub_in_place_32(&t1[i], t2);
+        t1[32 + i] -= t2[32];
+        if (t1[32 + i] != 0) {
+            t1[32 + i] += sp_2048_add_32(&t1[i], &t1[i], d);
+            if (t1[32 + i] != 0)
+                t1[32 + i] += sp_2048_add_32(&t1[i], &t1[i], d);
+        }
+    }
+
+    for (i = 31; i > 0; i--) {
+        if (t1[i] != d[i])
+            break;
+    }
+    if (t1[i] >= d[i]) {
+        sp_2048_sub_32(r, t1, d);
+    }
+    else {
+        XMEMCPY(r, t1, sizeof(*t1) * 32);
+    }
+
+    return MP_OKAY;
+}
+
+/* Reduce a modulo m into r. (r = a mod m)
+ *
+ * r  A single precision number that is the reduced result.
+ * a  A single precision number that is to be reduced.
+ * m  A single precision number that is the modulus to reduce with.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_2048_mod_32_cond(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    return sp_2048_div_32_cond(a, m, NULL, r);
+}
+
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
+/* Conditionally subtract b from a using the mask m.
+ * m is -1 to subtract and 0 when not copying.
+ *
+ * r  A single precision number representing condition subtract result.
+ * a  A single precision number to subtract from.
+ * b  A single precision number to subtract.
+ * m  Mask value to apply.
+ */
+static sp_digit sp_2048_cond_sub_32(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+#ifdef WOLFSSL_SP_SMALL
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	x8, #0\n\t"
+        "1:\n\t"
+        "subs	%[c], xzr, %[c]\n\t"
+        "ldr	x4, [%[a], x8]\n\t"
+        "ldr	x5, [%[b], x8]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "csetm	%[c], cc\n\t"
+        "str	x4, [%[r], x8]\n\t"
+        "add	x8, x8, #8\n\t"
+        "cmp	x8, 256\n\t"
+        "b.lt	1b\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return c;
+#else
+    __asm__ __volatile__ (
+
+        "ldp	x5, x7, [%[b], 0]\n\t"
+        "ldp	x11, x12, [%[b], 16]\n\t"
+        "ldp	x4, x6, [%[a], 0]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 16]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "subs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 0]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 16]\n\t"
+        "ldp	x5, x7, [%[b], 32]\n\t"
+        "ldp	x11, x12, [%[b], 48]\n\t"
+        "ldp	x4, x6, [%[a], 32]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 48]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 32]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 48]\n\t"
+        "ldp	x5, x7, [%[b], 64]\n\t"
+        "ldp	x11, x12, [%[b], 80]\n\t"
+        "ldp	x4, x6, [%[a], 64]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 80]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 64]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 80]\n\t"
+        "ldp	x5, x7, [%[b], 96]\n\t"
+        "ldp	x11, x12, [%[b], 112]\n\t"
+        "ldp	x4, x6, [%[a], 96]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 112]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 96]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 112]\n\t"
+        "ldp	x5, x7, [%[b], 128]\n\t"
+        "ldp	x11, x12, [%[b], 144]\n\t"
+        "ldp	x4, x6, [%[a], 128]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 144]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 128]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 144]\n\t"
+        "ldp	x5, x7, [%[b], 160]\n\t"
+        "ldp	x11, x12, [%[b], 176]\n\t"
+        "ldp	x4, x6, [%[a], 160]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 176]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 160]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 176]\n\t"
+        "ldp	x5, x7, [%[b], 192]\n\t"
+        "ldp	x11, x12, [%[b], 208]\n\t"
+        "ldp	x4, x6, [%[a], 192]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 208]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 192]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 208]\n\t"
+        "ldp	x5, x7, [%[b], 224]\n\t"
+        "ldp	x11, x12, [%[b], 240]\n\t"
+        "ldp	x4, x6, [%[a], 224]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 240]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 224]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 240]\n\t"
+        "csetm	%[r], cc\n\t"
+        : [r] "+r" (r)
+        : [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return (sp_digit)r;
+#endif /* WOLFSSL_SP_SMALL */
 }
 
 /* AND m into each word of a and store in r.
@@ -4577,204 +4778,6 @@ static WC_INLINE int sp_2048_mod_32(sp_digit* r, const sp_digit* a, const sp_dig
     return sp_2048_div_32(a, m, NULL, r);
 }
 
-#ifdef WOLFSSL_SP_SMALL
-/* Sub b from a into r. (r = a - b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-static sp_digit sp_2048_sub_32(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "add	x11, %[a], 256\n\t"
-        "\n1:\n\t"
-        "subs	%[c], xzr, %[c]\n\t"
-        "ldp	x3, x4, [%[a]], #16\n\t"
-        "ldp	x5, x6, [%[a]], #16\n\t"
-        "ldp	x7, x8, [%[b]], #16\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x9, x10, [%[b]], #16\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r]], #16\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r]], #16\n\t"
-        "csetm	%[c], cc\n\t"
-        "cmp	%[a], x11\n\t"
-        "b.ne	1b\n\t"
-        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        :
-        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11"
-    );
-
-    return c;
-}
-
-#else
-/* Sub b from a into r. (r = a - b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-static sp_digit sp_2048_sub_32(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    __asm__ __volatile__ (
-        "ldp	x3, x4, [%[a], 0]\n\t"
-        "ldp	x7, x8, [%[b], 0]\n\t"
-        "subs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 16]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 16]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 0]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 16]\n\t"
-        "ldp	x3, x4, [%[a], 32]\n\t"
-        "ldp	x7, x8, [%[b], 32]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 48]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 48]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 32]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 48]\n\t"
-        "ldp	x3, x4, [%[a], 64]\n\t"
-        "ldp	x7, x8, [%[b], 64]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 80]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 80]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 64]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 80]\n\t"
-        "ldp	x3, x4, [%[a], 96]\n\t"
-        "ldp	x7, x8, [%[b], 96]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 112]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 112]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 96]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 112]\n\t"
-        "ldp	x3, x4, [%[a], 128]\n\t"
-        "ldp	x7, x8, [%[b], 128]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 144]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 144]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 128]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 144]\n\t"
-        "ldp	x3, x4, [%[a], 160]\n\t"
-        "ldp	x7, x8, [%[b], 160]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 176]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 176]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 160]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 176]\n\t"
-        "ldp	x3, x4, [%[a], 192]\n\t"
-        "ldp	x7, x8, [%[b], 192]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 208]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 208]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 192]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 208]\n\t"
-        "ldp	x3, x4, [%[a], 224]\n\t"
-        "ldp	x7, x8, [%[b], 224]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 240]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 240]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 224]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 240]\n\t"
-        "csetm	%[r], cc\n\t"
-        : [r] "+r" (r)
-        : [a] "r" (a), [b] "r" (b)
-        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10"
-    );
-
-    return (sp_digit)r;
-}
-
-#endif /* WOLFSSL_SP_SMALL */
-/* Divide d in a and put remainder into r (m*d + r = a)
- * m is not calculated as it is not needed at this time.
- *
- * a  Number to be divided.
- * d  Number to divide with.
- * m  Multiplier result.
- * r  Remainder from the division.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_2048_div_32_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
-        sp_digit* r)
-{
-    sp_digit t1[64], t2[33];
-    sp_digit div, r1;
-    int i;
-
-    (void)m;
-
-    div = d[31];
-    XMEMCPY(t1, a, sizeof(*t1) * 2 * 32);
-    for (i=31; i>=0; i--) {
-        sp_digit hi = t1[32 + i] - (t1[32 + i] == div);
-        r1 = div_2048_word_32(hi, t1[32 + i - 1], div);
-
-        sp_2048_mul_d_32(t2, d, r1);
-        t1[32 + i] += sp_2048_sub_in_place_32(&t1[i], t2);
-        t1[32 + i] -= t2[32];
-        if (t1[32 + i] != 0) {
-            t1[32 + i] += sp_2048_add_32(&t1[i], &t1[i], d);
-            if (t1[32 + i] != 0)
-                t1[32 + i] += sp_2048_add_32(&t1[i], &t1[i], d);
-        }
-    }
-
-    for (i = 31; i > 0; i--) {
-        if (t1[i] != d[i])
-            break;
-    }
-    if (t1[i] >= d[i]) {
-        sp_2048_sub_32(r, t1, d);
-    }
-    else {
-        XMEMCPY(r, t1, sizeof(*t1) * 32);
-    }
-
-    return MP_OKAY;
-}
-
-/* Reduce a modulo m into r. (r = a mod m)
- *
- * r  A single precision number that is the reduced result.
- * a  A single precision number that is to be reduced.
- * m  A single precision number that is the modulus to reduce with.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_2048_mod_32_cond(sp_digit* r, const sp_digit* a, const sp_digit* m)
-{
-    return sp_2048_div_32_cond(a, m, NULL, r);
-}
-
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
                                                      defined(WOLFSSL_HAVE_SP_DH)
 #ifdef WOLFSSL_SP_SMALL
@@ -5051,6 +5054,7 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif /* WOLFSSL_SP_SMALL */
 #endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *
@@ -6189,12 +6193,14 @@ static void sp_3072_to_bin_48(sp_digit* r, byte* a)
     }
 }
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && (!defined(WOLFSSL_RSA_PUBLIC_ONLY) || !defined(WOLFSSL_SP_SMALL))) || defined(WOLFSSL_HAVE_SP_DH)
 /* Normalize the values in each word to 64.
  *
  * a  Array of sp_digit to normalize.
  */
 #define sp_3072_norm_48(a)
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && (!WOLFSSL_RSA_PUBLIC_ONLY || !WOLFSSL_SP_SMALL)) || WOLFSSL_HAVE_SP_DH */
 /* Normalize the values in each word to 64.
  *
  * a  Array of sp_digit to normalize.
@@ -9709,136 +9715,6 @@ static void sp_3072_mont_norm_24(sp_digit* r, const sp_digit* m)
     sp_3072_sub_in_place_24(r, m);
 }
 
-/* Conditionally subtract b from a using the mask m.
- * m is -1 to subtract and 0 when not copying.
- *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
- */
-static sp_digit sp_3072_cond_sub_24(sp_digit* r, const sp_digit* a, const sp_digit* b,
-        sp_digit m)
-{
-#ifdef WOLFSSL_SP_SMALL
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "mov	x8, #0\n\t"
-        "1:\n\t"
-        "subs	%[c], xzr, %[c]\n\t"
-        "ldr	x4, [%[a], x8]\n\t"
-        "ldr	x5, [%[b], x8]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "csetm	%[c], cc\n\t"
-        "str	x4, [%[r], x8]\n\t"
-        "add	x8, x8, #8\n\t"
-        "cmp	x8, 192\n\t"
-        "b.lt	1b\n\t"
-        : [c] "+r" (c)
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return c;
-#else
-    __asm__ __volatile__ (
-
-        "ldp	x5, x7, [%[b], 0]\n\t"
-        "ldp	x11, x12, [%[b], 16]\n\t"
-        "ldp	x4, x6, [%[a], 0]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 16]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "subs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 0]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 16]\n\t"
-        "ldp	x5, x7, [%[b], 32]\n\t"
-        "ldp	x11, x12, [%[b], 48]\n\t"
-        "ldp	x4, x6, [%[a], 32]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 48]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 32]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 48]\n\t"
-        "ldp	x5, x7, [%[b], 64]\n\t"
-        "ldp	x11, x12, [%[b], 80]\n\t"
-        "ldp	x4, x6, [%[a], 64]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 80]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 64]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 80]\n\t"
-        "ldp	x5, x7, [%[b], 96]\n\t"
-        "ldp	x11, x12, [%[b], 112]\n\t"
-        "ldp	x4, x6, [%[a], 96]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 112]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 96]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 112]\n\t"
-        "ldp	x5, x7, [%[b], 128]\n\t"
-        "ldp	x11, x12, [%[b], 144]\n\t"
-        "ldp	x4, x6, [%[a], 128]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 144]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 128]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 144]\n\t"
-        "ldp	x5, x7, [%[b], 160]\n\t"
-        "ldp	x11, x12, [%[b], 176]\n\t"
-        "ldp	x4, x6, [%[a], 160]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 176]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 160]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 176]\n\t"
-        "csetm	%[r], cc\n\t"
-        : [r] "+r" (r)
-        : [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return (sp_digit)r;
-#endif /* WOLFSSL_SP_SMALL */
-}
-
 /* Reduce the number back to 3072 bits using Montgomery reduction.
  *
  * a   A single precision number to reduce in place.
@@ -10208,6 +10084,136 @@ static void sp_3072_mont_sqr_24(sp_digit* r, const sp_digit* a,
 {
     sp_3072_sqr_24(r, a);
     sp_3072_mont_reduce_24(r, m, mp);
+}
+
+/* Conditionally subtract b from a using the mask m.
+ * m is -1 to subtract and 0 when not copying.
+ *
+ * r  A single precision number representing condition subtract result.
+ * a  A single precision number to subtract from.
+ * b  A single precision number to subtract.
+ * m  Mask value to apply.
+ */
+static sp_digit sp_3072_cond_sub_24(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+#ifdef WOLFSSL_SP_SMALL
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	x8, #0\n\t"
+        "1:\n\t"
+        "subs	%[c], xzr, %[c]\n\t"
+        "ldr	x4, [%[a], x8]\n\t"
+        "ldr	x5, [%[b], x8]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "csetm	%[c], cc\n\t"
+        "str	x4, [%[r], x8]\n\t"
+        "add	x8, x8, #8\n\t"
+        "cmp	x8, 192\n\t"
+        "b.lt	1b\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return c;
+#else
+    __asm__ __volatile__ (
+
+        "ldp	x5, x7, [%[b], 0]\n\t"
+        "ldp	x11, x12, [%[b], 16]\n\t"
+        "ldp	x4, x6, [%[a], 0]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 16]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "subs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 0]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 16]\n\t"
+        "ldp	x5, x7, [%[b], 32]\n\t"
+        "ldp	x11, x12, [%[b], 48]\n\t"
+        "ldp	x4, x6, [%[a], 32]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 48]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 32]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 48]\n\t"
+        "ldp	x5, x7, [%[b], 64]\n\t"
+        "ldp	x11, x12, [%[b], 80]\n\t"
+        "ldp	x4, x6, [%[a], 64]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 80]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 64]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 80]\n\t"
+        "ldp	x5, x7, [%[b], 96]\n\t"
+        "ldp	x11, x12, [%[b], 112]\n\t"
+        "ldp	x4, x6, [%[a], 96]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 112]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 96]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 112]\n\t"
+        "ldp	x5, x7, [%[b], 128]\n\t"
+        "ldp	x11, x12, [%[b], 144]\n\t"
+        "ldp	x4, x6, [%[a], 128]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 144]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 128]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 144]\n\t"
+        "ldp	x5, x7, [%[b], 160]\n\t"
+        "ldp	x11, x12, [%[b], 176]\n\t"
+        "ldp	x4, x6, [%[a], 160]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 176]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 160]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 176]\n\t"
+        "csetm	%[r], cc\n\t"
+        : [r] "+r" (r)
+        : [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return (sp_digit)r;
+#endif /* WOLFSSL_SP_SMALL */
 }
 
 /* Mul a by digit b into r. (r = a * b)
@@ -11081,7 +11087,7 @@ static int sp_3072_mod_exp_24(sp_digit* r, const sp_digit* a, const sp_digit* e,
 
 #endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) | WOLFSSL_HAVE_SP_DH */
 
-#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 3072 bits, just need to subtract.
  *
@@ -11096,221 +11102,7 @@ static void sp_3072_mont_norm_48(sp_digit* r, const sp_digit* m)
     sp_3072_sub_in_place_48(r, m);
 }
 
-#endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH */
-/* Conditionally subtract b from a using the mask m.
- * m is -1 to subtract and 0 when not copying.
- *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
- */
-static sp_digit sp_3072_cond_sub_48(sp_digit* r, const sp_digit* a, const sp_digit* b,
-        sp_digit m)
-{
-#ifdef WOLFSSL_SP_SMALL
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "mov	x8, #0\n\t"
-        "1:\n\t"
-        "subs	%[c], xzr, %[c]\n\t"
-        "ldr	x4, [%[a], x8]\n\t"
-        "ldr	x5, [%[b], x8]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "csetm	%[c], cc\n\t"
-        "str	x4, [%[r], x8]\n\t"
-        "add	x8, x8, #8\n\t"
-        "cmp	x8, 384\n\t"
-        "b.lt	1b\n\t"
-        : [c] "+r" (c)
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return c;
-#else
-    __asm__ __volatile__ (
-
-        "ldp	x5, x7, [%[b], 0]\n\t"
-        "ldp	x11, x12, [%[b], 16]\n\t"
-        "ldp	x4, x6, [%[a], 0]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 16]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "subs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 0]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 16]\n\t"
-        "ldp	x5, x7, [%[b], 32]\n\t"
-        "ldp	x11, x12, [%[b], 48]\n\t"
-        "ldp	x4, x6, [%[a], 32]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 48]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 32]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 48]\n\t"
-        "ldp	x5, x7, [%[b], 64]\n\t"
-        "ldp	x11, x12, [%[b], 80]\n\t"
-        "ldp	x4, x6, [%[a], 64]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 80]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 64]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 80]\n\t"
-        "ldp	x5, x7, [%[b], 96]\n\t"
-        "ldp	x11, x12, [%[b], 112]\n\t"
-        "ldp	x4, x6, [%[a], 96]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 112]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 96]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 112]\n\t"
-        "ldp	x5, x7, [%[b], 128]\n\t"
-        "ldp	x11, x12, [%[b], 144]\n\t"
-        "ldp	x4, x6, [%[a], 128]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 144]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 128]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 144]\n\t"
-        "ldp	x5, x7, [%[b], 160]\n\t"
-        "ldp	x11, x12, [%[b], 176]\n\t"
-        "ldp	x4, x6, [%[a], 160]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 176]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 160]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 176]\n\t"
-        "ldp	x5, x7, [%[b], 192]\n\t"
-        "ldp	x11, x12, [%[b], 208]\n\t"
-        "ldp	x4, x6, [%[a], 192]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 208]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 192]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 208]\n\t"
-        "ldp	x5, x7, [%[b], 224]\n\t"
-        "ldp	x11, x12, [%[b], 240]\n\t"
-        "ldp	x4, x6, [%[a], 224]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 240]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 224]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 240]\n\t"
-        "ldp	x5, x7, [%[b], 256]\n\t"
-        "ldp	x11, x12, [%[b], 272]\n\t"
-        "ldp	x4, x6, [%[a], 256]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 272]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 256]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 272]\n\t"
-        "ldp	x5, x7, [%[b], 288]\n\t"
-        "ldp	x11, x12, [%[b], 304]\n\t"
-        "ldp	x4, x6, [%[a], 288]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 304]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 288]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 304]\n\t"
-        "ldp	x5, x7, [%[b], 320]\n\t"
-        "ldp	x11, x12, [%[b], 336]\n\t"
-        "ldp	x4, x6, [%[a], 320]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 336]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 320]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 336]\n\t"
-        "ldp	x5, x7, [%[b], 352]\n\t"
-        "ldp	x11, x12, [%[b], 368]\n\t"
-        "ldp	x4, x6, [%[a], 352]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 368]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 352]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 368]\n\t"
-        "csetm	%[r], cc\n\t"
-        : [r] "+r" (r)
-        : [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return (sp_digit)r;
-#endif /* WOLFSSL_SP_SMALL */
-}
-
+#endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) | WOLFSSL_HAVE_SP_DH */
 /* Reduce the number back to 3072 bits using Montgomery reduction.
  *
  * a   A single precision number to reduce in place.
@@ -12006,6 +11798,184 @@ static void sp_3072_mont_sqr_48(sp_digit* r, const sp_digit* a,
     sp_3072_mont_reduce_48(r, m, mp);
 }
 
+#ifdef WOLFSSL_SP_SMALL
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+static sp_digit sp_3072_sub_48(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "add	x11, %[a], 384\n\t"
+        "\n1:\n\t"
+        "subs	%[c], xzr, %[c]\n\t"
+        "ldp	x3, x4, [%[a]], #16\n\t"
+        "ldp	x5, x6, [%[a]], #16\n\t"
+        "ldp	x7, x8, [%[b]], #16\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x9, x10, [%[b]], #16\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r]], #16\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r]], #16\n\t"
+        "csetm	%[c], cc\n\t"
+        "cmp	%[a], x11\n\t"
+        "b.ne	1b\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11"
+    );
+
+    return c;
+}
+
+#else
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+static sp_digit sp_3072_sub_48(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    __asm__ __volatile__ (
+        "ldp	x3, x4, [%[a], 0]\n\t"
+        "ldp	x7, x8, [%[b], 0]\n\t"
+        "subs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 16]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 16]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 0]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 16]\n\t"
+        "ldp	x3, x4, [%[a], 32]\n\t"
+        "ldp	x7, x8, [%[b], 32]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 48]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 48]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 32]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 48]\n\t"
+        "ldp	x3, x4, [%[a], 64]\n\t"
+        "ldp	x7, x8, [%[b], 64]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 80]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 80]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 64]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 80]\n\t"
+        "ldp	x3, x4, [%[a], 96]\n\t"
+        "ldp	x7, x8, [%[b], 96]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 112]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 112]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 96]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 112]\n\t"
+        "ldp	x3, x4, [%[a], 128]\n\t"
+        "ldp	x7, x8, [%[b], 128]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 144]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 144]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 128]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 144]\n\t"
+        "ldp	x3, x4, [%[a], 160]\n\t"
+        "ldp	x7, x8, [%[b], 160]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 176]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 176]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 160]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 176]\n\t"
+        "ldp	x3, x4, [%[a], 192]\n\t"
+        "ldp	x7, x8, [%[b], 192]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 208]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 208]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 192]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 208]\n\t"
+        "ldp	x3, x4, [%[a], 224]\n\t"
+        "ldp	x7, x8, [%[b], 224]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 240]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 240]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 224]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 240]\n\t"
+        "ldp	x3, x4, [%[a], 256]\n\t"
+        "ldp	x7, x8, [%[b], 256]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 272]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 272]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 256]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 272]\n\t"
+        "ldp	x3, x4, [%[a], 288]\n\t"
+        "ldp	x7, x8, [%[b], 288]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 304]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 304]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 288]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 304]\n\t"
+        "ldp	x3, x4, [%[a], 320]\n\t"
+        "ldp	x7, x8, [%[b], 320]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 336]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 336]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 320]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 336]\n\t"
+        "ldp	x3, x4, [%[a], 352]\n\t"
+        "ldp	x7, x8, [%[b], 352]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 368]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 368]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 352]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 368]\n\t"
+        "csetm	%[r], cc\n\t"
+        : [r] "+r" (r)
+        : [a] "r" (a), [b] "r" (b)
+        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10"
+    );
+
+    return (sp_digit)r;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
  * d1   The high order half of the number to divide.
@@ -12063,6 +12033,281 @@ static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0, sp_digit div)
     );
 
     return r;
+}
+
+/* Divide d in a and put remainder into r (m*d + r = a)
+ * m is not calculated as it is not needed at this time.
+ *
+ * a  Number to be divided.
+ * d  Number to divide with.
+ * m  Multiplier result.
+ * r  Remainder from the division.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_3072_div_48_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
+        sp_digit* r)
+{
+    sp_digit t1[96], t2[49];
+    sp_digit div, r1;
+    int i;
+
+    (void)m;
+
+    div = d[47];
+    XMEMCPY(t1, a, sizeof(*t1) * 2 * 48);
+    for (i=47; i>=0; i--) {
+        sp_digit hi = t1[48 + i] - (t1[48 + i] == div);
+        r1 = div_3072_word_48(hi, t1[48 + i - 1], div);
+
+        sp_3072_mul_d_48(t2, d, r1);
+        t1[48 + i] += sp_3072_sub_in_place_48(&t1[i], t2);
+        t1[48 + i] -= t2[48];
+        if (t1[48 + i] != 0) {
+            t1[48 + i] += sp_3072_add_48(&t1[i], &t1[i], d);
+            if (t1[48 + i] != 0)
+                t1[48 + i] += sp_3072_add_48(&t1[i], &t1[i], d);
+        }
+    }
+
+    for (i = 47; i > 0; i--) {
+        if (t1[i] != d[i])
+            break;
+    }
+    if (t1[i] >= d[i]) {
+        sp_3072_sub_48(r, t1, d);
+    }
+    else {
+        XMEMCPY(r, t1, sizeof(*t1) * 48);
+    }
+
+    return MP_OKAY;
+}
+
+/* Reduce a modulo m into r. (r = a mod m)
+ *
+ * r  A single precision number that is the reduced result.
+ * a  A single precision number that is to be reduced.
+ * m  A single precision number that is the modulus to reduce with.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_3072_mod_48_cond(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    return sp_3072_div_48_cond(a, m, NULL, r);
+}
+
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
+/* Conditionally subtract b from a using the mask m.
+ * m is -1 to subtract and 0 when not copying.
+ *
+ * r  A single precision number representing condition subtract result.
+ * a  A single precision number to subtract from.
+ * b  A single precision number to subtract.
+ * m  Mask value to apply.
+ */
+static sp_digit sp_3072_cond_sub_48(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+#ifdef WOLFSSL_SP_SMALL
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	x8, #0\n\t"
+        "1:\n\t"
+        "subs	%[c], xzr, %[c]\n\t"
+        "ldr	x4, [%[a], x8]\n\t"
+        "ldr	x5, [%[b], x8]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "csetm	%[c], cc\n\t"
+        "str	x4, [%[r], x8]\n\t"
+        "add	x8, x8, #8\n\t"
+        "cmp	x8, 384\n\t"
+        "b.lt	1b\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return c;
+#else
+    __asm__ __volatile__ (
+
+        "ldp	x5, x7, [%[b], 0]\n\t"
+        "ldp	x11, x12, [%[b], 16]\n\t"
+        "ldp	x4, x6, [%[a], 0]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 16]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "subs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 0]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 16]\n\t"
+        "ldp	x5, x7, [%[b], 32]\n\t"
+        "ldp	x11, x12, [%[b], 48]\n\t"
+        "ldp	x4, x6, [%[a], 32]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 48]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 32]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 48]\n\t"
+        "ldp	x5, x7, [%[b], 64]\n\t"
+        "ldp	x11, x12, [%[b], 80]\n\t"
+        "ldp	x4, x6, [%[a], 64]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 80]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 64]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 80]\n\t"
+        "ldp	x5, x7, [%[b], 96]\n\t"
+        "ldp	x11, x12, [%[b], 112]\n\t"
+        "ldp	x4, x6, [%[a], 96]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 112]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 96]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 112]\n\t"
+        "ldp	x5, x7, [%[b], 128]\n\t"
+        "ldp	x11, x12, [%[b], 144]\n\t"
+        "ldp	x4, x6, [%[a], 128]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 144]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 128]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 144]\n\t"
+        "ldp	x5, x7, [%[b], 160]\n\t"
+        "ldp	x11, x12, [%[b], 176]\n\t"
+        "ldp	x4, x6, [%[a], 160]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 176]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 160]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 176]\n\t"
+        "ldp	x5, x7, [%[b], 192]\n\t"
+        "ldp	x11, x12, [%[b], 208]\n\t"
+        "ldp	x4, x6, [%[a], 192]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 208]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 192]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 208]\n\t"
+        "ldp	x5, x7, [%[b], 224]\n\t"
+        "ldp	x11, x12, [%[b], 240]\n\t"
+        "ldp	x4, x6, [%[a], 224]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 240]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 224]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 240]\n\t"
+        "ldp	x5, x7, [%[b], 256]\n\t"
+        "ldp	x11, x12, [%[b], 272]\n\t"
+        "ldp	x4, x6, [%[a], 256]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 272]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 256]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 272]\n\t"
+        "ldp	x5, x7, [%[b], 288]\n\t"
+        "ldp	x11, x12, [%[b], 304]\n\t"
+        "ldp	x4, x6, [%[a], 288]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 304]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 288]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 304]\n\t"
+        "ldp	x5, x7, [%[b], 320]\n\t"
+        "ldp	x11, x12, [%[b], 336]\n\t"
+        "ldp	x4, x6, [%[a], 320]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 336]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 320]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 336]\n\t"
+        "ldp	x5, x7, [%[b], 352]\n\t"
+        "ldp	x11, x12, [%[b], 368]\n\t"
+        "ldp	x4, x6, [%[a], 352]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 368]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 352]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 368]\n\t"
+        "csetm	%[r], cc\n\t"
+        : [r] "+r" (r)
+        : [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return (sp_digit)r;
+#endif /* WOLFSSL_SP_SMALL */
 }
 
 /* AND m into each word of a and store in r.
@@ -12528,244 +12773,6 @@ static WC_INLINE int sp_3072_mod_48(sp_digit* r, const sp_digit* a, const sp_dig
     return sp_3072_div_48(a, m, NULL, r);
 }
 
-#ifdef WOLFSSL_SP_SMALL
-/* Sub b from a into r. (r = a - b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-static sp_digit sp_3072_sub_48(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "add	x11, %[a], 384\n\t"
-        "\n1:\n\t"
-        "subs	%[c], xzr, %[c]\n\t"
-        "ldp	x3, x4, [%[a]], #16\n\t"
-        "ldp	x5, x6, [%[a]], #16\n\t"
-        "ldp	x7, x8, [%[b]], #16\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x9, x10, [%[b]], #16\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r]], #16\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r]], #16\n\t"
-        "csetm	%[c], cc\n\t"
-        "cmp	%[a], x11\n\t"
-        "b.ne	1b\n\t"
-        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        :
-        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11"
-    );
-
-    return c;
-}
-
-#else
-/* Sub b from a into r. (r = a - b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-static sp_digit sp_3072_sub_48(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    __asm__ __volatile__ (
-        "ldp	x3, x4, [%[a], 0]\n\t"
-        "ldp	x7, x8, [%[b], 0]\n\t"
-        "subs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 16]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 16]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 0]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 16]\n\t"
-        "ldp	x3, x4, [%[a], 32]\n\t"
-        "ldp	x7, x8, [%[b], 32]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 48]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 48]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 32]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 48]\n\t"
-        "ldp	x3, x4, [%[a], 64]\n\t"
-        "ldp	x7, x8, [%[b], 64]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 80]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 80]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 64]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 80]\n\t"
-        "ldp	x3, x4, [%[a], 96]\n\t"
-        "ldp	x7, x8, [%[b], 96]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 112]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 112]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 96]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 112]\n\t"
-        "ldp	x3, x4, [%[a], 128]\n\t"
-        "ldp	x7, x8, [%[b], 128]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 144]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 144]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 128]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 144]\n\t"
-        "ldp	x3, x4, [%[a], 160]\n\t"
-        "ldp	x7, x8, [%[b], 160]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 176]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 176]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 160]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 176]\n\t"
-        "ldp	x3, x4, [%[a], 192]\n\t"
-        "ldp	x7, x8, [%[b], 192]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 208]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 208]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 192]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 208]\n\t"
-        "ldp	x3, x4, [%[a], 224]\n\t"
-        "ldp	x7, x8, [%[b], 224]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 240]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 240]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 224]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 240]\n\t"
-        "ldp	x3, x4, [%[a], 256]\n\t"
-        "ldp	x7, x8, [%[b], 256]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 272]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 272]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 256]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 272]\n\t"
-        "ldp	x3, x4, [%[a], 288]\n\t"
-        "ldp	x7, x8, [%[b], 288]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 304]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 304]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 288]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 304]\n\t"
-        "ldp	x3, x4, [%[a], 320]\n\t"
-        "ldp	x7, x8, [%[b], 320]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 336]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 336]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 320]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 336]\n\t"
-        "ldp	x3, x4, [%[a], 352]\n\t"
-        "ldp	x7, x8, [%[b], 352]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 368]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 368]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 352]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 368]\n\t"
-        "csetm	%[r], cc\n\t"
-        : [r] "+r" (r)
-        : [a] "r" (a), [b] "r" (b)
-        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10"
-    );
-
-    return (sp_digit)r;
-}
-
-#endif /* WOLFSSL_SP_SMALL */
-/* Divide d in a and put remainder into r (m*d + r = a)
- * m is not calculated as it is not needed at this time.
- *
- * a  Number to be divided.
- * d  Number to divide with.
- * m  Multiplier result.
- * r  Remainder from the division.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_3072_div_48_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
-        sp_digit* r)
-{
-    sp_digit t1[96], t2[49];
-    sp_digit div, r1;
-    int i;
-
-    (void)m;
-
-    div = d[47];
-    XMEMCPY(t1, a, sizeof(*t1) * 2 * 48);
-    for (i=47; i>=0; i--) {
-        sp_digit hi = t1[48 + i] - (t1[48 + i] == div);
-        r1 = div_3072_word_48(hi, t1[48 + i - 1], div);
-
-        sp_3072_mul_d_48(t2, d, r1);
-        t1[48 + i] += sp_3072_sub_in_place_48(&t1[i], t2);
-        t1[48 + i] -= t2[48];
-        if (t1[48 + i] != 0) {
-            t1[48 + i] += sp_3072_add_48(&t1[i], &t1[i], d);
-            if (t1[48 + i] != 0)
-                t1[48 + i] += sp_3072_add_48(&t1[i], &t1[i], d);
-        }
-    }
-
-    for (i = 47; i > 0; i--) {
-        if (t1[i] != d[i])
-            break;
-    }
-    if (t1[i] >= d[i]) {
-        sp_3072_sub_48(r, t1, d);
-    }
-    else {
-        XMEMCPY(r, t1, sizeof(*t1) * 48);
-    }
-
-    return MP_OKAY;
-}
-
-/* Reduce a modulo m into r. (r = a mod m)
- *
- * r  A single precision number that is the reduced result.
- * a  A single precision number that is to be reduced.
- * m  A single precision number that is the modulus to reduce with.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_3072_mod_48_cond(sp_digit* r, const sp_digit* a, const sp_digit* m)
-{
-    return sp_3072_div_48_cond(a, m, NULL, r);
-}
-
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
                                                      defined(WOLFSSL_HAVE_SP_DH)
 #ifdef WOLFSSL_SP_SMALL
@@ -13042,6 +13049,7 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif /* WOLFSSL_SP_SMALL */
 #endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *
@@ -14304,12 +14312,14 @@ static void sp_4096_to_bin_64(sp_digit* r, byte* a)
     }
 }
 
+#if (defined(WOLFSSL_HAVE_SP_RSA) && (!defined(WOLFSSL_RSA_PUBLIC_ONLY) || !defined(WOLFSSL_SP_SMALL))) || defined(WOLFSSL_HAVE_SP_DH)
 /* Normalize the values in each word to 64.
  *
  * a  Array of sp_digit to normalize.
  */
 #define sp_4096_norm_64(a)
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && (!WOLFSSL_RSA_PUBLIC_ONLY || !WOLFSSL_SP_SMALL)) || WOLFSSL_HAVE_SP_DH */
 /* Normalize the values in each word to 64.
  *
  * a  Array of sp_digit to normalize.
@@ -15833,7 +15843,7 @@ static void sp_4096_mul_d_64(sp_digit* r, const sp_digit* a,
 #endif
 }
 
-#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 4096 bits, just need to subtract.
  *
@@ -15848,277 +15858,7 @@ static void sp_4096_mont_norm_64(sp_digit* r, const sp_digit* m)
     sp_4096_sub_in_place_64(r, m);
 }
 
-#endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH */
-/* Conditionally subtract b from a using the mask m.
- * m is -1 to subtract and 0 when not copying.
- *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
- */
-static sp_digit sp_4096_cond_sub_64(sp_digit* r, const sp_digit* a, const sp_digit* b,
-        sp_digit m)
-{
-#ifdef WOLFSSL_SP_SMALL
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "mov	x8, #0\n\t"
-        "1:\n\t"
-        "subs	%[c], xzr, %[c]\n\t"
-        "ldr	x4, [%[a], x8]\n\t"
-        "ldr	x5, [%[b], x8]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "csetm	%[c], cc\n\t"
-        "str	x4, [%[r], x8]\n\t"
-        "add	x8, x8, #8\n\t"
-        "cmp	x8, 512\n\t"
-        "b.lt	1b\n\t"
-        : [c] "+r" (c)
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return c;
-#else
-    __asm__ __volatile__ (
-
-        "ldp	x5, x7, [%[b], 0]\n\t"
-        "ldp	x11, x12, [%[b], 16]\n\t"
-        "ldp	x4, x6, [%[a], 0]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 16]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "subs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 0]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 16]\n\t"
-        "ldp	x5, x7, [%[b], 32]\n\t"
-        "ldp	x11, x12, [%[b], 48]\n\t"
-        "ldp	x4, x6, [%[a], 32]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 48]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 32]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 48]\n\t"
-        "ldp	x5, x7, [%[b], 64]\n\t"
-        "ldp	x11, x12, [%[b], 80]\n\t"
-        "ldp	x4, x6, [%[a], 64]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 80]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 64]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 80]\n\t"
-        "ldp	x5, x7, [%[b], 96]\n\t"
-        "ldp	x11, x12, [%[b], 112]\n\t"
-        "ldp	x4, x6, [%[a], 96]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 112]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 96]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 112]\n\t"
-        "ldp	x5, x7, [%[b], 128]\n\t"
-        "ldp	x11, x12, [%[b], 144]\n\t"
-        "ldp	x4, x6, [%[a], 128]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 144]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 128]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 144]\n\t"
-        "ldp	x5, x7, [%[b], 160]\n\t"
-        "ldp	x11, x12, [%[b], 176]\n\t"
-        "ldp	x4, x6, [%[a], 160]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 176]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 160]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 176]\n\t"
-        "ldp	x5, x7, [%[b], 192]\n\t"
-        "ldp	x11, x12, [%[b], 208]\n\t"
-        "ldp	x4, x6, [%[a], 192]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 208]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 192]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 208]\n\t"
-        "ldp	x5, x7, [%[b], 224]\n\t"
-        "ldp	x11, x12, [%[b], 240]\n\t"
-        "ldp	x4, x6, [%[a], 224]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 240]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 224]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 240]\n\t"
-        "ldp	x5, x7, [%[b], 256]\n\t"
-        "ldp	x11, x12, [%[b], 272]\n\t"
-        "ldp	x4, x6, [%[a], 256]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 272]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 256]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 272]\n\t"
-        "ldp	x5, x7, [%[b], 288]\n\t"
-        "ldp	x11, x12, [%[b], 304]\n\t"
-        "ldp	x4, x6, [%[a], 288]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 304]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 288]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 304]\n\t"
-        "ldp	x5, x7, [%[b], 320]\n\t"
-        "ldp	x11, x12, [%[b], 336]\n\t"
-        "ldp	x4, x6, [%[a], 320]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 336]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 320]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 336]\n\t"
-        "ldp	x5, x7, [%[b], 352]\n\t"
-        "ldp	x11, x12, [%[b], 368]\n\t"
-        "ldp	x4, x6, [%[a], 352]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 368]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 352]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 368]\n\t"
-        "ldp	x5, x7, [%[b], 384]\n\t"
-        "ldp	x11, x12, [%[b], 400]\n\t"
-        "ldp	x4, x6, [%[a], 384]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 400]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 384]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 400]\n\t"
-        "ldp	x5, x7, [%[b], 416]\n\t"
-        "ldp	x11, x12, [%[b], 432]\n\t"
-        "ldp	x4, x6, [%[a], 416]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 432]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 416]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 432]\n\t"
-        "ldp	x5, x7, [%[b], 448]\n\t"
-        "ldp	x11, x12, [%[b], 464]\n\t"
-        "ldp	x4, x6, [%[a], 448]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 464]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 448]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 464]\n\t"
-        "ldp	x5, x7, [%[b], 480]\n\t"
-        "ldp	x11, x12, [%[b], 496]\n\t"
-        "ldp	x4, x6, [%[a], 480]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 496]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 480]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 496]\n\t"
-        "csetm	%[r], cc\n\t"
-        : [r] "+r" (r)
-        : [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return (sp_digit)r;
-#endif /* WOLFSSL_SP_SMALL */
-}
-
+#endif /* (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) | WOLFSSL_HAVE_SP_DH */
 /* Reduce the number back to 4096 bits using Montgomery reduction.
  *
  * a   A single precision number to reduce in place.
@@ -17030,6 +16770,224 @@ static void sp_4096_mont_sqr_64(sp_digit* r, const sp_digit* a,
     sp_4096_mont_reduce_64(r, m, mp);
 }
 
+#ifdef WOLFSSL_SP_SMALL
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+static sp_digit sp_4096_sub_64(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "add	x11, %[a], 512\n\t"
+        "\n1:\n\t"
+        "subs	%[c], xzr, %[c]\n\t"
+        "ldp	x3, x4, [%[a]], #16\n\t"
+        "ldp	x5, x6, [%[a]], #16\n\t"
+        "ldp	x7, x8, [%[b]], #16\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x9, x10, [%[b]], #16\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r]], #16\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r]], #16\n\t"
+        "csetm	%[c], cc\n\t"
+        "cmp	%[a], x11\n\t"
+        "b.ne	1b\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11"
+    );
+
+    return c;
+}
+
+#else
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+static sp_digit sp_4096_sub_64(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    __asm__ __volatile__ (
+        "ldp	x3, x4, [%[a], 0]\n\t"
+        "ldp	x7, x8, [%[b], 0]\n\t"
+        "subs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 16]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 16]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 0]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 16]\n\t"
+        "ldp	x3, x4, [%[a], 32]\n\t"
+        "ldp	x7, x8, [%[b], 32]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 48]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 48]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 32]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 48]\n\t"
+        "ldp	x3, x4, [%[a], 64]\n\t"
+        "ldp	x7, x8, [%[b], 64]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 80]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 80]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 64]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 80]\n\t"
+        "ldp	x3, x4, [%[a], 96]\n\t"
+        "ldp	x7, x8, [%[b], 96]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 112]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 112]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 96]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 112]\n\t"
+        "ldp	x3, x4, [%[a], 128]\n\t"
+        "ldp	x7, x8, [%[b], 128]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 144]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 144]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 128]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 144]\n\t"
+        "ldp	x3, x4, [%[a], 160]\n\t"
+        "ldp	x7, x8, [%[b], 160]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 176]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 176]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 160]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 176]\n\t"
+        "ldp	x3, x4, [%[a], 192]\n\t"
+        "ldp	x7, x8, [%[b], 192]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 208]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 208]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 192]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 208]\n\t"
+        "ldp	x3, x4, [%[a], 224]\n\t"
+        "ldp	x7, x8, [%[b], 224]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 240]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 240]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 224]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 240]\n\t"
+        "ldp	x3, x4, [%[a], 256]\n\t"
+        "ldp	x7, x8, [%[b], 256]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 272]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 272]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 256]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 272]\n\t"
+        "ldp	x3, x4, [%[a], 288]\n\t"
+        "ldp	x7, x8, [%[b], 288]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 304]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 304]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 288]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 304]\n\t"
+        "ldp	x3, x4, [%[a], 320]\n\t"
+        "ldp	x7, x8, [%[b], 320]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 336]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 336]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 320]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 336]\n\t"
+        "ldp	x3, x4, [%[a], 352]\n\t"
+        "ldp	x7, x8, [%[b], 352]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 368]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 368]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 352]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 368]\n\t"
+        "ldp	x3, x4, [%[a], 384]\n\t"
+        "ldp	x7, x8, [%[b], 384]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 400]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 400]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 384]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 400]\n\t"
+        "ldp	x3, x4, [%[a], 416]\n\t"
+        "ldp	x7, x8, [%[b], 416]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 432]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 432]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 416]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 432]\n\t"
+        "ldp	x3, x4, [%[a], 448]\n\t"
+        "ldp	x7, x8, [%[b], 448]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 464]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 464]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 448]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 464]\n\t"
+        "ldp	x3, x4, [%[a], 480]\n\t"
+        "ldp	x7, x8, [%[b], 480]\n\t"
+        "sbcs	x3, x3, x7\n\t"
+        "ldp	x5, x6, [%[a], 496]\n\t"
+        "sbcs	x4, x4, x8\n\t"
+        "ldp	x9, x10, [%[b], 496]\n\t"
+        "sbcs	x5, x5, x9\n\t"
+        "stp	x3, x4, [%[r], 480]\n\t"
+        "sbcs	x6, x6, x10\n\t"
+        "stp	x5, x6, [%[r], 496]\n\t"
+        "csetm	%[r], cc\n\t"
+        : [r] "+r" (r)
+        : [a] "r" (a), [b] "r" (b)
+        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10"
+    );
+
+    return (sp_digit)r;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
  * d1   The high order half of the number to divide.
@@ -17087,6 +17045,337 @@ static sp_digit div_4096_word_64(sp_digit d1, sp_digit d0, sp_digit div)
     );
 
     return r;
+}
+
+/* Divide d in a and put remainder into r (m*d + r = a)
+ * m is not calculated as it is not needed at this time.
+ *
+ * a  Number to be divided.
+ * d  Number to divide with.
+ * m  Multiplier result.
+ * r  Remainder from the division.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_4096_div_64_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
+        sp_digit* r)
+{
+    sp_digit t1[128], t2[65];
+    sp_digit div, r1;
+    int i;
+
+    (void)m;
+
+    div = d[63];
+    XMEMCPY(t1, a, sizeof(*t1) * 2 * 64);
+    for (i=63; i>=0; i--) {
+        sp_digit hi = t1[64 + i] - (t1[64 + i] == div);
+        r1 = div_4096_word_64(hi, t1[64 + i - 1], div);
+
+        sp_4096_mul_d_64(t2, d, r1);
+        t1[64 + i] += sp_4096_sub_in_place_64(&t1[i], t2);
+        t1[64 + i] -= t2[64];
+        if (t1[64 + i] != 0) {
+            t1[64 + i] += sp_4096_add_64(&t1[i], &t1[i], d);
+            if (t1[64 + i] != 0)
+                t1[64 + i] += sp_4096_add_64(&t1[i], &t1[i], d);
+        }
+    }
+
+    for (i = 63; i > 0; i--) {
+        if (t1[i] != d[i])
+            break;
+    }
+    if (t1[i] >= d[i]) {
+        sp_4096_sub_64(r, t1, d);
+    }
+    else {
+        XMEMCPY(r, t1, sizeof(*t1) * 64);
+    }
+
+    return MP_OKAY;
+}
+
+/* Reduce a modulo m into r. (r = a mod m)
+ *
+ * r  A single precision number that is the reduced result.
+ * a  A single precision number that is to be reduced.
+ * m  A single precision number that is the modulus to reduce with.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_4096_mod_64_cond(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    return sp_4096_div_64_cond(a, m, NULL, r);
+}
+
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
+/* Conditionally subtract b from a using the mask m.
+ * m is -1 to subtract and 0 when not copying.
+ *
+ * r  A single precision number representing condition subtract result.
+ * a  A single precision number to subtract from.
+ * b  A single precision number to subtract.
+ * m  Mask value to apply.
+ */
+static sp_digit sp_4096_cond_sub_64(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+#ifdef WOLFSSL_SP_SMALL
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	x8, #0\n\t"
+        "1:\n\t"
+        "subs	%[c], xzr, %[c]\n\t"
+        "ldr	x4, [%[a], x8]\n\t"
+        "ldr	x5, [%[b], x8]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "csetm	%[c], cc\n\t"
+        "str	x4, [%[r], x8]\n\t"
+        "add	x8, x8, #8\n\t"
+        "cmp	x8, 512\n\t"
+        "b.lt	1b\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return c;
+#else
+    __asm__ __volatile__ (
+
+        "ldp	x5, x7, [%[b], 0]\n\t"
+        "ldp	x11, x12, [%[b], 16]\n\t"
+        "ldp	x4, x6, [%[a], 0]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 16]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "subs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 0]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 16]\n\t"
+        "ldp	x5, x7, [%[b], 32]\n\t"
+        "ldp	x11, x12, [%[b], 48]\n\t"
+        "ldp	x4, x6, [%[a], 32]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 48]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 32]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 48]\n\t"
+        "ldp	x5, x7, [%[b], 64]\n\t"
+        "ldp	x11, x12, [%[b], 80]\n\t"
+        "ldp	x4, x6, [%[a], 64]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 80]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 64]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 80]\n\t"
+        "ldp	x5, x7, [%[b], 96]\n\t"
+        "ldp	x11, x12, [%[b], 112]\n\t"
+        "ldp	x4, x6, [%[a], 96]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 112]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 96]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 112]\n\t"
+        "ldp	x5, x7, [%[b], 128]\n\t"
+        "ldp	x11, x12, [%[b], 144]\n\t"
+        "ldp	x4, x6, [%[a], 128]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 144]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 128]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 144]\n\t"
+        "ldp	x5, x7, [%[b], 160]\n\t"
+        "ldp	x11, x12, [%[b], 176]\n\t"
+        "ldp	x4, x6, [%[a], 160]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 176]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 160]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 176]\n\t"
+        "ldp	x5, x7, [%[b], 192]\n\t"
+        "ldp	x11, x12, [%[b], 208]\n\t"
+        "ldp	x4, x6, [%[a], 192]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 208]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 192]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 208]\n\t"
+        "ldp	x5, x7, [%[b], 224]\n\t"
+        "ldp	x11, x12, [%[b], 240]\n\t"
+        "ldp	x4, x6, [%[a], 224]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 240]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 224]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 240]\n\t"
+        "ldp	x5, x7, [%[b], 256]\n\t"
+        "ldp	x11, x12, [%[b], 272]\n\t"
+        "ldp	x4, x6, [%[a], 256]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 272]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 256]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 272]\n\t"
+        "ldp	x5, x7, [%[b], 288]\n\t"
+        "ldp	x11, x12, [%[b], 304]\n\t"
+        "ldp	x4, x6, [%[a], 288]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 304]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 288]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 304]\n\t"
+        "ldp	x5, x7, [%[b], 320]\n\t"
+        "ldp	x11, x12, [%[b], 336]\n\t"
+        "ldp	x4, x6, [%[a], 320]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 336]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 320]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 336]\n\t"
+        "ldp	x5, x7, [%[b], 352]\n\t"
+        "ldp	x11, x12, [%[b], 368]\n\t"
+        "ldp	x4, x6, [%[a], 352]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 368]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 352]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 368]\n\t"
+        "ldp	x5, x7, [%[b], 384]\n\t"
+        "ldp	x11, x12, [%[b], 400]\n\t"
+        "ldp	x4, x6, [%[a], 384]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 400]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 384]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 400]\n\t"
+        "ldp	x5, x7, [%[b], 416]\n\t"
+        "ldp	x11, x12, [%[b], 432]\n\t"
+        "ldp	x4, x6, [%[a], 416]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 432]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 416]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 432]\n\t"
+        "ldp	x5, x7, [%[b], 448]\n\t"
+        "ldp	x11, x12, [%[b], 464]\n\t"
+        "ldp	x4, x6, [%[a], 448]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 464]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 448]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 464]\n\t"
+        "ldp	x5, x7, [%[b], 480]\n\t"
+        "ldp	x11, x12, [%[b], 496]\n\t"
+        "ldp	x4, x6, [%[a], 480]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 496]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 480]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 496]\n\t"
+        "csetm	%[r], cc\n\t"
+        : [r] "+r" (r)
+        : [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return (sp_digit)r;
+#endif /* WOLFSSL_SP_SMALL */
 }
 
 /* AND m into each word of a and store in r.
@@ -17664,284 +17953,6 @@ static WC_INLINE int sp_4096_mod_64(sp_digit* r, const sp_digit* a, const sp_dig
     return sp_4096_div_64(a, m, NULL, r);
 }
 
-#ifdef WOLFSSL_SP_SMALL
-/* Sub b from a into r. (r = a - b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-static sp_digit sp_4096_sub_64(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "add	x11, %[a], 512\n\t"
-        "\n1:\n\t"
-        "subs	%[c], xzr, %[c]\n\t"
-        "ldp	x3, x4, [%[a]], #16\n\t"
-        "ldp	x5, x6, [%[a]], #16\n\t"
-        "ldp	x7, x8, [%[b]], #16\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x9, x10, [%[b]], #16\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r]], #16\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r]], #16\n\t"
-        "csetm	%[c], cc\n\t"
-        "cmp	%[a], x11\n\t"
-        "b.ne	1b\n\t"
-        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        :
-        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11"
-    );
-
-    return c;
-}
-
-#else
-/* Sub b from a into r. (r = a - b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-static sp_digit sp_4096_sub_64(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    __asm__ __volatile__ (
-        "ldp	x3, x4, [%[a], 0]\n\t"
-        "ldp	x7, x8, [%[b], 0]\n\t"
-        "subs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 16]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 16]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 0]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 16]\n\t"
-        "ldp	x3, x4, [%[a], 32]\n\t"
-        "ldp	x7, x8, [%[b], 32]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 48]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 48]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 32]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 48]\n\t"
-        "ldp	x3, x4, [%[a], 64]\n\t"
-        "ldp	x7, x8, [%[b], 64]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 80]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 80]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 64]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 80]\n\t"
-        "ldp	x3, x4, [%[a], 96]\n\t"
-        "ldp	x7, x8, [%[b], 96]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 112]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 112]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 96]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 112]\n\t"
-        "ldp	x3, x4, [%[a], 128]\n\t"
-        "ldp	x7, x8, [%[b], 128]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 144]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 144]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 128]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 144]\n\t"
-        "ldp	x3, x4, [%[a], 160]\n\t"
-        "ldp	x7, x8, [%[b], 160]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 176]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 176]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 160]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 176]\n\t"
-        "ldp	x3, x4, [%[a], 192]\n\t"
-        "ldp	x7, x8, [%[b], 192]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 208]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 208]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 192]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 208]\n\t"
-        "ldp	x3, x4, [%[a], 224]\n\t"
-        "ldp	x7, x8, [%[b], 224]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 240]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 240]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 224]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 240]\n\t"
-        "ldp	x3, x4, [%[a], 256]\n\t"
-        "ldp	x7, x8, [%[b], 256]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 272]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 272]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 256]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 272]\n\t"
-        "ldp	x3, x4, [%[a], 288]\n\t"
-        "ldp	x7, x8, [%[b], 288]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 304]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 304]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 288]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 304]\n\t"
-        "ldp	x3, x4, [%[a], 320]\n\t"
-        "ldp	x7, x8, [%[b], 320]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 336]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 336]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 320]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 336]\n\t"
-        "ldp	x3, x4, [%[a], 352]\n\t"
-        "ldp	x7, x8, [%[b], 352]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 368]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 368]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 352]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 368]\n\t"
-        "ldp	x3, x4, [%[a], 384]\n\t"
-        "ldp	x7, x8, [%[b], 384]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 400]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 400]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 384]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 400]\n\t"
-        "ldp	x3, x4, [%[a], 416]\n\t"
-        "ldp	x7, x8, [%[b], 416]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 432]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 432]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 416]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 432]\n\t"
-        "ldp	x3, x4, [%[a], 448]\n\t"
-        "ldp	x7, x8, [%[b], 448]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 464]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 464]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 448]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 464]\n\t"
-        "ldp	x3, x4, [%[a], 480]\n\t"
-        "ldp	x7, x8, [%[b], 480]\n\t"
-        "sbcs	x3, x3, x7\n\t"
-        "ldp	x5, x6, [%[a], 496]\n\t"
-        "sbcs	x4, x4, x8\n\t"
-        "ldp	x9, x10, [%[b], 496]\n\t"
-        "sbcs	x5, x5, x9\n\t"
-        "stp	x3, x4, [%[r], 480]\n\t"
-        "sbcs	x6, x6, x10\n\t"
-        "stp	x5, x6, [%[r], 496]\n\t"
-        "csetm	%[r], cc\n\t"
-        : [r] "+r" (r)
-        : [a] "r" (a), [b] "r" (b)
-        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10"
-    );
-
-    return (sp_digit)r;
-}
-
-#endif /* WOLFSSL_SP_SMALL */
-/* Divide d in a and put remainder into r (m*d + r = a)
- * m is not calculated as it is not needed at this time.
- *
- * a  Number to be divided.
- * d  Number to divide with.
- * m  Multiplier result.
- * r  Remainder from the division.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_4096_div_64_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
-        sp_digit* r)
-{
-    sp_digit t1[128], t2[65];
-    sp_digit div, r1;
-    int i;
-
-    (void)m;
-
-    div = d[63];
-    XMEMCPY(t1, a, sizeof(*t1) * 2 * 64);
-    for (i=63; i>=0; i--) {
-        sp_digit hi = t1[64 + i] - (t1[64 + i] == div);
-        r1 = div_4096_word_64(hi, t1[64 + i - 1], div);
-
-        sp_4096_mul_d_64(t2, d, r1);
-        t1[64 + i] += sp_4096_sub_in_place_64(&t1[i], t2);
-        t1[64 + i] -= t2[64];
-        if (t1[64 + i] != 0) {
-            t1[64 + i] += sp_4096_add_64(&t1[i], &t1[i], d);
-            if (t1[64 + i] != 0)
-                t1[64 + i] += sp_4096_add_64(&t1[i], &t1[i], d);
-        }
-    }
-
-    for (i = 63; i > 0; i--) {
-        if (t1[i] != d[i])
-            break;
-    }
-    if (t1[i] >= d[i]) {
-        sp_4096_sub_64(r, t1, d);
-    }
-    else {
-        XMEMCPY(r, t1, sizeof(*t1) * 64);
-    }
-
-    return MP_OKAY;
-}
-
-/* Reduce a modulo m into r. (r = a mod m)
- *
- * r  A single precision number that is the reduced result.
- * a  A single precision number that is to be reduced.
- * m  A single precision number that is the modulus to reduce with.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_4096_mod_64_cond(sp_digit* r, const sp_digit* a, const sp_digit* m)
-{
-    return sp_4096_div_64_cond(a, m, NULL, r);
-}
-
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
                                                      defined(WOLFSSL_HAVE_SP_DH)
 #ifdef WOLFSSL_SP_SMALL
@@ -18218,6 +18229,7 @@ static int sp_4096_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif /* WOLFSSL_SP_SMALL */
 #endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *
@@ -40380,49 +40392,6 @@ static void sp_384_cond_copy_6(sp_digit* r, const sp_digit* a, sp_digit m)
     );
 }
 
-/* Conditionally subtract b from a using the mask m.
- * m is -1 to subtract and 0 when not copying.
- *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
- */
-static sp_digit sp_384_cond_sub_6(sp_digit* r, const sp_digit* a, const sp_digit* b,
-        sp_digit m)
-{
-    __asm__ __volatile__ (
-
-        "ldp	x5, x7, [%[b], 0]\n\t"
-        "ldp	x11, x12, [%[b], 16]\n\t"
-        "ldp	x4, x6, [%[a], 0]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "ldp	x9, x10, [%[a], 16]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "subs	x4, x4, x5\n\t"
-        "and	x11, x11, %[m]\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "and	x12, x12, %[m]\n\t"
-        "sbcs	x9, x9, x11\n\t"
-        "stp	x4, x6, [%[r], 0]\n\t"
-        "sbcs	x10, x10, x12\n\t"
-        "stp	x9, x10, [%[r], 16]\n\t"
-        "ldp	x5, x7, [%[b], 32]\n\t"
-        "ldp	x4, x6, [%[a], 32]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "and	x7, x7, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "sbcs	x6, x6, x7\n\t"
-        "stp	x4, x6, [%[r], 32]\n\t"
-        "csetm	%[r], cc\n\t"
-        : [r] "+r" (r)
-        : [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return (sp_digit)r;
-}
-
 #define sp_384_mont_reduce_order_6    sp_384_mont_reduce_6
 
 /* Reduce the number back to 384 bits using Montgomery reduction.
@@ -40766,6 +40735,49 @@ static sp_int64 sp_384_cmp_6(const sp_digit* a, const sp_digit* b)
  * a  Array of sp_digit to normalize.
  */
 #define sp_384_norm_6(a)
+
+/* Conditionally subtract b from a using the mask m.
+ * m is -1 to subtract and 0 when not copying.
+ *
+ * r  A single precision number representing condition subtract result.
+ * a  A single precision number to subtract from.
+ * b  A single precision number to subtract.
+ * m  Mask value to apply.
+ */
+static sp_digit sp_384_cond_sub_6(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+    __asm__ __volatile__ (
+
+        "ldp	x5, x7, [%[b], 0]\n\t"
+        "ldp	x11, x12, [%[b], 16]\n\t"
+        "ldp	x4, x6, [%[a], 0]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "ldp	x9, x10, [%[a], 16]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "subs	x4, x4, x5\n\t"
+        "and	x11, x11, %[m]\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "and	x12, x12, %[m]\n\t"
+        "sbcs	x9, x9, x11\n\t"
+        "stp	x4, x6, [%[r], 0]\n\t"
+        "sbcs	x10, x10, x12\n\t"
+        "stp	x9, x10, [%[r], 16]\n\t"
+        "ldp	x5, x7, [%[b], 32]\n\t"
+        "ldp	x4, x6, [%[a], 32]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "and	x7, x7, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "sbcs	x6, x6, x7\n\t"
+        "stp	x4, x6, [%[r], 32]\n\t"
+        "csetm	%[r], cc\n\t"
+        : [r] "+r" (r)
+        : [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return (sp_digit)r;
+}
 
 /* Map the Montgomery form projective coordinate point to an affine point.
  *

@@ -14142,8 +14142,10 @@ exit_rsa_even_mod:
 
     (void)out;
     (void)outSz;
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     (void)plain;
     (void)plainSz;
+#endif
     (void)inLen;
     (void)rng;
 

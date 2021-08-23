@@ -806,7 +806,8 @@ MP_API int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r);
 MP_API int sp_sub_d(sp_int* a, sp_int_digit d, sp_int* r);
 MP_API int sp_mul_d(sp_int* a, sp_int_digit d, sp_int* r);
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
+    defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
+    defined(WC_MP_TO_RADIX)
 MP_API int sp_div_d(sp_int* a, sp_int_digit d, sp_int* r, sp_int_digit* rem);
 #endif
 #if defined(WOLFSSL_SP_MATH_ALL) || (defined(HAVE_ECC) && \
