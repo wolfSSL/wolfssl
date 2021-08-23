@@ -6096,6 +6096,9 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
     word32          p_len;
 #endif
 
+    if (kse->key != NULL)
+        return 0;
+
     /* TODO: [TLS13] The key size should come from wolfcrypt. */
     /* Pick the parameters from the named group. */
 #ifdef HAVE_PUBLIC_FFDHE
