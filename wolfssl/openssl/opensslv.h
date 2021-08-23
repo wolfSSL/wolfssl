@@ -35,7 +35,8 @@
       defined(WOLFSSL_RSYSLOG)
     /* For Apache httpd, Use 1.1.0 compatibility */
      #define OPENSSL_VERSION_NUMBER 0x10100000L
-#elif  defined(WOLFSSL_QT)
+#elif defined(WOLFSSL_QT) || defined(WOLFSSL_PYTHON)
+    /* For Qt and Python 3.8.5 compatibility */
      #define OPENSSL_VERSION_NUMBER 0x10101000L
 #elif defined(WOLFSSL_HAPROXY)
      #define OPENSSL_VERSION_NUMBER 0x1010000fL
