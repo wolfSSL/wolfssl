@@ -2902,11 +2902,26 @@ int sp_set(sp_int* a, sp_int_digit d)
         err = MP_VAL;
     }
     if (err == MP_OKAY) {
+#if defined(__GNUC__)
+#if __GNUC__ == 11
+        /* gcc-11 falsely reports out-of-bounds array access if the byte array
+         * backing the sp_int* is smaller than sizeof(sp_int), as occurs when
+         * WOLFSSL_SP_SMALL.
+         */
+        _Pragma("GCC diagnostic push");
+        _Pragma("GCC diagnostic ignored \"-Warray-bounds\"");
+#endif
+#endif
         a->dp[0] = d;
         a->used = d > 0;
     #ifdef WOLFSSL_SP_INT_NEGATIVE
         a->sign = MP_ZPOS;
     #endif
+#if defined(__GNUC__)
+#if __GNUC__ >= 11
+        _Pragma("GCC diagnostic pop");
+#endif
+#endif
     }
 
     return err;
