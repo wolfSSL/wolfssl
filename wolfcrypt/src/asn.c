@@ -6817,7 +6817,7 @@ int DecryptContent(byte* input, word32 sz, const char* password, int passwordSz)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 inOutIdx = 0, seqEnd, oid, shaOid = 0;
-    int    ret = 0, first, second, length = 0, version, saltSz, id;
+    int    ret = 0, first, second, length = 0, version, saltSz, id = 0;
     int    iterations = 0, keySz = 0;
 #ifdef WOLFSSL_SMALL_STACK
     byte*  salt = NULL;

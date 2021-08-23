@@ -93,14 +93,14 @@ static int hex_to_bytes(const char *hex, unsigned char *output, unsigned long sz
 {
     word32 i;
     for (i = 0; i < sz; i++) {
-        char ch1, ch2;
+        signed char ch1, ch2;
         ch1 = HexCharToByte(hex[i * 2]);
         ch2 = HexCharToByte(hex[i * 2 + 1]);
-        if (ch1 < 0 || ch2 < 0) {
+        if ((ch1 < 0) || (ch2 < 0)) {
             WOLFSSL_MSG("hex_to_bytes: syntax error");
             return -1;
         }
-        output[i] = (ch1 << 4) + ch2;
+        output[i] = (unsigned char)((ch1 << 4) + ch2);
     }
     return (int)sz;
 }
@@ -157,7 +157,6 @@ static int expect_ok(const char *cmd, int size)
 /* Conversion utility from hex string format to bytes */
 static int hexbuffer_conv(char *hex_str, unsigned char *output, unsigned long sz)
 {
-    int ret;
     if (XSTRLEN(hex_str) != (2 * sz)) {
         return -1;
     }
