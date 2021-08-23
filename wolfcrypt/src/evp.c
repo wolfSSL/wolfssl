@@ -5693,7 +5693,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
 
         return WOLFSSL_SUCCESS;
     }
-#if defined(HAVE_AESGCM)
+
+#ifdef HAVE_WOLFSSL_EVP_CIPHER_CTX_IV
     /* returns WOLFSSL_SUCCESS on success, otherwise returns WOLFSSL_FAILURE */
     int wolfSSL_EVP_CIPHER_CTX_set_iv_length(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                              int ivLen)
@@ -5706,7 +5707,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
 
         return WOLFSSL_SUCCESS;
     }
+#endif
 
+#if defined(HAVE_AESGCM)
     /* returns WOLFSSL_SUCCESS on success, otherwise returns WOLFSSL_FAILURE */
     int wolfSSL_EVP_CIPHER_CTX_set_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, byte* iv,
                                              int ivLen)
