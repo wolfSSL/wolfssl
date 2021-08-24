@@ -5275,7 +5275,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 #endif
 
     if (rng == NULL) {
-        WOLFSSL_MSG("rng was NULL");
+        WOLFSSL_MSG("ECC sign RNG missing");
         return ECC_BAD_ARG_E;
     }
 
