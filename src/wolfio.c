@@ -1138,7 +1138,7 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                 }
 
                 WOLFSSL_MSG("wolfIO_HttpProcessResponse recv http from peer failed");
-                return -1;
+                return HTTP_RECV_ERR;
             }
         }
         end = XSTRSTR(start, "\r\n"); /* locate end */
@@ -1158,7 +1158,7 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
              }
              else {
                 WOLFSSL_MSG("wolfIO_HttpProcessResponse header ended early");
-                return -1;
+                return HTTP_HEADER_ERR;
              }
         }
         else {
@@ -1176,13 +1176,13 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                     if (XSTRLEN(start) < 12) {
                         WOLFSSL_MSG("wolfIO_HttpProcessResponse HTTP header "
                             "too short.");
-                        return -1;
+                        return HTTP_HEADER_ERR;
                     }
                     if (XSTRNCASECMP(start, HTTP_PROTO,
                                      sizeof(HTTP_PROTO) - 1) != 0) {
                         WOLFSSL_MSG("wolfIO_HttpProcessResponse HTTP header "
                             "doesn't start with HTTP/1.");
-                        return -1;
+                        return HTTP_PROTO_ERR;
                     }
                     /* +2 for HTTP minor version and space between version and
                      * status code. */
@@ -1191,7 +1191,7 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                                      sizeof(HTTP_STATUS_200) - 1) != 0) {
                         WOLFSSL_MSG("wolfIO_HttpProcessResponse HTTP header "
                             "doesn't have status code 200.");
-                        return -1;
+                        return HTTP_STATUS_ERR;
                     }
                     state = phr_http_start;
                     break;
@@ -1201,7 +1201,7 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                     if (XSTRLEN(start) < 13) { /* 13 is the shortest of the following
                                           next lines we're checking for. */
                         WOLFSSL_MSG("wolfIO_HttpProcessResponse content type is too short.");
-                        return -1;
+                        return HTTP_VERSION_ERR;
                     }
 
                     if (XSTRNCASECMP(start, "Content-Type:", 13) == 0) {
@@ -1221,7 +1221,7 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                         }
                         if (appStrList[i] == NULL) {
                             WOLFSSL_MSG("wolfIO_HttpProcessResponse appstr mismatch");
-                            return -1;
+                            return HTTP_APPSTR_ERR;
                         }
                         state = (state == phr_http_start) ? phr_have_type : phr_wait_end;
                     }
@@ -1510,7 +1510,7 @@ int wolfIO_HttpBuildRequestCrl(const char* url, int urlSz,
 int wolfIO_HttpProcessResponseCrl(WOLFSSL_CRL* crl, int sfd, byte* httpBuf,
     int httpBufSz)
 {
-    int result;
+    int ret;
     byte *respBuf = NULL;
 
     const char* appStrList[] = {
@@ -1519,14 +1519,15 @@ int wolfIO_HttpProcessResponseCrl(WOLFSSL_CRL* crl, int sfd, byte* httpBuf,
         NULL
     };
 
-    result = wolfIO_HttpProcessResponse(sfd, appStrList,
+
+    ret = wolfIO_HttpProcessResponse(sfd, appStrList,
         &respBuf, httpBuf, httpBufSz, DYNAMIC_TYPE_CRL, crl->heap);
-    if (result >= 0) {
-        result = BufferLoadCRL(crl, respBuf, result, WOLFSSL_FILETYPE_ASN1, 0);
+    if (ret >= 0) {
+        ret = BufferLoadCRL(crl, respBuf, ret, WOLFSSL_FILETYPE_ASN1, 0);
     }
     XFREE(respBuf, crl->heap, DYNAMIC_TYPE_CRL);
 
-    return result;
+    return ret;
 }
 
 int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz)

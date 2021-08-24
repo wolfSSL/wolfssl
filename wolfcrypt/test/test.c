@@ -1641,7 +1641,7 @@ WOLFSSL_TEST_SUBROUTINE int error_test(void)
     /* Values that are not or no longer error codes. */
     int missing[] = { -122, -123, -124,       -127, -128, -129,
                       -163, -164, -165, -166, -167, -168, -169,
-                      -179,       -233,
+                      -233,
                       0 };
 
     /* Check that all errors have a string and it's the same through the two
