@@ -4647,7 +4647,7 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
 
     /* handle rollover of sequence */
     if (tcpInfo->sequence < seqStart)
-        real = 0xffffffffU - seqStart + tcpInfo->sequence;
+        real = 0xffffffffU - seqStart + tcpInfo->sequence + 1;
 
     TraceRelativeSequence(*expected, real);
 
