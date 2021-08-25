@@ -7442,18 +7442,18 @@ int wolfSSL_EVP_PKEY_assign_RSA(EVP_PKEY* pkey, WOLFSSL_RSA* key)
     pkey->rsa = key;
     pkey->ownRsa = 1;
 
-    /* try and populate public pkey_sz and pkey.ptr */
+    /* try and populate pkey_sz and pkey.ptr */
     if (key->internal) {
         RsaKey* rsa = (RsaKey*)key->internal;
-        int ret = wc_RsaPublicKeyDerSize(rsa, 1);
+        int ret = wc_RsaKeyToDer(rsa, NULL, 0);
         if (ret > 0) {
             int derSz = ret;
-            char* derBuf = (char*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            byte* derBuf = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (derBuf) {
-                ret = wc_RsaKeyToPublicDer(rsa, (byte*)derBuf, derSz);
+                ret = wc_RsaKeyToDer(rsa, derBuf, derSz);
                 if (ret >= 0) {
                     pkey->pkey_sz = ret;
-                    pkey->pkey.ptr = derBuf;
+                    pkey->pkey.ptr = (char*)derBuf;
                 }
                 else { /* failure - okay to ignore */
                     XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);

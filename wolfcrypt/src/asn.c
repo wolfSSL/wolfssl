@@ -18190,6 +18190,8 @@ wcchar BEGIN_X509_CRL       = "-----BEGIN X509 CRL-----";
 wcchar END_X509_CRL         = "-----END X509 CRL-----";
 wcchar BEGIN_RSA_PRIV       = "-----BEGIN RSA PRIVATE KEY-----";
 wcchar END_RSA_PRIV         = "-----END RSA PRIVATE KEY-----";
+wcchar BEGIN_RSA_PUB        = "-----BEGIN RSA PUBLIC KEY-----";
+wcchar END_RSA_PUB          = "-----END RSA PUBLIC KEY-----";
 wcchar BEGIN_PRIV_KEY       = "-----BEGIN PRIVATE KEY-----";
 wcchar END_PRIV_KEY         = "-----END PRIVATE KEY-----";
 wcchar BEGIN_ENC_PRIV_KEY   = "-----BEGIN ENCRYPTED PRIVATE KEY-----";
@@ -18724,42 +18726,57 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
         if (headerEnd) {
             break;
-        } else
+        }
+
         if (type == PRIVATEKEY_TYPE) {
             if (header == BEGIN_RSA_PRIV) {
-                header =  BEGIN_PRIV_KEY;       footer = END_PRIV_KEY;
-            } else
-            if (header == BEGIN_PRIV_KEY) {
-                header =  BEGIN_ENC_PRIV_KEY;   footer = END_ENC_PRIV_KEY;
-            } else
+                header = BEGIN_PRIV_KEY;
+                footer = END_PRIV_KEY;
+            }
+            else if (header == BEGIN_PRIV_KEY) {
+                header = BEGIN_ENC_PRIV_KEY;
+                footer = END_ENC_PRIV_KEY;
+            }
+#ifdef HAVE_ECC
+            else if (header == BEGIN_ENC_PRIV_KEY) {
+                header = BEGIN_EC_PRIV;
+                footer = END_EC_PRIV;
+            }
+            else if (header == BEGIN_EC_PRIV) {
+                header = BEGIN_DSA_PRIV;
+                footer = END_DSA_PRIV;
+            }
+#endif
+#if defined(HAVE_ED25519) || defined(HAVE_ED448)
     #ifdef HAVE_ECC
-            if (header == BEGIN_ENC_PRIV_KEY) {
-                header =  BEGIN_EC_PRIV;        footer = END_EC_PRIV;
-            } else
-            if (header == BEGIN_EC_PRIV) {
-                header =  BEGIN_DSA_PRIV;       footer = END_DSA_PRIV;
-            } else
+            else if (header == BEGIN_DSA_PRIV) {
+    #else
+            else if (header == BEGIN_ENC_PRIV_KEY) {
     #endif
-    #if defined(HAVE_ED25519) || defined(HAVE_ED448)
-        #ifdef HAVE_ECC
-            if (header == BEGIN_DSA_PRIV)
-        #else
-            if (header == BEGIN_ENC_PRIV_KEY)
-        #endif
-            {
-                header =  BEGIN_EDDSA_PRIV;     footer = END_EDDSA_PRIV;
-            } else
-    #endif
-            {
+                header = BEGIN_EDDSA_PRIV;
+                footer = END_EDDSA_PRIV;
+            }
+#endif
+            else {
                 break;
             }
-        } else
+        }
+        else if (type == PUBLICKEY_TYPE) {
+            if (header == BEGIN_PUB_KEY) {
+                header = BEGIN_RSA_PUB;
+                footer = END_RSA_PUB;
+            }
+            else {
+                break;
+            }
+        }
 #ifdef HAVE_CRL
-        if ((type == CRL_TYPE) && (header != BEGIN_X509_CRL)) {
-            header =  BEGIN_X509_CRL;           footer = END_X509_CRL;
-        } else
+        else if ((type == CRL_TYPE) && (header != BEGIN_X509_CRL)) {
+            header =  BEGIN_X509_CRL;
+            footer = END_X509_CRL;
+        }
 #endif
-        {
+        else {
             break;
         }
     }

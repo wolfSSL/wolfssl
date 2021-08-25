@@ -670,7 +670,7 @@ exit_chain:
     if (front != NULL && front->infoCb != NULL) {
         ret = (int)front->infoCb(front,
                                  WOLFSSL_BIO_CB_WRITE | WOLFSSL_BIO_CB_RETURN,
-                                 (const char*)data, 0, 0, ret);
+                                 (const char*)data, len, 0, ret);
     }
 
     if (frmt != NULL) {
