@@ -3121,6 +3121,11 @@ exit:
 
    (void)a;
 
+   /* k can't have more bits than modulus count plus 1 */
+   if (mp_count_bits(k) > mp_count_bits(modulus) + 1) {
+       return ECC_OUT_OF_RANGE_E;
+   }
+
 #ifdef WOLFSSL_HAVE_SP_ECC
 #ifndef WOLFSSL_SP_NO_256
    if (mp_count_bits(modulus) == 256) {
