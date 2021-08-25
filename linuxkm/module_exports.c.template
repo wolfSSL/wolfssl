@@ -25,6 +25,11 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+#ifdef HAVE_FIPS
+#define FIPS_NO_WRAPPERS
+#endif
+
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
@@ -103,6 +108,7 @@
     #include <wolfssl/wolfcrypt/pkcs7.h>
 #endif
 #ifdef HAVE_FIPS
+    #include <wolfssl/wolfcrypt/fips.h>
     #include <wolfssl/wolfcrypt/fips_test.h>
 #endif
 #ifdef HAVE_SELFTEST
