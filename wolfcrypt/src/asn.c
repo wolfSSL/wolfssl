@@ -29554,13 +29554,13 @@ static int ParseCRL_CertList(DecodedCRL* dcrl, const byte* buf,
     }
 
 #ifdef WOLFSSL_NO_CRL_NEXT_DATE
-    if (doNextDate)x
+    if (doNextDate)
 #endif
     {
 #ifndef NO_ASN_TIME
         if (!XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, AFTER)) {
             WOLFSSL_MSG("CRL after date is no longer valid");
-            return ASN_AFTER_DATE_E;
+            return CRL_CERT_DATE_ERR;
         }
 #endif
     }
@@ -29990,7 +29990,7 @@ end:
             /* Next date was set, so validate it. */
             if (!XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, AFTER)) {
                 WOLFSSL_MSG("CRL after date is no longer valid");
-                ret = ASN_AFTER_DATE_E;
+                ret = CRL_CERT_DATE_ERR;
             }
         }
     }

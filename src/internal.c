@@ -11965,7 +11965,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     /* Do verify callback */
                     ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
                     if (ssl->options.verifyNone &&
-                              (ret == CRL_MISSING || ret == CRL_CERT_REVOKED)) {
+                              (ret == CRL_MISSING || ret == CRL_CERT_REVOKED ||
+                               ret == CRL_CERT_DATE_ERR)) {
                         WOLFSSL_MSG("Ignoring CRL problem based on verify setting");
                         ret = ssl->error = 0;
                     }
@@ -12745,7 +12746,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
 
             if (ssl->options.verifyNone &&
-                              (ret == CRL_MISSING || ret == CRL_CERT_REVOKED)) {
+                              (ret == CRL_MISSING || ret == CRL_CERT_REVOKED ||
+                               ret == CRL_CERT_DATE_ERR)) {
                 WOLFSSL_MSG("Ignoring CRL problem based on verify setting");
                 ret = ssl->error = 0;
             }
@@ -19805,9 +19807,6 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case NOT_CA_ERROR:
         return "Not a CA by basic constraint error";
 
-    case HTTP_TIMEOUT:
-        return "HTTP timeout for OCSP or CRL req";
-
     case BAD_CERT_MANAGER_ERROR:
         return "Bad Cert Manager error";
 
@@ -20059,6 +20058,23 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case SOCKET_FILTERED_E:
         return "Session stopped by network filter";
+
+#ifdef HAVE_HTTP_CLIENT
+    case HTTP_TIMEOUT:
+        return "HTTP timeout for OCSP or CRL req";
+    case HTTP_RECV_ERR:
+        return "HTTP Receive error";
+    case HTTP_HEADER_ERR:
+        return "HTTP Header error";
+    case HTTP_PROTO_ERR:
+        return "HTTP Protocol error";
+    case HTTP_STATUS_ERR:
+        return "HTTP Status error";
+    case HTTP_VERSION_ERR:
+        return "HTTP Version error";
+    case HTTP_APPSTR_ERR:
+        return "HTTP Application string error";
+#endif
 
     default :
         return "unknown error number";

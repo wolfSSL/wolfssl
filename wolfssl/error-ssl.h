@@ -52,7 +52,6 @@ enum wolfSSL_ErrorCodes {
     RSA_PRIVATE_ERROR            = -318,   /* error during rsa priv op */
     NO_DH_PARAMS                 = -319,   /* server missing DH params */
     BUILD_MSG_ERROR              = -320,   /* build message failure    */
-
     BAD_HELLO                    = -321,   /* client hello malformed   */
     DOMAIN_NAME_MISMATCH         = -322,   /* peer subject name mismatch */
     WANT_READ                    = -323,   /* want read, call again    */
@@ -113,6 +112,7 @@ enum wolfSSL_ErrorCodes {
     UNKNOWN_SNI_HOST_NAME_E      = -381,   /* Unrecognized host name Error */
     UNKNOWN_MAX_FRAG_LEN_E       = -382,   /* Unrecognized max frag len Error */
     KEYUSE_SIGNATURE_E           = -383,   /* KeyUse digSignature error */
+
     KEYUSE_ENCIPHER_E            = -385,   /* KeyUse keyEncipher error */
     EXTKEYUSE_AUTH_E             = -386,   /* ExtKeyUse server|client_auth */
     SEND_OOB_READ_E              = -387,   /* Send Cb out of bounds read */
@@ -171,8 +171,13 @@ enum wolfSSL_ErrorCodes {
     NO_CERT_ERROR                = -440,   /* TLS1.3 - no cert set error */
     APP_DATA_READY               = -441,   /* DTLS1.2 application data ready for read */
     TOO_MUCH_EARLY_DATA          = -442,   /* Too much Early data */
-
     SOCKET_FILTERED_E            = -443,   /* Session stopped by network filter */
+    HTTP_RECV_ERR                = -444,   /* HTTP Receive error */
+    HTTP_HEADER_ERR              = -445,   /* HTTP Header error */
+    HTTP_PROTO_ERR               = -446,   /* HTTP Protocol error */
+    HTTP_STATUS_ERR              = -447,   /* HTTP Status error */
+    HTTP_VERSION_ERR             = -448,   /* HTTP Version error */
+    HTTP_APPSTR_ERR              = -449,   /* HTTP Application string error */
 
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 

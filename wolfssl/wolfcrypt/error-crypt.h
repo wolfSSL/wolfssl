@@ -117,6 +117,7 @@ enum {
     NO_PASSWORD        = -176,  /* no password provided by user */
     ALT_NAME_E         = -177,  /* alt name size problem, too big */
     BAD_OCSP_RESPONDER = -178,  /* missing key usage extensions */
+    CRL_CERT_DATE_ERR  = -179,   /* CRL date error */
 
     AES_GCM_AUTH_E     = -180,  /* AES-GCM Authentication check failure */
     AES_CCM_AUTH_E     = -181,  /* AES-CCM Authentication check failure */

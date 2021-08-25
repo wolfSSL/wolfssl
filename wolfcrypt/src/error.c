@@ -260,6 +260,9 @@ const char* wc_GetErrorString(int error)
     case ASN_CRL_NO_SIGNER_E :
         return "ASN CRL no signer error to confirm failure";
 
+    case CRL_CERT_DATE_ERR:
+        return "CRL date error";
+
     case ASN_OCSP_CONFIRM_E :
         return "ASN OCSP sig error, confirm failure";
 
