@@ -260,7 +260,7 @@ AS_CASE([$FIPS_VERSION],
     [none],
     [
       AS_IF([ test -s $srcdir/wolfcrypt/src/fips.c -o -s $srcdir/ctaocrypt/src/fips.c ],
-            [AC_MSG_ERROR([FIPS source tree is incompatible with non-FIPS build (requires --enable-fips)])])
+            [AC_MSG_NOTICE([FIPS source tree used for non-FIPS build (missing --enable-fips?)])])
     ],
     [v1],
     [
@@ -515,7 +515,6 @@ then
             test "$enable_certservice" = "" && enable_certservice=yes
             test "$enable_lighty" = "" && enable_lighty=yes
             test "$enable_haproxy" = "" && enable_haproxy=yes
-            test "$enable_stunnel" = "" && enable_stunnel=yes
             test "$enable_nginx" = "" && enable_nginx=yes
             test "$enable_openvpn" = "" && enable_openvpn=yes
             test "$enable_asio" = "" && enable_asio=yes
@@ -538,6 +537,10 @@ then
             test "$enable_ed448" = "" && enable_ed448=yes
             test "$enable_ed448_stream" = "" && enable_ed448_stream=yes
         fi
+
+# these use DES3:
+        test "$enable_stunnel" = "" && enable_stunnel=yes
+        test "$enable_tcpdump" = "" && enable_tcpdump=yes
 
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
         then
@@ -3347,7 +3350,7 @@ fi
 # FIPS
 AS_CASE([$FIPS_VERSION],
     ["v5"], [ # FIPS 140-3
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DHAVE_FIPS_VERSION=5 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DHAVE_FIPS_VERSION=5 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_ECDSA_SET_K"
         ENABLED_KEYGEN="yes"; ENABLED_SHA224="yes"; ENABLED_DES3="no"
         # Shake256 is a SHA-3 algorithm not in our FIPS algorithm list
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
@@ -3376,10 +3379,11 @@ AS_CASE([$FIPS_VERSION],
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT -DECC_USER_CURVES -DHAVE_ECC192 -DHAVE_ECC224 -DHAVE_ECC256 -DHAVE_ECC384 -DHAVE_ECC521"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_SET_K -DWC_RNG_SEED_CB"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_3072 -DHAVE_FFDHE_4096 -DHAVE_FFDHE_6144 -DHAVE_FFDHE_8192 -DFP_MAX_BITS=16384"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_3072 -DHAVE_FFDHE_4096 -DHAVE_FFDHE_6144 -DHAVE_FFDHE_8192"
+        DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=8192
     ],
     ["v3"],[ # FIPS Ready
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DHAVE_FIPS_VERSION=3 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DHAVE_FIPS_VERSION=3 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q -DWOLFSSL_ECDSA_SET_K"
         ENABLED_KEYGEN="yes"
         ENABLED_SHA224="yes"
         ENABLED_DES3="yes"
@@ -7222,13 +7226,17 @@ AC_OUTPUT
 
 
 # force make clean
-echo "---"
-echo "Running make clean..."
-make clean >/dev/null 2>&1
+AC_MSG_NOTICE([---])
+AC_MSG_NOTICE([Running make clean...])
+if test "$verbose" = "yes"; then
+    make clean
+else
+    make clean >/dev/null
+fi
 
 # generate user options header
-echo "---"
-echo "Generating user options header..."
+AC_MSG_NOTICE([---])
+AC_MSG_NOTICE([Generating user options header...])
 
 OPTION_FILE="wolfssl/options.h"
 rm -f $OPTION_FILE
@@ -7259,7 +7267,9 @@ for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS; do
         noequalsign=`echo $defonly | sed 's/=/ /'`
         if test "$noequalsign" = "NDEBUG" || test "$noequalsign" = "DEBUG"
         then
-            echo "not outputting (N)DEBUG to $OPTION_FILE"
+            if test "$verbose" = "yes"; then
+                AC_MSG_NOTICE([not outputting (N)DEBUG to $OPTION_FILE])
+            fi
             continue
         fi
 
@@ -7281,7 +7291,9 @@ for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS; do
 
         echo "" >> $OPTION_FILE
     else
-        echo "option w/o begin -D is $option, not saving to $OPTION_FILE"
+        if test "$verbose" = "yes"; then
+            AC_MSG_NOTICE([option w/o begin -D is $option, not saving to $OPTION_FILE])
+        fi
     fi
 done
 
@@ -7293,14 +7305,13 @@ echo "" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 echo "#endif /* WOLFSSL_OPTIONS_H */" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
-echo
 
 #backwards compatibility for those who have included options or version
 touch cyassl/options.h
 echo "/* cyassl options.h" > cyassl/options.h
 echo " * generated from wolfssl/options.h" >> cyassl/options.h
 echo " */" >> cyassl/options.h
-echo ""
+
 while read -r line
 do
     echo "$line" >> cyassl/options.h
@@ -7317,6 +7328,7 @@ esac
 
 rm cyassl/options.h.bak
 
+if test "$silent" != "yes"; then
 
 # output config summary
 echo "---"
@@ -7551,6 +7563,8 @@ echo "   * IoT-Safe HWRNG:             $ENABLED_IOTSAFE_HWRNG"
 echo "   * NXP SE050:                  $ENABLED_SE050"
 echo ""
 echo "---"
+
+fi # $silent != yes
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes"
 then
