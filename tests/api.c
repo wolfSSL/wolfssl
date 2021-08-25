@@ -5906,7 +5906,6 @@ static void test_wolfSSL_UseMaxFragment(void)
     CTX_UseMaxFragment = wolfSSL_CTX_UseMaxFragment; 
 #endif
 
-
     AssertNotNull(ctx);
     AssertNotNull(ssl);
 
