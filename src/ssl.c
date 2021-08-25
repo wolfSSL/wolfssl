@@ -8434,7 +8434,9 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_id(int type, WOLFSSL_EVP_PKEY** out,
             key = (ecc_key*)local->ecc->internal;
             key->devId = devId;
             key->type = ECC_PRIVATEKEY;
-            wc_ecc_set_curve(key, 32, ECC_CURVE_DEF);
+            /* key is required to have a key size / curve set, although 
+             * actual one used is determined by devId callback function */
+            wc_ecc_set_curve(key, ECDHE_SIZE, ECC_CURVE_DEF);
 
             local->ecc->inSet = 1;
             break;
