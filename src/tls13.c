@@ -9168,9 +9168,6 @@ const char* wolfSSL_get_cipher_name_by_hash(WOLFSSL* ssl, const char* hash)
  */
 int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 {
-#ifdef HAVE_SESSION_TICKET
-    byte ticketsSent; /* count for number of tickets sent */
-#endif
 #if !defined(NO_CERTS) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
     word16 havePSK = 0;
 #endif
@@ -9432,6 +9429,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                     return WOLFSSL_FATAL_ERROR;
                 }
             }
+            ssl->options.ticketsSent = 1;
     #endif
 #endif /* HAVE_SESSION_TICKET */
             ssl->options.acceptState = TLS13_PRE_TICKET_SENT;
@@ -9451,13 +9449,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 
         case TLS13_ACCEPT_FINISHED_DONE :
 #ifdef HAVE_SESSION_TICKET
-            for (ticketsSent = 0; ticketsSent < ssl->options.maxTicketTls13;
-                    ticketsSent++) {
-        #ifdef WOLFSSL_TLS13_TICKET_BEFORE_FINISHED
-                if (!ssl->options.verifyPeer) {
-                }
-                else
-        #endif
+            while (ssl->options.ticketsSent < ssl->options.maxTicketTls13) {
                 if (!ssl->options.noTicketTls13 && ssl->ctx->ticketEncCb
                         != NULL) {
                     if ((ssl->error = SendTls13NewSessionTicket(ssl)) != 0) {
@@ -9465,6 +9457,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                         return WOLFSSL_FATAL_ERROR;
                     }
                 }
+                ssl->options.ticketsSent++;
 
                 /* only one session ticket is sent on session resumption */
                 if (ssl->options.resuming) {

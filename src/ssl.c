@@ -3038,7 +3038,7 @@ int wolfSSL_CTX_set_num_tickets(WOLFSSL_CTX* ctx, size_t mxTickets)
     if (ctx == NULL)
         return WOLFSSL_FAILURE;
 
-    ctx->maxTicketTls13 = mxTickets;
+    ctx->maxTicketTls13 = (unsigned int)mxTickets;
     return WOLFSSL_SUCCESS;
 }
 
@@ -3050,7 +3050,7 @@ size_t wolfSSL_CTX_get_num_tickets(WOLFSSL_CTX* ctx)
     if (ctx == NULL)
         return 0;
 
-    return ctx->maxTicketTls13;
+    return (size_t)ctx->maxTicketTls13;
 }
 #endif /* !NO_WOLFSSL_SERVER */
 
