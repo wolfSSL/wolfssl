@@ -308,12 +308,21 @@ static int DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
     if (includeMsgs)
         hashOutSz = hashSz;
 
-    /* myBuffer may not initialized fully, but the sending length will be */
-    PRAGMA_GCC_IGNORE("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
+    /* hash buffer may not be fully initialized, but the sending length won't
+     * extend beyond the initialized span.
+     */
+    PRAGMA_GCC_DIAG_PUSH;
+    PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
+    #if defined(HAVE_FIPS) && defined(wc_Tls13_HKDF_Expand_Label)
+    return wc_Tls13_HKDF_Expand_Label_fips(output, outputLen, secret, hashSz,
+                             protocol, protocolLen, label, labelLen,
+                             hash, hashOutSz, digestAlg);
+    #else
     return wc_Tls13_HKDF_Expand_Label(output, outputLen, secret, hashSz,
                              protocol, protocolLen, label, labelLen,
                              hash, hashOutSz, digestAlg);
-    PRAGMA_GCC_POP;
+    #endif
+    PRAGMA_GCC_DIAG_POP;
 }
 
 /* Convert TLS mac ID to a hash algorithm ID

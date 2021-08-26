@@ -1136,11 +1136,13 @@ decouple library dependencies with standard string, memory and so on.
     #endif
 
     #if defined(__GNUC__) && __GNUC__ > 5
-        #define PRAGMA_GCC_IGNORE(str) _Pragma(str);
-        #define PRAGMA_GCC_POP         _Pragma("GCC diagnostic pop");
+        #define PRAGMA_GCC_DIAG_PUSH _Pragma("GCC diagnostic push")
+        #define PRAGMA_GCC(str) _Pragma(str)
+        #define PRAGMA_GCC_DIAG_POP _Pragma("GCC diagnostic pop")
     #else
-        #define PRAGMA_GCC_IGNORE(str)
-        #define PRAGMA_GCC_POP
+        #define PRAGMA_GCC_DIAG_PUSH
+        #define PRAGMA_GCC(str)
+        #define PRAGMA_GCC_DIAG_POP
     #endif
 
     #ifdef __clang__

@@ -15785,10 +15785,13 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 idx += (int)iov[i].iov_len;
             }
 
-           /* myBuffer may not initialized fully, but the sending length will be */
-            PRAGMA_GCC_IGNORE("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
+           /* myBuffer may not be initialized fully, but the span up to the
+            * sending length will be.
+            */
+            PRAGMA_GCC_DIAG_PUSH;
+            PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
             ret = wolfSSL_write(ssl, myBuffer, sending);
-            PRAGMA_GCC_POP;
+            PRAGMA_GCC_DIAG_POP;
 
             if (dynamic)
                 XFREE(myBuffer, ssl->heap, DYNAMIC_TYPE_WRITEV);
@@ -56166,8 +56169,10 @@ static int wolfssl_conf_value_cmp(const WOLFSSL_CONF_VALUE *a,
 unsigned long wolfSSL_LH_strhash(const char *str)
 {
     unsigned long ret = 0;
+#ifndef NO_MD5
     int strLen;
     byte digest[WC_MD5_DIGEST_SIZE];
+#endif
     WOLFSSL_ENTER("wolfSSL_LH_strhash");
 
     if (!str)
