@@ -5171,6 +5171,10 @@ AS_IF([test "x$FIPS_VERSION" = "xrand"],[ENABLED_CRYPTONLY="yes"])
 
 if test "$ENABLED_CRYPTONLY" = "yes"
 then
+    if test "$ENABLED_OPENSSLEXTRA" = "yes"
+    then
+        AC_MSG_ERROR([cryptonly and opensslextra are mutually incompatible.])
+    fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_ONLY"
 fi
 
