@@ -7030,7 +7030,9 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
                        (ret == ASN_NO_PEM_HEADER))) {
                     /* Do not fail here if a certificate fails to load,
                        continue to next file */
+    #if defined(WOLFSSL_QT)
                     ret = WOLFSSL_SUCCESS;
+    #endif
                 }
                 else {
                     WOLFSSL_ERROR(ret);
@@ -7068,13 +7070,11 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
             /* use existing error code if exists */
     #if defined(WOLFSSL_QT)
             /* compliant with OpenSSL when flag sets*/
-            if (!(flags & WOLFSSL_LOAD_FLAG_IGNORE_ZEROFILE)) {
+            if (!(flags & WOLFSSL_LOAD_FLAG_IGNORE_ZEROFILE))
     #endif
-            if (ret == WOLFSSL_SUCCESS)
+            {
                 ret = WOLFSSL_FAILURE;
-    #if defined(WOLFSSL_QT)
             }
-    #endif
         }
         else {
             ret = WOLFSSL_SUCCESS;

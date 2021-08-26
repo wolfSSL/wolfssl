@@ -977,7 +977,8 @@ WOLFSSL_API int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX*, const char*,
 
     \return SSL_SUCCESS up success.
     \return SSL_FAILURE will be returned if ctx is NULL, or if both file and
-    path are NULL.
+    path are NULL. This will also be returned if at least one cert is loaded
+    successfully but there is one or more that failed. Check error stack for reason.
     \return SSL_BAD_FILETYPE will be returned if the file is the wrong format.
     \return SSL_BAD_FILE will be returned if the file doesn’t exist, can’t be
     read, or is corrupted.
