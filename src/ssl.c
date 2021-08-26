@@ -57634,7 +57634,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
             return WOLFSSL_FAILURE;
         }
 
-        if (b->num == SOCKET_INVALID) {
+        if (b->num == WOLFSSL_BIO_ERROR) {
             if (wolfIO_TcpBind(&sfd, b->port) < 0) {
                 WOLFSSL_ENTER("wolfIO_TcpBind error");
                 return WOLFSSL_FAILURE;
@@ -57921,7 +57921,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
             bio->method = method;
 #endif
             bio->shutdown = BIO_CLOSE; /* default to close things */
-            bio->num = SOCKET_INVALID; /* Default to invalid socket */
+            bio->num = WOLFSSL_BIO_ERROR;
             bio->init = 1;
             if (method->type == WOLFSSL_BIO_MEMORY ||
                     method->type == WOLFSSL_BIO_BIO) {
@@ -58070,7 +58070,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
                 if (bio->type == WOLFSSL_BIO_SSL && bio->ptr)
                     wolfSSL_free((WOLFSSL*)bio->ptr);
             #ifdef CloseSocket
-                if (bio->type == WOLFSSL_BIO_SOCKET && bio->num)
+                if ((bio->type == WOLFSSL_BIO_SOCKET) && (bio->num > 0))
                     CloseSocket(bio->num);
             #endif
             }
@@ -58082,7 +58082,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
                 }
             #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR)\
                 && !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
-                else if (bio->num != SOCKET_INVALID) {
+                else if (bio->num != WOLFSSL_BIO_ERROR) {
                     XCLOSE(bio->num);
                 }
             #endif
@@ -58253,7 +58253,7 @@ int wolfSSL_BIO_get_fd(WOLFSSL_BIO *bio, int* fd)
         return bio->num;
     }
 
-    return SOCKET_INVALID;
+    return WOLFSSL_BIO_ERROR;
 }
 
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
