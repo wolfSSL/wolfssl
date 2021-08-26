@@ -47416,6 +47416,42 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 
+/* converts an IPv6 or IPv4 address into an octet string for use with rfc3280
+ * example input would be "127.0.0.1" and the returned value would be 7F000001
+ */
+WOLFSSL_ASN1_STRING* wolfSSL_a2i_IPADDRESS(const char* ipa)
+{
+    int ipaSz = WOLFSSL_IP4_ADDR_LEN;
+    char buf[WOLFSSL_IP6_ADDR_LEN + 1]; /* plus 1 for terminator */
+    int  af = WOLFSSL_IP4;
+    WOLFSSL_ASN1_STRING *ret = NULL;
+
+    if (ipa == NULL)
+        return NULL;
+
+    if (XSTRSTR(ipa, ":") != NULL) {
+        af = WOLFSSL_IP6;
+        ipaSz = WOLFSSL_IP6_ADDR_LEN;
+    }
+
+    buf[WOLFSSL_IP6_ADDR_LEN] = '\0';
+    if (XINET_PTON(af, ipa, (void*)buf) != 1) {
+        WOLFSSL_MSG("Error parsing IP address");
+        return NULL;
+    }
+
+    ret = wolfSSL_ASN1_STRING_new();
+    if (ret != NULL) {
+        if (wolfSSL_ASN1_STRING_set(ret, buf, ipaSz) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Error setting the string");
+            wolfSSL_ASN1_STRING_free(ret);
+            ret = NULL;
+        }
+    }
+
+    return ret;
+}
+
 
 /* Is the specified cipher suite a fake one used an an extension proxy? */
 static WC_INLINE int SCSV_Check(byte suite0, byte suite)
@@ -48869,15 +48905,25 @@ int wolfSSL_set1_curves_list(WOLFSSL* ssl, const char* names)
 #endif /* OPENSSL_EXTRA && HAVE_ECC */
 
 #ifdef OPENSSL_EXTRA
-#ifndef NO_WOLFSSL_STUB
+/* Sets a callback for when sending and receiving protocol messages.
+ * This callback is copied to all WOLFSSL objects created from the ctx.
+ *
+ * ctx WOLFSSL_CTX structure to set callback in
+ * cb  callback to use
+ *
+ * return WOLFSSL_SUCCESS on success and SSL_FAILURE with error case
+ */
 int wolfSSL_CTX_set_msg_callback(WOLFSSL_CTX *ctx, SSL_Msg_Cb cb)
 {
-    WOLFSSL_STUB("SSL_CTX_set_msg_callback");
-    (void)ctx;
-    (void)cb;
-    return WOLFSSL_FAILURE;
+    WOLFSSL_ENTER("wolfSSL_CTX_set_msg_callback");
+    if (ctx == NULL) {
+        WOLFSSL_MSG("Null ctx passed in");
+        return WOLFSSL_FAILURE;
+    }
+
+    ctx->protoMsgCb = cb;
+    return WOLFSSL_SUCCESS;
 }
-#endif
 
 
 /* Sets a callback for when sending and receiving protocol messages.
@@ -48902,15 +48948,22 @@ int wolfSSL_set_msg_callback(WOLFSSL *ssl, SSL_Msg_Cb cb)
     ssl->protoMsgCb = cb;
     return WOLFSSL_SUCCESS;
 }
-#ifndef NO_WOLFSSL_STUB
+
+
+/* set the user argument to pass to the msg callback when called
+ * return WOLFSSL_SUCCESS on success */
 int wolfSSL_CTX_set_msg_callback_arg(WOLFSSL_CTX *ctx, void* arg)
 {
-    WOLFSSL_STUB("SSL_CTX_set_msg_callback_arg");
-    (void)ctx;
-    (void)arg;
-    return WOLFSSL_FAILURE;
+    WOLFSSL_ENTER("wolfSSL_CTX_set_msg_callback_arg");
+    if (ctx == NULL) {
+        WOLFSSL_MSG("Null WOLFSSL_CTX passed in");
+        return WOLFSSL_FAILURE;
+    }
+
+    ctx->protoMsgCtx = arg;
+    return WOLFSSL_SUCCESS;
 }
-#endif
+
 
 int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg)
 {

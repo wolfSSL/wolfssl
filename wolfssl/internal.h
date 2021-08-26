@@ -2923,6 +2923,10 @@ struct WOLFSSL_CTX {
     CertVerifyCallback verifyCertCb;
     void*              verifyCertCbArg;
 #endif /* OPENSSL_ALL */
+#ifdef OPENSSL_EXTRA
+    SSL_Msg_Cb      protoMsgCb;         /* inspect protocol message callback */
+    void*           protoMsgCtx;        /* user set context with msg callback */
+#endif
     word32          timeout;            /* session timeout */
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_ED448)
     word32          ecdhCurveOID;       /* curve Ecc_Sum */

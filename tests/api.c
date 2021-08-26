@@ -32225,6 +32225,7 @@ static void test_wolfSSL_set_options(void)
 #endif
     AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
     AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_set_msg_callback(ctx, msg_cb) == SSL_SUCCESS);
 
     AssertNotNull(ssl = SSL_new(ctx));
 #if defined(HAVE_EX_DATA) || defined(FORTRESS)
@@ -32814,6 +32815,51 @@ static void test_wolfSSL_a2i_ASN1_INTEGER(void)
     BIO_free(out);
     BIO_free(bio);
     ASN1_INTEGER_free(ai);
+
+    printf(resultFmt, passed);
+
+#endif
+}
+
+static void test_wolfSSL_a2i_IPADDRESS(void)
+{
+#ifdef OPENSSL_ALL
+    const unsigned char* data;
+    int dataSz = 0;
+    ASN1_OCTET_STRING *st;
+
+    const unsigned char ipv4_exp[] = {0x7F, 0, 0, 1};
+    const unsigned char ipv6_exp[] = {
+        0x20, 0x21, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0xff, 0x00, 0x00, 0x42, 0x77, 0x77
+    };
+    const unsigned char ipv6_home[] = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
+    };
+    printf(testingFmt, "test_wolfSSL_a2i_IPADDRESS()");
+
+    AssertNull(st = a2i_IPADDRESS("127.0.0.1bad"));
+    AssertNotNull(st = a2i_IPADDRESS("127.0.0.1"));
+    data   = ASN1_STRING_get0_data(st);
+    dataSz = ASN1_STRING_length(st);
+    AssertIntEQ(dataSz, WOLFSSL_IP4_ADDR_LEN);
+    AssertIntEQ(XMEMCMP(data, ipv4_exp, dataSz), 0);
+    ASN1_STRING_free(st);
+
+    AssertNotNull(st = a2i_IPADDRESS("::1"));
+    data   = ASN1_STRING_get0_data(st);
+    dataSz = ASN1_STRING_length(st);
+    AssertIntEQ(dataSz, WOLFSSL_IP6_ADDR_LEN);
+    AssertIntEQ(XMEMCMP(data, ipv6_home, dataSz), 0);
+    ASN1_STRING_free(st);
+
+    AssertNotNull(st = a2i_IPADDRESS("2021:db8::ff00:42:7777"));
+    data   = ASN1_STRING_get0_data(st);
+    dataSz = ASN1_STRING_length(st);
+    AssertIntEQ(dataSz, WOLFSSL_IP6_ADDR_LEN);
+    AssertIntEQ(XMEMCMP(data, ipv6_exp, dataSz), 0);
+    ASN1_STRING_free(st);
 
     printf(resultFmt, passed);
 
@@ -47800,6 +47846,7 @@ void ApiTest(void)
     test_wolfSSL_ASN1_STRING();
     test_wolfSSL_ASN1_BIT_STRING();
     test_wolfSSL_a2i_ASN1_INTEGER();
+    test_wolfSSL_a2i_IPADDRESS();
     test_wolfSSL_X509();
     test_wolfSSL_X509_VERIFY_PARAM();
     test_wolfSSL_X509_sign();

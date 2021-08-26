@@ -6258,6 +6258,14 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     XMEMCPY(ssl->sessionCtx, ctx->sessionCtx, ctx->sessionCtxSz);
     ssl->cbioFlag = ctx->cbioFlag;
 
+    ssl->protoMsgCb  = ctx->protoMsgCb;
+    ssl->protoMsgCtx = ctx->protoMsgCtx;
+
+    /* follow default behavior of setting toInfoOn similar to
+     * wolfSSL_set_msg_callback when the callback is set */
+    if (ctx->protoMsgCb != NULL) {
+        ssl->toInfoOn = 1;
+    }
 #endif
 
     InitCiphers(ssl);
@@ -21724,10 +21732,10 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
         if (ssl->protoMsgCb != NULL && sz > RECORD_HEADER_SZ) {
             /* version from hex to dec  16 is 16^1, 256 from 16^2 and
                4096 from 16^3 */
-            int version = (ssl->version.minor & 0X0F) +
-                          (ssl->version.minor & 0xF0) * 16  +
-                          (ssl->version.major & 0X0F) * 256 +
-                          (ssl->version.major & 0xF0) * 4096;
+            int version = (ssl->version.minor & 0x0F) +
+                          ((ssl->version.minor & 0xF0) << 4) +
+                          ((ssl->version.major & 0x0F) << 8) +
+                          ((ssl->version.major & 0xF0) << 12);
 
             ssl->protoMsgCb(written, version, type,
                          (const void *)(data + RECORD_HEADER_SZ),
