@@ -260,7 +260,7 @@ AS_CASE([$FIPS_VERSION],
     [none],
     [
       AS_IF([ test -s $srcdir/wolfcrypt/src/fips.c -o -s $srcdir/ctaocrypt/src/fips.c ],
-            [AC_MSG_NOTICE([FIPS source tree used for non-FIPS build (missing --enable-fips?)])])
+            [AC_MSG_ERROR([FIPS source tree is incompatible with non-FIPS build (requires --enable-fips)])])
     ],
     [v1],
     [
@@ -538,12 +538,12 @@ then
             test "$enable_ed448_stream" = "" && enable_ed448_stream=yes
         fi
 
-# these use DES3:
-        test "$enable_stunnel" = "" && enable_stunnel=yes
-        test "$enable_tcpdump" = "" && enable_tcpdump=yes
-
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
         then
+# these use DES3:
+            test "$enable_stunnel" = "" && enable_stunnel=yes
+            test "$enable_tcpdump" = "" && enable_tcpdump=yes
+
             test "$enable_eccsi" = "" && enable_eccsi=yes
             test "$enable_sakke" = "" && enable_sakke=yes
         fi
