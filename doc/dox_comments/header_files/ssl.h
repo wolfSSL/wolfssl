@@ -10298,16 +10298,8 @@ WOLFSSL_API int wolfSSL_CTX_UseSNI(WOLFSSL_CTX* ctx, unsigned char type,
     \param ssl pointer to a SSL object, created with wolfSSL_new().
     \param type indicates which type of server name is been passed in data.
     The known types are: enum { WOLFSSL_SNI_HOST_NAME = 0 };
-    \param options a bitwise semaphore with the chosen options. The available
-    options are: enum { WOLFSSL_SNI_CONTINUE_ON_MISMATCH = 0x01,
-    WOLFSSL_SNI_ANSWER_ON_MISMATCH = 0x02 }; Normally the server will abort the
-    handshake by sending a fatal-level unrecognized_name(112) alert if the
-    hostname provided by the client mismatch with the servers.
-    \param WOLFSSL_SNI_CONTINUE_ON_MISMATCH With this option set, the server
-    will not send a SNI response instead of aborting the session.
-    \param WOLFSSL_SNI_ANSWER_ON_MISMATCH - With this option set, the server
-    will send a SNI response as if the host names match instead of aborting
-    the session.
+    \param data pointer to the server name data.
+    \param size size of the server name data.
 
     _Example_
     \code
