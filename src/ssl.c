@@ -58896,6 +58896,11 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
     }
 
     if (store->objs != NULL) {
+#if defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM)
+        /* want to update objs stack by cm stack again before returning it*/
+        wolfSSL_sk_X509_OBJECT_free(store->objs);
+        store->objs = NULL;
+#else
         if (wolfSSL_sk_X509_OBJECT_num(store->objs) == 0) {
             /* Let's try generating the stack again */
             wolfSSL_sk_X509_OBJECT_free(store->objs);
@@ -58903,6 +58908,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
         }
         else
             return store->objs;
+#endif
     }
 
     if ((ret = wolfSSL_sk_X509_OBJECT_new()) == NULL) {
