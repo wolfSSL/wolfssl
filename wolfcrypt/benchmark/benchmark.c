@@ -5136,7 +5136,11 @@ void bench_dh(int doAsync)
 #endif
 #ifdef HAVE_FFDHE_4096
     else if (use_ffdhe == 4096) {
+#ifdef HAVE_PUBLIC_FFDHE
         params = wc_Dh_ffdhe4096_Get();
+#else
+        paramName = WC_FFDHE_4096;
+#endif
         dhKeySz = 4096;
     }
 #endif
