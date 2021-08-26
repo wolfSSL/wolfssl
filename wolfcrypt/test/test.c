@@ -406,7 +406,7 @@ WOLFSSL_TEST_SUBROUTINE int  hmac_sha256_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha384_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha512_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha3_test(void);
-/* WOLFSSL_TEST_SUBROUTINE */ static int  hkdf_test(void);
+WOLFSSL_TEST_SUBROUTINE int  wc_hkdf_test(void);
 WOLFSSL_TEST_SUBROUTINE int  sshkdf_test(void);
 WOLFSSL_TEST_SUBROUTINE int  x963kdf_test(void);
 WOLFSSL_TEST_SUBROUTINE int  arc4_test(void);
@@ -921,7 +921,7 @@ initDefaultName();
 #endif
 
 #ifndef NO_HMAC
-    #ifndef NO_MD5
+    #if !defined(NO_MD5) && !(defined(HAVE_FIPS) && defined(FIPS_VERSION) && (FIPS_VERSION >= 5))
         if ( (ret = hmac_md5_test()) != 0)
             return err_sys("HMAC-MD5 test failed!\n", ret);
         else
@@ -973,7 +973,7 @@ initDefaultName();
     #endif
 
     #ifdef HAVE_HKDF
-        if ( (ret = hkdf_test()) != 0)
+        if ( (ret = wc_hkdf_test()) != 0)
             return err_sys("HMAC-KDF    test failed!\n", ret);
         else
             test_pass("HMAC-KDF    test passed!\n");
@@ -3856,7 +3856,7 @@ WOLFSSL_TEST_SUBROUTINE int hash_test(void)
 }
 #endif /* !NO_HASH_WRAPPER */
 
-#if !defined(NO_HMAC) && !defined(NO_MD5)
+#if !defined(NO_HMAC) && !defined(NO_MD5) && !(defined(HAVE_FIPS) && defined(FIPS_VERSION) && (FIPS_VERSION >= 5))
 WOLFSSL_TEST_SUBROUTINE int hmac_md5_test(void)
 {
     Hmac hmac;
@@ -3936,7 +3936,7 @@ WOLFSSL_TEST_SUBROUTINE int hmac_md5_test(void)
 
     return 0;
 }
-#endif /* NO_HMAC && NO_MD5 */
+#endif /* !NO_HMAC && !NO_MD5 && !HAVE_FIPS */
 
 #if !defined(NO_HMAC) && !defined(NO_SHA)
 WOLFSSL_TEST_SUBROUTINE int hmac_sha_test(void)
@@ -20308,7 +20308,7 @@ WOLFSSL_TEST_SUBROUTINE int pwdbased_test(void)
 
 #if defined(HAVE_HKDF) && !defined(NO_HMAC)
 
-/* WOLFSSL_TEST_SUBROUTINE */ static int hkdf_test(void)
+WOLFSSL_TEST_SUBROUTINE int wc_hkdf_test(void)
 {
     int ret = 0;
 
