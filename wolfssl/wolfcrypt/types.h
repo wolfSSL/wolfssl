@@ -439,7 +439,7 @@ decouple library dependencies with standard string, memory and so on.
     #elif defined(WOLFSSL_LINUXKM)
 	/* the requisite linux/slab.h is included in wc_port.h, with incompatible warnings masked out. */
         #define XMALLOC(s, h, t)     ({(void)(h); (void)(t); kmalloc(s, GFP_KERNEL);})
-        #define XFREE(p, h, t)       ({void* _xp; (void)(h); _xp = (p); if(_xp) kfree(_xp);})
+        #define XFREE(p, h, t)       {void* _xp; (void)(h); _xp = (p); if(_xp) kfree(_xp);}
         #define XREALLOC(p, n, h, t) ({(void)(h); (void)(t); krealloc((p), (n), GFP_KERNEL);})
 
     #elif !defined(MICRIUM_MALLOC) && !defined(EBSNET) \
@@ -495,7 +495,7 @@ decouple library dependencies with standard string, memory and so on.
                 } \
             }
         #define FREE_VAR(VAR_NAME, HEAP) \
-            XFREE(VAR_NAME, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT);
+            XFREE(VAR_NAME, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT)
         #define FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP) \
             for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
                 XFREE(VAR_NAME[idx##VAR_NAME], (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \

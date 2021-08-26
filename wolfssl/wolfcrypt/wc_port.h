@@ -900,7 +900,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
                                              * EBSnet feedback */
 
     #define XFILE                    int
-    #define XFOPEN(NAME, MODE)       vf_open((const char *)NAME, VO_RDONLY, 0);
+    #define XFOPEN(NAME, MODE)       vf_open((const char *)NAME, VO_RDONLY, 0)
     #define XFSEEK                   ebsnet_fseek
     #define XFTELL                   vf_tell
     #define XREWIND                  vf_rewind
@@ -914,7 +914,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 #elif defined(LSR_FS)
     #include <fs.h>
     #define XFILE                   struct fs_file*
-    #define XFOPEN(NAME, MODE)      fs_open((char*)NAME);
+    #define XFOPEN(NAME, MODE)      fs_open((char*)NAME)
     #define XFSEEK(F, O, W)         (void)F
     #define XFTELL(F)               (F)->len
     #define XREWIND(F)              (void)F
