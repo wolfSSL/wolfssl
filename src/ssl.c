@@ -53925,10 +53925,10 @@ static int SetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo,
     WOLFSSL_ENTER("SetStaticEphemeralKey");
 
     /* if just free'ing key then skip loading */
-    if (key != NULL && keySz > 0) {
+    if (key != NULL) {
     #ifndef NO_FILESYSTEM
         /* load file from filesystem */
-        if (key && keySz == 0) {
+        if (key != NULL && keySz == 0) {
             size_t keyBufSz = 0;
             keyFile = (const char*)key;
             ret = wc_FileLoad(keyFile, &keyBuf, &keyBufSz, heap);
