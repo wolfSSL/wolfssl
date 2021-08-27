@@ -61,9 +61,10 @@ typedef struct {
  * the mathematical functions used the endianness */
 typedef struct {
     byte point[CURVE25519_KEYSIZE];
-    #ifdef FREESCALE_LTC_ECC
-        byte pointY[CURVE25519_KEYSIZE];
-    #endif
+#ifdef FREESCALE_LTC_ECC
+    byte pointY[CURVE25519_KEYSIZE];
+#endif
+    byte pointSz;
 } ECPoint;
 
 #ifndef WC_CURVE25519KEY_TYPE_DEFINED
@@ -78,8 +79,8 @@ typedef struct curve25519_key {
                            curve in dp */
     const curve25519_set_type* dp;   /* domain parameters, either points to
                                    curves (idx >= 0) or user supplied */
-    ECPoint   p;        /* public key  */
-    ECPoint   k;        /* private key */
+    ECPoint   p;                     /* public point for key  */
+    byte      k[CURVE25519_KEYSIZE]; /* private scaler for key */
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
@@ -87,6 +88,10 @@ typedef struct curve25519_key {
 #if defined(WOLF_CRYPTO_CB)
     int devId;
 #endif
+
+    /* bit fields */
+    byte pubSet:1;
+    byte privSet:1;
 } curve25519_key;
 
 enum {

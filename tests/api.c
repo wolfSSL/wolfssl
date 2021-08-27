@@ -20230,10 +20230,10 @@ static int test_wc_curve25519_shared_secret_ex(void)
 /*
  * Testing wc_curve25519_make_pub
  */
-static int test_wc_curve25519_make_pub (void)
+static int test_wc_curve25519_make_pub(void)
 {
     int ret = 0;
-#if defined(HAVE_CURVE25519)
+#ifdef HAVE_CURVE25519
     WC_RNG          rng;
     curve25519_key  key;
     byte            out[CURVE25519_KEYSIZE];
@@ -20248,45 +20248,45 @@ static int test_wc_curve25519_make_pub (void)
         }
     }
     if (ret == 0) {
-      ret = wc_curve25519_make_pub((int)sizeof out, out, (int)sizeof key.k.point, key.k.point);
+      ret = wc_curve25519_make_pub((int)sizeof(out), out, (int)sizeof(key.k), key.k);
     }
     /*test bad cases*/
     if (ret == 0) {
-        ret = wc_curve25519_make_pub((int)sizeof key.k.point - 1, key.k.point, (int)sizeof out, out);
+        ret = wc_curve25519_make_pub((int)sizeof(key.k) - 1, key.k, (int)sizeof out, out);
         if (ret == ECC_BAD_ARG_E) {
             ret = 0;
         }
     }
     if (ret == 0) {
-        ret = wc_curve25519_make_pub((int)sizeof out, out, (int)sizeof key.k.point, NULL);
+        ret = wc_curve25519_make_pub((int)sizeof out, out, (int)sizeof(key.k), NULL);
         if (ret == ECC_BAD_ARG_E) {
             ret = 0;
         }
     }
     if (ret == 0) {
-        ret = wc_curve25519_make_pub((int)sizeof out - 1, out, (int)sizeof key.k.point, key.k.point);
+        ret = wc_curve25519_make_pub((int)sizeof out - 1, out, (int)sizeof(key.k), key.k);
         if (ret == ECC_BAD_ARG_E) {
             ret = 0;
         }
     }
     if (ret == 0) {
-        ret = wc_curve25519_make_pub((int)sizeof out, NULL, (int)sizeof key.k.point, key.k.point);
+        ret = wc_curve25519_make_pub((int)sizeof out, NULL, (int)sizeof(key.k), key.k);
         if (ret == ECC_BAD_ARG_E) {
             ret = 0;
         }
     }
     if (ret == 0) {
         /* verify clamping test */
-        key.k.point[0] |= ~248;
-        ret = wc_curve25519_make_pub((int)sizeof out, out, (int)sizeof key.k.point, key.k.point);
+        key.k[0] |= ~248;
+        ret = wc_curve25519_make_pub((int)sizeof out, out, (int)sizeof(key.k), key.k);
         if (ret == ECC_BAD_ARG_E) {
             ret = 0;
         }
-        key.k.point[0] &= 248;
+        key.k[0] &= 248;
     }
     /* repeat the expected-to-succeed test. */
     if (ret == 0) {
-      ret = wc_curve25519_make_pub((int)sizeof out, out, (int)sizeof key.k.point, key.k.point);
+      ret = wc_curve25519_make_pub((int)sizeof out, out, (int)sizeof(key.k), key.k);
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
