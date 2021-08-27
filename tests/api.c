@@ -29505,7 +29505,7 @@ static void test_wolfSSL_lhash(void)
 
     printf(testingFmt, "wolfSSL_LH_strhash()");
 
-    AssertIntEQ(lh_strhash(testStr), 0xb1231320);
+    AssertIntEQ(lh_strhash(testStr), 0x5b7541dc);
 
     printf(resultFmt, passed);
 #endif
@@ -42923,7 +42923,9 @@ static void test_wolfSSL_EVP_get_digestbynid(void)
 
     printf(testingFmt, "wolfSSL_EVP_get_digestbynid");
 
+#ifndef NO_MD5
     AssertNotNull(wolfSSL_EVP_get_digestbynid(NID_md5));
+#endif
     AssertNotNull(wolfSSL_EVP_get_digestbynid(NID_sha1));
     AssertNull(wolfSSL_EVP_get_digestbynid(0));
 

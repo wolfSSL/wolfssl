@@ -56161,36 +56161,55 @@ static int wolfssl_conf_value_cmp(const WOLFSSL_CONF_VALUE *a,
     }
 }
 
-/* Use MD5 for hashing as OpenSSL uses a hash algorithm that is
- * "not as good as MD5, but still good" so using MD5 should
- * be good enough for this application. The produced hashes don't
+/* Use SHA for hashing as OpenSSL uses a hash algorithm that is
+ * "not as good as MD5, but still good" so using SHA should be more
+ * than good enough for this application. The produced hashes don't
  * need to line up between OpenSSL and wolfSSL. The hashes are for
  * internal indexing only */
 unsigned long wolfSSL_LH_strhash(const char *str)
 {
     unsigned long ret = 0;
-#ifndef NO_MD5
+#ifndef NO_SHA
+    wc_Sha sha;
     int strLen;
-    byte digest[WC_MD5_DIGEST_SIZE];
+    byte digest[WC_SHA_DIGEST_SIZE];
 #endif
     WOLFSSL_ENTER("wolfSSL_LH_strhash");
 
     if (!str)
         return 0;
 
-#ifndef NO_MD5
+#ifndef NO_SHA
     strLen = (int)XSTRLEN(str);
-    if (wc_Md5Hash((const byte*)str, strLen, digest) != 0) {
-        WOLFSSL_MSG("wc_Md5Hash error");
+
+    if (wc_InitSha_ex(&sha, NULL, 0) != 0) {
+        WOLFSSL_MSG("SHA1 Init failed");
         return 0;
     }
+
+    ret = 0;
+    do {
+        if (wc_ShaUpdate(&sha, (const byte *)str, (word32)strLen) != 0) {
+            WOLFSSL_MSG("SHA1 Update failed");
+            break;
+        }
+        if (wc_ShaFinal(&sha, digest) != 0) {
+            WOLFSSL_MSG("SHA1 Final failed");
+            break;
+        }
+        ret = 1;
+    } while (0);
+    wc_ShaFree(&sha);
+    if (ret == 0)
+        return 0;
+
     /* Take first 4 bytes in small endian as unsigned long */
     ret  =  (unsigned int)digest[0];
     ret |= ((unsigned int)digest[1] << 8 );
     ret |= ((unsigned int)digest[2] << 16);
     ret |= ((unsigned int)digest[3] << 24);
 #else
-    WOLFSSL_MSG("No md5 available for wolfSSL_LH_strhash");
+    WOLFSSL_MSG("No SHA available for wolfSSL_LH_strhash");
 #endif
     return ret;
 }
