@@ -2382,7 +2382,11 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 
 #ifdef HAVE_ECC
     /* Static ECC Key */
-    if (useCurveId >= 0 && keys->ecKey) {
+    if (useCurveId >= 0 && keys->ecKey
+    #ifdef HAVE_CURVE25519
+        && useCurveId != ECC_X25519 
+    #endif
+    ) {
         ecc_key key;
         ecc_key pubKey;
         int length, keyInit = 0, pubKeyInit = 0;
