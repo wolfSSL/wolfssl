@@ -27897,6 +27897,8 @@ static void test_wolfSSL_certs(void)
     asn1_str = (ASN1_STRING*)X509_get_ext_d2i(x509ext, NID_key_usage, &crit,
             NULL);
     AssertIntEQ(X509_EXTENSION_set_data(ext, asn1_str), SSL_SUCCESS);
+    ASN1_STRING_free(asn1_str); /* X509_EXTENSION_set_data has made a copy
+                                 * and X509_get_ext_d2i has created new */
     X509_EXTENSION_free(ext);
 
 #endif
