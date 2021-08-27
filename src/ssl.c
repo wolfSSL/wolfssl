@@ -20096,13 +20096,7 @@ void wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(WOLFSSL_STACK* sk,
         if (f)
             f(sk->data.access);
         else {
-            if(sk->data.access->method) {
-
-               wolfSSL_ASN1_OBJECT_free(sk->data.access->method);
-            }
-            if(sk->data.access->location) {
-               wolfSSL_GENERAL_NAME_free(sk->data.access->location);
-            }
+            wolfSSL_ACCESS_DESCRIPTION_free(sk->data.access);
         }
         sk->data.access = NULL;
    }
@@ -20114,6 +20108,18 @@ void wolfSSL_sk_ACCESS_DESCRIPTION_free(WOLFSSL_STACK* sk)
     wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(sk, NULL);
 }
 
+
+/* AUTHORITY_INFO_ACCESS object is a stack of ACCESS_DESCRIPTION objects,
+ * to free the stack the WOLFSSL_ACCESS_DESCRIPTION stack free function is
+ * used */
+void wolfSSL_AUTHORITY_INFO_ACCESS_free(
+        WOLF_STACK_OF(WOLFSSL_ACCESS_DESCRIPTION)* sk)
+{
+    WOLFSSL_ENTER("wolfSSL_AUTHORITY_INFO_ACCESS_free");
+    wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(sk, NULL);
+}
+
+
 void wolfSSL_ACCESS_DESCRIPTION_free(WOLFSSL_ACCESS_DESCRIPTION* access)
 {
     WOLFSSL_ENTER("wolfSSL_ACCESS_DESCRIPTION_free");
@@ -20124,6 +20130,7 @@ void wolfSSL_ACCESS_DESCRIPTION_free(WOLFSSL_ACCESS_DESCRIPTION* access)
         wolfSSL_ASN1_OBJECT_free(access->method);
     if (access->location)
         wolfSSL_GENERAL_NAME_free(access->location);
+    XFREE(access, NULL, DYNAMIC_TYPE_X509_EXT);
 
     /* access = NULL, don't try to access or double free it */
 }
@@ -20495,15 +20502,6 @@ int wolfSSL_sk_ACCESS_DESCRIPTION_num(WOLFSSL_STACK* sk)
     return (int)sk->num;
 }
 
-#ifndef NO_WOLFSSL_STUB
-/* similar to call to sk_ACCESS_DESCRIPTION_pop_free */
-void wolfSSL_AUTHORITY_INFO_ACCESS_free(
-        WOLF_STACK_OF(WOLFSSL_ACCESS_DESCRIPTION)* sk)
-{
-    WOLFSSL_STUB("wolfSSL_AUTHORITY_INFO_ACCESS_free");
-    (void)sk;
-}
-#endif
 
 /* returns the node at index "idx", NULL if not found */
 WOLFSSL_STACK* wolfSSL_sk_get_node(WOLFSSL_STACK* sk, int idx)

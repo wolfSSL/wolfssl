@@ -36515,7 +36515,10 @@ static void test_wolfSSL_GENERAL_NAME_print(void)
     AssertIntEQ(XSTRNCMP((const char*)outbuf, uriStr, XSTRLEN(uriStr)), 0);
     
     wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(aia, NULL);
-    XFREE(ad, NULL, DYNAMIC_TYPE_X509_EXT);
+
+    aia = (AUTHORITY_INFO_ACCESS*)wolfSSL_X509V3_EXT_d2i(ext);
+    AssertNotNull(aia);
+    AUTHORITY_INFO_ACCESS_free(aia);
     X509_free(x509);
 
     /* test for GEN_IPADD */
@@ -41113,7 +41116,6 @@ static void test_wolfSSL_X509V3_EXT(void) {
     AssertIntEQ(actual, 0);
 
     wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(aia, NULL);
-    XFREE(ad, NULL, DYNAMIC_TYPE_X509_EXT);
 #else
     (void) aia; (void) ad; (void) adObj; (void) gn;
 #endif
