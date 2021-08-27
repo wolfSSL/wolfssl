@@ -6267,8 +6267,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
 
 #ifdef WOLFSSL_TLS13
-    #ifdef HAVE_SESSION_TICKET
+    #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
         ssl->options.maxTicketTls13 = ctx->maxTicketTls13;
+    #endif
+    #ifdef HAVE_SESSION_TICKET
         ssl->options.noTicketTls13  = ctx->noTicketTls13;
     #endif
     ssl->options.noPskDheKe = ctx->noPskDheKe;
