@@ -554,7 +554,8 @@ static const char* TagString(byte tag)
  */
 #define ASNIntMSBSet(asn, data, i)                    \
     ((asn[i].tag == ASN_INTEGER) &&                   \
-     ((data[i].data.buffer.data[0] & 0x80) == 0x80))
+      (data[i].data.buffer.data != NULL &&            \
+      (data[i].data.buffer.data[0] & 0x80) == 0x80))
 
 
 /* Calculate the size of a DER encoded number.
@@ -1909,7 +1910,7 @@ void SetASN_ReplaceBuffer(ASNSetData *dataASN, const byte* data, word32 length)
     dataASN->data.buffer.length = length;
 }
 
-/* Setup an ASN data item to set an muli-precision number.
+/* Setup an ASN data item to set an multi-precision number.
  *
  * @param [in] dataASN  Dynamic ASN data item.
  * @param [in] num      Multi-precision number.
@@ -12409,7 +12410,6 @@ word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
              (type == oidKeyType && algoOID == RSAk)) ? 2 : 0;
 
     algoName = OidFromId(algoOID, type, &algoSz);
-
     if (algoName == NULL) {
         WOLFSSL_MSG("Unknown Algorithm");
         return 0;
@@ -14293,9 +14293,9 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
 
     ret = GetBoolean(input, &idx, sz);
 
-/* Removed logic for WOLFSSL_X509_BASICCONS_INT which was mistreating the
- * pathlen value as if it were the CA Boolean value 7/2/2021 - KH.
- * When CA Boolean not asserted use the default value "False" */
+    /* Removed logic for WOLFSSL_X509_BASICCONS_INT which was mistreating the
+     * pathlen value as if it were the CA Boolean value 7/2/2021 - KH.
+     * When CA Boolean not asserted use the default value "False" */
     if (ret < 0) {
         WOLFSSL_MSG("\tfail: constraint not valid BOOLEAN, set default FALSE");
         ret = 0;
@@ -27152,8 +27152,10 @@ static int wc_BuildEd25519KeyDer(ed25519_key* key, byte* output, word32 inLen,
     CALLOC_ASNSETDATA(dataASN, edKeyASN_Length, ret, NULL);
 
     if (ret == 0) {
+        /* Set version = 0 */
+        SetASN_Int8Bit(&dataASN[1], 0);
         /* Set Ed25519 OID. */
-        SetASN_Buffer(&dataASN[1], keyEd25519Oid, sizeof(keyEd25519Oid));
+        SetASN_OID(&dataASN[3], ED25519k, oidKeyType);
         /* Leave space for private key. */
         SetASN_Buffer(&dataASN[5], NULL, ED25519_KEY_SIZE);
         /* Don't write out attributes. */
