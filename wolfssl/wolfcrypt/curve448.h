@@ -43,6 +43,10 @@
 #define CURVE448_KEY_SIZE        56
 #define CURVE448_PUB_KEY_SIZE    56
 
+#ifndef WC_CURVE448KEY_TYPE_DEFINED
+    typedef struct curve448_key curve448_key;
+    #define WC_CURVE448KEY_TYPE_DEFINED
+#endif
 
 /* A CURVE448 Key */
 typedef struct curve448_key {

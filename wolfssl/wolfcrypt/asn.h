@@ -962,8 +962,10 @@ enum Key_Sum {
     RSAk     = 645,
     NTRUk    = 274,
     ECDSAk   = 518,
-    ED25519k = 256,
-    ED448k   = 257,
+    ED25519k = 256, /* 1.3.101.112 */
+    X25519k  = 254, /* 1.3.101.110 */
+    ED448k   = 257, /* 1.3.101.113 */
+    X448k    = 255, /* 1.3.101.111 */
     DHk      = 647, /* dhKeyAgreement OID: 1.2.840.113549.1.3.1 */
 };
 
@@ -1031,8 +1033,11 @@ enum Extensions_Sum {
     ISSUE_ALT_NAMES_OID       = 132, /* 2.5.29.18 */
     TLS_FEATURE_OID           = 92,  /* 1.3.6.1.5.5.7.1.24 */
     NETSCAPE_CT_OID           = 753, /* 2.16.840.1.113730.1.1 */
-    OCSP_NOCHECK_OID          = 121  /* 1.3.6.1.5.5.7.48.1.5
+    OCSP_NOCHECK_OID          = 121, /* 1.3.6.1.5.5.7.48.1.5
                                          id-pkix-ocsp-nocheck */
+
+    AKEY_PACKAGE_OID          = 1048 /* 2.16.840.1.101.2.1.2.78.5
+                                        RFC 5958  - Asymmetric Key Packages */
 };
 
 enum CertificatePolicy_Sum {

@@ -66,6 +66,11 @@ typedef struct {
     #endif
 } ECPoint;
 
+#ifndef WC_CURVE25519KEY_TYPE_DEFINED
+    typedef struct curve25519_key curve25519_key;
+    #define WC_CURVE25519KEY_TYPE_DEFINED
+#endif
+
 /* A CURVE25519 Key */
 typedef struct curve25519_key {
     int idx;            /* Index into the ecc_sets[] for the parameters of
