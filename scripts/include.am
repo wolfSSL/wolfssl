@@ -91,6 +91,7 @@ EXTRA_DIST +=  scripts/testsuite.pcap \
                scripts/sniffer-ipv6.pcap \
                scripts/sniffer-tls13-dh.pcap \
                scripts/sniffer-tls13-ecc.pcap \
+               scripts/sniffer-tls13-x25519.pcap \
                scripts/sniffer-tls13-gen.sh \
                scripts/sniffer-tls13-hrr.pcap \
                scripts/ping.test \

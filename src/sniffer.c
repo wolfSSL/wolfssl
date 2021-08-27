@@ -91,6 +91,20 @@
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/sniffer.h>
 #include <wolfssl/sniffer_error.h>
+
+#ifndef NO_RSA
+    #include <wolfssl/wolfcrypt/rsa.h>
+#endif
+#ifndef NO_DH
+    #include <wolfssl/wolfcrypt/dh.h>
+#endif
+#ifdef HAVE_ECC
+    #include <wolfssl/wolfcrypt/ecc.h>
+#endif
+#ifdef HAVE_CURVE25519
+    #include <wolfssl/wolfcrypt/curve25519.h>
+#endif
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -2146,6 +2160,9 @@ typedef struct {
 #ifdef HAVE_ECC
     DerBuffer* ecKey;
 #endif
+#ifdef HAVE_CURVE25519
+    DerBuffer* x25519Key;
+#endif
 #if !defined(NO_RSA) && defined(WOLFSSL_STATIC_RSA)
     DerBuffer* rsaKey;
 #endif
@@ -2157,14 +2174,14 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
     word32 idx = 0;
     int ret;
     DerBuffer* keyBuf;
-#ifdef HAVE_ECC
-    int useEccCurveId = ECC_CURVE_DEF;
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
+    int useCurveId = 0;
 #endif
     int devId = INVALID_DEVID;
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
     if (ksInfo && ksInfo->curve_id != 0)
-        useEccCurveId = ksInfo->curve_id;
+        useCurveId = ksInfo->curve_id;
 #endif
 #ifdef WOLF_CRYPTO_CB
     devId = CryptoDeviceId;
@@ -2201,9 +2218,9 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                     keys->ecKey = session->sslServer->buffers.key; /* try ECC */
             #endif
             }
-        #ifdef HAVE_ECC
+        #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
             else {
-                useEccCurveId = -1; /* don't try loading ECC */
+                useCurveId = -1; /* don't try loading further */
             }
         #endif
         }
@@ -2365,7 +2382,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 
 #ifdef HAVE_ECC
     /* Static ECC Key */
-    if (useEccCurveId >= ECC_CURVE_DEF && keys->ecKey) {
+    if (useCurveId >= 0 && keys->ecKey) {
         ecc_key key;
         ecc_key pubKey;
         int length, keyInit = 0, pubKeyInit = 0;
@@ -2422,13 +2439,13 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             }
 
             /* if curve not provided in key share data, then use private key curve */
-            if (useEccCurveId == ECC_CURVE_DEF && key.dp) {
-                useEccCurveId = key.dp->id;
+            if (useCurveId == ECC_CURVE_DEF && key.dp) {
+                useCurveId = key.dp->id;
             }
         }
 
         if (ret == 0) {
-            ret = wc_ecc_import_x963_ex(input, length, &pubKey, useEccCurveId);
+            ret = wc_ecc_import_x963_ex(input, length, &pubKey, useCurveId);
             if (ret != 0) {
                 SetError(ECC_PUB_DECODE_STR, error, session, FATAL_ERROR_STATE);
             }
@@ -2465,6 +2482,84 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             wc_ecc_free(&pubKey);
     }
 #endif /* HAVE_ECC */
+
+#ifdef HAVE_CURVE25519
+    /* Static Curve25519 Key */
+    if (useCurveId == ECC_X25519 && keys->x25519Key) {
+        curve25519_key key;
+        curve25519_key pubKey;
+        int length, keyInit = 0, pubKeyInit = 0;
+
+        keyBuf = keys->x25519Key;
+
+#ifdef WOLFSSL_SNIFFER_KEY_CALLBACK
+        if (KeyCb != NULL && ksInfo) {
+            ret = KeyCb(session, ksInfo->named_group,
+                session->srvKs.key, session->srvKs.key_len,
+                session->cliKs.key, session->cliKs.key_len,
+                keyBuf, KeyCbCtx, error);
+            if (ret != 0) {
+                SetError(-1, error, session, FATAL_ERROR_STATE);
+                return ret;
+            }
+        }
+#endif
+
+        idx = 0;
+        ret = wc_curve25519_init_ex(&key, NULL, devId);
+        if (ret == 0) {
+            keyInit = 1;
+            ret = wc_curve25519_init(&pubKey);
+        }
+
+        if (ret == 0) {
+            pubKeyInit = 1;
+            ret = wc_Curve25519PrivateKeyDecode(keyBuf->buffer, &idx, &key,
+                keyBuf->length);
+            if (ret != 0) {
+                SetError(ECC_DECODE_STR, error, session, FATAL_ERROR_STATE);
+            }
+        }
+
+        if (ret == 0) {
+            length = CURVE25519_KEYSIZE;
+            if (length > *sslBytes) {
+                SetError(PARTIAL_INPUT_STR, error, session, FATAL_ERROR_STATE);
+                ret = -1;
+            }
+        }
+
+        if (ret == 0) {
+            ret = wc_curve25519_import_public_ex(input, length, &pubKey,
+                EC25519_LITTLE_ENDIAN);
+            if (ret != 0) {
+                SetError(ECC_PUB_DECODE_STR, error, session, FATAL_ERROR_STATE);
+            }
+        }
+
+        if (ret == 0) {
+            session->keySz = CURVE25519_KEYSIZE;
+            /* Length is in bytes. Subtract 1 for the ECC key type. Divide
+             * by two as the key is in (x,y) coordinates, where x and y are
+             * the same size, the key size. Convert from bytes to bits. */
+            session->sslServer->arrays->preMasterSz = ENCRYPT_LEN;
+
+            ret = wc_curve25519_shared_secret_ex(&key, &pubKey,
+                session->sslServer->arrays->preMasterSecret,
+                &session->sslServer->arrays->preMasterSz, EC25519_LITTLE_ENDIAN);
+        }
+
+#ifdef WOLFSSL_SNIFFER_STATS
+        if (ret != 0)
+            INC_STAT(SnifferStats.sslKeyFails);
+#endif
+
+        if (keyInit)
+            wc_curve25519_free(&key);
+        if (pubKeyInit)
+            wc_curve25519_free(&pubKey);
+    }
+#endif /* HAVE_CURVE25519 */
 
     /* store for client side as well */
     XMEMCPY(session->sslClient->arrays->preMasterSecret,
@@ -2553,6 +2648,9 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
     #ifdef HAVE_ECC
     keys.ecKey = session->sslServer->staticKE.ecKey;
     #endif
+    #ifdef HAVE_CURVE25519
+    keys.x25519Key = session->sslServer->staticKE.x25519Key;
+    #endif
 #endif
     keys.rsaKey = session->sslServer->buffers.key;
     return SetupKeys(input, sslBytes, session, error, NULL, &keys);
@@ -2612,7 +2710,7 @@ static int ProcessKeyShare(KeyShareInfo* info, const byte* input, int len,
         #endif
     #endif /* !NO_DH */
     #ifdef HAVE_ECC
-        #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
+        #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
             #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP256R1:
                 info->curve_id = ECC_SECP256R1;
@@ -3184,6 +3282,9 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         #endif
         #ifdef HAVE_ECC
         keys.ecKey = session->sslServer->staticKE.ecKey;
+        #endif
+        #ifdef HAVE_CURVE25519
+        keys.x25519Key = session->sslServer->staticKE.x25519Key;
         #endif
     #endif
 

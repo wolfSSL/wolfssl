@@ -53953,6 +53953,8 @@ static int SetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo,
             if (ret == 0 && keyAlgo == WC_PK_TYPE_NONE) {
                 if (keyFormat == ECDSAk)
                     keyAlgo = WC_PK_TYPE_ECDH;
+                else if (keyFormat == X25519k)
+                    keyAlgo = WC_PK_TYPE_CURVE25519;
                 else
                     keyAlgo = WC_PK_TYPE_DH;
             }
@@ -53988,6 +53990,20 @@ static int SetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo,
                 }
             }
         #endif
+        #ifdef HAVE_CURVE25519
+            if (keyAlgo == WC_PK_TYPE_NONE) {
+                word32 idx = 0;
+                curve25519_key x25519Key;
+                ret = wc_curve25519_init_ex(&x25519Key, heap, INVALID_DEVID);
+                if (ret == 0) {
+                    ret = wc_Curve25519PrivateKeyDecode(keyBuf, &idx, &x25519Key,
+                        keySz);
+                    if (ret == 0)
+                        keyAlgo = WC_PK_TYPE_CURVE25519;
+                    wc_curve25519_free(&x25519Key);
+                }
+            }
+        #endif
 
             if (keyAlgo != WC_PK_TYPE_NONE) {
                 ret = AllocDer(&der, keySz, PRIVATEKEY_TYPE, heap);
@@ -54007,32 +54023,49 @@ static int SetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo,
 
     /* if key is already allocated then set free it */
 #ifndef NO_DH
-    if (keyAlgo == WC_PK_TYPE_DH && staticKE->dhKey && staticKE->weOwnDH)
+    if (keyAlgo == WC_PK_TYPE_DH && staticKE->dhKey && staticKE->weOwnDH) {
         FreeDer(&staticKE->dhKey);
+    }
 #endif
 #ifdef HAVE_ECC
-    if (keyAlgo == WC_PK_TYPE_ECDH && staticKE->ecKey && staticKE->weOwnEC)
+    if (keyAlgo == WC_PK_TYPE_ECDH && staticKE->ecKey && staticKE->weOwnEC) {
         FreeDer(&staticKE->ecKey);
+    }
+#endif
+#ifdef HAVE_CURVE25519
+    if (keyAlgo == WC_PK_TYPE_CURVE25519 && staticKE->x25519Key && 
+                                                        staticKE->weOwnX25519) {
+        FreeDer(&staticKE->x25519Key);
+    }
 #endif
 
     switch (keyAlgo) {
     #ifndef NO_DH
         case WC_PK_TYPE_DH:
-            staticKE->dhKey = der;
+            staticKE->dhKey = der; der = NULL;
             staticKE->weOwnDH = 1;
             break;
     #endif
     #ifdef HAVE_ECC
         case WC_PK_TYPE_ECDH:
-            staticKE->ecKey = der;
+            staticKE->ecKey = der; der = NULL;
             staticKE->weOwnEC = 1;
+            break;
+    #endif
+    #ifdef HAVE_CURVE25519
+        case WC_PK_TYPE_CURVE25519:
+            staticKE->x25519Key = der; der = NULL;
+            staticKE->weOwnX25519 = 1;
             break;
     #endif
         default:
             /* not supported */
             ret = NOT_COMPILED_IN;
-            FreeDer(&der);
             break;
+    }
+
+    if (ret != 0) {
+        FreeDer(&der);
     }
 
     WOLFSSL_LEAVE("SetStaticEphemeralKey", ret);
@@ -54083,6 +54116,11 @@ static int GetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo,
     #ifdef HAVE_ECC
         case WC_PK_TYPE_ECDH:
             der = staticKE->ecKey;
+            break;
+    #endif
+    #ifdef HAVE_CURVE25519
+        case WC_PK_TYPE_CURVE25519:
+            der = staticKE->x25519Key;
             break;
     #endif
         default:

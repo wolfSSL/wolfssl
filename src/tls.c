@@ -6858,10 +6858,23 @@ static int TLSX_KeyShare_GenX25519Key(WOLFSSL *ssl, KeyShareEntry* kse)
         }
 
         /* Make an Curve25519 key. */
-        ret = wc_curve25519_init((curve25519_key*)kse->key);
+        ret = wc_curve25519_init_ex((curve25519_key*)kse->key, ssl->heap,
+            INVALID_DEVID);
         if (ret == 0) {
             key = (curve25519_key*)kse->key;
-            ret = wc_curve25519_make_key(ssl->rng, CURVE25519_KEYSIZE, key);
+        #ifdef WOLFSSL_STATIC_EPHEMERAL
+            if (ssl->staticKE.x25519Key) {
+                DerBuffer* keyDer = ssl->staticKE.x25519Key;
+                word32 idx = 0;
+                WOLFSSL_MSG("Using static X25519 key");
+                ret = wc_Curve25519PrivateKeyDecode(keyDer->buffer, &idx, key,
+                    keyDer->length);
+            }
+            else
+        #endif
+            {
+                ret = wc_curve25519_make_key(ssl->rng, CURVE25519_KEYSIZE, key);
+            }
         }
     }
 

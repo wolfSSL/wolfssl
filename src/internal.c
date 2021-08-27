@@ -2273,6 +2273,10 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     if (ctx->staticKE.ecKey && ctx->staticKE.weOwnEC)
         FreeDer(&ctx->staticKE.ecKey);
     #endif
+    #ifdef HAVE_CURVE25519
+    if (ctx->staticKE.x25519Key && ctx->staticKE.weOwnX25519)
+        FreeDer(&ctx->staticKE.x25519Key);
+    #endif
 #endif
 #ifdef WOLFSSL_STATIC_MEMORY
     if (ctx->heap != NULL) {
@@ -6213,6 +6217,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     #ifndef NO_DH
     ssl->staticKE.weOwnDH = 0;
     #endif
+    #ifdef HAVE_CURVE25519
+    ssl->staticKE.weOwnX25519 = 0;
+    #endif
 #endif
 
 #ifdef WOLFSSL_TLS13
@@ -6986,6 +6993,10 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     #ifdef HAVE_ECC
     if (ssl->staticKE.ecKey && ssl->staticKE.weOwnEC)
         FreeDer(&ssl->staticKE.ecKey);
+    #endif
+    #ifdef HAVE_CURVE25519
+    if (ssl->staticKE.x25519Key && ssl->staticKE.weOwnX25519)
+        FreeDer(&ssl->staticKE.x25519Key);
     #endif
 #endif
 
