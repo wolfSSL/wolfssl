@@ -10953,11 +10953,11 @@ int wolfSSL_X509_EXTENSION_set_data(WOLFSSL_X509_EXTENSION* ext,
         return WOLFSSL_FAILURE;
 
     current = wolfSSL_X509_EXTENSION_get_data(ext);
-    if (current != NULL) {
-        wolfSSL_ASN1_STRING_free(current);
+    if (current->length > 0 && current->data != NULL && current->isDynamic) {
+        XFREE(current->data, NULL, DYNAMIC_TYPE_OPENSSL);
     }
-    wolfSSL_ASN1_STRING_copy(&ext->value, data);
-    return WOLFSSL_SUCCESS;
+
+    return wolfSSL_ASN1_STRING_copy(&ext->value, data);
 }
 
 #if !defined(NO_PWDBASED)

@@ -27877,6 +27877,8 @@ static void test_wolfSSL_certs(void)
     bc = (BASIC_CONSTRAINTS*)X509_get_ext_d2i(x509ext, NID_basic_constraints,
             &crit, NULL);
     AssertNotNull(bc);
+    AssertIntEQ(crit, 0);
+
 #ifdef OPENSSL_ALL
     ext = X509V3_EXT_i2d(NID_basic_constraints, crit, bc);
     AssertNotNull(ext);
@@ -27888,8 +27890,16 @@ static void test_wolfSSL_certs(void)
     AssertIntEQ(X509_EXTENSION_set_object(ext, obj), SSL_SUCCESS);
     ASN1_OBJECT_free(obj);
     X509_EXTENSION_free(ext);
+
+    AssertNotNull(ext = X509_EXTENSION_new());
+    X509_EXTENSION_set_critical(ext, 0);
+    AssertIntEQ(X509_EXTENSION_set_data(ext, NULL), SSL_FAILURE);
+    asn1_str = (ASN1_STRING*)X509_get_ext_d2i(x509ext, NID_key_usage, &crit,
+            NULL);
+    AssertIntEQ(X509_EXTENSION_set_data(ext, asn1_str), SSL_SUCCESS);
+    X509_EXTENSION_free(ext);
+
 #endif
-    AssertIntEQ(crit, 0);
     BASIC_CONSTRAINTS_free(bc);
 
     asn1_str = (ASN1_STRING*)X509_get_ext_d2i(x509ext, NID_key_usage, &crit, NULL);
