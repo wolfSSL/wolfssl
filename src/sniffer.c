@@ -2755,19 +2755,21 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
 #ifdef WOLFSSL_TLS13
     /* TLS v1.3 has hint age and nonce */
     if (IsAtLeastTLSv1_3(ssl->version)) {
+        /* Note: Must use server session for sessions */
     #ifdef HAVE_SESSION_TICKET
-        if (SetTicket(ssl, input, len) != 0) {
+        if (SetTicket(session->sslServer, input, len) != 0) {
             SetError(BAD_INPUT_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }
+
         /* set haveSessionId to use the wolfSession cache */
-        ssl->options.haveSessionId = 1;
+        session->sslServer->options.haveSessionId = 1;
 
         /* Use the wolf Session cache to retain resumption secret */
         if (session->flags.cached == 0) {
-            WOLFSSL_SESSION* sess = GetSession(ssl, NULL, 0);
+            WOLFSSL_SESSION* sess = GetSession(session->sslServer, NULL, 0);
             if (sess == NULL) {
-                AddSession(ssl); /* don't re add */
+                AddSession(session->sslServer); /* don't re add */
             #ifdef WOLFSSL_SNIFFER_STATS
                 INC_STAT(SnifferStats.sslResumptionInserts);
             #endif
@@ -2858,8 +2860,10 @@ static int DoResume(SnifferSession* session, char* error)
         /* Resumption PSK is resumption master secret. */
         session->sslServer->arrays->psk_keySz = session->sslServer->specs.hash_size;
         session->sslClient->arrays->psk_keySz = session->sslClient->specs.hash_size;
-        ret  = DeriveResumptionPSK(session->sslServer, session->sslServer->session.ticketNonce.data, 
-            session->sslServer->session.ticketNonce.len, session->sslServer->arrays->psk_key);
+        ret  = DeriveResumptionPSK(session->sslServer,
+            session->sslServer->session.ticketNonce.data, 
+            session->sslServer->session.ticketNonce.len,
+            session->sslServer->arrays->psk_key);
         /* Copy resumption PSK to client */
         XMEMCPY(session->sslClient->arrays->psk_key, 
             session->sslServer->arrays->psk_key,
@@ -3505,6 +3509,9 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                         return -1;
                     }
                 }
+            #ifdef HAVE_SESSION_TICKET
+                ssl->options.useTicket = 1;
+            #endif
                 XMEMCPY(session->ticketID, input + extLen - ID_LEN, ID_LEN);
             }
             break;
@@ -3657,7 +3664,7 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
         #ifndef NO_SESSION_CACHE
             WOLFSSL_SESSION* sess = GetSession(session->sslServer, NULL, 0);
             if (sess == NULL) {
-                AddSession(session->sslServer);  /* don't re add */
+                AddSession(session->sslServer); /* don't re add */
             #ifdef WOLFSSL_SNIFFER_STATS
                 INC_STAT(SnifferStats.sslResumptionInserts);
             #endif
@@ -3700,13 +3707,15 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
 
         #ifdef HAVE_SESSION_TICKET
             /* derive resumption secret for next session - on finished (from client) */
-            ret += DeriveResumptionSecret(session->sslClient, session->sslClient->session.masterSecret);
+            ret += DeriveResumptionSecret(session->sslClient,
+                session->sslClient->session.masterSecret);
 
             /* copy resumption secret to server */
             XMEMCPY(session->sslServer->session.masterSecret,
-                session->sslClient->session.masterSecret, SECRET_LEN);
+                    session->sslClient->session.masterSecret, SECRET_LEN);
             #ifdef SHOW_SECRETS
-            PrintSecret("resumption secret", session->sslClient->session.masterSecret, SECRET_LEN);
+            PrintSecret("resumption secret",
+                session->sslClient->session.masterSecret, SECRET_LEN);
             #endif
         #endif
         }
