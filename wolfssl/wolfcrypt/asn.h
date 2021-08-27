@@ -47,7 +47,7 @@ that can be serialized and deserialized in a cross-platform way.
 
 /* fips declare of RsaPrivateKeyDecode @wc_fips */
 #if defined(HAVE_FIPS) && !defined(NO_RSA) && \
-	(!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
     #include <cyassl/ctaocrypt/rsa.h>
 #endif
 
@@ -160,7 +160,7 @@ enum ASNItem_DataType {
 
 /* A template entry describing an ASN.1 item. */
 typedef struct ASNItem {
-    /* Depth of ASN.1 item - how many consturcted ASN.1 items above. */
+    /* Depth of ASN.1 item - how many constructed ASN.1 items above. */
     byte depth;
     /* BER/DER tag to expect. */
     byte tag;
@@ -232,7 +232,7 @@ typedef struct ASNGetData {
         struct {
             /* Buffer to hold ASN.1 data. */
             byte*   data;
-            /* Maxumum length of buffer. */
+            /* Maximum length of buffer. */
             word32* length;
         } buffer;
         /* Refernce to ASN.1 item's data. */
@@ -366,7 +366,7 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
         (dataASN)->data.mp  = num;                                     \
     } while (0)
 
-/* Setup ASN data item to get a positve or negative number into an mp_int.
+/* Setup ASN data item to get a positive or negative number into an mp_int.
  *
  * @param [in] dataASN  Dynamic ASN data item.
  * @param [in] num      Multi-precision number object.
@@ -572,7 +572,7 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
 #define GetASNItem_UnusedBits(dataASN)                                 \
     (*(dataASN.data.ref.data - 1))
 
-/* Set the data items at indeces start to end inclusive to not be encoded.
+/* Set the data items at indices start to end inclusive to not be encoded.
  *
  * @param [in] dataASN  Dynamic ASN data item.
  * @param [in] start    First item not to be encoded.
@@ -1886,7 +1886,7 @@ enum Ocsp_Response_Status {
     OCSP_INTERNAL_ERROR    = 2, /* Internal error in issuer */
     OCSP_TRY_LATER         = 3, /* Try again later */
     OCSP_SIG_REQUIRED      = 5, /* Must sign the request (4 is skipped) */
-    OCSP_UNAUTHROIZED      = 6  /* Request unauthorized */
+    OCSP_UNAUTHORIZED      = 6  /* Request unauthorized */
 };
 
 
@@ -1929,7 +1929,8 @@ struct CertStatus {
     byte nextDate[MAX_DATE_SIZE];
     byte thisDateFormat;
     byte nextDateFormat;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
     WOLFSSL_ASN1_TIME thisDateParsed;
     WOLFSSL_ASN1_TIME nextDateParsed;
     byte* thisDateAsn;

@@ -4611,7 +4611,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                     ephmSuite = 1;
                 break;
 
-    #ifdef WOLFSSL_STATIC_DH
+    #if defined(HAVE_ECC) && defined(WOLFSSL_STATIC_DH)
                 /* ECDH_RSA */
                 case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA:
                 case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA:
@@ -4632,7 +4632,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                     sig = 1;
                     key |= ssl->pkCurveOID == pkOid;
                 break;
-    #endif /* WOLFSSL_STATIC_DH */
+    #endif /* HAVE_ECC && WOLFSSL_STATIC_DH */
 #endif
                 default:
                     if (oid == ECC_X25519_OID && defOid == oid) {

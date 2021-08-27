@@ -491,13 +491,19 @@ then
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
 
     # Enable multiple attribute additions such as DC
-    AM_CFLAGS="-DWOLFSSL_MULTI_ATTRIB $AM_CFLAGS"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MULTI_ATTRIB"
 
-    # Enable AES Decrypt, AES ECB, Alt Names, DER Load, Keep Certs, CRL IO with Timeout
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT"
+    # Enable AES Decrypt, AES ECB
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB"
+    
+    # Enable Alt Names, DER Load, Keep Certs, CRL IO with Timeout
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT"
 
     # Enable ECC Key Gen checks
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_KEYGEN"
+
+    # Enable DH Extra
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_EXTRA"
 fi
 
 
@@ -577,7 +583,7 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"
     fi
 
-    if test "$ENABLED_FIPS" == "no"
+    if test "$ENABLED_FIPS" = "no"
     then
         test "$enable_xchacha" = "" && enable_xchacha=yes
         test "$enable_ed25519" = "" && enable_ed25519=yes
@@ -1003,8 +1009,8 @@ AC_ARG_ENABLE([opensslall],
 if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || \
    test "$ENABLED_WPAS_DPP" = "yes" || test "$ENABLED_SMIME" = "yes" || \
    test "$ENABLED_HAPROXY" = "yes" || test "$ENABLED_BIND" = "yes" || \
-   test "$ENABLED_NTP" == "yes" || test "$ENABLED_NETSNMP" = "yes" || \
-   test "$ENABLED_OPENRESTY" = "yes" || test "$ENABLED_RSYSLOG" == "yes"
+   test "$ENABLED_NTP" = "yes" || test "$ENABLED_NETSNMP" = "yes" || \
+   test "$ENABLED_OPENRESTY" = "yes" || test "$ENABLED_RSYSLOG" = "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
@@ -1026,7 +1032,7 @@ if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || \
    test "$ENABLED_SNIFFER" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || \
    test "$ENABLED_LIBWEBSOCKETS" = "yes" || \
    test "x$ENABLED_LIGHTY" = "xyes" || test "$ENABLED_LIBSSH2" = "yes" || \
-   test "x$ENABLED_NTP" = "xyes" || test "$ENABLED_RSYSLOG" == "yes"
+   test "x$ENABLED_NTP" = "xyes" || test "$ENABLED_RSYSLOG" = "yes"
 then
     ENABLED_OPENSSLEXTRA="yes"
 fi
@@ -2893,6 +2899,11 @@ else
     fi
 fi
 
+if test "x$ENABLED_SNIFFER" = "xyes" && test "x$ENABLED_DH" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_EXTRA"
+fi
+
 
 # Anonymous
 AC_ARG_ENABLE([anon],
@@ -2901,7 +2912,8 @@ AC_ARG_ENABLE([anon],
     [ ENABLED_ANON=no ]
     )
 
-if test "x$ENABLED_WPAS" = "xyes" || test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "$ENABLED_RSYSLOG" == "yes"
+if test "x$ENABLED_WPAS" = "xyes"    || test "x$ENABLED_NGINX" = "xyes" || \
+   test "x$ENABLED_HAPROXY" = "xyes" || test "$ENABLED_RSYSLOG" = "yes"
 then
     ENABLED_ANON=yes
 fi
@@ -3593,7 +3605,7 @@ if test "$ENABLED_CRL" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
 fi
-if test "$ENABLED_CRL" == "io"
+if test "$ENABLED_CRL" = "io"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_IO"
 fi
@@ -6174,7 +6186,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY"
 fi
 
-if test "x$ENABLED_MEMTEST" == "xfail"
+if test "x$ENABLED_MEMTEST" = "xfail"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FORCE_MALLOC_FAIL_TEST"
 fi
@@ -6386,8 +6398,9 @@ AS_IF([test "x$ENABLED_LEANTLS" = "xyes" && \
 
 AS_IF([test "x$ENABLED_SNIFFER" = "xyes" && \
        test "x$ENABLED_RSA" = "xno" && \
-       test "x$ENABLED_ECC" = "xno"],
-      [AC_MSG_ERROR([please enable ecc or rsa if enabling sniffer.])])
+       test "x$ENABLED_ECC" = "xno" && \
+       test "x$ENABLED_CURVE25519" = "xno"],
+      [AC_MSG_ERROR([please enable ecc, rsa or curve25519 if enabling sniffer.])])
 
 # Lean TLS forces off prereqs of SCEP.
 AS_IF([test "x$ENABLED_SCEP" = "xyes" && \

@@ -180,6 +180,10 @@ enum {
 #endif
 };
 
+#endif /* HAVE_ECC */
+
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+    defined(HAVE_CURVE448) || defined(WOLFCRYPT_HAVE_SAKKE)
 /* Curve Types */
 typedef enum ecc_curve_id {
     ECC_CURVE_INVALID = -1,
@@ -227,7 +231,6 @@ typedef enum ecc_curve_id {
 #ifdef HAVE_CURVE448
     ECC_X448,
 #endif
-
 #ifdef WOLFCRYPT_HAVE_SAKKE
     ECC_SAKKE_1,
 #endif
@@ -237,6 +240,9 @@ typedef enum ecc_curve_id {
 #endif
     ECC_CURVE_MAX
 } ecc_curve_id;
+#endif
+
+#ifdef HAVE_ECC
 
 #ifdef HAVE_OID_ENCODING
 typedef word16 ecc_oid_t;

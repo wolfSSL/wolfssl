@@ -27404,12 +27404,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             case TLS_ASYNC_BUILD:
             {
-            #if (!defined(NO_DH) && !defined(NO_RSA)) || (defined(HAVE_ECC) || \
-                    (defined(HAVE_CURVE25519) && defined(HAVE_ED25519)) || \
-                    (defined(HAVE_CURVE448) && defined(HAVE_ED448)))
-                word32 preSigSz, preSigIdx;
-            #endif
-
                 switch(ssl->specs.kea)
                 {
                 #ifndef NO_PSK
@@ -27670,6 +27664,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     case ecc_diffie_hellman_kea:
                     {
                         enum wc_HashType hashType;
+                        word32 preSigSz, preSigIdx;
 
                         /* curve type, named curve, length(1) */
                         args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
@@ -28003,6 +27998,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     case diffie_hellman_kea:
                     {
                         enum wc_HashType hashType;
+                        word32 preSigSz, preSigIdx;
 
                         args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
                         args->length = LENGTH_SZ * 3;  /* p, g, pub */

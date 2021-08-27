@@ -38551,7 +38551,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
             if (keyFormat == RSAk)
                 type = EVP_PKEY_RSA;
             else if (keyFormat == ECDSAk)
-                type =  EVP_PKEY_EC;
+                type = EVP_PKEY_EC;
             else if (keyFormat == DSAk)
                 type = EVP_PKEY_DSA;
             else if (keyFormat == DHk)
