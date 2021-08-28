@@ -28,9 +28,6 @@
 /* in case user set HAVE_ECC there */
 #include <wolfssl/wolfcrypt/settings.h>
 
-/* public ASN interface */
-#include <wolfssl/wolfcrypt/asn_public.h>
-
 /*
 Possible ECC enable options:
  * HAVE_ECC:            Overall control of ECC                  default: on
@@ -120,6 +117,9 @@ ECC Curve Sizes:
 		#pragma const_seg(".fipsB$f")
 	#endif
 #endif
+
+/* public ASN interface */
+#include <wolfssl/wolfcrypt/asn_public.h>
 
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/asn.h>
@@ -3120,6 +3120,11 @@ exit:
    }
 
    (void)a;
+
+   /* k can't have more bits than modulus count plus 1 */
+   if (mp_count_bits(k) > mp_count_bits(modulus) + 1) {
+       return ECC_OUT_OF_RANGE_E;
+   }
 
 #ifdef WOLFSSL_HAVE_SP_ECC
 #ifndef WOLFSSL_SP_NO_256
@@ -8789,7 +8794,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
     }
 #elif defined(WOLFSSL_QNX_CAAM)
     if ((wc_ecc_size(key) + WC_CAAM_MAC_SZ) == (int)privSz) {
-        int part = caamFindUnusuedPartition();
+        int part = caamFindUnusedPartition();
         if (part >= 0) {
             CAAM_ADDRESS vaddr = caamGetPartition(part, privSz*3);
             if (vaddr == 0) {
@@ -11414,39 +11419,40 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 #endif
 
        switch (ctx->encAlgo) {
-           case ecAES_128_CBC:
-               {
-#ifdef WOLFSSL_SMALL_STACK
-                   Aes *aes = (Aes *)XMALLOC(sizeof *aes, ctx->heap,
-                                             DYNAMIC_TYPE_AES);
-                   if (aes == NULL) {
-                       ret = MEMORY_E;
-                       break;
-                   }
+            case ecAES_128_CBC:
+            {
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
+    #ifdef WOLFSSL_SMALL_STACK
+                Aes *aes = (Aes *)XMALLOC(sizeof *aes, ctx->heap,
+                                            DYNAMIC_TYPE_AES);
+                if (aes == NULL) {
+                    ret = MEMORY_E;
+                    break;
+                }
+    #else
+                Aes aes[1];
+    #endif
+                ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+                if (ret == 0) {
+                    ret = wc_AesSetKey(aes, encKey, KEY_SIZE_128, encIv,
+                                                            AES_ENCRYPTION);
+                    if (ret == 0) {
+                        ret = wc_AesCbcEncrypt(aes, out, msg, msgSz);
+                    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
+                        ret = wc_AsyncWait(ret, &aes->asyncDev,
+                                            WC_ASYNC_FLAG_NONE);
+                    #endif
+                    }
+                    wc_AesFree(aes);
+                }
+    #ifdef WOLFSSL_SMALL_STACK
+                XFREE(aes, ctx->heap, DYNAMIC_TYPE_AES);
+    #endif
 #else
-                   Aes aes[1];
+                ret = NOT_COMPILED_IN;
 #endif
-                   ret = wc_AesInit(aes, NULL, INVALID_DEVID);
-                   if (ret == 0) {
-                       ret = wc_AesSetKey(aes, encKey, KEY_SIZE_128, encIv,
-                                                                AES_ENCRYPTION);
-                       if (ret == 0) {
-                           ret = wc_AesCbcEncrypt(aes, out, msg, msgSz);
-                       #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
-                           ret = wc_AsyncWait(ret, &aes->asyncDev,
-                                              WC_ASYNC_FLAG_NONE);
-                       #endif
-                       }
-                       wc_AesFree(aes);
-                   }
-#ifdef WOLFSSL_SMALL_STACK
-                   XFREE(aes, ctx->heap, DYNAMIC_TYPE_AES);
-#endif
-                   if (ret != 0)
-                      break;
-               }
-               break;
-
+                break;
+            }
            default:
                ret = BAD_FUNC_ARG;
                break;

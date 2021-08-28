@@ -241,6 +241,21 @@ AC_ARG_ENABLE([linuxkm-defaults],
     [ENABLED_LINUXKM_DEFAULTS=$ENABLED_LINUXKM]
     )
 
+AC_ARG_ENABLE([linuxkm-pie],
+    [AS_HELP_STRING([--enable-linuxkm-pie],[Enable relocatable object build of Linux kernel module (default: disabled)])],
+    [ENABLED_LINUXKM_PIE=$enableval],
+    [ENABLED_LINUXKM_PIE=$ENABLED_FIPS]
+    )
+if test "$ENABLED_LINUXKM_PIE" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_LINUXKM_PIE_SUPPORT"
+elif test "$ENABLED_FIPS" = yes
+then
+    AC_MSG_ERROR([FIPS requires linuxkm-pie.])
+fi
+AC_SUBST([ENABLED_LINUXKM_PIE])
+
+
 if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_CONST -DWOLFSSL_SP_MOD_WORD_RP -DWOLFSSL_OLD_PRIME_CHECK -DWOLFSSL_SP_DIV_64 -DWOLFSSL_SP_DIV_WORD_HALF -DWOLFSSL_SMALL_STACK_STATIC -DWOLFSSL_TEST_SUBROUTINE=static"
@@ -778,12 +793,14 @@ AC_ARG_ENABLE([mcast],
 # openvpn (--enable-openvpn) WOLFSSL_OPENVPN
 # nginix (--enable-nginx) WOLFSSL_NGINX
 # ntp (--enable-ntp)
+# openresty (--enable-openresty)
 # haproxy (--enable-haproxy) WOLFSSL_HAPROXY
 # wpa_supplicant (--enable-wpas) WOLFSSL_WPAS
 # ssl fortress (--enable-fortress) FORTRESS
 # ssl bump (--enable-bump)
 # signal (--enable-signal)
 # lighty (--enable-lighty) HAVE_LIGHTY
+# rsyslog (--enable-rsyslog)
 # stunnel (--enable-stunnel) HAVE_STUNNEL
 # libest (--enable-libest) HAVE_LIBEST
 # asio (--enable-asio) WOLFSSL_ASIO
@@ -793,6 +810,7 @@ AC_ARG_ENABLE([mcast],
 # HAVE_POCO_LIB
 # WOLFSSL_MYSQL_COMPATIBLE
 # web server (--enable-webserver) HAVE_WEBSERVER
+# net-snmp (--enable-net-snmp)
 
 
 # Bind DNS compatibility Build
@@ -818,6 +836,13 @@ AC_ARG_ENABLE([openvpn],
     [ENABLED_OPENVPN=$enableval],
     [ENABLED_OPENVPN=no])
 
+# openresty compatibility build
+AC_ARG_ENABLE([openresty],
+    [AS_HELP_STRING([--enable-openresty],[Enable openresty (default: disabled)])],
+    [ ENABLED_OPENRESTY=$enableval ],
+    [ ENABLED_OPENRESTY=no ]
+    )
+
 # nginx compatibility build
 AC_ARG_ENABLE([nginx],
     [AS_HELP_STRING([--enable-nginx],[Enable nginx (default: disabled)])],
@@ -825,11 +850,22 @@ AC_ARG_ENABLE([nginx],
     [ ENABLED_NGINX=no ]
     )
 
+if test "$ENABLED_OPENRESTY" = "yes"
+then
+    ENABLED_NGINX="yes"
+fi
+
 # lighty Support
 AC_ARG_ENABLE([lighty],
     [AS_HELP_STRING([--enable-lighty],[Enable lighttpd/lighty (default: disabled)])],
     [ ENABLED_LIGHTY=$enableval ],
     [ ENABLED_LIGHTY=no ]
+    )
+# rsyslog Support
+AC_ARG_ENABLE([rsyslog],
+    [AS_HELP_STRING([--enable-rsyslog],[Enable rsyslog (default: disabled)])],
+    [ ENABLED_RSYSLOG=$enableval ],
+    [ ENABLED_RSYSLOG=no ]
     )
 
 # haproxy compatibility build
@@ -889,6 +925,13 @@ then
     ENABLED_FORTRESS="yes"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_OPENSSH -DHAVE_EX_DATA -DWOLFSSL_BASE16"
 fi
+
+# net-snmp Build
+AC_ARG_ENABLE([net-snmp],
+    [AS_HELP_STRING([--enable-net-snmp],[Enable net-snmp (default: disabled)])],
+    [ ENABLED_NETSNMP=$enableval ],
+    [ ENABLED_NETSNMP=no ]
+    )
 
 #IP alternative name Support
 AC_ARG_ENABLE([ip-alt-name],
@@ -957,7 +1000,11 @@ AC_ARG_ENABLE([opensslall],
 [ ENABLED_OPENSSLALL=$enableval ],
 [ ENABLED_OPENSSLALL=no ]
 )
-if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_WPAS_DPP" = "yes" || test "$ENABLED_SMIME" = "yes" || test "$ENABLED_HAPROXY" = "yes" || test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" == "yes"
+if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || \
+   test "$ENABLED_WPAS_DPP" = "yes" || test "$ENABLED_SMIME" = "yes" || \
+   test "$ENABLED_HAPROXY" = "yes" || test "$ENABLED_BIND" = "yes" || \
+   test "$ENABLED_NTP" == "yes" || test "$ENABLED_NETSNMP" = "yes" || \
+   test "$ENABLED_OPENRESTY" = "yes" || test "$ENABLED_RSYSLOG" == "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
@@ -973,7 +1020,13 @@ AC_ARG_ENABLE([opensslextra],
     [ ENABLED_OPENSSLEXTRA=$enableval ],
     [ ENABLED_OPENSSLEXTRA=no ]
     )
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_SIGNAL" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_BUMP" = "yes" || test "$ENABLED_SNIFFER" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "x$ENABLED_LIGHTY" = "xyes" || test "$ENABLED_LIBSSH2" = "yes" || test "x$ENABLED_NTP" = "xyes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || \
+   test "$ENABLED_SIGNAL" = "yes" || test "$ENABLED_WPAS" = "yes" || \
+   test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_BUMP" = "yes" || \
+   test "$ENABLED_SNIFFER" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || \
+   test "$ENABLED_LIBWEBSOCKETS" = "yes" || \
+   test "x$ENABLED_LIGHTY" = "xyes" || test "$ENABLED_LIBSSH2" = "yes" || \
+   test "x$ENABLED_NTP" = "xyes" || test "$ENABLED_RSYSLOG" == "yes"
 then
     ENABLED_OPENSSLEXTRA="yes"
 fi
@@ -982,7 +1035,7 @@ if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "x$ENABLED_OPENSSLCOEXIST" = "xn
 then
   AM_CFLAGS="-DOPENSSL_EXTRA -DWOLFSSL_ALWAYS_VERIFY_CB $AM_CFLAGS"
   AM_CFLAGS="-DWOLFSSL_VERIFY_CB_ALL_CERTS -DWOLFSSL_EXTRA_ALERTS $AM_CFLAGS"
-  AM_CFLAGS="-DHAVE_EXT_CACHE $AM_CFLAGS"
+  AM_CFLAGS="-DHAVE_EXT_CACHE -DWOLFSSL_FORCE_CACHE_ON_TICKET $AM_CFLAGS"
 fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "x509small"
@@ -1045,8 +1098,6 @@ fi
 if test "$ENABLED_WPAS" = "small"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WPAS_SMALL"
-    AM_CFLAGS="$AM_CFLAGS -DKEEP_OUR_CERT"
-    AM_CFLAGS="$AM_CFLAGS -DKEEP_PEER_CERT"
 fi
 if test "$ENABLED_WPAS" = "yes"
 then
@@ -1068,6 +1119,8 @@ then
     AM_CFLAGS="$AM_CFLAGS -DATOMIC_USER"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
+    AM_CFLAGS="$AM_CFLAGS -DKEEP_OUR_CERT"
+    AM_CFLAGS="$AM_CFLAGS -DKEEP_PEER_CERT"
 fi
 
 if test "$ENABLED_FORTRESS" = "yes"
@@ -1880,7 +1933,7 @@ AC_ARG_ENABLE([sessioncerts],
     [ ENABLED_SESSIONCERTS=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes" || test "x$ENABLED_NETSNMP" = "xyes"
 then
     ENABLED_SESSIONCERTS=yes
 fi
@@ -1902,7 +1955,7 @@ AC_ARG_ENABLE([keygen],
     [ ENABLED_KEYGEN=no ]
     )
 
-if test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" = "yes" || test "$ENABLED_LIBSSH2" = "yes"
+if test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_OPENRESTY" = "yes"
 then
     ENABLED_KEYGEN=yes
 fi 
@@ -2848,7 +2901,7 @@ AC_ARG_ENABLE([anon],
     [ ENABLED_ANON=no ]
     )
 
-if test "x$ENABLED_WPAS" = "xyes" || test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes"
+if test "x$ENABLED_WPAS" = "xyes" || test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "$ENABLED_RSYSLOG" == "yes"
 then
     ENABLED_ANON=yes
 fi
@@ -2871,9 +2924,16 @@ AC_ARG_ENABLE([asn],
     [ ENABLED_ASN=yes ]
     )
 
+if test "$ENABLED_ASN" = "template"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_TEMPLATE"
+    ENABLED_ASN=yes
+fi
+
 if test "$ENABLED_ASN" = "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DNO_ASN"
+    AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_ASN_CRYPT"
+    enable_pwdbased=no
     if test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no"
     then
         # DH and ECC need bigint
@@ -3014,7 +3074,7 @@ AC_ARG_ENABLE([des3],
     [ ENABLED_DES3=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "x$ENABLED_WPAS" != "xno"  || test "$ENABLED_LIBSSH2" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "x$ENABLED_WPAS" != "xno"  || test "$ENABLED_NETSNMP" = "yes" || test "$ENABLED_LIBSSH2" = "yes"
 then
     ENABLED_DES3="yes"
 fi
@@ -3121,8 +3181,7 @@ AC_ARG_ENABLE([xts],
 
 AS_IF([test "x$ENABLED_XTS" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_XTS -DWOLFSSL_AES_DIRECT"])
-
-
+    
 # Web Server Build
 AC_ARG_ENABLE([webserver],
     [AS_HELP_STRING([--enable-webserver],[Enable Web Server (default: disabled)])],
@@ -3519,20 +3578,24 @@ fi
 
 # CRL
 AC_ARG_ENABLE([crl],
-    [AS_HELP_STRING([--enable-crl],[Enable CRL (default: disabled)])],
+    [AS_HELP_STRING([--enable-crl],[Enable CRL (Use =io for inline CRL HTTP GET) (default: disabled)])],
     [ ENABLED_CRL=$enableval ],
     [ ENABLED_CRL=no ],
     )
 
-
-if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes" || test "x$ENABLED_WPAS" != "xno" || test "x$ENABLED_LIGHTY" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes" || \
+   test "x$ENABLED_WPAS" != "xno" || test "x$ENABLED_LIGHTY" = "xyes" || test "x$ENABLED_NETSNMP" = "xyes"
 then
     ENABLED_CRL=yes
 fi
 
-if test "$ENABLED_CRL" = "yes"
+if test "$ENABLED_CRL" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
+fi
+if test "$ENABLED_CRL" == "io"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_IO"
 fi
 
 
@@ -3677,6 +3740,52 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_QSH -DWOLFSSL_STATIC_DH -DWOLFSSL_STATIC_PSK"
 fi
 
+
+# liboqs
+ENABLED_LIBOQS="no"
+tryliboqsdir=""
+AC_ARG_WITH([liboqs],
+    [AS_HELP_STRING([--with-liboqs=PATH],[Path to liboqs install (default /usr/local) EXPERIMENTAL!])],
+    [
+        AC_MSG_CHECKING([for liboqs])
+        CPPFLAGS="$CPPFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS"
+        LIBS="$LIBS -loqs"
+
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])
+
+        if test "x$liboqs_linked" = "xno" ; then
+            if test "x$withval" != "xno" ; then
+                tryliboqsdir=$withval
+            fi
+            if test "x$withval" = "xyes" ; then
+                tryliboqsdir="/usr/local"
+            fi
+
+            LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$tryliboqsdir/lib"
+            CPPFLAGS="$CPPFLAGS -I$tryliboqsdir/include"
+
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])
+
+            if test "x$liboqs_linked" = "xno" ; then
+                AC_MSG_ERROR([liboqs isn't found.
+                If it's already installed, specify its path using --with-liboqs=/dir/])
+            fi
+            AC_MSG_RESULT([yes])
+            AM_LDFLAGS="$AM_LDFLAGS -L$tryliboqsdir/lib"
+        else
+            AC_MSG_RESULT([yes])
+        fi
+
+        if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+        then
+            ENABLED_OPENSSLEXTRA="yes"
+            AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
+        fi
+
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS"
+        ENABLED_LIBOQS="yes"
+    ]
+)
 
 # Whitewood netRandom client library
 ENABLED_WNR="no"
@@ -3879,11 +3988,12 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_REQUIRE_FFDHE"
 fi
 
-# TLS 1.3 Requires either ECC or (RSA/DH), or CURVE25519/ED25519 or CURVE448/ED448
+# TLS 1.3 Requires either ECC or (RSA/DH), or CURVE25519/ED25519 or CURVE448/ED448 or libOQS
 if test "x$ENABLED_PSK" = "xno" && test "x$ENABLED_ECC" = "xno" && \
     (test "x$ENABLED_RSA" = "xno" || test "x$ENABLED_DH" = "xno") && \
     (test "x$ENABLED_CURVE25519" = "xno" || test "x$ENABLED_ED25519" = "xno") && \
-    (test "x$ENABLED_CURVE448" = "xno" || test "x$ENABLED_ED448" = "xno")
+    (test "x$ENABLED_CURVE448" = "xno" || test "x$ENABLED_ED448" = "xno") && \
+    test "x$ENABLED_LIBOQS" = "xno"
 then
     # disable TLS 1.3
     ENABLED_TLS13=no
@@ -4384,6 +4494,23 @@ then
 
 fi
 
+if test "$ENABLED_NETSNMP" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
+
+    if test "x$ENABLED_AESCFB" = "xno"
+    then
+        ENABLED_AESCFB="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_CFB"
+    fi
+
+    if test "x$ENABLED_DTLS" = "xno"
+    then
+        ENABLED_DTLS="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS"
+    fi
+fi
+
 if test "$ENABLED_SIGNAL" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIGNAL -DWOLFSSL_AES_COUNTER -DWOLFSSL_AES_DIRECT"
@@ -4403,6 +4530,12 @@ then
     ENABLED_SHA224="yes"
     ENABLED_SHA384="yes"
     ENABLED_SHA512="yes"
+fi
+
+if test "$ENABLED_RSYSLOG" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RSYSLOG -DWOLFSSL_ERROR_CODE_OPENSSL"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA -DOPENSSL_COMPATIBLE_DEFAULTS"
 fi
 
 if test "$ENABLED_OPENVPN" = "yes"
@@ -4659,6 +4792,12 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN"
     fi
 
+    if test "x$ENABLED_KEYGEN" = "xno"
+    then
+        ENABLED_KEYGEN="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"
+    fi
+
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL -DWOLFSSL_ALWAYS_VERIFY_CB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI -DHAVE_EX_DATA"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB -DWOLFSSL_SIGNER_DER_CERT"
@@ -4844,6 +4983,24 @@ then
 fi
 
 
+# PKCS#12
+# set PKCS#12 default
+PKCS12_DEFAULT=yes
+if test "$ENABLED_ASN" = "no"
+then
+    PKCS12_DEFAULT=no
+fi
+AC_ARG_ENABLE([pkcs12],
+    [AS_HELP_STRING([--enable-pkcs12],[Enable pkcs12 (default: enabled)])],
+    [ ENABLED_PKCS12=$enableval ],
+    [ ENABLED_PKCS12=$PKCS12_DEFAULT ]
+    )
+
+if test "x$ENABLED_PKCS12" = "xno"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_PKCS12"
+fi
+
 # PWDBASED has to come after certservice since we want it on w/o explicit on
 # PWDBASED
 AC_ARG_ENABLE([pwdbased],
@@ -4854,9 +5011,11 @@ AC_ARG_ENABLE([pwdbased],
 
 if test "$ENABLED_PWDBASED" = "no"
 then
-    if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || test "$ENABLED_WEBSERVER" = "yes" || test "$ENABLED_ENCKEYS" = "yes"
+    if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || \
+       test "$ENABLED_WEBSERVER" = "yes" || test "$ENABLED_ENCKEYS" = "yes" || \
+       test "$ENABLED_PKCS12" = "yes"
     then
-        # opensslextra, opensslall, webserver, and enckeys needs pwdbased
+        # opensslextra, opensslall, webserver, enckeys and pkcs12 need pwdbased
         ENABLED_PWDBASED=yes
     else
         AM_CFLAGS="$AM_CFLAGS -DNO_PWDBASED"
@@ -5076,16 +5235,16 @@ then
 fi
 
 
-# PKCS#12
-AC_ARG_ENABLE([pkcs12],
-    [AS_HELP_STRING([--enable-pkcs12],[Enable pkcs12 (default: enabled)])],
-    [ ENABLED_PKCS12=$enableval ],
-    [ ENABLED_PKCS12=yes ]
+# PKCS#8
+AC_ARG_ENABLE([pkcs8],
+    [AS_HELP_STRING([--enable-pkcs8],[Enable PKCS #8 key packages (default: enabled)])],
+    [ ENABLED_PKCS8=$enableval ],
+    [ ENABLED_PKCS8=yes ]
     )
 
-if test "x$ENABLED_PKCS12" = "xno"
+if test "x$ENABLED_PKCS8" = "xno"
 then
-    AM_CFLAGS="$AM_CFLAGS -DNO_PKCS12"
+    AM_CFLAGS="$AM_CFLAGS -DNO_PKCS8"
 fi
 
 
@@ -6100,6 +6259,18 @@ yes) AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
    ;;
 esac
 
+# IoT-Safe support
+AC_ARG_ENABLE([iotsafe],
+    [AS_HELP_STRING([--enable-iotsafe],[Enables support for IoT-Safe secure applet (default: disabled)])],
+    [ ENABLED_IOTSAFE=$enableval ],
+    [ ENABLED_IOTSAFE=no ]
+    )
+
+AC_ARG_ENABLE([iotsafe-hwrng],
+    [AS_HELP_STRING([--enable-iotsafe-hwrng],[Enables support for IoT-Safe RNG (default: disabled)])],
+    [ ENABLED_IOTSAFE_HWRNG=$enableval ],
+    [ ENABLED_IOTSAFE_HWRNG=no ]
+    )
 
 # User Settings
 AC_ARG_ENABLE([usersettings],
@@ -6332,6 +6503,18 @@ then
     fi
 fi
 
+if test "$ENABLED_IOTSAFE" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_IOTSAFE"
+    ENABLED_IOTSAFE=yes
+fi
+
+if test "$ENABLED_IOTSAFE_HWRNG" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_IOTSAFE_HWRNG"
+    ENABLED_IOTSAFE_HWRNG=yes
+fi
+
 
 AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MAX_STRENGTH"])
@@ -6518,10 +6701,6 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     if test "$ENABLED_IOPOOL" = "yes"; then
         AC_MSG_ERROR([--enable-iopool is incompatible with --enable-linuxkm.])
     fi
-    #FIPS currently depends on thread-local storage
-    if test "$ENABLED_FIPS" = "yes"; then
-        AC_MSG_ERROR([--enable-fips is incompatible with --enable-linuxkm.])
-    fi
     if test "$ENABLED_EXAMPLES" = "yes"; then
         AC_MSG_ERROR([--enable-examples is incompatible with --enable-linuxkm.])
     fi
@@ -6617,11 +6796,12 @@ AM_CONDITIONAL([BUILD_INLINE],[test "x$ENABLED_INLINE" = "xyes"])
 AM_CONDITIONAL([BUILD_OCSP],[test "x$ENABLED_OCSP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_OCSP_STAPLING],[test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes"])
 AM_CONDITIONAL([BUILD_OCSP_STAPLING_V2],[test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"])
-AM_CONDITIONAL([BUILD_CRL],[test "x$ENABLED_CRL" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_CRL],[test "x$ENABLED_CRL" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CRL_MONITOR],[test "x$ENABLED_CRL_MONITOR" = "xyes"])
 AM_CONDITIONAL([BUILD_USER_RSA],[test "x$ENABLED_USER_RSA" = "xyes"] )
 AM_CONDITIONAL([BUILD_USER_CRYPTO],[test "x$ENABLED_USER_CRYPTO" = "xyes"])
 AM_CONDITIONAL([BUILD_NTRU],[test "x$ENABLED_NTRU" = "xyes"])
+AM_CONDITIONAL([BUILD_LIBOQS],[test "x$ENABLED_LIBOQS" = "xyes"])
 AM_CONDITIONAL([BUILD_WNR],[test "x$ENABLED_WNR" = "xyes"])
 AM_CONDITIONAL([BUILD_SRP],[test "x$ENABLED_SRP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([USE_VALGRIND],[test "x$ENABLED_VALGRIND" = "xyes"])
@@ -6639,6 +6819,7 @@ AM_CONDITIONAL([BUILD_WOLFCRYPT_TESTS],[test "x$ENABLED_CRYPT_TESTS" = "xyes"])
 AM_CONDITIONAL([BUILD_LIBZ],[test "x$ENABLED_LIBZ" = "xyes"])
 AM_CONDITIONAL([BUILD_PKCS11],[test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_PKCS12],[test "x$ENABLED_PKCS12" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_PKCS8],[test "x$ENABLED_PKCS8" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CAVIUM],[test "x$ENABLED_CAVIUM" = "xyes"])
 AM_CONDITIONAL([BUILD_CAVIUM_V],[test "x$ENABLED_CAVIUM_V" = "xyes"])
 AM_CONDITIONAL([BUILD_OCTEON_SYNC],[test "x$ENABLED_OCTEON_SYNC" = "xyes"])
@@ -6669,6 +6850,8 @@ AM_CONDITIONAL([BUILD_LINUXKM],[test "$ENABLED_LINUXKM" = "yes"])
 AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "$ENABLED_NO_LIBRARY" = "yes"])
 AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
 AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM" = "xqnx"])
+AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])
+AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
 
 if test "$ax_enable_debug" = "yes" ||
         test "$ENABLED_STACKSIZE" != "no" ||
@@ -6840,8 +7023,9 @@ echo "   * Auto-vectorize C flags:     $CFLAGS_AUTO_VECTORIZE_ENABLE" && \
 echo "   * SIMD enable as flags:       $ASFLAGS_FPU_DISABLE_SIMD_ENABLE" && \
 echo "   * FPU enable as flags:        $ASFLAGS_FPU_ENABLE_SIMD_DISABLE" && \
 echo "   * SIMD+FPU disable as flags:  $ASFLAGS_FPUSIMD_DISABLE" && \
+echo "   * SIMD+FPU enable as flags:   $ASFLAGS_FPUSIMD_ENABLE" && \
+echo "   * Linux kernel module PIE:    $ENABLED_LINUXKM_PIE"
 
-echo "   * SIMD+FPU enable as flags:   $ASFLAGS_FPUSIMD_ENABLE"
 echo "   * Debug enabled:              $ax_enable_debug"
 echo "   * Coverage enabled:           $ax_enable_coverage"
 echo "   * Warnings as failure:        $ac_cv_warnings_as_errors"
@@ -6945,8 +7129,10 @@ echo "   * STUNNEL:                    $ENABLED_STUNNEL"
 echo "   * tcpdump:                    $ENABLED_TCPDUMP"
 echo "   * libssh2:                    $ENABLED_LIBSSH2"
 echo "   * ntp:                        $ENABLED_NTP"
+echo "   * rsyslog:                    $ENABLED_RSYSLOG"
 echo "   * Apache httpd:               $ENABLED_APACHE_HTTPD"
 echo "   * NGINX:                      $ENABLED_NGINX"
+echo "   * OpenResty:                  $ENABLED_OPENRESTY"
 echo "   * ASIO:                       $ENABLED_ASIO"
 echo "   * LIBWEBSOCKETS:              $ENABLED_LIBWEBSOCKETS"
 echo "   * Qt:                         $ENABLED_QT"
@@ -6976,6 +7162,7 @@ echo "   * Atomic User Record Layer:   $ENABLED_ATOMICUSER"
 echo "   * Public Key Callbacks:       $ENABLED_PKCALLBACKS"
 echo "   * NTRU:                       $ENABLED_NTRU"
 echo "   * QSH:                        $ENABLED_QSH"
+echo "   * liboqs:                     $ENABLED_LIBOQS"
 echo "   * Whitewood netRandom:        $ENABLED_WNR"
 echo "   * Server Name Indication:     $ENABLED_SNI"
 echo "   * ALPN:                       $ENABLED_ALPN"
@@ -7021,6 +7208,7 @@ else
 fi
 echo "   * SP math implementation:     $ENABLED_SP_MATH_DESC"
 echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
+echo "   * PKCS#8:                     $ENABLED_PKCS8"
 echo "   * PKCS#11:                    $ENABLED_PKCS11"
 echo "   * PKCS#12:                    $ENABLED_PKCS12"
 echo "   * Cavium Nitrox:              $ENABLED_CAVIUM"
@@ -7035,6 +7223,8 @@ echo "   * Linux AF_ALG:               $ENABLED_AFALG"
 echo "   * Linux devcrypto:            $ENABLED_DEVCRYPTO"
 echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
 echo "   * i.MX6 CAAM:                 $ENABLED_CAAM"
+echo "   * IoT-Safe:                   $ENABLED_IOTSAFE"
+echo "   * IoT-Safe HWRNG:             $ENABLED_IOTSAFE_HWRNG"
 echo ""
 echo "---"
 

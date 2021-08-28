@@ -24,7 +24,6 @@
 #ifndef WOLFSSL_INT_H
 #define WOLFSSL_INT_H
 
-
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/ssl.h>
 #ifdef HAVE_CRL
@@ -254,6 +253,10 @@
 
 #ifdef NO_MD5
     #define WC_MD5_DIGEST_SIZE 16
+#endif
+
+#ifdef WOLFSSL_IOTSAFE
+    #include <wolfssl/wolfcrypt/port/iotsafe/iotsafe.h>
 #endif
 
 
@@ -2107,7 +2110,9 @@ struct WOLFSSL_CERT_MANAGER {
                                         /* CTX has ownership and free this   */
                                         /* with CTX free.                    */
 #endif
+#ifndef SINGLE_THREADED
     wolfSSL_Mutex   refMutex;   /* reference count mutex */
+#endif
     int             refCount;         /* reference count */
 };
 
@@ -2789,10 +2794,11 @@ struct WOLFSSL_CTX {
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* ca_names;
     #endif
-    #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
-        defined(WOLFSSL_NGINX) || defined (WOLFSSL_HAPROXY)
+    #ifdef OPENSSL_EXTRA
     WOLF_STACK_OF(WOLFSSL_X509)* x509Chain;
     client_cert_cb CBClientCert;  /* client certificate callback */
+    CertSetupCallback  certSetupCb;
+    void*              certSetupCbArg;
     #endif
 #ifdef WOLFSSL_TLS13
     int         certChainCnt;
@@ -2916,6 +2922,10 @@ struct WOLFSSL_CTX {
     CertVerifyCallback verifyCertCb;
     void*              verifyCertCbArg;
 #endif /* OPENSSL_ALL */
+#ifdef OPENSSL_EXTRA
+    SSL_Msg_Cb      protoMsgCb;         /* inspect protocol message callback */
+    void*           protoMsgCtx;        /* user set context with msg callback */
+#endif
     word32          timeout;            /* session timeout */
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_ED448)
     word32          ecdhCurveOID;       /* curve Ecc_Sum */
@@ -2952,9 +2962,11 @@ struct WOLFSSL_CTX {
     pem_password_cb* passwd_cb;
     void*            passwd_userdata;
 #endif
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
+#ifdef WOLFSSL_LOCAL_X509_STORE
     WOLFSSL_X509_STORE x509_store; /* points to ctx->cm */
     WOLFSSL_X509_STORE* x509_store_pt; /* take ownership of external store */
+#endif
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
     byte            readAhead;
     void*           userPRFArg; /* passed to prf callback */
 #endif
@@ -3324,6 +3336,7 @@ struct WOLFSSL_X509_CHAIN {
 
 /* wolfSSL session type */
 struct WOLFSSL_SESSION {
+    int                cacheRow;                  /* row in session cache     */
     word32             bornOn;                    /* create time in seconds   */
     word32             timeout;                   /* timeout in seconds       */
     byte               sessionID[ID_LEN];         /* id for protocol          */
@@ -3355,9 +3368,11 @@ struct WOLFSSL_SESSION {
 #ifdef OPENSSL_EXTRA
     byte               sessionCtxSz;              /* sessionCtx length        */
     byte               sessionCtx[ID_LEN];        /* app specific context id  */
+#ifndef SINGLE_THREADED
     wolfSSL_Mutex      refMutex;                  /* ref count mutex */
-    int                refCount;                  /* reference count */
 #endif
+    int                refCount;                  /* reference count */
+#endif /* OPENSSL_EXTRA */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     byte               peerVerifyRet;             /* cert verify error */
 #endif
@@ -3387,7 +3402,7 @@ struct WOLFSSL_SESSION {
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
     byte               side;                      /* Either WOLFSSL_CLIENT_END or
-                                                     WOLFSSL_SERVER_END */
+                                                            WOLFSSL_SERVER_END */
 };
 
 
@@ -3816,6 +3831,7 @@ struct WOLFSSL_X509_NAME {
     char  staticName[ASN_NAME_MAX];
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
     !defined(NO_ASN)
+    DecodedName fullName;
     int   entrySz; /* number of entries */
     WOLFSSL_X509_NAME_ENTRY entry[MAX_NAME_ENTRIES]; /* all entries i.e. CN */
     WOLFSSL_X509*           x509;   /* x509 that struct belongs to */
@@ -3881,7 +3897,9 @@ struct WOLFSSL_X509 {
     int              certPoliciesNb;
 #endif /* WOLFSSL_CERT_EXT */
 #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
+#ifndef SINGLE_THREADED
     wolfSSL_Mutex    refMutex;                       /* ref count mutex */
+#endif
     int              refCount;                       /* reference count */
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -3891,6 +3909,9 @@ struct WOLFSSL_X509 {
     byte*            authKeyId;
     byte*            subjKeyId;
     byte*            extKeyUsageSrc;
+#ifdef OPENSSL_ALL
+    byte*            subjAltNameSrc;
+#endif
     const byte*      CRLInfo;
     byte*            authInfo;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
@@ -3905,6 +3926,9 @@ struct WOLFSSL_X509 {
     word32           subjKeyIdSz;
     word32           extKeyUsageSz;
     word32           extKeyUsageCount;
+#ifdef OPENSSL_ALL
+    word32           subjAltNameSz;
+#endif
 
     byte             CRLdistSet:1;
     byte             CRLdistCrit:1;
@@ -4329,6 +4353,9 @@ struct WOLFSSL {
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     CertReqCtx*     certReqCtx;
 #endif
+#ifdef WOLFSSL_LOCAL_X509_STORE
+    WOLFSSL_X509_STORE* x509_store_pt; /* take ownership of external store */
+#endif
 #ifdef KEEP_PEER_CERT
     WOLFSSL_X509     peerCert;           /* X509 peer cert */
 #endif
@@ -4474,11 +4501,14 @@ struct WOLFSSL {
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_STACK* supportedCiphers; /* Used in wolfSSL_get_ciphers_compat */
     WOLFSSL_STACK* peerCertChain;    /* Used in wolfSSL_get_peer_cert_chain */
+#ifdef KEEP_OUR_CERT
+    WOLFSSL_STACK* ourCertChain;    /* Used in wolfSSL_add1_chain_cert */
+#endif
 #endif
 #ifdef WOLFSSL_STATIC_EPHEMERAL
     StaticKeyExchangeInfo_t staticKE;
 #endif
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
     /* Added in libest port: allow applications to get the 'tls-unique' Channel
      * Binding Type (https://tools.ietf.org/html/rfc5929#section-3). This is
      * used in the EST protocol to bind an enrollment to a TLS session through
@@ -4487,8 +4517,30 @@ struct WOLFSSL {
     byte clientFinished[TLS_FINISHED_SZ];
     byte serverFinished[TLS_FINISHED_SZ];
 #endif
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* ca_names;
+#endif
+#if defined(WOLFSSL_IOTSAFE) && defined(HAVE_PK_CALLBACKS)
+    IOTSAFE iotsafe;
+#endif
 };
 
+/*
+ * The SSL object may have its own certificate store. The below macros simplify
+ * logic for choosing which WOLFSSL_CERT_MANAGER and WOLFSSL_X509_STORE to use.
+ * Always use SSL specific objects when available and revert to CTX otherwise.
+ */
+#ifdef WOLFSSL_LOCAL_X509_STORE
+#define SSL_CM(ssl) (ssl->x509_store_pt ? ssl->x509_store_pt->cm : ssl->ctx->cm)
+#define SSL_STORE(ssl) (ssl->x509_store_pt ? ssl->x509_store_pt : \
+                  (ssl->ctx->x509_store_pt ? ssl->ctx->x509_store_pt : \
+                                            &ssl->ctx->x509_store))
+#else
+#define SSL_CM(ssl) ssl->ctx->cm
+#endif
+
+#define SSL_CA_NAMES(ssl) (ssl->ca_names != NULL ? ssl->ca_names : \
+        ssl->ctx->ca_names)
 
 WOLFSSL_LOCAL int  SSL_CTX_RefCount(WOLFSSL_CTX* ctx, int incr);
 WOLFSSL_LOCAL int  SetSSL_CTX(WOLFSSL*, WOLFSSL_CTX*, int);
@@ -4635,6 +4687,9 @@ WOLFSSL_LOCAL int ReceiveData(WOLFSSL*, byte*, int, int);
 WOLFSSL_LOCAL int SendFinished(WOLFSSL*);
 WOLFSSL_LOCAL int SendAlert(WOLFSSL*, int, int);
 WOLFSSL_LOCAL int ProcessReply(WOLFSSL*);
+WOLFSSL_LOCAL int ProcessReplyEx(WOLFSSL*, int);
+
+WOLFSSL_LOCAL const char* AlertTypeToString(int);
 
 WOLFSSL_LOCAL int SetCipherSpecs(WOLFSSL*);
 WOLFSSL_LOCAL int MakeMasterSecret(WOLFSSL*);
@@ -4656,6 +4711,11 @@ WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
 
 WOLFSSL_LOCAL int SetTicket(WOLFSSL*, const byte*, word32);
 WOLFSSL_LOCAL int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment);
+
+#if defined(WOLFSSL_IOTSAFE) && defined(HAVE_PK_CALLBACKS)
+WOLFSSL_LOCAL IOTSAFE *wolfSSL_get_iotsafe_ctx(WOLFSSL *ssl);
+WOLFSSL_LOCAL int wolfSSL_set_iotsafe_ctx(WOLFSSL *ssl, IOTSAFE *iotsafe);
+#endif
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
 WOLFSSL_LOCAL int SetECKeyInternal(WOLFSSL_EC_KEY* eckey);
@@ -4840,12 +4900,15 @@ WOLFSSL_LOCAL const char* GetCipherNameInternal(const byte cipherSuite0, const b
 #define MAX_SEGMENTS    5
 #define MAX_SEGMENT_SZ 20
 WOLFSSL_LOCAL int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER*);
+WOLFSSL_LOCAL const char* GetCipherSegment(const WOLFSSL_CIPHER* cipher, 
+                                           char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherProtocol(const byte minor);
 WOLFSSL_LOCAL const char* GetCipherKeaStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherAuthStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherMacStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL int SetCipherBits(const char* enc);
+WOLFSSL_LOCAL int IsCipherAEAD(char n[][MAX_SEGMENT_SZ]);
 #endif
 WOLFSSL_LOCAL const char* GetCipherNameIana(const byte cipherSuite0, const byte cipherSuite);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl);

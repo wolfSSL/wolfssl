@@ -23,7 +23,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-#ifndef WOLFCRYPT_ONLY
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT)
 
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/logging.h>
@@ -100,11 +100,11 @@ static int tls_client(void)
     /*---------------------*/
     /* for no peer auth:   */
     /*---------------------*/
-    wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, 0);
     /*---------------------*/
     /* end peer auth option*/
     /*---------------------*/
-    if ((ret = wolfSSL_CTX_set_cipher_list(ctx, "ECDHE-ECDSA-AES128-SHA256")) != SSL_SUCCESS) {
+    if ((ret = wolfSSL_CTX_set_cipher_list(ctx, "ECDHE-ECDSA-AES128-SHA256")) != WOLFSSL_SUCCESS) {
         wolfSSL_CTX_free(ctx);
         printf("CTXset_cipher_list failed, error: %d\n", ret);
         goto fail;
@@ -123,14 +123,14 @@ static int tls_client(void)
     }
 
     /* non blocking accept and connect */
-    ret = SSL_FAILURE;
+    ret = WOLFSSL_FAILURE;
 
-    while (ret != SSL_SUCCESS) {
+    while (ret != WOLFSSL_SUCCESS) {
         /* client connect */
         ret = wolfSSL_connect(ssl);
         error = wolfSSL_get_error(ssl, 0);
-        if (ret != SSL_SUCCESS) {
-            if (error != SSL_ERROR_WANT_READ && error != SSL_ERROR_WANT_WRITE) {
+        if (ret != WOLFSSL_SUCCESS) {
+            if (error != WOLFSSL_ERROR_WANT_READ && error != WOLFSSL_ERROR_WANT_WRITE) {
                 /* Fail */
                 printf("wolfSSL connect failed with return code %d\n", error);
                 goto fail;
@@ -146,7 +146,7 @@ static int tls_client(void)
         ret   = wolfSSL_write(ssl, msg, msgSz);
         error = wolfSSL_get_error(ssl, 0);
         if (ret != msgSz) {
-            if (error != SSL_ERROR_WANT_READ && error != SSL_ERROR_WANT_WRITE) {
+            if (error != WOLFSSL_ERROR_WANT_READ && error != WOLFSSL_ERROR_WANT_WRITE) {
                 /* Write failed */
                 goto fail;
             }
@@ -159,7 +159,7 @@ static int tls_client(void)
         ret = wolfSSL_read(ssl, reply, sizeof(reply) - 1);
         error = wolfSSL_get_error(ssl, 0);
         if (ret < 0) {
-            if (error != SSL_ERROR_WANT_READ && error != SSL_ERROR_WANT_WRITE) {
+            if (error != WOLFSSL_ERROR_WANT_READ && error != WOLFSSL_ERROR_WANT_WRITE) {
                 /* Can put print here, the server enters a loop waiting to read
                  * a confirmation message at this point */
                 // printf("client read failed\n");
@@ -186,14 +186,14 @@ fail:
 
     return -1;
 }
-#endif
+#endif /* !WOLFCRYPT_ONLY && !NO_WOLFSSL_CLIENT */
 
 
 int main(void)
 {
     int ret;
 
-#ifndef WOLFCRYPT_ONLY
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_WOLFSSL_CLIENT)
     wolfSSL_Init();
 
     ret = tls_client();

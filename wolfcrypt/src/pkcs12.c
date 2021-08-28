@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* PKCS#12 allows storage of key and certificates into containers */
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>

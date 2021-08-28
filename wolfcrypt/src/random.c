@@ -132,7 +132,7 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
     #include <wnr.h>
     #include <wolfssl/wolfcrypt/logging.h>
     wolfSSL_Mutex wnr_mutex;    /* global netRandom mutex */
-    int wnr_timeout     = 0;    /* entropy timeout, mililseconds */
+    int wnr_timeout     = 0;    /* entropy timeout, milliseconds */
     int wnr_mutex_init  = 0;    /* flag for mutex init */
     wnr_context*  wnr_ctx;      /* global netRandom context */
 #elif defined(FREESCALE_KSDK_2_0_TRNG)
@@ -173,6 +173,9 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #include <wolfssl/wolfcrypt/port/silabs/silabs_random.h>
 #endif
 
+#if defined(WOLFSSL_IOTSAFE) && defined(HAVE_IOTSAFE_HWRNG)
+#include <wolfssl/wolfcrypt/port/iotsafe/iotsafe.h>
+#endif
 
 #if defined(HAVE_INTEL_RDRAND) || defined(HAVE_INTEL_RDSEED)
     static word32 intel_flags = 0;

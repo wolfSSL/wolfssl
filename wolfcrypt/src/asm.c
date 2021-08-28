@@ -698,33 +698,39 @@ __asm__(                             \
 
 #define SQRADD(i, j)                                      \
 __asm__(                                                  \
-     "movl  %6,%%eax     \n\t"                            \
+     "movl  %3,%%eax     \n\t"                            \
      "mull  %%eax        \n\t"                            \
      "addl  %%eax,%0     \n\t"                            \
      "adcl  %%edx,%1     \n\t"                            \
      "adcl  $0,%2        \n\t"                            \
-     :"=r"(c0), "=r"(c1), "=r"(c2): "0"(c0), "1"(c1), "2"(c2), "m"(i) :"%eax","%edx","cc");
+     :"+rm"(c0), "+rm"(c1), "+rm"(c2)                     \
+     : "m"(i)                                             \
+     :"%eax","%edx","cc");
 
 #define SQRADD2(i, j)                                     \
 __asm__(                                                  \
-     "movl  %6,%%eax     \n\t"                            \
-     "mull  %7           \n\t"                            \
+     "movl  %3,%%eax     \n\t"                            \
+     "mull  %4           \n\t"                            \
      "addl  %%eax,%0     \n\t"                            \
      "adcl  %%edx,%1     \n\t"                            \
      "adcl  $0,%2        \n\t"                            \
      "addl  %%eax,%0     \n\t"                            \
      "adcl  %%edx,%1     \n\t"                            \
      "adcl  $0,%2        \n\t"                            \
-     :"=r"(c0), "=r"(c1), "=r"(c2): "0"(c0), "1"(c1), "2"(c2), "m"(i), "m"(j)  :"%eax","%edx", "cc");
+     :"+rm"(c0), "+rm"(c1), "+rm"(c2)                     \
+     : "m"(i), "m"(j)                                     \
+     :"%eax","%edx", "cc");
 
 #define SQRADDSC(i, j)                                    \
-__asm__(                                                     \
+__asm__(                                                  \
      "movl  %3,%%eax     \n\t"                            \
      "mull  %4           \n\t"                            \
      "movl  %%eax,%0     \n\t"                            \
      "movl  %%edx,%1     \n\t"                            \
      "xorl  %2,%2        \n\t"                            \
-     :"=r"(sc0), "=r"(sc1), "=r"(sc2): "g"(i), "g"(j) :"%eax","%edx","cc");
+     :"=r"(sc0), "=r"(sc1), "=r"(sc2)                     \
+     : "g"(i), "g"(j)                                     \
+     :"%eax","%edx","cc");
 
 #define SQRADDAC(i, j)                                    \
 __asm__(                                                  \
@@ -733,7 +739,9 @@ __asm__(                                                  \
      "addl  %%eax,%0     \n\t"                            \
      "adcl  %%edx,%1     \n\t"                            \
      "adcl  $0,%2        \n\t"                            \
-     :"=r"(sc0), "=r"(sc1), "=r"(sc2): "0"(sc0), "1"(sc1), "2"(sc2), "g"(i), "g"(j) :"%eax","%edx","cc");
+     :"=r"(sc0), "=r"(sc1), "=r"(sc2)                     \
+     : "0"(sc0), "1"(sc1), "2"(sc2), "g"(i), "g"(j)       \
+     :"%eax","%edx","cc");
 
 #define SQRADDDB                                          \
 __asm__(                                                  \
@@ -743,7 +751,10 @@ __asm__(                                                  \
      "addl %6,%0         \n\t"                            \
      "adcl %7,%1         \n\t"                            \
      "adcl %8,%2         \n\t"                            \
-     :"=r"(c0), "=r"(c1), "=r"(c2) : "0"(c0), "1"(c1), "2"(c2), "r"(sc0), "r"(sc1), "r"(sc2) : "cc");
+     :"=r"(c0), "=r"(c1), "=r"(c2)                        \
+     : "0"(c0), "1"(c1), "2"(c2), "r"(sc0), "r"(sc1),     \
+       "r"(sc2)                                           \
+     : "cc");
 
 #elif defined(TFM_X86_64)
 /* x86-64 optimized */

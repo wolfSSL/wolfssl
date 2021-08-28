@@ -31,6 +31,9 @@ This library provides single precision (SP) integer math functions.
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -84,8 +87,6 @@ This library provides single precision (SP) integer math functions.
  *                              Used with small code size and not small stack.
  * WOLFSSL_SP_FAST_MODEXP       Allow fast mod_exp with small C code
  */
-
-#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
 
 #include <wolfssl/wolfcrypt/sp_int.h>
 
@@ -476,7 +477,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addl	%%eax, %[l]	\n\t"                    \
         "adcl	%%edx, %[h]	\n\t"                    \
         "adcl	$0   , %[o]	\n\t"                    \
-        : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
+        : [l] "+rm" (vl), [h] "+rm" (vh), [o] "+rm" (vo) \
         : [a] "r" (va), [b] "r" (vb)                     \
         : "eax", "edx", "cc"                             \
     )
@@ -502,7 +503,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addl	%%eax, %[l]	\n\t"                    \
         "adcl	%%edx, %[h]	\n\t"                    \
         "adcl	$0   , %[o]	\n\t"                    \
-        : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
+        : [l] "+rm" (vl), [h] "+rm" (vh), [o] "+rm" (vo) \
         : [a] "r" (va), [b] "r" (vb)                     \
         : "eax", "edx", "cc"                             \
     )
@@ -541,7 +542,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addl	%%eax, %[l]	\n\t"                    \
         "adcl	%%edx, %[h]	\n\t"                    \
         "adcl	$0   , %[o]	\n\t"                    \
-        : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
+        : [l] "+rm" (vl), [h] "+rm" (vh), [o] "+rm" (vo) \
         : [a] "m" (va)                                   \
         : "eax", "edx", "cc"                             \
     )
@@ -2316,7 +2317,7 @@ int sp_grow(sp_int* a, int l)
 }
 #endif /* !WOLFSSL_RSA_VERIFY_ONLY || !NO_DH || HAVE_ECC */
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(HAVE_ECC)
 /* Set the multi-precision number to zero.
  *
  * @param  [out]  a  SP integer to set to zero.
@@ -2628,7 +2629,7 @@ static int _sp_cmp(sp_int* a, sp_int* b)
 }
 #endif
 
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(HAVE_ECC)
 /* Compare two multi-precision numbers.
  *
  * Pointers are compared such that NULL is less than not NULL.
@@ -3317,8 +3318,23 @@ int sp_mul_d(sp_int* a, sp_int_digit d, sp_int* r)
 #endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) ||
         * (WOLFSSL_KEY_GEN && !NO_RSA) */
 
-#if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
-    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+/* Predefine complicated rules of when to compile in sp_div_d and sp_mod_d. */
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
+    defined(WC_MP_TO_RADIX)
+#define WOLFSSL_SP_DIV_D
+#endif
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    defined(WOLFSSL_HAVE_SP_DH) || \
+    (defined(HAVE_ECC) && (defined(FP_ECC) || defined(HAVE_COMP_KEY))) || \
+    (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN))
+#define WOLFSSL_SP_MOD_D
+#endif
+
+#if (defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
+     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+      !defined(WOLFSSL_RSA_PUBLIC_ONLY))) || \
+    defined(WOLFSSL_SP_DIV_D) || defined(WOLFSSL_SP_MOD_D)
 #ifndef SP_ASM_DIV_WORD
 /* Divide a two digit number by a digit number and return. (hi | lo) / d
  *
@@ -3380,18 +3396,6 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 #endif /* !SP_ASM_DIV_WORD */
 #endif /* WOLFSSL_SP_MATH_ALL || !NO_DH || HAVE_ECC ||
         * (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) */
-
-/* Predefine complicated rules of when to compile in sp_div_d and sp_mod_d. */
-#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
-#define WOLFSSL_SP_DIV_D
-#endif
-#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(WOLFSSL_HAVE_SP_DH) || \
-    (defined(HAVE_ECC) && (defined(FP_ECC) || defined(HAVE_COMP_KEY))) || \
-    (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN))
-#define WOLFSSL_SP_MOD_D
-#endif
 
 #if (defined(WOLFSSL_SP_DIV_D) || defined(WOLFSSL_SP_MOD_D)) && \
     !defined(WOLFSSL_SP_SMALL)
@@ -3808,7 +3812,7 @@ int sp_div_2(sp_int* a, sp_int* r)
  * Add/Subtract Functions
  ************************/
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_SP_INVMOD)
 /* Add offset b to a into r: r = a + (b << (o * SP_WORD_SIZEOF))
  *
  * @param  [in]   a  SP integer to add to.
@@ -3914,7 +3918,7 @@ static int _sp_sub_off(sp_int* a, sp_int* b, sp_int* r, int o)
 #endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_SP_INT_NEGATIVE || !NO_DH ||
         * HAVE_ECC || (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) */
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_SP_INVMOD)
 /* Add b to a into r: r = a + b
  *
  * @param  [in]   a  SP integer to add to.
@@ -12328,7 +12332,8 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
 }
 
 #if (!defined(NO_DH) || defined(HAVE_ECC) || defined(WC_RSA_BLINDING) || \
-    defined(WOLFSSL_RSA_PUBLIC_ONLY)) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+    defined(WOLFSSL_RSA_PUBLIC_ONLY)) && (!defined(WOLFSSL_RSA_VERIFY_ONLY) || \
+    defined(HAVE_ECC_KEY_EXPORT))
 /* Convert the multi-precision number to an array of bytes in big-endian format.
  *
  * The array must be large enough for encoded number - use mp_unsigned_bin_size
@@ -12448,17 +12453,8 @@ static int _sp_read_radix_16(sp_int* a, const char* in)
 
     a->dp[0] = 0;
     for (i = (int)(XSTRLEN(in) - 1); i >= 0; i--) {
-        char ch = in[i];
-        if ((ch >= '0') && (ch <= '9')) {
-            ch -= '0';
-        }
-        else if ((ch >= 'A') && (ch <= 'F')) {
-            ch -= 'A' - 10;
-        }
-        else if ((ch >= 'a') && (ch <= 'f')) {
-            ch -= 'a' - 10;
-        }
-        else {
+        int ch = (int)HexCharToByte(in[i]);
+        if (ch < 0) {
             err = MP_VAL;
             break;
         }
@@ -12597,11 +12593,6 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     defined(WC_MP_TO_RADIX)
-/* Hex string characters. */
-static const char sp_hex_char[16] = {
-    '0', '1', '2', '3', '4', '5', '6', '7',
-    '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
-};
 
 /* Put the big-endian, hex string encoding of a into str.
  *
@@ -12668,11 +12659,11 @@ int sp_tohex(sp_int* a, char* str)
     #endif /* WC_DISABLE_RADIX_ZERO_PAD */
             /* Most-significant word. */
             for (; j >= 0; j -= 4) {
-                *(str++) = sp_hex_char[(a->dp[i] >> j) & 0xf];
+                *(str++) = ByteToHex(a->dp[i] >> j);
             }
             for (--i; i >= 0; i--) {
                 for (j = SP_WORD_SIZE - 4; j >= 0; j -= 4) {
-                    *(str++) = sp_hex_char[(a->dp[i] >> j) & 0xf];
+                    *(str++) = ByteToHex(a->dp[i] >> j);
                 }
             }
             *str = '\0';
@@ -12684,7 +12675,8 @@ int sp_tohex(sp_int* a, char* str)
 #endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) || WC_MP_TO_RADIX */
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
+    defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
+    defined(WC_MP_TO_RADIX)
 /* Put the big-endian, decimal string encoding of a into str.
  *
  * Assumes str is large enough for result.

@@ -500,7 +500,7 @@ int wc_caamCoverKey(byte* in, word32 inSz, byte* out, word32* outSz, int flag)
 /* return 0 or greater on success for the partition number available
  * returns a negative value on failure
  */
-int caamFindUnusuedPartition()
+int caamFindUnusedPartition()
 {
     CAAM_BUFFER buf[1];
     word32 arg[4];
@@ -604,5 +604,5 @@ int caamReadPartition(CAAM_ADDRESS addr, unsigned char* out, int outSz)
     return 0;
 }
 
-#endif /* WOLFSSL_IMX6_CAAM */
-
+#endif /* WOLFSSL_IMX6_CAAM || WOLFSSL_IMX6_CAAM_RNG || 
+          WOLFSSL_IMX6UL_CAAM || WOLFSSL_IMX6_CAAM_BLOB */

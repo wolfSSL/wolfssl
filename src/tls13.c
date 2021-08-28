@@ -69,6 +69,8 @@
  *    When only one PSK ID is used and only one call to the PSK callback can
  *    be made per connect.
  *    You cannot use wc_psk_client_cs_callback type callback on client.
+ * WOLFSSL_CHECK_ALERT_ON_ERR
+ *    Check for alerts during the handshake in the event of an error.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -3840,12 +3842,16 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     }
     *inOutIdx += len;
 
-    if (ssl->buffers.certificate && ssl->buffers.certificate->buffer &&
+    if ((ssl->buffers.certificate && ssl->buffers.certificate->buffer &&
         ((ssl->buffers.key && ssl->buffers.key->buffer)
         #ifdef HAVE_PK_CALLBACKS
             || wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)
         #endif
-    )) {
+    ))
+        #ifdef OPENSSL_EXTRA
+            || ssl->ctx->certSetupCb != NULL
+        #endif
+            ) {
         if (PickHashSigAlgo(ssl, peerSuites.hashSigAlgo,
                                                peerSuites.hashSigAlgoSz) != 0) {
             return INVALID_PARAMETER;
@@ -5775,6 +5781,11 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         listSz = 0;
     }
     else {
+#ifdef OPENSSL_EXTRA
+        if ((ret = CertSetupCbWrapper(ssl)) != 0)
+            return ret;
+#endif
+
         if (!ssl->buffers.certificate) {
             WOLFSSL_MSG("Send Cert missing certificate buffer");
             return BUFFER_ERROR;
@@ -6073,6 +6084,10 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
 
         case TLS_ASYNC_BUILD:
         {
+            int rem = ssl->buffers.outputBuffer.bufferSize
+              - ssl->buffers.outputBuffer.length
+              - RECORD_HEADER_SZ - HANDSHAKE_HEADER_SZ;
+
             /* idx is used to track verify pointer offset to output */
             args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
             args->verify =
@@ -6090,6 +6105,10 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 ret = DecodePrivateKey(ssl, &args->length);
                 if (ret != 0)
                     goto exit_scv;
+            }
+
+            if (rem < 0 || args->length > rem) {
+                ERROR_OUT(BUFFER_E, exit_scv);
             }
 
             if (args->length == 0) {
@@ -8471,6 +8490,9 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 ssl->error = SendTls13Certificate(ssl);
                 if (ssl->error != 0) {
+                #ifdef WOLFSSL_CHECK_ALERT_ON_ERR
+                    ProcessReplyEx(ssl, 1); /* See if an alert was sent. */
+                #endif
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
@@ -8489,6 +8511,9 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 ssl->error = SendTls13CertificateVerify(ssl);
                 if (ssl->error != 0) {
+                #ifdef WOLFSSL_CHECK_ALERT_ON_ERR
+                    ProcessReplyEx(ssl, 1); /* See if an alert was sent. */
+                #endif
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
@@ -8502,6 +8527,9 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 
         case FIRST_REPLY_FOURTH:
             if ((ssl->error = SendTls13Finished(ssl)) != 0) {
+            #ifdef WOLFSSL_CHECK_ALERT_ON_ERR
+                ProcessReplyEx(ssl, 1); /* See if an alert was sent. */
+            #endif
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
@@ -8636,6 +8664,19 @@ int wolfSSL_UseKeyShare(WOLFSSL* ssl, word16 group)
         /* Check for error */
         if (ret < 0)
             return ret;
+    }
+#endif
+
+#ifdef HAVE_LIBOQS
+    if (group >= WOLFSSL_OQS_MIN &&
+        group <= WOLFSSL_OQS_MAX &&
+        ssl->options.side == WOLFSSL_SERVER_END) {
+        /* If I am the server of a KEM connection, do not do keygen because I'm
+         * going to encapsulate with the client's public key. Note that I might
+         * be the client and ssl->option.side has not been properly set yet. In
+         * that case the KeyGen operation will be deferred to connection time.
+         */
+        return WOLFSSL_SUCCESS;
     }
 #endif
 
@@ -9204,24 +9245,34 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
     if (!havePSK)
 #endif
     {
-        if (!ssl->buffers.certificate ||
-            !ssl->buffers.certificate->buffer) {
-
-            WOLFSSL_MSG("accept error: server cert required");
-            WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
-            return WOLFSSL_FATAL_ERROR;
-        }
-
-    #ifdef HAVE_PK_CALLBACKS
-        if (wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)) {
-            WOLFSSL_MSG("Using PK for server private key");
+    #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+        defined(WOLFSSL_NGINX) || defined (WOLFSSL_HAPROXY)
+        if (ssl->ctx->certSetupCb != NULL) {
+            WOLFSSL_MSG("CertSetupCb set. server cert and "
+                        "key not checked");
         }
         else
     #endif
-        if (!ssl->buffers.key || !ssl->buffers.key->buffer) {
-            WOLFSSL_MSG("accept error: server key required");
-            WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
-            return WOLFSSL_FATAL_ERROR;
+        {
+            if (!ssl->buffers.certificate ||
+                !ssl->buffers.certificate->buffer) {
+
+                WOLFSSL_MSG("accept error: server cert required");
+                WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
+                return WOLFSSL_FATAL_ERROR;
+            }
+
+        #ifdef HAVE_PK_CALLBACKS
+            if (wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)) {
+                WOLFSSL_MSG("Using PK for server private key");
+            }
+            else
+        #endif
+            if (!ssl->buffers.key || !ssl->buffers.key->buffer) {
+                WOLFSSL_MSG("accept error: server key required");
+                WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
+                return WOLFSSL_FATAL_ERROR;
+            }
         }
     }
 #endif /* NO_CERTS */
@@ -9539,7 +9590,7 @@ int wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz)
  *
  * ssl    The SSL/TLS object.
  * data   Early data to write
- * sz     The size of the eary data in bytes.
+ * sz     The size of the early data in bytes.
  * outSz  The number of early data bytes written.
  * returns BAD_FUNC_ARG when: ssl, data or outSz is NULL; sz is negative;
  * or not using TLS v1.3. SIDE ERROR when not a server. Otherwise the number of

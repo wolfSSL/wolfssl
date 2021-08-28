@@ -33,7 +33,7 @@ ifndef SRC_TOP
     SRC_TOP=$(shell dirname $(MODULE_TOP))
 endif
 
-WOLFSSL_CFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CFLAGS) $(CFLAGS) -Wno-declaration-after-statement -Wno-redundant-decls -ffreestanding
+WOLFSSL_CFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CFLAGS) $(CFLAGS) -Wno-declaration-after-statement -Wno-redundant-decls
 ifdef KERNEL_EXTRA_CFLAGS
     WOLFSSL_CFLAGS += $(KERNEL_EXTRA_CFLAGS)
 endif
@@ -48,7 +48,12 @@ else
     WOLFSSL_CFLAGS+=-DNO_CRYPT_TEST
 endif
 
-export WOLFSSL_CFLAGS WOLFSSL_ASFLAGS WOLFSSL_OBJ_FILES
+ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
+    WOLFCRYPT_PIE_FILES := linuxkm/pie_first.o $(filter wolfcrypt/%,$(WOLFSSL_OBJ_FILES)) linuxkm/pie_redirect_table.o linuxkm/pie_last.o
+    WOLFSSL_OBJ_FILES := $(WOLFCRYPT_PIE_FILES) $(filter-out $(WOLFCRYPT_PIE_FILES),$(WOLFSSL_OBJ_FILES))
+endif
+
+export WOLFSSL_CFLAGS WOLFSSL_ASFLAGS WOLFSSL_OBJ_FILES WOLFCRYPT_PIE_FILES
 
 libwolfssl.ko:
 	@if test -z "$(KERNEL_ROOT)"; then echo '$$KERNEL_ROOT is unset' >&2; exit 1; fi
@@ -56,15 +61,15 @@ libwolfssl.ko:
 	@if test -z "$(src_libwolfssl_la_OBJECTS)"; then echo '$$src_libwolfssl_la_OBJECTS is unset.' >&2; exit 1; fi
 	@mkdir -p linuxkm src wolfcrypt/src wolfcrypt/test
 	@if test ! -h $(SRC_TOP)/Kbuild; then ln -s $(MODULE_TOP)/Kbuild $(SRC_TOP)/Kbuild; fi
-	+make -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(SRC_TOP)
+	+$(MAKE) -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(SRC_TOP)
 
 .PHONY: install modules_install
 install modules_install:
-	+make -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(SRC_TOP) INSTALL_MOD_DIR=wolfssl modules_install
+	+$(MAKE) -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(SRC_TOP) INSTALL_MOD_DIR=wolfssl modules_install
 
 .PHONY: clean
 clean:
-	+make -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(SRC_TOP) clean
+	+$(MAKE) -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(SRC_TOP) clean
 
 .PHONY: dist
 dist:

@@ -35,9 +35,9 @@
     }
     \endcode
 
-    \sa wolfSSL_dtls_get_current_timeout
-    \sa TranslateReturnCode
-    \sa RECV_FUNCTION
+    \sa EmbedSend
+    \sa wolfSSL_CTX_SetIORecv
+    \sa wolfSSL_SSLSetIORecv
 */
 WOLFSSL_API int EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
@@ -73,11 +73,9 @@ WOLFSSL_API int EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     }
     \endcode
 
-    \sa TranslateReturnCode
-    \sa SEND_FUNCTION
-    \sa LastError
-    \sa InitSSL_Ctx
-    \sa LastError
+    \sa EmbedReceive
+    \sa wolfSSL_CTX_SetIOSend
+    \sa wolfSSL_SSLSetIOSend
 */
 WOLFSSL_API int EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
@@ -112,9 +110,10 @@ WOLFSSL_API int EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     }
     \endcode
 
-    \sa TranslateReturnCode
-    \sa RECVFROM_FUNCTION
-    \sa Setsockopt
+    \sa EmbedSendTo
+    \sa wolfSSL_CTX_SetIORecv
+    \sa wolfSSL_SSLSetIORecv
+    \sa wolfSSL_dtls_get_current_timeout
 */
 WOLFSSL_API int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void*);
 
@@ -153,9 +152,9 @@ WOLFSSL_API int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void*);
     }
     \endcode
 
-    \sa LastError
-    \sa EmbedSend
-    \sa EmbedReceive
+    \sa EmbedReceiveFrom
+    \sa wolfSSL_CTX_SetIOSend
+    \sa wolfSSL_SSLSetIOSend
 */
 WOLFSSL_API int EmbedSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
@@ -188,10 +187,7 @@ WOLFSSL_API int EmbedSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     }
     \endcode
 
-    \sa wc_ShaHash
-    \sa EmbedGenerateCookie
-    \sa XMEMCPY
-    \sa XMEMSET
+    \sa wolfSSL_CTX_SetGenCookie
 */
 WOLFSSL_API int EmbedGenerateCookie(WOLFSSL* ssl, unsigned char* buf,
                                            int sz, void*);
@@ -212,7 +208,9 @@ WOLFSSL_API int EmbedGenerateCookie(WOLFSSL* ssl, unsigned char* buf,
     EmbedOcspRespFree(ctx, resp);
     \endcode
 
-    \sa XFREE
+    \sa wolfSSL_CertManagerSetOCSP_Cb
+    \sa wolfSSL_CertManagerEnableOCSPStapling
+    \sa wolfSSL_CertManagerEnableOCSP
 */
 WOLFSSL_API void EmbedOcspRespFree(void*, unsigned char*);
 

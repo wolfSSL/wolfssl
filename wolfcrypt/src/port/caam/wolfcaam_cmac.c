@@ -25,7 +25,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_CMAC) && defined(WOLFSSL_QNX_CAAM)
+#if defined(WOLFSSL_QNX_CAAM) && defined(WOLFSSL_CMAC)
 
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -169,4 +169,4 @@ int wc_CAAM_Cmac(Cmac* cmac, const byte* key, word32 keySz, const byte* in,
     return 0;
 }
 
-#endif
+#endif /* WOLFSSL_QNX_CAAM && WOLFSSL_CMAC */

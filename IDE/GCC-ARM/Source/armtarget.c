@@ -71,7 +71,7 @@ void reset_handler(void)
 
     /* Init heap */
     __heap_start__[0] = 0;
-    __heap_start__[1] = ((uint32_t)__heap_end__ - (uint32_t)__heap_start__);
+    __heap_start__[1] = ((uintptr_t)__heap_end__ - (uintptr_t)__heap_start__);
 #endif /* USE_WOLF_ARM_STARTUP */
 
     /* Start main */

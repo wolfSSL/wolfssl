@@ -95,6 +95,17 @@ decouple library dependencies with standard string, memory and so on.
         typedef const char* const wcchar;
     #endif
 
+    #ifndef HAVE_ANONYMOUS_INLINE_AGGREGATES
+        /* if __STDC__, pivot on the version, otherwise guess it's allowed,
+         * subject to override.
+         */
+        #if !defined(__STDC__) \
+            || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201101L))
+            #define HAVE_ANONYMOUS_INLINE_AGGREGATES 1
+        #else
+            #define HAVE_ANONYMOUS_INLINE_AGGREGATES 0
+        #endif
+    #endif
 
     /* try to set SIZEOF_LONG or SIZEOF_LONG_LONG if user didn't */
     #if defined(_MSC_VER) || defined(HAVE_LIMITS_H)
@@ -568,8 +579,9 @@ decouple library dependencies with standard string, memory and so on.
            debugging is turned on */
         #ifndef USE_WINDOWS_API
             #ifndef XSNPRINTF
-            #if defined(NO_FILESYSTEM) && (defined(OPENSSL_EXTRA) || \
-                   defined(HAVE_PKCS7)) && !defined(NO_STDIO_FILESYSTEM)
+            #if defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) && \
+                (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+                 defined(WOLFSSL_CERT_EXT) || defined(HAVE_PKCS7))
                 /* case where stdio is not included else where but is needed
                    for snprintf */
                 #include <stdio.h>
@@ -696,6 +708,10 @@ decouple library dependencies with standard string, memory and so on.
         #endif
         /* needed by wolfSSL_check_domain_name() */
         #define XTOLOWER(c)      tolower((c))
+    #endif
+
+    #ifndef OFFSETOF
+        #define OFFSETOF(type, field) ((size_t)&(((type *)0)->field))
     #endif
 
 

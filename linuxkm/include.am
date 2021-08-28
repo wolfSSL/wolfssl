@@ -7,4 +7,7 @@ EXTRA_DIST += m4/ax_linuxkm.m4 \
 	      linuxkm/Makefile \
 	      linuxkm/get_thread_size.c \
 	      linuxkm/module_hooks.c \
-	      linuxkm/module_exports.c.template
+	      linuxkm/module_exports.c.template \
+	      linuxkm/pie_first.c \
+	      linuxkm/pie_redirect_table.c \
+	      linuxkm/pie_last.c

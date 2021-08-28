@@ -11067,194 +11067,126 @@ L_2048_mont_loop_32:
 #ifndef __APPLE__
 .size	sp_2048_mont_reduce_32,.-sp_2048_mont_reduce_32
 #endif /* __APPLE__ */
-#ifdef HAVE_INTEL_AVX2
-/* Conditionally subtract b from a using the mask m.
- * m is -1 to subtract and 0 when not copying.
+/* Sub b from a into r. (r = a - b)
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
-.globl	sp_2048_cond_sub_avx2_32
-.type	sp_2048_cond_sub_avx2_32,@function
+.globl	sp_2048_sub_32
+.type	sp_2048_sub_32,@function
 .align	16
-sp_2048_cond_sub_avx2_32:
+sp_2048_sub_32:
 #else
 .section	__TEXT,__text
-.globl	_sp_2048_cond_sub_avx2_32
+.globl	_sp_2048_sub_32
 .p2align	4
-_sp_2048_cond_sub_avx2_32:
+_sp_2048_sub_32:
 #endif /* __APPLE__ */
-        movq	$0x00, %rax
-        movq	(%rdx), %r10
-        movq	(%rsi), %r8
-        pextq	%rcx, %r10, %r10
-        subq	%r10, %r8
-        movq	8(%rdx), %r10
-        movq	8(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, (%rdi)
-        sbbq	%r10, %r9
-        movq	16(%rdx), %r8
-        movq	16(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 8(%rdi)
-        sbbq	%r8, %r10
-        movq	24(%rdx), %r9
+        movq	(%rsi), %rcx
+        xorq	%rax, %rax
+        subq	(%rdx), %rcx
+        movq	8(%rsi), %r8
+        movq	%rcx, (%rdi)
+        sbbq	8(%rdx), %r8
+        movq	16(%rsi), %rcx
+        movq	%r8, 8(%rdi)
+        sbbq	16(%rdx), %rcx
         movq	24(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 16(%rdi)
-        sbbq	%r9, %r8
-        movq	32(%rdx), %r10
-        movq	32(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 16(%rdi)
+        sbbq	24(%rdx), %r8
+        movq	32(%rsi), %rcx
         movq	%r8, 24(%rdi)
-        sbbq	%r10, %r9
-        movq	40(%rdx), %r8
-        movq	40(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 32(%rdi)
-        sbbq	%r8, %r10
-        movq	48(%rdx), %r9
-        movq	48(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 40(%rdi)
-        sbbq	%r9, %r8
-        movq	56(%rdx), %r10
-        movq	56(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 48(%rdi)
-        sbbq	%r10, %r9
-        movq	64(%rdx), %r8
-        movq	64(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 56(%rdi)
-        sbbq	%r8, %r10
-        movq	72(%rdx), %r9
+        sbbq	32(%rdx), %rcx
+        movq	40(%rsi), %r8
+        movq	%rcx, 32(%rdi)
+        sbbq	40(%rdx), %r8
+        movq	48(%rsi), %rcx
+        movq	%r8, 40(%rdi)
+        sbbq	48(%rdx), %rcx
+        movq	56(%rsi), %r8
+        movq	%rcx, 48(%rdi)
+        sbbq	56(%rdx), %r8
+        movq	64(%rsi), %rcx
+        movq	%r8, 56(%rdi)
+        sbbq	64(%rdx), %rcx
         movq	72(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 64(%rdi)
-        sbbq	%r9, %r8
-        movq	80(%rdx), %r10
-        movq	80(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 64(%rdi)
+        sbbq	72(%rdx), %r8
+        movq	80(%rsi), %rcx
         movq	%r8, 72(%rdi)
-        sbbq	%r10, %r9
-        movq	88(%rdx), %r8
-        movq	88(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 80(%rdi)
-        sbbq	%r8, %r10
-        movq	96(%rdx), %r9
-        movq	96(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 88(%rdi)
-        sbbq	%r9, %r8
-        movq	104(%rdx), %r10
-        movq	104(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 96(%rdi)
-        sbbq	%r10, %r9
-        movq	112(%rdx), %r8
-        movq	112(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 104(%rdi)
-        sbbq	%r8, %r10
-        movq	120(%rdx), %r9
+        sbbq	80(%rdx), %rcx
+        movq	88(%rsi), %r8
+        movq	%rcx, 80(%rdi)
+        sbbq	88(%rdx), %r8
+        movq	96(%rsi), %rcx
+        movq	%r8, 88(%rdi)
+        sbbq	96(%rdx), %rcx
+        movq	104(%rsi), %r8
+        movq	%rcx, 96(%rdi)
+        sbbq	104(%rdx), %r8
+        movq	112(%rsi), %rcx
+        movq	%r8, 104(%rdi)
+        sbbq	112(%rdx), %rcx
         movq	120(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 112(%rdi)
-        sbbq	%r9, %r8
-        movq	128(%rdx), %r10
-        movq	128(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 112(%rdi)
+        sbbq	120(%rdx), %r8
+        movq	128(%rsi), %rcx
         movq	%r8, 120(%rdi)
-        sbbq	%r10, %r9
-        movq	136(%rdx), %r8
-        movq	136(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 128(%rdi)
-        sbbq	%r8, %r10
-        movq	144(%rdx), %r9
-        movq	144(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 136(%rdi)
-        sbbq	%r9, %r8
-        movq	152(%rdx), %r10
-        movq	152(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 144(%rdi)
-        sbbq	%r10, %r9
-        movq	160(%rdx), %r8
-        movq	160(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 152(%rdi)
-        sbbq	%r8, %r10
-        movq	168(%rdx), %r9
+        sbbq	128(%rdx), %rcx
+        movq	136(%rsi), %r8
+        movq	%rcx, 128(%rdi)
+        sbbq	136(%rdx), %r8
+        movq	144(%rsi), %rcx
+        movq	%r8, 136(%rdi)
+        sbbq	144(%rdx), %rcx
+        movq	152(%rsi), %r8
+        movq	%rcx, 144(%rdi)
+        sbbq	152(%rdx), %r8
+        movq	160(%rsi), %rcx
+        movq	%r8, 152(%rdi)
+        sbbq	160(%rdx), %rcx
         movq	168(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 160(%rdi)
-        sbbq	%r9, %r8
-        movq	176(%rdx), %r10
-        movq	176(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 160(%rdi)
+        sbbq	168(%rdx), %r8
+        movq	176(%rsi), %rcx
         movq	%r8, 168(%rdi)
-        sbbq	%r10, %r9
-        movq	184(%rdx), %r8
-        movq	184(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 176(%rdi)
-        sbbq	%r8, %r10
-        movq	192(%rdx), %r9
-        movq	192(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 184(%rdi)
-        sbbq	%r9, %r8
-        movq	200(%rdx), %r10
-        movq	200(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 192(%rdi)
-        sbbq	%r10, %r9
-        movq	208(%rdx), %r8
-        movq	208(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 200(%rdi)
-        sbbq	%r8, %r10
-        movq	216(%rdx), %r9
+        sbbq	176(%rdx), %rcx
+        movq	184(%rsi), %r8
+        movq	%rcx, 176(%rdi)
+        sbbq	184(%rdx), %r8
+        movq	192(%rsi), %rcx
+        movq	%r8, 184(%rdi)
+        sbbq	192(%rdx), %rcx
+        movq	200(%rsi), %r8
+        movq	%rcx, 192(%rdi)
+        sbbq	200(%rdx), %r8
+        movq	208(%rsi), %rcx
+        movq	%r8, 200(%rdi)
+        sbbq	208(%rdx), %rcx
         movq	216(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 208(%rdi)
-        sbbq	%r9, %r8
-        movq	224(%rdx), %r10
-        movq	224(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 208(%rdi)
+        sbbq	216(%rdx), %r8
+        movq	224(%rsi), %rcx
         movq	%r8, 216(%rdi)
-        sbbq	%r10, %r9
-        movq	232(%rdx), %r8
-        movq	232(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 224(%rdi)
-        sbbq	%r8, %r10
-        movq	240(%rdx), %r9
-        movq	240(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 232(%rdi)
-        sbbq	%r9, %r8
-        movq	248(%rdx), %r10
-        movq	248(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 240(%rdi)
-        sbbq	%r10, %r9
-        movq	%r9, 248(%rdi)
+        sbbq	224(%rdx), %rcx
+        movq	232(%rsi), %r8
+        movq	%rcx, 224(%rdi)
+        sbbq	232(%rdx), %r8
+        movq	240(%rsi), %rcx
+        movq	%r8, 232(%rdi)
+        sbbq	240(%rdx), %rcx
+        movq	248(%rsi), %r8
+        movq	%rcx, 240(%rdi)
+        sbbq	248(%rdx), %r8
+        movq	%r8, 248(%rdi)
         sbbq	$0x00, %rax
         repz retq
 #ifndef __APPLE__
-.size	sp_2048_cond_sub_avx2_32,.-sp_2048_cond_sub_avx2_32
+.size	sp_2048_sub_32,.-sp_2048_sub_32
 #endif /* __APPLE__ */
-#endif /* HAVE_INTEL_AVX2 */
 #ifdef HAVE_INTEL_AVX2
 /* Mul a by digit b into r. (r = a * b)
  *
@@ -11502,6 +11434,194 @@ _div_2048_word_asm_32:
 .size	div_2048_word_asm_32,.-div_2048_word_asm_32
 #endif /* __APPLE__ */
 #endif /* _WIN64 */
+#ifdef HAVE_INTEL_AVX2
+/* Conditionally subtract b from a using the mask m.
+ * m is -1 to subtract and 0 when not copying.
+ *
+ * r  A single precision number representing condition subtract result.
+ * a  A single precision number to subtract from.
+ * b  A single precision number to subtract.
+ * m  Mask value to apply.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_2048_cond_sub_avx2_32
+.type	sp_2048_cond_sub_avx2_32,@function
+.align	16
+sp_2048_cond_sub_avx2_32:
+#else
+.section	__TEXT,__text
+.globl	_sp_2048_cond_sub_avx2_32
+.p2align	4
+_sp_2048_cond_sub_avx2_32:
+#endif /* __APPLE__ */
+        movq	$0x00, %rax
+        movq	(%rdx), %r10
+        movq	(%rsi), %r8
+        pextq	%rcx, %r10, %r10
+        subq	%r10, %r8
+        movq	8(%rdx), %r10
+        movq	8(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, (%rdi)
+        sbbq	%r10, %r9
+        movq	16(%rdx), %r8
+        movq	16(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 8(%rdi)
+        sbbq	%r8, %r10
+        movq	24(%rdx), %r9
+        movq	24(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 16(%rdi)
+        sbbq	%r9, %r8
+        movq	32(%rdx), %r10
+        movq	32(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 24(%rdi)
+        sbbq	%r10, %r9
+        movq	40(%rdx), %r8
+        movq	40(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 32(%rdi)
+        sbbq	%r8, %r10
+        movq	48(%rdx), %r9
+        movq	48(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 40(%rdi)
+        sbbq	%r9, %r8
+        movq	56(%rdx), %r10
+        movq	56(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 48(%rdi)
+        sbbq	%r10, %r9
+        movq	64(%rdx), %r8
+        movq	64(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 56(%rdi)
+        sbbq	%r8, %r10
+        movq	72(%rdx), %r9
+        movq	72(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 64(%rdi)
+        sbbq	%r9, %r8
+        movq	80(%rdx), %r10
+        movq	80(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 72(%rdi)
+        sbbq	%r10, %r9
+        movq	88(%rdx), %r8
+        movq	88(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 80(%rdi)
+        sbbq	%r8, %r10
+        movq	96(%rdx), %r9
+        movq	96(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 88(%rdi)
+        sbbq	%r9, %r8
+        movq	104(%rdx), %r10
+        movq	104(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 96(%rdi)
+        sbbq	%r10, %r9
+        movq	112(%rdx), %r8
+        movq	112(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 104(%rdi)
+        sbbq	%r8, %r10
+        movq	120(%rdx), %r9
+        movq	120(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 112(%rdi)
+        sbbq	%r9, %r8
+        movq	128(%rdx), %r10
+        movq	128(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 120(%rdi)
+        sbbq	%r10, %r9
+        movq	136(%rdx), %r8
+        movq	136(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 128(%rdi)
+        sbbq	%r8, %r10
+        movq	144(%rdx), %r9
+        movq	144(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 136(%rdi)
+        sbbq	%r9, %r8
+        movq	152(%rdx), %r10
+        movq	152(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 144(%rdi)
+        sbbq	%r10, %r9
+        movq	160(%rdx), %r8
+        movq	160(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 152(%rdi)
+        sbbq	%r8, %r10
+        movq	168(%rdx), %r9
+        movq	168(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 160(%rdi)
+        sbbq	%r9, %r8
+        movq	176(%rdx), %r10
+        movq	176(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 168(%rdi)
+        sbbq	%r10, %r9
+        movq	184(%rdx), %r8
+        movq	184(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 176(%rdi)
+        sbbq	%r8, %r10
+        movq	192(%rdx), %r9
+        movq	192(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 184(%rdi)
+        sbbq	%r9, %r8
+        movq	200(%rdx), %r10
+        movq	200(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 192(%rdi)
+        sbbq	%r10, %r9
+        movq	208(%rdx), %r8
+        movq	208(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 200(%rdi)
+        sbbq	%r8, %r10
+        movq	216(%rdx), %r9
+        movq	216(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 208(%rdi)
+        sbbq	%r9, %r8
+        movq	224(%rdx), %r10
+        movq	224(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 216(%rdi)
+        sbbq	%r10, %r9
+        movq	232(%rdx), %r8
+        movq	232(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 224(%rdi)
+        sbbq	%r8, %r10
+        movq	240(%rdx), %r9
+        movq	240(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 232(%rdi)
+        sbbq	%r9, %r8
+        movq	248(%rdx), %r10
+        movq	248(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 240(%rdi)
+        sbbq	%r10, %r9
+        movq	%r9, 248(%rdi)
+        sbbq	$0x00, %rax
+        repz retq
+#ifndef __APPLE__
+.size	sp_2048_cond_sub_avx2_32,.-sp_2048_cond_sub_avx2_32
+#endif /* __APPLE__ */
+#endif /* HAVE_INTEL_AVX2 */
 /* Compare a with b in constant time.
  *
  * a  A single precision integer.
@@ -11785,126 +11905,6 @@ _sp_2048_cmp_32:
         repz retq
 #ifndef __APPLE__
 .size	sp_2048_cmp_32,.-sp_2048_cmp_32
-#endif /* __APPLE__ */
-/* Sub b from a into r. (r = a - b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-#ifndef __APPLE__
-.text
-.globl	sp_2048_sub_32
-.type	sp_2048_sub_32,@function
-.align	16
-sp_2048_sub_32:
-#else
-.section	__TEXT,__text
-.globl	_sp_2048_sub_32
-.p2align	4
-_sp_2048_sub_32:
-#endif /* __APPLE__ */
-        movq	(%rsi), %rcx
-        xorq	%rax, %rax
-        subq	(%rdx), %rcx
-        movq	8(%rsi), %r8
-        movq	%rcx, (%rdi)
-        sbbq	8(%rdx), %r8
-        movq	16(%rsi), %rcx
-        movq	%r8, 8(%rdi)
-        sbbq	16(%rdx), %rcx
-        movq	24(%rsi), %r8
-        movq	%rcx, 16(%rdi)
-        sbbq	24(%rdx), %r8
-        movq	32(%rsi), %rcx
-        movq	%r8, 24(%rdi)
-        sbbq	32(%rdx), %rcx
-        movq	40(%rsi), %r8
-        movq	%rcx, 32(%rdi)
-        sbbq	40(%rdx), %r8
-        movq	48(%rsi), %rcx
-        movq	%r8, 40(%rdi)
-        sbbq	48(%rdx), %rcx
-        movq	56(%rsi), %r8
-        movq	%rcx, 48(%rdi)
-        sbbq	56(%rdx), %r8
-        movq	64(%rsi), %rcx
-        movq	%r8, 56(%rdi)
-        sbbq	64(%rdx), %rcx
-        movq	72(%rsi), %r8
-        movq	%rcx, 64(%rdi)
-        sbbq	72(%rdx), %r8
-        movq	80(%rsi), %rcx
-        movq	%r8, 72(%rdi)
-        sbbq	80(%rdx), %rcx
-        movq	88(%rsi), %r8
-        movq	%rcx, 80(%rdi)
-        sbbq	88(%rdx), %r8
-        movq	96(%rsi), %rcx
-        movq	%r8, 88(%rdi)
-        sbbq	96(%rdx), %rcx
-        movq	104(%rsi), %r8
-        movq	%rcx, 96(%rdi)
-        sbbq	104(%rdx), %r8
-        movq	112(%rsi), %rcx
-        movq	%r8, 104(%rdi)
-        sbbq	112(%rdx), %rcx
-        movq	120(%rsi), %r8
-        movq	%rcx, 112(%rdi)
-        sbbq	120(%rdx), %r8
-        movq	128(%rsi), %rcx
-        movq	%r8, 120(%rdi)
-        sbbq	128(%rdx), %rcx
-        movq	136(%rsi), %r8
-        movq	%rcx, 128(%rdi)
-        sbbq	136(%rdx), %r8
-        movq	144(%rsi), %rcx
-        movq	%r8, 136(%rdi)
-        sbbq	144(%rdx), %rcx
-        movq	152(%rsi), %r8
-        movq	%rcx, 144(%rdi)
-        sbbq	152(%rdx), %r8
-        movq	160(%rsi), %rcx
-        movq	%r8, 152(%rdi)
-        sbbq	160(%rdx), %rcx
-        movq	168(%rsi), %r8
-        movq	%rcx, 160(%rdi)
-        sbbq	168(%rdx), %r8
-        movq	176(%rsi), %rcx
-        movq	%r8, 168(%rdi)
-        sbbq	176(%rdx), %rcx
-        movq	184(%rsi), %r8
-        movq	%rcx, 176(%rdi)
-        sbbq	184(%rdx), %r8
-        movq	192(%rsi), %rcx
-        movq	%r8, 184(%rdi)
-        sbbq	192(%rdx), %rcx
-        movq	200(%rsi), %r8
-        movq	%rcx, 192(%rdi)
-        sbbq	200(%rdx), %r8
-        movq	208(%rsi), %rcx
-        movq	%r8, 200(%rdi)
-        sbbq	208(%rdx), %rcx
-        movq	216(%rsi), %r8
-        movq	%rcx, 208(%rdi)
-        sbbq	216(%rdx), %r8
-        movq	224(%rsi), %rcx
-        movq	%r8, 216(%rdi)
-        sbbq	224(%rdx), %rcx
-        movq	232(%rsi), %r8
-        movq	%rcx, 224(%rdi)
-        sbbq	232(%rdx), %r8
-        movq	240(%rsi), %rcx
-        movq	%r8, 232(%rdi)
-        sbbq	240(%rdx), %rcx
-        movq	248(%rsi), %r8
-        movq	%rcx, 240(%rdi)
-        sbbq	248(%rdx), %r8
-        movq	%r8, 248(%rdi)
-        sbbq	$0x00, %rax
-        repz retq
-#ifndef __APPLE__
-.size	sp_2048_sub_32,.-sp_2048_sub_32
 #endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Reduce the number back to 2048 bits using Montgomery reduction.
@@ -25764,274 +25764,174 @@ L_3072_mont_loop_48:
 #ifndef __APPLE__
 .size	sp_3072_mont_reduce_48,.-sp_3072_mont_reduce_48
 #endif /* __APPLE__ */
-#ifdef HAVE_INTEL_AVX2
-/* Conditionally subtract b from a using the mask m.
- * m is -1 to subtract and 0 when not copying.
+/* Sub b from a into r. (r = a - b)
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
-.globl	sp_3072_cond_sub_avx2_48
-.type	sp_3072_cond_sub_avx2_48,@function
+.globl	sp_3072_sub_48
+.type	sp_3072_sub_48,@function
 .align	16
-sp_3072_cond_sub_avx2_48:
+sp_3072_sub_48:
 #else
 .section	__TEXT,__text
-.globl	_sp_3072_cond_sub_avx2_48
+.globl	_sp_3072_sub_48
 .p2align	4
-_sp_3072_cond_sub_avx2_48:
+_sp_3072_sub_48:
 #endif /* __APPLE__ */
-        movq	$0x00, %rax
-        movq	(%rdx), %r10
-        movq	(%rsi), %r8
-        pextq	%rcx, %r10, %r10
-        subq	%r10, %r8
-        movq	8(%rdx), %r10
-        movq	8(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, (%rdi)
-        sbbq	%r10, %r9
-        movq	16(%rdx), %r8
-        movq	16(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 8(%rdi)
-        sbbq	%r8, %r10
-        movq	24(%rdx), %r9
+        movq	(%rsi), %rcx
+        xorq	%rax, %rax
+        subq	(%rdx), %rcx
+        movq	8(%rsi), %r8
+        movq	%rcx, (%rdi)
+        sbbq	8(%rdx), %r8
+        movq	16(%rsi), %rcx
+        movq	%r8, 8(%rdi)
+        sbbq	16(%rdx), %rcx
         movq	24(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 16(%rdi)
-        sbbq	%r9, %r8
-        movq	32(%rdx), %r10
-        movq	32(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 16(%rdi)
+        sbbq	24(%rdx), %r8
+        movq	32(%rsi), %rcx
         movq	%r8, 24(%rdi)
-        sbbq	%r10, %r9
-        movq	40(%rdx), %r8
-        movq	40(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 32(%rdi)
-        sbbq	%r8, %r10
-        movq	48(%rdx), %r9
-        movq	48(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 40(%rdi)
-        sbbq	%r9, %r8
-        movq	56(%rdx), %r10
-        movq	56(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 48(%rdi)
-        sbbq	%r10, %r9
-        movq	64(%rdx), %r8
-        movq	64(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 56(%rdi)
-        sbbq	%r8, %r10
-        movq	72(%rdx), %r9
+        sbbq	32(%rdx), %rcx
+        movq	40(%rsi), %r8
+        movq	%rcx, 32(%rdi)
+        sbbq	40(%rdx), %r8
+        movq	48(%rsi), %rcx
+        movq	%r8, 40(%rdi)
+        sbbq	48(%rdx), %rcx
+        movq	56(%rsi), %r8
+        movq	%rcx, 48(%rdi)
+        sbbq	56(%rdx), %r8
+        movq	64(%rsi), %rcx
+        movq	%r8, 56(%rdi)
+        sbbq	64(%rdx), %rcx
         movq	72(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 64(%rdi)
-        sbbq	%r9, %r8
-        movq	80(%rdx), %r10
-        movq	80(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 64(%rdi)
+        sbbq	72(%rdx), %r8
+        movq	80(%rsi), %rcx
         movq	%r8, 72(%rdi)
-        sbbq	%r10, %r9
-        movq	88(%rdx), %r8
-        movq	88(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 80(%rdi)
-        sbbq	%r8, %r10
-        movq	96(%rdx), %r9
-        movq	96(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 88(%rdi)
-        sbbq	%r9, %r8
-        movq	104(%rdx), %r10
-        movq	104(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 96(%rdi)
-        sbbq	%r10, %r9
-        movq	112(%rdx), %r8
-        movq	112(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 104(%rdi)
-        sbbq	%r8, %r10
-        movq	120(%rdx), %r9
+        sbbq	80(%rdx), %rcx
+        movq	88(%rsi), %r8
+        movq	%rcx, 80(%rdi)
+        sbbq	88(%rdx), %r8
+        movq	96(%rsi), %rcx
+        movq	%r8, 88(%rdi)
+        sbbq	96(%rdx), %rcx
+        movq	104(%rsi), %r8
+        movq	%rcx, 96(%rdi)
+        sbbq	104(%rdx), %r8
+        movq	112(%rsi), %rcx
+        movq	%r8, 104(%rdi)
+        sbbq	112(%rdx), %rcx
         movq	120(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 112(%rdi)
-        sbbq	%r9, %r8
-        movq	128(%rdx), %r10
-        movq	128(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 112(%rdi)
+        sbbq	120(%rdx), %r8
+        movq	128(%rsi), %rcx
         movq	%r8, 120(%rdi)
-        sbbq	%r10, %r9
-        movq	136(%rdx), %r8
-        movq	136(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 128(%rdi)
-        sbbq	%r8, %r10
-        movq	144(%rdx), %r9
-        movq	144(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 136(%rdi)
-        sbbq	%r9, %r8
-        movq	152(%rdx), %r10
-        movq	152(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 144(%rdi)
-        sbbq	%r10, %r9
-        movq	160(%rdx), %r8
-        movq	160(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 152(%rdi)
-        sbbq	%r8, %r10
-        movq	168(%rdx), %r9
+        sbbq	128(%rdx), %rcx
+        movq	136(%rsi), %r8
+        movq	%rcx, 128(%rdi)
+        sbbq	136(%rdx), %r8
+        movq	144(%rsi), %rcx
+        movq	%r8, 136(%rdi)
+        sbbq	144(%rdx), %rcx
+        movq	152(%rsi), %r8
+        movq	%rcx, 144(%rdi)
+        sbbq	152(%rdx), %r8
+        movq	160(%rsi), %rcx
+        movq	%r8, 152(%rdi)
+        sbbq	160(%rdx), %rcx
         movq	168(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 160(%rdi)
-        sbbq	%r9, %r8
-        movq	176(%rdx), %r10
-        movq	176(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 160(%rdi)
+        sbbq	168(%rdx), %r8
+        movq	176(%rsi), %rcx
         movq	%r8, 168(%rdi)
-        sbbq	%r10, %r9
-        movq	184(%rdx), %r8
-        movq	184(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 176(%rdi)
-        sbbq	%r8, %r10
-        movq	192(%rdx), %r9
-        movq	192(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 184(%rdi)
-        sbbq	%r9, %r8
-        movq	200(%rdx), %r10
-        movq	200(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 192(%rdi)
-        sbbq	%r10, %r9
-        movq	208(%rdx), %r8
-        movq	208(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 200(%rdi)
-        sbbq	%r8, %r10
-        movq	216(%rdx), %r9
+        sbbq	176(%rdx), %rcx
+        movq	184(%rsi), %r8
+        movq	%rcx, 176(%rdi)
+        sbbq	184(%rdx), %r8
+        movq	192(%rsi), %rcx
+        movq	%r8, 184(%rdi)
+        sbbq	192(%rdx), %rcx
+        movq	200(%rsi), %r8
+        movq	%rcx, 192(%rdi)
+        sbbq	200(%rdx), %r8
+        movq	208(%rsi), %rcx
+        movq	%r8, 200(%rdi)
+        sbbq	208(%rdx), %rcx
         movq	216(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 208(%rdi)
-        sbbq	%r9, %r8
-        movq	224(%rdx), %r10
-        movq	224(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 208(%rdi)
+        sbbq	216(%rdx), %r8
+        movq	224(%rsi), %rcx
         movq	%r8, 216(%rdi)
-        sbbq	%r10, %r9
-        movq	232(%rdx), %r8
-        movq	232(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 224(%rdi)
-        sbbq	%r8, %r10
-        movq	240(%rdx), %r9
-        movq	240(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 232(%rdi)
-        sbbq	%r9, %r8
-        movq	248(%rdx), %r10
-        movq	248(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 240(%rdi)
-        sbbq	%r10, %r9
-        movq	256(%rdx), %r8
-        movq	256(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 248(%rdi)
-        sbbq	%r8, %r10
-        movq	264(%rdx), %r9
+        sbbq	224(%rdx), %rcx
+        movq	232(%rsi), %r8
+        movq	%rcx, 224(%rdi)
+        sbbq	232(%rdx), %r8
+        movq	240(%rsi), %rcx
+        movq	%r8, 232(%rdi)
+        sbbq	240(%rdx), %rcx
+        movq	248(%rsi), %r8
+        movq	%rcx, 240(%rdi)
+        sbbq	248(%rdx), %r8
+        movq	256(%rsi), %rcx
+        movq	%r8, 248(%rdi)
+        sbbq	256(%rdx), %rcx
         movq	264(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 256(%rdi)
-        sbbq	%r9, %r8
-        movq	272(%rdx), %r10
-        movq	272(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 256(%rdi)
+        sbbq	264(%rdx), %r8
+        movq	272(%rsi), %rcx
         movq	%r8, 264(%rdi)
-        sbbq	%r10, %r9
-        movq	280(%rdx), %r8
-        movq	280(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 272(%rdi)
-        sbbq	%r8, %r10
-        movq	288(%rdx), %r9
-        movq	288(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 280(%rdi)
-        sbbq	%r9, %r8
-        movq	296(%rdx), %r10
-        movq	296(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 288(%rdi)
-        sbbq	%r10, %r9
-        movq	304(%rdx), %r8
-        movq	304(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 296(%rdi)
-        sbbq	%r8, %r10
-        movq	312(%rdx), %r9
+        sbbq	272(%rdx), %rcx
+        movq	280(%rsi), %r8
+        movq	%rcx, 272(%rdi)
+        sbbq	280(%rdx), %r8
+        movq	288(%rsi), %rcx
+        movq	%r8, 280(%rdi)
+        sbbq	288(%rdx), %rcx
+        movq	296(%rsi), %r8
+        movq	%rcx, 288(%rdi)
+        sbbq	296(%rdx), %r8
+        movq	304(%rsi), %rcx
+        movq	%r8, 296(%rdi)
+        sbbq	304(%rdx), %rcx
         movq	312(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 304(%rdi)
-        sbbq	%r9, %r8
-        movq	320(%rdx), %r10
-        movq	320(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 304(%rdi)
+        sbbq	312(%rdx), %r8
+        movq	320(%rsi), %rcx
         movq	%r8, 312(%rdi)
-        sbbq	%r10, %r9
-        movq	328(%rdx), %r8
-        movq	328(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 320(%rdi)
-        sbbq	%r8, %r10
-        movq	336(%rdx), %r9
-        movq	336(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 328(%rdi)
-        sbbq	%r9, %r8
-        movq	344(%rdx), %r10
-        movq	344(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 336(%rdi)
-        sbbq	%r10, %r9
-        movq	352(%rdx), %r8
-        movq	352(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 344(%rdi)
-        sbbq	%r8, %r10
-        movq	360(%rdx), %r9
+        sbbq	320(%rdx), %rcx
+        movq	328(%rsi), %r8
+        movq	%rcx, 320(%rdi)
+        sbbq	328(%rdx), %r8
+        movq	336(%rsi), %rcx
+        movq	%r8, 328(%rdi)
+        sbbq	336(%rdx), %rcx
+        movq	344(%rsi), %r8
+        movq	%rcx, 336(%rdi)
+        sbbq	344(%rdx), %r8
+        movq	352(%rsi), %rcx
+        movq	%r8, 344(%rdi)
+        sbbq	352(%rdx), %rcx
         movq	360(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 352(%rdi)
-        sbbq	%r9, %r8
-        movq	368(%rdx), %r10
-        movq	368(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 352(%rdi)
+        sbbq	360(%rdx), %r8
+        movq	368(%rsi), %rcx
         movq	%r8, 360(%rdi)
-        sbbq	%r10, %r9
-        movq	376(%rdx), %r8
-        movq	376(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 368(%rdi)
-        sbbq	%r8, %r10
-        movq	%r10, 376(%rdi)
+        sbbq	368(%rdx), %rcx
+        movq	376(%rsi), %r8
+        movq	%rcx, 368(%rdi)
+        sbbq	376(%rdx), %r8
+        movq	%r8, 376(%rdi)
         sbbq	$0x00, %rax
         repz retq
 #ifndef __APPLE__
-.size	sp_3072_cond_sub_avx2_48,.-sp_3072_cond_sub_avx2_48
+.size	sp_3072_sub_48,.-sp_3072_sub_48
 #endif /* __APPLE__ */
-#endif /* HAVE_INTEL_AVX2 */
 #ifdef HAVE_INTEL_AVX2
 /* Mul a by digit b into r. (r = a * b)
  *
@@ -26375,6 +26275,274 @@ _div_3072_word_asm_48:
 .size	div_3072_word_asm_48,.-div_3072_word_asm_48
 #endif /* __APPLE__ */
 #endif /* _WIN64 */
+#ifdef HAVE_INTEL_AVX2
+/* Conditionally subtract b from a using the mask m.
+ * m is -1 to subtract and 0 when not copying.
+ *
+ * r  A single precision number representing condition subtract result.
+ * a  A single precision number to subtract from.
+ * b  A single precision number to subtract.
+ * m  Mask value to apply.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_3072_cond_sub_avx2_48
+.type	sp_3072_cond_sub_avx2_48,@function
+.align	16
+sp_3072_cond_sub_avx2_48:
+#else
+.section	__TEXT,__text
+.globl	_sp_3072_cond_sub_avx2_48
+.p2align	4
+_sp_3072_cond_sub_avx2_48:
+#endif /* __APPLE__ */
+        movq	$0x00, %rax
+        movq	(%rdx), %r10
+        movq	(%rsi), %r8
+        pextq	%rcx, %r10, %r10
+        subq	%r10, %r8
+        movq	8(%rdx), %r10
+        movq	8(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, (%rdi)
+        sbbq	%r10, %r9
+        movq	16(%rdx), %r8
+        movq	16(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 8(%rdi)
+        sbbq	%r8, %r10
+        movq	24(%rdx), %r9
+        movq	24(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 16(%rdi)
+        sbbq	%r9, %r8
+        movq	32(%rdx), %r10
+        movq	32(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 24(%rdi)
+        sbbq	%r10, %r9
+        movq	40(%rdx), %r8
+        movq	40(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 32(%rdi)
+        sbbq	%r8, %r10
+        movq	48(%rdx), %r9
+        movq	48(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 40(%rdi)
+        sbbq	%r9, %r8
+        movq	56(%rdx), %r10
+        movq	56(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 48(%rdi)
+        sbbq	%r10, %r9
+        movq	64(%rdx), %r8
+        movq	64(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 56(%rdi)
+        sbbq	%r8, %r10
+        movq	72(%rdx), %r9
+        movq	72(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 64(%rdi)
+        sbbq	%r9, %r8
+        movq	80(%rdx), %r10
+        movq	80(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 72(%rdi)
+        sbbq	%r10, %r9
+        movq	88(%rdx), %r8
+        movq	88(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 80(%rdi)
+        sbbq	%r8, %r10
+        movq	96(%rdx), %r9
+        movq	96(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 88(%rdi)
+        sbbq	%r9, %r8
+        movq	104(%rdx), %r10
+        movq	104(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 96(%rdi)
+        sbbq	%r10, %r9
+        movq	112(%rdx), %r8
+        movq	112(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 104(%rdi)
+        sbbq	%r8, %r10
+        movq	120(%rdx), %r9
+        movq	120(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 112(%rdi)
+        sbbq	%r9, %r8
+        movq	128(%rdx), %r10
+        movq	128(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 120(%rdi)
+        sbbq	%r10, %r9
+        movq	136(%rdx), %r8
+        movq	136(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 128(%rdi)
+        sbbq	%r8, %r10
+        movq	144(%rdx), %r9
+        movq	144(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 136(%rdi)
+        sbbq	%r9, %r8
+        movq	152(%rdx), %r10
+        movq	152(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 144(%rdi)
+        sbbq	%r10, %r9
+        movq	160(%rdx), %r8
+        movq	160(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 152(%rdi)
+        sbbq	%r8, %r10
+        movq	168(%rdx), %r9
+        movq	168(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 160(%rdi)
+        sbbq	%r9, %r8
+        movq	176(%rdx), %r10
+        movq	176(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 168(%rdi)
+        sbbq	%r10, %r9
+        movq	184(%rdx), %r8
+        movq	184(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 176(%rdi)
+        sbbq	%r8, %r10
+        movq	192(%rdx), %r9
+        movq	192(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 184(%rdi)
+        sbbq	%r9, %r8
+        movq	200(%rdx), %r10
+        movq	200(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 192(%rdi)
+        sbbq	%r10, %r9
+        movq	208(%rdx), %r8
+        movq	208(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 200(%rdi)
+        sbbq	%r8, %r10
+        movq	216(%rdx), %r9
+        movq	216(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 208(%rdi)
+        sbbq	%r9, %r8
+        movq	224(%rdx), %r10
+        movq	224(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 216(%rdi)
+        sbbq	%r10, %r9
+        movq	232(%rdx), %r8
+        movq	232(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 224(%rdi)
+        sbbq	%r8, %r10
+        movq	240(%rdx), %r9
+        movq	240(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 232(%rdi)
+        sbbq	%r9, %r8
+        movq	248(%rdx), %r10
+        movq	248(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 240(%rdi)
+        sbbq	%r10, %r9
+        movq	256(%rdx), %r8
+        movq	256(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 248(%rdi)
+        sbbq	%r8, %r10
+        movq	264(%rdx), %r9
+        movq	264(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 256(%rdi)
+        sbbq	%r9, %r8
+        movq	272(%rdx), %r10
+        movq	272(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 264(%rdi)
+        sbbq	%r10, %r9
+        movq	280(%rdx), %r8
+        movq	280(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 272(%rdi)
+        sbbq	%r8, %r10
+        movq	288(%rdx), %r9
+        movq	288(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 280(%rdi)
+        sbbq	%r9, %r8
+        movq	296(%rdx), %r10
+        movq	296(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 288(%rdi)
+        sbbq	%r10, %r9
+        movq	304(%rdx), %r8
+        movq	304(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 296(%rdi)
+        sbbq	%r8, %r10
+        movq	312(%rdx), %r9
+        movq	312(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 304(%rdi)
+        sbbq	%r9, %r8
+        movq	320(%rdx), %r10
+        movq	320(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 312(%rdi)
+        sbbq	%r10, %r9
+        movq	328(%rdx), %r8
+        movq	328(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 320(%rdi)
+        sbbq	%r8, %r10
+        movq	336(%rdx), %r9
+        movq	336(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 328(%rdi)
+        sbbq	%r9, %r8
+        movq	344(%rdx), %r10
+        movq	344(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 336(%rdi)
+        sbbq	%r10, %r9
+        movq	352(%rdx), %r8
+        movq	352(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 344(%rdi)
+        sbbq	%r8, %r10
+        movq	360(%rdx), %r9
+        movq	360(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 352(%rdi)
+        sbbq	%r9, %r8
+        movq	368(%rdx), %r10
+        movq	368(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 360(%rdi)
+        sbbq	%r10, %r9
+        movq	376(%rdx), %r8
+        movq	376(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 368(%rdi)
+        sbbq	%r8, %r10
+        movq	%r10, 376(%rdi)
+        sbbq	$0x00, %rax
+        repz retq
+#ifndef __APPLE__
+.size	sp_3072_cond_sub_avx2_48,.-sp_3072_cond_sub_avx2_48
+#endif /* __APPLE__ */
+#endif /* HAVE_INTEL_AVX2 */
 /* Compare a with b in constant time.
  *
  * a  A single precision integer.
@@ -26786,174 +26954,6 @@ _sp_3072_cmp_48:
         repz retq
 #ifndef __APPLE__
 .size	sp_3072_cmp_48,.-sp_3072_cmp_48
-#endif /* __APPLE__ */
-/* Sub b from a into r. (r = a - b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-#ifndef __APPLE__
-.text
-.globl	sp_3072_sub_48
-.type	sp_3072_sub_48,@function
-.align	16
-sp_3072_sub_48:
-#else
-.section	__TEXT,__text
-.globl	_sp_3072_sub_48
-.p2align	4
-_sp_3072_sub_48:
-#endif /* __APPLE__ */
-        movq	(%rsi), %rcx
-        xorq	%rax, %rax
-        subq	(%rdx), %rcx
-        movq	8(%rsi), %r8
-        movq	%rcx, (%rdi)
-        sbbq	8(%rdx), %r8
-        movq	16(%rsi), %rcx
-        movq	%r8, 8(%rdi)
-        sbbq	16(%rdx), %rcx
-        movq	24(%rsi), %r8
-        movq	%rcx, 16(%rdi)
-        sbbq	24(%rdx), %r8
-        movq	32(%rsi), %rcx
-        movq	%r8, 24(%rdi)
-        sbbq	32(%rdx), %rcx
-        movq	40(%rsi), %r8
-        movq	%rcx, 32(%rdi)
-        sbbq	40(%rdx), %r8
-        movq	48(%rsi), %rcx
-        movq	%r8, 40(%rdi)
-        sbbq	48(%rdx), %rcx
-        movq	56(%rsi), %r8
-        movq	%rcx, 48(%rdi)
-        sbbq	56(%rdx), %r8
-        movq	64(%rsi), %rcx
-        movq	%r8, 56(%rdi)
-        sbbq	64(%rdx), %rcx
-        movq	72(%rsi), %r8
-        movq	%rcx, 64(%rdi)
-        sbbq	72(%rdx), %r8
-        movq	80(%rsi), %rcx
-        movq	%r8, 72(%rdi)
-        sbbq	80(%rdx), %rcx
-        movq	88(%rsi), %r8
-        movq	%rcx, 80(%rdi)
-        sbbq	88(%rdx), %r8
-        movq	96(%rsi), %rcx
-        movq	%r8, 88(%rdi)
-        sbbq	96(%rdx), %rcx
-        movq	104(%rsi), %r8
-        movq	%rcx, 96(%rdi)
-        sbbq	104(%rdx), %r8
-        movq	112(%rsi), %rcx
-        movq	%r8, 104(%rdi)
-        sbbq	112(%rdx), %rcx
-        movq	120(%rsi), %r8
-        movq	%rcx, 112(%rdi)
-        sbbq	120(%rdx), %r8
-        movq	128(%rsi), %rcx
-        movq	%r8, 120(%rdi)
-        sbbq	128(%rdx), %rcx
-        movq	136(%rsi), %r8
-        movq	%rcx, 128(%rdi)
-        sbbq	136(%rdx), %r8
-        movq	144(%rsi), %rcx
-        movq	%r8, 136(%rdi)
-        sbbq	144(%rdx), %rcx
-        movq	152(%rsi), %r8
-        movq	%rcx, 144(%rdi)
-        sbbq	152(%rdx), %r8
-        movq	160(%rsi), %rcx
-        movq	%r8, 152(%rdi)
-        sbbq	160(%rdx), %rcx
-        movq	168(%rsi), %r8
-        movq	%rcx, 160(%rdi)
-        sbbq	168(%rdx), %r8
-        movq	176(%rsi), %rcx
-        movq	%r8, 168(%rdi)
-        sbbq	176(%rdx), %rcx
-        movq	184(%rsi), %r8
-        movq	%rcx, 176(%rdi)
-        sbbq	184(%rdx), %r8
-        movq	192(%rsi), %rcx
-        movq	%r8, 184(%rdi)
-        sbbq	192(%rdx), %rcx
-        movq	200(%rsi), %r8
-        movq	%rcx, 192(%rdi)
-        sbbq	200(%rdx), %r8
-        movq	208(%rsi), %rcx
-        movq	%r8, 200(%rdi)
-        sbbq	208(%rdx), %rcx
-        movq	216(%rsi), %r8
-        movq	%rcx, 208(%rdi)
-        sbbq	216(%rdx), %r8
-        movq	224(%rsi), %rcx
-        movq	%r8, 216(%rdi)
-        sbbq	224(%rdx), %rcx
-        movq	232(%rsi), %r8
-        movq	%rcx, 224(%rdi)
-        sbbq	232(%rdx), %r8
-        movq	240(%rsi), %rcx
-        movq	%r8, 232(%rdi)
-        sbbq	240(%rdx), %rcx
-        movq	248(%rsi), %r8
-        movq	%rcx, 240(%rdi)
-        sbbq	248(%rdx), %r8
-        movq	256(%rsi), %rcx
-        movq	%r8, 248(%rdi)
-        sbbq	256(%rdx), %rcx
-        movq	264(%rsi), %r8
-        movq	%rcx, 256(%rdi)
-        sbbq	264(%rdx), %r8
-        movq	272(%rsi), %rcx
-        movq	%r8, 264(%rdi)
-        sbbq	272(%rdx), %rcx
-        movq	280(%rsi), %r8
-        movq	%rcx, 272(%rdi)
-        sbbq	280(%rdx), %r8
-        movq	288(%rsi), %rcx
-        movq	%r8, 280(%rdi)
-        sbbq	288(%rdx), %rcx
-        movq	296(%rsi), %r8
-        movq	%rcx, 288(%rdi)
-        sbbq	296(%rdx), %r8
-        movq	304(%rsi), %rcx
-        movq	%r8, 296(%rdi)
-        sbbq	304(%rdx), %rcx
-        movq	312(%rsi), %r8
-        movq	%rcx, 304(%rdi)
-        sbbq	312(%rdx), %r8
-        movq	320(%rsi), %rcx
-        movq	%r8, 312(%rdi)
-        sbbq	320(%rdx), %rcx
-        movq	328(%rsi), %r8
-        movq	%rcx, 320(%rdi)
-        sbbq	328(%rdx), %r8
-        movq	336(%rsi), %rcx
-        movq	%r8, 328(%rdi)
-        sbbq	336(%rdx), %rcx
-        movq	344(%rsi), %r8
-        movq	%rcx, 336(%rdi)
-        sbbq	344(%rdx), %r8
-        movq	352(%rsi), %rcx
-        movq	%r8, 344(%rdi)
-        sbbq	352(%rdx), %rcx
-        movq	360(%rsi), %r8
-        movq	%rcx, 352(%rdi)
-        sbbq	360(%rdx), %r8
-        movq	368(%rsi), %rcx
-        movq	%r8, 360(%rdi)
-        sbbq	368(%rdx), %rcx
-        movq	376(%rsi), %r8
-        movq	%rcx, 368(%rdi)
-        sbbq	376(%rdx), %r8
-        movq	%r8, 376(%rdi)
-        sbbq	$0x00, %rax
-        repz retq
-#ifndef __APPLE__
-.size	sp_3072_sub_48,.-sp_3072_sub_48
 #endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Reduce the number back to 3072 bits using Montgomery reduction.
@@ -35677,354 +35677,222 @@ L_4096_mont_loop_64:
 #ifndef __APPLE__
 .size	sp_4096_mont_reduce_64,.-sp_4096_mont_reduce_64
 #endif /* __APPLE__ */
-#ifdef HAVE_INTEL_AVX2
-/* Conditionally subtract b from a using the mask m.
- * m is -1 to subtract and 0 when not copying.
+/* Sub b from a into r. (r = a - b)
  *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
  */
 #ifndef __APPLE__
 .text
-.globl	sp_4096_cond_sub_avx2_64
-.type	sp_4096_cond_sub_avx2_64,@function
+.globl	sp_4096_sub_64
+.type	sp_4096_sub_64,@function
 .align	16
-sp_4096_cond_sub_avx2_64:
+sp_4096_sub_64:
 #else
 .section	__TEXT,__text
-.globl	_sp_4096_cond_sub_avx2_64
+.globl	_sp_4096_sub_64
 .p2align	4
-_sp_4096_cond_sub_avx2_64:
+_sp_4096_sub_64:
 #endif /* __APPLE__ */
-        movq	$0x00, %rax
-        movq	(%rdx), %r10
-        movq	(%rsi), %r8
-        pextq	%rcx, %r10, %r10
-        subq	%r10, %r8
-        movq	8(%rdx), %r10
-        movq	8(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, (%rdi)
-        sbbq	%r10, %r9
-        movq	16(%rdx), %r8
-        movq	16(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 8(%rdi)
-        sbbq	%r8, %r10
-        movq	24(%rdx), %r9
+        movq	(%rsi), %rcx
+        xorq	%rax, %rax
+        subq	(%rdx), %rcx
+        movq	8(%rsi), %r8
+        movq	%rcx, (%rdi)
+        sbbq	8(%rdx), %r8
+        movq	16(%rsi), %rcx
+        movq	%r8, 8(%rdi)
+        sbbq	16(%rdx), %rcx
         movq	24(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 16(%rdi)
-        sbbq	%r9, %r8
-        movq	32(%rdx), %r10
-        movq	32(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 16(%rdi)
+        sbbq	24(%rdx), %r8
+        movq	32(%rsi), %rcx
         movq	%r8, 24(%rdi)
-        sbbq	%r10, %r9
-        movq	40(%rdx), %r8
-        movq	40(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 32(%rdi)
-        sbbq	%r8, %r10
-        movq	48(%rdx), %r9
-        movq	48(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 40(%rdi)
-        sbbq	%r9, %r8
-        movq	56(%rdx), %r10
-        movq	56(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 48(%rdi)
-        sbbq	%r10, %r9
-        movq	64(%rdx), %r8
-        movq	64(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 56(%rdi)
-        sbbq	%r8, %r10
-        movq	72(%rdx), %r9
+        sbbq	32(%rdx), %rcx
+        movq	40(%rsi), %r8
+        movq	%rcx, 32(%rdi)
+        sbbq	40(%rdx), %r8
+        movq	48(%rsi), %rcx
+        movq	%r8, 40(%rdi)
+        sbbq	48(%rdx), %rcx
+        movq	56(%rsi), %r8
+        movq	%rcx, 48(%rdi)
+        sbbq	56(%rdx), %r8
+        movq	64(%rsi), %rcx
+        movq	%r8, 56(%rdi)
+        sbbq	64(%rdx), %rcx
         movq	72(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 64(%rdi)
-        sbbq	%r9, %r8
-        movq	80(%rdx), %r10
-        movq	80(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 64(%rdi)
+        sbbq	72(%rdx), %r8
+        movq	80(%rsi), %rcx
         movq	%r8, 72(%rdi)
-        sbbq	%r10, %r9
-        movq	88(%rdx), %r8
-        movq	88(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 80(%rdi)
-        sbbq	%r8, %r10
-        movq	96(%rdx), %r9
-        movq	96(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 88(%rdi)
-        sbbq	%r9, %r8
-        movq	104(%rdx), %r10
-        movq	104(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 96(%rdi)
-        sbbq	%r10, %r9
-        movq	112(%rdx), %r8
-        movq	112(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 104(%rdi)
-        sbbq	%r8, %r10
-        movq	120(%rdx), %r9
+        sbbq	80(%rdx), %rcx
+        movq	88(%rsi), %r8
+        movq	%rcx, 80(%rdi)
+        sbbq	88(%rdx), %r8
+        movq	96(%rsi), %rcx
+        movq	%r8, 88(%rdi)
+        sbbq	96(%rdx), %rcx
+        movq	104(%rsi), %r8
+        movq	%rcx, 96(%rdi)
+        sbbq	104(%rdx), %r8
+        movq	112(%rsi), %rcx
+        movq	%r8, 104(%rdi)
+        sbbq	112(%rdx), %rcx
         movq	120(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 112(%rdi)
-        sbbq	%r9, %r8
-        movq	128(%rdx), %r10
-        movq	128(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 112(%rdi)
+        sbbq	120(%rdx), %r8
+        movq	128(%rsi), %rcx
         movq	%r8, 120(%rdi)
-        sbbq	%r10, %r9
-        movq	136(%rdx), %r8
-        movq	136(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 128(%rdi)
-        sbbq	%r8, %r10
-        movq	144(%rdx), %r9
-        movq	144(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 136(%rdi)
-        sbbq	%r9, %r8
-        movq	152(%rdx), %r10
-        movq	152(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 144(%rdi)
-        sbbq	%r10, %r9
-        movq	160(%rdx), %r8
-        movq	160(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 152(%rdi)
-        sbbq	%r8, %r10
-        movq	168(%rdx), %r9
+        sbbq	128(%rdx), %rcx
+        movq	136(%rsi), %r8
+        movq	%rcx, 128(%rdi)
+        sbbq	136(%rdx), %r8
+        movq	144(%rsi), %rcx
+        movq	%r8, 136(%rdi)
+        sbbq	144(%rdx), %rcx
+        movq	152(%rsi), %r8
+        movq	%rcx, 144(%rdi)
+        sbbq	152(%rdx), %r8
+        movq	160(%rsi), %rcx
+        movq	%r8, 152(%rdi)
+        sbbq	160(%rdx), %rcx
         movq	168(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 160(%rdi)
-        sbbq	%r9, %r8
-        movq	176(%rdx), %r10
-        movq	176(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 160(%rdi)
+        sbbq	168(%rdx), %r8
+        movq	176(%rsi), %rcx
         movq	%r8, 168(%rdi)
-        sbbq	%r10, %r9
-        movq	184(%rdx), %r8
-        movq	184(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 176(%rdi)
-        sbbq	%r8, %r10
-        movq	192(%rdx), %r9
-        movq	192(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 184(%rdi)
-        sbbq	%r9, %r8
-        movq	200(%rdx), %r10
-        movq	200(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 192(%rdi)
-        sbbq	%r10, %r9
-        movq	208(%rdx), %r8
-        movq	208(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 200(%rdi)
-        sbbq	%r8, %r10
-        movq	216(%rdx), %r9
+        sbbq	176(%rdx), %rcx
+        movq	184(%rsi), %r8
+        movq	%rcx, 176(%rdi)
+        sbbq	184(%rdx), %r8
+        movq	192(%rsi), %rcx
+        movq	%r8, 184(%rdi)
+        sbbq	192(%rdx), %rcx
+        movq	200(%rsi), %r8
+        movq	%rcx, 192(%rdi)
+        sbbq	200(%rdx), %r8
+        movq	208(%rsi), %rcx
+        movq	%r8, 200(%rdi)
+        sbbq	208(%rdx), %rcx
         movq	216(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 208(%rdi)
-        sbbq	%r9, %r8
-        movq	224(%rdx), %r10
-        movq	224(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 208(%rdi)
+        sbbq	216(%rdx), %r8
+        movq	224(%rsi), %rcx
         movq	%r8, 216(%rdi)
-        sbbq	%r10, %r9
-        movq	232(%rdx), %r8
-        movq	232(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 224(%rdi)
-        sbbq	%r8, %r10
-        movq	240(%rdx), %r9
-        movq	240(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 232(%rdi)
-        sbbq	%r9, %r8
-        movq	248(%rdx), %r10
-        movq	248(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 240(%rdi)
-        sbbq	%r10, %r9
-        movq	256(%rdx), %r8
-        movq	256(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 248(%rdi)
-        sbbq	%r8, %r10
-        movq	264(%rdx), %r9
+        sbbq	224(%rdx), %rcx
+        movq	232(%rsi), %r8
+        movq	%rcx, 224(%rdi)
+        sbbq	232(%rdx), %r8
+        movq	240(%rsi), %rcx
+        movq	%r8, 232(%rdi)
+        sbbq	240(%rdx), %rcx
+        movq	248(%rsi), %r8
+        movq	%rcx, 240(%rdi)
+        sbbq	248(%rdx), %r8
+        movq	256(%rsi), %rcx
+        movq	%r8, 248(%rdi)
+        sbbq	256(%rdx), %rcx
         movq	264(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 256(%rdi)
-        sbbq	%r9, %r8
-        movq	272(%rdx), %r10
-        movq	272(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 256(%rdi)
+        sbbq	264(%rdx), %r8
+        movq	272(%rsi), %rcx
         movq	%r8, 264(%rdi)
-        sbbq	%r10, %r9
-        movq	280(%rdx), %r8
-        movq	280(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 272(%rdi)
-        sbbq	%r8, %r10
-        movq	288(%rdx), %r9
-        movq	288(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 280(%rdi)
-        sbbq	%r9, %r8
-        movq	296(%rdx), %r10
-        movq	296(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 288(%rdi)
-        sbbq	%r10, %r9
-        movq	304(%rdx), %r8
-        movq	304(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 296(%rdi)
-        sbbq	%r8, %r10
-        movq	312(%rdx), %r9
+        sbbq	272(%rdx), %rcx
+        movq	280(%rsi), %r8
+        movq	%rcx, 272(%rdi)
+        sbbq	280(%rdx), %r8
+        movq	288(%rsi), %rcx
+        movq	%r8, 280(%rdi)
+        sbbq	288(%rdx), %rcx
+        movq	296(%rsi), %r8
+        movq	%rcx, 288(%rdi)
+        sbbq	296(%rdx), %r8
+        movq	304(%rsi), %rcx
+        movq	%r8, 296(%rdi)
+        sbbq	304(%rdx), %rcx
         movq	312(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 304(%rdi)
-        sbbq	%r9, %r8
-        movq	320(%rdx), %r10
-        movq	320(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 304(%rdi)
+        sbbq	312(%rdx), %r8
+        movq	320(%rsi), %rcx
         movq	%r8, 312(%rdi)
-        sbbq	%r10, %r9
-        movq	328(%rdx), %r8
-        movq	328(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 320(%rdi)
-        sbbq	%r8, %r10
-        movq	336(%rdx), %r9
-        movq	336(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 328(%rdi)
-        sbbq	%r9, %r8
-        movq	344(%rdx), %r10
-        movq	344(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 336(%rdi)
-        sbbq	%r10, %r9
-        movq	352(%rdx), %r8
-        movq	352(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 344(%rdi)
-        sbbq	%r8, %r10
-        movq	360(%rdx), %r9
+        sbbq	320(%rdx), %rcx
+        movq	328(%rsi), %r8
+        movq	%rcx, 320(%rdi)
+        sbbq	328(%rdx), %r8
+        movq	336(%rsi), %rcx
+        movq	%r8, 328(%rdi)
+        sbbq	336(%rdx), %rcx
+        movq	344(%rsi), %r8
+        movq	%rcx, 336(%rdi)
+        sbbq	344(%rdx), %r8
+        movq	352(%rsi), %rcx
+        movq	%r8, 344(%rdi)
+        sbbq	352(%rdx), %rcx
         movq	360(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 352(%rdi)
-        sbbq	%r9, %r8
-        movq	368(%rdx), %r10
-        movq	368(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 352(%rdi)
+        sbbq	360(%rdx), %r8
+        movq	368(%rsi), %rcx
         movq	%r8, 360(%rdi)
-        sbbq	%r10, %r9
-        movq	376(%rdx), %r8
-        movq	376(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 368(%rdi)
-        sbbq	%r8, %r10
-        movq	384(%rdx), %r9
-        movq	384(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 376(%rdi)
-        sbbq	%r9, %r8
-        movq	392(%rdx), %r10
-        movq	392(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 384(%rdi)
-        sbbq	%r10, %r9
-        movq	400(%rdx), %r8
-        movq	400(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 392(%rdi)
-        sbbq	%r8, %r10
-        movq	408(%rdx), %r9
+        sbbq	368(%rdx), %rcx
+        movq	376(%rsi), %r8
+        movq	%rcx, 368(%rdi)
+        sbbq	376(%rdx), %r8
+        movq	384(%rsi), %rcx
+        movq	%r8, 376(%rdi)
+        sbbq	384(%rdx), %rcx
+        movq	392(%rsi), %r8
+        movq	%rcx, 384(%rdi)
+        sbbq	392(%rdx), %r8
+        movq	400(%rsi), %rcx
+        movq	%r8, 392(%rdi)
+        sbbq	400(%rdx), %rcx
         movq	408(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 400(%rdi)
-        sbbq	%r9, %r8
-        movq	416(%rdx), %r10
-        movq	416(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 400(%rdi)
+        sbbq	408(%rdx), %r8
+        movq	416(%rsi), %rcx
         movq	%r8, 408(%rdi)
-        sbbq	%r10, %r9
-        movq	424(%rdx), %r8
-        movq	424(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 416(%rdi)
-        sbbq	%r8, %r10
-        movq	432(%rdx), %r9
-        movq	432(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 424(%rdi)
-        sbbq	%r9, %r8
-        movq	440(%rdx), %r10
-        movq	440(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 432(%rdi)
-        sbbq	%r10, %r9
-        movq	448(%rdx), %r8
-        movq	448(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 440(%rdi)
-        sbbq	%r8, %r10
-        movq	456(%rdx), %r9
+        sbbq	416(%rdx), %rcx
+        movq	424(%rsi), %r8
+        movq	%rcx, 416(%rdi)
+        sbbq	424(%rdx), %r8
+        movq	432(%rsi), %rcx
+        movq	%r8, 424(%rdi)
+        sbbq	432(%rdx), %rcx
+        movq	440(%rsi), %r8
+        movq	%rcx, 432(%rdi)
+        sbbq	440(%rdx), %r8
+        movq	448(%rsi), %rcx
+        movq	%r8, 440(%rdi)
+        sbbq	448(%rdx), %rcx
         movq	456(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 448(%rdi)
-        sbbq	%r9, %r8
-        movq	464(%rdx), %r10
-        movq	464(%rsi), %r9
-        pextq	%rcx, %r10, %r10
+        movq	%rcx, 448(%rdi)
+        sbbq	456(%rdx), %r8
+        movq	464(%rsi), %rcx
         movq	%r8, 456(%rdi)
-        sbbq	%r10, %r9
-        movq	472(%rdx), %r8
-        movq	472(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 464(%rdi)
-        sbbq	%r8, %r10
-        movq	480(%rdx), %r9
-        movq	480(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 472(%rdi)
-        sbbq	%r9, %r8
-        movq	488(%rdx), %r10
-        movq	488(%rsi), %r9
-        pextq	%rcx, %r10, %r10
-        movq	%r8, 480(%rdi)
-        sbbq	%r10, %r9
-        movq	496(%rdx), %r8
-        movq	496(%rsi), %r10
-        pextq	%rcx, %r8, %r8
-        movq	%r9, 488(%rdi)
-        sbbq	%r8, %r10
-        movq	504(%rdx), %r9
+        sbbq	464(%rdx), %rcx
+        movq	472(%rsi), %r8
+        movq	%rcx, 464(%rdi)
+        sbbq	472(%rdx), %r8
+        movq	480(%rsi), %rcx
+        movq	%r8, 472(%rdi)
+        sbbq	480(%rdx), %rcx
+        movq	488(%rsi), %r8
+        movq	%rcx, 480(%rdi)
+        sbbq	488(%rdx), %r8
+        movq	496(%rsi), %rcx
+        movq	%r8, 488(%rdi)
+        sbbq	496(%rdx), %rcx
         movq	504(%rsi), %r8
-        pextq	%rcx, %r9, %r9
-        movq	%r10, 496(%rdi)
-        sbbq	%r9, %r8
+        movq	%rcx, 496(%rdi)
+        sbbq	504(%rdx), %r8
         movq	%r8, 504(%rdi)
         sbbq	$0x00, %rax
         repz retq
 #ifndef __APPLE__
-.size	sp_4096_cond_sub_avx2_64,.-sp_4096_cond_sub_avx2_64
+.size	sp_4096_sub_64,.-sp_4096_sub_64
 #endif /* __APPLE__ */
-#endif /* HAVE_INTEL_AVX2 */
 #ifdef HAVE_INTEL_AVX2
 /* Mul a by digit b into r. (r = a * b)
  *
@@ -36464,6 +36332,354 @@ _div_4096_word_asm_64:
 .size	div_4096_word_asm_64,.-div_4096_word_asm_64
 #endif /* __APPLE__ */
 #endif /* _WIN64 */
+#ifdef HAVE_INTEL_AVX2
+/* Conditionally subtract b from a using the mask m.
+ * m is -1 to subtract and 0 when not copying.
+ *
+ * r  A single precision number representing condition subtract result.
+ * a  A single precision number to subtract from.
+ * b  A single precision number to subtract.
+ * m  Mask value to apply.
+ */
+#ifndef __APPLE__
+.text
+.globl	sp_4096_cond_sub_avx2_64
+.type	sp_4096_cond_sub_avx2_64,@function
+.align	16
+sp_4096_cond_sub_avx2_64:
+#else
+.section	__TEXT,__text
+.globl	_sp_4096_cond_sub_avx2_64
+.p2align	4
+_sp_4096_cond_sub_avx2_64:
+#endif /* __APPLE__ */
+        movq	$0x00, %rax
+        movq	(%rdx), %r10
+        movq	(%rsi), %r8
+        pextq	%rcx, %r10, %r10
+        subq	%r10, %r8
+        movq	8(%rdx), %r10
+        movq	8(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, (%rdi)
+        sbbq	%r10, %r9
+        movq	16(%rdx), %r8
+        movq	16(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 8(%rdi)
+        sbbq	%r8, %r10
+        movq	24(%rdx), %r9
+        movq	24(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 16(%rdi)
+        sbbq	%r9, %r8
+        movq	32(%rdx), %r10
+        movq	32(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 24(%rdi)
+        sbbq	%r10, %r9
+        movq	40(%rdx), %r8
+        movq	40(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 32(%rdi)
+        sbbq	%r8, %r10
+        movq	48(%rdx), %r9
+        movq	48(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 40(%rdi)
+        sbbq	%r9, %r8
+        movq	56(%rdx), %r10
+        movq	56(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 48(%rdi)
+        sbbq	%r10, %r9
+        movq	64(%rdx), %r8
+        movq	64(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 56(%rdi)
+        sbbq	%r8, %r10
+        movq	72(%rdx), %r9
+        movq	72(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 64(%rdi)
+        sbbq	%r9, %r8
+        movq	80(%rdx), %r10
+        movq	80(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 72(%rdi)
+        sbbq	%r10, %r9
+        movq	88(%rdx), %r8
+        movq	88(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 80(%rdi)
+        sbbq	%r8, %r10
+        movq	96(%rdx), %r9
+        movq	96(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 88(%rdi)
+        sbbq	%r9, %r8
+        movq	104(%rdx), %r10
+        movq	104(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 96(%rdi)
+        sbbq	%r10, %r9
+        movq	112(%rdx), %r8
+        movq	112(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 104(%rdi)
+        sbbq	%r8, %r10
+        movq	120(%rdx), %r9
+        movq	120(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 112(%rdi)
+        sbbq	%r9, %r8
+        movq	128(%rdx), %r10
+        movq	128(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 120(%rdi)
+        sbbq	%r10, %r9
+        movq	136(%rdx), %r8
+        movq	136(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 128(%rdi)
+        sbbq	%r8, %r10
+        movq	144(%rdx), %r9
+        movq	144(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 136(%rdi)
+        sbbq	%r9, %r8
+        movq	152(%rdx), %r10
+        movq	152(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 144(%rdi)
+        sbbq	%r10, %r9
+        movq	160(%rdx), %r8
+        movq	160(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 152(%rdi)
+        sbbq	%r8, %r10
+        movq	168(%rdx), %r9
+        movq	168(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 160(%rdi)
+        sbbq	%r9, %r8
+        movq	176(%rdx), %r10
+        movq	176(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 168(%rdi)
+        sbbq	%r10, %r9
+        movq	184(%rdx), %r8
+        movq	184(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 176(%rdi)
+        sbbq	%r8, %r10
+        movq	192(%rdx), %r9
+        movq	192(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 184(%rdi)
+        sbbq	%r9, %r8
+        movq	200(%rdx), %r10
+        movq	200(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 192(%rdi)
+        sbbq	%r10, %r9
+        movq	208(%rdx), %r8
+        movq	208(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 200(%rdi)
+        sbbq	%r8, %r10
+        movq	216(%rdx), %r9
+        movq	216(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 208(%rdi)
+        sbbq	%r9, %r8
+        movq	224(%rdx), %r10
+        movq	224(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 216(%rdi)
+        sbbq	%r10, %r9
+        movq	232(%rdx), %r8
+        movq	232(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 224(%rdi)
+        sbbq	%r8, %r10
+        movq	240(%rdx), %r9
+        movq	240(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 232(%rdi)
+        sbbq	%r9, %r8
+        movq	248(%rdx), %r10
+        movq	248(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 240(%rdi)
+        sbbq	%r10, %r9
+        movq	256(%rdx), %r8
+        movq	256(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 248(%rdi)
+        sbbq	%r8, %r10
+        movq	264(%rdx), %r9
+        movq	264(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 256(%rdi)
+        sbbq	%r9, %r8
+        movq	272(%rdx), %r10
+        movq	272(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 264(%rdi)
+        sbbq	%r10, %r9
+        movq	280(%rdx), %r8
+        movq	280(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 272(%rdi)
+        sbbq	%r8, %r10
+        movq	288(%rdx), %r9
+        movq	288(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 280(%rdi)
+        sbbq	%r9, %r8
+        movq	296(%rdx), %r10
+        movq	296(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 288(%rdi)
+        sbbq	%r10, %r9
+        movq	304(%rdx), %r8
+        movq	304(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 296(%rdi)
+        sbbq	%r8, %r10
+        movq	312(%rdx), %r9
+        movq	312(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 304(%rdi)
+        sbbq	%r9, %r8
+        movq	320(%rdx), %r10
+        movq	320(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 312(%rdi)
+        sbbq	%r10, %r9
+        movq	328(%rdx), %r8
+        movq	328(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 320(%rdi)
+        sbbq	%r8, %r10
+        movq	336(%rdx), %r9
+        movq	336(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 328(%rdi)
+        sbbq	%r9, %r8
+        movq	344(%rdx), %r10
+        movq	344(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 336(%rdi)
+        sbbq	%r10, %r9
+        movq	352(%rdx), %r8
+        movq	352(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 344(%rdi)
+        sbbq	%r8, %r10
+        movq	360(%rdx), %r9
+        movq	360(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 352(%rdi)
+        sbbq	%r9, %r8
+        movq	368(%rdx), %r10
+        movq	368(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 360(%rdi)
+        sbbq	%r10, %r9
+        movq	376(%rdx), %r8
+        movq	376(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 368(%rdi)
+        sbbq	%r8, %r10
+        movq	384(%rdx), %r9
+        movq	384(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 376(%rdi)
+        sbbq	%r9, %r8
+        movq	392(%rdx), %r10
+        movq	392(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 384(%rdi)
+        sbbq	%r10, %r9
+        movq	400(%rdx), %r8
+        movq	400(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 392(%rdi)
+        sbbq	%r8, %r10
+        movq	408(%rdx), %r9
+        movq	408(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 400(%rdi)
+        sbbq	%r9, %r8
+        movq	416(%rdx), %r10
+        movq	416(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 408(%rdi)
+        sbbq	%r10, %r9
+        movq	424(%rdx), %r8
+        movq	424(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 416(%rdi)
+        sbbq	%r8, %r10
+        movq	432(%rdx), %r9
+        movq	432(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 424(%rdi)
+        sbbq	%r9, %r8
+        movq	440(%rdx), %r10
+        movq	440(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 432(%rdi)
+        sbbq	%r10, %r9
+        movq	448(%rdx), %r8
+        movq	448(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 440(%rdi)
+        sbbq	%r8, %r10
+        movq	456(%rdx), %r9
+        movq	456(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 448(%rdi)
+        sbbq	%r9, %r8
+        movq	464(%rdx), %r10
+        movq	464(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 456(%rdi)
+        sbbq	%r10, %r9
+        movq	472(%rdx), %r8
+        movq	472(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 464(%rdi)
+        sbbq	%r8, %r10
+        movq	480(%rdx), %r9
+        movq	480(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 472(%rdi)
+        sbbq	%r9, %r8
+        movq	488(%rdx), %r10
+        movq	488(%rsi), %r9
+        pextq	%rcx, %r10, %r10
+        movq	%r8, 480(%rdi)
+        sbbq	%r10, %r9
+        movq	496(%rdx), %r8
+        movq	496(%rsi), %r10
+        pextq	%rcx, %r8, %r8
+        movq	%r9, 488(%rdi)
+        sbbq	%r8, %r10
+        movq	504(%rdx), %r9
+        movq	504(%rsi), %r8
+        pextq	%rcx, %r9, %r9
+        movq	%r10, 496(%rdi)
+        sbbq	%r9, %r8
+        movq	%r8, 504(%rdi)
+        sbbq	$0x00, %rax
+        repz retq
+#ifndef __APPLE__
+.size	sp_4096_cond_sub_avx2_64,.-sp_4096_cond_sub_avx2_64
+#endif /* __APPLE__ */
+#endif /* HAVE_INTEL_AVX2 */
 /* Compare a with b in constant time.
  *
  * a  A single precision integer.
@@ -37003,222 +37219,6 @@ _sp_4096_cmp_64:
         repz retq
 #ifndef __APPLE__
 .size	sp_4096_cmp_64,.-sp_4096_cmp_64
-#endif /* __APPLE__ */
-/* Sub b from a into r. (r = a - b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-#ifndef __APPLE__
-.text
-.globl	sp_4096_sub_64
-.type	sp_4096_sub_64,@function
-.align	16
-sp_4096_sub_64:
-#else
-.section	__TEXT,__text
-.globl	_sp_4096_sub_64
-.p2align	4
-_sp_4096_sub_64:
-#endif /* __APPLE__ */
-        movq	(%rsi), %rcx
-        xorq	%rax, %rax
-        subq	(%rdx), %rcx
-        movq	8(%rsi), %r8
-        movq	%rcx, (%rdi)
-        sbbq	8(%rdx), %r8
-        movq	16(%rsi), %rcx
-        movq	%r8, 8(%rdi)
-        sbbq	16(%rdx), %rcx
-        movq	24(%rsi), %r8
-        movq	%rcx, 16(%rdi)
-        sbbq	24(%rdx), %r8
-        movq	32(%rsi), %rcx
-        movq	%r8, 24(%rdi)
-        sbbq	32(%rdx), %rcx
-        movq	40(%rsi), %r8
-        movq	%rcx, 32(%rdi)
-        sbbq	40(%rdx), %r8
-        movq	48(%rsi), %rcx
-        movq	%r8, 40(%rdi)
-        sbbq	48(%rdx), %rcx
-        movq	56(%rsi), %r8
-        movq	%rcx, 48(%rdi)
-        sbbq	56(%rdx), %r8
-        movq	64(%rsi), %rcx
-        movq	%r8, 56(%rdi)
-        sbbq	64(%rdx), %rcx
-        movq	72(%rsi), %r8
-        movq	%rcx, 64(%rdi)
-        sbbq	72(%rdx), %r8
-        movq	80(%rsi), %rcx
-        movq	%r8, 72(%rdi)
-        sbbq	80(%rdx), %rcx
-        movq	88(%rsi), %r8
-        movq	%rcx, 80(%rdi)
-        sbbq	88(%rdx), %r8
-        movq	96(%rsi), %rcx
-        movq	%r8, 88(%rdi)
-        sbbq	96(%rdx), %rcx
-        movq	104(%rsi), %r8
-        movq	%rcx, 96(%rdi)
-        sbbq	104(%rdx), %r8
-        movq	112(%rsi), %rcx
-        movq	%r8, 104(%rdi)
-        sbbq	112(%rdx), %rcx
-        movq	120(%rsi), %r8
-        movq	%rcx, 112(%rdi)
-        sbbq	120(%rdx), %r8
-        movq	128(%rsi), %rcx
-        movq	%r8, 120(%rdi)
-        sbbq	128(%rdx), %rcx
-        movq	136(%rsi), %r8
-        movq	%rcx, 128(%rdi)
-        sbbq	136(%rdx), %r8
-        movq	144(%rsi), %rcx
-        movq	%r8, 136(%rdi)
-        sbbq	144(%rdx), %rcx
-        movq	152(%rsi), %r8
-        movq	%rcx, 144(%rdi)
-        sbbq	152(%rdx), %r8
-        movq	160(%rsi), %rcx
-        movq	%r8, 152(%rdi)
-        sbbq	160(%rdx), %rcx
-        movq	168(%rsi), %r8
-        movq	%rcx, 160(%rdi)
-        sbbq	168(%rdx), %r8
-        movq	176(%rsi), %rcx
-        movq	%r8, 168(%rdi)
-        sbbq	176(%rdx), %rcx
-        movq	184(%rsi), %r8
-        movq	%rcx, 176(%rdi)
-        sbbq	184(%rdx), %r8
-        movq	192(%rsi), %rcx
-        movq	%r8, 184(%rdi)
-        sbbq	192(%rdx), %rcx
-        movq	200(%rsi), %r8
-        movq	%rcx, 192(%rdi)
-        sbbq	200(%rdx), %r8
-        movq	208(%rsi), %rcx
-        movq	%r8, 200(%rdi)
-        sbbq	208(%rdx), %rcx
-        movq	216(%rsi), %r8
-        movq	%rcx, 208(%rdi)
-        sbbq	216(%rdx), %r8
-        movq	224(%rsi), %rcx
-        movq	%r8, 216(%rdi)
-        sbbq	224(%rdx), %rcx
-        movq	232(%rsi), %r8
-        movq	%rcx, 224(%rdi)
-        sbbq	232(%rdx), %r8
-        movq	240(%rsi), %rcx
-        movq	%r8, 232(%rdi)
-        sbbq	240(%rdx), %rcx
-        movq	248(%rsi), %r8
-        movq	%rcx, 240(%rdi)
-        sbbq	248(%rdx), %r8
-        movq	256(%rsi), %rcx
-        movq	%r8, 248(%rdi)
-        sbbq	256(%rdx), %rcx
-        movq	264(%rsi), %r8
-        movq	%rcx, 256(%rdi)
-        sbbq	264(%rdx), %r8
-        movq	272(%rsi), %rcx
-        movq	%r8, 264(%rdi)
-        sbbq	272(%rdx), %rcx
-        movq	280(%rsi), %r8
-        movq	%rcx, 272(%rdi)
-        sbbq	280(%rdx), %r8
-        movq	288(%rsi), %rcx
-        movq	%r8, 280(%rdi)
-        sbbq	288(%rdx), %rcx
-        movq	296(%rsi), %r8
-        movq	%rcx, 288(%rdi)
-        sbbq	296(%rdx), %r8
-        movq	304(%rsi), %rcx
-        movq	%r8, 296(%rdi)
-        sbbq	304(%rdx), %rcx
-        movq	312(%rsi), %r8
-        movq	%rcx, 304(%rdi)
-        sbbq	312(%rdx), %r8
-        movq	320(%rsi), %rcx
-        movq	%r8, 312(%rdi)
-        sbbq	320(%rdx), %rcx
-        movq	328(%rsi), %r8
-        movq	%rcx, 320(%rdi)
-        sbbq	328(%rdx), %r8
-        movq	336(%rsi), %rcx
-        movq	%r8, 328(%rdi)
-        sbbq	336(%rdx), %rcx
-        movq	344(%rsi), %r8
-        movq	%rcx, 336(%rdi)
-        sbbq	344(%rdx), %r8
-        movq	352(%rsi), %rcx
-        movq	%r8, 344(%rdi)
-        sbbq	352(%rdx), %rcx
-        movq	360(%rsi), %r8
-        movq	%rcx, 352(%rdi)
-        sbbq	360(%rdx), %r8
-        movq	368(%rsi), %rcx
-        movq	%r8, 360(%rdi)
-        sbbq	368(%rdx), %rcx
-        movq	376(%rsi), %r8
-        movq	%rcx, 368(%rdi)
-        sbbq	376(%rdx), %r8
-        movq	384(%rsi), %rcx
-        movq	%r8, 376(%rdi)
-        sbbq	384(%rdx), %rcx
-        movq	392(%rsi), %r8
-        movq	%rcx, 384(%rdi)
-        sbbq	392(%rdx), %r8
-        movq	400(%rsi), %rcx
-        movq	%r8, 392(%rdi)
-        sbbq	400(%rdx), %rcx
-        movq	408(%rsi), %r8
-        movq	%rcx, 400(%rdi)
-        sbbq	408(%rdx), %r8
-        movq	416(%rsi), %rcx
-        movq	%r8, 408(%rdi)
-        sbbq	416(%rdx), %rcx
-        movq	424(%rsi), %r8
-        movq	%rcx, 416(%rdi)
-        sbbq	424(%rdx), %r8
-        movq	432(%rsi), %rcx
-        movq	%r8, 424(%rdi)
-        sbbq	432(%rdx), %rcx
-        movq	440(%rsi), %r8
-        movq	%rcx, 432(%rdi)
-        sbbq	440(%rdx), %r8
-        movq	448(%rsi), %rcx
-        movq	%r8, 440(%rdi)
-        sbbq	448(%rdx), %rcx
-        movq	456(%rsi), %r8
-        movq	%rcx, 448(%rdi)
-        sbbq	456(%rdx), %r8
-        movq	464(%rsi), %rcx
-        movq	%r8, 456(%rdi)
-        sbbq	464(%rdx), %rcx
-        movq	472(%rsi), %r8
-        movq	%rcx, 464(%rdi)
-        sbbq	472(%rdx), %r8
-        movq	480(%rsi), %rcx
-        movq	%r8, 472(%rdi)
-        sbbq	480(%rdx), %rcx
-        movq	488(%rsi), %r8
-        movq	%rcx, 480(%rdi)
-        sbbq	488(%rdx), %r8
-        movq	496(%rsi), %rcx
-        movq	%r8, 488(%rdi)
-        sbbq	496(%rdx), %rcx
-        movq	504(%rsi), %r8
-        movq	%rcx, 496(%rdi)
-        sbbq	504(%rdx), %r8
-        movq	%r8, 504(%rdi)
-        sbbq	$0x00, %rax
-        repz retq
-#ifndef __APPLE__
-.size	sp_4096_sub_64,.-sp_4096_sub_64
 #endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Reduce the number back to 4096 bits using Montgomery reduction.

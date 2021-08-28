@@ -373,6 +373,10 @@
 #endif
 WOLFSSL_API  int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip,
     unsigned short port, int to_sec);
+#ifdef HAVE_SOCKADDR
+WOLFSSL_API int wolfIO_TcpAccept(SOCKET_T sockfd, SOCKADDR* peer_addr, XSOCKLENT* peer_len);
+#endif
+WOLFSSL_API int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port);
 WOLFSSL_API  int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags);
 WOLFSSL_API  int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags);
 

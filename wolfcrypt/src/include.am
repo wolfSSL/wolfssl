@@ -156,6 +156,11 @@ if BUILD_CRYPTOAUTHLIB
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/atmel/atmel.c
 endif
 
+if BUILD_IOTSAFE
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/iotsafe/iotsafe.c
+endif
+
+
 if BUILD_CAAM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_init.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_qnx.c

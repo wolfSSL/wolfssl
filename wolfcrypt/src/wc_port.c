@@ -2529,8 +2529,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
 #endif /* WOLFSSL_NUCLEUS_1_2 */
 
-#ifdef WOLFSSL_LINUXKM
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+#if defined(WOLFSSL_LINUXKM) && defined(HAVE_KVMALLOC)
     /* adapted from kvrealloc() draft by Changli Gao, 2010-05-13 */
     void *lkm_realloc(void *ptr, size_t newsize) {
         void *nptr;
@@ -2542,7 +2541,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         }
 
         if (unlikely(ptr == NULL))
-            return kvmalloc(newsize, GFP_KERNEL);
+            return kvmalloc_node(newsize, GFP_KERNEL, NUMA_NO_NODE);
 
         if (is_vmalloc_addr(ptr)) {
             /* no way to discern the size of the old allocation,
@@ -2552,21 +2551,25 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
              */
             return NULL;
         } else {
+#ifndef __PIE__
             struct page *page;
 
             page = virt_to_head_page(ptr);
             if (PageSlab(page) || PageCompound(page)) {
                 if (newsize < PAGE_SIZE)
+#endif /* ! __PIE__ */
                     return krealloc(ptr, newsize, GFP_KERNEL);
+#ifndef __PIE__
                 oldsize = ksize(ptr);
             } else {
                 oldsize = page->private;
                 if (newsize <= oldsize)
                     return ptr;
             }
+#endif /* ! __PIE__ */
 	}
 
-	nptr = kvmalloc(newsize, GFP_KERNEL);
+	nptr = kvmalloc_node(newsize, GFP_KERNEL, NUMA_NO_NODE);
 	if (nptr != NULL) {
             memcpy(nptr, ptr, oldsize);
             kvfree(ptr);
@@ -2574,8 +2577,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
 	return nptr;
     }
-#endif /* >= 4.12 */
-#endif /* WOLFSSL_LINUXKM */
+#endif /* WOLFSSL_LINUXKM && HAVE_KVMALLOC */
 
 #if defined(WOLFSSL_TI_CRYPT) || defined(WOLFSSL_TI_HASH)
     #include <wolfcrypt/src/port/ti/ti-ccm.c>  /* initialize and Mutex for TI Crypt Engine */

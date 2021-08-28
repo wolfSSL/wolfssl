@@ -29,11 +29,19 @@ ifeq "$(WOLFSSL_CFLAGS)" ""
     $(error $$WOLFSSL_CFLAGS is unset.)
 endif
 
-WOLFSSL_CFLAGS += -Wframe-larger-than=$(MAX_STACK_FRAME_SIZE) -mpreferred-stack-boundary=4
+WOLFSSL_CFLAGS += -ffreestanding -Wframe-larger-than=$(MAX_STACK_FRAME_SIZE)
+
+ifeq "$(KERNEL_ARCH)" "x86"
+    WOLFSSL_CFLAGS += -mpreferred-stack-boundary=4
+endif
 
 obj-m := libwolfssl.o
 
-WOLFSSL_OBJ_TARGETS=$(patsubst %, $(obj)/%, $(WOLFSSL_OBJ_FILES))
+WOLFSSL_OBJ_TARGETS := $(patsubst %, $(obj)/%, $(WOLFSSL_OBJ_FILES))
+
+ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
+    WOLFCRYPT_PIE_FILES := $(patsubst %, $(obj)/%, $(WOLFCRYPT_PIE_FILES))
+endif
 
 $(obj)/linuxkm/module_exports.o: $(WOLFSSL_OBJ_TARGETS)
 
@@ -58,23 +66,91 @@ else
     WOLFSSL_CFLAGS_YES_VECTOR_INSNS := $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
 endif
 
-ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
+ccflags-y := $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
 
 $(obj)/libwolfssl.mod.o: ccflags-y :=
 $(obj)/wolfcrypt/test/test.o: ccflags-y += -DNO_MAIN_DRIVER
 
 $(obj)/wolfcrypt/src/aes.o: ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_YES_VECTOR_INSNS)
 
+ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
+    PIE_FLAGS := -fPIE -fno-stack-protector -fno-toplevel-reorder
+    PIE_SUPPORT_FLAGS := -DUSE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
+    ifeq "$(KERNEL_ARCH)" "x86"
+        PIE_FLAGS += -mcmodel=small -mindirect-branch=keep -mfunction-return=keep
+    endif
+    ifeq "$(KERNEL_ARCH)" "mips"
+        PIE_FLAGS += -mabicalls
+    endif
+    $(WOLFCRYPT_PIE_FILES): ccflags-y += $(PIE_SUPPORT_FLAGS) $(PIE_FLAGS)
+    $(WOLFCRYPT_PIE_FILES): ccflags-remove-y += -pg
+    # disabling retpoline generation leads to profuse warnings without this:
+    $(WOLFCRYPT_PIE_FILES): OBJECT_FILES_NON_STANDARD := y
+    $(obj)/linuxkm/module_hooks.o: ccflags-y += $(PIE_SUPPORT_FLAGS)
+endif
+
 asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPUSIMD_DISABLE)
 
-# after the C wrapper for a vectorized algorithm has been equipped with {SAVE,RESTORE}_VECTOR_REGISTERS(),
-# it can be safely included here:
+# vectorized algorithms equipped with {SAVE,RESTORE}_VECTOR_REGISTERS()
+# can be safely included here:
 $(obj)/wolfcrypt/src/aes_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/aes_gcm_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 
 # these _asms are kernel-compatible, but they still irritate objtool:
 $(obj)/wolfcrypt/src/aes_asm.o: OBJECT_FILES_NON_STANDARD := y
 $(obj)/wolfcrypt/src/aes_gcm_asm.o: OBJECT_FILES_NON_STANDARD := y
+
+ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
+
+rename-pie-text-and-data-sections: $(WOLFSSL_OBJ_TARGETS)
+
+ifndef NM
+    NM := nm
+endif
+
+ifndef READELF
+    READELF := readelf
+endif
+
+ifndef OBJCOPY
+    OBJCOPY := objcopy
+endif
+
+.PHONY: rename-pie-text-and-data-sections
+rename-pie-text-and-data-sections:
+ifneq "$(quiet)" "silent_"
+	@echo -n '  Checking wolfCrypt for unresolved symbols and forbidden relocations... '
+endif
+	@cd "$(obj)" || exit $$?; \
+	$(LD) -relocatable -o wolfcrypt_test_link.o $(WOLFCRYPT_PIE_FILES) || exit $$?; \
+	undefined=$$($(NM) --undefined-only wolfcrypt_test_link.o) || exit $$?; \
+	GOT_relocs=$$($(READELF) --relocs --wide wolfcrypt_test_link.o | egrep '^[^ ]+ +[^ ]+ +[^ ]*GOT[^ ]* ') || [ $$? = 1 ] || exit 2; \
+	rm wolfcrypt_test_link.o; \
+	if [ -n "$$undefined" ]; then \
+	    echo "wolfCrypt container has unresolved symbols:" 1>&2; \
+	    echo "$$undefined" 1>&2; \
+	    exit 1; \
+	fi; \
+	if [ -n "$$GOT_relocs" ]; then \
+	    echo "wolfCrypt container has GOT relocations (non-local function address used as operand?):" 1>&2; \
+	    echo "$$GOT_relocs" 1>&2; \
+	    exit 1; \
+	fi
+ifneq "$(quiet)" "silent_"
+	@echo 'OK.'
+endif
+	@cd "$(obj)" || exit $$?; \
+	for file in $(WOLFCRYPT_PIE_FILES); do \
+	    $(OBJCOPY) --rename-section .text=.text.wolfcrypt --rename-section .data=.data.wolfcrypt "$$file" || exit $$?; \
+	done
+ifneq "$(quiet)" "silent_"
+	@echo '  wolfCrypt .{text,data} sections containerized to .{text,data}.wolfcrypt'
+endif
+
+$(src)/linuxkm/module_exports.c: rename-pie-text-and-data-sections
+
+endif
+
 
 # auto-generate the exported symbol list, leveraging the WOLFSSL_API visibility tags.
 # exclude symbols that don't match wc_* or wolf*.

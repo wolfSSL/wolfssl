@@ -42,7 +42,7 @@
     extern "C" {
 #endif
 
-#if !defined(NO_OLD_MD5_NAME)
+#ifndef NO_OLD_MD5_NAME
     #define MD5             WC_MD5
 #endif
 

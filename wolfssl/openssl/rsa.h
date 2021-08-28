@@ -84,7 +84,9 @@ typedef struct WOLFSSL_RSA {
     WOLFSSL_CRYPTO_EX_DATA ex_data;  /* external data */
 #endif
 #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
+#ifndef SINGLE_THREADED
     wolfSSL_Mutex    refMutex;                       /* ref count mutex */
+#endif
     int              refCount;                       /* reference count */
 #endif
     word16 pkcs8HeaderSz;

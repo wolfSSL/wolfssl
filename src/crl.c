@@ -385,7 +385,9 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 #endif
     if (foundEntry == 0) {
         WOLFSSL_MSG("Couldn't find CRL for status check");
-        ret = CRL_MISSING;
+        if (ret != CRL_CERT_DATE_ERR) {
+            ret = CRL_MISSING;
+        }
 
         if (crl->cm->cbMissingCRL) {
             char url[256];

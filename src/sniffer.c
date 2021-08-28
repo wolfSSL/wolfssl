@@ -2189,10 +2189,13 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             ret = wc_RsaPrivateKeyDecode(keyBuf->buffer, &idx, &key, keyBuf->length);
             if (ret != 0) {
             #ifndef HAVE_ECC
+                #ifdef WOLFSSL_SNIFFER_STATS
+                INC_STAT(SnifferStats.sslKeyFails);
+                #endif
                 SetError(RSA_DECODE_STR, error, session, FATAL_ERROR_STATE);
             #else
                 /* If we can do ECC, this isn't fatal. Not loading an ECC
-                    * key will be fatal, though. */
+                 * key will be fatal, though. */
                 SetError(RSA_DECODE_STR, error, session, 0);
                 if (keys->ecKey == NULL)
                     keys->ecKey = session->sslServer->buffers.key; /* try ECC */
@@ -2341,9 +2344,14 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             } while (ret == WC_PENDING_E);
 
             wc_FreeDhKey(&dhKey);
-        
+
+        #ifdef WOLFSSL_SNIFFER_STATS
+            if (ret != 0)
+                INC_STAT(SnifferStats.sslKeyFails);
+        #endif
+
             /* left-padded with zeros up to the size of the prime */
-            if (params->p_len > session->sslServer->arrays->preMasterSz) {
+            if (ret == 0 && params->p_len > session->sslServer->arrays->preMasterSz) {
                 word32 diff = params->p_len - session->sslServer->arrays->preMasterSz;
                 XMEMMOVE(session->sslServer->arrays->preMasterSecret + diff,
                         session->sslServer->arrays->preMasterSecret, 
@@ -3646,6 +3654,7 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
 
     if (ret == 0 && session->flags.cached == 0) {
         if (session->sslServer->options.haveSessionId) {
+        #ifndef NO_SESSION_CACHE
             WOLFSSL_SESSION* sess = GetSession(session->sslServer, NULL, 0);
             if (sess == NULL) {
                 AddSession(session->sslServer);  /* don't re add */
@@ -3654,6 +3663,7 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
             #endif
             }
             session->flags.cached = 1;
+        #endif
          }
     }
 
@@ -4637,7 +4647,7 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
 
     /* handle rollover of sequence */
     if (tcpInfo->sequence < seqStart)
-        real = 0xffffffffU - seqStart + tcpInfo->sequence;
+        real = 0xffffffffU - seqStart + tcpInfo->sequence + 1;
 
     TraceRelativeSequence(*expected, real);
 
@@ -5674,7 +5684,7 @@ int ssl_EnableRecovery(int onOff, int maxMemory, char* error)
 
 
 
-#ifdef WOLFSSL_SESSION_STATS
+#if defined(WOLFSSL_SESSION_STATS) && !defined(NO_SESSION_CACHE)
 
 int ssl_GetSessionStats(unsigned int* active,     unsigned int* total,
                         unsigned int* peak,       unsigned int* maxSessions,

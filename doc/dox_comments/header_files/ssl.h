@@ -2452,7 +2452,6 @@ WOLFSSL_API int wolfSSL_GetSessionAtIndex(int index, WOLFSSL_SESSION* session);
     }
     \endcode
 
-    \sa get_locked_session_stats
     \sa wolfSSL_GetSessionAtIndex
     \sa wolfSSL_GetSessionIndex
     \sa AddSession
@@ -7818,7 +7817,6 @@ WOLFSSL_API void wolfSSL_SetFuzzerCb(WOLFSSL* ssl, CallbackFuzzer cbf, void* fCt
 
     \sa ForceZero
     \sa wc_RNG_GenerateBlock
-    \sa XMEMCPY
 */
 WOLFSSL_API int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL*,
                                                const unsigned char*,
@@ -9358,7 +9356,7 @@ WOLFSSL_API int wolfSSL_CertManagerDisableCRL(WOLFSSL_CERT_MANAGER*);
     int wolfSSL_LoadCRL(WOLFSSL* ssl, const char* path, int type,
     int monitor);
     …
-    wolfSSL_CertManagerLoadCRL(ssl->ctx->cm, path, type, monitor);
+    wolfSSL_CertManagerLoadCRL(SSL_CM(ssl), path, type, monitor);
     \endcode
 
     \sa wolfSSL_CertManagerEnableCRL
@@ -9434,7 +9432,7 @@ WOLFSSL_API int wolfSSL_CertManagerLoadCRLBuffer(WOLFSSL_CERT_MANAGER*,
     CbMissingCRL cb = CbMissingCRL;
     …
     if(ctx){
-        return wolfSSL_CertManagerSetCRL_Cb(ssl->ctx->cm, cb);
+        return wolfSSL_CertManagerSetCRL_Cb(SSL_CM(ssl), cb);
     }
     \endcode
 
@@ -9505,7 +9503,7 @@ WOLFSSL_API int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER*,
     WOLFSSL_CERT_MANAGER* cm = wolfSSL_CertManagerNew();
     int options;
     …
-    if(wolfSSL_CertManagerEnableOCSP(ssl->ctx->cm, options) != SSL_SUCCESS){
+    if(wolfSSL_CertManagerEnableOCSP(SSL_CM(ssl), options) != SSL_SUCCESS){
 	    Failure case.
     }
     \endcode
@@ -9561,7 +9559,7 @@ WOLFSSL_API int wolfSSL_CertManagerDisableOCSP(WOLFSSL_CERT_MANAGER*);
     …
     int wolfSSL_SetOCSP_OverrideURL(WOLFSSL* ssl, const char* url)
     …
-    if(wolfSSL_CertManagerSetOCSPOverrideURL(ssl->ctx->cm, url) != SSL_SUCCESS){
+    if(wolfSSL_CertManagerSetOCSPOverrideURL(SSL_CM(ssl), url) != SSL_SUCCESS){
 	    Failure case.
     }
     \endcode
@@ -9593,7 +9591,7 @@ WOLFSSL_API int wolfSSL_CertManagerSetOCSPOverrideURL(WOLFSSL_CERT_MANAGER*,
     wolfSSL_SetOCSP_Cb(WOLFSSL* ssl, CbOCSPIO ioCb,
     CbOCSPRespFree respFreeCb, void* ioCbCtx){
     …
-    return wolfSSL_CertManagerSetOCSP_Cb(ssl->ctx->cm, ioCb, respFreeCb, ioCbCtx);
+    return wolfSSL_CertManagerSetOCSP_Cb(SSL_CM(ssl), ioCb, respFreeCb, ioCbCtx);
     \endcode
 
     \sa wolfSSL_CertManagerSetOCSPOverrideURL
@@ -11511,7 +11509,6 @@ WOLFSSL_API int wolfSSL_PrintSessionStats(void);
     return ret;
     \endcode
 
-    \sa get_locked_session_stats
     \sa wolfSSL_PrintSessionStats
 */
 WOLFSSL_API int wolfSSL_get_session_stats(unsigned int* active,

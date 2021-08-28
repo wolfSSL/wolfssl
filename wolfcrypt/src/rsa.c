@@ -3544,6 +3544,7 @@ int wc_RsaPSS_CheckPadding(const byte* in, word32 inSz, byte* sig,
  * saltLen   Length of salt used. RSA_PSS_SALT_LEN_DEFAULT (-1) indicates salt
  *           length is the same as the hash length. RSA_PSS_SALT_LEN_DISCOVER
  *           indicates salt length is determined from the data.
+ * bits      Can be used to calculate salt size in FIPS case
  * returns BAD_PADDING_E when the PSS data is invalid, BAD_FUNC_ARG when
  * NULL is passed in to in or sig or inSz is not the same as the hash
  * algorithm length and 0 on success.

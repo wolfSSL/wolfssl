@@ -670,7 +670,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             /* general static memory */
             if (pt == NULL) {
                 for (i = 0; i < WOLFMEM_MAX_BUCKETS; i++) {
-                    if ((word32)size < mem->sizeList[i]) {
+                    if ((word32)size <= mem->sizeList[i]) {
                         if (mem->ava[i] != NULL) {
                             pt = mem->ava[i];
                             mem->ava[i] = pt->next;
@@ -905,7 +905,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
         else {
         /* general memory */
             for (i = 0; i < WOLFMEM_MAX_BUCKETS; i++) {
-                if ((word32)size < mem->sizeList[i]) {
+                if ((word32)size <= mem->sizeList[i]) {
                     if (mem->ava[i] != NULL) {
                         pt = mem->ava[i];
                         mem->ava[i] = pt->next;
