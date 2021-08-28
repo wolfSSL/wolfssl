@@ -30023,7 +30023,7 @@ end:
     return s;
 }
 
-/* Returns 1 if there is a session ticket associated with this WOLFSSL_SESSION.
+/* Check if there is a session ticket associated with this WOLFSSL_SESSION.
  *
  * sess - pointer to WOLFSSL_SESSION struct
  *
@@ -30034,13 +30034,13 @@ int wolfSSL_SESSION_has_ticket(const WOLFSSL_SESSION* sess)
 #ifdef HAVE_SESSION_TICKET
     if (sess) {
         if ((sess->ticketLen > 0) && (sess->ticket != NULL)) {
-            return 1;
+            return WOLFSSL_SUCCESS;
         }
     }
 #else
     (void)sess;
 #endif
-    return 0;
+    return WOLFSSL_FAILURE;
 }
 
 unsigned long wolfSSL_SESSION_get_ticket_lifetime_hint(
