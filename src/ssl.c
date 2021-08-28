@@ -44310,6 +44310,7 @@ end:
 #endif
 }
 
+#ifndef NO_FILESYSTEM
 /* Reads DH parameters from a file pointer into WOLFSSL_DH structure.
  *
  * fp  file pointer to read DH parameter file from
@@ -44321,7 +44322,6 @@ end:
 WOLFSSL_DH *wolfSSL_PEM_read_DHparams(XFILE fp, WOLFSSL_DH **x,
         pem_password_cb *cb, void *u)
 {
-#ifndef NO_FILESYSTEM
     WOLFSSL_BIO* fbio = NULL;
     WOLFSSL_DH* dh = NULL;
 
@@ -44347,10 +44347,8 @@ WOLFSSL_DH *wolfSSL_PEM_read_DHparams(XFILE fp, WOLFSSL_DH **x,
 
     wolfSSL_BIO_free(fbio);
     return dh;
-#else
-    return NULL;
-#endif
 }
+#endif /* NO_FILESYSTEM */
 
 #endif /* !NO_BIO */
 
