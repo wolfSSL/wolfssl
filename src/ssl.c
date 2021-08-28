@@ -2527,6 +2527,22 @@ static int isValidCurveGroup(word16 name)
         case WOLFSSL_FFDHE_4096:
         case WOLFSSL_FFDHE_6144:
         case WOLFSSL_FFDHE_8192:
+
+#ifdef HAVE_LIBOQS
+        case WOLFSSL_KYBER512:
+        case WOLFSSL_KYBER768:
+        case WOLFSSL_KYBER1024:
+        case WOLFSSL_NTRU_HPS2048509:
+        case WOLFSSL_NTRU_HPS2048677:
+        case WOLFSSL_NTRU_HPS4096821:
+        case WOLFSSL_NTRU_HRSS701:
+        case WOLFSSL_LIGHTSABER:
+        case WOLFSSL_SABER:
+        case WOLFSSL_FIRESABER:
+        case WOLFSSL_KYBER90S512:
+        case WOLFSSL_KYBER90S768:
+        case WOLFSSL_KYBER90S1024:
+#endif
             return 1;
 
         default:
@@ -22791,7 +22807,6 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
         return id;
     }
-
 
     byte* wolfSSL_X509_get_subjectKeyID(WOLFSSL_X509* x509,
                                         byte* dst, int* dstLen)
