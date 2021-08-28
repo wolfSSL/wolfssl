@@ -24,6 +24,9 @@ noinst_DATA =
 SUBDIRS_OPT =
 DIST_SUBDIRS_OPT =
 
+# allow supplementary or override flags to be passed at make time:
+AM_CFLAGS += $(EXTRA_CFLAGS)
+
 #includes additional rules from aminclude.am
 @INC_AMINCLUDE@
 DISTCLEANFILES+= aminclude.am

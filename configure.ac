@@ -35,6 +35,8 @@ AC_CONFIG_HEADERS([config.h:config.in])
 LT_PREREQ([2.4.2])
 LT_INIT([disable-static win32-dll])
 
+AC_ARG_VAR(EXTRA_CFLAGS, [Extra CFLAGS to add to autoconf-computed arg list.  Can also supply directly to make.])
+
 #shared library versioning
 WOLFSSL_LIBRARY_VERSION=29:1:5
 #                        | | |
@@ -80,31 +82,6 @@ then
     REPRODUCIBLE_BUILD_DEFAULT=yes
 else
     REPRODUCIBLE_BUILD_DEFAULT=no
-fi
-
-# For reproducible build, gate out from the build anything that might
-# introduce semantically frivolous jitter, maximizing chance of
-# identical object files.
-AC_ARG_ENABLE([reproducible-build],
-    [AS_HELP_STRING([--enable-reproducible-build],[Enable maximally reproducible build (default: disabled)])],
-    [ ENABLED_REPRODUCIBLE_BUILD=$enableval ],
-    [ ENABLED_REPRODUCIBLE_BUILD=$REPRODUCIBLE_BUILD_DEFAULT ]
-    )
-
-# Test ar for the "U" or "D" options. Should be checked before the libtool macros.
-xxx_ar_flags=$(ar --help 2>&1)
-if test "$ENABLED_REPRODUCIBLE_BUILD" = "yes"
-then
-    AS_CASE([$xxx_ar_flags],[*'use zero for timestamps and uids/gids'*],[AR_FLAGS="Dcr"])
-else
-    AS_CASE([$xxx_ar_flags],[*'use actual timestamps and uids/gids'*],[AR_FLAGS="Ucru"])
-fi
-xxx_ranlib_flags=$(ranlib --help 2>&1)
-if test "$ENABLED_REPRODUCIBLE_BUILD" = "yes"
-then
-    AS_CASE([$xxx_ranlib_flags],[*'Use zero for symbol map timestamp'*],[RANLIB="ranlib -D"])
-else
-    AS_CASE([$xxx_ranlib_flags],[*'Use actual symbol map timestamp'*],[RANLIB="ranlib -U"])
 fi
 
 
@@ -160,6 +137,11 @@ OPTIMIZE_HUGE_CFLAGS="-funroll-loops -DTFM_SMALL_SET -DTFM_HUGE_SET"
 DEBUG_CFLAGS="-g -DDEBUG -DDEBUG_WOLFSSL"
 LIB_ADD=
 LIB_STATIC_ADD=
+
+if test "$output_objdir" = ""
+then
+    output_objdir=.
+fi
 
 # Thread local storage
 AX_TLS([thread_ls_on=yes],[thread_ls_on=no])
@@ -223,6 +205,11 @@ AC_ARG_ENABLE([fips],
     [ENABLED_FIPS=$enableval],
     [ENABLED_FIPS="no"])
 
+if test "$ENABLED_FIPS" != "no"
+then
+    REPRODUCIBLE_BUILD_DEFAULT=yes
+fi
+
 # The FIPS options are:
 #   v5 - FIPS 140-3 (wolfCrypt v5.0.0)
 #   v3 - FIPS Ready
@@ -280,6 +267,30 @@ AC_ARG_ENABLE([fips-3],
     [ENABLED_FIPS_140_3="no"])
 AS_IF([test "x$ENABLED_FIPS_140_3" = "xyes"],[ENABLED_FIPS="yes";FIPS_VERSION="v5"])
 
+
+# For reproducible build, gate out from the build anything that might
+# introduce semantically frivolous jitter, maximizing chance of
+# identical object files.
+AC_ARG_ENABLE([reproducible-build],
+    [AS_HELP_STRING([--enable-reproducible-build],[Enable maximally reproducible build (default: disabled)])],
+    [ ENABLED_REPRODUCIBLE_BUILD=$enableval ],
+    [ ENABLED_REPRODUCIBLE_BUILD=$REPRODUCIBLE_BUILD_DEFAULT ]
+    )
+
+# Test ar for the "U" or "D" options. Should be checked before the libtool macros.
+xxx_ar_flags=$(ar --help 2>&1)
+xxx_ranlib_flags=$(ranlib --help 2>&1)
+if test "$ENABLED_REPRODUCIBLE_BUILD" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_REPRODUCIBLE_BUILD"
+    AS_CASE([$xxx_ar_flags],[*'use zero for timestamps and uids/gids'*],[AR_FLAGS="Dcr"])
+    AS_CASE([$xxx_ranlib_flags],[*'Use zero for symbol map timestamp'*],[RANLIB="ranlib -D"])
+else
+    AS_CASE([$xxx_ar_flags],[*'use actual timestamps and uids/gids'*],[AR_FLAGS="Ucru"])
+    AS_CASE([$xxx_ranlib_flags],[*'Use actual symbol map timestamp'*],[RANLIB="ranlib -U"])
+fi
+
+
 # Linux Kernel Module
 AC_ARG_ENABLE([linuxkm],
     [AS_HELP_STRING([--enable-linuxkm],[Enable Linux Kernel Module (default: disabled)])],
@@ -327,6 +338,7 @@ if test "x$ENABLED_LINUXKM" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM"
     ENABLED_NO_LIBRARY=yes
+    output_objdir="$(realpath "$output_objdir")/linuxkm"
 
     if test "$KERNEL_ROOT" = ""; then
         AC_PATH_DEFAULT_KERNEL_SOURCE
@@ -415,7 +427,6 @@ then
     test "$enable_savesession" = "" && enable_savesession=yes
     test "$enable_savecert" = "" && enable_savecert=yes
     test "$enable_atomicuser" = "" && enable_atomicuser=yes
-    test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
     test "$enable_aesgcm_stream" = "" && enable_aesgcm_stream=yes
     test "$enable_aesccm" = "" && enable_aesccm=yes
@@ -509,6 +520,8 @@ then
                 fi
                 # S/MIME support requires PKCS7, which requires no FIPS.
                 test "$enable_smime" = "" && enable_smime=yes
+                # JNI uses pkcallbacks.
+                test "$enable_jni" = "" && enable_jni=yes
             fi
             test "$enable_opensslextra" = "" && enable_opensslextra=yes
             test "$enable_opensslall" = "" && enable_opensslall=yes
@@ -527,6 +540,7 @@ then
 
     if test "$ENABLED_FIPS" = "no"
     then
+        test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
         test "$enable_xchacha" = "" && enable_xchacha=yes
         test "$enable_scep" = "" && enable_scep=yes
         test "$enable_pkcs7" = "" && enable_pkcs7=yes
@@ -579,7 +593,6 @@ AC_ARG_ENABLE([all-crypto],
 if test "$ENABLED_ALL_CRYPT" = "yes"
 then
     test "$enable_atomicuser" = "" && enable_atomicuser=yes
-    test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
     test "$enable_aesgcm_stream" = "" && enable_aesgcm_stream=yes
     test "$enable_aesccm" = "" && enable_aesccm=yes
@@ -652,6 +665,7 @@ then
 
     if test "$ENABLED_FIPS" = "no"
     then
+        test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
         test "$enable_xchacha" = "" && enable_xchacha=yes
         test "$enable_pkcs7" = "" && enable_pkcs7=yes
         if test "$ENABLED_32BIT" != "yes"
@@ -7183,11 +7197,12 @@ AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
 AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
 
-if test "$ax_enable_debug" = "yes" ||
+if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes" &&
+   (test "$ax_enable_debug" = "yes" ||
         test "$ENABLED_STACKSIZE" != "no" ||
         (test "$ENABLED_LEANTLS" = "no" &&
              test "$ENABLED_LEANPSK" = "no" &&
-             test "$ENABLED_LOWRESOURCE" = "no")
+             test "$ENABLED_LOWRESOURCE" = "no"))
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_WC_INTROSPECTION"
 fi
@@ -7238,6 +7253,14 @@ else
     make clean >/dev/null
 fi
 
+if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes"
+then
+    echo "#define LIBWOLFSSL_CONFIGURE_ARGS \"$ac_configure_args\"" > ${output_objdir}/.build_params &&
+        echo "#define LIBWOLFSSL_GLOBAL_CFLAGS \"$CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS\" LIBWOLFSSL_GLOBAL_EXTRA_CFLAGS" >> ${output_objdir}/.build_params ||
+        AC_MSG_ERROR([Couldn't create ${output_objdir}/.build_params.])
+    AM_CFLAGS="-include ${output_objdir}/.build_params $AM_CFLAGS"
+fi
+
 # generate user options header
 AC_MSG_NOTICE([---])
 AC_MSG_NOTICE([Generating user options header...])
@@ -7264,7 +7287,7 @@ echo "extern \"C\" {" >> $OPTION_FILE
 echo "#endif" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 
-for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS; do
+for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS $EXTRA_CFLAGS; do
     defonly=`echo $option | sed 's/^-D//'`
     if test "$defonly" != "$option"
     then
@@ -7569,14 +7592,6 @@ echo ""
 echo "---"
 
 fi # $silent != yes
-
-if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes"
-then
-    echo >> config.h
-    echo "#define LIBWOLFSSL_CONFIGURE_ARGS \"$ac_configure_args\"" >> config.h
-    echo >> config.h
-    echo "#define LIBWOLFSSL_GLOBAL_CFLAGS \"$CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS\"" >> config.h
-fi
 
 ################################################################################
 # Show warnings at bottom so they are noticed
