@@ -36964,6 +36964,11 @@ static void test_wolfSSL_verify_mode(void)
     wolfSSL_set_verify(ssl, SSL_VERIFY_FAIL_EXCEPT_PSK, 0);
     AssertIntEQ(SSL_get_verify_mode(ssl), SSL_VERIFY_FAIL_EXCEPT_PSK);
 
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    wolfSSL_set_verify(ssl, SSL_VERIFY_POST_HANDSHAKE, 0);
+    AssertIntEQ(SSL_get_verify_mode(ssl), SSL_VERIFY_POST_HANDSHAKE);
+#endif
+
     AssertIntEQ(SSL_CTX_get_verify_mode(ctx),
                 WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT);
 

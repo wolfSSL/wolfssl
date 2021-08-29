@@ -6218,6 +6218,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.noPskDheKe = ctx->noPskDheKe;
     #if defined(WOLFSSL_POST_HANDSHAKE_AUTH)
         ssl->options.postHandshakeAuth = ctx->postHandshakeAuth;
+        ssl->options.verifyPostHandshake = ctx->verifyPostHandshake;
     #endif
 
     if (ctx->numGroups > 0) {

@@ -9414,7 +9414,11 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
         case TLS13_SERVER_EXTENSIONS_SENT :
 #ifndef NO_CERTS
             if (!ssl->options.resuming) {
-                if (ssl->options.verifyPeer) {
+                if (ssl->options.verifyPeer
+    #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+                    && !ssl->options.verifyPostHandshake
+    #endif
+                   ) {
                     ssl->error = SendTls13CertificateRequest(ssl, NULL, 0);
                     if (ssl->error != 0) {
                         WOLFSSL_ERROR(ssl->error);
