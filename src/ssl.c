@@ -32901,7 +32901,7 @@ int wolfSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
     return ret;
 }
 
-#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+#ifndef HAVE_SELFTEST
 WOLFSSL_DSA_SIG* wolfSSL_DSA_do_sign_ex(const unsigned char* digest,
                                         int inLen, WOLFSSL_DSA* dsa)
 {
@@ -32935,7 +32935,7 @@ WOLFSSL_DSA_SIG* wolfSSL_DSA_do_sign_ex(const unsigned char* digest,
     /* 2 * sigLen for the two points r and s */
     return wolfSSL_d2i_DSA_SIG(NULL, &tmp, 2 * sigLen);
 }
-#endif /* !HAVE_SELFTEST && !HAVE_FIPS */
+#endif /* !HAVE_SELFTEST */
 
 int wolfSSL_DSA_do_verify(const unsigned char* d, unsigned char* sig,
                         WOLFSSL_DSA* dsa, int *dsacheck)
@@ -32977,7 +32977,7 @@ int wolfSSL_DSA_bits(const WOLFSSL_DSA *d)
     return wolfSSL_BN_num_bits(d->p);
 }
 
-#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+#ifndef HAVE_SELFTEST
 int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest_len,
                              WOLFSSL_DSA_SIG* sig, WOLFSSL_DSA* dsa)
 {
@@ -33047,7 +33047,7 @@ int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest_len,
 
     return WOLFSSL_SUCCESS;
 }
-#endif /* !HAVE_SELFTEST && !HAVE_FIPS */
+#endif /* !HAVE_SELFTEST */
 
 WOLFSSL_API int wolfSSL_i2d_DSAparams(const WOLFSSL_DSA* dsa,
     unsigned char** out)
