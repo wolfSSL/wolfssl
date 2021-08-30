@@ -10252,17 +10252,18 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
         case ALT_NAMES_OID:
         {
             DNS_entry* dns = NULL;
-            /* Malloc GENERAL_NAME stack */
-            sk = (WOLFSSL_GENERAL_NAMES*)XMALLOC(
+            
+            if (x509->subjAltNameSet && x509->altNames != NULL) {
+                /* Malloc GENERAL_NAME stack */
+                sk = (WOLFSSL_GENERAL_NAMES*)XMALLOC(
                         sizeof(WOLFSSL_GENERAL_NAMES), NULL,
                                                          DYNAMIC_TYPE_ASN1);
-            if (sk == NULL) {
-                return NULL;
-            }
-            XMEMSET(sk, 0, sizeof(WOLFSSL_GENERAL_NAMES));
-            sk->type = STACK_TYPE_GEN_NAME;
-
-            if (x509->subjAltNameSet && x509->altNames != NULL) {
+                if (sk == NULL) {
+                    return NULL;
+                }
+                XMEMSET(sk, 0, sizeof(WOLFSSL_GENERAL_NAMES));
+                sk->type = STACK_TYPE_GEN_NAME;
+                
                 /* alt names are DNS_entry structs */
                 if (c != NULL) {
                     if (x509->altNames->next != NULL) {
@@ -41454,7 +41455,7 @@ int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
         int ret;
 
         entry = wolfSSL_X509_NAME_get_entry(name, i);
-        if (entry != NULL && entry->set == 1) {
+        if (entry != NULL && entry->set >= 1) {
             const char* nameStr;
             WOLFSSL_ASN1_STRING* data;
             WOLFSSL_ASN1_STRING* cano_data;
@@ -41564,7 +41565,7 @@ int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* name, unsigned char** out)
         int ret;
 
         entry = wolfSSL_X509_NAME_get_entry(name, i);
-        if (entry != NULL && entry->set == 1) {
+        if (entry != NULL && entry->set >= 1) {
             const char* nameStr;
             int type;
             WOLFSSL_ASN1_STRING* data;
@@ -43983,6 +43984,14 @@ err:
         }
 
         if (name->entry[loc].set) {
+#ifdef WOLFSSL_PYTHON
+            /* "set" is not only flag use, but also stack index position use in
+            *  OpenSSL. Python makes tuple based on this number. Therefore,
+            *  updating "set" by position + 1. "plus 1" means to avoid "not set"
+            *  zero.
+            */
+            name->entry[loc].set = loc + 1;
+#endif
             return &name->entry[loc];
         }
         else {
