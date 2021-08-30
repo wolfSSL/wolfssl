@@ -28170,6 +28170,39 @@ WOLFSSL_API long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *
 }
 #endif /* HAVE_OCSP */
 
+#ifdef HAVE_MAX_FRAGMENT
+#ifndef NO_WOLFSSL_CLIENT
+/**
+ * Set max fragment tls extension
+ * @param c a pointer to WOLFSSL_CTX object
+ * @param mode maximum fragment length mode
+ * @return 1 on success, otherwise 0 or negative error code
+ */
+WOLFSSL_API int wolfSSL_CTX_set_tlsext_max_fragment_length(WOLFSSL_CTX *c, 
+                                                            unsigned char mode)
+{  
+    if (c == NULL || (mode < WOLFSSL_MFL_2_9 || mode > WOLFSSL_MFL_2_12 ))
+        return BAD_FUNC_ARG;
+
+    return wolfSSL_CTX_UseMaxFragment(c, mode);
+}
+/**
+ * Set max fragment tls extension 
+ * @param c a pointer to WOLFSSL object
+ * @param mode maximum fragment length mode
+ * @return 1 on success, otherwise 0 or negative error code
+ */
+WOLFSSL_API int wolfSSL_set_tlsext_max_fragment_length(WOLFSSL *s, 
+                                                            unsigned char mode)
+{
+    if (s == NULL || (mode < WOLFSSL_MFL_2_9 || mode > WOLFSSL_MFL_2_12 ))
+        return BAD_FUNC_ARG;
+
+    return wolfSSL_UseMaxFragment(s, mode);
+}
+#endif /* NO_WOLFSSL_CLIENT */
+#endif /* HAVE_MAX_FRAGMENT */
+
 #endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)

@@ -1110,6 +1110,11 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define TLSEXT_STATUSTYPE_ocsp  1
 
+#define TLSEXT_max_fragment_length_512   WOLFSSL_MFL_2_9
+#define TLSEXT_max_fragment_length_1024  WOLFSSL_MFL_2_10
+#define TLSEXT_max_fragment_length_2048  WOLFSSL_MFL_2_11
+#define TLSEXT_max_fragment_length_4096  WOLFSSL_MFL_2_12
+
 #define SSL_set_options                 wolfSSL_set_options
 #define SSL_get_options                 wolfSSL_get_options
 #define SSL_clear_options               wolfSSL_clear_options
@@ -1130,6 +1135,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_set_tlsext_status_ocsp_res  wolfSSL_set_tlsext_status_ocsp_resp
 #define SSL_set_tlsext_status_ocsp_resp  wolfSSL_set_tlsext_status_ocsp_resp
 #define SSL_get_tlsext_status_ocsp_resp  wolfSSL_get_tlsext_status_ocsp_resp
+#define SSL_set_tlsext_max_fragment_length wolfSSL_set_tlsext_max_fragment_length
 
 #define SSL_CTX_add_extra_chain_cert    wolfSSL_CTX_add_extra_chain_cert
 #define SSL_CTX_get_read_ahead          wolfSSL_CTX_get_read_ahead
@@ -1137,6 +1143,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTX_set_tlsext_status_arg   wolfSSL_CTX_set_tlsext_status_arg
 #define SSL_CTX_set_tlsext_opaque_prf_input_callback_arg \
                             wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg
+#define SSL_CTX_set_tlsext_max_fragment_length \
+                            wolfSSL_CTX_set_tlsext_max_fragment_length
 #define SSL_get_server_random           wolfSSL_get_server_random
 #define SSL_get_server_tmp_key          wolfSSL_get_server_tmp_key
 
