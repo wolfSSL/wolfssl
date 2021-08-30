@@ -2928,7 +2928,9 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl)
     if (ssl == NULL)
         return WOLFSSL_FAILURE;
 
+#ifdef HAVE_SESSION_TICKET
     ret = WOLFSSL_SUCCESS;
+#endif
 
     if (ssl->options.side == WOLFSSL_SERVER_END) {
         /* Reset option to send certificate verify. */

@@ -6466,6 +6466,11 @@ fi
 
 if test "$ENABLED_AESGCM" != "no"
 then
+    if test "$ENABLED_AESGCM" = "word"
+    then
+        ENABLED_AESGCM=yes
+    fi
+
     if test "$ENABLED_AESGCM" = "word32"
     then
         AM_CFLAGS="$AM_CFLAGS -DGCM_WORD32"

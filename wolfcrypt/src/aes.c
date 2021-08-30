@@ -5787,11 +5787,11 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
  * @param [in, out] aes    AES GCM object.
  * @param [in]      block  Block of AAD or cipher text.
  */
-#define GHASH_ONE_BLOCK(aes, block)                 \
-    do {                                            \
+#define GHASH_ONE_BLOCK(aes, block)                     \
+    do {                                                \
         xorbuf(AES_TAG(aes), block, AES_BLOCK_SIZE);    \
         GMULT(AES_TAG(aes), aes->H);                    \
-    }                                               \
+    }                                                   \
     while (0)
 #endif /* WOLFSSL_AESGCM_STREAM */
 /* end GCM_SMALL */
@@ -5984,11 +5984,11 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
  * @param [in, out] aes    AES GCM object.
  * @param [in]      block  Block of AAD or cipher text.
  */
-#define GHASH_ONE_BLOCK(aes, block)                 \
-    do {                                            \
+#define GHASH_ONE_BLOCK(aes, block)                     \
+    do {                                                \
         xorbuf(AES_TAG(aes), block, AES_BLOCK_SIZE);    \
         GMULT(AES_TAG(aes), aes->M0);                   \
-    }                                               \
+    }                                                   \
     while (0)
 #endif /* WOLFSSL_AESGCM_STREAM */
 /* end GCM_TABLE */
@@ -6280,11 +6280,11 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
  * @param [in, out] aes    AES GCM object.
  * @param [in]      block  Block of AAD or cipher text.
  */
-#define GHASH_ONE_BLOCK(aes, block)                 \
-    do {                                            \
+#define GHASH_ONE_BLOCK(aes, block)                     \
+    do {                                                \
         xorbuf(AES_TAG(aes), block, AES_BLOCK_SIZE);    \
         GMULT(AES_TAG(aes), aes->M0);                   \
-    }                                               \
+    }                                                   \
     while (0)
 #endif /* WOLFSSL_AESGCM_STREAM */
 #elif defined(WORD64_AVAILABLE) && !defined(GCM_WORD32)
@@ -6448,6 +6448,165 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
 }
 #endif /* !FREESCALE_LTC_AES_GCM */
 
+#ifdef WOLFSSL_AESGCM_STREAM
+
+#ifdef LITTLE_ENDIAN_ORDER
+
+/* No extra initialization for small implementation.
+ *
+ * @param [in] aes  AES GCM object.
+ */
+#define GHASH_INIT_EXTRA(aes)                                               \
+    ByteReverseWords64((word64*)aes->H, (word64*)aes->H, AES_BLOCK_SIZE)
+
+/* GHASH one block of data..
+ *
+ * XOR block into tag and GMULT with H.
+ *
+ * @param [in, out] aes    AES GCM object.
+ * @param [in]      block  Block of AAD or cipher text.
+ */
+#define GHASH_ONE_BLOCK(aes, block)                             \
+    do {                                                        \
+        word64* x = (word64*)AES_TAG(aes);                      \
+        word64* h = (word64*)aes->H;                            \
+        word64 block64[2];                                      \
+        XMEMCPY(block64, block, AES_BLOCK_SIZE);                \
+        ByteReverseWords64(block64, block64, AES_BLOCK_SIZE);   \
+        x[0] ^= block64[0];                                     \
+        x[1] ^= block64[1];                                     \
+        GMULT(x, h);                                            \
+    }                                                           \
+    while (0)
+
+#ifdef OPENSSL_EXTRA
+/* GHASH in AAD and cipher text lengths in bits.
+ *
+ * Convert tag back to little-endian.
+ *
+ * @param [in, out] aes  AES GCM object.
+ */
+#define GHASH_LEN_BLOCK(aes)                            \
+    do {                                                \
+        word64* x = (word64*)AES_TAG(aes);              \
+        word64* h = (word64*)aes->H;                    \
+        word64 len[2];                                  \
+        len[0] = aes->aSz; len[1] = aes->cSz;           \
+        if (aes->aadLen)                                \
+            len[0] = (word64)aes->aadLen;               \
+        /* Lengths are in bytes. Convert to bits. */    \
+        len[0] *= 8;                                    \
+        len[1] *= 8;                                    \
+                                                        \
+        x[0] ^= len[0];                                 \
+        x[1] ^= len[1];                                 \
+        GMULT(x, h);                                    \
+        ByteReverseWords64(x, x, AES_BLOCK_SIZE);       \
+    }                                                   \
+    while (0)
+#else
+/* GHASH in AAD and cipher text lengths in bits.
+ *
+ * Convert tag back to little-endian.
+ *
+ * @param [in, out] aes  AES GCM object.
+ */
+#define GHASH_LEN_BLOCK(aes)                            \
+    do {                                                \
+        word64* x = (word64*)AES_TAG(aes);              \
+        word64* h = (word64*)aes->H;                    \
+        word64 len[2];                                  \
+        len[0] = aes->aSz; len[1] = aes->cSz;           \
+        /* Lengths are in bytes. Convert to bits. */    \
+        len[0] *= 8;                                    \
+        len[1] *= 8;                                    \
+                                                        \
+        x[0] ^= len[0];                                 \
+        x[1] ^= len[1];                                 \
+        GMULT(x, h);                                    \
+        ByteReverseWords64(x, x, AES_BLOCK_SIZE);       \
+    }                                                   \
+    while (0)
+#endif
+
+#else
+
+/* No extra initialization for small implementation.
+ *
+ * @param [in] aes  AES GCM object.
+ */
+#define GHASH_INIT_EXTRA(aes)
+
+/* GHASH one block of data..
+ *
+ * XOR block into tag and GMULT with H.
+ *
+ * @param [in, out] aes    AES GCM object.
+ * @param [in]      block  Block of AAD or cipher text.
+ */
+#define GHASH_ONE_BLOCK(aes, block)                     \
+    do {                                                \
+        word64* x = (word64*)AES_TAG(aes);              \
+        word64* h = (word64*)aes->H;                    \
+        word64 block64[2];                              \
+        XMEMCPY(block64, block, AES_BLOCK_SIZE);        \
+        x[0] ^= block64[0];                             \
+        x[1] ^= block64[1];                             \
+        GMULT(x, h);                                    \
+    }                                                   \
+    while (0)
+
+#ifdef OPENSSL_EXTRA
+/* GHASH in AAD and cipher text lengths in bits.
+ *
+ * Convert tag back to little-endian.
+ *
+ * @param [in, out] aes  AES GCM object.
+ */
+#define GHASH_LEN_BLOCK(aes)                            \
+    do {                                                \
+        word64* x = (word64*)AES_TAG(aes);              \
+        word64* h = (word64*)aes->H;                    \
+        word64 len[2];                                  \
+        len[0] = aes->aSz; len[1] = aes->cSz;           \
+        if (aes->aadLen)                                \
+            len[0] = (word64)aes->aadLen;               \
+        /* Lengths are in bytes. Convert to bits. */    \
+        len[0] *= 8;                                    \
+        len[1] *= 8;                                    \
+                                                        \
+        x[0] ^= len[0];                                 \
+        x[1] ^= len[1];                                 \
+        GMULT(x, h);                                    \
+    }                                                   \
+    while (0)
+#else
+/* GHASH in AAD and cipher text lengths in bits.
+ *
+ * Convert tag back to little-endian.
+ *
+ * @param [in, out] aes  AES GCM object.
+ */
+#define GHASH_LEN_BLOCK(aes)                            \
+    do {                                                \
+        word64* x = (word64*)AES_TAG(aes);              \
+        word64* h = (word64*)aes->H;                    \
+        word64 len[2];                                  \
+        len[0] = aes->aSz; len[1] = aes->cSz;           \
+        /* Lengths are in bytes. Convert to bits. */    \
+        len[0] *= 8;                                    \
+        len[1] *= 8;                                    \
+                                                        \
+        x[0] ^= len[0];                                 \
+        x[1] ^= len[1];                                 \
+        GMULT(x, h);                                    \
+    }                                                   \
+    while (0)
+#endif
+
+#endif /* !LITTLE_ENDIAN_ORDER */
+
+#endif /* WOLFSSL_AESGCM_STREAM */
 /* end defined(WORD64_AVAILABLE) && !defined(GCM_WORD32) */
 #else /* GCM_WORD32 */
 
@@ -6615,7 +6774,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
  */
 #define GHASH_ONE_BLOCK(aes, block)                         \
     do {                                                    \
-        word32* x = (word32*)AES_TAG(aes);                      \
+        word32* x = (word32*)AES_TAG(aes);                  \
         word32* h = (word32*)aes->H;                        \
         word32 bigEnd[4];                                   \
         XMEMCPY(bigEnd, block, AES_BLOCK_SIZE);             \
@@ -6637,7 +6796,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
 #define GHASH_LEN_BLOCK(aes)                                \
     do {                                                    \
         word32 len[4];                                      \
-        word32* x = (word32*)AES_TAG(aes);                      \
+        word32* x = (word32*)AES_TAG(aes);                  \
         word32* h = (word32*)aes->H;                        \
         len[0] = (aes->aSz >> (8*sizeof(aes->aSz) - 3));    \
         len[1] = aes->aSz << 3;                             \
@@ -6667,7 +6826,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
  */
 #define GHASH_ONE_BLOCK(aes, block)                         \
     do {                                                    \
-        word32* x = (word32*)AES_TAG(aes);                      \
+        word32* x = (word32*)AES_TAG(aes);                  \
         word32* h = (word32*)aes->H;                        \
         word32 block32[4];                                  \
         XMEMCPY(block32, block, AES_BLOCK_SIZE);            \
@@ -6686,7 +6845,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
 #define GHASH_LEN_BLOCK(aes)                                \
     do {                                                    \
         word32 len[4];                                      \
-        word32* x = (word32*)AES_TAG(aes);                      \
+        word32* x = (word32*)AES_TAG(aes);                  \
         word32* h = (word32*)aes->H;                        \
         len[0] = (aes->aSz >> (8*sizeof(aes->aSz) - 3));    \
         len[1] = aes->aSz << 3;                             \
