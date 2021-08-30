@@ -1152,6 +1152,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTX_set_tlsext_ticket_keys  wolfSSL_CTX_set_tlsext_ticket_keys
 #define SSL_CTX_get_tlsext_status_cb    wolfSSL_CTX_get_tlsext_status_cb
 #define SSL_CTX_set_tlsext_status_cb    wolfSSL_CTX_set_tlsext_status_cb
+#define SSL_CTX_set_num_tickets         wolfSSL_CTX_set_num_tickets
+#define SSL_CTX_get_num_tickets         wolfSSL_CTX_get_num_tickets
 
 #define SSL_CTRL_CLEAR_NUM_RENEGOTIATIONS         11
 #define SSL_CTRL_GET_TOTAL_RENEGOTIATIONS         12

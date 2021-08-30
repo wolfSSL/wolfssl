@@ -2092,6 +2092,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->ticketEncCtx = (void*)&ctx->ticketKeyCtx;
 #endif
     ctx->ticketHint = SESSION_TICKET_HINT_DEFAULT;
+#if defined(WOLFSSL_TLS13)
+    ctx->maxTicketTls13 = 1; /* default to sending a session ticket if compiled
+                                in */
+#endif
 #endif
 
 #ifdef WOLFSSL_EARLY_DATA
@@ -6212,8 +6216,11 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
 
 #ifdef WOLFSSL_TLS13
+    #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
+        ssl->options.maxTicketTls13 = ctx->maxTicketTls13;
+    #endif
     #ifdef HAVE_SESSION_TICKET
-        ssl->options.noTicketTls13 = ctx->noTicketTls13;
+        ssl->options.noTicketTls13  = ctx->noTicketTls13;
     #endif
     ssl->options.noPskDheKe = ctx->noPskDheKe;
     #if defined(WOLFSSL_POST_HANDSHAKE_AUTH)

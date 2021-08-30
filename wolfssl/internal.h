@@ -2847,6 +2847,9 @@ struct WOLFSSL_CTX {
     byte        noTicketTls12:1;  /* TLS 1.2 server won't send ticket */
 #endif
 #ifdef WOLFSSL_TLS13
+    #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
+    unsigned int maxTicketTls13;  /* maximum number of tickets to send */
+    #endif
     byte        noTicketTls13:1;  /* TLS 1.3 Server won't create new Ticket */
     byte        noPskDheKe:1;     /* Don't use (EC)DHE with PSK */
 #endif
@@ -3583,6 +3586,10 @@ typedef struct Options {
 #endif /* NO_PSK */
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
     unsigned long     mask; /* store SSL_OP_ flags */
+#endif
+#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13)
+    unsigned int      maxTicketTls13;  /* maximum number of tickets to send */
+    unsigned int      ticketsSent;     /* keep track of the total sent */
 #endif
 
     /* on/off or small bit flags, optimize layout */
