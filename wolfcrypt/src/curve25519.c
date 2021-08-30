@@ -240,9 +240,7 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
         key->privSet = 1;
         ret = wc_curve25519_make_pub((int)sizeof(key->p.point), key->p.point,
                                      (int)sizeof(key->k), key->k);
-        if (ret == 0) {
-            key->pubSet = 1;
-        }
+        key->pubSet = (ret == 0);
     }
     return ret;
 }

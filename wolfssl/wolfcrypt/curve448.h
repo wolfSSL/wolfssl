@@ -56,6 +56,10 @@ typedef struct curve448_key {
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif
+
+    /* bit fields */
+    byte pubSet:1;
+    byte privSet:1;
 } curve448_key;
 
 enum {
@@ -65,6 +69,10 @@ enum {
 
 WOLFSSL_API
 int wc_curve448_make_key(WC_RNG* rng, int keysize, curve448_key* key);
+
+WOLFSSL_API
+int wc_curve448_make_pub(int public_size, byte* pub, int private_size,
+                           const byte* priv);
 
 WOLFSSL_API
 int wc_curve448_shared_secret(curve448_key* private_key,
