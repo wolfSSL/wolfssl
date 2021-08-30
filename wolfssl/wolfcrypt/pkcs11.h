@@ -346,6 +346,10 @@ typedef CK_FUNCTION_LIST_PTR* CK_FUNCTION_LIST_PTR_PTR;
 
 typedef CK_RV (*CK_C_GetFunctionList)(CK_FUNCTION_LIST_PTR_PTR ppFunctionList);
 
+#ifdef HAVE_PKCS11_STATIC
+CK_RV C_GetFunctionList(CK_FUNCTION_LIST_PTR_PTR ppFunctionList);
+#endif
+
 struct CK_FUNCTION_LIST {
     CK_VERSION version;
 
