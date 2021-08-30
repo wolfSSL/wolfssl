@@ -20301,8 +20301,7 @@ static int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
 {
     int ret = 0;
 #ifndef WOLFSSL_ASN_TEMPLATE
-    word32 idx = 0, bitStringSz, algoSz;
-    word32 sz = 0;
+    word32 idx = 0, bitStringSz, algoSz, sz = 0;
 #else
     int sz = 0;
     DECL_ASNSETDATA(dataASN, edPubKeyASN_Length);
@@ -20414,7 +20413,7 @@ int wc_Ed25519PublicKeyToDer(ed25519_key* key, byte* output, word32 inLen,
 {
     int    ret;
     byte   pubKey[ED25519_PUB_KEY_SIZE];
-    word32 pubKeyLen = ED25519_PUB_KEY_SIZE;
+    word32 pubKeyLen = (word32)sizeof(pubKey);
 
     if (key == NULL || output == NULL) {
         return BAD_FUNC_ARG;
@@ -20447,7 +20446,7 @@ int wc_Ed448PublicKeyToDer(ed448_key* key, byte* output, word32 inLen,
 {
     int    ret;
     byte   pubKey[ED448_PUB_KEY_SIZE];
-    word32 pubKeyLen = ED448_PUB_KEY_SIZE;
+    word32 pubKeyLen = (word32)sizeof(pubKey);
 
     if (key == NULL || output == NULL) {
         return BAD_FUNC_ARG;
@@ -26961,7 +26960,8 @@ int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
 {
     int ret;
     byte privKey[ED25519_KEY_SIZE], pubKey[ED25519_PUB_KEY_SIZE];
-    word32 privKeyLen = ED25519_KEY_SIZE, pubKeyLen = ED25519_PUB_KEY_SIZE;
+    word32 privKeyLen = (word32)sizeof(privKey);
+    word32 pubKeyLen = (word32)sizeof(pubKey);
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
         return BAD_FUNC_ARG;
@@ -26986,7 +26986,7 @@ int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
 {
     int ret;
     byte pubKey[ED25519_PUB_KEY_SIZE];
-    word32 pubKeyLen = ED25519_PUB_KEY_SIZE;
+    word32 pubKeyLen = (word32)sizeof(pubKey);
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
         return BAD_FUNC_ARG;
@@ -27026,7 +27026,7 @@ int wc_Curve25519PublicKeyDecode(const byte* input, word32* inOutIdx,
 {
     int ret;
     byte pubKey[CURVE25519_KEYSIZE];
-    word32 pubKeyLen = CURVE25519_KEYSIZE;
+    word32 pubKeyLen = (word32)sizeof(pubKey);
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
         return BAD_FUNC_ARG;
@@ -27066,9 +27066,6 @@ static int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
 {
     int ret = 0;
 #ifndef WOLFSSL_ASN_TEMPLATE
-    byte   algoArray[MAX_ALGO_SZ];
-    byte   ver[MAX_VERSION_SZ];
-    byte   seq[MAX_SEQ_SZ];
     word32 idx = 0, seqSz, verSz, algoSz, privSz, pubSz = 0, sz;
 #else
     DECL_ASNSETDATA(dataASN, edKeyASN_Length);
@@ -27086,9 +27083,9 @@ static int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
         pubSz = 2 + 2 + pubKeyLen;
     }
     privSz = 2 + 2 + privKeyLen;
-    algoSz = SetAlgoID(keyType, algoArray, oidKeyType, 0);
-    verSz  = SetMyVersion(0, ver, FALSE);
-    seqSz  = SetSequence(verSz + algoSz + privSz + pubSz, seq);
+    algoSz = SetAlgoID(keyType, NULL, oidKeyType, 0);
+    verSz  = 3; /* version is 3 bytes (enum + id + version(byte)) */
+    seqSz  = SetSequence(verSz + algoSz + privSz + pubSz, NULL);
     sz = seqSz + verSz + algoSz + privSz + pubSz;
 
     /* checkout output size */
@@ -27099,13 +27096,13 @@ static int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
     if (ret == 0 && output != NULL) {
         /* write out */
         /* seq */
-        XMEMCPY(output + idx, seq, seqSz);
+        seqSz  = SetSequence(verSz + algoSz + privSz + pubSz, output);
         idx = seqSz;
         /* ver */
-        XMEMCPY(output + idx, ver, verSz);
+        SetMyVersion(0, output + idx, FALSE);
         idx += verSz;
         /* algo */
-        XMEMCPY(output + idx, algoArray, algoSz);
+        algoSz = SetAlgoID(keyType, output + idx, oidKeyType, 0);
         idx += algoSz;
         /* privKey */
         idx += SetOctetString(2 + privKeyLen, output + idx);
@@ -27228,7 +27225,7 @@ int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 inLen,
 {
     int    ret;
     byte   pubKey[CURVE25519_KEYSIZE];
-    word32 pubKeyLen = CURVE25519_KEYSIZE;
+    word32 pubKeyLen = (word32)sizeof(pubKey);
 
     if (key == NULL || output == NULL) {
         return BAD_FUNC_ARG;
@@ -27249,7 +27246,8 @@ int wc_Ed448PrivateKeyDecode(const byte* input, word32* inOutIdx,
 {
     int ret;
     byte privKey[ED448_KEY_SIZE], pubKey[ED448_PUB_KEY_SIZE];
-    word32 privKeyLen = ED448_KEY_SIZE, pubKeyLen = ED448_PUB_KEY_SIZE;
+    word32 privKeyLen = (word32)sizeof(privKey);
+    word32 pubKeyLen = (word32)sizeof(pubKey);
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
         return BAD_FUNC_ARG;
@@ -27274,7 +27272,7 @@ int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
 {
     int ret;
     byte pubKey[ED448_PUB_KEY_SIZE];
-    word32 pubKeyLen = ED448_PUB_KEY_SIZE;
+    word32 pubKeyLen = (word32)sizeof(pubKey);
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
         return BAD_FUNC_ARG;
@@ -27314,7 +27312,7 @@ int wc_Curve448PublicKeyDecode(const byte* input, word32* inOutIdx,
 {
     int ret;
     byte pubKey[CURVE448_PUB_KEY_SIZE];
-    word32 pubKeyLen = CURVE448_PUB_KEY_SIZE;
+    word32 pubKeyLen = (word32)sizeof(pubKey);
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
         return BAD_FUNC_ARG;
@@ -27381,7 +27379,7 @@ int wc_Curve448PublicKeyToDer(curve448_key* key, byte* output, word32 inLen,
 {
     int    ret;
     byte   pubKey[CURVE448_PUB_KEY_SIZE];
-    word32 pubKeyLen = CURVE448_PUB_KEY_SIZE;
+    word32 pubKeyLen = (word32)sizeof(pubKey);
 
     if (key == NULL || output == NULL) {
         return BAD_FUNC_ARG;

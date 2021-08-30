@@ -101,11 +101,13 @@ int wc_curve448_make_key(WC_RNG* rng, int keysize, curve448_key* key)
         /* compute public */
         ret = wc_curve448_make_pub((int)sizeof(key->p), key->p,
                                    (int)sizeof(key->k), key->k);
-        key->pubSet = (ret == 0);
-    }
-    if (ret != 0) {
-        ForceZero(key->k, sizeof(key->k));
-        XMEMSET(key->p, 0, sizeof(key->p));
+        if (ret == 0) {
+            key->pubSet = 1;
+        }
+        else {
+            ForceZero(key->k, sizeof(key->k));
+            XMEMSET(key->p, 0, sizeof(key->p));
+        }
     }
 
     return ret;
@@ -161,8 +163,8 @@ int wc_curve448_shared_secret_ex(curve448_key* private_key,
         ret = BAD_FUNC_ARG;
     }
     /* make sure we have a populated private and public key */
-    if (!private_key->privSet || !public_key->pubSet) {
-        return ECC_BAD_ARG_E;
+    if (ret == 0 && (!private_key->privSet || !public_key->pubSet)) {
+        ret = ECC_BAD_ARG_E;
     }
 
     if (ret == 0) {
