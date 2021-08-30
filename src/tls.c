@@ -4717,8 +4717,13 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name, void* heap)
     SupportedCurve* curve = NULL;
     int ret;
 
-    if (extensions == NULL)
+    if (extensions == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    if (! TLSX_KeyShare_IsSupported(name)) {
+        return BAD_FUNC_ARG;
+    }
 
     extension = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
 
@@ -8379,10 +8384,18 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
             break;
     #endif
     #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+        #ifdef HAVE_ECC_KOBLITZ
+        case WOLFSSL_ECC_SECP256K1:
+            break;
+        #endif
         #ifndef NO_ECC_SECP
         case WOLFSSL_ECC_SECP256R1:
             break;
         #endif /* !NO_ECC_SECP */
+        #ifdef HAVE_ECC_BRAINPOOL
+        case WOLFSSL_ECC_BRAINPOOLP256R1:
+            break;
+        #endif
     #endif
     #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
         case WOLFSSL_ECC_X25519:
@@ -8397,12 +8410,56 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
         case WOLFSSL_ECC_SECP384R1:
             break;
         #endif /* !NO_ECC_SECP */
+        #ifdef HAVE_ECC_BRAINPOOL
+        case WOLFSSL_ECC_BRAINPOOLP384R1:
+            break;
+        #endif
     #endif
     #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
         #ifndef NO_ECC_SECP
         case WOLFSSL_ECC_SECP521R1:
             break;
         #endif /* !NO_ECC_SECP */
+    #endif
+    #if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 160
+        #ifdef HAVE_ECC_KOBLITZ
+        case WOLFSSL_ECC_SECP160K1:
+            break;
+        #endif
+        #ifndef NO_ECC_SECP
+        case WOLFSSL_ECC_SECP160R1:
+            break;
+        #endif
+        #ifdef HAVE_ECC_SECPR2
+        case WOLFSSL_ECC_SECP160R2:
+            break;
+        #endif
+    #endif
+    #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 192
+        #ifdef HAVE_ECC_KOBLITZ
+        case WOLFSSL_ECC_SECP192K1:
+            break;
+        #endif
+        #ifndef NO_ECC_SECP
+        case WOLFSSL_ECC_SECP192R1:
+            break;
+        #endif
+    #endif
+    #if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 224
+        #ifdef HAVE_ECC_KOBLITZ
+        case WOLFSSL_ECC_SECP224K1:
+            break;
+        #endif
+        #ifndef NO_ECC_SECP
+        case WOLFSSL_ECC_SECP224R1:
+            break;
+        #endif
+    #endif
+    #if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 512
+        #ifdef HAVE_ECC_BRAINPOOL
+        case WOLFSSL_ECC_BRAINPOOLP512R1:
+            break;
+        #endif
     #endif
     #ifdef HAVE_LIBOQS
         case WOLFSSL_KYBER512:
@@ -8418,6 +8475,9 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
         case WOLFSSL_KYBER90S512:
         case WOLFSSL_KYBER90S768:
         case WOLFSSL_KYBER90S1024:
+            if (! OQS_KEM_alg_is_enabled(OQS_ID2name(namedGroup))) {
+                return 0;
+            }
             break;
     #endif
         default:
@@ -8485,21 +8545,36 @@ static int TLSX_KeyShare_GroupRank(WOLFSSL* ssl, int group)
         #ifdef HAVE_FFDHE_8192
             ssl->group[ssl->numGroups++] = WOLFSSL_FFDHE_8192;
         #endif
-
 #ifdef HAVE_LIBOQS
-            ssl->group[ssl->numGroups++] = WOLFSSL_KYBER512;
-            ssl->group[ssl->numGroups++] = WOLFSSL_KYBER768;
-            ssl->group[ssl->numGroups++] = WOLFSSL_KYBER1024;
-            ssl->group[ssl->numGroups++] = WOLFSSL_NTRU_HPS2048509;
-            ssl->group[ssl->numGroups++] = WOLFSSL_NTRU_HPS2048677;
-            ssl->group[ssl->numGroups++] = WOLFSSL_NTRU_HPS4096821;
-            ssl->group[ssl->numGroups++] = WOLFSSL_NTRU_HRSS701;
-            ssl->group[ssl->numGroups++] = WOLFSSL_LIGHTSABER;
-            ssl->group[ssl->numGroups++] = WOLFSSL_SABER;
-            ssl->group[ssl->numGroups++] = WOLFSSL_FIRESABER;
-            ssl->group[ssl->numGroups++] = WOLFSSL_KYBER90S512;
-            ssl->group[ssl->numGroups++] = WOLFSSL_KYBER90S768;
-            ssl->group[ssl->numGroups++] = WOLFSSL_KYBER90S1024;
+            /* For the liboqs groups we need to do a runtime check because
+             * liboqs could be compiled to make an algorithm unavailable.
+             */
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_KYBER512))
+                ssl->group[ssl->numGroups++] = WOLFSSL_KYBER512;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_KYBER768))
+                ssl->group[ssl->numGroups++] = WOLFSSL_KYBER768;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_KYBER1024))
+                ssl->group[ssl->numGroups++] = WOLFSSL_KYBER1024;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_NTRU_HPS2048509))
+                ssl->group[ssl->numGroups++] = WOLFSSL_NTRU_HPS2048509;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_NTRU_HPS2048677))
+                ssl->group[ssl->numGroups++] = WOLFSSL_NTRU_HPS2048677;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_NTRU_HPS4096821))
+                ssl->group[ssl->numGroups++] = WOLFSSL_NTRU_HPS4096821;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_NTRU_HRSS701))
+                ssl->group[ssl->numGroups++] = WOLFSSL_NTRU_HRSS701;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_LIGHTSABER))
+                ssl->group[ssl->numGroups++] = WOLFSSL_LIGHTSABER;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_SABER))
+                ssl->group[ssl->numGroups++] = WOLFSSL_SABER;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_FIRESABER))
+                ssl->group[ssl->numGroups++] = WOLFSSL_FIRESABER;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_KYBER90S512))
+                ssl->group[ssl->numGroups++] = WOLFSSL_KYBER90S512;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_KYBER90S768))
+                ssl->group[ssl->numGroups++] = WOLFSSL_KYBER90S768;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_KYBER90S1024))
+                ssl->group[ssl->numGroups++] = WOLFSSL_KYBER90S1024;
 #endif
     }
 
