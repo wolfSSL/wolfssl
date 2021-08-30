@@ -67,4 +67,8 @@
 
 #define XN_FLAG_MULTILINE       0xFFFF
 
+#define X509_EXTENSION_set_critical wolfSSL_X509_EXTENSION_set_critical
+#define X509_EXTENSION_set_object   wolfSSL_X509_EXTENSION_set_object
+#define X509_EXTENSION_set_data     wolfSSL_X509_EXTENSION_set_data
+
 #endif /* WOLFSSL_OPENSSL_509_H_ */

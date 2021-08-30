@@ -9662,6 +9662,18 @@ int wolfSSL_X509_EXTENSION_get_critical(const WOLFSSL_X509_EXTENSION* ex)
     return ex->crit;
 }
 
+/* Sets if the extension is critical
+ * returns WOLFSSL_SUCCESS on success
+ */
+int wolfSSL_X509_EXTENSION_set_critical(WOLFSSL_X509_EXTENSION* ex, int crit)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_EXTENSION_set_critical");
+    if (ex == NULL)
+        return WOLFSSL_FAILURE;
+    ex->crit = crit;
+    return WOLFSSL_SUCCESS;
+}
+
 /* Creates v3_ext_method for a given X509v3 extension
  *
  * ex   : The X509_EXTENSION used to create v3_ext_method. If the extension is
@@ -10888,6 +10900,12 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
         else {
             ext->value.data = ext->value.strData;
         }
+
+        if (!(ext->obj = wolfSSL_OBJ_nid2obj(nid))) {
+            WOLFSSL_MSG("wolfSSL_ASN1_OBJECT_new failed");
+            goto err_cleanup;
+        }
+
         break;
     }
     case NID_subject_alt_name:
@@ -10943,6 +10961,12 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
                 goto err_cleanup;
             }
             ext->value.type = akey->keyid->type;
+
+            if (!(ext->obj = wolfSSL_OBJ_nid2obj(nid))) {
+                WOLFSSL_MSG("wolfSSL_ASN1_OBJECT_new failed");
+                goto err_cleanup;
+            }
+
         }
         else if (akey->issuer) {
             ext->obj = wolfSSL_ASN1_OBJECT_dup(akey->issuer);
@@ -10996,6 +11020,28 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_EXTENSION_get_object \
         return NULL;
     return ext->obj;
 }
+
+
+/**
+ * duplicates the 'obj' input and sets it into the 'ext' structure
+ * returns WOLFSSL_SUCCESS on success
+ */
+int wolfSSL_X509_EXTENSION_set_object(WOLFSSL_X509_EXTENSION* ext,
+        const WOLFSSL_ASN1_OBJECT* obj)
+{
+    WOLFSSL_ASN1_OBJECT *current;
+
+    WOLFSSL_ENTER("wolfSSL_X509_EXTENSION_set_object");
+    if (ext == NULL)
+        return WOLFSSL_FAILURE;
+
+    current = wolfSSL_X509_EXTENSION_get_object(ext);
+    if (current != NULL) {
+        wolfSSL_ASN1_OBJECT_free(current);
+    }
+    ext->obj = wolfSSL_ASN1_OBJECT_dup((WOLFSSL_ASN1_OBJECT*)obj);
+    return WOLFSSL_SUCCESS;
+}
 #endif /* OPENSSL_ALL */
 
 /* Returns pointer to ASN1_STRING in X509_EXTENSION object */
@@ -11005,6 +11051,27 @@ WOLFSSL_ASN1_STRING* wolfSSL_X509_EXTENSION_get_data(WOLFSSL_X509_EXTENSION* ext
     if (ext == NULL)
         return NULL;
     return &ext->value;
+}
+
+
+/**
+ * Creates a duplicate of input 'data' and sets it into 'ext' structure
+ * returns WOLFSSL_SUCCESS on success
+ */
+int wolfSSL_X509_EXTENSION_set_data(WOLFSSL_X509_EXTENSION* ext,
+        WOLFSSL_ASN1_STRING* data)
+{
+    WOLFSSL_ASN1_STRING* current;
+
+    if (ext == NULL || data == NULL)
+        return WOLFSSL_FAILURE;
+
+    current = wolfSSL_X509_EXTENSION_get_data(ext);
+    if (current->length > 0 && current->data != NULL && current->isDynamic) {
+        XFREE(current->data, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+
+    return wolfSSL_ASN1_STRING_copy(&ext->value, data);
 }
 
 #if !defined(NO_PWDBASED)
@@ -41085,10 +41152,13 @@ cleanup:
         WC_RNG rng;
 
         (void)req;
+        WOLFSSL_ENTER("wolfSSL_X509_resign_cert");
 
         sigType = wolfSSL_sigTypeFromPKEY(md, pkey);
-        if (sigType == WOLFSSL_FAILURE)
+        if (sigType == WOLFSSL_FAILURE) {
+            WOLFSSL_MSG("Error getting signature type from pkey");
             return WOLFSSL_FATAL_ERROR;
+        }
 
 
         /* Get the private key object and type from pkey. */
@@ -41111,8 +41181,10 @@ cleanup:
             return ret;
         ret = wc_SignCert_ex(certBodySz, sigType, der, derSz, type, key, &rng);
         wc_FreeRng(&rng);
-        if (ret < 0)
+        if (ret < 0) {
+            WOLFSSL_LEAVE("wolfSSL_X509_resign_cert", ret);
             return ret;
+        }
         derSz = ret;
 
         /* Extract signature from buffer */
@@ -45354,6 +45426,19 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_EVP(WOLFSSL_EVP_PKEY** out,
                 }
                 XMEMCPY(pkey->pkey.ptr, mem, keyIdx);
                 pkey->type = EVP_PKEY_EC;
+
+                pkey->ownEcc = 1;
+                pkey->ecc = wolfSSL_EC_KEY_new();
+                if (pkey->ecc == NULL) {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    return NULL;
+                }
+                if (wolfSSL_EC_KEY_LoadDer(pkey->ecc,
+                          (const unsigned char*)pkey->pkey.ptr, pkey->pkey_sz)
+                          != WOLFSSL_SUCCESS) {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    return NULL;
+                }
                 if (out != NULL) {
                     *out = pkey;
                 }
@@ -53595,15 +53680,21 @@ void wolfSSL_X509_REQ_free(WOLFSSL_X509* req)
 int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
                           const WOLFSSL_EVP_MD *md)
 {
+    int ret;
     byte der[2048];
     int derSz = sizeof(der);
 
-    if (req == NULL || pkey == NULL || md == NULL)
+    if (req == NULL || pkey == NULL || md == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_X509_REQ_sign", BAD_FUNC_ARG);
         return WOLFSSL_FAILURE;
+    }
 
     /* Create a Cert that has the certificate request fields. */
     req->sigOID = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
-    if (wolfssl_x509_make_der(req, 1, der, &derSz, 0) != WOLFSSL_SUCCESS) {
+    if ((ret = wolfssl_x509_make_der(req, 1, der, &derSz, 0))
+            != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("Unable to make DER for X509");
+        WOLFSSL_LEAVE("wolfSSL_X509_REQ_sign", ret);
         return WOLFSSL_FAILURE;
     }
 
