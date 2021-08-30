@@ -16278,7 +16278,11 @@ exit_gen_test:
 static int dh_generate_test(WC_RNG *rng)
 {
     int    ret = 0;
-    DhKey  smallKey;
+#ifdef WOLFSSL_SMALL_STACK
+    DhKey  *smallKey = (DhKey*)XMALLOC(sizeof(DhKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    DhKey  smallKey[1];
+#endif
     byte   p[2] = { 0, 5 };
     byte   g[2] = { 0, 2 };
 #if !defined(WOLFSSL_SP_MATH)
@@ -16294,7 +16298,13 @@ static int dh_generate_test(WC_RNG *rng)
     word32 pubSz = sizeof(pub);
 #endif
 
-    ret = wc_InitDhKey_ex(&smallKey, HEAP_HINT, devId);
+#ifdef WOLFSSL_SMALL_STACK
+    if (smallKey == NULL) {
+        ERROR_OUT(-8010, exit_gen_test);
+    }
+#endif
+
+    ret = wc_InitDhKey_ex(smallKey, HEAP_HINT, devId);
     if (ret != 0)
         return -8010;
 
@@ -16308,32 +16318,32 @@ static int dh_generate_test(WC_RNG *rng)
     if (ret != BAD_FUNC_ARG) {
         ERROR_OUT(-8012, exit_gen_test);
     }
-    ret = wc_DhSetKey(&smallKey, NULL, sizeof(p), g, sizeof(g));
+    ret = wc_DhSetKey(smallKey, NULL, sizeof(p), g, sizeof(g));
     if (ret != BAD_FUNC_ARG) {
         ERROR_OUT(-8013, exit_gen_test);
     }
-    ret = wc_DhSetKey(&smallKey, p, 0, g, sizeof(g));
+    ret = wc_DhSetKey(smallKey, p, 0, g, sizeof(g));
     if (ret != BAD_FUNC_ARG) {
         ERROR_OUT(-8014, exit_gen_test);
     }
-    ret = wc_DhSetKey(&smallKey, p, sizeof(p), NULL, sizeof(g));
+    ret = wc_DhSetKey(smallKey, p, sizeof(p), NULL, sizeof(g));
     if (ret != BAD_FUNC_ARG) {
         ERROR_OUT(-8015, exit_gen_test);
     }
-    ret = wc_DhSetKey(&smallKey, p, sizeof(p), g, 0);
+    ret = wc_DhSetKey(smallKey, p, sizeof(p), g, 0);
     if (ret != BAD_FUNC_ARG) {
         ERROR_OUT(-8016, exit_gen_test);
     }
-    ret = wc_DhSetKey(&smallKey, p, sizeof(p), g, sizeof(g));
+    ret = wc_DhSetKey(smallKey, p, sizeof(p), g, sizeof(g));
     if (ret != 0) {
         ERROR_OUT(-8017, exit_gen_test);
     }
 
 #if !defined(WOLFSSL_SP_MATH)
     /* Use API. */
-    ret = wc_DhGenerateKeyPair(&smallKey, rng, priv, &privSz, pub, &pubSz);
+    ret = wc_DhGenerateKeyPair(smallKey, rng, priv, &privSz, pub, &pubSz);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &smallKey.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, smallKey->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0) {
         ret = -8018;
@@ -16344,7 +16354,12 @@ static int dh_generate_test(WC_RNG *rng)
 #endif
 
 exit_gen_test:
-    wc_FreeDhKey(&smallKey);
+    wc_FreeDhKey(smallKey);
+#ifdef WOLFSSL_SMALL_STACK
+    if (smallKey != NULL) {
+        XFREE(smallKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
 
     return ret;
 }
