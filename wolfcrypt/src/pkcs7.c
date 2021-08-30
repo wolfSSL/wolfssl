@@ -6451,10 +6451,20 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
         }
         snSz = SetSerialNumber(decoded->serial, decoded->serialSz, serial,
                                MAX_SN_SZ, MAX_SN_SZ);
-
+        if (snSz < 0) {
+            WOLFSSL_MSG("Error setting the serial number");
+            FreeDecodedCert(decoded);
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+            XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            return -1;
+        }
         issuerSerialSeqSz = SetSequence(issuerSeqSz + issuerSz + snSz,
                                         issuerSerialSeq);
-
     } else if (sidType == CMS_SKID) {
 
         /* version, must be 2 for SubjectKeyIdentifier */
