@@ -101,6 +101,7 @@ typedef struct WOLFSSL_RSA {
 typedef WOLFSSL_RSA                   RSA;
 typedef WOLFSSL_RSA_METHOD            RSA_METHOD;
 
+WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSA_new_ex(void* heap, int devId);
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSA_new(void);
 WOLFSSL_API void        wolfSSL_RSA_free(WOLFSSL_RSA*);
 

@@ -8424,6 +8424,79 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
     return _d2i_PublicKey(type, out, in, inSz, 1);
 }
 
+#ifdef WOLF_CRYPTO_CB
+/* Create an EVP structure for use with crypto callbacks */
+WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_id(int type, WOLFSSL_EVP_PKEY** out,
+    void* heap, int devId)
+{
+    WOLFSSL_EVP_PKEY* local;
+
+    if (out != NULL && *out != NULL) {
+        wolfSSL_EVP_PKEY_free(*out);
+        *out = NULL;
+    }
+
+    local = wolfSSL_EVP_PKEY_new_ex(heap);
+    if (local == NULL) {
+        return NULL;
+    }
+
+    local->type     = type;
+    local->pkey_sz  = 0;
+    local->pkcs8HeaderSz = 0;
+
+    switch (type) {
+#ifndef NO_RSA
+        case EVP_PKEY_RSA:
+        {
+            RsaKey* key;
+            local->ownRsa = 1;
+            local->rsa = wolfSSL_RSA_new_ex(heap, devId);
+            if (local->rsa == NULL) {
+                wolfSSL_EVP_PKEY_free(local);
+                return NULL;
+            }
+            key = (RsaKey*)local->rsa->internal;
+            key->devId = devId;
+            local->rsa->inSet = 1;
+            break;
+        }
+#endif /* !NO_RSA */
+#ifdef HAVE_ECC
+        case EVP_PKEY_EC:
+        {
+            ecc_key* key;
+            local->ownEcc = 1;
+            local->ecc = wolfSSL_EC_KEY_new_ex(heap, devId);
+            if (local->ecc == NULL) {
+                wolfSSL_EVP_PKEY_free(local);
+                return NULL;
+            }
+            key = (ecc_key*)local->ecc->internal;
+            key->devId = devId;
+            key->type = ECC_PRIVATEKEY;
+            /* key is required to have a key size / curve set, although 
+             * actual one used is determined by devId callback function */
+            wc_ecc_set_curve(key, ECDHE_SIZE, ECC_CURVE_DEF);
+
+            local->ecc->inSet = 1;
+            break;
+        }
+#endif /* HAVE_ECC */
+        default:
+            WOLFSSL_MSG("Unsupported private key id type");
+            wolfSSL_EVP_PKEY_free(local);
+            return NULL;
+    }
+
+    if (local != NULL && out != NULL) {
+        *out = local;
+    }
+
+    return local;
+}
+#endif /* WOLF_CRYPTO_CB */
+
 #ifndef NO_CERTS
 
 int wolfSSL_check_private_key(const WOLFSSL* ssl)
@@ -35525,22 +35598,23 @@ static void InitwolfSSL_ECKey(WOLFSSL_EC_KEY* key)
     }
 }
 
-WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new(void)
+WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_ex(void* heap, int devId)
 {
     WOLFSSL_EC_KEY *external;
     WOLFSSL_ENTER("wolfSSL_EC_KEY_new");
 
-    external = (WOLFSSL_EC_KEY*)XMALLOC(sizeof(WOLFSSL_EC_KEY), NULL,
+    external = (WOLFSSL_EC_KEY*)XMALLOC(sizeof(WOLFSSL_EC_KEY), heap,
                                         DYNAMIC_TYPE_ECC);
     if (external == NULL) {
         WOLFSSL_MSG("wolfSSL_EC_KEY_new malloc WOLFSSL_EC_KEY failure");
         return NULL;
     }
     XMEMSET(external, 0, sizeof(WOLFSSL_EC_KEY));
+    external->heap = heap;
 
     InitwolfSSL_ECKey(external);
 
-    external->internal = (ecc_key*)XMALLOC(sizeof(ecc_key), NULL,
+    external->internal = (ecc_key*)XMALLOC(sizeof(ecc_key), heap,
                                            DYNAMIC_TYPE_ECC);
     if (external->internal == NULL) {
         WOLFSSL_MSG("wolfSSL_EC_KEY_new malloc ecc key failure");
@@ -35548,7 +35622,7 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new(void)
     }
     XMEMSET(external->internal, 0, sizeof(ecc_key));
 
-    if (wc_ecc_init((ecc_key*)external->internal) != 0) {
+    if (wc_ecc_init_ex((ecc_key*)external->internal, heap, devId) != 0) {
         WOLFSSL_MSG("wolfSSL_EC_KEY_new init ecc key failure");
         goto error;
     }
@@ -35580,21 +35654,28 @@ error:
     return NULL;
 }
 
+WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new(void)
+{
+    return wolfSSL_EC_KEY_new_ex(NULL, INVALID_DEVID);
+}
+
 void wolfSSL_EC_KEY_free(WOLFSSL_EC_KEY *key)
 {
     WOLFSSL_ENTER("wolfSSL_EC_KEY_free");
 
     if (key != NULL) {
+        void* heap = key->heap;
         if (key->internal != NULL) {
             wc_ecc_free((ecc_key*)key->internal);
-            XFREE(key->internal, NULL, DYNAMIC_TYPE_ECC);
+            XFREE(key->internal, heap, DYNAMIC_TYPE_ECC);
         }
         wolfSSL_BN_free(key->priv_key);
         wolfSSL_EC_POINT_free(key->pub_key);
         wolfSSL_EC_GROUP_free(key->group);
         InitwolfSSL_ECKey(key); /* set back to NULLs for safety */
 
-        XFREE(key, NULL, DYNAMIC_TYPE_ECC);
+        XFREE(key, heap, DYNAMIC_TYPE_ECC);
+        (void)heap;
         /* key = NULL, don't try to access or double free it */
     }
 }
@@ -37370,32 +37451,35 @@ WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_do_sign(const unsigned char *d, int dlen,
     }
 
     if (rng) {
-        mp_int sig_r, sig_s;
-
-        if (mp_init_multi(&sig_r, &sig_s, NULL, NULL, NULL, NULL) == MP_OKAY) {
-            if (wc_ecc_sign_hash_ex(d, dlen, rng, (ecc_key*)key->internal,
-                                    &sig_r, &sig_s) != MP_OKAY) {
-                WOLFSSL_MSG("wc_ecc_sign_hash_ex failed");
-            }
-            else {
+        byte   out[ECC_BUFSIZE];
+        word32 outlen = ECC_BUFSIZE;
+        /* use wc_ecc_sign_hash because it supports crypto callbacks */
+        if (wc_ecc_sign_hash(d, dlen, out, &outlen, rng,
+                                                (ecc_key*)key->internal) == 0) {
+            mp_int sig_r, sig_s;
+            if (mp_init_multi(&sig_r, &sig_s, NULL, NULL, NULL, NULL) == MP_OKAY) {
                 /* put signature blob in ECDSA structure */
-                sig = wolfSSL_ECDSA_SIG_new();
-                if (sig == NULL)
-                    WOLFSSL_MSG("wolfSSL_ECDSA_SIG_new failed");
-                else if (SetIndividualExternal(&(sig->r), &sig_r)!=WOLFSSL_SUCCESS){
-                    WOLFSSL_MSG("ecdsa r key error");
-                    wolfSSL_ECDSA_SIG_free(sig);
-                    sig = NULL;
+                if (DecodeECC_DSA_Sig(out, outlen, &sig_r, &sig_s) == 0) {
+                    sig = wolfSSL_ECDSA_SIG_new();
+                    if (sig == NULL)
+                        WOLFSSL_MSG("wolfSSL_ECDSA_SIG_new failed");
+                    else if (SetIndividualExternal(&sig->r, &sig_r) != WOLFSSL_SUCCESS) {
+                        WOLFSSL_MSG("ecdsa r key error");
+                        wolfSSL_ECDSA_SIG_free(sig);
+                        sig = NULL;
+                    }
+                    else if (SetIndividualExternal(&sig->s, &sig_s)!=WOLFSSL_SUCCESS){
+                        WOLFSSL_MSG("ecdsa s key error");
+                        wolfSSL_ECDSA_SIG_free(sig);
+                        sig = NULL;
+                    }
                 }
-                else if (SetIndividualExternal(&(sig->s), &sig_s)!=WOLFSSL_SUCCESS){
-                    WOLFSSL_MSG("ecdsa s key error");
-                    wolfSSL_ECDSA_SIG_free(sig);
-                    sig = NULL;
-                }
-
+                mp_free(&sig_r);
+                mp_free(&sig_s);
             }
-            mp_free(&sig_r);
-            mp_free(&sig_s);
+        }
+        else {
+            WOLFSSL_MSG("wc_ecc_sign_hash_ex failed");
         }
     }
 
@@ -52644,33 +52728,37 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
     WOLFSSL_ENTER("wolfSSL_RSA_free");
 
     if (rsa) {
+#if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
+        int doFree = 0;
+#endif
+        void* heap = rsa->heap;
+
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
         wolfSSL_CRYPTO_cleanup_ex_data(&rsa->ex_data);
 #endif
 #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
-        int doFree = 0;
-#ifndef SINGLE_THREADED
+    #ifndef SINGLE_THREADED
         if (wc_LockMutex(&rsa->refMutex) != 0) {
             WOLFSSL_MSG("Couldn't lock rsa mutex");
         }
-#endif
+    #endif
 
         /* only free if all references to it are done */
         rsa->refCount--;
         if (rsa->refCount == 0) {
             doFree = 1;
         }
-#ifndef SINGLE_THREADED
+    #ifndef SINGLE_THREADED
         wc_UnLockMutex(&rsa->refMutex);
-#endif
+    #endif
 
         if (!doFree) {
             return;
         }
 
-#ifndef SINGLE_THREADED
+    #ifndef SINGLE_THREADED
         wc_FreeMutex(&rsa->refMutex);
-#endif
+    #endif
 #endif
 
         if (rsa->internal) {
@@ -52683,12 +52771,12 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
                 rng = ((RsaKey*)rsa->internal)->rng;
                 if (rng != NULL && rng != &globalRNG) {
                     wc_FreeRng(rng);
-                    XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+                    XFREE(rng, heap, DYNAMIC_TYPE_RNG);
                 }
             }
 #endif /* WC_RSA_BLINDING */
             wc_FreeRsaKey((RsaKey*)rsa->internal);
-            XFREE(rsa->internal, NULL, DYNAMIC_TYPE_RSA);
+            XFREE(rsa->internal, heap, DYNAMIC_TYPE_RSA);
             rsa->internal = NULL;
         }
         wolfSSL_BN_free(rsa->iqmp);
@@ -52704,7 +52792,7 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
         if (rsa->rng && wc_FreeRng(rsa->rng) != 0) {
             WOLFSSL_MSG("Issue freeing rng");
         }
-        XFREE(rsa->rng, NULL, DYNAMIC_TYPE_RNG);
+        XFREE(rsa->rng, heap, DYNAMIC_TYPE_RNG);
     #endif
 
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
@@ -52715,33 +52803,35 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
 
         InitwolfSSL_Rsa(rsa);  /* set back to NULLs for safety */
 
-        XFREE(rsa, NULL, DYNAMIC_TYPE_RSA);
+        XFREE(rsa, heap, DYNAMIC_TYPE_RSA);
+        (void)heap;
 
         /* rsa = NULL, don't try to access or double free it */
     }
 }
 
-WOLFSSL_RSA* wolfSSL_RSA_new(void)
+WOLFSSL_RSA* wolfSSL_RSA_new_ex(void* heap, int devId)
 {
     WOLFSSL_RSA* external;
-    RsaKey*     key;
+    RsaKey* key;
 
     WOLFSSL_ENTER("wolfSSL_RSA_new");
 
-    key = (RsaKey*) XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_RSA);
+    key = (RsaKey*)XMALLOC(sizeof(RsaKey), heap, DYNAMIC_TYPE_RSA);
     if (key == NULL) {
         WOLFSSL_MSG("wolfSSL_RSA_new malloc RsaKey failure");
         return NULL;
     }
 
-    external = (WOLFSSL_RSA*) XMALLOC(sizeof(WOLFSSL_RSA), NULL,
+    external = (WOLFSSL_RSA*)XMALLOC(sizeof(WOLFSSL_RSA), heap,
                                      DYNAMIC_TYPE_RSA);
     if (external == NULL) {
         WOLFSSL_MSG("wolfSSL_RSA_new malloc WOLFSSL_RSA failure");
-        XFREE(key, NULL, DYNAMIC_TYPE_RSA);
+        XFREE(key, heap, DYNAMIC_TYPE_RSA);
         return NULL;
     }
 
+    external->heap = heap;
     InitwolfSSL_Rsa(external);
 
 #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
@@ -52749,17 +52839,17 @@ WOLFSSL_RSA* wolfSSL_RSA_new(void)
 #ifndef SINGLE_THREADED
     if (wc_InitMutex(&external->refMutex) != 0) {
         WOLFSSL_MSG("wc_InitMutex WOLFSSL_RSA failure");
-        XFREE(external, NULL, DYNAMIC_TYPE_RSA);
-        XFREE(key, NULL, DYNAMIC_TYPE_RSA);
+        XFREE(external, heap, DYNAMIC_TYPE_RSA);
+        XFREE(key, heap, DYNAMIC_TYPE_RSA);
         return NULL;
     }
 #endif
 #endif
 
-    if (wc_InitRsaKey(key, NULL) != 0) {
+    if (wc_InitRsaKey_ex(key, heap, devId) != 0) {
         WOLFSSL_MSG("InitRsaKey WOLFSSL_RSA failure");
-        XFREE(external, NULL, DYNAMIC_TYPE_RSA);
-        XFREE(key, NULL, DYNAMIC_TYPE_RSA);
+        XFREE(external, heap, DYNAMIC_TYPE_RSA);
+        XFREE(key, heap, DYNAMIC_TYPE_RSA);
         return NULL;
     }
 
@@ -52768,10 +52858,10 @@ WOLFSSL_RSA* wolfSSL_RSA_new(void)
     {
         WC_RNG* rng;
 
-        rng = (WC_RNG*) XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-        if (rng != NULL && wc_InitRng(rng) != 0) {
+        rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), heap, DYNAMIC_TYPE_RNG);
+        if (rng != NULL && wc_InitRng_ex(rng, heap, devId) != 0) {
             WOLFSSL_MSG("InitRng failure, attempting to use global RNG");
-            XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+            XFREE(rng, heap, DYNAMIC_TYPE_RNG);
             rng = NULL;
         }
 
@@ -52783,8 +52873,8 @@ WOLFSSL_RSA* wolfSSL_RSA_new(void)
 
         if (rng == NULL) {
             WOLFSSL_MSG("wolfSSL_RSA_new no WC_RNG for blinding");
-            XFREE(external, NULL, DYNAMIC_TYPE_RSA);
-            XFREE(key, NULL, DYNAMIC_TYPE_RSA);
+            XFREE(external, heap, DYNAMIC_TYPE_RSA);
+            XFREE(key, heap, DYNAMIC_TYPE_RSA);
             return NULL;
         }
 
@@ -52797,6 +52887,11 @@ WOLFSSL_RSA* wolfSSL_RSA_new(void)
     external->internal = key;
     external->inSet = 0;
     return external;
+}
+
+WOLFSSL_RSA* wolfSSL_RSA_new(void)
+{
+    return wolfSSL_RSA_new_ex(NULL, INVALID_DEVID);
 }
 #endif /* !NO_RSA && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
 

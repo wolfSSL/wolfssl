@@ -117,6 +117,7 @@ struct WOLFSSL_EC_KEY {
     WOLFSSL_BIGNUM *priv_key;
 
     void*          internal;     /* our ECC Key */
+    void*          heap;
     char           form;         /* Either POINT_CONVERSION_UNCOMPRESSED or
                                   * POINT_CONVERSION_COMPRESSED */
     word16 pkcs8HeaderSz;
@@ -199,6 +200,8 @@ WOLFSSL_API
 WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_by_curve_name(int nid);
 WOLFSSL_API const char* wolfSSL_EC_curve_nid2nist(int nid);
 WOLFSSL_API int wolfSSL_EC_curve_nist2nid(const char* name);
+WOLFSSL_API
+WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_ex(void* heap, int devId);
 WOLFSSL_API
 WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new(void);
 WOLFSSL_API

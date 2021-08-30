@@ -2904,7 +2904,7 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
     if (ctx == NULL || siglen == NULL)
         return WOLFSSL_FAILURE;
 
-    /* Return the maximum size of the signaure when sig is NULL. */
+    /* Return the maximum size of the signature when sig is NULL. */
     if (ctx->isHMAC) {
         hashLen = wolfssl_mac_len(ctx->hash.hmac.macType);
 
