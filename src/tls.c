@@ -4721,9 +4721,11 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name, void* heap)
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLFSSL_TLS13
     if (! TLSX_KeyShare_IsSupported(name)) {
         return BAD_FUNC_ARG;
     }
+#endif
 
     extension = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
 
