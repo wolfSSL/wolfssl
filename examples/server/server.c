@@ -2191,6 +2191,13 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         err_sys_ex(runWithErrors, "error loading static DH key");
     }
 #endif
+#ifdef HAVE_CURVE25519
+    ret = wolfSSL_CTX_set_ephemeral_key(ctx, WC_PK_TYPE_CURVE25519,
+        "./certs/statickeys/x25519.pem", 0, WOLFSSL_FILETYPE_PEM);
+    if (ret != 0) {
+        err_sys_ex(runWithErrors, "error loading static X25519 key");
+    }
+#endif
 #endif /* WOLFSSL_SNIFFER && WOLFSSL_STATIC_EPHEMERAL */
 
     if (cipherList && !useDefCipherList) {

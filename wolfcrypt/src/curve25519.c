@@ -57,6 +57,41 @@ const curve25519_set_type curve25519_sets[] = {
 
 static const unsigned char kCurve25519BasePoint[CURVE25519_KEYSIZE] = {9};
 
+/* Curve25519 private key must be less than order */
+/* These functions clamp private k and check it */
+static WC_INLINE int curve25519_priv_clamp(byte* priv)
+{
+    priv[0]  &= 248;
+    priv[CURVE25519_KEYSIZE-1] &= 127;
+    priv[CURVE25519_KEYSIZE-1] |= 64;
+    return 0;
+}
+static WC_INLINE int curve25519_priv_clamp_check(const byte* priv)
+{
+    /* check that private part of key has been clamped */
+    int ret = 0;
+    if ((priv[0] & ~248) ||
+        (priv[CURVE25519_KEYSIZE-1] & 128)) {
+        ret = ECC_BAD_ARG_E;
+    }
+    return ret;
+}
+
+static WC_INLINE void curve25519_copy_point(byte* out, const byte* point,
+    int endian)
+{
+    int i;
+    if (endian == EC25519_BIG_ENDIAN) {
+        /* put shared secret key in Big Endian format */
+        for (i = 0; i < CURVE25519_KEYSIZE; i++) {
+            out[i] = point[CURVE25519_KEYSIZE - i -1];
+        }
+    }
+    else { /* put shared secret key in Little Endian format */
+        XMEMCPY(out, point, CURVE25519_KEYSIZE);
+    }
+}
+
 /* compute the public key from an existing private key, using bare vectors.
  *
  * return value is propagated from curve25519() (0 on success), or
@@ -66,28 +101,29 @@ int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
                            const byte* priv)
 {
     int ret;
+#ifdef FREESCALE_LTC_ECC
+    const ECPoint* basepoint = nxp_ltc_curve25519_GetBasePoint();
+    ECPoint wc_pub;
+#endif
 
-    if ((public_size != CURVE25519_KEYSIZE) ||
+    if ( (public_size != CURVE25519_KEYSIZE) ||
         (private_size != CURVE25519_KEYSIZE)) {
         return ECC_BAD_ARG_E;
     }
-    if ((pub == NULL) || (priv == NULL))
-        return ECC_BAD_ARG_E;
-
-    /* check clamping */
-    if ((priv[0] & ~248) ||
-        (priv[CURVE25519_KEYSIZE-1] & 128)) {
+    if ((pub == NULL) || (priv == NULL)) {
         return ECC_BAD_ARG_E;
     }
 
+    /* check clamping */
+    ret = curve25519_priv_clamp_check(priv);
+    if (ret != 0)
+        return ret;
+
 #ifdef FREESCALE_LTC_ECC
-    {
-        const ECPoint* basepoint = nxp_ltc_curve25519_GetBasePoint();
-        ECPoint wc_pub;
-        /* input basepoint on Weierstrass curve */
-        ret = nxp_ltc_curve25519(&wc_pub, priv, basepoint, kLTC_Weierstrass);
-        if (ret == 0)
-            XMEMCPY(pub, wc_pub.point, CURVE25519_KEYSIZE);
+    /* input basepoint on Weierstrass curve */
+    ret = nxp_ltc_curve25519(&wc_pub, priv, basepoint, kLTC_Weierstrass);
+    if (ret == 0) {
+        XMEMCPY(pub, wc_pub.point, CURVE25519_KEYSIZE);
     }
 #else
     fe_init();
@@ -117,7 +153,7 @@ int wc_curve25519_generic(int public_size, byte* pub,
                           int basepoint_size, const byte* basepoint)
 {
 #ifdef FREESCALE_LTC_ECC
-    /* unsupported with NXP LTC, onlly supports single basepoint with
+    /* unsupported with NXP LTC, only supports single basepoint with
      * nxp_ltc_curve25519_GetBasePoint() */
     return WC_HW_E;
 #else
@@ -132,10 +168,9 @@ int wc_curve25519_generic(int public_size, byte* pub,
         return ECC_BAD_ARG_E;
 
     /* check clamping */
-    if ((priv[0] & ~248) ||
-        (priv[CURVE25519_KEYSIZE-1] & 128)) {
-        return ECC_BAD_ARG_E;
-    }
+    ret = curve25519_priv_clamp_check(priv);
+    if (ret != 0)
+        return ret;
 
     fe_init();
 
@@ -171,15 +206,12 @@ int wc_curve25519_make_priv(WC_RNG* rng, int keysize, byte* key)
 
     /* random number for private key */
     ret = wc_RNG_GenerateBlock(rng, key, keysize);
-    if (ret != 0)
-        return ret;
+    if (ret == 0) {
+        /* Clamp the private key */
+        ret = curve25519_priv_clamp(key);
+    }
 
-    /* Clamp the private key */
-    key[0] &= 248;
-    key[CURVE25519_KEYSIZE-1] &= 63; /* same &=127 because |=64 after */
-    key[CURVE25519_KEYSIZE-1] |= 64;
-
-    return 0;
+    return ret;
 }
 
 /* generate a new keypair.
@@ -203,11 +235,14 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
     }
 #endif
 
-    ret = wc_curve25519_make_priv(rng, keysize, key->k.point);
-    if (ret < 0)
-        return ret;
-    return wc_curve25519_make_pub((int)sizeof(key->p.point), key->p.point,
-                                  (int)sizeof(key->k.point), key->k.point);
+    ret = wc_curve25519_make_priv(rng, keysize, key->k);
+    if (ret == 0) {
+        key->privSet = 1;
+        ret = wc_curve25519_make_pub((int)sizeof(key->p.point), key->p.point,
+                                     (int)sizeof(key->k), key->k);
+        key->pubSet = (ret == 0);
+    }
+    return ret;
 }
 
 #ifdef HAVE_CURVE25519_SHARED_SECRET
@@ -224,11 +259,7 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
                                    curve25519_key* public_key,
                                    byte* out, word32* outlen, int endian)
 {
-#ifdef FREESCALE_LTC_ECC
-    ECPoint o = {{0}};
-#else
-    unsigned char o[CURVE25519_KEYSIZE];
-#endif
+    ECPoint o;
     int ret = 0;
 
     /* sanity check */
@@ -237,10 +268,17 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
         return BAD_FUNC_ARG;
     }
 
-    /* avoid implementation fingerprinting */
-    if (public_key->p.point[CURVE25519_KEYSIZE-1] > 0x7F)
+    /* make sure we have a populated private and public key */
+    if (!private_key->privSet || !public_key->pubSet) {
         return ECC_BAD_ARG_E;
+    }
 
+    /* avoid implementation fingerprinting - make sure signed bit is not set */
+    if (public_key->p.point[CURVE25519_KEYSIZE-1] & 0x80) {
+        return ECC_BAD_ARG_E;
+    }
+
+    XMEMSET(&o, 0, sizeof(o));
 
 #ifdef WOLF_CRYPTO_CB
     if (private_key->devId != INVALID_DEVID) {
@@ -254,54 +292,28 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
 
     #ifdef FREESCALE_LTC_ECC
         /* input point P on Curve25519 */
-        ret = nxp_ltc_curve25519(&o, private_key->k.point, &public_key->p,
+        ret = nxp_ltc_curve25519(&o, private_key->k, &public_key->p,
                                  kLTC_Curve25519);
     #else
         #if defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM)
             SAVE_VECTOR_REGISTERS();
         #endif
 
-        ret = curve25519(o, private_key->k.point, public_key->p.point);
+        ret = curve25519(o.point, private_key->k, public_key->p.point);
 
         #if defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM)
             RESTORE_VECTOR_REGISTERS();
         #endif
     #endif
     if (ret != 0) {
-        #ifdef FREESCALE_LTC_ECC
-            ForceZero(o.point, CURVE25519_KEYSIZE);
-            ForceZero(o.pointY, CURVE25519_KEYSIZE);
-        #else
-            ForceZero(o, CURVE25519_KEYSIZE);
-        #endif
+        ForceZero(&o, sizeof(o));
         return ret;
     }
 
-    if (endian == EC25519_BIG_ENDIAN) {
-        int i;
-        /* put shared secret key in Big Endian format */
-        for (i = 0; i < CURVE25519_KEYSIZE; i++)
-            #ifdef FREESCALE_LTC_ECC
-                out[i] = o.point[CURVE25519_KEYSIZE - i -1];
-            #else
-                out[i] = o[CURVE25519_KEYSIZE - i -1];
-            #endif
-    }
-    else /* put shared secret key in Little Endian format */
-        #ifdef FREESCALE_LTC_ECC
-            XMEMCPY(out, o.point, CURVE25519_KEYSIZE);
-        #else
-            XMEMCPY(out, o, CURVE25519_KEYSIZE);
-        #endif
-
+    curve25519_copy_point(out, o.point, endian);
     *outlen = CURVE25519_KEYSIZE;
 
-    #ifdef FREESCALE_LTC_ECC
-        ForceZero(o.point, CURVE25519_KEYSIZE);
-        ForceZero(o.pointY, CURVE25519_KEYSIZE);
-    #else
-        ForceZero(o, CURVE25519_KEYSIZE);
-    #endif
+    ForceZero(&o, sizeof(o));
 
     return ret;
 }
@@ -322,27 +334,29 @@ int wc_curve25519_export_public(curve25519_key* key, byte* out, word32* outLen)
 int wc_curve25519_export_public_ex(curve25519_key* key, byte* out,
                                    word32* outLen, int endian)
 {
-    if (key == NULL || out == NULL || outLen == NULL)
+    int ret = 0;
+
+    if (key == NULL || out == NULL || outLen == NULL) {
         return BAD_FUNC_ARG;
+    }
 
     /* check and set outgoing key size */
     if (*outLen < CURVE25519_KEYSIZE) {
         *outLen = CURVE25519_KEYSIZE;
         return ECC_BAD_ARG_E;
     }
+
+    /* calculate public if missing */
+    if (!key->pubSet) {
+        ret = wc_curve25519_make_pub((int)sizeof(key->p.point), key->p.point,
+                                     (int)sizeof(key->k), key->k);
+        key->pubSet = (ret == 0);
+    }
+    /* export public point with endianess */
+    curve25519_copy_point(out, key->p.point, endian);
     *outLen = CURVE25519_KEYSIZE;
 
-    if (endian == EC25519_BIG_ENDIAN) {
-        int i;
-
-        /* read keys in Big Endian format */
-        for (i = 0; i < CURVE25519_KEYSIZE; i++)
-            out[i] = key->p.point[CURVE25519_KEYSIZE - i - 1];
-    }
-    else
-        XMEMCPY(out, key->p.point, CURVE25519_KEYSIZE);
-
-    return 0;
+    return ret;
 }
 
 #endif /* HAVE_CURVE25519_KEY_EXPORT */
@@ -362,33 +376,32 @@ int wc_curve25519_import_public(const byte* in, word32 inLen,
 int wc_curve25519_import_public_ex(const byte* in, word32 inLen,
                                 curve25519_key* key, int endian)
 {
+#ifdef FREESCALE_LTC_ECC
+    ltc_pkha_ecc_point_t ltcPoint;
+#endif
+
     /* sanity check */
-    if (key == NULL || in == NULL)
+    if (key == NULL || in == NULL) {
         return BAD_FUNC_ARG;
+    }
 
     /* check size of incoming keys */
-    if (inLen != CURVE25519_KEYSIZE)
+    if (inLen != CURVE25519_KEYSIZE) {
        return ECC_BAD_ARG_E;
-
-    if (endian == EC25519_BIG_ENDIAN) {
-        int i;
-
-        /* read keys in Big Endian format */
-        for (i = 0; i < CURVE25519_KEYSIZE; i++)
-            key->p.point[i] = in[CURVE25519_KEYSIZE - i - 1];
     }
-    else
-        XMEMCPY(key->p.point, in, inLen);
+
+    /* import public point with endianess */
+    curve25519_copy_point(key->p.point, in, endian);
+    key->pubSet = 1;
 
     key->dp = &curve25519_sets[0];
 
     /* LTC needs also Y coordinate - let's compute it */
-    #ifdef FREESCALE_LTC_ECC
-        ltc_pkha_ecc_point_t ltcPoint;
-        ltcPoint.X = &key->p.point[0];
-        ltcPoint.Y = &key->p.pointY[0];
-        LTC_PKHA_Curve25519ComputeY(&ltcPoint);
-    #endif
+#ifdef FREESCALE_LTC_ECC
+    ltcPoint.X = &key->p.point[0];
+    ltcPoint.Y = &key->p.pointY[0];
+    LTC_PKHA_Curve25519ComputeY(&ltcPoint);
+#endif
 
     return 0;
 }
@@ -481,17 +494,10 @@ int wc_curve25519_export_private_raw_ex(curve25519_key* key, byte* out,
         *outLen = CURVE25519_KEYSIZE;
         return ECC_BAD_ARG_E;
     }
+
+    /* export private scalar with endianess */
+    curve25519_copy_point(out, key->k, endian);
     *outLen = CURVE25519_KEYSIZE;
-
-    if (endian == EC25519_BIG_ENDIAN) {
-        int i;
-
-        /* put the key in Big Endian format */
-        for (i = 0; i < CURVE25519_KEYSIZE; i++)
-            out[i] = key->k.point[CURVE25519_KEYSIZE - i - 1];
-    }
-    else
-        XMEMCPY(out, key->k.point, CURVE25519_KEYSIZE);
 
     return 0;
 }
@@ -572,31 +578,23 @@ int wc_curve25519_import_private_ex(const byte* priv, word32 privSz,
                                     curve25519_key* key, int endian)
 {
     /* sanity check */
-    if (key == NULL || priv == NULL)
+    if (key == NULL || priv == NULL) {
         return BAD_FUNC_ARG;
+    }
 
     /* check size of incoming keys */
-    if ((int)privSz != CURVE25519_KEYSIZE)
+    if ((int)privSz != CURVE25519_KEYSIZE) {
         return ECC_BAD_ARG_E;
-
-    if (endian == EC25519_BIG_ENDIAN) {
-        int i;
-
-        /* read the key in Big Endian format */
-        for (i = 0; i < CURVE25519_KEYSIZE; i++)
-            key->k.point[i] = priv[CURVE25519_KEYSIZE - i - 1];
     }
-    else
-        XMEMCPY(key->k.point, priv, CURVE25519_KEYSIZE);
+
+    /* import private scalar with endianess */
+    curve25519_copy_point(key->k, priv, endian);
+    key->privSet = 1;
 
     key->dp = &curve25519_sets[0];
 
     /* Clamp the key */
-    key->k.point[0] &= 248;
-    key->k.point[privSz-1] &= 63; /* same &=127 because |=64 after */
-    key->k.point[privSz-1] |= 64;
-
-    return 0;
+    return curve25519_priv_clamp(key->k);
 }
 
 #endif /* HAVE_CURVE25519_KEY_IMPORT */
@@ -633,18 +631,15 @@ int wc_curve25519_init(curve25519_key* key)
 /* Clean the memory of a key */
 void wc_curve25519_free(curve25519_key* key)
 {
-   if (key == NULL)
+    if (key == NULL)
        return;
 
-   key->dp = NULL;
-   ForceZero(key->p.point, sizeof(key->p.point));
-   ForceZero(key->k.point, sizeof(key->k.point));
-   #ifdef FREESCALE_LTC_ECC
-       ForceZero(key->p.point, sizeof(key->p.pointY));
-       ForceZero(key->k.point, sizeof(key->k.pointY));
-   #endif
+    key->dp = NULL;
+    ForceZero(key->k, sizeof(key->k));
+    XMEMSET(&key->p, 0, sizeof(key->p));
+    key->pubSet = 0;
+    key->privSet = 0;
 }
-
 
 /* get key size */
 int wc_curve25519_size(curve25519_key* key)
@@ -656,4 +651,3 @@ int wc_curve25519_size(curve25519_key* key)
 }
 
 #endif /*HAVE_CURVE25519*/
-

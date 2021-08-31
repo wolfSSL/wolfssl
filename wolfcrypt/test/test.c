@@ -16278,7 +16278,11 @@ exit_gen_test:
 static int dh_generate_test(WC_RNG *rng)
 {
     int    ret = 0;
-    DhKey  smallKey;
+#ifdef WOLFSSL_SMALL_STACK
+    DhKey  *smallKey = (DhKey*)XMALLOC(sizeof(DhKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    DhKey  smallKey[1];
+#endif
     byte   p[2] = { 0, 5 };
     byte   g[2] = { 0, 2 };
 #if !defined(WOLFSSL_SP_MATH)
@@ -16294,7 +16298,13 @@ static int dh_generate_test(WC_RNG *rng)
     word32 pubSz = sizeof(pub);
 #endif
 
-    ret = wc_InitDhKey_ex(&smallKey, HEAP_HINT, devId);
+#ifdef WOLFSSL_SMALL_STACK
+    if (smallKey == NULL) {
+        ERROR_OUT(-8010, exit_gen_test);
+    }
+#endif
+
+    ret = wc_InitDhKey_ex(smallKey, HEAP_HINT, devId);
     if (ret != 0)
         return -8010;
 
@@ -16308,32 +16318,32 @@ static int dh_generate_test(WC_RNG *rng)
     if (ret != BAD_FUNC_ARG) {
         ERROR_OUT(-8012, exit_gen_test);
     }
-    ret = wc_DhSetKey(&smallKey, NULL, sizeof(p), g, sizeof(g));
+    ret = wc_DhSetKey(smallKey, NULL, sizeof(p), g, sizeof(g));
     if (ret != BAD_FUNC_ARG) {
         ERROR_OUT(-8013, exit_gen_test);
     }
-    ret = wc_DhSetKey(&smallKey, p, 0, g, sizeof(g));
+    ret = wc_DhSetKey(smallKey, p, 0, g, sizeof(g));
     if (ret != BAD_FUNC_ARG) {
         ERROR_OUT(-8014, exit_gen_test);
     }
-    ret = wc_DhSetKey(&smallKey, p, sizeof(p), NULL, sizeof(g));
+    ret = wc_DhSetKey(smallKey, p, sizeof(p), NULL, sizeof(g));
     if (ret != BAD_FUNC_ARG) {
         ERROR_OUT(-8015, exit_gen_test);
     }
-    ret = wc_DhSetKey(&smallKey, p, sizeof(p), g, 0);
+    ret = wc_DhSetKey(smallKey, p, sizeof(p), g, 0);
     if (ret != BAD_FUNC_ARG) {
         ERROR_OUT(-8016, exit_gen_test);
     }
-    ret = wc_DhSetKey(&smallKey, p, sizeof(p), g, sizeof(g));
+    ret = wc_DhSetKey(smallKey, p, sizeof(p), g, sizeof(g));
     if (ret != 0) {
         ERROR_OUT(-8017, exit_gen_test);
     }
 
 #if !defined(WOLFSSL_SP_MATH)
     /* Use API. */
-    ret = wc_DhGenerateKeyPair(&smallKey, rng, priv, &privSz, pub, &pubSz);
+    ret = wc_DhGenerateKeyPair(smallKey, rng, priv, &privSz, pub, &pubSz);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &smallKey.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &smallKey->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0) {
         ret = -8018;
@@ -16344,7 +16354,12 @@ static int dh_generate_test(WC_RNG *rng)
 #endif
 
 exit_gen_test:
-    wc_FreeDhKey(&smallKey);
+    wc_FreeDhKey(smallKey);
+#ifdef WOLFSSL_SMALL_STACK
+    if (smallKey != NULL) {
+        XFREE(smallKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
 
     return ret;
 }
@@ -24900,6 +24915,83 @@ static int curve25519_check_public_test(void)
 
 #endif /* HAVE_CURVE25519_SHARED_SECRET && HAVE_CURVE25519_KEY_IMPORT */
 
+#if defined(HAVE_CURVE25519_KEY_EXPORT) && defined(HAVE_CURVE25519_KEY_IMPORT)
+static int curve255519_der_test(void)
+{
+    int ret = 0;
+    /* certs/statickeys/x25519.der */
+    const byte kCurve25519PrivDer[] = {
+        0x30, 0x2E, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2B, 0x65, 0x6E,
+        0x04, 0x22, 0x04, 0x20, 0x78, 0x8E, 0x31, 0x5C, 0x33, 0xA9, 0x19, 0xC0,
+        0x5E, 0x36, 0x70, 0x1B, 0xA4, 0xE8, 0xEF, 0xC1, 0x89, 0x8C, 0xB3, 0x15,
+        0xC6, 0x79, 0xD3, 0xAC, 0x22, 0x00, 0xAE, 0xFA, 0xB3, 0xB7, 0x0F, 0x78
+    };
+    /* certs/statickeys/x25519-pub.der */
+    const byte kCurve25519PubDer[] = {
+        0x30, 0x2A, 0x30, 0x05, 0x06, 0x03, 0x2B, 0x65, 0x6E, 0x03, 0x21, 0x00,
+        0x09, 0xBC, 0x8C, 0xC7, 0x45, 0x0D, 0xC1, 0xC2, 0x02, 0x57, 0x9A, 0x68,
+        0x3A, 0xFD, 0x7A, 0xA8, 0xA5, 0x2F, 0xF0, 0x99, 0x39, 0x98, 0xEA, 0x26,
+        0xA2, 0x5B, 0x38, 0xFD, 0x96, 0xDB, 0x2A, 0x26
+    };
+    curve25519_key key;
+    byte output[128];
+    word32 outputSz = 128;
+    word32 idx;
+
+    if (wc_curve25519_init_ex(&key, HEAP_HINT, devId) != 0) {
+        return -10723;
+    }
+
+    /* Test decode / encode of Curve25519 private key only */
+    if (ret == 0) {
+        idx = 0;
+        ret = wc_Curve25519PrivateKeyDecode(kCurve25519PrivDer, &idx, &key,
+            (word32)sizeof(kCurve25519PrivDer));
+    }
+    if (ret == 0) {
+        outputSz = (word32)sizeof(output);
+        ret = wc_Curve25519PrivateKeyToDer(&key, output, outputSz);
+        if (ret >= 0) {
+            outputSz = ret;
+            ret = 0;
+        }
+        else {
+            ret = -10724;
+        }
+    }
+    if (ret == 0 && (outputSz != (word32)sizeof(kCurve25519PrivDer) ||
+                     XMEMCMP(output, kCurve25519PrivDer, outputSz) != 0)) {
+        ret = -10725;
+    }
+
+    /* Test decode / encode of Curve25519 public key only */
+    if (ret == 0) {
+        idx = 0;
+        ret = wc_Curve25519PublicKeyDecode(kCurve25519PubDer, &idx, &key,
+            (word32)sizeof(kCurve25519PubDer));
+    }
+    if (ret == 0) {
+        outputSz = (word32)sizeof(output);
+        ret = wc_Curve25519PublicKeyToDer(&key, output, outputSz, 1);
+        if (ret >= 0) {
+            outputSz = ret;
+            ret = 0;
+        }
+        else {
+            ret = -10726;
+        }
+    }
+    if (ret == 0 && (outputSz != (word32)sizeof(kCurve25519PubDer) ||
+                     XMEMCMP(output, kCurve25519PubDer, outputSz) != 0)) {
+        ret = -10727;
+    }
+
+    wc_curve25519_free(&key);
+
+    return ret;
+}
+#endif /* HAVE_CURVE25519_KEY_EXPORT && HAVE_CURVE25519_KEY_IMPORT */
+
 WOLFSSL_TEST_SUBROUTINE int curve25519_test(void)
 {
     WC_RNG  rng;
@@ -25081,6 +25173,12 @@ WOLFSSL_TEST_SUBROUTINE int curve25519_test(void)
     if (ret != 0)
         return ret;
 #endif /* HAVE_CURVE25519_SHARED_SECRET && HAVE_CURVE25519_KEY_IMPORT */
+
+#if defined(HAVE_CURVE25519_KEY_IMPORT) && defined(HAVE_CURVE25519_KEY_IMPORT)
+    ret = curve255519_der_test();
+    if (ret != 0)
+        return ret;
+#endif
 
     /* clean up keys when done */
     wc_curve25519_free(&pubKey);

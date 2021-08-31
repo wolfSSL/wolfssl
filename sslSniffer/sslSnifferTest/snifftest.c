@@ -97,20 +97,27 @@ enum {
     #define STORE_DATA_BLOCK_SZ 1024
 #endif
 
+#if defined(HAVE_ECC) && !defined(NO_ECC_SECP) && (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
+    #define DEFAULT_SERVER_EPH_KEY_ECC "../../certs/statickeys/ecc-secp256r1.pem"
+#else
+    #define DEFAULT_SERVER_EPH_KEY_ECC ""
+#endif
+#ifndef NO_DH
+    #define DEFAULT_SERVER_EPH_KEY_DH "../../certs/statickeys/dh-ffdhe2048.pem"
+#else
+    #define DEFAULT_SERVER_EPH_KEY_DH ""
+#endif
+#ifdef HAVE_CURVE25519
+    #define DEFAULT_SERVER_EPH_KEY_X25519 "../../certs/statickeys/x25519.pem"
+#else
+    #define DEFAULT_SERVER_EPH_KEY_X25519 ""
+#endif
 
-#define DEFAULT_SERVER_EPH_KEY_ECC "../../certs/statickeys/ecc-secp256r1.pem"
-#define DEFAULT_SERVER_EPH_KEY_DH  "../../certs/statickeys/dh-ffdhe2048.pem"
 #ifndef DEFAULT_SERVER_EPH_KEY
-    #if defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
-        (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
-        #if !defined(NO_DH)
-            #define DEFAULT_SERVER_EPH_KEY DEFAULT_SERVER_EPH_KEY_ECC "," DEFAULT_SERVER_EPH_KEY_DH
-        #else
-            #define DEFAULT_SERVER_EPH_KEY DEFAULT_SERVER_EPH_KEY_ECC
-        #endif
-    #elif !defined(NO_DH)
-        #define DEFAULT_SERVER_EPH_KEY DEFAULT_SERVER_EPH_KEY_DH
-    #endif
+    #define DEFAULT_SERVER_EPH_KEY \
+                DEFAULT_SERVER_EPH_KEY_ECC "," \
+                DEFAULT_SERVER_EPH_KEY_DH "," \
+                DEFAULT_SERVER_EPH_KEY_X25519
 #endif
 
 #define DEFAULT_SERVER_KEY_RSA "../../certs/server-key.pem"

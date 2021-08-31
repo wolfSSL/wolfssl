@@ -2273,6 +2273,10 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     if (ctx->staticKE.ecKey && ctx->staticKE.weOwnEC)
         FreeDer(&ctx->staticKE.ecKey);
     #endif
+    #ifdef HAVE_CURVE25519
+    if (ctx->staticKE.x25519Key && ctx->staticKE.weOwnX25519)
+        FreeDer(&ctx->staticKE.x25519Key);
+    #endif
 #endif
 #ifdef WOLFSSL_STATIC_MEMORY
     if (ctx->heap != NULL) {
@@ -6213,6 +6217,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     #ifndef NO_DH
     ssl->staticKE.weOwnDH = 0;
     #endif
+    #ifdef HAVE_CURVE25519
+    ssl->staticKE.weOwnX25519 = 0;
+    #endif
 #endif
 
 #ifdef WOLFSSL_TLS13
@@ -6986,6 +6993,10 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     #ifdef HAVE_ECC
     if (ssl->staticKE.ecKey && ssl->staticKE.weOwnEC)
         FreeDer(&ssl->staticKE.ecKey);
+    #endif
+    #ifdef HAVE_CURVE25519
+    if (ssl->staticKE.x25519Key && ssl->staticKE.weOwnX25519)
+        FreeDer(&ssl->staticKE.x25519Key);
     #endif
 #endif
 
@@ -27404,12 +27415,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             case TLS_ASYNC_BUILD:
             {
-            #if (!defined(NO_DH) && !defined(NO_RSA)) || (defined(HAVE_ECC) || \
-                    (defined(HAVE_CURVE25519) && defined(HAVE_ED25519)) || \
-                    (defined(HAVE_CURVE448) && defined(HAVE_ED448)))
-                word32 preSigSz, preSigIdx;
-            #endif
-
                 switch(ssl->specs.kea)
                 {
                 #ifndef NO_PSK
@@ -27670,6 +27675,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     case ecc_diffie_hellman_kea:
                     {
                         enum wc_HashType hashType;
+                        word32 preSigSz, preSigIdx;
 
                         /* curve type, named curve, length(1) */
                         args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
@@ -28003,6 +28009,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     case diffie_hellman_kea:
                     {
                         enum wc_HashType hashType;
+                        word32 preSigSz, preSigIdx;
 
                         args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
                         args->length = LENGTH_SZ * 3;  /* p, g, pub */

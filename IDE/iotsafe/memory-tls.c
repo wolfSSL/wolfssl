@@ -384,6 +384,7 @@ static int server_loop(void)
             wolfSSL_CTX_free(srv_ctx); srv_ctx = NULL;
 
             server_state = 0;
+            return -1; /* exit test loop, so it doesn't keep running forever */
         }
     }
 

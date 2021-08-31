@@ -2763,12 +2763,19 @@ typedef struct {
 #ifdef HAVE_ECC
     DerBuffer* ecKey;
 #endif
+#ifdef HAVE_CURVE25519
+    DerBuffer* x25519Key;
+#endif
+
     /* bits */
 #ifndef NO_DH
     byte weOwnDH:1;
 #endif
 #ifdef HAVE_ECC
     byte weOwnEC:1;
+#endif
+#ifdef HAVE_CURVE25519
+    byte weOwnX25519:1;
 #endif
 } StaticKeyExchangeInfo_t;
 #endif

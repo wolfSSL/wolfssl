@@ -4611,7 +4611,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                     ephmSuite = 1;
                 break;
 
-    #ifdef WOLFSSL_STATIC_DH
+    #if defined(HAVE_ECC) && defined(WOLFSSL_STATIC_DH)
                 /* ECDH_RSA */
                 case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA:
                 case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA:
@@ -4632,7 +4632,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                     sig = 1;
                     key |= ssl->pkCurveOID == pkOid;
                 break;
-    #endif /* WOLFSSL_STATIC_DH */
+    #endif /* HAVE_ECC && WOLFSSL_STATIC_DH */
 #endif
                 default:
                     if (oid == ECC_X25519_OID && defOid == oid) {
@@ -6858,10 +6858,23 @@ static int TLSX_KeyShare_GenX25519Key(WOLFSSL *ssl, KeyShareEntry* kse)
         }
 
         /* Make an Curve25519 key. */
-        ret = wc_curve25519_init((curve25519_key*)kse->key);
+        ret = wc_curve25519_init_ex((curve25519_key*)kse->key, ssl->heap,
+            INVALID_DEVID);
         if (ret == 0) {
             key = (curve25519_key*)kse->key;
-            ret = wc_curve25519_make_key(ssl->rng, CURVE25519_KEYSIZE, key);
+        #ifdef WOLFSSL_STATIC_EPHEMERAL
+            if (ssl->staticKE.x25519Key) {
+                DerBuffer* keyDer = ssl->staticKE.x25519Key;
+                word32 idx = 0;
+                WOLFSSL_MSG("Using static X25519 key");
+                ret = wc_Curve25519PrivateKeyDecode(keyDer->buffer, &idx, key,
+                    keyDer->length);
+            }
+            else
+        #endif
+            {
+                ret = wc_curve25519_make_key(ssl->rng, CURVE25519_KEYSIZE, key);
+            }
         }
     }
 
