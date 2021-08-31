@@ -3051,6 +3051,7 @@ void* wolfSSL_CTX_get_TicketEncCtx(WOLFSSL_CTX* ctx)
     return ctx->ticketEncCtx;
 }
 
+#ifdef WOLFSSL_TLS13
 /* set the maximum number of tickets to send
  * return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on fail
  */
@@ -3073,6 +3074,7 @@ size_t wolfSSL_CTX_get_num_tickets(WOLFSSL_CTX* ctx)
 
     return (size_t)ctx->maxTicketTls13;
 }
+#endif /* WOLFSSL_TLS13 */
 #endif /* !NO_WOLFSSL_SERVER */
 
 #if !defined(NO_WOLFSSL_CLIENT)
