@@ -2443,7 +2443,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             }
 
             /* if curve not provided in key share data, then use private key curve */
-            if (useCurveId == ECC_CURVE_DEF && key.dp) {
+            if (useCurveId == 0 && key.dp) {
                 useCurveId = key.dp->id;
             }
         }
@@ -2542,10 +2542,8 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         }
 
         if (ret == 0) {
+            /* For Curve25519 length is always 32 */
             session->keySz = CURVE25519_KEYSIZE;
-            /* Length is in bytes. Subtract 1 for the ECC key type. Divide
-             * by two as the key is in (x,y) coordinates, where x and y are
-             * the same size, the key size. Convert from bytes to bits. */
             session->sslServer->arrays->preMasterSz = ENCRYPT_LEN;
 
             ret = wc_curve25519_shared_secret_ex(&key, &pubKey,
