@@ -16165,7 +16165,7 @@ static int dh_generate_test(WC_RNG *rng)
 {
     int    ret = 0;
 #ifdef WOLFSSL_SMALL_STACK
-    DhKey  *smallKey = (DhKey*)XMALLOC(sizeof(DhKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    DhKey  *smallKey = NULL;
 #else
     DhKey  smallKey[1];
 #endif
@@ -16183,16 +16183,17 @@ static int dh_generate_test(WC_RNG *rng)
     word32 privSz = sizeof(priv);
     word32 pubSz = sizeof(pub);
 #endif
+    int smallKey_inited = 0;
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (smallKey == NULL) {
-        ERROR_OUT(-8010, exit_gen_test);
-    }
+    if ((smallKey = (DhKey *)XMALLOC(sizeof(*smallKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+        return -8019;
 #endif
 
     ret = wc_InitDhKey_ex(smallKey, HEAP_HINT, devId);
     if (ret != 0)
-        return -8010;
+        ERROR_OUT(-8010, exit_gen_test);
+    smallKey_inited = 1;
 
     /* Parameter Validation testing. */
     ret = wc_InitDhKey_ex(NULL, HEAP_HINT, devId);
@@ -16240,11 +16241,12 @@ static int dh_generate_test(WC_RNG *rng)
 #endif
 
 exit_gen_test:
-    wc_FreeDhKey(smallKey);
+    if (smallKey_inited)
+        wc_FreeDhKey(smallKey);
+
 #ifdef WOLFSSL_SMALL_STACK
-    if (smallKey != NULL) {
+    if (smallKey != NULL)
         XFREE(smallKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    }
 #endif
 
     return ret;
@@ -37013,18 +37015,29 @@ static const unsigned char testOne[] = { 1 };
 static int GenerateNextP(mp_int* p1, mp_int* p2, int k)
 {
     int ret;
-    mp_int ki;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int *ki = (mp_int *)XMALLOC(sizeof(*ki), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
-    ret = mp_init(&ki);
+    if (ki == NULL)
+        return MEMORY_E;
+#else
+    mp_int ki[1];
+#endif
+
+    ret = mp_init(ki);
     if (ret == 0)
-        ret = mp_set(&ki, k);
+        ret = mp_set(ki, k);
     if (ret == 0)
         ret = mp_sub_d(p1, 1, p2);
     if (ret == 0)
-        ret = mp_mul(p2, &ki, p2);
+        ret = mp_mul(p2, ki, p2);
     if (ret == 0)
         ret = mp_add_d(p2, 1, p2);
-    mp_clear(&ki);
+    mp_clear(ki);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(ki, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
@@ -37034,38 +37047,61 @@ static int GenerateP(mp_int* p1, mp_int* p2, mp_int* p3,
                 const pairs_t* ecPairs, int ecPairsSz,
                 const int* k)
 {
-    mp_int x,y;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int *x = NULL, *y = NULL;
+#else
+    mp_int x[1], y[1];
+#endif
     int ret, i;
 
-    ret = mp_init(&x);
-    if (ret == 0) {
-        ret = mp_init(&y);
-        if (ret != 0) {
-            mp_clear(&x);
-            return MP_MEM;
-        }
+#ifdef WOLFSSL_SMALL_STACK
+    if (((x = (mp_int *)XMALLOC(sizeof(*x), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+        ((y = (mp_int *)XMALLOC(sizeof(*x), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)) {
+        ret = MEMORY_E;
+        goto out;
+    }
+#endif
+
+    ret = mp_init_multi(x, y, NULL, NULL, NULL, NULL);
+    if (ret != 0) {
+        ret = MP_MEM;
+        goto out;
     }
     for (i = 0; ret == 0 && i < ecPairsSz; i++) {
-        ret = mp_read_unsigned_bin(&x, ecPairs[i].coeff, ecPairs[i].coeffSz);
+        ret = mp_read_unsigned_bin(x, ecPairs[i].coeff, ecPairs[i].coeffSz);
         /* p1 = 2^exp */
         if (ret == 0)
-            ret = mp_2expt(&y, ecPairs[i].exp);
+            ret = mp_2expt(y, ecPairs[i].exp);
         /* p1 = p1 * m */
         if (ret == 0)
-            ret = mp_mul(&x, &y, &x);
+            ret = mp_mul(x, y, x);
         /* p1 +=  */
         if (ret == 0)
-            ret = mp_add(p1, &x, p1);
-        mp_zero(&x);
-        mp_zero(&y);
+            ret = mp_add(p1, x, p1);
+        mp_zero(x);
+        mp_zero(y);
     }
-    mp_clear(&x);
-    mp_clear(&y);
 
     if (ret == 0)
         ret = GenerateNextP(p1, p2, k[0]);
     if (ret == 0)
         ret = GenerateNextP(p1, p3, k[1]);
+
+  out:
+    
+#ifdef WOLFSSL_SMALL_STACK
+    if (x != NULL) {
+        mp_clear(x);
+        XFREE(x, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (y != NULL) {
+        mp_clear(y);
+        XFREE(y, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#else
+    mp_clear(x);
+    mp_clear(y);
+#endif
 
     return ret;
 }

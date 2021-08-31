@@ -2768,7 +2768,11 @@ int wc_DhCopyNamedKey(int name,
 /* modulus_size in bits */
 int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
 {
-    mp_int  tmp, tmp2;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int *tmp = NULL, *tmp2 = NULL;
+#else
+    mp_int tmp[1], tmp2[2];
+#endif
     int     groupSz = 0, bufSz = 0,
             primeCheckCount = 0,
             primeCheck = MP_NO,
@@ -2812,20 +2816,28 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
     if (ret == 0)
         ret = wc_RNG_GenerateBlock(rng, buf, bufSz);
 
+#ifdef WOLFSSL_SMALL_STACK
+    if (ret == 0) {
+        if (((tmp = (mp_int *)XMALLOC(sizeof(*tmp), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL) ||
+            ((tmp2 = (mp_int *)XMALLOC(sizeof(*tmp2), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL))
+            ret = MEMORY_E;
+    }
+#endif
+
     if (ret == 0) {
         /* force magnitude */
         buf[0] |= 0xC0;
         /* force even */
         buf[bufSz - 1] &= ~1;
 
-        if (mp_init_multi(&tmp, &tmp2, &dh->p, &dh->q, &dh->g, 0)
+        if (mp_init_multi(tmp, tmp2, &dh->p, &dh->q, &dh->g, 0)
                 != MP_OKAY) {
             ret = MP_INIT_E;
         }
     }
 
     if (ret == 0) {
-        if (mp_read_unsigned_bin(&tmp2, buf, bufSz) != MP_OKAY)
+        if (mp_read_unsigned_bin(tmp2, buf, bufSz) != MP_OKAY)
             ret = MP_READ_E;
     }
 
@@ -2837,7 +2849,7 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
 
     /* p = random * q */
     if (ret == 0) {
-        if (mp_mul(&dh->q, &tmp2, &dh->p) != MP_OKAY)
+        if (mp_mul(&dh->q, tmp2, &dh->p) != MP_OKAY)
             ret = MP_MUL_E;
     }
 
@@ -2849,7 +2861,7 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
 
     /* tmp = 2q  */
     if (ret == 0) {
-        if (mp_add(&dh->q, &dh->q, &tmp) != MP_OKAY)
+        if (mp_add(&dh->q, &dh->q, tmp) != MP_OKAY)
             ret = MP_ADD_E;
     }
 
@@ -2861,7 +2873,7 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
 
             if (primeCheck != MP_YES) {
                 /* p += 2q */
-                if (mp_add(&tmp, &dh->p, &dh->p) != MP_OKAY)
+                if (mp_add(tmp, &dh->p, &dh->p) != MP_OKAY)
                     ret = MP_ADD_E;
                 else
                     primeCheckCount++;
@@ -2873,7 +2885,7 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
      * to have p = (q * tmp2) + 1 prime
      */
     if ((ret == 0) && (primeCheckCount)) {
-        if (mp_add_d(&tmp2, 2 * primeCheckCount, &tmp2) != MP_OKAY)
+        if (mp_add_d(tmp2, 2 * primeCheckCount, tmp2) != MP_OKAY)
             ret = MP_ADD_E;
     }
 
@@ -2885,18 +2897,18 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
         do {
             if (mp_add_d(&dh->g, 1, &dh->g) != MP_OKAY)
                 ret = MP_ADD_E;
-            else if (mp_exptmod(&dh->g, &tmp2, &dh->p, &tmp) != MP_OKAY)
+            else if (mp_exptmod(&dh->g, tmp2, &dh->p, tmp) != MP_OKAY)
                 ret = MP_EXPTMOD_E;
-        } while (ret == 0 && mp_cmp_d(&tmp, 1) == MP_EQ);
+        } while (ret == 0 && mp_cmp_d(tmp, 1) == MP_EQ);
     }
 
     if (ret == 0) {
         /* at this point tmp generates a group of order q mod p */
 #ifndef USE_FAST_MATH
         /* Exchanging is quick when the data pointer can be copied. */
-        mp_exch(&tmp, &dh->g);
+        mp_exch(tmp, &dh->g);
 #else
-        mp_copy(&tmp, &dh->g);
+        mp_copy(tmp, &dh->g);
 #endif
     }
 
@@ -2913,8 +2925,20 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
             XFREE(buf, dh->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
-    mp_clear(&tmp);
-    mp_clear(&tmp2);
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (tmp != NULL) {
+        mp_clear(tmp);
+        XFREE(tmp, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
+    }
+    if (tmp2 != NULL) {
+        mp_clear(tmp2);
+        XFREE(tmp2, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
+    }
+#else
+    mp_clear(tmp);
+    mp_clear(tmp2);
+#endif
 
     return ret;
 }

@@ -537,15 +537,15 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
 #ifdef WOLFSSL_SMALL_STACK
   out:
 
-    if (Ai)
+    if (Ai != NULL)
         XFREE(Ai, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (B)
+    if (B != NULL)
         XFREE(B,  heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (B1)
+    if (B1 != NULL)
         XFREE(B1, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (i1)
+    if (i1 != NULL)
         XFREE(i1, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (res)
+    if (res != NULL)
         XFREE(res, heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 

@@ -142,7 +142,11 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
 {
     byte* cBuf;
     int qSz, pSz, cSz, err;
-    mp_int tmpQ;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int *tmpQ = NULL;
+#else
+    mp_int tmpQ[1];
+#endif
 
     if (rng == NULL || dsa == NULL)
         return BAD_FUNC_ARG;
@@ -161,47 +165,40 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
         return MEMORY_E;
     }
 
-    if ((err = mp_init_multi(&dsa->x, &dsa->y, &tmpQ, NULL, NULL, NULL))
-                   != MP_OKAY) {
-        XFREE(cBuf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return err;
+#ifdef WOLFSSL_SMALL_STACK
+    if ((tmpQ = (mp_int *)XMALLOC(sizeof(*tmpQ), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL)
+        err = MEMORY_E;
+    else
+        err = MP_OKAY;
+
+    if (err == MP_OKAY)
+#endif
+        err = mp_init_multi(&dsa->x, &dsa->y, tmpQ, NULL, NULL, NULL);
+
+    if (err == MP_OKAY) {
+        do {
+            /* generate N+64 bits (c) from RBG into &dsa->x, making sure positive.
+             * Hash_DRBG uses SHA-256 which matches maximum
+             * requested_security_strength of (L,N) */
+            err = wc_RNG_GenerateBlock(rng, cBuf, cSz);
+            if (err != MP_OKAY)
+                break;
+            err = mp_read_unsigned_bin(&dsa->x, cBuf, cSz);
+            if (err != MP_OKAY)
+                break;
+        } while (mp_cmp_d(&dsa->x, 1) != MP_GT);
     }
-
-    do {
-        /* generate N+64 bits (c) from RBG into &dsa->x, making sure positive.
-         * Hash_DRBG uses SHA-256 which matches maximum
-         * requested_security_strength of (L,N) */
-        err = wc_RNG_GenerateBlock(rng, cBuf, cSz);
-        if (err != MP_OKAY) {
-            mp_clear(&dsa->x);
-            mp_clear(&dsa->y);
-            mp_clear(&tmpQ);
-            XFREE(cBuf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            return err;
-        }
-
-        err = mp_read_unsigned_bin(&dsa->x, cBuf, cSz);
-        if (err != MP_OKAY) {
-            mp_clear(&dsa->x);
-            mp_clear(&dsa->y);
-            mp_clear(&tmpQ);
-            XFREE(cBuf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            return err;
-        }
-    } while (mp_cmp_d(&dsa->x, 1) != MP_GT);
-
-    XFREE(cBuf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     /* tmpQ = q - 1 */
     if (err == MP_OKAY)
-        err = mp_copy(&dsa->q, &tmpQ);
+        err = mp_copy(&dsa->q, tmpQ);
 
     if (err == MP_OKAY)
-        err = mp_sub_d(&tmpQ, 1, &tmpQ);
+        err = mp_sub_d(tmpQ, 1, tmpQ);
 
     /* x = c mod (q-1), &dsa->x holds c */
     if (err == MP_OKAY)
-        err = mp_mod(&dsa->x, &tmpQ, &dsa->x);
+        err = mp_mod(&dsa->x, tmpQ, &dsa->x);
 
     /* x = c mod (q-1) + 1 */
     if (err == MP_OKAY)
@@ -218,7 +215,17 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
         mp_clear(&dsa->x);
         mp_clear(&dsa->y);
     }
-    mp_clear(&tmpQ);
+
+    XFREE(cBuf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (tmpQ != NULL) {
+        mp_clear(tmpQ);
+        XFREE(tmpQ, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#else
+    mp_clear(tmpQ);
+#endif
 
     return err;
 }
@@ -227,7 +234,11 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
 /* modulus_size in bits */
 int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
 {
-    mp_int  tmp, tmp2;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int *tmp = NULL, *tmp2 = NULL;
+#else
+    mp_int tmp[1], tmp2[1];
+#endif
     int     err, msize, qsize,
             loop_check_prime = 0,
             check_prime = MP_NO;
@@ -278,158 +289,113 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
     /* force even */
     buf[msize - qsize - 1] &= ~1;
 
-    if (mp_init_multi(&tmp2, &dsa->p, &dsa->q, 0, 0, 0) != MP_OKAY) {
-        mp_clear(&dsa->q);
-        XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return MP_INIT_E;
-    }
+#ifdef WOLFSSL_SMALL_STACK
+    if (((tmp = (mp_int *)XMALLOC(sizeof(*tmp), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL) ||
+        ((tmp2 = (mp_int *)XMALLOC(sizeof(*tmp2), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL))
+        err = MEMORY_E;
+    else
+        err = MP_OKAY;
 
-    err = mp_read_unsigned_bin(&tmp2, buf, msize - qsize);
-    if (err != MP_OKAY) {
-        mp_clear(&dsa->q);
-        mp_clear(&dsa->p);
-        mp_clear(&tmp2);
-        XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return err;
-    }
-    XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (err == MP_OKAY)
+#endif
+        err = mp_init_multi(tmp2, &dsa->p, &dsa->q, 0, 0, 0);
+
+    if (err == MP_OKAY)
+        err = mp_read_unsigned_bin(tmp2, buf, msize - qsize);
 
     /* make our prime q */
-    err = mp_rand_prime(&dsa->q, qsize, rng, NULL);
-    if (err != MP_OKAY) {
-        mp_clear(&dsa->q);
-        mp_clear(&dsa->p);
-        mp_clear(&tmp2);
-        return err;
-    }
+    if (err == MP_OKAY)
+        err = mp_rand_prime(&dsa->q, qsize, rng, NULL);
 
     /* p = random * q */
-    err = mp_mul(&dsa->q, &tmp2, &dsa->p);
-    if (err != MP_OKAY) {
-        mp_clear(&dsa->q);
-        mp_clear(&dsa->p);
-        mp_clear(&tmp2);
-        return err;
-    }
+    if (err == MP_OKAY)
+        err = mp_mul(&dsa->q, tmp2, &dsa->p);
 
     /* p = random * q + 1, so q is a prime divisor of p-1 */
-    err = mp_add_d(&dsa->p, 1, &dsa->p);
-    if (err != MP_OKAY) {
-        mp_clear(&dsa->q);
-        mp_clear(&dsa->p);
-        mp_clear(&tmp2);
-        return err;
-    }
+    if (err == MP_OKAY)
+        err = mp_add_d(&dsa->p, 1, &dsa->p);
 
-    if (mp_init(&tmp) != MP_OKAY) {
-        mp_clear(&dsa->q);
-        mp_clear(&dsa->p);
-        mp_clear(&tmp2);
-        return MP_INIT_E;
-    }
+    if (err == MP_OKAY)
+        err = mp_init(tmp);
 
     /* tmp = 2q  */
-    err = mp_add(&dsa->q, &dsa->q, &tmp);
-    if (err != MP_OKAY) {
-        mp_clear(&dsa->q);
-        mp_clear(&dsa->p);
-        mp_clear(&tmp);
-        mp_clear(&tmp2);
-        return err;
-    }
+    if (err == MP_OKAY)
+        err = mp_add(&dsa->q, &dsa->q, tmp);
 
-    /* loop until p is prime */
-    while (check_prime == MP_NO) {
-        err = mp_prime_is_prime_ex(&dsa->p, 8, &check_prime, rng);
-        if (err != MP_OKAY) {
-            mp_clear(&dsa->q);
-            mp_clear(&dsa->p);
-            mp_clear(&tmp);
-            mp_clear(&tmp2);
-            return err;
-        }
-
-        if (check_prime != MP_YES) {
-            /* p += 2q */
-            err = mp_add(&tmp, &dsa->p, &dsa->p);
-            if (err != MP_OKAY) {
-                mp_clear(&dsa->q);
-                mp_clear(&dsa->p);
-                mp_clear(&tmp);
-                mp_clear(&tmp2);
-                return err;
+    if (err == MP_OKAY) {
+        /* loop until p is prime */
+        while (check_prime == MP_NO) {
+            err = mp_prime_is_prime_ex(&dsa->p, 8, &check_prime, rng);
+            if (err != MP_OKAY)
+                break;
+            if (check_prime != MP_YES) {
+                /* p += 2q */
+                err = mp_add(tmp, &dsa->p, &dsa->p);
+                if (err != MP_OKAY)
+                    break;
+                loop_check_prime++;
             }
-
-            loop_check_prime++;
         }
     }
 
     /* tmp2 += (2*loop_check_prime)
      * to have p = (q * tmp2) + 1 prime
      */
-    if (loop_check_prime) {
-        err = mp_add_d(&tmp2, 2*loop_check_prime, &tmp2);
-        if (err != MP_OKAY) {
-            mp_clear(&dsa->q);
-            mp_clear(&dsa->p);
-            mp_clear(&tmp);
-            mp_clear(&tmp2);
-            return err;
-        }
+    if (err == MP_OKAY) {
+        if (loop_check_prime)
+            err = mp_add_d(tmp2, 2*loop_check_prime, tmp2);
     }
 
-    if (mp_init(&dsa->g) != MP_OKAY) {
-        mp_clear(&dsa->q);
-        mp_clear(&dsa->p);
-        mp_clear(&tmp);
-        mp_clear(&tmp2);
-        return MP_INIT_E;
-    }
+    if (err == MP_OKAY)
+        err = mp_init(&dsa->g);
 
     /* find a value g for which g^tmp2 != 1 */
-    if (mp_set(&dsa->g, 1) != MP_OKAY) {
-        mp_clear(&dsa->q);
-        mp_clear(&dsa->p);
-        mp_clear(&tmp);
-        mp_clear(&tmp2);
-        return MP_INIT_E;
+    if (err == MP_OKAY)
+        err = mp_set(&dsa->g, 1);
+
+    if (err == MP_OKAY) {
+        do {
+            err = mp_add_d(&dsa->g, 1, &dsa->g);
+            if (err != MP_OKAY)
+                break;
+            err = mp_exptmod(&dsa->g, tmp2, &dsa->p, tmp);
+            if (err != MP_OKAY)
+                break;
+        } while (mp_cmp_d(tmp, 1) == MP_EQ);
     }
 
-    do {
-        err = mp_add_d(&dsa->g, 1, &dsa->g);
-        if (err != MP_OKAY) {
-            mp_clear(&dsa->q);
-            mp_clear(&dsa->p);
-            mp_clear(&dsa->g);
-            mp_clear(&tmp);
-            mp_clear(&tmp2);
-            return err;
-        }
-
-        err = mp_exptmod(&dsa->g, &tmp2, &dsa->p, &tmp);
-        if (err != MP_OKAY) {
-            mp_clear(&dsa->q);
-            mp_clear(&dsa->p);
-            mp_clear(&dsa->g);
-            mp_clear(&tmp);
-            mp_clear(&tmp2);
-            return err;
-        }
-
-    } while (mp_cmp_d(&tmp, 1) == MP_EQ);
-
     /* at this point tmp generates a group of order q mod p */
+    if (err == MP_OKAY) {
 #ifndef USE_FAST_MATH
-    /* Exchanging is quick when the data pointer can be copied. */
-    mp_exch(&tmp, &dsa->g);
+        /* Exchanging is quick when the data pointer can be copied. */
+        err = mp_exch(tmp, &dsa->g);
 #else
-    mp_copy(&tmp, &dsa->g);
+        err = mp_copy(tmp, &dsa->g);
 #endif
+    }
 
-    mp_clear(&tmp);
-    mp_clear(&tmp2);
+    XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
-    return MP_OKAY;
+#ifdef WOLFSSL_SMALL_STACK
+    if (tmp != NULL) {
+        mp_clear(tmp);
+        XFREE(tmp, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
+    }
+    if (tmp2 != NULL) {
+        mp_clear(tmp2);
+        XFREE(tmp2, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
+    }
+#else
+    mp_clear(tmp);
+    mp_clear(tmp2);
+#endif
+    if (err != MP_OKAY) {
+        mp_clear(&dsa->q);
+        mp_clear(&dsa->p);
+        mp_clear(&dsa->g);
+    }
+
+    return err;
 }
 #endif /* WOLFSSL_KEY_GEN */
 
