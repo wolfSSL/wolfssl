@@ -26952,6 +26952,27 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         ssl->options.dhKeyTested = 1;
     #endif
 
+                #ifdef HAVE_SECURE_RENEGOTIATION
+                        /* Check that the DH public key buffer is large
+                         * enough to hold the key. This may occur on a
+                         * renegotiation when the key generated in the
+                         * initial handshake is shorter than the key
+                         * generated in the renegotiation. */
+                        if (ssl->buffers.serverDH_Pub.length <
+                                ssl->buffers.serverDH_P.length) {
+                            byte* tmp = (byte*)XREALLOC(
+                                    ssl->buffers.serverDH_Pub.buffer,
+                                    ssl->buffers.serverDH_P.length +
+                                        OPAQUE16_LEN,
+                                    ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                            if (tmp == NULL)
+                                ERROR_OUT(MEMORY_E, exit_sske);
+                            ssl->buffers.serverDH_Pub.buffer = tmp;
+                            ssl->buffers.serverDH_Pub.length =
+                                ssl->buffers.serverDH_P.length + OPAQUE16_LEN;
+                        }
+                #endif
+
                         ret = DhGenKeyPair(ssl, ssl->buffers.serverDH_Key,
                             ssl->buffers.serverDH_Priv.buffer,
                             (word32*)&ssl->buffers.serverDH_Priv.length,
