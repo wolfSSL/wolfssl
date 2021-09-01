@@ -4092,8 +4092,11 @@ static int TLSX_SupportedCurve_Parse(WOLFSSL* ssl, const byte* input,
         ato16(input + offset, &name);
 
         ret = TLSX_UseSupportedCurve(&ssl->extensions, name, ssl->heap);
-        if (ret != WOLFSSL_SUCCESS)
-            return ret; /* throw error */
+        /* If it is BAD_FUNC_ARG then it is a group we do not support, but
+         * that is fine. */
+        if (ret != WOLFSSL_SUCCESS && ret != BAD_FUNC_ARG) {
+            return ret;
+        }
     }
 
     return 0;
@@ -8698,7 +8701,7 @@ int TLSX_KeyShare_Establish(WOLFSSL *ssl, int* doHelloRetry)
 
         /* Check consistency now - extensions in any order. */
         if (!TLSX_SupportedGroups_Find(ssl, clientKSE->group))
-            return BAD_KEY_SHARE_DATA;
+            continue;
 
         if ((clientKSE->group & NAMED_DH_MASK) == 0) {
             /* Check max value supported. */
