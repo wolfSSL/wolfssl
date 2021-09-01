@@ -5713,6 +5713,8 @@ static int wc_PKCS7_KariGenerateEphemeralKey(WC_PKCS7_KARI* kari)
     ret = wc_ecc_init_ex(kari->senderKey, kari->heap, kari->devId);
     if (ret != 0) {
         XFREE(kari->senderKeyExport, kari->heap, DYNAMIC_TYPE_PKCS7);
+        kari->senderKeyExportSz = 0;
+        kari->senderKeyExport   = NULL;
         return ret;
     }
 
@@ -5721,6 +5723,8 @@ static int wc_PKCS7_KariGenerateEphemeralKey(WC_PKCS7_KARI* kari)
     ret = wc_InitRng_ex(&rng, kari->heap, kari->devId);
     if (ret != 0) {
         XFREE(kari->senderKeyExport, kari->heap, DYNAMIC_TYPE_PKCS7);
+        kari->senderKeyExportSz = 0;
+        kari->senderKeyExport   = NULL;
         return ret;
     }
 
@@ -5728,6 +5732,8 @@ static int wc_PKCS7_KariGenerateEphemeralKey(WC_PKCS7_KARI* kari)
                              kari->senderKey, kari->recipKey->dp->id);
     if (ret != 0) {
         XFREE(kari->senderKeyExport, kari->heap, DYNAMIC_TYPE_PKCS7);
+        kari->senderKeyExportSz = 0;
+        kari->senderKeyExport   = NULL;
         wc_FreeRng(&rng);
         return ret;
     }
@@ -5739,6 +5745,8 @@ static int wc_PKCS7_KariGenerateEphemeralKey(WC_PKCS7_KARI* kari)
                              &kari->senderKeyExportSz);
     if (ret != 0) {
         XFREE(kari->senderKeyExport, kari->heap, DYNAMIC_TYPE_PKCS7);
+        kari->senderKeyExportSz = 0;
+        kari->senderKeyExport   = NULL;
         return ret;
     }
 
@@ -6488,10 +6496,20 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
         }
         snSz = SetSerialNumber(decoded->serial, decoded->serialSz, serial,
                                MAX_SN_SZ, MAX_SN_SZ);
-
+        if (snSz < 0) {
+            WOLFSSL_MSG("Error setting the serial number");
+            FreeDecodedCert(decoded);
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(serial,       pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(keyAlgArray,  pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+            XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            return -1;
+        }
         issuerSerialSeqSz = SetSequence(issuerSeqSz + issuerSz + snSz,
                                         issuerSerialSeq);
-
     } else if (sidType == CMS_SKID) {
 
         /* version, must be 2 for SubjectKeyIdentifier */
