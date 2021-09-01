@@ -26137,6 +26137,8 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                     == 0 && tag == ASN_BIT_STRING) {
                 len = 0;
                 ret = GetASNHeader(input, ASN_BIT_STRING, inOutIdx, &len, inSz);
+                if (ret > 0)
+                    ret = 0; /* reset on success */
                 *inOutIdx += len;
             }
         }
