@@ -5185,9 +5185,9 @@ AS_IF([test "x$FIPS_VERSION" = "xrand"],[ENABLED_CRYPTONLY="yes"])
 
 if test "$ENABLED_CRYPTONLY" = "yes"
 then
-    if test "$ENABLED_OPENSSLEXTRA" = "yes"
+    if test "$ENABLED_OPENSSLALL" = "yes"
     then
-        AC_MSG_ERROR([cryptonly and opensslextra are mutually incompatible.])
+        AC_MSG_ERROR([cryptonly and opensslall are mutually incompatible.])
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_ONLY"
 fi
@@ -7207,6 +7207,12 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_WC_INTROSPECTION"
 fi
 
+if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes"
+then
+    AM_CFLAGS="-include ${output_objdir}/.build_params $AM_CFLAGS"
+fi
+
+
 CREATE_HEX_VERSION
 AC_SUBST([AM_CPPFLAGS])
 AC_SUBST([AM_CFLAGS])
@@ -7258,7 +7264,6 @@ then
     echo "#define LIBWOLFSSL_CONFIGURE_ARGS \"$ac_configure_args\"" > ${output_objdir}/.build_params &&
         echo "#define LIBWOLFSSL_GLOBAL_CFLAGS \"$CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS\" LIBWOLFSSL_GLOBAL_EXTRA_CFLAGS" >> ${output_objdir}/.build_params ||
         AC_MSG_ERROR([Couldn't create ${output_objdir}/.build_params.])
-    AM_CFLAGS="-include ${output_objdir}/.build_params $AM_CFLAGS"
 fi
 
 # generate user options header

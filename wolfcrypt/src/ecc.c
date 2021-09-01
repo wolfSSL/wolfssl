@@ -3994,12 +3994,12 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
             k = k_lcl;
             if (mp_init(k) != MP_OKAY) {
                 err = MEMORY_E;
-                goto out;
+                goto errout;
             }
             /* multiply cofactor times private key "k" */
             err = mp_mul_d(&private_key->k, cofactor, k);
             if (err != MP_OKAY)
-                goto out;
+                goto errout;
         }
     }
 #endif
@@ -4028,8 +4028,8 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
 #if defined(WOLFSSL_SP_MATH)
     {
         err = WC_KEY_SIZE_E;
-
         (void)curve;
+        goto errout;
     }
 #else
     {
@@ -4041,7 +4041,7 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
     #endif
         err = wc_ecc_new_point_ex(&result, private_key->heap);
         if (err != MP_OKAY)
-            goto out;
+            goto errout;
 
 #ifdef ECC_TIMING_RESISTANT
         if (private_key->rng == NULL) {
@@ -4085,15 +4085,15 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
     }
 #endif
 
-  out:
+  errout:
 
 #ifdef HAVE_ECC_CDH
     if (k == k_lcl)
         mp_clear(k);
-#endif
 #ifdef WOLFSSL_SMALL_STACK
     if (k_lcl != NULL)
         XFREE(k_lcl, private_key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+#endif
 #endif
 
     WOLFSSL_LEAVE("wc_ecc_shared_secret_gen_sync", err);
@@ -10278,43 +10278,44 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
 #endif
 
    err = mp_init(tmp);
-   if (err != MP_OKAY)
+   if (err != MP_OKAY) {
        err = GEN_MEM_ERR;
+       goto errout;
+   }
 
    /* sanity check to make sure lut_order table is of correct size,
       should compile out to a NOP if true */
    if ((sizeof(lut_orders) / sizeof(lut_orders[0])) < (1U<<FP_LUT)) {
        err = BAD_FUNC_ARG;
+       goto errout;
    }
-   else {
-    /* get bitlen and round up to next multiple of FP_LUT */
-    bitlen  = mp_unsigned_bin_size(modulus) << 3;
-    x       = bitlen % FP_LUT;
-    if (x) {
-      bitlen += FP_LUT - x;
-    }
-    lut_gap = bitlen / FP_LUT;
 
-    /* init the mu */
-    err = mp_init_copy(&fp_cache[idx].mu, mu);
+   /* get bitlen and round up to next multiple of FP_LUT */
+   bitlen  = mp_unsigned_bin_size(modulus) << 3;
+   x       = bitlen % FP_LUT;
+   if (x) {
+       bitlen += FP_LUT - x;
    }
+   lut_gap = bitlen / FP_LUT;
+
+   /* init the mu */
+   err = mp_init_copy(&fp_cache[idx].mu, mu);
+   if (err != MP_OKAY)
+       goto errout;
 
    /* copy base */
-   if (err == MP_OKAY) {
-     if ((mp_mulmod(fp_cache[idx].g->x, mu, modulus,
+   if ((mp_mulmod(fp_cache[idx].g->x, mu, modulus,
                   fp_cache[idx].LUT[1]->x) != MP_OKAY) ||
-         (mp_mulmod(fp_cache[idx].g->y, mu, modulus,
+       (mp_mulmod(fp_cache[idx].g->y, mu, modulus,
                   fp_cache[idx].LUT[1]->y) != MP_OKAY) ||
-         (mp_mulmod(fp_cache[idx].g->z, mu, modulus,
+       (mp_mulmod(fp_cache[idx].g->z, mu, modulus,
                   fp_cache[idx].LUT[1]->z) != MP_OKAY)) {
        err = MP_MULMOD_E;
-     }
+       goto errout;
    }
 
    /* make all single bit entries */
    for (x = 1; x < FP_LUT; x++) {
-      if (err != MP_OKAY)
-          break;
       if ((mp_copy(fp_cache[idx].LUT[1<<(x-1)]->x,
                    fp_cache[idx].LUT[1<<x]->x) != MP_OKAY) ||
           (mp_copy(fp_cache[idx].LUT[1<<(x-1)]->y,
@@ -10322,14 +10323,14 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
           (mp_copy(fp_cache[idx].LUT[1<<(x-1)]->z,
                    fp_cache[idx].LUT[1<<x]->z) != MP_OKAY)){
           err = MP_INIT_E;
-          break;
+          goto errout;
       } else {
 
          /* now double it bitlen/FP_LUT times */
          for (y = 0; y < lut_gap; y++) {
              if ((err = ecc_projective_dbl_point_safe(fp_cache[idx].LUT[1<<x],
                             fp_cache[idx].LUT[1<<x], a, modulus, mp)) != MP_OKAY) {
-                 break;
+                 goto errout;
              }
          }
      }
@@ -10338,7 +10339,7 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
    /* now make all entries in increase order of hamming weight */
    for (x = 2; x <= FP_LUT; x++) {
        if (err != MP_OKAY)
-           break;
+           goto errout;
        for (y = 0; y < (1UL<<FP_LUT); y++) {
            if (lut_orders[y].ham != (int)x) continue;
 
@@ -10348,7 +10349,7 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
                            fp_cache[idx].LUT[lut_orders[y].termb],
                            fp_cache[idx].LUT[y], a, modulus, mp,
                            &infinity)) != MP_OKAY) {
-              break;
+               goto errout;
            }
        }
    }
@@ -10388,6 +10389,8 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
          /* free z */
          mp_clear(fp_cache[idx].LUT[x]->z);
    }
+
+  errout:
 
    mp_clear(tmp);
 #ifdef WOLFSSL_SMALL_STACK

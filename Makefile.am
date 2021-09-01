@@ -126,7 +126,8 @@ CLEANFILES+= ecc-key.der \
              pkcs7signedEncryptedCompressedFirmwarePkgData_RSA_SHA256.der \
              pkcs7signedEncryptedCompressedFirmwarePkgData_RSA_SHA256_noattr.der \
              tests/test-log-dump-to-file.txt \
-             MyKeyLog.txt
+             MyKeyLog.txt \
+             .build_params
 
 exampledir = $(docdir)/example
 dist_example_DATA=

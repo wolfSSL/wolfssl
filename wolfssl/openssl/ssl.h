@@ -36,7 +36,9 @@
 #endif /* OPENSSL_EXTRA_SSL_GUARD */
 
 #include <wolfssl/openssl/tls1.h>
+#ifndef WOLFCRYPT_ONLY
 #include <wolfssl/openssl/evp.h>
+#endif
 #include <wolfssl/openssl/bio.h>
 #ifdef OPENSSL_EXTRA
 #include <wolfssl/openssl/crypto.h>

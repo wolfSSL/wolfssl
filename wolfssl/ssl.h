@@ -83,8 +83,10 @@
 
 #elif (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     #include <wolfssl/openssl/bn.h>
-    #include <wolfssl/openssl/hmac.h>
     #include <wolfssl/openssl/rsa.h>
+    #ifndef WOLFCRYPT_ONLY
+        #include <wolfssl/openssl/hmac.h>
+    #endif
 
     /* We need the old SSL names */
     #ifdef NO_OLD_SSL_NAMES
@@ -1786,7 +1788,7 @@ WOLFSSL_API int wolfSSL_i2d_PrivateKey(const WOLFSSL_EVP_PKEY* key,
         unsigned char** der);
 WOLFSSL_API int wolfSSL_i2d_PublicKey(const WOLFSSL_EVP_PKEY* key,
         unsigned char** der);
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
 WOLFSSL_API int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
                                     const WOLFSSL_EVP_PKEY* pkey,
                                     int indent, WOLFSSL_ASN1_PCTX* pctx);
@@ -4678,6 +4680,7 @@ WOLFSSL_API int wolfSSL_X509_CA_num(WOLFSSL_X509_STORE *store);
 WOLFSSL_API long wolfSSL_X509_get_version(const WOLFSSL_X509 *x);
 WOLFSSL_API int wolfSSL_X509_get_signature_nid(const WOLFSSL_X509* x);
 
+#ifndef WOLFCRYPT_ONLY
 WOLFSSL_API int wolfSSL_PEM_write_bio_PKCS8PrivateKey(WOLFSSL_BIO* bio,
     WOLFSSL_EVP_PKEY* pkey, const WOLFSSL_EVP_CIPHER* enc, char* passwd,
     int passwdSz, wc_pem_password_cb* cb, void* ctx);
@@ -4689,7 +4692,7 @@ WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PKCS8PrivateKey_bio(WOLFSSL_BIO* bio,
     WOLFSSL_EVP_PKEY** pkey, wc_pem_password_cb* cb, void* u);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_AutoPrivateKey(
     WOLFSSL_EVP_PKEY** pkey, const unsigned char** data, long length);
-
+#endif /* !WOLFCRYPT_ONLY */
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
@@ -4719,7 +4722,9 @@ WOLFSSL_API int wolfSSL_get_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
 #endif
 
 #if defined(OPENSSL_EXTRA)
+#ifndef WOLFCRYPT_ONLY
 WOLFSSL_API int wolfSSL_EVP_PKEY_param_check(WOLFSSL_EVP_PKEY_CTX* ctx);
+#endif
 WOLFSSL_API void wolfSSL_CTX_set_security_level(WOLFSSL_CTX* ctx, int level);
 WOLFSSL_API int wolfSSL_CTX_get_security_level(const WOLFSSL_CTX* ctx);
 

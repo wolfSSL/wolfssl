@@ -62,8 +62,9 @@
     #endif
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-        defined(HAVE_WEBSERVER) || defined(WOLFSSL_KEY_GEN)
+#if !defined(WOLFCRYPT_ONLY) && (defined(OPENSSL_EXTRA)     \
+    || defined(OPENSSL_EXTRA_X509_SMALL)                    \
+    || defined(HAVE_WEBSERVER) || defined(WOLFSSL_KEY_GEN))
     #include <wolfssl/openssl/evp.h>
     /* openssl headers end, wolfssl internal headers next */
 #endif
@@ -77,15 +78,19 @@
 #ifdef OPENSSL_EXTRA
     /* openssl headers begin */
     #include <wolfssl/openssl/aes.h>
+#ifndef WOLFCRYPT_ONLY
     #include <wolfssl/openssl/hmac.h>
     #include <wolfssl/openssl/cmac.h>
+#endif
     #include <wolfssl/openssl/crypto.h>
     #include <wolfssl/openssl/des.h>
     #include <wolfssl/openssl/bn.h>
     #include <wolfssl/openssl/buffer.h>
     #include <wolfssl/openssl/dh.h>
     #include <wolfssl/openssl/rsa.h>
+#ifndef WOLFCRYPT_ONLY
     #include <wolfssl/openssl/pem.h>
+#endif
     #include <wolfssl/openssl/ec.h>
     #include <wolfssl/openssl/ec25519.h>
     #include <wolfssl/openssl/ed25519.h>

@@ -9993,7 +9993,8 @@ WOLFSSL_API int EccEnumToNID(int n)
 #endif /* HAVE_ECC */
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) \
+    && !defined(WOLFCRYPT_ONLY)
 /* Convert shortname to NID.
  *
  * For OpenSSL compatability.
