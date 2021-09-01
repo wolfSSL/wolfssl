@@ -13551,8 +13551,8 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
             ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
                                          hash[j], -1);
 #else
-            ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
-                                         hash[j], -1, wc_RsaEncryptSize(key)*8);
+            ret = wc_RsaPSS_CheckPadding_ex2(digest, digestSz, plain, plainSz,
+                              hash[j], -1, wc_RsaEncryptSize(key)*8, HEAP_HINT);
 #endif
             if (ret != 0)
                 ERROR_OUT(-7733, exit_rsa_pss);
@@ -13627,8 +13627,8 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
             ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, sig, plainSz,
                 hash[0], 0);
 #else
-            ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, sig, plainSz,
-                hash[0], 0, 0);
+            ret = wc_RsaPSS_CheckPadding_ex2(digest, digestSz, sig, plainSz,
+                hash[0], 0, 0, HEAP_HINT);
 #endif
         }
     } while (ret == WC_PENDING_E);
@@ -13657,8 +13657,8 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
     ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
                                     0);
 #else
-    ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
-                                    0, 0);
+    ret = wc_RsaPSS_CheckPadding_ex2(digest, digestSz, plain, plainSz, hash[0],
+                                    0, 0, HEAP_HINT);
 #endif
     if (ret != 0)
         ERROR_OUT(-7739, exit_rsa_pss);
@@ -13736,8 +13736,8 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
     ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
                                     len);
 #else
-    ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
-                                    len, 0);
+    ret = wc_RsaPSS_CheckPadding_ex2(digest, digestSz, plain, plainSz, hash[0],
+                                    len, 0, HEAP_HINT);
 #endif
     if (ret != PSS_SALTLEN_E)
         ERROR_OUT(-7744, exit_rsa_pss);
@@ -13751,8 +13751,8 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
     ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
                                     len);
 #else
-    ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
-                                    len, 0);
+    ret = wc_RsaPSS_CheckPadding_ex2(digest, digestSz, plain, plainSz, hash[0],
+                                    len, 0, HEAP_HINT);
 #endif
     if (ret != PSS_SALTLEN_E)
         ERROR_OUT(-7745, exit_rsa_pss);
