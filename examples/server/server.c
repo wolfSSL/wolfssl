@@ -2531,7 +2531,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     if (ssl == NULL)
         err_sys_ex(catastrophic, "unable to create an SSL object");
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_SECRET_CALLBACK)
     wolfSSL_KeepArrays(ssl);
 #endif
 
