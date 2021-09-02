@@ -18281,6 +18281,98 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
     #endif /* !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
               (HAVE_FIPS_VERSION > 2)) */
+
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#if !defined(WOLFSSL_NOSHA512_224)
+    int wolfSSL_SHA512_224_Init(WOLFSSL_SHA512_224_CTX* sha)
+    {
+        int ret;
+
+        WOLFSSL_ENTER("wolfSSL_SHA512_224_Init");
+        ret = wc_InitSha512_224((wc_Sha512*)sha);
+
+        /* return WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise */
+        if (ret == 0)
+            return WOLFSSL_SUCCESS;
+
+        return WOLFSSL_FAILURE;
+    }
+
+    int wolfSSL_SHA512_224_Update(WOLFSSL_SHA512_224_CTX* sha,
+                                        const void* input, unsigned long sz)
+    {
+        int ret;
+
+        WOLFSSL_ENTER("wolfSSL_SHA512_224_Update");
+        ret = wc_Sha512_224Update((wc_Sha512*)sha, (const byte*)input, (word32)sz);
+
+        /* return WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise */
+        if (ret == 0)
+            return WOLFSSL_SUCCESS;
+
+        return WOLFSSL_FAILURE;
+    }
+
+    int wolfSSL_SHA512_224_Final(byte* input, WOLFSSL_SHA512_224_CTX* sha)
+    {
+        int ret;
+
+        WOLFSSL_ENTER("wolfSSL_SHA512_224_Final");
+        ret = wc_Sha512_224Final((wc_Sha512*)sha, input);
+
+        /* return WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise */
+        if (ret == 0)
+            return WOLFSSL_SUCCESS;
+
+        return WOLFSSL_FAILURE;
+    }
+#endif /* !WOLFSSL_NOSHA512_224 */
+#if !defined(WOLFSSL_NOSHA512_256)
+    int wolfSSL_SHA512_256_Init(WOLFSSL_SHA512_256_CTX* sha)
+    {
+        int ret;
+
+        WOLFSSL_ENTER("wolfSSL_SHA512_256_Init");
+        ret = wc_InitSha512_256((wc_Sha512*)sha);
+
+        /* return WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise */
+        if (ret == 0)
+            return WOLFSSL_SUCCESS;
+
+        return WOLFSSL_FAILURE;
+    }
+
+    int wolfSSL_SHA512_256_Update(WOLFSSL_SHA512_256_CTX* sha,
+                                        const void* input, unsigned long sz)
+    {
+        int ret;
+
+        WOLFSSL_ENTER("wolfSSL_SHA512_256_Update");
+        ret = wc_Sha512_256Update((wc_Sha512*)sha, (const byte*)input, (word32)sz);
+
+        /* return WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise */
+        if (ret == 0)
+            return WOLFSSL_SUCCESS;
+
+        return WOLFSSL_FAILURE;
+    }
+
+    int wolfSSL_SHA512_256_Final(byte* input, WOLFSSL_SHA512_256_CTX* sha)
+    {
+        int ret;
+
+        WOLFSSL_ENTER("wolfSSL_SHA512_256_Final");
+        ret = wc_Sha512_256Final((wc_Sha512*)sha, input);
+
+        /* return WOLFSSL_SUCCESS on success, 0 otherwise */
+        if (ret == 0)
+            return WOLFSSL_SUCCESS;
+
+        return WOLFSSL_FAILURE;
+    }
+#endif /* !WOLFSSL_NOSHA512_256 */
+#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
+
 #endif /* WOLFSSL_SHA512 */
 
 #ifdef WOLFSSL_SHA3

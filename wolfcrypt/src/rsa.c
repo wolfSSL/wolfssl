@@ -1854,6 +1854,8 @@ int wc_hash2mgf(enum wc_HashType hType)
     case WC_HASH_TYPE_MD4:
     case WC_HASH_TYPE_MD5:
     case WC_HASH_TYPE_MD5_SHA:
+    case WC_HASH_TYPE_SHA512_224:
+    case WC_HASH_TYPE_SHA512_256:
     case WC_HASH_TYPE_SHA3_224:
     case WC_HASH_TYPE_SHA3_256:
     case WC_HASH_TYPE_SHA3_384:

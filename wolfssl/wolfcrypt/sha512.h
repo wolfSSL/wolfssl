@@ -45,6 +45,8 @@
         #define WC_SHA512_BLOCK_SIZE  SHA512_BLOCK_SIZE
         #define WC_SHA512_DIGEST_SIZE SHA512_DIGEST_SIZE
         #define WC_SHA512_PAD_SIZE    SHA512_PAD_SIZE
+        #define wc_Sha512_224         Sha512_224
+        #define wc_Sha512_256         Sha512_256
     #endif /* WOLFSSL_SHA512 */
     #ifdef WOLFSSL_SHA384
         #define wc_Sha384             Sha384
@@ -113,10 +115,20 @@
 enum {
 #ifdef WOLFSSL_SHA512
     WC_SHA512              =   WC_HASH_TYPE_SHA512,
+    WC_SHA512_224          =   WC_HASH_TYPE_SHA512_224,
+    WC_SHA512_256          =   WC_HASH_TYPE_SHA512_256,
 #endif
     WC_SHA512_BLOCK_SIZE   = 128,
     WC_SHA512_DIGEST_SIZE  =  64,
-    WC_SHA512_PAD_SIZE     = 112
+    WC_SHA512_PAD_SIZE     = 112,
+
+    WC_SHA512_224_BLOCK_SIZE  = WC_SHA512_BLOCK_SIZE,
+    WC_SHA512_224_DIGEST_SIZE = 28,
+    WC_SHA512_224_PAD_SIZE    = WC_SHA512_PAD_SIZE,
+
+    WC_SHA512_256_BLOCK_SIZE  = WC_SHA512_BLOCK_SIZE,
+    WC_SHA512_256_DIGEST_SIZE = 32,
+    WC_SHA512_256_PAD_SIZE    = WC_SHA512_PAD_SIZE,
 };
 
 
@@ -162,11 +174,15 @@ struct wc_Sha512 {
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 };
 
+
 #ifndef WC_SHA512_TYPE_DEFINED
     typedef struct wc_Sha512 wc_Sha512;
-    #define WC_SHA512_TYPE_DEFINED
+    typedef struct wc_Sha512 wc_Sha512_224;
+    typedef struct wc_Sha512 wc_Sha512_256;
+
+#define WC_SHA512_TYPE_DEFINED
 #endif
-#endif
+#endif /* WOLFSSL_IMX6_CAAM && !WOLFSSL_QNX_CAAM */
 
 #endif /* HAVE_FIPS */
 
@@ -196,6 +212,49 @@ WOLFSSL_API int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst);
 #if defined(OPENSSL_EXTRA)
 WOLFSSL_API int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data);
 #endif
+
+#if !defined(WOLFSSL_NOSHA512_224)
+WOLFSSL_API int wc_InitSha512_224(wc_Sha512*);
+WOLFSSL_API int wc_InitSha512_224_ex(wc_Sha512*, void*, int);
+WOLFSSL_API int wc_Sha512_224Update(wc_Sha512*, const byte*, word32);
+WOLFSSL_API int wc_Sha512_224FinalRaw(wc_Sha512*, byte*);
+WOLFSSL_API int wc_Sha512_224Final(wc_Sha512*, byte*);
+WOLFSSL_API void wc_Sha512_224Free(wc_Sha512*);
+WOLFSSL_API int wc_Sha512_224GetHash(wc_Sha512*, byte*);
+WOLFSSL_API int wc_Sha512_224Copy(wc_Sha512* src, wc_Sha512* dst);
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    WOLFSSL_API int wc_Sha512_224SetFlags(wc_Sha512* sha512, word32 flags);
+    WOLFSSL_API int wc_Sha512_224GetFlags(wc_Sha512* sha512, word32* flags);
+#endif
+
+#if defined(OPENSSL_EXTRA)
+WOLFSSL_API int wc_Sha512_224Transform(wc_Sha512* sha, 
+                                                const unsigned char* data);
+#endif
+#endif /* !WOLFSSL_NOSHA512_224 */
+
+#if !defined(WOLFSSL_NOSHA512_256)
+WOLFSSL_API int wc_InitSha512_256(wc_Sha512*);
+WOLFSSL_API int wc_InitSha512_256_ex(wc_Sha512*, void*, int);
+WOLFSSL_API int wc_Sha512_256Update(wc_Sha512*, const byte*, word32);
+WOLFSSL_API int wc_Sha512_256FinalRaw(wc_Sha512*, byte*);
+WOLFSSL_API int wc_Sha512_256Final(wc_Sha512*, byte*);
+WOLFSSL_API void wc_Sha512_256Free(wc_Sha512*);
+WOLFSSL_API int wc_Sha512_256GetHash(wc_Sha512*, byte*);
+WOLFSSL_API int wc_Sha512_256Copy(wc_Sha512* src, wc_Sha512* dst);
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    WOLFSSL_API int wc_Sha512_256SetFlags(wc_Sha512* sha512, word32 flags);
+    WOLFSSL_API int wc_Sha512_256GetFlags(wc_Sha512* sha512, word32* flags);
+#endif
+
+#if defined(OPENSSL_EXTRA)
+WOLFSSL_API int wc_Sha512_256Transform(wc_Sha512* sha, 
+                                                const unsigned char* data);
+#endif
+#endif /* !WOLFSSL_NOSHA512_256 */
+
+
+
 #endif /* WOLFSSL_SHA512 */
 
 #if defined(WOLFSSL_SHA384)

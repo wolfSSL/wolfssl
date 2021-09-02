@@ -18464,6 +18464,55 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
     }
 #endif /* WOLFSSL_SHA512 */
 
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_224)
+    f.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
+               "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
+    f.output = "\x23\xfe\xc5\xbb\x94\xd6\x0b\x23\x30\x81\x92\x64\x0b\x0c\x45"
+               "\x33\x35\xd6\x64\x73\x4f\xe4\x0e\x72\x68\x67\x4a\xf9";
+    f.inLen  = XSTRLEN(f.input);
+    f.outLen = WC_SHA512_224_DIGEST_SIZE;
+
+    EVP_MD_CTX_init(&md_ctx);
+    ret = EVP_DigestInit(&md_ctx, EVP_sha512_224());
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = EVP_DigestUpdate(&md_ctx, f.input, (unsigned long)f.inLen);
+        if (ret == WOLFSSL_SUCCESS)
+            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+    }
+    EVP_MD_CTX_cleanup(&md_ctx);
+    if (ret != WOLFSSL_SUCCESS ||
+            XMEMCMP(hash, f.output, WC_SHA512_224_DIGEST_SIZE) != 0) {
+        return -8722;
+    }
+#endif /* WOLFSSL_SHA512 && !WOLFSSL_NOSHA512_224 */
+#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
+
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_256)
+    f.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
+               "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
+    f.output = "\x39\x28\xe1\x84\xfb\x86\x90\xf8\x40\xda\x39\x88\x12\x1d\x31"
+               "\xbe\x65\xcb\x9d\x3e\xf8\x3e\xe6\x14\x6f\xea\xc8\x61\xe1\x9b"
+               "\x56\x3a";
+    f.inLen  = XSTRLEN(f.input);
+    f.outLen = WC_SHA512_256_DIGEST_SIZE;
+
+    EVP_MD_CTX_init(&md_ctx);
+    ret = EVP_DigestInit(&md_ctx, EVP_sha512_256());
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = EVP_DigestUpdate(&md_ctx, f.input, (unsigned long)f.inLen);
+        if (ret == WOLFSSL_SUCCESS)
+            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+    }
+    EVP_MD_CTX_cleanup(&md_ctx);
+    if (ret != WOLFSSL_SUCCESS ||
+            XMEMCMP(hash, f.output, WC_SHA512_256_DIGEST_SIZE) != 0) {
+        return -8723;
+    }
+#endif /* WOLFSSL_SHA512 && !WOLFSSL_NOSHA512_224 */
+#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
+
 #ifdef WOLFSSL_SHA3
 #ifndef WOLFSSL_NOSHA3_224
     e.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"

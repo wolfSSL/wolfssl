@@ -867,8 +867,11 @@ decouple library dependencies with standard string, memory and so on.
         WC_HASH_TYPE_SHA3_512 = 13,
         WC_HASH_TYPE_BLAKE2B = 14,
         WC_HASH_TYPE_BLAKE2S = 19,
+        WC_HASH_TYPE_SHA512_224 = 20,
+        WC_HASH_TYPE_SHA512_256 = 21,    
         WC_HASH_TYPE_SHAKE128 = 22,
         WC_HASH_TYPE_SHAKE256 = 23,
+
         WC_HASH_TYPE_MAX = WC_HASH_TYPE_SHAKE256
     #else
         WC_HASH_TYPE_NONE = 0,
@@ -887,9 +890,13 @@ decouple library dependencies with standard string, memory and so on.
         WC_HASH_TYPE_SHA3_512 = 13,
         WC_HASH_TYPE_BLAKE2B = 14,
         WC_HASH_TYPE_BLAKE2S = 15,
+        WC_HASH_TYPE_SHA512_224 = 16,
+        WC_HASH_TYPE_SHA512_256 = 17,
         WC_HASH_TYPE_SHAKE128 = 18,
         WC_HASH_TYPE_SHAKE256 = 19,
+
         WC_HASH_TYPE_MAX = WC_HASH_TYPE_SHAKE256
+
     #endif /* HAVE_SELFTEST */
     };
 

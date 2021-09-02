@@ -92,9 +92,11 @@ WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha224(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha256(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha384(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha512(void);
-WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_ripemd160(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_shake128(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_shake256(void);
+WOLFSSL_API const WOLFSSL_EVP_MD *wolfSSL_EVP_sha512_224(void);
+WOLFSSL_API const WOLFSSL_EVP_MD *wolfSSL_EVP_sha512_256(void);
+WOLFSSL_API const WOLFSSL_EVP_MD *wolfSSL_EVP_ripemd160(void);
 
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_224(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_256(void);
@@ -776,6 +778,8 @@ typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
 #define EVP_sha256        wolfSSL_EVP_sha256
 #define EVP_sha384        wolfSSL_EVP_sha384
 #define EVP_sha512        wolfSSL_EVP_sha512
+#define EVP_sha512_224    wolfSSL_EVP_sha512_224
+#define EVP_sha512_256    wolfSSL_EVP_sha512_256
 #define EVP_ripemd160     wolfSSL_EVP_ripemd160
 #define EVP_shake128      wolfSSL_EVP_shake128
 #define EVP_shake256      wolfSSL_EVP_shake256
