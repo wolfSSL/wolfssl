@@ -2160,8 +2160,6 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
     }
 #endif
 
-    sz = wolfSSL_GetMaxRecordSize(ssl, sz);
-
     ret = ReceiveData(ssl, (byte*)data, sz, peek);
 
 #ifdef HAVE_WRITE_DUP
@@ -48164,27 +48162,9 @@ int wolfSSL_X509_check_email(WOLFSSL_X509 *x, const char *chk, size_t chkLen,
 }
 #endif /* OPENSSL_EXTRA && WOLFSSL_CERT_GEN */
 
+
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
-    || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
-
-int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *name,
-        const WOLFSSL_EVP_MD *type, unsigned char *md, unsigned int *len)
-{
-    WOLFSSL_ENTER("wolfSSL_X509_NAME_digest");
-
-    if (name == NULL || type == NULL)
-        return WOLFSSL_FAILURE;
-
-#if !defined(NO_FILESYSTEM) && !defined(NO_PWDBASED)
-    return wolfSSL_EVP_Digest((unsigned char*)name->name,
-                              name->sz, md, len, type, NULL);
-#else
-    (void)md;
-    (void)len;
-    return NOT_COMPILED_IN;
-#endif
-}
-
+    || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY) || defined(HAVE_SECRET_CALLBACK)
 long wolfSSL_SSL_CTX_get_timeout(const WOLFSSL_CTX *ctx)
 {
     WOLFSSL_ENTER("wolfSSL_SSL_CTX_get_timeout");
@@ -48204,6 +48184,28 @@ long wolfSSL_get_timeout(WOLFSSL* ssl)
     if (ssl == NULL)
         return 0;
     return ssl->timeout;
+}
+#endif
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
+    || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
+
+int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *name,
+        const WOLFSSL_EVP_MD *type, unsigned char *md, unsigned int *len)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_NAME_digest");
+
+    if (name == NULL || type == NULL)
+        return WOLFSSL_FAILURE;
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_PWDBASED)
+    return wolfSSL_EVP_Digest((unsigned char*)name->name,
+                              name->sz, md, len, type, NULL);
+#else
+    (void)md;
+    (void)len;
+    return NOT_COMPILED_IN;
+#endif
 }
 
 #ifdef HAVE_ECC

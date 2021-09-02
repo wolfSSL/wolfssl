@@ -3228,7 +3228,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif /* !NO_CERTS */
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_SECRET_CALLBACK)
     wolfSSL_KeepArrays(ssl);
 #endif
 
