@@ -1369,35 +1369,12 @@ file(APPEND ${OPTION_FILE} "#ifdef __cplusplus\n")
 file(APPEND ${OPTION_FILE} "extern \"C\" {\n")
 file(APPEND ${OPTION_FILE} "#endif\n\n")
 
-list(REMOVE_DUPLICATES WOLFSSL_DEFINITIONS)
-
-foreach(DEF IN LISTS WOLFSSL_DEFINITIONS)
-    if(DEF MATCHES "^-D")
-        if(DEF MATCHES "^-D(N)?DEBUG(=.+)?")
-            message("not outputting (N)DEBUG to ${OPTION_FILE}")
-        endif()
-
-        # allow user to ignore system options
-        if(DEF MATCHES "^-D_.*")
-            file(APPEND ${OPTION_FILE} "#ifndef WOLFSSL_OPTIONS_IGNORE_SYS\n")
-        endif()
-
-        string(REGEX REPLACE "^-D" "" DEF_NO_PREFIX ${DEF})
-        string(REGEX REPLACE "=.*$" "" DEF_NO_EQUAL_NO_VAL ${DEF_NO_PREFIX})
-        string(REPLACE "=" " " DEF_NO_EQUAL ${DEF_NO_PREFIX})
-
-        file(APPEND ${OPTION_FILE} "#undef  ${DEF_NO_EQUAL_NO_VAL}\n")
-        file(APPEND ${OPTION_FILE} "#define ${DEF_NO_EQUAL}\n")
-
-        if(DEF MATCHES "^-D_.*")
-            file(APPEND ${OPTION_FILE} "#endif\n")
-        endif()
-
-        file(APPEND ${OPTION_FILE} "\n")
-    else()
-        message("option w/o begin -D is ${DEF}, not saving to ${OPTION_FILE}")
-    endif()
-endforeach()
+add_to_options_file("${WOLFSSL_DEFINITIONS}" "${OPTION_FILE}")
+# CMAKE_C_FLAGS is just a string of space-separated flags to pass to the C
+# compiler. We need to replace those spaces with semicolons in order to treat it
+# as a CMake list.
+string(REPLACE " " ";" CMAKE_C_FLAGS_LIST ${CMAKE_C_FLAGS})
+add_to_options_file("${CMAKE_C_FLAGS_LIST}" "${OPTION_FILE}")
 
 file(APPEND ${OPTION_FILE} "\n#ifdef __cplusplus\n")
 file(APPEND ${OPTION_FILE} "}\n")
