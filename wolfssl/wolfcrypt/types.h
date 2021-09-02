@@ -96,11 +96,13 @@ decouple library dependencies with standard string, memory and so on.
     #endif
 
     #ifndef HAVE_ANONYMOUS_INLINE_AGGREGATES
-        /* if __STDC__, pivot on the version, otherwise guess it's allowed,
-         * subject to override.
+        /* if a version is available, pivot on the version, otherwise guess it's
+         * allowed, subject to override.
          */
         #if !defined(__STDC__) \
-            || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201101L))
+            || (!defined(__STDC_VERSION__) && !defined(__cplusplus)) \
+            || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201101L)) \
+            || (defined(__cplusplus) && (__cplusplus >= 201103L))
             #define HAVE_ANONYMOUS_INLINE_AGGREGATES 1
         #else
             #define HAVE_ANONYMOUS_INLINE_AGGREGATES 0
