@@ -4347,11 +4347,6 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
     TLSX*           extension = NULL;
     SupportedCurve* curve     = NULL;
     word32          oid       = 0;
-#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
-                              defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
-                                (!defined(NO_RSA) && defined(WOLFSSL_STATIC_DH))
-    word32          pkOid     = 0;
-#endif /* HAVE_ECC || HAVE_ED25519 || HAVE_ED448 || (!NO_RSA && STATIC_DH) */
     word32          defOid    = 0;
     word32          defSz     = 80; /* Maximum known curve size is 66. */
     word32          nextOid   = 0;
@@ -4359,11 +4354,9 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
     word32          currOid   = ssl->ecdhCurveOID;
     int             ephmSuite = 0;
     word16          octets    = 0; /* according to 'ecc_set_type ecc_sets[];' */
-    int             sig       = 0; /* validate signature */
     int             key       = 0; /* validate key       */
 
     (void)oid;
-    (void)pkOid;
 
     if (first == CHACHA_BYTE) {
         switch (second) {
@@ -4384,7 +4377,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
         return 1; /* no suite restriction */
 
     for (curve = (SupportedCurve*)extension->data;
-         curve && !(sig && key);
+         curve && !key;
          curve = curve->next) {
 
     #ifdef OPENSSL_EXTRA
@@ -4402,19 +4395,19 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
     #if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 160
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP160R1:
-                pkOid = oid = ECC_SECP160R1_OID;
+                oid = ECC_SECP160R1_OID;
                 octets = 20;
                 break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_SECPR2
             case WOLFSSL_ECC_SECP160R2:
-                pkOid = oid = ECC_SECP160R2_OID;
+                oid = ECC_SECP160R2_OID;
                 octets = 20;
                 break;
         #endif /* HAVE_ECC_SECPR2 */
         #ifdef HAVE_ECC_KOBLITZ
             case WOLFSSL_ECC_SECP160K1:
-                pkOid = oid = ECC_SECP160K1_OID;
+                oid = ECC_SECP160K1_OID;
                 octets = 20;
                 break;
         #endif /* HAVE_ECC_KOBLITZ */
@@ -4422,13 +4415,13 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
     #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 192
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP192R1:
-                pkOid = oid = ECC_SECP192R1_OID;
+                oid = ECC_SECP192R1_OID;
                 octets = 24;
                 break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_KOBLITZ
             case WOLFSSL_ECC_SECP192K1:
-                pkOid = oid = ECC_SECP192K1_OID;
+                oid = ECC_SECP192K1_OID;
                 octets = 24;
                 break;
         #endif /* HAVE_ECC_KOBLITZ */
@@ -4436,13 +4429,13 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
     #if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 224
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP224R1:
-                pkOid = oid = ECC_SECP224R1_OID;
+                oid = ECC_SECP224R1_OID;
                 octets = 28;
                 break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_KOBLITZ
             case WOLFSSL_ECC_SECP224K1:
-                pkOid = oid = ECC_SECP224K1_OID;
+                oid = ECC_SECP224K1_OID;
                 octets = 28;
                 break;
         #endif /* HAVE_ECC_KOBLITZ */
@@ -4450,7 +4443,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
     #if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP256R1:
-                pkOid = oid = ECC_SECP256R1_OID;
+                oid = ECC_SECP256R1_OID;
                 octets = 32;
                 break;
         #endif /* !NO_ECC_SECP */
@@ -4459,11 +4452,6 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
         #if (defined(HAVE_CURVE25519) || defined(HAVE_ED25519)) && ECC_MIN_KEY_SZ <= 256
             case WOLFSSL_ECC_X25519:
                 oid = ECC_X25519_OID;
-            #ifdef HAVE_ED25519
-                pkOid = ECC_ED25519_OID;
-            #else
-                pkOid = ECC_X25519_OID;
-            #endif
                 octets = 32;
                 break;
         #endif /* HAVE_CURVE25519 */
@@ -4471,13 +4459,13 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
     #if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
         #ifdef HAVE_ECC_KOBLITZ
             case WOLFSSL_ECC_SECP256K1:
-                pkOid = oid = ECC_SECP256K1_OID;
+                oid = ECC_SECP256K1_OID;
                 octets = 32;
                 break;
         #endif /* HAVE_ECC_KOBLITZ */
         #ifdef HAVE_ECC_BRAINPOOL
             case WOLFSSL_ECC_BRAINPOOLP256R1:
-                pkOid = oid = ECC_BRAINPOOLP256R1_OID;
+                oid = ECC_BRAINPOOLP256R1_OID;
                 octets = 32;
                 break;
         #endif /* HAVE_ECC_BRAINPOOL */
@@ -4485,13 +4473,13 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
     #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP384R1:
-                pkOid = oid = ECC_SECP384R1_OID;
+                oid = ECC_SECP384R1_OID;
                 octets = 48;
                 break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_BRAINPOOL
             case WOLFSSL_ECC_BRAINPOOLP384R1:
-                pkOid = oid = ECC_BRAINPOOLP384R1_OID;
+                oid = ECC_BRAINPOOLP384R1_OID;
                 octets = 48;
                 break;
         #endif /* HAVE_ECC_BRAINPOOL */
@@ -4500,11 +4488,6 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
         #if (defined(HAVE_CURVE448) || defined(HAVE_ED448)) && ECC_MIN_KEY_SZ <= 448
             case WOLFSSL_ECC_X448:
                 oid = ECC_X448_OID;
-            #ifdef HAVE_ED448
-                pkOid = ECC_ED448_OID;
-            #else
-                pkOid = ECC_X448_OID;
-            #endif
                 octets = 57;
                 break;
         #endif /* HAVE_CURVE448 */
@@ -4512,7 +4495,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
     #if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 512
         #ifdef HAVE_ECC_BRAINPOOL
             case WOLFSSL_ECC_BRAINPOOLP512R1:
-                pkOid = oid = ECC_BRAINPOOLP512R1_OID;
+                oid = ECC_BRAINPOOLP512R1_OID;
                 octets = 64;
                 break;
         #endif /* HAVE_ECC_BRAINPOOL */
@@ -4520,7 +4503,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
     #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP521R1:
-                pkOid = oid = ECC_SECP521R1_OID;
+                oid = ECC_SECP521R1_OID;
                 octets = 66;
                 break;
         #endif /* !NO_ECC_SECP */
@@ -4571,7 +4554,6 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                 case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
                 case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
                 case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8:
-                    sig |= ssl->pkCurveOID == pkOid;
                     key |= ssl->ecdhCurveOID == oid;
                     ephmSuite = 1;
                 break;
@@ -4594,7 +4576,6 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                         defOid = 0;
                         defSz = 80;
                     }
-                    sig |= ssl->pkCurveOID == pkOid;
                     key |= ssl->pkCurveOID == oid;
                 break;
     #endif /* WOLFSSL_STATIC_DH */
@@ -4609,7 +4590,6 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                 case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384:
                 case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
                 case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:
-                    sig = 1;
                     key |= ssl->ecdhCurveOID == oid;
                     ephmSuite = 1;
                 break;
@@ -4632,8 +4612,6 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                         defOid = 0;
                         defSz = 80;
                     }
-                    sig = 1;
-                    key |= ssl->pkCurveOID == pkOid;
                 break;
     #endif /* HAVE_ECC && WOLFSSL_STATIC_DH */
 #endif
@@ -4645,9 +4623,6 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                     if (oid == ECC_X448_OID && defOid == oid) {
                         defOid = 0;
                         defSz = 80;
-                    }
-                    if (oid != ECC_X25519_OID && oid != ECC_X448_OID) {
-                        sig = 1;
                     }
                     key = 1;
                 break;
@@ -4661,7 +4636,6 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                 /* ECDHE_ECDSA */
                 case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 :
                 case TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
-                    sig |= ssl->pkCurveOID == pkOid;
                     key |= ssl->ecdhCurveOID == oid;
                     ephmSuite = 1;
                 break;
@@ -4670,13 +4644,11 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                 /* ECDHE_RSA */
                 case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 :
                 case TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
-                    sig = 1;
                     key |= ssl->ecdhCurveOID == oid;
                     ephmSuite = 1;
                 break;
 #endif
                 default:
-                    sig = 1;
                     key = 1;
                 break;
             }
@@ -4708,7 +4680,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
     if (ssl->ecdhCurveOID == 0 && ephmSuite)
         key = 0;
 
-    return sig && key;
+    return key;
 }
 #endif
 
