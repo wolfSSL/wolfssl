@@ -3783,89 +3783,6 @@ void InitX509(WOLFSSL_X509* x509, int dynamicFlag, void* heap)
     #endif
 }
 
-
-/* Free wolfSSL X509 type */
-void FreeX509(WOLFSSL_X509* x509)
-{
-    if (x509 == NULL)
-        return;
-
-    FreeX509Name(&x509->issuer);
-    FreeX509Name(&x509->subject);
-    if (x509->pubKey.buffer) {
-        XFREE(x509->pubKey.buffer, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        x509->pubKey.buffer = NULL;
-    }
-    FreeDer(&x509->derCert);
-    XFREE(x509->sig.buffer, x509->heap, DYNAMIC_TYPE_SIGNATURE);
-    x509->sig.buffer = NULL;
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        XFREE(x509->authKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
-        x509->authKeyId = NULL;
-        XFREE(x509->subjKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
-        x509->subjKeyId = NULL;
-        if (x509->authInfo != NULL) {
-            XFREE(x509->authInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
-            x509->authInfo = NULL;
-        }
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-        if (x509->authInfoCaIssuer != NULL) {
-            XFREE(x509->authInfoCaIssuer, x509->heap, DYNAMIC_TYPE_X509_EXT);
-        }
-        if (x509->ext_sk != NULL) {
-            wolfSSL_sk_X509_EXTENSION_free(x509->ext_sk);
-        }
-        if (x509->ext_sk_full != NULL) {
-            wolfSSL_sk_X509_EXTENSION_free(x509->ext_sk_full);
-        }
-        #endif /* OPENSSL_ALL || WOLFSSL_QT */
-        #ifdef OPENSSL_EXTRA
-        /* Free serialNumber that was set by wolfSSL_X509_get_serialNumber */
-        if (x509->serialNumber != NULL) {
-            wolfSSL_ASN1_INTEGER_free(x509->serialNumber);
-        }
-        #endif
-        if (x509->extKeyUsageSrc != NULL) {
-            XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
-            x509->extKeyUsageSrc= NULL;
-        }
-    #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
-    #if defined(OPENSSL_ALL)
-        if (x509->algor.algorithm) {
-            wolfSSL_ASN1_OBJECT_free(x509->algor.algorithm);
-            x509->algor.algorithm = NULL;
-        }
-        if (x509->key.algor) {
-            wolfSSL_X509_ALGOR_free(x509->key.algor);
-            x509->key.algor = NULL;
-        }
-        if (x509->key.pkey) {
-            wolfSSL_EVP_PKEY_free(x509->key.pkey);
-            x509->key.pkey = NULL;
-        }
-        if (x509->subjAltNameSrc != NULL) {
-            XFREE(x509->subjAltNameSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
-            x509->subjAltNameSrc= NULL;
-        }
-    #endif /* OPENSSL_ALL */
-    #if defined(WOLFSSL_CERT_REQ) && defined(OPENSSL_ALL)
-        if (x509->challengePwAttr) {
-            wolfSSL_X509_ATTRIBUTE_free(x509->challengePwAttr);
-        }
-    #endif /* WOLFSSL_CERT_REQ */
-    if (x509->altNames) {
-        FreeAltNames(x509->altNames, x509->heap);
-        x509->altNames = NULL;
-    }
-
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
-    #ifndef SINGLE_THREADED
-        wc_FreeMutex(&x509->refMutex);
-    #endif
-    #endif
-}
-
-
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
 #if !defined(WOLFSSL_NO_TLS12)
 /* Encode the signature algorithm into buffer.
@@ -6954,7 +6871,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         wolfSSL_X509_STORE_free(ssl->x509_store_pt);
 #endif
 #ifdef KEEP_PEER_CERT
-    FreeX509(&ssl->peerCert);
+    wolfSSL_X509_free(&ssl->peerCert);
 #endif
 
 #ifdef HAVE_SESSION_TICKET
@@ -11040,7 +10957,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
                     x509Free = 1;
                 }
                 else {
-                    FreeX509(x509);
+                    wolfSSL_X509_free(x509);
                 }
             }
     #endif
@@ -11105,7 +11022,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
         }
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         if (x509Free) {
-            FreeX509(x509);
+            wolfSSL_X509_free(x509);
         }
     #endif
     #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
@@ -12336,7 +12253,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                     #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
                         if (ssl->options.handShakeDone) {
-                            FreeX509(&ssl->peerCert);
+                            wolfSSL_X509_free(&ssl->peerCert);
                             InitX509(&ssl->peerCert, 0, ssl->heap);
                         }
                         else
@@ -12345,7 +12262,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         if (ssl->secure_renegotiation &&
                                            ssl->secure_renegotiation->enabled) {
                             /* free old peer cert */
-                            FreeX509(&ssl->peerCert);
+                            wolfSSL_X509_free(&ssl->peerCert);
                             InitX509(&ssl->peerCert, 0, ssl->heap);
                         }
                         else

@@ -4881,7 +4881,6 @@ WOLFSSL_LOCAL word32  LowResTimer(void);
     WOLFSSL_LOCAL void InitX509Name(WOLFSSL_X509_NAME*, int, void*);
     WOLFSSL_LOCAL void FreeX509Name(WOLFSSL_X509_NAME* name);
     WOLFSSL_LOCAL void InitX509(WOLFSSL_X509*, int, void* heap);
-    WOLFSSL_LOCAL void FreeX509(WOLFSSL_X509*);
     WOLFSSL_LOCAL int  CopyDecodedToX509(WOLFSSL_X509*, DecodedCert*);
 #endif
 

@@ -19045,7 +19045,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->session.chain.count = 0;
 #endif
 #ifdef KEEP_PEER_CERT
-        FreeX509(&ssl->peerCert);
+        wolfSSL_X509_free(&ssl->peerCert);
         InitX509(&ssl->peerCert, 0, ssl->heap);
 #endif
 
@@ -19526,6 +19526,87 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
 #ifndef NO_CERTS
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
     defined(OPENSSL_EXTRA)  || defined(OPENSSL_EXTRA_X509_SMALL)
+
+/* Free wolfSSL X509 type */
+static void FreeX509(WOLFSSL_X509* x509)
+{
+    if (x509 == NULL)
+        return;
+
+    FreeX509Name(&x509->issuer);
+    FreeX509Name(&x509->subject);
+    if (x509->pubKey.buffer) {
+        XFREE(x509->pubKey.buffer, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        x509->pubKey.buffer = NULL;
+    }
+    FreeDer(&x509->derCert);
+    XFREE(x509->sig.buffer, x509->heap, DYNAMIC_TYPE_SIGNATURE);
+    x509->sig.buffer = NULL;
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        XFREE(x509->authKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->authKeyId = NULL;
+        XFREE(x509->subjKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->subjKeyId = NULL;
+        if (x509->authInfo != NULL) {
+            XFREE(x509->authInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
+            x509->authInfo = NULL;
+        }
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        if (x509->authInfoCaIssuer != NULL) {
+            XFREE(x509->authInfoCaIssuer, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        }
+        if (x509->ext_sk != NULL) {
+            wolfSSL_sk_X509_EXTENSION_free(x509->ext_sk);
+        }
+        if (x509->ext_sk_full != NULL) {
+            wolfSSL_sk_X509_EXTENSION_free(x509->ext_sk_full);
+        }
+        #endif /* OPENSSL_ALL || WOLFSSL_QT */
+        #ifdef OPENSSL_EXTRA
+        /* Free serialNumber that was set by wolfSSL_X509_get_serialNumber */
+        if (x509->serialNumber != NULL) {
+            wolfSSL_ASN1_INTEGER_free(x509->serialNumber);
+        }
+        #endif
+        if (x509->extKeyUsageSrc != NULL) {
+            XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
+            x509->extKeyUsageSrc= NULL;
+        }
+    #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+    #if defined(OPENSSL_ALL)
+        if (x509->algor.algorithm) {
+            wolfSSL_ASN1_OBJECT_free(x509->algor.algorithm);
+            x509->algor.algorithm = NULL;
+        }
+        if (x509->key.algor) {
+            wolfSSL_X509_ALGOR_free(x509->key.algor);
+            x509->key.algor = NULL;
+        }
+        if (x509->key.pkey) {
+            wolfSSL_EVP_PKEY_free(x509->key.pkey);
+            x509->key.pkey = NULL;
+        }
+        if (x509->subjAltNameSrc != NULL) {
+            XFREE(x509->subjAltNameSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
+            x509->subjAltNameSrc= NULL;
+        }
+    #endif /* OPENSSL_ALL */
+    #if defined(WOLFSSL_CERT_REQ) && defined(OPENSSL_ALL)
+        if (x509->challengePwAttr) {
+            wolfSSL_X509_ATTRIBUTE_free(x509->challengePwAttr);
+        }
+    #endif /* WOLFSSL_CERT_REQ */
+    if (x509->altNames) {
+        FreeAltNames(x509->altNames, x509->heap);
+        x509->altNames = NULL;
+    }
+
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+    #ifndef SINGLE_THREADED
+        wc_FreeMutex(&x509->refMutex);
+    #endif
+    #endif
+}
 
 /* user externally called free X509, if dynamic go ahead with free, otherwise
  * don't */
