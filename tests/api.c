@@ -43366,7 +43366,7 @@ static int test_tls13_apis(void)
     int          outSz;
 #endif
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
-    int          groups[2] = { WOLFSSL_ECC_SECP256R1, WOLFSSL_ECC_SECP384R1 };
+    int          groups[2] = { WOLFSSL_ECC_SECP256R1, WOLFSSL_ECC_SECP256R1 };
     int          bad_groups[2] = { 0xDEAD, 0xBEEF };
     int          numGroups = 2;
 #endif
