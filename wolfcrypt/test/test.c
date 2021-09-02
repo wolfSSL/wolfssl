@@ -14092,6 +14092,12 @@ static int rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
     }
 
     /* after loading in key use tmp as the test buffer */
+#if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2) && \
+    !defined(WOLFSSL_SP_ARM64_ASM)
+    /* The ARM64_ASM code that was FIPS validated did not return these expected
+     * failure codes. These tests cases were added after the assembly was
+     * in-lined in the module and validated, these tests will be available in
+     * the 140-3 module */
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     inLen = 32;
     outSz   = wc_RsaEncryptSize(key);
@@ -14128,7 +14134,7 @@ static int rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
         ERROR_OUT(-7813, exit_rsa_even_mod);
     }
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
-
+#endif /* HAVE_FIPS_VERSION == 2 && !WOLFSSL_SP_ARM64_ASM */
     /* if making it to this point of code without hitting an ERROR_OUT then
      * all tests have passed */
     ret = 0;
@@ -16919,6 +16925,10 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
         ERROR_OUT(-8125, done);
 #endif
 
+#if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2) && \
+    !defined(WOLFSSL_SP_ARM64_ASM)
+/* RNG with DH and SP_ASM code not supported in the in-lined FIPS ASM code,
+ * this will be available for testing in the 140-3 module */
 #ifndef WC_NO_RNG
     /* Specialized code for key gen when using FFDHE-2048, FFDHE-3072 and FFDHE-4096 */
     #ifdef HAVE_FFDHE_2048
@@ -16937,6 +16947,7 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
         ERROR_OUT(-8128, done);
     #endif
 #endif /* !WC_NO_RNG */
+#endif /* HAVE_FIPS_VERSION == 2 && !WOLFSSL_SP_ARM64_ASM */
 
     wc_FreeDhKey(key);
     keyInit = 0;
