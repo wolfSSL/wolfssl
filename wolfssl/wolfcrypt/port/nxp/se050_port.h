@@ -23,8 +23,25 @@
 #define _SE050_PORT_H_
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/visibility.h>
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wundef"
+#pragma GCC diagnostic ignored "-Wredundant-decls"
+#endif
+
+#include "fsl_sss_se05x_types.h"
+#include "fsl_sss_se05x_apis.h"
+
+#if (SSS_HAVE_SSS > 1)
 #include "fsl_sss_api.h"
+#endif
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+
 
 enum {
     SSS_BLOCK_SIZE = 512
@@ -37,10 +54,14 @@ typedef struct {
     word32 len;
 } SE050_HASH_Context;
 
-
+/* Public Functions */
 WOLFSSL_API int wc_se050_SetConfig(sss_session_t *pSession,
     sss_key_store_t *pHostKeyStore, sss_key_store_t *pKeyStore);
+#ifdef WOLFSSL_SE050_INIT
+WOLFSSL_API int wc_se050_init(const char* portName);
+#endif
 
+/* Private Functions */
 WOLFSSL_LOCAL int se050_allocate_key(void);
 WOLFSSL_LOCAL int se050_get_random_number(uint32_t count, uint8_t* rand_out);
 

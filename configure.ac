@@ -1337,7 +1337,7 @@ AC_ARG_WITH([cryptoauthlib],
 )
 
 # NXP SE050
-# current configure options line: "./configure --with-se050=/home/pi/Downloads/new_simw_top"
+# Example: "./configure --with-se050=/home/pi/simw_top"
 ENABLED_SE050="no"
 trylibse050dir=""
 AC_ARG_WITH([se050],
@@ -1356,14 +1356,20 @@ AC_ARG_WITH([se050],
                 trylibse050dir="/usr/local/lib/"
             fi
             LDFLAGS="$LDFLAGS -L$trylibse050dir/build/sss"
+            CPPFLAGS="$CPPFLAGS -I$trylibse050dir/build"
             CPPFLAGS="$CPPFLAGS -I$trylibse050dir/sss/inc"
+            CPPFLAGS="$CPPFLAGS -I$trylibse050dir/sss/ex/inc"
             CPPFLAGS="$CPPFLAGS -I$trylibse050dir/sss/port/default"
             CPPFLAGS="$CPPFLAGS -I$trylibse050dir/hostlib/hostLib/inc"
             CPPFLAGS="$CPPFLAGS -I$trylibse050dir/hostlib/hostLib/libCommon/infra"
 
             AC_CHECK_FILES([$trylibse050dir/build/sss/libSSS_APIs.a], [SE050_STATIC=yes], [SE050_STATIC=no])
             if test "x$SE050_STATIC" = "xyes"; then
-                LIB_STATIC_ADD="$trylibse050dir/build/sss/libSSS_APIs.a $LIB_STATIC_ADD"
+                LIB_STATIC_ADD="$trylibse050dir/build/sss/ex/src/libex_common.a \
+                                $trylibse050dir/build/sss/libSSS_APIs.a \
+                                $trylibse050dir/build/hostlib/hostLib/se05x/libse05x.a \
+                                $trylibse050dir/build/hostlib/hostLib/liba7x_utils.a \
+                                $trylibse050dir/build/hostlib/hostLib/libCommon/libsmCom.a $LIB_STATIC_ADD"
             else
                 AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <fsl_sss_api.h>]], [[ sss_mac_init(0); ]])],[ libse050_linked=yes ],[ libse050_linked=no ])
                 if test "x$libse050_linked" = "xno" ; then
@@ -1381,7 +1387,7 @@ AC_ARG_WITH([se050],
         fi
 
         ENABLED_SE050="yes"
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SE050"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SE050 -DSSS_USE_FTR_FILE"
     ]
 )
 

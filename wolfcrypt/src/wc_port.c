@@ -91,6 +91,10 @@
     #include <wolfssl/wolfcrypt/port/cavium/cavium_octeon_sync.h>
 #endif
 
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_INIT)
+#include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
+#endif
+
 #ifdef WOLFSSL_SCE
     #include "hal_data.h"
 #endif
@@ -228,6 +232,10 @@ int wolfCrypt_Init(void)
     #ifdef WOLFSSL_SILABS_SE_ACCEL
         /* init handles if it is already initialized */
         ret = sl_se_init();
+    #endif
+
+    #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_INIT)
+        ret = wc_se050_init(NULL);
     #endif
 
     #ifdef WOLFSSL_ARMASM

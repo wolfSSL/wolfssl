@@ -4,7 +4,7 @@ Support for the NXP DCP, KSDK and SE050 hardware acceleration boards.
 
 ## NXP SE050
 
-Support for the SE050 on-board crypto hardware acceleration for symmetric AES, SHA1/SHA256/SHA384/SHA512, ECC (including ed25519) and RNG. **(discuss p-256 ECC)**
+Support for the SE050 on-board crypto hardware acceleration for symmetric AES, SHA1/SHA256/SHA384/SHA512, ECC (including ed25519) and RNG.
 
 ## SE050 Acceleration
 
@@ -16,6 +16,22 @@ The code required to communicate with the SE050 is the `EdgeLock SE05x Plug & Tr
 
 Follow the build instruction in AN12570 (EdgeLockTM SE05x Quick start guide with Raspberry Pi) [here](https://www.nxp.com/docs/en/application-note/AN12570.pdf). 
 
+In summary here are the steps for building:
+
+```
+# from simw-top directory
+mkdir build
+cd build
+ccmake ..
+# Change:
+#   `Host OS` to `Raspbian`
+#   `Host Crypto` to `None`
+#   `SMCOM` to `T1oI2C`
+c # to configure
+q
+make
+```
+
 ## Building wolfSSL
 
 To enable support run:
@@ -26,7 +42,7 @@ make
 ``
 
 Where `PATH` is the directory location of `simw-top`.
-Example: `./configure --with-se050=/Users/[user]/simw-top`
+Example: `./configure --enable-debug --disable-shared --with-se050=/home/pi/simw-top CFLAGS="-DWOLFSSL_SE050_INIT"`
 
 ## Building Examples
 
@@ -46,7 +62,7 @@ Open the `simw-top/demos/se05x/se05x_Minimal` directory and edit `se05x_Minimal.
 #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
 `` 
 
-If you would like to run our wolfcrypt test or  benchmark tool, add: `#include "test.h"` or `#include benchmark.h`.
+If you would like to run our wolfcrypt test or benchmark tool, add: `#include "test.h"` or `#include benchmark.h`.
 
 Below is the code that was replaced in `ex_sss_entry()` to run the wolfcrypt test:
 
