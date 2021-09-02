@@ -3630,7 +3630,7 @@ int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, byte* sig,
     }
 
 #ifdef WOLFSSL_PSS_LONG_SALT
-    if (sigCheck != sigCheckBuf) {
+    if (sigCheck != NULL && sigCheck != sigCheckBuf) {
         XFREE(sigCheck, heap, DYNAMIC_TYPE_RSA_BUFFER);
     }
 #else
