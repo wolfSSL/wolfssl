@@ -39597,10 +39597,14 @@ static void test_wolfSSL_AES_cbc_encrypt(void)
     printf(testingFmt, "wolfSSL_AES_wrap_key() 256-bit NULL iv");
     AssertIntEQ(wolfSSL_AES_set_encrypt_key(key256, sizeof(key256)*8, &aes), 0);
     AssertIntEQ(wolfSSL_AES_wrap_key(&aes, NULL, wrapCipher, key256,
+            15), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_AES_wrap_key(&aes, NULL, wrapCipher, key256,
             sizeof(key256)), sizeof(wrapCipher));
     printf(resultFmt, "passed");
     printf(testingFmt, "wolfSSL_AES_unwrap_key() 256-bit NULL iv");
     AssertIntEQ(wolfSSL_AES_set_decrypt_key(key256, sizeof(key256)*8, &aes), 0);
+    AssertIntEQ(wolfSSL_AES_unwrap_key(&aes, NULL, wrapPlain, wrapCipher,
+            23), WOLFSSL_FAILURE);
     AssertIntEQ(wolfSSL_AES_unwrap_key(&aes, NULL, wrapPlain, wrapCipher,
             sizeof(wrapCipher)), sizeof(wrapPlain));
     AssertIntEQ(XMEMCMP(wrapPlain, key256, sizeof(key256)), 0);

@@ -10807,8 +10807,8 @@ int wc_AesKeyWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
     byte t[KEYWRAP_BLOCK_SIZE];
     byte tmp[AES_BLOCK_SIZE];
 
-    /* n must be at least 2, output size is n + 8 bytes */
-    if (aes == NULL || in  == NULL || inSz < 2 ||
+    /* n must be at least 2 64-bit blocks, output size is (n + 1) 8 bytes (64-bit) */
+    if (aes == NULL || in  == NULL || inSz < 2*KEYWRAP_BLOCK_SIZE ||
         out == NULL || outSz < (inSz + KEYWRAP_BLOCK_SIZE))
         return BAD_FUNC_ARG;
 
@@ -10862,7 +10862,6 @@ int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
 #endif
     int ret;
 
-    /* n must be at least 2, output size is n + 8 bytes */
     if (key == NULL)
         return BAD_FUNC_ARG;
 
@@ -10910,7 +10909,7 @@ int wc_AesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
         0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6
     };
 
-    if (aes == NULL || in == NULL || inSz < 3 ||
+    if (aes == NULL || in == NULL || inSz < 3 * KEYWRAP_BLOCK_SIZE ||
         out == NULL || outSz < (inSz - KEYWRAP_BLOCK_SIZE))
         return BAD_FUNC_ARG;
 
