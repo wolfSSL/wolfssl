@@ -6441,7 +6441,7 @@ AS_IF([test "x$ENABLED_CERTGEN" = "xyes"],
 AS_IF([test "x$ENABLED_CERTEXT" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"])
 
-AS_IF([test "x$ENABLED_ED25519" = "xyes"],
+AS_IF([test "x$ENABLED_ED25519" = "xyes" && test "x$ENABLED_32BIT" = "xno"],
       [AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519"])
 
 AS_IF([test "x$ENABLED_ED25519_SMALL" = "xyes"],
