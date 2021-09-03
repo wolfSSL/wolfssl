@@ -3218,6 +3218,71 @@ int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
 }
 #endif /* !NO_PWDBASED */
 
+
+#if defined(HAVE_SCRYPT) && defined(HAVE_PBKDF2) && !defined(NO_PWDBASED) && \
+                                                    !defined(NO_SHA256)
+/**
+ * Derives a key from the specified password and the salt using SCRYPT 
+ * algorithm.
+ * 
+ * Parameters:
+ * - pass      :password data. no need to be null-terminated. NULL is accepted.
+ * - passlen   :length of the password. Must be 0 when pass is NULL.
+ * - salt      :salt. NULL is accepted.
+ * - saltlen   :length of the salt. Must be 0 when salt is NULL.
+ * - N         :cost parameter. Must be grater or equal to 2 and be a power of 2.     
+ * - r         :block size. Must 1 or greater.
+ * - p         :parallelism 
+ * - maxmem    :maximum size of buffer used for calculation in definition,
+ *              Not referred in this implementation.
+ * - key       :derived key.
+ * - keylen    :length of the derived key
+ * 
+ * Returns:
+ *   1 on success, otherwise 0.
+ */
+int wolfSSL_EVP_PBE_scrypt(const char *pass, size_t passlen,
+                            const unsigned char *salt, size_t saltlen,
+                            word64 N, word64 r, word64 p, 
+                            word64 maxmem, unsigned char *key, size_t keylen)
+{
+    (void)maxmem;
+    int ret;
+    int exp = 0;
+
+    WOLFSSL_ENTER("wolfSSL_EVP_PBE_scrypt");
+
+    if (r > INT32_MAX || p > INT32_MAX) {
+        WOLFSSL_MSG("Doesn't support greater than 32 bit values of r and p");
+        return WOLFSSL_FAILURE;
+    }
+    /* N must be a power of 2 and > 2. 
+       if (N & (N-1)) is zero, it means N is a power of 2.
+     */
+    if (N < 2 || (N & (N-1)) || r <= 0 || p <= 0)
+        return WOLFSSL_FAILURE;
+
+    if (key == NULL)
+        return WOLFSSL_SUCCESS;
+
+    /* get exponent of power of 2. Confirmed N is power of 2. */    
+    while (N != 1) {
+        N >>= 1;
+        exp++;
+    }
+
+    ret = wc_scrypt(key, (const byte*)pass, (int)passlen, salt, (int)saltlen,
+                                            exp, (int)r, (int)p, (int)keylen);
+
+    WOLFSSL_LEAVE("wolfSSL_EVP_PBE_scrypt", ret);
+
+    if (ret == 0)
+        return WOLFSSL_SUCCESS;
+    else
+        return WOLFSSL_FAILURE;
+}
+#endif /* HAVE_SCRYPT && HAVE_PBKDF2 && !NO_PWDBASED && !NO_SHA */
+
 static const struct cipher{
         unsigned char type;
         const char *name;

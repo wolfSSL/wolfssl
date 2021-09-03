@@ -723,6 +723,14 @@ WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
                                            const WOLFSSL_EVP_MD *digest,
                                            int keylen, unsigned char *out);
 
+#if defined(HAVE_SCRYPT) && defined(HAVE_PBKDF2) && !defined(NO_PWDBASED) && \
+                                                    !defined(NO_SHA)
+WOLFSSL_API int wolfSSL_EVP_PBE_scrypt(const char *pass, size_t passlen,
+                            const unsigned char *salt, size_t saltlen,
+                            word64 N, word64 r, word64 p, 
+                            word64 maxmem, unsigned char *key, size_t keylen);
+#endif /* HAVE_SCRYPT && HAVE_PBKDF2 && !NO_PWDBASED && !NO_SHA */
+
 WOLFSSL_LOCAL int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
                                            int* pHash, int* pHashSz);
 
@@ -992,6 +1000,7 @@ typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
 
 #define PKCS5_PBKDF2_HMAC_SHA1     wolfSSL_PKCS5_PBKDF2_HMAC_SHA1
 #define PKCS5_PBKDF2_HMAC          wolfSSL_PKCS5_PBKDF2_HMAC
+#define EVP_PBE_scrypt             wolfSSL_EVP_PBE_scrypt
 
 /* OpenSSL compat. ctrl values */
 #define EVP_CTRL_INIT                  0x0

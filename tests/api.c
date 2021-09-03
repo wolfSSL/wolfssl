@@ -42625,6 +42625,92 @@ static void test_wolfSSL_EVP_PKEY_derive(void)
 #endif /* OPENSSL_ALL || WOLFSSL_QT || WOLFSSL_OPENSSH */
 }
 
+static void test_wolfSSL_EVP_PBE_scrypt(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SCRYPT) && defined(HAVE_PBKDF2)
+#if !defined(NO_PWDBASED) &&  !defined(NO_SHA256)
+
+    int ret;
+ 
+    const char  pwd[]    = {'p','a','s','s','w','o','r','d'};
+    int         pwdlen   = sizeof(pwd);
+    const byte  salt[]   = {'N','a','C','l'};
+    int         saltlen  = sizeof(salt);
+    byte        key[80];
+    word64      numOvr32 = (word64)INT32_MAX + 1;
+
+    /* expected derived key for N:16, r:1, p:1 */
+    const byte expectedKey[] = {
+        0xAE, 0xC6, 0xB7, 0x48, 0x3E, 0xD2, 0x6E, 0x08, 0x80, 0x2B,
+        0x41, 0xF4, 0x03, 0x20, 0x86, 0xA0, 0xE8, 0x86, 0xBE, 0x7A,
+        0xC4, 0x8F, 0xCF, 0xD9, 0x2F, 0xF0, 0xCE, 0xF8, 0x10, 0x97,
+        0x52, 0xF4, 0xAC, 0x74, 0xB0, 0x77, 0x26, 0x32, 0x56, 0xA6,
+        0x5A, 0x99, 0x70, 0x1B, 0x7A, 0x30, 0x4D, 0x46, 0x61, 0x1C,
+        0x8A, 0xA3, 0x91, 0xE7, 0x99, 0xCE, 0x10, 0xA2, 0x77, 0x53,
+        0xE7, 0xE9, 0xC0, 0x9A};
+    
+    printf(testingFmt, "wolfSSL_EVP_PBE_scrypt()");
+
+    /*                                               N  r  p  mx key keylen */
+    ret = EVP_PBE_scrypt(pwd, pwdlen, salt, saltlen, 0, 1, 1, 0, key, 64);
+    AssertIntEQ(ret, 0); /* N must be greater than 1 */
+
+    ret = EVP_PBE_scrypt(pwd, pwdlen, salt, saltlen, 3, 1, 1, 0, key, 64);
+    AssertIntEQ(ret, 0); /* N must be power of 2 */
+
+    ret = EVP_PBE_scrypt(pwd, pwdlen, salt, saltlen, 2, 0, 1, 0, key, 64);
+    AssertIntEQ(ret, 0); /* r must be greater than 0 */
+
+    ret = EVP_PBE_scrypt(pwd, pwdlen, salt, saltlen, 2, 1, 0, 0, key, 64);
+    AssertIntEQ(ret, 0); /* p must be greater than 0 */
+
+    ret = EVP_PBE_scrypt(pwd, pwdlen, salt, saltlen, 2, 1, 1, 0, key, 0);
+    AssertIntEQ(ret, 0); /* keylen must be greater than 0 */
+
+    ret = EVP_PBE_scrypt(pwd, pwdlen, salt, saltlen, 2, 9, 1, 0, key, 64);
+    AssertIntEQ(ret, 0); /* r must be smaller than 9 */
+
+    ret = EVP_PBE_scrypt(pwd, pwdlen, salt, saltlen, 2, 1, 1, 0, NULL, 64);
+    AssertIntEQ(ret, 1); /* should succeed if key is NULL  */
+
+    ret = EVP_PBE_scrypt(pwd, pwdlen, salt, saltlen, 2, 1, 1, 0, key, 64);
+    AssertIntEQ(ret, 1); /* should succeed */
+
+    ret = EVP_PBE_scrypt(pwd, pwdlen, salt, saltlen, 2, numOvr32, 1, 0,
+                                                                    key, 64);
+    AssertIntEQ(ret, 0); /* should fail since r is greater than INT32_MAC */
+
+    ret = EVP_PBE_scrypt(pwd, pwdlen, salt, saltlen, 2, 1, numOvr32, 0,
+                                                                    key, 64);
+    AssertIntEQ(ret, 0); /* should fail since p is greater than INT32_MAC */
+
+    ret = EVP_PBE_scrypt(pwd, pwdlen, NULL, 0, 2, 1, 1, 0, key, 64);
+    AssertIntEQ(ret, 1); /* should succeed even if salt is NULL */
+
+    ret = EVP_PBE_scrypt(pwd, pwdlen, NULL, 4, 2, 1, 1, 0, key, 64);
+    AssertIntEQ(ret, 0); /* if salt is NULL, saltlen must be 0, otherwise fail*/
+
+    ret = EVP_PBE_scrypt(NULL, 0, salt, saltlen, 2, 1, 1, 0, key, 64);
+    AssertIntEQ(ret, 1); /* should succeed if pwd is NULL and pwdlen is 0*/
+
+    ret = EVP_PBE_scrypt(NULL, 4, salt, saltlen, 2, 1, 1, 0, key, 64);
+    AssertIntEQ(ret, 0); /* if pwd is NULL, pwdlen must be 0 */
+
+    ret = EVP_PBE_scrypt(NULL, 0, NULL, 0, 2, 1, 1, 0, key, 64);
+    AssertIntEQ(ret, 1); /* should succeed even both pwd and salt are NULL */
+
+    ret = EVP_PBE_scrypt(pwd, pwdlen, salt, saltlen, 16, 1, 1, 0, key, 64);
+    AssertIntEQ(ret, 1);
+
+    ret = XMEMCMP(expectedKey, key, sizeof(expectedKey));
+    AssertIntEQ(ret, 0); /* derived key must be the same as expected-key */
+
+    printf(resultFmt, "passed");
+
+#endif /* !NO_PWDBASED && !NO_SHA256 */
+#endif /* OPENSSL_EXTRA && HAVE_SCRYPT && HAVE_PBKDF2 */
+}
+
 #ifndef NO_RSA
 static void test_wolfSSL_RSA_padding_add_PKCS1_PSS(void)
 {
@@ -48742,6 +48828,7 @@ void ApiTest(void)
     test_wolfSSL_OCSP_resp_count();
     test_wolfSSL_OCSP_resp_get0();
     test_wolfSSL_EVP_PKEY_derive();
+    test_wolfSSL_EVP_PBE_scrypt();
 #ifndef NO_RSA
     test_wolfSSL_RSA_padding_add_PKCS1_PSS();
 #endif
