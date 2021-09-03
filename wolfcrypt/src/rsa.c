@@ -3551,16 +3551,13 @@ int wc_RsaPSS_CheckPadding(const byte* in, word32 inSz, byte* sig,
  * NULL is passed in to in or sig or inSz is not the same as the hash
  * algorithm length and 0 on success.
  */
-int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
-                              word32 sigSz, enum wc_HashType hashType,
-                              int saltLen, int bits)
+int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, byte* sig,
+                               word32 sigSz, enum wc_HashType hashType,
+                               int saltLen, int bits, void* heap)
 {
     int ret = 0;
-#ifndef WOLFSSL_PSS_LONG_SALT
-    byte sigCheck[WC_MAX_DIGEST_SIZE*2 + RSA_PSS_PAD_SZ];
-#else
-    byte *sigCheck = NULL;
-#endif
+    byte sigCheckBuf[WC_MAX_DIGEST_SIZE*2 + RSA_PSS_PAD_SZ];
+    byte *sigCheck = sigCheckBuf;
 
     (void)bits;
 
@@ -3609,8 +3606,9 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
     }
 
 #ifdef WOLFSSL_PSS_LONG_SALT
-    if (ret == 0) {
-        sigCheck = (byte*)XMALLOC(RSA_PSS_PAD_SZ + inSz + saltLen, NULL,
+    /* if long salt is larger then default maximum buffer then allocate a buffer */
+    if (ret == 0 && sizeof(sigCheckBuf) < (RSA_PSS_PAD_SZ + inSz + saltLen)) {
+        sigCheck = (byte*)XMALLOC(RSA_PSS_PAD_SZ + inSz + saltLen, heap,
                                                        DYNAMIC_TYPE_RSA_BUFFER);
         if (sigCheck == NULL) {
             ret = MEMORY_E;
@@ -3634,11 +3632,21 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
     }
 
 #ifdef WOLFSSL_PSS_LONG_SALT
-    if (sigCheck != NULL) {
-        XFREE(sigCheck, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+    if (sigCheck != NULL && sigCheck != sigCheckBuf) {
+        XFREE(sigCheck, heap, DYNAMIC_TYPE_RSA_BUFFER);
     }
+#else
+    (void)heap;
 #endif
+
     return ret;
+}
+int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
+                               word32 sigSz, enum wc_HashType hashType,
+                               int saltLen, int bits)
+{
+    return wc_RsaPSS_CheckPadding_ex2(in, inSz, sig, sigSz, hashType, saltLen,
+        bits, NULL);
 }
 
 
