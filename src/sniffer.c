@@ -4796,8 +4796,13 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                 }
             }
         }
-        else
-            return 1;
+        else {
+            /* This can happen with out of order packets, or possible spurious
+             * retransmission. If packet has data attempt to process packet */
+            if (*sslBytes == 0) {
+                return 1;
+            }
+        }
     }
     else if (real > *expected) {
         Trace(OUT_OF_ORDER_STR);
@@ -5305,6 +5310,16 @@ doMessage:
     sslBytes -= RECORD_HEADER_SZ;
     recordEnd = sslFrame + rhSize;   /* may have more than one record */
     inRecordEnd = recordEnd;
+
+    /* Make sure cipher is on for client, if we get an application data packet 
+     * and handhsake is done for server. This workaround is required if client
+     * handshake packets were missed, retransmitted or sent out of order. */
+    if ((enum ContentType)rh.type == application_data &&
+                  ssl->options.handShakeDone && session->flags.serverCipherOn) {
+        session->flags.clientCipherOn = 1;
+        session->sslClient->options.handShakeState = HANDSHAKE_DONE;
+        session->sslClient->options.handShakeDone  = 1;
+    }
 
     /* decrypt if needed */
     if ((session->flags.side == WOLFSSL_SERVER_END &&
