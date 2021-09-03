@@ -5416,7 +5416,7 @@ doPart:
             {
                 word32 inOutIdx = 0;
 
-                ret = DoApplicationData(ssl, (byte*)sslFrame, &inOutIdx);
+                ret = DoApplicationData(ssl, (byte*)sslFrame, &inOutIdx, SNIFF);
                 if (ret == 0) {
                     ret = ssl->buffers.clearOutputBuffer.length;
                     TraceGotData(ret);
