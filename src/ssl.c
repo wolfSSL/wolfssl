@@ -49378,7 +49378,7 @@ int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx, const unsigned char *p,
 #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
         /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
          * the function reverses the return value convention.
-        */
+         */
         return 1;
 #else
         return SSL_FAILURE;
@@ -49420,9 +49420,9 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
 
     if (ssl == NULL || p_len <= 1) {
 #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
-       /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
-        * the function reverses the return value convention.
-        */
+        /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
+         * the function reverses the return value convention.
+         */
         return 1;
 #else
         return WOLFSSL_FAILURE;
@@ -49432,9 +49432,9 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
     bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
     if (bio == NULL) {
 #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
-    /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
-     * the function reverses the return value convention.
-     */
+        /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
+         * the function reverses the return value convention.
+         */
         return 1;
 #else
         return WOLFSSL_FAILURE;
@@ -49450,9 +49450,9 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
             WOLFSSL_MSG("Bad list format");
             wolfSSL_BIO_free(bio);
     #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
-        /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
-        * the function reverses the return value convention.
-        */
+            /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
+             * the function reverses the return value convention.
+             */
             return 1;
     #else
             return WOLFSSL_FAILURE;
