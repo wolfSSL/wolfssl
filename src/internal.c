@@ -3808,6 +3808,10 @@ void FreeX509(WOLFSSL_X509* x509)
             XFREE(x509->authInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
             x509->authInfo = NULL;
         }
+        if (x509->CRLInfo != NULL) {
+            XFREE(x509->CRLInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
+            x509->CRLInfo = NULL;
+        }
         #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         if (x509->authInfoCaIssuer != NULL) {
             XFREE(x509->authInfoCaIssuer, x509->heap, DYNAMIC_TYPE_X509_EXT);
@@ -10526,8 +10530,17 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 
     x509->CRLdistSet = dCert->extCRLdistSet;
     x509->CRLdistCrit = dCert->extCRLdistCrit;
-    x509->CRLInfo = dCert->extCrlInfo;
-    x509->CRLInfoSz = dCert->extCrlInfoSz;
+    if (dCert->extCrlInfo != NULL && dCert->extCrlInfoSz > 0) {
+        x509->CRLInfo = (byte*)XMALLOC(dCert->extCrlInfoSz, x509->heap,
+            DYNAMIC_TYPE_X509_EXT);
+        if (x509->CRLInfo != NULL) {
+            XMEMCPY(x509->CRLInfo, dCert->extCrlInfo, dCert->extCrlInfoSz);
+            x509->CRLInfoSz = dCert->extCrlInfoSz;
+        }
+        else {
+            ret = MEMORY_E;
+        }
+    }
     x509->authInfoSet = dCert->extAuthInfoSet;
     x509->authInfoCrit = dCert->extAuthInfoCrit;
     if (dCert->extAuthInfo != NULL && dCert->extAuthInfoSz > 0) {
