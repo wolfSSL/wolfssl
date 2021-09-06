@@ -33008,8 +33008,26 @@ static void test_wolfSSL_set_options(void)
 
     AssertTrue(SSL_set_msg_callback(ssl, msg_cb) == SSL_SUCCESS);
     SSL_set_msg_callback_arg(ssl, arg);
-
+#ifdef WOLFSSL_ERROR_CODE_OPENSSL
+    AssertTrue(SSL_CTX_set_alpn_protos(ctx, protos, len) == 0);   
+#else
     AssertTrue(SSL_CTX_set_alpn_protos(ctx, protos, len) == SSL_SUCCESS);
+#endif
+
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_ALL) || \
+    defined(HAVE_LIGHTY) || defined(HAVE_STUNNEL)
+
+#if defined(HAVE_ALPN) && !defined(NO_BIO)
+
+#ifdef WOLFSSL_ERROR_CODE_OPENSSL
+    AssertTrue(SSL_set_alpn_protos(ssl, protos, len) == 0);
+#else
+    AssertTrue(SSL_set_alpn_protos(ssl, protos, len) == SSL_SUCCESS);
+#endif
+
+#endif /* HAVE_ALPN && !NO_BIO */
+#endif
 
     SSL_free(ssl);
     SSL_CTX_free(ctx);

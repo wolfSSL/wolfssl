@@ -49375,11 +49375,25 @@ int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx, const unsigned char *p,
     ctx->alpn_cli_protos =
         (const unsigned char *)wolfSSL_OPENSSL_memdup(p, p_len, NULL, 0);
     if (ctx->alpn_cli_protos == NULL) {
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+        /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
+         * the function reverses the return value convention.
+         */
+        return 1;
+#else
         return SSL_FAILURE;
+#endif
     }
     ctx->alpn_cli_protos_len = p_len;
 
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
+     * the function reverses the return value convention.
+     */
+    return 0;
+#else
     return WOLFSSL_SUCCESS;
+#endif
 }
 
 
@@ -49405,12 +49419,26 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
     WOLFSSL_ENTER("wolfSSL_set_alpn_protos");
 
     if (ssl == NULL || p_len <= 1) {
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+        /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
+         * the function reverses the return value convention.
+         */
+        return 1;
+#else
         return WOLFSSL_FAILURE;
+#endif
     }
 
     bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
     if (bio == NULL) {
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+        /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
+         * the function reverses the return value convention.
+         */
+        return 1;
+#else
         return WOLFSSL_FAILURE;
+#endif
     }
 
     /* convert into comma separated list */
@@ -49421,7 +49449,14 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
         if (idx + sz > p_len) {
             WOLFSSL_MSG("Bad list format");
             wolfSSL_BIO_free(bio);
+    #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+            /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
+             * the function reverses the return value convention.
+             */
+            return 1;
+    #else
             return WOLFSSL_FAILURE;
+    #endif
         }
         if (sz > 0) {
             for (i = 0; i < sz; i++) {
@@ -49440,7 +49475,14 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
         wolfSSL_UseALPN(ssl, pt, sz, alpn_opt);
     }
     wolfSSL_BIO_free(bio);
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
+     * the function reverses the return value convention.
+     */
+    return 0;
+#else
     return WOLFSSL_SUCCESS;
+#endif
 }
 #endif /* !NO_BIO */
 #endif /* HAVE_ALPN */
