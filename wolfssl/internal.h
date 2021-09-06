@@ -3935,7 +3935,7 @@ struct WOLFSSL_X509 {
 #ifdef OPENSSL_ALL
     byte*            subjAltNameSrc;
 #endif
-    const byte*      CRLInfo;
+    byte*            CRLInfo;
     byte*            authInfo;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     byte*            authInfoCaIssuer;
