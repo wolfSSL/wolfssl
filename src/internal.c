@@ -15803,7 +15803,7 @@ int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
 #endif
 
 
-int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
+int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
 {
     word32 msgSz   = ssl->keys.encryptSz;
     word32 idx     = *inOutIdx;
@@ -15831,7 +15831,9 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
         }
         if (!process) {
             WOLFSSL_MSG("Received App data before a handshake completed");
-            SendAlert(ssl, alert_fatal, unexpected_message);
+            if (sniff == NO_SNIFF) {
+                SendAlert(ssl, alert_fatal, unexpected_message);
+            }
             return OUT_OF_ORDER_E;
         }
     }
@@ -15839,7 +15841,9 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
 #endif
     if (ssl->options.handShakeDone == 0) {
         WOLFSSL_MSG("Received App data before a handshake completed");
-        SendAlert(ssl, alert_fatal, unexpected_message);
+        if (sniff == NO_SNIFF) {
+            SendAlert(ssl, alert_fatal, unexpected_message);
+        }
         return OUT_OF_ORDER_E;
     }
 
@@ -15862,13 +15866,17 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
 #endif
     if (dataSz < 0) {
         WOLFSSL_MSG("App data buffer error, malicious input?");
-        SendAlert(ssl, alert_fatal, unexpected_message);
+        if (sniff == NO_SNIFF) {
+            SendAlert(ssl, alert_fatal, unexpected_message);
+        }
         return BUFFER_ERROR;
     }
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->earlyData > early_data_ext) {
         if (ssl->earlyDataSz + dataSz > ssl->options.maxEarlyDataSz) {
-            SendAlert(ssl, alert_fatal, unexpected_message);
+            if (sniff == NO_SNIFF) {
+                SendAlert(ssl, alert_fatal, unexpected_message);
+            }
             return WOLFSSL_FATAL_ERROR;
         }
         ssl->earlyDataSz += dataSz;
@@ -17168,8 +17176,8 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                     #endif
                     if ((ret = DoApplicationData(ssl,
                                                 ssl->buffers.inputBuffer.buffer,
-                                                &ssl->buffers.inputBuffer.idx))
-                                                                         != 0) {
+                                                &ssl->buffers.inputBuffer.idx,
+                                                              NO_SNIFF)) != 0) {
                         WOLFSSL_ERROR(ret);
                         return ret;
                     }

@@ -33181,7 +33181,7 @@ WOLFSSL_API int wolfSSL_i2d_DSAparams(const WOLFSSL_DSA* dsa,
     }
 
     if (ret < 0 && preAllocated == 0) {
-        XFREE(*out, key->heap, DYNAMIC_TYPE_OPENSSL)
+        XFREE(*out, key->heap, DYNAMIC_TYPE_OPENSSL);
     }
 
     WOLFSSL_LEAVE("wolfSSL_i2d_DSAparams", ret);
