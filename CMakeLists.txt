@@ -1373,7 +1373,7 @@ add_to_options_file("${WOLFSSL_DEFINITIONS}" "${OPTION_FILE}")
 # CMAKE_C_FLAGS is just a string of space-separated flags to pass to the C
 # compiler. We need to replace those spaces with semicolons in order to treat it
 # as a CMake list.
-string(REPLACE " " ";" CMAKE_C_FLAGS_LIST ${CMAKE_C_FLAGS})
+string(REPLACE " " ";" CMAKE_C_FLAGS_LIST "${CMAKE_C_FLAGS}")
 add_to_options_file("${CMAKE_C_FLAGS_LIST}" "${OPTION_FILE}")
 
 file(APPEND ${OPTION_FILE} "\n#ifdef __cplusplus\n")
