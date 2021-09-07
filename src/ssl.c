@@ -14899,6 +14899,7 @@ int AddSession(WOLFSSL* ssl)
      * id. */
     if (ssl->sessionCtxSz > 0 && ssl->sessionCtxSz < ID_LEN) {
         XMEMCPY(session->sessionCtx, ssl->sessionCtx, ssl->sessionCtxSz);
+        session->sessionCtxSz = ssl->sessionCtxSz;
     }
 #endif
 
