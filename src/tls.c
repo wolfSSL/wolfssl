@@ -1623,13 +1623,16 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, const byte *input, word16 length,
                                                TLSX_APPLICATION_LAYER_PROTOCOL);
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-    if (ssl->alpnSelect != NULL) {
+    if (ssl->alpnSelect != NULL && ssl->options.side == WOLFSSL_SERVER_END) {
         const byte* out;
         unsigned char outLen;
 
         if (ssl->alpnSelect(ssl, &out, &outLen, input + offset, size,
                             ssl->alpnSelectArg) == 0) {
             WOLFSSL_MSG("ALPN protocol match");
+            /* clears out all current ALPN extensions set */
+            TLSX_Remove(&ssl->extensions, TLSX_APPLICATION_LAYER_PROTOCOL, ssl->heap);
+
             if (TLSX_UseALPN(&ssl->extensions, (char*)out, outLen, 0, ssl->heap)
                                                            == WOLFSSL_SUCCESS) {
                 if (extension == NULL) {
