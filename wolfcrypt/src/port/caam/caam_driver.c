@@ -561,11 +561,13 @@ Error caamAddJob(DESCSTRUCT* desc)
 
         if (CAAM_ADR_SYNC(caam.ring.VirtualDesc,
                     desc->idx * sizeof(unsigned int)) != 0) {
+            CAAM_UNLOCK_MUTEX(&caam.ring.jr_lock);
             return -1;
         }
 
         if (CAAM_ADR_SYNC(caam.ring.VirtualIn,
                     CAAM_JOBRING_SIZE * sizeof(unsigned int)) != 0) {
+            CAAM_UNLOCK_MUTEX(&caam.ring.jr_lock);
             return -1;
         }
 
