@@ -6267,8 +6267,9 @@ static void test_wolfSSL_UseALPN_params(void)
 
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
     defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)) && \
-    defined(HAVE_ALPN)
-
+    (defined(HAVE_ALPN) && defined(HAVE_SNI)) &&\
+    defined(HAVE_IO_TESTS_DEPENDENCIES)
+    
 static void CTX_set_alpn_protos(SSL_CTX *ctx)
 {
     unsigned char p[] = {
@@ -6320,7 +6321,7 @@ static void verify_alpn_matching_spdy3(WOLFSSL* ssl)
     unsigned int protoSz = 0;
 
     SSL_get0_alpn_selected(ssl, &proto, &protoSz);
-    printf("protSz %d proto %s\n", protoSz, proto);
+
     /* check value */
     AssertIntEQ(1, sizeof(nego_proto) == protoSz);
     AssertIntEQ(0, XMEMCMP(nego_proto, proto, protoSz));
@@ -6334,7 +6335,7 @@ static void verify_alpn_matching_http1(WOLFSSL* ssl)
     unsigned int protoSz = 0;
 
     SSL_get0_alpn_selected(ssl, &proto, &protoSz);
-    printf("protSz %d proto %s\n", protoSz, proto);
+
     /* check value */
     AssertIntEQ(1, sizeof(nego_proto) == protoSz);
     AssertIntEQ(0, XMEMCMP(nego_proto, proto, protoSz));
@@ -6368,11 +6369,13 @@ static void test_wolfSSL_UseALPN(void)
     test_wolfSSL_UseALPN_params();
 #endif
 
-#if defined(HAVE_ALPN) && !defined(NO_WOLFSSL_SERVER) &&\
-    defined(OPENSSL_EXTRA) && !defined(NO_BIO)
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_BIO)
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)) && \
+    (defined(HAVE_ALPN) && defined(HAVE_SNI)) && \
+    defined(HAVE_IO_TESTS_DEPENDENCIES)
+    
     test_wolfSSL_set_alpn_protos();
 #endif
 
