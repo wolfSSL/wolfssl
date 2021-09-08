@@ -1072,10 +1072,13 @@ typedef enum bench_stat_type {
     BENCH_STAT_SYM,
 } bench_stat_type_t;
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
+    #ifndef BENCH_MAX_NAME_SZ
+    #define BENCH_MAX_NAME_SZ 24
+    #endif
     typedef struct bench_stats {
         struct bench_stats* next;
         struct bench_stats* prev;
-        const char* algo;
+        char algo[BENCH_MAX_NAME_SZ]; /* may not be static, so make copy */
         const char* desc;
         double perfsec;
         int strength;
@@ -1101,7 +1104,10 @@ typedef enum bench_stat_type {
         /* locate existing in list */
         for (bstat = bench_stats_head; bstat != NULL; bstat = bstat->next) {
             /* match based on algo, strength and desc */
-            if (bstat->algo == algo && bstat->strength == strength && bstat->desc == desc && bstat->doAsync == doAsync) {
+            if (XSTRNCMP(bstat->algo, algo, BENCH_MAX_NAME_SZ) == 0 && 
+                bstat->strength == strength && 
+                bstat->desc == desc && 
+                bstat->doAsync == doAsync) {
                 break;
             }
         }
@@ -1124,10 +1130,9 @@ typedef enum bench_stat_type {
                 bench_stats_tail = bstat; /* add to the end either way */
             }
         }
-
         if (bstat) {
             bstat->type = type;
-            bstat->algo = algo;
+            XSTRNCPY(bstat->algo, algo, BENCH_MAX_NAME_SZ);
             bstat->strength = strength;
             bstat->desc = desc;
             bstat->doAsync = doAsync;
@@ -1136,17 +1141,8 @@ typedef enum bench_stat_type {
             bstat->perftype = perftype;
             if (bstat->lastRet > ret)
                 bstat->lastRet = ret; /* track last error */
-
-            pthread_mutex_unlock(&bench_lock);
-
-            /* wait until remaining are complete */
-            while (bstat->finishCount < g_threadCount) {
-                wc_AsyncThreadYield();
-            }
         }
-        else {
-            pthread_mutex_unlock(&bench_lock);
-        }
+        pthread_mutex_unlock(&bench_lock);
 
         return bstat;
     }
@@ -2018,26 +2014,8 @@ exit:
     XFREE(bench_iv, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
 #endif
 
-#ifdef WOLF_CRYPTO_CB
-#ifdef HAVE_INTEL_QA_SYNC
-    wc_CryptoCb_CleanupIntelQa(&devId);
-#endif
-#ifdef HAVE_CAVIUM_OCTEON_SYNC
-    wc_CryptoCb_CleanupOcteon(&devId);
-#endif
-#endif
-
-#ifdef WOLFSSL_ASYNC_CRYPT
-    /* free event queue */
-    wolfEventQueue_Free(&eventQueue);
-#endif
-
 #if defined(HAVE_LOCAL_RNG)
     wc_FreeRng(&gRng);
-#endif
-
-#ifdef WOLFSSL_ASYNC_CRYPT
-    wolfAsync_DevClose(&devId);
 #endif
 
 /* cleanup the thread if fixed point cache is enabled and have thread local */
@@ -2104,18 +2082,35 @@ int benchmark_free(void)
 {
     int ret;
 
+    if (gPrintStats || devId != INVALID_DEVID) {
+        bench_stats_print();
+    }
+
+    bench_stats_free();
+
+#ifdef WOLF_CRYPTO_CB
+#ifdef HAVE_INTEL_QA_SYNC
+    wc_CryptoCb_CleanupIntelQa(&devId);
+#endif
+#ifdef HAVE_CAVIUM_OCTEON_SYNC
+    wc_CryptoCb_CleanupOcteon(&devId);
+#endif
+#endif
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* free event queue */
+    wolfEventQueue_Free(&eventQueue);
+
+    /* close device */
+    wolfAsync_DevClose(&devId);
+#endif
+
 #ifdef HAVE_WNR
     ret = wc_FreeNetRandom();
     if (ret < 0) {
         printf("Failed to free netRandom context %d\n", ret);
     }
 #endif
-
-    if (gPrintStats || devId != INVALID_DEVID) {
-        bench_stats_print();
-    }
-
-    bench_stats_free();
 
     if ((ret = wolfCrypt_Cleanup()) != 0) {
         printf("error %d with wolfCrypt_Cleanup\n", ret);
@@ -2152,7 +2147,13 @@ int benchmark_test(void *args)
         g_threadCount = WC_ASYNC_BENCH_THREAD_COUNT;
     #else
         g_threadCount = wc_AsyncGetNumberOfCpus();
+        if (g_threadCount > 0) {
+            g_threadCount /= 2; /* use physical core count */
+        }
     #endif
+    }
+    if (g_threadCount <= 0) {
+        g_threadCount = 1;
     }
 
     printf("CPUs: %d\n", g_threadCount);
@@ -5496,7 +5497,6 @@ void bench_eccMakeKey(int doAsync, int curveId)
     char name[BENCH_ECC_NAME_SZ];
     double start;
     const char**desc = bench_desc_words[lng_index];
-
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     deviceID = doAsync ? devId : INVALID_DEVID;

@@ -6547,7 +6547,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         #ifdef HAVE_ED25519
             if (args->sigAlgo == ed25519_sa_algo &&
                                                   !ssl->peerEd25519KeyPresent) {
-                WOLFSSL_MSG("Peer sent ED22519 sig but not ED22519 cert");
+                WOLFSSL_MSG("Peer sent ED25519 sig but not ED25519 cert");
                 ret = SIG_VERIFY_E;
                 goto exit_dcv;
             }

@@ -92,9 +92,11 @@ WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha224(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha256(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha384(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha512(void);
-WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_ripemd160(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_shake128(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_shake256(void);
+WOLFSSL_API const WOLFSSL_EVP_MD *wolfSSL_EVP_sha512_224(void);
+WOLFSSL_API const WOLFSSL_EVP_MD *wolfSSL_EVP_sha512_256(void);
+WOLFSSL_API const WOLFSSL_EVP_MD *wolfSSL_EVP_ripemd160(void);
 
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_224(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_256(void);
@@ -721,6 +723,14 @@ WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
                                            const WOLFSSL_EVP_MD *digest,
                                            int keylen, unsigned char *out);
 
+#if defined(HAVE_SCRYPT) && defined(HAVE_PBKDF2) && !defined(NO_PWDBASED) && \
+                                                    !defined(NO_SHA)
+WOLFSSL_API int wolfSSL_EVP_PBE_scrypt(const char *pass, size_t passlen,
+                            const unsigned char *salt, size_t saltlen,
+                            word64 N, word64 r, word64 p, 
+                            word64 maxmem, unsigned char *key, size_t keylen);
+#endif /* HAVE_SCRYPT && HAVE_PBKDF2 && !NO_PWDBASED && !NO_SHA */
+
 WOLFSSL_LOCAL int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
                                            int* pHash, int* pHashSz);
 
@@ -776,6 +786,8 @@ typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
 #define EVP_sha256        wolfSSL_EVP_sha256
 #define EVP_sha384        wolfSSL_EVP_sha384
 #define EVP_sha512        wolfSSL_EVP_sha512
+#define EVP_sha512_224    wolfSSL_EVP_sha512_224
+#define EVP_sha512_256    wolfSSL_EVP_sha512_256
 #define EVP_ripemd160     wolfSSL_EVP_ripemd160
 #define EVP_shake128      wolfSSL_EVP_shake128
 #define EVP_shake256      wolfSSL_EVP_shake256
@@ -988,6 +1000,7 @@ typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
 
 #define PKCS5_PBKDF2_HMAC_SHA1     wolfSSL_PKCS5_PBKDF2_HMAC_SHA1
 #define PKCS5_PBKDF2_HMAC          wolfSSL_PKCS5_PBKDF2_HMAC
+#define EVP_PBE_scrypt             wolfSSL_EVP_PBE_scrypt
 
 /* OpenSSL compat. ctrl values */
 #define EVP_CTRL_INIT                  0x0

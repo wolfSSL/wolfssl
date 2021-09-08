@@ -2160,8 +2160,6 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
     }
 #endif
 
-    sz = wolfSSL_GetMaxRecordSize(ssl, sz);
-
     ret = ReceiveData(ssl, (byte*)data, sz, peek);
 
 #ifdef HAVE_WRITE_DUP
@@ -3051,6 +3049,7 @@ void* wolfSSL_CTX_get_TicketEncCtx(WOLFSSL_CTX* ctx)
     return ctx->ticketEncCtx;
 }
 
+#ifdef WOLFSSL_TLS13
 /* set the maximum number of tickets to send
  * return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on fail
  */
@@ -3073,6 +3072,7 @@ size_t wolfSSL_CTX_get_num_tickets(WOLFSSL_CTX* ctx)
 
     return (size_t)ctx->maxTicketTls13;
 }
+#endif /* WOLFSSL_TLS13 */
 #endif /* !NO_WOLFSSL_SERVER */
 
 #if !defined(NO_WOLFSSL_CLIENT)
@@ -14899,6 +14899,7 @@ int AddSession(WOLFSSL* ssl)
      * id. */
     if (ssl->sessionCtxSz > 0 && ssl->sessionCtxSz < ID_LEN) {
         XMEMCPY(session->sessionCtx, ssl->sessionCtx, ssl->sessionCtxSz);
+        session->sessionCtxSz = ssl->sessionCtxSz;
     }
 #endif
 
@@ -18279,6 +18280,98 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
     #endif /* !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
               (HAVE_FIPS_VERSION > 2)) */
+
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#if !defined(WOLFSSL_NOSHA512_224)
+    int wolfSSL_SHA512_224_Init(WOLFSSL_SHA512_224_CTX* sha)
+    {
+        int ret;
+
+        WOLFSSL_ENTER("wolfSSL_SHA512_224_Init");
+        ret = wc_InitSha512_224((wc_Sha512*)sha);
+
+        /* return WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise */
+        if (ret == 0)
+            return WOLFSSL_SUCCESS;
+
+        return WOLFSSL_FAILURE;
+    }
+
+    int wolfSSL_SHA512_224_Update(WOLFSSL_SHA512_224_CTX* sha,
+                                        const void* input, unsigned long sz)
+    {
+        int ret;
+
+        WOLFSSL_ENTER("wolfSSL_SHA512_224_Update");
+        ret = wc_Sha512_224Update((wc_Sha512*)sha, (const byte*)input, (word32)sz);
+
+        /* return WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise */
+        if (ret == 0)
+            return WOLFSSL_SUCCESS;
+
+        return WOLFSSL_FAILURE;
+    }
+
+    int wolfSSL_SHA512_224_Final(byte* input, WOLFSSL_SHA512_224_CTX* sha)
+    {
+        int ret;
+
+        WOLFSSL_ENTER("wolfSSL_SHA512_224_Final");
+        ret = wc_Sha512_224Final((wc_Sha512*)sha, input);
+
+        /* return WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise */
+        if (ret == 0)
+            return WOLFSSL_SUCCESS;
+
+        return WOLFSSL_FAILURE;
+    }
+#endif /* !WOLFSSL_NOSHA512_224 */
+#if !defined(WOLFSSL_NOSHA512_256)
+    int wolfSSL_SHA512_256_Init(WOLFSSL_SHA512_256_CTX* sha)
+    {
+        int ret;
+
+        WOLFSSL_ENTER("wolfSSL_SHA512_256_Init");
+        ret = wc_InitSha512_256((wc_Sha512*)sha);
+
+        /* return WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise */
+        if (ret == 0)
+            return WOLFSSL_SUCCESS;
+
+        return WOLFSSL_FAILURE;
+    }
+
+    int wolfSSL_SHA512_256_Update(WOLFSSL_SHA512_256_CTX* sha,
+                                        const void* input, unsigned long sz)
+    {
+        int ret;
+
+        WOLFSSL_ENTER("wolfSSL_SHA512_256_Update");
+        ret = wc_Sha512_256Update((wc_Sha512*)sha, (const byte*)input, (word32)sz);
+
+        /* return WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise */
+        if (ret == 0)
+            return WOLFSSL_SUCCESS;
+
+        return WOLFSSL_FAILURE;
+    }
+
+    int wolfSSL_SHA512_256_Final(byte* input, WOLFSSL_SHA512_256_CTX* sha)
+    {
+        int ret;
+
+        WOLFSSL_ENTER("wolfSSL_SHA512_256_Final");
+        ret = wc_Sha512_256Final((wc_Sha512*)sha, input);
+
+        /* return WOLFSSL_SUCCESS on success, 0 otherwise */
+        if (ret == 0)
+            return WOLFSSL_SUCCESS;
+
+        return WOLFSSL_FAILURE;
+    }
+#endif /* !WOLFSSL_NOSHA512_256 */
+#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
+
 #endif /* WOLFSSL_SHA512 */
 
 #ifdef WOLFSSL_SHA3
@@ -33088,7 +33181,7 @@ WOLFSSL_API int wolfSSL_i2d_DSAparams(const WOLFSSL_DSA* dsa,
     }
 
     if (ret < 0 && preAllocated == 0) {
-        XFREE(*out, key->heap, DYNAMIC_TYPE_OPENSSL)
+        XFREE(*out, key->heap, DYNAMIC_TYPE_OPENSSL);
     }
 
     WOLFSSL_LEAVE("wolfSSL_i2d_DSAparams", ret);
@@ -38619,7 +38712,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
             if (keyFormat == RSAk)
                 type = EVP_PKEY_RSA;
             else if (keyFormat == ECDSAk)
-                type =  EVP_PKEY_EC;
+                type = EVP_PKEY_EC;
             else if (keyFormat == DSAk)
                 type = EVP_PKEY_DSA;
             else if (keyFormat == DHk)
@@ -48070,27 +48163,9 @@ int wolfSSL_X509_check_email(WOLFSSL_X509 *x, const char *chk, size_t chkLen,
 }
 #endif /* OPENSSL_EXTRA && WOLFSSL_CERT_GEN */
 
+
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
-    || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
-
-int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *name,
-        const WOLFSSL_EVP_MD *type, unsigned char *md, unsigned int *len)
-{
-    WOLFSSL_ENTER("wolfSSL_X509_NAME_digest");
-
-    if (name == NULL || type == NULL)
-        return WOLFSSL_FAILURE;
-
-#if !defined(NO_FILESYSTEM) && !defined(NO_PWDBASED)
-    return wolfSSL_EVP_Digest((unsigned char*)name->name,
-                              name->sz, md, len, type, NULL);
-#else
-    (void)md;
-    (void)len;
-    return NOT_COMPILED_IN;
-#endif
-}
-
+    || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY) || defined(HAVE_SECRET_CALLBACK)
 long wolfSSL_SSL_CTX_get_timeout(const WOLFSSL_CTX *ctx)
 {
     WOLFSSL_ENTER("wolfSSL_SSL_CTX_get_timeout");
@@ -48110,6 +48185,28 @@ long wolfSSL_get_timeout(WOLFSSL* ssl)
     if (ssl == NULL)
         return 0;
     return ssl->timeout;
+}
+#endif
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
+    || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
+
+int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *name,
+        const WOLFSSL_EVP_MD *type, unsigned char *md, unsigned int *len)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_NAME_digest");
+
+    if (name == NULL || type == NULL)
+        return WOLFSSL_FAILURE;
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_PWDBASED)
+    return wolfSSL_EVP_Digest((unsigned char*)name->name,
+                              name->sz, md, len, type, NULL);
+#else
+    (void)md;
+    (void)len;
+    return NOT_COMPILED_IN;
+#endif
 }
 
 #ifdef HAVE_ECC
@@ -49279,11 +49376,25 @@ int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx, const unsigned char *p,
     ctx->alpn_cli_protos =
         (const unsigned char *)wolfSSL_OPENSSL_memdup(p, p_len, NULL, 0);
     if (ctx->alpn_cli_protos == NULL) {
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+        /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
+         * the function reverses the return value convention.
+         */
+        return 1;
+#else
         return SSL_FAILURE;
+#endif
     }
     ctx->alpn_cli_protos_len = p_len;
 
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
+     * the function reverses the return value convention.
+     */
+    return 0;
+#else
     return WOLFSSL_SUCCESS;
+#endif
 }
 
 
@@ -49309,12 +49420,26 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
     WOLFSSL_ENTER("wolfSSL_set_alpn_protos");
 
     if (ssl == NULL || p_len <= 1) {
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+        /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
+         * the function reverses the return value convention.
+         */
+        return 1;
+#else
         return WOLFSSL_FAILURE;
+#endif
     }
 
     bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
     if (bio == NULL) {
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+        /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
+         * the function reverses the return value convention.
+         */
+        return 1;
+#else
         return WOLFSSL_FAILURE;
+#endif
     }
 
     /* convert into comma separated list */
@@ -49325,7 +49450,14 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
         if (idx + sz > p_len) {
             WOLFSSL_MSG("Bad list format");
             wolfSSL_BIO_free(bio);
+    #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+            /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
+             * the function reverses the return value convention.
+             */
+            return 1;
+    #else
             return WOLFSSL_FAILURE;
+    #endif
         }
         if (sz > 0) {
             for (i = 0; i < sz; i++) {
@@ -49344,7 +49476,14 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
         wolfSSL_UseALPN(ssl, pt, sz, alpn_opt);
     }
     wolfSSL_BIO_free(bio);
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
+     * the function reverses the return value convention.
+     */
+    return 0;
+#else
     return WOLFSSL_SUCCESS;
+#endif
 }
 #endif /* !NO_BIO */
 #endif /* HAVE_ALPN */
@@ -54025,10 +54164,10 @@ static int SetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo,
     WOLFSSL_ENTER("SetStaticEphemeralKey");
 
     /* if just free'ing key then skip loading */
-    if (key != NULL && keySz > 0) {
+    if (key != NULL) {
     #ifndef NO_FILESYSTEM
         /* load file from filesystem */
-        if (key && keySz == 0) {
+        if (key != NULL && keySz == 0) {
             size_t keyBufSz = 0;
             keyFile = (const char*)key;
             ret = wc_FileLoad(keyFile, &keyBuf, &keyBufSz, heap);
@@ -54053,6 +54192,8 @@ static int SetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo,
             if (ret == 0 && keyAlgo == WC_PK_TYPE_NONE) {
                 if (keyFormat == ECDSAk)
                     keyAlgo = WC_PK_TYPE_ECDH;
+                else if (keyFormat == X25519k)
+                    keyAlgo = WC_PK_TYPE_CURVE25519;
                 else
                     keyAlgo = WC_PK_TYPE_DH;
             }
@@ -54088,6 +54229,20 @@ static int SetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo,
                 }
             }
         #endif
+        #ifdef HAVE_CURVE25519
+            if (keyAlgo == WC_PK_TYPE_NONE) {
+                word32 idx = 0;
+                curve25519_key x25519Key;
+                ret = wc_curve25519_init_ex(&x25519Key, heap, INVALID_DEVID);
+                if (ret == 0) {
+                    ret = wc_Curve25519PrivateKeyDecode(keyBuf, &idx, &x25519Key,
+                        keySz);
+                    if (ret == 0)
+                        keyAlgo = WC_PK_TYPE_CURVE25519;
+                    wc_curve25519_free(&x25519Key);
+                }
+            }
+        #endif
 
             if (keyAlgo != WC_PK_TYPE_NONE) {
                 ret = AllocDer(&der, keySz, PRIVATEKEY_TYPE, heap);
@@ -54107,32 +54262,49 @@ static int SetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo,
 
     /* if key is already allocated then set free it */
 #ifndef NO_DH
-    if (keyAlgo == WC_PK_TYPE_DH && staticKE->dhKey && staticKE->weOwnDH)
+    if (keyAlgo == WC_PK_TYPE_DH && staticKE->dhKey && staticKE->weOwnDH) {
         FreeDer(&staticKE->dhKey);
+    }
 #endif
 #ifdef HAVE_ECC
-    if (keyAlgo == WC_PK_TYPE_ECDH && staticKE->ecKey && staticKE->weOwnEC)
+    if (keyAlgo == WC_PK_TYPE_ECDH && staticKE->ecKey && staticKE->weOwnEC) {
         FreeDer(&staticKE->ecKey);
+    }
+#endif
+#ifdef HAVE_CURVE25519
+    if (keyAlgo == WC_PK_TYPE_CURVE25519 && staticKE->x25519Key && 
+                                                        staticKE->weOwnX25519) {
+        FreeDer(&staticKE->x25519Key);
+    }
 #endif
 
     switch (keyAlgo) {
     #ifndef NO_DH
         case WC_PK_TYPE_DH:
-            staticKE->dhKey = der;
+            staticKE->dhKey = der; der = NULL;
             staticKE->weOwnDH = 1;
             break;
     #endif
     #ifdef HAVE_ECC
         case WC_PK_TYPE_ECDH:
-            staticKE->ecKey = der;
+            staticKE->ecKey = der; der = NULL;
             staticKE->weOwnEC = 1;
+            break;
+    #endif
+    #ifdef HAVE_CURVE25519
+        case WC_PK_TYPE_CURVE25519:
+            staticKE->x25519Key = der; der = NULL;
+            staticKE->weOwnX25519 = 1;
             break;
     #endif
         default:
             /* not supported */
             ret = NOT_COMPILED_IN;
-            FreeDer(&der);
             break;
+    }
+
+    if (ret != 0) {
+        FreeDer(&der);
     }
 
     WOLFSSL_LEAVE("SetStaticEphemeralKey", ret);
@@ -54183,6 +54355,11 @@ static int GetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo,
     #ifdef HAVE_ECC
         case WC_PK_TYPE_ECDH:
             der = staticKE->ecKey;
+            break;
+    #endif
+    #ifdef HAVE_CURVE25519
+        case WC_PK_TYPE_CURVE25519:
+            der = staticKE->x25519Key;
             break;
     #endif
         default:

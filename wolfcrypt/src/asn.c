@@ -122,9 +122,15 @@ ASN Options:
 #ifdef HAVE_ED25519
     #include <wolfssl/wolfcrypt/ed25519.h>
 #endif
+#ifdef HAVE_CURVE25519
+    #include <wolfssl/wolfcrypt/curve25519.h>
+#endif
 
 #ifdef HAVE_ED448
     #include <wolfssl/wolfcrypt/ed448.h>
+#endif
+#ifdef HAVE_CURVE448
+    #include <wolfssl/wolfcrypt/curve448.h>
 #endif
 
 #ifdef WOLFSSL_QNX_CAAM
@@ -554,7 +560,8 @@ static const char* TagString(byte tag)
  */
 #define ASNIntMSBSet(asn, data, i)                    \
     ((asn[i].tag == ASN_INTEGER) &&                   \
-     ((data[i].data.buffer.data[0] & 0x80) == 0x80))
+      (data[i].data.buffer.data != NULL &&            \
+      (data[i].data.buffer.data[0] & 0x80) == 0x80))
 
 
 /* Calculate the size of a DER encoded number.
@@ -1909,7 +1916,7 @@ void SetASN_ReplaceBuffer(ASNSetData *dataASN, const byte* data, word32 length)
     dataASN->data.buffer.length = length;
 }
 
-/* Setup an ASN data item to set an muli-precision number.
+/* Setup an ASN data item to set an multi-precision number.
  *
  * @param [in] dataASN  Dynamic ASN data item.
  * @param [in] num      Multi-precision number.
@@ -2138,8 +2145,8 @@ int GetASNTag(const byte* input, word32* inOutIdx, byte* tag, word32 maxIdx)
  *
  * @param [in]      input     Buffer holding DER/BER encoded data.
  * @param [in]      tag       ASN.1 tag value expected in header.
- * @param [in, out] inOutIdx  On in, starting index of hedear.
- *                            On out, end of parsed hedear.
+ * @param [in, out] inOutIdx  On in, starting index of header.
+ *                            On out, end of parsed header.
  * @param [out]     len       Number of bytes in the ASN.1 data.
  * @param [in]      maxIdx    Length of data in buffer.
  * @param [in]      check     Whether to check the buffer has at least the
@@ -2188,8 +2195,8 @@ static int GetASNHeader_ex(const byte* input, byte tag, word32* inOutIdx,
  *
  * @param [in]      input     Buffer holding DER/BER encoded data.
  * @param [in]      tag       ASN.1 tag value expected in header.
- * @param [in, out] inOutIdx  On in, starting index of hedear.
- *                            On out, end of parsed hedear.
+ * @param [in, out] inOutIdx  On in, starting index of header.
+ *                            On out, end of parsed header.
  * @param [out]     len       Number of bytes in the ASN.1 data.
  * @param [in]      maxIdx    Length of data in buffer.
  * @return  Number of bytes in the ASN.1 data on success.
@@ -2226,8 +2233,8 @@ static int GetHeader(const byte* input, byte* tag, word32* inOutIdx, int* len,
 /* Decode the header of a BER/DER encoded SEQUENCE.
  *
  * @param [in]      input     Buffer holding DER/BER encoded data.
- * @param [in, out] inOutIdx  On in, starting index of hedear.
- *                            On out, end of parsed hedear.
+ * @param [in, out] inOutIdx  On in, starting index of header.
+ *                            On out, end of parsed header.
  * @param [out]     len       Number of bytes in the ASN.1 data.
  * @param [in]      maxIdx    Length of data in buffer.
  * @return  Number of bytes in the ASN.1 data on success.
@@ -2244,8 +2251,8 @@ int GetSequence(const byte* input, word32* inOutIdx, int* len,
 /* Decode the header of a BER/DER encoded SEQUENCE.
  *
  * @param [in]      input     Buffer holding DER/BER encoded data.
- * @param [in, out] inOutIdx  On in, starting index of hedear.
- *                            On out, end of parsed hedear.
+ * @param [in, out] inOutIdx  On in, starting index of header.
+ *                            On out, end of parsed header.
  * @param [out]     len       Number of bytes in the ASN.1 data.
  * @param [in]      maxIdx    Length of data in buffer.
  * @param [in]      check     Whether to check the buffer has at least the
@@ -2264,8 +2271,8 @@ int GetSequence_ex(const byte* input, word32* inOutIdx, int* len,
 /* Decode the header of a BER/DER encoded SET.
  *
  * @param [in]      input     Buffer holding DER/BER encoded data.
- * @param [in, out] inOutIdx  On in, starting index of hedear.
- *                            On out, end of parsed hedear.
+ * @param [in, out] inOutIdx  On in, starting index of header.
+ *                            On out, end of parsed header.
  * @param [out]     len       Number of bytes in the ASN.1 data.
  * @param [in]      maxIdx    Length of data in buffer.
  * @return  Number of bytes in the ASN.1 data on success.
@@ -2282,8 +2289,8 @@ int GetSet(const byte* input, word32* inOutIdx, int* len,
 /* Decode the header of a BER/DER encoded SET.
  *
  * @param [in]      input     Buffer holding DER/BER encoded data.
- * @param [in, out] inOutIdx  On in, starting index of hedear.
- *                            On out, end of parsed hedear.
+ * @param [in, out] inOutIdx  On in, starting index of header.
+ *                            On out, end of parsed header.
  * @param [out]     len       Number of bytes in the ASN.1 data.
  * @param [in]      maxIdx    Length of data in buffer.
  * @param [in]      check     Whether to check the buffer has at least the
@@ -2393,9 +2400,9 @@ static int GetBoolean(const byte* input, word32* inOutIdx, word32 maxIdx)
 /* Decode the header of a BER/DER encoded OCTET STRING.
  *
  * @param [in]      input     Buffer holding DER/BER encoded data.
- * @param [in, out] inOutIdx  On in, starting index of hedear.
- *                            On out, end of parsed hedear.
- * @param [out]     len       Nnumber of bytes in the ASN.1 data.
+ * @param [in, out] inOutIdx  On in, starting index of header.
+ *                            On out, end of parsed header.
+ * @param [out]     len       Number of bytes in the ASN.1 data.
  * @param [in]      maxIdx    Length of data in buffer.
  * @return  Number of bytes in the ASN.1 data on success.
  * @return  BUFFER_E when there is not enough data to parse.
@@ -2681,7 +2688,8 @@ const char* GetSigName(int oid) {
  * When output is NULL, calculate the header length only.
  *
  * @param [in]  len        Length of INTEGER data in bytes.
- * @param [in]  firstByte  First byte of data, most significant byte of integer, *                         to encode.
+ * @param [in]  firstByte  First byte of data, most significant byte of integer, 
+ *                         to encode.
  * @param [out] output     Buffer to write into.
  * @return  Number of bytes added to the buffer.
  */
@@ -2698,7 +2706,7 @@ int SetASNInt(int len, byte firstByte, byte* output)
     /* Check if first byte has top bit set in which case a 0 is needed to
      * maintain positive value. */
     if (firstByte & 0x80) {
-        /* Add pre-prended byte to length of data in INTEGER. */
+        /* Add pre-prepended byte to length of data in INTEGER. */
         len++;
     }
     /* Encode length - passing NULL for output will not encode. */
@@ -3808,9 +3816,15 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 #ifdef HAVE_ED25519
     static const byte keyEd25519Oid[] = {43, 101, 112};
 #endif /* HAVE_ED25519 */
+#ifdef HAVE_CURVE25519
+    static const byte keyCurve25519Oid[] = {43, 101, 110};
+#endif
 #ifdef HAVE_ED448
     static const byte keyEd448Oid[] = {43, 101, 113};
 #endif /* HAVE_ED448 */
+#ifdef HAVE_CURVE448
+    static const byte keyCurve448Oid[] = {43, 101, 111};
+#endif /* HAVE_CURVE448 */
 #ifndef NO_DH
     static const byte keyDhOid[] = {42, 134, 72, 134, 247, 13, 1, 3, 1};
 #endif /* !NO_DH */
@@ -4261,12 +4275,24 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(keyEd25519Oid);
                     break;
                 #endif /* HAVE_ED25519 */
+                #ifdef HAVE_CURVE25519
+                case X25519k:
+                    oid = keyCurve25519Oid;
+                    *oidSz = sizeof(keyCurve25519Oid);
+                    break;
+                #endif /* HAVE_CURVE25519 */
                 #ifdef HAVE_ED448
                 case ED448k:
                     oid = keyEd448Oid;
                     *oidSz = sizeof(keyEd448Oid);
                     break;
                 #endif /* HAVE_ED448 */
+                #ifdef HAVE_CURVE448
+                case X448k:
+                    oid = keyCurve448Oid;
+                    *oidSz = sizeof(keyCurve448Oid);
+                    break;
+                #endif /* HAVE_CURVE448 */
                 #ifndef NO_DH
                 case DHk:
                     oid = keyDhOid;
@@ -4910,8 +4936,8 @@ int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
 /* Decode the header of a BER/DER encoded OBJECT ID.
  *
  * @param [in]      input     Buffer holding DER/BER encoded data.
- * @param [in, out] inOutIdx  On in, starting index of hedear.
- *                            On out, end of parsed hedear.
+ * @param [in, out] inOutIdx  On in, starting index of header.
+ *                            On out, end of parsed header.
  * @param [out]     len       Number of bytes in the ASN.1 data.
  * @param [in]      maxIdx    Length of data in buffer.
  * @return  0 on success.
@@ -5170,7 +5196,7 @@ static const ASNItem algoIdASN[] = {
  * NULL tag is skipped if present.
  *
  * @param [in]      input     Buffer holding BER encoded data.
- * @param [in, out] inOutIdx  On in, start of algorithm identfier.
+ * @param [in, out] inOutIdx  On in, start of algorithm identifier.
  *                            On out, start of ASN.1 item after algorithm id.
  * @param [out]     oid       Id of OID in algorithm identifier data.
  * @param [in]      oidType   Type of OID to expect.
@@ -5300,7 +5326,7 @@ static const ASNItem rsaKeyASN[] = {
  *
  * PKCS #1: RFC 8017, A.1.2 - RSAPrivateKey
  *
- * Compiling with WOLFSSL_RSA_PUBLIC_ONLY will result in only the public fuields
+ * Compiling with WOLFSSL_RSA_PUBLIC_ONLY will result in only the public fields
  * being extracted.
  *
  * @param [in]      input     Buffer holding BER encoded data.
@@ -5477,7 +5503,7 @@ static const ASNItem pkcs8KeyASN[] = {
  * @param [in, out]  inOutIdx  On in, start of PKCS #8 encoding.
  *                             On out, start of encoded key.
  * @param [in]       sz        Size of data in buffer.
- * @param [out]      algId     Key's algorithm id fronm PKCS #8 header.
+ * @param [out]      algId     Key's algorithm id from PKCS #8 header.
  * @return  Length of key data on success.
  * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
  *          is invalid.
@@ -5593,8 +5619,26 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
                 }
                 break;
         #endif
+        #ifdef HAVE_CURVE25519
+            case X25519k:
+                /* Neither NULL item nor OBJECT_ID item allowed. */
+                if ((dataASN[5].tag != 0) ||
+                    (dataASN[4].tag != 0)) {
+                    ret = ASN_PARSE_E;
+                }
+                break;
+        #endif
         #ifdef HAVE_ED448
             case ED448k:
+                /* Neither NULL item nor OBJECT_ID item allowed. */
+                if ((dataASN[5].tag != 0) ||
+                    (dataASN[4].tag != 0)) {
+                    ret = ASN_PARSE_E;
+                }
+                break;
+        #endif
+        #ifdef HAVE_CURVE448
+            case X448k:
                 /* Neither NULL item nor OBJECT_ID item allowed. */
                 if ((dataASN[5].tag != 0) ||
                     (dataASN[4].tag != 0)) {
@@ -6332,7 +6376,8 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
 #endif /* HAVE_ECC && !NO_ASN_CRYPT */
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT) && !defined(NO_ASN_CRYPT)
     if (*algoID == 0) {
-        ed25519_key *ed25519 = (ed25519_key *)XMALLOC(sizeof *ed25519, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        ed25519_key *ed25519 = (ed25519_key *)XMALLOC(sizeof *ed25519, heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
         if (ed25519 == NULL)
             return MEMORY_E;
 
@@ -6354,7 +6399,8 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
 #endif /* HAVE_ED25519 && HAVE_ED25519_KEY_IMPORT && !NO_ASN_CRYPT */
 #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT) && !defined(NO_ASN_CRYPT)
     if (*algoID == 0) {
-        ed448_key *ed448 = (ed448_key *)XMALLOC(sizeof *ed448, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        ed448_key *ed448 = (ed448_key *)XMALLOC(sizeof *ed448, heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
         if (ed448 == NULL)
             return MEMORY_E;
 
@@ -7171,7 +7217,7 @@ static const ASNItem p8EncPbes1ASN[] = {
  * @param [in]  saltSz      Length of salt in bytes.
  * @param [in]  itt         Number of iterations to use in KDF.
  * @param [in]  rng         Random number generator to use to generate salt.
- * @param [in]  heap        Dynamic memory alloctor hint.
+ * @param [in]  heap        Dynamic memory allocator hint.
  * @return  The size of encrypted data on success
  * @return  LENGTH_ONLY_E when out is NULL and able to encode.
  * @return  ASN_PARSE_E when the salt size is too large.
@@ -7948,7 +7994,7 @@ static const ASNItem dhKeyPkcs8ASN[] = {
  *                            On out, end of DH key data.
  * @param [in, out] key       DH key object.
  * @param [in]      inSz      Size of data in bytes.
- * @return  0 on suceess.
+ * @return  0 on success.
  * @return  BAD_FUNC_ARG when input, inOutIDx or key is NULL.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
@@ -10109,6 +10155,7 @@ int CalcHashId(const byte* data, word32 len, byte* hash)
     return ret;
 }
 
+#ifndef NO_CERTS
 /* Get the hash of the id using the SHA-1 or SHA-256.
  *
  * If the id is not the length of the hash, then hash it.
@@ -10133,6 +10180,7 @@ static int GetHashId(const byte* id, int length, byte* hash)
 
     return ret;
 }
+#endif /* !NO_CERTS */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* Id for street address - not used. */
@@ -12130,8 +12178,7 @@ int DecodeToKey(DecodedCert* cert, int verify)
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
-#ifndef NO_CERTS
-#ifndef WOLFSSL_ASN_TEMPLATE
+#if !defined(NO_CERTS) && !defined(WOLFSSL_ASN_TEMPLATE)
 static int GetSignature(DecodedCert* cert)
 {
     int length;
@@ -12151,14 +12198,15 @@ static int GetSignature(DecodedCert* cert)
 
     return 0;
 }
+#endif /* !NO_CERTS && !WOLFSSL_ASN_TEMPLATE */
 
+#ifndef WOLFSSL_ASN_TEMPLATE
 static word32 SetOctetString8Bit(word32 len, byte* output)
 {
     output[0] = ASN_OCTET_STRING;
     output[1] = (byte)len;
     return 2;
 }
-
 static word32 SetDigest(const byte* digest, word32 digSz, byte* output)
 {
     word32 idx = SetOctetString8Bit(digSz, output);
@@ -12167,7 +12215,7 @@ static word32 SetDigest(const byte* digest, word32 digSz, byte* output)
     return idx + digSz;
 }
 #endif
-#endif /* NO_CERTS */
+
 
 /* Encode a length for DER.
  *
@@ -12378,10 +12426,16 @@ static WC_INLINE int IsSigAlgoECC(int algoOID)
         #ifdef HAVE_ED25519
               || (algoOID == ED25519k)
         #endif
+        #ifdef HAVE_CURVE25519
+              || (algoOID == X25519k)
+        #endif
         #ifdef HAVE_ED448
               || (algoOID == ED448k)
         #endif
-            );
+        #ifdef HAVE_CURVE448
+              || (algoOID == X448k)
+        #endif
+    );
 }
 
 /* Encode an algorithm identifier.
@@ -12409,7 +12463,6 @@ word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
              (type == oidKeyType && algoOID == RSAk)) ? 2 : 0;
 
     algoName = OidFromId(algoOID, type, &algoSz);
-
     if (algoName == NULL) {
         WOLFSSL_MSG("Unknown Algorithm");
         return 0;
@@ -14293,9 +14346,9 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
 
     ret = GetBoolean(input, &idx, sz);
 
-/* Removed logic for WOLFSSL_X509_BASICCONS_INT which was mistreating the
- * pathlen value as if it were the CA Boolean value 7/2/2021 - KH.
- * When CA Boolean not asserted use the default value "False" */
+    /* Removed logic for WOLFSSL_X509_BASICCONS_INT which was mistreating the
+     * pathlen value as if it were the CA Boolean value 7/2/2021 - KH.
+     * When CA Boolean not asserted use the default value "False" */
     if (ret < 0) {
         WOLFSSL_MSG("\tfail: constraint not valid BOOLEAN, set default FALSE");
         ret = 0;
@@ -18704,7 +18757,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     word32      algId = 0;
     word32      idx;
 #if defined(WOLFSSL_ENCRYPTED_KEYS)
-    #if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3) && !defined(NO_WOLFSSL_SKIP_TRAILING_PAD)
+    #if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3) && \
+        !defined(NO_WOLFSSL_SKIP_TRAILING_PAD)
         int     padVal = 0;
     #endif
 #endif
@@ -20212,7 +20266,7 @@ int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve)
 #endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
-#if defined(HAVE_ED25519) || defined(HAVE_ED448)
+#if defined(WC_ENABLE_ASYM_KEY_EXPORT) || defined(WC_ENABLE_ASYM_KEY_IMPORT)
 /* ASN.1 template for Ed25519 and Ed448 public key (SubkectPublicKeyInfo).
  * RFC 8410, 4 - Subject Public Key Fields
  */
@@ -20229,116 +20283,98 @@ static const ASNItem edPubKeyASN[] = {
 
 /* Number of items in ASN.1 template for Ed25519 and Ed448 public key. */
 #define edPubKeyASN_Length (sizeof(edPubKeyASN) / sizeof(ASNItem))
-#endif /* HAVE_ED25519 || HAVE_ED448 */
+#endif /* WC_ENABLE_ASYM_KEY_EXPORT || WC_ENABLE_ASYM_KEY_IMPORT */
 #endif /* WOLFSSL_ASN_TEMPLATE */
 
-#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
-    (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
+#ifdef WC_ENABLE_ASYM_KEY_EXPORT
 
-/* Encode the public part of an Ed25519 key in DER.
+/* Build ASN.1 formatted public key based on RFC 8410
  *
  * Pass NULL for output to get the size of the encoding.
  *
- * @param [out] output       Buffer to put encoded data in.
- * @param [in]  key          Ed25519 key object.
- * @param [in]  outLen       Size of buffer in bytes.
- * @param [in]  with_header  Whether to use SubjectPublicKeyInfo format.
- * @return  Size of encoded data in bytes on success.
+ * @param [in]  pubKey       public key buffer
+ * @param [in]  pubKeyLen    public ket buffer length
+ * @param [out] output       Buffer to put encoded data in (optional)
+ * @param [in]  outLen       Size of buffer in bytes
+ * @param [in]  keyType      is "enum Key_Sum" like ED25519k
+ * @param [in]  withHeader   Whether to include SubjectPublicKeyInfo around key.
+ * @return  Size of encoded data in bytes on success
  * @return  BAD_FUNC_ARG when key is NULL.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
-static int SetEd25519PublicKey(byte* output, ed25519_key* key, int outLen,
-                               int with_header)
+static int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
+    byte* output, word32 outLen, int keyType, int withHeader)
 {
+    int ret = 0;
 #ifndef WOLFSSL_ASN_TEMPLATE
-    byte bitString[1 + MAX_LENGTH_SZ + 1];
-    int  algoSz;
-    int  bitStringSz;
-    int  idx;
-    word32 pubSz = ED25519_PUB_KEY_SIZE;
-#ifdef WOLFSSL_SMALL_STACK
-    byte* algo = NULL;
-    byte* pub;
+    word32 idx = 0, bitStringSz, algoSz, sz = 0;
 #else
-    byte algo[MAX_ALGO_SZ];
-    byte pub[ED25519_PUB_KEY_SIZE];
+    int sz = 0;
+    DECL_ASNSETDATA(dataASN, edPubKeyASN_Length);
 #endif
 
-    (void)outLen;
+    if (pubKey == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
-#ifdef WOLFSSL_SMALL_STACK
-    pub = (byte*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (pub == NULL)
-        return MEMORY_E;
-#endif
+#ifndef WOLFSSL_ASN_TEMPLATE
+    /* calculate size */
+    if (withHeader) {
+        algoSz      = SetAlgoID(keyType, NULL, oidKeyType, 0);
+        bitStringSz = SetBitString(pubKeyLen, 0, NULL);
 
-    idx = wc_ed25519_export_public(key, pub, &pubSz);
-    if (idx != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return idx;
+        sz  = algoSz + bitStringSz + pubKeyLen;
+        sz += SetSequence(outLen, NULL);
+    }
+    else {
+        sz = pubKeyLen;
+    }
+
+    /* checkout output size */
+    if (output != NULL && sz > outLen) {
+        ret = BUFFER_E;
     }
 
     /* headers */
-    if (with_header) {
-#ifdef WOLFSSL_SMALL_STACK
-        algo = (byte*)XMALLOC(MAX_ALGO_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (algo == NULL) {
-            XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            return MEMORY_E;
-        }
-#endif
-        algoSz  = SetAlgoID(ED25519k, algo, oidKeyType, 0);
-
-        bitStringSz = SetBitString(pubSz, 0, bitString);
-
-        idx = SetSequence(pubSz + bitStringSz + algoSz, output);
+    if (ret == 0 && output != NULL && withHeader) {
+        /* sequence */
+        idx = SetSequence(algoSz + bitStringSz + pubKeyLen, output);
         /* algo */
-        XMEMCPY(output + idx, algo, algoSz);
+        algoSz = SetAlgoID(keyType, output + idx, oidKeyType, 0);
         idx += algoSz;
         /* bit string */
-        XMEMCPY(output + idx, bitString, bitStringSz);
+        bitStringSz = SetBitString(pubKeyLen, 0, output + idx);
         idx += bitStringSz;
     }
-    else
-        idx = 0;
 
-    /* pub */
-    XMEMCPY(output + idx, pub, pubSz);
-    idx += pubSz;
+    if (ret == 0 && output != NULL) {
+        /* pub */
+        XMEMCPY(output + idx, pubKey, pubKeyLen);
+        idx += pubKeyLen;
 
-#ifdef WOLFSSL_SMALL_STACK
-    if (with_header) {
-        XFREE(algo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        sz = idx;
     }
-    XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
 
-    return idx;
+    if (ret == 0) {
+        ret = sz;
+    }
 #else
-    word32 pubSz = ED25519_PUB_KEY_SIZE;
-    int sz = 0;
-    int ret = 0;
-
-    if (with_header) {
-        DECL_ASNSETDATA(dataASN, edPubKeyASN_Length);
-
+    if (withHeader) {
         CALLOC_ASNSETDATA(dataASN, edPubKeyASN_Length, ret, NULL);
 
         if (ret == 0) {
-            /* Set the Ed25519 OID. */
-            SetASN_Buffer(&dataASN[2], keyEd25519Oid, sizeof(keyEd25519Oid));
+            /* Set the OID. */
+            SetASN_OID(&dataASN[2], keyType, oidKeyType);
             /* Leave space for public point. */
-            SetASN_Buffer(&dataASN[3], NULL, ED25519_PUB_KEY_SIZE);
-            /* Calculate size of Ed25519 public key encoding. */
+            SetASN_Buffer(&dataASN[3], NULL, pubKeyLen);
+            /* Calculate size of public key encoding. */
             ret = SizeASN_Items(edPubKeyASN, dataASN, edPubKeyASN_Length, &sz);
         }
-        if ((ret == 0) && (output != NULL) && (sz > outLen)) {
+        if ((ret == 0) && (output != NULL) && (sz > (int)outLen)) {
             ret = BUFFER_E;
         }
         if ((ret == 0) && (output != NULL)) {
-            /* Encode Ed25519 public key. */
+            /* Encode public key. */
             SetASN_Items(edPubKeyASN, dataASN, edPubKeyASN_Length, output);
             /* Set location to encode public point. */
             output = (byte*)dataASN[3].data.buffer.data;
@@ -20346,25 +20382,26 @@ static int SetEd25519PublicKey(byte* output, ed25519_key* key, int outLen,
 
         FREE_ASNSETDATA(dataASN, NULL);
     }
-    else if ((output != NULL) && (ED25519_PUB_KEY_SIZE > outLen)) {
+    else if ((output != NULL) && (pubKeyLen > outLen)) {
         ret = BUFFER_E;
     }
     else if (ret == 0) {
-        sz = ED25519_PUB_KEY_SIZE;
+        sz = pubKeyLen;
     }
 
     if ((ret == 0) && (output != NULL)) {
         /* Put public key into space provided. */
-        ret = wc_ed25519_export_public(key, output, &pubSz);
+        XMEMCPY(output, pubKey, pubKeyLen);
     }
     if (ret == 0) {
         ret = sz;
     }
-
-    return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
+    return ret;
 }
+#endif /* WC_ENABLE_ASYM_KEY_EXPORT */
 
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
 /* Encode the public part of an Ed25519 key in DER.
  *
  * Pass NULL for output to get the size of the encoding.
@@ -20372,7 +20409,7 @@ static int SetEd25519PublicKey(byte* output, ed25519_key* key, int outLen,
  * @param [in]  key       Ed25519 key object.
  * @param [out] output    Buffer to put encoded data in.
  * @param [in]  outLen    Size of buffer in bytes.
- * @param [in]  with_alg  Whether to use SubjectPublicKeyInfo format.
+ * @param [in]  withAlg   Whether to use SubjectPublicKeyInfo format.
  * @return  Size of encoded data in bytes on success.
  * @return  BAD_FUNC_ARG when key is NULL.
  * @return  MEMORY_E when dynamic memory allocation failed.
@@ -20380,175 +20417,24 @@ static int SetEd25519PublicKey(byte* output, ed25519_key* key, int outLen,
 int wc_Ed25519PublicKeyToDer(ed25519_key* key, byte* output, word32 inLen,
                              int withAlg)
 {
-#ifndef WOLFSSL_ASN_TEMPLATE
-    word32 infoSz = 0;
-    word32 keySz  = 0;
-    int ret;
+    int    ret;
+    byte   pubKey[ED25519_PUB_KEY_SIZE];
+    word32 pubKeyLen = (word32)sizeof(pubKey);
 
-    if (output == NULL || key == NULL) {
+    if (key == NULL || output == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    if (withAlg) {
-        /* buffer space for algorithm */
-        infoSz += MAX_SEQ_SZ;
-        infoSz += MAX_ALGO_SZ;
-
-        /* buffer space for public key sequence */
-        infoSz += MAX_SEQ_SZ;
-        infoSz += TRAILING_ZERO;
-    }
-
-    if ((ret = wc_ed25519_export_public(key, output, &keySz)) != BUFFER_E) {
-        WOLFSSL_MSG("Error in getting ECC public key size");
-        return ret;
-    }
-
-    if (inLen < keySz + infoSz) {
-        return BUFFER_E;
-    }
-#else
-    if (output == NULL || key == NULL) {
-        return BAD_FUNC_ARG;
-    }
-#endif
-
-    return SetEd25519PublicKey(output, key, inLen, withAlg);
-}
-#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_EXPORT && (WOLFSSL_CERT_GEN || WOLFSSL_KEY_GEN) */
-#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT) && \
-    (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
-
-/* Encode the public part of an Ed448 key in DER.
- *
- * Pass NULL for output to get the size of the encoding.
- *
- * @param [out] output       Buffer to put encoded data in.
- * @param [in]  key          Ed448 key object.
- * @param [in]  outLen       Size of buffer in bytes.
- * @param [in]  with_header  Whether to use SubjectPublicKeyInfo format.
- * @return  Size of encoded data in bytes on success.
- * @return  BAD_FUNC_ARG when key is NULL.
- * @return  MEMORY_E when dynamic memory allocation failed.
- */
-static int SetEd448PublicKey(byte* output, ed448_key* key, int outLen,
-                             int with_header)
-{
-#ifndef WOLFSSL_ASN_TEMPLATE
-    byte bitString[1 + MAX_LENGTH_SZ + 1];
-    int  algoSz;
-    int  bitStringSz;
-    int  idx;
-    word32 pubSz = ED448_PUB_KEY_SIZE;
-#ifdef WOLFSSL_SMALL_STACK
-    byte* algo = NULL;
-    byte* pub = NULL;
-#else
-    byte algo[MAX_ALGO_SZ];
-    byte pub[ED448_PUB_KEY_SIZE];
-#endif
-
-    (void)outLen;
-
-#ifdef WOLFSSL_SMALL_STACK
-    pub = (byte*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (pub == NULL)
-        return MEMORY_E;
-#endif
-
-    idx = wc_ed448_export_public(key, pub, &pubSz);
-    if (idx != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return idx;
-    }
-
-    /* headers */
-    if (with_header) {
-#ifdef WOLFSSL_SMALL_STACK
-        algo = (byte*)XMALLOC(MAX_ALGO_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (algo == NULL) {
-            XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            return MEMORY_E;
-        }
-#endif
-        algoSz  = SetAlgoID(ED448k, algo, oidKeyType, 0);
-
-        bitStringSz = SetBitString(pubSz, 0, bitString);
-
-        idx = SetSequence(pubSz + bitStringSz + algoSz, output);
-        /* algo */
-        XMEMCPY(output + idx, algo, algoSz);
-        idx += algoSz;
-        /* bit string */
-        XMEMCPY(output + idx, bitString, bitStringSz);
-        idx += bitStringSz;
-    }
-    else
-        idx = 0;
-
-    /* pub */
-    XMEMCPY(output + idx, pub, pubSz);
-    idx += pubSz;
-
-#ifdef WOLFSSL_SMALL_STACK
-    if (with_header) {
-        XFREE(algo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-    return idx;
-#else
-    word32 pubSz = ED448_PUB_KEY_SIZE;
-    int sz = 0;
-    int ret = 0;
-
-    if (with_header) {
-        DECL_ASNSETDATA(dataASN, edPubKeyASN_Length);
-
-        CALLOC_ASNSETDATA(dataASN, edPubKeyASN_Length, ret, NULL);
-
-        if (ret == 0) {
-            /* Set the Ed448 OID. */
-            SetASN_Buffer(&dataASN[2], keyEd448Oid, sizeof(keyEd448Oid));
-            /* Leave space for public point. */
-            SetASN_Buffer(&dataASN[3], NULL, ED448_PUB_KEY_SIZE);
-            /* Calculate size of Ed448 public key encoding. */
-            ret = SizeASN_Items(edPubKeyASN, dataASN, edPubKeyASN_Length, &sz);
-        }
-        if ((ret == 0) && (output != NULL) && (sz > outLen)) {
-            ret = BUFFER_E;
-        }
-        if ((ret == 0) && (output != NULL)) {
-            /* Encode Ed448 public key. */
-            SetASN_Items(edPubKeyASN, dataASN, edPubKeyASN_Length, output);
-            /* Set location to encode public point. */
-            output = (byte*)dataASN[3].data.buffer.data;
-        }
-
-        FREE_ASNSETDATA(dataASN, NULL);
-    }
-    else if ((output != NULL) && (ED448_PUB_KEY_SIZE > outLen)) {
-        ret = BUFFER_E;
-    }
-    else if (ret == 0) {
-        sz = ED448_PUB_KEY_SIZE;
-    }
-
-    if ((ret == 0) && (output != NULL)) {
-        /* Put public key into space provided. */
-        ret = wc_ed448_export_public(key, output, &pubSz);
-    }
+    ret = wc_ed25519_export_public(key, pubKey, &pubKeyLen);
     if (ret == 0) {
-        ret = sz;
+        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen,
+            ED25519k, withAlg);
     }
-
     return ret;
-#endif /* WOLFSSL_ASN_TEMPLATE */
 }
+#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_EXPORT */
 
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
 /* Encode the public part of an Ed448 key in DER.
  *
  * Pass NULL for output to get the size of the encoding.
@@ -20556,7 +20442,7 @@ static int SetEd448PublicKey(byte* output, ed448_key* key, int outLen,
  * @param [in]  key       Ed448 key object.
  * @param [out] output    Buffer to put encoded data in.
  * @param [in]  outLen    Size of buffer in bytes.
- * @param [in]  with_alg  Whether to use SubjectPublicKeyInfo format.
+ * @param [in]  withAlg   Whether to use SubjectPublicKeyInfo format.
  * @return  Size of encoded data in bytes on success.
  * @return  BAD_FUNC_ARG when key is NULL.
  * @return  MEMORY_E when dynamic memory allocation failed.
@@ -20564,42 +20450,22 @@ static int SetEd448PublicKey(byte* output, ed448_key* key, int outLen,
 int wc_Ed448PublicKeyToDer(ed448_key* key, byte* output, word32 inLen,
                            int withAlg)
 {
-#ifndef WOLFSSL_ASN_TEMPLATE
-    word32 infoSz = 0;
-    word32 keySz  = 0;
-    int ret;
+    int    ret;
+    byte   pubKey[ED448_PUB_KEY_SIZE];
+    word32 pubKeyLen = (word32)sizeof(pubKey);
 
-    if (output == NULL || key == NULL) {
+    if (key == NULL || output == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    if (withAlg) {
-        /* buffer space for algorithm */
-        infoSz += MAX_SEQ_SZ;
-        infoSz += MAX_ALGO_SZ;
-
-        /* buffer space for public key sequence */
-        infoSz += MAX_SEQ_SZ;
-        infoSz += TRAILING_ZERO;
+    ret = wc_ed448_export_public(key, pubKey, &pubKeyLen);
+    if (ret == 0) {
+        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen,
+            ED448k, withAlg);
     }
-
-    if ((ret = wc_ed448_export_public(key, output, &keySz)) != BUFFER_E) {
-        WOLFSSL_MSG("Error in getting ECC public key size");
-        return ret;
-    }
-
-    if (inLen < keySz + infoSz) {
-        return BUFFER_E;
-    }
-#else
-    if (output == NULL || key == NULL) {
-        return BAD_FUNC_ARG;
-    }
-#endif
-
-    return SetEd448PublicKey(output, key, inLen, withAlg);
+    return ret;
 }
-#endif /* HAVE_ED448 && HAVE_ED448_KEY_EXPORT && (WOLFSSL_CERT_GEN || WOLFSSL_KEY_GEN) */
+#endif /* HAVE_ED448 && HAVE_ED448_KEY_EXPORT */
 
 
 #ifdef WOLFSSL_CERT_GEN
@@ -22016,7 +21882,7 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
     #endif /* HAVE_ECC */
     #ifdef HAVE_ED25519
         case ED25519_KEY:
-            ret = SetEd25519PublicKey(output, ed25519Key, outLen, 1);
+            ret = wc_Ed25519PublicKeyToDer(ed25519Key, output, outLen, 1);
             if (ret <= 0) {
                 ret = PUBLIC_KEY_E;
             }
@@ -22024,7 +21890,7 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
     #endif
     #ifdef HAVE_ED448
         case ED448_KEY:
-            ret = SetEd448PublicKey(output, ed448Key, outLen, 1);
+            ret = wc_Ed448PublicKeyToDer(ed448Key, output, outLen, 1);
             if (ret <= 0) {
                 ret = PUBLIC_KEY_E;
             }
@@ -22476,8 +22342,8 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     if (cert->keyType == ED25519_KEY) {
         if (ed25519Key == NULL)
             return PUBLIC_KEY_E;
-        der->publicKeySz = SetEd25519PublicKey(der->publicKey, ed25519Key,
-                                               sizeof(der->publicKey), 1);
+        der->publicKeySz = wc_Ed25519PublicKeyToDer(ed25519Key, der->publicKey,
+            (word32)sizeof(der->publicKey), 1);
     }
 #endif
 
@@ -22485,8 +22351,8 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     if (cert->keyType == ED448_KEY) {
         if (ed448Key == NULL)
             return PUBLIC_KEY_E;
-        der->publicKeySz = SetEd448PublicKey(der->publicKey, ed448Key,
-                                             sizeof(der->publicKey), 1);
+        der->publicKeySz = wc_Ed448PublicKeyToDer(ed448Key, der->publicKey,
+            (word32)sizeof(der->publicKey), 1);
     }
 #endif
 
@@ -23575,8 +23441,8 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
     if (cert->keyType == ED25519_KEY) {
         if (ed25519Key == NULL)
             return PUBLIC_KEY_E;
-        der->publicKeySz = SetEd25519PublicKey(der->publicKey, ed25519Key,
-                                               sizeof(der->publicKey), 1);
+        der->publicKeySz = wc_Ed25519PublicKeyToDer(ed25519Key, der->publicKey,
+            (word32)sizeof(der->publicKey), 1);
     }
 #endif
 
@@ -23584,8 +23450,8 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
     if (cert->keyType == ED448_KEY) {
         if (ed448Key == NULL)
             return PUBLIC_KEY_E;
-        der->publicKeySz = SetEd448PublicKey(der->publicKey, ed448Key,
-                                             sizeof(der->publicKey), 1);
+        der->publicKeySz = wc_Ed448PublicKeyToDer(ed448Key, der->publicKey,
+            (word32)sizeof(der->publicKey), 1);
     }
 #endif
     if (der->publicKeySz <= 0)
@@ -24226,13 +24092,15 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
 #endif
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
     /* ED25519 public key */
-    if (ed25519Key != NULL)
-        bufferSz = SetEd25519PublicKey(buf, ed25519Key, MAX_PUBLIC_KEY_SZ, 0);
+    if (ed25519Key != NULL) {
+        bufferSz = wc_Ed25519PublicKeyToDer(ed25519Key, buf, MAX_PUBLIC_KEY_SZ, 0);
+    }
 #endif
 #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
     /* ED448 public key */
-    if (ed448Key != NULL)
-        bufferSz = SetEd448PublicKey(buf, ed448Key, MAX_PUBLIC_KEY_SZ, 0);
+    if (ed448Key != NULL) {
+        bufferSz = wc_Ed448PublicKeyToDer(ed448Key, buf, MAX_PUBLIC_KEY_SZ, 0);
+    }
 #endif
 
     if (bufferSz <= 0) {
@@ -26275,6 +26143,8 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                     == 0 && tag == ASN_BIT_STRING) {
                 len = 0;
                 ret = GetASNHeader(input, ASN_BIT_STRING, inOutIdx, &len, inSz);
+                if (ret > 0)
+                    ret = 0; /* reset on success */
                 *inOutIdx += len;
             }
         }
@@ -26870,8 +26740,8 @@ int wc_EccKeyToPKCS8(ecc_key* key, byte* output,
 #endif /* HAVE_ECC_KEY_EXPORT && !NO_ASN_CRYPT */
 #endif /* HAVE_ECC */
 
+#ifdef WC_ENABLE_ASYM_KEY_IMPORT
 #ifdef WOLFSSL_ASN_TEMPLATE
-#if defined(HAVE_ED25519) || defined(HAVE_ED448)
 /* ASN.1 template for Ed25519 and Ed448 private key.
  * RFC 8410, 7 - Private Key Format (but public value is EXPLICIT OCTET_STRING)
  */
@@ -26896,25 +26766,28 @@ static const ASNItem edKeyASN[] = {
 
 /* Number of items in ASN.1 template for Ed25519 and Ed448 private key. */
 #define edKeyASN_Length (sizeof(edKeyASN) / sizeof(ASNItem))
-#endif /* HAVE_ED25519 || HAVE_ED448 */
-#endif /* WOLFSSL_ASN_TEMPLATE */
+#endif
 
-#ifdef HAVE_ED25519
-
-#ifdef HAVE_ED25519_KEY_IMPORT
-
-int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
-                               ed25519_key* key, word32 inSz)
+static int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
+    byte* privKey, word32* privKeyLen,
+    byte* pubKey, word32* pubKeyLen, int keyType)
 {
+    int ret = 0;
 #ifndef WOLFSSL_ASN_TEMPLATE
-    word32      oid;
-    int         ret, version, length, endKeyIdx, privSz, pubSz;
+    word32 oid;
+    int version, length, endKeyIdx, privSz, pubSz;
     const byte* priv;
     const byte* pub;
+#else
+    DECL_ASNGETDATA(dataASN, edKeyASN_Length);
+#endif    
 
-    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
+    if (input == NULL || inOutIdx == NULL || inSz == 0 ||
+        privKey == NULL || privKeyLen == NULL) {
         return BAD_FUNC_ARG;
+    }
 
+#ifndef WOLFSSL_ASN_TEMPLATE
     if (GetSequence(input, inOutIdx, &length, inSz) >= 0) {
         endKeyIdx = *inOutIdx + length;
 
@@ -26927,7 +26800,7 @@ int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
 
         if (GetAlgoId(input, inOutIdx, &oid, oidKeyType, inSz) < 0)
             return ASN_PARSE_E;
-        if (oid != ED25519k)
+        if (oid != (word32)keyType)
             return ASN_PARSE_E;
 
         if (GetOctetString(input, inOutIdx, &length, inSz) < 0)
@@ -26943,42 +26816,45 @@ int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
         if (GetOctetString(input, inOutIdx, &privSz, inSz) < 0)
             return ASN_PARSE_E;
 
-        if (privSz != 32)
-            return ASN_PARSE_E;
-
         priv = input + *inOutIdx;
         *inOutIdx += privSz;
         endKeyIdx = *inOutIdx;
     }
 
     if (endKeyIdx == (int)*inOutIdx) {
-        ret = wc_ed25519_import_private_only(priv, privSz, key);
+        *privKeyLen = privSz;
+        XMEMCPY(privKey, priv, *privKeyLen);
+        if (pubKeyLen != NULL)
+            *pubKeyLen = 0;
     }
     else {
         if (GetASNHeader(input, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1,
                          inOutIdx, &length, inSz) < 0) {
             return ASN_PARSE_E;
         }
-        if (GetOctetString(input, inOutIdx, &pubSz, inSz) < 0)
+        if (GetOctetString(input, inOutIdx, &pubSz, inSz) < 0) {
             return ASN_PARSE_E;
+        }
         pub = input + *inOutIdx;
         *inOutIdx += pubSz;
 
-        ret = wc_ed25519_import_private_key(priv, privSz, pub, pubSz, key);
+        *privKeyLen = privSz;
+        XMEMCPY(privKey, priv, *privKeyLen);
+        if (pubKeyLen != NULL)
+            *pubKeyLen = pubSz;
+        if (pubKey != NULL && pubKeyLen != NULL)
+            XMEMCPY(pubKey, pub, *pubKeyLen);
     }
     if (ret == 0 && endKeyIdx != (int)*inOutIdx)
         return ASN_PARSE_E;
-
-    return ret;
 #else
-    DECL_ASNGETDATA(dataASN, edKeyASN_Length);
-    int ret = 0;
-
     CALLOC_ASNGETDATA(dataASN, edKeyASN_Length, ret, NULL);
 
     if (ret == 0) {
-        /* Require Ed25519 OID. */
-        GetASN_ExpBuffer(&dataASN[3], keyEd25519Oid, sizeof(keyEd25519Oid));
+        /* Require OID. */
+        word32 oidSz;
+        const byte* oid = OidFromId(keyType, oidKeyType, &oidSz);
+        GetASN_ExpBuffer(&dataASN[3], oid, oidSz);
         /* Parse full private key. */
         ret = GetASN_Items(edKeyASN, dataASN, edKeyASN_Length, 1, input,
                 inOutIdx, inSz);
@@ -26992,50 +26868,61 @@ int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
         }
     }
     /* Check the private value length is correct. */
-    if ((ret == 0) && dataASN[5].data.ref.length != ED25519_KEY_SIZE) {
+    if ((ret == 0) && dataASN[5].data.ref.length > *privKeyLen) {
         ret = ASN_PARSE_E;
     }
     if ((ret == 0) && dataASN[7].tag == 0) {
-        /* Import just the private value. */
-        ret = wc_ed25519_import_private_only(dataASN[5].data.ref.data,
-                ED25519_KEY_SIZE, key);
+        *privKeyLen = dataASN[5].data.ref.length;
+        XMEMCPY(privKey, dataASN[5].data.ref.data, *privKeyLen);
+        if (pubKeyLen != NULL)
+            *pubKeyLen = 0;
     }
     else if ((ret == 0) &&
-             (dataASN[8].data.ref.length != ED25519_PUB_KEY_SIZE)) {
+             (dataASN[8].data.ref.length > *pubKeyLen)) {
         ret = ASN_PARSE_E;
     }
     else if (ret == 0) {
         /* Import private and public value. */
-        ret = wc_ed25519_import_private_key(dataASN[5].data.ref.data,
-                ED25519_KEY_SIZE, dataASN[8].data.ref.data,
-                ED25519_PUB_KEY_SIZE, key);
+        *privKeyLen = dataASN[5].data.ref.length;
+        XMEMCPY(privKey, dataASN[5].data.ref.data, *privKeyLen);
+        if (pubKeyLen != NULL)
+            *pubKeyLen = dataASN[8].data.ref.length;
+        if (pubKey != NULL && pubKeyLen != NULL)
+            XMEMCPY(pubKey, dataASN[8].data.ref.data, *pubKeyLen);
     }
 
     FREE_ASNGETDATA(dataASN, NULL);
-    return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
+    return ret;
 }
 
-
-int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
-                              ed25519_key* key, word32 inSz)
+static int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
+    byte* pubKey, word32* pubKeyLen, int keyType)
 {
+    int ret = 0;
 #ifndef WOLFSSL_ASN_TEMPLATE
-    int    length;
-    int    ret;
+    int length;
+    word32 oid;
+#else
+    DECL_ASNGETDATA(dataASN, edPubKeyASN_Length);
+#endif
 
-    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
+    if (input == NULL || inSz == 0 || inOutIdx == NULL || 
+        pubKey == NULL || pubKeyLen == NULL) {
         return BAD_FUNC_ARG;
+    }
 
+#ifndef WOLFSSL_ASN_TEMPLATE
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    ret = SkipObjectId(input, inOutIdx, inSz);
-    if (ret != 0)
-        return ret;
+    if (GetObjectId(input, inOutIdx, &oid, oidKeyType, inSz) < 0)
+        return ASN_PARSE_E;
+    if (oid != (word32)keyType)
+        return ASN_PARSE_E;
 
     /* key header */
     ret = CheckBitString(input, inOutIdx, NULL, inSz, 1, NULL);
@@ -27043,19 +26930,16 @@ int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
         return ret;
 
     /* This is the raw point data compressed or uncompressed. */
-    if (wc_ed25519_import_public(input + *inOutIdx, inSz - *inOutIdx, key) != 0)
-        return ASN_ECC_KEY_E;
-
-    return 0;
+    *pubKeyLen = inSz - *inOutIdx;
+    XMEMCPY(pubKey, input + *inOutIdx, *pubKeyLen);
 #else
-    DECL_ASNGETDATA(dataASN, edPubKeyASN_Length);
-    int ret = 0;
-
     CALLOC_ASNGETDATA(dataASN, edPubKeyASN_Length, ret, NULL);
 
     if (ret == 0) {
-        /* Require Ed25519 OID. */
-        GetASN_ExpBuffer(&dataASN[2], keyEd25519Oid, sizeof(keyEd25519Oid));
+        /* Require OID. */
+        word32 oidSz;
+        const byte* oid = OidFromId(keyType, oidKeyType, &oidSz);
+        GetASN_ExpBuffer(&dataASN[2], oid, oidSz);
         /* Decode Ed25519 private key. */
         ret = GetASN_Items(edPubKeyASN, dataASN, edPubKeyASN_Length, 1, input,
                 inOutIdx, inSz);
@@ -27064,103 +26948,201 @@ int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
         }
     }
     /* Check the public value length is correct. */
-    if ((ret == 0) && (dataASN[3].data.ref.length != ED25519_PUB_KEY_SIZE)) {
+    if ((ret == 0) && (dataASN[3].data.ref.length > *pubKeyLen)) {
         ret = ASN_PARSE_E;
     }
     if (ret == 0) {
-        /* Import the public value. */
-        ret = wc_ed25519_import_public(dataASN[3].data.ref.data,
-                ED25519_PUB_KEY_SIZE, key);
-        if (ret != 0) {
-            ret = ASN_ECC_KEY_E;
-        }
+        *pubKeyLen = dataASN[3].data.ref.length;
+        XMEMCPY(pubKey, dataASN[3].data.ref.data, *pubKeyLen);
     }
 
     FREE_ASNGETDATA(dataASN, NULL);
-    return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
+    return ret;
+}
+#endif /* WC_ENABLE_ASYM_KEY_IMPORT */
+
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
+int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
+                               ed25519_key* key, word32 inSz)
+{
+    int ret;
+    byte privKey[ED25519_KEY_SIZE], pubKey[ED25519_PUB_KEY_SIZE];
+    word32 privKeyLen = (word32)sizeof(privKey);
+    word32 pubKeyLen = (word32)sizeof(pubKey);
+
+    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = DecodeAsymKey(input, inOutIdx, inSz, privKey, &privKeyLen, 
+        pubKey, &pubKeyLen, ED25519k);
+    if (ret == 0) {
+        if (pubKeyLen == 0) {
+            ret = wc_ed25519_import_private_only(privKey, privKeyLen, key);
+        }
+        else {
+            ret = wc_ed25519_import_private_key(privKey, privKeyLen,
+                pubKey, pubKeyLen, key);
+        }
+    }
+    return ret;
 }
 
-#endif /* HAVE_ED25519_KEY_IMPORT */
-
-#if defined(WOLFSSL_KEY_GEN) && defined(HAVE_ED25519_KEY_EXPORT)
-
-/* build DER formatted ED25519 key,
- * return length on success, negative on error */
-static int wc_BuildEd25519KeyDer(ed25519_key* key, byte* output, word32 inLen,
-                                 int pubOut)
+int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
+                              ed25519_key* key, word32 inSz)
 {
-#ifndef WOLFSSL_ASN_TEMPLATE
-    byte   algoArray[MAX_ALGO_SZ];
-    byte   ver[MAX_VERSION_SZ];
-    byte   seq[MAX_SEQ_SZ];
-    int    ret;
-    word32 idx = 0, seqSz, verSz, algoSz, privSz, pubSz = 0;
+    int ret;
+    byte pubKey[ED25519_PUB_KEY_SIZE];
+    word32 pubKeyLen = (word32)sizeof(pubKey);
 
-    if (key == NULL || output == NULL || inLen == 0)
+    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
         return BAD_FUNC_ARG;
-
-    if (pubOut)
-        pubSz = 2 + 2 + ED25519_PUB_KEY_SIZE;
-    privSz = 2 + 2 + ED25519_KEY_SIZE;
-    algoSz = SetAlgoID(ED25519k, algoArray, oidKeyType, 0);
-    verSz  = SetMyVersion(0, ver, FALSE);
-    seqSz  = SetSequence(verSz + algoSz + privSz + pubSz, seq);
-
-    if (seqSz + verSz + algoSz + privSz + pubSz > inLen)
-        return BAD_FUNC_ARG;
-
-    /* write out */
-    /* seq */
-    XMEMCPY(output + idx, seq, seqSz);
-    idx = seqSz;
-    /* ver */
-    XMEMCPY(output + idx, ver, verSz);
-    idx += verSz;
-    /* algo */
-    XMEMCPY(output + idx, algoArray, algoSz);
-    idx += algoSz;
-    /* privKey */
-    idx += SetOctetString(2 + ED25519_KEY_SIZE, output + idx);
-    idx += SetOctetString(ED25519_KEY_SIZE, output + idx);
-    ret = wc_ed25519_export_private_only(key, output + idx, &privSz);
-    if (ret != 0)
-        return ret;
-    idx += privSz;
-    /* pubKey */
-    if (pubOut) {
-        idx += SetExplicit(1, 2 + ED25519_PUB_KEY_SIZE, output + idx);
-        idx += SetOctetString(ED25519_KEY_SIZE, output + idx);
-        ret = wc_ed25519_export_public(key, output + idx, &pubSz);
-        if (ret != 0)
-            return ret;
-        idx += pubSz;
     }
 
-    return idx;
+    ret = DecodeAsymKeyPublic(input, inOutIdx, inSz,
+        pubKey, &pubKeyLen, ED25519k);
+    if (ret == 0) {
+        ret = wc_ed25519_import_public(pubKey, pubKeyLen, key);
+    }
+    return ret;
+}
+#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_IMPORT */
+
+#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)
+int wc_Curve25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
+                               curve25519_key* key, word32 inSz)
+{
+    int ret;
+    byte privKey[CURVE25519_KEYSIZE];
+    word32 privKeyLen = CURVE25519_KEYSIZE;
+
+    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = DecodeAsymKey(input, inOutIdx, inSz, privKey, &privKeyLen, 
+        NULL, NULL, X25519k);
+    if (ret == 0) {
+        ret = wc_curve25519_import_private(privKey, privKeyLen, key);
+    }
+    return ret;
+}
+
+int wc_Curve25519PublicKeyDecode(const byte* input, word32* inOutIdx,
+                              curve25519_key* key, word32 inSz)
+{
+    int ret;
+    byte pubKey[CURVE25519_KEYSIZE];
+    word32 pubKeyLen = (word32)sizeof(pubKey);
+
+    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = DecodeAsymKeyPublic(input, inOutIdx, inSz,
+        pubKey, &pubKeyLen, X25519k);
+    if (ret == 0) {
+        ret = wc_curve25519_import_public(pubKey, pubKeyLen, key);
+    }
+    return ret;
+}
+#endif /* HAVE_CURVE25519 && HAVE_ED25519_KEY_IMPORT */
+
+
+#ifdef WC_ENABLE_ASYM_KEY_EXPORT
+
+/* Build ASN.1 formatted key based on RFC 5958 (Asymmetric Key Packages)
+ *
+ * Pass NULL for output to get the size of the encoding.
+ *
+ * @param [in]  privKey      private key buffer
+ * @param [in]  privKeyLen   private ket buffer length
+ * @param [in]  pubKey       public key buffer (optional)
+ * @param [in]  pubKeyLen    public ket buffer length
+ * @param [out] output       Buffer to put encoded data in (optional)
+ * @param [in]  outLen       Size of buffer in bytes
+ * @param [in]  keyType      is "enum Key_Sum" like ED25519k
+ * @return  Size of encoded data in bytes on success
+ * @return  BAD_FUNC_ARG when key is NULL.
+ * @return  MEMORY_E when dynamic memory allocation failed.
+ * @return  LENGTH_ONLY_E return length only.
+ */
+static int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
+    const byte* pubKey, word32 pubKeyLen,
+    byte* output, word32 outLen, int keyType)
+{
+    int ret = 0;
+#ifndef WOLFSSL_ASN_TEMPLATE
+    word32 idx = 0, seqSz, verSz, algoSz, privSz, pubSz = 0, sz;
 #else
     DECL_ASNSETDATA(dataASN, edKeyASN_Length);
-    word32 privSz;
-    int ret = 0;
     int sz;
+#endif
 
     /* Validate parameters. */
-    if ((key == NULL) || (output == NULL) || (inLen == 0)) {
+    if (privKey == NULL || outLen == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifndef WOLFSSL_ASN_TEMPLATE
+    /* calculate size */
+    if (pubKey) {
+        pubSz = 2 + 2 + pubKeyLen;
+    }
+    privSz = 2 + 2 + privKeyLen;
+    algoSz = SetAlgoID(keyType, NULL, oidKeyType, 0);
+    verSz  = 3; /* version is 3 bytes (enum + id + version(byte)) */
+    seqSz  = SetSequence(verSz + algoSz + privSz + pubSz, NULL);
+    sz = seqSz + verSz + algoSz + privSz + pubSz;
+
+    /* checkout output size */
+    if (ret == 0 && output != NULL && sz > outLen) {
         ret = BAD_FUNC_ARG;
     }
+
+    if (ret == 0 && output != NULL) {
+        /* write out */
+        /* seq */
+        seqSz  = SetSequence(verSz + algoSz + privSz + pubSz, output);
+        idx = seqSz;
+        /* ver */
+        SetMyVersion(0, output + idx, FALSE);
+        idx += verSz;
+        /* algo */
+        algoSz = SetAlgoID(keyType, output + idx, oidKeyType, 0);
+        idx += algoSz;
+        /* privKey */
+        idx += SetOctetString(2 + privKeyLen, output + idx);
+        idx += SetOctetString(privKeyLen, output + idx);
+        XMEMCPY(output + idx, privKey, privKeyLen);
+        idx += privKeyLen;
+        /* pubKey */
+        if (pubKey) {
+            idx += SetExplicit(1, 2 + pubKeyLen, output + idx);
+            idx += SetOctetString(pubKeyLen, output + idx);
+            XMEMCPY(output + idx, pubKey, pubKeyLen);
+            idx += pubKeyLen;
+        }
+
+        ret = idx;
+    }
+#else
 
     CALLOC_ASNSETDATA(dataASN, edKeyASN_Length, ret, NULL);
 
     if (ret == 0) {
-        /* Set Ed25519 OID. */
-        SetASN_Buffer(&dataASN[1], keyEd25519Oid, sizeof(keyEd25519Oid));
+        /* Set version = 0 */
+        SetASN_Int8Bit(&dataASN[1], 0);
+        /* Set OID. */
+        SetASN_OID(&dataASN[3], keyType, oidKeyType);
         /* Leave space for private key. */
-        SetASN_Buffer(&dataASN[5], NULL, ED25519_KEY_SIZE);
+        SetASN_Buffer(&dataASN[5], NULL, privKeyLen);
         /* Don't write out attributes. */
         dataASN[6].noOut = 1;
-        if (pubOut) {
+        if (pubKey) {
             /* Leave space for public key. */
-            SetASN_Buffer(&dataASN[8], NULL, ED25519_PUB_KEY_SIZE);
+            SetASN_Buffer(&dataASN[8], NULL, pubKeyLen);
         }
         else {
             /* Don't put out public part. */
@@ -27170,24 +27152,22 @@ static int wc_BuildEd25519KeyDer(ed25519_key* key, byte* output, word32 inLen,
         /* Calculate the size of encoding. */
         ret = SizeASN_Items(edKeyASN, dataASN, edKeyASN_Length, &sz);
     }
+
     /* Check buffer is big enough. */
-    if ((ret == 0) && (sz > (int)inLen)) {
+    if ((ret == 0) && (output != NULL) && (sz > (int)outLen)) {
         ret = BAD_FUNC_ARG;
     }
-    if (ret == 0) {
-        /* Encode Ed25519 private key. */
+    if (ret == 0 && output != NULL) {
+        /* Encode private key. */
         SetASN_Items(edKeyASN, dataASN, edKeyASN_Length, output);
 
         /* Put private value into space provided. */
-        privSz = ED25519_KEY_SIZE;
-        ret = wc_ed25519_export_private_only(key,
-                (byte*)dataASN[5].data.buffer.data, &privSz);
-    }
-    if ((ret == 0) && pubOut) {
-        /* Put public value into space provided. */
-        word32 pubSz = ED25519_PUB_KEY_SIZE;
-        ret = wc_ed25519_export_public(key, (byte*)dataASN[8].data.buffer.data,
-                &pubSz);
+        XMEMCPY((byte*)dataASN[5].data.buffer.data, privKey, privKeyLen);
+
+        if (pubKey != NULL) {
+            /* Put public value into space provided. */
+            XMEMCPY((byte*)dataASN[8].data.buffer.data, pubKey, pubKeyLen);
+        }
     }
 
     if (ret == 0) {
@@ -27196,348 +27176,234 @@ static int wc_BuildEd25519KeyDer(ed25519_key* key, byte* output, word32 inLen,
     }
 
     FREE_ASNSETDATA(dataASN, NULL);
-    return ret;
 #endif
+    return ret;
 }
+#endif /* WC_ENABLE_ASYM_KEY_EXPORT */
 
-/* Write a Private ecc key, including public to DER format,
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+/* Write a Private ED25519 key, including public to DER format,
  * length on success else < 0 */
 int wc_Ed25519KeyToDer(ed25519_key* key, byte* output, word32 inLen)
 {
-    return wc_BuildEd25519KeyDer(key, output, inLen, 1);
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    return SetAsymKeyDer(key->k, ED25519_KEY_SIZE,
+        key->p, ED25519_PUB_KEY_SIZE, output, inLen, ED25519k);
 }
 
-/* Write only private Ed25519 key to DER format,
+/* Write only private ED25519 key to DER format,
  * length on success else < 0 */
 int wc_Ed25519PrivateKeyToDer(ed25519_key* key, byte* output, word32 inLen)
 {
-    return wc_BuildEd25519KeyDer(key, output, inLen, 0);
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    return SetAsymKeyDer(key->k, ED25519_KEY_SIZE,
+        NULL, 0, output, inLen, ED25519k);
+}
+#endif /* HAVE_ED25519 && HAVE_ED25519_KEY_EXPORT */
+
+#if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)
+/* Write only private Curve25519 key to DER format,
+ * length on success else < 0 */
+int wc_Curve25519PrivateKeyToDer(curve25519_key* key, byte* output, word32 inLen)
+{
+    int    ret;
+    byte   privKey[CURVE25519_KEYSIZE];
+    word32 privKeyLen = CURVE25519_KEYSIZE;
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wc_curve25519_export_private_raw(key, privKey, &privKeyLen);
+    if (ret == 0) {
+        ret = SetAsymKeyDer(privKey, privKeyLen, NULL, 0, output, inLen,
+            X25519k);
+    }
+    return ret;
 }
 
-#endif /* WOLFSSL_KEY_GEN && HAVE_ED25519_KEY_EXPORT */
+/* Write a public Curve25519 key to DER format,
+ * length on success else < 0 */
+int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 inLen,
+                             int withAlg)
+{
+    int    ret;
+    byte   pubKey[CURVE25519_KEYSIZE];
+    word32 pubKeyLen = (word32)sizeof(pubKey);
 
-#endif /* HAVE_ED25519 */
+    if (key == NULL || output == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
-#ifdef HAVE_ED448
+    ret = wc_curve25519_export_public(key, pubKey, &pubKeyLen);
+    if (ret == 0) {
+        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen,
+            X25519k, withAlg);
+    }
+    return ret;
+}
+#endif /* HAVE_CURVE25519 && HAVE_CURVE25519_KEY_EXPORT */
 
-#ifdef HAVE_ED448_KEY_IMPORT
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
 int wc_Ed448PrivateKeyDecode(const byte* input, word32* inOutIdx,
-                             ed448_key* key, word32 inSz)
+                               ed448_key* key, word32 inSz)
 {
-#ifndef WOLFSSL_ASN_TEMPLATE
-    word32      oid;
-    int         ret, version, length, endKeyIdx, privSz, pubSz;
-    const byte* priv;
-    const byte* pub;
+    int ret;
+    byte privKey[ED448_KEY_SIZE], pubKey[ED448_PUB_KEY_SIZE];
+    word32 privKeyLen = (word32)sizeof(privKey);
+    word32 pubKeyLen = (word32)sizeof(pubKey);
 
-    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
+    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
         return BAD_FUNC_ARG;
-
-    if (GetSequence(input, inOutIdx, &length, inSz) >= 0) {
-        endKeyIdx = *inOutIdx + length;
-
-        if (GetMyVersion(input, inOutIdx, &version, inSz) < 0)
-            return ASN_PARSE_E;
-        if (version != 0) {
-            WOLFSSL_MSG("Unrecognized version of ED448 private key");
-            return ASN_PARSE_E;
-        }
-
-        if (GetAlgoId(input, inOutIdx, &oid, oidKeyType, inSz) < 0)
-            return ASN_PARSE_E;
-        if (oid != ED448k)
-            return ASN_PARSE_E;
-
-        if (GetOctetString(input, inOutIdx, &length, inSz) < 0)
-            return ASN_PARSE_E;
-
-        if (GetOctetString(input, inOutIdx, &privSz, inSz) < 0)
-            return ASN_PARSE_E;
-
-        priv = input + *inOutIdx;
-        *inOutIdx += privSz;
-    }
-    else {
-        if (GetOctetString(input, inOutIdx, &privSz, inSz) < 0)
-            return ASN_PARSE_E;
-
-        if (privSz != 57)
-            return ASN_PARSE_E;
-
-        priv = input + *inOutIdx;
-        *inOutIdx += privSz;
-        endKeyIdx = *inOutIdx;
     }
 
-    if (endKeyIdx == (int)*inOutIdx) {
-        ret = wc_ed448_import_private_only(priv, privSz, key);
-    }
-    else {
-        if (GetASNHeader(input, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1,
-                         inOutIdx, &length, inSz) < 0) {
-            return ASN_PARSE_E;
-        }
-        if (GetOctetString(input, inOutIdx, &pubSz, inSz) < 0)
-            return ASN_PARSE_E;
-        pub = input + *inOutIdx;
-        *inOutIdx += pubSz;
-
-        ret = wc_ed448_import_private_key(priv, privSz, pub, pubSz, key);
-    }
-    if (ret == 0 && endKeyIdx != (int)*inOutIdx)
-        return ASN_PARSE_E;
-
-    return ret;
-#else
-    DECL_ASNGETDATA(dataASN, edKeyASN_Length);
-    int ret = 0;
-
-    CALLOC_ASNGETDATA(dataASN, edKeyASN_Length, ret, NULL);
-
+    ret = DecodeAsymKey(input, inOutIdx, inSz, privKey, &privKeyLen, 
+        pubKey, &pubKeyLen, ED448k);
     if (ret == 0) {
-        /* Require Ed448 OID. */
-        GetASN_ExpBuffer(&dataASN[3], keyEd448Oid, sizeof(keyEd448Oid));
-        /* Parse full private key. */
-        ret = GetASN_Items(edKeyASN, dataASN, edKeyASN_Length, 1, input,
-                inOutIdx, inSz);
-        if (ret != 0) {
-            /* Parse just the OCTET_STRING. */
-            ret = GetASN_Items(&edKeyASN[5], &dataASN[5], 1, 0, input, inOutIdx,
-                    inSz);
-            if (ret != 0) {
-                ret = ASN_PARSE_E;
-            }
-        }
-    }
-    /* Check the private value length is correct. */
-    if ((ret == 0) && dataASN[5].data.ref.length != ED448_KEY_SIZE) {
-        ret = ASN_PARSE_E;
-    }
-    if ((ret == 0) && dataASN[7].tag == 0) {
-        /* Import just the private value. */
-        ret = wc_ed448_import_private_only(dataASN[5].data.ref.data,
-                ED448_KEY_SIZE, key);
-    }
-    else if ((ret == 0) && (dataASN[8].data.ref.length != ED448_PUB_KEY_SIZE)) {
-        ret = ASN_PARSE_E;
-    }
-    else if (ret == 0) {
-        /* Import private and public value. */
-        ret = wc_ed448_import_private_key(dataASN[5].data.ref.data,
-                ED448_KEY_SIZE, dataASN[8].data.ref.data, ED448_PUB_KEY_SIZE,
-                key);
-    }
-
-    FREE_ASNGETDATA(dataASN, NULL);
-    return ret;
-#endif /* WOLFSSL_ASN_TEMPLATE */
-}
-
-
-int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
-                            ed448_key* key, word32 inSz)
-{
-#ifndef WOLFSSL_ASN_TEMPLATE
-    int    length;
-    int    ret;
-
-    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
-        return BAD_FUNC_ARG;
-
-    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
-        return ASN_PARSE_E;
-
-    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
-        return ASN_PARSE_E;
-
-    ret = SkipObjectId(input, inOutIdx, inSz);
-    if (ret != 0)
-        return ret;
-
-    /* key header */
-    ret = CheckBitString(input, inOutIdx, NULL, inSz, 1, NULL);
-    if (ret != 0)
-        return ret;
-
-    /* This is the raw point data compressed or uncompressed. */
-    if (wc_ed448_import_public(input + *inOutIdx, inSz - *inOutIdx, key) != 0)
-        return ASN_ECC_KEY_E;
-
-    return 0;
-#else
-    DECL_ASNGETDATA(dataASN, edPubKeyASN_Length);
-    int ret = 0;
-
-    CALLOC_ASNGETDATA(dataASN, edPubKeyASN_Length, ret, NULL);
-
-    if (ret == 0) {
-        /* Require Ed448 OID. */
-        GetASN_ExpBuffer(&dataASN[2], keyEd448Oid, sizeof(keyEd448Oid));
-        /* Decode Ed448 private key. */
-        ret = GetASN_Items(edPubKeyASN, dataASN, edPubKeyASN_Length, 1, input,
-                inOutIdx, inSz);
-        if (ret != 0) {
-            ret = ASN_PARSE_E;
-        }
-    }
-    /* Check the public value length is correct. */
-    if ((ret == 0) && (dataASN[3].data.ref.length != ED448_PUB_KEY_SIZE)) {
-        ret = ASN_PARSE_E;
-    }
-    if (ret == 0) {
-        /* Import the public value. */
-        ret = wc_ed448_import_public(dataASN[3].data.ref.data,
-                ED448_PUB_KEY_SIZE, key);
-        if (ret != 0) {
-            ret = ASN_ECC_KEY_E;
-        }
-    }
-
-    FREE_ASNGETDATA(dataASN, NULL);
-    return ret;
-#endif /* WOLFSSL_ASN_TEMPLATE */
-}
-#endif /* HAVE_ED448_KEY_IMPORT */
-
-#if defined(WOLFSSL_KEY_GEN) && defined(HAVE_ED448_KEY_EXPORT)
-
-/* build DER formatted ED448 key,
- * return length on success, negative on error */
-static int wc_BuildEd448KeyDer(ed448_key* key, byte* output, word32 inLen,
-                               int pubOut)
-{
-#ifndef WOLFSSL_ASN_TEMPLATE
-    byte   algoArray[MAX_ALGO_SZ];
-    byte   ver[MAX_VERSION_SZ];
-    byte   seq[MAX_SEQ_SZ];
-    int    ret;
-    word32 idx = 0, seqSz, verSz, algoSz, privSz, pubSz = 0;
-
-    if (key == NULL || output == NULL || inLen == 0)
-        return BAD_FUNC_ARG;
-
-    if (pubOut) {
-        pubSz = 2 + 2 + ED448_PUB_KEY_SIZE;
-    }
-    privSz = 2 + 2 + ED448_KEY_SIZE;
-    algoSz = SetAlgoID(ED448k, algoArray, oidKeyType, 0);
-    verSz  = SetMyVersion(0, ver, FALSE);
-    seqSz  = SetSequence(verSz + algoSz + privSz + pubSz, seq);
-
-    if (seqSz + verSz + algoSz + privSz + pubSz > inLen)
-        return BAD_FUNC_ARG;
-
-    /* write out */
-    /* seq */
-    XMEMCPY(output + idx, seq, seqSz);
-    idx = seqSz;
-    /* ver */
-    XMEMCPY(output + idx, ver, verSz);
-    idx += verSz;
-    /* algo */
-    XMEMCPY(output + idx, algoArray, algoSz);
-    idx += algoSz;
-    /* privKey */
-    idx += SetOctetString(2 + ED448_KEY_SIZE, output + idx);
-    idx += SetOctetString(ED448_KEY_SIZE, output + idx);
-    ret = wc_ed448_export_private_only(key, output + idx, &privSz);
-    if (ret != 0)
-        return ret;
-    idx += privSz;
-    /* pubKey */
-    if (pubOut) {
-        idx += SetExplicit(1, 2 + ED448_PUB_KEY_SIZE, output + idx);
-        idx += SetOctetString(ED448_KEY_SIZE, output + idx);
-        ret = wc_ed448_export_public(key, output + idx, &pubSz);
-        if (ret != 0)
-            return ret;
-        idx += pubSz;
-    }
-
-    return idx;
-#else
-    DECL_ASNSETDATA(dataASN, edKeyASN_Length);
-    word32 privSz;
-    int ret = 0;
-    int sz;
-
-    /* Validate parameters. */
-    if ((key == NULL) || (output == NULL) || (inLen == 0)) {
-        ret = BAD_FUNC_ARG;
-    }
-
-    CALLOC_ASNSETDATA(dataASN, edKeyASN_Length, ret, NULL);
-
-    if (ret == 0) {
-        /* Set Ed448 OID. */
-        SetASN_Buffer(&dataASN[1], keyEd448Oid, sizeof(keyEd448Oid));
-        /* Leave space for private key. */
-        SetASN_Buffer(&dataASN[5], NULL, ED448_KEY_SIZE);
-        /* Don't write out attributes. */
-        dataASN[6].noOut = 1;
-        if (pubOut) {
-            /* Leave space for public key. */
-            SetASN_Buffer(&dataASN[8], NULL, ED448_PUB_KEY_SIZE);
+        if (pubKeyLen == 0) {
+            ret = wc_ed448_import_private_only(privKey, privKeyLen, key);
         }
         else {
-            /* Don't put out public part. */
-            dataASN[7].noOut = dataASN[8].noOut = 1;
+            ret = wc_ed448_import_private_key(privKey, privKeyLen,
+                pubKey, pubKeyLen, key);
         }
-
-        /* Calculate the size of encoding. */
-        ret = SizeASN_Items(edKeyASN, dataASN, edKeyASN_Length, &sz);
     }
-    /* Check buffer is big enough. */
-    if ((ret == 0) && (sz > (int)inLen)) {
-        ret = BAD_FUNC_ARG;
-    }
-    if (ret == 0) {
-        /* Encode Ed448 private key. */
-        SetASN_Items(edKeyASN, dataASN, edKeyASN_Length, output);
-
-        /* Put private value into space provided. */
-        privSz = ED448_KEY_SIZE;
-        ret = wc_ed448_export_private_only(key,
-                (byte*)dataASN[5].data.buffer.data, &privSz);
-    }
-    if ((ret == 0) && pubOut) {
-        /* Put public value into space provided. */
-        word32 pubSz = ED448_PUB_KEY_SIZE;
-        ret = wc_ed448_export_public(key, (byte*)dataASN[8].data.buffer.data,
-                &pubSz);
-    }
-
-    if (ret == 0) {
-        /* Return size of encoding. */
-        ret = sz;
-    }
-
-    FREE_ASNSETDATA(dataASN, NULL);
     return ret;
-#endif
 }
 
+int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
+                              ed448_key* key, word32 inSz)
+{
+    int ret;
+    byte pubKey[ED448_PUB_KEY_SIZE];
+    word32 pubKeyLen = (word32)sizeof(pubKey);
+
+    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = DecodeAsymKeyPublic(input, inOutIdx, inSz,
+        pubKey, &pubKeyLen, ED448k);
+    if (ret == 0) {
+        ret = wc_ed448_import_public(pubKey, pubKeyLen, key);
+    }
+    return ret;
+}
+#endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
+
+#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)
+int wc_Curve448PrivateKeyDecode(const byte* input, word32* inOutIdx,
+                               curve448_key* key, word32 inSz)
+{
+    int ret;
+    byte privKey[CURVE448_KEY_SIZE];
+    word32 privKeyLen = CURVE448_KEY_SIZE;
+
+    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = DecodeAsymKey(input, inOutIdx, inSz, privKey, &privKeyLen, 
+        NULL, NULL, X448k);
+    if (ret == 0) {
+        ret = wc_curve448_import_private(privKey, privKeyLen, key);
+    }
+    return ret;
+}
+
+int wc_Curve448PublicKeyDecode(const byte* input, word32* inOutIdx,
+                              curve448_key* key, word32 inSz)
+{
+    int ret;
+    byte pubKey[CURVE448_PUB_KEY_SIZE];
+    word32 pubKeyLen = (word32)sizeof(pubKey);
+
+    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = DecodeAsymKeyPublic(input, inOutIdx, inSz,
+        pubKey, &pubKeyLen, X448k);
+    if (ret == 0) {
+        ret = wc_curve448_import_public(pubKey, pubKeyLen, key);
+    }
+    return ret;
+}
+#endif /* HAVE_CURVE448 && HAVE_ED448_KEY_IMPORT */
+
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT)
 /* Write a Private ecc key, including public to DER format,
  * length on success else < 0 */
 int wc_Ed448KeyToDer(ed448_key* key, byte* output, word32 inLen)
 {
-    return wc_BuildEd448KeyDer(key, output, inLen, 1);
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    return SetAsymKeyDer(key->k, ED448_KEY_SIZE,
+        key->p, ED448_KEY_SIZE, output, inLen, ED448k);
 }
-
-
 
 /* Write only private ecc key to DER format,
  * length on success else < 0 */
 int wc_Ed448PrivateKeyToDer(ed448_key* key, byte* output, word32 inLen)
 {
-    return wc_BuildEd448KeyDer(key, output, inLen, 0);
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    return SetAsymKeyDer(key->k, ED448_KEY_SIZE,
+        NULL, 0, output, inLen, ED448k);
 }
 
-#endif /* WOLFSSL_KEY_GEN && HAVE_ED448_KEY_EXPORT */
+#endif /* HAVE_ED448 && HAVE_ED448_KEY_EXPORT */
 
-#endif /* HAVE_ED448 */
+#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_EXPORT)
+/* Write private Curve448 key to DER format,
+ * length on success else < 0 */
+int wc_Curve448PrivateKeyToDer(curve448_key* key, byte* output, word32 inLen)
+{
+    int    ret;
+    byte   privKey[CURVE448_KEY_SIZE];
+    word32 privKeyLen = CURVE448_KEY_SIZE;
 
-#if (defined(HAVE_OCSP) || defined(HAVE_CRL)) && !defined(WOLFSSL_ASN_TEMPLATE)
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wc_curve448_export_private_raw(key, privKey, &privKeyLen);
+    if (ret == 0) {
+        ret = SetAsymKeyDer(privKey, privKeyLen, NULL, 0, output, inLen,
+            X448k);
+    }
+    return ret;
+}
+/* Write a public Curve448 key to DER format,
+ * length on success else < 0 */
+int wc_Curve448PublicKeyToDer(curve448_key* key, byte* output, word32 inLen,
+                             int withAlg)
+{
+    int    ret;
+    byte   pubKey[CURVE448_PUB_KEY_SIZE];
+    word32 pubKeyLen = (word32)sizeof(pubKey);
+
+    if (key == NULL || output == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wc_curve448_export_public(key, pubKey, &pubKeyLen);
+    if (ret == 0) {
+        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen,
+            X448k, withAlg);
+    }
+    return ret;
+}
+#endif /* HAVE_CURVE448 && HAVE_CURVE448_KEY_EXPORT */
+
+
+#if defined(HAVE_OCSP) || defined(HAVE_CRL)
 
 /* Get raw Date only, no processing, 0 on success */
 static int GetBasicDate(const byte* source, word32* idx, byte* date,

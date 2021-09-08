@@ -2273,6 +2273,10 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     if (ctx->staticKE.ecKey && ctx->staticKE.weOwnEC)
         FreeDer(&ctx->staticKE.ecKey);
     #endif
+    #ifdef HAVE_CURVE25519
+    if (ctx->staticKE.x25519Key && ctx->staticKE.weOwnX25519)
+        FreeDer(&ctx->staticKE.x25519Key);
+    #endif
 #endif
 #ifdef WOLFSSL_STATIC_MEMORY
     if (ctx->heap != NULL) {
@@ -3803,6 +3807,10 @@ void FreeX509(WOLFSSL_X509* x509)
         if (x509->authInfo != NULL) {
             XFREE(x509->authInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
             x509->authInfo = NULL;
+        }
+        if (x509->CRLInfo != NULL) {
+            XFREE(x509->CRLInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
+            x509->CRLInfo = NULL;
         }
         #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         if (x509->authInfoCaIssuer != NULL) {
@@ -6213,6 +6221,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     #ifndef NO_DH
     ssl->staticKE.weOwnDH = 0;
     #endif
+    #ifdef HAVE_CURVE25519
+    ssl->staticKE.weOwnX25519 = 0;
+    #endif
 #endif
 
 #ifdef WOLFSSL_TLS13
@@ -6986,6 +6997,10 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     #ifdef HAVE_ECC
     if (ssl->staticKE.ecKey && ssl->staticKE.weOwnEC)
         FreeDer(&ssl->staticKE.ecKey);
+    #endif
+    #ifdef HAVE_CURVE25519
+    if (ssl->staticKE.x25519Key && ssl->staticKE.weOwnX25519)
+        FreeDer(&ssl->staticKE.x25519Key);
     #endif
 #endif
 
@@ -10515,8 +10530,17 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 
     x509->CRLdistSet = dCert->extCRLdistSet;
     x509->CRLdistCrit = dCert->extCRLdistCrit;
-    x509->CRLInfo = dCert->extCrlInfo;
-    x509->CRLInfoSz = dCert->extCrlInfoSz;
+    if (dCert->extCrlInfo != NULL && dCert->extCrlInfoSz > 0) {
+        x509->CRLInfo = (byte*)XMALLOC(dCert->extCrlInfoSz, x509->heap,
+            DYNAMIC_TYPE_X509_EXT);
+        if (x509->CRLInfo != NULL) {
+            XMEMCPY(x509->CRLInfo, dCert->extCrlInfo, dCert->extCrlInfoSz);
+            x509->CRLInfoSz = dCert->extCrlInfoSz;
+        }
+        else {
+            ret = MEMORY_E;
+        }
+    }
     x509->authInfoSet = dCert->extAuthInfoSet;
     x509->authInfoCrit = dCert->extAuthInfoCrit;
     if (dCert->extAuthInfo != NULL && dCert->extAuthInfoSz > 0) {
@@ -15779,7 +15803,7 @@ int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
 #endif
 
 
-int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
+int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
 {
     word32 msgSz   = ssl->keys.encryptSz;
     word32 idx     = *inOutIdx;
@@ -15807,7 +15831,9 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
         }
         if (!process) {
             WOLFSSL_MSG("Received App data before a handshake completed");
-            SendAlert(ssl, alert_fatal, unexpected_message);
+            if (sniff == NO_SNIFF) {
+                SendAlert(ssl, alert_fatal, unexpected_message);
+            }
             return OUT_OF_ORDER_E;
         }
     }
@@ -15815,7 +15841,9 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
 #endif
     if (ssl->options.handShakeDone == 0) {
         WOLFSSL_MSG("Received App data before a handshake completed");
-        SendAlert(ssl, alert_fatal, unexpected_message);
+        if (sniff == NO_SNIFF) {
+            SendAlert(ssl, alert_fatal, unexpected_message);
+        }
         return OUT_OF_ORDER_E;
     }
 
@@ -15838,13 +15866,17 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
 #endif
     if (dataSz < 0) {
         WOLFSSL_MSG("App data buffer error, malicious input?");
-        SendAlert(ssl, alert_fatal, unexpected_message);
+        if (sniff == NO_SNIFF) {
+            SendAlert(ssl, alert_fatal, unexpected_message);
+        }
         return BUFFER_ERROR;
     }
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->earlyData > early_data_ext) {
         if (ssl->earlyDataSz + dataSz > ssl->options.maxEarlyDataSz) {
-            SendAlert(ssl, alert_fatal, unexpected_message);
+            if (sniff == NO_SNIFF) {
+                SendAlert(ssl, alert_fatal, unexpected_message);
+            }
             return WOLFSSL_FATAL_ERROR;
         }
         ssl->earlyDataSz += dataSz;
@@ -17144,8 +17176,8 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                     #endif
                     if ((ret = DoApplicationData(ssl,
                                                 ssl->buffers.inputBuffer.buffer,
-                                                &ssl->buffers.inputBuffer.idx))
-                                                                         != 0) {
+                                                &ssl->buffers.inputBuffer.idx,
+                                                              NO_SNIFF)) != 0) {
                         WOLFSSL_ERROR(ret);
                         return ret;
                     }
@@ -27404,12 +27436,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             case TLS_ASYNC_BUILD:
             {
-            #if (!defined(NO_DH) && !defined(NO_RSA)) || (defined(HAVE_ECC) || \
-                    (defined(HAVE_CURVE25519) && defined(HAVE_ED25519)) || \
-                    (defined(HAVE_CURVE448) && defined(HAVE_ED448)))
-                word32 preSigSz, preSigIdx;
-            #endif
-
                 switch(ssl->specs.kea)
                 {
                 #ifndef NO_PSK
@@ -27670,6 +27696,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     case ecc_diffie_hellman_kea:
                     {
                         enum wc_HashType hashType;
+                        word32 preSigSz, preSigIdx;
 
                         /* curve type, named curve, length(1) */
                         args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
@@ -28003,6 +28030,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     case diffie_hellman_kea:
                     {
                         enum wc_HashType hashType;
+                        word32 preSigSz, preSigIdx;
 
                         args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
                         args->length = LENGTH_SZ * 3;  /* p, g, pub */
