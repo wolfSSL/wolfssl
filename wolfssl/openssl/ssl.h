@@ -237,7 +237,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define TLSv1_3_client_method           wolfTLSv1_3_client_method
 #define TLS_method                      wolfSSLv23_method
 
-#define X509_FILETYPE_ASN1 SSL_FILETYPE_ASN1
+#define X509_FILETYPE_ASN1              WOLFSSL_FILETYPE_ASN1
+#define X509_FILETYPE_DEFAULT           WOLFSSL_FILETYPE_DEFAULT
 
 #define X509_F_X509_CHECK_PRIVATE_KEY   128
 
@@ -404,6 +405,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define d2i_X509                        wolfSSL_d2i_X509
 #define PEM_read_bio_X509               wolfSSL_PEM_read_bio_X509
 #define PEM_read_bio_X509_REQ           wolfSSL_PEM_read_bio_X509_REQ
+#define PEM_read_X509_REQ               wolfSSL_PEM_read_X509_REQ
 #define PEM_read_bio_X509_CRL           wolfSSL_PEM_read_bio_X509_CRL
 #define PEM_read_bio_X509_AUX           wolfSSL_PEM_read_bio_X509_AUX
 #define PEM_read_X509                   wolfSSL_PEM_read_X509
@@ -437,6 +439,9 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_load_certificate_file      wolfSSL_X509_load_certificate_file
 #define X509_digest                     wolfSSL_X509_digest
 #define X509_pubkey_digest              wolfSSL_X509_pubkey_digest
+#define X509_get_extension_flags        wolfSSL_X509_get_extension_flags
+#define X509_get_key_usage              wolfSSL_X509_get_key_usage
+#define X509_get_extended_key_usage     wolfSSL_X509_get_extended_key_usage
 #define X509_get_ext_count              wolfSSL_X509_get_ext_count
 #define X509_get_ext_d2i                wolfSSL_X509_get_ext_d2i
 #define X509V3_EXT_i2d                  wolfSSL_X509V3_EXT_i2d
@@ -729,8 +734,12 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define BIO_do_connect                  wolfSSL_BIO_do_connect
 #define BIO_do_accept                   wolfSSL_BIO_do_accept
 #define BIO_do_handshake                wolfSSL_BIO_do_handshake
+#define BIO_ssl_shutdown                wolfSSL_BIO_ssl_shutdown
 #define SSL_set_bio                     wolfSSL_set_bio
 #define BIO_set_ssl                     wolfSSL_BIO_set_ssl
+#define BIO_get_ssl                     wolfSSL_BIO_get_ssl
+#define BIO_new_ssl_connect             wolfSSL_BIO_new_ssl_connect
+#define BIO_set_conn_hostname           wolfSSL_BIO_set_conn_hostname
 #define BIO_eof                         wolfSSL_BIO_eof
 #define BIO_set_ss                      wolfSSL_BIO_set_ss
 
@@ -781,6 +790,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ASN1_TIME_set                   wolfSSL_ASN1_TIME_set
 #define ASN1_TIME_set_string            wolfSSL_ASN1_TIME_set_string
 #define ASN1_TIME_to_string             wolfSSL_ASN1_TIME_to_string
+#define ASN1_TIME_to_tm                 wolfSSL_ASN1_TIME_to_tm
 #define ASN1_GENERALIZEDTIME_print      wolfSSL_ASN1_GENERALIZEDTIME_print
 #define ASN1_GENERALIZEDTIME_free       wolfSSL_ASN1_GENERALIZEDTIME_free
 
