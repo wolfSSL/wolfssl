@@ -1552,12 +1552,18 @@ int wolfSSL_BIO_get_len(WOLFSSL_BIO *bio)
 
     WOLFSSL_ENTER("wolfSSL_BIO_get_len");
 
-    if ((len = wolfSSL_BIO_pending(bio)) > 0) {
+    if (bio == NULL) {
+        WOLFSSL_MSG("WOLFSSL_BIO was null");
+        len = BAD_FUNC_ARG;
+    }
+    else if ((len = wolfSSL_BIO_pending(bio)) > 0) {
     }
 #ifndef NO_FILESYSTEM
     else if (bio->type == WOLFSSL_BIO_FILE) {
         if (wolfSSL_BIO_get_fp(bio, &file) != WOLFSSL_SUCCESS)
             len = BAD_FUNC_ARG;
+        if (file == NULL)
+            len = WOLFSSL_BAD_FILE;
         if (len == 0) {
             curr = XFTELL(file);
             if (curr < 0) {
