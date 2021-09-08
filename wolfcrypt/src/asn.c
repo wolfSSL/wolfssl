@@ -10730,8 +10730,13 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
     }
 #endif /* OPENSSL_EXTRA */
 
-    if (GetSequence(input, &srcIdx, &length, maxIdx) < 0)
+    if (GetSequence(input, &srcIdx, &length, maxIdx) < 0) {
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+            !defined(WOLFCRYPT_ONLY)
+        wolfSSL_X509_NAME_free(dName);
+#endif /* OPENSSL_EXTRA */
         return ASN_PARSE_E;
+    }
 
 #if defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT)
     /* store pointer to raw issuer */
