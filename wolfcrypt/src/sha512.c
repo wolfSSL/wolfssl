@@ -245,7 +245,7 @@ static int InitSha512(wc_Sha512* sha512)
  * Initialize given wc_Sha512 structure with value specific to sha512/224.
  * Note that sha512/224 has different initial hash value from sha512.
  * The initial hash value consists of eight 64bit words. They are given
- * in FIPS180-4.  
+ * in FIPS180-4.
  */
 static int InitSha512_224(wc_Sha512* sha512)
 {
@@ -294,7 +294,7 @@ static int InitSha512_224(wc_Sha512* sha512)
  * Initialize given wc_Sha512 structure with value specific to sha512/256.
  * Note that sha512/256 has different initial hash value from sha512.
  * The initial hash value consists of eight 64bit words. They are given
- * in FIPS180-4.  
+ * in FIPS180-4.
  */
 static int InitSha512_256(wc_Sha512* sha512)
 {
@@ -522,7 +522,7 @@ static int InitSha512_256(wc_Sha512* sha512)
 #ifdef WOLFSSL_SHA512
 
 static int InitSha512_Family(wc_Sha512* sha512, void* heap, int devId,
-                                                    enum wc_HashType type)
+                             int (*initfp)(wc_Sha512*))
 {
    int ret = 0;
 
@@ -538,24 +538,7 @@ static int InitSha512_Family(wc_Sha512* sha512, void* heap, int devId,
     sha512->devCtx = NULL;
 #endif
 
-    if (type == WC_HASH_TYPE_SHA512) {
-        ret = InitSha512(sha512);
-    }
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if !defined(WOLFSSL_NOSHA512_224)
-    else if (type == WC_HASH_TYPE_SHA512_224) {
-        ret = InitSha512_224(sha512);
-    }
-#endif
-#if !defined(WOLFSSL_NOSHA512_256)
-    else if (type == WC_HASH_TYPE_SHA512_256) {
-        ret = InitSha512_256(sha512);
-    }
-#endif
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
-    else
-        ret = BAD_FUNC_ARG;
-
+    ret = initfp(sha512);
     if (ret != 0)
         return ret;
 
@@ -571,19 +554,19 @@ static int InitSha512_Family(wc_Sha512* sha512, void* heap, int devId,
     (void)devId;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-    return ret;    
+    return ret;
 }
 
 int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
 {
-    return InitSha512_Family(sha512, heap, devId, WC_HASH_TYPE_SHA512);
+    return InitSha512_Family(sha512, heap, devId, InitSha512);
 }
 
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 #if !defined(WOLFSSL_NOSHA512_224)
 int wc_InitSha512_224_ex(wc_Sha512* sha512, void* heap, int devId)
 {
-    return InitSha512_Family(sha512, heap, devId, WC_HASH_TYPE_SHA512_224);
+    return InitSha512_Family(sha512, heap, devId, InitSha512_224);
 }
 #endif /* !WOLFSSL_NOSHA512_224 */
 #endif /* !HAVE_FIPS && !HAVE_SELFTEST */
@@ -592,7 +575,7 @@ int wc_InitSha512_224_ex(wc_Sha512* sha512, void* heap, int devId)
 #if !defined(WOLFSSL_NOSHA512_256)
 int wc_InitSha512_256_ex(wc_Sha512* sha512, void* heap, int devId)
 {
-    return InitSha512_Family(sha512, heap, devId, WC_HASH_TYPE_SHA512_256);
+    return InitSha512_Family(sha512, heap, devId, InitSha512_256);
 }
 #endif /* !WOLFSSL_NOSHA512_256 */
 #endif /* !HAVE_FIPS && !HAVE_SELFTEST */
@@ -1012,8 +995,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 }
 
 #ifdef WOLFSSL_SHA512
-
-int wc_Sha512FinalRaw(wc_Sha512* sha512, byte* hash)
+static int Sha512FinalRaw(wc_Sha512* sha512, byte* hash, int digestSz)
 {
 #ifdef LITTLE_ENDIAN_ORDER
     word64 digest[WC_SHA512_DIGEST_SIZE / sizeof(word64)];
@@ -1026,47 +1008,27 @@ int wc_Sha512FinalRaw(wc_Sha512* sha512, byte* hash)
 #ifdef LITTLE_ENDIAN_ORDER
     ByteReverseWords64((word64*)digest, (word64*)sha512->digest,
                                                          WC_SHA512_DIGEST_SIZE);
-    XMEMCPY(hash, digest, WC_SHA512_DIGEST_SIZE);
+    XMEMCPY(hash, digest, digestSz);
 #else
-    XMEMCPY(hash, sha512->digest, WC_SHA512_DIGEST_SIZE);
+    XMEMCPY(hash, sha512->digest, digestSz);
 #endif
 
     return 0;
 }
 
-static int Sha512_Family_Final(wc_Sha512* sha512, byte* hash, 
-                                                    enum wc_HashType type)
+int wc_Sha512FinalRaw(wc_Sha512* sha512, byte* hash)
+{
+    return Sha512FinalRaw(sha512, hash, WC_SHA512_DIGEST_SIZE);
+}
+
+static int Sha512_Family_Final(wc_Sha512* sha512, byte* hash, int digestSz,
+                               int (*initfp)(wc_Sha512*))
 {
     int ret;
-    int digestSz;
-    int (*initfp)(wc_Sha512*);
-
-    (void)initfp;
 
     if (sha512 == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
-    
-    if (type == WC_HASH_TYPE_SHA512) {
-        initfp    = InitSha512;
-        digestSz = WC_SHA512_DIGEST_SIZE;
-    }
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if !defined(WOLFSSL_NOSHA512_224)
-    else if (type == WC_HASH_TYPE_SHA512_224) {
-        initfp    = InitSha512_224;
-        digestSz = WC_SHA512_224_DIGEST_SIZE;
-    }
-#endif
-#if !defined(WOLFSSL_NOSHA512_256)    
-    else if (type == WC_HASH_TYPE_SHA512_256) {
-        initfp = InitSha512_256;
-        digestSz = WC_SHA512_256_DIGEST_SIZE;
-    }
-#endif
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
-    else
-        return BAD_FUNC_ARG;
 
 #ifdef WOLF_CRYPTO_CB
     if (sha512->devId != INVALID_DEVID) {
@@ -1091,15 +1053,12 @@ static int Sha512_Family_Final(wc_Sha512* sha512, byte* hash,
     XMEMCPY(hash, sha512->digest, digestSz);
 
     /* initialize Sha512 structure for the next use */
-    if (initfp != NULL) {
-        ret = initfp(sha512);
-    }
-    return ret;
+    return initfp(sha512);
 }
 
 int wc_Sha512Final(wc_Sha512* sha512, byte* hash)
 {
-    return Sha512_Family_Final(sha512, hash, WC_HASH_TYPE_SHA512);
+    return Sha512_Family_Final(sha512, hash, WC_SHA512_DIGEST_SIZE, InitSha512);
 }
 
 int wc_InitSha512(wc_Sha512* sha512)
@@ -1161,7 +1120,7 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
     if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
 #endif
     {
-        ByteReverseWords64((word64*)data, (word64*)data, 
+        ByteReverseWords64((word64*)data, (word64*)data,
                                                 WC_SHA512_BLOCK_SIZE);
     }
 #endif /* !LITTLE_ENDIAN_ORDER */
@@ -1382,32 +1341,13 @@ void wc_Sha384Free(wc_Sha384* sha384)
 
 #ifdef WOLFSSL_SHA512
 
-static int Sha512_Family_GetHash(wc_Sha512* sha512, byte* hash, 
-                                            enum wc_HashType type )
+static int Sha512_Family_GetHash(wc_Sha512* sha512, byte* hash,
+                                 int (*finalfp)(wc_Sha512*, byte*))
 {
-    int (*finalfp)(wc_Sha512*, byte*);
     int ret;
     wc_Sha512 tmpSha512;
 
     if (sha512 == NULL || hash == NULL)
-        return BAD_FUNC_ARG;
-
-    if (type == WC_HASH_TYPE_SHA512)
-        finalfp = wc_Sha512Final;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if !defined(WOLFSSL_NOSHA512_224)
-    else if (type == WC_HASH_TYPE_SHA512_224)
-        finalfp = wc_Sha512_224Final;
-#endif
-#if !defined(WOLFSSL_NOSHA512_256)
-    else if (type == WC_HASH_TYPE_SHA512_256)
-        finalfp = wc_Sha512_256Final;
-#endif
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
-    else
-        finalfp = NULL;
-    
-    if (finalfp == NULL)
         return BAD_FUNC_ARG;
 
 #if  defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
@@ -1433,7 +1373,7 @@ static int Sha512_Family_GetHash(wc_Sha512* sha512, byte* hash,
 
 int wc_Sha512GetHash(wc_Sha512* sha512, byte* hash)
 {
-    return Sha512_Family_GetHash(sha512, hash, WC_HASH_TYPE_SHA512);
+    return Sha512_Family_GetHash(sha512, hash, wc_Sha512Final);
 }
 
 int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
@@ -1499,11 +1439,12 @@ int wc_Sha512_224Update(wc_Sha512* sha, const byte* data, word32 len)
 }
 int wc_Sha512_224FinalRaw(wc_Sha512* sha, byte* hash)
 {
-    return wc_Sha512FinalRaw(sha, hash);
+    return Sha512FinalRaw(sha, hash, WC_SHA512_224_DIGEST_SIZE);
 }
 int wc_Sha512_224Final(wc_Sha512* sha512, byte* hash)
 {
-    return Sha512_Family_Final(sha512, hash, WC_HASH_TYPE_SHA512_224);
+    return Sha512_Family_Final(sha512, hash, WC_SHA512_224_DIGEST_SIZE,
+                               InitSha512_224);
 }
 void wc_Sha512_224Free(wc_Sha512* sha)
 {
@@ -1511,7 +1452,7 @@ void wc_Sha512_224Free(wc_Sha512* sha)
 }
 int wc_Sha512_224GetHash(wc_Sha512* sha512, byte* hash)
 {
-    return Sha512_Family_GetHash(sha512, hash, WC_HASH_TYPE_SHA512_224);
+    return Sha512_Family_GetHash(sha512, hash, wc_Sha512_224Final);
 }
 int wc_Sha512_224Copy(wc_Sha512* src, wc_Sha512* dst)
 {
@@ -1534,7 +1475,7 @@ int wc_Sha512_224Transform(wc_Sha512* sha, const unsigned char* data)
 {
     return wc_Sha512Transform(sha, data);
 }
-#endif /* OPENSSL_EXTRA */ 
+#endif /* OPENSSL_EXTRA */
 
 #endif /* !WOLFSSL_NOSHA512_224 */
 
@@ -1549,11 +1490,12 @@ int wc_Sha512_256Update(wc_Sha512* sha, const byte* data, word32 len)
 }
 int wc_Sha512_256FinalRaw(wc_Sha512* sha, byte* hash)
 {
-    return wc_Sha512FinalRaw(sha, hash);
+    return Sha512FinalRaw(sha, hash, WC_SHA512_256_DIGEST_SIZE);
 }
 int wc_Sha512_256Final(wc_Sha512* sha512, byte* hash)
 {
-    return Sha512_Family_Final(sha512, hash, WC_HASH_TYPE_SHA512_256);
+    return Sha512_Family_Final(sha512, hash, WC_SHA512_256_DIGEST_SIZE,
+                               InitSha512_256);
 }
 void wc_Sha512_256Free(wc_Sha512* sha)
 {
@@ -1561,7 +1503,7 @@ void wc_Sha512_256Free(wc_Sha512* sha)
 }
 int wc_Sha512_256GetHash(wc_Sha512* sha512, byte* hash)
 {
-    return Sha512_Family_GetHash(sha512, hash, WC_HASH_TYPE_SHA512_256);
+    return Sha512_Family_GetHash(sha512, hash, wc_Sha512_256Final);
 }
 int wc_Sha512_256Copy(wc_Sha512* src, wc_Sha512* dst)
 {
@@ -1584,7 +1526,7 @@ int wc_Sha512_256Transform(wc_Sha512* sha, const unsigned char* data)
 {
     return wc_Sha512Transform(sha, data);
 }
-#endif /* OPENSSL_EXTRA */ 
+#endif /* OPENSSL_EXTRA */
 
 #endif /* !WOLFSSL_NOSHA512_224 */
 #endif /* !HAVE_FIPS && !HAVE_SELFTEST */
