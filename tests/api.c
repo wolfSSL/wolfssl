@@ -5382,6 +5382,7 @@ done:
 static void test_wolfSSL_get_finished(void)
 {
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+    
     tcp_ready ready;
     func_args client_args;
     func_args server_args;
@@ -48720,7 +48721,9 @@ void ApiTest(void)
 (!defined(NO_RSA) || defined(HAVE_ECC))
     test_for_double_Free();
 #endif
+#ifdef HAVE_IO_TESTS_DEPENDENCIES
     test_wolfSSL_get_finished();
+#endif
     test_SSL_CIPHER_get_xxx();
     test_wolfSSL_ERR_strings();
     test_wolfSSL_EVP_shake128();
