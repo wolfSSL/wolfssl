@@ -3825,6 +3825,9 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     int idx;
     int ret, err = 0;
     int sharedCtx = 0;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+    size_t msg_len = 0;
+#endif
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
@@ -4010,12 +4013,12 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
     XMEMSET(server_side_msg2, 0, MD_MAX_SIZE);
-    ret = wolfSSL_get_peer_finished(ssl, server_side_msg2, MD_MAX_SIZE);
-    AssertIntGE(ret, 0);
+    msg_len = wolfSSL_get_peer_finished(ssl, server_side_msg2, MD_MAX_SIZE);
+    AssertIntGE(msg_len, 0);
     
     XMEMSET(server_side_msg1, 0, MD_MAX_SIZE);
-    ret = wolfSSL_get_finished(ssl, server_side_msg1, MD_MAX_SIZE);
-    AssertIntGE(ret, 0);
+    msg_len = wolfSSL_get_finished(ssl, server_side_msg1, MD_MAX_SIZE);
+    AssertIntGE(msg_len, 0);
 #endif
     idx = wolfSSL_read(ssl, input, sizeof(input)-1);
     if (idx > 0) {
@@ -5272,7 +5275,8 @@ static void test_client_get_finished(void* args, cbType cb)
     int  msgSz = (int)XSTRLEN(msg);
     int  ret, err = 0;
     WOLFSSL_METHOD* method  = NULL;
-
+    size_t msg_len = 0;
+    
     ((func_args*)args)->return_code = TEST_FAIL;
     cbf = ((func_args*)args)->callbacks;
 
@@ -5346,12 +5350,12 @@ static void test_client_get_finished(void* args, cbType cb)
     /* get_finished test */
     /* 1. get own sent message */
     XMEMSET(client_side_msg1, 0, MD_MAX_SIZE);
-    ret = wolfSSL_get_finished(ssl, client_side_msg1, MD_MAX_SIZE);
-    AssertIntGE(ret, 0);
+    msg_len = wolfSSL_get_finished(ssl, client_side_msg1, MD_MAX_SIZE);
+    AssertIntGE(msg_len, 0);
     /* 2. get peer message */
     XMEMSET(client_side_msg2, 0, MD_MAX_SIZE);
-    ret = wolfSSL_get_peer_finished(ssl, client_side_msg2, MD_MAX_SIZE);
-    AssertIntGE(ret, 0);
+    msg_len = wolfSSL_get_peer_finished(ssl, client_side_msg2, MD_MAX_SIZE);
+    AssertIntGE(msg_len, 0);
     
     if (cb != NULL)
         (cb)(ctx, ssl);

@@ -1376,7 +1376,7 @@ enum Misc {
                                     /* max size of buffer for exporting state */
     FINISHED_LABEL_SZ   = 15,  /* TLS finished label size */
     TLS_FINISHED_SZ     = 12,  /* TLS has a shorter size  */
-    TLS_FINISHED_SZ_MAX = WC_SHA512_DIGEST_SIZE,  
+    TLS_FINISHED_SZ_MAX = WC_MAX_DIGEST_SIZE,  
                             /* longest message digest size is SHA512, 64 */
     EXT_MASTER_LABEL_SZ = 22,  /* TLS extended master secret label sz */
     MASTER_LABEL_SZ     = 13,  /* TLS master secret label sz */
