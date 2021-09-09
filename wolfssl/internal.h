@@ -1308,7 +1308,6 @@ enum Misc {
     EXT_ID_SZ      =  2,       /* always use 2 bytes      */
     MAX_DH_SIZE    = MAX_DHKEY_SZ+1,
                                /* Max size plus possible leading 0 */
-    NAMED_DH_MASK  = 0x100,    /* Named group mask for DH parameters  */
     MIN_FFHDE_GROUP = 0x100,   /* Named group minimum for FFDHE parameters  */
     MAX_FFHDE_GROUP = 0x1FF,   /* Named group maximum for FFDHE parameters  */
     SESSION_HINT_SZ = 4,       /* session timeout hint */

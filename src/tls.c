@@ -4221,7 +4221,8 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
     serverGroup = (SupportedCurve*)ext->data;
 
     for (; serverGroup != NULL; serverGroup = serverGroup->next) {
-        if ((serverGroup->name & NAMED_DH_MASK) != NAMED_DH_MASK)
+        if (serverGroup->name < MIN_FFHDE_GROUP ||
+            serverGroup->name > MAX_FFHDE_GROUP)
             continue;
 
         for (group = clientGroup; group != NULL; group = group->next) {
@@ -7225,7 +7226,7 @@ static int TLSX_KeyShare_GenKey(WOLFSSL *ssl, KeyShareEntry *kse)
 {
     int ret;
     /* Named FFHE groups have a bit set to identify them. */
-    if ((kse->group & NAMED_DH_MASK) == NAMED_DH_MASK)
+    if (kse->group >= MIN_FFHDE_GROUP && kse->group <= MAX_FFHDE_GROUP)
         ret = TLSX_KeyShare_GenDhKey(ssl, kse);
     else if (kse->group == WOLFSSL_ECC_X25519)
         ret = TLSX_KeyShare_GenX25519Key(ssl, kse);
@@ -7254,7 +7255,8 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
 
     while ((current = list) != NULL) {
         list = current->next;
-        if ((current->group & NAMED_DH_MASK) == NAMED_DH_MASK) {
+        if (current->group >= MIN_FFHDE_GROUP &&
+            current->group <= MAX_FFHDE_GROUP) {
 #ifndef NO_DH
             wc_FreeDhKey((DhKey*)current->key);
 #endif
@@ -7858,7 +7860,8 @@ static int TLSX_KeyShare_Process(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     ssl->session.namedGroup = (byte)keyShareEntry->group;
 #endif
     /* Use Key Share Data from server. */
-    if (keyShareEntry->group & NAMED_DH_MASK)
+    if (keyShareEntry->group >= MIN_FFHDE_GROUP &&
+        keyShareEntry->group <= MAX_FFHDE_GROUP)
         ret = TLSX_KeyShare_ProcessDh(ssl, keyShareEntry);
     else if (keyShareEntry->group == WOLFSSL_ECC_X25519)
         ret = TLSX_KeyShare_ProcessX25519(ssl, keyShareEntry);
@@ -8675,7 +8678,8 @@ int TLSX_KeyShare_Establish(WOLFSSL *ssl, int* doHelloRetry)
         if (!TLSX_SupportedGroups_Find(ssl, clientKSE->group))
             continue;
 
-        if ((clientKSE->group & NAMED_DH_MASK) == 0) {
+        if (clientKSE->group < MIN_FFHDE_GROUP ||
+            clientKSE->group > MAX_FFHDE_GROUP) {
             /* Check max value supported. */
             if (clientKSE->group > WOLFSSL_ECC_MAX) {
 #ifdef HAVE_LIBOQS
