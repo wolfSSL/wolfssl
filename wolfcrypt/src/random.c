@@ -1886,14 +1886,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         status_t status;
         status = TRNG_GetRandomData(TRNG0, output, sz);
+        (void)os;
         if (status == kStatus_Success)
         {
             return(0);
         }
-        else
-        {
-            return RAN_BLOCK_E;
-        }
+        return RAN_BLOCK_E;
     }
 
 #elif defined(FREESCALE_KSDK_2_0_RNGA)
@@ -1902,14 +1900,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         status_t status;
         status = RNGA_GetRandomData(RNG, output, sz);
+        (void)os;
         if (status == kStatus_Success)
         {
             return(0);
         }
-        else
-        {
-            return RAN_BLOCK_E;
-        }
+        return RAN_BLOCK_E;
     }
 
 
@@ -1917,8 +1913,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        RNGA_DRV_GetRandomData(RNGA_INSTANCE, output, sz);
-        return 0;
+        status_t status;
+        status = RNGA_GetRandomData(RNG, output, sz);
+        (void)os;
+        if (status == kStatus_Success)
+        {
+            return(0);
+        }
+        return RAN_BLOCK_E;
     }
 
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX) || \
