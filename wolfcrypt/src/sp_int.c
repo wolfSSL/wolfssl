@@ -12952,6 +12952,15 @@ int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
             err = MP_VAL;
             break;
         }
+
+        /* munge bits */
+#ifndef LITTLE_ENDIAN_ORDER
+        ((byte*)(r->dp + r->used - 1))[0] |= 0x80 | 0x40;
+#else
+        ((byte*)r->dp)[len-1] |= 0x80 | 0x40;
+#endif /* LITTLE_ENDIAN_ORDER */
+        r->dp[0]              |= 0x01 | ((type & USE_BBS) ? 0x02 : 0x00);
+
 #ifndef LITTLE_ENDIAN_ORDER
         if (((len * 8) & SP_WORD_MASK) != 0) {
             r->dp[r->used-1] >>= SP_WORD_SIZE - ((len * 8) & SP_WORD_MASK);
@@ -12962,14 +12971,6 @@ int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
             r->dp[r->used - 1] &= ((sp_digit)1 << bits) - 1;
         }
 #endif /* WOLFSSL_SP_MATH_ALL */
-
-        /* munge bits */
-#ifndef LITTLE_ENDIAN_ORDER
-        ((byte*)(r->dp + r->used - 1))[0] |= 0x80 | 0x40;
-#else
-        ((byte*)r->dp)[len-1] |= 0x80 | 0x40;
-#endif /* LITTLE_ENDIAN_ORDER */
-        r->dp[0]              |= 0x01 | ((type & USE_BBS) ? 0x02 : 0x00);
 
         /* test */
         /* Running Miller-Rabin up to 3 times gives us a 2^{-80} chance

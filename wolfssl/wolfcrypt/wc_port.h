@@ -1012,22 +1012,6 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
 #endif
 
-/* Defaults, user may over-ride with user_settings.h or in a porting section
- * above
- */
-#ifndef XVFPRINTF
-    #define XVFPRINTF  vfprintf
-#endif
-#ifndef XVSNPRINTF
-    #define XVSNPRINTF vsnprintf
-#endif
-#ifndef XFPUTS
-    #define XFPUTS     fputs
-#endif
-#ifndef XSPRINTF
-    #define XSPRINTF   sprintf
-#endif
-
     #ifndef MAX_FILENAME_SZ
         #define MAX_FILENAME_SZ  256 /* max file name length */
     #endif
@@ -1081,6 +1065,22 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     WOLFSSL_API int wc_FileExists(const char* fname);
 
 #endif /* !NO_FILESYSTEM */
+
+/* Defaults, user may over-ride with user_settings.h or in a porting section
+ * above
+ */
+#ifndef XVFPRINTF
+    #define XVFPRINTF  vfprintf
+#endif
+#ifndef XVSNPRINTF
+    #define XVSNPRINTF vsnprintf
+#endif
+#ifndef XFPUTS
+    #define XFPUTS     fputs
+#endif
+#ifndef XSPRINTF
+    #define XSPRINTF   sprintf
+#endif
 
 
 /* MIN/MAX MACRO SECTION */
