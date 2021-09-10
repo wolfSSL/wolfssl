@@ -30394,7 +30394,7 @@ void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
         return;
     }
 
-    if (enc == AES_ENCRYPT) {
+    if (enc) {
         if (wc_AesCbcEncrypt(aes, out, in, (word32)len) != 0) {
             WOLFSSL_MSG("Error with AES CBC encrypt");
         }
