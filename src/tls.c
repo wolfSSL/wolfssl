@@ -64,13 +64,12 @@
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
 static int TLSX_KeyShare_IsSupported(int namedGroup);
+static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap);
 #endif
 
 #ifdef HAVE_SUPPORTED_CURVES
 static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
 #endif
-
-static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap);
 
 #ifndef NO_TLS
 
