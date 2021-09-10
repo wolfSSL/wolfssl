@@ -6,37 +6,39 @@ BUILD_DIR = ./Build
 
 # Toolchain location and prefix
 #TOOLCHAIN = 
-TOOLCHAIN = /opt/gcc-arm-none-eabi/bin/arm-none-eabi-
+TOOLCHAIN ?= /opt/gcc-arm-none-eabi/bin/arm-none-eabi-
 
 # Tools selection
 CC = $(TOOLCHAIN)gcc
-AS = $(TOOLCHAIN)gcc
-LD = $(TOOLCHAIN)gcc
+AS = $(CC)
+LD = $(CC)
 AR = $(TOOLCHAIN)ar
 NM = $(TOOLCHAIN)nm
-OBJCOPY = $(TOOLCHAIN)objcopy
-OBJDUMP = $(TOOLCHAIN)objdump
-SIZE = $(TOOLCHAIN)size
+OBJCOPY ?= $(TOOLCHAIN)objcopy
+OBJDUMP ?= $(TOOLCHAIN)objdump
+SIZE ?= $(TOOLCHAIN)size
 
 # Includes
-INC = -I./Header \
-	  -I./Source \
-	  -I../..
+USER_SETTINGS_DIR ?= ./Header
+INC = -I$(USER_SETTINGS_DIR) \
+      -I../..
 
 # Defines
 DEF = -DWOLFSSL_USER_SETTINGS
 
 # Architecture
-ARCHFLAGS = -mcpu=cortex-m4 -mthumb -mabi=aapcs -DUSE_WOLF_ARM_STARTUP
+ARCHFLAGS ?= -mcpu=cortex-m4 -mthumb -mabi=aapcs -DUSE_WOLF_ARM_STARTUP
 #ARCHFLAGS = -mcpu=cortex-m0 -mthumb -mabi=aapcs -DUSE_WOLF_ARM_STARTUP
 #ARCHFLAGS = -mcpu=cortex-r5 -mthumb -mabi=aapcs
 #ARCHFLAGS = -mcpu=cortex-a53 -mthumb -mabi=aapcs
 
 # Compiler and linker flags
-ASFLAGS = $(ARCHFLAGS)
-CFLAGS = $(ARCHFLAGS) -std=gnu99 -Wall -Wno-cpp
-LDFLAGS = $(ARCHFLAGS)
+ASFLAGS ?= $(ARCHFLAGS)
+CFLAGS_EXTRA ?= -Wno-cpp
+CFLAGS ?= $(ARCHFLAGS) -std=gnu99 -Wall $(CFLAGS_EXTRA)
+LDFLAGS ?= $(ARCHFLAGS)
 
+FIPS?=1
 # LD: Link with nosys
 LDFLAGS += --specs=nosys.specs
 
@@ -70,10 +72,12 @@ LDFLAGS += $(DBGFLAGS)
 # FILES
 
 # Port and Test/Benchmark
+ifndef NO_EXAMPLES
 SRC_C += ./Source/wolf_main.c
 SRC_C += ./Source/armtarget.c
 SRC_C += ../../wolfcrypt/test/test.c
 SRC_C += ../../wolfcrypt/benchmark/benchmark.c
+endif
 
 # WOLFSSL TLS FILES
 SRC_C += ../../src/crl.c
@@ -87,7 +91,9 @@ SRC_C += ../../src/tls13.c
 SRC_C += ../../src/wolfio.c
 
 # wolfCrypt Core (FIPS)
+ifeq "$(FIPS)" "1"
 SRC_C += ../../wolfcrypt/src/wolfcrypt_first.c
+endif
 SRC_C += ../../wolfcrypt/src/aes.c
 SRC_C += ../../wolfcrypt/src/cmac.c
 SRC_C += ../../wolfcrypt/src/des3.c
@@ -100,9 +106,11 @@ SRC_C += ../../wolfcrypt/src/sha.c
 SRC_C += ../../wolfcrypt/src/sha256.c
 SRC_C += ../../wolfcrypt/src/sha512.c
 SRC_C += ../../wolfcrypt/src/sha3.c
+ifeq "$(FIPS)" "1"
 SRC_C += ../../wolfcrypt/src/fips.c
 SRC_C += ../../wolfcrypt/src/fips_test.c
 SRC_C += ../../wolfcrypt/src/wolfcrypt_last.c
+endif
 
 # wolfCrypt Additional
 SRC_C += ../../wolfcrypt/src/asn.c
@@ -165,11 +173,11 @@ vpath %.c $(dir $(SRC_C))
 
 build_hex: $(BUILD_DIR) $(BUILD_DIR)/$(BIN).hex
 	@echo ""
-	$(CMD_ECHO) @$(SIZE) $(BUILD_DIR)/$(BIN).elf
+	$(CMD_ECHO) $(SIZE) $(BUILD_DIR)/$(BIN).elf
 
 build_static: $(BUILD_DIR) $(BUILD_DIR)/$(BIN).a
 	@echo ""
-	$(CMD_ECHO) @$(SIZE) $(BUILD_DIR)/$(BIN).a
+	$(CMD_ECHO) $(SIZE) $(BUILD_DIR)/$(BIN).a
 
 $(BUILD_DIR):
 	$(CMD_ECHO) mkdir -p $(BUILD_DIR)
