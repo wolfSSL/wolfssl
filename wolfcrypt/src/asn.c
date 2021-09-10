@@ -26934,6 +26934,10 @@ static int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
     if (ret != 0)
         return ret;
 
+    /* check that the value found is not too large for pubKey buffer */
+    if (inSz - *inOutIdx > *pubKeyLen)
+        return ASN_PARSE_E;
+
     /* This is the raw point data compressed or uncompressed. */
     *pubKeyLen = inSz - *inOutIdx;
     XMEMCPY(pubKey, input + *inOutIdx, *pubKeyLen);
