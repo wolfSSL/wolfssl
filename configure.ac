@@ -6340,6 +6340,14 @@ then
     ENABLED_CERTS=yes
 fi
 
+if test "$ENABLED_MD5" = "yes"
+then
+    # turn off MD5 if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
+    then
+        ENABLED_MD5=no
+    fi
+fi
 
 ################################################################################
 # Check for build-type conflicts                                               #
@@ -6463,13 +6471,6 @@ AS_IF([test "x$ENABLED_AESCTR" = "xyes" && test "x$ENABLED_FORTRESS" != "xyes"],
 if test "$ENABLED_MD5" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_MD5 -DNO_OLD_TLS"
-else
-    # turn off MD5 if leanpsk or leantls on
-    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DNO_MD5 -DNO_OLD_TLS"
-        ENABLED_MD5=no
-    fi
 fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
