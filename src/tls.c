@@ -7158,7 +7158,7 @@ typedef struct OqsHybridMapping {
     int oqs;
 } OqsHybridMapping;
 
-static OqsHybridMapping oqs_hybrid_mapping[] = {
+static const OqsHybridMapping oqs_hybrid_mapping[] = {
     {.hybrid = WOLFSSL_P256_NTRU_HPS2048509, .ecc = WOLFSSL_ECC_SECP256R1,
      .oqs = WOLFSSL_NTRU_HPS2048509},
     {.hybrid = WOLFSSL_P384_NTRU_HPS2048677, .ecc = WOLFSSL_ECC_SECP384R1,
@@ -7190,7 +7190,8 @@ static OqsHybridMapping oqs_hybrid_mapping[] = {
 
 /* This will map an ecc-oqs hybrid group into its ecc group and oqs group.
  * If it cannot find a mapping then *oqs is set to group. ecc is optional. */
-static void findEccOqs(int *ecc, int *oqs, int group) {
+static void findEccOqs(int *ecc, int *oqs, int group)
+{
     int i;
     if (oqs == NULL) {
         return;
@@ -7232,8 +7233,8 @@ static int TLSX_KeyShare_GenOqsKey(WOLFSSL *ssl, KeyShareEntry* kse)
     byte* pubKey = NULL;
     byte* privKey = NULL;
     KeyShareEntry *ecc_kse = NULL;
-    int oqs_group;
-    int ecc_group;
+    int oqs_group = 0;
+    int ecc_group = 0;
 
     findEccOqs(&ecc_group, &oqs_group, kse->group);
     algName = OQS_ID2name(oqs_group);
@@ -7249,7 +7250,8 @@ static int TLSX_KeyShare_GenOqsKey(WOLFSSL *ssl, KeyShareEntry* kse)
         return BAD_FUNC_ARG;
     }
 
-    ecc_kse = XMALLOC(sizeof(*ecc_kse), ssl->heap, DYNAMIC_TYPE_TLSX);
+    ecc_kse = (KeyShareEntry*)XMALLOC(sizeof(*ecc_kse), ssl->heap,
+               DYNAMIC_TYPE_TLSX);
     if (ecc_kse == NULL) {
         WOLFSSL_MSG("ecc_kse memory allocation failure");
         ret = MEMORY_ERROR;
@@ -7262,10 +7264,7 @@ static int TLSX_KeyShare_GenOqsKey(WOLFSSL *ssl, KeyShareEntry* kse)
     if (ret == 0 && ecc_group != 0) {
         ecc_kse->group = ecc_group;
         ret = TLSX_KeyShare_GenEccKey(ssl, ecc_kse);
-        if (ret != 0) {
-            /* No message, TLSX_KeyShare_GenEccKey() will do it. */
-            return ret;
-        }
+        /* If fail, no error message,  TLSX_KeyShare_GenEccKey will do it. */
     }
 
     if (ret == 0) {
@@ -7905,8 +7904,8 @@ static int TLSX_KeyShare_ProcessOqs(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     OQS_KEM*      kem = NULL;
     byte*         sharedSecret = NULL;
     word32        sharedSecretLen = 0;
-    int           oqs_group;
-    int           ecc_group;
+    int           oqs_group = 0;
+    int           ecc_group = 0;
     ecc_key       eccpubkey;
     word32        outlen = 0;
 
@@ -8357,8 +8356,8 @@ static int server_generate_oqs_ciphertext(WOLFSSL* ssl,
     byte* sharedSecret = NULL;
     byte* ciphertext = NULL;
     int ret = 0;
-    int oqs_group;
-    int ecc_group;
+    int oqs_group = 0;
+    int ecc_group = 0;
     KeyShareEntry *ecc_kse = NULL;
     ecc_key eccpubkey;
     word32 outlen = 0;
@@ -8376,7 +8375,7 @@ static int server_generate_oqs_ciphertext(WOLFSSL* ssl,
         return MEMORY_E;
     }
 
-    ecc_kse = XMALLOC(sizeof(*ecc_kse), ssl->heap, DYNAMIC_TYPE_TLSX);
+    ecc_kse = (KeyShareEntry*)XMALLOC(sizeof(*ecc_kse), ssl->heap, DYNAMIC_TYPE_TLSX);
     if (ecc_kse == NULL) {
         WOLFSSL_MSG("ecc_kse memory allocation failure");
         ret = MEMORY_ERROR;
