@@ -1334,6 +1334,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define PEM_R_PROBLEMS_GETTING_PASSWORD (-MIN_CODE_E + 2)
 #define PEM_R_BAD_PASSWORD_READ         (-MIN_CODE_E + 3)
 #define PEM_R_BAD_DECRYPT               (-MIN_CODE_E + 4)
+#define ASN1_R_HEADER_TOO_LONG          (-MIN_CODE_E + 5)
 
 #define ERR_LIB_PEM             9
 #define ERR_LIB_X509            10
