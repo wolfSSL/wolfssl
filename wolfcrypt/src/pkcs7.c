@@ -4277,6 +4277,11 @@ static int wc_PKCS7_ParseSignerInfo(PKCS7* pkcs7, byte* in, word32 inSz,
             }
 
             if (ret == 0) {
+                if (length > (int)inSz - (int)idx)
+                    ret = BUFFER_E;
+            }
+
+            if (ret == 0) {
                 ret = wc_PKCS7_SignerInfoSetSID(pkcs7, in + idx, length);
                 idx += length;
             }
@@ -5243,6 +5248,11 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 /* check if using internal stream buffer and should adjust sz */
                 if (pkiMsg != in && pkcs7->stream->length > 0) {
                     pkiMsg2Sz = pkcs7->stream->length;
+                }
+                else {
+                    /* if pkiMsg2 is pkiMsg and not using an internal stream
+                     * buffer then the size is limited by inSz */
+                    pkiMsg2Sz = inSz;
                 }
             }
 
