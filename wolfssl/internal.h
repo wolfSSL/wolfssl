@@ -1376,6 +1376,8 @@ enum Misc {
                                     /* max size of buffer for exporting state */
     FINISHED_LABEL_SZ   = 15,  /* TLS finished label size */
     TLS_FINISHED_SZ     = 12,  /* TLS has a shorter size  */
+    TLS_FINISHED_SZ_MAX = WC_MAX_DIGEST_SIZE,  
+                            /* longest message digest size is SHA512, 64 */
     EXT_MASTER_LABEL_SZ = 22,  /* TLS extended master secret label sz */
     MASTER_LABEL_SZ     = 13,  /* TLS master secret label sz */
     KEY_LABEL_SZ        = 13,  /* TLS key block expansion sz */
@@ -4538,8 +4540,10 @@ struct WOLFSSL {
      * used in the EST protocol to bind an enrollment to a TLS session through
      * 'proof-of-possession' (https://tools.ietf.org/html/rfc7030#section-3.4
      * and https://tools.ietf.org/html/rfc7030#section-3.5). */
-    byte clientFinished[TLS_FINISHED_SZ];
-    byte serverFinished[TLS_FINISHED_SZ];
+    byte clientFinished[TLS_FINISHED_SZ_MAX];
+    byte serverFinished[TLS_FINISHED_SZ_MAX];
+    byte clientFinished_len;
+    byte serverFinished_len;
 #endif
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* ca_names;

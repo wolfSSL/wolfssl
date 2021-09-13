@@ -3803,6 +3803,13 @@ static int nonblocking_accept_read(void* args, WOLFSSL* ssl, SOCKET_T* sockfd)
     }
 #endif
 
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+    #define MD_MAX_SIZE WC_SHA512_DIGEST_SIZE
+    byte server_side_msg1[MD_MAX_SIZE] = {0};/* msg sent by server */
+    byte server_side_msg2[MD_MAX_SIZE] = {0};/* msg received from client */
+    byte client_side_msg1[MD_MAX_SIZE] = {0};/* msg sent by client */
+    byte client_side_msg2[MD_MAX_SIZE] = {0};/* msg received from server */
+#endif
 static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 {
     SOCKET_T sockfd = 0;
@@ -3818,6 +3825,9 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     int idx;
     int ret, err = 0;
     int sharedCtx = 0;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+    size_t msg_len = 0;
+#endif
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
@@ -4001,6 +4011,15 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         goto done;
     }
 
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+    XMEMSET(server_side_msg2, 0, MD_MAX_SIZE);
+    msg_len = wolfSSL_get_peer_finished(ssl, server_side_msg2, MD_MAX_SIZE);
+    AssertIntGE(msg_len, 0);
+    
+    XMEMSET(server_side_msg1, 0, MD_MAX_SIZE);
+    msg_len = wolfSSL_get_finished(ssl, server_side_msg1, MD_MAX_SIZE);
+    AssertIntGE(msg_len, 0);
+#endif
     idx = wolfSSL_read(ssl, input, sizeof(input)-1);
     if (idx > 0) {
         input[idx] = '\0';
@@ -5239,6 +5258,171 @@ static void test_wolfSSL_CTX_verifyDepth_ServerClient(void)
 #endif /* (OPENSSL_EXTRA) && !(WOLFSSL_TIRTOS) && (NO_WOLFSSL_CLIENT) */
 }
 
+static void test_client_get_finished(void* args, cbType cb)
+{
+    (void) args;
+    (void) cb;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+    SOCKET_T sockfd = 0;
+    callback_functions* cbf;
+
+    WOLFSSL_CTX*     ctx     = 0;
+    WOLFSSL*         ssl     = 0;
+
+    char msg[64] = "hello wolfssl!";
+    char reply[1024];
+    int  input;
+    int  msgSz = (int)XSTRLEN(msg);
+    int  ret, err = 0;
+    WOLFSSL_METHOD* method  = NULL;
+    size_t msg_len = 0;
+    
+    ((func_args*)args)->return_code = TEST_FAIL;
+    cbf = ((func_args*)args)->callbacks;
+
+    if (cbf != NULL && cbf->method != NULL) {
+        method = cbf->method();
+    }
+    else {
+        method = wolfSSLv23_client_method();
+    }
+    ctx = wolfSSL_CTX_new(method);
+    
+    /* Do connect here so server detects failures */
+    tcp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port,
+                0, 0, NULL);
+
+    if (wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0) != WOLFSSL_SUCCESS)
+    {
+        /* err_sys("can't load ca file, Please run from wolfSSL home dir");*/
+        goto done;
+    }
+
+    if (wolfSSL_CTX_use_certificate_file(ctx, cliCertFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+        goto done;
+    }
+    if (wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+        goto done;
+    }
+
+    /* call ctx setup callback */
+    if (cbf != NULL && cbf->ctx_ready != NULL) {
+        cbf->ctx_ready(ctx);
+    }
+
+    ssl = wolfSSL_new(ctx);
+    if (ssl == NULL) {
+        goto done;
+    }
+
+    if (wolfSSL_set_fd(ssl, sockfd) != WOLFSSL_SUCCESS) {
+        goto done;
+    }
+
+    /* call ssl setup callback */
+    if (cbf != NULL && cbf->ssl_ready != NULL) {
+        cbf->ssl_ready(ssl);
+    }
+
+    do {
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (err == WC_PENDING_E) {
+            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+            if (ret < 0) { break; } else if (ret == 0) { continue; }
+        }
+#endif
+
+        err = 0; /* Reset error */
+        ret = wolfSSL_connect(ssl);
+        if (ret != WOLFSSL_SUCCESS) {
+            err = wolfSSL_get_error(ssl, 0);
+        }
+    } while (ret != WOLFSSL_SUCCESS && err == WC_PENDING_E);
+
+    if (ret != WOLFSSL_SUCCESS) {
+        char buff[WOLFSSL_MAX_ERROR_SZ];
+        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buff));
+        goto done;
+    }
+    
+    /* get_finished test */
+    /* 1. get own sent message */
+    XMEMSET(client_side_msg1, 0, MD_MAX_SIZE);
+    msg_len = wolfSSL_get_finished(ssl, client_side_msg1, MD_MAX_SIZE);
+    AssertIntGE(msg_len, 0);
+    /* 2. get peer message */
+    XMEMSET(client_side_msg2, 0, MD_MAX_SIZE);
+    msg_len = wolfSSL_get_peer_finished(ssl, client_side_msg2, MD_MAX_SIZE);
+    AssertIntGE(msg_len, 0);
+    
+    if (cb != NULL)
+        (cb)(ctx, ssl);
+    
+    if (wolfSSL_write(ssl, msg, msgSz) != msgSz) {
+        /*err_sys("SSL_write failed");*/
+        goto done;
+    }
+
+    input = wolfSSL_read(ssl, reply, sizeof(reply)-1);
+    if (input > 0) {
+        reply[input] = '\0';
+        printf("Server response: %s\n", reply);
+    }
+
+
+    ((func_args*)args)->return_code = TEST_SUCCESS;
+
+done:
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    CloseSocket(sockfd);
+
+    return;
+#endif
+}
+
+static void test_wolfSSL_get_finished(void)
+{
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+    
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+#if defined(USE_WINDOWS_API)
+    /* use RNG to get random port if using windows */
+    ready.port = GetRandomPort();
+#endif
+
+    server_args.signal = &ready;
+    client_args.signal = &ready;
+
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_get_finished(&client_args, NULL);
+    join_thread(serverThread);
+
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+
+    /* test received msg vs sent msg */
+    AssertIntEQ(0, XMEMCMP(client_side_msg1, server_side_msg2, MD_MAX_SIZE));
+    AssertIntEQ(0, XMEMCMP(client_side_msg2, server_side_msg1, MD_MAX_SIZE));
+
+    FreeTcpReady(&ready);
+#else
+    (void)test_client_get_finished;
+#endif
+}
 
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SESSION_EXPORT)
 /* canned export of a session using older version 3 */
@@ -48547,6 +48731,9 @@ void ApiTest(void)
 #if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
 (!defined(NO_RSA) || defined(HAVE_ECC))
     test_for_double_Free();
+#endif
+#ifdef HAVE_IO_TESTS_DEPENDENCIES
+    test_wolfSSL_get_finished();
 #endif
     test_SSL_CIPHER_get_xxx();
     test_wolfSSL_ERR_strings();

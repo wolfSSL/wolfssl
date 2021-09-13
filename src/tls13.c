@@ -6868,6 +6868,16 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     if (sniff == NO_SNIFF) {
         ret = BuildTls13HandshakeHmac(ssl, secret, mac, &finishedSz);
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+        if (ssl->options.side == WOLFSSL_CLIENT_END) {
+            XMEMCPY(ssl->serverFinished, mac, finishedSz);
+            ssl->serverFinished_len = finishedSz;
+        }
+        else {
+            XMEMCPY(ssl->clientFinished, mac, finishedSz);
+            ssl->clientFinished_len = finishedSz;
+        }
+    #endif
         if (ret != 0)
             return ret;
         if (size != finishedSz)
@@ -6983,7 +6993,16 @@ static int SendTls13Finished(WOLFSSL* ssl)
     ret = BuildTls13HandshakeHmac(ssl, secret, &input[headerSz], NULL);
     if (ret != 0)
         return ret;
-
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+        if (ssl->options.side == WOLFSSL_CLIENT_END) {
+            XMEMCPY(ssl->clientFinished, &input[headerSz], finishedSz);
+            ssl->clientFinished_len = finishedSz;
+        }
+        else {
+            XMEMCPY(ssl->serverFinished, &input[headerSz], finishedSz);
+            ssl->serverFinished_len = finishedSz;
+        }
+    #endif
     /* This message is always encrypted. */
     sendSz = BuildTls13Message(ssl, output, outputSz, input,
                                headerSz + finishedSz, handshake, 1, 0, 0);

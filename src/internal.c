@@ -6795,7 +6795,12 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         ForceZero(&ssl->serverSecret, sizeof(ssl->serverSecret));
     }
 #endif
-
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+    ForceZero(&ssl->clientFinished, TLS_FINISHED_SZ_MAX);
+    ForceZero(&ssl->serverFinished, TLS_FINISHED_SZ_MAX);
+    ssl->serverFinished_len = 0;
+    ssl->clientFinished_len = 0;
+#endif
 #ifndef NO_DH
     if (ssl->buffers.serverDH_Priv.buffer) {
         ForceZero(ssl->buffers.serverDH_Priv.buffer,
@@ -13186,12 +13191,16 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
     }
 #endif
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
-    if (ssl->options.side == WOLFSSL_CLIENT_END)
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
         XMEMCPY(ssl->serverFinished,
                 input + *inOutIdx, TLS_FINISHED_SZ);
-    else
+        ssl->serverFinished_len = TLS_FINISHED_SZ;
+    }
+    else {
         XMEMCPY(ssl->clientFinished,
                 input + *inOutIdx, TLS_FINISHED_SZ);
+        ssl->clientFinished_len = TLS_FINISHED_SZ;
+    }
 #endif
 
     /* force input exhaustion at ProcessReply consuming padSz */
@@ -18165,12 +18174,16 @@ int SendFinished(WOLFSSL* ssl)
     }
 #endif
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
-    if (ssl->options.side == WOLFSSL_CLIENT_END)
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
         XMEMCPY(ssl->clientFinished,
                 hashes, TLS_FINISHED_SZ);
-    else
+        ssl->clientFinished_len = TLS_FINISHED_SZ;
+    }
+    else {
         XMEMCPY(ssl->serverFinished,
                 hashes, TLS_FINISHED_SZ);
+        ssl->serverFinished_len = TLS_FINISHED_SZ;
+    }
 #endif
 
     #ifdef WOLFSSL_DTLS
