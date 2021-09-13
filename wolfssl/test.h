@@ -1042,7 +1042,60 @@ static WC_INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
 #ifndef TEST_IPV6
     /* peer could be in human readable form */
     if ( ((size_t)peer != INADDR_ANY) && isalpha((int)peer[0])) {
-    #ifndef WOLFSSL_USE_GETADDRINFO
+    #ifdef WOLFSSL_USE_POPEN_HOST
+        char host_ipaddr[4] = { 127, 0, 0, 1 };
+        int found = 1;
+
+        if ((XSTRNCMP(peer, "localhost", 10) != 0) &&
+            (XSTRNCMP(peer, "127.0.0.1", 10) != 0)) {
+            FILE* fp;
+            char host_out[100];
+            char cmd[100];
+
+            XSTRNCPY(cmd, "host ", 6);
+            XSTRNCAT(cmd, peer, 99 - XSTRLEN(cmd));
+            found = 0;
+            fp = popen(cmd, "r");
+            if (fp != NULL) {
+                while (fgets(host_out, sizeof(host_out), fp) != NULL) {
+                    int i;
+                    int j = 0;
+                    for (j = 0; host_out[j] != '\0'; j++) {
+                        if ((host_out[j] >= '0') && (host_out[j] <= '9')) {
+                            break;
+                        }
+                    }
+                    found = (host_out[j] >= '0') && (host_out[j] <= '9');
+                    if (!found) {
+                        continue;
+                    }
+
+                    for (i = 0; i < 4; i++) {
+                        host_ipaddr[i] = atoi(host_out + j);
+                        while ((host_out[j] >= '0') && (host_out[j] <= '9')) {
+                            j++;
+                        }
+                        if (host_out[j] == '.') {
+                            j++;
+                            found &= (i != 3);
+                        }
+                        else {
+                            found &= (i == 3);
+                            break;
+                        }
+                    }
+                    if (found) {
+                        break;
+                    }
+                }
+                pclose(fp);
+            }
+        }
+        if (found) {
+            XMEMCPY(&addr->sin_addr.s_addr, host_ipaddr, sizeof(host_ipaddr));
+            useLookup = 1;
+        }
+    #elif !defined(WOLFSSL_USE_GETADDRINFO)
         #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
             int err;
             struct hostent* entry = gethostbyname(peer, &err);

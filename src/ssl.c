@@ -34388,8 +34388,8 @@ int wolfSSL_CMAC_Init(WOLFSSL_CMAC_CTX* ctx, const void *key, size_t keyLen,
     }
 
     if (ret == WOLFSSL_SUCCESS) {
-        ret = wc_InitCmac((Cmac*)ctx->internal, (const byte*)key, (word32)keyLen,
-                          WC_CMAC_AES, NULL);
+        ret = wc_InitCmac((Cmac*)ctx->internal, (const byte*)key,
+                          (word32)keyLen, WC_CMAC_AES, NULL);
         if (ret != 0) {
             ret = WOLFSSL_FAILURE;
         }
@@ -34419,7 +34419,8 @@ int wolfSSL_CMAC_Update(WOLFSSL_CMAC_CTX* ctx, const void* data, size_t len)
 
     if (ret == WOLFSSL_SUCCESS) {
         if (data) {
-            ret = wc_CmacUpdate((Cmac*)ctx->internal, (const byte*)data, (word32)len);
+            ret = wc_CmacUpdate((Cmac*)ctx->internal, (const byte*)data,
+                                (word32)len);
             if (ret != 0){
                 ret = WOLFSSL_FAILURE;
             }
@@ -34442,7 +34443,8 @@ int wolfSSL_CMAC_Final(WOLFSSL_CMAC_CTX* ctx, unsigned char* out,
 
     WOLFSSL_ENTER("wolfSSL_CMAC_Final");
 
-    if (ctx == NULL || ctx->cctx == NULL || ctx->internal == NULL || len == NULL) {
+    if (ctx == NULL || ctx->cctx == NULL || ctx->internal == NULL ||
+                                                                  len == NULL) {
         ret = WOLFSSL_FAILURE;
     }
 
@@ -34456,7 +34458,10 @@ int wolfSSL_CMAC_Final(WOLFSSL_CMAC_CTX* ctx, unsigned char* out,
         }
     }
     if (ret == WOLFSSL_SUCCESS) {
-        ret = wc_CmacFinal((Cmac*)ctx->internal, out, (word32*)len);
+        word32 len32 = (word32)*len;
+
+        ret = wc_CmacFinal((Cmac*)ctx->internal, out, &len32);
+        *len = (size_t)len32;
         if (ret != 0) {
             ret = WOLFSSL_FAILURE;
         }
@@ -34489,7 +34494,8 @@ void *wolfSSL_OPENSSL_malloc(size_t a)
 
 int wolfSSL_OPENSSL_hexchar2int(unsigned char c)
 {
-    return (int)HexCharToByte((char)c);
+    /* 'char' is unsigned on some platforms. */
+    return (int)(signed char)HexCharToByte((char)c);
 }
 
 unsigned char *wolfSSL_OPENSSL_hexstr2buf(const char *str, long *len)
@@ -57076,7 +57082,7 @@ void *wolfSSL_BIO_get_ex_data(WOLFSSL_BIO *bio, int idx)
     #endif
 #endif
 
-#if !defined(NO_FILESYSTEM) && defined (OPENSSL_EXTRA)
+#ifdef OPENSSL_EXTRA
 /* returns amount printed on success, negative in fail case */
 int wolfSSL_BIO_vprintf(WOLFSSL_BIO* bio, const char* format, va_list args)
 {
@@ -57086,6 +57092,7 @@ int wolfSSL_BIO_vprintf(WOLFSSL_BIO* bio, const char* format, va_list args)
         return WOLFSSL_FATAL_ERROR;
 
     switch (bio->type) {
+#if !defined(NO_FILESYSTEM)
         case WOLFSSL_BIO_FILE:
             if (bio->ptr == NULL) {
                 va_end(args);
@@ -57093,6 +57100,7 @@ int wolfSSL_BIO_vprintf(WOLFSSL_BIO* bio, const char* format, va_list args)
             }
             ret = XVFPRINTF((XFILE)bio->ptr, format, args);
             break;
+#endif
 
         case WOLFSSL_BIO_MEMORY:
     /* In Visual Studio versions prior to Visual Studio 2013, the va_* symbols
@@ -57152,8 +57160,7 @@ int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
 
     return ret;
 }
-
-#endif /* !NO_FILESYSTEM && OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA */
 
 #if !defined(NO_FILESYSTEM) && defined(__clang__)
 #pragma clang diagnostic pop
