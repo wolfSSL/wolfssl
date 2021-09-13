@@ -11924,6 +11924,7 @@ int wolfSSL_save_session_cache(const char *fname)
 #ifndef ENABLE_SESSION_CACHE_ROW_LOCK
     if (wc_LockMutex(&session_mutex) != 0) {
         WOLFSSL_MSG("Session cache mutex lock failed");
+        XFCLOSE(file);
         return BAD_MUTEX_E;
     }
 #endif
@@ -11932,6 +11933,7 @@ int wolfSSL_save_session_cache(const char *fname)
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         if (SESSION_ROW_LOCK(&SessionCache[i]) != 0) {
             WOLFSSL_MSG("Session row cache mutex lock failed");
+            XFCLOSE(file);
             return BAD_MUTEX_E;
         }
     #endif
@@ -11954,6 +11956,7 @@ int wolfSSL_save_session_cache(const char *fname)
     /* client cache */
     if (wc_LockMutex(&clisession_mutex) != 0) {
         WOLFSSL_MSG("Client cache mutex lock failed");
+        XFCLOSE(file);
         return BAD_MUTEX_E;
     }
 
@@ -12012,6 +12015,7 @@ int wolfSSL_restore_session_cache(const char *fname)
 #ifndef ENABLE_SESSION_CACHE_ROW_LOCK
     if (wc_LockMutex(&session_mutex) != 0) {
         WOLFSSL_MSG("Session cache mutex lock failed");
+        XFCLOSE(file);
         return BAD_MUTEX_E;
     }
 #endif
@@ -12020,6 +12024,7 @@ int wolfSSL_restore_session_cache(const char *fname)
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
         if (SESSION_ROW_LOCK(&SessionCache[i]) != 0) {
             WOLFSSL_MSG("Session row cache mutex lock failed");
+            XFCLOSE(file);
             return BAD_MUTEX_E;
         }
     #endif
@@ -12043,6 +12048,7 @@ int wolfSSL_restore_session_cache(const char *fname)
     /* client cache */
     if (wc_LockMutex(&clisession_mutex) != 0) {
         WOLFSSL_MSG("Client cache mutex lock failed");
+        XFCLOSE(file);
         return BAD_MUTEX_E;
     }
     for (i = 0; i < cache_header.rows; ++i) {
