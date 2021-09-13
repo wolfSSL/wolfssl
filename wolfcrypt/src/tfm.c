@@ -1619,15 +1619,21 @@ int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   return err;
 }
 
-/* d = a - b (mod c) - constant time (a < c and b < c and positive) */
+/* d = a - b (mod c) - constant time (a < c and b < c and all positive) */
 int fp_submod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 {
   fp_word  w = 0;
   fp_digit mask;
   int i;
 
-  mask = 0 - (fp_cmp_mag_ct(a, b, c->used + 1) == (fp_digit)FP_LT);
-  for (i = 0; i < c->used + 1; i++) {
+  if (c->used + 1 > FP_SIZE) {
+      return FP_VAL;
+  }
+
+  /* Check whether b is greater than a. mask has all bits set when true. */
+  mask = 0 - (fp_cmp_mag_ct(a, b, c->used) == (fp_digit)FP_LT);
+  /* Constant time, conditionally, add modulus to a into result. */
+  for (i = 0; i < c->used; i++) {
       fp_digit mask_a = 0 - (i < a->used);
 
       w         += c->dp[i] & mask;
@@ -1635,24 +1641,33 @@ int fp_submod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
       d->dp[i]   = (fp_digit)w;
       w        >>= DIGIT_BIT;
   }
+  /* Handle overflow */
   d->dp[i] = (fp_digit)w;
   d->used = i + 1;
   d->sign = FP_ZPOS;
   fp_clamp(d);
+  /* Subtract b from a (that my have had modulus added to it). */
   s_fp_sub(d, b, d);
 
   return FP_OKAY;
 }
 
-/* d = a + b (mod c) - constant time (|a| < c and |b| < c and positive) */
+/* d = a + b (mod c) - constant time (a < c and b < c and all positive) */
 int fp_addmod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 {
   fp_word  w = 0;
   fp_digit mask;
   int i;
 
+  if (c->used + 1 > FP_SIZE) {
+      return FP_VAL;
+  }
+
   s_fp_add(a, b, d);
+  /* Check whether sum is bigger than modulus.
+   * mask has all bits set when true. */
   mask = 0 - (fp_cmp_mag_ct(d, c, c->used + 1) != (fp_digit)FP_LT);
+  /* Constant time, conditionally, subtract modulus from sum. */
   for (i = 0; i < c->used; i++) {
       w        += c->dp[i] & mask;
       w         = d->dp[i] - w;
@@ -1661,7 +1676,7 @@ int fp_addmod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   }
   d->dp[i] = 0;
   d->used = i;
-  d->sign = a->sign;
+  d->sign = FP_ZPOS;
   fp_clamp(d);
 
   return FP_OKAY;
