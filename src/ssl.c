@@ -99,6 +99,7 @@
     #include <wolfssl/openssl/ecdsa.h>
     #include <wolfssl/openssl/ecdh.h>
     #include <wolfssl/openssl/err.h>
+    #include <wolfssl/openssl/modes.h>
     #include <wolfssl/openssl/opensslv.h>
     #include <wolfssl/openssl/rc4.h>
     #include <wolfssl/openssl/stack.h>
@@ -30511,7 +30512,84 @@ int wolfSSL_AES_unwrap_key(AES_KEY *key, const unsigned char *iv,
 #endif /* HAVE_AES_KEYWRAP && !HAVE_FIPS && !HAVE_SELFTEST */
 #endif /* NO_AES */
 
-#ifndef NO_ASN_TIME
+#ifdef HAVE_CTS
+/*
+ * Ciphertext stealing interface compatible with RFC2040 and RFC3962.
+ */
+size_t wolfSSL_CRYPTO_cts128_encrypt(const unsigned char *in,
+        unsigned char *out, size_t len, const void *key,
+        unsigned char *iv, WOLFSSL_CBC128_CB cbc)
+{
+    byte lastBlk[WOLFSSL_CTS128_BLOCK_SZ] = {0};
+    int lastBlkLen = len % WOLFSSL_CTS128_BLOCK_SZ;
+    WOLFSSL_ENTER("wolfSSL_CRYPTO_cts128_encrypt");
+
+    if (in == NULL || out == NULL || len < WOLFSSL_CTS128_BLOCK_SZ ||
+            cbc == NULL) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (lastBlkLen == 0)
+        lastBlkLen = WOLFSSL_CTS128_BLOCK_SZ;
+
+    /* Encrypt data up to last block */
+    (*cbc)(in, out, len - lastBlkLen, key, iv, 1);
+
+    /* Move to last block */
+    in += len - lastBlkLen;
+    out += len - lastBlkLen;
+
+    /* RFC2040: Pad Pn with zeros at the end to create P of length BB. */
+    XMEMCPY(lastBlk, in, lastBlkLen);
+    /* RFC2040: Select the first Ln bytes of En-1 to create Cn */
+    XMEMCPY(out, out - WOLFSSL_CTS128_BLOCK_SZ, lastBlkLen);
+    (*cbc)(lastBlk, out - WOLFSSL_CTS128_BLOCK_SZ, WOLFSSL_CTS128_BLOCK_SZ,
+            key, iv, 1);
+
+    return len;
+}
+
+size_t wolfSSL_CRYPTO_cts128_decrypt(const unsigned char *in,
+        unsigned char *out, size_t len, const void *key,
+        unsigned char *iv, WOLFSSL_CBC128_CB cbc)
+{
+    byte lastBlk[WOLFSSL_CTS128_BLOCK_SZ] = {0};
+    byte prevBlk[WOLFSSL_CTS128_BLOCK_SZ] = {0};
+    int lastBlkLen = len % WOLFSSL_CTS128_BLOCK_SZ;
+    WOLFSSL_ENTER("wolfSSL_CRYPTO_cts128_decrypt");
+
+    if (in == NULL || out == NULL || len <= WOLFSSL_CTS128_BLOCK_SZ ||
+            cbc == NULL) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (lastBlkLen == 0)
+        lastBlkLen = WOLFSSL_CTS128_BLOCK_SZ;
+
+    /* Decrypt up to last two blocks */
+    (*cbc)(in, out, len - lastBlkLen - WOLFSSL_CTS128_BLOCK_SZ, key, iv, 0);
+
+    /* Move to last two blocks */
+    in += len - lastBlkLen - WOLFSSL_CTS128_BLOCK_SZ;
+    out += len - lastBlkLen - WOLFSSL_CTS128_BLOCK_SZ;
+
+    /* RFC2040: Decrypt Cn-1 to create Dn.
+     * Use 0 buffer as IV to do straight decryption.
+     * This places the Cn-1 block at lastBlk */
+    (*cbc)(in, prevBlk, WOLFSSL_CTS128_BLOCK_SZ, key, lastBlk, 0);
+    /* RFC2040: Append the tail (BB minus Ln) bytes of Xn to Cn
+     *          to create En. */
+    XMEMCPY(prevBlk, in + WOLFSSL_CTS128_BLOCK_SZ, lastBlkLen);
+    /* Cn and Cn-1 can now be decrypted */
+    (*cbc)(prevBlk, out, WOLFSSL_CTS128_BLOCK_SZ, key, iv, 0);
+    (*cbc)(lastBlk, lastBlk, WOLFSSL_CTS128_BLOCK_SZ, key, iv, 0);
+    XMEMCPY(out + WOLFSSL_CTS128_BLOCK_SZ, lastBlk, lastBlkLen);
+    return len;
+}
+#endif /* HAVE_CTS */
+
 #ifndef NO_BIO
 int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_UTCTIME* a)
 {
