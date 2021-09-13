@@ -27168,14 +27168,13 @@ static int sp_256_calc_vfy_point_5(sp_point_256* p1, sp_point_256* p2,
     int err;
 
 #ifndef WOLFSSL_SP_SMALL
-    {
-        sp_256_mod_inv_5(s, s, p256_order);
-    }
+    err = sp_256_mod_inv_5(s, s, p256_order);
+    if (err == MP_OKAY)
 #endif /* !WOLFSSL_SP_SMALL */
     {
         sp_256_mul_5(s, s, p256_norm_order);
+        err = sp_256_mod_5(s, s, p256_order);
     }
-    err = sp_256_mod_5(s, s, p256_order);
     if (err == MP_OKAY) {
         sp_256_norm_5(s);
 #ifdef WOLFSSL_SP_SMALL
@@ -27184,15 +27183,15 @@ static int sp_256_calc_vfy_point_5(sp_point_256* p1, sp_point_256* p2,
             sp_256_mont_mul_order_5(u1, u1, s);
             sp_256_mont_mul_order_5(u2, u2, s);
         }
-
 #else
         {
             sp_256_mont_mul_order_5(u1, u1, s);
             sp_256_mont_mul_order_5(u2, u2, s);
         }
-
 #endif /* WOLFSSL_SP_SMALL */
+        {
             err = sp_256_ecc_mulmod_base_5(p1, u1, 0, 0, heap);
+        }
     }
     if ((err == MP_OKAY) && sp_256_iszero_5(p1->z)) {
         p1->infinity = 1;
@@ -34390,14 +34389,13 @@ static int sp_384_calc_vfy_point_7(sp_point_384* p1, sp_point_384* p2,
     int err;
 
 #ifndef WOLFSSL_SP_SMALL
-    {
-        sp_384_mod_inv_7(s, s, p384_order);
-    }
+    err = sp_384_mod_inv_7(s, s, p384_order);
+    if (err == MP_OKAY)
 #endif /* !WOLFSSL_SP_SMALL */
     {
         sp_384_mul_7(s, s, p384_norm_order);
+        err = sp_384_mod_7(s, s, p384_order);
     }
-    err = sp_384_mod_7(s, s, p384_order);
     if (err == MP_OKAY) {
         sp_384_norm_7(s);
 #ifdef WOLFSSL_SP_SMALL
@@ -34406,15 +34404,15 @@ static int sp_384_calc_vfy_point_7(sp_point_384* p1, sp_point_384* p2,
             sp_384_mont_mul_order_7(u1, u1, s);
             sp_384_mont_mul_order_7(u2, u2, s);
         }
-
 #else
         {
             sp_384_mont_mul_order_7(u1, u1, s);
             sp_384_mont_mul_order_7(u2, u2, s);
         }
-
 #endif /* WOLFSSL_SP_SMALL */
+        {
             err = sp_384_ecc_mulmod_base_7(p1, u1, 0, 0, heap);
+        }
     }
     if ((err == MP_OKAY) && sp_384_iszero_7(p1->z)) {
         p1->infinity = 1;
