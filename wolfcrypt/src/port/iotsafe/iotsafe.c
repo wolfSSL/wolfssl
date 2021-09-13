@@ -21,6 +21,10 @@
 
 /* IoT-safe module for communication with IoT-safe applet on SIM card */
 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_IOTSAFE
