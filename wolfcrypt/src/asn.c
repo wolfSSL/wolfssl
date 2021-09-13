@@ -3210,10 +3210,13 @@ int CheckBitString(const byte* input, word32* inOutIdx, int* len,
 /* RSA (with CertGen or KeyGen) OR ECC OR ED25519 OR ED448 (with CertGen or
  * KeyGen) */
 #if (!defined(NO_RSA) && !defined(HAVE_USER_RSA) && \
-        (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA))) || \
+     (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN) || \
+      defined(OPENSSL_EXTRA))) || \
     (defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)) || \
     ((defined(HAVE_ED25519) || defined(HAVE_ED448)) && \
-        (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA))) || \
+     (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN) || \
+      defined(OPENSSL_EXTRA))) || \
+    (defined(WC_ENABLE_ASYM_KEY_EXPORT) && !defined(NO_CERT)) || \
     (!defined(NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN))
 
 /* Set the DER/BER encoding of the ASN.1 BIT STRING header.
@@ -11324,9 +11327,19 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
         /* Store X509_NAME in certificate. */
         if (nameType == ISSUER) {
+        #if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+             defined(HAVE_LIGHTY)) && \
+            (defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT))
+            dName->rawLen = min(cert->issuerRawLen, ASN_NAME_MAX);
+            XMEMCPY(dName->raw, cert->issuerRaw, dName->rawLen);
+        #endif
             cert->issuerName = dName;
         }
         else {
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+            dName->rawLen = min(cert->subjectRawLen, ASN_NAME_MAX);
+            XMEMCPY(dName->raw, cert->subjectRaw, dName->rawLen);
+        #endif
             cert->subjectName = dName;
         }
     }
@@ -27162,7 +27175,7 @@ static int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
     if ((ret == 0) && (output != NULL) && (sz > (int)outLen)) {
         ret = BAD_FUNC_ARG;
     }
-    if (ret == 0 && output != NULL) {
+    if ((ret == 0) && (output != NULL)) {
         /* Encode private key. */
         SetASN_Items(edKeyASN, dataASN, edKeyASN_Length, output);
 
@@ -27173,9 +27186,7 @@ static int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
             /* Put public value into space provided. */
             XMEMCPY((byte*)dataASN[8].data.buffer.data, pubKey, pubKeyLen);
         }
-    }
 
-    if (ret == 0) {
         /* Return size of encoding. */
         ret = sz;
     }
@@ -27408,6 +27419,7 @@ int wc_Curve448PublicKeyToDer(curve448_key* key, byte* output, word32 inLen,
 #endif /* HAVE_CURVE448 && HAVE_CURVE448_KEY_EXPORT */
 
 
+#ifndef WOLFSSL_ASN_TEMPLATE
 #if defined(HAVE_OCSP) || defined(HAVE_CRL)
 
 /* Get raw Date only, no processing, 0 on success */
@@ -27429,6 +27441,7 @@ static int GetBasicDate(const byte* source, word32* idx, byte* date,
 }
 
 #endif /* HAVE_OCSP || HAVE_CRL */
+#endif /* WOLFSSL_ASN_TEMPLATE */
 
 
 #ifdef HAVE_OCSP
