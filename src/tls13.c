@@ -6870,8 +6870,8 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ret = BuildTls13HandshakeHmac(ssl, secret, mac, &finishedSz);
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
-                XMEMCPY(ssl->serverFinished, mac, finishedSz);
-                ssl->serverFinished_len = finishedSz;
+            XMEMCPY(ssl->serverFinished, mac, finishedSz);
+            ssl->serverFinished_len = finishedSz;
         }
         else {
             XMEMCPY(ssl->clientFinished, mac, finishedSz);

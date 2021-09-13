@@ -28330,8 +28330,9 @@ WOLFSSL_API size_t wolfSSL_get_finished(const WOLFSSL *ssl, void *buf, size_t co
 
 WOLFSSL_API size_t wolfSSL_get_peer_finished(const WOLFSSL *ssl, void *buf, size_t count)
 {
-    WOLFSSL_ENTER("SSL_get_peer_finished");
     byte len = 0;
+    WOLFSSL_ENTER("SSL_get_peer_finished");
+    
     if (!ssl || !buf || count < TLS_FINISHED_SZ) {
         WOLFSSL_MSG("Bad parameter");
         return WOLFSSL_FAILURE;
