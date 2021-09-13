@@ -26821,13 +26821,13 @@ static int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
         if (GetOctetString(input, inOutIdx, &privSz, inSz) < 0)
             return ASN_PARSE_E;
 
-        if ((word32)privSz > *privKeyLen)
-            return BUFFER_E;
-
         priv = input + *inOutIdx;
         *inOutIdx += privSz;
         endKeyIdx = *inOutIdx;
     }
+
+    if ((word32)privSz > *privKeyLen)
+        return BUFFER_E;
 
     if (endKeyIdx == (int)*inOutIdx) {
         *privKeyLen = privSz;
@@ -26836,6 +26836,10 @@ static int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
             *pubKeyLen = 0;
     }
     else {
+        if (pubKeyLen == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
         if (GetASNHeader(input, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1,
                          inOutIdx, &length, inSz) < 0) {
             return ASN_PARSE_E;
