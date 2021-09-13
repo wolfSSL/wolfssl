@@ -13148,7 +13148,8 @@ WOLFSSL_API int  wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups,
     \param [in] count the number of key exchange groups in groups.
 
     \return BAD_FUNC_ARG if a pointer parameter is null, the number of groups
-    exceeds WOLFSSL_MAX_GROUP_COUNT or not using TLS v1.3.
+    exceeds WOLFSSL_MAX_GROUP_COUNT, any of the identifiers are unrecognized or
+    not using TLS v1.3.
     \return WOLFSSL_SUCCESS if successful.
 
     _Example_
@@ -13158,7 +13159,7 @@ WOLFSSL_API int  wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups,
     int* groups = { WOLFSSL_ECC_X25519, WOLFSSL_ECC_SECP256R1 };
     int count = 2;
     ...
-    ret = wolfSSL_set1_groups_list(ssl, groups, count);
+    ret = wolfSSL_set_groups(ssl, groups, count);
     if (ret != WOLFSSL_SUCCESS) {
         // failed to set group list
     }
