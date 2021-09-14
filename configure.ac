@@ -424,8 +424,8 @@ then
         test "$enable_tls13" = "" && enable_tls13=yes
         test "$enable_rsapss" = "" && enable_rsapss=yes
     fi
-    test "$enable_savesession" = "" && enable_savesession=yes
-    test "$enable_savecert" = "" && enable_savecert=yes
+
+    # this set is also enabled by enable-all-crypto:
     test "$enable_atomicuser" = "" && enable_atomicuser=yes
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
     test "$enable_aesgcm_stream" = "" && enable_aesgcm_stream=yes
@@ -452,23 +452,14 @@ then
     test "$enable_idea" = "" && enable_idea=yes
     test "$enable_cmac" = "" && enable_cmac=yes
     test "$enable_xts" = "" && enable_xts=yes
-    test "$enable_webserver" = "" && enable_webserver=yes
     test "$enable_hc128" = "" && enable_hc128=yes
     test "$enable_rabbit" = "" && enable_rabbit=yes
     test "$enable_ocsp" = "" && enable_ocsp=yes
     test "$enable_ocspstapling" = "" && enable_ocspstapling=yes
     test "$enable_ocspstapling2" = "" && enable_ocspstapling2=yes
     test "$enable_crl" = "" && enable_crl=yes
-    test "$enable_crl_monitor" = "" && enable_crl_monitor=yes
-    test "$enable_sni" = "" && enable_sni=yes
-    test "$enable_maxfragment" = "" && enable_maxfragment=yes
-    test "$enable_alpn" = "" && enable_alpn=yes
-    test "$enable_truncatedhmac" = "" && enable_truncatedhmac=yes
-    test "$enable_trusted_ca" = "" && enable_trusted_ca=yes
     test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
-    test "$enable_session_ticket" = "" && enable_session_ticket=yes
     test "$enable_tlsx" = "" && enable_tlsx=yes
-    test "$enable_ssh" = "" && enable_ssh=yes
     test "$enable_pwdbased" = "" && enable_pwdbased=yes
     test "$enable_aeskeywrap" = "" && enable_aeskeywrap=yes
     test "$enable_x963kdf" = "" && enable_x963kdf=yes
@@ -478,6 +469,8 @@ then
     test "$enable_hashflags" = "" && enable_hashflags=yes
     test "$enable_defaultdhparams" = "" && enable_defaultdhparams=yes
     test "$enable_base64encode" = "" && enable_base64encode=yes
+    test "$enable_base16" = "" && enable_base16=yes
+    test "$enable_rc2" = "" && enable_rc2=yes
     test "$enable_arc4" = "" && enable_arc4=yes
     test "$enable_des3" = "" && enable_des3=yes
     test "$enable_nullcipher" = "" && enable_nullcipher=yes
@@ -485,11 +478,24 @@ then
     test "$enable_blake2s" = "" && enable_blake2s=yes
     test "$enable_md2" = "" && enable_md2=yes
     test "$enable_md4" = "" && enable_md4=yes
+    test "$enable_cryptocb" = "" && enable_cryptocb=yes
+    test "$enable_anon" = "" && enable_anon=yes
+    test "$enable_ssh" = "" && enable_ssh=yes
+
+    test "$enable_savesession" = "" && enable_savesession=yes
+    test "$enable_savecert" = "" && enable_savecert=yes
     test "$enable_postauth" = "" && enable_postauth=yes
     test "$enable_hrrcookie" = "" && enable_hrrcookie=yes
-    test "$enable_cryptocb" = "" && enable_cryptocb=yes
     test "$enable_fallback_scsv" = "" && enable_fallback_scsv=yes
-    test "$enable_anon" = "" && enable_anon=yes
+    test "$enable_mcast" = "" && enable_mcast=yes
+    test "$enable_webserver" = "" && enable_webserver=yes
+    test "$enable_crl_monitor" = "" && enable_crl_monitor=yes
+    test "$enable_sni" = "" && enable_sni=yes
+    test "$enable_maxfragment" = "" && enable_maxfragment=yes
+    test "$enable_alpn" = "" && enable_alpn=yes
+    test "$enable_truncatedhmac" = "" && enable_truncatedhmac=yes
+    test "$enable_trusted_ca" = "" && enable_trusted_ca=yes
+    test "$enable_session_ticket" = "" && enable_session_ticket=yes
 
     if test "$ENABLED_32BIT" != "yes"
     then
@@ -527,7 +533,6 @@ then
             test "$enable_opensslall" = "" && enable_opensslall=yes
             test "$enable_certservice" = "" && enable_certservice=yes
             test "$enable_lighty" = "" && enable_lighty=yes
-            test "$enable_haproxy" = "" && enable_haproxy=yes
             test "$enable_nginx" = "" && enable_nginx=yes
             test "$enable_openvpn" = "" && enable_openvpn=yes
             test "$enable_asio" = "" && enable_asio=yes
@@ -599,6 +604,7 @@ then
     test "$enable_aesctr" = "" && enable_aesctr=yes
     test "$enable_aesofb" = "" && enable_aesofb=yes
     test "$enable_aescfb" = "" && enable_aescfb=yes
+    test "$enable_aescbc_length_checks" = "" && enable_aescbc_length_checks=yes
     test "$enable_camellia" = "" && enable_camellia=yes
     test "$enable_ripemd" = "" && enable_ripemd=yes
     test "$enable_sha224" = "" && enable_sha224=yes
@@ -633,6 +639,9 @@ then
     test "$enable_enckeys" = "" && enable_enckeys=yes
     test "$enable_hashflags" = "" && enable_hashflags=yes
     test "$enable_defaultdhparams" = "" && enable_defaultdhparams=yes
+    test "$enable_base64encode" = "" && enable_base64encode=yes
+    test "$enable_base16" = "" && enable_base16=yes
+    test "$enable_rc2" = "" && enable_rc2=yes
     test "$enable_arc4" = "" && enable_arc4=yes
     test "$enable_des3" = "" && enable_des3=yes
     test "$enable_nullcipher" = "" && enable_nullcipher=yes
@@ -642,6 +651,7 @@ then
     test "$enable_md4" = "" && enable_md4=yes
     test "$enable_cryptocb" = "" && enable_cryptocb=yes
     test "$enable_anon" = "" && enable_anon=yes
+    test "$enable_ssh" = "" && enable_ssh=yes
 
     if test "$ENABLED_32BIT" != "yes"
     then
@@ -658,6 +668,7 @@ then
     then
         test "$enable_dsa" = "" && enable_dsa=yes
         test "$enable_ecccustcurves" = "" && enable_ecccustcurves=yes
+        test "$enable_srp" = "" && enable_srp=yes
 
         # Enable ECC Import checks
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"
@@ -846,7 +857,7 @@ AC_ARG_ENABLE([mcast],
 # libssh2 (--enable-libssh2)
 # openssh (--enable-openssh) WOLFSSL_OPENSSH
 # openvpn (--enable-openvpn) WOLFSSL_OPENVPN
-# nginix (--enable-nginx) WOLFSSL_NGINX
+# nginx (--enable-nginx) WOLFSSL_NGINX
 # ntp (--enable-ntp)
 # openresty (--enable-openresty)
 # haproxy (--enable-haproxy) WOLFSSL_HAPROXY
