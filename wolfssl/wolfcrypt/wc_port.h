@@ -972,6 +972,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XBADFILE   NULL
     #define XFGETS     fgets
     #define XFPRINTF   fprintf
+    #define XFFLUSH    fflush
 
     #if !defined(NO_WOLFSSL_DIR)\
         && !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)

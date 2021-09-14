@@ -1842,9 +1842,18 @@ int wolfSSL_BIO_pending(WOLFSSL_BIO* bio)
 
 int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 {
-    /* for wolfSSL no flushing needed */
     WOLFSSL_ENTER("BIO_flush");
-    (void)bio;
-    return 1;
+
+    if (bio == NULL)
+        return WOLFSSL_FAILURE;
+
+    if (bio->type == WOLFSSL_BIO_FILE) {
+#if !defined(NO_FILESYSTEM) && defined(XFFLUSH)
+        if (XFFLUSH((FILE *)bio->ptr) != 0)
+            return WOLFSSL_FAILURE;
+
+#endif /* !NO_FILESYSTEM && XFFLUSH */
+    }
+    return WOLFSSL_SUCCESS;
 }
 #endif /* WOLFSSL_BIO_INCLUDED */
