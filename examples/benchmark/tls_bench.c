@@ -412,8 +412,8 @@ static int ClientMemSend(info_t* info, char* buf, int sz)
 
 #ifndef BENCH_USE_NONBLOCK
     /* check for overflow */
-    if (info->to_client.write_idx + sz > MEM_BUFFER_SZ) {
-        fprintf(stderr, "ClientMemSend overflow %d %d %d\n", info->to_client.write_idx, sz, MEM_BUFFER_SZ);
+    if (info->to_server.write_idx + sz > MEM_BUFFER_SZ) {
+        fprintf(stderr, "ClientMemSend overflow %d %d %d\n", info->to_server.write_idx, sz, MEM_BUFFER_SZ);
         pthread_mutex_unlock(&info->to_server.mutex);
         return -1;
     }
