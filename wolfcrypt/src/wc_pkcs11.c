@@ -27,7 +27,9 @@
 
 #ifdef HAVE_PKCS11
 
+#ifndef HAVE_PKCS11_STATIC
 #include <dlfcn.h>
+#endif
 
 #include <wolfssl/wolfcrypt/wc_pkcs11.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -416,7 +418,9 @@ static void pkcs11_val(const char* op, CK_ULONG val)
 int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
 {
     int                  ret = 0;
+#ifndef HAVE_PKCS11_STATIC
     void*                func;
+#endif
     CK_C_INITIALIZE_ARGS args;
 
     if (dev == NULL || library == NULL)
@@ -424,6 +428,7 @@ int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
 
     if (ret == 0) {
         dev->heap = heap;
+#ifndef HAVE_PKCS11_STATIC
         dev->dlHandle = dlopen(library, RTLD_NOW | RTLD_LOCAL);
         if (dev->dlHandle == NULL) {
             WOLFSSL_MSG(dlerror());
@@ -441,6 +446,9 @@ int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
     }
     if (ret == 0) {
         ret = ((CK_C_GetFunctionList)func)(&dev->func);
+#else
+        ret = C_GetFunctionList(&dev->func);
+#endif
         if (ret != CKR_OK) {
             PKCS11_RV("CK_C_GetFunctionList", ret);
             ret = WC_HW_E;
@@ -470,13 +478,19 @@ int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
  */
 void wc_Pkcs11_Finalize(Pkcs11Dev* dev)
 {
-    if (dev != NULL && dev->dlHandle != NULL) {
+    if (dev != NULL
+#ifndef HAVE_PKCS11_STATIC
+        && dev->dlHandle != NULL
+#endif
+        ) {
         if (dev->func != NULL) {
             dev->func->C_Finalize(NULL);
             dev->func = NULL;
         }
+#ifndef HAVE_PKCS11_STATIC
         dlclose(dev->dlHandle);
         dev->dlHandle = NULL;
+#endif
     }
 }
 

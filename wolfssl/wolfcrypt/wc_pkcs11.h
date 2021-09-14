@@ -39,7 +39,9 @@
 
 
 typedef struct Pkcs11Dev {
+#ifndef HAVE_PKCS11_STATIC
     void*             dlHandle;         /* Handle to library  */
+#endif
     CK_FUNCTION_LIST* func;             /* Array of functions */
     void*             heap;
 } Pkcs11Dev;

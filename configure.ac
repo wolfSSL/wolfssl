@@ -5240,10 +5240,16 @@ AC_ARG_ENABLE([pkcs11],
     [ ENABLED_PKCS11=no ]
     )
 
-if test "x$ENABLED_PKCS11" = "xyes"
+if test "x$ENABLED_PKCS11" != "xno"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_PKCS11 -DHAVE_WOLF_BIGINT"
-    LIBS="$LIBS -ldl"
+    if test "x$ENABLED_PKCS11" != "xstatic"
+    then
+        LIBS="$LIBS -ldl"
+    else
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_PKCS11_STATIC"
+        ENABLED_PKCS11="yes"
+    fi
 fi
 
 
