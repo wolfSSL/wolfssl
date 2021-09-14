@@ -470,7 +470,6 @@ then
     test "$enable_defaultdhparams" = "" && enable_defaultdhparams=yes
     test "$enable_base64encode" = "" && enable_base64encode=yes
     test "$enable_base16" = "" && enable_base16=yes
-    test "$enable_rc2" = "" && enable_rc2=yes
     test "$enable_arc4" = "" && enable_arc4=yes
     test "$enable_des3" = "" && enable_des3=yes
     test "$enable_nullcipher" = "" && enable_nullcipher=yes
@@ -641,7 +640,6 @@ then
     test "$enable_defaultdhparams" = "" && enable_defaultdhparams=yes
     test "$enable_base64encode" = "" && enable_base64encode=yes
     test "$enable_base16" = "" && enable_base16=yes
-    test "$enable_rc2" = "" && enable_rc2=yes
     test "$enable_arc4" = "" && enable_arc4=yes
     test "$enable_des3" = "" && enable_des3=yes
     test "$enable_nullcipher" = "" && enable_nullcipher=yes
