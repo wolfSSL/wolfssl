@@ -21222,15 +21222,20 @@ done:
 static int ecc_test_sign_vectors(WC_RNG* rng)
 {
     int ret;
-    ecc_key key;
+#ifdef WOLFSSL_SMALL_STACK
+    ecc_key *key = NULL;
+#else
+    ecc_key key[1];
+#endif
+    int key_inited = 0;
     byte sig[72];
     word32 sigSz;
-    unsigned char hash[32] = "test wolfSSL deterministic sign";
-    const char* dIUT =   "7d7dc5f71eb29ddaf80d6214632eeae03d9058af1fb6d22ed80badb62bc1a534";
-    const char* QIUTx =  "ead218590119e8876b29146ff89ca61770c4edbbf97d38ce385ed281d8a6b230";
-    const char* QIUTy =  "28af61281fd35e2fa7002523acc85a429cb06ee6648325389f59edfce1405141";
-    const byte k[1] = { 0x02 };
-    const byte expSig[71] = {
+    WOLFSSL_SMALL_STACK_STATIC const unsigned char hash[32] = "test wolfSSL deterministic sign";
+    WOLFSSL_SMALL_STACK_STATIC const char* dIUT =   "7d7dc5f71eb29ddaf80d6214632eeae03d9058af1fb6d22ed80badb62bc1a534";
+    WOLFSSL_SMALL_STACK_STATIC const char* QIUTx =  "ead218590119e8876b29146ff89ca61770c4edbbf97d38ce385ed281d8a6b230";
+    WOLFSSL_SMALL_STACK_STATIC const char* QIUTy =  "28af61281fd35e2fa7002523acc85a429cb06ee6648325389f59edfce1405141";
+    WOLFSSL_SMALL_STACK_STATIC const byte k[1] = { 0x02 };
+    WOLFSSL_SMALL_STACK_STATIC const byte expSig[71] = {
         0x30, 0x45, 0x02, 0x20, 0x7c, 0xf2, 0x7b, 0x18,
         0x8d, 0x03, 0x4f, 0x7e, 0x8a, 0x52, 0x38, 0x03,
         0x04, 0xb5, 0x1a, 0xc3, 0xc0, 0x89, 0x69, 0xe2,
@@ -21242,17 +21247,24 @@ static int ecc_test_sign_vectors(WC_RNG* rng)
         0xe1, 0xd4, 0x5e, 0x9d, 0x97, 0xfe, 0x81
     };
 
-    ret = wc_ecc_init_ex(&key, HEAP_HINT, devId);
-    if (ret != 0) {
-        return ret;
-    }
-    ret = wc_ecc_import_raw(&key, QIUTx, QIUTy, dIUT, "SECP256R1");
+#ifdef WOLFSSL_SMALL_STACK
+    if ((key = (ecc_key *)XMALLOC(sizeof(*key), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+        return MEMORY_E;
+#endif
+
+    ret = wc_ecc_init_ex(key, HEAP_HINT, devId);
     if (ret != 0) {
         goto done;
     }
-    wc_ecc_set_flags(&key, WC_ECC_FLAG_DEC_SIGN);
+    key_inited = 1;
 
-    ret = wc_ecc_sign_set_k(k, sizeof(k), &key);
+    ret = wc_ecc_import_raw(key, QIUTx, QIUTy, dIUT, "SECP256R1");
+    if (ret != 0) {
+        goto done;
+    }
+    wc_ecc_set_flags(key, WC_ECC_FLAG_DEC_SIGN);
+
+    ret = wc_ecc_sign_set_k(k, sizeof(k), key);
     if (ret != 0) {
         goto done;
     }
@@ -21260,10 +21272,10 @@ static int ecc_test_sign_vectors(WC_RNG* rng)
     sigSz = sizeof(sig);
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
-            ret = wc_ecc_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, &key);
+            ret = wc_ecc_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, key);
     } while (ret == WC_PENDING_E);
     if (ret != 0) {
         goto done;
@@ -21282,10 +21294,10 @@ static int ecc_test_sign_vectors(WC_RNG* rng)
     sigSz = sizeof(sig);
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
-            ret = wc_ecc_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, &key);
+            ret = wc_ecc_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, key);
     } while (ret == WC_PENDING_E);
     if (ret != 0) {
         goto done;
@@ -21293,7 +21305,12 @@ static int ecc_test_sign_vectors(WC_RNG* rng)
     TEST_SLEEP();
 
 done:
-    wc_ecc_free(&key);
+    if (key_inited)
+        wc_ecc_free(key);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return ret;
 }
 #endif
