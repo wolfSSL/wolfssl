@@ -25406,6 +25406,10 @@ static WOLFSSL_X509* d2i_X509orX509REQ_bio(WOLFSSL_BIO* bio,
     size = wolfSSL_BIO_get_len(bio);
     if (size <= 0) {
         WOLFSSL_MSG("wolfSSL_BIO_get_len error. Possibly no pending data.");
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
+        /* EOF ASN1 file */
+        WOLFSSL_ERROR(ASN1_R_HEADER_TOO_LONG);
+#endif
         return NULL;
     }
 
@@ -26836,6 +26840,8 @@ int wolfSSL_ERR_GET_LIB(unsigned long err)
     case EVP_R_DECODE_ERROR:
     case EVP_R_PRIVATE_KEY_DECODE_ERROR:
         return ERR_LIB_EVP;
+    case ASN1_R_HEADER_TOO_LONG:
+        return ERR_LIB_ASN1;
     default:
         return 0;
     }
@@ -26858,6 +26864,10 @@ int wolfSSL_ERR_GET_REASON(unsigned long err)
     /* Nginx looks for this error to know to stop parsing certificates. */
     if (err == ((ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE))
         return PEM_R_NO_START_LINE;
+#endif
+#if defined(OPENSLL_ALL) && defined(WOLFSSL_PYTHON)
+    if (err == ((ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG))
+        return ASN1_R_HEADER_TOO_LONG;
 #endif
 
     /* check if error value is in range of wolfSSL errors */
@@ -44151,6 +44161,11 @@ unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line)
         if (ret == -ASN_NO_PEM_HEADER)
             return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
     #endif
+    #if defined(OPENSLL_ALL) && defined(WOLFSSL_PYTHON)
+        if (ret == ASN1_R_HEADER_TOO_LONG) {
+            return (ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG;
+        }
+    #endif
         return (unsigned long)ret;
     }
 #else
@@ -46698,6 +46713,10 @@ unsigned long wolfSSL_ERR_peek_last_error(void)
         }
         if (ret == -ASN_NO_PEM_HEADER)
             return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
+    #if defined(WOLFSSL_PYTHON)
+        if (ret == ASN1_R_HEADER_TOO_LONG)
+            return (ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG;
+    #endif
         return (unsigned long)ret;
     }
 #else
