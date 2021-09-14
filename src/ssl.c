@@ -34329,7 +34329,7 @@ static int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
 #endif /* WOLFSSL_KEY_GEN || WOLFSSL_PEM_TO_DER */
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
-static int wolfSSL_RSA_To_Der(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey)
+static int wolfSSL_RSA_To_Der(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey, void* heap)
 {
     int derSz  = 0;
     int ret;
@@ -34366,7 +34366,7 @@ static int wolfSSL_RSA_To_Der(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey)
     }
 
     if (outBuf) {
-        if (!(derBuf = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER))) {
+        if (!(derBuf = (byte*)XMALLOC(derSz, heap, DYNAMIC_TYPE_TMP_BUFFER))) {
             WOLFSSL_MSG("malloc failed");
             WOLFSSL_LEAVE("wolfSSL_RSA_To_Der", MEMORY_ERROR);
             return MEMORY_ERROR;
@@ -34382,12 +34382,12 @@ static int wolfSSL_RSA_To_Der(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey)
 
         if (derSz < 0) {
             WOLFSSL_MSG("wc_RsaKeyToPublicDer failed");
-            XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(derBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
         else {
             if (*outBuf) {
                 XMEMCPY(*outBuf, derBuf, derSz);
-                XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(derBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
             }
             else {
                 *outBuf = derBuf;
@@ -34442,7 +34442,7 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
         int derSz;
         byte* derBuf = NULL;
 
-        if ((derSz = wolfSSL_RSA_To_Der(key, &derBuf, 0)) < 0) {
+        if ((derSz = wolfSSL_RSA_To_Der(key, &derBuf, 0, bio->heap)) < 0) {
             WOLFSSL_MSG("wolfSSL_RSA_To_Der failed");
             return WOLFSSL_FAILURE;
         }
@@ -34543,11 +34543,6 @@ WOLFSSL_RSA *wolfSSL_PEM_read_bio_RSA_PUBKEY(WOLFSSL_BIO* bio,WOLFSSL_RSA** rsa,
 
 #endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) && !defined(NO_RSA) */
 
-/**
- * The regen parameter determines if we will regenerate the DER buffer to
- * only contain the public key or trust the the input DER contains just the
- * public key.
- */
 static int WriteBioPUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
 {
     int ret;
@@ -34564,7 +34559,8 @@ static int WriteBioPUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
     switch (key->type) {
 #if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
         case EVP_PKEY_RSA:
-            if ((derSz = wolfSSL_RSA_To_Der(key->rsa, &derBuf, 1)) < 0) {
+            if ((derSz = wolfSSL_RSA_To_Der(key->rsa, &derBuf, 1, bio->heap))
+                    < 0) {
                 WOLFSSL_MSG("wolfSSL_RSA_To_Der failed");
                 break;
             }
@@ -34578,9 +34574,7 @@ static int WriteBioPUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
                 break;
             }
             derSz = MAX_DSA_PUBKEY_SZ;
-            /* Don't use heap hint since wolfSSL_RSA_To_Der doesn't
-             * support one */
-            derBuf = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            derBuf = (byte*)XMALLOC(derSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
             if (derBuf == NULL) {
                 WOLFSSL_MSG("malloc failed");
                 break;
@@ -34606,9 +34600,7 @@ static int WriteBioPUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
                 WOLFSSL_MSG("wc_EccPublicKeyDerSize failed");
                 break;
             }
-            /* Don't use heap hint since wolfSSL_RSA_To_Der doesn't
-             * support one */
-            derBuf = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            derBuf = (byte*)XMALLOC(derSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
             if (derBuf == NULL) {
                 WOLFSSL_MSG("malloc failed");
                 break;
@@ -34634,26 +34626,26 @@ static int WriteBioPUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
 
     if (derBuf == NULL || derSz <= 0) {
         if (derBuf != NULL)
-            XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
+            XFREE(derBuf, bio->heap, DYNAMIC_TYPE_DER);
         return WOLFSSL_FAILURE;
     }
 
     pemSz = wc_DerToPem(derBuf, derSz, NULL, 0, PUBLICKEY_TYPE);
     if (pemSz < 0) {
         WOLFSSL_LEAVE("wolfSSL_PEM_write_bio_PUBKEY", pemSz);
-        XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
+        XFREE(derBuf, bio->heap, DYNAMIC_TYPE_DER);
         return WOLFSSL_FAILURE;
     }
 
     pemBuf = (byte*)XMALLOC(pemSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (pemBuf == NULL) {
         WOLFSSL_LEAVE("wolfSSL_PEM_write_bio_PUBKEY", pemSz);
-        XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
+        XFREE(derBuf, bio->heap, DYNAMIC_TYPE_DER);
         return WOLFSSL_FAILURE;
     }
 
     ret = wc_DerToPem(derBuf, derSz, pemBuf, pemSz, PUBLICKEY_TYPE);
-    XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
+    XFREE(derBuf, bio->heap, DYNAMIC_TYPE_DER);
     if (ret < 0) {
         WOLFSSL_LEAVE("wolfSSL_PEM_write_bio_PUBKEY", ret);
         XFREE(pemBuf, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -34802,7 +34794,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
         }
     }
 
-    if ((derSz = wolfSSL_RSA_To_Der(rsa, &derBuf, 0)) < 0) {
+    if ((derSz = wolfSSL_RSA_To_Der(rsa, &derBuf, 0, rsa->heap)) < 0) {
         WOLFSSL_MSG("wolfSSL_RSA_To_Der failed");
         return WOLFSSL_FAILURE;
     }
@@ -34814,7 +34806,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
         byte *tmpBuf;
 
         /* Add space for padding */
-        if (!(tmpBuf = (byte*)XREALLOC(derBuf, derSz + blockSz, NULL,
+        if (!(tmpBuf = (byte*)XREALLOC(derBuf, derSz + blockSz, rsa->heap,
                 DYNAMIC_TYPE_TMP_BUFFER))) {
             WOLFSSL_MSG("Extending DER buffer failed");
             XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
@@ -34826,7 +34818,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
                             passwd, passwdSz, &cipherInfo, derSz + blockSz);
         if (ret != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("EncryptDerKey failed");
-            XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
+            XFREE(derBuf, rsa->heap, DYNAMIC_TYPE_DER);
             return ret;
         }
 
@@ -34843,7 +34835,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
     tmp = (byte*)XMALLOC(*plen, NULL, DYNAMIC_TYPE_PEM);
     if (tmp == NULL) {
         WOLFSSL_MSG("malloc failed");
-        XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
+        XFREE(derBuf, rsa->heap, DYNAMIC_TYPE_DER);
         if (cipherInfo != NULL)
             XFREE(cipherInfo, NULL, DYNAMIC_TYPE_STRING);
         return WOLFSSL_FAILURE;
@@ -34853,13 +34845,13 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
     *plen = wc_DerToPemEx(derBuf, derSz, tmp, *plen, cipherInfo, type);
     if (*plen <= 0) {
         WOLFSSL_MSG("wc_DerToPemEx failed");
-        XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
+        XFREE(derBuf, rsa->heap, DYNAMIC_TYPE_DER);
         XFREE(tmp, NULL, DYNAMIC_TYPE_PEM);
         if (cipherInfo != NULL)
             XFREE(cipherInfo, NULL, DYNAMIC_TYPE_STRING);
         return WOLFSSL_FAILURE;
     }
-    XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
+    XFREE(derBuf, rsa->heap, DYNAMIC_TYPE_DER);
     if (cipherInfo != NULL)
         XFREE(cipherInfo, NULL, DYNAMIC_TYPE_STRING);
 
@@ -38957,7 +38949,8 @@ int wolfSSL_i2d_RSAPrivateKey(WOLFSSL_RSA *rsa, unsigned char **pp)
         return BAD_FUNC_ARG;
     }
 
-    if ((ret = wolfSSL_RSA_To_Der(rsa, pp, 0)) < 0) {
+    /* No heap hint as this gets returned to the user */
+    if ((ret = wolfSSL_RSA_To_Der(rsa, pp, 0, NULL)) < 0) {
         WOLFSSL_MSG("wolfSSL_RSA_To_Der failed");
         return WOLFSSL_FAILURE;
     }
@@ -38976,7 +38969,8 @@ int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, unsigned char **pp)
         return BAD_FUNC_ARG;
     }
 
-    if ((ret = wolfSSL_RSA_To_Der(rsa, (byte**)pp, 1)) < 0) {
+    /* No heap hint as this gets returned to the user */
+    if ((ret = wolfSSL_RSA_To_Der(rsa, (byte**)pp, 1, NULL)) < 0) {
         WOLFSSL_MSG("wolfSSL_RSA_To_Der failed");
         return WOLFSSL_FAILURE;
     }
@@ -39382,7 +39376,7 @@ WOLFSSL_RSA* wolfSSL_RSAPublicKey_dup(WOLFSSL_RSA *rsa)
         return NULL;
     }
 
-    if ((derSz = wolfSSL_RSA_To_Der(rsa, &derBuf, 1)) < 0) {
+    if ((derSz = wolfSSL_RSA_To_Der(rsa, &derBuf, 1, rsa->heap)) < 0) {
         WOLFSSL_MSG("wolfSSL_RSA_To_Der failed");
         return NULL;
     }
@@ -39393,7 +39387,7 @@ WOLFSSL_RSA* wolfSSL_RSAPublicKey_dup(WOLFSSL_RSA *rsa)
         wolfSSL_RSA_free(local);
         local = NULL;
     }
-    XFREE(derBuf, NULL, DYNAMIC_TYPE_ASN1);
+    XFREE(derBuf, rsa->heap, DYNAMIC_TYPE_ASN1);
     return local;
 }
 #endif
