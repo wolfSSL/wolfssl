@@ -1080,7 +1080,7 @@ decouple library dependencies with standard string, memory and so on.
 
 
     #if defined(HAVE_STACK_SIZE)
-        #define EXIT_TEST(ret) return (void*)((size_t)(ret))
+        #define EXIT_TEST(ret) return (THREAD_RETURN)((size_t)(ret))
     #else
         #define EXIT_TEST(ret) return ret
     #endif

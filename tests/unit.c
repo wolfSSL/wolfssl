@@ -52,7 +52,7 @@ int unit_test(int argc, char** argv)
 
 #ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
     if (argc > 1) {
-        word32 memFailCount = atoi(argv[1]);
+        int memFailCount = atoi(argv[1]);
         printf("\n--- SET RNG MALLOC FAIL AT %d---\n", memFailCount);
         wolfSSL_SetMemFailCount(memFailCount);
     }
