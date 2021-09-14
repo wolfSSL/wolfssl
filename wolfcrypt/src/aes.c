@@ -9458,14 +9458,9 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
 #ifndef WC_NO_RNG
 
 static WC_INLINE int CheckAesGcmIvSize(int ivSz) {
-#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 4)
-    return (ivSz == GCM_NONCE_MID_SZ ||
-            ivSz == GCM_NONCE_MAX_SZ);
-#else
     return (ivSz == GCM_NONCE_MIN_SZ ||
             ivSz == GCM_NONCE_MID_SZ ||
             ivSz == GCM_NONCE_MAX_SZ);
-#endif
 }
 
 
