@@ -4344,12 +4344,11 @@ static WC_INLINE void FlattenSzInBits(byte* buf, word32 sz)
 static WC_INLINE void RIGHTSHIFTX(byte* x)
 {
     int i;
-    int carryOut = 0;
     int carryIn = 0;
     int borrow = x[15] & 0x01;
 
     for (i = 0; i < AES_BLOCK_SIZE; i++) {
-        carryOut = x[i] & 0x01;
+        int carryOut = x[i] & 0x01;
         x[i] = (x[i] >> 1) | (carryIn ? 0x80 : 0);
         carryIn = carryOut;
     }
@@ -5725,8 +5724,13 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
     byte x[AES_BLOCK_SIZE];
     byte scratch[AES_BLOCK_SIZE];
     word32 blocks, partial;
-    byte* h = aes->H;
+    byte* h;
 
+    if (aes == NULL) {
+        return;
+    }
+
+    h = aes->H;
     XMEMSET(x, 0, AES_BLOCK_SIZE);
 
     /* Hash in A, the Additional Authentication Data */
@@ -5923,6 +5927,10 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
     byte x[AES_BLOCK_SIZE];
     byte scratch[AES_BLOCK_SIZE];
     word32 blocks, partial;
+
+    if (aes == NULL) {
+        return;
+    }
 
     XMEMSET(x, 0, AES_BLOCK_SIZE);
 
@@ -6220,6 +6228,10 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
     byte scratch[AES_BLOCK_SIZE];
     word32 blocks, partial;
 
+    if (aes == NULL) {
+        return;
+    }
+
     XMEMSET(x, 0, AES_BLOCK_SIZE);
 
     /* Hash in A, the Additional Authentication Data */
@@ -6351,6 +6363,10 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
     word64 x[2] = {0,0};
     word32 blocks, partial;
     word64 bigH[2];
+
+    if (aes == NULL) {
+        return;
+    }
 
     XMEMCPY(bigH, aes->H, AES_BLOCK_SIZE);
     #ifdef LITTLE_ENDIAN_ORDER
@@ -6664,6 +6680,10 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
     word32 x[4] = {0,0,0,0};
     word32 blocks, partial;
     word32 bigH[4];
+
+    if (aes == NULL) {
+        return;
+    }
 
     XMEMCPY(bigH, aes->H, AES_BLOCK_SIZE);
     #ifdef LITTLE_ENDIAN_ORDER
@@ -10268,7 +10288,6 @@ int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
       wc_AesEncryptDirect(aes, out, in);
       out += AES_BLOCK_SIZE;
       in  += AES_BLOCK_SIZE;
-      sz  -= AES_BLOCK_SIZE;
       blocks--;
     }
     return 0;
@@ -10289,7 +10308,6 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
       wc_AesDecryptDirect(aes, out, in);
       out += AES_BLOCK_SIZE;
       in  += AES_BLOCK_SIZE;
-      sz  -= AES_BLOCK_SIZE;
       blocks--;
     }
     return 0;
@@ -10529,11 +10547,9 @@ static void shiftLeftArray(byte* ary, byte shift)
         ary[i] = 0;
     }
     else {
-        byte carry = 0;
-
         /* shifting over by 7 or less bits */
         for (i = 0; i < AES_BLOCK_SIZE - 1; i++) {
-            carry = ary[i+1] & (0XFF << (WOLFSSL_BIT_SIZE - shift));
+            byte carry = ary[i+1] & (0XFF << (WOLFSSL_BIT_SIZE - shift));
             carry >>= (WOLFSSL_BIT_SIZE - shift);
             ary[i] = (ary[i] << shift) + carry;
         }
@@ -11223,17 +11239,17 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         while (blocks > 0) {
             word32 j;
             byte carry = 0;
-            byte buf[AES_BLOCK_SIZE];
 
     #ifdef HAVE_AES_ECB
-            if (in == out) { /* check for if inline */
+            if (in == out)
     #endif
-            XMEMCPY(buf, in, AES_BLOCK_SIZE);
-            xorbuf(buf, tmp, AES_BLOCK_SIZE);
-            wc_AesEncryptDirect(aes, out, buf);
-    #ifdef HAVE_AES_ECB
+            { /* check for if inline */
+                byte buf[AES_BLOCK_SIZE];
+
+                XMEMCPY(buf, in, AES_BLOCK_SIZE);
+                xorbuf(buf, tmp, AES_BLOCK_SIZE);
+                wc_AesEncryptDirect(aes, out, buf);
             }
-    #endif
             xorbuf(out, tmp, AES_BLOCK_SIZE);
 
             /* multiply by shift left and propagate carry */
@@ -11338,17 +11354,16 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     #endif
 
         while (blocks > 0) {
-            byte buf[AES_BLOCK_SIZE];
+    #ifdef HAVE_AES_ECB
+            if (in == out)
+    #endif
+            { /* check for if inline */
+                byte buf[AES_BLOCK_SIZE];
 
-    #ifdef HAVE_AES_ECB
-            if (in == out) { /* check for if inline */
-    #endif
-            XMEMCPY(buf, in, AES_BLOCK_SIZE);
-            xorbuf(buf, tmp, AES_BLOCK_SIZE);
-            wc_AesDecryptDirect(aes, out, buf);
-    #ifdef HAVE_AES_ECB
+                XMEMCPY(buf, in, AES_BLOCK_SIZE);
+                xorbuf(buf, tmp, AES_BLOCK_SIZE);
+                wc_AesDecryptDirect(aes, out, buf);
             }
-    #endif
             xorbuf(out, tmp, AES_BLOCK_SIZE);
 
             /* multiply by shift left and propagate carry */
@@ -11371,7 +11386,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         }
 
         /* stealing operation of XTS to handle left overs */
-        if (sz > 0) {
+        if (sz >= AES_BLOCK_SIZE) {
             byte buf[AES_BLOCK_SIZE];
             byte tmp2[AES_BLOCK_SIZE];
 

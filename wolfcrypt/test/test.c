@@ -24983,7 +24983,8 @@ static int curve25519_check_public_test(void)
 
 #endif /* HAVE_CURVE25519_SHARED_SECRET && HAVE_CURVE25519_KEY_IMPORT */
 
-#if defined(HAVE_CURVE25519_KEY_EXPORT) && defined(HAVE_CURVE25519_KEY_IMPORT)
+#if !defined(NO_ASN) && defined(HAVE_CURVE25519_KEY_EXPORT) && \
+    defined(HAVE_CURVE25519_KEY_IMPORT)
 static int curve255519_der_test(void)
 {
     int ret = 0;
@@ -25058,7 +25059,7 @@ static int curve255519_der_test(void)
 
     return ret;
 }
-#endif /* HAVE_CURVE25519_KEY_EXPORT && HAVE_CURVE25519_KEY_IMPORT */
+#endif /* !NO_ASN && HAVE_CURVE25519_KEY_EXPORT && HAVE_CURVE25519_KEY_IMPORT */
 
 WOLFSSL_TEST_SUBROUTINE int curve25519_test(void)
 {
@@ -25242,7 +25243,8 @@ WOLFSSL_TEST_SUBROUTINE int curve25519_test(void)
         return ret;
 #endif /* HAVE_CURVE25519_SHARED_SECRET && HAVE_CURVE25519_KEY_IMPORT */
 
-#if defined(HAVE_CURVE25519_KEY_IMPORT) && defined(HAVE_CURVE25519_KEY_IMPORT)
+#if !defined(NO_ASN) && defined(HAVE_CURVE25519_KEY_EXPORT) && \
+    defined(HAVE_CURVE25519_KEY_IMPORT)
     ret = curve255519_der_test();
     if (ret != 0)
         return ret;

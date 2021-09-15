@@ -9501,14 +9501,14 @@ static int StoreKey(DecodedCert* cert, const byte* source, word32* srcIdx,
         if (publicKey == NULL) {
             ret = MEMORY_E;
         }
-    }
-    if (ret == 0) {
-        XMEMCPY(publicKey, &source[*srcIdx], length);
-        cert->publicKey = publicKey;
-        cert->pubKeyStored = 1;
-        cert->pubKeySize   = length;
+        else {
+            XMEMCPY(publicKey, &source[*srcIdx], length);
+            cert->publicKey = publicKey;
+            cert->pubKeyStored = 1;
+            cert->pubKeySize   = length;
 
-        *srcIdx += length;
+            *srcIdx += length;
+        }
     }
 
     return ret;
@@ -9712,13 +9712,13 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
         if (publicKey == NULL) {
             ret = MEMORY_E;
         }
-    }
-    if (ret == 0) {
-        /* Copy in whole public key and store pointer. */
-        XMEMCPY(publicKey, pubKey, cert->pubKeySize);
-        cert->publicKey = publicKey;
-        /* Indicate publicKey needs to be freed. */
-        cert->pubKeyStored = 1;
+        else {
+            /* Copy in whole public key and store pointer. */
+            XMEMCPY(publicKey, pubKey, cert->pubKeySize);
+            cert->publicKey = publicKey;
+            /* Indicate publicKey needs to be freed. */
+            cert->pubKeyStored = 1;
+        }
     }
 
     return ret;
@@ -14740,8 +14740,9 @@ static int DecodeAuthInfo(const byte* input, int sz, DecodedCert* cert)
         {
             cert->extAuthInfoSz = length;
             cert->extAuthInfo = input + idx;
+        #if defined(OPENSSL_ALL) && defined(WOLFSSL_QT)
             count++;
-        #if !defined(OPENSSL_ALL) || !defined(WOLFSSL_QT)
+        #else
             break;
         #endif
         }
@@ -15342,16 +15343,16 @@ static int DecodeSubtree(const byte* input, int sz, Base_entry** head,
 
     /* Process all subtrees. */
     while ((ret == 0) && (idx < (word32)sz)) {
-        byte min = 0;
-        byte max = 0;
+        byte minVal = 0;
+        byte maxVal = 0;
 
         /* Clear dynamic data and set choice for GeneralName and location to
          * store minimum and maximum.
          */
         XMEMSET(dataASN, 0, sizeof(*dataASN) * subTreeASN_Length);
         GetASN_Choice(&dataASN[1], generalNameChoice);
-        GetASN_Int8Bit(&dataASN[2], &min);
-        GetASN_Int8Bit(&dataASN[3], &max);
+        GetASN_Int8Bit(&dataASN[2], &minVal);
+        GetASN_Int8Bit(&dataASN[3], &maxVal);
         /* Parse GeneralSubtree. */
         ret = GetASN_Items(subTreeASN, dataASN, subTreeASN_Length, 0, input,
                            &idx, sz);
@@ -20136,7 +20137,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
 
     return idx;
 #else
-    word32 pubSz;
+    word32 pubSz = 0;
     int sz = 0;
     int ret = 0;
 
@@ -20189,7 +20190,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
     else if ((ret == 0) && (output != NULL) && (pubSz > (word32)outLen)) {
         ret = BUFFER_E;
     }
-    else if (ret == 0) {
+    else {
         /* Total size is the public point size. */
         sz = pubSz;
     }
@@ -21432,7 +21433,7 @@ static int wc_EncodeName_ex(EncodedName* name, const char* nameStr,
     return idx;
 #else
     ASNSetData dataASN[rdnASN_Length];
-    ASNItem nameASN[rdnASN_Length];
+    ASNItem namesASN[rdnASN_Length];
     byte dnOid[DN_OID_SZ] = { 0x55, 0x04, 0x00 };
     int ret = 0;
     int sz;
@@ -21449,7 +21450,7 @@ static int wc_EncodeName_ex(EncodedName* name, const char* nameStr,
         XMEMSET(dataASN, 0, rdnASN_Length * sizeof(ASNSetData));
         /* Copy the RDN encoding template. ASN.1 tag for the name string is set
          * based on type. */
-        XMEMCPY(nameASN, rdnASN, rdnASN_Length * sizeof(ASNItem));
+        XMEMCPY(namesASN, rdnASN, rdnASN_Length * sizeof(ASNItem));
 
         /* Set OID and ASN.1 tag for name depending on type. */
         switch (type) {
@@ -21472,18 +21473,17 @@ static int wc_EncodeName_ex(EncodedName* name, const char* nameStr,
                 oidSz = DN_OID_SZ;
                 break;
         }
-    }
-    if (ret == 0) {
+
         /* Set OID corresponding to the name type. */
         SetASN_Buffer(&dataASN[2], oid, oidSz);
         /* Set name string. */
         SetASN_Buffer(&dataASN[3], (const byte *)nameStr,
             (word32)XSTRLEN(nameStr));
         /* Set the ASN.1 tag for the name string. */
-        nameASN[3].tag = nameTag;
+        namesASN[3].tag = nameTag;
 
         /* Calculate size of encoded name and indexes of components. */
-        ret = SizeASN_Items(nameASN, dataASN, rdnASN_Length, &sz);
+        ret = SizeASN_Items(namesASN, dataASN, rdnASN_Length, &sz);
     }
     /* Check if name's buffer is big enough. */
     if ((ret == 0) && (sz > (int)sizeof(name->encoded))) {
@@ -21491,7 +21491,7 @@ static int wc_EncodeName_ex(EncodedName* name, const char* nameStr,
     }
     if (ret == 0) {
         /* Encode name into the buffer. */
-        SetASN_Items(nameASN, dataASN, rdnASN_Length, name->encoded);
+        SetASN_Items(namesASN, dataASN, rdnASN_Length, name->encoded);
         /* Cache the type and size, and set that it is used. */
         name->type = type;
         name->totalLen = sz;
@@ -21768,7 +21768,7 @@ int SetNameEx(byte* output, word32 outputSz, CertName* name, void* heap)
     if (dataASN == NULL) {
         ret = MEMORY_E;
     }
-    if (ret == 0) {
+    else {
         /* Allocate dynamic ASN.1 template items. */
         namesASN = (ASNItem*)XMALLOC(idx * sizeof(ASNItem), heap,
                                      DYNAMIC_TYPE_TMP_BUFFER);
@@ -26790,7 +26790,6 @@ static int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
     byte* privKey, word32* privKeyLen,
     byte* pubKey, word32* pubKeyLen, int keyType)
 {
-    int ret = 0;
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 oid;
     int version, length, endKeyIdx, privSz, pubSz;
@@ -26863,9 +26862,12 @@ static int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
         if (pubKey != NULL && pubKeyLen != NULL)
             XMEMCPY(pubKey, pub, *pubKeyLen);
     }
-    if (ret == 0 && endKeyIdx != (int)*inOutIdx)
+    if (endKeyIdx != (int)*inOutIdx)
         return ASN_PARSE_E;
+    return 0;
 #else
+    int ret = 0;
+
     CALLOC_ASNGETDATA(dataASN, edKeyASN_Length, ret, NULL);
 
     if (ret == 0) {
@@ -26910,8 +26912,8 @@ static int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
     }
 
     FREE_ASNGETDATA(dataASN, NULL);
-#endif /* WOLFSSL_ASN_TEMPLATE */
     return ret;
+#endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
 static int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
@@ -27115,7 +27117,7 @@ static int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
     sz = seqSz + verSz + algoSz + privSz + pubSz;
 
     /* checkout output size */
-    if (ret == 0 && output != NULL && sz > outLen) {
+    if (output != NULL && sz > outLen) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -28118,21 +28120,25 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
                 if (single->next->status == NULL) {
                     XFREE(single->next, resp->heap, DYNAMIC_TYPE_OCSP_ENTRY);
                     single->next = NULL;
-                    return MEMORY_E;
+                    ret = MEMORY_E;
                 }
-                XMEMSET(single->next->status, 0, sizeof(CertStatus));
+                else {
+                    XMEMSET(single->next->status, 0, sizeof(CertStatus));
 
-                /* Entry to be freed. */
-                single->isDynamic = 1;
-                /* used will be 0 (false) */
+                    /* Entry to be freed. */
+                    single->isDynamic = 1;
+                    /* used will be 0 (false) */
 
-                single = single->next;
+                    single = single->next;
+                }
             }
         }
-        /* Decode SingleResponse into OcspEntry. */
-        ret = DecodeSingleResponse(source, &idx, dataASN[7].offset,
-                dataASN[6].length, single);
-        /* single->used set on successful decode. */
+        if (ret == 0) {
+            /* Decode SingleResponse into OcspEntry. */
+            ret = DecodeSingleResponse(source, &idx, dataASN[7].offset,
+                    dataASN[6].length, single);
+            /* single->used set on successful decode. */
+        }
     }
 
     /* Check if there were extensions. */

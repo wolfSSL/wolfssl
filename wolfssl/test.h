@@ -261,10 +261,18 @@
     #elif defined(WOLFSSL_TIRTOS)
         typedef void          THREAD_RETURN;
         typedef Task_Handle   THREAD_TYPE;
+        #ifdef HAVE_STACK_SIZE
+          #undef EXIT_TEST
+          #define EXIT_TEST(ret)
+        #endif
         #define WOLFSSL_THREAD
     #elif defined(WOLFSSL_ZEPHYR)
         typedef void            THREAD_RETURN;
         typedef struct k_thread THREAD_TYPE;
+        #ifdef HAVE_STACK_SIZE
+          #undef EXIT_TEST
+          #define EXIT_TEST(ret)
+        #endif
         #define WOLFSSL_THREAD
     #else
         typedef unsigned int  THREAD_RETURN;

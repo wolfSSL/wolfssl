@@ -378,7 +378,7 @@ static void simple_test(func_args* args)
 #ifndef USE_WINDOWS_API
     cliArgs.argc = NUMARGS;
     strcpy(argvc[1], "-p");
-    snprintf(argvc[2], sizeof(argvc[2]), "%d", svrArgs.signal->port);
+    snprintf(argvc[2], sizeof(argvc[2]), "%d", (int)svrArgs.signal->port);
 #else
     cliArgs.argc = 1;
 #endif
