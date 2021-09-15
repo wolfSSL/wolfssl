@@ -49183,6 +49183,11 @@ int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
     word16 curve;
     char name[MAX_CURVE_NAME_SZ];
 
+    if (ctx == NULL || names == NULL) {
+        WOLFSSL_MSG("ctx or names was NULL");
+        return WOLFSSL_FAILURE;
+    }
+
     /* Disable all curves so that only the ones the user wants are enabled. */
     ctx->disabledCurves = 0xFFFFFFFFUL;
     for (idx = 1; names[idx-1] != '\0'; idx++) {
