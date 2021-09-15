@@ -6255,6 +6255,20 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         ssl->alpnSelect    = ctx->alpnSelect;
         ssl->alpnSelectArg = ctx->alpnSelectArg;
     #endif
+    #if !defined(NO_BIO) && defined(OPENSSL_EXTRA)
+        if (ctx->alpn_cli_protos != NULL && ctx->alpn_cli_protos_len > 0) {
+            ret = wolfSSL_set_alpn_protos(ssl, ctx->alpn_cli_protos, 
+                                            ctx->alpn_cli_protos_len);
+        #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+            if (ret) {
+        #else
+            if (!ret) {
+        #endif
+                WOLFSSL_MSG("failed to set alpn protos to ssl object");
+                return ret;
+            }
+        }
+    #endif 
 #endif
 #ifdef HAVE_SUPPORTED_CURVES
     ssl->options.userCurves = ctx->userCurves;

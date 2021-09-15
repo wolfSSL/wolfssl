@@ -6449,12 +6449,120 @@ static void test_wolfSSL_UseALPN_params(void)
 }
 #endif /* HAVE_ALPN  */
 
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)) && \
+    (defined(HAVE_ALPN) && defined(HAVE_SNI)) &&\
+    defined(HAVE_IO_TESTS_DEPENDENCIES)
+    
+static void CTX_set_alpn_protos(SSL_CTX *ctx)
+{
+    unsigned char p[] = {
+       8, 'h', 't', 't', 'p', '/', '1', '.', '1',
+       6, 's', 'p', 'd', 'y', '/', '2',
+       6, 's', 'p', 'd', 'y', '/', '1',
+    };
+    
+    unsigned char p_len = sizeof(p);
+    int ret;
+    
+    ret = SSL_CTX_set_alpn_protos(ctx, p, p_len);
+    
+#ifdef WOLFSSL_ERROR_CODE_OPENSSL
+    AssertIntEQ(ret, 0);
+#else
+    AssertIntEQ(ret, SSL_SUCCESS);
+#endif
+
+}
+
+static void set_alpn_protos(SSL* ssl) 
+{
+    unsigned char p[] = {
+       6, 's', 'p', 'd', 'y', '/', '3',
+       8, 'h', 't', 't', 'p', '/', '1', '.', '1',
+       6, 's', 'p', 'd', 'y', '/', '2',
+       6, 's', 'p', 'd', 'y', '/', '1',
+    };
+    
+    unsigned char p_len = sizeof(p);
+    int ret;
+    
+    ret = SSL_set_alpn_protos(ssl, p, p_len);
+    
+#ifdef WOLFSSL_ERROR_CODE_OPENSSL
+    AssertIntEQ(ret, 0);
+#else
+    AssertIntEQ(ret, SSL_SUCCESS);
+#endif
+
+}
+
+static void verify_alpn_matching_spdy3(WOLFSSL* ssl)
+{
+    /* "spdy/3" */
+    char nego_proto[] = {0x73, 0x70, 0x64, 0x79, 0x2f, 0x33};
+    const unsigned char *proto;
+    unsigned int protoSz = 0;
+
+    SSL_get0_alpn_selected(ssl, &proto, &protoSz);
+
+    /* check value */
+    AssertIntEQ(1, sizeof(nego_proto) == protoSz);
+    AssertIntEQ(0, XMEMCMP(nego_proto, proto, protoSz));
+}
+
+static void verify_alpn_matching_http1(WOLFSSL* ssl)
+{
+    /* "http/1.1" */
+    char nego_proto[] = {0x68, 0x74, 0x74, 0x70, 0x2f, 0x31, 0x2e, 0x31};
+    const unsigned char *proto;
+    unsigned int protoSz = 0;
+
+    SSL_get0_alpn_selected(ssl, &proto, &protoSz);
+
+    /* check value */
+    AssertIntEQ(1, sizeof(nego_proto) == protoSz);
+    AssertIntEQ(0, XMEMCMP(nego_proto, proto, protoSz));
+}
+
+static void test_wolfSSL_set_alpn_protos()
+{
+    unsigned long i;
+    callback_functions callbacks[] = {
+        /* use CTX_alpn_protos */
+        {0, CTX_set_alpn_protos, 0, 0, 0, 0},
+        {0, CTX_set_alpn_protos, 0, verify_alpn_matching_http1, 0, 0},
+        /* use set_alpn_protos */
+        {0, 0, set_alpn_protos, 0, 0, 0},
+        {0, 0, set_alpn_protos, verify_alpn_matching_spdy3, 0, 0},
+    };
+
+    for (i = 0; i < sizeof(callbacks) / sizeof(callback_functions); i += 2) {
+        callbacks[i    ].method = wolfSSLv23_client_method;
+        callbacks[i + 1].method = wolfSSLv23_server_method;
+        test_wolfSSL_client_server(&callbacks[i], &callbacks[i + 1]);
+    }
+}
+#endif
+
 static void test_wolfSSL_UseALPN(void)
 {
 #if defined(HAVE_ALPN) && !defined(NO_WOLFSSL_SERVER) &&\
     defined(HAVE_IO_TESTS_DEPENDENCIES)
     test_wolfSSL_UseALPN_connection();
     test_wolfSSL_UseALPN_params();
+#endif
+
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_BIO)
+
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)) && \
+    (defined(HAVE_ALPN) && defined(HAVE_SNI)) && \
+    defined(HAVE_IO_TESTS_DEPENDENCIES)
+    
+    test_wolfSSL_set_alpn_protos();
+#endif
+
 #endif
 }
 
