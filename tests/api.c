@@ -29603,6 +29603,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         EVP_PKEY* pkey2 = NULL;
         unsigned char extra[10];
         int i;
+        BIO* pub_bio = NULL;
 
         printf(testingFmt, "wolfSSL_PEM_PrivateKey()");
 
@@ -29610,6 +29611,8 @@ static void test_wolfSSL_PEM_PrivateKey(void)
 
         AssertNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
         AssertIntEQ(BIO_set_write_buf_size(bio, 4096), SSL_FAILURE);
+        AssertNotNull(pub_bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+        AssertIntEQ(BIO_set_write_buf_size(pub_bio, 4096), SSL_FAILURE);
 
         AssertNull(d2i_PrivateKey(EVP_PKEY_EC, &pkey,
                 &server_key, (long)sizeof_server_key_der_2048));
@@ -29619,6 +29622,19 @@ static void test_wolfSSL_PEM_PrivateKey(void)
                 &server_key, (long)sizeof_server_key_der_2048));
         AssertIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
                 WOLFSSL_SUCCESS);
+        AssertIntGT(BIO_pending(bio), 0);
+        AssertIntEQ(BIO_pending(bio), 1679);
+        /* Check if the pubkey API writes only the public key */
+#ifdef WOLFSSL_KEY_GEN
+        AssertIntEQ(PEM_write_bio_PUBKEY(pub_bio, pkey), WOLFSSL_SUCCESS);
+        AssertIntGT(BIO_pending(pub_bio), 0);
+        /* Previously both the private key and the pubkey calls would write
+         * out the private key and the PEM header was the only difference.
+         * The public PEM should be significantly shorter than the
+         * private key versison. */
+        AssertIntEQ(BIO_pending(pub_bio), 451);
+#endif
+
 
         /* test creating new EVP_PKEY with good args */
         AssertNotNull((pkey2 = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
@@ -29642,6 +29658,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
             AssertIntEQ(extra[i], BIO_PEM_TEST_CHAR);
         }
 
+        BIO_free(pub_bio);
         BIO_free(bio);
         bio = NULL;
         EVP_PKEY_free(pkey);

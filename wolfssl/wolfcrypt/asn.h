@@ -782,6 +782,7 @@ enum Misc_ASN {
     RSA_INTS            =   8,     /* RSA ints in private key */
     DSA_PARAM_INTS      =   3,     /* DSA paramater ints */
     RSA_PUB_INTS        =   2,     /* RSA ints in public key */
+    DSA_PUB_INTS        =   4,     /* DSA ints in public key */
     DSA_INTS            =   5,     /* DSA ints in private key */
     MIN_DATE_SIZE       =  12,
     MAX_DATE_SIZE       =  32,
@@ -802,6 +803,7 @@ enum Misc_ASN {
     MAX_SIG_SZ          = 256,
     MAX_ALGO_SZ         =  20,
     MAX_SHORT_SZ        =   6,     /* asn int + byte len + 4 byte length */
+    MAX_LENGTH_SZ       =   4,     /* Max length size for DER encoding */
     MAX_SEQ_SZ          =   5,     /* enum(seq | con) + length(4) */
     MAX_SET_SZ          =   5,     /* enum(set | con) + length(4) */
     MAX_OCTET_STR_SZ    =   5,     /* enum(set | con) + length(4) */
@@ -812,9 +814,14 @@ enum Misc_ASN {
     MAX_ENCODED_DIG_SZ  =  64 + MAX_ENCODED_DIG_ASN_SZ, /* asn header + sha512 */
     MAX_RSA_INT_SZ      = 517,     /* RSA raw sz 4096 for bits + tag + len(4) */
     MAX_DSA_INT_SZ      = 389,     /* DSA raw sz 3072 for bits + tag + len(4) */
+    MAX_DSA_PUBKEY_SZ   = (DSA_PUB_INTS * MAX_DSA_INT_SZ) + (2 * MAX_SEQ_SZ) +
+                          2 + MAX_LENGTH_SZ, /* Maximum size of a DSA public
+                                      key taken from wc_SetDsaPublicKey. */
+    MAX_DSA_PRIVKEY_SZ  = (DSA_INTS * MAX_DSA_INT_SZ) + MAX_SEQ_SZ +
+                          MAX_VERSION_SZ, /* Maximum size of a DSA Private
+                                      key taken from DsaKeyIntsToDer. */
     MAX_NTRU_KEY_SZ     = 610,     /* NTRU 112 bit public key */
     MAX_NTRU_ENC_SZ     = 628,     /* NTRU 112 bit DER public encoding */
-    MAX_LENGTH_SZ       =   4,     /* Max length size for DER encoding */
     MAX_RSA_E_SZ        =  16,     /* Max RSA public e size */
     MAX_CA_SZ           =  32,     /* Max encoded CA basic constraint length */
     MAX_SN_SZ           =  35,     /* Max encoded serial number (INT) length */
