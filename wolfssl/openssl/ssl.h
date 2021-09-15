@@ -1387,9 +1387,9 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 /* Some openssl consumers try to detect these options with ifdef, defining
  * here since we use an enum internally instead */
-#define SSL_OP_SINGLE_DH_USE            SSL_OP_SINGLE_DH_USE
-#define SSL_OP_SINGLE_ECDH_USE          SSL_OP_SINGLE_ECDH_USE
-#define SSL_OP_CIPHER_SERVER_PREFERENCE SSL_OP_CIPHER_SERVER_PREFERENCE
+#define SSL_OP_SINGLE_DH_USE            WOLFSSL_OP_SINGLE_DH_USE
+#define SSL_OP_SINGLE_ECDH_USE          WOLFSSL_OP_SINGLE_ECDH_USE
+#define SSL_OP_CIPHER_SERVER_PREFERENCE WOLFSSL_OP_CIPHER_SERVER_PREFERENCE
 
 #define OPENSSL_config	                wolfSSL_OPENSSL_config
 #define OPENSSL_memdup                  wolfSSL_OPENSSL_memdup
