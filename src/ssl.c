@@ -49189,7 +49189,7 @@ int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
         if (names[idx] != ':' && names[idx] != '\0')
             continue;
 
-        len = idx - 1 - start;
+        len = idx - start;
         if (len > MAX_CURVE_NAME_SZ - 1)
             return WOLFSSL_FAILURE;
 
