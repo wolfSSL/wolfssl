@@ -27447,8 +27447,9 @@ static long wolf_set_options(long old_op, long op)
         WOLFSSL_MSG("\tSSL_OP_NO_SSLv3");
     }
 
-    if ((op & SSL_OP_CIPHER_SERVER_PREFERENCE) == SSL_OP_CIPHER_SERVER_PREFERENCE) {
-        WOLFSSL_MSG("\tSSL_OP_CIPHER_SERVER_PREFERENCE");
+    if ((op & WOLFSSL_OP_CIPHER_SERVER_PREFERENCE) ==
+            WOLFSSL_OP_CIPHER_SERVER_PREFERENCE) {
+        WOLFSSL_MSG("\tWOLFSSL_OP_CIPHER_SERVER_PREFERENCE");
     }
 
     if ((op & SSL_OP_NO_COMPRESSION) == SSL_OP_NO_COMPRESSION) {
@@ -45149,8 +45150,8 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
 
         #ifdef WOLFSSL_QT
         /* Set whether to use client or server cipher preference */
-        if ((ctrl_opt & SSL_OP_CIPHER_SERVER_PREFERENCE)
-                     == SSL_OP_CIPHER_SERVER_PREFERENCE) {
+        if ((ctrl_opt & WOLFSSL_OP_CIPHER_SERVER_PREFERENCE)
+                     == WOLFSSL_OP_CIPHER_SERVER_PREFERENCE) {
             WOLFSSL_MSG("Using Server's Cipher Preference.");
             ctx->useClientOrder = FALSE;
         } else {
