@@ -35,6 +35,11 @@
 #if (defined(WOLFSSL_X86_64_BUILD) || defined(USE_INTEL_SPEEDUP) || \
     defined(WOLFSSL_AESNI) || defined(WOLFSSL_SP_X86_64_ASM)) && \
     !defined(WOLFSSL_NO_ASM)
+    #define HAVE_CPUID
+    #define HAVE_CPUID_INTEL
+#endif
+
+#ifdef HAVE_CPUID_INTEL
 
     #define CPUID_AVX1   0x0001
     #define CPUID_AVX2   0x0002
@@ -54,6 +59,9 @@
     #define IS_INTEL_ADX(f)     ((f) & CPUID_ADX)
     #define IS_INTEL_MOVBE(f)   ((f) & CPUID_MOVBE)
 
+#endif
+
+#ifdef HAVE_CPUID
     void cpuid_set_flags(void);
     word32 cpuid_get_flags(void);
 

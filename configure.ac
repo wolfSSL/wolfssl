@@ -1478,14 +1478,38 @@ then
 fi
 
 
-# AES-ARM
+# ARM Assembly
 AC_ARG_ENABLE([armasm],
-    [AS_HELP_STRING([--enable-armasm],[Enable wolfSSL ARMv8 ASM support (default: disabled)])],
+    [AS_HELP_STRING([--enable-armasm],[Enable wolfSSL ARMv8 ASM support (default: disabled). Set to sha512-crypto to use SHA512 instructions with Aarch64 CPU.])],
     [ ENABLED_ARMASM=$enableval ],
     [ ENABLED_ARMASM=no ]
     )
-if test "$ENABLED_ARMASM" = "yes" && test "$ENABLED_ASM" = "yes"
+if test "$ENABLED_ARMASM" != "no" && test "$ENABLED_ASM" = "yes"
 then
+    for v in `echo $ENABLED_ARMASM | tr "," " "`
+    do
+        case $v in
+        yes)
+            ;;
+        sha512-crypto)
+            case $host_cpu in
+            *aarch64*)
+                ;;
+            *)
+                AC_MSG_ERROR([SHA512 instructions only available on Aarch64 CPU.])
+                break;;
+            esac
+            ENABLED_ARMASM_SHA512=yes
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512"
+            AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512"
+            ;;
+        *)
+            AC_MSG_ERROR([Invalid choice of ARM asm inclusions (yes, sha512-crypto): $ENABLED_ARMASM.])
+            break;;
+        esac
+    done
+    ENABLED_ARMASM="yes"
+
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ARMASM"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM -DWOLFSSL_NO_HASH_RAW"
     #Check if mcpu and mfpu values already set if not use default
@@ -1530,7 +1554,6 @@ then
         esac
     esac
 fi
-
 
 # Xilinx hardened crypto
 AC_ARG_ENABLE([xilinx],
@@ -7239,6 +7262,7 @@ echo "   * Cavium Nitrox:              $ENABLED_CAVIUM"
 echo "   * Cavium Octeon (Sync):       $ENABLED_OCTEON_SYNC"
 echo "   * Intel Quick Assist:         $ENABLED_INTEL_QA"
 echo "   * ARM ASM:                    $ENABLED_ARMASM"
+echo "   * ARM ASM SHA512 Crypto       $ENABLED_ARMASM_SHA512"
 echo "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"
 echo "   * Write duplicate:            $ENABLED_WRITEDUP"
 echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"

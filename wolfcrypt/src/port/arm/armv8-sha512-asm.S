@@ -28,8 +28,10 @@
  *   cd ../scripts
  *   ruby ./sha2/sha512.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-sha512-asm.S
  */
-#if defined(WOLFSSL_ARMASM) && defined(WOLFSSL_SHA512)
+#ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
+#ifdef WOLFSSL_SHA512
+#ifndef WOLFSSL_ARMASM_CRYPTO_SHA512
 #ifndef __APPLE__
 	.text
 	.type	L_SHA512_transform_neon_len_k, %object
@@ -141,15 +143,15 @@ L_SHA512_transform_neon_len_ror8:
 	.xword	0x7060504030201, 0x80f0e0d0c0b0a09
 #ifndef __APPLE__
 .text
-.globl	Transform_Sha512_Len
-.type	Transform_Sha512_Len,@function
+.globl	Transform_Sha512_Len_neon
+.type	Transform_Sha512_Len_neon,@function
 .align	2
-Transform_Sha512_Len:
+Transform_Sha512_Len_neon:
 #else
 .section	__TEXT,__text
-.globl	_Transform_Sha512_Len
+.globl	_Transform_Sha512_Len_neon
 .p2align	2
-_Transform_Sha512_Len:
+_Transform_Sha512_Len_neon:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-128]!
 	add	x29, sp, #0
@@ -1090,10 +1092,662 @@ L_sha512_len_neon_start:
 	ldp	x29, x30, [sp], #0x80
 	ret
 #ifndef __APPLE__
-	.size	Transform_Sha512_Len,.-Transform_Sha512_Len
+	.size	Transform_Sha512_Len_neon,.-Transform_Sha512_Len_neon
 #endif /* __APPLE__ */
+#else
+#ifndef __APPLE__
+	.text
+	.type	L_SHA512_transform_crypto_len_k, %object
+	.section	.rodata
+	.size	L_SHA512_transform_crypto_len_k, 640
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
+L_SHA512_transform_crypto_len_k:
+	.xword	0x428a2f98d728ae22
+	.xword	0x7137449123ef65cd
+	.xword	0xb5c0fbcfec4d3b2f
+	.xword	0xe9b5dba58189dbbc
+	.xword	0x3956c25bf348b538
+	.xword	0x59f111f1b605d019
+	.xword	0x923f82a4af194f9b
+	.xword	0xab1c5ed5da6d8118
+	.xword	0xd807aa98a3030242
+	.xword	0x12835b0145706fbe
+	.xword	0x243185be4ee4b28c
+	.xword	0x550c7dc3d5ffb4e2
+	.xword	0x72be5d74f27b896f
+	.xword	0x80deb1fe3b1696b1
+	.xword	0x9bdc06a725c71235
+	.xword	0xc19bf174cf692694
+	.xword	0xe49b69c19ef14ad2
+	.xword	0xefbe4786384f25e3
+	.xword	0xfc19dc68b8cd5b5
+	.xword	0x240ca1cc77ac9c65
+	.xword	0x2de92c6f592b0275
+	.xword	0x4a7484aa6ea6e483
+	.xword	0x5cb0a9dcbd41fbd4
+	.xword	0x76f988da831153b5
+	.xword	0x983e5152ee66dfab
+	.xword	0xa831c66d2db43210
+	.xword	0xb00327c898fb213f
+	.xword	0xbf597fc7beef0ee4
+	.xword	0xc6e00bf33da88fc2
+	.xword	0xd5a79147930aa725
+	.xword	0x6ca6351e003826f
+	.xword	0x142929670a0e6e70
+	.xword	0x27b70a8546d22ffc
+	.xword	0x2e1b21385c26c926
+	.xword	0x4d2c6dfc5ac42aed
+	.xword	0x53380d139d95b3df
+	.xword	0x650a73548baf63de
+	.xword	0x766a0abb3c77b2a8
+	.xword	0x81c2c92e47edaee6
+	.xword	0x92722c851482353b
+	.xword	0xa2bfe8a14cf10364
+	.xword	0xa81a664bbc423001
+	.xword	0xc24b8b70d0f89791
+	.xword	0xc76c51a30654be30
+	.xword	0xd192e819d6ef5218
+	.xword	0xd69906245565a910
+	.xword	0xf40e35855771202a
+	.xword	0x106aa07032bbd1b8
+	.xword	0x19a4c116b8d2d0c8
+	.xword	0x1e376c085141ab53
+	.xword	0x2748774cdf8eeb99
+	.xword	0x34b0bcb5e19b48a8
+	.xword	0x391c0cb3c5c95a63
+	.xword	0x4ed8aa4ae3418acb
+	.xword	0x5b9cca4f7763e373
+	.xword	0x682e6ff3d6b2b8a3
+	.xword	0x748f82ee5defb2fc
+	.xword	0x78a5636f43172f60
+	.xword	0x84c87814a1f0ab72
+	.xword	0x8cc702081a6439ec
+	.xword	0x90befffa23631e28
+	.xword	0xa4506cebde82bde9
+	.xword	0xbef9a3f7b2c67915
+	.xword	0xc67178f2e372532b
+	.xword	0xca273eceea26619c
+	.xword	0xd186b8c721c0c207
+	.xword	0xeada7dd6cde0eb1e
+	.xword	0xf57d4f7fee6ed178
+	.xword	0x6f067aa72176fba
+	.xword	0xa637dc5a2c898a6
+	.xword	0x113f9804bef90dae
+	.xword	0x1b710b35131c471b
+	.xword	0x28db77f523047d84
+	.xword	0x32caab7b40c72493
+	.xword	0x3c9ebe0a15c9bebc
+	.xword	0x431d67c49c100d4c
+	.xword	0x4cc5d4becb3e42b6
+	.xword	0x597f299cfc657e2a
+	.xword	0x5fcb6fab3ad6faec
+	.xword	0x6c44198c4a475817
+#ifndef __APPLE__
+.text
+.globl	Transform_Sha512_Len_crypto
+.type	Transform_Sha512_Len_crypto,@function
+.align	2
+Transform_Sha512_Len_crypto:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha512_Len_crypto
+.p2align	2
+_Transform_Sha512_Len_crypto:
+#endif /* __APPLE__ */
+	stp	x29, x30, [sp, #-208]!
+	add	x29, sp, #0
+	stp	d8, d9, [x29, #16]
+	stp	d10, d11, [x29, #32]
+	stp	d12, d13, [x29, #48]
+	stp	d14, d15, [x29, #64]
+	stp	d16, d17, [x29, #80]
+	stp	d18, d19, [x29, #96]
+	stp	d20, d21, [x29, #112]
+	stp	d22, d23, [x29, #128]
+	stp	d24, d25, [x29, #144]
+	stp	d26, d27, [x29, #160]
+	stp	d28, d29, [x29, #176]
+	stp	d30, d31, [x29, #192]
+#ifndef __APPLE__
+	adrp x4, L_SHA512_transform_crypto_len_k
+	add  x4, x4, :lo12:L_SHA512_transform_crypto_len_k
+#else
+	adrp x4, L_SHA512_transform_crypto_len_k@PAGE
+	add  x4, x4, :lo12:L_SHA512_transform_crypto_len_k@PAGEOFF
+#endif /* __APPLE__ */
+	# Load first 16 64-bit words of K permantly
+	ld1	{v8.2d, v9.2d, v10.2d, v11.2d}, [x4], #0x40
+	ld1	{v12.2d, v13.2d, v14.2d, v15.2d}, [x4], #0x40
+	# Load digest into working vars
+	ld1	{v24.2d, v25.2d, v26.2d, v27.2d}, [x0]
+	# Start of loop processing a block
+L_sha512_len_crypto_begin:
+	mov	x3, x4
+	# Load W
+	ld1	{v0.2d, v1.2d, v2.2d, v3.2d}, [x1], #0x40
+	ld1	{v4.2d, v5.2d, v6.2d, v7.2d}, [x1], #0x40
+	rev64	v0.16b, v0.16b
+	rev64	v1.16b, v1.16b
+	rev64	v2.16b, v2.16b
+	rev64	v3.16b, v3.16b
+	rev64	v4.16b, v4.16b
+	rev64	v5.16b, v5.16b
+	rev64	v6.16b, v6.16b
+	rev64	v7.16b, v7.16b
+	# Copy digest to add in at end
+	mov	v28.16b, v24.16b
+	mov	v29.16b, v25.16b
+	mov	v30.16b, v26.16b
+	mov	v31.16b, v27.16b
+	# Start of 16 rounds
+	# Round 0
+	add	v20.2d, v0.2d, v8.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v26.16b, v27.16b, #8
+	ext	v22.16b, v25.16b, v26.16b, #8
+	add	v27.2d, v27.2d, v20.2d
+	sha512h	q27, q21, v22.2d
+	add	v23.2d, v25.2d, v27.2d
+	sha512h2	q27, q25, v24.2d
+	# Round 1
+	add	v20.2d, v1.2d, v9.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v23.16b, v26.16b, #8
+	ext	v22.16b, v24.16b, v23.16b, #8
+	add	v26.2d, v26.2d, v20.2d
+	sha512h	q26, q21, v22.2d
+	add	v25.2d, v24.2d, v26.2d
+	sha512h2	q26, q24, v27.2d
+	# Round 2
+	add	v20.2d, v2.2d, v10.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v25.16b, v23.16b, #8
+	ext	v22.16b, v27.16b, v25.16b, #8
+	add	v23.2d, v23.2d, v20.2d
+	sha512h	q23, q21, v22.2d
+	add	v24.2d, v27.2d, v23.2d
+	sha512h2	q23, q27, v26.2d
+	# Round 3
+	add	v20.2d, v3.2d, v11.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v24.16b, v25.16b, #8
+	ext	v22.16b, v26.16b, v24.16b, #8
+	add	v25.2d, v25.2d, v20.2d
+	sha512h	q25, q21, v22.2d
+	add	v27.2d, v26.2d, v25.2d
+	sha512h2	q25, q26, v23.2d
+	# Round 4
+	add	v20.2d, v4.2d, v12.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v27.16b, v24.16b, #8
+	ext	v22.16b, v23.16b, v27.16b, #8
+	add	v24.2d, v24.2d, v20.2d
+	sha512h	q24, q21, v22.2d
+	add	v26.2d, v23.2d, v24.2d
+	sha512h2	q24, q23, v25.2d
+	# Round 5
+	add	v20.2d, v5.2d, v13.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v26.16b, v27.16b, #8
+	ext	v22.16b, v25.16b, v26.16b, #8
+	add	v27.2d, v27.2d, v20.2d
+	sha512h	q27, q21, v22.2d
+	add	v23.2d, v25.2d, v27.2d
+	sha512h2	q27, q25, v24.2d
+	# Round 6
+	add	v20.2d, v6.2d, v14.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v23.16b, v26.16b, #8
+	ext	v22.16b, v24.16b, v23.16b, #8
+	add	v26.2d, v26.2d, v20.2d
+	sha512h	q26, q21, v22.2d
+	add	v25.2d, v24.2d, v26.2d
+	sha512h2	q26, q24, v27.2d
+	# Round 7
+	add	v20.2d, v7.2d, v15.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v25.16b, v23.16b, #8
+	ext	v22.16b, v27.16b, v25.16b, #8
+	add	v23.2d, v23.2d, v20.2d
+	sha512h	q23, q21, v22.2d
+	add	v24.2d, v27.2d, v23.2d
+	sha512h2	q23, q27, v26.2d
+	# Load next 8 64-bit words of K
+	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	# Round 8
+	sha512su0	v0.2d, v1.2d
+	ext	v21.16b, v4.16b, v5.16b, #8
+	sha512su1	v0.2d, v7.2d, v21.2d
+	add	v20.2d, v0.2d, v16.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v24.16b, v25.16b, #8
+	ext	v22.16b, v26.16b, v24.16b, #8
+	add	v25.2d, v25.2d, v20.2d
+	sha512h	q25, q21, v22.2d
+	add	v27.2d, v26.2d, v25.2d
+	sha512h2	q25, q26, v23.2d
+	# Round 9
+	sha512su0	v1.2d, v2.2d
+	ext	v21.16b, v5.16b, v6.16b, #8
+	sha512su1	v1.2d, v0.2d, v21.2d
+	add	v20.2d, v1.2d, v17.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v27.16b, v24.16b, #8
+	ext	v22.16b, v23.16b, v27.16b, #8
+	add	v24.2d, v24.2d, v20.2d
+	sha512h	q24, q21, v22.2d
+	add	v26.2d, v23.2d, v24.2d
+	sha512h2	q24, q23, v25.2d
+	# Round 10
+	sha512su0	v2.2d, v3.2d
+	ext	v21.16b, v6.16b, v7.16b, #8
+	sha512su1	v2.2d, v1.2d, v21.2d
+	add	v20.2d, v2.2d, v18.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v26.16b, v27.16b, #8
+	ext	v22.16b, v25.16b, v26.16b, #8
+	add	v27.2d, v27.2d, v20.2d
+	sha512h	q27, q21, v22.2d
+	add	v23.2d, v25.2d, v27.2d
+	sha512h2	q27, q25, v24.2d
+	# Round 11
+	sha512su0	v3.2d, v4.2d
+	ext	v21.16b, v7.16b, v0.16b, #8
+	sha512su1	v3.2d, v2.2d, v21.2d
+	add	v20.2d, v3.2d, v19.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v23.16b, v26.16b, #8
+	ext	v22.16b, v24.16b, v23.16b, #8
+	add	v26.2d, v26.2d, v20.2d
+	sha512h	q26, q21, v22.2d
+	add	v25.2d, v24.2d, v26.2d
+	sha512h2	q26, q24, v27.2d
+	# Load next 8 64-bit words of K
+	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	# Round 12
+	sha512su0	v4.2d, v5.2d
+	ext	v21.16b, v0.16b, v1.16b, #8
+	sha512su1	v4.2d, v3.2d, v21.2d
+	add	v20.2d, v4.2d, v16.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v25.16b, v23.16b, #8
+	ext	v22.16b, v27.16b, v25.16b, #8
+	add	v23.2d, v23.2d, v20.2d
+	sha512h	q23, q21, v22.2d
+	add	v24.2d, v27.2d, v23.2d
+	sha512h2	q23, q27, v26.2d
+	# Round 13
+	sha512su0	v5.2d, v6.2d
+	ext	v21.16b, v1.16b, v2.16b, #8
+	sha512su1	v5.2d, v4.2d, v21.2d
+	add	v20.2d, v5.2d, v17.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v24.16b, v25.16b, #8
+	ext	v22.16b, v26.16b, v24.16b, #8
+	add	v25.2d, v25.2d, v20.2d
+	sha512h	q25, q21, v22.2d
+	add	v27.2d, v26.2d, v25.2d
+	sha512h2	q25, q26, v23.2d
+	# Round 14
+	sha512su0	v6.2d, v7.2d
+	ext	v21.16b, v2.16b, v3.16b, #8
+	sha512su1	v6.2d, v5.2d, v21.2d
+	add	v20.2d, v6.2d, v18.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v27.16b, v24.16b, #8
+	ext	v22.16b, v23.16b, v27.16b, #8
+	add	v24.2d, v24.2d, v20.2d
+	sha512h	q24, q21, v22.2d
+	add	v26.2d, v23.2d, v24.2d
+	sha512h2	q24, q23, v25.2d
+	# Round 15
+	sha512su0	v7.2d, v0.2d
+	ext	v21.16b, v3.16b, v4.16b, #8
+	sha512su1	v7.2d, v6.2d, v21.2d
+	add	v20.2d, v7.2d, v19.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v26.16b, v27.16b, #8
+	ext	v22.16b, v25.16b, v26.16b, #8
+	add	v27.2d, v27.2d, v20.2d
+	sha512h	q27, q21, v22.2d
+	add	v23.2d, v25.2d, v27.2d
+	sha512h2	q27, q25, v24.2d
+	# Load next 8 64-bit words of K
+	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	# Round 16
+	sha512su0	v0.2d, v1.2d
+	ext	v21.16b, v4.16b, v5.16b, #8
+	sha512su1	v0.2d, v7.2d, v21.2d
+	add	v20.2d, v0.2d, v16.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v23.16b, v26.16b, #8
+	ext	v22.16b, v24.16b, v23.16b, #8
+	add	v26.2d, v26.2d, v20.2d
+	sha512h	q26, q21, v22.2d
+	add	v25.2d, v24.2d, v26.2d
+	sha512h2	q26, q24, v27.2d
+	# Round 17
+	sha512su0	v1.2d, v2.2d
+	ext	v21.16b, v5.16b, v6.16b, #8
+	sha512su1	v1.2d, v0.2d, v21.2d
+	add	v20.2d, v1.2d, v17.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v25.16b, v23.16b, #8
+	ext	v22.16b, v27.16b, v25.16b, #8
+	add	v23.2d, v23.2d, v20.2d
+	sha512h	q23, q21, v22.2d
+	add	v24.2d, v27.2d, v23.2d
+	sha512h2	q23, q27, v26.2d
+	# Round 18
+	sha512su0	v2.2d, v3.2d
+	ext	v21.16b, v6.16b, v7.16b, #8
+	sha512su1	v2.2d, v1.2d, v21.2d
+	add	v20.2d, v2.2d, v18.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v24.16b, v25.16b, #8
+	ext	v22.16b, v26.16b, v24.16b, #8
+	add	v25.2d, v25.2d, v20.2d
+	sha512h	q25, q21, v22.2d
+	add	v27.2d, v26.2d, v25.2d
+	sha512h2	q25, q26, v23.2d
+	# Round 19
+	sha512su0	v3.2d, v4.2d
+	ext	v21.16b, v7.16b, v0.16b, #8
+	sha512su1	v3.2d, v2.2d, v21.2d
+	add	v20.2d, v3.2d, v19.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v27.16b, v24.16b, #8
+	ext	v22.16b, v23.16b, v27.16b, #8
+	add	v24.2d, v24.2d, v20.2d
+	sha512h	q24, q21, v22.2d
+	add	v26.2d, v23.2d, v24.2d
+	sha512h2	q24, q23, v25.2d
+	# Load next 8 64-bit words of K
+	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	# Round 20
+	sha512su0	v4.2d, v5.2d
+	ext	v21.16b, v0.16b, v1.16b, #8
+	sha512su1	v4.2d, v3.2d, v21.2d
+	add	v20.2d, v4.2d, v16.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v26.16b, v27.16b, #8
+	ext	v22.16b, v25.16b, v26.16b, #8
+	add	v27.2d, v27.2d, v20.2d
+	sha512h	q27, q21, v22.2d
+	add	v23.2d, v25.2d, v27.2d
+	sha512h2	q27, q25, v24.2d
+	# Round 21
+	sha512su0	v5.2d, v6.2d
+	ext	v21.16b, v1.16b, v2.16b, #8
+	sha512su1	v5.2d, v4.2d, v21.2d
+	add	v20.2d, v5.2d, v17.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v23.16b, v26.16b, #8
+	ext	v22.16b, v24.16b, v23.16b, #8
+	add	v26.2d, v26.2d, v20.2d
+	sha512h	q26, q21, v22.2d
+	add	v25.2d, v24.2d, v26.2d
+	sha512h2	q26, q24, v27.2d
+	# Round 22
+	sha512su0	v6.2d, v7.2d
+	ext	v21.16b, v2.16b, v3.16b, #8
+	sha512su1	v6.2d, v5.2d, v21.2d
+	add	v20.2d, v6.2d, v18.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v25.16b, v23.16b, #8
+	ext	v22.16b, v27.16b, v25.16b, #8
+	add	v23.2d, v23.2d, v20.2d
+	sha512h	q23, q21, v22.2d
+	add	v24.2d, v27.2d, v23.2d
+	sha512h2	q23, q27, v26.2d
+	# Round 23
+	sha512su0	v7.2d, v0.2d
+	ext	v21.16b, v3.16b, v4.16b, #8
+	sha512su1	v7.2d, v6.2d, v21.2d
+	add	v20.2d, v7.2d, v19.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v24.16b, v25.16b, #8
+	ext	v22.16b, v26.16b, v24.16b, #8
+	add	v25.2d, v25.2d, v20.2d
+	sha512h	q25, q21, v22.2d
+	add	v27.2d, v26.2d, v25.2d
+	sha512h2	q25, q26, v23.2d
+	# Load next 8 64-bit words of K
+	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	# Round 24
+	sha512su0	v0.2d, v1.2d
+	ext	v21.16b, v4.16b, v5.16b, #8
+	sha512su1	v0.2d, v7.2d, v21.2d
+	add	v20.2d, v0.2d, v16.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v27.16b, v24.16b, #8
+	ext	v22.16b, v23.16b, v27.16b, #8
+	add	v24.2d, v24.2d, v20.2d
+	sha512h	q24, q21, v22.2d
+	add	v26.2d, v23.2d, v24.2d
+	sha512h2	q24, q23, v25.2d
+	# Round 25
+	sha512su0	v1.2d, v2.2d
+	ext	v21.16b, v5.16b, v6.16b, #8
+	sha512su1	v1.2d, v0.2d, v21.2d
+	add	v20.2d, v1.2d, v17.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v26.16b, v27.16b, #8
+	ext	v22.16b, v25.16b, v26.16b, #8
+	add	v27.2d, v27.2d, v20.2d
+	sha512h	q27, q21, v22.2d
+	add	v23.2d, v25.2d, v27.2d
+	sha512h2	q27, q25, v24.2d
+	# Round 26
+	sha512su0	v2.2d, v3.2d
+	ext	v21.16b, v6.16b, v7.16b, #8
+	sha512su1	v2.2d, v1.2d, v21.2d
+	add	v20.2d, v2.2d, v18.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v23.16b, v26.16b, #8
+	ext	v22.16b, v24.16b, v23.16b, #8
+	add	v26.2d, v26.2d, v20.2d
+	sha512h	q26, q21, v22.2d
+	add	v25.2d, v24.2d, v26.2d
+	sha512h2	q26, q24, v27.2d
+	# Round 27
+	sha512su0	v3.2d, v4.2d
+	ext	v21.16b, v7.16b, v0.16b, #8
+	sha512su1	v3.2d, v2.2d, v21.2d
+	add	v20.2d, v3.2d, v19.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v25.16b, v23.16b, #8
+	ext	v22.16b, v27.16b, v25.16b, #8
+	add	v23.2d, v23.2d, v20.2d
+	sha512h	q23, q21, v22.2d
+	add	v24.2d, v27.2d, v23.2d
+	sha512h2	q23, q27, v26.2d
+	# Load next 8 64-bit words of K
+	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	# Round 28
+	sha512su0	v4.2d, v5.2d
+	ext	v21.16b, v0.16b, v1.16b, #8
+	sha512su1	v4.2d, v3.2d, v21.2d
+	add	v20.2d, v4.2d, v16.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v24.16b, v25.16b, #8
+	ext	v22.16b, v26.16b, v24.16b, #8
+	add	v25.2d, v25.2d, v20.2d
+	sha512h	q25, q21, v22.2d
+	add	v27.2d, v26.2d, v25.2d
+	sha512h2	q25, q26, v23.2d
+	# Round 29
+	sha512su0	v5.2d, v6.2d
+	ext	v21.16b, v1.16b, v2.16b, #8
+	sha512su1	v5.2d, v4.2d, v21.2d
+	add	v20.2d, v5.2d, v17.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v27.16b, v24.16b, #8
+	ext	v22.16b, v23.16b, v27.16b, #8
+	add	v24.2d, v24.2d, v20.2d
+	sha512h	q24, q21, v22.2d
+	add	v26.2d, v23.2d, v24.2d
+	sha512h2	q24, q23, v25.2d
+	# Round 30
+	sha512su0	v6.2d, v7.2d
+	ext	v21.16b, v2.16b, v3.16b, #8
+	sha512su1	v6.2d, v5.2d, v21.2d
+	add	v20.2d, v6.2d, v18.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v26.16b, v27.16b, #8
+	ext	v22.16b, v25.16b, v26.16b, #8
+	add	v27.2d, v27.2d, v20.2d
+	sha512h	q27, q21, v22.2d
+	add	v23.2d, v25.2d, v27.2d
+	sha512h2	q27, q25, v24.2d
+	# Round 31
+	sha512su0	v7.2d, v0.2d
+	ext	v21.16b, v3.16b, v4.16b, #8
+	sha512su1	v7.2d, v6.2d, v21.2d
+	add	v20.2d, v7.2d, v19.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v23.16b, v26.16b, #8
+	ext	v22.16b, v24.16b, v23.16b, #8
+	add	v26.2d, v26.2d, v20.2d
+	sha512h	q26, q21, v22.2d
+	add	v25.2d, v24.2d, v26.2d
+	sha512h2	q26, q24, v27.2d
+	# Load next 8 64-bit words of K
+	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	# Round 32
+	sha512su0	v0.2d, v1.2d
+	ext	v21.16b, v4.16b, v5.16b, #8
+	sha512su1	v0.2d, v7.2d, v21.2d
+	add	v20.2d, v0.2d, v16.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v25.16b, v23.16b, #8
+	ext	v22.16b, v27.16b, v25.16b, #8
+	add	v23.2d, v23.2d, v20.2d
+	sha512h	q23, q21, v22.2d
+	add	v24.2d, v27.2d, v23.2d
+	sha512h2	q23, q27, v26.2d
+	# Round 33
+	sha512su0	v1.2d, v2.2d
+	ext	v21.16b, v5.16b, v6.16b, #8
+	sha512su1	v1.2d, v0.2d, v21.2d
+	add	v20.2d, v1.2d, v17.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v24.16b, v25.16b, #8
+	ext	v22.16b, v26.16b, v24.16b, #8
+	add	v25.2d, v25.2d, v20.2d
+	sha512h	q25, q21, v22.2d
+	add	v27.2d, v26.2d, v25.2d
+	sha512h2	q25, q26, v23.2d
+	# Round 34
+	sha512su0	v2.2d, v3.2d
+	ext	v21.16b, v6.16b, v7.16b, #8
+	sha512su1	v2.2d, v1.2d, v21.2d
+	add	v20.2d, v2.2d, v18.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v27.16b, v24.16b, #8
+	ext	v22.16b, v23.16b, v27.16b, #8
+	add	v24.2d, v24.2d, v20.2d
+	sha512h	q24, q21, v22.2d
+	add	v26.2d, v23.2d, v24.2d
+	sha512h2	q24, q23, v25.2d
+	# Round 35
+	sha512su0	v3.2d, v4.2d
+	ext	v21.16b, v7.16b, v0.16b, #8
+	sha512su1	v3.2d, v2.2d, v21.2d
+	add	v20.2d, v3.2d, v19.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v26.16b, v27.16b, #8
+	ext	v22.16b, v25.16b, v26.16b, #8
+	add	v27.2d, v27.2d, v20.2d
+	sha512h	q27, q21, v22.2d
+	add	v23.2d, v25.2d, v27.2d
+	sha512h2	q27, q25, v24.2d
+	# Load next 8 64-bit words of K
+	ld1	{v16.2d, v17.2d, v18.2d, v19.2d}, [x3], #0x40
+	# Round 36
+	sha512su0	v4.2d, v5.2d
+	ext	v21.16b, v0.16b, v1.16b, #8
+	sha512su1	v4.2d, v3.2d, v21.2d
+	add	v20.2d, v4.2d, v16.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v23.16b, v26.16b, #8
+	ext	v22.16b, v24.16b, v23.16b, #8
+	add	v26.2d, v26.2d, v20.2d
+	sha512h	q26, q21, v22.2d
+	add	v25.2d, v24.2d, v26.2d
+	sha512h2	q26, q24, v27.2d
+	# Round 37
+	sha512su0	v5.2d, v6.2d
+	ext	v21.16b, v1.16b, v2.16b, #8
+	sha512su1	v5.2d, v4.2d, v21.2d
+	add	v20.2d, v5.2d, v17.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v25.16b, v23.16b, #8
+	ext	v22.16b, v27.16b, v25.16b, #8
+	add	v23.2d, v23.2d, v20.2d
+	sha512h	q23, q21, v22.2d
+	add	v24.2d, v27.2d, v23.2d
+	sha512h2	q23, q27, v26.2d
+	# Round 38
+	sha512su0	v6.2d, v7.2d
+	ext	v21.16b, v2.16b, v3.16b, #8
+	sha512su1	v6.2d, v5.2d, v21.2d
+	add	v20.2d, v6.2d, v18.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v24.16b, v25.16b, #8
+	ext	v22.16b, v26.16b, v24.16b, #8
+	add	v25.2d, v25.2d, v20.2d
+	sha512h	q25, q21, v22.2d
+	add	v27.2d, v26.2d, v25.2d
+	sha512h2	q25, q26, v23.2d
+	# Round 39
+	sha512su0	v7.2d, v0.2d
+	ext	v21.16b, v3.16b, v4.16b, #8
+	sha512su1	v7.2d, v6.2d, v21.2d
+	add	v20.2d, v7.2d, v19.2d
+	ext	v20.16b, v20.16b, v20.16b, #8
+	ext	v21.16b, v27.16b, v24.16b, #8
+	ext	v22.16b, v23.16b, v27.16b, #8
+	add	v24.2d, v24.2d, v20.2d
+	sha512h	q24, q21, v22.2d
+	add	v26.2d, v23.2d, v24.2d
+	sha512h2	q24, q23, v25.2d
+	add	v27.2d, v27.2d, v31.2d
+	add	v26.2d, v26.2d, v30.2d
+	add	v25.2d, v25.2d, v29.2d
+	add	v24.2d, v24.2d, v28.2d
+	subs	w2, w2, #0x80
+	bne	L_sha512_len_crypto_begin
+	# Store digest back
+	st1	{v24.2d, v25.2d, v26.2d, v27.2d}, [x0]
+	ldp	d8, d9, [x29, #16]
+	ldp	d10, d11, [x29, #32]
+	ldp	d12, d13, [x29, #48]
+	ldp	d14, d15, [x29, #64]
+	ldp	d16, d17, [x29, #80]
+	ldp	d18, d19, [x29, #96]
+	ldp	d20, d21, [x29, #112]
+	ldp	d22, d23, [x29, #128]
+	ldp	d24, d25, [x29, #144]
+	ldp	d26, d27, [x29, #160]
+	ldp	d28, d29, [x29, #176]
+	ldp	d30, d31, [x29, #192]
+	ldp	x29, x30, [sp], #0xd0
+	ret
+#ifndef __APPLE__
+	.size	Transform_Sha512_Len_crypto,.-Transform_Sha512_Len_crypto
+#endif /* __APPLE__ */
+#endif /* WOLFSSL_ARMASM_CRYPTO_SHA512 */
+#endif /* WOLFSSL_SHA512 */
 #endif /* __aarch64__ */
-#endif /* WOLFSSL_ARMASM && WOLFSSL_SHA512 */
+#endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits

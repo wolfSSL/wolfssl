@@ -28,8 +28,9 @@
  *   cd ../scripts
  *   ruby ./x25519/x25519.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-curve25519.S
  */
-#if defined(WOLFSSL_ARMASM) && defined(HAVE_CURVE25519)
+#ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
+#ifdef HAVE_CURVE25519
 #ifndef __APPLE__
 .text
 .globl	fe_init
@@ -7471,8 +7472,9 @@ _fe_ge_sub:
 #ifndef __APPLE__
 	.size	fe_ge_sub,.-fe_ge_sub
 #endif /* __APPLE__ */
+#endif /* HAVE_CURVE25519 */
 #endif /* __aarch64__ */
-#endif /* WOLFSSL_ARMASM && HAVE_CURVE25519 */
+#endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
