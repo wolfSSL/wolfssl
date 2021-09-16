@@ -26838,6 +26838,9 @@ static int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
         endKeyIdx = *inOutIdx;
     }
 
+    if ((word32)privSz > *privKeyLen)
+        return BUFFER_E;
+
     if (endKeyIdx == (int)*inOutIdx) {
         *privKeyLen = privSz;
         XMEMCPY(privKey, priv, *privKeyLen);
@@ -26845,6 +26848,10 @@ static int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
             *pubKeyLen = 0;
     }
     else {
+        if (pubKeyLen == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
         if (GetASNHeader(input, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1,
                          inOutIdx, &length, inSz) < 0) {
             return ASN_PARSE_E;
@@ -26852,6 +26859,10 @@ static int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
         if (GetOctetString(input, inOutIdx, &pubSz, inSz) < 0) {
             return ASN_PARSE_E;
         }
+
+        if ((word32)pubSz > *pubKeyLen)
+            return BUFFER_E;
+
         pub = input + *inOutIdx;
         *inOutIdx += pubSz;
 
@@ -26948,6 +26959,10 @@ static int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
     ret = CheckBitString(input, inOutIdx, NULL, inSz, 1, NULL);
     if (ret != 0)
         return ret;
+
+    /* check that the value found is not too large for pubKey buffer */
+    if (inSz - *inOutIdx > *pubKeyLen)
+        return ASN_PARSE_E;
 
     /* This is the raw point data compressed or uncompressed. */
     *pubKeyLen = inSz - *inOutIdx;
