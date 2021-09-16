@@ -3804,6 +3804,12 @@ void FreeX509(WOLFSSL_X509* x509)
         x509->authKeyId = NULL;
         XFREE(x509->subjKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
         x509->subjKeyId = NULL;
+
+        if (x509->CRLInfo != NULL) {
+            XFREE(x509->CRLInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
+            x509->CRLInfo= NULL;
+        }
+
         if (x509->authInfo != NULL) {
             XFREE(x509->authInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
             x509->authInfo = NULL;
@@ -10310,6 +10316,53 @@ static void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nam
     }
 }
 
+
+#if defined(OPENSSL_EXTRA) && !defined(IGNORE_NAME_CONSTRAINTS)
+/* copies over additional alt names such as dirName
+ * returns 0 on success
+ */
+static int CopyAdditionalAltNames(DNS_entry** to, DNS_entry* from, int type,
+        void* heap)
+{
+    DNS_entry* cur = from;
+
+    if (to == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    while (cur != NULL) {
+        if (cur->type == type) {
+            DNS_entry* dnsEntry;
+            int strLen = cur->len;
+
+            dnsEntry = AltNameNew(heap);
+            if (dnsEntry == NULL) {
+                WOLFSSL_MSG("\tOut of Memory");
+                return MEMORY_E;
+            }
+
+            dnsEntry->type = type;
+            dnsEntry->name = (char*)XMALLOC(strLen + 1, heap,
+                    DYNAMIC_TYPE_ALTNAME);
+            if (dnsEntry->name == NULL) {
+                WOLFSSL_MSG("\tOut of Memory");
+                XFREE(dnsEntry, heap, DYNAMIC_TYPE_ALTNAME);
+                return MEMORY_E;
+            }
+            dnsEntry->len = strLen;
+            XMEMCPY(dnsEntry->name, cur->name, strLen);
+            dnsEntry->name[strLen] = '\0';
+
+            dnsEntry->next = *to;
+            *to = dnsEntry;
+        }
+        cur = cur->next;
+    }
+    return 0;
+}
+#endif /* OPENSSL_EXTRA */
+
+
 /* Copy parts X509 needs from Decoded cert, 0 on success */
 /* The same DecodedCert cannot be copied to WOLFSSL_X509 twice otherwise the
  * altNames pointers could be free'd by second x509 still active by first */
@@ -10506,39 +10559,17 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
     !defined(IGNORE_NAME_CONSTRAINTS)
-    /* add copies of alternate emails from dCert to X509 */
-    if (dCert->altEmailNames != NULL) {
-        DNS_entry* cur = dCert->altEmailNames;
-
-        while (cur != NULL) {
-            if (cur->type == ASN_RFC822_TYPE) {
-                DNS_entry* dnsEntry;
-                int strLen = cur->len;
-
-                dnsEntry = (DNS_entry*)XMALLOC(sizeof(DNS_entry), x509->heap,
-                                        DYNAMIC_TYPE_ALTNAME);
-                if (dnsEntry == NULL) {
-                    WOLFSSL_MSG("\tOut of Memory");
-                    return MEMORY_E;
-                }
-
-                dnsEntry->type = ASN_RFC822_TYPE;
-                dnsEntry->name = (char*)XMALLOC(strLen + 1, x509->heap,
-                                         DYNAMIC_TYPE_ALTNAME);
-                if (dnsEntry->name == NULL) {
-                    WOLFSSL_MSG("\tOut of Memory");
-                    XFREE(dnsEntry, x509->heap, DYNAMIC_TYPE_ALTNAME);
-                    return MEMORY_E;
-                }
-                dnsEntry->len = strLen;
-                XMEMCPY(dnsEntry->name, cur->name, strLen);
-                dnsEntry->name[strLen] = '\0';
-
-                dnsEntry->next = x509->altNames;
-                x509->altNames = dnsEntry;
-            }
-            cur = cur->next;
-        }
+    /* add copies of email names from dCert to X509 */
+    if (CopyAdditionalAltNames(&x509->altNames, dCert->altEmailNames,
+                ASN_RFC822_TYPE, x509->heap) != 0) {
+        return MEMORY_E;
+    }
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#if defined(OPENSSL_EXTRA) && !defined(IGNORE_NAME_CONSTRAINTS)
+    /* add copies of alternate directory names from dCert to X509 */
+    if (CopyAdditionalAltNames(&x509->altNames, dCert->altDirNames,
+                ASN_DIR_TYPE, x509->heap) != 0) {
+        return MEMORY_E;
     }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
@@ -10832,6 +10863,7 @@ static void DoCertFatalAlert(WOLFSSL* ssl, int ret)
     if (ssl == NULL || ret == 0) {
         return;
     }
+    WOLFSSL_ERROR(ret);
 
     /* Determine alert reason */
     alertWhy = bad_certificate;
@@ -20150,6 +20182,12 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case HTTP_APPSTR_ERR:
         return "HTTP Application string error";
 #endif
+    case UNSUPPORTED_PROTO_VERSION:
+        #ifdef OPENSSL_ALL
+        return "WRONG_SSL_VERSION";
+        #else
+        return "bad/unsupported protocol version";
+        #endif
 
     default :
         return "unknown error number";
@@ -32624,7 +32662,6 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
 
         WOLFSSL_LEAVE("DoClientKeyExchange", ret);
         WOLFSSL_END(WC_FUNC_CLIENT_KEY_EXCHANGE_DO);
-
     #ifdef WOLFSSL_ASYNC_CRYPT
         /* Handle async operation */
         if (ret == WC_PENDING_E) {
@@ -32634,6 +32671,13 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
             return ret;
         }
     #endif /* WOLFSSL_ASYNC_CRYPT */
+    #ifdef OPENSSL_ALL
+        /* add error ret value to error queue */
+        if (ret != 0) {
+            WOLFSSL_ERROR(ret);
+        }
+    #endif
+
 
         /* Cleanup PMS */
         if (ssl->arrays->preMasterSecret != NULL) {
