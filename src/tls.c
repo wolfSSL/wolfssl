@@ -8471,8 +8471,8 @@ static int server_generate_oqs_ciphertext(WOLFSSL* ssl,
 
         XMEMCPY(ciphertext, ecc_kse->pubKey, ecc_kse->pubKeyLen);
         keyShareEntry->pubKey = ciphertext;
-        keyShareEntry->pubKeyLen = (word32) ecc_kse->pubKeyLen +
-                                   kem->length_ciphertext;
+        keyShareEntry->pubKeyLen = (word32)(ecc_kse->pubKeyLen +
+                                   kem->length_ciphertext);
         ciphertext = NULL;
     }
 
