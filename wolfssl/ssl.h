@@ -291,12 +291,17 @@ struct WOLFSSL_GENERAL_NAME {
 
 struct WOLFSSL_DIST_POINT_NAME {
     int type;
+
+    /* name 'name.fullname' needs to remain the same, in some ports the elements
+     * of the structure are accessed directly */
     union {
         WOLF_STACK_OF(WOLFSSL_GENERAL_NAME)* fullname;
     } name;
 };
 
 struct WOLFSSL_DIST_POINT {
+    /* name 'distpoint' needs to remain the same, in some ports the elements of
+     * the structure are accessed directly */
     WOLFSSL_DIST_POINT_NAME* distpoint;
 };
 

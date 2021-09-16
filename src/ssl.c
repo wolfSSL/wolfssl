@@ -10399,24 +10399,18 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
         }
 
         case CRL_DIST_OID:
-
             if (x509->CRLdistSet && x509->CRLInfo != NULL) {
                 if (c != NULL) {
                     *c = x509->CRLdistCrit;
                 }
 
-                sk = (WOLFSSL_DIST_POINTS*)XMALLOC(
-                            sizeof(WOLFSSL_DIST_POINTS), NULL,
-                            DYNAMIC_TYPE_ASN1);
+                sk = wolfSSL_sk_new_null();
                 if (sk == NULL) {
                     return NULL;
                 }
-                XMEMSET(sk, 0, sizeof(WOLFSSL_DIST_POINTS));
                 sk->type = STACK_TYPE_DIST_POINT;
 
-                gn = (WOLFSSL_GENERAL_NAME*)XMALLOC(
-                        sizeof(WOLFSSL_GENERAL_NAME), NULL,
-                        DYNAMIC_TYPE_OPENSSL);
+                gn = wolfSSL_GENERAL_NAME_new();
                 if (gn == NULL) {
                     WOLFSSL_MSG("Error creating GENERAL_NAME");
                     goto err;
@@ -10454,7 +10448,8 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                 gn = NULL;
                 dp = NULL;
 
-            } else {
+            }
+            else {
                 WOLFSSL_MSG("No CRL dist set");
             }
 
@@ -20895,12 +20890,50 @@ void wolfSSL_sk_GENERAL_NAME_free(WOLFSSL_STACK* sk)
 
 #ifdef OPENSSL_EXTRA
 
+static void wolfSSL_DIST_POINT_NAME_free(WOLFSSL_DIST_POINT_NAME* dpn)
+{
+    if (dpn != NULL) {
+        if (dpn->name.fullname != NULL) {
+            wolfSSL_GENERAL_NAMES_free(dpn->name.fullname);
+        }
+        XFREE(dpn, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+}
+
+
+/* returns new pointer on success and NULL on fail */
+static WOLFSSL_DIST_POINT_NAME* wolfSSL_DIST_POINT_NAME_new(void)
+{
+    WOLFSSL_DIST_POINT_NAME* dpn = NULL;
+    WOLFSSL_GENERAL_NAMES* gns = NULL;
+
+    dpn = (WOLFSSL_DIST_POINT_NAME*)XMALLOC(sizeof(WOLFSSL_DIST_POINT_NAME),
+                                            NULL, DYNAMIC_TYPE_OPENSSL);
+    if (dpn == NULL) {
+        return NULL;
+    }
+    XMEMSET(dpn, 0, sizeof(WOLFSSL_DIST_POINT_NAME));
+
+    gns = wolfSSL_sk_new_null();
+    if (gns == NULL) {
+        WOLFSSL_MSG("wolfSSL_sk_new_null error");
+        XFREE(dpn, NULL, DYNAMIC_TYPE_OPENSSL);
+        return NULL;
+    }
+    gns->type = STACK_TYPE_GEN_NAME;
+
+    dpn->name.fullname = gns;
+    dpn->type = CRL_DIST_OID;
+
+    return dpn;
+}
+
+
 /* Creates and returns new DIST_POINT structure */
 WOLFSSL_DIST_POINT* wolfSSL_DIST_POINT_new(void)
 {
     WOLFSSL_DIST_POINT* dp = NULL;
     WOLFSSL_DIST_POINT_NAME* dpn = NULL;
-    WOLFSSL_GENERAL_NAMES* gns = NULL;
 
     WOLFSSL_ENTER("DIST_POINT_new");
 
@@ -20911,29 +20944,16 @@ WOLFSSL_DIST_POINT* wolfSSL_DIST_POINT_new(void)
     }
     XMEMSET(dp, 0, sizeof(WOLFSSL_DIST_POINT));
 
-    dpn = (WOLFSSL_DIST_POINT_NAME*)XMALLOC(sizeof(WOLFSSL_DIST_POINT_NAME),
-                                            NULL, DYNAMIC_TYPE_OPENSSL);
+    dpn = wolfSSL_DIST_POINT_NAME_new();
     if (dpn == NULL) {
         XFREE(dp, NULL, DYNAMIC_TYPE_OPENSSL);
         return NULL;
     }
-    XMEMSET(dpn, 0, sizeof(WOLFSSL_DIST_POINT_NAME));
-
-    gns = wolfSSL_sk_new_null();
-    if (gns == NULL) {
-        WOLFSSL_MSG("wolfSSL_sk_new_null error");
-        XFREE(dp, NULL, DYNAMIC_TYPE_OPENSSL);
-        XFREE(dpn, NULL, DYNAMIC_TYPE_OPENSSL);
-        return NULL;
-    }
-    gns->type = STACK_TYPE_GEN_NAME;
-
-    dpn->name.fullname = gns;
-    dpn->type = CRL_DIST_OID;
     dp->distpoint = dpn;
 
     return dp;
 }
+
 
 /* Frees DIST_POINT objects.
 */
@@ -20941,13 +20961,8 @@ void wolfSSL_DIST_POINT_free(WOLFSSL_DIST_POINT* dp)
 {
     WOLFSSL_ENTER("wolfSSL_DIST_POINT_free");
     if (dp != NULL) {
-        if (dp->distpoint != NULL &&
-            dp->distpoint->name.fullname != NULL) {
-            wolfSSL_GENERAL_NAMES_free(dp->distpoint->name.fullname);
-        }
-        if (dp->distpoint != NULL) {
-            XFREE(dp->distpoint, NULL, DYNAMIC_TYPE_OPENSSL);
-        }
+        wolfSSL_DIST_POINT_NAME_free(dp->distpoint);
+        dp->distpoint = NULL;
         XFREE(dp, NULL, DYNAMIC_TYPE_OPENSSL);
     }
 }
@@ -20964,41 +20979,15 @@ void wolfSSL_DIST_POINTS_free(WOLFSSL_DIST_POINTS *dps)
 }
 
 /* return 1 on success 0 on fail */
-int wolfSSL_sk_DIST_POINT_push(WOLFSSL_DIST_POINTS* sk,
-                               WOLFSSL_DIST_POINT* dp)
+int wolfSSL_sk_DIST_POINT_push(WOLFSSL_DIST_POINTS* sk, WOLFSSL_DIST_POINT* dp)
 {
-    WOLFSSL_STACK* node;
     WOLFSSL_ENTER("wolfSSL_sk_DIST_POINT_push");
 
     if (sk == NULL || dp == NULL) {
         return WOLFSSL_FAILURE;
     }
 
-    /* no previous values in stack */
-    if (sk->data.dp == NULL) {
-        sk->data.dp = dp;
-        sk->num += 1;
-
-        return WOLFSSL_SUCCESS;
-    }
-
-    /* stack already has value(s) create a new node and add more */
-    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
-                                   DYNAMIC_TYPE_ASN1);
-    if (node == NULL) {
-        WOLFSSL_MSG("Memory error");
-        return WOLFSSL_FAILURE;
-    }
-    XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
-
-    /* push new obj onto head of stack */
-    node->data.dp = sk->data.dp;
-    node->next    = sk->next;
-    sk->next      = node;
-    sk->data.dp   = dp;
-    sk->num      += 1;
-
-    return WOLFSSL_SUCCESS;
+    return wolfSSL_sk_push(sk, dp);
 }
 
 /* Returns the CRL dist point at index i from the stack
@@ -21010,17 +20999,11 @@ int wolfSSL_sk_DIST_POINT_push(WOLFSSL_DIST_POINTS* sk,
  */
 WOLFSSL_DIST_POINT* wolfSSL_sk_DIST_POINT_value(WOLFSSL_STACK* sk, int idx)
 {
-    WOLFSSL_STACK* ret;
-
     if (sk == NULL) {
         return NULL;
     }
 
-    ret = wolfSSL_sk_get_node(sk, idx);
-    if (ret != NULL) {
-        return ret->data.dp;
-    }
-    return NULL;
+    return wolfSSL_sk_value(sk, idx);
 }
 
 /* Gets the number of nodes in the stack
@@ -21037,7 +21020,7 @@ int wolfSSL_sk_DIST_POINT_num(WOLFSSL_STACK* sk)
         return -1;
     }
 
-    return (int)sk->num;
+    return wolfSSL_sk_num(sk);
 }
 
 /* Frees all nodes in a DIST_POINT stack
@@ -29968,6 +29951,8 @@ void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i)
             return (void*)sk->data.ext;
         case STACK_TYPE_X509_OBJ:
             return (void*)sk->data.x509_obj;
+        case STACK_TYPE_DIST_POINT:
+            return (void*)sk->data.dp;
     #ifdef OPENSSL_EXTRA
         case STACK_TYPE_CONF_VALUE:
             return (void*)sk->data.conf;
