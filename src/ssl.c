@@ -57869,6 +57869,7 @@ int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num)
     }
 #endif
 
+#ifdef WOLFSSL_HAVE_PRF
     #ifndef NO_SHA256
     hash = WC_SHA256;
     #elif defined(WOLFSSL_SHA384)
@@ -57888,7 +57889,12 @@ int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num)
                 hash, NULL, INVALID_DEVID);
         ret = (ret == 0) ? WOLFSSL_SUCCESS: WOLFSSL_FAILURE;
     }
-
+#else
+    /* fall back to just doing wolfSSL_RAND_bytes if PRF not avialbale */
+    ret = wolfSSL_RAND_bytes(buf, num);
+    (void)hash;
+    (void)secret;
+#endif
     return ret;
 }
 
