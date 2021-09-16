@@ -2438,9 +2438,11 @@ time_t time(time_t * timer)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
     struct timespec ts;
     getnstimeofday(&ts);
-    ret = ts.tv_sec * 1000000000LL + ts.tv_nsec;
+    ret = ts.tv_sec;
 #else
-    ret = ktime_get_real_seconds();
+    struct timespec64 ts;
+    ktime_get_coarse_real_ts64(&ts);
+    ret = ts.tv_sec;
 #endif
     if (timer)
         *timer = ret;
