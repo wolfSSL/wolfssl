@@ -23188,8 +23188,8 @@ static int test_wc_ecc_shared_secret (void)
 #if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG)
     ecc_key     key, pubKey;
     WC_RNG      rng;
-    int         keySz = KEY16;
-    byte        out[KEY16];
+    byte        out[KEY32];
+    int         keySz = sizeof(out);
     word32      outlen = (word32)sizeof(out);
 
 #if defined(HAVE_ECC) && !defined(NO_ECC256)
