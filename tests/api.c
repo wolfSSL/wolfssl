@@ -38962,6 +38962,12 @@ static void test_wolfSSL_CTX_ctrl(void)
     
      AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx, SSL_CTRL_SET_MAX_PROTO_VERSION,
                                            TLS1_3_VERSION, NULL), SSL_SUCCESS);
+     AssertIntEQ(wolfSSL_CTX_get_max_proto_version(ctx), TLS1_3_VERSION);
+     #ifndef WOLFSSL_NO_TLS12
+     AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx, SSL_CTRL_SET_MAX_PROTO_VERSION,
+                                           TLS1_2_VERSION, NULL), SSL_SUCCESS);
+     AssertIntEQ(wolfSSL_CTX_get_max_proto_version(ctx), TLS1_2_VERSION);
+     #endif
      #endif
     /* Cleanup and Pass */
 #if !defined(NO_DH) && !defined(NO_DSA)

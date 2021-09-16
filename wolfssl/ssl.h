@@ -1955,6 +1955,8 @@ enum {
     SSL_OP_NO_COMPRESSION                         = 0x10000000,
     WOLFSSL_OP_NO_TLSv1_3                         = 0x20000000,
     WOLFSSL_OP_NO_SSLv2                           = 0x40000000,
+    WOLFSSL_OP_MAX_PROTO                          = 0x80000000,
+    WOLFSSL_OP_MIN_PROTO                         = 0x100000000,
     SSL_OP_ALL   =
                     (SSL_OP_MICROSOFT_SESS_ID_BUG
                   | SSL_OP_NETSCAPE_CHALLENGE_BUG
@@ -3854,6 +3856,7 @@ WOLFSSL_API int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX*, int);
 WOLFSSL_API int wolfSSL_set_min_proto_version(WOLFSSL*, int);
 WOLFSSL_API int wolfSSL_set_max_proto_version(WOLFSSL*, int);
 WOLFSSL_API int wolfSSL_CTX_get_min_proto_version(WOLFSSL_CTX*);
+WOLFSSL_API int wolfSSL_CTX_get_max_proto_version(WOLFSSL_CTX*);
 
 WOLFSSL_API int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey);
 WOLFSSL_API WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u);
