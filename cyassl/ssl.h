@@ -448,7 +448,6 @@
 #define CyaSSL_CTX_use_certificate_file     wolfSSL_CTX_use_certificate_file
 #define CyaSSL_CTX_use_PrivateKey_buffer    wolfSSL_CTX_use_PrivateKey_buffer
 #define CyaSSL_CTX_use_certificate_buffer   wolfSSL_CTX_use_certificate_buffer
-#define CyaSSL_CTX_use_NTRUPrivateKey_file  wolfSSL_CTX_use_NTRUPrivateKey_file
 #define CyaSSL_use_certificate_chain_buffer wolfSSL_use_certificate_chain_buffer
 #define CyaSSL_CTX_der_load_verify_locations    \
                                             wolfSSL_CTX_der_load_verify_locations

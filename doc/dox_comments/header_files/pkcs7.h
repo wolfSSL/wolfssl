@@ -19,8 +19,6 @@
     expiration date
     \return ASN_BITSTR_E Returned if there is an error parsing a bit string
     from the certificate
-    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU
-    key from the certificate
     \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC
     key from the certificate
     \return ASN_UNKNOWN_OID_E Returned if the certificate is using an unknown

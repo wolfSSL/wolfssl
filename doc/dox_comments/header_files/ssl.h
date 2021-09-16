@@ -948,7 +948,6 @@ WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX*, const char*, int);
     \sa wolfSSL_CTX_load_verify_buffer
     \sa wolfSSL_CTX_use_certificate_file
     \sa wolfSSL_CTX_use_PrivateKey_file
-    \sa wolfSSL_CTX_use_NTRUPrivateKey_file
     \sa wolfSSL_CTX_use_certificate_chain_file
     \sa wolfSSL_use_certificate_file
     \sa wolfSSL_use_PrivateKey_file
@@ -1014,7 +1013,6 @@ WOLFSSL_API int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX*, const char*,
     \sa wolfSSL_CTX_load_verify_buffer
     \sa wolfSSL_CTX_use_certificate_file
     \sa wolfSSL_CTX_use_PrivateKey_file
-    \sa wolfSSL_CTX_use_NTRUPrivateKey_file
     \sa wolfSSL_CTX_use_certificate_chain_file
     \sa wolfSSL_use_certificate_file
     \sa wolfSSL_use_PrivateKey_file
@@ -1064,7 +1062,6 @@ WOLFSSL_API int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX*, const char*,
     \sa wolfSSL_CTX_load_verify_buffer
     \sa wolfSSL_CTX_use_certificate_file
     \sa wolfSSL_CTX_use_PrivateKey_file
-    \sa wolfSSL_CTX_use_NTRUPrivateKey_file
     \sa wolfSSL_CTX_use_certificate_chain_file
     \sa wolfSSL_CTX_trust_peer_buffer
     \sa wolfSSL_CTX_Unload_trust_peers
@@ -1435,52 +1432,6 @@ WOLFSSL_API int wolfSSL_use_RSAPrivateKey_file(WOLFSSL*, const char*, int);
 */
 WOLFSSL_API int wolfSSL_CTX_der_load_verify_locations(WOLFSSL_CTX*,
                                                     const char*, int);
-
-/*!
-    \ingroup CertsKeys
-
-    \brief This function loads an NTRU private key file into the WOLFSSL
-    Context.  It behaves like the normal version, only differing in its
-    ability to accept an NTRU raw key file.   This function is needed since
-    the format of the file is different than the normal key file (buffer)
-    functions.  Please see the examples for proper usage.
-
-    \return SSL_SUCCES upon success.
-    \return SSL_BAD_FILE will be returned if the file doesn’t exist, can’t
-    be read, or is corrupted.
-    \return MEMORY_E will be returned if an out of memory condition occurs.
-    \return ASN_INPUT_E will be returned if Base16 decoding fails on the file.
-    \return BUFFER_E will be returned if a chain buffer is bigger than the
-    receiving buffer.
-    \return NO_PASSWORD will be returned if the key file is encrypted but
-    no password is provided.
-
-    \param ctx a pointer to a WOLFSSL_CTX structure, created using
-    wolfSSL_CTX_new()
-    \param file a pointer to the name of the file containing the NTRU
-    private key to be loaded into the wolfSSL SSL context.
-
-    _Example_
-    \code
-    int ret = 0;
-    WOLFSSL_CTX* ctx;
-    ...
-    ret = wolfSSL_CTX_use_NTRUPrivateKey_file(ctx, “./ntru-key.raw”);
-    if (ret != SSL_SUCCESS) {
-    	// error loading NTRU private key
-    }
-    ...
-    \endcode
-
-    \sa wolfSSL_CTX_load_verify_buffer
-    \sa wolfSSL_CTX_use_certificate_buffer
-    \sa wolfSSL_CTX_use_PrivateKey_buffer
-    \sa wolfSSL_CTX_use_certificate_chain_buffer
-    \sa wolfSSL_use_certificate_buffer
-    \sa wolfSSL_use_PrivateKey_buffer
-    \sa wolfSSL_use_certificate_chain_buffer
-*/
-WOLFSSL_API int wolfSSL_CTX_use_NTRUPrivateKey_file(WOLFSSL_CTX*, const char*);
 
 /*!
     \ingroup Setup
@@ -7212,7 +7163,6 @@ WOLFSSL_API int wolfSSL_CTX_Unload_trust_peers(WOLFSSL_CTX*);
     \sa wolfSSL_CTX_load_verify_buffer
     \sa wolfSSL_CTX_use_certificate_file
     \sa wolfSSL_CTX_use_PrivateKey_file
-    \sa wolfSSL_CTX_use_NTRUPrivateKey_file
     \sa wolfSSL_CTX_use_certificate_chain_file
     \sa wolfSSL_CTX_trust_peer_cert
     \sa wolfSSL_CTX_Unload_trust_peers
@@ -7267,7 +7217,6 @@ WOLFSSL_API int wolfSSL_CTX_trust_peer_buffer(WOLFSSL_CTX*,
     \sa wolfSSL_CTX_load_verify_locations
     \sa wolfSSL_CTX_use_certificate_buffer
     \sa wolfSSL_CTX_use_PrivateKey_buffer
-    \sa wolfSSL_CTX_use_NTRUPrivateKey_file
     \sa wolfSSL_CTX_use_certificate_chain_buffer
     \sa wolfSSL_use_certificate_buffer
     \sa wolfSSL_use_PrivateKey_buffer
@@ -7328,7 +7277,6 @@ WOLFSSL_API int wolfSSL_CTX_load_verify_buffer(WOLFSSL_CTX*,
     \sa wolfSSL_CTX_load_verify_locations
     \sa wolfSSL_CTX_use_certificate_buffer
     \sa wolfSSL_CTX_use_PrivateKey_buffer
-    \sa wolfSSL_CTX_use_NTRUPrivateKey_file
     \sa wolfSSL_CTX_use_certificate_chain_buffer
     \sa wolfSSL_use_certificate_buffer
     \sa wolfSSL_use_PrivateKey_buffer
@@ -7383,7 +7331,6 @@ WOLFSSL_API int wolfSSL_CTX_load_verify_buffer_ex(WOLFSSL_CTX*,
     \sa wolfSSL_CTX_load_verify_locations
     \sa wolfSSL_CTX_use_certificate_buffer
     \sa wolfSSL_CTX_use_PrivateKey_buffer
-    \sa wolfSSL_CTX_use_NTRUPrivateKey_file
     \sa wolfSSL_CTX_use_certificate_chain_buffer
     \sa wolfSSL_use_certificate_buffer
     \sa wolfSSL_use_PrivateKey_buffer
@@ -7431,7 +7378,6 @@ WOLFSSL_API int wolfSSL_CTX_load_verify_chain_buffer_format(WOLFSSL_CTX*,
 
     \sa wolfSSL_CTX_load_verify_buffer
     \sa wolfSSL_CTX_use_PrivateKey_buffer
-    \sa wolfSSL_CTX_use_NTRUPrivateKey_file
     \sa wolfSSL_CTX_use_certificate_chain_buffer
     \sa wolfSSL_use_certificate_buffer
     \sa wolfSSL_use_PrivateKey_buffer
@@ -7481,7 +7427,6 @@ WOLFSSL_API int wolfSSL_CTX_use_certificate_buffer(WOLFSSL_CTX*,
 
     \sa wolfSSL_CTX_load_verify_buffer
     \sa wolfSSL_CTX_use_certificate_buffer
-    \sa wolfSSL_CTX_use_NTRUPrivateKey_file
     \sa wolfSSL_CTX_use_certificate_chain_buffer
     \sa wolfSSL_use_certificate_buffer
     \sa wolfSSL_use_PrivateKey_buffer
@@ -7531,7 +7476,6 @@ WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_buffer(WOLFSSL_CTX*,
     \sa wolfSSL_CTX_load_verify_buffer
     \sa wolfSSL_CTX_use_certificate_buffer
     \sa wolfSSL_CTX_use_PrivateKey_buffer
-    \sa wolfSSL_CTX_use_NTRUPrivateKey_file
     \sa wolfSSL_use_certificate_buffer
     \sa wolfSSL_use_PrivateKey_buffer
     \sa wolfSSL_use_certificate_chain_buffer
@@ -7579,7 +7523,6 @@ WOLFSSL_API int wolfSSL_CTX_use_certificate_chain_buffer(WOLFSSL_CTX*,
     \sa wolfSSL_CTX_load_verify_buffer
     \sa wolfSSL_CTX_use_certificate_buffer
     \sa wolfSSL_CTX_use_PrivateKey_buffer
-    \sa wolfSSL_CTX_use_NTRUPrivateKey_file
     \sa wolfSSL_CTX_use_certificate_chain_buffer
     \sa wolfSSL_use_PrivateKey_buffer
     \sa wolfSSL_use_certificate_chain_buffer
@@ -7629,7 +7572,6 @@ WOLFSSL_API int wolfSSL_use_certificate_buffer(WOLFSSL*, const unsigned char*,
     \sa wolfSSL_CTX_load_verify_buffer
     \sa wolfSSL_CTX_use_certificate_buffer
     \sa wolfSSL_CTX_use_PrivateKey_buffer
-    \sa wolfSSL_CTX_use_NTRUPrivateKey_file
     \sa wolfSSL_CTX_use_certificate_chain_buffer
     \sa wolfSSL_use_certificate_buffer
     \sa wolfSSL_use_certificate_chain_buffer
@@ -7676,7 +7618,6 @@ WOLFSSL_API int wolfSSL_use_PrivateKey_buffer(WOLFSSL*, const unsigned char*,
     \sa wolfSSL_CTX_load_verify_buffer
     \sa wolfSSL_CTX_use_certificate_buffer
     \sa wolfSSL_CTX_use_PrivateKey_buffer
-    \sa wolfSSL_CTX_use_NTRUPrivateKey_file
     \sa wolfSSL_CTX_use_certificate_chain_buffer
     \sa wolfSSL_use_certificate_buffer
     \sa wolfSSL_use_PrivateKey_buffer
@@ -11335,99 +11276,6 @@ WOLFSSL_API int wolfSSL_CTX_set_TicketEncCtx(WOLFSSL_CTX* ctx, void*);
     \sa wolfSSL_CTX_set_TicketEncCtx
 */
 WOLFSSL_API void* wolfSSL_CTX_get_TicketEncCtx(WOLFSSL_CTX* ctx);
-
-/*!
-    \ingroup IO
-
-    \brief Checks if QSH is used in the supplied SSL session.
-
-    \return 0 Not used
-    \return 1 Is used
-
-    \param ssl Pointer to the SSL session to check.
-
-    _Example_
-    \code
-    wolfSSL_Init();
-    WOLFSSL_CTX* ctx;
-    WOLFSSL* ssl;
-    WOLFSSL_METHOD method = // Some wolfSSL method
-    ctx = wolfSSL_CTX_new(method);
-    ssl = wolfSSL_new(ctx);
-
-    if(wolfSSL_isQSH(ssl) == 1)
-    {
-        // SSL is using QSH.
-    }
-    \endcode
-
-    \sa wolfSSL_UseSupportedQSH
-*/
-WOLFSSL_API int wolfSSL_isQSH(WOLFSSL* ssl);
-
-/*!
-    \ingroup Setup
-
-    \brief This function sets the ssl session to use supported QSH provided by
-    name.
-
-    \return SSL_SUCCESS Successfully set supported QSH.
-    \return BAD_FUNC_ARG ssl is null or name is invalid.
-    \return MEMORY_E Error allocating memory for operation.
-
-    \param ssl Pointer to ssl session to use.
-    \param name Name of a supported QSH.  Valid names are WOLFSSL_NTRU_EESS439,
-    WOLFSSL_NTRU_EESS593, or WOLFSSL_NTRU_EESS743.
-
-    _Example_
-    \code
-    wolfSSL_Init();
-    WOLFSSL_CTX* ctx;
-    WOLFSSL* ssl;
-    WOLFSSL_METHOD method = // Some wolfSSL method ;
-    ctx = wolfSSL_CTX_new(method);
-    ssl = wolfSSL_new(ctx);
-
-    word16 qsh_name = WOLFSSL_NTRU_EESS439;
-
-    if(wolfSSL_UseSupportedQSH(ssl,qsh_name) != SSL_SUCCESS)
-    {
-        // Error setting QSH
-    }
-    \endcode
-
-    \sa TLSX_UseQSHScheme
-*/
-WOLFSSL_API int wolfSSL_UseSupportedQSH(WOLFSSL* ssl, unsigned short name);
-
-/*!
-    \ingroup CertsKeys
-
-    \brief If the flag is 1 keys will be sent in hello. If flag is 0 then the
-    keys will not be sent during hello.
-
-    \return 0 on success.
-    \return BAD_FUNC_ARG if the WOLFSSL structure is NULL.
-
-    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
-    \param flag an unsigned char input to determine if the keys will be sent
-    during hello.
-
-    _Example_
-    \code
-    WOLFSSL* ssl;
-    unsigned char flag = 1; // send keys
-    ...
-    if(!wolfSSL_UseClientQSHKeys(ssl, flag)){
-    	// The keys will be sent during hello.
-    }
-    \endcode
-
-    \sa wolfSSL_UseALPN
-    \sa wolfSSL_UseSupportedQSH
-    \sa wolfSSL_isQSH
-*/
-WOLFSSL_API int wolfSSL_UseClientQSHKeys(WOLFSSL* ssl, unsigned char flag);
 
 /*!
     \brief This function sets the handshake done callback. The hsDoneCb and

@@ -252,12 +252,6 @@
 #define BUILD_AESGCM
 #endif
 //  </e>
-//      <e>NTRU (need License, "crypto_ntru.h")
-#define MDK_CONF_NTRU 0
-#if MDK_CONF_NTRU == 1
-#define HAVE_NTRU
-#endif
-//  </e>
 //  </h>
 
 //  <h>Others

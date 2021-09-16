@@ -237,8 +237,6 @@ WOLFSSL_API int  wc_MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
     expiration date
     \return ASN_BITSTR_E Returned if there is an error parsing a bit string
     from the certificate
-    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU key
-    from the certificate
     \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC key
     from the certificate
     \return ASN_UNKNOWN_OID_E Returned if the certificate is using an unknown
@@ -296,8 +294,6 @@ WOLFSSL_API int  wc_SetIssuer(Cert*, const char*);
     \return ASN_AFTER_DATE_E Returned if the date is after the certificate
     expiration date
     \return ASN_BITSTR_E Returned if there is an error parsing a bit string
-    from the certificate
-    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU key
     from the certificate
     \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC key
     from the certificate
@@ -357,8 +353,6 @@ WOLFSSL_API int  wc_SetSubject(Cert*, const char*);
     \return ASN_AFTER_DATE_E Returned if the date is after the certificate
     expiration date
     \return ASN_BITSTR_E Returned if there is an error parsing a bit string
-    from the certificate
-    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU key
     from the certificate
     \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC key
     from the certificate
@@ -453,8 +447,6 @@ WOLFSSL_API int  wc_GetSubjectRaw(byte **subjectRaw, Cert *cert);
     expiration date
     \return ASN_BITSTR_E Returned if there is an error parsing a bit string
     from the certificate
-    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU key
-    from the certificate
     \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC key
     from the certificate
     \return ASN_UNKNOWN_OID_E Returned if the certificate is using an unknown
@@ -513,8 +505,6 @@ WOLFSSL_API int  wc_SetAltNames(Cert*, const char*);
     expiration date
     \return ASN_BITSTR_E Returned if there is an error parsing a bit string
     from the certificate
-    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU
-    key from the certificate
     \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC
     key from the certificate
     \return ASN_UNKNOWN_OID_E Returned if the certificate is using an unknown
@@ -579,8 +569,6 @@ WOLFSSL_API int  wc_SetIssuerBuffer(Cert*, const byte*, int);
     expiration date
     \return ASN_BITSTR_E Returned if there is an error parsing a bit string
     from the certificate
-    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU key
-    from the certificate
     \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC key
     from the certificate
     \return ASN_UNKNOWN_OID_E Returned if the certificate is using an unknown
@@ -643,8 +631,6 @@ WOLFSSL_API int  wc_SetIssuerRaw(Cert* cert, const byte* der, int derSz);
     \return ASN_AFTER_DATE_E Returned if the date is after the certificate
     expiration date
     \return ASN_BITSTR_E Returned if there is an error parsing a bit string
-    from the certificate
-    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU key
     from the certificate
     \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC key
     from the certificate
@@ -712,8 +698,6 @@ WOLFSSL_API int  wc_SetSubjectBuffer(Cert*, const byte*, int);
     expiration date
     \return ASN_BITSTR_E Returned if there is an error parsing a bit string
     from the certificate
-    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU key
-    from the certificate
     \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC key
     from the certificate
     \return ASN_UNKNOWN_OID_E Returned if the certificate is using an unknown
@@ -777,8 +761,6 @@ WOLFSSL_API int  wc_SetAltNamesBuffer(Cert*, const byte*, int);
     \return ASN_AFTER_DATE_E Returned if the date is after the certificate
     expiration date
     \return ASN_BITSTR_E Returned if there is an error parsing a bit string
-    from the certificate
-    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU key
     from the certificate
     \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC key
     from the certificate
@@ -943,7 +925,6 @@ WOLFSSL_API int wc_SetAuthKeyId(Cert *cert, const char* file);
     \endcode
 
     \sa wc_SetSubjectKeyId
-    \sa wc_SetSubjectKeyIdFromNtruPublicKey
 */
 WOLFSSL_API int wc_SetSubjectKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
                                                 ecc_key *eckey);
@@ -974,43 +955,9 @@ WOLFSSL_API int wc_SetSubjectKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
     }
     \endcode
 
-    \sa wc_SetSubjectKeyIdFromNtruPublicKey
     \sa wc_SetSubjectKeyIdFromPublicKey
 */
 WOLFSSL_API int wc_SetSubjectKeyId(Cert *cert, const char* file);
-
-/*!
-    \ingroup ASN
-
-    \brief Set SKID from NTRU public key.
-
-    \return 0 Success
-    \return BAD_FUNC_ARG Returned if cert or ntruKey is null.
-    \return MEMORY_E Returned if there is an error allocating memory.
-    \return PUBLIC_KEY_E Returned if there is an error getting the public key.
-
-    \param cert Pointer to a Cert structure to be used.
-    \param ntruKey Pointer to the NTRU public key in a byte array.
-    \param ntruKeySz Size of the NTRU byte array.
-
-    _Example_
-    \code
-    Cert some_cert;
-    wc_InitCert(&some_cert);
-    byte some_ntru_key[] = { // Load an NTRU key  };
-    word32 ntru_size = sizeof(some_ntru_key);
-
-    if(wc_SetSubjectKeyIdFromNtruPublicKey(&some_cert,
-    some_ntru_key, ntru_size) != 0)
-    {
-        // Handle error
-    }
-    \endcode
-
-    \sa SetKeyIdFromPublicKey
-*/
-WOLFSSL_API int wc_SetSubjectKeyIdFromNtruPublicKey(Cert *cert, byte *ntruKey,
-                                                    word16 ntruKeySz);
 
 /*!
     \ingroup RSA
@@ -1045,57 +992,6 @@ WOLFSSL_API int wc_SetSubjectKeyIdFromNtruPublicKey(Cert *cert, byte *ntruKey,
     \sa wc_MakeRsaKey
 */
 WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
-
-/*!
-    \ingroup ASN
-
-    \brief Used to make CA signed certs.  Called after the subject information
-    has been entered. This function makes an NTRU Certificate from a cert
-    input. It then writes this cert to derBuffer. It takes in an ntruKey and
-    a rng to generate the certificate.  The certificate must be initialized
-    with wc_InitCert before this method is called.
-
-    \return Success On successfully making a NTRU certificate from the
-    specified input cert, returns the size of the cert generated.
-    \return MEMORY_E Returned if there is an error allocating memory
-    with XMALLOC
-    \return BUFFER_E Returned if the provided derBuffer is too small to
-    store the generated certificate
-    \return Other Additional error messages may be returned if the cert
-    generation is not successful.
-
-    \param cert pointer to an initialized cert structure
-    \param derBuffer pointer to the buffer in which to store
-    the generated certificate
-    \param derSz size of the buffer in which to store the generated
-    certificate
-    \param ntruKey pointer to the key to be used to generate the NTRU
-    certificate
-    \param keySz size of the key used to generate the NTRU certificate
-    \param rng pointer to the random number generator used to generate
-    the NTRU certificate
-
-    _Example_
-    \code
-    Cert myCert;
-    // initialize myCert
-    WC_RNG rng;
-    //initialize rng;
-    byte ntruPublicKey[NTRU_KEY_SIZE];
-    //initialize ntruPublicKey;
-    byte * derCert = malloc(FOURK_BUF);
-
-    word32 certSz;
-    certSz = wc_MakeNtruCert(&myCert, derCert, FOURK_BUF, &ntruPublicKey,
-    NTRU_KEY_SIZE, &rng);
-    \endcode
-
-    \sa wc_InitCert
-    \sa wc_MakeCert
-*/
-WOLFSSL_API int  wc_MakeNtruCert(Cert*, byte* derBuffer, word32 derSz,
-                             const byte* ntruKey, word16 keySz,
-                             WC_RNG*);
 
 /*!
     \ingroup ASN

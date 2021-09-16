@@ -197,9 +197,6 @@
 #endif
 
 #include <wolfssl/wolfcrypt/dh.h>
-#ifdef HAVE_NTRU
-    #include "libntruencrypt/ntru_crypto.h"
-#endif
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/types.h>
@@ -298,8 +295,6 @@
 #define BENCH_RSA                0x00000002
 #define BENCH_RSA_SZ             0x00000004
 #define BENCH_DH                 0x00000010
-#define BENCH_NTRU               0x00000100
-#define BENCH_NTRU_KEYGEN        0x00000200
 #define BENCH_ECC_MAKEKEY        0x00001000
 #define BENCH_ECC                0x00002000
 #define BENCH_ECC_ENCRYPT        0x00004000
@@ -510,10 +505,6 @@ static const bench_alg bench_asym_opt[] = {
 #ifndef NO_DH
     { "-dh",                 BENCH_DH                },
 #endif
-#ifdef HAVE_NTRU
-    { "-ntru",               BENCH_NTRU              },
-    { "-ntru-kg",            BENCH_NTRU_KEYGEN       },
-#endif
 #ifdef HAVE_ECC
     { "-ecc-kg",             BENCH_ECC_MAKEKEY       },
     { "-ecc",                BENCH_ECC               },
@@ -639,7 +630,7 @@ static const char* bench_result_words1[][4] = {
 #endif
 };
 
-#if !defined(NO_RSA) || defined(HAVE_NTRU) || \
+#if !defined(NO_RSA) || \
     defined(HAVE_ECC) || !defined(NO_DH) || defined(HAVE_ECC_ENCRYPT) || \
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE25519_SHARED_SECRET)  || \
     defined(HAVE_ED25519) || defined(HAVE_CURVE448) || \
@@ -780,7 +771,7 @@ static const char* bench_desc_words[][14] = {
 
 #if defined(HAVE_ED25519) || defined(HAVE_CURVE25519) || \
     defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
-    defined(HAVE_ECC) || defined(HAVE_NTRU) || !defined(NO_DH) || \
+    defined(HAVE_ECC) || !defined(NO_DH) || \
     !defined(NO_RSA) || defined(HAVE_SCRYPT)
     #define BENCH_ASYM
 #endif
@@ -1870,13 +1861,6 @@ static void* benchmarks_do(void* args)
         bench_dh(1);
     #endif
     }
-#endif
-
-#ifdef HAVE_NTRU
-    if (bench_all || (bench_asym_algs & BENCH_NTRU))
-        bench_ntru();
-    if (bench_all || (bench_asym_algs & BENCH_NTRU_KEYGEN))
-        bench_ntruKeyGen();
 #endif
 
 #ifdef HAVE_ECC
@@ -5240,220 +5224,6 @@ exit:
     FREE_ARRAY(agree, BENCH_MAX_PENDING, HEAP_HINT);
 }
 #endif /* !NO_DH */
-
-#ifdef HAVE_NTRU
-byte GetEntropy(ENTROPY_CMD cmd, byte* out);
-
-byte GetEntropy(ENTROPY_CMD cmd, byte* out)
-{
-    if (cmd == INIT)
-        return 1; /* using local rng */
-
-    if (out == NULL)
-        return 0;
-
-    if (cmd == GET_BYTE_OF_ENTROPY)
-        return (wc_RNG_GenerateBlock(&gRng, out, 1) == 0) ? 1 : 0;
-
-    if (cmd == GET_NUM_BYTES_PER_BYTE_OF_ENTROPY) {
-        *out = 1;
-        return 1;
-    }
-
-    return 0;
-}
-
-void bench_ntru(void)
-{
-    int    i;
-    double start;
-
-    byte   public_key[1027];
-    word16 public_key_len = sizeof(public_key);
-    byte   private_key[1120];
-    word16 private_key_len = sizeof(private_key);
-    word16 ntruBits = 128;
-    word16 type     = 0;
-    word32 ret;
-
-    byte ciphertext[1022];
-    word16 ciphertext_len;
-    byte plaintext[16];
-    word16 plaintext_len;
-    const char**desc = bench_desc_words[lng_index];
-
-    DRBG_HANDLE drbg;
-    static byte const aes_key[] = {
-        0xf3, 0xe9, 0x87, 0xbb, 0x18, 0x08, 0x3c, 0xaa,
-        0x7b, 0x12, 0x49, 0x88, 0xaf, 0xb3, 0x22, 0xd8
-    };
-
-    static byte const wolfsslStr[] = {
-        'w', 'o', 'l', 'f', 'S', 'S', 'L', ' ', 'N', 'T', 'R', 'U'
-    };
-
-    for (ntruBits = 128; ntruBits < 257; ntruBits += 64) {
-        switch (ntruBits) {
-            case 128:
-                type = NTRU_EES439EP1;
-                break;
-            case 192:
-                type = NTRU_EES593EP1;
-                break;
-            case 256:
-                type = NTRU_EES743EP1;
-                break;
-        }
-
-        ret = ntru_crypto_drbg_instantiate(ntruBits, wolfsslStr,
-                sizeof(wolfsslStr), (ENTROPY_FN) GetEntropy, &drbg);
-        if(ret != DRBG_OK) {
-            printf("NTRU drbg instantiate failed\n");
-            return;
-        }
-
-        /* set key sizes */
-        ret = ntru_crypto_ntru_encrypt_keygen(drbg, type, &public_key_len,
-                                                  NULL, &private_key_len, NULL);
-        if (ret != NTRU_OK) {
-            ntru_crypto_drbg_uninstantiate(drbg);
-            printf("NTRU failed to get key lengths\n");
-            return;
-        }
-
-        ret = ntru_crypto_ntru_encrypt_keygen(drbg, type, &public_key_len,
-                                     public_key, &private_key_len,
-                                     private_key);
-
-        ntru_crypto_drbg_uninstantiate(drbg);
-
-        if (ret != NTRU_OK) {
-            printf("NTRU keygen failed\n");
-            return;
-        }
-
-        ret = ntru_crypto_drbg_instantiate(ntruBits, NULL, 0,
-                (ENTROPY_FN)GetEntropy, &drbg);
-        if (ret != DRBG_OK) {
-            printf("NTRU error occurred during DRBG instantiation\n");
-            return;
-        }
-
-        ret = ntru_crypto_ntru_encrypt(drbg, public_key_len, public_key,
-                sizeof(aes_key), aes_key, &ciphertext_len, NULL);
-
-        if (ret != NTRU_OK) {
-            printf("NTRU error occurred requesting the buffer size needed\n");
-            return;
-        }
-
-        bench_stats_start(&i, &start);
-        for (i = 0; i < ntimes; i++) {
-            ret = ntru_crypto_ntru_encrypt(drbg, public_key_len, public_key,
-                    sizeof(aes_key), aes_key, &ciphertext_len, ciphertext);
-            if (ret != NTRU_OK) {
-                printf("NTRU encrypt error\n");
-                return;
-            }
-        }
-        bench_stats_asym_finish("NTRU", ntruBits, desc[6], 0, i, start, ret);
-
-        ret = ntru_crypto_drbg_uninstantiate(drbg);
-        if (ret != DRBG_OK) {
-            printf("NTRU error occurred uninstantiating the DRBG\n");
-            return;
-        }
-
-        ret = ntru_crypto_ntru_decrypt(private_key_len, private_key,
-                ciphertext_len, ciphertext, &plaintext_len, NULL);
-
-        if (ret != NTRU_OK) {
-            printf("NTRU decrypt error occurred getting the buffer size needed\n");
-            return;
-        }
-
-        plaintext_len = sizeof(plaintext);
-
-        bench_stats_start(&i, &start);
-        for (i = 0; i < ntimes; i++) {
-            ret = ntru_crypto_ntru_decrypt(private_key_len, private_key,
-                                      ciphertext_len, ciphertext,
-                                      &plaintext_len, plaintext);
-
-            if (ret != NTRU_OK) {
-                printf("NTRU error occurred decrypting the key\n");
-                return;
-            }
-        }
-        bench_stats_asym_finish("NTRU", ntruBits, desc[7], 0, i, start, ret);
-    }
-
-}
-
-void bench_ntruKeyGen(void)
-{
-    double start;
-    int    i;
-
-    byte   public_key[1027];
-    word16 public_key_len = sizeof(public_key);
-    byte   private_key[1120];
-    word16 private_key_len = sizeof(private_key);
-    word16 ntruBits = 128;
-    word16 type     = 0;
-    word32 ret;
-    const char**desc = bench_desc_words[lng_index];
-
-    DRBG_HANDLE drbg;
-    static uint8_t const pers_str[] = {
-                'w', 'o', 'l', 'f',  'S', 'S', 'L', ' ', 't', 'e', 's', 't'
-    };
-
-    for (ntruBits = 128; ntruBits < 257; ntruBits += 64) {
-        ret = ntru_crypto_drbg_instantiate(ntruBits, pers_str,
-                sizeof(pers_str), GetEntropy, &drbg);
-        if (ret != DRBG_OK) {
-            printf("NTRU drbg instantiate failed\n");
-            return;
-        }
-
-        switch (ntruBits) {
-            case 128:
-                type = NTRU_EES439EP1;
-                break;
-            case 192:
-                type = NTRU_EES593EP1;
-                break;
-            case 256:
-                type = NTRU_EES743EP1;
-                break;
-        }
-
-        /* set key sizes */
-        ret = ntru_crypto_ntru_encrypt_keygen(drbg, type, &public_key_len,
-                                                  NULL, &private_key_len, NULL);
-
-        bench_stats_start(&i, &start);
-        for (i = 0; i < genTimes; i++) {
-            ret = ntru_crypto_ntru_encrypt_keygen(drbg, type, &public_key_len,
-                                         public_key, &private_key_len,
-                                         private_key);
-        }
-        bench_stats_asym_finish("NTRU", ntruBits, desc[2], 0, i, start, ret);
-
-        if (ret != NTRU_OK) {
-            return;
-        }
-
-        ret = ntru_crypto_drbg_uninstantiate(drbg);
-
-        if (ret != NTRU_OK) {
-            printf("NTRU drbg uninstantiate failed\n");
-            return;
-        }
-    }
-}
-#endif
 
 #ifdef HAVE_ECC
 

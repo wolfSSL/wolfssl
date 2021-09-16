@@ -106,10 +106,6 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifdef HAVE_NTRU
-    #include "libntruencrypt/ntru_crypto.h"
-#endif
-
 #ifdef __sun
     #include <sys/filio.h>
 #endif
@@ -9082,10 +9078,9 @@ void wolfSSL_set_psk_client_cs_callback(WOLFSSL* ssl,
         keySz = ssl->buffers.keySz;
     #endif
     InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
-               ssl->options.haveDH, ssl->options.haveNTRU,
-               ssl->options.haveECDSAsig, ssl->options.haveECC,
-               ssl->options.haveStaticECC, ssl->options.haveAnon,
-               ssl->options.side);
+               ssl->options.haveDH, ssl->options.haveECDSAsig,
+               ssl->options.haveECC, ssl->options.haveStaticECC,
+               ssl->options.haveAnon, ssl->options.side);
 }
 
 /* Set the PSK callback that returns the cipher suite for a client to use
@@ -9133,10 +9128,9 @@ void wolfSSL_set_psk_client_tls13_callback(WOLFSSL* ssl,
         keySz = ssl->buffers.keySz;
     #endif
     InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
-               ssl->options.haveDH, ssl->options.haveNTRU,
-               ssl->options.haveECDSAsig, ssl->options.haveECC,
-               ssl->options.haveStaticECC, ssl->options.haveAnon,
-               ssl->options.side);
+               ssl->options.haveDH, ssl->options.haveECDSAsig,
+               ssl->options.haveECC, ssl->options.haveStaticECC,
+               ssl->options.haveAnon, ssl->options.side);
 }
 
 /* Set the PSK callback that returns the cipher suite for a server to use
@@ -9181,10 +9175,9 @@ void wolfSSL_set_psk_server_tls13_callback(WOLFSSL* ssl,
         keySz = ssl->buffers.keySz;
     #endif
     InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
-               ssl->options.haveDH, ssl->options.haveNTRU,
-               ssl->options.haveECDSAsig, ssl->options.haveECC,
-               ssl->options.haveStaticECC, ssl->options.haveAnon,
-               ssl->options.side);
+               ssl->options.haveDH, ssl->options.haveECDSAsig,
+               ssl->options.haveECC, ssl->options.haveStaticECC,
+               ssl->options.haveAnon, ssl->options.side);
 }
 
 /* Get name of first supported cipher suite that uses the hash indicated.

@@ -194,9 +194,6 @@ const char* wc_GetErrorString(int error)
     case ASN_DH_KEY_E :
         return "ASN key init error, invalid input";
 
-    case ASN_NTRU_KEY_E :
-        return "ASN NTRU key decode error, invalid input";
-
     case ASN_CRIT_EXT_E:
         return "X.509 Critical extension ignored or invalid";
 

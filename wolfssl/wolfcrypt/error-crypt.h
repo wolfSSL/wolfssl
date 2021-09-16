@@ -103,7 +103,6 @@ enum {
     ASN_SIG_HASH_E     = -156,  /* ASN sig error, unsupported hash type */
     ASN_SIG_KEY_E      = -157,  /* ASN sig error, unsupported key type */
     ASN_DH_KEY_E       = -158,  /* ASN key init error, invalid input */
-    ASN_NTRU_KEY_E     = -159,  /* ASN ntru key decode error, invalid input */
     ASN_CRIT_EXT_E     = -160,  /* ASN unsupported critical extension */
     ASN_ALT_NAME_E     = -161,  /* ASN alternate name error */
     ASN_NO_PEM_HEADER  = -162,  /* ASN no PEM header found */

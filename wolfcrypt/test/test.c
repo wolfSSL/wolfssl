@@ -334,10 +334,6 @@ _Pragma("GCC diagnostic ignored \"-Wunused-function\"")
 
 #include <wolfssl/certs_test.h>
 
-#ifdef HAVE_NTRU
-    #include "libntruencrypt/ntru_crypto.h"
-#endif
-
 #ifdef DEVKITPRO
     #include <wiiuse/wpad.h>
 #endif
@@ -1639,9 +1635,8 @@ WOLFSSL_TEST_SUBROUTINE int error_test(void)
     int i;
     int j = 0;
     /* Values that are not or no longer error codes. */
-    int missing[] = { -122, -123, -124,       -127, -128, -129,
-                      -163, -164, -165, -166, -167, -168, -169,
-                      -233,
+    int missing[] = { -122, -123, -124,       -127, -128, -129, -159,
+                      -163, -164, -165, -166, -167, -168, -169, -233,
                       0 };
 
     /* Check that all errors have a string and it's the same through the two
@@ -11945,35 +11940,6 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
     return ret;
 }
 
-
-#ifdef HAVE_NTRU
-
-byte GetEntropy(ENTROPY_CMD cmd, byte* out);
-
-byte GetEntropy(ENTROPY_CMD cmd, byte* out)
-{
-    static WC_RNG rng;
-
-    if (cmd == INIT)
-        return (wc_InitRng(&rng) == 0) ? 1 : 0;
-
-    if (out == NULL)
-        return 0;
-
-    if (cmd == GET_BYTE_OF_ENTROPY)
-        return (wc_RNG_GenerateBlock(&rng, out, 1) == 0) ? 1 : 0;
-
-    if (cmd == GET_NUM_BYTES_PER_BYTE_OF_ENTROPY) {
-        *out = 1;
-        return 1;
-    }
-
-    return 0;
-}
-
-#endif /* HAVE_NTRU */
-
-
 #ifndef NO_FILESYSTEM
 
 /* Cert Paths */
@@ -12219,7 +12185,7 @@ static const CertName certDefaultName = {
     WOLFSSL_SMALL_STACK_STATIC const char certKeyUsage[] =
         "digitalSignature,nonRepudiation";
     #endif
-    #if (defined(WOLFSSL_CERT_REQ) || defined(HAVE_NTRU)) && !defined(NO_RSA)
+    #if defined(WOLFSSL_CERT_REQ) && !defined(NO_RSA)
         WOLFSSL_SMALL_STACK_STATIC const char certKeyUsage2[] =
         "digitalSignature,nonRepudiation,keyEncipherment,keyAgreement";
     #endif
@@ -14831,196 +14797,6 @@ exit_rsa:
 }
 #endif
 
-#if defined(WOLFSSL_CERT_GEN) && defined(HAVE_NTRU)
-static int rsa_ntru_test(RsaKey* caKey, WC_RNG* rng, byte* tmp)
-{
-    int ret;
-    
-    Cert        myCert;
-#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
-    XFILE       caFile;
-#endif
-#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-    XFILE       ntruPrivFile;
-#endif
-    int         certSz;
-    word32      idx3 = 0;
-#ifdef WOLFSSL_TEST_CERT
-    DecodedCert decode;
-#endif
-    byte   public_key[557];          /* sized for EES401EP2 */
-    word16 public_key_len;           /* no. of octets in public key */
-    byte   private_key[607];         /* sized for EES401EP2 */
-    word16 private_key_len;          /* no. of octets in private key */
-    DRBG_HANDLE drbg;
-    static uint8_t const pers_str[] = {
-            'C', 'y', 'a', 'S', 'S', 'L', ' ', 't', 'e', 's', 't'
-    };
-    word32 rc = ntru_crypto_drbg_instantiate(112, pers_str,
-                      sizeof(pers_str), GetEntropy, &drbg);
-    if (rc != DRBG_OK) {
-        ERROR_OUT(-7946, exit_rsa);
-    }
-
-    rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
-                                         &public_key_len, NULL,
-                                         &private_key_len, NULL);
-    if (rc != NTRU_OK) {
-        ERROR_OUT(-7947, exit_rsa);
-    }
-
-    rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
-                                         &public_key_len, public_key,
-                                         &private_key_len, private_key);
-    if (rc != NTRU_OK) {
-        ERROR_OUT(-7948, exit_rsa);
-    }
-
-    rc = ntru_crypto_drbg_uninstantiate(drbg);
-    if (rc != NTRU_OK) {
-        ERROR_OUT(-7949, exit_rsa);
-    }
-
-#ifdef USE_CERT_BUFFERS_1024
-    XMEMCPY(tmp, ca_key_der_1024, sizeof_ca_key_der_1024);
-    bytes = sizeof_ca_key_der_1024;
-#elif defined(USE_CERT_BUFFERS_2048)
-    XMEMCPY(tmp, ca_key_der_2048, sizeof_ca_key_der_2048);
-    bytes = sizeof_ca_key_der_2048;
-#else
-    caFile = XFOPEN(rsaCaKeyFile, "rb");
-    if (!caFile) {
-        ERROR_OUT(-7950, exit_rsa);
-    }
-
-    bytes = XFREAD(tmp, 1, FOURK_BUF, caFile);
-    XFCLOSE(caFile);
-#endif /* USE_CERT_BUFFERS */
-
-    ret = wc_InitRsaKey(caKey, HEAP_HINT);
-    if (ret != 0) {
-        ERROR_OUT(-7951, exit_rsa);
-    }
-    ret = wc_RsaPrivateKeyDecode(tmp, &idx3, caKey, (word32)bytes);
-    if (ret != 0) {
-        ERROR_OUT(-7952, exit_rsa);
-    }
-
-    if (wc_InitCert_ex(&myCert, HEAP_HINT, devId)) {
-        ERROR_OUT(-7953, exit_rsa);
-    }
-
-    XMEMCPY(&myCert.subject, &certDefaultName, sizeof(CertName));
-    myCert.daysValid = 1000;
-
-#ifdef WOLFSSL_CERT_EXT
-    /* add SKID from the Public Key */
-    if (wc_SetSubjectKeyIdFromNtruPublicKey(&myCert, public_key,
-                                            public_key_len) != 0) {
-        ERROR_OUT(-7954, exit_rsa);
-    }
-
-    /* add AKID from the CA certificate */
-#if defined(USE_CERT_BUFFERS_2048)
-    ret = wc_SetAuthKeyIdFromCert(&myCert, ca_cert_der_2048,
-                                        sizeof_ca_cert_der_2048);
-#elif defined(USE_CERT_BUFFERS_1024)
-    ret = wc_SetAuthKeyIdFromCert(&myCert, ca_cert_der_1024,
-                                        sizeof_ca_cert_der_1024);
-#else
-    ret = wc_SetAuthKeyId(&myCert, rsaCaCertFile);
-#endif
-    if (ret != 0) {
-        ERROR_OUT(-7955, exit_rsa);
-    }
-
-    /* add Key Usage */
-    if (wc_SetKeyUsage(&myCert, certKeyUsage2) != 0) {
-        ERROR_OUT(-7956, exit_rsa);
-    }
-#endif /* WOLFSSL_CERT_EXT */
-
-#if defined(USE_CERT_BUFFERS_2048)
-    ret = wc_SetIssuerBuffer(&myCert, ca_cert_der_2048,
-                                      sizeof_ca_cert_der_2048);
-#elif defined(USE_CERT_BUFFERS_1024)
-    ret = wc_SetIssuerBuffer(&myCert, ca_cert_der_1024,
-                                      sizeof_ca_cert_der_1024);
-#else
-    ret = wc_SetIssuer(&myCert, rsaCaCertFile);
-#endif
-    if (ret < 0) {
-        ERROR_OUT(-7957, exit_rsa);
-    }
-
-    der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (der == NULL) {
-        ERROR_OUT(-7958, exit_rsa);
-    }
-
-    certSz = wc_MakeNtruCert(&myCert, der, FOURK_BUF, public_key,
-                          public_key_len, rng);
-    if (certSz < 0) {
-        ERROR_OUT(-7959, exit_rsa);
-    }
-
-    ret = 0;
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &caKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        if (ret >= 0) {
-            ret = wc_SignCert(myCert.bodySz, myCert.sigType, der, FOURK_BUF,
-                      caKey, NULL, rng);
-        }
-    } while (ret == WC_PENDING_E);
-    wc_FreeRsaKey(caKey);
-    if (ret < 0) {
-        ERROR_OUT(-7960, exit_rsa);
-    }
-    certSz = ret;
-
-#ifdef WOLFSSL_TEST_CERT
-    InitDecodedCert(&decode, der, certSz, HEAP_HINT);
-    ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
-    if (ret != 0) {
-        FreeDecodedCert(&decode);
-        ERROR_OUT(-7961, exit_rsa);
-    }
-    FreeDecodedCert(&decode);
-#endif
-
-    ret = SaveDerAndPem(der, certSz, "./ntru-cert.der", "./ntru-cert.pem",
-        CERT_TYPE, -5637);
-    if (ret != 0) {
-        goto exit_rsa;
-    }
-
-#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-    ntruPrivFile = XFOPEN("./ntru-key.raw", "wb");
-    if (!ntruPrivFile) {
-        ERROR_OUT(-7962, exit_rsa);
-    }
-    ret = (int)XFWRITE(private_key, 1, private_key_len, ntruPrivFile);
-    XFCLOSE(ntruPrivFile);
-    if (ret != private_key_len) {
-        ERROR_OUT(-7963, exit_rsa);
-    }
-#endif
-
-exit_rsa:
-    if (der != NULL) {
-        XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        der = NULL;
-     }
-   
-    if (ret >= 0)
-        ret = 0;
-    else 
-        return ret;
-}
-#endif
-
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
 #if !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG) && \
     !defined(HAVE_FAST_RSA) && !defined(HAVE_USER_RSA) && \
@@ -15389,13 +15165,6 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     RsaKey keypub[1];
 #endif
 #endif
-#if defined(HAVE_NTRU)
-#ifdef WOLFSSL_SMALL_STACK
-    RsaKey *caKey = (RsaKey *)XMALLOC(sizeof *caKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#else
-    RsaKey caKey[1];
-#endif
-#endif
     word32 idx = 0;
     const char inStr[] = TEST_STRING;
 	const word32 inLen = (word32)TEST_STRING_SZ;
@@ -15445,10 +15214,6 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     if (keypub == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa);
 #endif
-#if defined(HAVE_NTRU)
-    if (caKey == NULL)
-        ERROR_OUT(MEMORY_E, exit_rsa);
-#endif
 #ifdef WOLFSSL_TEST_CERT
     if (cert == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa);
@@ -15460,9 +15225,6 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     XMEMSET(key, 0, sizeof *key);
 #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_CERT_GEN)
     XMEMSET(keypub, 0, sizeof *keypub);
-#endif
-#if defined(HAVE_NTRU)
-    XMEMSET(caKey, 0, sizeof *caKey);
 #endif
 
 #if !defined(HAVE_USER_RSA) && !defined(NO_ASN)
@@ -15881,13 +15643,6 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
         goto exit_rsa;
 #endif
 
-#ifdef HAVE_NTRU
-    ret = rsa_ntru_test(caKey, &rng, tmp);
-    if (ret != 0)
-        goto exit_rsa;
-  
-#endif /* HAVE_NTRU */
-
 #ifdef WOLFSSL_CERT_REQ
     {
         Cert        *req;
@@ -16024,12 +15779,6 @@ exit_rsa:
         XFREE(keypub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
     #endif
-    #if defined(HAVE_NTRU)
-    if (caKey != NULL) {
-        wc_FreeRsaKey(caKey);
-        XFREE(caKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    #endif
     #ifdef WOLFSSL_TEST_CERT
     if (cert != NULL)
         XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -16038,9 +15787,6 @@ exit_rsa:
     wc_FreeRsaKey(key);
     #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_CERT_GEN)
     wc_FreeRsaKey(keypub);
-    #endif
-    #if defined(HAVE_NTRU)
-    wc_FreeRsaKey(caKey);
     #endif
 #endif /* WOLFSSL_SMALL_STACK */
 
