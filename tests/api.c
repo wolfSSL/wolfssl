@@ -36170,7 +36170,7 @@ static void test_wolfSSL_X509_NAME_ENTRY(void)
     X509_NAME* nm;
     X509_NAME_ENTRY* entry;
     unsigned char cn[] = "another name to add";
-
+    unsigned char srv_pkcs9p[] = "Server";
 
     printf(testingFmt, "wolfSSL_X509_NAME_ENTRY()");
 
@@ -36227,7 +36227,10 @@ static void test_wolfSSL_X509_NAME_ENTRY(void)
 
     /* Test add entry by NID */
     AssertIntEQ(X509_NAME_add_entry_by_NID(nm, NID_commonName, MBSTRING_UTF8,
-                                       cn, -1, -1, 0), WOLFSSL_SUCCESS);
+                                       cn, -1, -1, 0), SSL_SUCCESS);
+
+    AssertIntEQ(X509_NAME_add_entry_by_NID(nm, NID_pkcs9_contentType, MBSTRING_ASC,
+        srv_pkcs9p, -1, -1, 0), SSL_SUCCESS);
 
 #ifndef NO_BIO
     BIO_free(bio);

@@ -678,6 +678,7 @@ enum
     NID_sha512_224 = 1094,
     NID_sha512_256 = 1095,
     NID_pkcs9_unstructuredName = 49,
+    NID_pkcs9_contentType = 50, /* 1.2.840.113549.1.9.3 */
     NID_pkcs9_challengePassword = 54,
     NID_hw_name_oid = 73,
     NID_id_pkix_OCSP_basic = 74,
@@ -1097,6 +1098,7 @@ enum KeyIdType {
 #ifdef WOLFSSL_CERT_REQ
 enum CsrAttrType {
     UNSTRUCTURED_NAME_OID = 654,
+    PKCS9_CONTENT_TYPE_OID = 655,
     CHALLENGE_PASSWORD_OID = 659,
     SERIAL_NUMBER_OID = 94,
     EXTENSION_REQUEST_OID = 666,
@@ -1477,7 +1479,9 @@ struct DecodedCert {
 
 #ifdef WOLFSSL_CERT_REQ
     /* CSR attributes */
-    char*   cPwd; /* challengePassword */
+    char*   contentType; /* Content Type */
+    int     contentTypeLen;
+    char*   cPwd; /* Challenge Password */
     int     cPwdLen;
     char*   sNum; /* Serial Number */
     int     sNumLen;

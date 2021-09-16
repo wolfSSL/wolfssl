@@ -3950,6 +3950,7 @@ static const byte extExtKeyUsageOcspSignOid[]     = {43, 6, 1, 5, 5, 7, 3, 9};
 #ifdef WOLFSSL_CERT_REQ
 /* csrAttrType */
 static const byte attrUnstructuredNameOid[] = {42, 134, 72, 134, 247, 13, 1, 9, 2};
+static const byte attrPkcs9ContentTypeOid[] = {42, 134, 72, 134, 247, 13, 1, 9, 3};
 static const byte attrChallengePasswordOid[] = {42, 134, 72, 134, 247, 13, 1, 9, 7};
 static const byte attrExtensionRequestOid[] = {42, 134, 72, 134, 247, 13, 1, 9, 14};
 static const byte attrSerialNumberOid[] = {85, 4, 5};
@@ -4739,6 +4740,10 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                 case UNSTRUCTURED_NAME_OID:
                     oid = attrUnstructuredNameOid;
                     *oidSz = sizeof(attrUnstructuredNameOid);
+                    break;
+                case PKCS9_CONTENT_TYPE_OID:
+                    oid = attrPkcs9ContentTypeOid;
+                    *oidSz = sizeof(attrPkcs9ContentTypeOid);
                     break;
                 case CHALLENGE_PASSWORD_OID:
                     oid = attrChallengePasswordOid;
@@ -16516,6 +16521,20 @@ static int DecodeCertReqAttrValue(DecodedCert* cert, int* criticalExt,
     ASNGetData strDataASN[strAttrASN_Length];
 
     switch (oid) {
+        case PKCS9_CONTENT_TYPE_OID:
+            /* Clear dynamic data and specify choices acceptable. */
+            XMEMSET(strDataASN, 0, sizeof(strDataASN));
+            GetASN_Choice(&strDataASN[0], strAttrChoice);
+            /* Parse a string. */
+            ret = GetASN_Items(strAttrASN, strDataASN, strAttrASN_Length,
+                               1, input, &idx, maxIdx);
+            if (ret == 0) {
+                /* Store references to password data. */
+                cert->contentType = (char*)strDataASN[0].data.ref.data;
+                cert->contentTypeLen = strDataASN[0].data.ref.length;
+            }
+            break;
+
         /* A password by which the entity may request certificate revocation.
          * PKCS#9: RFC 2985, 5.4.1 - Challenge password
          */
@@ -17499,6 +17518,21 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                         return ASN_PARSE_E;
                     }
                     switch (oid) {
+                    case PKCS9_CONTENT_TYPE_OID:
+                        if (GetHeader(cert->source, &tag,
+                                &cert->srcIdx, &len, attrMaxIdx, 1) < 0) {
+                            WOLFSSL_MSG("attr GetHeader error");
+                            return ASN_PARSE_E;
+                        }
+                        if (tag != ASN_PRINTABLE_STRING && tag != ASN_UTF8STRING &&
+                                tag != ASN_IA5_STRING) {
+                            WOLFSSL_MSG("Unsupported attribute value format");
+                            return ASN_PARSE_E;
+                        }
+                        cert->contentType = (char*)cert->source + cert->srcIdx;
+                        cert->contentTypeLen = len;
+                        cert->srcIdx += len;
+                        break;
                     case CHALLENGE_PASSWORD_OID:
                         if (GetHeader(cert->source, &tag,
                                 &cert->srcIdx, &len, attrMaxIdx, 1) < 0) {
