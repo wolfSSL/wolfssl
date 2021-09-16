@@ -9084,7 +9084,12 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
         ret = wc_AesSetKey(enc, niKey, sizeof(niKey), cipher, AES_ENCRYPTION);
         if (ret != 0)
             ERROR_OUT(-5943, out);
+#ifdef WOLFSSL_LINUXKM
+        if (wc_AesEncryptDirect(enc, cipher, niPlain) != 0)
+            ERROR_OUT(-5950, out);
+#else
         wc_AesEncryptDirect(enc, cipher, niPlain);
+#endif
         if (XMEMCMP(cipher, niCipher, AES_BLOCK_SIZE) != 0)
             ERROR_OUT(-5944, out);
 
@@ -9092,7 +9097,12 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
         ret = wc_AesSetKey(dec, niKey, sizeof(niKey), plain, AES_DECRYPTION);
         if (ret != 0)
             ERROR_OUT(-5945, out);
+#ifdef WOLFSSL_LINUXKM
+        if (wc_AesDecryptDirect(dec, plain, niCipher) != 0)
+            ERROR_OUT(-5951, out);
+#else
         wc_AesDecryptDirect(dec, plain, niCipher);
+#endif
         if (XMEMCMP(plain, niPlain, AES_BLOCK_SIZE) != 0)
             ERROR_OUT(-5946, out);
     }

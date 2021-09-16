@@ -157,6 +157,15 @@ int wolfCrypt_Init(void)
         }
     #endif
 
+    #if defined(WOLFSSL_LINUXKM_SIMD_X86) \
+        && defined(WOLFSSL_LINUXKM_SIMD_X86_IRQ_ALLOWED)
+        ret = allocate_wolfcrypt_irq_fpu_states();
+        if (ret != 0) {
+            WOLFSSL_MSG("allocate_wolfcrypt_irq_fpu_states failed");
+            return ret;
+        }
+    #endif
+
     #if WOLFSSL_CRYPT_HW_MUTEX
         /* If crypto hardware mutex protection is enabled, then initialize it */
         ret = wolfSSL_CryptHwMutexInit();
@@ -355,6 +364,10 @@ int wolfCrypt_Cleanup(void)
     #if defined(WOLFSSL_DSP) && !defined(WOLFSSL_DSP_BUILD)
         rpcmem_deinit();
         wolfSSL_CleanupHandle();
+    #endif
+    #if defined(WOLFSSL_LINUXKM_SIMD_X86) \
+        && defined(WOLFSSL_LINUXKM_SIMD_X86_IRQ_ALLOWED)
+        free_wolfcrypt_irq_fpu_states();
     #endif
     }
 

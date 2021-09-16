@@ -128,15 +128,12 @@ int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
 #else
     fe_init();
 
-    #if defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM)
-        SAVE_VECTOR_REGISTERS();
-    #endif
+    if (SAVE_VECTOR_REGISTERS() != 0)
+        return BAD_STATE_E;
 
     ret = curve25519(pub, priv, kCurve25519BasePoint);
 
-    #if defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM)
-        RESTORE_VECTOR_REGISTERS();
-    #endif
+    RESTORE_VECTOR_REGISTERS();
 #endif
 
     return ret;
@@ -174,15 +171,12 @@ int wc_curve25519_generic(int public_size, byte* pub,
 
     fe_init();
 
-    #if defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM)
-        SAVE_VECTOR_REGISTERS();
-    #endif
+    if (SAVE_VECTOR_REGISTERS() != 0)
+        return BAD_STATE_E;
 
     ret = curve25519(pub, priv, basepoint);
 
-    #if defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM)
-        RESTORE_VECTOR_REGISTERS();
-    #endif
+    RESTORE_VECTOR_REGISTERS();
 
     return ret;
 #endif /* FREESCALE_LTC_ECC */
@@ -295,15 +289,12 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
         ret = nxp_ltc_curve25519(&o, private_key->k, &public_key->p,
                                  kLTC_Curve25519);
     #else
-        #if defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM)
-            SAVE_VECTOR_REGISTERS();
-        #endif
+        if (SAVE_VECTOR_REGISTERS() != 0)
+            return BAD_STATE_E;
 
         ret = curve25519(o.point, private_key->k, public_key->p.point);
 
-        #if defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM)
-            RESTORE_VECTOR_REGISTERS();
-        #endif
+        RESTORE_VECTOR_REGISTERS();
     #endif
     if (ret != 0) {
         ForceZero(&o, sizeof(o));

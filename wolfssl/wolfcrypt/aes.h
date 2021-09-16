@@ -351,8 +351,13 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
 #endif
 /* AES-DIRECT */
 #if defined(WOLFSSL_AES_DIRECT)
+#ifdef WOLFSSL_LINUXKM
+ WOLFSSL_API __must_check int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
+ WOLFSSL_API __must_check int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
+#else
  WOLFSSL_API void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
  WOLFSSL_API void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
+#endif
  WOLFSSL_API int  wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
                                 const byte* iv, int dir);
 #endif

@@ -448,8 +448,10 @@ static int InitSha512_256(wc_Sha512* sha512)
 
     static WC_INLINE int Transform_Sha512(wc_Sha512 *sha512) {
         int ret;
-        if (Transform_Sha512_is_vectorized)
-            SAVE_VECTOR_REGISTERS();
+        if (Transform_Sha512_is_vectorized) {
+            if (SAVE_VECTOR_REGISTERS() != 0)
+                return BAD_STATE_E;
+        }
         ret = (*Transform_Sha512_p)(sha512);
         if (Transform_Sha512_is_vectorized)
             RESTORE_VECTOR_REGISTERS();
@@ -457,8 +459,10 @@ static int InitSha512_256(wc_Sha512* sha512)
     }
     static WC_INLINE int Transform_Sha512_Len(wc_Sha512 *sha512, word32 len) {
         int ret;
-        if (Transform_Sha512_is_vectorized)
-            SAVE_VECTOR_REGISTERS();
+        if (Transform_Sha512_is_vectorized) {
+            if (SAVE_VECTOR_REGISTERS() != 0)
+                return BAD_STATE_E;
+        }
         ret = (*Transform_Sha512_Len_p)(sha512, len);
         if (Transform_Sha512_is_vectorized)
             RESTORE_VECTOR_REGISTERS();

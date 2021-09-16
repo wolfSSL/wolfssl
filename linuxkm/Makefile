@@ -21,7 +21,7 @@
 
 SHELL=/bin/bash
 
-all: libwolfssl.ko
+all: libwolfssl.ko libwolfssl.ko.signed
 
 .PHONY: libwolfssl.ko
 
@@ -61,7 +61,42 @@ libwolfssl.ko:
 	@if test -z "$(src_libwolfssl_la_OBJECTS)"; then echo '$$src_libwolfssl_la_OBJECTS is unset.' >&2; exit 1; fi
 	@mkdir -p linuxkm src wolfcrypt/src wolfcrypt/test
 	@if test ! -h $(SRC_TOP)/Kbuild; then ln -s $(MODULE_TOP)/Kbuild $(SRC_TOP)/Kbuild; fi
+ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
+	+$(MAKE) -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(SRC_TOP) CC_FLAGS_FTRACE=
+else
 	+$(MAKE) -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(SRC_TOP)
+endif
+
+libwolfssl.ko.signed: libwolfssl.ko
+	@cd '$(KERNEL_ROOT)' || exit $$?;							\
+	while read configline; do								\
+		case "$$configline" in								\
+		CONFIG_MODULE_SIG_KEY=*)							\
+				CONFIG_MODULE_SIG_KEY="$${configline#CONFIG_MODULE_SIG_KEY=}"	\
+			;;									\
+		CONFIG_MODULE_SIG_HASH=*)							\
+				CONFIG_MODULE_SIG_HASH="$${configline#CONFIG_MODULE_SIG_HASH=}"	\
+			;;									\
+		esac;										\
+	done < .config || exit $$?;								\
+	if [[ -n "$${CONFIG_MODULE_SIG_KEY}" && -n "$${CONFIG_MODULE_SIG_HASH}" &&		\
+			( ! -f '$(MODULE_TOP)/$@' ||						\
+			'$(MODULE_TOP)/$<' -nt '$(MODULE_TOP)/$@' ) ]]; then			\
+		CONFIG_MODULE_SIG_KEY="$${CONFIG_MODULE_SIG_KEY#\"}";				\
+		CONFIG_MODULE_SIG_KEY="$${CONFIG_MODULE_SIG_KEY%\"}";				\
+		CONFIG_MODULE_SIG_HASH="$${CONFIG_MODULE_SIG_HASH#\"}";				\
+		CONFIG_MODULE_SIG_HASH="$${CONFIG_MODULE_SIG_HASH%\"}";				\
+		cp -p '$(MODULE_TOP)/$<' '$(MODULE_TOP)/$@' || exit $$?;			\
+		./scripts/sign-file "$${CONFIG_MODULE_SIG_HASH}"				\
+				    "$${CONFIG_MODULE_SIG_KEY}"					\
+				    "$${CONFIG_MODULE_SIG_KEY/%.pem/.x509}"			\
+				    '$(MODULE_TOP)/$@' ||					\
+					$(RM) -f '$(MODULE_TOP)/$@' || exit $$?;		\
+		if [[ "$(quiet)" != "silent_" ]]; then						\
+			echo "  Module $@ signed by $${CONFIG_MODULE_SIG_KEY}.";		\
+		fi										\
+	fi
+
 
 .PHONY: install modules_install
 install modules_install:
