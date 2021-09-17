@@ -3509,7 +3509,20 @@ enum {
 #ifdef HAVE_LIBOQS
     /* These group numbers were taken from liboqs' openssl fork, see:
      * https://github.com/open-quantum-safe/openssl/blob/OQS-OpenSSL_1_1_1-stable/
-     * oqs-template/oqs-kem-info.md */
+     * oqs-template/oqs-kem-info.md.
+     *
+     * The levels in the group name refer to the claimed NIST level of each
+     * parameter set. The associated parameter set name is listed as a comment
+     * beside the group number. Please see the NIST PQC Competition's submitted
+     * papers for more details.
+     *
+     * LEVEL1 means that an attack on that parameter set would reqire the same
+     * or more resources as a key search on AES 128. LEVEL3 would reqire the
+     * same or more resources as a key search on AES 192. LEVEL5 would require
+     * the same or more resources as a key search on AES 256. None of the
+     * algorithms have LEVEL2 and LEVEL4 because none of these submissions
+     * included them. */
+
     WOLFSSL_OQS_MIN               = 532, 
     WOLFSSL_OQS_SIMPLE_MIN        = 532,
     WOLFSSL_NTRU_HPS_LEVEL1       = 532, /* NTRU_HPS2048509 */
