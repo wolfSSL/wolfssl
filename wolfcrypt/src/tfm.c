@@ -1631,7 +1631,7 @@ int fp_submod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   }
 
   /* Check whether b is greater than a. mask has all bits set when true. */
-  mask = 0 - (fp_cmp_mag_ct(a, b, c->used) == (fp_digit)FP_LT);
+  mask = 0 - (fp_cmp_mag_ct(a, b, c->used + 1) == (fp_digit)FP_LT);
   /* Constant time, conditionally, add modulus to a into result. */
   for (i = 0; i < c->used; i++) {
       fp_digit mask_a = 0 - (i < a->used);
@@ -3371,7 +3371,7 @@ static int fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp, int ct)
    /* bail if too large */
    if (m->used > (FP_SIZE/2)) {
       (void)mu;                     /* shut up compiler */
-      return FP_OKAY;
+      return FP_VAL;
    }
 
 #ifdef TFM_SMALL_MONT_SET
@@ -3393,7 +3393,16 @@ static int fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp, int ct)
    pa = m->used;
 
    /* copy the input */
+#ifdef TFM_TIMING_RESISTANT
+   if (a->used <= m->used) {
+      oldused = m->used;
+   }
+   else {
+      oldused = m->used * 2;
+   }
+#else
    oldused = a->used;
+#endif
    for (x = 0; x < oldused; x++) {
        c[x] = a->dp[x];
    }
@@ -3439,7 +3448,7 @@ static int fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp, int ct)
   a->used = pa+1;
   fp_clamp(a);
 
-#ifdef WOLFSSL_MONT_RED_NCT
+#ifndef WOLFSSL_MONT_RED_CT
   /* if A >= m then A = A - m */
   if (fp_cmp_mag (a, m) != FP_LT) {
     s_fp_sub (a, m, a);
