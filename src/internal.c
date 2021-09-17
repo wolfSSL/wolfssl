@@ -10317,7 +10317,8 @@ static void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nam
 }
 
 
-#if defined(OPENSSL_EXTRA) && !defined(IGNORE_NAME_CONSTRAINTS)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    !defined(IGNORE_NAME_CONSTRAINTS)
 /* copies over additional alt names such as dirName
  * returns 0 on success
  */
