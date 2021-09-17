@@ -415,6 +415,58 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
             else if (XSTRNCMP(oqsAlg, "KYBER90S1024",
                                 XSTRLEN("KYBER90S1024")) == 0) {
                 group = WOLFSSL_KYBER90S1024;
+            }
+            else if (XSTRNCMP(oqsAlg, "P256_NTRUHPS2048509",
+                                XSTRLEN("P256_NTRUHPS2048509")) == 0) {
+                group = WOLFSSL_P256_NTRU_HPS2048509;
+            }
+            else if (XSTRNCMP(oqsAlg, "P384_NTRUHPS2048677",
+                                XSTRLEN("P384_NTRUHPS2048677")) == 0) {
+                group = WOLFSSL_P384_NTRU_HPS2048677;
+            }
+            else if (XSTRNCMP(oqsAlg, "P521_NTRUHPS4096821",
+                                XSTRLEN("P521_NTRUHPS4096821")) == 0) {
+                group = WOLFSSL_P521_NTRU_HPS4096821;
+            }
+            else if (XSTRNCMP(oqsAlg, "P384_NTRUHRSS701",
+                                XSTRLEN("P384_NTRUHRSS701")) == 0) {
+                group = WOLFSSL_P384_NTRU_HRSS701;
+            }
+            else if (XSTRNCMP(oqsAlg, "P256_LIGHTSABER",
+                                XSTRLEN("P256_LIGHTSABER")) == 0) {
+                group = WOLFSSL_P256_LIGHTSABER;
+            }
+            else if (XSTRNCMP(oqsAlg, "P384_SABER",
+                                XSTRLEN("P384_SABER")) == 0) {
+                group = WOLFSSL_P384_SABER;
+            }
+            else if (XSTRNCMP(oqsAlg, "P521_FIRESABER",
+                                XSTRLEN("P521_FIRESABER")) == 0) {
+                group = WOLFSSL_P521_FIRESABER;
+            }
+            else if (XSTRNCMP(oqsAlg, "P256_KYBER512",
+                                XSTRLEN("P256_KYBER512")) == 0) {
+                group = WOLFSSL_P256_KYBER512;
+            }
+            else if (XSTRNCMP(oqsAlg, "P384_KYBER768",
+                                XSTRLEN("P384_KYBER768")) == 0) {
+                group = WOLFSSL_P384_KYBER768;
+            }
+            else if (XSTRNCMP(oqsAlg, "P521_KYBER1024",
+                                XSTRLEN("P521_KYBER1024")) == 0) {
+                group = WOLFSSL_P521_KYBER1024;
+            }
+            else if (XSTRNCMP(oqsAlg, "P256_KYBER90S512",
+                                XSTRLEN("P256_KYBER90S512")) == 0) {
+                group = WOLFSSL_P256_KYBER90S512;
+            }
+            else if (XSTRNCMP(oqsAlg, "P384_KYBER90S768",
+                                XSTRLEN("P384_KYBER90S768")) == 0) {
+                group = WOLFSSL_P384_KYBER90S768;
+            }
+            else if (XSTRNCMP(oqsAlg, "P521_KYBER90S1024",
+                                XSTRLEN("P521_KYBER90S1024")) == 0) {
+                group = WOLFSSL_P521_KYBER90S1024;
             } else {
                 err_sys("invalid OQS KEM specified");
             }
@@ -1253,7 +1305,11 @@ static const char* client_usage_msg[][70] = {
         "--oqs <alg> Key Share with specified liboqs algorithm only\n",
         "[KYBER512, KYBER768, KYBER1024, KYBER90S512, KYBER90S768, KYBER90S1024,\n",
         " NTRU_HPS2048509, NTRU_HPS2048677, NTRU_HPS4096821, NTRU_HRSS701,\n",
-        " LIGHTSABER, SABER, FIRESABER]\n\n", /* 70 */
+        " LIGHTSABER, SABER, FIRESABER, P256_NTRUHPS2048509,\n"
+        " P384_NTRUHPS2048677, P521_NTRUHPS4096821, P384_NTRUHRSS701,\n"
+        " P256_LIGHTSABER, P384_SABER, P521_FIRESABER, P256_KYBER512,\n"
+        " P384_KYBER768, P521_KYBER1024, P256_KYBER90S512, P384_KYBER90S768,\n"
+        " P521_KYBER90S1024]\n\n",                  /* 70 */
 #endif
         "For simpler wolfSSL TLS client examples, visit\n"
         "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 71 */
@@ -1459,7 +1515,11 @@ static const char* client_usage_msg[][70] = {
         "--oqs <alg> liboqs 名前付きグループとの鍵共有のみ\n",
         "[KYBER512, KYBER768, KYBER1024, KYBER90S512, KYBER90S768, KYBER90S1024,\n",
         " NTRU_HPS2048509, NTRU_HPS2048677, NTRU_HPS4096821, NTRU_HRSS701,\n",
-        " LIGHTSABER, SABER, FIRESABER]\n\n", /* 70 */
+        " LIGHTSABER, SABER, FIRESABER, P256_NTRUHPS2048509,\n"
+        " P384_NTRUHPS2048677, P521_NTRUHPS4096821, P384_NTRUHRSS701,\n"
+        " P256_LIGHTSABER, P384_SABER, P521_FIRESABER, P256_KYBER512,\n"
+        " P384_KYBER768, P521_KYBER1024, P256_KYBER90S512, P384_KYBER90S768,\n"
+        " P521_KYBER90S1024]\n\n",                            /* 70 */
 #endif
         "For simpler wolfSSL TLS client examples, visit\n"
         "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 71 */

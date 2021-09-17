@@ -776,7 +776,7 @@ enum SNICbReturn {
 #define WOLFSSL_MAX_MASTER_KEY_LENGTH 48
 /* Maximum number of groups that can be set */
 #ifdef HAVE_LIBOQS
-#define WOLFSSL_MAX_GROUP_COUNT       23
+#define WOLFSSL_MAX_GROUP_COUNT       36
 #else
 #define WOLFSSL_MAX_GROUP_COUNT       10
 #endif
@@ -3508,23 +3508,41 @@ enum {
 
 #ifdef HAVE_LIBOQS
     /* These group numbers were taken from liboqs' openssl fork, see:
-    https://github.com/open-quantum-safe/openssl/blob/OQS-OpenSSL_1_1_1-stable/
-    oqs-template/oqs-kem-info.md */
-    WOLFSSL_OQS_MIN         = 532,
-    WOLFSSL_NTRU_HPS2048509 = 532,
-    WOLFSSL_NTRU_HPS2048677 = 533,
-    WOLFSSL_NTRU_HPS4096821 = 534,
-    WOLFSSL_NTRU_HRSS701    = 535,
-    WOLFSSL_LIGHTSABER      = 536,
-    WOLFSSL_SABER           = 537,
-    WOLFSSL_FIRESABER       = 538,
-    WOLFSSL_KYBER512        = 570,
-    WOLFSSL_KYBER768        = 572,
-    WOLFSSL_KYBER1024       = 573,
-    WOLFSSL_KYBER90S512     = 574,
-    WOLFSSL_KYBER90S768     = 575,
-    WOLFSSL_KYBER90S1024    = 576,
-    WOLFSSL_OQS_MAX         = 576,
+     * https://github.com/open-quantum-safe/openssl/blob/OQS-OpenSSL_1_1_1-stable/
+     * oqs-template/oqs-kem-info.md */
+    WOLFSSL_OQS_MIN              = 532,
+    WOLFSSL_OQS_SIMPLE_MIN       = 532,
+    WOLFSSL_NTRU_HPS2048509      = 532,
+    WOLFSSL_NTRU_HPS2048677      = 533,
+    WOLFSSL_NTRU_HPS4096821      = 534,
+    WOLFSSL_NTRU_HRSS701         = 535,
+    WOLFSSL_LIGHTSABER           = 536,
+    WOLFSSL_SABER                = 537,
+    WOLFSSL_FIRESABER            = 538,
+    WOLFSSL_KYBER512             = 570,
+    WOLFSSL_KYBER768             = 572,
+    WOLFSSL_KYBER1024            = 573,
+    WOLFSSL_KYBER90S512          = 574,
+    WOLFSSL_KYBER90S768          = 575,
+    WOLFSSL_KYBER90S1024         = 576,
+    WOLFSSL_OQS_SIMPLE_MAX       = 576,
+
+    WOLFSSL_OQS_HYBRID_MIN       = 12052,
+    WOLFSSL_P256_NTRU_HPS2048509 = 12052,
+    WOLFSSL_P384_NTRU_HPS2048677 = 12053,
+    WOLFSSL_P521_NTRU_HPS4096821 = 12054,
+    WOLFSSL_P384_NTRU_HRSS701    = 12055,
+    WOLFSSL_P256_LIGHTSABER      = 12056,
+    WOLFSSL_P384_SABER           = 12057,
+    WOLFSSL_P521_FIRESABER       = 12058,
+    WOLFSSL_P256_KYBER512        = 12090,
+    WOLFSSL_P384_KYBER768        = 12092,
+    WOLFSSL_P521_KYBER1024       = 12093,
+    WOLFSSL_P256_KYBER90S512     = 12094,
+    WOLFSSL_P384_KYBER90S768     = 12095,
+    WOLFSSL_P521_KYBER90S1024    = 12096,
+    WOLFSSL_OQS_HYBRID_MAX       = 12096,
+    WOLFSSL_OQS_MAX              = 12096,
 #endif
 };
 

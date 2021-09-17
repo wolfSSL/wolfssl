@@ -2540,6 +2540,19 @@ static int isValidCurveGroup(word16 name)
         case WOLFSSL_KYBER90S512:
         case WOLFSSL_KYBER90S768:
         case WOLFSSL_KYBER90S1024:
+        case WOLFSSL_P256_NTRU_HPS2048509:
+        case WOLFSSL_P384_NTRU_HPS2048677:
+        case WOLFSSL_P521_NTRU_HPS4096821:
+        case WOLFSSL_P384_NTRU_HRSS701:
+        case WOLFSSL_P256_LIGHTSABER:
+        case WOLFSSL_P384_SABER:
+        case WOLFSSL_P521_FIRESABER:
+        case WOLFSSL_P256_KYBER512:
+        case WOLFSSL_P384_KYBER768:
+        case WOLFSSL_P521_KYBER1024:
+        case WOLFSSL_P256_KYBER90S512:
+        case WOLFSSL_P384_KYBER90S768:
+        case WOLFSSL_P521_KYBER90S1024:
 #endif
             return 1;
 
