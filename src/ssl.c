@@ -16944,15 +16944,20 @@ static int Set_CTX_min_proto_version(WOLFSSL_CTX* ctx, int version)
     return CheckSslMethodVersion(ctx->method->version.major, ctx->mask);
 }
 
+/* number of protocol versions listed in table */
+#define NUMBER_OF_PROTOCOLS 7
+
+/* Sets the min protocol version allowed with WOLFSSL_CTX
+ * returns WOLFSSL_SUCCESS on success */
 int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
 {
     const int verTbl[] = {SSL3_VERSION, TLS1_VERSION, TLS1_1_VERSION,
                           TLS1_2_VERSION, TLS1_3_VERSION, DTLS1_VERSION,
                           DTLS1_2_VERSION};
-    int tblSz = sizeof(verTbl);
+    int tblSz = NUMBER_OF_PROTOCOLS;
     int ret;
-    int proto;
-    int maxProto;
+    int proto    = 0;
+    int maxProto = 0;
     int i;
     int idx = 0;
 
@@ -17066,12 +17071,15 @@ static int Set_CTX_max_proto_version(WOLFSSL_CTX* ctx, int ver)
     return CheckSslMethodVersion(ctx->method->version.major, ctx->mask);
 }
 
+
+/* Sets the max protocol version allowed with WOLFSSL_CTX
+ * returns WOLFSSL_SUCCESS on success */
 int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
 {
     const int verTbl[] = {DTLS1_2_VERSION, DTLS1_VERSION, TLS1_3_VERSION,
                           TLS1_2_VERSION, TLS1_1_VERSION, TLS1_VERSION,
                           SSL3_VERSION};
-    int tblSz = sizeof(verTbl);
+    int tblSz = NUMBER_OF_PROTOCOLS;
     int i;
     int ret;
     int minProto;
