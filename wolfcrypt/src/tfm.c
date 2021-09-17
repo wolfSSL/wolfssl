@@ -96,26 +96,6 @@ word32 CheckRunTimeFastMath(void)
 
 /* Functions */
 
-static fp_digit fp_cmp_mag_ct(fp_int *a, fp_int *b, int len)
-{
-  int i;
-  fp_digit r = FP_EQ;
-  fp_digit mask = (fp_digit)-1;
-
-  for (i = len - 1; i >= 0; i--) {
-    /* 0 is placed into unused digits. */
-    fp_digit ad = a->dp[i];
-    fp_digit bd = b->dp[i];
-
-    r |= mask & (ad > bd);
-    mask &= (ad > bd) - 1;
-    r |= mask & (-(ad < bd));
-    mask &= (ad < bd) - 1;
-  }
-
-  return r;
-}
-
 int fp_add(fp_int *a, fp_int *b, fp_int *c)
 {
   int sa, sb;
@@ -1619,62 +1599,93 @@ int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   return err;
 }
 
-/* d = a - b (mod c) - constant time (a < c and b < c and all positive) */
+/* d = a - b (mod c) - constant time (a < c and b < c and all positive)
+ * c and d must not be the same pointers.
+ */
 int fp_submod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 {
-  fp_word  w = 0;
+  fp_sword w;
   fp_digit mask;
   int i;
 
   if (c->used + 1 > FP_SIZE) {
-      return FP_VAL;
+    return FP_VAL;
+  }
+  if (c == d) {
+    return FP_VAL;
   }
 
-  /* Check whether b is greater than a. mask has all bits set when true. */
-  mask = 0 - (fp_cmp_mag_ct(a, b, c->used + 1) == (fp_digit)FP_LT);
-  /* Constant time, conditionally, add modulus to a into result. */
+  /* In constant time, subtract b from a putting result in d. */
+  w = 0;
   for (i = 0; i < c->used; i++) {
-      fp_digit mask_a = 0 - (i < a->used);
-
-      w         += c->dp[i] & mask;
-      w         += a->dp[i] & mask_a;
-      d->dp[i]   = (fp_digit)w;
-      w        >>= DIGIT_BIT;
+    w         += a->dp[i];
+    w         -= b->dp[i];
+    d->dp[i]   = (fp_digit)w;
+    w        >>= DIGIT_BIT;
   }
-  /* Handle overflow */
-  d->dp[i] = (fp_digit)w;
-  d->used = i + 1;
+  w  += a->dp[i];
+  w  -= b->dp[i];
+  w >>= DIGIT_BIT;
+  /* When w is negative then we need to add modulus to make result positive. */
+  mask = (fp_digit)0 - (w < 0);
+  /* Constant time, conditionally, add modulus to difference. */
+  w = 0;
+  for (i = 0; i < c->used; i++) {
+    w         += d->dp[i];
+    w         += c->dp[i] & mask;
+    d->dp[i]   = (fp_digit)w;
+    w        >>= DIGIT_BIT;
+  }
+  /* Result will always have digits equal to or less than those in modulus. */
+  d->used = i;
   d->sign = FP_ZPOS;
   fp_clamp(d);
-  /* Subtract b from a (that my have had modulus added to it). */
-  s_fp_sub(d, b, d);
 
   return FP_OKAY;
 }
 
-/* d = a + b (mod c) - constant time (a < c and b < c and all positive) */
+/* d = a + b (mod c) - constant time (a < c and b < c and all positive)
+ * c and d must not be the same pointers.
+ */
 int fp_addmod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 {
-  fp_word  w = 0;
+  fp_word  w;
+  fp_sword s;
   fp_digit mask;
   int i;
 
-  if (c->used + 1 > FP_SIZE) {
-      return FP_VAL;
+  if (c == d) {
+    return FP_VAL;
   }
 
-  s_fp_add(a, b, d);
-  /* Check whether sum is bigger than modulus.
-   * mask has all bits set when true. */
-  mask = 0 - (fp_cmp_mag_ct(d, c, c->used + 1) != (fp_digit)FP_LT);
-  /* Constant time, conditionally, subtract modulus from sum. */
+  /* Add a to b into d. Do the subtract of modulus but don't store result.
+   * When subtract result is negative, the overflow will be negative.
+   * Only need to subtract mod when result is positive - overflow is positive.
+   */
+  w = 0;
+  s = 0;
   for (i = 0; i < c->used; i++) {
-      w        += c->dp[i] & mask;
-      w         = d->dp[i] - w;
-      d->dp[i]  = (fp_digit)w;
-      w         = (w >> DIGIT_BIT)&1;
+    w         += a->dp[i];
+    w         += b->dp[i];
+    d->dp[i]   = (fp_digit)w;
+    s         += (fp_digit)w;
+    s         -= c->dp[i];
+    w        >>= DIGIT_BIT;
+    s        >>= DIGIT_BIT;
   }
-  d->dp[i] = 0;
+  s += (fp_digit)w;
+  /* s will be positive when subtracting modulus is needed. */
+  mask = (fp_digit)0 - (s >= 0);
+
+  /* Constant time, conditionally, subtract modulus from sum. */
+  w = 0;
+  for (i = 0; i < c->used; i++) {
+    w        += c->dp[i] & mask;
+    w         = d->dp[i] - w;
+    d->dp[i]  = (fp_digit)w;
+    w         = (w >> DIGIT_BIT)&1;
+  }
+  /* Result will always have digits equal to or less than those in modulus. */
   d->used = i;
   d->sign = FP_ZPOS;
   fp_clamp(d);
