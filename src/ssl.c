@@ -10062,9 +10062,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 }
 
                 /* Allocate memory for GENERAL NAME */
-                ad->location = (WOLFSSL_GENERAL_NAME*)
-                                XMALLOC(sizeof(WOLFSSL_GENERAL_NAME), NULL,
-                                DYNAMIC_TYPE_OPENSSL);
+                ad->location = wolfSSL_GENERAL_NAME_new();
                 if (ad->location == NULL) {
                     WOLFSSL_MSG("Failed to malloc GENERAL_NAME");
                     wolfSSL_ASN1_OBJECT_free(ad->method);
@@ -10072,20 +10070,25 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                     XFREE(ad, NULL, DYNAMIC_TYPE_X509_EXT);
                     return NULL;
                 }
-                XMEMSET(ad->location, 0, sizeof(WOLFSSL_GENERAL_NAME));
-                ad->location->type = GEN_URI;
-                ad->location->d.uniformResourceIdentifier =
-                                    wolfSSL_ASN1_STRING_new();
+
+                ret = wolfSSL_GENERAL_NAME_set_type(ad->location, GEN_URI);
+                if (ret != WOLFSSL_SUCCESS) {
+                    wolfSSL_ASN1_OBJECT_free(ad->method);
+                    XFREE(aia, NULL, DYNAMIC_TYPE_X509_EXT);
+                    wolfSSL_GENERAL_NAME_free(ad->location);
+                    XFREE(ad, NULL, DYNAMIC_TYPE_X509_EXT);
+                    return NULL;
+                }
+
                 /* Set the URI in GENERAL_NAME */
                 ret = wolfSSL_ASN1_STRING_set(
                                     ad->location->d.uniformResourceIdentifier,
                                     aiaEntry->obj, aiaEntry->objSz);
                 if (ret != WOLFSSL_SUCCESS) {
                     WOLFSSL_MSG("ASN1_STRING_set() failed");
-                    wolfSSL_ASN1_STRING_free(ad->location->d.uniformResourceIdentifier); 
                     wolfSSL_ASN1_OBJECT_free(ad->method);
                     XFREE(aia, NULL, DYNAMIC_TYPE_X509_EXT);
-                    XFREE(ad->location, NULL, DYNAMIC_TYPE_OPENSSL);
+                    wolfSSL_GENERAL_NAME_free(ad->location);
                     XFREE(ad, NULL, DYNAMIC_TYPE_X509_EXT);
                     return NULL;
                 }
@@ -10095,6 +10098,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                     WOLFSSL_MSG("Error pushing ASN1 AD onto stack");
                     wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(aia, NULL);
                     wolfSSL_ASN1_OBJECT_free(ad->method);
+                    wolfSSL_GENERAL_NAME_free(ad->location);
                     XFREE(aia, NULL, DYNAMIC_TYPE_X509_EXT);
                     XFREE(ad, NULL, DYNAMIC_TYPE_X509_EXT);
                     return NULL;
@@ -10238,7 +10242,6 @@ int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509* x509, int nid, int lastPos)
 #endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-
 WOLFSSL_ASN1_BIT_STRING* wolfSSL_ASN1_BIT_STRING_new(void)
 {
     WOLFSSL_ASN1_BIT_STRING* str;
@@ -10415,10 +10418,13 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                     WOLFSSL_MSG("Error creating GENERAL_NAME");
                     goto err;
                 }
-                XMEMSET(gn, 0, sizeof(WOLFSSL_GENERAL_NAME));
 
-                gn->type = GEN_URI;
-                gn->d.uniformResourceIdentifier = wolfSSL_ASN1_STRING_new();
+                if (wolfSSL_GENERAL_NAME_set_type(gn, GEN_URI) !=
+                        WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("Error setting GENERAL_NAME type");
+                    goto err;
+                }
+
                 if (wolfSSL_ASN1_STRING_set(gn->d.uniformResourceIdentifier,
                         x509->CRLInfo, x509->CRLInfoSz) != WOLFSSL_SUCCESS) {
                     WOLFSSL_MSG("ASN1_STRING_set failed");
@@ -21118,12 +21124,10 @@ WOLFSSL_ACCESS_DESCRIPTION* wolfSSL_sk_ACCESS_DESCRIPTION_value(
 #endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-/* Frees GENERAL_NAME objects.
-*/
-void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name)
+/* free's the internal type for the general name */
+static void wolfSSL_GENERAL_NAME_type_free(WOLFSSL_GENERAL_NAME* name)
 {
-    WOLFSSL_ENTER("wolfSSL_GENERAL_NAME_Free");
-    if(name != NULL) {
+    if (name != NULL) {
         if (name->d.dNSName != NULL) {
             wolfSSL_ASN1_STRING_free(name->d.dNSName);
             name->d.dNSName = NULL;
@@ -21144,6 +21148,48 @@ void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name)
             wolfSSL_ASN1_STRING_free(name->d.ia5);
             name->d.ia5 = NULL;
         }
+    }
+}
+
+
+/* sets the general name type and free's the existing one
+ * can fail with a memory error if malloc fails or bad arg error
+ * otherwise return WOLFSSL_SUCCESS */
+int wolfSSL_GENERAL_NAME_set_type(WOLFSSL_GENERAL_NAME* name, int typ)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    if (name != NULL) {
+        wolfSSL_GENERAL_NAME_type_free(name);
+        name->type = typ;
+
+        switch (typ) {
+            case GEN_URI:
+                name->d.uniformResourceIdentifier = wolfSSL_ASN1_STRING_new();
+                if (name->d.uniformResourceIdentifier == NULL)
+                    ret = MEMORY_E;
+                break;
+            default:
+                name->d.ia5 = wolfSSL_ASN1_STRING_new();
+                if (name->d.ia5 == NULL)
+                    ret = MEMORY_E;
+        }
+    }
+    else {
+        ret = BAD_FUNC_ARG;
+    }
+
+    return ret;
+}
+
+
+/* Frees GENERAL_NAME objects.
+*/
+void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name)
+{
+    WOLFSSL_ENTER("wolfSSL_GENERAL_NAME_Free");
+    if (name != NULL) {
+        wolfSSL_GENERAL_NAME_type_free(name);
         XFREE(name, NULL, DYNAMIC_TYPE_OPENSSL);
     }
 }
