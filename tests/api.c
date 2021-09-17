@@ -33075,7 +33075,7 @@ static void test_wolfSSL_sk_SSL_CIPHER(void)
 
 static void test_wolfSSL_set1_curves_list(void)
 {
-#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_RSA)
     SSL*     ssl;
     SSL_CTX* ctx;
 
