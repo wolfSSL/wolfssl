@@ -6819,7 +6819,8 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
 
     while ((current = list) != NULL) {
         list = current->next;
-        if ((current->group & NAMED_DH_MASK) == NAMED_DH_MASK) {
+        if (current->group >= MIN_FFHDE_GROUP &&
+            current->group <= MAX_FFHDE_GROUP) {
         }
         else if (current->group == WOLFSSL_ECC_X25519) {
 #ifdef HAVE_CURVE25519
