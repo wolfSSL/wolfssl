@@ -1656,7 +1656,7 @@ void* wolfSSL_BIO_get_data(WOLFSSL_BIO* bio)
 }
 
 /* If flag is 0 then blocking is set, if 1 then non blocking.
- * Always returns 1
+ * Always returns WOLFSSL_SUCCESS.
  */
 long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
 {
@@ -1694,7 +1694,8 @@ long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
     }
 
     (void)on;
-    return 1;
+
+    return WOLFSSL_SUCCESS;
 }
 
 
