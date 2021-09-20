@@ -190,10 +190,10 @@ int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
 #endif
                 cmac->totalSz += AES_BLOCK_SIZE;
                 cmac->bufferSz = 0;
-            }
 #ifdef WOLFSSL_LINUXKM
-        }
+            }
 #endif
+        }
     }
 
     return ret;

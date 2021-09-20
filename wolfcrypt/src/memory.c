@@ -1139,42 +1139,60 @@ union fpregs_state **wolfcrypt_irq_fpu_states = NULL;
 
 #if defined(WOLFSSL_LINUXKM_SIMD_X86) && defined(WOLFSSL_LINUXKM_SIMD_X86_IRQ_ALLOWED)
 
-    static __must_check inline int am_in_hard_interrupt_handler(void) {
+    static WARN_UNUSED_RESULT inline int am_in_hard_interrupt_handler(void)
+    {
         return (preempt_count() & (NMI_MASK | HARDIRQ_MASK)) != 0;
     }
 
-    __must_check int allocate_wolfcrypt_irq_fpu_states(void) {
-        wolfcrypt_irq_fpu_states = (union fpregs_state **)kzalloc(nr_cpu_ids * sizeof(struct fpu_state *), GFP_KERNEL);
+    WARN_UNUSED_RESULT int allocate_wolfcrypt_irq_fpu_states(void)
+    {
+        wolfcrypt_irq_fpu_states =
+            (union fpregs_state **)kzalloc(nr_cpu_ids
+                                           * sizeof(struct fpu_state *),
+                                           GFP_KERNEL);
         if (! wolfcrypt_irq_fpu_states) {
-            pr_err("warning, allocation of %lu bytes for wolfcrypt_irq_fpu_states failed.\n", nr_cpu_ids * sizeof(struct fpu_state *));
+            pr_err("warning, allocation of %lu bytes for "
+                   "wolfcrypt_irq_fpu_states failed.\n",
+                   nr_cpu_ids * sizeof(struct fpu_state *));
             return MEMORY_E;
         }
         {
-            unsigned int i;
+            typeof(nr_cpu_ids) i;
             for (i=0; i<nr_cpu_ids; ++i) {
-                _Static_assert(sizeof(union fpregs_state) <= PAGE_SIZE, "union fpregs_state is larger than expected.");
-                wolfcrypt_irq_fpu_states[i] = (union fpregs_state *)kzalloc(PAGE_SIZE /* sizeof(union fpregs_state) */, GFP_KERNEL);
+                _Static_assert(sizeof(union fpregs_state) <= PAGE_SIZE,
+                               "union fpregs_state is larger than expected.");
+                wolfcrypt_irq_fpu_states[i] =
+                    (union fpregs_state *)kzalloc(PAGE_SIZE
+                                                  /* sizeof(union fpregs_state) */,
+                                                  GFP_KERNEL);
                 if (! wolfcrypt_irq_fpu_states[i])
                     break;
-                /* double-check that the allocation is 64-byte-aligned as needed for xsave. */
+                /* double-check that the allocation is 64-byte-aligned as needed
+                 * for xsave.
+                 */
                 if ((unsigned long)wolfcrypt_irq_fpu_states[i] & 63UL) {
-                    pr_err("warning, allocation for wolfcrypt_irq_fpu_states was not properly aligned (%px).\n", wolfcrypt_irq_fpu_states[i]);
+                    pr_err("warning, allocation for wolfcrypt_irq_fpu_states "
+                           "was not properly aligned (%px).\n",
+                           wolfcrypt_irq_fpu_states[i]);
                     kfree(wolfcrypt_irq_fpu_states[i]);
                     wolfcrypt_irq_fpu_states[i] = 0;
                     break;
                 }
             }
             if (i < nr_cpu_ids) {
-                pr_err("warning, only %u/%u allocations succeeded for wolfcrypt_irq_fpu_states.\n", i, nr_cpu_ids);
+                pr_err("warning, only %u/%u allocations succeeded for "
+                       "wolfcrypt_irq_fpu_states.\n",
+                       i, nr_cpu_ids);
                 return MEMORY_E;
             }
         }
         return 0;
     }
 
-    void free_wolfcrypt_irq_fpu_states(void) {
+    void free_wolfcrypt_irq_fpu_states(void)
+    {
         if (wolfcrypt_irq_fpu_states) {
-            unsigned int i;
+            typeof(nr_cpu_ids) i;
             for (i=0; i<nr_cpu_ids; ++i) {
                 if (wolfcrypt_irq_fpu_states[i])
                     kfree(wolfcrypt_irq_fpu_states[i]);
@@ -1184,7 +1202,8 @@ union fpregs_state **wolfcrypt_irq_fpu_states = NULL;
         }
     }
 
-    __must_check int save_vector_registers_x86(void) {
+    WARN_UNUSED_RESULT int save_vector_registers_x86(void)
+    {
         preempt_disable();
         if (! irq_fpu_usable()) {
             if (am_in_hard_interrupt_handler()) {
@@ -1195,76 +1214,92 @@ union fpregs_state **wolfcrypt_irq_fpu_states = NULL;
                     preempt_enable();
                     if (! warned_on_null_wolfcrypt_irq_fpu_states) {
                         warned_on_null_wolfcrypt_irq_fpu_states = 1;
-                        pr_err("save_vector_registers_x86 with null wolfcrypt_irq_fpu_states.\n");
+                        pr_err("save_vector_registers_x86 with null "
+                               "wolfcrypt_irq_fpu_states.\n");
                     }
-                    return EFAULT;
+                    return BAD_STATE_E;
                 }
 
                 processor_id = __smp_processor_id();
 
                 if (! wolfcrypt_irq_fpu_states[processor_id]) {
-                    static int warned_on_null_wolfcrypt_irq_fpu_states_processor_id = -1;
+                    static int _warned_on_null = -1;
                     preempt_enable();
-                    if (warned_on_null_wolfcrypt_irq_fpu_states_processor_id < processor_id) {
-                        warned_on_null_wolfcrypt_irq_fpu_states_processor_id = processor_id;
-                        pr_err("save_vector_registers_x86 for cpu id %d with null wolfcrypt_irq_fpu_states[id].\n", processor_id);
+                    if (_warned_on_null < processor_id) {
+                        _warned_on_null = processor_id;
+                        pr_err("save_vector_registers_x86 for cpu id %d with "
+                               "null wolfcrypt_irq_fpu_states[id].\n",
+                               processor_id);
                     }
-                    return EFAULT;
+                    return BAD_STATE_E;
                 }
 
                 /* check for nested interrupts -- doesn't exist on x86, but make
                  * sure, in case something changes.
-                 *
-                 * (see https://stackoverflow.com/questions/23324084/nested-interrupt-handling-in-arm)
                  */
                 if (((char *)wolfcrypt_irq_fpu_states[processor_id])[PAGE_SIZE-1] != 0) {
                     preempt_enable();
-                    pr_err("save_vector_registers_x86 called recursively for cpu id %d.\n", processor_id);
-                    return EPERM;
+                    pr_err("save_vector_registers_x86 called recursively for "
+                           "cpu id %d.\n", processor_id);
+                    return BAD_STATE_E;
                 }
 
                 /* note, fpregs_lock() is not needed here, because
                  * interrupts/preemptions are already disabled here.
                  */
                 {
-                    /* save_fpregs_to_fpstate() only accesses fpu->state, which has
-                     * stringent alignment requirements (64 byte cache line), but takes
-                     * a pointer to the parent struct.  work around this.
+                    /* save_fpregs_to_fpstate() only accesses fpu->state, which
+                     * has stringent alignment requirements (64 byte cache
+                     * line), but takes a pointer to the parent struct.  work
+                     * around this.
                      */
-                    struct fpu *fake_fpu_pointer = (struct fpu *)(((char *)wolfcrypt_irq_fpu_states[processor_id]) - offsetof(struct fpu, state));
+                    struct fpu *fake_fpu_pointer =
+                        (struct fpu *)(((char *)wolfcrypt_irq_fpu_states[processor_id])
+                                       - offsetof(struct fpu, state));
                 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
                     copy_fpregs_to_fpstate(fake_fpu_pointer);
                 #else
                     save_fpregs_to_fpstate(fake_fpu_pointer);
                 #endif
                 }
-                ((char *)wolfcrypt_irq_fpu_states[processor_id])[PAGE_SIZE-1] = 1; /* mark the slot as used. */
-                /* note, not preempt_enable()ing, mirroring kernel_fpu_begin() semantics. */
+                /* mark the slot as used. */
+                ((char *)wolfcrypt_irq_fpu_states[processor_id])[PAGE_SIZE-1] = 1;
+                /* note, not preempt_enable()ing, mirroring kernel_fpu_begin()
+                 * semantics.
+                 */
                 return 0;
             }
             preempt_enable();
-            return EPERM;
+            return BAD_STATE_E;
         } else {
             kernel_fpu_begin();
-            preempt_enable(); /* kernel_fpu_begin() does its own preempt_disable().  decrement ours. */
+            preempt_enable(); /* kernel_fpu_begin() does its own
+                               * preempt_disable().  decrement ours.
+                               */
             return 0;
         }
     }
-    void restore_vector_registers_x86(void) {
+    void restore_vector_registers_x86(void)
+    {
         if (am_in_hard_interrupt_handler()) {
             int processor_id = __smp_processor_id();
-            if (((char *)wolfcrypt_irq_fpu_states[processor_id])[PAGE_SIZE-1]) {
+            if ((wolfcrypt_irq_fpu_states == NULL) ||
+                (wolfcrypt_irq_fpu_states[processor_id] == NULL) ||
+                (((char *)wolfcrypt_irq_fpu_states[processor_id])[PAGE_SIZE-1] == 0))
+            {
+                pr_err("restore_vector_registers_x86 called for cpu id %d "
+                       "without saved context.\n", processor_id);
+                preempt_enable(); /* just in case */
+                return;
+            } else {
             #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
                 copy_kernel_to_fpregs(wolfcrypt_irq_fpu_states[processor_id]);
             #else
-                __restore_fpregs_from_fpstate(wolfcrypt_irq_fpu_states[processor_id], xfeatures_mask_all);
+                __restore_fpregs_from_fpstate(wolfcrypt_irq_fpu_states[processor_id],
+                                              xfeatures_mask_all);
             #endif
                 ((char *)wolfcrypt_irq_fpu_states[processor_id])[PAGE_SIZE-1] = 0;
                 preempt_enable();
-                return;
-            } else {
-                pr_err("restore_vector_registers_x86 called for cpu id %d without saved context.\n", processor_id);
-                preempt_enable(); /* just in case */
                 return;
             }
         }

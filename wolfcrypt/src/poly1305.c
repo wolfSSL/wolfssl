@@ -267,8 +267,9 @@ static int poly1305_blocks(Poly1305* ctx, const unsigned char *m,
 {
 #ifdef USE_INTEL_SPEEDUP
     /* AVX2 is handled in wc_Poly1305Update. */
-    if (SAVE_VECTOR_REGISTERS() != 0)
-        return BAD_STATE_E;
+    int ret = SAVE_VECTOR_REGISTERS();
+    if (ret != 0)
+        return ret;
     poly1305_blocks_avx(ctx, m, bytes);
     RESTORE_VECTOR_REGISTERS();
     return 0;
@@ -402,8 +403,9 @@ static int poly1305_block(Poly1305* ctx, const unsigned char *m)
 {
 #ifdef USE_INTEL_SPEEDUP
     /* No call to poly1305_block when AVX2, AVX2 does 4 blocks at a time. */
-    if (SAVE_VECTOR_REGISTERS() != 0)
-        return BAD_STATE_E;
+    int ret= SAVE_VECTOR_REGISTERS();
+    if (ret != 0)
+        return ret;
     poly1305_block_avx(ctx, m);
     RESTORE_VECTOR_REGISTERS();
     return 0;
@@ -442,8 +444,11 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
         intel_flags = cpuid_get_flags();
         cpu_flags_set = 1;
     }
-    if (SAVE_VECTOR_REGISTERS() != 0)
-        return BAD_STATE_E;
+    {
+        int ret = SAVE_VECTOR_REGISTERS();
+        if (ret != 0)
+            return ret;
+    }
     #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(intel_flags))
         poly1305_setkey_avx2(ctx, key);
@@ -506,6 +511,7 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
 int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 {
 #ifdef USE_INTEL_SPEEDUP
+    int ret;
 #elif defined(POLY130564)
 
     word64 h0,h1,h2,c;
@@ -525,8 +531,8 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
         return BAD_FUNC_ARG;
 
 #ifdef USE_INTEL_SPEEDUP
-    if (SAVE_VECTOR_REGISTERS() != 0)
-        return BAD_STATE_E;
+    if ((ret = SAVE_VECTOR_REGISTERS()) != 0)
+        return ret;
     #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(intel_flags))
         poly1305_final_avx2(ctx, mac);
@@ -714,9 +720,9 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
 #ifdef USE_INTEL_SPEEDUP
     #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(intel_flags)) {
-
-        if (SAVE_VECTOR_REGISTERS() != 0)
-            return BAD_STATE_E;
+        int ret = SAVE_VECTOR_REGISTERS();
+        if (ret != 0)
+            return ret;
 
         /* handle leftover */
 

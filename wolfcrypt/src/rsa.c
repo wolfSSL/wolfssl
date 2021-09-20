@@ -4097,7 +4097,11 @@ int wc_CheckProbablePrime_ex(const byte* pRaw, word32 pRawSz,
                           const byte* eRaw, word32 eRawSz,
                           int nlen, int* isPrime, WC_RNG* rng)
 {
-    mp_int p, q, e;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int *p = NULL, *q = NULL, *e = NULL;
+#else
+    mp_int p[1], q[1], e[1];
+#endif
     mp_int* Q = NULL;
     int ret;
 
@@ -4111,30 +4115,54 @@ int wc_CheckProbablePrime_ex(const byte* pRaw, word32 pRawSz,
     if ((qRaw != NULL && qRawSz == 0) || (qRaw == NULL && qRawSz != 0))
         return BAD_FUNC_ARG;
 
-    ret = mp_init_multi(&p, &q, &e, NULL, NULL, NULL);
+#ifdef WOLFSSL_SMALL_STACK
+    if (((p = (mp_int *)XMALLOC(sizeof(*p), NULL, DYNAMIC_TYPE_RSA_BUFFER)) == NULL) ||
+        ((q = (mp_int *)XMALLOC(sizeof(*q), NULL, DYNAMIC_TYPE_RSA_BUFFER)) == NULL) ||
+        ((e = (mp_int *)XMALLOC(sizeof(*e), NULL, DYNAMIC_TYPE_RSA_BUFFER)) == NULL))
+        ret = MEMORY_E;
+    else
+        ret = 0;
+    if (ret == 0)
+#endif
+        ret = mp_init_multi(p, q, e, NULL, NULL, NULL);
 
     if (ret == MP_OKAY)
-        ret = mp_read_unsigned_bin(&p, pRaw, pRawSz);
+        ret = mp_read_unsigned_bin(p, pRaw, pRawSz);
 
     if (ret == MP_OKAY) {
         if (qRaw != NULL) {
-            ret = mp_read_unsigned_bin(&q, qRaw, qRawSz);
+            ret = mp_read_unsigned_bin(q, qRaw, qRawSz);
             if (ret == MP_OKAY)
-                Q = &q;
+                Q = q;
         }
     }
 
     if (ret == MP_OKAY)
-        ret = mp_read_unsigned_bin(&e, eRaw, eRawSz);
+        ret = mp_read_unsigned_bin(e, eRaw, eRawSz);
 
     if (ret == MP_OKAY)
-        ret = _CheckProbablePrime(&p, Q, &e, nlen, isPrime, rng);
+        ret = _CheckProbablePrime(p, Q, e, nlen, isPrime, rng);
 
     ret = (ret == MP_OKAY) ? 0 : PRIME_GEN_E;
 
-    mp_clear(&p);
-    mp_clear(&q);
-    mp_clear(&e);
+#ifdef WOLFSSL_SMALL_STACK
+    if (p) {
+        mp_clear(p);
+        XFREE(p, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+    }
+    if (q) {
+        mp_clear(q);
+        XFREE(q, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+    }
+    if (e) {
+        mp_clear(e);
+        XFREE(e, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+    }
+#else
+    mp_clear(p);
+    mp_clear(q);
+    mp_clear(e);
+#endif
 
     return ret;
 }

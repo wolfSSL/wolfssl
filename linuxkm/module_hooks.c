@@ -123,6 +123,17 @@ static int wolfssl_init(void)
 #endif
 
 #ifdef HAVE_LINUXKM_PIE_SUPPORT
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
+    #define THIS_MODULE_BASE (THIS_MODULE->core_layout.base)
+    #define THIS_MODULE_TEXT_SIZE (THIS_MODULE->core_layout.text_size)
+    #define THIS_MODULE_RO_SIZE (THIS_MODULE->core_layout.ro_size)
+#else
+    #define THIS_MODULE_BASE (THIS_MODULE->module_core)
+    #define THIS_MODULE_TEXT_SIZE (THIS_MODULE->core_text_size)
+    #define THIS_MODULE_RO_SIZE (THIS_MODULE->core_ro_size)
+#endif
+
     {
         char *pie_text_start = (char *)wolfCrypt_PIE_first_function;
         char *pie_text_end = (char *)wolfCrypt_PIE_last_function;
@@ -131,8 +142,8 @@ static int wolfssl_init(void)
         unsigned int text_hash, rodata_hash;
 
         if ((pie_text_start < pie_text_end) &&
-            (pie_text_start >= (char *)(THIS_MODULE->core_layout.base)) &&
-            (pie_text_end - (char *)(THIS_MODULE->core_layout.base) <= THIS_MODULE->core_layout.text_size))
+            (pie_text_start >= (char *)THIS_MODULE_BASE) &&
+            (pie_text_end - (char *)THIS_MODULE_BASE <= THIS_MODULE_TEXT_SIZE))
         {
             text_hash = hash_span(pie_text_start, pie_text_end);
         } else {
@@ -141,14 +152,14 @@ static int wolfssl_init(void)
                     pie_text_start,
                     pie_text_end,
                     pie_text_end-pie_text_start,
-                    THIS_MODULE->core_layout.base,
-                    (char *)(THIS_MODULE->core_layout.base) + THIS_MODULE->core_layout.text_size);
+                    THIS_MODULE_BASE,
+                    (char *)THIS_MODULE_BASE + THIS_MODULE_TEXT_SIZE);
             text_hash = 0;
         }
 
         if ((pie_rodata_start < pie_rodata_end) &&
-            (pie_rodata_start >= (char *)(THIS_MODULE->core_layout.base) + THIS_MODULE->core_layout.text_size) &&
-            (pie_rodata_end - (char *)(THIS_MODULE->core_layout.base) <= THIS_MODULE->core_layout.ro_size))
+            (pie_rodata_start >= (char *)THIS_MODULE_BASE + THIS_MODULE_TEXT_SIZE) &&
+            (pie_rodata_end - (char *)THIS_MODULE_BASE <= THIS_MODULE_RO_SIZE))
         {
             rodata_hash = hash_span(pie_rodata_start, pie_rodata_end);
         } else {
@@ -157,8 +168,8 @@ static int wolfssl_init(void)
                     pie_rodata_start,
                     pie_rodata_end,
                     pie_rodata_end-pie_rodata_start,
-                    (char *)(THIS_MODULE->core_layout.base) + THIS_MODULE->core_layout.text_size,
-                    (char *)(THIS_MODULE->core_layout.base) + THIS_MODULE->core_layout.ro_size);
+                    (char *)THIS_MODULE_BASE + THIS_MODULE_TEXT_SIZE,
+                    (char *)THIS_MODULE_BASE + THIS_MODULE_RO_SIZE);
             rodata_hash = 0;
         }
 
@@ -169,7 +180,7 @@ static int wolfssl_init(void)
         pr_info("wolfCrypt container hashes (spans): %x (%lu) %x (%lu), module base %pK\n",
                 text_hash, pie_text_end-pie_text_start,
                 rodata_hash, pie_rodata_end-pie_rodata_start,
-                THIS_MODULE->core_layout.base);
+                THIS_MODULE_BASE);
     }
 #endif /* HAVE_LINUXKM_PIE_SUPPORT */
 
@@ -349,8 +360,16 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
         kmalloc_order_trace;
 
     wolfssl_linuxkm_pie_redirect_table.get_random_bytes = get_random_bytes;
-    wolfssl_linuxkm_pie_redirect_table.ktime_get_coarse_real_ts64 =
-        ktime_get_coarse_real_ts64;
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+        wolfssl_linuxkm_pie_redirect_table.getnstimeofday =
+            getnstimeofday;
+    #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
+        wolfssl_linuxkm_pie_redirect_table.current_kernel_time64 =
+            current_kernel_time64;
+    #else
+        wolfssl_linuxkm_pie_redirect_table.ktime_get_coarse_real_ts64 =
+            ktime_get_coarse_real_ts64;
+    #endif
 
     wolfssl_linuxkm_pie_redirect_table.get_current = my_get_current_thread;
     wolfssl_linuxkm_pie_redirect_table.preempt_count = my_preempt_count;
@@ -380,8 +399,15 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #endif
 
     wolfssl_linuxkm_pie_redirect_table.__mutex_init = __mutex_init;
-    wolfssl_linuxkm_pie_redirect_table.mutex_lock = mutex_lock;
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+        wolfssl_linuxkm_pie_redirect_table.mutex_lock_nested = mutex_lock_nested;
+    #else
+        wolfssl_linuxkm_pie_redirect_table.mutex_lock = mutex_lock;
+    #endif
     wolfssl_linuxkm_pie_redirect_table.mutex_unlock = mutex_unlock;
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+        wolfssl_linuxkm_pie_redirect_table.mutex_destroy = mutex_destroy;
+    #endif
 
 #ifdef HAVE_FIPS
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_first =

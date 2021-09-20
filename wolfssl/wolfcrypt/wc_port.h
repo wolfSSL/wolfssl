@@ -133,7 +133,9 @@
         #else
             #include <asm/simd.h>
         #endif
-        #include <asm/fpu/internal.h>
+        #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
+            #include <asm/fpu/internal.h>
+        #endif
         #ifndef SAVE_VECTOR_REGISTERS
             #define SAVE_VECTOR_REGISTERS() save_vector_registers_x86()
         #endif
@@ -263,7 +265,13 @@
         typeof(kmalloc_order_trace) *kmalloc_order_trace;
 
         typeof(get_random_bytes) *get_random_bytes;
-        typeof(ktime_get_coarse_real_ts64) *ktime_get_coarse_real_ts64;
+        #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+            typeof(getnstimeofday) *getnstimeofday;
+        #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
+            typeof(current_kernel_time64) *current_kernel_time64;
+        #else
+            typeof(ktime_get_coarse_real_ts64) *ktime_get_coarse_real_ts64;
+        #endif
 
         struct task_struct *(*get_current)(void);
         int (*preempt_count)(void);
@@ -296,8 +304,15 @@
         #endif /* WOLFSSL_LINUXKM_SIMD_X86 */
 
         typeof(__mutex_init) *__mutex_init;
-        typeof(mutex_lock) *mutex_lock;
+        #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+            typeof(mutex_lock_nested) *mutex_lock_nested;
+        #else
+            typeof(mutex_lock) *mutex_lock;
+        #endif
         typeof(mutex_unlock) *mutex_unlock;
+        #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+            typeof(mutex_destroy) *mutex_destroy;
+        #endif
 
         #ifdef HAVE_FIPS
         typeof(wolfCrypt_FIPS_first) *wolfCrypt_FIPS_first;
@@ -369,7 +384,13 @@
     #define kmalloc_order_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_order_trace)
 
     #define get_random_bytes (wolfssl_linuxkm_get_pie_redirect_table()->get_random_bytes)
-    #define ktime_get_coarse_real_ts64 (wolfssl_linuxkm_get_pie_redirect_table()->ktime_get_coarse_real_ts64)
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+        #define getnstimeofday (wolfssl_linuxkm_get_pie_redirect_table()->getnstimeofday)
+    #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
+        #define current_kernel_time64 (wolfssl_linuxkm_get_pie_redirect_table()->current_kernel_time64)
+    #else
+        #define ktime_get_coarse_real_ts64 (wolfssl_linuxkm_get_pie_redirect_table()->ktime_get_coarse_real_ts64)
+    #endif
 
     #undef get_current
     #define get_current (wolfssl_linuxkm_get_pie_redirect_table()->get_current)
@@ -399,8 +420,15 @@
     #endif
 
     #define __mutex_init (wolfssl_linuxkm_get_pie_redirect_table()->__mutex_init)
-    #define mutex_lock (wolfssl_linuxkm_get_pie_redirect_table()->mutex_lock)
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+        #define mutex_lock_nested (wolfssl_linuxkm_get_pie_redirect_table()->mutex_lock_nested)
+    #else
+        #define mutex_lock (wolfssl_linuxkm_get_pie_redirect_table()->mutex_lock)
+    #endif
     #define mutex_unlock (wolfssl_linuxkm_get_pie_redirect_table()->mutex_unlock)
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+        #define mutex_destroy (wolfssl_linuxkm_get_pie_redirect_table()->mutex_destroy)
+    #endif
 
     /* per linux/ctype.h, tolower() and toupper() are macros bound to static inlines
      * that use macros that bring in the _ctype global.  for __PIE__, this needs to
@@ -432,35 +460,37 @@
     extern __must_check int save_vector_registers_x86(void);
     extern void restore_vector_registers_x86(void);
 #else /* !WOLFSSL_LINUXKM_SIMD_X86_IRQ_ALLOWED */
-    static __must_check inline int save_vector_registers_x86(void) {
-        preempt_disable();
-        if (! irq_fpu_usable()) {
-            preempt_enable();
-            return EPERM;
-        } else {
-            kernel_fpu_begin();
-            preempt_enable(); /* kernel_fpu_begin() does its own preempt_disable().  decrement ours. */
-            return 0;
-        }
-    }
-    static inline void restore_vector_registers_x86(void) {
-        kernel_fpu_end();
-    }
+    #define save_vector_registers_x86() ({ \
+        int _ret;                          \
+        preempt_disable();                 \
+        if (! irq_fpu_usable()) {          \
+            preempt_enable();              \
+            _ret = BAD_STATE_E;            \
+        } else {                           \
+            kernel_fpu_begin();            \
+            preempt_enable(); /* kernel_fpu_begin() does its own preempt_disable().  decrement ours. */ \
+            _ret = 0;                      \
+        }                                  \
+        _ret;                              \
+    })
+    #define restore_vector_registers_x86() kernel_fpu_end()
 #endif /* !WOLFSSL_LINUXKM_SIMD_X86_IRQ_ALLOWED */
 
 #elif defined(CONFIG_ARM) || defined(CONFIG_ARM64)
 
-    static __must_check inline int save_vector_registers_arm(void) {
+    static WARN_UNUSED_RESULT inline int save_vector_registers_arm(void)
+    {
         preempt_disable();
         if (! may_use_simd()) {
             preempt_enable();
-            return EPERM;
+            return BAD_STATE_E;
         } else {
             fpsimd_preserve_current_state();
             return 0;
         }
     }
-    static inline void restore_vector_registers_arm(void) {
+    static inline void restore_vector_registers_arm(void)
+    {
         fpsimd_restore_current_state();
         preempt_enable();
     }
@@ -468,7 +498,6 @@
 #endif
 
 #endif /* WOLFSSL_LINUXKM_SIMD */
-
 
     /* Linux headers define these using C expressions, but we need
      * them to be evaluable by the preprocessor, for use in sp_int.h.
@@ -565,8 +594,6 @@
         extern void fipsEntry(void);
     #endif
 
-    #endif /* BUILDING_WOLFSSL */
-
     /* needed to suppress inclusion of stdio.h in wolfssl/wolfcrypt/types.h */
     #define XSNPRINTF snprintf
 
@@ -579,6 +606,16 @@
           }                                             \
           (int)_xatoi_res;                              \
         })
+
+
+    /* suppress false-positive "writing 1 byte into a region of size 0" warnings
+     * building old kernels with new gcc:
+     */
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+    _Pragma("GCC diagnostic ignored \"-Wstringop-overflow\"");
+    #endif
+
+    #endif /* BUILDING_WOLFSSL */
 
 #else /* ! WOLFSSL_LINUXKM */
 
