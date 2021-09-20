@@ -16968,7 +16968,7 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
     }
     if (version != 0) {
         proto = version;
-        wolfSSL_CTX_clear_options(ctx, WOLFSSL_OP_MIN_PROTO);
+        ctx->minProto = 0; /* turn min proto flag off */
         for (i = 0; i < tblSz; i++) {
             if (verTbl[i] == version) {
                 break;
@@ -16981,7 +16981,7 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
             ret = Set_CTX_min_proto_version(ctx, verTbl[i]);
             if (ret == WOLFSSL_SUCCESS) {
                 proto = verTbl[i];
-                wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_MIN_PROTO);
+                ctx->minProto = 1; /* turn min proto flag on */
                 break;
             }
         }
@@ -17097,7 +17097,7 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
             WOLFSSL_OP_NO_TLSv1_2 | WOLFSSL_OP_NO_TLSv1_3);
     wolfSSL_CTX_set_min_proto_version(ctx, minProto);
     if (version != 0) {
-        wolfSSL_CTX_clear_options(ctx, WOLFSSL_OP_MAX_PROTO);
+        ctx->maxProto = 0; /* turn max proto flag off */
         return Set_CTX_max_proto_version(ctx, version);
     }
 
@@ -17105,7 +17105,7 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
     for (i= 0; i < tblSz; i++) {
         ret = Set_CTX_max_proto_version(ctx, verTbl[i]);
         if (ret == WOLFSSL_SUCCESS) {
-            wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_MAX_PROTO);
+            ctx->maxProto = 1; /* turn max proto flag on */
             break;
         }
     }
@@ -17342,7 +17342,7 @@ WOLFSSL_API int wolfSSL_CTX_get_min_proto_version(WOLFSSL_CTX* ctx)
     WOLFSSL_ENTER("wolfSSL_CTX_get_min_proto_version");
 
     if (ctx != NULL) {
-        if (wolfSSL_CTX_get_options(ctx) & WOLFSSL_OP_MIN_PROTO) {
+        if (ctx->minProto) {
             ret = 0;
         }
         else {
@@ -17400,7 +17400,7 @@ int wolfSSL_CTX_get_max_proto_version(WOLFSSL_CTX* ctx)
         options = wolfSSL_CTX_get_options(ctx);
     }
 
-    if (options & WOLFSSL_OP_MAX_PROTO) {
+    if (ctx->maxProto) {
         ret = 0;
     }
     else {
