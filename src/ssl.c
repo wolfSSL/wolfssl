@@ -21009,7 +21009,7 @@ WOLFSSL_DIST_POINT* wolfSSL_sk_DIST_POINT_value(WOLFSSL_STACK* sk, int idx)
         return NULL;
     }
 
-    return wolfSSL_sk_value(sk, idx);
+    return (WOLFSSL_DIST_POINT*)wolfSSL_sk_value(sk, idx);
 }
 
 /* Gets the number of nodes in the stack
