@@ -52105,7 +52105,7 @@ WOLFSSL_BN_ULONG wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM *bn,
 
     if (w <= MP_MASK) {
         mp_digit bn_ret;
-        if (mp_mod_d((mp_int*)bn->internal, (WOLFSSL_BN_ULONG)w, &bn_ret) != MP_OKAY) {
+        if (mp_mod_d((mp_int*)bn->internal, (mp_digit)w, &bn_ret) != MP_OKAY) {
             WOLFSSL_MSG("mp_add_d error");
             return (WOLFSSL_BN_ULONG)WOLFSSL_FATAL_ERROR;
         }

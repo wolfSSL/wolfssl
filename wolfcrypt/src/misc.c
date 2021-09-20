@@ -299,7 +299,7 @@ WC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
 #ifndef WOLFSSL_NO_FORCE_ZERO
 /* This routine fills the first len bytes of the memory area pointed by mem
    with zeros. It ensures compiler optimizations doesn't skip it  */
-WC_STATIC WC_INLINE void ForceZero(const void* mem, word32 len)
+WC_STATIC WC_INLINE void ForceZero(void* mem, word32 len)
 {
     volatile byte* z = (volatile byte*)mem;
 

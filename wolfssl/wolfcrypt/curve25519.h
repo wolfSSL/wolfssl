@@ -73,7 +73,7 @@ typedef struct {
 #endif
 
 /* A CURVE25519 Key */
-typedef struct curve25519_key {
+struct curve25519_key {
     int idx;            /* Index into the ecc_sets[] for the parameters of
                            this curve if -1, this key is using user supplied
                            curve in dp */
@@ -92,7 +92,7 @@ typedef struct curve25519_key {
     /* bit fields */
     byte pubSet:1;
     byte privSet:1;
-} curve25519_key;
+};
 
 enum {
     EC25519_LITTLE_ENDIAN=0,

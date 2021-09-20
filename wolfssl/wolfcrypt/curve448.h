@@ -49,7 +49,7 @@
 #endif
 
 /* A CURVE448 Key */
-typedef struct curve448_key {
+struct curve448_key {
     byte p[CURVE448_PUB_KEY_SIZE];  /* public key  */
     byte k[CURVE448_KEY_SIZE];      /* private key */
 
@@ -60,7 +60,7 @@ typedef struct curve448_key {
     /* bit fields */
     byte pubSet:1;
     byte privSet:1;
-} curve448_key;
+};
 
 enum {
     EC448_LITTLE_ENDIAN = 0,
