@@ -368,11 +368,17 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     byte*  buffer = staticBuffer;
 
 #ifdef WOLFSSL_SMALL_STACK
-    byte*  Ai;
-    byte*  B;
+    byte*  Ai = NULL;
+    byte*  B = NULL;
+    mp_int *B1 = NULL;
+    mp_int *i1 = NULL;
+    mp_int *res = NULL;
 #else
     byte   Ai[WC_MAX_DIGEST_SIZE];
     byte   B[WC_MAX_BLOCK_SIZE];
+    mp_int B1[1];
+    mp_int i1[1];
+    mp_int res[1];
 #endif
     enum wc_HashType hashT;
 
@@ -449,9 +455,20 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     for (i = 0; i < (int)pLen; i++)
         P[i] = passwd[i % passLen];
 
+#ifdef WOLFSSL_SMALL_STACK
+    if (((B1 = (mp_int *)XMALLOC(sizeof(*B1), heap, DYNAMIC_TYPE_TMP_BUFFER))
+         == NULL) ||
+        ((i1 = (mp_int *)XMALLOC(sizeof(*i1), heap, DYNAMIC_TYPE_TMP_BUFFER))
+         == NULL) ||
+        ((res = (mp_int *)XMALLOC(sizeof(*res), heap, DYNAMIC_TYPE_TMP_BUFFER))
+         == NULL)) {
+        ret = MEMORY_E;
+        goto out;
+    }
+#endif
+
     while (kLen > 0) {
         word32 currentLen;
-        mp_int B1;
 
         ret = DoPKCS12Hash(hashType, buffer, totalLen, Ai, u, iterations);
         if (ret < 0)
@@ -460,55 +477,53 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
         for (i = 0; i < (int)v; i++)
             B[i] = Ai[i % u];
 
-        if (mp_init(&B1) != MP_OKAY)
+        if (mp_init(B1) != MP_OKAY)
             ret = MP_INIT_E;
-        else if (mp_read_unsigned_bin(&B1, B, v) != MP_OKAY)
+        else if (mp_read_unsigned_bin(B1, B, v) != MP_OKAY)
             ret = MP_READ_E;
-        else if (mp_add_d(&B1, (mp_digit)1, &B1) != MP_OKAY)
+        else if (mp_add_d(B1, (mp_digit)1, B1) != MP_OKAY)
             ret = MP_ADD_E;
 
         if (ret != 0) {
-            mp_clear(&B1);
+            mp_clear(B1);
             break;
         }
 
         for (i = 0; i < (int)iLen; i += v) {
             int    outSz;
-            mp_int i1;
-            mp_int res;
 
-            if (mp_init_multi(&i1, &res, NULL, NULL, NULL, NULL) != MP_OKAY) {
+            if (mp_init_multi(i1, res, NULL, NULL, NULL, NULL) != MP_OKAY) {
                 ret = MP_INIT_E;
                 break;
             }
-            if (mp_read_unsigned_bin(&i1, I + i, v) != MP_OKAY)
+            if (mp_read_unsigned_bin(i1, I + i, v) != MP_OKAY)
                 ret = MP_READ_E;
-            else if (mp_add(&i1, &B1, &res) != MP_OKAY)
+            else if (mp_add(i1, B1, res) != MP_OKAY)
                 ret = MP_ADD_E;
-            else if ( (outSz = mp_unsigned_bin_size(&res)) < 0)
+            else if ( (outSz = mp_unsigned_bin_size(res)) < 0)
                 ret = MP_TO_E;
             else {
                 if (outSz > (int)v) {
                     /* take off MSB */
                     byte  tmp[WC_MAX_BLOCK_SIZE + 1];
-                    ret = mp_to_unsigned_bin(&res, tmp);
+                    ret = mp_to_unsigned_bin(res, tmp);
                     XMEMCPY(I + i, tmp + 1, v);
                 }
                 else if (outSz < (int)v) {
                     XMEMSET(I + i, 0, v - outSz);
-                    ret = mp_to_unsigned_bin(&res, I + i + v - outSz);
+                    ret = mp_to_unsigned_bin(res, I + i + v - outSz);
                 }
                 else
-                    ret = mp_to_unsigned_bin(&res, I + i);
+                    ret = mp_to_unsigned_bin(res, I + i);
             }
 
-            mp_clear(&i1);
-            mp_clear(&res);
+            mp_clear(i1);
+            mp_clear(res);
             if (ret < 0) break;
         }
 
         if (ret < 0) {
-            mp_clear(&B1);
+            mp_clear(B1);
             break;
         }
 
@@ -516,15 +531,26 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
         XMEMCPY(output, Ai, currentLen);
         output += currentLen;
         kLen   -= currentLen;
-        mp_clear(&B1);
+        mp_clear(B1);
     }
 
-    if (dynamic) XFREE(buffer, heap, DYNAMIC_TYPE_KEY);
-
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(Ai, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(B,  heap, DYNAMIC_TYPE_TMP_BUFFER);
+  out:
+
+    if (Ai)
+        XFREE(Ai, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (B)
+        XFREE(B,  heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (B1)
+        XFREE(B1, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (i1)
+        XFREE(i1, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (res)
+        XFREE(res, heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
+
+    if (dynamic)
+        XFREE(buffer, heap, DYNAMIC_TYPE_KEY);
 
     return ret;
 }

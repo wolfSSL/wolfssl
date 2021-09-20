@@ -119,10 +119,19 @@ int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,
         byte l[AES_BLOCK_SIZE];
 
         XMEMSET(l, 0, AES_BLOCK_SIZE);
-        wc_AesEncryptDirect(&cmac->aes, l, l);
-        ShiftAndXorRb(cmac->k1, l);
-        ShiftAndXorRb(cmac->k2, cmac->k1);
-        ForceZero(l, AES_BLOCK_SIZE);
+#ifdef WOLFSSL_LINUXKM
+        ret =
+#endif
+            wc_AesEncryptDirect(&cmac->aes, l, l);
+#ifdef WOLFSSL_LINUXKM
+        if (ret == 0) {
+#endif
+            ShiftAndXorRb(cmac->k1, l);
+            ShiftAndXorRb(cmac->k2, cmac->k1);
+            ForceZero(l, AES_BLOCK_SIZE);
+#ifdef WOLFSSL_LINUXKM
+        }
+#endif
     }
     return ret;
 }
@@ -172,9 +181,18 @@ int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
             if (cmac->totalSz != 0) {
                 xorbuf(cmac->buffer, cmac->digest, AES_BLOCK_SIZE);
             }
-            wc_AesEncryptDirect(&cmac->aes, cmac->digest, cmac->buffer);
-            cmac->totalSz += AES_BLOCK_SIZE;
-            cmac->bufferSz = 0;
+#ifdef WOLFSSL_LINUXKM
+            ret =
+#endif
+                wc_AesEncryptDirect(&cmac->aes, cmac->digest, cmac->buffer);
+#ifdef WOLFSSL_LINUXKM
+            if (ret == 0) {
+#endif
+                cmac->totalSz += AES_BLOCK_SIZE;
+                cmac->bufferSz = 0;
+#ifdef WOLFSSL_LINUXKM
+            }
+#endif
         }
     }
 
@@ -221,9 +239,17 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
     }
     xorbuf(cmac->buffer, cmac->digest, AES_BLOCK_SIZE);
     xorbuf(cmac->buffer, subKey, AES_BLOCK_SIZE);
-    wc_AesEncryptDirect(&cmac->aes, cmac->digest, cmac->buffer);
-
-    XMEMCPY(out, cmac->digest, *outSz);
+#ifdef WOLFSSL_LINUXKM
+    ret =
+#endif
+        wc_AesEncryptDirect(&cmac->aes, cmac->digest, cmac->buffer);
+#ifdef WOLFSSL_LINUXKM
+    if (ret == 0) {
+#endif
+        XMEMCPY(out, cmac->digest, *outSz);
+#ifdef WOLFSSL_LINUXKM
+    }
+#endif
 
     ForceZero(cmac, sizeof(Cmac));
 

@@ -180,6 +180,42 @@ AS_IF([test "$ax_enable_debug" = "yes"],
 ENABLED_CERTS="no"
 
 
+# Support for forcing 32-bit mode
+# To force 32-bit instructions use:
+#   ./configure CFLAGS="-m32" LDFLAGS="-m32" && make
+# The checks for sizeof long and long/long are run at the top of configure and require "-m32" to be set directly in the ./configure statement.
+AC_ARG_ENABLE([32bit],
+    [AS_HELP_STRING([--enable-32bit],[Enables 32-bit support (default: disabled)])],
+    [ ENABLED_32BIT=$enableval ],
+    [ ENABLED_32BIT=no ]
+    )
+
+# 16-bit compiler support
+AC_ARG_ENABLE([16bit],
+    [AS_HELP_STRING([--enable-16bit],[Enables 16-bit support (default: disabled)])],
+    [ ENABLED_16BIT=$enableval ],
+    [ ENABLED_16BIT=no ]
+    )
+if test "$ENABLED_16BIT" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_16BIT_CPU"
+fi
+
+
+
+# Support for disabling all ASM
+AC_ARG_ENABLE([asm],
+    [AS_HELP_STRING([--enable-asm],[Enables option for assembly (default: enabled)])],
+    [ ENABLED_ASM=$enableval ],
+    [ ENABLED_ASM=yes ]
+    )
+
+if test "$ENABLED_ASM" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DTFM_NO_ASM -DWOLFSSL_NO_ASM"
+fi
+AC_SUBST([ENABLED_ASM])
+
 
 # FIPS
 AC_ARG_ENABLE([fips],
@@ -373,9 +409,7 @@ then
     test "$enable_aescbc_length_checks" = "" && enable_aescbc_length_checks=yes
     test "$enable_camellia" = "" && enable_camellia=yes
     test "$enable_ripemd" = "" && enable_ripemd=yes
-    test "$enable_sha512" = "" && enable_sha512=yes
     test "$enable_sha224" = "" && enable_sha224=yes
-    test "$enable_sha3" = "" && enable_sha3=yes
     test "$enable_sessioncerts" = "" && enable_sessioncerts=yes
     test "$enable_keygen" = "" && enable_keygen=yes
     test "$enable_certgen" = "" && enable_certgen=yes
@@ -431,6 +465,12 @@ then
     test "$enable_anon" = "" && enable_anon=yes
     test "$enable_mcast" = "" && enable_mcast=yes
 
+    if test "$ENABLED_32BIT" != "yes"
+    then
+        test "$enable_sha512" = "" && enable_sha512=yes
+        test "$enable_sha3" = "" && enable_sha3=yes
+    fi
+
     if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
     then
         test "$enable_compkey" = "" && enable_compkey=yes
@@ -448,7 +488,10 @@ then
         then
             if test "$ENABLED_FIPS" = "no"
             then
-                test "$enable_openssh" = "" && enable_openssh=yes
+                if test "$ENABLED_32BIT" != "yes"
+                then
+                    test "$enable_openssh" = "" && enable_openssh=yes
+                fi
                 # S/MIME support requires PKCS7, which requires no FIPS.
                 test "$enable_smime" = "" && enable_smime=yes
             fi
@@ -474,10 +517,13 @@ then
         test "$enable_xchacha" = "" && enable_xchacha=yes
         test "$enable_scep" = "" && enable_scep=yes
         test "$enable_pkcs7" = "" && enable_pkcs7=yes
-        test "$enable_ed25519" = "" && enable_ed25519=yes
-        test "$enable_ed25519_stream" = "" && enable_ed25519_stream=yes
-        test "$enable_ed448" = "" && enable_ed448=yes
-        test "$enable_ed448_stream" = "" && enable_ed448_stream=yes
+        if test "$ENABLED_32BIT" != "yes"
+        then
+            test "$enable_ed25519" = "" && enable_ed25519=yes
+            test "$enable_ed25519_stream" = "" && enable_ed25519_stream=yes
+            test "$enable_ed448" = "" && enable_ed448=yes
+            test "$enable_ed448_stream" = "" && enable_ed448_stream=yes
+        fi
 
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
         then
@@ -525,9 +571,7 @@ then
     test "$enable_aescfb" = "" && enable_aescfb=yes
     test "$enable_camellia" = "" && enable_camellia=yes
     test "$enable_ripemd" = "" && enable_ripemd=yes
-    test "$enable_sha512" = "" && enable_sha512=yes
     test "$enable_sha224" = "" && enable_sha224=yes
-    test "$enable_sha3" = "" && enable_sha3=yes
     test "$enable_sessioncerts" = "" && enable_sessioncerts=yes
     test "$enable_keygen" = "" && enable_keygen=yes
     test "$enable_certgen" = "" && enable_certgen=yes
@@ -569,6 +613,12 @@ then
     test "$enable_cryptocb" = "" && enable_cryptocb=yes
     test "$enable_anon" = "" && enable_anon=yes
 
+    if test "$ENABLED_32BIT" != "yes"
+    then
+        test "$enable_sha512" = "" && enable_sha512=yes
+        test "$enable_sha3" = "" && enable_sha3=yes
+    fi
+
     if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
     then
         test "$enable_compkey" = "" && enable_compkey=yes
@@ -586,11 +636,14 @@ then
     if test "$ENABLED_FIPS" = "no"
     then
         test "$enable_xchacha" = "" && enable_xchacha=yes
-        test "$enable_ed25519" = "" && enable_ed25519=yes
-        test "$enable_ed25519_stream" = "" && enable_ed25519_stream=yes
-        test "$enable_ed448" = "" && enable_ed448=yes
-        test "$enable_ed448_stream" = "" && enable_ed448_stream=yes
         test "$enable_pkcs7" = "" && enable_pkcs7=yes
+        if test "$ENABLED_32BIT" != "yes"
+        then
+            test "$enable_ed25519" = "" && enable_ed25519=yes
+            test "$enable_ed25519_stream" = "" && enable_ed25519_stream=yes
+            test "$enable_ed448" = "" && enable_ed448=yes
+            test "$enable_ed448_stream" = "" && enable_ed448_stream=yes
+        fi
 
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
         then
@@ -613,43 +666,6 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_KEYGEN"
 
 fi
-
-
-# Support for forcing 32-bit mode
-# To force 32-bit instructions use:
-#   ./configure CFLAGS="-m32" LDFLAGS="-m32" && make
-# The checks for sizeof long and long/long are run at the top of configure and require "-m32" to be set directly in the ./configure statement.
-AC_ARG_ENABLE([32bit],
-    [AS_HELP_STRING([--enable-32bit],[Enables 32-bit support (default: disabled)])],
-    [ ENABLED_32BIT=$enableval ],
-    [ ENABLED_32BIT=no ]
-    )
-
-# 16-bit compiler support
-AC_ARG_ENABLE([16bit],
-    [AS_HELP_STRING([--enable-16bit],[Enables 16-bit support (default: disabled)])],
-    [ ENABLED_16BIT=$enableval ],
-    [ ENABLED_16BIT=no ]
-    )
-if test "$ENABLED_16BIT" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWC_16BIT_CPU"
-fi
-
-
-
-# Support for disabling all ASM
-AC_ARG_ENABLE([asm],
-    [AS_HELP_STRING([--enable-asm],[Enables option for assembly (default: enabled)])],
-    [ ENABLED_ASM=$enableval ],
-    [ ENABLED_ASM=yes ]
-    )
-
-if test "$ENABLED_ASM" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DTFM_NO_ASM -DWOLFSSL_NO_ASM"
-fi
-AC_SUBST([ENABLED_ASM])
 
 
 # SINGLE THREADED
@@ -1837,7 +1853,7 @@ fi
 
 # set sha3 default
 SHA3_DEFAULT=no
-if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
+if (test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64") && test "$ENABLED_32BIT" = "no"
 then
     if test "x$ENABLED_FIPS" = "xno" || test "x$FIPS_VERSION" = "xv2"
     then
@@ -6451,7 +6467,8 @@ AS_IF([test "x$ENABLED_CERT_REQ" = "xyes" && \
 
 # ed25519 requires sha512
 AS_IF([test "x$ENABLED_ED25519" = "xyes" && \
-       test "x$ENABLED_SHA512" = "xno"],
+       test "x$ENABLED_SHA512" = "xno" && \
+       test "x$ENABLED_32BIT" = "xno"],
       [AC_MSG_ERROR([cannot enable ed25519 without enabling sha512.])])
 
 # ed25519 stream requires ed25519
@@ -6942,7 +6959,9 @@ AM_CONDITIONAL([BUILD_OCTEON_SYNC],[test "x$ENABLED_OCTEON_SYNC" = "xyes"])
 AM_CONDITIONAL([BUILD_INTEL_QA],[test "x$ENABLED_INTEL_QA" = "xyes"])
 AM_CONDITIONAL([BUILD_INTEL_QA_SYNC],[test "x$ENABLED_INTEL_QA_SYNC" = "xyes"])
 AM_CONDITIONAL([BUILD_SP],[test "x$ENABLED_SP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_SP_C],[(test "x$ENABLED_SP" = "xyes" && test "x$ENABLED_SP_ASM" = "xno") || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_SP_C],[((test "$ENABLED_SP_RSA" = "yes" || test "$ENABLED_SP_DH" = "yes" \
+                               || test "$ENABLED_SP_ECC" = "yes") && test "x$ENABLED_SP_ASM" = "xno") \
+                             || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SP_ARM64],[test "x$ENABLED_SP_ARM64_ASM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SP_ARM32],[test "x$ENABLED_SP_ARM32_ASM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SP_ARM_THUMB],[test "x$ENABLED_SP_ARM_THUMB_ASM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])

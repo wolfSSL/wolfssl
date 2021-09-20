@@ -5770,7 +5770,7 @@ void bench_eccEncrypt(int curveId)
     ecc_key userA, userB;
     int     keySize;
     byte    msg[48];
-    byte    out[80];
+    byte    out[sizeof(msg) + WC_SHA256_DIGEST_SIZE + (MAX_ECC_BITS+3)/4 + 2];
     word32  outSz   = sizeof(out);
     word32  bench_plainSz = BENCH_SIZE;
     int     ret, i, count;

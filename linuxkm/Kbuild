@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
-#/
+#
 
 SHELL=/bin/bash
 
@@ -48,6 +48,7 @@ $(obj)/linuxkm/module_exports.o: $(WOLFSSL_OBJ_TARGETS)
 # this mechanism only works in kernel 5.x+ (fallback to hardcoded value)
 hostprogs := linuxkm/get_thread_size
 always-y := $(hostprogs)
+always := $(hostprogs)
 HOST_EXTRACFLAGS += $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(KBUILD_CFLAGS) -static
 
 # this rule is needed to get build to succeed in 4.x (get_thread_size still doesn't get built)
@@ -91,14 +92,20 @@ endif
 
 asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPUSIMD_DISABLE)
 
-# vectorized algorithms equipped with {SAVE,RESTORE}_VECTOR_REGISTERS()
-# can be safely included here:
+# vectorized algorithms protected by {SAVE,RESTORE}_VECTOR_REGISTERS() can be
+# safely included here, though many of these are not yet kernel-compatible:
 $(obj)/wolfcrypt/src/aes_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/aes_gcm_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/sha256_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/sp_x86_64_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/sha512_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/poly1305_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/chacha_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 
-# these _asms are kernel-compatible, but they still irritate objtool:
+# these _asms are known kernel-compatible, but they still irritate objtool:
 $(obj)/wolfcrypt/src/aes_asm.o: OBJECT_FILES_NON_STANDARD := y
 $(obj)/wolfcrypt/src/aes_gcm_asm.o: OBJECT_FILES_NON_STANDARD := y
+$(obj)/wolfcrypt/src/sp_x86_64_asm.o: OBJECT_FILES_NON_STANDARD := y
 
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 
@@ -158,7 +165,7 @@ $(src)/linuxkm/module_exports.c: $(src)/linuxkm/module_exports.c.template $(WOLF
 	@cp $< $@
 	@readelf --symbols --wide $(WOLFSSL_OBJ_TARGETS) |				\
 		awk '/^ *[0-9]+: / {							\
-		  if ($$8 !~ /^(wc_|wolf)/){next;}					\
+		  if ($$8 !~ /^(wc_|wolf|WOLF|TLSX_)/){next;}				\
 		  if (($$4 == "FUNC") && ($$5 == "GLOBAL") && ($$6 == "DEFAULT")) {	\
 		    print "EXPORT_SYMBOL_NS(" $$8 ", WOLFSSL);";    		  	\
 		  }									\

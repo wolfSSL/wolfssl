@@ -19,6 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifndef WOLFSSL_LICENSE
+#define WOLFSSL_LICENSE "GPL v2"
+#endif
+
 #define FIPS_NO_WRAPPERS
 
 #ifdef HAVE_CONFIG_H
@@ -41,13 +45,13 @@ static int libwolfssl_cleanup(void) {
 #ifdef WOLFCRYPT_ONLY
     ret = wolfCrypt_Cleanup();
     if (ret != 0)
-        pr_err("wolfCrypt_Cleanup() failed: %s", wc_GetErrorString(ret));
+        pr_err("wolfCrypt_Cleanup() failed: %s\n", wc_GetErrorString(ret));
     else
         pr_info("wolfCrypt " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
 #else
     ret = wolfSSL_Cleanup();
     if (ret != WOLFSSL_SUCCESS)
-        pr_err("wolfSSL_Cleanup() failed: %s", wc_GetErrorString(ret));
+        pr_err("wolfSSL_Cleanup() failed: %s\n", wc_GetErrorString(ret));
     else
         pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
 #endif
@@ -89,8 +93,8 @@ static void lkmFipsCb(int ok, int err, const char* hash)
     if ((! ok) || (err != 0))
         pr_err("libwolfssl FIPS error: %s\n", wc_GetErrorString(err));
     if (err == IN_CORE_FIPS_E) {
-        pr_err("In-core integrity hash check failure.\n");
-        pr_err("Update verifyCore[] in fips_test.c with new hash \"%s\" and rebuild.\n",
+        pr_err("In-core integrity hash check failure.\n"
+               "Update verifyCore[] in fips_test.c with new hash \"%s\" and rebuild.\n",
                hash ? hash : "<null>");
     }
 }
@@ -104,6 +108,13 @@ static int wolfssl_init(void)
 {
     int ret;
 
+#ifdef CONFIG_MODULE_SIG
+    if (THIS_MODULE->sig_ok == false) {
+        pr_err("wolfSSL module load aborted -- bad or missing module signature with CONFIG_MODULE_SIG kernel.\n");
+        return -ECANCELED;
+    }
+#endif
+
 #ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
     ret = set_up_wolfssl_linuxkm_pie_redirect_table();
     if (ret < 0)
@@ -112,6 +123,17 @@ static int wolfssl_init(void)
 #endif
 
 #ifdef HAVE_LINUXKM_PIE_SUPPORT
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
+    #define THIS_MODULE_BASE (THIS_MODULE->core_layout.base)
+    #define THIS_MODULE_TEXT_SIZE (THIS_MODULE->core_layout.text_size)
+    #define THIS_MODULE_RO_SIZE (THIS_MODULE->core_layout.ro_size)
+#else
+    #define THIS_MODULE_BASE (THIS_MODULE->module_core)
+    #define THIS_MODULE_TEXT_SIZE (THIS_MODULE->core_text_size)
+    #define THIS_MODULE_RO_SIZE (THIS_MODULE->core_ro_size)
+#endif
+
     {
         char *pie_text_start = (char *)wolfCrypt_PIE_first_function;
         char *pie_text_end = (char *)wolfCrypt_PIE_last_function;
@@ -120,8 +142,8 @@ static int wolfssl_init(void)
         unsigned int text_hash, rodata_hash;
 
         if ((pie_text_start < pie_text_end) &&
-            (pie_text_start >= (char *)(THIS_MODULE->core_layout.base)) &&
-            (pie_text_end - (char *)(THIS_MODULE->core_layout.base) <= THIS_MODULE->core_layout.text_size))
+            (pie_text_start >= (char *)THIS_MODULE_BASE) &&
+            (pie_text_end - (char *)THIS_MODULE_BASE <= THIS_MODULE_TEXT_SIZE))
         {
             text_hash = hash_span(pie_text_start, pie_text_end);
         } else {
@@ -130,14 +152,14 @@ static int wolfssl_init(void)
                     pie_text_start,
                     pie_text_end,
                     pie_text_end-pie_text_start,
-                    THIS_MODULE->core_layout.base,
-                    (char *)(THIS_MODULE->core_layout.base) + THIS_MODULE->core_layout.text_size);
+                    THIS_MODULE_BASE,
+                    (char *)THIS_MODULE_BASE + THIS_MODULE_TEXT_SIZE);
             text_hash = 0;
         }
 
         if ((pie_rodata_start < pie_rodata_end) &&
-            (pie_rodata_start >= (char *)(THIS_MODULE->core_layout.base) + THIS_MODULE->core_layout.text_size) &&
-            (pie_rodata_end - (char *)(THIS_MODULE->core_layout.base) <= THIS_MODULE->core_layout.ro_size))
+            (pie_rodata_start >= (char *)THIS_MODULE_BASE + THIS_MODULE_TEXT_SIZE) &&
+            (pie_rodata_end - (char *)THIS_MODULE_BASE <= THIS_MODULE_RO_SIZE))
         {
             rodata_hash = hash_span(pie_rodata_start, pie_rodata_end);
         } else {
@@ -146,8 +168,8 @@ static int wolfssl_init(void)
                     pie_rodata_start,
                     pie_rodata_end,
                     pie_rodata_end-pie_rodata_start,
-                    (char *)(THIS_MODULE->core_layout.base) + THIS_MODULE->core_layout.text_size,
-                    (char *)(THIS_MODULE->core_layout.base) + THIS_MODULE->core_layout.ro_size);
+                    (char *)THIS_MODULE_BASE + THIS_MODULE_TEXT_SIZE,
+                    (char *)THIS_MODULE_BASE + THIS_MODULE_RO_SIZE);
             rodata_hash = 0;
         }
 
@@ -158,20 +180,20 @@ static int wolfssl_init(void)
         pr_info("wolfCrypt container hashes (spans): %x (%lu) %x (%lu), module base %pK\n",
                 text_hash, pie_text_end-pie_text_start,
                 rodata_hash, pie_rodata_end-pie_rodata_start,
-                THIS_MODULE->core_layout.base);
+                THIS_MODULE_BASE);
     }
 #endif /* HAVE_LINUXKM_PIE_SUPPORT */
 
 #ifdef HAVE_FIPS
     ret = wolfCrypt_SetCb_fips(lkmFipsCb);
     if (ret != 0) {
-        pr_err("wolfCrypt_SetCb_fips() failed: %s", wc_GetErrorString(ret));
+        pr_err("wolfCrypt_SetCb_fips() failed: %s\n", wc_GetErrorString(ret));
         return -ECANCELED;
     }
     fipsEntry();
     ret = wolfCrypt_GetStatus_fips();
     if (ret != 0) {
-        pr_err("wolfCrypt_GetStatus_fips() failed: %s", wc_GetErrorString(ret));
+        pr_err("wolfCrypt_GetStatus_fips() failed: %s\n", wc_GetErrorString(ret));
         if (ret == IN_CORE_FIPS_E) {
             const char *newhash = wolfCrypt_GetCoreHash_fips();
             pr_err("Update verifyCore[] in fips_test.c with new hash \"%s\" and rebuild.\n",
@@ -198,13 +220,13 @@ static int wolfssl_init(void)
 #ifdef WOLFCRYPT_ONLY
     ret = wolfCrypt_Init();
     if (ret != 0) {
-        pr_err("wolfCrypt_Init() failed: %s", wc_GetErrorString(ret));
+        pr_err("wolfCrypt_Init() failed: %s\n", wc_GetErrorString(ret));
         return -ECANCELED;
     }
 #else
     ret = wolfSSL_Init();
     if (ret != WOLFSSL_SUCCESS) {
-        pr_err("wolfSSL_Init() failed: %s", wc_GetErrorString(ret));
+        pr_err("wolfSSL_Init() failed: %s\n", wc_GetErrorString(ret));
         return -ECANCELED;
     }
 #endif
@@ -212,7 +234,7 @@ static int wolfssl_init(void)
 #ifndef NO_CRYPT_TEST
     ret = wolfcrypt_test(NULL);
     if (ret < 0) {
-        pr_err("wolfcrypt self-test failed with return code %d.", ret);
+        pr_err("wolfcrypt self-test failed with return code %d.\n", ret);
         (void)libwolfssl_cleanup();
         msleep(10);
         return -ECANCELED;
@@ -221,12 +243,20 @@ static int wolfssl_init(void)
 #endif
 
 #ifdef WOLFCRYPT_ONLY
-    pr_info("wolfCrypt " LIBWOLFSSL_VERSION_STRING " loaded. See https://www.wolfssl.com/ for information.\n");
-#else
-    pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " loaded. See https://www.wolfssl.com/ for information.\n");
+    pr_info("wolfCrypt " LIBWOLFSSL_VERSION_STRING " loaded"
+#ifdef CONFIG_MODULE_SIG
+            " with valid module signature"
 #endif
-
-    pr_info("Copyright (C) 2006-2020 wolfSSL Inc. All Rights Reserved.\n");
+            ".\nSee https://www.wolfssl.com/ for more information.\n"
+            "wolfCrypt Copyright (C) 2006-present wolfSSL Inc.  Licensed under " WOLFSSL_LICENSE ".\n");
+#else
+    pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " loaded"
+#ifdef CONFIG_MODULE_SIG
+            " with valid module signature"
+#endif
+            ".\nSee https://www.wolfssl.com/ for more information.\n"
+            "wolfSSL Copyright (C) 2006-present wolfSSL Inc.  Licensed under " WOLFSSL_LICENSE ".\n");
+#endif
 
     return 0;
 }
@@ -240,17 +270,37 @@ static void wolfssl_exit(void)
 #endif
 {
     (void)libwolfssl_cleanup();
+
     return;
 }
 
 module_exit(wolfssl_exit);
 
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE(WOLFSSL_LICENSE);
 MODULE_AUTHOR("https://www.wolfssl.com/");
 MODULE_DESCRIPTION("libwolfssl cryptographic and protocol facilities");
 MODULE_VERSION(LIBWOLFSSL_VERSION_STRING);
 
 #ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
+
+/* get_current() is an inline or macro, depending on the target -- sidestep the whole issue with a wrapper func. */
+static struct task_struct *my_get_current_thread(void) {
+    return get_current();
+}
+
+/* ditto for preempt_count(). */
+static int my_preempt_count(void) {
+    return preempt_count();
+}
+
+#if defined(WOLFSSL_LINUXKM_SIMD_X86_IRQ_ALLOWED) && (LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0))
+static int my_copy_fpregs_to_fpstate(struct fpu *fpu) {
+    return copy_fpregs_to_fpstate(fpu);
+}
+static void my_copy_kernel_to_fpregs(union fpregs_state *fpstate) {
+    copy_kernel_to_fpregs(fpstate);
+}
+#endif
 
 static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     memset(
@@ -310,12 +360,22 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
         kmalloc_order_trace;
 
     wolfssl_linuxkm_pie_redirect_table.get_random_bytes = get_random_bytes;
-    wolfssl_linuxkm_pie_redirect_table.ktime_get_real_seconds =
-        ktime_get_real_seconds;
-    wolfssl_linuxkm_pie_redirect_table.ktime_get_with_offset =
-        ktime_get_with_offset;
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+        wolfssl_linuxkm_pie_redirect_table.getnstimeofday =
+            getnstimeofday;
+    #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
+        wolfssl_linuxkm_pie_redirect_table.current_kernel_time64 =
+            current_kernel_time64;
+    #else
+        wolfssl_linuxkm_pie_redirect_table.ktime_get_coarse_real_ts64 =
+            ktime_get_coarse_real_ts64;
+    #endif
 
-#if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP)
+    wolfssl_linuxkm_pie_redirect_table.get_current = my_get_current_thread;
+    wolfssl_linuxkm_pie_redirect_table.preempt_count = my_preempt_count;
+
+#ifdef WOLFSSL_LINUXKM_SIMD_X86
+    wolfssl_linuxkm_pie_redirect_table.irq_fpu_usable = irq_fpu_usable;
     #ifdef kernel_fpu_begin
     wolfssl_linuxkm_pie_redirect_table.kernel_fpu_begin_mask =
         kernel_fpu_begin_mask;
@@ -324,11 +384,30 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
         kernel_fpu_begin;
     #endif
     wolfssl_linuxkm_pie_redirect_table.kernel_fpu_end = kernel_fpu_end;
+    #ifdef WOLFSSL_LINUXKM_SIMD_X86_IRQ_ALLOWED
+        #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
+            wolfssl_linuxkm_pie_redirect_table.copy_fpregs_to_fpstate = my_copy_fpregs_to_fpstate;
+            wolfssl_linuxkm_pie_redirect_table.copy_kernel_to_fpregs = my_copy_kernel_to_fpregs;
+        #else
+            wolfssl_linuxkm_pie_redirect_table.save_fpregs_to_fpstate = save_fpregs_to_fpstate;
+            wolfssl_linuxkm_pie_redirect_table.__restore_fpregs_from_fpstate = __restore_fpregs_from_fpstate;
+            wolfssl_linuxkm_pie_redirect_table.xfeatures_mask_all = &xfeatures_mask_all;
+        #endif
+        wolfssl_linuxkm_pie_redirect_table.cpu_number = &cpu_number;
+        wolfssl_linuxkm_pie_redirect_table.nr_cpu_ids = &nr_cpu_ids;
+#endif /* WOLFSSL_LINUXKM_SIMD_X86_IRQ_ALLOWED */
 #endif
 
     wolfssl_linuxkm_pie_redirect_table.__mutex_init = __mutex_init;
-    wolfssl_linuxkm_pie_redirect_table.mutex_lock = mutex_lock;
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+        wolfssl_linuxkm_pie_redirect_table.mutex_lock_nested = mutex_lock_nested;
+    #else
+        wolfssl_linuxkm_pie_redirect_table.mutex_lock = mutex_lock;
+    #endif
     wolfssl_linuxkm_pie_redirect_table.mutex_unlock = mutex_unlock;
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+        wolfssl_linuxkm_pie_redirect_table.mutex_destroy = mutex_destroy;
+    #endif
 
 #ifdef HAVE_FIPS
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_first =

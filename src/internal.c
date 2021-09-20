@@ -8269,11 +8269,9 @@ ProtocolVersion MakeDTLSv1_2(void)
     }
 
 #elif defined(WOLFSSL_LINUXKM)
-    #include <linux/time.h>
-    #include <linux/ktime.h>
     word32 LowResTimer(void)
     {
-        return (word32)ktime_get_real_ns();
+        return (word32)time(NULL);
     }
 
 #else

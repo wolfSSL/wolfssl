@@ -3804,7 +3804,11 @@ static int nonblocking_accept_read(void* args, WOLFSSL* ssl, SOCKET_T* sockfd)
 #endif
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
-    #define MD_MAX_SIZE WC_SHA512_DIGEST_SIZE
+    #ifdef WC_SHA512_DIGEST_SIZE
+        #define MD_MAX_SIZE WC_SHA512_DIGEST_SIZE
+    #else
+        #define MD_MAX_SIZE WC_SHA256_DIGEST_SIZE
+    #endif
     byte server_side_msg1[MD_MAX_SIZE] = {0};/* msg sent by server */
     byte server_side_msg2[MD_MAX_SIZE] = {0};/* msg received from client */
     byte client_side_msg1[MD_MAX_SIZE] = {0};/* msg sent by client */
@@ -6525,7 +6529,7 @@ static void verify_alpn_matching_http1(WOLFSSL* ssl)
     AssertIntEQ(0, XMEMCMP(nego_proto, proto, protoSz));
 }
 
-static void test_wolfSSL_set_alpn_protos()
+static void test_wolfSSL_set_alpn_protos(void)
 {
     unsigned long i;
     callback_functions callbacks[] = {
@@ -23188,8 +23192,8 @@ static int test_wc_ecc_shared_secret (void)
 #if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG)
     ecc_key     key, pubKey;
     WC_RNG      rng;
-    int         keySz = KEY16;
-    byte        out[KEY16];
+    byte        out[KEY32];
+    int         keySz = sizeof(out);
     word32      outlen = (word32)sizeof(out);
 
 #if defined(HAVE_ECC) && !defined(NO_ECC256)
@@ -44450,7 +44454,11 @@ static void test_wolfSSL_SMIME_read_PKCS7(void)
 
 #ifdef WOLFSSL_TLS13
 #if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
-static byte fixedKey[WC_SHA384_DIGEST_SIZE] = { 0, };
+#ifdef WC_SHA384_DIGEST_SIZE
+    static byte fixedKey[WC_SHA384_DIGEST_SIZE] = { 0, };
+#else
+    static byte fixedKey[WC_SHA256_DIGEST_SIZE] = { 0, };
+#endif
 #endif
 #ifdef WOLFSSL_EARLY_DATA
 static const char earlyData[] = "Early Data";

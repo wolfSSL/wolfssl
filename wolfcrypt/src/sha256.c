@@ -319,8 +319,10 @@ static int InitSha256(wc_Sha256* sha256)
 
     static WC_INLINE int inline_XTRANSFORM(wc_Sha256* S, const byte* D) {
         int ret;
-        if (Transform_Sha256_is_vectorized)
-            SAVE_VECTOR_REGISTERS();
+        if (Transform_Sha256_is_vectorized) {
+            if ((ret = SAVE_VECTOR_REGISTERS()) != 0)
+                return ret;
+        }
         ret = (*Transform_Sha256_p)(S, D);
         if (Transform_Sha256_is_vectorized)
             RESTORE_VECTOR_REGISTERS();
@@ -330,8 +332,10 @@ static int InitSha256(wc_Sha256* sha256)
 
     static WC_INLINE int inline_XTRANSFORM_LEN(wc_Sha256* S, const byte* D, word32 L) {
         int ret;
-        if (Transform_Sha256_is_vectorized)
-            SAVE_VECTOR_REGISTERS();
+        if (Transform_Sha256_is_vectorized) {
+            if ((ret = SAVE_VECTOR_REGISTERS()) != 0)
+                return ret;
+        }
         ret = (*Transform_Sha256_Len_p)(S, D, L);
         if (Transform_Sha256_is_vectorized)
             RESTORE_VECTOR_REGISTERS();
