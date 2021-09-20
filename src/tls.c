@@ -7137,20 +7137,20 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
 static const char* OQS_ID2name(int id)
 {
     switch (id) {
-        case WOLFSSL_KYBER512:        return OQS_KEM_alg_kyber_512;
-        case WOLFSSL_KYBER768:        return OQS_KEM_alg_kyber_768;
-        case WOLFSSL_KYBER1024:       return OQS_KEM_alg_kyber_1024;
-        case WOLFSSL_NTRU_HPS2048509: return OQS_KEM_alg_ntru_hps2048509;
-        case WOLFSSL_NTRU_HPS2048677: return OQS_KEM_alg_ntru_hps2048677;
-        case WOLFSSL_NTRU_HPS4096821: return OQS_KEM_alg_ntru_hps4096821;
-        case WOLFSSL_NTRU_HRSS701:    return OQS_KEM_alg_ntru_hrss701;
-        case WOLFSSL_LIGHTSABER:      return OQS_KEM_alg_saber_lightsaber;
-        case WOLFSSL_SABER:           return OQS_KEM_alg_saber_saber;
-        case WOLFSSL_FIRESABER:       return OQS_KEM_alg_saber_firesaber;
-        case WOLFSSL_KYBER90S512:     return OQS_KEM_alg_kyber_512_90s;
-        case WOLFSSL_KYBER90S768:     return OQS_KEM_alg_kyber_768_90s;
-        case WOLFSSL_KYBER90S1024:    return OQS_KEM_alg_kyber_1024_90s;
-        default:                      break;
+        case WOLFSSL_KYBER_LEVEL1:     return OQS_KEM_alg_kyber_512;
+        case WOLFSSL_KYBER_LEVEL3:     return OQS_KEM_alg_kyber_768;
+        case WOLFSSL_KYBER_LEVEL5:     return OQS_KEM_alg_kyber_1024;
+        case WOLFSSL_NTRU_HPS_LEVEL1:  return OQS_KEM_alg_ntru_hps2048509;
+        case WOLFSSL_NTRU_HPS_LEVEL3:  return OQS_KEM_alg_ntru_hps2048677;
+        case WOLFSSL_NTRU_HPS_LEVEL5:  return OQS_KEM_alg_ntru_hps4096821;
+        case WOLFSSL_NTRU_HRSS_LEVEL3: return OQS_KEM_alg_ntru_hrss701;
+        case WOLFSSL_SABER_LEVEL1:     return OQS_KEM_alg_saber_lightsaber;
+        case WOLFSSL_SABER_LEVEL3:     return OQS_KEM_alg_saber_saber;
+        case WOLFSSL_SABER_LEVEL5:     return OQS_KEM_alg_saber_firesaber;
+        case WOLFSSL_KYBER_90S_LEVEL1: return OQS_KEM_alg_kyber_512_90s;
+        case WOLFSSL_KYBER_90S_LEVEL3: return OQS_KEM_alg_kyber_768_90s;
+        case WOLFSSL_KYBER_90S_LEVEL5: return OQS_KEM_alg_kyber_1024_90s;
+        default:                       break;
     }
     return NULL;
 }
@@ -7162,32 +7162,32 @@ typedef struct OqsHybridMapping {
 } OqsHybridMapping;
 
 static const OqsHybridMapping oqs_hybrid_mapping[] = {
-    {.hybrid = WOLFSSL_P256_NTRU_HPS2048509, .ecc = WOLFSSL_ECC_SECP256R1,
-     .oqs = WOLFSSL_NTRU_HPS2048509},
-    {.hybrid = WOLFSSL_P384_NTRU_HPS2048677, .ecc = WOLFSSL_ECC_SECP384R1,
-     .oqs = WOLFSSL_NTRU_HPS2048677},
-    {.hybrid = WOLFSSL_P521_NTRU_HPS4096821, .ecc = WOLFSSL_ECC_SECP521R1,
-     .oqs = WOLFSSL_NTRU_HPS4096821},
-    {.hybrid = WOLFSSL_P384_NTRU_HRSS701,    .ecc = WOLFSSL_ECC_SECP384R1,
-     .oqs = WOLFSSL_NTRU_HRSS701},
-    {.hybrid = WOLFSSL_P256_LIGHTSABER,      .ecc = WOLFSSL_ECC_SECP256R1,
-     .oqs = WOLFSSL_LIGHTSABER},
-    {.hybrid = WOLFSSL_P384_SABER,           .ecc = WOLFSSL_ECC_SECP384R1,
-     .oqs = WOLFSSL_SABER},
-    {.hybrid = WOLFSSL_P521_FIRESABER,       .ecc = WOLFSSL_ECC_SECP521R1,
-     .oqs = WOLFSSL_FIRESABER},
-    {.hybrid = WOLFSSL_P256_KYBER512,        .ecc = WOLFSSL_ECC_SECP256R1,
-     .oqs = WOLFSSL_KYBER512},
-    {.hybrid = WOLFSSL_P384_KYBER768,        .ecc = WOLFSSL_ECC_SECP384R1,
-     .oqs = WOLFSSL_KYBER768},
-    {.hybrid = WOLFSSL_P521_KYBER1024,       .ecc = WOLFSSL_ECC_SECP521R1,
-     .oqs = WOLFSSL_KYBER1024},
-    {.hybrid = WOLFSSL_P256_KYBER90S512,     .ecc = WOLFSSL_ECC_SECP256R1,
-     .oqs = WOLFSSL_KYBER90S512},
-    {.hybrid = WOLFSSL_P384_KYBER90S768,     .ecc = WOLFSSL_ECC_SECP384R1,
-     .oqs = WOLFSSL_KYBER90S768},
-    {.hybrid = WOLFSSL_P521_KYBER90S1024,    .ecc = WOLFSSL_ECC_SECP521R1,
-     .oqs = WOLFSSL_KYBER90S1024},
+    {.hybrid = WOLFSSL_P256_NTRU_HPS_LEVEL1, .ecc = WOLFSSL_ECC_SECP256R1,
+     .oqs = WOLFSSL_NTRU_HPS_LEVEL1},
+    {.hybrid = WOLFSSL_P384_NTRU_HPS_LEVEL3, .ecc = WOLFSSL_ECC_SECP384R1,
+     .oqs = WOLFSSL_NTRU_HPS_LEVEL3},
+    {.hybrid = WOLFSSL_P521_NTRU_HPS_LEVEL5, .ecc = WOLFSSL_ECC_SECP521R1,
+     .oqs = WOLFSSL_NTRU_HPS_LEVEL5},
+    {.hybrid = WOLFSSL_P384_NTRU_HRSS_LEVEL3,    .ecc = WOLFSSL_ECC_SECP384R1,
+     .oqs = WOLFSSL_NTRU_HRSS_LEVEL3},
+    {.hybrid = WOLFSSL_P256_SABER_LEVEL1,      .ecc = WOLFSSL_ECC_SECP256R1,
+     .oqs = WOLFSSL_SABER_LEVEL1},
+    {.hybrid = WOLFSSL_P384_SABER_LEVEL3,           .ecc = WOLFSSL_ECC_SECP384R1,
+     .oqs = WOLFSSL_SABER_LEVEL3},
+    {.hybrid = WOLFSSL_P521_SABER_LEVEL5,       .ecc = WOLFSSL_ECC_SECP521R1,
+     .oqs = WOLFSSL_SABER_LEVEL5},
+    {.hybrid = WOLFSSL_P256_KYBER_LEVEL1,        .ecc = WOLFSSL_ECC_SECP256R1,
+     .oqs = WOLFSSL_KYBER_LEVEL1},
+    {.hybrid = WOLFSSL_P384_KYBER_LEVEL3,        .ecc = WOLFSSL_ECC_SECP384R1,
+     .oqs = WOLFSSL_KYBER_LEVEL3},
+    {.hybrid = WOLFSSL_P521_KYBER_LEVEL5,       .ecc = WOLFSSL_ECC_SECP521R1,
+     .oqs = WOLFSSL_KYBER_LEVEL5},
+    {.hybrid = WOLFSSL_P256_KYBER_90S_LEVEL1,     .ecc = WOLFSSL_ECC_SECP256R1,
+     .oqs = WOLFSSL_KYBER_90S_LEVEL1},
+    {.hybrid = WOLFSSL_P384_KYBER_90S_LEVEL3,     .ecc = WOLFSSL_ECC_SECP384R1,
+     .oqs = WOLFSSL_KYBER_90S_LEVEL3},
+    {.hybrid = WOLFSSL_P521_KYBER_90S_LEVEL5,    .ecc = WOLFSSL_ECC_SECP521R1,
+     .oqs = WOLFSSL_KYBER_90S_LEVEL5},
     {.hybrid = 0, .ecc = 0, .oqs = 0}
 };
 
@@ -8700,32 +8700,32 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
         #endif
     #endif
     #ifdef HAVE_LIBOQS
-        case WOLFSSL_KYBER512:
-        case WOLFSSL_KYBER768:
-        case WOLFSSL_KYBER1024:
-        case WOLFSSL_NTRU_HPS2048509:
-        case WOLFSSL_NTRU_HPS2048677:
-        case WOLFSSL_NTRU_HPS4096821:
-        case WOLFSSL_NTRU_HRSS701:
-        case WOLFSSL_LIGHTSABER:
-        case WOLFSSL_SABER:
-        case WOLFSSL_FIRESABER:
-        case WOLFSSL_KYBER90S512:
-        case WOLFSSL_KYBER90S768:
-        case WOLFSSL_KYBER90S1024:
-        case WOLFSSL_P256_NTRU_HPS2048509:
-        case WOLFSSL_P384_NTRU_HPS2048677:
-        case WOLFSSL_P521_NTRU_HPS4096821:
-        case WOLFSSL_P384_NTRU_HRSS701:
-        case WOLFSSL_P256_LIGHTSABER:
-        case WOLFSSL_P384_SABER:
-        case WOLFSSL_P521_FIRESABER:
-        case WOLFSSL_P256_KYBER512:
-        case WOLFSSL_P384_KYBER768:
-        case WOLFSSL_P521_KYBER1024:
-        case WOLFSSL_P256_KYBER90S512:
-        case WOLFSSL_P384_KYBER90S768:
-        case WOLFSSL_P521_KYBER90S1024:
+        case WOLFSSL_KYBER_LEVEL1:
+        case WOLFSSL_KYBER_LEVEL3:
+        case WOLFSSL_KYBER_LEVEL5:
+        case WOLFSSL_NTRU_HPS_LEVEL1:
+        case WOLFSSL_NTRU_HPS_LEVEL3:
+        case WOLFSSL_NTRU_HPS_LEVEL5:
+        case WOLFSSL_NTRU_HRSS_LEVEL3:
+        case WOLFSSL_SABER_LEVEL1:
+        case WOLFSSL_SABER_LEVEL3:
+        case WOLFSSL_SABER_LEVEL5:
+        case WOLFSSL_KYBER_90S_LEVEL1:
+        case WOLFSSL_KYBER_90S_LEVEL3:
+        case WOLFSSL_KYBER_90S_LEVEL5:
+        case WOLFSSL_P256_NTRU_HPS_LEVEL1:
+        case WOLFSSL_P384_NTRU_HPS_LEVEL3:
+        case WOLFSSL_P521_NTRU_HPS_LEVEL5:
+        case WOLFSSL_P384_NTRU_HRSS_LEVEL3:
+        case WOLFSSL_P256_SABER_LEVEL1:
+        case WOLFSSL_P384_SABER_LEVEL3:
+        case WOLFSSL_P521_SABER_LEVEL5:
+        case WOLFSSL_P256_KYBER_LEVEL1:
+        case WOLFSSL_P384_KYBER_LEVEL3:
+        case WOLFSSL_P521_KYBER_LEVEL5:
+        case WOLFSSL_P256_KYBER_90S_LEVEL1:
+        case WOLFSSL_P384_KYBER_90S_LEVEL3:
+        case WOLFSSL_P521_KYBER_90S_LEVEL5:
             findEccOqs(NULL, &namedGroup, namedGroup);
             if (! OQS_KEM_alg_is_enabled(OQS_ID2name(namedGroup))) {
                 return 0;
@@ -8801,58 +8801,58 @@ static int TLSX_KeyShare_GroupRank(WOLFSSL* ssl, int group)
             /* For the liboqs groups we need to do a runtime check because
              * liboqs could be compiled to make an algorithm unavailable.
              */
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_KYBER512))
-                ssl->group[ssl->numGroups++] = WOLFSSL_KYBER512;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_KYBER768))
-                ssl->group[ssl->numGroups++] = WOLFSSL_KYBER768;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_KYBER1024))
-                ssl->group[ssl->numGroups++] = WOLFSSL_KYBER1024;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_NTRU_HPS2048509))
-                ssl->group[ssl->numGroups++] = WOLFSSL_NTRU_HPS2048509;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_NTRU_HPS2048677))
-                ssl->group[ssl->numGroups++] = WOLFSSL_NTRU_HPS2048677;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_NTRU_HPS4096821))
-                ssl->group[ssl->numGroups++] = WOLFSSL_NTRU_HPS4096821;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_NTRU_HRSS701))
-                ssl->group[ssl->numGroups++] = WOLFSSL_NTRU_HRSS701;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_LIGHTSABER))
-                ssl->group[ssl->numGroups++] = WOLFSSL_LIGHTSABER;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_SABER))
-                ssl->group[ssl->numGroups++] = WOLFSSL_SABER;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_FIRESABER))
-                ssl->group[ssl->numGroups++] = WOLFSSL_FIRESABER;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_KYBER90S512))
-                ssl->group[ssl->numGroups++] = WOLFSSL_KYBER90S512;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_KYBER90S768))
-                ssl->group[ssl->numGroups++] = WOLFSSL_KYBER90S768;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_KYBER90S1024))
-                ssl->group[ssl->numGroups++] = WOLFSSL_KYBER90S1024;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_P256_NTRU_HPS2048509))
-                ssl->group[ssl->numGroups++] = WOLFSSL_P256_NTRU_HPS2048509;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_P384_NTRU_HPS2048677))
-                ssl->group[ssl->numGroups++] = WOLFSSL_P384_NTRU_HPS2048677;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_P521_NTRU_HPS4096821))
-                ssl->group[ssl->numGroups++] = WOLFSSL_P521_NTRU_HPS4096821;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_P384_NTRU_HRSS701))
-                ssl->group[ssl->numGroups++] = WOLFSSL_P384_NTRU_HRSS701;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_P256_LIGHTSABER))
-                ssl->group[ssl->numGroups++] = WOLFSSL_P256_LIGHTSABER;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_P384_SABER))
-                ssl->group[ssl->numGroups++] = WOLFSSL_P384_SABER;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_P521_FIRESABER))
-                ssl->group[ssl->numGroups++] = WOLFSSL_P521_FIRESABER;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_P256_KYBER512))
-                ssl->group[ssl->numGroups++] = WOLFSSL_P256_KYBER512;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_P384_KYBER768))
-                ssl->group[ssl->numGroups++] = WOLFSSL_P384_KYBER768;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_P521_KYBER1024))
-                ssl->group[ssl->numGroups++] = WOLFSSL_P521_KYBER1024;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_P256_KYBER90S512))
-                ssl->group[ssl->numGroups++] = WOLFSSL_P256_KYBER90S512;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_P384_KYBER90S768))
-                ssl->group[ssl->numGroups++] = WOLFSSL_P384_KYBER90S768;
-            if (TLSX_KeyShare_IsSupported(WOLFSSL_P521_KYBER90S1024))
-                ssl->group[ssl->numGroups++] = WOLFSSL_P521_KYBER90S1024;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_KYBER_LEVEL1))
+                ssl->group[ssl->numGroups++] = WOLFSSL_KYBER_LEVEL1;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_KYBER_LEVEL3))
+                ssl->group[ssl->numGroups++] = WOLFSSL_KYBER_LEVEL3;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_KYBER_LEVEL5))
+                ssl->group[ssl->numGroups++] = WOLFSSL_KYBER_LEVEL5;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_NTRU_HPS_LEVEL1))
+                ssl->group[ssl->numGroups++] = WOLFSSL_NTRU_HPS_LEVEL1;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_NTRU_HPS_LEVEL3))
+                ssl->group[ssl->numGroups++] = WOLFSSL_NTRU_HPS_LEVEL3;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_NTRU_HPS_LEVEL5))
+                ssl->group[ssl->numGroups++] = WOLFSSL_NTRU_HPS_LEVEL5;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_NTRU_HRSS_LEVEL3))
+                ssl->group[ssl->numGroups++] = WOLFSSL_NTRU_HRSS_LEVEL3;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_SABER_LEVEL1))
+                ssl->group[ssl->numGroups++] = WOLFSSL_SABER_LEVEL1;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_SABER_LEVEL3))
+                ssl->group[ssl->numGroups++] = WOLFSSL_SABER_LEVEL3;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_SABER_LEVEL5))
+                ssl->group[ssl->numGroups++] = WOLFSSL_SABER_LEVEL5;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_KYBER_90S_LEVEL1))
+                ssl->group[ssl->numGroups++] = WOLFSSL_KYBER_90S_LEVEL1;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_KYBER_90S_LEVEL3))
+                ssl->group[ssl->numGroups++] = WOLFSSL_KYBER_90S_LEVEL3;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_KYBER_90S_LEVEL5))
+                ssl->group[ssl->numGroups++] = WOLFSSL_KYBER_90S_LEVEL5;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_P256_NTRU_HPS_LEVEL1))
+                ssl->group[ssl->numGroups++] = WOLFSSL_P256_NTRU_HPS_LEVEL1;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_P384_NTRU_HPS_LEVEL3))
+                ssl->group[ssl->numGroups++] = WOLFSSL_P384_NTRU_HPS_LEVEL3;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_P521_NTRU_HPS_LEVEL5))
+                ssl->group[ssl->numGroups++] = WOLFSSL_P521_NTRU_HPS_LEVEL5;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_P384_NTRU_HRSS_LEVEL3))
+                ssl->group[ssl->numGroups++] = WOLFSSL_P384_NTRU_HRSS_LEVEL3;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_P256_SABER_LEVEL1))
+                ssl->group[ssl->numGroups++] = WOLFSSL_P256_SABER_LEVEL1;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_P384_SABER_LEVEL3))
+                ssl->group[ssl->numGroups++] = WOLFSSL_P384_SABER_LEVEL3;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_P521_SABER_LEVEL5))
+                ssl->group[ssl->numGroups++] = WOLFSSL_P521_SABER_LEVEL5;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_P256_KYBER_LEVEL1))
+                ssl->group[ssl->numGroups++] = WOLFSSL_P256_KYBER_LEVEL1;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_P384_KYBER_LEVEL3))
+                ssl->group[ssl->numGroups++] = WOLFSSL_P384_KYBER_LEVEL3;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_P521_KYBER_LEVEL5))
+                ssl->group[ssl->numGroups++] = WOLFSSL_P521_KYBER_LEVEL5;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_P256_KYBER_90S_LEVEL1))
+                ssl->group[ssl->numGroups++] = WOLFSSL_P256_KYBER_90S_LEVEL1;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_P384_KYBER_90S_LEVEL3))
+                ssl->group[ssl->numGroups++] = WOLFSSL_P384_KYBER_90S_LEVEL3;
+            if (TLSX_KeyShare_IsSupported(WOLFSSL_P521_KYBER_90S_LEVEL5))
+                ssl->group[ssl->numGroups++] = WOLFSSL_P521_KYBER_90S_LEVEL5;
 #endif
     }
 
@@ -10885,75 +10885,81 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
 #endif
 
 #ifdef HAVE_LIBOQS
-    ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER512, ssl->heap);
+    ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL1, ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER768, ssl->heap);
-    if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER1024, ssl->heap);
-    if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_NTRU_HPS2048509,
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL3,
                                      ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_NTRU_HPS2048677,
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL5,
                                      ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_NTRU_HPS4096821,
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_NTRU_HPS_LEVEL1,
                                      ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_NTRU_HRSS701,
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_NTRU_HPS_LEVEL3,
                                      ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_LIGHTSABER, ssl->heap);
-    if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_SABER, ssl->heap);
-    if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_FIRESABER, ssl->heap);
-    if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER90S512,
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_NTRU_HPS_LEVEL5,
                                      ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER90S768,
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_NTRU_HRSS_LEVEL3,
                                      ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER90S1024,
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_SABER_LEVEL1,
                                      ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P256_NTRU_HPS2048509,
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_SABER_LEVEL3,
                                      ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P384_NTRU_HPS2048677,
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_SABER_LEVEL5,
                                      ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P521_NTRU_HPS4096821,
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_90S_LEVEL1,
                                      ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P384_NTRU_HRSS701,
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_90S_LEVEL3,
                                      ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P256_LIGHTSABER,
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_90S_LEVEL5,
                                      ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P384_SABER, ssl->heap);
-    if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P521_FIRESABER,
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P256_NTRU_HPS_LEVEL1,
                                      ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P256_KYBER512,
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P384_NTRU_HPS_LEVEL3,
                                      ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P384_KYBER768,
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P521_NTRU_HPS_LEVEL5,
                                      ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P521_KYBER1024,
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P384_NTRU_HRSS_LEVEL3,
                                      ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P256_KYBER90S512,
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P256_SABER_LEVEL1,
                                      ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P384_KYBER90S768,
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P384_SABER_LEVEL3,
                                      ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
-        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P521_KYBER90S1024,
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P521_SABER_LEVEL5,
+                                     ssl->heap);
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P256_KYBER_LEVEL1,
+                                     ssl->heap);
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P384_KYBER_LEVEL3,
+                                     ssl->heap);
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P521_KYBER_LEVEL5,
+                                     ssl->heap);
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P256_KYBER_90S_LEVEL1,
+                                     ssl->heap);
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P384_KYBER_90S_LEVEL3,
+                                     ssl->heap);
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P521_KYBER_90S_LEVEL5,
                                      ssl->heap);
 
 #endif /* HAVE_LIBOQS */
