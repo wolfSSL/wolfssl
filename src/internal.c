@@ -1028,6 +1028,8 @@ static int dtls_export_new(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     exp[idx++] = options->haveRSA;
     exp[idx++] = options->haveECC;
     exp[idx++] = options->haveDH;
+    exp[idx++] = 0; /* Historical: haveNTRU */
+    exp[idx++] = 0; /* Historical: haveQSH */
     exp[idx++] = options->haveECDSAsig;
     exp[idx++] = options->haveStaticECC;
     exp[idx++] = options->havePeerVerify;
@@ -1193,6 +1195,8 @@ static int dtls_export_load(WOLFSSL* ssl, const byte* exp, word32 len, byte ver)
     options->haveRSA          = exp[idx++];
     options->haveECC          = exp[idx++];
     options->haveDH           = exp[idx++];
+    idx++; /* Historical: haveNTRU */
+    idx++; /* Historical: haveQSH */
     options->haveECDSAsig     = exp[idx++];
     options->haveStaticECC    = exp[idx++];
     options->havePeerVerify   = exp[idx++];
