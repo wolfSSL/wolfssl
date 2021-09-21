@@ -39046,7 +39046,8 @@ static void test_wolfSSL_SHA256_Transform(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
-        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))) && \
+        !defined(WOLFSSL_DEVCRYPTO_HASH) && !defined(WOLFSSL_AFALG_HASH)
     byte input1[] = "";
     byte input2[] = "abc";
     byte local[WC_SHA256_BLOCK_SIZE];
