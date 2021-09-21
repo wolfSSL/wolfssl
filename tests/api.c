@@ -35993,6 +35993,10 @@ static void test_wolfSSL_SESSION(void)
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
+#ifdef HAVE_SESSION_TICKET
+    /* Use session tickets, for ticket tests below */
+    AssertIntEQ(wolfSSL_CTX_UseSessionTicket(ctx), WOLFSSL_SUCCESS);
+#endif
 
     XMEMSET(&server_args, 0, sizeof(func_args));
 #ifdef WOLFSSL_TIRTOS
@@ -36044,6 +36048,15 @@ static void test_wolfSSL_SESSION(void)
     #else
     AssertIntEQ(wolfSSL_SESSION_is_resumable(NULL), 0);
     AssertIntEQ(wolfSSL_SESSION_is_resumable(sess), 1);
+    #endif
+
+    AssertIntEQ(wolfSSL_SESSION_has_ticket(NULL), 0);
+    AssertIntEQ(wolfSSL_SESSION_get_ticket_lifetime_hint(NULL), 0);
+    AssertIntGT(wolfSSL_SESSION_get_ticket_lifetime_hint(sess), 0);
+    #ifdef HAVE_SESSION_TICKET
+    AssertIntEQ(wolfSSL_SESSION_has_ticket(sess), 1);
+    #else
+    AssertIntEQ(wolfSSL_SESSION_has_ticket(sess), 0);
     #endif
     
     wolfSSL_shutdown(ssl);
