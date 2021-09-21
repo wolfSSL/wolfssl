@@ -33392,6 +33392,37 @@ static void test_wolfSSL_sk_SSL_CIPHER(void)
              !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
 }
 
+static void test_wolfSSL_set1_curves_list(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(HAVE_RSA)
+    SSL*     ssl = NULL;
+    SSL_CTX* ctx = NULL;
+
+#ifndef NO_WOLFSSL_SERVER
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+#else
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
+#endif
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile,
+               SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+    AssertNotNull(ssl = SSL_new(ctx));
+
+    AssertIntEQ(SSL_CTX_set1_curves_list(ctx, NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(SSL_CTX_set1_curves_list(ctx, "P-25X"), WOLFSSL_FAILURE);
+    AssertIntEQ(SSL_CTX_set1_curves_list(ctx, "P-256"), WOLFSSL_SUCCESS);
+
+    AssertIntEQ(SSL_set1_curves_list(ssl, NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(SSL_set1_curves_list(ssl, "P-25X"), WOLFSSL_FAILURE);
+    AssertIntEQ(SSL_set1_curves_list(ssl, "P-256"), WOLFSSL_SUCCESS);
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_set1_sigalgs_list(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA)
@@ -49018,6 +49049,7 @@ void ApiTest(void)
 #endif
     test_wolfSSL_set_options();
     test_wolfSSL_sk_SSL_CIPHER();
+    test_wolfSSL_set1_curves_list();
     test_wolfSSL_set1_sigalgs_list();
     test_wolfSSL_PKCS7_certs();
     test_wolfSSL_X509_STORE_CTX();
