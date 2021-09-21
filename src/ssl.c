@@ -28432,7 +28432,7 @@ WOLFSSL_API long wolfSSL_CTX_get_session_cache_mode(WOLFSSL_CTX* ctx)
 }
 
 
-int wolfSSL_get_read_ahead(WOLFSSL* ssl)
+int wolfSSL_get_read_ahead(const WOLFSSL* ssl)
 {
     if (ssl == NULL) {
         return WOLFSSL_FAILURE;
