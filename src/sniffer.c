@@ -492,6 +492,10 @@ typedef struct KeyShareInfo {
     int         curve_id;
 } KeyShareInfo;
 
+/* maximum previous acks to capture */
+#ifndef WC_SNIFFER_HS_ACK_HIST_MAX
+#define WC_SNIFFER_HS_ACK_HIST_MAX 10
+#endif
 
 /* Sniffer Session holds info for each client/server SSL/TLS session */
 typedef struct SnifferSession {
@@ -506,6 +510,8 @@ typedef struct SnifferSession {
     word32         srvSeqStart;     /* server start sequence */
     word32         cliExpected;     /* client expected sequence (relative) */
     word32         srvExpected;     /* server expected sequence (relative) */
+    word32         cliAcks[WC_SNIFFER_HS_ACK_HIST_MAX]; /* history of acks during handshake */
+    word32         srvAcks[WC_SNIFFER_HS_ACK_HIST_MAX]; /* history of acks during handshake */
     FinCapture     finCapture;      /* retain out of order FIN s */
     Flags          flags;           /* session flags */
     time_t         lastUsed;        /* last used ticks */
@@ -4740,12 +4746,53 @@ static int AddFinCapture(SnifferSession* session, word32 sequence)
     return 1;
 }
 
+static int FindPrevAck(SnifferSession* session, word32 realAck)
+{
+    int i;
+    word32* acks = (session->flags.side == WOLFSSL_SERVER_END) ?
+        session->cliAcks : session->srvAcks;
+    /* if previous ack found return 1, otherwise 0 */
+    for (i=0; i<WC_SNIFFER_HS_ACK_HIST_MAX; i++) {
+        if (acks[i] == realAck) {
+            return 1;
+        }
+
+    }
+    return 0;
+}
+static void AddAck(SnifferSession* session, word32 realAck)
+{
+    int i;
+    word32* acks = (session->flags.side == WOLFSSL_SERVER_END) ?
+        session->cliAcks : session->srvAcks;
+    /* find first empty ack slot */
+    for (i=0; i<WC_SNIFFER_HS_ACK_HIST_MAX; i++) {
+        if (acks[i] == 0) {
+            break;
+        }
+    }
+    /* if out of slots, find oldest */
+    if (i == WC_SNIFFER_HS_ACK_HIST_MAX) {
+        int idx = 0;
+        word32 lastAck = realAck;
+        for (i=0; i<WC_SNIFFER_HS_ACK_HIST_MAX; i++) {
+            if (acks[i] < lastAck) {
+                idx = i;
+                lastAck = acks[i];
+            }
+        }
+        i  = idx;
+    }
+
+    acks[i] = realAck;
+}
 
 /* Adjust incoming sequence based on side */
 /* returns 0 on success (continue), -1 on error, 1 on success (end) */
 static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                           int* sslBytes, const byte** sslFrame, char* error)
 {
+    int ret = 0;
     word32  seqStart = (session->flags.side == WOLFSSL_SERVER_END) ?
                                      session->cliSeqStart :session->srvSeqStart;
     word32  real     = tcpInfo->sequence - seqStart;
@@ -4764,21 +4811,22 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
     TraceRelativeSequence(*expected, real);
 
     if (real < *expected) {
-        Trace(DUPLICATE_STR);
-        if (real + *sslBytes > *expected) {
-            int overlap = *expected - real;
-            Trace(OVERLAP_DUPLICATE_STR);
 
-            /* adjust to expected, remove duplicate */
-            *sslFrame += overlap;
-            *sslBytes -= overlap;
+        if (real + *sslBytes > *expected) {
+            Trace(OVERLAP_DUPLICATE_STR);
 
             /* The following conditional block is duplicated below. It is the
              * same action but for a different setup case. If changing this
              * block be sure to also update the block below. */
             if (reassemblyList) {
-                word32 newEnd = *expected + *sslBytes;
+                int overlap = *expected - real;
+                word32 newEnd;
 
+                /* adjust to expected, remove duplicate */
+                *sslFrame += overlap;
+                *sslBytes -= overlap;
+                
+                newEnd = *expected + *sslBytes;
                 if (newEnd > reassemblyList->begin) {
                     Trace(OVERLAP_REASSEMBLY_BEGIN_STR);
 
@@ -4795,12 +4843,33 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                                  newEnd - reassemblyList->end, session, error);
                 }
             }
+            else {
+                /* DUP overlap, allow */
+                if (*sslBytes > 0) {
+                    skipPartial = 0; /* do not reset sslBytes */
+                }
+            }
+            ret = 0;
         }
         else {
-            /* This can happen with out of order packets, or possible spurious
-             * retransmission. If packet has data attempt to process packet */
-            if (*sslBytes == 0) {
-                return 1;
+            /* This can happen with unseen acks, out of order packets, or
+             * possible spurious retransmission. */
+            if (*sslBytes > 0) {
+                /* If packet has data attempt to process packet, if hasn't 
+                 * already been ack'd during handshake */
+                if (FindPrevAck(session, real)) {
+                    Trace(DUPLICATE_STR);
+                    ret = 1;
+                }
+                else {
+                    /* DUP: allow */
+                    skipPartial = 0; /* do not reset sslBytes */
+                    ret = 0;
+                }
+            }
+            else {
+                /* DUP empty, ignore */
+                ret = 1;
             }
         }
     }
@@ -4809,25 +4878,17 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
         if (*sslBytes > 0) {
             int addResult = AddToReassembly(session->flags.side, real,
                                           *sslFrame, *sslBytes, session, error);
-            if (skipPartial) {
-                *sslBytes = 0;
-                return 0;
-            }
-            else
-                return addResult;
+            ret = (skipPartial) ? 0 : addResult;
         }
-        else if (tcpInfo->fin)
-            return AddFinCapture(session, real);
+        else if (tcpInfo->fin) {
+            ret = AddFinCapture(session, real);
+        }
     }
     else if (*sslBytes > 0) {
         if (skipPartial) {
             AddToReassembly(session->flags.side, real,
                                           *sslFrame, *sslBytes, session, error);
-            *expected += *sslBytes;
-            *sslBytes = 0;
-            if (tcpInfo->fin)
-                *expected += 1;
-            return 0;
+            ret = 0;
         }
         /* The following conditional block is duplicated above. It is the
          * same action but for a different setup case. If changing this
@@ -4852,12 +4913,24 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
             }
         }
     }
-    /* got expected sequence */
-    *expected += *sslBytes;
-    if (tcpInfo->fin)
-        *expected += 1;
+    else {
+        /* no data present */
+    }
 
-    return 0;
+    if (ret == 0) {
+        /* got expected sequence */
+        *expected += *sslBytes;
+        if (tcpInfo->fin)
+            *expected += 1;
+    }
+    if (*sslBytes > 0) {
+        AddAck(session, real);
+    }
+    if (*sslBytes > 0 && skipPartial) {
+        *sslBytes = 0;
+    }
+
+    return ret;
 }
 
 
@@ -5280,8 +5353,9 @@ doMessage:
     }
     if (sslBytes >= RECORD_HEADER_SZ) {
         if (GetRecordHeader(sslFrame, &rh, &rhSize) != 0) {
-            SetError(BAD_RECORD_HDR_STR, error, session, FATAL_ERROR_STATE);
-            return -1;
+            /* ignore packet if record header errors */
+            SetError(BAD_RECORD_HDR_STR, error, session, 0);
+            return 0;
         }
     }
     else
@@ -5360,8 +5434,12 @@ doMessage:
         }
 #endif
         if (errCode != 0) {
-            SetError(BAD_DECRYPT, error, session, FATAL_ERROR_STATE);
-            return -1;
+            if ((enum ContentType)rh.type == application_data) {
+                SetError(BAD_DECRYPT, error, session, FATAL_ERROR_STATE);
+                return -1;
+            }
+            /* do not end session for failures on handshake packets */
+            return 0;
         }
     }
 
