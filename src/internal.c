@@ -16585,6 +16585,10 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 #endif
                     return ret;
                 }
+#ifdef WOLFSSL_DTLS
+                /* Always have read up to end of record. */
+                ssl->curEnd = ssl->buffers.inputBuffer.length;
+#endif
             }
             else {
 #ifdef WOLFSSL_DTLS
@@ -16594,6 +16598,8 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 if (used < ssl->curSize)
                     if ((ret = GetInputData(ssl, ssl->curSize)) < 0)
                         return ret;
+                /* Can have read more than up to end of record. */
+                ssl->curEnd = ssl->buffers.inputBuffer.idx + ssl->curSize;
 #endif
             }
 
@@ -17208,7 +17214,12 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                     WOLFSSL_MSG("got ALERT!");
                     ret = DoAlert(ssl, ssl->buffers.inputBuffer.buffer,
                                   &ssl->buffers.inputBuffer.idx, &type,
-                                   ssl->buffers.inputBuffer.length);
+                #ifdef WOLFSSL_DTLS
+                                  ssl->curEnd
+                #else
+                                  ssl->buffers.inputBuffer.length
+                #endif
+                                 );
                     if (ret == alert_fatal)
                         return FATAL_ERROR;
                     else if (ret < 0)

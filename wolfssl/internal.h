@@ -4228,6 +4228,9 @@ struct WOLFSSL {
     word32          timeout;            /* session timeout */
     word32          fragOffset;         /* fragment offset */
     word16          curSize;
+#ifdef WOLFSSL_DTLS
+    word16          curEnd;
+#endif
     byte            verifyDepth;
     RecordLayerHeader curRL;
     MsgsReceived    msgsReceived;       /* peer messages received */
