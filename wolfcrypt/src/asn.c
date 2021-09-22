@@ -13878,6 +13878,29 @@ static const ASNItem altNameASN[] = {
 #define altNameASN_Length (sizeof(altNameASN) / sizeof(ASNItem))
 #endif /* WOLFSSL_ASN_TEMPLATE */
 
+
+static void AddAltName(DecodedCert* cert, DNS_entry* dnsEntry)
+{
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_ALT_NAMES_NO_REV)
+    dnsEntry->next = NULL;
+    if (cert->altNames == NULL) {
+        /* First on list */
+        cert->altNames = dnsEntry;
+    }
+    else {
+        DNS_entry* temp = cert->altNames;
+
+        /* Find end */
+        for (; (temp->next != NULL); temp = temp->next);
+
+        /* Add to end */
+        temp->next = dnsEntry;
+    }
+#else
+    dnsEntry->next = cert->altNames;
+    cert->altNames = dnsEntry;
+#endif
+}
 /* Decode subject alternative names extension.
  *
  * RFC 5280 4.2.1.6.  Subject Alternative Name
@@ -13956,8 +13979,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             XMEMCPY(dnsEntry->name, &input[idx], strLen);
             dnsEntry->name[strLen] = '\0';
 
-            dnsEntry->next = cert->altNames;
-            cert->altNames = dnsEntry;
+            AddAltName(cert, dnsEntry);
 
             length -= strLen;
             idx    += strLen;
@@ -14104,8 +14126,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             XMEMCPY(uriEntry->name, &input[idx], strLen);
             uriEntry->name[strLen] = '\0';
 
-            uriEntry->next = cert->altNames;
-            cert->altNames = uriEntry;
+            AddAltName(cert, uriEntry);
 
             length -= strLen;
             idx    += strLen;
@@ -14146,8 +14167,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             XMEMCPY(ipAddr->name, &input[idx], strLen);
             ipAddr->name[strLen] = '\0';
 
-            ipAddr->next   = cert->altNames;
-            cert->altNames = ipAddr;
+            AddAltName(cert, ipAddr);
 
             length -= strLen;
             idx    += strLen;
