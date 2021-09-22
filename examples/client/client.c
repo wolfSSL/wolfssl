@@ -1958,7 +1958,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifndef WOLFSSL_VXWORKS
     /* Not used: All used */
     while ((ch = mygetopt_long(argc, argv, "?:"
-            "ab:c:defgh:i;jk:l:mnop:q:rstu;v:wxyz"
+            "ab:c:defgh:i;jk:l:mop:q:rstu;v:wxyz"
             "A:B:CDE:F:GH:IJKL:M:NO:PQRS:TUVW:XYZ:"
             "01:23:4567:89"
             "@#", long_options, 0)) != -1) {
