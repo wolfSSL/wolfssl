@@ -44348,7 +44348,7 @@ WOLFSSL_DH *wolfSSL_PEM_read_DHparams(XFILE fp, WOLFSSL_DH **x,
     wolfSSL_BIO_free(fbio);
     return dh;
 }
-#endif /* NO_FILESYSTEM */
+#endif /* !NO_FILESYSTEM */
 
 #endif /* !NO_BIO */
 
@@ -56330,11 +56330,13 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
 
         #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
             bio->refCount = 1;
+            #ifndef SINGLE_THREADED
             if (wc_InitMutex(&bio->refMutex) != 0) {
                 wolfSSL_BIO_free(bio);
                 WOLFSSL_MSG("wc_InitMutex failed for WOLFSSL_BIO");
                 return NULL;
             }
+            #endif
         #endif
 
 }
@@ -56382,9 +56384,9 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
     int wolfSSL_BIO_free(WOLFSSL_BIO* bio)
     {
         int ret;
-        #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+    #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
         int doFree = 0;
-        #endif
+    #endif
 
         /* unchain?, doesn't matter in goahead since from free all */
         WOLFSSL_ENTER("wolfSSL_BIO_free");
@@ -56399,10 +56401,12 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
             }
 
         #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+            #ifndef SINGLE_THREADED
             if (wc_LockMutex(&bio->refMutex) != 0) {
                 WOLFSSL_MSG("Couldn't lock BIO mutex");
                 return WOLFSSL_FAILURE;
             }
+            #endif
 
             /* only free if all references to it are done */
             bio->refCount--;
@@ -56410,18 +56414,22 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
                 doFree = 1;
             }
 
+            #ifndef SINGLE_THREADED
             wc_UnLockMutex(&bio->refMutex);
+            #endif
 
             if (!doFree) {
                 /* return success if BIO ref count is not 1 yet */
                 return WOLFSSL_SUCCESS;
             }
+            #ifndef SINGLE_THREADED
             wc_FreeMutex(&bio->refMutex);
+            #endif
         #endif
 
-#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+        #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
             wolfSSL_CRYPTO_cleanup_ex_data(&bio->ex_data);
-#endif
+        #endif
 
             /* call custom set free callback */
             if (bio->method && bio->method->freeCb) {

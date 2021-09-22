@@ -3641,16 +3641,28 @@ const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
     return NULL;
 }
 
+/* Returns the NID of the WOLFSSL_EVP_MD passed in.
+ *
+ * type - pointer to WOLFSSL_EVP_MD for which to return NID value
+ *
+ * Returns NID on success, or NID_undef if none exists.
+ */
 int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
 {
     const struct s_ent *ent ;
     WOLFSSL_ENTER("EVP_MD_type");
+
+    if (type == NULL) {
+        WOLFSSL_MSG("MD type arg is NULL");
+        return NID_undef;
+    }
+
     for( ent = md_tbl; ent->name != NULL; ent++){
         if(XSTRNCMP((const char *)type, ent->name, XSTRLEN(ent->name)+1) == 0) {
             return ent->nid;
         }
     }
-    return 0;
+    return NID_undef;
 }
 
 #ifndef NO_MD4
@@ -6326,32 +6338,6 @@ const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int id)
     }
 
     return NULL;
-}
-
-/* Returns the NID associated with the WOLFSSL_EVP_MD argument.
- *
- * md - pointer to WOLFSSL_EVP_MD for which to return NID value
- *
- * Returns NID on success, BAD_FUNC_ARG on bad WOLFSSL_EVP_MD value.
- */
-int wolfSSL_EVP_MD_nid(const WOLFSSL_EVP_MD* md)
-{
-    const struct s_ent *ent;
-
-    WOLFSSL_ENTER("wolfSSL_EVP_MD_nid");
-
-    if (md == NULL) {
-        WOLFSSL_MSG("No md type arg");
-        return BAD_FUNC_ARG;
-    }
-
-    for (ent = md_tbl; ent->name != NULL; ent++) {
-        if (XSTRNCMP((const char*)md, ent->name, XSTRLEN(ent->name)+1) == 0) {
-            return ent->nid;
-        }
-    }
-
-    return BAD_FUNC_ARG;
 }
 
 #ifndef NO_RSA

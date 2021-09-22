@@ -736,11 +736,15 @@ long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bio, int cmd, long larg, void *parg)
 int wolfSSL_BIO_up_ref(WOLFSSL_BIO* bio)
 {
     if (bio) {
+    #ifndef SINGLE_THREADED
         if (wc_LockMutex(&bio->refMutex) != 0) {
             WOLFSSL_MSG("Failed to lock BIO mutex");
         }
+    #endif
         bio->refCount++;
+    #ifndef SINGLE_THREADED
         wc_UnLockMutex(&bio->refMutex);
+    #endif
 
         return WOLFSSL_SUCCESS;
     }

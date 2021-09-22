@@ -40273,7 +40273,7 @@ static void test_wolfSSL_EVP_MD_nid(void)
 #ifndef NO_SHA256
     AssertIntEQ(EVP_MD_nid(EVP_sha256()), NID_sha256);
 #endif
-    AssertIntEQ(EVP_MD_nid(NULL), BAD_FUNC_ARG);
+    AssertIntEQ(EVP_MD_nid(NULL), NID_undef);
 
     printf(resultFmt, passed);
 #endif

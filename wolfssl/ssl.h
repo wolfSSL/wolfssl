@@ -531,7 +531,9 @@ struct WOLFSSL_BIO {
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+    #ifndef SINGLE_THREADED
     wolfSSL_Mutex    refMutex;  /* ref count mutex */
+    #endif
     int              refCount;  /* reference count */
 #endif
 };
