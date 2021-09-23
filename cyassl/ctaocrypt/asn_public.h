@@ -55,10 +55,6 @@
     #define SetAltNamesBuffer wc_SetAltNamesBuffer
     #define SetDatesBuffer    wc_SetDatesBuffer
 
-    #ifdef HAVE_NTRU
-        #define MakeNtruCert wc_MakeNtruCert
-    #endif
-
 #endif /* WOLFSSL_CERT_GEN */
 
     #if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)

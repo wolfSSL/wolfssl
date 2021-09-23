@@ -103,10 +103,6 @@ ASN Options:
     #include <wolfssl/wolfcrypt/arc4.h>
 #endif
 
-#ifdef HAVE_NTRU
-    #include "libntruencrypt/ntru_crypto.h"
-#endif
-
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif
@@ -3810,9 +3806,6 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 #ifndef NO_RSA
     static const byte keyRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 1};
 #endif /* NO_RSA */
-#ifdef HAVE_NTRU
-    static const byte keyNtruOid[] = {43, 6, 1, 4, 1, 193, 22, 1, 1, 1, 1};
-#endif /* HAVE_NTRU */
 #ifdef HAVE_ECC
     static const byte keyEcdsaOid[] = {42, 134, 72, 206, 61, 2, 1};
 #endif /* HAVE_ECC */
@@ -4260,12 +4253,6 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(keyRsaOid);
                     break;
                 #endif /* NO_RSA */
-                #ifdef HAVE_NTRU
-                case NTRUk:
-                    oid = keyNtruOid;
-                    *oidSz = sizeof(keyNtruOid);
-                    break;
-                #endif /* HAVE_NTRU */
                 #ifdef HAVE_ECC
                 case ECDSAk:
                     oid = keyEcdsaOid;
@@ -9813,85 +9800,6 @@ static int ParseDsaKey(const byte* source, word32* srcIdx, word32 maxIdx,
 }
 #endif /* !NO_DSA */
 
-#ifdef HAVE_NTRU
-/* Store NTRU key data and length in certificate object.
- *
- * @param [in, out] cert    Certificate object.
- * @param [in]      source  Buffer containing encoded key.
- * @param [in, out] srcIdx  On in, start of RSA key data.
- *                          On out, start of element after RSA key data.
- * @param [in]      maxIdx  Maximum index of key data.
- * @param [in]      pubIdx  Index of into buffer of public key.
- * @return  0 on success.
- * @return  MEMORY_E when dynamic memory allocation fails.
- * @return  ASN_NTRU_KEY_E when BER encoding is invalid.
- */
-static int StoreNtruKey(DecodedCert* cert, const byte* source, word32* srcIdx,
-                        word32 maxIdx, word32 pubIdx)
-{
-    const byte* key = &source[pubIdx];
-    byte*       next = (byte*)key;
-    word16      keyLen;
-    word32      rc;
-    word32      remaining = maxIdx - *srcIdx;
-    byte*       publicKey;
-#ifdef WOLFSSL_SMALL_STACK
-    byte*       keyBlob = NULL;
-#else
-    byte        keyBlob[MAX_NTRU_KEY_SZ];
-#endif
-    rc = ntru_crypto_ntru_encrypt_subjectPublicKeyInfo2PublicKey(key, &keyLen,
-                                                     NULL, &next, &remaining);
-    if (rc != NTRU_OK)
-        return ASN_NTRU_KEY_E;
-    if (keyLen > MAX_NTRU_KEY_SZ)
-        return ASN_NTRU_KEY_E;
-
-#ifdef WOLFSSL_SMALL_STACK
-    keyBlob = (byte*)XMALLOC(MAX_NTRU_KEY_SZ, cert->heap,
-                             DYNAMIC_TYPE_TMP_BUFFER);
-    if (keyBlob == NULL)
-        return MEMORY_E;
-#endif
-
-    rc = ntru_crypto_ntru_encrypt_subjectPublicKeyInfo2PublicKey(key, &keyLen,
-                                                  keyBlob, &next, &remaining);
-    if (rc != NTRU_OK) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(keyBlob, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return ASN_NTRU_KEY_E;
-    }
-
-    if ( (next - key) < 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(keyBlob, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return ASN_NTRU_KEY_E;
-    }
-
-    *srcIdx = pubIdx + (int)(next - key);
-
-    publicKey = (byte*)XMALLOC(keyLen, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-    if (publicKey == NULL) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(keyBlob, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return MEMORY_E;
-    }
-    XMEMCPY(publicKey, keyBlob, keyLen);
-    cert->publicKey    = publicKey;
-    cert->pubKeyStored = 1;
-    cert->pubKeySize   = keyLen;
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(keyBlob, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-    return 0;
-}
-#endif /* HAVE_NTRU */
-
 /* Decode the SubjectPublicKeyInfo block in a certificate.
  *
  * Stores the public key in fields of the certificate object.
@@ -9914,7 +9822,7 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
 #if defined(HAVE_ECC) || !defined(NO_DSA)
     int pubLen;
 #endif
-#if defined(HAVE_ECC) || defined(HAVE_NTRU) || !defined(NO_DSA)
+#if defined(HAVE_ECC) || !defined(NO_DSA)
     int pubIdx = srcIdx;
 #endif
     int ret = 0;
@@ -9950,11 +9858,6 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
             break;
 
     #endif /* NO_RSA */
-    #ifdef HAVE_NTRU
-        case NTRUk:
-            ret = StoreNtruKey(cert, source, &srcIdx, maxIdx, pubIdx);
-            break;
-    #endif /* HAVE_NTRU */
     #ifdef HAVE_ECC
         case ECDSAk:
             ret = StoreEccKey(cert, source, &srcIdx, maxIdx, source + pubIdx,
@@ -19888,7 +19791,7 @@ typedef struct DerCert {
     byte issuer[ASN_NAME_MAX];         /* issuer  encoded */
     byte subject[ASN_NAME_MAX];        /* subject encoded */
     byte validity[MAX_DATE_SIZE*2 + MAX_SEQ_SZ*2];  /* before and after dates */
-    byte publicKey[MAX_PUBLIC_KEY_SZ]; /* rsa / ntru public key encoded */
+    byte publicKey[MAX_PUBLIC_KEY_SZ]; /* rsa public key encoded */
     byte ca[MAX_CA_SZ];                /* basic constraint CA true size */
     byte extensions[MAX_EXTENSIONS_SZ]; /* all extensions */
 #ifdef WOLFSSL_CERT_EXT
@@ -21884,13 +21787,9 @@ int SetName(byte* output, word32 outputSz, CertName* name)
 static int EncodePublicKey(int keyType, byte* output, int outLen,
                            RsaKey* rsaKey, ecc_key* eccKey,
                            ed25519_key* ed25519Key, ed448_key* ed448Key,
-                           DsaKey* dsaKey, const byte* ntruKey, word16 ntruSz)
+                           DsaKey* dsaKey)
 {
     int ret = 0;
-#ifdef HAVE_NTRU
-    word32 rc;
-    word16 encodedSz;
-#endif
 
     (void)outLen;
     (void)rsaKey;
@@ -21898,8 +21797,6 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
     (void)ed25519Key;
     (void)ed448Key;
     (void)dsaKey;
-    (void)ntruKey;
-    (void)ntruSz;
 
     switch (keyType) {
     #ifndef NO_RSA
@@ -21934,18 +21831,6 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
             }
             break;
     #endif
-    #ifdef HAVE_NTRU
-        case NTRU_KEY:
-            rc = ntru_crypto_ntru_encrypt_publicKey2SubjectPublicKeyInfo(ntruSz,
-                                                   ntruKey, &encodedSz, output);
-            if (rc != NTRU_OK) {
-                ret = PUBLIC_KEY_E;
-            }
-            if (ret == 0) {
-                ret = encodedSz;
-            }
-            break;
-    #endif /* HAVE_NTRU */
         default:
             ret = PUBLIC_KEY_E;
             break;
@@ -22308,8 +22193,8 @@ static int SetValidity(byte* before, byte* after, int daysValid)
 #ifndef WOLFSSL_ASN_TEMPLATE
 /* encode info from cert into DER encoded format */
 static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
-                      WC_RNG* rng, const byte* ntruKey, word16 ntruSz, DsaKey* dsaKey,
-                      ed25519_key* ed25519Key, ed448_key* ed448Key)
+                      WC_RNG* rng, DsaKey* dsaKey, ed25519_key* ed25519Key,
+                      ed448_key* ed448Key)
 {
     int ret;
 
@@ -22318,7 +22203,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
     /* make sure at least one key type is provided */
     if (rsaKey == NULL && eccKey == NULL && ed25519Key == NULL &&
-            dsaKey == NULL && ed448Key == NULL && ntruKey == NULL) {
+            dsaKey == NULL && ed448Key == NULL) {
         return PUBLIC_KEY_E;
     }
 
@@ -22393,32 +22278,6 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
             (word32)sizeof(der->publicKey), 1);
     }
 #endif
-
-#ifdef HAVE_NTRU
-    if (cert->keyType == NTRU_KEY) {
-        word32 rc;
-        word16 encodedSz;
-
-        if (ntruKey == NULL)
-            return PUBLIC_KEY_E;
-
-        rc  = ntru_crypto_ntru_encrypt_publicKey2SubjectPublicKeyInfo(ntruSz,
-                                                   ntruKey, &encodedSz, NULL);
-        if (rc != NTRU_OK)
-            return PUBLIC_KEY_E;
-        if (encodedSz > MAX_PUBLIC_KEY_SZ)
-            return PUBLIC_KEY_E;
-
-        rc  = ntru_crypto_ntru_encrypt_publicKey2SubjectPublicKeyInfo(ntruSz,
-                                         ntruKey, &encodedSz, der->publicKey);
-        if (rc != NTRU_OK)
-            return PUBLIC_KEY_E;
-
-        der->publicKeySz = encodedSz;
-    }
-#else
-    (void)ntruSz;
-#endif /* HAVE_NTRU */
 
     if (der->publicKeySz <= 0)
         return PUBLIC_KEY_E;
@@ -22989,8 +22848,8 @@ int AddSignature(byte* buf, int bodySz, const byte* sig, int sigSz,
 /* Make an x509 Certificate v3 any key type from cert input, write to buffer */
 static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
                        RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng,
-                       DsaKey* dsaKey, const byte* ntruKey, word16 ntruSz,
-                       ed25519_key* ed25519Key, ed448_key* ed448Key)
+                       DsaKey* dsaKey, ed25519_key* ed25519Key,
+                       ed448_key* ed448Key)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     int ret;
@@ -23013,8 +22872,6 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         cert->keyType = ED25519_KEY;
     else if (ed448Key)
         cert->keyType = ED448_KEY;
-    else if (ntruKey)
-        cert->keyType = NTRU_KEY;
     else
         return BAD_FUNC_ARG;
 
@@ -23024,8 +22881,8 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         return MEMORY_E;
 #endif
 
-    ret = EncodeCert(cert, der, rsaKey, eccKey, rng, ntruKey, ntruSz, dsaKey,
-                     ed25519Key, ed448Key);
+    ret = EncodeCert(cert, der, rsaKey, eccKey, rng, dsaKey, ed25519Key,
+                     ed448Key);
     if (ret == 0) {
         if (der->total + MAX_SEQ_SZ * 2 > (int)derSz)
             ret = BUFFER_E;
@@ -23068,9 +22925,6 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         }
         else if (ed448Key) {
             cert->keyType = ED448_KEY;
-        }
-        else if (ntruKey) {
-            cert->keyType = NTRU_KEY;
         }
         else {
             ret = BAD_FUNC_ARG;
@@ -23116,7 +22970,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
     if (ret >= 0) {
         /* Calcuate public key encoding size. */
         ret = publicKeySz = EncodePublicKey(cert->keyType, NULL, 0, rsaKey,
-            eccKey, ed25519Key, ed448Key, dsaKey, ntruKey, ntruSz);
+            eccKey, ed25519Key, ed448Key, dsaKey);
     }
     if (ret >= 0) {
         /* Calcuate extensions encoding size - may be 0. */
@@ -23251,7 +23105,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         /* Encode public key into buffer. */
         ret = EncodePublicKey(cert->keyType,
             (byte*)dataASN[15].data.buffer.data, dataASN[15].data.buffer.length,
-            rsaKey, eccKey, ed25519Key, ed448Key, dsaKey, ntruKey, ntruSz);
+            rsaKey, eccKey, ed25519Key, ed448Key, dsaKey);
     }
     if ((ret >= 0) && (!dataASN[23].noOut)) {
         /* Encode extensions into buffer. */
@@ -23293,28 +23147,15 @@ int wc_MakeCert_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
         ed448Key = (ed448_key*)key;
 
     return MakeAnyCert(cert, derBuffer, derSz, rsaKey, eccKey, rng, dsaKey,
-                       NULL, 0, ed25519Key, ed448Key);
+                       ed25519Key, ed448Key);
 }
 /* Make an x509 Certificate v3 RSA or ECC from cert input, write to buffer */
 int wc_MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,
              ecc_key* eccKey, WC_RNG* rng)
 {
-    return MakeAnyCert(cert, derBuffer, derSz, rsaKey, eccKey, rng, NULL, NULL, 0,
-                       NULL, NULL);
+    return MakeAnyCert(cert, derBuffer, derSz, rsaKey, eccKey, rng, NULL, NULL,
+                       NULL);
 }
-
-
-#ifdef HAVE_NTRU
-
-int wc_MakeNtruCert(Cert* cert, byte* derBuffer, word32 derSz,
-                  const byte* ntruKey, word16 keySz, WC_RNG* rng)
-{
-    return MakeAnyCert(cert, derBuffer, derSz, NULL, NULL, rng, NULL,
-            ntruKey, keySz, NULL, NULL);
-}
-
-#endif /* HAVE_NTRU */
-
 
 #ifdef WOLFSSL_CERT_REQ
 
@@ -23815,7 +23656,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
     if (ret >= 0) {
         /* Determine encode public key size. */
          ret = publicKeySz = EncodePublicKey(cert->keyType, NULL, 0, rsaKey,
-             eccKey, ed25519Key, ed448Key, dsaKey, NULL, 0);
+             eccKey, ed25519Key, ed448Key, dsaKey);
     }
     if (ret >= 0) {
         /* Determine encode extensions size. */
@@ -23898,7 +23739,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
         /* Encode public key into space in buffer. */
         ret = EncodePublicKey(cert->keyType, (byte*)dataASN[3].data.buffer.data,
             dataASN[3].data.buffer.length, rsaKey, eccKey, ed25519Key, ed448Key,
-            dsaKey, NULL, 0);
+            dsaKey);
     }
     if ((ret >= 0) && (!dataASN[13].noOut)) {
         /* Encode extensions into space in buffer. */
@@ -24086,7 +23927,6 @@ int wc_GetSubjectRaw(byte **subjectRaw, Cert *cert)
 
 /* Set KID from public key */
 static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
-                                 byte *ntruKey, word16 ntruKeySz,
                                  ed25519_key* ed25519Key, ed448_key* ed448Key,
                                  int kid_type)
 {
@@ -24094,8 +23934,8 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
     int   bufferSz, ret;
 
     if (cert == NULL ||
-        (rsakey == NULL && eckey == NULL && ntruKey == NULL &&
-                                      ed25519Key == NULL && ed448Key == NULL) ||
+        (rsakey == NULL && eckey == NULL && ed25519Key == NULL &&
+         ed448Key == NULL) ||
         (kid_type != SKID_TYPE && kid_type != AKID_TYPE))
         return BAD_FUNC_ARG;
 
@@ -24115,18 +23955,6 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
     /* ECC public key */
     if (eckey != NULL)
         bufferSz = SetEccPublicKey(buf, eckey, MAX_PUBLIC_KEY_SZ, 0);
-#endif
-#ifdef HAVE_NTRU
-    /* NTRU public key */
-    if (ntruKey != NULL) {
-        bufferSz = MAX_PUBLIC_KEY_SZ;
-        ret = ntru_crypto_ntru_encrypt_publicKey2SubjectPublicKeyInfo(
-                        ntruKeySz, ntruKey, (word16 *)(&bufferSz), buf);
-        if (ret != NTRU_OK)
-            bufferSz = -1;
-    }
-#else
-    (void)ntruKeySz;
 #endif
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
     /* ED25519 public key */
@@ -24178,26 +24006,15 @@ int wc_SetSubjectKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
     else if (keyType == ED448_TYPE)
         ed448Key = (ed448_key*)key;
 
-    return SetKeyIdFromPublicKey(cert, rsaKey, eccKey, NULL, 0, ed25519Key,
-                                 ed448Key, SKID_TYPE);
+    return SetKeyIdFromPublicKey(cert, rsaKey, eccKey, ed25519Key, ed448Key,
+                                 SKID_TYPE);
 }
 
 /* Set SKID from RSA or ECC public key */
 int wc_SetSubjectKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey)
 {
-    return SetKeyIdFromPublicKey(cert, rsakey, eckey, NULL, 0, NULL, NULL,
-                                 SKID_TYPE);
+    return SetKeyIdFromPublicKey(cert, rsakey, eckey, NULL, NULL, SKID_TYPE);
 }
-
-#ifdef HAVE_NTRU
-/* Set SKID from NTRU public key */
-int wc_SetSubjectKeyIdFromNtruPublicKey(Cert *cert,
-                                        byte *ntruKey, word16 ntruKeySz)
-{
-    return SetKeyIdFromPublicKey(cert, NULL,NULL,ntruKey, ntruKeySz, NULL, NULL,
-                                 SKID_TYPE);
-}
-#endif
 
 int wc_SetAuthKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
 {
@@ -24215,15 +24032,14 @@ int wc_SetAuthKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
     else if (keyType == ED448_TYPE)
         ed448Key = (ed448_key*)key;
 
-    return SetKeyIdFromPublicKey(cert, rsaKey, eccKey, NULL, 0, ed25519Key,
-                                 ed448Key, AKID_TYPE);
+    return SetKeyIdFromPublicKey(cert, rsaKey, eccKey, ed25519Key, ed448Key,
+                                 AKID_TYPE);
 }
 
 /* Set SKID from RSA or ECC public key */
 int wc_SetAuthKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey)
 {
-    return SetKeyIdFromPublicKey(cert, rsakey, eckey, NULL, 0, NULL, NULL,
-                                 AKID_TYPE);
+    return SetKeyIdFromPublicKey(cert, rsakey, eckey, NULL, NULL, AKID_TYPE);
 }
 
 

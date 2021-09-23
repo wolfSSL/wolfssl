@@ -12,8 +12,8 @@ standard operating environments as well because of its royalty-free pricing
 and excellent cross platform support. wolfSSL supports industry standards up
 to the current [TLS 1.3](https://www.wolfssl.com/tls13) and DTLS 1.2, is up to
 20 times smaller than OpenSSL, and offers progressive ciphers such as ChaCha20,
-Curve25519, NTRU, and Blake2b. User benchmarking and feedback reports
-dramatically better performance when using wolfSSL over OpenSSL.
+Curve25519, Blake2b and OQS TLS 1.3 groups. User benchmarking and feedback
+reports dramatically better performance when using wolfSSL over OpenSSL.
 
 wolfSSL is powered by the wolfCrypt cryptography library. Two versions of
 wolfCrypt have been FIPS 140-2 validated (Certificate #2425 and
@@ -47,9 +47,7 @@ with one or more of the following defines:
     WOLFSSL_STATIC_PSK
 
 Though static key cipher suites are deprecated and will be removed from future
-versions of TLS.  They also lower your security by removing PFS.  Since current
-NTRU suites available do not use ephemeral keys, ```WOLFSSL_STATIC_RSA``` needs
-to be used in order to build with NTRU suites.
+versions of TLS.  They also lower your security by removing PFS.
 
 When compiling ssl.c, wolfSSL will now issue a compiler error if no cipher
 suites are available. You can remove this error by defining

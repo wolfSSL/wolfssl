@@ -463,12 +463,7 @@ static void ShowPeer(WOLFSSL* ssl)
     printf("%s %s\n", words[0], wolfSSL_get_version(ssl));
 
     cipher = wolfSSL_get_current_cipher(ssl);
-#ifdef HAVE_QSH
-    printf("%s %s%s\n", words[1], (wolfSSL_isQSH(ssl))? "QSH:": "",
-            wolfSSL_CIPHER_get_name(cipher));
-#else
     printf("%s %s\n", words[1], wolfSSL_CIPHER_get_name(cipher));
-#endif
 #if defined(HAVE_ECC) || !defined(NO_DH)
     if ((name = wolfSSL_get_curve_name(ssl)) != NULL)
         printf("%s %s\n", words[2], name);

@@ -437,11 +437,6 @@ WOLFSSL_API int wc_GetSubjectRaw(byte **subjectRaw, Cert *cert);
 WOLFSSL_API int wc_SetSubjectRaw(Cert* cert, const byte* der, int derSz);
 WOLFSSL_API int wc_SetIssuerRaw(Cert* cert, const byte* der, int derSz);
 
-#ifdef HAVE_NTRU
-WOLFSSL_API int wc_SetSubjectKeyIdFromNtruPublicKey(Cert *cert, byte *ntruKey,
-                                                    word16 ntruKeySz);
-#endif
-
 /* Set the KeyUsage.
  * Value is a string separated tokens with ','. Accepted tokens are :
  * digitalSignature,nonRepudiation,contentCommitment,keyCertSign,cRLSign,
@@ -466,13 +461,6 @@ WOLFSSL_API int wc_SetExtKeyUsageOID(Cert *cert, const char *oid, word32 sz,
                                      byte idx, void* heap);
 #endif /* WOLFSSL_EKU_OID */
 #endif /* WOLFSSL_CERT_EXT */
-
-    #ifdef HAVE_NTRU
-        WOLFSSL_API int wc_MakeNtruCert(Cert*, byte* derBuffer, word32 derSz,
-                                     const byte* ntruKey, word16 keySz,
-                                     WC_RNG*);
-    #endif
-
 #endif /* WOLFSSL_CERT_GEN */
 
 WOLFSSL_API int wc_GetDateInfo(const byte* certDate, int certDateSz,

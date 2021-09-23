@@ -814,7 +814,6 @@ decouple library dependencies with standard string, memory and so on.
         DYNAMIC_TYPE_SEED         = 83,
         DYNAMIC_TYPE_SYMMETRIC_KEY= 84,
         DYNAMIC_TYPE_ECC_BUFFER   = 85,
-        DYNAMIC_TYPE_QSH          = 86,
         DYNAMIC_TYPE_SALT         = 87,
         DYNAMIC_TYPE_HASH_TMP     = 88,
         DYNAMIC_TYPE_BLOB         = 89,

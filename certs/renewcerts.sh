@@ -35,9 +35,6 @@
 #
 #                       pkcs7:
 #                       test-degenerate.p7b
-# if HAVE_NTRU
-#                       ntru-cert.pem
-#                       ntru-key.raw
 ###############################################################################
 ######################## FUNCTIONS SECTION ####################################
 ###############################################################################
@@ -53,10 +50,6 @@ restore_config(){
 check_result(){
     if [ $1 -ne 0 ]; then
         echo "Failed at \"$2\", Abort"
-        if [ "$2" = "configure for ntru" ] || \
-           [ "$2" = "make check with ntru" ]; then
-            restore_config
-        fi
         exit 1
     else
         echo "Step Succeeded!"
@@ -730,62 +723,19 @@ run_renewcerts(){
     echo "---------------------------------------------------------------------"
 }
 
-#function for copy and pasting ntru updates
-move_ntru(){
-    cp ntru-cert.pem certs/ntru-cert.pem || exit 1
-    cp ntru-key.raw certs/ntru-key.raw || exit 1
-    cp ntru-cert.der certs/ntru-cert.der || exit 1
-}
-
 ###############################################################################
 ##################### THE EXECUTABLE BODY #####################################
 ###############################################################################
 
 #start in root.
 cd ../ || exit 1
-#if HAVE_NTRU already defined && there is no argument
-if grep HAVE_NTRU "wolfssl/options.h" && [ -z "$1" ]
-then
 
-    #run the function to renew the certs
-    run_renewcerts
-    CURRDIR=${PWD##*/}
-    if [ "$CURRDIR" = "certs" ]; then
-        cd ../ || exit 1
-    else
-        echo "We are not in the right directory! Abort."
-        exit 1
-    fi
-    echo "changed directory to wolfssl root directory."
-    echo ""
-
-    ############################################################
-    ########## update ntru if already installed ################
-    ############################################################
-
-    # We cannot assume that user has certgen and keygen enabled
-    CFLAG_TMP="-DWOLFSSL_STATIC_RSA"
-    export CFLAGS=${CFLAG_TMP}
-    ./configure --with-ntru --enable-certgen --enable-keygen
-    check_result $? "configure for ntru"
-    make check
-    check_result $? "make check with ntru"
-    export CFLAGS=""
-
-    #copy/paste ntru-certs and key to certs/
-    move_ntru
-
-#else if there was an argument given, check it for validity or print out error
-elif [ ! -z "$1" ]; then
-    #valid argument then renew certs without ntru
-    if [ "$1" == "--override-ntru" ]; then
-        echo "overriding ntru, update all certs except ntru."
-        run_renewcerts
+#if there was an argument given, check it for validity or print out error
+if [ ! -z "$1" ]; then
     #valid argument print out other valid arguments
-    elif [ "$1" == "-h" ] || [ "$1" == "-help" ]; then
+    if [ "$1" == "-h" ] || [ "$1" == "-help" ]; then
         echo ""
         echo "\"no argument\"        will attempt to update all certificates"
-        echo "--override-ntru      updates all certificates except ntru"
         echo "-h or -help          display this menu"
         echo ""
         echo ""
@@ -797,7 +747,6 @@ elif [ ! -z "$1" ]; then
         echo "use -h or -help for a list of available options."
         echo ""
     fi
-#else HAVE_NTRU not already defined
 else
     echo "Saving the configure state"
     echo ""
@@ -809,63 +758,10 @@ else
     make clean
     check_result $? "make clean"
 
-    #attempt to define ntru by configuring with ntru
-    echo "Configuring with ntru, enabling certgen and keygen"
-    echo ""
-    CFLAG_TMP="-DWOLFSSL_STATIC_RSA"
-    export CFLAGS=${CFLAG_TMP}
-    ./configure --with-ntru --enable-certgen --enable-keygen
-    check_result $? "configure for ntru"
-    make check
-    check_result $? "make check with ntru"
-    export CFLAGS=""
+    # restore previous configure state
+    restore_config
+    check_result $? "restoring old configuration"
 
-    # check options.h a second time, if the user had
-    # ntru installed on their system and in the default
-    # path location, then it will now be defined, if the
-    # user does not have ntru on their system this will fail
-    # again and we will not update any certs until user installs
-    # ntru in the default location
-
-    # if now defined
-    if grep HAVE_NTRU "wolfssl/options.h"; then
-        run_renewcerts
-        CURRDIR=${PWD##*/}
-        if [ "$CURRDIR" = "certs" ]; then
-            cd ../ || exit 1
-        else
-            echo "We are not in the right directory! Abort."
-            exit 1
-        fi
-        echo "changed directory to wolfssl root directory."
-        echo ""
-
-        move_ntru
-
-        echo "ntru-certs, and ntru-key.raw have been updated"
-        echo ""
-
-        # restore previous configure state
-        restore_config
-        check_result $? "restoring old configuration"
-    else
-
-        # restore previous configure state
-        restore_config
-        check_result $? "restoring old configuration"
-
-        echo ""
-        echo "ntru is not installed at the default location,"
-        echo "or ntru not installed, none of the certs were updated."
-        echo ""
-        echo "clone the ntru repository into your \"cd ~\" directory then,"
-        echo "\"cd NTRUEncrypt\" and run \"make\" then \"make install\""
-        echo "once complete run this script again to update all the certs."
-        echo ""
-        echo "To update all certs except ntru use \"./renewcerts.sh --override-ntru\""
-        echo ""
-
-    fi #END now defined
 fi #END already defined
 
 exit 0

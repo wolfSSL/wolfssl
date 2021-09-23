@@ -366,7 +366,7 @@ struct WOLFSSL_EVP_PKEY {
 #endif
 
     union {
-        char* ptr; /* der format of key / or raw for NTRU */
+        char* ptr; /* der format of key */
     } pkey;
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     #ifndef NO_RSA
@@ -968,12 +968,6 @@ WOLFSSL_API int wolfSSL_use_RSAPrivateKey_file(WOLFSSL*, const char*, int);
     WOLFSSL_API int wolfSSL_CTX_der_load_verify_locations(WOLFSSL_CTX*,
                                                     const char*, int);
 #endif
-
-#ifdef HAVE_NTRU
-    WOLFSSL_API int wolfSSL_CTX_use_NTRUPrivateKey_file(WOLFSSL_CTX*, const char*);
-    /* load NTRU private key blob */
-#endif
-
 #endif /* !NO_FILESYSTEM && !NO_CERTS */
 
 WOLFSSL_API WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap);
@@ -2192,7 +2186,6 @@ WOLFSSL_API void wolfSSL_ERR_print_errors(WOLFSSL_BIO *bio);
     #define SSL_FILETYPE_ASN1 WOLFSSL_FILETYPE_ASN1
     #define SSL_FILETYPE_PEM WOLFSSL_FILETYPE_PEM
     #define SSL_FILETYPE_DEFAULT WOLFSSL_FILETYPE_DEFAULT
-    #define SSL_FILETYPE_RAW WOLFSSL_FILETYPE_RAW
 
     #define SSL_VERIFY_NONE WOLFSSL_VERIFY_NONE
     #define SSL_VERIFY_PEER WOLFSSL_VERIFY_PEER
@@ -2263,7 +2256,6 @@ enum { /* ssl Constants */
     WOLFSSL_FILETYPE_ASN1    = 2,
     WOLFSSL_FILETYPE_PEM     = 1,
     WOLFSSL_FILETYPE_DEFAULT = 2, /* ASN1 */
-    WOLFSSL_FILETYPE_RAW     = 3, /* NTRU raw key blob */
 
     WOLFSSL_VERIFY_NONE                 = 0,
     WOLFSSL_VERIFY_PEER                 = 1 << 0,
@@ -3667,30 +3659,6 @@ WOLFSSL_API int wolfSSL_CTX_set_num_tickets(WOLFSSL_CTX* ctx, size_t mxTickets);
 #endif /* NO_WOLFSSL_SERVER */
 
 #endif /* HAVE_SESSION_TICKET */
-
-#ifdef HAVE_QSH
-/* Quantum-safe Crypto Schemes */
-enum {
-    WOLFSSL_NTRU_EESS439 = 0x0101, /* max plaintext length of 65  */
-    WOLFSSL_NTRU_EESS593 = 0x0102, /* max plaintext length of 86  */
-    WOLFSSL_NTRU_EESS743 = 0x0103, /* max plaintext length of 106 */
-    WOLFSSL_LWE_XXX  = 0x0201,     /* Learning With Error encryption scheme */
-    WOLFSSL_HFE_XXX  = 0x0301,     /* Hidden Field Equation scheme */
-    WOLFSSL_NULL_QSH = 0xFFFF      /* QSHScheme is not used */
-};
-
-
-/* test if the connection is using a QSH secure connection return 1 if so */
-WOLFSSL_API int wolfSSL_isQSH(WOLFSSL* ssl);
-WOLFSSL_API int wolfSSL_UseSupportedQSH(WOLFSSL* ssl, unsigned short name);
-#ifndef NO_WOLFSSL_CLIENT
-    /* user control over sending client public key in hello
-       when flag = 1 will send keys if flag is 0 or function is not called
-       then will not send keys in the hello extension */
-    WOLFSSL_API int wolfSSL_UseClientQSHKeys(WOLFSSL* ssl, unsigned char flag);
-#endif
-
-#endif /* QSH */
 
 /* TLS Extended Master Secret Extension */
 WOLFSSL_API int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl);

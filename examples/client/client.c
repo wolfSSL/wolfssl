@@ -2589,11 +2589,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             done += 1;
         #endif
 
-        #if defined(HAVE_QSH)
-            /*currently google server rejects client hello with QSH extension.*/
-            done += 1;
-        #endif
-
         /* For the external test, if we disable AES, GoDaddy will reject the
          * connection. They only currently support AES suites, RC4 and 3DES
          * suites. With AES disabled we only offer PolyChacha suites. */

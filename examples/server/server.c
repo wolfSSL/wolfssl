@@ -859,9 +859,6 @@ static const char* server_usage_msg[][60] = {
         "-x          Print server errors but do not close connection\n",/* 27 */
         "-i          Loop indefinitely (allow repeated connections)\n", /* 28 */
         "-e          Echo data mode (return raw bytes received)\n",     /* 29 */
-#ifdef HAVE_NTRU
-        "-n          Use NTRU key (needed for NTRU suites)\n",          /* 30 */
-#endif
         "-B <num>    Benchmark throughput"
                             " using <num> bytes and print stats\n",     /* 31 */
 #ifdef HAVE_CRL
@@ -1026,9 +1023,6 @@ static const char* server_usage_msg[][60] = {
         "-i          無期限にループする(繰り返し接続を許可)\n",         /* 28 */
         "-e          エコー・データモード"
                                    "(受け取ったバイトデータを返す)\n",  /* 29 */
-#ifdef HAVE_NTRU
-        "-n          NTRU鍵を使用する(NTRUスイートに必要)\n",           /* 30 */
-#endif
         "-B <num>    <num> バイトを用いてのベンチマーク・スループット"
                                           "測定と結果を出力する\n",     /* 31 */
 #ifdef HAVE_CRL
@@ -1190,9 +1184,6 @@ static void Usage(void)
     printf("%s", msg[++msgId]);     /* -x */
     printf("%s", msg[++msgId]);     /* -i */
     printf("%s", msg[++msgId]);     /* -e */
-#ifdef HAVE_NTRU
-    printf("%s", msg[++msgId]);     /* -n */
-#endif
     printf("%s", msg[++msgId]);     /* -B */
 #ifdef HAVE_CRL
     printf("%s", msg[++msgId]);     /* -V */
@@ -1335,7 +1326,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     WOLFSSL_TEST_DTLS_CTX dtlsCtx;
 #endif
     int    needDH = 0;
-    int    useNtruKey   = 0;
     int    nonBlocking  = 0;
     int    simulateWantWrite = 0;
     int    fewerPackets = 0;
@@ -1492,7 +1482,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     (void)ourCert;
     (void)ourDhParam;
     (void)verifyCert;
-    (void)useNtruKey;
     (void)doCliCertCheck;
     (void)minDhKeyBits;
     (void)minRsaKeyBits;
@@ -1525,7 +1514,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
     /* Not Used: h, z, W, X, 7 */
     while ((ch = mygetopt_long(argc, argv, "?:"
-                "abc:defgijk:l:mnop:q:rstu;v:wxy"
+                "abc:defgijk:l:mop:q:rstu;v:wxy"
                 "A:B:C:D:E:FGH:IJKL:MNO:PQR:S:T;UVYZ:"
                 "01:23:4:5689"
                 "@#", long_options, 0)) != -1) {
@@ -1574,10 +1563,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
             case 'j' :
                 usePskPlus = 1;
-                break;
-
-            case 'n' :
-                useNtruKey = 1;
                 break;
 
             case 'u' :
@@ -2330,19 +2315,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     }
 #endif
 
-#ifdef HAVE_NTRU
-    if (useNtruKey) {
-        if (wolfSSL_CTX_use_NTRUPrivateKey_file(ctx, ourKey)
-                                != WOLFSSL_SUCCESS)
-            err_sys_ex(catastrophic, "can't load ntru key file, "
-                    "Please run from wolfSSL home dir");
-    }
-#endif
 #if !defined(NO_CERTS)
     #ifdef HAVE_PK_CALLBACKS
         pkCbInfo.ourKey = ourKey;
     #endif
-    if (!useNtruKey && (!usePsk || usePskPlus) && !useAnon
+    if ((!usePsk || usePskPlus) && !useAnon
         && !(loadCertKeyIntoSSLObj == 1)
     #if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PRIVKEY)
         && !pkCallbacks
@@ -2613,7 +2590,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     #endif
     }
 
-    if (!useNtruKey && (!usePsk || usePskPlus) && !useAnon &&
+    if ((!usePsk || usePskPlus) && !useAnon &&
         loadCertKeyIntoSSLObj
     #if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PRIVKEY)
         && !pkCallbacks
@@ -3298,7 +3275,6 @@ exit:
     (void) ourKey;
     (void) verifyCert;
     (void) doCliCertCheck;
-    (void) useNtruKey;
     (void) ourDhParam;
     (void) ourCert;
     (void) useX25519;

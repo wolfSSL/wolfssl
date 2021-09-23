@@ -343,8 +343,6 @@
 #define cliCertFileExt    "certs/client-cert-ext.pem"
 #define cliCertDerFileExt "certs/client-cert-ext.der"
 #define cliKeyFile        "certs/client-key.pem"
-#define ntruCertFile      "certs/ntru-cert.pem"
-#define ntruKeyFile       "certs/ntru-key.raw"
 #define dhParamFile       "certs/dh2048.pem"
 #define cliEccKeyFile     "certs/ecc-client-key.pem"
 #define cliEccCertFile    "certs/client-ecc-cert.pem"
@@ -377,8 +375,6 @@
 #define cliCertFileExt    "./certs/client-cert-ext.pem"
 #define cliCertDerFileExt "./certs/client-cert-ext.der"
 #define cliKeyFile        "./certs/client-key.pem"
-#define ntruCertFile      "./certs/ntru-cert.pem"
-#define ntruKeyFile       "./certs/ntru-key.raw"
 #define dhParamFile       "./certs/dh2048.pem"
 #define cliEccKeyFile     "./certs/ecc-client-key.pem"
 #define cliEccCertFile    "./certs/client-ecc-cert.pem"
@@ -983,12 +979,7 @@ static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
     printf("%s %s\n", words[0], wolfSSL_get_version(ssl));
 
     cipher = wolfSSL_get_current_cipher(ssl);
-#ifdef HAVE_QSH
-    printf("%s %s%s\n", words[1], (wolfSSL_isQSH(ssl))? "QSH:": "",
-            wolfSSL_CIPHER_get_name(cipher));
-#else
     printf("%s %s\n", words[1], wolfSSL_CIPHER_get_name(cipher));
-#endif
 #ifdef OPENSSL_EXTRA
     if (wolfSSL_get_signature_nid(ssl, &nid) == WOLFSSL_SUCCESS) {
         printf("%s %s\n", words[2], OBJ_nid2sn(nid));
@@ -2753,7 +2744,7 @@ static WC_INLINE void CaCb(unsigned char* der, int sz, int type)
             int depth, res;
             XFILE keyFile;
             for(depth = 0; depth <= MAX_WOLF_ROOT_DEPTH; depth++) {
-                keyFile = XFOPEN(ntruKeyFile, "rb");
+                keyFile = XFOPEN(dhParamFile, "rb");
                 if (keyFile != NULL) {
                     fclose(keyFile);
                     return depth;

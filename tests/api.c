@@ -490,7 +490,7 @@ static int test_wolfCrypt_Init(void)
     svrCertFile, svrKeyFile, caCertFile,
     eccCertFile, eccKeyFile, eccRsaCertFile,
     cliCertFile, cliCertDerFile, cliKeyFile,
-    ntruCertFile, ntruKeyFile, dhParamFile,
+    dhParamFile,
     cliEccKeyFile, cliEccCertFile, caEccCertFile, edCertFile, edKeyFile,
     cliEdCertFile, cliEdKeyFile, caEdCertFile,
     NULL
@@ -39536,10 +39536,6 @@ static void test_wolfSSL_X509_check_ca(void){
     AssertIntEQ(wolfSSL_X509_check_ca(x509), 1);
     wolfSSL_X509_free(x509);
 
-    x509 = wolfSSL_X509_load_certificate_file(ntruCertFile, WOLFSSL_FILETYPE_PEM);
-    AssertIntEQ(wolfSSL_X509_check_ca(x509), 0);
-    wolfSSL_X509_free(x509);
-
     printf(resultFmt, passed);
 #endif
 }
@@ -47225,7 +47221,6 @@ static void test_wolfSSL_CTX_LoadCRL(void)
     const char* badPath = "dummypath";
     const char* validPath = "./certs/crl";
     int derType = WOLFSSL_FILETYPE_ASN1;
-    int rawType = WOLFSSL_FILETYPE_RAW;
     int pemType = WOLFSSL_FILETYPE_PEM;
     int monitor = WOLFSSL_CRL_MONITOR;
 
@@ -47247,7 +47242,6 @@ static void test_wolfSSL_CTX_LoadCRL(void)
     SUCC_T (wolfSSL_CTX_LoadCRL, ctx, validPath, pemType, monitor);
     SUCC_T (wolfSSL_CTX_LoadCRL, ctx, badPath, pemType, monitor);
     SUCC_T (wolfSSL_CTX_LoadCRL, ctx, badPath, derType, monitor);
-    SUCC_T (wolfSSL_CTX_LoadCRL, ctx, badPath, rawType, monitor);
 
     wolfSSL_CTX_free(ctx);
     ctx = NULL;

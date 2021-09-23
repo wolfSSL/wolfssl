@@ -3623,66 +3623,6 @@ then
     AC_MSG_ERROR([cannot enable user crypto and fips, user crypto posibility of using code in fips boundary.])
 fi
 
-
-# NTRU
-ENABLED_NTRU="no"
-tryntrudir=""
-AC_ARG_WITH([ntru],
-    [AS_HELP_STRING([--with-ntru=PATH],[Path to NTRU install (default /usr/)])],
-    [
-        AC_MSG_CHECKING([for NTRU])
-        CPPFLAGS="$CPPFLAGS -DHAVE_NTRU -DHAVE_TLS_EXTENSIONS"
-        LIBS="$LIBS -lntruencrypt"
-
-        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <libntruencrypt/ntru_crypto_drbg.h>]], [[ ntru_crypto_drbg_instantiate(0, 0, 0, 0, 0); ]])], [ ntru_linked=yes ],[ ntru_linked=no ])
-
-        if test "x$ntru_linked" = "xno" ; then
-            if test "x$withval" != "xno" ; then
-                tryntrudir=$withval
-            fi
-            if test "x$withval" = "xyes" ; then
-                tryntrudir="/usr"
-            fi
-
-            LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$tryntrudir/lib"
-            CPPFLAGS="$CPPFLAGS -I$tryntrudir/include"
-
-            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <libntruencrypt/ntru_crypto_drbg.h>]], [[ ntru_crypto_drbg_instantiate(0, 0, 0, 0, 0); ]])], [ ntru_linked=yes ],[ ntru_linked=no ])
-
-            if test "x$ntru_linked" = "xno" ; then
-                AC_MSG_ERROR([NTRU isn't found.
-                If it's already installed, specify its path using --with-ntru=/dir/])
-            fi
-            AC_MSG_RESULT([yes])
-            AM_LDFLAGS="$AM_LDFLAGS -L$tryntrudir/lib"
-        else
-            AC_MSG_RESULT([yes])
-        fi
-
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_NTRU -DHAVE_TLS_EXTENSIONS -DWOLFSSL_STATIC_RSA"
-        ENABLED_NTRU="yes"
-    ]
-)
-
-
-# QSH
-AC_ARG_ENABLE([qsh],
-    [AS_HELP_STRING([--enable-qsh],[Enable QSH (default: disabled)])],
-    [ ENABLED_QSH=$enableval ],
-    [ ENABLED_QSH=no ]
-    )
-
-if test "x$ENABLED_QSH" = "xyes"
-then
-    if test "x$ENABLED_NTRU" = "xno"
-    then
-        AC_MSG_ERROR([cannot enable qsh without NTRU])
-    fi
-
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_QSH -DWOLFSSL_STATIC_DH -DWOLFSSL_STATIC_PSK"
-fi
-
-
 # liboqs
 ENABLED_LIBOQS="no"
 tryliboqsdir=""
@@ -6934,7 +6874,6 @@ AM_CONDITIONAL([BUILD_CRL],[test "x$ENABLED_CRL" != "xno" || test "x$ENABLED_USE
 AM_CONDITIONAL([BUILD_CRL_MONITOR],[test "x$ENABLED_CRL_MONITOR" = "xyes"])
 AM_CONDITIONAL([BUILD_USER_RSA],[test "x$ENABLED_USER_RSA" = "xyes"] )
 AM_CONDITIONAL([BUILD_USER_CRYPTO],[test "x$ENABLED_USER_CRYPTO" = "xyes"])
-AM_CONDITIONAL([BUILD_NTRU],[test "x$ENABLED_NTRU" = "xyes"])
 AM_CONDITIONAL([BUILD_LIBOQS],[test "x$ENABLED_LIBOQS" = "xyes"])
 AM_CONDITIONAL([BUILD_WNR],[test "x$ENABLED_WNR" = "xyes"])
 AM_CONDITIONAL([BUILD_SRP],[test "x$ENABLED_SRP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -7296,8 +7235,6 @@ echo "   * Persistent session cache:   $ENABLED_SAVESESSION"
 echo "   * Persistent cert    cache:   $ENABLED_SAVECERT"
 echo "   * Atomic User Record Layer:   $ENABLED_ATOMICUSER"
 echo "   * Public Key Callbacks:       $ENABLED_PKCALLBACKS"
-echo "   * NTRU:                       $ENABLED_NTRU"
-echo "   * QSH:                        $ENABLED_QSH"
 echo "   * liboqs:                     $ENABLED_LIBOQS"
 echo "   * Whitewood netRandom:        $ENABLED_WNR"
 echo "   * Server Name Indication:     $ENABLED_SNI"

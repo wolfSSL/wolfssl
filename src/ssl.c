@@ -1910,10 +1910,9 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
         keySz = ssl->buffers.keySz;
     #endif
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
-                   ssl->options.haveDH, ssl->options.haveNTRU,
-                   ssl->options.haveECDSAsig, ssl->options.haveECC,
-                   ssl->options.haveStaticECC, ssl->options.haveAnon,
-                   ssl->options.side);
+                   ssl->options.haveDH, ssl->options.haveECDSAsig, 
+                   ssl->options.haveECC, ssl->options.haveStaticECC, 
+                   ssl->options.haveAnon, ssl->options.side);
     }
 
     WOLFSSL_LEAVE("wolfSSL_SetTmpDH", 0);
@@ -2683,58 +2682,6 @@ int  wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count)
 }
 #endif /* OPENSSL_EXTRA && WOLFSSL_TLS13 */
 #endif /* HAVE_SUPPORTED_CURVES */
-
-/* QSH quantum safe handshake */
-#ifdef HAVE_QSH
-/* returns 1 if QSH has been used 0 otherwise */
-int wolfSSL_isQSH(WOLFSSL* ssl)
-{
-    /* if no ssl struct than QSH was not used */
-    if (ssl == NULL)
-        return 0;
-
-    return ssl->isQSH;
-}
-
-
-int wolfSSL_UseSupportedQSH(WOLFSSL* ssl, word16 name)
-{
-    if (ssl == NULL)
-        return BAD_FUNC_ARG;
-
-    switch (name) {
-    #ifdef HAVE_NTRU
-        case WOLFSSL_NTRU_EESS439:
-        case WOLFSSL_NTRU_EESS593:
-        case WOLFSSL_NTRU_EESS743:
-            break;
-    #endif
-        default:
-            return BAD_FUNC_ARG;
-    }
-
-    ssl->user_set_QSHSchemes = 1;
-
-    return TLSX_UseQSHScheme(&ssl->extensions, name, NULL, 0, ssl->heap);
-}
-
-#ifndef NO_WOLFSSL_CLIENT
-    /* user control over sending client public key in hello
-       when flag = 1 will send keys if flag is 0 or function is not called
-       then will not send keys in the hello extension
-       return 0 on success
-     */
-    int wolfSSL_UseClientQSHKeys(WOLFSSL* ssl, unsigned char flag)
-    {
-        if (ssl == NULL)
-            return BAD_FUNC_ARG;
-
-        ssl->sendQSHKeys = flag;
-
-        return 0;
-    }
-#endif /* NO_WOLFSSL_CLIENT */
-#endif /* HAVE_QSH */
 
 /* Application-Layer Protocol Negotiation */
 #ifdef HAVE_ALPN
@@ -4405,10 +4352,9 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
     #endif
 
     InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
-               ssl->options.haveDH, ssl->options.haveNTRU,
-               ssl->options.haveECDSAsig, ssl->options.haveECC,
-               ssl->options.haveStaticECC, ssl->options.haveAnon,
-               ssl->options.side);
+               ssl->options.haveDH, ssl->options.haveECDSAsig, 
+               ssl->options.haveECC, ssl->options.haveStaticECC, 
+               ssl->options.haveAnon, ssl->options.side);
 
     return WOLFSSL_SUCCESS;
 }
@@ -5591,7 +5537,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                          long sz, int format, int type, WOLFSSL* ssl,
                          long* used, int userChain, int verify)
 {
-    DerBuffer*    der = NULL;        /* holds DER or RAW (for NTRU) */
+    DerBuffer*    der = NULL;
     int           ret = 0;
     int           done = 0;
     int           keyFormat = 0;
@@ -5618,8 +5564,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         *used = sz;     /* used bytes default to sz, PEM chain may shorten*/
 
     /* check args */
-    if (format != WOLFSSL_FILETYPE_ASN1 && format != WOLFSSL_FILETYPE_PEM
-                                    && format != WOLFSSL_FILETYPE_RAW)
+    if (format != WOLFSSL_FILETYPE_ASN1 && format != WOLFSSL_FILETYPE_PEM)
         return WOLFSSL_BAD_FILETYPE;
 
     if (ctx == NULL && ssl == NULL)
@@ -5648,7 +5593,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     #endif
     }
     else {
-        /* ASN1 (DER) or RAW (NTRU) */
+        /* ASN1 (DER) */
         int length = (int)sz;
         if (format == WOLFSSL_FILETYPE_ASN1) {
             /* get length of der (read sequence or octet string) */
@@ -5707,7 +5652,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     }
 
     /* info is only used for private key with DER or PEM, so free now */
-    if (ret < 0 || type != PRIVATEKEY_TYPE || format == WOLFSSL_FILETYPE_RAW) {
+    if (ret < 0 || type != PRIVATEKEY_TYPE) {
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
     #endif
@@ -5798,7 +5743,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     if (done == 1) {
         /* No operation, just skip the next section */
     }
-    else if (type == PRIVATEKEY_TYPE && format != WOLFSSL_FILETYPE_RAW) {
+    else if (type == PRIVATEKEY_TYPE) {
         ret = ProcessBufferTryDecode(ctx, ssl, der, &keySz, &idx, &resetSuites,
                 &keyFormat, heap, devId);
 
@@ -6134,10 +6079,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
         /* let's reset suites */
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA,
-                   havePSK, ssl->options.haveDH, ssl->options.haveNTRU,
-                   ssl->options.haveECDSAsig, ssl->options.haveECC,
-                   ssl->options.haveStaticECC, ssl->options.haveAnon,
-                   ssl->options.side);
+                   havePSK, ssl->options.haveDH, ssl->options.haveECDSAsig,
+                   ssl->options.haveECC, ssl->options.haveStaticECC, 
+                   ssl->options.haveAnon, ssl->options.side);
     }
 
     return WOLFSSL_SUCCESS;
@@ -11447,31 +11391,6 @@ int wolfSSL_SESSION_get_master_key_length(const WOLFSSL_SESSION* ses)
 
 #endif /* OPENSSL_EXTRA */
 
-#ifndef NO_FILESYSTEM
-#ifdef HAVE_NTRU
-
-int wolfSSL_CTX_use_NTRUPrivateKey_file(WOLFSSL_CTX* ctx, const char* file)
-{
-    WOLFSSL_ENTER("wolfSSL_CTX_use_NTRUPrivateKey_file");
-
-    if (ctx == NULL)
-        return WOLFSSL_FAILURE;
-
-    if (ProcessFile(ctx, file, WOLFSSL_FILETYPE_RAW, PRIVATEKEY_TYPE, NULL, 0,
-                    NULL, GET_VERIFY_SETTING_CTX(ctx)) == WOLFSSL_SUCCESS) {
-        ctx->haveNTRU = 1;
-        return WOLFSSL_SUCCESS;
-    }
-
-    return WOLFSSL_FAILURE;
-}
-
-#endif /* HAVE_NTRU */
-
-
-#endif /* NO_FILESYSTEM */
-
-
 WOLFSSL_ABI
 void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode, VerifyCallback vc)
 {
@@ -15684,10 +15603,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             keySz = ssl->buffers.keySz;
         #endif
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
-                   ssl->options.haveDH, ssl->options.haveNTRU,
-                   ssl->options.haveECDSAsig, ssl->options.haveECC,
-                   ssl->options.haveStaticECC, ssl->options.haveAnon,
-                   ssl->options.side);
+                   ssl->options.haveDH, ssl->options.haveECDSAsig, 
+                   ssl->options.haveECC, ssl->options.haveStaticECC, 
+                   ssl->options.haveAnon, ssl->options.side);
     }
     #ifdef OPENSSL_EXTRA
     /**
@@ -15737,10 +15655,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             keySz = ssl->buffers.keySz;
         #endif
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
-                   ssl->options.haveDH, ssl->options.haveNTRU,
-                   ssl->options.haveECDSAsig, ssl->options.haveECC,
-                   ssl->options.haveStaticECC, ssl->options.haveAnon,
-                   ssl->options.side);
+                   ssl->options.haveDH, ssl->options.haveECDSAsig, 
+                   ssl->options.haveECC, ssl->options.haveStaticECC, 
+                   ssl->options.haveAnon, ssl->options.side);
     }
 
     const char* wolfSSL_get_psk_identity_hint(const WOLFSSL* ssl)
@@ -24571,11 +24488,6 @@ static WC_INLINE const char* wolfssl_kea_to_string(int kea)
             break;
     #endif
 #endif
-#ifdef HAVE_NTRU
-        case ntru_kea:
-            keaStr = "NTRU";
-            break;
-#endif
 #ifdef HAVE_ECC
         case ecc_diffie_hellman_kea:
             keaStr = "ECDHE";
@@ -27547,10 +27459,9 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
 
     if (ssl->suites != NULL && ssl->options.side != WOLFSSL_NEITHER_END)
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
-                       ssl->options.haveDH, ssl->options.haveNTRU,
-                       ssl->options.haveECDSAsig, ssl->options.haveECC,
-                       ssl->options.haveStaticECC, ssl->options.haveAnon,
-                       ssl->options.side);
+                   ssl->options.haveDH, ssl->options.haveECDSAsig, 
+                   ssl->options.haveECC, ssl->options.haveStaticECC, 
+                   ssl->options.haveAnon, ssl->options.side);
 
     return ssl->options.mask;
 }
@@ -30680,9 +30591,6 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
         { RSAk, RSAk, oidKeyType, "rsaEncryption", "rsaEncryption"},
         { NID_rsaEncryption, RSAk, oidKeyType, "rsaEncryption", "rsaEncryption"},
     #endif /* NO_RSA */
-    #ifdef HAVE_NTRU
-        { NTRUk, NTRUk, oidKeyType, "NTRU", "ntruEncryption"},
-    #endif /* HAVE_NTRU */
     #ifdef HAVE_ECC
         { ECDSAk, ECDSAk, oidKeyType, "ECDSA", "ecdsaEncryption"},
         { NID_X9_62_id_ecPublicKey, ECDSAk, oidKeyType, "id-ecPublicKey",
@@ -47898,11 +47806,6 @@ static WC_INLINE int SCSV_Check(byte suite0, byte suite)
     if (suite0 == CIPHER_BYTE && suite == TLS_EMPTY_RENEGOTIATION_INFO_SCSV)
         return 1;
 #endif
-#ifdef BUILD_TLS_QSH
-    /* This isn't defined as a SCSV, but it acts like one. */
-    if (suite0 == QSH_BYTE && suite == TLS_QSH)
-        return 1;
-#endif
     return 0;
 }
 
@@ -49678,10 +49581,6 @@ word32 nid2oid(int nid, int grp)
                 case RSAk:
                     return RSAk;
             #endif /* NO_RSA */
-            #ifdef HAVE_NTRU
-                case NTRUk:
-                    return NTRUk;
-            #endif /* HAVE_NTRU */
             #ifdef HAVE_ECC
                 case ECDSAk:
                     return ECDSAk;
@@ -50034,10 +49933,6 @@ int oid2nid(word32 oid, int grp)
                 case RSAk:
                     return RSAk;
             #endif /* NO_RSA */
-            #ifdef HAVE_NTRU
-                case NTRUk:
-                    return NTRUk;
-            #endif /* HAVE_NTRU */
             #ifdef HAVE_ECC
                 case ECDSAk:
                     return ECDSAk;

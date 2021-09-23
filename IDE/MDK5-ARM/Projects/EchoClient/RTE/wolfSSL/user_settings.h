@@ -358,13 +358,6 @@
 #define HAVE_PKCS7
 #endif
 //  </e>
-
-//      <e>NTRU (need License, "crypto_ntru.h")
-#define MDK_CONF_NTRU 0
-#if MDK_CONF_NTRU == 1
-#define HAVE_NTRU
-#endif
-//  </e>
 //  </h>
 
 //      <e>Random Seed, for TEST Only

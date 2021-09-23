@@ -1015,8 +1015,6 @@ endif()
 #       - CRL
 #       - CRL monitor
 #       - User crypto
-#       - NTRU
-#       - QSH
 #       - Whitewood netRandom client library
 #       - SNI
 #       - Max fragment length

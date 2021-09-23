@@ -24,8 +24,6 @@ EXTRA_DIST += tests/test.conf \
               tests/test-tls13-down.conf \
               tests/test-tls13-ecc.conf \
               tests/test-tls13-psk.conf \
-              tests/test-qsh.conf \
-              tests/test-qsh-sha2.conf \
               tests/test-psk.conf \
               tests/test-psk-no-id.conf \
               tests/test-psk-no-id-sha2.conf \

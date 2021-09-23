@@ -820,8 +820,6 @@ enum Misc_ASN {
     MAX_DSA_PRIVKEY_SZ  = (DSA_INTS * MAX_DSA_INT_SZ) + MAX_SEQ_SZ +
                           MAX_VERSION_SZ, /* Maximum size of a DSA Private
                                       key taken from DsaKeyIntsToDer. */
-    MAX_NTRU_KEY_SZ     = 610,     /* NTRU 112 bit public key */
-    MAX_NTRU_ENC_SZ     = 628,     /* NTRU 112 bit DER public encoding */
     MAX_RSA_E_SZ        =  16,     /* Max RSA public e size */
     MAX_CA_SZ           =  32,     /* Max encoded CA basic constraint length */
     MAX_SN_SZ           =  35,     /* Max encoded serial number (INT) length */
@@ -864,8 +862,7 @@ enum Misc_ASN {
     MAX_OCSP_EXT_SZ     = 58,      /* Max OCSP Extension length */
     MAX_OCSP_NONCE_SZ   = 16,      /* OCSP Nonce size           */
     EIGHTK_BUF          = 8192,    /* Tmp buffer size           */
-    MAX_PUBLIC_KEY_SZ   = MAX_NTRU_ENC_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
-                                   /* use bigger NTRU size */
+    MAX_PUBLIC_KEY_SZ   = MAX_DSA_PUBKEY_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     HEADER_ENCRYPTED_KEY_SIZE = 88,/* Extra header size for encrypted key */
 #else
@@ -971,7 +968,6 @@ enum Block_Sum {
 enum Key_Sum {
     DSAk     = 515,
     RSAk     = 645,
-    NTRUk    = 274,
     ECDSAk   = 518,
     ED25519k = 256, /* 1.3.101.112 */
     X25519k  = 254, /* 1.3.101.110 */
@@ -1880,7 +1876,6 @@ enum cert_enums {
     EMAIL_JOINT_LEN =  9,
     PILOT_JOINT_LEN =  10,
     RSA_KEY         = 10,
-    NTRU_KEY        = 11,
     ECC_KEY         = 12,
     ED25519_KEY     = 13,
     ED448_KEY       = 14,

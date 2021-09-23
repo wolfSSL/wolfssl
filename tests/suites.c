@@ -155,15 +155,6 @@ static int IsValidCipherSuite(const char* line, char *suite, size_t suite_spc)
         found = 1;
     }
 
-    /* if QSH not enabled then do not use QSH suite */
-    #ifdef HAVE_QSH
-        if (suite[0] && (XSTRNCMP(suite, "QSH", 3) == 0)) {
-            if (wolfSSL_CTX_set_cipher_list(cipherSuiteCtx, suite + 4)
-                                                                 != WOLFSSL_SUCCESS)
-                return 0;
-        }
-    #endif
-
     if (found) {
         if (wolfSSL_CTX_set_cipher_list(cipherSuiteCtx, suite) == WOLFSSL_SUCCESS)
             valid = 1;
@@ -1072,27 +1063,6 @@ int SuiteTest(int argc, char** argv)
     }
 #endif /* HAVE_RSA and HAVE_ECC */
 #endif /* !WC_STRICT_SIG */
-#ifdef HAVE_QSH
-    /* add QSH extra suites */
-    strcpy(argv0[1], "tests/test-qsh.conf");
-    printf("starting qsh extra cipher suite tests\n");
-    test_harness(&args);
-    if (args.return_code != 0) {
-        printf("error from script %d\n", args.return_code);
-        args.return_code = EXIT_FAILURE;
-        goto exit;
-    }
-#ifdef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
-    strcpy(argv0[1], "tests/test-qsh-sha2.conf");
-    printf("starting qsh extra cipher suite tests - old TLS sha-2 cs\n");
-    test_harness(&args);
-    if (args.return_code != 0) {
-        printf("error from script %d\n", args.return_code);
-        args.return_code = EXIT_FAILURE;
-        goto exit;
-    }
-#endif
-#endif
 #ifndef NO_PSK
     #ifndef WOLFSSL_NO_TLS12
         #if !defined(NO_RSA) || defined(HAVE_ECC)

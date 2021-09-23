@@ -158,10 +158,6 @@
 
 #include <wolfssl/certs_test.h>
 
-#ifdef HAVE_NTRU
-    #include "libntruencrypt/ntru_crypto.h"
-#endif
-
 #include <wolfssl/openssl/x509_vfy.h>
 #include <wolfssl/openssl/buffer.h>
 #include <wolfssl/openssl/ec25519.h>

@@ -38,10 +38,7 @@ CLEANFILES+= ecc-key.der \
              certreq.pem \
              key.der \
              key.pem \
-             ntru-cert.der \
              ecc-key-pkcs8.der \
-             ntru-cert.pem \
-             ntru-key.raw \
              othercert.der \
              othercert.pem \
              pkcs7cert.der \
@@ -135,10 +132,8 @@ ACLOCAL_AMFLAGS= -I m4
 
 EXTRA_DIST+= lib/dummy
 
-EXTRA_DIST+= wolfssl-ntru.vcproj
 EXTRA_DIST+= wolfssl.vcproj
 EXTRA_DIST+= wolfssl.vcxproj
-EXTRA_DIST+= wolfssl-ntru.sln
 EXTRA_DIST+= wolfssl.sln
 EXTRA_DIST+= wolfssl64.sln
 EXTRA_DIST+= valgrind-error.sh

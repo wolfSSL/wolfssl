@@ -288,11 +288,6 @@
     #error "You are trying to build max strength with requirements disabled."
 #endif
 
-/* Have QSH : Quantum-safe Handshake */
-#if defined(HAVE_QSH)
-    #define BUILD_TLS_QSH
-#endif
-
 #ifndef WOLFSSL_NO_TLS12
 
 #ifndef WOLFSSL_MAX_STRENGTH
@@ -312,20 +307,12 @@
                 #define BUILD_SSL_RSA_WITH_RC4_128_MD5
             #endif
         #endif
-        #if !defined(NO_TLS) && defined(HAVE_NTRU) && !defined(NO_SHA) \
-            && defined(WOLFSSL_STATIC_RSA)
-            #define BUILD_TLS_NTRU_RSA_WITH_RC4_128_SHA
-        #endif
     #endif
 
     #if !defined(NO_RSA) && !defined(NO_DES3)
         #if !defined(NO_SHA)
             #if defined(WOLFSSL_STATIC_RSA)
                 #define BUILD_SSL_RSA_WITH_3DES_EDE_CBC_SHA
-            #endif
-            #if !defined(NO_TLS) && defined(HAVE_NTRU) \
-                && defined(WOLFSSL_STATIC_RSA)
-                    #define BUILD_TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA
             #endif
         #endif
     #endif
@@ -345,14 +332,6 @@
                 #endif
                 #ifdef WOLFSSL_AES_256
                     #define BUILD_TLS_RSA_WITH_AES_256_CBC_SHA
-                #endif
-            #endif
-            #if defined(HAVE_NTRU) && defined(WOLFSSL_STATIC_RSA)
-                #ifdef WOLFSSL_AES_128
-                    #define BUILD_TLS_NTRU_RSA_WITH_AES_128_CBC_SHA
-                #endif
-                #ifdef WOLFSSL_AES_256
-                    #define BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
                 #endif
             #endif
         #endif
@@ -1042,16 +1021,6 @@ enum {
     TLS_RSA_WITH_RABBIT_SHA       = 0xFD,
     WDM_WITH_NULL_SHA256          = 0xFE, /* wolfSSL DTLS Multicast */
 
-    /* wolfSSL extension - NTRU */
-    TLS_NTRU_RSA_WITH_RC4_128_SHA      = 0xe5,
-    TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA = 0xe6,
-    TLS_NTRU_RSA_WITH_AES_128_CBC_SHA  = 0xe7,  /* clashes w/official SHA-256 */
-    TLS_NTRU_RSA_WITH_AES_256_CBC_SHA  = 0xe8,
-
-    /* wolfSSL extension - NTRU , Quantum-safe Handshake
-       first byte is 0xD0 (QSH_BYTE) */
-    TLS_QSH      = 0x01,
-
     /* SHA256 */
     TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 = 0x6b,
     TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 = 0x67,
@@ -1236,7 +1205,6 @@ enum {
 enum Misc {
     CIPHER_BYTE = 0x00,            /* Default ciphers */
     ECC_BYTE    = 0xC0,            /* ECC first cipher suite byte */
-    QSH_BYTE    = 0xD0,            /* Quantum-safe Handshake cipher suite */
     CHACHA_BYTE = 0xCC,            /* ChaCha first cipher suite */
     TLS13_BYTE  = 0x13,            /* TLS v1.3 first byte of cipher suite */
 
@@ -1512,9 +1480,6 @@ enum Misc {
 #endif
     CERT_MIN_SIZE      =  256, /* min PEM cert size with header/footer */
 
-    MAX_NTRU_PUB_KEY_SZ = 1027, /* NTRU max for now */
-    MAX_NTRU_ENCRYPT_SZ = 1027, /* NTRU max for now */
-    MAX_NTRU_BITS       =  256, /* max symmetric bit strength */
     NO_SNIFF           =   0,  /* not sniffing */
     SNIFF              =   1,  /* currently sniffing */
 
@@ -1645,13 +1610,7 @@ enum Misc {
     #endif
 #endif
 
-
-/* don't use extra 3/4k stack space unless need to */
-#ifdef HAVE_NTRU
-    #define MAX_ENCRYPT_SZ MAX_NTRU_ENCRYPT_SZ
-#else
-    #define MAX_ENCRYPT_SZ ENCRYPT_LEN
-#endif
+#define MAX_ENCRYPT_SZ ENCRYPT_LEN
 
 
 /* states */
@@ -1913,7 +1872,7 @@ WOLFSSL_LOCAL void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
                                          int haveRSAsig, int haveAnon,
                                          int tls1_2, int keySz);
 WOLFSSL_LOCAL void InitSuites(Suites*, ProtocolVersion, int, word16, word16,
-                              word16, word16, word16, word16, word16, word16, int);
+                              word16, word16, word16, word16, word16, int);
 WOLFSSL_LOCAL int  MatchSuite(WOLFSSL* ssl, Suites* peerSuites);
 WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
 WOLFSSL_LOCAL int  SetSuitesHashSigAlgo(Suites*, const char* list);
@@ -2280,7 +2239,6 @@ typedef enum {
     TLSX_ENCRYPT_THEN_MAC           = 0x0016, /* RFC 7366 */
 #endif
     TLSX_EXTENDED_MASTER_SECRET     = 0x0017, /* HELLO_EXT_EXTMS */
-    TLSX_QUANTUM_SAFE_HYBRID        = 0x0018, /* a.k.a. QSH  */
     TLSX_SESSION_TICKET             = 0x0023,
 #ifdef WOLFSSL_TLS13
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
@@ -2349,7 +2307,6 @@ WOLFSSL_LOCAL int   TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
    || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) \
    || defined(HAVE_SUPPORTED_CURVES)              \
    || defined(HAVE_ALPN)                          \
-   || defined(HAVE_QSH)                           \
    || defined(HAVE_SESSION_TICKET)                \
    || defined(HAVE_SECURE_RENEGOTIATION)          \
    || defined(HAVE_SERVER_RENEGOTIATION_INFO)
@@ -2591,48 +2548,6 @@ WOLFSSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket, void* heap);
 
 #endif /* HAVE_SESSION_TICKET */
 
-/** Quantum-Safe-Hybrid - draft-whyte-qsh-tls12-00 */
-#ifdef HAVE_QSH
-
-typedef struct QSHScheme {
-    struct QSHScheme* next; /* List Behavior   */
-    byte*             PK;
-    word16            name; /* QSHScheme Names */
-    word16            PKLen;
-} QSHScheme;
-
-typedef struct QSHkey {
-    struct QSHKey* next;
-    word16 name;
-    buffer pub;
-    buffer pri;
-} QSHKey;
-
-typedef struct QSHSecret {
-    QSHScheme* list;
-    buffer* SerSi;
-    buffer* CliSi;
-} QSHSecret;
-
-/* used in key exchange during handshake */
-WOLFSSL_LOCAL int TLSX_QSHCipher_Parse(WOLFSSL* ssl, const byte* input,
-                                                  word16 length, byte isServer);
-WOLFSSL_LOCAL word16 TLSX_QSHPK_Write(QSHScheme* list, byte* output);
-WOLFSSL_LOCAL word16 TLSX_QSH_GetSize(QSHScheme* list, byte isRequest);
-
-/* used by api for setting a specific QSH scheme */
-WOLFSSL_LOCAL int TLSX_UseQSHScheme(TLSX** extensions, word16 name,
-                                         byte* pKey, word16 pKeySz, void* heap);
-
-/* used when parsing in QSHCipher structs */
-WOLFSSL_LOCAL int QSH_Decrypt(QSHKey* key, byte* in, word32 szIn,
-                                                      byte* out, word16* szOut);
-#ifndef NO_WOLFSSL_SERVER
-WOLFSSL_LOCAL int TLSX_ValidateQSHScheme(TLSX** extensions, word16 name);
-#endif
-
-#endif /* HAVE_QSH */
-
 #ifdef WOLFSSL_TLS13
 /* Cookie extension information - cookie data. */
 typedef struct Cookie {
@@ -2848,7 +2763,6 @@ struct WOLFSSL_CTX {
     byte        haveRSA:1;        /* RSA available */
     byte        haveECC:1;        /* ECC available */
     byte        haveDH:1;         /* server DH parms set by user */
-    byte        haveNTRU:1;       /* server private NTRU  key loaded */
     byte        haveECDSAsig:1;   /* server cert signed w/ ECDSA */
     byte        haveStaticECC:1;  /* static server ECC private key */
     byte        partialWrite:1;   /* only one msg per write call */
@@ -3172,7 +3086,6 @@ enum KeyExchangeAlgorithm {
     psk_kea,
     dhe_psk_kea,
     ecdhe_psk_kea,
-    ntru_kea,
     ecc_diffie_hellman_kea,
     ecc_static_diffie_hellman_kea       /* for verify suite only */
 };
@@ -3636,8 +3549,6 @@ typedef struct Options {
     word16            haveRSA:1;          /* RSA available */
     word16            haveECC:1;          /* ECC available */
     word16            haveDH:1;           /* server DH parms set by user */
-    word16            haveNTRU:1;         /* server NTRU  private key loaded */
-    word16            haveQSH:1;          /* have QSH ability */
     word16            haveECDSAsig:1;     /* server ECDSA signed cert */
     word16            haveStaticECC:1;    /* static server ECC private key */
     word16            havePeerCert:1;     /* do we have peer's cert */
@@ -4262,18 +4173,6 @@ struct WOLFSSL {
 #endif
     byte            peerRsaKeyPresent;
 #endif
-#ifdef HAVE_QSH
-    QSHKey*         QSH_Key;
-    QSHKey*         peerQSHKey;
-    QSHSecret*      QSH_secret;
-    byte            isQSH;             /* is the handshake a QSH? */
-    byte            sendQSHKeys;       /* flag for if the client should sen
-                                          public keys */
-    byte            peerQSHKeyPresent;
-    byte            minRequest;
-    byte            maxRequest;
-    byte            user_set_QSHSchemes;
-#endif
 #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
     word16          namedGroup;
 #endif
@@ -4286,11 +4185,6 @@ struct WOLFSSL {
     word16          certHashSigAlgoSz;  /* SigAlgoCert ext length in bytes */
     byte            certHashSigAlgo[WOLFSSL_MAX_SIGALGO]; /* cert sig/algo to
                                                            * offer */
-#endif
-#ifdef HAVE_NTRU
-    word16          peerNtruKeyLen;
-    byte            peerNtruKey[MAX_NTRU_PUB_KEY_SZ];
-    byte            peerNtruKeyPresent;
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     int             eccVerifyRes;

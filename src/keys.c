@@ -1248,23 +1248,6 @@ int SetCipherSpecs(WOLFSSL* ssl)
         break;
 #endif
 
-#ifdef BUILD_TLS_NTRU_RSA_WITH_RC4_128_SHA
-    case TLS_NTRU_RSA_WITH_RC4_128_SHA :
-        ssl->specs.bulk_cipher_algorithm = wolfssl_rc4;
-        ssl->specs.cipher_type           = stream;
-        ssl->specs.mac_algorithm         = sha_mac;
-        ssl->specs.kea                   = ntru_kea;
-        ssl->specs.sig_algo              = rsa_sa_algo;
-        ssl->specs.hash_size             = WC_SHA_DIGEST_SIZE;
-        ssl->specs.pad_size              = PAD_SHA;
-        ssl->specs.static_ecdh           = 0;
-        ssl->specs.key_size              = RC4_KEY_SIZE;
-        ssl->specs.iv_size               = 0;
-        ssl->specs.block_size            = 0;
-
-        break;
-#endif
-
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_MD5
     case SSL_RSA_WITH_RC4_128_MD5 :
         ssl->specs.bulk_cipher_algorithm = wolfssl_rc4;
@@ -1299,23 +1282,6 @@ int SetCipherSpecs(WOLFSSL* ssl)
 #else
         ssl->specs.iv_size               = DES_IV_SIZE;
 #endif
-
-        break;
-#endif
-
-#ifdef BUILD_TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA
-    case TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = wolfssl_triple_des;
-        ssl->specs.cipher_type           = block;
-        ssl->specs.mac_algorithm         = sha_mac;
-        ssl->specs.kea                   = ntru_kea;
-        ssl->specs.sig_algo              = rsa_sa_algo;
-        ssl->specs.hash_size             = WC_SHA_DIGEST_SIZE;
-        ssl->specs.pad_size              = PAD_SHA;
-        ssl->specs.static_ecdh           = 0;
-        ssl->specs.key_size              = DES3_KEY_SIZE;
-        ssl->specs.block_size            = DES_BLOCK_SIZE;
-        ssl->specs.iv_size               = DES_IV_SIZE;
 
         break;
 #endif
@@ -1405,23 +1371,6 @@ int SetCipherSpecs(WOLFSSL* ssl)
         break;
 #endif
 
-#ifdef BUILD_TLS_NTRU_RSA_WITH_AES_128_CBC_SHA
-    case TLS_NTRU_RSA_WITH_AES_128_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
-        ssl->specs.cipher_type           = block;
-        ssl->specs.mac_algorithm         = sha_mac;
-        ssl->specs.kea                   = ntru_kea;
-        ssl->specs.sig_algo              = rsa_sa_algo;
-        ssl->specs.hash_size             = WC_SHA_DIGEST_SIZE;
-        ssl->specs.pad_size              = PAD_SHA;
-        ssl->specs.static_ecdh           = 0;
-        ssl->specs.key_size              = AES_128_KEY_SIZE;
-        ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_IV_SIZE;
-
-        break;
-#endif
-
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_SHA
     case TLS_RSA_WITH_AES_256_CBC_SHA :
         ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
@@ -1447,23 +1396,6 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.kea                   = rsa_kea;
         ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = WC_SHA256_DIGEST_SIZE;
-        ssl->specs.pad_size              = PAD_SHA;
-        ssl->specs.static_ecdh           = 0;
-        ssl->specs.key_size              = AES_256_KEY_SIZE;
-        ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_IV_SIZE;
-
-        break;
-#endif
-
-#ifdef BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
-    case TLS_NTRU_RSA_WITH_AES_256_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
-        ssl->specs.cipher_type           = block;
-        ssl->specs.mac_algorithm         = sha_mac;
-        ssl->specs.kea                   = ntru_kea;
-        ssl->specs.sig_algo              = rsa_sa_algo;
-        ssl->specs.hash_size             = WC_SHA_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
@@ -3683,49 +3615,6 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
 int MakeMasterSecret(WOLFSSL* ssl)
 {
     /* append secret to premaster : premaster | SerSi | CliSi */
-#ifdef HAVE_QSH
-    word32 offset = 0;
-
-    if (ssl->peerQSHKeyPresent) {
-        offset += ssl->arrays->preMasterSz;
-        ssl->arrays->preMasterSz += ssl->QSH_secret->CliSi->length +
-                                                 ssl->QSH_secret->SerSi->length;
-        /* test and set flag if QSH has been used */
-        if (ssl->QSH_secret->CliSi->length > 0 ||
-                ssl->QSH_secret->SerSi->length > 0)
-            ssl->isQSH = 1;
-
-        /* append secrets to the premaster */
-        if (ssl->QSH_secret->SerSi != NULL) {
-            XMEMCPY(ssl->arrays->preMasterSecret + offset,
-                ssl->QSH_secret->SerSi->buffer, ssl->QSH_secret->SerSi->length);
-        }
-        offset += ssl->QSH_secret->SerSi->length;
-        if (ssl->QSH_secret->CliSi != NULL) {
-            XMEMCPY(ssl->arrays->preMasterSecret + offset,
-                ssl->QSH_secret->CliSi->buffer, ssl->QSH_secret->CliSi->length);
-        }
-
-        /* show secret SerSi and CliSi */
-        #ifdef SHOW_SECRETS
-        {
-            word32 j;
-            printf("QSH generated secret material\n");
-            printf("SerSi        : ");
-            for (j = 0; j < ssl->QSH_secret->SerSi->length; j++) {
-                printf("%02x", ssl->QSH_secret->SerSi->buffer[j]);
-            }
-            printf("\n");
-            printf("CliSi        : ");
-            for (j = 0; j < ssl->QSH_secret->CliSi->length; j++) {
-                printf("%02x", ssl->QSH_secret->CliSi->buffer[j]);
-            }
-            printf("\n");
-        }
-        #endif
-    }
-#endif
-
 #ifndef NO_OLD_TLS
     if (ssl->options.tls) return MakeTlsMasterSecret(ssl);
     return MakeSslMasterSecret(ssl);
