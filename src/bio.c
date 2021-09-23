@@ -1667,11 +1667,12 @@ long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
             case WOLFSSL_BIO_SOCKET:
             #ifdef XFCNTL
                 {
-                    int ret = 0;
+                    int ret;
                     int flag = XFCNTL(bio->num, F_GETFL, 0);
                     if (on) {
                         ret = XFCNTL(bio->num, F_SETFL, flag | O_NONBLOCK);
-                    } else {
+                    }
+                    else {
                         ret = XFCNTL(bio->num, F_SETFL, flag & ~O_NONBLOCK);
                     }
 
