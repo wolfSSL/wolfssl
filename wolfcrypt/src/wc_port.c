@@ -2469,7 +2469,7 @@ time_t time(time_t * timer)
 
 #endif /* !NO_ASN_TIME */
 
-#ifndef WOLFSSL_LEANPSK
+#if !defined(WOLFSSL_LEANPSK) && !defined(STRING_USER)
 char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 {
     unsigned int s2_len = (unsigned int)XSTRLEN(s2);
