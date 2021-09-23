@@ -147,7 +147,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #if defined(CYASSL_DTLS)
     method  = CyaDTLSv1_2_server_method();
 #elif !defined(NO_TLS)
-    #if (defined(WOLFSSL_TLS13) && defined(WOLFSSL_SNIFFER))
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SNIFFER)
     method = CyaTLSv1_2_server_method();
     #else
     method = CyaSSLv23_server_method();

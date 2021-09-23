@@ -10200,10 +10200,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
     int usingPSK = 0;
 #endif
-#if (defined(HAVE_SUPPORTED_CURVES) && defined(WOLFSSL_TLS13))
-    TLSX* extension = NULL;
-#endif
 #if defined(HAVE_SUPPORTED_CURVES) && defined(WOLFSSL_TLS13)
+    TLSX* extension = NULL;
     word16 namedGroup = 0;
 #endif
 
