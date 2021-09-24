@@ -8567,6 +8567,111 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 }
 
 #if defined(OPENSSL_ALL)
+unsigned int wolfSSL_X509_get_extension_flags(WOLFSSL_X509* x509)
+{
+    unsigned int flags = 0;
+
+    WOLFSSL_ENTER("wolfSSL_X509_get_extension_flags");
+
+    if (x509 != NULL) {
+        if (x509->keyUsageSet) {
+            flags |= EXFLAG_KUSAGE;
+        }
+        if (x509->extKeyUsageSrc != NULL) {
+            flags |= EXFLAG_XKUSAGE;
+        }
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_X509_get_extension_flags", flags);
+
+    return flags;
+}
+
+unsigned int wolfSSL_X509_get_key_usage(WOLFSSL_X509* x509)
+{
+    unsigned int ret = 0;
+
+    WOLFSSL_ENTER("wolfSSL_X509_get_key_usage");
+
+    if (x509 == NULL) {
+        WOLFSSL_MSG("x509 is NULL");
+    }
+    else {
+        if (x509->keyUsageSet) {
+            ret = wolfSSL_X509_get_keyUsage(x509);
+        }
+        else {
+            ret = (unsigned int)-1;
+        }
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_X509_get_key_usage", ret);
+
+    return ret;
+}
+
+unsigned int wolfSSL_X509_get_extended_key_usage(WOLFSSL_X509* x509)
+{
+    int ret = 0;
+    int rc;
+    word32 idx = 0;
+    word32 oid;
+
+    WOLFSSL_ENTER("wolfSSL_X509_get_extended_key_usage");
+
+    if (x509 == NULL) {
+        WOLFSSL_MSG("x509 is NULL");
+    }
+    else if (x509->extKeyUsageSrc != NULL) {
+        while (idx < x509->extKeyUsageSz) {
+            rc = GetObjectId(x509->extKeyUsageSrc, &idx, &oid,
+                    oidCertKeyUseType, x509->extKeyUsageSz);
+            if (rc == ASN_UNKNOWN_OID_E) {
+                continue;
+            }
+            else if (rc < 0) {
+                WOLFSSL_MSG("GetObjectId failed");
+                ret = -1;
+                break;
+            }
+
+            switch (oid) {
+                case EKU_ANY_OID:
+                    ret |= XKU_ANYEKU;
+                    break;
+                case EKU_SERVER_AUTH_OID:
+                    ret |= XKU_SSL_SERVER;
+                    break;
+                case EKU_CLIENT_AUTH_OID:
+                    ret |= XKU_SSL_CLIENT;
+                    break;
+                case EKU_CODESIGNING_OID:
+                    ret |= XKU_CODE_SIGN;
+                    break;
+                case EKU_EMAILPROTECT_OID:
+                    ret |= XKU_SMIME;
+                    break;
+                case EKU_TIMESTAMP_OID:
+                    ret |= XKU_TIMESTAMP;
+                    break;
+                case EKU_OCSP_SIGN_OID:
+                    ret |= XKU_OCSP_SIGN;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+    else {
+        WOLFSSL_MSG("x509->extKeyUsageSrc is NULL");
+        ret = -1;
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_X509_get_extended_key_usage", ret);
+
+    return (unsigned int)ret;
+}
+
 /* Returns the number of X509V3 extensions in X509 object, or 0 on failure */
 int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
 {
@@ -26297,14 +26402,97 @@ int wolfSSL_X509_cmp_current_time(const WOLFSSL_ASN1_TIME* asnTime)
     return wolfSSL_X509_cmp_time(asnTime, NULL);
 }
 
+/* Converts a WOLFSSL_ASN1_TIME to a struct tm. Returns WOLFSSL_SUCCESS on
+ * success and WOLFSSL_FAILURE on failure. */
+static int Asn1TimeToTm(WOLFSSL_ASN1_TIME* asnTime, struct tm* tm)
+{
+    unsigned char* asn1TimeBuf;
+    int asn1TimeBufLen;
+    int i = 0;
+    int bytesNeeded = 10;
+
+    if (asnTime == NULL) {
+        WOLFSSL_MSG("asnTime is NULL");
+        return WOLFSSL_FAILURE;
+    }
+    if (tm == NULL) {
+        WOLFSSL_MSG("tm is NULL");
+        return WOLFSSL_FAILURE;
+    }
+
+    asn1TimeBuf = wolfSSL_ASN1_TIME_get_data(asnTime);
+    if (asn1TimeBuf == NULL) {
+        WOLFSSL_MSG("Failed to get WOLFSSL_ASN1_TIME buffer.");
+        return WOLFSSL_FAILURE;
+    }
+    asn1TimeBufLen = wolfSSL_ASN1_TIME_get_length(asnTime);
+    if (asn1TimeBufLen <= 0) {
+        WOLFSSL_MSG("Failed to get WOLFSSL_ASN1_TIME buffer length.");
+        return WOLFSSL_FAILURE;
+    }
+    XMEMSET(tm, 0, sizeof(struct tm));
+
+    /* Convert ASN1_time to struct tm */
+    /* Check type */
+    if (asnTime->type == ASN_UTC_TIME) {
+        /* 2-digit year */
+        bytesNeeded += 2;
+        if (bytesNeeded > asn1TimeBufLen) {
+            WOLFSSL_MSG("WOLFSSL_ASN1_TIME buffer length is invalid.");
+            return WOLFSSL_FAILURE;
+        }
+
+        tm->tm_year = (asn1TimeBuf[i] - '0') * 10; i++;
+        tm->tm_year += asn1TimeBuf[i] - '0'; i++;
+        if (tm->tm_year < 70) {
+            tm->tm_year += 100;
+        }
+    }
+    else if (asnTime->type == ASN_GENERALIZED_TIME) {
+        /* 4-digit year */
+        bytesNeeded += 4;
+        if (bytesNeeded > asn1TimeBufLen) {
+            WOLFSSL_MSG("WOLFSSL_ASN1_TIME buffer length is invalid.");
+            return WOLFSSL_FAILURE;
+        }
+
+        tm->tm_year = (asn1TimeBuf[i] - '0') * 1000; i++;
+        tm->tm_year += (asn1TimeBuf[i] - '0') * 100; i++;
+        tm->tm_year += (asn1TimeBuf[i] - '0') * 10; i++;
+        tm->tm_year += asn1TimeBuf[i] - '0'; i++;
+        tm->tm_year -= 1900;
+    }
+    else {
+        WOLFSSL_MSG("asnTime->type is invalid.");
+        return WOLFSSL_FAILURE;
+    }
+
+    tm->tm_mon = (asn1TimeBuf[i] - '0') * 10; i++;
+    tm->tm_mon += (asn1TimeBuf[i] - '0') - 1; i++; /* January is 0 not 1 */
+    tm->tm_mday = (asn1TimeBuf[i] - '0') * 10; i++;
+    tm->tm_mday += (asn1TimeBuf[i] - '0'); i++;
+    tm->tm_hour = (asn1TimeBuf[i] - '0') * 10; i++;
+    tm->tm_hour += (asn1TimeBuf[i] - '0'); i++;
+    tm->tm_min = (asn1TimeBuf[i] - '0') * 10; i++;
+    tm->tm_min += (asn1TimeBuf[i] - '0'); i++;
+    tm->tm_sec = (asn1TimeBuf[i] - '0') * 10; i++;
+    tm->tm_sec += (asn1TimeBuf[i] - '0');
+
+#ifdef XMKTIME
+    /* Call XMKTIME on tm to get the tm_wday and tm_yday fields populated. */
+    XMKTIME(tm);
+#endif
+
+    return WOLFSSL_SUCCESS;
+}
+
 /* return -1 if asnTime is earlier than or equal to cmpTime, and 1 otherwise
  * return 0 on error
  */
 int wolfSSL_X509_cmp_time(const WOLFSSL_ASN1_TIME* asnTime, time_t* cmpTime)
 {
-    int ret = WOLFSSL_FAILURE, i = 0;
+    int ret = WOLFSSL_FAILURE;
     time_t tmpTime, *pTime = &tmpTime;
-    byte data_ptr[MAX_TIME_STRING_SZ], inv = 0;
     struct tm ts, *tmpTs, *ct;
 #if defined(NEED_TMP_TIME)
     /* for use with gmtime_r */
@@ -26328,54 +26516,19 @@ int wolfSSL_X509_cmp_time(const WOLFSSL_ASN1_TIME* asnTime, time_t* cmpTime)
         pTime = cmpTime;
     }
 
-    /* Convert ASN1_time to time_t */
-    XMEMSET(&ts, 0, sizeof(struct tm));
-
-    /* Check type */
-    if (asnTime->type == ASN_UTC_TIME) {
-        /* 2-digit year */
-        XMEMCPY(data_ptr, &asnTime->data[i], ASN_UTC_TIME_SIZE);
-        ts.tm_year = (data_ptr[i] - '0') * 10; i++;
-        ts.tm_year += data_ptr[i] - '0'; i++;
-        if (ts.tm_year < 70) {
-            ts.tm_year += 100;
-        }
-    }
-    else if (asnTime->type == ASN_GENERALIZED_TIME) {
-        /* 4-digit year */
-        XMEMCPY(data_ptr, &asnTime->data[i], ASN_GENERALIZED_TIME_SIZE);
-        ts.tm_year = (data_ptr[i] - '0') * 1000; i++;
-        ts.tm_year += (data_ptr[i] - '0') * 100; i++;
-        ts.tm_year += (data_ptr[i] - '0') * 10; i++;
-        ts.tm_year += data_ptr[i] - '0'; i++;
-        ts.tm_year -= 1900;
-    }
-    else {
-        /* Invalid type */
-        inv = 1;
+    if (Asn1TimeToTm((WOLFSSL_ASN1_TIME*)asnTime, &ts) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("Failed to convert WOLFSSL_ASN1_TIME to struct tm.");
+        return WOLFSSL_FAILURE;
     }
 
-    if (inv != 1) {
-        ts.tm_mon = (data_ptr[i] - '0') * 10; i++;
-        ts.tm_mon += (data_ptr[i] - '0') - 1; i++; /* January is 0 not 1 */
-        ts.tm_mday = (data_ptr[i] - '0') * 10; i++;
-        ts.tm_mday += (data_ptr[i] - '0'); i++;
-        ts.tm_hour = (data_ptr[i] - '0') * 10; i++;
-        ts.tm_hour += (data_ptr[i] - '0'); i++;
-        ts.tm_min = (data_ptr[i] - '0') * 10; i++;
-        ts.tm_min += (data_ptr[i] - '0'); i++;
-        ts.tm_sec = (data_ptr[i] - '0') * 10; i++;
-        ts.tm_sec += (data_ptr[i] - '0');
+    /* Convert to time struct*/
+    ct = XGMTIME(pTime, tmpTs);
 
-        /* Convert to time struct*/
-        ct = XGMTIME(pTime, tmpTs);
+    if (ct == NULL)
+        return GETTIME_ERROR;
 
-        if (ct == NULL)
-            return GETTIME_ERROR;
-
-        /* DateGreaterThan returns 1 for >; 0 for <= */
-        ret = DateGreaterThan(&ts, ct) ? 1 : -1;
-    }
+    /* DateGreaterThan returns 1 for >; 0 for <= */
+    ret = DateGreaterThan(&ts, ct) ? 1 : -1;
 
     return ret;
 }
@@ -26674,6 +26827,40 @@ char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* t, char* buf, int len)
     }
 
     return buf;
+}
+
+int wolfSSL_ASN1_TIME_to_tm(const WOLFSSL_ASN1_TIME* asnTime, struct tm* tm)
+{
+    time_t currentTime;
+
+    WOLFSSL_ENTER("wolfSSL_ASN1_TIME_to_tm");
+
+    /* If asnTime is NULL, then the current time is converted. */
+    if (asnTime == NULL) {
+        if (tm == NULL) {
+            WOLFSSL_MSG("asnTime and tm are both NULL");
+            return WOLFSSL_FAILURE;
+        }
+
+        currentTime = XTIME(0);
+        if (currentTime < 0) {
+            WOLFSSL_MSG("Failed to get current time.");
+            return WOLFSSL_FAILURE;
+        }
+        if (XGMTIME(&currentTime, tm) == NULL) {
+            WOLFSSL_MSG("Failed to convert current time to UTC.");
+            return WOLFSSL_FAILURE;
+        }
+
+        return WOLFSSL_SUCCESS;
+    }
+
+    /* If tm is NULL this function performs a format check on asnTime only. */
+    if (tm == NULL) {
+        return wolfSSL_ASN1_TIME_check(asnTime);
+    }
+
+    return Asn1TimeToTm((WOLFSSL_ASN1_TIME*)asnTime, tm);
 }
 #endif /* !NO_ASN_TIME */
 #endif /* WOLFSSL_MYSQL_COMPATIBLE || WOLFSSL_NGINX || WOLFSSL_HAPROXY ||
@@ -29323,38 +29510,86 @@ int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_UTCTIME* a)
  * returns WOLFSSL_SUCCESS (1)  if correct otherwise WOLFSSL_FAILURE (0) */
 int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME* a)
 {
-#ifndef NO_ASN_TIME
     char buf[MAX_TIME_STRING_SZ];
-#endif
 
     WOLFSSL_ENTER("wolfSSL_ASN1_TIME_check");
 
-#ifndef NO_ASN_TIME
     /* if can parse the WOLFSSL_ASN1_TIME passed in then consider syntax good */
     if (wolfSSL_ASN1_TIME_to_string((WOLFSSL_ASN1_TIME*)a, buf,
                 MAX_TIME_STRING_SZ) == NULL) {
         return WOLFSSL_FAILURE;
     }
     return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
+    const WOLFSSL_ASN1_TIME *to)
+{
+#if defined(XMKTIME) && defined(XDIFFTIME)
+    const int SECS_PER_DAY = 24 * 60 * 60;
+    struct tm fromTm;
+    struct tm toTm;
+    time_t fromSecs;
+    time_t toSecs;
+    double diffSecs;
+
+    WOLFSSL_ENTER("wolfSSL_ASN1_TIME_diff");
+
+    if (days == NULL) {
+        WOLFSSL_MSG("days is NULL");
+        return WOLFSSL_FAILURE;
+    }
+    if (secs == NULL) {
+        WOLFSSL_MSG("secs is NULL");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (from == NULL && to == NULL) {
+        *days = 0;
+        *secs = 0;
+        return WOLFSSL_SUCCESS;
+    }
+
+    if (from == NULL) {
+        fromSecs = XTIME(0);
+        XGMTIME(&fromSecs, &fromTm);
+    }
+    else if (wolfSSL_ASN1_TIME_to_tm(from, &fromTm) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("Failed to convert from time to struct tm.");
+        return WOLFSSL_FAILURE;
+    }
+    fromSecs = XMKTIME(&fromTm);
+    if (fromSecs < 0) {
+        WOLFSSL_MSG("XMKTIME for from time failed.");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (to == NULL) {
+        toSecs = XTIME(0);
+        XGMTIME(&toSecs, &toTm);
+    }
+    else if (wolfSSL_ASN1_TIME_to_tm(to, &toTm) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("Failed to convert to time to struct tm.");
+        return WOLFSSL_FAILURE;
+    }
+    toSecs = XMKTIME(&toTm);
+    if (toSecs < 0) {
+        WOLFSSL_MSG("XMKTIME for to time failed.");
+        return WOLFSSL_FAILURE;
+    }
+
+    diffSecs = XDIFFTIME(toSecs, fromSecs);
+    *days = (int) (diffSecs / SECS_PER_DAY);
+    *secs = (int) (diffSecs - (*days * SECS_PER_DAY));
+
+    return WOLFSSL_SUCCESS;
 #else
-    (void)a;
     return WOLFSSL_FAILURE;
-#endif
+#endif /* XMKTIME && XDIFFTIME */
 }
 #endif /* !NO_ASN_TIME */
 
 #ifndef NO_WOLFSSL_STUB
-int wolfSSL_ASN1_TIME_diff(int *pday, int *psec,
-                   const WOLFSSL_ASN1_TIME *from, const WOLFSSL_ASN1_TIME *to)
-{
-    WOLFSSL_STUB("wolfSSL_ASN1_TIME_diff");
-    (void)pday;
-    (void)psec;
-    (void)from;
-    (void)to;
-    return 0;
-}
-
 WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_set(WOLFSSL_ASN1_TIME *s, time_t t)
 {
     WOLFSSL_STUB("wolfSSL_ASN1_TIME_set");
@@ -41903,18 +42138,57 @@ cleanup:
 
 
     WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x,
-                                                 pem_password_cb *cb, void *u)
+                                            pem_password_cb *cb, void *u)
     {
         return loadX509orX509REQFromPemBio(bp, x, cb, u, CERT_TYPE);
     }
 
 #ifdef WOLFSSL_CERT_REQ
     WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_REQ(WOLFSSL_BIO *bp, WOLFSSL_X509 **x,
-                                                 pem_password_cb *cb, void *u)
+                                                pem_password_cb *cb, void *u)
     {
         return loadX509orX509REQFromPemBio(bp, x, cb, u, CERTREQ_TYPE);
     }
-#endif
+
+#ifndef NO_FILESYSTEM
+    WOLFSSL_X509* wolfSSL_PEM_read_X509_REQ(XFILE fp, WOLFSSL_X509** x,
+                                            pem_password_cb* cb, void* u)
+    {
+        int err = 0;
+        WOLFSSL_X509* ret = NULL;
+        WOLFSSL_BIO* bio = NULL;
+
+        WOLFSSL_ENTER("wolfSSL_PEM_read_X509_REQ");
+
+        if (fp == XBADFILE) {
+            WOLFSSL_MSG("Invalid file.");
+            err = 1;
+        }
+
+        if (err == 0) {
+            bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
+            if (bio == NULL) {
+                WOLFSSL_MSG("Failed to create new BIO with input file.");
+                err = 1;
+            }
+        }
+        if (err == 0 && wolfSSL_BIO_set_fp(bio, fp, BIO_CLOSE)
+                != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Failed to set BIO file pointer.");
+            err = 1;
+        }
+        if (err == 0) {
+            ret = wolfSSL_PEM_read_bio_X509_REQ(bio, x, cb, u);
+        }
+
+        if (bio != NULL) {
+            wolfSSL_BIO_free(bio);
+        }
+
+        return ret;
+    }
+#endif /* !NO_FILESYSTEM */
+#endif /* WOLFSSL_CERT_REQ */
 
     WOLFSSL_X509_CRL *wolfSSL_PEM_read_bio_X509_CRL(WOLFSSL_BIO *bp,
             WOLFSSL_X509_CRL **x, pem_password_cb *cb, void *u)
@@ -45900,6 +46174,11 @@ int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len, int generat
     return WOLFSSL_SUCCESS;
 }
 #endif /* WOLFSSL_KEY_GEN && !HAVE_SELFTEST */
+
+int wolfSSL_ERR_load_ERR_strings(void)
+{
+    return WOLFSSL_SUCCESS;
+}
 
 void wolfSSL_ERR_load_crypto_strings(void)
 {
@@ -56505,6 +56784,14 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
             return WOLFSSL_FAILURE;
         }
 
+        while (b != NULL && b->type != WOLFSSL_BIO_SOCKET) {
+            b = b->next;
+        }
+        if (b == NULL) {
+            WOLFSSL_MSG("Failed to find socket BIO in chain.");
+            return WOLFSSL_FAILURE;
+        }
+
         b->port = (word16)p;
         return WOLFSSL_SUCCESS;
     }
@@ -56627,6 +56914,38 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
         }
     }
 
+    void wolfSSL_BIO_ssl_shutdown(WOLFSSL_BIO* b)
+    {
+        int rc;
+
+        WOLFSSL_ENTER("wolfSSL_BIO_ssl_shutdown");
+
+        if (b == NULL) {
+            WOLFSSL_MSG("BIO is null.");
+            return;
+        }
+
+        while (b != NULL && b->type != WOLFSSL_BIO_SSL) {
+            b = b->next;
+        }
+        if (b == NULL) {
+            WOLFSSL_MSG("Failed to find SSL BIO in chain.");
+            return;
+        }
+
+        if (b->ptr != NULL) {
+            rc = wolfSSL_shutdown((WOLFSSL*)b->ptr);
+            if (rc == SSL_SHUTDOWN_NOT_DONE) {
+                /* In this case, call again to give us a chance to read the
+                 * close notify alert from the other end. */
+                wolfSSL_shutdown((WOLFSSL*)b->ptr);
+            }
+        }
+        else {
+            WOLFSSL_MSG("BIO has no SSL pointer set.");
+        }
+    }
+
     long wolfSSL_BIO_set_ssl(WOLFSSL_BIO* b, WOLFSSL* ssl, int closeF)
     {
         long ret = WOLFSSL_FAILURE;
@@ -56643,6 +56962,128 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
         }
 
         return ret;
+    }
+
+    long wolfSSL_BIO_get_ssl(WOLFSSL_BIO* bio, WOLFSSL** ssl)
+    {
+        WOLFSSL_ENTER("wolfSSL_BIO_get_ssl");
+
+        if (bio == NULL) {
+            WOLFSSL_MSG("bio is null.");
+            return WOLFSSL_FAILURE;
+        }
+        if (ssl == NULL) {
+            WOLFSSL_MSG("ssl is null.");
+            return WOLFSSL_FAILURE;
+        }
+        if (bio->type != WOLFSSL_BIO_SSL) {
+            WOLFSSL_MSG("bio type is not WOLFSSL_BIO_SSL.");
+            return WOLFSSL_FAILURE;
+        }
+
+        *ssl = (WOLFSSL*)bio->ptr;
+
+        return WOLFSSL_SUCCESS;
+    }
+
+    WOLFSSL_BIO* wolfSSL_BIO_new_ssl_connect(WOLFSSL_CTX* ctx)
+    {
+        WOLFSSL* ssl = NULL;
+        WOLFSSL_BIO* sslBio = NULL;
+        WOLFSSL_BIO* connBio = NULL;
+        int err = 0;
+
+        WOLFSSL_ENTER("wolfSSL_BIO_new_ssl_connect");
+
+        if (ctx == NULL) {
+            WOLFSSL_MSG("ctx is NULL.");
+            err = 1;
+        }
+
+        if (err == 0) {
+            ssl = wolfSSL_new(ctx);
+            if (ssl == NULL) {
+                WOLFSSL_MSG("Failed to create SSL object from ctx.");
+                err = 1;
+            }
+        }
+        if (err == 0) {
+            sslBio = wolfSSL_BIO_new(wolfSSL_BIO_f_ssl());
+            if (sslBio == NULL) {
+                WOLFSSL_MSG("Failed to create SSL BIO.");
+                err = 1;
+            }
+        }
+        if (err == 0 && wolfSSL_BIO_set_ssl(sslBio, ssl, BIO_CLOSE) !=
+            WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Failed to set SSL pointer in BIO.");
+            err = 1;
+        }
+        if (err == 0) {
+            connBio = wolfSSL_BIO_new(wolfSSL_BIO_s_socket());
+            if (connBio == NULL) {
+                WOLFSSL_MSG("Failed to create connect BIO.");
+                err = 1;
+            }
+            else {
+                wolfSSL_BIO_push(sslBio, connBio);
+            }
+        }
+
+        if (err == 1) {
+            wolfSSL_free(ssl);
+            wolfSSL_BIO_free(sslBio);
+            wolfSSL_BIO_free(connBio);
+        }
+
+        return sslBio;
+    }
+
+    long wolfSSL_BIO_set_conn_hostname(WOLFSSL_BIO* b, char* name)
+    {
+        size_t currLen = 0;
+        size_t newLen = 0;
+
+        WOLFSSL_ENTER("wolfSSL_BIO_set_conn_hostname");
+
+        if (name == NULL) {
+            WOLFSSL_MSG("Hostname is NULL.");
+            return WOLFSSL_FAILURE;
+        }
+
+        while (b != NULL && b->type != WOLFSSL_BIO_SOCKET) {
+            b = b->next;
+        }
+        if (b == NULL) {
+            WOLFSSL_MSG("Failed to find socket BIO in chain.");
+            return WOLFSSL_FAILURE;
+        }
+
+        newLen = XSTRLEN(name);
+        if (b->ip == NULL) {
+            /* +1 for null char */
+            b->ip = (char*)XMALLOC(newLen + 1, b->heap, DYNAMIC_TYPE_OPENSSL);
+            if (b->ip == NULL) {
+                WOLFSSL_MSG("Hostname malloc failed.");
+                return WOLFSSL_FAILURE;
+            }
+        }
+        else {
+            currLen = XSTRLEN(b->ip);
+            if (currLen != newLen) {
+                b->ip = (char*)XREALLOC(b->ip, newLen + 1, b->heap,
+                    DYNAMIC_TYPE_OPENSSL);
+                if (b->ip == NULL) {
+                    WOLFSSL_MSG("Hostname realloc failed.");
+                    return WOLFSSL_FAILURE;
+                }
+            }
+        }
+
+        XMEMCPY(b->ip, name, newLen);
+        b->ip[newLen] = '\0';
+
+        return WOLFSSL_SUCCESS;
     }
 
 #ifndef NO_FILESYSTEM

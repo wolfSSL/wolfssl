@@ -677,6 +677,7 @@ enum
     NID_sha512 = 674,
     NID_sha512_224 = 1094,
     NID_sha512_256 = 1095,
+    NID_pkcs9_unstructuredName = 49,
     NID_pkcs9_challengePassword = 54,
     NID_hw_name_oid = 73,
     NID_id_pkix_OCSP_basic = 74,
@@ -1095,6 +1096,7 @@ enum KeyIdType {
 
 #ifdef WOLFSSL_CERT_REQ
 enum CsrAttrType {
+    UNSTRUCTURED_NAME_OID = 654,
     CHALLENGE_PASSWORD_OID = 659,
     SERIAL_NUMBER_OID = 94,
     EXTENSION_REQUEST_OID = 666,

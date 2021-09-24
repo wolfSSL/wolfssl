@@ -1429,6 +1429,9 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #ifdef __PPC__
         #define TIME_T_NOT_64BIT
     #endif
+
+    #define XMKTIME(tm) mktime(tm)
+    #define XDIFFTIME(to, from) difftime(to, from)
 #endif
 
 #ifdef SIZEOF_TIME_T

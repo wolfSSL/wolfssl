@@ -3949,6 +3949,7 @@ static const byte extExtKeyUsageOcspSignOid[]     = {43, 6, 1, 5, 5, 7, 3, 9};
 
 #ifdef WOLFSSL_CERT_REQ
 /* csrAttrType */
+static const byte attrUnstructuredNameOid[] = {42, 134, 72, 134, 247, 13, 1, 9, 2};
 static const byte attrChallengePasswordOid[] = {42, 134, 72, 134, 247, 13, 1, 9, 7};
 static const byte attrExtensionRequestOid[] = {42, 134, 72, 134, 247, 13, 1, 9, 14};
 static const byte attrSerialNumberOid[] = {85, 4, 5};
@@ -4735,6 +4736,10 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
 #ifdef WOLFSSL_CERT_REQ
         case oidCsrAttrType:
             switch (id) {
+                case UNSTRUCTURED_NAME_OID:
+                    oid = attrUnstructuredNameOid;
+                    *oidSz = sizeof(attrUnstructuredNameOid);
+                    break;
                 case CHALLENGE_PASSWORD_OID:
                     oid = attrChallengePasswordOid;
                     *oidSz = sizeof(attrChallengePasswordOid);
