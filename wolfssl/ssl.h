@@ -4260,7 +4260,7 @@ WOLFSSL_API void wolfSSL_ERR_remove_thread_state(void*);
 WOLFSSL_API void wolfSSL_print_all_errors_fp(XFILE fp);
 #endif
 
-WOLFSSL_API void wolfSSL_THREADID_set_callback(
+WOLFSSL_API int wolfSSL_THREADID_set_callback(
                     void (*threadid_func)(WOLFSSL_CRYPTO_THREADID*));
 
 WOLFSSL_API void wolfSSL_THREADID_set_numeric(void* id, unsigned long val);
