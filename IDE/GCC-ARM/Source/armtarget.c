@@ -142,20 +142,20 @@ void HardFault_HandlerC( uint32_t *hardfault_args )
     _BFAR = (*((volatile uint32_t *)(0xE000ED38)));
 
     printf ("\n\nHard fault handler (all numbers in hex):\n");
-    printf ("R0 = %ux\n", stacked_r0);
-    printf ("R1 = %ux\n", stacked_r1);
-    printf ("R2 = %ux\n", stacked_r2);
-    printf ("R3 = %ux\n", stacked_r3);
-    printf ("R12 = %ux\n", stacked_r12);
-    printf ("LR [R14] = %ux  subroutine call return address\n", stacked_lr);
-    printf ("PC [R15] = %ux  program counter\n", stacked_pc);
-    printf ("PSR = %ux\n", stacked_psr);
-    printf ("CFSR = %ux\n", _CFSR);
-    printf ("HFSR = %ux\n", _HFSR);
-    printf ("DFSR = %ux\n", _DFSR);
-    printf ("AFSR = %ux\n", _AFSR);
-    printf ("MMAR = %ux\n", _MMAR);
-    printf ("BFAR = %ux\n", _BFAR);
+    printf ("R0 = %lx\n", stacked_r0);
+    printf ("R1 = %lx\n", stacked_r1);
+    printf ("R2 = %lx\n", stacked_r2);
+    printf ("R3 = %lx\n", stacked_r3);
+    printf ("R12 = %lx\n", stacked_r12);
+    printf ("LR [R14] = %lx  subroutine call return address\n", stacked_lr);
+    printf ("PC [R15] = %lx  program counter\n", stacked_pc);
+    printf ("PSR = %lx\n", stacked_psr);
+    printf ("CFSR = %lx\n", _CFSR);
+    printf ("HFSR = %lx\n", _HFSR);
+    printf ("DFSR = %lx\n", _DFSR);
+    printf ("AFSR = %lx\n", _AFSR);
+    printf ("MMAR = %lx\n", _MMAR);
+    printf ("BFAR = %lx\n", _BFAR);
 
     // Break into the debugger
     __asm("BKPT #0\n");
