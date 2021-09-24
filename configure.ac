@@ -229,6 +229,10 @@ AS_CASE([$ENABLED_FIPS],
         FIPS_VERSION="none"
         ENABLED_FIPS="no"
     ],
+    [disabled],[
+        FIPS_VERSION="disabled"
+        ENABLED_FIPS="no"
+    ],
     [rand|v1|v2|v5],[
         FIPS_VERSION="$ENABLED_FIPS"
         ENABLED_FIPS="yes"
@@ -240,7 +244,7 @@ AS_CASE([$ENABLED_FIPS],
         FIPS_VERSION="v1"
     ],
     [
-        AC_MSG_ERROR([Invalid value for --enable-fips "$ENABLED_FIPS" (allowed: ready, rand, v1, v2, v5)])
+        AC_MSG_ERROR([Invalid value for --enable-fips "$ENABLED_FIPS" (allowed: ready, rand, v1, v2, v5, no, disabled)])
     ])
 
 AS_CASE([$FIPS_VERSION],
@@ -3377,6 +3381,7 @@ AS_CASE([$FIPS_VERSION],
         ENABLED_KEYGEN="yes"; ENABLED_SHA224="yes"; ENABLED_DES3="no"
         # Shake256 is a SHA-3 algorithm not in our FIPS algorithm list
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
+        ENABLED_SHAKE256=no
         AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
               [ENABLED_AESCCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
         AS_IF([test "x$ENABLED_RSAPSS" != "xyes"],
@@ -6374,7 +6379,10 @@ if test -n "$WITH_MAX_CLASSIC_ASYM_KEY_BITS"; then
    if test "$WITH_MAX_CLASSIC_ASYM_KEY_BITS" -lt 1024 -o "$WITH_MAX_CLASSIC_ASYM_KEY_BITS" -gt 16384; then
        AC_MSG_ERROR([--with-max-rsa-bits argument must be between 1024 and 16384 inclusive])
    fi
-   AM_CFLAGS="$AM_CFLAGS -DRSA_MAX_SIZE=$WITH_MAX_CLASSIC_ASYM_KEY_BITS"
+   if test "$ENABLED_FIPS" = "n"
+   then
+      AM_CFLAGS="$AM_CFLAGS -DRSA_MAX_SIZE=$WITH_MAX_CLASSIC_ASYM_KEY_BITS"
+   fi
    MPI_MAX_KEY_BITS=$WITH_MAX_CLASSIC_ASYM_KEY_BITS
 fi
 
