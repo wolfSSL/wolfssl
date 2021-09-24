@@ -151,7 +151,9 @@ int cc310_random_generate(byte* output, word32 size)
 {
     CRYSError_t crys_result;
 
+    CC310_ENTER();
     crys_result = CRYS_RND_GenerateVector(&wc_rndCtx.crys_rnd_state, size, output);
+    CC310_EXIT();
 
     return (crys_result == CRYS_OK) ? 0 : -1;
 }
