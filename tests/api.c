@@ -343,8 +343,10 @@
         #include <wolfssl/wolfcrypt/srp.h>
 #endif
 
-#if defined(SESSION_CERTS) && defined(TEST_PEER_CERT_CHAIN)
-#include "wolfssl/internal.h" /* for testing SSL_get_peer_cert_chain */
+#if (defined(SESSION_CERTS) && defined(TEST_PEER_CERT_CHAIN)) || \
+    defined(HAVE_SESSION_TICKET)
+    /* for testing SSL_get_peer_cert_chain, or SESSION_TICKET_HINT_DEFAULT */
+#include "wolfssl/internal.h"
 #endif
 
 /* force enable test buffers */
@@ -36052,9 +36054,10 @@ static void test_wolfSSL_SESSION(void)
 
     AssertIntEQ(wolfSSL_SESSION_has_ticket(NULL), 0);
     AssertIntEQ(wolfSSL_SESSION_get_ticket_lifetime_hint(NULL), 0);
-    AssertIntGT(wolfSSL_SESSION_get_ticket_lifetime_hint(sess), 0);
     #ifdef HAVE_SESSION_TICKET
     AssertIntEQ(wolfSSL_SESSION_has_ticket(sess), 1);
+    AssertIntEQ(wolfSSL_SESSION_get_ticket_lifetime_hint(sess),
+                SESSION_TICKET_HINT_DEFAULT);
     #else
     AssertIntEQ(wolfSSL_SESSION_has_ticket(sess), 0);
     #endif
