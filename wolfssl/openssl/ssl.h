@@ -409,7 +409,6 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define PEM_read_bio_X509_CRL           wolfSSL_PEM_read_bio_X509_CRL
 #define PEM_read_bio_X509_AUX           wolfSSL_PEM_read_bio_X509_AUX
 #define PEM_read_X509                   wolfSSL_PEM_read_X509
-#define PEM_X509_INFO_read_bio          wolfSSL_PEM_X509_INFO_read_bio
 #define PEM_write_bio_X509              wolfSSL_PEM_write_bio_X509
 #define PEM_write_bio_X509_AUX          wolfSSL_PEM_write_bio_X509_AUX
 #define PEM_X509_INFO_read_bio          wolfSSL_PEM_X509_INFO_read_bio
