@@ -6373,7 +6373,7 @@ static void test_wolfSSL_PKCS12(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_DES3) && !defined(NO_FILESYSTEM) && \
     !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA) && \
     !defined(NO_SHA) && defined(HAVE_PKCS12)
-    byte buffer[6000];
+    byte buf[6000];
     char file[] = "./certs/test-servercert.p12";
     char order[] = "./certs/ecc-rsa-server.p12";
 #ifdef WC_RC2
@@ -6406,13 +6406,13 @@ static void test_wolfSSL_PKCS12(void)
 
     f = XFOPEN(file, "rb");
     AssertTrue((f != XBADFILE));
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    bytes = (int)XFREAD(buf, 1, sizeof(buf), f);
     XFCLOSE(f);
 
     goodPswLen = (int)XSTRLEN(goodPsw);
     badPswLen = (int)XSTRLEN(badPsw);
 
-    bio = BIO_new_mem_buf((void*)buffer, bytes);
+    bio = BIO_new_mem_buf((void*)buf, bytes);
     AssertNotNull(bio);
 
     pkcs12 = d2i_PKCS12_bio(bio, NULL);
@@ -6557,10 +6557,10 @@ static void test_wolfSSL_PKCS12(void)
     /* test order of parsing */
     f = XFOPEN(order, "rb");
     AssertTrue(f != XBADFILE);
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    bytes = (int)XFREAD(buf, 1, sizeof(buf), f);
     XFCLOSE(f);
 
-    AssertNotNull(bio = BIO_new_mem_buf((void*)buffer, bytes));
+    AssertNotNull(bio = BIO_new_mem_buf((void*)buf, bytes));
     AssertNotNull(pkcs12 = d2i_PKCS12_bio(bio, NULL));
     AssertIntEQ((ret = PKCS12_parse(pkcs12, "", &pkey, &cert, &ca)),
             WOLFSSL_SUCCESS);
@@ -6640,10 +6640,10 @@ static void test_wolfSSL_PKCS12(void)
     /* test PKCS#12 with RC2 encryption */
     f = XFOPEN(rc2p12, "rb");
     AssertTrue(f != XBADFILE);
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    bytes = (int)XFREAD(buf, 1, sizeof(buf), f);
     XFCLOSE(f);
 
-    AssertNotNull(bio = BIO_new_mem_buf((void*)buffer, bytes));
+    AssertNotNull(bio = BIO_new_mem_buf((void*)buf, bytes));
     AssertNotNull(pkcs12 = d2i_PKCS12_bio(bio, NULL));
 
     /* check verify MAC fail case */
