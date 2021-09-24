@@ -20968,7 +20968,6 @@ void wolfSSL_DIST_POINT_free(WOLFSSL_DIST_POINT* dp)
     WOLFSSL_ENTER("wolfSSL_DIST_POINT_free");
     if (dp != NULL) {
         wolfSSL_DIST_POINT_NAME_free(dp->distpoint);
-        dp->distpoint = NULL;
         XFREE(dp, NULL, DYNAMIC_TYPE_OPENSSL);
     }
 }
@@ -21041,32 +21040,16 @@ void wolfSSL_sk_DIST_POINT_pop_free(WOLFSSL_STACK* sk,
 
     WOLFSSL_ENTER("wolfSSL_sk_DIST_POINT_pop_free");
 
-    if (sk == NULL) {
-        return;
-    }
-
-    /* parse through stack freeing each node */
-    node = sk->next;
-    while (node && sk->num > 1) {
+    node = sk;
+    while (node != NULL) {
         WOLFSSL_STACK* tmp = node;
-        node = node->next;
-
         if (f)
             f(tmp->data.dp);
         else
             wolfSSL_DIST_POINT_free(tmp->data.dp);
         XFREE(tmp, NULL, DYNAMIC_TYPE_ASN1);
-        sk->num -= 1;
+        node = sk->next;
     }
-
-    /* free head of stack */
-    if (sk->num == 1) {
-        if (f)
-            f(sk->data.dp);
-        else
-            wolfSSL_DIST_POINT_free(sk->data.dp);
-    }
-    XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
 }
 
 void wolfSSL_sk_DIST_POINT_free(WOLFSSL_STACK* sk)
