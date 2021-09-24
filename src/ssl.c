@@ -16840,6 +16840,24 @@ static int CheckSslMethodVersion(byte major, unsigned long options)
 }
 
 /**
+ * protoVerTbl holds (D)TLS version numbers in ascending order.
+ * Except DTLS versions, the newer version is located in the latter part of
+ * the table. This table is referred by wolfSSL_CTX_set_min_proto_version and
+ * wolfSSL_CTX_set_max_proto_version.
+ */
+static const int protoVerTbl[] = {
+    SSL3_VERSION,
+    TLS1_VERSION,
+    TLS1_1_VERSION,
+    TLS1_2_VERSION,
+    TLS1_3_VERSION,
+    DTLS1_VERSION,
+    DTLS1_2_VERSION
+};
+/* number of protocol versions listed in protoVerTbl */
+#define NUMBER_OF_PROTOCOLS sizeof(protoVerTbl)/sizeof(int)
+
+/**
  * wolfSSL_CTX_set_min_proto_version attempts to set the minimum protocol
  * version to use by SSL objects created from this WOLFSSL_CTX.
  * This API guarantees that a version of SSL/TLS lower than specified
@@ -16944,17 +16962,10 @@ static int Set_CTX_min_proto_version(WOLFSSL_CTX* ctx, int version)
     return CheckSslMethodVersion(ctx->method->version.major, ctx->mask);
 }
 
-/* number of protocol versions listed in table */
-#define NUMBER_OF_PROTOCOLS 7
-
 /* Sets the min protocol version allowed with WOLFSSL_CTX
  * returns WOLFSSL_SUCCESS on success */
 int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
 {
-    const int verTbl[] = {SSL3_VERSION, TLS1_VERSION, TLS1_1_VERSION,
-                          TLS1_2_VERSION, TLS1_3_VERSION, DTLS1_VERSION,
-                          DTLS1_2_VERSION};
-    int tblSz = NUMBER_OF_PROTOCOLS;
     int ret;
     int proto    = 0;
     int maxProto = 0;
@@ -16969,18 +16980,18 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
     if (version != 0) {
         proto = version;
         ctx->minProto = 0; /* turn min proto flag off */
-        for (i = 0; i < tblSz; i++) {
-            if (verTbl[i] == version) {
+        for (i = 0; (unsigned)i < NUMBER_OF_PROTOCOLS; i++) {
+            if (protoVerTbl[i] == version) {
                 break;
             }
         }
     }
     else {
         /* when 0 is specified as version, try to find out the min version */
-        for (i = 0; i < tblSz; i++) {
-            ret = Set_CTX_min_proto_version(ctx, verTbl[i]);
+        for (i = 0; (unsigned)i < NUMBER_OF_PROTOCOLS; i++) {
+            ret = Set_CTX_min_proto_version(ctx, protoVerTbl[i]);
             if (ret == WOLFSSL_SUCCESS) {
-                proto = verTbl[i];
+                proto = protoVerTbl[i];
                 ctx->minProto = 1; /* turn min proto flag on */
                 break;
             }
@@ -16991,8 +17002,8 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
      * i is the index into the table for proto version used, see if the max
      * proto version index found is smaller */
     maxProto = wolfSSL_CTX_get_max_proto_version(ctx);
-    for (idx = 0; idx < tblSz; idx++) {
-        if (verTbl[idx] == maxProto) {
+    for (idx = 0; (unsigned)idx < NUMBER_OF_PROTOCOLS; idx++) {
+        if (protoVerTbl[idx] == maxProto) {
             break;
         }
     }
@@ -17076,10 +17087,6 @@ static int Set_CTX_max_proto_version(WOLFSSL_CTX* ctx, int ver)
  * returns WOLFSSL_SUCCESS on success */
 int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
 {
-    const int verTbl[] = {DTLS1_2_VERSION, DTLS1_VERSION, TLS1_3_VERSION,
-                          TLS1_2_VERSION, TLS1_1_VERSION, TLS1_VERSION,
-                          SSL3_VERSION};
-    int tblSz = NUMBER_OF_PROTOCOLS;
     int i;
     int ret;
     int minProto;
@@ -17101,9 +17108,11 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
         return Set_CTX_max_proto_version(ctx, version);
     }
 
-    /* when 0 is specified as version, try to find out the min version */
-    for (i= 0; i < tblSz; i++) {
-        ret = Set_CTX_max_proto_version(ctx, verTbl[i]);
+    /* when 0 is specified as version, try to find out the min version from
+     * the bottom to top of the protoverTbl. 
+     */
+    for (i = NUMBER_OF_PROTOCOLS -1; i >= 0; i--) {
+        ret = Set_CTX_max_proto_version(ctx, protoVerTbl[i]);
         if (ret == WOLFSSL_SUCCESS) {
             ctx->maxProto = 1; /* turn max proto flag on */
             break;
@@ -17199,10 +17208,6 @@ static int Set_SSL_min_proto_version(WOLFSSL* ssl, int ver)
 
 int wolfSSL_set_min_proto_version(WOLFSSL* ssl, int version)
 {
-    const int verTbl[] = {SSL3_VERSION, TLS1_VERSION, TLS1_1_VERSION,
-                          TLS1_2_VERSION, TLS1_3_VERSION,DTLS1_VERSION,
-                          DTLS1_2_VERSION};
-    int tblSz = sizeof(verTbl);
     int i;
     int ret;
 
@@ -17216,8 +17221,8 @@ int wolfSSL_set_min_proto_version(WOLFSSL* ssl, int version)
     }
 
     /* when 0 is specified as version, try to find out the min version */
-    for (i= 0; i < tblSz; i++) {
-        ret = Set_SSL_min_proto_version(ssl, verTbl[i]);
+    for (i= 0; (unsigned)i < NUMBER_OF_PROTOCOLS; i++) {
+        ret = Set_SSL_min_proto_version(ssl, protoVerTbl[i]);
         if (ret == WOLFSSL_SUCCESS)
             break;
     }
@@ -17271,10 +17276,6 @@ static int Set_SSL_max_proto_version(WOLFSSL* ssl, int ver)
 
 int wolfSSL_set_max_proto_version(WOLFSSL* ssl, int version)
 {
-    const int verTbl[] = {DTLS1_2_VERSION, DTLS1_VERSION, TLS1_3_VERSION,
-                          TLS1_2_VERSION, TLS1_1_VERSION, TLS1_VERSION,
-                          SSL3_VERSION};
-    int tblSz = sizeof(verTbl);
     int i;
     int ret;
 
@@ -17287,9 +17288,11 @@ int wolfSSL_set_max_proto_version(WOLFSSL* ssl, int version)
         return Set_SSL_max_proto_version(ssl, version);
     }
 
-    /* when 0 is specified as version, try to find out the max version */
-    for (i= 0; i < tblSz; i++) {
-        ret = Set_SSL_max_proto_version(ssl, verTbl[i]);
+    /* when 0 is specified as version, try to find out the min version from
+     * the bottom to top of the protoverTbl. 
+     */
+    for (i = NUMBER_OF_PROTOCOLS -1; i >= 0; i--) {
+        ret = Set_SSL_max_proto_version(ssl, protoVerTbl[i]);
         if (ret == WOLFSSL_SUCCESS)
             break;
     }
