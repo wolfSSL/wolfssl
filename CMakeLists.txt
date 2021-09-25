@@ -1514,18 +1514,18 @@ endif()
 
 if(WOLFSSL_CRYPT_TESTS)
     if(WOLFSSL_CRYPT_TESTS_LIBS)
-        # Build wolfCrypt test as a static library. This will compile test.c
-        # and make its functions available as a CMake target that other CMake
-        # targets can pull in, in addition to producing the static library
-        # itself. Note that this feature is not enabled by default, and the API
-        # of this library and wofcryptbench_lib should NOT be treated as stable.
+        # Build wolfCrypt test as a library. This will compile test.c and make
+        # its functions available as a CMake target that other CMake targets can
+        # pull in, in addition to producing the library itself. Note that this
+        # feature is not enabled by default, and the API of this library and
+        # wofcryptbench_lib should NOT be treated as stable.
         add_library(wolfcrypttest_lib
             ${CMAKE_CURRENT_SOURCE_DIR}/wolfcrypt/test/test.c)
         set_target_properties(wolfcrypttest_lib PROPERTIES OUTPUT_NAME "wolfcrypttest")
         target_link_libraries(wolfcrypttest_lib wolfssl)
         target_compile_options(wolfcrypttest_lib PRIVATE "-DNO_MAIN_DRIVER")
 
-        # Make another static library for the wolfCrypt benchmark code.
+        # Make another library for the wolfCrypt benchmark code.
         add_library(wolfcryptbench_lib
             ${CMAKE_CURRENT_SOURCE_DIR}/wolfcrypt/benchmark/benchmark.c)
         set_target_properties(wolfcryptbench_lib PROPERTIES OUTPUT_NAME "wolfcryptbench")
