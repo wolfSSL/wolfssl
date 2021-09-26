@@ -107,7 +107,7 @@ static CK_OBJECT_CLASS secretKeyClass  = CKO_SECRET_KEY;
 #define PKCS11_RV(op, rv)       pkcs11_rv(op, rv)
 /* Enable logging of PKCS#11 calls and value. */
 #define PKCS11_VAL(op, val)     pkcs11_val(op, val)
-/* Enable logging of PKCS#11 tmaplate. */
+/* Enable logging of PKCS#11 template. */
 #define PKCS11_DUMP_TEMPLATE(name, templ, cnt)  \
     pkcs11_dump_template(name, templ, cnt)
 
@@ -400,7 +400,7 @@ static void pkcs11_val(const char* op, CK_ULONG val)
 #define PKCS11_RV(op, ev)
 /* Disable logging of PKCS#11 calls and value. */
 #define PKCS11_VAL(op, val)
-/* Disable logging of PKCS#11 tmaplate. */
+/* Disable logging of PKCS#11 template. */
 #define PKCS11_DUMP_TEMPLATE(name, templ, cnt)
 #endif
 
@@ -418,6 +418,7 @@ static void pkcs11_val(const char* op, CK_ULONG val)
 int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
 {
     int                  ret = 0;
+    CK_RV                rv;
 #ifndef HAVE_PKCS11_STATIC
     void*                func;
 #endif
@@ -445,11 +446,11 @@ int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
         }
     }
     if (ret == 0) {
-        ret = ((CK_C_GetFunctionList)func)(&dev->func);
+        rv = ((CK_C_GetFunctionList)func)(&dev->func);
 #else
-        ret = C_GetFunctionList(&dev->func);
+        rv = C_GetFunctionList(&dev->func);
 #endif
-        if (ret != CKR_OK) {
+        if (rv != CKR_OK) {
             PKCS11_RV("CK_C_GetFunctionList", ret);
             ret = WC_HW_E;
         }
@@ -458,8 +459,8 @@ int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
     if (ret == 0) {
         XMEMSET(&args, 0x00, sizeof(args));
         args.flags = CKF_OS_LOCKING_OK;
-        ret = dev->func->C_Initialize(&args);
-        if (ret != CKR_OK) {
+        rv = dev->func->C_Initialize(&args);
+        if (rv != CKR_OK) {
             PKCS11_RV("C_Initialize", ret);
             ret = WC_INIT_E;
         }
