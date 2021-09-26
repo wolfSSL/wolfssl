@@ -907,6 +907,7 @@ typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
 
 #define EVP_get_cipherbynid           wolfSSL_EVP_get_cipherbynid
 #define EVP_get_digestbynid           wolfSSL_EVP_get_digestbynid
+#define EVP_MD_nid                    wolfSSL_EVP_MD_type
 #define EVP_get_cipherbyname          wolfSSL_EVP_get_cipherbyname
 #define EVP_get_digestbyname          wolfSSL_EVP_get_digestbyname
 

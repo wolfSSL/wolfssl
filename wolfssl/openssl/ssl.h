@@ -1069,6 +1069,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define DHparams_dup                    wolfSSL_DH_dup
 #define PEM_read_bio_DHparams           wolfSSL_PEM_read_bio_DHparams
+#define PEM_read_DHparams               wolfSSL_PEM_read_DHparams
 #define PEM_read_bio_DSAparams          wolfSSL_PEM_read_bio_DSAparams
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)

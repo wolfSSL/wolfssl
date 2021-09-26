@@ -44900,6 +44900,47 @@ end:
     return NULL;
 #endif
 }
+
+#ifndef NO_FILESYSTEM
+/* Reads DH parameters from a file pointer into WOLFSSL_DH structure.
+ *
+ * fp  file pointer to read DH parameter file from
+ * x   output WOLFSSL_DH to be created and populated from fp
+ * cb  password callback, to be used to decrypt encrypted DH parameters PEM
+ * u   context pointer to user-defined data to be received back in password cb
+ *
+ * Returns new WOLFSSL_DH structure pointer on success, NULL on failure. */
+WOLFSSL_DH *wolfSSL_PEM_read_DHparams(XFILE fp, WOLFSSL_DH **x,
+        pem_password_cb *cb, void *u)
+{
+    WOLFSSL_BIO* fbio = NULL;
+    WOLFSSL_DH* dh = NULL;
+
+    if (fp == NULL) {
+        WOLFSSL_MSG("DH parameter file cannot be NULL");
+        return NULL;
+    }
+
+    fbio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
+    if (fbio == NULL) {
+        WOLFSSL_MSG("Unable to create file BIO to process DH PEM");
+        return NULL;
+    }
+
+    if (wolfSSL_BIO_set_fp(fbio, fp, BIO_NOCLOSE) != WOLFSSL_SUCCESS) {
+        wolfSSL_BIO_free(fbio);
+        WOLFSSL_MSG("wolfSSL_BIO_set_fp error");
+        return NULL;
+    }
+
+    /* wolfSSL_PEM_read_bio_DHparams() sanitizes x, cb, u args */
+    dh = wolfSSL_PEM_read_bio_DHparams(fbio, x, cb, u);
+
+    wolfSSL_BIO_free(fbio);
+    return dh;
+}
+#endif /* !NO_FILESYSTEM */
+
 #endif /* !NO_BIO */
 
 #if defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM)
@@ -57164,7 +57205,19 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
             if (method->createCb) {
                 method->createCb(bio);
             }
-        }
+
+        #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+            bio->refCount = 1;
+            #ifndef SINGLE_THREADED
+            if (wc_InitMutex(&bio->refMutex) != 0) {
+                wolfSSL_BIO_free(bio);
+                WOLFSSL_MSG("wc_InitMutex failed for WOLFSSL_BIO");
+                return NULL;
+            }
+            #endif
+        #endif
+
+}
         return bio;
     }
 
@@ -57209,13 +57262,14 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
     int wolfSSL_BIO_free(WOLFSSL_BIO* bio)
     {
         int ret;
+    #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+        int doFree = 0;
+    #endif
 
         /* unchain?, doesn't matter in goahead since from free all */
         WOLFSSL_ENTER("wolfSSL_BIO_free");
         if (bio) {
-#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
-            wolfSSL_CRYPTO_cleanup_ex_data(&bio->ex_data);
-#endif
+
             if (bio->infoCb) {
                 /* info callback is called before free */
                 ret = (int)bio->infoCb(bio, WOLFSSL_BIO_CB_FREE, NULL, 0, 0, 1);
@@ -57223,6 +57277,37 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
                     return ret;
                 }
             }
+
+        #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+            #ifndef SINGLE_THREADED
+            if (wc_LockMutex(&bio->refMutex) != 0) {
+                WOLFSSL_MSG("Couldn't lock BIO mutex");
+                return WOLFSSL_FAILURE;
+            }
+            #endif
+
+            /* only free if all references to it are done */
+            bio->refCount--;
+            if (bio->refCount == 0) {
+                doFree = 1;
+            }
+
+            #ifndef SINGLE_THREADED
+            wc_UnLockMutex(&bio->refMutex);
+            #endif
+
+            if (!doFree) {
+                /* return success if BIO ref count is not 1 yet */
+                return WOLFSSL_SUCCESS;
+            }
+            #ifndef SINGLE_THREADED
+            wc_FreeMutex(&bio->refMutex);
+            #endif
+        #endif
+
+        #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+            wolfSSL_CRYPTO_cleanup_ex_data(&bio->ex_data);
+        #endif
 
             /* call custom set free callback */
             if (bio->method && bio->method->freeCb) {

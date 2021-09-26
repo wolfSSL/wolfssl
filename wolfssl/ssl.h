@@ -530,6 +530,12 @@ struct WOLFSSL_BIO {
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+    #ifndef SINGLE_THREADED
+    wolfSSL_Mutex    refMutex;  /* ref count mutex */
+    #endif
+    int              refCount;  /* reference count */
+#endif
 };
 
 typedef struct WOLFSSL_COMP_METHOD {
@@ -1534,6 +1540,7 @@ WOLFSSL_API long wolfSSL_BIO_int_ctrl(WOLFSSL_BIO *bp, int cmd, long larg, int i
 
 WOLFSSL_API int  wolfSSL_BIO_set_write_buf_size(WOLFSSL_BIO *b, long size);
 WOLFSSL_API int  wolfSSL_BIO_make_bio_pair(WOLFSSL_BIO *b1, WOLFSSL_BIO *b2);
+WOLFSSL_API int  wolfSSL_BIO_up_ref(WOLFSSL_BIO *b);
 WOLFSSL_API int  wolfSSL_BIO_ctrl_reset_read_request(WOLFSSL_BIO *b);
 WOLFSSL_API int  wolfSSL_BIO_nread0(WOLFSSL_BIO *bio, char **buf);
 WOLFSSL_API int  wolfSSL_BIO_nread(WOLFSSL_BIO *bio, char **buf, int num);
@@ -4085,6 +4092,10 @@ WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_fp(XFILE fp, int c);
 WOLFSSL_API long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX*, WOLFSSL_DH*);
 WOLFSSL_API WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bp,
     WOLFSSL_DH **x, pem_password_cb *cb, void *u);
+#ifndef NO_FILESYSTEM
+WOLFSSL_API WOLFSSL_DH *wolfSSL_PEM_read_DHparams(XFILE fp, WOLFSSL_DH **x,
+        pem_password_cb *cb, void *u);
+#endif
 WOLFSSL_API WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp,
     WOLFSSL_DSA **x, pem_password_cb *cb, void *u);
 WOLFSSL_API int wolfSSL_PEM_write_bio_X509_REQ(WOLFSSL_BIO *bp,WOLFSSL_X509 *x);

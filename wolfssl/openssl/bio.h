@@ -63,6 +63,7 @@
 #define BIO_ctrl_reset_read_request     wolfSSL_BIO_ctrl_reset_read_request
 #define BIO_set_write_buf_size          wolfSSL_BIO_set_write_buf_size
 #define BIO_make_bio_pair               wolfSSL_BIO_make_bio_pair
+#define BIO_up_ref                      wolfSSL_BIO_up_ref
 
 #define BIO_new_fd                      wolfSSL_BIO_new_fd
 #define BIO_set_fp                      wolfSSL_BIO_set_fp

@@ -37045,6 +37045,24 @@ static void test_wolfSSL_BIO_f_md(void)
     #endif
 }
 
+static void test_wolfSSL_BIO_up_ref(void)
+{
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+    BIO* bio;
+    printf(testingFmt, "wolfSSL_BIO_up_ref()");
+
+    AssertNotNull(bio = BIO_new(BIO_f_md()));
+    AssertIntEQ(BIO_up_ref(NULL), 0);
+    AssertIntEQ(BIO_up_ref(bio), 1);
+    BIO_free(bio);
+    AssertIntEQ(BIO_up_ref(bio), 1);
+    BIO_free(bio);
+    BIO_free(bio);
+
+    printf(resultFmt, "passed");
+#endif
+}
+
 #endif /* !NO_BIO */
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_IO_TESTS_DEPENDENCIES)
@@ -38836,7 +38854,50 @@ static int test_wolfSSL_EVP_Cipher_extra(void)
     return 0;
 }
 
+static void test_wolfSSL_PEM_read_DHparams(void)
+{
+#if defined(OPENSSL_ALL) && !defined(NO_BIO) && \
+    !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM)
+    DH* dh;
+    XFILE fp;
+    unsigned char derOut[300];
+    unsigned char* derOutBuf = derOut;
+    int derOutSz = 0;
 
+    unsigned char derExpected[300];
+    int derExpectedSz = 0;
+
+    printf(testingFmt, "wolfSSL_PEM_read_DHparams()");
+
+    XMEMSET(derOut, 0, sizeof(derOut));
+    XMEMSET(derExpected, 0, sizeof(derExpected));
+
+    /* open DH param file, read into DH struct */
+    AssertNotNull(fp = XFOPEN(dhParamFile, "rb"));
+
+    /* bad args */
+    AssertNull(dh = PEM_read_DHparams(NULL, &dh, NULL, NULL));
+    AssertNull(dh = PEM_read_DHparams(NULL, NULL, NULL, NULL));
+
+    /* good args */
+    AssertNotNull(dh = PEM_read_DHparams(fp, &dh, NULL, NULL));
+    XFCLOSE(fp);
+
+    /* read in certs/dh2048.der for comparison against exported params */
+    fp = XFOPEN("./certs/dh2048.der", "rb");
+    AssertTrue(fp != XBADFILE);
+    derExpectedSz = (int)XFREAD(derExpected, 1, sizeof(derExpected), fp);
+    XFCLOSE(fp);
+
+    /* export DH back to DER and compare */
+    derOutSz = wolfSSL_i2d_DHparams(dh, &derOutBuf);
+    AssertIntEQ(derOutSz, derExpectedSz);
+    AssertIntEQ(XMEMCMP(derOut, derExpected, derOutSz), 0);
+    DH_free(dh);
+
+    printf(resultFmt, passed);
+#endif
+}
 
 static void test_wolfSSL_AES_ecb_encrypt(void)
 {
@@ -41412,6 +41473,26 @@ static void test_wolfSSL_EVP_get_digestbynid(void)
     AssertNotNull(wolfSSL_EVP_get_digestbynid(NID_md5));
     AssertNotNull(wolfSSL_EVP_get_digestbynid(NID_sha1));
     AssertNull(wolfSSL_EVP_get_digestbynid(0));
+
+    printf(resultFmt, passed);
+#endif
+}
+static void test_wolfSSL_EVP_MD_nid(void)
+{
+#if defined(OPENSSL_ALL)
+
+    printf(testingFmt, "wolfSSL_EVP_MD_nid");
+
+#ifndef NO_MD5
+    AssertIntEQ(EVP_MD_nid(EVP_md5()), NID_md5);
+#endif
+#ifndef NO_SHA
+    AssertIntEQ(EVP_MD_nid(EVP_sha1()), NID_sha1);
+#endif
+#ifndef NO_SHA256
+    AssertIntEQ(EVP_MD_nid(EVP_sha256()), NID_sha256);
+#endif
+    AssertIntEQ(EVP_MD_nid(NULL), NID_undef);
 
     printf(resultFmt, passed);
 #endif
@@ -49285,6 +49366,7 @@ void ApiTest(void)
     test_wolfSSL_BIO_accept();
     test_wolfSSL_BIO_printf();
     test_wolfSSL_BIO_f_md();
+    test_wolfSSL_BIO_up_ref();
 #endif
     test_wolfSSL_cert_cb();
     test_wolfSSL_SESSION();
@@ -49304,6 +49386,7 @@ void ApiTest(void)
     test_wolfSSL_SHA();
     test_wolfSSL_DH_1536_prime();
     test_wolfSSL_PEM_write_DHparams();
+    test_wolfSSL_PEM_read_DHparams();
     test_wolfSSL_AES_ecb_encrypt();
     test_wolfSSL_MD5();
     test_wolfSSL_MD5_Transform();
@@ -49397,6 +49480,7 @@ void ApiTest(void)
     test_wolfSSL_EVP_aes_192_gcm();
     test_wolfSSL_EVP_ripemd160();
     test_wolfSSL_EVP_get_digestbynid();
+    test_wolfSSL_EVP_MD_nid();
     test_wolfSSL_EVP_PKEY_get0_EC_KEY();
     test_wolfSSL_EVP_X_STATE();
     test_wolfSSL_EVP_X_STATE_LEN();

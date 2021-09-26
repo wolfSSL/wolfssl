@@ -725,6 +725,32 @@ long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bio, int cmd, long larg, void *parg)
     }
     return ret;
 }
+
+/* Increment the WOLFSSL_BIO ref count by one, prevents BIO from being
+ * freed until ref count is back down to 1.
+ *
+ * bio  the structure to increment ref count
+ *
+ * returns 1 on success, 0 on failure */
+
+int wolfSSL_BIO_up_ref(WOLFSSL_BIO* bio)
+{
+    if (bio) {
+    #ifndef SINGLE_THREADED
+        if (wc_LockMutex(&bio->refMutex) != 0) {
+            WOLFSSL_MSG("Failed to lock BIO mutex");
+        }
+    #endif
+        bio->refCount++;
+    #ifndef SINGLE_THREADED
+        wc_UnLockMutex(&bio->refMutex);
+    #endif
+
+        return WOLFSSL_SUCCESS;
+    }
+
+    return WOLFSSL_FAILURE;
+}
 #endif
 
 
