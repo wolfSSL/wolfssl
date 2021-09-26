@@ -30696,9 +30696,12 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
                                                             "jurisdictionCountryName"},
     { NID_jurisdictionStateOrProvinceName, NID_jurisdictionStateOrProvinceName,
             oidCertNameType, "jurisdictionST", "jurisdictionStateOrProvinceName"},
+
 #ifdef WOLFSSL_CERT_REQ
     { NID_pkcs9_challengePassword, CHALLENGE_PASSWORD_OID,
             oidCsrAttrType, "challengePassword", "challengePassword"},
+    { NID_pkcs9_contentType, PKCS9_CONTENT_TYPE_OID,
+        oidCsrAttrType, "contentType", "contentType" },
 #endif
 #endif
 #ifdef OPENSSL_EXTRA /* OPENSSL_EXTRA_X509_SMALL only needs the above */
@@ -50490,6 +50493,8 @@ int oid2nid(word32 oid, int grp)
 #ifdef WOLFSSL_CERT_REQ
         case oidCsrAttrType:
             switch (oid) {
+                case PKCS9_CONTENT_TYPE_OID:
+                    return NID_pkcs9_contentType;
                 case CHALLENGE_PASSWORD_OID:
                     return NID_pkcs9_challengePassword;
                 case SERIAL_NUMBER_OID:

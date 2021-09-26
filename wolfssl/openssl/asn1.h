@@ -92,6 +92,17 @@
 #define ASN1_STRING_FLAG_MSTRING         0x040
 #define ASN1_STRING_FLAG_EMBED           0x080
 
+/* X.509 PKI size limits from RFC2459 (appendix A) */
+/* internally our limit is CTC_NAME_SIZE (64) - overriden with WC_CTC_NAME_SIZE */
+#define ub_name                    CTC_NAME_SIZE /* 32768 */
+#define ub_common_name             CTC_NAME_SIZE /* 64 */
+#define ub_locality_name           CTC_NAME_SIZE /* 128 */
+#define ub_state_name              CTC_NAME_SIZE /* 128 */
+#define ub_organization_name       CTC_NAME_SIZE /* 64 */
+#define ub_organization_unit_name  CTC_NAME_SIZE /* 64 */
+#define ub_title                   CTC_NAME_SIZE /* 64 */
+#define ub_email_address           CTC_NAME_SIZE /* 128 */
+
 
 WOLFSSL_API WOLFSSL_ASN1_INTEGER *wolfSSL_BN_to_ASN1_INTEGER(
     const WOLFSSL_BIGNUM*, WOLFSSL_ASN1_INTEGER*);

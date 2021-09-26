@@ -36171,7 +36171,6 @@ static void test_wolfSSL_X509_NAME_ENTRY(void)
     X509_NAME_ENTRY* entry;
     unsigned char cn[] = "another name to add";
 
-
     printf(testingFmt, "wolfSSL_X509_NAME_ENTRY()");
 
     AssertNotNull(x509 =
@@ -36214,6 +36213,21 @@ static void test_wolfSSL_X509_NAME_ENTRY(void)
 #endif
     X509_NAME_ENTRY_free(entry);
 
+#ifdef WOLFSSL_CERT_REQ
+    {
+        unsigned char srv_pkcs9p[] = "Server";
+        char* subject;
+        AssertIntEQ(X509_NAME_add_entry_by_NID(nm, NID_pkcs9_contentType,
+            MBSTRING_ASC, srv_pkcs9p, -1, -1, 0), SSL_SUCCESS);
+
+        subject = X509_NAME_oneline(nm, 0, 0);
+    #ifdef DEBUG_WOLFSSL
+        printf("\n\t%s\n", subject);
+    #endif
+        XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
+    }
+#endif
+
     /* Test add entry by text */
     AssertNotNull(entry = X509_NAME_ENTRY_create_by_txt(NULL, "commonName",
                 0x0c, cn, (int)sizeof(cn)));
@@ -36227,7 +36241,7 @@ static void test_wolfSSL_X509_NAME_ENTRY(void)
 
     /* Test add entry by NID */
     AssertIntEQ(X509_NAME_add_entry_by_NID(nm, NID_commonName, MBSTRING_UTF8,
-                                       cn, -1, -1, 0), WOLFSSL_SUCCESS);
+                                       cn, -1, -1, 0), SSL_SUCCESS);
 
 #ifndef NO_BIO
     BIO_free(bio);

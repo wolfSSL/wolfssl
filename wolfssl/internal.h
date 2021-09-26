@@ -3895,7 +3895,8 @@ struct WOLFSSL_X509 {
     WOLFSSL_X509_ATTRIBUTE* challengePwAttr;
 #endif
     char             challengePw[CTC_NAME_SIZE]; /* for REQ certs */
-#endif
+    char             contentType[CTC_NAME_SIZE];
+#endif /* WOLFSSL_CERT_REQ */
     WOLFSSL_X509_NAME issuer;
     WOLFSSL_X509_NAME subject;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
