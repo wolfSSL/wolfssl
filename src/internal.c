@@ -15912,12 +15912,12 @@ static void LogAlert(int type)
 }
 
 /* process alert, return level */
-static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type,
-                   word32 totalSz)
+static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
 {
     byte level;
     byte code;
-    word32 dataSz = totalSz - *inOutIdx;
+    word32 dataSz = (word32)ssl->curSize;
+    int ivExtra = 0;
 
     #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ssl->hsInfoOn)
@@ -15928,6 +15928,19 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type,
                           RECORD_HEADER_SZ, RECORD_HEADER_SZ + ALERT_SIZE,
                           READ_PROTO, ssl->heap);
     #endif
+
+#ifndef WOLFSSL_AEAD_ONLY
+    if (ssl->specs.cipher_type == block) {
+        if (ssl->options.tls1_1)
+            ivExtra = ssl->specs.block_size;
+    }
+    else
+#endif
+    if (ssl->specs.cipher_type == aead) {
+        if (CipherHasExpIV(ssl))
+            ivExtra = AESGCM_EXP_IV_SZ;
+    }
+    dataSz -= ivExtra;
 
     if (IsEncryptionOn(ssl, 0)) {
         dataSz -= ssl->keys.padSz;
@@ -16984,8 +16997,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 case alert:
                     WOLFSSL_MSG("got ALERT!");
                     ret = DoAlert(ssl, ssl->buffers.inputBuffer.buffer,
-                                  &ssl->buffers.inputBuffer.idx, &type,
-                                   ssl->buffers.inputBuffer.length);
+                                  &ssl->buffers.inputBuffer.idx, &type);
                     if (ret == alert_fatal)
                         return FATAL_ERROR;
                     else if (ret < 0)
