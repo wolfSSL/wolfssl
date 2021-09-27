@@ -33382,6 +33382,9 @@ static void test_wolfSSL_X509_STORE_load_locations(void)
     AssertIntEQ(X509_STORE_load_locations(store, client_pem_file, NULL), WOLFSSL_SUCCESS);
     AssertIntEQ(X509_STORE_load_locations(store, NULL, certs_path), WOLFSSL_SUCCESS);
 
+    /* Clear nodes */
+    wc_ClearErrorNodes();
+
     SSL_CTX_free(ctx);
     printf(resultFmt, passed);
 #endif
@@ -35441,7 +35444,7 @@ static void test_wolfSSL_X509_ALGOR_get0(void)
     AssertNotNull(ppval);
     AssertIntNE(pptype, 0);
     /* Make sure NID of X509_ALGOR is Sha256 with RSA */
-    AssertIntEQ(OBJ_obj2nid(obj), CTC_SHA256wRSA);
+    AssertIntEQ(OBJ_obj2nid(obj), NID_sha256WithRSAEncryption);
 
     X509_free(x509);
 
@@ -35632,7 +35635,7 @@ static void test_wolfSSL_X509_PUBKEY(void)
     AssertNotNull(pubKey);
     AssertIntGT(ppklen, 0);
 
-    AssertIntEQ(OBJ_obj2nid(obj), RSAk);
+    AssertIntEQ(OBJ_obj2nid(obj), NID_rsaEncryption);
 
     AssertNotNull(evpKey = X509_PUBKEY_get(pubKey));
     AssertNotNull(pubKey2 = X509_PUBKEY_new());
@@ -40251,13 +40254,10 @@ static void test_wolfSSL_OpenSSL_add_all_algorithms(void){
     printf(testingFmt, "wolfSSL_OpenSSL_add_all_algorithms()");
 
     AssertIntEQ(wolfSSL_add_all_algorithms(),WOLFSSL_SUCCESS);
-    wolfSSL_Cleanup();
 
     AssertIntEQ(wolfSSL_OpenSSL_add_all_algorithms_noconf(),WOLFSSL_SUCCESS);
-    wolfSSL_Cleanup();
 
     AssertIntEQ(wolfSSL_OpenSSL_add_all_algorithms_conf(),WOLFSSL_SUCCESS);
-    wolfSSL_Cleanup();
 
     printf(resultFmt, passed);
 #endif
@@ -45066,7 +45066,7 @@ static void test_X509_get_signature_nid(void)
     AssertIntEQ(X509_get_signature_nid(NULL), 0);
     AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
                                                              SSL_FILETYPE_PEM));
-    AssertIntEQ(X509_get_signature_nid(x509), CTC_SHA256wRSA);
+    AssertIntEQ(X509_get_signature_nid(x509), NID_sha256WithRSAEncryption);
     X509_free(x509);
 
     printf(resultFmt, passed);
