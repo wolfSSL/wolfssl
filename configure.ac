@@ -3382,6 +3382,8 @@ AS_CASE([$FIPS_VERSION],
         # Shake256 is a SHA-3 algorithm not in our FIPS algorithm list
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
         ENABLED_SHAKE256=no
+        # SHA512-224 and SHA512-256 are a SHA-2 algorithms not in our FIPS algorithm list
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA512_224 -DWOLFSSL_NOSHA512_256"
         AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
               [ENABLED_AESCCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
         AS_IF([test "x$ENABLED_RSAPSS" != "xyes"],

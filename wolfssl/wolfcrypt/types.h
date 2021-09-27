@@ -917,12 +917,25 @@ decouple library dependencies with standard string, memory and so on.
         WC_HASH_TYPE_SHA3_512 = 13,
         WC_HASH_TYPE_BLAKE2B = 14,
         WC_HASH_TYPE_BLAKE2S = 15,
-        WC_HASH_TYPE_SHA512_224 = 16,
-        WC_HASH_TYPE_SHA512_256 = 17,
-        WC_HASH_TYPE_SHAKE128 = 18,
-        WC_HASH_TYPE_SHAKE256 = 19,
-
-        WC_HASH_TYPE_MAX = WC_HASH_TYPE_SHAKE256
+#define _WC_HASH_TYPE_MAX WC_HASH_TYPE_BLAKE2S
+        #ifndef WOLFSSL_NOSHA512_224
+            WC_HASH_TYPE_SHA512_224 = 16,
+#undef _WC_HASH_TYPE_MAX
+#define _WC_HASH_TYPE_MAX WC_HASH_TYPE_SHA512_224
+        #endif
+        #ifndef WOLFSSL_NOSHA512_256
+            WC_HASH_TYPE_SHA512_256 = 17,
+#undef _WC_HASH_TYPE_MAX
+#define _WC_HASH_TYPE_MAX WC_HASH_TYPE_SHA512_256
+        #endif
+        #ifndef WOLFSSL_NO_SHAKE256
+            WC_HASH_TYPE_SHAKE128 = 18,
+            WC_HASH_TYPE_SHAKE256 = 19,
+#undef _WC_HASH_TYPE_MAX
+#define _WC_HASH_TYPE_MAX WC_HASH_TYPE_SHAKE256
+        #endif
+        WC_HASH_TYPE_MAX = _WC_HASH_TYPE_MAX
+#undef _WC_HASH_TYPE_MAX
 
     #endif /* HAVE_SELFTEST */
     };
