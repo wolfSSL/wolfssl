@@ -135,8 +135,6 @@
     #include <wolfssl/openssl/x509v3.h>
     int SetIndividualInternal(WOLFSSL_BIGNUM* bn, mp_int* mpi);
     int SetIndividualExternal(WOLFSSL_BIGNUM** bn, mp_int* mpi);
-    int oid2nid(word32 oid, int grp);
-    word32 nid2oid(int nid, int grp);
 #endif
 
 #if defined(WOLFSSL_QT)
@@ -16604,7 +16602,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     int wolfSSL_add_all_algorithms(void)
     {
         WOLFSSL_ENTER("wolfSSL_add_all_algorithms");
-        if (wolfSSL_Init() == WOLFSSL_SUCCESS)
+        if (initRefCount != 0 || wolfSSL_Init() == WOLFSSL_SUCCESS)
             return WOLFSSL_SUCCESS;
         else
             return WOLFSSL_FATAL_ERROR;
@@ -28828,17 +28826,17 @@ int wolfSSL_X509_PUBKEY_set(WOLFSSL_X509_PUBKEY **x, WOLFSSL_EVP_PKEY *key)
     switch (key->type) {
 #ifndef NO_RSA
     case EVP_PKEY_RSA:
-        pk->algor->algorithm= wolfSSL_OBJ_nid2obj(RSAk);
+        pk->algor->algorithm= wolfSSL_OBJ_nid2obj(NID_rsaEncryption);
         break;
 #endif
 #ifndef NO_DSA
     case EVP_PKEY_DSA:
-        pk->algor->algorithm = wolfSSL_OBJ_nid2obj(DSAk);
+        pk->algor->algorithm = wolfSSL_OBJ_nid2obj(NID_dsa);
         break;
 #endif
 #ifdef HAVE_ECC
     case EVP_PKEY_EC:
-        pk->algor->algorithm = wolfSSL_OBJ_nid2obj(ECDSAk);
+        pk->algor->algorithm = wolfSSL_OBJ_nid2obj(NID_X9_62_id_ecPublicKey);
         break;
 #endif
     default:
@@ -31436,106 +31434,103 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
         /* oidSigType */
     #ifndef NO_DSA
         #ifndef NO_SHA
-        { CTC_SHAwDSA, CTC_SHAwDSA, oidSigType, "DSA-SHA1", "dsaWithSHA1"},
-        { CTC_SHA256wDSA, CTC_SHA256wDSA, oidSigType, "dsa_with_SHA256",
+        { NID_dsaWithSHA1, CTC_SHAwDSA, oidSigType, "DSA-SHA1", "dsaWithSHA1"},
+        { NID_dsa_with_SHA256, CTC_SHA256wDSA, oidSigType, "dsa_with_SHA256",
                                                         "dsa_with_SHA256"},
         #endif
     #endif /* NO_DSA */
     #ifndef NO_RSA
         #ifdef WOLFSSL_MD2
-        { CTC_MD2wRSA, CTC_MD2wRSA, oidSigType, "RSA-MD2",
+        { NID_md2WithRSAEncryption, CTC_MD2wRSA, oidSigType, "RSA-MD2",
                                                         "md2WithRSAEncryption"},
         #endif
         #ifndef NO_MD5
-        { CTC_MD5wRSA, CTC_MD5wRSA, oidSigType, "RSA-MD5",
+        { NID_md5WithRSAEncryption, CTC_MD5wRSA, oidSigType, "RSA-MD5",
                                                         "md5WithRSAEncryption"},
         #endif
         #ifndef NO_SHA
-        { CTC_SHAwRSA, CTC_SHAwRSA, oidSigType, "RSA-SHA1",
+        { NID_sha1WithRSAEncryption, CTC_SHAwRSA, oidSigType, "RSA-SHA1",
                                                        "sha1WithRSAEncryption"},
         #endif
         #ifdef WOLFSSL_SHA224
-        { CTC_SHA224wRSA, CTC_SHA224wRSA, oidSigType, "RSA-SHA224",
+        { NID_sha224WithRSAEncryption, CTC_SHA224wRSA, oidSigType, "RSA-SHA224",
                                                      "sha224WithRSAEncryption"},
         #endif
         #ifndef NO_SHA256
-        { CTC_SHA256wRSA, CTC_SHA256wRSA, oidSigType, "RSA-SHA256",
+        { NID_sha256WithRSAEncryption, CTC_SHA256wRSA, oidSigType, "RSA-SHA256",
                                                      "sha256WithRSAEncryption"},
         #endif
         #ifdef WOLFSSL_SHA384
-        { CTC_SHA384wRSA, CTC_SHA384wRSA, oidSigType, "RSA-SHA384",
+        { NID_sha384WithRSAEncryption, CTC_SHA384wRSA, oidSigType, "RSA-SHA384",
                                                      "sha384WithRSAEncryption"},
         #endif
         #ifdef WOLFSSL_SHA512
-        { CTC_SHA512wRSA, CTC_SHA512wRSA, oidSigType, "RSA-SHA512",
+        { NID_sha512WithRSAEncryption, CTC_SHA512wRSA, oidSigType, "RSA-SHA512",
                                                      "sha512WithRSAEncryption"},
         #endif
         #ifdef WOLFSSL_SHA3
         #ifndef WOLFSSL_NOSHA3_224
-        { CTC_SHA3_224wRSA, CTC_SHA3_224wRSA, oidSigType, "RSA-SHA3-224",
+        { NID_RSA_SHA3_224, CTC_SHA3_224wRSA, oidSigType, "RSA-SHA3-224",
                                                      "sha3-224WithRSAEncryption"},
         #endif
         #ifndef WOLFSSL_NOSHA3_256
-        { CTC_SHA3_256wRSA, CTC_SHA3_256wRSA, oidSigType, "RSA-SHA3-256",
+        { NID_RSA_SHA3_256, CTC_SHA3_256wRSA, oidSigType, "RSA-SHA3-256",
                                                      "sha3-256WithRSAEncryption"},
         #endif
         #ifndef WOLFSSL_NOSHA3_384
-        { CTC_SHA3_384wRSA, CTC_SHA3_384wRSA, oidSigType, "RSA-SHA3-384",
+        { NID_RSA_SHA3_384, CTC_SHA3_384wRSA, oidSigType, "RSA-SHA3-384",
                                                      "sha3-384WithRSAEncryption"},
         #endif
         #ifndef WOLFSSL_NOSHA3_512
-        { CTC_SHA3_512wRSA, CTC_SHA3_512wRSA, oidSigType, "RSA-SHA3-512",
+        { NID_RSA_SHA3_512, CTC_SHA3_512wRSA, oidSigType, "RSA-SHA3-512",
                                                      "sha3-512WithRSAEncryption"},
         #endif
         #endif
     #endif /* NO_RSA */
     #ifdef HAVE_ECC
         #ifndef NO_SHA
-        { CTC_SHAwECDSA, CTC_SHAwECDSA, oidSigType, "ecdsa-with-SHA1", "shaWithECDSA"},
+        { NID_ecdsa_with_SHA1, CTC_SHAwECDSA, oidSigType, "ecdsa-with-SHA1", "shaWithECDSA"},
         #endif
         #ifdef WOLFSSL_SHA224
-        { CTC_SHA224wECDSA, CTC_SHA224wECDSA, oidSigType, "ecdsa-with-SHA224","sha224WithECDSA"},
+        { NID_ecdsa_with_SHA224, CTC_SHA224wECDSA, oidSigType, "ecdsa-with-SHA224","sha224WithECDSA"},
         #endif
         #ifndef NO_SHA256
-        { CTC_SHA256wECDSA, CTC_SHA256wECDSA, oidSigType, "ecdsa-with-SHA256","sha256WithECDSA"},
+        { NID_ecdsa_with_SHA256, CTC_SHA256wECDSA, oidSigType, "ecdsa-with-SHA256","sha256WithECDSA"},
         #endif
         #ifdef WOLFSSL_SHA384
-        { CTC_SHA384wECDSA, CTC_SHA384wECDSA, oidSigType, "ecdsa-with-SHA384","sha384WithECDSA"},
+        { NID_ecdsa_with_SHA384, CTC_SHA384wECDSA, oidSigType, "ecdsa-with-SHA384","sha384WithECDSA"},
         #endif
         #ifdef WOLFSSL_SHA512
-        { CTC_SHA512wECDSA, CTC_SHA512wECDSA, oidSigType, "ecdsa-with-SHA512","sha512WithECDSA"},
+        { NID_ecdsa_with_SHA512, CTC_SHA512wECDSA, oidSigType, "ecdsa-with-SHA512","sha512WithECDSA"},
         #endif
         #ifdef WOLFSSL_SHA3
         #ifndef WOLFSSL_NOSHA3_224
-        { CTC_SHA3_224wECDSA, CTC_SHA3_224wECDSA, oidSigType, "ecdsa-with-SHA3-224",
-                "sha3-224WithECDSA"},
+        { NID_ecdsa_with_SHA3_224, CTC_SHA3_224wECDSA, oidSigType, "id-ecdsa-with-SHA3-224",
+                "ecdsa_with_SHA3-224"},
         #endif
         #ifndef WOLFSSL_NOSHA3_256
-        { CTC_SHA3_256wECDSA, CTC_SHA3_256wECDSA, oidSigType, "ecdsa-with-SHA3-256",
-                "sha3-256WithECDSA"},
+        { NID_ecdsa_with_SHA3_256, CTC_SHA3_256wECDSA, oidSigType, "id-ecdsa-with-SHA3-256",
+                "ecdsa_with_SHA3-256"},
         #endif
         #ifndef WOLFSSL_NOSHA3_384
-        { CTC_SHA3_384wECDSA, CTC_SHA3_384wECDSA, oidSigType, "ecdsa-with-SHA3-384",
-                "sha3-384WithECDSA"},
+        { NID_ecdsa_with_SHA3_384, CTC_SHA3_384wECDSA, oidSigType, "id-ecdsa-with-SHA3-384",
+                "ecdsa_with_SHA3-384"},
         #endif
         #ifndef WOLFSSL_NOSHA3_512
-        { CTC_SHA3_512wECDSA, CTC_SHA3_512wECDSA, oidSigType, "ecdsa-with-SHA3-512",
-                "sha3-512WithECDSA"},
+        { NID_ecdsa_with_SHA3_512, CTC_SHA3_512wECDSA, oidSigType, "id-ecdsa-with-SHA3-512",
+                "ecdsa_with_SHA3-512"},
         #endif
         #endif
     #endif /* HAVE_ECC */
 
         /* oidKeyType */
     #ifndef NO_DSA
-        { DSAk, DSAk, oidKeyType, "DSA", "dsaEncryption"},
         { NID_dsa, DSAk, oidKeyType, "DSA", "dsaEncryption"},
     #endif /* NO_DSA */
     #ifndef NO_RSA
-        { RSAk, RSAk, oidKeyType, "rsaEncryption", "rsaEncryption"},
         { NID_rsaEncryption, RSAk, oidKeyType, "rsaEncryption", "rsaEncryption"},
     #endif /* NO_RSA */
     #ifdef HAVE_ECC
-        { ECDSAk, ECDSAk, oidKeyType, "ECDSA", "ecdsaEncryption"},
         { NID_X9_62_id_ecPublicKey, ECDSAk, oidKeyType, "id-ecPublicKey",
                                                         "id-ecPublicKey"},
     #endif /* HAVE_ECC */
@@ -44245,6 +44240,7 @@ err:
                                                 WOLFSSL_ASN1_OBJECT* arg_obj)
     {
         word32 oidSz = 0;
+        int nid = 0;
         const byte* oid;
         word32 type = 0;
         WOLFSSL_ASN1_OBJECT* obj = arg_obj;
@@ -44259,6 +44255,7 @@ err:
 
         for (i = 0; i < (int)WOLFSSL_OBJECT_INFO_SZ; i++) {
             if (wolfssl_object_info[i].nid == id) {
+                nid = id;
                 id = wolfssl_object_info[i].id;
                 sName = wolfssl_object_info[i].sName;
                 type = wolfssl_object_info[i].type;
@@ -44298,6 +44295,7 @@ err:
                 return NULL;
             }
         }
+        obj->nid     = nid;
         obj->type    = id;
         obj->grp     = type;
 
@@ -50522,54 +50520,56 @@ word32 nid2oid(int nid, int grp)
         case oidSigType:
             switch (nid) {
             #ifndef NO_DSA
-                case CTC_SHAwDSA:
+                case NID_dsaWithSHA1:
                     return CTC_SHAwDSA;
+                case NID_dsa_with_SHA256:
+                    return CTC_SHA256wDSA;
             #endif /* NO_DSA */
             #ifndef NO_RSA
-                case CTC_MD2wRSA:
+                case NID_md2WithRSAEncryption:
                     return CTC_MD2wRSA;
-                case CTC_MD5wRSA:
+                case NID_md5WithRSAEncryption:
                     return CTC_MD5wRSA;
-                case CTC_SHAwRSA:
+                case NID_sha1WithRSAEncryption:
                     return CTC_SHAwRSA;
-                case CTC_SHA224wRSA:
+                case NID_sha224WithRSAEncryption:
                     return CTC_SHA224wRSA;
-                case CTC_SHA256wRSA:
+                case NID_sha256WithRSAEncryption:
                     return CTC_SHA256wRSA;
-                case CTC_SHA384wRSA:
+                case NID_sha384WithRSAEncryption:
                     return CTC_SHA384wRSA;
-                case CTC_SHA512wRSA:
+                case NID_sha512WithRSAEncryption:
                     return CTC_SHA512wRSA;
                 #ifdef WOLFSSL_SHA3
-                case CTC_SHA3_224wRSA:
+                case NID_RSA_SHA3_224:
                     return CTC_SHA3_224wRSA;
-                case CTC_SHA3_256wRSA:
+                case NID_RSA_SHA3_256:
                     return CTC_SHA3_256wRSA;
-                case CTC_SHA3_384wRSA:
+                case NID_RSA_SHA3_384:
                     return CTC_SHA3_384wRSA;
-                case CTC_SHA3_512wRSA:
+                case NID_RSA_SHA3_512:
                     return CTC_SHA3_512wRSA;
                 #endif
             #endif /* NO_RSA */
             #ifdef HAVE_ECC
-                case CTC_SHAwECDSA:
+                case NID_ecdsa_with_SHA1:
                     return CTC_SHAwECDSA;
-                case CTC_SHA224wECDSA:
+                case NID_ecdsa_with_SHA224:
                     return CTC_SHA224wECDSA;
-                case CTC_SHA256wECDSA:
+                case NID_ecdsa_with_SHA256:
                     return CTC_SHA256wECDSA;
-                case CTC_SHA384wECDSA:
+                case NID_ecdsa_with_SHA384:
                     return CTC_SHA384wECDSA;
-                case CTC_SHA512wECDSA:
+                case NID_ecdsa_with_SHA512:
                     return CTC_SHA512wECDSA;
                 #ifdef WOLFSSL_SHA3
-                case CTC_SHA3_224wECDSA:
+                case NID_ecdsa_with_SHA3_224:
                     return CTC_SHA3_224wECDSA;
-                case CTC_SHA3_256wECDSA:
+                case NID_ecdsa_with_SHA3_256:
                     return CTC_SHA3_256wECDSA;
-                case CTC_SHA3_384wECDSA:
+                case NID_ecdsa_with_SHA3_384:
                     return CTC_SHA3_384wECDSA;
-                case CTC_SHA3_512wECDSA:
+                case NID_ecdsa_with_SHA3_512:
                     return CTC_SHA3_512wECDSA;
                 #endif
             #endif /* HAVE_ECC */
@@ -50580,15 +50580,15 @@ word32 nid2oid(int nid, int grp)
         case oidKeyType:
             switch (nid) {
             #ifndef NO_DSA
-                case DSAk:
+                case NID_dsa:
                     return DSAk;
             #endif /* NO_DSA */
             #ifndef NO_RSA
-                case RSAk:
+                case NID_rsaEncryption:
                     return RSAk;
             #endif /* NO_RSA */
             #ifdef HAVE_ECC
-                case ECDSAk:
+                case NID_X9_62_id_ecPublicKey:
                     return ECDSAk;
             #endif /* HAVE_ECC */
             }
@@ -50873,56 +50873,56 @@ int oid2nid(word32 oid, int grp)
             switch (oid) {
             #ifndef NO_DSA
                 case CTC_SHAwDSA:
-                    return CTC_SHAwDSA;
+                    return NID_dsaWithSHA1;
                 case CTC_SHA256wDSA:
-                    return CTC_SHA256wDSA;
+                    return NID_dsa_with_SHA256;
             #endif /* NO_DSA */
             #ifndef NO_RSA
                 case CTC_MD2wRSA:
-                    return CTC_MD2wRSA;
+                    return NID_md2WithRSAEncryption;
                 case CTC_MD5wRSA:
-                    return CTC_MD5wRSA;
+                    return NID_md5WithRSAEncryption;
                 case CTC_SHAwRSA:
-                    return CTC_SHAwRSA;
+                    return NID_sha1WithRSAEncryption;
                 case CTC_SHA224wRSA:
-                    return CTC_SHA224wRSA;
+                    return NID_sha224WithRSAEncryption;
                 case CTC_SHA256wRSA:
-                    return CTC_SHA256wRSA;
+                    return NID_sha256WithRSAEncryption;
                 case CTC_SHA384wRSA:
-                    return CTC_SHA384wRSA;
+                    return NID_sha384WithRSAEncryption;
                 case CTC_SHA512wRSA:
-                    return CTC_SHA512wRSA;
+                    return NID_sha512WithRSAEncryption;
                 #ifdef WOLFSSL_SHA3
                 case CTC_SHA3_224wRSA:
-                    return CTC_SHA3_224wRSA;
+                    return NID_RSA_SHA3_224;
                 case CTC_SHA3_256wRSA:
-                    return CTC_SHA3_256wRSA;
+                    return NID_RSA_SHA3_256;
                 case CTC_SHA3_384wRSA:
-                    return CTC_SHA3_384wRSA;
+                    return NID_RSA_SHA3_384;
                 case CTC_SHA3_512wRSA:
-                    return CTC_SHA3_512wRSA;
+                    return NID_RSA_SHA3_512;
                 #endif
             #endif /* NO_RSA */
             #ifdef HAVE_ECC
                 case CTC_SHAwECDSA:
-                    return CTC_SHAwECDSA;
+                    return NID_ecdsa_with_SHA1;
                 case CTC_SHA224wECDSA:
-                    return CTC_SHA224wECDSA;
+                    return NID_ecdsa_with_SHA224;
                 case CTC_SHA256wECDSA:
-                    return CTC_SHA256wECDSA;
+                    return NID_ecdsa_with_SHA256;
                 case CTC_SHA384wECDSA:
-                    return CTC_SHA384wECDSA;
+                    return NID_ecdsa_with_SHA384;
                 case CTC_SHA512wECDSA:
-                    return CTC_SHA512wECDSA;
+                    return NID_ecdsa_with_SHA512;
                 #ifdef WOLFSSL_SHA3
                 case CTC_SHA3_224wECDSA:
-                    return CTC_SHA3_224wECDSA;
+                    return NID_ecdsa_with_SHA3_224;
                 case CTC_SHA3_256wECDSA:
-                    return CTC_SHA3_256wECDSA;
+                    return NID_ecdsa_with_SHA3_256;
                 case CTC_SHA3_384wECDSA:
-                    return CTC_SHA3_384wECDSA;
+                    return NID_ecdsa_with_SHA3_384;
                 case CTC_SHA3_512wECDSA:
-                    return CTC_SHA3_512wECDSA;
+                    return NID_ecdsa_with_SHA3_512;
                 #endif
             #endif /* HAVE_ECC */
             }
@@ -50933,15 +50933,15 @@ int oid2nid(word32 oid, int grp)
             switch (oid) {
             #ifndef NO_DSA
                 case DSAk:
-                    return DSAk;
+                    return NID_dsa;
             #endif /* NO_DSA */
             #ifndef NO_RSA
                 case RSAk:
-                    return RSAk;
+                    return NID_rsaEncryption;
             #endif /* NO_RSA */
             #ifdef HAVE_ECC
                 case ECDSAk:
-                    return ECDSAk;
+                    return NID_X9_62_id_ecPublicKey;
             #endif /* HAVE_ECC */
             }
             break;
