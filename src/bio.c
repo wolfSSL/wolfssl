@@ -81,8 +81,14 @@ static int wolfSSL_BIO_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
  */
 static int wolfSSL_BIO_MEMORY_read(WOLFSSL_BIO* bio, void* buf, int len)
 {
-    int   sz;
+    int sz;
+
+#ifndef WOLFSSL_DEBUG_OPENSSL
+    if (len > 1)
+#endif
+    {
     WOLFSSL_ENTER("wolfSSL_BIO_MEMORY_read");
+    }
 
     sz = wolfSSL_BIO_pending(bio);
     if (sz > 0) {
@@ -195,7 +201,12 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
     WOLFSSL_BIO* front = bio;
     int sz  = 0;
 
+#ifndef WOLFSSL_DEBUG_OPENSSL
+    if (len > 1)
+#endif
+    {
     WOLFSSL_ENTER("wolfSSL_BIO_read");
+    }
 
     /* info cb, abort if user returns <= 0*/
     if (front != NULL && front->infoCb != NULL) {
@@ -1037,7 +1048,10 @@ int wolfSSL_BIO_supports_pending(const WOLFSSL_BIO *bio)
 /* Return the number of pending bytes in read and write buffers */
 size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
 {
+#ifdef WOLFSSL_DEBUG_OPENSSL
     WOLFSSL_ENTER("wolfSSL_BIO_ctrl_pending");
+#endif
+
     if (bio == NULL) {
         return 0;
     }
@@ -1840,7 +1854,10 @@ int wolfSSL_BIO_meth_set_destroy(WOLFSSL_BIO_METHOD *biom,
 int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio, void* p)
 {
     WOLFSSL_BIO* mem_bio;
+
+#ifdef WOLFSSL_DEBUG_OPENSSL
     WOLFSSL_ENTER("wolfSSL_BIO_get_mem_data");
+#endif
 
     if (bio == NULL)
         return WOLFSSL_FATAL_ERROR;
