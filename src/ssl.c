@@ -21047,8 +21047,8 @@ void wolfSSL_sk_DIST_POINT_pop_free(WOLFSSL_STACK* sk,
             f(tmp->data.dp);
         else
             wolfSSL_DIST_POINT_free(tmp->data.dp);
+        node = tmp->next;
         XFREE(tmp, NULL, DYNAMIC_TYPE_ASN1);
-        node = sk->next;
     }
 }
 
