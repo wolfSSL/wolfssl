@@ -44755,7 +44755,13 @@ static int test_tls13_apis(void)
     int          outSz;
 #endif
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
-    int          groups[2] = { WOLFSSL_ECC_SECP256R1, WOLFSSL_ECC_SECP256R1 };
+    int          groups[2] = { WOLFSSL_ECC_SECP256R1,
+#ifdef HAVE_LIBOQS
+                               WOLFSSL_SABER_LEVEL3
+#else
+                               WOLFSSL_ECC_SECP256R1
+#endif
+                             };
     int          bad_groups[2] = { 0xDEAD, 0xBEEF };
     int          numGroups = 2;
 #endif
@@ -44770,6 +44776,12 @@ static int test_tls13_apis(void)
 #endif
 #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
             "P-256"
+#ifdef HAVE_LIBOQS
+            ":P256_SABER_LEVEL1"
+#endif
+#endif
+#ifdef HAVE_LIBOQS
+            ":KYBER_LEVEL1"
 #endif
             "";
 #endif /* !defined(NO_ECC_SECP) */
@@ -44871,6 +44883,22 @@ static int test_tls13_apis(void)
 #endif
     AssertIntEQ(wolfSSL_UseKeyShare(clientSsl, WOLFSSL_ECC_SECP256R1),
                 NOT_COMPILED_IN);
+#endif
+#endif
+
+#if defined(HAVE_LIBOQS)
+    AssertIntEQ(wolfSSL_UseKeyShare(NULL, WOLFSSL_KYBER_LEVEL3), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_SERVER
+    AssertIntEQ(wolfSSL_UseKeyShare(serverSsl, WOLFSSL_KYBER_LEVEL3),
+                WOLFSSL_SUCCESS);
+#endif
+#ifndef NO_WOLFSSL_CLIENT
+#ifndef WOLFSSL_NO_TLS12
+    AssertIntEQ(wolfSSL_UseKeyShare(clientTls12Ssl, WOLFSSL_KYBER_LEVEL3),
+                BAD_FUNC_ARG);
+#endif
+    AssertIntEQ(wolfSSL_UseKeyShare(clientSsl, WOLFSSL_KYBER_LEVEL3),
+                WOLFSSL_SUCCESS);
 #endif
 #endif
 

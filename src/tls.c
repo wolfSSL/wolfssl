@@ -7306,12 +7306,16 @@ static int TLSX_KeyShare_ProcessOqs(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
 
     if (ssl->options.side == WOLFSSL_SERVER_END) {
         /* I am the server, the shared secret has already been generated and
-         * is in keyShareEntry->ke; transfer ownership of the buffer. */
-        if (ssl->arrays->preMasterSecret != NULL)
-            XFREE(ssl->arrays->preMasterSecret, ssl->heap,
-                  DYNAMIC_TYPE_SECRET);
-        ssl->arrays->preMasterSecret = keyShareEntry->ke;
+         * is in keyShareEntry->ke; copy it to the pre-master secret
+         * pre-allocated buffer. */
+        if (keyShareEntry->keLen > ENCRYPT_LEN) {
+            WOLFSSL_MSG("shared secret is too long.\n");
+            return LENGTH_ERROR;
+        }
+
+        XMEMCPY(ssl->arrays->preMasterSecret, keyShareEntry->ke, keyShareEntry->keLen);
         ssl->arrays->preMasterSz = keyShareEntry->keLen;
+        XFREE(keyShareEntry->ke, sl->heap, DYNAMIC_TYPE_TLSX)
         keyShareEntry->ke = NULL;
         keyShareEntry->keLen = 0;
         return 0;
@@ -7404,10 +7408,16 @@ static int TLSX_KeyShare_ProcessOqs(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         }
     }
 
+    if (sharedSecretLen > ENCRYPT_LEN) {
+        WOLFSSL_MSG("shared secret is too long.\n");
+        ret = LENGTH_ERROR;
+    }
+
     if (ret == 0) {
-        ssl->arrays->preMasterSecret = sharedSecret;
+         /* Copy the shared secret to the  pre-master secret pre-allocated
+          * buffer. */
+        XMEMCPY(ssl->arrays->preMasterSecret, sharedSecret, sharedSecretLen);
         ssl->arrays->preMasterSz = (word32) sharedSecretLen;
-        sharedSecret = NULL;
     }
 
     if (sharedSecret != NULL) {
@@ -7493,16 +7503,29 @@ static int TLSX_KeyShareEntry_Parse(WOLFSSL* ssl, const byte* input,
     if (keLen > length - offset)
         return BUFFER_ERROR;
 
-    /* Store a copy in the key share object. */
-    ke = (byte*)XMALLOC(keLen, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-    if (ke == NULL)
-        return MEMORY_E;
-    XMEMCPY(ke, &input[offset], keLen);
+#ifdef HAVE_LIBOQS
+    if (group >= WOLFSSL_OQS_MIN &&
+        group <= WOLFSSL_OQS_MAX &&
+        ssl->options.side == WOLFSSL_SERVER_END) {
+        /* For KEMs, the public key is not stored. Casting away const because
+         * we know for KEMs, it will be read-only.*/
+        ke = (byte *) &input[offset];
+    } else
+#endif
+    {
+        /* Store a copy in the key share object. */
+        ke = (byte*)XMALLOC(keLen, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        if (ke == NULL)
+            return MEMORY_E;
+        XMEMCPY(ke, &input[offset], keLen);
+    }
 
     /* Populate a key share object in the extension. */
     ret = TLSX_KeyShare_Use(ssl, group, keLen, ke, kse);
     if (ret != 0) {
-        XFREE(ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        if (ke != &input[offset]) {
+            XFREE(ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        }
         return ret;
     }
 
@@ -7685,8 +7708,11 @@ static int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 return ret;
         }
 
-        /* Try to use the server's group. */
-        ret = TLSX_KeyShare_Use(ssl, group, 0, NULL, NULL);
+#ifdef HAVE_LIBOQS
+        /* For oqs groups, do this in TLSX_PopulateExtensions(). */
+        if (group < WOLFSSL_OQS_MIN || group > WOLFSSL_OQS_MAX)
+#endif
+            ret = TLSX_KeyShare_Use(ssl, group, 0, NULL, NULL);
     }
     else {
         /* Not a message type that is allowed to have this extension. */
@@ -7923,25 +7949,24 @@ int TLSX_KeyShare_Use(WOLFSSL* ssl, word16 group, word16 len, byte* data,
             return ret;
     }
 
-    if (data != NULL) {
+
 #ifdef HAVE_LIBOQS
-        if (group >= WOLFSSL_OQS_MIN &&
-            group <= WOLFSSL_OQS_MAX &&
-            ssl->options.side == WOLFSSL_SERVER_END) {
-            ret = server_generate_oqs_ciphertext(ssl, keyShareEntry, data,
-                                                 len);
-            if (ret != 0)
-                return ret;
-        }
-        else
+    if (group >= WOLFSSL_OQS_MIN &&
+        group <= WOLFSSL_OQS_MAX &&
+        ssl->options.side == WOLFSSL_SERVER_END) {
+        ret = server_generate_oqs_ciphertext(ssl, keyShareEntry, data,
+                                             len);
+        if (ret != 0)
+            return ret;
+    }
+    else
 #endif
-        {
-            if (keyShareEntry->ke != NULL) {
-                XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            }
-            keyShareEntry->ke = data;
-            keyShareEntry->keLen = len;
+    if (data != NULL) {
+        if (keyShareEntry->ke != NULL) {
+            XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         }
+        keyShareEntry->ke = data;
+        keyShareEntry->keLen = len;
     }
     else {
         /* Generate a key pair. */
@@ -10316,7 +10341,11 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     namedGroup = kse->group;
             }
             if (namedGroup > 0) {
-                ret = TLSX_KeyShare_Use(ssl, namedGroup, 0, NULL, NULL);
+#ifdef HAVE_LIBOQS
+                /* For KEMs, the key share has already been generated. */
+                if (namedGroup < WOLFSSL_OQS_MIN || namedGroup > WOLFSSL_OQS_MAX)
+#endif
+                    ret = TLSX_KeyShare_Use(ssl, namedGroup, 0, NULL, NULL);
                 if (ret != 0)
                     return ret;
             }
