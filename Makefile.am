@@ -29,7 +29,8 @@ AM_CFLAGS += $(EXTRA_CFLAGS)
 
 #includes additional rules from aminclude.am
 @INC_AMINCLUDE@
-DISTCLEANFILES+= aminclude.am
+DISTCLEANFILES+= aminclude.am \
+             .build_params
 
 CLEANFILES+= ecc-key.der \
              ecc-public-key.der \
@@ -126,8 +127,7 @@ CLEANFILES+= ecc-key.der \
              pkcs7signedEncryptedCompressedFirmwarePkgData_RSA_SHA256.der \
              pkcs7signedEncryptedCompressedFirmwarePkgData_RSA_SHA256_noattr.der \
              tests/test-log-dump-to-file.txt \
-             MyKeyLog.txt \
-             .build_params
+             MyKeyLog.txt
 
 exampledir = $(docdir)/example
 dist_example_DATA=
