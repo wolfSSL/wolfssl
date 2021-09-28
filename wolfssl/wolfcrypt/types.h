@@ -895,6 +895,15 @@ decouple library dependencies with standard string, memory and so on.
         WC_HASH_TYPE_SHA3_512 = 13,
         WC_HASH_TYPE_BLAKE2B = 14,
         WC_HASH_TYPE_BLAKE2S = 19,
+        #ifndef WOLFSSL_NOSHA512_224
+            #define WOLFSSL_NOSHA512_224
+        #endif
+        #ifndef WOLFSSL_NOSHA512_256
+            #define WOLFSSL_NOSHA512_256
+        #endif
+        #ifndef WOLFSSL_NO_SHAKE256
+            #define WOLFSSL_NO_SHAKE256
+        #endif
     #else
         WC_HASH_TYPE_NONE = 0,
         WC_HASH_TYPE_MD2 = 1,
