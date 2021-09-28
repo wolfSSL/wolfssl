@@ -570,11 +570,12 @@ WOLFSSL_API int wolfSSL_dtls_import(WOLFSSL* ssl, unsigned char* buf,
 
 
 /*!
-    \brief Used to import a serialized TLS session. In most cases
-    wolfSSL_get_session should be used instead, this function is for exporting
-    the state of the connection and when imported a resumption is not needed.
+    \brief Used to import a serialized TLS session. This function is for
+    importing the state of the connection.
     WARNING: buf contains sensitive information about the state and is best to
     be encrypted before storing if stored.
+    Additional debug info can be displayed with the macro
+    WOLFSSL_SESSION_EXPORT_DEBUG defined.
 
     \return the number of bytes read from buffer 'buf'
 
@@ -704,6 +705,8 @@ WOLFSSL_API int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf,
     \brief Used to export a serialized TLS session. In most cases
     wolfSSL_set_session should be used instead, this function is for importing a
     serialized state of the connection.
+    Additional debug info can be displayed with the macro
+    WOLFSSL_SESSION_EXPORT_DEBUG defined.
 
     \return the number of bytes written into buffer 'buf'
 

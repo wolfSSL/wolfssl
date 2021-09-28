@@ -1333,7 +1333,9 @@ enum Misc {
                                    /* min amount of bytes used from Keys */
     WOLFSSL_EXPORT_TLS       = 1,
     WOLFSSL_EXPORT_DTLS      = 0,
+#ifndef WOLFSSL_EXPORT_SPC_SZ
     WOLFSSL_EXPORT_SPC_SZ    = 16, /* amount of bytes used from CipherSpecs */
+#endif
     WOLFSSL_EXPORT_LEN       = 2,  /* 2 bytes for length and protocol */
     WOLFSSL_EXPORT_VERSION   = 4,  /* wolfSSL version for serialized session */
 
