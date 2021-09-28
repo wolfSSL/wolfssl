@@ -7309,13 +7309,13 @@ static int TLSX_KeyShare_ProcessOqs(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
          * is in keyShareEntry->ke; copy it to the pre-master secret
          * pre-allocated buffer. */
         if (keyShareEntry->keLen > ENCRYPT_LEN) {
-            WOLFSSL_MSG("shared secret is too long.\n");
+            WOLFSSL_MSG("shared secret is too long.");
             return LENGTH_ERROR;
         }
 
         XMEMCPY(ssl->arrays->preMasterSecret, keyShareEntry->ke, keyShareEntry->keLen);
         ssl->arrays->preMasterSz = keyShareEntry->keLen;
-        XFREE(keyShareEntry->ke, sl->heap, DYNAMIC_TYPE_TLSX)
+        XFREE(keyShareEntry->ke, sl->heap, DYNAMIC_TYPE_SECRET)
         keyShareEntry->ke = NULL;
         keyShareEntry->keLen = 0;
         return 0;
@@ -7421,7 +7421,7 @@ static int TLSX_KeyShare_ProcessOqs(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     }
 
     if (sharedSecret != NULL) {
-        XFREE(sharedSecret, ssl->heap, DYNAMIC_TYPE_TLSX);
+        XFREE(sharedSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
     }
 
     wc_ecc_free(&eccpubkey);
@@ -7509,7 +7509,7 @@ static int TLSX_KeyShareEntry_Parse(WOLFSSL* ssl, const byte* input,
         ssl->options.side == WOLFSSL_SERVER_END) {
         /* For KEMs, the public key is not stored. Casting away const because
          * we know for KEMs, it will be read-only.*/
-        ke = (byte *) &input[offset];
+        ke = (byte *)&input[offset];
     } else
 #endif
     {
