@@ -3404,7 +3404,7 @@ AS_CASE([$FIPS_VERSION],
         # Shake256 is a SHA-3 algorithm not in our FIPS algorithm list
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
         ENABLED_SHAKE256=no
-        # SHA512-224 and SHA512-256 are a SHA-2 algorithms not in our FIPS algorithm list
+        # SHA512-224 and SHA512-256 are SHA-2 algorithms not in our FIPS algorithm list
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA512_224 -DWOLFSSL_NOSHA512_256"
         AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
               [ENABLED_AESCCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
@@ -3441,6 +3441,9 @@ AS_CASE([$FIPS_VERSION],
         ENABLED_DES3="yes"
         # Shake256 is a SHA-3 algorithm not in our FIPS algorithm list
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
+        ENABLED_SHAKE256=no
+        # SHA512-224 and SHA512-256 are SHA-2 algorithms not in our FIPS algorithm list
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA512_224 -DWOLFSSL_NOSHA512_256"
         AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
               [ENABLED_AESCCM="yes"
                AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
@@ -3476,6 +3479,9 @@ AS_CASE([$FIPS_VERSION],
         ENABLED_DES3="yes"
         # Shake256 is a SHA-3 algorithm not in our FIPS algorithm list
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
+        ENABLED_SHAKE256=no
+        # SHA512-224 and SHA512-256 are SHA-2 algorithms not in our FIPS algorithm list
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA512_224 -DWOLFSSL_NOSHA512_256"
         AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
               [ENABLED_AESCCM="yes"
                AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
@@ -3503,6 +3509,7 @@ AS_CASE([$FIPS_VERSION],
             [ENABLED_SHA512="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512 -DWOLFSSL_SHA384"])
         AS_IF([test "x$ENABLED_AESGCM" = "xno"],
             [ENABLED_AESGCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"])
+echo "$AM_CFLAGS" >/dev/stderr
     ],
     ["rand"],[
         AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_FIPS_RAND -DHAVE_FIPS -DHAVE_FIPS_VERSION=$HAVE_FIPS_VERSION -DHAVE_FIPS_VERSION_MINOR=$HAVE_FIPS_VERSION_MINOR"

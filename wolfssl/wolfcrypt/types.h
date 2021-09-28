@@ -873,8 +873,9 @@ decouple library dependencies with standard string, memory and so on.
 
     /* hash types */
     enum wc_HashType {
-    #if defined(HAVE_SELFTEST) || defined(HAVE_FIPS) && \
-        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION <= 2))
+    #if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && \
+        ((! defined(HAVE_FIPS_VERSION)) || \
+         defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION <= 2)))
         /* In selftest build, WC_* types are not mapped to WC_HASH_TYPE types.
          * Values here are based on old selftest hmac.h enum, with additions.
          * These values are fixed for backwards FIPS compatibility */
@@ -894,12 +895,6 @@ decouple library dependencies with standard string, memory and so on.
         WC_HASH_TYPE_SHA3_512 = 13,
         WC_HASH_TYPE_BLAKE2B = 14,
         WC_HASH_TYPE_BLAKE2S = 19,
-        WC_HASH_TYPE_SHA512_224 = 20,
-        WC_HASH_TYPE_SHA512_256 = 21,    
-        WC_HASH_TYPE_SHAKE128 = 22,
-        WC_HASH_TYPE_SHAKE256 = 23,
-
-        WC_HASH_TYPE_MAX = WC_HASH_TYPE_SHAKE256
     #else
         WC_HASH_TYPE_NONE = 0,
         WC_HASH_TYPE_MD2 = 1,
