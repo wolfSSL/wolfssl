@@ -32378,7 +32378,8 @@ static void test_wolfSSL_Tls13_Key_Logging_test(void)
 #endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK && WOLFSSL_TLS13 */
 }
 
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
 static void post_auth_version_cb(WOLFSSL* ssl)
 {
     /* do handshake and then test version error */
@@ -32417,7 +32418,8 @@ static void set_post_auth_cb(WOLFSSL* ssl)
 
 static void test_wolfSSL_Tls13_postauth(void)
 {
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     tcp_ready ready;
     func_args client_args;
     func_args server_args;
