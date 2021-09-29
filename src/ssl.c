@@ -10635,8 +10635,7 @@ int wolfSSL_X509_add_altname_ex(WOLFSSL_X509* x509, const char* name,
     if ((name == NULL) || (nameSz == 0))
         return WOLFSSL_SUCCESS;
 
-    newAltName = (DNS_entry*)XMALLOC(sizeof(DNS_entry),
-            x509->heap, DYNAMIC_TYPE_ALTNAME);
+    newAltName = AltNameNew(x509->heap);
     if (newAltName == NULL)
         return WOLFSSL_FAILURE;
 
@@ -26905,7 +26904,7 @@ int wolfSSL_ERR_GET_REASON(unsigned long err)
     if (err == ((ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE))
         return PEM_R_NO_START_LINE;
 #endif
-#if defined(OPENSLL_ALL) && defined(WOLFSSL_PYTHON)
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
     if (err == ((ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG))
         return ASN1_R_HEADER_TOO_LONG;
 #endif
@@ -44189,12 +44188,13 @@ unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line)
             WOLFSSL_MSG("Issue peeking at error node in queue");
             return 0;
         }
+        printf("ret from peek error node = %d\n", ret);
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
         if (ret == -ASN_NO_PEM_HEADER)
             return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
     #endif
-    #if defined(OPENSLL_ALL) && defined(WOLFSSL_PYTHON)
-        if (ret == -ASN1_R_HEADER_TOO_LONG) {
+    #if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
+        if (ret == ASN1_R_HEADER_TOO_LONG) {
             return (ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG;
         }
     #endif
@@ -46746,7 +46746,7 @@ unsigned long wolfSSL_ERR_peek_last_error(void)
         if (ret == -ASN_NO_PEM_HEADER)
             return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
     #if defined(WOLFSSL_PYTHON)
-        if (ret == -ASN1_R_HEADER_TOO_LONG)
+        if (ret == ASN1_R_HEADER_TOO_LONG)
             return (ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG;
     #endif
         return (unsigned long)ret;
@@ -47832,6 +47832,11 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 
             if (ret == -ASN_NO_PEM_HEADER)
                 return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
+        #if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
+            if (ret == ASN1_R_HEADER_TOO_LONG) {
+                return (ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG;
+            }
+        #endif
             if (ret != -WANT_READ && ret != -WANT_WRITE &&
                     ret != -ZERO_RETURN && ret != -WOLFSSL_ERROR_ZERO_RETURN &&
                     ret != -SOCKET_PEER_CLOSED_E && ret != -SOCKET_ERROR_E)
@@ -57883,7 +57888,8 @@ int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num)
     /* get secret value from source of entropy */
     ret = wolfSSL_RAND_bytes(secret, DRBG_SEED_LEN);
 
-    /* uses input buffer to seed fro pseudo random number generation */
+    /* uses input buffer to seed for pseudo random number generation, each
+     * thread will potentially have different results this way */
     if (ret == WOLFSSL_SUCCESS) {
         ret = wc_PRF(buf, num, secret, DRBG_SEED_LEN, (const byte*)buf, num,
                 hash, NULL, INVALID_DEVID);
