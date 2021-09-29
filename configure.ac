@@ -212,8 +212,10 @@ fi
 
 # The FIPS options are:
 #   v5-RC8 - FIPS 140-3 (wolfCrypt WCv5.0-RC8)
-#   v5 - FIPS 140-3 (wolfCrypt v5.0.0)
-#   v3 - FIPS Ready
+#   v5 - alias for v5-RC8 (may change)
+#   v5-REL - FIPS 140-3, placeholder for upcoming wolfCrypt v5.0.0
+#   v5-ready - FIPS ready, 140-3 settings
+#   v3 - FIPS Ready, 140-2 settings
 #   ready - same as v3
 #   rand - wolfRand
 #   v2 - FIPS 140-2 Cert 3389
@@ -250,19 +252,25 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION=2
         ENABLED_FIPS="yes"
     ],
-    [v5-RC8],[
+    [v5|v5-RC8],[
         FIPS_VERSION="$ENABLED_FIPS"
         HAVE_FIPS_VERSION=5
         ENABLED_FIPS="yes"
     ],
-    [v5],[
+    [v5-REL],[
+        FIPS_VERSION="$ENABLED_FIPS"
+        HAVE_FIPS_VERSION=5
+        HAVE_FIPS_VERSION_MINOR=1
+        ENABLED_FIPS="yes"
+    ],
+    [v5-ready],[
         FIPS_VERSION="$ENABLED_FIPS"
         HAVE_FIPS_VERSION=5
         HAVE_FIPS_VERSION_MINOR=1
         ENABLED_FIPS="yes"
     ],
     [
-        AC_MSG_ERROR([Invalid value for --enable-fips "$ENABLED_FIPS" (allowed: ready, rand, v1, v2, v5-RC8, v5, no, disabled)])
+        AC_MSG_ERROR([Invalid value for --enable-fips "$ENABLED_FIPS" (allowed: ready, rand, v1, v2, v5, v5-RC8, v5-ready, no, disabled)])
     ])
 
 if test -z "$HAVE_FIPS_VERSION_MINOR"
