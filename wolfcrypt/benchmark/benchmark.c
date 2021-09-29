@@ -5127,7 +5127,7 @@ void bench_dh(int doAsync)
 #ifdef HAVE_FFDHE_3072
     else if (use_ffdhe == 3072) {
 #ifdef HAVE_PUBLIC_FFDHE
-        params = wc_Dh_ffdhe2048_Get();
+        params = wc_Dh_ffdhe3072_Get();
 #else
         paramName = WC_FFDHE_3072;
 #endif
