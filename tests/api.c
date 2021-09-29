@@ -36775,6 +36775,7 @@ static void test_wolfSSL_BN_rand(void)
 {
     #if defined(OPENSSL_EXTRA)
     BIGNUM* bn;
+    BIGNUM* range;
 
     printf(testingFmt, "wolfSSL_BN_rand()");
 
@@ -36789,6 +36790,13 @@ static void test_wolfSSL_BN_rand(void)
     AssertNotNull(bn = BN_new());
     AssertIntEQ(BN_rand(bn, 64, 0, 0), SSL_SUCCESS);
     BN_free(bn);
+
+    AssertNotNull(bn = BN_new());
+    AssertNotNull(range = BN_new());
+    AssertIntEQ(BN_rand(range, 64, 0, 0), SSL_SUCCESS);
+    AssertIntEQ(BN_rand_range(bn, range), SSL_SUCCESS);
+    BN_free(bn);
+    BN_free(range);
 
     printf(resultFmt, passed);
     #endif

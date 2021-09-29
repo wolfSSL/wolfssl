@@ -52693,11 +52693,10 @@ int wolfSSL_mask_bits(WOLFSSL_BIGNUM* bn, int n)
 }
 #endif
 
-
 /* WOLFSSL_SUCCESS on ok */
 int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
 {
-    int           ret    = 0;
+    int           ret    = WOLFSSL_FAILURE;
     int           len;
     int           initTmpRng = 0;
     WC_RNG*       rng    = NULL;
@@ -52770,6 +52769,38 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
     return ret;
 }
 
+/**
+ * N = length of range input var
+ * Generate N-bit length numbers until generated number is less than range
+ * @param r     Output number
+ * @param range The upper limit of generated output
+ * @return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure
+ */
+int wolfSSL_BN_rand_range(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *range)
+{
+    int n;
+    WOLFSSL_MSG("wolfSSL_BN_rand_range");
+
+    if (r == NULL || range == NULL) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    n = wolfSSL_BN_num_bits(range);
+
+    if (n <= 1) {
+        wolfSSL_BN_zero(r);
+    }
+    else {
+        do {
+            if (wolfSSL_BN_rand(r, n, 0, 0) == WOLFSSL_FAILURE) {
+                WOLFSSL_MSG("wolfSSL_BN_rand error");
+                return WOLFSSL_FAILURE;
+            }
+        } while(wolfSSL_BN_cmp(r, range) >= 0);
+    }
+    return WOLFSSL_SUCCESS;
+}
 
 /* WOLFSSL_SUCCESS on ok
  * code is same as wolfSSL_BN_rand except for how top and bottom is handled.
