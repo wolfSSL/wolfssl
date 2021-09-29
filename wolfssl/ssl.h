@@ -1968,6 +1968,8 @@ WOLFSSL_API long wolfSSL_CTX_sess_set_cache_size(WOLFSSL_CTX*, long);
 WOLFSSL_API long wolfSSL_CTX_sess_get_cache_size(WOLFSSL_CTX*);
 
 WOLFSSL_API long wolfSSL_CTX_get_session_cache_mode(WOLFSSL_CTX*);
+WOLFSSL_API int  wolfSSL_get_read_ahead(const WOLFSSL*);
+WOLFSSL_API int  wolfSSL_set_read_ahead(WOLFSSL*, int v);
 WOLFSSL_API int  wolfSSL_CTX_get_read_ahead(WOLFSSL_CTX*);
 WOLFSSL_API int  wolfSSL_CTX_set_read_ahead(WOLFSSL_CTX*, int v);
 WOLFSSL_API long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX*, void* arg);
@@ -2472,6 +2474,10 @@ WOLFSSL_API long wolfSSL_SSL_get_mode(WOLFSSL* ssl);
 
 
 WOLFSSL_API int  wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX*);
+WOLFSSL_API const char* wolfSSL_X509_get_default_cert_file_env(void);
+WOLFSSL_API const char* wolfSSL_X509_get_default_cert_file(void);
+WOLFSSL_API const char* wolfSSL_X509_get_default_cert_dir_env(void);
+WOLFSSL_API const char* wolfSSL_X509_get_default_cert_dir(void);
 WOLFSSL_API int  wolfSSL_CTX_set_session_id_context(WOLFSSL_CTX*,
                                             const unsigned char*, unsigned int);
 WOLFSSL_ABI WOLFSSL_API WOLFSSL_X509* wolfSSL_get_peer_certificate(WOLFSSL*);
@@ -2543,6 +2549,9 @@ WOLFSSL_API int          wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION*,unsigned char*
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION**,
                                                    const unsigned char**, long);
 
+WOLFSSL_API int wolfSSL_SESSION_has_ticket(const WOLFSSL_SESSION*);
+WOLFSSL_API unsigned long wolfSSL_SESSION_get_ticket_lifetime_hint(
+                              const WOLFSSL_SESSION* sess);
 WOLFSSL_API long wolfSSL_SESSION_get_timeout(const WOLFSSL_SESSION*);
 WOLFSSL_API long wolfSSL_SESSION_get_time(const WOLFSSL_SESSION*);
 WOLFSSL_API int  wolfSSL_CTX_get_ex_new_index(long, void*, void*, void*, void*);

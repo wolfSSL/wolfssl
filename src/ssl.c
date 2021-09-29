@@ -16695,6 +16695,30 @@ cleanup:
         WOLFSSL_STUB("SSL_CTX_set_default_verify_paths");
         return SSL_NOT_IMPLEMENTED;
     }
+
+    const char* wolfSSL_X509_get_default_cert_file_env(void)
+    {
+        WOLFSSL_STUB("X509_get_default_cert_file_env");
+        return NULL;
+    }
+
+    const char* wolfSSL_X509_get_default_cert_file(void)
+    {
+        WOLFSSL_STUB("X509_get_default_cert_file");
+        return NULL;
+    }
+
+    const char* wolfSSL_X509_get_default_cert_dir_env(void)
+    {
+        WOLFSSL_STUB("X509_get_default_cert_dir_env");
+        return NULL;
+    }
+
+    const char* wolfSSL_X509_get_default_cert_dir(void)
+    {
+        WOLFSSL_STUB("X509_get_default_cert_dir");
+        return NULL;
+    }
     #endif
 
     #if defined(WOLFCRYPT_HAVE_SRP) && !defined(NO_SHA256) \
@@ -29138,6 +29162,28 @@ WOLFSSL_API long wolfSSL_CTX_get_session_cache_mode(WOLFSSL_CTX* ctx)
 }
 
 
+int wolfSSL_get_read_ahead(const WOLFSSL* ssl)
+{
+    if (ssl == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return ssl->readAhead;
+}
+
+
+int wolfSSL_set_read_ahead(WOLFSSL* ssl, int v)
+{
+    if (ssl == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    ssl->readAhead = (byte)v;
+
+    return WOLFSSL_SUCCESS;
+}
+
+
 int wolfSSL_CTX_get_read_ahead(WOLFSSL_CTX* ctx)
 {
     if (ctx == NULL) {
@@ -30758,6 +30804,36 @@ end:
     }
 #endif
     return s;
+}
+
+/* Check if there is a session ticket associated with this WOLFSSL_SESSION.
+ *
+ * sess - pointer to WOLFSSL_SESSION struct
+ *
+ * Returns 1 if has session ticket, otherwise 0 */
+int wolfSSL_SESSION_has_ticket(const WOLFSSL_SESSION* sess)
+{
+    WOLFSSL_ENTER("wolfSSL_SESSION_has_ticket");
+#ifdef HAVE_SESSION_TICKET
+    if (sess) {
+        if ((sess->ticketLen > 0) && (sess->ticket != NULL)) {
+            return WOLFSSL_SUCCESS;
+        }
+    }
+#else
+    (void)sess;
+#endif
+    return WOLFSSL_FAILURE;
+}
+
+unsigned long wolfSSL_SESSION_get_ticket_lifetime_hint(
+                  const WOLFSSL_SESSION* sess)
+{
+    WOLFSSL_ENTER("wolfSSL_SESSION_get_ticket_lifetime_hint");
+    if (sess) {
+        return sess->timeout;
+    }
+    return 0;
 }
 
 long wolfSSL_SESSION_get_timeout(const WOLFSSL_SESSION* sess)

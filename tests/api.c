@@ -343,8 +343,10 @@
         #include <wolfssl/wolfcrypt/srp.h>
 #endif
 
-#if defined(SESSION_CERTS) && defined(TEST_PEER_CERT_CHAIN)
-#include "wolfssl/internal.h" /* for testing SSL_get_peer_cert_chain */
+#if (defined(SESSION_CERTS) && defined(TEST_PEER_CERT_CHAIN)) || \
+    defined(HAVE_SESSION_TICKET)
+    /* for testing SSL_get_peer_cert_chain, or SESSION_TICKET_HINT_DEFAULT */
+#include "wolfssl/internal.h"
 #endif
 
 /* force enable test buffers */
@@ -6697,7 +6699,7 @@ static void test_wolfSSL_PKCS12(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_DES3) && !defined(NO_FILESYSTEM) && \
     !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA) && \
     !defined(NO_SHA) && defined(HAVE_PKCS12)
-    byte buffer[6000];
+    byte buf[6000];
     char file[] = "./certs/test-servercert.p12";
     char order[] = "./certs/ecc-rsa-server.p12";
 #ifdef WC_RC2
@@ -6730,13 +6732,13 @@ static void test_wolfSSL_PKCS12(void)
 
     f = XFOPEN(file, "rb");
     AssertTrue((f != XBADFILE));
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    bytes = (int)XFREAD(buf, 1, sizeof(buf), f);
     XFCLOSE(f);
 
     goodPswLen = (int)XSTRLEN(goodPsw);
     badPswLen = (int)XSTRLEN(badPsw);
 
-    bio = BIO_new_mem_buf((void*)buffer, bytes);
+    bio = BIO_new_mem_buf((void*)buf, bytes);
     AssertNotNull(bio);
 
     pkcs12 = d2i_PKCS12_bio(bio, NULL);
@@ -6881,10 +6883,10 @@ static void test_wolfSSL_PKCS12(void)
     /* test order of parsing */
     f = XFOPEN(order, "rb");
     AssertTrue(f != XBADFILE);
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    bytes = (int)XFREAD(buf, 1, sizeof(buf), f);
     XFCLOSE(f);
 
-    AssertNotNull(bio = BIO_new_mem_buf((void*)buffer, bytes));
+    AssertNotNull(bio = BIO_new_mem_buf((void*)buf, bytes));
     AssertNotNull(pkcs12 = d2i_PKCS12_bio(bio, NULL));
     AssertIntEQ((ret = PKCS12_parse(pkcs12, "", &pkey, &cert, &ca)),
             WOLFSSL_SUCCESS);
@@ -6964,10 +6966,10 @@ static void test_wolfSSL_PKCS12(void)
     /* test PKCS#12 with RC2 encryption */
     f = XFOPEN(rc2p12, "rb");
     AssertTrue(f != XBADFILE);
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    bytes = (int)XFREAD(buf, 1, sizeof(buf), f);
     XFCLOSE(f);
 
-    AssertNotNull(bio = BIO_new_mem_buf((void*)buffer, bytes));
+    AssertNotNull(bio = BIO_new_mem_buf((void*)buf, bytes));
     AssertNotNull(pkcs12 = d2i_PKCS12_bio(bio, NULL));
 
     /* check verify MAC fail case */
@@ -37235,6 +37237,10 @@ static void test_wolfSSL_SESSION(void)
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
+#ifdef HAVE_SESSION_TICKET
+    /* Use session tickets, for ticket tests below */
+    AssertIntEQ(wolfSSL_CTX_UseSessionTicket(ctx), WOLFSSL_SUCCESS);
+#endif
 
     XMEMSET(&server_args, 0, sizeof(func_args));
 #ifdef WOLFSSL_TIRTOS
@@ -37286,6 +37292,16 @@ static void test_wolfSSL_SESSION(void)
     #else
     AssertIntEQ(wolfSSL_SESSION_is_resumable(NULL), 0);
     AssertIntEQ(wolfSSL_SESSION_is_resumable(sess), 1);
+    #endif
+
+    AssertIntEQ(wolfSSL_SESSION_has_ticket(NULL), 0);
+    AssertIntEQ(wolfSSL_SESSION_get_ticket_lifetime_hint(NULL), 0);
+    #ifdef HAVE_SESSION_TICKET
+    AssertIntEQ(wolfSSL_SESSION_has_ticket(sess), 1);
+    AssertIntEQ(wolfSSL_SESSION_get_ticket_lifetime_hint(sess),
+                SESSION_TICKET_HINT_DEFAULT);
+    #else
+    AssertIntEQ(wolfSSL_SESSION_has_ticket(sess), 0);
     #endif
     
     wolfSSL_shutdown(ssl);

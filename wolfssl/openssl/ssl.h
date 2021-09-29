@@ -983,6 +983,10 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define SSL_CTX_sess_set_cache_size     wolfSSL_CTX_sess_set_cache_size
 #define SSL_CTX_set_default_verify_paths wolfSSL_CTX_set_default_verify_paths
+#define X509_get_default_cert_file_env  wolfSSL_X509_get_default_cert_file_env
+#define X509_get_default_cert_file      wolfSSL_X509_get_default_cert_file
+#define X509_get_default_cert_dir_env   wolfSSL_X509_get_default_cert_dir_env
+#define X509_get_default_cert_dir       wolfSSL_X509_get_default_cert_dir
 
 #define SSL_CTX_set_session_id_context  wolfSSL_CTX_set_session_id_context
 #define SSL_get_peer_certificate        wolfSSL_get_peer_certificate
@@ -1018,6 +1022,9 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define i2d_SSL_SESSION                 wolfSSL_i2d_SSL_SESSION
 #define d2i_SSL_SESSION                 wolfSSL_d2i_SSL_SESSION
+#define SSL_SESSION_has_ticket          wolfSSL_SESSION_has_ticket
+#define SSL_SESSION_get_ticket_lifetime_hint \
+                                        wolfSSL_SESSION_get_ticket_lifetime_hint
 #define SSL_SESSION_set_timeout         wolfSSL_SSL_SESSION_set_timeout
 #define SSL_SESSION_get_timeout         wolfSSL_SESSION_get_timeout
 #define SSL_SESSION_get_time            wolfSSL_SESSION_get_time
@@ -1155,6 +1162,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_set_tlsext_max_fragment_length wolfSSL_set_tlsext_max_fragment_length
 
 #define SSL_CTX_add_extra_chain_cert    wolfSSL_CTX_add_extra_chain_cert
+#define SSL_get_read_ahead              wolfSSL_get_read_ahead
+#define SSL_set_read_ahead              wolfSSL_set_read_ahead
 #define SSL_CTX_get_read_ahead          wolfSSL_CTX_get_read_ahead
 #define SSL_CTX_set_read_ahead          wolfSSL_CTX_set_read_ahead
 #define SSL_CTX_set_tlsext_status_arg   wolfSSL_CTX_set_tlsext_status_arg
