@@ -2927,24 +2927,25 @@ enum {
     WOLFSSL_TLS_HMAC_INNER_SZ = 13      /* SEQ_SZ + ENUM + VERSION_SZ + LEN_SZ */
 };
 
-/* for GetBulkCipher and internal use */
+/* for GetBulkCipher and internal use
+ * using explicit values to assist with serialization of a TLS session */
 enum BulkCipherAlgorithm {
-    wolfssl_cipher_null,
-    wolfssl_rc4,
-    wolfssl_rc2,
-    wolfssl_des,
-    wolfssl_triple_des,             /* leading 3 (3des) not valid identifier */
-    wolfssl_des40,
+    wolfssl_cipher_null = 0,
+    wolfssl_rc4         = 1,
+    wolfssl_rc2         = 2,
+    wolfssl_des         = 3,
+    wolfssl_triple_des  = 4,
+    wolfssl_des40       = 5,
+    wolfssl_aes         = 6,
+    wolfssl_aes_gcm     = 7,
+    wolfssl_aes_ccm     = 8,
+    wolfssl_chacha      = 9,
+    wolfssl_camellia    = 10,
+    wolfssl_hc128       = 11,
+    wolfssl_rabbit      = 12,
 #ifdef HAVE_IDEA
-    wolfssl_idea,
+    wolfssl_idea        = 13
 #endif
-    wolfssl_aes,
-    wolfssl_aes_gcm,
-    wolfssl_aes_ccm,
-    wolfssl_chacha,
-    wolfssl_camellia,
-    wolfssl_hc128,                  /* wolfSSL extensions */
-    wolfssl_rabbit
 };
 
 

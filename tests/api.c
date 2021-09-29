@@ -5650,8 +5650,7 @@ static void test_wolfSSL_dtls_export(void)
 }
 
 
-#if defined(WOLFSSL_SESSION_EXPORT) && !defined(HAVE_IDEA) &&\
-    !defined(WOLFSSL_NO_TLS12)
+#if defined(WOLFSSL_SESSION_EXPORT) && !defined(WOLFSSL_NO_TLS12)
 static const byte canned_client_session[] = {
     0xA7, 0xA4, 0x01, 0x40, 0x00, 0x41, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x80, 0x02, 0x00, 0x00, 0x00,
@@ -5869,8 +5868,7 @@ done:
 
 static void test_wolfSSL_tls_export(void)
 {
-#if defined(WOLFSSL_SESSION_EXPORT) && !defined(HAVE_IDEA) &&\
-    !defined(WOLFSSL_NO_TLS12)
+#if defined(WOLFSSL_SESSION_EXPORT) && !defined(WOLFSSL_NO_TLS12)
     SOCKET_T sockfd = 0;
     WOLFSSL_CTX*     ctx     = 0;
     WOLFSSL*         ssl     = 0;
