@@ -112,8 +112,8 @@ decouple library dependencies with standard string, memory and so on.
     /* helpers for stringifying the expanded value of a macro argument rather
      * than its literal text:
      */
-    #define STRINGIFY_L2(str) #str
-    #define STRINGIFY(str) STRINGIFY_L2(str)
+    #define _WC_STRINGIFY_L2(str) #str
+    #define WC_STRINGIFY(str) _WC_STRINGIFY_L2(str)
 
     /* try to set SIZEOF_LONG or SIZEOF_LONG_LONG if user didn't */
     #if defined(_MSC_VER) || defined(HAVE_LIMITS_H)
