@@ -609,7 +609,9 @@ struct WOLFSSL_X509_STORE {
     int             refCount;         /* reference count */
 };
 
-#define WOLFSSL_NO_WILDCARDS   0x4
+#define WOLFSSL_ALWAYS_CHECK_SUBJECT 0x1
+#define WOLFSSL_NO_WILDCARDS         0x2
+#define WOLFSSL_NO_PARTIAL_WILDCARDS 0x4
 
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
     defined(WOLFSSL_WPAS_SMALL) || defined(WOLFSSL_IP_ALT_NAME)
@@ -741,6 +743,7 @@ enum AlertDescription {
     certificate_unknown             =  46,
     illegal_parameter               =  47,
     unknown_ca                      =  48,
+    access_denied                   =  49,
     decode_error                    =  50,
     decrypt_error                   =  51,
     #ifdef WOLFSSL_MYSQL_COMPATIBLE
@@ -749,8 +752,10 @@ enum AlertDescription {
     #else
     protocol_version                =  70,
     #endif
+    insufficient_security           =  71,
     internal_error                  =  80,
     inappropriate_fallback          =  86,
+    user_canceled                   =  90,
     no_renegotiation                = 100,
     missing_extension               = 109,
     unsupported_extension           = 110, /**< RFC 5246, section 7.2.2 */
@@ -3826,7 +3831,8 @@ WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_txt2obj(const char* s, int no_name)
 
 WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_nid2obj(int n);
 WOLFSSL_LOCAL WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_nid2obj_ex(int n, WOLFSSL_ASN1_OBJECT *arg_obj);
-WOLFSSL_API int wolfSSL_OBJ_obj2txt(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a, int no_name);
+WOLFSSL_API int wolfSSL_OBJ_obj2txt(char *buf, int buf_len,
+            const WOLFSSL_ASN1_OBJECT *a, int no_name);
 
 WOLFSSL_API void wolfSSL_OBJ_cleanup(void);
 WOLFSSL_API int wolfSSL_OBJ_create(const char *oid, const char *sn, const char *ln);
@@ -4358,7 +4364,8 @@ WOLFSSL_API void wolfSSL_ERR_remove_thread_state(void*);
 WOLFSSL_API void wolfSSL_print_all_errors_fp(XFILE fp);
 #endif
 
-WOLFSSL_API void wolfSSL_THREADID_set_callback(void (*threadid_func)(void*));
+WOLFSSL_API int wolfSSL_THREADID_set_callback(
+                    void (*threadid_func)(WOLFSSL_CRYPTO_THREADID*));
 
 WOLFSSL_API void wolfSSL_THREADID_set_numeric(void* id, unsigned long val);
 WOLFSSL_API void wolfSSL_THREADID_current(WOLFSSL_CRYPTO_THREADID* id);

@@ -598,7 +598,9 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define X509_V_FLAG_USE_CHECK_TIME WOLFSSL_USE_CHECK_TIME
 #define X509_V_FLAG_NO_CHECK_TIME  WOLFSSL_NO_CHECK_TIME
-#define X509_CHECK_FLAG_NO_WILDCARDS WOLFSSL_NO_WILDCARDS
+#define X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT WOLFSSL_ALWAYS_CHECK_SUBJECT
+#define X509_CHECK_FLAG_NO_WILDCARDS         WOLFSSL_NO_WILDCARDS
+#define X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS WOLFSSL_NO_PARTIAL_WILDCARDS
 
 #define X509_VP_FLAG_DEFAULT        WOLFSSL_VPARAM_DEFAULT
 #define X509_VP_FLAG_OVERWRITE      WOLFSSL_VPARAM_OVERWRITE
@@ -1094,7 +1096,10 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #include <wolfssl/openssl/pem.h>
 
 #define SSL_CTRL_CHAIN       88
+#define ERR_LIB_RSA          4
+#define ERR_LIB_EC           16
 #define ERR_LIB_SSL          20
+#define ERR_LIB_PKCS12       35
 #define SSL_R_SHORT_READ     10
 #define ERR_R_PEM_LIB        9
 #define SSL_CTRL_MODE        33
@@ -1224,6 +1229,12 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define DTLS1_VERSION                    0xFEFF
 #define DTLS1_2_VERSION                  0xFEFD
 
+/* Used as message callback types */
+#define SSL3_RT_CHANGE_CIPHER_SPEC       20
+#define SSL3_RT_ALERT                    21
+#define SSL3_RT_HANDSHAKE                22
+#define SSL3_RT_APPLICATION_DATA         23
+
 #define OPENSSL_INIT_LOAD_SSL_STRINGS    0x00200000L
 #define OPENSSL_INIT_LOAD_CRYPTO_STRINGS 0x00000002L
 
@@ -1301,6 +1312,30 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define sk_ACCESS_DESCRIPTION_pop_free  wolfSSL_sk_ACCESS_DESCRIPTION_pop_free
 #define sk_ACCESS_DESCRIPTION_free      wolfSSL_sk_ACCESS_DESCRIPTION_free
 #define ACCESS_DESCRIPTION_free         wolfSSL_ACCESS_DESCRIPTION_free
+
+/* Alert types, matched to AlertDescription enum in wolfssl/ssl.h */
+#define SSL_AD_CLOSE_NOTIFY             close_notify
+#define SSL_AD_UNEXPECTED_MESSAGE       unexpected_message
+#define SSL_AD_BAD_RECORD_MAC           bad_record_mac
+#define SSL_AD_RECORD_OVERFLOW          record_overflow
+#define SSL_AD_DECOMPRESSION_FAILURE    decompression_failure
+#define SSL_AD_HANDSHAKE_FAILURE        handshake_failure
+#define SSL_AD_UNSUPPORTED_CERTIFICATE  unsupported_certificate
+#define SSL_AD_CERTIFICATE_REVOKED      certificate_revoked
+#define SSL_AD_CERTIFICATE_EXPIRED      certificate_expired
+#define SSL_AD_CERTIFICATE_UNKNOWN      certificate_unknown
+#define SSL_AD_ILLEGAL_PARAMETER        illegal_parameter
+#define SSL_AD_UNKNOWN_CA               unknown_ca
+#define SSL_AD_ACCESS_DENIED            access_denied
+#define SSL_AD_DECODE_ERROR             decode_error
+#define SSL_AD_DECRYPT_ERROR            decrypt_error
+#ifdef WOLFSSL_MYSQL_COMPATIBLE
+    #define SSL_AD_PROTOCOL_VERSION     wc_protocol_version
+#else
+    #define SSL_AD_PROTOCOL_VERSION     protocol_version
+#endif
+#define SSL_AD_INSUFFICIENT_SECURITY    insufficient_security
+#define SSL_AD_USER_CANCELLED           user_canceled
 
 #define SSL3_AL_FATAL                   2
 #define SSL_TLSEXT_ERR_OK               0

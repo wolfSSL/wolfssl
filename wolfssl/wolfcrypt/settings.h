@@ -2242,7 +2242,6 @@ extern void uITRON4_free(void *p) ;
  || defined(HAVE_LIGHTY)
     #define SSL_OP_NO_COMPRESSION    SSL_OP_NO_COMPRESSION
     #define OPENSSL_NO_ENGINE
-    #define X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
     #ifndef OPENSSL_EXTRA
         #define OPENSSL_EXTRA
     #endif

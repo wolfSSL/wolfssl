@@ -43856,11 +43856,12 @@ err:
         return NULL;
     }
 
-    /* if no_name is one than use numerical form otherwise can be short name.
+    /* If no_name is one then use numerical form, otherwise short name.
      *
-     * returns the buffer size on success
+     * Returns the buffer size on success, WOLFSSL_FAILURE on error
      */
-    int wolfSSL_OBJ_obj2txt(char *buf, int bufLen, WOLFSSL_ASN1_OBJECT *a, int no_name)
+    int wolfSSL_OBJ_obj2txt(char *buf, int bufLen, const WOLFSSL_ASN1_OBJECT *a,
+                            int no_name)
     {
         int bufSz;
         const char* desc;
@@ -43938,13 +43939,7 @@ err:
         }
 
         buf[bufSz] = '\0';
-        #ifdef WOLFSSL_QT
-            /* For unknown extension types, QT expects the short name to be the
-                text representation of the oid */
-            if (XSTRLEN(a->sName) == 0) {
-                XMEMCPY(a->sName, buf, bufSz);
-            }
-        #endif
+
         return bufSz;
     }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
@@ -47116,12 +47111,14 @@ void wolfSSL_ERR_load_BIO_strings(void) {
 #endif
 
 #ifndef NO_WOLFSSL_STUB
-void wolfSSL_THREADID_set_callback(void(*threadid_func)(void*))
+/* Set THREADID callback, return 1 on success, 0 on error */
+int wolfSSL_THREADID_set_callback(
+        void(*threadid_func)(WOLFSSL_CRYPTO_THREADID*))
 {
     WOLFSSL_ENTER("wolfSSL_THREADID_set_callback");
     WOLFSSL_STUB("CRYPTO_THREADID_set_callback");
     (void)threadid_func;
-    return;
+    return 1;
 }
 #endif
 
@@ -48605,6 +48602,10 @@ int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
 
     if (flags == WOLFSSL_NO_WILDCARDS) {
         WOLFSSL_MSG("X509_CHECK_FLAG_NO_WILDCARDS not yet implemented");
+        return WOLFSSL_FAILURE;
+    }
+    if (flags == WOLFSSL_NO_PARTIAL_WILDCARDS) {
+        WOLFSSL_MSG("X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS not yet implemented");
         return WOLFSSL_FAILURE;
     }
 

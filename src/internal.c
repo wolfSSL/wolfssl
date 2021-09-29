@@ -15830,6 +15830,13 @@ const char* AlertTypeToString(int type)
                 return unknown_ca_str;
             }
 
+        case access_denied:
+            {
+                static const char access_denied_str[] =
+                    "access_denied";
+                return access_denied_str;
+            }
+
         case decode_error:
             {
                 static const char decode_error_str[] =
@@ -15862,12 +15869,27 @@ const char* AlertTypeToString(int type)
             }
 
     #endif
+        case insufficient_security:
+            {
+                static const char insufficient_security_str[] =
+                    "insufficient_security";
+                return insufficient_security_str;
+            }
+
         case internal_error:
             {
                 static const char internal_error_str[] =
                     "internal_error";
                 return internal_error_str;
             }
+
+        case user_canceled:
+            {
+                static const char user_canceled_str[] =
+                    "user_canceled";
+                return user_canceled_str;
+            }
+
         case no_renegotiation:
             {
                 static const char no_renegotiation_str[] =
