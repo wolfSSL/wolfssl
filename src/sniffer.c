@@ -2289,8 +2289,21 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         word32 privKeySz = 0, p_len = 0;
 #endif
         byte privKey[52]; /* max for TLS */
-        
+
         keyBuf = keys->dhKey;
+
+#ifdef WOLFSSL_SNIFFER_KEY_CALLBACK
+        if (KeyCb != NULL) {
+            ret = KeyCb(session, ksInfo->named_group,
+                session->srvKs.key, session->srvKs.key_len,
+                session->cliKs.key, session->cliKs.key_len,
+                keyBuf, KeyCbCtx, error);
+            if (ret != 0) {
+                SetError(-1, error, session, FATAL_ERROR_STATE);
+                return ret;
+            }
+        }
+#endif
 
 #ifdef HAVE_PUBLIC_FFDHE
         /* get DH params */
@@ -2330,7 +2343,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         }
 #endif
 
-        ret = wc_InitDhKey(&dhKey);
+        ret = wc_InitDhKey_ex(&dhKey, NULL, devId);
         if (ret == 0) {
 #ifdef HAVE_PUBLIC_FFDHE
             ret = wc_DhSetKey(&dhKey,
@@ -2358,7 +2371,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             /* Derive secret from private key and peer's public key */
             do {
             #ifdef WOLFSSL_ASYNC_CRYPT
-                ret = wc_AsyncWait(ret, &dhPriv.asyncDev,
+                ret = wc_AsyncWait(ret, &dhKey.asyncDev,
                         WC_ASYNC_FLAG_CALL_AGAIN);
             #endif
                 if (ret >= 0) {
@@ -2371,10 +2384,15 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             } while (ret == WC_PENDING_E);
 
             wc_FreeDhKey(&dhKey);
-        
+
+        #ifdef WOLFSSL_SNIFFER_STATS
+            if (ret != 0)
+                INC_STAT(SnifferStats.sslKeyFails);
+        #endif
+
             /* left-padded with zeros up to the size of the prime */
 #ifdef HAVE_PUBLIC_FFDHE
-            if (params->p_len > session->sslServer->arrays->preMasterSz) {
+            if (ret == 0 && params->p_len > session->sslServer->arrays->preMasterSz) {
                 word32 diff = params->p_len - session->sslServer->arrays->preMasterSz;
                 XMEMMOVE(session->sslServer->arrays->preMasterSecret + diff,
                         session->sslServer->arrays->preMasterSecret,
@@ -2383,7 +2401,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                 session->sslServer->arrays->preMasterSz = params->p_len;
             }
 #else /* HAVE_PUBLIC_FFDHE */
-            if (p_len > session->sslServer->arrays->preMasterSz) {
+            if (ret == 0 && p_len > session->sslServer->arrays->preMasterSz) {
                 word32 diff = p_len - session->sslServer->arrays->preMasterSz;
                 XMEMMOVE(session->sslServer->arrays->preMasterSecret + diff,
                         session->sslServer->arrays->preMasterSecret, 
