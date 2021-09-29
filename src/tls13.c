@@ -8690,14 +8690,20 @@ int wolfSSL_UseKeyShare(WOLFSSL* ssl, word16 group)
 
 #ifdef HAVE_LIBOQS
     if (group >= WOLFSSL_OQS_MIN &&
-        group <= WOLFSSL_OQS_MAX &&
-        ssl->options.side == WOLFSSL_SERVER_END) {
-        /* If I am the server of a KEM connection, do not do keygen because I'm
-         * going to encapsulate with the client's public key. Note that I might
-         * be the client and ssl->option.side has not been properly set yet. In
-         * that case the KeyGen operation will be deferred to connection time.
-         */
-        return WOLFSSL_SUCCESS;
+        group <= WOLFSSL_OQS_MAX) {
+
+        if (ssl->ctx != NULL && ssl->ctx->method != NULL &&
+            ssl->ctx->method->version.minor != TLSv1_3_MINOR) {
+            return BAD_FUNC_ARG;
+        }
+
+        if (ssl->options.side == WOLFSSL_SERVER_END) {
+            /* If I am the server of a KEM connection, do not do keygen because I'm
+             * going to encapsulate with the client's public key. Note that I might
+             * be the client and ssl->option.side has not been properly set yet. In
+             * that case the KeyGen operation will be deferred to connection time. */
+            return WOLFSSL_SUCCESS;
+        }
     }
 #endif
 

@@ -867,9 +867,20 @@ int SuiteTest(int argc, char** argv)
     }
     #endif
     #ifndef WOLFSSL_NO_TLS12
-    /* add TLSv13 downgrade tets */
+    /* add TLSv13 downgrade tests */
     strcpy(argv0[1], "tests/test-tls13-down.conf");
     printf("starting TLSv13 Downgrade extra tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    #endif
+    #ifdef HAVE_LIBOQS
+    /* add TLSv13 pq tests */
+    strcpy(argv0[1], "tests/test-tls13-pq.conf");
+    printf("starting TLSv13 post-quantum groups tests\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);

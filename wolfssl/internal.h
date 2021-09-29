@@ -4579,9 +4579,14 @@ typedef struct {
     int nid;
 } WOLF_EC_NIST_NAME;
 extern const WOLF_EC_NIST_NAME kNistCurves[];
-/* This is the longest and shortest curve name in the kNistCurves list */
+/* This is the longest and shortest curve name in the kNistCurves list. Note we
+ * also have quantum-safe group names as well. */
 #define kNistCurves_MIN_NAME_LEN 5
+#ifdef HAVE_LIBOQS
+#define kNistCurves_MAX_NAME_LEN 32
+#else
 #define kNistCurves_MAX_NAME_LEN 7
+#endif
 #endif
 
 /* internal functions */
