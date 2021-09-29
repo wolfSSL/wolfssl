@@ -10062,9 +10062,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 }
 
                 /* Allocate memory for GENERAL NAME */
-                ad->location = (WOLFSSL_GENERAL_NAME*)
-                                XMALLOC(sizeof(WOLFSSL_GENERAL_NAME), NULL,
-                                DYNAMIC_TYPE_OPENSSL);
+                ad->location = wolfSSL_GENERAL_NAME_new();
                 if (ad->location == NULL) {
                     WOLFSSL_MSG("Failed to malloc GENERAL_NAME");
                     wolfSSL_ASN1_OBJECT_free(ad->method);
@@ -10072,20 +10070,25 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                     XFREE(ad, NULL, DYNAMIC_TYPE_X509_EXT);
                     return NULL;
                 }
-                XMEMSET(ad->location, 0, sizeof(WOLFSSL_GENERAL_NAME));
-                ad->location->type = GEN_URI;
-                ad->location->d.uniformResourceIdentifier =
-                                    wolfSSL_ASN1_STRING_new();
+
+                ret = wolfSSL_GENERAL_NAME_set_type(ad->location, GEN_URI);
+                if (ret != WOLFSSL_SUCCESS) {
+                    wolfSSL_ASN1_OBJECT_free(ad->method);
+                    XFREE(aia, NULL, DYNAMIC_TYPE_X509_EXT);
+                    wolfSSL_GENERAL_NAME_free(ad->location);
+                    XFREE(ad, NULL, DYNAMIC_TYPE_X509_EXT);
+                    return NULL;
+                }
+
                 /* Set the URI in GENERAL_NAME */
                 ret = wolfSSL_ASN1_STRING_set(
                                     ad->location->d.uniformResourceIdentifier,
                                     aiaEntry->obj, aiaEntry->objSz);
                 if (ret != WOLFSSL_SUCCESS) {
                     WOLFSSL_MSG("ASN1_STRING_set() failed");
-                    wolfSSL_ASN1_STRING_free(ad->location->d.uniformResourceIdentifier); 
                     wolfSSL_ASN1_OBJECT_free(ad->method);
                     XFREE(aia, NULL, DYNAMIC_TYPE_X509_EXT);
-                    XFREE(ad->location, NULL, DYNAMIC_TYPE_OPENSSL);
+                    wolfSSL_GENERAL_NAME_free(ad->location);
                     XFREE(ad, NULL, DYNAMIC_TYPE_X509_EXT);
                     return NULL;
                 }
@@ -10095,6 +10098,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                     WOLFSSL_MSG("Error pushing ASN1 AD onto stack");
                     wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(aia, NULL);
                     wolfSSL_ASN1_OBJECT_free(ad->method);
+                    wolfSSL_GENERAL_NAME_free(ad->location);
                     XFREE(aia, NULL, DYNAMIC_TYPE_X509_EXT);
                     XFREE(ad, NULL, DYNAMIC_TYPE_X509_EXT);
                     return NULL;
@@ -10238,7 +10242,6 @@ int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509* x509, int nid, int lastPos)
 #endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-
 WOLFSSL_ASN1_BIT_STRING* wolfSSL_ASN1_BIT_STRING_new(void)
 {
     WOLFSSL_ASN1_BIT_STRING* str;
@@ -10294,6 +10297,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
     WOLFSSL_STACK* sk = NULL;
     WOLFSSL_ASN1_OBJECT* obj = NULL;
     WOLFSSL_GENERAL_NAME* gn = NULL;
+    WOLFSSL_DIST_POINT* dp = NULL;
     WOLFSSL_BASIC_CONSTRAINTS* bc = NULL;
 
     WOLFSSL_ENTER("wolfSSL_X509_get_ext_d2i");
@@ -10402,19 +10406,59 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                 if (c != NULL) {
                     *c = x509->CRLdistCrit;
                 }
-                obj = wolfSSL_ASN1_OBJECT_new();
-                if (obj == NULL) {
-                    WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+
+                sk = wolfSSL_sk_new_null();
+                if (sk == NULL) {
                     return NULL;
                 }
-                obj->type  = CRL_DIST_OID;
-                obj->grp   = oidCertExtType;
-                obj->obj   = x509->CRLInfo;
-                obj->objSz = x509->CRLInfoSz;
+                sk->type = STACK_TYPE_DIST_POINT;
+
+                gn = wolfSSL_GENERAL_NAME_new();
+                if (gn == NULL) {
+                    WOLFSSL_MSG("Error creating GENERAL_NAME");
+                    goto err;
+                }
+
+                if (wolfSSL_GENERAL_NAME_set_type(gn, GEN_URI) !=
+                        WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("Error setting GENERAL_NAME type");
+                    goto err;
+                }
+
+                if (wolfSSL_ASN1_STRING_set(gn->d.uniformResourceIdentifier,
+                        x509->CRLInfo, x509->CRLInfoSz) != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("ASN1_STRING_set failed");
+                    goto err;
+                }
+
+                /* wolfSSL only decodes one dist point */
+                dp = wolfSSL_DIST_POINT_new();
+                if (dp == NULL) {
+                    WOLFSSL_MSG("Error creating DIST_POINT");
+                    goto err;
+                }
+
+                /* push GENERAL_NAME onto fullname stack */
+                if (wolfSSL_sk_GENERAL_NAME_push(dp->distpoint->name.fullname,
+                                                 gn) != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("wolfSSL_sk_GENERAL_NAME_push error");
+                    goto err;
+                }
+
+                /* push DIST_POINT onto stack */
+                if (wolfSSL_sk_DIST_POINT_push(sk, dp) != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("Error pushing DIST_POINT onto stack");
+                    goto err;
+                }
+
+                gn = NULL;
+                dp = NULL;
+
             }
             else {
                 WOLFSSL_MSG("No CRL dist set");
             }
+
             break;
 
         case AUTH_INFO_OID:
@@ -10677,6 +10721,9 @@ err:
     }
     if (gn) {
         wolfSSL_GENERAL_NAME_free(gn);
+    }
+    if (dp) {
+        wolfSSL_DIST_POINT_free(dp);
     }
     if (sk) {
         wolfSSL_sk_free(sk);
@@ -20848,6 +20895,169 @@ void wolfSSL_sk_GENERAL_NAME_free(WOLFSSL_STACK* sk)
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 #ifdef OPENSSL_EXTRA
+
+static void wolfSSL_DIST_POINT_NAME_free(WOLFSSL_DIST_POINT_NAME* dpn)
+{
+    if (dpn != NULL) {
+        if (dpn->name.fullname != NULL) {
+            wolfSSL_GENERAL_NAMES_free(dpn->name.fullname);
+        }
+        XFREE(dpn, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+}
+
+
+/* returns new pointer on success and NULL on fail */
+static WOLFSSL_DIST_POINT_NAME* wolfSSL_DIST_POINT_NAME_new(void)
+{
+    WOLFSSL_DIST_POINT_NAME* dpn = NULL;
+    WOLFSSL_GENERAL_NAMES* gns = NULL;
+
+    dpn = (WOLFSSL_DIST_POINT_NAME*)XMALLOC(sizeof(WOLFSSL_DIST_POINT_NAME),
+                                            NULL, DYNAMIC_TYPE_OPENSSL);
+    if (dpn == NULL) {
+        return NULL;
+    }
+    XMEMSET(dpn, 0, sizeof(WOLFSSL_DIST_POINT_NAME));
+
+    gns = wolfSSL_sk_new_null();
+    if (gns == NULL) {
+        WOLFSSL_MSG("wolfSSL_sk_new_null error");
+        XFREE(dpn, NULL, DYNAMIC_TYPE_OPENSSL);
+        return NULL;
+    }
+    gns->type = STACK_TYPE_GEN_NAME;
+
+    dpn->name.fullname = gns;
+    dpn->type = CRL_DIST_OID;
+
+    return dpn;
+}
+
+
+/* Creates and returns new DIST_POINT structure */
+WOLFSSL_DIST_POINT* wolfSSL_DIST_POINT_new(void)
+{
+    WOLFSSL_DIST_POINT* dp = NULL;
+    WOLFSSL_DIST_POINT_NAME* dpn = NULL;
+
+    WOLFSSL_ENTER("DIST_POINT_new");
+
+    dp = (WOLFSSL_DIST_POINT*)XMALLOC(sizeof(WOLFSSL_DIST_POINT), NULL,
+                                      DYNAMIC_TYPE_OPENSSL);
+    if (dp == NULL) {
+        return NULL;
+    }
+    XMEMSET(dp, 0, sizeof(WOLFSSL_DIST_POINT));
+
+    dpn = wolfSSL_DIST_POINT_NAME_new();
+    if (dpn == NULL) {
+        XFREE(dp, NULL, DYNAMIC_TYPE_OPENSSL);
+        return NULL;
+    }
+    dp->distpoint = dpn;
+
+    return dp;
+}
+
+
+/* Frees DIST_POINT objects.
+*/
+void wolfSSL_DIST_POINT_free(WOLFSSL_DIST_POINT* dp)
+{
+    WOLFSSL_ENTER("wolfSSL_DIST_POINT_free");
+    if (dp != NULL) {
+        wolfSSL_DIST_POINT_NAME_free(dp->distpoint);
+        XFREE(dp, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+}
+
+void wolfSSL_DIST_POINTS_free(WOLFSSL_DIST_POINTS *dps)
+{
+    WOLFSSL_ENTER("wolfSSL_DIST_POINTS_free");
+
+    if (dps == NULL) {
+        return;
+    }
+
+    wolfSSL_sk_free(dps);
+}
+
+/* return 1 on success 0 on fail */
+int wolfSSL_sk_DIST_POINT_push(WOLFSSL_DIST_POINTS* sk, WOLFSSL_DIST_POINT* dp)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_DIST_POINT_push");
+
+    if (sk == NULL || dp == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return wolfSSL_sk_push(sk, dp);
+}
+
+/* Returns the CRL dist point at index i from the stack
+ *
+ * sk  stack to get general name from
+ * idx index to get
+ *
+ * return a pointer to the internal node of the stack
+ */
+WOLFSSL_DIST_POINT* wolfSSL_sk_DIST_POINT_value(WOLFSSL_STACK* sk, int idx)
+{
+    if (sk == NULL) {
+        return NULL;
+    }
+
+    return (WOLFSSL_DIST_POINT*)wolfSSL_sk_value(sk, idx);
+}
+
+/* Gets the number of nodes in the stack
+ *
+ * sk  stack to get the number of nodes from
+ *
+ * returns the number of nodes, -1 if no nodes
+ */
+int wolfSSL_sk_DIST_POINT_num(WOLFSSL_STACK* sk)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_DIST_POINT_num");
+
+    if (sk == NULL) {
+        return -1;
+    }
+
+    return wolfSSL_sk_num(sk);
+}
+
+/* Frees all nodes in a DIST_POINT stack
+ *
+ * sk stack of nodes to free
+ * f  free function to use, not called with wolfSSL
+ */
+void wolfSSL_sk_DIST_POINT_pop_free(WOLFSSL_STACK* sk,
+        void (*f) (WOLFSSL_DIST_POINT*))
+{
+    WOLFSSL_STACK* node;
+
+    WOLFSSL_ENTER("wolfSSL_sk_DIST_POINT_pop_free");
+
+    node = sk;
+    while (node != NULL) {
+        WOLFSSL_STACK* tmp = node;
+        if (f)
+            f(tmp->data.dp);
+        else
+            wolfSSL_DIST_POINT_free(tmp->data.dp);
+        node = tmp->next;
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ASN1);
+    }
+}
+
+void wolfSSL_sk_DIST_POINT_free(WOLFSSL_STACK* sk)
+{
+    WOLFSSL_ENTER("sk_DIST_POINT_free");
+    wolfSSL_sk_DIST_POINT_pop_free(sk, NULL);
+}
+
 /* returns the number of nodes in stack on success and WOLFSSL_FATAL_ERROR
  * on fail */
 int wolfSSL_sk_ACCESS_DESCRIPTION_num(WOLFSSL_STACK* sk)
@@ -20897,12 +21107,10 @@ WOLFSSL_ACCESS_DESCRIPTION* wolfSSL_sk_ACCESS_DESCRIPTION_value(
 #endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-/* Frees GENERAL_NAME objects.
-*/
-void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name)
+/* free's the internal type for the general name */
+static void wolfSSL_GENERAL_NAME_type_free(WOLFSSL_GENERAL_NAME* name)
 {
-    WOLFSSL_ENTER("wolfSSL_GENERAL_NAME_Free");
-    if(name != NULL) {
+    if (name != NULL) {
         if (name->d.dNSName != NULL) {
             wolfSSL_ASN1_STRING_free(name->d.dNSName);
             name->d.dNSName = NULL;
@@ -20923,6 +21131,48 @@ void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name)
             wolfSSL_ASN1_STRING_free(name->d.ia5);
             name->d.ia5 = NULL;
         }
+    }
+}
+
+
+/* sets the general name type and free's the existing one
+ * can fail with a memory error if malloc fails or bad arg error
+ * otherwise return WOLFSSL_SUCCESS */
+int wolfSSL_GENERAL_NAME_set_type(WOLFSSL_GENERAL_NAME* name, int typ)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    if (name != NULL) {
+        wolfSSL_GENERAL_NAME_type_free(name);
+        name->type = typ;
+
+        switch (typ) {
+            case GEN_URI:
+                name->d.uniformResourceIdentifier = wolfSSL_ASN1_STRING_new();
+                if (name->d.uniformResourceIdentifier == NULL)
+                    ret = MEMORY_E;
+                break;
+            default:
+                name->d.ia5 = wolfSSL_ASN1_STRING_new();
+                if (name->d.ia5 == NULL)
+                    ret = MEMORY_E;
+        }
+    }
+    else {
+        ret = BAD_FUNC_ARG;
+    }
+
+    return ret;
+}
+
+
+/* Frees GENERAL_NAME objects.
+*/
+void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name)
+{
+    WOLFSSL_ENTER("wolfSSL_GENERAL_NAME_Free");
+    if (name != NULL) {
+        wolfSSL_GENERAL_NAME_type_free(name);
         XFREE(name, NULL, DYNAMIC_TYPE_OPENSSL);
     }
 }
@@ -29730,6 +29980,8 @@ void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i)
             return (void*)sk->data.ext;
         case STACK_TYPE_X509_OBJ:
             return (void*)sk->data.x509_obj;
+        case STACK_TYPE_DIST_POINT:
+            return (void*)sk->data.dp;
     #ifdef OPENSSL_EXTRA
         case STACK_TYPE_CONF_VALUE:
             return (void*)sk->data.conf;
@@ -29859,6 +30111,9 @@ void wolfSSL_sk_free(WOLFSSL_STACK* sk)
             wolfSSL_sk_ACCESS_DESCRIPTION_free(sk);
             break;
         #endif
+        case STACK_TYPE_DIST_POINT:
+            wolfSSL_sk_DIST_POINT_free(sk);
+            break;
         case STACK_TYPE_OBJ:
             wolfSSL_sk_ASN1_OBJECT_free(sk);
             break;

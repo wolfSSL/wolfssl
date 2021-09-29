@@ -112,6 +112,8 @@ typedef WOLFSSL_BUF_MEM        BUF_MEM;
 typedef WOLFSSL_GENERAL_NAMES  GENERAL_NAMES;
 typedef WOLFSSL_GENERAL_NAME GENERAL_NAME;
 typedef WOLFSSL_OBJ_NAME       OBJ_NAME;
+typedef WOLFSSL_DIST_POINT_NAME DIST_POINT_NAME;
+typedef WOLFSSL_DIST_POINT      DIST_POINT;
 
 #define X509_L_FILE_LOAD  WOLFSSL_X509_L_FILE_LOAD
 #define X509_L_ADD_DIR    WOLFSSL_X509_L_ADD_DIR
@@ -1273,6 +1275,17 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define GENERAL_NAME_print              wolfSSL_GENERAL_NAME_print
 #define sk_GENERAL_NAME_push            wolfSSL_sk_GENERAL_NAME_push
 #define sk_GENERAL_NAME_value           wolfSSL_sk_GENERAL_NAME_value
+
+#define DIST_POINT_new                  wolfSSL_DIST_POINT_new
+#define DIST_POINT_free                 wolfSSL_DIST_POINT_free
+#define DIST_POINTS_free                wolfSSL_DIST_POINTS_free
+#define CRL_DIST_POINTS_free            wolfSSL_sk_DIST_POINT_free
+#define sk_DIST_POINT_push              wolfSSL_sk_DIST_POINT_push
+#define sk_DIST_POINT_value             wolfSSL_sk_DIST_POINT_value
+#define sk_DIST_POINT_num               wolfSSL_sk_DIST_POINT_num
+#define sk_DIST_POINT_pop_free          wolfSSL_sk_DIST_POINT_pop_free
+#define sk_DIST_POINT_free              wolfSSL_sk_DIST_POINT_free
+
 #define SSL_SESSION_get_ex_data         wolfSSL_SESSION_get_ex_data
 #define SSL_SESSION_set_ex_data         wolfSSL_SESSION_set_ex_data
 #define SSL_SESSION_get_ex_new_index    wolfSSL_SESSION_get_ex_new_index
@@ -1475,6 +1488,10 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define TLS1_CK_ECDHE_ECDSA_WITH_AES_256_CBC_SHA          (0xc00a)
 #define TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256       (0xc02b)
 #define TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 (0xcca9)
+
+#define X509_LU_NONE                    WOLFSSL_X509_LU_NONE
+#define X509_LU_X509                    WOLFSSL_X509_LU_X509
+#define X509_LU_CRL                     WOLFSSL_X509_LU_CRL
 
 #define X509_STORE_get0_objects         wolfSSL_X509_STORE_get0_objects
 #define sk_X509_OBJECT_num              wolfSSL_sk_X509_OBJECT_num

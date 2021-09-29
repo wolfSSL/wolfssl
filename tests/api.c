@@ -37851,6 +37851,59 @@ static void test_wolfSSL_GENERAL_NAME_print(void)
 #endif /* OPENSSL_ALL */
 }
 
+static void test_wolfSSL_sk_DIST_POINT(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_RSA)
+    X509* x509;
+    unsigned char buf[4096];
+    const unsigned char* bufPt;
+    int bytes, i, j;
+    XFILE f;
+    DIST_POINT* dp;
+    GENERAL_NAME* gn;
+    ASN1_IA5STRING* uri;
+    STACK_OF(DIST_POINT)* dps;
+    STACK_OF(GENERAL_NAME)* gns;
+    const char cliCertDerCrlDistPoint[] = "./certs/client-crl-dist.der";
+
+    printf(testingFmt, "wolfSSL_sk_DIST_POINT()");
+
+    f = XFOPEN(cliCertDerCrlDistPoint, "rb");
+    AssertTrue((f != XBADFILE));
+    AssertIntGT((bytes = (int)XFREAD(buf, 1, sizeof(buf), f)), 0);
+    XFCLOSE(f);
+
+    bufPt = buf;
+    AssertNotNull(x509 = d2i_X509(NULL, &bufPt, bytes));
+
+    AssertNotNull(dps = (STACK_OF(DIST_POINT)*)X509_get_ext_d2i(x509,
+                NID_crl_distribution_points, NULL, NULL));
+
+    AssertIntEQ(sk_DIST_POINT_num(dps), 1);
+    for (i = 0; i < sk_DIST_POINT_num(dps); i++) {
+        AssertNotNull(dp = sk_DIST_POINT_value(dps, i));
+
+        gns = dp->distpoint->name.fullname;
+        AssertNotNull(gns);
+        AssertIntEQ(sk_GENERAL_NAME_num(gns), 1);
+
+        for (j = 0; j < sk_GENERAL_NAME_num(gns); j++) {
+            gn = sk_GENERAL_NAME_value(gns, j);
+            AssertIntEQ(gn->type, GEN_URI);
+            AssertNotNull(uri = gn->d.uniformResourceIdentifier);
+            AssertNotNull(uri->data);
+            AssertIntGT(uri->length, 0);
+        }
+    }
+
+    X509_free(x509);
+    CRL_DIST_POINTS_free(dps);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_MD4(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_MD4)
@@ -49416,6 +49469,7 @@ void ApiTest(void)
     test_wolfSSL_DES_ecb_encrypt();
     test_wolfSSL_sk_GENERAL_NAME();
     test_wolfSSL_GENERAL_NAME_print();
+    test_wolfSSL_sk_DIST_POINT();
     test_wolfSSL_MD4();
     test_wolfSSL_RSA();
     test_wolfSSL_RSA_DER();

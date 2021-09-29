@@ -221,6 +221,8 @@ typedef struct WOLFSSL_GENERAL_NAME WOLFSSL_GENERAL_NAME;
 typedef struct WOLFSSL_AUTHORITY_KEYID  WOLFSSL_AUTHORITY_KEYID;
 typedef struct WOLFSSL_BASIC_CONSTRAINTS WOLFSSL_BASIC_CONSTRAINTS;
 typedef struct WOLFSSL_ACCESS_DESCRIPTION WOLFSSL_ACCESS_DESCRIPTION;
+typedef struct WOLFSSL_DIST_POINT_NAME WOLFSSL_DIST_POINT_NAME;
+typedef struct WOLFSSL_DIST_POINT WOLFSSL_DIST_POINT;
 
 typedef struct WOLFSSL_CONF_CTX     WOLFSSL_CONF_CTX;
 
@@ -285,6 +287,22 @@ struct WOLFSSL_GENERAL_NAME {
         WOLFSSL_ASN1_OBJECT* rid;
         WOLFSSL_ASN1_TYPE* other;
     } d; /* dereference */
+};
+
+struct WOLFSSL_DIST_POINT_NAME {
+    int type;
+
+    /* name 'name.fullname' needs to remain the same, in some ports the elements
+     * of the structure are accessed directly */
+    union {
+        WOLF_STACK_OF(WOLFSSL_GENERAL_NAME)* fullname;
+    } name;
+};
+
+struct WOLFSSL_DIST_POINT {
+    /* name 'distpoint' needs to remain the same, in some ports the elements of
+     * the structure are accessed directly */
+    WOLFSSL_DIST_POINT_NAME* distpoint;
 };
 
 struct WOLFSSL_ACCESS_DESCRIPTION {
@@ -1327,6 +1345,7 @@ WOLFSSL_API int wolfSSL_sk_ACCESS_DESCRIPTION_push(
 #endif /* defined(OPENSSL_ALL) || defined(WOLFSSL_QT) */
 
 typedef WOLF_STACK_OF(WOLFSSL_GENERAL_NAME) WOLFSSL_GENERAL_NAMES;
+typedef WOLF_STACK_OF(WOLFSSL_DIST_POINT) WOLFSSL_DIST_POINTS;
 
 WOLFSSL_API int wolfSSL_sk_X509_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
                                                             WOLFSSL_X509* x509);
@@ -1334,6 +1353,8 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_sk_X509_pop(WOLF_STACK_OF(WOLFSSL_X509_NAME)* 
 WOLFSSL_API void wolfSSL_sk_X509_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk);
 WOLFSSL_API WOLFSSL_GENERAL_NAME* wolfSSL_GENERAL_NAME_new(void);
 WOLFSSL_API void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* gn);
+WOLFSSL_API int wolfSSL_GENERAL_NAME_set_type(WOLFSSL_GENERAL_NAME* name,
+        int typ);
 WOLFSSL_API WOLFSSL_GENERAL_NAMES* wolfSSL_GENERAL_NAMES_dup(
                                              WOLFSSL_GENERAL_NAMES* gns);
 WOLFSSL_API int wolfSSL_sk_GENERAL_NAME_push(WOLFSSL_GENERAL_NAMES* sk,
@@ -1347,6 +1368,19 @@ WOLFSSL_API void wolfSSL_sk_GENERAL_NAME_free(WOLFSSL_STACK* sk);
 WOLFSSL_API void wolfSSL_GENERAL_NAMES_free(WOLFSSL_GENERAL_NAMES* name);
 WOLFSSL_API int wolfSSL_GENERAL_NAME_print(WOLFSSL_BIO* out, 
                                            WOLFSSL_GENERAL_NAME* name);
+
+WOLFSSL_API WOLFSSL_DIST_POINT* wolfSSL_DIST_POINT_new(void);
+WOLFSSL_API void wolfSSL_DIST_POINT_free(WOLFSSL_DIST_POINT* dp);
+WOLFSSL_API int wolfSSL_sk_DIST_POINT_push(WOLFSSL_DIST_POINTS* sk,
+                                             WOLFSSL_DIST_POINT* dp);
+WOLFSSL_API WOLFSSL_DIST_POINT* wolfSSL_sk_DIST_POINT_value(
+        WOLFSSL_STACK* sk, int i);
+WOLFSSL_API int wolfSSL_sk_DIST_POINT_num(WOLFSSL_STACK* sk);
+WOLFSSL_API void wolfSSL_sk_DIST_POINT_pop_free(WOLFSSL_STACK* sk,
+                                       void (*f) (WOLFSSL_DIST_POINT*));
+WOLFSSL_API void wolfSSL_sk_DIST_POINT_free(WOLFSSL_STACK* sk);
+WOLFSSL_API void wolfSSL_DIST_POINTS_free(WOLFSSL_DIST_POINTS* dp);
+
 WOLFSSL_API int wolfSSL_sk_ACCESS_DESCRIPTION_num(WOLFSSL_STACK* sk);
 WOLFSSL_API void wolfSSL_AUTHORITY_INFO_ACCESS_free(
         WOLF_STACK_OF(WOLFSSL_ACCESS_DESCRIPTION)* sk);
@@ -2098,9 +2132,6 @@ enum {
     BIO_NOCLOSE = 0,
 
     X509_FILETYPE_PEM = 8,
-    X509_LU_NONE      = WOLFSSL_X509_LU_NONE,
-    X509_LU_X509      = WOLFSSL_X509_LU_X509,
-    X509_LU_CRL       = WOLFSSL_X509_LU_CRL,
 
     X509_V_OK                                    = 0,
     X509_V_ERR_CRL_SIGNATURE_FAILURE             = 8,
