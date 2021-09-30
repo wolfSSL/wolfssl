@@ -6035,7 +6035,10 @@ static void test_wolfSSL_tls_export_run(int v)
                 clientSessionSz);
     replySz = sizeof(reply);
     AssertIntGT(wolfSSL_tls_export(ssl, (byte*)reply, &replySz), 0);
+#if !defined(NO_PSK) && defined(HAVE_ANON)
+    /* index 20 has is setting if PSK was on and 49 is if anon is allowed */
     AssertIntEQ(XMEMCMP(reply, clientSession, replySz), 0);
+#endif
     wolfSSL_set_fd(ssl, sockfd);
 
     AssertIntEQ(wolfSSL_write(ssl, msg, msgSz), msgSz);
