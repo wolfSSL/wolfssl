@@ -115,7 +115,6 @@ endif
 
 # wolfCrypt Additional
 SRC_C += ../../wolfcrypt/src/asm.c
-SRC_C += ../../wolfcrypt/src/async.c
 SRC_C += ../../wolfcrypt/src/asn.c
 SRC_C += ../../wolfcrypt/src/blake2s.c
 SRC_C += ../../wolfcrypt/src/chacha.c
@@ -150,7 +149,6 @@ SRC_C += ../../wolfcrypt/src/poly1305.c
 SRC_C += ../../wolfcrypt/src/pwdbased.c
 SRC_C += ../../wolfcrypt/src/rc2.c
 SRC_C += ../../wolfcrypt/src/sakke.c
-SRC_C += ../../wolfcrypt/src/selftest.c
 SRC_C += ../../wolfcrypt/src/signature.c
 SRC_C += ../../wolfcrypt/src/srp.c
 SRC_C += ../../wolfcrypt/src/sp_arm32.c
@@ -169,6 +167,14 @@ SRC_C += ../../wolfcrypt/src/wc_pkcs11.c
 SRC_C += ../../wolfcrypt/src/wc_port.c
 SRC_C += ../../wolfcrypt/src/wolfevent.c
 SRC_C += ../../wolfcrypt/src/wolfmath.c
+
+ifeq "$(ASYNC)" "1"
+SRC_C += ../../wolfcrypt/src/async.c
+endif
+
+ifeq "$(SELFTEST)" "1"
+SRC_C += ../../wolfcrypt/src/selftest.c
+endif
 
 # wolfCrypt non-standard algorithms (disabled by default)
 SRC_C += ../../wolfcrypt/src/arc4.c
