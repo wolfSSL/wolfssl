@@ -9372,6 +9372,19 @@ void FreeAltNames(DNS_entry* altNames, void* heap)
     }
 }
 
+/* malloc and initialize a new alt name structure */
+DNS_entry* AltNameNew(void* heap)
+{
+    DNS_entry* ret;
+    ret = (DNS_entry*)XMALLOC(sizeof(DNS_entry), heap, DYNAMIC_TYPE_ALTNAME);
+    if (ret != NULL) {
+        XMEMSET(ret, 0, sizeof(DNS_entry));
+    }
+    (void)heap;
+    return ret;
+}
+
+
 #ifndef IGNORE_NAME_CONSTRAINTS
 
 /* Free the subtree names object.
@@ -10382,8 +10395,7 @@ static int SetDNSEntry(DecodedCert* cert, const char* str, int strLen,
 
     /* TODO: consider one malloc. */
     /* Allocate DNS Entry object. */
-    dnsEntry = (DNS_entry*)XMALLOC(sizeof(DNS_entry), cert->heap,
-                                                          DYNAMIC_TYPE_ALTNAME);
+    dnsEntry = AltNameNew(cert->heap);
     if (dnsEntry == NULL) {
         ret = MEMORY_E;
     }
@@ -10992,8 +11004,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                     {
                         DNS_entry* emailName;
 
-                        emailName = (DNS_entry*)XMALLOC(sizeof(DNS_entry),
-                                              cert->heap, DYNAMIC_TYPE_ALTNAME);
+                        emailName = AltNameNew(cert->heap);
                         if (emailName == NULL) {
                             WOLFSSL_MSG("\tOut of Memory");
                         #if (defined(OPENSSL_EXTRA) || \
@@ -13873,8 +13884,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             }
             length -= (idx - lenStartIdx);
 
-            dnsEntry = (DNS_entry*)XMALLOC(sizeof(DNS_entry), cert->heap,
-                                        DYNAMIC_TYPE_ALTNAME);
+            dnsEntry = AltNameNew(cert->heap);
             if (dnsEntry == NULL) {
                 WOLFSSL_MSG("\tOut of Memory");
                 return MEMORY_E;
@@ -13914,8 +13924,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             }
             length -= (idx - lenStartIdx);
 
-            dirEntry = (DNS_entry*)XMALLOC(sizeof(DNS_entry), cert->heap,
-                                        DYNAMIC_TYPE_ALTNAME);
+            dirEntry = AltNameNew(cert->heap);
             if (dirEntry == NULL) {
                 WOLFSSL_MSG("\tOut of Memory");
                 return MEMORY_E;
@@ -13950,8 +13959,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             }
             length -= (idx - lenStartIdx);
 
-            emailEntry = (DNS_entry*)XMALLOC(sizeof(DNS_entry), cert->heap,
-                                        DYNAMIC_TYPE_ALTNAME);
+            emailEntry = AltNameNew(cert->heap);
             if (emailEntry == NULL) {
                 WOLFSSL_MSG("\tOut of Memory");
                 return MEMORY_E;
@@ -14020,8 +14028,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             }
         #endif
 
-            uriEntry = (DNS_entry*)XMALLOC(sizeof(DNS_entry), cert->heap,
-                                        DYNAMIC_TYPE_ALTNAME);
+            uriEntry = AltNameNew(cert->heap);
             if (uriEntry == NULL) {
                 WOLFSSL_MSG("\tOut of Memory");
                 return MEMORY_E;
@@ -14061,8 +14068,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
                 return BUFFER_E;
             }
 
-            ipAddr = (DNS_entry*)XMALLOC(sizeof(DNS_entry), cert->heap,
-                                        DYNAMIC_TYPE_ALTNAME);
+            ipAddr = AltNameNew(cert->heap);
             if (ipAddr == NULL) {
                 WOLFSSL_MSG("\tOut of Memory");
                 return MEMORY_E;

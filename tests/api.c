@@ -4026,6 +4026,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     msg_len = wolfSSL_get_finished(ssl, server_side_msg1, MD_MAX_SIZE);
     AssertIntGE(msg_len, 0);
 #endif
+
     idx = wolfSSL_read(ssl, input, sizeof(input)-1);
     if (idx > 0) {
         input[idx] = '\0';
@@ -4040,6 +4041,9 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         return 0;
 #endif
     }
+
+    if (cbf != NULL && cbf->on_result != NULL)
+        cbf->on_result(ssl);
 
 #ifdef WOLFSSL_TIRTOS
     Task_yield();
@@ -32413,6 +32417,106 @@ static void test_wolfSSL_Tls13_Key_Logging_test(void)
 #endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK && WOLFSSL_TLS13 */
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+static void post_auth_version_cb(WOLFSSL* ssl)
+{
+    /* do handshake and then test version error */
+    AssertIntEQ(wolfSSL_accept(ssl), WOLFSSL_SUCCESS);
+    AssertStrEQ("TLSv1.2", wolfSSL_get_version(ssl));
+    AssertIntEQ(wolfSSL_verify_client_post_handshake(ssl), WOLFSSL_FAILURE);
+#ifdef OPENSSL_ALL
+    /* check was added to error queue */
+    AssertIntEQ(wolfSSL_ERR_get_error(), -UNSUPPORTED_PROTO_VERSION);
+
+    /* check the string matches expected string */
+    AssertStrEQ(wolfSSL_ERR_error_string(-UNSUPPORTED_PROTO_VERSION, NULL),
+            "WRONG_SSL_VERSION");
+#endif
+}
+
+static void post_auth_cb(WOLFSSL* ssl)
+{
+    /* do handshake and then test version error */
+    AssertIntEQ(wolfSSL_accept(ssl), WOLFSSL_SUCCESS);
+    AssertStrEQ("TLSv1.3", wolfSSL_get_version(ssl));
+    AssertNull(wolfSSL_get_peer_certificate(ssl));
+    AssertIntEQ(wolfSSL_verify_client_post_handshake(ssl), WOLFSSL_SUCCESS);
+}
+
+static void set_post_auth_cb(WOLFSSL* ssl)
+{
+    if (!wolfSSL_is_server(ssl)) {
+        AssertIntEQ(wolfSSL_allow_post_handshake_auth(ssl), 0);
+    }
+    else {
+        wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_POST_HANDSHAKE, NULL);
+    }
+}
+#endif
+
+static void test_wolfSSL_Tls13_postauth(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    callback_functions server_cbf;
+    callback_functions client_cbf;
+    THREAD_TYPE serverThread;
+
+    printf(testingFmt, "wolfSSL_Tls13_postauth()");
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+#if defined(USE_WINDOWS_API)
+    /* use RNG to get random port if using windows */
+    ready.port = GetRandomPort();
+#endif
+
+    server_args.signal = &ready;
+    client_args.signal = &ready;
+
+    /* test version failure doing post auth with TLS 1.2 connection */
+    XMEMSET(&server_cbf, 0, sizeof(callback_functions));
+    XMEMSET(&client_cbf, 0, sizeof(callback_functions));
+    server_cbf.method = wolfTLSv1_2_server_method;
+    server_cbf.ssl_ready = set_post_auth_cb;
+    client_cbf.ssl_ready = set_post_auth_cb;
+    server_cbf.on_result = post_auth_version_cb;
+    server_args.callbacks = &server_cbf;
+    client_args.callbacks = &client_cbf;
+
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args, NULL);
+    join_thread(serverThread);
+
+    /* tests on post auth with TLS 1.3 */
+    XMEMSET(&server_cbf, 0, sizeof(callback_functions));
+    XMEMSET(&client_cbf, 0, sizeof(callback_functions));
+    server_cbf.method = wolfTLSv1_3_server_method;
+    server_cbf.ssl_ready = set_post_auth_cb;
+    client_cbf.ssl_ready = set_post_auth_cb;
+    server_cbf.on_result = post_auth_cb;
+    server_args.callbacks = &server_cbf;
+    client_args.callbacks = &client_cbf;
+
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args, NULL);
+    join_thread(serverThread);
+
+    FreeTcpReady(&ready);
+    printf(resultFmt, passed);
+#endif
+}
+
+
 static void test_wolfSSL_X509_NID(void)
 {
     #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
@@ -35550,6 +35654,17 @@ static void test_wolfSSL_ERR_put_error(void)
     AssertIntEQ(ERR_get_error_line(&file, &line), 14);
     ERR_put_error(0,SYS_F_SOCKET, 15, "this file", 15);
     AssertIntEQ(ERR_get_error_line(&file, &line), 15);
+
+#ifdef WOLFSSL_PYTHON
+    ERR_put_error(ERR_LIB_ASN1, SYS_F_ACCEPT, ASN1_R_HEADER_TOO_LONG,
+            "this file", 100);
+    AssertIntEQ(wolfSSL_ERR_peek_last_error_line(&file, &line),
+            (ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG);
+    AssertIntEQ(line, 100);
+    AssertIntEQ(wolfSSL_ERR_peek_error(),
+            (ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG);
+    AssertIntEQ(ERR_get_error_line(&file, &line), ASN1_R_HEADER_TOO_LONG);
+#endif
 
     /* try reading past end of error queue */
     file = NULL;
@@ -49441,6 +49556,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_get_keylog_callback();
     test_wolfSSL_Tls12_Key_Logging_test();
     test_wolfSSL_Tls13_Key_Logging_test();
+    test_wolfSSL_Tls13_postauth();
     test_wolfSSL_CTX_set_ecdh_auto();
     test_wolfSSL_THREADID_hash();
     test_wolfSSL_RAND_set_rand_method();

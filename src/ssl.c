@@ -10346,7 +10346,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
         case ALT_NAMES_OID:
         {
             DNS_entry* dns = NULL;
-            
+
             if (x509->subjAltNameSet && x509->altNames != NULL) {
                 /* Malloc GENERAL_NAME stack */
                 sk = (WOLFSSL_GENERAL_NAMES*)XMALLOC(
@@ -10357,7 +10357,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                 }
                 XMEMSET(sk, 0, sizeof(WOLFSSL_GENERAL_NAMES));
                 sk->type = STACK_TYPE_GEN_NAME;
-                
+
                 /* alt names are DNS_entry structs */
                 if (c != NULL) {
                     if (x509->altNames->next != NULL) {
@@ -10378,10 +10378,36 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                     }
 
                     gn->type = dns->type;
-                    if (wolfSSL_ASN1_STRING_set(gn->d.ia5, dns->name,
-                            dns->len) != WOLFSSL_SUCCESS) {
-                        WOLFSSL_MSG("ASN1_STRING_set failed");
-                        goto err;
+                    switch (gn->type) {
+                        case ASN_DIR_TYPE:
+                            {
+                                int localIdx = 0;
+                                unsigned char* n = (unsigned char*)XMALLOC(
+                                        dns->len + MAX_SEQ_SZ, x509->heap,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+                                if (n == NULL) {
+                                    goto err;
+                                }
+
+                                localIdx += SetSequence(dns->len, n);
+                                XMEMCPY(n + localIdx, dns->name, dns->len);
+                                gn->d.dirn =  wolfSSL_d2i_X509_NAME(NULL, &n,
+                                        dns->len + localIdx);
+                                XFREE(n, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                                if (gn->d.dirn == NULL) {
+                                    WOLFSSL_MSG("Convert altDirName to X509 "
+                                            "NAME failed");
+                                    goto err;
+                                }
+                            }
+                            break;
+
+                        default:
+                            if (wolfSSL_ASN1_STRING_set(gn->d.ia5, dns->name,
+                                    dns->len) != WOLFSSL_SUCCESS) {
+                                WOLFSSL_MSG("ASN1_STRING_set failed");
+                                goto err;
+                            }
                     }
 
                     dns = dns->next;
@@ -10746,8 +10772,7 @@ int wolfSSL_X509_add_altname_ex(WOLFSSL_X509* x509, const char* name,
     if ((name == NULL) || (nameSz == 0))
         return WOLFSSL_SUCCESS;
 
-    newAltName = (DNS_entry*)XMALLOC(sizeof(DNS_entry),
-            x509->heap, DYNAMIC_TYPE_ALTNAME);
+    newAltName = AltNameNew(x509->heap);
     if (newAltName == NULL)
         return WOLFSSL_FAILURE;
 
@@ -11641,7 +11666,17 @@ void wolfSSL_set_verify_result(WOLFSSL *ssl, long v)
 int wolfSSL_verify_client_post_handshake(WOLFSSL* ssl)
 {
     int ret = wolfSSL_request_certificate(ssl);
-    return (ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+    if (ret != WOLFSSL_SUCCESS) {
+        if (!IsAtLeastTLSv1_3(ssl->version)) {
+            /* specific error of wrong version expected */
+            WOLFSSL_ERROR(UNSUPPORTED_PROTO_VERSION);
+
+        }
+        else {
+            WOLFSSL_ERROR(ret); /* log the error in the error queue */
+        }
+    }
+    return (ret == WOLFSSL_SUCCESS) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
 
 int wolfSSL_CTX_set_post_handshake_auth(WOLFSSL_CTX* ctx, int val)
@@ -21139,6 +21174,10 @@ static void wolfSSL_GENERAL_NAME_type_free(WOLFSSL_GENERAL_NAME* name)
             wolfSSL_ASN1_STRING_free(name->d.dNSName);
             name->d.dNSName = NULL;
         }
+        if (name->d.dirn != NULL) {
+            wolfSSL_X509_NAME_free(name->d.dirn);
+            name->d.dirn = NULL;
+        }
         if (name->d.uniformResourceIdentifier != NULL) {
             wolfSSL_ASN1_STRING_free(name->d.uniformResourceIdentifier);
             name->d.uniformResourceIdentifier = NULL;
@@ -27280,7 +27319,7 @@ int wolfSSL_ERR_GET_REASON(unsigned long err)
     if (err == ((ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE))
         return PEM_R_NO_START_LINE;
 #endif
-#if defined(OPENSLL_ALL) && defined(WOLFSSL_PYTHON)
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
     if (err == ((ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG))
         return ASN1_R_HEADER_TOO_LONG;
 #endif
@@ -44703,11 +44742,12 @@ unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line)
             WOLFSSL_MSG("Issue peeking at error node in queue");
             return 0;
         }
+        printf("ret from peek error node = %d\n", ret);
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
         if (ret == -ASN_NO_PEM_HEADER)
             return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
     #endif
-    #if defined(OPENSLL_ALL) && defined(WOLFSSL_PYTHON)
+    #if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
         if (ret == ASN1_R_HEADER_TOO_LONG) {
             return (ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG;
         }
@@ -48394,6 +48434,11 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 
             if (ret == -ASN_NO_PEM_HEADER)
                 return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
+        #if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
+            if (ret == ASN1_R_HEADER_TOO_LONG) {
+                return (ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG;
+            }
+        #endif
             if (ret != -WANT_READ && ret != -WANT_WRITE &&
                     ret != -ZERO_RETURN && ret != -WOLFSSL_ERROR_ZERO_RETURN &&
                     ret != -SOCKET_PEER_CLOSED_E && ret != -SOCKET_ERROR_E)
@@ -58620,10 +58665,14 @@ void wolfSSL_RAND_Cleanup(void)
 /* returns WOLFSSL_SUCCESS if the bytes generated are valid otherwise WOLFSSL_FAILURE */
 int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num)
 {
+    int ret;
+    int hash;
+    byte secret[DRBG_SEED_LEN]; /* secret length arbitraily choosen */
+
 #ifndef WOLFSSL_NO_OPENSSL_RAND_CB
     if (wolfSSL_RAND_InitMutex() == 0 && wc_LockMutex(&gRandMethodMutex) == 0) {
         if (gRandMethods && gRandMethods->pseudorand) {
-            int ret = gRandMethods->pseudorand(buf, num);
+            ret = gRandMethods->pseudorand(buf, num);
             wc_UnLockMutex(&gRandMethodMutex);
             return ret;
         }
@@ -58631,8 +58680,34 @@ int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num)
     }
 #endif
 
-    /* fallback to using the global shared RNG */
-    return wolfSSL_RAND_bytes(buf, num);
+#ifdef WOLFSSL_HAVE_PRF
+    #ifndef NO_SHA256
+    hash = WC_SHA256;
+    #elif defined(WOLFSSL_SHA384)
+    hash = WC_SHA384;
+    #elif !defined(NO_SHA)
+    hash = WC_SHA;
+    #elif !defined(NO_MD5)
+    hash = WC_MD5;
+    #endif
+
+    /* get secret value from source of entropy */
+    ret = wolfSSL_RAND_bytes(secret, DRBG_SEED_LEN);
+
+    /* uses input buffer to seed for pseudo random number generation, each
+     * thread will potentially have different results this way */
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = wc_PRF(buf, num, secret, DRBG_SEED_LEN, (const byte*)buf, num,
+                hash, NULL, INVALID_DEVID);
+        ret = (ret == 0) ? WOLFSSL_SUCCESS: WOLFSSL_FAILURE;
+    }
+#else
+    /* fall back to just doing wolfSSL_RAND_bytes if PRF not avialbale */
+    ret = wolfSSL_RAND_bytes(buf, num);
+    (void)hash;
+    (void)secret;
+#endif
+    return ret;
 }
 
 /* returns WOLFSSL_SUCCESS if the bytes generated are valid otherwise WOLFSSL_FAILURE */
