@@ -80,6 +80,7 @@ SRC_C += ../../wolfcrypt/benchmark/benchmark.c
 endif
 
 # WOLFSSL TLS FILES
+SRC_C += ../../src/bio.c
 SRC_C += ../../src/crl.c
 SRC_C += ../../src/internal.c
 SRC_C += ../../src/keys.c
@@ -113,17 +114,24 @@ SRC_C += ../../wolfcrypt/src/wolfcrypt_last.c
 endif
 
 # wolfCrypt Additional
+SRC_C += ../../wolfcrypt/src/asm.c
+SRC_C += ../../wolfcrypt/src/async.c
 SRC_C += ../../wolfcrypt/src/asn.c
+SRC_C += ../../wolfcrypt/src/blake2s.c
 SRC_C += ../../wolfcrypt/src/chacha.c
-SRC_C += ../../wolfcrypt/src/cmac.c
+SRC_C += ../../wolfcrypt/src/chacha20_poly1305.c
 SRC_C += ../../wolfcrypt/src/coding.c
 SRC_C += ../../wolfcrypt/src/compress.c
 SRC_C += ../../wolfcrypt/src/cpuid.c
 SRC_C += ../../wolfcrypt/src/cryptocb.c
 SRC_C += ../../wolfcrypt/src/curve25519.c
+SRC_C += ../../wolfcrypt/src/curve448.c
+SRC_C += ../../wolfcrypt/src/ecc_fp.c
+SRC_C += ../../wolfcrypt/src/eccsi.c
 SRC_C += ../../wolfcrypt/src/ed25519.c
 SRC_C += ../../wolfcrypt/src/ed448.c
 SRC_C += ../../wolfcrypt/src/error.c
+SRC_C += ../../wolfcrypt/src/evp.c
 SRC_C += ../../wolfcrypt/src/fe_448.c
 SRC_C += ../../wolfcrypt/src/fe_low_mem.c
 SRC_C += ../../wolfcrypt/src/fe_operations.c
@@ -140,6 +148,9 @@ SRC_C += ../../wolfcrypt/src/pkcs12.c
 SRC_C += ../../wolfcrypt/src/pkcs7.c
 SRC_C += ../../wolfcrypt/src/poly1305.c
 SRC_C += ../../wolfcrypt/src/pwdbased.c
+SRC_C += ../../wolfcrypt/src/rc2.c
+SRC_C += ../../wolfcrypt/src/sakke.c
+SRC_C += ../../wolfcrypt/src/selftest.c
 SRC_C += ../../wolfcrypt/src/signature.c
 SRC_C += ../../wolfcrypt/src/srp.c
 SRC_C += ../../wolfcrypt/src/sp_arm32.c
@@ -148,9 +159,13 @@ SRC_C += ../../wolfcrypt/src/sp_armthumb.c
 SRC_C += ../../wolfcrypt/src/sp_c32.c
 SRC_C += ../../wolfcrypt/src/sp_c64.c
 SRC_C += ../../wolfcrypt/src/sp_cortexm.c
+SRC_C += ../../wolfcrypt/src/sp_dsp32.c
 SRC_C += ../../wolfcrypt/src/sp_int.c
+SRC_C += ../../wolfcrypt/src/sp_x86_64.c
 SRC_C += ../../wolfcrypt/src/tfm.c
+SRC_C += ../../wolfcrypt/src/wc_dsp.c
 SRC_C += ../../wolfcrypt/src/wc_encrypt.c
+SRC_C += ../../wolfcrypt/src/wc_pkcs11.c
 SRC_C += ../../wolfcrypt/src/wc_port.c
 SRC_C += ../../wolfcrypt/src/wolfevent.c
 SRC_C += ../../wolfcrypt/src/wolfmath.c
