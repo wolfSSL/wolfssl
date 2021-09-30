@@ -3489,6 +3489,13 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ssl->version.minor = TLSv1_2_MINOR;
 #endif
         ssl->options.haveEMS = 0;
+        if (args->pv.minor < ssl->options.minDowngrade)
+            return VERSION_ERROR;
+#ifndef WOLFSSL_NO_TLS12
+        return DoServerHello(ssl, input, inOutIdx, helloSz);
+#else
+        return VERSION_ERROR;
+#endif
     }
 
     if ((args->idx - args->begin) < helloSz) {
