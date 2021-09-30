@@ -37,6 +37,7 @@ Platform is one of:
     wolfrand
     solaris
     linuxv5 (FIPS 140-3)
+    linuxv5-ready (FIPS 140-3)
 Keep (default off) retains the XXX-fips-test temp dir for inspection.
 
 Example:
@@ -227,6 +228,16 @@ fips-ready)
   FIPS_INCS=( fips.h )
   FIPS_OPTION=ready
   ;;
+linuxv5-ready)
+  FIPS_REPO="git@github.com:wolfSSL/fips.git"
+  FIPS_VERSION="douzzer-linuxkm-fips-140-3"
+  CRYPT_REPO="git@github.com:wolfssl/wolfssl.git"
+  CRYPT_INC_PATH=wolfssl/wolfcrypt
+  CRYPT_SRC_PATH=wolfcrypt/src
+  FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
+  FIPS_INCS=( fips.h )
+  FIPS_OPTION=v5-ready
+  ;;
 stm32l4-v2)
   FIPS_VERSION=$STM32L4_V2_FIPS_VERSION
   FIPS_REPO=$STM32L4_V2_FIPS_REPO
@@ -337,11 +348,11 @@ then
     $GIT branch --no-track "myrng$RNG_VERSION" $RNG_VERSION
     # Checkout the fips versions of the wolfCrypt files from the repo.
     $GIT checkout "myrng$RNG_VERSION" -- "$CRYPT_SRC_PATH/random.c" "$CRYPT_INC_PATH/random.h"
-elif [ "x$FIPS_OPTION" == "xready" ]
+elif [ "x$FIPS_OPTION" == "xready" ] || [ "x$FIPS_OPTION" == "xv5-ready" ]
 then
     echo "Don't need to copy anything in particular for FIPS Ready."
 else
-    echo "fips-check: Invalid FIPS option."
+    echo "fips-check: Invalid FIPS option \"${FIPS_OPTION}\"."
     exit 1
 fi
 
