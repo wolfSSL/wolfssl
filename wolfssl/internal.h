@@ -1666,9 +1666,9 @@ WOLFSSL_LOCAL ProtocolVersion MakeTLSv1_3(void);
 #endif
 #ifdef WOLFSSL_SESSION_EXPORT
 WOLFSSL_LOCAL int wolfSSL_session_export_internal(WOLFSSL* ssl, byte* buf,
-        word32* sz, int isTLS);
+        word32* sz, int type);
 WOLFSSL_LOCAL int wolfSSL_session_import_internal(WOLFSSL* ssl, const byte* buf,
-        word32 sz, int isTLS);
+        word32 sz, int type);
 #ifdef WOLFSSL_DTLS
     WOLFSSL_LOCAL int wolfSSL_dtls_export_state_internal(WOLFSSL* ssl,
                                                           byte* buf, word32 sz);

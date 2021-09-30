@@ -239,10 +239,7 @@ byte tsip_rootCAverified( );
 #endif
 
 #ifdef WOLFSSL_SESSION_EXPORT
-/**
- * Used to import a serialized TLS session. In most cases wolfSSL_get_session
- * should be used instead, this function is for exporting the state of the
- * connection and when imported a resumption is not needed.
+/* Used to import a serialized TLS session.
  * WARNING: buf contains sensitive information about the state and is best to be
  *          encrypted before storing if stored.
  *
@@ -260,10 +257,9 @@ int wolfSSL_tls_import(WOLFSSL* ssl, const unsigned char* buf, unsigned int sz)
 }
 
 
-/**
- * Used to export a serialized TLS session. In most cases wolfSSL_set_session
- * should be used instead, this function is for importing a serialized state of
- * the connection.
+/* Used to export a serialized TLS session.
+ * WARNING: buf contains sensitive information about the state and is best to be
+ *          encrypted before storing if stored.
  *
  * @param ssl WOLFSSL structure to export the session from
  * @param buf output of serialized session

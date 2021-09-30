@@ -601,7 +601,7 @@ static int ExportCipherSpecState(WOLFSSL* ssl, byte* exp, word32 len, byte ver,
         return BAD_FUNC_ARG;
     }
 
-    specs= &ssl->specs;
+    specs = &ssl->specs;
     if (WOLFSSL_EXPORT_SPC_SZ > len) {
         return BUFFER_E;
     }
@@ -1186,10 +1186,10 @@ static int ExportOptions(WOLFSSL* ssl, byte* exp, word32 len, byte ver,
     exp[idx++] = options->asyncState;
 
     if (type == WOLFSSL_EXPORT_TLS) {
-        exp[idx++] = ssl->options.disallowEncThenMac;
-        exp[idx++] = ssl->options.encThenMac;
-        exp[idx++] = ssl->options.startedETMRead;
-        exp[idx++] = ssl->options.startedETMWrite;
+        exp[idx++] = options->disallowEncThenMac;
+        exp[idx++] = options->encThenMac;
+        exp[idx++] = options->startedETMRead;
+        exp[idx++] = options->startedETMWrite;
     }
 
     /* version of connection */
@@ -1362,16 +1362,22 @@ static int ImportOptions(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
     options->asyncState     = exp[idx++];
 
     if (type == WOLFSSL_EXPORT_TLS) {
-        ssl->options.disallowEncThenMac = exp[idx++];
-        ssl->options.encThenMac = exp[idx++];
-        ssl->options.startedETMRead = exp[idx++];
-        ssl->options.startedETMWrite = exp[idx++];
+        options->disallowEncThenMac = exp[idx++];
+        options->encThenMac         = exp[idx++];
+        options->startedETMRead     = exp[idx++];
+        options->startedETMWrite    = exp[idx++];
     }
 
     /* version of connection */
     if (ssl->version.major != exp[idx++] || ssl->version.minor != exp[idx++]) {
         WOLFSSL_MSG("Version mismatch ie DTLS v1 vs v1.2");
         return VERSION_ERROR;
+    }
+
+    /* set TLS 1.3 flag in options if this was a TLS 1.3 connection */
+    if (ssl->version.major == SSLv3_MAJOR &&
+            ssl->version.minor == TLSv1_3_MINOR) {
+        options->tls1_3 = 1;
     }
 
     return idx;
