@@ -44,6 +44,9 @@
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
+#ifdef WOLF_CRYPTO_CB
+#include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 
 #ifdef WOLFSSL_SHA512
 
