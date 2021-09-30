@@ -241,6 +241,7 @@ linuxkm/modules.order
 linuxkm/wolfcrypt
 linuxkm/libwolfssl.mod
 linuxkm/libwolfssl.mod.c
+linuxkm/libwolfssl.lds
 linuxkm/module_exports.c
 linuxkm/linuxkm/get_thread_size
 
