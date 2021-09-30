@@ -172,4 +172,4 @@ $(src)/linuxkm/module_exports.c: $(src)/linuxkm/module_exports.c.template $(WOLF
 		}' >> $@
 	@echo -e '#ifndef NO_CRYPT_TEST\nEXPORT_SYMBOL_NS(wolfcrypt_test, WOLFSSL);\n#endif' >> $@
 
-clean-files := module_exports.c
+clean-files := module_exports.c linuxkm src wolfcrypt/src wolfcrypt/test wolfcrypt

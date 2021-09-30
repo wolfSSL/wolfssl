@@ -103,8 +103,10 @@ install modules_install:
 	+$(MAKE) -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(SRC_TOP) INSTALL_MOD_DIR=wolfssl modules_install
 
 .PHONY: clean
+# note, must supply $(MODULE_TOP) as the src value for clean so that Kbuild is included, else
+# the top Makefile (which is not for the kernel build) would be included here.
 clean:
-	+$(MAKE) -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(SRC_TOP) clean
+	+$(MAKE) -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(MODULE_TOP) clean
 
 .PHONY: dist
 dist:
