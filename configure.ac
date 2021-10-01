@@ -7658,7 +7658,7 @@ fi # $silent != yes
 # Show warnings at bottom so they are noticed
 ################################################################################
 
-if test "$ENABLED_ASYNCCRYPT" = "yes"
+if test "$ENABLED_ASYNCCRYPT" = "yes" && ! test -s $srcdir/wolfcrypt/src/async.c
 then
     AC_MSG_WARN([Make sure real async files are loaded. Contact wolfSSL for details on using the asynccrypt option.])
 fi
