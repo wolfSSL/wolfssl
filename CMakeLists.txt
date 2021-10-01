@@ -1234,8 +1234,11 @@ else()
     set(CRYPT_TESTS_DEFAULT "yes")
 endif()
 
-set(WOLFSSL_CRYPT_TESTS_HELP_STRING "Enable Crypt Bench/Test  (default: enabled)")
+set(WOLFSSL_CRYPT_TESTS_HELP_STRING "Enable Crypt Bench/Test (default: enabled)")
 add_option("WOLFSSL_CRYPT_TESTS" ${WOLFSSL_CRYPT_TESTS_HELP_STRING} ${CRYPT_TESTS_DEFAULT} "yes;no")
+
+set(WOLFSSL_CRYPT_TESTS_LIBS_HELP_STRING "Build static libraries from the wolfCrypt test and benchmark sources (default: disabled)")
+add_option("WOLFSSL_CRYPT_TESTS_LIBS" ${WOLFSSL_CRYPT_TESTS_LIBS_HELP_STRING} "no" "yes;no")
 
 # TODO: - LIBZ
 #       - PKCS#11
@@ -1510,7 +1513,27 @@ if(WOLFSSL_EXAMPLES)
 endif()
 
 if(WOLFSSL_CRYPT_TESTS)
-    # Build wolfCrypt test
+    if(WOLFSSL_CRYPT_TESTS_LIBS)
+        # Build wolfCrypt test as a library. This will compile test.c and make
+        # its functions available as a CMake target that other CMake targets can
+        # pull in, in addition to producing the library itself. Note that this
+        # feature is not enabled by default, and the API of this library and
+        # wofcryptbench_lib should NOT be treated as stable.
+        add_library(wolfcrypttest_lib
+            ${CMAKE_CURRENT_SOURCE_DIR}/wolfcrypt/test/test.c)
+        set_target_properties(wolfcrypttest_lib PROPERTIES OUTPUT_NAME "wolfcrypttest")
+        target_link_libraries(wolfcrypttest_lib wolfssl)
+        target_compile_options(wolfcrypttest_lib PRIVATE "-DNO_MAIN_DRIVER")
+
+        # Make another library for the wolfCrypt benchmark code.
+        add_library(wolfcryptbench_lib
+            ${CMAKE_CURRENT_SOURCE_DIR}/wolfcrypt/benchmark/benchmark.c)
+        set_target_properties(wolfcryptbench_lib PROPERTIES OUTPUT_NAME "wolfcryptbench")
+        target_link_libraries(wolfcryptbench_lib wolfssl)
+        target_compile_options(wolfcryptbench_lib PRIVATE "-DNO_MAIN_DRIVER")
+    endif()
+
+    # Build wolfCrypt test executable.
     add_executable(wolfcrypttest
         ${CMAKE_CURRENT_SOURCE_DIR}/wolfcrypt/test/test.c)
     target_link_libraries(wolfcrypttest wolfssl)
@@ -1521,7 +1544,7 @@ if(WOLFSSL_CRYPT_TESTS)
                  PROPERTY RUNTIME_OUTPUT_NAME
                  testwolfcrypt)
 
-    # Build wolfCrypt benchmark
+    # Build wolfCrypt benchmark executable.
     add_executable(wolfcryptbench
         ${CMAKE_CURRENT_SOURCE_DIR}/wolfcrypt/benchmark/benchmark.c)
     target_include_directories(wolfcryptbench PRIVATE

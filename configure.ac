@@ -5072,6 +5072,15 @@ AC_ARG_ENABLE([crypttests],
     )
 AC_SUBST([ENABLED_CRYPT_TESTS])
 
+# Build wolfCrypt test and benchmark as libraries. This will compile test.c and
+# benchmark.c and make their functions available via libraries, libwolfcrypttest
+# and libwolfcryptbench, respectively. Note that this feature is not enabled by
+# default, and the API of these libraries should NOT be treated as stable.
+AC_ARG_ENABLE([crypttests-libs],
+    [AS_HELP_STRING([--enable-crypttests-libs],[Enable wolfcrypt test and benchmark libraries (default: disabled)])],
+    [ ENABLED_CRYPT_TESTS_LIBS=$enableval ],
+    [ ENABLED_CRYPT_TESTS_LIBS=no ]
+    )
 
 # LIBZ
 ENABLED_LIBZ="no"
@@ -6885,6 +6894,7 @@ AM_CONDITIONAL([BUILD_EXAMPLE_CLIENTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
 AM_CONDITIONAL([BUILD_TESTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
 AM_CONDITIONAL([BUILD_THREADED_EXAMPLES],[test "x$ENABLED_SINGLETHREADED" = "xno" && test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_WOLFCRYPT_TESTS],[test "x$ENABLED_CRYPT_TESTS" = "xyes"])
+AM_CONDITIONAL([BUILD_WOLFCRYPT_TESTS_LIBS],[test "x$ENABLED_CRYPT_TESTS_LIBS" = "xyes"])
 AM_CONDITIONAL([BUILD_LIBZ],[test "x$ENABLED_LIBZ" = "xyes"])
 AM_CONDITIONAL([BUILD_PKCS11],[test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_PKCS12],[test "x$ENABLED_PKCS12" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])

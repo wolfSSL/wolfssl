@@ -1,25 +1,32 @@
-function(add_option NAME HELP_STRING DEFAULT VALUES)
-    list(FIND VALUES ${DEFAULT} IDX)
-    if (${IDX} EQUAL -1)
-        message(FATAL_ERROR "Failed to add option ${NAME}. Default value "
-            "${DEFAULT} is not in list of possible values: ${VALUES}.")
-    endif()
-
-    if(DEFINED ${NAME})
-        list(FIND VALUES ${${NAME}} IDX)
-        if (${IDX} EQUAL -1)
-            message(FATAL_ERROR "Failed to set option ${NAME}. Value "
-                "${${NAME}} is not in list of possible values: ${VALUES}.")
-        endif()
-    endif()
-
-    set(${NAME} ${DEFAULT} CACHE STRING ${HELP_STRING})
-    set_property(CACHE ${NAME} PROPERTY STRINGS ${VALUES})
-endfunction()
-
 function(override_cache VAR VAL)
     get_property(VAR_TYPE CACHE ${VAR} PROPERTY TYPE)
     set(${VAR} ${VAL} CACHE ${VAR_TYPE} ${${VAR}_HELP_STRING} FORCE)
+endfunction()
+
+function(add_option NAME HELP_STRING DEFAULT VALUES)
+    # Set the default value for the option.
+    set(${NAME} ${DEFAULT} CACHE STRING ${HELP_STRING})
+    # Set the list of allowed values for the option.
+    set_property(CACHE ${NAME} PROPERTY STRINGS ${VALUES})
+
+    if(DEFINED ${NAME})
+        list(FIND VALUES ${${NAME}} IDX)
+        #
+        # If the given value isn't in the list of allowed values for the option,
+        # reduce it to yes/no according to CMake's "if" logic:
+        # https://cmake.org/cmake/help/latest/command/if.html#basic-expressions
+        #
+        # This has no functional impact; it just makes the settings in
+        # CMakeCache.txt and cmake-gui easier to read.
+        #
+        if (${IDX} EQUAL -1)
+            if(${${NAME}})
+                override_cache(${NAME} "yes")
+            else()
+                override_cache(${NAME} "no")
+            endif()
+        endif()
+    endif()
 endfunction()
 
 function(generate_build_flags)

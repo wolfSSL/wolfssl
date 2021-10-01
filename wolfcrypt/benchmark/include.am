@@ -13,6 +13,14 @@ noinst_HEADERS += wolfcrypt/benchmark/benchmark.h
 endif
 endif
 
+if BUILD_WOLFCRYPT_TESTS_LIBS
+lib_LTLIBRARIES += wolfcrypt/benchmark/libwolfcryptbench.la
+wolfcrypt_benchmark_libwolfcryptbench_la_SOURCES      = wolfcrypt/benchmark/benchmark.c
+wolfcrypt_benchmark_libwolfcryptbench_la_CPPFLAGS     = -DNO_MAIN_DRIVER
+wolfcrypt_benchmark_libwolfcryptbench_la_LIBADD       = src/libwolfssl.la
+wolfcrypt_benchmark_libwolfcryptbench_la_DEPENDENCIES = src/libwolfssl.la
+endif
+
 EXTRA_DIST += wolfcrypt/benchmark/benchmark.sln
 EXTRA_DIST += wolfcrypt/benchmark/benchmark.vcproj
 EXTRA_DIST += wolfcrypt/benchmark/README.md
