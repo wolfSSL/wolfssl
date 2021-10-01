@@ -529,6 +529,13 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define sk_X509_free                    wolfSSL_sk_X509_free
 #define X509_chain_up_ref               wolfSSL_X509_chain_up_ref
 
+#define sk_X509_CRL_new                 wolfSSL_sk_X509_CRL_new
+#define sk_X509_CRL_pop_free            wolfSSL_sk_X509_CRL_pop_free
+#define sk_X509_CRL_free                wolfSSL_sk_X509_CRL_free
+#define sk_X509_CRL_push                wolfSSL_sk_X509_CRL_push
+#define sk_X509_CRL_value               wolfSSL_sk_X509_CRL_value
+#define sk_X509_CRL_num                 wolfSSL_sk_X509_CRL_num
+
 #define sk_X509_OBJECT_new              wolfSSL_sk_X509_OBJECT_new
 #define sk_X509_OBJECT_free             wolfSSL_sk_X509_OBJECT_free
 #define sk_X509_OBJECT_pop_free         wolfSSL_sk_X509_OBJECT_pop_free
@@ -1587,6 +1594,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define OBJ_create_objects(...)
 #define sk_SSL_COMP_free(...)
 #endif
+
+#define OBJ_dup                         wolfSSL_ASN1_OBJECT_dup
 
 #define SSL_set_psk_use_session_callback    wolfSSL_set_psk_use_session_callback
 #define SSL_SESSION_is_resumable    wolfSSL_SESSION_is_resumable

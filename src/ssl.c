@@ -21094,6 +21094,66 @@ void wolfSSL_sk_X509_free(WOLF_STACK_OF(WOLFSSL_X509)* sk)
     wolfSSL_sk_free(sk);
 }
 
+#ifdef HAVE_CRL
+WOLFSSL_STACK* wolfSSL_sk_X509_CRL_new(void)
+{
+    WOLFSSL_STACK* s = wolfSSL_sk_new_node(NULL);
+    if (s != NULL)
+        s->type = STACK_TYPE_X509_CRL;
+    return s;
+}
+
+void wolfSSL_sk_X509_CRL_pop_free(WOLF_STACK_OF(WOLFSSL_X509_CRL)* sk,
+    void (*f) (WOLFSSL_X509_CRL*))
+{
+    WOLFSSL_ENTER("wolfSSL_sk_X509_CRL_pop_free");
+
+    while (sk != NULL) {
+        WOLFSSL_STACK* next = sk->next;
+        if (f)
+            f(sk->data.crl);
+        else
+            wolfSSL_X509_CRL_free(sk->data.crl);
+        XFREE(sk, NULL, DYNAMIC_TYPE_OPENSSL);
+        sk = next;
+    }
+}
+
+void wolfSSL_sk_X509_CRL_free(WOLF_STACK_OF(WOLFSSL_X509_CRL)* sk)
+{
+    wolfSSL_sk_X509_CRL_pop_free(sk, NULL);
+}
+
+/* return 1 on success 0 on fail */
+int wolfSSL_sk_X509_CRL_push(WOLF_STACK_OF(WOLFSSL_X509_CRL)* sk, WOLFSSL_X509_CRL* crl)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_X509_push");
+
+    if (sk == NULL || crl == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return wolfSSL_sk_push(sk, crl);
+}
+
+WOLFSSL_X509_CRL* wolfSSL_sk_X509_CRL_value(WOLF_STACK_OF(WOLFSSL_X509)* sk,
+                                            int i)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_X509_CRL_value");
+    if (sk)
+        return (WOLFSSL_X509_CRL*)wolfSSL_sk_value(sk, i);
+    return NULL;
+}
+
+int wolfSSL_sk_X509_CRL_num(WOLF_STACK_OF(WOLFSSL_X509)* sk)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_X509_CRL_num");
+    if (sk)
+        return wolfSSL_sk_num(sk);
+    return 0;
+}
+#endif /* HAVE_CRL */
+
 #endif /* !NO_CERTS && (OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL) */
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
@@ -30868,6 +30928,8 @@ void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i)
             return (void*)sk->data.x509_obj;
         case STACK_TYPE_DIST_POINT:
             return (void*)sk->data.dp;
+        case STACK_TYPE_X509_CRL:
+            return (void*)sk->data.crl;
         default:
             return (void*)sk->data.generic;
     }
@@ -61609,15 +61671,16 @@ PKCS7* wolfSSL_d2i_PKCS7_bio(WOLFSSL_BIO* bio, PKCS7** p7)
     return (PKCS7*)pkcs7;
 }
 
-int wolfSSL_i2d_PKCS7_bio(WOLFSSL_BIO *bio, PKCS7 *p7)
+int wolfSSL_i2d_PKCS7(PKCS7 *p7, unsigned char **out)
 {
     byte* output = NULL;
+    int localBuf = 0;
     int len;
     WC_RNG rng;
     int ret = WOLFSSL_FAILURE;
     WOLFSSL_ENTER("wolfSSL_i2d_PKCS7_bio");
 
-    if (!bio || !p7) {
+    if (!out || !p7) {
         WOLFSSL_MSG("Bad parameter");
         return WOLFSSL_FAILURE;
     }
@@ -61635,13 +61698,49 @@ int wolfSSL_i2d_PKCS7_bio(WOLFSSL_BIO *bio, PKCS7 *p7)
         goto cleanup;
     }
 
-    output = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (!output) {
-        WOLFSSL_MSG("malloc error");
-        goto cleanup;
+    if (*out == NULL) {
+        output = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (!output) {
+            WOLFSSL_MSG("malloc error");
+            goto cleanup;
+        }
+        localBuf = 1;
+    }
+    else {
+        output = *out;
     }
 
     if ((len = wc_PKCS7_EncodeSignedData(p7, output, len)) < 0) {
+        WOLFSSL_MSG("wc_PKCS7_EncodeSignedData error");
+        goto cleanup;
+    }
+
+    ret = len;
+cleanup:
+    if (p7->rng == &rng) {
+        wc_FreeRng(&rng);
+        p7->rng = NULL;
+    }
+    if (ret == WOLFSSL_FAILURE && localBuf && output)
+        XFREE(output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ret != WOLFSSL_FAILURE)
+        *out = output;
+    return ret;
+}
+
+int wolfSSL_i2d_PKCS7_bio(WOLFSSL_BIO *bio, PKCS7 *p7)
+{
+    byte* output = NULL;
+    int len;
+    int ret = WOLFSSL_FAILURE;
+    WOLFSSL_ENTER("wolfSSL_i2d_PKCS7_bio");
+
+    if (!bio || !p7) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    if ((len = wolfSSL_i2d_PKCS7(p7, &output)) == WOLFSSL_FAILURE) {
         WOLFSSL_MSG("wc_PKCS7_EncodeSignedData error");
         goto cleanup;
     }
@@ -61653,13 +61752,8 @@ int wolfSSL_i2d_PKCS7_bio(WOLFSSL_BIO *bio, PKCS7 *p7)
 
     ret = WOLFSSL_SUCCESS;
 cleanup:
-    if (p7->rng == &rng) {
-        wc_FreeRng(&rng);
-        p7->rng = NULL;
-    }
-    if (output) {
+    if (output)
         XFREE(output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
     return ret;
 }
 

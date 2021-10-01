@@ -215,6 +215,7 @@ typedef WOLFSSL_BN_GENCB BN_GENCB;
 #define BN_is_prime_ex wolfSSL_BN_is_prime_ex
 #define BN_print_fp wolfSSL_BN_print_fp
 #define BN_rshift wolfSSL_BN_rshift
+#define BN_rshift1(r, a) wolfSSL_BN_rshift((r), (a), 1)
 #define BN_mod_word wolfSSL_BN_mod_word
 
 #define BN_CTX_get wolfSSL_BN_CTX_get

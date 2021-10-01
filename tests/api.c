@@ -34257,7 +34257,7 @@ static void test_wolfSSL_BN(void)
     /* check result 3*2 */
     AssertIntEQ(BN_get_word(d), 6);
 
-    /* c/b = */
+    /* c/b => db + a */
     AssertIntEQ(BN_div(d, NULL, c, b, NULL), WOLFSSL_FAILURE);
     AssertIntEQ(BN_div(d, a, c, b, NULL), WOLFSSL_SUCCESS);
 
@@ -34285,6 +34285,14 @@ static void test_wolfSSL_BN(void)
     /* check result gcd(16, 24) */
     AssertIntEQ(BN_get_word(d), 8);
 #endif /* WOLFSSL_KEY_GEN */
+
+    AssertIntEQ(BN_set_word(a, 1 << 6), SSL_SUCCESS);
+    AssertIntEQ(BN_rshift(b, a, 6), SSL_SUCCESS);
+    AssertIntEQ(BN_is_zero(b), 0);
+    AssertIntEQ(BN_rshift(b, a, 7), SSL_SUCCESS);
+    AssertIntEQ(BN_is_zero(b), 1);
+    AssertIntEQ(BN_rshift1(b, a), SSL_SUCCESS);
+    AssertIntEQ(BN_is_zero(b), 0);
 
     /* set b back to 2 */
     AssertIntEQ(BN_set_word(b, 2), SSL_SUCCESS);
@@ -37539,6 +37547,7 @@ static void test_wolfSSL_OBJ(void)
     !defined(HAVE_FIPS) && !defined(NO_SHA) && defined(WOLFSSL_CERT_EXT) && \
     defined(WOLFSSL_CERT_GEN)
     ASN1_OBJECT *obj = NULL;
+    ASN1_OBJECT *obj2 = NULL;
     char buf[50];
 
     XFILE fp;
@@ -37581,7 +37590,10 @@ static void test_wolfSSL_OBJ(void)
     AssertIntEQ(OBJ_txt2nid(buf), NID_sha256);
 #endif
     AssertIntGT(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 0), 0);
+    AssertNotNull(obj2 = OBJ_dup(obj));
+    AssertIntEQ(OBJ_cmp(obj, obj2), 0);
     ASN1_OBJECT_free(obj);
+    ASN1_OBJECT_free(obj2);
 
     for (i = 0; f[i] != NULL; i++)
     {
@@ -46181,6 +46193,31 @@ static void test_sk_X509(void)
 #endif
 }
 
+static void test_sk_X509_CRL(void)
+{
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && defined(HAVE_CRL)
+    X509_CRL* crl;
+    XFILE fp;
+    STACK_OF(X509_CRL)* s;
+
+    printf(testingFmt, "test_sk_X509_CRL");
+
+    fp = XFOPEN("./certs/crl/crl.pem", "rb");
+    AssertTrue((fp != XBADFILE));
+    AssertNotNull(crl = (X509_CRL*)PEM_read_X509_CRL(fp, (X509_CRL **)NULL, NULL, NULL));
+    XFCLOSE(fp);
+
+    AssertNotNull(s = sk_X509_CRL_new());
+    AssertIntEQ(sk_X509_CRL_num(s), 0);
+    AssertIntEQ(sk_X509_CRL_push(s, crl), 1);
+    AssertIntEQ(sk_X509_CRL_num(s), 1);
+    AssertPtrEq(sk_X509_CRL_value(s, 0), crl);
+    sk_X509_CRL_free(s);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_X509_get_signature_nid(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
@@ -46302,6 +46339,7 @@ static void test_wolfssl_PKCS7(void)
     BIO*   bio;
     byte   key[sizeof(client_key_der_2048)];
     word32 keySz = (word32)sizeof(key);
+    byte*  out = NULL;
 #endif
 
     AssertIntGT((len = CreatePKCS7SignedData(data, len, content,
@@ -46337,6 +46375,8 @@ static void test_wolfssl_PKCS7(void)
     pkcs7->hashOID = SHAh;
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
     AssertIntEQ(i2d_PKCS7_bio(bio, pkcs7), 1);
+    AssertIntEQ(i2d_PKCS7(pkcs7, &out), 644);
+    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     BIO_free(bio);
 #endif
 
@@ -52171,6 +52211,8 @@ void ApiTest(void)
     test_ERR_load_crypto_strings();
     /* OpenSSL sk_X509 API test */
     test_sk_X509();
+    /* OpenSSL sk_X509_CRL API test */
+    test_sk_X509_CRL();
     /* OpenSSL X509 API test */
     test_X509_get_signature_nid();
     /* OpenSSL X509 REQ API test */
