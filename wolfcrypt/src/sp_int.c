@@ -12340,9 +12340,6 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
     return err;
 }
 
-#if (!defined(NO_DH) || defined(HAVE_ECC) || defined(WC_RSA_BLINDING) || \
-    defined(WOLFSSL_RSA_PUBLIC_ONLY)) && (!defined(WOLFSSL_RSA_VERIFY_ONLY) || \
-    defined(HAVE_ECC_KEY_EXPORT))
 /* Convert the multi-precision number to an array of bytes in big-endian format.
  *
  * The array must be large enough for encoded number - use mp_unsigned_bin_size
@@ -12358,8 +12355,6 @@ int sp_to_unsigned_bin(sp_int* a, byte* out)
 {
     return sp_to_unsigned_bin_len(a, out, sp_unsigned_bin_size(a));
 }
-#endif /* (!NO_DH || HAVE_ECC || WC_RSA_BLINDING || WOLFSSL_RSA_PUBLIC_ONLY) 
-            && !WOLFSSL_RSA_VERIFY_ONLY */
 
 /* Convert the multi-precision number to an array of bytes in big-endian format.
  *
