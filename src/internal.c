@@ -19534,8 +19534,12 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
     if (ssl->options.dtls) {
         /* In DTLS mode, we forgive some errors and allow the session
          * to continue despite them. */
-        if (ssl->error == VERIFY_MAC_ERROR || ssl->error == DECRYPT_ERROR)
+        if (ssl->error == VERIFY_MAC_ERROR ||
+            ssl->error == DECRYPT_ERROR ||
+            ssl->error == DTLS_SIZE_ERROR) {
+
             ssl->error = 0;
+        }
     }
 #endif /* WOLFSSL_DTLS */
 

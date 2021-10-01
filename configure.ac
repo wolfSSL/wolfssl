@@ -463,7 +463,6 @@ then
     test "$enable_cryptocb" = "" && enable_cryptocb=yes
     test "$enable_fallback_scsv" = "" && enable_fallback_scsv=yes
     test "$enable_anon" = "" && enable_anon=yes
-    test "$enable_mcast" = "" && enable_mcast=yes
 
     if test "$ENABLED_32BIT" != "yes"
     then
@@ -498,7 +497,6 @@ then
             test "$enable_opensslextra" = "" && enable_opensslextra=yes
             test "$enable_opensslall" = "" && enable_opensslall=yes
             test "$enable_certservice" = "" && enable_certservice=yes
-            test "$enable_jni" = "" && enable_jni=yes
             test "$enable_lighty" = "" && enable_lighty=yes
             test "$enable_haproxy" = "" && enable_haproxy=yes
             test "$enable_stunnel" = "" && enable_stunnel=yes
@@ -691,6 +689,8 @@ AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xyes" ],[ AM_CFLAGS="-DSINGLE_THREADE
 
 
 # DTLS
+# DTLS is a prereq for the options mcast, sctp, and jni. Enabling any of those
+# without DTLS will also enable DTLS.
 AC_ARG_ENABLE([dtls],
     [AS_HELP_STRING([--enable-dtls],[Enable wolfSSL DTLS (default: disabled)])],
     [ ENABLED_DTLS=$enableval ],
