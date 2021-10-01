@@ -26,15 +26,15 @@
 
 /* Enable wolfcrypt test */
 /* can be enabled with benchmark test */
-/* #define CRYPT_TEST    */
+/* #define CRYPT_TEST */
 
 /* Enable benchmark               */
 /* can be enabled with cyrpt test */
-/* #define BENCHMARK*/
+/*#define BENCHMARK*/
 
 /* Enable TLS client     */
 /* cannot enable with other definition */
-/* #define TLS_CLIENT*/
+ #define TLS_CLIENT
 
 /* Enable TLS server     */
 /* cannot enable with other definition */
