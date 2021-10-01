@@ -1072,7 +1072,7 @@ typedef enum bench_stat_type {
     typedef struct bench_stats {
         struct bench_stats* next;
         struct bench_stats* prev;
-        char algo[BENCH_MAX_NAME_SZ]; /* may not be static, so make copy */
+        char algo[BENCH_MAX_NAME_SZ+1]; /* may not be static, so make copy */
         const char* desc;
         double perfsec;
         int strength;
