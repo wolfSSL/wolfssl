@@ -637,6 +637,10 @@ extern unsigned int my_rng_seed_gen(void);
 #undef  NO_SIG_WRAPPER
 //#define NO_SIG_WRAPPER
 
+#undef WOLFSSL_IGNORE_FILE_WARN
+#define WOLFSSL_IGNORE_FILE_WARN
+
+
 #ifdef __cplusplus
 }
 #endif
