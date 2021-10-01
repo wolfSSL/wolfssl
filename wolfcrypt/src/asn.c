@@ -20294,7 +20294,9 @@ static int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
 {
     int ret = 0;
 #ifndef WOLFSSL_ASN_TEMPLATE
-    word32 idx = 0, bitStringSz, algoSz, sz = 0;
+    word32 idx = 0;
+    word32 seqDataSz = 0;
+    word32 sz;
 #else
     int sz = 0;
     DECL_ASNSETDATA(dataASN, edPubKeyASN_Length);
@@ -20307,11 +20309,11 @@ static int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
 #ifndef WOLFSSL_ASN_TEMPLATE
     /* calculate size */
     if (withHeader) {
-        algoSz      = SetAlgoID(keyType, NULL, oidKeyType, 0);
-        bitStringSz = SetBitString(pubKeyLen, 0, NULL);
+        word32 algoSz      = SetAlgoID(keyType, NULL, oidKeyType, 0);
+        word32 bitStringSz = SetBitString(pubKeyLen, 0, NULL);
 
-        sz  = algoSz + bitStringSz + pubKeyLen;
-        sz += SetSequence(outLen, NULL);
+        seqDataSz = algoSz + bitStringSz + pubKeyLen;
+        sz = SetSequence(seqDataSz, NULL) + seqDataSz;
     }
     else {
         sz = pubKeyLen;
@@ -20325,13 +20327,11 @@ static int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
     /* headers */
     if (ret == 0 && output != NULL && withHeader) {
         /* sequence */
-        idx = SetSequence(algoSz + bitStringSz + pubKeyLen, output);
+        idx = SetSequence(seqDataSz, output);
         /* algo */
-        algoSz = SetAlgoID(keyType, output + idx, oidKeyType, 0);
-        idx += algoSz;
+        idx += SetAlgoID(keyType, output + idx, oidKeyType, 0);
         /* bit string */
-        bitStringSz = SetBitString(pubKeyLen, 0, output + idx);
-        idx += bitStringSz;
+        idx += SetBitString(pubKeyLen, 0, output + idx);
     }
 
     if (ret == 0 && output != NULL) {
