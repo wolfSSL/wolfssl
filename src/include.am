@@ -129,9 +129,7 @@ endif
 
 if BUILD_AESNI
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_asm.S
-if BUILD_INTELASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
-endif
 endif
 
 if BUILD_DES3
@@ -208,9 +206,7 @@ endif
 
 if BUILD_AESNI
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_asm.S
-if BUILD_INTELASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
-endif
 endif
 
 if BUILD_DES3
@@ -279,9 +275,7 @@ endif
 
 if BUILD_AESNI
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_asm.S
-if BUILD_INTELASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
-endif
 endif
 
 if BUILD_SHA
