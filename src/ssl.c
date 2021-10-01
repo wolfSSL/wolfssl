@@ -7904,6 +7904,28 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
     const unsigned char* mem;
     long memSz = inSz;
 
+#if !defined(NO_RSA) || defined(HAVE_ECC) || !defined(NO_DSA) || !defined(NO_DH)
+    union {
+#if !defined(NO_RSA)
+        RsaKey rsa;
+#endif
+#ifdef HAVE_ECC
+        ecc_key ecc;
+#endif
+#if !defined(NO_DSA)
+        DsaKey dsa;
+#endif
+#if !defined(NO_DH)
+        DhKey dh;
+#endif
+    }
+#ifdef WOLFSSL_SMALL_STACK
+        *test_key = NULL;
+#else
+        test_key[1];
+#endif
+#endif /* !NO_RSA || HAVE_ECC || !NO_DSA || !NO_DH */
+
     WOLFSSL_ENTER("wolfSSL_d2i_PUBKEY");
 
     if (in == NULL || inSz < 0) {
@@ -7912,15 +7934,21 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
     }
     mem = *in;
 
+#ifdef WOLFSSL_SMALL_STACK
+    if ((test_key = (void *)XMALLOC(sizeof(*test_key), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) {
+        WOLFSSL_MSG("malloc failure");
+        return NULL;
+    }
+#endif
+
     #if !defined(NO_RSA)
     {
-        RsaKey rsa;
         word32 keyIdx = 0;
 
         /* test if RSA key */
-        if (wc_InitRsaKey(&rsa, NULL) == 0 &&
-            wc_RsaPublicKeyDecode(mem, &keyIdx, &rsa, (word32)memSz) == 0) {
-            wc_FreeRsaKey(&rsa);
+        if (wc_InitRsaKey(&test_key->rsa, NULL) == 0 &&
+            wc_RsaPublicKeyDecode(mem, &keyIdx, &test_key->rsa, (word32)memSz) == 0) {
+            wc_FreeRsaKey(&test_key->rsa);
             pkey = wolfSSL_EVP_PKEY_new();
             if (pkey != NULL) {
                 pkey->pkey_sz = keyIdx;
@@ -7928,7 +7956,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
                         DYNAMIC_TYPE_PUBLIC_KEY);
                 if (pkey->pkey.ptr == NULL) {
                     wolfSSL_EVP_PKEY_free(pkey);
-                    return NULL;
+                    pkey = NULL;
+                    goto out;
                 }
                 XMEMCPY(pkey->pkey.ptr, mem, keyIdx);
                 pkey->type = EVP_PKEY_RSA;
@@ -7940,34 +7969,35 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
                 pkey->rsa = wolfSSL_RSA_new();
                 if (pkey->rsa == NULL) {
                     wolfSSL_EVP_PKEY_free(pkey);
-                    return NULL;
+                    pkey = NULL;
+                    goto out;
                 }
 
                 if (wolfSSL_RSA_LoadDer_ex(pkey->rsa,
                             (const unsigned char*)pkey->pkey.ptr,
                             pkey->pkey_sz, WOLFSSL_RSA_LOAD_PUBLIC) != 1) {
                     wolfSSL_EVP_PKEY_free(pkey);
-                    return NULL;
+                    pkey = NULL;
+                    goto out;
                 }
 
-                return pkey;
+                goto out;
             }
             else {
                 WOLFSSL_MSG("RSA wolfSSL_EVP_PKEY_new error");
             }
         }
-        wc_FreeRsaKey(&rsa);
+        wc_FreeRsaKey(&test_key->rsa);
     }
     #endif /* NO_RSA */
 
     #ifdef HAVE_ECC
     {
         word32  keyIdx = 0;
-        ecc_key ecc;
 
-        if (wc_ecc_init(&ecc) == 0 &&
-            wc_EccPublicKeyDecode(mem, &keyIdx, &ecc, (word32)memSz) == 0) {
-            wc_ecc_free(&ecc);
+        if (wc_ecc_init(&test_key->ecc) == 0 &&
+            wc_EccPublicKeyDecode(mem, &keyIdx, &test_key->ecc, (word32)memSz) == 0) {
+            wc_ecc_free(&test_key->ecc);
             pkey = wolfSSL_EVP_PKEY_new();
             if (pkey != NULL) {
                 pkey->pkey_sz = keyIdx;
@@ -7975,7 +8005,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
                         DYNAMIC_TYPE_PUBLIC_KEY);
                 if (pkey->pkey.ptr == NULL) {
                     wolfSSL_EVP_PKEY_free(pkey);
-                    return NULL;
+                    pkey = NULL;
+                    goto out;
                 }
                 XMEMCPY(pkey->pkey.ptr, mem, keyIdx);
                 pkey->type = EVP_PKEY_EC;
@@ -7987,35 +8018,36 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
                 pkey->ecc = wolfSSL_EC_KEY_new();
                 if (pkey->ecc == NULL) {
                     wolfSSL_EVP_PKEY_free(pkey);
-                    return NULL;
+                    pkey = NULL;
+                    goto out;
                 }
 
                 if (wolfSSL_EC_KEY_LoadDer_ex(pkey->ecc,
                             (const unsigned char*)pkey->pkey.ptr,
                             pkey->pkey_sz, WOLFSSL_EC_KEY_LOAD_PUBLIC) != 1) {
                     wolfSSL_EVP_PKEY_free(pkey);
-                    return NULL;
+                    pkey = NULL;
+                    goto out;
                 }
 
-                return pkey;
+                goto out;
             }
             else {
                 WOLFSSL_MSG("ECC wolfSSL_EVP_PKEY_new error");
             }
         }
-        wc_ecc_free(&ecc);
+        wc_ecc_free(&test_key->ecc);
     }
     #endif /* HAVE_ECC */
 
     #if !defined(NO_DSA)
     {
-        DsaKey dsa;
         word32 keyIdx = 0;
 
         /* test if DSA key */
-        if (wc_InitDsaKey(&dsa) == 0 &&
-            wc_DsaPublicKeyDecode(mem, &keyIdx, &dsa, (word32)memSz) == 0) {
-            wc_FreeDsaKey(&dsa);
+        if (wc_InitDsaKey(&test_key->dsa) == 0 &&
+            wc_DsaPublicKeyDecode(mem, &keyIdx, &test_key->dsa, (word32)memSz) == 0) {
+            wc_FreeDsaKey(&test_key->dsa);
             pkey = wolfSSL_EVP_PKEY_new();
 
             if (pkey != NULL) {
@@ -8024,7 +8056,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
                         DYNAMIC_TYPE_PUBLIC_KEY);
                 if (pkey->pkey.ptr == NULL) {
                     wolfSSL_EVP_PKEY_free(pkey);
-                    return NULL;
+                    pkey = NULL;
+                    goto out;
                 }
                 XMEMCPY(pkey->pkey.ptr, mem, keyIdx);
                 pkey->type = EVP_PKEY_DSA;
@@ -8036,7 +8069,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
                 pkey->dsa = wolfSSL_DSA_new();
                 if (pkey->dsa == NULL) {
                     wolfSSL_EVP_PKEY_free(pkey);
-                    return NULL;
+                    pkey = NULL;
+                    goto out;
                 }
 
 
@@ -8044,16 +8078,17 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
                             (const unsigned char*)pkey->pkey.ptr,
                             pkey->pkey_sz, WOLFSSL_DSA_LOAD_PUBLIC) != 1) {
                     wolfSSL_EVP_PKEY_free(pkey);
-                    return NULL;
+                    pkey = NULL;
+                    goto out;
                 }
 
-                return pkey;
+                goto out;
             }
             else {
                 WOLFSSL_MSG("DSA wolfSSL_EVP_PKEY_new error");
             }
         }
-        wc_FreeDsaKey(&dsa);
+        wc_FreeDsaKey(&test_key->dsa);
     }
     #endif /* NO_DSA */
 
@@ -8061,13 +8096,12 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
     #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
         (HAVE_FIPS_VERSION > 2))
     {
-        DhKey dh;
         word32 keyIdx = 0;
 
         /* test if DH key */
-        if (wc_InitDhKey(&dh) == 0 &&
-            wc_DhKeyDecode(mem, &keyIdx, &dh, (word32)memSz) == 0) {
-            wc_FreeDhKey(&dh);
+        if (wc_InitDhKey(&test_key->dh) == 0 &&
+            wc_DhKeyDecode(mem, &keyIdx, &test_key->dh, (word32)memSz) == 0) {
+            wc_FreeDhKey(&test_key->dh);
             pkey = wolfSSL_EVP_PKEY_new();
 
             if (pkey != NULL) {
@@ -8076,7 +8110,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
                         DYNAMIC_TYPE_PUBLIC_KEY);
                 if (pkey->pkey.ptr == NULL) {
                     wolfSSL_EVP_PKEY_free(pkey);
-                    return NULL;
+                    pkey = NULL;
+                    goto out;
                 }
                 XMEMCPY(pkey->pkey.ptr, mem, memSz);
                 pkey->type = EVP_PKEY_DH;
@@ -8088,23 +8123,25 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
                 pkey->dh = wolfSSL_DH_new();
                 if (pkey->dh == NULL) {
                     wolfSSL_EVP_PKEY_free(pkey);
-                    return NULL;
+                    pkey = NULL;
+                    goto out;
                 }
 
                 if (wolfSSL_DH_LoadDer(pkey->dh,
                             (const unsigned char*)pkey->pkey.ptr,
                             pkey->pkey_sz) != WOLFSSL_SUCCESS) {
                     wolfSSL_EVP_PKEY_free(pkey);
-                    return NULL;
+                    pkey = NULL;
+                    goto out;
                 }
 
-                return pkey;
+                goto out;
             }
             else {
                 WOLFSSL_MSG("DH wolfSSL_EVP_PKEY_new error");
             }
         }
-        wc_FreeDhKey(&dh);
+        wc_FreeDhKey(&test_key->dh);
     }
     #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
     #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
@@ -8113,17 +8150,18 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
     #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
             (HAVE_FIPS_VERSION > 2))
     {
-        DhKey   dh;
         word32  keyIdx = 0;
         DhKey*  key = NULL;
         int ret;
         int elements;
         /* test if DH-public key */
-        if (wc_InitDhKey(&dh) != 0)
-            return NULL;
+        if (wc_InitDhKey(&test_key->dh) != 0) {
+            pkey = NULL;
+            goto out;
+        }
 
-        ret = wc_DhPublicKeyDecode(mem, &keyIdx, &dh, (word32)memSz);
-        wc_FreeDhKey(&dh);
+        ret = wc_DhPublicKeyDecode(mem, &keyIdx, &test_key->dh, (word32)memSz);
+        wc_FreeDhKey(&test_key->dh);
 
         if (ret == 0) {
             pkey = wolfSSL_EVP_PKEY_new();
@@ -8134,7 +8172,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
                     DYNAMIC_TYPE_PUBLIC_KEY);
                 if (pkey->pkey.ptr == NULL) {
                     wolfSSL_EVP_PKEY_free(pkey);
-                    return NULL;
+                    pkey = NULL;
+                    goto out;
                 }
                 XMEMCPY(pkey->pkey.ptr, mem, memSz);
                 if (out != NULL) {
@@ -8144,7 +8183,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
                 pkey->dh = wolfSSL_DH_new();
                 if (pkey->dh == NULL) {
                     wolfSSL_EVP_PKEY_free(pkey);
-                    return NULL;
+                    pkey = NULL;
+                    goto out;
                 }
 
                 key = (DhKey*)pkey->dh->internal;
@@ -8155,7 +8195,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
                     elements = ELEMENT_P | ELEMENT_G | ELEMENT_Q | ELEMENT_PUB;
                     if( SetDhExternal_ex(pkey->dh, elements)
                                                          == WOLFSSL_SUCCESS ){
-                        return pkey;
+                        goto out;
                     }
                     /*
                     if (SetIndividualExternal(&(pkey->dh->p), &key->p)
@@ -8166,12 +8206,13 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
                         == WOLFSSL_SUCCESS &&
                         SetIndividualExternal(&(pkey->dh->pub_key), &key->pub)
                         == WOLFSSL_SUCCESS) {
-                        return pkey;
+                        goto out;
                     } */
                 }
                 else {
                     wolfSSL_EVP_PKEY_free(pkey);
-                    return NULL;
+                    pkey = NULL;
+                    goto out;
                 }
             }
         }
@@ -8182,6 +8223,12 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
     if (pkey == NULL) {
         WOLFSSL_MSG("wolfSSL_d2i_PUBKEY couldn't determine key type");
     }
+
+  out:
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(test_key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return pkey;
 }
