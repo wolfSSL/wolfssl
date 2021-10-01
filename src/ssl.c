@@ -44301,6 +44301,21 @@ err:
 #endif /* WOLFSSL_PEM_TO_DER || WOLFSSL_DER_TO_PEM */
     }
 
+    WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_INFO)* wolfSSL_PEM_X509_INFO_read(
+            XFILE fp, WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk,
+            pem_password_cb* cb, void* u)
+    {
+        WOLFSSL_BIO* file_bio = wolfSSL_BIO_new_fp(fp, BIO_NOCLOSE);
+        WOLF_STACK_OF(WOLFSSL_X509_INFO)* ret = NULL;
+
+        WOLFSSL_ENTER("wolfSSL_PEM_X509_INFO_read");
+        if (file_bio != NULL) {
+            ret = wolfSSL_PEM_X509_INFO_read_bio(file_bio, sk, cb, u);
+            wolfSSL_BIO_free(file_bio);
+        }
+        return ret;
+    }
+
     /*
      * bio WOLFSSL_BIO to read certificates from
      * sk  possible stack to push more X509_INFO structs to. Can be NULL

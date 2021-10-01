@@ -420,6 +420,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define PEM_write_bio_X509              wolfSSL_PEM_write_bio_X509
 #define PEM_write_bio_X509_AUX          wolfSSL_PEM_write_bio_X509_AUX
 #define PEM_X509_INFO_read_bio          wolfSSL_PEM_X509_INFO_read_bio
+#define PEM_X509_INFO_read              wolfSSL_PEM_X509_INFO_read
 #define i2d_PrivateKey                  wolfSSL_i2d_PrivateKey
 #define i2d_PublicKey                   wolfSSL_i2d_PublicKey
 
@@ -821,8 +822,10 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define i2d_ASN1_OBJECT                 wolfSSL_i2d_ASN1_OBJECT
 
 #define ASN1_STRING_new                 wolfSSL_ASN1_STRING_new
+#define ASN1_OCTET_STRING_new           wolfSSL_ASN1_STRING_new
 #define ASN1_STRING_free                wolfSSL_ASN1_STRING_free
 #define ASN1_STRING_cmp                 wolfSSL_ASN1_STRING_cmp
+#define ASN1_OCTET_STRING_cmp           wolfSSL_ASN1_STRING_cmp
 #define ASN1_STRING_data                wolfSSL_ASN1_STRING_data
 #define ASN1_STRING_get0_data           wolfSSL_ASN1_STRING_get0_data
 #define ASN1_STRING_length              wolfSSL_ASN1_STRING_length

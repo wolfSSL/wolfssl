@@ -658,6 +658,11 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
     int fill;
 
     WOLFSSL_ENTER("wolfSSL_EVP_CipherUpdate");
+    if (inl == 0 && in == NULL ) {
+        /* Nothing to do in this case. Just return. */
+        return WOLFSSL_SUCCESS;
+    }
+
     if ((ctx == NULL) || (inl < 0) || (outl == NULL)|| (in == NULL)) {
         WOLFSSL_MSG("Bad argument");
         return WOLFSSL_FAILURE;
@@ -7245,6 +7250,11 @@ int wolfSSL_EVP_MD_block_size(const WOLFSSL_EVP_MD* type)
     if (XSTRNCMP(type, "SHA256", 6) == 0) {
         return WC_SHA256_BLOCK_SIZE;
     }
+#ifndef NO_MD4
+    else if (XSTRNCMP(type, "MD4", 3) == 0) {
+        return MD4_BLOCK_SIZE;
+    }
+#endif
 #ifndef NO_MD5
     else if (XSTRNCMP(type, "MD5", 3) == 0) {
         return WC_MD5_BLOCK_SIZE;
@@ -7309,6 +7319,11 @@ int wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* type)
     if (XSTRNCMP(type, "SHA256", 6) == 0) {
         return WC_SHA256_DIGEST_SIZE;
     }
+#ifndef NO_MD4
+    else if (XSTRNCMP(type, "MD4", 3) == 0) {
+        return MD4_DIGEST_SIZE;
+    }
+#endif
 #ifndef NO_MD5
     else if (XSTRNCMP(type, "MD5", 3) == 0) {
         return WC_MD5_DIGEST_SIZE;
