@@ -568,6 +568,27 @@ WOLFSSL_API int wolfSSL_use_old_poly(WOLFSSL*, int);
 WOLFSSL_API int wolfSSL_dtls_import(WOLFSSL* ssl, unsigned char* buf,
                                                                unsigned int sz);
 
+
+/*!
+    \brief Used to import a serialized TLS session. This function is for
+    importing the state of the connection.
+    WARNING: buf contains sensitive information about the state and is best to
+    be encrypted before storing if stored.
+    Additional debug info can be displayed with the macro
+    WOLFSSL_SESSION_EXPORT_DEBUG defined.
+
+    \return the number of bytes read from buffer 'buf'
+
+    \param ssl WOLFSSL structure to import the session into
+    \param buf serialized session
+    \param sz  size of buffer 'buf'
+
+    \sa wolfSSL_dtls_import
+    \sa wolfSSL_tls_export
+ */
+WOLFSSL_API int wolfSSL_tls_import(WOLFSSL* ssl, const unsigned char* buf,
+        unsigned int sz);
+
 /*!
     \brief The wolfSSL_CTX_dtls_set_export() function is used to set
     the callback function for exporting a session. It is allowed to
@@ -679,6 +700,28 @@ WOLFSSL_API int wolfSSL_dtls_set_export(WOLFSSL* ssl, wc_dtls_export func);
 */
 WOLFSSL_API int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf,
                                                               unsigned int* sz);
+
+/*!
+    \brief Used to export a serialized TLS session. This function is for
+    importing a serialized state of the connection.
+    In most cases wolfSSL_get_session should be used instead of
+    wolfSSL_tls_export.
+    Additional debug info can be displayed with the macro
+    WOLFSSL_SESSION_EXPORT_DEBUG defined.
+    WARNING: buf contains sensitive information about the state and is best to
+             be encrypted before storing if stored.
+
+    \return the number of bytes written into buffer 'buf'
+
+    \param ssl WOLFSSL structure to export the session from
+    \param buf output of serialized session
+    \param sz  size in bytes set in 'buf'
+
+    \sa wolfSSL_dtls_import
+    \sa wolfSSL_tls_import
+ */
+WOLFSSL_API int wolfSSL_tls_export(WOLFSSL* ssl, unsigned char* buf,
+        unsigned int* sz);
 
 /*!
     \brief This function is used to set aside static memory for a CTX. Memory

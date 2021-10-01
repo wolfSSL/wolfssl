@@ -477,24 +477,17 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 
     return sz;
 }
+#endif /* WOLFSSL_DTLS */
 
 #ifdef WOLFSSL_SESSION_EXPORT
 
-    /* get the peer information in human readable form (ip, port, family)
-     * default function assumes BSD sockets
-     * can be overridden with wolfSSL_CTX_SetIOGetPeer
-     */
-    int EmbedGetPeer(WOLFSSL* ssl, char* ip, int* ipSz,
+#ifdef WOLFSSL_DTLS
+    static int EmbedGetPeerDTLS(WOLFSSL* ssl, char* ip, int* ipSz,
                                                  unsigned short* port, int* fam)
     {
         SOCKADDR_S peer;
         word32     peerSz;
         int        ret;
-
-        if (ssl == NULL || ip == NULL || ipSz == NULL ||
-                                                  port == NULL || fam == NULL) {
-            return BAD_FUNC_ARG;
-        }
 
         /* get peer information stored in ssl struct */
         peerSz = sizeof(SOCKADDR_S);
@@ -536,18 +529,14 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
         return WOLFSSL_SUCCESS;
     }
 
-    /* set the peer information in human readable form (ip, port, family)
-     * default function assumes BSD sockets
-     * can be overridden with wolfSSL_CTX_SetIOSetPeer
-     */
-    int EmbedSetPeer(WOLFSSL* ssl, char* ip, int ipSz,
+    static int EmbedSetPeerDTLS(WOLFSSL* ssl, char* ip, int ipSz,
                                                    unsigned short port, int fam)
     {
         int    ret;
         SOCKADDR_S addr;
 
         /* sanity checks on arguments */
-        if (ssl == NULL || ip == NULL || ipSz < 0 || ipSz > DTLS_EXPORT_IP) {
+        if (ssl == NULL || ip == NULL || ipSz < 0 || ipSz > MAX_EXPORT_IP) {
             return BAD_FUNC_ARG;
         }
 
@@ -594,8 +583,62 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 
         return WOLFSSL_SUCCESS;
     }
+#endif
+
+    /* get the peer information in human readable form (ip, port, family)
+     * default function assumes BSD sockets
+     * can be overridden with wolfSSL_CTX_SetIOGetPeer
+     */
+    int EmbedGetPeer(WOLFSSL* ssl, char* ip, int* ipSz,
+                                                 unsigned short* port, int* fam)
+    {
+        if (ssl == NULL || ip == NULL || ipSz == NULL ||
+                                                  port == NULL || fam == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        if (ssl->options.dtls) {
+        #ifdef WOLFSSL_DTLS
+            return EmbedGetPeerDTLS(ssl, ip, ipSz, port, fam);
+        #else
+            return NOT_COMPILED_IN;
+        #endif
+        }
+        else {
+            *port = wolfSSL_get_fd(ssl);
+            ip[0] = '\0';
+            *ipSz = 0;
+            *fam  = 0;
+            return WOLFSSL_SUCCESS;
+        }
+    }
+
+    /* set the peer information in human readable form (ip, port, family)
+     * default function assumes BSD sockets
+     * can be overridden with wolfSSL_CTX_SetIOSetPeer
+     */
+    int EmbedSetPeer(WOLFSSL* ssl, char* ip, int ipSz,
+                                                   unsigned short port, int fam)
+    {
+        /* sanity checks on arguments */
+        if (ssl == NULL || ip == NULL || ipSz < 0 || ipSz > MAX_EXPORT_IP) {
+            return BAD_FUNC_ARG;
+        }
+
+        if (ssl->options.dtls) {
+        #ifdef WOLFSSL_DTLS
+            return EmbedSetPeerDTLS(ssl, ip, ipSz, port, fam);
+        #else
+            return NOT_COMPILED_IN;
+        #endif
+        }
+        else {
+            wolfSSL_set_fd(ssl, port);
+            (void)fam;
+            return WOLFSSL_SUCCESS;
+        }
+    }
 #endif /* WOLFSSL_SESSION_EXPORT */
-#endif /* WOLFSSL_DTLS */
 
 #ifdef WOLFSSL_LINUXKM
 static int linuxkm_send(struct socket *socket, void *buf, int size,
@@ -1772,6 +1815,7 @@ void* wolfSSL_GetCookieCtx(WOLFSSL* ssl)
 
     return NULL;
 }
+#endif /* WOLFSSL_DTLS */
 
 #ifdef WOLFSSL_SESSION_EXPORT
 
@@ -1789,7 +1833,6 @@ void wolfSSL_CTX_SetIOSetPeer(WOLFSSL_CTX* ctx, CallbackSetPeer cb)
 }
 
 #endif /* WOLFSSL_SESSION_EXPORT */
-#endif /* WOLFSSL_DTLS */
 
 
 #ifdef HAVE_NETX

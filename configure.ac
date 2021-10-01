@@ -6013,10 +6013,6 @@ AC_ARG_ENABLE([sessionexport],
 if test "$ENABLED_SESSIONEXPORT" = "yes" ||
    test "$ENABLED_SESSIONEXPORT" = "nopeer"
 then
-    if test "$ENABLED_DTLS" = "no"
-    then
-        AC_MSG_ERROR([Only DTLS supported with session export])
-    fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SESSION_EXPORT"
 
     if test "$ENABLED_SESSIONEXPORT" = "nopeer"
