@@ -6352,7 +6352,7 @@ static void test_wolfSSL_UseSNI_connection(void)
         {.ssl_ready = use_MANDATORY_SNI_at_ssl, .on_result = verify_SNI_ABSENT_on_server},
 
         /* sni abort - success when overwritten */
-        {0},
+        {.ctx_ready = NULL},
         {.ctx_ready = use_MANDATORY_SNI_at_ctx, .ssl_ready = use_SNI_at_ssl, .on_result = verify_SNI_no_matching},
 
         /* sni abort - success when allowing mismatches */
@@ -6843,7 +6843,7 @@ static void test_wolfSSL_UseALPN_connection(void)
         {.ssl_ready = use_ALPN_all, .on_result = verify_ALPN_matching_spdy2},
 
         /* success case none for client */
-        {0},
+        {.ssl_ready = NULL},
         {.ssl_ready = use_ALPN_all},
 
         /* success case mismatch behavior but option 'continue' set */
@@ -49817,8 +49817,7 @@ static void test_SSL_CIPHER_get_xxx(void)
 #endif
 }
 
-#if defined(WOLF_CRYPTO_CB) && !defined(WOLFCRYPT_ONLY) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_IO_TESTS_DEPENDENCIES)
 
 static int load_pem_key_file_as_der(const char* privKeyFile, DerBuffer** pDer,
     int* keyFormat)
@@ -49976,12 +49975,17 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
                 ret = wc_Ed25519PrivateKeyDecode(pDer->buffer, &keyIdx,
                     &key, pDer->length);
                 if (ret == 0) {
-                    ret = wc_ed25519_sign_msg_ex(
-                        info->pk.ed25519sign.in, info->pk.ed25519sign.inLen,
-                        info->pk.ed25519sign.out, info->pk.ed25519sign.outLen,
-                        &key, info->pk.ed25519sign.type,
-                        info->pk.ed25519sign.context,
-                        info->pk.ed25519sign.contextLen);
+                    /* calculate public key */
+                    ret = wc_ed25519_make_public(&key, key.p, ED25519_PUB_KEY_SIZE);
+                    if (ret == 0) {
+                        key.pubKeySet = 1;
+                        ret = wc_ed25519_sign_msg_ex(
+                            info->pk.ed25519sign.in, info->pk.ed25519sign.inLen,
+                            info->pk.ed25519sign.out, info->pk.ed25519sign.outLen,
+                            &key, info->pk.ed25519sign.type,
+                            info->pk.ed25519sign.context,
+                            info->pk.ed25519sign.contextLen);
+                    }
                 }
                 else {
                     /* if decode fails, then fall-back to software based crypto */
@@ -50065,15 +50069,14 @@ static void test_wc_CryptoCb_TLS(int tlsVer,
     AssertIntEQ(server_cbf.return_code, TEST_SUCCESS);
     AssertIntEQ(client_cbf.return_code, TEST_SUCCESS);
 }
-#endif /* WOLF_CRYPTO_CB */
+#endif /* WOLF_CRYPTO_CB && HAVE_IO_TESTS_DEPENDENCIES */
 
 static void test_wc_CryptoCb(void)
 {
 #ifdef WOLF_CRYPTO_CB
     /* TODO: Add crypto callback API tests */
 
-#if !defined(WOLFCRYPT_ONLY) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+#ifdef HAVE_IO_TESTS_DEPENDENCIES
     #ifndef NO_RSA
     /* RSA */
     test_wc_CryptoCb_TLS(WOLFSSL_TLSV1_3,
@@ -50103,7 +50106,7 @@ static void test_wc_CryptoCb(void)
         caEdCertFile, cliEdCertFile, cliEdKeyFile, cliEdKeyPubFile,
         cliEdCertFile, edCertFile, edKeyFile, edKeyPubFile);
     #endif
-#endif
+#endif /* HAVE_IO_TESTS_DEPENDENCIES */
 #endif /* WOLF_CRYPTO_CB */
 }
 
