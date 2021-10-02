@@ -163,13 +163,13 @@
 
     For a quick start, you can run the client and server like this:
 
-    $ ./examples/server/server -v 4 --oqs P256_KYBER_LEVEL3
-    $ ./examples/client/client -v 4 --oqs P256_KYBER_LEVEL3
+    $ ./examples/server/server -v 4 --oqs P521_KYBER_LEVEL5
+    $ ./examples/client/client -v 4 --oqs P521_KYBER_LEVEL5
 
     Look for the following line in the output of the server and client:
 
     ```
-    Using OQS KEM: P256_KYBER_LEVEL3
+    Using OQS KEM: P521_KYBER_LEVEL5
     ```
 
     The following NIST Competition Round 3 Finalist KEMs are supported:
