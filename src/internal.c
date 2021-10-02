@@ -18530,10 +18530,24 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
 
 static int cipherExtraData(WOLFSSL* ssl)
 {
+    int cipherExtra;
     /* Cipher data that may be added by BuildMessage */
-    return ssl->specs.hash_size + ssl->specs.block_size +
-            ssl->specs.aead_mac_size + ssl->specs.iv_size +
-            ssl->specs.pad_size;
+    /* There is always an IV. For AEAD ciphers, there is the
+     * authentication tag (aead_mac_size). For block ciphers
+     * we have the hash_size MAC on the message, and one
+     * block size for possible padding. */
+    if (ssl->specs.cipher_type == aead) {
+        cipherExtra = ssl->specs.aead_mac_size;
+        /* CHACHA does not have an explicit IV. */
+        if (ssl->specs.bulk_cipher_algorithm != wolfssl_chacha) {
+            cipherExtra += ssl->specs.iv_size;
+        }
+    }
+    else {
+        cipherExtra = ssl->specs.iv_size + ssl->specs.block_size +
+            ssl->specs.hash_size;
+    }
+    return cipherExtra;
 }
 
 #ifndef WOLFSSL_NO_TLS12
