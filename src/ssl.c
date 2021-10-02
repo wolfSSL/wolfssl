@@ -5356,7 +5356,7 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
             *idx = 0;
             ret = wc_RsaPrivateKeyDecode(der->buffer, idx, key, der->length);
         #ifdef WOLF_CRYPTO_CB
-            if (ret != 0 && ctx->devId != INVALID_DEVID) {
+            if (ret != 0 && devId != INVALID_DEVID) {
                 /* if using crypto callbacks, try public key decode */
                 *idx = 0;
                 ret = wc_RsaPublicKeyDecode(der->buffer, idx, key, der->length);
@@ -5426,7 +5426,7 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
             *idx = 0;
             ret = wc_EccPrivateKeyDecode(der->buffer, idx, key, der->length);
         #ifdef WOLF_CRYPTO_CB
-            if (ret != 0 && ctx->devId != INVALID_DEVID) {
+            if (ret != 0 && devId != INVALID_DEVID) {
                 /* if using crypto callbacks, try public key decode */
                 *idx = 0;
                 ret = wc_EccPublicKeyDecode(der->buffer, idx, key, der->length);
@@ -5491,7 +5491,7 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
             *idx = 0;
             ret = wc_Ed25519PrivateKeyDecode(der->buffer, idx, key, der->length);
         #ifdef WOLF_CRYPTO_CB
-            if (ret != 0 && ctx->devId != INVALID_DEVID) {
+            if (ret != 0 && devId != INVALID_DEVID) {
                 /* if using crypto callbacks, try public key decode */
                 *idx = 0;
                 ret = wc_Ed25519PublicKeyDecode(der->buffer, idx, key, der->length);
