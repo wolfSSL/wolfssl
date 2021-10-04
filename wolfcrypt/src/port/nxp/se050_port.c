@@ -60,12 +60,10 @@ struct ecc_key;
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
 
-/* ECC SIGN 70 = keyStoreId - Implementation specific ID */
 /* AES 55 = keyStoreId - Implementation specific ID */
-/* ECC Shared Secret 60 = keyStoreId - Implementation specific ID */
-/* ECC VERIFY 61 = keyStoreId - Implementation specific ID */
-/* ECC VERIFY AFTER SIGN 60 = keyStoreId - Implementation specific ID */
-/* ED25519 55 = keyStoreId - Implementation specific ID */
+/* ECC SIGN 56 = keyStoreId - Implementation specific ID */
+/* ECC VERIFY 57 = keyStoreId - Implementation specific ID */
+/* ED25519 58 = keyStoreId - Implementation specific ID */
 
 /* Global variables */
 static sss_session_t *cfg_se050_i2c_pi;
@@ -112,10 +110,42 @@ int wc_se050_init(const char* portName)
 }
 #endif
 
-int se050_allocate_key(void)
+int se050_allocate_key(int keyType)
 {
-    static int keyId_allocater = 100;
-    return keyId_allocater++;
+    int keyId = 0;
+    static int keyId_allocator = 100;
+    switch(keyType) {
+
+    #ifndef SE050_KEYID_AES
+        case SE050_AES_KEY:
+            keyId = SE050_AES_KEYID;
+            break;
+    #endif
+
+    #ifndef SE050_KEYID_ECC_SIGN
+        case SE050_ECC_SIGN:
+            keyId = SE050_ECC_SIGN_KEYID;
+            break;
+    #endif
+
+    #ifndef SE050_KEYID_ECC_VERIFY
+        case SE050_ECC_VERIFY:
+            keyId = SE050_ECC_VERIFY_KEYID;
+            break;
+    #endif
+
+    #ifndef SE050_KEYID_ED25519
+        case SE050_ED25519:
+            keyId = SE050_ED25519_KEYID;
+            break;
+    #endif
+
+        case SE050_KEYID_ANY:
+            keyId = keyId_allocator++;
+            break;
+    }
+
+    return keyId;
 }
 
 #ifndef WC_NO_RNG
@@ -241,7 +271,7 @@ int se050_aes_set_key(Aes* aes, const byte* key, word32 len,
     sss_status_t status;
     sss_object_t newKey;
     sss_key_store_t host_keystore;
-    int keyId = se050_allocate_key();
+    int keyId = se050_allocate_key(SE050_AES_KEY);
     int ret = BAD_MUTEX_E;
 
     if (cfg_se050_i2c_pi == NULL) {
@@ -401,7 +431,7 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
     sss_key_store_t     host_keystore;
     sss_object_t        newKey;
     sss_algorithm_t     algorithm = kAlgorithm_None;
-    int         keyId = se050_allocate_key();
+    int         keyId = se050_allocate_key(SE050_ECC_SIGN);
     int         keysize = (word32)key->dp->size;
     int         ret = BAD_MUTEX_E;
 
@@ -514,7 +544,7 @@ int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, byte* signature,
 
     /* this is run when a key was not generated and was instead passed in */
     if (key->keyId == 0) {
-        int keyId = se050_allocate_key();
+        int keyId = se050_allocate_key(SE050_ECC_VERIFY);
         byte* derBuf = NULL;
 
         ret = wc_EccKeyToPKCS8(key, NULL, &derSz);
@@ -644,13 +674,12 @@ int se050_ecc_free_key(struct ecc_key* key)
 
     return ret;
 }
-
 int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize)
 {
     sss_status_t    status = kStatus_SSS_Success;
     sss_object_t    keyPair;
     sss_key_store_t host_keystore;
-    int keyId = se050_allocate_key();
+    int keyId = se050_allocate_key(SE050_KEYID_ANY);
     uint8_t keyPairExport[MAX_ECC_BYTES];
     size_t keyPairExportLen = sizeof(keyPairExport);
     size_t keyPairExportBitLen = sizeof(keyPairExport) * 8;
@@ -766,7 +795,7 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     }
 
     if (status == kStatus_SSS_Success) {
-        keyId = se050_allocate_key();
+        keyId = se050_allocate_key(SE050_KEYID_ANY);
 
         status = sss_key_object_allocate_handle(&deriveKey,
             keyId,
@@ -837,7 +866,7 @@ int se050_ed25519_create_key(ed25519_key* key)
     }
 
     if (status == kStatus_SSS_Success) {
-        keyId = se050_allocate_key();
+        keyId = se050_allocate_key(SE050_ED25519);
         status = sss_key_object_allocate_handle(&newKey, keyId,
             kSSS_KeyPart_Pair, kSSS_CipherType_EC_TWISTED_ED, keysize,
             kKeyObject_Mode_Transient);
@@ -873,7 +902,7 @@ void se050_ed25519_free_key(ed25519_key* key)
     }
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
-        return BAD_MUTEX_E;
+        return /*BAD_MUTEX_E*/;
     }
 
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
