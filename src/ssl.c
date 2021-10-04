@@ -56192,20 +56192,17 @@ unsigned long wolfSSL_LH_strhash(const char *str)
         return 0;
     }
 
-    ret = 0;
-    do {
-        if (wc_ShaUpdate(&sha, (const byte *)str, (word32)strLen) != 0) {
-            WOLFSSL_MSG("SHA1 Update failed");
-            break;
-        }
-        if (wc_ShaFinal(&sha, digest) != 0) {
+    ret = wc_ShaUpdate(&sha, (const byte *)str, (word32)strLen);
+    if (ret != 0) {
+        WOLFSSL_MSG("SHA1 Update failed");
+    } else {
+        ret = wc_ShaFinal(&sha, digest);
+        if (ret != 0) {
             WOLFSSL_MSG("SHA1 Final failed");
-            break;
         }
-        ret = 1;
-    } while (0);
+    }
     wc_ShaFree(&sha);
-    if (ret == 0)
+    if (ret != 0)
         return 0;
 
     /* Take first 4 bytes in small endian as unsigned long */
