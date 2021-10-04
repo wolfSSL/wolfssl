@@ -963,6 +963,7 @@ static int bench_tls_client(info_t* info)
             goto exit;
         }
 
+#ifdef WOLFSSL_TLS13
         if (info->group != 0) {
             ret = wolfSSL_UseKeyShare(cli_ssl, info->group);
             if (ret != WOLFSSL_SUCCESS) {
@@ -970,6 +971,7 @@ static int bench_tls_client(info_t* info)
                 goto exit;
             }
         }
+#endif
 
 #ifdef WOLFSSL_DTLS
         if (info->doDTLS) {
@@ -1387,6 +1389,7 @@ static int bench_tls_server(info_t* info)
             ret = MEMORY_E; goto exit;
         }
 
+#ifdef WOLFSSL_TLS13
         if (info->group != 0) {
             ret = wolfSSL_UseKeyShare(srv_ssl, info->group);
             if (ret != WOLFSSL_SUCCESS) {
@@ -1394,6 +1397,7 @@ static int bench_tls_server(info_t* info)
                 goto exit;
             }
         }
+#endif
 
 #ifdef WOLFSSL_DTLS
         if (info->doDTLS) {
@@ -1605,7 +1609,9 @@ static void Usage(void)
     fprintf(stderr, "-P          Port (default %d)\n", BENCH_DEFAULT_PORT);
     fprintf(stderr, "-e          List Every cipher suite available\n");
     fprintf(stderr, "-i          Show peer info\n");
+#ifdef WOLFSSL_TLS13
     fprintf(stderr, "-g          Run through each of the TLS 1.3 groups that are available\n");
+#endif
     fprintf(stderr, "-l <str>    Cipher suite list (: delimited)\n");
     fprintf(stderr, "-t <num>    Time <num> (seconds) to run each test (default %d)\n", BENCH_RUNTIME_SEC);
     fprintf(stderr, "-p <num>    The packet size <num> in bytes [1-16kB] (default %d)\n", TEST_PACKET_SIZE);
@@ -1636,7 +1642,9 @@ static void ShowCiphers(void)
         fprintf(stderr, "%s\n", ciphers);
 }
 
-static int SetupSupportedGroups(int verbose) {
+#ifdef WOLFSSL_TLS13
+static int SetupSupportedGroups(int verbose)
+{
     int i;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
@@ -1683,6 +1691,7 @@ static int SetupSupportedGroups(int verbose) {
         wolfSSL_CTX_free(ctx);
     return ret;
 }
+#endif
 
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
@@ -1725,7 +1734,9 @@ int bench_tls(void* args)
 #ifdef WOLFSSL_DTLS
     int doDTLS = 0;
 #endif
+#ifdef WOLFSSL_TLS13
     int argDoGroups = 0;
+#endif
 
     if (args != NULL) {
         argc = ((func_args*)args)->argc;
@@ -1770,9 +1781,14 @@ int bench_tls(void* args)
                 goto exit;
 
             case 'g' :
+#ifdef WOLFSSL_TLS13
                 argDoGroups = 1;
                 break;
-
+#else
+                fprintf(stderr, "There are only groups in TLS 1.3\n");
+                Usage();
+                ret = MY_EX_USAGE; goto exit;
+#endif
             case 'i' :
                 argShowPeerInfo = 1;
                 break;
@@ -1850,11 +1866,13 @@ int bench_tls(void* args)
         cipher = ciphers;
     }
 
+#ifdef WOLFSSL_TLS13
     if (argDoGroups) {
         if (SetupSupportedGroups(argShowVerbose) != 0) {
             goto exit;
         }
     }
+#endif
 
     /* for server or client side only, only 1 thread is allowed */
     if (argServerOnly || argClientOnly) {
@@ -1919,13 +1937,14 @@ int bench_tls(void* args)
             fprintf(stderr, "Cipher: %s\n", cipher);
         }
 
+#ifdef WOLFSSL_TLS13
         for (group_index = 0; groups[group_index].name != NULL; group_index++) {
 
             if (argDoGroups && groups[group_index].group == 0) {
                 /* Skip unsupported group. */
                 continue;
             }
-
+#endif
             for (i=0; i<argThreadPairs; i++) {
                 info = &theadInfo[i];
                 XMEMSET(info, 0, sizeof(info_t));
@@ -1934,9 +1953,11 @@ int bench_tls(void* args)
                 info->port = argPort + i; /* threads must have separate ports */
                 info->cipher = cipher;
 
+#ifdef WOLFSSL_TLS13
                 if (argDoGroups && XSTRNCMP(theadInfo[0].cipher, "TLS13", 5) == 0)
                     info->group = groups[group_index].group;
                 else
+#endif
                     info->group = 0;
 
                 info->packetSize = argTestPacketSize;
@@ -2078,13 +2099,14 @@ int bench_tls(void* args)
         #endif
             }
 
+#ifdef WOLFSSL_TLS13
             if (!argDoGroups || theadInfo[0].group == 0) {
                 /* We only needed to do this once because they don't want to
                  * benchmarks groups or this isn't a TLS 1.3 cipher. */
                 break;
             }
         }
-
+#endif 
         /* target next cipher */
         cipher = (next_cipher != NULL) ? (next_cipher + 1) : NULL;
     } /* while */
