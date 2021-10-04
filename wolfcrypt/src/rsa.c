@@ -629,9 +629,19 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
     plain = sig;
 
     ret = wc_RsaSSL_Sign((const byte*)msg, msgLen, sig, sigLen, key, rng);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (ret == WC_PENDING_E) {
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    }
+#endif
     if (ret > 0) {
         sigLen = (word32)ret;
         ret = wc_RsaSSL_VerifyInline(sig, sigLen, &plain, key);
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (ret == WC_PENDING_E) {
+            ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        }
+#endif
     }
 
     if (ret > 0) {
