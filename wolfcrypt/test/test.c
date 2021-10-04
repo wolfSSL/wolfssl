@@ -12020,7 +12020,7 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
 #endif
 #if !defined(USE_CERT_BUFFERS_256) && !defined(NO_ASN)
         #if defined(HAVE_ECC) && defined(WOLFSSL_CERT_GEN)
-            #ifndef NO_RSA
+            #if !defined(NO_RSA) && !defined(eccKeyPubFile)
                 /* eccKeyPubFile is used in a test that requires RSA. */
                 static const char* eccKeyPubFile = CERT_ROOT "ecc-keyPub.der";
             #endif

@@ -4820,16 +4820,23 @@ done:
 #endif /* defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TIRTOS) && !defined(NO_WOLFSSL_CLIENT) */
 }
 
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+     defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)) && \
+    defined(HAVE_ALPN) && defined(HAVE_SNI) && \
+    defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(NO_BIO)
+    #define HAVE_ALPN_PROTOS_SUPPORT
+#endif
 
 /* Generic TLS client / server with callbacks for API unit tests
- * Used by SNI / ALPN / session export / crypto callback helper functions */
+ * Used by SNI / ALPN / crypto callback helper functions */
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && \
     (defined(HAVE_SNI) || defined(HAVE_ALPN) || defined(WOLF_CRYPTO_CB) || \
-    (defined(WOLFSSL_SESSION_EXPORT) && defined(WOLFSSL_DTLS)))
+     defined(HAVE_ALPN_PROTOS_SUPPORT))
     #define ENABLE_TLS_CALLBACK_TEST
 #endif
 
-#ifdef ENABLE_TLS_CALLBACK_TEST
+#if defined(ENABLE_TLS_CALLBACK_TEST) || \
+    (defined(WOLFSSL_DTLS) && defined(WOLFSSL_SESSION_EXPORT))
 /* TLS server for API unit testing - generic */
 static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
 {
@@ -6315,6 +6322,11 @@ static void verify_FATAL_ERROR_on_client(WOLFSSL* ssl)
 }
 /* END of connection tests callbacks */
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
+
 static void test_wolfSSL_UseSNI_connection(void)
 {
     unsigned long i;
@@ -6368,6 +6380,10 @@ static void test_wolfSSL_UseSNI_connection(void)
         test_wolfSSL_client_server(&callbacks[i], &callbacks[i + 1]);
     }
 }
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 static void test_wolfSSL_SNI_GetFromBuffer(void)
 {
@@ -6691,8 +6707,7 @@ static void test_wolfSSL_UseSupportedCurve(void)
 #endif
 }
 
-#if defined(HAVE_ALPN) && !defined(NO_WOLFSSL_SERVER) && \
-    defined(HAVE_IO_TESTS_DEPENDENCIES)
+#if defined(HAVE_ALPN) && defined(HAVE_IO_TESTS_DEPENDENCIES)
 
 static void verify_ALPN_FATAL_ERROR_on_client(WOLFSSL* ssl)
 {
@@ -6826,6 +6841,11 @@ static void verify_ALPN_client_list(WOLFSSL* ssl)
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_ALPN_FreePeerProtocol(ssl, &clist));
 }
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
+
 static void test_wolfSSL_UseALPN_connection(void)
 {
     unsigned long i;
@@ -6872,6 +6892,10 @@ static void test_wolfSSL_UseALPN_connection(void)
         test_wolfSSL_client_server(&callbacks[i], &callbacks[i + 1]);
     }
 }
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 static void test_wolfSSL_UseALPN_params(void)
 {
@@ -6948,11 +6972,7 @@ static void test_wolfSSL_UseALPN_params(void)
 }
 #endif /* HAVE_ALPN  */
 
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)) && \
-    (defined(HAVE_ALPN) && defined(HAVE_SNI)) &&\
-    defined(HAVE_IO_TESTS_DEPENDENCIES)
-    
+#ifdef HAVE_ALPN_PROTOS_SUPPORT
 static void CTX_set_alpn_protos(SSL_CTX *ctx)
 {
     unsigned char p[] = {
@@ -6971,7 +6991,6 @@ static void CTX_set_alpn_protos(SSL_CTX *ctx)
 #else
     AssertIntEQ(ret, SSL_SUCCESS);
 #endif
-
 }
 
 static void set_alpn_protos(SSL* ssl) 
@@ -7024,6 +7043,11 @@ static void verify_alpn_matching_http1(WOLFSSL* ssl)
     AssertIntEQ(0, XMEMCMP(nego_proto, proto, protoSz));
 }
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
+
 static void test_wolfSSL_set_alpn_protos(void)
 {
     unsigned long i;
@@ -7044,7 +7068,12 @@ static void test_wolfSSL_set_alpn_protos(void)
         test_wolfSSL_client_server(&callbacks[i], &callbacks[i + 1]);
     }
 }
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
 #endif
+
+#endif /* HAVE_ALPN_PROTOS_SUPPORT */
 
 static void test_wolfSSL_UseALPN(void)
 {
@@ -7054,16 +7083,8 @@ static void test_wolfSSL_UseALPN(void)
     test_wolfSSL_UseALPN_params();
 #endif
 
-#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_BIO)
-
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)) && \
-    (defined(HAVE_ALPN) && defined(HAVE_SNI)) && \
-    defined(HAVE_IO_TESTS_DEPENDENCIES)
-    
+#ifdef HAVE_ALPN_PROTOS_SUPPORT
     test_wolfSSL_set_alpn_protos();
-#endif
-
 #endif
 }
 
