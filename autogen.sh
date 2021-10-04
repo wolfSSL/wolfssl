@@ -4,58 +4,59 @@
 #
 
 # Git hooks should come before autoreconf.
-if test -d .git; then
-  if ! test -d .git/hooks; then
-    mkdir .git/hooks
-  fi
-  if [ ! -e .git/hooks/pre-commit ]; then
-      ln -s ../../pre-commit.sh .git/hooks/pre-commit
-  fi
-  if [ ! -e .git/hooks/pre-push ]; then
-      ln -s ../../pre-push.sh .git/hooks/pre-push
-  fi
+if [ -d .git ]; then
+    if [ ! -d .git/hooks ]; then
+	mkdir .git/hooks || exit $?
+    fi
+    if [ ! -e .git/hooks/pre-commit ]; then
+	ln -s ../../pre-commit.sh .git/hooks/pre-commit || exit $?
+    fi
+    if [ ! -e .git/hooks/pre-push ]; then
+	ln -s ../../pre-push.sh .git/hooks/pre-push || exit $?
+    fi
 fi
 
-# touch options.h (make sure it exists)
-touch ./wolfssl/options.h
+# if and as needed, create empty dummy versions of various files, mostly
+# associated with fips/self-test and asynccrypt:
 
-# touch fips files for non fips distribution
-touch ./ctaocrypt/src/fips.c
-touch ./ctaocrypt/src/fips_test.c
-touch ./wolfcrypt/src/fips.c
-touch ./wolfcrypt/src/fips_test.c
-touch ./wolfcrypt/src/wolfcrypt_first.c
-touch ./wolfcrypt/src/wolfcrypt_last.c
-touch ./wolfssl/wolfcrypt/fips.h
+for dir in \
+        ./wolfssl/wolfcrypt/port/intel \
+        ./wolfssl/wolfcrypt/port/cavium
+do
+    if [ ! -e "$dir" ]; then
+        mkdir "$dir" || exit $?
+    fi
+done
 
-# touch CAVP selftest files for non-selftest distribution
-touch ./wolfcrypt/src/selftest.c
-
-# touch async crypt files
-touch ./wolfcrypt/src/async.c
-touch ./wolfssl/wolfcrypt/async.h
-
-# touch async port files
-touch ./wolfcrypt/src/port/intel/quickassist.c
-touch ./wolfcrypt/src/port/intel/quickassist_mem.c
-touch ./wolfcrypt/src/port/cavium/cavium_nitrox.c
-if [ ! -d ./wolfssl/wolfcrypt/port/intel ]; then
-  mkdir ./wolfssl/wolfcrypt/port/intel
-fi
-touch ./wolfssl/wolfcrypt/port/intel/quickassist.h
-touch ./wolfssl/wolfcrypt/port/intel/quickassist_mem.h
-if [ ! -d ./wolfssl/wolfcrypt/port/cavium ]; then
-  mkdir ./wolfssl/wolfcrypt/port/cavium
-fi
-touch ./wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h
+for file in \
+        ./wolfssl/options.h \
+        ./ctaocrypt/src/fips.c \
+        ./ctaocrypt/src/fips_test.c \
+        ./wolfcrypt/src/fips.c \
+        ./wolfcrypt/src/fips_test.c \
+        ./wolfcrypt/src/wolfcrypt_first.c \
+        ./wolfcrypt/src/wolfcrypt_last.c \
+        ./wolfssl/wolfcrypt/fips.h \
+        ./wolfcrypt/src/selftest.c \
+        ./wolfcrypt/src/async.c \
+        ./wolfssl/wolfcrypt/async.h \
+        ./wolfcrypt/src/port/intel/quickassist.c \
+        ./wolfcrypt/src/port/intel/quickassist_mem.c \
+        ./wolfcrypt/src/port/cavium/cavium_nitrox.c \
+        ./wolfssl/wolfcrypt/port/intel/quickassist.h \
+        ./wolfssl/wolfcrypt/port/intel/quickassist_mem.h \
+        ./wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h
+do
+    if [ ! -e "$file" ]; then
+        > "$file" || exit $?
+    fi
+done
 
 # If this is a source checkout then call autoreconf with error as well
-if test -e .git; then
-  WARNINGS="all,error"
-
-else
-  WARNINGS="all"
-fi
+#if [ -e .git ]; then
+#    export WARNINGS="all,error"
+#else
+    export WARNINGS="all"
+#fi
 
 autoreconf --install --force --verbose
-
