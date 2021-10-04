@@ -6447,6 +6447,9 @@ AS_IF([test "x$ENABLED_ED25519" = "xyes" && test "x$ENABLED_32BIT" = "xno"],
 AS_IF([test "x$ENABLED_ED25519_SMALL" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DED25519_SMALL"])
 
+# Turn off error queue with JNI Java use
+AS_IF([test "x$ENABLED_JNI" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DNO_ERROR_QUEUE"])
 
 if test "$ENABLED_ED25519_STREAM" != "no"
 then
