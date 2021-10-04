@@ -2110,7 +2110,7 @@ int bench_tls(void* args)
                 break;
             }
         }
-#endif 
+#endif
         /* target next cipher */
         cipher = (next_cipher != NULL) ? (next_cipher + 1) : NULL;
     } /* while */
