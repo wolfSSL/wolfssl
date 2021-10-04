@@ -43,17 +43,26 @@
 #endif
 
 
-#define SE050_AES_KEYID                     55
-#define SE050_ECC_SIGN_KEYID                56
-#define SE050_ECC_VERIFY_KEYID              57
-#define SE050_ED25519_KEYID                 58
+/* Default key ID's */
+#ifndef SE050_KEYID_AES
+#define SE050_KEYID_AES        55
+#endif
+#ifndef SE050_KEYID_ECC_SIGN
+#define SE050_KEYID_ECC_SIGN   56
+#endif
+#ifndef SE050_KEYID_ECC_VERIFY 
+#define SE050_KEYID_ECC_VERIFY 57
+#endif
+#ifndef SE050_KEYID_ED25519
+#define SE050_KEYID_ED25519    58
+#endif
 
 
 enum {
     SSS_BLOCK_SIZE = 512
 };
 
-enum se050KeyType {
+enum SE050KeyType {
     SE050_KEYID_ANY,
     SE050_AES_KEY,
     SE050_ECC_SIGN,
@@ -70,7 +79,7 @@ typedef struct {
 } SE050_HASH_Context;
 
 /* Public Functions */
-WOLFSSL_API int wc_se050_SetConfig(sss_session_t *pSession,
+WOLFSSL_API int wc_se050_set_config(sss_session_t *pSession,
     sss_key_store_t *pHostKeyStore, sss_key_store_t *pKeyStore);
 #ifdef WOLFSSL_SE050_INIT
 WOLFSSL_API int wc_se050_init(const char* portName);

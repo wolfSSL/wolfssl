@@ -74,7 +74,7 @@ sss_session_t *pSession2 = (sss_session_t *)&pCtx->session;
 sss_key_store_t *pHostSession = (sss_key_store_t *)&pCtx->host_ks;
 
 LOG_I("running setconfig");
-ret = wc_se050_SetConfig(pSession2, pHostSession);
+ret = wc_se050_set_config(pSession2, pHostSession);
 if (ret != 0) {
     return kStatus_SSS_Fail;
 }
@@ -87,7 +87,7 @@ return status;
 
 Note: `wolfcrypt_test(NULL);` can be replaced with `benchmark_test();`
 
-The two variables used in `wc_se050_SetConfig` are session and key store variables that are required to reference parts of the hardware.
+The two variables used in `wc_se050_set_config` are session and key store variables that are required to reference parts of the hardware.
 
 The Makefile needs to be edited. At the top of the Makefile, the base wolfssl directory needs to be added to `INCLUDE_FLAGS`.
 

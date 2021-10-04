@@ -70,7 +70,7 @@ static sss_session_t *cfg_se050_i2c_pi;
 static sss_key_store_t *hostKeyStore;
 static sss_key_store_t *keyStore;
 
-int wc_se050_SetConfig(sss_session_t *pSession, sss_key_store_t *pHostKeyStore,
+int wc_se050_set_config(sss_session_t *pSession, sss_key_store_t *pHostKeyStore,
     sss_key_store_t *pKeyStore)
 {
     WOLFSSL_MSG("Setting SE050 session configuration");
@@ -95,7 +95,7 @@ int wc_se050_init(const char* portName)
 
     status = ex_sss_boot_open(&pCtx, portName);
     if (status == kStatus_SSS_Success) {
-        ret = wc_se050_SetConfig(&pCtx.session,
+        ret = wc_se050_set_config(&pCtx.session,
         #if SSS_HAVE_HOSTCRYPTO_ANY
             &pCtx.host_ks,
         #else
@@ -114,37 +114,23 @@ int se050_allocate_key(int keyType)
 {
     int keyId = 0;
     static int keyId_allocator = 100;
-    switch(keyType) {
-
-    #ifndef SE050_KEYID_AES
+    switch (keyType) {
         case SE050_AES_KEY:
-            keyId = SE050_AES_KEYID;
+            keyId = SE050_KEYID_AES;
             break;
-    #endif
-
-    #ifndef SE050_KEYID_ECC_SIGN
         case SE050_ECC_SIGN:
-            keyId = SE050_ECC_SIGN_KEYID;
+            keyId = SE050_KEYID_ECC_SIGN;
             break;
-    #endif
-
-    #ifndef SE050_KEYID_ECC_VERIFY
         case SE050_ECC_VERIFY:
-            keyId = SE050_ECC_VERIFY_KEYID;
+            keyId = SE050_KEYID_ECC_VERIFY;
             break;
-    #endif
-
-    #ifndef SE050_KEYID_ED25519
         case SE050_ED25519:
-            keyId = SE050_ED25519_KEYID;
+            keyId = SE050_KEYID_ED25519;
             break;
-    #endif
-
         case SE050_KEYID_ANY:
             keyId = keyId_allocator++;
             break;
     }
-
     return keyId;
 }
 
@@ -489,7 +475,7 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
         size_t outLenSz = (size_t)*outLen;
         status = sss_asymmetric_sign_digest(&ctx_asymm, (uint8_t *)in, inLen,
                                                                 out, &outLenSz);
-        *outLen = outLenSz;
+        *outLen = (word32)outLenSz;
     }
     sss_asymmetric_context_free(&ctx_asymm);
 
@@ -596,7 +582,7 @@ int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, byte* signature,
         key->keyId = keyId;
     }
     /* this is run after a sign function has taken place */
-    else if (key->keyId != 0) {
+    else {
         status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
 
         if (status == kStatus_SSS_Success) {
@@ -819,7 +805,7 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
         size_t outlenSz = (size_t)*outlen;
         status = sss_key_store_get_key(hostKeyStore, &deriveKey, out, &outlenSz,
                                                                 &ecdhKeyBitLen);
-        *outlen = outlenSz;
+        *outlen = (word32)outlenSz;
     }
     if (ctx_derive_key.session != NULL)
         sss_derive_key_context_free(&ctx_derive_key);
@@ -962,8 +948,10 @@ int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
     }
 
     if (status == kStatus_SSS_Success) {
+        size_t outlenSz = (size_t)*outLen;
         status = sss_se05x_asymmetric_sign((sss_se05x_asymmetric_t *)&ctx_asymm,
-                                            (uint8_t *)in, inLen, out, outLen);
+                                          (uint8_t *)in, inLen, out, &outlenSz);
+        *outLen = (word32)outlenSz;
     }
 
     sss_asymmetric_context_free(&ctx_asymm);
