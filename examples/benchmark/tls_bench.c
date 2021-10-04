@@ -1651,7 +1651,11 @@ static int SetupSupportedGroups(int verbose)
     int ret = 0;
 
     if (ret == 0) {
+#ifdef NO_WOLFSSL_CLIENT
+        ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
+#else
         ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+#endif
         if (ctx == NULL) {
             ret = -1;
         }
@@ -1670,13 +1674,13 @@ static int SetupSupportedGroups(int verbose)
             int uks_ret = wolfSSL_UseKeyShare(ssl, groups[i].group);
             if (uks_ret == WOLFSSL_SUCCESS) {
                 if (verbose) {
-                    printf("Will benchmark the following group; %s\n",
+                    printf("Will benchmark the following group: %s\n",
                        groups[i].name);
                 }
             } else if (uks_ret == BAD_FUNC_ARG || uks_ret == NOT_COMPILED_IN) {
                 groups[i].group = 0;
                 if (verbose) {
-                    printf("Will NOT benchmark the following group; %s\n",
+                    printf("Will NOT benchmark the following group: %s\n",
                            groups[i].name);
                 }
             } else {
