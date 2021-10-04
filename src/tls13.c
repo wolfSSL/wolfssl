@@ -332,7 +332,7 @@ static int DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
  */
 static WC_INLINE int mac2hash(int mac)
 {
-    int hash = WC_HASH_TYPE_NONE;
+    int hash;
     switch (mac) {
         #ifndef NO_SHA256
         case sha256_mac:
@@ -351,6 +351,8 @@ static WC_INLINE int mac2hash(int mac)
             hash = WC_SHA512;
             break;
         #endif
+    default:
+        hash = WC_HASH_TYPE_NONE;
     }
     return hash;
 }
