@@ -21,28 +21,28 @@ MAINTAINERCLEANFILES+= wolfcrypt/src/wolfcrypt_first.c
 MAINTAINERCLEANFILES+= wolfcrypt/src/wolfcrypt_last.c
 
 ctaocrypt/src/fips.c: Makefile
-	touch $(srcdir)/$@
+	@test -e $(srcdir)/$@ || touch $(srcdir)/$@
 
 ctaocrypt/src/fips_test.c: Makefile
-	touch $(srcdir)/$@
+	@test -e $(srcdir)/$@ || touch $(srcdir)/$@
 
 wolfcrypt/src/async.c: Makefile
-	touch $(srcdir)/$@
+	@test -e $(srcdir)/$@ || touch $(srcdir)/$@
 
 wolfcrypt/src/fips.c: Makefile
-	touch $(srcdir)/$@
+	@test -e $(srcdir)/$@ || touch $(srcdir)/$@
 
 wolfcrypt/src/fips_test.c: Makefile
-	touch $(srcdir)/$@
+	@test -e $(srcdir)/$@ || touch $(srcdir)/$@
 
 wolfcrypt/src/selftest.c: Makefile
-	touch $(srcdir)/$@
+	@test -e $(srcdir)/$@ || touch $(srcdir)/$@
 
 wolfcrypt/src/wolfcrypt_first.c: Makefile
-	touch $(srcdir)/$@
+	@test -e $(srcdir)/$@ || touch $(srcdir)/$@
 
 wolfcrypt/src/wolfcrypt_last.c: Makefile
-	touch $(srcdir)/$@
+	@test -e $(srcdir)/$@ || touch $(srcdir)/$@
 
 if !BUILD_NO_LIBRARY
 lib_LTLIBRARIES+= src/libwolfssl.la
