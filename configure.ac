@@ -4085,6 +4085,21 @@ then
     AM_CFLAGS="$AM_CFLAGS -DASN_BER_TO_DER"
 fi
 
+# Alternate certification chains, as oppossed to requiring full chain validataion.
+# Certificate validation behavior is relaxed, similar to openssl and
+# browsers. Only the peer certificate must validate to a trusted
+# certificate. Without this, all certificates sent by a peer must be
+# used in the trust chain or the connection will be rejected.
+AC_ARG_ENABLE([altcertchains],
+    [AS_HELP_STRING([--enable-altcertchains],[Enable using alternative certificate chains, only require leaf certificate to validate to trust root (default: disabled)])],
+    [ ENABLED_ALT_CERT_CHAINS=$enableval ],
+    [ ENABLED_ALT_CERT_CHAINS=no ]
+    )
+
+if test "x$ENABLED_ALT_CERT_CHAINS" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALT_CERT_CHAINS"
+fi
 
 # Small Stack - Cache on object
 AC_ARG_ENABLE([smallstackcache],
