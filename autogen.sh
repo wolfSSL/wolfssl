@@ -56,7 +56,7 @@ done
 #if [ -e .git ]; then
 #    export WARNINGS="all,error"
 #else
-    export WARNINGS="all"
+#    export WARNINGS="all"
 #fi
 
 autoreconf --install --force --verbose
