@@ -461,6 +461,7 @@ typedef struct callback_functions {
     int devId;
     int return_code;
     unsigned char isSharedCtx:1;
+    unsigned char loadToSSL:1;
 } callback_functions;
 
 typedef struct func_args {

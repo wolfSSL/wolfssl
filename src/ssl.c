@@ -2325,10 +2325,10 @@ WOLFSSL_ABI
 int wolfSSL_CTX_GetDevId(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
 {
     int devId = INVALID_DEVID;
-    if (ctx != NULL)
-        devId = ctx->devId;
-    else if (ssl != NULL)
+    if (ssl != NULL)
         devId = ssl->devId;
+    if (ctx != NULL && devId == INVALID_DEVID)
+        devId = ctx->devId;
     return devId;
 }
 void* wolfSSL_CTX_GetHeap(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
@@ -5517,8 +5517,13 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
                     }
 
                     *keyFormat = ED25519k;
-                    if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
-                        *resetSuites = 1;
+                    if (ssl != NULL) {
+                        /* ED25519 requires caching enabled for tracking message 
+                         * hash used in EdDSA_Update for signing */
+                        ssl->options.cacheMessages = 1;
+                        if (ssl->options.side == WOLFSSL_SERVER_END) {
+                            *resetSuites = 1;
+                        }
                     }
                 }
             }
@@ -5578,8 +5583,13 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
                 }
 
                 *keyFormat = ED448k;
-                if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
-                    *resetSuites = 1;
+                if (ssl != NULL) {
+                    /* ED448 requires caching enabled for tracking message 
+                     * hash used in EdDSA_Update for signing */
+                    ssl->options.cacheMessages = 1;
+                    if (ssl->options.side == WOLFSSL_SERVER_END) {
+                        *resetSuites = 1;
+                    }
                 }
             }
 
@@ -16099,7 +16109,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return ret;
     }
 
-#ifdef HAVE_PKCS11
+#if defined(HAVE_PKCS11) || defined(WOLF_CRYPTO_CB)
     int wolfSSL_CTX_use_PrivateKey_id(WOLFSSL_CTX* ctx, const unsigned char* id,
                                       long sz, int devId, long keySz)
     {
@@ -16153,7 +16163,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         return ret;
     }
-#endif
+#endif /* HAVE_PKCS11 || WOLF_CRYPTO_CB */
 
     int wolfSSL_CTX_use_certificate_chain_buffer_format(WOLFSSL_CTX* ctx,
                                  const unsigned char* in, long sz, int format)

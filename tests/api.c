@@ -4913,6 +4913,11 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
         callbacks->ctx_ready(ctx);
 
     ssl = wolfSSL_new(ctx);
+    if (ssl == NULL) {
+        printf("SSL new failed\n");
+        wolfSSL_CTX_free(ctx);
+        return 0;
+    }
     if (wolfSSL_dtls(ssl)) {
         SOCKADDR_IN_T cliAddr;
         socklen_t     cliLen;
@@ -4930,6 +4935,18 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
     }
 
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_set_fd(ssl, cfd));
+
+    if (callbacks->loadToSSL) {
+        wolfSSL_SetDevId(ssl, callbacks->devId);
+
+        AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_use_certificate_file(ssl, callbacks->certPemFile,
+                WOLFSSL_FILETYPE_PEM));
+
+        AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_use_PrivateKey_file(ssl, callbacks->keyPemFile,
+                WOLFSSL_FILETYPE_PEM));
+    }
 
 #ifdef NO_PSK
     #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
@@ -5048,7 +5065,9 @@ static void run_wolfssl_client(void* args)
     fdOpenSession(Task_self());
 #endif
 
-    wolfSSL_CTX_SetDevId(ctx, callbacks->devId);
+    if (!callbacks->loadToSSL) {
+        wolfSSL_CTX_SetDevId(ctx, callbacks->devId);
+    }
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
@@ -5057,13 +5076,15 @@ static void run_wolfssl_client(void* args)
     AssertIntEQ(WOLFSSL_SUCCESS, 
         wolfSSL_CTX_load_verify_locations(ctx, callbacks->caPemFile, 0));
 
-    AssertIntEQ(WOLFSSL_SUCCESS,
-        wolfSSL_CTX_use_certificate_file(ctx, callbacks->certPemFile,
-            WOLFSSL_FILETYPE_PEM));
+    if (!callbacks->loadToSSL) {
+        AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_CTX_use_certificate_file(ctx, callbacks->certPemFile,
+                WOLFSSL_FILETYPE_PEM));
 
-    AssertIntEQ(WOLFSSL_SUCCESS, 
-        wolfSSL_CTX_use_PrivateKey_file(ctx, callbacks->keyPemFile,
-            WOLFSSL_FILETYPE_PEM));
+        AssertIntEQ(WOLFSSL_SUCCESS, 
+            wolfSSL_CTX_use_PrivateKey_file(ctx, callbacks->keyPemFile,
+                WOLFSSL_FILETYPE_PEM));
+    }
 
     if (callbacks->ctx_ready)
         callbacks->ctx_ready(ctx);
@@ -5078,6 +5099,18 @@ static void run_wolfssl_client(void* args)
                     0, 0, ssl);
     }
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_set_fd(ssl, sfd));
+
+    if (callbacks->loadToSSL) {
+        wolfSSL_SetDevId(ssl, callbacks->devId);
+
+        AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_use_certificate_file(ssl, callbacks->certPemFile,
+                WOLFSSL_FILETYPE_PEM));
+
+        AssertIntEQ(WOLFSSL_SUCCESS, 
+            wolfSSL_use_PrivateKey_file(ssl, callbacks->keyPemFile,
+                WOLFSSL_FILETYPE_PEM));
+    }
 
     if (callbacks->ssl_ready)
         callbacks->ssl_ready(ssl);
@@ -50040,6 +50073,7 @@ static void test_wc_CryptoCb_TLS(int tlsVer,
 {
     callback_functions client_cbf;
     callback_functions server_cbf;
+
     XMEMSET(&client_cbf, 0, sizeof(client_cbf));
     XMEMSET(&server_cbf, 0, sizeof(server_cbf));
 
@@ -50078,17 +50112,25 @@ static void test_wc_CryptoCb_TLS(int tlsVer,
         (void*)svrPrivKeyPemFile);
 
     /* Perform TLS server and client test */
+    /* First test is at WOLFSSL_CTX level */
     test_wolfSSL_client_server(&client_cbf, &server_cbf);
+    /* Check for success */
+    AssertIntEQ(server_cbf.return_code, TEST_SUCCESS);
+    AssertIntEQ(client_cbf.return_code, TEST_SUCCESS);
+
+    /* Second test is a WOLFSSL object level */
+    client_cbf.loadToSSL = 1; server_cbf.loadToSSL = 1;
+    test_wolfSSL_client_server(&client_cbf, &server_cbf);
+
+    /* Check for success */
+    AssertIntEQ(server_cbf.return_code, TEST_SUCCESS);
+    AssertIntEQ(client_cbf.return_code, TEST_SUCCESS);
 
     /* Un register the devId's */
     wc_CryptoCb_UnRegisterDevice(client_cbf.devId);
     client_cbf.devId = INVALID_DEVID;
     wc_CryptoCb_UnRegisterDevice(server_cbf.devId);
     server_cbf.devId = INVALID_DEVID;
-
-    /* Check for success */
-    AssertIntEQ(server_cbf.return_code, TEST_SUCCESS);
-    AssertIntEQ(client_cbf.return_code, TEST_SUCCESS);
 }
 #endif /* WOLF_CRYPTO_CB && HAVE_IO_TESTS_DEPENDENCIES */
 
