@@ -19866,7 +19866,7 @@ unsigned long wolfSSL_X509_NAME_hash(WOLFSSL_X509_NAME* name)
 char* wolfSSL_X509_get_name_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
 {
     WOLFSSL_X509_NAME_ENTRY* entry;
-    int nameSz, strSz, count, i, idx = 0;
+    int nameSz, strSz, count, i;
     int totalSz = 0;
     char *str;
     char tmpBuf[256];
@@ -19938,7 +19938,6 @@ char* wolfSSL_X509_get_name_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
         }
         /* Copy string to tmpBuf */
         XSTRNCAT(tmpBuf, str, strSz);
-        idx += strSz;
         XFREE(str, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
