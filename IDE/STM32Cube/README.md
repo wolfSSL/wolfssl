@@ -12,6 +12,39 @@ These examples use the Cube HAL for STM32.
 
 * STM32CubeIDE: Integrated Development Environment for STM32 [https://www.st.com/en/development-tools/stm32cubeide.html](https://www.st.com/en/development-tools/stm32cubeide.html)
 
+## STM32 Cube Pack
+
+### STM32 Cube Pack Installation
+
+1. Download [wolfSSL Cube Pack](https://www.wolfssl.com/files/ide/I-CUBE-wolfSSL.pack)
+2. Run the “STM32CubeMX” tool.
+3. Under “Manage software installations” pane on the right, click “INSTALL/REMOVE” button. This can be also found by clicking "Help" -> "Managed embedded software packages"
+4. From Local and choose “I-CUBE-wolfSSL.pack”.
+5. Accept the GPLv2 license. Contact wolfSSL at sales@wolfssl.com for a commercial license and support/maintenance.
+
+### STM32 Cube Pack Usage
+
+1. Create or open a Cube Project based on your hardware.
+2. Under “Software Packs” choose “Select Components”.
+3. Find and check all components for the wolfSSL.wolfSSL packs (wolfSSL / Core, wolfCrypt / Core and wolfCrypt / Test). Close
+4. Under the “Software Packs” section click on “wolfSSL.wolfSSL” and configure the parameters.
+5. For Cortex-M recommend “Math Configuration” -> “Single Precision Cortex-M Math” for the fastest option.
+6. In "Project Manager" select the "STM32CubeIDE" toolchain.
+7. Generate Code
+8. Open the project in STM32CubeIDE
+9. The Benchmark example uses float. To enable go to "Project Properties" -> "C/C++ Build" -> "Settings" -> "Tool Settings" -> "MCU Settings" -> Check "Use float with printf".
+10. To enable printf make the `main.c` changes below in the [STM32 Printf](#stm32-printf) section.
+
+### STM32 Cube Pack Examples
+
+In the `I-CUBE-wolfSSL.pack` pack there are pre-assembled example projects available.
+After installing the pack you can find these example projects in `STM32Cube/Repository/Packs/wolfSSL/wolfSSL/[Version]/Projects`.
+To use an example:
+
+1. Open STM32CubeIDE
+2. Choose "Import" -> "Import an Existing STM32CubeMX Configuration File (.ioc)".
+3. Browse to find the .ioc in `STM32Cube/Repository/Packs/wolfSSL/wolfSSL/[Version]/Projects` and click finish.
+
 ## Configuration
 
 The settings for the wolfSSL CubeMX pack are in the generated `wolfSSL.I-CUBE-wolfSSL_conf.h` file. An example of a generated file can be found at `examples/configs/user_settings_stm32.h`.
@@ -55,7 +88,7 @@ With STM32 Cube HAL v2 some AES GCM hardware has a limitation for the AAD header
 
 If using `STM32_AESGCM_PARTIAL` with the following patch it will enable use for all AAD header sizes. The `STM32Cube_FW_F7_V1.16.0` patch is:
 
-```
+```diff
 diff --git a/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_cryp.h b/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_cryp.h
 --- a/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_cryp.h
 +++ b/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_cryp.h
@@ -86,37 +119,6 @@ If you are using FreeRTOS make sure your `FreeRTOSConfig.h` has its `configTOTAL
 
 The TLS client/server benchmark example requires about 76 KB for allocated tasks (with stack) and peak heap. This uses both a TLS client and server to test a TLS connection locally for each enabled TLS cipher suite.
 
-## STM32 Cube Pack
-
-### STM32 Cube Pack Installation
-
-1. Download [wolfSSL Cube Pack](https://www.wolfssl.com/files/ide/I-CUBE-wolfSSL.pack)
-2. Run the “STM32CubeMX” tool.
-3. Under “Manage software installations” click “INSTALL/REMOVE” button.
-4. From Local and choose “I-CUBE-wolfSSL.pack”.
-5. Accept the GPLv2 license. Contact wolfSSL at sales@wolfssl.com for a commercial license and support/maintenance.
-
-### STM32 Cube Pack Usage
-
-1. Create or open a Cube Project based on your hardware.
-2. Under “Software Packs” choose “Select Components”.
-3. Find and check all components for the wolfSSL.wolfSSL packs (wolfSSL / Core, wolfCrypt / Core and wolfCrypt / Test). Close
-4. Under the “Software Packs” section click on “wolfSSL.wolfSSL” and configure the parameters.
-5. For Cortex-M recommend “Math Configuration” -> “Single Precision Cortex-M Math” for the fastest option.
-6. Generate Code
-7. The Benchmark example uses float. To enable go to "Project Properties" -> "C/C++ Build" -> "Settings" -> "Tool Settings" -> "MCU Settings" -> Check "Use float with printf".
-8. To enable printf make the `main.c` changes below in the [STM32 Printf](#stm32-printf) section.
-
-### STM32 Cube Pack Examples
-
-In the `I-CUBE-wolfSSL.pack` pack there are pre-assembled example projects available.
-After installing the pack you can find these example projects in `STM32Cube/Repository/Packs/wolfSSL/wolfSSL/[Version]/Projects`.
-To use an example:
-
-1. Open STM32CubeIDE
-2. Choose "Import" -> "Import an Existing STM32CubeMX Configuration File (.ioc)".
-3. Browse to find the .ioc in `STM32Cube/Repository/Packs/wolfSSL/wolfSSL/[Version]/Projects` and click finish.
-
 ## Example `IDE/STM32Cube/wolfssl_example.c` Output
 
 ```
@@ -140,7 +142,7 @@ Note: The Benchmark example uses float. To enable go to "Project Properties" -> 
 
 In main.c make the following changes:
 
-```
+```c
 /* Retargets the C library printf function to the USART. */
 #include <stdio.h>
 #include <wolfssl/wolfcrypt/settings.h>
