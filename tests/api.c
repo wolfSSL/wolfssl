@@ -14592,9 +14592,19 @@ static int test_wc_AesGcmStream (void)
     AssertIntEQ(wc_AesGcmEncryptUpdate(aesEnc, out, in, 1, aad, 1), 0);
     AssertIntEQ(wc_AesGcmDecryptUpdate(aesDec, plain, out, 1, aad, 1), 0);
     AssertIntEQ(XMEMCMP(plain, in, 1), 0);
+
+    /* Encrypt and decrypt data without tag. */
+    AssertIntEQ(wc_AesGcmEncryptUpdate(aesEnc, out, in, 1, NULL, 0), 0);
+    AssertIntEQ(wc_AesGcmDecryptUpdate(aesDec, plain, out, 1, NULL, 0), 0);
+    AssertIntEQ(XMEMCMP(plain, in, 1), 0);
+
     /* Finalize and check tag matches. */
     AssertIntEQ(wc_AesGcmEncryptFinal(aesEnc, tag, AES_BLOCK_SIZE), 0);
     AssertIntEQ(wc_AesGcmDecryptFinal(aesDec, tag, AES_BLOCK_SIZE), 0);
+
+    /* Check handling without tag. */
+    AssertIntEQ(wc_AesGcmEncryptFinal(aesEnc, NULL, 0), 0);
+    AssertIntEQ(wc_AesGcmDecryptFinal(aesDec, NULL, 0), 0);
 
     /* Set key and IV through streaming init API. */
     AssertIntEQ(wc_AesGcmInit(aesEnc, key, sizeof(key), iv, AES_IV_SIZE), 0);
@@ -14605,6 +14615,14 @@ static int test_wc_AesGcmStream (void)
     AssertIntEQ(wc_AesGcmDecryptUpdate(aesDec, plain, out, AES_BLOCK_SIZE, aad,
                                        AES_BLOCK_SIZE), 0);
     AssertIntEQ(XMEMCMP(plain, in, AES_BLOCK_SIZE), 0);
+
+    /* Encrypt/decrypt one block without AAD */
+    AssertIntEQ(wc_AesGcmEncryptUpdate(aesEnc, out, in, AES_BLOCK_SIZE, NULL,
+                                       0), 0);
+    AssertIntEQ(wc_AesGcmDecryptUpdate(aesDec, plain, out, AES_BLOCK_SIZE, NULL,
+                                       0), 0);
+    AssertIntEQ(XMEMCMP(plain, in, AES_BLOCK_SIZE), 0);
+
     /* Finalize and check tag matches. */
     AssertIntEQ(wc_AesGcmEncryptFinal(aesEnc, tag, AES_BLOCK_SIZE), 0);
     AssertIntEQ(wc_AesGcmDecryptFinal(aesDec, tag, AES_BLOCK_SIZE), 0);
@@ -14623,10 +14641,12 @@ static int test_wc_AesGcmStream (void)
     /* Set key and IV through streaming init API. */
     AssertIntEQ(wc_AesGcmInit(aesEnc, key, sizeof(key), iv, AES_IV_SIZE), 0);
     AssertIntEQ(wc_AesGcmInit(aesDec, key, sizeof(key), iv, AES_IV_SIZE), 0);
+
     /* Encrypt/decrypt one byte and no AAD. */
     AssertIntEQ(wc_AesGcmEncryptUpdate(aesEnc, out, in, 1, NULL, 0), 0);
     AssertIntEQ(wc_AesGcmDecryptUpdate(aesDec, plain, out, 1, NULL, 0), 0);
     AssertIntEQ(XMEMCMP(plain, in, 1), 0);
+
     /* Finalize and check tag matches. */
     AssertIntEQ(wc_AesGcmEncryptFinal(aesEnc, tag, AES_BLOCK_SIZE), 0);
     AssertIntEQ(XMEMCMP(tag, expTagPlain1, AES_BLOCK_SIZE), 0);

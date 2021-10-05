@@ -162,7 +162,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
                                       const byte* authIn, word32 authInSz)
         {
             if (aes == NULL || authTagSz > AES_BLOCK_SIZE ||
-                        authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ ||
+                        (authTag == NULL && authTagSz != 0) ||
+                        (authTagSz != 0 && authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) ||
                         ivSz == 0 || ivSz > AES_BLOCK_SIZE) {
                 return BAD_FUNC_ARG;
             }
@@ -178,7 +179,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
                                           const byte* authIn, word32 authInSz)
             {
                 if (aes == NULL || out == NULL || in == NULL || iv == NULL
-                        || authTag == NULL || authTagSz > AES_BLOCK_SIZE ||
+                        || (authTag == NULL && authTagSz != 0)
+                        || authTagSz > AES_BLOCK_SIZE ||
                         ivSz == 0 || ivSz > AES_BLOCK_SIZE) {
                     return BAD_FUNC_ARG;
                 }
@@ -7129,7 +7131,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
-    if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
+    if (authTagSz != 0 && authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
         WOLFSSL_MSG("GcmEncrypt authTagSz too small error");
         return BAD_FUNC_ARG;
     }
@@ -7516,7 +7518,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
-    if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
+    if (authTagSz != 0 && authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
         WOLFSSL_MSG("GcmEncrypt authTagSz too small error");
         return BAD_FUNC_ARG;
     }
@@ -7637,7 +7639,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* If the sz is non-zero, both in and out must be set. If sz is 0,
      * in and out are don't cares, as this is is the GMAC case. */
     if (aes == NULL || iv == NULL || (sz != 0 && (in == NULL || out == NULL)) ||
-        authTag == NULL || authTagSz > AES_BLOCK_SIZE || authTagSz == 0 ||
+        (authTag == NULL && authTagSz != 0) || authTagSz > AES_BLOCK_SIZE ||
         ivSz == 0) {
 
         return BAD_FUNC_ARG;
@@ -8041,7 +8043,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* If the sz is non-zero, both in and out must be set. If sz is 0,
      * in and out are don't cares, as this is is the GMAC case. */
     if (aes == NULL || iv == NULL || (sz != 0 && (in == NULL || out == NULL)) ||
-        authTag == NULL || authTagSz > AES_BLOCK_SIZE || authTagSz == 0 ||
+        (authTag == NULL && authTagSz != 0) || authTagSz > AES_BLOCK_SIZE ||
         ivSz == 0) {
 
         return BAD_FUNC_ARG;
@@ -9173,8 +9175,7 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
     int ret = 0;
 
     /* Check validity of parameters. */
-    if ((aes == NULL) || (authTag == NULL) || (authTagSz > AES_BLOCK_SIZE) ||
-            (authTagSz == 0)) {
+    if ((aes == NULL) || (authTag == NULL && authTagSz != 0) || (authTagSz > AES_BLOCK_SIZE)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -9314,8 +9315,7 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
     int ret = 0;
 
     /* Check validity of parameters. */
-    if ((aes == NULL) || (authTag == NULL) || (authTagSz > AES_BLOCK_SIZE) ||
-            (authTagSz == 0)) {
+    if ((aes == NULL) || (authTag == NULL && authTagSz != 0) || (authTagSz > AES_BLOCK_SIZE)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -9483,7 +9483,7 @@ int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
     int ret;
 
     if (key == NULL || iv == NULL || (authIn == NULL && authInSz != 0) ||
-        authTag == NULL || authTagSz == 0 || rng == NULL) {
+        (authTag == NULL && authTagSz != 0) || rng == NULL) {
 
         return BAD_FUNC_ARG;
     }
@@ -9526,7 +9526,7 @@ int wc_GmacVerify(const byte* key, word32 keySz,
 #endif
 
     if (key == NULL || iv == NULL || (authIn == NULL && authInSz != 0) ||
-        authTag == NULL || authTagSz == 0 || authTagSz > AES_BLOCK_SIZE) {
+        (authTag == NULL && authTagSz != 0) || authTagSz > AES_BLOCK_SIZE) {
 
         return BAD_FUNC_ARG;
     }
