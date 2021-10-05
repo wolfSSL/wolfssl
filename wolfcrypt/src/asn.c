@@ -18221,6 +18221,8 @@ wcchar END_CERT             = "-----END CERTIFICATE-----";
 #ifndef NO_DH
     wcchar BEGIN_DH_PARAM   = "-----BEGIN DH PARAMETERS-----";
     wcchar END_DH_PARAM     = "-----END DH PARAMETERS-----";
+    wcchar BEGIN_X942_PARAM = "-----BEGIN X9.42 DH PARAMETERS-----";
+    wcchar END_X942_PARAM   = "-----END X9.42 DH PARAMETERS-----";
 #endif
 #ifndef NO_DSA
     wcchar BEGIN_DSA_PARAM  = "-----BEGIN DSA PARAMETERS-----";
@@ -18293,6 +18295,11 @@ int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
         case DH_PARAM_TYPE:
             if (header) *header = BEGIN_DH_PARAM;
             if (footer) *footer = END_DH_PARAM;
+            ret = 0;
+            break;
+        case X942_PARAM_TYPE:
+            if (header) *header = BEGIN_X942_PARAM;
+            if (footer) *footer = END_X942_PARAM;
             ret = 0;
             break;
     #endif

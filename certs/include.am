@@ -61,7 +61,8 @@ EXTRA_DIST += \
 	     certs/csr.signed.der \
 	     certs/csr.ext.der \
 	     certs/entity-no-ca-bool-cert.pem \
-	     certs/entity-no-ca-bool-key.pem
+	     certs/entity-no-ca-bool-key.pem \
+	     certs/x942dh2048.pem
 
 EXTRA_DIST += \
 	     certs/ca-key.der \

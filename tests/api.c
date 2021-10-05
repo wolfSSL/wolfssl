@@ -39528,8 +39528,13 @@ static void test_wolfSSL_PEM_read_DHparams(void)
     derOutSz = wolfSSL_i2d_DHparams(dh, &derOutBuf);
     AssertIntEQ(derOutSz, derExpectedSz);
     AssertIntEQ(XMEMCMP(derOut, derExpected, derOutSz), 0);
-    DH_free(dh);
 
+    /* Test parsing with X9.42 header */
+    fp = XFOPEN("./certs/x942dh2048.pem", "rb");
+    AssertNotNull(dh = PEM_read_DHparams(fp, &dh, NULL, NULL));
+    XFCLOSE(fp);
+
+    DH_free(dh);
     printf(resultFmt, passed);
 #endif
 }

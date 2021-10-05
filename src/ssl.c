@@ -16190,6 +16190,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 FreeDer(&der);
                 ret = PemToDer(buf, sz, DH_PARAM_TYPE, &der, ctx->heap,
                                NULL, NULL);
+                if (ret < 0) {
+                    /* Also try X9.42 format */
+                    ret = PemToDer(buf, sz, X942_PARAM_TYPE, &der, ctx->heap,
+                               NULL, NULL);
+                }
     #ifdef WOLFSSL_WPAS
         #ifndef NO_DSA
                 if (ret < 0) {
@@ -45235,6 +45240,10 @@ WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
     }
 
     ret = PemToDer(mem, size, DH_PARAM_TYPE, &der, NULL, NULL, NULL);
+    if (ret < 0) {
+        /* Also try X9.42 format */
+        ret = PemToDer(mem, size, X942_PARAM_TYPE, &der, NULL, NULL, NULL);
+    }
     if (ret != 0)
         goto end;
 
