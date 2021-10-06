@@ -53,10 +53,10 @@ do
 done
 
 # If this is a source checkout then call autoreconf with error as well
-#if [ -e .git ]; then
-#    export WARNINGS="all,error"
-#else
-#    export WARNINGS="all"
-#fi
+if [ -e .git ]; then
+    export WARNINGS="all,error"
+else
+    export WARNINGS="all"
+fi
 
-autoreconf --install --force --verbose
+autoreconf --install --force
