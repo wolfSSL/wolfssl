@@ -12020,9 +12020,8 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
 #endif
 #if !defined(USE_CERT_BUFFERS_256) && !defined(NO_ASN)
         #if defined(HAVE_ECC) && defined(WOLFSSL_CERT_GEN)
-            #if !defined(NO_RSA) && !defined(eccKeyPubFile)
-                /* eccKeyPubFile is used in a test that requires RSA. */
-                static const char* eccKeyPubFile = CERT_ROOT "ecc-keyPub.der";
+            #ifndef NO_RSA
+                static const char* eccKeyPubFileDer = CERT_ROOT "ecc-keyPub.der";
             #endif
             static const char* eccCaKeyFile  = CERT_ROOT "ca-ecc-key.der";
             static const char* eccCaCertFile = CERT_ROOT "ca-ecc-cert.pem";
@@ -14542,7 +14541,7 @@ static int rsa_ecc_certgen_test(WC_RNG* rng, byte* tmp)
     XMEMCPY(tmp, ecc_key_pub_der_256, sizeof_ecc_key_pub_der_256);
     bytes3 = sizeof_ecc_key_pub_der_256;
 #else
-    file3 = XFOPEN(eccKeyPubFile, "rb");
+    file3 = XFOPEN(eccKeyPubFileDer, "rb");
     if (!file3) {
         ERROR_OUT(-7855, exit_rsa);
     }
