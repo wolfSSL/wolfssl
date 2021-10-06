@@ -486,18 +486,10 @@ void WOLFSSL_ERROR(int error)
                     "wolfSSL error occurred, error = %d line:%d file:%s",
                     error, line, file);
 
-            if (wc_error_queue_count >= ERROR_QUEUE_MAX) {
-                WOLFSSL_MSG("Error queue is full, at ERROR_QUEUE_MAX");
-            }
-            else {
-                if (wc_AddErrorNode(error, line, buffer, (char*)file) != 0) {
-                    WOLFSSL_MSG("Error creating logging node");
-                    /* with void function there is no return here, continue on
-                     * to unlock mutex and log what buffer was created. */
-                }
-                else {
-                    wc_error_queue_count++;
-                }
+            if (wc_AddErrorNode(error, line, buffer, (char*)file) != 0) {
+                WOLFSSL_MSG("Error creating logging node");
+                /* with void function there is no return here, continue on
+                 * to unlock mutex and log what buffer was created. */
             }
             #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
             }
@@ -687,6 +679,12 @@ int wc_AddErrorNode(int error, int line, char* buf, char* file)
     WOLFSSL_MSG("Error queue turned off, can not add nodes");
 #else
     struct wc_error_queue* err;
+
+    if (wc_error_queue_count >= ERROR_QUEUE_MAX) {
+        WOLFSSL_MSG("Error queue is full, at ERROR_QUEUE_MAX");
+        return MEMORY_E;
+    }
+
     err = (struct wc_error_queue*)XMALLOC(
             sizeof(struct wc_error_queue), wc_error_heap, DYNAMIC_TYPE_LOG);
     if (err == NULL) {
@@ -751,6 +749,7 @@ int wc_AddErrorNode(int error, int line, char* buf, char* file)
                 wc_current_node = err;
             }
         }
+        wc_error_queue_count++;
     }
 #endif
     return 0;

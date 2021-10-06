@@ -2436,12 +2436,6 @@ AC_ARG_ENABLE([errorqueue],
     [ ENABLED_ERROR_QUEUE=yes ]
     )
 
-if test "$ENABLED_ERROR_QUEUE" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_ERROR_QUEUE"
-fi
-
-
 # OLD TLS
 AC_ARG_ENABLE([oldtls],
     [AS_HELP_STRING([--enable-oldtls],[Enable old TLS versions < 1.2 (default: enabled)])],
@@ -6447,14 +6441,15 @@ AS_IF([test "x$ENABLED_ED25519" = "xyes" && test "x$ENABLED_32BIT" = "xno"],
 AS_IF([test "x$ENABLED_ED25519_SMALL" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DED25519_SMALL"])
 
-# Turn off error queue with JNI Java use
-AS_IF([test "x$ENABLED_JNI" = "xyes"],
-      [AM_CFLAGS="$AM_CFLAGS -DNO_ERROR_QUEUE"])
-
 if test "$ENABLED_ED25519_STREAM" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ED25519_STREAMING_VERIFY"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ED25519_STREAMING_VERIFY"
+fi
+
+if test "$ENABLED_ERROR_QUEUE" = "no" || test "$ENABLED_JNI" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_ERROR_QUEUE"
 fi
 
 AS_IF([test "x$ENABLED_OPENSSLALL" = "xyes"],
