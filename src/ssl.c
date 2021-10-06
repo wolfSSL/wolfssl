@@ -19141,7 +19141,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         WOLFSSL_ENTER("DES_cbc_encrypt");
 
         /* OpenSSL compat, no ret */
-        wc_Des_SetKey(&myDes, (const byte*)schedule, (const byte*)ivec, !enc);
+        if (wc_Des_SetKey(&myDes, (const byte*)schedule, (const byte*)ivec,
+                !enc) != 0) {
+            WOLFSSL_MSG("wc_Des_SetKey return error.");
+            return;
+        }
         lb_sz = length%DES_BLOCK_SIZE;
         blk   = length/DES_BLOCK_SIZE;
 
