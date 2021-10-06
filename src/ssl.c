@@ -52550,7 +52550,7 @@ int wolfSSL_BN_set_word(WOLFSSL_BIGNUM* bn, unsigned long w)
 }
 
 static WOLFSSL_BN_ULONG wolfSSL_BN_get_word_1(mp_int *mp) {
-#if DIGIT_BIT == (SIZEOF_LONG * 8)
+#if DIGIT_BIT >= (SIZEOF_LONG * CHAR_BIT)
     return (WOLFSSL_BN_ULONG)mp->dp[0];
 #else
     WOLFSSL_BN_ULONG ret = 0UL;
