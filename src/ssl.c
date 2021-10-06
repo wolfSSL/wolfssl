@@ -19196,37 +19196,41 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         (void)wc_Des3Init(&des, NULL, INVALID_DEVID);
 
         if (enc) {
-            wc_Des3_SetKey(&des, key, (const byte*)ivec, DES_ENCRYPTION);
-            ret = wc_Des3_CbcEncrypt(&des, output, input, (word32)blk*DES_BLOCK_SIZE);
-        #if defined(WOLFSSL_ASYNC_CRYPT)
-            ret = wc_AsyncWait(ret, &des.asyncDev, WC_ASYNC_FLAG_NONE);
-        #endif
-            (void)ret; /* ignore return codes for processing */
-            if(lb_sz){
-                XMEMSET(lastblock, 0, DES_BLOCK_SIZE);
-                XMEMCPY(lastblock, input+sz-lb_sz, lb_sz);
-                ret = wc_Des3_CbcEncrypt(&des, output+blk*DES_BLOCK_SIZE,
-                    lastblock, (word32)DES_BLOCK_SIZE);
+            if (wc_Des3_SetKey(&des, key, (const byte*)ivec,
+                    DES_ENCRYPTION) == 0) {
+                ret = wc_Des3_CbcEncrypt(&des, output, input, (word32)blk*DES_BLOCK_SIZE);
             #if defined(WOLFSSL_ASYNC_CRYPT)
                 ret = wc_AsyncWait(ret, &des.asyncDev, WC_ASYNC_FLAG_NONE);
             #endif
                 (void)ret; /* ignore return codes for processing */
+                if(lb_sz){
+                    XMEMSET(lastblock, 0, DES_BLOCK_SIZE);
+                    XMEMCPY(lastblock, input+sz-lb_sz, lb_sz);
+                    ret = wc_Des3_CbcEncrypt(&des, output+blk*DES_BLOCK_SIZE,
+                        lastblock, (word32)DES_BLOCK_SIZE);
+                #if defined(WOLFSSL_ASYNC_CRYPT)
+                    ret = wc_AsyncWait(ret, &des.asyncDev, WC_ASYNC_FLAG_NONE);
+                #endif
+                    (void)ret; /* ignore return codes for processing */
+                }
             }
         }
         else {
-            wc_Des3_SetKey(&des, key, (const byte*)ivec, DES_DECRYPTION);
-            ret = wc_Des3_CbcDecrypt(&des, output, input, (word32)blk*DES_BLOCK_SIZE);
-        #if defined(WOLFSSL_ASYNC_CRYPT)
-            ret = wc_AsyncWait(ret, &des.asyncDev, WC_ASYNC_FLAG_NONE);
-        #endif
-            (void)ret; /* ignore return codes for processing */
-            if(lb_sz){
-                ret = wc_Des3_CbcDecrypt(&des, lastblock, input+sz-lb_sz, (word32)DES_BLOCK_SIZE);
+            if (wc_Des3_SetKey(&des, key, (const byte*)ivec,
+                    DES_DECRYPTION) == 0) {
+                ret = wc_Des3_CbcDecrypt(&des, output, input, (word32)blk*DES_BLOCK_SIZE);
             #if defined(WOLFSSL_ASYNC_CRYPT)
                 ret = wc_AsyncWait(ret, &des.asyncDev, WC_ASYNC_FLAG_NONE);
             #endif
                 (void)ret; /* ignore return codes for processing */
-                XMEMCPY(output+sz-lb_sz, lastblock, lb_sz);
+                if(lb_sz){
+                    ret = wc_Des3_CbcDecrypt(&des, lastblock, input+sz-lb_sz, (word32)DES_BLOCK_SIZE);
+                #if defined(WOLFSSL_ASYNC_CRYPT)
+                    ret = wc_AsyncWait(ret, &des.asyncDev, WC_ASYNC_FLAG_NONE);
+                #endif
+                    (void)ret; /* ignore return codes for processing */
+                    XMEMCPY(output+sz-lb_sz, lastblock, lb_sz);
+                }
             }
         }
         wc_Des3Free(&des);
