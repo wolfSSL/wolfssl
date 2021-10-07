@@ -2327,17 +2327,17 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     byte* output2, word32* output2Sz)
 {
     /* contentType OID (1.2.840.113549.1.9.3) */
-    const byte contentTypeOid[] =
+    static const byte contentTypeOid[] =
             { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xF7, 0x0d, 0x01,
                              0x09, 0x03 };
 
     /* messageDigest OID (1.2.840.113549.1.9.4) */
-    const byte messageDigestOid[] =
+    static const byte messageDigestOid[] =
             { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
                              0x09, 0x04 };
 
     /* signingTime OID () */
-    byte signingTimeOid[] =
+    static const byte signingTimeOid[] =
             { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
                              0x09, 0x05};
 
@@ -2351,7 +2351,11 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     byte* flatSignedAttribs = NULL;
     word32 flatSignedAttribsSz = 0;
 
+#ifdef WOLFSSL_SMALL_STACK
+    byte *signedDataOid = NULL;
+#else
     byte signedDataOid[MAX_OID_SZ];
+#endif
     word32 signedDataOidSz;
 
     byte signingTime[MAX_TIME_STRING_SZ];
@@ -2362,11 +2366,18 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         return BAD_FUNC_ARG;
     }
 
-    /* verify the hash size matches */
 #ifdef WOLFSSL_SMALL_STACK
+    signedDataOid = (byte *)XMALLOC(MAX_OID_SZ, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (signedDataOid == NULL) {
+        idx = MEMORY_E;
+        goto out;
+    }
+
     esd = (ESD*)XMALLOC(sizeof(ESD), pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (esd == NULL)
-        return MEMORY_E;
+    if (esd == NULL) {
+        idx = MEMORY_E;
+        goto out;
+    }
 #endif
 
     XMEMSET(esd, 0, sizeof(ESD));
@@ -2383,21 +2394,17 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         ret = wc_SetContentType(pkcs7->contentOID, pkcs7->contentType,
                                 sizeof(pkcs7->contentType));
         if (ret < 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-            return ret;
+            idx = ret;
+            goto out;
         }
         pkcs7->contentTypeSz = ret;
     }
 
     /* set signedData outer content type */
-    ret = wc_SetContentType(SIGNED_DATA, signedDataOid, sizeof(signedDataOid));
+    ret = wc_SetContentType(SIGNED_DATA, signedDataOid, MAX_OID_SZ);
     if (ret < 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return ret;
+        idx = ret;
+        goto out;
     }
     signedDataOidSz = ret;
 
@@ -2405,10 +2412,8 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         esd->hashType = wc_OidGetHash(pkcs7->hashOID);
         if (wc_HashGetDigestSize(esd->hashType) != (int)hashSz) {
             WOLFSSL_MSG("hashSz did not match hashOID");
-    #ifdef WOLFSSL_SMALL_STACK
-            XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-            return BUFFER_E;
+            idx = BUFFER_E;
+            goto out;
         }
 
         /* include hash */
@@ -2465,10 +2470,8 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     } else if (pkcs7->sidType == DEGENERATE_SID) {
         /* no signer info added */
     } else {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return SKID_E;
+        idx = SKID_E;
+        goto out;
     }
 
     if (pkcs7->sidType != DEGENERATE_SID) {
@@ -2481,10 +2484,8 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         ret = wc_PKCS7_SignedDataGetEncAlgoId(pkcs7, &digEncAlgoId,
                                               &digEncAlgoType);
         if (ret < 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-            XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-            return ret;
+            idx = ret;
+            goto out;
         }
         esd->digEncAlgoIdSz = SetAlgoID(digEncAlgoId, esd->digEncAlgoId,
                                         digEncAlgoType, 0);
@@ -2499,22 +2500,19 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
                                      signingTimeOid, sizeof(signingTimeOid),
                                      signingTime, sizeof(signingTime));
         if (ret < 0) {
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-            return ret;
+            idx = ret;
+            goto out;
         }
 
         if (esd->signedAttribsSz > 0) {
             flatSignedAttribs = (byte*)XMALLOC(esd->signedAttribsSz, pkcs7->heap,
                                                              DYNAMIC_TYPE_PKCS7);
-            flatSignedAttribsSz = esd->signedAttribsSz;
             if (flatSignedAttribs == NULL) {
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-                return MEMORY_E;
+                idx = MEMORY_E;
+                goto out;
             }
+
+            flatSignedAttribsSz = esd->signedAttribsSz;
 
             FlattenAttributes(pkcs7, flatSignedAttribs,
                                        esd->signedAttribs, esd->signedAttribsCount);
@@ -2528,12 +2526,8 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         ret = wc_PKCS7_SignedDataBuildSignature(pkcs7, flatSignedAttribs,
                                                 flatSignedAttribsSz, esd);
         if (ret < 0) {
-            if (esd->signedAttribsSz != 0)
-                XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-            return ret;
+            idx = ret;
+            goto out;
         }
 
         signerInfoSz += flatSignedAttribsSz + esd->signedAttribSetSz;
@@ -2593,17 +2587,14 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     /* if using header/footer, we are not returning the content */
     if (output2 && output2Sz) {
         if (total2Sz > *output2Sz) {
-            if (esd->signedAttribsSz != 0)
-                XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
             if (*outputSz == 0 && *output2Sz == 0) {
                 *outputSz = totalSz;
                 *output2Sz = total2Sz;
-                return 0;
+                idx = 0;
+                goto out;
             }
-            return BUFFER_E;
+            idx = BUFFER_E;
+            goto out;
         }
 
         if (!pkcs7->detached) {
@@ -2616,25 +2607,18 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     }
 
     if (totalSz > *outputSz) {
-        if (esd->signedAttribsSz != 0)
-            XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
         if (*outputSz == 0) {
             *outputSz = totalSz;
-            return totalSz;
+            idx = totalSz;
+            goto out;
         }
-        return BUFFER_E;
+        idx = BUFFER_E;
+        goto out;
     }
 
     if (output == NULL) {
-        if (esd->signedAttribsSz != 0)
-            XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return BUFFER_E;
+        idx = BUFFER_E;
+        goto out;
     }
 
     idx = 0;
@@ -2713,10 +2697,8 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     } else if (pkcs7->sidType == DEGENERATE_SID) {
         /* no signer infos in degenerate case */
     } else {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return SKID_E;
+        idx = SKID_E;
+        goto out;
     }
     XMEMCPY(output2 + idx, esd->signerDigAlgoId, esd->signerDigAlgoIdSz);
     idx += esd->signerDigAlgoIdSz;
@@ -2727,7 +2709,6 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         idx += esd->signedAttribSetSz;
         XMEMCPY(output2 + idx, flatSignedAttribs, flatSignedAttribsSz);
         idx += flatSignedAttribsSz;
-        XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     }
 
     XMEMCPY(output2 + idx, esd->digEncAlgoId, esd->digEncAlgoIdSz);
@@ -2745,9 +2726,18 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         *outputSz = idx;
     }
 
+  out:
+
+    if (flatSignedAttribs != NULL)
+        XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (esd)
+        XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (signedDataOid)
+        XFREE(signedDataOid, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
+
     return idx;
 }
 
