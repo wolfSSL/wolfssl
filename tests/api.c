@@ -36130,6 +36130,19 @@ static THREAD_RETURN WOLFSSL_THREAD test_logging(void* args)
     }
     AssertIntEQ(errorCount, ERROR_COUNT);
 
+    /* test max queue behavior, trying to add an arbitrary 3 errors over */
+    errorCount = 0;
+    for (i = 0; i < ERROR_QUEUE_MAX + 3; i++)
+        ERR_put_error(ERR_LIB_PEM, SYS_F_ACCEPT, -990 - i, __FILE__, __LINE__);
+
+    while ((err = ERR_get_error_line(&file, &line))) {
+        AssertIntEQ(err, 990 + errorCount);
+        errorCount++;
+    }
+
+    /* test that the 3 errors over the max were dropped */
+    AssertIntEQ(errorCount, ERROR_QUEUE_MAX);
+
     return 0;
 }
 #endif
