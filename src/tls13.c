@@ -6656,8 +6656,6 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         {
         #ifndef NO_RSA
             if (ssl->peerRsaKey != NULL && ssl->peerRsaKeyPresent != 0) {
-                WOLFSSL_MSG("Doing RSA peer cert verify");
-
                 ret = RsaVerify(ssl, sig->buffer, (word32)sig->length, &args->output,
                     args->sigAlgo, args->hashAlgo, ssl->peerRsaKey,
                 #ifdef HAVE_PK_CALLBACKS
@@ -6674,8 +6672,6 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         #endif /* !NO_RSA */
         #ifdef HAVE_ECC
             if (ssl->peerEccDsaKeyPresent) {
-                WOLFSSL_MSG("Doing ECC peer cert verify");
-
                 ret = EccVerify(ssl, input + args->idx, args->sz,
                     args->sigData, args->sigDataSz,
                     ssl->peerEccDsaKey,
@@ -6694,8 +6690,6 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         #endif /* HAVE_ECC */
         #ifdef HAVE_ED25519
             if (ssl->peerEd25519KeyPresent) {
-                WOLFSSL_MSG("Doing ED25519 peer cert verify");
-
                 ret = Ed25519Verify(ssl, input + args->idx, args->sz,
                     args->sigData, args->sigDataSz,
                     ssl->peerEd25519Key,
@@ -6715,8 +6709,6 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         #endif
         #ifdef HAVE_ED448
             if (ssl->peerEd448KeyPresent) {
-                WOLFSSL_MSG("Doing ED448 peer cert verify");
-
                 ret = Ed448Verify(ssl, input + args->idx, args->sz,
                     args->sigData, args->sigDataSz,
                     ssl->peerEd448Key,

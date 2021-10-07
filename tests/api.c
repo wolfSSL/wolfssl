@@ -4820,20 +4820,33 @@ done:
 #endif /* defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TIRTOS) && !defined(NO_WOLFSSL_CLIENT) */
 }
 
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+     defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)) && \
+    defined(HAVE_ALPN) && defined(HAVE_SNI) && \
+    defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(NO_BIO)
+    #define HAVE_ALPN_PROTOS_SUPPORT
+#endif
 
-/* SNI / ALPN / session export helper functions */
-#if defined(HAVE_SNI) || defined(HAVE_ALPN) ||\
-    (defined(WOLFSSL_SESSION_EXPORT) && defined(WOLFSSL_DTLS))
+/* Generic TLS client / server with callbacks for API unit tests
+ * Used by SNI / ALPN / crypto callback helper functions */
+#if defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    (defined(HAVE_SNI) || defined(HAVE_ALPN) || defined(WOLF_CRYPTO_CB) || \
+     defined(HAVE_ALPN_PROTOS_SUPPORT))
+    #define ENABLE_TLS_CALLBACK_TEST
+#endif
 
+#if defined(ENABLE_TLS_CALLBACK_TEST) || \
+    (defined(WOLFSSL_DTLS) && defined(WOLFSSL_SESSION_EXPORT))
+/* TLS server for API unit testing - generic */
 static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
 {
     callback_functions* callbacks = ((func_args*)args)->callbacks;
 
-    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(callbacks->method());
+    WOLFSSL_CTX* ctx;
     WOLFSSL*     ssl = NULL;
-    SOCKET_T    sfd = 0;
-    SOCKET_T    cfd = 0;
-    word16      port;
+    SOCKET_T     sfd = 0;
+    SOCKET_T     cfd = 0;
+    word16       port;
 
     char msg[] = "I hear you fa shizzle!";
     int  len   = (int) XSTRLEN(msg);
@@ -4841,10 +4854,27 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
     int  idx;
     int  ret, err = 0;
 
+    ((func_args*)args)->return_code = TEST_FAIL;
+
+    ctx = wolfSSL_CTX_new(callbacks->method());
+    if (ctx == NULL) {
+        printf("CTX new failed\n");
+        return 0;
+    }
+
+    /* set defaults */
+    if (callbacks->caPemFile == NULL)
+        callbacks->caPemFile = cliCertFile;
+    if (callbacks->certPemFile == NULL)
+        callbacks->certPemFile = svrCertFile;
+    if (callbacks->keyPemFile == NULL)
+        callbacks->keyPemFile = svrKeyFile;
+
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
-    ((func_args*)args)->return_code = TEST_FAIL;
+
+    wolfSSL_CTX_SetDevId(ctx, callbacks->devId);
 
 #if defined(USE_WINDOWS_API)
     port = ((func_args*)args)->signal->port;
@@ -4869,19 +4899,25 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
 
 
     AssertIntEQ(WOLFSSL_SUCCESS,
-        wolfSSL_CTX_load_verify_locations(ctx, cliCertFile, 0));
+        wolfSSL_CTX_load_verify_locations(ctx, callbacks->caPemFile, 0));
 
     AssertIntEQ(WOLFSSL_SUCCESS,
-        wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+        wolfSSL_CTX_use_certificate_file(ctx, callbacks->certPemFile,
             WOLFSSL_FILETYPE_PEM));
 
     AssertIntEQ(WOLFSSL_SUCCESS,
-        wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM));
+        wolfSSL_CTX_use_PrivateKey_file(ctx, callbacks->keyPemFile,
+            WOLFSSL_FILETYPE_PEM));
 
     if (callbacks->ctx_ready)
         callbacks->ctx_ready(ctx);
 
     ssl = wolfSSL_new(ctx);
+    if (ssl == NULL) {
+        printf("SSL new failed\n");
+        wolfSSL_CTX_free(ctx);
+        return 0;
+    }
     if (wolfSSL_dtls(ssl)) {
         SOCKADDR_IN_T cliAddr;
         socklen_t     cliLen;
@@ -4899,6 +4935,18 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
     }
 
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_set_fd(ssl, cfd));
+
+    if (callbacks->loadToSSL) {
+        wolfSSL_SetDevId(ssl, callbacks->devId);
+
+        AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_use_certificate_file(ssl, callbacks->certPemFile,
+                WOLFSSL_FILETYPE_PEM));
+
+        AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_use_PrivateKey_file(ssl, callbacks->keyPemFile,
+                WOLFSSL_FILETYPE_PEM));
+    }
 
 #ifdef NO_PSK
     #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
@@ -4982,11 +5030,12 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
 #endif
 }
 
+/* TLS Client for API unit testing - generic */
 static void run_wolfssl_client(void* args)
 {
     callback_functions* callbacks = ((func_args*)args)->callbacks;
 
-    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(callbacks->method());
+    WOLFSSL_CTX* ctx;
     WOLFSSL*     ssl = NULL;
     SOCKET_T    sfd = 0;
 
@@ -4996,23 +5045,46 @@ static void run_wolfssl_client(void* args)
     int  idx;
     int  ret, err = 0;
 
+    ((func_args*)args)->return_code = TEST_FAIL;
+
+    /* set defaults */
+    if (callbacks->caPemFile == NULL)
+        callbacks->caPemFile = caCertFile;
+    if (callbacks->certPemFile == NULL)
+        callbacks->certPemFile = cliCertFile;
+    if (callbacks->keyPemFile == NULL)
+        callbacks->keyPemFile = cliKeyFile;
+
+    ctx = wolfSSL_CTX_new(callbacks->method());
+    if (ctx == NULL) {
+        printf("CTX new failed\n");
+        return;
+    }
+
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
 
-    ((func_args*)args)->return_code = TEST_FAIL;
+    if (!callbacks->loadToSSL) {
+        wolfSSL_CTX_SetDevId(ctx, callbacks->devId);
+    }
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
-    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
+    AssertIntEQ(WOLFSSL_SUCCESS, 
+        wolfSSL_CTX_load_verify_locations(ctx, callbacks->caPemFile, 0));
 
-    AssertIntEQ(WOLFSSL_SUCCESS,
-               wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, WOLFSSL_FILETYPE_PEM));
+    if (!callbacks->loadToSSL) {
+        AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_CTX_use_certificate_file(ctx, callbacks->certPemFile,
+                WOLFSSL_FILETYPE_PEM));
 
-    AssertIntEQ(WOLFSSL_SUCCESS,
-                 wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, WOLFSSL_FILETYPE_PEM));
+        AssertIntEQ(WOLFSSL_SUCCESS, 
+            wolfSSL_CTX_use_PrivateKey_file(ctx, callbacks->keyPemFile,
+                WOLFSSL_FILETYPE_PEM));
+    }
 
     if (callbacks->ctx_ready)
         callbacks->ctx_ready(ctx);
@@ -5027,6 +5099,18 @@ static void run_wolfssl_client(void* args)
                     0, 0, ssl);
     }
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_set_fd(ssl, sfd));
+
+    if (callbacks->loadToSSL) {
+        wolfSSL_SetDevId(ssl, callbacks->devId);
+
+        AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_use_certificate_file(ssl, callbacks->certPemFile,
+                WOLFSSL_FILETYPE_PEM));
+
+        AssertIntEQ(WOLFSSL_SUCCESS, 
+            wolfSSL_use_PrivateKey_file(ssl, callbacks->keyPemFile,
+                WOLFSSL_FILETYPE_PEM));
+    }
 
     if (callbacks->ssl_ready)
         callbacks->ssl_ready(ssl);
@@ -5073,8 +5157,8 @@ static void run_wolfssl_client(void* args)
 #endif
 }
 
-#endif /* defined(HAVE_SNI) || defined(HAVE_ALPN) ||
-          defined(WOLFSSL_SESSION_EXPORT) */
+#endif /* ENABLE_TLS_CALLBACK_TEST */
+
 
 static void test_wolfSSL_read_write(void)
 {
@@ -6092,8 +6176,8 @@ static void test_wolfSSL_tls_export(void)
  | TLS extensions tests
  *----------------------------------------------------------------------------*/
 
-#if defined(HAVE_SNI) || defined(HAVE_ALPN)
-/* connection test runner */
+#ifdef ENABLE_TLS_CALLBACK_TEST
+/* Connection test runner - generic */
 static void test_wolfSSL_client_server(callback_functions* client_callbacks,
                                        callback_functions* server_callbacks)
 {
@@ -6135,8 +6219,12 @@ static void test_wolfSSL_client_server(callback_functions* client_callbacks,
 #ifdef WOLFSSL_TIRTOS
     fdCloseSession(Task_self());
 #endif
+
+    client_callbacks->return_code = client_args.return_code;
+    server_callbacks->return_code = server_args.return_code;
 }
-#endif /* defined(HAVE_SNI) || defined(HAVE_ALPN) */
+#endif /* ENABLE_TLS_CALLBACK_TEST */
+
 
 #ifdef HAVE_SNI
 static void test_wolfSSL_UseSNI_params(void)
@@ -6267,57 +6355,68 @@ static void verify_FATAL_ERROR_on_client(WOLFSSL* ssl)
 }
 /* END of connection tests callbacks */
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
+
 static void test_wolfSSL_UseSNI_connection(void)
 {
     unsigned long i;
     callback_functions callbacks[] = {
         /* success case at ctx */
-        {0, use_SNI_at_ctx, 0, 0, 0, 0},
-        {0, use_SNI_at_ctx, 0, verify_SNI_real_matching, 0, 0},
+        {.ctx_ready = use_SNI_at_ctx},
+        {.ctx_ready = use_SNI_at_ctx, .on_result = verify_SNI_real_matching},
 
         /* success case at ssl */
-        {0, 0, use_SNI_at_ssl, verify_SNI_real_matching, 0, 0},
-        {0, 0, use_SNI_at_ssl, verify_SNI_real_matching, 0, 0},
+        {.ssl_ready = use_SNI_at_ssl, .on_result = verify_SNI_real_matching},
+        {.ssl_ready = use_SNI_at_ssl, .on_result = verify_SNI_real_matching},
 
         /* default mismatch behavior */
-        {0, 0, different_SNI_at_ssl, verify_FATAL_ERROR_on_client, 0, 0},
-        {0, 0, use_SNI_at_ssl,       verify_UNKNOWN_SNI_on_server, 0, 0},
+        {.ssl_ready = different_SNI_at_ssl, .on_result = verify_FATAL_ERROR_on_client},
+        {.ssl_ready = use_SNI_at_ssl,       .on_result = verify_UNKNOWN_SNI_on_server},
 
         /* continue on mismatch */
-        {0, 0, different_SNI_at_ssl,         0, 0, 0},
-        {0, 0, use_SNI_WITH_CONTINUE_at_ssl, verify_SNI_no_matching, 0, 0},
+        {.ssl_ready = different_SNI_at_ssl},
+        {.ssl_ready = use_SNI_WITH_CONTINUE_at_ssl, .on_result = verify_SNI_no_matching},
 
         /* fake answer on mismatch */
-        {0, 0, different_SNI_at_ssl,            0, 0, 0},
-        {0, 0, use_SNI_WITH_FAKE_ANSWER_at_ssl, verify_SNI_fake_matching, 0, 0},
+        {.ssl_ready = different_SNI_at_ssl},
+        {.ssl_ready = use_SNI_WITH_FAKE_ANSWER_at_ssl, .on_result = verify_SNI_fake_matching},
 
         /* sni abort - success */
-        {0, use_SNI_at_ctx,           0, 0, 0, 0},
-        {0, use_MANDATORY_SNI_at_ctx, 0, verify_SNI_real_matching, 0, 0},
+        {.ctx_ready = use_SNI_at_ctx},
+        {.ctx_ready = use_MANDATORY_SNI_at_ctx, .on_result = verify_SNI_real_matching},
 
         /* sni abort - abort when absent (ctx) */
-        {0, 0,                        0, verify_FATAL_ERROR_on_client, 0, 0},
-        {0, use_MANDATORY_SNI_at_ctx, 0, verify_SNI_ABSENT_on_server, 0, 0},
+        {                                       .on_result = verify_FATAL_ERROR_on_client},
+        {.ctx_ready = use_MANDATORY_SNI_at_ctx, .on_result = verify_SNI_ABSENT_on_server},
 
         /* sni abort - abort when absent (ssl) */
-        {0, 0, 0,                        verify_FATAL_ERROR_on_client, 0, 0},
-        {0, 0, use_MANDATORY_SNI_at_ssl, verify_SNI_ABSENT_on_server, 0, 0},
+        {                                       .on_result = verify_FATAL_ERROR_on_client},
+        {.ssl_ready = use_MANDATORY_SNI_at_ssl, .on_result = verify_SNI_ABSENT_on_server},
 
         /* sni abort - success when overwritten */
-        {0, 0, 0, 0, 0, 0},
-        {0, use_MANDATORY_SNI_at_ctx, use_SNI_at_ssl, verify_SNI_no_matching, 0, 0},
+        {.ctx_ready = NULL},
+        {.ctx_ready = use_MANDATORY_SNI_at_ctx, .ssl_ready = use_SNI_at_ssl, .on_result = verify_SNI_no_matching},
 
         /* sni abort - success when allowing mismatches */
-        {0, 0, different_SNI_at_ssl, 0, 0, 0},
-        {0, use_PSEUDO_MANDATORY_SNI_at_ctx, 0, verify_SNI_fake_matching, 0, 0},
+        {.ssl_ready = different_SNI_at_ssl},
+        {.ctx_ready = use_PSEUDO_MANDATORY_SNI_at_ctx, .on_result = verify_SNI_fake_matching},
     };
 
     for (i = 0; i < sizeof(callbacks) / sizeof(callback_functions); i += 2) {
         callbacks[i    ].method = wolfSSLv23_client_method;
         callbacks[i + 1].method = wolfSSLv23_server_method;
+        callbacks[i    ].devId = devId;
+        callbacks[i + 1].devId = devId;
         test_wolfSSL_client_server(&callbacks[i], &callbacks[i + 1]);
     }
 }
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 static void test_wolfSSL_SNI_GetFromBuffer(void)
 {
@@ -6641,8 +6740,7 @@ static void test_wolfSSL_UseSupportedCurve(void)
 #endif
 }
 
-#if defined(HAVE_ALPN) && !defined(NO_WOLFSSL_SERVER) && \
-    defined(HAVE_IO_TESTS_DEPENDENCIES)
+#if defined(HAVE_ALPN) && defined(HAVE_IO_TESTS_DEPENDENCIES)
 
 static void verify_ALPN_FATAL_ERROR_on_client(WOLFSSL* ssl)
 {
@@ -6776,50 +6874,61 @@ static void verify_ALPN_client_list(WOLFSSL* ssl)
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_ALPN_FreePeerProtocol(ssl, &clist));
 }
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
+
 static void test_wolfSSL_UseALPN_connection(void)
 {
     unsigned long i;
     callback_functions callbacks[] = {
         /* success case same list */
-        {0, 0, use_ALPN_all, 0, 0, 0},
-        {0, 0, use_ALPN_all, verify_ALPN_matching_http1, 0, 0},
+        {.ssl_ready = use_ALPN_all},
+        {.ssl_ready = use_ALPN_all, .on_result = verify_ALPN_matching_http1},
 
         /* success case only one for server */
-        {0, 0, use_ALPN_all, 0, 0, 0},
-        {0, 0, use_ALPN_one, verify_ALPN_matching_spdy2, 0, 0},
+        {.ssl_ready = use_ALPN_all},
+        {.ssl_ready = use_ALPN_one, .on_result = verify_ALPN_matching_spdy2},
 
         /* success case only one for client */
-        {0, 0, use_ALPN_one, 0, 0, 0},
-        {0, 0, use_ALPN_all, verify_ALPN_matching_spdy2, 0, 0},
+        {.ssl_ready = use_ALPN_one},
+        {.ssl_ready = use_ALPN_all, .on_result = verify_ALPN_matching_spdy2},
 
         /* success case none for client */
-        {0, 0, 0, 0, 0, 0},
-        {0, 0, use_ALPN_all, 0, 0, 0},
+        {.ssl_ready = NULL},
+        {.ssl_ready = use_ALPN_all},
 
         /* success case mismatch behavior but option 'continue' set */
-        {0, 0, use_ALPN_all_continue, verify_ALPN_not_matching_continue, 0, 0},
-        {0, 0, use_ALPN_unknown_continue, 0, 0, 0},
+        {.ssl_ready = use_ALPN_all_continue, .on_result = verify_ALPN_not_matching_continue},
+        {.ssl_ready = use_ALPN_unknown_continue},
 
         /* success case read protocol send by client */
-        {0, 0, use_ALPN_all, 0, 0, 0},
-        {0, 0, use_ALPN_one, verify_ALPN_client_list, 0, 0},
+        {.ssl_ready = use_ALPN_all},
+        {.ssl_ready = use_ALPN_one, .on_result = verify_ALPN_client_list},
 
         /* mismatch behavior with same list
          * the first and only this one must be taken */
-        {0, 0, use_ALPN_all, 0, 0, 0},
-        {0, 0, use_ALPN_all, verify_ALPN_not_matching_spdy3, 0, 0},
+        {.ssl_ready = use_ALPN_all},
+        {.ssl_ready = use_ALPN_all, .on_result = verify_ALPN_not_matching_spdy3},
 
         /* default mismatch behavior */
-        {0, 0, use_ALPN_all, 0, 0, 0},
-        {0, 0, use_ALPN_unknown, verify_ALPN_FATAL_ERROR_on_client, 0, 0},
+        {.ssl_ready = use_ALPN_all},
+        {.ssl_ready = use_ALPN_unknown, .on_result = verify_ALPN_FATAL_ERROR_on_client},
     };
 
     for (i = 0; i < sizeof(callbacks) / sizeof(callback_functions); i += 2) {
         callbacks[i    ].method = wolfSSLv23_client_method;
         callbacks[i + 1].method = wolfSSLv23_server_method;
+        callbacks[i    ].devId = devId;
+        callbacks[i + 1].devId = devId;
         test_wolfSSL_client_server(&callbacks[i], &callbacks[i + 1]);
     }
 }
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 static void test_wolfSSL_UseALPN_params(void)
 {
@@ -6896,11 +7005,7 @@ static void test_wolfSSL_UseALPN_params(void)
 }
 #endif /* HAVE_ALPN  */
 
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)) && \
-    (defined(HAVE_ALPN) && defined(HAVE_SNI)) &&\
-    defined(HAVE_IO_TESTS_DEPENDENCIES)
-    
+#ifdef HAVE_ALPN_PROTOS_SUPPORT
 static void CTX_set_alpn_protos(SSL_CTX *ctx)
 {
     unsigned char p[] = {
@@ -6919,7 +7024,6 @@ static void CTX_set_alpn_protos(SSL_CTX *ctx)
 #else
     AssertIntEQ(ret, SSL_SUCCESS);
 #endif
-
 }
 
 static void set_alpn_protos(SSL* ssl) 
@@ -6972,25 +7076,37 @@ static void verify_alpn_matching_http1(WOLFSSL* ssl)
     AssertIntEQ(0, XMEMCMP(nego_proto, proto, protoSz));
 }
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
+
 static void test_wolfSSL_set_alpn_protos(void)
 {
     unsigned long i;
     callback_functions callbacks[] = {
         /* use CTX_alpn_protos */
-        {0, CTX_set_alpn_protos, 0, 0, 0, 0},
-        {0, CTX_set_alpn_protos, 0, verify_alpn_matching_http1, 0, 0},
+        {.ctx_ready = CTX_set_alpn_protos},
+        {.ctx_ready = CTX_set_alpn_protos, .on_result = verify_alpn_matching_http1},
         /* use set_alpn_protos */
-        {0, 0, set_alpn_protos, 0, 0, 0},
-        {0, 0, set_alpn_protos, verify_alpn_matching_spdy3, 0, 0},
+        {.ssl_ready = set_alpn_protos},
+        {.ssl_ready = set_alpn_protos, .on_result = verify_alpn_matching_spdy3},
     };
 
     for (i = 0; i < sizeof(callbacks) / sizeof(callback_functions); i += 2) {
         callbacks[i    ].method = wolfSSLv23_client_method;
         callbacks[i + 1].method = wolfSSLv23_server_method;
+        callbacks[i    ].devId = devId;
+        callbacks[i + 1].devId = devId;
         test_wolfSSL_client_server(&callbacks[i], &callbacks[i + 1]);
     }
 }
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
 #endif
+
+#endif /* HAVE_ALPN_PROTOS_SUPPORT */
 
 static void test_wolfSSL_UseALPN(void)
 {
@@ -7000,16 +7116,8 @@ static void test_wolfSSL_UseALPN(void)
     test_wolfSSL_UseALPN_params();
 #endif
 
-#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_BIO)
-
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)) && \
-    (defined(HAVE_ALPN) && defined(HAVE_SNI)) && \
-    defined(HAVE_IO_TESTS_DEPENDENCIES)
-    
+#ifdef HAVE_ALPN_PROTOS_SUPPORT
     test_wolfSSL_set_alpn_protos();
-#endif
-
 #endif
 }
 
@@ -30294,7 +30402,7 @@ static void test_wolfSSL_PEM_bio_RSAKey(void)
     RSA_free(rsa);
 
     /* Ensure that keys beginning with BEGIN RSA PUBLIC KEY can be read, too. */
-    AssertNotNull(bio = BIO_new_file("./certs/server-pub-key.pem", "rb"));
+    AssertNotNull(bio = BIO_new_file("./certs/server-keyPub.pem", "rb"));
     AssertNotNull((rsa = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL)));
     BIO_free(bio);
     RSA_free(rsa);
@@ -49768,6 +49876,308 @@ static void test_SSL_CIPHER_get_xxx(void)
 #endif
 }
 
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_IO_TESTS_DEPENDENCIES)
+
+static int load_pem_key_file_as_der(const char* privKeyFile, DerBuffer** pDer,
+    int* keyFormat)
+{
+    int ret;
+    byte* key_buf = NULL;
+    size_t key_sz = 0;
+    EncryptedInfo encInfo;
+
+    XMEMSET(&encInfo, 0, sizeof(encInfo));
+
+    ret = load_file(privKeyFile, &key_buf, &key_sz);
+    if (ret == 0) {
+        ret = wc_PemToDer(key_buf, key_sz, PRIVATEKEY_TYPE, pDer,
+            NULL, &encInfo, keyFormat);
+    }
+
+    if (key_buf != NULL) {
+        free(key_buf); key_buf = NULL;
+    }
+    (void)encInfo; /* not used in this test */
+
+#ifdef DEBUG_WOLFSSL
+    printf("%s (%d): Loading PEM %s (len %d) to DER (len %d)\n",
+        (ret == 0) ? "Success" : "Failure", ret, privKeyFile, (int)key_sz, 
+        (*pDer)->length);
+#endif
+
+    return ret;
+}
+static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    const char* privKeyFile = (const char*)ctx;
+    DerBuffer* pDer = NULL;
+    int keyFormat = 0;
+
+    if (info->algo_type == WC_ALGO_TYPE_PK) {
+    #ifdef DEBUG_WOLFSSL
+        printf("test_CryptoCb_Func: Pk Type %d\n", info->pk.type);
+    #endif
+
+    #ifndef NO_RSA
+        if (info->pk.type == WC_PK_TYPE_RSA) {
+            switch (info->pk.rsa.type) {
+                case RSA_PUBLIC_ENCRYPT:
+                case RSA_PUBLIC_DECRYPT:
+                    /* perform software based RSA public op */
+                    ret = CRYPTOCB_UNAVAILABLE; /* fallback to software */
+                    break;
+                case RSA_PRIVATE_ENCRYPT:
+                case RSA_PRIVATE_DECRYPT:
+                {
+                    RsaKey key;
+
+                    /* perform software based RSA private op */
+                #ifdef DEBUG_WOLFSSL
+                    printf("test_CryptoCb_Func: RSA Priv\n");
+                #endif
+
+                    ret = load_pem_key_file_as_der(privKeyFile, &pDer,
+                        &keyFormat);
+                    if (ret != 0) {
+                        return ret;
+                    }
+                    ret = wc_InitRsaKey(&key, NULL);
+                    if (ret == 0) {
+                        word32 keyIdx = 0;
+                        /* load RSA private key and perform private transform */
+                        ret = wc_RsaPrivateKeyDecode(pDer->buffer, &keyIdx,
+                            &key, pDer->length);
+                        if (ret == 0) {
+                            ret = wc_RsaFunction(
+                                info->pk.rsa.in, info->pk.rsa.inLen,
+                                info->pk.rsa.out, info->pk.rsa.outLen,
+                                info->pk.rsa.type, &key, info->pk.rsa.rng);
+                        }
+                        else {
+                            /* if decode fails, then fall-back to software based crypto */
+                            printf("test_CryptoCb_Func: RSA private key decode "
+                                "failed %d, falling back to software\n", ret);
+                            ret = CRYPTOCB_UNAVAILABLE;
+                        }
+                        wc_FreeRsaKey(&key);
+                    }
+                    wc_FreeDer(&pDer); pDer = NULL;
+                    break;
+                }
+            }
+        #ifdef DEBUG_WOLFSSL
+            printf("test_CryptoCb_Func: RSA Type %d, Ret %d, Out %d\n",
+                info->pk.rsa.type, ret, *info->pk.rsa.outLen);
+        #endif
+        }
+    #endif /* !NO_RSA */
+    #ifdef HAVE_ECC
+        if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
+            ecc_key key;
+
+            /* perform software based ECC sign */
+        #ifdef DEBUG_WOLFSSL
+            printf("test_CryptoCb_Func: ECC Sign\n");
+        #endif
+
+            ret = load_pem_key_file_as_der(privKeyFile, &pDer, &keyFormat);
+            if (ret != 0) {
+                return ret;
+            }
+
+            ret = wc_ecc_init(&key);
+            if (ret == 0) {
+                word32 keyIdx = 0;
+                /* load ECC private key and perform private transform */
+                ret = wc_EccPrivateKeyDecode(pDer->buffer, &keyIdx,
+                    &key, pDer->length);
+                if (ret == 0) {
+                    ret = wc_ecc_sign_hash(
+                        info->pk.eccsign.in, info->pk.eccsign.inlen,
+                        info->pk.eccsign.out, info->pk.eccsign.outlen,
+                        info->pk.eccsign.rng, &key);
+                }
+                else {
+                    /* if decode fails, then fall-back to software based crypto */
+                    printf("test_CryptoCb_Func: ECC private key decode "
+                        "failed %d, falling back to software\n", ret);
+                    ret = CRYPTOCB_UNAVAILABLE;
+                }
+                wc_ecc_free(&key);
+            }
+            wc_FreeDer(&pDer); pDer = NULL;
+
+        #ifdef DEBUG_WOLFSSL
+            printf("test_CryptoCb_Func: ECC Ret %d, Out %d\n",
+                ret, *info->pk.eccsign.outlen);
+        #endif
+        }
+    #endif /* HAVE_ECC */
+    #ifdef HAVE_ED25519
+        if (info->pk.type == WC_PK_TYPE_ED25519_SIGN) {
+            ed25519_key key;
+
+            /* perform software based ED25519 sign */
+        #ifdef DEBUG_WOLFSSL
+            printf("test_CryptoCb_Func: ED25519 Sign\n");
+        #endif
+
+            ret = load_pem_key_file_as_der(privKeyFile, &pDer, &keyFormat);
+            if (ret != 0) {
+                return ret;
+            }
+            ret = wc_ed25519_init(&key);
+            if (ret == 0) {
+                word32 keyIdx = 0;
+                /* load ED25519 private key and perform private transform */
+                ret = wc_Ed25519PrivateKeyDecode(pDer->buffer, &keyIdx,
+                    &key, pDer->length);
+                if (ret == 0) {
+                    /* calculate public key */
+                    ret = wc_ed25519_make_public(&key, key.p, ED25519_PUB_KEY_SIZE);
+                    if (ret == 0) {
+                        key.pubKeySet = 1;
+                        ret = wc_ed25519_sign_msg_ex(
+                            info->pk.ed25519sign.in, info->pk.ed25519sign.inLen,
+                            info->pk.ed25519sign.out, info->pk.ed25519sign.outLen,
+                            &key, info->pk.ed25519sign.type,
+                            info->pk.ed25519sign.context,
+                            info->pk.ed25519sign.contextLen);
+                    }
+                }
+                else {
+                    /* if decode fails, then fall-back to software based crypto */
+                    printf("test_CryptoCb_Func: ED25519 private key decode "
+                        "failed %d, falling back to software\n", ret);
+                    ret = CRYPTOCB_UNAVAILABLE;
+                }
+                wc_ed25519_free(&key);
+            }
+            wc_FreeDer(&pDer); pDer = NULL;
+
+        #ifdef DEBUG_WOLFSSL
+            printf("test_CryptoCb_Func: ED25519 Ret %d, Out %d\n",
+                ret, *info->pk.ed25519sign.outLen);
+        #endif
+        }
+    #endif /* HAVE_ED25519 */
+    }
+    (void)thisDevId;
+    (void)keyFormat;
+
+    return ret;
+}
+
+/* tlsVer: WOLFSSL_TLSV1_2 or WOLFSSL_TLSV1_3 */
+static void test_wc_CryptoCb_TLS(int tlsVer,
+    const char* cliCaPemFile, const char* cliCertPemFile, 
+    const char* cliPrivKeyPemFile, const char* cliPubKeyPemFile,
+    const char* svrCaPemFile, const char* svrCertPemFile, 
+    const char* svrPrivKeyPemFile, const char* svrPubKeyPemFile)
+{
+    callback_functions client_cbf;
+    callback_functions server_cbf;
+
+    XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+    XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+
+    if (tlsVer == WOLFSSL_TLSV1_3) {
+    #ifdef WOLFSSL_TLS13
+        server_cbf.method = wolfTLSv1_3_server_method;
+        client_cbf.method = wolfTLSv1_3_client_method;
+    #endif
+    }
+    else if (tlsVer == WOLFSSL_TLSV1_2) {
+    #ifndef WOLFSSL_NO_TLS12
+        server_cbf.method = wolfTLSv1_2_server_method;
+        client_cbf.method = wolfTLSv1_2_client_method;
+    #endif
+    }
+    if (server_cbf.method == NULL) {
+        /* not enabled */
+        return;
+    }
+
+    /* Setup the keys for the TLS test */
+    client_cbf.certPemFile = cliCertPemFile;
+    client_cbf.keyPemFile = cliPubKeyPemFile;
+    client_cbf.caPemFile = cliCaPemFile;
+
+    server_cbf.certPemFile = svrCertPemFile;
+    server_cbf.keyPemFile = svrPubKeyPemFile;
+    server_cbf.caPemFile = svrCaPemFile;
+
+    /* Setup a crypto callback with pointer to private key file for testing */
+    client_cbf.devId = 1;
+    wc_CryptoCb_RegisterDevice(client_cbf.devId, test_CryptoCb_Func,
+        (void*)cliPrivKeyPemFile);
+    server_cbf.devId = 2;
+    wc_CryptoCb_RegisterDevice(server_cbf.devId, test_CryptoCb_Func,
+        (void*)svrPrivKeyPemFile);
+
+    /* Perform TLS server and client test */
+    /* First test is at WOLFSSL_CTX level */
+    test_wolfSSL_client_server(&client_cbf, &server_cbf);
+    /* Check for success */
+    AssertIntEQ(server_cbf.return_code, TEST_SUCCESS);
+    AssertIntEQ(client_cbf.return_code, TEST_SUCCESS);
+
+    /* Second test is a WOLFSSL object level */
+    client_cbf.loadToSSL = 1; server_cbf.loadToSSL = 1;
+    test_wolfSSL_client_server(&client_cbf, &server_cbf);
+
+    /* Check for success */
+    AssertIntEQ(server_cbf.return_code, TEST_SUCCESS);
+    AssertIntEQ(client_cbf.return_code, TEST_SUCCESS);
+
+    /* Un register the devId's */
+    wc_CryptoCb_UnRegisterDevice(client_cbf.devId);
+    client_cbf.devId = INVALID_DEVID;
+    wc_CryptoCb_UnRegisterDevice(server_cbf.devId);
+    server_cbf.devId = INVALID_DEVID;
+}
+#endif /* WOLF_CRYPTO_CB && HAVE_IO_TESTS_DEPENDENCIES */
+
+static void test_wc_CryptoCb(void)
+{
+#ifdef WOLF_CRYPTO_CB
+    /* TODO: Add crypto callback API tests */
+
+#ifdef HAVE_IO_TESTS_DEPENDENCIES
+    #ifndef NO_RSA
+    /* RSA */
+    test_wc_CryptoCb_TLS(WOLFSSL_TLSV1_3,
+        svrCertFile, cliCertFile, cliKeyFile, cliKeyPubFile,
+        cliCertFile, svrCertFile, svrKeyFile, svrKeyPubFile);
+    test_wc_CryptoCb_TLS(WOLFSSL_TLSV1_2,
+        svrCertFile, cliCertFile, cliKeyFile, cliKeyPubFile,
+        cliCertFile, svrCertFile, svrKeyFile, svrKeyPubFile);
+    #endif
+
+    #ifdef HAVE_ECC
+    /* ECC */
+    test_wc_CryptoCb_TLS(WOLFSSL_TLSV1_3,
+        caEccCertFile, cliEccCertFile, cliEccKeyFile, cliEccKeyPubFile,
+        cliEccCertFile, eccCertFile, eccKeyFile, eccKeyPubFile);
+    test_wc_CryptoCb_TLS(WOLFSSL_TLSV1_2,
+        caEccCertFile, cliEccCertFile, cliEccKeyFile, cliEccKeyPubFile,
+        cliEccCertFile, eccCertFile, eccKeyFile, eccKeyPubFile);
+    #endif
+
+    #ifdef HAVE_ED25519
+    /* ED25519 */
+    test_wc_CryptoCb_TLS(WOLFSSL_TLSV1_3,
+        caEdCertFile, cliEdCertFile, cliEdKeyFile, cliEdKeyPubFile,
+        cliEdCertFile, edCertFile, edKeyFile, edKeyPubFile);
+    test_wc_CryptoCb_TLS(WOLFSSL_TLSV1_2,
+        caEdCertFile, cliEdCertFile, cliEdKeyFile, cliEdKeyPubFile,
+        cliEdCertFile, edCertFile, edKeyFile, edKeyPubFile);
+    #endif
+#endif /* HAVE_IO_TESTS_DEPENDENCIES */
+#endif /* WOLF_CRYPTO_CB */
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -50615,6 +51025,8 @@ void ApiTest(void)
     test_wc_i2d_PKCS12();
 
     test_wolfSSL_CTX_LoadCRL();
+
+    test_wc_CryptoCb();
 
     AssertIntEQ(test_ForceZero(), 0);
 

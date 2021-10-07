@@ -2325,10 +2325,10 @@ WOLFSSL_ABI
 int wolfSSL_CTX_GetDevId(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
 {
     int devId = INVALID_DEVID;
-    if (ctx != NULL)
-        devId = ctx->devId;
-    else if (ssl != NULL)
+    if (ssl != NULL)
         devId = ssl->devId;
+    if (ctx != NULL && devId == INVALID_DEVID)
+        devId = ctx->devId;
     return devId;
 }
 void* wolfSSL_CTX_GetHeap(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
@@ -5354,13 +5354,22 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
         ret = wc_InitRsaKey_ex(key, heap, devId);
         if (ret == 0) {
             *idx = 0;
-            if (wc_RsaPrivateKeyDecode(der->buffer, idx, key, der->length)
-                != 0) {
+            ret = wc_RsaPrivateKeyDecode(der->buffer, idx, key, der->length);
+        #ifdef WOLF_CRYPTO_CB
+            if (ret != 0 && devId != INVALID_DEVID) {
+                /* if using crypto callbacks, try public key decode */
+                *idx = 0;
+                ret = wc_RsaPublicKeyDecode(der->buffer, idx, key, der->length);
+            }
+        #endif
+            if (ret != 0) {
             #if !defined(HAVE_ECC) && !defined(HAVE_ED25519) && \
                                                             !defined(HAVE_ED448)
                 WOLFSSL_MSG("RSA decode failed and ECC/ED25519/ED448 not "
                             "enabled to try");
                 ret = WOLFSSL_BAD_FILE;
+            #else
+                ret = 0; /* continue trying other algorithms */
             #endif
             }
             else {
@@ -5415,8 +5424,15 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
 
         if (wc_ecc_init_ex(key, heap, devId) == 0) {
             *idx = 0;
-            if (wc_EccPrivateKeyDecode(der->buffer, idx, key,
-                                                        der->length) == 0) {
+            ret = wc_EccPrivateKeyDecode(der->buffer, idx, key, der->length);
+        #ifdef WOLF_CRYPTO_CB
+            if (ret != 0 && devId != INVALID_DEVID) {
+                /* if using crypto callbacks, try public key decode */
+                *idx = 0;
+                ret = wc_EccPublicKeyDecode(der->buffer, idx, key, der->length);
+            }
+        #endif
+            if (ret == 0) {
                 /* check for minimum ECC key size and then free */
                 int minKeySz = ssl ? ssl->options.minEccKeySz :
                                                         ctx->minEccKeySz;
@@ -5441,6 +5457,9 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
                 if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
                     *resetSuites = 1;
                 }
+            }
+            else {
+                ret = 0; /* continue trying other algorithms */
             }
 
             wc_ecc_free(key);
@@ -5467,11 +5486,18 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
             return MEMORY_E;
     #endif
 
-        ret = wc_ed25519_init(key);
+        ret = wc_ed25519_init_ex(key, heap, devId);
         if (ret == 0) {
             *idx = 0;
-            if (wc_Ed25519PrivateKeyDecode(der->buffer, idx, key,
-                                                        der->length) == 0) {
+            ret = wc_Ed25519PrivateKeyDecode(der->buffer, idx, key, der->length);
+        #ifdef WOLF_CRYPTO_CB
+            if (ret != 0 && devId != INVALID_DEVID) {
+                /* if using crypto callbacks, try public key decode */
+                *idx = 0;
+                ret = wc_Ed25519PublicKeyDecode(der->buffer, idx, key, der->length);
+            }
+        #endif
+            if (ret == 0) {
                 /* check for minimum key size and then free */
                 int minKeySz = ssl ? ssl->options.minEccKeySz :
                                                            ctx->minEccKeySz;
@@ -5491,10 +5517,18 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
                     }
 
                     *keyFormat = ED25519k;
-                    if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
-                        *resetSuites = 1;
+                    if (ssl != NULL) {
+                        /* ED25519 requires caching enabled for tracking message 
+                         * hash used in EdDSA_Update for signing */
+                        ssl->options.cacheMessages = 1;
+                        if (ssl->options.side == WOLFSSL_SERVER_END) {
+                            *resetSuites = 1;
+                        }
                     }
                 }
+            }
+            else {
+                ret = 0; /* continue trying other algorithms */
             }
 
             wc_ed25519_free(key);
@@ -5549,8 +5583,13 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
                 }
 
                 *keyFormat = ED448k;
-                if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
-                    *resetSuites = 1;
+                if (ssl != NULL) {
+                    /* ED448 requires caching enabled for tracking message 
+                     * hash used in EdDSA_Update for signing */
+                    ssl->options.cacheMessages = 1;
+                    if (ssl->options.side == WOLFSSL_SERVER_END) {
+                        *resetSuites = 1;
+                    }
                 }
             }
 
@@ -16070,7 +16109,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return ret;
     }
 
-#ifdef HAVE_PKCS11
+#if defined(HAVE_PKCS11) || defined(WOLF_CRYPTO_CB)
     int wolfSSL_CTX_use_PrivateKey_id(WOLFSSL_CTX* ctx, const unsigned char* id,
                                       long sz, int devId, long keySz)
     {
@@ -16124,7 +16163,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         return ret;
     }
-#endif
+#endif /* HAVE_PKCS11 || WOLF_CRYPTO_CB */
 
     int wolfSSL_CTX_use_certificate_chain_buffer_format(WOLFSSL_CTX* ctx,
                                  const unsigned char* in, long sz, int format)

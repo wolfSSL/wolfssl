@@ -6382,7 +6382,7 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
             return MEMORY_E;
 
         tmpIdx = 0;
-        if (wc_ed25519_init(ed25519) == 0) {
+        if (wc_ed25519_init_ex(ed25519, heap, INVALID_DEVID) == 0) {
             if (wc_Ed25519PrivateKeyDecode(key, &tmpIdx, ed25519, keySz) == 0) {
                 *algoID = ED25519k;
             }
@@ -13034,7 +13034,8 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.ed25519 == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
-                    if ((ret = wc_ed25519_init(sigCtx->key.ed25519)) < 0) {
+                    if ((ret = wc_ed25519_init_ex(sigCtx->key.ed25519,
+                                            sigCtx->heap, sigCtx->devId)) < 0) {
                         goto exit_cs;
                     }
                     if ((ret = wc_ed25519_import_public(key, keySz,
@@ -18771,7 +18772,6 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     /* map header if not found for type */
     for (;;) {
         headerEnd = XSTRNSTR((char*)buff, header, sz);
-
         if (headerEnd) {
             break;
         }
@@ -18806,7 +18806,14 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             }
 #endif
             else {
+            #ifdef WOLF_CRYPTO_CB
+                /* allow loading a public key for use with crypto callbacks */
+                type = PUBLICKEY_TYPE;
+                header = BEGIN_PUB_KEY;
+                footer = END_PUB_KEY;
+            #else
                 break;
+            #endif
             }
         }
         else if (type == PUBLICKEY_TYPE) {
@@ -18907,18 +18914,30 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     /* eat end of line characters */
     headerEnd = SkipEndOfLineChars(headerEnd, bufferEnd);
 
-    if (type == PRIVATEKEY_TYPE) {
+    if (keyFormat) {
         /* keyFormat is Key_Sum enum */
-        if (keyFormat) {
+        if (type == PRIVATEKEY_TYPE) {
+        #ifndef NO_RSA
+            if (header == BEGIN_RSA_PRIV)
+                *keyFormat = RSAk;
+        #endif
         #ifdef HAVE_ECC
             if (header == BEGIN_EC_PRIV)
                 *keyFormat = ECDSAk;
         #endif
-        #if !defined(NO_DSA)
+        #ifndef NO_DSA
             if (header == BEGIN_DSA_PRIV)
                 *keyFormat = DSAk;
         #endif
         }
+    #ifdef WOLF_CRYPTO_CB
+        else if (type == PUBLICKEY_TYPE) {
+        #ifndef NO_RSA
+            if (header == BEGIN_RSA_PUB)
+                *keyFormat = RSAk;
+        #endif
+        }
+    #endif
     }
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS
@@ -18992,7 +19011,6 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         }
         return 0;
     }
-
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     if (encrypted_key || header == BEGIN_ENC_PRIV_KEY) {
@@ -19112,8 +19130,8 @@ int wc_PemToDer(const unsigned char* buff, long longSz, int type,
         ret = ToTraditional(der->buffer, der->length);
         if (ret > 0) {
             der->length = ret;
-            ret = 0;
         }
+        ret = 0; /* ignore error removing PKCS8 header */
     }
 #endif
     return ret;

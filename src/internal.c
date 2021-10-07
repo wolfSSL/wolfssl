@@ -6705,19 +6705,19 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     #endif /* HAVE_ECC */
     #ifdef HAVE_ED25519
         case DYNAMIC_TYPE_ED25519:
-            wc_ed25519_init((ed25519_key*)*pKey);
+            wc_ed25519_init_ex((ed25519_key*)*pKey, ssl->heap, ssl->devId);
             ret = 0;
             break;
     #endif /* HAVE_CURVE25519 */
     #ifdef HAVE_CURVE25519
         case DYNAMIC_TYPE_CURVE25519:
-            wc_curve25519_init((curve25519_key*)*pKey);
+            wc_curve25519_init_ex((curve25519_key*)*pKey, ssl->heap, ssl->devId);
             ret = 0;
             break;
     #endif /* HAVE_CURVE25519 */
     #ifdef HAVE_ED448
         case DYNAMIC_TYPE_ED448:
-            wc_ed448_init((ed448_key*)*pKey);
+            wc_ed448_init_ex((ed448_key*)*pKey, ssl->heap, ssl->devId);
             ret = 0;
             break;
     #endif /* HAVE_CURVE448 */
@@ -6768,19 +6768,21 @@ static int ReuseKey(WOLFSSL* ssl, int type, void* pKey)
     #ifdef HAVE_ED25519
         case DYNAMIC_TYPE_ED25519:
             wc_ed25519_free((ed25519_key*)pKey);
-            ret = wc_ed25519_init((ed25519_key*)pKey);
+            ret = wc_ed25519_init_ex((ed25519_key*)pKey, ssl->heap,
+                ssl->devId);
             break;
     #endif /* HAVE_CURVE25519 */
     #ifdef HAVE_CURVE25519
         case DYNAMIC_TYPE_CURVE25519:
             wc_curve25519_free((curve25519_key*)pKey);
-            ret = wc_curve25519_init((curve25519_key*)pKey);
+            ret = wc_curve25519_init_ex((curve25519_key*)pKey, ssl->heap,
+                ssl->devId);
             break;
     #endif /* HAVE_CURVE25519 */
     #ifdef HAVE_ED448
         case DYNAMIC_TYPE_ED448:
             wc_ed448_free((ed448_key*)pKey);
-            ret = wc_ed448_init((ed448_key*)pKey);
+            ret = wc_ed448_init_ex((ed448_key*)pKey, ssl->heap, ssl->devId);
             break;
     #endif /* HAVE_CURVE448 */
     #ifdef HAVE_CURVE448
@@ -22073,6 +22075,15 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         /* Decode the key assuming it is an RSA private key. */
         ret = wc_RsaPrivateKeyDecode(ssl->buffers.key->buffer, &idx,
                     (RsaKey*)ssl->hsKey, ssl->buffers.key->length);
+    #ifdef WOLF_CRYPTO_CB
+        /* if using crypto callbacks allow using a public key */
+        if (ret != 0 && ssl->devId != INVALID_DEVID) {
+            WOLFSSL_MSG("Trying RSA public key with crypto callbacks");
+            idx = 0;
+            ret = wc_RsaPublicKeyDecode(ssl->buffers.key->buffer, &idx,
+                        (RsaKey*)ssl->hsKey, ssl->buffers.key->length);
+        }
+    #endif
         if (ret == 0) {
             WOLFSSL_MSG("Using RSA private key");
 
@@ -22119,6 +22130,16 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         ret = wc_EccPrivateKeyDecode(ssl->buffers.key->buffer, &idx,
                                      (ecc_key*)ssl->hsKey,
                                      ssl->buffers.key->length);
+    #ifdef WOLF_CRYPTO_CB
+        /* if using crypto callbacks allow using a public key */
+        if (ret != 0 && ssl->devId != INVALID_DEVID) {
+            WOLFSSL_MSG("Trying ECC public key with crypto callbacks");
+            idx = 0;
+            ret = wc_EccPublicKeyDecode(ssl->buffers.key->buffer, &idx,
+                                     (ecc_key*)ssl->hsKey,
+                                     ssl->buffers.key->length);
+        }
+    #endif
         if (ret == 0) {
             WOLFSSL_MSG("Using ECC private key");
 
@@ -22162,6 +22183,16 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         ret = wc_Ed25519PrivateKeyDecode(ssl->buffers.key->buffer, &idx,
                                          (ed25519_key*)ssl->hsKey,
                                          ssl->buffers.key->length);
+    #ifdef WOLF_CRYPTO_CB
+        /* if using crypto callbacks allow using a public key */
+        if (ret != 0 && ssl->devId != INVALID_DEVID) {
+            WOLFSSL_MSG("Trying ED25519 public key with crypto callbacks");
+            idx = 0;
+            ret = wc_Ed25519PublicKeyDecode(ssl->buffers.key->buffer, &idx,
+                                         (ed25519_key*)ssl->hsKey,
+                                         ssl->buffers.key->length);
+        }
+    #endif
         if (ret == 0) {
             WOLFSSL_MSG("Using ED25519 private key");
 
@@ -22197,7 +22228,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         #elif !defined(NO_RSA)
             WOLFSSL_MSG("Trying ED448 private key, RSA didn't work");
         #else
-            WOLFSSL_MSG("Trying ED447 private key");
+            WOLFSSL_MSG("Trying ED448 private key");
         #endif
 
         /* Set start of data to beginning of buffer. */

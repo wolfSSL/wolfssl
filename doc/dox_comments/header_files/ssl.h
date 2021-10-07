@@ -906,6 +906,13 @@ WOLFSSL_API int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX*, const char*, int)
     argument specifies the format type of the file - SSL_FILETYPE_ASN1or
     SSL_FILETYPE_PEM.  Please see the examples for proper usage.
 
+    If using an external key store and do not have the private key you can 
+    instead provide the public key and register the crypro callback to handle 
+    the signing. For this you can build with --enable-cryptocb or
+    WOLF_CRYPTO_CB and register a crypto callback using 
+    wc_CryptoCb_RegisterDevice and set the associated devId using 
+    wolfSSL_CTX_SetDevId.
+
     \return SSL_SUCCESS upon success.
     \return SSL_FAILURE The file is in the wrong format, or the wrong format
     has been given using the “format” argument. The file doesn’t exist, can’t
@@ -931,6 +938,8 @@ WOLFSSL_API int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX*, const char*, int)
     \sa wolfSSL_CTX_use_PrivateKey_buffer
     \sa wolfSSL_use_PrivateKey_file
     \sa wolfSSL_use_PrivateKey_buffer
+    \sa wc_CryptoCb_RegisterDevice
+    \sa wolfSSL_CTX_SetDevId
 */
 WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX*, const char*, int);
 
@@ -1311,6 +1320,13 @@ WOLFSSL_API int wolfSSL_use_certificate_file(WOLFSSL*, const char*, int);
     The format argument specifies the format type of the file -
     SSL_FILETYPE_ASN1 or SSL_FILETYPE_PEM.
 
+    If using an external key store and do not have the private key you can 
+    instead provide the public key and register the crypro callback to handle 
+    the signing. For this you can build with --enable-cryptocb or
+    WOLF_CRYPTO_CB and register a crypto callback using 
+    wc_CryptoCb_RegisterDevice and set the associated devId using 
+    wolfSSL_SetDevId.
+
     \return SSL_SUCCESS upon success.
     \return SSL_FAILURE If the function call fails, possible causes might
     include: The file is in the wrong format, or the wrong format has been
@@ -1340,6 +1356,8 @@ WOLFSSL_API int wolfSSL_use_certificate_file(WOLFSSL*, const char*, int);
     \sa wolfSSL_CTX_use_PrivateKey_buffer
     \sa wolfSSL_CTX_use_PrivateKey_file
     \sa wolfSSL_use_PrivateKey_buffer
+    \sa wc_CryptoCb_RegisterDevice
+    \sa wolfSSL_SetDevId
 */
 WOLFSSL_API int wolfSSL_use_PrivateKey_file(WOLFSSL*, const char*, int);
 

@@ -86,6 +86,25 @@ run_renewcerts(){
     mv tmp.pem client-uri-cert.pem
     echo "End of section"
     echo "---------------------------------------------------------------------"
+
+    ############################################################
+    # Public Versions of client-key.pem
+    ############################################################
+    openssl rsa -inform pem -in certs/client-key.pem -outform der -out certs/client-keyPub.der -pubout
+    openssl rsa -inform pem -in certs/client-key.pem -outform pem -out certs/client-keyPub.pem -pubout
+
+    ############################################################
+    # Public Versions of server-key.pem
+    ############################################################
+    #openssl rsa -inform pem -in certs/server-key.pem -outform der -out certs/server-keyPub.der -pubout
+    openssl rsa -inform pem -in certs/server-key.pem -outform pem -out certs/server-keyPub.pem -pubout
+
+    ############################################################
+    # Public Versions of ecc-key.pem
+    ############################################################
+    #openssl ec -inform pem -in certs/ecc-key.pem -outform der -out certs/ecc-keyPub.der -pubout
+    openssl ec -inform pem -in certs/ecc-key.pem -outform pem -out certs/ecc-keyPub.pem -pubout
+
     ############################################################
     #### update the self-signed (2048-bit) client-relative-uri.pem
     ############################################################
