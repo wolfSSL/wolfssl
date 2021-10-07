@@ -1987,6 +1987,12 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_AEAD_ONLY
 #endif
 
+#if !defined(HAVE_PUBLIC_FFDHE) && !defined(NO_DH) && \
+    (defined(HAVE_SELFTEST) || \
+     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2)))
+    #define HAVE_PUBLIC_FFDHE
+#endif
+
 #if !defined(NO_DH) && !defined(HAVE_FFDHE)
     #if defined(HAVE_FFDHE_2048) || defined(HAVE_FFDHE_3072) || \
             defined(HAVE_FFDHE_4096) || defined(HAVE_FFDHE_6144) || \
