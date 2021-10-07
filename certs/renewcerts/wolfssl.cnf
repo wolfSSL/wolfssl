@@ -278,7 +278,7 @@ keyUsage=critical, digitalSignature, keyEncipherment, keyAgreement
 extendedKeyUsage=serverAuth
 nsCertType=server
 
-# server-ecc extensions
+# client-ecc extensions
 [ client_ecc ]
 subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid:always

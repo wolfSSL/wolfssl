@@ -598,9 +598,11 @@ enum DN_Tags {
     ASN_COUNTRY_NAME  = 0x06,   /* C  */
     ASN_LOCALITY_NAME = 0x07,   /* L  */
     ASN_STATE_NAME    = 0x08,   /* ST */
+    ASN_STREET_ADDR   = 0x09,   /* street */
     ASN_ORG_NAME      = 0x0a,   /* O  */
     ASN_ORGUNIT_NAME  = 0x0b,   /* OU */
     ASN_BUS_CAT       = 0x0f,   /* businessCategory */
+    ASN_POSTAL_CODE   = 0x11,   /* postalCode */
     ASN_EMAIL_NAME    = 0x98,   /* not oid number there is 97 in 2.5.4.0-97 */
 
     /* pilot attribute types
@@ -636,6 +638,9 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define WOLFSSL_LN_LOCALITY_NAME "/localityName="
 #define WOLFSSL_STATE_NAME       "/ST="
 #define WOLFSSL_LN_STATE_NAME    "/stateOrProvinceName="
+#define WOLFSSL_STREET_ADDR_NAME "/street="
+#define WOLFSSL_LN_STREET_ADDR_NAME "/streetAddress="
+#define WOLFSSL_POSTAL_NAME      "/postalCode="
 #define WOLFSSL_ORG_NAME         "/O="
 #define WOLFSSL_LN_ORG_NAME      "/organizationName="
 #define WOLFSSL_ORGUNIT_NAME     "/OU="
@@ -715,12 +720,14 @@ enum
     NID_countryName = 0x06,            /* C  */
     NID_localityName = 0x07,           /* L  */
     NID_stateOrProvinceName = 0x08,    /* ST */
+    NID_streetAddress = ASN_STREET_ADDR, /* street */
     NID_organizationName = 0x0a,       /* O  */
     NID_organizationalUnitName = 0x0b, /* OU */
     NID_jurisdictionCountryName = 0xc,
     NID_jurisdictionStateOrProvinceName = 0xd,
     NID_businessCategory = ASN_BUS_CAT,
     NID_domainComponent = ASN_DOMAIN_COMPONENT,
+    NID_postalCode = ASN_POSTAL_CODE,  /* postalCode */
     NID_favouriteDrink = 462,
     NID_userId = 458,
     NID_emailAddress = 0x30,           /* emailAddress */
@@ -857,6 +864,10 @@ enum Misc_ASN {
                           CTC_MAX_EKU_OID_SZ, /* Max encoded ExtKeyUsage
                           (SEQ/LEN + OBJID + OCTSTR/LEN + SEQ +
                           (6 * (SEQ + OID))) */
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+    MAX_NSCERTTYPE_SZ   = MAX_SEQ_SZ + 17, /* SEQ + OID + OCTET STR +
+                                            * NS BIT STR */
+#endif
     MAX_CERTPOL_NB      = CTC_MAX_CERTPOL_NB,/* Max number of Cert Policy */
     MAX_CERTPOL_SZ      = CTC_MAX_CERTPOL_SZ,
 #endif
@@ -1127,6 +1138,15 @@ enum CsrAttrType {
 #define EXTKEYUSE_SERVER_AUTH 0x02
 #define EXTKEYUSE_ANY         0x01
 
+#define WC_NS_SSL_CLIENT      0x80
+#define WC_NS_SSL_SERVER      0x40
+#define WC_NS_SMIME           0x20
+#define WC_NS_OBJSIGN         0x10
+#define WC_NS_SSL_CA          0x04
+#define WC_NS_SMIME_CA        0x02
+#define WC_NS_OBJSIGN_CA      0x01
+
+
 typedef struct DNS_entry   DNS_entry;
 
 struct DNS_entry {
@@ -1382,6 +1402,10 @@ struct DecodedCert {
     const byte* extAuthInfoCaIssuer; /* Authority Info Access caIssuer URI */
     int     extAuthInfoCaIssuerSz;   /* length of the caIssuer URI         */
 #endif
+    const byte* extCrlInfoRaw;       /* Entire CRL Distribution Points
+                                      * Extension. This is useful when
+                                      * re-generating the DER. */
+    int     extCrlInfoRawSz;         /* length of the extension          */
     const byte* extCrlInfo;          /* CRL Distribution Points          */
     int     extCrlInfoSz;            /* length of the URI                */
     byte    extSubjKeyId[KEYID_SIZE]; /* Subject Key ID                  */
@@ -1398,6 +1422,8 @@ struct DecodedCert {
     const byte* extExtKeyUsageSrc;
     word32  extExtKeyUsageSz;
     word32  extExtKeyUsageCount;
+    const byte* extRawAuthKeyIdSrc;
+    word32  extRawAuthKeyIdSz;
     const byte* extAuthKeyIdSrc;
     word32  extAuthKeyIdSz;
     const byte* extSubjKeyIdSrc;
@@ -1437,6 +1463,9 @@ struct DecodedCert {
     char*   subjectST;
     int     subjectSTLen;
     char    subjectSTEnc;
+    char*   subjectStreet;
+    int     subjectStreetLen;
+    char    subjectStreetEnc;
     char*   subjectO;
     int     subjectOLen;
     char    subjectOEnc;
@@ -1457,9 +1486,12 @@ struct DecodedCert {
     int     subjectJSLen;
     char    subjectJSEnc;
 #endif
+    char*   subjectPC;
+    int     subjectPCLen;
+    char    subjectPCEnc;
     char*   subjectEmail;
     int     subjectEmailLen;
-#endif /* WOLFSSL_CERT_GEN */
+#endif /* defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT) */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     /* WOLFSSL_X509_NAME structures (used void* to avoid including ssl.h) */
     void* issuerName;
@@ -1476,7 +1508,10 @@ struct DecodedCert {
 #ifdef WOLFSSL_CERT_EXT
     char    extCertPolicies[MAX_CERTPOL_NB][MAX_CERTPOL_SZ];
     int     extCertPoliciesNb;
-#endif /* defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT) */
+#endif /* WOLFSSL_CERT_EXT */
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+    byte    nsCertType;
+#endif
 
 #ifdef WOLFSSL_CERT_REQ
     /* CSR attributes */
@@ -1880,9 +1915,9 @@ WOLFSSL_LOCAL int wc_MIME_free_hdrs(MimeHdr* head);
 
 enum cert_enums {
 #ifdef WOLFSSL_CERT_EXT
-    NAME_ENTRIES    =  10,
+    NAME_ENTRIES    =  12,
 #else
-    NAME_ENTRIES    =  9,
+    NAME_ENTRIES    =  11,
 #endif
     JOINT_LEN       =  2,
     EMAIL_JOINT_LEN =  9,

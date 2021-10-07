@@ -3239,7 +3239,7 @@ word32 SetBitString(word32 len, byte unusedBits, byte* output)
     idx += ASN_TAG_SZ;
 
     /* Encode length - passing NULL for output will not encode.
-     * Add one to length for unsued bits. */
+     * Add one to length for unused bits. */
     idx += SetLength(len + 1, output ? output + idx : NULL);
     if (output) {
         /* Write out unused bits. */
@@ -10113,8 +10113,6 @@ static int GetHashId(const byte* id, int length, byte* hash)
 #endif /* !NO_CERTS */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
-/* Id for street address - not used. */
-#define ASN_STREET    9
 /* Id for email address. */
 #define ASN_EMAIL     0x100
 /* Id for user id. */
@@ -10145,6 +10143,10 @@ static int GetHashId(const byte* id, int length, byte* hash)
 /* Get the NID of a name component from the subject name. */
 #define GetCertNameSubjectNID(id) \
     (certNameSubject[(id) - 3].nid)
+
+#define ValidCertNameSubject(id) \
+    ((id - 3) >= 0 && (id - 3) < certNameSubjectSz && \
+            (certNameSubject[(id) - 3].strLen > 0))
 
 /* Mapping of certificate name component to useful information. */
 typedef struct CertNameData {
@@ -10240,16 +10242,16 @@ static const CertNameData certNameSubject[] = {
         NID_stateOrProvinceName
 #endif
     },
-    /* Undefined - Street */
+    /* Street Address */
     {
-        NULL, 0,
+        "/street=", 8,
 #ifdef WOLFSSL_CERT_GEN
-        0,
-        0,
-        0,
+        OFFSETOF(DecodedCert, subjectStreet),
+        OFFSETOF(DecodedCert, subjectStreetLen),
+        OFFSETOF(DecodedCert, subjectStreetEnc),
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        0,
+        NID_streetAddress
 #endif
     },
     /* Organization Name */
@@ -10330,7 +10332,40 @@ static const CertNameData certNameSubject[] = {
         NID_businessCategory
 #endif
     },
+    /* Undefined */
+    {
+        NULL, 0,
+#ifdef WOLFSSL_CERT_GEN
+        0,
+        0,
+        0,
+#endif
+#ifdef WOLFSSL_X509_NAME_AVAILABLE
+        0,
+#endif
+    },
+    /* Postal Code */
+    {
+        "/postalCode=", 12,
+#ifdef WOLFSSL_CERT_GEN
+#ifdef WOLFSSL_CERT_EXT
+        OFFSETOF(DecodedCert, subjectPC),
+        OFFSETOF(DecodedCert, subjectPCLen),
+        OFFSETOF(DecodedCert, subjectPCEnc),
+#else
+        0,
+        0,
+        0,
+#endif
+#endif
+#ifdef WOLFSSL_X509_NAME_AVAILABLE
+        NID_postalCode
+#endif
+    },
 };
+
+static const int certNameSubjectSz =
+        sizeof(certNameSubject) / sizeof(CertNameData);
 
 /* Full email OID. */
 static const byte emailOid[] = {
@@ -10527,8 +10562,7 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
     if ((oidSz == 3) && (oid[0] == 0x55) && (oid[1] == 0x04)) {
         id = oid[2];
         /* Check range of supported ids in table. */
-        if (((id >= ASN_COMMON_NAME) && (id <= ASN_ORGUNIT_NAME) &&
-                (id != ASN_STREET)) || (id == ASN_BUS_CAT)) {
+        if (ValidCertNameSubject(id)) {
             /* Get the type string, length and NID from table. */
             typeStr = GetCertNameSubjectStr(id);
             typeStrLen = GetCertNameSubjectStrLen(id);
@@ -10592,6 +10626,9 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
         else {
             WOLFSSL_MSG("Unknown Jurisdiction, skipping");
         }
+    }
+    else {
+        ret = 0;
     }
 
     if ((ret == 0) && (typeStr != NULL)) {
@@ -10838,6 +10875,22 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                     nid = NID_stateOrProvinceName;
                 #endif /* OPENSSL_EXTRA */
             }
+            else if (id == ASN_STREET_ADDR) {
+                copy = WOLFSSL_STREET_ADDR_NAME;
+                copyLen = sizeof(WOLFSSL_STREET_ADDR_NAME) - 1;
+                #ifdef WOLFSSL_CERT_GEN
+                    if (nameType == SUBJECT) {
+                        cert->subjectStreet = (char*)&input[srcIdx];
+                        cert->subjectStreetLen = strLen;
+                        cert->subjectStreetEnc = b;
+                    }
+                #endif /* WOLFSSL_CERT_GEN */
+                #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
+                    nid = NID_streetAddress;
+                #endif /* OPENSSL_EXTRA */
+            }
             else if (id == ASN_ORG_NAME) {
                 copy = WOLFSSL_ORG_NAME;
                 copyLen = sizeof(WOLFSSL_ORG_NAME) - 1;
@@ -10903,6 +10956,22 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             #endif /* OPENSSL_EXTRA */
             }
         #endif /* WOLFSSL_CERT_EXT */
+            else if (id == ASN_POSTAL_CODE) {
+                copy = WOLFSSL_POSTAL_NAME;
+                copyLen = sizeof(WOLFSSL_POSTAL_NAME) - 1;
+                #ifdef WOLFSSL_CERT_GEN
+                    if (nameType == SUBJECT) {
+                        cert->subjectPC = (char*)&input[srcIdx];
+                        cert->subjectPCLen = strLen;
+                        cert->subjectPCEnc = b;
+                    }
+                #endif /* WOLFSSL_CERT_GEN */
+                #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
+                    nid = NID_postalCode;
+                #endif /* OPENSSL_EXTRA */
+            }
         }
     #ifdef WOLFSSL_CERT_EXT
         else if ((srcIdx + ASN_JOI_PREFIX_SZ + 2 <= (word32)maxIdx) &&
@@ -14533,6 +14602,9 @@ static int DecodeCrlDist(const byte* input, int sz, DecodedCert* cert)
 
     WOLFSSL_ENTER("DecodeCrlDist");
 
+    cert->extCrlInfoRaw = input;
+    cert->extCrlInfoRawSz = sz;
+
     /* Unwrap the list of Distribution Points*/
     if (GetSequence(input, &idx, &length, sz) < 0)
         return ASN_PARSE_E;
@@ -14624,6 +14696,9 @@ static int DecodeCrlDist(const byte* input, int sz, DecodedCert* cert)
     WOLFSSL_ENTER("DecodeCrlDist");
 
     CALLOC_ASNGETDATA(dataASN, crlDistASN_Length, ret, cert->heap);
+
+    cert->extCrlInfoRaw = input;
+    cert->extCrlInfoRawSz = sz;
 
     if  (ret == 0) {
         /* Get the GeneralName choice */
@@ -14869,6 +14944,8 @@ static int DecodeAuthKeyId(const byte* input, int sz, DecodedCert* cert)
     }
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    cert->extRawAuthKeyIdSrc = input;
+    cert->extRawAuthKeyIdSz = sz;
     cert->extAuthKeyIdSrc = &input[idx];
     cert->extAuthKeyIdSz = length;
 #endif /* OPENSSL_EXTRA */
@@ -14895,7 +14972,9 @@ static int DecodeAuthKeyId(const byte* input, int sz, DecodedCert* cert)
         }
         else {
 #ifdef OPENSSL_EXTRA
-            /* Store the autority key id. */
+            /* Store the authority key id. */
+            cert->extRawAuthKeyIdSrc = input;
+            cert->extRawAuthKeyIdSz = sz;
             GetASN_GetConstRef(&dataASN[1], &cert->extAuthKeyIdSrc,
                                &cert->extAuthKeyIdSz);
 #endif /* OPENSSL_EXTRA */
@@ -15162,6 +15241,58 @@ static int DecodeExtKeyUsage(const byte* input, int sz, DecodedCert* cert)
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
+
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+
+#ifdef WOLFSSL_ASN_TEMPLATE
+/* ASN.1 template for Netscape Certificate Type
+ * https://docs.oracle.com/cd/E19957-01/816-5533-10/ext.htm#1033183
+ */
+static const ASNItem nsCertTypeASN[] = {
+/*  0 */    { 0, ASN_BIT_STRING, 0, 0, 0 },
+};
+
+/* Number of items in ASN.1 template for nsCertType. */
+#define nsCertTypeASN_Length (sizeof(nsCertTypeASN) / sizeof(ASNItem))
+#endif
+
+static int DecodeNsCertType(const byte* input, int sz, DecodedCert* cert)
+{
+#ifndef WOLFSSL_ASN_TEMPLATE
+    word32 idx = 0;
+    int len = 0;
+
+    WOLFSSL_ENTER("DecodeNsCertType");
+    if (CheckBitString(input, &idx, &len, (word32)sz, 0, NULL) < 0) {
+        return ASN_PARSE_E;
+    }
+
+    /* Don't need to worry about unused bits as CheckBitString makes sure
+     * they're zero. */
+    cert->nsCertType = input[idx];
+
+    return 0;
+#else
+    DECL_ASNGETDATA(dataASN, nsCertTypeASN_Length);
+    int ret = 0;
+    word32 idx = 0;
+
+    WOLFSSL_ENTER("DecodeNsCertType");
+    (void)cert;
+
+    CALLOC_ASNGETDATA(dataASN, nsCertTypeASN_Length, ret, cert->heap);
+
+    if (ret == 0)
+        ret = GetASN_Items(nsCertTypeASN, dataASN, nsCertTypeASN_Length, 1,
+                            input, &idx, sz);
+    if (ret == 0)
+        cert->nsCertType = dataASN[0].data.buffer.data[0];
+
+    FREE_ASNGETDATA(dataASN, cert->heap);
+    return ret;
+#endif
+}
+#endif
 
 
 #ifndef IGNORE_NAME_CONSTRAINTS
@@ -15976,11 +16107,8 @@ static int DecodeExtensionType(const byte* input, int length, word32 oid,
    #ifndef IGNORE_NETSCAPE_CERT_TYPE
         /* Netscape's certificate type. */
         case NETSCAPE_CT_OID:
-            WOLFSSL_MSG("Netscape certificate type extension not supported "
-                        "yet.");
-            if (CheckBitString(input, &idx, &length, length, 0, NULL) < 0) {
+            if (DecodeNsCertType(input, length, cert) < 0)
                 ret = ASN_PARSE_E;
-            }
             break;
     #endif
     #ifdef HAVE_OCSP
@@ -19927,10 +20055,14 @@ typedef struct DerCert {
     byte extensions[MAX_EXTENSIONS_SZ]; /* all extensions */
 #ifdef WOLFSSL_CERT_EXT
     byte skid[MAX_KID_SZ];             /* Subject Key Identifier extension */
-    byte akid[MAX_KID_SZ];             /* Authority Key Identifier extension */
+    byte akid[MAX_KID_SZ + sizeof(CertName)]; /* Authority Key Identifier extension */
     byte keyUsage[MAX_KEYUSAGE_SZ];    /* Key Usage extension */
     byte extKeyUsage[MAX_EXTKEYUSAGE_SZ]; /* Extended Key Usage extension */
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+    byte nsCertType[MAX_NSCERTTYPE_SZ]; /* Extended Key Usage extension */
+#endif
     byte certPolicies[MAX_CERTPOL_NB*MAX_CERTPOL_SZ]; /* Certificate Policies */
+    byte crlInfo[CTC_MAX_CRLINFO_SZ];  /* CRL Distribution Points */
 #endif
 #ifdef WOLFSSL_CERT_REQ
     byte attrib[MAX_ATTRIB_SZ];        /* Cert req attributes encoded */
@@ -19952,7 +20084,12 @@ typedef struct DerCert {
     int  akidSz;                       /* encoded SKID extension length */
     int  keyUsageSz;                   /* encoded KeyUsage extension length */
     int  extKeyUsageSz;                /* encoded ExtendedKeyUsage extension length */
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+    int  nsCertTypeSz;                 /* encoded Netscape Certifcate Type
+                                        * extension length */
+#endif
     int  certPoliciesSz;               /* encoded CertPolicies extension length*/
+    int  crlInfoSz;                    /* encoded CRL Dist Points length */
 #endif
 #ifdef WOLFSSL_ALT_NAMES
     int  altNamesSz;                   /* encoded AltNames extension length */
@@ -20621,28 +20758,34 @@ const char* GetOneCertName(CertName* name, int idx)
        return name->state;
 
     case 2:
-       return name->locality;
+       return name->street;
 
     case 3:
-       return name->sur;
+       return name->locality;
 
     case 4:
-       return name->org;
+       return name->sur;
 
     case 5:
-       return name->unit;
+       return name->org;
 
     case 6:
-       return name->commonName;
+       return name->unit;
 
     case 7:
-       return name->serialDev;
+       return name->commonName;
 
     case 8:
+       return name->serialDev;
+
+    case 9:
+       return name->postalCode;
+
+    case 10:
 #ifdef WOLFSSL_CERT_EXT
        return name->busCat;
 
-    case 9:
+    case 11:
 #endif
        return name->email;
 
@@ -20663,28 +20806,34 @@ static char GetNameType(CertName* name, int idx)
        return name->stateEnc;
 
     case 2:
-       return name->localityEnc;
+       return name->postalCodeEnc;
 
     case 3:
-       return name->surEnc;
+       return name->localityEnc;
 
     case 4:
-       return name->orgEnc;
+       return name->surEnc;
 
     case 5:
-       return name->unitEnc;
+       return name->orgEnc;
 
     case 6:
-       return name->commonNameEnc;
+       return name->unitEnc;
 
     case 7:
-       return name->serialDevEnc;
+       return name->commonNameEnc;
 
     case 8:
+       return name->serialDevEnc;
+
+    case 9:
+       return name->postalCodeEnc;
+
+    case 10:
 #ifdef WOLFSSL_CERT_EXT
        return name->busCatEnc;
 
-    case 9:
+    case 11:
 #endif
         /* FALL THROUGH */
         /* The last index, email name, does not have encoding type.
@@ -20706,28 +20855,34 @@ byte GetCertNameId(int idx)
        return ASN_STATE_NAME;
 
     case 2:
-       return ASN_LOCALITY_NAME;
+       return ASN_STREET_ADDR;
 
     case 3:
-       return ASN_SUR_NAME;
+       return ASN_LOCALITY_NAME;
 
     case 4:
-       return ASN_ORG_NAME;
+       return ASN_SUR_NAME;
 
     case 5:
-       return ASN_ORGUNIT_NAME;
+       return ASN_ORG_NAME;
 
     case 6:
-       return ASN_COMMON_NAME;
+       return ASN_ORGUNIT_NAME;
 
     case 7:
-       return ASN_SERIAL_NUMBER;
+       return ASN_COMMON_NAME;
 
     case 8:
+       return ASN_SERIAL_NUMBER;
+
+    case 9:
+       return ASN_POSTAL_CODE;
+
+    case 10:
 #ifdef WOLFSSL_CERT_EXT
         return ASN_BUS_CAT;
 
-    case 9:
+    case 11:
 #endif
         return ASN_EMAIL_NAME;
 
@@ -20890,36 +21045,55 @@ static int SetSKID(byte* output, word32 outSz, const byte *input, word32 length)
 
 /* encode Authority Key Identifier, return total bytes written
  * RFC5280 : non-critical */
-static int SetAKID(byte* output, word32 outSz,
-                                         byte *input, word32 length, void* heap)
+static int SetAKID(byte* output, word32 outSz, byte *input, word32 length,
+                    byte rawAkid)
 {
-    byte    *enc_val;
-    int     ret, enc_valSz;
-    const byte akid_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x23, 0x04 };
+    int     enc_valSz, inSeqSz;
+    byte enc_val_buf[MAX_KID_SZ];
+    byte* enc_val;
+    const byte akid_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x23 };
     const byte akid_cs[] = { 0x80 };
-
-    (void)heap;
+    word32 idx;
 
     if (output == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
-    enc_valSz = length + 3 + sizeof(akid_cs);
-    enc_val = (byte *)XMALLOC(enc_valSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (enc_val == NULL)
-        return MEMORY_E;
+    if (rawAkid) {
+        enc_val = input;
+        enc_valSz = length;
+    }
+    else {
+        enc_val = enc_val_buf;
+        enc_valSz = length + 3 + sizeof(akid_cs);
+        if (enc_valSz > (int)sizeof(enc_val_buf))
+            return BAD_FUNC_ARG;
 
-    /* sequence for ContentSpec & value */
-    ret = SetOidValue(enc_val, enc_valSz, akid_cs, sizeof(akid_cs),
-                      input, length);
-    if (ret > 0) {
-        enc_valSz = ret;
-
-        ret = SetOidValue(output, outSz, akid_oid, sizeof(akid_oid),
-                          enc_val, enc_valSz);
+        /* sequence for ContentSpec & value */
+        enc_valSz = SetOidValue(enc_val, enc_valSz, akid_cs, sizeof(akid_cs),
+                          input, length);
+        if (enc_valSz <= 0)
+            return enc_valSz;
     }
 
-    XFREE(enc_val, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    return ret;
+    /* The size of the extension sequence contents */
+    inSeqSz = sizeof(akid_oid) + SetOctetString(enc_valSz, NULL) +
+            enc_valSz;
+
+    if (SetSequence(inSeqSz, NULL) + inSeqSz > outSz)
+        return BAD_FUNC_ARG;
+
+    /* Write out the sequence header */
+    idx = SetSequence(inSeqSz, output);
+
+    /* Write out OID */
+    XMEMCPY(output + idx, akid_oid, sizeof(akid_oid));
+    idx += sizeof(akid_oid);
+
+    /* Write out AKID */
+    idx += SetOctetString(enc_valSz, output + idx);
+    XMEMCPY(output + idx, enc_val, enc_valSz);
+
+    return idx + enc_valSz;
 }
 
 /* encode Key Usage, return total bytes written
@@ -21162,6 +21336,89 @@ static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
     return ret;
 #endif
 }
+
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+#ifndef WOLFSSL_ASN_TEMPLATE
+static int SetNsCertType(Cert* cert, byte* output, word32 outSz, byte input)
+{
+    word32 idx;
+    byte unusedBits = 0;
+    byte nsCertType = input;
+    word32 totalSz;
+    word32 bitStrSz;
+    const byte nscerttype_oid[] = { 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
+                                    0x86, 0xF8, 0x42, 0x01, 0x01 };
+
+    if (cert == NULL || output == NULL ||
+            input == 0)
+        return BAD_FUNC_ARG;
+
+    totalSz = sizeof(nscerttype_oid);
+
+    /* Get amount of lsb zero's */
+    for (;(input & 1) == 0; input >>= 1)
+        unusedBits++;
+
+    /* 1 byte of NS Cert Type extension */
+    bitStrSz = SetBitString(1, unusedBits, NULL) + 1;
+    totalSz += SetOctetString(bitStrSz, NULL) + bitStrSz;
+
+    if (SetSequence(totalSz, NULL) + totalSz > outSz)
+        return BAD_FUNC_ARG;
+
+    /* 1. Seq + Total Len */
+    idx = SetSequence(totalSz, output);
+
+    /* 2. Object ID */
+    XMEMCPY(&output[idx], nscerttype_oid, sizeof(nscerttype_oid));
+    idx += sizeof(nscerttype_oid);
+
+    /* 3. Octet String */
+    idx += SetOctetString(bitStrSz, &output[idx]);
+
+    /* 4. Bit String */
+    idx += SetBitString(1, unusedBits, &output[idx]);
+    output[idx++] = nsCertType;
+
+    return idx;
+}
+#endif
+#endif
+
+#ifndef WOLFSSL_ASN_TEMPLATE
+static int SetCRLInfo(Cert* cert, byte* output, word32 outSz, byte* input,
+                      int inSz)
+{
+    word32 idx;
+    word32 totalSz;
+    const byte crlinfo_oid[] = { 0x06, 0x03, 0x55, 0x1D, 0x1F };
+
+    if (cert == NULL || output == NULL ||
+            input == 0 || inSz <= 0)
+        return BAD_FUNC_ARG;
+
+    totalSz = sizeof(crlinfo_oid) + SetOctetString(inSz, NULL) + inSz;
+
+    if (SetSequence(totalSz, NULL) + totalSz > outSz)
+        return BAD_FUNC_ARG;
+
+    /* 1. Seq + Total Len */
+    idx = SetSequence(totalSz, output);
+
+    /* 2. Object ID */
+    XMEMCPY(&output[idx], crlinfo_oid, sizeof(crlinfo_oid));
+    idx += sizeof(crlinfo_oid);
+
+    /* 3. Octet String */
+    idx += SetOctetString(inSz, &output[idx]);
+
+    /* 4. CRL Info */
+    XMEMCPY(&output[idx], input, inSz);
+    idx += inSz;
+
+    return idx;
+}
+#endif
 
 /* encode Certificate Policies, return total bytes written
  * each input value must be ITU-T X.690 formatted : a.b.c...
@@ -21625,6 +21882,7 @@ int wc_EncodeName(EncodedName* name, const char* nameStr, char nameType,
 static const byte nameOid[NAME_ENTRIES - 1][NAME_OID_SZ] = {
     { 0x55, 0x04, ASN_COUNTRY_NAME },
     { 0x55, 0x04, ASN_STATE_NAME },
+    { 0x55, 0x04, ASN_STREET_ADDR },
     { 0x55, 0x04, ASN_LOCALITY_NAME },
     { 0x55, 0x04, ASN_SUR_NAME },
     { 0x55, 0x04, ASN_ORG_NAME },
@@ -21634,6 +21892,7 @@ static const byte nameOid[NAME_ENTRIES - 1][NAME_OID_SZ] = {
 #ifdef WOLFSSL_CERT_EXT
     { 0x55, 0x04, ASN_BUS_CAT },
 #endif
+    { 0x55, 0x04, ASN_POSTAL_CODE },
     /* Email OID is much longer. */
 };
 
@@ -22042,6 +22301,15 @@ static const ASNItem certExtsASN[] = {
 /* 28 */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
 /* 29 */            { 2, ASN_OCTET_STRING, 0, 1, 0 },
 /* 30 */                { 3, ASN_SEQUENCE, 0, 0, 0 },
+                /* Netscape Certificate Type */
+/* 31 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* 32 */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* 33 */            { 2, ASN_OCTET_STRING, 0, 1, 0 },
+/* 34 */                { 3, ASN_BIT_STRING, 0, 0, 0 },
+/* 35 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* 36 */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* 37 */            { 2, ASN_OCTET_STRING, 0, 0, 0 },
+
 #endif
 };
 
@@ -22064,6 +22332,9 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
     static const byte kuOID[]   = { 0x55, 0x1d, 0x0f };
     static const byte ekuOID[]  = { 0x55, 0x1d, 0x25 };
     static const byte cpOID[]   = { 0x55, 0x1d, 0x20 };
+    static const byte nsCertOID[] = { 0x60, 0x86, 0x48, 0x01,
+                                    0x86, 0xF8, 0x42, 0x01, 0x01 };
+    static const byte crlInfoOID[] = { 0x55, 0x1D, 0x1F };
 #endif
 
     (void)forRequest;
@@ -22156,6 +22427,28 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
             /* Don't write out Certificate Policies extension items. */
             SetASNItem_NoOut(dataASN, 27, 30);
         }
+    #ifndef IGNORE_NETSCAPE_CERT_TYPE
+        /* Netscape Certificate Type */
+        if (cert->nsCertType != 0) {
+            /* Set Netscape Certificate Type OID and data. */
+            SetASN_Buffer(&dataASN[32], nsCertOID, sizeof(nsCertOID));
+            SetASN_Buffer(&dataASN[34], &cert->nsCertType, 1);
+        }
+        else
+    #endif
+        {
+            /* Don't write out Netscape Certificate Type. */
+            SetASNItem_NoOut(dataASN, 31, 34);
+        }
+        if (cert->crlInfoSz > 0) {
+            /* Set CRL Distribution Points OID and data. */
+            SetASN_Buffer(&dataASN[36], crlInfoOID, sizeof(crlInfoOID));
+            SetASN_Buffer(&dataASN[37], cert->crlInfo, cert->crlInfoSz);
+        }
+        else {
+            /* Don't write out Netscape Certificate Type. */
+            SetASNItem_NoOut(dataASN, 35, 37);
+        }
     #endif
     }
 
@@ -22179,7 +22472,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
         SetASN_Items(certExtsASN, dataASN, certExtsASN_Length, output);
 
     #ifdef WOLFSSL_CERT_EXT
-        if (cert->keyUsage != 0){
+        if (cert->extKeyUsage != 0){
             /* Encode Extended Key Usage into space provided. */
             if (SetExtKeyUsage(cert, (byte*)dataASN[26].data.buffer.data,
                 dataASN[26].data.buffer.length, cert->extKeyUsage) <= 0) {
@@ -22209,6 +22502,10 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
 #ifndef WOLFSSL_ASN_TEMPLATE
 /* Set Date validity from now until now + daysValid
  * return size in bytes written to output, 0 on error */
+/* TODO https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.5
+ * "MUST always encode certificate validity dates through the year 2049 as
+ *  UTCTime; certificate validity dates in 2050 or later MUST be encoded as
+ *  GeneralizedTime." */
 static int SetValidity(byte* output, int daysValid)
 {
 #ifndef NO_ASN_TIME
@@ -22562,11 +22859,13 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     /* AKID */
     if (cert->akidSz) {
         /* check the provided AKID size */
-        if (cert->akidSz > (int)min(CTC_MAX_AKID_SIZE, sizeof(der->akid)))
+        if ((!cert->rawAkid &&
+              cert->akidSz > (int)min(CTC_MAX_AKID_SIZE, sizeof(der->akid))) ||
+             (cert->rawAkid && cert->akidSz > (int)sizeof(der->akid)))
             return AKID_E;
 
-        der->akidSz = SetAKID(der->akid, sizeof(der->akid),
-                              cert->akid, cert->akidSz, cert->heap);
+        der->akidSz = SetAKID(der->akid, sizeof(der->akid), cert->akid,
+                                cert->akidSz, cert->rawAkid);
         if (der->akidSz <= 0)
             return AKID_E;
 
@@ -22598,6 +22897,31 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     }
     else
         der->extKeyUsageSz = 0;
+
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+    /* Netscape Certificate Type */
+    if (cert->nsCertType != 0) {
+        der->nsCertTypeSz = SetNsCertType(cert, der->nsCertType,
+                                sizeof(der->nsCertType), cert->nsCertType);
+        if (der->nsCertTypeSz <= 0)
+            return EXTENSIONS_E;
+
+        der->extensionsSz += der->nsCertTypeSz;
+    }
+    else
+        der->nsCertTypeSz = 0;
+#endif
+
+    if (cert->crlInfoSz > 0) {
+        der->crlInfoSz = SetCRLInfo(cert, der->crlInfo, sizeof(der->crlInfo),
+                                cert->crlInfo, cert->crlInfoSz);
+        if (der->crlInfoSz <= 0)
+            return EXTENSIONS_E;
+
+        der->extensionsSz += der->crlInfoSz;
+    }
+    else
+        der->crlInfoSz = 0;
 
     /* Certificate Policies */
     if (cert->certPoliciesNb != 0) {
@@ -22664,6 +22988,15 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
                 return EXTENSIONS_E;
         }
 
+        /* put CRL Distribution Points */
+        if (der->crlInfoSz) {
+            ret = SetExtensions(der->extensions, sizeof(der->extensions),
+                                &der->extensionsSz,
+                                der->crlInfo, der->crlInfoSz);
+            if (ret <= 0)
+                return EXTENSIONS_E;
+        }
+
         /* put KeyUsage */
         if (der->keyUsageSz) {
             ret = SetExtensions(der->extensions, sizeof(der->extensions),
@@ -22681,6 +23014,17 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
             if (ret <= 0)
                 return EXTENSIONS_E;
         }
+
+        /* put Netscape Cert Type */
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+        if (der->nsCertTypeSz) {
+            ret = SetExtensions(der->extensions, sizeof(der->extensions),
+                                &der->extensionsSz,
+                                der->nsCertType, der->nsCertTypeSz);
+            if (ret <= 0)
+                return EXTENSIONS_E;
+        }
+#endif
 
         /* put Certificate Policies */
         if (der->certPoliciesSz) {
@@ -26957,16 +27301,20 @@ static int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
         return ASN_PARSE_E;
 
     /* key header */
-    ret = CheckBitString(input, inOutIdx, NULL, inSz, 1, NULL);
+    ret = CheckBitString(input, inOutIdx, &length, inSz, 1, NULL);
     if (ret != 0)
         return ret;
 
     /* check that the value found is not too large for pubKey buffer */
-    if (inSz - *inOutIdx > *pubKeyLen)
+    if ((word32)length > *pubKeyLen)
+        return ASN_PARSE_E;
+
+    /* check that input buffer is exhausted */
+    if (*inOutIdx + (word32)length != inSz)
         return ASN_PARSE_E;
 
     /* This is the raw point data compressed or uncompressed. */
-    *pubKeyLen = inSz - *inOutIdx;
+    *pubKeyLen = length;
     XMEMCPY(pubKey, input + *inOutIdx, *pubKeyLen);
 #else
     len = inSz - *inOutIdx;
@@ -26982,9 +27330,11 @@ static int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
         /* Decode Ed25519 private key. */
         ret = GetASN_Items(edPubKeyASN, dataASN, edPubKeyASN_Length, 1, input,
                 inOutIdx, inSz);
-        if (ret != 0) {
+        if (ret != 0)
             ret = ASN_PARSE_E;
-        }
+        /* check that input buffer is exhausted */
+        if (*inOutIdx != inSz)
+            ret = ASN_PARSE_E;
     }
     /* Check the public value length is correct. */
     if ((ret == 0) && (dataASN[3].data.ref.length > *pubKeyLen)) {

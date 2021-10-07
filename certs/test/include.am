@@ -5,22 +5,32 @@
 EXTRA_DIST += \
          certs/test/cert-ext-ia.cfg \
          certs/test/cert-ext-ia.der \
+         certs/test/cert-ext-ia.pem \
          certs/test/cert-ext-nc.cfg \
          certs/test/cert-ext-nc.der \
+         certs/test/cert-ext-nc.pem \
          certs/test/cert-ext-ncdns.der \
          certs/test/cert-ext-ncmixed.der \
          certs/test/cert-ext-mnc.der \
          certs/test/cert-ext-nct.cfg \
          certs/test/cert-ext-nct.der \
+         certs/test/cert-ext-nct.pem \
          certs/test/cert-ext-ndir.cfg \
          certs/test/cert-ext-ndir.der \
+         certs/test/cert-ext-ndir.pem \
          certs/test/cert-ext-ns.der \
+         certs/test/cert-ext-ns.pem \
          certs/test/cert-ext-ndir-exc.cfg \
          certs/test/cert-ext-ndir-exc.der \
+         certs/test/cert-ext-ndir-exc.pem \
          certs/test/gen-ext-certs.sh \
          certs/test/server-duplicate-policy.pem \
          certs/test/cert-ext-joi.der \
-         certs/test/cert-ext-joi.cfg
+         certs/test/cert-ext-joi.pem \
+         certs/test/cert-ext-joi.cfg \
+         certs/test/cert-ext-multiple.cfg \
+         certs/test/cert-ext-multiple.der \
+         certs/test/cert-ext-multiple.pem
 
 # The certs/server-cert with the last byte (signature byte) changed
 EXTRA_DIST += \

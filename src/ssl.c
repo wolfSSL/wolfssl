@@ -8839,58 +8839,24 @@ unsigned int wolfSSL_X509_get_key_usage(WOLFSSL_X509* x509)
 unsigned int wolfSSL_X509_get_extended_key_usage(WOLFSSL_X509* x509)
 {
     int ret = 0;
-    int rc;
-    word32 idx = 0;
-    word32 oid;
 
     WOLFSSL_ENTER("wolfSSL_X509_get_extended_key_usage");
 
-    if (x509 == NULL) {
-        WOLFSSL_MSG("x509 is NULL");
-    }
-    else if (x509->extKeyUsageSrc != NULL) {
-        while (idx < x509->extKeyUsageSz) {
-            rc = GetObjectId(x509->extKeyUsageSrc, &idx, &oid,
-                    oidCertKeyUseType, x509->extKeyUsageSz);
-            if (rc == ASN_UNKNOWN_OID_E) {
-                continue;
-            }
-            else if (rc < 0) {
-                WOLFSSL_MSG("GetObjectId failed");
-                ret = -1;
-                break;
-            }
-
-            switch (oid) {
-                case EKU_ANY_OID:
-                    ret |= XKU_ANYEKU;
-                    break;
-                case EKU_SERVER_AUTH_OID:
-                    ret |= XKU_SSL_SERVER;
-                    break;
-                case EKU_CLIENT_AUTH_OID:
-                    ret |= XKU_SSL_CLIENT;
-                    break;
-                case EKU_CODESIGNING_OID:
-                    ret |= XKU_CODE_SIGN;
-                    break;
-                case EKU_EMAILPROTECT_OID:
-                    ret |= XKU_SMIME;
-                    break;
-                case EKU_TIMESTAMP_OID:
-                    ret |= XKU_TIMESTAMP;
-                    break;
-                case EKU_OCSP_SIGN_OID:
-                    ret |= XKU_OCSP_SIGN;
-                    break;
-                default:
-                    break;
-            }
-        }
-    }
-    else {
-        WOLFSSL_MSG("x509->extKeyUsageSrc is NULL");
-        ret = -1;
+    if (x509 != NULL) {
+        if (x509->extKeyUsage & EXTKEYUSE_OCSP_SIGN)
+            ret |= XKU_OCSP_SIGN;
+        if (x509->extKeyUsage & EXTKEYUSE_TIMESTAMP)
+            ret |= XKU_TIMESTAMP;
+        if (x509->extKeyUsage & EXTKEYUSE_EMAILPROT)
+            ret |= XKU_SMIME;
+        if (x509->extKeyUsage & EXTKEYUSE_CODESIGN)
+            ret |= XKU_CODE_SIGN;
+        if (x509->extKeyUsage & EXTKEYUSE_CLIENT_AUTH)
+            ret |= XKU_SSL_CLIENT;
+        if (x509->extKeyUsage & EXTKEYUSE_SERVER_AUTH)
+            ret |= XKU_SSL_SERVER;
+        if (x509->extKeyUsage & EXTKEYUSE_ANY)
+            ret |= XKU_ANYEKU;
     }
 
     WOLFSSL_LEAVE("wolfSSL_X509_get_extended_key_usage", ret);
@@ -9792,6 +9758,13 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int lo
 
     switch (ext->obj->type) {
     case NID_authority_key_identifier:
+        if (x509->authKeyIdSrc != NULL) {
+            /* If authKeyId points into authKeyIdSrc then free it and
+             * revert to old functionality */
+            XFREE(x509->authKeyIdSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
+            x509->authKeyIdSrc = NULL;
+            x509->authKeyId = NULL;
+        }
         if (asn1_string_copy_to_buffer(&ext->value, &x509->authKeyId,
                 &x509->authKeyIdSz, x509->heap) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("asn1_string_copy_to_buffer error");
@@ -31420,6 +31393,8 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
     { NID_localityName, NID_localityName, oidCertNameType, "L", "localityName"},
     { NID_stateOrProvinceName, NID_stateOrProvinceName, oidCertNameType, "ST",
                                                         "stateOrProvinceName"},
+    { NID_streetAddress, NID_streetAddress, oidCertNameType, "street",
+                                                        "streetAddress"},
     { NID_organizationName, NID_organizationName, oidCertNameType, "O",
                                                         "organizationName"},
     { NID_organizationalUnitName, NID_organizationalUnitName, oidCertNameType,
@@ -31436,6 +31411,7 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
                                                             "jurisdictionCountryName"},
     { NID_jurisdictionStateOrProvinceName, NID_jurisdictionStateOrProvinceName,
             oidCertNameType, "jurisdictionST", "jurisdictionStateOrProvinceName"},
+    { NID_postalCode, NID_postalCode, oidCertNameType, "postalCode", "postalCode"},
 
 #ifdef WOLFSSL_CERT_REQ
     { NID_pkcs9_challengePassword, CHALLENGE_PASSWORD_OID,
@@ -41881,11 +41857,21 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             return WOLFSSL_FAILURE;
         }
 
-        if (x509->authKeyIdSz < CTC_MAX_AKID_SIZE) {
+        if (x509->authKeyIdSz < sizeof(cert->akid)) {
+        #ifndef WOLFSSL_ASN_TEMPLATE
+            /* Not supported with WOLFSSL_ASN_TEMPLATE at the moment. */
+            if (x509->authKeyIdSrc) {
+                XMEMCPY(cert->akid, x509->authKeyIdSrc, x509->authKeyIdSrcSz);
+                cert->akidSz = (int)x509->authKeyIdSrcSz;
+                cert->rawAkid = 1;
+            }
+            else
+        #endif
             if (x509->authKeyId) {
                 XMEMCPY(cert->akid, x509->authKeyId, x509->authKeyIdSz);
+                cert->akidSz = (int)x509->authKeyIdSz;
+                cert->rawAkid = 0;
             }
-            cert->akidSz = (int)x509->authKeyIdSz;
         }
         else {
             WOLFSSL_MSG("Auth Key ID too large");
@@ -41906,6 +41892,17 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         cert->certPoliciesNb = (word16)x509->certPoliciesNb;
 
         cert->keyUsage = x509->keyUsage;
+        cert->extKeyUsage = x509->extKeyUsage;
+        cert->nsCertType = x509->nsCertType;
+
+        if (x509->rawCRLInfo != NULL) {
+            if (x509->rawCRLInfoSz > CTC_MAX_CRLINFO_SZ) {
+                WOLFSSL_MSG("CRL Info too large");
+                return WOLFSSL_FAILURE;
+            }
+            XMEMCPY(cert->crlInfo, x509->rawCRLInfo, x509->rawCRLInfoSz);
+            cert->crlInfoSz = x509->rawCRLInfoSz;
+        }
     #endif /* WOLFSSL_CERT_EXT */
 
     #ifdef WOLFSSL_CERT_REQ
@@ -42445,12 +42442,14 @@ static int ConvertNIDToWolfSSL(int nid)
         case NID_countryName: return ASN_COUNTRY_NAME;
         case NID_localityName: return ASN_LOCALITY_NAME;
         case NID_stateOrProvinceName: return ASN_STATE_NAME;
+        case NID_streetAddress: return ASN_STREET_ADDR;
         case NID_organizationName: return ASN_ORG_NAME;
         case NID_organizationalUnitName: return ASN_ORGUNIT_NAME;
         case NID_emailAddress: return ASN_EMAIL_NAME;
         case NID_serialNumber: return ASN_SERIAL_NUMBER;
         case NID_businessCategory: return ASN_BUS_CAT;
         case NID_domainComponent: return ASN_DOMAIN_COMPONENT;
+        case NID_postalCode: return ASN_POSTAL_CODE;
         default:
             WOLFSSL_MSG("Attribute NID not found");
             return -1;

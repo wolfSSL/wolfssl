@@ -12289,18 +12289,20 @@ static void initDefaultName(void)
 static const CertName certDefaultName = {
     "US",               CTC_PRINTABLE,  /* country */
     "Oregon",           CTC_UTF8,       /* state */
+    "Main St",          CTC_UTF8,       /* street */
     "Portland",         CTC_UTF8,       /* locality */
     "Test",             CTC_UTF8,       /* sur */
     "wolfSSL",          CTC_UTF8,       /* org */
     "Development",      CTC_UTF8,       /* unit */
     "www.wolfssl.com",  CTC_UTF8,       /* commonName */
     "wolfSSL12345",     CTC_PRINTABLE,  /* serial number of device */
+    "12-456",           CTC_PRINTABLE,  /* Postal Code */
 #ifdef WOLFSSL_CERT_EXT
     "Private Organization", CTC_UTF8,   /* businessCategory */
     "US",               CTC_PRINTABLE,  /* jurisdiction country */
     "Oregon",           CTC_PRINTABLE,  /* jurisdiction state */
 #endif
-    "info@wolfssl.com"                  /* email */
+    "info@wolfssl.com",                 /* email */
 };
 #endif /* WOLFSSL_MULTI_ATTRIB */
 

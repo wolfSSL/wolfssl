@@ -3895,13 +3895,23 @@ void FreeX509(WOLFSSL_X509* x509)
     XFREE(x509->sig.buffer, x509->heap, DYNAMIC_TYPE_SIGNATURE);
     x509->sig.buffer = NULL;
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        XFREE(x509->authKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        if (x509->authKeyIdSrc != NULL) {
+            XFREE(x509->authKeyIdSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        }
+        else {
+            XFREE(x509->authKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        }
+        x509->authKeyIdSrc = NULL;
         x509->authKeyId = NULL;
         XFREE(x509->subjKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
         x509->subjKeyId = NULL;
         if (x509->authInfo != NULL) {
             XFREE(x509->authInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
             x509->authInfo = NULL;
+        }
+        if (x509->rawCRLInfo != NULL) {
+            XFREE(x509->rawCRLInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
+            x509->rawCRLInfo = NULL;
         }
         if (x509->CRLInfo != NULL) {
             XFREE(x509->CRLInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
@@ -10649,6 +10659,17 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 
     x509->CRLdistSet = dCert->extCRLdistSet;
     x509->CRLdistCrit = dCert->extCRLdistCrit;
+    if (dCert->extCrlInfoRaw != NULL && dCert->extCrlInfoRawSz > 0) {
+        x509->rawCRLInfo = (byte*)XMALLOC(dCert->extCrlInfoRawSz, x509->heap,
+            DYNAMIC_TYPE_X509_EXT);
+        if (x509->rawCRLInfo != NULL) {
+            XMEMCPY(x509->rawCRLInfo, dCert->extCrlInfoRaw, dCert->extCrlInfoRawSz);
+            x509->rawCRLInfoSz = dCert->extCrlInfoRawSz;
+        }
+        else {
+            ret = MEMORY_E;
+        }
+    }
     if (dCert->extCrlInfo != NULL && dCert->extCrlInfoSz > 0) {
         x509->CRLInfo = (byte*)XMALLOC(dCert->extCrlInfoSz, x509->heap,
             DYNAMIC_TYPE_X509_EXT);
@@ -10694,12 +10715,24 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     x509->authKeyIdSet = dCert->extAuthKeyIdSet;
     x509->authKeyIdCrit = dCert->extAuthKeyIdCrit;
     if (dCert->extAuthKeyIdSrc != NULL && dCert->extAuthKeyIdSz != 0) {
-        x509->authKeyId = (byte*)XMALLOC(dCert->extAuthKeyIdSz, x509->heap,
-                                         DYNAMIC_TYPE_X509_EXT);
-        if (x509->authKeyId != NULL) {
-            XMEMCPY(x509->authKeyId,
-                                 dCert->extAuthKeyIdSrc, dCert->extAuthKeyIdSz);
-            x509->authKeyIdSz = dCert->extAuthKeyIdSz;
+        if (dCert->extRawAuthKeyIdSrc != NULL &&
+                dCert->extAuthKeyIdSrc > dCert->extRawAuthKeyIdSrc &&
+                dCert->extAuthKeyIdSrc <
+                    (dCert->extRawAuthKeyIdSrc + dCert->extRawAuthKeyIdSz)) {
+            /* Confirmed: extAuthKeyIdSrc points inside extRawAuthKeyIdSrc */
+            x509->authKeyIdSrc = (byte*)XMALLOC(dCert->extRawAuthKeyIdSz,
+                    x509->heap, DYNAMIC_TYPE_X509_EXT);
+            if (x509->authKeyIdSrc != NULL) {
+                XMEMCPY(x509->authKeyIdSrc, dCert->extRawAuthKeyIdSrc,
+                        dCert->extRawAuthKeyIdSz);
+                x509->authKeyIdSrcSz = dCert->extRawAuthKeyIdSz;
+                /* Set authKeyId to same offset inside authKeyIdSrc */
+                x509->authKeyId = x509->authKeyIdSrc +
+                        (dCert->extAuthKeyIdSrc - dCert->extRawAuthKeyIdSrc);
+                x509->authKeyIdSz = dCert->extAuthKeyIdSz;
+            }
+            else
+                ret = MEMORY_E;
         }
         else
             ret = MEMORY_E;
@@ -10725,6 +10758,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         if (x509->extKeyUsageSrc != NULL) {
             XMEMCPY(x509->extKeyUsageSrc, dCert->extExtKeyUsageSrc,
                                                        dCert->extExtKeyUsageSz);
+            x509->extKeyUsage      = dCert->extExtKeyUsage;
             x509->extKeyUsageSz    = dCert->extExtKeyUsageSz;
             x509->extKeyUsageCrit  = dCert->extExtKeyUsageCrit;
             x509->extKeyUsageCount = dCert->extExtKeyUsageCount;
@@ -10733,6 +10767,9 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             ret = MEMORY_E;
         }
     }
+    #ifndef IGNORE_NETSCAPE_CERT_TYPE
+    x509->nsCertType = dCert->nsCertType;
+    #endif
     #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
         x509->certPolicySet = dCert->extCertPolicySet;
         x509->certPolicyCrit = dCert->extCertPolicyCrit;

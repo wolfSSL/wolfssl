@@ -197,7 +197,9 @@ enum Ctc_Misc {
     CTC_MAX_SKID_SIZE = 32, /* SHA256_DIGEST_SIZE */
     CTC_MAX_AKID_SIZE = 32, /* SHA256_DIGEST_SIZE */
     CTC_MAX_CERTPOL_SZ = 64,
-    CTC_MAX_CERTPOL_NB = 2 /* Max number of Certificate Policy */
+    CTC_MAX_CERTPOL_NB = 2, /* Max number of Certificate Policy */
+    CTC_MAX_CRLINFO_SZ = 200, /* Arbitrary size that should be enough for at
+                               * least two distribution points. */
 #endif /* WOLFSSL_CERT_EXT */
 };
 
@@ -305,6 +307,8 @@ typedef struct CertName {
     char countryEnc;
     char state[CTC_NAME_SIZE];
     char stateEnc;
+    char street[CTC_NAME_SIZE];
+    char streetEnc;
     char locality[CTC_NAME_SIZE];
     char localityEnc;
     char sur[CTC_NAME_SIZE];
@@ -317,6 +321,8 @@ typedef struct CertName {
     char commonNameEnc;
     char serialDev[CTC_NAME_SIZE];
     char serialDevEnc;
+    char postalCode[CTC_NAME_SIZE];
+    char postalCodeEnc;
 #ifdef WOLFSSL_CERT_EXT
     char busCat[CTC_NAME_SIZE];
     char busCatEnc;
@@ -357,10 +363,18 @@ typedef struct Cert {
 #ifdef WOLFSSL_CERT_EXT
     byte    skid[CTC_MAX_SKID_SIZE];     /* Subject Key Identifier */
     int     skidSz;                      /* SKID size in bytes */
-    byte    akid[CTC_MAX_AKID_SIZE];     /* Authority Key Identifier */
+    byte    akid[CTC_MAX_AKID_SIZE + sizeof(CertName)]; /* Authority Key
+                                                         * Identifier */
     int     akidSz;                      /* AKID size in bytes */
+    byte    rawAkid;                     /* Set to true if akid is a
+                                          * AuthorityKeyIdentifier object.
+                                          * Set to false if akid is just a
+                                          * KeyIdentifier object. */
     word16  keyUsage;                    /* Key Usage */
     byte    extKeyUsage;                 /* Extended Key Usage */
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+    byte    nsCertType;                  /* Netscape Certificate Type */
+#endif
 #ifdef WOLFSSL_EKU_OID
     /* Extended Key Usage OIDs */
     byte    extKeyUsageOID[CTC_MAX_EKU_NB][CTC_MAX_EKU_OID_SZ];
@@ -368,6 +382,8 @@ typedef struct Cert {
 #endif
     char    certPolicies[CTC_MAX_CERTPOL_NB][CTC_MAX_CERTPOL_SZ];
     word16  certPoliciesNb;              /* Number of Cert Policy */
+    byte    crlInfo[CTC_MAX_CRLINFO_SZ]; /* CRL Distribution points */
+    int     crlInfoSz;
 #endif
 #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || \
     defined(WOLFSSL_CERT_REQ)
