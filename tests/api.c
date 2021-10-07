@@ -50682,13 +50682,30 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
         }
     #endif /* !NO_RSA */
     #ifdef HAVE_ECC
-        if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
+        if (info->pk.type == WC_PK_TYPE_EC_KEYGEN) {
+            /* mark this key as ephemeral */
+            if (info->pk.eckg.key != NULL) {
+                XSTRNCPY(info->pk.eckg.key->label, "ephemeral",
+                    sizeof(info->pk.eckg.key->label));
+                info->pk.eckg.key->labelLen = (int)XSTRLEN(info->pk.eckg.key->label);
+            }
+        }
+        else if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
             ecc_key key;
 
             /* perform software based ECC sign */
         #ifdef DEBUG_WOLFSSL
             printf("test_CryptoCb_Func: ECC Sign\n");
         #endif
+
+            if (info->pk.eccsign.key != NULL &&
+                XSTRCMP(info->pk.eccsign.key->label, "ephemeral") == 0) {
+                /* this is an empheral key */
+            #ifdef DEBUG_WOLFSSL
+                printf("test_CryptoCb_Func: skipping signing op on ephemeral key\n");
+            #endif
+                return CRYPTOCB_UNAVAILABLE;
+            }
 
             ret = load_pem_key_file_as_der(privKeyFile, &pDer, &keyFormat);
             if (ret != 0) {
