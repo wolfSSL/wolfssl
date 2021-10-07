@@ -10415,9 +10415,26 @@ static int SetDNSEntry(DecodedCert* cert, const char* str, int strLen,
         XMEMCPY(dnsEntry->name, str, strLen);
         dnsEntry->name[strLen] = '\0';
 
+    #if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_ALT_NAMES_NO_REV)
+        dnsEntry->next = NULL;
+        if (*entries == NULL) {
+            /* First on list */
+            *entries = dnsEntry;
+        }
+        else {
+            DNS_entry* temp = *entries;
+
+            /* Find end */
+            for (; (temp->next != NULL); temp = temp->next);
+
+            /* Add to end */
+            temp->next = dnsEntry;
+        }
+    #else
         /* Prepend entry to linked list. */
         dnsEntry->next = *entries;
         *entries = dnsEntry;
+    #endif
     }
 
     return ret;
@@ -13557,6 +13574,31 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
 
 #endif /* IGNORE_NAME_CONSTRAINTS */
 
+#ifndef WOLFSSL_ASN_TEMPLATE
+static void AddAltName(DecodedCert* cert, DNS_entry* dnsEntry)
+{
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_ALT_NAMES_NO_REV)
+    dnsEntry->next = NULL;
+    if (cert->altNames == NULL) {
+        /* First on list */
+        cert->altNames = dnsEntry;
+    }
+    else {
+        DNS_entry* temp = cert->altNames;
+
+        /* Find end */
+        for (; (temp->next != NULL); temp = temp->next);
+
+        /* Add to end */
+        temp->next = dnsEntry;
+    }
+#else
+    dnsEntry->next = cert->altNames;
+    cert->altNames = dnsEntry;
+#endif
+}
+#endif
+
 #ifdef WOLFSSL_ASN_TEMPLATE
 #ifdef WOLFSSL_SEP
 /* ASN.1 template for OtherName of an X.509 certificate.
@@ -13803,29 +13845,6 @@ static const ASNItem altNameASN[] = {
 #define altNameASN_Length (sizeof(altNameASN) / sizeof(ASNItem))
 #endif /* WOLFSSL_ASN_TEMPLATE */
 
-
-static void AddAltName(DecodedCert* cert, DNS_entry* dnsEntry)
-{
-#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_ALT_NAMES_NO_REV)
-    dnsEntry->next = NULL;
-    if (cert->altNames == NULL) {
-        /* First on list */
-        cert->altNames = dnsEntry;
-    }
-    else {
-        DNS_entry* temp = cert->altNames;
-
-        /* Find end */
-        for (; (temp->next != NULL); temp = temp->next);
-
-        /* Add to end */
-        temp->next = dnsEntry;
-    }
-#else
-    dnsEntry->next = cert->altNames;
-    cert->altNames = dnsEntry;
-#endif
-}
 /* Decode subject alternative names extension.
  *
  * RFC 5280 4.2.1.6.  Subject Alternative Name
@@ -21251,6 +21270,9 @@ int FlattenAltNames(byte* output, word32 outputSz, const DNS_entry* names)
     word32 idx;
     const DNS_entry* curName;
     word32 namesSz = 0;
+#ifdef WOLFSSL_ALT_NAMES_NO_REV
+    word32 i;
+#endif
 
     if (output == NULL)
         return BAD_FUNC_ARG;
@@ -21270,9 +21292,18 @@ int FlattenAltNames(byte* output, word32 outputSz, const DNS_entry* names)
         return BUFFER_E;
 
     idx = SetSequence(namesSz, output);
+#ifdef WOLFSSL_ALT_NAMES_NO_REV
+    namesSz += idx;
+    i = namesSz;
+#endif
 
     curName = names;
     do {
+#ifdef WOLFSSL_ALT_NAMES_NO_REV
+        word32 len = SetLength(curName->len, NULL);
+        idx = i - curName->len - len - 1;
+        i = idx;
+#endif
         output[idx] = ASN_CONTEXT_SPECIFIC | curName->type;
         if (curName->type == ASN_DIR_TYPE) {
             output[idx] |= ASN_CONSTRUCTED;
@@ -21280,10 +21311,15 @@ int FlattenAltNames(byte* output, word32 outputSz, const DNS_entry* names)
         idx++;
         idx += SetLength(curName->len, output + idx);
         XMEMCPY(output + idx, curName->name, curName->len);
+#ifndef WOLFSSL_ALT_NAMES_NO_REV
         idx += curName->len;
+#endif
         curName = curName->next;
     } while (curName != NULL);
 
+#ifdef WOLFSSL_ALT_NAMES_NO_REV
+    idx = namesSz;
+#endif
     return idx;
 }
 
@@ -26841,6 +26877,7 @@ static int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
     int length;
     word32 oid;
 #else
+    word32 len;
     DECL_ASNGETDATA(dataASN, edPubKeyASN_Length);
 #endif
 
@@ -26874,12 +26911,15 @@ static int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
     *pubKeyLen = inSz - *inOutIdx;
     XMEMCPY(pubKey, input + *inOutIdx, *pubKeyLen);
 #else
+    len = inSz - *inOutIdx;
+
     CALLOC_ASNGETDATA(dataASN, edPubKeyASN_Length, ret, NULL);
 
     if (ret == 0) {
         /* Require OID. */
         word32 oidSz;
         const byte* oid = OidFromId(keyType, oidKeyType, &oidSz);
+
         GetASN_ExpBuffer(&dataASN[2], oid, oidSz);
         /* Decode Ed25519 private key. */
         ret = GetASN_Items(edPubKeyASN, dataASN, edPubKeyASN_Length, 1, input,
@@ -26890,6 +26930,10 @@ static int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
     }
     /* Check the public value length is correct. */
     if ((ret == 0) && (dataASN[3].data.ref.length > *pubKeyLen)) {
+        ret = ASN_PARSE_E;
+    }
+    /* Check that the all the buffer was used. */
+    if ((ret == 0) && (GetASNItem_Length(dataASN[0], input) != len)) {
         ret = ASN_PARSE_E;
     }
     if (ret == 0) {
