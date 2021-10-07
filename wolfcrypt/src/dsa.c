@@ -177,9 +177,11 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
 
     if (err == MP_OKAY) {
         do {
-            /* generate N+64 bits (c) from RBG into &dsa->x, making sure positive.
+            /* Generate N+64 bits (c) from RNG into &dsa->x, making sure
+             * result is positive.
              * Hash_DRBG uses SHA-256 which matches maximum
-             * requested_security_strength of (L,N) */
+             * requested_security_strength of (L,N).
+             */
             err = wc_RNG_GenerateBlock(rng, cBuf, cSz);
             if (err != MP_OKAY)
                 break;
