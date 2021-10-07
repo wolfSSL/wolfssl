@@ -26908,8 +26908,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     if (ssl->namedGroup) {
                         word32 pSz = 0;
 
-                        wc_DhGetNamedKeyParamSize(ssl->namedGroup, &pSz,
+                        ret = wc_DhGetNamedKeyParamSize(ssl->namedGroup, &pSz,
                                 NULL, NULL);
+                        if (ret != 0)
+                            goto exit_sske;
 
                         if (ssl->buffers.serverDH_Pub.buffer == NULL) {
                             /* Free'd in SSL_ResourceFree and
