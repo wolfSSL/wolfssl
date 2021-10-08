@@ -2391,24 +2391,33 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         FreeDer(&ctx->staticKE.x25519Key);
     #endif
 #endif
-#ifdef WOLFSSL_STATIC_MEMORY
-    if (ctx->heap != NULL) {
-#ifdef WOLFSSL_HEAP_TEST
-        /* avoid dereferencing a test value */
-        if (ctx->heap != (void*)WOLFSSL_HEAP_TEST)
-#endif
-        {
-            WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)(ctx->heap);
-            wc_FreeMutex(&((WOLFSSL_HEAP*)(hint->memory))->memory_mutex);
-        }
-    }
-#endif /* WOLFSSL_STATIC_MEMORY */
 }
 
+#ifdef WOLFSSL_STATIC_MEMORY
+static void SSL_CtxResourceFreeStaticMem(void* heap)
+{
+    if (heap != NULL
+    #ifdef WOLFSSL_HEAP_TEST
+        /* avoid dereferencing a test value */
+         && heap != (void*)WOLFSSL_HEAP_TEST
+    #endif
+    ) {
+        WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)heap;
+        WOLFSSL_HEAP*      mem  = hint->memory;
+        wc_FreeMutex(&mem->memory_mutex);
+    }
+}
+#endif /* WOLFSSL_STATIC_MEMORY */
 
 void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
 {
     int refCount;
+    void* heap = ctx->heap;
+#ifdef WOLFSSL_STATIC_MEMORY
+    if (ctx->onHeap == 0) {
+        heap = NULL;
+    }
+#endif
 
     /* decrement CTX reference count */
     if ((refCount = SSL_CTX_RefCount(ctx, -1)) < 0) {
@@ -2416,32 +2425,32 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
          * CTX was still malloc'd */
         if (ctx->err == CTX_INIT_MUTEX_E) {
             SSL_CtxResourceFree(ctx);
-            XFREE(ctx, ctx->heap, DYNAMIC_TYPE_CTX);
+            XFREE(ctx, heap, DYNAMIC_TYPE_CTX);
+        #ifdef WOLFSSL_STATIC_MEMORY
+            SSL_CtxResourceFreeStaticMem(heap);
+        #endif
         }
         return;
     }
 
     if (refCount == 0) {
-        void* heap = ctx->heap;
         WOLFSSL_MSG("CTX ref count down to 0, doing full free");
+
         SSL_CtxResourceFree(ctx);
 #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
         TicketEncCbCtx_Free(&ctx->ticketKeyCtx);
 #endif
         wc_FreeMutex(&ctx->countMutex);
-#ifdef WOLFSSL_STATIC_MEMORY
-        if (ctx->onHeap == 0) {
-            heap = NULL;
-        }
-#endif
         XFREE(ctx, heap, DYNAMIC_TYPE_CTX);
-        (void)heap; /* not used in some builds */
+    #ifdef WOLFSSL_STATIC_MEMORY
+        SSL_CtxResourceFreeStaticMem(heap);
+    #endif
     }
     else {
-        (void)ctx;
         WOLFSSL_MSG("CTX ref count not 0 yet, no free");
     }
+    (void)heap; /* not used in some builds */
 }
 
 
