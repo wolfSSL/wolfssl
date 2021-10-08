@@ -205,11 +205,6 @@ AC_ARG_ENABLE([fips],
     [ENABLED_FIPS=$enableval],
     [ENABLED_FIPS="no"])
 
-if test "$ENABLED_FIPS" != "no"
-then
-    REPRODUCIBLE_BUILD_DEFAULT=yes
-fi
-
 # The FIPS options are:
 #   v5-RC8 - FIPS 140-3 (wolfCrypt WCv5.0-RC8)
 #   v5 - alias for v5-RC8 (may change)
@@ -280,6 +275,11 @@ fi
 if test -z "$HAVE_FIPS_VERSION"
 then
     HAVE_FIPS_VERSION=0
+fi
+
+if test "$ENABLED_FIPS" != "no"
+then
+    REPRODUCIBLE_BUILD_DEFAULT=yes
 fi
 
 AS_CASE([$FIPS_VERSION],
@@ -559,8 +559,6 @@ then
                 fi
                 # S/MIME support requires PKCS7, which requires no FIPS.
                 test "$enable_smime" = "" && enable_smime=yes
-                # JNI uses pkcallbacks.
-                test "$enable_jni" = "" && enable_jni=yes
             fi
             test "$enable_opensslextra" = "" && enable_opensslextra=yes
             test "$enable_opensslall" = "" && enable_opensslall=yes
@@ -6429,7 +6427,7 @@ if test -n "$WITH_MAX_CLASSIC_ASYM_KEY_BITS"; then
    if test "$WITH_MAX_CLASSIC_ASYM_KEY_BITS" -lt 1024 -o "$WITH_MAX_CLASSIC_ASYM_KEY_BITS" -gt 16384; then
        AC_MSG_ERROR([--with-max-rsa-bits argument must be between 1024 and 16384 inclusive])
    fi
-   if test "$ENABLED_FIPS" = "n"
+   if test "$ENABLED_FIPS" = "no"
    then
       AM_CFLAGS="$AM_CFLAGS -DRSA_MAX_SIZE=$WITH_MAX_CLASSIC_ASYM_KEY_BITS"
    fi
