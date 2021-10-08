@@ -41,6 +41,9 @@
 #ifndef EXPORT_SYMBOL_NS
 #define EXPORT_SYMBOL_NS(sym, ns) EXPORT_SYMBOL(sym)
 #endif
+#ifndef EXPORT_SYMBOL_NS_GPL
+#define EXPORT_SYMBOL_NS_GPL(sym, ns) EXPORT_SYMBOL_GPL(sym)
+#endif
 
 #include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/wolfcrypt/wc_port.h>

@@ -167,9 +167,9 @@ $(src)/linuxkm/module_exports.c: $(src)/linuxkm/module_exports.c.template $(WOLF
 		awk '/^ *[0-9]+: / {							\
 		  if ($$8 !~ /^(wc_|wolf|WOLF|TLSX_)/){next;}				\
 		  if (($$4 == "FUNC") && ($$5 == "GLOBAL") && ($$6 == "DEFAULT")) {	\
-		    print "EXPORT_SYMBOL_NS(" $$8 ", WOLFSSL);";    		  	\
+		    print "EXPORT_SYMBOL_NS_GPL(" $$8 ", WOLFSSL);";    		\
 		  }									\
 		}' >> $@
-	@echo -e '#ifndef NO_CRYPT_TEST\nEXPORT_SYMBOL_NS(wolfcrypt_test, WOLFSSL);\n#endif' >> $@
+	@echo -e '#ifndef NO_CRYPT_TEST\nEXPORT_SYMBOL_NS_GPL(wolfcrypt_test, WOLFSSL);\n#endif' >> $@
 
 clean-files := module_exports.c linuxkm src wolfcrypt/src wolfcrypt/test wolfcrypt
