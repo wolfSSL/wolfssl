@@ -233,9 +233,26 @@
     #include "wolfSSL.I-CUBE-wolfSSL_conf.h"
 #endif
 
+#define WOLFSSL_MAKE_FIPS_VERSION(major, minor) ((major * 256) + minor)
+#if !defined(HAVE_FIPS)
+    #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION(0,0)
+#elif !defined(HAVE_FIPS_VERSION)
+    #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION(1,0)
+#elif !defined(HAVE_FIPS_VERSION_MINOR)
+    #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION(HAVE_FIPS_VERSION,0)
+#else
+    #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION(HAVE_FIPS_VERSION,HAVE_FIPS_VERSION_MINOR)
+#endif
+
+#define FIPS_VERSION_LT(major,minor) (WOLFSSL_FIPS_VERSION_CODE < WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+#define FIPS_VERSION_LE(major,minor) (WOLFSSL_FIPS_VERSION_CODE <= WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+#define FIPS_VERSION_EQ(major,minor) (WOLFSSL_FIPS_VERSION_CODE == WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+#define FIPS_VERSION_GE(major,minor) (WOLFSSL_FIPS_VERSION_CODE >= WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+#define FIPS_VERSION_GT(major,minor) (WOLFSSL_FIPS_VERSION_CODE > WOLFSSL_MAKE_FIPS_VERSION(major,minor))
+
 /* make sure old RNG name is used with CTaoCrypt FIPS */
 #ifdef HAVE_FIPS
-    #if !defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)
+    #if FIPS_VERSION_LT(2,0)
         #define WC_RNG RNG
     #else
         #ifndef WOLFSSL_STM32L4
@@ -1810,7 +1827,7 @@ extern void uITRON4_free(void *p) ;
     #ifdef WOLFSSL_MIN_ECC_BITS
         #define ECC_MIN_KEY_SZ WOLFSSL_MIN_ECC_BITS
     #else
-        #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2
+        #if FIPS_VERSION_GE(2,0)
             /* FIPSv2 and ready (for now) includes 192-bit support */
             #define ECC_MIN_KEY_SZ 192
         #else
@@ -1989,7 +2006,7 @@ extern void uITRON4_free(void *p) ;
 
 #if !defined(HAVE_PUBLIC_FFDHE) && !defined(NO_DH) && \
     (defined(HAVE_SELFTEST) || \
-     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2)))
+     FIPS_VERSION_EQ(2,0))
     #define HAVE_PUBLIC_FFDHE
 #endif
 
@@ -2329,11 +2346,11 @@ extern void uITRON4_free(void *p) ;
 #if defined(NO_OLD_WC_NAMES) || defined(OPENSSL_EXTRA)
     /* added to have compatibility with SHA256() */
     #if !defined(NO_OLD_SHA_NAMES) && (!defined(HAVE_FIPS) || \
-            (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+            FIPS_VERSION_GT(2,0))
         #define NO_OLD_SHA_NAMES
     #endif
     #if !defined(NO_OLD_MD5_NAME) && (!defined(HAVE_FIPS) || \
-            (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+            FIPS_VERSION_GT(2,0))
         #define NO_OLD_MD5_NAME
     #endif
 #endif
@@ -2471,15 +2488,14 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 /* FIPS v1 does not support TLS v1.3 (requires RSA PSS and HKDF) */
-#if defined(HAVE_FIPS) && !defined(HAVE_FIPS_VERSION)
+#if FIPS_VERSION_EQ(1,0)
     #undef WC_RSA_PSS
     #undef WOLFSSL_TLS13
 #endif
 
 /* For FIPSv2 make sure the ECDSA encoding allows extra bytes
  * but make sure users consider enabling it */
-#if !defined(NO_STRICT_ECDSA_LEN) && defined(HAVE_FIPS) && \
-        defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+#if !defined(NO_STRICT_ECDSA_LEN) && FIPS_VERSION_GE(2,0)
     /* ECDSA length checks off by default for CAVP testing
      * consider enabling strict checks in production */
     #define NO_STRICT_ECDSA_LEN
@@ -2500,10 +2516,15 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 /* DH Extra is not supported on FIPS v1 or v2 (is missing DhKey .pub/.priv) */
-#if defined(WOLFSSL_DH_EXTRA) && defined(HAVE_FIPS) && \
-        (!defined(HAVE_FIPS_VERSION) || HAVE_FIPS_VERSION <= 2)
+#if defined(WOLFSSL_DH_EXTRA) && defined(HAVE_FIPS) && FIPS_VERSION_LE(2,0)
     #undef WOLFSSL_DH_EXTRA
 #endif
+
+/* wc_Sha512.devId isn't available before FIPS 5.1 */
+#if defined(HAVE_FIPS) && FIPS_VERSION_LT(5,1)
+    #define NO_SHA2_CRYPTO_CB
+#endif
+
 
 /* Check for insecure build combination:
  * secure renegotiation   [enabled]
