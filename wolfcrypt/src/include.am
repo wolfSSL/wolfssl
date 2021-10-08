@@ -92,6 +92,13 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/st/README.md \
               wolfcrypt/src/port/af_alg/afalg_aes.c \
               wolfcrypt/src/port/af_alg/afalg_hash.c \
+              wolfcrypt/src/port/kcapi/kcapi_aes.c \
+              wolfcrypt/src/port/kcapi/kcapi_hash.c \
+              wolfcrypt/src/port/kcapi/kcapi_hmac.c \
+              wolfcrypt/src/port/kcapi/kcapi_ecc.c \
+              wolfcrypt/src/port/kcapi/kcapi_rsa.c \
+              wolfcrypt/src/port/kcapi/kcapi_dh.c \
+              wolfcrypt/src/port/kcapi/README.md \
               wolfcrypt/src/port/devcrypto/devcrypto_hash.c \
               wolfcrypt/src/port/devcrypto/wc_devcrypto.c \
               wolfcrypt/src/port/devcrypto/README.md \

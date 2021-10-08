@@ -54,6 +54,14 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#ifdef WOLFSSL_KCAPI_HMAC
+    #include <wolfssl/wolfcrypt/port/kcapi/kcapi_hmac.h>
+
+    #define wc_HmacSetKey  wc_HmacSetKey_Software
+    #define wc_HmacUpdate  wc_HmacUpdate_Software
+    #define wc_HmacFinal   wc_HmacFinal_Software
+#endif
+
 
 /* fips wrapper calls, user can call direct */
 /* If building for old FIPS. */
@@ -94,18 +102,22 @@
 
     int wc_HmacInit(Hmac* hmac, void* heap, int devId)
     {
+    #ifndef WOLFSSL_KCAPI_HMAC
         (void)hmac;
         (void)heap;
         (void)devId;
-        /* FIPS doesn't support:
-            return HmacInit(hmac, heap, devId); */
         return 0;
+    #else
+        return HmacInit(hmac, heap, devId);
+    #endif
     }
     void wc_HmacFree(Hmac* hmac)
     {
+    #ifndef WOLFSSL_KCAPI_HMAC
         (void)hmac;
-        /* FIPS doesn't support:
-            HmacFree(hmac); */
+    #else
+        HmacFree(hmac);
+    #endif
     }
 
     #ifdef HAVE_HKDF
@@ -979,7 +991,10 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
     return ret;
 }
 
+#ifdef WOLFSSL_KCAPI_HMAC
+    /* implemented in wolfcrypt/src/port/kcapi/kcapi_hmac.c */
 
+#else
 /* Initialize Hmac for use with async device */
 int wc_HmacInit(Hmac* hmac, void* heap, int devId)
 {
@@ -1172,6 +1187,7 @@ void wc_HmacFree(Hmac* hmac)
             break;
     }
 }
+#endif /* WOLFSSL_KCAPI_HMAC */
 
 int wolfSSL_GetHmacMaxSize(void)
 {

@@ -248,6 +248,15 @@ if BUILD_AFALG
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/af_alg/afalg_hash.c
 endif
 
+if BUILD_KCAPI
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/kcapi/kcapi_aes.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/kcapi/kcapi_hash.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/kcapi/kcapi_hmac.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/kcapi/kcapi_ecc.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/kcapi/kcapi_rsa.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/kcapi/kcapi_dh.c
+endif
+
 if BUILD_WOLFEVENT
 src_libwolfssl_la_SOURCES += wolfcrypt/src/wolfevent.c
 endif

@@ -75,6 +75,10 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #include <wolfssl/wolfcrypt/port/af_alg/wc_afalg.h>
 #endif
 
+#if defined(WOLFSSL_KCAPI_AES)
+#include <wolfssl/wolfcrypt/port/kcapi/wc_kcapi.h>
+#endif
+
 #if defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC)
 #include <wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h>
 #endif
@@ -224,9 +228,14 @@ struct Aes {
                   GCM_NONCE_MID_SZ)];
 #endif
 #endif
+#if defined(WOLFSSL_KCAPI_AES)
+    struct kcapi_handle* handle;
+    int                  init;
+#endif
 #if defined(WOLF_CRYPTO_CB) || (defined(WOLFSSL_DEVCRYPTO) && \
     (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))) || \
-    (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES))
+    (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)) || \
+    defined(WOLFSSL_KCAPI_AES)
     word32 devKey[AES_MAX_KEY_SIZE/WOLFSSL_BIT_SIZE/sizeof(word32)]; /* raw key */
 #ifdef HAVE_CAVIUM_OCTEON_SYNC
     int    keySet;

@@ -1687,6 +1687,94 @@ then
 fi
 
 
+# libkcapi
+AC_ARG_ENABLE([kcapi],
+    [AS_HELP_STRING([--enable-kcapi],[Enable libkcapi use for crypto (default: disabled)])],
+    [ ENABLED_KCAPI=$enableval ],
+    [ ENABLED_KCAPI=no ]
+    )
+
+if test "$ENABLED_KCAPI" = "yes"
+then
+    if test "$ENABLED_AESCCM" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT"
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KCAPI_AES"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KCAPI_HASH"
+    # Linux Kernel doesn't support truncated SHA512 algorithms
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA512_224 -DWOLFSSL_NOSHA512_256"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KCAPI_HMAC"
+    LIBS="$LIBS -lkcapi"
+fi
+
+AC_ARG_ENABLE([kcapi-hash],
+    [AS_HELP_STRING([--enable-kcapi-hash],[Enable libkcapi use for hashing (default: disabled)])],
+    [ ENABLED_KCAPI_HASH=$enableval ],
+    [ ENABLED_KCAPI_HASH=no ]
+    )
+
+if test "$ENABLED_KCAPI_AES" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KCAPI_AES"
+fi
+
+AC_ARG_ENABLE([kcapi-hmac],
+    [AS_HELP_STRING([--enable-kcapi-hmac],[Enable libkcapi use for HMAC (default: disabled)])],
+    [ ENABLED_KCAPI_RSA=$enableval ],
+    [ ENABLED_KCAPI_RSA=no ]
+    )
+
+if test "$ENABLED_KCAPI_HASH" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KCAPI_HASH"
+fi
+
+AC_ARG_ENABLE([kcapi-aes],
+    [AS_HELP_STRING([--enable-kcapi-aes],[Enable libkcapi use for AES (default: disabled)])],
+    [ ENABLED_KCAPI_AES=$enableval ],
+    [ ENABLED_KCAPI_AES=no ]
+    )
+
+if test "$ENABLED_KCAPI_HMAC" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KCAPI_HMAC"
+fi
+
+AC_ARG_ENABLE([kcapi-rsa],
+    [AS_HELP_STRING([--enable-kcapi-rsa],[Enable libkcapi use for RSA (default: disabled)])],
+    [ ENABLED_KCAPI_RSA=$enableval ],
+    [ ENABLED_KCAPI_RSA=no ]
+    )
+
+if test "$ENABLED_KCAPI_RSA" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KCAPI_RSA"
+fi
+
+AC_ARG_ENABLE([kcapi-dh],
+    [AS_HELP_STRING([--enable-kcapi-dh],[Enable libkcapi use for DH (default: disabled)])],
+    [ ENABLED_KCAPI_DH=$enableval ],
+    [ ENABLED_KCAPI_DH=no ]
+    )
+
+if test "$ENABLED_KCAPI_DH" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KCAPI_DH"
+fi
+
+AC_ARG_ENABLE([kcapi-ecc],
+    [AS_HELP_STRING([--enable-kcapi-ecc],[Enable libkcapi use for ECC (default: disabled)])],
+    [ ENABLED_KCAPI_ECC=$enableval ],
+    [ ENABLED_KCAPI_ECC=no ]
+    )
+
+if test "$ENABLED_KCAPI_ECC" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KCAPI_ECC"
+fi
+
+
 # Support for Linux dev/crypto calls
 AC_ARG_ENABLE([devcrypto],
     [AS_HELP_STRING([--enable-devcrypto],[Enable Linux dev crypto calls: all | aes (all aes support) | hash (all hash algos) | cbc (aes-cbc only) (default: disabled)])],
@@ -6837,6 +6925,7 @@ AM_CONDITIONAL([BUILD_XILINX],[test "x$ENABLED_XILINX" = "xyes"])
 AM_CONDITIONAL([BUILD_AESNI],[test "x$ENABLED_AESNI" = "xyes"])
 AM_CONDITIONAL([BUILD_INTELASM],[test "x$ENABLED_INTELASM" = "xyes"])
 AM_CONDITIONAL([BUILD_AFALG],[test "x$ENABLED_AFALG" = "xyes"])
+AM_CONDITIONAL([BUILD_KCAPI],[test "x$ENABLED_KCAPI" = "xyes"])
 AM_CONDITIONAL([BUILD_DEVCRYPTO],[test "x$ENABLED_DEVCRYPTO" = "xyes"])
 AM_CONDITIONAL([BUILD_CAMELLIA],[test "x$ENABLED_CAMELLIA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MD2],[test "x$ENABLED_MD2" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -7314,6 +7403,7 @@ echo "   * Write duplicate:            $ENABLED_WRITEDUP"
 echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
 echo "   * Inline Code:                $ENABLED_INLINE"
 echo "   * Linux AF_ALG:               $ENABLED_AFALG"
+echo "   * Linux KCAPI:                $ENABLED_KCAPI"
 echo "   * Linux devcrypto:            $ENABLED_DEVCRYPTO"
 echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
 echo "   * i.MX6 CAAM:                 $ENABLED_CAAM"

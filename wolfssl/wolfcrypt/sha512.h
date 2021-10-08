@@ -87,6 +87,9 @@
     #include "cy_crypto_common.h"
     #include "cy_crypto_core.h"
 #endif
+#if defined(WOLFSSL_KCAPI_HASH)
+    #include <wolfssl/wolfcrypt/port/kcapi/kcapi_hash.h>
+#endif
 
 #if defined(_MSC_VER)
     #define SHA512_NOINLINE __declspec(noinline)
@@ -163,6 +166,9 @@ struct wc_Sha512 {
 #endif
 #if defined(WOLFSSL_SILABS_SE_ACCEL)
   wc_silabs_sha_t silabsCtx;
+#endif
+#ifdef WOLFSSL_KCAPI_HASH
+    wolfssl_KCAPI_Hash kcapi;
 #endif
 #ifdef WOLF_CRYPTO_CB
     int    devId;

@@ -183,7 +183,8 @@ where 0 <= L < 2^64.
     !defined(WOLFSSL_AFALG_HASH) && !defined(WOLFSSL_DEVCRYPTO_HASH) && \
     (!defined(WOLFSSL_ESP32WROOM32_CRYPT) || defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)) && \
     (!defined(WOLFSSL_RENESAS_TSIP_CRYPT) || defined(NO_WOLFSSL_RENESAS_TSIP_HASH)) && \
-    !defined(WOLFSSL_PSOC6_CRYPTO) && !defined(WOLFSSL_IMXRT_DCP) && !defined(WOLFSSL_SILABS_SE_ACCEL)
+    !defined(WOLFSSL_PSOC6_CRYPTO) && !defined(WOLFSSL_IMXRT_DCP) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_KCAPI_HASH)
 
 
 static int InitSha256(wc_Sha256* sha256)
@@ -394,6 +395,7 @@ static int InitSha256(wc_Sha256* sha256)
         transform_check = 1;
     }
 
+#if !defined(WOLFSSL_KCAPI_HASH)
     int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     {
         int ret = 0;
@@ -425,6 +427,7 @@ static int InitSha256(wc_Sha256* sha256)
 
         return ret;
     }
+#endif /* !WOLFSSL_KCAPI_HASH */
 
 #elif defined(FREESCALE_LTC_SHA)
     int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
@@ -729,6 +732,9 @@ static int InitSha256(wc_Sha256* sha256)
 
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
+
+#elif defined(WOLFSSL_KCAPI_HASH)
+    /* implemented in wolfcrypt/src/port/kcapi/kcapi_hash.c */
 
 #else
     #define NEED_SOFT_SHA256
@@ -1110,6 +1116,10 @@ static int InitSha256(wc_Sha256* sha256)
         return ret;
     }
 
+#if defined(WOLFSSL_KCAPI_HASH)
+    /* implemented in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+
+#else
     int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
     {
         if (sha256 == NULL || (data == NULL && len > 0)) {
@@ -1139,6 +1149,7 @@ static int InitSha256(wc_Sha256* sha256)
 
         return Sha256Update(sha256, data, len);
     }
+#endif
 
     static WC_INLINE int Sha256Final(wc_Sha256* sha256)
     {
@@ -1244,6 +1255,8 @@ static int InitSha256(wc_Sha256* sha256)
         return ret;
     }
 
+#if !defined(WOLFSSL_KCAPI_HASH)
+
     int wc_Sha256FinalRaw(wc_Sha256* sha256, byte* hash)
     {
     #ifdef LITTLE_ENDIAN_ORDER
@@ -1302,6 +1315,8 @@ static int InitSha256(wc_Sha256* sha256)
 
         return InitSha256(sha256);  /* reset state */
     }
+
+#endif /* !WOLFSSL_KCAPI_HASH */
 
     #if defined(OPENSSL_EXTRA)
 /* Apply SHA256 transformation to the data                */
@@ -1386,6 +1401,9 @@ static int InitSha256(wc_Sha256* sha256)
 
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
+
+#elif defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_NO_KCAPI_SHA224)
+    /* implemented in wolfcrypt/src/port/kcapi/kcapi_hash.c */
 
 #else
 
@@ -1529,6 +1547,9 @@ static int InitSha256(wc_Sha256* sha256)
     #ifdef WOLFSSL_PIC32MZ_HASH
         wc_Sha256Pic32Free(sha224);
     #endif
+    #if defined(WOLFSSL_KCAPI_HASH)
+        KcapiHashFree(&sha224->kcapi);
+    #endif
     }
 #endif /* WOLFSSL_SHA224 */
 
@@ -1578,6 +1599,9 @@ void wc_Sha256Free(wc_Sha256* sha256)
         sha256->msg = NULL;
     }
 #endif
+#if defined(WOLFSSL_KCAPI_HASH)
+    KcapiHashFree(&sha256->kcapi);
+#endif
 #ifdef WOLFSSL_IMXRT_DCP
     DCPSha256Free(sha256);
 #endif
@@ -1589,6 +1613,12 @@ void wc_Sha256Free(wc_Sha256* sha256)
 
 #ifndef WOLFSSL_TI_HASH
 #ifdef WOLFSSL_SHA224
+
+#if defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_NO_KCAPI_SHA224)
+    /* implemented in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+
+#else
+
     int wc_Sha224GetHash(wc_Sha224* sha224, byte* hash)
     {
         int ret;
@@ -1631,6 +1661,8 @@ void wc_Sha256Free(wc_Sha256* sha256)
         return ret;
     }
 
+#endif /* WOLFSSL_KCAPI_HASH && !WOLFSSL_NO_KCAPI_SHA224 */
+
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
     int wc_Sha224SetFlags(wc_Sha224* sha224, word32 flags)
     {
@@ -1664,6 +1696,9 @@ void wc_Sha256Free(wc_Sha256* sha256)
     /* implemented in wolfcrypt/src/port/cypress/psoc6_crypto.c */
 #elif defined(WOLFSSL_IMXRT_DCP)
     /* implemented in wolfcrypt/src/port/nxp/dcp_port.c */
+#elif defined(WOLFSSL_KCAPI_HASH)
+    /* implemented in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+
 #else
 
 int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)

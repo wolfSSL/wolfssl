@@ -7513,21 +7513,27 @@ static int ExpectedResumptionSecret(WOLFSSL* ssl)
     switch (ssl->specs.mac_algorithm) {
     #ifndef NO_SHA256
         case sha256_mac:
+            wc_Sha256Free(&ssl->hsHashes->hashSha256);
             ret = wc_Sha256Copy(&digest.sha256, &ssl->hsHashes->hashSha256);
+            wc_Sha256Free(&digest.sha256);
             if (ret != 0)
                 return ret;
             break;
     #endif
     #ifdef WOLFSSL_SHA384
         case sha384_mac:
+            wc_Sha384Free(&ssl->hsHashes->hashSha384);
             ret = wc_Sha384Copy(&digest.sha384, &ssl->hsHashes->hashSha384);
+            wc_Sha384Free(&digest.sha384);
             if (ret != 0)
                 return ret;
             break;
     #endif
     #ifdef WOLFSSL_TLS13_SHA512
         case sha512_mac:
-            ret = wc_Sha512Copy(&digest.sha512, &ssl->hsHashes->hashSha384);
+            wc_Sha512Free(&ssl->hsHashes->hashSha512);
+            ret = wc_Sha512Copy(&digest.sha512, &ssl->hsHashes->hashSha512);
+            wc_Sha512Free(&digest.sha512);
             if (ret != 0)
                 return ret;
             break;

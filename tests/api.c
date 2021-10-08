@@ -9660,7 +9660,8 @@ static int test_Sha512_Family_Final(int type, int isRaw)
 
     if (type == WC_HASH_TYPE_SHA512) {
         initFp  = wc_InitSha512;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_NO_HASH_RAW)
         finalFp = (isRaw)? wc_Sha512FinalRaw : wc_Sha512Final;
 #else        
         finalFp = (isRaw)? NULL : wc_Sha512Final;
@@ -9671,14 +9672,22 @@ static int test_Sha512_Family_Final(int type, int isRaw)
 #if !defined(WOLFSSL_NOSHA512_224)
     else if (type == WC_HASH_TYPE_SHA512_224) {
         initFp  = wc_InitSha512_224;
+    #if !defined(WOLFSSL_NO_HASH_RAW)
         finalFp = (isRaw)? wc_Sha512_224FinalRaw : wc_Sha512_224Final;
+    #else
+        finalFp = (isRaw)? NULL : wc_Sha512_224Final;
+    #endif
         freeFp  = wc_Sha512_224Free;
     }
 #endif
 #if !defined(WOLFSSL_NOSHA512_256)
     else if (type == WC_HASH_TYPE_SHA512_256) {
         initFp  = wc_InitSha512_256;
+    #if !defined(WOLFSSL_NO_HASH_RAW)
         finalFp = (isRaw)? wc_Sha512_256FinalRaw : wc_Sha512_256Final;
+    #else
+        finalFp = (isRaw)? NULL : wc_Sha512_256Final;
+    #endif
         freeFp  = wc_Sha512_256Free;
     }
 #endif
@@ -9829,8 +9838,9 @@ static int test_wc_Sha512GetFlags (void)
 static int test_wc_Sha512FinalRaw (void)
 {
     int flag = 0;
-#if defined(WOLFSSL_SHA512) && !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3)))
+#if (defined(WOLFSSL_SHA512) && !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3)))) && \
+    !defined(WOLFSSL_NO_HASH_RAW)
     wc_Sha512 sha512;
     byte* hash_test[3];
     byte hash1[WC_SHA512_DIGEST_SIZE];
@@ -10260,7 +10270,8 @@ static int test_wc_Sha512_224FinalRaw (void)
     int flag = 0;
 
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
-    defined(WOLFSSL_SHA512) &&  !defined(WOLFSSL_NOSHA512_224)
+    defined(WOLFSSL_SHA512) &&  !defined(WOLFSSL_NOSHA512_224) && \
+    !defined(WOLFSSL_NO_HASH_RAW)
     printf(testingFmt, "wc_Sha512_224FinalRaw()");
     flag = test_Sha512_Family_Final(WC_HASH_TYPE_SHA512_224, 1);
     printf(resultFmt, flag == 0 ? passed : failed);
@@ -10527,7 +10538,8 @@ static int test_wc_Sha512_256FinalRaw (void)
 {
     int flag = 0;
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
-    defined(WOLFSSL_SHA512) &&  !defined(WOLFSSL_NOSHA512_256)
+    defined(WOLFSSL_SHA512) &&  !defined(WOLFSSL_NOSHA512_256) && \
+    !defined(WOLFSSL_NO_HASH_RAW)
     printf(testingFmt, "wc_Sha512_256FinalRaw()");
     flag = test_Sha512_Family_Final(WC_HASH_TYPE_SHA512_256, 1);
     printf(resultFmt, flag == 0 ? passed : failed);
@@ -10865,8 +10877,9 @@ static int test_wc_Sha384GetFlags (void)
 static int test_wc_Sha384FinalRaw (void)
 {
     int flag = 0;
-#if defined(WOLFSSL_SHA384) && !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3)))
+#if (defined(WOLFSSL_SHA384) && !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3)))) && \
+    !defined(WOLFSSL_NO_HASH_RAW)
     wc_Sha384 sha384;
     byte* hash_test[3];
     byte hash1[WC_SHA384_DIGEST_SIZE];
@@ -16485,7 +16498,8 @@ static int test_wc_AesGcmEncryptDecrypt (void)
         }
 
 #if (defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
-        (HAVE_FIPS_VERSION == 2)) || defined(HAVE_SELFTEST)
+        (HAVE_FIPS_VERSION == 2)) || defined(HAVE_SELFTEST) || \
+        defined(WOLFSSL_AES_GCM_FIXED_IV_AAD)
         /* FIPS does not check the lower bound of ivSz */
 #else
         if (gcmE == BAD_FUNC_ARG) {
@@ -16504,8 +16518,9 @@ static int test_wc_AesGcmEncryptDecrypt (void)
     /* This case is now considered good. Long IVs are now allowed.
      * Except for the original FIPS release, it still has an upper
      * bound on the IV length. */
-#if !defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
+#if (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))) && \
+    !defined(WOLFSSL_AES_GCM_FIXED_IV_AAD)
     if (gcmE == 0) {
         gcmE = wc_AesGcmEncrypt(&aes, enc, vector, sizeof(vector), longIV,
                         sizeof(longIV)/sizeof(byte), resultT, sizeof(resultT),
@@ -16554,8 +16569,9 @@ static int test_wc_AesGcmEncryptDecrypt (void)
                                    iv, sizeof(iv)/sizeof(byte), resultT,
                                    sizeof(resultT) + 1, a, sizeof(a));
             }
-        #if (defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
-                (HAVE_FIPS_VERSION == 2)) || defined(HAVE_SELFTEST)
+        #if ((defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+                (HAVE_FIPS_VERSION == 2)) || defined(HAVE_SELFTEST)) && \
+                !defined(WOLFSSL_AES_GCM_FIXED_IV_AAD)
                 /* FIPS does not check the lower bound of ivSz */
         #else
             if (gcmD == BAD_FUNC_ARG) {

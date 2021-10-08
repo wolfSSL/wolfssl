@@ -38,6 +38,10 @@
 #include <wolfssl/wolfcrypt/integer.h>
 #include <wolfssl/wolfcrypt/random.h>
 
+#ifdef WOLFSSL_KCAPI_DH
+    #include <wolfssl/wolfcrypt/port/kcapi/kcapi_dh.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -67,6 +71,9 @@ struct DhKey {
     void* heap;
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
+#endif
+#ifdef WOLFSSL_KCAPI_DH
+    struct kcapi_handle* handle;
 #endif
 };
 

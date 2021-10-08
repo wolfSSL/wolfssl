@@ -196,6 +196,9 @@
 #elif defined(WOLFSSL_SILABS_SHA384)
     /* functions defined in wolfcrypt/src/port/silabs/silabs_hash.c */
 
+#elif defined(WOLFSSL_KCAPI_HASH)
+    /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+
 #else
 
 #ifdef WOLFSSL_SHA512
@@ -897,6 +900,11 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
 
 #endif /* WOLFSSL_IMX6_CAAM || WOLFSSL_SILABS_SHA384 */
 
+#if defined(WOLFSSL_KCAPI_HASH)
+    /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+
+#else
+
 static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 {
     byte* local = (byte*)sha512->buffer;
@@ -998,7 +1006,15 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
     return 0;
 }
 
+#endif /* WOLFSSL_KCAPI_HASH */
+
 #ifdef WOLFSSL_SHA512
+
+#if defined(WOLFSSL_KCAPI_HASH)
+    /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+
+#else
+
 static int Sha512FinalRaw(wc_Sha512* sha512, byte* hash, int digestSz)
 {
 #ifdef LITTLE_ENDIAN_ORDER
@@ -1065,6 +1081,8 @@ int wc_Sha512Final(wc_Sha512* sha512, byte* hash)
     return Sha512_Family_Final(sha512, hash, WC_SHA512_DIGEST_SIZE, InitSha512);
 }
 
+#endif /* WOLFSSL_KCAPI_HASH */
+
 int wc_InitSha512(wc_Sha512* sha512)
 {
     return wc_InitSha512_ex(sha512, NULL, INVALID_DEVID);
@@ -1080,6 +1098,10 @@ void wc_Sha512Free(wc_Sha512* sha512)
         XFREE(sha512->W, sha512->heap, DYNAMIC_TYPE_TMP_BUFFER);
         sha512->W = NULL;
     }
+#endif
+
+#if defined(WOLFSSL_KCAPI_HASH)
+    KcapiHashFree(&sha512->kcapi);
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
@@ -1154,6 +1176,9 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 
 #elif defined(WOLFSSL_SILABS_SHA512)
     /* functions defined in wolfcrypt/src/port/silabs/silabs_hash.c */
+
+#elif defined(WOLFSSL_KCAPI_HASH)
+    /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
 
 #else
 
@@ -1315,7 +1340,7 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
     return ret;
 }
 
-#endif /* WOLFSSL_IMX6_CAAM || WOLFSSL_SILABS_SHA512 */
+#endif /* WOLFSSL_IMX6_CAAM || WOLFSSL_SILABS_SHA512 || WOLFSSL_KCAPI_HASH */
 
 int wc_InitSha384(wc_Sha384* sha384)
 {
@@ -1334,6 +1359,11 @@ void wc_Sha384Free(wc_Sha384* sha384)
     }
 #endif
 
+#if defined(WOLFSSL_KCAPI_HASH)
+    KcapiHashFree(&sha384->kcapi);
+#endif
+
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA384)
     wolfAsync_DevCtxFree(&sha384->asyncDev, WOLFSSL_ASYNC_MARKER_SHA384);
 #endif /* WOLFSSL_ASYNC_CRYPT */
@@ -1344,6 +1374,11 @@ void wc_Sha384Free(wc_Sha384* sha384)
 #endif /* HAVE_FIPS */
 
 #ifdef WOLFSSL_SHA512
+
+#if defined(WOLFSSL_KCAPI_HASH)
+    /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+
+#else
 
 static int Sha512_Family_GetHash(wc_Sha512* sha512, byte* hash,
                                  int (*finalfp)(wc_Sha512*, byte*))
@@ -1413,6 +1448,8 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     return ret;
 }
 
+#endif /* WOLFSSL_KCAPI_HASH */
+
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
 int wc_Sha512SetFlags(wc_Sha512* sha512, word32 flags)
 {
@@ -1441,6 +1478,10 @@ int wc_Sha512_224Update(wc_Sha512* sha, const byte* data, word32 len)
 {
     return wc_Sha512Update(sha, data, len);
 }
+#if defined(WOLFSSL_KCAPI_HASH)
+    /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+
+#else
 int wc_Sha512_224FinalRaw(wc_Sha512* sha, byte* hash)
 {
     return Sha512FinalRaw(sha, hash, WC_SHA512_224_DIGEST_SIZE);
@@ -1450,10 +1491,15 @@ int wc_Sha512_224Final(wc_Sha512* sha512, byte* hash)
     return Sha512_Family_Final(sha512, hash, WC_SHA512_224_DIGEST_SIZE,
                                InitSha512_224);
 }
+#endif
 void wc_Sha512_224Free(wc_Sha512* sha)
 {
     wc_Sha512Free(sha);
 }
+#if defined(WOLFSSL_KCAPI_HASH)
+    /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+
+#else
 int wc_Sha512_224GetHash(wc_Sha512* sha512, byte* hash)
 {
     return Sha512_Family_GetHash(sha512, hash, wc_Sha512_224Final);
@@ -1462,6 +1508,7 @@ int wc_Sha512_224Copy(wc_Sha512* src, wc_Sha512* dst)
 {
     return wc_Sha512Copy(src, dst);
 }
+#endif
 
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
 int wc_Sha512_224SetFlags(wc_Sha512* sha, word32 flags)
@@ -1492,6 +1539,10 @@ int wc_Sha512_256Update(wc_Sha512* sha, const byte* data, word32 len)
 {
     return wc_Sha512Update(sha, data, len);
 }
+#if defined(WOLFSSL_KCAPI_HASH)
+    /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+
+#else
 int wc_Sha512_256FinalRaw(wc_Sha512* sha, byte* hash)
 {
     return Sha512FinalRaw(sha, hash, WC_SHA512_256_DIGEST_SIZE);
@@ -1501,10 +1552,15 @@ int wc_Sha512_256Final(wc_Sha512* sha512, byte* hash)
     return Sha512_Family_Final(sha512, hash, WC_SHA512_256_DIGEST_SIZE,
                                InitSha512_256);
 }
+#endif
 void wc_Sha512_256Free(wc_Sha512* sha)
 {
     wc_Sha512Free(sha);
 }
+#if defined(WOLFSSL_KCAPI_HASH)
+    /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+
+#else
 int wc_Sha512_256GetHash(wc_Sha512* sha512, byte* hash)
 {
     return Sha512_Family_GetHash(sha512, hash, wc_Sha512_256Final);
@@ -1513,6 +1569,7 @@ int wc_Sha512_256Copy(wc_Sha512* src, wc_Sha512* dst)
 {
     return wc_Sha512Copy(src, dst);
 }
+#endif
 
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
 int wc_Sha512_256SetFlags(wc_Sha512* sha, word32 flags)
@@ -1538,6 +1595,11 @@ int wc_Sha512_256Transform(wc_Sha512* sha, const unsigned char* data)
 #endif /* WOLFSSL_SHA512 */
 
 #ifdef WOLFSSL_SHA384
+
+#if defined(WOLFSSL_KCAPI_HASH)
+    /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+
+#else
 
 int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash)
 {
@@ -1598,6 +1660,8 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
 
     return ret;
 }
+
+#endif /* WOLFSSL_KCAPI_HASH */
 
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
 int wc_Sha384SetFlags(wc_Sha384* sha384, word32 flags)

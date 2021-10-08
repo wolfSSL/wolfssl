@@ -62,6 +62,10 @@
     #include <wolfssl/wolfcrypt/port/silabs/silabs_ecc.h>
 #endif
 
+#if defined(WOLFSSL_KCAPI_ECC)
+    #include <wolfssl/wolfcrypt/port/kcapi/kcapi_ecc.h>
+#endif
+
 #ifdef WOLFSSL_HAVE_SP_ECC
     #include <wolfssl/wolfcrypt/sp_int.h>
 #endif
@@ -447,6 +451,10 @@ struct ecc_key {
      * offset `keysize`, and offset `2 * keysize`.
      */
     byte key_raw[3 * ECC_MAX_CRYPTO_HW_SIZE];
+#endif
+#ifdef WOLFSSL_KCAPI_ECC
+    struct kcapi_handle* handle;
+    byte pubkey_raw[KCAPI_PARAM_SZ + MAX_ECC_BYTES * 2];
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT

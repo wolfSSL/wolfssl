@@ -19471,6 +19471,7 @@ int wc_PemPubKeyToDer(const char* fileName,
 
 
 #if !defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || \
+    defined(WOLFSSL_KCAPI_RSA) || \
     ((defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && !defined(HAVE_USER_RSA)))
 /* USER RSA ifdef portions used instead of refactor in consideration for
    possible fips build */
@@ -19648,8 +19649,8 @@ int wc_RsaPublicKeyDerSize(RsaKey* key, int with_header)
 
 #endif /* !NO_RSA && WOLFSSL_CERT_GEN */
 
-#if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && \
-    !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#if ((defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && \
+    !defined(NO_RSA) && !defined(HAVE_USER_RSA)) || defined(WOLFSSL_KCAPI_RSA)
 
 /* Encode private RSA key in DER format.
  *

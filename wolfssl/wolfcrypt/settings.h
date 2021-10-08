@@ -1588,6 +1588,16 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif /*(WOLFSSL_XILINX_CRYPT)*/
 
+#ifdef WOLFSSL_KCAPI_AES
+    #define WOLFSSL_AES_GCM_FIXED_IV_AAD
+#endif
+#ifdef WOLFSSL_KCAPI_ECC
+    #define ECC_USER_CURVES
+    #undef  NO_ECC256
+    #define HAVE_ECC384
+    #define HAVE_ECC521
+#endif
+
 #if defined(WOLFSSL_APACHE_MYNEWT)
     #include "os/os_malloc.h"
     #if !defined(WOLFSSL_LWIP)

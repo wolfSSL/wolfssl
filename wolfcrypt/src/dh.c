@@ -944,6 +944,9 @@ int wc_InitDhKey_ex(DhKey* key, void* heap, int devId)
 #else
     (void)devId;
 #endif
+#ifdef WOLFSSL_KCAPI_DH
+    key->handle = NULL;
+#endif
 
     return ret;
 }
@@ -968,11 +971,15 @@ int wc_FreeDhKey(DhKey* key)
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
         wolfAsync_DevCtxFree(&key->asyncDev, WOLFSSL_ASYNC_MARKER_DH);
     #endif
+    #ifdef WOLFSSL_KCAPI_DH
+        KcapiDh_Free(key);
+    #endif
     }
     return 0;
 }
 
 
+#ifndef WOLFSSL_KCAPI_DH
 #ifndef WC_NO_RNG
 /* if defined to not use floating point values do not compile in */
 #ifndef WOLFSSL_DH_CONST
@@ -1327,6 +1334,7 @@ static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
 
     return (ret != 0) ? ret : GeneratePublicDh(key, priv, *privSz, pub, pubSz);
 }
+#endif /* !WOLFSSL_KCAPI_DH */
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
 static int wc_DhGenerateKeyPair_Async(DhKey* key, WC_RNG* rng,
@@ -1835,6 +1843,11 @@ int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng,
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLFSSL_KCAPI_DH
+    (void)priv;
+    (void)privSz;
+    ret = KcapiDh_MakeKey(key, pub, pubSz);
+#else
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_DH) {
         ret = wc_DhGenerateKeyPair_Async(key, rng, priv, privSz, pub, pubSz);
@@ -1844,10 +1857,12 @@ int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng,
     {
         ret = wc_DhGenerateKeyPair_Sync(key, rng, priv, privSz, pub, pubSz);
     }
+#endif /* WOLFSSL_KCAPI_DH */
 
     return ret;
 }
 
+#ifndef WOLFSSL_KCAPI_DH
 static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
     const byte* priv, word32 privSz, const byte* otherPub, word32 pubSz)
 {
@@ -2056,6 +2071,7 @@ static int wc_DhAgree_Async(DhKey* key, byte* agree, word32* agreeSz,
     return ret;
 }
 #endif /* WOLFSSL_ASYNC_CRYPT */
+#endif /* !WOLFSSL_KCAPI_DH */
 
 int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
             word32 privSz, const byte* otherPub, word32 pubSz)
@@ -2067,6 +2083,11 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLFSSL_KCAPI_DH
+    (void)priv;
+    (void)privSz;
+    ret = KcapiDh_SharedSecret(key, otherPub, pubSz, agree, agreeSz);
+#else
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_DH) {
         ret = wc_DhAgree_Async(key, agree, agreeSz, priv, privSz, otherPub, pubSz);
@@ -2076,6 +2097,7 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
     {
         ret = wc_DhAgree_Sync(key, agree, agreeSz, priv, privSz, otherPub, pubSz);
     }
+#endif /* WOLFSSL_KCAPI_DH */
 
     return ret;
 }
