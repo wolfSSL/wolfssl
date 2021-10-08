@@ -45,7 +45,7 @@ enum {
     NID_X9_62_prime192v3 = 411,
     NID_X9_62_prime239v1 = 412,
     NID_X9_62_prime239v2 = 413,
-    NID_X9_62_prime239v3 = 414,
+    NID_X9_62_prime239v3 = 418, /* Previous value conflicted with AES128CBCb */
     NID_X9_62_prime256v1 = 415,
     NID_secp112r1 = 704,
     NID_secp112r2 = 705,
