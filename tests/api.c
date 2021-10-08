@@ -33629,7 +33629,7 @@ static void post_auth_version_cb(WOLFSSL* ssl)
     AssertIntEQ(wolfSSL_accept(ssl), WOLFSSL_SUCCESS);
     AssertStrEQ("TLSv1.2", wolfSSL_get_version(ssl));
     AssertIntEQ(wolfSSL_verify_client_post_handshake(ssl), WOLFSSL_FAILURE);
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) && !defined(NO_ERROR_QUEUE)
     /* check was added to error queue */
     AssertIntEQ(wolfSSL_ERR_get_error(), -UNSUPPORTED_PROTO_VERSION);
 
