@@ -6355,68 +6355,67 @@ static void verify_FATAL_ERROR_on_client(WOLFSSL* ssl)
 }
 /* END of connection tests callbacks */
 
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-#endif
-
 static void test_wolfSSL_UseSNI_connection(void)
 {
-    unsigned long i;
-    callback_functions callbacks[] = {
-        /* success case at ctx */
-        {.ctx_ready = use_SNI_at_ctx},
-        {.ctx_ready = use_SNI_at_ctx, .on_result = verify_SNI_real_matching},
+    callback_functions client_cb;
+    callback_functions server_cb;
+    
+    XMEMSET(&client_cb, 0, sizeof(callback_functions));
+    XMEMSET(&server_cb, 0, sizeof(callback_functions));
+    client_cb.method = wolfSSLv23_client_method;
+    server_cb.method = wolfSSLv23_server_method;
+    server_cb.devId = devId;
+    server_cb.devId = devId;
 
-        /* success case at ssl */
-        {.ssl_ready = use_SNI_at_ssl, .on_result = verify_SNI_real_matching},
-        {.ssl_ready = use_SNI_at_ssl, .on_result = verify_SNI_real_matching},
+    /* success case at ctx */
+    client_cb.ctx_ready = use_SNI_at_ctx; client_cb.ssl_ready = NULL; client_cb.on_result = NULL;
+    server_cb.ctx_ready = use_SNI_at_ctx; server_cb.ssl_ready = NULL; server_cb.on_result = verify_SNI_real_matching;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
 
-        /* default mismatch behavior */
-        {.ssl_ready = different_SNI_at_ssl, .on_result = verify_FATAL_ERROR_on_client},
-        {.ssl_ready = use_SNI_at_ssl,       .on_result = verify_UNKNOWN_SNI_on_server},
+    /* success case at ssl */
+    client_cb.ctx_ready = NULL; client_cb.ssl_ready = use_SNI_at_ssl; client_cb.on_result = verify_SNI_real_matching;
+    server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_SNI_at_ssl; server_cb.on_result = verify_SNI_real_matching;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
 
-        /* continue on mismatch */
-        {.ssl_ready = different_SNI_at_ssl},
-        {.ssl_ready = use_SNI_WITH_CONTINUE_at_ssl, .on_result = verify_SNI_no_matching},
+    /* default mismatch behavior */
+    client_cb.ctx_ready = NULL; client_cb.ssl_ready = different_SNI_at_ssl; client_cb.on_result = verify_FATAL_ERROR_on_client;
+    server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_SNI_at_ssl;       server_cb.on_result = verify_UNKNOWN_SNI_on_server;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
 
-        /* fake answer on mismatch */
-        {.ssl_ready = different_SNI_at_ssl},
-        {.ssl_ready = use_SNI_WITH_FAKE_ANSWER_at_ssl, .on_result = verify_SNI_fake_matching},
+    /* continue on mismatch */
+    client_cb.ctx_ready = NULL; client_cb.ssl_ready = different_SNI_at_ssl;         client_cb.on_result = NULL;
+    server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_SNI_WITH_CONTINUE_at_ssl; server_cb.on_result = verify_SNI_no_matching;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
 
-        /* sni abort - success */
-        {.ctx_ready = use_SNI_at_ctx},
-        {.ctx_ready = use_MANDATORY_SNI_at_ctx, .on_result = verify_SNI_real_matching},
+    /* fake answer on mismatch */
+    client_cb.ctx_ready = NULL; client_cb.ssl_ready = different_SNI_at_ssl;            client_cb.on_result = NULL;
+    server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_SNI_WITH_FAKE_ANSWER_at_ssl; server_cb.on_result = verify_SNI_fake_matching;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
 
-        /* sni abort - abort when absent (ctx) */
-        {                                       .on_result = verify_FATAL_ERROR_on_client},
-        {.ctx_ready = use_MANDATORY_SNI_at_ctx, .on_result = verify_SNI_ABSENT_on_server},
+    /* sni abort - success */
+    client_cb.ctx_ready = use_SNI_at_ctx;           client_cb.ssl_ready = NULL; client_cb.on_result = NULL;
+    server_cb.ctx_ready = use_MANDATORY_SNI_at_ctx; server_cb.ssl_ready = NULL; server_cb.on_result = verify_SNI_real_matching;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
 
-        /* sni abort - abort when absent (ssl) */
-        {                                       .on_result = verify_FATAL_ERROR_on_client},
-        {.ssl_ready = use_MANDATORY_SNI_at_ssl, .on_result = verify_SNI_ABSENT_on_server},
+    /* sni abort - abort when absent (ctx) */
+    client_cb.ctx_ready = NULL;                     client_cb.ssl_ready = NULL; client_cb.on_result = verify_FATAL_ERROR_on_client;
+    server_cb.ctx_ready = use_MANDATORY_SNI_at_ctx; server_cb.ssl_ready = NULL; server_cb.on_result = verify_SNI_ABSENT_on_server;
 
-        /* sni abort - success when overwritten */
-        {.ctx_ready = NULL},
-        {.ctx_ready = use_MANDATORY_SNI_at_ctx, .ssl_ready = use_SNI_at_ssl, .on_result = verify_SNI_no_matching},
+    /* sni abort - abort when absent (ssl) */
+    client_cb.ctx_ready = NULL; client_cb.ssl_ready = NULL;                     client_cb.on_result = verify_FATAL_ERROR_on_client;
+    server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_MANDATORY_SNI_at_ssl; server_cb.on_result = verify_SNI_ABSENT_on_server;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
 
-        /* sni abort - success when allowing mismatches */
-        {.ssl_ready = different_SNI_at_ssl},
-        {.ctx_ready = use_PSEUDO_MANDATORY_SNI_at_ctx, .on_result = verify_SNI_fake_matching},
-    };
+    /* sni abort - success when overwritten */
+    client_cb.ctx_ready = NULL;                     client_cb.ssl_ready = NULL;           client_cb.on_result = NULL;
+    server_cb.ctx_ready = use_MANDATORY_SNI_at_ctx; server_cb.ssl_ready = use_SNI_at_ssl; server_cb.on_result = verify_SNI_no_matching;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
 
-    for (i = 0; i < sizeof(callbacks) / sizeof(callback_functions); i += 2) {
-        callbacks[i    ].method = wolfSSLv23_client_method;
-        callbacks[i + 1].method = wolfSSLv23_server_method;
-        callbacks[i    ].devId = devId;
-        callbacks[i + 1].devId = devId;
-        test_wolfSSL_client_server(&callbacks[i], &callbacks[i + 1]);
-    }
+    /* sni abort - success when allowing mismatches */
+    client_cb.ctx_ready = NULL;                            client_cb.ssl_ready = different_SNI_at_ssl; client_cb.on_result = NULL;
+    server_cb.ctx_ready = use_PSEUDO_MANDATORY_SNI_at_ctx; server_cb.ssl_ready = NULL;                 server_cb.on_result = verify_SNI_fake_matching;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
 }
-
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
 
 static void test_wolfSSL_SNI_GetFromBuffer(void)
 {
@@ -6874,61 +6873,59 @@ static void verify_ALPN_client_list(WOLFSSL* ssl)
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_ALPN_FreePeerProtocol(ssl, &clist));
 }
 
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-#endif
-
 static void test_wolfSSL_UseALPN_connection(void)
 {
-    unsigned long i;
-    callback_functions callbacks[] = {
-        /* success case same list */
-        {.ssl_ready = use_ALPN_all},
-        {.ssl_ready = use_ALPN_all, .on_result = verify_ALPN_matching_http1},
+    callback_functions client_cb;
+    callback_functions server_cb;
+    
+    XMEMSET(&client_cb, 0, sizeof(callback_functions));
+    XMEMSET(&server_cb, 0, sizeof(callback_functions));
+    client_cb.method = wolfSSLv23_client_method;
+    server_cb.method = wolfSSLv23_server_method;
+    server_cb.devId = devId;
+    server_cb.devId = devId;
 
-        /* success case only one for server */
-        {.ssl_ready = use_ALPN_all},
-        {.ssl_ready = use_ALPN_one, .on_result = verify_ALPN_matching_spdy2},
+    /* success case same list */
+    client_cb.ctx_ready = NULL; client_cb.ssl_ready = use_ALPN_all; client_cb.on_result = NULL;
+    server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_ALPN_all; server_cb.on_result = verify_ALPN_matching_http1;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
 
-        /* success case only one for client */
-        {.ssl_ready = use_ALPN_one},
-        {.ssl_ready = use_ALPN_all, .on_result = verify_ALPN_matching_spdy2},
+    /* success case only one for server */
+    client_cb.ctx_ready = NULL; client_cb.ssl_ready = use_ALPN_all; client_cb.on_result = NULL;
+    server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_ALPN_one; server_cb.on_result = verify_ALPN_matching_spdy2;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
 
-        /* success case none for client */
-        {.ssl_ready = NULL},
-        {.ssl_ready = use_ALPN_all},
+    /* success case only one for client */
+    client_cb.ctx_ready = NULL; client_cb.ssl_ready = use_ALPN_one; client_cb.on_result = NULL;
+    server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_ALPN_all; server_cb.on_result = verify_ALPN_matching_spdy2;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
 
-        /* success case mismatch behavior but option 'continue' set */
-        {.ssl_ready = use_ALPN_all_continue, .on_result = verify_ALPN_not_matching_continue},
-        {.ssl_ready = use_ALPN_unknown_continue},
+    /* success case none for client */
+    client_cb.ctx_ready = NULL; client_cb.ssl_ready = NULL;         client_cb.on_result = NULL;
+    server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_ALPN_all; server_cb.on_result = NULL;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
 
-        /* success case read protocol send by client */
-        {.ssl_ready = use_ALPN_all},
-        {.ssl_ready = use_ALPN_one, .on_result = verify_ALPN_client_list},
+    /* success case mismatch behavior but option 'continue' set */
+    client_cb.ctx_ready = NULL; client_cb.ssl_ready = use_ALPN_all_continue;     client_cb.on_result = verify_ALPN_not_matching_continue;
+    server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_ALPN_unknown_continue; server_cb.on_result = NULL;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
 
-        /* mismatch behavior with same list
-         * the first and only this one must be taken */
-        {.ssl_ready = use_ALPN_all},
-        {.ssl_ready = use_ALPN_all, .on_result = verify_ALPN_not_matching_spdy3},
+    /* success case read protocol send by client */
+    client_cb.ctx_ready = NULL; client_cb.ssl_ready = use_ALPN_all; client_cb.on_result = NULL;
+    server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_ALPN_one; server_cb.on_result = verify_ALPN_client_list;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
 
-        /* default mismatch behavior */
-        {.ssl_ready = use_ALPN_all},
-        {.ssl_ready = use_ALPN_unknown, .on_result = verify_ALPN_FATAL_ERROR_on_client},
-    };
+    /* mismatch behavior with same list
+        * the first and only this one must be taken */
+    client_cb.ctx_ready = NULL; client_cb.ssl_ready = use_ALPN_all; client_cb.on_result = NULL;
+    server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_ALPN_all; server_cb.on_result = verify_ALPN_not_matching_spdy3;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
 
-    for (i = 0; i < sizeof(callbacks) / sizeof(callback_functions); i += 2) {
-        callbacks[i    ].method = wolfSSLv23_client_method;
-        callbacks[i + 1].method = wolfSSLv23_server_method;
-        callbacks[i    ].devId = devId;
-        callbacks[i + 1].devId = devId;
-        test_wolfSSL_client_server(&callbacks[i], &callbacks[i + 1]);
-    }
+    /* default mismatch behavior */
+    client_cb.ctx_ready = NULL; client_cb.ssl_ready = use_ALPN_all;     client_cb.on_result = NULL;
+    server_cb.ctx_ready = NULL; server_cb.ssl_ready = use_ALPN_unknown; server_cb.on_result = verify_ALPN_FATAL_ERROR_on_client;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
 }
-
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
 
 static void test_wolfSSL_UseALPN_params(void)
 {
@@ -7076,35 +7073,28 @@ static void verify_alpn_matching_http1(WOLFSSL* ssl)
     AssertIntEQ(0, XMEMCMP(nego_proto, proto, protoSz));
 }
 
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-#endif
-
 static void test_wolfSSL_set_alpn_protos(void)
 {
-    unsigned long i;
-    callback_functions callbacks[] = {
-        /* use CTX_alpn_protos */
-        {.ctx_ready = CTX_set_alpn_protos},
-        {.ctx_ready = CTX_set_alpn_protos, .on_result = verify_alpn_matching_http1},
-        /* use set_alpn_protos */
-        {.ssl_ready = set_alpn_protos},
-        {.ssl_ready = set_alpn_protos, .on_result = verify_alpn_matching_spdy3},
-    };
+    callback_functions client_cb;
+    callback_functions server_cb;
+    
+    XMEMSET(&client_cb, 0, sizeof(callback_functions));
+    XMEMSET(&server_cb, 0, sizeof(callback_functions));
+    client_cb.method = wolfSSLv23_client_method;
+    server_cb.method = wolfSSLv23_server_method;
+    server_cb.devId = devId;
+    server_cb.devId = devId;
 
-    for (i = 0; i < sizeof(callbacks) / sizeof(callback_functions); i += 2) {
-        callbacks[i    ].method = wolfSSLv23_client_method;
-        callbacks[i + 1].method = wolfSSLv23_server_method;
-        callbacks[i    ].devId = devId;
-        callbacks[i + 1].devId = devId;
-        test_wolfSSL_client_server(&callbacks[i], &callbacks[i + 1]);
-    }
+    /* use CTX_alpn_protos */
+    client_cb.ctx_ready = CTX_set_alpn_protos; client_cb.ssl_ready = NULL; client_cb.on_result = NULL;
+    server_cb.ctx_ready = CTX_set_alpn_protos; server_cb.ssl_ready = NULL; server_cb.on_result = verify_alpn_matching_http1;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
+
+    /* use set_alpn_protos */
+    client_cb.ctx_ready = NULL; client_cb.ssl_ready = set_alpn_protos; client_cb.on_result = NULL;
+    server_cb.ctx_ready = NULL; server_cb.ssl_ready = set_alpn_protos; server_cb.on_result = verify_alpn_matching_spdy3;
+    test_wolfSSL_client_server(&client_cb, &server_cb);
 }
-
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
 
 #endif /* HAVE_ALPN_PROTOS_SUPPORT */
 
