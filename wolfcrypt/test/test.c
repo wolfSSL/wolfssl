@@ -38075,8 +38075,10 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             if (info->hash.sha384 == NULL)
                 return NOT_COMPILED_IN;
 
+            #ifndef NO_SHA2_CRYPTO_CB
             /* set devId to invalid, so software is used */
             info->hash.sha384->devId = INVALID_DEVID;
+            #endif
 
             if (info->hash.in != NULL) {
                 ret = wc_Sha384Update(
@@ -38090,8 +38092,10 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     info->hash.digest);
             }
 
+            #ifndef NO_SHA2_CRYPTO_CB
             /* reset devId */
             info->hash.sha384->devId = devIdArg;
+            #endif
         }
         else
     #endif
@@ -38100,8 +38104,10 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             if (info->hash.sha512 == NULL)
                 return NOT_COMPILED_IN;
 
+            #ifndef NO_SHA2_CRYPTO_CB
             /* set devId to invalid, so software is used */
             info->hash.sha512->devId = INVALID_DEVID;
+            #endif
 
             if (info->hash.in != NULL) {
                 ret = wc_Sha512Update(
@@ -38115,8 +38121,10 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     info->hash.digest);
             }
 
+            #ifndef NO_SHA2_CRYPTO_CB
             /* reset devId */
             info->hash.sha512->devId = devIdArg;
+            #endif
         }
         else
     #endif
