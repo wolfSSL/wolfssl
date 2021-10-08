@@ -137,7 +137,7 @@
             #include <asm/fpu/internal.h>
         #endif
         #ifndef SAVE_VECTOR_REGISTERS
-            #define SAVE_VECTOR_REGISTERS() save_vector_registers_x86()
+            #define SAVE_VECTOR_REGISTERS(fail_clause) { int _svr_ret = save_vector_registers_x86(); if (_svr_ret != 0) { fail_clause } }
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS
             #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_x86()
@@ -152,7 +152,7 @@
         #define WOLFSSL_LINUXKM_SIMD_ARM
         #include <asm/fpsimd.h>
         #ifndef SAVE_VECTOR_REGISTERS
-            #define SAVE_VECTOR_REGISTERS() save_vector_registers_arm()
+            #define SAVE_VECTOR_REGISTERS(fail_clause) { int _svr_ret = save_vector_registers_arm(); if (_svr_ret != 0) { fail_clause } }
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS
             #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_arm()
@@ -162,7 +162,7 @@
             #define WOLFSSL_NO_ASM
         #endif
         #ifndef SAVE_VECTOR_REGISTERS
-            #define SAVE_VECTOR_REGISTERS() 0
+            #define SAVE_VECTOR_REGISTERS(...) ({})
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS
             #define RESTORE_VECTOR_REGISTERS() ({})
@@ -620,7 +620,7 @@
 #else /* ! WOLFSSL_LINUXKM */
 
     #ifndef SAVE_VECTOR_REGISTERS
-        #define SAVE_VECTOR_REGISTERS() 0
+        #define SAVE_VECTOR_REGISTERS(...) do{}while(0)
     #endif
     #ifndef RESTORE_VECTOR_REGISTERS
         #define RESTORE_VECTOR_REGISTERS() do{}while(0)
