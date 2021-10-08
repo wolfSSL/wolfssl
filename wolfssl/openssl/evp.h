@@ -237,10 +237,10 @@ enum {
     AES_192_GCM_TYPE  = 22,
     AES_256_GCM_TYPE  = 23,
     NID_sha1          = 64,
-    NID_sha224        = 65,
+    NID_sha224        = 675,
     NID_md2           = 77,
     NID_md4           = 257,
-    NID_md5           =  4,
+    NID_md5           =  40,
     NID_hmac          = 855,
     NID_cmac          = 894,
     NID_dhKeyAgreement= 28,
@@ -265,8 +265,8 @@ enum {
 
 enum {
     NID_md5WithRSA    = 104,
-    NID_md2WithRSAEncryption = 7,
-    NID_md5WithRSAEncryption = 8,
+    NID_md2WithRSAEncryption = 9,
+    NID_md5WithRSAEncryption = 99,
     NID_dsaWithSHA1   = 113,
     NID_dsaWithSHA1_2 = 70,
     NID_sha1WithRSA   = 115,
