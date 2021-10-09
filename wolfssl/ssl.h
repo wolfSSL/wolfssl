@@ -1086,10 +1086,17 @@ WOLFSSL_API int  wolfSSL_accept_TLSv13(WOLFSSL*);
 WOLFSSL_API int  wolfSSL_CTX_set_max_early_data(WOLFSSL_CTX* ctx,
                                                 unsigned int sz);
 WOLFSSL_API int  wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz);
+#if !defined(OPENSSL_EXTRA)
 WOLFSSL_API int  wolfSSL_write_early_data(WOLFSSL* ssl, const void* data,
                                           int sz, int* outSz);
 WOLFSSL_API int  wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz,
                                          int* outSz);
+#else
+WOLFSSL_API int  wolfSSL_write_early_data(WOLFSSL* ssl, const void* data,
+                                          size_t sz, size_t* outSz);
+WOLFSSL_API int  wolfSSL_read_early_data(WOLFSSL* ssl, void* data, size_t sz,
+                                         size_t* outSz);
+#endif
 WOLFSSL_API int  wolfSSL_get_early_data_status(const WOLFSSL* ssl);
 #endif /* WOLFSSL_EARLY_DATA */
 #endif /* WOLFSSL_TLS13 */

@@ -45515,7 +45515,11 @@ static int test_tls13_apis(void)
 #endif
     int          required;
 #ifdef WOLFSSL_EARLY_DATA
+    #if !defined(OPENSSL_EXTRA)
     int          outSz;
+    #else
+    size_t       outSz;
+    #endif
 #endif
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
     int          groups[2] = { WOLFSSL_ECC_SECP256R1,
@@ -45916,8 +45920,10 @@ static int test_tls13_apis(void)
 #ifndef NO_WOLFSSL_CLIENT
     AssertIntEQ(wolfSSL_write_early_data(clientSsl, NULL, sizeof(earlyData),
                                          &outSz), BAD_FUNC_ARG);
+#if !defined(OPENSSL_EXTRA)
     AssertIntEQ(wolfSSL_write_early_data(clientSsl, earlyData, -1, &outSz),
                 BAD_FUNC_ARG);
+#endif
     AssertIntEQ(wolfSSL_write_early_data(clientSsl, earlyData,
                                          sizeof(earlyData), NULL),
                 BAD_FUNC_ARG);
@@ -45945,8 +45951,10 @@ static int test_tls13_apis(void)
     AssertIntEQ(wolfSSL_read_early_data(serverSsl, NULL,
                                         sizeof(earlyDataBuffer), &outSz),
                 BAD_FUNC_ARG);
+#if !defined(OPENSSL_EXTRA)
     AssertIntEQ(wolfSSL_read_early_data(serverSsl, earlyDataBuffer, -1, &outSz),
                 BAD_FUNC_ARG);
+#endif
     AssertIntEQ(wolfSSL_read_early_data(serverSsl, earlyDataBuffer,
                                         sizeof(earlyDataBuffer), NULL),
                 BAD_FUNC_ARG);

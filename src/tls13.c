@@ -9634,13 +9634,21 @@ int wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz)
  * or not using TLS v1.3. SIDE ERROR when not a server. Otherwise the number of
  * early data bytes written.
  */
+ #if !defined(OPENSSL_EXTRA)
 int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
+#else
+int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, size_t sz, 
+                                                                size_t* outSz)
+#endif
 {
     int ret = 0;
 
     WOLFSSL_ENTER("SSL_write_early_data()");
-
+#if !defined(OPENSSL_EXTRA)
     if (ssl == NULL || data == NULL || sz < 0 || outSz == NULL)
+#else
+    if (ssl == NULL || data == NULL || outSz == NULL)
+#endif
         return BAD_FUNC_ARG;
     if (!IsAtLeastTLSv1_3(ssl->version))
         return BAD_FUNC_ARG;
@@ -9695,14 +9703,21 @@ int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
  * or not using TLS v1.3. SIDE ERROR when not a server. Otherwise the number of
  * early data bytes read.
  */
+#if !defined(OPENSSL_EXTRA)
 int wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz, int* outSz)
+#else
+int wolfSSL_read_early_data(WOLFSSL* ssl, void* data, size_t sz, size_t* outSz)
+#endif
 {
     int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_read_early_data()");
 
-
+#if !defined(OPENSSL_EXTRA)
     if (ssl == NULL || data == NULL || sz < 0 || outSz == NULL)
+#else
+    if (ssl == NULL || data == NULL || outSz == NULL)
+#endif
         return BAD_FUNC_ARG;
     if (!IsAtLeastTLSv1_3(ssl->version))
         return BAD_FUNC_ARG;

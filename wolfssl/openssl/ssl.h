@@ -1519,6 +1519,12 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #if defined(WOLFSSL_EARLY_DATA)
 #define SSL_get_early_data_status       wolfSSL_get_early_data_status
+#define SSL_write_early_data            wolfSSL_write_early_data
+#define SSL_read_early_data             wolfSSL_read_early_data
+
+#define SSL_EARLY_DATA_NOT_SENT         WOLFSSL_EARLY_DATA_NOT_SENT
+#define SSL_EARLY_DATA_REJECTED         WOLFSSL_EARLY_DATA_REJECTED
+#define SSL_EARLY_DATA_ACCEPTED         WOLFSSL_EARLY_DATA_ACCEPTED
 #endif
 
 #endif  /* OPENSSL_EXTRA */

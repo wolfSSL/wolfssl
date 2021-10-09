@@ -2891,7 +2891,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     #ifdef WOLFSSL_EARLY_DATA
             if (earlyData) {
                 do {
+                    #if !defined(OPENSSL_EXTRA)
                     int len;
+                    #else
+                    size_t len;
+                    #endif
                     err = 0; /* reset error */
                     ret = wolfSSL_read_early_data(ssl, input, sizeof(input)-1,
                                                                           &len);

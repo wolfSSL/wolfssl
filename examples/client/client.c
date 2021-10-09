@@ -489,8 +489,13 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
 #endif /* WOLFSSL_TLS13 && HAVE_SUPPORTED_CURVES */
 
 #ifdef WOLFSSL_EARLY_DATA
+#if !defined(OPENSSL_EXTRA)
 static void EarlyData(WOLFSSL_CTX* ctx, WOLFSSL* ssl, const char* msg,
                       int msgSz, char* buffer)
+#else
+static void EarlyData(WOLFSSL_CTX* ctx, WOLFSSL* ssl, const char* msg,
+                      size_t msgSz, char* buffer)
+#endif
 {
     int err;
     int ret;
@@ -508,7 +513,7 @@ static void EarlyData(WOLFSSL_CTX* ctx, WOLFSSL* ssl, const char* msg,
         #endif
         }
     } while (err == WC_PENDING_E);
-    if (ret != msgSz) {
+    if (ret != (int)msgSz) {
         printf("SSL_write_early_data msg error %d, %s\n", err,
                                          wolfSSL_ERR_error_string(err, buffer));
         wolfSSL_free(ssl); ssl = NULL;
@@ -528,7 +533,7 @@ static void EarlyData(WOLFSSL_CTX* ctx, WOLFSSL* ssl, const char* msg,
         #endif
         }
     } while (err == WC_PENDING_E);
-    if (ret != msgSz) {
+    if (ret != (int)msgSz) {
         printf("SSL_write_early_data msg error %d, %s\n", err,
                                          wolfSSL_ERR_error_string(err, buffer));
         wolfSSL_free(ssl);
