@@ -812,11 +812,11 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
             nr = temp_key->rounds;
             aes->rounds = nr;
 
-            SAVE_VECTOR_REGISTERS(
 #ifdef WOLFSSL_SMALL_STACK
-                XFREE(temp_key, aes->heap, DYNAMIC_TYPE_AES);
+            SAVE_VECTOR_REGISTERS(XFREE(temp_key, aes->heap, DYNAMIC_TYPE_AES); return _svr_ret;);
+#else
+            SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #endif
-                return _svr_ret;);
 
             Key_Schedule[nr] = Temp_Key_Schedule[0];
             Key_Schedule[nr-1] = _mm_aesimc_si128(Temp_Key_Schedule[1]);
