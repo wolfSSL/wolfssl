@@ -1819,6 +1819,10 @@ WOLFSSL_LOCAL int wc_CheckPrivateKeyCert(const byte* key, word32 keySz, DecodedC
 WOLFSSL_LOCAL int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
                                      const byte* pubKey, word32 pubKeySz, enum Key_Sum ks);
 WOLFSSL_LOCAL int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g);
+#ifdef WOLFSSL_DH_EXTRA
+WOLFSSL_API int wc_DhPublicKeyDecode(const byte* input, word32* inOutIdx,
+                        DhKey* key, word32 inSz);
+#endif
 WOLFSSL_LOCAL int FlattenAltNames( byte*, word32, const DNS_entry*);
 
 WOLFSSL_LOCAL int wc_EncodeName(EncodedName* name, const char* nameStr,

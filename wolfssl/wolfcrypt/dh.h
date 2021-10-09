@@ -138,11 +138,9 @@ WOLFSSL_API int wc_DhCopyNamedKey(int name,
         byte* p, word32* pSz, byte* g, word32* gSz, byte* q, word32* qSz);
 
 #ifdef WOLFSSL_DH_EXTRA
-WOLFSSL_API int wc_DhPublicKeyDecode(const byte* input, word32* inOutIdx,
-                        DhKey* key, word32 inSz);
 WOLFSSL_API int wc_DhImportKeyPair(DhKey* key, const byte* priv, word32 privSz,
                                    const byte* pub, word32 pubSz);
-WOLFSSL_API int wc_DhExportKeyPair(DhKey* key, byte* priv, word32* pPrivSz, 
+WOLFSSL_API int wc_DhExportKeyPair(DhKey* key, byte* priv, word32* pPrivSz,
                                    byte* pub, word32* pPubSz);
 WOLFSSL_LOCAL int wc_DhKeyCopy(DhKey* src, DhKey* dst);
 #endif
