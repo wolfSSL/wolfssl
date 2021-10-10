@@ -12355,7 +12355,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         {
             if (args->count > 0) {
             #if defined(HAVE_OCSP) || defined(HAVE_CRL)
-                if (args->fatal == 0) {
+                /* only attempt to check OCSP or CRL if not previous error such 
+                 * as ASN_BEFORE_DATE_E or ASN_AFTER_DATE_E */
+                if (args->fatal == 0 && ret == 0) {
                     int doLookup = 1;
 
                     if (ssl->options.side == WOLFSSL_CLIENT_END) {
