@@ -38,6 +38,16 @@
 #include "fsl_sss_api.h"
 #endif
 
+#ifdef WOLFSSL_SE050
+    /* NXP SE050 - Disable SHA512 224/256 support */
+    #ifndef WOLFSSL_NOSHA512_224
+    #define WOLFSSL_NOSHA512_224
+    #endif
+    #ifndef WOLFSSL_NOSHA512_256
+    #define WOLFSSL_NOSHA512_256
+    #endif
+#endif
+
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif

@@ -958,12 +958,13 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
 
 #endif /* WOLFSSL_IMX6_CAAM || WOLFSSL_SILABS_SHA384 */
 
+
 #if defined(WOLFSSL_KCAPI_HASH)
     /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+#elif defined(WOLFSSL_SE050)
 
 #else
 
-#ifndef WOLFSSL_SE050
 static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 {
     byte* local = (byte*)sha512->buffer;
@@ -1071,6 +1072,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 
 #if defined(WOLFSSL_KCAPI_HASH)
     /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+#elif defined(WOLFSSL_SE050)
 
 #else
 
@@ -1142,6 +1144,7 @@ int wc_Sha512Final(wc_Sha512* sha512, byte* hash)
 
 #endif /* WOLFSSL_KCAPI_HASH */
 
+#ifndef WOLFSSL_SE050
 int wc_InitSha512(wc_Sha512* sha512)
 {
     return wc_InitSha512_ex(sha512, NULL, INVALID_DEVID);
@@ -1223,7 +1226,8 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 }
 #endif /* OPENSSL_EXTRA */
 #endif /* WOLFSSL_SHA512 */
-#endif /* WOLFSSL_SE050 */
+#endif /* !WOLFSSL_SE050 */
+
 
 /* -------------------------------------------------------------------------- */
 /* SHA384 */
@@ -1568,8 +1572,10 @@ int wc_Sha512_224Update(wc_Sha512* sha, const byte* data, word32 len)
 {
     return wc_Sha512Update(sha, data, len);
 }
+
 #if defined(WOLFSSL_KCAPI_HASH)
     /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+#elif defined(WOLFSSL_SE050)
 
 #else
 int wc_Sha512_224FinalRaw(wc_Sha512* sha, byte* hash)
@@ -1588,6 +1594,8 @@ void wc_Sha512_224Free(wc_Sha512* sha)
 }
 #if defined(WOLFSSL_KCAPI_HASH)
     /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+#elif defined(WOLFSSL_SE050)
+
 
 #else
 int wc_Sha512_224GetHash(wc_Sha512* sha512, byte* hash)
@@ -1631,6 +1639,7 @@ int wc_Sha512_256Update(wc_Sha512* sha, const byte* data, word32 len)
 }
 #if defined(WOLFSSL_KCAPI_HASH)
     /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+#elif defined(WOLFSSL_SE050)
 
 #else
 int wc_Sha512_256FinalRaw(wc_Sha512* sha, byte* hash)
