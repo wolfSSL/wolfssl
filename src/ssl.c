@@ -27966,8 +27966,9 @@ static long wolf_set_options(long old_op, long op)
         WOLFSSL_MSG("\tSSL_OP_NO_SSLv3");
     }
 
-    if ((op & SSL_OP_CIPHER_SERVER_PREFERENCE) == SSL_OP_CIPHER_SERVER_PREFERENCE) {
-        WOLFSSL_MSG("\tSSL_OP_CIPHER_SERVER_PREFERENCE");
+    if ((op & WOLFSSL_OP_CIPHER_SERVER_PREFERENCE) ==
+            WOLFSSL_OP_CIPHER_SERVER_PREFERENCE) {
+        WOLFSSL_MSG("\tWOLFSSL_OP_CIPHER_SERVER_PREFERENCE");
     }
 
     if ((op & SSL_OP_NO_COMPRESSION) == SSL_OP_NO_COMPRESSION) {
@@ -31175,7 +31176,20 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
     #ifdef WOLFSSL_SHA512
         { NID_sha512, SHA512h, oidHashType, "SHA512", "sha512"},
     #endif
-
+    #ifdef WOLFSSL_SHA3
+        #ifndef WOLFSSL_NOSHA3_224
+        { NID_sha3_224, SHA3_224h, oidHashType, "SHA3-224", "sha3-224"},
+        #endif
+        #ifndef WOLFSSL_NOSHA3_256
+        { NID_sha3_256, SHA3_256h, oidHashType, "SHA3-256", "sha3-256"},
+        #endif
+        #ifndef WOLFSSL_NOSHA3_384
+        { NID_sha3_384, SHA3_384h, oidHashType, "SHA3-384", "sha3-384"},
+        #endif
+        #ifndef WOLFSSL_NOSHA3_512
+        { NID_sha3_512, SHA3_512h, oidHashType, "SHA3-512", "sha3-512"},
+        #endif
+    #endif /* WOLFSSL_SHA3 */
         /* oidSigType */
     #ifndef NO_DSA
         #ifndef NO_SHA
@@ -45840,8 +45854,8 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
 
         #ifdef WOLFSSL_QT
         /* Set whether to use client or server cipher preference */
-        if ((ctrl_opt & SSL_OP_CIPHER_SERVER_PREFERENCE)
-                     == SSL_OP_CIPHER_SERVER_PREFERENCE) {
+        if ((ctrl_opt & WOLFSSL_OP_CIPHER_SERVER_PREFERENCE)
+                     == WOLFSSL_OP_CIPHER_SERVER_PREFERENCE) {
             WOLFSSL_MSG("Using Server's Cipher Preference.");
             ctx->useClientOrder = FALSE;
         } else {

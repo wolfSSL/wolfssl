@@ -1696,42 +1696,47 @@ void* wolfSSL_BIO_get_data(WOLFSSL_BIO* bio)
 }
 
 /* If flag is 0 then blocking is set, if 1 then non blocking.
- * Always returns 1
+ * Always returns WOLFSSL_SUCCESS.
  */
 long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
 {
-    int ret = 0;
-    #ifndef WOLFSSL_DTLS
-    (void)on;
-    #endif
     WOLFSSL_ENTER("wolfSSL_BIO_set_nbio");
 
-    switch (bio->type) {
-        case WOLFSSL_BIO_SOCKET:
-        #ifdef XFCNTL
-            {
-                int flag = XFCNTL(bio->num, F_GETFL, 0);
-                if (on)
-                    ret = XFCNTL(bio->num, F_SETFL, flag | O_NONBLOCK);
-                else
-                    ret = XFCNTL(bio->num, F_SETFL, flag & ~O_NONBLOCK);
-            }
-        #endif
-            break;
-        case WOLFSSL_BIO_SSL:
-        #ifdef WOLFSSL_DTLS
-            wolfSSL_dtls_set_using_nonblock((WOLFSSL*)bio->ptr, (int)on);
-        #endif
-            break;
+    if (bio) {
+        switch (bio->type) {
+            case WOLFSSL_BIO_SOCKET:
+            #ifdef XFCNTL
+                {
+                    int ret;
+                    int flag = XFCNTL(bio->num, F_GETFL, 0);
+                    if (on) {
+                        ret = XFCNTL(bio->num, F_SETFL, flag | O_NONBLOCK);
+                    }
+                    else {
+                        ret = XFCNTL(bio->num, F_SETFL, flag & ~O_NONBLOCK);
+                    }
 
-        default:
-            WOLFSSL_MSG("Unsupported bio type for non blocking");
-            break;
+                    if (ret == -1) {
+                        WOLFSSL_MSG("Call to XFCNTL failed");
+                    }
+                }
+            #endif
+                break;
+            case WOLFSSL_BIO_SSL:
+            #ifdef WOLFSSL_DTLS
+                wolfSSL_dtls_set_using_nonblock((WOLFSSL*)bio->ptr, (int)on);
+            #endif
+                break;
+
+            default:
+                WOLFSSL_MSG("Unsupported bio type for non blocking");
+                break;
+        }
     }
-    if (ret != -1)
-        return 1;
-    else
-        return 0;
+
+    (void)on;
+
+    return WOLFSSL_SUCCESS;
 }
 
 
