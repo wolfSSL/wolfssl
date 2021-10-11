@@ -4617,7 +4617,8 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
 
     int err;
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_KCAPI_ECC)
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_KCAPI_ECC) && \
+    !defined(WOLFSSL_SE050)
 #if !defined(WOLFSSL_SP_MATH)
     DECLARE_CURVE_SPECS(curve, ECC_CURVE_FIELD_COUNT);
 #endif
@@ -6975,7 +6976,11 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #elif defined(WOLFSSL_KCAPI_ECC)
    byte sigRS[MAX_ECC_BYTES*2];
 #elif defined(WOLFSSL_SE050)
-   byte sigRS[ECC_MAX_CRYPTO_HW_SIZE * 2];
+   #ifdef WOLFSSL_SMALL_STACK
+   byte* sigRS = NULL;
+   #else
+   byte  sigRS[ECC_MAX_CRYPTO_HW_SIZE * 2];
+   #endif
 #elif !defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC)
    int          did_init = 0;
    ecc_point    *mG = NULL, *mQ = NULL;
@@ -7129,11 +7134,29 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
         word32 signatureLen = rLeadingZero + sLeadingZero + 
             rLen + sLen + SIG_HEADER_SZ; /* see StoreECC_DSA_Sig */
 
-        err = StoreECC_DSA_Sig(sigRS, &signatureLen, r, s);
+    #ifdef WOLFSSL_SMALL_STACK
+        sigRS = (byte*)XMALLOC(signatureLen, NULL, DYNAMIC_TYPE_SIGNATURE);
+        if (sigRS == NULL) {
+            err = MEMORY_E;
+        }
+    #else
+        if (signatureLen > sizeof(sigRS)) {
+            err = BUFFER_E;
+        }
+    #endif
+        if (err == 0) {
+            err = StoreECC_DSA_Sig(sigRS, &signatureLen, r, s);
+        }
         if (err == 0) {
             err = se050_ecc_verify_hash_ex(hash, hashlen, sigRS,
                 signatureLen, key, res);
         }
+    #ifdef WOLFSSL_SMALL_STACK  
+        if (sigRS != NULL) {
+            XFREE(sigRS, NULL, DYNAMIC_TYPE_SIGNATURE);
+            sigRS = NULL;
+        }
+    #endif
         if (err != 0)
             return err;
     }

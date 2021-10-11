@@ -208,7 +208,6 @@
     {
         if (sha512 == NULL)
             return BAD_FUNC_ARG;
-        //void* heap;
         return se050_hash_init(&sha512->se050Ctx, NULL);
     }
     int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
@@ -222,7 +221,6 @@
     int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
     {
         return se050_hash_update(&sha512->se050Ctx, data, len);
-    
     }
     int wc_Sha512Final(wc_Sha512* sha512, byte* hash)
     {
