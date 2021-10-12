@@ -245,8 +245,9 @@ enum {
     KDF_SSH_KAT_FIPS_E  = -284,  /* SSH KDF KAT failure */
     DHE_PCT_E           = -285,  /* DHE Pairwise Consistency Test failure */
     ECC_PCT_E           = -286,  /* ECDHE Pairwise Consistency Test failure */
+    FIPS_PRIVATE_KEY_LOCKED_E = -287, /* Cannot export private key. */
 
-    WC_LAST_E           = -286,  /* Update this to indicate last error */
+    WC_LAST_E           = -287,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

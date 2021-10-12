@@ -551,6 +551,9 @@ const char* wc_GetErrorString(int error)
     case ECC_PCT_E:
         return "wolfcrypt ECDHE Pairwise Consistency Test Failure";
 
+    case FIPS_PRIVATE_KEY_LOCKED_E:
+        return "Cannot export private key, locked";
+
     default:
         return "unknown error number";
 
