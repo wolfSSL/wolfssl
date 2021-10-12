@@ -616,9 +616,6 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
     byte* plain;
     int ret = 0;
     word32 msgLen, plainLen, sigLen;
-#ifdef WOLFSSL_ASYNC_CRYPT
-    word32 saved_async_marker;
-#endif
 
     msgLen = (word32)XSTRLEN(msg);
     sigLen = wc_RsaEncryptSize(key);
@@ -632,24 +629,29 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
     plain = sig;
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    /* force blocking calculations. */
-    saved_async_marker = key->asyncDev.marker;
-    key->asyncDev.marker = WOLFSSL_ASYNC_MARKER_INVALID;
+    /* Do blocking async calls here, caller does not support WC_PENDING_E */
+    do {
+        if (ret == WC_PENDING_E)
+            ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        if (ret >= 0)
 #endif
-
-    ret = wc_RsaSSL_Sign((const byte*)msg, msgLen, sig, sigLen, key, rng);
+            ret = wc_RsaSSL_Sign((const byte*)msg, msgLen, sig, sigLen, key, rng);
 #ifdef WOLFSSL_ASYNC_CRYPT
-    if (ret == WC_PENDING_E) {
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    }
+    } while (ret == WC_PENDING_E);
 #endif
+    
     if (ret > 0) {
         sigLen = (word32)ret;
-        ret = wc_RsaSSL_VerifyInline(sig, sigLen, &plain, key);
 #ifdef WOLFSSL_ASYNC_CRYPT
-        if (ret == WC_PENDING_E) {
-            ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-        }
+        /* Do blocking async calls here, caller does not support WC_PENDING_E */
+        do {    
+            if (ret == WC_PENDING_E)
+                ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+            if (ret >= 0)
+#endif
+                ret = wc_RsaSSL_VerifyInline(sig, sigLen, &plain, key);
+#ifdef WOLFSSL_ASYNC_CRYPT
+        } while (ret == WC_PENDING_E);
 #endif
     }
 
@@ -663,10 +665,6 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
 
     ForceZero(sig, sigLen);
     XFREE(sig, NULL, DYNAMIC_TYPE_RSA);
-
-#ifdef WOLFSSL_ASYNC_CRYPT
-    key->asyncDev.marker = saved_async_marker;
-#endif
 
     return ret;
 }
