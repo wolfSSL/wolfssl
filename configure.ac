@@ -1427,7 +1427,11 @@ AC_ARG_WITH([se050],
             CPPFLAGS="$CPPFLAGS -I$trylibse050dir/hostlib/hostLib/inc"
             CPPFLAGS="$CPPFLAGS -I$trylibse050dir/hostlib/hostLib/libCommon/infra"
 
-            AC_CHECK_FILES([$trylibse050dir/build/sss/libSSS_APIs.a], [SE050_STATIC=yes], [SE050_STATIC=no])
+            if test -e "$trylibse050dir/build/sss/libSSS_APIs.a"; then
+                SE050_STATIC=yes
+            else
+                SE050_STATIC=no
+            fi
             if test "x$SE050_STATIC" = "xyes"; then
                 LIB_STATIC_ADD="$trylibse050dir/build/sss/ex/src/libex_common.a \
                                 $trylibse050dir/build/sss/libSSS_APIs.a \
