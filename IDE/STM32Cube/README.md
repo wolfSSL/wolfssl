@@ -10,7 +10,10 @@ These examples use the Cube HAL for STM32.
 
 ## Requirements
 
+You need both the STM32 IDE and the STM32 initialization code generator (STM32CubeMX) tools. The STM32CubeMX tool is used to setup a project which is used by the IDE to make any required code level changes and program / debug the STM32.
+
 * STM32CubeIDE: Integrated Development Environment for STM32 [https://www.st.com/en/development-tools/stm32cubeide.html](https://www.st.com/en/development-tools/stm32cubeide.html)
+* STM32CubeMX: STM32Cube initialization code generator [https://www.st.com/en/development-tools/stm32cubemx.html](https://www.st.com/en/development-tools/stm32cubemx.html)
 
 ## STM32 Cube Pack
 
@@ -24,16 +27,15 @@ These examples use the Cube HAL for STM32.
 
 ### STM32 Cube Pack Usage
 
-1. Create or open a Cube Project based on your hardware.
+1. Create or open a Cube Project based on your hardware. See the sections below for creating a project and finding the example projects.
 2. Under “Software Packs” choose “Select Components”.
 3. Find and check all components for the wolfSSL.wolfSSL packs (wolfSSL / Core, wolfCrypt / Core and wolfCrypt / Test). Close
 4. Under the “Software Packs” section click on “wolfSSL.wolfSSL” and configure the parameters.
 5. For Cortex-M recommend “Math Configuration” -> “Single Precision Cortex-M Math” for the fastest option.
-6. In "Project Manager" select the "STM32CubeIDE" toolchain.
-7. Generate Code
-8. Open the project in STM32CubeIDE
-9. The Benchmark example uses float. To enable go to "Project Properties" -> "C/C++ Build" -> "Settings" -> "Tool Settings" -> "MCU Settings" -> Check "Use float with printf".
-10. To enable printf make the `main.c` changes below in the [STM32 Printf](#stm32-printf) section.
+6. Hit the "Generate Code" button
+7. Open the project in STM32CubeIDE
+8. The Benchmark example uses float. To enable go to "Project Properties" -> "C/C++ Build" -> "Settings" -> "Tool Settings" -> "MCU Settings" -> Check "Use float with printf".
+9. To enable printf make the `main.c` changes below in the [STM32 Printf](#stm32-printf) section.
 
 ### STM32 Cube Pack Examples
 
@@ -44,6 +46,31 @@ To use an example:
 1. Open STM32CubeIDE
 2. Choose "Import" -> "Import an Existing STM32CubeMX Configuration File (.ioc)".
 3. Browse to find the .ioc in `STM32Cube/Repository/Packs/wolfSSL/wolfSSL/[Version]/Projects` and click finish.
+
+### Creating your own STM32CubeMX configuration
+
+If none of the examples fit your STM32 type then you can create your own in STM32CubeMX by doing the following:
+
+1. Create a project with the correct STM32 model.
+2. Click on the "Software Packs" drop down near the top and choose "Select Components".
+3. Expand the "wolfSSL" pack twice and check all the components. Then exit this menu.
+4. Under "System Core" select "SYS" and changed the "Timebase Source" to TIM1.
+5. Under "Timers" select "RTC" and make sure this is enabled.
+6. Under "Connectivity" enable whichever UART/USART you have a serial I/O connected to.
+7. Under "Middleware" select "FREERTOS" and change the interface to "CMSIS_V2".
+    1. Increase the "TOTAL_HEAP_SIZE", preferably to 120000 but on smaller chips such as the F107 you may only be able to increase this to 40000.
+    2. Enable "USE_MALLOC_FAILED_HOOK".
+    3. Change "CHECK_FOR_STACK_OVERFLOW" to "Option2".
+    4. Under "Tasks and Queues" select Add for a new task.
+    5. Set the "Task Name" to "wolfCrypt".
+    6. Set the "Stack Size" to 8960 or as high as you can close to that. The "Heap Usage" will show an error if this is too high.
+    7. Set the "Entry Function" to "wolfCryptDemo".
+    8. Set the "Code Generation Option" to "As external".
+8. In "Software Packs" select "wolfSSL" and change any options as required.
+9. Go to "Clock Configuration" and set the "HCLK" as high as the tool will let you.
+10. In "Project Manager" select the "STM32CubeIDE" toolchain.
+
+When you get to the IDE make sure you edit `wolfSSL.I-CUBE-wolfSSL_conf.h` to set the `HAL_CONSOLE_UART` to the correct one for your configuration.
 
 ## Configuration
 
@@ -142,6 +169,8 @@ Note: The Benchmark example uses float. To enable go to "Project Properties" -> 
 
 In main.c make the following changes:
 
+This section needs to go below the `UART_HandleTypeDef` line, otherwise `wolfssl/wolfcrypt/settings.h` will error.
+
 ```c
 /* Retargets the C library printf function to the USART. */
 #include <stdio.h>
@@ -166,7 +195,11 @@ int _write(int file,char *ptr, int len)
     return len;
 }
 #endif
+```
 
+In the `main()` function make the follow `setvbuf()` additions after `HAL_Init()`.
+
+```c
 int main(void)
 {
     /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
