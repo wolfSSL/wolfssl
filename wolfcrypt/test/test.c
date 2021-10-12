@@ -14856,10 +14856,20 @@ static int rsa_keygen_test(WC_RNG* rng)
         ERROR_OUT(-7870, exit_rsa);
     }
 
-    ret = wc_MakeRsaKey(genKey, keySz, WC_RSA_EXPONENT, rng);
-#if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &genKey->asyncDev, WC_ASYNC_FLAG_NONE);
+#ifdef HAVE_FIPS
+    for (;;) {
 #endif
+        ret = wc_MakeRsaKey(genKey, keySz, WC_RSA_EXPONENT, rng);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &genKey->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+#ifdef HAVE_FIPS
+        if (ret == PRIME_GEN_E)
+            continue;
+        break;
+    }
+#endif
+
     if (ret != 0) {
         ERROR_OUT(-7871, exit_rsa);
     }
@@ -37788,8 +37798,17 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         else if (info->pk.type == WC_PK_TYPE_RSA_KEYGEN) {
             info->pk.rsakg.key->devId = INVALID_DEVID;
 
-            ret = wc_MakeRsaKey(info->pk.rsakg.key, info->pk.rsakg.size,
-                info->pk.rsakg.e, info->pk.rsakg.rng);
+#ifdef HAVE_FIPS
+            for (;;) {
+#endif
+                ret = wc_MakeRsaKey(info->pk.rsakg.key, info->pk.rsakg.size,
+                    info->pk.rsakg.e, info->pk.rsakg.rng);
+#ifdef HAVE_FIPS
+                if (ret == PRIME_GEN_E)
+                    continue;
+                break;
+            }
+#endif
 
             /* reset devId */
             info->pk.rsakg.key->devId = devIdArg;
