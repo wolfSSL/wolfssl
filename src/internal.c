@@ -14083,8 +14083,6 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         if (GetHandShakeHeader(ssl,input,inOutIdx,&type, &size, totalSz) != 0)
             return PARSE_ERROR;
 
-        ssl->options.handShakeState = type;
-
         return DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
     }
 
