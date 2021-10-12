@@ -616,6 +616,9 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
     byte* plain;
     int ret = 0;
     word32 msgLen, plainLen, sigLen;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    word32 saved_async_marker;
+#endif
 
     msgLen = (word32)XSTRLEN(msg);
     sigLen = wc_RsaEncryptSize(key);
@@ -627,6 +630,12 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
     }
     XMEMSET(sig, 0, sigLen);
     plain = sig;
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* force blocking calculations. */
+    saved_async_marker = key->asyncDev.marker;
+    key->asyncDev.marker = WOLFSSL_ASYNC_MARKER_INVALID;
+#endif
 
     ret = wc_RsaSSL_Sign((const byte*)msg, msgLen, sig, sigLen, key, rng);
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -654,6 +663,10 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
 
     ForceZero(sig, sigLen);
     XFREE(sig, NULL, DYNAMIC_TYPE_RSA);
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    key->asyncDev.marker = saved_async_marker;
+#endif
 
     return ret;
 }

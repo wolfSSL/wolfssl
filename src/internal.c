@@ -4677,10 +4677,10 @@ int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
     /* initialize event */
     if (priv_key != NULL) {
         asyncDev = &priv_key->asyncDev;
+        ret = wolfSSL_AsyncInit(ssl, asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        if (ret != 0)
+            return ret;
     }
-    ret = wolfSSL_AsyncInit(ssl, asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    if (ret != 0)
-        return ret;
 #endif
 
 #ifdef HAVE_PK_CALLBACKS
