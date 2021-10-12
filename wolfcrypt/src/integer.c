@@ -690,7 +690,9 @@ int mp_mod_2d (mp_int * a, int b, mp_int * c)
      mp_digit carry = 0;
 
      /* grow result to size of modulus */
-     mp_grow(c, bmax);
+     if ((res = mp_grow(c, bmax)) != MP_OKAY) {
+         return res;
+     }
      /* negate value */
      for (x = 0; x < c->used; x++) {
          mp_digit next = c->dp[x] > 0;
