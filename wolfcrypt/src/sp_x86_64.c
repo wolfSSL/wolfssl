@@ -6016,10 +6016,17 @@ int sp_ModExp_4096(const mp_int* base, const mp_int* exp, const mp_int* mod,
     mp_int* res)
 {
     int err = MP_OKAY;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit *b = NULL;
+    sp_digit *e = NULL;
+    sp_digit *m = NULL;
+    sp_digit* r;
+#else
     sp_digit b[128];
     sp_digit e[64];
     sp_digit m[64];
     sp_digit* r = b;
+#endif
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
 #endif
@@ -6032,6 +6039,19 @@ int sp_ModExp_4096(const mp_int* base, const mp_int* exp, const mp_int* mod,
     else if (mp_iseven(mod)) {
         err = MP_VAL;
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        if (((b = (sp_digit *)XMALLOC(128 * sizeof(*b), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((e = (sp_digit *)XMALLOC(64 * sizeof(*e), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((m = (sp_digit *)XMALLOC(64 * sizeof(*m), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL))
+        {
+            err = MEMORY_E;
+        } else {
+            r = b;
+        }
+    }
+#endif
 
     if (err == MP_OKAY) {
         sp_4096_from_mp(b, 64, base);
@@ -6050,7 +6070,18 @@ int sp_ModExp_4096(const mp_int* base, const mp_int* exp, const mp_int* mod,
         err = sp_4096_to_mp(r, res);
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (b != NULL)
+        XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (e != NULL) {
+        XMEMSET(e, 0, 64);
+        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (m != NULL)
+        XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     XMEMSET(e, 0, sizeof(e));
+#endif
 
     return err;
 }
@@ -6326,10 +6357,17 @@ int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
     const mp_int* mod, byte* out, word32* outLen)
 {
     int err = MP_OKAY;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit *b = NULL;
+    sp_digit *e = NULL;
+    sp_digit *m = NULL;
+    sp_digit* r;
+#else
     sp_digit b[128];
     sp_digit e[64];
     sp_digit m[64];
     sp_digit* r = b;
+#endif
     word32 i;
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
@@ -6342,6 +6380,19 @@ int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
     else if (mp_iseven(mod)) {
         err = MP_VAL;
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        if (((b = (sp_digit *)XMALLOC(128 * sizeof(*b), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((e = (sp_digit *)XMALLOC(64 * sizeof(*e), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+            ((m = (sp_digit *)XMALLOC(64 * sizeof(*m), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL))
+        {
+            err = MEMORY_E;
+        } else {
+            r = b;
+        }
+    }
+#endif
 
     if (err == MP_OKAY) {
         sp_4096_from_mp(b, 64, base);
@@ -6379,7 +6430,18 @@ int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
         XMEMMOVE(out, out + i, *outLen);
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (b != NULL)
+        XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (e != NULL) {
+        XMEMSET(e, 0, 64);
+        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (m != NULL)
+        XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
     XMEMSET(e, 0, sizeof(e));
+#endif
 
     return err;
 }
