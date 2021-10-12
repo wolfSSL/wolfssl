@@ -1496,12 +1496,15 @@ double current_time(void)
 {
 	RTC_TimeTypeDef time;
 	RTC_DateTypeDef date;
-	uint32_t subsec;
+	uint32_t subsec = 0;
 
 	/* must get time and date here due to STM32 HW bug */
 	HAL_RTC_GetTime(&hrtc, &time, FORMAT_BIN);
 	HAL_RTC_GetDate(&hrtc, &date, FORMAT_BIN);
+	/* Not all STM32 RTCs have subseconds in the struct */
+#ifdef RTC_ALARMSUBSECONDMASK_ALL
 	subsec = (255 - time.SubSeconds) * 1000 / 255;
+#endif
 
 	(void) date;
 

@@ -16343,7 +16343,7 @@ static int dh_ffdhe_test(WC_RNG *rng, const DhParams* params)
 
 done:
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WC_NO_RNG)
     if (priv)
         XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (pub)
