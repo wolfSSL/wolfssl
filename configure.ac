@@ -1336,6 +1336,60 @@ AC_ARG_WITH([cryptoauthlib],
     ]
 )
 
+# NXP SE050
+# Example: "./configure --with-se050=/home/pi/simw_top"
+ENABLED_SE050="no"
+trylibse050dir=""
+AC_ARG_WITH([se050],
+    [AS_HELP_STRING([--with-se050=PATH],[PATH to SE050 install (default /usr/local/lib/)])],
+    [
+        AC_MSG_CHECKING([for SE050])
+
+        LIBS="$LIBS -lSSS_APIs"
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <fsl_sss_api.h>]], [[ sss_mac_init(0);]])],[ libse050_linked=yes ],[ libse050_linked=no ])
+
+        if test "x$libse050_linked" = "xno" ; then
+            if test "x$withval" != "xno" ; then
+                trylibse050dir=$withval
+            fi
+            if test "x$withval" = "xyes" ; then
+                trylibse050dir="/usr/local/lib/"
+            fi
+            LDFLAGS="$LDFLAGS -L$trylibse050dir/build/sss"
+            CPPFLAGS="$CPPFLAGS -I$trylibse050dir/build"
+            CPPFLAGS="$CPPFLAGS -I$trylibse050dir/sss/inc"
+            CPPFLAGS="$CPPFLAGS -I$trylibse050dir/sss/ex/inc"
+            CPPFLAGS="$CPPFLAGS -I$trylibse050dir/sss/port/default"
+            CPPFLAGS="$CPPFLAGS -I$trylibse050dir/hostlib/hostLib/inc"
+            CPPFLAGS="$CPPFLAGS -I$trylibse050dir/hostlib/hostLib/libCommon/infra"
+
+            AC_CHECK_FILES([$trylibse050dir/build/sss/libSSS_APIs.a], [SE050_STATIC=yes], [SE050_STATIC=no])
+            if test "x$SE050_STATIC" = "xyes"; then
+                LIB_STATIC_ADD="$trylibse050dir/build/sss/ex/src/libex_common.a \
+                                $trylibse050dir/build/sss/libSSS_APIs.a \
+                                $trylibse050dir/build/hostlib/hostLib/se05x/libse05x.a \
+                                $trylibse050dir/build/hostlib/hostLib/liba7x_utils.a \
+                                $trylibse050dir/build/hostlib/hostLib/libCommon/libsmCom.a $LIB_STATIC_ADD"
+            else
+                AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <fsl_sss_api.h>]], [[ sss_mac_init(0); ]])],[ libse050_linked=yes ],[ libse050_linked=no ])
+                if test "x$libse050_linked" = "xno" ; then
+                    AC_MSG_ERROR([SE050 isn't found.
+                    If it's already installed, specify its path using --with-se050=/dir/])
+                fi
+            fi
+
+            # Requires AES direct
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT"
+
+            AC_MSG_RESULT([yes])
+        else
+            AC_MSG_RESULT([yes])
+        fi
+
+        ENABLED_SE050="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SE050 -DSSS_USE_FTR_FILE"
+    ]
+)
 
 # sniffer doesn't work in maxstrength mode
 if test "$ENABLED_SNIFFER" = "yes" && test "$ENABLED_MAXSTRENGTH" = "yes"
@@ -7035,6 +7089,7 @@ AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
 AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM" = "xqnx"])
 AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
+AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
 
 if test "$ax_enable_debug" = "yes" ||
         test "$ENABLED_STACKSIZE" != "no" ||
@@ -7409,6 +7464,7 @@ echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
 echo "   * i.MX6 CAAM:                 $ENABLED_CAAM"
 echo "   * IoT-Safe:                   $ENABLED_IOTSAFE"
 echo "   * IoT-Safe HWRNG:             $ENABLED_IOTSAFE_HWRNG"
+echo "   * NXP SE050:                  $ENABLED_SE050"
 echo ""
 echo "---"
 

@@ -144,10 +144,16 @@ enum {
     #include "wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h"
 #else
 
+#if defined(WOLFSSL_SE050)
+    #include "wolfssl/wolfcrypt/port/nxp/se050_port.h"
+#endif
+
 /* wc_Sha256 digest */
 struct wc_Sha256 {
 #ifdef FREESCALE_LTC_SHA
     ltc_hash_ctx_t ctx;
+#elif defined(WOLFSSL_SE050)
+    SE050_HASH_Context se050Ctx;
 #elif defined(STM32_HASH_SHA2)
     STM32_HASH_Context stmCtx;
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)

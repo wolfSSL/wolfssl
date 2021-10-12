@@ -262,6 +262,13 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
                             word32 *outLen, ed25519_key* key, byte type,
                             const byte* context, byte contextLen)
 {
+    int    ret;
+#ifdef WOLFSSL_SE050
+    (void)context;
+    (void)contextLen;
+    (void)type;
+    ret = se050_ed25519_sign_msg(in, inLen, out, outLen, key);
+#else
 #ifdef FREESCALE_LTC_ECC
     byte   tempBuf[ED25519_PRV_KEY_SIZE];
     ltc_pkha_ecc_point_t ltcPoint = {0};
@@ -271,7 +278,6 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     byte   nonce[WC_SHA512_DIGEST_SIZE];
     byte   hram[WC_SHA512_DIGEST_SIZE];
     byte   az[ED25519_PRV_KEY_SIZE];
-    int    ret;
 
     /* sanity check on arguments */
     if (in == NULL || out == NULL || outLen == NULL || key == NULL ||
@@ -406,7 +412,7 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     sc_reduce(hram);
     sc_muladd(out + (ED25519_SIG_SIZE/2), hram, az, nonce);
 #endif
-
+#endif /* WOLFSSL_SE050 */
     return ret;
 }
 
@@ -492,7 +498,7 @@ int wc_ed25519ph_sign_msg(const byte* in, word32 inLen, byte* out,
 #endif /* HAVE_ED25519_SIGN */
 
 #ifdef HAVE_ED25519_VERIFY
-
+#ifndef WOLFSSL_SE050
 /*
    sig        is array of bytes containing the signature
    sigLen     is the length of sig byte array
@@ -633,6 +639,7 @@ static int ed25519_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
 
     return ret;
 }
+#endif /* WOLFSSL_SE050 */
 
 #ifdef WOLFSSL_ED25519_STREAMING_VERIFY
 
@@ -670,6 +677,13 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
                               byte type, const byte* context, byte contextLen)
 {
     int ret;
+#ifdef WOLFSSL_SE050
+    (void)type;
+    (void)context;
+    (void)contextLen;
+    (void)ed25519Ctx;
+    ret = se050_ed25519_verify_msg(sig, sigLen, msg, msgLen, key, res);
+#else
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     wc_Sha512 *sha;
 #else
@@ -709,7 +723,7 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
 #ifndef WOLFSSL_ED25519_PERSISTENT_SHA
     ed25519_hash_free(key, sha);
 #endif
-
+#endif /* WOLFSSL_SE050 */
     return ret;
 }
 
@@ -813,6 +827,10 @@ int wc_ed25519_init_ex(ed25519_key* key, void* heap, int devId)
     fe_init();
 #endif
 
+#ifdef WOLFSSL_SE050
+    se050_ed25519_create_key(key);
+#endif
+
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     return ed25519_hash_init(key, &key->sha);
 #else /* !WOLFSSL_ED25519_PERSISTENT_SHA */
@@ -833,6 +851,10 @@ void wc_ed25519_free(ed25519_key* key)
 
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     ed25519_hash_free(key, &key->sha);
+#endif
+
+#ifdef WOLFSSL_SE050
+    se050_ed25519_free_key(key);
 #endif
 
     ForceZero(key, sizeof(ed25519_key));

@@ -66,6 +66,10 @@
     #include <wolfssl/wolfcrypt/port/kcapi/kcapi_ecc.h>
 #endif
 
+#ifdef WOLFSSL_SE050
+    #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
+#endif
+
 #ifdef WOLFSSL_HAVE_SP_ECC
     #include <wolfssl/wolfcrypt/sp_int.h>
 #endif
@@ -168,7 +172,11 @@ enum {
         CRYPTOCELL_KEY_SIZE = ECC_MAXSIZE,
     #endif
     ECC_MAX_CRYPTO_HW_SIZE = CRYPTOCELL_KEY_SIZE,
+#elif defined(WOLFSSL_SE050)
+    ECC_MAX_CRYPTO_HW_SIZE = 32,
+    ECC_MAX_CRYPTO_HW_PUBKEY_SIZE = 64,
 #endif
+
 
     /* point compression type */
     ECC_POINT_COMP_EVEN = 0x02,
@@ -435,6 +443,9 @@ struct ecc_key {
     word32 blackKey;     /* address of key encrypted and in secure memory */
     word32 securePubKey; /* address of public key in secure memory */
     int    partNum; /* partition number*/
+#endif
+#ifdef WOLFSSL_SE050
+    int keyId;
 #endif
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
     int  slot;        /* Key Slot Number (-1 unknown) */

@@ -68,6 +68,8 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/arm/armv8-32-sha512-asm.c \
               wolfcrypt/src/port/nxp/ksdk_port.c \
               wolfcrypt/src/port/nxp/dcp_port.c \
+              wolfcrypt/src/port/nxp/se050_port.c \
+              wolfcrypt/src/port/nxp/README.md \
               wolfcrypt/src/port/atmel/README.md \
               wolfcrypt/src/port/xilinx/xil-sha3.c \
               wolfcrypt/src/port/xilinx/xil-aesgcm.c \
@@ -173,4 +175,8 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_init.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_qnx.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_ecdsa.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_cmac.c
+endif
+
+if BUILD_SE050
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/nxp/se050_port.c
 endif
