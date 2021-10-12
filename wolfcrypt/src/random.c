@@ -2522,7 +2522,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(WOLFSSL_SAFERTOS) || defined(WOLFSSL_LEANPSK) || \
       defined(WOLFSSL_IAR_ARM)  || defined(WOLFSSL_MDK_ARM) || \
       defined(WOLFSSL_uITRON4)  || defined(WOLFSSL_uTKERNEL2) || \
-      defined(WOLFSSL_LPC43xx)  || defined(WOLFSSL_STM32F2xx) || \
+      defined(WOLFSSL_LPC43xx)  || defined(NO_STM32_RNG) || \
       defined(MBED)             || defined(WOLFSSL_EMBOS) || \
       defined(WOLFSSL_GENSEED_FORTEST) || defined(WOLFSSL_CHIBIOS) || \
       defined(WOLFSSL_CONTIKI)  || defined(WOLFSSL_AZSPHERE)
