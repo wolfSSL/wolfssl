@@ -6326,7 +6326,8 @@ int wc_ecc_free(ecc_key* key)
     return 0;
 }
 
-#if !defined(WOLFSSL_SP_MATH)
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SP_MATH)
 /* Handles add failure cases:
  *
  * Before add:
@@ -6433,7 +6434,8 @@ int ecc_projective_dbl_point_safe(ecc_point *P, ecc_point *R, mp_int* a,
 
     return err;
 }
-#endif
+#endif /* !WOLFSSL_ATECC508A && !WOLFSSL_ATECC608A
+          && !WOLFSSL_CRYPTOCELL && !WOLFSSL_SP_MATH */
 
 #if !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_CRYPTOCELL) && \
