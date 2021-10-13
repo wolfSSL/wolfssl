@@ -10,12 +10,12 @@ For detail about ESP32 HW Acceleration, you can find in [Technical Reference Man
 
 To enable hw acceleration :
 
-Uncomment out #define WOLFSSL_ESPIDF in /path/to/wolfssl/wolfssl/wolfcrypt/settings.h  
-Uncomment out #define WOLFSSL_ESPWROOM32 in /path/to/wolfssl/wolfssl/wolfcrypt/settings.h
+* Uncomment out `#define WOLFSSL_ESPIDF` in `/path/to/wolfssl/wolfssl/wolfcrypt/settings.h`
+* Uncomment out `#define WOLFSSL_ESPWROOM32` in `/path/to/wolfssl/wolfssl/wolfcrypt/settings.h`
 
-To disable portions of the hardware acceleration you can optionally define:  
+To disable portions of the hardware acceleration you can optionally define:
 
-```
+```c
 /* Disabled SHA, AES and RSA acceleration */
 #define NO_ESP32WROOM32_CRYPT
 /* Disabled AES acceleration */
@@ -28,12 +28,12 @@ To disable portions of the hardware acceleration you can optionally define:
 
 ### Coding
 
-In your application you must include <wolfssl/wolfcrypt/settings.h> before any other wolfSSL headers. If building the sources directly we recommend defining `WOLFSSL_USER_SETTINGS` and adding your own `user_settings.h` file. You can find a good reference for this in `IDE/GCC-ARM/Header/user_settings.h`.
+In your application you must include `<wolfssl/wolfcrypt/settings.h>` before any other wolfSSL headers. If building the sources directly we recommend defining `WOLFSSL_USER_SETTINGS` and adding your own `user_settings.h` file. You can find a good reference for this in `IDE/GCC-ARM/Header/user_settings.h`.
 
 
 ### Benchmarks
 
-w/ USE_FAST_MATH and WOLFSSL_SMALL_STACK options
+w/ `USE_FAST_MATH` and `WOLFSSL_SMALL_STACK` options
 
 Software only implementation :
 
