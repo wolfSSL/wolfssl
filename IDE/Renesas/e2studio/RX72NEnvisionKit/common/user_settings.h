@@ -35,10 +35,10 @@
  *  "WOLFSSL_RENESAS_TSIP_VER" takes following value:
  *      106: TSIPv1.06
  *      109: TSIPv1.09
- *      
+ *      113: TSIPv1.13
  *----------------------------------------------------------------------------*/
   #define WOLFSSL_RENESAS_TSIP
-  #define WOLFSSL_RENESAS_TSIP_VER     109
+  #define WOLFSSL_RENESAS_TSIP_VER     113
 
 
 /*-- TLS version definitions  --------------------------------------------------
