@@ -19589,6 +19589,13 @@ static int test_wc_DsaSignVerify (void)
         }
     }
 
+#if !defined(HAVE_FIPS) && defined(WOLFSSL_PUBLIC_MP)
+    /* hard set q to 0 and test fail case */
+    mp_free(&key.q);
+    mp_init(&key.q);
+    AssertIntEQ(wc_DsaSign(hash, signature, &key, &rng), BAD_FUNC_ARG);
+#endif
+
     if (wc_FreeRng(&rng) && ret == 0) {
         ret = WOLFSSL_FATAL_ERROR;
     }

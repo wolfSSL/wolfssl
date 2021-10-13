@@ -736,6 +736,18 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
                 }
 
         halfSz = min(DSA_MAX_HALF_SIZE, mp_unsigned_bin_size(&key->q));
+        /* NIST FIPS 186-4: Sections 4.1
+         * q is a prime divisor where 2^(N-1) < q < 2^N and N is the bit length
+         * of q.
+         * To satisfy this constraint if N is 0 then q would still need to be
+         * larger than 0.5, but since there is 0 bits in q it can not be any
+         * value.
+         */
+        if (halfSz == 0) {
+            ret = BAD_FUNC_ARG;
+            break;
+        }
+
         tmp = out;
         qMinus1 = kInv;
 
