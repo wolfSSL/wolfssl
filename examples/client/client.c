@@ -895,7 +895,7 @@ const char* starttlsCmd[6] = {
 /* Initiates the STARTTLS command sequence over TCP */
 static int StartTLS_Init(SOCKET_T* sockfd)
 {
-    char tmpBuf[256];
+    char tmpBuf[512];
 
     if (sockfd == NULL)
         return BAD_FUNC_ARG;
