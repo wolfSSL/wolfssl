@@ -325,29 +325,29 @@ then
        [ "x$PLATFORM" != "xnetos-7.6" ];
     then
         pushd old-tree || exit 2
-        $GIT fetch origin $RNG_VERSION
-        $GIT checkout FETCH_HEAD
+        $GIT fetch origin $RNG_VERSION || exit $?
+        $GIT checkout FETCH_HEAD || exit $?
         popd || exit 2
         cp "old-tree/$CRYPT_SRC_PATH/random.c" $CRYPT_SRC_PATH
         cp "old-tree/$CRYPT_INC_PATH/random.h" $CRYPT_INC_PATH
     fi
 elif [ "x$FIPS_OPTION" == "xv2" ] || [ "x$FIPS_OPTION" == "xrand" ] || [ "x$FIPS_OPTION" == "xv5-RC8" ]
 then
-    $GIT branch --no-track "my$CRYPT_VERSION" $CRYPT_VERSION
+    $GIT branch --no-track "my$CRYPT_VERSION" $CRYPT_VERSION || exit $?
     # Checkout the fips versions of the wolfCrypt files from the repo.
     for MOD in "${WC_MODS[@]}"
     do
-        $GIT checkout "my$CRYPT_VERSION" -- "$CRYPT_SRC_PATH/$MOD.c" "$CRYPT_INC_PATH/$MOD.h"
+        $GIT checkout "my$CRYPT_VERSION" -- "$CRYPT_SRC_PATH/$MOD.c" "$CRYPT_INC_PATH/$MOD.h" || exit $?
     done
 
     for MOD in "${COPY_DIRECT[@]}"
     do
-        $GIT checkout "my$CRYPT_VERSION" -- "$MOD"
+        $GIT checkout "my$CRYPT_VERSION" -- "$MOD" || exit $?
     done
 
-    $GIT branch --no-track "myrng$RNG_VERSION" $RNG_VERSION
+    $GIT branch --no-track "myrng$RNG_VERSION" $RNG_VERSION || exit $?
     # Checkout the fips versions of the wolfCrypt files from the repo.
-    $GIT checkout "myrng$RNG_VERSION" -- "$CRYPT_SRC_PATH/random.c" "$CRYPT_INC_PATH/random.h"
+    $GIT checkout "myrng$RNG_VERSION" -- "$CRYPT_SRC_PATH/random.c" "$CRYPT_INC_PATH/random.h" || exit $?
 elif [ "x$FIPS_OPTION" == "xready" ] || [ "x$FIPS_OPTION" == "xv5-ready" ]
 then
     echo "Don't need to copy anything in particular for FIPS Ready."
