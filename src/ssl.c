@@ -21331,7 +21331,7 @@ void wolfSSL_GENERAL_NAMES_free(WOLFSSL_GENERAL_NAMES *gens)
     wolfSSL_sk_free(gens);
 }
 
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) && !defined(NO_BIO)
 /* Outputs name string of the given WOLFSSL_GENERAL_NAME_OBJECT to WOLFSSL_BIO. 
  * Can handle following GENERAL_NAME_OBJECT types:
  *  - GEN_OTHERNAME #
@@ -26131,7 +26131,7 @@ WOLFSSL_API int wolfSSL_X509_load_cert_crl_file(WOLFSSL_X509_LOOKUP *ctx,
         }
 
     } else {
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) && !defined(NO_BIO)
         bio = wolfSSL_BIO_new_file(file, "rb");
         if(!bio) {
             WOLFSSL_MSG("wolfSSL_BIO_new error");
@@ -26177,7 +26177,7 @@ WOLFSSL_API int wolfSSL_X509_load_cert_crl_file(WOLFSSL_X509_LOOKUP *ctx,
     (void)info_tmp;
     (void)info;
     (void)bio;
-#endif
+#endif /* OPENSSL_ALL && !NO_BIO */
     }
 
     WOLFSSL_LEAVE("wolfSSL_X509_load_ceretificate_crl_file", cnt);
@@ -47154,7 +47154,6 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
     }
     return WOLFSSL_SUCCESS;
 }
-#endif /* !NO_BIO */
 
 #ifndef NO_FILESYSTEM
 int wolfSSL_X509_NAME_print_ex_fp(XFILE file, WOLFSSL_X509_NAME* name,
@@ -47177,6 +47176,7 @@ int wolfSSL_X509_NAME_print_ex_fp(XFILE file, WOLFSSL_X509_NAME* name,
     return ret;
 }
 #endif /* NO_FILESYSTEM */
+#endif /* !NO_BIO */
 
 #ifndef NO_WOLFSSL_STUB
 WOLFSSL_ASN1_BIT_STRING* wolfSSL_X509_get0_pubkey_bitstr(const WOLFSSL_X509* x)
@@ -49045,6 +49045,7 @@ BIO *wolfSSL_SSL_get_wbio(const WOLFSSL *s)
 
     return s->biowr;
 }
+#endif /* !NO_BIO */
 
 int wolfSSL_SSL_do_handshake(WOLFSSL *s)
 {
@@ -49126,6 +49127,7 @@ WOLFSSL_SESSION *wolfSSL_SSL_get0_session(const WOLFSSL *ssl)
 
 #endif /* NO_SESSION_CACHE */
 
+#ifndef NO_BIO
 int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
         char *buf, int size)
 {
@@ -56186,6 +56188,7 @@ WOLFSSL_STACK *wolfSSL_NCONF_get_section(
         return NULL;
 }
 
+#if  !defined(NO_BIO)
 static WOLFSSL_CONF_VALUE *wolfSSL_CONF_VALUE_new_values(char* section,
         char* name, char* value)
 {
@@ -56496,7 +56499,7 @@ cleanup:
         *eline = line;
     return ret;
 }
-
+#endif /* !NO_BIO */
 
 void wolfSSL_NCONF_free(WOLFSSL_CONF *conf)
 {
