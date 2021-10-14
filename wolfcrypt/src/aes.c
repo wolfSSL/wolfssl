@@ -10075,6 +10075,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     o = out;
     oSz = inSz;
+    XMEMSET(A, 0, sizeof A);
     XMEMCPY(B+1, nonce, nonceSz);
     lenSz = AES_BLOCK_SIZE - 1 - (byte)nonceSz;
 
@@ -11140,9 +11141,11 @@ int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
         return MEMORY_E;
 #endif
 
+#ifndef __clang_analyzer__
     ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret != 0)
         goto out;
+#endif
 
     ret = wc_AesSetKey(aes, key, keySz, NULL, AES_ENCRYPTION);
     if (ret != 0) {
@@ -11253,9 +11256,11 @@ int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
 #endif
 
 
+#ifndef __clang_analyzer__
     ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret != 0)
         goto out;
+#endif
 
     ret = wc_AesSetKey(aes, key, keySz, NULL, AES_DECRYPTION);
     if (ret != 0) {
@@ -11308,12 +11313,14 @@ int wc_AesXtsSetKey(XtsAes* aes, const byte* key, word32 len, int dir,
         return BAD_FUNC_ARG;
     }
 
+#ifndef __clang_analyzer__
     if ((ret = wc_AesInit(&aes->tweak, heap, devId)) != 0) {
         return ret;
     }
     if ((ret = wc_AesInit(&aes->aes, heap, devId)) != 0) {
         return ret;
     }
+#endif
 
     keySz = len/2;
     if (keySz != 16 && keySz != 32) {

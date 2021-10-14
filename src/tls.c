@@ -3219,7 +3219,6 @@ void* TLSX_CSR_GetRequest(TLSX* extensions)
         switch (csr->status_type) {
             case WOLFSSL_CSR_OCSP:
                 return &csr->request.ocsp;
-            break;
         }
     }
 
@@ -3642,7 +3641,6 @@ void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type, byte idx)
                     return idx < csr2->requests
                          ? &csr2->request.ocsp[csr2->requests - idx - 1]
                          : NULL;
-                break;
             }
         }
     }
@@ -10304,15 +10302,21 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             extension = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
             if (extension == NULL) {
             #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+            #ifndef __clang_analyzer__
                 if (ssl->options.resuming && ssl->session.namedGroup != 0)
                     namedGroup = ssl->session.namedGroup;
                 else
             #endif
+            #endif
+            PRAGMA_CLANG_DIAG_PUSH
+            PRAGMA_CLANG("clang diagnostic ignored \"-Wunreachable-code-return\"")
                 if (PREFERRED_GROUP_SZ == 0) {
                     WOLFSSL_MSG("No groups in preference list");
                     return KEY_SHARE_ERROR;
                 }
-                else if (ssl->numGroups > 0) {
+                else
+            PRAGMA_CLANG_DIAG_POP
+                if (ssl->numGroups > 0) {
                     int set = 0;
                     int i, j;
 

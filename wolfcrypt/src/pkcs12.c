@@ -2280,6 +2280,7 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
         return NULL;
     }
 
+#ifndef __clang_analyzer__
     if ((ret = wc_PKCS12_SetHeap(pkcs12, heap)) != 0) {
         wc_PKCS12_free(pkcs12);
         wc_FreeRng(&rng);
@@ -2287,6 +2288,7 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
         (void)ret;
         return NULL;
     }
+#endif
 
     if (iter <= 0) {
         iter = WC_PKCS12_ITT_DEFAULT;

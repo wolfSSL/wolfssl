@@ -300,8 +300,10 @@ int wc_XChacha_SetKey(ChaCha *ctx,
     XMEMSET(iv, 0, 4);
     XMEMCPY(iv + 4, nonce + 16, 8);
 
+#ifndef __clang_analyzer__
     if ((ret = wc_Chacha_SetIV(ctx, iv, counter)) < 0)
         return ret;
+#endif
 
     ForceZero(k, sizeof k);
     ForceZero(iv, sizeof iv);

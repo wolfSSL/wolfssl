@@ -806,6 +806,9 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
     if (sha512->buffLen >= WC_SHA512_BLOCK_SIZE)
         return BUFFER_E;
 
+    if (len == 0)
+        return 0;
+
     AddLength(sha512, len);
 
     if (sha512->buffLen > 0) {

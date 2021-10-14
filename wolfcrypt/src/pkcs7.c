@@ -770,10 +770,12 @@ PKCS7* wc_PKCS7_New(void* heap, int devId)
         if (wc_PKCS7_Init(pkcs7, heap, devId) == 0) {
             pkcs7->isDynamic = 1;
         }
+#ifndef __clang_analyzer__
         else {
             XFREE(pkcs7, heap, DYNAMIC_TYPE_PKCS7);
             pkcs7 = NULL;
         }
+#endif
     }
     return pkcs7;
 }
@@ -1530,6 +1532,9 @@ static int EncodeAttributes(EncodedAttrib* ea, int eaSz,
     int maxSz = min(eaSz, attribsSz);
     int allAttribsSz = 0;
 
+#ifdef __clang_analyzer__
+    assert(maxSz > 0);
+#endif
     for (i = 0; i < maxSz; i++)
     {
         int attribSz = 0;
@@ -11011,6 +11016,8 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
 
     /* authAttribs: add contentType attrib if needed */
     if (pkcs7->contentOID != DATA) {
+
+        XMEMSET(&contentTypeAttrib, 0, sizeof contentTypeAttrib);
 
         /* if type is not id-data, contentType attribute MUST be added */
         contentTypeAttrib.oid = contentTypeOid;

@@ -4182,7 +4182,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     {
         struct do_all_md *md = (struct do_all_md*)arg;
         
-        const char* alias = NULL;
         const struct s_ent *ent;
         
         /* sanity check */
@@ -4193,7 +4192,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         /* loop all md */
         for (ent = md_tbl; ent->name != NULL; ent++){
             /* check if the md has alias */
-            if((alias = hasAliasName(ent->name)) != NULL) {
+            if(hasAliasName(ent->name) != NULL) {
                 md->fn(NULL, ent->name, ent->name, md->arg);
             }
             else {
@@ -9008,8 +9007,7 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
         cpySz = min((BASE64_DECODE_BLOCK_SIZE - ctx->remaining), inl);
 
         for ( i = 0; cpySz > 0 && inLen > 0; i++) {
-            if ((res = Base64_SkipNewline(in, &inLen, &j))
-                                            == ASN_INPUT_E) {
+            if (Base64_SkipNewline(in, &inLen, &j) == ASN_INPUT_E) {
                 return -1;  /* detected an illegal char in input */
             }
             c = in[j++];

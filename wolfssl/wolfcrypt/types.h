@@ -330,6 +330,14 @@ decouple library dependencies with standard string, memory and so on.
         #endif
     #endif /* WARN_UNUSED_RESULT */
 
+    #ifndef WC_UNUSED
+        #if (defined(__GNUC__) && (__GNUC__ >= 4)) || defined(__clang__)
+            #define WC_UNUSED __attribute__((unused))
+        #else
+            #define WC_UNUSED
+        #endif
+    #endif /* WC_UNUSED */
+
     /* Micrium will use Visual Studio for compilation but not the Win32 API */
     #if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \
         !defined(FREERTOS_TCP) && !defined(EBSNET) && \
@@ -1132,6 +1140,19 @@ decouple library dependencies with standard string, memory and so on.
         #define PRAGMA_GCC_IGNORE(str)
         #define PRAGMA_GCC_POP
     #endif
+
+    #ifdef __clang__
+        #define PRAGMA_CLANG_DIAG_PUSH _Pragma("clang diagnostic push")
+        #define PRAGMA_CLANG(str) _Pragma(str)
+        #define PRAGMA_CLANG_DIAG_POP _Pragma("clang diagnostic pop")
+    #else
+        #define PRAGMA_CLANG_DIAG_PUSH
+        #define PRAGMA_CLANG(str)
+        #define PRAGMA_CLANG_DIAG_POP
+    #endif
+
+
+
 
     #ifdef __cplusplus
         }   /* extern "C" */
