@@ -36,8 +36,9 @@ Platform is one of:
     stm32l4-v2 (FIPSv2, use for STM32L4)
     wolfrand
     solaris
-    linuxv5 (FIPS 140-3)
-    linuxv5-ready (FIPS 140-3)
+    linuxv5-RC8 (old FIPS 140-3)
+    linuxv5 (current FIPS 140-3)
+    linuxv5-ready (ready FIPS 140-3)
 Keep (default off) retains the XXX-fips-test temp dir for inspection.
 
 Example:
@@ -228,7 +229,10 @@ fips-ready)
   FIPS_INCS=( fips.h )
   FIPS_OPTION=ready
   ;;
-linuxv5-ready)
+
+# note, "linuxv5" is temporarily an alias for "linuxv5-ready", while PR #4359 is in flight:
+
+linuxv5-ready|linuxv5)
   FIPS_REPO="git@github.com:wolfSSL/fips.git"
   FIPS_VERSION="douzzer-linuxkm-fips-140-3"
   CRYPT_REPO="git@github.com:wolfssl/wolfssl.git"
@@ -277,7 +281,7 @@ solaris)
   FIPS_OPTION=v2
   MAKE=gmake
   ;;
-linuxv5)
+linuxv5-RC8)
   FIPS_REPO="git@github.com:wolfSSL/fips.git"
   FIPS_VERSION="WCv5.0-RC8"
   CRYPT_REPO="git@github.com:wolfSSL/wolfssl.git"
