@@ -116,6 +116,9 @@
 #ifdef HAVE_CURVE448
     #include <wolfssl/wolfcrypt/curve448.h>
 #endif
+#ifdef HAVE_LIBOQS
+    #include <wolfssl/wolfcrypt/falcon.h>
+#endif
 #ifndef WOLFSSL_NO_DEF_TICKET_ENC_CB
     #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
         !defined(WOLFSSL_TICKET_ENC_AES128_GCM) && \
@@ -1240,7 +1243,11 @@ enum Misc {
 #ifndef NO_PSK
     ENCRYPT_LEN     = 512 + MAX_PSK_ID_LEN + 2,    /* 4096 bit static buffer */
 #else
+#ifdef HAVE_LIBOQS
+    ENCRYPT_LEN     = 5000,     /* allow 40000 bit static buffer for falcon */
+#else
     ENCRYPT_LEN     = 512,      /* allow 4096 bit static buffer */
+#endif
 #endif
 #endif
     SIZEOF_SENDER   =  4,       /* clnt or srvr           */
@@ -1448,10 +1455,21 @@ enum Misc {
     ED448_SA_MAJOR      = 8,   /* Most significant byte for ED448 */
     ED448_SA_MINOR      = 8,   /* Least significant byte for ED448 */
 
+    OQS_SA_MAJOR        = 0xFE,/* Most significant byte used with OQS sig algos
+*/
+    /* These match what OQS has defined in their OpenSSL fork. */
+    FALCON_LEVEL1_SA_MAJOR = 0xFE,
+    FALCON_LEVEL1_SA_MINOR = 0x0B,
+    FALCON_LEVEL5_SA_MAJOR = 0xFE,
+    FALCON_LEVEL5_SA_MINOR = 0x0E,
+
+
     MIN_RSA_SHA512_PSS_BITS = 512 * 2 + 8 * 8, /* Min key size */
     MIN_RSA_SHA384_PSS_BITS = 384 * 2 + 8 * 8, /* Min key size */
 
-#ifndef NO_RSA
+#if defined(HAVE_LIBOQS)
+    MAX_CERT_VERIFY_SZ = 20000,            /* For Falcon */
+#elif !defined(NO_RSA)
     MAX_CERT_VERIFY_SZ = WOLFSSL_MAX_RSA_BITS / 8, /* max RSA bytes */
 #elif defined(HAVE_ECC)
     MAX_CERT_VERIFY_SZ = ECC_MAX_SIG_SIZE, /* max ECC  */
@@ -1479,7 +1497,9 @@ enum Misc {
     MAX_WOLFSSL_FILE_SIZE = 1024ul * 1024ul * 4,  /* 4 mb file size alloc limit */
 #endif
 
-#ifdef WOLFSSL_HAPROXY
+#if defined(HAVE_LIBOQS)
+    MAX_X509_SIZE      = 5120, /* max static x509 buffer size; falcon is big */
+#elif defined(WOLFSSL_HAPROXY)
     MAX_X509_SIZE      = 3072, /* max static x509 buffer size */
 #else
     MAX_X509_SIZE      = 2048, /* max static x509 buffer size */
@@ -1526,7 +1546,7 @@ enum Misc {
 
 /* number of items in the signature algo list */
 #ifndef WOLFSSL_MAX_SIGALGO
-    #define WOLFSSL_MAX_SIGALGO 36
+    #define WOLFSSL_MAX_SIGALGO 38
 #endif
 
 
@@ -1547,6 +1567,13 @@ enum Misc {
     #error ECC minimum bit size must be a multiple of 8
 #endif
 #define MIN_ECCKEY_SZ (WOLFSSL_MIN_ECC_BITS / 8)
+
+#ifdef HAVE_LIBOQS
+/* set minimum Falcon key size allowed */
+#ifndef MIN_FALCONKEY_SZ
+    #define MIN_FALCONKEY_SZ    897
+#endif
+#endif
 
 /* set minimum RSA key size allowed */
 #ifndef WOLFSSL_MIN_RSA_BITS
@@ -1877,10 +1904,14 @@ struct Suites {
 
 
 WOLFSSL_LOCAL void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
-                                         int haveRSAsig, int haveAnon,
-                                         int tls1_2, int keySz);
-WOLFSSL_LOCAL void InitSuites(Suites*, ProtocolVersion, int, word16, word16,
-                              word16, word16, word16, word16, word16, int);
+                                         int haveRSAsig, int haveFalconSig,
+                                         int haveAnon, int tls1_2, int keySz);
+WOLFSSL_LOCAL void InitSuites(Suites* suites, ProtocolVersion pv, int keySz,
+                              word16 haveRSA, word16 havePSK, word16 haveDH,
+                              word16 haveECDSAsig, word16 haveECC,
+                              word16 haveStaticECC,  word16 haveFalconSig,
+                              word16 haveAnon, int side);
+
 WOLFSSL_LOCAL int  MatchSuite(WOLFSSL* ssl, Suites* peerSuites);
 WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
 WOLFSSL_LOCAL int  SetSuitesHashSigAlgo(Suites*, const char* list);
@@ -2088,6 +2119,10 @@ struct WOLFSSL_CERT_MANAGER {
     wolfSSL_Mutex   refMutex;   /* reference count mutex */
 #endif
     int             refCount;         /* reference count */
+#ifdef HAVE_LIBOQS
+    short           minFalconKeySz;      /* minimum allowed Falcon key size */
+#endif
+
 };
 
 WOLFSSL_LOCAL int CM_SaveCertCache(WOLFSSL_CERT_MANAGER*, const char*);
@@ -2772,6 +2807,7 @@ struct WOLFSSL_CTX {
     byte        haveECC:1;        /* ECC available */
     byte        haveDH:1;         /* server DH parms set by user */
     byte        haveECDSAsig:1;   /* server cert signed w/ ECDSA */
+    byte        haveFalconSig:1;  /* server cert signed w/ Falcon */
     byte        haveStaticECC:1;  /* static server ECC private key */
     byte        partialWrite:1;   /* only one msg per write call */
     byte        quietShutdown:1;  /* don't send close notify */
@@ -2830,6 +2866,9 @@ struct WOLFSSL_CTX {
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     short       minEccKeySz;      /* minimum ECC key size */
+#endif
+#ifdef HAVE_LIBOQS
+    short       minFalconKeySz;   /* minimum Falcon key size */
 #endif
     unsigned long     mask;             /* store SSL_OP_ flags */
 #ifdef OPENSSL_EXTRA
@@ -3102,14 +3141,16 @@ enum KeyExchangeAlgorithm {
 
 /* Supported Authentication Schemes */
 enum SignatureAlgorithm {
-    anonymous_sa_algo = 0,
-    rsa_sa_algo       = 1,
-    dsa_sa_algo       = 2,
-    ecc_dsa_sa_algo   = 3,
-    rsa_pss_sa_algo   = 8,
-    ed25519_sa_algo   = 9,
-    rsa_pss_pss_algo  = 10,
-    ed448_sa_algo     = 11
+    anonymous_sa_algo     = 0,
+    rsa_sa_algo           = 1,
+    dsa_sa_algo           = 2,
+    ecc_dsa_sa_algo       = 3,
+    rsa_pss_sa_algo       = 8,
+    ed25519_sa_algo       = 9,
+    rsa_pss_pss_algo      = 10,
+    ed448_sa_algo         = 11,
+    falcon_level1_sa_algo = 12,
+    falcon_level5_sa_algo = 13
 };
 
 #define PSS_RSAE_TO_PSS_PSS(macAlgo) \
@@ -3142,7 +3183,8 @@ enum ClientCertificateType {
     fortezza_kea_cert   = 20,
     ecdsa_sign          = 64,
     rsa_fixed_ecdh      = 65,
-    ecdsa_fixed_ecdh    = 66
+    ecdsa_fixed_ecdh    = 66,
+    falcon_sign         = 67,
 };
 
 
@@ -3561,6 +3603,7 @@ typedef struct Options {
     word16            haveDH:1;           /* server DH parms set by user */
     word16            haveECDSAsig:1;     /* server ECDSA signed cert */
     word16            haveStaticECC:1;    /* static server ECC private key */
+    word16            haveFalconSig:1;    /* server Falcon signed cert */
     word16            havePeerCert:1;     /* do we have peer's cert */
     word16            havePeerVerify:1;   /* and peer's cert verify */
     word16            usingPSK_cipher:1;  /* are using psk as cipher */
@@ -3666,6 +3709,9 @@ typedef struct Options {
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     short           minEccKeySz;      /* minimum ECC key size */
+#endif
+#if defined(HAVE_LIBOQS)
+    short           minFalconKeySz;   /* minimum Falcon key size */
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     byte            verifyDepth;      /* maximum verification depth */
@@ -3831,9 +3877,10 @@ struct WOLFSSL_X509 {
     buffer           pubKey;
     int              pubKeyOID;
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
-#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+    defined(HAVE_LIBOQS)
     word32       pkCurveOID;
-#endif /* HAVE_ECC */
+#endif /* HAVE_ECC || HAVE_LIBOQS */
 #ifndef NO_CERTS
     DerBuffer*   derCert;                            /* may need  */
 #endif
@@ -4240,6 +4287,10 @@ struct WOLFSSL {
 #ifdef HAVE_CURVE448
     curve448_key*   peerX448Key;
     byte            peerX448KeyPresent;
+#endif
+#ifdef HAVE_LIBOQS
+    falcon_key*     peerFalconKey;
+    byte            peerFalconKeyPresent;
 #endif
 #ifdef HAVE_LIBZ
     z_stream        c_stream;           /* compression   stream */

@@ -999,14 +999,16 @@ enum Block_Sum {
 
 
 enum Key_Sum {
-    DSAk     = 515,
-    RSAk     = 645,
-    ECDSAk   = 518,
-    ED25519k = 256, /* 1.3.101.112 */
-    X25519k  = 254, /* 1.3.101.110 */
-    ED448k   = 257, /* 1.3.101.113 */
-    X448k    = 255, /* 1.3.101.111 */
-    DHk      = 647, /* dhKeyAgreement OID: 1.2.840.113549.1.3.1 */
+    DSAk           = 515,
+    RSAk           = 645,
+    ECDSAk         = 518,
+    ED25519k       = 256, /* 1.3.101.112 */
+    X25519k        = 254, /* 1.3.101.110 */
+    ED448k         = 257, /* 1.3.101.113 */
+    X448k          = 255, /* 1.3.101.111 */
+    DHk            = 647, /* dhKeyAgreement OID: 1.2.840.113549.1.3.1 */
+    FALCON_LEVEL1k = 268, /* 1.3.9999.3.1 */
+    FALCON_LEVEL5k = 271  /* 1.3.9999.3.4 */
 };
 
 #if !defined(NO_AES) || defined(HAVE_PKCS7)
@@ -1240,6 +1242,9 @@ struct SignatureCtx {
     #endif
     #ifdef HAVE_ED448
         struct ed448_key* ed448;
+    #endif
+    #ifdef HAVE_LIBOQS
+        struct falcon_key* falcon;
     #endif
         void* ptr;
     } key;
@@ -1936,18 +1941,20 @@ WOLFSSL_LOCAL int wc_MIME_free_hdrs(MimeHdr* head);
 
 enum cert_enums {
 #ifdef WOLFSSL_CERT_EXT
-    NAME_ENTRIES    =  12,
+    NAME_ENTRIES      = 12,
 #else
-    NAME_ENTRIES    =  11,
+    NAME_ENTRIES      = 11,
 #endif
-    JOINT_LEN       =  2,
-    EMAIL_JOINT_LEN =  9,
-    PILOT_JOINT_LEN =  10,
-    RSA_KEY         = 10,
-    ECC_KEY         = 12,
-    ED25519_KEY     = 13,
-    ED448_KEY       = 14,
-    DSA_KEY         = 15
+    JOINT_LEN         = 2,
+    EMAIL_JOINT_LEN   = 9,
+    PILOT_JOINT_LEN   = 10,
+    RSA_KEY           = 10,
+    ECC_KEY           = 12,
+    ED25519_KEY       = 13,
+    ED448_KEY         = 14,
+    DSA_KEY           = 15,
+    FALCON_LEVEL1_KEY = 16,
+    FALCON_LEVEL5_KEY = 17
 };
 
 #endif /* WOLFSSL_CERT_GEN */

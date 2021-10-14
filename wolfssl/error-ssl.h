@@ -175,6 +175,7 @@ enum wolfSSL_ErrorCodes {
     HTTP_VERSION_ERR             = -448,   /* HTTP Version error */
     HTTP_APPSTR_ERR              = -449,   /* HTTP Application string error */
     UNSUPPORTED_PROTO_VERSION    = -450,   /* bad/unsupported protocol version*/
+    FALCON_KEY_SIZE_E            = -451,   /* Wrong key size for Falcon. */
 
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
