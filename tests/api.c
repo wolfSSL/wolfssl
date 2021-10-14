@@ -41156,18 +41156,23 @@ static void test_wolfSSL_X509_PUBKEY_get(void)
 
 static void test_wolfSSL_d2i_DHparams(void)
 {
-#if !defined(NO_DH)
+#if !defined(NO_DH) && (defined(HAVE_FFDHE_2048) || defined(HAVE_FFDHE_3072))
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     FILE* f = NULL;
     unsigned char buf[4096];
     const unsigned char* pt = buf;
+#ifdef HAVE_FFDHE_2048
     const char* params1 = "./certs/dh2048.der";
+#endif
+#ifdef HAVE_FFDHE_3072
     const char* params2 = "./certs/dh3072.der";
+#endif
     long len = 0;
     WOLFSSL_DH* dh = NULL;
     XMEMSET(buf, 0, sizeof(buf));
 
     /* Test 2048 bit parameters */
+#ifdef HAVE_FFDHE_2048
     printf(testingFmt, "wolfSSL_d2i_DHparams() 2048-bit");
     f = XFOPEN(params1, "rb");
     AssertTrue(f != XBADFILE);
@@ -41194,8 +41199,10 @@ static void test_wolfSSL_d2i_DHparams(void)
 
     *buf = 0;
     pt = buf;
+#endif /* HAVE_FFDHE_2048 */
 
     /* Test 3072 bit parameters */
+#ifdef HAVE_FFDHE_3072
     printf(testingFmt, "wolfSSL_d2i_DHparams() 3072-bit");
     f = XFOPEN(params2, "rb");
     AssertTrue(f != XBADFILE);
@@ -41215,24 +41222,30 @@ static void test_wolfSSL_d2i_DHparams(void)
 
     DH_free(dh);
     printf(resultFmt, passed);
+#endif /* HAVE_FFDHE_3072 */
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* !NO_DH */
 }
 
 static void test_wolfSSL_i2d_DHparams(void)
 {
-#if !defined(NO_DH)
+#if !defined(NO_DH) && (defined(HAVE_FFDHE_2048) || defined(HAVE_FFDHE_3072))
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     FILE* f;
     unsigned char buf[4096];
     const unsigned char* pt = buf;
     unsigned char* pt2 = buf;
+#ifdef HAVE_FFDHE_2048
     const char* params1 = "./certs/dh2048.der";
+#endif
+#ifdef HAVE_FFDHE_3072
     const char* params2 = "./certs/dh3072.der";
+#endif
     long len;
     WOLFSSL_DH* dh;
 
     /* Test 2048 bit parameters */
+#ifdef HAVE_FFDHE_2048
     printf(testingFmt, "wolfSSL_i2d_DHparams() 2048-bit");
     f = XFOPEN(params1, "rb");
     AssertTrue(f != XBADFILE);
@@ -41257,8 +41270,10 @@ static void test_wolfSSL_i2d_DHparams(void)
     *buf = 0;
     pt = buf;
     pt2 = buf;
+#endif
 
     /* Test 3072 bit parameters */
+#ifdef HAVE_FFDHE_3072
     printf(testingFmt, "wolfSSL_i2d_DHparams() 3072-bit");
     f = XFOPEN(params2, "rb");
     AssertTrue(f != XBADFILE);
@@ -41279,6 +41294,7 @@ static void test_wolfSSL_i2d_DHparams(void)
 
     DH_free(dh);
     printf(resultFmt, passed);
+#endif
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif
 }
@@ -49365,7 +49381,7 @@ static void test_CONF_CTX_FILE(void)
     
     /* cmd DH parameter */
     {
-    #if !defined(NO_DH) && !defined(NO_BIO)
+    #if !defined(NO_DH) && !defined(NO_BIO) && defined(HAVE_FFDHE_3072)
         const char* ourdhcert = "./certs/dh3072.pem";
         
         AssertIntEQ(SSL_CONF_cmd(cctx, "DHParameters", NULL), -3);
