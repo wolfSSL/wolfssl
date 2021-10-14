@@ -71,6 +71,11 @@ This library defines the interface APIs for X509 certificates.
     typedef struct DhKey DhKey;
     #define WC_DH_TYPE_DEFINED
 #endif
+#ifndef WC_FALCONKEY_TYPE_DEFINED
+    typedef struct falcon_level1_key falcon_level1_key;
+    typedef struct falcon_level5_key falcon_level5_key;
+    #define WC_FALCONKEY_TYPE_DEFINED
+#endif
 
 enum Ecc_Sum {
     ECC_SECP112R1_OID = 182,
@@ -134,6 +139,8 @@ enum CertType {
     DETECT_CERT_TYPE,
     DH_PRIVATEKEY_TYPE,
     X942_PARAM_TYPE,
+    FALCON_LEVEL1_TYPE,
+    FALCON_LEVEL5_TYPE,
 };
 
 
@@ -165,7 +172,10 @@ enum Ctc_SigType {
     CTC_SHA3_512wRSA = 430,
 
     CTC_ED25519      = 256,
-    CTC_ED448        = 257
+    CTC_ED448        = 257,
+
+    CTC_FALCON_LEVEL1 = 268,
+    CTC_FALCON_LEVEL5 = 271
 };
 
 enum Ctc_Encoding {
@@ -573,7 +583,8 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
     ((defined(HAVE_ED25519)    && defined(HAVE_ED25519_KEY_EXPORT)) || \
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_EXPORT)) || \
-     (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_EXPORT)))
+     (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_EXPORT)) || \
+     (defined(HAVE_LIBOQS)))
     #define WC_ENABLE_ASYM_KEY_EXPORT
 #endif
 
@@ -581,7 +592,8 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
     ((defined(HAVE_ED25519)    && defined(HAVE_ED25519_KEY_IMPORT)) || \
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_IMPORT)) || \
-     (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_IMPORT)))
+     (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_IMPORT)) || \
+     (defined(HAVE_LIBOQS)))
     #define WC_ENABLE_ASYM_KEY_IMPORT
 #endif
 
@@ -619,6 +631,20 @@ WOLFSSL_API int wc_Ed448PrivateKeyToDer(ed448_key*, byte*, word32);
 WOLFSSL_API int wc_Ed448PublicKeyToDer(ed448_key*, byte*, word32, int);
 #endif
 #endif /* HAVE_ED448 */
+
+#ifdef HAVE_LIBOQS
+WOLFSSL_API int wc_Falcon_Level1PrivateKeyDecode(const byte*, word32*, falcon_level1_key*, word32);
+WOLFSSL_API int wc_Falcon_Level1PublicKeyDecode(const byte*, word32*, falcon_level1_key*, word32);
+WOLFSSL_API int wc_Falcon_Level1KeyToDer(falcon_level1_key*, byte*, word32);
+WOLFSSL_API int wc_Falcon_Level1PrivateKeyToDer(falcon_level1_key*, byte*, word32);
+WOLFSSL_API int wc_Falcon_Level1PublicKeyToDer(falcon_level1_key*, byte*, word32, int);
+
+WOLFSSL_API int wc_Falcon_Level5PrivateKeyDecode(const byte*, word32*, falcon_level5_key*, word32);
+WOLFSSL_API int wc_Falcon_Level5PublicKeyDecode(const byte*, word32*, falcon_level5_key*, word32);
+WOLFSSL_API int wc_Falcon_Level5KeyToDer(falcon_level5_key*, byte*, word32);
+WOLFSSL_API int wc_Falcon_Level5PrivateKeyToDer(falcon_level5_key*, byte*, word32);
+WOLFSSL_API int wc_Falcon_Level5PublicKeyToDer(falcon_level5_key*, byte*, word32, int);
+#endif /* HAVE_LIBOQS */
 
 #ifdef HAVE_CURVE448
 #ifdef HAVE_CURVE448_KEY_IMPORT
