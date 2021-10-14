@@ -7805,7 +7805,7 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
         }
     }
 }
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
 
 /* Indent writes white spaces of the number specified by "indents"
  * to the BIO. The number of white spaces is limited from 0 to
@@ -8685,7 +8685,7 @@ int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
     }
     return res;
 }
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA && !NO_BIO */
 
 int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
     int* pHash, int* pHashSz)
