@@ -100,7 +100,7 @@ typedef struct wc_Md5 {
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif
 } wc_Md5;
@@ -123,7 +123,7 @@ WOLFSSL_API int  wc_Md5Copy(wc_Md5*, wc_Md5*);
 WOLFSSL_API void wc_Md5SizeSet(wc_Md5* md5, word32 len);
 #endif
 
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     WOLFSSL_API int wc_Md5SetFlags(wc_Md5* md5, word32 flags);
     WOLFSSL_API int wc_Md5GetFlags(wc_Md5* md5, word32* flags);
 #endif

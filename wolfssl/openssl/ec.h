@@ -218,6 +218,10 @@ WOLFSSL_API int wolfSSL_ECDSA_size(const WOLFSSL_EC_KEY *key);
 WOLFSSL_API int wolfSSL_ECDSA_sign(int type, const unsigned char *digest,
                                    int digestSz, unsigned char *sig,
                                    unsigned int *sigSz, WOLFSSL_EC_KEY *key);
+WOLFSSL_API int wolfSSL_ECDSA_verify(int type, const unsigned char *digest,
+                                   int digestSz, const unsigned char *sig,
+                                   int sigSz, WOLFSSL_EC_KEY *key);
+
 WOLFSSL_API
 void wolfSSL_EC_GROUP_set_asn1_flag(WOLFSSL_EC_GROUP *group, int flag);
 WOLFSSL_API
@@ -310,6 +314,7 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 
 #define ECDSA_size                      wolfSSL_ECDSA_size
 #define ECDSA_sign                      wolfSSL_ECDSA_sign
+#define ECDSA_verify                    wolfSSL_ECDSA_verify
 
 #define EC_GROUP_free                   wolfSSL_EC_GROUP_free
 #define EC_GROUP_set_asn1_flag          wolfSSL_EC_GROUP_set_asn1_flag

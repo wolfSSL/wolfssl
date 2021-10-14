@@ -243,6 +243,7 @@ static const unsigned char dhg[] =
 #endif /* !NO_WOLFSSL_SERVER */
 #endif /* !NO_DH */
 
+#ifdef WOLFSSL_TLS13
 struct group_info {
     word16 group;
     const char *name;
@@ -300,6 +301,7 @@ static struct group_info groups[] = {
 #endif
     { 0, NULL }
 };
+#endif /* WOLFSSL_TLS13 */
 
 #ifdef HAVE_PTHREAD
 typedef struct {
@@ -1707,7 +1709,9 @@ int bench_tls(void* args)
     info_t *theadInfo = NULL, *info;
     stats_t cli_comb, srv_comb;
     int i;
-    int group_index;
+#ifdef WOLFSSL_TLS13
+    int group_index = 0;
+#endif
     char *cipher, *next_cipher, *ciphers = NULL;
     int     argc = 0;
     char**  argv = NULL;
@@ -1932,6 +1936,7 @@ int bench_tls(void* args)
 
     /* parse by : */
     while ((cipher != NULL) && (cipher[0] != '\0')) {
+        const char *gname = "N/A";
         next_cipher = strchr(cipher, ':');
         if (next_cipher != NULL) {
             cipher[next_cipher - cipher] = '\0';
@@ -1943,6 +1948,7 @@ int bench_tls(void* args)
 
 #ifdef WOLFSSL_TLS13
         for (group_index = 0; groups[group_index].name != NULL; group_index++) {
+            gname = theadInfo[0].group == 0 ? "N/A" : groups[group_index].name;
 
             if (argDoGroups && groups[group_index].group == 0) {
                 /* Skip unsupported group. */
@@ -2041,15 +2047,13 @@ int bench_tls(void* args)
             }
     #endif /* HAVE_PTHREAD */
 
-            const char *gname = theadInfo[0].group == 0 ?
-                                "N/A" : groups[group_index].name;
             if (argShowVerbose) {
                 /* print results */
                 for (i = 0; i < argThreadPairs; ++i) {
                     info = &theadInfo[i];
 
                     fprintf(stderr, "\nThread %d\n", i);
-                #ifndef NO_WOLFSSL_SERVER
+            #ifndef NO_WOLFSSL_SERVER
                     if (!argClientOnly)
                         print_stats(&info->server_stats, "Server", info->cipher, gname, 1);
             #endif

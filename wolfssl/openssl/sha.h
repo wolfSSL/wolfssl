@@ -147,9 +147,20 @@ typedef WOLFSSL_SHA256_CTX SHA256_CTX;
 #define SHA256_Final  wolfSSL_SHA256_Final
 #define SHA256_Transform wolfSSL_SHA256_Transform
 
-#if defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-    /* SHA256 is only available in non-fips mode because of SHA256 enum in FIPS
-     * build. */
+/* "SHA256" has some conflicts
+ * If not FIPS and NO_OLD_SHA_NAMES defined
+ * If FIPS V3 or higher and NO_OLD_SHA_NAMES defined
+ * If FIPS V2 and NO_OLD_SHA256_NAMES defined
+ * If FIPS v1 not allowed
+ * If HAVE_SELFTEST not allowed
+ */
+#if !defined(HAVE_SELFTEST) && \
+    (defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS)) || \
+    (defined(NO_OLD_SHA_NAMES)    && defined(HAVE_FIPS) && \
+        defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 3) || \
+    (defined(NO_OLD_SHA256_NAMES) && defined(HAVE_FIPS) && \
+        defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2)
+
     #define SHA256 wolfSSL_SHA256
 #endif
 

@@ -2510,6 +2510,16 @@ extern void uITRON4_free(void *p) ;
      */
 #endif
 
+/* Crypto callbacks should enable hash flag support */
+#if defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_HASH_FLAGS)
+    /* FIPS v1 and v2 do not support hash flags, so do not allow it with 
+     * crypto callbacks */
+    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS) && \
+            defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 3)
+        #define WOLFSSL_HASH_FLAGS
+    #endif
+#endif
+
 
 /* ---------------------------------------------------------------------------
  * Depricated Algorithm Handling
