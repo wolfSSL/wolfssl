@@ -20269,7 +20269,7 @@ int wolfSSL_X509_get_pubkey_buffer(WOLFSSL_X509* x509,
     word32 idx;
     const byte*  der;
     int length = 0;
-    int    ret, derSz = 0;
+    int    ret = 0, derSz = 0;
     int badDate = 0;
     const byte* pubKeyX509 = NULL;
     int   pubKeyX509Sz = 0;
@@ -20291,17 +20291,18 @@ int wolfSSL_X509_get_pubkey_buffer(WOLFSSL_X509* x509,
 #endif
 
     der = wolfSSL_X509_get_der(x509, &derSz);
-    InitDecodedCert(cert, der, derSz, NULL);
-    ret = wc_GetPubX509(cert, 0, &badDate);
-    if (ret >= 0) {
-        idx = cert->srcIdx;
-        pubKeyX509 = cert->source + cert->srcIdx;
-        ret = GetSequence(cert->source, &cert->srcIdx, &length,
-                cert->maxIdx);
-        pubKeyX509Sz = length + (cert->srcIdx - idx);
+    if (der != NULL) {
+        InitDecodedCert(cert, der, derSz, NULL);
+        ret = wc_GetPubX509(cert, 0, &badDate);
+        if (ret >= 0) {
+            idx = cert->srcIdx;
+            pubKeyX509 = cert->source + cert->srcIdx;
+            ret = GetSequence(cert->source, &cert->srcIdx, &length,
+                    cert->maxIdx);
+            pubKeyX509Sz = length + (cert->srcIdx - idx);
+        }
+        FreeDecodedCert(cert);
     }
-
-    FreeDecodedCert(cert);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(cert, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
