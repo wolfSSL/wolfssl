@@ -3025,7 +3025,8 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
     (void)copy;
 
 #ifdef HAVE_SECURE_RENEGOTIATION
-    if (ssl->secure_renegotiation && ssl->secure_renegotiation->cache_status) {
+    if (ssl->secure_renegotiation &&
+            ssl->secure_renegotiation->cache_status != SCR_CACHE_NULL) {
         keys = &ssl->secure_renegotiation->tmp_keys;
 #ifdef WOLFSSL_DTLS
         /* For DTLS, copy is done in StoreKeys */
