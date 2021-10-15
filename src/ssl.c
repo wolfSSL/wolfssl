@@ -110,7 +110,9 @@
     #include <wolfssl/wolfcrypt/ed25519.h>
     #include <wolfssl/wolfcrypt/curve448.h>
     #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL)
-        #include <wolfssl/openssl/ocsp.h>
+        #ifdef HAVE_OCSP
+            #include <wolfssl/openssl/ocsp.h>
+        #endif
         #include <wolfssl/openssl/lhash.h>
         #include <wolfssl/openssl/txt_db.h>
     #endif /* WITH_STUNNEL */
