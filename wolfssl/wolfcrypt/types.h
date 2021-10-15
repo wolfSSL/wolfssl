@@ -330,13 +330,13 @@ decouple library dependencies with standard string, memory and so on.
         #endif
     #endif /* WARN_UNUSED_RESULT */
 
-    #ifndef WC_UNUSED
+    #ifndef WC_MAYBE_UNUSED
         #if (defined(__GNUC__) && (__GNUC__ >= 4)) || defined(__clang__)
-            #define WC_UNUSED __attribute__((unused))
+            #define WC_MAYBE_UNUSED __attribute__((unused))
         #else
-            #define WC_UNUSED
+            #define WC_MAYBE_UNUSED
         #endif
-    #endif /* WC_UNUSED */
+    #endif /* WC_MAYBE_UNUSED */
 
     /* Micrium will use Visual Studio for compilation but not the Win32 API */
     #if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \

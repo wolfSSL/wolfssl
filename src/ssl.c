@@ -28624,12 +28624,10 @@ int wolfSSL_X509_PUBKEY_set(WOLFSSL_X509_PUBKEY **x, WOLFSSL_EVP_PKEY *key)
         goto error;
     }
 
-#ifndef __clang_analyzer__
     if (!wolfSSL_EVP_PKEY_up_ref(key)) {
         WOLFSSL_MSG("Failed to up key reference");
         goto error;
     }
-#endif
     pk->pkey = key;
 
     wolfSSL_X509_PUBKEY_free(*x);
@@ -31536,12 +31534,10 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_BN_to_ASN1_INTEGER(const WOLFSSL_BIGNUM *bn, WOLFS
         a = ai;
     }
     if (a) {
-#ifndef __clang_analyzer__
         if (wolfSSL_BN_is_negative(bn) && !wolfSSL_BN_is_zero(bn)) {
             a->type |= V_ASN1_NEG_INTEGER;
             a->negative = 1;
         }
-#endif
 
         len = wolfSSL_BN_num_bytes(bn);
         if (len == 0)
@@ -31777,13 +31773,11 @@ int wolfSSL_ASN1_item_i2d(const void *src, byte **dest,
     if (dest && !*dest) {
         *dest = buf;
     }
-#ifndef __clang_analyzer__
     else if (dest && *dest && buf) {
         /* *dest length is not checked because the user is responsible
          * for providing a long enough buffer */
         XMEMCPY(*dest, buf, len);
     }
-#endif
 
     WOLFSSL_LEAVE("wolfSSL_ASN1_item_i2d", len);
     return len;
@@ -54534,13 +54528,11 @@ void wolfSSL_X509V3_set_ctx(WOLFSSL_X509V3_CTX* ctx, WOLFSSL_X509* issuer,
     if (!ctx || !ctx->x509)
         return;
 
-#ifndef __clang_analyzer__
     if (!ctx->x509) {
         ctx->x509 = wolfSSL_X509_new();
         if (!ctx->x509)
             return;
     }
-#endif
 
     /* Set parameters in ctx as long as ret == WOLFSSL_SUCCESS */
     if (issuer)
@@ -54622,7 +54614,7 @@ void wolfSSL_X509_REQ_free(WOLFSSL_X509* req)
 int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
                           const WOLFSSL_EVP_MD *md)
 {
-    WC_UNUSED int ret;
+    WC_MAYBE_UNUSED int ret;
     byte der[2048];
     int derSz = sizeof(der);
 
@@ -58063,10 +58055,8 @@ void *wolfSSL_BIO_get_ex_data(WOLFSSL_BIO *bio, int idx)
 #endif /* OPENSSL_EXTRA */
 
 #ifndef NO_FILESYSTEM
-    #ifdef __clang__
-        #pragma clang diagnostic push
-        #pragma clang diagnostic ignored "-Wformat-nonliteral"
-    #endif
+    PRAGMA_CLANG_DIAG_PUSH
+    PRAGMA_CLANG("clang diagnostic ignored \"-Wformat-nonliteral\"")
 #endif
 
 #ifdef OPENSSL_EXTRA
@@ -58149,8 +58139,8 @@ int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
 }
 #endif /* OPENSSL_EXTRA */
 
-#if !defined(NO_FILESYSTEM) && defined(__clang__)
-#pragma clang diagnostic pop
+#ifndef NO_FILESYSTEM
+    PRAGMA_CLANG_DIAG_POP
 #endif
 
 #undef  LINE_LEN

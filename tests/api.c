@@ -29,8 +29,6 @@
  | Includes
  *----------------------------------------------------------------------------*/
 
-#ifndef __clang_analyzer__
-
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -39513,7 +39511,7 @@ static int test_wolfSSL_EVP_Cipher_extra(void)
 
     int *test_drive[] = {test_drive1, test_drive2, test_drive3, NULL};
     int test_drive_len[100];
-    WC_UNUSED int drive_len;
+    WC_MAYBE_UNUSED int drive_len;
 
     int ret = 0;
     EVP_CIPHER_CTX *evp = NULL;
@@ -51085,5 +51083,3 @@ void ApiTest(void)
     printf(" End API Tests\n");
 
 }
-
-#endif /* !__clang_analyzer__ */

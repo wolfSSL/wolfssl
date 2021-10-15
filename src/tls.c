@@ -10302,11 +10302,9 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             extension = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
             if (extension == NULL) {
             #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-            #ifndef __clang_analyzer__
                 if (ssl->options.resuming && ssl->session.namedGroup != 0)
                     namedGroup = ssl->session.namedGroup;
                 else
-            #endif
             #endif
             PRAGMA_CLANG_DIAG_PUSH
             PRAGMA_CLANG("clang diagnostic ignored \"-Wunreachable-code-return\"")

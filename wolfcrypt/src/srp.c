@@ -620,14 +620,12 @@ static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size)
         if (!r) r = SrpHashUpdate(&hash, counter, 4);
 
         if (!r) {
-#ifndef __clang_analyzer__
             if (j + digestSz > srp->keySz) {
                 r = SrpHashFinal(&hash, digest);
                 XMEMCPY(srp->key + j, digest, srp->keySz - j);
                 j = srp->keySz;
             }
             else
-#endif
             {
                 r = SrpHashFinal(&hash, srp->key + j);
                 j += digestSz;
