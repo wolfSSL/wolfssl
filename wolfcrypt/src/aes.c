@@ -2825,8 +2825,9 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
             if (keylen != 16 && keylen != 24 && keylen != 32) {
                 return BAD_FUNC_ARG;
             }
-        #ifdef AES_MAX_KEY_SIZE
-            /* Check key length */
+        #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE < 256
+            /* Check key length only when AES_MAX_KEY_SIZE doesn't allow
+             * all key sizes. Otherwise this condition is never true. */
             if (keylen > (AES_MAX_KEY_SIZE / 8)) {
                 return BAD_FUNC_ARG;
             }
