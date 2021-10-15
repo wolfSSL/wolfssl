@@ -322,7 +322,7 @@ static sp_digit sp_256_cmp_10(const sp_digit* a, const sp_digit* b)
         r |= (a[i] - b[i]) & (0 - ((r == 0) ? (sp_digit)1 : (sp_digit)0));
     }
 #else
-    r |= (a[ 9] - b[ 9]) & (0 - ((r == 0) ? (sp_digit)1 : (sp_digit)0));
+    r |= (a[ 9] - b[ 9]) & (0 - (sp_digit)1);
     r |= (a[ 8] - b[ 8]) & (0 - ((r == 0) ? (sp_digit)1 : (sp_digit)0));
     r |= (a[ 7] - b[ 7]) & (0 - ((r == 0) ? (sp_digit)1 : (sp_digit)0));
     r |= (a[ 6] - b[ 6]) & (0 - ((r == 0) ? (sp_digit)1 : (sp_digit)0));
