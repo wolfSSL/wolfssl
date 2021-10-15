@@ -3693,7 +3693,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (scr && forceScr) {
         if (nonBlocking) {
             if (!resumeScr) {
-                if ((ret = wolfSSL_Rehandshake(ssl)) != WOLFSSL_SUCCESS) {
+                if (wolfSSL_Rehandshake(ssl) != WOLFSSL_SUCCESS) {
                     err = wolfSSL_get_error(ssl, 0);
                     if (err == WOLFSSL_ERROR_WANT_READ ||
                             err == WOLFSSL_ERROR_WANT_WRITE) {
@@ -3712,8 +3712,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                         else {
                             do {
                                 if (err == APP_DATA_READY) {
-                                    if ((ret = wolfSSL_read(ssl, reply,
-                                            sizeof(reply)-1)) < 0) {
+                                    if (wolfSSL_read(ssl, reply,
+                                            sizeof(reply)-1) < 0) {
                                         err_sys("APP DATA should be present "
                                                 "but error returned");
                                     }
