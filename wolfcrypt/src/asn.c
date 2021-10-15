@@ -13484,88 +13484,82 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
 
     /* Check against the permitted list */
     if (signer->permittedNames != NULL) {
-        int needDns = 0;
-        int matchDns = 0;
-        int needEmail = 0;
-        int matchEmail = 0;
-        int needDir = 0;
-        int matchDir = 0;
-        Base_entry* base = signer->permittedNames;
 
-        while (base != NULL) {
-            switch (base->type) {
+        byte nameTypes[] = {ASN_RFC822_TYPE, ASN_DNS_TYPE, ASN_DIR_TYPE};
+
+        long unsigned int i;
+        int match;
+        int need;
+
+        for (i=0; i < sizeof(nameTypes); i++) {
+            byte nameType = nameTypes[i];
+            DNS_entry* name = NULL;
+            DNS_entry  subjectDnsName;
+
+            switch (nameType) {
                 case ASN_DNS_TYPE:
-                {
-                    DNS_entry* name = cert->altNames;
-
-                    if (name != NULL)
-                        needDns = 1;
-
-                    while (name != NULL) {
-                        matchDns = MatchBaseName(ASN_DNS_TYPE,
-                                          name->name, name->len,
-                                          base->name, base->nameSz);
-                        name = name->next;
-                    }
+                    name = cert->altNames;
                     break;
-                }
                 case ASN_RFC822_TYPE:
-                {
-                    DNS_entry* name = cert->altEmailNames;
-
-                    if (name != NULL)
-                        needEmail = 1;
-
-                    while (name != NULL) {
-                        matchEmail = MatchBaseName(ASN_DNS_TYPE,
-                                          name->name, name->len,
-                                          base->name, base->nameSz);
-                        name = name->next;
-                    }
+                    name = cert->altEmailNames;
                     break;
-                }
                 case ASN_DIR_TYPE:
-                {
-                    /* allow permitted dirName smaller than actual subject */
-                    needDir = 1;
-                    if (cert->subjectRaw != NULL &&
-                        cert->subjectRawLen >= base->nameSz &&
-                        XMEMCMP(cert->subjectRaw, base->name,
-                                                        base->nameSz) == 0) {
-                        matchDir = 1;
+                    if (cert->subjectRaw != NULL) {
+                        subjectDnsName.next = NULL;
+                        subjectDnsName.type = ASN_DIR_TYPE;
+                        subjectDnsName.len = cert->subjectRawLen;
+                        subjectDnsName.name = (char *)cert->subjectRaw;
+                        name = &subjectDnsName;
+                    }
 
-                        #ifndef WOLFSSL_NO_ASN_STRICT
-                        /* RFC 5280 section 4.2.1.10
-                           "Restrictions of the form directoryName MUST be
-                            applied to the subject field .... and to any names
-                            of type directoryName in the subjectAltName
-                            extension"
-                        */
-                        if (cert->altDirNames != NULL) {
-                            DNS_entry* cur = cert->altDirNames;
-                            while (cur != NULL) {
-                                if (XMEMCMP(cur->name, base->name, base->nameSz)
-                                        != 0) {
-                                    WOLFSSL_MSG("DIR alt name constraint err");
-                                    matchDir = 0; /* did not match */
-                                }
-                                cur = cur->next;
+                    #ifndef WOLFSSL_NO_ASN_STRICT
+                    /* RFC 5280 section 4.2.1.10
+                        "Restrictions of the form directoryName MUST be
+                        applied to the subject field .... and to any names
+                        of type directoryName in the subjectAltName
+                        extension"
+                    */
+                    if (name != NULL)
+                        name->next = cert->altDirNames;
+                    else
+                        name = cert->altDirNames;
+                    #endif
+                    break;
+            }
+
+            while (name != NULL) {
+                match = 0;
+                need = 0;
+                Base_entry* base = signer->permittedNames;
+                while (base != NULL) {
+                    if (base->type == nameType) {
+                        need = 1;
+                        switch (nameType) {
+                            case ASN_DIR_TYPE: {
+                                if (name->len >= base->nameSz &&
+                                    XMEMCMP(name->name, base->name, base->nameSz) == 0)
+                                    match = 1;
+                                break;
+                            }
+                            case ASN_DNS_TYPE:
+                            case ASN_RFC822_TYPE: {
+                                if (name->len >= base->nameSz &&
+                                    MatchBaseName(nameType,
+                                                name->name, name->len,
+                                                base->name, base->nameSz))
+                                    match = 1;
+                                break;
                             }
                         }
-                        #endif /* !WOLFSSL_NO_ASN_STRICT */
+                        if (match)
+                            break;
                     }
-                    break;
+                    base = base->next;
                 }
-                default:
-                    break;
-            } /* switch */
-            base = base->next;
-        }
-
-        if ((needDns   && !matchDns) ||
-            (needEmail && !matchEmail) ||
-            (needDir   && !matchDir)) {
-            return 0;
+                if (need && !match)
+                    return 0;
+                name = name->next;
+            }
         }
     }
 
