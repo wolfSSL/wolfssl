@@ -43509,46 +43509,41 @@ err:
             if (!header) {
                 header = XSTRNSTR(pem, "-----BEGIN ", (unsigned int)i);
             }
-            else {
-                if (!headerEnd) {
-                    headerEnd = XSTRNSTR(header + XSTR_SIZEOF("-----BEGIN "),
-                            "-----",
-                            (unsigned int)
-                            (i - (header + XSTR_SIZEOF("-----BEGIN ") - pem)));
-                    if (headerEnd) {
-                        headerEnd += XSTR_SIZEOF("-----");
-                        /* Read in the newline */
-                        (void)wolfSSL_BIO_read(bio, &pem[i], 1);
-                        i++;
-                        if (*headerEnd != '\n' && *headerEnd != '\r') {
-                            WOLFSSL_MSG("Missing newline after header");
-                            goto err;
-                        }
+            else if (!headerEnd) {
+                headerEnd = XSTRNSTR(header + XSTR_SIZEOF("-----BEGIN "),
+                        "-----",
+                        (unsigned int)
+                        (i - (header + XSTR_SIZEOF("-----BEGIN ") - pem)));
+                if (headerEnd) {
+                    headerEnd += XSTR_SIZEOF("-----");
+                    /* Read in the newline */
+                    (void)wolfSSL_BIO_read(bio, &pem[i], 1);
+                    i++;
+                    if (*headerEnd != '\n' && *headerEnd != '\r') {
+                        WOLFSSL_MSG("Missing newline after header");
+                        goto err;
                     }
                 }
-                else if (!footer) {
-                    footer = XSTRNSTR(headerEnd, "-----END ",
-                            (unsigned int)(i - (headerEnd - pem)));
-                }
-                else if (!footerEnd) {
-                    footerEnd = XSTRNSTR(footer + XSTR_SIZEOF("-----"),
-                            "-----", (unsigned int)(i -
-                                (footer + XSTR_SIZEOF("-----") - pem)));
-                    if (footerEnd) {
-                        footerEnd += XSTR_SIZEOF("-----");
-                        /* Now check that footer matches header */
-                        if (XMEMCMP(header + XSTR_SIZEOF("-----BEGIN "),
-                                    footer + XSTR_SIZEOF("-----END "),
-                            headerEnd - (header + XSTR_SIZEOF("-----BEGIN ")))
-                                != 0) {
-                            WOLFSSL_MSG("Header and footer don't match");
-                            goto err;
-                        }
-                        /* header and footer match */
-                        break;
+            }
+            else if (!footer) {
+                footer = XSTRNSTR(headerEnd, "-----END ",
+                        (unsigned int)(i - (headerEnd - pem)));
+            }
+            else if (!footerEnd) {
+                footerEnd = XSTRNSTR(footer + XSTR_SIZEOF("-----"),
+                        "-----", (unsigned int)(i -
+                            (footer + XSTR_SIZEOF("-----") - pem)));
+                if (footerEnd) {
+                    footerEnd += XSTR_SIZEOF("-----");
+                    /* Now check that footer matches header */
+                    if (XMEMCMP(header + XSTR_SIZEOF("-----BEGIN "),
+                                footer + XSTR_SIZEOF("-----END "),
+                        headerEnd - (header + XSTR_SIZEOF("-----BEGIN ")))
+                            != 0) {
+                        WOLFSSL_MSG("Header and footer don't match");
+                        goto err;
                     }
-                }
-                else {
+                    /* header and footer match */
                     break;
                 }
             }
