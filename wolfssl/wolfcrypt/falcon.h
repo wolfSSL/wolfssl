@@ -35,10 +35,6 @@
 
 #include <oqs/oqs.h>
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    #include <wolfssl/wolfcrypt/async.h>
-#endif
-
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -62,9 +58,6 @@ struct falcon_level1_key {
     bool prvKeySet;
     byte p[FALCON_LEVEL1_PUB_KEY_SIZE];
     byte k[FALCON_LEVEL1_PRV_KEY_SIZE];
-#ifdef WOLFSSL_ASYNC_CRYPT
-    WC_ASYNC_DEV asyncDev;
-#endif
     void *heap;
 };
 
@@ -73,9 +66,6 @@ struct falcon_level5_key {
     bool prvKeySet;
     byte p[FALCON_LEVEL5_PUB_KEY_SIZE];
     byte k[FALCON_LEVEL5_PRV_KEY_SIZE];
-#ifdef WOLFSSL_ASYNC_CRYPT
-    WC_ASYNC_DEV asyncDev;
-#endif
     void *heap;
 };
 
@@ -106,8 +96,6 @@ int wc_falcon_level1_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
                                 word32 msgLen, int* stat,
                                 falcon_level1_key* key);
 
-WOLFSSL_API
-int wc_falcon_level1_init_ex(falcon_level1_key* key, void *heap, int devId);
 WOLFSSL_API
 int wc_falcon_level1_init(falcon_level1_key* key);
 WOLFSSL_API
@@ -169,8 +157,6 @@ WOLFSSL_API
 int wc_falcon_level5_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
                         word32 msgLen, int* stat, falcon_level5_key* key);
 
-WOLFSSL_API
-int wc_falcon_level5_init_ex(falcon_level5_key* key, void *heap, int devId);
 WOLFSSL_API
 int wc_falcon_level5_init(falcon_level5_key* key);
 WOLFSSL_API

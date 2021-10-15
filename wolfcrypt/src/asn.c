@@ -13324,16 +13324,13 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                         WOLFSSL_MSG("ASN Key import error Falcon_Level1");
                         goto exit_cs;
                     }
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    sigCtx->asyncDev = &sigCtx->key.falcon_level1->asyncDev;
-                #endif
                     break;
                 }
                 case FALCON_LEVEL5k:
                 {
                     sigCtx->verify = 0;
-                    sigCtx->key.falcon_level5 = 
-                        (falcon_level5_key*)XMALLOC(sizeof(falcon_level5_key), 
+                    sigCtx->key.falcon_level5 =
+                        (falcon_level5_key*)XMALLOC(sizeof(falcon_level5_key),
                                                 sigCtx->heap,
                                                 DYNAMIC_TYPE_FALCON_LEVEL5);
                     if (sigCtx->key.falcon_level5 == NULL) {
@@ -13347,9 +13344,6 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                         WOLFSSL_MSG("ASN Key import error Falcon_Level5");
                         goto exit_cs;
                     }
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    sigCtx->asyncDev = &sigCtx->key.falcon_level5->asyncDev;
-                #endif
                     break;
                 }
             #endif

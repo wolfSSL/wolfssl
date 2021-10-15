@@ -163,29 +163,17 @@ int wc_falcon_level1_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
 /* Initialize the falcon_level1 private/public key.
  *
  * key  [in]  Falcon_Level1 key.
- * heap [in]  heap pointer to pass to wc_InitShake256().
  * returns BAD_FUNC_ARG when key is NULL
  */
-int wc_falcon_level1_init_ex(falcon_level1_key* key, void *heap, int devId)
+int wc_falcon_level1_init(falcon_level1_key* key)
 {
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
+
     XMEMSET(key, 0, sizeof(falcon_level1_key));
-    key->heap = heap;
-
-    (void)devId;
     return 0;
-}
-
-/* Initialize the falcon_level1 private/public key.
- *
- * key  [in]  Falcon_Level1 key.
- * returns BAD_FUNC_ARG when key is NULL
- */
-int wc_falcon_level1_init(falcon_level1_key* key) {
-    return wc_falcon_level1_init_ex(key, NULL, INVALID_DEVID);
-}
+}   
 
 /* Clears the falcon_level1 key data
  *
@@ -643,28 +631,16 @@ int wc_falcon_level5_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
 /* Initialize the falcon_level5 private/public key.
  *
  * key  [in]  Falcon_Level5 key.
- * heap [in]  heap pointer to pass to wc_InitShake256().
  * returns BAD_FUNC_ARG when key is NULL
  */
-int wc_falcon_level5_init_ex(falcon_level5_key* key, void *heap, int devId)
+int wc_falcon_level5_init(falcon_level5_key* key)
 {
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
+
     XMEMSET(key, 0, sizeof(falcon_level5_key));
-    key->heap = heap;
-
-    (void)devId;
     return 0;
-}
-
-/* Initialize the falcon_level5 private/public key.
- *
- * key  [in]  Falcon_Level5 key.
- * returns BAD_FUNC_ARG when key is NULL
- */
-int wc_falcon_level5_init(falcon_level5_key* key) {
-    return wc_falcon_level5_init_ex(key, NULL, INVALID_DEVID);
 }
 
 /* Clears the falcon_level5 key data
