@@ -1504,7 +1504,7 @@ static sp_digit sp_2048_cmp_36(const sp_digit* a, const sp_digit* b)
 #else
     int i;
 
-    r |= (a[35] - b[35]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
+    r |= (a[35] - b[35]) & (0 - (sp_digit)1);
     r |= (a[34] - b[34]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
     r |= (a[33] - b[33]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
     r |= (a[32] - b[32]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
@@ -16966,7 +16966,7 @@ static sp_digit sp_4096_cmp_81(const sp_digit* a, const sp_digit* b)
     sp_digit r = 0;
     int i;
 
-    r |= (a[80] - b[80]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
+    r |= (a[80] - b[80]) & (0 - (sp_digit)1);
     for (i = 72; i >= 0; i -= 8) {
         r |= (a[i + 7] - b[i + 7]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
         r |= (a[i + 6] - b[i + 6]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
@@ -17819,7 +17819,7 @@ static sp_digit sp_4096_cmp_162(const sp_digit* a, const sp_digit* b)
     sp_digit r = 0;
     int i;
 
-    r |= (a[161] - b[161]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
+    r |= (a[161] - b[161]) & (0 - (sp_digit)1);
     r |= (a[160] - b[160]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
     for (i = 152; i >= 0; i -= 8) {
         r |= (a[i + 7] - b[i + 7]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
@@ -20637,7 +20637,7 @@ static sp_digit sp_256_cmp_9(const sp_digit* a, const sp_digit* b)
         r |= (a[i] - b[i]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
     }
 #else
-    r |= (a[ 8] - b[ 8]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
+    r |= (a[ 8] - b[ 8]) & (0 - (sp_digit)1);
     r |= (a[ 7] - b[ 7]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
     r |= (a[ 6] - b[ 6]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
     r |= (a[ 5] - b[ 5]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
@@ -27754,7 +27754,7 @@ static sp_digit sp_384_cmp_15(const sp_digit* a, const sp_digit* b)
         r |= (a[i] - b[i]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
     }
 #else
-    r |= (a[14] - b[14]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
+    r |= (a[14] - b[14]) & (0 - (sp_digit)1);
     r |= (a[13] - b[13]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
     r |= (a[12] - b[12]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
     r |= (a[11] - b[11]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
@@ -35957,7 +35957,7 @@ static sp_digit sp_1024_cmp_42(const sp_digit* a, const sp_digit* b)
 #else
     int i;
 
-    r |= (a[41] - b[41]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
+    r |= (a[41] - b[41]) & (0 - (sp_digit)1);
     r |= (a[40] - b[40]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
     for (i = 32; i >= 0; i -= 8) {
         r |= (a[i + 7] - b[i + 7]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
