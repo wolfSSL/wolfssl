@@ -1204,8 +1204,7 @@ struct SignatureCtx {
         struct ed448_key* ed448;
     #endif
     #ifdef HAVE_LIBOQS
-        struct falcon_level1_key *falcon_level1;
-        struct falcon_level5_key *falcon_level5;
+        struct falcon_key *falcon;
     #endif
         void* ptr;
     } key;

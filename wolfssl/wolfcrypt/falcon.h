@@ -39,7 +39,7 @@
     extern "C" {
 #endif
 
-/* Macros Definitions */ 
+/* Macros Definitions */
 
 #define FALCON_LEVEL1_KEY_SIZE     OQS_SIG_falcon_512_length_secret_key
 #define FALCON_LEVEL1_SIG_SIZE     OQS_SIG_falcon_512_length_signature
@@ -51,152 +51,85 @@
 #define FALCON_LEVEL5_PUB_KEY_SIZE OQS_SIG_falcon_1024_length_public_key
 #define FALCON_LEVEL5_PRV_KEY_SIZE (FALCON_LEVEL5_PUB_KEY_SIZE+FALCON_LEVEL5_KEY_SIZE)
 
+#define FALCON_MAX_KEY_SIZE     FALCON_LEVEL5_KEY_SIZE
+#define FALCON_MAX_SIG_SIZE     FALCON_LEVEL5_SIG_SIZE
+#define FALCON_MAX_PUB_KEY_SIZE FALCON_LEVEL5_PUB_KEY_SIZE
+#define FALCON_MAX_PRV_KEY_SIZE FALCON_LEVEL5_PRV_KEY_SIZE
+
 /* Structs */
 
-struct falcon_level1_key {
+struct falcon_key {
     bool pubKeySet;
     bool prvKeySet;
-    byte p[FALCON_LEVEL1_PUB_KEY_SIZE];
-    byte k[FALCON_LEVEL1_PRV_KEY_SIZE];
-    void *heap;
-};
-
-struct falcon_level5_key {
-    bool pubKeySet;
-    bool prvKeySet;
-    byte p[FALCON_LEVEL5_PUB_KEY_SIZE];
-    byte k[FALCON_LEVEL5_PRV_KEY_SIZE];
-    void *heap;
+    byte level;
+    byte p[FALCON_MAX_PUB_KEY_SIZE];
+    byte k[FALCON_MAX_PRV_KEY_SIZE];
 };
 
 #ifndef WC_FALCONKEY_TYPE_DEFINED
-    typedef struct falcon_level1_key falcon_level1_key;
-    typedef struct falcon_level5_key falcon_level5_key;
+    typedef struct falcon_key falcon_key;
     #define WC_FALCONKEY_TYPE_DEFINED
 #endif
 
 /***********************************/
-/* Falcon Level 1 APIs [Falcon512] */
+/* Falcon APIs */
 /***********************************/
 
 /* ANTH TODO */
 #if 0
 WOLFSSL_API
-int wc_falcon_level1_make_public(falcon_level1_key* key, unsigned char* pubKey,
-                                 word32 pubKeySz);
+int wc_falcon_make_public(falcon_key* key, unsigned char* pubKey,
+                          word32 pubKeySz);
 WOLFSSL_API
-int wc_falcon_level1_make_key(WC_RNG* rng, int keysize, falcon_level1_key* key);
+int wc_falcon_make_key(WC_RNG* rng, int keysize, falcon_key* key);
 WOLFSSL_API
 #endif
 
-int wc_falcon_level1_sign_msg(const byte* in, word32 inLen, byte* out,
-                              word32 *outLen,  falcon_level1_key* key);
 WOLFSSL_API
-int wc_falcon_level1_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
-                                word32 msgLen, int* stat,
-                                falcon_level1_key* key);
+int wc_falcon_sign_msg(const byte* in, word32 inLen, byte* out, word32 *outLen,
+                       falcon_key* key);
+WOLFSSL_API
+int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
+                         word32 msgLen, int* stat, falcon_key* key);
 
 WOLFSSL_API
-int wc_falcon_level1_init(falcon_level1_key* key);
+int wc_falcon_level1_init(falcon_key* key);
 WOLFSSL_API
-void wc_falcon_level1_free(falcon_level1_key* key);
+int wc_falcon_level5_init(falcon_key* key);
+WOLFSSL_API
+void wc_falcon_free(falcon_key* key);
 
 WOLFSSL_API
-int wc_falcon_level1_import_public(const byte* in, word32 inLen,
-                                   falcon_level1_key* key);
+int wc_falcon_import_public(const byte* in, word32 inLen, falcon_key* key);
 WOLFSSL_API
-int wc_falcon_level1_import_private_only(const byte* priv, word32 privSz,
-                                         falcon_level1_key* key);
+int wc_falcon_import_private_only(const byte* priv, word32 privSz,
+                                  falcon_key* key);
 WOLFSSL_API
-int wc_falcon_level1_import_private_key(const byte* priv, word32 privSz,
-                                        const byte* pub, word32 pubSz,
-                                        falcon_level1_key* key);
+int wc_falcon_import_private_key(const byte* priv, word32 privSz,
+                                 const byte* pub, word32 pubSz,
+                                 falcon_key* key);
 
 WOLFSSL_API
-int wc_falcon_level1_export_public(falcon_level1_key*, byte* out,
-                                   word32* outLen);
+int wc_falcon_export_public(falcon_key*, byte* out, word32* outLen);
 WOLFSSL_API
-int wc_falcon_level1_export_private_only(falcon_level1_key* key, byte* out,
-                                         word32* outLen);
+int wc_falcon_export_private_only(falcon_key* key, byte* out, word32* outLen);
 WOLFSSL_API
-int wc_falcon_level1_export_private(falcon_level1_key* key, byte* out,
-                                    word32* outLen);
+int wc_falcon_export_private(falcon_key* key, byte* out, word32* outLen);
 WOLFSSL_API
-int wc_falcon_level1_export_key(falcon_level1_key* key, byte* priv,
-                                word32 *privSz, byte* pub, word32 *pubSz);
+int wc_falcon_export_key(falcon_key* key, byte* priv, word32 *privSz,
+                         byte* pub, word32 *pubSz);
 
 WOLFSSL_API
-int wc_falcon_level1_check_key(falcon_level1_key* key);
+int wc_falcon_check_key(falcon_key* key);
 
 WOLFSSL_API
-int wc_falcon_level1_size(falcon_level1_key* key);
+int wc_falcon_size(falcon_key* key);
 WOLFSSL_API
-int wc_falcon_level1_priv_size(falcon_level1_key* key);
+int wc_falcon_priv_size(falcon_key* key);
 WOLFSSL_API
-int wc_falcon_level1_pub_size(falcon_level1_key* key);
+int wc_falcon_pub_size(falcon_key* key);
 WOLFSSL_API
-int wc_falcon_level1_sig_size(falcon_level1_key* key);
-
-/************************************/
-/* Falcon Level 5 APIs [Falcon1024] */
-/************************************/
-
-/* ANTH TODO */
-#if 0
-WOLFSSL_API
-int wc_falcon_level5_make_public(falcon_level5_key* key, unsigned char* pubKey,
-                                 word32 pubKeySz);
-WOLFSSL_API
-int wc_falcon_level5_make_key(WC_RNG* rng, int keysize, falcon_level5_key* key);
-#endif
-
-WOLFSSL_API
-int wc_falcon_level5_sign_msg(const byte* in, word32 inLen, byte* out,
-                              word32 *outLen, falcon_level5_key* key);
-WOLFSSL_API
-int wc_falcon_level5_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
-                        word32 msgLen, int* stat, falcon_level5_key* key);
-
-WOLFSSL_API
-int wc_falcon_level5_init(falcon_level5_key* key);
-WOLFSSL_API
-void wc_falcon_level5_free(falcon_level5_key* key);
-
-WOLFSSL_API
-int wc_falcon_level5_import_public(const byte* in, word32 inLen,
-                                   falcon_level5_key* key);
-WOLFSSL_API
-int wc_falcon_level5_import_private_only(const byte* priv, word32 privSz,
-                                         falcon_level5_key* key);
-WOLFSSL_API
-int wc_falcon_level5_import_private_key(const byte* priv, word32 privSz,
-                                        const byte* pub, word32 pubSz,
-                                        falcon_level5_key* key);
-
-WOLFSSL_API
-int wc_falcon_level5_export_public(falcon_level5_key*, byte* out,
-                                   word32* outLen);
-WOLFSSL_API
-int wc_falcon_level5_export_private_only(falcon_level5_key* key, byte* out,
-                                         word32* outLen);
-WOLFSSL_API
-int wc_falcon_level5_export_private(falcon_level5_key* key, byte* out,
-                                    word32* outLen);
-WOLFSSL_API
-int wc_falcon_level5_export_key(falcon_level5_key* key, byte* priv,
-                                word32 *privSz, byte* pub, word32 *pubSz);
-
-WOLFSSL_API
-int wc_falcon_level5_check_key(falcon_level5_key* key);
-
-WOLFSSL_API
-int wc_falcon_level5_size(falcon_level5_key* key);
-WOLFSSL_API
-int wc_falcon_level5_priv_size(falcon_level5_key* key);
-WOLFSSL_API
-int wc_falcon_level5_pub_size(falcon_level5_key* key);
-WOLFSSL_API
-int wc_falcon_level5_sig_size(falcon_level5_key* key);
+int wc_falcon_sig_size(falcon_key* key);
 
 #ifdef __cplusplus
     }    /* extern "C" */

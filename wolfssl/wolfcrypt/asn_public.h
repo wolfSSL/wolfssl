@@ -72,8 +72,7 @@ This library defines the interface APIs for X509 certificates.
     #define WC_DH_TYPE_DEFINED
 #endif
 #ifndef WC_FALCONKEY_TYPE_DEFINED
-    typedef struct falcon_level1_key falcon_level1_key;
-    typedef struct falcon_level5_key falcon_level5_key;
+    typedef struct falcon_key falcon_key;
     #define WC_FALCONKEY_TYPE_DEFINED
 #endif
 
@@ -633,17 +632,11 @@ WOLFSSL_API int wc_Ed448PublicKeyToDer(ed448_key*, byte*, word32, int);
 #endif /* HAVE_ED448 */
 
 #ifdef HAVE_LIBOQS
-WOLFSSL_API int wc_Falcon_Level1PrivateKeyDecode(const byte*, word32*, falcon_level1_key*, word32);
-WOLFSSL_API int wc_Falcon_Level1PublicKeyDecode(const byte*, word32*, falcon_level1_key*, word32);
-WOLFSSL_API int wc_Falcon_Level1KeyToDer(falcon_level1_key*, byte*, word32);
-WOLFSSL_API int wc_Falcon_Level1PrivateKeyToDer(falcon_level1_key*, byte*, word32);
-WOLFSSL_API int wc_Falcon_Level1PublicKeyToDer(falcon_level1_key*, byte*, word32, int);
-
-WOLFSSL_API int wc_Falcon_Level5PrivateKeyDecode(const byte*, word32*, falcon_level5_key*, word32);
-WOLFSSL_API int wc_Falcon_Level5PublicKeyDecode(const byte*, word32*, falcon_level5_key*, word32);
-WOLFSSL_API int wc_Falcon_Level5KeyToDer(falcon_level5_key*, byte*, word32);
-WOLFSSL_API int wc_Falcon_Level5PrivateKeyToDer(falcon_level5_key*, byte*, word32);
-WOLFSSL_API int wc_Falcon_Level5PublicKeyToDer(falcon_level5_key*, byte*, word32, int);
+WOLFSSL_API int wc_Falcon_PrivateKeyDecode(const byte*, word32*, falcon_key*, word32);
+WOLFSSL_API int wc_Falcon_PublicKeyDecode(const byte*, word32*, falcon_key*, word32);
+WOLFSSL_API int wc_Falcon_KeyToDer(falcon_key*, byte*, word32);
+WOLFSSL_API int wc_Falcon_PrivateKeyToDer(falcon_key*, byte*, word32);
+WOLFSSL_API int wc_Falcon_PublicKeyToDer(falcon_key*, byte*, word32, int);
 #endif /* HAVE_LIBOQS */
 
 #ifdef HAVE_CURVE448

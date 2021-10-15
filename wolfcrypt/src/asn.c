@@ -5537,8 +5537,7 @@ static const ASNItem pkcs8KeyASN[] = {
 #define pkcs8KeyASN_Length (sizeof(pkcs8KeyASN) / sizeof(ASNItem))
 #endif
 
-/* Remove PKCS #8 header around an RSA, ECDSA, Ed25519, Ed448, Falcon_Level1 or
- * Falcon_Level5 key.
+/* Remove PKCS #8 header around an RSA, ECDSA, Ed25519, Ed448, or Falcon key.
  *
  * @param [in]       input     Buffer holding BER data.
  * @param [in, out]  inOutIdx  On in, start of PKCS #8 encoding.
@@ -6172,83 +6171,50 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
     #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT && !NO_ASN_CRYPT */
 
     #if defined(HAVE_LIBOQS)
-    if (ks == FALCON_LEVEL1k) {
+    if ((ks == FALCON_LEVEL1k) || (ks == FALCON_LEVEL5k)) {
     #ifdef WOLFSSL_SMALL_STACK
-        falcon_level1_key* key_pair = NULL;
+        falcon_key* key_pair = NULL;
     #else
-        falcon_level1_key  key_pair[1];
+        falcon_key  key_pair[1];
     #endif
         word32     keyIdx = 0;
 
     #ifdef WOLFSSL_SMALL_STACK
-        key_pair = (falcon_level1_key*)XMALLOC(sizeof(falcon_level1_key), NULL,
-                                               DYNAMIC_TYPE_FALCON_LEVEL1);
+        key_pair = (falcon_key*)XMALLOC(sizeof(falcon_key), NULL,
+                                        DYNAMIC_TYPE_FALCON);
         if (key_pair == NULL)
             return MEMORY_E;
     #endif
 
-        if ((ret = wc_falcon_level1_init(key_pair)) < 0) {
+        if (ks == FALCON_LEVEL1k) {
+            ret = wc_falcon_level1_init(key_pair);
+        }
+        else if (ks == FALCON_LEVEL5k) {
+            ret = wc_falcon_level5_init(key_pair);
+        }
+
+        if (ret  < 0) {
     #ifdef WOLFSSL_SMALL_STACK
-            XFREE(key_pair, NULL, DYNAMIC_TYPE_FALCON_LEVEL1);
+            XFREE(key_pair, NULL, DYNAMIC_TYPE_FALCON);
     #endif
             return ret;
         }
-        if ((ret = wc_Falcon_Level1PrivateKeyDecode(privKey, &keyIdx, key_pair,
-                                                    privKeySz)) == 0) {
-            WOLFSSL_MSG("Checking Falcon_Level1 key pair");
+        if ((ret = wc_Falcon_PrivateKeyDecode(privKey, &keyIdx, key_pair,
+                                             privKeySz)) == 0) {
+            WOLFSSL_MSG("Checking Falcon_ key pair");
             keyIdx = 0;
-            if ((ret = wc_falcon_level1_import_public(pubKey, pubKeySz,
-                                                      key_pair)) == 0) {
+            if ((ret = wc_falcon_import_public(pubKey, pubKeySz,
+                                               key_pair)) == 0) {
                 /* public and private extracted successfully no check if is
                  * a pair and also do sanity checks on key. wc_ecc_check_key
                  * checks that private * base generator equals pubkey */
-                if ((ret = wc_falcon_level1_check_key(key_pair)) == 0)
+                if ((ret = wc_falcon_check_key(key_pair)) == 0)
                     ret = 1;
             }
         }
-        wc_falcon_level1_free(key_pair);
+        wc_falcon_free(key_pair);
     #ifdef WOLFSSL_SMALL_STACK
-        XFREE(key_pair, NULL, DYNAMIC_TYPE_FALCON_LEVEL1);
-    #endif
-    }
-    else
-    if (ks == FALCON_LEVEL5k) {
-    #ifdef WOLFSSL_SMALL_STACK
-        falcon_level5_key* key_pair = NULL;
-    #else
-        falcon_level5_key  key_pair[1];
-    #endif
-        word32     keyIdx = 0;
-
-    #ifdef WOLFSSL_SMALL_STACK
-        key_pair = (falcon_level5_key*)XMALLOC(sizeof(falcon_level5_key), NULL,
-                                               DYNAMIC_TYPE_FALCON_LEVEL5);
-        if (key_pair == NULL)
-            return MEMORY_E;
-    #endif
-
-        if ((ret = wc_falcon_level5_init(key_pair)) < 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-            XFREE(key_pair, NULL, DYNAMIC_TYPE_FALCON_LEVEL5);
-    #endif
-            return ret;
-        }
-        if ((ret = wc_Falcon_Level5PrivateKeyDecode(privKey, &keyIdx, key_pair,
-                                                    privKeySz)) == 0) {
-            WOLFSSL_MSG("Checking Falcon_Level5 key pair");
-            keyIdx = 0;
-            if ((ret = wc_falcon_level5_import_public(pubKey, pubKeySz,
-                                                      key_pair)) == 0) {
-                /* public and private extracted successfully no check if is
-                 * a pair and also do sanity checks on key. wc_ecc_check_key
-                 * checks that private * base generator equals pubkey */
-                if ((ret = wc_falcon_level5_check_key(key_pair)) == 0)
-                    ret = 1;
-            }
-        }
-        wc_falcon_level5_free(key_pair);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(key_pair, NULL, DYNAMIC_TYPE_FALCON_LEVEL5);
+        XFREE(key_pair, NULL, DYNAMIC_TYPE_FALCON);
     #endif
     }
     else
@@ -6556,50 +6522,36 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT && !NO_ASN_CRYPT */
 #if defined(HAVE_LIBOQS)
     if (*algoID == 0) {
-        falcon_level1_key *falcon_level1 = (falcon_level1_key *)XMALLOC(sizeof *falcon_level1, heap,
+        falcon_key *falcon = (falcon_key *)XMALLOC(sizeof(*falcon), heap,
             DYNAMIC_TYPE_TMP_BUFFER);
-        if (falcon_level1 == NULL)
+        if (falcon == NULL)
             return MEMORY_E;
 
         tmpIdx = 0;
-        if (wc_falcon_level1_init(falcon_level1) == 0) {
-            if (wc_Falcon_Level1PrivateKeyDecode(key, &tmpIdx, falcon_level1, keySz)
+        if (wc_falcon_level1_init(falcon) == 0) {
+            if (wc_Falcon_PrivateKeyDecode(key, &tmpIdx, falcon, keySz)
                 == 0) {
-                *algoID = ED448k;
+                *algoID = FALCON_LEVEL1k;
             }
             else {
-                WOLFSSL_MSG("Not Falcon_Level1 DER key");
+                WOLFSSL_MSG("Not Falcon Level 1 DER key");
             }
-            wc_falcon_level1_free(falcon_level1);
+            wc_falcon_free(falcon);
         }
-        else {
-            WOLFSSL_MSG("GetKeyOID wc_falcon_level1_init failed");
-        }
-        XFREE(falcon_level1, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-
-    if (*algoID == 0) {
-        falcon_level5_key *falcon_level5 =
-            (falcon_level5_key *)XMALLOC(sizeof *falcon_level5, heap,
-                                      DYNAMIC_TYPE_TMP_BUFFER);
-        if (falcon_level5 == NULL)
-            return MEMORY_E;
-
-        tmpIdx = 0;
-        if (wc_falcon_level5_init(falcon_level5) == 0) {
-            if (wc_Falcon_Level5PrivateKeyDecode(key, &tmpIdx, falcon_level5, keySz) 
+        else if (wc_falcon_level5_init(falcon) == 0) {
+            if (wc_Falcon_PrivateKeyDecode(key, &tmpIdx, falcon, keySz)
                 == 0) {
-                *algoID = ED448k;
+                *algoID = FALCON_LEVEL5k;
             }
             else {
-                WOLFSSL_MSG("Not Falcon_Level5 DER key");
+                WOLFSSL_MSG("Not Falcon Level 5 DER key");
             }
-            wc_falcon_level5_free(falcon_level5);
+            wc_falcon_free(falcon);
         }
         else {
-            WOLFSSL_MSG("GetKeyOID wc_falcon_level5_init failed");
+            WOLFSSL_MSG("GetKeyOID falcon initialization failed");
         }
-        XFREE(falcon_level5, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(falcon, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* HAVE_LIBOQS */
 
@@ -12864,14 +12816,10 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
         #endif /* HAVE_ED448 */
         #ifdef HAVE_LIBOQS
             case FALCON_LEVEL1k:
-                wc_falcon_level1_free(sigCtx->key.falcon_level1);
-                XFREE(sigCtx->key.falcon_level1, sigCtx->heap,
-                      DYNAMIC_TYPE_FALCON_LEVEL1);
-                break;
             case FALCON_LEVEL5k:
-                wc_falcon_level5_free(sigCtx->key.falcon_level5);
-                XFREE(sigCtx->key.falcon_level5, sigCtx->heap, 
-                      DYNAMIC_TYPE_FALCON_LEVEL5);
+                wc_falcon_free(sigCtx->key.falcon);
+                XFREE(sigCtx->key.falcon, sigCtx->heap,
+                      DYNAMIC_TYPE_FALCON);
                 break;
         #endif /* HAVE_LIBOQS */
             default:
@@ -13308,20 +13256,19 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 case FALCON_LEVEL1k:
                 {
                     sigCtx->verify = 0;
-                    sigCtx->key.falcon_level1 =
-                        (falcon_level1_key*)XMALLOC(sizeof(falcon_level1_key),
-                                                sigCtx->heap,
-                                                DYNAMIC_TYPE_FALCON_LEVEL1);
-                    if (sigCtx->key.falcon_level1 == NULL) {
+                    sigCtx->key.falcon =
+                        (falcon_key*)XMALLOC(sizeof(falcon_key),
+                                             sigCtx->heap,
+                                             DYNAMIC_TYPE_FALCON);
+                    if (sigCtx->key.falcon == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
-                    if ((ret = wc_falcon_level1_init(sigCtx->key.falcon_level1)) < 0) {
+                    if ((ret = wc_falcon_level1_init(sigCtx->key.falcon)) < 0) {
                         goto exit_cs;
                     }
-                    if ((ret = wc_falcon_level1_import_public(key, keySz,
-                                                          sigCtx->key.falcon_level1))
-                        < 0) {
-                        WOLFSSL_MSG("ASN Key import error Falcon_Level1");
+                    if ((ret = wc_falcon_import_public(key, keySz,
+                                                       sigCtx->key.falcon)) < 0) {
+                        WOLFSSL_MSG("ASN Key import error Falcon Level 1");
                         goto exit_cs;
                     }
                     break;
@@ -13329,19 +13276,19 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 case FALCON_LEVEL5k:
                 {
                     sigCtx->verify = 0;
-                    sigCtx->key.falcon_level5 =
-                        (falcon_level5_key*)XMALLOC(sizeof(falcon_level5_key),
-                                                sigCtx->heap,
-                                                DYNAMIC_TYPE_FALCON_LEVEL5);
-                    if (sigCtx->key.falcon_level5 == NULL) {
+                    sigCtx->key.falcon =
+                        (falcon_key*)XMALLOC(sizeof(falcon_key),
+                                             sigCtx->heap,
+                                             DYNAMIC_TYPE_FALCON);
+                    if (sigCtx->key.falcon == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
-                    if ((ret = wc_falcon_level5_init(sigCtx->key.falcon_level5)) < 0) {
+                    if ((ret = wc_falcon_level5_init(sigCtx->key.falcon)) < 0) {
                         goto exit_cs;
                     }
-                    if ((ret = wc_falcon_level5_import_public(key, keySz,
-                                                          sigCtx->key.falcon_level5))                        < 0) {
-                        WOLFSSL_MSG("ASN Key import error Falcon_Level5");
+                    if ((ret = wc_falcon_import_public(key, keySz,
+                                                       sigCtx->key.falcon)) < 0) {
+                        WOLFSSL_MSG("ASN Key import error Falcon Level 5");
                         goto exit_cs;
                     }
                     break;
@@ -13460,17 +13407,11 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
             #endif
             #if defined(HAVE_LIBOQS)
                 case FALCON_LEVEL1k:
-                {
-                    ret = wc_falcon_level1_verify_msg(sig, sigSz, buf, bufSz,
-                                                      &sigCtx->verify,
-                                                      sigCtx->key.falcon_level1);
-                    break;
-                }
                 case FALCON_LEVEL5k:
                 {
-                    ret = wc_falcon_level5_verify_msg(sig, sigSz, buf, bufSz,
-                                                      &sigCtx->verify,
-                                                      sigCtx->key.falcon_level5);
+                    ret = wc_falcon_verify_msg(sig, sigSz, buf, bufSz,
+                                               &sigCtx->verify,
+                                               sigCtx->key.falcon);
                     break;
                 }
             #endif
@@ -20820,11 +20761,11 @@ int wc_Ed448PublicKeyToDer(ed448_key* key, byte* output, word32 inLen,
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_EXPORT */
 
 #if defined(HAVE_LIBOQS)
-/* Encode the public part of an Falcon_Level1/Falcon_Level5 key in DER.
+/* Encode the public part of an Falcon key in DER.
  *
  * Pass NULL for output to get the size of the encoding.
  *
- * @param [in]  key       Ed448 key object.
+ * @param [in]  key       Falcon key object.
  * @param [out] output    Buffer to put encoded data in.
  * @param [in]  outLen    Size of buffer in bytes.
  * @param [in]  withAlg   Whether to use SubjectPublicKeyInfo format.
@@ -20832,41 +20773,34 @@ int wc_Ed448PublicKeyToDer(ed448_key* key, byte* output, word32 inLen,
  * @return  BAD_FUNC_ARG when key is NULL.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
-int wc_Falcon_Level1PublicKeyToDer(falcon_level1_key* key, byte* output, word32 inLen,
-                               int withAlg)
+int wc_Falcon_PublicKeyToDer(falcon_key* key, byte* output, word32 inLen,
+                             int withAlg)
 {
     int    ret;
-    byte   pubKey[FALCON_LEVEL1_PUB_KEY_SIZE];
+    byte   pubKey[FALCON_MAX_PUB_KEY_SIZE];
     word32 pubKeyLen = (word32)sizeof(pubKey);
+    int    keytype = 0;
 
     if (key == NULL || output == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    ret = wc_falcon_level1_export_public(key, pubKey, &pubKeyLen);
-    if (ret == 0) {
-        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen,
-            ED448k, withAlg);
+    if (key->level == 1) {
+        keytype = FALCON_LEVEL1k;
     }
-    return ret;
-}
-
-int wc_Falcon_Level5PublicKeyToDer(falcon_level5_key* key, byte* output, word32 inLen,
-                                int withAlg)
-{
-    int    ret;
-    byte   pubKey[FALCON_LEVEL5_PUB_KEY_SIZE];
-    word32 pubKeyLen = (word32)sizeof(pubKey);
-
-    if (key == NULL || output == NULL) {
+    else if (key->level == 5) {
+        keytype = FALCON_LEVEL5k;
+    }
+    else {
         return BAD_FUNC_ARG;
     }
 
-    ret = wc_falcon_level5_export_public(key, pubKey, &pubKeyLen);
+    ret = wc_falcon_export_public(key, pubKey, &pubKeyLen);
     if (ret == 0) {
-        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen,
-            ED448k, withAlg);
+        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen, keytype,
+                                  withAlg);
     }
+
     return ret;
 }
 #endif /* HAVE_LIBOQS */
@@ -22311,13 +22245,8 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
     #endif
     #ifdef HAVE_LIBOQS
         case FALCON_LEVEL1_KEY:
-            ret = wc_Falcon_Level1PublicKeyToDer(falcon_level1Key, output, outLen, 1);
-            if (ret <= 0) {
-                ret = PUBLIC_KEY_E;
-            }
-            break;
         case FALCON_LEVEL5_KEY:
-            ret = wc_Falcon_Level5PublicKeyToDer(falcon_level5Key, output, outLen, 1);
+            ret = wc_Falcon_PublicKeyToDer(falconKey, output, outLen, 1);
             if (ret <= 0) {
                 ret = PUBLIC_KEY_E;
             }
@@ -22686,8 +22615,7 @@ static int SetValidity(byte* before, byte* after, int daysValid)
 /* encode info from cert into DER encoded format */
 static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
                       WC_RNG* rng, DsaKey* dsaKey, ed25519_key* ed25519Key,
-                      ed448_key* ed448Key, falcon_level1_key* falcon_level1Key, 
-                      falcon_level5_key* falcon_level5Key)
+                      ed448_key* ed448Key, falcon_key* falconKey)
 {
     int ret;
 
@@ -22696,8 +22624,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
     /* make sure at least one key type is provided */
     if (rsaKey == NULL && eccKey == NULL && ed25519Key == NULL &&
-        dsaKey == NULL && ed448Key == NULL && falcon_level1Key == NULL &&
-        falcon_level5Key == NULL) {
+        dsaKey == NULL && ed448Key == NULL && falconKey == NULL) {
         return PUBLIC_KEY_E;
     }
 
@@ -22774,18 +22701,13 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 #endif
 
 #if defined(HAVE_LIBOQS)
-    if (cert->keyType == FALCON_LEVEL1_KEY) {
-        if (falcon_level1Key == NULL)
+    if ((cert->keyType == FALCON_LEVEL1_KEY) || (cert->keyType == FALCON_LEVEL5_KEY)) {
+        if (falconKey == NULL)
             return PUBLIC_KEY_E;
-        der->publicKeySz = wc_Falcon_Level1PublicKeyToDer(falcon_level1Key, der->publicKey,
-            (word32)sizeof(der->publicKey), 1);
-    }
 
-    if (cert->keyType == FALCON_LEVEL5_KEY) {
-        if (falcon_level5Key == NULL)
-            return PUBLIC_KEY_E;
-        der->publicKeySz = wc_Falcon_Level5PublicKeyToDer(falcon_level5Key, der->publicKey,
-            (word32)sizeof(der->publicKey), 1);
+        der->publicKeySz =
+            wc_Falcon_PublicKeyToDer(falconKey, der->publicKey,
+                                     (word32)sizeof(der->publicKey), 1);
     }
 #endif
 
@@ -23098,8 +23020,7 @@ static int WriteCertBody(DerCert* der, byte* buf)
 /* Make RSA signature from buffer (sz), write to sig (sigSz) */
 static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, int sz,
     byte* sig, int sigSz, RsaKey* rsaKey, ecc_key* eccKey,
-    ed25519_key* ed25519Key, ed448_key* ed448Key,
-    falcon_level1_key* falcon_level1Key, falcon_level5_key* falcon_level5Key,
+    ed25519_key* ed25519Key, ed448_key* ed448Key, falcon_key* falconKey,
     WC_RNG* rng, int sigAlgoType, void* heap)
 {
     int digestSz = 0, typeH = 0, ret = 0;
@@ -23114,8 +23035,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, int sz,
     (void)eccKey;
     (void)ed25519Key;
     (void)ed448Key;
-    (void)falcon_level1Key;
-    (void)falcon_level5Key;
+    (void)falconKey;
     (void)rng;
     (void)heap;
 
@@ -23199,23 +23119,13 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, int sz,
     #endif /* HAVE_ED448 && HAVE_ED448_SIGN */
 
     #if defined(HAVE_LIBOQS)
-        if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && falcon_level1Key) {
+        if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && falconKey) {
             word32 outSz = sigSz;
-
-            ret = wc_falcon_level1_sign_msg(buf, sz, sig, &outSz, falcon_level1Key);
+            ret = wc_falcon_sign_msg(buf, sz, sig, &outSz, falconKey);
             if (ret == 0)
                 ret = outSz;
         }
-
-        if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && !falcon_level1Key
-            && falcon_level1Key) {
-            word32 outSz = sigSz;
-
-            ret = wc_falcon_level5_sign_msg(buf, sz, sig, &outSz, falcon_level5Key);
-            if (ret == 0)
-                ret = outSz;
-        }
-    #endif /* HAVE_ED448 && HAVE_ED448_SIGN */
+    #endif /* HAVE_LIBOQS */
 
         break;
     }
@@ -23377,13 +23287,11 @@ int AddSignature(byte* buf, int bodySz, const byte* sig, int sigSz,
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
-                                                                               
 /* Make an x509 Certificate v3 any key type from cert input, write to buffer */
 static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
                        RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng,
                        DsaKey* dsaKey, ed25519_key* ed25519Key,
-                       ed448_key* ed448Key, falcon_level1_key* falcon_level1Key,
-                       falcon_level5_key* falcon_level5Key)
+                       ed448_key* ed448Key, falcon_key* falconKey)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     int ret;
@@ -23406,10 +23314,12 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         cert->keyType = ED25519_KEY;
     else if (ed448Key)
         cert->keyType = ED448_KEY;
-    else if (falcon_level1Key)
+#ifdef HAVE_LIBOQS
+    else if ((falconKey != NULL) && (falconKey->level == 1))
         cert->keyType = FALCON_LEVEL1_KEY;
-    else if (falcon_level5Key)
+    else if ((falconKey != NULL) && (falconKey->level == 5))
         cert->keyType = FALCON_LEVEL5_KEY;
+#endif
     else
         return BAD_FUNC_ARG;
 
@@ -23420,7 +23330,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
 #endif
 
     ret = EncodeCert(cert, der, rsaKey, eccKey, rng, dsaKey, ed25519Key,
-                     ed448Key, falcon_level1Key, falcon_level5Key);
+                     ed448Key, falconKey);
     if (ret == 0) {
         if (der->total + MAX_SEQ_SZ * 2 > (int)derSz)
             ret = BUFFER_E;
@@ -23464,10 +23374,10 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         else if (ed448Key) {
             cert->keyType = ED448_KEY;
         }
-        else if (falcon_level1Key) {
+        else if ((falconKey != NULL) && (falconKey->level == 1)) {
             cert->keyType = FALCON_LEVEL1_KEY;
         }
-        else if (falcon_level5Key) {
+        else if ((falconKey != NULL) && (falconKey->level == 5)) {
             cert->keyType = FALCON_LEVEL5_KEY;
         }
         else {
@@ -23514,8 +23424,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
     if (ret >= 0) {
         /* Calcuate public key encoding size. */
         ret = publicKeySz = EncodePublicKey(cert->keyType, NULL, 0, rsaKey,
-            eccKey, ed25519Key, ed448Key, dsaKey, falcon_level1Key,
-            falcon_level5Key);
+            eccKey, ed25519Key, ed448Key, dsaKey, falconKey);
     }
     if (ret >= 0) {
         /* Calcuate extensions encoding size - may be 0. */
@@ -23650,8 +23559,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         /* Encode public key into buffer. */
         ret = EncodePublicKey(cert->keyType,
             (byte*)dataASN[15].data.buffer.data, dataASN[15].data.buffer.length,
-            rsaKey, eccKey, ed25519Key, ed448Key, dsaKey, falcon_level1Key,
-            falcon_level5Key);
+            rsaKey, eccKey, ed25519Key, ed448Key, dsaKey, falconKey);
     }
     if ((ret >= 0) && (!dataASN[23].noOut)) {
         /* Encode extensions into buffer. */
@@ -23679,8 +23587,7 @@ int wc_MakeCert_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
     ecc_key*           eccKey = NULL;
     ed25519_key*       ed25519Key = NULL;
     ed448_key*         ed448Key = NULL;
-    falcon_level1_key* falcon_Level1Key = NULL;
-    falcon_level5_key* falcon_Level5Key = NULL;
+    falcon_key*        falconKey = NULL;
 
     if (keyType == RSA_TYPE)
         rsaKey = (RsaKey*)key;
@@ -23693,13 +23600,12 @@ int wc_MakeCert_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
     else if (keyType == ED448_TYPE)
         ed448Key = (ed448_key*)key;
     else if (keyType == FALCON_LEVEL1_TYPE)
-        falcon_Level1Key = (falcon_level1_key*)key;
+        falconKey = (falcon_key*)key;
     else if (keyType == FALCON_LEVEL5_TYPE)
-        falcon_Level5Key = (falcon_level5_key*)key;
+        falconKey = (falcon_key*)key;
 
     return MakeAnyCert(cert, derBuffer, derSz, rsaKey, eccKey, rng, dsaKey,
-                       ed25519Key, ed448Key, falcon_Level1Key,
-                       falcon_Level5Key);
+                       ed25519Key, ed448Key, falconKey);
 }
 
 /* Make an x509 Certificate v3 RSA or ECC from cert input, write to buffer */
@@ -23707,7 +23613,7 @@ int wc_MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,
              ecc_key* eccKey, WC_RNG* rng)
 {
     return MakeAnyCert(cert, derBuffer, derSz, rsaKey, eccKey, rng, NULL, NULL,
-                       NULL, NULL, NULL);
+                       NULL, NULL);
 }
 
 #ifdef WOLFSSL_CERT_REQ
@@ -23795,21 +23701,18 @@ static int SetReqAttrib(byte* output, char* pw, int pwPrintableString,
 static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
                          DsaKey* dsaKey, ecc_key* eccKey,
                          ed25519_key* ed25519Key, ed448_key* ed448Key,
-                         falcon_level1_key* falcon_level1Key,
-                         falcon_level5_key* falcon_level5Key)
+                         falcon_key* falconKey)
 {
     (void)eccKey;
     (void)ed25519Key;
     (void)ed448Key;
-    (void)falcon_level1Key;
-    (void)falcon_level5Key;
+    (void)falconKey;
 
     if (cert == NULL || der == NULL)
         return BAD_FUNC_ARG;
 
     if (rsaKey == NULL && eccKey == NULL && ed25519Key == NULL &&
-        dsaKey == NULL && ed448Key == NULL && falcon_level1Key == NULL &&
-        falcon_level5Key == NULL) {
+        dsaKey == NULL && ed448Key == NULL && falconKey == NULL) {
         return PUBLIC_KEY_E;
     }
 
@@ -23892,16 +23795,11 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
     }
 #endif
 #if defined(HAVE_LIBOQS)
-    if (cert->keyType == FALCON_LEVEL1_KEY) {
-        if (falcon_level1Key == NULL)
+    if ((cert->keyType == FALCON_LEVEL1_KEY) ||
+        (cert->keyType == FALCON_LEVEL5_KEY)) {
+        if (falconKey == NULL)
             return PUBLIC_KEY_E;
-        der->publicKeySz = wc_Falcon_Level1PublicKeyToDer(falcon_level1Key,
-            der->publicKey, (word32)sizeof(der->publicKey), 1);
-    }
-    if (cert->keyType == FALCON_LEVEL5_KEY) {
-        if (falcon_level5Key == NULL)
-            return PUBLIC_KEY_E;
-        der->publicKeySz = wc_Falcon_Level5PublicKeyToDer(falcon_level5Key, 
+        der->publicKeySz = wc_Falcon_PublicKeyToDer(falconKey,
             der->publicKey, (word32)sizeof(der->publicKey), 1);
     }
 #endif
@@ -24131,8 +24029,7 @@ static const ASNItem certReqBodyASN[] = {
 static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                    RsaKey* rsaKey, DsaKey* dsaKey, ecc_key* eccKey,
                    ed25519_key* ed25519Key, ed448_key* ed448Key,
-                   falcon_level1_key* falcon_level1Key,
-                   falcon_level5_key* falcon_level5Key)
+                   falcon_key* falconKey)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     int ret;
@@ -24152,10 +24049,12 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
         cert->keyType = ED25519_KEY;
     else if (ed448Key)
         cert->keyType = ED448_KEY;
-    else if (falcon_level1Key)
+#ifdef HAVE_LIBOQS
+    else if ((falconKey != NULL) && (falconKey->level == 1))
         cert->keyType = FALCON_LEVEL1_KEY;
-    else if (falcon_level5Key)
+    else if ((falconKey != NULL) && (falconKey->level == 5))
         cert->keyType = FALCON_LEVEL5_KEY;
+#endif
     else
         return BAD_FUNC_ARG;
 
@@ -24167,7 +24066,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
 #endif
 
     ret = EncodeCertReq(cert, der, rsaKey, dsaKey, eccKey, ed25519Key, ed448Key,
-                        falcon_level1Key, falcon_level5Key);
+                        falconKey);
 
     if (ret == 0) {
         if (der->total + MAX_SEQ_SZ * 2 > (int)derSz)
@@ -24215,10 +24114,10 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
         else if (ed448Key != NULL) {
             cert->keyType = ED448_KEY;
         }
-        else if (falcon_level1Key != NULL) {
+        else if ((falconKey != NULL) && (falconKey->level == 1)) {
             cert->keyType = FALCON_LEVEL1_KEY;
         }
-        else if (falcon_level5Key != NULL) {
+        else if ((falconKey != NULL) && (falconKey->level == 5)) {
             cert->keyType = FALCON_LEVEL5_KEY;
         }
         else {
@@ -24242,8 +24141,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
     if (ret >= 0) {
         /* Determine encode public key size. */
          ret = publicKeySz = EncodePublicKey(cert->keyType, NULL, 0, rsaKey,
-             eccKey, ed25519Key, ed448Key, dsaKey, falcon_level1Key,
-             falcon_level5Key);
+             eccKey, ed25519Key, ed448Key, dsaKey, falconKey);
     }
     if (ret >= 0) {
         /* Determine encode extensions size. */
@@ -24326,7 +24224,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
         /* Encode public key into space in buffer. */
         ret = EncodePublicKey(cert->keyType, (byte*)dataASN[3].data.buffer.data,
             dataASN[3].data.buffer.length, rsaKey, eccKey, ed25519Key, ed448Key,
-            dsaKey, falcon_level1Key, falcon_level5Key);
+            dsaKey, falconKey);
     }
     if ((ret >= 0) && (!dataASN[13].noOut)) {
         /* Encode extensions into space in buffer. */
@@ -24353,8 +24251,7 @@ int wc_MakeCertReq_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
     ecc_key*     eccKey = NULL;
     ed25519_key* ed25519Key = NULL;
     ed448_key*   ed448Key = NULL;
-    falcon_level1_key* falcon_level1Key = NULL;
-    falcon_level5_key* falcon_level5Key = NULL;
+    falcon_key* falconKey = NULL;
 
     if (keyType == RSA_TYPE)
         rsaKey = (RsaKey*)key;
@@ -24367,19 +24264,18 @@ int wc_MakeCertReq_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
     else if (keyType == ED448_TYPE)
         ed448Key = (ed448_key*)key;
     else if (keyType == FALCON_LEVEL1_TYPE)
-        falcon_level1Key = (falcon_level1_key*)key;
+        falconKey = (falcon_key*)key;
     else if (keyType == FALCON_LEVEL5_TYPE)
-        falcon_level5Key = (falcon_level5_key*)key;
+        falconKey = (falcon_key*)key;
 
     return MakeCertReq(cert, derBuffer, derSz, rsaKey, dsaKey, eccKey,
-                       ed25519Key, ed448Key, falcon_level1Key,
-                       falcon_level5Key);
+                       ed25519Key, ed448Key, falconKey);
 }
 
 int wc_MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                    RsaKey* rsaKey, ecc_key* eccKey)
 {
-    return MakeCertReq(cert, derBuffer, derSz, rsaKey, NULL, eccKey, NULL, NULL,
+    return MakeCertReq(cert, derBuffer, derSz, rsaKey, NULL, eccKey, NULL,
                        NULL, NULL);
 }
 #endif /* WOLFSSL_CERT_REQ */
@@ -24387,8 +24283,7 @@ int wc_MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
 
 static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
                     RsaKey* rsaKey, ecc_key* eccKey, ed25519_key* ed25519Key,
-                    ed448_key* ed448Key, falcon_level1_key* falcon_level1Key,
-                    falcon_level5_key* falcon_level5Key, WC_RNG* rng)
+                    ed448_key* ed448Key, falcon_key* falconKey, WC_RNG* rng)
 {
     int sigSz = 0;
     void* heap = NULL;
@@ -24442,8 +24337,7 @@ static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
 
     sigSz = MakeSignature(certSignCtx, buf, requestSz, certSignCtx->sig,
         MAX_ENCODED_SIG_SZ, rsaKey, eccKey, ed25519Key, ed448Key,
-        falcon_level1Key, falcon_level5Key, rng, sType,
-        heap);
+        falconKey, rng, sType, heap);
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (sigSz == WC_PENDING_E) {
         /* Not free'ing certSignCtx->sig here because it could still be in use
@@ -24473,8 +24367,7 @@ int wc_SignCert_ex(int requestSz, int sType, byte* buf, word32 buffSz,
     ecc_key*           eccKey = NULL;
     ed25519_key*       ed25519Key = NULL;
     ed448_key*         ed448Key = NULL;
-    falcon_level1_key* falcon_level1Key = NULL;
-    falcon_level5_key* falcon_level5Key = NULL;
+    falcon_key*        falconKey = NULL;
 
     if (keyType == RSA_TYPE)
         rsaKey = (RsaKey*)key;
@@ -24485,20 +24378,20 @@ int wc_SignCert_ex(int requestSz, int sType, byte* buf, word32 buffSz,
     else if (keyType == ED448_TYPE)
         ed448Key = (ed448_key*)key;
     else if (keyType == FALCON_LEVEL1_TYPE)
-        falcon_level1Key = (falcon_level1_key*)key;
+        falconKey = (falcon_key*)key;
     else if (keyType == FALCON_LEVEL5_TYPE)
-        falcon_level5Key = (falcon_level5_key*)key;
+        falconKey = (falcon_key*)key;
 
 
     return SignCert(requestSz, sType, buf, buffSz, rsaKey, eccKey, ed25519Key,
-                    ed448Key, falcon_level1Key, falcon_level5Key, rng);
+                    ed448Key, falconKey, rng);
 }
 
 int wc_SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
                 RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng)
 {
     return SignCert(requestSz, sType, buf, buffSz, rsaKey, eccKey, NULL, NULL,
-                    NULL, NULL, rng);
+                    NULL, rng);
 }
 
 int wc_MakeSelfCert(Cert* cert, byte* buf, word32 buffSz,
@@ -24532,17 +24425,14 @@ int wc_GetSubjectRaw(byte **subjectRaw, Cert *cert)
 /* Set KID from public key */
 static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
                                  ed25519_key* ed25519Key, ed448_key* ed448Key,
-                                 falcon_level1_key* falcon_level1Key,
-                                 falcon_level5_key* falcon_level5Key,
-                                 int kid_type)
+                                 falcon_key* falconKey, int kid_type)
 {
     byte *buf;
     int   bufferSz, ret;
 
     if (cert == NULL ||
         (rsakey == NULL && eckey == NULL && ed25519Key == NULL &&
-         ed448Key == NULL && falcon_level1Key == NULL &&
-         falcon_level5Key == NULL) ||
+         ed448Key == NULL && falconKey == NULL) ||
         (kid_type != SKID_TYPE && kid_type != AKID_TYPE))
         return BAD_FUNC_ARG;
 
@@ -24576,13 +24466,9 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
     }
 #endif
 #if defined(HAVE_LIBOQS)
-    if (falcon_level1Key != NULL) {
-        bufferSz = wc_Falcon_Level1PublicKeyToDer(falcon_level1Key, buf,
-                                                  MAX_PUBLIC_KEY_SZ, 0);
-    }
-    if (falcon_level5Key != NULL) {
-        bufferSz = wc_Falcon_Level5PublicKeyToDer(falcon_level5Key, buf,
-                                                  MAX_PUBLIC_KEY_SZ, 0);
+    if (falconKey != NULL) {
+        bufferSz = wc_Falcon_PublicKeyToDer(falconKey, buf, MAX_PUBLIC_KEY_SZ,
+                                            0);
     }
 #endif
 
@@ -24613,8 +24499,7 @@ int wc_SetSubjectKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
     ecc_key*           eccKey = NULL;
     ed25519_key*       ed25519Key = NULL;
     ed448_key*         ed448Key = NULL;
-    falcon_level1_key* falcon_level1Key = NULL;
-    falcon_level5_key* falcon_level5Key = NULL;
+    falcon_key*        falconKey = NULL;
 
     if (keyType == RSA_TYPE)
         rsaKey = (RsaKey*)key;
@@ -24625,18 +24510,18 @@ int wc_SetSubjectKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
     else if (keyType == ED448_TYPE)
         ed448Key = (ed448_key*)key;
     else if (keyType == FALCON_LEVEL1_TYPE)
-        falcon_level1Key = (falcon_level1_key*)key;
+        falconKey = (falcon_key*)key;
     else if (keyType == FALCON_LEVEL5_TYPE)
-        falcon_level5Key = (falcon_level5_key*)key;
+        falconKey = (falcon_key*)key;
 
     return SetKeyIdFromPublicKey(cert, rsaKey, eccKey, ed25519Key, ed448Key,
-                                 falcon_level1Key, falcon_level5Key, SKID_TYPE);
+                                 falconKey, SKID_TYPE);
 }
 
 /* Set SKID from RSA or ECC public key */
 int wc_SetSubjectKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey)
 {
-    return SetKeyIdFromPublicKey(cert, rsakey, eckey, NULL, NULL, NULL, NULL,
+    return SetKeyIdFromPublicKey(cert, rsakey, eckey, NULL, NULL, NULL,
                                  SKID_TYPE);
 }
 
@@ -24646,8 +24531,7 @@ int wc_SetAuthKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
     ecc_key*           eccKey = NULL;
     ed25519_key*       ed25519Key = NULL;
     ed448_key*         ed448Key = NULL;
-    falcon_level1_key* falcon_level1Key = NULL;
-    falcon_level5_key* falcon_level5Key = NULL;
+    falcon_key*        falconKey = NULL;
 
     if (keyType == RSA_TYPE)
         rsaKey = (RsaKey*)key;
@@ -24658,18 +24542,16 @@ int wc_SetAuthKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
     else if (keyType == ED448_TYPE)
         ed448Key = (ed448_key*)key;
     else if (keyType == FALCON_LEVEL1_TYPE)
-        falcon_level1Key = (falcon_level1_key*)key;
-    else if (keyType == FALCON_LEVEL5_TYPE)
-        falcon_level5Key = (falcon_level5_key*)key;
+        falconKey = (falcon_key*)key;
 
     return SetKeyIdFromPublicKey(cert, rsaKey, eccKey, ed25519Key, ed448Key,
-                                 falcon_level1Key, falcon_level5Key, AKID_TYPE);
+                                 falconKey, AKID_TYPE);
 }
 
 /* Set SKID from RSA or ECC public key */
 int wc_SetAuthKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey)
 {
-    return SetKeyIdFromPublicKey(cert, rsakey, eckey, NULL, NULL, NULL, NULL,
+    return SetKeyIdFromPublicKey(cert, rsakey, eckey, NULL, NULL, NULL,
                                  AKID_TYPE);
 }
 
@@ -27805,94 +27687,70 @@ int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
 
 #if defined(HAVE_LIBOQS)
-int wc_Falcon_Level1PrivateKeyDecode(const byte* input, word32* inOutIdx,
-                                     falcon_level1_key* key, word32 inSz)
+int wc_Falcon_PrivateKeyDecode(const byte* input, word32* inOutIdx,
+                                     falcon_key* key, word32 inSz)
 {
-    int ret;
-    byte privKey[FALCON_LEVEL1_KEY_SIZE], pubKey[FALCON_LEVEL1_PUB_KEY_SIZE];
+    int ret = 0;
+    byte privKey[FALCON_MAX_KEY_SIZE], pubKey[FALCON_MAX_PUB_KEY_SIZE];
     word32 privKeyLen = (word32)sizeof(privKey);
     word32 pubKeyLen = (word32)sizeof(pubKey);
+    int keytype = 0;
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (key->level == 1) {
+        keytype = FALCON_LEVEL1k;
+    }
+    else if (key->level == 5) {
+        keytype = FALCON_LEVEL5k;
+    }
+    else {
         return BAD_FUNC_ARG;
     }
 
     ret = DecodeAsymKey(input, inOutIdx, inSz, privKey, &privKeyLen,
-                        pubKey, &pubKeyLen, FALCON_LEVEL1k);
+                        pubKey, &pubKeyLen, keytype);
     if (ret == 0) {
         if (pubKeyLen == 0) {
-            ret = wc_falcon_level1_import_private_only(privKey, privKeyLen,
-                                                       key);
+            ret = wc_falcon_import_private_only(privKey, privKeyLen,
+                                                key);
         }
         else {
-            ret = wc_falcon_level1_import_private_key(privKey, privKeyLen,
-                                                      pubKey, pubKeyLen, key);
+            ret = wc_falcon_import_private_key(privKey, privKeyLen,
+                                               pubKey, pubKeyLen, key);
         }
     }
     return ret;
 }
 
-int wc_Falcon_Level1PublicKeyDecode(const byte* input, word32* inOutIdx,
-                                    falcon_level1_key* key, word32 inSz)
+int wc_Falcon_PublicKeyDecode(const byte* input, word32* inOutIdx,
+                                    falcon_key* key, word32 inSz)
 {
-    int ret;
-    byte pubKey[FALCON_LEVEL1_PUB_KEY_SIZE];
+    int ret = 0;
+    byte pubKey[FALCON_MAX_PUB_KEY_SIZE];
     word32 pubKeyLen = (word32)sizeof(pubKey);
+    int keytype = 0;
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (key->level == 1) {
+        keytype = FALCON_LEVEL1k;
+    }
+    else if (key->level == 5) {
+        keytype = FALCON_LEVEL5k;
+    }
+    else {
         return BAD_FUNC_ARG;
     }
 
     ret = DecodeAsymKeyPublic(input, inOutIdx, inSz, pubKey, &pubKeyLen,
-                              FALCON_LEVEL1k);
+                              keytype);
     if (ret == 0) {
-        ret = wc_falcon_level1_import_public(pubKey, pubKeyLen, key);
-    }
-    return ret;
-}
-
-int wc_Falcon_Level5PrivateKeyDecode(const byte* input, word32* inOutIdx,
-                                     falcon_level5_key* key, word32 inSz)
-{
-    int ret;
-    byte privKey[FALCON_LEVEL5_KEY_SIZE], pubKey[FALCON_LEVEL5_PUB_KEY_SIZE];
-    word32 privKeyLen = (word32)sizeof(privKey);
-    word32 pubKeyLen = (word32)sizeof(pubKey);
-
-    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
-        return BAD_FUNC_ARG;
-    }
-
-    ret = DecodeAsymKey(input, inOutIdx, inSz, privKey, &privKeyLen,
-                        pubKey, &pubKeyLen, FALCON_LEVEL5k);
-    if (ret == 0) { 
-        if (pubKeyLen == 0) {
-            ret = wc_falcon_level5_import_private_only(privKey, privKeyLen, 
-                                                       key);
-        }
-        else {
-            ret = wc_falcon_level5_import_private_key(privKey, privKeyLen,
-                                                      pubKey, pubKeyLen, key);
-        }
-    }
-    return ret;
-}
-
-int wc_Falcon_Level5PublicKeyDecode(const byte* input, word32* inOutIdx,
-                                    falcon_level5_key* key, word32 inSz)
-{
-    int ret;
-    byte pubKey[FALCON_LEVEL5_PUB_KEY_SIZE];
-    word32 pubKeyLen = (word32)sizeof(pubKey);
-
-    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
-        return BAD_FUNC_ARG;
-    }
-
-    ret = DecodeAsymKeyPublic(input, inOutIdx, inSz, pubKey, &pubKeyLen,
-                              FALCON_LEVEL5k);
-    if (ret == 0) {
-        ret = wc_falcon_level5_import_public(pubKey, pubKeyLen, key);
+        ret = wc_falcon_import_public(pubKey, pubKeyLen, key);
     }
     return ret;
 }
@@ -27964,43 +27822,44 @@ int wc_Ed448PrivateKeyToDer(ed448_key* key, byte* output, word32 inLen)
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_EXPORT */
 
 #if defined(HAVE_LIBOQS)
-int wc_Falcon_Level1KeyToDer(falcon_level1_key* key, byte* output, word32 inLen)
+int wc_Falcon_KeyToDer(falcon_key* key, byte* output, word32 inLen)
 {
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
-    return SetAsymKeyDer(key->k, FALCON_LEVEL1_KEY_SIZE, key->p,
-                         FALCON_LEVEL1_KEY_SIZE, output, inLen, FALCON_LEVEL1k);
+
+    if (key->level == 1) {
+        return SetAsymKeyDer(key->k, FALCON_LEVEL1_KEY_SIZE, key->p,
+                             FALCON_LEVEL1_KEY_SIZE, output, inLen,
+                             FALCON_LEVEL1k);
+    }
+    else if (key->level == 5) {
+        return SetAsymKeyDer(key->k, FALCON_LEVEL5_KEY_SIZE, key->p,
+                             FALCON_LEVEL5_KEY_SIZE, output, inLen,
+                             FALCON_LEVEL5k);
+    }
+
+    return BAD_FUNC_ARG;
 }
 
-int wc_Falcon_Level1PrivateKeyToDer(falcon_level1_key* key, byte* output,
-                                    word32 inLen)
+int wc_Falcon_PrivateKeyToDer(falcon_key* key, byte* output, word32 inLen)
 {
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
-    return SetAsymKeyDer(key->k, FALCON_LEVEL1_KEY_SIZE, NULL, 0, output,
-                         inLen, FALCON_LEVEL1k);
+
+    if (key->level == 1) {
+        return SetAsymKeyDer(key->k, FALCON_LEVEL1_KEY_SIZE, NULL, 0, output,
+                             inLen, FALCON_LEVEL1k);
+    }
+    else if (key->level == 5) {
+        return SetAsymKeyDer(key->k, FALCON_LEVEL5_KEY_SIZE, NULL, 0, output,
+                             inLen, FALCON_LEVEL5k);
+    }
+
+    return BAD_FUNC_ARG;
 }
 
-int wc_Falcon_Level5KeyToDer(falcon_level5_key* key, byte* output, word32 inLen)
-{
-    if (key == NULL) {
-        return BAD_FUNC_ARG;
-    }
-    return SetAsymKeyDer(key->k, FALCON_LEVEL5_KEY_SIZE, key->p, 
-                         FALCON_LEVEL5_KEY_SIZE, output, inLen, FALCON_LEVEL5k);
-}
-
-int wc_Falcon_Level5PrivateKeyToDer(falcon_level5_key* key, byte* output, 
-                                    word32 inLen)
-{
-    if (key == NULL) {
-        return BAD_FUNC_ARG;
-    }
-    return SetAsymKeyDer(key->k, FALCON_LEVEL5_KEY_SIZE, NULL, 0, output, 
-                         inLen, FALCON_LEVEL5k);
-}
 #endif /* HAVE_LIBOQS */
 
 #if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_EXPORT)
