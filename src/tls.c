@@ -6103,7 +6103,7 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
     #ifdef HAVE_FFDHE_4096
         case WOLFSSL_FFDHE_4096:
             params = wc_Dh_ffdhe4096_Get();
-            keySz = 39;
+            kse->keyLen = 39;
             break;
     #endif
     #ifdef HAVE_FFDHE_6144
