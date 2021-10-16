@@ -3,7 +3,7 @@ if(CONFIG_WOLFSSL)
   
   if(CONFIG_WOLFSSL_BUILTIN)
     target_compile_definitions(wolfSSL INTERFACE
-  	WOLFSSL_OPTIONS_FILE="${CONFIG_WOLFSSL_OPTIONS_FILE}"
+  	WOLFSSL_SETTINGS_FILE="${CONFIG_WOLFSSL_SETTINGS_FILE}"
   	)
   
     target_include_directories(wolfSSL INTERFACE
