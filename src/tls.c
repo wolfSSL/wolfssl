@@ -6081,7 +6081,7 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
 {
     int ret = 0;
 #if !defined(NO_DH) && (!defined(NO_CERTS) || !defined(NO_PSK))
-    word32 pSz = 0;
+    word32 pSz = 0, pvtSz = 0;
     DhKey* dhKey = (DhKey*)kse->key;
 
     /* Pick the parameters from the named group. */
@@ -6124,6 +6124,7 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
     if (params == NULL)
         return BAD_FUNC_ARG;
     pSz = params->p_len;
+    pvtSz = kse->keyLen;
 #else
     kse->keyLen = wc_DhGetNamedKeyMinSize(kse->group);
     if (kse->keyLen == 0) {
@@ -6133,6 +6134,7 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
     if (ret != 0) {
         return BAD_FUNC_ARG;
     }
+    pvtSz = kse->keyLen;
 #endif
     kse->pubKeyLen = pSz;
 
@@ -6178,7 +6180,8 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
                 DerBuffer* keyDer = ssl->staticKE.dhKey;
                 word32 idx = 0;
                 WOLFSSL_MSG("Using static DH key");
-                ret = wc_DhKeyDecode(keyDer->buffer, &idx, dhKey, keyDer->length);
+                ret = wc_DhKeyDecode(keyDer->buffer, &idx,
+                        dhKey, keyDer->length);
                 if (ret == 0) {
                     ret = wc_DhExportKeyPair(dhKey, 
                         (byte*)kse->privKey, &kse->keyLen, /* private */
@@ -6212,9 +6215,16 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
             XMEMMOVE(kse->pubKey + pSz - kse->pubKeyLen, kse->pubKey,
                 kse->pubKeyLen);
             XMEMSET(kse->pubKey, 0, pSz - kse->pubKeyLen);
+            kse->pubKeyLen = pSz;
         }
 
-        kse->pubKeyLen = pSz;
+        if (pvtSz != kse->keyLen) {
+            /* Zero pad the front of the private key */
+            XMEMMOVE(kse->privKey + pvtSz - kse->keyLen, kse->privKey,
+                kse->keyLen);
+            XMEMSET(kse->privKey, 0, pvtSz - kse->keyLen);
+            kse->keyLen = pvtSz;
+        }
 
     #ifdef WOLFSSL_DEBUG_TLS
         WOLFSSL_MSG("Public DH Key");
