@@ -71,16 +71,13 @@ libwolfssl.ko.signed: libwolfssl.ko
 	@cd '$(KERNEL_ROOT)' || exit $$?;							\
 	while read configline; do								\
 		case "$$configline" in								\
-		CONFIG_MODULE_SIG_KEY=*)							\
-				CONFIG_MODULE_SIG_KEY="$${configline#CONFIG_MODULE_SIG_KEY=}"	\
-			;;									\
-		CONFIG_MODULE_SIG_HASH=*)							\
-				CONFIG_MODULE_SIG_HASH="$${configline#CONFIG_MODULE_SIG_HASH=}"	\
+		CONFIG_MODULE_SIG*=*)								\
+			declare "$${configline%=*}"="$${configline#*=}"				\
 			;;									\
 		esac;										\
 	done < .config || exit $$?;								\
-	if [[ -n "$${CONFIG_MODULE_SIG_KEY}" && -n "$${CONFIG_MODULE_SIG_HASH}" &&		\
-			( ! -f '$(MODULE_TOP)/$@' ||						\
+	if [[ "$${CONFIG_MODULE_SIG}" = "y" && -n "$${CONFIG_MODULE_SIG_KEY}" && 		\
+		-n "$${CONFIG_MODULE_SIG_HASH}" && ( ! -f '$(MODULE_TOP)/$@' ||			\
 			'$(MODULE_TOP)/$<' -nt '$(MODULE_TOP)/$@' ) ]]; then			\
 		CONFIG_MODULE_SIG_KEY="$${CONFIG_MODULE_SIG_KEY#\"}";				\
 		CONFIG_MODULE_SIG_KEY="$${CONFIG_MODULE_SIG_KEY%\"}";				\
