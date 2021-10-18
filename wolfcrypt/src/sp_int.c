@@ -3649,7 +3649,7 @@ int sp_mod_d(sp_int* a, const sp_int_digit d, sp_int_digit* r)
         err = MP_VAL;
     }
 
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
         sp_print(a, "a");
         sp_print_digit(d, "m");
     #endif
@@ -3696,7 +3696,7 @@ int sp_mod_d(sp_int* a, const sp_int_digit d, sp_int_digit* r)
     #endif
     }
 
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
         sp_print_digit(*r, "rmod");
     #endif
 
@@ -3732,7 +3732,7 @@ int sp_div_2_mod_ct(sp_int* a, sp_int* m, sp_int* r)
         sp_int_digit mask;
         int i;
 
-        #if 0 && defined(SP_DEBUG_VERBOSE)
+        #if 0
             sp_print(a, "a");
             sp_print(m, "m");
         #endif
@@ -3754,7 +3754,7 @@ int sp_div_2_mod_ct(sp_int* a, sp_int* m, sp_int* r)
         sp_clamp(r);
         sp_div_2(r, r);
 
-        #if 0 && defined(SP_DEBUG_VERBOSE)
+        #if 0
             sp_print(r, "rd2");
         #endif
     }
@@ -3828,7 +3828,7 @@ static int _sp_add_off(sp_int* a, sp_int* b, sp_int* r, int o)
     int j;
     sp_int_word t = 0;
 
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
         sp_print(a, "a");
         sp_print(b, "b");
     #endif
@@ -3869,7 +3869,7 @@ static int _sp_add_off(sp_int* a, sp_int* b, sp_int* r, int o)
 
     sp_clamp(r);
 
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
         sp_print(r, "radd");
     #endif
 
@@ -4055,7 +4055,7 @@ int sp_addmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
     }
 
     ALLOC_SP_INT_SIZE(t, used, err, NULL);
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
     if (err == MP_OKAY) {
         sp_print(a, "a");
         sp_print(b, "b");
@@ -4070,7 +4070,7 @@ int sp_addmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
         err = sp_mod(t, m, r);
     }
 
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
     if (err == MP_OKAY) {
         sp_print(r, "rma");
     }
@@ -4109,7 +4109,7 @@ int sp_submod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
         err = MP_VAL;
     }
 
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
     if (err == MP_OKAY) {
         sp_print(a, "a");
         sp_print(b, "b");
@@ -4142,7 +4142,7 @@ int sp_submod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
         }
     }
 
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
     if (err == MP_OKAY) {
         sp_print(r, "rms");
     }
@@ -4162,7 +4162,7 @@ int sp_submod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
         err = MP_VAL;
     }
 
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
     if (err == MP_OKAY) {
         sp_print(a, "a");
         sp_print(b, "b");
@@ -4178,7 +4178,7 @@ int sp_submod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
         err = sp_mod(t, m, r);
     }
 
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
     if (err == MP_OKAY) {
         sp_print(r, "rms");
     }
@@ -4563,7 +4563,7 @@ int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
         err = MP_VAL;
     }
 
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
     if (err == MP_OKAY) {
         sp_print(a, "a");
         sp_print(d, "b");
@@ -4770,7 +4770,7 @@ int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
         }
     }
 
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
     if (err == MP_OKAY) {
         if (rem != NULL) {
             sp_print(rem, "rdr");
@@ -7695,7 +7695,7 @@ int sp_mul(sp_int* a, sp_int* b, sp_int* r)
         err = MP_VAL;
     }
 
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
     if (err == MP_OKAY) {
         sp_print(a, "a");
         sp_print(b, "b");
@@ -7801,7 +7801,7 @@ int sp_mul(sp_int* a, sp_int* b, sp_int* r)
     }
 #endif
 
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
     if (err == MP_OKAY) {
         sp_print(r, "rmul");
     }
@@ -8685,7 +8685,7 @@ int sp_exptmod_ex(sp_int* b, sp_int* e, int digits, sp_int* m, sp_int* r)
         err = MP_VAL;
     }
 
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
     if (err == MP_OKAY) {
         sp_print(b, "a");
         sp_print(e, "b");
@@ -8799,7 +8799,7 @@ int sp_exptmod_ex(sp_int* b, sp_int* e, int digits, sp_int* m, sp_int* r)
     (void)eBits;
     (void)digits;
 
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
     if (err == MP_OKAY) {
         sp_print(r, "rme");
     }
@@ -9196,7 +9196,7 @@ int sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
         err = MP_VAL;
     }
 
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
     if (err == MP_OKAY) {
         sp_print(b, "a");
         sp_print(e, "b");
@@ -9232,7 +9232,7 @@ int sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
         err = _sp_exptmod_nct(b, e, m, r);
     }
 
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
     if (err == MP_OKAY) {
         sp_print(r, "rme");
     }
@@ -11683,7 +11683,7 @@ int sp_sqr(sp_int* a, sp_int* r)
         err = MP_VAL;
     }
 
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
     if (err == MP_OKAY) {
         sp_print(a, "a");
     }
@@ -11777,7 +11777,7 @@ int sp_sqr(sp_int* a, sp_int* r)
     }
 #endif
 
-    #if 0 && defined(SP_DEBUG_VERBOSE)
+    #if 0
     if (err == MP_OKAY) {
         sp_print(r, "rsqr");
     }
