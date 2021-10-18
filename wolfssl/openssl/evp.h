@@ -49,6 +49,7 @@
 #include <wolfssl/openssl/dsa.h>
 #include <wolfssl/openssl/ec.h>
 #include <wolfssl/openssl/dh.h>
+#include <wolfssl/openssl/compat_types.h>
 
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/des3.h>
@@ -67,18 +68,6 @@
     extern "C" {
 #endif
 
-
-typedef char WOLFSSL_EVP_CIPHER;
-#ifndef WOLFSSL_EVP_TYPE_DEFINED /* guard on redeclaration */
-typedef char   WOLFSSL_EVP_MD;
-typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_EVP_PKEY;
-typedef struct WOLFSSL_EVP_MD_CTX   WOLFSSL_EVP_MD_CTX;
-typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_PKCS8_PRIV_KEY_INFO;
-#define WOLFSSL_EVP_TYPE_DEFINED
-#endif
-
-typedef WOLFSSL_EVP_PKEY       EVP_PKEY;
-typedef WOLFSSL_EVP_PKEY       PKCS8_PRIV_KEY_INFO;
 
 #ifndef NO_MD4
     WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_md4(void);
@@ -185,8 +174,6 @@ typedef union {
     #endif
 } WOLFSSL_Hasher;
 
-typedef struct WOLFSSL_EVP_PKEY_CTX WOLFSSL_EVP_PKEY_CTX;
-typedef struct WOLFSSL_EVP_CIPHER_CTX WOLFSSL_EVP_CIPHER_CTX;
 
 struct WOLFSSL_EVP_MD_CTX {
     union {
@@ -417,10 +404,9 @@ struct WOLFSSL_EVP_PKEY_CTX {
     int nbits;
 };
 
-typedef
 struct WOLFSSL_ASN1_PCTX {
     int dummy;
-} WOLFSSL_ASN1_PCTX;
+};
 #if defined(WOLFSSL_BASE64_ENCODE) || defined(WOLFSSL_BASE64_DECODE)
 
 #define   BASE64_ENCODE_BLOCK_SIZE  48
@@ -456,10 +442,6 @@ WOLFSSL_API int wolfSSL_EVP_DecodeFinal(WOLFSSL_EVP_ENCODE_CTX* ctx,
 
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_blake2b512(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_blake2s256(void);
-
-typedef int WOLFSSL_ENGINE  ;
-typedef WOLFSSL_ENGINE ENGINE;
-typedef WOLFSSL_EVP_PKEY_CTX EVP_PKEY_CTX;
 
 #define EVP_PKEY_OP_SIGN    (1 << 3)
 #define EVP_PKEY_OP_ENCRYPT (1 << 6)
@@ -772,12 +754,6 @@ WOLFSSL_API void wolfSSL_EVP_MD_do_all(void (*fn) (const WOLFSSL_EVP_MD *md,
 #define WOLFSSL_EVP_CIPH_TYPE_INIT         0xff
 
 /* end OpenSSH compat */
-
-typedef WOLFSSL_EVP_MD         EVP_MD;
-typedef WOLFSSL_EVP_CIPHER     EVP_CIPHER;
-typedef WOLFSSL_EVP_MD_CTX     EVP_MD_CTX;
-typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
-typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
 
 #ifndef NO_MD4
     #define EVP_md4       wolfSSL_EVP_md4

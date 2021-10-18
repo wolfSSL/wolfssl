@@ -90,6 +90,7 @@
     #include <wolfssl/openssl/compat_types.h>
     #include <wolfssl/openssl/bn.h>
     #include <wolfssl/openssl/hmac.h>
+    #include <wolfssl/openssl/rsa.h>
 
     /* We need the old SSL names */
     #ifdef NO_OLD_SSL_NAMES
@@ -412,14 +413,6 @@ struct WOLFSSL_EVP_PKEY {
     byte ownDsa:1; /* if struct owns DSA and should free it */
     byte ownRsa:1; /* if struct owns RSA and should free it */
 };
-
-#ifndef WOLFSSL_EVP_TYPE_DEFINED /* guard on redeclaration */
-typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_EVP_PKEY;
-typedef struct WOLFSSL_EVP_MD_CTX   WOLFSSL_EVP_MD_CTX;
-typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_PKCS8_PRIV_KEY_INFO;
-typedef char   WOLFSSL_EVP_MD;
-#define WOLFSSL_EVP_TYPE_DEFINED
-#endif
 
 struct WOLFSSL_X509_PKEY {
     WOLFSSL_EVP_PKEY* dec_pkey; /* dereferenced by Apache */

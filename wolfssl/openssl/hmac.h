@@ -36,7 +36,6 @@
 #endif
 
 #include <wolfssl/openssl/compat_types.h>
-#include <wolfssl/openssl/evp.h>
 #include <wolfssl/openssl/opensslv.h>
 
 #ifdef __cplusplus
