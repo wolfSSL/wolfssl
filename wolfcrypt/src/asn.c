@@ -12787,31 +12787,36 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
         #ifndef NO_RSA
             case RSAk:
                 wc_FreeRsaKey(sigCtx->key.rsa);
-                XFREE(sigCtx->key.ptr, sigCtx->heap, DYNAMIC_TYPE_RSA);
+                XFREE(sigCtx->key.rsa, sigCtx->heap, DYNAMIC_TYPE_RSA);
+                sigCtx->key.rsa = NULL;
                 break;
         #endif /* !NO_RSA */
         #ifndef NO_DSA
             case DSAk:
                 wc_FreeDsaKey(sigCtx->key.dsa);
                 XFREE(sigCtx->key.dsa, sigCtx->heap, DYNAMIC_TYPE_DSA);
+                sigCtx->key.dsa = NULL;
                 break;
         #endif
         #ifdef HAVE_ECC
             case ECDSAk:
                 wc_ecc_free(sigCtx->key.ecc);
                 XFREE(sigCtx->key.ecc, sigCtx->heap, DYNAMIC_TYPE_ECC);
+                sigCtx->key.ecc = NULL;
                 break;
         #endif /* HAVE_ECC */
         #ifdef HAVE_ED25519
             case ED25519k:
                 wc_ed25519_free(sigCtx->key.ed25519);
                 XFREE(sigCtx->key.ed25519, sigCtx->heap, DYNAMIC_TYPE_ED25519);
+                sigCtx->key.ed25519 = NULL;
                 break;
         #endif /* HAVE_ED25519 */
         #ifdef HAVE_ED448
             case ED448k:
                 wc_ed448_free(sigCtx->key.ed448);
                 XFREE(sigCtx->key.ed448, sigCtx->heap, DYNAMIC_TYPE_ED448);
+                sigCtx->key.ed448 = NULL;
                 break;
         #endif /* HAVE_ED448 */
         #ifdef HAVE_LIBOQS
@@ -12820,6 +12825,7 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
                 wc_falcon_free(sigCtx->key.falcon);
                 XFREE(sigCtx->key.falcon, sigCtx->heap,
                       DYNAMIC_TYPE_FALCON);
+                sigCtx->key.falcon = NULL;
                 break;
         #endif /* HAVE_LIBOQS */
             default:
@@ -19080,10 +19086,6 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                 footer = END_EDDSA_PRIV;
             }
 #endif
-#ifdef HAVE_LIBOQS
-/* ANTH TODO: ???? */
-#endif
-
             else {
             #ifdef WOLF_CRYPTO_CB
                 /* allow loading a public key for use with crypto callbacks */
@@ -22701,7 +22703,8 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 #endif
 
 #if defined(HAVE_LIBOQS)
-    if ((cert->keyType == FALCON_LEVEL1_KEY) || (cert->keyType == FALCON_LEVEL5_KEY)) {
+    if ((cert->keyType == FALCON_LEVEL1_KEY) ||
+        (cert->keyType == FALCON_LEVEL5_KEY)) {
         if (falconKey == NULL)
             return PUBLIC_KEY_E;
 
