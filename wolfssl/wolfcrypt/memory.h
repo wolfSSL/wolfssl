@@ -32,7 +32,10 @@
 #if !defined(STRING_USER) && !defined(WOLFSSL_LINUXKM)
 #include <stdlib.h>
 #endif
+
+#ifndef WOLF_CRYPT_TYPES_H
 #include <wolfssl/wolfcrypt/types.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {

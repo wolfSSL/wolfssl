@@ -447,7 +447,9 @@ decouple library dependencies with standard string, memory and so on.
             && !defined(FREESCALE_KSDK_MQX) && !defined(FREESCALE_FREE_RTOS) \
             && !defined(WOLFSSL_LEANPSK) && !defined(WOLFSSL_uITRON4)
         /* default C runtime, can install different routines at runtime via cbs */
-        #include <wolfssl/wolfcrypt/memory.h>
+        #ifndef WOLFSSL_MEMORY_H
+            #include <wolfssl/wolfcrypt/memory.h>
+        #endif
         #ifdef WOLFSSL_STATIC_MEMORY
             #ifdef WOLFSSL_DEBUG_MEMORY
                 #define XMALLOC(s, h, t)     wolfSSL_Malloc((s), (h), (t), __func__, __LINE__)
