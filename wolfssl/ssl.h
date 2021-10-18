@@ -1337,8 +1337,7 @@ WOLFSSL_API int wolfSSL_sk_push_node(WOLFSSL_STACK** stack, WOLFSSL_STACK* in);
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_get_node(WOLFSSL_STACK* sk, int idx);
 WOLFSSL_API int wolfSSL_sk_push(WOLFSSL_STACK *st, const void *data);
 
-#if defined(HAVE_OCSP)
-#include "wolfssl/ocsp.h"
+#ifdef HAVE_OCSP
 #include "wolfssl/wolfcrypt/asn.h"
 #endif
 
