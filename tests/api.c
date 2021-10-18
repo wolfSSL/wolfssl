@@ -19594,6 +19594,9 @@ static int test_wc_DsaSignVerify (void)
     mp_free(&key.q);
     mp_init(&key.q);
     AssertIntEQ(wc_DsaSign(hash, signature, &key, &rng), BAD_FUNC_ARG);
+
+    mp_set_int(&key.q, 1);
+    AssertIntEQ(wc_DsaSign(hash, signature, &key, &rng), BAD_FUNC_ARG);
 #endif
 
     if (wc_FreeRng(&rng) && ret == 0) {
