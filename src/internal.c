@@ -22084,8 +22084,8 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         /* Decode the key assuming it is an RSA private key. */
         ret = wc_RsaPrivateKeyDecode(ssl->buffers.key->buffer, &idx,
                     (RsaKey*)ssl->hsKey, ssl->buffers.key->length);
-    #ifdef WOLF_CRYPTO_CB
-        /* if using crypto callbacks allow using a public key */
+    #if defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS)
+        /* if using crypto or PK callbacks allow using a public key */
         if (ret != 0 && ssl->devId != INVALID_DEVID) {
             WOLFSSL_MSG("Trying RSA public key with crypto callbacks");
             idx = 0;
@@ -22139,8 +22139,8 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         ret = wc_EccPrivateKeyDecode(ssl->buffers.key->buffer, &idx,
                                      (ecc_key*)ssl->hsKey,
                                      ssl->buffers.key->length);
-    #ifdef WOLF_CRYPTO_CB
-        /* if using crypto callbacks allow using a public key */
+    #if defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS)
+        /* if using crypto or PK callbacks allow using a public key */
         if (ret != 0 && ssl->devId != INVALID_DEVID) {
             WOLFSSL_MSG("Trying ECC public key with crypto callbacks");
             idx = 0;
@@ -22192,8 +22192,8 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         ret = wc_Ed25519PrivateKeyDecode(ssl->buffers.key->buffer, &idx,
                                          (ed25519_key*)ssl->hsKey,
                                          ssl->buffers.key->length);
-    #ifdef WOLF_CRYPTO_CB
-        /* if using crypto callbacks allow using a public key */
+    #if defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS)
+        /* if using crypto or PK callbacks allow using a public key */
         if (ret != 0 && ssl->devId != INVALID_DEVID) {
             WOLFSSL_MSG("Trying ED25519 public key with crypto callbacks");
             idx = 0;
