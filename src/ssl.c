@@ -5092,6 +5092,16 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 static int wolfSSL_RAND_InitMutex(void);
 #endif
 
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ATEXIT)
+static void AtExitCleanup(void)
+{
+    if (initRefCount > 0) {
+        initRefCount = 1;
+        (void)wolfSSL_Cleanup();
+    }
+}
+#endif
+
 WOLFSSL_ABI
 int wolfSSL_Init(void)
 {
@@ -5116,6 +5126,14 @@ int wolfSSL_Init(void)
 #endif
 
 #ifdef OPENSSL_EXTRA
+    #ifdef HAVE_ATEXIT
+        /* OpenSSL registers cleanup using atexit */
+        if (atexit(AtExitCleanup) != 0) {
+            WOLFSSL_MSG("Bad atexit registration");
+            return WC_INIT_E;
+        }
+    #endif
+
     #ifndef WOLFSSL_NO_OPENSSL_RAND_CB
         if (wolfSSL_RAND_InitMutex() != 0) {
             return BAD_MUTEX_E;
@@ -57658,9 +57676,8 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
             bio->shutdown = BIO_CLOSE; /* default to close things */
             bio->num = SOCKET_INVALID; /* Default to invalid socket */
             bio->init = 1;
-            if (method->type != WOLFSSL_BIO_FILE &&
-                    method->type != WOLFSSL_BIO_SOCKET &&
-                    method->type != WOLFSSL_BIO_MD) {
+            if (method->type == WOLFSSL_BIO_MEMORY ||
+                    method->type == WOLFSSL_BIO_BIO) {
                 bio->mem_buf =(WOLFSSL_BUF_MEM*)XMALLOC(sizeof(WOLFSSL_BUF_MEM),
                                                        0, DYNAMIC_TYPE_OPENSSL);
                 if (bio->mem_buf == NULL) {
