@@ -4246,6 +4246,9 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     RefineSuites(ssl, clSuites);
 
 #ifndef WOLFSSL_PSK_ONE_ID
+    if (!usingPSK)
+        return BAD_FUNC_ARG;
+
     if (!ssl->options.useClientOrder) {
         /* Server order - server list has only common suites from refining. */
         for (i = 0; !*usingPSK && i < ssl->suites->suiteSz; i += 2) {
