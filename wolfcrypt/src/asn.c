@@ -5687,14 +5687,7 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
                 break;
         #endif
         #ifdef HAVE_LIBOQS
-            case FALCON_LEVEL1k:
-            case FALCONk1024:
-                /* Neither NULL item nor OBJECT_ID item allowed. */
-                if ((dataASN[5].tag != 0) ||
-                    (dataASN[4].tag != 0)) {
-                    ret = ASN_PARSE_E;
-                }
-                break;
+            /* TODO: Add code if we want to support falcon with asn-template. */
         #endif
             /* DSAk not supported. */
             /* Ignore OID lookup failures. */
@@ -22246,13 +22239,7 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
             break;
     #endif
     #ifdef HAVE_LIBOQS
-        case FALCON_LEVEL1_KEY:
-        case FALCON_LEVEL5_KEY:
-            ret = wc_Falcon_PublicKeyToDer(falconKey, output, outLen, 1);
-            if (ret <= 0) {
-                ret = PUBLIC_KEY_E;
-            }
-            break;
+    /* TODO: Add code if we want to support falcon with asn-template. */
     #endif
         default:
             ret = PUBLIC_KEY_E;
@@ -23427,7 +23414,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
     if (ret >= 0) {
         /* Calcuate public key encoding size. */
         ret = publicKeySz = EncodePublicKey(cert->keyType, NULL, 0, rsaKey,
-            eccKey, ed25519Key, ed448Key, dsaKey, falconKey);
+            eccKey, ed25519Key, ed448Key, dsaKey);
     }
     if (ret >= 0) {
         /* Calcuate extensions encoding size - may be 0. */
@@ -23562,7 +23549,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         /* Encode public key into buffer. */
         ret = EncodePublicKey(cert->keyType,
             (byte*)dataASN[15].data.buffer.data, dataASN[15].data.buffer.length,
-            rsaKey, eccKey, ed25519Key, ed448Key, dsaKey, falconKey);
+            rsaKey, eccKey, ed25519Key, ed448Key, dsaKey);
     }
     if ((ret >= 0) && (!dataASN[23].noOut)) {
         /* Encode extensions into buffer. */
@@ -24144,7 +24131,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
     if (ret >= 0) {
         /* Determine encode public key size. */
          ret = publicKeySz = EncodePublicKey(cert->keyType, NULL, 0, rsaKey,
-             eccKey, ed25519Key, ed448Key, dsaKey, falconKey);
+             eccKey, ed25519Key, ed448Key, dsaKey);
     }
     if (ret >= 0) {
         /* Determine encode extensions size. */
@@ -24227,7 +24214,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
         /* Encode public key into space in buffer. */
         ret = EncodePublicKey(cert->keyType, (byte*)dataASN[3].data.buffer.data,
             dataASN[3].data.buffer.length, rsaKey, eccKey, ed25519Key, ed448Key,
-            dsaKey, falconKey);
+            dsaKey);
     }
     if ((ret >= 0) && (!dataASN[13].noOut)) {
         /* Encode extensions into space in buffer. */
