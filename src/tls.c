@@ -6975,8 +6975,8 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     }
     pSz = params->p_len;
 #else
-    pSz = wc_DhGetNamedKeyMinSize(keyShareEntry->group);
-    if (pSz == 0) {
+    ret = wc_DhGetNamedKeyParamSize(keyShareEntry->group, &pSz, NULL, NULL);
+    if (ret != 0 || pSz == 0) {
         return PEER_KEY_ERROR;
     }
 #endif
