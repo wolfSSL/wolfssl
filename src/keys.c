@@ -3119,6 +3119,12 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
     if (copy) {
         int clientCopy = 0;
 
+        /* Sanity check that keys == ssl->secure_renegotiation->tmp_keys.
+         * Otherwise the memcpy calls would copy overlapping memory
+         * and cause UB. Fail early. */
+        if (keys == &ssl->keys)
+            return BAD_FUNC_ARG;
+
         if (ssl->options.side == WOLFSSL_CLIENT_END && wc_encrypt)
             clientCopy = 1;
         else if (ssl->options.side == WOLFSSL_SERVER_END && wc_decrypt)
