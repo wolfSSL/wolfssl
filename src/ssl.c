@@ -54614,7 +54614,7 @@ void wolfSSL_X509_REQ_free(WOLFSSL_X509* req)
 int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
                           const WOLFSSL_EVP_MD *md)
 {
-    WC_MAYBE_UNUSED int ret;
+    int ret;
     byte der[2048];
     int derSz = sizeof(der);
 
@@ -54625,8 +54625,8 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
 
     /* Create a Cert that has the certificate request fields. */
     req->sigOID = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
-    if ((ret = wolfssl_x509_make_der(req, 1, der, &derSz, 0))
-            != WOLFSSL_SUCCESS) {
+    ret = wolfssl_x509_make_der(req, 1, der, &derSz, 0);
+    if (ret != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Unable to make DER for X509");
         WOLFSSL_LEAVE("wolfSSL_X509_REQ_sign", ret);
         return WOLFSSL_FAILURE;
