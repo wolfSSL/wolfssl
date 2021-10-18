@@ -2707,10 +2707,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
         default:
             err_sys("Bad SSL version");
-            PRAGMA_CLANG_DIAG_PUSH
-            PRAGMA_CLANG("clang diagnostic ignored \"-Wunreachable-code-break\"")
-            break;
-            PRAGMA_CLANG_DIAG_POP
     }
 
     if (method == NULL)
