@@ -3486,6 +3486,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (!ssl->options.downgrade)
             return BUFFER_ERROR;
 #ifndef WOLFSSL_NO_TLS12
+        /* Force client hello version 1.2 to work for static RSA. */
+        ssl->chVersion.minor = TLSv1_2_MINOR;
         ssl->version.minor = TLSv1_2_MINOR;
 #endif
         ssl->options.haveEMS = 0;
