@@ -320,22 +320,14 @@ static int InitSha256(wc_Sha256* sha256)
 
     static WC_INLINE int inline_XTRANSFORM(wc_Sha256* S, const byte* D) {
         int ret;
-        if (Transform_Sha256_is_vectorized)
-            SAVE_VECTOR_REGISTERS(return _svr_ret;);
         ret = (*Transform_Sha256_p)(S, D);
-        if (Transform_Sha256_is_vectorized)
-            RESTORE_VECTOR_REGISTERS();
         return ret;
     }
 #define XTRANSFORM(...) inline_XTRANSFORM(__VA_ARGS__)
 
     static WC_INLINE int inline_XTRANSFORM_LEN(wc_Sha256* S, const byte* D, word32 L) {
         int ret;
-        if (Transform_Sha256_is_vectorized)
-            SAVE_VECTOR_REGISTERS(return _svr_ret;);
         ret = (*Transform_Sha256_Len_p)(S, D, L);
-        if (Transform_Sha256_is_vectorized)
-            RESTORE_VECTOR_REGISTERS();
         return ret;
     }
 #define XTRANSFORM_LEN(...) inline_XTRANSFORM_LEN(__VA_ARGS__)
