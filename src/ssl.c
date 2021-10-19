@@ -48555,6 +48555,7 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 
+#if !defined(WOLFSSL_USER_IO)
 /* converts an IPv6 or IPv4 address into an octet string for use with rfc3280
  * example input would be "127.0.0.1" and the returned value would be 7F000001
  */
@@ -48590,7 +48591,7 @@ WOLFSSL_ASN1_STRING* wolfSSL_a2i_IPADDRESS(const char* ipa)
 
     return ret;
 }
-
+#endif /* !WOLFSSL_USER_IO */
 
 /* Is the specified cipher suite a fake one used an an extension proxy? */
 static WC_INLINE int SCSV_Check(byte suite0, byte suite)
@@ -54547,6 +54548,7 @@ void wolfSSL_X509V3_set_ctx(WOLFSSL_X509V3_CTX* ctx, WOLFSSL_X509* issuer,
     }
 }
 
+#ifndef NO_BIO
 int wolfSSL_i2d_X509_REQ(WOLFSSL_X509* req, unsigned char** out)
 {
     int derSz = 0;
@@ -54589,6 +54591,7 @@ cleanup:
 
     return ret;
 }
+#endif /* !NO_BIO */
 
 WOLFSSL_X509* wolfSSL_X509_REQ_new(void)
 {
