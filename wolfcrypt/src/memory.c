@@ -1241,16 +1241,18 @@ union fpregs_state **wolfcrypt_irq_fpu_states = NULL;
                     return BAD_STATE_E;
                 }
 
-                /* check for nested interrupts -- doesn't exist on x86, but make
-                 * sure, in case something changes.
-                 */
-                if (((char *)wolfcrypt_irq_fpu_states[processor_id])[PAGE_SIZE-1] != 0) {
-                    preempt_enable();
-                    pr_err("save_vector_registers_x86 called recursively for "
-                           "cpu id %d.\n", processor_id);
-                    return BAD_STATE_E;
+                /* allow for recursive calls (some crypto calls are recursive) */
+                if (((unsigned char *)wolfcrypt_irq_fpu_states[processor_id])[PAGE_SIZE-1] != 0) {
+                    if (((unsigned char *)wolfcrypt_irq_fpu_states[processor_id])[PAGE_SIZE-1] == 255) {
+                        preempt_enable();
+                        pr_err("save_vector_registers_x86 recursion register overflow for "
+                               "cpu id %d.\n", processor_id);
+                        return BAD_STATE_E;
+                    } else {
+                        ++((char *)wolfcrypt_irq_fpu_states[processor_id])[PAGE_SIZE-1];
+                        return 0;
+                    }
                 }
-
                 /* note, fpregs_lock() is not needed here, because
                  * interrupts/preemptions are already disabled here.
                  */
@@ -1292,11 +1294,13 @@ union fpregs_state **wolfcrypt_irq_fpu_states = NULL;
             int processor_id = __smp_processor_id();
             if ((wolfcrypt_irq_fpu_states == NULL) ||
                 (wolfcrypt_irq_fpu_states[processor_id] == NULL) ||
-                (((char *)wolfcrypt_irq_fpu_states[processor_id])[PAGE_SIZE-1] == 0))
+                (((unsigned char *)wolfcrypt_irq_fpu_states[processor_id])[PAGE_SIZE-1] == 0))
             {
                 pr_err("restore_vector_registers_x86 called for cpu id %d "
                        "without saved context.\n", processor_id);
                 preempt_enable(); /* just in case */
+                return;
+            } else if (--((unsigned char *)wolfcrypt_irq_fpu_states[processor_id])[PAGE_SIZE-1] > 0) {
                 return;
             } else {
             #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
