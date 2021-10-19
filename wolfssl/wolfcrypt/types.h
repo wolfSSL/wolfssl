@@ -1183,11 +1183,65 @@ decouple library dependencies with standard string, memory and so on.
         WOLFSSL_API extern THREAD_LS_T int wc_svr_count;
         WOLFSSL_API extern THREAD_LS_T const char *wc_svr_last_file;
         WOLFSSL_API extern THREAD_LS_T int wc_svr_last_line;
-        #define SAVE_VECTOR_REGISTERS(...) { ++wc_svr_count; if (wc_svr_count > 5) {fprintf(stderr, "%s @ L%d : incr : wc_svr_count %d (last op %s L%d)\n", __FILE__, __LINE__, wc_svr_count, wc_svr_last_file, wc_svr_last_line);} wc_svr_last_file = __FILE__; wc_svr_last_line = __LINE__; }
-        #define ASSERT_SAVED_VECTOR_REGISTERS(fail_clause) {if (wc_svr_count <= 0) {fprintf(stderr, "ASSERT_SAVED_VECTOR_REGISTERS : %s @ L%d : wc_svr_count %d (last op %s L%d)\n", __FILE__, __LINE__, wc_svr_count, wc_svr_last_file, wc_svr_last_line); { fail_clause }}}
-        #define ASSERT_RESTORED_VECTOR_REGISTERS(fail_clause) {if (wc_svr_count != 0) {fprintf(stderr, "ASSERT_RESTORED_VECTOR_REGISTERS : %s @ L%d : wc_svr_count %d (last op %s L%d)\n", __FILE__, __LINE__, wc_svr_count, wc_svr_last_file, wc_svr_last_line); { fail_clause }}}
-        #define RESTORE_VECTOR_REGISTERS(...) {--wc_svr_count; if (wc_svr_count > 4) {fprintf(stderr, "%s @ L%d : decr : wc_svr_count %d (last op %s L%d)\n", __FILE__, __LINE__, wc_svr_count, wc_svr_last_file, wc_svr_last_line);} wc_svr_last_file = __FILE__; wc_svr_last_line = __LINE__; }
+        #define SAVE_VECTOR_REGISTERS(...) {                            \
+            ++wc_svr_count;                                             \
+            if (wc_svr_count > 5) {                                     \
+                fprintf(stderr,                                         \
+                        "%s @ L%d : incr : wc_svr_count %d (last op %s L%d)\n", \
+                        __FILE__,                                       \
+                        __LINE__,                                       \
+                        wc_svr_count,                                   \
+                        wc_svr_last_file,                               \
+                        wc_svr_last_line);                              \
+            }                                                           \
+            wc_svr_last_file = __FILE__;                                \
+            wc_svr_last_line = __LINE__;                                \
+        }
+        #define ASSERT_SAVED_VECTOR_REGISTERS(fail_clause) {            \
+            if (wc_svr_count <= 0) {                                    \
+                fprintf(stderr,                                         \
+                        "ASSERT_SAVED_VECTOR_REGISTERS : %s @ L%d : wc_svr_count %d (last op %s L%d)\n", \
+                        __FILE__,                                       \
+                        __LINE__,                                       \
+                        wc_svr_count,                                   \
+                        wc_svr_last_file,                               \
+                        wc_svr_last_line);                              \
+                { fail_clause }                                         \
+            }                                                           \
+        }
+        #define ASSERT_RESTORED_VECTOR_REGISTERS(fail_clause) {         \
+            if (wc_svr_count != 0) {                                    \
+                fprintf(stderr,                                         \
+                        "ASSERT_RESTORED_VECTOR_REGISTERS : %s @ L%d : wc_svr_count %d (last op %s L%d)\n", \
+                        __FILE__,                                       \
+                        __LINE__,                                       \
+                        wc_svr_count,                                   \
+                        wc_svr_last_file,                               \
+                        wc_svr_last_line);                              \
+                { fail_clause }                                         \
+            }                                                           \
+        }
+        #define RESTORE_VECTOR_REGISTERS(...) {                         \
+            --wc_svr_count;                                             \
+            if ((wc_svr_count > 4) || (wc_svr_count < 0)) {             \
+                fprintf(stderr,                                         \
+                        "%s @ L%d : decr : wc_svr_count %d (last op %s L%d)\n", \
+                        __FILE__,                                       \
+                        __LINE__,                                       \
+                        wc_svr_count,                                   \
+                        wc_svr_last_file,                               \
+                        wc_svr_last_line);                              \
+            }                                                           \
+            wc_svr_last_file = __FILE__;                                \
+            wc_svr_last_line = __LINE__;                                \
+        }
     #else
+        #ifdef _MSC_VER
+            /* disable buggy MSC warning around while(0),
+             *"warning C4127: conditional expression is constant"
+             */
+            #pragma warning(disable: 4127)
+        #endif
         #ifndef SAVE_VECTOR_REGISTERS
             #define SAVE_VECTOR_REGISTERS(...) do{}while(0)
         #endif

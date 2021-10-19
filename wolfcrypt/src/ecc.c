@@ -8649,8 +8649,9 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 /* perform sanity checks on ecc key validity, 0 on success */
 int wc_ecc_check_key(ecc_key* key)
 {
+    int ret;
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
-    int ret = _ecc_validate_public_key(key, 0, 1);
+    ret = _ecc_validate_public_key(key, 0, 1);
     RESTORE_VECTOR_REGISTERS();
     return ret;
 }
