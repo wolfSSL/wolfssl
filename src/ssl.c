@@ -2004,20 +2004,29 @@ int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
     #if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
         !defined(HAVE_SELFTEST)
     {
-        DhKey checkKey;
         WC_RNG rng;
         int error, freeKey = 0;
+    #ifdef WOLFSSL_SMALL_STACK
+        DhKey *checkKey = (DhKey*)XMALLOC(sizeof(DhKey), NULL, DYNAMIC_TYPE_DH);
+        if (checkKey == NULL)
+            return MEMORY_E;
+    #else
+        DhKey checkKey[1];
+    #endif
 
         error = wc_InitRng(&rng);
         if (!error)
-            error = wc_InitDhKey(&checkKey);
+            error = wc_InitDhKey(checkKey);
         if (!error) {
             freeKey = 1;
-            error = wc_DhSetCheckKey(&checkKey,
+            error = wc_DhSetCheckKey(checkKey,
                                  p, pSz, g, gSz, NULL, 0, 0, &rng);
         }
         if (freeKey)
-            wc_FreeDhKey(&checkKey);
+            wc_FreeDhKey(checkKey);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(checkKey, NULL, DYNAMIC_TYPE_DH);
+    #endif
         wc_FreeRng(&rng);
         if (error)
             return error;
