@@ -639,6 +639,7 @@ static int wolfssl_pb_print(const char* msg, ...)
         va_end(args);
         PRINT_HEAP_CHECKPOINT();
         TEST_SLEEP();
+        ASSERT_RESTORED_VECTOR_REGISTERS(exit(1););
     }
 #else
     /* redirect to printf */
@@ -648,6 +649,7 @@ static int wolfssl_pb_print(const char* msg, ...)
             return err_sys("post-test check failed", -1);       \
         }                                                       \
         PRINT_HEAP_CHECKPOINT();                                \
+        ASSERT_RESTORED_VECTOR_REGISTERS(exit(1););             \
     }
     /* stub the sleep macro */
     #define TEST_SLEEP()

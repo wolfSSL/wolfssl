@@ -443,7 +443,7 @@ decouple library dependencies with standard string, memory and so on.
         #endif
 
     #elif defined(WOLFSSL_LINUXKM)
-	/* the requisite linux/slab.h is included in wc_port.h, with incompatible warnings masked out. */
+        /* the requisite linux/slab.h is included in wc_port.h, with incompatible warnings masked out. */
         #define XMALLOC(s, h, t)     ({(void)(h); (void)(t); kmalloc(s, GFP_KERNEL);})
         #define XFREE(p, h, t)       ({void* _xp; (void)(h); _xp = (p); if(_xp) kfree(_xp);})
         #define XREALLOC(p, n, h, t) ({(void)(h); (void)(t); krealloc((p), (n), GFP_KERNEL);})
@@ -553,17 +553,17 @@ decouple library dependencies with standard string, memory and so on.
         #define USE_WOLF_STRSEP
     #endif
 
-	#ifndef STRING_USER
+        #ifndef STRING_USER
         #if defined(WOLFSSL_LINUXKM)
             #include <linux/string.h>
         #else
             #include <string.h>
         #endif
 
-	    #define XMEMCPY(d,s,l)    memcpy((d),(s),(l))
-	    #define XMEMSET(b,c,l)    memset((b),(c),(l))
-	    #define XMEMCMP(s1,s2,n)  memcmp((s1),(s2),(n))
-	    #define XMEMMOVE(d,s,l)   memmove((d),(s),(l))
+            #define XMEMCPY(d,s,l)    memcpy((d),(s),(l))
+            #define XMEMSET(b,c,l)    memset((b),(c),(l))
+            #define XMEMCMP(s1,s2,n)  memcmp((s1),(s2),(n))
+            #define XMEMMOVE(d,s,l)   memmove((d),(s),(l))
 
         #define XSTRLEN(s1)       strlen((s1))
         #define XSTRNCPY(s1,s2,n) strncpy((s1),(s2),(n))
@@ -720,11 +720,11 @@ decouple library dependencies with standard string, memory and so on.
         #endif
     #endif /* OPENSSL_EXTRA */
 
-	#ifndef CTYPE_USER
+        #ifndef CTYPE_USER
             #ifndef WOLFSSL_LINUXKM
                 #include <ctype.h>
             #endif
-	    #if defined(HAVE_ECC) || defined(HAVE_OCSP) || \
+            #if defined(HAVE_ECC) || defined(HAVE_OCSP) || \
             defined(WOLFSSL_KEY_GEN) || !defined(NO_DSA) || \
             defined(OPENSSL_EXTRA)
             #define XTOUPPER(c)     toupper((c))
@@ -1179,8 +1179,28 @@ decouple library dependencies with standard string, memory and so on.
         #define PRAGMA_CLANG_DIAG_POP
     #endif
 
-
-
+    #ifdef DEBUG_VECTOR_REGISTER_ACCESS
+        WOLFSSL_API extern THREAD_LS_T int wc_svr_count;
+        WOLFSSL_API extern THREAD_LS_T const char *wc_svr_last_file;
+        WOLFSSL_API extern THREAD_LS_T int wc_svr_last_line;
+        #define SAVE_VECTOR_REGISTERS(...) { ++wc_svr_count; if (wc_svr_count > 5) {fprintf(stderr, "%s @ L%d : incr : wc_svr_count %d (last op %s L%d)\n", __FILE__, __LINE__, wc_svr_count, wc_svr_last_file, wc_svr_last_line);} wc_svr_last_file = __FILE__; wc_svr_last_line = __LINE__; }
+        #define ASSERT_SAVED_VECTOR_REGISTERS(fail_clause) {if (wc_svr_count <= 0) {fprintf(stderr, "ASSERT_SAVED_VECTOR_REGISTERS : %s @ L%d : wc_svr_count %d (last op %s L%d)\n", __FILE__, __LINE__, wc_svr_count, wc_svr_last_file, wc_svr_last_line); { fail_clause }}}
+        #define ASSERT_RESTORED_VECTOR_REGISTERS(fail_clause) {if (wc_svr_count != 0) {fprintf(stderr, "ASSERT_RESTORED_VECTOR_REGISTERS : %s @ L%d : wc_svr_count %d (last op %s L%d)\n", __FILE__, __LINE__, wc_svr_count, wc_svr_last_file, wc_svr_last_line); { fail_clause }}}
+        #define RESTORE_VECTOR_REGISTERS(...) {--wc_svr_count; if (wc_svr_count > 4) {fprintf(stderr, "%s @ L%d : decr : wc_svr_count %d (last op %s L%d)\n", __FILE__, __LINE__, wc_svr_count, wc_svr_last_file, wc_svr_last_line);} wc_svr_last_file = __FILE__; wc_svr_last_line = __LINE__; }
+    #else
+        #ifndef SAVE_VECTOR_REGISTERS
+            #define SAVE_VECTOR_REGISTERS(...) do{}while(0)
+        #endif
+        #ifndef ASSERT_SAVED_VECTOR_REGISTERS
+            #define ASSERT_SAVED_VECTOR_REGISTERS(...) do{}while(0)
+        #endif
+        #ifndef ASSERT_RESTORED_VECTOR_REGISTERS
+            #define ASSERT_RESTORED_VECTOR_REGISTERS(...) do{}while(0)
+        #endif
+        #ifndef RESTORE_VECTOR_REGISTERS
+            #define RESTORE_VECTOR_REGISTERS() do{}while(0)
+        #endif
+    #endif
 
     #ifdef __cplusplus
         }   /* extern "C" */

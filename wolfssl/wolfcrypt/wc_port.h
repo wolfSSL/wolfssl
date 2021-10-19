@@ -161,12 +161,6 @@
         #ifndef WOLFSSL_NO_ASM
             #define WOLFSSL_NO_ASM
         #endif
-        #ifndef SAVE_VECTOR_REGISTERS
-            #define SAVE_VECTOR_REGISTERS(...) ({})
-        #endif
-        #ifndef RESTORE_VECTOR_REGISTERS
-            #define RESTORE_VECTOR_REGISTERS() ({})
-        #endif
     #endif
 
     _Pragma("GCC diagnostic pop");
@@ -616,15 +610,6 @@
     #endif
 
     #endif /* BUILDING_WOLFSSL */
-
-#else /* ! WOLFSSL_LINUXKM */
-
-    #ifndef SAVE_VECTOR_REGISTERS
-        #define SAVE_VECTOR_REGISTERS(...) do{}while(0)
-    #endif
-    #ifndef RESTORE_VECTOR_REGISTERS
-        #define RESTORE_VECTOR_REGISTERS() do{}while(0)
-    #endif
 
 #endif /* WOLFSSL_LINUXKM */
 
