@@ -72,18 +72,8 @@ struct falcon_key {
 #endif
 
 /***********************************/
-/* Falcon APIs */
+/* Falcon APIs                     */
 /***********************************/
-
-/* ANTH TODO */
-#if 0
-WOLFSSL_API
-int wc_falcon_make_public(falcon_key* key, unsigned char* pubKey,
-                          word32 pubKeySz);
-WOLFSSL_API
-int wc_falcon_make_key(WC_RNG* rng, int keysize, falcon_key* key);
-WOLFSSL_API
-#endif
 
 WOLFSSL_API
 int wc_falcon_sign_msg(const byte* in, word32 inLen, byte* out, word32 *outLen,

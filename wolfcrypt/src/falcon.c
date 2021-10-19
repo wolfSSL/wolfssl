@@ -42,13 +42,8 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-/* ANTH TODO: Level 1 and Level 5 are just copy/paste and then search/replace
- *            so we should make them into templates or macros or a python script
- *            or some other thing that allows us to maintain it easier. 
- */
-
 /***********************************/
-/* Falcon Level 1 APIs [Falcon512] */
+/* Falcon API                      */
 /***********************************/
 
 /* Sign the message using the falcon private key.
@@ -107,7 +102,6 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
     if ((ret == 0) &&
         (OQS_SIG_sign(oqssig, out, (size_t *)outLen, in, inLen, key->k)
          == OQS_ERROR)) {
-        /* ANTH TODO: better return value! */
         ret = BAD_FUNC_ARG;
     }
 
@@ -548,7 +542,7 @@ int wc_falcon_export_key(falcon_key* key, byte* priv, word32 *privSz,
  */
 int wc_falcon_check_key(falcon_key* key)
 {
-    /* ANTH TODO: Sign and verify some random message. */
+    /* TODO: Sign and verify a random message. */
     int ret = 0;
     (void)key;
     return ret;
