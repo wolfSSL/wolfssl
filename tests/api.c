@@ -310,7 +310,6 @@
     #include <wolfssl/openssl/pem.h>
     #include <wolfssl/openssl/ec.h>
     #include <wolfssl/openssl/engine.h>
-    #include <wolfssl/openssl/crypto.h>
     #include <wolfssl/openssl/hmac.h>
     #include <wolfssl/openssl/objects.h>
     #include <wolfssl/openssl/rand.h>
@@ -6572,7 +6571,7 @@ static void test_wolfSSL_UseTrustedCA(void)
 #ifndef NO_WOLFSSL_SERVER
     AssertNotNull((ctx = wolfSSL_CTX_new(wolfSSLv23_server_method())));
     AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
-    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
 #else
     AssertNotNull((ctx = wolfSSL_CTX_new(wolfSSLv23_client_method())));
 #endif
@@ -6616,7 +6615,7 @@ static void test_wolfSSL_UseMaxFragment(void)
   #ifndef NO_WOLFSSL_SERVER
     WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
     AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, WOLFSSL_FILETYPE_PEM));
-    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM));
   #else
     WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
   #endif
@@ -6689,7 +6688,7 @@ static void test_wolfSSL_UseTruncatedHMAC(void)
   #ifndef NO_WOLFSSL_SERVER
     WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
     AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, WOLFSSL_FILETYPE_PEM));
-    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM));
   #else
     WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
   #endif
@@ -48762,9 +48761,9 @@ static void test_export_keying_material(void)
 static int test_wolfSSL_THREADID_hash(void)
 {
     int ret = 0;
-    CRYPTO_THREADID id;
     unsigned long res;
 #if defined(OPENSSL_EXTRA)
+    CRYPTO_THREADID id;
     printf(testingFmt, "wolfSSL_THREADID_hash");
     CRYPTO_THREADID_current(NULL);
     AssertTrue(1);
@@ -48775,7 +48774,6 @@ static int test_wolfSSL_THREADID_hash(void)
     AssertTrue( res == 0UL);
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA */
-    (void)id;
     (void)res;
     return ret;
 }
@@ -49650,10 +49648,6 @@ static void test_wolfSSL_ERR_strings(void)
     err = wolfSSL_ERR_func_error_string(UNSUPPORTED_SUITE);
     AssertTrue(err != NULL);
     AssertIntEQ((*err == '\0'), 1);
-    
-    err = wolfSSL_ERR_lib_error_string(PEM_R_PROBLEMS_GETTING_PASSWORD);
-    AssertTrue(err != NULL);
-    AssertIntEQ((*err == ('\0')), 1);
 #endif
     printf(resultFmt, passed);
 #endif

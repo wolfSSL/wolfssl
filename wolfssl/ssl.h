@@ -37,6 +37,9 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/memory.h>
 
+/* For the types */
+#include <wolfssl/openssl/compat_types.h>
+
 #ifdef HAVE_WOLF_EVENT
     #include <wolfssl/wolfcrypt/wolfevent.h>
 #endif
@@ -87,7 +90,6 @@
     #endif
 
 #elif (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
-    #include <wolfssl/openssl/compat_types.h>
     #include <wolfssl/openssl/bn.h>
     #include <wolfssl/openssl/hmac.h>
     #include <wolfssl/openssl/rsa.h>

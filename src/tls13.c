@@ -542,50 +542,6 @@ static int DeriveEarlyTrafficSecret(WOLFSSL* ssl, byte* key)
     return ret;
 }
 
-#ifdef HAVE_KEYING_MATERIAL
-/* The length of the early exporter label. */
-#define EARLY_EXPORTER_LABEL_SZ     12
-/* The early exporter label. */
-static const byte earlyExporterLabel[EARLY_EXPORTER_LABEL_SZ + 1] =
-    "e exp master";
-
-/* Derive the early exporter key.
- *
- * ssl  The SSL/TLS object.
- * key  The derived key.
- * returns 0 on success, otherwise failure.
- */
-static int DeriveEarlyExporterSecret(WOLFSSL* ssl, byte* key)
-{
-    int ret;
-    WOLFSSL_MSG("Derive Early Exporter Secret");
-    if (ssl == NULL || ssl->arrays == NULL) {
-        return BAD_FUNC_ARG;
-    }
-    ret = DeriveKey(ssl, key, -1, ssl->arrays->secret,
-                    earlyExporterLabel, EARLY_EXPORTER_LABEL_SZ,
-                    ssl->specs.mac_algorithm, 1);
-#ifdef HAVE_SECRET_CALLBACK
-    if (ret == 0 && ssl->tls13SecretCb != NULL) {
-        ret = ssl->tls13SecretCb(ssl, EARLY_EXPORTER_SECRET, key,
-                                 ssl->specs.hash_size, ssl->tls13SecretCtx);
-        if (ret != 0) {
-            return TLS13_SECRET_CB_E;
-        }
-    }
-#ifdef OPENSSL_EXTRA
-    if (ret == 0 && ssl->tls13KeyLogCb != NULL) {
-        ret = ssl->tls13KeyLogCb(ssl, EARLY_EXPORTER_SECRET, key,
-                                ssl->specs.hash_size, NULL);
-        if (ret != 0) {
-            return TLS13_SECRET_CB_E;
-        }
-    }
-#endif /* OPENSSL_EXTRA */
-#endif /* HAVE_SECRET_CALLBACK */
-    return ret;
-}
-#endif
 #endif
 
 /* The length of the client handshake label. */
