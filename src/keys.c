@@ -3504,6 +3504,10 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
     wc_Sha sha[1];
 #endif
 
+    if (ssl->arrays->preMasterSecret == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef SHOW_SECRETS
     {
         word32 j;
