@@ -33377,7 +33377,10 @@ WOLFSSL_RSA* wolfSSL_RSA_generate_key(int len, unsigned long e,
 int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* bn,
                                 void* cb)
 {
-    for (;;) {
+#ifdef HAVE_FIPS
+    for (;;)
+#endif
+    {
         int gen_ret = wolfSSL_RSA_generate_key_native(rsa, bits, bn, cb);
         if (gen_ret == WOLFSSL_ERROR_NONE)
             return WOLFSSL_SUCCESS;
