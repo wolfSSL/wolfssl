@@ -762,6 +762,12 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
             break;
         }
 
+        /* if q-1 is 0 or smaller, k will never end up being less than it */
+        if (mp_iszero(qMinus1) || mp_isneg(qMinus1)) {
+            ret = BAD_FUNC_ARG;
+            break;
+        }
+
         do {
             /* Step 4: generate k */
             if ((ret = wc_RNG_GenerateBlock(rng, buffer, halfSz))) {
