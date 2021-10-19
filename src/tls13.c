@@ -235,9 +235,12 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
     if (outputLen == -1)
         outputLen = hashSz;
 
-    return wc_Tls13_HKDF_Expand_Label(output, outputLen, secret, hashSz,
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_Tls13_HKDF_Expand_Label(output, outputLen, secret, hashSz,
                              protocol, protocolLen, label, labelLen,
                              hash, hashSz, digestAlg);
+    PRIVATE_KEY_LOCK();
+    return ret;
 }
 
 /* Derive a key.
@@ -313,15 +316,18 @@ static int DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
      */
     PRAGMA_GCC_DIAG_PUSH;
     PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
+    PRIVATE_KEY_UNLOCK();
     #if defined(HAVE_FIPS) && defined(wc_Tls13_HKDF_Expand_Label)
-    return wc_Tls13_HKDF_Expand_Label_fips(output, outputLen, secret, hashSz,
+    ret = wc_Tls13_HKDF_Expand_Label_fips(output, outputLen, secret, hashSz,
                              protocol, protocolLen, label, labelLen,
                              hash, hashOutSz, digestAlg);
     #else
-    return wc_Tls13_HKDF_Expand_Label(output, outputLen, secret, hashSz,
+    ret = wc_Tls13_HKDF_Expand_Label(output, outputLen, secret, hashSz,
                              protocol, protocolLen, label, labelLen,
                              hash, hashOutSz, digestAlg);
     #endif
+    PRIVATE_KEY_LOCK();
+    return ret;
     PRAGMA_GCC_DIAG_POP;
 }
 
@@ -750,10 +756,12 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
     }
 
     /* Derive-Secret(Secret, label, "") */
+    PRIVATE_KEY_UNLOCK();
     ret = wc_Tls13_HKDF_Expand_Label(firstExpand, hashLen,
             ssl->arrays->exporterSecret, hashLen,
             protocol, protocolLen, (byte*)label, (word32)labelLen,
             emptyHash, hashLen, hashType);
+    PRIVATE_KEY_LOCK();
     if (ret != 0)
         return ret;
 
@@ -762,9 +770,11 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
     if (ret != 0)
         return ret;
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_Tls13_HKDF_Expand_Label(out, (word32)outLen, firstExpand, hashLen,
             protocol, protocolLen, exporterLabel, EXPORTER_LABEL_SZ,
             hashOut, hashLen, hashType);
+    PRIVATE_KEY_LOCK();
 
     return ret;
 }
@@ -846,18 +856,23 @@ static int DeriveTrafficSecret(WOLFSSL* ssl, byte* secret)
  */
 int DeriveEarlySecret(WOLFSSL* ssl)
 {
+    int ret;
+
     WOLFSSL_MSG("Derive Early Secret");
     if (ssl == NULL || ssl->arrays == NULL) {
         return BAD_FUNC_ARG;
     }
+    PRIVATE_KEY_UNLOCK();
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-    return wc_Tls13_HKDF_Extract(ssl->arrays->secret, NULL, 0,
+    ret = wc_Tls13_HKDF_Extract(ssl->arrays->secret, NULL, 0,
             ssl->arrays->psk_key, ssl->arrays->psk_keySz,
             mac2hash(ssl->specs.mac_algorithm));
 #else
-    return wc_Tls13_HKDF_Extract(ssl->arrays->secret, NULL, 0,
+    ret = wc_Tls13_HKDF_Extract(ssl->arrays->secret, NULL, 0,
             ssl->arrays->masterSecret, 0, mac2hash(ssl->specs.mac_algorithm));
 #endif
+    PRIVATE_KEY_LOCK();
+    return ret;
 }
 
 /* The length of the derived label. */
@@ -884,10 +899,14 @@ int DeriveHandshakeSecret(WOLFSSL* ssl)
     if (ret != 0)
         return ret;
 
-    return wc_Tls13_HKDF_Extract(ssl->arrays->preMasterSecret,
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_Tls13_HKDF_Extract(ssl->arrays->preMasterSecret,
             key, ssl->specs.hash_size,
             ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz,
             mac2hash(ssl->specs.mac_algorithm));
+    PRIVATE_KEY_LOCK();
+
+    return ret;
 }
 
 /* Derive the master secret using HKDF Extract.
@@ -908,9 +927,11 @@ int DeriveMasterSecret(WOLFSSL* ssl)
     if (ret != 0)
         return ret;
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_Tls13_HKDF_Extract(ssl->arrays->masterSecret,
             key, ssl->specs.hash_size,
             ssl->arrays->masterSecret, 0, mac2hash(ssl->specs.mac_algorithm));
+    PRIVATE_KEY_LOCK();
 
 #ifdef HAVE_KEYING_MATERIAL
     if (ret != 0)
@@ -942,6 +963,7 @@ int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen, byte* secret)
     /* Only one protocol version defined at this time. */
     const byte* protocol    = tls13ProtocolLabel;
     word32      protocolLen = TLS13_PROTOCOL_LABEL_SZ;
+    int         ret;
 
     WOLFSSL_MSG("Derive Resumption PSK");
 
@@ -968,10 +990,13 @@ int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen, byte* secret)
             return BAD_FUNC_ARG;
     }
 
-    return wc_Tls13_HKDF_Expand_Label(secret, ssl->specs.hash_size,
+    PRIVATE_KEY_UNLOCK();
+    ret = wc_Tls13_HKDF_Expand_Label(secret, ssl->specs.hash_size,
                              ssl->session.masterSecret, ssl->specs.hash_size,
                              protocol, protocolLen, resumptionLabel,
                              RESUMPTION_LABEL_SZ, nonce, nonceLen, digestAlg);
+    PRIVATE_KEY_LOCK();
+    return ret;
 }
 #endif /* HAVE_SESSION_TICKET */
 

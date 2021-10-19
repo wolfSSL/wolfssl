@@ -13445,13 +13445,16 @@ int wolfSSL_export_keying_material(WOLFSSL *ssl,
         }
     }
 
+    PRIVATE_KEY_UNLOCK();
     if (wc_PRF_TLS(out, (word32)outLen, ssl->arrays->masterSecret, SECRET_LEN,
             (byte*)label, (word32)labelLen, seed, seedLen, IsAtLeastTLSv1_2(ssl),
             ssl->specs.mac_algorithm, ssl->heap, ssl->devId) != 0) {
         WOLFSSL_MSG("wc_PRF_TLS error");
+        PRIVATE_KEY_LOCK();
         XFREE(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
+    PRIVATE_KEY_LOCK();
 
     XFREE(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return WOLFSSL_SUCCESS;
@@ -17702,11 +17705,14 @@ int wolfSSL_get_server_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
         unsigned int   derSz = 0;
         int sz;
 
+        PRIVATE_KEY_UNLOCK();
         if (wc_ecc_export_x963(ssl->peerEccKey, NULL, &derSz) !=
                 LENGTH_ONLY_E) {
             WOLFSSL_MSG("get ecc der size failed");
+            PRIVATE_KEY_LOCK();
             return WOLFSSL_FAILURE;
         }
+        PRIVATE_KEY_LOCK();
 
         derSz += MAX_SEQ_SZ + (2 * MAX_ALGO_SZ) + MAX_SEQ_SZ + TRAILING_ZERO;
         der = (unsigned char*)XMALLOC(derSz, ssl->heap, DYNAMIC_TYPE_KEY);
@@ -24577,15 +24583,17 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
                             #endif
                                 return WOLFSSL_FAILURE;
                             }
-
-                            if (wc_ecc_export_x963(ecc, der, &derSz) != 0) {
-                                wc_ecc_free(ecc);
+                            PRIVATE_KEY_UNLOCK();
+                            if (wc_ecc_export_x963(&ecc, der, &derSz) != 0) {
+                                PRIVATE_KEY_LOCK();
+                                wc_ecc_free(&ecc);
                             #ifdef WOLFSSL_SMALL_STACK
                                 XFREE(ecc, NULL, DYNAMIC_TYPE_ECC);
                             #endif
                                 XFREE(der, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
                                 return WOLFSSL_FAILURE;
                             }
+                            PRIVATE_KEY_LOCK();
                             for (i = 0; i < derSz; i++) {
                                 char val[5];
                                 int valSz = 5;
@@ -32799,6 +32807,7 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
             priv = (unsigned char*)XMALLOC(privSz,
                     NULL, DYNAMIC_TYPE_PRIVATE_KEY);
         }
+        PRIVATE_KEY_UNLOCK();
         if (pub == NULL || priv == NULL) {
             WOLFSSL_MSG("Unable to malloc memory");
         }
@@ -32831,6 +32840,7 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
                    ret = WOLFSSL_SUCCESS;
             }
         }
+        PRIVATE_KEY_LOCK();
     }
 
     if (initTmpRng)
@@ -32892,6 +32902,7 @@ int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
         if (dh->inSet == 0 && SetDhInternal(dh) != WOLFSSL_SUCCESS){
             WOLFSSL_MSG("Bad DH set internal");
         }
+        PRIVATE_KEY_UNLOCK();
         if (privSz <= 0 || pubSz <= 0)
             WOLFSSL_MSG("Bad BN2bin set");
         else if (wc_DhAgree((DhKey*)dh->internal, key, &keySz,
@@ -32899,6 +32910,7 @@ int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
             WOLFSSL_MSG("wc_DhAgree failed");
         else
             ret = (int)keySz;
+        PRIVATE_KEY_LOCK();
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -38887,8 +38899,10 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outlen,
         setGlobalRNG = 1;
     }
 #endif
+    PRIVATE_KEY_UNLOCK();
     ret = wc_ecc_shared_secret_ssh(key, (ecc_point*)pub_key->internal,
             (byte *)out, &len);
+    PRIVATE_KEY_LOCK();
 #if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
     && !defined(HAVE_FIPS)
     if (setGlobalRNG)
@@ -59076,8 +59090,10 @@ int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num)
     /* uses input buffer to seed for pseudo random number generation, each
      * thread will potentially have different results this way */
     if (ret == WOLFSSL_SUCCESS) {
+        PRIVATE_KEY_UNLOCK();
         ret = wc_PRF(buf, num, secret, DRBG_SEED_LEN, (const byte*)buf, num,
                 hash, NULL, INVALID_DEVID);
+        PRIVATE_KEY_LOCK();
         ret = (ret == 0) ? WOLFSSL_SUCCESS: WOLFSSL_FAILURE;
     }
 #else

@@ -217,10 +217,15 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                             side, handshake_hash, (byte*)hashes /* out */);
         } else
 #endif
-        ret = wc_PRF_TLS((byte*)hashes, TLS_FINISHED_SZ, ssl->arrays->masterSecret,
+        {
+            PRIVATE_KEY_UNLOCK();
+            ret = wc_PRF_TLS((byte*)hashes, TLS_FINISHED_SZ,
+                    ssl->arrays->masterSecret,
                    SECRET_LEN, side, FINISHED_LABEL_SZ, handshake_hash, hashSz,
                    IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm,
                    ssl->heap, ssl->devId);
+            PRIVATE_KEY_LOCK();
+        }
 #else
         /* Pseudo random function must be enabled in the configuration. */
         ret = PRF_MISSING;
@@ -322,8 +327,10 @@ static int _DeriveTlsKeys(byte* key_dig, word32 key_dig_len,
     XMEMCPY(seed + RAN_LEN, cr, RAN_LEN);
 
 #ifdef WOLFSSL_HAVE_PRF
+    PRIVATE_KEY_UNLOCK();
     ret = wc_PRF_TLS(key_dig, key_dig_len, ms, msLen, key_label, KEY_LABEL_SZ,
                seed, SEED_LEN, tls1_2, hash_type, heap, devId);
+    PRIVATE_KEY_LOCK();
 #else
     /* Pseudo random function must be enabled in the configuration. */
     ret = PRF_MISSING;
@@ -424,8 +431,10 @@ static int _MakeTlsMasterSecret(byte* ms, word32 msLen,
     XMEMCPY(seed + RAN_LEN, sr, RAN_LEN);
 
 #ifdef WOLFSSL_HAVE_PRF
+    PRIVATE_KEY_UNLOCK();
     ret = wc_PRF_TLS(ms, msLen, pms, pmsLen, master_label, MASTER_LABEL_SZ,
                seed, SEED_LEN, tls1_2, hash_type, heap, devId);
+    PRIVATE_KEY_LOCK();
 #else
     /* Pseudo random function must be enabled in the configuration. */
     ret = PRF_MISSING;
@@ -470,8 +479,10 @@ static int _MakeTlsExtendedMasterSecret(byte* ms, word32 msLen,
     int ret;
 
 #ifdef WOLFSSL_HAVE_PRF
+    PRIVATE_KEY_UNLOCK();
     ret = wc_PRF_TLS(ms, msLen, pms, pmsLen, ext_master_label, EXT_MASTER_LABEL_SZ,
                sHash, sHashLen, tls1_2, hash_type, heap, devId);
+    PRIVATE_KEY_LOCK();
 #else
     /* Pseudo random function must be enabled in the configuration. */
     ret = PRF_MISSING;
@@ -646,10 +657,12 @@ int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* msk, unsigned int len,
     XMEMCPY(seed + RAN_LEN, ssl->arrays->serverRandom, RAN_LEN);
 
 #ifdef WOLFSSL_HAVE_PRF
+    PRIVATE_KEY_UNLOCK();
     ret = wc_PRF_TLS((byte*)msk, len, ssl->arrays->masterSecret, SECRET_LEN,
               (const byte *)label, (word32)XSTRLEN(label), seed, SEED_LEN,
               IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm,
               ssl->heap, ssl->devId);
+    PRIVATE_KEY_LOCK();
 #else
     /* Pseudo random function must be enabled in the configuration. */
     ret = PRF_MISSING;
@@ -6539,9 +6552,11 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
         XMEMSET(kse->pubKey, 0, kse->pubKeyLen);
 
         /* Export public key. */
+        PRIVATE_KEY_UNLOCK();
         if (wc_ecc_export_x963(eccKey, kse->pubKey, &kse->pubKeyLen) != 0) {
             ret = ECC_EXPORT_ERROR;
         }
+        PRIVATE_KEY_LOCK();
     }
 #ifdef WOLFSSL_DEBUG_TLS
     if (ret == 0) {
@@ -7468,7 +7483,9 @@ static int TLSX_KeyShare_ProcessOqs(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
 #endif
 
         if (ret == 0) {
+            PRIVATE_KEY_UNLOCK();
             ret = wc_ecc_shared_secret(keyShareEntry->key, &eccpubkey, sharedSecret, &outlen);
+            PRIVATE_KEY_LOCK();
             if (outlen != sharedSecretLen - kem->length_shared_secret) {
                 WOLFSSL_MSG("ECC shared secret derivation error.");
                 ret = BAD_FUNC_ARG;
@@ -7926,9 +7943,11 @@ static int server_generate_oqs_ciphertext(WOLFSSL* ssl,
 
         if (ret == 0) {
             outlen = ecc_kse->keyLen;
+            PRIVATE_KEY_UNLOCK();
             ret = wc_ecc_shared_secret(ecc_kse->key, &eccpubkey,
                                        sharedSecret,
                                        &outlen);
+            PRIVATE_KEY_LOCK();
             if (outlen != ecc_kse->keyLen) {
                 WOLFSSL_MSG("Data length mismatch.");
                 ret = BAD_FUNC_ARG;

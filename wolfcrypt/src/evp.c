@@ -8204,7 +8204,9 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         pubSz = ECC_BUFSIZE;
         XMEMSET(pub, 0, ECC_BUFSIZE);
 
+        PRIVATE_KEY_UNLOCK();
         res = wc_ecc_export_x963(&key, pub, &pubSz) == 0;
+        PRIVATE_KEY_LOCK();
     }
     if (res == WOLFSSL_SUCCESS) {
         idx = 0;

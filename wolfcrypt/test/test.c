@@ -976,18 +976,22 @@ initDefaultName();
     #endif
 
     #ifdef HAVE_HKDF
+        PRIVATE_KEY_UNLOCK();
         if ( (ret = hkdf_test()) != 0)
             return err_sys("HMAC-KDF    test failed!\n", ret);
         else
             test_pass("HMAC-KDF    test passed!\n");
+        PRIVATE_KEY_LOCK();
     #endif
 #endif /* !NO_HMAC */
 
 #ifdef WOLFSSL_WOLFSSH
-        if ( (ret = sshkdf_test()) != 0)
-            return err_sys("SSH-KDF     test failed!\n", ret);
-        else
-            test_pass("SSH-KDF     test passed!\n");
+    PRIVATE_KEY_UNLOCK();
+    if ( (ret = sshkdf_test()) != 0)
+        return err_sys("SSH-KDF     test failed!\n", ret);
+    else
+        test_pass("SSH-KDF     test passed!\n");
+    PRIVATE_KEY_LOCK();
 #endif /* WOLFSSL_WOLFSSH */
 
 #if defined(HAVE_X963_KDF) && defined(HAVE_ECC)
@@ -1166,10 +1170,12 @@ initDefaultName();
 #endif
 
 #ifndef NO_DH
+    PRIVATE_KEY_UNLOCK();
     if ( (ret = dh_test()) != 0)
         return err_sys("DH       test failed!\n", ret);
     else
         test_pass("DH       test passed!\n");
+    PRIVATE_KEY_LOCK();
 #endif
 
 #ifndef NO_DSA
@@ -1222,10 +1228,12 @@ initDefaultName();
 #endif
 
 #ifdef HAVE_ECC
+    PRIVATE_KEY_UNLOCK();
     if ( (ret = ecc_test()) != 0)
         return err_sys("ECC      test failed!\n", ret);
     else
         test_pass("ECC      test passed!\n");
+    PRIVATE_KEY_LOCK();
     #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_AES_CBC) && \
         defined(WOLFSSL_AES_128)
         if ( (ret = ecc_encrypt_test()) != 0)
@@ -38201,12 +38209,16 @@ WOLFSSL_TEST_SUBROUTINE int cryptocb_test(void)
         ret = random_test();
 #endif /* WC_NO_RNG */
 #ifndef NO_RSA
+    PRIVATE_KEY_UNLOCK();
     if (ret == 0)
         ret = rsa_test();
+    PRIVATE_KEY_LOCK();
 #endif
 #ifdef HAVE_ECC
+    PRIVATE_KEY_UNLOCK();
     if (ret == 0)
         ret = ecc_test();
+    PRIVATE_KEY_LOCK();
 #endif
 #ifdef HAVE_ED25519
     if (ret == 0)

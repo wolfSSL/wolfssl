@@ -4699,7 +4699,11 @@ int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
         ret = wc_ecc_set_rng(priv_key, ssl->rng);
         if (ret == 0)
 #endif
+        {
+            PRIVATE_KEY_UNLOCK();
             ret = wc_ecc_shared_secret(priv_key, pub_key, out, outlen);
+            PRIVATE_KEY_LOCK();
+        }
     }
 
     /* Handle async pending response */
@@ -5459,7 +5463,9 @@ int DhGenKeyPair(WOLFSSL* ssl, DhKey* dhKey,
         return ret;
 #endif
 
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhGenerateKeyPair(dhKey, ssl->rng, priv, privSz, pub, pubSz);
+    PRIVATE_KEY_LOCK();
 
     /* Handle async pending response */
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -5523,8 +5529,10 @@ int DhAgree(WOLFSSL* ssl, DhKey* dhKey,
         else
 #endif
         {
+            PRIVATE_KEY_UNLOCK();
             ret = wc_DhAgree(dhKey, agree, agreeSz, priv, privSz, otherPub,
                     otherPubSz);
+            PRIVATE_KEY_LOCK();
         }
     }
 
@@ -25238,8 +25246,10 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 #endif
 
                     /* Place ECC key in output buffer, leaving room for size */
+                    PRIVATE_KEY_UNLOCK();
                     ret = wc_ecc_export_x963((ecc_key*)ssl->hsKey,
                                     args->output + OPAQUE8_LEN, &args->length);
+                    PRIVATE_KEY_LOCK();
                     if (ret != 0) {
                         ERROR_OUT(ECC_EXPORT_ERROR, exit_scke);
                     }
@@ -25302,8 +25312,10 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 #endif
 
                     /* Place ECC key in buffer, leaving room for size */
+                    PRIVATE_KEY_UNLOCK();
                     ret = wc_ecc_export_x963((ecc_key*)ssl->hsKey,
                                 args->encSecret + OPAQUE8_LEN, &args->encSz);
+                    PRIVATE_KEY_LOCK();
                     if (ret != 0) {
                         ERROR_OUT(ECC_EXPORT_ERROR, exit_scke);
                     }
@@ -27342,8 +27354,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         else
                     #endif
                         {
-                            if (wc_ecc_export_x963(ssl->eccTempKey,
-                                       args->exportBuf, &args->exportSz) != 0) {
+                            PRIVATE_KEY_UNLOCK();
+                            ret = wc_ecc_export_x963(ssl->eccTempKey,
+                                       args->exportBuf, &args->exportSz);
+                            PRIVATE_KEY_LOCK();
+                            if (ret != 0) {
                                 ERROR_OUT(ECC_EXPORT_ERROR, exit_sske);
                             }
                         }
@@ -27451,8 +27466,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     #endif
                         {
                     #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
-                            if (wc_ecc_export_x963(ssl->eccTempKey,
-                                       args->exportBuf, &args->exportSz) != 0) {
+                            PRIVATE_KEY_UNLOCK();
+                            ret = wc_ecc_export_x963(ssl->eccTempKey,
+                                    args->exportBuf, &args->exportSz);
+                            PRIVATE_KEY_LOCK();
+                            if (ret != 0) {
                                 ERROR_OUT(ECC_EXPORT_ERROR, exit_sske);
                             }
                     #endif

@@ -1256,6 +1256,17 @@ decouple library dependencies with standard string, memory and so on.
         #endif
     #endif
 
+
+    #if FIPS_VERSION_EQ(5,1)
+        #define WC_SPKRE_F(x,y) wolfCrypt_SetPrivateKeyReadEnable_fips((x),(y))
+        #define PRIVATE_KEY_LOCK() WC_SPKRE_F(0,WC_KEYTYPE_ALL)
+        #define PRIVATE_KEY_UNLOCK() WC_SPKRE_F(1,WC_KEYTYPE_ALL)
+    #else
+        #define PRIVATE_KEY_LOCK() do{}while(0)
+        #define PRIVATE_KEY_UNLOCK() do{}while(0)
+    #endif
+
+
     #ifdef __cplusplus
         }   /* extern "C" */
     #endif

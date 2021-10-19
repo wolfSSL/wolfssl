@@ -2375,11 +2375,13 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                         WC_ASYNC_FLAG_CALL_AGAIN);
             #endif
                 if (ret >= 0) {
+                    PRIVATE_KEY_UNLOCK();
                     ret = wc_DhAgree(&dhKey,
                         session->sslServer->arrays->preMasterSecret,
                         &session->sslServer->arrays->preMasterSz,
                         privKey, privKeySz,
                         input, *sslBytes);
+                    PRIVATE_KEY_LOCK();
                 }
             } while (ret == WC_PENDING_E);
 
@@ -2502,9 +2504,11 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                         WC_ASYNC_FLAG_CALL_AGAIN);
             #endif
                 if (ret >= 0) {
+                    PRIVATE_KEY_UNLOCK();
                     ret = wc_ecc_shared_secret(&key, &pubKey,
                           session->sslServer->arrays->preMasterSecret,
                           &session->sslServer->arrays->preMasterSz);
+                    PRIVATE_KEY_LOCK();
                 }
             } while (ret == WC_PENDING_E);
         }

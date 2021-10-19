@@ -357,6 +357,7 @@
 #endif
 #include <wolfssl/certs_test.h>
 
+
 typedef struct testVector {
     const char* input;
     const char* output;
@@ -18533,8 +18534,10 @@ static int test_wc_CheckProbablePrime (void)
         ret = wc_MakeRsaKey(&key, CHECK_PROBABLE_PRIME_KEY_BITS, WC_RSA_EXPONENT, &rng);
     }
     if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
         ret = wc_RsaExportKey(&key, e, &eSz, n, &nSz, d, &dSz,
                                 p, &pSz, q, &qSz);
+        PRIVATE_KEY_LOCK();
     }
     /* Bad cases */
     if (ret == 0) {
@@ -24687,7 +24690,9 @@ static int test_wc_ecc_import_x963 (void)
             ret = wc_ecc_make_key(&rng, KEY24, &key);
         }
         if (ret == 0) {
+            PRIVATE_KEY_UNLOCK();
             ret = wc_ecc_export_x963(&key, x963, &x963Len);
+            PRIVATE_KEY_LOCK();
         }
     }
 
@@ -24762,7 +24767,9 @@ static int ecc_import_private_key (void)
             ret = wc_ecc_make_key(&rng, KEY48, &key);
         }
         if (ret == 0) {
+            PRIVATE_KEY_UNLOCK();
             ret = wc_ecc_export_x963(&key, x963Key, &x963KeySz);
+            PRIVATE_KEY_LOCK();
         }
         if (ret == 0) {
             ret = wc_ecc_export_private_only(&key, privKey, &privKeySz);
@@ -46690,6 +46697,7 @@ static int my_DhCallback(WOLFSSL* ssl, struct DhKey* key,
         unsigned char* out, unsigned int* outlen,
         void* ctx)
 {
+    int result;
     /* Test fail when context associated with WOLFSSL is NULL */
     if (ctx == NULL) {
         return -1;
@@ -46697,7 +46705,10 @@ static int my_DhCallback(WOLFSSL* ssl, struct DhKey* key,
 
     (void)ssl;
     /* return 0 on success */
-    return wc_DhAgree(key, out, outlen, priv, privSz, pubKeyDer, pubKeySz);
+    PRIVATE_KEY_UNLOCK();
+    result = wc_DhAgree(key, out, outlen, priv, privSz, pubKeyDer, pubKeySz);
+    PRIVATE_KEY_LOCK();
+    return result;
 }
 
 static void test_dh_ctx_setup(WOLFSSL_CTX* ctx) {
@@ -51958,8 +51969,10 @@ void ApiTest(void)
     AssertIntEQ(test_wc_ecc_size(), 0);
     test_wc_ecc_params();
     AssertIntEQ(test_wc_ecc_signVerify_hash(), 0);
+    PRIVATE_KEY_UNLOCK();
     AssertIntEQ(test_wc_ecc_shared_secret(), 0);
     AssertIntEQ(test_wc_ecc_export_x963(), 0);
+    PRIVATE_KEY_LOCK();
     AssertIntEQ(test_wc_ecc_export_x963_ex(), 0);
     AssertIntEQ(test_wc_ecc_import_x963(), 0);
     AssertIntEQ(ecc_import_private_key(), 0);

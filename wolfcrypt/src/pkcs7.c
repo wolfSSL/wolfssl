@@ -5741,8 +5741,10 @@ static int wc_PKCS7_KariGenerateEphemeralKey(WC_PKCS7_KARI* kari)
     wc_FreeRng(&rng);
 
     /* dump generated key to X.963 DER for output in CMS bundle */
+    PRIVATE_KEY_UNLOCK();
     ret = wc_ecc_export_x963(kari->senderKey, kari->senderKeyExport,
                              &kari->senderKeyExportSz);
+    PRIVATE_KEY_LOCK();
     if (ret != 0) {
         XFREE(kari->senderKeyExport, kari->heap, DYNAMIC_TYPE_PKCS7);
         kari->senderKeyExportSz = 0;
@@ -5897,15 +5899,15 @@ static int wc_PKCS7_KariGenerateKEK(WC_PKCS7_KARI* kari, WC_RNG* rng,
 #endif
 
     if (kari->direction == WC_PKCS7_ENCODE) {
-
+        PRIVATE_KEY_UNLOCK();
         ret = wc_ecc_shared_secret(kari->senderKey, kari->recipKey,
                                    secret, &secretSz);
-
+        PRIVATE_KEY_LOCK();
     } else if (kari->direction == WC_PKCS7_DECODE) {
-
+        PRIVATE_KEY_UNLOCK();
         ret = wc_ecc_shared_secret(kari->recipKey, kari->senderKey,
                                    secret, &secretSz);
-
+        PRIVATE_KEY_LOCK();
     } else {
         /* bad direction */
         XFREE(secret, kari->heap, DYNAMIC_TYPE_PKCS7);
@@ -9744,7 +9746,9 @@ static int wc_PKCS7_DecryptKari(PKCS7* pkcs7, byte* in, word32 inSz,
                 word32 tmpKeySz = 0;
                 byte* tmpKeyDer = NULL;
 
+                PRIVATE_KEY_UNLOCK();
                 ret = wc_ecc_export_x963(kari->senderKey, NULL, &tmpKeySz);
+                PRIVATE_KEY_LOCK();
                 if (ret != LENGTH_ONLY_E) {
                     return ret;
                 }
