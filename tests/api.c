@@ -2729,7 +2729,7 @@ static void test_ED448(void)
 
 static void test_wolfSSL_EVP_PKEY_print_public(void)
 {
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
 
     WOLFSSL_BIO* rbio = NULL;
     WOLFSSL_BIO* wbio = NULL;
@@ -8073,7 +8073,7 @@ static void test_wolfSSL_X509_verify(void)
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
         !defined(NO_WOLFSSL_CLIENT) && !defined(NO_DH) && !defined(NO_AES) && \
          defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(SINGLE_THREADED) && \
-        defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+        defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && !defined(NO_BIO)
 /* create certificate with version 2 */
 static void test_set_x509_badversion(WOLFSSL_CTX* ctx)
 {
@@ -8157,7 +8157,7 @@ static void test_wolfSSL_X509_TLS_version(void)
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
         !defined(NO_WOLFSSL_CLIENT) && !defined(NO_DH) && !defined(NO_AES) && \
          defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(SINGLE_THREADED) && \
-        defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+        defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && !defined(NO_BIO)
     tcp_ready   ready;
     func_args   server_args;
     func_args   client_args;
@@ -29005,7 +29005,8 @@ static void test_wolfSSL_X509_NAME(void)
 
 static void test_wolfSSL_X509_NAME_hash(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_SHA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) \
+    && !defined(NO_RSA) && !defined(NO_SHA) && !defined(NO_BIO)
     BIO* bio;
     X509* x509 = NULL;
 
@@ -29988,7 +29989,8 @@ static void test_wolfSSL_private_keys(void)
 
 static void test_wolfSSL_PEM_read_PrivateKey(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) \
+    && !defined(NO_FILESYSTEM) && !defined(NO_BIO)
     XFILE file;
     const char* fname = "./certs/server-key.pem";
     EVP_PKEY* pkey;
@@ -31463,7 +31465,7 @@ static void test_wolfSSL_EVP_MD_ecc_signing(void)
 static void test_wolfSSL_CTX_add_extra_chain_cert(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
-   !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+   !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_BIO)
     char caFile[] = "./certs/client-ca.pem";
     char clientFile[] = "./certs/client-cert.pem";
     SSL_CTX* ctx;
@@ -31557,7 +31559,7 @@ static void test_wolfSSL_CTX_add_extra_chain_cert(void)
     SSL_CTX_free(ctx);
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
-             !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
+             !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined (NO_BIO) */
 }
 
 
@@ -34591,7 +34593,7 @@ static void test_wolfSSL_ASN1_BIT_STRING(void)
 
 static void test_wolfSSL_a2i_ASN1_INTEGER(void)
 {
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
     BIO *bio, *out;
     ASN1_INTEGER* ai;
     char buf[] = "123456\n12345\n112345678912345678901234567890\n";
@@ -34637,7 +34639,7 @@ static void test_wolfSSL_a2i_ASN1_INTEGER(void)
 
 static void test_wolfSSL_a2i_IPADDRESS(void)
 {
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) && !defined(WOLFSSL_USER_IO)
     const unsigned char* data;
     int dataSz = 0;
     ASN1_OCTET_STRING *st;
@@ -36985,7 +36987,7 @@ static void test_wolfSSL_X509_set_notAfter(void)
     && !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
     !defined(TIME_OVERRIDES) && !defined(NO_CERTS) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) &&\
-    !defined(TIME_T_NOT_64BIT) && !defined(NO_64BIT)
+    !defined(TIME_T_NOT_64BIT) && !defined(NO_64BIT) && !defined(NO_BIO)
     /* Generalized time will overflow time_t if not long */
 
     X509* x;
@@ -37039,7 +37041,7 @@ static void test_wolfSSL_X509_set_notBefore(void)
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) \
     && !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
     !defined(TIME_OVERRIDES) && !defined(NO_CERTS) && \
-    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && !defined(NO_BIO)
 
     X509* x;
     BIO*  bio;
@@ -38374,7 +38376,7 @@ static void test_wolfSSL_sk_GENERAL_NAME(void)
 
 static void test_wolfSSL_GENERAL_NAME_print(void)
 {
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_ALL) && !defined(NO_BIO)
 
     X509* x509;
     GENERAL_NAME* gn;
@@ -42860,7 +42862,7 @@ static void test_wolfSSL_OBJ_sn(void)
     printf(resultFmt, passed);
 }
 
-
+#if !defined(NO_BIO)
 static unsigned long TXT_DB_hash(const WOLFSSL_STRING *s)
 {
     return lh_strhash(s[3]);
@@ -42870,10 +42872,11 @@ static int TXT_DB_cmp(const WOLFSSL_STRING *a, const WOLFSSL_STRING *b)
 {
     return XSTRCMP(a[3], b[3]);
 }
+#endif
 
 static void test_wolfSSL_TXT_DB(void)
 {
-#if !defined(NO_FILESYSTEM)
+#if !defined(NO_FILESYSTEM) && !defined(NO_BIO)
     BIO *bio;
     TXT_DB *db = NULL;
     const int columns = 6;
@@ -42923,7 +42926,7 @@ static void test_wolfSSL_TXT_DB(void)
 
 static void test_wolfSSL_NCONF(void)
 {
-#if !defined(NO_FILESYSTEM)
+#if !defined(NO_FILESYSTEM) && !defined(NO_BIO)
     const char* confFile = "./tests/NCONF_test.cnf";
     CONF* conf = NULL;
     long eline = 0;
@@ -45026,8 +45029,8 @@ static void test_X509_get_signature_nid(void)
 
 static void test_X509_REQ(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && \
-                                                       defined(WOLFSSL_CERT_REQ)
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && !defined(NO_BIO)
     X509_NAME* name;
 #if !defined(NO_RSA) || defined(HAVE_ECC)
     X509_REQ* req;
@@ -46672,7 +46675,7 @@ static void test_wolfSSL_X509_CRL(void)
 static void test_wolfSSL_X509_load_crl_file(void)
 {
 #if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_RSA)
+    !defined(NO_RSA) && !defined(NO_BIO)
     int i;
     char pem[][100] = {
         "./certs/crl/crl.pem",
@@ -46761,7 +46764,7 @@ static void test_wolfSSL_X509_load_crl_file(void)
 
 static void test_wolfSSL_d2i_X509_REQ(void)
 {
-#if defined(WOLFSSL_CERT_REQ) && !defined(NO_RSA) && \
+#if defined(WOLFSSL_CERT_REQ) && !defined(NO_RSA) && !defined(NO_BIO) && \
     (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
     /* ./certs/csr.signed.der, ./certs/csr.ext.der, and ./certs/csr.attr.der were
      * generated by libest

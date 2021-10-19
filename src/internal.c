@@ -5986,12 +5986,12 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef OPENSSL_EXTRA
     ssl->readAhead = ctx->readAhead;
 #endif
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
     /* Don't change recv callback if currently using BIO's */
     if (ssl->CBIORecv != BioReceive)
 #endif
         ssl->CBIORecv = ctx->CBIORecv;
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
     /* Don't change send callback if currently using BIO's */
     if (ssl->CBIOSend != BioSend)
 #endif
@@ -11414,7 +11414,7 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
                        break;
                     }
                 } 
-#ifdef HAVE_CRL
+#if defined(HAVE_CRL) && !defined(NO_BIO)
                 else if (type == X509_LU_CRL) {
                     ret = wolfSSL_X509_load_crl_file(&store->lookup, filename,
                                                     WOLFSSL_FILETYPE_PEM);
@@ -11429,7 +11429,7 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
                     ret = WOLFSSL_FAILURE;
                     break;
                 }
-#endif
+#endif /* HAVE_CRL && !NO_BIO */
             } else
                 break;
         }
