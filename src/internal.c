@@ -16455,7 +16455,7 @@ static WC_INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
                 pad       = 0;  /* no bad read */
                 badPadLen = 1;
             }
-            PadCheck(dummy, (byte)pad, MAX_PAD_SIZE);  /* timing only */
+            (void)PadCheck(dummy, (byte)pad, MAX_PAD_SIZE);  /* timing only */
             ret = ssl->hmac(ssl, verify, input, msgSz - digestSz - pad - 1,
                             pad, content, 1, PEER_ORDER);
             if (ConstantCompare(verify, input + msgSz - digestSz - pad - 1,
