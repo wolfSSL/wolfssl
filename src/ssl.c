@@ -61929,13 +61929,19 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
     #ifndef NO_RSA
         {
             word32 keyIdx = 0;
-            RsaKey key;
+        #ifdef WOLFSSL_SMALL_STACK
+            RsaKey *key = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_RSA);
+            if (key == NULL)
+                return WOLFSSL_FAILURE;
+        #else
+            RsaKey key[1];
+        #endif
 
-            if (wc_InitRsaKey(&key, heap) != 0) {
+            if (wc_InitRsaKey(key, heap) != 0) {
                 ret = BAD_STATE_E;
             }
             else {
-                if ((ret = wc_RsaPrivateKeyDecode(pk, &keyIdx, &key, pkSz))
+                if ((ret = wc_RsaPrivateKeyDecode(pk, &keyIdx, key, pkSz))
                                                                          == 0) {
                     (*pkey)->type = EVP_PKEY_RSA;
                     (*pkey)->rsa  = wolfSSL_RSA_new();
@@ -61948,6 +61954,9 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                         }
                         wolfSSL_EVP_PKEY_free(*pkey); *pkey = NULL;
                         XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(key, NULL, DYNAMIC_TYPE_RSA);
+                    #endif
                         return WOLFSSL_FAILURE;
                     }
                     if (wolfSSL_RSA_LoadDer_ex((*pkey)->rsa, pk, pkSz,
@@ -61959,34 +61968,49 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                         }
                         wolfSSL_EVP_PKEY_free(*pkey); *pkey = NULL;
                         XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(key, NULL, DYNAMIC_TYPE_RSA);
+                    #endif
                         return WOLFSSL_FAILURE;
                     }
 
                     WOLFSSL_MSG("Found PKCS12 RSA key");
                     ret = 0; /* set in success state for upcoming ECC check */
                 }
-                wc_FreeRsaKey(&key);
+                wc_FreeRsaKey(key);
             }
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(key, NULL, DYNAMIC_TYPE_RSA);
+        #endif
         }
     #endif /* NO_RSA */
 
     #ifdef HAVE_ECC
         {
             word32  keyIdx = 0;
-            ecc_key key;
+        #ifdef WOLFSSL_SMALL_STACK
+            ecc_key *key = (ecc_key*)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
+            if (key == NULL)
+                return WOLFSSL_FAILURE;
+        #else
+            ecc_key key[1];
+        #endif
 
             if (ret != 0) { /* if is in fail state check if ECC key */
-                if (wc_ecc_init(&key) != 0) {
+                if (wc_ecc_init(key) != 0) {
                     wolfSSL_X509_free(*cert); *cert = NULL;
                     if (ca != NULL) {
                         wolfSSL_sk_X509_free(*ca); *ca = NULL;
                     }
                     wolfSSL_EVP_PKEY_free(*pkey); *pkey = NULL;
                     XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(key, NULL, DYNAMIC_TYPE_ECC);
+                #endif
                     return WOLFSSL_FAILURE;
                 }
 
-                if ((ret = wc_EccPrivateKeyDecode(pk, &keyIdx, &key, pkSz))
+                if ((ret = wc_EccPrivateKeyDecode(pk, &keyIdx, key, pkSz))
                                                                          != 0) {
                     wolfSSL_X509_free(*cert); *cert = NULL;
                     if (ca != NULL) {
@@ -61995,13 +62019,19 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                     wolfSSL_EVP_PKEY_free(*pkey); *pkey = NULL;
                     XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
                     WOLFSSL_MSG("Bad PKCS12 key format");
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(key, NULL, DYNAMIC_TYPE_ECC);
+                #endif
                     return WOLFSSL_FAILURE;
                 }
                 (*pkey)->type = EVP_PKEY_EC;
-                (*pkey)->pkey_curve = key.dp->oidSum;
-                wc_ecc_free(&key);
+                (*pkey)->pkey_curve = key->dp->oidSum;
+                wc_ecc_free(key);
                 WOLFSSL_MSG("Found PKCS12 ECC key");
             }
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(key, NULL, DYNAMIC_TYPE_ECC);
+        #endif
         }
     #else
         if (ret != 0) { /* if is in fail state and no ECC then fail */
