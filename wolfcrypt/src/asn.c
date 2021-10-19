@@ -13505,6 +13505,12 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                         matchDns = MatchBaseName(ASN_DNS_TYPE,
                                           name->name, name->len,
                                           base->name, base->nameSz);
+
+                    #ifndef WOLFSSL_NO_ASN_STRICT
+                        /* found a bad name */
+                        if (matchDns == 0)
+                            break;
+                    #endif
                         name = name->next;
                     }
                     break;
@@ -13520,6 +13526,12 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                         matchEmail = MatchBaseName(ASN_DNS_TYPE,
                                           name->name, name->len,
                                           base->name, base->nameSz);
+
+                    #ifndef WOLFSSL_NO_ASN_STRICT
+                        /* found a bad name */
+                        if (matchEmail == 0)
+                            break;
+                    #endif
                         name = name->next;
                     }
                     break;

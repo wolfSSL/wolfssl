@@ -34,7 +34,6 @@ L             = Brisbane
 O             = wolfSSL Inc
 OU            = Engineering
 CN            = www.wolfssl.com
-emailAddress  = support@wolfsssl.com
 
 [ v3_ca ]
 subjectKeyIdentifier = hash

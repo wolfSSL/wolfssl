@@ -1462,9 +1462,13 @@ static void test_wolfSSL_CertManagerNameConstraint(void)
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_RSA) && \
     defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
-    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES)
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES) && \
+    !defined(NO_SHA256)
     WOLFSSL_CERT_MANAGER* cm;
+    WOLFSSL_EVP_PKEY *priv;
+    WOLFSSL_X509_NAME* name;
     const char* ca_cert = "./certs/test/cert-ext-nc.der";
+    const char* server_cert = "./certs/test/server-goodcn.pem";
     int i = 0;
     static const byte extNameConsOid[] = {85, 29, 30};
 
@@ -1474,7 +1478,7 @@ static void test_wolfSSL_CertManagerNameConstraint(void)
     int     derSz;
     word32  idx = 0;
     byte    *pt;
-    WOLFSSL_X509 *x509;
+    WOLFSSL_X509 *x509, *ca;
 
     wc_InitRng(&rng);
 
@@ -1524,6 +1528,112 @@ static void test_wolfSSL_CertManagerNameConstraint(void)
     wolfSSL_X509_free(x509);
     wc_FreeRsaKey(&key);
     wc_FreeRng(&rng);
+
+    /* add email alt name to satisfy constraint */
+    pt = (byte*)server_key_der_2048;
+    AssertNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL,
+                (const unsigned char**)&pt, sizeof_server_key_der_2048));
+
+    AssertNotNull(cm = wolfSSL_CertManagerNew());
+    AssertNotNull(ca = wolfSSL_X509_load_certificate_file(ca_cert,
+                WOLFSSL_FILETYPE_ASN1));
+
+    AssertNotNull((der = (byte*)wolfSSL_X509_get_der(ca, &derSz)));
+#if 0
+    {
+        //write out x509 for test
+        BIO* out = BIO_new(wolfSSL_BIO_s_file());
+        if (out != NULL) {
+            FILE* f= fopen("ca.der", "wb");
+            BIO_set_fp(out, f, BIO_CLOSE);
+            BIO_write(out, der, derSz);
+            BIO_free(out);
+        }
+    }
+#endif
+    AssertIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    /* Good cert test with proper alt email name */
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    AssertNotNull(name = wolfSSL_X509_get_subject_name(ca));
+    AssertIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+
+    AssertNotNull(name = X509_NAME_new());
+    AssertIntEQ(X509_NAME_add_entry_by_txt(name, "countryName", MBSTRING_UTF8,
+                                       (byte*)"US", 2, -1, 0), SSL_SUCCESS);
+    AssertIntEQ(X509_NAME_add_entry_by_txt(name, "commonName", MBSTRING_UTF8,
+                             (byte*)"wolfssl.com", 11, -1, 0), SSL_SUCCESS);
+    AssertIntEQ(X509_NAME_add_entry_by_txt(name, "emailAddress", MBSTRING_UTF8,
+                     (byte*)"support@info.wolfssl.com", 24, -1, 0), SSL_SUCCESS);
+    AssertIntEQ(wolfSSL_X509_set_subject_name(x509, name), WOLFSSL_SUCCESS);
+    X509_NAME_free(name);
+
+    wolfSSL_X509_add_altname(x509, "wolfssl@info.wolfssl.com", ASN_RFC822_TYPE);
+    (void)altEmail;
+
+    AssertIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
+    #if 0
+    {
+        //write out good x509 for test
+        BIO* out = BIO_new(wolfSSL_BIO_s_file());
+        if (out != NULL) {
+            FILE* f= fopen("good-cert.pem", "wb");
+            BIO_set_fp(out, f, BIO_CLOSE);
+            PEM_write_bio_X509(out, x509);
+            BIO_free(out);
+        }
+    }
+    #endif
+
+    AssertNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
+    AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    wolfSSL_X509_free(x509);
+
+
+    /* Cert with bad alt name list */
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    AssertNotNull(name = wolfSSL_X509_get_subject_name(ca));
+    AssertIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+
+    AssertNotNull(name = X509_NAME_new());
+    AssertIntEQ(X509_NAME_add_entry_by_txt(name, "countryName", MBSTRING_UTF8,
+                                       (byte*)"US", 2, -1, 0), SSL_SUCCESS);
+    AssertIntEQ(X509_NAME_add_entry_by_txt(name, "commonName", MBSTRING_UTF8,
+                             (byte*)"wolfssl.com", 11, -1, 0), SSL_SUCCESS);
+    AssertIntEQ(X509_NAME_add_entry_by_txt(name, "emailAddress", MBSTRING_UTF8,
+                     (byte*)"support@info.wolfssl.com", 24, -1, 0), SSL_SUCCESS);
+    AssertIntEQ(wolfSSL_X509_set_subject_name(x509, name), WOLFSSL_SUCCESS);
+    X509_NAME_free(name);
+
+    wolfSSL_X509_add_altname(x509, "wolfssl@info.com", ASN_RFC822_TYPE);
+    wolfSSL_X509_add_altname(x509, "wolfssl@info.wolfssl.com", ASN_RFC822_TYPE);
+
+    AssertIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
+#if 0
+    {
+        //write out bad x509 for test
+        BIO* out = BIO_new(wolfSSL_BIO_s_file());
+        if (out != NULL) {
+            FILE* f= fopen("bad-cert.pem", "wb");
+            BIO_set_fp(out, f, BIO_CLOSE);
+            PEM_write_bio_X509(out, x509);
+            BIO_free(out);
+        }
+    }
+#endif
+
+    AssertNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
+    AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), ASN_NAME_INVALID_E);
+
+    wolfSSL_CertManagerFree(cm);
+    wolfSSL_X509_free(x509);
+    wolfSSL_X509_free(ca);
+    wolfSSL_EVP_PKEY_free(priv);
 #endif
 }
 
@@ -1623,6 +1733,46 @@ static void test_wolfSSL_CertManagerNameConstraint2(void)
     AssertNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), ASN_NAME_INVALID_E);
+
+
+    /* check that it still fails if one bad altname and one good altname is in
+     * the certificate */
+    wolfSSL_X509_free(x509);
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    AssertNotNull(name = wolfSSL_X509_get_subject_name(ca));
+    AssertIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    wolfSSL_X509_add_altname_ex(x509, altName, sizeof(altName), ASN_DIR_TYPE);
+    wolfSSL_X509_add_altname_ex(x509, altNameFail, sizeof(altNameFail),
+            ASN_DIR_TYPE);
+
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+    wolfSSL_X509_sign(x509, priv, EVP_sha3_256());
+#else
+    wolfSSL_X509_sign(x509, priv, EVP_sha256());
+#endif
+    AssertNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
+    AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), ASN_NAME_INVALID_E);
+
+    /* check it fails with switching position of bad altname */
+    wolfSSL_X509_free(x509);
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    AssertNotNull(name = wolfSSL_X509_get_subject_name(ca));
+    AssertIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    wolfSSL_X509_add_altname_ex(x509, altNameFail, sizeof(altNameFail),
+            ASN_DIR_TYPE);
+    wolfSSL_X509_add_altname_ex(x509, altName, sizeof(altName), ASN_DIR_TYPE);
+
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+    wolfSSL_X509_sign(x509, priv, EVP_sha3_256());
+#else
+    wolfSSL_X509_sign(x509, priv, EVP_sha256());
+#endif
+    AssertNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
+    AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), ASN_NAME_INVALID_E);
     wolfSSL_CertManagerFree(cm);
 
     wolfSSL_X509_free(x509);
@@ -1654,7 +1804,6 @@ static void test_wolfSSL_CertManagerNameConstraint2(void)
     wolfSSL_CertManagerFree(cm);
     wolfSSL_X509_free(x509);
     wolfSSL_X509_free(ca);
-
     wolfSSL_EVP_PKEY_free(priv);
 #endif
 }
