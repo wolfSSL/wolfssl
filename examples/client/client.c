@@ -249,36 +249,38 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
 static void ShowCiphers(void)
 {
     static char ciphers[WOLFSSL_CIPHER_LIST_MAX_SIZE];
-
     int ret = wolfSSL_get_ciphers(ciphers, (int)sizeof(ciphers));
-
-    if (ret == WOLFSSL_SUCCESS)
+    if (ret == WOLFSSL_SUCCESS) {
         printf("%s\n", ciphers);
+    }
 }
 
 /* Shows which versions are valid */
 static void ShowVersions(void)
 {
+    char verStr[100];
+    XMEMSET(verStr, 0, sizeof(verStr));
 #ifndef NO_OLD_TLS
     #ifdef WOLFSSL_ALLOW_SSLV3
-        printf("0:");
+        XSTRNCAT(verStr, "0:", 3);
     #endif
     #ifdef WOLFSSL_ALLOW_TLSV10
-        printf("1:");
+        XSTRNCAT(verStr, "1:", 3);
     #endif
-    printf("2:");
+    XSTRNCAT(verStr, "2:", 3);
 #endif /* NO_OLD_TLS */
 #ifndef WOLFSSL_NO_TLS12
-    printf("3:");
+    XSTRNCAT(verStr, "3:", 3);
 #endif
 #ifdef WOLFSSL_TLS13
-    printf("4:");
+    XSTRNCAT(verStr, "4:", 3);
 #endif
-    printf("d(downgrade):");
+    XSTRNCAT(verStr, "d(downgrade):", 14);
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
-    printf("e(either):");
+    XSTRNCAT(verStr, "e(either):", 11);
 #endif
-    printf("\n");
+    /* print all stings at same time on stdout to avoid any flush issues */
+    printf("%s\n", verStr);
 }
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
