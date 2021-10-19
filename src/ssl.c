@@ -33351,19 +33351,22 @@ WOLFSSL_RSA* wolfSSL_RSA_generate_key(int len, unsigned long e,
         WOLFSSL_MSG("memory error");
     }
     else {
-        for (;;) {
-            int gen_ret = wolfSSL_RSA_generate_key_native(rsa, len, bn, NULL);
-            if (gen_ret == WOLFSSL_ERROR_NONE)
-                break;
 #ifdef HAVE_FIPS
-            else if (gen_ret == PRIME_GEN_E)
-                continue;
+        for (;;)
 #endif
-            else {
+        {
+            int gen_ret = wolfSSL_RSA_generate_key_native(rsa, len, bn, NULL);
+            if (gen_ret != WOLFSSL_ERROR_NONE) {
+#ifdef HAVE_FIPS
+                if (gen_ret == PRIME_GEN_E)
+                    continue;
+#endif
                 wolfSSL_RSA_free(rsa);
                 rsa = NULL;
-                break;
             }
+#ifdef HAVE_FIPS
+            break;
+#endif
         }
     }
     wolfSSL_BN_free(bn);
