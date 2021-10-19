@@ -13501,6 +13501,10 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                     if (name != NULL)
                         needDns = 1;
 
+                    /* check if already found a matching permitted subtree */
+                    if (matchDns == 1)
+                        break;
+
                     while (name != NULL) {
                         matchDns = MatchBaseName(ASN_DNS_TYPE,
                                           name->name, name->len,
@@ -13522,6 +13526,10 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                     if (name != NULL)
                         needEmail = 1;
 
+                    /* check if already found a matching permitted subtree */
+                    if (matchEmail == 1)
+                        break;
+
                     while (name != NULL) {
                         matchEmail = MatchBaseName(ASN_DNS_TYPE,
                                           name->name, name->len,
@@ -13540,6 +13548,11 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                 {
                     /* allow permitted dirName smaller than actual subject */
                     needDir = 1;
+
+                    /* check if already found a matching permitted subtree */
+                    if (matchDir == 1)
+                        break;
+
                     if (cert->subjectRaw != NULL &&
                         cert->subjectRawLen >= base->nameSz &&
                         XMEMCMP(cert->subjectRaw, base->name,

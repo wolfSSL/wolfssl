@@ -46,6 +46,35 @@ nsComment       = "Testing name constraints"
 EOF
 gen_cert
 
+
+OUT=certs/test/cert-ext-mnc.der
+KEYFILE=certs/test/cert-ext-mnc-key.der
+CONFIG=certs/test/cert-ext-mnc.cfg
+tee >$CONFIG <<EOF
+[ req ]
+distinguished_name = req_distinguished_name
+prompt             = no
+x509_extensions    = v3_ca
+
+[ req_distinguished_name ]
+C             = AU
+ST            = Queensland
+L             = Brisbane
+O             = wolfSSL Inc
+OU            = Engineering
+CN            = www.wolfssl.com
+
+[ v3_ca ]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical, CA:true, pathlen:0
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign
+nameConstraints = critical,permitted;email:.wolfssl.com, permitted;email:.example.com
+nsComment       = "Testing name constraints"
+
+EOF
+gen_cert
+
 OUT=certs/test/cert-ext-ia.der
 KEYFILE=certs/test/cert-ext-ia-key.der
 CONFIG=certs/test/cert-ext-ia.cfg
