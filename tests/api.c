@@ -35907,6 +35907,9 @@ static void test_wolfSSL_PKCS8_Compat(void)
     XFILE f;
     int bytes;
     char pkcs8_buffer[512];
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_WPAS_SMALL)
+    EVP_PKEY *pkey = NULL;
+#endif
 
     printf(testingFmt, "wolfSSL_pkcs8()");
 
@@ -35917,6 +35920,17 @@ static void test_wolfSSL_PKCS8_Compat(void)
     XFCLOSE(f);
     AssertNotNull(bio = BIO_new_mem_buf((void*)pkcs8_buffer, bytes));
     AssertNotNull(pt = d2i_PKCS8_PRIV_KEY_INFO_bio(bio, NULL));
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_WPAS_SMALL)    
+    AssertNotNull(pkey = EVP_PKCS82PKEY(pt));
+    AssertIntEQ(EVP_PKEY_type(pkey->type), EVP_PKEY_EC);
+
+    /* gets PKCS8 pointer to pkey */
+    AssertNotNull(EVP_PKEY2PKCS8(pkey));
+
+    EVP_PKEY_free(pkey);
+#endif
+
     BIO_free(bio);
     PKCS8_PRIV_KEY_INFO_free(pt);
 
