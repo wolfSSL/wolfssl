@@ -11997,16 +11997,19 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
     #endif /* !NO_RSA && !NO_ASN */
 #endif /* !USE_CERT_BUFFER_* */
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
-    !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096) && \
-    !defined(NO_ASN)
-    #ifndef NO_DH
+    !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096)
+    #if !defined(NO_ASN) && !defined(NO_DH)
         static const char* dhParamsFile = CERT_ROOT "dh2048.der";
-        #if defined(WOLFSSL_DH_EXTRA) && (!defined(HAVE_FIPS) ||                \
-            (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
-            static const char* dhKeyFile = CERT_ROOT "statickeys/dh-ffdhe2048.der";
-            static const char* dhKeyPubFile = CERT_ROOT "statickeys/dh-ffdhe2048-pub.der";
-        #endif
     #endif
+#endif
+#if !defined(NO_ASN) && !defined(NO_DH)
+    #if defined(WOLFSSL_DH_EXTRA) && (!defined(HAVE_FIPS) ||                \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+        static const char* dhKeyFile = CERT_ROOT "statickeys/dh-ffdhe2048.der";
+        static const char* dhKeyPubFile = CERT_ROOT "statickeys/dh-ffdhe2048-pub.der";
+    #endif
+#endif
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
     #ifndef NO_DSA
         static const char* dsaKey = CERT_ROOT "dsa2048.der";
     #endif
