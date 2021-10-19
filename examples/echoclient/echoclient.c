@@ -318,13 +318,6 @@ void echoclient_test(void* args)
                 printf("SSL_read msg error %d, %s\n", err,
                     ERR_error_string(err, buffer));
                 err_sys("SSL_read failed");
-
-            #ifndef WOLFSSL_MDK_SHELL
-                PRAGMA_CLANG_DIAG_PUSH
-                PRAGMA_CLANG("clang diagnostic ignored \"-Wunreachable-code-break\"")
-                break;
-                PRAGMA_CLANG_DIAG_POP
-            #endif
             }
         }
     }
