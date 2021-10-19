@@ -1358,6 +1358,8 @@ static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
         return BAD_FUNC_ARG;
     }
 
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+
     ret = GeneratePrivateDh(key, rng, priv, privSz);
 
     if (ret == 0)
@@ -1368,6 +1370,8 @@ static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
 #endif
     if (ret == 0)
         ret = _ffc_pairwise_consistency_test(key, pub, *pubSz, priv, *privSz);
+
+    RESTORE_VECTOR_REGISTERS();
 
     return ret;
 }
@@ -1978,6 +1982,8 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         if (mp_init(y) != MP_OKAY)
             return MP_INIT_E;
 
+        SAVE_VECTOR_REGISTERS();
+
         if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
             ret = MP_READ_E;
 
@@ -1985,6 +1991,9 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
             ret = sp_DhExp_2048(y, priv, privSz, &key->p, agree, agreeSz);
 
         mp_clear(y);
+
+        RESTORE_VECTOR_REGISTERS();
+
     #ifdef WOLFSSL_SMALL_STACK
     #if !defined(WOLFSSL_SP_MATH)
         XFREE(z, key->heap, DYNAMIC_TYPE_DH);
@@ -2000,6 +2009,8 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         if (mp_init(y) != MP_OKAY)
             return MP_INIT_E;
 
+        SAVE_VECTOR_REGISTERS();
+
         if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
             ret = MP_READ_E;
 
@@ -2007,6 +2018,9 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
             ret = sp_DhExp_3072(y, priv, privSz, &key->p, agree, agreeSz);
 
         mp_clear(y);
+
+        RESTORE_VECTOR_REGISTERS();
+
     #ifdef WOLFSSL_SMALL_STACK
     #if !defined(WOLFSSL_SP_MATH)
         XFREE(z, key->heap, DYNAMIC_TYPE_DH);
@@ -2022,6 +2036,8 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         if (mp_init(y) != MP_OKAY)
             return MP_INIT_E;
 
+        SAVE_VECTOR_REGISTERS();
+
         if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
             ret = MP_READ_E;
 
@@ -2029,6 +2045,9 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
             ret = sp_DhExp_4096(y, priv, privSz, &key->p, agree, agreeSz);
 
         mp_clear(y);
+
+        RESTORE_VECTOR_REGISTERS();
+
     #ifdef WOLFSSL_SMALL_STACK
     #if !defined(WOLFSSL_SP_MATH)
         XFREE(z, key->heap, DYNAMIC_TYPE_DH);
@@ -2050,6 +2069,8 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
     #endif
         return MP_INIT_E;
     }
+
+    SAVE_VECTOR_REGISTERS();
 
     if (mp_read_unsigned_bin(x, priv, privSz) != MP_OKAY)
         ret = MP_READ_E;
@@ -2073,6 +2094,9 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
     mp_clear(z);
     mp_clear(y);
     mp_forcezero(x);
+
+    RESTORE_VECTOR_REGISTERS();
+
 #else
     ret = WC_KEY_SIZE_E;
 #endif
@@ -2824,6 +2848,8 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
     }
 #endif
 
+    SAVE_VECTOR_REGISTERS();
+
     if (ret == 0) {
         /* force magnitude */
         buf[0] |= 0xC0;
@@ -2918,6 +2944,8 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
         mp_clear(&dh->p);
         mp_clear(&dh->g);
     }
+
+    RESTORE_VECTOR_REGISTERS();
 
     if (buf != NULL) {
         ForceZero(buf, bufSz);

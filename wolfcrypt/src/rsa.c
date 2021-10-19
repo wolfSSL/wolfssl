@@ -697,6 +697,9 @@ int wc_CheckRsaKey(RsaKey* key)
 
     ret = wc_InitRng(rng);
 
+    if (ret == 0)
+        SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
+
     if (ret == 0) {
         if (mp_init(tmp) != MP_OKAY)
             ret = MP_INIT_E;
@@ -795,6 +798,9 @@ int wc_CheckRsaKey(RsaKey* key)
 
     mp_forcezero(tmp);
     mp_clear(tmp);
+
+    RESTORE_VECTOR_REGISTERS();
+
     wc_FreeRng(rng);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(tmp, NULL, DYNAMIC_TYPE_RSA);
@@ -2855,6 +2861,8 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
     }
 #endif
 
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
 #ifndef TEST_UNPAD_CONSTANT_TIME
 #ifndef NO_RSA_BOUNDS_CHECK
@@ -2901,8 +2909,10 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
         XFREE(c, key->heap, DYNAMIC_TYPE_RSA);
 #endif
 
-        if (ret != 0)
+        if (ret != 0) {
+            RESTORE_VECTOR_REGISTERS();
             return ret;
+        }
     }
 #endif /* NO_RSA_BOUNDS_CHECK */
 #endif
@@ -2924,6 +2934,8 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
     {
         ret = wc_RsaFunctionSync(in, inLen, out, outLen, type, key, rng);
     }
+
+    RESTORE_VECTOR_REGISTERS();
 
     /* handle error */
     if (ret < 0 && ret != WC_PENDING_E
@@ -3304,9 +3316,13 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
 int wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
                                                      RsaKey* key, WC_RNG* rng)
 {
-    return RsaPublicEncryptEx(in, inLen, out, outLen, key,
+    int ret;
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+    ret = RsaPublicEncryptEx(in, inLen, out, outLen, key,
         RSA_PUBLIC_ENCRYPT, RSA_BLOCK_TYPE_2, WC_RSA_PKCSV15_PAD,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, 0, rng);
+    RESTORE_VECTOR_REGISTERS();
+    return ret;
 }
 
 
@@ -3316,8 +3332,12 @@ int wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
                     enum wc_HashType hash, int mgf, byte* label,
                     word32 labelSz)
 {
-    return RsaPublicEncryptEx(in, inLen, out, outLen, key, RSA_PUBLIC_ENCRYPT,
+    int ret;
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+    ret = RsaPublicEncryptEx(in, inLen, out, outLen, key, RSA_PUBLIC_ENCRYPT,
         RSA_BLOCK_TYPE_2, type, hash, mgf, label, labelSz, 0, rng);
+    RESTORE_VECTOR_REGISTERS();
+    return ret;
 }
 #endif /* WC_NO_RSA_OAEP */
 #endif
@@ -3327,14 +3347,18 @@ int wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
 int wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 {
     WC_RNG* rng;
+    int ret;
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
 #else
     rng = NULL;
 #endif
-    return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+    ret = RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
         RSA_PRIVATE_DECRYPT, RSA_BLOCK_TYPE_2, WC_RSA_PKCSV15_PAD,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, 0, rng);
+    RESTORE_VECTOR_REGISTERS();
+    return ret;
 }
 
 
@@ -3344,14 +3368,18 @@ int wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen, byte** out,
                                   int mgf, byte* label, word32 labelSz)
 {
     WC_RNG* rng;
+    int ret;
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
 #else
     rng = NULL;
 #endif
-    return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+    ret = RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
         RSA_PRIVATE_DECRYPT, RSA_BLOCK_TYPE_2, type, hash,
         mgf, label, labelSz, 0, rng);
+    RESTORE_VECTOR_REGISTERS();
+    return ret;
 }
 #endif /* WC_NO_RSA_OAEP */
 
@@ -3360,14 +3388,18 @@ int wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
                                                  word32 outLen, RsaKey* key)
 {
     WC_RNG* rng;
+    int ret;
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
 #else
     rng = NULL;
 #endif
-    return RsaPrivateDecryptEx(in, inLen, out, outLen, NULL, key,
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+    ret = RsaPrivateDecryptEx(in, inLen, out, outLen, NULL, key,
         RSA_PRIVATE_DECRYPT, RSA_BLOCK_TYPE_2, WC_RSA_PKCSV15_PAD,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, 0, rng);
+    RESTORE_VECTOR_REGISTERS();
+    return ret;
 }
 
 #if !defined(WC_NO_RSA_OAEP) || defined(WC_RSA_NO_PADDING)
@@ -3377,14 +3409,18 @@ int wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen, byte* out,
                             word32 labelSz)
 {
     WC_RNG* rng;
+    int ret;
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
 #else
     rng = NULL;
 #endif
-    return RsaPrivateDecryptEx(in, inLen, out, outLen, NULL, key,
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+    ret = RsaPrivateDecryptEx(in, inLen, out, outLen, NULL, key,
         RSA_PRIVATE_DECRYPT, RSA_BLOCK_TYPE_2, type, hash, mgf, label,
         labelSz, 0, rng);
+    RESTORE_VECTOR_REGISTERS();
+    return ret;
 }
 #endif /* WC_NO_RSA_OAEP || WC_RSA_NO_PADDING */
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
@@ -3393,14 +3429,18 @@ int wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen, byte* out,
 int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 {
     WC_RNG* rng;
+    int ret;
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
 #else
     rng = NULL;
 #endif
-    return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+    ret = RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PKCSV15_PAD,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, 0, rng);
+    RESTORE_VECTOR_REGISTERS();
+    return ret;
 }
 #endif
 
@@ -3414,14 +3454,19 @@ int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
 int  wc_RsaSSL_Verify_ex(const byte* in, word32 inLen, byte* out, word32 outLen,
                          RsaKey* key, int pad_type)
 {
-    return wc_RsaSSL_Verify_ex2(in, inLen, out, outLen, key, pad_type,
+    int ret;
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+    ret = wc_RsaSSL_Verify_ex2(in, inLen, out, outLen, key, pad_type,
             WC_HASH_TYPE_NONE);
+    RESTORE_VECTOR_REGISTERS();
+    return ret;
 }
 
 int  wc_RsaSSL_Verify_ex2(const byte* in, word32 inLen, byte* out, word32 outLen,
                          RsaKey* key, int pad_type, enum wc_HashType hash)
 {
     WC_RNG* rng;
+    int ret;
 
     if (key == NULL) {
         return BAD_FUNC_ARG;
@@ -3433,15 +3478,18 @@ int  wc_RsaSSL_Verify_ex2(const byte* in, word32 inLen, byte* out, word32 outLen
     rng = NULL;
 #endif
 
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
-    return RsaPrivateDecryptEx(in, inLen, out, outLen, NULL, key,
+    ret = RsaPrivateDecryptEx(in, inLen, out, outLen, NULL, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, pad_type,
         hash, wc_hash2mgf(hash), NULL, 0, RSA_PSS_SALT_LEN_DEFAULT, rng);
 #else
-    return RsaPrivateDecryptEx(in, inLen, out, outLen, NULL, key,
+    ret = RsaPrivateDecryptEx(in, inLen, out, outLen, NULL, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, pad_type,
         hash, wc_hash2mgf(hash), NULL, 0, RSA_PSS_SALT_LEN_DISCOVER, rng);
 #endif
+    RESTORE_VECTOR_REGISTERS();
+    return ret;
 }
 #endif
 
@@ -3489,14 +3537,18 @@ int wc_RsaPSS_VerifyInline_ex(byte* in, word32 inLen, byte** out,
                               RsaKey* key)
 {
     WC_RNG* rng;
+    int ret;
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
 #else
     rng = NULL;
 #endif
-    return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+    ret = RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PSS_PAD,
         hash, mgf, NULL, 0, saltLen, rng);
+    RESTORE_VECTOR_REGISTERS();
+    return ret;
 }
 
 /* Verify the message signed with RSA-PSS.
@@ -3540,14 +3592,18 @@ int wc_RsaPSS_Verify_ex(byte* in, word32 inLen, byte* out, word32 outLen,
                         RsaKey* key)
 {
     WC_RNG* rng;
+    int ret;
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
 #else
     rng = NULL;
 #endif
-    return RsaPrivateDecryptEx(in, inLen, out, outLen, NULL, key,
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+    ret = RsaPrivateDecryptEx(in, inLen, out, outLen, NULL, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PSS_PAD,
         hash, mgf, NULL, 0, saltLen, rng);
+    RESTORE_VECTOR_REGISTERS();
+    return ret;
 }
 
 
@@ -3784,9 +3840,13 @@ int wc_RsaPSS_VerifyCheck(byte* in, word32 inLen, byte* out, word32 outLen,
 int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
                                                    RsaKey* key, WC_RNG* rng)
 {
-    return RsaPublicEncryptEx(in, inLen, out, outLen, key,
+    int ret;
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+    ret = RsaPublicEncryptEx(in, inLen, out, outLen, key,
         RSA_PRIVATE_ENCRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PKCSV15_PAD,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, 0, rng);
+    RESTORE_VECTOR_REGISTERS();
+    return ret;
 }
 
 #ifdef WC_RSA_PSS
@@ -3831,9 +3891,13 @@ int wc_RsaPSS_Sign_ex(const byte* in, word32 inLen, byte* out, word32 outLen,
                       enum wc_HashType hash, int mgf, int saltLen, RsaKey* key,
                       WC_RNG* rng)
 {
-    return RsaPublicEncryptEx(in, inLen, out, outLen, key,
+    int ret;
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+    ret = RsaPublicEncryptEx(in, inLen, out, outLen, key,
         RSA_PRIVATE_ENCRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PSS_PAD,
         hash, mgf, NULL, 0, saltLen, rng);
+    RESTORE_VECTOR_REGISTERS();
+    return ret;
 }
 #endif
 #endif
@@ -4228,8 +4292,14 @@ int wc_CheckProbablePrime_ex(const byte* pRaw, word32 pRawSz,
     if (ret == MP_OKAY)
         ret = mp_read_unsigned_bin(e, eRaw, eRawSz);
 
-    if (ret == MP_OKAY)
-        ret = _CheckProbablePrime(p, Q, e, nlen, isPrime, rng);
+    if (ret == MP_OKAY) {
+        SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
+
+        if (ret == MP_OKAY)
+            ret = _CheckProbablePrime(p, Q, e, nlen, isPrime, rng);
+
+        RESTORE_VECTOR_REGISTERS();
+    }
 
     ret = (ret == MP_OKAY) ? 0 : PRIME_GEN_E;
 
@@ -4374,6 +4444,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         if (buf == NULL)
             err = MEMORY_E;
     }
+
+    SAVE_VECTOR_REGISTERS(err = _svr_ret;);
 
     /* make p */
     if (err == MP_OKAY) {
@@ -4547,6 +4619,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
     if (err == MP_OKAY)
         key->type = RSA_PRIVATE;
+
+    RESTORE_VECTOR_REGISTERS();
 
     mp_clear(tmp1);
     mp_clear(tmp2);

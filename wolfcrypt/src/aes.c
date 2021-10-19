@@ -8489,6 +8489,8 @@ static void AesGcmAadUpdate_aesni(Aes* aes, const byte* a, word32 aSz, int endA)
     word32 blocks;
     int partial;
 
+    ASSERT_SAVED_VECTOR_REGISTERS();
+
     if (aSz != 0 && a != NULL) {
         /* Total count of AAD updated. */
         aes->aSz += aSz;
