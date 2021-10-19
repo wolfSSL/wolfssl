@@ -724,8 +724,10 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
             bytes -= (word32)want;
             m += want;
             ctx->leftover += want;
-            if (ctx->leftover < sizeof(ctx->buffer))
+            if (ctx->leftover < sizeof(ctx->buffer)) {
+                RESTORE_VECTOR_REGISTERS();
                 return 0;
+            }
 
             if (!ctx->started)
                 poly1305_calc_powers_avx2(ctx);
