@@ -3219,7 +3219,6 @@ void* TLSX_CSR_GetRequest(TLSX* extensions)
         switch (csr->status_type) {
             case WOLFSSL_CSR_OCSP:
                 return &csr->request.ocsp;
-            break;
         }
     }
 
@@ -3642,7 +3641,6 @@ void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type, byte idx)
                     return idx < csr2->requests
                          ? &csr2->request.ocsp[csr2->requests - idx - 1]
                          : NULL;
-                break;
             }
         }
     }
@@ -10212,8 +10210,8 @@ static const word16 preferredGroup[] = {
 #if defined(HAVE_FFDHE_8192)
     WOLFSSL_FFDHE_8192,
 #endif
+    WOLFSSL_NAMED_GROUP_INVALID
 };
-#define PREFERRED_GROUP_SZ (sizeof(preferredGroup) / sizeof(*preferredGroup))
 
 #endif /* WOLFSSL_TLS13 && HAVE_SUPPORTED_CURVES */
 
@@ -10227,7 +10225,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #endif
 #if defined(HAVE_SUPPORTED_CURVES) && defined(WOLFSSL_TLS13)
     TLSX* extension = NULL;
-    word16 namedGroup = 0;
+    word16 namedGroup = WOLFSSL_NAMED_GROUP_INVALID;
 #endif
 
     /* server will add extension depending on what is parsed from client */
@@ -10308,11 +10306,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     namedGroup = ssl->session.namedGroup;
                 else
             #endif
-                if (PREFERRED_GROUP_SZ == 0) {
-                    WOLFSSL_MSG("No groups in preference list");
-                    return KEY_SHARE_ERROR;
-                }
-                else if (ssl->numGroups > 0) {
+                if (ssl->numGroups > 0) {
                     int set = 0;
                     int i, j;
 
@@ -10321,7 +10315,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                      */
                     namedGroup = preferredGroup[0];
                     for (i = 0; i < ssl->numGroups && !set; i++) {
-                        for (j = 0; j < (int)PREFERRED_GROUP_SZ; j++) {
+                        for (j = 0; preferredGroup[j] != WOLFSSL_NAMED_GROUP_INVALID; j++) {
                             if (preferredGroup[j] == ssl->group[i]) {
                                 namedGroup = ssl->group[i];
                                 set = 1;

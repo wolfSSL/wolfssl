@@ -3530,6 +3530,7 @@ WOLFSSL_API int wolfSSL_CTX_UseOCSPStaplingV2(WOLFSSL_CTX* ctx,
 
 /* Named Groups */
 enum {
+    WOLFSSL_NAMED_GROUP_INVALID = 0,
 #if 0 /* Not Supported */
     WOLFSSL_ECC_SECT163K1 = 1,
     WOLFSSL_ECC_SECT163R1 = 2,

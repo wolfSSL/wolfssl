@@ -21609,8 +21609,9 @@ static int test_wc_curve25519_export_key_raw_ex (void)
         return  1;
     }
 
-#endif
+#else
     return 0;
+#endif
 } /* end of test_wc_curve25519_export_key_raw_ex */
 /*
  * Testing wc_curve25519_make_key
@@ -39512,7 +39513,6 @@ static int test_wolfSSL_EVP_Cipher_extra(void)
 
     int *test_drive[] = {test_drive1, test_drive2, test_drive3, NULL};
     int test_drive_len[100];
-    int drive_len;
 
     int ret = 0;
     EVP_CIPHER_CTX *evp = NULL;
@@ -39595,7 +39595,6 @@ static int test_wolfSSL_EVP_Cipher_extra(void)
     for (i = 0; test_drive[i]; i++) {
 
             last_val = 0x0f;
-        drive_len = 0;
 
         AssertIntNE((ret = EVP_CipherInit(evp, NULL, key, iv, 0)), 0);
 
@@ -39610,7 +39609,6 @@ static int test_wolfSSL_EVP_Cipher_extra(void)
             binary_dump(outb, outl);
             AssertIntEQ((ret = check_result(outb, outl)), 0);
             AssertFalse(outl > ((inl/16+1)*16) && outl > 16);
-            drive_len += outl;
         }
 
         ret = EVP_CipherFinal(evp, outb, &outl);

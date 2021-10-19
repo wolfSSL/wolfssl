@@ -24680,19 +24680,18 @@ int wolfSSL_CIPHER_get_auth_nid(const WOLFSSL_CIPHER* cipher)
         {"None",    NID_auth_null},
         {NULL,      NID_undef}
     };
-    
+
     const struct authnid* sa;
     const char* authStr;
-    const char* name;
     char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
-    
-    if ((name = GetCipherSegment(cipher, n)) == NULL) {
+
+    if (GetCipherSegment(cipher, n) == NULL) {
         WOLFSSL_MSG("no suitable cipher name found");
         return NID_undef;
     }
 
     authStr = GetCipherAuthStr(n);
-    
+
     if (authStr != NULL) {
         for(sa = authnid_tbl; sa->alg_name != NULL; sa++) {
             if (XSTRNCMP(sa->alg_name, authStr, XSTRLEN(sa->alg_name)) == 0) {
@@ -24700,7 +24699,7 @@ int wolfSSL_CIPHER_get_auth_nid(const WOLFSSL_CIPHER* cipher)
             }
         }
     }
-    
+
     return NID_undef;
 }
 /* return cipher NID corresponding to cipher suite
@@ -24732,12 +24731,11 @@ int wolfSSL_CIPHER_get_cipher_nid(const WOLFSSL_CIPHER* cipher)
     
     const struct ciphernid* c;
     const char* encStr;
-    const char* name;
     char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
     
     WOLFSSL_ENTER("wolfSSL_CIPHER_get_cipher_nid");
     
-    if ((name = GetCipherSegment(cipher, n)) == NULL) {
+    if (GetCipherSegment(cipher, n) == NULL) {
         WOLFSSL_MSG("no suitable cipher name found");
         return NID_undef;
     }
@@ -24859,11 +24857,10 @@ static const struct kxnid {
 int wolfSSL_CIPHER_is_aead(const WOLFSSL_CIPHER* cipher)
 {
     char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
-    const char* name;
 
     WOLFSSL_ENTER("wolfSSL_CIPHER_is_aead");
-    
-    if ((name = GetCipherSegment(cipher, n)) == NULL) {
+
+    if (GetCipherSegment(cipher, n) == NULL) {
         WOLFSSL_MSG("no suitable cipher name found");
         return NID_undef;
     }
@@ -54635,8 +54632,8 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
 
     /* Create a Cert that has the certificate request fields. */
     req->sigOID = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
-    if ((ret = wolfssl_x509_make_der(req, 1, der, &derSz, 0))
-            != WOLFSSL_SUCCESS) {
+    ret = wolfssl_x509_make_der(req, 1, der, &derSz, 0);
+    if (ret != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Unable to make DER for X509");
         WOLFSSL_LEAVE("wolfSSL_X509_REQ_sign", ret);
         return WOLFSSL_FAILURE;
@@ -58066,10 +58063,8 @@ void *wolfSSL_BIO_get_ex_data(WOLFSSL_BIO *bio, int idx)
 #endif /* OPENSSL_EXTRA */
 
 #ifndef NO_FILESYSTEM
-    #ifdef __clang__
-        #pragma clang diagnostic push
-        #pragma clang diagnostic ignored "-Wformat-nonliteral"
-    #endif
+    PRAGMA_CLANG_DIAG_PUSH
+    PRAGMA_CLANG("clang diagnostic ignored \"-Wformat-nonliteral\"")
 #endif
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
@@ -58152,8 +58147,8 @@ int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
 }
 #endif /* OPENSSL_EXTRA && !NO_BIO */
 
-#if !defined(NO_FILESYSTEM) && defined(__clang__)
-#pragma clang diagnostic pop
+#ifndef NO_FILESYSTEM
+    PRAGMA_CLANG_DIAG_POP
 #endif
 
 #undef  LINE_LEN

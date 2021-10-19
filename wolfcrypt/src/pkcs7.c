@@ -11012,6 +11012,8 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     /* authAttribs: add contentType attrib if needed */
     if (pkcs7->contentOID != DATA) {
 
+        XMEMSET(&contentTypeAttrib, 0, sizeof contentTypeAttrib);
+
         /* if type is not id-data, contentType attribute MUST be added */
         contentTypeAttrib.oid = contentTypeOid;
         contentTypeAttrib.oidSz = sizeof(contentTypeOid);

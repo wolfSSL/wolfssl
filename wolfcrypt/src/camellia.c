@@ -1548,7 +1548,7 @@ int wc_CamelliaSetKey(Camellia* cam, const byte* key, word32 len, const byte* iv
             ret = camellia_setup256(key, cam->key);
             break;
         default:
-            return BAD_FUNC_ARG;
+            ret = BAD_FUNC_ARG;
     }
 
     if (ret != 0)
