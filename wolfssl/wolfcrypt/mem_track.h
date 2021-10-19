@@ -168,7 +168,7 @@
 
     #ifdef WOLFSSL_DEBUG_MEMORY
     #ifdef WOLFSSL_DEBUG_MEMORY_PRINT
-        printf("Alloc: %p -> %u at %s:%d\n", header->thisMemory, (word32)sz, func, line);
+        fprintf(stderr, "Alloc: %p -> %u at %s:%d\n", header->thisMemory, (word32)sz, func, line);
     #else
         (void)func;
         (void)line;
@@ -276,7 +276,7 @@
 
 #ifdef WOLFSSL_DEBUG_MEMORY
 #ifdef WOLFSSL_DEBUG_MEMORY_PRINT
-        printf("Free: %p -> %u at %s:%d\n", ptr, (word32)sz, func, line);
+        fprintf(stderr, "Free: %p -> %u at %s:%d\n", ptr, (word32)sz, func, line);
 #else
         (void)func;
         (void)line;
@@ -337,11 +337,11 @@
 
         ret = wolfSSL_GetAllocators(&mfDefault, &ffDefault, &rfDefault);
         if (ret < 0) {
-            printf("wolfSSL GetAllocators failed to get the defaults\n");
+            fprintf(stderr, "wolfSSL GetAllocators failed to get the defaults\n");
         }
         ret = wolfSSL_SetAllocators(TrackMalloc, TrackFree, TrackRealloc);
         if (ret < 0) {
-            printf("wolfSSL SetAllocators failed for track memory\n");
+            fprintf(stderr, "wolfSSL SetAllocators failed for track memory\n");
             return ret;
         }
 
@@ -380,11 +380,11 @@
     #endif
 
     #ifdef DO_MEM_STATS
-        printf("total   Allocs   = %9ld\n", ourMemStats.totalAllocs);
-        printf("total   Deallocs = %9ld\n", ourMemStats.totalDeallocs);
-        printf("total   Bytes    = %9ld\n", ourMemStats.totalBytes);
-        printf("peak    Bytes    = %9ld\n", ourMemStats.peakBytes);
-        printf("current Bytes    = %9ld\n", ourMemStats.currentBytes);
+        fprintf(stderr, "total   Allocs   = %9ld\n", ourMemStats.totalAllocs);
+        fprintf(stderr, "total   Deallocs = %9ld\n", ourMemStats.totalDeallocs);
+        fprintf(stderr, "total   Bytes    = %9ld\n", ourMemStats.totalBytes);
+        fprintf(stderr, "peak    Bytes    = %9ld\n", ourMemStats.peakBytes);
+        fprintf(stderr, "current Bytes    = %9ld\n", ourMemStats.currentBytes);
     #endif
 
     #ifdef DO_MEM_LIST
@@ -392,7 +392,7 @@
             /* print list of allocations */
             memHint* header;
             for (header = ourMemList.head; header != NULL; header = header->next) {
-                printf("Leak: Ptr %p, Size %u"
+                fprintf(stderr, "Leak: Ptr %p, Size %u"
                 #ifdef WOLFSSL_DEBUG_MEMORY
                     ", Func %s, Line %d"
                 #endif
