@@ -13392,7 +13392,12 @@ static int MatchBaseName(int type, const char* name, int nameSz,
         }
     }
 
-    if ((type == ASN_DNS_TYPE || type == ASN_RFC822_TYPE) && base[0] == '.') {
+    /* RFC 5280 section 4.2.1.10
+     * "...Any DNS name that can be constructed by simply adding zero or more
+     *  labels to the left-hand side of the name satisfies the name constraint."
+     * i.e www.host.example.com works for host.example.com name constraint and
+     * host1.example.com does not. */
+    if (type == ASN_DNS_TYPE || (type == ASN_RFC822_TYPE && base[0] == '.')) {
         int szAdjust = nameSz - baseSz;
         name += szAdjust;
         nameSz -= szAdjust;
