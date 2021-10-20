@@ -1183,6 +1183,15 @@ decouple library dependencies with standard string, memory and so on.
         WOLFSSL_API extern THREAD_LS_T int wc_svr_count;
         WOLFSSL_API extern THREAD_LS_T const char *wc_svr_last_file;
         WOLFSSL_API extern THREAD_LS_T int wc_svr_last_line;
+
+        #ifdef DEBUG_VECTOR_REGISTERS_ABORT_ON_FAIL
+            #define DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE abort();
+        #elif defined(DEBUG_VECTOR_REGISTERS_EXIT_ON_FAIL)
+            #define DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE exit(1);
+        #else
+            #define DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE
+        #endif
+
         #define SAVE_VECTOR_REGISTERS(...) {                            \
             ++wc_svr_count;                                             \
             if (wc_svr_count > 5) {                                     \
@@ -1193,6 +1202,7 @@ decouple library dependencies with standard string, memory and so on.
                         wc_svr_count,                                   \
                         wc_svr_last_file,                               \
                         wc_svr_last_line);                              \
+                DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE                \
             }                                                           \
             wc_svr_last_file = __FILE__;                                \
             wc_svr_last_line = __LINE__;                                \
@@ -1206,6 +1216,7 @@ decouple library dependencies with standard string, memory and so on.
                         wc_svr_count,                                   \
                         wc_svr_last_file,                               \
                         wc_svr_last_line);                              \
+                DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE                \
                 { fail_clause }                                         \
             }                                                           \
         }
@@ -1218,6 +1229,7 @@ decouple library dependencies with standard string, memory and so on.
                         wc_svr_count,                                   \
                         wc_svr_last_file,                               \
                         wc_svr_last_line);                              \
+                DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE                \
                 { fail_clause }                                         \
             }                                                           \
         }
@@ -1231,6 +1243,7 @@ decouple library dependencies with standard string, memory and so on.
                         wc_svr_count,                                   \
                         wc_svr_last_file,                               \
                         wc_svr_last_line);                              \
+                DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE                \
             }                                                           \
             wc_svr_last_file = __FILE__;                                \
             wc_svr_last_line = __LINE__;                                \

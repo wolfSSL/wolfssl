@@ -1495,6 +1495,8 @@ static int _ffc_validate_public_key(DhKey* key, const byte* pub, word32 pubSz,
         return MP_INIT_E;
     }
 
+    SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
+
     if (mp_read_unsigned_bin(y, pub, pubSz) != MP_OKAY) {
         ret = MP_READ_E;
     }
@@ -1582,6 +1584,9 @@ static int _ffc_validate_public_key(DhKey* key, const byte* pub, word32 pubSz,
     mp_clear(y);
     mp_clear(p);
     mp_clear(q);
+
+    RESTORE_VECTOR_REGISTERS();
+
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(q, key->heap, DYNAMIC_TYPE_DH);
     XFREE(p, key->heap, DYNAMIC_TYPE_DH);
@@ -1815,6 +1820,8 @@ static int _ffc_pairwise_consistency_test(DhKey* key,
         return MP_INIT_E;
     }
 
+    SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
+
     /* Load the private and public keys into big integers. */
     if (mp_read_unsigned_bin(publicKey, pub, pubSz) != MP_OKAY ||
         mp_read_unsigned_bin(privateKey, priv, privSz) != MP_OKAY) {
@@ -1869,6 +1876,9 @@ static int _ffc_pairwise_consistency_test(DhKey* key,
     mp_forcezero(privateKey);
     mp_clear(publicKey);
     mp_clear(checkKey);
+
+    RESTORE_VECTOR_REGISTERS();
+
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(checkKey, key->heap, DYNAMIC_TYPE_DH);
     XFREE(privateKey, key->heap, DYNAMIC_TYPE_DH);
@@ -1982,7 +1992,7 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         if (mp_init(y) != MP_OKAY)
             return MP_INIT_E;
 
-        SAVE_VECTOR_REGISTERS();
+        SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
         if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
             ret = MP_READ_E;
@@ -2009,7 +2019,7 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         if (mp_init(y) != MP_OKAY)
             return MP_INIT_E;
 
-        SAVE_VECTOR_REGISTERS();
+        SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
         if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
             ret = MP_READ_E;
@@ -2036,7 +2046,7 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         if (mp_init(y) != MP_OKAY)
             return MP_INIT_E;
 
-        SAVE_VECTOR_REGISTERS();
+        SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
         if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
             ret = MP_READ_E;
@@ -2070,7 +2080,7 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         return MP_INIT_E;
     }
 
-    SAVE_VECTOR_REGISTERS();
+    SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
     if (mp_read_unsigned_bin(x, priv, privSz) != MP_OKAY)
         ret = MP_READ_E;
@@ -2341,6 +2351,8 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
         ret = BAD_FUNC_ARG;
     }
 
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+
     if (ret == 0) {
         /* may have leading 0 */
         if (p[0] == 0) {
@@ -2405,6 +2417,8 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
         if (keyP)
             mp_clear(keyP);
     }
+
+    RESTORE_VECTOR_REGISTERS();
 
     return ret;
 }
@@ -2848,7 +2862,7 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
     }
 #endif
 
-    SAVE_VECTOR_REGISTERS();
+    SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
     if (ret == 0) {
         /* force magnitude */

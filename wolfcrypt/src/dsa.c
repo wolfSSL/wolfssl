@@ -165,6 +165,8 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
         return MEMORY_E;
     }
 
+    SAVE_VECTOR_REGISTERS();
+
 #ifdef WOLFSSL_SMALL_STACK
     if ((tmpQ = (mp_int *)XMALLOC(sizeof(*tmpQ), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL)
         err = MEMORY_E;
@@ -228,6 +230,8 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
 #else
     mp_clear(tmpQ);
 #endif
+
+    RESTORE_VECTOR_REGISTERS();
 
     return err;
 }
@@ -660,6 +664,8 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
     int     ret = 0, halfSz = 0;
     byte*   tmp;  /* initial output pointer */
 
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+
     do {
         if (digest == NULL || out == NULL || key == NULL || rng == NULL) {
             ret = BAD_FUNC_ARG;
@@ -918,6 +924,8 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
             }
         }
     } while (0);
+
+    RESTORE_VECTOR_REGISTERS();
 
 #ifdef WOLFSSL_SMALL_STACK
     if (k) {

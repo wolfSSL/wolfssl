@@ -4241,6 +4241,8 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
         return ECC_BAD_ARG_E;
     }
 
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+
     switch(private_key->state) {
         case ECC_STATE_NONE:
         case ECC_STATE_SHARED_SEC_GEN:
@@ -4272,6 +4274,8 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
         default:
             err = BAD_STATE_E;
     } /* switch */
+
+    RESTORE_VECTOR_REGISTERS();
 
     WOLFSSL_LEAVE("wc_ecc_shared_secret_ex", err);
 
@@ -4333,6 +4337,8 @@ int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx)
        return ECC_BAD_ARG_E;
     }
 
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+
     ALLOC_CURVE_SPECS(3, err);
     if (err == MP_OKAY) {
         err = wc_ecc_curve_load(wc_ecc_get_curve_params(curve_idx), &curve,
@@ -4345,6 +4351,8 @@ int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx)
 
     wc_ecc_curve_free(curve);
     FREE_CURVE_SPECS();
+
+    RESTORE_VECTOR_REGISTERS();
 
     return err;
 }
@@ -5744,8 +5752,14 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
             #endif
         #endif /* WC_ECC_NONBLOCK */
         #if !defined(WC_ECC_NONBLOCK) || (defined(WC_ECC_NONBLOCK) && !defined(WC_ECC_NONBLOCK_ONLY))
-            return sp_ecc_sign_256(in, inlen, rng, &key->k, r, s, sign_k,
-                key->heap);
+            {
+                int ret;
+                SAVE_VECTOR_REGISTERS(return _svr_ret;);
+                ret = sp_ecc_sign_256(in, inlen, rng, &key->k, r, s, sign_k,
+                                      key->heap);
+                RESTORE_VECTOR_REGISTERS();
+                return ret;
+            }
         #endif
         }
     #endif
@@ -5765,8 +5779,14 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
             #endif
         #endif /* WC_ECC_NONBLOCK */
         #if !defined(WC_ECC_NONBLOCK) || (defined(WC_ECC_NONBLOCK) && !defined(WC_ECC_NONBLOCK_ONLY))
-            return sp_ecc_sign_384(in, inlen, rng, &key->k, r, s, sign_k,
-                key->heap);
+            {
+                int ret;
+                SAVE_VECTOR_REGISTERS(return _svr_ret;);
+                ret = sp_ecc_sign_384(in, inlen, rng, &key->k, r, s, sign_k,
+                                      key->heap);
+                RESTORE_VECTOR_REGISTERS();
+                return ret;
+            }
         #endif
         }
     #endif
@@ -7256,8 +7276,14 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
             #endif
         #endif /* WC_ECC_NONBLOCK */
         #if !defined(WC_ECC_NONBLOCK) || (defined(WC_ECC_NONBLOCK) && !defined(WC_ECC_NONBLOCK_ONLY))
-            return sp_ecc_verify_256(hash, hashlen, key->pubkey.x,
-                key->pubkey.y, key->pubkey.z, r, s, res, key->heap);
+            {
+                int ret;
+                SAVE_VECTOR_REGISTERS(return _svr_ret;);
+                ret = sp_ecc_verify_256(hash, hashlen, key->pubkey.x,
+                    key->pubkey.y, key->pubkey.z, r, s, res, key->heap);
+                RESTORE_VECTOR_REGISTERS();
+                return ret;
+            }
         #endif
         }
     #endif
@@ -7279,8 +7305,14 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
             #endif
         #endif /* WC_ECC_NONBLOCK */
         #if !defined(WC_ECC_NONBLOCK) || (defined(WC_ECC_NONBLOCK) && !defined(WC_ECC_NONBLOCK_ONLY))
-            return sp_ecc_verify_384(hash, hashlen, key->pubkey.x,
-                key->pubkey.y, key->pubkey.z, r, s, res, key->heap);
+            {
+                int ret;
+                SAVE_VECTOR_REGISTERS(return _svr_ret;);
+                ret = sp_ecc_verify_384(hash, hashlen, key->pubkey.x,
+                    key->pubkey.y, key->pubkey.z, r, s, res, key->heap);
+                RESTORE_VECTOR_REGISTERS();
+                return ret;
+            }
         #endif
         }
     #endif
@@ -7589,6 +7621,8 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
     if (err != MP_OKAY)
         return MEMORY_E;
 
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+
     /* check for point type (4, 2, or 3) */
     pointType = in[0];
     if (pointType != ECC_POINT_UNCOMP && pointType != ECC_POINT_COMP_EVEN &&
@@ -7733,6 +7767,8 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
         mp_clear(point->y);
         mp_clear(point->z);
     }
+
+    RESTORE_VECTOR_REGISTERS();
 
     return err;
 }
@@ -8049,6 +8085,8 @@ int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
       return err;
    }
 
+   SAVE_VECTOR_REGISTERS(err = _svr_ret;);
+
    /* compute y^2 */
    if (err == MP_OKAY)
        err = mp_sqr(ecp->y, t1);
@@ -8116,6 +8154,9 @@ int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
 
    mp_clear(t1);
    mp_clear(t2);
+
+   RESTORE_VECTOR_REGISTERS();
+
 #ifdef WOLFSSL_SMALL_STACK
    XFREE(t2, NULL, DYNAMIC_TYPE_ECC);
    XFREE(t1, NULL, DYNAMIC_TYPE_ECC);
@@ -10934,7 +10975,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
    }
 #endif /* HAVE_THREAD_LS */
 
-      SAVE_VECTOR_REGISTERS();
+      SAVE_VECTOR_REGISTERS(err = _svr_ret;);
 
       /* find point */
       idx1 = find_base(A);
@@ -11789,7 +11830,7 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
 #endif
 
-    SAVE_VECTOR_REGISTERS();
+    SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
 #ifdef WOLFSSL_ECIES_ISO18033
     XMEMCPY(sharedSecret, out - pubKeySz, pubKeySz);
@@ -12064,7 +12105,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
 #endif
 
-    SAVE_VECTOR_REGISTERS();
+    SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
 #ifndef WOLFSSL_ECIES_OLD
     if (pubKey == NULL) {
@@ -12283,7 +12324,7 @@ int mp_jacobi(mp_int* a, mp_int* n, int* c)
         return res;
     }
 
-    SAVE_VECTOR_REGISTERS();
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
     if ((res = mp_mod(a, n, &a1)) != MP_OKAY) {
         goto done;
