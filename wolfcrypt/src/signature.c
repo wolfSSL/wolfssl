@@ -48,7 +48,7 @@
 /* Signature wrapper disabled check */
 #ifndef NO_SIG_WRAPPER
 
-#ifdef WOLFSSL_CRYPTOCELL
+#if defined(WOLFSSL_CRYPTOCELL) && !defined(NO_RSA)
 extern int cc310_RsaSSL_Verify(const byte* in, word32 inLen, byte* sig,
                             RsaKey* key, CRYS_RSA_HASH_OpMode_t mode);
 extern int cc310_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
