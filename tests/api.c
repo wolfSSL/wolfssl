@@ -2090,7 +2090,7 @@ static void test_wolfSSL_CertManagerNameConstraint4(void)
     AssertIntEQ(X509_NAME_add_entry_by_txt(name, "countryName", MBSTRING_UTF8,
                                        (byte*)"US", 2, -1, 0), SSL_SUCCESS);
     AssertIntEQ(X509_NAME_add_entry_by_txt(name, "commonName", MBSTRING_UTF8,
-                             (byte*)"common", 11, -1, 0), SSL_SUCCESS);
+                             (byte*)"common", 6, -1, 0), SSL_SUCCESS);
     AssertIntEQ(wolfSSL_X509_set_subject_name(x509, name), WOLFSSL_SUCCESS);
     X509_NAME_free(name);
 
@@ -2278,7 +2278,6 @@ static void test_wolfSSL_CertManagerNameConstraint5(void)
     wolfSSL_X509_free(x509);
 
     wolfSSL_CertManagerFree(cm);
-    wolfSSL_X509_free(x509);
     wolfSSL_X509_free(ca);
     wolfSSL_EVP_PKEY_free(priv);
 #endif
