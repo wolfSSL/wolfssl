@@ -180,7 +180,7 @@ struct wc_Sha512 {
     int    devId;
     void*  devCtx; /* generic crypto callback context */
 #endif
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif
 #endif /* WOLFSSL_PSOC6_CRYPTO */
@@ -211,7 +211,7 @@ WOLFSSL_API void wc_Sha512Free(wc_Sha512*);
 WOLFSSL_API int wc_Sha512GetHash(wc_Sha512*, byte*);
 WOLFSSL_API int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst);
 
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     WOLFSSL_API int wc_Sha512SetFlags(wc_Sha512* sha512, word32 flags);
     WOLFSSL_API int wc_Sha512GetFlags(wc_Sha512* sha512, word32* flags);
 #endif
@@ -229,7 +229,7 @@ WOLFSSL_API int wc_Sha512_224Final(wc_Sha512*, byte*);
 WOLFSSL_API void wc_Sha512_224Free(wc_Sha512*);
 WOLFSSL_API int wc_Sha512_224GetHash(wc_Sha512*, byte*);
 WOLFSSL_API int wc_Sha512_224Copy(wc_Sha512* src, wc_Sha512* dst);
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     WOLFSSL_API int wc_Sha512_224SetFlags(wc_Sha512* sha512, word32 flags);
     WOLFSSL_API int wc_Sha512_224GetFlags(wc_Sha512* sha512, word32* flags);
 #endif
@@ -249,7 +249,7 @@ WOLFSSL_API int wc_Sha512_256Final(wc_Sha512*, byte*);
 WOLFSSL_API void wc_Sha512_256Free(wc_Sha512*);
 WOLFSSL_API int wc_Sha512_256GetHash(wc_Sha512*, byte*);
 WOLFSSL_API int wc_Sha512_256Copy(wc_Sha512* src, wc_Sha512* dst);
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     WOLFSSL_API int wc_Sha512_256SetFlags(wc_Sha512* sha512, word32 flags);
     WOLFSSL_API int wc_Sha512_256GetFlags(wc_Sha512* sha512, word32* flags);
 #endif
@@ -306,7 +306,7 @@ WOLFSSL_API void wc_Sha384Free(wc_Sha384*);
 WOLFSSL_API int wc_Sha384GetHash(wc_Sha384*, byte*);
 WOLFSSL_API int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst);
 
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     WOLFSSL_API int wc_Sha384SetFlags(wc_Sha384* sha384, word32 flags);
     WOLFSSL_API int wc_Sha384GetFlags(wc_Sha384* sha384, word32* flags);
 #endif

@@ -412,10 +412,11 @@ struct WOLFSSL_EVP_PKEY {
     byte ownDsa:1; /* if struct owns DSA and should free it */
     byte ownRsa:1; /* if struct owns RSA and should free it */
 };
-typedef struct WOLFSSL_EVP_PKEY WOLFSSL_PKCS8_PRIV_KEY_INFO;
+
 #ifndef WOLFSSL_EVP_TYPE_DEFINED /* guard on redeclaration */
 typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_EVP_PKEY;
 typedef struct WOLFSSL_EVP_MD_CTX   WOLFSSL_EVP_MD_CTX;
+typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_PKCS8_PRIV_KEY_INFO;
 typedef char   WOLFSSL_EVP_MD;
 #define WOLFSSL_EVP_TYPE_DEFINED
 #endif
@@ -1777,6 +1778,8 @@ WOLFSSL_API int       wolfSSL_X509_CRL_verify(WOLFSSL_X509_CRL*, WOLFSSL_EVP_PKE
 WOLFSSL_API void      wolfSSL_X509_OBJECT_free_contents(WOLFSSL_X509_OBJECT*);
 WOLFSSL_API WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY_bio(
         WOLFSSL_BIO* bio, WOLFSSL_PKCS8_PRIV_KEY_INFO** pkey);
+WOLFSSL_API WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
+        WOLFSSL_PKCS8_PRIV_KEY_INFO** pkey, const unsigned char** keyBuf, long keyLen);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY_bio(WOLFSSL_BIO* bio,
                                          WOLFSSL_EVP_PKEY** out);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** key,

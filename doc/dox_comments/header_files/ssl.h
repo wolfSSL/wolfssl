@@ -908,8 +908,9 @@ WOLFSSL_API int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX*, const char*, int)
 
     If using an external key store and do not have the private key you can 
     instead provide the public key and register the crypro callback to handle 
-    the signing. For this you can build with --enable-cryptocb or
-    WOLF_CRYPTO_CB and register a crypto callback using 
+    the signing. For this you can build with either build with crypto callbacks 
+    or PK callbacks. To enable crypto callbacks use --enable-cryptocb
+    or WOLF_CRYPTO_CB and register a crypto callback using 
     wc_CryptoCb_RegisterDevice and set the associated devId using 
     wolfSSL_CTX_SetDevId.
 
@@ -1322,7 +1323,8 @@ WOLFSSL_API int wolfSSL_use_certificate_file(WOLFSSL*, const char*, int);
 
     If using an external key store and do not have the private key you can 
     instead provide the public key and register the crypro callback to handle 
-    the signing. For this you can build with --enable-cryptocb or
+    the signing. For this you can build with either build with crypto callbacks 
+    or PK callbacks. To enable crypto callbacks use --enable-cryptocb or
     WOLF_CRYPTO_CB and register a crypto callback using 
     wc_CryptoCb_RegisterDevice and set the associated devId using 
     wolfSSL_SetDevId.

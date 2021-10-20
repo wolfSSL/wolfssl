@@ -996,7 +996,7 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
     return ret;
 }
 
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
 int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type, word32 flags)
 {
     int ret = HASH_TYPE_E; /* Default to hash type error */
@@ -1127,7 +1127,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
 
     return ret;
 }
-#endif
+#endif /* WOLFSSL_HASH_FLAGS */
 
 
 #if !defined(WOLFSSL_TI_HASH)

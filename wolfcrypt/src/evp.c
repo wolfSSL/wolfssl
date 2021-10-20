@@ -7590,6 +7590,25 @@ int wolfSSL_EVP_PKEY_get_default_digest_nid(WOLFSSL_EVP_PKEY *pkey, int *pnid)
     }
 }
 
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_WPAS_SMALL)
+WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKCS82PKEY(const WOLFSSL_PKCS8_PRIV_KEY_INFO* p8)
+{
+    if (p8 == NULL || p8->pkey.ptr == NULL) {
+        return NULL;
+    }
+
+    return wolfSSL_d2i_PrivateKey_EVP(NULL, (unsigned char**)&p8->pkey.ptr,
+        p8->pkey_sz);
+}
+
+/* in wolf PKCS8_PRIV_KEY_INFO and WOLFSSL_EVP_PKEY are same type */
+/* this function just casts and returns pointer */
+WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_EVP_PKEY2PKCS8(const WOLFSSL_EVP_PKEY* pkey)
+{
+    return (WOLFSSL_PKCS8_PRIV_KEY_INFO*)pkey;
+}
+#endif
+
 /* increments ref count of WOLFSSL_EVP_PKEY. Return 1 on success, 0 on error */
 int wolfSSL_EVP_PKEY_up_ref(WOLFSSL_EVP_PKEY* pkey)
 {

@@ -6024,7 +6024,7 @@ int InitHandshakeHashes(WOLFSSL* ssl)
     ret = wc_InitMd5_ex(&ssl->hsHashes->hashMd5, ssl->heap, ssl->devId);
     if (ret != 0)
         return ret;
-    #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    #ifdef WOLFSSL_HASH_FLAGS
         wc_Md5SetFlags(&ssl->hsHashes->hashMd5, WC_HASH_FLAG_WILLCOPY);
     #endif
 #endif
@@ -6032,7 +6032,7 @@ int InitHandshakeHashes(WOLFSSL* ssl)
     ret = wc_InitSha_ex(&ssl->hsHashes->hashSha, ssl->heap, ssl->devId);
     if (ret != 0)
         return ret;
-    #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    #ifdef WOLFSSL_HASH_FLAGS
         wc_ShaSetFlags(&ssl->hsHashes->hashSha, WC_HASH_FLAG_WILLCOPY);
     #endif
 #endif
@@ -6041,7 +6041,7 @@ int InitHandshakeHashes(WOLFSSL* ssl)
     ret = wc_InitSha256_ex(&ssl->hsHashes->hashSha256, ssl->heap, ssl->devId);
     if (ret != 0)
         return ret;
-    #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    #ifdef WOLFSSL_HASH_FLAGS
         wc_Sha256SetFlags(&ssl->hsHashes->hashSha256, WC_HASH_FLAG_WILLCOPY);
     #endif
 #endif
@@ -6049,7 +6049,7 @@ int InitHandshakeHashes(WOLFSSL* ssl)
     ret = wc_InitSha384_ex(&ssl->hsHashes->hashSha384, ssl->heap, ssl->devId);
     if (ret != 0)
         return ret;
-    #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    #ifdef WOLFSSL_HASH_FLAGS
         wc_Sha384SetFlags(&ssl->hsHashes->hashSha384, WC_HASH_FLAG_WILLCOPY);
     #endif
 #endif
@@ -6057,7 +6057,7 @@ int InitHandshakeHashes(WOLFSSL* ssl)
     ret = wc_InitSha512_ex(&ssl->hsHashes->hashSha512, ssl->heap, ssl->devId);
     if (ret != 0)
         return ret;
-    #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    #ifdef WOLFSSL_HASH_FLAGS
         wc_Sha512SetFlags(&ssl->hsHashes->hashSha512, WC_HASH_FLAG_WILLCOPY);
     #endif
 #endif
@@ -21902,7 +21902,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
 
 #if !defined(NO_CERTS)
 
-#ifdef WOLF_CRYPTO_CB
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_CHECK_PRIVATE_KEY)
 /* Create a private key for a device.
  *
  * pkey    Key object.
@@ -22084,8 +22084,8 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         /* Decode the key assuming it is an RSA private key. */
         ret = wc_RsaPrivateKeyDecode(ssl->buffers.key->buffer, &idx,
                     (RsaKey*)ssl->hsKey, ssl->buffers.key->length);
-    #ifdef WOLF_CRYPTO_CB
-        /* if using crypto callbacks allow using a public key */
+    #if defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS)
+        /* if using crypto or PK callbacks allow using a public key */
         if (ret != 0 && ssl->devId != INVALID_DEVID) {
             WOLFSSL_MSG("Trying RSA public key with crypto callbacks");
             idx = 0;
@@ -22139,8 +22139,8 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         ret = wc_EccPrivateKeyDecode(ssl->buffers.key->buffer, &idx,
                                      (ecc_key*)ssl->hsKey,
                                      ssl->buffers.key->length);
-    #ifdef WOLF_CRYPTO_CB
-        /* if using crypto callbacks allow using a public key */
+    #if defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS)
+        /* if using crypto or PK callbacks allow using a public key */
         if (ret != 0 && ssl->devId != INVALID_DEVID) {
             WOLFSSL_MSG("Trying ECC public key with crypto callbacks");
             idx = 0;
@@ -22192,8 +22192,8 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         ret = wc_Ed25519PrivateKeyDecode(ssl->buffers.key->buffer, &idx,
                                          (ed25519_key*)ssl->hsKey,
                                          ssl->buffers.key->length);
-    #ifdef WOLF_CRYPTO_CB
-        /* if using crypto callbacks allow using a public key */
+    #if defined(WOLF_CRYPTO_CB) || defined(HAVE_PK_CALLBACKS)
+        /* if using crypto or PK callbacks allow using a public key */
         if (ret != 0 && ssl->devId != INVALID_DEVID) {
             WOLFSSL_MSG("Trying ED25519 public key with crypto callbacks");
             idx = 0;

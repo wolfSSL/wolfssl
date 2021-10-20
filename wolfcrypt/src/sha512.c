@@ -294,7 +294,7 @@ static int InitSha512(wc_Sha512* sha512)
     */
     sha512->ctx.mode = ESP32_SHA_INIT;
 #endif
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     sha512->flags = 0;
 #endif
     return 0;
@@ -341,7 +341,7 @@ static int InitSha512_224(wc_Sha512* sha512)
     */
     sha512->ctx.mode = ESP32_SHA_INIT;
 #endif
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     sha512->flags = 0;
 #endif
     return 0;
@@ -390,7 +390,7 @@ static int InitSha512_256(wc_Sha512* sha512)
     */
     sha512->ctx.mode = ESP32_SHA_INIT;
 #endif
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     sha512->flags = 0;
 #endif
     return 0;
@@ -1313,7 +1313,7 @@ static int InitSha384(wc_Sha384* sha384)
     sha384->ctx.mode = ESP32_SHA_INIT;
 
 #endif
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     sha384->flags = 0;
 #endif
 
@@ -1538,7 +1538,7 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     dst->ctx.isfirstblock = src->ctx.isfirstblock;
     dst->ctx.sha_type = src->ctx.sha_type;
 #endif
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
      dst->flags |= WC_HASH_FLAG_ISCOPY;
 #endif
 
@@ -1547,7 +1547,7 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
 
 #endif /* WOLFSSL_KCAPI_HASH */
 
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
 int wc_Sha512SetFlags(wc_Sha512* sha512, word32 flags)
 {
     if (sha512) {
@@ -1562,7 +1562,7 @@ int wc_Sha512GetFlags(wc_Sha512* sha512, word32* flags)
     }
     return 0;
 }
-#endif /* WOLFSSL_HASH_FLAGS || WOLF_CRYPTO_CB */
+#endif /* WOLFSSL_HASH_FLAGS */
 
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 
@@ -1611,7 +1611,7 @@ int wc_Sha512_224Copy(wc_Sha512* src, wc_Sha512* dst)
 }
 #endif
 
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
 int wc_Sha512_224SetFlags(wc_Sha512* sha, word32 flags)
 {
     return wc_Sha512SetFlags(sha, flags);
@@ -1620,7 +1620,7 @@ int wc_Sha512_224GetFlags(wc_Sha512* sha, word32* flags)
 {
     return wc_Sha512GetFlags(sha, flags);
 }
-#endif /* WOLFSSL_HASH_FLAGS || WOLF_CRYPTO_CB */
+#endif /* WOLFSSL_HASH_FLAGS */
 
 #if defined(OPENSSL_EXTRA)
 int wc_Sha512_224Transform(wc_Sha512* sha, const unsigned char* data)
@@ -1673,7 +1673,7 @@ int wc_Sha512_256Copy(wc_Sha512* src, wc_Sha512* dst)
 }
 #endif
 
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
 int wc_Sha512_256SetFlags(wc_Sha512* sha, word32 flags)
 {
     return wc_Sha512SetFlags(sha, flags);
@@ -1682,7 +1682,7 @@ int wc_Sha512_256GetFlags(wc_Sha512* sha, word32* flags)
 {
     return wc_Sha512GetFlags(sha, flags);
 }
-#endif /* WOLFSSL_HASH_FLAGS || WOLF_CRYPTO_CB */
+#endif /* WOLFSSL_HASH_FLAGS */
 
 #if defined(OPENSSL_EXTRA)
 int wc_Sha512_256Transform(wc_Sha512* sha, const unsigned char* data)
@@ -1756,7 +1756,7 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
     dst->ctx.isfirstblock = src->ctx.isfirstblock;
     dst->ctx.sha_type = src->ctx.sha_type;
 #endif
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
      dst->flags |= WC_HASH_FLAG_ISCOPY;
 #endif
 
@@ -1765,7 +1765,7 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
 
 #endif /* WOLFSSL_KCAPI_HASH */
 
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
 int wc_Sha384SetFlags(wc_Sha384* sha384, word32 flags)
 {
     if (sha384) {

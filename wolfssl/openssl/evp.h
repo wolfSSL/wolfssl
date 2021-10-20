@@ -73,6 +73,7 @@ typedef char WOLFSSL_EVP_CIPHER;
 typedef char   WOLFSSL_EVP_MD;
 typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_EVP_PKEY;
 typedef struct WOLFSSL_EVP_MD_CTX   WOLFSSL_EVP_MD_CTX;
+typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_PKCS8_PRIV_KEY_INFO;
 #define WOLFSSL_EVP_TYPE_DEFINED
 #endif
 
@@ -670,6 +671,9 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_type(int type);
 WOLFSSL_API int wolfSSL_EVP_PKEY_id(const WOLFSSL_EVP_PKEY *pkey);
 WOLFSSL_API int wolfSSL_EVP_PKEY_base_id(const WOLFSSL_EVP_PKEY *pkey);
 WOLFSSL_API int wolfSSL_EVP_PKEY_get_default_digest_nid(WOLFSSL_EVP_PKEY *pkey, int *pnid);
+WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKCS82PKEY(const WOLFSSL_PKCS8_PRIV_KEY_INFO* p8);
+WOLFSSL_API WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_EVP_PKEY2PKCS8(const WOLFSSL_EVP_PKEY* pkey);
+
 WOLFSSL_API int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
                   unsigned int *siglen, WOLFSSL_EVP_PKEY *pkey);
 WOLFSSL_API int wolfSSL_EVP_SignInit(WOLFSSL_EVP_MD_CTX *ctx, const WOLFSSL_EVP_MD *type);
@@ -960,6 +964,8 @@ typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
 #define EVP_PKEY_get_default_digest_nid wolfSSL_EVP_PKEY_get_default_digest_nid
 #define EVP_PKEY_id                    wolfSSL_EVP_PKEY_id
 #define EVP_PKEY_CTX_ctrl_str          wolfSSL_EVP_PKEY_CTX_ctrl_str
+#define EVP_PKCS82PKEY                 wolfSSL_EVP_PKCS82PKEY
+#define EVP_PKEY2PKCS8                 wolfSSL_EVP_PKEY2PKCS8
 #define EVP_SignFinal                  wolfSSL_EVP_SignFinal
 #define EVP_SignInit                   wolfSSL_EVP_SignInit
 #define EVP_SignInit_ex                wolfSSL_EVP_SignInit_ex

@@ -599,7 +599,7 @@ static int InitSha3(wc_Sha3* sha3)
     for (i = 0; i < 25; i++)
         sha3->s[i] = 0;
     sha3->i = 0;
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     sha3->flags = 0;
 #endif
 
@@ -844,7 +844,7 @@ static int wc_Sha3Copy(wc_Sha3* src, wc_Sha3* dst)
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
 #endif
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
      dst->flags |= WC_HASH_FLAG_ISCOPY;
 #endif
 
@@ -1164,7 +1164,7 @@ int wc_Sha3_512_Copy(wc_Sha3* src, wc_Sha3* dst)
     return wc_Sha3Copy(src, dst);
 }
 
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
 int wc_Sha3_SetFlags(wc_Sha3* sha3, word32 flags)
 {
     if (sha3) {
