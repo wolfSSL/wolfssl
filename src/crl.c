@@ -345,6 +345,13 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 
     WOLFSSL_ENTER("CheckCertCRL");
 
+#ifdef WOLFSSL_CRL_ALLOW_MISSING_CDP
+    /* Skip CRL verification in case no CDP in peer cert */
+    if (!cert->extCrlInfo) {
+        return ret;
+    }
+#endif
+
     ret = CheckCertCRLList(crl, cert, &foundEntry);
 
 #ifdef HAVE_CRL_IO
