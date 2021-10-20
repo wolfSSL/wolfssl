@@ -37896,7 +37896,6 @@ int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(HAVE_SELFTEST)
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 int wolfSSL_EC_POINT_add(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
                          const WOLFSSL_EC_POINT *p1,
                          const WOLFSSL_EC_POINT *p2, WOLFSSL_BN_CTX *ctx)
@@ -38055,11 +38054,29 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
 
     if (n) {
         /* load generator */
+    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
         if (wc_ecc_get_generator(result, group->curve_idx)
                 != MP_OKAY) {
             WOLFSSL_MSG("wc_ecc_get_generator error");
             goto cleanup;
         }
+    #else
+        /* wc_ecc_get_generator is not defined in the FIPS v2 module. */
+        if (mp_read_radix(result->x, ecc_sets[group->curve_idx].Gx, MP_RADIX_HEX)
+                != MP_OKAY) {
+            WOLFSSL_MSG("mp_read_radix Gx error");
+            goto cleanup;
+        }
+        if (mp_read_radix(result->y, ecc_sets[group->curve_idx].Gy, MP_RADIX_HEX)
+                != MP_OKAY) {
+            WOLFSSL_MSG("mp_read_radix Gy error");
+            goto cleanup;
+        }
+        if (mp_set(result->z, 1) != MP_OKAY) {
+            WOLFSSL_MSG("mp_set Gz error");
+            goto cleanup;
+        }
+    #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
     }
 
     if (n && q && m) {
@@ -38142,7 +38159,6 @@ cleanup:
     wc_ecc_del_point(tmp);
     return ret;
 }
-#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* !defined(WOLFSSL_ATECC508A) && defined(ECC_SHAMIR) &&
         * !defined(HAVE_SELFTEST) */
 

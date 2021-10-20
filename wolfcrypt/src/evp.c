@@ -4720,7 +4720,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                     }
                 }
                 break;
-#if !defined(_WIN32) && !defined(HAVE_FIPS)
+#if !defined(_WIN32) && (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+    (HAVE_FIPS_VERSION >= 2)))
             case EVP_CTRL_GCM_IV_GEN:
                 if ((ctx->flags & WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER) == 0)
                     break;
@@ -4742,6 +4743,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
 #endif /* WOLFSSL_AESGCM_STREAM */
                 /* OpenSSL increments the IV. Not sure why */
                 IncCtr(ctx->iv, ctx->ivSz);
+                /* Clear any leftover AAD. */
+                XMEMSET(ctx->gcmAuthIn, 0, ctx->gcmAuthInSz);
+                ctx->gcmAuthInSz = 0;
                 ret = WOLFSSL_SUCCESS;
                 break;
 #endif
@@ -4778,7 +4782,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         WOLFSSL_ENTER("EVP_CIPHER_CTX_cleanup");
         if (ctx) {
 #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
     #if defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)
             if ((ctx->cipherType == AES_128_GCM_TYPE) ||
                 (ctx->cipherType == AES_192_GCM_TYPE) ||
@@ -4786,7 +4790,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 wc_AesFree(&ctx->cipher.aes);
             }
     #endif /* HAVE_AESGCM && WOLFSSL_AESGCM_STREAM */
-#endif /* not FIPS or new FIPS */
+#endif /* not FIPS or FIPS v2+ */
             ctx->cipherType = WOLFSSL_EVP_CIPH_TYPE_INIT;  /* not yet initialized  */
             ctx->keyLen     = 0;
 #ifdef HAVE_AESGCM
@@ -5035,7 +5039,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         #endif /* WOLFSSL_AES_256 */
     #endif /* HAVE_AES_CBC || WOLFSSL_AES_DIRECT */
 #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
     #ifdef HAVE_AESGCM
         #ifdef WOLFSSL_AES_128
         if (ctx->cipherType == AES_128_GCM_TYPE ||
@@ -5146,7 +5150,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         }
         #endif /* WOLFSSL_AES_256 */
     #endif /* HAVE_AESGCM */
-#endif /*!HAVE_FIPS && !HAVE_SELFTEST ||(HAVE_FIPS_VERSION && HAVE_FIPS_VERSION > 2)*/
+#endif /* (!HAVE_FIPS && !HAVE_SELFTEST) || HAVE_FIPS_VERSION >= 2 */
 #ifdef WOLFSSL_AES_COUNTER
         #ifdef WOLFSSL_AES_128
         if (ctx->cipherType == AES_128_CTR_TYPE ||
@@ -5867,6 +5871,32 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     }
 #endif
 
+#if !defined(NO_AES) || !defined(NO_DES3) || defined(HAVE_IDEA)
+    /* returns WOLFSSL_SUCCESS on success, otherwise returns WOLFSSL_FAILURE */
+    int wolfSSL_EVP_CIPHER_CTX_get_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, byte* iv,
+                                      int ivLen)
+    {
+        int expectedIvLen;
+
+        WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_get_iv");
+
+        if (ctx == NULL || iv == NULL || ivLen == 0) {
+            WOLFSSL_MSG("Bad parameter");
+            return WOLFSSL_FAILURE;
+        }
+
+        expectedIvLen = wolfSSL_EVP_CIPHER_CTX_iv_length(ctx);
+        if (expectedIvLen == 0 || expectedIvLen != ivLen) {
+            WOLFSSL_MSG("Wrong ivLen value");
+            return WOLFSSL_FAILURE;
+        }
+
+        XMEMCPY(iv, ctx->iv, ivLen);
+
+        return WOLFSSL_SUCCESS;
+    }
+#endif /* !NO_AES || !NO_DES3 || HAVE_IDEA */
+
     /* Return length on ok */
     int wolfSSL_EVP_Cipher(WOLFSSL_EVP_CIPHER_CTX* ctx, byte* dst, byte* src,
                           word32 len)
@@ -5874,13 +5904,22 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         int ret = 0;
         WOLFSSL_ENTER("wolfSSL_EVP_Cipher");
 
-        if (ctx == NULL || src == NULL ||
-            (dst == NULL &&
-             ctx->cipherType != AES_128_GCM_TYPE &&
-             ctx->cipherType != AES_192_GCM_TYPE &&
-             ctx->cipherType != AES_256_GCM_TYPE)) {
+        if (ctx == NULL) {
             WOLFSSL_MSG("Bad function argument");
             return WOLFSSL_FATAL_ERROR;
+        }
+
+        if (src == NULL || dst == NULL) {
+            if (src != NULL && dst == NULL &&
+                (ctx->cipherType == AES_128_GCM_TYPE ||
+                 ctx->cipherType == AES_192_GCM_TYPE ||
+                 ctx->cipherType == AES_256_GCM_TYPE)) {
+                WOLFSSL_MSG("Setting GCM AAD.");
+            }
+            else {
+                WOLFSSL_MSG("Bad function argument");
+                return WOLFSSL_FATAL_ERROR;
+            }
         }
 
         if (ctx->cipherType == 0xff) {
@@ -5976,6 +6015,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
             case AES_256_GCM_TYPE :
                 WOLFSSL_MSG("AES GCM");
 #ifndef WOLFSSL_AESGCM_STREAM
+                /* No destination means only AAD. */
                 if (!dst) {
                     ret = wolfSSL_EVP_CipherUpdate_GCM_AAD(ctx, src, len);
                 }
@@ -6130,6 +6170,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         }
 
         if (ret < 0) {
+            if (ret == AES_GCM_AUTH_E) {
+                WOLFSSL_MSG("wolfSSL_EVP_Cipher failure: bad AES-GCM tag.");
+            }
             WOLFSSL_MSG("wolfSSL_EVP_Cipher failure");
             return WOLFSSL_FATAL_ERROR;
         }
@@ -7341,7 +7384,7 @@ int wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX* ctx)
             return AES_BLOCK_SIZE;
 #endif
 #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 #ifdef HAVE_AESGCM
         case AES_128_GCM_TYPE :
         case AES_192_GCM_TYPE :
@@ -7349,7 +7392,7 @@ int wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX* ctx)
             WOLFSSL_MSG("AES GCM");
             return GCM_NONCE_MID_SZ;
 #endif
-#endif /* (HAVE_FIPS && !HAVE_SELFTEST) || HAVE_FIPS_VERSION > 2 */
+#endif /* (HAVE_FIPS && !HAVE_SELFTEST) || HAVE_FIPS_VERSION >= 2 */
 #ifdef WOLFSSL_AES_COUNTER
         case AES_128_CTR_TYPE :
         case AES_192_CTR_TYPE :
@@ -7441,7 +7484,7 @@ int wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER* cipher)
     #endif
 #endif /* HAVE_AES_CBC || WOLFSSL_AES_DIRECT */
 #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 #ifdef HAVE_AESGCM
     #ifdef WOLFSSL_AES_128
     if (XSTRNCMP(name, EVP_AES_128_GCM, XSTRLEN(EVP_AES_128_GCM)) == 0)
@@ -7456,7 +7499,7 @@ int wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER* cipher)
         return GCM_NONCE_MID_SZ;
     #endif
 #endif /* HAVE_AESGCM */
-#endif /* (HAVE_FIPS && !HAVE_SELFTEST) || HAVE_FIPS_VERSION > 2 */
+#endif /* (HAVE_FIPS && !HAVE_SELFTEST) || HAVE_FIPS_VERSION >= 2 */
 #ifdef WOLFSSL_AES_COUNTER
     #ifdef WOLFSSL_AES_128
     if (XSTRNCMP(name, EVP_AES_128_CTR, XSTRLEN(EVP_AES_128_CTR)) == 0)
