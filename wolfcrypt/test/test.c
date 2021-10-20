@@ -34041,8 +34041,10 @@ static int mp_test_div_3(mp_int* a, mp_int* r, WC_RNG* rng)
 }
 #endif /* WOLFSSL_SP_MATH || !USE_FAST_MATH */
 
-#if defined(WOLFSSL_SP_MATH_ALL) || (!defined WOLFSSL_SP_MATH && \
-                           (defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)))
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    (!defined WOLFSSL_SP_MATH && !defined(WOLFSSL_SP_MATH_ALL) && \
+    (defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)))
 static int mp_test_radix_10(mp_int* a, mp_int* r, WC_RNG* rng)
 {
     int ret;
@@ -34061,10 +34063,12 @@ static int mp_test_radix_10(mp_int* a, mp_int* r, WC_RNG* rng)
                 return -12640;
             if (mp_radix_size(a, MP_RADIX_DEC, &size) != MP_OKAY)
                 return -12641;
-            mp_toradix(a, str, MP_RADIX_DEC);
+            if (mp_toradix(a, str, MP_RADIX_DEC) != MP_OKAY)
+                return -12660;
             if ((int)XSTRLEN(str) != size - 1)
                 return -12642;
-            mp_read_radix(r, str, MP_RADIX_DEC);
+            if (mp_read_radix(r, str, MP_RADIX_DEC) != MP_OKAY)
+                return -12661;
             if (mp_cmp(a, r) != MP_EQ)
                 return -12643;
         }
@@ -34493,7 +34497,8 @@ static int mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
     if (ret != MP_VAL)
         return -12759;
 
-#ifdef WOLFSSL_SP_MATH_ALL
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY)
     ret = mp_to_unsigned_bin_at_pos(0, NULL, NULL);
     if (ret != MP_VAL)
         return -12760;
@@ -35926,7 +35931,7 @@ static int mp_test_mod_2d(mp_int* a, mp_int* r, mp_int* t, WC_RNG* rng)
         }
     }
 
-#if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_INT_NEGATIVE)
+#if !defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_SP_INT_NEGATIVE)
     /* Test negative value being moded. */
     for (j = 0; j < 20; j++) {
         ret = randNum(a, 2, rng, NULL);
@@ -36285,11 +36290,15 @@ static int mp_test_mont(mp_int* a, mp_int* m, mp_int* n, mp_int* r, WC_RNG* rng)
     mp_digit mp;
     static int      exp[] = {     7,     8,    16,    27,    32,    64,
                                 127,   128,   255,   256,
+#if defined(SP_WORD_SIZE) && SP_WORD_SIZE > 8
                                 383,   384,  2033,  2048
+#endif
                              };
     static mp_digit sub[] = {  0x01,  0x05,  0x0f,  0x27,  0x05,  0x3b,
                                0x01,  0x9f,  0x13,  0xbd,
+#if defined(SP_WORD_SIZE) && SP_WORD_SIZE > 8
                                0x1f, 0x13d,  0x45, 0x615
+#endif
                             };
     int bits[] = { 256, 384, 2048, 3072 };
     int i;
@@ -36546,8 +36555,10 @@ WOLFSSL_TEST_SUBROUTINE int mp_test(void)
     if ((ret = mp_test_div_3(&a, &r1, &rng)) != 0)
         return ret;
 #endif
-#if defined(WOLFSSL_SP_MATH_ALL) || (!defined WOLFSSL_SP_MATH && \
-                           (defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)))
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    (!defined WOLFSSL_SP_MATH && !defined(WOLFSSL_SP_MATH_ALL) && \
+    (defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)))
     if ((ret = mp_test_radix_10(&a, &r1, &rng)) != 0)
         return ret;
 #endif

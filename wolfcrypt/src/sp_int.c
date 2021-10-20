@@ -8764,13 +8764,18 @@ int sp_exptmod_ex(sp_int* b, sp_int* e, int digits, sp_int* m, sp_int* r)
         }
     }
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH)
-#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-    if ((!done) && (err == MP_OKAY) && (b->used == 1) && (b->dp[0] == 2)) {
+#if defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    if ((!done) && (err == MP_OKAY))
+        err = sp_exptmod_nct(b, e, m, r);
+    }
+#else
+#if defined(WOLFSSL_SP_MATH_ALL)
+    if ((!done) && (err == MP_OKAY) && (b->used == 1) && (b->dp[0] == 2) &&
+         mp_isodd(m)) {
         /* Use the generic base 2 implementation. */
         err = _sp_exptmod_base_2(e, digits, m, r);
     }
-    else if ((!done) && (err == MP_OKAY) && (m->used > 1)) {
+    else if ((!done) && (err == MP_OKAY) && ((m->used > 1) && mp_isodd(m))) {
     #ifndef WC_NO_HARDEN
         err = _sp_exptmod_mont_ex(b, e, digits * SP_WORD_SIZE, m, r);
     #else
@@ -8778,21 +8783,17 @@ int sp_exptmod_ex(sp_int* b, sp_int* e, int digits, sp_int* m, sp_int* r)
     #endif
     }
     else
-#elif defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_RSA_PUBLIC_ONLY)
-    err = sp_exptmod_nct(b, e, m, r);
-#endif
-#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-    !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
+#endif /* WOLFSSL_SP_MATH_ALL */
     if ((!done) && (err == MP_OKAY)) {
         /* Otherwise use the generic implementation. */
         err = _sp_exptmod_ex(b, e, digits * SP_WORD_SIZE, m, r);
     }
-#endif
+#endif /* WOLFSSL_RSA_VERIFY_ONLY || WOLFSSL_RSA_PUBLIC_ONLY */
 #else
     if ((!done) && (err == MP_OKAY)) {
         err = MP_VAL;
     }
-#endif
+#endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_HAVE_SP_DH */
 
     (void)mBits;
     (void)bBits;
@@ -9228,6 +9229,11 @@ int sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
     else if (m->used * 2 >= r->size) {
         err = MP_VAL;
     }
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    else if (mp_iseven(m)) {
+        err = _sp_exptmod_ex(b, e, e->used, m, r);
+    }
+#endif
     else {
         err = _sp_exptmod_nct(b, e, m, r);
     }
