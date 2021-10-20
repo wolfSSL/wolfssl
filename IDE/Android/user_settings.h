@@ -20,7 +20,10 @@
 
 #define HAVE_HASHDRBG
 
-#define WOLFSSL_TLS13
+#if 1
+    #define WOLFSSL_TLS13
+    #define WC_RSA_PSS
+#endif
 #define HAVE_SESSION_TICKET
 #define HAVE_TLS_EXTENSIONS
 #define HAVE_SUPPORTED_CURVES
@@ -31,8 +34,12 @@
 #define NO_OLD_TLS
 #define NO_CHECK_PRIVATE_KEY
 
-#define WOLF_CRYPTO_CB
+/* enable PK callback support for signing operations to key store */
 #define HAVE_PK_CALLBACKS
+/* crypto callback support is not in FIPS 3389 */
+#ifndef HAVE_FIPS
+    #define WOLF_CRYPTO_CB 
+#endif
 
 #define KEEP_OUR_CERT
 #define KEEP_PEER_CERT
@@ -44,8 +51,11 @@
 #define WOLFSSL_PUBLIC_MP
 #define WOLFSSL_DER_LOAD
 
+#define WOLFSSL_CERT_GEN
+#define WOLFSSL_CERT_EXT
+#define WOLFSSL_CERT_REQ
+
 #define WOLFSSL_KEY_GEN
-#define WC_RSA_PSS
 #define WC_RSA_NO_PADDING
 
 #define HAVE_FFDHE_2048
@@ -65,6 +75,7 @@
 #define HAVE_ECC
 #define TFM_ECC256
 #define ECC_SHAMIR
+#define HAVE_COMP_KEY
 #ifdef HAVE_FIPS
     #define HAVE_ECC_CDH
     #define WOLFSSL_VALIDATE_ECC_IMPORT
