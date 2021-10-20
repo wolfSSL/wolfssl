@@ -42000,7 +42000,7 @@ static void test_wolfSSL_CRYPTO_cts128(void)
 {
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(OPENSSL_EXTRA) \
     && defined(HAVE_CTS)
-    byte tmp[64] = {0}; /* Largest vector size */
+    byte tmp[64]; /* Largest vector size */
     /* Test vectors taken form RFC3962 Appendix B */
     const testVector vects[] = {
         {
@@ -42059,10 +42059,12 @@ static void test_wolfSSL_CRYPTO_cts128(void)
         0x74, 0x65, 0x72, 0x69, 0x79, 0x61, 0x6b, 0x69
     };
     size_t i;
+    XMEMSET(tmp, 0, sizeof(tmp));
     for (i = 0; i < sizeof(vects)/sizeof(vects[0]); i++) {
         AES_KEY encKey;
         AES_KEY decKey;
-        byte iv[AES_IV_SIZE] = {0}; /* All-zero IV for all cases */
+        byte iv[AES_IV_SIZE]; /* All-zero IV for all cases */
+        XMEMSET(iv, 0, sizeof(iv));
         AssertIntEQ(AES_set_encrypt_key(keyBytes, AES_128_KEY_SIZE * 8, &encKey), 0);
         AssertIntEQ(AES_set_decrypt_key(keyBytes, AES_128_KEY_SIZE * 8, &decKey), 0);
         AssertIntEQ(CRYPTO_cts128_encrypt((const unsigned char*)vects[i].input,

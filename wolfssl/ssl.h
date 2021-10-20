@@ -4058,9 +4058,11 @@ WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_PEM_read_bio_X509_CRL(WOLFSSL_BIO *bp,
         WOLFSSL_X509_CRL **x, wc_pem_password_cb *cb, void *u);
 WOLFSSL_API WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_AUX
         (WOLFSSL_BIO *bp, WOLFSSL_X509 **x, wc_pem_password_cb *cb, void *u);
+#ifndef NO_FILESYSTEM
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_INFO)* wolfSSL_PEM_X509_INFO_read(
         XFILE fp, WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk,
         pem_password_cb* cb, void* u);
+#endif
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_INFO)* wolfSSL_PEM_X509_INFO_read_bio(
         WOLFSSL_BIO* bio, WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk,
         wc_pem_password_cb* cb, void* u);

@@ -26,16 +26,16 @@
 
 #include <wolfssl/openssl/ssl.h>
 
-#define ASN1_STRING_new      wolfSSL_ASN1_STRING_new
-#define ASN1_STRING_type_new wolfSSL_ASN1_STRING_type_new
-#define ASN1_STRING_type     wolfSSL_ASN1_STRING_type
-#define ASN1_STRING_set      wolfSSL_ASN1_STRING_set
+#define ASN1_STRING_new       wolfSSL_ASN1_STRING_new
+#define ASN1_STRING_type_new  wolfSSL_ASN1_STRING_type_new
+#define ASN1_STRING_type      wolfSSL_ASN1_STRING_type
+#define ASN1_STRING_set       wolfSSL_ASN1_STRING_set
 #define ASN1_OCTET_STRING_set wolfSSL_ASN1_STRING_set
-#define ASN1_STRING_free     wolfSSL_ASN1_STRING_free
+#define ASN1_STRING_free      wolfSSL_ASN1_STRING_free
 
-#define ASN1_get_object      wolfSSL_ASN1_get_object
-#define d2i_ASN1_OBJECT      wolfSSL_d2i_ASN1_OBJECT
-#define c2i_ASN1_OBJECT      wolfSSL_c2i_ASN1_OBJECT
+#define ASN1_get_object       wolfSSL_ASN1_get_object
+#define d2i_ASN1_OBJECT       wolfSSL_d2i_ASN1_OBJECT
+#define c2i_ASN1_OBJECT       wolfSSL_c2i_ASN1_OBJECT
 
 #define V_ASN1_INTEGER                   0x02
 #define V_ASN1_OCTET_STRING              0x04 /* tag for ASN1_OCTET_STRING */
