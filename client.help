@@ -1,0 +1,43 @@
+wolfSSL client 4.8.0 NOTE: All files relative to wolfSSL home dir
+Max RSA key size in bits for build is set at : 4096
+-? <num>    Help, print this usage
+            0: English, 1: Japanese
+--help      Help, in English
+-h <host>   Host to connect to, default 127.0.0.1
+-p <num>    Port to connect on, not 0, default 11111
+-v <num>    SSL version [0-4], SSLv3(0) - TLS1.3(4)), default 3
+-V          Prints valid ssl version numbers, SSLv3(0) - TLS1.3(4)
+-l <str>    Cipher suite list (: delimited)
+-c <file>   Certificate file,           default ./certs/client-cert.pem
+-k <file>   Key file,                   default ./certs/client-key.pem
+-A <file>   Certificate Authority file, default ./certs/ca-cert.pem
+-Z <num>    Minimum DH key bits,        default 1024
+-b <num>    Benchmark <num> connections and print stats
+-B <num>    Benchmark throughput using <num> bytes and print stats
+-d          Disable peer checks
+-D          Override Date Errors example
+-e          List Every cipher suite available, 
+-g          Send server HTTP GET
+-u          Use UDP DTLS, add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)
+-m          Match domain name in cert
+-N          Use Non-blocking sockets
+-r          Resume session
+-w          Wait for bidirectional shutdown
+-M <prot>   Use STARTTLS, using <prot> protocol (smtp)
+-f          Fewer packets/group messages
+-x          Disable client cert/key loading
+-X          Driven by eXternal test case
+-j          Use verify callback override
+-n          Disable Extended Master Secret
+-H <arg>    Internal tests [defCipherList, exitWithRet, verifyFail, useSupCurve,
+                            loadSSL, disallowETM]
+-J          Use HelloRetryRequest to choose group for KE
+-K          Key Exchange for PSK not using (EC)DHE
+-I          Update keys and IVs before sending data
+-y          Key Share with FFDHE named groups only
+-Y          Key Share with ECC named groups only
+-1 <num>    Display a result by specified language.
+            0: English, 1: Japanese
+-2          Disable DH Prime check
+-6          Simulate WANT_WRITE errors on every other IO send
+-7          Set minimum downgrade protocol version [0-4]  SSLv3(0) - TLS1.3(4)
