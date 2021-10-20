@@ -22876,6 +22876,7 @@ static int ecc_test_custom_curves(WC_RNG* rng)
 #endif
 
     /* test use of custom curve - using BRAINPOOLP256R1 for test */
+#ifdef HAVE_ECC_BRAINPOOL
     #ifndef WOLFSSL_ECC_CURVE_STATIC
         WOLFSSL_SMALL_STACK_STATIC const ecc_oid_t ecc_oid_brainpoolp256r1[] = {
             0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x07
@@ -22905,6 +22906,7 @@ static int ecc_test_custom_curves(WC_RNG* rng)
         ecc_oid_brainpoolp256r1_sum,                                        /* oid sum    */
         1,                                                                  /* cofactor   */
     };
+#endif /* HAVE_ECC_BRAINPOOL */
 
 #ifdef WOLFSSL_SMALL_STACK
     if (! key) {
@@ -22915,14 +22917,16 @@ static int ecc_test_custom_curves(WC_RNG* rng)
 
     XMEMSET(key, 0, sizeof *key);
 
+#ifdef HAVE_ECC_BRAINPOOL
     ret = ecc_test_curve_size(rng, 0, ECC_TEST_VERIFY_COUNT, ECC_CURVE_DEF,
         &ecc_dp_brainpool256r1);
     if (ret != 0) {
         printf("ECC test for custom curve failed! %d\n", ret);
         goto done;
     }
+#endif
 
-    #if defined(HAVE_ECC_BRAINPOOL) || defined(HAVE_ECC_KOBLITZ)
+#if defined(HAVE_ECC_BRAINPOOL) || defined(HAVE_ECC_KOBLITZ)
     {
         int curve_id;
         #ifdef HAVE_ECC_BRAINPOOL
@@ -22937,7 +22941,7 @@ static int ecc_test_custom_curves(WC_RNG* rng)
             goto done;
         }
     }
-    #endif
+#endif
 
     ret = wc_ecc_init_ex(key, HEAP_HINT, devId);
     if (ret != 0) {
@@ -22961,6 +22965,8 @@ static int ecc_test_custom_curves(WC_RNG* rng)
 #else
     wc_ecc_free(key);
 #endif
+
+    (void)rng;
 
     return ret;
 }
