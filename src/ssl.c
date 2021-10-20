@@ -1360,8 +1360,18 @@ int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
         ret = BAD_FUNC_ARG;
     }
 
+    if (ret == 0 && ssl->arrays->preMasterSecret == NULL) {
+        ssl->arrays->preMasterSz = ENCRYPT_LEN;
+        ssl->arrays->preMasterSecret = (byte*)XMALLOC(ENCRYPT_LEN, ssl->heap,
+            DYNAMIC_TYPE_SECRET);
+        if (ssl->arrays->preMasterSecret == NULL) {
+            ret = MEMORY_E;
+        }
+    }
+
     if (ret == 0) {
         XMEMCPY(ssl->arrays->preMasterSecret, preMasterSecret, preMasterSz);
+        XMEMSET(ssl->arrays->preMasterSecret + preMasterSz, 0, ENCRYPT_LEN - preMasterSz);
         ssl->arrays->preMasterSz = preMasterSz;
         XMEMCPY(ssl->arrays->clientRandom, clientRandom, RAN_LEN);
         XMEMCPY(ssl->arrays->serverRandom, serverRandom, RAN_LEN);
