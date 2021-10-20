@@ -10638,9 +10638,6 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
             WOLFSSL_MSG("Unknown Jurisdiction, skipping");
         }
     }
-    else {
-        ret = 0;
-    }
 
     if ((ret == 0) && (typeStr != NULL)) {
         /* OID type to store for subject name and add to full string. */
