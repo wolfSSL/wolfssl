@@ -15272,7 +15272,7 @@ static int DecodeSubtree(const byte* input, int sz, Base_entry** head,
                 return MEMORY_E;
             }
 
-            entry->name = (char*)XMALLOC(strLength, heap, DYNAMIC_TYPE_ALTNAME);
+            entry->name = (char*)XMALLOC(strLength+1, heap, DYNAMIC_TYPE_ALTNAME);
             if (entry->name == NULL) {
                 WOLFSSL_MSG("allocate error");
                 XFREE(entry, heap, DYNAMIC_TYPE_ALTNAME);
@@ -15280,6 +15280,7 @@ static int DecodeSubtree(const byte* input, int sz, Base_entry** head,
             }
 
             XMEMCPY(entry->name, &input[nameIdx], strLength);
+            entry->name[strLength] = '\0';
             entry->nameSz = strLength;
             entry->type = bType;
 
