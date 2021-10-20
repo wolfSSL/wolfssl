@@ -41858,16 +41858,13 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         }
 
         if (x509->authKeyIdSz < sizeof(cert->akid)) {
-        #ifndef WOLFSSL_ASN_TEMPLATE
             /* Not supported with WOLFSSL_ASN_TEMPLATE at the moment. */
             if (x509->authKeyIdSrc) {
                 XMEMCPY(cert->akid, x509->authKeyIdSrc, x509->authKeyIdSrcSz);
                 cert->akidSz = (int)x509->authKeyIdSrcSz;
                 cert->rawAkid = 1;
             }
-            else
-        #endif
-            if (x509->authKeyId) {
+            else if (x509->authKeyId) {
                 XMEMCPY(cert->akid, x509->authKeyId, x509->authKeyIdSz);
                 cert->akidSz = (int)x509->authKeyIdSz;
                 cert->rawAkid = 0;

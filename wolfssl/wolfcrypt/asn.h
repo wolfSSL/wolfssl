@@ -166,7 +166,9 @@ typedef struct ASNItem {
     byte tag;
     /* Whether the ASN.1 item is constructed. */
     byte constructed:1;
-    /* Whether to parse the header only or skip data. */
+    /* Whether to parse the header only or skip data. If
+     * ASNSetData.data.buffer.data is supplied then this option gets
+     * overwritten and the child nodes get ignored. */
     byte headerOnly:1;
     /* Whether ASN.1 item is optional.
      *  - 0 means not optional
@@ -582,6 +584,23 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
     do {                                                               \
         int ii;                                                        \
         for (ii = start; ii <= end; ii++) {                            \
+            dataASN[ii].noOut = 1;                                     \
+        }                                                              \
+    }                                                                  \
+    while (0)
+
+/* Set the data items below node to not be encoded.
+ *
+ * @param [in] dataASN  Dynamic ASN data item.
+ * @param [in] node     Node who's children should not be encoded.
+ * @param [in] dataASNLen Number of items in dataASN.
+ */
+#define SetASNItem_NoOutBelow(dataASN, asn, node, dataASNLen)          \
+    do {                                                               \
+        int ii;                                                        \
+        for (ii = node + 1; ii < (int)(dataASNLen); ii++) {            \
+            if (asn[ii].depth <= asn[node].depth)                      \
+                break;                                                 \
             dataASN[ii].noOut = 1;                                     \
         }                                                              \
     }                                                                  \

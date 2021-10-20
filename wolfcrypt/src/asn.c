@@ -612,8 +612,8 @@ static void SizeASN_CalcDataLength(const ASNItem* asn, ASNSetData *data,
             /* The length of a header only item doesn't include the data unless
              * a replacement buffer is supplied.
              */
-            if (asn[j].headerOnly && data[j].dataType !=
-                                                 ASN_DATA_TYPE_REPLACE_BUFFER) {
+            if (asn[j].headerOnly && data[j].data.buffer.data == NULL &&
+                    data[j].dataType != ASN_DATA_TYPE_REPLACE_BUFFER) {
                 data[idx].data.buffer.length += data[j].data.buffer.length;
             }
         }
@@ -685,8 +685,16 @@ int SizeASN_Items(const ASNItem* asn, ASNSetData *data, int count, int* encSz)
                  * Mostly used for constructed items.
                  */
                 if (asn[i].headerOnly) {
-                    /* Calculate data length from items below. */
-                    SizeASN_CalcDataLength(asn, data, i, count);
+                    if (data[i].data.buffer.data != NULL) {
+                        /* Force all child nodes to be ignored. Buffer
+                         * overwrites children. */
+                        SetASNItem_NoOutBelow(data, asn, i, count);
+                    }
+                    else {
+                        /* Calculate data length from items below if no buffer
+                         * supplied. */
+                        SizeASN_CalcDataLength(asn, data, i, count);
+                    }
                 }
                 if (asn[i].tag == ASN_BOOLEAN) {
                     dataLen = 1;
@@ -705,8 +713,9 @@ int SizeASN_Items(const ASNItem* asn, ASNSetData *data, int count, int* encSz)
                 }
                 /* Add in the size of tag and length. */
                 len += SizeASNHeader(dataLen);
-                /* Include data in length if not header only. */
-                if (!asn[i].headerOnly) {
+                /* Include data in length if not header only or if
+                 * buffer supplied. */
+                if (!asn[i].headerOnly || data[i].data.buffer.data != NULL) {
                     len += dataLen;
                 }
                 break;
@@ -933,8 +942,10 @@ int SetASN_Items(const ASNItem* asn, ASNSetData *data, int count, byte* output)
                     if (data[i].data.buffer.data == NULL) {
                         data[i].data.buffer.data = out + idx;
                     }
-                    /* Copy supplied data if not putting out header only. */
-                    else if (!asn[i].headerOnly) {
+                    /* Copy supplied data if not putting out header only or
+                     * if buffer supplied. */
+                    else if (!asn[i].headerOnly ||
+                            data[i].data.buffer.data != NULL) {
                         /* Allow data to come from output buffer. */
                         XMEMMOVE(out + idx, data[i].data.buffer.data,
                                  data[i].data.buffer.length);
@@ -22378,7 +22389,15 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
         if (cert->akidSz > 0) {
             /* Set Authority Key Identifier OID and data. */
             SetASN_Buffer(&dataASN[15], akidOID, sizeof(akidOID));
-            SetASN_Buffer(&dataASN[18], cert->akid, cert->akidSz);
+            if (cert->rawAkid) {
+                SetASN_Buffer(&dataASN[16], cert->akid, cert->akidSz);
+                /* cert->akid contains the internal ext structure */
+                SetASNItem_NoOutBelow(dataASN, certExtsASN, 16,
+                        certExtsASN_Length);
+            }
+            else {
+                SetASN_Buffer(&dataASN[18], cert->akid, cert->akidSz);
+            }
         }
         else {
             /* Don't write out Authority Key Identifier extension items. */
