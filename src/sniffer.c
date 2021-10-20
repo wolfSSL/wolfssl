@@ -5034,16 +5034,12 @@ static int FixSequence(TcpInfo* tcpInfo, SnifferSession* session)
                                 &session->flags.srvSkipPartial :
                                 &session->flags.cliSkipPartial;
 
-    if (tcpInfo->ackNumber < seqStart) {
-        return -1; /* do not fix sequence - could be ack on unseen seq */
-    }
     *skipPartial = 1;
     
     if (list != NULL)
         *expected = list->begin;
     else
         *expected = tcpInfo->ackNumber - seqStart;
-
 
     return 1;
 }
@@ -5062,7 +5058,7 @@ static int CheckAck(TcpInfo* tcpInfo, SnifferSession* session)
 
         /* handle rollover of sequence */
         if (tcpInfo->ackNumber < seqStart)
-            real = 0xffffffffU - seqStart + tcpInfo->ackNumber;
+            real = 0xffffffffU - seqStart + tcpInfo->ackNumber + 1;
 
         TraceAck(real, expected);
 
@@ -5164,7 +5160,7 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
         }
     }
 
-    if (*sslBytes == 0) {
+    if (*sslBytes <= 0) {
         Trace(NO_DATA_STR);
         return 1;
     }
