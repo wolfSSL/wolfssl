@@ -1934,7 +1934,7 @@ static void test_wolfSSL_CertManagerNameConstraint3(void)
     AssertIntEQ(X509_NAME_add_entry_by_txt(name, "commonName", MBSTRING_UTF8,
                              (byte*)"wolfssl.com", 11, -1, 0), SSL_SUCCESS);
     AssertIntEQ(X509_NAME_add_entry_by_txt(name, "emailAddress", MBSTRING_UTF8,
-                     (byte*)"support@info.com", 24, -1, 0), SSL_SUCCESS);
+                     (byte*)"support@info.com", 16, -1, 0), SSL_SUCCESS);
     AssertIntEQ(wolfSSL_X509_set_subject_name(x509, name), WOLFSSL_SUCCESS);
     X509_NAME_free(name);
 
@@ -1957,7 +1957,6 @@ static void test_wolfSSL_CertManagerNameConstraint3(void)
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), ASN_NAME_INVALID_E);
-    wolfSSL_X509_free(x509);
 
     wolfSSL_CertManagerFree(cm);
     wolfSSL_X509_free(x509);
