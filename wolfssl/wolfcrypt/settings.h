@@ -2310,6 +2310,16 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+#ifdef OPENSSL_COEXIST
+    /* make sure old names are disabled */
+    #ifndef NO_OLD_SSL_NAMES
+        #define NO_OLD_SSL_NAMES
+    #endif
+    #ifndef NO_OLD_WC_NAMES
+        #define NO_OLD_WC_NAMES
+    #endif
+#endif
+
 #if defined(NO_OLD_WC_NAMES) || defined(OPENSSL_EXTRA)
     /* added to have compatibility with SHA256() */
     #if !defined(NO_OLD_SHA_NAMES) && (!defined(HAVE_FIPS) || \

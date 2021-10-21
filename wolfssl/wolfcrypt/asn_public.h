@@ -220,11 +220,19 @@ enum {
     PEM_PASS_WRITE = 1,
 };
 
-
-typedef int (pem_password_cb)(char* passwd, int sz, int rw, void* userdata);
+typedef int (wc_pem_password_cb)(char* passwd, int sz, int rw, void* userdata);
+#ifndef OPENSSL_COEXIST
+/* In the past, wc_pem_password_cb was called pem_password_cb, which is the same
+ * name as an identical typedef in OpenSSL. We don't want to break existing code
+ * that uses the name pem_password_cb, so we define it here as a macro alias for
+ * wc_pem_password_cb. In cases where a user needs to use both OpenSSL and
+ * wolfSSL headers in the same code, they should define OPENSSL_COEXIST to
+ * avoid errors stemming from the typedef being declared twice. */
+#define pem_password_cb wc_pem_password_cb
+#endif
 
 typedef struct EncryptedInfo {
-    pem_password_cb* passwd_cb;
+    wc_pem_password_cb* passwd_cb;
     void*            passwd_userdata;
 
     long     consumed;         /* tracks PEM bytes consumed */

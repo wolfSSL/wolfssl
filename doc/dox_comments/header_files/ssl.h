@@ -12187,7 +12187,7 @@ WOLFSSL_API size_t wolfSSL_get_client_random(const WOLFSSL* ssl,
     _Example_
     \code
     WOLFSSL_CTX* ctx;
-    pem_password_cb cb;
+    wc_pem_password_cb cb;
     // setup ctx
     cb = wolfSSL_CTX_get_default_passwd_cb(ctx);
     //use cb
@@ -12196,7 +12196,8 @@ WOLFSSL_API size_t wolfSSL_get_client_random(const WOLFSSL* ssl,
     \sa wolfSSL_CTX_new
     \sa wolfSSL_CTX_free
 */
-WOLFSSL_API pem_password_cb* wolfSSL_CTX_get_default_passwd_cb(WOLFSSL_CTX *ctx);
+WOLFSSL_API wc_pem_password_cb* wolfSSL_CTX_get_default_passwd_cb(WOLFSSL_CTX*
+                                                                  ctx);
 
 /*!
     \ingroup Setup
@@ -12251,7 +12252,7 @@ WOLFSSL_API void *wolfSSL_CTX_get_default_passwd_cb_userdata(WOLFSSL_CTX *ctx);
     \sa wolfSSL_PEM_read_bio_X509
 */
 WOLFSSL_API WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_AUX
-        (WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u);
+        (WOLFSSL_BIO *bp, WOLFSSL_X509 **x, wc_pem_password_cb *cb, void *u);
 
 /*!
     \ingroup CertsKeys
@@ -12309,7 +12310,7 @@ WOLFSSL_API long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX*, WOLFSSL_DH*);
     \sa none
 */
 WOLFSSL_API WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp,
-    WOLFSSL_DSA **x, pem_password_cb *cb, void *u);
+    WOLFSSL_DSA **x, wc_pem_password_cb *cb, void *u);
 
 /*!
     \ingroup Debug
