@@ -446,6 +446,8 @@ int wc_FileExists(const char* fname)
 {
     struct ReadDirCtx ctx;
 
+    XMEMSET(&ctx, 0, sizeof(ctx));
+
     if (fname == NULL)
         return 0;
 

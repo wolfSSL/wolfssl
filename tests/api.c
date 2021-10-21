@@ -35246,7 +35246,7 @@ static void test_wolfSSL_X509_sign(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && !defined(NO_RSA)
     int ret;
-    char *caSubject;
+    char *cn;
     X509_NAME *name;
     X509 *x509, *ca;
     DecodedCert dCert;
@@ -35368,11 +35368,13 @@ static void test_wolfSSL_X509_sign(void)
     InitDecodedCert(&dCert, certIssuer, (word32)certIssuerSz, 0);
     AssertIntEQ(ParseCert(&dCert, CERT_TYPE, NO_VERIFY, NULL), 0);
 
-    AssertNotNull(ca = wolfSSL_d2i_X509(NULL, &certIssuer, (int)certIssuerSz));
-    AssertNotNull(caSubject  = wolfSSL_X509_NAME_oneline(
-                                              X509_get_subject_name(ca), 0, 0));
-    AssertIntEQ(0, XSTRNCMP(caSubject, dCert.subject, XSTRLEN(caSubject)));
-    XFREE(caSubject, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
+    AssertNotNull(ca = d2i_X509(NULL, &certIssuer, (int)certIssuerSz));
+    AssertNotNull(name = X509_get_subject_name(ca));
+    cn = (char*)XMALLOC(name->sz, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
+    
+    AssertNotNull(cn = X509_NAME_oneline(name, cn, name->sz));
+    AssertIntEQ(0, XSTRNCMP(cn, dCert.subject, XSTRLEN(cn)));
+    XFREE(cn, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
 
 #ifdef WOLFSSL_MULTI_ATTRIB
     /* test adding multiple OU's to the signer */
@@ -35388,9 +35390,12 @@ static void test_wolfSSL_X509_sign(void)
     AssertIntEQ(X509_set_issuer_name(x509, name), SSL_SUCCESS);
 
     AssertIntGT(X509_sign(x509, priv, EVP_sha256()), 0);
-    AssertNotNull(caSubject  = wolfSSL_X509_NAME_oneline(
-                                             X509_get_issuer_name(x509), 0, 0));
-    XFREE(caSubject, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
+    AssertNotNull(name = X509_get_issuer_name(x509));
+    cn = (char*)XMALLOC(name->sz, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
+    AssertNotNull(cn  = X509_NAME_oneline(name, cn, name->sz));
+    /* compare and don't include the multi-attrib "/OU=OU1/OU=OU2" above */
+    AssertIntEQ(0, XSTRNCMP(cn, dCert.issuer, XSTRLEN(dCert.issuer)));
+    XFREE(cn, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
 
     FreeDecodedCert(&dCert);
 
@@ -50413,7 +50418,11 @@ static void test_wolfSSL_CTX_StaticMemory_TLS(int tlsVer,
 #ifdef WOLFSSL_STATIC_MEMORY
     #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) || \
          defined(SESSION_CERTS)
+        #ifdef OPENSSL_EXTRA
+        #define TEST_TLS_STATIC_MEMSZ (400000)
+        #else
         #define TEST_TLS_STATIC_MEMSZ (320000)
+        #endif
     #else
         #define TEST_TLS_STATIC_MEMSZ (80000)
     #endif

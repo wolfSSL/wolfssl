@@ -2171,13 +2171,16 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
                             heap, DYNAMIC_TYPE_OPENSSL)) == NULL) {
         WOLFSSL_MSG("ctx-x509_store.lookup.dir memory allocation error");
         XFREE(ctx->param, heap, DYNAMIC_TYPE_OPENSSL);
+        ctx->param = NULL;
         return MEMORY_E;
     }
     XMEMSET(ctx->x509_store.lookup.dirs, 0, sizeof(WOLFSSL_BY_DIR));
     if (wc_InitMutex(&ctx->x509_store.lookup.dirs->lock) != 0) {
         WOLFSSL_MSG("Bad mutex init");
         XFREE(ctx->param, heap, DYNAMIC_TYPE_OPENSSL);
+        ctx->param = NULL;
         XFREE(ctx->x509_store.lookup.dirs, heap, DYNAMIC_TYPE_OPENSSL);
+        ctx->x509_store.lookup.dirs = NULL;
         return BAD_MUTEX_E;
     }
     #endif
@@ -2358,12 +2361,13 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 
 #endif /* HAVE_TLS_EXTENSIONS */
 #ifdef OPENSSL_EXTRA
-    if(ctx->alpn_cli_protos) {
-        XFREE((void *)ctx->alpn_cli_protos, NULL, DYNAMIC_TYPE_OPENSSL);
+    if (ctx->alpn_cli_protos) {
+        XFREE((void*)ctx->alpn_cli_protos, ctx->heap, DYNAMIC_TYPE_OPENSSL);
         ctx->alpn_cli_protos = NULL;
     }
     if (ctx->param) {
         XFREE(ctx->param, ctx->heap, DYNAMIC_TYPE_OPENSSL);
+        ctx->param = NULL;
     }
 
     if (ctx->x509_store.lookup.dirs) {

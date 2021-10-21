@@ -1411,10 +1411,20 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 
 #ifdef WOLFSSL_STATIC_MEMORY
+    /* Note: Actual memory used is much less, this is the entire buffer buckets, 
+     * which is partitioned into pools of common sizes. To adjust the buckets 
+     * sizes see WOLFMEM_BUCKETS in memory.h */
     #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) \
         || defined(SESSION_CERTS)
         /* big enough to handle most cases including session certs */
+        #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
+               ((defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
+                (defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)))
+        /* increase is due to EdDSA_Update */
+        byte memory[440000];
+        #else
         byte memory[320000];
+        #endif
     #else
         byte memory[80000];
     #endif
