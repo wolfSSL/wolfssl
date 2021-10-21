@@ -35247,6 +35247,7 @@ static void test_wolfSSL_X509_sign(void)
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && !defined(NO_RSA)
     int ret;
     char *cn;
+    word32 cnSz;
     X509_NAME *name;
     X509 *x509, *ca;
     DecodedCert dCert;
@@ -35370,9 +35371,9 @@ static void test_wolfSSL_X509_sign(void)
 
     AssertNotNull(ca = d2i_X509(NULL, &certIssuer, (int)certIssuerSz));
     AssertNotNull(name = X509_get_subject_name(ca));
-    cn = (char*)XMALLOC(name->sz, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
-    
-    AssertNotNull(cn = X509_NAME_oneline(name, cn, name->sz));
+    cnSz = X509_NAME_get_sz(name);
+    AssertNotNull(cn = (char*)XMALLOC(cnSz, HEAP_HINT, DYNAMIC_TYPE_OPENSSL));
+    AssertNotNull(cn = X509_NAME_oneline(name, cn, cnSz));
     AssertIntEQ(0, XSTRNCMP(cn, dCert.subject, XSTRLEN(cn)));
     XFREE(cn, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
 
@@ -35391,8 +35392,9 @@ static void test_wolfSSL_X509_sign(void)
 
     AssertIntGT(X509_sign(x509, priv, EVP_sha256()), 0);
     AssertNotNull(name = X509_get_issuer_name(x509));
-    cn = (char*)XMALLOC(name->sz, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
-    AssertNotNull(cn  = X509_NAME_oneline(name, cn, name->sz));
+    cnSz = X509_NAME_get_sz(name);
+    AssertNotNull(cn = (char*)XMALLOC(cnSz, HEAP_HINT, DYNAMIC_TYPE_OPENSSL));
+    AssertNotNull(cn = X509_NAME_oneline(name, cn, cnSz));
     /* compare and don't include the multi-attrib "/OU=OU1/OU=OU2" above */
     AssertIntEQ(0, XSTRNCMP(cn, dCert.issuer, XSTRLEN(dCert.issuer)));
     XFREE(cn, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);

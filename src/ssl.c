@@ -23238,6 +23238,14 @@ int wolfSSL_X509_get_signature_type(WOLFSSL_X509* x509)
 
 #if defined(OPENSSL_EXTRA_X509_SMALL)
 
+int wolfSSL_X509_NAME_get_sz(WOLFSSL_X509_NAME* name)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_NAME_get_sz");
+    if (!name)
+        return -1;
+    return name->sz;
+}
+
 /* Searches for the first ENTRY of type NID
  * idx is the location to start searching from, the value at when the entry was
  *     found is stored into idx
@@ -47354,15 +47362,6 @@ int wolfSSL_version(WOLFSSL* ssl)
         }
     }
     return WOLFSSL_FAILURE;
-}
-
-
-int wolfSSL_X509_NAME_get_sz(WOLFSSL_X509_NAME* name)
-{
-    WOLFSSL_ENTER("wolfSSL_X509_NAME_get_sz");
-    if(!name)
-        return -1;
-    return name->sz;
 }
 
 #ifdef HAVE_SNI
