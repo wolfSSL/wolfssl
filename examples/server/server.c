@@ -3201,14 +3201,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         fprintf(stderr, "\nprint off SSL memory stats\n");
         fprintf(stderr, "*** This is memory state before wolfSSL_free is "
                 "called\n");
-        fprintf(stderr, "peak connection memory = %d\n", ssl_stats.peakMem);
-        fprintf(stderr, "current memory in use  = %d\n", ssl_stats.curMem);
-        fprintf(stderr, "peak connection allocs = %d\n", ssl_stats.peakAlloc);
-        fprintf(stderr, "current connection allocs = %d\n",ssl_stats.curAlloc);
-        fprintf(stderr, "total connection allocs   = %d\n",
-                ssl_stats.totalAlloc);
-        fprintf(stderr, "total connection frees    = %d\n\n",
-                ssl_stats.totalFr);
+        wolfSSL_PrintStatsConn(&ssl_stats);
 
 #endif
         SSL_free(ssl); ssl = NULL;

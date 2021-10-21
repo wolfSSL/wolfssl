@@ -2877,6 +2877,9 @@ enum {
     WOLFSSL_TLSV1_1  = 2,
     WOLFSSL_TLSV1_2  = 3,
     WOLFSSL_TLSV1_3  = 4,
+    WOLFSSL_DTLSV1   = 5,
+    WOLFSSL_DTLSV1_2 = 6,
+
     WOLFSSL_USER_CA  = 1,          /* user added as trusted */
     WOLFSSL_CHAIN_CA = 2           /* added to cache from trusted chain */
 };
