@@ -15252,21 +15252,8 @@ static int DecodeExtKeyUsage(const byte* input, int sz, DecodedCert* cert)
 
 #ifndef IGNORE_NETSCAPE_CERT_TYPE
 
-#ifdef WOLFSSL_ASN_TEMPLATE
-/* ASN.1 template for Netscape Certificate Type
- * https://docs.oracle.com/cd/E19957-01/816-5533-10/ext.htm#1033183
- */
-static const ASNItem nsCertTypeASN[] = {
-/*  0 */    { 0, ASN_BIT_STRING, 0, 0, 0 },
-};
-
-/* Number of items in ASN.1 template for nsCertType. */
-#define nsCertTypeASN_Length (sizeof(nsCertTypeASN) / sizeof(ASNItem))
-#endif
-
 static int DecodeNsCertType(const byte* input, int sz, DecodedCert* cert)
 {
-#ifndef WOLFSSL_ASN_TEMPLATE
     word32 idx = 0;
     int len = 0;
 
@@ -15280,25 +15267,6 @@ static int DecodeNsCertType(const byte* input, int sz, DecodedCert* cert)
     cert->nsCertType = input[idx];
 
     return 0;
-#else
-    DECL_ASNGETDATA(dataASN, nsCertTypeASN_Length);
-    int ret = 0;
-    word32 idx = 0;
-
-    WOLFSSL_ENTER("DecodeNsCertType");
-    (void)cert;
-
-    CALLOC_ASNGETDATA(dataASN, nsCertTypeASN_Length, ret, cert->heap);
-
-    if (ret == 0)
-        ret = GetASN_Items(nsCertTypeASN, dataASN, nsCertTypeASN_Length, 1,
-                            input, &idx, sz);
-    if (ret == 0)
-        cert->nsCertType = dataASN[0].data.buffer.data[0];
-
-    FREE_ASNGETDATA(dataASN, cert->heap);
-    return ret;
-#endif
 }
 #endif
 
