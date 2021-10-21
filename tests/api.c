@@ -1457,18 +1457,32 @@ static int test_wolfSSL_CertManagerSetVerify(void)
     return ret;
 }
 
-#if 0
+#if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
+    defined(DEBUG_UNIT_TEST_CERTS)
 /* used when debugging name constraint tests */
-static void debug_write_cert(WOLFSSL_X509* x509, const char* fileName)
+static void DEBUG_WRITE_CERT_X509(WOLFSSL_X509* x509, const char* fileName)
 {
-    BIO* out = BIO_new(wolfSSL_BIO_s_file());
+    BIO* out = BIO_new(BIO_s_file());
     if (out != NULL) {
-        FILE* f= fopen(fileName, "wb");
+        FILE* f = fopen(fileName, "wb");
         BIO_set_fp(out, f, BIO_CLOSE);
         PEM_write_bio_X509(out, x509);
         BIO_free(out);
     }
 }
+static void DEBUG_WRITE_CERT_DER(const byte* der, int derSz, const char* fileName)
+{
+    BIO* out = BIO_new(BIO_s_file());
+    if (out != NULL) {
+        FILE* f = fopen(fileName, "wb");
+        BIO_set_fp(out, f, BIO_CLOSE);
+        BIO_write(out, der, derSz);
+        BIO_free(out);
+    }
+}
+#else
+#define DEBUG_WRITE_CERT_X509(x509, fileName)
+#define DEBUG_WRITE_CERT_DER(der, derSz, fileName)
 #endif
 
 
@@ -1554,18 +1568,8 @@ static void test_wolfSSL_CertManagerNameConstraint(void)
                 WOLFSSL_FILETYPE_ASN1));
 
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(ca, &derSz)));
-#if 0
-    {
-        //write out x509 for test
-        BIO* out = BIO_new(wolfSSL_BIO_s_file());
-        if (out != NULL) {
-            FILE* f= fopen("ca.der", "wb");
-            BIO_set_fp(out, f, BIO_CLOSE);
-            BIO_write(out, der, derSz);
-            BIO_free(out);
-        }
-    }
-#endif
+    DEBUG_WRITE_CERT_DER(der, derSz, "ca.der");
+
     AssertIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 
@@ -1588,9 +1592,7 @@ static void test_wolfSSL_CertManagerNameConstraint(void)
     wolfSSL_X509_add_altname(x509, "wolfssl@info.wolfssl.com", ASN_RFC822_TYPE);
 
     AssertIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
-    #if 0
-        debug_write_cert(x509, "good-cert.pem");
-    #endif
+    DEBUG_WRITE_CERT_X509(x509, "good-cert.pem");
 
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
@@ -1618,9 +1620,7 @@ static void test_wolfSSL_CertManagerNameConstraint(void)
     wolfSSL_X509_add_altname(x509, "wolfssl@info.wolfssl.com", ASN_RFC822_TYPE);
 
     AssertIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
-    #if 0
-        debug_write_cert(x509, "bad-cert.pem");
-    #endif
+    DEBUG_WRITE_CERT_X509(x509, "bad-cert.pem");
 
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
@@ -1830,18 +1830,8 @@ static void test_wolfSSL_CertManagerNameConstraint3(void)
     AssertNotNull(ca = wolfSSL_X509_load_certificate_file(ca_cert,
                 WOLFSSL_FILETYPE_ASN1));
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(ca, &derSz)));
-#if 0
-    {
-        //write out x509 for test
-        BIO* out = BIO_new(wolfSSL_BIO_s_file());
-        if (out != NULL) {
-            FILE* f= fopen("ca.der", "wb");
-            BIO_set_fp(out, f, BIO_CLOSE);
-            BIO_write(out, der, derSz);
-            BIO_free(out);
-        }
-    }
-#endif
+    DEBUG_WRITE_CERT_DER(der, derSz, "ca.der");
+
     AssertIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 
@@ -1864,9 +1854,7 @@ static void test_wolfSSL_CertManagerNameConstraint3(void)
     wolfSSL_X509_add_altname(x509, "wolfssl@info.wolfssl.com", ASN_RFC822_TYPE);
 
     AssertIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
-    #if 0
-        debug_write_cert(x509, "good-1st-constraint-cert.pem");
-    #endif
+    DEBUG_WRITE_CERT_X509(x509, "good-1st-constraint-cert.pem");
 
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
@@ -1892,9 +1880,7 @@ static void test_wolfSSL_CertManagerNameConstraint3(void)
     wolfSSL_X509_add_altname(x509, "wolfssl@info.example.com", ASN_RFC822_TYPE);
 
     AssertIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
-    #if 0
-        debug_write_cert(x509, "good-2nd-constraint-cert.pem");
-    #endif
+    DEBUG_WRITE_CERT_X509(x509, "good-2nd-constraint-cert.pem");
 
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
@@ -1920,9 +1906,7 @@ static void test_wolfSSL_CertManagerNameConstraint3(void)
     wolfSSL_X509_add_altname(x509, "wolfssl@info.com", ASN_RFC822_TYPE);
 
     AssertIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
-    #if 0
-        debug_write_cert(x509, "bad-cert.pem");
-    #endif
+    DEBUG_WRITE_CERT_X509(x509, "bad-cert.pem");
 
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
@@ -1961,18 +1945,8 @@ static void test_wolfSSL_CertManagerNameConstraint4(void)
     AssertNotNull(ca = wolfSSL_X509_load_certificate_file(ca_cert,
                 WOLFSSL_FILETYPE_ASN1));
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(ca, &derSz)));
-#if 0
-    {
-        //write out x509 for test
-        BIO* out = BIO_new(wolfSSL_BIO_s_file());
-        if (out != NULL) {
-            FILE* f= fopen("ca.der", "wb");
-            BIO_set_fp(out, f, BIO_CLOSE);
-            BIO_write(out, der, derSz);
-            BIO_free(out);
-        }
-    }
-#endif
+    DEBUG_WRITE_CERT_DER(der, derSz, "ca.der");
+
     AssertIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 
@@ -1992,9 +1966,7 @@ static void test_wolfSSL_CertManagerNameConstraint4(void)
 
     wolfSSL_X509_add_altname(x509, "www.wolfssl.com", ASN_DNS_TYPE);
     AssertIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
-    #if 0
-        debug_write_cert(x509, "good-1st-constraint-cert.pem");
-    #endif
+    DEBUG_WRITE_CERT_X509(x509, "good-1st-constraint-cert.pem");
 
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
@@ -2017,9 +1989,7 @@ static void test_wolfSSL_CertManagerNameConstraint4(void)
 
     wolfSSL_X509_add_altname(x509, "www.example.com", ASN_DNS_TYPE);
     AssertIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
-    #if 0
-        debug_write_cert(x509, "good-2nd-constraint-cert.pem");
-    #endif
+    DEBUG_WRITE_CERT_X509(x509, "good-2nd-constraint-cert.pem");
 
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
@@ -2044,9 +2014,7 @@ static void test_wolfSSL_CertManagerNameConstraint4(void)
     wolfSSL_X509_add_altname(x509, "www.info.wolfssl.com", ASN_DNS_TYPE);
     wolfSSL_X509_add_altname(x509, "extra.wolfssl.com", ASN_DNS_TYPE);
     AssertIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
-    #if 0
-        debug_write_cert(x509, "good-multiple-constraint-cert.pem");
-    #endif
+    DEBUG_WRITE_CERT_X509(x509, "good-multiple-constraint-cert.pem");
 
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
@@ -2071,9 +2039,7 @@ static void test_wolfSSL_CertManagerNameConstraint4(void)
     wolfSSL_X509_add_altname(x509, "www.nomatch.com", ASN_DNS_TYPE);
     wolfSSL_X509_add_altname(x509, "www.info.wolfssl.com", ASN_DNS_TYPE);
     AssertIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
-    #if 0
-        debug_write_cert(x509, "bad-multiple-constraint-cert.pem");
-    #endif
+    DEBUG_WRITE_CERT_X509(x509, "bad-multiple-constraint-cert.pem");
 
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
@@ -2096,9 +2062,7 @@ static void test_wolfSSL_CertManagerNameConstraint4(void)
 
     wolfSSL_X509_add_altname(x509, "www.random.com", ASN_DNS_TYPE);
     AssertIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
-    #if 0
-        debug_write_cert(x509, "bad-cert.pem");
-    #endif
+    DEBUG_WRITE_CERT_X509(x509, "bad-cert.pem");
 
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
@@ -2137,18 +2101,8 @@ static void test_wolfSSL_CertManagerNameConstraint5(void)
     AssertNotNull(ca = wolfSSL_X509_load_certificate_file(ca_cert,
                 WOLFSSL_FILETYPE_ASN1));
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(ca, &derSz)));
-#if 0
-    {
-        //write out x509 for test
-        BIO* out = BIO_new(wolfSSL_BIO_s_file());
-        if (out != NULL) {
-            FILE* f= fopen("ca.der", "wb");
-            BIO_set_fp(out, f, BIO_CLOSE);
-            BIO_write(out, der, derSz);
-            BIO_free(out);
-        }
-    }
-#endif
+    DEBUG_WRITE_CERT_DER(der, derSz, "ca.der");
+
     AssertIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 
@@ -2169,9 +2123,7 @@ static void test_wolfSSL_CertManagerNameConstraint5(void)
     wolfSSL_X509_add_altname(x509, "good.example", ASN_DNS_TYPE);
     wolfSSL_X509_add_altname(x509, "facts@into.wolfssl.com", ASN_RFC822_TYPE);
     AssertIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
-    #if 0
-        debug_write_cert(x509, "good-cert.pem");
-    #endif
+    DEBUG_WRITE_CERT_X509(x509, "good-cert.pem");
 
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
@@ -2195,9 +2147,7 @@ static void test_wolfSSL_CertManagerNameConstraint5(void)
     wolfSSL_X509_add_altname(x509, "example", ASN_DNS_TYPE);
     wolfSSL_X509_add_altname(x509, "facts@wolfssl.com", ASN_RFC822_TYPE);
     AssertIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
-    #if 0
-        debug_write_cert(x509, "bad-cn-cert.pem");
-    #endif
+    DEBUG_WRITE_CERT_X509(x509, "bad-cn-cert.pem");
 
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
@@ -2220,9 +2170,7 @@ static void test_wolfSSL_CertManagerNameConstraint5(void)
     wolfSSL_X509_add_altname(x509, "www.wolfssl", ASN_DNS_TYPE);
     wolfSSL_X509_add_altname(x509, "info@wolfssl.com", ASN_RFC822_TYPE);
     AssertIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
-    #if 0
-        debug_write_cert(x509, "bad-1st-constraint-cert.pem");
-    #endif
+    DEBUG_WRITE_CERT_X509(x509, "bad-1st-constraint-cert.pem");
 
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
@@ -2245,9 +2193,7 @@ static void test_wolfSSL_CertManagerNameConstraint5(void)
     wolfSSL_X509_add_altname(x509, "info@wolfssl.com", ASN_RFC822_TYPE);
     wolfSSL_X509_add_altname(x509, "info@example.com", ASN_RFC822_TYPE);
     AssertIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
-    #if 0
-        debug_write_cert(x509, "bad-2nd-constraint-cert.pem");
-    #endif
+    DEBUG_WRITE_CERT_X509(x509, "bad-2nd-constraint-cert.pem");
 
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
@@ -2268,9 +2214,7 @@ static void test_wolfSSL_CertManagerNameConstraint5(void)
 
     wolfSSL_X509_add_altname(x509, "example", ASN_DNS_TYPE);
     AssertIntGT(wolfSSL_X509_sign(x509, priv, EVP_sha256()), 0);
-    #if 0
-        debug_write_cert(x509, "good-missing-constraint-cert.pem");
-    #endif
+    DEBUG_WRITE_CERT_X509(x509, "good-missing-constraint-cert.pem");
 
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
@@ -35921,17 +35865,7 @@ static void test_wolfSSL_X509_sign(void)
 
     AssertIntEQ(wolfSSL_X509_get_serial_number(x509, sn, &snSz),
                 WOLFSSL_SUCCESS);
-
-#if 0
-    /* example for writing to file */
-    XFILE tmpFile = XFOPEN("./signed.der", "wb");
-    if (tmpFile) {
-        int derSz = 0;
-        const byte* der = wolfSSL_X509_get_der(x509, &derSz);
-        XFWRITE(der, 1, derSz, tmpFile);
-    }
-    XFCLOSE(tmpFile);
-#endif
+    DEBUG_WRITE_CERT_X509(x509, "signed.der");
 
     /* Variation in size depends on ASN.1 encoding when MSB is set */
 #ifndef WOLFSSL_ALT_NAMES
