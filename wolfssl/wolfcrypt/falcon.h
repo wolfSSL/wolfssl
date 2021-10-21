@@ -83,9 +83,9 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
                          word32 msgLen, int* stat, falcon_key* key);
 
 WOLFSSL_API
-int wc_falcon_level1_init(falcon_key* key);
+int wc_falcon_init(falcon_key* key);
 WOLFSSL_API
-int wc_falcon_level5_init(falcon_key* key);
+int wc_falcon_set_level(falcon_key* key, byte level);
 WOLFSSL_API
 void wc_falcon_free(falcon_key* key);
 

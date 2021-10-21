@@ -6178,12 +6178,19 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
         if (key_pair == NULL)
             return MEMORY_E;
     #endif
+        ret = wc_falcon_init(key_pair);
+        if (ret  < 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+            XFREE(key_pair, NULL, DYNAMIC_TYPE_FALCON);
+    #endif
+            return ret;
+        }
 
         if (ks == FALCON_LEVEL1k) {
-            ret = wc_falcon_level1_init(key_pair);
+            ret = wc_falcon_set_level(key_pair, 1);
         }
         else if (ks == FALCON_LEVEL5k) {
-            ret = wc_falcon_level5_init(key_pair);
+            ret = wc_falcon_set_level(key_pair, 5);
         }
 
         if (ret  < 0) {
@@ -6520,29 +6527,30 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         if (falcon == NULL)
             return MEMORY_E;
 
-        tmpIdx = 0;
-        if (wc_falcon_level1_init(falcon) == 0) {
-            if (wc_Falcon_PrivateKeyDecode(key, &tmpIdx, falcon, keySz)
-                == 0) {
-                *algoID = FALCON_LEVEL1k;
+        if (wc_falcon_init(falcon) != 0) {
+            tmpIdx = 0;
+            if (wc_falcon_set_level(falcon, 1) == 0) {
+                if (wc_Falcon_PrivateKeyDecode(key, &tmpIdx, falcon, keySz)
+                    == 0) {
+                    *algoID = FALCON_LEVEL1k;
+                }
+                else {
+                    WOLFSSL_MSG("Not Falcon Level 1 DER key");
+                }
+            }
+            else if (wc_falcon_set_level(falcon, 5) == 0) {
+                if (wc_Falcon_PrivateKeyDecode(key, &tmpIdx, falcon, keySz)
+                    == 0) {
+                    *algoID = FALCON_LEVEL5k;
+                }
+                else {
+                    WOLFSSL_MSG("Not Falcon Level 5 DER key");
+                }
             }
             else {
-                WOLFSSL_MSG("Not Falcon Level 1 DER key");
+                WOLFSSL_MSG("GetKeyOID falcon initialization failed");
             }
             wc_falcon_free(falcon);
-        }
-        else if (wc_falcon_level5_init(falcon) == 0) {
-            if (wc_Falcon_PrivateKeyDecode(key, &tmpIdx, falcon, keySz)
-                == 0) {
-                *algoID = FALCON_LEVEL5k;
-            }
-            else {
-                WOLFSSL_MSG("Not Falcon Level 5 DER key");
-            }
-            wc_falcon_free(falcon);
-        }
-        else {
-            WOLFSSL_MSG("GetKeyOID falcon initialization failed");
         }
         XFREE(falcon, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -13262,11 +13270,15 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.falcon == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
-                    if ((ret = wc_falcon_level1_init(sigCtx->key.falcon)) < 0) {
+                    if ((ret = wc_falcon_init(sigCtx->key.falcon)) < 0) {
+                        goto exit_cs;
+                    }
+                    if ((ret = wc_falcon_set_level(sigCtx->key.falcon, 1))
+                        < 0) {
                         goto exit_cs;
                     }
                     if ((ret = wc_falcon_import_public(key, keySz,
-                                                       sigCtx->key.falcon)) < 0) {
+                        sigCtx->key.falcon)) < 0) {
                         WOLFSSL_MSG("ASN Key import error Falcon Level 1");
                         goto exit_cs;
                     }
@@ -13282,11 +13294,15 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.falcon == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
-                    if ((ret = wc_falcon_level5_init(sigCtx->key.falcon)) < 0) {
+                    if ((ret = wc_falcon_init(sigCtx->key.falcon)) < 0) {
+                        goto exit_cs;
+                    }
+                    if ((ret = wc_falcon_set_level(sigCtx->key.falcon, 5))
+                        < 0) {
                         goto exit_cs;
                     }
                     if ((ret = wc_falcon_import_public(key, keySz,
-                                                       sigCtx->key.falcon)) < 0) {
+                        sigCtx->key.falcon)) < 0) {
                         WOLFSSL_MSG("ASN Key import error Falcon Level 5");
                         goto exit_cs;
                     }

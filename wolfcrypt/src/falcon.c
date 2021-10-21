@@ -177,35 +177,40 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     return ret;
 }
 
-/* Initialize the falcon level 1 private/public key.
+/* Initialize the falcon private/public key.
  *
  * key  [in]  Falcon key.
  * returns BAD_FUNC_ARG when key is NULL
  */
-int wc_falcon_level1_init(falcon_key* key)
+int wc_falcon_init(falcon_key* key)
 {
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
 
     ForceZero(key, sizeof(key));
-    key->level = 1;
     return 0;
 }
 
-/* Initialize the falcon level 5 private/public key.
+/* Set the level of the falcon private/public key.
  *
- * key  [in]  Falcon key.
- * returns BAD_FUNC_ARG when key is NULL
+ * key   [out]  Falcon key.
+ * level [in]   Either 1 or 5.
+ * returns BAD_FUNC_ARG when key is NULL or level is not 1 and not 5.
  */
-int wc_falcon_level5_init(falcon_key* key)
+int wc_falcon_set_level(falcon_key* key, byte level)
 {
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    ForceZero(key, sizeof(key));
-    key->level = 5;
+    if (level != 1 && level != 5) {
+        return BAD_FUNC_ARG;
+    }
+
+    key->level = level;
+    key->pubKeySet = 0;
+    key->prvKeySet = 0;
     return 0;
 }
 
