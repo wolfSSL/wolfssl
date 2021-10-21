@@ -1414,7 +1414,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) \
         || defined(SESSION_CERTS)
         /* big enough to handle most cases including session certs */
-        byte memory[239936];
+        byte memory[320000];
     #else
         byte memory[80000];
     #endif
@@ -1512,11 +1512,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     /* Reinitialize the global myVerifyAction. */
     myVerifyAction = VERIFY_OVERRIDE_ERROR;
 
-    /* Not Used: h, z, W, X, 7 */
+    /* Not Used: h, z, W, X */
     while ((ch = mygetopt_long(argc, argv, "?:"
                 "abc:defgijk:l:mop:q:rstu;v:wxy"
                 "A:B:C:D:E:FGH:IJKL:MNO:PQR:S:T;UVYZ:"
-                "01:23:4:5689"
+                "01:23:4:567:89"
                 "@#", long_options, 0)) != -1) {
         switch (ch) {
             case '?' :
