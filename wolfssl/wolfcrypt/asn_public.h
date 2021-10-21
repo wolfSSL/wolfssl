@@ -363,13 +363,19 @@ typedef struct Cert {
 #ifdef WOLFSSL_CERT_EXT
     byte    skid[CTC_MAX_SKID_SIZE];     /* Subject Key Identifier */
     int     skidSz;                      /* SKID size in bytes */
-    byte    akid[CTC_MAX_AKID_SIZE + sizeof(CertName)]; /* Authority Key
+    byte    akid[CTC_MAX_AKID_SIZE
+#ifdef WOLFSSL_AKID_NAME
+              + sizeof(CertName) + CTC_SERIAL_SIZE
+#endif
+              ]; /* Authority Key
                                                          * Identifier */
     int     akidSz;                      /* AKID size in bytes */
+#ifdef WOLFSSL_AKID_NAME
     byte    rawAkid;                     /* Set to true if akid is a
                                           * AuthorityKeyIdentifier object.
                                           * Set to false if akid is just a
                                           * KeyIdentifier object. */
+#endif
     word16  keyUsage;                    /* Key Usage */
     byte    extKeyUsage;                 /* Extended Key Usage */
 #ifndef IGNORE_NETSCAPE_CERT_TYPE

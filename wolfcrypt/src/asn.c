@@ -74,6 +74,8 @@ ASN Options:
  * WOLFSSL_ASN_TEMPLATE_TYPE_CHECK: Use ASN functions to better test compiler
     type issues for testing
  * CRLDP_VALIDATE_DATA: For ASN template only, validates the reason data
+ * WOLFSSL_AKID_NAME: Enable support for full AuthorityKeyIdentifier extension.
+ *  Only supports copying full AKID from an existing certificate.
 */
 
 #ifndef NO_ASN
@@ -14952,8 +14954,10 @@ static int DecodeAuthKeyId(const byte* input, int sz, DecodedCert* cert)
     }
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#ifdef WOLFSSL_AKID_NAME
     cert->extRawAuthKeyIdSrc = input;
     cert->extRawAuthKeyIdSz = sz;
+#endif
     cert->extAuthKeyIdSrc = &input[idx];
     cert->extAuthKeyIdSz = length;
 #endif /* OPENSSL_EXTRA */
@@ -14981,8 +14985,10 @@ static int DecodeAuthKeyId(const byte* input, int sz, DecodedCert* cert)
         else {
 #ifdef OPENSSL_EXTRA
             /* Store the authority key id. */
+#ifdef WOLFSSL_AKID_NAME
             cert->extRawAuthKeyIdSrc = input;
             cert->extRawAuthKeyIdSz = sz;
+#endif
             GetASN_GetConstRef(&dataASN[1], &cert->extAuthKeyIdSrc,
                                &cert->extAuthKeyIdSz);
 #endif /* OPENSSL_EXTRA */
@@ -20031,7 +20037,11 @@ typedef struct DerCert {
     byte extensions[MAX_EXTENSIONS_SZ]; /* all extensions */
 #ifdef WOLFSSL_CERT_EXT
     byte skid[MAX_KID_SZ];             /* Subject Key Identifier extension */
-    byte akid[MAX_KID_SZ + sizeof(CertName)]; /* Authority Key Identifier extension */
+    byte akid[MAX_KID_SZ
+#ifdef WOLFSSL_AKID_NAME
+              + sizeof(CertName) + CTC_SERIAL_SIZE
+#endif
+              ]; /* Authority Key Identifier extension */
     byte keyUsage[MAX_KEYUSAGE_SZ];    /* Key Usage extension */
     byte extKeyUsage[MAX_EXTKEYUSAGE_SZ]; /* Extended Key Usage extension */
 #ifndef IGNORE_NETSCAPE_CERT_TYPE
@@ -21022,7 +21032,7 @@ static int SetSKID(byte* output, word32 outSz, const byte *input, word32 length)
 /* encode Authority Key Identifier, return total bytes written
  * RFC5280 : non-critical */
 static int SetAKID(byte* output, word32 outSz, byte *input, word32 length,
-                    byte rawAkid)
+                   byte rawAkid)
 {
     int     enc_valSz, inSeqSz;
     byte enc_val_buf[MAX_KID_SZ];
@@ -21031,14 +21041,19 @@ static int SetAKID(byte* output, word32 outSz, byte *input, word32 length,
     const byte akid_cs[] = { 0x80 };
     word32 idx;
 
+    (void)rawAkid;
+
     if (output == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
+#ifdef WOLFSSL_AKID_NAME
     if (rawAkid) {
         enc_val = input;
         enc_valSz = length;
     }
-    else {
+    else
+#endif
+    {
         enc_val = enc_val_buf;
         enc_valSz = length + 3 + sizeof(akid_cs);
         if (enc_valSz > (int)sizeof(enc_val_buf))
@@ -22843,13 +22858,25 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     /* AKID */
     if (cert->akidSz) {
         /* check the provided AKID size */
-        if ((!cert->rawAkid &&
-              cert->akidSz > (int)min(CTC_MAX_AKID_SIZE, sizeof(der->akid))) ||
-             (cert->rawAkid && cert->akidSz > (int)sizeof(der->akid)))
+        if ((
+#ifdef WOLFSSL_AKID_NAME
+             !cert->rawAkid &&
+#endif
+              cert->akidSz > (int)min(CTC_MAX_AKID_SIZE, sizeof(der->akid)))
+#ifdef WOLFSSL_AKID_NAME
+          || (cert->rawAkid && cert->akidSz > (int)sizeof(der->akid))
+#endif
+             )
             return AKID_E;
 
         der->akidSz = SetAKID(der->akid, sizeof(der->akid), cert->akid,
-                                cert->akidSz, cert->rawAkid);
+                                cert->akidSz,
+#ifdef WOLFSSL_AKID_NAME
+                                cert->rawAkid
+#else
+                                0
+#endif
+                                );
         if (der->akidSz <= 0)
             return AKID_E;
 

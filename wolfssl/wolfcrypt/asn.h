@@ -1441,8 +1441,10 @@ struct DecodedCert {
     const byte* extExtKeyUsageSrc;
     word32  extExtKeyUsageSz;
     word32  extExtKeyUsageCount;
+#ifdef WOLFSSL_AKID_NAME
     const byte* extRawAuthKeyIdSrc;
     word32  extRawAuthKeyIdSz;
+#endif
     const byte* extAuthKeyIdSrc;
     word32  extAuthKeyIdSz;
     const byte* extSubjKeyIdSrc;
