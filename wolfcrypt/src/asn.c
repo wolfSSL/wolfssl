@@ -22445,7 +22445,7 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
             SetASN_Buffer(&dataASN[37], cert->crlInfo, cert->crlInfoSz);
         }
         else {
-            /* Don't write out Netscape Certificate Type. */
+            /* Don't write out CRL Distribution Points. */
             SetASNItem_NoOut(dataASN, 35, 37);
         }
     #endif
