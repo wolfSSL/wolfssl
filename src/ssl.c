@@ -52864,7 +52864,7 @@ int wolfSSL_BN_rand_range(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *range)
                 return WOLFSSL_FAILURE;
             }
             iter++;
-            if (wolfSSL_BN_rand(r, n, 0, 0) == WOLFSSL_FAILURE) {
+            if (wolfSSL_BN_pseudo_rand(r, n, -1, 0) == WOLFSSL_FAILURE) {
                 WOLFSSL_MSG("wolfSSL_BN_rand error");
                 return WOLFSSL_FAILURE;
             }
