@@ -33994,8 +33994,10 @@ static void test_wolfSSL_X509_STORE_load_locations(void)
     AssertIntEQ(X509_STORE_load_locations(store, client_pem_file, NULL), WOLFSSL_SUCCESS);
     AssertIntEQ(X509_STORE_load_locations(store, NULL, certs_path), WOLFSSL_SUCCESS);
 
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
     /* Clear nodes */
-    wc_ClearErrorNodes();
+    ERR_clear_error();
+#endif
 
     SSL_CTX_free(ctx);
     printf(resultFmt, passed);
