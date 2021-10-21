@@ -1482,9 +1482,6 @@ struct DecodedCert {
     char*   subjectST;
     int     subjectSTLen;
     char    subjectSTEnc;
-    char*   subjectStreet;
-    int     subjectStreetLen;
-    char    subjectStreetEnc;
     char*   subjectO;
     int     subjectOLen;
     char    subjectOEnc;
@@ -1495,6 +1492,9 @@ struct DecodedCert {
     int     subjectSNDLen;
     char    subjectSNDEnc;
 #ifdef WOLFSSL_CERT_EXT
+    char*   subjectStreet;
+    int     subjectStreetLen;
+    char    subjectStreetEnc;
     char*   subjectBC;
     int     subjectBCLen;
     char    subjectBCEnc;
@@ -1504,10 +1504,10 @@ struct DecodedCert {
     char*   subjectJS;
     int     subjectJSLen;
     char    subjectJSEnc;
-#endif
     char*   subjectPC;
     int     subjectPCLen;
     char    subjectPCEnc;
+#endif
     char*   subjectEmail;
     int     subjectEmailLen;
 #endif /* defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT) */

@@ -10883,22 +10883,6 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                     nid = NID_stateOrProvinceName;
                 #endif /* OPENSSL_EXTRA */
             }
-            else if (id == ASN_STREET_ADDR) {
-                copy = WOLFSSL_STREET_ADDR_NAME;
-                copyLen = sizeof(WOLFSSL_STREET_ADDR_NAME) - 1;
-                #ifdef WOLFSSL_CERT_GEN
-                    if (nameType == SUBJECT) {
-                        cert->subjectStreet = (char*)&input[srcIdx];
-                        cert->subjectStreetLen = strLen;
-                        cert->subjectStreetEnc = b;
-                    }
-                #endif /* WOLFSSL_CERT_GEN */
-                #if (defined(OPENSSL_EXTRA) || \
-                        defined(OPENSSL_EXTRA_X509_SMALL)) \
-                        && !defined(WOLFCRYPT_ONLY)
-                    nid = NID_streetAddress;
-                #endif /* OPENSSL_EXTRA */
-            }
             else if (id == ASN_ORG_NAME) {
                 copy = WOLFSSL_ORG_NAME;
                 copyLen = sizeof(WOLFSSL_ORG_NAME) - 1;
@@ -10948,6 +10932,22 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #endif /* OPENSSL_EXTRA */
             }
         #ifdef WOLFSSL_CERT_EXT
+            else if (id == ASN_STREET_ADDR) {
+                copy = WOLFSSL_STREET_ADDR_NAME;
+                copyLen = sizeof(WOLFSSL_STREET_ADDR_NAME) - 1;
+                #ifdef WOLFSSL_CERT_GEN
+                    if (nameType == SUBJECT) {
+                        cert->subjectStreet = (char*)&input[srcIdx];
+                        cert->subjectStreetLen = strLen;
+                        cert->subjectStreetEnc = b;
+                    }
+                #endif /* WOLFSSL_CERT_GEN */
+                #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
+                    nid = NID_streetAddress;
+                #endif /* OPENSSL_EXTRA */
+            }
             else if (id == ASN_BUS_CAT) {
                 copy = WOLFSSL_BUS_CAT;
                 copyLen = sizeof(WOLFSSL_BUS_CAT) - 1;
@@ -10963,7 +10963,6 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 nid = NID_businessCategory;
             #endif /* OPENSSL_EXTRA */
             }
-        #endif /* WOLFSSL_CERT_EXT */
             else if (id == ASN_POSTAL_CODE) {
                 copy = WOLFSSL_POSTAL_NAME;
                 copyLen = sizeof(WOLFSSL_POSTAL_NAME) - 1;
@@ -10980,6 +10979,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                     nid = NID_postalCode;
                 #endif /* OPENSSL_EXTRA */
             }
+        #endif /* WOLFSSL_CERT_EXT */
         }
     #ifdef WOLFSSL_CERT_EXT
         else if ((srcIdx + ASN_JOI_PREFIX_SZ + 2 <= (word32)maxIdx) &&
