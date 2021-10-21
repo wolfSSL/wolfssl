@@ -87,6 +87,8 @@ int wc_falcon_init(falcon_key* key);
 WOLFSSL_API
 int wc_falcon_set_level(falcon_key* key, byte level);
 WOLFSSL_API
+int wc_falcon_get_level(falcon_key* key, byte* level);
+WOLFSSL_API
 void wc_falcon_free(falcon_key* key);
 
 WOLFSSL_API

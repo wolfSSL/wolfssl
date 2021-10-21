@@ -214,6 +214,26 @@ int wc_falcon_set_level(falcon_key* key, byte level)
     return 0;
 }
 
+/* Get the level of the falcon private/public key.
+ *
+ * key   [in]  Falcon key.
+ * level [out] The level.
+ * returns BAD_FUNC_ARG when key is NULL or level has not been set.
+ */
+int wc_falcon_get_level(falcon_key* key, byte* level)
+{
+    if (key == NULL || level == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (key->level != 1 && key->level != 5) {
+        return BAD_FUNC_ARG;
+    }
+
+    *level = key->level;
+    return 0;
+}
+
 /* Clears the falcon key data
  *
  * key  [in]  Falcon key.
