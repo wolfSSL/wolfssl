@@ -50418,55 +50418,22 @@ static void test_wolfSSL_CTX_StaticMemory_TLS(int tlsVer,
 #endif /* WOLFSSL_STATIC_MEMORY && HAVE_IO_TESTS_DEPENDENCIES */
 
 #ifdef WOLFSSL_STATIC_MEMORY
-    #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) || \
-         defined(SESSION_CERTS)
-        #ifdef OPENSSL_EXTRA
-        #define TEST_TLS_STATIC_MEMSZ (400000)
-        #else
-        #define TEST_TLS_STATIC_MEMSZ (320000)
-        #endif
+#if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) || \
+        defined(SESSION_CERTS)
+    #ifdef OPENSSL_EXTRA
+    #define TEST_TLS_STATIC_MEMSZ (400000)
     #else
-        #define TEST_TLS_STATIC_MEMSZ (80000)
+    #define TEST_TLS_STATIC_MEMSZ (320000)
     #endif
+#else
+    #define TEST_TLS_STATIC_MEMSZ (80000)
 #endif
 
-static void test_wolfSSL_CTX_StaticMemory(void)
+static void test_wolfSSL_CTX_StaticMemory_SSL(WOLFSSL_CTX* ctx)
 {
-#ifdef WOLFSSL_STATIC_MEMORY
-    wolfSSL_method_func method_func;
-    WOLFSSL_CTX* ctx = NULL;
-    const int kMaxCtxClients = 2;
     WOLFSSL *ssl1 = NULL, *ssl2 = NULL, *ssl3 = NULL;
     WOLFSSL_MEM_STATS mem_stats;
     WOLFSSL_MEM_CONN_STATS ssl_stats;
-    #ifdef HAVE_IO_TESTS_DEPENDENCIES
-    #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519)
-    int tlsVer;
-    byte cliMem[TEST_TLS_STATIC_MEMSZ];
-    #endif
-    #endif
-    byte svrMem[TEST_TLS_STATIC_MEMSZ];
-
-    printf(testingFmt, "test_wolfSSL_CTX_StaticMemory()");
-
-#ifndef NO_WOLFSSL_SERVER
-    #ifndef WOLFSSL_NO_TLS12
-        method_func = wolfTLSv1_2_server_method_ex;
-    #else
-        method_func = wolfTLSv1_3_server_method_ex;
-    #endif
-#else
-    #ifndef WOLFSSL_NO_TLS12
-        method_func = wolfTLSv1_2_client_method_ex;
-    #else
-        method_func = wolfTLSv1_3_client_method_ex;
-    #endif
-#endif
-
-    /* Simple test for static memory with WOLFSSL CTX */
-    AssertIntEQ(wolfSSL_CTX_load_static_memory(
-            &ctx, method_func, svrMem, sizeof(svrMem),
-            0, kMaxCtxClients), WOLFSSL_SUCCESS);
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA)
     AssertIntEQ(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
@@ -50497,6 +50464,54 @@ static void test_wolfSSL_CTX_StaticMemory(void)
 
     wolfSSL_free(ssl1);
     wolfSSL_free(ssl2);
+}
+#endif /* WOLFSSL_STATIC_MEMORY */
+
+static void test_wolfSSL_CTX_StaticMemory(void)
+{
+#ifdef WOLFSSL_STATIC_MEMORY
+    wolfSSL_method_func method_func;
+    WOLFSSL_CTX* ctx;
+    const int kMaxCtxClients = 2;
+    #ifdef HAVE_IO_TESTS_DEPENDENCIES
+    #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519)
+    int tlsVer;
+    byte cliMem[TEST_TLS_STATIC_MEMSZ];
+    #endif
+    #endif
+    byte svrMem[TEST_TLS_STATIC_MEMSZ];
+
+    printf(testingFmt, "test_wolfSSL_CTX_StaticMemory()");
+
+#ifndef NO_WOLFSSL_SERVER
+    #ifndef WOLFSSL_NO_TLS12
+        method_func = wolfTLSv1_2_server_method_ex;
+    #else
+        method_func = wolfTLSv1_3_server_method_ex;
+    #endif
+#else
+    #ifndef WOLFSSL_NO_TLS12
+        method_func = wolfTLSv1_2_client_method_ex;
+    #else
+        method_func = wolfTLSv1_3_client_method_ex;
+    #endif
+#endif
+
+    /* Test creating CTX directly from static memory pool */
+    ctx = NULL;
+    AssertIntEQ(wolfSSL_CTX_load_static_memory(
+            &ctx, method_func, svrMem, sizeof(svrMem),
+            0, kMaxCtxClients), WOLFSSL_SUCCESS);
+    test_wolfSSL_CTX_StaticMemory_SSL(ctx);
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+
+    /* Test for heap allocated CTX, then assigning static pool to it */
+    AssertNotNull(ctx = wolfSSL_CTX_new(method_func(NULL)));
+    AssertIntEQ(wolfSSL_CTX_load_static_memory(&ctx,
+        NULL, svrMem, sizeof(svrMem),
+        0, kMaxCtxClients), WOLFSSL_SUCCESS);
+    test_wolfSSL_CTX_StaticMemory_SSL(ctx);
     wolfSSL_CTX_free(ctx);
 
     /* TLS Level Tests using static memory */

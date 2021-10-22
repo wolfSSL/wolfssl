@@ -469,14 +469,14 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
     if (method == NULL)
         return ctx;
 
-    ctx = (WOLFSSL_CTX*) XMALLOC(sizeof(WOLFSSL_CTX), heap, DYNAMIC_TYPE_CTX);
+    ctx = (WOLFSSL_CTX*)XMALLOC(sizeof(WOLFSSL_CTX), heap, DYNAMIC_TYPE_CTX);
     if (ctx) {
         int ret;
 
         ret = InitSSL_Ctx(ctx, method, heap);
     #ifdef WOLFSSL_STATIC_MEMORY
         if (heap != NULL) {
-            ctx->onHeap = 1; /* free the memory back to heap when done */
+            ctx->onHeapHint = 1; /* free the memory back to heap when done */
         }
     #endif
         if (ret < 0) {
