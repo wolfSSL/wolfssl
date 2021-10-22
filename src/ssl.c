@@ -20387,7 +20387,7 @@ int wolfSSL_X509_get_pubkey_buffer(WOLFSSL_X509* x509,
         return WOLFSSL_FATAL_ERROR;
     }
 
-    if (buf != NULL) {
+    if (buf != NULL && pubKeyX509 != NULL) {
         if (pubKeyX509Sz > *bufSz) {
             WOLFSSL_LEAVE("wolfSSL_X509_get_pubkey_buffer", BUFFER_E);
             return WOLFSSL_FATAL_ERROR;
@@ -42858,6 +42858,8 @@ cleanup:
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
         if (l == 0)
             WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
+    #else
+        (void)l;
     #endif
         pemSz = (int)i;
     #ifdef WOLFSSL_CERT_REQ
