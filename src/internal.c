@@ -12020,8 +12020,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             args->dCertInit = 0;
                             /* once again */
                             ret = ProcessPeerCertParse(ssl, args, CERT_TYPE,
-                            !ssl->options.verifyNone ? VERIFY : NO_VERIFY,
-                            &subjectHash, &alreadySigner);
+                                !ssl->options.verifyNone ? VERIFY : NO_VERIFY,
+                                &subjectHash, &alreadySigner);
                         } else
                             ret = ASN_NO_SIGNER_E;
                     }
@@ -12235,8 +12235,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             args->dCertInit = 0;
                             /* once again */
                             ret = ProcessPeerCertParse(ssl, args, CERT_TYPE,
-                            !ssl->options.verifyNone ? VERIFY : NO_VERIFY,
-                            &subjectHash, &alreadySigner);
+                                !ssl->options.verifyNone ? VERIFY : NO_VERIFY,
+                                &subjectHash, &alreadySigner);
                         } else
                             ret = ASN_NO_SIGNER_E;
                     }

@@ -1783,6 +1783,10 @@ void* wc_CryptoCb_IntelQaRealloc(void *ptr, size_t size, void* heap, int type
             if (newIsNuma == 0 && ptrIsNuma == 0) {
                 allocNew = 1;
             }
+            /* confirm input is aligned, otherwise allocate new */
+            else if (((size_t)ptr % WOLF_HEADER_ALIGN) != 0) {
+                allocNew = 1;
+            }
             /* if matching NUMA type and size fits, use existing */
             else if (newIsNuma == ptrIsNuma && header->size >= size) {
 
