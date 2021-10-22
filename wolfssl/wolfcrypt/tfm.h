@@ -426,7 +426,8 @@ typedef fp_int   mp_int;
 /* initialize [or zero] an fp int */
 void fp_init(fp_int *a);
 MP_API void fp_zero(fp_int *a);
-MP_API void fp_clear(fp_int *a); /* uses ForceZero to clear sensitive memory */
+MP_API void fp_clear(fp_int *a);
+/* uses ForceZero to clear sensitive memory */
 MP_API void fp_forcezero (fp_int * a);
 MP_API void fp_free(fp_int* a);
 
