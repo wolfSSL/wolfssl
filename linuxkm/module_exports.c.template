@@ -171,6 +171,7 @@
 
 #include <wolfssl/certs_test.h>
 
+#ifdef OPENSSL_EXTRA
 #include <wolfssl/openssl/x509_vfy.h>
 #include <wolfssl/openssl/buffer.h>
 #include <wolfssl/openssl/ec25519.h>
@@ -180,4 +181,5 @@
 #include <wolfssl/openssl/ecdsa.h>
 #include <wolfssl/openssl/ecdh.h>
 #include <wolfssl/openssl/pem.h>
+#endif
 

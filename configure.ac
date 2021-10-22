@@ -7078,6 +7078,9 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     AC_SUBST([ASFLAGS_FPUSIMD_DISABLE])
     AC_SUBST([ASFLAGS_FPUSIMD_ENABLE])
 
+    if test "$ENABLED_OPENSSLEXTRA" != "no"; then
+        AC_MSG_ERROR([--enable-opensslextra is incompatible with --enable-linuxkm.])
+    fi
     if test "$ENABLED_FILESYSTEM" = "yes"; then
         AC_MSG_ERROR([--enable-filesystem is incompatible with --enable-linuxkm.])
     fi
