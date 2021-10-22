@@ -14732,7 +14732,7 @@ static int DecodeAuthInfo(const byte* input, int sz, DecodedCert* cert)
         {
             cert->extAuthInfoSz = length;
             cert->extAuthInfo = input + idx;
-        #if defined(OPENSSL_ALL) && defined(WOLFSSL_QT)
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
             count++;
         #else
             break;

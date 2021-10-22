@@ -43795,7 +43795,7 @@ static void test_wolfSSL_X509V3_EXT(void) {
 #endif
     AssertNotNull(adObj = ad->method);
     /* Make sure nid is OCSP */
-    AssertIntEQ(wolfSSL_OBJ_obj2nid(adObj), AIA_OCSP_OID);
+    AssertIntEQ(wolfSSL_OBJ_obj2nid(adObj), NID_ad_OCSP);
 
     /* GENERAL_NAME stores URI as an ASN1_STRING */
     AssertNotNull(gn = ad->location);
