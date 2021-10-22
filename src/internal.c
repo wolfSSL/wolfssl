@@ -8707,11 +8707,10 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
             outputSz += cipherExtraData(ssl);
         if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
             return ret;
+        if (ssl->buffers.outputBuffer.buffer == NULL)
+            return MEMORY_E;
         output = ssl->buffers.outputBuffer.buffer +
                  ssl->buffers.outputBuffer.length;
-        /* scan-build complains that this may be null */
-        if (output == NULL)
-            return MEMORY_E;
 
         if (IsEncryptionOn(ssl, 1)) {
             /* First we need to add the fragment header ourselves.
@@ -16456,7 +16455,7 @@ static WC_INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
                 pad       = 0;  /* no bad read */
                 badPadLen = 1;
             }
-            PadCheck(dummy, (byte)pad, MAX_PAD_SIZE);  /* timing only */
+            (void)PadCheck(dummy, (byte)pad, MAX_PAD_SIZE);  /* timing only */
             ret = ssl->hmac(ssl, verify, input, msgSz - digestSz - pad - 1,
                             pad, content, 1, PEER_ORDER);
             if (ConstantCompare(verify, input + msgSz - digestSz - pad - 1,

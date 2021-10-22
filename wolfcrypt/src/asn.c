@@ -8578,8 +8578,8 @@ static const ASNItem dsaPubKeyASN[] = {
  * @return  ASN_BITSTR_E when the expected BIT_STRING tag is not found.
  * @return  ASN_UNKNOWN_OID_E when the OID cannot be verified.
  */
-int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
-                        word32 inSz)
+int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
+                          word32 inSz)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     int    length;

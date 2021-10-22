@@ -1430,7 +1430,7 @@ int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp)
   fp_int* pre;
 #endif
 
-  if ((a->used * 2 > FP_MAX_BITS) || (b->used * 2 > FP_MAX_BITS)) {
+  if ((a->used * 2 > FP_SIZE) || (b->used * 2 > FP_SIZE)) {
     return FP_VAL;
   }
 

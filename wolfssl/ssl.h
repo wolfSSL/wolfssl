@@ -37,6 +37,9 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/memory.h>
 
+/* For the types */
+#include <wolfssl/openssl/compat_types.h>
+
 #ifdef HAVE_WOLF_EVENT
     #include <wolfssl/wolfcrypt/wolfevent.h>
 #endif
@@ -79,9 +82,9 @@
     #endif
 
 #elif (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
-    #include <wolfssl/openssl/compat_types.h>
     #include <wolfssl/openssl/bn.h>
     #include <wolfssl/openssl/hmac.h>
+    #include <wolfssl/openssl/rsa.h>
 
     /* We need the old SSL names */
     #ifdef NO_OLD_SSL_NAMES
@@ -404,14 +407,6 @@ struct WOLFSSL_EVP_PKEY {
     byte ownDsa:1; /* if struct owns DSA and should free it */
     byte ownRsa:1; /* if struct owns RSA and should free it */
 };
-
-#ifndef WOLFSSL_EVP_TYPE_DEFINED /* guard on redeclaration */
-typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_EVP_PKEY;
-typedef struct WOLFSSL_EVP_MD_CTX   WOLFSSL_EVP_MD_CTX;
-typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_PKCS8_PRIV_KEY_INFO;
-typedef char   WOLFSSL_EVP_MD;
-#define WOLFSSL_EVP_TYPE_DEFINED
-#endif
 
 struct WOLFSSL_X509_PKEY {
     WOLFSSL_EVP_PKEY* dec_pkey; /* dereferenced by Apache */
@@ -1336,8 +1331,7 @@ WOLFSSL_API int wolfSSL_sk_push_node(WOLFSSL_STACK** stack, WOLFSSL_STACK* in);
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_get_node(WOLFSSL_STACK* sk, int idx);
 WOLFSSL_API int wolfSSL_sk_push(WOLFSSL_STACK *st, const void *data);
 
-#if defined(HAVE_OCSP)
-#include "wolfssl/ocsp.h"
+#ifdef HAVE_OCSP
 #include "wolfssl/wolfcrypt/asn.h"
 #endif
 

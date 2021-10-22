@@ -3025,7 +3025,8 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
     (void)copy;
 
 #ifdef HAVE_SECURE_RENEGOTIATION
-    if (ssl->secure_renegotiation && ssl->secure_renegotiation->cache_status) {
+    if (ssl->secure_renegotiation &&
+            ssl->secure_renegotiation->cache_status != SCR_CACHE_NULL) {
         keys = &ssl->secure_renegotiation->tmp_keys;
 #ifdef WOLFSSL_DTLS
         /* For DTLS, copy is done in StoreKeys */
@@ -3117,6 +3118,12 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 
     if (copy) {
         int clientCopy = 0;
+
+        /* Sanity check that keys == ssl->secure_renegotiation->tmp_keys.
+         * Otherwise the memcpy calls would copy overlapping memory
+         * and cause UB. Fail early. */
+        if (keys == &ssl->keys)
+            return BAD_FUNC_ARG;
 
         if (ssl->options.side == WOLFSSL_CLIENT_END && wc_encrypt)
             clientCopy = 1;
