@@ -142,6 +142,9 @@
     #ifdef XPRINTF
         #undef  printf
         #define printf XPRINTF
+    #elif defined(NETOS)
+        #undef printf
+        #define printf dc_log_printf
     #endif
 #endif
 

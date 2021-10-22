@@ -29168,10 +29168,12 @@ WOLFSSL_API WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_value(WOLFSSL_STACK* sk, int i
     return (WOLFSSL_CIPHER*)wolfSSL_sk_value(sk, i);
 }
 
+#if !defined(NETOS)
 WOLFSSL_API void ERR_load_SSL_strings(void)
 {
 
 }
+#endif
 
 #ifdef HAVE_OCSP
 WOLFSSL_API long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char **resp)
@@ -58793,7 +58795,7 @@ int wolfSSL_RAND_write_file(const char* fname)
 #ifndef FREERTOS_TCP
 
 /* These constant values are protocol values made by egd */
-#if defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API)
+#if defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API) && !defined(NETOS)
     #define WOLFSSL_EGD_NBLOCK 0x01
     #include <sys/un.h>
 #endif

@@ -2754,7 +2754,7 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL*, void* key, unsigned int len,
               !defined(WOLFSSL_PICOTCP) && !defined(WOLFSSL_ROWLEY_ARM) && \
               !defined(WOLFSSL_EMBOS) && !defined(WOLFSSL_FROSTED) && \
               !defined(WOLFSSL_CHIBIOS) && !defined(WOLFSSL_CONTIKI) && \
-              !defined(WOLFSSL_ZEPHYR)
+              !defined(WOLFSSL_ZEPHYR) && !defined(NETOS)
             #include <sys/uio.h>
         #endif
         /* allow writev style writing */
