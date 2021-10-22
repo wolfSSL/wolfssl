@@ -13501,7 +13501,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
             int permittedDns = 0;
             base = signer->permittedNames;
             do {
-                /* Looking for perrmittedNames that are for DNS. */
+                /* Looking for permittedNames that are for DNS. */
                 if (base->type == ASN_DNS_TYPE) {
                     permittedDns = 1;
                     matchDns = MatchBaseName(ASN_DNS_TYPE,
@@ -13509,8 +13509,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                                              base->name, base->nameSz);
                 }
                 base = base->next;
-            }
-            while (base != NULL && !matchDns);
+            } while (base != NULL && !matchDns);
             /* If we found an DNS type permittedName then name must have had a
              * match. */
             if (permittedDns && !matchDns)
@@ -13529,7 +13528,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
             int permittedEmail = 0;
             base = signer->permittedNames;
             do {
-                /* Looking for perrmittedNames that are for email. */
+                /* Looking for permittedNames that are for email. */
                 if (base->type == ASN_RFC822_TYPE) {
                     permittedEmail = 1;
                     matchEmail = MatchBaseName(ASN_DNS_TYPE,
@@ -13537,8 +13536,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                                                base->name, base->nameSz);
                 }
                 base = base->next;
-            }
-            while ((base != NULL) && !matchEmail);
+            } while ((base != NULL) && !matchEmail);
             /* If we found an email type permittedName then name must have had a
              * match. */
             if (permittedEmail && !matchEmail)
@@ -13556,7 +13554,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
             permittedDir = 0;
             base = signer->permittedNames;
             while (base != NULL && !matchDir) {
-                /* Looking for perrmittedNames that are for directoryName. */
+                /* Looking for permittedNames that are for directoryName. */
                 if (base->type == ASN_DIR_TYPE) {
                     permittedDir = 1;
                     if (cert->subjectRawLen >= base->nameSz &&
@@ -13586,15 +13584,14 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
             int matchAltDir = 0;
             base = signer->permittedNames;
             do {
-                /* Looking for perrmittedNames that are for directoryName. */
+                /* Looking for permittedNames that are for directoryName. */
                 if (base->type == ASN_DIR_TYPE) {
                     if (XMEMCMP(name->name, base->name, base->nameSz) == 0) {
                         matchAltDir = 1;
                     }
                 }
                 base = base->next;
-            }
-            while ((base != NULL) && !matchAltDir);
+            } while ((base != NULL) && !matchAltDir);
             /* If we found an dir name type permittedName then name must have
              * had a match. */
             if (permittedDir && !matchAltDir)
