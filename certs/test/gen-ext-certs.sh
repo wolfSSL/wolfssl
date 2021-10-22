@@ -34,7 +34,6 @@ L             = Brisbane
 O             = wolfSSL Inc
 OU            = Engineering
 CN            = www.wolfssl.com
-emailAddress  = support@wolfsssl.com
 
 [ v3_ca ]
 subjectKeyIdentifier = hash
@@ -42,6 +41,92 @@ authorityKeyIdentifier = keyid:always,issuer
 basicConstraints = critical, CA:true, pathlen:0
 keyUsage = critical, digitalSignature, cRLSign, keyCertSign
 nameConstraints = critical,permitted;email:.wolfssl.com
+nsComment       = "Testing name constraints"
+
+EOF
+gen_cert
+
+
+OUT=certs/test/cert-ext-mnc.der
+KEYFILE=certs/test/cert-ext-mnc-key.der
+CONFIG=certs/test/cert-ext-mnc.cfg
+tee >$CONFIG <<EOF
+[ req ]
+distinguished_name = req_distinguished_name
+prompt             = no
+x509_extensions    = v3_ca
+
+[ req_distinguished_name ]
+C             = AU
+ST            = Queensland
+L             = Brisbane
+O             = wolfSSL Inc
+OU            = Engineering
+CN            = www.wolfssl.com
+
+[ v3_ca ]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical, CA:true, pathlen:0
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign
+nameConstraints = critical,permitted;email:.wolfssl.com, permitted;email:.example.com
+nsComment       = "Testing name constraints"
+
+EOF
+gen_cert
+
+
+OUT=certs/test/cert-ext-ncdns.der
+KEYFILE=certs/test/cert-ext-nc-key.der
+CONFIG=certs/test/cert-ext-ncdns.cfg
+tee >$CONFIG <<EOF
+[ req ]
+distinguished_name = req_distinguished_name
+prompt             = no
+x509_extensions    = v3_ca
+
+[ req_distinguished_name ]
+C             = AU
+ST            = Queensland
+L             = Brisbane
+O             = wolfSSL Inc
+OU            = Engineering
+CN            = www.wolfssl.com
+
+[ v3_ca ]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical, CA:true, pathlen:0
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign
+nameConstraints = critical,permitted;DNS:wolfssl.com, permitted;DNS:example.com
+nsComment       = "Testing name constraints"
+
+EOF
+gen_cert
+
+OUT=certs/test/cert-ext-ncmixed.der
+KEYFILE=certs/test/cert-ext-ncmixed-key.der
+CONFIG=certs/test/cert-ext-ncmixed.cfg
+tee >$CONFIG <<EOF
+[ req ]
+distinguished_name = req_distinguished_name
+prompt             = no
+x509_extensions    = v3_ca
+
+[ req_distinguished_name ]
+C             = AU
+ST            = Queensland
+L             = Brisbane
+O             = wolfSSL Inc
+OU            = Engineering
+CN            = www.wolfssl.com
+
+[ v3_ca ]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical, CA:true, pathlen:0
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign
+nameConstraints = critical,permitted;DNS:example, permitted;email:.wolfssl.com
 nsComment       = "Testing name constraints"
 
 EOF
