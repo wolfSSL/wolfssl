@@ -24584,9 +24584,9 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
                                 return WOLFSSL_FAILURE;
                             }
                             PRIVATE_KEY_UNLOCK();
-                            if (wc_ecc_export_x963(&ecc, der, &derSz) != 0) {
+                            if (wc_ecc_export_x963(ecc, der, &derSz) != 0) {
                                 PRIVATE_KEY_LOCK();
-                                wc_ecc_free(&ecc);
+                                wc_ecc_free(ecc);
                             #ifdef WOLFSSL_SMALL_STACK
                                 XFREE(ecc, NULL, DYNAMIC_TYPE_ECC);
                             #endif
