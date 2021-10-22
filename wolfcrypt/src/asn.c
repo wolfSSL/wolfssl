@@ -13489,114 +13489,120 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
 
     /* Check against the permitted list */
     if (signer->permittedNames != NULL) {
-        int needDns = 0;
-        int matchDns = 0;
-        int needEmail = 0;
-        int matchEmail = 0;
-        int needDir = 0;
-        int matchDir = 0;
-        Base_entry* base = signer->permittedNames;
+        int permittedDir = 0;
+        int matchDir;
+        Base_entry* base;
+        DNS_entry* name;
 
-        while (base != NULL) {
-            switch (base->type) {
-                case ASN_DNS_TYPE:
-                {
-                    DNS_entry* name = cert->altNames;
-
-                    if (name != NULL)
-                        needDns = 1;
-
-                    /* check if already found a matching permitted subtree */
-                    if (matchDns == 1)
-                        break;
-
-                    while (name != NULL) {
-                        matchDns = MatchBaseName(ASN_DNS_TYPE,
-                                          name->name, name->len,
-                                          base->name, base->nameSz);
-
-                    #ifndef WOLFSSL_NO_ASN_STRICT
-                        /* found a bad name */
-                        if (matchDns == 0)
-                            break;
-                    #endif
-                        name = name->next;
-                    }
-                    break;
+        /* Check each DNS name matches a permitted. */
+        name = cert->altNames;
+        while (name != NULL) {
+            int matchDns = 0;
+            int permittedDns = 0;
+            base = signer->permittedNames;
+            do {
+                /* Looking for perrmittedNames that are for DNS. */
+                if (base->type == ASN_DNS_TYPE) {
+                    permittedDns = 1;
+                    matchDns = MatchBaseName(ASN_DNS_TYPE,
+                                             name->name, name->len,
+                                             base->name, base->nameSz);
                 }
-                case ASN_RFC822_TYPE:
-                {
-                    DNS_entry* name = cert->altEmailNames;
+                base = base->next;
+            }
+            while (base != NULL && !matchDns);
+            /* If we found an DNS type permittedName then name must have had a
+             * match. */
+            if (permittedDns && !matchDns)
+                return 0;
 
-                    if (name != NULL)
-                        needEmail = 1;
+            if (!permittedDns)
+                break;
 
-                    /* check if already found a matching permitted subtree */
-                    if (matchEmail == 1)
-                        break;
+            name = name->next;
+        }
 
-                    while (name != NULL) {
-                        matchEmail = MatchBaseName(ASN_DNS_TYPE,
-                                          name->name, name->len,
-                                          base->name, base->nameSz);
-
-                    #ifndef WOLFSSL_NO_ASN_STRICT
-                        /* found a bad name */
-                        if (matchEmail == 0)
-                            break;
-                    #endif
-                        name = name->next;
-                    }
-                    break;
+        /* Check each email name matches a permitted. */
+        name = cert->altEmailNames;
+        while (name != NULL) {
+            int matchEmail = 0;
+            int permittedEmail = 0;
+            base = signer->permittedNames;
+            do {
+                /* Looking for perrmittedNames that are for email. */
+                if (base->type == ASN_RFC822_TYPE) {
+                    permittedEmail = 1;
+                    matchEmail = MatchBaseName(ASN_DNS_TYPE,
+                                               name->name, name->len,
+                                               base->name, base->nameSz);
                 }
-                case ASN_DIR_TYPE:
-                {
-                    /* allow permitted dirName smaller than actual subject */
-                    needDir = 1;
+                base = base->next;
+            }
+            while ((base != NULL) && !matchEmail);
+            /* If we found an email type permittedName then name must have had a
+             * match. */
+            if (permittedEmail && !matchEmail)
+                return 0;
 
-                    /* check if already found a matching permitted subtree */
-                    if (matchDir == 1)
-                        break;
+            if (!permittedEmail)
+                break;
 
-                    if (cert->subjectRaw != NULL &&
-                        cert->subjectRawLen >= base->nameSz &&
-                        XMEMCMP(cert->subjectRaw, base->name,
-                                                        base->nameSz) == 0) {
+            name = name->next;
+        }
+
+        /* Check subject name matches a permitted name. */
+        if (cert->subjectRaw != NULL) {
+            matchDir = 0;
+            permittedDir = 0;
+            base = signer->permittedNames;
+            while (base != NULL && !matchDir) {
+                /* Looking for perrmittedNames that are for directoryName. */
+                if (base->type == ASN_DIR_TYPE) {
+                    permittedDir = 1;
+                    if (cert->subjectRawLen >= base->nameSz &&
+                        XMEMCMP(cert->subjectRaw, base->name, base->nameSz)
+                            == 0) {
                         matchDir = 1;
-
-                        #ifndef WOLFSSL_NO_ASN_STRICT
-                        /* RFC 5280 section 4.2.1.10
-                           "Restrictions of the form directoryName MUST be
-                            applied to the subject field .... and to any names
-                            of type directoryName in the subjectAltName
-                            extension"
-                        */
-                        if (cert->altDirNames != NULL) {
-                            DNS_entry* cur = cert->altDirNames;
-                            while (cur != NULL) {
-                                if (XMEMCMP(cur->name, base->name, base->nameSz)
-                                        != 0) {
-                                    WOLFSSL_MSG("DIR alt name constraint err");
-                                    matchDir = 0; /* did not match */
-                                }
-                                cur = cur->next;
-                            }
-                        }
-                        #endif /* !WOLFSSL_NO_ASN_STRICT */
                     }
-                    break;
                 }
-                default:
-                    break;
-            } /* switch */
-            base = base->next;
+                base = base->next;
+            }
+            /* If we found an dir name type permittedName then name must have
+             * had a match. */
+            if (permittedDir && !matchDir)
+                return 0;
         }
 
-        if ((needDns   && !matchDns) ||
-            (needEmail && !matchEmail) ||
-            (needDir   && !matchDir)) {
-            return 0;
+    #ifndef WOLFSSL_NO_ASN_STRICT
+        /* RFC 5280 section 4.2.1.10
+           "Restrictions of the form directoryName MUST be
+            applied to the subject field .... and to any names
+            of type directoryName in the subjectAltName
+            extension"
+        */
+        /* Check each alt dir name matches a permitted. */
+        name = cert->altDirNames;
+        while (permittedDir && name != NULL) {
+            int matchAltDir = 0;
+            base = signer->permittedNames;
+            do {
+                /* Looking for perrmittedNames that are for directoryName. */
+                if (base->type == ASN_DIR_TYPE) {
+                    if (XMEMCMP(name->name, base->name, base->nameSz) == 0) {
+                        matchAltDir = 1;
+                    }
+                }
+                base = base->next;
+            }
+            while ((base != NULL) && !matchAltDir);
+            /* If we found an dir name type permittedName then name must have
+             * had a match. */
+            if (permittedDir && !matchAltDir)
+                return 0;
+
+            name = name->next;
         }
+    #endif /* !WOLFSSL_NO_ASN_STRICT */
     }
 
     return 1;
