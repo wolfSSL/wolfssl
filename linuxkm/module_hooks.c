@@ -100,6 +100,10 @@ static void lkmFipsCb(int ok, int err, const char* hash)
 }
 #endif
 
+#if defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE) && !defined(CONFIG_MODULE_SIG)
+#error WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE requires a CONFIG_MODULE_SIG kernel.
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 static int __init wolfssl_init(void)
 #else
@@ -108,9 +112,15 @@ static int wolfssl_init(void)
 {
     int ret;
 
-#ifdef CONFIG_MODULE_SIG
+#if defined(CONFIG_MODULE_SIG_FORCE) || defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE)
     if (THIS_MODULE->sig_ok == false) {
-        pr_err("wolfSSL module load aborted -- bad or missing module signature with CONFIG_MODULE_SIG kernel.\n");
+        pr_err("wolfSSL module load aborted -- bad or missing module signature with "
+#ifdef CONFIG_MODULE_SIG_FORCE
+               "CONFIG_MODULE_SIG_FORCE kernel"
+#else
+               "FIPS dynamic hash"
+#endif
+	".\n");
         return -ECANCELED;
     }
 #endif
@@ -119,7 +129,6 @@ static int wolfssl_init(void)
     ret = set_up_wolfssl_linuxkm_pie_redirect_table();
     if (ret < 0)
         return ret;
-
 #endif
 
 #ifdef HAVE_LINUXKM_PIE_SUPPORT
@@ -243,19 +252,25 @@ static int wolfssl_init(void)
 #endif
 
 #ifdef WOLFCRYPT_ONLY
-    pr_info("wolfCrypt " LIBWOLFSSL_VERSION_STRING " loaded"
-#ifdef CONFIG_MODULE_SIG
-            " with valid module signature"
-#endif
+    pr_info("wolfCrypt " LIBWOLFSSL_VERSION_STRING " loaded%s"
             ".\nSee https://www.wolfssl.com/ for more information.\n"
-            "wolfCrypt Copyright (C) 2006-present wolfSSL Inc.  Licensed under " WOLFSSL_LICENSE ".\n");
+            "wolfCrypt Copyright (C) 2006-present wolfSSL Inc.  Licensed under " WOLFSSL_LICENSE ".\n",
+#ifdef CONFIG_MODULE_SIG
+            THIS_MODULE->sig_ok ? " with valid module signature" : " without valid module signature"
 #else
-    pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " loaded"
-#ifdef CONFIG_MODULE_SIG
-            " with valid module signature"
+            ""
 #endif
+	);
+#else
+    pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " loaded%s"
             ".\nSee https://www.wolfssl.com/ for more information.\n"
-            "wolfSSL Copyright (C) 2006-present wolfSSL Inc.  Licensed under " WOLFSSL_LICENSE ".\n");
+            "wolfSSL Copyright (C) 2006-present wolfSSL Inc.  Licensed under " WOLFSSL_LICENSE ".\n",
+#ifdef CONFIG_MODULE_SIG
+            THIS_MODULE->sig_ok ? " with valid module signature" : " without valid module signature"
+#else
+            ""
+#endif
+        );
 #endif
 
     return 0;
