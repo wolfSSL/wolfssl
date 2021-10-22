@@ -471,7 +471,7 @@ static int InitSha256(wc_Sha256* sha256)
     #ifdef FREESCALE_MMCAU_CLASSIC_SHA
         cau_sha256_initialize_output(sha256->digest);
     #else
-        MMCAU_SHA256_InitializeOutput((word32*)sha256->digest);
+        MMCAU_SHA256_InitializeOutput((uint32_t*)sha256->digest);
     #endif
         wolfSSL_CryptHwMutexUnLock();
 
@@ -492,7 +492,7 @@ static int InitSha256(wc_Sha256* sha256)
     #ifdef FREESCALE_MMCAU_CLASSIC_SHA
             cau_sha256_hash_n((byte*)data, 1, sha256->digest);
     #else
-            MMCAU_SHA256_HashN((byte*)data, 1, sha256->digest);
+            MMCAU_SHA256_HashN((byte*)data, 1, (uint32_t*)sha256->digest);
     #endif
             wolfSSL_CryptHwMutexUnLock();
         }
@@ -514,7 +514,7 @@ static int InitSha256(wc_Sha256* sha256)
                 #ifdef FREESCALE_MMCAU_CLASSIC_SHA
                     cau_sha256_hash_n(local, 1, sha256->digest);
                 #else
-                    MMCAU_SHA256_HashN(local, 1, sha256->digest);
+                    MMCAU_SHA256_HashN(local, 1, (uint32_t*)sha256->digest);
                 #endif
                     data += WC_SHA256_BLOCK_SIZE;
                     len  -= WC_SHA256_BLOCK_SIZE;
@@ -528,7 +528,7 @@ static int InitSha256(wc_Sha256* sha256)
                 sha256->digest);
     #else
             MMCAU_SHA256_HashN((byte*)data, len/WC_SHA256_BLOCK_SIZE,
-                sha256->digest);
+                (uint32_t*)sha256->digest);
     #endif
             }
             wolfSSL_CryptHwMutexUnLock();
