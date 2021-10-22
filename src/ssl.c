@@ -8050,7 +8050,7 @@ static WOLFSSL_EVP_PKEY* d2iGenericKey(WOLFSSL_EVP_PKEY** out,
 
     WOLFSSL_ENTER("d2iGenericKey");
 
-    if (in == NULL || inSz < 0) {
+    if (in == NULL || *in == NULL || inSz < 0) {
         WOLFSSL_MSG("Bad argument");
         return NULL;
     }

@@ -49648,6 +49648,11 @@ static void test_wolfSSL_ERR_strings(void)
     err = wolfSSL_ERR_func_error_string(UNSUPPORTED_SUITE);
     AssertTrue(err != NULL);
     AssertIntEQ((*err == '\0'), 1);
+
+    /* The value -MIN_CODE_E+2 is PEM_R_PROBLEMS_GETTING_PASSWORD. */
+    err = wolfSSL_ERR_lib_error_string(-MIN_CODE_E+2);
+    AssertTrue(err != NULL);
+    AssertIntEQ((*err == '\0'), 1);
 #endif
     printf(resultFmt, passed);
 #endif
