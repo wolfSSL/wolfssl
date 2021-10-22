@@ -2660,7 +2660,9 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
     keys.x25519Key = session->sslServer->staticKE.x25519Key;
     #endif
 #endif
+#ifndef NO_RSA
     keys.rsaKey = session->sslServer->buffers.key;
+#endif
     return SetupKeys(input, sslBytes, session, error, NULL, &keys);
 }
 
@@ -3283,7 +3285,9 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
     if (IsAtLeastTLSv1_3(session->sslServer->version) && session->srvKs.key_len > 0) {
         KeyBuffers_t keys;
         XMEMSET(&keys, 0, sizeof(keys));
+    #ifndef NO_RSA
         keys.rsaKey = session->sslServer->buffers.key;
+    #endif
     #ifdef WOLFSSL_STATIC_EPHEMERAL
         #ifndef NO_DH
         keys.dhKey = session->sslServer->staticKE.dhKey;
@@ -6042,15 +6046,18 @@ int ssl_SetWatchKey_buffer(void* vSniffer, const byte* key, word32 keySz,
     ret = wolfSSL_set_ephemeral_key(sniffer->sslServer, 
         WC_PK_TYPE_NONE, (const char*)key, keySz,
             WOLFSSL_FILETYPE_ASN1);
-    if (ret == 0) {
-        ret = WOLFSSL_SUCCESS;
+    if (ret != 0) {
+    #ifdef DEBUG_SNIFFER
+        /* print warnings */
+        printf("key watch set ephemeral failed %d\n", ret);
+    #endif
     }
-    else
 #endif
-    {
-        ret = wolfSSL_use_PrivateKey_buffer(sniffer->sslServer,
-            key, keySz, keyType);
-    }
+
+    /* always try and load private key */
+    ret = wolfSSL_use_PrivateKey_buffer(sniffer->sslServer,
+        key, keySz, keyType);
+
     if (ret != WOLFSSL_SUCCESS) {
         SetError(KEY_FILE_STR, error, sniffer, FATAL_ERROR_STATE);
         return -1;
