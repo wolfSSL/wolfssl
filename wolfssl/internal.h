@@ -2905,8 +2905,8 @@ struct WOLFSSL_CTX {
     byte        haveAnon;               /* User wants to allow Anon suites */
 #endif /* HAVE_ANON */
 #ifdef WOLFSSL_ENCRYPTED_KEYS
-    pem_password_cb* passwd_cb;
-    void*            passwd_userdata;
+    wc_pem_password_cb* passwd_cb;
+    void*               passwd_userdata;
 #endif
 #ifdef WOLFSSL_LOCAL_X509_STORE
     WOLFSSL_X509_STORE x509_store; /* points to ctx->cm */

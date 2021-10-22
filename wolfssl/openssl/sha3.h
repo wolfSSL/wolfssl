@@ -36,7 +36,6 @@
     extern "C" {
 #endif
 
-
 /* Using ALIGN16 because when AES-NI is enabled digest and buffer in Sha3
  * struct are 16 byte aligned. Any dereference to those elements after casting
  * to Sha3 is expected to also be 16 byte aligned addresses.  */

@@ -17423,14 +17423,15 @@ cleanup:
     }
 
 
-    void wolfSSL_CTX_set_default_passwd_cb(WOLFSSL_CTX* ctx,pem_password_cb* cb)
+    void wolfSSL_CTX_set_default_passwd_cb(WOLFSSL_CTX* ctx, wc_pem_password_cb*
+                                           cb)
     {
         WOLFSSL_ENTER("SSL_CTX_set_default_passwd_cb");
         if (ctx)
             ctx->passwd_cb = cb;
     }
 
-    pem_password_cb* wolfSSL_CTX_get_default_passwd_cb(WOLFSSL_CTX *ctx)
+    wc_pem_password_cb* wolfSSL_CTX_get_default_passwd_cb(WOLFSSL_CTX *ctx)
     {
         if (ctx == NULL || ctx->passwd_cb == NULL) {
             return NULL;
@@ -35480,7 +35481,7 @@ static int wolfSSL_RSA_To_Der(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey, vo
 int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
                                         const WOLFSSL_EVP_CIPHER* cipher,
                                         unsigned char* passwd, int len,
-                                        pem_password_cb* cb, void* arg)
+                                        wc_pem_password_cb* cb, void* arg)
 {
     int ret;
     WOLFSSL_EVP_PKEY* pkey;
@@ -35581,7 +35582,8 @@ int wolfSSL_PEM_write_bio_RSA_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa)
  * Returns WOLFSSL_SUCCESS or WOLFSSL_FAILURE
  */
 WOLFSSL_RSA *wolfSSL_PEM_read_bio_RSA_PUBKEY(WOLFSSL_BIO* bio,WOLFSSL_RSA** rsa,
-                                                pem_password_cb* cb, void *pass)
+                                             wc_pem_password_cb* cb,
+                                             void *pass)
 {
     WOLFSSL_EVP_PKEY* pkey;
     WOLFSSL_RSA* local;
@@ -35741,9 +35743,9 @@ int wolfSSL_PEM_write_bio_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
  * Returns WOLFSSL_SUCCESS or WOLFSSL_FAILURE
  */
 int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
-                                        const WOLFSSL_EVP_CIPHER* cipher,
-                                        unsigned char* passwd, int len,
-                                        pem_password_cb* cb, void* arg)
+                                     const WOLFSSL_EVP_CIPHER* cipher,
+                                     unsigned char* passwd, int len,
+                                     wc_pem_password_cb* cb, void* arg)
 {
     byte* keyDer;
     int pemSz;
@@ -35947,7 +35949,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
 int wolfSSL_PEM_write_RSAPrivateKey(XFILE fp, WOLFSSL_RSA *rsa,
                                     const EVP_CIPHER *enc,
                                     unsigned char *kstr, int klen,
-                                    pem_password_cb *cb, void *u)
+                                    wc_pem_password_cb *cb, void *u)
 {
     byte *pem;
     int  plen, ret;
@@ -38716,7 +38718,8 @@ int wolfSSL_PEM_write_EC_PUBKEY(XFILE fp, WOLFSSL_EC_KEY *x)
 
 WOLFSSL_EC_KEY* wolfSSL_PEM_read_bio_EC_PUBKEY(WOLFSSL_BIO* bio,
                                                WOLFSSL_EC_KEY** ec,
-                                               pem_password_cb* cb, void *pass)
+                                               wc_pem_password_cb* cb,
+                                               void *pass)
 {
     WOLFSSL_EVP_PKEY* pkey;
     WOLFSSL_EC_KEY* local;
@@ -38746,7 +38749,7 @@ WOLFSSL_EC_KEY* wolfSSL_PEM_read_bio_EC_PUBKEY(WOLFSSL_BIO* bio,
  */
 WOLFSSL_EC_KEY* wolfSSL_PEM_read_bio_ECPrivateKey(WOLFSSL_BIO* bio,
                                                   WOLFSSL_EC_KEY** ec,
-                                                  pem_password_cb* cb,
+                                                  wc_pem_password_cb* cb,
                                                   void *pass)
 {
     WOLFSSL_EVP_PKEY* pkey;
@@ -38817,7 +38820,7 @@ int wolfSSL_PEM_write_bio_EC_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EC_KEY* ec)
 int wolfSSL_PEM_write_bio_ECPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EC_KEY* ec,
                                        const EVP_CIPHER* cipher,
                                        unsigned char* passwd, int len,
-                                       pem_password_cb* cb, void* arg)
+                                       wc_pem_password_cb* cb, void* arg)
 {
     int ret = 0, der_max_len = 0, derSz = 0;
     byte *derBuf;
@@ -39013,7 +39016,7 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ecc,
 int wolfSSL_PEM_write_ECPrivateKey(XFILE fp, WOLFSSL_EC_KEY *ecc,
                                    const EVP_CIPHER *enc,
                                    unsigned char *kstr, int klen,
-                                   pem_password_cb *cb, void *u)
+                                   wc_pem_password_cb *cb, void *u)
 {
     byte *pem;
     int  plen, ret;
@@ -39061,7 +39064,7 @@ int wolfSSL_PEM_write_ECPrivateKey(XFILE fp, WOLFSSL_EC_KEY *ecc,
 int wolfSSL_PEM_write_bio_DSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_DSA* dsa,
                                        const EVP_CIPHER* cipher,
                                        unsigned char* passwd, int len,
-                                       pem_password_cb* cb, void* arg)
+                                       wc_pem_password_cb* cb, void* arg)
 {
     int ret = 0, der_max_len = 0, derSz = 0;
     byte *derBuf;
@@ -39285,7 +39288,7 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
 int wolfSSL_PEM_write_DSAPrivateKey(XFILE fp, WOLFSSL_DSA *dsa,
                                     const EVP_CIPHER *enc,
                                     unsigned char *kstr, int klen,
-                                    pem_password_cb *cb, void *u)
+                                    wc_pem_password_cb *cb, void *u)
 {
     byte *pem;
     int  plen, ret;
@@ -39340,15 +39343,16 @@ int wolfSSL_PEM_write_DSA_PUBKEY(XFILE fp, WOLFSSL_DSA *x)
 
 #ifndef NO_BIO
 
-static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
-                            int keyType, int* eccFlag, DerBuffer** der)
+static int pem_read_bio_key(WOLFSSL_BIO* bio, wc_pem_password_cb* cb,
+                            void* pass, int keyType, int* eccFlag,
+                            DerBuffer** der)
 {
 #ifdef WOLFSSL_SMALL_STACK
     EncryptedInfo* info = NULL;
 #else
     EncryptedInfo info[1];
 #endif /* WOLFSSL_SMALL_STACK */
-    pem_password_cb* localCb = NULL;
+    wc_pem_password_cb* localCb = NULL;
     char* mem = NULL;
     int memSz = 0;
     int ret;
@@ -39472,7 +39476,7 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
 
 WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
                                                   WOLFSSL_EVP_PKEY** key,
-                                                  pem_password_cb* cb,
+                                                  wc_pem_password_cb* cb,
                                                   void* pass)
 {
     WOLFSSL_EVP_PKEY* pkey = NULL;
@@ -39527,7 +39531,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
 
 WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_bio_PUBKEY(WOLFSSL_BIO* bio,
                                               WOLFSSL_EVP_PKEY **key,
-                                              pem_password_cb *cb, void *pass)
+                                              wc_pem_password_cb *cb,
+                                              void *pass)
 {
     WOLFSSL_EVP_PKEY* pkey = NULL;
     DerBuffer*        der = NULL;
@@ -39574,7 +39579,7 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_bio_PUBKEY(WOLFSSL_BIO* bio,
  * returns a pointer to a new WOLFSSL_RSA structure on success and NULL on fail
  */
 WOLFSSL_RSA* wolfSSL_PEM_read_bio_RSAPrivateKey(WOLFSSL_BIO* bio,
-        WOLFSSL_RSA** rsa, pem_password_cb* cb, void* pass)
+        WOLFSSL_RSA** rsa, wc_pem_password_cb* cb, void* pass)
 {
     WOLFSSL_EVP_PKEY* pkey;
     WOLFSSL_RSA* local;
@@ -39614,7 +39619,8 @@ WOLFSSL_RSA* wolfSSL_PEM_read_bio_RSAPrivateKey(WOLFSSL_BIO* bio,
  */
 WOLFSSL_DSA* wolfSSL_PEM_read_bio_DSAPrivateKey(WOLFSSL_BIO* bio,
                                                 WOLFSSL_DSA** dsa,
-                                                pem_password_cb* cb,void *pass)
+                                                wc_pem_password_cb* cb,
+                                                void* pass)
 {
     WOLFSSL_EVP_PKEY* pkey = NULL;
     WOLFSSL_DSA* local;
@@ -39642,7 +39648,7 @@ WOLFSSL_DSA* wolfSSL_PEM_read_bio_DSAPrivateKey(WOLFSSL_BIO* bio,
  * Returns WOLFSSL_SUCCESS or WOLFSSL_FAILURE
  */
 WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSA_PUBKEY(WOLFSSL_BIO* bio,WOLFSSL_DSA** dsa,
-                                                pem_password_cb* cb, void *pass)
+                                             wc_pem_password_cb* cb, void* pass)
 {
     WOLFSSL_EVP_PKEY* pkey;
     WOLFSSL_DSA* local;
@@ -39672,7 +39678,7 @@ WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSA_PUBKEY(WOLFSSL_BIO* bio,WOLFSSL_DSA** dsa,
 #ifdef HAVE_ECC
 /* returns a new WOLFSSL_EC_GROUP structure on success and NULL on fail */
 WOLFSSL_EC_GROUP* wolfSSL_PEM_read_bio_ECPKParameters(WOLFSSL_BIO* bio,
-        WOLFSSL_EC_GROUP** group, pem_password_cb* cb, void* pass)
+        WOLFSSL_EC_GROUP** group, wc_pem_password_cb* cb, void* pass)
 {
     WOLFSSL_EVP_PKEY* pkey;
     WOLFSSL_EC_GROUP* ret = NULL;
@@ -39701,7 +39707,7 @@ WOLFSSL_EC_GROUP* wolfSSL_PEM_read_bio_ECPKParameters(WOLFSSL_BIO* bio,
 
 #if !defined(NO_FILESYSTEM)
 WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PUBKEY(XFILE fp, EVP_PKEY **x,
-                                          pem_password_cb *cb, void *u)
+                                          wc_pem_password_cb *cb, void *u)
 {
     (void)fp;
     (void)x;
@@ -39947,7 +39953,7 @@ int wolfSSL_RSA_print(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa, int offset)
 #if !defined(NO_FILESYSTEM)
 #ifndef NO_WOLFSSL_STUB
 WOLFSSL_RSA *wolfSSL_PEM_read_RSAPublicKey(XFILE fp, WOLFSSL_RSA **x,
-                                           pem_password_cb *cb, void *u)
+                                           wc_pem_password_cb *cb, void *u)
 {
     (void)fp;
     (void)x;
@@ -42631,7 +42637,7 @@ cleanup:
 #ifndef NO_BIO
 
     static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
-            WOLFSSL_X509 **x, pem_password_cb *cb, void *u, int type)
+            WOLFSSL_X509 **x, wc_pem_password_cb *cb, void *u, int type)
     {
         WOLFSSL_X509* x509 = NULL;
 #if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)
@@ -42717,21 +42723,21 @@ cleanup:
 
 
     WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x,
-                                            pem_password_cb *cb, void *u)
+                                            wc_pem_password_cb *cb, void *u)
     {
         return loadX509orX509REQFromPemBio(bp, x, cb, u, CERT_TYPE);
     }
 
 #ifdef WOLFSSL_CERT_REQ
     WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_REQ(WOLFSSL_BIO *bp, WOLFSSL_X509 **x,
-                                                pem_password_cb *cb, void *u)
+                                                wc_pem_password_cb *cb, void *u)
     {
         return loadX509orX509REQFromPemBio(bp, x, cb, u, CERTREQ_TYPE);
     }
 
 #ifndef NO_FILESYSTEM
     WOLFSSL_X509* wolfSSL_PEM_read_X509_REQ(XFILE fp, WOLFSSL_X509** x,
-                                            pem_password_cb* cb, void* u)
+                                            wc_pem_password_cb* cb, void* u)
     {
         int err = 0;
         WOLFSSL_X509* ret = NULL;
@@ -42770,7 +42776,7 @@ cleanup:
 #endif /* WOLFSSL_CERT_REQ */
 
     WOLFSSL_X509_CRL *wolfSSL_PEM_read_bio_X509_CRL(WOLFSSL_BIO *bp,
-            WOLFSSL_X509_CRL **x, pem_password_cb *cb, void *u)
+            WOLFSSL_X509_CRL **x, wc_pem_password_cb *cb, void *u)
     {
 #if defined(WOLFSSL_PEM_TO_DER) && defined(HAVE_CRL)
         unsigned char* pem = NULL;
@@ -42826,7 +42832,7 @@ err:
 
 #if !defined(NO_FILESYSTEM)
     static void* wolfSSL_PEM_read_X509_ex(XFILE fp, void **x,
-        pem_password_cb *cb, void *u, int type)
+        wc_pem_password_cb *cb, void *u, int type)
     {
         unsigned char* pem = NULL;
         int pemSz;
@@ -42914,14 +42920,15 @@ err:
     }
 
     WOLFSSL_API WOLFSSL_X509* wolfSSL_PEM_read_X509(XFILE fp, WOLFSSL_X509 **x,
-                                                    pem_password_cb *cb, void *u)
+                                                    wc_pem_password_cb *cb,
+                                                    void *u)
     {
         return (WOLFSSL_X509* )wolfSSL_PEM_read_X509_ex(fp, (void **)x, cb, u, CERT_TYPE);
     }
 
 #ifndef NO_BIO
     WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_PrivateKey(XFILE fp,
-        WOLFSSL_EVP_PKEY **x, pem_password_cb *cb, void *u)
+        WOLFSSL_EVP_PKEY **x, wc_pem_password_cb *cb, void *u)
     {
         int err = 0;
         WOLFSSL_EVP_PKEY* ret = NULL;
@@ -42953,7 +42960,7 @@ err:
 
 #if defined(HAVE_CRL)
     WOLFSSL_API WOLFSSL_X509_CRL* wolfSSL_PEM_read_X509_CRL(XFILE fp, WOLFSSL_X509_CRL **crl,
-                                                    pem_password_cb *cb, void *u)
+                                                    wc_pem_password_cb *cb, void *u)
     {
         return (WOLFSSL_X509_CRL* )wolfSSL_PEM_read_X509_ex(fp, (void **)crl, cb, u, CRL_TYPE);
     }
@@ -43304,7 +43311,8 @@ err:
     }
 
     int wolfSSL_PEM_do_header(EncryptedInfo* cipher, unsigned char* data,
-                              long* len, pem_password_cb* callback, void* ctx)
+                              long* len, wc_pem_password_cb* callback,
+                              void* ctx)
     {
         int ret = WOLFSSL_SUCCESS;
         char password[NAME_SZ];
@@ -43339,7 +43347,9 @@ err:
      * _AUX is for working with a trusted X509 certificate
      */
     WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_AUX(WOLFSSL_BIO *bp,
-                               WOLFSSL_X509 **x, pem_password_cb *cb, void *u) {
+                               WOLFSSL_X509 **x, wc_pem_password_cb *cb,
+                               void *u)
+    {
         WOLFSSL_ENTER("wolfSSL_PEM_read_bio_X509");
 
         /* AUX info is; trusted/rejected uses, friendly name, private key id,
@@ -43455,8 +43465,8 @@ err:
      * @return WOLFSSL_SUCCESSS on success and WOLFSSL_FAILURE otherwise
      */
     static int wolfSSL_PEM_X509_X509_CRL_X509_PKEY_read_bio(
-            WOLFSSL_BIO* bio, pem_password_cb* cb,
-            WOLFSSL_X509** x509, WOLFSSL_X509_CRL** crl, WOLFSSL_X509_PKEY** x_pkey)
+            WOLFSSL_BIO* bio, wc_pem_password_cb* cb, WOLFSSL_X509** x509,
+            WOLFSSL_X509_CRL** crl, WOLFSSL_X509_PKEY** x_pkey)
     {
 
 #if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)
@@ -43618,7 +43628,7 @@ err:
      */
     WOLF_STACK_OF(WOLFSSL_X509_INFO)* wolfSSL_PEM_X509_INFO_read_bio(
         WOLFSSL_BIO* bio, WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk,
-        pem_password_cb* cb, void* u)
+        wc_pem_password_cb* cb, void* u)
     {
         WOLF_STACK_OF(WOLFSSL_X509_INFO)* localSk = NULL;
         int ret = WOLFSSL_SUCCESS;
@@ -45248,7 +45258,7 @@ void* wolfSSL_get_ex_data(const WOLFSSL* ssl, int idx)
 #ifndef NO_DSA
 #ifndef NO_BIO
 WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp, WOLFSSL_DSA **x,
-        pem_password_cb *cb, void *u)
+        wc_pem_password_cb *cb, void *u)
 {
     WOLFSSL_DSA* dsa;
     DsaKey* key;
@@ -45352,7 +45362,7 @@ WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp, WOLFSSL_DSA **x,
 #ifndef NO_DH
 #ifndef NO_BIO
 WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
-        pem_password_cb *cb, void *u)
+        wc_pem_password_cb *cb, void *u)
 {
 #ifndef NO_FILESYSTEM
     WOLFSSL_DH* localDh = NULL;
@@ -45495,7 +45505,7 @@ end:
  *
  * Returns new WOLFSSL_DH structure pointer on success, NULL on failure. */
 WOLFSSL_DH *wolfSSL_PEM_read_DHparams(XFILE fp, WOLFSSL_DH **x,
-        pem_password_cb *cb, void *u)
+        wc_pem_password_cb *cb, void *u)
 {
     WOLFSSL_BIO* fbio = NULL;
     WOLFSSL_DH* dh = NULL;
@@ -54092,7 +54102,7 @@ int wolfSSL_PEM_write_bio_PKCS8PrivateKey(WOLFSSL_BIO* bio,
                                           WOLFSSL_EVP_PKEY* pkey,
                                           const WOLFSSL_EVP_CIPHER* enc,
                                           char* passwd, int passwdSz,
-                                          pem_password_cb* cb, void* ctx)
+                                          wc_pem_password_cb* cb, void* ctx)
 {
     int ret = 0;
     char password[NAME_SZ];
@@ -54211,7 +54221,7 @@ int wolfSSL_PEM_write_bio_PKCS8PrivateKey(WOLFSSL_BIO* bio,
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 int wolfSSL_PEM_write_PKCS8PrivateKey(XFILE f, WOLFSSL_EVP_PKEY* pkey,
     const WOLFSSL_EVP_CIPHER* enc, char* passwd, int passwdSz,
-    pem_password_cb* cb, void* ctx)
+    wc_pem_password_cb* cb, void* ctx)
 {
     int ret = WOLFSSL_SUCCESS;
     BIO *b;
@@ -54295,7 +54305,7 @@ static int bio_get_data(WOLFSSL_BIO* bio, byte** data)
 /* DER data is PKCS#8 encrypted. */
 WOLFSSL_EVP_PKEY* wolfSSL_d2i_PKCS8PrivateKey_bio(WOLFSSL_BIO* bio,
                                                   WOLFSSL_EVP_PKEY** pkey,
-                                                  pem_password_cb* cb,
+                                                  wc_pem_password_cb* cb,
                                                   void* ctx)
 {
     int ret;
