@@ -14986,6 +14986,9 @@ static int DecodeKeyUsage(const byte* input, int sz, DecodedCert* cert)
     if (ret != 0)
         return ret;
 
+    if (length == 0 || length > 2)
+        return ASN_PARSE_E;
+
     cert->extKeyUsage = (word16)(input[idx]);
     if (length == 2)
         cert->extKeyUsage |= (word16)(input[idx+1] << 8);
