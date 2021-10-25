@@ -2171,13 +2171,16 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
                             heap, DYNAMIC_TYPE_OPENSSL)) == NULL) {
         WOLFSSL_MSG("ctx-x509_store.lookup.dir memory allocation error");
         XFREE(ctx->param, heap, DYNAMIC_TYPE_OPENSSL);
+        ctx->param = NULL;
         return MEMORY_E;
     }
     XMEMSET(ctx->x509_store.lookup.dirs, 0, sizeof(WOLFSSL_BY_DIR));
     if (wc_InitMutex(&ctx->x509_store.lookup.dirs->lock) != 0) {
         WOLFSSL_MSG("Bad mutex init");
         XFREE(ctx->param, heap, DYNAMIC_TYPE_OPENSSL);
+        ctx->param = NULL;
         XFREE(ctx->x509_store.lookup.dirs, heap, DYNAMIC_TYPE_OPENSSL);
+        ctx->x509_store.lookup.dirs = NULL;
         return BAD_MUTEX_E;
     }
     #endif
@@ -2249,12 +2252,24 @@ void wolfSSL_CRYPTO_cleanup_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data)
 }
 #endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
 
-/* In case contexts are held in array and don't want to free actual ctx */
+/* In case contexts are held in array and don't want to free actual ctx. */
+
+/* The allocations done in InitSSL_Ctx must be free'd with ctx->onHeapHint
+ * logic. A WOLFSSL_CTX can be assigned a static memory heap hint using 
+ * wolfSSL_CTX_load_static_memory after CTX creation, which means variables 
+ * allocated in InitSSL_Ctx were allocated from heap and should be free'd with 
+ * a NULL heap hint. */
 void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 {
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
                      defined(HAVE_TLS_EXTENSIONS) && !defined(NO_WOLFSSL_SERVER)
     int i;
+#endif
+    void* heapAtCTXInit = ctx->heap;
+#ifdef WOLFSSL_STATIC_MEMORY
+    if (ctx->onHeapHint == 0) {
+        heapAtCTXInit = NULL;
+    }
 #endif
 
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
@@ -2265,17 +2280,9 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     wolfEventQueue_Free(&ctx->event_queue);
 #endif /* HAVE_WOLF_EVENT */
 
-#ifdef WOLFSSL_STATIC_MEMORY
-    if (ctx->onHeap == 1) {
-        XFREE(ctx->method, ctx->heap, DYNAMIC_TYPE_METHOD);
-    }
-    else {
-        XFREE(ctx->method, NULL, DYNAMIC_TYPE_METHOD);
-    }
-#else
-    XFREE(ctx->method, ctx->heap, DYNAMIC_TYPE_METHOD);
-#endif
+    XFREE(ctx->method, heapAtCTXInit, DYNAMIC_TYPE_METHOD);
     ctx->method = NULL;
+
     if (ctx->suites) {
         XFREE(ctx->suites, ctx->heap, DYNAMIC_TYPE_SUITES);
         ctx->suites = NULL;
@@ -2358,12 +2365,13 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 
 #endif /* HAVE_TLS_EXTENSIONS */
 #ifdef OPENSSL_EXTRA
-    if(ctx->alpn_cli_protos) {
-        XFREE((void *)ctx->alpn_cli_protos, NULL, DYNAMIC_TYPE_OPENSSL);
+    if (ctx->alpn_cli_protos) {
+        XFREE((void*)ctx->alpn_cli_protos, ctx->heap, DYNAMIC_TYPE_OPENSSL);
         ctx->alpn_cli_protos = NULL;
     }
     if (ctx->param) {
-        XFREE(ctx->param, ctx->heap, DYNAMIC_TYPE_OPENSSL);
+        XFREE(ctx->param, heapAtCTXInit, DYNAMIC_TYPE_OPENSSL);
+        ctx->param = NULL;
     }
 
     if (ctx->x509_store.lookup.dirs) {
@@ -2374,7 +2382,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         
 #endif
         wc_FreeMutex(&ctx->x509_store.lookup.dirs->lock);
-        XFREE(ctx->x509_store.lookup.dirs, ctx->heap, DYNAMIC_TYPE_OPENSSL);
+        XFREE(ctx->x509_store.lookup.dirs, heapAtCTXInit, DYNAMIC_TYPE_OPENSSL);
     }
 #endif
 #ifdef WOLFSSL_STATIC_EPHEMERAL
@@ -2391,6 +2399,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         FreeDer(&ctx->staticKE.x25519Key);
     #endif
 #endif
+    (void)heapAtCTXInit;
 }
 
 #ifdef WOLFSSL_STATIC_MEMORY
@@ -2414,7 +2423,7 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
     int refCount;
     void* heap = ctx->heap;
 #ifdef WOLFSSL_STATIC_MEMORY
-    if (ctx->onHeap == 0) {
+    if (ctx->onHeapHint == 0) {
         heap = NULL;
     }
 #endif

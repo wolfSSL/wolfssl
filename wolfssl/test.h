@@ -509,6 +509,11 @@ typedef struct callback_functions {
     const char* caPemFile;
     const char* certPemFile;
     const char* keyPemFile;
+#ifdef WOLFSSL_STATIC_MEMORY
+    byte*               mem;
+    word32              memSz;
+    wolfSSL_method_func method_ex;
+#endif
     int devId;
     int return_code;
     unsigned char isSharedCtx:1;
@@ -3605,6 +3610,22 @@ static WC_INLINE int wolfSSL_PrintStats(WOLFSSL_MEM_STATS* stats)
        fprintf(stderr, "                      : %d\t : %d\n", stats->blockSz[i],
                                                             stats->avaBlock[i]);
     }
+
+    return 1;
+}
+
+static WC_INLINE int wolfSSL_PrintStatsConn(WOLFSSL_MEM_CONN_STATS* stats)
+{
+    if (stats == NULL) {
+        return 0;
+    }
+
+    fprintf(stderr, "peak connection memory = %d\n", stats->peakMem);
+    fprintf(stderr, "current memory in use  = %d\n", stats->curMem);
+    fprintf(stderr, "peak connection allocs = %d\n", stats->peakAlloc);
+    fprintf(stderr, "current connection allocs = %d\n",stats->curAlloc);
+    fprintf(stderr, "total connection allocs   = %d\n", stats->totalAlloc);
+    fprintf(stderr, "total connection frees    = %d\n\n", stats->totalFr);
 
     return 1;
 }

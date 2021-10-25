@@ -550,6 +550,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_NAME_new                   wolfSSL_X509_NAME_new
 #define X509_NAME_free                  wolfSSL_X509_NAME_free
 #define X509_NAME_dup                   wolfSSL_X509_NAME_dup
+#define X509_NAME_get_sz                wolfSSL_X509_NAME_get_sz
 #define X509_NAME_get_text_by_NID       wolfSSL_X509_NAME_get_text_by_NID
 #define X509_NAME_get_index_by_OBJ      wolfSSL_X509_NAME_get_index_by_OBJ
 #define X509_NAME_cmp                   wolfSSL_X509_NAME_cmp

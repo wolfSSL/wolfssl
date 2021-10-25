@@ -1526,8 +1526,13 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 #endif
 
 #ifndef FILE_BUFFER_SIZE
-    #define FILE_BUFFER_SIZE 1024     /* default static file buffer size for input, \
-                                    will use dynamic buffer if not big enough */
+    /* default static file buffer size for input, will use dynamic buffer if
+     * not big enough */
+    #ifdef WOLFSSL_CERT_EXT
+    #define FILE_BUFFER_SIZE (3*1024)
+    #else
+    #define FILE_BUFFER_SIZE (1*1024)
+    #endif
 #endif
 
 #ifdef HAVE_CAVIUM_OCTEON_SYNC

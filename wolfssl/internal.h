@@ -2811,7 +2811,7 @@ struct WOLFSSL_CTX {
     byte        disallowEncThenMac:1;  /* Don't do Encrypt-Then-MAC */
 #endif
 #ifdef WOLFSSL_STATIC_MEMORY
-    byte        onHeap:1; /* whether the ctx/method is put on heap hint */
+    byte        onHeapHint:1; /* whether the ctx/method is put on heap hint */
 #endif
 #ifdef WOLFSSL_MULTICAST
     byte        haveMcast;        /* multicast requested */

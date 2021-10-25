@@ -628,6 +628,10 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             #else
                 res = malloc(size);
             #endif
+
+            #ifdef WOLFSSL_DEBUG_MEMORY
+                printf("Alloc: %p -> %u at %s:%d\n", res, (word32)size, func, line);
+            #endif
         #else
             WOLFSSL_MSG("No heap hint found to use and no malloc");
             #ifdef WOLFSSL_DEBUG_MEMORY
@@ -751,6 +755,9 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
         /* check for testing heap hint was set */
     #ifdef WOLFSSL_HEAP_TEST
         if (heap == (void*)WOLFSSL_HEAP_TEST) {
+        #ifdef WOLFSSL_DEBUG_MEMORY
+            printf("Free: %p at %s:%d\n", pt, func, line);
+        #endif
             return free(ptr);
         }
     #endif
