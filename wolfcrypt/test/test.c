@@ -1241,7 +1241,7 @@ initDefaultName();
 #endif
 
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
-   !defined(NO_FILESYSTEM)
+   !defined(NO_FILESYSTEM) && !defined(NO_RSA)
     if ( (ret = certext_test()) != 0)
         return err_sys("CERT EXT test failed!\n", ret);
     else
@@ -12582,7 +12582,7 @@ WOLFSSL_TEST_SUBROUTINE int certext_test(void)
 
     return 0;
 }
-#endif /* WOLFSSL_CERT_EXT && WOLFSSL_TEST_CERT */
+#endif /* WOLFSSL_CERT_EXT && WOLFSSL_TEST_CERT && !NO_FILESYSTEM */
 
 #if defined(WOLFSSL_CERT_GEN_CACHE) && defined(WOLFSSL_TEST_CERT) && \
     defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
