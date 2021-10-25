@@ -50718,9 +50718,9 @@ word32 nid2oid(int nid, int grp)
         /* oidCertAuthInfoType */
         case oidCertAuthInfoType:
             switch (nid) {
-                case AIA_OCSP_OID:
+                case NID_ad_OCSP:
                     return AIA_OCSP_OID;
-                case AIA_CA_ISSUER_OID:
+                case NID_ad_ca_issuers:
                     return AIA_CA_ISSUER_OID;
             }
             break;
@@ -51071,9 +51071,9 @@ int oid2nid(word32 oid, int grp)
         case oidCertAuthInfoType:
             switch (oid) {
                 case AIA_OCSP_OID:
-                    return AIA_OCSP_OID;
+                    return NID_ad_OCSP;
                 case AIA_CA_ISSUER_OID:
-                    return AIA_CA_ISSUER_OID;
+                    return NID_ad_ca_issuers;
             }
             break;
 
