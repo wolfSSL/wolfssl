@@ -18804,7 +18804,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         (void)sizeof(sha_test);
 
         WOLFSSL_ENTER("SHA3_224_Init");
-        ret = wc_InitSha3_224((wc_Sha3*)sha, NULL, 0);
+        ret = wc_InitSha3_224((wc_Sha3*)sha, NULL, INVALID_DEVID);
 
         /* return 1 on success, 0 otherwise */
         if (ret == 0)
@@ -18916,7 +18916,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         (void)sizeof(sha_test);
 
         WOLFSSL_ENTER("SHA3_384_Init");
-        ret = wc_InitSha3_384((wc_Sha3*)sha, NULL, 0);
+        ret = wc_InitSha3_384((wc_Sha3*)sha, NULL, INVALID_DEVID);
 
         /* return 1 on success, 0 otherwise */
         if (ret == 0)
@@ -18973,7 +18973,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         (void)sizeof(sha_test);
 
         WOLFSSL_ENTER("SHA3_512_Init");
-        ret = wc_InitSha3_512((wc_Sha3*)sha, NULL, 0);
+        ret = wc_InitSha3_512((wc_Sha3*)sha, NULL, INVALID_DEVID);
 
         /* return 1 on success, 0 otherwise */
         if (ret == 0)
@@ -62269,7 +62269,7 @@ int wolfSSL_PKCS12_verify_mac(WC_PKCS12 *pkcs12, const char *psw,
 
         WOLFSSL_ENTER("wolfSSL_SHA1");
 
-        if (wc_InitSha_ex(&sha, NULL, 0) != 0) {
+        if (wc_InitSha_ex(&sha, NULL, INVALID_DEVID) != 0) {
             WOLFSSL_MSG("SHA1 Init failed");
             return NULL;
         }
@@ -62316,7 +62316,7 @@ int wolfSSL_PKCS12_verify_mac(WC_PKCS12 *pkcs12, const char *psw,
 
         WOLFSSL_ENTER("wolfSSL_SHA224");
 
-        if (wc_InitSha224_ex(&sha, NULL, 0) != 0) {
+        if (wc_InitSha224_ex(&sha, NULL, INVALID_DEVID) != 0) {
             WOLFSSL_MSG("SHA224 Init failed");
             return NULL;
         }
@@ -62363,7 +62363,7 @@ int wolfSSL_PKCS12_verify_mac(WC_PKCS12 *pkcs12, const char *psw,
 
         WOLFSSL_ENTER("wolfSSL_SHA256");
 
-        if (wc_InitSha256_ex(&sha, NULL, 0) != 0) {
+        if (wc_InitSha256_ex(&sha, NULL, INVALID_DEVID) != 0) {
             WOLFSSL_MSG("SHA256 Init failed");
             return NULL;
         }
@@ -62410,7 +62410,7 @@ int wolfSSL_PKCS12_verify_mac(WC_PKCS12 *pkcs12, const char *psw,
 
          WOLFSSL_ENTER("wolfSSL_SHA384");
 
-         if (wc_InitSha384_ex(&sha, NULL, 0) != 0) {
+         if (wc_InitSha384_ex(&sha, NULL, INVALID_DEVID) != 0) {
              WOLFSSL_MSG("SHA384 Init failed");
              return NULL;
          }
@@ -62457,7 +62457,7 @@ int wolfSSL_PKCS12_verify_mac(WC_PKCS12 *pkcs12, const char *psw,
 
          WOLFSSL_ENTER("wolfSSL_SHA512");
 
-         if (wc_InitSha512_ex(&sha, NULL, 0) != 0) {
+         if (wc_InitSha512_ex(&sha, NULL, INVALID_DEVID) != 0) {
              WOLFSSL_MSG("SHA512 Init failed");
              return NULL;
          }
