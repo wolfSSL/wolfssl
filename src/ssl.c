@@ -7886,7 +7886,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_CTX_get0_privatekey(const WOLFSSL_CTX* ctx)
         return ctx->privateKeyPKey;
     else
         return wolfSSL_d2i_PrivateKey(type,
-                &((WOLFSSL_CTX*)ctx)->privateKeyPKey, &key,
+                (WOLFSSL_EVP_PKEY**)&ctx->privateKeyPKey, &key,
                 (long)ctx->privateKey->length);
 }
 #endif

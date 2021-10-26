@@ -7165,7 +7165,9 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     wolfSSL_sk_CIPHER_free(ssl->supportedCiphers);
     wolfSSL_sk_X509_free(ssl->peerCertChain);
+    #ifdef KEEP_OUR_CERT
     wolfSSL_sk_X509_free(ssl->ourCertChain);
+    #endif
 #endif
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
     wolfSSL_sk_X509_NAME_pop_free(ssl->ca_names, NULL);
