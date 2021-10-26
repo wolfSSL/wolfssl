@@ -20945,7 +20945,7 @@ static int test_wc_ed25519_make_key (void)
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         } else if (ret == 0) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -20953,7 +20953,7 @@ static int test_wc_ed25519_make_key (void)
     printf(resultFmt, ret == 0 ? passed : failed);
 
     if (wc_FreeRng(&rng) && ret == 0) {
-        ret = SSL_FATAL_ERROR;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     wc_ed25519_free(&key);
 
@@ -20984,7 +20984,7 @@ static int test_wc_ed25519_init (void)
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         } else if (ret == 0) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -21052,7 +21052,7 @@ static int test_wc_ed25519_sign_msg (void)
             badSigLen -= 1;
             ret = 0;
         } else if (ret == 0) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     } /* END sign */
 
@@ -21066,7 +21066,7 @@ static int test_wc_ed25519_sign_msg (void)
             if (ret == 0  && verify_ok == 1) {
                 ret = 0;
             } else if (ret == 0) {
-                ret = SSL_FATAL_ERROR;
+                ret = WOLFSSL_FATAL_ERROR;
             }
 
             /* Test bad args. */
@@ -21099,7 +21099,7 @@ static int test_wc_ed25519_sign_msg (void)
                 if (ret == BAD_FUNC_ARG) {
                     ret = 0;
                 } else if (ret == 0) {
-                    ret = SSL_FATAL_ERROR;
+                    ret = WOLFSSL_FATAL_ERROR;
                 }
             }
 
@@ -21109,7 +21109,7 @@ static int test_wc_ed25519_sign_msg (void)
     #endif /* Verify. */
 
     if (wc_FreeRng(&rng) && ret == 0) {
-        ret = SSL_FATAL_ERROR;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     wc_ed25519_free(&key);
 
@@ -21147,7 +21147,7 @@ static int test_wc_ed25519_import_public (void)
         if (ret == 0 && XMEMCMP(in, pubKey.p, inlen) == 0) {
             ret = 0;
         } else {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
 
         /* Test bad args. */
@@ -21162,7 +21162,7 @@ static int test_wc_ed25519_import_public (void)
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
             } else if (ret == 0) {
-                ret = SSL_FATAL_ERROR;
+                ret = WOLFSSL_FATAL_ERROR;
             }
         }
     }
@@ -21170,7 +21170,7 @@ static int test_wc_ed25519_import_public (void)
     printf(resultFmt, ret == 0 ? passed : failed);
 
     if (wc_FreeRng(&rng) && ret == 0) {
-        ret = SSL_FATAL_ERROR;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     wc_ed25519_free(&pubKey);
 
@@ -21216,7 +21216,7 @@ static int test_wc_ed25519_import_private_key (void)
                                                             pubKeySz, &key);
         if (ret == 0 && (XMEMCMP(pubKey, key.p, privKeySz) != 0
                                 || XMEMCMP(privKey, key.k, pubKeySz) != 0)) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -21228,7 +21228,7 @@ static int test_wc_ed25519_import_private_key (void)
         ret = wc_ed25519_import_private_key(bothKeys, bothKeysSz, NULL, 0, &key);
         if (ret == 0 && (XMEMCMP(pubKey, key.p, privKeySz) != 0
                                 || XMEMCMP(privKey, key.k, pubKeySz) != 0)) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 #endif
@@ -21260,14 +21260,14 @@ static int test_wc_ed25519_import_private_key (void)
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         } else if (ret == 0) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
     if (wc_FreeRng(&rng) && ret == 0) {
-        ret = SSL_FATAL_ERROR;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     wc_ed25519_free(&key);
 
@@ -21312,7 +21312,7 @@ static int test_wc_ed25519_export (void)
         ret = wc_ed25519_export_public(&key, pub, &pubSz);
         if (ret == 0 && (pubSz != ED25519_KEY_SIZE
                                         || XMEMCMP(key.p, pub, pubSz) != 0)) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
         if (ret == 0) {
             ret = wc_ed25519_export_public(NULL, pub, &pubSz);
@@ -21325,7 +21325,7 @@ static int test_wc_ed25519_export (void)
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
             } else if (ret == 0) {
-                ret = SSL_FATAL_ERROR;
+                ret = WOLFSSL_FATAL_ERROR;
             }
         }
     }
@@ -21337,7 +21337,7 @@ static int test_wc_ed25519_export (void)
         ret = wc_ed25519_export_private_only(&key, priv, &privSz);
         if (ret == 0 && (privSz != ED25519_KEY_SIZE
                                         || XMEMCMP(key.k, priv, privSz) != 0)) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
         if (ret == 0) {
             ret = wc_ed25519_export_private_only(NULL, priv, &privSz);
@@ -21350,7 +21350,7 @@ static int test_wc_ed25519_export (void)
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
             } else if (ret == 0) {
-                ret = SSL_FATAL_ERROR;
+                ret = WOLFSSL_FATAL_ERROR;
             }
         }
     }
@@ -21358,7 +21358,7 @@ static int test_wc_ed25519_export (void)
     printf(resultFmt, ret == 0 ? passed : failed);
 
     if (wc_FreeRng(&rng) && ret == 0) {
-        ret = SSL_FATAL_ERROR;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     wc_ed25519_free(&key);
 
@@ -21454,7 +21454,7 @@ static int test_wc_ed25519_size (void)
     } /* END wc_ed25519_pub_size */
 
     if (wc_FreeRng(&rng) && ret == 0) {
-        ret = SSL_FATAL_ERROR;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     wc_ed25519_free(&key);
 
@@ -21510,7 +21510,7 @@ static int test_wc_ed25519_exportKey (void)
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         } else if (ret == 0) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -21537,7 +21537,7 @@ static int test_wc_ed25519_exportKey (void)
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
             } else if (ret == 0) {
-                ret = SSL_FATAL_ERROR;
+                ret = WOLFSSL_FATAL_ERROR;
             }
         }
         printf(resultFmt, ret == 0 ? passed : failed);
@@ -21545,11 +21545,11 @@ static int test_wc_ed25519_exportKey (void)
 
     /* Cross check output. */
     if (ret == 0 && XMEMCMP(priv, privOnly, privSz) != 0) {
-        ret = SSL_FATAL_ERROR;
+        ret = WOLFSSL_FATAL_ERROR;
     }
 
     if (wc_FreeRng(&rng) && ret == 0) {
-        ret = SSL_FATAL_ERROR;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     wc_ed25519_free(&key);
 
@@ -21576,14 +21576,14 @@ static int test_wc_Ed25519PublicKeyToDer (void)
     /* Test bad args */
     tmp = wc_Ed25519PublicKeyToDer(NULL, NULL, 0, 0);
     if (tmp != BAD_FUNC_ARG) {
-        ret = SSL_FATAL_ERROR;
+        ret = WOLFSSL_FATAL_ERROR;
     }
 
     if (ret == 0) {
         wc_ed25519_init(&key);
         tmp = wc_Ed25519PublicKeyToDer(&key, derBuf, 0, 0);
         if (tmp != BUFFER_E) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
         wc_ed25519_free(&key);
     }
@@ -21610,7 +21610,7 @@ static int test_wc_Ed25519PublicKeyToDer (void)
 
         tmp = wc_Ed25519PublicKeyToDer(&key, derBuf, 1024, 1);
         if (tmp <= 0) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
 
         wc_FreeRng(&rng);
@@ -21642,7 +21642,7 @@ static int test_wc_curve25519_init (void)
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         } else if (ret == 0) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -22242,7 +22242,7 @@ static int test_wc_curve25519_make_key (void)
         if (ret == 0) {
             keysize = wc_curve25519_size(&key);
             if (keysize != CURVE25519_KEYSIZE) {
-                ret = SSL_FATAL_ERROR;
+                ret = WOLFSSL_FATAL_ERROR;
             }
         }
         if (ret == 0) {
@@ -22761,7 +22761,7 @@ static int test_wc_ed448_make_key (void)
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         } else if (ret == 0) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -22769,7 +22769,7 @@ static int test_wc_ed448_make_key (void)
     printf(resultFmt, ret == 0 ? passed : failed);
 
     if (wc_FreeRng(&rng) && ret == 0) {
-        ret = SSL_FATAL_ERROR;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     wc_ed448_free(&key);
 
@@ -22800,7 +22800,7 @@ static int test_wc_ed448_init (void)
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         } else if (ret == 0) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -22869,7 +22869,7 @@ static int test_wc_ed448_sign_msg (void)
             badSigLen -= 1;
             ret = 0;
         } else if (ret == 0) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     } /* END sign */
 
@@ -22884,7 +22884,7 @@ static int test_wc_ed448_sign_msg (void)
             if (ret == 0  && verify_ok == 1) {
                 ret = 0;
             } else if (ret == 0) {
-                ret = SSL_FATAL_ERROR;
+                ret = WOLFSSL_FATAL_ERROR;
             }
 
             /* Test bad args. */
@@ -22919,7 +22919,7 @@ static int test_wc_ed448_sign_msg (void)
                 if (ret == BAD_FUNC_ARG) {
                     ret = 0;
                 } else if (ret == 0) {
-                    ret = SSL_FATAL_ERROR;
+                    ret = WOLFSSL_FATAL_ERROR;
                 }
             }
 
@@ -22929,7 +22929,7 @@ static int test_wc_ed448_sign_msg (void)
     #endif /* Verify. */
 
     if (wc_FreeRng(&rng) && ret == 0) {
-        ret = SSL_FATAL_ERROR;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     wc_ed448_free(&key);
 
@@ -22968,7 +22968,7 @@ static int test_wc_ed448_import_public (void)
         if (ret == 0 && XMEMCMP(in, pubKey.p, inlen) == 0) {
             ret = 0;
         } else {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
 
         /* Test bad args. */
@@ -22983,7 +22983,7 @@ static int test_wc_ed448_import_public (void)
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
             } else if (ret == 0) {
-                ret = SSL_FATAL_ERROR;
+                ret = WOLFSSL_FATAL_ERROR;
             }
         }
     }
@@ -22991,7 +22991,7 @@ static int test_wc_ed448_import_public (void)
     printf(resultFmt, ret == 0 ? passed : failed);
 
     if (wc_FreeRng(&rng) && ret == 0) {
-        ret = SSL_FATAL_ERROR;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     wc_ed448_free(&pubKey);
 
@@ -23039,7 +23039,7 @@ static int test_wc_ed448_import_private_key (void)
                                                                           &key);
         if (ret == 0 && (XMEMCMP(pubKey, key.p, privKeySz) != 0 ||
                                       XMEMCMP(privKey, key.k, pubKeySz) != 0)) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -23051,7 +23051,7 @@ static int test_wc_ed448_import_private_key (void)
         ret = wc_ed448_import_private_key(bothKeys, bothKeysSz, NULL, 0, &key);
         if (ret == 0 && (XMEMCMP(pubKey, key.p, privKeySz) != 0 ||
                                       XMEMCMP(privKey, key.k, pubKeySz) != 0)) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 #endif
@@ -23084,14 +23084,14 @@ static int test_wc_ed448_import_private_key (void)
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         } else if (ret == 0) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
     if (wc_FreeRng(&rng) && ret == 0) {
-        ret = SSL_FATAL_ERROR;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     wc_ed448_free(&key);
 
@@ -23136,7 +23136,7 @@ static int test_wc_ed448_export (void)
         ret = wc_ed448_export_public(&key, pub, &pubSz);
         if (ret == 0 && (pubSz != ED448_KEY_SIZE ||
                                              XMEMCMP(key.p, pub, pubSz) != 0)) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
         if (ret == 0) {
             ret = wc_ed448_export_public(NULL, pub, &pubSz);
@@ -23149,7 +23149,7 @@ static int test_wc_ed448_export (void)
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
             } else if (ret == 0) {
-                ret = SSL_FATAL_ERROR;
+                ret = WOLFSSL_FATAL_ERROR;
             }
         }
     }
@@ -23161,7 +23161,7 @@ static int test_wc_ed448_export (void)
         ret = wc_ed448_export_private_only(&key, priv, &privSz);
         if (ret == 0 && (privSz != ED448_KEY_SIZE ||
                                            XMEMCMP(key.k, priv, privSz) != 0)) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
         if (ret == 0) {
             ret = wc_ed448_export_private_only(NULL, priv, &privSz);
@@ -23174,7 +23174,7 @@ static int test_wc_ed448_export (void)
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
             } else if (ret == 0) {
-                ret = SSL_FATAL_ERROR;
+                ret = WOLFSSL_FATAL_ERROR;
             }
         }
     }
@@ -23182,7 +23182,7 @@ static int test_wc_ed448_export (void)
     printf(resultFmt, ret == 0 ? passed : failed);
 
     if (wc_FreeRng(&rng) && ret == 0) {
-        ret = SSL_FATAL_ERROR;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     wc_ed448_free(&key);
 
@@ -23278,7 +23278,7 @@ static int test_wc_ed448_size (void)
     } /* END wc_ed448_pub_size */
 
     if (wc_FreeRng(&rng) && ret == 0) {
-        ret = SSL_FATAL_ERROR;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     wc_ed448_free(&key);
 
@@ -23334,7 +23334,7 @@ static int test_wc_ed448_exportKey (void)
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         } else if (ret == 0) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -23361,7 +23361,7 @@ static int test_wc_ed448_exportKey (void)
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
             } else if (ret == 0) {
-                ret = SSL_FATAL_ERROR;
+                ret = WOLFSSL_FATAL_ERROR;
             }
         }
         printf(resultFmt, ret == 0 ? passed : failed);
@@ -23369,11 +23369,11 @@ static int test_wc_ed448_exportKey (void)
 
     /* Cross check output. */
     if (ret == 0 && XMEMCMP(priv, privOnly, privSz) != 0) {
-        ret = SSL_FATAL_ERROR;
+        ret = WOLFSSL_FATAL_ERROR;
     }
 
     if (wc_FreeRng(&rng) && ret == 0) {
-        ret = SSL_FATAL_ERROR;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     wc_ed448_free(&key);
 
@@ -23400,14 +23400,14 @@ static int test_wc_Ed448PublicKeyToDer (void)
     /* Test bad args */
     tmp = wc_Ed448PublicKeyToDer(NULL, NULL, 0, 0);
     if (tmp != BAD_FUNC_ARG) {
-        ret = SSL_FATAL_ERROR;
+        ret = WOLFSSL_FATAL_ERROR;
     }
 
     if (ret == 0) {
         wc_ed448_init(&key);
         tmp = wc_Ed448PublicKeyToDer(&key, derBuf, 0, 0);
         if (tmp != BUFFER_E) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
         wc_ed448_free(&key);
     }
@@ -23434,7 +23434,7 @@ static int test_wc_Ed448PublicKeyToDer (void)
 
         tmp = wc_Ed448PublicKeyToDer(&key, derBuf, 1024, 1);
         if (tmp <= 0) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
 
         wc_FreeRng(&rng);
@@ -23466,7 +23466,7 @@ static int test_wc_curve448_init (void)
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         } else if (ret == 0) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -23505,7 +23505,7 @@ static int test_wc_curve448_make_key (void)
         if (ret == 0) {
             keysize = wc_curve448_size(&key);
             if (keysize != CURVE448_KEY_SIZE) {
-                ret = SSL_FATAL_ERROR;
+                ret = WOLFSSL_FATAL_ERROR;
             }
         }
         if (ret == 0) {
