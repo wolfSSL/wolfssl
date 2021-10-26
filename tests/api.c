@@ -37607,6 +37607,7 @@ static void test_wolfSSL_PEM_write_bio_X509(void)
     BIO* input;
     BIO* output;
     X509* x509 = NULL;
+    int expectedLen;
 
     printf(testingFmt, "wolfSSL_PEM_write_bio_X509()");
 
@@ -37620,17 +37621,16 @@ static void test_wolfSSL_PEM_write_bio_X509(void)
 
     AssertIntEQ(PEM_write_bio_X509(output, x509), WOLFSSL_SUCCESS);
 
-    AssertIntEQ(wolfSSL_BIO_get_len(output),
 #ifdef WOLFSSL_ALT_NAMES
-            /* Here we copy the validity struct from the original */
-            2000
+    /* Here we copy the validity struct from the original */
+    expectedLen = 2000;
 #else
-            /* Only difference is that we generate the validity in generalized
-             * time. Generating UTCTime vs Generalized time should be fixed in
-             * the future */
-            2004
+    /* Only difference is that we generate the validity in generalized
+     * time. Generating UTCTime vs Generalized time should be fixed in
+     * the future */
+    expectedLen = 2004;
 #endif
-            );
+    AssertIntEQ(wolfSSL_BIO_get_len(output), expectedLen);
 
     /* Reset output buffer */
     BIO_free(output);
@@ -37649,15 +37649,15 @@ static void test_wolfSSL_PEM_write_bio_X509(void)
     /* Check that we generate a smaller output since the AKID will
      * only contain the KeyIdentifier without any additional
      * information */
-    AssertIntEQ(wolfSSL_BIO_get_len(output),
+
 #ifdef WOLFSSL_ALT_NAMES
-            /* Here we copy the validity struct from the original */
-            1688
+    /* Here we copy the validity struct from the original */
+    expectedLen = 1688;
 #else
-            /* UTCTime vs Generalized time */
-            1692
+    /* UTCTime vs Generalized time */
+    expectedLen = 1692;
 #endif
-            );
+    AssertIntEQ(wolfSSL_BIO_get_len(output), expectedLen);
 
     BIO_free(input);
     BIO_free(output);
