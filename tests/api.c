@@ -43652,7 +43652,7 @@ static void test_wolfSSL_X509V3_EXT_get(void) {
     AssertIntEQ((numOfExt = wolfSSL_X509_get_ext_count(x509)), 5);
     for (i = 0; i < numOfExt; i++) {
         AssertNotNull(ext = wolfSSL_X509_get_ext(x509, i));
-        AssertNotNull(extNid = ext->obj->nid);
+        AssertIntNE((extNid = ext->obj->nid), NID_undef);
         AssertNotNull(method = wolfSSL_X509V3_EXT_get(ext));
         AssertIntEQ(method->ext_nid, extNid);
     }

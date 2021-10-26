@@ -9282,7 +9282,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
     const byte* rawCert;
     const byte* input;
     byte* oidBuf;
-    word32 oid, idx = 0, tmpIdx = 0;
+    word32 oid, idx = 0, tmpIdx = 0, nid;
     WOLFSSL_X509_EXTENSION* ext = NULL;
     WOLFSSL_ASN1_INTEGER* a;
     WOLFSSL_STACK* sk;
@@ -9382,6 +9382,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
             return NULL;
         }
         idx = tmpIdx;
+        nid = (word32)oid2nid(oid, oidCertExtType);
 
         /* Continue while loop until extCount == loc or idx > sz */
         if (extCount != loc) {
@@ -9391,15 +9392,15 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
         }
         /* extCount == loc. Now get the extension. */
         /* Check if extension has been set */
-        isSet = wolfSSL_X509_ext_isSet_by_NID((WOLFSSL_X509*)x509, oid);
-        ext->obj = wolfSSL_OBJ_nid2obj(oid);
+        isSet = wolfSSL_X509_ext_isSet_by_NID((WOLFSSL_X509*)x509, nid);
+        ext->obj = wolfSSL_OBJ_nid2obj(nid);
         if (ext->obj == NULL) {
             WOLFSSL_MSG("\tfail: Invalid OBJECT");
             wolfSSL_X509_EXTENSION_free(ext);
             FreeDecodedCert(&cert);
             return NULL;
         }
-        ext->obj->nid = oid;
+        ext->obj->nid = nid;
 
         switch (oid) {
             case BASIC_CA_OID:
@@ -9455,7 +9456,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                     obj->obj = (byte*)x509->authInfoCaIssuer;
                     obj->objSz = x509->authInfoCaIssuerSz;
                     obj->grp = oidCertAuthInfoType;
-                    obj->nid = AIA_CA_ISSUER_OID;
+                    obj->nid = NID_ad_ca_issuers;
 
                     ret = wolfSSL_sk_ASN1_OBJECT_push(sk, obj);
                     if (ret != WOLFSSL_SUCCESS) {
@@ -9484,7 +9485,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                     obj->obj = x509->authInfo;
                     obj->objSz = x509->authInfoSz;
                     obj->grp = oidCertAuthInfoType;
-                    obj->nid = AIA_OCSP_OID;
+                    obj->nid = NID_ad_OCSP;
 
                     ret = wolfSSL_sk_ASN1_OBJECT_push(sk, obj);
                     if (ret != WOLFSSL_SUCCESS) {
@@ -10350,7 +10351,7 @@ int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509* x509, int nid, int lastPos)
     int isSet = 0, found = 0, loc;
     const byte* rawCert;
     const byte* input;
-    word32 oid, idx = 0, tmpIdx = 0;
+    word32 oid, idx = 0, tmpIdx = 0, foundNID;
     DecodedCert cert;
 
     WOLFSSL_ENTER("wolfSSL_X509_get_ext_by_NID");
@@ -10435,12 +10436,13 @@ int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509* x509, int nid, int lastPos)
             return WOLFSSL_FATAL_ERROR;
         }
         idx = tmpIdx;
+        foundNID = (word32)oid2nid(oid, oidCertExtType);
 
         if (extCount >= loc) {
             /* extCount >= loc. Now check if extension has been set */
-            isSet = wolfSSL_X509_ext_isSet_by_NID((WOLFSSL_X509*)x509, oid);
+            isSet = wolfSSL_X509_ext_isSet_by_NID((WOLFSSL_X509*)x509, foundNID);
 
-            if (isSet && ((word32)nid == oid)) {
+            if (isSet && ((word32)nid == foundNID)) {
                 found = 1;
                 break;
             }
@@ -23583,17 +23585,17 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
         if (x509 != NULL) {
             switch (nid) {
-                case BASIC_CA_OID: isSet = x509->basicConstSet; break;
-                case ALT_NAMES_OID: isSet = x509->subjAltNameSet; break;
-                case AUTH_KEY_OID: isSet = x509->authKeyIdSet; break;
-                case SUBJ_KEY_OID: isSet = x509->subjKeyIdSet; break;
-                case KEY_USAGE_OID: isSet = x509->keyUsageSet; break;
-                case CRL_DIST_OID: isSet = x509->CRLdistSet; break;
-                case EXT_KEY_USAGE_OID: isSet = ((x509->extKeyUsageSrc) ? 1 : 0);
+                case NID_basic_constraints: isSet = x509->basicConstSet; break;
+                case NID_subject_alt_name: isSet = x509->subjAltNameSet; break;
+                case NID_authority_key_identifier: isSet = x509->authKeyIdSet; break;
+                case NID_subject_key_identifier: isSet = x509->subjKeyIdSet; break;
+                case NID_key_usage: isSet = x509->keyUsageSet; break;
+                case NID_crl_distribution_points: isSet = x509->CRLdistSet; break;
+                case NID_ext_key_usage: isSet = ((x509->extKeyUsageSrc) ? 1 : 0);
                     break;
-                case AUTH_INFO_OID: isSet = x509->authInfoSet; break;
+                case NID_info_access: isSet = x509->authInfoSet; break;
                 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
-                    case CERT_POLICY_OID: isSet = x509->certPolicySet; break;
+                    case NID_certificate_policies: isSet = x509->certPolicySet; break;
                 #endif /* WOLFSSL_SEP || WOLFSSL_QT */
                 default:
                     WOLFSSL_MSG("NID not in table");
@@ -23614,14 +23616,15 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
         if (x509 != NULL) {
             switch (nid) {
-                case BASIC_CA_OID: crit = x509->basicConstCrit; break;
-                case ALT_NAMES_OID: crit = x509->subjAltNameCrit; break;
-                case AUTH_KEY_OID: crit = x509->authKeyIdCrit; break;
-                case SUBJ_KEY_OID: crit = x509->subjKeyIdCrit; break;
-                case KEY_USAGE_OID: crit = x509->keyUsageCrit; break;
-                case CRL_DIST_OID: crit= x509->CRLdistCrit; break;
+                case NID_basic_constraints: crit = x509->basicConstCrit; break;
+                case NID_subject_alt_name: crit = x509->subjAltNameCrit; break;
+                case NID_authority_key_identifier: crit = x509->authKeyIdCrit; break;
+                case NID_subject_key_identifier: crit = x509->subjKeyIdCrit; break;
+                case NID_key_usage: crit = x509->keyUsageCrit; break;
+                case NID_crl_distribution_points: crit= x509->CRLdistCrit; break;
+                case NID_ext_key_usage: crit= x509->extKeyUsageCrit; break;
                 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
-                    case CERT_POLICY_OID: crit = x509->certPolicyCrit; break;
+                    case NID_certificate_policies: crit = x509->certPolicyCrit; break;
                 #endif /* WOLFSSL_SEP || WOLFSSL_QT */
             }
         }
@@ -31319,7 +31322,7 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
                                                 "X509v3 Basic Constraints"},
     { NID_subject_alt_name, ALT_NAMES_OID, oidCertExtType, "subjectAltName",
                                          "X509v3 Subject Alternative Name"},
-    { CRL_DIST_OID, CRL_DIST_OID, oidCertExtType, "crlDistributionPoints",
+    { NID_crl_distribution_points, CRL_DIST_OID, oidCertExtType, "crlDistributionPoints",
                                           "X509v3 CRL Distribution Points"},
     { NID_info_access, AUTH_INFO_OID, oidCertExtType, "authorityInfoAccess",
                                             "Authority Information Access"},
@@ -31339,9 +31342,9 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
                       "certificatePolicies", "X509v3 Certificate Policies"},
 
     /* oidCertAuthInfoType */
-    { AIA_OCSP_OID, AIA_OCSP_OID, oidCertAuthInfoType, "OCSP",
+    { NID_ad_OCSP, AIA_OCSP_OID, oidCertAuthInfoType, "OCSP",
                                             "OCSP"},
-    { AIA_CA_ISSUER_OID, AIA_CA_ISSUER_OID, oidCertAuthInfoType,
+    { NID_ad_ca_issuers, AIA_CA_ISSUER_OID, oidCertAuthInfoType,
                                                  "caIssuers", "CA Issuers"},
 
     /* oidCertPolicyType */
@@ -50694,19 +50697,19 @@ word32 nid2oid(int nid, int grp)
         /* oidCertExtType */
         case oidCertExtType:
             switch (nid) {
-                case BASIC_CA_OID:
+                case NID_basic_constraints:
                     return BASIC_CA_OID;
-                case ALT_NAMES_OID:
+                case NID_subject_alt_name:
                     return ALT_NAMES_OID;
-                case CRL_DIST_OID:
+                case NID_crl_distribution_points:
                     return CRL_DIST_OID;
-                case AUTH_INFO_OID:
+                case NID_info_access:
                     return AUTH_INFO_OID;
-                case AUTH_KEY_OID:
+                case NID_authority_key_identifier:
                     return AUTH_KEY_OID;
-                case SUBJ_KEY_OID:
+                case NID_subject_key_identifier:
                     return SUBJ_KEY_OID;
-                case INHIBIT_ANY_OID:
+                case NID_inhibit_any_policy:
                     return INHIBIT_ANY_OID;
                 case NID_key_usage:
                     return KEY_USAGE_OID;
@@ -50714,6 +50717,8 @@ word32 nid2oid(int nid, int grp)
                     return NAME_CONS_OID;
                 case NID_certificate_policies:
                     return CERT_POLICY_OID;
+                case NID_ext_key_usage:
+                    return EXT_KEY_USAGE_OID;
             }
             break;
 
@@ -51047,25 +51052,27 @@ int oid2nid(word32 oid, int grp)
         case oidCertExtType:
             switch (oid) {
                 case BASIC_CA_OID:
-                    return BASIC_CA_OID;
+                    return NID_basic_constraints;
                 case ALT_NAMES_OID:
-                    return ALT_NAMES_OID;
+                    return NID_subject_alt_name;
                 case CRL_DIST_OID:
-                    return CRL_DIST_OID;
+                    return NID_crl_distribution_points;
                 case AUTH_INFO_OID:
-                    return AUTH_INFO_OID;
+                    return NID_info_access;
                 case AUTH_KEY_OID:
-                    return AUTH_KEY_OID;
+                    return NID_authority_key_identifier;
                 case SUBJ_KEY_OID:
-                    return SUBJ_KEY_OID;
+                    return NID_subject_key_identifier;
                 case INHIBIT_ANY_OID:
-                    return INHIBIT_ANY_OID;
+                    return NID_inhibit_any_policy;
                 case KEY_USAGE_OID:
                     return NID_key_usage;
                 case NAME_CONS_OID:
                     return NID_name_constraints;
                 case CERT_POLICY_OID:
                     return NID_certificate_policies;
+                case EXT_KEY_USAGE_OID:
+                    return NID_ext_key_usage;
             }
             break;
 
