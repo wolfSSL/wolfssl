@@ -37037,9 +37037,16 @@ static int test_wc_ERR_print_errors_fp (void)
 #if defined(DEBUG_WOLFSSL)
     AssertTrue(XFSEEK(fp, 0, XSEEK_END) == 0);
     sz = XFTELL(fp);
+    #ifdef NO_ERROR_QUEUE
+    /* File should be empty when NO_ERROR_QUEUE is defined */
+    if (sz != 0) {
+        ret = BAD_FUNC_ARG;
+    }
+    #else
     if (sz == 0) {
         ret = BAD_FUNC_ARG;
     }
+    #endif
 #endif
     printf(resultFmt, ret == 0 ? passed : failed);
     XFCLOSE(fp);
