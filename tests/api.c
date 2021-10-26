@@ -37659,6 +37659,7 @@ static void test_wolfSSL_PEM_write_bio_X509(void)
 #endif
     AssertIntEQ(wolfSSL_BIO_get_len(output), expectedLen);
 
+    X509_free(x509);
     BIO_free(input);
     BIO_free(output);
 
