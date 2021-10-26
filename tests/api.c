@@ -37612,7 +37612,7 @@ static void test_wolfSSL_PEM_write_bio_X509(void)
 
     AssertNotNull(input = BIO_new_file(
             "certs/test/cert-ext-multiple.pem", "rb"));
-    AssertIntEQ(wolfSSL_BIO_get_len(input), 2004);
+    AssertIntEQ(wolfSSL_BIO_get_len(input), 2000);
 
     AssertNotNull(output = BIO_new(wolfSSL_BIO_s_mem()));
 
@@ -37623,12 +37623,12 @@ static void test_wolfSSL_PEM_write_bio_X509(void)
     AssertIntEQ(wolfSSL_BIO_get_len(output),
 #ifdef WOLFSSL_ALT_NAMES
             /* Here we copy the validity struct from the original */
-            2004
+            2000
 #else
             /* Only difference is that we generate the validity in generalized
              * time. Generating UTCTime vs Generalized time should be fixed in
              * the future */
-            2009
+            2004
 #endif
             );
 
@@ -37652,10 +37652,10 @@ static void test_wolfSSL_PEM_write_bio_X509(void)
     AssertIntEQ(wolfSSL_BIO_get_len(output),
 #ifdef WOLFSSL_ALT_NAMES
             /* Here we copy the validity struct from the original */
-            1692
+            1688
 #else
             /* UTCTime vs Generalized time */
-            1696
+            1692
 #endif
             );
 

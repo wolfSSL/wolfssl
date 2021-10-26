@@ -150,7 +150,7 @@ L             = Brisbane
 O             = wolfSSL Inc
 OU            = Engineering
 CN            = www.wolfssl.com
-emailAddress  = support@wolfsssl.com
+emailAddress  = support@wolfssl.com
 
 [ v3_ca ]
 inhibitAnyPolicy = critical,1
@@ -175,7 +175,7 @@ L             = Brisbane
 O             = wolfSSL Inc
 OU            = Engineering
 CN            = www.wolfssl.com
-emailAddress  = support@wolfsssl.com
+emailAddress  = support@wolfssl.com
 
 [ v3_ca ]
 nsCertType       = critical,server
@@ -290,7 +290,7 @@ L             = Brisbane
 O             = wolfSSL Inc
 OU            = Engineering
 CN            = www.wolfssl.com
-emailAddress  = support@wolfsssl.com
+emailAddress  = support@wolfssl.com
 postalCode    = 56-131
 street        = Main St
 
