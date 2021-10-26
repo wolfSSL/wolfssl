@@ -705,10 +705,11 @@ enum
     NID_policy_constraints = 150,
     NID_inhibit_any_policy = 168,      /* 2.5.29.54 */
     NID_tlsfeature = 1020,             /* id-pe 24 */
-    NID_commonName = 0x03,             /* matches ASN_COMMON_NAME in asn.h */
     NID_buildingName = 1494,
 
 
+    NID_commonName = 14,               /* CN Changed to not conflict
+                                        * with PBE_SHA1_DES3 */
     NID_surname = 0x04,                /* SN */
     NID_serialNumber = 0x05,           /* serialNumber */
     NID_countryName = 0x06,            /* C  */
