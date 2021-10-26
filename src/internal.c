@@ -8663,7 +8663,6 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
     int ret = 0;
     int headerSz;
 
-    printf("SendHandshakeMsg\n");
     WOLFSSL_ENTER("SendHandshakeMsg");
     (void)type;
     (void)packetName;
@@ -9187,7 +9186,6 @@ int CheckAvailableSize(WOLFSSL *ssl, int size)
                 ssl->dtls_expected_rx
 #endif
                 ) {
-            printf("Size = %d, mtu = %d\n", size, ssl->dtls_expected_rx);
             WOLFSSL_MSG("CheckAvailableSize() called with size greater than MTU.");
             return DTLS_SIZE_ERROR;
         }
@@ -19377,15 +19375,15 @@ int IsSCR(WOLFSSL* ssl)
 }
 
 
+#ifdef WOLFSSL_DTLS
 static int ModifyForMTU(WOLFSSL* ssl, int buffSz, int outputSz, int mtuSz)
 {
     int overflowSz = outputSz - mtuSz;
 
-    printf("buffSz before = %d, ", buffSz);
-    if (overflowSz > 0) {
-        int overheadSz = outputSz - buffSz;
-        printf("overheadSz = %d, ", overheadSz);
+    (void)ssl;
 
+    if (overflowSz > 0) {
+#ifndef WOLFSSL_AEAD_ONLY
         if (ssl->specs.cipher_type == block) {
             int overflowBlocks = (overflowSz / ssl->specs.block_size);
 
@@ -19396,6 +19394,10 @@ static int ModifyForMTU(WOLFSSL* ssl, int buffSz, int outputSz, int mtuSz)
         else {
             buffSz -= overflowSz;
         }
+#else
+        buffSz -= overflowSz;
+#endif
+
 #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls)
             buffSz -= DTLS_HANDSHAKE_HEADER_SZ;
@@ -19404,10 +19406,10 @@ static int ModifyForMTU(WOLFSSL* ssl, int buffSz, int outputSz, int mtuSz)
             buffSz -= HANDSHAKE_HEADER_SZ;
 
     }
-    printf("after = %d\n", buffSz);
 
     return buffSz;
 }
+#endif
 
 
 int SendData(WOLFSSL* ssl, const void* data, int sz)
@@ -19519,12 +19521,6 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
             buffSz -= HANDSHAKE_HEADER_SZ;
 
         }
-        printf("sz - sent = %d, buffSz = %d\n", sz - sent, buffSz);
-
-        int i = ModifyForMTU(ssl, 1500,
-                BuildMessage(ssl, NULL, 0, NULL, 1500,
-                    application_data, 0, 1, 0, CUR_ORDER), 1400);
-        printf("Modify = %d\n", i);
 
         if (sent == sz) break;
 
@@ -32412,7 +32408,6 @@ int wolfSSL_GetMaxFragSize(WOLFSSL* ssl, int maxFragment)
 {
     (void) ssl; /* Avoid compiler warnings */
 
-    printf("start maxFragment = %d\n", maxFragment);
     if (maxFragment > MAX_RECORD_SIZE) {
         maxFragment = MAX_RECORD_SIZE;
     }
