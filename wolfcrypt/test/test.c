@@ -13541,6 +13541,9 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
     (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION < 2))
             ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
                                          hash[j], -1);
+#elif defined(HAVE_SELFTEST) && (HAVE_SELFTEST_VERSION == 2)
+            ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
+                                         hash[j], -1, 0);
 #else
             ret = wc_RsaPSS_CheckPadding_ex2(digest, digestSz, plain, plainSz,
                               hash[j], -1, wc_RsaEncryptSize(key)*8, HEAP_HINT);
@@ -13616,7 +13619,10 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #if defined(HAVE_SELFTEST) && \
     (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION < 2))
             ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, sig, plainSz,
-                hash[0], 0);
+                                         hash[0], 0);
+#elif defined(HAVE_SELFTEST) && (HAVE_SELFTEST_VERSION == 2)
+            ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, sig, plainSz,
+                                         hash[0], 0, 0);
 #else
             ret = wc_RsaPSS_CheckPadding_ex2(digest, digestSz, sig, plainSz,
                 hash[0], 0, 0, HEAP_HINT);
@@ -13645,8 +13651,11 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
 
 #if defined(HAVE_SELFTEST) && \
     (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION < 2))
-    ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
-                                    0);
+            ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
+                                         hash[0], 0);
+#elif defined(HAVE_SELFTEST) && (HAVE_SELFTEST_VERSION == 2)
+            ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
+                                         hash[0], 0, 0);
 #else
     ret = wc_RsaPSS_CheckPadding_ex2(digest, digestSz, plain, plainSz, hash[0],
                                     0, 0, HEAP_HINT);
@@ -13724,8 +13733,11 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #endif
 #if defined(HAVE_SELFTEST) && \
     (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION < 2))
-    ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
-                                    len);
+            ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
+                                         hash[0], len);
+#elif defined(HAVE_SELFTEST) && (HAVE_SELFTEST_VERSION == 2)
+            ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
+                                         hash[0], len, 0);
 #else
     ret = wc_RsaPSS_CheckPadding_ex2(digest, digestSz, plain, plainSz, hash[0],
                                     len, 0, HEAP_HINT);
@@ -13739,8 +13751,11 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #endif
 #if defined(HAVE_SELFTEST) && \
     (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION < 2))
-    ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
-                                    len);
+            ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
+                                         hash[0], len);
+#elif defined(HAVE_SELFTEST) && (HAVE_SELFTEST_VERSION == 2)
+            ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
+                                         hash[0], len, 0);
 #else
     ret = wc_RsaPSS_CheckPadding_ex2(digest, digestSz, plain, plainSz, hash[0],
                                     len, 0, HEAP_HINT);
