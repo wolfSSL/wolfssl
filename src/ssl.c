@@ -27466,6 +27466,15 @@ char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* t, char* buf, int len)
 int wolfSSL_ASN1_TIME_to_tm(const WOLFSSL_ASN1_TIME* asnTime, struct tm* tm)
 {
     time_t currentTime;
+    struct tm *tmpTs;
+#if defined(NEED_TMP_TIME)
+    /* for use with gmtime_r */
+    struct tm tmpTimeStorage;
+    tmpTs = &tmpTimeStorage;
+#else
+    tmpTs = NULL;
+#endif
+    (void)tmpTs;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_TIME_to_tm");
 
@@ -27481,7 +27490,9 @@ int wolfSSL_ASN1_TIME_to_tm(const WOLFSSL_ASN1_TIME* asnTime, struct tm* tm)
             WOLFSSL_MSG("Failed to get current time.");
             return WOLFSSL_FAILURE;
         }
-        if (XGMTIME(&currentTime, tm) == NULL) {
+
+        tm = XGMTIME(&currentTime, tmpTs);
+        if (tm == NULL) {
             WOLFSSL_MSG("Failed to convert current time to UTC.");
             return WOLFSSL_FAILURE;
         }
@@ -30185,11 +30196,20 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
 {
 #if defined(XMKTIME) && defined(XDIFFTIME)
     const int SECS_PER_DAY = 24 * 60 * 60;
-    struct tm fromTm;
-    struct tm toTm;
+    struct tm fromTm_s, *fromTm = &fromTm_s;
+    struct tm toTm_s, *toTm = &toTm_s;
     time_t fromSecs;
     time_t toSecs;
     double diffSecs;
+    struct tm *tmpTs;
+#if defined(NEED_TMP_TIME)
+    /* for use with gmtime_r */
+    struct tm tmpTimeStorage;
+    tmpTs = &tmpTimeStorage;
+#else
+    tmpTs = NULL;
+#endif
+    (void)tmpTs;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_TIME_diff");
 
@@ -30210,13 +30230,18 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
 
     if (from == NULL) {
         fromSecs = XTIME(0);
-        XGMTIME(&fromSecs, &fromTm);
+        fromTm = XGMTIME(&fromSecs, tmpTs);
+        if (fromTm == NULL) {
+            WOLFSSL_MSG("XGMTIME for from time failed.");
+            return WOLFSSL_FAILURE;
+        }
     }
-    else if (wolfSSL_ASN1_TIME_to_tm(from, &fromTm) != WOLFSSL_SUCCESS) {
+    else if (wolfSSL_ASN1_TIME_to_tm(from, fromTm) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Failed to convert from time to struct tm.");
         return WOLFSSL_FAILURE;
     }
-    fromSecs = XMKTIME(&fromTm);
+
+    fromSecs = XMKTIME(fromTm);
     if (fromSecs < 0) {
         WOLFSSL_MSG("XMKTIME for from time failed.");
         return WOLFSSL_FAILURE;
@@ -30224,13 +30249,18 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
 
     if (to == NULL) {
         toSecs = XTIME(0);
-        XGMTIME(&toSecs, &toTm);
+        toTm = XGMTIME(&toSecs, tmpTs);
+        if (toTm == NULL) {
+            WOLFSSL_MSG("XGMTIME for to time failed.");
+            return WOLFSSL_FAILURE;
+        }
     }
-    else if (wolfSSL_ASN1_TIME_to_tm(to, &toTm) != WOLFSSL_SUCCESS) {
+    else if (wolfSSL_ASN1_TIME_to_tm(to, toTm) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Failed to convert to time to struct tm.");
         return WOLFSSL_FAILURE;
     }
-    toSecs = XMKTIME(&toTm);
+
+    toSecs = XMKTIME(toTm);
     if (toSecs < 0) {
         WOLFSSL_MSG("XMKTIME for to time failed.");
         return WOLFSSL_FAILURE;
@@ -30238,7 +30268,7 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
 
     diffSecs = XDIFFTIME(toSecs, fromSecs);
     *days = (int) (diffSecs / SECS_PER_DAY);
-    *secs = (int) (diffSecs - (*days * SECS_PER_DAY));
+    *secs = (int) (diffSecs - (((double)*days) * SECS_PER_DAY));
 
     return WOLFSSL_SUCCESS;
 #else

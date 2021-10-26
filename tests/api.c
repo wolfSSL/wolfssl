@@ -30388,6 +30388,8 @@ static void test_wolfSSL_ASN1_GENERALIZEDTIME_free(void)
     WOLFSSL_ASN1_GENERALIZEDTIME* asn1_gtime;
     unsigned char nullstr[32];
 
+    printf(testingFmt, "test_wolfSSL_ASN1_GENERALIZEDTIME_free");
+
     XMEMSET(nullstr, 0, 32);
     asn1_gtime = (WOLFSSL_ASN1_GENERALIZEDTIME*)XMALLOC(
                     sizeof(WOLFSSL_ASN1_GENERALIZEDTIME), NULL,
@@ -30400,6 +30402,8 @@ static void test_wolfSSL_ASN1_GENERALIZEDTIME_free(void)
 
         XFREE(asn1_gtime, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
+
+    printf(resultFmt, passed);
     #endif /* OPENSSL_EXTRA */
 }
 
