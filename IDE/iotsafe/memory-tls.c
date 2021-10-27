@@ -35,43 +35,8 @@
 
 #include <stdio.h>
 #include <string.h>
-
 #include "ca-cert.c"
 
-/* IoTSAFE Certificate slots */
-
-/* File Slot '03' is pre-provisioned with
- * local certificate.
- */
-#define CRT_CLIENT_FILE_ID 0x03     /* pre-provisioned */
-
-/* File Slot '04' is pre-provisioned with the
- * server's EC public key certificate
- */
-#define CRT_SERVER_FILE_ID 0x04
-
-/* IoTSAFE Key slots */
-
-/* Key slot '02' is pre-provisioned with
- * the client private key.
- */
-#define PRIVKEY_ID      0x02 /* pre-provisioned */
-
-/* Key slot '03' is used by wolfSSL to generate
- * the ECDH key that will be used during the TLS
- * session.
- */
-#define ECDH_KEYPAIR_ID 0x03
-
-/* Key slot '04' is used to store the public key
- * received from the peer.
- */
-#define PEER_PUBKEY_ID  0x04
-
-/* Key slot '05' is used to store a public key
- * used for ecc verification
- */
-#define PEER_CERT_ID    0x05
 
 /* The following define
  * activates mutual authentication */
@@ -178,6 +143,20 @@ static int client_loop(void)
     /* set up client */
     int ret;
     const char* helloStr = "hello iot-safe wolfSSL";
+    #if (IOTSAFE_ID_SIZE == 1)
+    byte cert_file_id, privkey_id, keypair_id, peer_pubkey_id, peer_cert_id;
+    byte ca_cert_id;
+    #else
+    word16 cert_file_id, privkey_id, keypair_id, peer_pubkey_id, peer_cert_id;
+    word16 ca_cert_id;
+    #endif
+    cert_file_id = CRT_CLIENT_FILE_ID;
+    privkey_id = PRIVKEY_ID;
+    keypair_id = ECDH_KEYPAIR_ID;
+    peer_pubkey_id = PEER_PUBKEY_ID;
+    peer_cert_id = PEER_CERT_ID;
+    ca_cert_id = CRT_SERVER_FILE_ID;
+
 
     printf("=== CLIENT step %d ===\n", client_state);
     if (client_state == 0) {
@@ -202,7 +181,8 @@ static int client_loop(void)
             return -1;
         }
 
-        cert_buffer_size = wolfIoTSafe_GetCert(CRT_SERVER_FILE_ID, cert_buffer,
+        cert_buffer_size = wolfIoTSafe_GetCert_ex(&ca_cert_id,IOTSAFE_ID_SIZE, 
+                cert_buffer, 
             sizeof(cert_buffer));
         if (cert_buffer_size < 1) {
             printf("Bad server cert\n");
@@ -219,7 +199,8 @@ static int client_loop(void)
         wolfSSL_CTX_set_verify(cli_ctx, WOLFSSL_VERIFY_PEER, NULL);
 
 #ifdef CLIENT_AUTH
-        cert_buffer_size = wolfIoTSafe_GetCert(CRT_CLIENT_FILE_ID, cert_buffer,
+        cert_buffer_size = wolfIoTSafe_GetCert_ex(&cert_file_id, IOTSAFE_ID_SIZE,
+                cert_buffer,
             sizeof(cert_buffer));
         if (cert_buffer_size < 1) {
             printf("Bad client cert\n");
@@ -248,8 +229,9 @@ static int client_loop(void)
         }
 
         printf("Setting TLS options: turn on IoT-safe for this socket\n");
-        wolfSSL_iotsafe_on(cli_ssl, PRIVKEY_ID, ECDH_KEYPAIR_ID,
-            PEER_PUBKEY_ID, PEER_CERT_ID);
+
+        wolfSSL_iotsafe_on_ex(cli_ssl, &privkey_id, &keypair_id,
+            &peer_pubkey_id, &peer_cert_id, IOTSAFE_ID_SIZE);
 
     #ifdef WOLFSSL_TLS13
         printf("Setting TLSv1.3 for SECP256R1 key share\n");
@@ -407,6 +389,7 @@ int memory_tls_test(void)
     wolfSSL_CTX_free(cli_ctx);
     wolfSSL_free(srv_ssl);
     wolfSSL_CTX_free(srv_ctx);
+
 
     return 0;
 }

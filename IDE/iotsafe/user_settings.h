@@ -23,8 +23,35 @@
 
 #ifndef IOTSAFE_EXAMPLE_USER_SETTINGS_H
 #define IOTSAFE_EXAMPLE_USER_SETTINGS_H
-
 #include <stdint.h>
+
+/* Uncomment next line to enable 2-bytes ID demo */
+//#define TWO_BYTES_ID_DEMO
+
+
+/* IOT-Safe slot configuration for this example
+ */
+
+#ifdef TWO_BYTES_ID_DEMO
+    #define IOTSAFE_ID_SIZE 2
+    #define CRT_CLIENT_FILE_ID  0x3430     /* pre-provisioned */
+    #define CRT_SERVER_FILE_ID  0x3330
+    #define PRIVKEY_ID          0x3230 /* pre-provisioned */
+    #define ECDH_KEYPAIR_ID     0x3330
+    #define PEER_PUBKEY_ID      0x3430
+    #define PEER_CERT_ID        0x3530
+#else
+    #define IOTSAFE_ID_SIZE     1
+    #define CRT_CLIENT_FILE_ID  0x03     /* pre-provisioned */
+    #define CRT_SERVER_FILE_ID  0x04
+    #define PRIVKEY_ID          0x02 /* pre-provisioned */
+    #define ECDH_KEYPAIR_ID     0x03
+    #define PEER_PUBKEY_ID      0x04
+    #define PEER_CERT_ID        0x05
+#endif
+
+
+
 
 /* Platform */
 #define WOLFSSL_IOTSAFE
@@ -33,9 +60,10 @@
 #define SINGLE_THREADED
 #define WOLFSSL_USER_IO
 
+
 /* Debugging */
 #define WOLFSSL_LOG_PRINTF
-#if 0
+#if 1
     #define DEBUG_WOLFSSL
     #define WOLFSSL_DEBUG_TLS
     #define DEBUG_IOTSAFE
@@ -50,6 +78,8 @@
 #define HAVE_IOTSAFE_HWRNG
 #define HAVE_HASHDRBG
 #define NO_OLD_RNGNAME
+
+//#define USE_GENSEED_FORTEST
 
 /* Time porting */
 #define TIME_OVERRIDES
