@@ -4138,12 +4138,12 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     RefineSuites(ssl, clSuites);
 
 #ifndef WOLFSSL_PSK_ONE_ID
-    if (!usingPSK)
+    if (usingPSK == NULL)
         return BAD_FUNC_ARG;
 
     if (!ssl->options.useClientOrder) {
         /* Server order - server list has only common suites from refining. */
-        for (i = 0; !*usingPSK && i < ssl->suites->suiteSz; i += 2) {
+        for (i = 0; !(*usingPSK) && i < ssl->suites->suiteSz; i += 2) {
             ret = DoPreSharedKeys(ssl, ssl->suites->suites + i, usingPSK,
                                                                         &first);
             if (ret != 0) {
@@ -4153,8 +4153,8 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     }
     else {
         /* Client order */
-        for (j = 0; !*usingPSK && j < clSuites->suiteSz; j += 2) {
-            for (i = 0; !*usingPSK && i < ssl->suites->suiteSz; i += 2) {
+        for (j = 0; !(*usingPSK) && j < clSuites->suiteSz; j += 2) {
+            for (i = 0; !(*usingPSK) && i < ssl->suites->suiteSz; i += 2) {
             ret = DoPreSharedKeys(ssl, ssl->suites->suites + i, usingPSK,
                                                                         &first);
                 if (ret != 0)
@@ -4173,7 +4173,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     if (ret != 0)
         return ret;
 
-    if (usingPSK) {
+    if (*usingPSK != 0) {
         word16 modes;
     #ifdef WOLFSSL_EARLY_DATA
         TLSX*  extEarlyData;

@@ -3621,7 +3621,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                 inputHelloSz - bindersLen + HANDSHAKE_HEADER_SZ);
 
             /* call to decrypt session ticket */
-            if (DoClientTicket(ssl, identity, idLen) != 0) {
+            if (DoClientTicket(ssl, identity, idLen) != WOLFSSL_TICKET_RET_OK) {
                 /* we aren't decrypting the resumption, since we know the master secret */
                 /* ignore errors */
             }
