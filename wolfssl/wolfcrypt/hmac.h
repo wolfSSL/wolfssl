@@ -80,8 +80,12 @@ enum {
 #endif
 #ifndef WOLFSSL_SHA512
     WC_SHA512  = WC_HASH_TYPE_SHA512,
+    #ifndef WOLFSSL_NOSHA512_224
     WC_SHA512_224  = WC_HASH_TYPE_SHA512_224,
+    #endif
+    #ifndef WOLFSSL_NOSHA512_256
     WC_SHA512_256  = WC_HASH_TYPE_SHA512_256,
+    #endif
 #endif
 #ifndef WOLFSSL_SHA384
     WC_SHA384  = WC_HASH_TYPE_SHA384,

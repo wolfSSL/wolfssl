@@ -109,9 +109,15 @@ decouple library dependencies with standard string, memory and so on.
         #endif
     #endif
 
+    /* helpers for stringifying the expanded value of a macro argument rather
+     * than its literal text:
+     */
+    #define _WC_STRINGIFY_L2(str) #str
+    #define WC_STRINGIFY(str) _WC_STRINGIFY_L2(str)
+
     /* try to set SIZEOF_LONG or SIZEOF_LONG_LONG if user didn't */
     #if defined(_MSC_VER) || defined(HAVE_LIMITS_H)
-        /* make sure both SIZEOF_LONG_LONG and SIZEOF_LONG are set, 
+        /* make sure both SIZEOF_LONG_LONG and SIZEOF_LONG are set,
          * otherwise causes issues with CTC_SETTINGS */
         #if !defined(SIZEOF_LONG_LONG) || !defined(SIZEOF_LONG)
             #include <limits.h>
@@ -437,7 +443,7 @@ decouple library dependencies with standard string, memory and so on.
         #endif
 
     #elif defined(WOLFSSL_LINUXKM)
-	/* the requisite linux/slab.h is included in wc_port.h, with incompatible warnings masked out. */
+        /* the requisite linux/slab.h is included in wc_port.h, with incompatible warnings masked out. */
         #define XMALLOC(s, h, t)     ({(void)(h); (void)(t); kmalloc(s, GFP_KERNEL);})
         #define XFREE(p, h, t)       ({void* _xp; (void)(h); _xp = (p); if(_xp) kfree(_xp);})
         #define XREALLOC(p, n, h, t) ({(void)(h); (void)(t); krealloc((p), (n), GFP_KERNEL);})
@@ -495,7 +501,7 @@ decouple library dependencies with standard string, memory and so on.
                 } \
             }
         #define FREE_VAR(VAR_NAME, HEAP) \
-            XFREE(VAR_NAME, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT);
+            XFREE(VAR_NAME, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT)
         #define FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP) \
             for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
                 XFREE(VAR_NAME[idx##VAR_NAME], (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
@@ -547,17 +553,17 @@ decouple library dependencies with standard string, memory and so on.
         #define USE_WOLF_STRSEP
     #endif
 
-	#ifndef STRING_USER
+        #ifndef STRING_USER
         #if defined(WOLFSSL_LINUXKM)
             #include <linux/string.h>
         #else
             #include <string.h>
         #endif
 
-	    #define XMEMCPY(d,s,l)    memcpy((d),(s),(l))
-	    #define XMEMSET(b,c,l)    memset((b),(c),(l))
-	    #define XMEMCMP(s1,s2,n)  memcmp((s1),(s2),(n))
-	    #define XMEMMOVE(d,s,l)   memmove((d),(s),(l))
+            #define XMEMCPY(d,s,l)    memcpy((d),(s),(l))
+            #define XMEMSET(b,c,l)    memset((b),(c),(l))
+            #define XMEMCMP(s1,s2,n)  memcmp((s1),(s2),(n))
+            #define XMEMMOVE(d,s,l)   memmove((d),(s),(l))
 
         #define XSTRLEN(s1)       strlen((s1))
         #define XSTRNCPY(s1,s2,n) strncpy((s1),(s2),(n))
@@ -714,11 +720,11 @@ decouple library dependencies with standard string, memory and so on.
         #endif
     #endif /* OPENSSL_EXTRA */
 
-	#ifndef CTYPE_USER
+        #ifndef CTYPE_USER
             #ifndef WOLFSSL_LINUXKM
                 #include <ctype.h>
             #endif
-	    #if defined(HAVE_ECC) || defined(HAVE_OCSP) || \
+            #if defined(HAVE_ECC) || defined(HAVE_OCSP) || \
             defined(WOLFSSL_KEY_GEN) || !defined(NO_DSA) || \
             defined(OPENSSL_EXTRA)
             #define XTOUPPER(c)     toupper((c))
@@ -867,8 +873,9 @@ decouple library dependencies with standard string, memory and so on.
 
     /* hash types */
     enum wc_HashType {
-    #if defined(HAVE_SELFTEST) || defined(HAVE_FIPS) && \
-        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION <= 2))
+    #if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && \
+        ((! defined(HAVE_FIPS_VERSION)) || \
+         defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION <= 2)))
         /* In selftest build, WC_* types are not mapped to WC_HASH_TYPE types.
          * Values here are based on old selftest hmac.h enum, with additions.
          * These values are fixed for backwards FIPS compatibility */
@@ -888,12 +895,16 @@ decouple library dependencies with standard string, memory and so on.
         WC_HASH_TYPE_SHA3_512 = 13,
         WC_HASH_TYPE_BLAKE2B = 14,
         WC_HASH_TYPE_BLAKE2S = 19,
-        WC_HASH_TYPE_SHA512_224 = 20,
-        WC_HASH_TYPE_SHA512_256 = 21,    
-        WC_HASH_TYPE_SHAKE128 = 22,
-        WC_HASH_TYPE_SHAKE256 = 23,
-
-        WC_HASH_TYPE_MAX = WC_HASH_TYPE_SHAKE256
+        WC_HASH_TYPE_MAX = WC_HASH_TYPE_BLAKE2S
+        #ifndef WOLFSSL_NOSHA512_224
+            #define WOLFSSL_NOSHA512_224
+        #endif
+        #ifndef WOLFSSL_NOSHA512_256
+            #define WOLFSSL_NOSHA512_256
+        #endif
+        #ifndef WOLFSSL_NO_SHAKE256
+            #define WOLFSSL_NO_SHAKE256
+        #endif
     #else
         WC_HASH_TYPE_NONE = 0,
         WC_HASH_TYPE_MD2 = 1,
@@ -911,12 +922,25 @@ decouple library dependencies with standard string, memory and so on.
         WC_HASH_TYPE_SHA3_512 = 13,
         WC_HASH_TYPE_BLAKE2B = 14,
         WC_HASH_TYPE_BLAKE2S = 15,
-        WC_HASH_TYPE_SHA512_224 = 16,
-        WC_HASH_TYPE_SHA512_256 = 17,
-        WC_HASH_TYPE_SHAKE128 = 18,
-        WC_HASH_TYPE_SHAKE256 = 19,
-
-        WC_HASH_TYPE_MAX = WC_HASH_TYPE_SHAKE256
+#define _WC_HASH_TYPE_MAX WC_HASH_TYPE_BLAKE2S
+        #ifndef WOLFSSL_NOSHA512_224
+            WC_HASH_TYPE_SHA512_224 = 16,
+#undef _WC_HASH_TYPE_MAX
+#define _WC_HASH_TYPE_MAX WC_HASH_TYPE_SHA512_224
+        #endif
+        #ifndef WOLFSSL_NOSHA512_256
+            WC_HASH_TYPE_SHA512_256 = 17,
+#undef _WC_HASH_TYPE_MAX
+#define _WC_HASH_TYPE_MAX WC_HASH_TYPE_SHA512_256
+        #endif
+        #ifndef WOLFSSL_NO_SHAKE256
+            WC_HASH_TYPE_SHAKE128 = 18,
+            WC_HASH_TYPE_SHAKE256 = 19,
+#undef _WC_HASH_TYPE_MAX
+#define _WC_HASH_TYPE_MAX WC_HASH_TYPE_SHAKE256
+        #endif
+        WC_HASH_TYPE_MAX = _WC_HASH_TYPE_MAX
+#undef _WC_HASH_TYPE_MAX
 
     #endif /* HAVE_SELFTEST */
     };
@@ -1136,11 +1160,13 @@ decouple library dependencies with standard string, memory and so on.
     #endif
 
     #if defined(__GNUC__) && __GNUC__ > 5
-        #define PRAGMA_GCC_IGNORE(str) _Pragma(str);
-        #define PRAGMA_GCC_POP         _Pragma("GCC diagnostic pop");
+        #define PRAGMA_GCC_DIAG_PUSH _Pragma("GCC diagnostic push")
+        #define PRAGMA_GCC(str) _Pragma(str)
+        #define PRAGMA_GCC_DIAG_POP _Pragma("GCC diagnostic pop")
     #else
-        #define PRAGMA_GCC_IGNORE(str)
-        #define PRAGMA_GCC_POP
+        #define PRAGMA_GCC_DIAG_PUSH
+        #define PRAGMA_GCC(str)
+        #define PRAGMA_GCC_DIAG_POP
     #endif
 
     #ifdef __clang__
@@ -1153,7 +1179,105 @@ decouple library dependencies with standard string, memory and so on.
         #define PRAGMA_CLANG_DIAG_POP
     #endif
 
+    #ifdef DEBUG_VECTOR_REGISTER_ACCESS
+        WOLFSSL_API extern THREAD_LS_T int wc_svr_count;
+        WOLFSSL_API extern THREAD_LS_T const char *wc_svr_last_file;
+        WOLFSSL_API extern THREAD_LS_T int wc_svr_last_line;
 
+        #ifdef DEBUG_VECTOR_REGISTERS_ABORT_ON_FAIL
+            #define DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE abort();
+        #elif defined(DEBUG_VECTOR_REGISTERS_EXIT_ON_FAIL)
+            #define DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE exit(1);
+        #else
+            #define DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE
+        #endif
+
+        #define SAVE_VECTOR_REGISTERS(...) {                            \
+            ++wc_svr_count;                                             \
+            if (wc_svr_count > 5) {                                     \
+                fprintf(stderr,                                         \
+                        "%s @ L%d : incr : wc_svr_count %d (last op %s L%d)\n", \
+                        __FILE__,                                       \
+                        __LINE__,                                       \
+                        wc_svr_count,                                   \
+                        wc_svr_last_file,                               \
+                        wc_svr_last_line);                              \
+                DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE                \
+            }                                                           \
+            wc_svr_last_file = __FILE__;                                \
+            wc_svr_last_line = __LINE__;                                \
+        }
+        #define ASSERT_SAVED_VECTOR_REGISTERS(fail_clause) {            \
+            if (wc_svr_count <= 0) {                                    \
+                fprintf(stderr,                                         \
+                        "ASSERT_SAVED_VECTOR_REGISTERS : %s @ L%d : wc_svr_count %d (last op %s L%d)\n", \
+                        __FILE__,                                       \
+                        __LINE__,                                       \
+                        wc_svr_count,                                   \
+                        wc_svr_last_file,                               \
+                        wc_svr_last_line);                              \
+                DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE                \
+                { fail_clause }                                         \
+            }                                                           \
+        }
+        #define ASSERT_RESTORED_VECTOR_REGISTERS(fail_clause) {         \
+            if (wc_svr_count != 0) {                                    \
+                fprintf(stderr,                                         \
+                        "ASSERT_RESTORED_VECTOR_REGISTERS : %s @ L%d : wc_svr_count %d (last op %s L%d)\n", \
+                        __FILE__,                                       \
+                        __LINE__,                                       \
+                        wc_svr_count,                                   \
+                        wc_svr_last_file,                               \
+                        wc_svr_last_line);                              \
+                DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE                \
+                { fail_clause }                                         \
+            }                                                           \
+        }
+        #define RESTORE_VECTOR_REGISTERS(...) {                         \
+            --wc_svr_count;                                             \
+            if ((wc_svr_count > 4) || (wc_svr_count < 0)) {             \
+                fprintf(stderr,                                         \
+                        "%s @ L%d : decr : wc_svr_count %d (last op %s L%d)\n", \
+                        __FILE__,                                       \
+                        __LINE__,                                       \
+                        wc_svr_count,                                   \
+                        wc_svr_last_file,                               \
+                        wc_svr_last_line);                              \
+                DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE                \
+            }                                                           \
+            wc_svr_last_file = __FILE__;                                \
+            wc_svr_last_line = __LINE__;                                \
+        }
+    #else
+        #ifdef _MSC_VER
+            /* disable buggy MSC warning around while(0),
+             *"warning C4127: conditional expression is constant"
+             */
+            #pragma warning(disable: 4127)
+        #endif
+        #ifndef SAVE_VECTOR_REGISTERS
+            #define SAVE_VECTOR_REGISTERS(...) do{}while(0)
+        #endif
+        #ifndef ASSERT_SAVED_VECTOR_REGISTERS
+            #define ASSERT_SAVED_VECTOR_REGISTERS(...) do{}while(0)
+        #endif
+        #ifndef ASSERT_RESTORED_VECTOR_REGISTERS
+            #define ASSERT_RESTORED_VECTOR_REGISTERS(...) do{}while(0)
+        #endif
+        #ifndef RESTORE_VECTOR_REGISTERS
+            #define RESTORE_VECTOR_REGISTERS() do{}while(0)
+        #endif
+    #endif
+
+
+    #if FIPS_VERSION_EQ(5,1)
+        #define WC_SPKRE_F(x,y) wolfCrypt_SetPrivateKeyReadEnable_fips((x),(y))
+        #define PRIVATE_KEY_LOCK() WC_SPKRE_F(0,WC_KEYTYPE_ALL)
+        #define PRIVATE_KEY_UNLOCK() WC_SPKRE_F(1,WC_KEYTYPE_ALL)
+    #else
+        #define PRIVATE_KEY_LOCK() do{}while(0)
+        #define PRIVATE_KEY_UNLOCK() do{}while(0)
+    #endif
 
 
     #ifdef __cplusplus

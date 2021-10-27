@@ -3,7 +3,7 @@
 First, if you did not get the FIPS files with your archive, you must contact
 wolfSSL to obtain them.
 
-The IDE/WIN10/wolfssl-fips.sln solution is for the FIPS v2 #3389 certificate or later.
+The IDE/WIN10/wolfssl-fips.sln solution is for the FIPS 140-3 certificate or later.
 
 # Building the wolfssl-fips project
 
@@ -48,25 +48,72 @@ check value when changing your application.
 The default build options should be the proper default set of options:
 
  * HAVE_FIPS
- * HAVE_FIPS_VERSION=2 (or 3 with WOLFSSL_FIPS_READY)
+ * HAVE_FIPS_VERSION=5
+ * HAVE_FIPS_VERSION_MINOR=1 (Also for FIPS Ready)
  * HAVE_THREAD_LS
+ * WOLFSSL_KEY_GEN
  * HAVE_AESGCM
  * HAVE_HASHDRBG
  * WOLFSSL_SHA384
  * WOLFSSL_SHA512
+ * NO_PSK
  * NO_HC128
  * NO_RC4
  * NO_RABBIT
  * NO_DSA
  * NO_MD4
+ * WOLFSSL_SHA224
+ * WOLFSSL_SHA3
+ * WC_RSA_PSS
+ * WC_RSA_NO_PADDING
+ * HAVE_ECC
+ * ECC_SHAMIR
+ * HAVE_ECC_CDH
+ * ECC_TIMING_RESISTANT
+ * TFM_TIMING_RESISTANT
+ * WOLFSSL_AES_COUNTER
+ * WOLFSSL_AES_DIRECT
+ * HAVE_AES_ECB
+ * HAVE_AESCCM
+ * WOLFSSL_CMAC
+ * HAVE_HKDF
+ * WOLFSSL_VALIDATE_ECC_IMPORT
+ * WOLFSSL_VALIDATE_FFC_IMPORT
+ * HAVE_FFDHE_Q
+ * NO_DES
+ * NO_DES3
+ * NO_MD5
+ * NO_OLD_TLS
+ * WOLFSSL_TLS13
+ * HAVE_TLS_EXTENSIONS
+ * HAVE_SUPPORTED_CURVES
+ * GCM_TABLE_4BIT
+ * WOLFSSL_NO_SHAKE256
+ * WOLFSSL_VALIDATE_ECC_KEYGEN
+ * WOLFSSL_ECDSA_SET_K
+ * WOLFSSL_WOLFSSH
+ * WOLFSSL_PUBLIC_MP
+ * WC_RNG_SEED_CB
+ * TFM_ECC256
+ * ECC_USER_CURVES
+ * HAVE_ECC192
+ * HAVE_ECC224
+ * HAVE_ECC256
+ * HAVE_ECC384
+ * HAVE_ECC521
+ * HAVE_FFDHE_2048
+ * HAVE_FFDHE_3072
+ * HAVE_FFDHE_4096
+ * HAVE_FFDHE_6144
+ * HAVE_FFDHE_8192
+ * FP_MAX_BITS 16384
 
 The "NO" options explicitly disable algorithms that are not allowed in
 FIPS mode.
 
 Additionally one may enable:
 
- * HAVE_ECC
+ * WOLFSSL_AESNI
  * OPENSSL_EXTRA
- * WOLFSSL_KEY_GEN
 
 These settings are defined in IDE/WIN10/user_settings.h.

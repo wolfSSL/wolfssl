@@ -30,6 +30,7 @@
 
 #include <stdio.h>
 #include <tests/unit.h>
+#include <wolfssl/wolfcrypt/fips_test.h>
 
 
 int myoptind = 0;
@@ -64,6 +65,9 @@ int unit_test(int argc, char** argv)
     wolfSSL_Debugging_ON();
 #endif
 
+#ifdef WC_RNG_SEED_CB
+    wc_SetSeed_Cb(wc_GenerateSeed);
+#endif
 #ifdef HAVE_WNR
     if (wc_InitNetRandom(wnrConfig, NULL, 5000) != 0)
         err_sys("Whitewood netRandom global config failed");
@@ -71,6 +75,51 @@ int unit_test(int argc, char** argv)
 
 #ifndef WOLFSSL_TIRTOS
     ChangeToWolfRoot();
+#endif
+
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 5)
+    if (wc_RunCast_fips(FIPS_CAST_AES_CBC) != 0) {
+        err_sys("AES-CBC CAST failed");
+    }
+    if (wc_RunCast_fips(FIPS_CAST_AES_GCM) != 0) {
+        err_sys("AES-GCM CAST failed");
+    }
+    if (wc_RunCast_fips(FIPS_CAST_HMAC_SHA1) != 0) {
+        err_sys("HMAC-SHA1 CAST failed");
+    }
+    if (wc_RunCast_fips(FIPS_CAST_HMAC_SHA2_256) != 0) {
+        err_sys("HMAC-SHA2-256 CAST failed");
+    }
+    if (wc_RunCast_fips(FIPS_CAST_HMAC_SHA2_512) != 0) {
+        err_sys("HMAC-SHA2-512 CAST failed");
+    }
+    if (wc_RunCast_fips(FIPS_CAST_HMAC_SHA3_256) != 0) {
+        err_sys("HMAC-SHA3-256 CAST failed");
+    }
+    if (wc_RunCast_fips(FIPS_CAST_DRBG) != 0) {
+        err_sys("Hash_DRBG CAST failed");
+    }
+    if (wc_RunCast_fips(FIPS_CAST_RSA_SIGN_PKCS1v15) != 0) {
+        err_sys("RSA sign CAST failed");
+    }
+    if (wc_RunCast_fips(FIPS_CAST_ECC_PRIMITIVE_Z) != 0) {
+        err_sys("ECC Primitive Z CAST failed");
+    }
+    if (wc_RunCast_fips(FIPS_CAST_DH_PRIMITIVE_Z) != 0) {
+        err_sys("DH Primitive Z CAST failed");
+    }
+    if (wc_RunCast_fips(FIPS_CAST_ECDSA) != 0) {
+        err_sys("ECDSA CAST failed");
+    }
+    if (wc_RunCast_fips(FIPS_CAST_KDF_TLS12) != 0) {
+        err_sys("KDF TLSv1.2 CAST failed");
+    }
+    if (wc_RunCast_fips(FIPS_CAST_KDF_TLS13) != 0) {
+        err_sys("KDF TLSv1.3 CAST failed");
+    }
+    if (wc_RunCast_fips(FIPS_CAST_KDF_SSH) != 0) {
+        err_sys("KDF SSHv2.0 CAST failed");
+    }
 #endif
 
     ApiTest();

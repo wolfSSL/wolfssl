@@ -186,6 +186,12 @@ static struct log mynewt_log;
 
 #endif /* DEBUG_WOLFSSL */
 
+#ifdef DEBUG_VECTOR_REGISTER_ACCESS
+THREAD_LS_T int wc_svr_count = 0;
+THREAD_LS_T const char *wc_svr_last_file = NULL;
+THREAD_LS_T int wc_svr_last_line = -1;
+#endif
+
 
 /* allow this to be set to NULL, so logs can be redirected to default output */
 int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb f)

@@ -289,11 +289,25 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #define MAX_SEED_SZ    (SEED_SZ + SEED_SZ/2 + SEED_BLOCK_SZ)
 
 
+#ifdef WC_RNG_SEED_CB
+
+static wc_RngSeed_Cb seedCb = NULL;
+
+int wc_SetSeed_Cb(wc_RngSeed_Cb cb)
+{
+    seedCb = cb;
+    return 0;
+}
+
+#endif
+
+
 /* Internal return codes */
 #define DRBG_SUCCESS      0
 #define DRBG_FAILURE      1
 #define DRBG_NEED_RESEED  2
 #define DRBG_CONT_FAILURE 3
+#define DRBG_NO_SEED_CB   4
 
 /* RNG health states */
 #define DRBG_NOT_INIT     0
@@ -806,7 +820,19 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         rng->drbg = (struct DRBG*)&rng->drbg_data;
 #endif
         if (ret == 0) {
+#ifdef WC_RNG_SEED_CB
+            if (seedCb == NULL) {
+                ret = DRBG_NO_SEED_CB;
+            }
+            else {
+                ret = seedCb(&rng->seed, seed, seedSz);
+                if (ret != 0) {
+                    ret = DRBG_FAILURE;
+                }
+            }
+#else
             ret = wc_GenerateSeed(&rng->seed, seed, seedSz);
+#endif
             if (ret == 0)
                 ret = wc_RNG_TestSeed(seed, seedSz);
             else {

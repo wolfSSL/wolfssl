@@ -1754,6 +1754,9 @@ int bench_tls(void* args)
 
     /* Initialize wolfSSL */
     wolfSSL_Init();
+#ifdef WC_RNG_SEED_CB
+    wc_SetSeed_Cb(wc_GenerateSeed);
+#endif
 
     /* Parse command line arguments */
     while ((ch = mygetopt(argc, argv, "?" "udeil:p:t:vT:sch:P:mS:g")) != -1) {

@@ -137,7 +137,7 @@
             #include <asm/fpu/internal.h>
         #endif
         #ifndef SAVE_VECTOR_REGISTERS
-            #define SAVE_VECTOR_REGISTERS() save_vector_registers_x86()
+            #define SAVE_VECTOR_REGISTERS(fail_clause) { int _svr_ret = save_vector_registers_x86(); if (_svr_ret != 0) { fail_clause } }
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS
             #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_x86()
@@ -152,7 +152,7 @@
         #define WOLFSSL_LINUXKM_SIMD_ARM
         #include <asm/fpsimd.h>
         #ifndef SAVE_VECTOR_REGISTERS
-            #define SAVE_VECTOR_REGISTERS() save_vector_registers_arm()
+            #define SAVE_VECTOR_REGISTERS(fail_clause) { int _svr_ret = save_vector_registers_arm(); if (_svr_ret != 0) { fail_clause } }
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS
             #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_arm()
@@ -160,12 +160,6 @@
     #else
         #ifndef WOLFSSL_NO_ASM
             #define WOLFSSL_NO_ASM
-        #endif
-        #ifndef SAVE_VECTOR_REGISTERS
-            #define SAVE_VECTOR_REGISTERS() 0
-        #endif
-        #ifndef RESTORE_VECTOR_REGISTERS
-            #define RESTORE_VECTOR_REGISTERS() ({})
         #endif
     #endif
 
@@ -617,15 +611,6 @@
 
     #endif /* BUILDING_WOLFSSL */
 
-#else /* ! WOLFSSL_LINUXKM */
-
-    #ifndef SAVE_VECTOR_REGISTERS
-        #define SAVE_VECTOR_REGISTERS() 0
-    #endif
-    #ifndef RESTORE_VECTOR_REGISTERS
-        #define RESTORE_VECTOR_REGISTERS() do{}while(0)
-    #endif
-
 #endif /* WOLFSSL_LINUXKM */
 
 /* THREADING/MUTEX SECTION */
@@ -900,7 +885,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
                                              * EBSnet feedback */
 
     #define XFILE                    int
-    #define XFOPEN(NAME, MODE)       vf_open((const char *)NAME, VO_RDONLY, 0);
+    #define XFOPEN(NAME, MODE)       vf_open((const char *)NAME, VO_RDONLY, 0)
     #define XFSEEK                   ebsnet_fseek
     #define XFTELL                   vf_tell
     #define XREWIND                  vf_rewind
@@ -914,7 +899,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 #elif defined(LSR_FS)
     #include <fs.h>
     #define XFILE                   struct fs_file*
-    #define XFOPEN(NAME, MODE)      fs_open((char*)NAME);
+    #define XFOPEN(NAME, MODE)      fs_open((char*)NAME)
     #define XFSEEK(F, O, W)         (void)F
     #define XFTELL(F)               (F)->len
     #define XREWIND(F)              (void)F

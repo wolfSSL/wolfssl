@@ -33,7 +33,7 @@ ifndef SRC_TOP
     SRC_TOP=$(shell dirname $(MODULE_TOP))
 endif
 
-WOLFSSL_CFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CFLAGS) $(CFLAGS) -Wno-declaration-after-statement -Wno-redundant-decls
+WOLFSSL_CFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -Wno-declaration-after-statement -Wno-redundant-decls -DLIBWOLFSSL_GLOBAL_EXTRA_CFLAGS="\" $(KERNEL_EXTRA_CFLAGS)\""
 ifdef KERNEL_EXTRA_CFLAGS
     WOLFSSL_CFLAGS += $(KERNEL_EXTRA_CFLAGS)
 endif
@@ -49,7 +49,7 @@ else
 endif
 
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
-    WOLFCRYPT_PIE_FILES := linuxkm/pie_first.o $(filter wolfcrypt/%,$(WOLFSSL_OBJ_FILES)) linuxkm/pie_redirect_table.o linuxkm/pie_last.o
+    WOLFCRYPT_PIE_FILES := linuxkm/pie_first.o $(filter wolfcrypt/src/%,$(WOLFSSL_OBJ_FILES)) linuxkm/pie_redirect_table.o linuxkm/pie_last.o
     WOLFSSL_OBJ_FILES := $(WOLFCRYPT_PIE_FILES) $(filter-out $(WOLFCRYPT_PIE_FILES),$(WOLFSSL_OBJ_FILES))
 endif
 
@@ -71,16 +71,13 @@ libwolfssl.ko.signed: libwolfssl.ko
 	@cd '$(KERNEL_ROOT)' || exit $$?;							\
 	while read configline; do								\
 		case "$$configline" in								\
-		CONFIG_MODULE_SIG_KEY=*)							\
-				CONFIG_MODULE_SIG_KEY="$${configline#CONFIG_MODULE_SIG_KEY=}"	\
-			;;									\
-		CONFIG_MODULE_SIG_HASH=*)							\
-				CONFIG_MODULE_SIG_HASH="$${configline#CONFIG_MODULE_SIG_HASH=}"	\
+		CONFIG_MODULE_SIG*=*)								\
+			declare "$${configline%=*}"="$${configline#*=}"				\
 			;;									\
 		esac;										\
 	done < .config || exit $$?;								\
-	if [[ -n "$${CONFIG_MODULE_SIG_KEY}" && -n "$${CONFIG_MODULE_SIG_HASH}" &&		\
-			( ! -f '$(MODULE_TOP)/$@' ||						\
+	if [[ "$${CONFIG_MODULE_SIG}" = "y" && -n "$${CONFIG_MODULE_SIG_KEY}" && 		\
+		-n "$${CONFIG_MODULE_SIG_HASH}" && ( ! -f '$(MODULE_TOP)/$@' ||			\
 			'$(MODULE_TOP)/$<' -nt '$(MODULE_TOP)/$@' ) ]]; then			\
 		CONFIG_MODULE_SIG_KEY="$${CONFIG_MODULE_SIG_KEY#\"}";				\
 		CONFIG_MODULE_SIG_KEY="$${CONFIG_MODULE_SIG_KEY%\"}";				\
@@ -103,8 +100,10 @@ install modules_install:
 	+$(MAKE) -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(SRC_TOP) INSTALL_MOD_DIR=wolfssl modules_install
 
 .PHONY: clean
+# note, must supply $(MODULE_TOP) as the src value for clean so that Kbuild is included, else
+# the top Makefile (which is not for the kernel build) would be included here.
 clean:
-	+$(MAKE) -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(SRC_TOP) clean
+	+$(MAKE) -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(MODULE_TOP) clean
 
 .PHONY: dist
 dist:

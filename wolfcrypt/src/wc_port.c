@@ -61,7 +61,8 @@
     #include <wolfssl/wolfcrypt/port/st/stsafe.h>
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#if (defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)) \
+    && !defined(WOLFCRYPT_ONLY)
     #include <wolfssl/openssl/evp.h>
 #endif
 

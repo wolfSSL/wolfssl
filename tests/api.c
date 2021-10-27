@@ -357,6 +357,7 @@
 #endif
 #include <wolfssl/certs_test.h>
 
+
 typedef struct testVector {
     const char* input;
     const char* output;
@@ -407,7 +408,8 @@ static const char* failed = "failed";
 #define TEST_STRING    "Everyone gets Friday off."
 #define TEST_STRING_SZ 25
 
-#if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+#if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 4))
 #define TEST_RSA_BITS 1024
 #else
 #define TEST_RSA_BITS 2048
@@ -18282,7 +18284,8 @@ static int test_wc_MakeRsaKey (void)
 
     RsaKey  genKey;
     WC_RNG  rng;
-    #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+    #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 4))
     int     bits = 1024;
     #else
     int     bits = 2048;
@@ -18531,8 +18534,10 @@ static int test_wc_CheckProbablePrime (void)
         ret = wc_MakeRsaKey(&key, CHECK_PROBABLE_PRIME_KEY_BITS, WC_RSA_EXPONENT, &rng);
     }
     if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
         ret = wc_RsaExportKey(&key, e, &eSz, n, &nSz, d, &dSz,
                                 p, &pSz, q, &qSz);
+        PRIVATE_KEY_LOCK();
     }
     /* Bad cases */
     if (ret == 0) {
@@ -18943,7 +18948,8 @@ static int test_wc_RsaKeyToDer (void)
     RsaKey  genKey;
     WC_RNG  rng;
     byte*   der;
-    #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+    #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 4))
     int     bits = 1024;
     word32  derSz = 611;
     /* (2 x 128) + 2 (possible leading 00) + (5 x 64) + 5 (possible leading 00)
@@ -19052,7 +19058,8 @@ static int test_wc_RsaKeyToPublicDer (void)
     RsaKey      key;
     WC_RNG      rng;
     byte*       der;
-    #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+    #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 4))
     int         bits = 1024;
     word32      derLen = 162;
     #else
@@ -19545,7 +19552,8 @@ static int test_wc_RsaEncryptSize (void)
     }
 
     printf(testingFmt, "wc_RsaEncryptSize()");
-#if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+#if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 4))
     if (ret == 0) {
         ret = MAKE_RSA_KEY(&key, 1024, WC_RSA_EXPONENT, &rng);
         if (ret == 0) {
@@ -19615,7 +19623,8 @@ static int test_wc_RsaFlattenPublicKey (void)
     byte    n[256];
     word32  eSz = sizeof(e);
     word32  nSz = sizeof(n);
-    #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+    #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 4))
     int         bits = 1024;
     #else
     int         bits = 2048;
@@ -24681,7 +24690,9 @@ static int test_wc_ecc_import_x963 (void)
             ret = wc_ecc_make_key(&rng, KEY24, &key);
         }
         if (ret == 0) {
+            PRIVATE_KEY_UNLOCK();
             ret = wc_ecc_export_x963(&key, x963, &x963Len);
+            PRIVATE_KEY_LOCK();
         }
     }
 
@@ -24756,7 +24767,9 @@ static int ecc_import_private_key (void)
             ret = wc_ecc_make_key(&rng, KEY48, &key);
         }
         if (ret == 0) {
+            PRIVATE_KEY_UNLOCK();
             ret = wc_ecc_export_x963(&key, x963Key, &x963KeySz);
+            PRIVATE_KEY_LOCK();
         }
         if (ret == 0) {
             ret = wc_ecc_export_private_only(&key, privKey, &privKeySz);
@@ -29499,7 +29512,7 @@ static void test_wolfSSL_lhash(void)
 
     printf(testingFmt, "wolfSSL_LH_strhash()");
 
-    AssertIntEQ(lh_strhash(testStr), 0xb1231320);
+    AssertIntEQ(lh_strhash(testStr), 0x5b7541dc);
 
     printf(resultFmt, passed);
 #endif
@@ -33623,7 +33636,7 @@ static void post_auth_version_cb(WOLFSSL* ssl)
     AssertIntEQ(wolfSSL_accept(ssl), WOLFSSL_SUCCESS);
     AssertStrEQ("TLSv1.2", wolfSSL_get_version(ssl));
     AssertIntEQ(wolfSSL_verify_client_post_handshake(ssl), WOLFSSL_FAILURE);
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) && !defined(NO_ERROR_QUEUE)
     /* check was added to error queue */
     AssertIntEQ(wolfSSL_ERR_get_error(), -UNSUPPORTED_PROTO_VERSION);
 
@@ -42917,7 +42930,9 @@ static void test_wolfSSL_EVP_get_digestbynid(void)
 
     printf(testingFmt, "wolfSSL_EVP_get_digestbynid");
 
+#ifndef NO_MD5
     AssertNotNull(wolfSSL_EVP_get_digestbynid(NID_md5));
+#endif
     AssertNotNull(wolfSSL_EVP_get_digestbynid(NID_sha1));
     AssertNull(wolfSSL_EVP_get_digestbynid(0));
 
@@ -44654,7 +44669,8 @@ static void test_wolfSSL_EVP_PKEY_derive(void)
 
 static void test_wolfSSL_EVP_PBE_scrypt(void)
 {
-#if defined(OPENSSL_EXTRA) && defined(HAVE_SCRYPT) && defined(HAVE_PBKDF2)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SCRYPT) && defined(HAVE_PBKDF2) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 5))
 #if !defined(NO_PWDBASED) &&  !defined(NO_SHA256)
 
     int ret;
@@ -46681,6 +46697,7 @@ static int my_DhCallback(WOLFSSL* ssl, struct DhKey* key,
         unsigned char* out, unsigned int* outlen,
         void* ctx)
 {
+    int result;
     /* Test fail when context associated with WOLFSSL is NULL */
     if (ctx == NULL) {
         return -1;
@@ -46688,7 +46705,10 @@ static int my_DhCallback(WOLFSSL* ssl, struct DhKey* key,
 
     (void)ssl;
     /* return 0 on success */
-    return wc_DhAgree(key, out, outlen, priv, privSz, pubKeyDer, pubKeySz);
+    PRIVATE_KEY_UNLOCK();
+    result = wc_DhAgree(key, out, outlen, priv, privSz, pubKeyDer, pubKeySz);
+    PRIVATE_KEY_LOCK();
+    return result;
 }
 
 static void test_dh_ctx_setup(WOLFSSL_CTX* ctx) {
@@ -50673,13 +50693,30 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
         }
     #endif /* !NO_RSA */
     #ifdef HAVE_ECC
-        if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
+        if (info->pk.type == WC_PK_TYPE_EC_KEYGEN) {
+            /* mark this key as ephemeral */
+            if (info->pk.eckg.key != NULL) {
+                XSTRNCPY(info->pk.eckg.key->label, "ephemeral",
+                    sizeof(info->pk.eckg.key->label));
+                info->pk.eckg.key->labelLen = (int)XSTRLEN(info->pk.eckg.key->label);
+            }
+        }
+        else if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
             ecc_key key;
 
             /* perform software based ECC sign */
         #ifdef DEBUG_WOLFSSL
             printf("test_CryptoCb_Func: ECC Sign\n");
         #endif
+
+            if (info->pk.eccsign.key != NULL &&
+                XSTRCMP(info->pk.eccsign.key->label, "ephemeral") == 0) {
+                /* this is an empheral key */
+            #ifdef DEBUG_WOLFSSL
+                printf("test_CryptoCb_Func: skipping signing op on ephemeral key\n");
+            #endif
+                return CRYPTOCB_UNAVAILABLE;
+            }
 
             ret = load_pem_key_file_as_der(privKeyFile, &pDer, &keyFormat);
             if (ret != 0) {
@@ -51932,8 +51969,10 @@ void ApiTest(void)
     AssertIntEQ(test_wc_ecc_size(), 0);
     test_wc_ecc_params();
     AssertIntEQ(test_wc_ecc_signVerify_hash(), 0);
+    PRIVATE_KEY_UNLOCK();
     AssertIntEQ(test_wc_ecc_shared_secret(), 0);
     AssertIntEQ(test_wc_ecc_export_x963(), 0);
+    PRIVATE_KEY_LOCK();
     AssertIntEQ(test_wc_ecc_export_x963_ex(), 0);
     AssertIntEQ(test_wc_ecc_import_x963(), 0);
     AssertIntEQ(ecc_import_private_key(), 0);

@@ -65,6 +65,10 @@ This library defines the interface APIs for X509 certificates.
 #endif
 #ifndef WC_RNG_TYPE_DEFINED
     typedef struct WC_RNG WC_RNG;
+    #ifdef WC_RNG_SEED_CB
+    typedef struct OS_Seed OS_Seed;
+    typedef int (*wc_RngSeed_Cb)(OS_Seed* os, byte* seed, word32 sz);
+    #endif
     #define WC_RNG_TYPE_DEFINED
 #endif
 #ifndef WC_DH_TYPE_DEFINED
@@ -529,7 +533,9 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
         word32 inSz, const byte** n, word32* nSz, const byte** e, word32* eSz);
     /* For FIPS v1/v2 and selftest this is in rsa.h */
     #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
-        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION > 2)))
+         !defined(HAVE_FIPS_VERSION) || \
+         ((HAVE_FIPS_VERSION > 2) && \
+         (! ((HAVE_FIPS_VERSION == 5) && (HAVE_FIPS_VERSION_MINOR == 0)))))
     WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen);
     #endif
     #endif

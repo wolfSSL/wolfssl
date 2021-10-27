@@ -418,18 +418,14 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
 
     #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(cpuidFlags)) {
-        int ret = SAVE_VECTOR_REGISTERS();
-        if (ret != 0)
-            return ret;
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
         chacha_encrypt_avx2(ctx, input, output, msglen);
         RESTORE_VECTOR_REGISTERS();
         return 0;
     }
     #endif
     if (IS_INTEL_AVX1(cpuidFlags)) {
-        int ret = SAVE_VECTOR_REGISTERS();
-        if (ret != 0)
-            return ret;
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
         chacha_encrypt_avx1(ctx, input, output, msglen);
         RESTORE_VECTOR_REGISTERS();
         return 0;

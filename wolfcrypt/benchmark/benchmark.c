@@ -1072,7 +1072,7 @@ typedef enum bench_stat_type {
     typedef struct bench_stats {
         struct bench_stats* next;
         struct bench_stats* prev;
-        char algo[BENCH_MAX_NAME_SZ]; /* may not be static, so make copy */
+        char algo[BENCH_MAX_NAME_SZ+1]; /* may not be static, so make copy */
         const char* desc;
         double perfsec;
         int strength;
@@ -2037,6 +2037,9 @@ int benchmark_init(void)
         printf("wolfCrypt_Init failed %d\n", ret);
         return EXIT_FAILURE;
     }
+#ifdef WC_RNG_SEED_CB
+    wc_SetSeed_Cb(wc_GenerateSeed);
+#endif
 
     bench_stats_init();
 
@@ -5069,8 +5072,12 @@ void bench_dh(int doAsync)
     word32 pubSz2 = BENCH_DH_KEY_SIZE;
     word32 privSz2 = BENCH_DH_PRIV_SIZE;
     word32 agreeSz[BENCH_MAX_PENDING];
-#ifdef HAVE_FFDHE_2048
+#if defined(HAVE_FFDHE_2048) || defined(HAVE_FFDHE_3072)
+#ifdef HAVE_PUBLIC_FFDHE
     const DhParams *params = NULL;
+#else
+    int paramName = 0;
+#endif
 #endif
 
     DECLARE_ARRAY(pub, byte, BENCH_MAX_PENDING, BENCH_DH_KEY_SIZE, HEAP_HINT);
@@ -5109,19 +5116,31 @@ void bench_dh(int doAsync)
     }
 #ifdef HAVE_FFDHE_2048
     else if (use_ffdhe == 2048) {
+#ifdef HAVE_PUBLIC_FFDHE
         params = wc_Dh_ffdhe2048_Get();
+#else
+        paramName = WC_FFDHE_2048;
+#endif
         dhKeySz = 2048;
     }
 #endif
 #ifdef HAVE_FFDHE_3072
     else if (use_ffdhe == 3072) {
+#ifdef HAVE_PUBLIC_FFDHE
         params = wc_Dh_ffdhe3072_Get();
+#else
+        paramName = WC_FFDHE_3072;
+#endif
         dhKeySz = 3072;
     }
 #endif
 #ifdef HAVE_FFDHE_4096
     else if (use_ffdhe == 4096) {
+#ifdef HAVE_PUBLIC_FFDHE
         params = wc_Dh_ffdhe4096_Get();
+#else
+        paramName = WC_FFDHE_4096;
+#endif
         dhKeySz = 4096;
     }
 #endif
@@ -5148,10 +5167,16 @@ void bench_dh(int doAsync)
     #endif
         }
     #if defined(HAVE_FFDHE_2048) || defined(HAVE_FFDHE_3072)
+    #ifdef HAVE_PUBLIC_FFDHE
         else if (params != NULL) {
             ret = wc_DhSetKey(&dhKey[i], params->p, params->p_len, params->g,
                                                                  params->g_len);
         }
+    #else
+        else if (paramName != 0) {
+            ret = wc_DhSetNamedKey(&dhKey[i], paramName);
+        }
+    #endif
     #endif
         if (ret != 0) {
             printf("DhKeyDecode failed %d, can't benchmark\n", ret);
@@ -5161,6 +5186,7 @@ void bench_dh(int doAsync)
 
     /* Key Gen */
     bench_stats_start(&count, &start);
+    PRIVATE_KEY_UNLOCK();
     do {
         /* while free pending slots in queue, submit ops */
         for (times = 0; times < genTimes || pending > 0; ) {
@@ -5180,6 +5206,7 @@ void bench_dh(int doAsync)
         } /* for times */
         count += times;
     } while (bench_stats_sym_check(start));
+    PRIVATE_KEY_LOCK();
 exit_dh_gen:
     bench_stats_asym_finish("DH", dhKeySz, desc[2], doAsync, count, start, ret);
 
@@ -5188,13 +5215,16 @@ exit_dh_gen:
     }
 
     /* Generate key to use as other public */
+    PRIVATE_KEY_UNLOCK();
     ret = wc_DhGenerateKeyPair(&dhKey[0], &gRng, priv2, &privSz2, pub2, &pubSz2);
+    PRIVATE_KEY_LOCK();
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wc_AsyncWait(ret, &dhKey[0].asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
 
     /* Key Agree */
     bench_stats_start(&count, &start);
+    PRIVATE_KEY_UNLOCK();
     do {
         for (times = 0; times < agreeTimes || pending > 0; ) {
             bench_async_poll(&pending);
@@ -5212,6 +5242,7 @@ exit_dh_gen:
         } /* for times */
         count += times;
     } while (bench_stats_sym_check(start));
+    PRIVATE_KEY_LOCK();
 exit:
     bench_stats_asym_finish("DH", dhKeySz, desc[3], doAsync, count, start, ret);
 
@@ -5400,6 +5431,7 @@ void bench_ecc(int doAsync, int curveId)
 
     /* ECC Shared Secret */
     bench_stats_start(&count, &start);
+    PRIVATE_KEY_UNLOCK();
     do {
         for (times = 0; times < agreeTimes || pending > 0; ) {
             bench_async_poll(&pending);
@@ -5421,6 +5453,7 @@ void bench_ecc(int doAsync, int curveId)
         } /* for times */
         count += times;
     } while (bench_stats_sym_check(start));
+    PRIVATE_KEY_UNLOCK();
 exit_ecdhe:
     XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDHE [%15s]", wc_ecc_get_name(curveId));
 

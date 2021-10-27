@@ -1359,9 +1359,6 @@ enum Misc {
     KEY_LABEL_SZ        = 13,  /* TLS key block expansion sz */
     PROTOCOL_LABEL_SZ   = 9,   /* Length of the protocol label */
     MAX_LABEL_SZ        = 34,  /* Maximum length of a label */
-    MAX_HKDF_LABEL_SZ   = OPAQUE16_LEN +
-                          OPAQUE8_LEN + PROTOCOL_LABEL_SZ + MAX_LABEL_SZ +
-                          OPAQUE8_LEN + WC_MAX_DIGEST_SIZE,
     MAX_REQUEST_SZ      = 256, /* Maximum cert req len (no auth yet */
     SESSION_FLUSH_COUNT = 256, /* Flush session cache unless user turns off */
     TLS_MAX_PAD_SZ      = 255, /* Max padding in TLS */

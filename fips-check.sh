@@ -36,6 +36,9 @@ Platform is one of:
     stm32l4-v2 (FIPSv2, use for STM32L4)
     wolfrand
     solaris
+    linuxv5-RC8 (old FIPS 140-3)
+    linuxv5 (current FIPS 140-3)
+    linuxv5-ready (ready FIPS 140-3)
 Keep (default off) retains the XXX-fips-test temp dir for inspection.
 
 Example:
@@ -217,15 +220,25 @@ netos-7.6)
   CRYPT_VERSION=$NETOS_7_6_CRYPT_VERSION
   CRYPT_REPO=$NETOS_7_6_CRYPT_REPO
   ;;
-fips-ready)
+fips-v3-ready)
   FIPS_REPO="git@github.com:wolfssl/fips.git"
-  CRYPT_REPO="git@github.com:wolfssl/wolfssl.git"
+  FIPS_VERSION="v4.1.1"
   CRYPT_INC_PATH=wolfssl/wolfcrypt
   CRYPT_SRC_PATH=wolfcrypt/src
   FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
   FIPS_INCS=( fips.h )
-  FIPS_OPTION=ready
+  FIPS_OPTION=v3-ready
   ;;
+fips-ready|fips-v5-ready|linuxv5-ready)
+  FIPS_REPO="git@github.com:wolfSSL/fips.git"
+  FIPS_VERSION="master"
+  CRYPT_INC_PATH=wolfssl/wolfcrypt
+  CRYPT_SRC_PATH=wolfcrypt/src
+  FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
+  FIPS_INCS=( fips.h )
+  FIPS_OPTION=v5-ready
+  ;;
+
 stm32l4-v2)
   FIPS_VERSION=$STM32L4_V2_FIPS_VERSION
   FIPS_REPO=$STM32L4_V2_FIPS_REPO
@@ -265,6 +278,39 @@ solaris)
   FIPS_OPTION=v2
   MAKE=gmake
   ;;
+linuxv5-RC8)
+  FIPS_REPO="git@github.com:wolfSSL/fips.git"
+  FIPS_VERSION="WCv5.0-RC8"
+  CRYPT_REPO="git@github.com:wolfSSL/wolfssl.git"
+  CRYPT_VERSION="WCv5.0-RC8"
+  CRYPT_INC_PATH="wolfssl/wolfcrypt"
+  CRYPT_SRC_PATH="wolfcrypt/src"
+  WC_MODS=( aes sha sha256 sha512 rsa hmac random cmac dh ecc sha3 kdf )
+  RNG_VERSION="WCv5.0-RC8"
+  FIPS_SRCS=( fips.c fips_test.c wolfcrypt_first.c wolfcrypt_last.c )
+  FIPS_INCS=( fips.h )
+  FIPS_OPTION="v5-RC8"
+  COPY_DIRECT=( wolfcrypt/src/aes_asm.S wolfcrypt/src/aes_asm.asm
+                wolfcrypt/src/sha256_asm.S wolfcrypt/src/sha512_asm.S )
+  ;;
+
+# temporary values during transition
+linuxv5|linuxv5-RC9)
+  FIPS_REPO="git@github.com:wolfSSL/fips.git"
+  FIPS_VERSION="master"
+  CRYPT_REPO="git@github.com:douzzer/wolfssl.git"
+  CRYPT_VERSION="fipsv3-rebased"
+  CRYPT_INC_PATH="wolfssl/wolfcrypt"
+  CRYPT_SRC_PATH="wolfcrypt/src"
+  WC_MODS=( aes sha sha256 sha512 rsa hmac random cmac dh ecc sha3 kdf )
+  RNG_VERSION="fipsv3-rebased"
+  FIPS_SRCS=( fips.c fips_test.c wolfcrypt_first.c wolfcrypt_last.c )
+  FIPS_INCS=( fips.h )
+  FIPS_OPTION="v5-RC9"
+  COPY_DIRECT=( wolfcrypt/src/aes_asm.S wolfcrypt/src/aes_asm.asm
+                wolfcrypt/src/sha256_asm.S wolfcrypt/src/sha512_asm.S )
+  ;;
+
 *)
   Usage
   exit 1
@@ -277,8 +323,9 @@ fi
 
 pushd $TEST_DIR || exit 2
 
-if [ "x$FIPS_OPTION" == "xv1" ];
-then
+case "$FIPS_OPTION" in
+
+v1)
     # make a clone of the last FIPS release tag
     if ! $GIT clone --depth 1 -b $CRYPT_VERSION $CRYPT_REPO old-tree; then
         echo "fips-check: Couldn't checkout the FIPS release."
@@ -298,41 +345,52 @@ then
        [ "x$PLATFORM" != "xnetos-7.6" ];
     then
         pushd old-tree || exit 2
-        $GIT fetch origin $RNG_VERSION
-        $GIT checkout FETCH_HEAD
+        $GIT fetch origin $RNG_VERSION || exit $?
+        $GIT checkout FETCH_HEAD || exit $?
         popd || exit 2
         cp "old-tree/$CRYPT_SRC_PATH/random.c" $CRYPT_SRC_PATH
         cp "old-tree/$CRYPT_INC_PATH/random.h" $CRYPT_INC_PATH
     fi
-elif [ "x$FIPS_OPTION" == "xv2" ] || [ "x$FIPS_OPTION" == "xrand" ]
-then
-    $GIT branch --no-track "my$CRYPT_VERSION" $CRYPT_VERSION
+    ;;
+
+
+v2|rand|v5-RC8|v5-RC9)
+    $GIT branch --no-track "my$CRYPT_VERSION" $CRYPT_VERSION || exit $?
     # Checkout the fips versions of the wolfCrypt files from the repo.
     for MOD in "${WC_MODS[@]}"
     do
-        $GIT checkout "my$CRYPT_VERSION" -- "$CRYPT_SRC_PATH/$MOD.c" "$CRYPT_INC_PATH/$MOD.h"
+        $GIT checkout "my$CRYPT_VERSION" -- "$CRYPT_SRC_PATH/$MOD.c" "$CRYPT_INC_PATH/$MOD.h" || exit $?
     done
 
-    $GIT branch --no-track "my$RNG_VERSION" $RNG_VERSION
+    for MOD in "${COPY_DIRECT[@]}"
+    do
+        $GIT checkout "my$CRYPT_VERSION" -- "$MOD" || exit $?
+    done
+
+    $GIT branch --no-track "myrng$RNG_VERSION" $RNG_VERSION || exit $?
     # Checkout the fips versions of the wolfCrypt files from the repo.
-    $GIT checkout "my$RNG_VERSION" -- "$CRYPT_SRC_PATH/random.c" "$CRYPT_INC_PATH/random.h"
-elif [ "x$FIPS_OPTION" == "xready" ]
-then
+    $GIT checkout "myrng$RNG_VERSION" -- "$CRYPT_SRC_PATH/random.c" "$CRYPT_INC_PATH/random.h" || exit $?
+    ;;
+
+*ready*)
     echo "Don't need to copy anything in particular for FIPS Ready."
-else
-    echo "fips-check: Invalid FIPS option."
+    ;;
+
+*)
+    echo "fips-check: Invalid FIPS option \"${FIPS_OPTION}\"."
     exit 1
-fi
+    ;;
+esac
 
 # clone the FIPS repository
-if [ "x$FIPS_OPTION" != "xready" ]
+if [ "x$FIPS_OPTION" = "xready" ]
 then
-    if ! $GIT clone --depth 1 -b $FIPS_VERSION $FIPS_REPO fips; then
-        echo "fips-check: Couldn't checkout the FIPS repository."
+    if ! $GIT clone --depth 1 $FIPS_REPO fips; then
+        echo "fips-check: Couldn't checkout the FIPS repository for FIPS Ready."
         exit 1
     fi
 else
-    if ! $GIT clone --depth 1 $FIPS_REPO fips; then
+    if ! $GIT clone --depth 1 -b $FIPS_VERSION $FIPS_REPO fips; then
         echo "fips-check: Couldn't checkout the FIPS repository."
         exit 1
     fi

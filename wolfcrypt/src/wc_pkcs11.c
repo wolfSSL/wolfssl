@@ -961,7 +961,9 @@ static int Pkcs11CreateEccPublicKey(CK_OBJECT_HANDLE* publicKey,
         ecPoint[i++] = len;
         if (public_key->type == 0)
             public_key->type = ECC_PUBLICKEY;
+        PRIVATE_KEY_UNLOCK();
         ret = wc_ecc_export_x963(public_key, ecPoint + i, &len);
+        PRIVATE_KEY_LOCK();
     }
     if (ret == 0) {
         keyTemplate[4].pValue     = ecPoint;
@@ -1984,7 +1986,9 @@ static int Pkcs11FindEccKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
         ecPoint[i++] = len;
         if (eccKey->type == 0)
             eccKey->type = ECC_PUBLICKEY;
+        PRIVATE_KEY_UNLOCK();
         ret = wc_ecc_export_x963(eccKey, ecPoint + i, &len);
+        PRIVATE_KEY_LOCK();
     }
     if (ret == 0 && keyClass == CKO_PUBLIC_KEY) {
         keyTemplate[attrCnt].pValue     = ecPoint;
@@ -2308,13 +2312,17 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
         }
     }
     if (ret == 0) {
+        PRIVATE_KEY_UNLOCK();
         ret = wc_ecc_export_x963(info->pk.ecdh.public_key, NULL, &pointLen);
+        PRIVATE_KEY_LOCK();
         if (ret == LENGTH_ONLY_E) {
             point = (unsigned char*)XMALLOC(pointLen,
                                                  info->pk.ecdh.public_key->heap,
                                                        DYNAMIC_TYPE_ECC_BUFFER);
+            PRIVATE_KEY_UNLOCK();
             ret = wc_ecc_export_x963(info->pk.ecdh.public_key, point,
                                                                      &pointLen);
+            PRIVATE_KEY_LOCK();
         }
     }
 

@@ -27,6 +27,7 @@ rpm/spec
 stamp-h
 cyassl/options.h
 wolfssl/options.h
+.build_params
 libtool.m4
 aclocal.m4
 aminclude.am
@@ -240,6 +241,7 @@ linuxkm/modules.order
 linuxkm/wolfcrypt
 linuxkm/libwolfssl.mod
 linuxkm/libwolfssl.mod.c
+linuxkm/libwolfssl.lds
 linuxkm/module_exports.c
 linuxkm/linuxkm/get_thread_size
 

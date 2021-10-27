@@ -785,10 +785,13 @@ int wc_CryptoCb_Sha384Hash(wc_Sha384* sha384, const byte* in,
     CryptoCb* dev;
 
     /* locate registered callback */
+    #ifndef NO_SHA2_CRYPTO_CB
     if (sha384) {
         dev = wc_CryptoCb_FindDevice(sha384->devId);
     }
-    else {
+    else
+    #endif
+    {
         /* locate first callback and try using it */
         dev = wc_CryptoCb_FindDeviceByIndex(0);
     }
@@ -818,10 +821,13 @@ int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
     CryptoCb* dev;
 
     /* locate registered callback */
+    #ifndef NO_SHA2_CRYPTO_CB
     if (sha512) {
         dev = wc_CryptoCb_FindDevice(sha512->devId);
     }
-    else {
+    else
+    #endif
+    {
         /* locate first callback and try using it */
         dev = wc_CryptoCb_FindDeviceByIndex(0);
     }

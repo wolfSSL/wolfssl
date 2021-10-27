@@ -2855,7 +2855,7 @@ int sp_set_bit(sp_int* a, int i)
         * WOLFSSL_KEY_GEN || OPENSSL_EXTRA || !NO_RSA */
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(WOLFSSL_KEY_GEN)
+    defined(WOLFSSL_KEY_GEN) || !defined(NO_DH)
 /* Exponentiate 2 to the power of e: a = 2^e
  * This is done by setting the 'e'th bit.
  *
@@ -2880,7 +2880,7 @@ int sp_2expt(sp_int* a, int e)
     return err;
 }
 #endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) ||
-        * WOLFSSL_KEY_GEN */
+        * WOLFSSL_KEY_GEN || !NO_DH */
 
 /**********************
  * Digit/Long functions
@@ -2902,11 +2902,18 @@ int sp_set(sp_int* a, sp_int_digit d)
         err = MP_VAL;
     }
     if (err == MP_OKAY) {
+        /* gcc-11 reports out-of-bounds array access if the byte array backing
+         * the sp_int* is smaller than sizeof(sp_int), as occurs when
+         * WOLFSSL_SP_SMALL.
+         */
+        PRAGMA_GCC_DIAG_PUSH;
+        PRAGMA_GCC("GCC diagnostic ignored \"-Warray-bounds\"");
         a->dp[0] = d;
         a->used = d > 0;
     #ifdef WOLFSSL_SP_INT_NEGATIVE
         a->sign = MP_ZPOS;
     #endif
+        PRAGMA_GCC_DIAG_POP;
     }
 
     return err;
@@ -8830,9 +8837,11 @@ int sp_exptmod(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
     if ((b == NULL) || (e == NULL) || (m == NULL) || (r == NULL)) {
         err = MP_VAL;
     }
+    SAVE_VECTOR_REGISTERS(err = _svr_ret;);
     if (err == MP_OKAY) {
         err = sp_exptmod_ex(b, e, e->used, m, r);
     }
+    RESTORE_VECTOR_REGISTERS();
     return err;
 }
 #endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) ||
@@ -13247,6 +13256,8 @@ int sp_prime_is_prime(sp_int* a, int t, int* result)
         haveRes = 1;
     }
 
+    SAVE_VECTOR_REGISTERS(err = _svr_ret;);
+
     if ((err == MP_OKAY) && (!haveRes) && (a->used == 1)) {
         /* check against primes table */
         for (i = 0; i < SP_PRIME_SIZE; i++) {
@@ -13284,6 +13295,8 @@ int sp_prime_is_prime(sp_int* a, int t, int* result)
             }
         }
      }
+
+     RESTORE_VECTOR_REGISTERS();
 
      FREE_SP_INT(b, NULL);
      return err;
@@ -13325,6 +13338,8 @@ int sp_prime_is_prime_ex(sp_int* a, int t, int* result, WC_RNG* rng)
         ret = MP_NO;
         haveRes = 1;
     }
+
+    SAVE_VECTOR_REGISTERS(err = _svr_ret;);
 
     if ((err == MP_OKAY) && (!haveRes) && (a->used == 1)) {
         /* check against primes table */
@@ -13417,6 +13432,9 @@ int sp_prime_is_prime_ex(sp_int* a, int t, int* result, WC_RNG* rng)
     if (result != NULL) {
         *result = ret;
     }
+
+    RESTORE_VECTOR_REGISTERS();
+
     return err;
 }
 #endif /* WOLFSSL_SP_PRIME_GEN */
@@ -13460,6 +13478,8 @@ int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
         sp_int* t = NULL;
         int used = (a->used >= b->used) ? a->used + 1 : b->used + 1;
         DECL_SP_INT_ARRAY(d, used, 3);
+
+        SAVE_VECTOR_REGISTERS(err = _svr_ret;);
 
         ALLOC_SP_INT_ARRAY(d, used, 3, err, NULL);
         if (err == MP_OKAY) {
@@ -13525,6 +13545,8 @@ int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
         }
 
         FREE_SP_INT_ARRAY(d, NULL);
+
+        RESTORE_VECTOR_REGISTERS();
     }
 
     return err;
@@ -13570,7 +13592,11 @@ int sp_lcm(sp_int* a, sp_int* b, sp_int* r)
         sp_init_size(t[0], used);
         sp_init_size(t[1], used);
 
-        err = sp_gcd(a, b, t[0]);
+        SAVE_VECTOR_REGISTERS(err = _svr_ret;);
+
+        if (err == MP_OKAY)
+            err = sp_gcd(a, b, t[0]);
+
         if (err == MP_OKAY) {
             if (_sp_cmp_abs(a, b) == MP_GT) {
                 err = sp_div(a, t[0], t[1], NULL);
@@ -13585,6 +13611,8 @@ int sp_lcm(sp_int* a, sp_int* b, sp_int* r)
                 }
             }
         }
+
+        RESTORE_VECTOR_REGISTERS();
     }
 
     FREE_SP_INT_ARRAY(t, NULL);

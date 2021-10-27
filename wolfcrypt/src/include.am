@@ -119,13 +119,13 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/cypress/psoc6_crypto.c
 
 wolfcrypt/src/port/cavium/cavium_nitrox.c: Makefile
-	touch $(srcdir)/$@
+	@test -e $(srcdir)/$@ || touch $(srcdir)/$@
 
 wolfcrypt/src/port/intel/quickassist.c: Makefile
-	touch $(srcdir)/$@
+	@test -e $(srcdir)/$@ || touch $(srcdir)/$@
 
 wolfcrypt/src/port/intel/quickassist_mem.c: Makefile
-	touch $(srcdir)/$@
+	@test -e $(srcdir)/$@ || touch $(srcdir)/$@
 
 if BUILD_CRYPTOCB
 src_libwolfssl_la_SOURCES += wolfcrypt/src/cryptocb.c

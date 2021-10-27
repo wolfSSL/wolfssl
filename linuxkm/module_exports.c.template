@@ -25,6 +25,11 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+#ifdef HAVE_FIPS
+#define FIPS_NO_WRAPPERS
+#endif
+
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
@@ -35,6 +40,9 @@
 
 #ifndef EXPORT_SYMBOL_NS
 #define EXPORT_SYMBOL_NS(sym, ns) EXPORT_SYMBOL(sym)
+#endif
+#ifndef EXPORT_SYMBOL_NS_GPL
+#define EXPORT_SYMBOL_NS_GPL(sym, ns) EXPORT_SYMBOL_GPL(sym)
 #endif
 
 #include <wolfssl/wolfcrypt/memory.h>
@@ -103,6 +111,7 @@
     #include <wolfssl/wolfcrypt/pkcs7.h>
 #endif
 #ifdef HAVE_FIPS
+    #include <wolfssl/wolfcrypt/fips.h>
     #include <wolfssl/wolfcrypt/fips_test.h>
 #endif
 #ifdef HAVE_SELFTEST
@@ -125,6 +134,10 @@
     #ifdef HAVE_CAVIUM_OCTEON_SYNC
         #include <wolfssl/wolfcrypt/port/cavium/cavium_octeon_sync.h>
     #endif
+#endif
+
+#ifndef NO_KDF
+    #include <wolfssl/wolfcrypt/kdf.h>
 #endif
 
 #ifdef _MSC_VER
@@ -158,6 +171,7 @@
 
 #include <wolfssl/certs_test.h>
 
+#ifdef OPENSSL_EXTRA
 #include <wolfssl/openssl/x509_vfy.h>
 #include <wolfssl/openssl/buffer.h>
 #include <wolfssl/openssl/ec25519.h>
@@ -167,4 +181,5 @@
 #include <wolfssl/openssl/ecdsa.h>
 #include <wolfssl/openssl/ecdh.h>
 #include <wolfssl/openssl/pem.h>
+#endif
 

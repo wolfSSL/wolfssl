@@ -403,9 +403,7 @@ typedef struct {
 /* ECC Flags */
 enum {
     WC_ECC_FLAG_NONE     = 0x00,
-#ifdef HAVE_ECC_CDH
     WC_ECC_FLAG_COFACTOR = 0x01,
-#endif
     WC_ECC_FLAG_DEC_SIGN = 0x02,
 };
 

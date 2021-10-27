@@ -472,7 +472,11 @@ int wc_SrpSetPassword(Srp* srp, const byte* password, word32 size)
 
 int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size)
 {
-    mp_int v;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int *v = NULL;
+#else
+    mp_int v[1];
+#endif
     int r;
 
     if (!srp || !verifier || !size || srp->side != SRP_CLIENT_SIDE)
@@ -481,17 +485,24 @@ int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size)
     if (mp_iszero(&srp->auth) == MP_YES)
         return SRP_CALL_ORDER_E;
 
-    r = mp_init(&v);
+#ifdef WOLFSSL_SMALL_STACK
+    if ((v = (mp_int *)XMALLOC(sizeof(*v), srp->heap, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+        return MEMORY_E;
+#endif
+
+    r = mp_init(v);
     if (r != MP_OKAY)
-        return MP_INIT_E;
-
+        r = MP_INIT_E;
     /* v = g ^ x % N */
-    r = mp_exptmod(&srp->g, &srp->auth, &srp->N, &v);
-    if (!r) r = *size < (word32)mp_unsigned_bin_size(&v) ? BUFFER_E : MP_OKAY;
-    if (!r) r = mp_to_unsigned_bin(&v, verifier);
-    if (!r) *size = mp_unsigned_bin_size(&v);
+    if (!r) r = mp_exptmod(&srp->g, &srp->auth, &srp->N, v);
+    if (!r) r = *size < (word32)mp_unsigned_bin_size(v) ? BUFFER_E : MP_OKAY;
+    if (!r) r = mp_to_unsigned_bin(v, verifier);
+    if (!r) *size = mp_unsigned_bin_size(v);
 
-    mp_clear(&v);
+    mp_clear(v);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(v, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return r;
 }
@@ -506,7 +517,11 @@ int wc_SrpSetVerifier(Srp* srp, const byte* verifier, word32 size)
 
 int wc_SrpSetPrivate(Srp* srp, const byte* priv, word32 size)
 {
-    mp_int p;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int *p = NULL;
+#else
+    mp_int p[1];
+#endif
     int r;
 
     if (!srp || !priv || !size)
@@ -515,14 +530,22 @@ int wc_SrpSetPrivate(Srp* srp, const byte* priv, word32 size)
     if (mp_iszero(&srp->auth) == MP_YES)
         return SRP_CALL_ORDER_E;
 
-    r = mp_init(&p);
+#ifdef WOLFSSL_SMALL_STACK
+    if ((p = (mp_int *)XMALLOC(sizeof(*p), srp->heap, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+        return MEMORY_E;
+#endif
+
+    r = mp_init(p);
     if (r != MP_OKAY)
-        return MP_INIT_E;
-    r = mp_read_unsigned_bin(&p, priv, size);
-    if (!r) r = mp_mod(&p, &srp->N, &srp->priv);
+        r = MP_INIT_E;
+    if (!r) r = mp_read_unsigned_bin(p, priv, size);
+    if (!r) r = mp_mod(p, &srp->N, &srp->priv);
     if (!r) r = mp_iszero(&srp->priv) == MP_YES ? SRP_BAD_KEY_E : 0;
 
-    mp_clear(&p);
+    mp_clear(p);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(p, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return r;
 }
@@ -542,7 +565,11 @@ static int wc_SrpGenPrivate(Srp* srp, byte* priv, word32 size)
 
 int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size)
 {
-    mp_int pubkey;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int *pubkey = NULL;
+#else
+    mp_int pubkey[1];
+#endif
     word32 modulusSz;
     int r;
 
@@ -556,39 +583,66 @@ int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size)
     if (*size < modulusSz)
         return BUFFER_E;
 
-    r = mp_init(&pubkey);
+#ifdef WOLFSSL_SMALL_STACK
+    if ((pubkey = (mp_int *)XMALLOC(sizeof(*pubkey), srp->heap, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+        return MEMORY_E;
+#endif
+    r = mp_init(pubkey);
     if (r != MP_OKAY)
-        return MP_INIT_E;
+        r = MP_INIT_E;
 
     /* priv = random() */
     if (mp_iszero(&srp->priv) == MP_YES)
-        r = wc_SrpGenPrivate(srp, pub, SRP_PRIVATE_KEY_MIN_BITS / 8);
+        if (! r) r = wc_SrpGenPrivate(srp, pub, SRP_PRIVATE_KEY_MIN_BITS / 8);
 
     /* client side: A = g ^ a % N */
     if (srp->side == SRP_CLIENT_SIDE) {
-        if (!r) r = mp_exptmod(&srp->g, &srp->priv, &srp->N, &pubkey);
+        if (!r) r = mp_exptmod(&srp->g, &srp->priv, &srp->N, pubkey);
 
     /* server side: B = (k * v + (g ^ b % N)) % N */
     } else {
-        mp_int i, j;
-
-        if (mp_init_multi(&i, &j, 0, 0, 0, 0) == MP_OKAY) {
-            if (!r) r = mp_read_unsigned_bin(&i, srp->k,SrpHashSize(srp->type));
-            if (!r) r = mp_iszero(&i) == MP_YES ? SRP_BAD_KEY_E : 0;
-            if (!r) r = mp_exptmod(&srp->g, &srp->priv, &srp->N, &pubkey);
-            if (!r) r = mp_mulmod(&i, &srp->auth, &srp->N, &j);
-            if (!r) r = mp_add(&j, &pubkey, &i);
-            if (!r) r = mp_mod(&i, &srp->N, &pubkey);
-
-            mp_clear(&i); mp_clear(&j);
+        if (! r) {
+#ifdef WOLFSSL_SMALL_STACK
+            mp_int *i = NULL, *j = NULL;
+#else
+            mp_int i[1], j[1];
+#endif
+#ifdef WOLFSSL_SMALL_STACK
+            if (((i = (mp_int *)XMALLOC(sizeof(*i), srp->heap, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
+                ((j = (mp_int *)XMALLOC(sizeof(*j), srp->heap, DYNAMIC_TYPE_TMP_BUFFER)) == NULL))
+                r = MEMORY_E;
+#endif
+            if (!r) r = mp_init_multi(i, j, 0, 0, 0, 0);
+            if (!r) r = mp_read_unsigned_bin(i, srp->k,SrpHashSize(srp->type));
+            if (!r) r = mp_iszero(i) == MP_YES ? SRP_BAD_KEY_E : 0;
+            if (!r) r = mp_exptmod(&srp->g, &srp->priv, &srp->N, pubkey);
+            if (!r) r = mp_mulmod(i, &srp->auth, &srp->N, j);
+            if (!r) r = mp_add(j, pubkey, i);
+            if (!r) r = mp_mod(i, &srp->N, pubkey);
+#ifdef WOLFSSL_SMALL_STACK
+            if (i != NULL) {
+                mp_clear(i);
+                XFREE(i, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+            if (j != NULL) {
+                mp_clear(j);
+                XFREE(j, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+#else
+            mp_clear(i); mp_clear(j);
+#endif
         }
     }
 
     /* extract public key to buffer */
     XMEMSET(pub, 0, modulusSz);
-    if (!r) r = mp_to_unsigned_bin(&pubkey, pub);
-    if (!r) *size = mp_unsigned_bin_size(&pubkey);
-    mp_clear(&pubkey);
+    if (!r) r = mp_to_unsigned_bin(pubkey, pub);
+    if (!r) *size = mp_unsigned_bin_size(pubkey);
+
+    mp_clear(pubkey);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(pubkey, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return r;
 }

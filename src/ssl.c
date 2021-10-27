@@ -37,6 +37,7 @@
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/coding.h>
+#include <wolfssl/wolfcrypt/kdf.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -61,8 +62,9 @@
     #endif
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-        defined(HAVE_WEBSERVER) || defined(WOLFSSL_KEY_GEN)
+#if !defined(WOLFCRYPT_ONLY) && (defined(OPENSSL_EXTRA)     \
+    || defined(OPENSSL_EXTRA_X509_SMALL)                    \
+    || defined(HAVE_WEBSERVER) || defined(WOLFSSL_KEY_GEN))
     #include <wolfssl/openssl/evp.h>
     /* openssl headers end, wolfssl internal headers next */
 #endif
@@ -76,15 +78,19 @@
 #ifdef OPENSSL_EXTRA
     /* openssl headers begin */
     #include <wolfssl/openssl/aes.h>
+#ifndef WOLFCRYPT_ONLY
     #include <wolfssl/openssl/hmac.h>
     #include <wolfssl/openssl/cmac.h>
+#endif
     #include <wolfssl/openssl/crypto.h>
     #include <wolfssl/openssl/des.h>
     #include <wolfssl/openssl/bn.h>
     #include <wolfssl/openssl/buffer.h>
     #include <wolfssl/openssl/dh.h>
     #include <wolfssl/openssl/rsa.h>
+#ifndef WOLFCRYPT_ONLY
     #include <wolfssl/openssl/pem.h>
+#endif
     #include <wolfssl/openssl/ec.h>
     #include <wolfssl/openssl/ec25519.h>
     #include <wolfssl/openssl/ed25519.h>
@@ -13439,13 +13445,16 @@ int wolfSSL_export_keying_material(WOLFSSL *ssl,
         }
     }
 
+    PRIVATE_KEY_UNLOCK();
     if (wc_PRF_TLS(out, (word32)outLen, ssl->arrays->masterSecret, SECRET_LEN,
             (byte*)label, (word32)labelLen, seed, seedLen, IsAtLeastTLSv1_2(ssl),
             ssl->specs.mac_algorithm, ssl->heap, ssl->devId) != 0) {
         WOLFSSL_MSG("wc_PRF_TLS error");
+        PRIVATE_KEY_LOCK();
         XFREE(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
+    PRIVATE_KEY_LOCK();
 
     XFREE(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return WOLFSSL_SUCCESS;
@@ -15784,10 +15793,13 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 idx += (int)iov[i].iov_len;
             }
 
-           /* myBuffer may not initialized fully, but the sending length will be */
-            PRAGMA_GCC_IGNORE("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
+           /* myBuffer may not be initialized fully, but the span up to the
+            * sending length will be.
+            */
+            PRAGMA_GCC_DIAG_PUSH;
+            PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
             ret = wolfSSL_write(ssl, myBuffer, sending);
-            PRAGMA_GCC_POP;
+            PRAGMA_GCC_DIAG_POP;
 
             if (dynamic)
                 XFREE(myBuffer, ssl->heap, DYNAMIC_TYPE_WRITEV);
@@ -17693,11 +17705,14 @@ int wolfSSL_get_server_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
         unsigned int   derSz = 0;
         int sz;
 
+        PRIVATE_KEY_UNLOCK();
         if (wc_ecc_export_x963(ssl->peerEccKey, NULL, &derSz) !=
                 LENGTH_ONLY_E) {
             WOLFSSL_MSG("get ecc der size failed");
+            PRIVATE_KEY_LOCK();
             return WOLFSSL_FAILURE;
         }
+        PRIVATE_KEY_LOCK();
 
         derSz += MAX_SEQ_SZ + (2 * MAX_ALGO_SZ) + MAX_SEQ_SZ + TRAILING_ZERO;
         der = (unsigned char*)XMALLOC(derSz, ssl->heap, DYNAMIC_TYPE_KEY);
@@ -24568,8 +24583,9 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
                             #endif
                                 return WOLFSSL_FAILURE;
                             }
-
+                            PRIVATE_KEY_UNLOCK();
                             if (wc_ecc_export_x963(ecc, der, &derSz) != 0) {
+                                PRIVATE_KEY_LOCK();
                                 wc_ecc_free(ecc);
                             #ifdef WOLFSSL_SMALL_STACK
                                 XFREE(ecc, NULL, DYNAMIC_TYPE_ECC);
@@ -24577,6 +24593,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
                                 XFREE(der, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
                                 return WOLFSSL_FAILURE;
                             }
+                            PRIVATE_KEY_LOCK();
                             for (i = 0; i < derSz; i++) {
                                 char val[5];
                                 int valSz = 5;
@@ -32790,6 +32807,7 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
             priv = (unsigned char*)XMALLOC(privSz,
                     NULL, DYNAMIC_TYPE_PRIVATE_KEY);
         }
+        PRIVATE_KEY_UNLOCK();
         if (pub == NULL || priv == NULL) {
             WOLFSSL_MSG("Unable to malloc memory");
         }
@@ -32822,6 +32840,7 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
                    ret = WOLFSSL_SUCCESS;
             }
         }
+        PRIVATE_KEY_LOCK();
     }
 
     if (initTmpRng)
@@ -32883,6 +32902,7 @@ int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
         if (dh->inSet == 0 && SetDhInternal(dh) != WOLFSSL_SUCCESS){
             WOLFSSL_MSG("Bad DH set internal");
         }
+        PRIVATE_KEY_UNLOCK();
         if (privSz <= 0 || pubSz <= 0)
             WOLFSSL_MSG("Bad BN2bin set");
         else if (wc_DhAgree((DhKey*)dh->internal, key, &keySz,
@@ -32890,6 +32910,7 @@ int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
             WOLFSSL_MSG("wc_DhAgree failed");
         else
             ret = (int)keySz;
+        PRIVATE_KEY_LOCK();
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -38878,8 +38899,10 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outlen,
         setGlobalRNG = 1;
     }
 #endif
+    PRIVATE_KEY_UNLOCK();
     ret = wc_ecc_shared_secret_ssh(key, (ecc_point*)pub_key->internal,
             (byte *)out, &len);
+    PRIVATE_KEY_LOCK();
 #if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
     && !defined(HAVE_FIPS)
     if (setGlobalRNG)
@@ -46856,7 +46879,7 @@ int wolfSSL_CRYPTO_set_mem_functions(
         return WOLFSSL_FAILURE;
 }
 
-#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST)
+#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST) && !defined(NO_DH)
 WOLFSSL_DH *wolfSSL_DH_generate_parameters(int prime_len, int generator,
                            void (*callback) (int, int, void *), void *cb_arg)
 {
@@ -46923,7 +46946,7 @@ int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len, int generat
 
     return WOLFSSL_SUCCESS;
 }
-#endif /* WOLFSSL_KEY_GEN && !HAVE_SELFTEST */
+#endif /* WOLFSSL_KEY_GEN && !HAVE_SELFTEST && !NO_DH */
 
 int wolfSSL_ERR_load_ERR_strings(void)
 {
@@ -56157,34 +56180,52 @@ static int wolfssl_conf_value_cmp(const WOLFSSL_CONF_VALUE *a,
     }
 }
 
-/* Use MD5 for hashing as OpenSSL uses a hash algorithm that is
- * "not as good as MD5, but still good" so using MD5 should
- * be good enough for this application. The produced hashes don't
+/* Use SHA for hashing as OpenSSL uses a hash algorithm that is
+ * "not as good as MD5, but still good" so using SHA should be more
+ * than good enough for this application. The produced hashes don't
  * need to line up between OpenSSL and wolfSSL. The hashes are for
  * internal indexing only */
 unsigned long wolfSSL_LH_strhash(const char *str)
 {
     unsigned long ret = 0;
+#ifndef NO_SHA
+    wc_Sha sha;
     int strLen;
-    byte digest[WC_MD5_DIGEST_SIZE];
+    byte digest[WC_SHA_DIGEST_SIZE];
+#endif
     WOLFSSL_ENTER("wolfSSL_LH_strhash");
 
     if (!str)
         return 0;
 
-#ifndef NO_MD5
+#ifndef NO_SHA
     strLen = (int)XSTRLEN(str);
-    if (wc_Md5Hash((const byte*)str, strLen, digest) != 0) {
-        WOLFSSL_MSG("wc_Md5Hash error");
+
+    if (wc_InitSha_ex(&sha, NULL, 0) != 0) {
+        WOLFSSL_MSG("SHA1 Init failed");
         return 0;
     }
+
+    ret = wc_ShaUpdate(&sha, (const byte *)str, (word32)strLen);
+    if (ret != 0) {
+        WOLFSSL_MSG("SHA1 Update failed");
+    } else {
+        ret = wc_ShaFinal(&sha, digest);
+        if (ret != 0) {
+            WOLFSSL_MSG("SHA1 Final failed");
+        }
+    }
+    wc_ShaFree(&sha);
+    if (ret != 0)
+        return 0;
+
     /* Take first 4 bytes in small endian as unsigned long */
     ret  =  (unsigned int)digest[0];
     ret |= ((unsigned int)digest[1] << 8 );
     ret |= ((unsigned int)digest[2] << 16);
     ret |= ((unsigned int)digest[3] << 24);
 #else
-    WOLFSSL_MSG("No md5 available for wolfSSL_LH_strhash");
+    WOLFSSL_MSG("No SHA available for wolfSSL_LH_strhash");
 #endif
     return ret;
 }
@@ -57628,7 +57669,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
             return WOLFSSL_FAILURE;
         }
 
-        if (b->num == SOCKET_INVALID) {
+        if (b->num == WOLFSSL_BIO_ERROR) {
             if (wolfIO_TcpBind(&sfd, b->port) < 0) {
                 WOLFSSL_ENTER("wolfIO_TcpBind error");
                 return WOLFSSL_FAILURE;
@@ -57915,7 +57956,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
             bio->method = method;
 #endif
             bio->shutdown = BIO_CLOSE; /* default to close things */
-            bio->num = SOCKET_INVALID; /* Default to invalid socket */
+            bio->num = WOLFSSL_BIO_ERROR;
             bio->init = 1;
             if (method->type == WOLFSSL_BIO_MEMORY ||
                     method->type == WOLFSSL_BIO_BIO) {
@@ -58064,7 +58105,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
                 if (bio->type == WOLFSSL_BIO_SSL && bio->ptr)
                     wolfSSL_free((WOLFSSL*)bio->ptr);
             #ifdef CloseSocket
-                if (bio->type == WOLFSSL_BIO_SOCKET && bio->num)
+                if ((bio->type == WOLFSSL_BIO_SOCKET) && (bio->num > 0))
                     CloseSocket(bio->num);
             #endif
             }
@@ -58076,7 +58117,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
                 }
             #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR)\
                 && !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
-                else if (bio->num != SOCKET_INVALID) {
+                else if (bio->num != WOLFSSL_BIO_ERROR) {
                     XCLOSE(bio->num);
                 }
             #endif
@@ -58247,7 +58288,7 @@ int wolfSSL_BIO_get_fd(WOLFSSL_BIO *bio, int* fd)
         return bio->num;
     }
 
-    return SOCKET_INVALID;
+    return WOLFSSL_BIO_ERROR;
 }
 
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
@@ -59049,8 +59090,10 @@ int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num)
     /* uses input buffer to seed for pseudo random number generation, each
      * thread will potentially have different results this way */
     if (ret == WOLFSSL_SUCCESS) {
+        PRIVATE_KEY_UNLOCK();
         ret = wc_PRF(buf, num, secret, DRBG_SEED_LEN, (const byte*)buf, num,
                 hash, NULL, INVALID_DEVID);
+        PRIVATE_KEY_LOCK();
         ret = (ret == 0) ? WOLFSSL_SUCCESS: WOLFSSL_FAILURE;
     }
 #else
