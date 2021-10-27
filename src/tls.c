@@ -4297,18 +4297,46 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
     #else
         word32 pSz, gSz;
 
+        ssl->buffers.serverDH_P.buffer = NULL;
+        ssl->buffers.serverDH_G.buffer = NULL;
         ret = wc_DhGetNamedKeyParamSize(serverGroup->name, &pSz, &gSz, NULL);
-        ssl->buffers.serverDH_P.buffer = (byte*)XMALLOC(pSz,
-                ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        ssl->buffers.serverDH_P.length = pSz;
-        ssl->buffers.serverDH_G.buffer = (byte*)XMALLOC(gSz,
-                ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        ssl->buffers.serverDH_G.length = gSz;
-        wc_DhCopyNamedKey(serverGroup->name,
-                ssl->buffers.serverDH_P.buffer, &pSz,
-                ssl->buffers.serverDH_G.buffer, &gSz,
-                NULL, NULL);
-        ssl->buffers.weOwnDH = 1;
+        if (ret == 0) {
+            ssl->buffers.serverDH_P.buffer =
+                (byte*)XMALLOC(pSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            if (ssl->buffers.serverDH_P.buffer == NULL)
+                ret = MEMORY_E;
+            else
+                ssl->buffers.serverDH_P.length = pSz;
+        }
+        if (ret == 0) {
+            ssl->buffers.serverDH_G.buffer =
+                (byte*)XMALLOC(gSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            if (ssl->buffers.serverDH_G.buffer == NULL) {
+                ret = MEMORY_E;
+            } else
+                ssl->buffers.serverDH_G.length = gSz;
+        }
+        if (ret == 0) {
+            ret = wc_DhCopyNamedKey(serverGroup->name,
+                              ssl->buffers.serverDH_P.buffer, &pSz,
+                              ssl->buffers.serverDH_G.buffer, &gSz,
+                              NULL, NULL);
+        }
+        if (ret == 0) {
+            ssl->buffers.weOwnDH = 1;
+        } else {
+            if (ssl->buffers.serverDH_P.buffer != NULL) {
+                XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                ssl->buffers.serverDH_P.length = 0;
+                ssl->buffers.serverDH_P.buffer = NULL;
+            }
+            if (ssl->buffers.serverDH_G.buffer != NULL) {
+                XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                ssl->buffers.serverDH_G.length = 0;
+                ssl->buffers.serverDH_G.buffer = NULL;
+            }
+            return ret;
+        }
     #endif
 
         ssl->namedGroup = serverGroup->name;
