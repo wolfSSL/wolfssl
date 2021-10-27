@@ -19532,7 +19532,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         }
 #endif
         outputSz = buffSz + COMP_EXTRA + DTLS_RECORD_HEADER_SZ;
-        if (IsEncryptionOn(ssl, 1))
+        if (IsEncryptionOn(ssl, 1) || ssl->options.tls1_3)
             outputSz += cipherExtraData(ssl);
 
         /* check for available size */
