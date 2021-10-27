@@ -210,8 +210,9 @@ AC_ARG_ENABLE([fips],
 #   v5 - alias for v5-RC8 (may change)
 #   v5-REL - FIPS 140-3, placeholder for upcoming wolfCrypt v5.0.0
 #   v5-ready - FIPS ready, 140-3 settings
+#   ready -- same as v5-ready
 #   v3 - FIPS Ready, 140-2 settings
-#   ready - same as v3
+#   v3-ready - same as v3
 #   rand - wolfRand
 #   v2 - FIPS 140-2 Cert 3389
 #   no - FIPS build disabled
@@ -226,7 +227,7 @@ AS_CASE([$ENABLED_FIPS],
         FIPS_VERSION="disabled"
         ENABLED_FIPS="no"
     ],
-    [ready|v3],[
+    [v3-ready|v3],[
         ENABLED_FIPS="yes"
         FIPS_VERSION="v3"
         HAVE_FIPS_VERSION=3
@@ -264,14 +265,14 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION_MINOR=1
         ENABLED_FIPS="yes"
     ],
-    [v5-ready],[
+    [ready|v5-ready],[
         FIPS_VERSION="$ENABLED_FIPS"
         HAVE_FIPS_VERSION=5
         HAVE_FIPS_VERSION_MINOR=1
         ENABLED_FIPS="yes"
     ],
     [
-        AC_MSG_ERROR([Invalid value for --enable-fips "$ENABLED_FIPS" (allowed: ready, rand, v1, v2, v5, v5-RC8, v5-ready, no, disabled)])
+        AC_MSG_ERROR([Invalid value for --enable-fips "$ENABLED_FIPS" (allowed: ready, v3-ready, v5-ready, rand, v1, v2, v5, no, disabled)])
     ])
 
 if test -z "$HAVE_FIPS_VERSION_MINOR"
