@@ -10186,7 +10186,7 @@ static int wc_PKCS7_ParseToRecipientInfoSet(PKCS7* pkcs7, byte* in,
                     return ret;
 
                 pkiMsg = in = pkcs7->der;
-                pkiMsgSz = pkcs7->derSz = len;
+                pkiMsgSz = pkcs7->derSz = inSz = len;
                 *idx = 0;
 
                 if (GetSequence(pkiMsg, idx, &length, pkiMsgSz) < 0)

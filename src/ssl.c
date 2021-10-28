@@ -27503,7 +27503,7 @@ int wolfSSL_ASN1_TIME_to_tm(const WOLFSSL_ASN1_TIME* asnTime, struct tm* tm)
         }
 
         currentTime = XTIME(0);
-        if (currentTime < 0) {
+        if (currentTime <= 0) {
             WOLFSSL_MSG("Failed to get current time.");
             return WOLFSSL_FAILURE;
         }
@@ -30259,7 +30259,7 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
     }
 
     fromSecs = XMKTIME(fromTm);
-    if (fromSecs < 0) {
+    if (fromSecs <= 0) {
         WOLFSSL_MSG("XMKTIME for from time failed.");
         return WOLFSSL_FAILURE;
     }
@@ -30278,7 +30278,7 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
     }
 
     toSecs = XMKTIME(toTm);
-    if (toSecs < 0) {
+    if (toSecs <= 0) {
         WOLFSSL_MSG("XMKTIME for to time failed.");
         return WOLFSSL_FAILURE;
     }
@@ -35689,6 +35689,7 @@ static int wolfSSL_RSA_To_Der(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey, vo
         }
     }
 
+    (void)heap; /* unused if memory is disabled */
     WOLFSSL_LEAVE("wolfSSL_RSA_To_Der", derSz);
     return derSz;
 }
@@ -46873,10 +46874,18 @@ int wolfSSL_CRYPTO_set_mem_functions(
         wolfSSL_Realloc_cb r,
         wolfSSL_Free_cb    f)
 {
+#ifdef USE_WOLFSSL_MEMORY
     if (wolfSSL_SetAllocators(m, f, r) == 0)
         return WOLFSSL_SUCCESS;
     else
         return WOLFSSL_FAILURE;
+#else
+    (void)m;
+    (void)r;
+    (void)f;
+    WOLFSSL_MSG("wolfSSL allocator callback functions not compiled in");
+    return WOLFSSL_FAILURE;
+#endif
 }
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST) && !defined(NO_DH)

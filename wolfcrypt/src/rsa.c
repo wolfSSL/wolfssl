@@ -3728,10 +3728,9 @@ int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, byte* sig,
     if (sigCheck != NULL && sigCheck != sigCheckBuf) {
         XFREE(sigCheck, heap, DYNAMIC_TYPE_RSA_BUFFER);
     }
-#else
-    (void)heap;
 #endif
 
+    (void)heap; /* unused if memory is disabled */
     return ret;
 }
 int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
