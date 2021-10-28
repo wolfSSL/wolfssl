@@ -10378,7 +10378,7 @@ static const CertNameData certNameSubject[] = {
 };
 
 static const int certNameSubjectSz =
-        sizeof(certNameSubject) / sizeof(CertNameData);
+        (int) (sizeof(certNameSubject) / sizeof(CertNameData));
 
 /* Full email OID. */
 static const byte emailOid[] = {
