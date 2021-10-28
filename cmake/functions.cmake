@@ -303,10 +303,10 @@ function(generate_lib_src_list LIB_SOURCES)
          if(BUILD_FIPS_V1)
               # fips first  file
               list(APPEND LIB_SOURCES ctaocrypt/src/wolfcrypt_first.c)
-              
+
               list(APPEND LIB_SOURCES
                    ctaocrypt/src/hmac.c
-                   ctaocrypt/src/random.c 
+                   ctaocrypt/src/random.c
                    ctaocrypt/src/sha256.c)
 
               if(BUILD_RSA)
@@ -421,6 +421,22 @@ function(generate_lib_src_list LIB_SOURCES)
               list(APPEND LIB_SOURCES wolfcrypt/src/wolfcrypt_last.c)
          endif()
 
+         if(BUILD_FIPS_V5)
+              list(APPEND LIB_SOURCES wolfcrypt/src/wolfcrypt_first.c)
+
+              list(APPEND LIB_SOURCES
+                wolfcrypt/src/hmac.c
+                wolfcrypt/src/random.c
+                wolfcrypt/src/sha256.c)
+
+              list(APPEND LIB_SOURCES
+                wolfcrypt/src/kdf.c)
+
+              if(BUILD_RSA)
+                   list(APPEND LIB_SOURCES wolfcrypt/src/rsa.c)
+              endif()
+         endif()
+
          if(BUILD_FIPS_RAND)
               list(APPEND LIB_SOURCES
                    wolfcrypt/src/wolfcrypt_first.c 
@@ -455,6 +471,10 @@ function(generate_lib_src_list LIB_SOURCES)
          wolfcrypt/src/cpuid.c)
 
     if(NOT BUILD_FIPS_RAND)
+         if(NOT BUILD_FIPS_V5)
+              list(APPEND LIB_SOURCES wolfcrypt/src/kdf.c)
+         endif()
+
          if(NOT BUILD_FIPS_V2 AND BUILD_RNG)
               list(APPEND LIB_SOURCES wolfcrypt/src/random.c)
          endif()
