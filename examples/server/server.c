@@ -395,7 +395,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
             /* Read data */
             while (rx_pos < len) {
                 ret = SSL_read(ssl, &buffer[rx_pos], len - rx_pos);
-                if (ret < 0) {
+                if (ret <= 0) {
                     err = SSL_get_error(ssl, 0);
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     if (err == WC_PENDING_E) {
@@ -3180,6 +3180,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         }
         else if (err == 0 || err == WOLFSSL_ERROR_ZERO_RETURN) {
             err = ServerEchoData(ssl, clientfd, echoData, block, throughput);
+            if (err == WOLFSSL_ERROR_ZERO_RETURN) /* Got close notify */
+                err = 0;
             if (err != 0) {
                 SSL_free(ssl); ssl = NULL;
                 SSL_CTX_free(ctx); ctx = NULL;
@@ -3196,13 +3198,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         Task_yield();
 #endif
 
-        if (dtlsUDP == 0) {
-            ret = SSL_shutdown(ssl);
-            if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE) {
-                ret = SSL_shutdown(ssl); /* bidirectional shutdown */
-                if (ret == WOLFSSL_SUCCESS)
-                    printf("Bidirectional shutdown complete\n");
-            }
+        ret = SSL_shutdown(ssl);
+        if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE) {
+            ret = SSL_shutdown(ssl); /* bidirectional shutdown */
+            if (ret == WOLFSSL_SUCCESS)
+                printf("Bidirectional shutdown complete\n");
         }
 
         /* display collected statistics */

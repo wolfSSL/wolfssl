@@ -19378,33 +19378,18 @@ int IsSCR(WOLFSSL* ssl)
 #ifdef WOLFSSL_DTLS
 static int ModifyForMTU(WOLFSSL* ssl, int buffSz, int outputSz, int mtuSz)
 {
-    int overflowSz = outputSz - mtuSz;
+    int recordExtra = outputSz - buffSz;
 
     (void)ssl;
 
-    if (overflowSz > 0) {
+    if (recordExtra > 0 && outputSz > mtuSz) {
+        buffSz = mtuSz - recordExtra;
 #ifndef WOLFSSL_AEAD_ONLY
-        if (ssl->specs.cipher_type == block) {
-            int overflowBlocks = (overflowSz / ssl->specs.block_size);
-
-            if (overflowSz % ssl->specs.block_size != 0)
-                overflowBlocks++;
-            buffSz -= ssl->specs.block_size * overflowBlocks;
-        }
-        else {
-            buffSz -= overflowSz;
-        }
-#else
-        buffSz -= overflowSz;
+        /* Subtract a block size to be certain that returned fragment
+         * size won't get more padding. */
+        if (ssl->specs.cipher_type == block)
+            buffSz -= ssl->specs.block_size;
 #endif
-
-#ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls)
-            buffSz -= DTLS_HANDSHAKE_HEADER_SZ;
-        else
-#endif
-            buffSz -= HANDSHAKE_HEADER_SZ;
-
     }
 
     return buffSz;
@@ -19509,16 +19494,12 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 
 #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {
-            buffSz = wolfSSL_GetMaxFragSize(ssl, sz - sent +
-                    DTLS_HANDSHAKE_HEADER_SZ);
-            buffSz -= DTLS_HANDSHAKE_HEADER_SZ;
+            buffSz = wolfSSL_GetMaxFragSize(ssl, sz - sent);
         }
         else
 #endif
         {
-            buffSz = wolfSSL_GetMaxFragSize(ssl, sz - sent +
-                    HANDSHAKE_HEADER_SZ);
-            buffSz -= HANDSHAKE_HEADER_SZ;
+            buffSz = wolfSSL_GetMaxFragSize(ssl, sz - sent);
 
         }
 
@@ -32402,8 +32383,14 @@ int wolfSSL_AsyncPush(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev)
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 
-/* Return the max fragment size. This is essentially the maximum
- * fragment_length available. */
+/**
+ * Return the max fragment size. This is essentially the maximum
+ * fragment_length available.
+ * @param ssl         WOLFSSL object containing ciphersuite information.
+ * @param maxFragment The amount of space we want to check is available. This
+ *                    is only the fragment length WITHOUT the (D)TLS headers.
+ * @return            Max fragment size
+ */
 int wolfSSL_GetMaxFragSize(WOLFSSL* ssl, int maxFragment)
 {
     (void) ssl; /* Avoid compiler warnings */
@@ -32424,11 +32411,13 @@ int wolfSSL_GetMaxFragSize(WOLFSSL* ssl, int maxFragment)
         /* Given a input buffer size of maxFragment, how big will the
          * encrypted output be? */
         if (IsEncryptionOn(ssl, 1)) {
-            outputSz = BuildMessage(ssl, NULL, 0, NULL, maxFragment,
+            outputSz = BuildMessage(ssl, NULL, 0, NULL,
+                    maxFragment + DTLS_HANDSHAKE_HEADER_SZ,
                     application_data, 0, 1, 0, CUR_ORDER);
         }
         else {
-            outputSz = maxFragment + DTLS_RECORD_HEADER_SZ;
+            outputSz = maxFragment + DTLS_RECORD_HEADER_SZ +
+                    DTLS_HANDSHAKE_HEADER_SZ;
         }
 
         /* Readjust maxFragment for MTU size. */

@@ -3184,7 +3184,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                                       useLibOqs, oqsAlg, exitWithRet, version,
                                       onlyKeyShare);
         wolfSSL_CTX_free(ctx); ctx = NULL;
-        if (!exitWithRet)
+        if (((func_args*)args)->return_code != EXIT_SUCCESS && !exitWithRet)
             XEXIT_T(EXIT_SUCCESS);
         else
             goto exit;
