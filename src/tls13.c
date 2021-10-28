@@ -3276,8 +3276,13 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
     if (ret != WC_NOT_PENDING_E) {
         /* Check for error */
-        if (ret < 0)
+        if (ret < 0) {
+            if (ret == WC_PENDING_E) {
+                /* Mark message as not received so it can process again */
+                ssl->msgsReceived.got_server_hello--;
+            }
             return ret;
+        }
     }
     else
 #endif
@@ -4533,8 +4538,9 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
     if (ret != WC_NOT_PENDING_E) {
         /* Check for error */
-        if (ret < 0)
-            return ret;
+        if (ret < 0) {
+            goto exit_dch;
+        }
     }
     else
 #endif

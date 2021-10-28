@@ -15559,11 +15559,14 @@ exit:
     #endif
 
         WOLFSSL_ENTER("DecodeCertPolicy");
-        #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
+
+    #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
         /* Check if cert is null before dereferencing below */
         if (cert == NULL)
             return BAD_FUNC_ARG;
-        #endif
+    #else
+        (void)cert;
+    #endif
 
     #if defined(WOLFSSL_CERT_EXT)
          cert->extCertPoliciesNb = 0;
