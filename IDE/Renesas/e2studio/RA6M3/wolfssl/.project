@@ -216,6 +216,11 @@
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/hash.c</locationURI>
 		</link>
 		<link>
+			<name>wolfcrypt/kdf.c</name>
+			<type>1</type>
+			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/kdf.c</locationURI>
+		</link>
+		<link>
 			<name>wolfcrypt/hc128.c</name>
 			<type>1</type>
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/hc128.c</locationURI>

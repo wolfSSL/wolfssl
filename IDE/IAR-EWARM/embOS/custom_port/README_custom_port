@@ -45,6 +45,7 @@ wolfssl (latest version)
  #     hmac.c                  tfm.c           #
  #     md4.c                   wc_encrypt.c    #
  #     md5.c                   wc_port.c       #
+ #     kdf.c                                   #
  #---------------------------------------------#
 
 5. Once those are all added go to

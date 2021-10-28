@@ -1976,6 +1976,9 @@
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\hash.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\kdf.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\hc128.c</name>
     </file>
     <file>

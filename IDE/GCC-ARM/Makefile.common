@@ -138,6 +138,7 @@ SRC_C += ../../wolfcrypt/src/ge_448.c
 SRC_C += ../../wolfcrypt/src/ge_low_mem.c
 SRC_C += ../../wolfcrypt/src/ge_operations.c
 SRC_C += ../../wolfcrypt/src/hash.c
+SRC_C += ../../wolfcrypt/src/kdf.c
 SRC_C += ../../wolfcrypt/src/integer.c
 SRC_C += ../../wolfcrypt/src/logging.c
 SRC_C += ../../wolfcrypt/src/md5.c

@@ -415,6 +415,11 @@
 			<locationURI>WOLFSSL_ROOT/wolfcrypt/src/ge_operations.c</locationURI>
 		</link>
 		<link>
+			<name>wolfcrypt/src/kdf.c</name>
+			<type>1</type>
+			<locationURI>WOLFSSL_ROOT/wolfcrypt/src/kdf.c</locationURI>
+		</link>
+		<link>
 			<name>wolfcrypt/src/hash.c</name>
 			<type>1</type>
 			<locationURI>WOLFSSL_ROOT/wolfcrypt/src/hash.c</locationURI>
