@@ -57,8 +57,8 @@
 #define X509_PURPOSE_SSL_CLIENT       0
 #define X509_PURPOSE_SSL_SERVER       1
 
-#define NS_SSL_CLIENT                 0
-#define NS_SSL_SERVER                 1
+#define NS_SSL_CLIENT                 WC_NS_SSL_CLIENT
+#define NS_SSL_SERVER                 WC_NS_SSL_SERVER
 
 /* Forward reference */
 

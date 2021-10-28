@@ -3854,12 +3854,14 @@ struct WOLFSSL_X509 {
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
-    byte*            authKeyId;
+    byte*            authKeyId; /* Points into authKeyIdSrc */
+    byte*            authKeyIdSrc;
     byte*            subjKeyId;
     byte*            extKeyUsageSrc;
 #ifdef OPENSSL_ALL
     byte*            subjAltNameSrc;
 #endif
+    byte*            rawCRLInfo;
     byte*            CRLInfo;
     byte*            authInfo;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
@@ -3868,12 +3870,18 @@ struct WOLFSSL_X509 {
 #endif
     word32           pathLength;
     word16           keyUsage;
+    int              rawCRLInfoSz;
     int              CRLInfoSz;
     int              authInfoSz;
     word32           authKeyIdSz;
+    word32           authKeyIdSrcSz;
     word32           subjKeyIdSz;
+    byte             extKeyUsage;
     word32           extKeyUsageSz;
     word32           extKeyUsageCount;
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+    byte             nsCertType;
+#endif
 #ifdef OPENSSL_ALL
     word32           subjAltNameSz;
 #endif
