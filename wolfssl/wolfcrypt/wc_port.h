@@ -1358,15 +1358,10 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         #include <sys/time.h>
     #endif
 
-    typedef signed int time_t;
-
     time_t z_time(time_t *timer);
 
     #define XTIME(tl)       z_time((tl))
     #define XGMTIME(c, t)   gmtime((c))
-    #define WOLFSSL_GMTIME
-
-    #define USE_WOLF_TM
 
 #elif defined(WOLFSSL_TELIT_M2MB)
     typedef long time_t;
