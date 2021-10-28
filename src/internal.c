@@ -8683,7 +8683,7 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
         inputSz += HANDSHAKE_HEADER_SZ;
         headerSz = RECORD_HEADER_SZ;
     }
-    maxFrag = wolfSSL_GetMaxRecordSize(ssl, (int)inputSz);
+    maxFrag = wolfSSL_GetMaxFragSize(ssl, (int)inputSz);
 
     /* Make sure input is not the ssl output buffer as this
      * function doesn't handle that */
@@ -18240,7 +18240,7 @@ exit_buildmsg:
     ssl->options.buildMsgState = BUILD_MSG_BEGIN;
 
     #ifdef WOLFSSL_DTLS
-        if (ret == 0 && ssl->options.dtls)
+        if (ret == 0 && ssl->options.dtls && !sizeOnly)
             DtlsSEQIncrement(ssl, epochOrder);
     #endif
 
@@ -18532,10 +18532,25 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
 
 static int cipherExtraData(WOLFSSL* ssl)
 {
+    int cipherExtra;
     /* Cipher data that may be added by BuildMessage */
-    return ssl->specs.hash_size + ssl->specs.block_size +
-            ssl->specs.aead_mac_size + ssl->specs.iv_size +
-            ssl->specs.pad_size;
+    /* There is always an IV (expect for chacha). For AEAD ciphers,
+     * there is the authentication tag (aead_mac_size). For block
+     * ciphers we have the hash_size MAC on the message, and one
+     * block size for possible padding. */
+    if (ssl->specs.cipher_type == aead) {
+        cipherExtra = ssl->specs.aead_mac_size;
+        /* CHACHA does not have an explicit IV. */
+        if (ssl->specs.bulk_cipher_algorithm != wolfssl_chacha) {
+            cipherExtra += AESGCM_EXP_IV_SZ;
+        }
+    }
+    else {
+        cipherExtra = ssl->specs.iv_size + ssl->specs.block_size +
+            ssl->specs.hash_size;
+    }
+    /* Sanity check so we don't ever return negative. */
+    return cipherExtra > 0 ? cipherExtra : 0;
 }
 
 #ifndef WOLFSSL_NO_TLS12
@@ -18600,7 +18615,7 @@ int SendCertificate(WOLFSSL* ssl)
 
     maxFragment = MAX_RECORD_SIZE;
 
-    maxFragment = wolfSSL_GetMaxRecordSize(ssl, maxFragment);
+    maxFragment = wolfSSL_GetMaxFragSize(ssl, maxFragment);
 
     while (length > 0 && ret == 0) {
         byte*  output = NULL;
@@ -18632,10 +18647,8 @@ int SendCertificate(WOLFSSL* ssl)
         else {
         #ifdef WOLFSSL_DTLS
             fragSz = min(length, maxFragment);
-            sendSz += fragSz + DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA
-                      + HANDSHAKE_HEADER_SZ;
-            i      += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA
-                      + HANDSHAKE_HEADER_SZ;
+            sendSz += fragSz + DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_HEADER_SZ;
+            i      += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_HEADER_SZ;
         #endif
         }
 
@@ -19364,6 +19377,28 @@ int IsSCR(WOLFSSL* ssl)
 }
 
 
+#ifdef WOLFSSL_DTLS
+static int ModifyForMTU(WOLFSSL* ssl, int buffSz, int outputSz, int mtuSz)
+{
+    int recordExtra = outputSz - buffSz;
+
+    (void)ssl;
+
+    if (recordExtra > 0 && outputSz > mtuSz) {
+        buffSz = mtuSz - recordExtra;
+#ifndef WOLFSSL_AEAD_ONLY
+        /* Subtract a block size to be certain that returned fragment
+         * size won't get more padding. */
+        if (ssl->specs.cipher_type == block)
+            buffSz -= ssl->specs.block_size;
+#endif
+    }
+
+    return buffSz;
+}
+#endif
+
+
 int SendData(WOLFSSL* ssl, const void* data, int sz)
 {
     int sent = 0,  /* plainText size */
@@ -19459,9 +19494,18 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         byte  comp[MAX_RECORD_SIZE + MAX_COMP_EXTRA];
 #endif
 
-        if (sent == sz) break;
+#ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls) {
+            buffSz = wolfSSL_GetMaxFragSize(ssl, sz - sent);
+        }
+        else
+#endif
+        {
+            buffSz = wolfSSL_GetMaxFragSize(ssl, sz - sent);
 
-        buffSz = wolfSSL_GetMaxRecordSize(ssl, sz - sent);
+        }
+
+        if (sent == sz) break;
 
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_DTLS_SIZE_CHECK)
         if (ssl->options.dtls && (buffSz < sz - sent)) {
@@ -19470,9 +19514,8 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
             return ssl->error;
         }
 #endif
-        outputSz = buffSz + COMP_EXTRA + DTLS_RECORD_HEADER_SZ +
-                DTLS_HANDSHAKE_HEADER_SZ;
-        if (IsEncryptionOn(ssl, 1))
+        outputSz = buffSz + COMP_EXTRA + DTLS_RECORD_HEADER_SZ;
+        if (IsEncryptionOn(ssl, 1) || ssl->options.tls1_3)
             outputSz += cipherExtraData(ssl);
 
         /* check for available size */
@@ -32342,8 +32385,15 @@ int wolfSSL_AsyncPush(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev)
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 
-/* return the max record size */
-int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment)
+/**
+ * Return the max fragment size. This is essentially the maximum
+ * fragment_length available.
+ * @param ssl         WOLFSSL object containing ciphersuite information.
+ * @param maxFragment The amount of space we want to check is available. This
+ *                    is only the fragment length WITHOUT the (D)TLS headers.
+ * @return            Max fragment size
+ */
+int wolfSSL_GetMaxFragSize(WOLFSSL* ssl, int maxFragment)
 {
     (void) ssl; /* Avoid compiler warnings */
 
@@ -32358,24 +32408,27 @@ int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment)
 #endif /* HAVE_MAX_FRAGMENT */
 #ifdef WOLFSSL_DTLS
     if (IsDtlsNotSctpMode(ssl)) {
-        int cipherExtra = IsEncryptionOn(ssl, 1) ? cipherExtraData(ssl) : 0;
-        if (maxFragment > MAX_UDP_SIZE) {
-            maxFragment = MAX_UDP_SIZE;
+        int outputSz, mtuSz;
+
+        /* Given a input buffer size of maxFragment, how big will the
+         * encrypted output be? */
+        if (IsEncryptionOn(ssl, 1)) {
+            outputSz = BuildMessage(ssl, NULL, 0, NULL,
+                    maxFragment + DTLS_HANDSHAKE_HEADER_SZ,
+                    application_data, 0, 1, 0, CUR_ORDER);
         }
-        if (maxFragment > MAX_MTU - COMP_EXTRA - DTLS_RECORD_HEADER_SZ -
-                DTLS_HANDSHAKE_HEADER_SZ - cipherExtra) {
-            maxFragment = MAX_MTU - COMP_EXTRA - DTLS_RECORD_HEADER_SZ -
-                    DTLS_HANDSHAKE_HEADER_SZ - cipherExtra;
+        else {
+            outputSz = maxFragment + DTLS_RECORD_HEADER_SZ +
+                    DTLS_HANDSHAKE_HEADER_SZ;
         }
-    #if defined(WOLFSSL_DTLS_MTU)
-        {
-            int overheadSz = DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ +
-                    COMP_EXTRA + cipherExtra;
-            if (maxFragment > ssl->dtlsMtuSz - overheadSz) {
-                maxFragment = ssl->dtlsMtuSz - overheadSz;
-            }
-        }
-    #endif
+
+        /* Readjust maxFragment for MTU size. */
+        #if defined(WOLFSSL_DTLS_MTU)
+            mtuSz = ssl->dtlsMtuSz;
+        #else
+            mtuSz = MAX_MTU;
+        #endif
+        maxFragment = ModifyForMTU(ssl, maxFragment, outputSz, mtuSz);
     }
 #endif
 

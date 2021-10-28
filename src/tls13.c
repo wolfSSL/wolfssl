@@ -5748,7 +5748,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
     if (ssl->fragOffset != 0)
         length -= (ssl->fragOffset + headerSz);
 
-    maxFragment = wolfSSL_GetMaxRecordSize(ssl, MAX_RECORD_SIZE);
+    maxFragment = wolfSSL_GetMaxFragSize(ssl, MAX_RECORD_SIZE);
 
     while (length > 0 && ret == 0) {
         byte*  output = NULL;

@@ -122,11 +122,16 @@ int unit_test(int argc, char** argv)
     }
 #endif
 
-    ApiTest();
+#ifdef WOLFSSL_ALLOW_SKIP_UNIT_TESTS
+    if (argc == 1)
+#endif
+    {
+        ApiTest();
 
-    if ( (ret = HashTest()) != 0){
-        printf("hash test failed with %d\n", ret);
-        goto exit;
+        if ( (ret = HashTest()) != 0){
+            printf("hash test failed with %d\n", ret);
+            goto exit;
+        }
     }
 
 #ifndef NO_WOLFSSL_CIPHER_SUITE_TEST

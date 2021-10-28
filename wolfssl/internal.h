@@ -4649,7 +4649,7 @@ WOLFSSL_LOCAL void ShrinkOutputBuffer(WOLFSSL* ssl);
 WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
 
 WOLFSSL_LOCAL int SetTicket(WOLFSSL*, const byte*, word32);
-WOLFSSL_LOCAL int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment);
+WOLFSSL_LOCAL int wolfSSL_GetMaxFragSize(WOLFSSL* ssl, int maxFragment);
 
 #if defined(WOLFSSL_IOTSAFE) && defined(HAVE_PK_CALLBACKS)
 WOLFSSL_LOCAL IOTSAFE *wolfSSL_get_iotsafe_ctx(WOLFSSL *ssl);
