@@ -566,6 +566,11 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
  */
 #define R(a, b) rotlFixed(a, b)
 
+/* (2^32 - 1) */
+#define WORD32_MAX 4294967295
+/* (2^32 - 1) * 32, used in a couple of scrypt max calculations. */
+#define SCRYPT_MAX 137438953440
+
 /* One round of Salsa20/8.
  * Code taken from RFC 7914: scrypt PBKDF.
  *
@@ -755,7 +760,15 @@ int wc_scrypt(byte* output, const byte* passwd, int passLen,
     if (cost < 1 || cost >= 128 * blockSize / 8 || parallel < 1 || dkLen < 1)
         return BAD_FUNC_ARG;
 
+    if (parallel > (SCRYPT_MAX / (128 * blockSize)))
+        return BAD_FUNC_ARG;
+
+    if (blockSize > (WORD32_MAX / 128))
+        return BAD_FUNC_ARG;
+
     bSz = 128 * blockSize;
+    if (parallel > (WORD32_MAX / bSz))
+        return BAD_FUNC_ARG;
     blocksSz = bSz * parallel;
     blocks = (byte*)XMALLOC(blocksSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (blocks == NULL) {
