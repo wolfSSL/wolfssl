@@ -134,11 +134,6 @@ extern "C" {
 #undef  NO_DES3
 #define NO_DES3
 
-#if 1
-#undef  NO_ASN_TIME
-#define NO_ASN_TIME
-#endif
-
 #undef  WOLFSSL_STATIC_MEMORY
 #define WOLFSSL_STATIC_MEMORY
 
