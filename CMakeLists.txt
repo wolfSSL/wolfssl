@@ -32,12 +32,12 @@ project(wolfssl VERSION 5.0.1 LANGUAGES C)
 
 # shared library versioning
 # increment if interfaces have been added, removed or changed
-set(LIBTOOL_CURRENT 27)
+set(LIBTOOL_CURRENT 30)
 # increment if source code has changed  set to zero if current is incremented
 set(LIBTOOL_REVISION 0)
 # increment if interfaces have been added set to zero if interfaces have been
 # removed or changed
-set(LIBTOOL_AGE 3)
+set(LIBTOOL_AGE 0)
 
 math(EXPR LIBTOOL_SO_VERSION "${LIBTOOL_CURRENT} - ${LIBTOOL_AGE}")
 set(LIBTOOL_FULL_VERSION ${LIBTOOL_SO_VERSION}.${LIBTOOL_AGE}.${LIBTOOL_REVISION})
@@ -1488,6 +1488,8 @@ file(APPEND ${CYASSL_OPTION_FILE} ${OPTION_FILE_CONTENTS})
 
 # TODO: - Build shared/static libs based on enables. Check CMake
 #         global flag BUILD_SHARED_LIBS.
+option(BUILD_SHARED_LIBS "Build shared libraries (.dll/.so) instead of static ones (.lib/.a)" ON)
+
 set(LIB_SOURCES "")
 # Generates a list of sources to include in the library.
 # Corresponds to the instances of "src_libwolfssl_la_SOURCES += ..."
@@ -1820,3 +1822,13 @@ install(EXPORT wolfssl-targets
 
 # TODO: Distro build + rules for what to include in the distro.
 #       See various include.am files.
+
+set(prefix ${CMAKE_INSTALL_PREFIX})
+set(exec_prefix "\${prefix}")
+set(libdir "\${exec_prefix}/lib")
+set(includedir "\${prefix}/include")
+set(VERSION ${PROJECT_VERSION})
+
+configure_file(support/wolfssl.pc.in ${CMAKE_CURRENT_BINARY_DIR}/support/wolfssl.pc @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/support/wolfssl.pc
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
