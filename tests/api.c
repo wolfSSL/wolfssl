@@ -4586,7 +4586,9 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     }
 #endif
 
+    #ifdef WOLFSSL_ASYNC_CRYPT
     err = 0; /* Reset error */
+    #endif
     do {
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (err == WC_PENDING_E) {
@@ -4788,7 +4790,9 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_loop(void* args)
             goto done;
         }
 
+        #ifdef WOLFSSL_ASYNC_CRYPT
         err = 0; /* Reset error */
+        #endif
         do {
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (err == WC_PENDING_E) {
@@ -4982,7 +4986,9 @@ static void test_client_nofail(void* args, cbType cb)
         cbf->ssl_ready(ssl);
     }
 
+    #ifdef WOLFSSL_ASYNC_CRYPT
     err = 0; /* Reset error */
+    #endif
     do {
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (err == WC_PENDING_E) {
@@ -5163,7 +5169,9 @@ static void test_client_reuse_WOLFSSLobj(void* args, void *cb, void* server_args
         cbf->ssl_ready(ssl);
     }
 
+    #ifdef WOLFSSL_ASYNC_CRYPT
     err = 0; /* Reset error */
+    #endif
     do {
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (err == WC_PENDING_E) {
@@ -5221,7 +5229,9 @@ static void test_client_reuse_WOLFSSLobj(void* args, void *cb, void* server_args
         goto done;
     }
 
+    #ifdef WOLFSSL_ASYNC_CRYPT
     err = 0; /* Reset error */
+    #endif
     do {
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (err == WC_PENDING_E) {
@@ -5348,7 +5358,9 @@ static void test_client_verifyDepth(void* args)
         goto done;
     }
 
+    #ifdef WOLFSSL_ASYNC_CRYPT
     err = 0; /* Reset error */
+    #endif
     do {
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (err == WC_PENDING_E) {
@@ -5539,7 +5551,9 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
         callbacks->ssl_ready(ssl);
 
 
+    #ifdef WOLFSSL_ASYNC_CRYPT
     err = 0; /* Reset error */
+    #endif
     do {
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (err == WC_PENDING_E) {
@@ -5703,7 +5717,9 @@ static void run_wolfssl_client(void* args)
     if (callbacks->ssl_ready)
         callbacks->ssl_ready(ssl);
 
+    #ifdef WOLFSSL_ASYNC_CRYPT
     err = 0; /* Reset error */
+    #endif
     do {
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (err == WC_PENDING_E) {
@@ -5720,7 +5736,9 @@ static void run_wolfssl_client(void* args)
         /*err_sys("SSL_connect failed");*/
     }
     else {
+        #ifdef WOLFSSL_ASYNC_CRYPT
         err = 0; /* Reset error */
+        #endif
         do {
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (err == WC_PENDING_E) {
@@ -5733,7 +5751,9 @@ static void run_wolfssl_client(void* args)
         } while (err == WC_PENDING_E);
         AssertIntEQ(len, ret);
 
+        #ifdef WOLFSSL_ASYNC_CRYPT
         err = 0; /* Reset error */
+        #endif
         do {
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (err == WC_PENDING_E) {
@@ -6029,7 +6049,9 @@ static void test_client_get_finished(void* args, cbType cb)
         cbf->ssl_ready(ssl);
     }
 
+    #ifdef WOLFSSL_ASYNC_CRYPT
     err = 0; /* Reset error */
+    #endif
     do {
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (err == WC_PENDING_E) {
@@ -6055,11 +6077,13 @@ static void test_client_get_finished(void* args, cbType cb)
     XMEMSET(client_side_msg2, 0, MD_MAX_SIZE);
     msg_len = wolfSSL_get_peer_finished(ssl, client_side_msg2, MD_MAX_SIZE);
     AssertIntGE(msg_len, 0);
-    
+
     if (cb != NULL)
         (cb)(ctx, ssl);
-    
+
+    #ifdef WOLFSSL_ASYNC_CRYPT
     err = 0; /* Reset error */
+    #endif
     do {
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (err == WC_PENDING_E) {
@@ -6075,7 +6099,9 @@ static void test_client_get_finished(void* args, cbType cb)
         goto done;
     }
 
+    #ifdef WOLFSSL_ASYNC_CRYPT
     err = 0; /* Reset error */
+    #endif
     do {
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (err == WC_PENDING_E) {
@@ -38771,7 +38797,9 @@ static void test_wolfSSL_SESSION(void)
     tcp_connect(&sockfd, wolfSSLIP, ready.port, 0, 0, ssl);
     AssertIntEQ(wolfSSL_set_fd(ssl, sockfd), SSL_SUCCESS);
 
+    #ifdef WOLFSSL_ASYNC_CRYPT
     err = 0; /* Reset error */
+    #endif
     do {
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (err == WC_PENDING_E) {
@@ -38784,7 +38812,9 @@ static void test_wolfSSL_SESSION(void)
     } while (err == WC_PENDING_E);
     AssertIntEQ(ret, WOLFSSL_SUCCESS);
 
+    #ifdef WOLFSSL_ASYNC_CRYPT
     err = 0; /* Reset error */
+    #endif
     do {
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (err == WC_PENDING_E) {
@@ -38797,7 +38827,9 @@ static void test_wolfSSL_SESSION(void)
     } while (err == WC_PENDING_E);
     AssertIntEQ(ret, (int)XSTRLEN(sendGET));
 
+    #ifdef WOLFSSL_ASYNC_CRYPT
     err = 0; /* Reset error */
+    #endif
     do {
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (err == WC_PENDING_E) {
