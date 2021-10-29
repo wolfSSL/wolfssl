@@ -282,7 +282,6 @@
         #endif
         typeof(kernel_fpu_end) *kernel_fpu_end;
 
-        #ifdef WOLFSSL_LINUXKM_SIMD_X86_IRQ_ALLOWED
         #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
             typeof(copy_fpregs_to_fpstate) *copy_fpregs_to_fpstate;
             typeof(copy_kernel_to_fpregs) *copy_kernel_to_fpregs;
@@ -293,7 +292,6 @@
         #endif
         typeof(cpu_number) *cpu_number;
         typeof(nr_cpu_ids) *nr_cpu_ids;
-        #endif /* WOLFSSL_LINUXKM_SIMD_X86_IRQ_ALLOWED */
 
         #endif /* WOLFSSL_LINUXKM_SIMD_X86 */
 
@@ -399,18 +397,16 @@
             #define kernel_fpu_begin (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_begin)
         #endif
         #define kernel_fpu_end (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_end)
-        #ifdef WOLFSSL_LINUXKM_SIMD_X86_IRQ_ALLOWED
-            #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
-                #define copy_fpregs_to_fpstate (wolfssl_linuxkm_get_pie_redirect_table()->copy_fpregs_to_fpstate)
-                #define copy_kernel_to_fpregs (wolfssl_linuxkm_get_pie_redirect_table()->copy_kernel_to_fpregs)
-            #else
-                #define save_fpregs_to_fpstate (wolfssl_linuxkm_get_pie_redirect_table()->save_fpregs_to_fpstate)
-                #define __restore_fpregs_from_fpstate (wolfssl_linuxkm_get_pie_redirect_table()->__restore_fpregs_from_fpstate)
-                #define xfeatures_mask_all (*(wolfssl_linuxkm_get_pie_redirect_table()->xfeatures_mask_all))
-            #endif
-            #define cpu_number (*(wolfssl_linuxkm_get_pie_redirect_table()->cpu_number))
-            #define nr_cpu_ids (*(wolfssl_linuxkm_get_pie_redirect_table()->nr_cpu_ids))
-        #endif /* WOLFSSL_LINUXKM_SIMD_X86_IRQ_ALLOWED */
+        #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
+            #define copy_fpregs_to_fpstate (wolfssl_linuxkm_get_pie_redirect_table()->copy_fpregs_to_fpstate)
+            #define copy_kernel_to_fpregs (wolfssl_linuxkm_get_pie_redirect_table()->copy_kernel_to_fpregs)
+        #else
+            #define save_fpregs_to_fpstate (wolfssl_linuxkm_get_pie_redirect_table()->save_fpregs_to_fpstate)
+            #define __restore_fpregs_from_fpstate (wolfssl_linuxkm_get_pie_redirect_table()->__restore_fpregs_from_fpstate)
+            #define xfeatures_mask_all (*(wolfssl_linuxkm_get_pie_redirect_table()->xfeatures_mask_all))
+        #endif
+        #define cpu_number (*(wolfssl_linuxkm_get_pie_redirect_table()->cpu_number))
+        #define nr_cpu_ids (*(wolfssl_linuxkm_get_pie_redirect_table()->nr_cpu_ids))
     #endif
 
     #define __mutex_init (wolfssl_linuxkm_get_pie_redirect_table()->__mutex_init)
@@ -448,29 +444,14 @@
 
 #ifdef WOLFSSL_LINUXKM_SIMD_X86
 
-#ifdef WOLFSSL_LINUXKM_SIMD_X86_IRQ_ALLOWED
-    extern __must_check int allocate_wolfcrypt_irq_fpu_states(void);
-    extern void free_wolfcrypt_irq_fpu_states(void);
+    extern __must_check int allocate_wolfcrypt_linuxkm_fpu_states(void);
+    extern void free_wolfcrypt_linuxkm_fpu_states(void);
     extern __must_check int save_vector_registers_x86(void);
     extern void restore_vector_registers_x86(void);
-#else /* !WOLFSSL_LINUXKM_SIMD_X86_IRQ_ALLOWED */
-    #define save_vector_registers_x86() ({ \
-        int _ret;                          \
-        preempt_disable();                 \
-        if (! irq_fpu_usable()) {          \
-            preempt_enable();              \
-            _ret = BAD_STATE_E;            \
-        } else {                           \
-            kernel_fpu_begin();            \
-            preempt_enable(); /* kernel_fpu_begin() does its own preempt_disable().  decrement ours. */ \
-            _ret = 0;                      \
-        }                                  \
-        _ret;                              \
-    })
-    #define restore_vector_registers_x86() kernel_fpu_end()
-#endif /* !WOLFSSL_LINUXKM_SIMD_X86_IRQ_ALLOWED */
 
 #elif defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+
+    #error kernel module ARM SIMD is not yet tested or usable.
 
     static WARN_UNUSED_RESULT inline int save_vector_registers_arm(void)
     {
