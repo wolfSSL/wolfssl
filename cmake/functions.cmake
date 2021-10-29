@@ -452,7 +452,6 @@ function(generate_lib_src_list LIB_SOURCES)
 
     list(APPEND LIB_SOURCES
          wolfcrypt/src/hash.c
-         wolfcrypt/src/kdf.c
          wolfcrypt/src/cpuid.c)
 
     if(NOT BUILD_FIPS_RAND)
