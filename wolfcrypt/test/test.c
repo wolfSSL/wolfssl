@@ -20179,6 +20179,12 @@ WOLFSSL_TEST_SUBROUTINE int scrypt_test(void)
     if (XMEMCMP(derived, verify2, sizeof(verify2)) != 0)
         return -9203;
 
+    /* Test case with parallel overflowing */
+    ret = wc_scrypt(derived, (byte*)"password", 16, (byte*)"NaCl", 16, 2, 4, 8388608,
+                    sizeof(verify2));
+    if (ret != BAD_FUNC_ARG)
+        return -9210;
+
     /* Don't run these test on embedded, since they use large mallocs */
 #if !defined(BENCH_EMBEDDED) && !defined(WOLFSSL_LINUXKM) && !defined(HAVE_INTEL_QA)
     ret = wc_scrypt(derived, (byte*)"pleaseletmein", 13,
