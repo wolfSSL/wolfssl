@@ -1662,23 +1662,22 @@ include(GNUInstallDirs)
 
 set(HEADER_EXCLUDE
   "internal.h"
-  "pic32mz-crypt.h"
-  "ti-hash.h"
-  "ti-ccm.h"
-  "nrf51.h"
-  "ksdk_port.h"
-  "dcp_port.h"
-  "xil-sha3.h"
-  "caam_driver.h"
-  "wolfcaam.h"
-  "wolfcaam_sha.h"
-  "stm32.h"
-  "stsafe.h"
-  "esp32-cry.h"
-  "cryptoCell.h"
-  "renesas-tsip-crypt.h"
-  "psoc6_crypto.h"
+  "cyassl/ctaocrypt/port"
+  "wolfssl/wolfcrypt/port/nrf51.h"
+  "wolfssl/wolfcrypt/port/arm"
+  "wolfssl/wolfcrypt/port/cypress"
+  "wolfssl/wolfcrypt/port/Espressif"
+  "wolfssl/wolfcrypt/port/iotsafe"
+  "wolfssl/wolfcrypt/port/nxp"
+  "wolfssl/wolfcrypt/port/pic"
+  "wolfssl/wolfcrypt/port/Renesas"
+  "wolfssl/wolfcrypt/port/silabs"
+  "wolfssl/wolfcrypt/port/st"
+  "wolfssl/wolfcrypt/port/ti"
+  "wolfssl/wolfcrypt/port/xilinx"
   )
+
+# TODO: add support for the various ports
 
 # For distro build don't install options.h.
 # It depends on the architecture and conflicts with Multi-Arch.
@@ -1689,29 +1688,23 @@ endif()
 
 if(NOT BUILD_CRYPTOAUTHLIB)
   list(APPEND HEADER_EXCLUDE
-    "wolfssl/wolfcrypt/port/atmel/atmel.h")
+    "wolfssl/wolfcrypt/port/atmel")
 endif()
 
 if(NOT BUILD_AFALG)
   list(APPEND HEADER_EXCLUDE
-    "wolfssl/wolfcrypt/port/af_alg/afalg_hash.h"
-    "wolfssl/wolfcrypt/port/af_alg/wc_afalg.h")
+    "wolfssl/wolfcrypt/port/af_alg")
 endif()
 
 if(NOT BUILD_KCAPI)
   list(APPEND HEADER_EXCLUDE
-    "wolfssl/wolfcrypt/port/kcapi/wc_kcapi.h"
-    "wolfssl/wolfcrypt/port/kcapi/kcapi_hash.h"
-    "wolfssl/wolfcrypt/port/kcapi/kcapi_hmac.h"
-    "wolfssl/wolfcrypt/port/kcapi/kcapi_ecc.h"
-    "wolfssl/wolfcrypt/port/kcapi/kcapi_rsa.h"
-    "wolfssl/wolfcrypt/port/kcapi/kcapi_dh.h"
+    "wolfssl/wolfcrypt/port/kcapi"
     )
 endif()
 
 if(NOT BUILD_DEVCRYPTO)
   list(APPEND HEADER_EXCLUDE
-    "wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h")
+    "wolfssl/wolfcrypt/port/devcrypto")
 endif()
 
 if(NOT BUILD_ASYNCCRYPT)
@@ -1726,27 +1719,38 @@ if(NOT BUILD_PKCS11)
       )
 endif()
 
-if(NOT BUILD_CAVIUM)
+if(NOT BUILD_CAVIUM AND NOT BUILD_OCTEON_SYNC)
   list(APPEND HEADER_EXCLUDE
-    "wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h")
-endif()
+    "wolfssl/wolfcrypt/port/cavium")
+else()
+  if(NOT BUILD_CAVIUM)
+    list(APPEND HEADER_EXCLUDE
+      "wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h")
+  endif()
 
-if(NOT BUILD_OCTEON_SYNC)
+  if(NOT BUILD_OCTEON_SYNC)
     list(APPEND HEADER_EXCLUDE
       "wolfssl/wolfcrypt/port/cavium/cavium_octeon_sync.h"
       )
+  endif()
 endif()
 
-if(NOT BUILD_INTEL_QA)
-  list(APPEND HEADER_EXCLUDE
-    "wolfssl/wolfcrypt/port/intel/quickassist.h"
-    "wolfssl/wolfcrypt/port/intel/quickassist_mem.h"
-    )
-endif()
 
-if(NOT BUILD_INTEL_QA_SYNC)
+if(NOT BUILD_INTEL_QA AND NOT BUILD_INTEL_QA_SYNC)
   list(APPEND HEADER_EXCLUDE
-    "wolfssl/wolfcrypt/port/intel/quickassist_sync.h")
+    "wolfssl/wolfcrypt/port/intel")
+else()
+  if(NOT BUILD_INTEL_QA)
+    list(APPEND HEADER_EXCLUDE
+      "wolfssl/wolfcrypt/port/intel/quickassist.h"
+      "wolfssl/wolfcrypt/port/intel/quickassist_mem.h"
+      )
+  endif()
+
+  if(NOT BUILD_INTEL_QA_SYNC)
+    list(APPEND HEADER_EXCLUDE
+      "wolfssl/wolfcrypt/port/intel/quickassist_sync.h")
+  endif()
 endif()
 
 if(NOT BUILD_SP)
@@ -1767,11 +1771,7 @@ endif()
 
 if(NOT BUILD_QNXCAAM)
   list(APPEND HEADER_EXCLUDE
-    "wolfssl/wolfcrypt/port/caam/wolfcaam.h"
-    "wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h"
-    "wolfssl/wolfcrypt/port/caam/wolfcaam_ecdsa.h"
-    "wolfssl/wolfcrypt/port/caam/wolfcaam_cmac.h"
-    "wolfssl/wolfcrypt/port/caam/wolfcaam_qnx.h"
+    "wolfssl/wolfcrypt/port/caam"
     )
 endif()
 
