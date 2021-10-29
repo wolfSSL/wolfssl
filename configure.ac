@@ -150,7 +150,7 @@ AS_IF([test "x$thread_ls_on" = "xyes"],[AM_CFLAGS="$AM_CFLAGS -DHAVE_THREAD_LS"]
 # DEBUG
 AX_DEBUG
 AS_IF([test "$ax_enable_debug" = "yes"],
-      [AM_CFLAGS="$DEBUG_CFLAGS $AM_CFLAGS"],
+      [AM_CFLAGS="$AM_CFLAGS $DEBUG_CFLAGS"],
       [AM_CFLAGS="$AM_CFLAGS -DNDEBUG"])
 AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CCASFLAGS="$DEBUG_CFLAGS $AM_CCASFLAGS"],
@@ -744,7 +744,7 @@ then
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
 
     # Enable multiple attribute additions such as DC
-    AM_CFLAGS="-DWOLFSSL_MULTI_ATTRIB $AM_CFLAGS"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MULTI_ATTRIB"
 fi
 
 
@@ -760,14 +760,14 @@ AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xno" ],[
                    # If AX_PTHREAD is adding -Qunused-arguments, need to prepend with -Xcompiler libtool will use it. Newer
                    # versions of clang don't need the -Q flag when using pthreads.
                    AS_CASE([$PTHREAD_CFLAGS],[-Qunused-arguments*],[PTHREAD_CFLAGS="-Xcompiler $PTHREAD_CFLAGS"])
-                   AM_CFLAGS="-D_POSIX_THREADS $AM_CFLAGS $PTHREAD_CFLAGS"
+                   AM_CFLAGS="$AM_CFLAGS -D_POSIX_THREADS $PTHREAD_CFLAGS"
                    LIBS="$LIBS $PTHREAD_LIBS"
                    ],[
                       ENABLED_SINGLETHREADED=yes
                       ])
       ])
 
-AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xyes" ],[ AM_CFLAGS="-DSINGLE_THREADED $AM_CFLAGS" ])
+AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xyes" ],[ AM_CFLAGS="$AM_CFLAGS -DSINGLE_THREADED" ])
 
 
 # DTLS
@@ -780,7 +780,7 @@ AC_ARG_ENABLE([dtls],
     )
 if test "$ENABLED_DTLS" = "yes"
 then
-  AM_CFLAGS="-DWOLFSSL_DTLS $AM_CFLAGS"
+  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS"
 fi
 
 # DTLS change MTU
@@ -791,7 +791,7 @@ AC_ARG_ENABLE([dtls-mtu],
     )
 if test "$ENABLED_DTLS_MTU" = "yes"
 then
-  AM_CFLAGS="-DWOLFSSL_DTLS_MTU $AM_CFLAGS"
+  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS_MTU"
 fi
 
 
@@ -826,7 +826,7 @@ then
         AC_MSG_NOTICE([TLS 1.3 is disabled - disabling Post-handshake Authentication])
         ENABLED_TLS13_POST_AUTH="no"
     else
-        AM_CFLAGS="-DWOLFSSL_POST_HANDSHAKE_AUTH $AM_CFLAGS"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_POST_HANDSHAKE_AUTH"
     fi
 fi
 
@@ -844,7 +844,7 @@ then
         AC_MSG_NOTICE([TLS 1.3 is disabled - disabling HRR Cookie])
         ENABLED_SEND_HRR_COOKIE="no"
     else
-        AM_CFLAGS="-DWOLFSSL_SEND_HRR_COOKIE $AM_CFLAGS"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SEND_HRR_COOKIE"
     fi
 fi
 
@@ -1141,7 +1141,7 @@ AC_ARG_ENABLE([error-queue-per-thread],
 
 if test "$ENABLED_ERRORQUEUEPERTHREAD" = "yes"
 then
-  AM_CFLAGS="-DERROR_QUEUE_PER_THREAD $AM_CFLAGS"
+  AM_CFLAGS="$AM_CFLAGS -DERROR_QUEUE_PER_THREAD"
 fi
 
 # High Strength Build
@@ -2275,7 +2275,7 @@ AC_ARG_ENABLE([sep],
     )
 if test "$ENABLED_SEP" = "yes"
 then
-  AM_CFLAGS="-DWOLFSSL_SEP -DKEEP_PEER_CERT $AM_CFLAGS"
+  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SEP -DKEEP_PEER_CERT"
 fi
 
 
@@ -3308,18 +3308,6 @@ AC_ARG_ENABLE([arc4],
     [ ENABLED_ARC4=no ]
     )
 
-if test "$ENABLED_ARC4" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_RC4"
-else
-    # turn off ARC4 if leanpsk or leantls on
-    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DNO_RC4"
-        ENABLED_ARC4=no
-    fi
-fi
-
 # MD5
 AC_ARG_ENABLE([md5],
     [AS_HELP_STRING([--enable-md5],[Enable MD5 (default: enabled)])],
@@ -4019,6 +4007,12 @@ AC_ARG_WITH([liboqs],
             AC_MSG_RESULT([yes])
         fi
 
+        if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+        then
+            ENABLED_OPENSSLEXTRA="yes"
+            AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
+        fi
+
         AM_CFLAGS="$AM_CFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS"
         ENABLED_LIBOQS="yes"
     ]
@@ -4201,7 +4195,7 @@ if test "$ENABLED_DH" = "yes"
 then
     if test "$ENABLED_TLS13" = "yes" || test "$ENABLED_SUPPORTED_CURVES" = "yes"
     then
-        AM_CFLAGS="-DHAVE_FFDHE_2048 $AM_CFLAGS"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048"
     fi
 fi
 
@@ -4238,11 +4232,11 @@ fi
 if test "$ENABLED_TLS13" = "yes" && (test "x$ENABLED_ECC" = "xyes" || \
     test "x$ENABLED_DH" = "xyes")
 then
-    AM_CFLAGS="-DHAVE_SUPPORTED_CURVES $AM_CFLAGS"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_SUPPORTED_CURVES"
 fi
 if test "$ENABLED_TLS13" = "yes"
 then
-    AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS $AM_CFLAGS"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS"
 fi
 
 
@@ -4313,7 +4307,7 @@ if test "$ENABLED_TLS13_EARLY_DATA" = "group"
 then
     ENABLED_TLS13_EARLY_DATA="yes"
     # Group EarlyData with ClientHello
-    AM_CFLAGS="-DWOLFSSL_EARLY_DATA_GROUP $AM_CFLAGS"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EARLY_DATA_GROUP"
 fi
 if test "$ENABLED_TLS13_EARLY_DATA" = "yes"
 then
@@ -4325,7 +4319,7 @@ then
     then
         AC_MSG_ERROR([cannot enable earlydata without enabling session tickets and/or PSK.])
     fi
-    AM_CFLAGS="-DWOLFSSL_EARLY_DATA $AM_CFLAGS"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EARLY_DATA"
 fi
 
 if test "$ENABLED_TLSV12" = "no" && test "$ENABLED_TLS13" = "yes" && test "x$ENABLED_SESSION_TICKET" = "xno"
@@ -4570,7 +4564,7 @@ then
     if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
-        AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_CERT_SERVICE"
 fi
@@ -4684,7 +4678,7 @@ then
     if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
-        AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
     fi
     AM_CFLAGS="$AM_CFLAGS -DHAVE_LIGHTY -DHAVE_WOLFSSL_SSL_H=1"
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
@@ -4730,7 +4724,7 @@ then
     then
         ENABLED_OPENSSLALL="yes"
         ENABLED_OPENSSLEXTRA="yes"
-        AM_CFLAGS="-DOPENSSL_EXTRA -DOPENSSL_ALL $AM_CFLAGS"
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA -DOPENSSL_ALL"
     fi
 
     if test "x$ENABLED_CERTGEN" = "xno"
@@ -4790,7 +4784,7 @@ then
     if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
-        AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
     fi
 fi
 
@@ -4859,7 +4853,7 @@ then
     then
         ENABLED_OPENSSLALL="yes"
         ENABLED_OPENSSLEXTRA="yes"
-        AM_CFLAGS="-DOPENSSL_EXTRA -DOPENSSL_ALL $AM_CFLAGS"
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA -DOPENSSL_ALL"
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASIO -DASIO_USE_WOLFSSL -DWOLFSSL_KEY_GEN"
     AM_CFLAGS="$AM_CFLAGS -DBOOST_ASIO_USE_WOLFSSL -DHAVE_EX_DATA"
@@ -4891,7 +4885,7 @@ then
     then
         ENABLED_OPENSSLALL="yes"
         ENABLED_OPENSSLEXTRA="yes"
-        AM_CFLAGS="-DOPENSSL_EXTRA -DOPENSSL_ALL $AM_CFLAGS"
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA -DOPENSSL_ALL"
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_APACHE_HTTPD"
     AM_CFLAGS="$AM_CFLAGS -DOPENSSL_NO_SSL2 -DOPENSSL_NO_SSL3 -DOPENSSL_NO_COMP"
@@ -4994,7 +4988,7 @@ then
     if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
-        AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
     fi
 
     if test "x$ENABLED_SESSION_TICKET" = "xno"
@@ -5101,7 +5095,7 @@ then
     if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
-        AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
     fi
 
     if test "x$ENABLED_DES3" = "xno"
@@ -5122,7 +5116,7 @@ then
     if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
-        AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
     fi
 
     if test "x$ENABLED_CERTGEN" = "xno"
@@ -5151,9 +5145,9 @@ then
     then
         ENABLED_OPENSSLALL="yes"
         ENABLED_OPENSSLEXTRA="yes"
-        AM_CFLAGS="-DOPENSSL_EXTRA -DOPENSSL_ALL $AM_CFLAGS"
-        AM_CFLAGS="-DWOLFSSL_EITHER_SIDE -DWC_RSA_NO_PADDING $AM_CFLAGS"
-        AM_CFLAGS="-DWC_RSA_PSS -DWOLFSSL_PSS_LONG_SALT $AM_CFLAGS"
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA -DOPENSSL_ALL"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EITHER_SIDE -DWC_RSA_NO_PADDING"
+        AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS -DWOLFSSL_PSS_LONG_SALT"
     fi
 
     # Requires OCSP
@@ -6874,7 +6868,7 @@ then
 fi
 
 AS_IF([test "x$ENABLED_OPENSSLALL" = "xyes"],
-      [AM_CFLAGS="-DOPENSSL_ALL -DWOLFSSL_EITHER_SIDE -DWC_RSA_NO_PADDING -DWC_RSA_PSS -DWOLFSSL_PSS_LONG_SALT $AM_CFLAGS"])
+      [AM_CFLAGS="$AM_CFLAGS -DOPENSSL_ALL -DWOLFSSL_EITHER_SIDE -DWC_RSA_NO_PADDING -DWC_RSA_PSS -DWOLFSSL_PSS_LONG_SALT"])
 
 AS_IF([test "x$ENABLED_AESCTR" = "xyes" && test "x$ENABLED_FORTRESS" != "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER -DWOLFSSL_AES_DIRECT"])
@@ -6886,18 +6880,18 @@ fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
 then
-  AM_CFLAGS="-DOPENSSL_EXTRA -DWOLFSSL_ALWAYS_VERIFY_CB $AM_CFLAGS"
-  AM_CFLAGS="-DWOLFSSL_VERIFY_CB_ALL_CERTS -DWOLFSSL_EXTRA_ALERTS $AM_CFLAGS"
-  AM_CFLAGS="-DHAVE_EXT_CACHE -DWOLFSSL_FORCE_CACHE_ON_TICKET $AM_CFLAGS"
-  AM_CFLAGS="-DWOLFSSL_AKID_NAME -DHAVE_CTS $AM_CFLAGS"
+  AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA -DWOLFSSL_ALWAYS_VERIFY_CB"
+  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VERIFY_CB_ALL_CERTS -DWOLFSSL_EXTRA_ALERTS"
+  AM_CFLAGS="$AM_CFLAGS -DHAVE_EXT_CACHE -DWOLFSSL_FORCE_CACHE_ON_TICKET"
+  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AKID_NAME -DHAVE_CTS"
 fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "x509small"
 then
   AC_MSG_NOTICE([Enabling only a subset of X509 opensslextra])
-  AM_CFLAGS="-DOPENSSL_EXTRA_X509_SMALL $AM_CFLAGS"
-  AM_CFLAGS="-DWOLFSSL_EKU_OID -DWOLFSSL_MULTI_ATTRIB $AM_CFLAGS"
-  AM_CFLAGS="-DWOLFSSL_NO_OPENSSL_RAND_CB $AM_CFLAGS"
+  AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA_X509_SMALL"
+  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EKU_OID -DWOLFSSL_MULTI_ATTRIB"
+  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_OPENSSL_RAND_CB"
 fi
 
 if test "$ENABLED_WOLFSCEP" = "yes"
@@ -7028,10 +7022,10 @@ AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
       [AC_MSG_ERROR([Cannot use Max Strength and SSLv3 at the same time.])])
 
 AS_IF([test "x$ENABLED_SCTP" = "xyes"],
-      [AM_CFLAGS="-DWOLFSSL_SCTP $AM_CFLAGS"])
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SCTP"])
 
 AS_IF([test "x$ENABLED_MCAST" = "xyes"],
-      [AM_CFLAGS="-DWOLFSSL_MULTICAST $AM_CFLAGS"])
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MULTICAST"])
 
 # WOLFSSL_AFALG does not support SHA224 yet
 AS_IF([(test "x$ENABLED_AFALG" = "xyes") && (test "x$ENABLED_SHA224" = "xyes")],
@@ -7044,20 +7038,20 @@ AS_IF([(test "x$ENABLED_DEVCRYPTO" = "xyes") && (test "x$ENABLED_SHA224" = "xyes
 # SCTP and Multicast require DTLS
 AS_IF([(test "x$ENABLED_DTLS" = "xno") && \
         (test "x$ENABLED_SCTP" = "xyes" || test "x$ENABLED_MCAST" = "xyes")],
-      [AM_CFLAGS="-DWOLFSSL_DTLS $AM_CFLAGS"
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS"
        ENABLED_DTLS=yes])
 
 # Multicast requires the null cipher
 AS_IF([test "x$ENABLED_NULL_CIPHER" = "xno" && \
         test "x$ENABLED_MCAST" = "xyes"],
-      [AM_CFLAGS="-DHAVE_NULL_CIPHER $AM_CFLAGS"
+      [AM_CFLAGS="$AM_CFLAGS -DHAVE_NULL_CIPHER"
        ENABLED_NULL_CIPHER=yes])
 
 # wolfSSH and WPA Supplicant both need Public MP, only enable once.
 # This will let you know if you enabled wolfSSH but have any of the prereqs
 # disabled. Some of these options, disabling them adds things to the FLAGS and
 # you need to check and add items in two places depending on the option.
-AS_IF([test "x$ENABLED_WOLFSSH" = "xyes"],[AS_IF([test "x$ENABLED_WPAS" = "xno"],[AM_CFLAGS="-DWOLFSSL_PUBLIC_MP $AM_CFLAGS"])])
+AS_IF([test "x$ENABLED_WOLFSSH" = "xyes"],[AS_IF([test "x$ENABLED_WPAS" = "xno"],[AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP"])])
 
 if test "x$ENABLED_OPENSSLCOEXIST" = "xyes"; then
     if test "x$ENABLED_OPENSSLALL" = "xyes"; then
@@ -7376,7 +7370,7 @@ fi
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes"
 then
-    AM_CFLAGS="-include ${output_objdir}/.build_params $AM_CFLAGS"
+    AM_CFLAGS="$AM_CFLAGS -include ${output_objdir}/.build_params"
 fi
 
 
