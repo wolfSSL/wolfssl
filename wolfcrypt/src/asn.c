@@ -13500,7 +13500,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
         return 0;
 
     /* Check against the excluded list */
-    if (signer->excludedNames) {
+    if (signer->excludedNames != NULL) {
         Base_entry* base = signer->excludedNames;
 
         while (base != NULL) {
@@ -15341,7 +15341,7 @@ static int DecodeSubtreeGeneralName(const byte* input, int sz, byte tag,
     }
     if (ret == 0) {
         /* Allocate name. */
-        entry->name = (char*)XMALLOC(len, heap, DYNAMIC_TYPE_ALTNAME);
+        entry->name = (char*)XMALLOC(len + 1, heap, DYNAMIC_TYPE_ALTNAME);
         if (entry->name == NULL) {
             XFREE(entry, heap, DYNAMIC_TYPE_ALTNAME);
             ret = MEMORY_E;
@@ -15350,6 +15350,7 @@ static int DecodeSubtreeGeneralName(const byte* input, int sz, byte tag,
     if (ret == 0) {
         /* Store name, size and tag in object. */
         XMEMCPY(entry->name, &input[nameIdx], len);
+        entry->name[len] = '\0';
         entry->nameSz = len;
         entry->type = tag & ASN_TYPE_MASK;
 
@@ -15476,7 +15477,7 @@ static int DecodeSubtree(const byte* input, int sz, Base_entry** head,
                 /* Parse the general name and store a new entry. */
                 ret = DecodeSubtreeGeneralName(input +
                     GetASNItem_DataIdx(dataASN[1], input),
-                    GetASNItem_EndIdx(dataASN[1], input), t, head, heap);
+                    dataASN[1].length, t, head, heap);
             }
             /* Skip entry. */
         }
