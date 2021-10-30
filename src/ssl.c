@@ -238,13 +238,12 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
 };
 #endif
 
-#if defined(WOLFSSL_RENESAS_TSIP_TLS)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
     /* for root ca verification */
-int tsip_tls_RootCertVerify(const byte *cert, word32 cert_len,
+int Renesas_cmn_RootCertVerify(const byte *cert, word32 cert_len,
                             word32 key_n_start, word32 key_n_len,
                             word32 key_e_start, word32 key_e_len,
                             word32 cm_row);
-byte tsip_rootCAverified( );
 #endif
 
 #ifdef WOLFSSL_SESSION_EXPORT
@@ -4998,7 +4997,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
             FreeSigner(signer, cm->heap);
         }
     }
-#if defined(WOLFSSL_RENESAS_TSIP_TLS)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
     /* Verify CA by TSIP so that generated tsip key is going to be able to */
     /* be used for peer's cert verification                                */
     /* TSIP is only able to handle USER CA, and only one CA.               */
@@ -5006,18 +5005,21 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     /* verified CA.                                                        */
     if ( ret == 0 && signer != NULL ) {
         signer->cm_idx = row;
-        if (type == WOLFSSL_USER_CA && tsip_rootCAverified() == 0 ) {
-            if ((ret = tsip_tls_RootCertVerify(cert->source, cert->maxIdx,
-                 cert->sigCtx.pubkey_n_start, cert->sigCtx.pubkey_n_len - 1,
-                 cert->sigCtx.pubkey_e_start, cert->sigCtx.pubkey_e_len - 1,
+        if (type == WOLFSSL_USER_CA) {
+            if ((ret = Renesas_cmn_RootCertVerify(cert->source, cert->maxIdx,
+                 cert->sigCtx.CertAtt.pubkey_n_start, 
+                 cert->sigCtx.CertAtt.pubkey_n_len - 1,
+                 cert->sigCtx.CertAtt.pubkey_e_start, 
+                cert->sigCtx.CertAtt.pubkey_e_len - 1,
                  row/* cm index */))
-                != 0)
-                WOLFSSL_MSG("tsip_tls_RootCertVerify() failed");
+                < 0)
+                WOLFSSL_MSG("Renesas_RootCertVerify() failed");
             else
-                WOLFSSL_MSG("tsip_tls_RootCertVerify() succeed");
+                WOLFSSL_MSG("Renesas_RootCertVerify() succeed or skipped");
         }
     }
-#endif
+#endif /* TSIP or SCE */
+    
     WOLFSSL_MSG("\tFreeing Parsed CA");
     FreeDecodedCert(cert);
 #ifdef WOLFSSL_SMALL_STACK
@@ -41977,6 +41979,133 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
     return NULL;
 }
 #endif /* NO_RSA */
+
+/* callback for premaster secret generation */
+void  wolfSSL_CTX_SetGenPreMasterCb(WOLFSSL_CTX* ctx, CallbackGenPreMaster cb)
+{
+    if (ctx)
+        ctx->GenPreMasterCb = cb;
+}
+/* Set master secret generation callback context */
+void  wolfSSL_SetGenPreMasterCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->GenPreMasterCtx = ctx;
+}
+/* Get master secret generation callback context */
+void* wolfSSL_GetGenPreMasterCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->GenPreMasterCtx;
+
+    return NULL;
+}
+
+/* callback for premaster secret generation */
+void  wolfSSL_CTX_SetGenMasterSecretCb(WOLFSSL_CTX* ctx, CallbackGenMasterSecret cb)
+{
+    if (ctx)
+        ctx->GenMasterCb = cb;
+}
+/* Set premaster secret generation callback context */
+void  wolfSSL_SetGenMasterSecretCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->GenMasterCtx = ctx;
+}
+/* Get premaster secret generation callback context */
+void* wolfSSL_GetGenMasterSecretCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->GenMasterCtx;
+
+    return NULL;
+}
+
+/* callback for session key generation */
+void  wolfSSL_CTX_SetGenSesssionKeyCb(WOLFSSL_CTX* ctx, CallbackGenSessionKey cb)
+{
+    if (ctx)
+        ctx->GenSessionKeyCb = cb;
+}
+/* Set sesssion key generation callback context */
+void  wolfSSL_SetGenSesssionKeyCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->GenSessionKeyCtx = ctx;
+}
+/* Get sesssion key generation callback context */
+void* wolfSSL_GetGenSesssionKeyCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->GenSessionKeyCtx;
+
+    return NULL;
+}
+
+/* callback for set  keys */
+void  wolfSSL_CTX_SetSetKeysCb(WOLFSSL_CTX* ctx, CallbackSetKeys cb)
+{
+    if (ctx)
+        ctx->SetKeysCb = cb;
+}
+/* Set set keys callback context */
+void  wolfSSL_SetSetKeysCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->SetKeysCtx = ctx;
+}
+/* Get set  keys callback context */
+void* wolfSSL_GetSetKeysCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->SetKeysCtx;
+
+    return NULL;
+}
+
+/* callback for verify data */
+void  wolfSSL_CTX_SetTlsFinishedCb(WOLFSSL_CTX* ctx, CallbackTlsFinished cb)
+{
+    if (ctx)
+        ctx->TlsFinishedCb = cb;
+}
+/* Set set keys callback context */
+void  wolfSSL_SetTlsFinishedCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->TlsFinishedCtx = ctx;
+}
+/* Get set  keys callback context */
+void* wolfSSL_GetTlsFinishedCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->TlsFinishedCtx;
+
+    return NULL;
+}
+#if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)
+/* callback for verify data */
+void  wolfSSL_CTX_SetVerifymacCb(WOLFSSL_CTX* ctx, CallbackVerifymac cb)
+{
+    if (ctx)
+        ctx->VerifymacCb = cb;
+}
+/* Set set keys callback context */
+void  wolfSSL_SetVerifymacCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->VerifymacCtx = ctx;
+}
+/* Get set  keys callback context */
+void* wolfSSL_GetVerifymacCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->VerifymacCtx;
+
+    return NULL;
+}
+#endif /* !WOLFSSL_NO_TLS12 && !WOLFSSL_AEAD_ONLY */
 
 #endif /* HAVE_PK_CALLBACKS */
 #endif /* NO_CERTS */

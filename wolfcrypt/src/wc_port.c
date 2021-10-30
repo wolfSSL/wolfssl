@@ -57,6 +57,9 @@
 #if defined(WOLFSSL_RENESAS_TSIP)
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 #endif
+#if defined(WOLFSSL_RENESAS_SCE)
+    #include <wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h>
+#endif
 #if defined(WOLFSSL_STSAFEA100)
     #include <wolfssl/wolfcrypt/port/st/stsafe.h>
 #endif
@@ -153,7 +156,17 @@ int wolfCrypt_Init(void)
             return ret;
         }
     #endif
-
+    
+    #if defined(WOLFSSL_RENESAS_SCEPROTECT)
+        ret = sce_Open( );
+        if( ret != FSP_SUCCESS ) {
+            WOLFSSL_MSG("RENESAS SCE Open failed");
+            /* not return 1 since WOLFSSL_SUCCESS=1*/
+            ret = -1;/* FATAL ERROR */
+            return ret;
+        }
+    #endif
+    
     #if defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
         ret = InitMemoryTracker();
         if (ret != 0) {
@@ -353,8 +366,15 @@ int wolfCrypt_Cleanup(void)
     #ifdef WOLFSSL_ASYNC_CRYPT
         wolfAsync_HardwareStop();
     #endif
+    
+    #ifdef WOLFSSL_RENESAS_SCEPROTECT
+        sce_Close();
+    #else
+        
     #ifdef WOLFSSL_SCE
+   
         WOLFSSL_SCE_GSCE_HANDLE.p_api->close(WOLFSSL_SCE_GSCE_HANDLE.p_ctrl);
+    #endif
     #endif
     #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
         defined(WOLFSSL_IMX6_CAAM_BLOB)

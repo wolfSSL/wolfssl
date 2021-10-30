@@ -215,6 +215,9 @@
     #ifdef HAVE_CAVIUM_OCTEON_SYNC
         #include <wolfssl/wolfcrypt/port/cavium/cavium_octeon_sync.h>
     #endif
+    #ifdef HAVE_RENESAS_SYNC
+        #include <wolfssl/wolfcrypt/port/renesas/renesas_sync.h>
+    #endif
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -1437,6 +1440,12 @@ static void* benchmarks_do(void* args)
         printf("Couldn't get the Octeon device ID\n");
     }
 #endif
+#ifdef HAVE_RENESAS_SYNC
+    devId = wc_CryptoCb_CryptInitRenesascmn(NULL, &guser_PKCbInfo);
+    if (devId == INVALID_DEVID) {
+        printf("Couldn't get the Renesas device ID\n");
+    }
+#endif
 #endif
 
 #if defined(HAVE_LOCAL_RNG)
@@ -1508,7 +1517,8 @@ static void* benchmarks_do(void* args)
         bench_aescbc(0);
     #endif
     #if ((defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)) || \
-         defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC)) && \
+         defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC) || \
+         defined(HAVE_RENESAS_SYNC)) && \
         !defined(NO_HW_BENCH)
         bench_aescbc(1);
     #endif
@@ -1520,7 +1530,8 @@ static void* benchmarks_do(void* args)
         bench_aesgcm(0);
     #endif
     #if ((defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)) || \
-         defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC)) && \
+         defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC) || \
+         defined(HAVE_RENESAS_SYNC)) && \
         !defined(NO_HW_BENCH)
         bench_aesgcm(1);
     #endif
@@ -2092,9 +2103,11 @@ int benchmark_free(void)
 {
     int ret;
 
+#ifndef HAVE_RENESAS_SYNC
     if (gPrintStats || devId != INVALID_DEVID) {
         bench_stats_print();
     }
+#endif
 
     bench_stats_free();
 
@@ -2104,6 +2117,9 @@ int benchmark_free(void)
 #endif
 #ifdef HAVE_CAVIUM_OCTEON_SYNC
     wc_CryptoCb_CleanupOcteon(&devId);
+#endif
+#ifdef HAVE_RENESAS_SYNC
+    wc_CryptoCb_CleanupRenesascmn(&devId);
 #endif
 #endif
 

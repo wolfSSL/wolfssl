@@ -212,6 +212,12 @@
 /* Uncomment next line if using RENESAS RX64N */
 /* #define WOLFSSL_RENESAS_RX65N */
 
+/* Uncomment next line if using RENESAS SCE PROTECT MODE */
+/* #define WOLFSSL_RENESAS_SCEPROTECT */
+
+/* Uncomment next line if using RENESAS RA6M4 */
+/* #define WOLFSSL_RENESAS_RA6M4 */
+        
 /* Uncomment next line if using Solaris OS*/
 /* #define WOLFSSL_SOLARIS */
 
@@ -326,7 +332,22 @@
     #endif
 #endif
 
-#if defined(WOLFSSL_RENESAS_RA6M3G) || defined(WOLFSSL_RENESAS_RA6M3)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+    #define SCE_TLS_MASTERSECRET_SIZE         80  /* 20 words */
+    #define TSIP_TLS_HMAC_KEY_INDEX_WORDSIZE  64
+    #define TSIP_TLS_ENCPUBKEY_SZ_BY_CERTVRFY 560 /* in bytes */
+    #define SCE_TLS_CLIENTRANDOM_SZ           36  /* in bytes */
+    #define SCE_TLS_SERVERRANDOM_SZ           36  /* in bytes */
+    #define SCE_TLS_ENCRYPTED_ECCPUBKEY_SZ    96  /* in bytes */
+        
+    #define WOLFSSL_RENESAS_SCEPROTECT_ECC
+    #if defined(WOLFSSL_RENESAS_SCEPROTECT_ECC)
+        #define HAVE_PK_CALLBACKS
+        /* #define DEBUG_PK_CB */
+    #endif
+#endif
+#if defined(WOLFSSL_RENESAS_RA6M3G) || defined(WOLFSSL_RENESAS_RA6M3) ||\
+              defined(WOLFSSL_RENESAS_RA6M4)
     /* settings in user_settings.h */
 #endif
 

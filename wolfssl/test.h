@@ -4606,6 +4606,118 @@ static WC_INLINE int myRsaDec(WOLFSSL* ssl, byte* in, word32 inSz,
 
 #endif /* NO_RSA */
 
+static WC_INLINE int myGenMaster(WOLFSSL* ssl, void* ctx)
+{
+    int       ret;
+    PkCbInfo* cbInfo = (PkCbInfo*)ctx;
+    
+    (void)ssl;
+    (void)cbInfo;
+    
+    WOLFSSL_PKMSG("Gen Master");
+    /* fall through original routine */
+    ret = PROTOCOLCB_UNAVAILABLE;
+    WOLFSSL_PKMSG("Gen Master: ret %d\n", ret);
+    
+    return ret;
+}
+
+static WC_INLINE int myGenPreMaster(WOLFSSL* ssl, byte *premaster,
+                                                  word32 preSz, void* ctx)
+{
+    int       ret;
+    PkCbInfo* cbInfo = (PkCbInfo*)ctx;
+    
+    (void) ssl;
+    (void) cbInfo;
+    (void) premaster;
+    (void) preSz;
+    
+    WOLFSSL_PKMSG("Gen Pre-Master Cb");
+    /* fall through original routine */
+    ret = PROTOCOLCB_UNAVAILABLE;
+    WOLFSSL_PKMSG("Gen Pre-Master Cb: ret %d\n", ret);
+    
+    return ret;
+}
+
+static WC_INLINE int myGenSessionKey(WOLFSSL* ssl, void* ctx)
+{
+    int       ret;
+    PkCbInfo* cbInfo = (PkCbInfo*)ctx;
+    
+    (void)ssl;
+    (void)cbInfo;
+    
+    WOLFSSL_PKMSG("Gen Master Cb");
+    /* fall through original routine */
+    ret = PROTOCOLCB_UNAVAILABLE;
+    WOLFSSL_PKMSG("Gen Master Cb: ret %d\n", ret);
+    
+    return ret;
+}
+
+static WC_INLINE int mySetKeys(WOLFSSL* ssl, void* ctx)
+{
+    int       ret;
+    PkCbInfo* cbInfo = (PkCbInfo*)ctx;
+    
+    (void)ssl;
+    (void)cbInfo;
+    
+    WOLFSSL_PKMSG("Set Keys Cb");
+    /* fall through original routine */
+    ret = PROTOCOLCB_UNAVAILABLE;
+    WOLFSSL_PKMSG("Set Keys Cb: ret %d\n", ret);
+    
+    return ret;
+}
+
+#if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)
+static WC_INLINE int myVerifymac(WOLFSSL *ssl, const byte* message, 
+                    word32 messageSz, word32 macSz, word32 content, void* ctx)
+{
+    int       ret;
+    PkCbInfo* cbInfo = (PkCbInfo*)ctx;
+    
+    (void)ssl;
+    (void)message;
+    (void)messageSz;
+    (void)macSz;
+    (void)content;
+    (void)cbInfo;
+    
+    WOLFSSL_PKMSG("Verify Mac Cb");
+    /* fall through original routine */
+    ret = PROTOCOLCB_UNAVAILABLE;
+    WOLFSSL_PKMSG("Verify Mac Cb: ret %d\n", ret);
+    
+    return ret;
+}
+#endif
+
+static WC_INLINE int myTlsFinished(WOLFSSL* ssl,
+                            const byte *side, 
+                            const byte *handshake_hash,
+                            byte *hashes, void* ctx)
+{
+    int       ret;
+    PkCbInfo* cbInfo = (PkCbInfo*)ctx;
+    
+    (void)ssl;
+    (void)cbInfo;
+    (void)side;
+    (void)handshake_hash;
+    (void)hashes;
+    
+    WOLFSSL_PKMSG("Tls Finished Cb");
+    /* fall through original routine */
+    ret = PROTOCOLCB_UNAVAILABLE;
+    WOLFSSL_PKMSG("Tls Finished Cb: ret %d\n", ret);
+    
+    return ret;
+}
+
 static WC_INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx)
 {
     (void)ctx;
@@ -4655,6 +4767,17 @@ static WC_INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx)
         wolfSSL_CTX_SetRsaEncCb(ctx, myRsaEnc);
         wolfSSL_CTX_SetRsaDecCb(ctx, myRsaDec);
     #endif /* NO_RSA */
+    
+    wolfSSL_CTX_SetGenMasterSecretCb(ctx, myGenMaster);
+    wolfSSL_CTX_SetGenPreMasterCb(ctx, myGenPreMaster);
+    wolfSSL_CTX_SetGenSesssionKeyCb(ctx, myGenSessionKey);
+    wolfSSL_CTX_SetSetKeysCb(ctx, mySetKeys);
+    
+    #if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)
+    wolfSSL_CTX_SetVerifymacCb(ctx, myVerifymac);
+    #endif
+    
+    wolfSSL_CTX_SetTlsFinishedCb(ctx, myTlsFinished);
 }
 
 static WC_INLINE void SetupPkCallbackContexts(WOLFSSL* ssl, void* myCtx)
@@ -4694,6 +4817,17 @@ static WC_INLINE void SetupPkCallbackContexts(WOLFSSL* ssl, void* myCtx)
         wolfSSL_SetRsaEncCtx(ssl, myCtx);
         wolfSSL_SetRsaDecCtx(ssl, myCtx);
     #endif /* NO_RSA */
+    
+    wolfSSL_SetGenMasterSecretCtx(ssl, myCtx);
+    wolfSSL_SetGenPreMasterCtx(ssl, myCtx);
+    wolfSSL_SetGenSesssionKeyCtx(ssl, myCtx);
+    wolfSSL_SetSetKeysCtx(ssl, myCtx);
+    
+    #if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)
+    wolfSSL_SetVerifymacCtx(ssl, myCtx);
+    #endif
+    
+    wolfSSL_SetTlsFinishedCtx(ssl, myCtx);
 }
 
 #endif /* HAVE_PK_CALLBACKS */

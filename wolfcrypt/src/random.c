@@ -2488,7 +2488,32 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
         return ret;
     }
+#elif defined(WOLFSSL_RENESAS_SCEPROTECT)
+    #include "r_sce.h"
+    
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int ret;
+        word32 buffer[4];
 
+        while (sz > 0) {
+            word32 len = sizeof(buffer);
+
+            if (sz < len) {
+                len = sz;
+            }
+            /* return 4 words random number*/
+            ret = R_SCE_RandomNumberGenerate(buffer);
+            if(ret == FSP_SUCCESS) {
+                XMEMCPY(output, &buffer, len);
+                output += len;
+                sz -= len;
+            } else
+                return ret;
+        }
+        return ret;
+    }
+    
 #elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_TRNG)
     #include "hal_data.h"
 

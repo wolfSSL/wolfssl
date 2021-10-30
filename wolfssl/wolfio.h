@@ -168,7 +168,9 @@
         #endif
     #endif
 
-    #if defined(WOLFSSL_RENESAS_RA6M3G) || defined(WOLFSSL_RENESAS_RA6M3) /* Uses FREERTOS_TCP */
+    #if defined(WOLFSSL_RENESAS_RA6M3G) || defined(WOLFSSL_RENESAS_RA6M3) ||\
+                    defined(WOLFSSL_RENESAS_RA6M4)
+      /* Uses FREERTOS_TCP */
         #include <errno.h>
     #endif
 

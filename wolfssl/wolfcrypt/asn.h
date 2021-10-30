@@ -1213,6 +1213,21 @@ enum SignatureState {
 #endif
 #endif /* HAVE_PK_CALLBACKS */
 
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) ||defined(WOLFSSL_RENESAS_SCEPROTECT)
+typedef struct tagCertAttribute {
+        byte   verifyByTSIP_SCE;
+        word32 certBegin;
+        word32 pubkey_n_start;
+        word32 pubkey_n_len;
+        word32 pubkey_e_start;
+        word32 pubkey_e_len;
+        int curve_id;
+        const byte* cert;
+        word32 certSz;
+        const byte* keyIndex;
+  } CertAttribute;
+#endif
+
 struct SignatureCtx {
     void* heap;
     byte* digest;
@@ -1268,13 +1283,8 @@ struct SignatureCtx {
 #endif
 #endif /* HAVE_PK_CALLBACKS */
 #ifndef NO_RSA
-#ifdef WOLFSSL_RENESAS_TSIP_TLS
-    byte verifyByTSIP;
-    word32 certBegin;
-    word32 pubkey_n_start;
-    word32 pubkey_n_len;
-    word32 pubkey_e_start;
-    word32 pubkey_e_len;
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+    CertAttribute  CertAtt;
 #endif
 #endif
 };
@@ -1552,10 +1562,10 @@ struct DecodedCert {
 #ifndef NO_CERTS
     SignatureCtx sigCtx;
 #endif
-#ifdef WOLFSSL_RENESAS_TSIP
-    byte*  tsip_encRsaKeyIdx;
+#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+    byte*  sce_tsip_encRsaKeyIdx;
 #endif
-
+    
     int badDate;
     int criticalExt;
 
@@ -1643,7 +1653,7 @@ struct Signer {
 #ifdef WOLFSSL_SIGNER_DER_CERT
     DerBuffer* derCert;
 #endif
-#ifdef WOLFSSL_RENESAS_TSIP_TLS
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
     word32 cm_idx;
 #endif
     Signer* next;
