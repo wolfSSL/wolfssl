@@ -68,7 +68,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #ifdef WOLFSSL_IMXRT_DCP
     #include <wolfssl/wolfcrypt/port/nxp/dcp_port.h>
 #endif
-#ifdef WOLFSSL_SE050
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_CRYPT)
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
 #endif
 
@@ -867,7 +867,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #elif defined(WOLFSSL_DEVCRYPTO_AES)
     /* implemented in wolfcrypt/src/port/devcrypto/devcrypto_aes.c */
 
-#elif defined(WOLFSSL_SE050)
+#elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_CRYPT)
     static int AES_ECB_encrypt(Aes* aes, const byte* inBlock, byte* outBlock,
         int sz)
     {
@@ -2598,7 +2598,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         return wc_AesSetKey(aes, userKey, keylen, iv, dir);
     }
 
-#elif defined(WOLFSSL_SE050)
+#elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_CRYPT)
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
                   int dir)
     {   
@@ -3876,7 +3876,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #elif defined(WOLFSSL_DEVCRYPTO_CBC)
     /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
 
-#elif defined(WOLFSSL_SE050)
+#elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_CRYPT)
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
         return se050_aes_crypt(aes, in, out, sz, AES_ENCRYPTION,
@@ -10363,7 +10363,7 @@ void wc_AesFree(Aes* aes)
     }
 #endif
 
-#if defined(WOLFSSL_SE050)
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_CRYPT)
     se050_aes_free(aes);
 #endif
 

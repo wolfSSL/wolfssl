@@ -1451,6 +1451,9 @@ AC_ARG_WITH([se050],
             # Requires AES direct
             AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT"
 
+            # Does not support SHA2-512 224/256
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA512_224 -DWOLFSSL_NOSHA512_256"
+
             AC_MSG_RESULT([yes])
         else
             AC_MSG_RESULT([yes])
