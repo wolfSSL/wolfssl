@@ -362,7 +362,11 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #endif
     wolfssl_linuxkm_pie_redirect_table.kstrtoll = kstrtoll;
 
-    wolfssl_linuxkm_pie_redirect_table.printk = printk;
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+        wolfssl_linuxkm_pie_redirect_table._printk = _printk;
+    #else
+        wolfssl_linuxkm_pie_redirect_table.printk = printk;
+    #endif
     wolfssl_linuxkm_pie_redirect_table.snprintf = snprintf;
 
     wolfssl_linuxkm_pie_redirect_table._ctype = _ctype;
