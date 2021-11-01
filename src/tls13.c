@@ -3419,6 +3419,15 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             "TLS v1.3");
                 return VERSION_ERROR;
             }
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+    defined(WOLFSSL_WPAS_SMALL)
+            /* Check if client has disabled TLS 1.2 */
+            if (args->pv.minor == TLSv1_2_MINOR &&
+                (ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
+                WOLFSSL_MSG("\tOption set to not allow TLSv1.2");
+                return VERSION_ERROR;
+            }
+#endif
 
             if (args->pv.minor < ssl->options.minDowngrade)
                 return VERSION_ERROR;
