@@ -73,8 +73,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/wolfssl/README.txt
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
-%{_libdir}/libwolfssl.so.24
-%{_libdir}/libwolfssl.so.24.5.0
+%{_libdir}/libwolfssl.so.30
+%{_libdir}/libwolfssl.so.30.0.0
 
 %files devel
 %defattr(-,root,root,-)
@@ -185,6 +185,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/openssl/bn.h
 %{_includedir}/wolfssl/openssl/cms.h
 %{_includedir}/wolfssl/openssl/buffer.h
+%{_includedir}/wolfssl/openssl/cmac.h
+%{_includedir}/wolfssl/openssl/compat_types.h
 %{_includedir}/wolfssl/openssl/conf.h
 %{_includedir}/wolfssl/openssl/crypto.h
 %{_includedir}/wolfssl/openssl/des.h
@@ -308,6 +310,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Mon Nov 01 2021 Jacob Barthelmeh <jacob@wolfssl.com>
+- Add a missing headers cmac.h, compat_types.h from compat layer.
 * Thu Jul 08 2021 Jacob Barthelmeh <jacob@wolfssl.com>
 - Add a missing header eccsi, sakke.
 * Thu Mar 25 2021 John Safranek <john@wolfssl.com>
