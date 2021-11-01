@@ -241,7 +241,11 @@
     #endif
         typeof(kstrtoll) *kstrtoll;
 
-        typeof(printk) *printk;
+        #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+            typeof(_printk) *_printk;
+        #else
+            typeof(printk) *printk;
+        #endif
         typeof(snprintf) *snprintf;
 
         const unsigned char *_ctype;
@@ -357,7 +361,11 @@
     #endif
     #define kstrtoll (wolfssl_linuxkm_get_pie_redirect_table()->kstrtoll)
 
-    #define printk (wolfssl_linuxkm_get_pie_redirect_table()->printk)
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+        #define _printk (wolfssl_linuxkm_get_pie_redirect_table()->_printk)
+    #else
+        #define printk (wolfssl_linuxkm_get_pie_redirect_table()->printk)
+    #endif
     #define snprintf (wolfssl_linuxkm_get_pie_redirect_table()->snprintf)
 
     #define _ctype (wolfssl_linuxkm_get_pie_redirect_table()->_ctype)

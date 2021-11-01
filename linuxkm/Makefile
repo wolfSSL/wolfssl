@@ -87,8 +87,12 @@ libwolfssl.ko.signed: libwolfssl.ko
 		./scripts/sign-file "$${CONFIG_MODULE_SIG_HASH}"				\
 				    "$${CONFIG_MODULE_SIG_KEY}"					\
 				    "$${CONFIG_MODULE_SIG_KEY/%.pem/.x509}"			\
-				    '$(MODULE_TOP)/$@' ||					\
-					$(RM) -f '$(MODULE_TOP)/$@' || exit $$?;		\
+				    '$(MODULE_TOP)/$@';						\
+		sign_file_exitval=$$?;								\
+		if [[ $$sign_file_exitval != 0 ]]; then						\
+			$(RM) -f '$(MODULE_TOP)/$@';						\
+			exit $$sign_file_exitval;						\
+		fi;										\
 		if [[ "$(quiet)" != "silent_" ]]; then						\
 			echo "  Module $@ signed by $${CONFIG_MODULE_SIG_KEY}.";		\
 		fi										\
