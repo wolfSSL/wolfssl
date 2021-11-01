@@ -301,6 +301,13 @@
       <TreeImageGuid>941832c1-fc3b-4e1b-94e8-01ea17128b42</TreeImageGuid>
       <ParentItem>2170607d-803e-45b0-80af-6507d495a8de</ParentItem>
     </Instance>
+    <Instance Guid="3e659978-d6e8-4d27-b8f7-6215eca64a09">
+      <Name>kdf.c</Name>
+      <Type>File</Type>
+      <RelativePath>..\..\..\..\..\wolfcrypt\src\kdf.c</RelativePath>
+      <ParentItem>2170607d-803e-45b0-80af-6507d495a8de</ParentItem>
+      <Property>2d70eb4e-e44a-4902-85bd-c2213863b503</Property>
+    </Instance>
     <Instance Guid="83d865e6-46a2-49da-8549-b021d2114a0e">
       <Name>logging.c</Name>
       <Type>File</Type>
