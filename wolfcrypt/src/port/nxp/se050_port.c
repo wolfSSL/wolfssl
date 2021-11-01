@@ -60,10 +60,6 @@ struct ecc_key;
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
 
-/* AES 55 = keyStoreId - Implementation specific ID */
-/* ECC SIGN 56 = keyStoreId - Implementation specific ID */
-/* ECC VERIFY 57 = keyStoreId - Implementation specific ID */
-/* ED25519 58 = keyStoreId - Implementation specific ID */
 
 /* Global variables */
 static sss_session_t *cfg_se050_i2c_pi;
@@ -116,17 +112,9 @@ int se050_allocate_key(int keyType)
     static int keyId_allocator = 100;
     switch (keyType) {
         case SE050_AES_KEY:
-            keyId = SE050_KEYID_AES;
-            break;
         case SE050_ECC_SIGN:
-            keyId = SE050_KEYID_ECC_SIGN;
-            break;
         case SE050_ECC_VERIFY:
-            keyId = SE050_KEYID_ECC_VERIFY;
-            break;
         case SE050_ED25519:
-            keyId = SE050_KEYID_ED25519;
-            break;
         case SE050_KEYID_ANY:
             keyId = keyId_allocator++;
             break;
@@ -277,7 +265,7 @@ int se050_aes_set_key(Aes* aes, const byte* key, word32 len,
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
 
     if (status == kStatus_SSS_Success) {
-        status = sss_key_store_allocate(&host_keystore, 55);
+        status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_AES);
     }
 
     if (status == kStatus_SSS_Success) {
@@ -332,7 +320,7 @@ int se050_aes_crypt(Aes* aes, const byte* in, byte* out, word32 sz, int dir,
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
 
     if (status == kStatus_SSS_Success) {
-        status = sss_key_store_allocate(&host_keystore, 55);
+        status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_AES);
     }
 
     if (status == kStatus_SSS_Success) {
@@ -389,7 +377,7 @@ void se050_aes_free(Aes* aes)
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
 
     if (status == kStatus_SSS_Success) {
-        status = sss_key_store_allocate(&host_keystore, 55);
+        status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_AES);
     }
 
     if (status == kStatus_SSS_Success) {
@@ -447,7 +435,7 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
 
     if (status == kStatus_SSS_Success) {
-        status = sss_key_store_allocate(&host_keystore, 70);
+        status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ECC);
     }
 
     if (status == kStatus_SSS_Success) {
@@ -550,7 +538,7 @@ int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, byte* signature,
 
         status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
         if (status == kStatus_SSS_Success) {
-            status = sss_key_store_allocate(&host_keystore, 61);
+            status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ECC);
         }
         if (status == kStatus_SSS_Success) {
             status = sss_key_object_init(&newKey, &host_keystore);
@@ -586,7 +574,7 @@ int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, byte* signature,
         status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
 
         if (status == kStatus_SSS_Success) {
-            status = sss_key_store_allocate(&host_keystore, 60);
+            status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ECC);
         }
         if (status == kStatus_SSS_Success) {
             status = sss_key_object_init(&newKey, &host_keystore);
@@ -641,7 +629,7 @@ int se050_ecc_free_key(struct ecc_key* key)
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
 
     if (status == kStatus_SSS_Success) {
-        status = sss_key_store_allocate(&host_keystore, 60);
+        status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ECC);
     }
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&keyObject, &host_keystore);
@@ -666,7 +654,7 @@ int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize)
     sss_object_t    keyPair;
     sss_key_store_t host_keystore;
     int keyId = se050_allocate_key(SE050_KEYID_ANY);
-    uint8_t keyPairExport[MAX_ECC_BYTES];
+    uint8_t keyPairExport[MAX_ECC_BYTES*2];
     size_t keyPairExportLen = sizeof(keyPairExport);
     size_t keyPairExportBitLen = sizeof(keyPairExport) * 8;
     int ret;
@@ -684,19 +672,19 @@ int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize)
 
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
     if (status == kStatus_SSS_Success) {
-        status = sss_key_store_allocate(&host_keystore, 60);
+        status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ECC);
     }
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&keyPair, &host_keystore);
     }
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_allocate_handle(&keyPair, keyId,
-            kSSS_KeyPart_Pair, kSSS_CipherType_EC_NIST_P, 256,
+            kSSS_KeyPart_Pair, kSSS_CipherType_EC_NIST_P, keySize*8,
             kKeyObject_Mode_None);
     }
     if (status == kStatus_SSS_Success) {
         status = sss_key_store_generate_key(&host_keystore, &keyPair,
-            256, NULL);
+            keySize*8, NULL);
     }
     if (status == kStatus_SSS_Success) {
         status = sss_key_store_get_key(&host_keystore, &keyPair,
@@ -749,7 +737,7 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
 
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
     if (status == kStatus_SSS_Success) {
-        status = sss_key_store_allocate(&host_keystore, 60);
+        status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ECC);
     }
 
     if (status == kStatus_SSS_Success) {
@@ -765,7 +753,7 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     }
 
     if (status == kStatus_SSS_Success) {
-        status = sss_key_store_allocate(&host_keystore_2, 60);
+        status = sss_key_store_allocate(&host_keystore_2, SE050_KEYSTOREID_ECC);
     }
 
     if (status == kStatus_SSS_Success) {
@@ -844,7 +832,7 @@ int se050_ed25519_create_key(ed25519_key* key)
 
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
     if (status == kStatus_SSS_Success) {
-        status = sss_key_store_allocate(&host_keystore, 55);
+        status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ED25519);
     }
 
     if (status == kStatus_SSS_Success) {
@@ -894,7 +882,7 @@ void se050_ed25519_free_key(ed25519_key* key)
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
 
     if (status == kStatus_SSS_Success) {
-        status = sss_key_store_allocate(&host_keystore, 55);
+        status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ED25519);
     }
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&newKey, &host_keystore);
@@ -931,7 +919,7 @@ int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
 
     if (status == kStatus_SSS_Success) {
-        status = sss_key_store_allocate(&host_keystore, 55);
+        status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ED25519);
     }
 
     if (status == kStatus_SSS_Success) {
@@ -989,7 +977,7 @@ int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
 
     if (status == kStatus_SSS_Success) {
-        status = sss_key_store_allocate(&host_keystore, 61);
+        status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ED25519);
     }
 
     if (status == kStatus_SSS_Success) {

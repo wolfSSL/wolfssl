@@ -54,19 +54,15 @@
 
 
 /* Default key ID's */
-#ifndef SE050_KEYID_AES
-#define SE050_KEYID_AES        55
+#ifndef SE050_KEYSTOREID_AES
+#define SE050_KEYSTOREID_AES     55
 #endif
-#ifndef SE050_KEYID_ECC_SIGN
-#define SE050_KEYID_ECC_SIGN   56
+#ifndef SE050_KEYSTOREID_ED25519
+#define SE050_KEYSTOREID_ED25519 58
 #endif
-#ifndef SE050_KEYID_ECC_VERIFY 
-#define SE050_KEYID_ECC_VERIFY 57
+#ifndef SE050_KEYSTOREID_ECC
+#define SE050_KEYSTOREID_ECC     60
 #endif
-#ifndef SE050_KEYID_ED25519
-#define SE050_KEYID_ED25519    58
-#endif
-
 
 enum {
     SSS_BLOCK_SIZE = 512
