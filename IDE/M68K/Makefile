@@ -20,6 +20,7 @@ CSRCS := ../../wolfcrypt/src/rsa.c \
         ../../wolfcrypt/src/memory.c \
         ../../wolfcrypt/src/coding.c \
         ../../wolfcrypt/src/hash.c \
+        ../../wolfcrypt/src/kdf.c \
         ../../wolfcrypt/src/hmac.c \
         ../../wolfcrypt/src/md5.c \
         ../../wolfcrypt/src/wc_port.c \

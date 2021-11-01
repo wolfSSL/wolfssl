@@ -2347,6 +2347,9 @@
       <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\hash.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\kdf.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\hmac.c</name>
     </file>
     <file>

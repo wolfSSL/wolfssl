@@ -356,6 +356,9 @@
 		522DBE0F1B7927A50031F454 /* wc_encrypt.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 522DBE0E1B7927290031F454 /* wc_encrypt.h */; };
 		525BE5341B3869110054BBCD /* hash.c in Sources */ = {isa = PBXBuildFile; fileRef = 525BE5331B3869110054BBCD /* hash.c */; };
 		525BE5361B3869780054BBCD /* hash.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 525BE5351B3869430054BBCD /* hash.h */; };
+		6AC85129272CAF2E00F2B32A /* kdf.c in Sources */ = {isa = PBXBuildFile; fileRef = 6AC85128272CAF2E00F2B32A /* kdf.c */; };
+		6AC8512A272CAF2E00F2B32A /* kdf.c in Sources */ = {isa = PBXBuildFile; fileRef = 6AC85128272CAF2E00F2B32A /* kdf.c */; };
+		6AC8512B272CAF2E00F2B32A /* kdf.c in Sources */ = {isa = PBXBuildFile; fileRef = 6AC85128272CAF2E00F2B32A /* kdf.c */; };
 		A4DAE3062493F1C700CEF51F /* tls13.c in Sources */ = {isa = PBXBuildFile; fileRef = A4DAE3052493F1C700CEF51F /* tls13.c */; };
 		A4DAE3072493F1C700CEF51F /* tls13.c in Sources */ = {isa = PBXBuildFile; fileRef = A4DAE3052493F1C700CEF51F /* tls13.c */; };
 		A4DAE3082493F1C700CEF51F /* tls13.c in Sources */ = {isa = PBXBuildFile; fileRef = A4DAE3052493F1C700CEF51F /* tls13.c */; };
@@ -1187,6 +1190,8 @@
 		525BE5331B3869110054BBCD /* hash.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = hash.c; path = ../../wolfcrypt/src/hash.c; sourceTree = "<group>"; };
 		525BE5351B3869430054BBCD /* hash.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hash.h; path = ../../wolfssl/wolfcrypt/hash.h; sourceTree = "<group>"; };
 		52B1344D16F3C9E800C07B32 /* libwolfssl_ios.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libwolfssl_ios.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		6AC85128272CAF2E00F2B32A /* kdf.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = kdf.c; path = ../../wolfcrypt/src/kdf.c; sourceTree = "<group>"; };
+		6AC8513B272CB04F00F2B32A /* kdf.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = kdf.h; path = ../../wolfssl/wolfcrypt/kdf.h; sourceTree = "<group>"; };
 		A45EA7091BC5995E00A8614A /* user_settings.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = user_settings.h; sourceTree = "<group>"; };
 		A4DAE3052493F1C700CEF51F /* tls13.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = tls13.c; path = ../../src/tls13.c; sourceTree = "<group>"; };
 		A4DAE3092493F21700CEF51F /* srp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = srp.c; path = ../../wolfcrypt/src/srp.c; sourceTree = "<group>"; };
@@ -1340,6 +1345,7 @@
 				525BE5351B3869430054BBCD /* hash.h */,
 				5216466F1A8993770062516A /* hc128.h */,
 				521646701A8993770062516A /* hmac.h */,
+				6AC8513B272CB04F00F2B32A /* kdf.h */,
 				521646721A8993770062516A /* integer.h */,
 				521646731A8993770062516A /* logging.h */,
 				521646741A8993770062516A /* md2.h */,
@@ -1434,6 +1440,7 @@
 				525BE5331B3869110054BBCD /* hash.c */,
 				5216461D1A8992CC0062516A /* hc128.c */,
 				5216461E1A8992CC0062516A /* hmac.c */,
+				6AC85128272CAF2E00F2B32A /* kdf.c */,
 				A4DAE3192493F21900CEF51F /* idea.c */,
 				5216461F1A8992CC0062516A /* integer.c */,
 				521646201A8992CC0062516A /* logging.c */,
@@ -1656,6 +1663,7 @@
 				30B060681C6DDB2B00D46008 /* hash.c in Sources */,
 				A4DAE34C2493F21900CEF51F /* idea.c in Sources */,
 				30B060691C6DDB2B00D46008 /* hc128.c in Sources */,
+				6AC8512B272CAF2E00F2B32A /* kdf.c in Sources */,
 				30B0606A1C6DDB2B00D46008 /* hmac.c in Sources */,
 				A4DAE3572493F29E00CEF51F /* sp_dsp32.c in Sources */,
 				A4DAE3282493F21900CEF51F /* fe_448.c in Sources */,
@@ -1742,6 +1750,7 @@
 				520775AB2239ABBE00087711 /* sp_int.c in Sources */,
 				521646431A8992CC0062516A /* md4.c in Sources */,
 				521646321A8992CC0062516A /* aes.c in Sources */,
+				6AC85129272CAF2E00F2B32A /* kdf.c in Sources */,
 				521646391A8992CC0062516A /* des3.c in Sources */,
 				521646351A8992CC0062516A /* blake2b.c in Sources */,
 				520775AD2239ABCD00087711 /* chacha20_poly1305.c in Sources */,
@@ -1828,6 +1837,7 @@
 				A4F318701BC58B1700FDF2BB /* md2.c in Sources */,
 				A4DAE34B2493F21900CEF51F /* idea.c in Sources */,
 				A4F318651BC58B1700FDF2BB /* md4.c in Sources */,
+				6AC8512A272CAF2E00F2B32A /* kdf.c in Sources */,
 				A4F3185E1BC58B1700FDF2BB /* md5.c in Sources */,
 				A4DAE3562493F29E00CEF51F /* sp_dsp32.c in Sources */,
 				A4DAE3272493F21900CEF51F /* fe_448.c in Sources */,

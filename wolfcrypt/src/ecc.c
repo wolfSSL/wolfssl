@@ -8799,11 +8799,12 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
         DECLARE_CURVE_SPECS(curve, 3);
         ALLOC_CURVE_SPECS(3, err);
 
-        if (err == MP_OKAY &&
-                mp_init_multi(&t1, &t2, NULL, NULL, NULL, NULL) != MP_OKAY)
-            err = MEMORY_E;
-        else
-            did_init = 1;
+        if (err == MP_OKAY) {
+            if (mp_init_multi(&t1, &t2, NULL, NULL, NULL, NULL) != MP_OKAY)
+                err = MEMORY_E;
+            else
+                did_init = 1;
+        }
 
         /* load curve info */
         if (err == MP_OKAY)
@@ -12116,6 +12117,11 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             ret = MEMORY_E;
 #endif
         pubKey = peerKey;
+    }
+    else {
+        /* if a public key was passed in we should free it here before init
+         * and import */
+        wc_ecc_free(pubKey);
     }
     if (ret == 0) {
         ret = wc_ecc_init_ex(pubKey, privKey->heap, INVALID_DEVID);

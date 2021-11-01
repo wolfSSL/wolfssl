@@ -627,6 +627,11 @@
               <FilePath>..\..\..\wolfcrypt\src\hash.c</FilePath>
             </File>
             <File>
+              <FileName>kdf.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\wolfcrypt\src\kdf.c</FilePath>
+            </File>
+            <File>
               <FileName>misc.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\wolfcrypt\src\misc.c</FilePath>
@@ -1336,6 +1341,11 @@
               <FilePath>..\..\..\wolfcrypt\src\hash.c</FilePath>
             </File>
             <File>
+              <FileName>kdf.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\wolfcrypt\src\kdf.c</FilePath>
+            </File>
+            <File>
               <FileName>misc.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\wolfcrypt\src\misc.c</FilePath>
@@ -2043,6 +2053,11 @@
               <FileName>hash.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\wolfcrypt\src\hash.c</FilePath>
+            </File>
+            <File>
+              <FileName>kdf.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\wolfcrypt\src\kdf.c</FilePath>
             </File>
             <File>
               <FileName>misc.c</FileName>

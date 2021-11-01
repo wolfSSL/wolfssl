@@ -1090,19 +1090,21 @@ typedef enum bench_stat_type {
         const char* algo, int strength, const char* desc, int doAsync,
         double perfsec, const char* perftype, int ret)
     {
-        bench_stats_t* bstat;
+        bench_stats_t* bstat = NULL;
 
         /* protect bench_stats_head and bench_stats_tail access */
         pthread_mutex_lock(&bench_lock);
 
-        /* locate existing in list */
-        for (bstat = bench_stats_head; bstat != NULL; bstat = bstat->next) {
-            /* match based on algo, strength and desc */
-            if (XSTRNCMP(bstat->algo, algo, BENCH_MAX_NAME_SZ) == 0 && 
-                bstat->strength == strength && 
-                bstat->desc == desc && 
-                bstat->doAsync == doAsync) {
-                break;
+        if (algo != NULL) {
+            /* locate existing in list */
+            for (bstat = bench_stats_head; bstat != NULL; bstat = bstat->next) {
+                /* match based on algo, strength and desc */
+                if (XSTRNCMP(bstat->algo, algo, BENCH_MAX_NAME_SZ) == 0 &&
+                    bstat->strength == strength &&
+                    bstat->desc == desc &&
+                    bstat->doAsync == doAsync) {
+                    break;
+                }
             }
         }
 
@@ -1126,7 +1128,8 @@ typedef enum bench_stat_type {
         }
         if (bstat) {
             bstat->type = type;
-            XSTRNCPY(bstat->algo, algo, BENCH_MAX_NAME_SZ);
+            if (algo != NULL)
+                XSTRNCPY(bstat->algo, algo, BENCH_MAX_NAME_SZ);
             bstat->strength = strength;
             bstat->desc = desc;
             bstat->doAsync = doAsync;
