@@ -7783,7 +7783,7 @@ static int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
         /* Not in list sent if there isn't a private key. */
         if (keyShareEntry == NULL || (keyShareEntry->key == NULL 
-        #ifndef NO_DH
+        #if !defined(NO_DH) || defined(HAVE_LIBOQS)
             && keyShareEntry->privKey == NULL
         #endif
         )) {

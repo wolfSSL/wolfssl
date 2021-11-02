@@ -2571,15 +2571,15 @@ WOLFSSL_LOCAL int TLSX_Cookie_Use(WOLFSSL* ssl, const byte* data, word16 len,
 
 /* The KeyShare extension information - entry in a linked list. */
 typedef struct KeyShareEntry {
-    word16                group;     /* NamedGroup               */
-    byte*                 ke;        /* Key exchange data        */
-    word32                keLen;     /* Key exchange data length */
-    void*                 key;       /* Key struct               */
-    word32                keyLen;    /* Key size (bytes)         */
-    byte*                 pubKey;    /* Public key               */
-    word32                pubKeyLen; /* Public key length        */
-#ifndef NO_DH
-    byte*                 privKey;   /* Private key - DH only    */
+    word16                group;     /* NamedGroup                        */
+    byte*                 ke;        /* Key exchange data                 */
+    word32                keLen;     /* Key exchange data length          */
+    void*                 key;       /* Key struct                        */
+    word32                keyLen;    /* Key size (bytes)                  */
+    byte*                 pubKey;    /* Public key                        */
+    word32                pubKeyLen; /* Public key length                 */
+#if !defined(NO_DH) || defined(HAVE_LIBOQS)
+    byte*                 privKey;   /* Private key - DH ond PQ KEMs only */
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     int                   lastRet;
