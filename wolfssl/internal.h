@@ -1244,7 +1244,7 @@ enum Misc {
     ENCRYPT_LEN     = 512 + MAX_PSK_ID_LEN + 2,    /* 4096 bit static buffer */
 #else
 #ifdef HAVE_LIBOQS
-    ENCRYPT_LEN     = 5000,     /* allow 40000 bit static buffer for falcon */
+    ENCRYPT_LEN     = 1500,     /* allow 1500 bit static buffer for falcon */
 #else
     ENCRYPT_LEN     = 512,      /* allow 4096 bit static buffer */
 #endif
@@ -1468,7 +1468,7 @@ enum Misc {
     MIN_RSA_SHA384_PSS_BITS = 384 * 2 + 8 * 8, /* Min key size */
 
 #if defined(HAVE_LIBOQS)
-    MAX_CERT_VERIFY_SZ = 20000,            /* For Falcon */
+    MAX_CERT_VERIFY_SZ = 1600,            /* For Falcon */
 #elif !defined(NO_RSA)
     MAX_CERT_VERIFY_SZ = WOLFSSL_MAX_RSA_BITS / 8, /* max RSA bytes */
 #elif defined(HAVE_ECC)
