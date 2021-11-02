@@ -29683,6 +29683,11 @@ static void test_wolfSSL_X509_INFO(void)
     X509_INFO *info;
     BIO *cert;
     int i;
+    byte data[] = {
+        "---------BEGIN CERTc-----\n"
+        "MIIDMTBuQ=\n"
+        "-----END -----"
+    };
 
     printf(testingFmt, "wolfSSL_X509_INFO");
 
@@ -29699,6 +29704,13 @@ static void test_wolfSSL_X509_INFO(void)
     AssertNotNull(cert = BIO_new_file(cliCertFileExt, "rb"));
     AssertNotNull(info_stack = PEM_X509_INFO_read_bio(cert, NULL, NULL, NULL));
     sk_X509_INFO_free(info_stack);
+    BIO_free(cert);
+
+    /* This case should fail due to invalid input. */
+    AssertNotNull(cert = BIO_new(BIO_s_mem()));
+    AssertIntEQ(BIO_write(cert, data, sizeof(data)), sizeof(data));
+    AssertNull(info_stack = PEM_X509_INFO_read_bio(cert, NULL, NULL, NULL));
+    sk_X509_INFO_pop_free(info_stack, X509_INFO_free);
     BIO_free(cert);
 
     printf(resultFmt, passed);
