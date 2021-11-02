@@ -78,11 +78,11 @@ single call hash function. Instead the name `WC_SHA`, `WC_SHA256`, `WC_SHA384` a
 `WC_SHA512` should be used for the enum name.
 
 # wolfSSL Release 5.0.0 (Nov 01, 2021)
-Release 5.0.0 of wolfSSL embedded TLS has bug fixes and new features including:
+[Release 5.0.0](https://github.com/wolfSSL/wolfssl/releases/tag/v5.0.0-stable) of wolfSSL embedded TLS has bug fixes and new features including:
 
 ### Vulnerabilities
-* [\Low\] Hang with DSA signature creation when a specific q value is used in a maliciously crafted key. If a DSA key with an invalid q value of either 1 or 0 was decoded and used for creating a signature, it would result in a hang in wolfSSL. Users that are creating signatures with DSA and are using keys supplied from an outside source are affected.
-* [\Low\] Issue with incorrectly validating a certificate that has multiple subject alternative names when given a name constraint. In the case where more than one subject alternative name is used in the certificate, previous versions of wolfSSL could incorrectly validate the certificate. Users verifying certificates with multiple alternative names and name constraints, are recommended to either use the certificate verify callback to check for this case or update the version of wolfSSL used. Thanks to Luiz Angelo Daros de Luca for the report.
+* \[Low\] Hang with DSA signature creation when a specific q value is used in a maliciously crafted key. If a DSA key with an invalid q value of either 1 or 0 was decoded and used for creating a signature, it would result in a hang in wolfSSL. Users that are creating signatures with DSA and are using keys supplied from an outside source are affected.
+* \[Low\] Issue with incorrectly validating a certificate that has multiple subject alternative names when given a name constraint. In the case where more than one subject alternative name is used in the certificate, previous versions of wolfSSL could incorrectly validate the certificate. Users verifying certificates with multiple alternative names and name constraints, are recommended to either use the certificate verify callback to check for this case or update the version of wolfSSL used. Thanks to Luiz Angelo Daros de Luca for the report.
 
 ### New Feature Additions
 ###### New Product
