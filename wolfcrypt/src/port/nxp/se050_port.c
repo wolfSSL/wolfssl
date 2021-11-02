@@ -60,6 +60,9 @@ struct ecc_key;
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
 
+#ifndef SE050_ECC_DER_MAX
+#define SE050_ECC_DER_MAX 256
+#endif
 
 /* Global variables */
 static sss_session_t *cfg_se050_i2c_pi;
@@ -112,10 +115,9 @@ int se050_allocate_key(int keyType)
     static int keyId_allocator = 100;
     switch (keyType) {
         case SE050_AES_KEY:
-        case SE050_ECC_SIGN:
-        case SE050_ECC_VERIFY:
-        case SE050_ED25519:
-        case SE050_KEYID_ANY:
+        case SE050_ECC_KEY:
+        case SE050_ED25519_KEY:
+        case SE050_ANY_KEY:
             keyId = keyId_allocator++;
             break;
     }
@@ -125,9 +127,9 @@ int se050_allocate_key(int keyType)
 #ifndef WC_NO_RNG
 int se050_get_random_number(uint32_t count, uint8_t* rand_out)
 {
+    int ret = 0;
     sss_status_t status;
     sss_rng_context_t rng;
-    int ret = 0;
 
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
@@ -137,16 +139,16 @@ int se050_get_random_number(uint32_t count, uint8_t* rand_out)
         return BAD_MUTEX_E;
     }
     status = sss_rng_context_init(&rng, cfg_se050_i2c_pi);
-
-    if (status == kStatus_SSS_Success)
+    if (status == kStatus_SSS_Success) {
         status = sss_rng_get_random(&rng, rand_out, count);
-
-    if (status == kStatus_SSS_Success)
+    }
+    if (status == kStatus_SSS_Success) {
         status = sss_rng_context_free(&rng);
-
+    }
     if (status != kStatus_SSS_Success) {
         ret = RNG_FAILURE_E;
     }
+
     wolfSSL_CryptHwMutexUnLock();
 
     return ret;
@@ -193,6 +195,7 @@ int se050_hash_update(SE050_HASH_Context* se050Ctx, const byte* data, word32 len
 int se050_hash_final(SE050_HASH_Context* se050Ctx, byte* hash, size_t digestLen,
     sss_algorithm_t algo)
 {
+    int          ret;
     sss_status_t status;
     sss_digest_t digest_ctx;
     const byte*  data = se050Ctx->msg;
@@ -228,9 +231,11 @@ int se050_hash_final(SE050_HASH_Context* se050Ctx, byte* hash, size_t digestLen,
         sss_digest_context_free(&digest_ctx);
     }
 
+    ret = (status == kStatus_SSS_Success) ? 0 : WC_HW_E;
+
     wolfSSL_CryptHwMutexUnLock();
 
-    return 0;
+    return ret;
 }
 
 void se050_hash_free(SE050_HASH_Context* se050Ctx)
@@ -239,108 +244,111 @@ void se050_hash_free(SE050_HASH_Context* se050Ctx)
 }
 
 #ifndef NO_AES
-int se050_aes_set_key(Aes* aes, const byte* key, word32 len,
+int se050_aes_set_key(Aes* aes, const byte* key, word32 keylen,
                                         const byte* iv, int dir)
 {
+    int ret = 0;
     sss_status_t status;
     sss_object_t newKey;
     sss_key_store_t host_keystore;
-    int keyId = se050_allocate_key(SE050_AES_KEY);
-    int ret = BAD_MUTEX_E;
+    int keyId;
+    int keyCreated = 0;
 
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
+    }
+
+    if (wolfSSL_CryptHwMutexLock() != 0) {
+        return BAD_MUTEX_E;
     }
 
     (void)dir;
     (void)iv;
 
-    aes->rounds = len/4 + 6;
-    aes->keyId = keyId;
-
-    if (wolfSSL_CryptHwMutexLock() != 0) {
-        return BAD_MUTEX_E;
-    }
+    aes->rounds = keylen/4 + 6;
 
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
-
     if (status == kStatus_SSS_Success) {
         status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_AES);
     }
-
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&newKey, &host_keystore);
     }
-
-    /* aes_test runs perfectly with kKeyObject_Mode_Persistent,
-        * but might have caused previous board to have no free key slots */
     if (status == kStatus_SSS_Success) {
+        keyId = se050_allocate_key(SE050_AES_KEY);
         status = sss_key_object_allocate_handle(&newKey, keyId,
-            kSSS_KeyPart_Default, kSSS_CipherType_AES, len,
+            kSSS_KeyPart_Default, kSSS_CipherType_AES, keylen,
             kKeyObject_Mode_Transient);
+    }
+    if (status == kStatus_SSS_Success) {
+        keyCreated = 1;
+        status = sss_key_store_set_key(&host_keystore, &newKey, key, keylen,
+                                    keylen * 8, NULL, 0);
     }
 
     if (status == kStatus_SSS_Success) {
-        status = sss_key_store_set_key(&host_keystore, &newKey, key, len,
-                                    len * 8, NULL, 0);
+        aes->keyId = keyId;
+        ret = 0;
+    }
+    else {
+        if (keyCreated) {
+            sss_key_object_free(&newKey);
+        }
+        ret = WC_HW_E;
     }
 
     wolfSSL_CryptHwMutexUnLock();
 
-    if (status != kStatus_SSS_Success)
-        ret = WC_HW_E;
     return ret;
 }
-
 
 int se050_aes_crypt(Aes* aes, const byte* in, byte* out, word32 sz, int dir,
     sss_algorithm_t algorithm)
 {
+    int             ret = 0;
     sss_status_t    status;
     sss_object_t    keyObject;
-    sss_mode_t      mode;
     sss_key_store_t host_keystore;
-    int             ret = BAD_MUTEX_E;
 
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
     }
-
-    XMEMSET(&mode, 0, sizeof(mode));
-
-    if (dir == AES_DECRYPTION)
-        mode = kMode_SSS_Decrypt;
-    else if (dir == AES_ENCRYPTION)
-        mode = kMode_SSS_Encrypt;
+    if (aes->keyId <= 0) {
+        return BAD_FUNC_ARG;
+    }
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
     }
 
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
-
     if (status == kStatus_SSS_Success) {
         status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_AES);
     }
-
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&keyObject, &host_keystore);
     }
-
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_get_handle(&keyObject, aes->keyId);
     }
 
     /* The first call to this function needs an initialization call,
         * subsequent calls just need to call update */
-    if (aes->ctxInitDone == 0) {
-        aes->ctxInitDone = 1;
+    if (status == kStatus_SSS_Success && aes->ctxInitDone == 0) {
+        sss_mode_t      mode;
+
+        XMEMSET(&mode, 0, sizeof(mode));
+        if (dir == AES_DECRYPTION)
+            mode = kMode_SSS_Decrypt;
+        else if (dir == AES_ENCRYPTION)
+            mode = kMode_SSS_Encrypt;
+
         if (status == kStatus_SSS_Success) {
             status = sss_symmetric_context_init(&aes->aes_ctx,
                 cfg_se050_i2c_pi, &keyObject, algorithm, mode);
         }
-
         if (status == kStatus_SSS_Success) {
+            aes->ctxInitDone = 1;
             status = sss_cipher_init(&aes->aes_ctx, (uint8_t*)aes->reg,
                 sizeof(aes->reg));
         }
@@ -350,10 +358,10 @@ int se050_aes_crypt(Aes* aes, const byte* in, byte* out, word32 sz, int dir,
         status = sss_cipher_update(&aes->aes_ctx, in, sz, out, &outSz);
     }
 
+    ret = (status == kStatus_SSS_Success) ? 0 : WC_HW_E;
+
     wolfSSL_CryptHwMutexUnLock();
 
-    if (status != kStatus_SSS_Success)
-        ret = WC_HW_E;
     return ret;
 }
 
@@ -366,30 +374,33 @@ void se050_aes_free(Aes* aes)
     if (cfg_se050_i2c_pi == NULL) {
         return;
     }
-
-    /* sets back to zero to indicate that a free has been called */
-    aes->ctxInitDone = 0;
+    if (aes->keyId <= 0) {
+        return;
+    }
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return;
     }
 
-    status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
+    if (aes->ctxInitDone) {
+        sss_symmetric_context_free(&aes->aes_ctx);
 
+        /* sets back to zero to indicate that a free has been called */
+        aes->ctxInitDone = 0;
+    }
+
+    status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
     if (status == kStatus_SSS_Success) {
         status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_AES);
     }
-
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&keyObject, &host_keystore);
     }
-
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_get_handle(&keyObject, aes->keyId);
+        aes->keyId = 0;
     }
     sss_key_object_free(&keyObject);
-
-    sss_symmetric_context_free(&aes->aes_ctx);
 
     wolfSSL_CryptHwMutexUnLock();
 }
@@ -397,25 +408,71 @@ void se050_aes_free(Aes* aes)
 #endif /* !NO_AES */
 
 #ifdef HAVE_ECC
+
+static sss_cipher_type_t se050_map_curve(int curve_id)
+{
+    sss_cipher_type_t curve_type;
+    switch (curve_id) {
+        case ECC_SECP160K1:
+        case ECC_SECP192K1:
+        case ECC_SECP224K1:
+        case ECC_SECP256K1:
+            curve_type = kSSS_CipherType_EC_NIST_K;
+            break;
+        case ECC_BRAINPOOLP160R1:
+        case ECC_BRAINPOOLP192R1:
+        case ECC_BRAINPOOLP224R1:
+        case ECC_BRAINPOOLP256R1:
+        case ECC_BRAINPOOLP320R1:
+        case ECC_BRAINPOOLP384R1:
+        case ECC_BRAINPOOLP512R1:
+            curve_type = kSSS_CipherType_EC_BRAINPOOL;
+            break;
+        case ECC_CURVE_DEF:
+        case ECC_SECP160R1:
+        case ECC_SECP192R1:
+        case ECC_SECP224R1:
+        case ECC_SECP256R1:
+        case ECC_SECP384R1:
+        case ECC_SECP521R1:
+        default:
+            curve_type = kSSS_CipherType_EC_NIST_P;
+            break;
+    }
+    return curve_type;
+}
+
 int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
                          word32 *outLen, struct ecc_key* key)
 {
+    int                 ret = 0;
     sss_status_t        status;
     sss_asymmetric_t    ctx_asymm;
     sss_key_store_t     host_keystore;
     sss_object_t        newKey;
     sss_algorithm_t     algorithm = kAlgorithm_None;
-    int         keyId = se050_allocate_key(SE050_ECC_SIGN);
-    int         keysize = (word32)key->dp->size;
-    int         ret = BAD_MUTEX_E;
+    int                 keySize;
+    int                 keySizeBits;
 
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
+    }
+    if (key->keyId <= 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (wolfSSL_CryptHwMutexLock() != 0) {
+        return BAD_MUTEX_E;
     }
 
     /* truncate if digest is larger than 64 */
     if (inLen > 64)
         inLen = 64;
+
+    keySize = key->dp->size;
+    keySizeBits = keySize * 8;
+    if (keySizeBits > SSS_MAX_ECC_BITS)
+        keySizeBits = SSS_MAX_ECC_BITS;
 
     if (inLen == 20)
         algorithm = kAlgorithm_SSS_SHA1;
@@ -428,54 +485,33 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
     else if (inLen == 64)
         algorithm = kAlgorithm_SSS_SHA512;
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
-        return BAD_MUTEX_E;
-    }
-
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
-
     if (status == kStatus_SSS_Success) {
         status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ECC);
     }
-
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&newKey, &host_keystore);
     }
-
-
     if (status == kStatus_SSS_Success) {
-        status = sss_key_object_allocate_handle(&newKey, keyId,
-            kSSS_KeyPart_Pair, kSSS_CipherType_EC_NIST_P, keysize,
-            kKeyObject_Mode_Transient);
+        status = sss_key_object_get_handle(&newKey, key->keyId);
     }
-
-    if (status == kStatus_SSS_Success) {
-        status = sss_key_store_generate_key(&host_keystore, &newKey,
-                                                keysize * 8, NULL);
-    }
-
     if (status == kStatus_SSS_Success) {
         status = sss_asymmetric_context_init(&ctx_asymm, cfg_se050_i2c_pi,
-                                            &newKey, algorithm, kMode_SSS_Sign);
+            &newKey, algorithm, kMode_SSS_Sign);
+        if (status == kStatus_SSS_Success) {
+            size_t outLenSz = (size_t)*outLen;
+            status = sss_asymmetric_sign_digest(&ctx_asymm, (uint8_t *)in,
+                inLen, out, &outLenSz);
+            *outLen = (word32)outLenSz;
+        }
+        sss_asymmetric_context_free(&ctx_asymm);
     }
 
-    if (status == kStatus_SSS_Success) {
-        size_t outLenSz = (size_t)*outLen;
-        status = sss_asymmetric_sign_digest(&ctx_asymm, (uint8_t *)in, inLen,
-                                                                out, &outLenSz);
-        *outLen = (word32)outLenSz;
-    }
-    sss_asymmetric_context_free(&ctx_asymm);
-
-    wolfSSL_CryptHwMutexUnLock();
-
-    if (status == kStatus_SSS_Success) {
-        key->keyId = keyId;
-        ret = 0;
-    }
-    else {
+    if (status != kStatus_SSS_Success) {
         ret = WC_HW_E;
     }
+
+    wolfSSL_CryptHwMutexUnLock();
 
     return ret;
 }
@@ -483,19 +519,25 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
 int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, byte* signature,
                              word32 signatureLen, struct ecc_key* key, int* res)
 {
+    int                 ret = 0;
     sss_status_t        status;
     sss_asymmetric_t    ctx_asymm;
     sss_object_t        newKey;
     sss_key_store_t     host_keystore;
     sss_algorithm_t     algorithm = kAlgorithm_None;
-    word32      derSz = 0;
-    int         ret;
-    int         keySize = (word32)key->dp->size;
+    int                 keySize;
+    int                 keySizeBits;
+    sss_cipher_type_t   curveType;
+    int                 keyCreated = 0;
 
     *res = 0;
 
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
+    }
+
+    if (wolfSSL_CryptHwMutexLock() != 0) {
+        return BAD_MUTEX_E;
     }
 
     if (hashLen > 64)
@@ -512,80 +554,53 @@ int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, byte* signature,
     else if (hashLen == 64)
         algorithm = kAlgorithm_SSS_SHA512;
 
-    if (wolfSSL_CryptHwMutexLock() != 0) {
-        return BAD_MUTEX_E;
+    keySize = key->dp->size;
+    keySizeBits = keySize * 8;
+    if (keySizeBits > SSS_MAX_ECC_BITS)
+        keySizeBits = SSS_MAX_ECC_BITS;
+    curveType = se050_map_curve(key->dp->id);
+
+    status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ECC);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_object_init(&newKey, &host_keystore);
     }
 
     /* this is run when a key was not generated and was instead passed in */
-    if (key->keyId == 0) {
-        int keyId = se050_allocate_key(SE050_ECC_VERIFY);
-        byte* derBuf = NULL;
+    if (status == kStatus_SSS_Success) {
+        if (key->keyId == 0) {
+            byte derBuf[SE050_ECC_DER_MAX];
+            word32 derSz;
 
-        ret = wc_EccKeyToPKCS8(key, NULL, &derSz);
-        if (ret != LENGTH_ONLY_E) {
-            return ret;
+            ret = wc_EccPublicKeyToDer(key, derBuf, (word32)sizeof(derBuf), 1);
+            if (ret >= 0) {
+                derSz = ret;
+            }
+            else {
+                status = kStatus_SSS_Fail;
+            }
+            if (status == kStatus_SSS_Success) {
+                key->keyId = se050_allocate_key(SE050_ECC_KEY);
+                status = sss_key_object_allocate_handle(&newKey, key->keyId,
+                    kSSS_KeyPart_Public, curveType, keySize,
+                    kKeyObject_Mode_Transient);
+            }
+            if (status == kStatus_SSS_Success) {
+                keyCreated = 1;
+                status = sss_key_store_set_key(&host_keystore, &newKey, derBuf,
+                                                derSz, keySizeBits, NULL, 0);
+            }
         }
-
-        derBuf = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (derBuf == NULL) {
-            return MEMORY_E;
-        }
-        ret = wc_EccKeyToPKCS8(key, derBuf, &derSz);
-        if (ret <= 0) {
-            XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            return ret;
-        }
-
-        status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
-        if (status == kStatus_SSS_Success) {
-            status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ECC);
-        }
-        if (status == kStatus_SSS_Success) {
-            status = sss_key_object_init(&newKey, &host_keystore);
-        }
-        if (status == kStatus_SSS_Success) {
-            status = sss_key_object_allocate_handle(&newKey, keyId,
-                kSSS_KeyPart_Pair, kSSS_CipherType_EC_NIST_P, derSz,
-                kKeyObject_Mode_Transient);
-        }
-        if (status == kStatus_SSS_Success) {
-            status = sss_key_store_set_key(&host_keystore, &newKey, derBuf,
-                                            derSz, keySize * 8, NULL, 0);
-        }
-        if (derBuf) {
-            XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        }
-
-        if (status == kStatus_SSS_Success) {
-            status = sss_asymmetric_context_init(&ctx_asymm, cfg_se050_i2c_pi,
-                                        &newKey, algorithm, kMode_SSS_Verify);
-        }
-        if (status == kStatus_SSS_Success) {
-            status = sss_asymmetric_verify_digest(&ctx_asymm, (uint8_t *)hash,
-                                            hashLen, signature, signatureLen);
-        }
-
-        sss_asymmetric_context_free(&ctx_asymm);
-
-        key->keyId = keyId;
-    }
-    /* this is run after a sign function has taken place */
-    else {
-        status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
-
-        if (status == kStatus_SSS_Success) {
-            status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ECC);
-        }
-        if (status == kStatus_SSS_Success) {
-            status = sss_key_object_init(&newKey, &host_keystore);
-        }
-        if (status == kStatus_SSS_Success) {
+        else {
             status = sss_key_object_get_handle(&newKey, key->keyId);
         }
-        if (status == kStatus_SSS_Success) {
-            status = sss_asymmetric_context_init(&ctx_asymm, cfg_se050_i2c_pi,
-                                        &newKey, algorithm, kMode_SSS_Verify);
-        }
+    }
+
+    if (status == kStatus_SSS_Success) {
+        status = sss_asymmetric_context_init(&ctx_asymm, cfg_se050_i2c_pi,
+                                    &newKey, algorithm, kMode_SSS_Verify);
         if (status == kStatus_SSS_Success) {
             status = sss_asymmetric_verify_digest(&ctx_asymm, (uint8_t *)hash,
                                             hashLen, signature, signatureLen);
@@ -593,41 +608,44 @@ int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, byte* signature,
 
         sss_asymmetric_context_free(&ctx_asymm);
     }
-    wolfSSL_CryptHwMutexUnLock();
 
     if (status == kStatus_SSS_Success) {
         *res = 1;
         ret = 0;
     }
     else {
-        ret = WC_HW_E;
+        if (keyCreated) {
+            sss_key_object_free(&newKey);
+            key->keyId = 0;
+        }
+        if (ret == 0)
+            ret = WC_HW_E;
     }
 
-    return 0;
+    wolfSSL_CryptHwMutexUnLock();
+
+    return ret;
 }
 
 
-int se050_ecc_free_key(struct ecc_key* key)
+void se050_ecc_free_key(struct ecc_key* key)
 {
     sss_status_t    status = kStatus_SSS_Success;
     sss_object_t    keyObject;
-    int             ret = WC_HW_E;
     sss_key_store_t host_keystore;
 
     if (cfg_se050_i2c_pi == NULL) {
-        return WC_HW_E;
+        return;
     }
-
     if (key->keyId <= 0) {
-        return BAD_FUNC_ARG;
+        return;
     }
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
-        return BAD_MUTEX_E;
+        return;
     }
 
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
-
     if (status == kStatus_SSS_Success) {
         status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ECC);
     }
@@ -639,36 +657,37 @@ int se050_ecc_free_key(struct ecc_key* key)
     }
     if (status == kStatus_SSS_Success) {
         sss_key_object_free(&keyObject);
+        key->keyId = 0;
     }
     wolfSSL_CryptHwMutexUnLock();
-
-    if (status != kStatus_SSS_Success) {
-        ret = WC_CLEANUP_E;
-    }
-
-    return ret;
 }
+
 int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize)
 {
-    sss_status_t    status = kStatus_SSS_Success;
-    sss_object_t    keyPair;
-    sss_key_store_t host_keystore;
-    int keyId = se050_allocate_key(SE050_KEYID_ANY);
-    uint8_t keyPairExport[MAX_ECC_BYTES*2];
-    size_t keyPairExportLen = sizeof(keyPairExport);
-    size_t keyPairExportBitLen = sizeof(keyPairExport) * 8;
-    int ret;
+    int               ret = 0;
+    sss_status_t      status = kStatus_SSS_Success;
+    sss_object_t      keyPair;
+    sss_key_store_t   host_keystore;
+    uint8_t           derBuf[SE050_ECC_DER_MAX];
+    size_t            derSz = sizeof(derBuf);
+    size_t            derSzBits = derSz * 8;
+    int               keyId;
+    int               keySizeBits;
+    sss_cipher_type_t curveType;
+    int               keyCreated = 0;
 
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
     }
 
-
-    (void)curve_id;
-
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
     }
+
+    curveType = se050_map_curve(curve_id);
+    keySizeBits = keySize * 8;
+    if (keySizeBits > SSS_MAX_ECC_BITS)
+        keySizeBits = SSS_MAX_ECC_BITS;
 
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
     if (status == kStatus_SSS_Success) {
@@ -678,30 +697,40 @@ int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize)
         status = sss_key_object_init(&keyPair, &host_keystore);
     }
     if (status == kStatus_SSS_Success) {
+        keyId = se050_allocate_key(SE050_ECC_KEY);
         status = sss_key_object_allocate_handle(&keyPair, keyId,
-            kSSS_KeyPart_Pair, kSSS_CipherType_EC_NIST_P, keySize*8,
+            kSSS_KeyPart_Pair, curveType, keySizeBits,
             kKeyObject_Mode_None);
     }
     if (status == kStatus_SSS_Success) {
+        keyCreated = 1;
         status = sss_key_store_generate_key(&host_keystore, &keyPair,
-            keySize*8, NULL);
+            keySizeBits, NULL);
     }
     if (status == kStatus_SSS_Success) {
         status = sss_key_store_get_key(&host_keystore, &keyPair,
-            keyPairExport, &keyPairExportLen, &keyPairExportBitLen);
+            derBuf, &derSz, &derSzBits);
     }
-
-    wolfSSL_CryptHwMutexUnLock();
-
     if (status == kStatus_SSS_Success) {
-        mp_read_unsigned_bin(key->pubkey.x, keyPairExport, keySize);
-        mp_read_unsigned_bin(key->pubkey.y, keyPairExport + keySize, keySize);
+        word32 idx = 0;
+        ret = wc_EccPublicKeyDecode(derBuf, &idx, key, (word32)derSz);
+        if (ret != 0) {
+            status = kStatus_SSS_Fail;
+        }
+    }
+    if (status == kStatus_SSS_Success) {
         key->keyId = keyId;
         ret = 0;
     }
     else {
-        ret = WC_HW_E;
+        if (keyCreated) {
+            sss_key_object_free(&keyPair);
+        }
+        if (ret == 0)
+            ret = WC_HW_E;
     }
+
+    wolfSSL_CryptHwMutexUnLock();
 
     return ret;
 }
@@ -710,24 +739,24 @@ int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize)
 int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     byte* out, word32* outlen)
 {
-    sss_status_t            status = kStatus_SSS_Success;
-    sss_key_store_t         host_keystore;
-    sss_key_store_t         host_keystore_2;
-    sss_object_t            ref_private_key;
-    sss_object_t            ref_public_key;
-    sss_object_t            deriveKey;
-    sss_derive_key_t        ctx_derive_key;
-    int                     keyId;
-    int                     keySize = (word32)public_key->dp->size;
-    size_t                  ecdhKeyLen = keySize;
-    size_t                  ecdhKeyBitLen = keySize;
-    int                     ret = WC_HW_E;
+    int                 ret;
+    sss_status_t        status = kStatus_SSS_Success;
+    sss_key_store_t     host_keystore;
+    sss_object_t        ref_private_key;
+    sss_object_t        ref_public_key;
+    sss_object_t        deriveKey;
+    sss_derive_key_t    ctx_derive_key;
+    int                 keyId;
+    int                 keySize;
+    size_t              keySizeBits;
+    sss_cipher_type_t   curveType;
+    int                 keyCreated = 0;
+    int                 deriveKeyCreated = 0;
 
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
     }
-
-    if (private_key->keyId <= 0 || public_key->keyId <= 0) {
+    if (private_key->keyId <= 0) {
         return BAD_FUNC_ARG;
     }
 
@@ -735,75 +764,102 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
         return BAD_MUTEX_E;
     }
 
+    keySize = private_key->dp->size;
+    keySizeBits = keySize * 8;
+    if (keySizeBits > SSS_MAX_ECC_BITS)
+        keySizeBits = SSS_MAX_ECC_BITS;
+    curveType = se050_map_curve(private_key->dp->id);
+
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
     if (status == kStatus_SSS_Success) {
         status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ECC);
     }
-
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&ref_public_key, &host_keystore);
     }
-
     if (status == kStatus_SSS_Success) {
-        status = sss_key_object_get_handle(&ref_public_key, public_key->keyId);
+        status = sss_key_object_init(&ref_private_key, &host_keystore);
     }
-
-    if (status == kStatus_SSS_Success) {
-        status = sss_key_store_context_init(&host_keystore_2, cfg_se050_i2c_pi);
-    }
-
-    if (status == kStatus_SSS_Success) {
-        status = sss_key_store_allocate(&host_keystore_2, SE050_KEYSTOREID_ECC);
-    }
-
-    if (status == kStatus_SSS_Success) {
-        status = sss_key_object_init(&ref_private_key, &host_keystore_2);
-    }
-
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_get_handle(&ref_private_key, private_key->keyId);
     }
 
     if (status == kStatus_SSS_Success) {
+        if (public_key->keyId <= 0) {
+            byte derBuf[256];
+            word32 derSz;
+
+            ret = wc_EccPublicKeyToDer(public_key, derBuf,
+                (word32)sizeof(derBuf), 1);
+            if (ret >= 0) {
+                derSz = ret;
+            }
+            else {
+                status = kStatus_SSS_Fail;
+            }
+            if (status == kStatus_SSS_Success) {
+                keyId = se050_allocate_key(SE050_ECC_KEY);
+                status = sss_key_object_allocate_handle(&ref_public_key,
+                    keyId, kSSS_KeyPart_Public, curveType, keySize,
+                    kKeyObject_Mode_Transient);
+            }
+            if (status == kStatus_SSS_Success) {
+                keyCreated = 1;
+                status = sss_key_store_set_key(&host_keystore, &ref_public_key,
+                    derBuf, derSz, keySizeBits, NULL, 0);
+            }
+        }
+        else {
+            status = sss_key_object_get_handle(&ref_public_key,
+                public_key->keyId);
+        }
+    }
+    if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&deriveKey, hostKeyStore);
     }
-
     if (status == kStatus_SSS_Success) {
-        keyId = se050_allocate_key(SE050_KEYID_ANY);
-
+        int keyIdAes = se050_allocate_key(SE050_AES_KEY);
+        deriveKeyCreated = 1;
         status = sss_key_object_allocate_handle(&deriveKey,
-            keyId,
+            keyIdAes,
             kSSS_KeyPart_Default,
             kSSS_CipherType_AES,
-            ecdhKeyLen,
+            keySize,
             kKeyObject_Mode_Transient);
     }
-
     if (status == kStatus_SSS_Success) {
         status = sss_derive_key_context_init(&ctx_derive_key, cfg_se050_i2c_pi,
                                     &ref_private_key, kAlgorithm_SSS_ECDH,
                                     kMode_SSS_ComputeSharedSecret);
-    }
+        if (status == kStatus_SSS_Success) {
+            status = sss_derive_key_dh(&ctx_derive_key, &ref_public_key,
+                &deriveKey);
+        }
+        if (status == kStatus_SSS_Success) {
+            size_t outlenSz = (size_t)*outlen;
+            /* derived key export */
+            status = sss_key_store_get_key(hostKeyStore, &deriveKey, out,
+                &outlenSz, &keySizeBits);
+            *outlen = (word32)outlenSz;
+        }
 
-    if (status == kStatus_SSS_Success) {
-        status = sss_derive_key_dh(&ctx_derive_key, &ref_public_key, &deriveKey);
-    }
-
-    if (status == kStatus_SSS_Success) {
-        size_t outlenSz = (size_t)*outlen;
-        status = sss_key_store_get_key(hostKeyStore, &deriveKey, out, &outlenSz,
-                                                                &ecdhKeyBitLen);
-        *outlen = (word32)outlenSz;
-    }
-    if (ctx_derive_key.session != NULL)
         sss_derive_key_context_free(&ctx_derive_key);
-    if (deriveKey.keyStore != NULL)
+    }
+    if (deriveKeyCreated) {
         sss_key_object_free(&deriveKey);
+    }
 
-    if (status == kStatus_SSS_Success)
+    if (status == kStatus_SSS_Success) {
         ret = 0;
-    else
-        ret = WC_HW_E;
+    }
+    else {
+        if (keyCreated) {
+            sss_key_object_free(&public_key);
+            public_key->keyId = 0;
+        }
+        if (ret == 0)
+            ret = WC_HW_E;
+    }
 
     wolfSSL_CryptHwMutexUnLock();
 
@@ -815,12 +871,13 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
 
 int se050_ed25519_create_key(ed25519_key* key)
 {
+    int             ret = 0;
     sss_status_t    status;
     sss_key_store_t host_keystore;
     sss_object_t    newKey;
-    int             keysize = ED25519_KEY_SIZE;
     int             keyId;
-    int             ret = 0;
+    int             keySize = ED25519_KEY_SIZE;
+    int             keyCreated = 0;
 
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
@@ -834,21 +891,19 @@ int se050_ed25519_create_key(ed25519_key* key)
     if (status == kStatus_SSS_Success) {
         status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ED25519);
     }
-
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&newKey, &host_keystore);
     }
-
     if (status == kStatus_SSS_Success) {
-        keyId = se050_allocate_key(SE050_ED25519);
+        keyId = se050_allocate_key(SE050_ED25519_KEY);
         status = sss_key_object_allocate_handle(&newKey, keyId,
-            kSSS_KeyPart_Pair, kSSS_CipherType_EC_TWISTED_ED, keysize,
+            kSSS_KeyPart_Pair, kSSS_CipherType_EC_TWISTED_ED, keySize,
             kKeyObject_Mode_Transient);
     }
-
     if (status == kStatus_SSS_Success) {
+        keyCreated = 1;
         status = sss_key_store_generate_key(&host_keystore, &newKey,
-            keysize * 8, NULL);
+            keySize * 8, NULL);
     }
 
     if (status == kStatus_SSS_Success) {
@@ -856,7 +911,9 @@ int se050_ed25519_create_key(ed25519_key* key)
         ret = 0;
     }
     else {
-        sss_key_object_free(&newKey);
+        if (keyCreated) {
+            sss_key_object_free(&newKey);
+        }
         ret = WC_HW_E;
     }
 
@@ -874,9 +931,12 @@ void se050_ed25519_free_key(ed25519_key* key)
     if (cfg_se050_i2c_pi == NULL) {
         return;
     }
+    if (key->keyId <= 0) {
+        return;
+    }
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
-        return /*BAD_MUTEX_E*/;
+        return;
     }
 
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
@@ -892,6 +952,7 @@ void se050_ed25519_free_key(ed25519_key* key)
     }
     if (status == kStatus_SSS_Success) {
         sss_key_object_free(&newKey);
+        key->keyId = 0;
     }
     wolfSSL_CryptHwMutexUnLock();
 }
@@ -899,11 +960,11 @@ void se050_ed25519_free_key(ed25519_key* key)
 int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
                          word32 *outLen, ed25519_key* key)
 {
+    int                 ret = 0;
     sss_status_t        status = kStatus_SSS_Success;
     sss_asymmetric_t    ctx_asymm;
     sss_key_store_t     host_keystore;
     sss_object_t        newKey;
-    int                 ret = 0;
 
     inLen = 64;
     *outLen = 64;
@@ -911,41 +972,38 @@ int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
     }
+    if (key->keyId <= 0) {
+        return BAD_FUNC_ARG;
+    }
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
     }
 
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
-
     if (status == kStatus_SSS_Success) {
         status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ED25519);
     }
-
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&newKey, &host_keystore);
     }
-
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_get_handle(&newKey, key->keyId);
     }
-
     if (status == kStatus_SSS_Success) {
         status = sss_asymmetric_context_init(&ctx_asymm, cfg_se050_i2c_pi,
                             &newKey, kAlgorithm_SSS_SHA512, kMode_SSS_Sign);
-    }
+        if (status == kStatus_SSS_Success) {
+            size_t outlenSz = (size_t)*outLen;
+            status = sss_se05x_asymmetric_sign((sss_se05x_asymmetric_t *)&ctx_asymm,
+                                            (uint8_t *)in, inLen, out, &outlenSz);
+            *outLen = (word32)outlenSz;
+        }
 
-    if (status == kStatus_SSS_Success) {
-        size_t outlenSz = (size_t)*outLen;
-        status = sss_se05x_asymmetric_sign((sss_se05x_asymmetric_t *)&ctx_asymm,
-                                          (uint8_t *)in, inLen, out, &outlenSz);
-        *outLen = (word32)outlenSz;
+        sss_asymmetric_context_free(&ctx_asymm);
     }
-
-    sss_asymmetric_context_free(&ctx_asymm);
 
     if (status != kStatus_SSS_Success) {
-        sss_key_object_free(&newKey);
         ret = WC_HW_E;
     }
 
@@ -958,34 +1016,58 @@ int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
 int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
     const byte* msg, word32 msgLen, struct ed25519_key* key, int* res)
 {
+    int                 ret = 0;
     sss_status_t        status = kStatus_SSS_Success;
     sss_asymmetric_t    ctx_asymm;
     sss_object_t        newKey;
     sss_key_store_t     host_keystore;
-    int                 ret = 0;
+    int                 keyId;
+    int                 keySize = ED25519_KEY_SIZE;
+    int                 keyCreated = 0;
 
     if (cfg_se050_i2c_pi == NULL) {
         return WC_HW_E;
     }
-
-    msgLen = 64;
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
     }
 
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
-
     if (status == kStatus_SSS_Success) {
         status = sss_key_store_allocate(&host_keystore, SE050_KEYSTOREID_ED25519);
     }
-
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_init(&newKey, &host_keystore);
     }
-
     if (status == kStatus_SSS_Success) {
-        status = sss_key_object_get_handle(&newKey, key->keyId);
+        if (key->keyId == 0) {
+            byte derBuf[48];
+            word32 derSz = 0, idx = 0;
+
+            ret = wc_Ed25519PublicKeyDecode(derBuf, &idx, key,
+                (word32)sizeof(derBuf));
+            if (ret >= 0) {
+                derSz = ret;
+            }
+            else {
+                status = kStatus_SSS_Fail;
+            }
+            if (status == kStatus_SSS_Success) {
+                keyId = se050_allocate_key(SE050_ED25519_KEY);
+                status = sss_key_object_allocate_handle(&newKey, keyId,
+                    kSSS_KeyPart_Pair, kSSS_CipherType_EC_TWISTED_ED, keySize,
+                    kKeyObject_Mode_Transient);
+            }
+            if (status == kStatus_SSS_Success) {
+                keyCreated = 1;
+                status = sss_key_store_set_key(&host_keystore, &newKey, derBuf,
+                                                derSz, keySize * 8, NULL, 0);
+            }
+        }
+        else {
+            status = sss_key_object_get_handle(&newKey, key->keyId);
+        }
     }
 
     if (status == kStatus_SSS_Success) {
@@ -1001,14 +1083,21 @@ int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
 
     sss_asymmetric_context_free(&ctx_asymm);
 
-    wolfSSL_CryptHwMutexUnLock();
-
     if (status == kStatus_SSS_Success) {
+        key->keyId = keyId;
         *res = 1;
+        ret = 0;
     }
     else {
-        ret = WC_HW_E;
+        if (keyCreated) {
+            sss_key_object_free(&newKey);
+        }
+        if (ret == 0)
+            ret = WC_HW_E;
     }
+
+    wolfSSL_CryptHwMutexUnLock();
+
     return ret;
 }
 

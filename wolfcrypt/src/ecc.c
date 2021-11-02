@@ -1218,7 +1218,7 @@ static int wc_ecc_export_x963_compressed(ecc_key*, byte* out, word32* outLen);
 
 #if (defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || !defined(WOLFSSL_SP_MATH)) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL)
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050)
 static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
         mp_int* prime, mp_int* order);
 #endif
@@ -8052,7 +8052,7 @@ int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen,
 
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL)
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050)
 
 /* is ecc point on curve described by dp ? */
 int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
@@ -8516,7 +8516,8 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
     int    err = MP_OKAY;
 #ifndef WOLFSSL_SP_MATH
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL)
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(WOLFSSL_SE050)
     mp_int* b = NULL;
     #ifdef USE_ECC_B_PARAM
         DECLARE_CURVE_SPECS(curve, 4);
@@ -8527,7 +8528,7 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
         DECLARE_CURVE_SPECS(curve, 3);
     #endif /* USE_ECC_B_PARAM */
 #endif /* !WOLFSSL_ATECC508A && !WOLFSSL_ATECC608A && 
-          !WOLFSSL_CRYPTOCELL && !WOLFSSL_SILABS_SE_ACCEL */
+          !WOLFSSL_CRYPTOCELL && !WOLFSSL_SILABS_SE_ACCEL && !WOLFSSL_SE050 */
 #endif /* !WOLFSSL_SP_MATH */
 
     ASSERT_SAVED_VECTOR_REGISTERS();
@@ -8558,7 +8559,8 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 
 #ifndef WOLFSSL_SP_MATH
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
-    defined(WOLFSSL_CRYPTOCELL) || defined(WOLFSSL_SILABS_SE_ACCEL)
+    defined(WOLFSSL_CRYPTOCELL) || defined(WOLFSSL_SILABS_SE_ACCEL) || \
+    defined(WOLFSSL_SE050)
 
     /* consider key check success on HW crypto 
      * ex: ATECC508/608A, CryptoCell and Silabs */
@@ -8678,9 +8680,9 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 
     FREE_CURVE_SPECS();
 #endif /* WOLFSSL_ATECC508A */
-#else
     (void)partial;
     (void)priv;
+#else
     return WC_KEY_SIZE_E;
 #endif /* !WOLFSSL_SP_MATH */
     return err;
