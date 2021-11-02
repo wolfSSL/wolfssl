@@ -9938,6 +9938,16 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    if (aes->devId != INVALID_DEVID) {
+        int ret = wc_CryptoCb_AesCcmEncrypt(aes, out, in, inSz, nonce, nonceSz,
+            authTag, authTagSz, authIn, authInSz);
+        if (ret != CRYPTOCB_UNAVAILABLE)
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
+
     XMEMSET(A, 0, sizeof(A));
     XMEMCPY(B+1, nonce, nonceSz);
     lenSz = AES_BLOCK_SIZE - 1 - (byte)nonceSz;
@@ -10039,6 +10049,16 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     if (wc_AesCcmCheckTagSize(authTagSz) != 0) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    if (aes->devId != INVALID_DEVID) {
+        int ret = wc_CryptoCb_AesCcmDecrypt(aes, out, in, inSz, nonce, nonceSz,
+            authTag, authTagSz, authIn, authInSz);
+        if (ret != CRYPTOCB_UNAVAILABLE)
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
 
     o = out;
     oSz = inSz;
