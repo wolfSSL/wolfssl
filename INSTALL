@@ -195,9 +195,8 @@
 
     There is a script for generating a Falcon NIST Level 1 and NIST Level 5
     certificate chain which can be found in the wolfssl-examples github repo at
-    certmanager/generate_falcon_chains.sh. Please find detailed instructions on
-    how to generate and verify the keys and certificates in
-    certmanager/README.md.
+    pq/generate_falcon_chains.sh. Please find detailed instructions on how to
+    generate and verify the keys and certificates in pq/README.md.
 
     Once the certificates and keys are generated, copy them from the
     openssl-OQS-OpenSSL_1_1_1-stable-snapshot-2021-08/ directory to the certs
