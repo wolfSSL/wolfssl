@@ -1420,7 +1420,7 @@ top:
 /* modulus (b) must be greater than 2 and a prime */
 int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp)
 {
-  int i, j;
+  int i, j, err = FP_OKAY;
 #ifndef WOLFSSL_SMALL_STACK
   fp_int t[1], e[1];
   fp_int pre[CT_INV_MOD_PRE_CNT];
@@ -1450,10 +1450,10 @@ int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp)
   fp_copy(a, &pre[0]);
   for (i = 1; i < CT_INV_MOD_PRE_CNT; i++) {
     fp_init(&pre[i]);
-    fp_sqr(&pre[i-1], &pre[i]);
-    fp_montgomery_reduce(&pre[i], b, mp);
-    fp_mul(&pre[i], a, &pre[i]);
-    fp_montgomery_reduce(&pre[i], b, mp);
+    err |= fp_sqr(&pre[i-1], &pre[i]);
+    err |= fp_montgomery_reduce(&pre[i], b, mp);
+    err |= fp_mul(&pre[i], a, &pre[i]);
+    err |= fp_montgomery_reduce(&pre[i], b, mp);
   }
 
   fp_sub_d(b, 2, e);
@@ -1470,25 +1470,26 @@ int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp)
     int set = fp_is_bit_set(e, i);
 
     if ((j == CT_INV_MOD_PRE_CNT) || (!set && j > 0)) {
-      fp_mul(t, &pre[j-1], t);
-      fp_montgomery_reduce(t, b, mp);
+      err |= fp_mul(t, &pre[j-1], t);
+      err |= fp_montgomery_reduce(t, b, mp);
       j = 0;
     }
-    fp_sqr(t, t);
-    fp_montgomery_reduce(t, b, mp);
+    err |= fp_sqr(t, t);
+    err |= fp_montgomery_reduce(t, b, mp);
     j += set;
   }
   if (j > 0) {
-    fp_mul(t, &pre[j-1], c);
-    fp_montgomery_reduce(c, b, mp);
+    err |= fp_mul(t, &pre[j-1], c);
+    err |= fp_montgomery_reduce(c, b, mp);
   }
-  else 
+  else
     fp_copy(t, c);
 
 #ifdef WOLFSSL_SMALL_STACK
   XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
-  return FP_OKAY;
+
+  return err;
 }
 
 /* d = a * b (mod c) */
@@ -1876,7 +1877,11 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
     break;
 
   case TFM_EXPTMOD_NB_MUL_RED:
-    fp_montgomery_reduce(&nb->R[nb->y^1], P, nb->mp);
+    err = fp_montgomery_reduce(&nb->R[nb->y^1], P, nb->mp);
+    if (err != FP_OKAY) {
+      nb->state = TFM_EXPTMOD_NB_INIT;
+      return err;
+    }
     nb->state = TFM_EXPTMOD_NB_SQR;
     break;
 
@@ -1899,20 +1904,28 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
 
   case TFM_EXPTMOD_NB_SQR_RED:
   #ifdef WC_NO_CACHE_RESISTANT
-    fp_montgomery_reduce(&nb->R[nb->y], P, nb->mp);
+    err = fp_montgomery_reduce(&nb->R[nb->y], P, nb->mp);
   #else
-    fp_montgomery_reduce(&nb->R[2], P, nb->mp);
+    err = fp_montgomery_reduce(&nb->R[2], P, nb->mp);
     fp_copy(&nb->R[2],
             (fp_int*) ( ((wc_ptr_t)&nb->R[0] & wc_off_on_addr[nb->y^1]) +
                         ((wc_ptr_t)&nb->R[1] & wc_off_on_addr[nb->y]) ) );
   #endif /* WC_NO_CACHE_RESISTANT */
+    if (err != FP_OKAY) {
+      nb->state = TFM_EXPTMOD_NB_INIT;
+      return err;
+    }
 
     nb->state = TFM_EXPTMOD_NB_NEXT;
     break;
 
   case TFM_EXPTMOD_NB_RED:
     /* final reduce */
-    fp_montgomery_reduce(&nb->R[0], P, nb->mp);
+    err = fp_montgomery_reduce(&nb->R[0], P, nb->mp);
+    if (err != FP_OKAY) {
+      nb->state = TFM_EXPTMOD_NB_INIT;
+      return err;
+    }
     fp_copy(&nb->R[0], Y);
 
     nb->state = TFM_EXPTMOD_NB_INIT;
@@ -2272,7 +2285,7 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 #endif
         return err;
       }
-      fp_montgomery_reduce_ex(res, P, mp, 0);
+      err = fp_montgomery_reduce_ex(res, P, mp, 0);
       if (err != FP_OKAY) {
 #ifndef WOLFSSL_NO_MALLOC
         XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
