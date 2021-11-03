@@ -8513,7 +8513,7 @@ int wc_ecc_get_generator(ecc_point* ecp, int curve_idx)
  * checks on the bounds of the private key. */
 static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 {
-    int    err = MP_OKAY;
+    int err = MP_OKAY;
 #ifndef WOLFSSL_SP_MATH
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
@@ -8680,11 +8680,11 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 
     FREE_CURVE_SPECS();
 #endif /* WOLFSSL_ATECC508A */
+#else
+    err = WC_KEY_SIZE_E;
+#endif /* !WOLFSSL_SP_MATH */
     (void)partial;
     (void)priv;
-#else
-    return WC_KEY_SIZE_E;
-#endif /* !WOLFSSL_SP_MATH */
     return err;
 }
 
