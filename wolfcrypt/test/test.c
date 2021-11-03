@@ -22002,6 +22002,8 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
+    if (ret == ECC_CURVE_OID_E)
+        goto done; /* catch case, where curve is not supported */
     if (ret != 0)
         ERROR_OUT(-9910, done);
     TEST_SLEEP();
@@ -22945,7 +22947,7 @@ static int ecc_def_curve_test(WC_RNG *rng)
 #else
     ecc_key key[1];
 #endif
-#ifdef WC_NO_RNG
+#if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)
     word32 idx = 0;
 #endif
 
@@ -22970,46 +22972,59 @@ static int ecc_def_curve_test(WC_RNG *rng)
 
 #ifndef WC_NO_RNG
     ret = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, key);
-#if defined(WOLFSSL_ASYNC_CRYPT)
+    #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
-#endif
-#else
-    /* use test ECC key */
-    ret = wc_EccPrivateKeyDecode(ecc_key_der_256, &idx, key,
-        (word32)sizeof_ecc_key_der_256);
-    (void)rng;
-#endif
+    #endif
     if (ret != 0) {
-        ret = -10092;
         goto done;
     }
-    TEST_SLEEP();
 
-#ifndef NO_SIG_WRAPPER
+    #ifndef NO_SIG_WRAPPER
     ret = ecc_sig_test(rng, key);
     if (ret < 0)
         goto done;
-#endif
-#if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
-    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_QNX_CAAM)
+    #endif
+    TEST_SLEEP();
+
+    #ifdef HAVE_ECC_DHE
+    ret = ecc_ssh_test(key, rng);
+    if (ret < 0)
+        goto done;
+    #endif
+#else
+    (void)rng;
+#endif /* !WC_NO_RNG */
+
+#if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)
+    /* Use test ECC key - ensure real private "d" exists */
+    #ifdef USE_CERT_BUFFERS_256
+    ret = wc_EccPrivateKeyDecode(ecc_key_der_256, &idx, key,
+        sizeof_ecc_key_der_256);
+    #else
+    {
+        XFILE file = XFOPEN("./certs/ecc-key.der", "rb");
+        byte der[128];
+        word32 derSz;
+        if (!file) {
+            ERROR_OUT(-10093, done);
+        }
+        derSz = (word32)XFREAD(der, 1, sizeof(der), file);
+        XFCLOSE(file);
+        ret = wc_EccPrivateKeyDecode(der, &idx, key, derSz);
+    }
+    #endif    
+    if (ret != 0) {
+        goto done;
+    }
+
     ret = ecc_exp_imp_test(key);
     if (ret < 0)
         goto done;
-#endif
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_QNX_CAAM)
-#if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT)
     ret = ecc_mulmod_test(key);
     if (ret < 0)
         goto done;
 #endif
-#if defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG)
-    ret = ecc_ssh_test(key, rng);
-    if (ret < 0)
-        goto done;
-#endif
-#endif /* WOLFSSL_ATECC508A */
+
 done:
 
 #ifdef WOLFSSL_SMALL_STACK

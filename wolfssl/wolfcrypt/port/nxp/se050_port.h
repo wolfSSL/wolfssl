@@ -128,7 +128,7 @@ WOLFSSL_LOCAL int se050_ecc_sign_hash_ex(const byte* in, word32 inLen,
     byte* out, word32 *outLen, struct ecc_key* key);
 
 WOLFSSL_LOCAL int se050_ecc_verify_hash_ex(const byte* hash, word32 hashlen,
-    byte* signature, word32 signatureLen, struct ecc_key* key, int* res);
+    byte* sigRS, word32 sigRSLen, struct ecc_key* key, int* res);
 
 WOLFSSL_LOCAL int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize);
 WOLFSSL_LOCAL int se050_ecc_shared_secret(struct ecc_key* private_key,
