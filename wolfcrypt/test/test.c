@@ -22692,9 +22692,7 @@ static int ecc_sig_test(WC_RNG* rng, ecc_key* key)
 }
 #endif
 
-#if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
-    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_QNX_CAAM)
+#if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)
 
 static int ecc_exp_imp_test(ecc_key* key)
 {
@@ -22824,8 +22822,6 @@ done:
 }
 #endif /* HAVE_ECC_KEY_IMPORT && HAVE_ECC_KEY_EXPORT */
 
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_QNX_CAAM)
 #if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT)
 static int ecc_mulmod_test(ecc_key* key1)
 {
@@ -22937,7 +22933,6 @@ static int ecc_ssh_test(ecc_key* key, WC_RNG* rng)
     return 0;
 }
 #endif /* HAVE_ECC_DHE && !WC_NO_RNG */
-#endif
 
 static int ecc_def_curve_test(WC_RNG *rng)
 {
@@ -22991,11 +22986,14 @@ static int ecc_def_curve_test(WC_RNG *rng)
     if (ret < 0)
         goto done;
     #endif
+
+    wc_ecc_free(key);
 #else
     (void)rng;
 #endif /* !WC_NO_RNG */
 
-#if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)
+#if (defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)) || \
+    (defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT))
     /* Use test ECC key - ensure real private "d" exists */
     #ifdef USE_CERT_BUFFERS_256
     ret = wc_EccPrivateKeyDecode(ecc_key_der_256, &idx, key,
@@ -23017,24 +23015,27 @@ static int ecc_def_curve_test(WC_RNG *rng)
         goto done;
     }
 
+#if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)
     ret = ecc_exp_imp_test(key);
     if (ret < 0)
         goto done;
+#endif
+#if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT)
     ret = ecc_mulmod_test(key);
     if (ret < 0)
         goto done;
 #endif
+#endif
 
 done:
 
+    wc_ecc_free(key);
 #ifdef WOLFSSL_SMALL_STACK
-    if (key != NULL) {
-        wc_ecc_free(key);
+    if (key != NULL) {    
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
-#else
-    wc_ecc_free(key);
 #endif
+
     return ret;
 }
 #endif /* !NO_ECC256 || HAVE_ALL_CURVES */
