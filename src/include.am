@@ -688,6 +688,10 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_448.c
 endif
 endif
 
+if BUILD_LIBOQS
+src_libwolfssl_la_SOURCES += wolfcrypt/src/falcon.c
+endif
+
 if BUILD_LIBZ
 src_libwolfssl_la_SOURCES += wolfcrypt/src/compress.c
 endif
