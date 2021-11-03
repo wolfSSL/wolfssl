@@ -13450,7 +13450,7 @@ int sp_prime_is_prime_ex(sp_int* a, int t, int* result, WC_RNG* rng)
  * @param  [out]  r  SP integer to hold result.
  *
  * @return  MP_OKAY on success.
- * @return  MP_VAL when a, b or r is NULL.
+ * @return  MP_VAL when a, b or r is NULL or too large.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
 int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
@@ -13458,6 +13458,9 @@ int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
     int err = MP_OKAY;
 
     if ((a == NULL) || (b == NULL) || (r == NULL)) {
+        err = MP_VAL;
+    }
+    else if (a->used >= SP_INT_DIGITS || b->used >= SP_INT_DIGITS) {
         err = MP_VAL;
     }
     else if (sp_iszero(a)) {
@@ -13482,6 +13485,7 @@ int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
         SAVE_VECTOR_REGISTERS(err = _svr_ret;);
 
         ALLOC_SP_INT_ARRAY(d, used, 3, err, NULL);
+
         if (err == MP_OKAY) {
             u = d[0];
             v = d[1];
