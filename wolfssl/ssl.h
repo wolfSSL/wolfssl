@@ -529,7 +529,9 @@ struct WOLFSSL_BIO {
     int          wrIdx;         /* current index for write buffer */
     int          rdIdx;         /* current read index */
     int          readRq;        /* read request */
-    int          num;           /* socket num or length */
+    int          len;           /* length of buffered data */
+    int          fd;            /* file descriptor. May be used for a file
+                                 * or a socket. */
     int          eof;           /* eof flag */
     int          flags;
     byte         type;          /* method type */

@@ -57681,7 +57681,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
         if (bio) {
             bio->type  = WOLFSSL_BIO_SOCKET;
             bio->shutdown = (byte)closeF;
-            bio->num   = sfd;
+            bio->fd   = sfd;
         }
         return bio;
     }
@@ -57797,7 +57797,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
             return WOLFSSL_FAILURE;
         }
 
-        b->num = sfd;
+        b->fd = sfd;
         b->shutdown = BIO_CLOSE;
         return WOLFSSL_SUCCESS;
     }
@@ -57821,17 +57821,17 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
             return WOLFSSL_FAILURE;
         }
 
-        if (b->num == WOLFSSL_BIO_ERROR) {
+        if (b->fd == WOLFSSL_BIO_ERROR) {
             if (wolfIO_TcpBind(&sfd, b->port) < 0) {
                 WOLFSSL_ENTER("wolfIO_TcpBind error");
                 return WOLFSSL_FAILURE;
             }
-            b->num = sfd;
+            b->fd = sfd;
             b->shutdown = BIO_CLOSE;
         }
         else {
             WOLFSSL_BIO* new_bio;
-            int newfd = wolfIO_TcpAccept(b->num, NULL, NULL);
+            int newfd = wolfIO_TcpAccept(b->fd, NULL, NULL);
             if (newfd < 0) {
                 WOLFSSL_ENTER("wolfIO_TcpBind error");
                 return WOLFSSL_FAILURE;
@@ -58064,7 +58064,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
         WOLFSSL_ENTER("wolfSSL_BIO_set_fd");
 
         if (b != NULL) {
-            b->num = fd;
+            b->fd = fd;
             b->shutdown = (byte)closeF;
         }
 
@@ -58108,7 +58108,8 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
             bio->method = method;
 #endif
             bio->shutdown = BIO_CLOSE; /* default to close things */
-            bio->num = WOLFSSL_BIO_ERROR;
+            bio->len = WOLFSSL_BIO_ERROR;
+            bio->fd = WOLFSSL_BIO_ERROR;
             bio->init = 1;
             if (method->type == WOLFSSL_BIO_MEMORY ||
                     method->type == WOLFSSL_BIO_BIO) {
@@ -58168,7 +58169,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
             /* The length of the string including terminating null. */
             len = (int)XSTRLEN((const char*)buf) + 1;
         }
-        bio->num = bio->wrSz = len;
+        bio->len = bio->wrSz = len;
         bio->ptr = (byte*)XMALLOC(len, 0, DYNAMIC_TYPE_OPENSSL);
         if (bio->ptr == NULL) {
             wolfSSL_BIO_free(bio);
@@ -58176,7 +58177,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
         }
         if (bio->mem_buf != NULL) {
             bio->mem_buf->data = (char*)bio->ptr;
-            bio->mem_buf->length = bio->num;
+            bio->mem_buf->length = bio->len;
         }
 
         XMEMCPY(bio->ptr, buf, len);
@@ -58257,8 +58258,9 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
                 if (bio->type == WOLFSSL_BIO_SSL && bio->ptr)
                     wolfSSL_free((WOLFSSL*)bio->ptr);
             #ifdef CloseSocket
-                if ((bio->type == WOLFSSL_BIO_SOCKET) && (bio->num > 0))
-                    CloseSocket(bio->num);
+                if ((bio->type == WOLFSSL_BIO_SOCKET) &&
+                        (bio->fd != WOLFSSL_BIO_ERROR))
+                    CloseSocket(bio->fd);
             #endif
             }
 
@@ -58269,8 +58271,8 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
                 }
             #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR)\
                 && !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
-                else if (bio->num != WOLFSSL_BIO_ERROR) {
-                    XCLOSE(bio->num);
+                else if (bio->fd != WOLFSSL_BIO_ERROR) {
+                    XCLOSE(bio->fd);
                 }
             #endif
             }
@@ -58436,8 +58438,8 @@ int wolfSSL_BIO_get_fd(WOLFSSL_BIO *bio, int* fd)
 
     if (bio != NULL) {
         if (fd != NULL)
-            *fd = bio->num;
-        return bio->num;
+            *fd = bio->fd;
+        return bio->fd;
     }
 
     return WOLFSSL_BIO_ERROR;
