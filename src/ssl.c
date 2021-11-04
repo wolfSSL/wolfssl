@@ -21222,8 +21222,8 @@ int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
 
     /* Check if empty data */
     switch (sk->type) {
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         case STACK_TYPE_CIPHER:
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
             /* check if entire struct is zero */
             XMEMSET(&ciph, 0, sizeof(WOLFSSL_CIPHER));
             if (XMEMCMP(&sk->data.cipher, &ciph,
@@ -21237,6 +21237,21 @@ int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
             }
             break;
 #endif
+        case STACK_TYPE_X509:
+        case STACK_TYPE_GEN_NAME:
+        case STACK_TYPE_BIO:
+        case STACK_TYPE_OBJ:
+        case STACK_TYPE_STRING:
+        case STACK_TYPE_ACCESS_DESCRIPTION:
+        case STACK_TYPE_X509_EXT:
+        case STACK_TYPE_NULL:
+        case STACK_TYPE_X509_NAME:
+        case STACK_TYPE_CONF_VALUE:
+        case STACK_TYPE_X509_INFO:
+        case STACK_TYPE_BY_DIR_entry:
+        case STACK_TYPE_BY_DIR_hash:
+        case STACK_TYPE_X509_OBJ:
+        case STACK_TYPE_DIST_POINT:
         default:
             /* All other types are pointers */
             if (!sk->data.generic) {
@@ -21272,8 +21287,8 @@ int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
     sk->hash = 0;
 #endif
     switch (sk->type) {
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         case STACK_TYPE_CIPHER:
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
             node->data.cipher = sk->data.cipher;
             sk->data.cipher = *(WOLFSSL_CIPHER*)data;
             if (sk->hash_fn) {
@@ -21281,6 +21296,21 @@ int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
             }
             break;
 #endif
+        case STACK_TYPE_X509:
+        case STACK_TYPE_GEN_NAME:
+        case STACK_TYPE_BIO:
+        case STACK_TYPE_OBJ:
+        case STACK_TYPE_STRING:
+        case STACK_TYPE_ACCESS_DESCRIPTION:
+        case STACK_TYPE_X509_EXT:
+        case STACK_TYPE_NULL:
+        case STACK_TYPE_X509_NAME:
+        case STACK_TYPE_CONF_VALUE:
+        case STACK_TYPE_X509_INFO:
+        case STACK_TYPE_BY_DIR_entry:
+        case STACK_TYPE_BY_DIR_hash:
+        case STACK_TYPE_X509_OBJ:
+        case STACK_TYPE_DIST_POINT:
         default:
             /* All other types are pointers */
             node->data.generic = sk->data.generic;
@@ -21938,6 +21968,21 @@ void *wolfSSL_lh_retrieve(WOLFSSL_STACK *sk, void *data)
                 case STACK_TYPE_CIPHER:
                     sk->hash = sk->hash_fn(&sk->data.cipher);
                     break;
+                case STACK_TYPE_X509:
+                case STACK_TYPE_GEN_NAME:
+                case STACK_TYPE_BIO:
+                case STACK_TYPE_OBJ:
+                case STACK_TYPE_STRING:
+                case STACK_TYPE_ACCESS_DESCRIPTION:
+                case STACK_TYPE_X509_EXT:
+                case STACK_TYPE_NULL:
+                case STACK_TYPE_X509_NAME:
+                case STACK_TYPE_CONF_VALUE:
+                case STACK_TYPE_X509_INFO:
+                case STACK_TYPE_BY_DIR_entry:
+                case STACK_TYPE_BY_DIR_hash:
+                case STACK_TYPE_X509_OBJ:
+                case STACK_TYPE_DIST_POINT:
                 default:
                     sk->hash = sk->hash_fn(sk->data.generic);
                     break;
@@ -21947,6 +21992,21 @@ void *wolfSSL_lh_retrieve(WOLFSSL_STACK *sk, void *data)
             switch (sk->type) {
                 case STACK_TYPE_CIPHER:
                     return &sk->data.cipher;
+                case STACK_TYPE_X509:
+                case STACK_TYPE_GEN_NAME:
+                case STACK_TYPE_BIO:
+                case STACK_TYPE_OBJ:
+                case STACK_TYPE_STRING:
+                case STACK_TYPE_ACCESS_DESCRIPTION:
+                case STACK_TYPE_X509_EXT:
+                case STACK_TYPE_NULL:
+                case STACK_TYPE_X509_NAME:
+                case STACK_TYPE_CONF_VALUE:
+                case STACK_TYPE_X509_INFO:
+                case STACK_TYPE_BY_DIR_entry:
+                case STACK_TYPE_BY_DIR_hash:
+                case STACK_TYPE_X509_OBJ:
+                case STACK_TYPE_DIST_POINT:
                 default:
                     return sk->data.generic;
             }
@@ -30700,25 +30760,36 @@ void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i)
     switch (sk->type) {
         case STACK_TYPE_X509:
             return (void*)sk->data.x509;
-        case STACK_TYPE_CIPHER:
-            return (void*)&sk->data.cipher;
         case STACK_TYPE_GEN_NAME:
             return (void*)sk->data.gn;
-        case STACK_TYPE_ACCESS_DESCRIPTION:
-            return (void*)sk->data.access;
+        case STACK_TYPE_BIO:
+            return (void*)sk->data.bio;
         case STACK_TYPE_OBJ:
             return (void*)sk->data.obj;
+        case STACK_TYPE_STRING:
+            return (void*)sk->data.string;
+        case STACK_TYPE_CIPHER:
+            return (void*)&sk->data.cipher;
+        case STACK_TYPE_ACCESS_DESCRIPTION:
+            return (void*)sk->data.access;
         case STACK_TYPE_X509_EXT:
             return (void*)sk->data.ext;
+        case STACK_TYPE_NULL:
+            return (void*)sk->data.generic;
+        case STACK_TYPE_X509_NAME:
+            return (void*)sk->data.name;
+        case STACK_TYPE_CONF_VALUE:
+            return (void*)sk->data.conf;
+        case STACK_TYPE_X509_INFO:
+            return (void*)sk->data.info;
+        case STACK_TYPE_BY_DIR_entry:
+            return (void*)sk->data.dir_entry;
+        case STACK_TYPE_BY_DIR_hash:
+            return (void*)sk->data.dir_hash;
         case STACK_TYPE_X509_OBJ:
             return (void*)sk->data.x509_obj;
         case STACK_TYPE_DIST_POINT:
             return (void*)sk->data.dp;
-    #ifdef OPENSSL_EXTRA
-        case STACK_TYPE_CONF_VALUE:
-            return (void*)sk->data.conf;
-    #endif
-        case STACK_TYPE_NULL:
         default:
             return (void*)sk->data.generic;
     }
@@ -30795,10 +30866,18 @@ WOLFSSL_STACK* wolfSSL_sk_dup(WOLFSSL_STACK* sk)
                     goto error;
                 }
                 break;
+            case STACK_TYPE_BIO:
+            case STACK_TYPE_STRING:
             case STACK_TYPE_ACCESS_DESCRIPTION:
             case STACK_TYPE_X509_EXT:
-            case STACK_TYPE_CONF_VALUE:
             case STACK_TYPE_NULL:
+            case STACK_TYPE_X509_NAME:
+            case STACK_TYPE_CONF_VALUE:
+            case STACK_TYPE_X509_INFO:
+            case STACK_TYPE_BY_DIR_entry:
+            case STACK_TYPE_BY_DIR_hash:
+            case STACK_TYPE_X509_OBJ:
+            case STACK_TYPE_DIST_POINT:
             default:
                 WOLFSSL_MSG("Unsupported stack type");
                 goto error;
@@ -30865,16 +30944,18 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
 
     if (func == NULL) {
         switch(sk->type) {
-            #if defined(OPENSSL_ALL) || defined (WOLFSSL_QT)
             case STACK_TYPE_ACCESS_DESCRIPTION:
+            #if defined(OPENSSL_ALL) || defined (WOLFSSL_QT)
                 func = (wolfSSL_sk_freefunc)wolfSSL_ACCESS_DESCRIPTION_free;
-                break;
             #endif
+                break;
             case STACK_TYPE_X509:
                 func = (wolfSSL_sk_freefunc)wolfSSL_X509_free;
                 break;
             case STACK_TYPE_X509_OBJ:
+            #ifdef OPENSSL_ALL
                 func = (wolfSSL_sk_freefunc)wolfSSL_X509_OBJECT_free;
+            #endif
                 break;
             case STACK_TYPE_OBJ:
                 func = (wolfSSL_sk_freefunc)wolfSSL_ASN1_OBJECT_free;
@@ -30891,22 +30972,42 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
                 func = (wolfSSL_sk_freefunc)wolfSSL_WOLFSSL_STRING_free;
                 break;
             #endif
-            #ifdef OPENSSL_ALL
             case STACK_TYPE_X509_NAME:
+            #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) \
+                && !defined(WOLFCRYPT_ONLY)
                 func = (wolfSSL_sk_freefunc)wolfSSL_X509_NAME_free;
+            #endif
                 break;
             case STACK_TYPE_X509_EXT:
+            #ifdef OPENSSL_ALL
                 func = (wolfSSL_sk_freefunc)wolfSSL_X509_EXTENSION_free;
+            #endif
                 break;
             case STACK_TYPE_CONF_VALUE:
+            #ifdef OPENSSL_ALL
                 func = (wolfSSL_sk_freefunc)wolfSSL_X509V3_conf_free;
-                break;
             #endif
-            #if defined(OPENSSL_ALL)
+                break;
             case STACK_TYPE_X509_INFO:
+            #if defined(OPENSSL_ALL)
                 func = (wolfSSL_sk_freefunc)wolfSSL_X509_INFO_free;
-                break;
             #endif
+                break;
+            case STACK_TYPE_BIO:
+                func = (wolfSSL_sk_freefunc)wolfSSL_BIO_vfree;
+                break;
+            case STACK_TYPE_BY_DIR_entry:
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+                func = (wolfSSL_sk_freefunc)wolfSSL_BY_DIR_entry_free;
+#endif
+                break;
+            case STACK_TYPE_BY_DIR_hash:
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+                func = (wolfSSL_sk_freefunc)wolfSSL_BY_DIR_HASH_free;
+#endif
+                break;
+            case STACK_TYPE_CIPHER:
+            case STACK_TYPE_NULL:
             default:
                 break;
         }
@@ -47038,39 +47139,9 @@ void wolfSSL_sk_X509_NAME_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
 int wolfSSL_sk_X509_NAME_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
     WOLFSSL_X509_NAME* name)
 {
-    WOLFSSL_STACK* node;
-
     WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_push");
 
-    if (sk == NULL || name == NULL) {
-        return WOLFSSL_FAILURE;
-    }
-
-    /* no previous values in stack */
-    if (sk->data.name == NULL) {
-        sk->data.name = name;
-        sk->num += 1;
-        return WOLFSSL_SUCCESS;
-    }
-
-    /* stack already has value(s) create a new node and add more */
-    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
-        DYNAMIC_TYPE_OPENSSL);
-    if (node == NULL) {
-        WOLFSSL_MSG("Memory error");
-        return WOLFSSL_FAILURE;
-    }
-    XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
-
-    /* push new obj onto head of stack */
-    node->data.name = sk->data.name;
-    node->next      = sk->next;
-    sk->type        = STACK_TYPE_X509_NAME;
-    sk->next        = node;
-    sk->data.name   = name;
-    sk->num        += 1;
-
-    return WOLFSSL_SUCCESS;
+    return wolfSSL_sk_push(sk, name);
 }
 
 /* return index of found, or negative to indicate not found */
