@@ -2871,6 +2871,8 @@ struct WOLFSSL_CTX {
     short       minFalconKeySz;   /* minimum Falcon key size */
 #endif
     unsigned long     mask;             /* store SSL_OP_ flags */
+    word16            minProto:1; /* sets min to min available */
+    word16            maxProto:1; /* sets max to max available */
 #ifdef OPENSSL_EXTRA
     byte              sessionCtx[ID_LEN]; /* app session context ID */
     word32            disabledCurves;   /* curves disabled by user */
@@ -3565,6 +3567,8 @@ typedef struct Options {
 #endif /* NO_PSK */
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
     unsigned long     mask; /* store SSL_OP_ flags */
+    word16            minProto:1; /* sets min to min available */
+    word16            maxProto:1; /* sets max to max available */
 #endif
 #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13)
     unsigned int      maxTicketTls13;  /* maximum number of tickets to send */

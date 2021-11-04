@@ -1184,6 +1184,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_set_min_proto_version       wolfSSL_set_min_proto_version
 #define SSL_set_max_proto_version       wolfSSL_set_max_proto_version
 #define SSL_CTX_get_min_proto_version   wolfSSL_CTX_get_min_proto_version
+#define SSL_CTX_get_max_proto_version   wolfSSL_CTX_get_max_proto_version
 
 #define SSL_get_tlsext_status_exts      wolfSSL_get_tlsext_status_exts
 
@@ -1213,6 +1214,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTRL_GET_SERVER_TMP_KEY               SSL_CTRL_GET_PEER_TMP_KEY
 #define SSL_CTRL_SET_MIN_PROTO_VERSION            123
 #define SSL_CTRL_SET_MAX_PROTO_VERSION            124
+#define SSL_CTRL_GET_MIN_PROTO_VERSION            125
+#define SSL_CTRL_GET_MAX_PROTO_VERSION            126
 #define SSL_CTRL_SET_CURVES                       SSL_CTRL_SET_GROUPS
 
 #define SSL_CTRL_EXTRA_CHAIN_CERT               14

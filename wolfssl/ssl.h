@@ -4024,6 +4024,7 @@ WOLFSSL_API int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX*, int);
 WOLFSSL_API int wolfSSL_set_min_proto_version(WOLFSSL*, int);
 WOLFSSL_API int wolfSSL_set_max_proto_version(WOLFSSL*, int);
 WOLFSSL_API int wolfSSL_CTX_get_min_proto_version(WOLFSSL_CTX*);
+WOLFSSL_API int wolfSSL_CTX_get_max_proto_version(WOLFSSL_CTX*);
 
 WOLFSSL_API int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx,
     WOLFSSL_EVP_PKEY *pkey);

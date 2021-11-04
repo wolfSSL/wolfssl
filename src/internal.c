@@ -5844,6 +5844,8 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->version = ctx->method->version;
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     ssl->options.mask = ctx->mask;
+    ssl->options.minProto = ctx->minProto;
+    ssl->options.maxProto = ctx->maxProto;
 #endif
 #ifdef OPENSSL_EXTRA
     #ifdef WOLFSSL_TLS13
