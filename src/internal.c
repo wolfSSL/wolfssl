@@ -2333,7 +2333,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     ctx->cm = NULL;
     #ifdef OPENSSL_ALL
         if (ctx->x509_store.objs != NULL) {
-            wolfSSL_sk_X509_OBJECT_free(ctx->x509_store.objs);
+            wolfSSL_sk_X509_OBJECT_pop_free(ctx->x509_store.objs, NULL);
             ctx->x509_store.objs = NULL;
         }
     #endif
@@ -2347,7 +2347,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     #endif
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
         if (ctx->x509Chain) {
-            wolfSSL_sk_X509_free(ctx->x509Chain);
+            wolfSSL_sk_X509_pop_free(ctx->x509Chain, NULL);
             ctx->x509Chain = NULL;
         }
     #endif
@@ -3979,10 +3979,10 @@ void FreeX509(WOLFSSL_X509* x509)
             XFREE(x509->authInfoCaIssuer, x509->heap, DYNAMIC_TYPE_X509_EXT);
         }
         if (x509->ext_sk != NULL) {
-            wolfSSL_sk_X509_EXTENSION_free(x509->ext_sk);
+            wolfSSL_sk_X509_EXTENSION_pop_free(x509->ext_sk, NULL);
         }
         if (x509->ext_sk_full != NULL) {
-            wolfSSL_sk_X509_EXTENSION_free(x509->ext_sk_full);
+            wolfSSL_sk_X509_EXTENSION_pop_free(x509->ext_sk_full, NULL);
         }
         #endif /* OPENSSL_ALL || WOLFSSL_QT */
         #ifdef OPENSSL_EXTRA
@@ -6953,6 +6953,8 @@ void FreeSuites(WOLFSSL* ssl)
     {
     #ifdef OPENSSL_ALL
         if (ssl->suites != NULL) {
+            /* Enough to free stack structure since WOLFSSL_CIPHER
+             * isn't allocated separately. */
             wolfSSL_sk_SSL_CIPHER_free(ssl->suites->stack);
         }
     #endif
@@ -7251,10 +7253,12 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     }
 #endif /* WOLFSSL_STATIC_MEMORY */
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+    /* Enough to free stack structure since WOLFSSL_CIPHER
+     * isn't allocated separately. */
     wolfSSL_sk_CIPHER_free(ssl->supportedCiphers);
-    wolfSSL_sk_X509_free(ssl->peerCertChain);
+    wolfSSL_sk_X509_pop_free(ssl->peerCertChain, NULL);
     #ifdef KEEP_OUR_CERT
-    wolfSSL_sk_X509_free(ssl->ourCertChain);
+    wolfSSL_sk_X509_pop_free(ssl->ourCertChain, NULL);
     #endif
 #endif
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
@@ -11371,7 +11375,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
         }
     #endif
     #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
-        wolfSSL_sk_X509_free(store->chain);
+        wolfSSL_sk_X509_pop_free(store->chain, NULL);
         store->chain = NULL;
     #endif
     #ifdef SESSION_CERTS
