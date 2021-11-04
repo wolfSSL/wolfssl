@@ -43750,7 +43750,10 @@ err:
                 if (headerEnd) {
                     headerEnd += XSTR_SIZEOF("-----");
                     /* Read in the newline */
-                    (void)wolfSSL_BIO_read(bio, &pem[i], 1);
+                    if (wolfSSL_BIO_read(bio, &pem[i], 1) != 1) {
+                        WOLFSSL_MSG("wolfSSL_BIO_read error");
+                        goto err;
+                    }
                     i++;
                     if (*headerEnd != '\n' && *headerEnd != '\r') {
                         WOLFSSL_MSG("Missing newline after header");
