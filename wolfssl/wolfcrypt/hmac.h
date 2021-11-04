@@ -115,7 +115,7 @@ enum {
 #endif
 
 
-/* hash union */
+/* hmac hash union */
 typedef union {
 #ifndef NO_MD5
     wc_Md5 md5;
@@ -138,11 +138,11 @@ typedef union {
 #ifdef WOLFSSL_SHA3
     wc_Sha3 sha3;
 #endif
-} wc_Hmac_Hash;
+} wc_HmacHash;
 
 /* Hmac digest */
 struct Hmac {
-    wc_Hmac_Hash    hash;
+    wc_HmacHash hash;
     word32  ipad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];  /* same block size all*/
     word32  opad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];
     word32  innerHash[WC_MAX_DIGEST_SIZE / sizeof(word32)];
