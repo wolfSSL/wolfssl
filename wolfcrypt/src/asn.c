@@ -6647,27 +6647,42 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
  * PKCS #5: RFC 8018, A.4 - PBES2-params without outer SEQUENCE
  *                    A.2 - PBKDF2-params
  *                    B.2 - Encryption schemes
+ *                    C   - AlgorithmIdentifier
  */
 static const ASNItem pbes2ParamsASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* PBKDF2 */
-/*  1 */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/*  2 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-                    /* Salt */
-/*  3 */            { 2, ASN_OCTET_STRING, 0, 0, 0 },
-                    /* Iteration count */
-/*  4 */            { 2, ASN_INTEGER, 0, 0, 0 },
-                    /* Key length */
-/*  5 */            { 2, ASN_INTEGER, 0, 0, 1 },
-                    /* PRF - default is HMAC-SHA1 */
-/*  6 */            { 2, ASN_SEQUENCE, 1, 1, 1 },
-/*  7 */                { 3, ASN_OBJECT_ID, 0, 0, 0 },
-/*  8 */                { 3, ASN_TAG_NULL, 0, 0, 1 },
-/*  9 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-               /* Encryption algorithm */
-/* 10 */       { 1, ASN_OBJECT_ID, 0, 0, 0 },
-               /* IV for CBC */
-/* 11 */       { 1, ASN_OCTET_STRING, 0, 0, 0 },
+/* pbes2ParamsASN_IDX_KDF_SEQ                */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+               /* PBKDF2 */
+/* pbes2ParamsASN_IDX_KDF_OID                */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* pbes2ParamsASN_IDX_PBKDF2_PARAMS_SEQ      */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+                   /* Salt */
+/* pbes2ParamsASN_IDX_PBKDF2_PARAMS_SALT     */         { 2, ASN_OCTET_STRING, 0, 0, 0 },
+                   /* Iteration count */
+/* pbes2ParamsASN_IDX_PBKDF2_PARAMS_ITER     */         { 2, ASN_INTEGER, 0, 0, 0 },
+                   /* Key length */
+/* pbes2ParamsASN_IDX_PBKDF2_PARAMS_KEYLEN   */         { 2, ASN_INTEGER, 0, 0, 1 },
+                   /* PRF - default is HMAC-SHA1 */
+/* pbes2ParamsASN_IDX_PBKDF2_PARAMS_PRF      */         { 2, ASN_SEQUENCE, 1, 1, 1 },
+/* pbes2ParamsASN_IDX_PBKDF2_PARAMS_PRF_OID  */             { 3, ASN_OBJECT_ID, 0, 0, 0 },
+/* pbes2ParamsASN_IDX_PBKDF2_PARAMS_PRF_NULL */             { 3, ASN_TAG_NULL, 0, 0, 1 },
+/* pbes2ParamsASN_IDX_ENCS_SEQ               */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                   /* Encryption algorithm */
+/* pbes2ParamsASN_IDX_ENCS_OID               */   { 1, ASN_OBJECT_ID, 0, 0, 0 },
+                   /* IV for CBC */
+/* pbes2ParamsASN_IDX_ENCS_PARAMS            */   { 1, ASN_OCTET_STRING, 0, 0, 0 },
+};
+enum {
+    pbes2ParamsASN_IDX_KDF_SEQ = 0,
+    pbes2ParamsASN_IDX_KDF_OID,
+    pbes2ParamsASN_IDX_PBKDF2_PARAMS_SEQ,
+    pbes2ParamsASN_IDX_PBKDF2_PARAMS_SALT,
+    pbes2ParamsASN_IDX_PBKDF2_PARAMS_ITER,
+    pbes2ParamsASN_IDX_PBKDF2_PARAMS_KEYLEN,
+    pbes2ParamsASN_IDX_PBKDF2_PARAMS_PRF,
+    pbes2ParamsASN_IDX_PBKDF2_PARAMS_PRF_OID,
+    pbes2ParamsASN_IDX_PBKDF2_PARAMS_PRF_NULL,
+    pbes2ParamsASN_IDX_ENCS_SEQ,
+    pbes2ParamsASN_IDX_ENCS_OID,
+    pbes2ParamsASN_IDX_ENCS_PARAMS,
 };
 
 /* Number of items in ASN.1 template for PBES2 parameters. */
@@ -7236,43 +7251,43 @@ exit_dc:
 
     WOLFSSL_ENTER("DecryptContent");
 
-    ALLOC_ASNGETDATA(dataASN, pbes2ParamsASN_Length, ret, NULL);
+    CALLOC_ASNGETDATA(dataASN, pbes2ParamsASN_Length, ret, NULL);
 
     if (ret == 0) {
         /* Check OID is a PBE Type */
-        XMEMSET(dataASN, 0, sizeof(*dataASN) * pkcs8DecASN_Length);
-        GetASN_OID(&dataASN[1], oidPBEType);
+        GetASN_OID(&dataASN[pbes2ParamsASN_IDX_KDF_OID], oidPBEType);
         ret = GetASN_Items(pkcs8DecASN, dataASN, pkcs8DecASN_Length, 0, input,
                            &idx, sz);
     }
     if (ret == 0) {
         /* Check the PBE algorithm and get the version and id. */
-        idx = dataASN[1].data.oid.length;
+        idx = dataASN[pbes2ParamsASN_IDX_KDF_OID].data.oid.length;
         /* Second last byte: 1 (PKCS #12 PBE Id) or 5 (PKCS #5)
          * Last byte: Alg or PBES2 */
-        CheckAlgo(dataASN[1].data.oid.data[idx - 2],
-                  dataASN[1].data.oid.data[idx - 1], &id, &version, NULL);
+        CheckAlgo(dataASN[pbes2ParamsASN_IDX_KDF_OID].data.oid.data[idx - 2],
+                  dataASN[pbes2ParamsASN_IDX_KDF_OID].data.oid.data[idx - 1],
+                  &id, &version, NULL);
 
         /* Get the parameters data. */
-        GetASN_GetRef(&dataASN[2], &params, &sz);
+        GetASN_GetRef(&dataASN[pbes2ParamsASN_IDX_PBKDF2_PARAMS_SEQ], &params, &sz);
         /* Having a numbered choice means none or both will have errored out. */
-        if (dataASN[3].tag != 0)
-            GetASN_GetRef(&dataASN[3], &key, &keySz);
-        else if (dataASN[4].tag != 0)
-            GetASN_GetRef(&dataASN[4], &key, &keySz);
+        if (dataASN[pbes2ParamsASN_IDX_PBKDF2_PARAMS_SALT].tag != 0)
+            GetASN_GetRef(&dataASN[pbes2ParamsASN_IDX_PBKDF2_PARAMS_SALT], &key, &keySz);
+        else if (dataASN[pbes2ParamsASN_IDX_PBKDF2_PARAMS_ITER].tag != 0)
+            GetASN_GetRef(&dataASN[pbes2ParamsASN_IDX_PBKDF2_PARAMS_ITER], &key, &keySz);
     }
 
     if (ret == 0) {
         if (version != PKCS5v2) {
             /* Initialize for PBES1 parameters and put iterations in var. */
             XMEMSET(dataASN, 0, sizeof(*dataASN) * pbes1ParamsASN_Length);
-            GetASN_Int32Bit(&dataASN[1], &iterations);
+            GetASN_Int32Bit(&dataASN[pbes2ParamsASN_IDX_KDF_OID], &iterations);
             /* Parse the PBES1 parameters. */
             ret = GetASN_Items(pbes1ParamsASN, dataASN, pbes1ParamsASN_Length,
                                0, params, &pIdx, sz);
             if (ret == 0) {
                 /* Get the salt data. */
-                GetASN_GetRef(&dataASN[0], &salt, &saltSz);
+                GetASN_GetRef(&dataASN[pbes2ParamsASN_IDX_KDF_SEQ], &salt, &saltSz);
             }
         }
         else {
@@ -7281,20 +7296,20 @@ exit_dc:
             /* Initialize for PBES2 parameters. Put iterations in var; match
              * KDF, HMAC and cipher, and copy CBC into buffer. */
             XMEMSET(dataASN, 0, sizeof(*dataASN) * pbes2ParamsASN_Length);
-            GetASN_ExpBuffer(&dataASN[1], pbkdf2Oid, sizeof(pbkdf2Oid));
-            GetASN_Int32Bit(&dataASN[4], &iterations);
-            GetASN_OID(&dataASN[7], oidHmacType);
-            GetASN_OID(&dataASN[10], oidBlkType);
-            GetASN_Buffer(&dataASN[11], cbcIv, &ivSz);
+            GetASN_ExpBuffer(&dataASN[pbes2ParamsASN_IDX_KDF_OID], pbkdf2Oid, sizeof(pbkdf2Oid));
+            GetASN_Int32Bit(&dataASN[pbes2ParamsASN_IDX_PBKDF2_PARAMS_ITER], &iterations);
+            GetASN_OID(&dataASN[pbes2ParamsASN_IDX_PBKDF2_PARAMS_PRF_OID], oidHmacType);
+            GetASN_OID(&dataASN[pbes2ParamsASN_IDX_ENCS_OID], oidBlkType);
+            GetASN_Buffer(&dataASN[pbes2ParamsASN_IDX_ENCS_PARAMS], cbcIv, &ivSz);
             /* Parse the PBES2 parameters  */
             ret = GetASN_Items(pbes2ParamsASN, dataASN, pbes2ParamsASN_Length,
                                0, params, &pIdx, sz);
             if (ret == 0) {
                 /* Get the salt data. */
-                GetASN_GetRef(&dataASN[3], &salt, &saltSz);
+                GetASN_GetRef(&dataASN[pbes2ParamsASN_IDX_PBKDF2_PARAMS_SALT], &salt, &saltSz);
                 /* Get the digest and encryption algorithm id. */
-                shaOid = dataASN[7].data.oid.sum; /* Default HMAC-SHA1 */
-                id     = dataASN[10].data.oid.sum;
+                shaOid = dataASN[pbes2ParamsASN_IDX_PBKDF2_PARAMS_PRF_OID].data.oid.sum; /* Default HMAC-SHA1 */
+                id     = dataASN[pbes2ParamsASN_IDX_ENCS_OID].data.oid.sum;
                 /* Convert encryption algorithm to a PBE algorithm if needed. */
                 CheckAlgoV2(id, &id, NULL);
             }
