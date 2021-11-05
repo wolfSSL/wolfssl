@@ -170,7 +170,7 @@ void wc_PKCS12_free(WC_PKCS12* pkcs12)
 
     heap = pkcs12->heap;
     if (pkcs12->safe != NULL) {
-    	freeSafe(pkcs12->safe, heap);
+        freeSafe(pkcs12->safe, heap);
     }
 
     /* free mac data */

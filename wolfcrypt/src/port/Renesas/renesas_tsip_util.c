@@ -104,10 +104,10 @@ static uint32_t GetTsipCipherSuite(
             default:
                 tsipCipher = (uint32_t)WOLFSSL_TSIP_ILLEGAL_CIPHERSUITE;
                 break;
-		}
+        }
         WOLFSSL_MSG( "<< GetTsipCipherSuite");
         return tsipCipher;
-	}
+    }
     else if( cipherSuiteFirst == ECC_BYTE )
     {
         tsipCipher = (uint32_t)WOLFSSL_TSIP_ILLEGAL_CIPHERSUITE;
@@ -135,7 +135,7 @@ static uint32_t GetTsipCipherSuite(
                 break;
         } */
     }
-	else{
+    else{
         tsipCipher = (uint32_t)WOLFSSL_TSIP_ILLEGAL_CIPHERSUITE;
     }
 

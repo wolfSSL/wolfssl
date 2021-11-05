@@ -31,9 +31,7 @@
 
 #if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
 
-#if defined(HAVE_FIPS) && \
-	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
 
@@ -144,7 +142,7 @@ int wc_InitCmac(Cmac* cmac, const byte* key, word32 keySz,
     int devId = WOLFSSL_CAAM_DEVID;
 #else
     int devId = INVALID_DEVID;
-#endif    
+#endif
     return wc_InitCmac_ex(cmac, key, keySz, type, unused, NULL, devId);
 }
 

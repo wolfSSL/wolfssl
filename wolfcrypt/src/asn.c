@@ -136,7 +136,7 @@ ASN Options:
 #endif
 
 #ifdef WOLFSSL_QNX_CAAM
-	#include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
+    #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
 
 #ifndef NO_RSA
@@ -2701,7 +2701,7 @@ const char* GetSigName(int oid) {
  * When output is NULL, calculate the header length only.
  *
  * @param [in]  len        Length of INTEGER data in bytes.
- * @param [in]  firstByte  First byte of data, most significant byte of integer, 
+ * @param [in]  firstByte  First byte of data, most significant byte of integer,
  *                         to encode.
  * @param [out] output     Buffer to write into.
  * @return  Number of bytes added to the buffer.
@@ -14130,7 +14130,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
             }
 
             /* test if no ':' char was found and test that the next two
-             * chars are // to match the pattern "://" */
+             * chars are "//" to match the pattern "://" */
             if (i >= len - 2 || (input[idx + i + 1] != '/' ||
                                  input[idx + i + 2] != '/')) {
                 WOLFSSL_MSG("\tAlt Name must be absolute URI");
@@ -14399,7 +14399,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
                 }
 
                 /* test if no ':' char was found and test that the next two
-                 * chars are // to match the pattern "://" */
+                 * chars are "//" to match the pattern "://" */
                 if (i >= strLen - 2 || (input[idx + i + 1] != '/' ||
                                         input[idx + i + 2] != '/')) {
                     WOLFSSL_MSG("\tAlt Name must be absolute URI");
@@ -27557,7 +27557,7 @@ static int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
     const byte* pub;
 #else
     DECL_ASNGETDATA(dataASN, edKeyASN_Length);
-#endif    
+#endif
 
     if (input == NULL || inOutIdx == NULL || inSz == 0 ||
         privKey == NULL || privKeyLen == NULL) {
@@ -27699,7 +27699,7 @@ static int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
     DECL_ASNGETDATA(dataASN, edPubKeyASN_Length);
 #endif
 
-    if (input == NULL || inSz == 0 || inOutIdx == NULL || 
+    if (input == NULL || inSz == 0 || inOutIdx == NULL ||
         pubKey == NULL || pubKeyLen == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -27784,7 +27784,7 @@ int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
         return BAD_FUNC_ARG;
     }
 
-    ret = DecodeAsymKey(input, inOutIdx, inSz, privKey, &privKeyLen, 
+    ret = DecodeAsymKey(input, inOutIdx, inSz, privKey, &privKeyLen,
         pubKey, &pubKeyLen, ED25519k);
     if (ret == 0) {
         if (pubKeyLen == 0) {
@@ -27830,7 +27830,7 @@ int wc_Curve25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
         return BAD_FUNC_ARG;
     }
 
-    ret = DecodeAsymKey(input, inOutIdx, inSz, privKey, &privKeyLen, 
+    ret = DecodeAsymKey(input, inOutIdx, inSz, privKey, &privKeyLen,
         NULL, NULL, X25519k);
     if (ret == 0) {
         ret = wc_curve25519_import_private(privKey, privKeyLen, key);
@@ -28068,7 +28068,7 @@ int wc_Ed448PrivateKeyDecode(const byte* input, word32* inOutIdx,
         return BAD_FUNC_ARG;
     }
 
-    ret = DecodeAsymKey(input, inOutIdx, inSz, privKey, &privKeyLen, 
+    ret = DecodeAsymKey(input, inOutIdx, inSz, privKey, &privKeyLen,
         pubKey, &pubKeyLen, ED448k);
     if (ret == 0) {
         if (pubKeyLen == 0) {
@@ -28184,7 +28184,7 @@ int wc_Curve448PrivateKeyDecode(const byte* input, word32* inOutIdx,
         return BAD_FUNC_ARG;
     }
 
-    ret = DecodeAsymKey(input, inOutIdx, inSz, privKey, &privKeyLen, 
+    ret = DecodeAsymKey(input, inOutIdx, inSz, privKey, &privKeyLen,
         NULL, NULL, X448k);
     if (ret == 0) {
         ret = wc_curve448_import_private(privKey, privKeyLen, key);

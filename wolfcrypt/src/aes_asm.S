@@ -23,7 +23,7 @@
 
 /* This file is in at&t asm syntax, see .asm for intel syntax */
 
-/* See Intel® Advanced Encryption Standard (AES) Instructions Set White Paper
+/* See Intel Advanced Encryption Standard (AES) Instructions Set White Paper
  * by Intel Mobility Group, Israel Development Center, Israel Shay Gueron
  */
 

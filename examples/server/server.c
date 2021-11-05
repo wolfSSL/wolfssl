@@ -20,7 +20,7 @@
  */
 
 /* For simpler wolfSSL TLS server examples, visit
- * https://github.com/wolfSSL/wolfssl-examples/tree/master/tls 
+ * https://github.com/wolfSSL/wolfssl-examples/tree/master/tls
  */
 
 #ifdef HAVE_CONFIG_H
@@ -1411,8 +1411,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 
 #ifdef WOLFSSL_STATIC_MEMORY
-    /* Note: Actual memory used is much less, this is the entire buffer buckets, 
-     * which is partitioned into pools of common sizes. To adjust the buckets 
+    /* Note: Actual memory used is much less, this is the entire buffer buckets,
+     * which is partitioned into pools of common sizes. To adjust the buckets
      * sizes see WOLFMEM_BUCKETS in memory.h */
     #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) \
         || defined(SESSION_CERTS)
@@ -2181,7 +2181,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif /* WOLFSSL_STATIC_MEMORY */
     if (ctx == NULL)
         err_sys_ex(catastrophic, "unable to get ctx");
-    
+
     if (minVersion != SERVER_INVALID_VERSION) {
         wolfSSL_CTX_SetMinVersion(ctx, minVersion);
     }
@@ -2221,7 +2221,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 
 #if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_STATIC_EPHEMERAL)
-    /* used for testing only to set a static/fixed ephemeral key 
+    /* used for testing only to set a static/fixed ephemeral key
         for use with the sniffer */
 #if defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
         (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
@@ -2443,7 +2443,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         if (useCertFolder) {
             WOLFSSL_X509_STORE      *store;
             WOLFSSL_X509_LOOKUP     *lookup;
-            
+
             store = wolfSSL_CTX_get_cert_store(ctx);
             if (store == NULL) {
                 wolfSSL_CTX_free(ctx); ctx = NULL;

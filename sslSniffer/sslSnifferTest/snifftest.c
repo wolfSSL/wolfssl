@@ -411,9 +411,6 @@ int main(int argc, char** argv)
 #ifndef _WIN32
     ssl_InitSniffer();   /* dll load on Windows */
 #endif
-#ifdef DEBUG_WOLFSSL
-    //wolfSSL_Debugging_ON();
-#endif
     ssl_Trace("./tracefile.txt", err);
     ssl_EnableRecovery(1, -1, err);
 #ifdef WOLFSSL_SNIFFER_WATCH

@@ -302,8 +302,8 @@ int blake2b_update( blake2b_state *S, const byte *in, word64 inlen )
       blake2b_increment_counter( S, BLAKE2B_BLOCKBYTES );
 
       {
-	ret = blake2b_compress( S, S->buf, m, v );
-	if (ret < 0) break;
+          ret = blake2b_compress( S, S->buf, m, v );
+          if (ret < 0) break;
       }
 
       XMEMCPY( S->buf, S->buf + BLAKE2B_BLOCKBYTES, BLAKE2B_BLOCKBYTES );

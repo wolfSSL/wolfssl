@@ -119,7 +119,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
 #endif
 
 #ifdef WOLFSSL_RENESAS_TSIP_TLS
-    
+
     #if (WOLFSSL_RENESAS_TSIP_VER >=109)
 
     int tsip_generateMasterSecretEx(
@@ -131,14 +131,14 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
             byte*       ms);
 
     #elif (WOLFSSL_RENESAS_TSIP_VER >=106)
-    
+
     int tsip_generateMasterSecret(
             const byte* pre,
             const byte* cr,
             const byte* sr,
             byte*       ms);
-    
-    #endif     
+
+    #endif
 
     int tsip_useable(const WOLFSSL *ssl);
     int tsip_generateSeesionKey(WOLFSSL *ssl);
@@ -551,17 +551,17 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
         if (tsip_useable(ssl)) {
-            
+
             #if (WOLFSSL_RENESAS_TSIP_VER>=109)
 
             ret = tsip_generateMasterSecretEx(
                             ssl->options.cipherSuite0,
-                            ssl->options.cipherSuite,                
+                            ssl->options.cipherSuite,
                             &ssl->arrays->preMasterSecret[VERSION_SZ],
                             ssl->arrays->clientRandom,
                             ssl->arrays->serverRandom,
                             ssl->arrays->tsip_masterSecret);
-            
+
             #elif (WOLFSSL_RENESAS_TSIP_VER>=106)
 
             ret = tsip_generateMasterSecret(
@@ -3015,7 +3015,7 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 #endif
 
 #if !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_TLS13) \
- || !defined(NO_WOLFSSL_SERVER) 
+ || !defined(NO_WOLFSSL_SERVER)
     word32 offset = 0;
 #endif
 
@@ -3050,7 +3050,7 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 case WOLFSSL_CSR_OCSP:
                     /* propagate nonce */
                     if (csr->request.ocsp.nonceSz) {
-                        request = 
+                        request =
                             (OcspRequest*)TLSX_CSR_GetRequest(ssl->extensions);
 
                         if (request) {
@@ -5519,7 +5519,7 @@ static int TLSX_SupportedVersions_Write(void* data, byte* output,
             }
     #ifdef WOLFSSL_ALLOW_TLSV10
         #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-            if ((ssl->options.mask & SSL_OP_NO_TLSv1) == 0 && 
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1) == 0 &&
                 (ssl->options.minDowngrade <= TLSv1_MINOR))
         #endif
             {
@@ -6214,7 +6214,7 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
             if (kse->privKey == NULL)
                 ret = MEMORY_E;
         }
-    
+
         if (ret == 0) {
         #if defined(WOLFSSL_STATIC_EPHEMERAL) && defined(WOLFSSL_DH_EXTRA)
             if (ssl->staticKE.dhKey) {
@@ -6224,7 +6224,7 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
                 ret = wc_DhKeyDecode(keyDer->buffer, &idx,
                         dhKey, keyDer->length);
                 if (ret == 0) {
-                    ret = wc_DhExportKeyPair(dhKey, 
+                    ret = wc_DhExportKeyPair(dhKey,
                         (byte*)kse->privKey, &kse->keyLen, /* private */
                         kse->pubKey, &kse->pubKeyLen /* public */
                     );
@@ -6234,7 +6234,7 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
         #endif
             {
                 /* Generate a new key pair */
-                /* For async this is called once and when event is done, the 
+                /* For async this is called once and when event is done, the
                  *   provided buffers will be populated.
                  * Final processing is zero pad below. */
                 ret = DhGenKeyPair(ssl, dhKey,
@@ -6273,7 +6273,7 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
     #endif
     }
 
-    /* Always release the DH key to free up memory. 
+    /* Always release the DH key to free up memory.
      * The DhKey will be setup again in TLSX_KeyShare_ProcessDh */
     if (dhKey != NULL)
         wc_FreeDhKey(dhKey);
@@ -6445,7 +6445,7 @@ static int TLSX_KeyShare_GenX448Key(WOLFSSL *ssl, KeyShareEntry* kse)
         }
         kse->pubKeyLen = CURVE448_KEY_SIZE; /* always CURVE448_KEY_SIZE */
     }
-        
+
 #ifdef WOLFSSL_DEBUG_TLS
     if (ret == 0) {
         WOLFSSL_MSG("Public Curve448 Key");
@@ -6553,7 +6553,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
                 ret = wc_ecc_set_curve(eccKey, kse->keyLen, curveId);
                 if (ret == 0) {
                     /* Generate ephemeral ECC key */
-                    /* For async this is called once and when event is done, the 
+                    /* For async this is called once and when event is done, the
                     *   provided buffers in key be populated.
                     * Final processing is x963 key export below. */
                     ret = EccMakeKey(ssl, eccKey, eccKey);
@@ -7307,7 +7307,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
             /* unsupported curve */
             return ECC_PEERKEY_ERROR;
     }
-    
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (keyShareEntry->lastRet == 0) /* don't enter here if WC_PENDING_E */
 #endif
@@ -7782,7 +7782,7 @@ static int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             return BUFFER_ERROR;
 
         /* Not in list sent if there isn't a private key. */
-        if (keyShareEntry == NULL || (keyShareEntry->key == NULL 
+        if (keyShareEntry == NULL || (keyShareEntry->key == NULL
         #if !defined(NO_DH) || defined(HAVE_LIBOQS)
             && keyShareEntry->privKey == NULL
         #endif
@@ -8536,7 +8536,7 @@ int TLSX_KeyShare_Establish(WOLFSSL *ssl, int* doHelloRetry)
     if (clientKSE == NULL) {
         /* Set KEY_SHARE_ERROR to indicate HelloRetryRequest required. */
         *doHelloRetry = 1;
-        return TLSX_KeyShare_SetSupported(ssl);        
+        return TLSX_KeyShare_SetSupported(ssl);
     }
 
     list = NULL;
@@ -8565,7 +8565,7 @@ int TLSX_KeyShare_Establish(WOLFSSL *ssl, int* doHelloRetry)
         }
 
         /* for async do setup of serverKSE below, but return WC_PENDING_E */
-        if (ret != 0 
+        if (ret != 0
         #ifdef WOLFSSL_ASYNC_CRYPT
             && ret != WC_PENDING_E
         #endif
@@ -9444,16 +9444,16 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             return BUFFER_E;
 
         if (ssl->earlyData == expecting_early_data) {
-            
+
             if (ssl->options.maxEarlyDataSz != 0)
                 ssl->earlyDataStatus = WOLFSSL_EARLY_DATA_ACCEPTED;
             else
                 ssl->earlyDataStatus = WOLFSSL_EARLY_DATA_REJECTED;
-            
+
             return TLSX_EarlyData_Use(ssl, 0);
         }
         ssl->earlyData = early_data_ext;
-        
+
         return 0;
     }
     if (msgType == encrypted_extensions) {
@@ -10404,7 +10404,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             ret = 0;
         }
     #endif /* !(HAVE_ECC || CURVE25519 || CURVE448) && HAVE_SUPPORTED_CURVES */
- 
+
         #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
             if (ssl->certHashSigAlgoSz > 0) {
                 WOLFSSL_MSG("Adding signature algorithms cert extension");

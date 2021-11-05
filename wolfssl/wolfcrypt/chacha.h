@@ -71,7 +71,7 @@ Block counter is located at index 12.
 #endif
 
 enum {
-	CHACHA_ENC_TYPE = WC_CIPHER_CHACHA,    /* cipher unique type */
+    CHACHA_ENC_TYPE = WC_CIPHER_CHACHA,    /* cipher unique type */
     CHACHA_MAX_KEY_SZ = 32,
 };
 
@@ -102,8 +102,8 @@ WOLFSSL_API int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz);
 
 #ifdef HAVE_XCHACHA
 WOLFSSL_API int wc_XChacha_SetKey(ChaCha *ctx, const byte *key, word32 keySz,
-				  const byte *nonce, word32 nonceSz,
-				  word32 counter);
+                                  const byte *nonce, word32 nonceSz,
+                                  word32 counter);
 #endif
 
 #ifdef __cplusplus

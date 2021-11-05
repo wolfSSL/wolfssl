@@ -43,7 +43,7 @@
     #include <winsock2.h>
     #include <process.h>
     #ifdef TEST_IPV6            /* don't require newer SDK for IPV4 */
-	    #include <ws2tcpip.h>
+        #include <ws2tcpip.h>
         #include <wspiapi.h>
     #endif
     #define SOCKET_T int

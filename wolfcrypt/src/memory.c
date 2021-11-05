@@ -143,7 +143,7 @@ void* wolfSSL_Malloc(size_t size)
             return NULL;
         }
         #endif
-    
+
         res = malloc(size);
     #else
         WOLFSSL_MSG("No malloc available");

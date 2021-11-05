@@ -52,8 +52,8 @@ extern "C" {
     /* reduce stack use. For variables over 100 bytes allocate from heap */
     #define WOLFSSL_SMALL_STACK
 
-    /* disable the built-in socket support and use the IO callbacks. 
-     * Set with wolfSSL_CTX_SetIORecv/wolfSSL_CTX_SetIOSend 
+    /* disable the built-in socket support and use the IO callbacks.
+     * Set with wolfSSL_CTX_SetIORecv/wolfSSL_CTX_SetIOSend
      */
     #define WOLFSSL_USER_IO
 #endif
@@ -78,14 +78,14 @@ extern "C" {
     #define WOLFSSL_HAVE_SP_ECC
     //#define WOLFSSL_SP_4096 /* Enable RSA/RH 4096-bit support */
     //#define WOLFSSL_SP_384 /* Enable ECC 384-bit SECP384R1 support */
-    
+
     //#define WOLFSSL_SP_CACHE_RESISTANT
     #define WOLFSSL_SP_MATH     /* only SP math - disables integer.c/tfm.c */
     #define WOLFSSL_SP_MATH_ALL /* use SP math for all key sizes and curves */
 
     //#define WOLFSSL_SP_NO_MALLOC
     //#define WOLFSSL_SP_DIV_32 /* do not use 64-bit divides */
- 
+
     #ifdef TARGET_EMBEDDED
         /* use smaller version of code */
         #define WOLFSSL_SP_SMALL
@@ -117,7 +117,7 @@ extern "C" {
 
     /* Enables blinding mode, to prevent timing attacks */
     #define WC_RSA_BLINDING
-    
+
     /* RSA PSS Support */
     #define WC_RSA_PSS
 #else
@@ -199,7 +199,7 @@ extern "C" {
 /* AES */
 #undef NO_AES
 #if 1
-	#define HAVE_AES_CBC
+    #define HAVE_AES_CBC
 
     /* GCM Method: GCM_TABLE_4BIT, GCM_SMALL, GCM_WORD32 or GCM_TABLE */
     #define HAVE_AESGCM

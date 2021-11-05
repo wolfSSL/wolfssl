@@ -38,7 +38,7 @@
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
 #if defined(HAVE_FIPS) && \
-	(!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
     #ifdef WOLFSSL_SHA512
         #define wc_Sha512             Sha512
         #define WC_SHA512             SHA512
@@ -60,7 +60,7 @@
     #if defined(WOLFSSL_SHA384)
         #define CYASSL_SHA384
     #endif
-	/* for fips @wc_fips */
+    /* for fips @wc_fips */
     #include <cyassl/ctaocrypt/sha512.h>
 #endif
 
@@ -239,7 +239,7 @@ WOLFSSL_API int wc_Sha512_224Copy(wc_Sha512* src, wc_Sha512* dst);
 #endif
 
 #if defined(OPENSSL_EXTRA)
-WOLFSSL_API int wc_Sha512_224Transform(wc_Sha512* sha, 
+WOLFSSL_API int wc_Sha512_224Transform(wc_Sha512* sha,
                                                 const unsigned char* data);
 #endif
 #endif /* !WOLFSSL_NOSHA512_224 */
@@ -259,7 +259,7 @@ WOLFSSL_API int wc_Sha512_256Copy(wc_Sha512* src, wc_Sha512* dst);
 #endif
 
 #if defined(OPENSSL_EXTRA)
-WOLFSSL_API int wc_Sha512_256Transform(wc_Sha512* sha, 
+WOLFSSL_API int wc_Sha512_256Transform(wc_Sha512* sha,
                                                 const unsigned char* data);
 #endif
 #endif /* !WOLFSSL_NOSHA512_256 */

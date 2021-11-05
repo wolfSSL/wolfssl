@@ -351,7 +351,7 @@ enum {
     NID_kx_srp    = 1044,
     NID_kx_gost   = 1045,
     NID_kx_any    = 1063,
-    
+
     /* server authentication */
     NID_auth_rsa = 1046,
     NID_auth_ecdsa = 1047,
@@ -360,7 +360,7 @@ enum {
     NID_auth_srp = 1052,
     NID_auth_null = 1054,
     NID_auth_any = 1055
-    
+
 };
 
 #define NID_X9_62_id_ecPublicKey EVP_PKEY_EC
@@ -724,7 +724,7 @@ WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
                                                     !defined(NO_SHA)
 WOLFSSL_API int wolfSSL_EVP_PBE_scrypt(const char *pass, size_t passlen,
                             const unsigned char *salt, size_t saltlen,
-                            word64 N, word64 r, word64 p, 
+                            word64 N, word64 r, word64 p,
                             word64 maxmem, unsigned char *key, size_t keylen);
 #endif /* HAVE_SCRYPT && HAVE_PBKDF2 && !NO_PWDBASED && !NO_SHA */
 
@@ -734,7 +734,7 @@ WOLFSSL_LOCAL int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
 WOLFSSL_API void wolfSSL_EVP_MD_do_all(void (*fn) (const WOLFSSL_EVP_MD *md,
                                                    const char* from, const char* to,
                                                    void* xx), void* args);
-                                                   
+
 #define EVP_CIPH_STREAM_CIPHER WOLFSSL_EVP_CIPH_STREAM_CIPHER
 #define EVP_CIPH_ECB_MODE WOLFSSL_EVP_CIPH_ECB_MODE
 #define EVP_CIPH_CBC_MODE WOLFSSL_EVP_CIPH_CBC_MODE

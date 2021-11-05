@@ -97,7 +97,7 @@ int wc_curve448_make_key(WC_RNG* rng, int keysize, curve448_key* key)
         /* clamp private */
         key->k[0] &= 0xfc;
         key->k[CURVE448_KEY_SIZE-1] |= 0x80;
-        
+
         /* compute public */
         ret = wc_curve448_make_pub((int)sizeof(key->p), key->p,
                                    (int)sizeof(key->k), key->k);

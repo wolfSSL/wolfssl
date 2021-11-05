@@ -131,15 +131,15 @@
     /* if defined to not using inline then declare function prototypes */
     #ifdef NO_INLINE
         #define WC_STATIC
-		#ifdef WOLFSSL_DEBUG_MEMORY
-			WOLFSSL_LOCAL void* TrackMalloc(size_t sz, const char* func, unsigned int line);
-			WOLFSSL_LOCAL void TrackFree(void* ptr, const char* func, unsigned int line);
-			WOLFSSL_LOCAL void* TrackRealloc(void* ptr, size_t sz, const char* func, unsigned int line);
-		#else
-			WOLFSSL_LOCAL void* TrackMalloc(size_t sz);
-			WOLFSSL_LOCAL void TrackFree(void* ptr);
-			WOLFSSL_LOCAL void* TrackRealloc(void* ptr, size_t sz);
-		#endif
+        #ifdef WOLFSSL_DEBUG_MEMORY
+             WOLFSSL_LOCAL void* TrackMalloc(size_t sz, const char* func, unsigned int line);
+             WOLFSSL_LOCAL void TrackFree(void* ptr, const char* func, unsigned int line);
+             WOLFSSL_LOCAL void* TrackRealloc(void* ptr, size_t sz, const char* func, unsigned int line);
+        #else
+             WOLFSSL_LOCAL void* TrackMalloc(size_t sz);
+             WOLFSSL_LOCAL void TrackFree(void* ptr);
+             WOLFSSL_LOCAL void* TrackRealloc(void* ptr, size_t sz);
+        #endif
         WOLFSSL_LOCAL int InitMemoryTracker(void);
         WOLFSSL_LOCAL void ShowMemoryTracker(void);
     #else
@@ -238,7 +238,7 @@
         sz = header->thisSize;
 
     #ifdef DO_MEM_LIST
-        if (pthread_mutex_lock(&memLock) == 0) 
+        if (pthread_mutex_lock(&memLock) == 0)
         {
     #endif
 

@@ -28,9 +28,7 @@
 
 #if (defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)) && !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_PSOC6_CRYPTO)
 
-#if defined(HAVE_FIPS) && \
-	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
 
@@ -1240,7 +1238,7 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
     int wc_Sha384Update(wc_Sha384* sha384, const byte* data, word32 len)
     {
         return se050_hash_update(&sha384->se050Ctx, data, len);
-    
+
     }
     int wc_Sha384Final(wc_Sha384* sha384, byte* hash)
     {

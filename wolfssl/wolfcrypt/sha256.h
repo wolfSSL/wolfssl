@@ -38,7 +38,7 @@
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
 #if defined(HAVE_FIPS) && \
-	(!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
     #define wc_Sha256             Sha256
     #define WC_SHA256             SHA256
     #define WC_SHA256_BLOCK_SIZE  SHA256_BLOCK_SIZE
@@ -62,7 +62,7 @@
 #endif
 
 #ifdef WOLFSSL_IMXRT_DCP
-	#include "fsl_dcp.h"
+    #include "fsl_dcp.h"
 #endif
 
 #if defined(WOLFSSL_PSOC6_CRYPTO)

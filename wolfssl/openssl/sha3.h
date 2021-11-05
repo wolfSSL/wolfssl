@@ -96,7 +96,7 @@ typedef struct WOLFSSL_SHA3_CTX WOLFSSL_SHA3_384_CTX;
 
 WOLFSSL_API int wolfSSL_SHA3_384_Init(WOLFSSL_SHA3_384_CTX*);
 WOLFSSL_API int wolfSSL_SHA3_384_Update(WOLFSSL_SHA3_384_CTX*, const void*,
-	                                 unsigned long);
+                                         unsigned long);
 WOLFSSL_API int wolfSSL_SHA3_384_Final(unsigned char*, WOLFSSL_SHA3_384_CTX*);
 
 enum {
@@ -119,7 +119,7 @@ typedef struct WOLFSSL_SHA3_CTX WOLFSSL_SHA3_512_CTX;
 
 WOLFSSL_API int wolfSSL_SHA3_512_Init(WOLFSSL_SHA3_512_CTX*);
 WOLFSSL_API int wolfSSL_SHA3_512_Update(WOLFSSL_SHA3_512_CTX*, const void*,
-	                                 unsigned long);
+                                         unsigned long);
 WOLFSSL_API int wolfSSL_SHA3_512_Final(unsigned char*, WOLFSSL_SHA3_512_CTX*);
 
 enum {

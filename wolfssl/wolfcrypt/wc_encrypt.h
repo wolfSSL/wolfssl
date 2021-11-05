@@ -64,7 +64,7 @@
      (HAVE_FIPS_VERSION <= 2)) || (defined(HAVE_SELFTEST) && \
      (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION < 2)))
     /* In FIPS cert 3389 and CAVP selftest v1 build, these enums are
-     * not in aes.h. Define them here outside the fips boundary. 
+     * not in aes.h. Define them here outside the fips boundary.
      */
     #ifndef GCM_NONCE_MID_SZ
         /* The usual default nonce size for AES-GCM. */
@@ -113,7 +113,7 @@ WOLFSSL_API int wc_Des3_CbcDecryptWithKey(byte* out,
 #endif /* WOLFSSL_ENCRYPTED_KEYS */
 
 #ifndef NO_PWDBASED
-    WOLFSSL_LOCAL int wc_CryptKey(const char* password, int passwordSz, 
+    WOLFSSL_LOCAL int wc_CryptKey(const char* password, int passwordSz,
         byte* salt, int saltSz, int iterations, int id, byte* input, int length,
         int version, byte* cbcIv, int enc, int shaOid);
 #endif

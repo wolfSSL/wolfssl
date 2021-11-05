@@ -36,7 +36,7 @@
 #endif
 
 enum {
-	HC128_ENC_TYPE =  WC_CIPHER_HC128,     /* cipher unique type */
+    HC128_ENC_TYPE =  WC_CIPHER_HC128,     /* cipher unique type */
 };
 
 /* HC-128 stream cipher */

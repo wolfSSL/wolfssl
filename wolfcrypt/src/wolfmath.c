@@ -227,7 +227,7 @@ int wc_export_int(mp_int* mp, byte* buf, word32* len, word32 keySz,
             }
             *len = (word32)size;
             err = mp_tohex(mp, (char*)buf);
-        }        
+        }
     #else
         err = NOT_COMPILED_IN;
     #endif

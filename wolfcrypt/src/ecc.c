@@ -48,9 +48,9 @@ Possible ECC enable options:
  * ECC_CACHE_CURVE:     Enables cache of curve info to improve performance
  *                                                              default: off
  * FP_ECC:              ECC Fixed Point Cache                   default: off
- *                      FP cache is not supported for SECP160R1, SECP160R2, 
+ *                      FP cache is not supported for SECP160R1, SECP160R2,
  *                      SECP160K1 and SECP224K1. These do not work with scalars
- *                      that are the length of the order when the order is 
+ *                      that are the length of the order when the order is
  *                      longer than the prime.
  * USE_ECC_B_PARAM:     Enable ECC curve B param                default: off
  *                      (on for HAVE_COMP_KEY)
@@ -112,10 +112,10 @@ ECC Curve Sizes:
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
 
-	#ifdef USE_WINDOWS_API
-		#pragma code_seg(".fipsA$f")
-		#pragma const_seg(".fipsB$f")
-	#endif
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$f")
+        #pragma const_seg(".fipsB$f")
+    #endif
 #endif
 
 /* public ASN interface */
@@ -615,7 +615,7 @@ enum {
             static const ecc_oid_t ecc_oid_secp384r1[] = CODED_SECP384R1;
             #define CODED_SECP384R1_OID ecc_oid_secp384r1
         #else
-			#define ecc_oid_secp384r1 CODED_SECP384R1
+            #define ecc_oid_secp384r1 CODED_SECP384R1
         #endif
         #define ecc_oid_secp384r1_sz CODED_SECP384R1_SZ
     #endif /* !NO_ECC_SECP */
@@ -6346,7 +6346,7 @@ int wc_ecc_free(ecc_key* key)
 #ifdef WOLFSSL_QNX_CAAM
     /* free secure memory */
     if (key->blackKey > 0) {
-       caamFreePart(key->partNum); 
+       caamFreePart(key->partNum);
     }
 #endif
 
@@ -8465,7 +8465,7 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
         #endif
         DECLARE_CURVE_SPECS(curve, 3);
     #endif /* USE_ECC_B_PARAM */
-#endif /* !WOLFSSL_ATECC508A && !WOLFSSL_ATECC608A && 
+#endif /* !WOLFSSL_ATECC508A && !WOLFSSL_ATECC608A &&
           !WOLFSSL_CRYPTOCELL && !WOLFSSL_SILABS_SE_ACCEL && !WOLFSSL_SE050 */
 #endif /* !WOLFSSL_SP_MATH */
 
@@ -8500,7 +8500,7 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
     defined(WOLFSSL_CRYPTOCELL) || defined(WOLFSSL_SILABS_SE_ACCEL) || \
     defined(WOLFSSL_SE050)
 
-    /* consider key check success on HW crypto 
+    /* consider key check success on HW crypto
      * ex: ATECC508/608A, CryptoCell and Silabs */
     err = MP_OKAY;
 
