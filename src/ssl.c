@@ -44111,7 +44111,7 @@ err:
         }
 
         /* Read the header and footer */
-        while (wolfSSL_BIO_read(bio, &pem[i], 1) == 1) {
+        while (i < l && wolfSSL_BIO_read(bio, &pem[i], 1) == 1) {
             i++;
             if (!header) {
                 header = XSTRNSTR(pem, "-----BEGIN ", (unsigned int)i);
@@ -44124,7 +44124,10 @@ err:
                 if (headerEnd) {
                     headerEnd += XSTR_SIZEOF("-----");
                     /* Read in the newline */
-                    (void)wolfSSL_BIO_read(bio, &pem[i], 1);
+                    if (wolfSSL_BIO_read(bio, &pem[i], 1) != 1) {
+                        WOLFSSL_MSG("wolfSSL_BIO_read error");
+                        goto err;
+                    }
                     i++;
                     if (*headerEnd != '\n' && *headerEnd != '\r') {
                         WOLFSSL_MSG("Missing newline after header");
@@ -44143,7 +44146,9 @@ err:
                 if (footerEnd) {
                     footerEnd += XSTR_SIZEOF("-----");
                     /* Now check that footer matches header */
-                    if (XMEMCMP(header + XSTR_SIZEOF("-----BEGIN "),
+                    if ((headerEnd - (header + XSTR_SIZEOF("-----BEGIN "))) ==
+                        (footerEnd - (footer + XSTR_SIZEOF("-----END "))) &&
+                        XMEMCMP(header + XSTR_SIZEOF("-----BEGIN "),
                                 footer + XSTR_SIZEOF("-----END "),
                         headerEnd - (header + XSTR_SIZEOF("-----BEGIN ")))
                             != 0) {
