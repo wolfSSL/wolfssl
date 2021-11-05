@@ -17762,6 +17762,11 @@ cleanup:
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
     defined(HAVE_SECRET_CALLBACK)
 #if !defined(NO_WOLFSSL_SERVER)
+/* Return the amount of random bytes copied over or error case.
+ * ssl : ssl struct after handshake
+ * out : buffer to hold random bytes
+ * outSz : either 0 (return max buffer sz) or size of out buffer
+ */
 size_t wolfSSL_get_server_random(const WOLFSSL *ssl, unsigned char *out,
                                                                    size_t outSz)
 {
@@ -17776,7 +17781,7 @@ size_t wolfSSL_get_server_random(const WOLFSSL *ssl, unsigned char *out,
         return 0;
     }
 
-    if (ssl->options.saveArrays == 0 || ssl->arrays == NULL) {
+    if (ssl->arrays == NULL) {
         WOLFSSL_MSG("Arrays struct not saved after handshake");
         return 0;
     }
@@ -18497,8 +18502,6 @@ int wolfSSL_CTX_get_max_proto_version(WOLFSSL_CTX* ctx)
  * ssl : ssl struct after handshake
  * out : buffer to hold random bytes
  * outSz : either 0 (return max buffer sz) or size of out buffer
- *
- * NOTE: wolfSSL_KeepArrays(ssl) must be called to retain handshake information.
  */
 size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
                                                                    size_t outSz)
@@ -18514,7 +18517,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return 0;
     }
 
-    if (ssl->options.saveArrays == 0 || ssl->arrays == NULL) {
+    if (ssl->arrays == NULL) {
         WOLFSSL_MSG("Arrays struct not saved after handshake");
         return 0;
     }
