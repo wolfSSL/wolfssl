@@ -8342,8 +8342,8 @@ int wc_DhKeyToDer(DhKey* key, byte* output, word32* outSz, int exportPriv)
     /* object dhKeyAgreement 1.2.840.113549.1.3.1 */
     idx += SetObjectId(sizeof(keyDhOid), NULL);
     idx += sizeof(keyDhOid);
-    /* sequence */
-    idx += SetSequence(idx, NULL);
+    /* sequence - all but pub/priv */
+    idx += SetSequence(idx - keySz, NULL);
     if (exportPriv) {
         /* version: 0 (ASN_INTEGER, 0x01, 0x00) */
         idx += 3;
