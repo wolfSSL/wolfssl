@@ -5552,15 +5552,24 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
  * PKCS #8: RFC 5958, 2 - PrivateKeyInfo
  */
 static const ASNItem pkcs8KeyASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/*  1 */        { 1, ASN_INTEGER, 0, 0, 0 },
-/*  2 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-/*  3 */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/*  4 */            { 2, ASN_OBJECT_ID, 0, 0, 1 },
-/*  5 */            { 2, ASN_TAG_NULL, 0, 0, 1 },
-/*  6 */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
+/*  SEQ                 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/*  VER                 */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  PKEY_ALGO_SEQ       */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+/*  PKEY_ALGO_OID_KEY   */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/*  PKEY_ALGO_OID_CURVE */            { 2, ASN_OBJECT_ID, 0, 0, 1 },
+/*  PKEY_ALGO_NULL      */            { 2, ASN_TAG_NULL, 0, 0, 1 },
+/*  PKEY_DATA           */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
                 /* attributes            [0] Attributes OPTIONAL */
                 /* [[2: publicKey        [1] PublicKey OPTIONAL ]] */
+};
+enum {
+    pkcs8KeyASN_IDX_SEQ = 0,
+    pkcs8KeyASN_IDX_VER,
+    pkcs8KeyASN_IDX_PKEY_ALGO_SEQ,
+    pkcs8KeyASN_IDX_PKEY_ALGO_OID_KEY,
+    pkcs8KeyASN_IDX_PKEY_ALGO_OID_CURVE,
+    pkcs8KeyASN_IDX_PKEY_ALGO_NULL,
+    pkcs8KeyASN_IDX_PKEY_DATA,
 };
 
 /* Number of items in ASN.1 template for a PKCS #8 key. */
@@ -5641,9 +5650,9 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
 
     if (ret == 0) {
         /* Get version, check key type and curve type. */
-        GetASN_Int8Bit(&dataASN[1], &version);
-        GetASN_OID(&dataASN[3], oidKeyType);
-        GetASN_OID(&dataASN[4], oidCurveType);
+        GetASN_Int8Bit(&dataASN[pkcs8KeyASN_IDX_VER], &version);
+        GetASN_OID(&dataASN[pkcs8KeyASN_IDX_PKEY_ALGO_OID_KEY], oidKeyType);
+        GetASN_OID(&dataASN[pkcs8KeyASN_IDX_PKEY_ALGO_OID_CURVE], oidCurveType);
         /* Parse data. */
         ret = GetASN_Items(pkcs8KeyASN, dataASN, pkcs8KeyASN_Length, 1, input,
                            &idx, sz);
@@ -5651,7 +5660,7 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
 
     if (ret == 0) {
         /* Key type OID. */
-        oid = dataASN[3].data.oid.sum;
+        oid = dataASN[pkcs8KeyASN_IDX_PKEY_ALGO_OID_KEY].data.oid.sum;
 
         /* Version 1 includes an optional public key.
          * If public key is included then the parsing will fail as it did not
@@ -5666,8 +5675,8 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
         #ifndef NO_RSA
             case RSAk:
                 /* Must have NULL item but not OBJECT_ID item. */
-                if ((dataASN[5].tag == 0) ||
-                    (dataASN[4].tag != 0)) {
+                if ((dataASN[pkcs8KeyASN_IDX_PKEY_ALGO_NULL].tag == 0) ||
+                    (dataASN[pkcs8KeyASN_IDX_PKEY_ALGO_OID_CURVE].tag != 0)) {
                     ret = ASN_PARSE_E;
                 }
                 break;
@@ -5675,7 +5684,7 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
         #ifdef HAVE_ECC
             case ECDSAk:
                 /* Must not have NULL item. */
-                if (dataASN[5].tag != 0) {
+                if (dataASN[pkcs8KeyASN_IDX_PKEY_ALGO_NULL].tag != 0) {
                     ret = ASN_PARSE_E;
                 }
                 break;
@@ -5683,8 +5692,8 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
         #ifdef HAVE_ED25519
             case ED25519k:
                 /* Neither NULL item nor OBJECT_ID item allowed. */
-                if ((dataASN[5].tag != 0) ||
-                    (dataASN[4].tag != 0)) {
+                if ((dataASN[pkcs8KeyASN_IDX_PKEY_ALGO_NULL].tag != 0) ||
+                    (dataASN[pkcs8KeyASN_IDX_PKEY_ALGO_OID_CURVE].tag != 0)) {
                     ret = ASN_PARSE_E;
                 }
                 break;
@@ -5692,8 +5701,8 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
         #ifdef HAVE_CURVE25519
             case X25519k:
                 /* Neither NULL item nor OBJECT_ID item allowed. */
-                if ((dataASN[5].tag != 0) ||
-                    (dataASN[4].tag != 0)) {
+                if ((dataASN[pkcs8KeyASN_IDX_PKEY_ALGO_NULL].tag != 0) ||
+                    (dataASN[pkcs8KeyASN_IDX_PKEY_ALGO_OID_CURVE].tag != 0)) {
                     ret = ASN_PARSE_E;
                 }
                 break;
@@ -5701,8 +5710,8 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
         #ifdef HAVE_ED448
             case ED448k:
                 /* Neither NULL item nor OBJECT_ID item allowed. */
-                if ((dataASN[5].tag != 0) ||
-                    (dataASN[4].tag != 0)) {
+                if ((dataASN[pkcs8KeyASN_IDX_PKEY_ALGO_NULL].tag != 0) ||
+                    (dataASN[pkcs8KeyASN_IDX_PKEY_ALGO_OID_CURVE].tag != 0)) {
                     ret = ASN_PARSE_E;
                 }
                 break;
@@ -5710,8 +5719,8 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
         #ifdef HAVE_CURVE448
             case X448k:
                 /* Neither NULL item nor OBJECT_ID item allowed. */
-                if ((dataASN[5].tag != 0) ||
-                    (dataASN[4].tag != 0)) {
+                if ((dataASN[pkcs8KeyASN_IDX_PKEY_ALGO_NULL].tag != 0) ||
+                    (dataASN[pkcs8KeyASN_IDX_PKEY_ALGO_OID_CURVE].tag != 0)) {
                     ret = ASN_PARSE_E;
                 }
                 break;
@@ -5726,9 +5735,9 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
         /* Return algorithm id of internal key. */
         *algId = oid;
         /* Return index to start of internal key. */
-        *inOutIdx = GetASNItem_DataIdx(dataASN[6], input);
+        *inOutIdx = GetASNItem_DataIdx(dataASN[pkcs8KeyASN_IDX_PKEY_DATA], input);
         /* Return value is length of internal key. */
-        ret = dataASN[6].data.ref.length;
+        ret = dataASN[pkcs8KeyASN_IDX_PKEY_DATA].data.ref.length;
     }
 
     FREE_ASNGETDATA(dataASN, NULL);
@@ -5906,21 +5915,21 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
 
     if (ret == 0) {
         /* Only support default PKCS #8 format - v0. */
-        SetASN_Int8Bit(&dataASN[1], PKCS8v0);
+        SetASN_Int8Bit(&dataASN[pkcs8KeyASN_IDX_VER], PKCS8v0);
         /* Set key OID that corresponds to key data. */
-        SetASN_OID(&dataASN[3], algoID, oidKeyType);
+        SetASN_OID(&dataASN[pkcs8KeyASN_IDX_PKEY_ALGO_OID_KEY], algoID, oidKeyType);
         if (curveOID != NULL && oidSz > 0) {
             /* ECC key and curveOID set to write. */
-            SetASN_Buffer(&dataASN[4], curveOID, oidSz);
+            SetASN_Buffer(&dataASN[pkcs8KeyASN_IDX_PKEY_ALGO_OID_CURVE], curveOID, oidSz);
         }
         else {
             /* EC curve OID to encode. */
-            dataASN[4].noOut = 1;
+            dataASN[pkcs8KeyASN_IDX_PKEY_ALGO_OID_CURVE].noOut = 1;
         }
         /* Only RSA keys have NULL tagged item after OID. */
-        dataASN[5].noOut = (algoID != RSAk);
+        dataASN[pkcs8KeyASN_IDX_PKEY_ALGO_NULL].noOut = (algoID != RSAk);
         /* Set key data to encode. */
-        SetASN_Buffer(&dataASN[6], key, keySz);
+        SetASN_Buffer(&dataASN[pkcs8KeyASN_IDX_PKEY_DATA], key, keySz);
 
         /* Get the size of the DER encoding. */
         ret = SizeASN_Items(pkcs8KeyASN, dataASN, pkcs8KeyASN_Length, &sz);
@@ -9406,7 +9415,10 @@ static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen,
         dataASN[6].noOut = mp_iszero(&key->x);
         /* Set the mp_ints to encode - params, public and private value. */
         for (i = 0; i < DSA_INTS; i++) {
-            SetASN_MP(&dataASN[2 + i], GetDsaInt(key, i));
+            if (i < ints)
+                SetASN_MP(&dataASN[2 + i], GetDsaInt(key, i));
+            else
+                dataASN[2 + i].noOut = 1;
         }
         /* Calculate size of the encoding. */
         ret = SizeASN_Items(dsaKeyASN, dataASN, dsaKeyASN_Length, &sz);
@@ -10443,10 +10455,14 @@ static const CertNameData certNameSubject[] = {
     /* Street Address */
     {
         "/street=", 8,
-#ifdef WOLFSSL_CERT_GEN
+#ifdef WOLFSSL_CERT_EXT
         OFFSETOF(DecodedCert, subjectStreet),
         OFFSETOF(DecodedCert, subjectStreetLen),
         OFFSETOF(DecodedCert, subjectStreetEnc),
+#else
+        0,
+        0,
+        0,
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
         NID_streetAddress
@@ -23865,6 +23881,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
     word32 issRawLen = 0;
     word32 sbjRawLen = 0;
 
+    (void)falconKey; /* Unused without OQS */
     CALLOC_ASNSETDATA(dataASN, x509CertASN_Length, ret, cert->heap);
 
     if (ret == 0) {
@@ -24666,6 +24683,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
     word32 sbjRawSz;
 #endif
 
+    (void)falconKey; /* Unused without OQS */
     CALLOC_ASNSETDATA(dataASN, certReqBodyASN_Length, ret, cert->heap);
 
     if (ret == 0) {
