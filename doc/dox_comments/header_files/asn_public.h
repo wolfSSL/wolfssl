@@ -1078,10 +1078,10 @@ WOLFSSL_API int wc_PubKeyPemToDer(const unsigned char*, int,
     \code
     char * file = “./certs/client-cert.pem”;
     int derSz;
-    byte * der = (byte*)XMALLOC(EIGHTK_BUF, NULL, DYNAMIC_TYPE_CERT);
+    byte* der = (byte*)XMALLOC((8*1024), NULL, DYNAMIC_TYPE_CERT);
 
-    derSz = wc_PemCertToDer(file, der, EIGHTK_BUF);
-    if(derSz <= 0) {
+    derSz = wc_PemCertToDer(file, der, (8*1024));
+    if (derSz <= 0) {
         //PemCertToDer error
     }
     \endcode
