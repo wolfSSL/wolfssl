@@ -7094,12 +7094,16 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
     defined(WOLFSSL_CRYPTOCELL) || defined(WOLFSSL_SILABS_SE_ACCEL) || \
     defined(WOLFSSL_KCAPI_ECC) || defined(WOLFSSL_SE050)
-    /* Extract R and S */
-    err = mp_to_unsigned_bin(r, &sigRS[0]);
+
+    /* Extract R and S with front zero padding (if required) */
+    XMEMSET(sigRS, 0, keySz * 2);
+    err = mp_to_unsigned_bin(r, sigRS +
+                                (keySz - mp_unsigned_bin_size(r)));
     if (err != MP_OKAY) {
         return err;
     }
-    err = mp_to_unsigned_bin(s, &sigRS[keySz]);
+    err = mp_to_unsigned_bin(s, sigRS + keySz +
+                                (keySz - mp_unsigned_bin_size(s)));
     if (err != MP_OKAY) {
         return err;
     }

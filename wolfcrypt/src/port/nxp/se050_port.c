@@ -427,15 +427,22 @@ void se050_aes_free(Aes* aes)
 
 #ifdef HAVE_ECC
 
-static sss_cipher_type_t se050_map_curve(int curve_id)
+static int se050_map_curve(int curve_id, int keySize,
+    int* keySizeBits, sss_cipher_type_t* pcurve_type)
 {
+    int ret = 0;
     sss_cipher_type_t curve_type;
+    *keySizeBits = keySize * 8; /* set default */
     switch (curve_id) {
-        case ECC_SECP160K1:
+        case ECC_SECP160K1:            
         case ECC_SECP192K1:
         case ECC_SECP224K1:
         case ECC_SECP256K1:
+        #ifdef HAVE_ECC_KOBLITZ
             curve_type = kSSS_CipherType_EC_NIST_K;
+        #else
+            ret = ECC_CURVE_OID_E;
+        #endif
             break;
         case ECC_BRAINPOOLP160R1:
         case ECC_BRAINPOOLP192R1:
@@ -444,7 +451,15 @@ static sss_cipher_type_t se050_map_curve(int curve_id)
         case ECC_BRAINPOOLP320R1:
         case ECC_BRAINPOOLP384R1:
         case ECC_BRAINPOOLP512R1:
+        #ifdef HAVE_ECC_BRAINPOOL
             curve_type = kSSS_CipherType_EC_BRAINPOOL;
+        #else
+            ret = ECC_CURVE_OID_E;
+        #endif
+            break;
+        case ECC_SECP521R1:
+            curve_type = kSSS_CipherType_EC_NIST_P;
+            *keySizeBits = 521;
             break;
         case ECC_CURVE_DEF:
         case ECC_SECP160R1:
@@ -452,12 +467,18 @@ static sss_cipher_type_t se050_map_curve(int curve_id)
         case ECC_SECP224R1:
         case ECC_SECP256R1:
         case ECC_SECP384R1:
-        case ECC_SECP521R1:
-        default:
             curve_type = kSSS_CipherType_EC_NIST_P;
             break;
+        case ECC_PRIME239V1:
+        case ECC_PRIME192V2:
+        case ECC_PRIME192V3:
+        default:
+            ret = ECC_CURVE_OID_E;
+            break;
     }
-    return curve_type;
+    if (pcurve_type)
+        *pcurve_type = curve_type;
+    return ret;
 }
 
 int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
@@ -485,9 +506,10 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
     }
 
     keySize = key->dp->size;
-    keySizeBits = keySize * 8;
-    if (keySizeBits > SSS_MAX_ECC_BITS)
-        keySizeBits = SSS_MAX_ECC_BITS;
+    ret = se050_map_curve(key->dp->id, keySize, &keySizeBits, NULL);
+    if (ret != 0) {
+        return ret;
+    }
 
     /* truncate if digest is larger than key size */
     if (inLen > (word32)keySize)
@@ -594,10 +616,10 @@ int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, byte* sigRS,
     }
 
     keySize = key->dp->size;
-    keySizeBits = keySize * 8;
-    if (keySizeBits > SSS_MAX_ECC_BITS)
-        keySizeBits = SSS_MAX_ECC_BITS;
-    curveType = se050_map_curve(key->dp->id);
+    ret = se050_map_curve(key->dp->id, keySize, &keySizeBits, &curveType);
+    if (ret != 0) {
+        return ret;
+    }
 
     /* truncate hash if larger than key size */
     if (hashLen > (word32)keySize)
@@ -759,7 +781,6 @@ int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize)
     sss_key_store_t   host_keystore;
     uint8_t           derBuf[SE050_ECC_DER_MAX];
     size_t            derSz = sizeof(derBuf);
-    size_t            derSzBits = derSz * 8;
     int               keyId;
     int               keySizeBits;
     sss_cipher_type_t curveType;
@@ -774,14 +795,9 @@ int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize)
         return WC_HW_E;
     }
 
-    curveType = se050_map_curve(curve_id);
-    keySizeBits = keySize * 8;
-    if (keySizeBits > SSS_MAX_ECC_BITS)
-        keySizeBits = SSS_MAX_ECC_BITS;
-
-    if (keySize == 30) {
-        /* not supported curve key size */
-        return ECC_CURVE_OID_E;
+    ret = se050_map_curve(curve_id, keySize, &keySizeBits, &curveType);
+    if (ret != 0) {
+        return ret;
     }
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
@@ -807,8 +823,10 @@ int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize)
             keySizeBits, NULL);
     }
     if (status == kStatus_SSS_Success) {
+        size_t derSzBits = derSz * 8;
         status = sss_key_store_get_key(&host_keystore, &keyPair,
             derBuf, &derSz, &derSzBits);
+        (void)derSzBits; /* not used */
     }
     if (status == kStatus_SSS_Success) {
         word32 idx = 0;
@@ -853,7 +871,7 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     sss_derive_key_t    ctx_derive_key;
     int                 keyId;
     int                 keySize;
-    size_t              keySizeBits;
+    int                 keySizeBits;
     sss_cipher_type_t   curveType;
     int                 keyCreated = 0;
     int                 deriveKeyCreated = 0;
@@ -871,10 +889,10 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     }
 
     keySize = private_key->dp->size;
-    keySizeBits = keySize * 8;
-    if (keySizeBits > SSS_MAX_ECC_BITS)
-        keySizeBits = SSS_MAX_ECC_BITS;
-    curveType = se050_map_curve(private_key->dp->id);
+    ret = se050_map_curve(private_key->dp->id, keySize, &keySizeBits, &curveType);
+    if (ret != 0) {
+        return ret;
+    }
 
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
@@ -947,10 +965,12 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
         }
         if (status == kStatus_SSS_Success) {
             size_t outlenSz = (size_t)*outlen;
+            size_t outlenSzBits = outlenSz * 8;
             /* derived key export */
             status = sss_key_store_get_key(&host_keystore, &deriveKey, out,
-                &outlenSz, &keySizeBits);
+                &outlenSz, &outlenSzBits);
             *outlen = (word32)outlenSz;
+            (void)outlenSzBits; /* not used */
         }
 
         sss_derive_key_context_free(&ctx_derive_key);
