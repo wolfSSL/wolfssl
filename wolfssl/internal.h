@@ -2731,6 +2731,9 @@ typedef struct {
 #ifdef HAVE_CURVE25519
     DerBuffer* x25519Key;
 #endif
+#ifdef HAVE_CURVE448
+    DerBuffer* x448Key;
+#endif
 } StaticKeyExchangeInfo_t;
 #endif /* WOLFSSL_STATIC_EPHEMERAL */
 

@@ -6412,7 +6412,14 @@ static int TLSX_KeyShare_GenX448Key(WOLFSSL *ssl, KeyShareEntry* kse)
         ret = wc_curve448_init((curve448_key*)kse->key);
         if (ret == 0) {
             key = (curve448_key*)kse->key;
-            ret = wc_curve448_make_key(ssl->rng, CURVE448_KEY_SIZE, key);
+
+            #ifdef WOLFSSL_STATIC_EPHEMERAL
+            ret = wolfSSL_StaticEphemeralKeyLoad(ssl, WC_PK_TYPE_CURVE448, kse->key);
+            if (ret != 0)
+        #endif
+            {
+                ret = wc_curve448_make_key(ssl->rng, CURVE448_KEY_SIZE, key);
+            }
         }
     }
 

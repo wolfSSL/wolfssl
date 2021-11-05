@@ -55658,6 +55658,20 @@ int wolfSSL_StaticEphemeralKeyLoad(WOLFSSL* ssl, int keyAlgo, void* keyPtr)
             }
             break;
     #endif
+    #ifdef HAVE_CURVE448
+        case WC_PK_TYPE_CURVE448:
+            if (ssl != NULL)
+                der = ssl->staticKE.x448Key;
+            if (der == NULL)
+                der = ssl->ctx->staticKE.x448Key;
+            if (der != NULL) {
+                curve448_key* key = (curve448_key*)keyPtr;
+                WOLFSSL_MSG("Using static X448 key");
+                ret = wc_Curve448PrivateKeyDecode(der->buffer, &idx, key,
+                    der->length);
+            }
+            break;
+    #endif
         default:
             /* not supported */
             ret = NOT_COMPILED_IN;
@@ -55768,6 +55782,20 @@ static int SetStaticEphemeralKey(WOLFSSL_CTX* ctx,
                 }
             }
         #endif
+        #ifdef HAVE_CURVE448
+            if (keyAlgo == WC_PK_TYPE_NONE) {
+                word32 idx = 0;
+                curve448_key x448Key;
+                ret = wc_curve448_init(&x448Key);
+                if (ret == 0) {
+                    ret = wc_Curve448PrivateKeyDecode(keyBuf, &idx, &x448Key,
+                        keySz);
+                    if (ret == 0)
+                        keyAlgo = WC_PK_TYPE_CURVE448;
+                    wc_curve448_free(&x448Key);
+                }
+            }
+        #endif
 
             if (keyAlgo != WC_PK_TYPE_NONE) {
                 ret = AllocDer(&der, keySz, PRIVATEKEY_TYPE, heap);
@@ -55815,6 +55843,12 @@ static int SetStaticEphemeralKey(WOLFSSL_CTX* ctx,
             case WC_PK_TYPE_CURVE25519:
                 FreeDer(&staticKE->x25519Key);
                 staticKE->x25519Key = der; der = NULL;
+                break;
+        #endif
+        #ifdef HAVE_CURVE448
+            case WC_PK_TYPE_CURVE448:
+                FreeDer(&staticKE->x448Key);
+                staticKE->x448Key = der; der = NULL;
                 break;
         #endif
             default:
@@ -55897,6 +55931,14 @@ static int GetStaticEphemeralKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                 der = ssl->staticKE.x25519Key;
             if (der == NULL)
                 der = ctx->staticKE.x25519Key;
+            break;
+    #endif
+    #ifdef HAVE_CURVE448
+        case WC_PK_TYPE_CURVE448:
+            if (ssl != NULL)
+                der = ssl->staticKE.x448Key;
+            if (der == NULL)
+                der = ctx->staticKE.x448Key;
             break;
     #endif
         default:

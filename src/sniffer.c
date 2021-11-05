@@ -1074,10 +1074,10 @@ static void TraceSetNamedServer(const char* name,
     if (TraceOn) {
         XFPRINTF(TraceFile, "\tTrying to install a new Sniffer Server with\n");
         XFPRINTF(TraceFile, "\tname: %s, server: %s, port: %d, keyFile: %s\n",
-                 name ? name : "",
-                 srv ? srv : "",
-                 port,
-                 keyFile ? keyFile : "");
+        name ? name : "",
+        srv ? srv : "",
+        port,
+        keyFile ? keyFile : "");
     }
 }
 
@@ -2433,6 +2433,9 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
     #ifdef HAVE_CURVE25519
         && useCurveId != ECC_X25519
     #endif
+    #ifdef HAVE_CURVE448
+        && useCurveId != ECC_X448
+    #endif
     ) {
         ecc_key key, pubKey;
         int length, keyInit = 0, pubKeyInit = 0;
@@ -2675,6 +2678,111 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
     }
 #endif /* HAVE_CURVE25519 */
 
+#ifdef HAVE_CURVE448
+    /* Static Curve448 Key */
+    if (useCurveId == ECC_X448) {
+        curve448_key key, pubKey;
+        int length, keyInit = 0, pubKeyInit = 0;
+
+        /* try and load static ephemeral */
+#ifdef WOLFSSL_STATIC_EPHEMERAL
+    #ifndef SINGLE_THREADED
+        int keyLocked = 0;
+        if (ctx->staticKELockInit &&
+            wc_LockMutex(&ctx->staticKELock) == 0)
+    #endif
+        {
+        #ifndef SINGLE_THREADED
+            keyLocked = 1;
+        #endif
+            keyBuf = ssl->staticKE.x448Key;
+            if (keyBuf == NULL)
+                keyBuf = ctx->staticKE.x448Key;
+        }
+#endif
+
+#ifdef WOLFSSL_SNIFFER_KEY_CALLBACK
+        if (KeyCb != NULL && ksInfo) {
+            if (keyBuf == NULL) {
+                ret = AllocDer(&keyBuf, FILE_BUFFER_SIZE, PRIVATEKEY_TYPE, NULL);
+                if (ret == 0)
+                    keyBufFree = 1;
+            }
+            ret = KeyCb(session, ksInfo->named_group,
+                session->srvKs.key, session->srvKs.key_len,
+                session->cliKs.key, session->cliKs.key_len,
+                keyBuf, KeyCbCtx, error);
+            if (ret != 0) {
+                SetError(-1, error, session, FATAL_ERROR_STATE);
+                return ret;
+            }
+        }
+#endif
+
+        if (ret == 0 && keyBuf == NULL) {
+            ret = BUFFER_E;
+        }
+        if (ret == 0) {
+            ret = wc_curve448_init(&key);
+            if (ret == 0)
+                keyInit = 1;
+        }
+        if (ret == 0) {
+            idx = 0;
+            ret = wc_Curve448PrivateKeyDecode(keyBuf->buffer, &idx, &key,
+                keyBuf->length);
+            if (ret != 0) {
+                SetError(ECC_DECODE_STR, error, session, FATAL_ERROR_STATE);
+            }
+        }
+
+#if defined(WOLFSSL_STATIC_EPHEMERAL) && !defined(SINGLE_THREADED)
+        if (keyLocked) {
+            wc_UnLockMutex(&ctx->staticKELock);
+        }
+#endif
+
+        if (ret == 0) {
+            length = CURVE448_KEY_SIZE;
+            if (length > *sslBytes) {
+                SetError(PARTIAL_INPUT_STR, error, session, FATAL_ERROR_STATE);
+                ret = -1;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_curve448_init(&pubKey);
+            if (ret == 0)
+                pubKeyInit = 1;
+        }
+        if (ret == 0) {
+            ret = wc_curve448_import_public_ex(input, length, &pubKey,
+                EC448_LITTLE_ENDIAN);
+            if (ret != 0) {
+                SetError(ECC_PUB_DECODE_STR, error, session, FATAL_ERROR_STATE);
+            }
+        }
+
+        if (ret == 0) {
+            session->keySz = CURVE448_KEY_SIZE;
+            session->sslServer->arrays->preMasterSz = ENCRYPT_LEN;
+
+            ret = wc_curve448_shared_secret_ex(&key, &pubKey,
+                session->sslServer->arrays->preMasterSecret,
+                &session->sslServer->arrays->preMasterSz, EC448_LITTLE_ENDIAN);
+        }
+
+#ifdef WOLFSSL_SNIFFER_STATS
+        if (ret != 0)
+            INC_STAT(SnifferStats.sslKeyFails);
+#endif
+
+        if (keyInit)
+            wc_curve448_free(&key);
+        if (pubKeyInit)
+            wc_curve448_free(&pubKey);
+    }
+#endif /* HAVE_CURVE448 */
+
     if (keyBufFree && keyBuf != NULL) {
         FreeDer(&keyBuf);
     }
@@ -2846,7 +2954,7 @@ static int ProcessKeyShare(KeyShareInfo* info, const byte* input, int len,
                 info->curve_id = ECC_X25519;
                 break;
         #endif
-        #ifdef HAVE_X448
+        #ifdef HAVE_CURVE448
             case WOLFSSL_ECC_X448:
                 info->curve_id = ECC_X448;
                 break;

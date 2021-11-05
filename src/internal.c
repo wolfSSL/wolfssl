@@ -2408,6 +2408,9 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     #ifdef HAVE_CURVE25519
     FreeDer(&ctx->staticKE.x25519Key);
     #endif
+    #ifdef HAVE_CURVE448
+    FreeDer(&ctx->staticKE.x448Key);
+    #endif
     #ifndef SINGLE_THREADED
     if (ctx->staticKELockInit) {
         wc_FreeMutex(&ctx->staticKELock);
@@ -7204,6 +7207,9 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     #endif
     #ifdef HAVE_CURVE25519
     FreeDer(&ssl->staticKE.x25519Key);
+    #endif
+    #ifdef HAVE_CURVE448
+    FreeDer(&ssl->staticKE.x448Key);
     #endif
 #endif
 
