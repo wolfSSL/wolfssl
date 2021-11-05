@@ -58108,7 +58108,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
             bio->method = method;
 #endif
             bio->shutdown = BIO_CLOSE; /* default to close things */
-            bio->len = WOLFSSL_BIO_ERROR;
+            bio->len = 0;
             bio->fd = WOLFSSL_BIO_ERROR;
             bio->init = 1;
             if (method->type == WOLFSSL_BIO_MEMORY ||
