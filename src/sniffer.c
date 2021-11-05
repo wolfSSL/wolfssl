@@ -2158,32 +2158,19 @@ static void ShowTlsSecrets(SnifferSession* session)
 
 /* Process Keys */
 
-/* contains static ephemeral keys */
-typedef struct {
-#ifndef NO_DH
-    DerBuffer* dhKey;
-#endif
-#ifdef HAVE_ECC
-    DerBuffer* ecKey;
-#endif
-#ifdef HAVE_CURVE25519
-    DerBuffer* x25519Key;
-#endif
-#if !defined(NO_RSA) && defined(WOLFSSL_STATIC_RSA)
-    DerBuffer* rsaKey;
-#endif
-} KeyBuffers_t;
-
 static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
-    char* error, KeyShareInfo* ksInfo, KeyBuffers_t* keys)
+    char* error, KeyShareInfo* ksInfo)
 {
     word32 idx = 0;
     int ret;
-    DerBuffer* keyBuf;
+    DerBuffer* keyBuf = NULL;
+    int keyBufFree = 0;
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
     int useCurveId = 0;
 #endif
     int devId = INVALID_DEVID;
+    WOLFSSL_CTX* ctx = session->context->ctx;
+    WOLFSSL* ssl = session->sslServer;
 
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
     if (ksInfo && ksInfo->curve_id != 0)
@@ -2201,15 +2188,18 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 
 #ifndef NO_RSA
     /* Static RSA */
-    if (ksInfo == NULL && keys->rsaKey) {
+    if (ksInfo == NULL && ssl->buffers.key) {
         RsaKey key;
         int length;
-
-        keyBuf = keys->rsaKey;
+        int keyInit = 0;
 
         ret = wc_InitRsaKey_ex(&key, NULL, devId);
         if (ret == 0) {
-            ret = wc_RsaPrivateKeyDecode(keyBuf->buffer, &idx, &key, keyBuf->length);
+            keyInit = 1;
+            keyBuf = ssl->buffers.key;
+
+            ret = wc_RsaPrivateKeyDecode(keyBuf->buffer, &idx, &key,
+                keyBuf->length);
             if (ret != 0) {
             #ifndef HAVE_ECC
                 #ifdef WOLFSSL_SNIFFER_STATS
@@ -2217,18 +2207,12 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                 #endif
                 SetError(RSA_DECODE_STR, error, session, FATAL_ERROR_STATE);
             #else
-                /* If we can do ECC, this isn't fatal. Not loading an ECC
-                 * key will be fatal, though. */
+                /* If we can do ECC, this isn't fatal. Not loading a key later
+                 * will be fatal, though. */
                 SetError(RSA_DECODE_STR, error, session, 0);
-                if (keys->ecKey == NULL)
-                    keys->ecKey = session->sslServer->buffers.key; /* try ECC */
+                keyBuf = NULL;
             #endif
             }
-        #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
-            else {
-                useCurveId = -1; /* don't try loading further */
-            }
-        #endif
         }
 
         if (ret == 0) {
@@ -2243,14 +2227,14 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             }
         }
 
-        #ifdef WC_RSA_BLINDING
+    #ifdef WC_RSA_BLINDING
         if (ret == 0) {
             ret = wc_RsaSetRNG(&key, session->sslServer->rng);
             if (ret != 0) {
                 SetError(RSA_DECRYPT_STR, error, session, FATAL_ERROR_STATE);
             }
         }
-        #endif
+    #endif
 
         if (ret == 0) {
             session->keySz = length * WOLFSSL_BIT_SIZE;
@@ -2264,8 +2248,8 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             #endif
                 if (ret >= 0) {
                     ret = wc_RsaPrivateDecrypt(input, length,
-                          session->sslServer->arrays->preMasterSecret,
-                          session->sslServer->arrays->preMasterSz, &key);
+                        session->sslServer->arrays->preMasterSecret,
+                        session->sslServer->arrays->preMasterSz, &key);
                 }
             } while (ret == WC_PENDING_E);
 
@@ -2274,100 +2258,137 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             }
         }
 
-        wc_FreeRsaKey(&key);
+        if (keyInit) {
+            wc_FreeRsaKey(&key);
+        }
     }
 #endif /* !NO_RSA */
 
 #if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)
     /* Static DH Key */
-    if (ksInfo && ksInfo->dh_key_bits != 0 && keys->dhKey) {
+    if (ksInfo && ksInfo->dh_key_bits != 0 && keyBuf == NULL) {
         DhKey dhKey;
-#ifdef HAVE_PUBLIC_FFDHE
+    #ifdef HAVE_PUBLIC_FFDHE
         const DhParams* params;
-        word32 privKeySz;
-#else
+    #endif
         word32 privKeySz = 0, p_len = 0;
-#endif
         byte privKey[52]; /* max for TLS */
+        int keyInit = 0;
 
-        keyBuf = keys->dhKey;
+        /* try and load static ephemeral */
+    #ifdef WOLFSSL_STATIC_EPHEMERAL
+        #ifndef SINGLE_THREADED
+        int keyLocked = 0;
+        if (ctx->staticKELockInit &&
+            wc_LockMutex(&ctx->staticKELock) == 0)
+        #endif
+        {
+        #ifndef SINGLE_THREADED
+            keyLocked = 1;
+        #endif
+            keyBuf = ssl->staticKE.dhKey;
+            if (keyBuf == NULL)
+                keyBuf = ctx->staticKE.dhKey;
+        }
+    #endif
 
-#ifdef WOLFSSL_SNIFFER_KEY_CALLBACK
+        ret = 0;
+    #ifdef WOLFSSL_SNIFFER_KEY_CALLBACK
         if (KeyCb != NULL) {
+            if (keyBuf == NULL) {
+                ret = AllocDer(&keyBuf, FILE_BUFFER_SIZE, PRIVATEKEY_TYPE, NULL);
+                if (ret == 0)
+                    keyBufFree = 1;
+            }
             ret = KeyCb(session, ksInfo->named_group,
                 session->srvKs.key, session->srvKs.key_len,
                 session->cliKs.key, session->cliKs.key_len,
                 keyBuf, KeyCbCtx, error);
             if (ret != 0) {
                 SetError(-1, error, session, FATAL_ERROR_STATE);
-                return ret;
             }
         }
-#endif
-
-#ifdef HAVE_PUBLIC_FFDHE
-        /* get DH params */
-        switch (ksInfo->named_group) {
-        #ifdef HAVE_FFDHE_2048
-            case WOLFSSL_FFDHE_2048:
-                params = wc_Dh_ffdhe2048_Get();
-                privKeySz = 29;
-                break;
-        #endif
-        #ifdef HAVE_FFDHE_3072
-            case WOLFSSL_FFDHE_3072:
-                params = wc_Dh_ffdhe3072_Get();
-                privKeySz = 34;
-                break;
-        #endif
-        #ifdef HAVE_FFDHE_4096
-            case WOLFSSL_FFDHE_4096:
-                params = wc_Dh_ffdhe4096_Get();
-                privKeySz = 39;
-                break;
-        #endif
-        #ifdef HAVE_FFDHE_6144
-            case WOLFSSL_FFDHE_6144:
-                params = wc_Dh_ffdhe6144_Get();
-                privKeySz = 46;
-                break;
-        #endif
-        #ifdef HAVE_FFDHE_8192
-            case WOLFSSL_FFDHE_8192:
-                params = wc_Dh_ffdhe8192_Get();
-                privKeySz = 52;
-                break;
-        #endif
-            default:
-                return BAD_FUNC_ARG;
+    #endif
+        if (ret == 0 && keyBuf == NULL) {
+            ret = BUFFER_E;
         }
-#endif
 
-        ret = wc_InitDhKey_ex(&dhKey, NULL, devId);
+    #ifdef HAVE_PUBLIC_FFDHE
         if (ret == 0) {
-#ifdef HAVE_PUBLIC_FFDHE
+            /* get DH params */
+            switch (ksInfo->named_group) {
+            #ifdef HAVE_FFDHE_2048
+                case WOLFSSL_FFDHE_2048:
+                    params = wc_Dh_ffdhe2048_Get();
+                    privKeySz = 29;
+                    break;
+            #endif
+            #ifdef HAVE_FFDHE_3072
+                case WOLFSSL_FFDHE_3072:
+                    params = wc_Dh_ffdhe3072_Get();
+                    privKeySz = 34;
+                    break;
+            #endif
+            #ifdef HAVE_FFDHE_4096
+                case WOLFSSL_FFDHE_4096:
+                    params = wc_Dh_ffdhe4096_Get();
+                    privKeySz = 39;
+                    break;
+            #endif
+            #ifdef HAVE_FFDHE_6144
+                case WOLFSSL_FFDHE_6144:
+                    params = wc_Dh_ffdhe6144_Get();
+                    privKeySz = 46;
+                    break;
+            #endif
+            #ifdef HAVE_FFDHE_8192
+                case WOLFSSL_FFDHE_8192:
+                    params = wc_Dh_ffdhe8192_Get();
+                    privKeySz = 52;
+                    break;
+            #endif
+                default:
+                    ret = BAD_FUNC_ARG;
+            }
+        }
+    #endif
+
+        if (ret == 0) {
+            ret = wc_InitDhKey_ex(&dhKey, NULL, devId);
+            if (ret == 0)
+                keyInit = 1;
+        }
+        if (ret == 0) {
+    #ifdef HAVE_PUBLIC_FFDHE
             ret = wc_DhSetKey(&dhKey,
                 (byte*)params->p, params->p_len,
                 (byte*)params->g, params->g_len);
-#else
+            p_len = params->p_len;
+    #else
             ret = wc_DhSetNamedKey(&dhKey, ksInfo->named_group);
-#endif
-            if (ret == 0) {
-                ret = wc_DhKeyDecode(keyBuf->buffer, &idx, &dhKey,
-                    keyBuf->length);
-            }
-#ifndef HAVE_PUBLIC_FFDHE
             if (ret == 0) {
                 privKeySz = wc_DhGetNamedKeyMinSize(ksInfo->named_group);
                 ret = wc_DhGetNamedKeyParamSize(ksInfo->named_group,
                         &p_len, NULL, NULL);
             }
-#endif
-            if (ret == 0) {
-                ret = wc_DhExportKeyPair(&dhKey, privKey, &privKeySz, NULL,
-                    NULL);
-            }
+    #endif
+        }
+        if (ret == 0) {
+            ret = wc_DhKeyDecode(keyBuf->buffer, &idx, &dhKey,
+                keyBuf->length);
+        }
+        if (ret == 0) {
+            ret = wc_DhExportKeyPair(&dhKey, privKey, &privKeySz, NULL,
+                NULL);
+        }
 
+    #if defined(WOLFSSL_STATIC_EPHEMERAL) && !defined(SINGLE_THREADED)
+        if (keyLocked) {
+            wc_UnLockMutex(&ctx->staticKELock);
+        }
+    #endif
+
+        if (ret == 0) {
             /* Derive secret from private key and peer's public key */
             do {
             #ifdef WOLFSSL_ASYNC_CRYPT
@@ -2384,71 +2405,86 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                     PRIVATE_KEY_LOCK();
                 }
             } while (ret == WC_PENDING_E);
+        }
 
+        if (keyInit)
             wc_FreeDhKey(&dhKey);
 
-        #ifdef WOLFSSL_SNIFFER_STATS
-            if (ret != 0)
-                INC_STAT(SnifferStats.sslKeyFails);
-        #endif
+    #ifdef WOLFSSL_SNIFFER_STATS
+        if (ret != 0)
+            INC_STAT(SnifferStats.sslKeyFails);
+    #endif
 
-            /* left-padded with zeros up to the size of the prime */
-#ifdef HAVE_PUBLIC_FFDHE
-            if (ret == 0 && params->p_len > session->sslServer->arrays->preMasterSz) {
-                word32 diff = params->p_len - session->sslServer->arrays->preMasterSz;
-                XMEMMOVE(session->sslServer->arrays->preMasterSecret + diff,
-                        session->sslServer->arrays->preMasterSecret,
-                        session->sslServer->arrays->preMasterSz);
-                XMEMSET(session->sslServer->arrays->preMasterSecret, 0, diff);
-                session->sslServer->arrays->preMasterSz = params->p_len;
-            }
-#else /* HAVE_PUBLIC_FFDHE */
-            if (ret == 0 && p_len > session->sslServer->arrays->preMasterSz) {
-                word32 diff = p_len - session->sslServer->arrays->preMasterSz;
-                XMEMMOVE(session->sslServer->arrays->preMasterSecret + diff,
-                        session->sslServer->arrays->preMasterSecret,
-                        session->sslServer->arrays->preMasterSz);
-                XMEMSET(session->sslServer->arrays->preMasterSecret, 0, diff);
-                session->sslServer->arrays->preMasterSz = p_len;
-            }
-#endif /* HAVE_PUBLIC_FFDHE */
+        /* left-padded with zeros up to the size of the prime */
+        if (ret == 0 && p_len > session->sslServer->arrays->preMasterSz) {
+            word32 diff = p_len - session->sslServer->arrays->preMasterSz;
+            XMEMMOVE(session->sslServer->arrays->preMasterSecret + diff,
+                    session->sslServer->arrays->preMasterSecret,
+                    session->sslServer->arrays->preMasterSz);
+            XMEMSET(session->sslServer->arrays->preMasterSecret, 0, diff);
+            session->sslServer->arrays->preMasterSz = p_len;
         }
     }
 #endif /* !NO_DH && WOLFSSL_DH_EXTRA */
 
 #ifdef HAVE_ECC
     /* Static ECC Key */
-    if (useCurveId >= 0 && keys->ecKey
+    if (useCurveId >= 0 && keyBuf == NULL
     #ifdef HAVE_CURVE25519
         && useCurveId != ECC_X25519
     #endif
     ) {
-        ecc_key key;
-        ecc_key pubKey;
+        ecc_key key, pubKey;
         int length, keyInit = 0, pubKeyInit = 0;
 
-        keyBuf = keys->ecKey;
+        /* try and load static ephemeral */
+    #ifdef WOLFSSL_STATIC_EPHEMERAL
+        #ifndef SINGLE_THREADED
+        int keyLocked = 0;
+        if (ctx->staticKELockInit &&
+            wc_LockMutex(&ctx->staticKELock) == 0)
+        #endif
+        {
+        #ifndef SINGLE_THREADED
+            keyLocked = 1;
+        #endif
+            keyBuf = ssl->staticKE.ecKey;
+            if (keyBuf == NULL)
+                keyBuf = ctx->staticKE.ecKey;
+        }
+    #endif
 
-#ifdef WOLFSSL_SNIFFER_KEY_CALLBACK
+        /* try static ECC */
+        if (keyBuf == NULL) {
+            keyBuf = session->sslServer->buffers.key;
+        }
+
+        ret = 0;
+    #ifdef WOLFSSL_SNIFFER_KEY_CALLBACK
         if (KeyCb != NULL && ksInfo) {
+            if (keyBuf == NULL) {
+                ret = AllocDer(&keyBuf, FILE_BUFFER_SIZE, PRIVATEKEY_TYPE, NULL);
+                if (ret == 0)
+                    keyBufFree = 1;
+            }
             ret = KeyCb(session, ksInfo->named_group,
                 session->srvKs.key, session->srvKs.key_len,
                 session->cliKs.key, session->cliKs.key_len,
                 keyBuf, KeyCbCtx, error);
             if (ret != 0) {
                 SetError(-1, error, session, FATAL_ERROR_STATE);
-                return ret;
             }
         }
-#endif
+    #endif
 
-        idx = 0;
-        ret = wc_ecc_init_ex(&key, NULL, devId);
-        if (ret == 0) {
-            keyInit = 1;
-            ret = wc_ecc_init(&pubKey);
+        if (ret == 0 && keyBuf == NULL) {
+            ret = BUFFER_E;
         }
-
+        if (ret == 0) {
+            ret = wc_ecc_init_ex(&key, NULL, devId);
+            if (ret == 0)
+                keyInit = 1;
+        }
     #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
         (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
         !defined(HAVE_SELFTEST)
@@ -2456,14 +2492,19 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             ret = wc_ecc_set_rng(&key, session->sslServer->rng);
         }
     #endif
-
         if (ret == 0) {
-            pubKeyInit = 1;
+            idx = 0;
             ret = wc_EccPrivateKeyDecode(keyBuf->buffer, &idx, &key, keyBuf->length);
             if (ret != 0) {
                 SetError(ECC_DECODE_STR, error, session, FATAL_ERROR_STATE);
             }
         }
+
+    #if defined(WOLFSSL_STATIC_EPHEMERAL) && !defined(SINGLE_THREADED)
+        if (keyLocked) {
+            wc_UnLockMutex(&ctx->staticKELock);
+        }
+    #endif
 
         if (ret == 0) {
             length = wc_ecc_size(&key) * 2 + 1;
@@ -2483,14 +2524,17 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                 useCurveId = key.dp->id;
             }
         }
-
+        if (ret == 0) {
+            ret = wc_ecc_init(&pubKey);
+            if (ret == 0)
+                pubKeyInit = 1;
+        }
         if (ret == 0) {
             ret = wc_ecc_import_x963_ex(input, length, &pubKey, useCurveId);
             if (ret != 0) {
                 SetError(ECC_PUB_DECODE_STR, error, session, FATAL_ERROR_STATE);
             }
         }
-
         if (ret == 0) {
             session->keySz = ((length - 1) / 2) * WOLFSSL_BIT_SIZE;
             /* Length is in bytes. Subtract 1 for the ECC key type. Divide
@@ -2513,10 +2557,10 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             } while (ret == WC_PENDING_E);
         }
 
-#ifdef WOLFSSL_SNIFFER_STATS
+    #ifdef WOLFSSL_SNIFFER_STATS
         if (ret != 0)
             INC_STAT(SnifferStats.sslKeyFails);
-#endif
+    #endif
 
         if (keyInit)
             wc_ecc_free(&key);
@@ -2527,15 +2571,34 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 
 #ifdef HAVE_CURVE25519
     /* Static Curve25519 Key */
-    if (useCurveId == ECC_X25519 && keys->x25519Key) {
-        curve25519_key key;
-        curve25519_key pubKey;
+    if (useCurveId == ECC_X25519) {
+        curve25519_key key, pubKey;
         int length, keyInit = 0, pubKeyInit = 0;
 
-        keyBuf = keys->x25519Key;
+        /* try and load static ephemeral */
+#ifdef WOLFSSL_STATIC_EPHEMERAL
+    #ifndef SINGLE_THREADED
+        int keyLocked = 0;
+        if (ctx->staticKELockInit &&
+            wc_LockMutex(&ctx->staticKELock) == 0)
+    #endif
+        {
+        #ifndef SINGLE_THREADED
+            keyLocked = 1;
+        #endif
+            keyBuf = ssl->staticKE.x25519Key;
+            if (keyBuf == NULL)
+                keyBuf = ctx->staticKE.x25519Key;
+        }
+#endif
 
 #ifdef WOLFSSL_SNIFFER_KEY_CALLBACK
         if (KeyCb != NULL && ksInfo) {
+            if (keyBuf == NULL) {
+                ret = AllocDer(&keyBuf, FILE_BUFFER_SIZE, PRIVATEKEY_TYPE, NULL);
+                if (ret == 0)
+                    keyBufFree = 1;
+            }
             ret = KeyCb(session, ksInfo->named_group,
                 session->srvKs.key, session->srvKs.key_len,
                 session->cliKs.key, session->cliKs.key_len,
@@ -2547,21 +2610,28 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         }
 #endif
 
-        idx = 0;
-        ret = wc_curve25519_init_ex(&key, NULL, devId);
-        if (ret == 0) {
-            keyInit = 1;
-            ret = wc_curve25519_init(&pubKey);
+        if (ret == 0 && keyBuf == NULL) {
+            ret = BUFFER_E;
         }
-
         if (ret == 0) {
-            pubKeyInit = 1;
+            ret = wc_curve25519_init_ex(&key, NULL, devId);
+            if (ret == 0)
+                keyInit = 1;
+        }
+        if (ret == 0) {
+            idx = 0;
             ret = wc_Curve25519PrivateKeyDecode(keyBuf->buffer, &idx, &key,
                 keyBuf->length);
             if (ret != 0) {
                 SetError(ECC_DECODE_STR, error, session, FATAL_ERROR_STATE);
             }
         }
+
+#if defined(WOLFSSL_STATIC_EPHEMERAL) && !defined(SINGLE_THREADED)
+        if (keyLocked) {
+            wc_UnLockMutex(&ctx->staticKELock);
+        }
+#endif
 
         if (ret == 0) {
             length = CURVE25519_KEYSIZE;
@@ -2570,7 +2640,11 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                 ret = -1;
             }
         }
-
+        if (ret == 0) {
+            ret = wc_curve25519_init(&pubKey);
+            if (ret == 0)
+                pubKeyInit = 1;
+        }
         if (ret == 0) {
             ret = wc_curve25519_import_public_ex(input, length, &pubKey,
                 EC25519_LITTLE_ENDIAN);
@@ -2600,6 +2674,10 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             wc_curve25519_free(&pubKey);
     }
 #endif /* HAVE_CURVE25519 */
+
+    if (keyBufFree && keyBuf != NULL) {
+        FreeDer(&keyBuf);
+    }
 
     /* store for client side as well */
     XMEMCPY(session->sslClient->arrays->preMasterSecret,
@@ -2666,12 +2744,13 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
     return ret;
 }
 
-/* Process Client Key Exchange, static RSA  */
+/* Process Client Key Exchange */
 static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
                             SnifferSession* session, char* error)
 {
-    KeyBuffers_t keys;
+    int ret;
 
+#ifndef WOLFSSL_STATIC_EPHEMERAL
     if (session->sslServer->buffers.key == NULL ||
         session->sslServer->buffers.key->buffer == NULL ||
         session->sslServer->buffers.key->length == 0) {
@@ -2679,23 +2758,11 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
         SetError(RSA_KEY_MISSING_STR, error, session, FATAL_ERROR_STATE);
         return -1;
     }
+#endif
 
-    XMEMSET(&keys, 0, sizeof(keys));
-#ifdef WOLFSSL_STATIC_EPHEMERAL
-    #ifndef NO_DH
-    keys.dhKey = session->sslServer->staticKE.dhKey;
-    #endif
-    #ifdef HAVE_ECC
-    keys.ecKey = session->sslServer->staticKE.ecKey;
-    #endif
-    #ifdef HAVE_CURVE25519
-    keys.x25519Key = session->sslServer->staticKE.x25519Key;
-    #endif
-#endif
-#ifndef NO_RSA
-    keys.rsaKey = session->sslServer->buffers.key;
-#endif
-    return SetupKeys(input, sslBytes, session, error, NULL, &keys);
+    ret = SetupKeys(input, sslBytes, session, error, NULL);
+
+    return ret;
 }
 
 #ifdef WOLFSSL_TLS13
@@ -3315,25 +3382,8 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
 #ifdef WOLFSSL_TLS13
     /* Setup handshake keys */
     if (IsAtLeastTLSv1_3(session->sslServer->version) && session->srvKs.key_len > 0) {
-        KeyBuffers_t keys;
-        XMEMSET(&keys, 0, sizeof(keys));
-    #ifndef NO_RSA
-        keys.rsaKey = session->sslServer->buffers.key;
-    #endif
-    #ifdef WOLFSSL_STATIC_EPHEMERAL
-        #ifndef NO_DH
-        keys.dhKey = session->sslServer->staticKE.dhKey;
-        #endif
-        #ifdef HAVE_ECC
-        keys.ecKey = session->sslServer->staticKE.ecKey;
-        #endif
-        #ifdef HAVE_CURVE25519
-        keys.x25519Key = session->sslServer->staticKE.x25519Key;
-        #endif
-    #endif
-
         ret = SetupKeys(session->cliKs.key, &session->cliKs.key_len,
-            session, error, &session->cliKs, &keys);
+            session, error, &session->cliKs);
         if (ret != 0) {
             SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
             return ret;

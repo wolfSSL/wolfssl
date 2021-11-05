@@ -2400,16 +2400,19 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #endif
 #ifdef WOLFSSL_STATIC_EPHEMERAL
     #ifndef NO_DH
-    if (ctx->staticKE.dhKey && ctx->staticKE.weOwnDH)
-        FreeDer(&ctx->staticKE.dhKey);
+    FreeDer(&ctx->staticKE.dhKey);
     #endif
     #ifdef HAVE_ECC
-    if (ctx->staticKE.ecKey && ctx->staticKE.weOwnEC)
-        FreeDer(&ctx->staticKE.ecKey);
+    FreeDer(&ctx->staticKE.ecKey);
     #endif
     #ifdef HAVE_CURVE25519
-    if (ctx->staticKE.x25519Key && ctx->staticKE.weOwnX25519)
-        FreeDer(&ctx->staticKE.x25519Key);
+    FreeDer(&ctx->staticKE.x25519Key);
+    #endif
+    #ifndef SINGLE_THREADED
+    if (ctx->staticKELockInit) {
+        wc_FreeMutex(&ctx->staticKELock);
+        ctx->staticKELockInit = 0;
+    }
     #endif
 #endif
     (void)heapAtCTXInit;
@@ -6381,19 +6384,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.useClientOrder = ctx->useClientOrder;
     ssl->options.mutualAuth = ctx->mutualAuth;
 
-#ifdef WOLFSSL_STATIC_EPHEMERAL
-    XMEMCPY(&ssl->staticKE, &ctx->staticKE, sizeof(StaticKeyExchangeInfo_t));
-    #ifdef HAVE_ECC
-    ssl->staticKE.weOwnEC = 0;
-    #endif
-    #ifndef NO_DH
-    ssl->staticKE.weOwnDH = 0;
-    #endif
-    #ifdef HAVE_CURVE25519
-    ssl->staticKE.weOwnX25519 = 0;
-    #endif
-#endif
-
 #ifdef WOLFSSL_TLS13
     #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
         ssl->options.maxTicketTls13 = ctx->maxTicketTls13;
@@ -7207,16 +7197,13 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif
 #ifdef WOLFSSL_STATIC_EPHEMERAL
     #ifndef NO_DH
-    if (ssl->staticKE.dhKey && ssl->staticKE.weOwnDH)
-        FreeDer(&ssl->staticKE.dhKey);
+    FreeDer(&ssl->staticKE.dhKey);
     #endif
     #ifdef HAVE_ECC
-    if (ssl->staticKE.ecKey && ssl->staticKE.weOwnEC)
-        FreeDer(&ssl->staticKE.ecKey);
+    FreeDer(&ssl->staticKE.ecKey);
     #endif
     #ifdef HAVE_CURVE25519
-    if (ssl->staticKE.x25519Key && ssl->staticKE.weOwnX25519)
-        FreeDer(&ssl->staticKE.x25519Key);
+    FreeDer(&ssl->staticKE.x25519Key);
     #endif
 #endif
 

@@ -2731,19 +2731,8 @@ typedef struct {
 #ifdef HAVE_CURVE25519
     DerBuffer* x25519Key;
 #endif
-
-    /* bits */
-#ifndef NO_DH
-    byte weOwnDH:1;
-#endif
-#ifdef HAVE_ECC
-    byte weOwnEC:1;
-#endif
-#ifdef HAVE_CURVE25519
-    byte weOwnX25519:1;
-#endif
 } StaticKeyExchangeInfo_t;
-#endif
+#endif /* WOLFSSL_STATIC_EPHEMERAL */
 
 
 /* wolfSSL context type */
@@ -2846,6 +2835,10 @@ struct WOLFSSL_CTX {
 #ifdef WOLFSSL_STATIC_MEMORY
     byte        onHeapHint:1; /* whether the ctx/method is put on heap hint */
 #endif
+#if defined(WOLFSSL_STATIC_EPHEMERAL) && !defined(SINGLE_THREADED)
+    byte        staticKELockInit:1;
+#endif
+
 #ifdef WOLFSSL_MULTICAST
     byte        haveMcast;        /* multicast requested */
     byte        mcastID;          /* multicast group ID */
@@ -3074,6 +3067,9 @@ struct WOLFSSL_CTX {
 #endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK */
 #ifdef WOLFSSL_STATIC_EPHEMERAL
     StaticKeyExchangeInfo_t staticKE;
+    #ifndef SINGLE_THREADED
+    wolfSSL_Mutex staticKELock;
+    #endif
 #endif
 };
 
@@ -5027,6 +5023,10 @@ WOLFSSL_LOCAL int wolfSSL_sk_BY_DIR_entry_push(WOLF_STACK_OF(wolfSSL_BY_DIR_entr
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 WOLFSSL_LOCAL int oid2nid(word32 oid, int grp);
 WOLFSSL_LOCAL word32 nid2oid(int nid, int grp);
+#endif
+
+#ifdef WOLFSSL_STATIC_EPHEMERAL
+WOLFSSL_LOCAL int wolfSSL_StaticEphemeralKeyLoad(WOLFSSL* ssl, int keyAlgo, void* keyPtr);
 #endif
 
 #ifdef __cplusplus

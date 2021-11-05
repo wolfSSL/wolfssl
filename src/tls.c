@@ -6217,18 +6217,12 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
         if (ret == 0) {
         #if defined(WOLFSSL_STATIC_EPHEMERAL) && defined(WOLFSSL_DH_EXTRA)
-            if (ssl->staticKE.dhKey) {
-                DerBuffer* keyDer = ssl->staticKE.dhKey;
-                word32 idx = 0;
-                WOLFSSL_MSG("Using static DH key");
-                ret = wc_DhKeyDecode(keyDer->buffer, &idx,
-                        dhKey, keyDer->length);
-                if (ret == 0) {
-                    ret = wc_DhExportKeyPair(dhKey,
-                        (byte*)kse->privKey, &kse->keyLen, /* private */
-                        kse->pubKey, &kse->pubKeyLen /* public */
-                    );
-                }
+            ret = wolfSSL_StaticEphemeralKeyLoad(ssl, WC_PK_TYPE_DH, kse->key);
+            if (ret == 0) {
+                ret = wc_DhExportKeyPair(dhKey,
+                    (byte*)kse->privKey, &kse->keyLen, /* private */
+                    kse->pubKey, &kse->pubKeyLen /* public */
+                );
             }
             else
         #endif
@@ -6329,16 +6323,12 @@ static int TLSX_KeyShare_GenX25519Key(WOLFSSL *ssl, KeyShareEntry* kse)
         ret = wc_curve25519_init_ex((curve25519_key*)kse->key, ssl->heap,
             INVALID_DEVID);
         if (ret == 0) {
+            /* setting "key" means okay to call wc_curve25519_free */
             key = (curve25519_key*)kse->key;
+
         #ifdef WOLFSSL_STATIC_EPHEMERAL
-            if (ssl->staticKE.x25519Key) {
-                DerBuffer* keyDer = ssl->staticKE.x25519Key;
-                word32 idx = 0;
-                WOLFSSL_MSG("Using static X25519 key");
-                ret = wc_Curve25519PrivateKeyDecode(keyDer->buffer, &idx, key,
-                    keyDer->length);
-            }
-            else
+            ret = wolfSSL_StaticEphemeralKeyLoad(ssl, WC_PK_TYPE_CURVE25519, kse->key);
+            if (ret != 0)
         #endif
             {
                 ret = wc_curve25519_make_key(ssl->rng, CURVE25519_KEYSIZE, key);
@@ -6536,17 +6526,12 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
         /* Make an ECC key */
         ret = wc_ecc_init_ex((ecc_key*)kse->key, ssl->heap, ssl->devId);
         if (ret == 0) {
+            /* setting eccKey means okay to call wc_ecc_free */
             eccKey = (ecc_key*)kse->key;
 
         #ifdef WOLFSSL_STATIC_EPHEMERAL
-            if (ssl->staticKE.ecKey) {
-                DerBuffer* keyDer = ssl->staticKE.ecKey;
-                word32 idx = 0;
-                WOLFSSL_MSG("Using static ECDH key");
-                ret = wc_EccPrivateKeyDecode(keyDer->buffer, &idx, eccKey,
-                    keyDer->length);
-            }
-            else
+            ret = wolfSSL_StaticEphemeralKeyLoad(ssl, WC_PK_TYPE_ECDH, kse->key);
+            if (ret != 0)
         #endif
             {
                 /* set curve info for EccMakeKey "peer" info */
