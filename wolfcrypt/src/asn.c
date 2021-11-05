@@ -5187,6 +5187,9 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
 static const ASNItem objectIdASN[] = {
     { 0, ASN_OBJECT_ID, 0, 0, 0 }
 };
+enum {
+    objectIdASN_IDX_OID = 0
+};
 
 /* Number of items in ASN.1 template for an OBJECT_ID. */
 #define objectIdASN_Length (sizeof(objectIdASN) / sizeof(ASNItem))
@@ -5225,13 +5228,13 @@ int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
 
     /* Clear dynamic data and set OID type expected. */
     XMEMSET(dataASN, 0, sizeof(dataASN));
-    GetASN_OID(&dataASN[0], oidType);
+    GetASN_OID(&dataASN[objectIdASN_IDX_OID], oidType);
     /* Decode OBJECT_ID. */
     ret = GetASN_Items(objectIdASN, dataASN, objectIdASN_Length, 0, input,
                        inOutIdx, maxIdx);
     if (ret == 0) {
         /* Return the id/sum. */
-        *oid = dataASN[0].data.oid.sum;
+        *oid = dataASN[objectIdASN_IDX_OID].data.oid.sum;
     }
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
