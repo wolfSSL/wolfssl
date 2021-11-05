@@ -2831,6 +2831,9 @@ static int SetASNIntRSA(void* n, byte* output)
 static const ASNItem intASN[] = {
     { 0, ASN_INTEGER, 0, 0, 0 }
 };
+enum {
+    intASN_IDX_INT = 0
+};
 
 /* Number of items in ASN.1 template for an INTEGER. */
 #define intASN_Length (sizeof(intASN) / sizeof(ASNItem))
@@ -2879,7 +2882,7 @@ int GetMyVersion(const byte* input, word32* inOutIdx,
 
     /* Clear dynamic data and set the version number variable. */
     XMEMSET(dataASN, 0, sizeof(dataASN));
-    GetASN_Int8Bit(&dataASN[0], &num);
+    GetASN_Int8Bit(&dataASN[intASN_IDX_INT], &num);
     /* Decode the version (INTEGER). */
     ret = GetASN_Items(intASN, dataASN, intASN_Length, 0, input, inOutIdx,
                        maxIdx);
@@ -2946,7 +2949,7 @@ int GetShortInt(const byte* input, word32* inOutIdx, int* number, word32 maxIdx)
 
     /* Clear dynamic data and set the 32-bit number variable. */
     XMEMSET(dataASN, 0, sizeof(dataASN));
-    GetASN_Int32Bit(&dataASN[0], &num);
+    GetASN_Int32Bit(&dataASN[intASN_IDX_INT], &num);
     /* Decode the short int (INTEGER). */
     ret = GetASN_Items(intASN, dataASN, intASN_Length, 0, input, inOutIdx,
                        maxIdx);
@@ -3092,7 +3095,7 @@ int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx, word32 maxIdx)
 
     /* Clear dynamic data and set the mp_int to fill with value. */
     XMEMSET(dataASN, 0, sizeof(dataASN));
-    GetASN_MP_PosNeg(&dataASN[0], mpi);
+    GetASN_MP_PosNeg(&dataASN[intASN_IDX_INT], mpi);
     /* Decode the big number (INTEGER). */
     return GetASN_Items(intASN, dataASN, intASN_Length, 0, input, inOutIdx,
                         maxIdx);
