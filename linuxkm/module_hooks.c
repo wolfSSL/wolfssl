@@ -25,6 +25,8 @@
 
 #define FIPS_NO_WRAPPERS
 
+#define WOLFSSL_NEED_LINUX_CURRENT
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -100,8 +102,11 @@ static void lkmFipsCb(int ok, int err, const char* hash)
 }
 #endif
 
-#if defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE) && !defined(CONFIG_MODULE_SIG)
+#ifdef WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE
+#ifndef CONFIG_MODULE_SIG
 #error WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE requires a CONFIG_MODULE_SIG kernel.
+#endif
+static int updateFipsHash(void);
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
@@ -120,9 +125,16 @@ static int wolfssl_init(void)
 #else
                "FIPS dynamic hash"
 #endif
-	".\n");
+               ".\n");
         return -ECANCELED;
     }
+#ifdef WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE
+    ret = updateFipsHash();
+    if (ret < 0) {
+        pr_err("wolfSSL module load aborted -- updateFipsHash: %s\n",wc_GetErrorString(ret));
+        return -ECANCELED;
+    }
+#endif
 #endif
 
 #ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
@@ -267,7 +279,7 @@ static int wolfssl_init(void)
 #else
             ""
 #endif
-	);
+        );
 #else
     pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " loaded%s"
             ".\nSee https://www.wolfssl.com/ for more information.\n"
