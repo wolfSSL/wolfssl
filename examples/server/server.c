@@ -3183,7 +3183,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         }
         else if (err == 0 || err == WOLFSSL_ERROR_ZERO_RETURN) {
             err = ServerEchoData(ssl, clientfd, echoData, block, throughput);
-            if (err == WOLFSSL_ERROR_ZERO_RETURN && runWithErrors == 1) /* Got close notify */
+            /* Got close notify. Ignore it if not expecting a failure. */
+            if (err == WOLFSSL_ERROR_ZERO_RETURN && exitWithRet == 0)
                 err = 0;
             if (err != 0) {
                 SSL_free(ssl); ssl = NULL;
