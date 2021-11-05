@@ -5389,19 +5389,37 @@ static mp_int* GetRsaInt(RsaKey* key, byte idx)
  * PKCS #1: RFC 8017, A.1.2 - RSAPrivateKey
  */
 static const ASNItem rsaKeyASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/*  1 */        { 1, ASN_INTEGER, 0, 0, 0 },
-/*  2 */        { 1, ASN_INTEGER, 0, 0, 0 },
-/*  3 */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  rsaKeyASN_IDX_SEQ */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/*  rsaKeyASN_IDX_VER */        { 1, ASN_INTEGER, 0, 0, 0 },
+                /* Integers need to be in this specific order
+                 * as asn code depends on this. */
+/*  rsaKeyASN_IDX_N   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  rsaKeyASN_IDX_E   */        { 1, ASN_INTEGER, 0, 0, 0 },
 #if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_KEY_GEN)
-/*  4 */        { 1, ASN_INTEGER, 0, 0, 0 },
-/*  5 */        { 1, ASN_INTEGER, 0, 0, 0 },
-/*  6 */        { 1, ASN_INTEGER, 0, 0, 0 },
-/*  7 */        { 1, ASN_INTEGER, 0, 0, 0 },
-/*  8 */        { 1, ASN_INTEGER, 0, 0, 0 },
-/*  9 */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  rsaKeyASN_IDX_D   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  rsaKeyASN_IDX_P   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  rsaKeyASN_IDX_Q   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  rsaKeyASN_IDX_DP  */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  rsaKeyASN_IDX_DQ  */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  rsaKeyASN_IDX_U   */        { 1, ASN_INTEGER, 0, 0, 0 },
                 /* otherPrimeInfos  OtherPrimeInfos OPTIONAL
                  * v2 - multiprime */
+#endif
+};
+enum {
+    rsaKeyASN_IDX_SEQ = 0,
+    rsaKeyASN_IDX_VER,
+    /* Integers need to be in this specific order
+     * as asn code depends on this. */
+    rsaKeyASN_IDX_N,
+    rsaKeyASN_IDX_E,
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_KEY_GEN)
+    rsaKeyASN_IDX_D,
+    rsaKeyASN_IDX_P,
+    rsaKeyASN_IDX_Q,
+    rsaKeyASN_IDX_DP,
+    rsaKeyASN_IDX_DQ,
+    rsaKeyASN_IDX_U,
 #endif
 };
 
@@ -5518,14 +5536,14 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     #if defined(WOLFSSL_RSA_PUBLIC_ONLY)
         /* Extract all public fields. */
         for (i = 0; i < RSA_PUB_INTS; i++) {
-            GetASN_MP(&dataASN[2 + i], GetRsaInt(key, i));
+            GetASN_MP(&dataASN[rsaKeyASN_IDX_N + i], GetRsaInt(key, i));
         }
         /* Not extracting all data from BER encoding. */
         #define RSA_ASN_COMPLETE    0
     #else
         /* Extract all private fields. */
         for (i = 0; i < RSA_INTS; i++) {
-            GetASN_MP(&dataASN[2 + i], GetRsaInt(key, i));
+            GetASN_MP(&dataASN[rsaKeyASN_IDX_N + i], GetRsaInt(key, i));
         }
         /* Extracting all data from BER encoding. */
         #define RSA_ASN_COMPLETE    1
@@ -20325,10 +20343,10 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 
     if (ret == 0) {
         /* Set the version. */
-        SetASN_Int8Bit(&dataASN[1], 0);
+        SetASN_Int8Bit(&dataASN[rsaKeyASN_IDX_VER], 0);
         /* Set all the mp_ints in private key. */
         for (i = 0; i < RSA_INTS; i++) {
-            SetASN_MP(&dataASN[2 + i], GetRsaInt(key, i));
+            SetASN_MP(&dataASN[rsaKeyASN_IDX_N + i], GetRsaInt(key, i));
         }
 
         /* Calculate size of RSA private key encoding. */
