@@ -3129,6 +3129,9 @@ static int SkipInt(const byte* input, word32* inOutIdx, word32 maxIdx)
 static const ASNItem bitStringASN[] = {
     { 0, ASN_BIT_STRING, 0, 1, 0 }
 };
+enum {
+    bitStringASN_IDX_BIT_STR = 0
+};
 
 /* Number of items in ASN.1 template for a BIT_STRING. */
 #define bitStringASN_Length (sizeof(bitStringASN) / sizeof(ASNItem))
@@ -3210,7 +3213,7 @@ int CheckBitString(const byte* input, word32* inOutIdx, int* len,
             inOutIdx, maxIdx);
     if (ret == 0) {
         /* Get unused bits from dynamic ASN.1 data. */
-        bits = GetASNItem_UnusedBits(dataASN[0]);
+        bits = GetASNItem_UnusedBits(dataASN[bitStringASN_IDX_BIT_STR]);
         /* Check unused bits is 0 when expected. */
         if (zeroBits && (bits != 0)) {
             ret = ASN_EXPECT_0_E;
@@ -3219,7 +3222,7 @@ int CheckBitString(const byte* input, word32* inOutIdx, int* len,
     if (ret == 0) {
         /* Return length of data and unused bits if required. */
         if (len != NULL) {
-            *len = dataASN[0].data.ref.length;
+            *len = dataASN[bitStringASN_IDX_BIT_STR].data.ref.length;
         }
         if (unusedBits != NULL) {
             *unusedBits = bits;
