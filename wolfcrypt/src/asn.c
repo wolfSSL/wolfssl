@@ -5261,9 +5261,14 @@ static int SkipObjectId(const byte* input, word32* inOutIdx, word32 maxIdx)
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for an algorithm identifier. */
 static const ASNItem algoIdASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/*  1 */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/*  2 */        { 1, ASN_TAG_NULL, 0, 0, 1 },
+/*  SEQ  */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/*  OID  */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/*  NULL */        { 1, ASN_TAG_NULL, 0, 0, 1 },
+};
+enum {
+    algoIdASN_IDX_SEQ = 0,
+    algoIdASN_IDX_OID,
+    algoIdASN_IDX_NULL
 };
 
 /* Number of items in ASN.1 template for an algorithm identifier. */
@@ -5319,22 +5324,25 @@ int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
 
     return 0;
 #else
-    ASNGetData dataASN[algoIdASN_Length];
-    int ret;
+    DECL_ASNGETDATA(dataASN, algoIdASN_Length);
+    int ret = 0;
 
     WOLFSSL_ENTER("GetAlgoId");
 
-    /* Clear dynamic data and set OID type expected. */
-    XMEMSET(dataASN, 0, sizeof(*dataASN) * algoIdASN_Length);
-    GetASN_OID(&dataASN[1], oidType);
-    /* Decode the algorithm identifier. */
-    ret = GetASN_Items(algoIdASN, dataASN, algoIdASN_Length, 0, input, inOutIdx,
-                       maxIdx);
+    CALLOC_ASNGETDATA(dataASN, algoIdASN_Length, ret, NULL);
+    if (ret == 0) {
+        /* Set OID type expected. */
+        GetASN_OID(&dataASN[algoIdASN_IDX_OID], oidType);
+        /* Decode the algorithm identifier. */
+        ret = GetASN_Items(algoIdASN, dataASN, algoIdASN_Length, 0, input, inOutIdx,
+                           maxIdx);
+    }
     if (ret == 0) {
         /* Return the OID id/sum. */
-        *oid = dataASN[1].data.oid.sum;
+        *oid = dataASN[algoIdASN_IDX_OID].data.oid.sum;
     }
 
+    FREE_ASNGETDATA(dataASN, NULL);
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
@@ -12805,13 +12813,13 @@ word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
     CALLOC_ASNSETDATA(dataASN, algoIdASN_Length, ret, NULL);
 
     /* Set the OID and OID type to encode. */
-    SetASN_OID(&dataASN[1], algoOID, type);
+    SetASN_OID(&dataASN[algoIdASN_IDX_OID], algoOID, type);
     /* Hashes, signatures not ECC and keys not RSA put put NULL tag. */
     if (!(type == oidHashType ||
              (type == oidSigType && !IsSigAlgoECC(algoOID)) ||
              (type == oidKeyType && algoOID == RSAk))) {
         /* Don't put out NULL DER item. */
-        dataASN[2].noOut = 1;
+        dataASN[algoIdASN_IDX_NULL].noOut = 1;
     }
     if (algoOID == DSAk) {
         /* Don't include SEQUENCE for DSA keys. */
@@ -12819,10 +12827,10 @@ word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
     }
     else if (curveSz > 0) {
         /* Don't put out NULL DER item. */
-        dataASN[2].noOut = 0;
+        dataASN[algoIdASN_IDX_NULL].noOut = 0;
         /* Include space for extra data of length curveSz.
          * Subtract 1 for sequence and 1 for length encoding. */
-        SetASN_Buffer(&dataASN[2], NULL, curveSz - 2);
+        SetASN_Buffer(&dataASN[algoIdASN_IDX_NULL], NULL, curveSz - 2);
     }
 
     /* Calculate size of encoding. */
@@ -12832,7 +12840,7 @@ word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
         SetASN_Items(algoIdASN + o, dataASN + o, algoIdASN_Length - o, output);
         if (curveSz > 0) {
             /* Return size excluding curve data. */
-            sz = dataASN[o].offset - dataASN[2].offset;
+            sz = dataASN[o].offset - dataASN[algoIdASN_IDX_NULL].offset;
         }
     }
 
