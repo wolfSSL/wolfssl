@@ -33423,6 +33423,8 @@ static int pkcs7signed_run_vectors(
         ERROR_OUT(-12512, out);
 
     for (i = 0; i < testSz; i++) {
+        if (pkcs7)
+            wc_PKCS7_Free(pkcs7);
         pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
         if (pkcs7 == NULL)
             ERROR_OUT(-12513, out);
@@ -33922,6 +33924,8 @@ static int pkcs7signed_run_SingleShotVectors(
         ERROR_OUT(-12542, out);
 
     for (i = 0; i < testSz; i++) {
+        if (pkcs7)
+            wc_PKCS7_Free(pkcs7);
         pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
         if (pkcs7 == NULL)
             ERROR_OUT(-12543, out);
