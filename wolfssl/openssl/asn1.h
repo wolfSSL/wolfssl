@@ -71,6 +71,7 @@
 #define ASN1_TIME_set                   wolfSSL_ASN1_TIME_set
 
 #define V_ASN1_EOC                      0
+#define V_ASN1_NULL                     5
 #define V_ASN1_OBJECT                   6
 #define V_ASN1_UTF8STRING               12
 #define V_ASN1_SEQUENCE                 16
