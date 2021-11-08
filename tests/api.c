@@ -20620,6 +20620,20 @@ static int test_wc_DsaKeyToPublicDer(void)
         word32 idx = 0;
         ret = wc_DsaPublicKeyDecode(der, &idx, &genKey, sz);
     }
+    /* Test without the SubjectPublicKeyInfo header */
+    if (ret == 0) {
+        ret = wc_SetDsaPublicKey(der, &genKey, ONEK_BUF, 0);
+        if (ret >= 0) {
+            sz = ret;
+            ret = 0;
+        } else {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    if (ret == 0) {
+        word32 idx = 0;
+        ret = wc_DsaPublicKeyDecode(der, &idx, &genKey, sz);
+    }
 
     /* Test bad args. */
     if (ret == 0) {

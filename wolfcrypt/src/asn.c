@@ -8830,19 +8830,30 @@ enum {
  * RFC 3279, 2.3.2 - DSA in SubjectPublicKeyInfo
  */
 static const ASNItem dsaPubKeyASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/*  1 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-/*  2 */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/*  3 */            { 2, ASN_SEQUENCE, 1, 1, 0 },
-                        /* p */
-/*  4 */                { 3, ASN_INTEGER, 0, 0, 0 },
-                        /* q */
-/*  5 */                { 3, ASN_INTEGER, 0, 0, 0 },
-                        /* g */
-/*  6 */                { 3, ASN_INTEGER, 0, 0, 0 },
-/*  7 */        { 1, ASN_BIT_STRING, 0, 1, 1 },
-                    /* y */
-/*  8 */            { 2, ASN_INTEGER, 0, 0, 0 },
+/* dsaPubKeyASN_IDX_SEQ             */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* dsaPubKeyASN_IDX_ALGOID_SEQ      */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* dsaPubKeyASN_IDX_ALGOID_OID      */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* dsaPubKeyASN_IDX_ALGOID_PARAMS   */         { 2, ASN_SEQUENCE, 1, 1, 0 },
+                                                   /* p */
+/* dsaPubKeyASN_IDX_ALGOID_PARAMS_P */             { 3, ASN_INTEGER, 0, 0, 0 },
+                                                   /* q */
+/* dsaPubKeyASN_IDX_ALGOID_PARAMS_Q */             { 3, ASN_INTEGER, 0, 0, 0 },
+                                                   /* g */
+/* dsaPubKeyASN_IDX_ALGOID_PARAMS_G */             { 3, ASN_INTEGER, 0, 0, 0 },
+/* dsaPubKeyASN_IDX_PUBKEY_STR      */     { 1, ASN_BIT_STRING, 0, 1, 1 },
+                                               /* y */
+/* dsaPubKeyASN_IDX_PUBKEY_Y        */         { 2, ASN_INTEGER, 0, 0, 0 },
+};
+enum {
+    dsaPubKeyASN_IDX_SEQ = 0,
+    dsaPubKeyASN_IDX_ALGOID_SEQ,
+    dsaPubKeyASN_IDX_ALGOID_OID,
+    dsaPubKeyASN_IDX_ALGOID_PARAMS,
+    dsaPubKeyASN_IDX_ALGOID_PARAMS_P,
+    dsaPubKeyASN_IDX_ALGOID_PARAMS_Q,
+    dsaPubKeyASN_IDX_ALGOID_PARAMS_G,
+    dsaPubKeyASN_IDX_PUBKEY_STR,
+    dsaPubKeyASN_IDX_PUBKEY_Y,
 };
 
 /* Number of items in ASN.1 template for PublicKeyInfo with DSA. */
@@ -8946,12 +8957,14 @@ int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
             /* Clear dynamic data items. */
             XMEMSET(dataASN, 0, sizeof(ASNGetData) * dsaPubKeyASN_Length);
             /* Set DSA OID to expect. */
-            GetASN_ExpBuffer(&dataASN[2], keyDsaOid, sizeof(keyDsaOid));
+            GetASN_ExpBuffer(&dataASN[dsaPubKeyASN_IDX_ALGOID_OID],
+                    keyDsaOid, sizeof(keyDsaOid));
             /* p, q, g */
             for (i = 0; i < DSA_INTS - 2; i++)
-                GetASN_MP(&dataASN[4 + i], GetDsaInt(key, i));
+                GetASN_MP(&dataASN[dsaPubKeyASN_IDX_ALGOID_PARAMS_P + i],
+                        GetDsaInt(key, i));
             /* y */
-            GetASN_MP(&dataASN[8], GetDsaInt(key, i));
+            GetASN_MP(&dataASN[dsaPubKeyASN_IDX_PUBKEY_Y], GetDsaInt(key, i));
             /* Parse as SubjectPublicKeyInfo. */
             ret = GetASN_Items(dsaPubKeyASN, dataASN, dsaPubKeyASN_Length, 1,
                 input, inOutIdx, inSz);
@@ -9368,7 +9381,8 @@ int wc_SetDsaPublicKey(byte* output, DsaKey* key, int outLen, int with_header)
     int ret = 0;
     int i;
     int sz;
-    int o;
+    const ASNItem *data = NULL;
+    int count = 0;
 
     WOLFSSL_ENTER("wc_SetDsaPublicKey");
 
@@ -9379,38 +9393,40 @@ int wc_SetDsaPublicKey(byte* output, DsaKey* key, int outLen, int with_header)
     CALLOC_ASNSETDATA(dataASN, dsaPubKeyASN_Length, ret, key->heap);
 
     if (ret == 0) {
-        /* With header - include the SubjectPublicKeyInfo wrapping. */
         if (with_header) {
-            o = 0;
+            /* Using dsaPubKeyASN */
+            data = dsaPubKeyASN;
+            count = dsaPubKeyASN_Length;
             /* Set the algorithm OID to write out. */
-            SetASN_OID(&dataASN[2], DSAk, oidKeyType);
+            SetASN_OID(&dataASN[dsaPubKeyASN_IDX_ALGOID_OID], DSAk, oidKeyType);
+            /* Set the mp_ints to encode - parameters and public value. */
+            for (i = 0; i < DSA_INTS - 2; i++) {
+                SetASN_MP(&dataASN[dsaPubKeyASN_IDX_ALGOID_PARAMS_P + i],
+                        GetDsaInt(key, i));
+            }
+            SetASN_MP(&dataASN[dsaPubKeyASN_IDX_PUBKEY_Y], GetDsaInt(key, i));
         }
         else {
-            o = 3;
-            /* Skip BIT_STRING but include 'y'. */
-            dataASN[7].noOut = 1;
+            /* Using dsaKeyASN */
+            data = dsaKeyASN;
+            count = dsaPublicKeyASN_Length;
+            /* Set the mp_ints to encode - parameters and public value. */
+            for (i = 0; i < DSA_INTS - 1; i++) {
+                /* Move all DSA ints up one slot (ignore VERSION so now
+                 * it means P) */
+                SetASN_MP(&dataASN[dsaKeyASN_IDX_VER + i],
+                        GetDsaInt(key, i));
+            }
         }
-        /* Set the mp_ints to encode - parameters and public value. */
-        for (i = 0; i < DSA_INTS - 2; i++) {
-            SetASN_MP(&dataASN[4 + i], GetDsaInt(key, i));
-        }
-        SetASN_MP(&dataASN[5 + i], GetDsaInt(key, i));
-        /* Calculate size of the encoding. */
-        ret = SizeASN_Items(dsaPubKeyASN + o, dataASN, dsaPubKeyASN_Length - o,
-                            &sz);
+        ret = SizeASN_Items(data, dataASN, count, &sz);
     }
     /* Check buffer is big enough for encoding. */
     if ((ret == 0) && (sz > (int)outLen)) {
         ret = BAD_FUNC_ARG;
     }
+    /* Encode the DSA public key into output buffer. */
     if (ret == 0) {
-        /* Encode the DSA public key into output buffer.
-         * 'o' indicates offset when no header.
-         */
-        SetASN_Items(dsaPubKeyASN + o, dataASN, dsaPubKeyASN_Length - o,
-                     output);
-        /* Return the size of the encoding. */
-        ret = sz;
+        ret = SetASN_Items(data, dataASN, count, output);
     }
 
     FREE_ASNSETDATA(dataASN, key->heap);
