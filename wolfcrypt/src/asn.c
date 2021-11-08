@@ -6693,9 +6693,13 @@ enum {
  */
 static const ASNItem pbes1ParamsASN[] = {
             /* Salt */
-/*  0 */    { 0, ASN_OCTET_STRING, 0, 0, 0 },
+/* pbes1ParamsASN_IDX_SALT */    { 0, ASN_OCTET_STRING, 0, 0, 0 },
             /* Iteration count */
-/*  1 */    { 0, ASN_INTEGER, 0, 0, 0 },
+/* pbes1ParamsASN_IDX_ITER */    { 0, ASN_INTEGER, 0, 0, 0 },
+};
+enum {
+    pbes1ParamsASN_IDX_SALT = 0,
+    pbes1ParamsASN_IDX_ITER,
 };
 
 /* Number of items in ASN.1 template for PBES1 parameters. */
@@ -7281,13 +7285,13 @@ exit_dc:
         if (version != PKCS5v2) {
             /* Initialize for PBES1 parameters and put iterations in var. */
             XMEMSET(dataASN, 0, sizeof(*dataASN) * pbes1ParamsASN_Length);
-            GetASN_Int32Bit(&dataASN[pbes2ParamsASN_IDX_KDF_OID], &iterations);
+            GetASN_Int32Bit(&dataASN[pbes1ParamsASN_IDX_ITER], &iterations);
             /* Parse the PBES1 parameters. */
             ret = GetASN_Items(pbes1ParamsASN, dataASN, pbes1ParamsASN_Length,
                                0, params, &pIdx, sz);
             if (ret == 0) {
                 /* Get the salt data. */
-                GetASN_GetRef(&dataASN[pbes2ParamsASN_IDX_KDF_SEQ], &salt, &saltSz);
+                GetASN_GetRef(&dataASN[pbes1ParamsASN_IDX_SALT], &salt, &saltSz);
             }
         }
         else {
