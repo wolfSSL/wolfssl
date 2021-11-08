@@ -8802,13 +8802,22 @@ static mp_int* GetDsaInt(DsaKey* key, int idx)
  * RFC 3279, 2.3.2 - DSA in SubjectPublicKeyInfo
  */
 static const ASNItem dsaKeyASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/*  1 */        { 1, ASN_INTEGER, 0, 0, 0 },
-/*  2 */        { 1, ASN_INTEGER, 0, 0, 0 },
-/*  3 */        { 1, ASN_INTEGER, 0, 0, 0 },
-/*  4 */        { 1, ASN_INTEGER, 0, 0, 0 },
-/*  5 */        { 1, ASN_INTEGER, 0, 0, 0 },
-/*  6 */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* dsaKeyASN_IDX_SEQ */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* dsaKeyASN_IDX_VER */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* dsaKeyASN_IDX_P   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* dsaKeyASN_IDX_Q   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* dsaKeyASN_IDX_G   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* dsaKeyASN_IDX_Y   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* dsaKeyASN_IDX_X   */        { 1, ASN_INTEGER, 0, 0, 0 },
+};
+enum {
+    dsaKeyASN_IDX_SEQ = 0,
+    dsaKeyASN_IDX_VER,
+    dsaKeyASN_IDX_P,
+    dsaKeyASN_IDX_Q,
+    dsaKeyASN_IDX_G,
+    dsaKeyASN_IDX_Y,
+    dsaKeyASN_IDX_X,
 };
 
 /* Number of items in ASN.1 template for DSA private key. */
@@ -8925,9 +8934,11 @@ int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
     if (ret == 0) {
         /* Clear dynamic data items. */
         XMEMSET(dataASN, 0, sizeof(ASNGetData) * dsaPublicKeyASN_Length);
-        /* p, q, g, y */
+        /* seq
+         *   p, q, g, y
+         * Start DSA ints from dsaKeyASN_IDX_VER instead of dsaKeyASN_IDX_P */
         for (i = 0; i < DSA_INTS - 1; i++)
-            GetASN_MP(&dataASN[1 + i], GetDsaInt(key, i));
+            GetASN_MP(&dataASN[dsaKeyASN_IDX_VER + i], GetDsaInt(key, i));
         /* Parse as simple form. */
         ret = GetASN_Items(dsaKeyASN, dataASN, dsaPublicKeyASN_Length, 1, input,
                            inOutIdx, inSz);
@@ -9125,7 +9136,7 @@ int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
             /* Initialize key data and set mp_ints for params and priv/pub. */
             XMEMSET(dataASN, 0, sizeof(*dataASN) * dsaKeyASN_Length);
             for (i = 0; i < DSA_INTS; i++) {
-                GetASN_MP(&dataASN[2 + i], GetDsaInt(key, i));
+                GetASN_MP(&dataASN[dsaKeyASN_IDX_P + i], GetDsaInt(key, i));
             }
 
             /* Try simple OCTET_STRING form. */
@@ -9520,19 +9531,19 @@ static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen,
     if (ret == 0) {
         if (includeVersion) {
             /* Set the version. */
-            SetASN_Int8Bit(&dataASN[1], 0);
+            SetASN_Int8Bit(&dataASN[dsaKeyASN_IDX_VER], 0);
         }
         else {
-            dataASN[1].noOut = 1;
+            dataASN[dsaKeyASN_IDX_VER].noOut = 1;
         }
-        dataASN[5].noOut = mp_iszero(&key->y);
-        dataASN[6].noOut = mp_iszero(&key->x);
+        dataASN[dsaKeyASN_IDX_Y].noOut = mp_iszero(&key->y);
+        dataASN[dsaKeyASN_IDX_X].noOut = mp_iszero(&key->x);
         /* Set the mp_ints to encode - params, public and private value. */
         for (i = 0; i < DSA_INTS; i++) {
             if (i < ints)
-                SetASN_MP(&dataASN[2 + i], GetDsaInt(key, i));
+                SetASN_MP(&dataASN[dsaKeyASN_IDX_P + i], GetDsaInt(key, i));
             else
-                dataASN[2 + i].noOut = 1;
+                dataASN[dsaKeyASN_IDX_P + i].noOut = 1;
         }
         /* Calculate size of the encoding. */
         ret = SizeASN_Items(dsaKeyASN, dataASN, dsaKeyASN_Length, &sz);
