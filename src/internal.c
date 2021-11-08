@@ -29131,25 +29131,31 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
      *  Session tickets are checked for validity based on the time each ticket
      *  was created, timeout value and the current time. If the tickets are
      *  judged expired, falls back to full-handshake. If you want disable this 
-     *  sessin ticket validation check in TLS1.2 and below, define
+     *  session ticket validation check in TLS1.2 and below, define
      *  WOLFSSL_NO_TICKET_EXPRE.
      */
     int HandleTlsResumption(WOLFSSL* ssl, int bogusID, Suites* clSuites)
     {
         int ret = 0;
         WOLFSSL_SESSION* session;
+    #ifdef HAVE_EXT_CACHE
+        byte gotSess = 0;
+    #endif
         (void)bogusID;
-
-        session = GetSession(ssl, ssl->arrays->masterSecret, 1);
-        #ifdef HAVE_SESSION_TICKET
-            if (ssl->options.useTicket == 1) {
-                session = &ssl->session;
-            } else if (bogusID == 1 && ssl->options.rejectTicket == 0) {
-                WOLFSSL_MSG("Bogus session ID without session ticket");
-                return BUFFER_ERROR;
-            }
+    #ifdef HAVE_SESSION_TICKET
+        if (ssl->options.useTicket == 1) {
+            session = &ssl->session;
+        } else if (bogusID == 1 && ssl->options.rejectTicket == 0) {
+            WOLFSSL_MSG("Bogus session ID without session ticket");
+            return BUFFER_ERROR;
+        } else
+    #endif
+        {
+            session = GetSession(ssl, ssl->arrays->masterSecret, 1);
+        #ifdef HAVE_EXT_CACHE
+            gotSess = 1;
         #endif
-
+        }
         if (!session) {
             WOLFSSL_MSG("Session lookup for resume failed");
             ssl->options.resuming = 0;
@@ -29180,14 +29186,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             #ifdef WOLFSSL_EXTRA_ALERTS
                 SendAlert(ssl, alert_fatal, handshake_failure);
             #endif
-                #ifdef HAVE_EXT_CACHE
-                    wolfSSL_SESSION_free(session);
-                #endif
-                return EXT_MASTER_SECRET_NEEDED_E;
+                ret = EXT_MASTER_SECRET_NEEDED_E;
             }
-        #ifdef HAVE_EXT_CACHE
-            wolfSSL_SESSION_free(session);
-        #endif
         }
         else {
         #ifndef NO_RESUME_SUITE_CHECK
@@ -29205,35 +29205,40 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             #ifdef WOLFSSL_EXTRA_ALERTS
                 SendAlert(ssl, alert_fatal, illegal_parameter);
             #endif
-                return UNSUPPORTED_SUITE;
+                ret = UNSUPPORTED_SUITE;
             }
         #endif
 
-        #ifdef HAVE_EXT_CACHE
-            wolfSSL_SESSION_free(session);
-        #endif
-            if (MatchSuite(ssl, clSuites) < 0) {
-                WOLFSSL_MSG("Unsupported cipher suite, ClientHello");
-                return UNSUPPORTED_SUITE;
+            if (ret == 0) {
+                if (MatchSuite(ssl, clSuites) < 0) {
+                    WOLFSSL_MSG("Unsupported cipher suite, ClientHello");
+                    ret = UNSUPPORTED_SUITE;
+                }
             }
-
-            ret = wc_RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
-                                                                       RAN_LEN);
-            if (ret != 0)
-                return ret;
-
-            #ifdef NO_OLD_TLS
-                ret = DeriveTlsKeys(ssl);
-            #else
-                #ifndef NO_TLS
-                    if (ssl->options.tls)
-                        ret = DeriveTlsKeys(ssl);
+            if (ret == 0) {
+                ret = wc_RNG_GenerateBlock(ssl->rng,
+                                           ssl->arrays->serverRandom, RAN_LEN);
+            }
+            if (ret == 0) {
+                #ifdef NO_OLD_TLS
+                    ret = DeriveTlsKeys(ssl);
+                #else
+                    #ifndef NO_TLS
+                        if (ssl->options.tls)
+                            ret = DeriveTlsKeys(ssl);
+                    #endif
+                        if (!ssl->options.tls)
+                            ret = DeriveKeys(ssl);
                 #endif
-                    if (!ssl->options.tls)
-                        ret = DeriveKeys(ssl);
-            #endif
-            ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
+                ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
+            }
         }
+
+    #ifdef HAVE_EXT_CACHE
+        if (gotSess) {
+            wolfSSL_SESSION_free(session);
+        }
+    #endif
 
         return ret;
     }
