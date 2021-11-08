@@ -11324,7 +11324,22 @@ WOLFSSL_TEST_SUBROUTINE int idea_test(void)
     {
         WC_RNG rng;
         byte key[IDEA_KEY_SIZE], iv[IDEA_BLOCK_SIZE],
-        rnd[1000], enc[1000], dec[1000];
+        *rnd, *enc, *dec;
+
+#define IDEA_SCRATCH_BUFFER_SIZE 1000
+        rnd = (byte *)XMALLOC(IDEA_SCRATCH_BUFFER_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        enc = (byte *)XMALLOC(IDEA_SCRATCH_BUFFER_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        dec = (byte *)XMALLOC(IDEA_SCRATCH_BUFFER_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if ((rnd == NULL) || (enc == NULL) || (dec == NULL)) {
+            if (rnd)
+                XFREE(rnd, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            if (enc)
+                XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            if (dec)
+                XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            return -6823;
+        }
 
         /* random values */
     #ifndef HAVE_FIPS
@@ -11347,7 +11362,7 @@ WOLFSSL_TEST_SUBROUTINE int idea_test(void)
                 return -6816;
 
             /* random data */
-            ret = wc_RNG_GenerateBlock(&rng, rnd, sizeof(rnd));
+            ret = wc_RNG_GenerateBlock(&rng, rnd, IDEA_SCRATCH_BUFFER_SIZE);
             if (ret != 0)
                 return -6817;
 
@@ -11360,8 +11375,8 @@ WOLFSSL_TEST_SUBROUTINE int idea_test(void)
             }
 
             /* Data encryption */
-            XMEMSET(enc, 0, sizeof(enc));
-            ret = wc_IdeaCbcEncrypt(&idea, enc, rnd, sizeof(rnd));
+            XMEMSET(enc, 0, IDEA_SCRATCH_BUFFER_SIZE);
+            ret = wc_IdeaCbcEncrypt(&idea, enc, rnd, IDEA_SCRATCH_BUFFER_SIZE);
             if (ret != 0) {
                 printf("wc_IdeaCbcEncrypt failed\n");
                 return -6819;
@@ -11376,18 +11391,23 @@ WOLFSSL_TEST_SUBROUTINE int idea_test(void)
             }
 
             /* Data decryption */
-            XMEMSET(dec, 0, sizeof(dec));
-            ret = wc_IdeaCbcDecrypt(&idea, dec, enc, sizeof(enc));
+            XMEMSET(dec, 0, IDEA_SCRATCH_BUFFER_SIZE);
+            ret = wc_IdeaCbcDecrypt(&idea, dec, enc, IDEA_SCRATCH_BUFFER_SIZE);
             if (ret != 0) {
                 printf("wc_IdeaCbcDecrypt failed\n");
                 return -6821;
             }
 
-            if (XMEMCMP(rnd, dec, sizeof(rnd))) {
+            if (XMEMCMP(rnd, dec, IDEA_SCRATCH_BUFFER_SIZE)) {
                 printf("Bad CBC decryption\n");
                 return -6822;
             }
         }
+
+        XFREE(rnd, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#undef IDEA_SCRATCH_BUFFER_SIZE
 
         wc_FreeRng(&rng);
     }
@@ -27197,10 +27217,6 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
 #if defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_KEY_EXPORT) &&\
     defined(HAVE_ED448_KEY_IMPORT)
     byte   out[ED448_SIG_SIZE];
-    byte   exportPKey[ED448_KEY_SIZE];
-    byte   exportSKey[ED448_KEY_SIZE];
-    word32 exportPSz;
-    word32 exportSSz;
     int    i;
     word32 outlen;
 #ifdef HAVE_ED448_VERIFY
@@ -27211,8 +27227,13 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
 #endif /* HAVE_ED448_VERIFY */
 #endif /* HAVE_ED448_SIGN && HAVE_ED448_KEY_EXPORT && HAVE_ED448_KEY_IMPORT */
     word32 keySz, sigSz;
-    ed448_key key;
-    ed448_key key2;
+#ifdef WOLFSSL_SMALL_STACK
+    ed448_key *key = NULL;
+    ed448_key *key2 = NULL;
+#else
+    ed448_key key[1];
+    ed448_key key2[1];
+#endif
 
 #if defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_KEY_EXPORT) && \
     defined(HAVE_ED448_KEY_IMPORT)
@@ -27621,7 +27642,7 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
                                    sizeof(msg4)
     };
 #ifndef NO_ASN
-    static byte privateEd448[] = {
+    static const byte privateEd448[] = {
         0x30, 0x47, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06,
         0x03, 0x2b, 0x65, 0x71, 0x04, 0x3b, 0x04, 0x39,
         0x6c, 0x82, 0xa5, 0x62, 0xcb, 0x80, 0x8d, 0x10,
@@ -27633,7 +27654,7 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
         0x03, 0x2e, 0x75, 0x49, 0xa2, 0x00, 0x98, 0xf9,
         0x5b
     };
-    static byte publicEd448[] = {
+    static const byte publicEd448[] = {
         0x30, 0x43, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65,
         0x71, 0x03, 0x3a, 0x00, 0x5f, 0xd7, 0x44, 0x9b,
         0x59, 0xb4, 0x61, 0xfd, 0x2c, 0xe7, 0x87, 0xec,
@@ -27644,7 +27665,7 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
         0xf1, 0xe5, 0x0f, 0x6c, 0xd1, 0xfa, 0x1a, 0xbe,
         0xaf, 0xe8, 0x25, 0x61, 0x80
     };
-    static byte privPubEd448[] = {
+    static const byte privPubEd448[] = {
         0x30, 0x81, 0x84, 0x02, 0x01, 0x00, 0x30, 0x05,
         0x06, 0x03, 0x2b, 0x65, 0x71, 0x04, 0x3b, 0x04,
         0x39, 0x6c, 0x82, 0xa5, 0x62, 0xcb, 0x80, 0x8d,
@@ -27668,7 +27689,19 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
 #endif /* NO_ASN */
 #endif /* HAVE_ED448_SIGN && HAVE_ED448_KEY_EXPORT && HAVE_ED448_KEY_IMPORT */
 #if !defined(NO_ASN) && defined(HAVE_ED448_SIGN)
-    ed448_key key3;
+#ifdef WOLFSSL_SMALL_STACK
+    ed448_key *key3 = NULL;
+#else
+    ed448_key key3[1];
+#endif
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+    key = (ed448_key *)XMALLOC(sizeof(*key), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    key2 = (ed448_key *)XMALLOC(sizeof(*key2), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#if !defined(NO_ASN) && defined(HAVE_ED448_SIGN)
+    key3 = (ed448_key *)XMALLOC(sizeof(*key3), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 #endif
 
     /* create ed448 keys */
@@ -27677,20 +27710,27 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
 #else
     ret = wc_InitRng(&rng);
 #endif
-    if (ret != 0)
-        return -11700;
+    if (ret != 0) {
+        XMEMSET(&rng, 0, sizeof(rng));
+        ERROR_OUT(-11700, out);
+    }
 
-    wc_ed448_init(&key);
-    wc_ed448_init(&key2);
+    if (wc_ed448_init(key) < 0)
+        ERROR_OUT(-11903, out);
+    if (wc_ed448_init(key2) < 0)
+        ERROR_OUT(-11904, out);
 #if !defined(NO_ASN) && defined(HAVE_ED448_SIGN)
-    wc_ed448_init(&key3);
+    if (wc_ed448_init(key3) < 0)
+        ERROR_OUT(-11905, out);
 #endif
-    wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key);
-    wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key2);
+    if (wc_ed448_make_key(&rng, ED448_KEY_SIZE, key) < 0)
+        ERROR_OUT(-11906, out);
+    if (wc_ed448_make_key(&rng, ED448_KEY_SIZE, key2) < 0)
+        ERROR_OUT(-11907, out);
 
     /* helper functions for signature and key size */
-    keySz = wc_ed448_size(&key);
-    sigSz = wc_ed448_sig_size(&key);
+    keySz = wc_ed448_size(key);
+    sigSz = wc_ed448_sig_size(key);
 
 #if defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_KEY_EXPORT) &&\
         defined(HAVE_ED448_KEY_IMPORT)
@@ -27699,142 +27739,193 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
         XMEMSET(out, 0, sizeof(out));
 
         if (wc_ed448_import_private_key(sKeys[i], ED448_KEY_SIZE, pKeys[i],
-                pKeySz[i], &key) != 0)
-            return -11701 - i;
+                pKeySz[i], key) != 0)
+            ERROR_OUT(-11701 - i, out);
 
-        if (wc_ed448_sign_msg(msgs[i], msgSz[i], out, &outlen, &key, NULL,
-                                                                      0) != 0) {
-            return -11711 - i;
-        }
+        if (wc_ed448_sign_msg(msgs[i], msgSz[i], out, &outlen, key, NULL,
+                                                                      0) != 0)
+            ERROR_OUT(-11711 - i, out);
 
         if (XMEMCMP(out, sigs[i], 114))
-            return -11721 - i;
+            ERROR_OUT(-11721 - i, out);
 
 #if defined(HAVE_ED448_VERIFY)
         /* test verify on good msg */
-        if (wc_ed448_verify_msg(out, outlen, msgs[i], msgSz[i], &verify, &key,
-                                                 NULL, 0) != 0 || verify != 1) {
-            return -11731 - i;
-        }
+        if (wc_ed448_verify_msg(out, outlen, msgs[i], msgSz[i], &verify, key,
+                                                 NULL, 0) != 0 || verify != 1)
+            ERROR_OUT(-11731 - i, out);
 
 #ifdef WOLFSSL_ED448_STREAMING_VERIFY
         /* test verify on good msg using streaming interface directly */
         if (wc_ed448_verify_msg_init(out, outlen,
-                                       &key, (byte)Ed448, NULL, 0) != 0)
-            return -11911 - i;
+                                       key, (byte)Ed448, NULL, 0) != 0)
+            ERROR_OUT(-11911 - i, out);
         for (j = 0; j < msgSz[i]; j += i) {
-            if (wc_ed448_verify_msg_update(msgs[i] + j, MIN(i, msgSz[i] - j), &key) != 0)
-                return -11921 - i;
+            if (wc_ed448_verify_msg_update(msgs[i] + j, MIN(i, msgSz[i] - j), key) != 0)
+                ERROR_OUT(-11921 - i, out);
         }
         if (wc_ed448_verify_msg_final(out, outlen, &verify,
-                                        &key) != 0 || verify != 1)
-            return -11931 - i;
+                                        key) != 0 || verify != 1)
+            ERROR_OUT(-11931 - i, out);
 #endif /* WOLFSSL_ED448_STREAMING_VERIFY */
 
         /* test verify on bad msg */
         out[outlen-2] = out[outlen-2] + 1;
-        if (wc_ed448_verify_msg(out, outlen, msgs[i], msgSz[i], &verify, &key,
-                                                 NULL, 0) == 0 || verify == 1) {
-            return -11741 - i;
-        }
+        if (wc_ed448_verify_msg(out, outlen, msgs[i], msgSz[i], &verify, key,
+                                                 NULL, 0) == 0 || verify == 1)
+            ERROR_OUT(-11741 - i, out);
 #endif /* HAVE_ED448_VERIFY */
 
         /* test api for import/exporting keys */
-        exportPSz = sizeof(exportPKey);
-        exportSSz = sizeof(exportSKey);
-        if (wc_ed448_export_public(&key, exportPKey, &exportPSz) != 0)
-            return -11751 - i;
+        {
+            byte   *exportPKey = NULL;
+            byte   *exportSKey = NULL;
+            word32 exportPSz = ED448_KEY_SIZE;
+            word32 exportSSz = ED448_KEY_SIZE;
 
-        if (wc_ed448_import_public(exportPKey, exportPSz, &key2) != 0)
-            return -11761 - i;
+            exportPKey = (byte *)XMALLOC(exportPSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            exportSKey = (byte *)XMALLOC(exportSSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            if ((exportPKey == NULL) || (exportSKey == NULL))
+                ERROR_OUT(-11902, out);
 
-        if (wc_ed448_export_private_only(&key, exportSKey, &exportSSz) != 0)
-            return -11771 - i;
+            ret = 0;
 
-        if (wc_ed448_import_private_key(exportSKey, exportSSz,
-                                        exportPKey, exportPSz, &key2) != 0)
-            return -11781 - i;
+            do {
+                if (wc_ed448_export_public(key, exportPKey, &exportPSz) != 0) {
+                    ret = -11751 - i;
+                    break;
+                }
 
-        /* clear "out" buffer and test sign with imported keys */
-        outlen = sizeof(out);
-        XMEMSET(out, 0, sizeof(out));
-        if (wc_ed448_sign_msg(msgs[i], msgSz[i], out, &outlen, &key2, NULL,
-                                                                      0) != 0) {
-            return -11791 - i;
+                if (wc_ed448_import_public(exportPKey, exportPSz, key2) != 0) {
+                    ret = -11761 - i;
+                    break;
+                }
+
+                if (wc_ed448_export_private_only(key, exportSKey, &exportSSz) != 0) {
+                    ret = -11771 - i;
+                    break;
+                }
+
+                if (wc_ed448_import_private_key(exportSKey, exportSSz,
+                                                exportPKey, exportPSz, key2) != 0) {
+                    ret = -11781 - i;
+                    break;
+                }
+
+                /* clear "out" buffer and test sign with imported keys */
+                outlen = sizeof(out);
+                XMEMSET(out, 0, sizeof(out));
+                if (wc_ed448_sign_msg(msgs[i], msgSz[i], out, &outlen, key2, NULL,
+                                      0) != 0) {
+                    ret = -11791 - i;
+                    break;
+                }
+            } while(0);
+
+            XFREE(exportPKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(exportSKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+            if (ret != 0)
+                goto out;
         }
 
 #if defined(HAVE_ED448_VERIFY)
-        if (wc_ed448_verify_msg(out, outlen, msgs[i], msgSz[i], &verify, &key2,
+        if (wc_ed448_verify_msg(out, outlen, msgs[i], msgSz[i], &verify, key2,
                                 NULL, 0) != 0 || verify != 1)
-            return -11801 - i;
+            ERROR_OUT(-11801 - i, out);
 
         if (XMEMCMP(out, sigs[i], SIGSZ))
-            return -11811 - i;
+            ERROR_OUT(-11811 - i, out);
 #endif /* HAVE_ED448_VERIFY */
     }
 
     ret = ed448_ctx_test();
     if (ret != 0)
-        return ret;
+        goto out;
 
     ret = ed448ph_test();
     if (ret != 0)
-        return ret;
+        goto out;
 
 #ifndef NO_ASN
     /* Try ASN.1 encoded private-only key and public key. */
     idx = 0;
-    if (wc_Ed448PrivateKeyDecode(privateEd448, &idx, &key3,
+    if (wc_Ed448PrivateKeyDecode(privateEd448, &idx, key3,
                                  sizeof(privateEd448)) != 0)
-        return -11821;
+        ERROR_OUT(-11821, out);
 
-    if (wc_ed448_sign_msg(msgs[0], msgSz[0], out, &outlen, &key3, NULL, 0)
+    if (wc_ed448_sign_msg(msgs[0], msgSz[0], out, &outlen, key3, NULL, 0)
                 != BAD_FUNC_ARG)
-        return -11831;
+        ERROR_OUT(-11831, out);
 
     idx = 0;
-    if (wc_Ed448PublicKeyDecode(publicEd448, &idx, &key3,
+    if (wc_Ed448PublicKeyDecode(publicEd448, &idx, key3,
                                 sizeof(publicEd448)) != 0)
-        return -11841;
+        ERROR_OUT(-11841, out);
 
-    if (wc_ed448_sign_msg(msgs[0], msgSz[0], out, &outlen, &key3, NULL, 0) != 0)
-        return -11851;
+    if (wc_ed448_sign_msg(msgs[0], msgSz[0], out, &outlen, key3, NULL, 0) != 0)
+        ERROR_OUT(-11851, out);
 
     if (XMEMCMP(out, sigs[0], SIGSZ))
-        return -11861;
+        ERROR_OUT(-11861, out);
 
 #if defined(HAVE_ED448_VERIFY)
     /* test verify on good msg */
-    if (wc_ed448_verify_msg(out, outlen, msgs[0], msgSz[0], &verify, &key3,
+    if (wc_ed448_verify_msg(out, outlen, msgs[0], msgSz[0], &verify, key3,
                 NULL, 0) != 0 || verify != 1)
-        return -11871;
+        ERROR_OUT(-11871, out);
 #endif /* HAVE_ED448_VERIFY */
 
-    wc_ed448_free(&key3);
-    wc_ed448_init(&key3);
+    wc_ed448_free(key3);
+    if (wc_ed448_init(key3) < 0)
+        ERROR_OUT(-11908, out);
 
     idx = 0;
-    if (wc_Ed448PrivateKeyDecode(privPubEd448, &idx, &key3,
+    if (wc_Ed448PrivateKeyDecode(privPubEd448, &idx, key3,
                                  sizeof(privPubEd448)) != 0)
-        return -11881;
+        ERROR_OUT(-11881, out);
 
-    if (wc_ed448_sign_msg(msgs[0], msgSz[0], out, &outlen, &key3, NULL, 0) != 0)
-        return -11891;
+    if (wc_ed448_sign_msg(msgs[0], msgSz[0], out, &outlen, key3, NULL, 0) != 0)
+        ERROR_OUT(-11891, out);
 
     if (XMEMCMP(out, sigs[0], SIGSZ))
-        return -11901;
-
-    wc_ed448_free(&key3);
+        ERROR_OUT(-11901, out);
 #endif /* NO_ASN */
 #endif /* HAVE_ED448_SIGN && HAVE_ED448_KEY_EXPORT && HAVE_ED448_KEY_IMPORT */
 
-    /* clean up keys when done */
-    wc_ed448_free(&key);
-    wc_ed448_free(&key2);
+    ret = 0;
+
+  out:
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (key) {
+        wc_ed448_free(key);
+        XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (key2) {
+        wc_ed448_free(key2);
+        XFREE(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#if !defined(NO_ASN) && defined(HAVE_ED448_SIGN)
+    if (key3) {
+        wc_ed448_free(key3);
+        XFREE(key3, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+#else
+    wc_ed448_free(key);
+    wc_ed448_free(key2);
+#if !defined(NO_ASN) && defined(HAVE_ED448_SIGN)
+    wc_ed448_free(key3);
+#endif
+#endif
 
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
     wc_FreeRng(&rng);
 #endif
+
+    if (ret < 0)
+        return ret;
 
     /* hush warnings of unused keySz and sigSz */
     (void)keySz;
@@ -32598,13 +32689,13 @@ static int verifyBundle(byte* derBuf, word32 derSz, int keyHint)
 {
     int ret = 0;
     int usrCtx = 1; /* test value to pass as user context to callback */
-    PKCS7* pkcs7;
-    byte*  sid;
+    PKCS7* pkcs7 = NULL;
+    byte*  sid = NULL;
     word32 sidSz;
     byte key[256];
     word32 keySz = sizeof(key);
 
-    byte decoded[FOURK_BUF/2];
+    byte *decoded = NULL;
     int  decodedSz = FOURK_BUF/2;
 
     WOLFSSL_SMALL_STACK_STATIC const byte expectedSid[] = {
@@ -32613,89 +32704,87 @@ static int verifyBundle(byte* derBuf, word32 derSz, int keyHint)
         0xD7, 0x85, 0x65, 0xC0
     };
 
+    decoded = (byte *)XMALLOC(decodedSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (decoded == NULL) {
+        ret = MEMORY_E;
+        goto out;
+    }
+
     pkcs7 = wc_PKCS7_New(HEAP_HINT, INVALID_DEVID);
     if (pkcs7 == NULL) {
-        return MEMORY_E;
+        ret = MEMORY_E;
+        goto out;
     }
 
     /* Test verify */
     ret = wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID);
-    if (ret != 0) {
-        wc_PKCS7_Free(pkcs7);
-        return ret;
-    }
+    if (ret != 0)
+        goto out;
     ret = wc_PKCS7_InitWithCert(pkcs7, NULL, 0);
-    if (ret != 0) {
-        wc_PKCS7_Free(pkcs7);
-        return ret;
-    }
+    if (ret != 0)
+        goto out;
     ret = wc_PKCS7_VerifySignedData(pkcs7, derBuf, derSz);
-    if (ret != 0) {
-        wc_PKCS7_Free(pkcs7);
-        return ret;
-    }
+    if (ret != 0)
+        goto out;
 
     /* Get size of SID and print it out */
     ret = wc_PKCS7_GetSignerSID(pkcs7, NULL, &sidSz);
-    if (ret != LENGTH_ONLY_E) {
-        wc_PKCS7_Free(pkcs7);
-        return ret;
-    }
+    if (ret != LENGTH_ONLY_E)
+        goto out;
 
     sid = (byte*)XMALLOC(sidSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sid == NULL) {
-        wc_PKCS7_Free(pkcs7);
-        return ret;
+        ret = MEMORY_E;
+        goto out;
     }
 
     ret = wc_PKCS7_GetSignerSID(pkcs7, sid, &sidSz);
-    if (ret != 0) {
-        wc_PKCS7_Free(pkcs7);
-        XFREE(sid, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return ret;
-    }
+    if (ret != 0)
+        goto out;
     ret = XMEMCMP(sid, expectedSid, sidSz);
-    XFREE(sid, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (ret != 0) {
-        wc_PKCS7_Free(pkcs7);
-        return ret;
+        ret = PKCS7_NO_SIGNER_E; /* close enough */
+        goto out;
     }
 
     /* get expected fwWrappedFirmwareKey */
     if (keyHint == 0) {
         ret = getFirmwareKey(pkcs7, key, keySz);
-        if (ret < 0) {
-            wc_PKCS7_Free(pkcs7);
-            return ret;
-        }
+        if (ret < 0)
+            goto out;
         pkcs7->encryptionKey = key;
         pkcs7->encryptionKeySz = ret;
     }
     else {
         decodedSz = PKCS7_BUF_SIZE;
         ret = wc_PKCS7_SetDecodeEncryptedCb(pkcs7, myDecryptionFunc);
-        if (ret != 0) {
-            wc_PKCS7_Free(pkcs7);
-            return ret;
-        }
+        if (ret != 0)
+            goto out;
 
         ret = wc_PKCS7_SetDecodeEncryptedCtx(pkcs7, (void*)&usrCtx);
-        if (ret != 0) {
-            wc_PKCS7_Free(pkcs7);
-            return ret;
-        }
+        if (ret != 0)
+            goto out;
     }
 
     decodedSz = wc_PKCS7_DecodeEncryptedData(pkcs7, pkcs7->content,
             pkcs7->contentSz, decoded, decodedSz);
     if (decodedSz < 0) {
         ret = decodedSz;
-        wc_PKCS7_Free(pkcs7);
-        return ret;
+        goto out;
     }
 
-    wc_PKCS7_Free(pkcs7);
-    return 0;
+    ret = 0;
+
+  out:
+
+    if (decoded)
+        XFREE(decoded, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pkcs7)
+        wc_PKCS7_Free(pkcs7);
+    if (sid)
+        XFREE(sid, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
 }
 
 
