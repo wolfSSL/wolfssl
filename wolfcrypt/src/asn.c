@@ -7831,15 +7831,25 @@ static int RsaPublicKeyDecodeRawIndex(const byte* input, word32* inOutIdx,
  * PKCS #1: RFC 8017, A.1.1 - RSAPublicKey
  */
 static const ASNItem rsaPublicKeyASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/*  1 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-/*  2 */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/*  3 */            { 2, ASN_TAG_NULL, 0, 0, 1 },
-/*  4 */        { 1, ASN_BIT_STRING, 0, 1, 0 },
-                    /* RSAPublicKey */
-/*  5 */            { 2, ASN_SEQUENCE, 1, 1, 0 },
-/*  6 */                { 3, ASN_INTEGER, 0, 0, 0 },
-/*  7 */                { 3, ASN_INTEGER, 0, 0, 0 },
+/*  rsaPublicKeyASN_IDX_SEQ            */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/*  rsaPublicKeyASN_IDX_ALGOID_SEQ     */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/*  rsaPublicKeyASN_IDX_ALGOID_OID     */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/*  rsaPublicKeyASN_IDX_ALGOID_NULL    */         { 2, ASN_TAG_NULL, 0, 0, 1 },
+/*  rsaPublicKeyASN_IDX_PUBKEY         */     { 1, ASN_BIT_STRING, 0, 1, 0 },
+                                                  /* RSAPublicKey */
+/*  rsaPublicKeyASN_IDX_PUBKEY_RSA_SEQ */         { 2, ASN_SEQUENCE, 1, 1, 0 },
+/*  rsaPublicKeyASN_IDX_PUBKEY_RSA_N   */             { 3, ASN_INTEGER, 0, 0, 0 },
+/*  rsaPublicKeyASN_IDX_PUBKEY_RSA_E   */             { 3, ASN_INTEGER, 0, 0, 0 },
+};
+enum {
+    rsaPublicKeyASN_IDX_SEQ = 0,
+    rsaPublicKeyASN_IDX_ALGOID_SEQ,
+    rsaPublicKeyASN_IDX_ALGOID_OID,
+    rsaPublicKeyASN_IDX_ALGOID_NULL,
+    rsaPublicKeyASN_IDX_PUBKEY,
+    rsaPublicKeyASN_IDX_PUBKEY_RSA_SEQ,
+    rsaPublicKeyASN_IDX_PUBKEY_RSA_N,
+    rsaPublicKeyASN_IDX_PUBKEY_RSA_E,
 };
 
 /* Number of items in ASN.1 template for an RSA public key. */
@@ -7960,13 +7970,15 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
 
     if (ret == 0) {
         /* Try decoding PKCS #1 public key by ignoring rest of ASN.1. */
-        ret = GetASN_Items(&rsaPublicKeyASN[5], &dataASN[5],
-                           rsaPublicKeyASN_Length - 5, 0, input, inOutIdx,
-                           inSz);
+        ret = GetASN_Items(&rsaPublicKeyASN[rsaPublicKeyASN_IDX_PUBKEY_RSA_SEQ],
+                           &dataASN[rsaPublicKeyASN_IDX_PUBKEY_RSA_SEQ],
+                           rsaPublicKeyASN_Length - rsaPublicKeyASN_IDX_PUBKEY_RSA_SEQ,
+                           0, input, inOutIdx, inSz);
         if (ret != 0) {
             /* Didn't work - try whole SubjectKeyInfo instead. */
             /* Set the OID to expect. */
-            GetASN_ExpBuffer(&dataASN[2], keyRsaOid, sizeof(keyRsaOid));
+            GetASN_ExpBuffer(&dataASN[rsaPublicKeyASN_IDX_ALGOID_OID],
+                    keyRsaOid, sizeof(keyRsaOid));
             /* Decode SubjectKeyInfo. */
             ret = GetASN_Items(rsaPublicKeyASN, dataASN,
                                rsaPublicKeyASN_Length, 1, input, inOutIdx,
@@ -7976,16 +7988,16 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
     if (ret == 0) {
         /* Return the buffers and lengths asked for. */
         if (n != NULL) {
-            *n   = dataASN[6].data.ref.data;
+            *n   = dataASN[rsaPublicKeyASN_IDX_PUBKEY_RSA_N].data.ref.data;
         }
         if (nSz != NULL) {
-            *nSz = dataASN[6].data.ref.length;
+            *nSz = dataASN[rsaPublicKeyASN_IDX_PUBKEY_RSA_N].data.ref.length;
         }
         if (e != NULL) {
-            *e   = dataASN[7].data.ref.data;
+            *e   = dataASN[rsaPublicKeyASN_IDX_PUBKEY_RSA_E].data.ref.data;
         }
         if (eSz != NULL) {
-            *eSz = dataASN[7].data.ref.length;
+            *eSz = dataASN[rsaPublicKeyASN_IDX_PUBKEY_RSA_E].data.ref.length;
         }
     }
 
@@ -8044,16 +8056,18 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 
     if (ret == 0) {
         /* Set mp_ints to fill with modulus and exponent data. */
-        GetASN_MP(&dataASN[6], &key->n);
-        GetASN_MP(&dataASN[7], &key->e);
+        GetASN_MP(&dataASN[rsaPublicKeyASN_IDX_PUBKEY_RSA_N], &key->n);
+        GetASN_MP(&dataASN[rsaPublicKeyASN_IDX_PUBKEY_RSA_E], &key->e);
         /* Try decoding PKCS #1 public key by ignoring rest of ASN.1. */
-        ret = GetASN_Items(&rsaPublicKeyASN[5], &dataASN[5],
-                           rsaPublicKeyASN_Length - 5, 0, input, inOutIdx,
-                           inSz);
+        ret = GetASN_Items(&rsaPublicKeyASN[rsaPublicKeyASN_IDX_PUBKEY_RSA_SEQ],
+                           &dataASN[rsaPublicKeyASN_IDX_PUBKEY_RSA_SEQ],
+                           rsaPublicKeyASN_Length - rsaPublicKeyASN_IDX_PUBKEY_RSA_SEQ,
+                           0, input, inOutIdx, inSz);
         if (ret != 0) {
             /* Didn't work - try whole SubjectKeyInfo instead. */
             /* Set the OID to expect. */
-            GetASN_ExpBuffer(&dataASN[2], keyRsaOid, sizeof(keyRsaOid));
+            GetASN_ExpBuffer(&dataASN[rsaPublicKeyASN_IDX_ALGOID_OID],
+                    keyRsaOid, sizeof(keyRsaOid));
             /* Decode SubjectKeyInfo. */
             ret = GetASN_Items(rsaPublicKeyASN, dataASN,
                                rsaPublicKeyASN_Length, 1, input, inOutIdx,
@@ -20223,17 +20237,17 @@ static int SetRsaPublicKey(byte* output, RsaKey* key, int outLen,
     if (ret == 0) {
         if (!with_header) {
             /* Start encoding with items after header. */
-            o = 5;
+            o = rsaPublicKeyASN_IDX_PUBKEY_RSA_SEQ;
         }
         /* Set OID for RSA key. */
-        SetASN_OID(&dataASN[2], RSAk, oidKeyType);
+        SetASN_OID(&dataASN[rsaPublicKeyASN_IDX_ALGOID_OID], RSAk, oidKeyType);
         /* Set public key mp_ints. */
     #ifdef HAVE_USER_RSA
-        SetASN_MP(&dataASN[6], key->n);
-        SetASN_MP(&dataASN[7], key->e);
+        SetASN_MP(&dataASN[rsaPublicKeyASN_IDX_PUBKEY_RSA_N], key->n);
+        SetASN_MP(&dataASN[rsaPublicKeyASN_IDX_PUBKEY_RSA_E], key->e);
     #else
-        SetASN_MP(&dataASN[6], &key->n);
-        SetASN_MP(&dataASN[7], &key->e);
+        SetASN_MP(&dataASN[rsaPublicKeyASN_IDX_PUBKEY_RSA_N], &key->n);
+        SetASN_MP(&dataASN[rsaPublicKeyASN_IDX_PUBKEY_RSA_E], &key->e);
     #endif
         /* Calculate size of RSA public key. */
         ret = SizeASN_Items(rsaPublicKeyASN + o, dataASN + o,
