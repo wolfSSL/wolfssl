@@ -262,7 +262,19 @@ This library provides single precision (SP) integer math functions.
 
 
 #ifndef WOLFSSL_NO_ASM
+    #ifdef __IAR_SYSTEMS_ICC__
+        #define __asm__        asm
+        #define __volatile__   volatile
+    #endif /* __IAR_SYSTEMS_ICC__ */
+    #ifdef __KEIL__
+        #define __asm__        __asm
+        #define __volatile__   volatile
+    #endif
+
     #if defined(WOLFSSL_SP_X86_64) && SP_WORD_SIZE == 64
+/*
+ * CPU: x86_64
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -445,6 +457,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     #endif /* WOLFSSL_SP_X86_64 && SP_WORD_SIZE == 64 */
 
     #if defined(WOLFSSL_SP_X86) && SP_WORD_SIZE == 32
+/*
+ * CPU: x86
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -627,6 +642,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     #endif /* WOLFSSL_SP_X86 && SP_WORD_SIZE == 32 */
 
     #if defined(WOLFSSL_SP_ARM64) && SP_WORD_SIZE == 64
+/*
+ * CPU: Aarch64
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -772,6 +790,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 
     #if (defined(WOLFSSL_SP_ARM32) || defined(WOLFSSL_SP_ARM_CORTEX_M)) && \
         SP_WORD_SIZE == 32
+/*
+ * CPU: ARM32 or Cortex-M4 and similar
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -902,6 +923,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     #endif /* (WOLFSSL_SP_ARM32 || ARM_CORTEX_M) && SP_WORD_SIZE == 32 */
 
     #if defined(WOLFSSL_SP_PPC64) && SP_WORD_SIZE == 64
+/*
+ * CPU: PPC64
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -1046,6 +1070,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     #endif /* WOLFSSL_SP_PPC64 && SP_WORD_SIZE == 64 */
 
     #if defined(WOLFSSL_SP_PPC) && SP_WORD_SIZE == 32
+/*
+ * CPU: PPC 32-bit
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -1190,6 +1217,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     #endif /* WOLFSSL_SP_PPC && SP_WORD_SIZE == 64 */
 
     #if defined(WOLFSSL_SP_MIPS64) && SP_WORD_SIZE == 64
+/*
+ * CPU: MIPS 64-bit
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -1388,6 +1418,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     #endif /* WOLFSSL_SP_MIPS64 && SP_WORD_SIZE == 64 */
 
     #if defined(WOLFSSL_SP_MIPS) && SP_WORD_SIZE == 32
+/*
+ * CPU: MIPS 32-bit
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -1586,6 +1619,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     #endif /* WOLFSSL_SP_MIPS && SP_WORD_SIZE == 32 */
 
     #if defined(WOLFSSL_SP_RISCV64) && SP_WORD_SIZE == 64
+/*
+ * CPU: RISCV 64-bit
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -1775,6 +1811,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     #endif /* WOLFSSL_SP_RISCV64 && SP_WORD_SIZE == 64 */
 
     #if defined(WOLFSSL_SP_RISCV32) && SP_WORD_SIZE == 32
+/*
+ * CPU: RISCV 32-bit
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -1964,6 +2003,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     #endif /* WOLFSSL_SP_RISCV32 && SP_WORD_SIZE == 32 */
 
     #if defined(WOLFSSL_SP_S390X) && SP_WORD_SIZE == 64
+/*
+ * CPU: Intel s390x
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -2129,6 +2171,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 
 #endif /* !WOLFSSL_NO_ASM */
 
+
 #if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
     !defined(NO_DSA) || !defined(NO_DH) || \
     (defined(HAVE_ECC) && defined(HAVE_COMP_KEY)) || defined(OPENSSL_EXTRA) || \
@@ -2142,6 +2185,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     };
 #endif
 #endif
+
 
 #if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
 
@@ -2165,7 +2209,8 @@ WOLFSSL_LOCAL int sp_ModExp_4096(sp_int* base, sp_int* exp, sp_int* mod,
 } /* extern "C" */
 #endif
 
-#endif
+#endif /* WOLFSSL_HAVE_SP_DH || WOLFSSL_HAVE_SP_RSA */
+
 
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH)
 static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp);
@@ -12504,7 +12549,7 @@ static int _sp_read_radix_16(sp_int* a, const char* in)
 
     a->dp[0] = 0;
     for (i = (int)(XSTRLEN(in) - 1); i >= 0; i--) {
-        int ch = (int)HexCharToByte(in[i]);
+        int ch = (int)(signed char)HexCharToByte(in[i]);
         if (ch < 0) {
             err = MP_VAL;
             break;
