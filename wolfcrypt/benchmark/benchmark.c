@@ -5563,6 +5563,7 @@ exit:
     FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 #endif
 
+    (void)doAsync;
     (void)pending;
     (void)x;
     (void)count;
