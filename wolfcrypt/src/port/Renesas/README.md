@@ -61,7 +61,7 @@ SHA                 12 MB took 1.001 seconds,   11.515 MB/s
 SHA-256             13 MB took 1.001 seconds,   12.900 MB/s
 ```
 *TLS establishment time with TLS-linked capability*  
-*Perform full TlS-linked capability*
+*Perform full TLS-linked capability*
 ```
 TLS_RSA_WITH_AES_128_CBC_SHA          : 0.141 (s)
 TLS_RSA_WITH_AES_128_CBC_SHA256       : 0.141 (s)
