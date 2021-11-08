@@ -2595,6 +2595,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         }
 #endif
 
+        ret = 0;
 #ifdef WOLFSSL_SNIFFER_KEY_CALLBACK
         if (KeyCb != NULL && ksInfo) {
             if (keyBuf == NULL) {
@@ -2701,6 +2702,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         }
 #endif
 
+        ret = 0;
 #ifdef WOLFSSL_SNIFFER_KEY_CALLBACK
         if (KeyCb != NULL && ksInfo) {
             if (keyBuf == NULL) {
