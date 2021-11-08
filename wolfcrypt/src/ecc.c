@@ -11749,7 +11749,11 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 
 #ifndef WOLFSSL_ECIES_OLD
     if (privKey->type == ECC_PRIVATEKEY_ONLY) {
+#ifdef ECC_TIMING_RESISTANT
         ret = wc_ecc_make_pub_ex(privKey, NULL, privKey->rng);
+#else
+        ret = wc_ecc_make_pub_ex(privKey, NULL, NULL);
+#endif
         if (ret != 0)
             return ret;
     }

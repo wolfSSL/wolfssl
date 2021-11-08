@@ -24405,6 +24405,8 @@ static int ecc_encrypt_kat(WC_RNG *rng)
             ret = -10456;
         }
     }
+#else
+    (void)rng;
 #endif
 
     if (ret == 0) {
@@ -31136,7 +31138,9 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 
     pkcs7EnvelopedVector *testVectors = NULL;
 
+#ifdef ECC_TIMING_RESISTANT
     XMEMSET(&rng, 0, sizeof(rng));
+#endif
 
     testVectors = (pkcs7EnvelopedVector *)XMALLOC(MAX_TESTVECTORS_LEN * sizeof(*testVectors),
                                      HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
