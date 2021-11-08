@@ -9918,14 +9918,15 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     return 0;
 #endif
 #else
-    ASNGetData dataASN[rsaCertKeyASN_Length];
-    int ret;
+    int ret = 0;
+    DECL_ASNGETDATA(dataASN, rsaCertKeyASN_Length);
 
-    /* No dynamic data. */
-    XMEMSET(dataASN, 0, sizeof(dataASN));
-    /* Decode the header before the key data. */
-    ret = GetASN_Items(rsaCertKeyASN, dataASN, rsaCertKeyASN_Length, 1, source,
-                       srcIdx, maxIdx);
+    CALLOC_ASNGETDATA(dataASN, rsaCertKeyASN_Length, ret, cert->heap);
+    if (ret == 0) {
+        /* Decode the header before the key data. */
+        ret = GetASN_Items(rsaCertKeyASN, dataASN, rsaCertKeyASN_Length, 1,
+                source, srcIdx, maxIdx);
+    }
     if (ret == 0) {
         /* Store the pointer and length in certificate object starting at
          * SEQUENCE. */
@@ -9943,6 +9944,7 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
                          cert->subjectKeyHash);
     #endif
     }
+    FREE_ASNGETDATA(dataASN, cert->heap);
 
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
@@ -9954,9 +9956,16 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for header before ECC key in certificate. */
 static const ASNItem eccCertKeyASN[] = {
-/*  0 */        { 1, ASN_OBJECT_ID, 0, 0, 2 },
-/*  1 */        { 1, ASN_SEQUENCE, 1, 0, 2 },
-/*  2 */    { 0, ASN_BIT_STRING, 0, 0, 0 },
+/* eccCertKeyASN_IDX_OID        */     { 1, ASN_OBJECT_ID, 0, 0, 2 },
+                            /* Algo parameters */
+/* eccCertKeyASN_IDX_PARAMS     */     { 1, ASN_SEQUENCE, 1, 0, 2 },
+                            /* Subject public key */
+/* eccCertKeyASN_IDX_SUBJPUBKEY */ { 0, ASN_BIT_STRING, 0, 0, 0 },
+};
+enum {
+    eccCertKeyASN_IDX_OID = 0,
+    eccCertKeyASN_IDX_PARAMS,
+    eccCertKeyASN_IDX_SUBJPUBKEY,
 };
 
 /* Number of items in ASN.1 template for header before ECC key in cert. */
@@ -10042,26 +10051,29 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
 
     return 0;
 #else
-    ASNGetData dataASN[eccCertKeyASN_Length];
-    int ret;
+    int ret = 0;
+    DECL_ASNGETDATA(dataASN, eccCertKeyASN_Length);
     byte* publicKey;
 
     /* Clear dynamic data and check OID is a curve. */
-    XMEMSET(dataASN, 0, sizeof(dataASN));
-    GetASN_OID(&dataASN[0], oidCurveType);
-    /* Parse ECC public key header. */
-    ret = GetASN_Items(eccCertKeyASN, dataASN, eccCertKeyASN_Length, 1, source,
-                       srcIdx, maxIdx);
+    CALLOC_ASNGETDATA(dataASN, eccCertKeyASN_Length, ret, cert->heap);
     if (ret == 0) {
-        if (dataASN[0].tag != 0) {
+        GetASN_OID(&dataASN[eccCertKeyASN_IDX_OID], oidCurveType);
+        /* Parse ECC public key header. */
+        ret = GetASN_Items(eccCertKeyASN, dataASN, eccCertKeyASN_Length, 1,
+                source, srcIdx, maxIdx);
+    }
+    if (ret == 0) {
+        if (dataASN[eccCertKeyASN_IDX_OID].tag != 0) {
             /* Store curve OID. */
-            cert->pkCurveOID = dataASN[0].data.oid.sum;
+            cert->pkCurveOID = dataASN[eccCertKeyASN_IDX_OID].data.oid.sum;
         }
         /* Ignore explicit parameters. */
 
     #ifdef HAVE_OCSP
         /* Calculate the hash of the subject public key for OCSP. */
-        ret = CalcHashId(dataASN[2].data.ref.data, dataASN[2].data.ref.length,
+        ret = CalcHashId(dataASN[eccCertKeyASN_IDX_SUBJPUBKEY].data.ref.data,
+                         dataASN[eccCertKeyASN_IDX_SUBJPUBKEY].data.ref.length,
                          cert->subjectKeyHash);
     }
     if (ret == 0) {
@@ -10083,6 +10095,7 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
             cert->pubKeyStored = 1;
         }
     }
+    FREE_ASNGETDATA(dataASN, cert->heap);
 
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
