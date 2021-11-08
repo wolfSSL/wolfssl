@@ -8215,30 +8215,47 @@ enum {
 /* ASN.1 template for DH key wrapped in PKCS #8 or SubjectPublicKeyInfo.
  * PKCS #8: RFC 5208, 5 - PrivateKeyInfo
  * X.509: RFC 5280, 4.1 - SubjectPublicKeyInfo
- * RFC 3279, 2.3.2 - DH in SubjectPublicKeyInfo
+ * RFC 3279, 2.3.3 - DH in SubjectPublicKeyInfo
  */
 static const ASNItem dhKeyPkcs8ASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/*  1 */        { 1, ASN_INTEGER, 0, 0, 1 },
-/*  2 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-/*  3 */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
-                    /* DHParameter */
-/*  4 */            { 2, ASN_SEQUENCE, 1, 1, 0 },
-                        /* p */
-/*  5 */                { 3, ASN_INTEGER, 0, 0, 0 },
-                        /* g */
-/*  6 */                { 3, ASN_INTEGER, 0, 0, 0 },
-                        /* q - factor of p-1 */
-/*  7 */                { 3, ASN_INTEGER, 0, 0, 1 },
-                        /* j - subgroup factor */
-/*  8 */                { 3, ASN_INTEGER, 0, 0, 1 },
-/*  9 */                { 3, ASN_SEQUENCE, 0, 0, 1 },
-                /* PrivateKey - PKCS #8 */
-/* 10 */        { 1, ASN_OCTET_STRING, 0, 1, 2 },
-/* 11 */            { 2, ASN_INTEGER, 0, 0, 0 },
-                /* PublicKey - SubjectPublicKeyInfo. */
-/* 12 */        { 1, ASN_BIT_STRING, 0, 1, 2 },
-/* 13 */            { 2, ASN_INTEGER, 0, 0, 0 },
+/* dhKeyPkcs8ASN_IDX_SEQ                  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* dhKeyPkcs8ASN_IDX_VER                  */     { 1, ASN_INTEGER, 0, 0, 1 },
+/* dhKeyPkcs8ASN_IDX_PKEYALGO_SEQ         */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* dhKeyPkcs8ASN_IDX_PKEYALGO_OID         */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+                                                     /* DHParameter */
+/* dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_SEQ   */         { 2, ASN_SEQUENCE, 1, 1, 0 },
+                                                         /* p */
+/* dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_P     */             { 3, ASN_INTEGER, 0, 0, 0 },
+                                                         /* g */
+/* dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_G     */             { 3, ASN_INTEGER, 0, 0, 0 },
+                                                         /* q - factor of p-1 */
+/* dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_Q     */             { 3, ASN_INTEGER, 0, 0, 1 },
+                                                         /* j - subgroup factor */
+/* dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_J     */             { 3, ASN_INTEGER, 0, 0, 1 },
+                                                         /* ValidationParms */
+/* dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_VALID */             { 3, ASN_SEQUENCE, 0, 0, 1 },
+                                                 /* PrivateKey - PKCS #8 */
+/* dhKeyPkcs8ASN_IDX_PKEY_STR             */     { 1, ASN_OCTET_STRING, 0, 1, 2 },
+/* dhKeyPkcs8ASN_IDX_PKEY_INT             */         { 2, ASN_INTEGER, 0, 0, 0 },
+                                                 /* PublicKey - SubjectPublicKeyInfo. */
+/* dhKeyPkcs8ASN_IDX_PUBKEY_STR           */     { 1, ASN_BIT_STRING, 0, 1, 2 },
+/* dhKeyPkcs8ASN_IDX_PUBKEY_INT           */         { 2, ASN_INTEGER, 0, 0, 0 },
+};
+enum {
+    dhKeyPkcs8ASN_IDX_SEQ = 0,
+    dhKeyPkcs8ASN_IDX_VER,
+    dhKeyPkcs8ASN_IDX_PKEYALGO_SEQ,
+    dhKeyPkcs8ASN_IDX_PKEYALGO_OID,
+    dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_SEQ,
+    dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_P,
+    dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_G,
+    dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_Q,
+    dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_J,
+    dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_VALID,
+    dhKeyPkcs8ASN_IDX_PKEY_STR,
+    dhKeyPkcs8ASN_IDX_PKEY_INT,
+    dhKeyPkcs8ASN_IDX_PUBKEY_STR,
+    dhKeyPkcs8ASN_IDX_PUBKEY_INT,
 };
 
 #define dhKeyPkcs8ASN_Length (sizeof(dhKeyPkcs8ASN) / sizeof(ASNItem))
@@ -8399,21 +8416,24 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
         if (ret != 0) {
             /* Initialize data and set mp_ints to hold p, g, q, priv and pub. */
             XMEMSET(dataASN, 0, sizeof(*dataASN) * dhKeyPkcs8ASN_Length);
-            GetASN_ExpBuffer(&dataASN[3], keyDhOid, sizeof(keyDhOid));
-            GetASN_MP(&dataASN[5], &key->p);
-            GetASN_MP(&dataASN[6], &key->g);
-            GetASN_MP(&dataASN[7], &key->q);
-            GetASN_MP(&dataASN[11], &key->priv);
-            GetASN_MP(&dataASN[13], &key->pub);
+            GetASN_ExpBuffer(&dataASN[dhKeyPkcs8ASN_IDX_PKEYALGO_OID],
+                    keyDhOid, sizeof(keyDhOid));
+            GetASN_MP(&dataASN[dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_P], &key->p);
+            GetASN_MP(&dataASN[dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_G], &key->g);
+            GetASN_MP(&dataASN[dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_Q], &key->q);
+            GetASN_MP(&dataASN[dhKeyPkcs8ASN_IDX_PKEY_INT], &key->priv);
+            GetASN_MP(&dataASN[dhKeyPkcs8ASN_IDX_PUBKEY_INT], &key->pub);
             /* Try PKCS #8 wrapped template. */
             ret = GetASN_Items(dhKeyPkcs8ASN, dataASN, dhKeyPkcs8ASN_Length, 1,
                                input, inOutIdx, inSz);
             if (ret == 0) {
-                if ((dataASN[11].length != 0) && (dataASN[1].length == 0)) {
+                /* VERSION only present in PKCS #8 private key structure */
+                if ((dataASN[dhKeyPkcs8ASN_IDX_PKEY_INT].length != 0) &&
+                        (dataASN[dhKeyPkcs8ASN_IDX_VER].length == 0)) {
                     ret = ASN_PARSE_E;
                 }
-                else if ((dataASN[13].length != 0) &&
-                                                     (dataASN[1].length != 0)) {
+                else if ((dataASN[dhKeyPkcs8ASN_IDX_PUBKEY_INT].length != 0) &&
+                        (dataASN[dhKeyPkcs8ASN_IDX_VER].length != 0)) {
                     ret = ASN_PARSE_E;
                 }
             }
@@ -8525,25 +8545,25 @@ int wc_DhKeyToDer(DhKey* key, byte* output, word32* outSz, int exportPriv)
     WOLFSSL_ENTER("wc_DhKeyToDer");
 
     XMEMSET(dataASN, 0, sizeof(dataASN));
-    SetASN_Int8Bit(&dataASN[1], 0);
-    SetASN_OID(&dataASN[3], DHk, oidKeyType);
+    SetASN_Int8Bit(&dataASN[dhKeyPkcs8ASN_IDX_VER], 0);
+    SetASN_OID(&dataASN[dhKeyPkcs8ASN_IDX_PKEYALGO_OID], DHk, oidKeyType);
     /* Set mp_int containing p and g. */
-    SetASN_MP(&dataASN[5], &key->p);
-    SetASN_MP(&dataASN[6], &key->g);
-    dataASN[7].noOut = 1;
-    dataASN[8].noOut = 1;
-    dataASN[9].noOut = 1;
+    SetASN_MP(&dataASN[dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_P], &key->p);
+    SetASN_MP(&dataASN[dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_G], &key->g);
+    dataASN[dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_Q].noOut = 1;
+    dataASN[dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_J].noOut = 1;
+    dataASN[dhKeyPkcs8ASN_IDX_PKEYALGO_PARAM_VALID].noOut = 1;
 
     if (exportPriv) {
-        SetASN_MP(&dataASN[11], &key->priv);
-        dataASN[12].noOut = 1;
-        dataASN[13].noOut = 1;
+        SetASN_MP(&dataASN[dhKeyPkcs8ASN_IDX_PKEY_INT], &key->priv);
+        dataASN[dhKeyPkcs8ASN_IDX_PUBKEY_STR].noOut = 1;
+        dataASN[dhKeyPkcs8ASN_IDX_PUBKEY_INT].noOut = 1;
     }
     else {
-        dataASN[1].noOut = 1;
-        dataASN[10].noOut = 1;
-        dataASN[11].noOut = 1;
-        SetASN_MP(&dataASN[13], &key->pub);
+        dataASN[dhKeyPkcs8ASN_IDX_VER].noOut = 1;
+        dataASN[dhKeyPkcs8ASN_IDX_PKEY_STR].noOut = 1;
+        dataASN[dhKeyPkcs8ASN_IDX_PKEY_INT].noOut = 1;
+        SetASN_MP(&dataASN[dhKeyPkcs8ASN_IDX_PUBKEY_INT], &key->pub);
     }
 
     /* Calculate the size of the DH parameters. */
