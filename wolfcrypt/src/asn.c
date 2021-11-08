@@ -7408,16 +7408,25 @@ static int Pkcs8Pad(byte* buf, int sz, int blockSz)
  * PKCS #5: RFC 8018, A.3 - PBEParameter
  */
 static const ASNItem p8EncPbes1ASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/*  1 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* p8EncPbes1ASN_IDX_SEQ                   */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* p8EncPbes1ASN_IDX_ENCALGO_SEQ           */     { 1, ASN_SEQUENCE, 1, 1, 0 },
                     /* PBE algorithm */
-/*  2 */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/*  3 */            { 2, ASN_SEQUENCE, 1, 1, 0 },
+/* p8EncPbes1ASN_IDX_ENCALGO_OID           */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* p8EncPbes1ASN_IDX_ENCALGO_PBEPARAM_SEQ  */         { 2, ASN_SEQUENCE, 1, 1, 0 },
                         /* Salt */
-/*  4 */                { 3, ASN_OCTET_STRING, 0, 0, 0 },
+/* p8EncPbes1ASN_IDX_ENCALGO_PBEPARAM_SALT */             { 3, ASN_OCTET_STRING, 0, 0, 0 },
                         /* Iteration Count */
-/*  5 */                { 3, ASN_INTEGER, 0, 0, 0 },
-/*  6 */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
+/* p8EncPbes1ASN_IDX_ENCALGO_PBEPARAM_ITER */             { 3, ASN_INTEGER, 0, 0, 0 },
+/* p8EncPbes1ASN_IDX_ENCDATA               */     { 1, ASN_OCTET_STRING, 0, 0, 0 },
+};
+enum {
+    p8EncPbes1ASN_IDX_SEQ = 0,
+    p8EncPbes1ASN_IDX_ENCALGO_SEQ,
+    p8EncPbes1ASN_IDX_ENCALGO_OID,
+    p8EncPbes1ASN_IDX_ENCALGO_PBEPARAM_SEQ,
+    p8EncPbes1ASN_IDX_ENCALGO_PBEPARAM_SALT,
+    p8EncPbes1ASN_IDX_ENCALGO_PBEPARAM_ITER,
+    p8EncPbes1ASN_IDX_ENCDATA,
 };
 
 #define p8EncPbes1ASN_Length (sizeof(p8EncPbes1ASN) / sizeof(ASNItem))
@@ -7674,20 +7683,21 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     if (ret == 0) {
         /* Setup data to go into encoding including PBE algorithm, salt,
          * iteration count, and padded key length. */
-        SetASN_OID(&dataASN[2], id, oidPBEType);
+        SetASN_OID(&dataASN[p8EncPbes1ASN_IDX_ENCALGO_OID], id, oidPBEType);
         if (salt == NULL || saltSz == 0) {
             salt = NULL;
             saltSz = PKCS5_SALT_SZ;
             /* Salt generated into encoding below. */
         }
-        SetASN_Buffer(&dataASN[4], salt, saltSz);
-        SetASN_Int16Bit(&dataASN[5], itt);
+        SetASN_Buffer(&dataASN[p8EncPbes1ASN_IDX_ENCALGO_PBEPARAM_SALT], salt, saltSz);
+        SetASN_Int16Bit(&dataASN[p8EncPbes1ASN_IDX_ENCALGO_PBEPARAM_ITER], itt);
         pkcs8Sz = Pkcs8Pad(NULL, inputSz, blockSz);
-        SetASN_Buffer(&dataASN[6], NULL, pkcs8Sz);
+        SetASN_Buffer(&dataASN[p8EncPbes1ASN_IDX_ENCDATA], NULL, pkcs8Sz);
 
         /* Calculate size of encoding. */
-        ret = SizeASN_Items(p8EncPbes1ASN + 1, dataASN + 1,
-                            p8EncPbes1ASN_Length - 1, &sz);
+        ret = SizeASN_Items(p8EncPbes1ASN + p8EncPbes1ASN_IDX_ENCALGO_SEQ,
+                            dataASN + p8EncPbes1ASN_IDX_ENCALGO_SEQ,
+                            p8EncPbes1ASN_Length - p8EncPbes1ASN_IDX_ENCALGO_SEQ, &sz);
     }
     /* Return size when no output buffer. */
     if ((ret == 0) && (out == NULL)) {
@@ -7700,18 +7710,20 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     }
     if (ret == 0) {
         /* Encode PKCS#8 key. */
-        SetASN_Items(p8EncPbes1ASN + 1, dataASN + 1, p8EncPbes1ASN_Length - 1,
+        SetASN_Items(p8EncPbes1ASN + p8EncPbes1ASN_IDX_ENCALGO_SEQ,
+                     dataASN + p8EncPbes1ASN_IDX_ENCALGO_SEQ,
+                     p8EncPbes1ASN_Length - p8EncPbes1ASN_IDX_ENCALGO_SEQ,
                      out);
 
         if (salt == NULL) {
             /* Generate salt into encoding. */
-            salt = (byte*)dataASN[4].data.buffer.data;
+            salt = (byte*)dataASN[p8EncPbes1ASN_IDX_ENCALGO_PBEPARAM_SALT].data.buffer.data;
             ret = wc_RNG_GenerateBlock(rng, salt, saltSz);
         }
     }
     if (ret == 0) {
         /* Store PKCS#8 key in output buffer. */
-        pkcs8 = (byte*)dataASN[6].data.buffer.data;
+        pkcs8 = (byte*)dataASN[p8EncPbes1ASN_IDX_ENCDATA].data.buffer.data;
         XMEMCPY(pkcs8, input, inputSz);
 
         /* Encrypt PKCS#8 key inline. */
