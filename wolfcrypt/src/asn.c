@@ -8193,13 +8193,19 @@ int wc_DhPublicKeyDecode(const byte* input, word32* inOutIdx,
  * (Also in: RFC 2786, 3)
  */
 static const ASNItem dhParamASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* dhParamASN_IDX_SEQ     */    { 0, ASN_SEQUENCE, 1, 1, 0 },
                 /* prime */
-/*  1 */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* dhParamASN_IDX_PRIME   */        { 1, ASN_INTEGER, 0, 0, 0 },
                 /* base */
-/*  2 */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* dhParamASN_IDX_BASE    */        { 1, ASN_INTEGER, 0, 0, 0 },
                 /* privateValueLength */
-/*  3 */        { 1, ASN_INTEGER, 0, 0, 1 },
+/* dhParamASN_IDX_PRIVLEN */        { 1, ASN_INTEGER, 0, 0, 1 },
+};
+enum {
+    dhParamASN_IDX_SEQ = 0,
+    dhParamASN_IDX_PRIME,
+    dhParamASN_IDX_BASE,
+    dhParamASN_IDX_PRIVLEN,
 };
 
 /* Number of items in ASN.1 template for DH key. */
@@ -8384,8 +8390,8 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
     if (ret == 0) {
         /* Initialize data and set mp_ints to hold p and g. */
         XMEMSET(dataASN, 0, sizeof(*dataASN) * dhParamASN_Length);
-        GetASN_MP(&dataASN[1], &key->p);
-        GetASN_MP(&dataASN[2], &key->g);
+        GetASN_MP(&dataASN[dhParamASN_IDX_PRIME], &key->p);
+        GetASN_MP(&dataASN[dhParamASN_IDX_BASE], &key->g);
         /* Try simple PKCS #3 template. */
         ret = GetASN_Items(dhParamASN, dataASN, dhParamASN_Length, 1, input,
                            inOutIdx, inSz);
@@ -8633,10 +8639,10 @@ int wc_DhParamsToDer(DhKey* key, byte* output, word32* outSz)
     if (ret == 0) {
         XMEMSET(dataASN, 0, sizeof(dataASN));
         /* Set mp_int containing p and g. */
-        SetASN_MP(&dataASN[1], &key->p);
-        SetASN_MP(&dataASN[2], &key->g);
+        SetASN_MP(&dataASN[dhParamASN_IDX_PRIME], &key->p);
+        SetASN_MP(&dataASN[dhParamASN_IDX_BASE], &key->g);
         /* privateValueLength not encoded. */
-        dataASN[3].noOut = 1;
+        dataASN[dhParamASN_IDX_PRIVLEN].noOut = 1;
 
         /* Calculate the size of the DH parameters. */
         ret = SizeASN_Items(dhParamASN, dataASN, dhParamASN_Length, &sz);
@@ -8737,8 +8743,8 @@ int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
 
     if (ret == 0) {
         /* Set the buffers to copy p and g into. */
-        GetASN_Buffer(&dataASN[1], p, pInOutSz);
-        GetASN_Buffer(&dataASN[2], g, gInOutSz);
+        GetASN_Buffer(&dataASN[dhParamASN_IDX_PRIME], p, pInOutSz);
+        GetASN_Buffer(&dataASN[dhParamASN_IDX_BASE], g, gInOutSz);
         /* Decode the DH Parameters. */
         ret = GetASN_Items(dhParamASN, dataASN, dhParamASN_Length, 1, input,
                            &idx, inSz);
@@ -26160,10 +26166,10 @@ int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
     if (ret == 0) {
         XMEMSET(dataASN, 0, sizeof(dataASN));
         /* Set mp_int containing p and g. */
-        SetASN_MP(&dataASN[1], p);
-        SetASN_MP(&dataASN[2], g);
+        SetASN_MP(&dataASN[dhParamASN_IDX_PRIME], p);
+        SetASN_MP(&dataASN[dhParamASN_IDX_BASE], g);
         /* privateValueLength not encoded. */
-        dataASN[3].noOut = 1;
+        dataASN[dhParamASN_IDX_PRIVLEN].noOut = 1;
 
         /* Calculate the size of the DH parameters. */
         ret = SizeASN_Items(dhParamASN, dataASN, dhParamASN_Length, &sz);
