@@ -9862,8 +9862,12 @@ static int StoreKey(DecodedCert* cert, const byte* source, word32* srcIdx,
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for header before RSA key in certificate. */
 static const ASNItem rsaCertKeyASN[] = {
-/*  0 */    { 0, ASN_BIT_STRING, 0, 1, 0 },
-/*  1 */        { 1, ASN_SEQUENCE, 1, 0, 0 },
+/* rsaCertKeyASN_IDX_STR */ { 0, ASN_BIT_STRING, 0, 1, 0 },
+/* rsaCertKeyASN_IDX_SEQ */     { 1, ASN_SEQUENCE, 1, 0, 0 },
+};
+enum {
+    rsaCertKeyASN_IDX_STR = 0,
+    rsaCertKeyASN_IDX_SEQ,
 };
 
 /* Number of items in ASN.1 template for header before RSA key in cert. */
@@ -9925,12 +9929,13 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     if (ret == 0) {
         /* Store the pointer and length in certificate object starting at
          * SEQUENCE. */
-        GetASN_GetConstRef(&dataASN[0], &cert->publicKey, &cert->pubKeySize);
+        GetASN_GetConstRef(&dataASN[rsaCertKeyASN_IDX_STR],
+                &cert->publicKey, &cert->pubKeySize);
 
     #if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
         /* Start of SEQUENCE. */
         cert->sigCtx.CertAtt.pubkey_n_start =
-            cert->sigCtx.CertAtt.pubkey_e_start = dataASN[1].offset;
+            cert->sigCtx.CertAtt.pubkey_e_start = dataASN[rsaCertKeyASN_IDX_SEQ].offset;
     #endif
     #ifdef HAVE_OCSP
         /* Calculate the hash of the public key for OCSP. */
