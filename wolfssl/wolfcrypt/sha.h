@@ -110,7 +110,7 @@ enum {
     #include "wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h"
 #else
 
-#if defined(WOLFSSL_SE050)
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
     #include "wolfssl/wolfcrypt/port/nxp/se050_port.h"
 #endif
 
@@ -118,7 +118,7 @@ enum {
 struct wc_Sha {
 #ifdef FREESCALE_LTC_SHA
         ltc_hash_ctx_t ctx;
-#elif defined(WOLFSSL_SE050)
+#elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
         SE050_HASH_Context se050Ctx;
 #elif defined(STM32_HASH)
         STM32_HASH_Context stmCtx;

@@ -336,7 +336,7 @@
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
 
     /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
-#elif defined(WOLFSSL_SE050)
+#elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
 
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
     int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
@@ -846,7 +846,7 @@ void wc_ShaFree(wc_Sha* sha)
 #ifdef WOLFSSL_PIC32MZ_HASH
     wc_ShaPic32Free(sha);
 #endif
-#ifdef WOLFSSL_SE050
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
    se050_hash_free(&sha->se050Ctx);
 #endif
 #if (defined(WOLFSSL_RENESAS_TSIP_CRYPT) && \

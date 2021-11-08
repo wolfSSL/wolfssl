@@ -54,30 +54,27 @@
 
 
 /* Default key ID's */
-#ifndef SE050_KEYID_AES
-#define SE050_KEYID_AES        55
+#ifndef SE050_KEYSTOREID_AES
+#define SE050_KEYSTOREID_AES     55
 #endif
-#ifndef SE050_KEYID_ECC_SIGN
-#define SE050_KEYID_ECC_SIGN   56
+#ifndef SE050_KEYSTOREID_ED25519
+#define SE050_KEYSTOREID_ED25519 58
 #endif
-#ifndef SE050_KEYID_ECC_VERIFY 
-#define SE050_KEYID_ECC_VERIFY 57
+#ifndef SE050_KEYSTOREID_ECC
+#define SE050_KEYSTOREID_ECC     60
 #endif
-#ifndef SE050_KEYID_ED25519
-#define SE050_KEYID_ED25519    58
-#endif
-
 
 enum {
-    SSS_BLOCK_SIZE = 512
+    SSS_BLOCK_SIZE = 512,
+
+    SSS_MAX_ECC_BITS = 521
 };
 
 enum SE050KeyType {
-    SE050_KEYID_ANY,
+    SE050_ANY_KEY,
     SE050_AES_KEY,
-    SE050_ECC_SIGN,
-    SE050_ECC_VERIFY,
-    SE050_ED25519,
+    SE050_ECC_KEY,
+    SE050_ED25519_KEY
 };
 
 
@@ -131,12 +128,12 @@ WOLFSSL_LOCAL int se050_ecc_sign_hash_ex(const byte* in, word32 inLen,
     byte* out, word32 *outLen, struct ecc_key* key);
 
 WOLFSSL_LOCAL int se050_ecc_verify_hash_ex(const byte* hash, word32 hashlen,
-    byte* signature, word32 signatureLen, struct ecc_key* key, int* res);
+    byte* sigRS, word32 sigRSLen, struct ecc_key* key, int* res);
 
 WOLFSSL_LOCAL int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize);
 WOLFSSL_LOCAL int se050_ecc_shared_secret(struct ecc_key* private_key,
     struct ecc_key* public_key, byte* out, word32* outlen);
-WOLFSSL_LOCAL int se050_ecc_free_key(struct ecc_key* key);
+WOLFSSL_LOCAL void se050_ecc_free_key(struct ecc_key* key);
 
 struct ed25519_key;
 WOLFSSL_LOCAL int se050_ed25519_create_key(struct ed25519_key* key);

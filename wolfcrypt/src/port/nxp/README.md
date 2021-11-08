@@ -42,7 +42,10 @@ make
 ``
 
 Where `PATH` is the directory location of `simw-top`.
-Example: `./configure --enable-debug --disable-shared --with-se050=/home/pi/simw-top CFLAGS="-DWOLFSSL_SE050_INIT"`
+Example: `./configure --with-se050=/home/pi/simw-top CFLAGS="-DWOLFSSL_SE050_INIT"`
+
+To enable AES Cipher support use `WOLFSSL_SE050_CRYPT`
+To enable SHA-1 and SHA-2 support use `WOLFSSL_SE050_HASH`
 
 ## Building Examples
 

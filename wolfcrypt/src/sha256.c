@@ -184,7 +184,7 @@ where 0 <= L < 2^64.
     (!defined(WOLFSSL_ESP32WROOM32_CRYPT) || defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)) && \
     (!defined(WOLFSSL_RENESAS_TSIP_CRYPT) || defined(NO_WOLFSSL_RENESAS_TSIP_HASH)) && \
     !defined(WOLFSSL_PSOC6_CRYPTO) && !defined(WOLFSSL_IMXRT_DCP) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
-    !defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_SE050)
+    !defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_SE050_HASH)
 
 
 static int InitSha256(wc_Sha256* sha256)
@@ -585,7 +585,7 @@ static int InitSha256(wc_Sha256* sha256)
     !defined(WOLFSSL_QNX_CAAM)
     /* functions defined in wolfcrypt/src/port/caam/caam_sha256.c */
 
-#elif defined(WOLFSSL_SE050)
+#elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
 
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
     int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
@@ -1411,7 +1411,7 @@ static int InitSha256(wc_Sha256* sha256)
 
         return ret;
     }
-#elif defined(WOLFSSL_SE050)
+#elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
 
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
     int wc_InitSha224_ex(wc_Sha224* sha224, void* heap, int devId)
