@@ -9006,17 +9006,25 @@ int wc_DsaParamsDecode(const byte* input, word32* inOutIdx, DsaKey* key,
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for a DSA key holding private key in an OCTET_STRING. */
 static const ASNItem dsaKeyOctASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/*  dsaKeyOctASN_IDX_SEQ      */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                 /* p */
-/*  1 */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  dsaKeyOctASN_IDX_P        */     { 1, ASN_INTEGER, 0, 0, 0 },
                 /* q */
-/*  2 */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  dsaKeyOctASN_IDX_Q        */     { 1, ASN_INTEGER, 0, 0, 0 },
                 /* g */
-/*  3 */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  dsaKeyOctASN_IDX_G        */     { 1, ASN_INTEGER, 0, 0, 0 },
                 /* Private key */
-/*  4 */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
+/*  dsaKeyOctASN_IDX_PKEY_STR */     { 1, ASN_OCTET_STRING, 0, 1, 0 },
                     /* x */
-/*  5 */            { 2, ASN_INTEGER, 0, 0, 0 },
+/*  dsaKeyOctASN_IDX_X        */         { 2, ASN_INTEGER, 0, 0, 0 },
+};
+enum {
+    dsaKeyOctASN_IDX_SEQ = 0,
+    dsaKeyOctASN_IDX_P,
+    dsaKeyOctASN_IDX_Q,
+    dsaKeyOctASN_IDX_G,
+    dsaKeyOctASN_IDX_PKEY_STR,
+    dsaKeyOctASN_IDX_X,
 };
 
 /* Number of items in ASN.1 template for a DSA key (OCTET_STRING version). */
@@ -9129,25 +9137,24 @@ int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
         ret = BAD_FUNC_ARG;
     }
 
-    ALLOC_ASNGETDATA(dataASN, dsaKeyASN_Length, ret, key->heap);
+    CALLOC_ASNGETDATA(dataASN, dsaKeyASN_Length, ret, key->heap);
 
     if (ret == 0) {
-        /* Initialize key data and set mp_ints for params and priv/pub. */
-        XMEMSET(dataASN, 0, sizeof(*dataASN) * dsaKeyOctASN_Length);
-        GetASN_Int8Bit(&dataASN[1], &version);
+        /* Try dsaKeyOctASN */
+        /* Initialize key data and set mp_ints for params */
         for (i = 0; i < DSA_INTS - 2; i++) {
-            GetASN_MP(&dataASN[1 + i], GetDsaInt(key, i));
+            GetASN_MP(&dataASN[dsaKeyOctASN_IDX_P + i], GetDsaInt(key, i));
         }
-        GetASN_MP(&dataASN[2 + i], GetDsaInt(key, i));
+        /* and priv */
+        GetASN_MP(&dataASN[dsaKeyOctASN_IDX_X], GetDsaInt(key, i));
         /* Try simple form. */
         ret = GetASN_Items(dsaKeyOctASN, dataASN, dsaKeyOctASN_Length, 1, input,
                            inOutIdx, inSz);
-        if ((ret == 0) && (version != 0)) {
-            ret = ASN_PARSE_E;
-        }
-        else if (ret != 0) {
-            /* Initialize key data and set mp_ints for params and priv/pub. */
+
+        if (ret != 0) {
+            /* Try dsaKeyASN */
             XMEMSET(dataASN, 0, sizeof(*dataASN) * dsaKeyASN_Length);
+            GetASN_Int8Bit(&dataASN[dsaKeyASN_IDX_VER], &version);
             for (i = 0; i < DSA_INTS; i++) {
                 GetASN_MP(&dataASN[dsaKeyASN_IDX_P + i], GetDsaInt(key, i));
             }
