@@ -7046,13 +7046,21 @@ int wc_CreateEncryptedPKCS8Key(byte* key, word32 keySz, byte* out,
  * PKCS #7: RFC 2315, 10.1 - EncryptedContentInfo without outer SEQUENCE
  */
 static const ASNItem pkcs8DecASN[] = {
-/*  0 */    { 1, ASN_SEQUENCE, 1, 1, 0 },
-/*  1 */        { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/*  2 */        { 2, ASN_SEQUENCE, 1, 0, 0 },
+/* pkcs8DecASN_IDX_ENCALGO_SEQ    */ { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* pkcs8DecASN_IDX_ENCALGO_OID    */     { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* pkcs8DecASN_IDX_ENCALGO_PARAMS */     { 2, ASN_SEQUENCE, 1, 0, 0 },
             /* PKCS #7 */
-/*  3 */    { 1, ASN_CONTEXT_SPECIFIC | 0, 0, 0, 2 },
+/* pkcs8DecASN_IDX_ENCCONTENT     */ { 1, ASN_CONTEXT_SPECIFIC | ASN_ENC_CONTENT,
+                                       0, 0, 2 },
             /* PKCS #8 */
-/*  4 */    { 1, ASN_OCTET_STRING, 0, 0, 2 },
+/* pkcs8DecASN_IDX_ENCDATA        */ { 1, ASN_OCTET_STRING, 0, 0, 2 },
+};
+enum {
+    pkcs8DecASN_IDX_ENCALGO_SEQ = 0,
+    pkcs8DecASN_IDX_ENCALGO_OID,
+    pkcs8DecASN_IDX_ENCALGO_PARAMS,
+    pkcs8DecASN_IDX_ENCCONTENT,
+    pkcs8DecASN_IDX_ENCDATA,
 };
 
 /* Number of items in ASN.1 template for PKCS #8/#7 encrypted key. */
@@ -7259,26 +7267,26 @@ exit_dc:
 
     if (ret == 0) {
         /* Check OID is a PBE Type */
-        GetASN_OID(&dataASN[pbes2ParamsASN_IDX_KDF_OID], oidPBEType);
+        GetASN_OID(&dataASN[pkcs8DecASN_IDX_ENCALGO_OID], oidPBEType);
         ret = GetASN_Items(pkcs8DecASN, dataASN, pkcs8DecASN_Length, 0, input,
                            &idx, sz);
     }
     if (ret == 0) {
         /* Check the PBE algorithm and get the version and id. */
-        idx = dataASN[pbes2ParamsASN_IDX_KDF_OID].data.oid.length;
+        idx = dataASN[pkcs8DecASN_IDX_ENCALGO_OID].data.oid.length;
         /* Second last byte: 1 (PKCS #12 PBE Id) or 5 (PKCS #5)
          * Last byte: Alg or PBES2 */
-        CheckAlgo(dataASN[pbes2ParamsASN_IDX_KDF_OID].data.oid.data[idx - 2],
-                  dataASN[pbes2ParamsASN_IDX_KDF_OID].data.oid.data[idx - 1],
+        CheckAlgo(dataASN[pkcs8DecASN_IDX_ENCALGO_OID].data.oid.data[idx - 2],
+                  dataASN[pkcs8DecASN_IDX_ENCALGO_OID].data.oid.data[idx - 1],
                   &id, &version, NULL);
 
         /* Get the parameters data. */
-        GetASN_GetRef(&dataASN[pbes2ParamsASN_IDX_PBKDF2_PARAMS_SEQ], &params, &sz);
+        GetASN_GetRef(&dataASN[pkcs8DecASN_IDX_ENCALGO_PARAMS], &params, &sz);
         /* Having a numbered choice means none or both will have errored out. */
-        if (dataASN[pbes2ParamsASN_IDX_PBKDF2_PARAMS_SALT].tag != 0)
-            GetASN_GetRef(&dataASN[pbes2ParamsASN_IDX_PBKDF2_PARAMS_SALT], &key, &keySz);
-        else if (dataASN[pbes2ParamsASN_IDX_PBKDF2_PARAMS_ITER].tag != 0)
-            GetASN_GetRef(&dataASN[pbes2ParamsASN_IDX_PBKDF2_PARAMS_ITER], &key, &keySz);
+        if (dataASN[pkcs8DecASN_IDX_ENCCONTENT].tag != 0)
+            GetASN_GetRef(&dataASN[pkcs8DecASN_IDX_ENCCONTENT], &key, &keySz);
+        else if (dataASN[pkcs8DecASN_IDX_ENCDATA].tag != 0)
+            GetASN_GetRef(&dataASN[pkcs8DecASN_IDX_ENCDATA], &key, &keySz);
     }
 
     if (ret == 0) {
