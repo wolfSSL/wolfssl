@@ -30822,9 +30822,9 @@ typedef struct {
     int          kariOptions;    /* KARI options flags */
 
     /* KEKRI specific */
-    byte*        secretKey;      /* key, only for kekri RecipientInfo types */
+    const byte*  secretKey;      /* key, only for kekri RecipientInfo types */
     word32       secretKeySz;    /* size of secretKey, bytes */
-    byte*        secretKeyId;    /* key identifier */
+    const byte*  secretKeyId;    /* key identifier */
     word32       secretKeyIdSz;  /* size of key identifier, bytes */
     void*        timePtr;        /* time_t pointer */
     byte*        otherAttrOID;   /* OPTIONAL, other attribute OID */
@@ -30834,9 +30834,9 @@ typedef struct {
     int          kekriOptions;   /* KEKRI options flags */
 
     /* PWRI specific */
-    char*        password;
+    const char*  password;
     word32       passwordSz;
-    byte*        salt;
+    const byte*  salt;
     word32       saltSz;
     int          kdfOID;
     int          hashOID;
@@ -31071,12 +31071,12 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
                                       byte* eccCert, word32 eccCertSz,
                                       byte* eccPrivKey,  word32 eccPrivKeySz)
 {
-    int ret = 0, testSz, i;
+    int ret = 0, testSz = 0, i;
     int envelopedSz, decodedSz;
 
-    byte   *enveloped;
-    byte   *decoded;
-    PKCS7* pkcs7;
+    byte   *enveloped = NULL;
+    byte   *decoded = NULL;
+    PKCS7* pkcs7 = NULL;
 #ifdef ECC_TIMING_RESISTANT
     WC_RNG rng;
 #endif
@@ -31099,13 +31099,13 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128) && \
     !defined(NO_SHA)
     /* encryption key for kekri recipient types */
-    byte secretKey[] = {
+    WOLFSSL_SMALL_STACK_STATIC const byte secretKey[] = {
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07
     };
 
     /* encryption key identifier */
-    byte secretKeyId[] = {
+    WOLFSSL_SMALL_STACK_STATIC const byte secretKeyId[] = {
         0x02,0x02,0x03,0x04
     };
 #endif
@@ -31114,57 +31114,83 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
     !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
 
     #ifndef HAVE_FIPS
-    char password[] = "password"; /* NOTE: Password is too short for FIPS */
+    WOLFSSL_SMALL_STACK_STATIC const char password[] = "password"; /* NOTE: Password is too short for FIPS */
     #else
-    char password[] = "passwordFIPS_MODE";
+    WOLFSSL_SMALL_STACK_STATIC const char password[] = "passwordFIPS_MODE";
     #endif
 
-    byte salt[] = {
+    WOLFSSL_SMALL_STACK_STATIC const byte salt[] = {
         0x12, 0x34, 0x56, 0x78, 0x78, 0x56, 0x34, 0x12
     };
 #endif
 
-    const pkcs7EnvelopedVector testVectors[] =
+    #define MAX_TESTVECTORS_LEN 13
+    #define ADD_PKCS7ENVELOPEDVECTOR(...) {                                 \
+            pkcs7EnvelopedVector _this_vector = { __VA_ARGS__ };            \
+            if (testSz == MAX_TESTVECTORS_LEN) {                                \
+                ret = -12534;                                                   \
+                goto out;                                                       \
+            }                                                                   \
+            XMEMCPY(&testVectors[testSz++], &_this_vector, sizeof _this_vector);\
+        }
+
+    pkcs7EnvelopedVector *testVectors = NULL;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    testVectors = (pkcs7EnvelopedVector *)XMALLOC(MAX_TESTVECTORS_LEN * sizeof(*testVectors),
+                                     HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (testVectors == NULL) {
+        ret = -12534;
+        goto out;
+    }
+
     {
         /* key transport key encryption technique */
 #ifndef NO_RSA
     #ifndef NO_DES3
-        {data, (word32)sizeof(data), DATA, DES3b, 0, 0, rsaCert, rsaCertSz,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, DES3b, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL,
          0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataDES3.der"},
+         "pkcs7envelopedDataDES3.der");
     #endif
 
     #if !defined(NO_AES) && defined(HAVE_AES_CBC)
         #ifdef WOLFSSL_AES_128
-        {data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0, rsaCert, rsaCertSz,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL,
          0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataAES128CBC.der"},
+         "pkcs7envelopedDataAES128CBC.der");
         #endif
         #ifdef WOLFSSL_AES_192
-        {data, (word32)sizeof(data), DATA, AES192CBCb, 0, 0, rsaCert, rsaCertSz,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES192CBCb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL,
          0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataAES192CBC.der"},
+         "pkcs7envelopedDataAES192CBC.der");
         #endif
         #ifdef WOLFSSL_AES_256
-        {data, (word32)sizeof(data), DATA, AES256CBCb, 0, 0, rsaCert, rsaCertSz,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256CBCb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL,
          0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataAES256CBC.der"},
+         "pkcs7envelopedDataAES256CBC.der");
 
         /* explicitly using SKID for SubjectKeyIdentifier */
-        {data, (word32)sizeof(data), DATA, AES256CBCb, 0, 0, rsaCert, rsaCertSz,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256CBCb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, CMS_SKID, 0, NULL, 0, NULL, 0, NULL,
          NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataAES256CBC_SKID.der"},
+         "pkcs7envelopedDataAES256CBC_SKID.der");
 
         /* explicitly using IssuerAndSerialNumber for SubjectKeyIdentifier */
-        {data, (word32)sizeof(data), DATA, AES256CBCb, 0, 0, rsaCert, rsaCertSz,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256CBCb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, CMS_ISSUER_AND_SERIAL_NUMBER, 0,
          NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0,
-         0, 0, 0, 0, "pkcs7envelopedDataAES256CBC_IANDS.der"},
+         0, 0, 0, 0, "pkcs7envelopedDataAES256CBC_IANDS.der");
         #endif
     #endif /* !NO_AES && HAVE_AES_CBC */
 #endif
@@ -31173,34 +31199,38 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 #ifdef HAVE_ECC
     #if !defined(NO_AES) && defined(HAVE_AES_CBC)
         #if !defined(NO_SHA) && defined(WOLFSSL_AES_128)
-        {data, (word32)sizeof(data), DATA, AES128CBCb, AES128_WRAP,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES128CBCb, AES128_WRAP,
          dhSinglePass_stdDH_sha1kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0,
          0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataAES128CBC_ECDH_SHA1KDF.der"},
+         "pkcs7envelopedDataAES128CBC_ECDH_SHA1KDF.der");
         #endif
 
         #if !defined(NO_SHA256) && defined(WOLFSSL_AES_256)
-        {data, (word32)sizeof(data), DATA, AES256CBCb, AES256_WRAP,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256CBCb, AES256_WRAP,
          dhSinglePass_stdDH_sha256kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0,
          0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataAES256CBC_ECDH_SHA256KDF.der"},
+         "pkcs7envelopedDataAES256CBC_ECDH_SHA256KDF.der");
         #endif /* NO_SHA256 && WOLFSSL_AES_256 */
 
         #if defined(WOLFSSL_SHA512) && defined(WOLFSSL_AES_256)
-        {data, (word32)sizeof(data), DATA, AES256CBCb, AES256_WRAP,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256CBCb, AES256_WRAP,
          dhSinglePass_stdDH_sha512kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0,
          0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataAES256CBC_ECDH_SHA512KDF.der"},
+         "pkcs7envelopedDataAES256CBC_ECDH_SHA512KDF.der");
 
         /* with optional user keying material (ukm) */
-        {data, (word32)sizeof(data), DATA, AES256CBCb, AES256_WRAP,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256CBCb, AES256_WRAP,
          dhSinglePass_stdDH_sha512kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, optionalUkm, sizeof(optionalUkm), 0, 0, NULL, 0,
          NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataAES256CBC_ECDH_SHA512KDF_ukm.der"},
+         "pkcs7envelopedDataAES256CBC_ECDH_SHA512KDF_ukm.der");
         #endif /* WOLFSSL_SHA512 && WOLFSSL_AES_256 */
     #endif /* !NO_AES && HAVE_AES_CBC */
 #endif
@@ -31208,40 +31238,44 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         /* kekri (KEKRecipientInfo) recipient types */
 #if !defined(NO_AES) && defined(HAVE_AES_CBC)
         #if !defined(NO_SHA) && defined(WOLFSSL_AES_128)
-        {data, (word32)sizeof(data), DATA, AES128CBCb, AES128_WRAP, 0,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES128CBCb, AES128_WRAP, 0,
          NULL, 0, NULL, 0, NULL, 0, 0, 0, secretKey, sizeof(secretKey),
          secretKeyId, sizeof(secretKeyId), NULL, NULL, 0, NULL, 0,
          0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataAES128CBC_KEKRI.der"},
+         "pkcs7envelopedDataAES128CBC_KEKRI.der");
         #endif
 #endif /* !NO_AES && HAVE_AES_CBC */
 
         /* pwri (PasswordRecipientInfo) recipient types */
 #if !defined(NO_PWDBASED) && !defined(NO_AES) && defined(HAVE_AES_CBC)
         #if !defined(NO_SHA) && defined(WOLFSSL_AES_128)
-        {data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0,
          NULL, 0, NULL, 0, NULL, 0, 0, 0, NULL, 0,
          NULL, 0, NULL, NULL, 0, NULL, 0, 0, password,
          (word32)XSTRLEN(password), salt, sizeof(salt), PBKDF2_OID, WC_SHA, 5,
-         0, 0, 0, "pkcs7envelopedDataAES128CBC_PWRI.der"},
+         0, 0, 0, "pkcs7envelopedDataAES128CBC_PWRI.der");
         #endif
 #endif
 
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && !defined(NO_AES_128)
         /* ori (OtherRecipientInfo) recipient types */
-        {data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0, NULL, 0, NULL, 0,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0, NULL, 0, NULL, 0,
          NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0,
-         NULL, 0, 0, 0, 0, 0, 1, 0, "pkcs7envelopedDataAES128CBC_ORI.der"},
+         NULL, 0, 0, 0, 0, 0, 1, 0, "pkcs7envelopedDataAES128CBC_ORI.der");
 #endif
     };
+
+    #undef MAX_TESTVECTORS_LEN
+    #undef ADD_PKCS7ENVELOPEDVECTOR
 
     enveloped = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     decoded = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if ((! enveloped) || (! decoded)) {
         ERROR_OUT(-12170, out);
     }
-
-    testSz = sizeof(testVectors) / sizeof(pkcs7EnvelopedVector);
 
 #ifdef ECC_TIMING_RESISTANT
 #ifndef HAVE_FIPS
@@ -31282,8 +31316,8 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
             pkcs7->ukmSz        = testVectors[i].optionalUkmSz;
 
             ret = wc_PKCS7_AddRecipient_KEKRI(pkcs7, testVectors[i].keyWrapOID,
-                    testVectors[i].secretKey, testVectors[i].secretKeySz,
-                    testVectors[i].secretKeyId, testVectors[i].secretKeyIdSz,
+                    (byte *)testVectors[i].secretKey, testVectors[i].secretKeySz,
+                    (byte *)testVectors[i].secretKeyId, testVectors[i].secretKeyIdSz,
                     testVectors[i].timePtr, testVectors[i].otherAttrOID,
                     testVectors[i].otherAttrOIDSz, testVectors[i].otherAttr,
                     testVectors[i].otherAttrSz, testVectors[i].kekriOptions);
@@ -31294,7 +31328,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
             }
 
             /* set key, for decryption */
-            ret = wc_PKCS7_SetKey(pkcs7, testVectors[i].secretKey,
+            ret = wc_PKCS7_SetKey(pkcs7, (byte *)testVectors[i].secretKey,
                                   testVectors[i].secretKeySz);
 
             if (ret != 0) {
@@ -31319,9 +31353,9 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
             pkcs7->ukmSz        = testVectors[i].optionalUkmSz;
 
             ret = wc_PKCS7_AddRecipient_PWRI(pkcs7,
-                    (byte*)testVectors[i].password,
-                    testVectors[i].passwordSz, testVectors[i].salt,
-                    testVectors[i].saltSz, testVectors[i].kdfOID,
+                    (byte *)testVectors[i].password, testVectors[i].passwordSz,
+                    (byte *)testVectors[i].salt, testVectors[i].saltSz,
+                    testVectors[i].kdfOID,
                     testVectors[i].hashOID, testVectors[i].kdfIterations,
                     testVectors[i].encryptOID, testVectors[i].pwriOptions);
 
@@ -31498,6 +31532,8 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
     (void)rsaPrivKeySz;
 
   out:
+    if (testVectors)
+        XFREE(testVectors, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (enveloped)
         XFREE(enveloped, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (decoded)
