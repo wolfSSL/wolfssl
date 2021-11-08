@@ -26334,7 +26334,7 @@ static int test_ToTraditional (void)
 static int test_wc_EccPrivateKeyToDer (void)
 {
     int ret = 0;
-#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
 
     byte            output[ONEK_BUF];
     ecc_key         eccKey;
