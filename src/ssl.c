@@ -2754,7 +2754,7 @@ WOLFSSL_ABI
 int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
                     word32 protocol_name_listSz, byte options)
 {
-    char    *list, *ptr, *token[WOLFSSL_MAX_ALPN_NUMBER+1]={NULL};
+    char    *list, *ptr, **token;
     word16  len;
     int     idx = 0;
     int     ret = WOLFSSL_FAILURE;
@@ -2785,6 +2785,14 @@ int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
         return MEMORY_ERROR;
     }
 
+    token = (char **)XMALLOC(sizeof(char *) * (WOLFSSL_MAX_ALPN_NUMBER+1), ssl->heap, DYNAMIC_TYPE_ALPN);
+    if (token == NULL) {
+        XFREE(list, ssl->heap, DYNAMIC_TYPE_ALPN);
+        WOLFSSL_MSG("Memory failure");
+        return MEMORY_ERROR;
+    }
+    XMEMSET(token, 0, sizeof(char *) * (WOLFSSL_MAX_ALPN_NUMBER+1));
+
     XSTRNCPY(list, protocol_name_list, protocol_name_listSz);
     list[protocol_name_listSz] = '\0';
 
@@ -2805,6 +2813,7 @@ int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
         }
     }
 
+    XFREE(token, ssl->heap, DYNAMIC_TYPE_ALPN);
     XFREE(list, ssl->heap, DYNAMIC_TYPE_ALPN);
 
     return ret;
