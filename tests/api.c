@@ -36240,7 +36240,7 @@ static void test_wolfSSL_X509_ALGOR_get0(void)
     /* Valid case */
     X509_ALGOR_get0(&obj, &pptype, &ppval, alg);
     AssertNotNull(obj);
-    AssertNotNull(ppval);
+    AssertNull(ppval);
     AssertIntNE(pptype, 0);
     /* Make sure NID of X509_ALGOR is Sha256 with RSA */
     AssertIntEQ(OBJ_obj2nid(obj), NID_sha256WithRSAEncryption);
@@ -36408,21 +36408,23 @@ static void test_wolfSSL_X509_get_X509_PUBKEY(void)
 #endif
 }
 
-static void test_wolfSSL_X509_PUBKEY(void)
+static void test_wolfSSL_X509_PUBKEY_RSA(void)
 {
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && \
     !defined(NO_SHA256) && !defined(NO_RSA)
     X509* x509 = NULL;
     ASN1_OBJECT* obj = NULL;
+    const ASN1_OBJECT* pa_oid = NULL;
     X509_PUBKEY* pubKey;
     X509_PUBKEY* pubKey2;
     EVP_PKEY* evpKey;
 
     const unsigned char *pk;
-    int ppklen;
-    WOLFSSL_X509_ALGOR *pa;
+    int ppklen, pptype;
+    X509_ALGOR *pa;
+    const void *pval;
 
-    printf(testingFmt, "wolfSSL_X509_get_X509_PUBKEY");
+    printf(testingFmt, "wolfSSL_X509_PUBKEY_RSA");
 
     AssertNotNull(x509 = X509_load_certificate_file(cliCertFile,
                                                     SSL_FILETYPE_PEM));
@@ -36439,9 +36441,131 @@ static void test_wolfSSL_X509_PUBKEY(void)
     AssertNotNull(evpKey = X509_PUBKEY_get(pubKey));
     AssertNotNull(pubKey2 = X509_PUBKEY_new());
     AssertIntEQ(X509_PUBKEY_set(&pubKey2, evpKey), 1);
+    AssertIntEQ(X509_PUBKEY_get0_param(&obj, &pk, &ppklen, &pa, pubKey2), 1);
+    AssertNotNull(pk);
+    AssertNotNull(pa);
+    AssertIntGT(ppklen, 0);
+    X509_ALGOR_get0(&pa_oid, &pptype, &pval, pa);
+    AssertNotNull(pa_oid);
+    AssertNull(pval);
+    AssertIntEQ(pptype, V_ASN1_NULL);
+    AssertIntEQ(OBJ_obj2nid(pa_oid), EVP_PKEY_RSA);
 
     X509_PUBKEY_free(pubKey2);
     X509_free(x509);
+    EVP_PKEY_free(evpKey);
+
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_X509_PUBKEY_EC(void)
+{
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && defined(HAVE_ECC)
+    X509* x509 = NULL;
+    ASN1_OBJECT* obj = NULL;
+    ASN1_OBJECT* poid;
+    const ASN1_OBJECT* pa_oid = NULL;
+    X509_PUBKEY* pubKey;
+    X509_PUBKEY* pubKey2;
+    EVP_PKEY* evpKey;
+
+    const unsigned char *pk;
+    int ppklen, pptype;
+    X509_ALGOR *pa;
+    const void *pval;
+    char buf[50];
+
+    printf(testingFmt, "wolfSSL_X509_PUBKEY_EC");
+
+    AssertNotNull(x509 = X509_load_certificate_file(cliEccCertFile,
+                                                    SSL_FILETYPE_PEM));
+    AssertNotNull(pubKey = X509_get_X509_PUBKEY(x509));
+    AssertNotNull(evpKey = X509_PUBKEY_get(pubKey));
+    AssertNotNull(pubKey2 = X509_PUBKEY_new());
+    AssertIntEQ(X509_PUBKEY_set(&pubKey2, evpKey), 1);
+    AssertIntEQ(X509_PUBKEY_get0_param(&obj, &pk, &ppklen, &pa, pubKey2), 1);
+    AssertNotNull(pk);
+    AssertNotNull(pa);
+    AssertIntGT(ppklen, 0);
+    X509_ALGOR_get0(&pa_oid, &pptype, &pval, pa);
+    AssertNotNull(pa_oid);
+    AssertNotNull(pval);
+    AssertIntEQ(pptype, V_ASN1_OBJECT);
+    AssertIntEQ(OBJ_obj2nid(pa_oid), EVP_PKEY_EC);
+    poid = (ASN1_OBJECT *)pval;
+    AssertIntGT(OBJ_obj2txt(buf, (int)sizeof(buf), poid, 0), 0);
+    AssertIntEQ(OBJ_txt2nid(buf), NID_X9_62_prime256v1);
+
+    X509_PUBKEY_free(pubKey2);
+    X509_free(x509);
+    EVP_PKEY_free(evpKey);
+
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_X509_PUBKEY_DSA(void)
+{
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && !defined(NO_DSA)
+    word32  bytes;
+#ifdef USE_CERT_BUFFERS_1024
+    byte    tmp[ONEK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMCPY(tmp, dsa_key_der_1024, sizeof_dsa_key_der_1024);
+    bytes = sizeof_dsa_key_der_1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+    byte    tmp[TWOK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMCPY(tmp, dsa_key_der_2048, sizeof_dsa_key_der_2048);
+    bytes = sizeof_dsa_key_der_2048;
+#else
+    byte    tmp[TWOK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XFILE fp = XFOPEN("./certs/dsa2048.der", "rb");
+    if (fp == XBADFILE) {
+        return WOLFSSL_BAD_FILE;
+    }
+    bytes = (word32) XFREAD(tmp, 1, sizeof(tmp), fp);
+    XFCLOSE(fp);
+#endif /* END USE_CERT_BUFFERS_1024 */
+    const unsigned char* dsaKeyDer = tmp;
+
+    ASN1_OBJECT* obj = NULL;
+    ASN1_STRING* str;
+    const ASN1_OBJECT* pa_oid = NULL;
+    X509_PUBKEY* pubKey = NULL;
+    EVP_PKEY* evpKey = NULL;
+
+    const unsigned char *pk;
+    int ppklen, pptype;
+    X509_ALGOR *pa;
+    const void *pval;
+
+    printf(testingFmt, "wolfSSL_X509_PUBKEY_DSA");
+
+    /* Initialize pkey with der format dsa key */
+    AssertNotNull(d2i_PrivateKey(EVP_PKEY_DSA, &evpKey, &dsaKeyDer, bytes));
+
+    AssertNotNull(pubKey = X509_PUBKEY_new());
+    AssertIntEQ(X509_PUBKEY_set(&pubKey, evpKey), 1);
+    AssertIntEQ(X509_PUBKEY_get0_param(&obj, &pk, &ppklen, &pa, pubKey), 1);
+    AssertNotNull(pk);
+    AssertNotNull(pa);
+    AssertIntGT(ppklen, 0);
+    X509_ALGOR_get0(&pa_oid, &pptype, &pval, pa);
+    AssertNotNull(pa_oid);
+    AssertNotNull(pval);
+    AssertIntEQ(pptype, V_ASN1_SEQUENCE);
+    AssertIntEQ(OBJ_obj2nid(pa_oid), EVP_PKEY_DSA);
+    str = (ASN1_STRING *)pval;
+#ifdef USE_CERT_BUFFERS_1024
+    AssertIntEQ(ASN1_STRING_length(str), 291);
+#else
+    AssertIntEQ(ASN1_STRING_length(str), 549);
+#endif /* END USE_CERT_BUFFERS_1024 */
+
+    X509_PUBKEY_free(pubKey);
     EVP_PKEY_free(evpKey);
 
     printf(resultFmt, passed);
@@ -51666,7 +51790,9 @@ void ApiTest(void)
     test_wolfSSL_X509_get0_tbs_sigalg();
     test_wolfSSL_X509_ALGOR_get0();
     test_wolfSSL_X509_get_X509_PUBKEY();
-    test_wolfSSL_X509_PUBKEY();
+    test_wolfSSL_X509_PUBKEY_RSA();
+    test_wolfSSL_X509_PUBKEY_EC();
+    test_wolfSSL_X509_PUBKEY_DSA();
     test_wolfSSL_RAND();
     test_wolfSSL_BUF();
     test_wolfSSL_set_tlsext_status_type();

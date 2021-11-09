@@ -28956,8 +28956,8 @@ void wolfSSL_X509_ALGOR_get0(const WOLFSSL_ASN1_OBJECT **paobj, int *pptype,
 
     if (paobj)
         *paobj = algor->algorithm;
-    if (ppval)
-        *ppval = algor->algorithm;
+    if (ppval && algor->parameter)
+        *ppval = algor->parameter->value.ptr;
     if (pptype) {
         if (algor->parameter) {
             *pptype = algor->parameter->type;
@@ -28988,15 +28988,16 @@ int wolfSSL_X509_ALGOR_set0(WOLFSSL_X509_ALGOR *algor, WOLFSSL_ASN1_OBJECT *aobj
     if (aobj) {
         algor->algorithm = aobj;
     }
-    if (pval) {
+
+    if (!algor->parameter) {
+        algor->parameter = wolfSSL_ASN1_TYPE_new();
         if (!algor->parameter) {
-            algor->parameter = wolfSSL_ASN1_TYPE_new();
-            if (!algor->parameter) {
-                return WOLFSSL_FAILURE;
-            }
+            return WOLFSSL_FAILURE;
         }
-        wolfSSL_ASN1_TYPE_set(algor->parameter, ptype, pval);
     }
+
+    wolfSSL_ASN1_TYPE_set(algor->parameter, ptype, pval);
+
     return WOLFSSL_SUCCESS;
 }
 
@@ -29009,10 +29010,16 @@ int wolfSSL_X509_ALGOR_set0(WOLFSSL_X509_ALGOR *algor, WOLFSSL_ASN1_OBJECT *aobj
  */
 void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value)
 {
-    if (!a || !value) {
+    if (!a) {
         return;
     }
     switch (type) {
+        case V_ASN1_NULL:
+            a->value.ptr = value;
+            break;
+        case V_ASN1_SEQUENCE:
+            a->value.asn1_string = (WOLFSSL_ASN1_STRING*)value;
+            break;
         case V_ASN1_OBJECT:
             a->value.object = (WOLFSSL_ASN1_OBJECT*)value;
             break;
@@ -29071,6 +29078,7 @@ void wolfSSL_ASN1_TYPE_free(WOLFSSL_ASN1_TYPE* at)
             case V_ASN1_T61STRING:
             case V_ASN1_IA5STRING:
             case V_ASN1_UNIVERSALSTRING:
+            case V_ASN1_SEQUENCE:
                 wolfSSL_ASN1_STRING_free(at->value.asn1_string);
                 break;
             default:
@@ -29189,6 +29197,15 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_PUBKEY_get(WOLFSSL_X509_PUBKEY* key)
 int wolfSSL_X509_PUBKEY_set(WOLFSSL_X509_PUBKEY **x, WOLFSSL_EVP_PKEY *key)
 {
     WOLFSSL_X509_PUBKEY *pk = NULL;
+    int ptype;
+    void *pval;
+#ifndef NO_DSA
+    WOLFSSL_ASN1_STRING *str;
+#endif
+#ifdef HAVE_ECC
+    int nid;
+    const WOLFSSL_EC_GROUP *group;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_X509_PUBKEY_set");
 
@@ -29203,17 +29220,49 @@ int wolfSSL_X509_PUBKEY_set(WOLFSSL_X509_PUBKEY **x, WOLFSSL_EVP_PKEY *key)
     switch (key->type) {
 #ifndef NO_RSA
     case EVP_PKEY_RSA:
-        pk->algor->algorithm= wolfSSL_OBJ_nid2obj(NID_rsaEncryption);
+        pval = NULL;
+        ptype = V_ASN1_NULL;
+        pk->pubKeyOID = RSAk;
         break;
 #endif
 #ifndef NO_DSA
     case EVP_PKEY_DSA:
-        pk->algor->algorithm = wolfSSL_OBJ_nid2obj(NID_dsa);
+        if (!key->dsa->p || !key->dsa->q || !key->dsa->g)
+            goto error;
+
+        str = wolfSSL_ASN1_STRING_new();
+        if (str == NULL)
+            goto error;
+
+        str->length = wolfSSL_i2d_DSAparams(key->dsa, (unsigned char **)&str->data);
+        if (str->length <= 0)
+            goto error;
+        str->isDynamic = 1;
+
+        pval = str;
+        ptype = V_ASN1_SEQUENCE;
+        pk->pubKeyOID = DSAk;
         break;
 #endif
 #ifdef HAVE_ECC
     case EVP_PKEY_EC:
-        pk->algor->algorithm = wolfSSL_OBJ_nid2obj(NID_X9_62_id_ecPublicKey);
+        group = wolfSSL_EC_KEY_get0_group(key->ecc);
+        if (!group)
+            goto error;
+
+        nid = wolfSSL_EC_GROUP_get_curve_name(group);
+        if (nid == WOLFSSL_FAILURE) {
+            /* TODO: Add support for no nid case */
+            WOLFSSL_MSG("nid not found");
+            goto error;
+        }
+
+        pval = wolfSSL_OBJ_nid2obj(nid);
+        if (!pval)
+            goto error;
+
+        ptype = V_ASN1_OBJECT;
+        pk->pubKeyOID = ECDSAk;
         break;
 #endif
     default:
@@ -29221,8 +29270,12 @@ int wolfSSL_X509_PUBKEY_set(WOLFSSL_X509_PUBKEY **x, WOLFSSL_EVP_PKEY *key)
         goto error;
     }
 
-    if (!pk->algor->algorithm) {
+    if (!wolfSSL_X509_ALGOR_set0(pk->algor, wolfSSL_OBJ_nid2obj(key->type), ptype, pval)) {
         WOLFSSL_MSG("Failed to create algorithm object");
+        if (ptype == V_ASN1_OBJECT)
+            ASN1_OBJECT_free(pval);
+        else
+            ASN1_STRING_free(pval);
         goto error;
     }
 
