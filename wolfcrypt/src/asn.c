@@ -11801,8 +11801,12 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for certificate name. */
 static const ASNItem certNameASN[] = {
-/*  0 */    { 0, ASN_OBJECT_ID, 0, 0, 1 },
-/*  1 */    { 0, ASN_SEQUENCE, 1, 0, 0 },
+/* certNameASN_IDX_OID  */ { 0, ASN_OBJECT_ID, 0, 0, 1 },
+/* certNameASN_IDX_NAME */ { 0, ASN_SEQUENCE, 1, 0, 0 },
+};
+enum {
+    certNameASN_IDX_OID = 0,
+    certNameASN_IDX_NAME,
 };
 
 /* Number of items in ASN.1 template for certificate name. */
@@ -11874,22 +11878,24 @@ int GetName(DecodedCert* cert, int nameType, int maxIdx)
     return GetCertName(cert, full, hash, nameType, cert->source, &cert->srcIdx,
                        cert->srcIdx + length);
 #else
-    ASNGetData dataASN[certNameASN_Length];
+    DECL_ASNGETDATA(dataASN, certNameASN_Length);
     word32 idx = cert->srcIdx;
-    int    ret;
+    int    ret = 0;
     char*  full;
     byte*  hash;
 
     WOLFSSL_MSG("Getting Cert Name");
 
-    /* Initialize for data and don't check optional prefix OID. */
-    XMEMSET(dataASN, 0, sizeof(dataASN));
-    GetASN_OID(&dataASN[0], oidIgnoreType);
-    ret = GetASN_Items(certNameASN, dataASN, certNameASN_Length, 0,
-                       cert->source, &idx, maxIdx);
+    CALLOC_ASNGETDATA(dataASN, certNameASN_Length, ret, cert->heap);
+    if (ret == 0) {
+        /* Initialize for data and don't check optional prefix OID. */
+        GetASN_OID(&dataASN[certNameASN_IDX_OID], oidIgnoreType);
+        ret = GetASN_Items(certNameASN, dataASN, certNameASN_Length, 0,
+                           cert->source, &idx, maxIdx);
+    }
     if (ret == 0) {
         /* Store offset of SEQUENCE that is start of name. */
-        cert->srcIdx = dataASN[1].offset;
+        cert->srcIdx = dataASN[certNameASN_IDX_NAME].offset;
 
         /* Get fields to fill in based on name type. */
         if (nameType == ISSUER) {
@@ -11906,6 +11912,7 @@ int GetName(DecodedCert* cert, int nameType, int maxIdx)
                           &cert->srcIdx, idx);
     }
 
+    FREE_ASNGETDATA(dataASN, cert->heap);
     return ret;
 #endif
 }
