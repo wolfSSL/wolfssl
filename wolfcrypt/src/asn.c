@@ -15587,7 +15587,10 @@ static int DecodeSubjKeyId(const byte* input, int sz, DecodedCert* cert)
  * X.509: RFC 5280, 4.2.1.3 - Key Usage.
  */
 static const ASNItem keyUsageASN[] = {
-/*  0 */    { 0, ASN_BIT_STRING, 0, 0, 0 },
+/* keyUsageASN_IDX_STR */ { 0, ASN_BIT_STRING, 0, 0, 0 },
+};
+enum {
+    keyUsageASN_IDX_STR = 0,
 };
 
 /* Number of items in ASN.1 template for KeyUsage. */
@@ -15634,7 +15637,7 @@ static int DecodeKeyUsage(const byte* input, int sz, DecodedCert* cert)
 
     /* Clear dynamic data and set where to store extended key usage. */
     XMEMSET(dataASN, 0, sizeof(dataASN));
-    GetASN_Int16Bit(&dataASN[0], &cert->extKeyUsage);
+    GetASN_Int16Bit(&dataASN[keyUsageASN_IDX_STR], &cert->extKeyUsage);
     /* Parse key usage. */
     return GetASN_Items(keyUsageASN, dataASN, keyUsageASN_Length, 0, input,
                         &idx, sz);
