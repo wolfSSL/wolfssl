@@ -29131,7 +29131,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
      *  Session tickets are checked for validity based on the time each ticket
      *  was created, timeout value and the current time. If the tickets are
      *  judged expired, falls back to full-handshake. If you want disable this
-     *  sessin ticket validation check in TLS1.2 and below, define
+     *  session ticket validation check in TLS1.2 and below, define
      *  WOLFSSL_NO_TICKET_EXPRE.
      */
     int HandleTlsResumption(WOLFSSL* ssl, int bogusID, Suites* clSuites)
