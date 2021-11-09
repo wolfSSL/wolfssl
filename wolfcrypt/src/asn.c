@@ -14890,9 +14890,14 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
  * X.509: RFC 5280, 4.2.1.9 - BasicConstraints.
  */
 static const ASNItem basicConsASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/*  1 */        { 1, ASN_BOOLEAN, 0, 0, 1 },
-/*  2 */        { 1, ASN_INTEGER, 0, 0, 1 }
+/* basicConsASN_IDX_SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* basicConsASN_IDX_CA   */     { 1, ASN_BOOLEAN, 0, 0, 1 },
+/* basicConsASN_IDX_PLEN */     { 1, ASN_INTEGER, 0, 0, 1 }
+};
+enum {
+    basicConsASN_IDX_SEQ = 0,
+    basicConsASN_IDX_CA,
+    basicConsASN_IDX_PLEN,
 };
 
 /* Number of items in ASN.1 template for BasicContraints. */
@@ -14974,18 +14979,18 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
 
     if (ret == 0) {
         /* Get the CA boolean and path length when present. */
-        GetASN_Boolean(&dataASN[1], &isCA);
-        GetASN_Int8Bit(&dataASN[2], &cert->pathLength);
+        GetASN_Boolean(&dataASN[basicConsASN_IDX_CA], &isCA);
+        GetASN_Int8Bit(&dataASN[basicConsASN_IDX_PLEN], &cert->pathLength);
 
         ret = GetASN_Items(basicConsASN, dataASN, basicConsASN_Length, 1, input,
                            &idx, sz);
     }
 
     /* Empty SEQUENCE is OK - nothing to store. */
-    if ((ret == 0) && (dataASN[0].length != 0)) {
+    if ((ret == 0) && (dataASN[basicConsASN_IDX_SEQ].length != 0)) {
         /* Bad encoding when CA Boolean is false
          * (default when not present). */
-        if ((dataASN[1].length != 0) && (!isCA)) {
+        if ((dataASN[basicConsASN_IDX_CA].length != 0) && (!isCA)) {
             ret = ASN_PARSE_E;
         }
         /* Path length must be a 7-bit value. */
@@ -14996,7 +15001,7 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
         if (ret == 0) {
             /* isCA in certificate is a 1 bit of a byte. */
             cert->isCA = isCA;
-            cert->pathLengthSet = (dataASN[2].length > 0);
+            cert->pathLengthSet = (dataASN[basicConsASN_IDX_PLEN].length > 0);
         }
     }
 
