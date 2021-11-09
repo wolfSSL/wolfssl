@@ -15280,11 +15280,16 @@ static int DecodeCrlDist(const byte* input, int sz, DecodedCert* cert)
  * X.509: RFC 5280, 4.2.2.1 - Authority Information Access.
  */
 static const ASNItem accessDescASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* accessMethod */
-/*  1 */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-                /* accessLocation: GeneralName */
-/*  2 */        { 1, ASN_CONTEXT_SPECIFIC | 0, 0, 0, 0 },
+/* accessDescASN_IDX_SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                 /* accessMethod */
+/* accessDescASN_IDX_METH */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
+                                 /* accessLocation: GeneralName */
+/* accessDescASN_IDX_LOC  */     { 1, ASN_CONTEXT_SPECIFIC | 0, 0, 0, 0 },
+};
+enum {
+    accessDescASN_IDX_SEQ = 0,
+    accessDescASN_IDX_METH,
+    accessDescASN_IDX_LOC,
 };
 
 /* Number of items in ASN.1 template for the access description. */
@@ -15381,17 +15386,18 @@ static int DecodeAuthInfo(const byte* input, int sz, DecodedCert* cert)
 
         /* Clear dynamic data and retrieve OID and name. */
         XMEMSET(dataASN, 0, sizeof(dataASN));
-        GetASN_OID(&dataASN[1], oidCertAuthInfoType);
-        GetASN_Choice(&dataASN[2], generalNameChoice);
+        GetASN_OID(&dataASN[accessDescASN_IDX_METH], oidCertAuthInfoType);
+        GetASN_Choice(&dataASN[accessDescASN_IDX_LOC], generalNameChoice);
         /* Parse AccessDescription. */
         ret = GetASN_Items(accessDescASN, dataASN, accessDescASN_Length, 0,
                            input, &idx, sz);
         if (ret == 0) {
             /* Check we have OCSP and URI. */
-            if ((dataASN[1].data.oid.sum == AIA_OCSP_OID) &&
-                    (dataASN[2].tag == GENERALNAME_URI)) {
+            if ((dataASN[accessDescASN_IDX_METH].data.oid.sum == AIA_OCSP_OID) &&
+                    (dataASN[accessDescASN_IDX_LOC].tag == GENERALNAME_URI)) {
                 /* Store URI for OCSP lookup. */
-                GetASN_GetConstRef(&dataASN[2], &cert->extAuthInfo, &sz32);
+                GetASN_GetConstRef(&dataASN[accessDescASN_IDX_LOC],
+                        &cert->extAuthInfo, &sz32);
                 cert->extAuthInfoSz = sz32;
                 count++;
             #if !defined(OPENSSL_ALL) || !defined(WOLFSSL_QT)
@@ -15400,11 +15406,12 @@ static int DecodeAuthInfo(const byte* input, int sz, DecodedCert* cert)
             }
             #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
             /* Check we have CA Issuer and URI. */
-            else if ((dataASN[1].data.oid.sum == AIA_CA_ISSUER_OID) &&
-                    (dataASN[2].tag == GENERALNAME_URI)) {
+            else if ((dataASN[accessDescASN_IDX_METH].data.oid.sum ==
+                        AIA_CA_ISSUER_OID) &&
+                    (dataASN[accessDescASN_IDX_LOC].tag == GENERALNAME_URI)) {
                 /* Set CaIssuers entry */
-                GetASN_GetConstRef(&dataASN[2], &cert->extAuthInfoCaIssuer,
-                                   &sz32);
+                GetASN_GetConstRef(&dataASN[accessDescASN_IDX_LOC],
+                        &cert->extAuthInfoCaIssuer, &sz32);
                 cert->extAuthInfoCaIssuerSz = sz32;
                 count++;
             }
