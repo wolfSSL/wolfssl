@@ -55599,7 +55599,7 @@ int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey)
 #ifdef WOLFSSL_STATIC_EPHEMERAL
 int wolfSSL_StaticEphemeralKeyLoad(WOLFSSL* ssl, int keyAlgo, void* keyPtr)
 {
-    int ret = BUFFER_E;
+    int ret;
     word32 idx = 0;
     DerBuffer* der = NULL;
 
@@ -55617,6 +55617,7 @@ int wolfSSL_StaticEphemeralKeyLoad(WOLFSSL* ssl, int keyAlgo, void* keyPtr)
     }
 #endif
 
+    ret = BUFFER_E; /* set default error */
     switch (keyAlgo) {
     #ifndef NO_DH
         case WC_PK_TYPE_DH:
