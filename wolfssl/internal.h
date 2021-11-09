@@ -1359,7 +1359,7 @@ enum Misc {
                                     /* max size of buffer for exporting state */
     FINISHED_LABEL_SZ   = 15,  /* TLS finished label size */
     TLS_FINISHED_SZ     = 12,  /* TLS has a shorter size  */
-    TLS_FINISHED_SZ_MAX = WC_MAX_DIGEST_SIZE,  
+    TLS_FINISHED_SZ_MAX = WC_MAX_DIGEST_SIZE,
                             /* longest message digest size is SHA512, 64 */
     EXT_MASTER_LABEL_SZ = 22,  /* TLS extended master secret label sz */
     MASTER_LABEL_SZ     = 13,  /* TLS master secret label sz */
@@ -1658,13 +1658,13 @@ enum states {
     SERVER_CERT_VERIFY_COMPLETE,
     SERVER_KEYEXCHANGE_COMPLETE,
     SERVER_HELLODONE_COMPLETE,
-	SERVER_CHANGECIPHERSPEC_COMPLETE,
+    SERVER_CHANGECIPHERSPEC_COMPLETE,
     SERVER_FINISHED_COMPLETE,
 
     CLIENT_HELLO_RETRY,
     CLIENT_HELLO_COMPLETE,
     CLIENT_KEYEXCHANGE_COMPLETE,
-	CLIENT_CHANGECIPHERSPEC_COMPLETE,
+    CLIENT_CHANGECIPHERSPEC_COMPLETE,
     CLIENT_FINISHED_COMPLETE,
 
     HANDSHAKE_DONE
@@ -4902,7 +4902,7 @@ WOLFSSL_LOCAL const char* GetCipherNameInternal(const byte cipherSuite0, const b
 #define MAX_SEGMENTS    5
 #define MAX_SEGMENT_SZ 20
 WOLFSSL_LOCAL int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER*);
-WOLFSSL_LOCAL const char* GetCipherSegment(const WOLFSSL_CIPHER* cipher, 
+WOLFSSL_LOCAL const char* GetCipherSegment(const WOLFSSL_CIPHER* cipher,
                                            char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherProtocol(const byte minor);
 WOLFSSL_LOCAL const char* GetCipherKeaStr(char n[][MAX_SEGMENT_SZ]);
@@ -4990,7 +4990,7 @@ WOLFSSL_LOCAL void FreeKey(WOLFSSL* ssl, int type, void** pKey);
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-WOLFSSL_LOCAL int LoadCertByIssuer(WOLFSSL_X509_STORE* store, 
+WOLFSSL_LOCAL int LoadCertByIssuer(WOLFSSL_X509_STORE* store,
                                            X509_NAME* issuer, int Type);
 #endif
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)

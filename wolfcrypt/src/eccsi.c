@@ -2045,7 +2045,7 @@ static int eccsi_decode_sig_r_pvt(const EccsiKey* key, const byte* sig,
         err = mp_read_unsigned_bin(r, sig, sz);
     }
     if (err == 0) {
-        /* must free previous public point otherwise wc_ecc_import_point_der 
+        /* must free previous public point otherwise wc_ecc_import_point_der
          * could leak memory */
         mp_clear(pvt->x);
         mp_clear(pvt->y);

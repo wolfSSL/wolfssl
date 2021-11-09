@@ -139,7 +139,7 @@ WC_STATIC WC_INLINE word16 rotrFixed16(word16 x, word16 y)
 #endif /* WC_RC2 */
 
 /* This routine performs a byte swap of 32-bit word value. */
-#if defined(__CCRX__) && !defined(NO_INLINE) // shortest version for CC-RX
+#if defined(__CCRX__) && !defined(NO_INLINE) /* shortest version for CC-RX */
     #define ByteReverseWord32(value) _builtin_revl(value)
 #else
 WC_STATIC WC_INLINE word32 ByteReverseWord32(word32 value)
@@ -214,14 +214,14 @@ WC_STATIC WC_INLINE word64 ByteReverseWord64(word64 value)
 #if defined(WOLF_ALLOW_BUILTIN) && defined(__GNUC_PREREQ) && __GNUC_PREREQ(4, 3)
     return (word64)__builtin_bswap64(value);
 #elif defined(WOLFCRYPT_SLOW_WORD64)
-	return (word64)((word64)ByteReverseWord32((word32) value)) << 32 |
-                    (word64)ByteReverseWord32((word32)(value   >> 32));
+    return (word64)((word64)ByteReverseWord32((word32) value)) << 32 |
+        (word64)ByteReverseWord32((word32)(value   >> 32));
 #else
-	value = ((value & W64LIT(0xFF00FF00FF00FF00)) >> 8) |
-            ((value & W64LIT(0x00FF00FF00FF00FF)) << 8);
-	value = ((value & W64LIT(0xFFFF0000FFFF0000)) >> 16) |
-            ((value & W64LIT(0x0000FFFF0000FFFF)) << 16);
-	return rotlFixed64(value, 32U);
+    value = ((value & W64LIT(0xFF00FF00FF00FF00)) >> 8) |
+        ((value & W64LIT(0x00FF00FF00FF00FF)) << 8);
+    value = ((value & W64LIT(0xFFFF0000FFFF0000)) >> 16) |
+        ((value & W64LIT(0x0000FFFF0000FFFF)) << 16);
+    return rotlFixed64(value, 32U);
 #endif
 }
 

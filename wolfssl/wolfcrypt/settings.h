@@ -1044,7 +1044,7 @@ extern void uITRON4_free(void *p) ;
         #define XFREE(p, h, type)    vPortFree((p))
     #endif
 
-    //#define USER_TICKS
+    /* #define USER_TICKS */
     /* Allows use of DH with fixed points if uncommented and NO_DH is removed */
     /* WOLFSSL_DH_CONST */
     #define WOLFSSL_LWIP
@@ -1370,8 +1370,8 @@ extern void uITRON4_free(void *p) ;
             #include "stm32f1xx.h"
         #endif
     #endif /* WOLFSSL_STM32_CUBEMX */
-#endif /* WOLFSSL_STM32F2 || WOLFSSL_STM32F4 || WOLFSSL_STM32L4 || 
-          WOLFSSL_STM32L5 || WOLFSSL_STM32F7 || WOLFSSL_STMWB || 
+#endif /* WOLFSSL_STM32F2 || WOLFSSL_STM32F4 || WOLFSSL_STM32L4 ||
+          WOLFSSL_STM32L5 || WOLFSSL_STM32F7 || WOLFSSL_STMWB ||
           WOLFSSL_STM32H7 || WOLFSSL_STM32G0 */
 #ifdef WOLFSSL_DEOS
     #include <deos.h>
@@ -1692,7 +1692,7 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_AES_ECB
     #define HAVE_AES_ECB
 
-    //@TODO used for now until plugging in caam aes use with qnx
+    /* @TODO used for now until plugging in caam aes use with qnx */
     #undef WOLFSSL_AES_DIRECT
     #define WOLFSSL_AES_DIRECT
 #endif
@@ -2541,15 +2541,15 @@ extern void uITRON4_free(void *p) ;
     #endif
 
     /* Note: "--enable-renegotiation-indication" ("HAVE_RENEGOTIATION_INDICATION")
-     * only sends the secure renegotiation extension, but is not actually supported. 
-     * This was added because some TLS peers required it even if not used, so we call 
+     * only sends the secure renegotiation extension, but is not actually supported.
+     * This was added because some TLS peers required it even if not used, so we call
      * this "(FAKE Secure Renegotiation)"
      */
 #endif
 
 /* Crypto callbacks should enable hash flag support */
 #if defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_HASH_FLAGS)
-    /* FIPS v1 and v2 do not support hash flags, so do not allow it with 
+    /* FIPS v1 and v2 do not support hash flags, so do not allow it with
      * crypto callbacks */
     #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS) && \
             defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 3)

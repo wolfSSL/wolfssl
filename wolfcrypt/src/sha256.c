@@ -55,9 +55,7 @@ where 0 <= L < 2^64.
 
 #if !defined(NO_SHA256) && !defined(WOLFSSL_ARMASM)
 
-#if defined(HAVE_FIPS) && \
-	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
 
@@ -604,7 +602,7 @@ static int InitSha256(wc_Sha256* sha256)
     }
 
     int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
-    {      
+    {
         int ret = 0;
         ret = se050_hash_final(&sha256->se050Ctx, hash, WC_SHA256_DIGEST_SIZE,
                                kAlgorithm_SSS_SHA256);
@@ -614,7 +612,7 @@ static int InitSha256(wc_Sha256* sha256)
     int wc_Sha256FinalRaw(wc_Sha256* sha256, byte* hash)
     {
         int ret = 0;
-        ret = se050_hash_final(&sha256->se050Ctx, hash, WC_SHA256_DIGEST_SIZE, 
+        ret = se050_hash_final(&sha256->se050Ctx, hash, WC_SHA256_DIGEST_SIZE,
                                kAlgorithm_SSS_SHA256);
         (void)wc_InitSha256(sha256);
         return ret;
@@ -1420,7 +1418,7 @@ static int InitSha256(wc_Sha256* sha256)
             return BAD_FUNC_ARG;
         }
         (void)devId;
-        
+
         return se050_hash_init(&sha224->se050Ctx, heap);
     }
 
@@ -1431,7 +1429,7 @@ static int InitSha256(wc_Sha256* sha256)
 
     int wc_Sha224Final(wc_Sha224* sha224, byte* hash)
     {
-        int ret = 0;   
+        int ret = 0;
         ret = se050_hash_final(&sha224->se050Ctx, hash, WC_SHA224_DIGEST_SIZE,
                                kAlgorithm_SSS_SHA224);
         (void)wc_InitSha224(sha224);

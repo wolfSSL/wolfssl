@@ -70,7 +70,7 @@ WOLFSSL_API int wolfSSL_DH_LoadDer(WOLFSSL_DH*, const unsigned char*, int sz);
 WOLFSSL_API int wolfSSL_DH_set_length(WOLFSSL_DH*, long);
 WOLFSSL_API int wolfSSL_DH_set0_pqg(WOLFSSL_DH*, WOLFSSL_BIGNUM*,
     WOLFSSL_BIGNUM*, WOLFSSL_BIGNUM*);
-                  
+
 #define DH_new  wolfSSL_DH_new
 #define DH_free wolfSSL_DH_free
 

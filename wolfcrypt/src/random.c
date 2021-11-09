@@ -1008,10 +1008,10 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
                 ret = wc_RNG_TestSeed(newSeed, SEED_SZ + SEED_BLOCK_SZ);
 
             if (ret == DRBG_SUCCESS)
-	      ret = Hash_DRBG_Reseed((DRBG_internal *)rng->drbg, newSeed + SEED_BLOCK_SZ,
+                ret = Hash_DRBG_Reseed((DRBG_internal *)rng->drbg, newSeed + SEED_BLOCK_SZ,
                                        SEED_SZ);
             if (ret == DRBG_SUCCESS)
-	      ret = Hash_DRBG_Generate((DRBG_internal *)rng->drbg, output, sz);
+                ret = Hash_DRBG_Generate((DRBG_internal *)rng->drbg, output, sz);
 
             ForceZero(newSeed, sizeof(newSeed));
         }
@@ -1657,14 +1657,14 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
 int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
     int ret = !SGX_SUCCESS;
-	int i, read_max = 10;
+    int i, read_max = 10;
 
-	for (i = 0; i < read_max && ret != SGX_SUCCESS; i++) {
-		ret = sgx_read_rand(output, sz);
-	}
+    for (i = 0; i < read_max && ret != SGX_SUCCESS; i++) {
+        ret = sgx_read_rand(output, sz);
+    }
 
-	(void)os;
-	return (ret == SGX_SUCCESS) ? 0 : 1;
+    (void)os;
+    return (ret == SGX_SUCCESS) ? 0 : 1;
 }
 
 #elif defined(USE_WINDOWS_API)
@@ -1777,7 +1777,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             RNGPOLY2 = _CP0_GET_COUNT();
             RNGNUMGEN2 = _CP0_GET_COUNT();
 #else
-            // All others can be seeded from the TRNG
+            /* All others can be seeded from the TRNG */
             RNGCONbits.TRNGMODE = 1;
             RNGCONbits.TRNGEN = 1;
             while (RNGCNT < 64);
@@ -2602,12 +2602,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
 #elif defined(WOLFSSL_SE050)
      #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
-    
+
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz){
         int ret = 0;
-        
+
         (void)os;
-        
+
         if (output == NULL) {
             return BUFFER_E;
         }

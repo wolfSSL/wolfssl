@@ -164,7 +164,7 @@ WOLFSSL_LOCAL void fe_inv__distinct(byte *r, const byte *x);
  * undefined behavior.
  */
 WOLFSSL_LOCAL void fe_select(byte *dst, const byte *zero, const byte *one,
-		   byte condition);
+                   byte condition);
 
 /* Multiply a point by a small constant. The two pointers are not
  * required to be distinct.
@@ -188,11 +188,11 @@ WOLFSSL_LOCAL void fe_sqrt(byte *r, const byte *x);
  * undefined behavior.
  */
 WOLFSSL_LOCAL void fprime_select(byte *dst, const byte *zero, const byte *one,
-		                         byte condition);
+                                         byte condition);
 WOLFSSL_LOCAL void fprime_add(byte *r, const byte *a, const byte *modulus);
 WOLFSSL_LOCAL void fprime_sub(byte *r, const byte *a, const byte *modulus);
 WOLFSSL_LOCAL void fprime_mul(byte *r, const byte *a, const byte *b,
-		                      const byte *modulus);
+                                      const byte *modulus);
 WOLFSSL_LOCAL void fprime_copy(byte *x, const byte *a);
 
 #endif /* CURVE25519_SMALL || ED25519_SMALL */

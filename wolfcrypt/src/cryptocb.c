@@ -396,7 +396,7 @@ int wc_CryptoCb_Curve25519(curve25519_key* private_key,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return wc_CryptoCb_TranslateErrorCode(ret);   
+    return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* HAVE_CURVE25519 */
 

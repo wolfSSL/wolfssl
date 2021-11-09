@@ -19,10 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* STM32 Cube Sample Configuration File 
+/* STM32 Cube Sample Configuration File
  * Generated automatically using `default_conf.ftl` template
  *
- * Included automatically when USE_HAL_DRIVER is defined 
+ * Included automatically when USE_HAL_DRIVER is defined
  * (and not WOLFSSL_USER_SETTINGS or HAVE_CONF_H).
  */
 
@@ -476,12 +476,12 @@
 /* Sha3 */
 #undef WOLFSSL_SHA3
 #if defined(WOLF_CONF_SHA3) && WOLF_CONF_SHA3 == 1
-	#define WOLFSSL_SHA3
+    #define WOLFSSL_SHA3
 #endif
 
 /* MD5 */
 #if defined(WOLF_CONF_MD5) && WOLF_CONF_MD5 == 1
-	/* enabled */
+    /* enabled */
 #else
     #define NO_MD5
 #endif
@@ -504,8 +504,8 @@
     #if 0
         #define USE_WOLFSSL_MEMORY
         #define WOLFSSL_TRACK_MEMORY
-  		  #define WOLFSSL_DEBUG_MEMORY
-	  	  #define WOLFSSL_DEBUG_MEMORY_PRINT
+        #define WOLFSSL_DEBUG_MEMORY
+        #define WOLFSSL_DEBUG_MEMORY_PRINT
     #endif
 #else
     //#define NO_WOLFSSL_MEMORY

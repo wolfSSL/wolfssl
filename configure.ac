@@ -313,18 +313,28 @@ AC_ARG_ENABLE([reproducible-build],
     [ ENABLED_REPRODUCIBLE_BUILD=$REPRODUCIBLE_BUILD_DEFAULT ]
     )
 
-# Test ar for the "U" or "D" options. Should be checked before the libtool macros.
-xxx_ar_flags=$(ar --help 2>&1)
-xxx_ranlib_flags=$(ranlib --help 2>&1)
 if test "$ENABLED_REPRODUCIBLE_BUILD" = "yes"
 then
+    # Test ar for the "D" option. Should be checked before the libtool macros.
+    if test -z "$AR"; then
+        AR=ar
+    fi
+    xxx_ar_flags=$(${AR} --help 2>&1)
+    if test -z "$RANLIB"; then
+        RANLIB=ranlib
+    fi
+    xxx_ranlib_flags=$(${RANLIB} --help 2>&1)
     AM_CFLAGS="$AM_CFLAGS -DHAVE_REPRODUCIBLE_BUILD"
     AS_CASE([$xxx_ar_flags],[*'use zero for timestamps and uids/gids'*],[AR_FLAGS="Dcr"])
-    AS_CASE([$xxx_ranlib_flags],[*'Use zero for symbol map timestamp'*],[RANLIB="ranlib -D"])
-else
-    AS_CASE([$xxx_ar_flags],[*'use actual timestamps and uids/gids'*],[AR_FLAGS="Ucru"])
-    AS_CASE([$xxx_ranlib_flags],[*'Use actual symbol map timestamp'*],[RANLIB="ranlib -U"])
+    AS_CASE([$xxx_ranlib_flags],[*'Use zero for symbol map timestamp'*],[RANLIB="${RANLIB} -D"])
 fi
+
+
+AC_ARG_ENABLE([benchmark],
+    [AS_HELP_STRING([--enable-benchmark],[Build benchmark when building crypttests (default: enabled)])],
+    [ENABLED_BENCHMARK=$enableval],
+    [ENABLED_BENCHMARK=yes]
+    )
 
 
 # Linux Kernel Module
@@ -374,6 +384,7 @@ if test "x$ENABLED_LINUXKM" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM"
     ENABLED_NO_LIBRARY=yes
+    ENABLED_BENCHMARK=no
     output_objdir="$(realpath "$output_objdir")/linuxkm"
 
     if test "$KERNEL_ROOT" = ""; then
@@ -434,11 +445,6 @@ AC_ARG_ENABLE([sp-math],
     [ ENABLED_SP_MATH=$ENABLED_SP_MATH_DEFAULT ],
     )
 
-
-if test "$ENABLED_SP_MATH" != "no" && test "$ENABLED_SP_MATH_ALL" != "no"
-then
-    AC_MSG_ERROR([cannot enable sp-math and sp-math-all simultaneously.])
-fi
 
 AC_ARG_ENABLE([sp-asm],
     [AS_HELP_STRING([--enable-sp-asm],[Enable Single Precision assembly implementation (default: disabled)])],
@@ -608,7 +614,7 @@ then
 
     # Enable AES Decrypt, AES ECB
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB"
-    
+
     # Enable Alt Names, DER Load, Keep Certs, CRL IO with Timeout
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT"
 
@@ -2179,7 +2185,7 @@ AC_ARG_ENABLE([keygen],
 if test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_OPENRESTY" = "yes"
 then
     ENABLED_KEYGEN=yes
-fi 
+fi
 
 
 # CERT GENERATION
@@ -3332,7 +3338,7 @@ AC_ARG_ENABLE([xts],
 
 AS_IF([test "x$ENABLED_XTS" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_XTS -DWOLFSSL_AES_DIRECT"])
-    
+
 # Web Server Build
 AC_ARG_ENABLE([webserver],
     [AS_HELP_STRING([--enable-webserver],[Enable Web Server (default: disabled)])],
@@ -7269,6 +7275,7 @@ AM_CONDITIONAL([BUILD_HASHFLAGS],[test "x$ENABLED_HASHFLAGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CAAM],[test "x$ENABLED_CAAM" = "xyes" || test "x$ENABLED_CAAM" = "xqnx"])
 AM_CONDITIONAL([BUILD_LINUXKM],[test "$ENABLED_LINUXKM" = "yes"])
 AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "$ENABLED_NO_LIBRARY" = "yes"])
+AM_CONDITIONAL([BUILD_BENCHMARK],[test "$ENABLED_BENCHMARK" = "yes"])
 AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
 AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM" = "xqnx"])
 AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])

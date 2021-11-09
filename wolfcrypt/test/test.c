@@ -746,7 +746,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     }
 
 #if defined(USE_FAST_MATH) && \
-	(!defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC))
+        (!defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC))
     if (CheckFastMathSettings() != 1)
         return err_sys("Build vs runtime fastmath FP_MAX_BITS mismatch\n",
                        -1001);
@@ -1802,7 +1802,7 @@ WOLFSSL_TEST_SUBROUTINE int base64_test(void)
         if (ret != ASN_INPUT_E)
             return -1290 - i;
     }
-    
+
 
 #ifdef WOLFSSL_BASE64_ENCODE
     /* Decode and encode all symbols - non-alphanumeric. */
@@ -1941,7 +1941,7 @@ WOLFSSL_TEST_SUBROUTINE int asn_test(void)
 #ifdef WOLFSSL_MD2
 WOLFSSL_TEST_SUBROUTINE int md2_test(void)
 {
-    int ret = 0; 
+    int ret = 0;
     Md2  md2;
     byte hash[MD2_DIGEST_SIZE];
 
@@ -2021,8 +2021,8 @@ WOLFSSL_TEST_SUBROUTINE int md2_test(void)
             return -1507 - i;
         }
 
-    }        
-    
+    }
+
     return 0;
 }
 #endif
@@ -2686,7 +2686,7 @@ WOLFSSL_TEST_SUBROUTINE int sha256_test(void)
             (word32)test_sha[i].inLen);
         if (ret != 0) {
             ERROR_OUT(-2302 - i, exit);
-	}
+        }
         ret = wc_Sha256GetHash(&sha, hashcopy);
         if (ret != 0)
             ERROR_OUT(-2303 - i, exit);
@@ -5533,7 +5533,7 @@ WOLFSSL_TEST_SUBROUTINE int chacha_test(void)
 
     for (i = 0; i < 18; ++i) {
         /* this will test all paths */
-        // block sizes: 1 2 3 4 7 8 15 16 31 32 63 64 127 128 255 256 511 512
+        /* block sizes: 1 2 3 4 7 8 15 16 31 32 63 64 127 128 255 256 511 512 */
         block_size = (2 << (i%9)) - (i<9?1:0);
         keySz = 32;
 
@@ -5809,7 +5809,7 @@ WOLFSSL_TEST_SUBROUTINE int poly1305_test(void)
 
     /* Check fail of TLS MAC function if altering additional data */
     XMEMSET(tag, 0, sizeof(tag));
-	additional[0]++;
+    additional[0]++;
     ret = wc_Poly1305_MAC(&enc, additional, sizeof(additional),
                                    (byte*)msg4, sizeof(msg4), tag, sizeof(tag));
     if (ret != 0)
@@ -6762,9 +6762,9 @@ EVP_TEST_END:
 #endif
 #endif
 
-	XMEMSET(enc, 0, sizeof *enc);
+        XMEMSET(enc, 0, sizeof *enc);
     #ifdef HAVE_AES_DECRYPT
-	XMEMSET(dec, 0, sizeof *dec);
+        XMEMSET(dec, 0, sizeof *dec);
     #endif
 
 #ifdef WOLFSSL_AES_128
@@ -9465,8 +9465,8 @@ WOLFSSL_TEST_SUBROUTINE int aes256_test(void)
 #ifdef HAVE_AESGCM
 
 static int aesgcm_default_test_helper(byte* key, int keySz, byte* iv, int ivSz,
-		byte* plain, int plainSz, byte* cipher, int cipherSz,
-		byte* aad, int aadSz, byte* tag, int tagSz)
+                byte* plain, int plainSz, byte* cipher, int cipherSz,
+                byte* aad, int aadSz, byte* tag, int tagSz)
 {
     int ret, enc_inited = 0, dec_inited = 0;
 #ifdef WOLFSSL_SMALL_STACK
@@ -9642,26 +9642,26 @@ WOLFSSL_TEST_SUBROUTINE int aesgcm_default_test(void)
     };
 
     int ret;
-	ret = aesgcm_default_test_helper(key1, sizeof(key1), iv1, sizeof(iv1),
-		plain1, sizeof(plain1), cipher1, sizeof(cipher1),
-		aad1, sizeof(aad1), tag1, sizeof(tag1));
-	if (ret != 0) {
-		return ret;
-	}
-	ret = aesgcm_default_test_helper(key2, sizeof(key2), iv2, sizeof(iv2),
-		plain2, sizeof(plain2), cipher2, sizeof(cipher2),
-		NULL, 0, tag2, sizeof(tag2));
-	if (ret != 0) {
-		return ret;
-	}
-	ret = aesgcm_default_test_helper(key3, sizeof(key3), iv3, sizeof(iv3),
-		NULL, 0, NULL, 0,
-		NULL, 0, tag3, sizeof(tag3));
-	if (ret != 0) {
-		return ret;
-	}
+    ret = aesgcm_default_test_helper(key1, sizeof(key1), iv1, sizeof(iv1),
+            plain1, sizeof(plain1), cipher1, sizeof(cipher1),
+            aad1, sizeof(aad1), tag1, sizeof(tag1));
+    if (ret != 0) {
+        return ret;
+    }
+    ret = aesgcm_default_test_helper(key2, sizeof(key2), iv2, sizeof(iv2),
+            plain2, sizeof(plain2), cipher2, sizeof(cipher2),
+            NULL, 0, tag2, sizeof(tag2));
+    if (ret != 0) {
+        return ret;
+    }
+    ret = aesgcm_default_test_helper(key3, sizeof(key3), iv3, sizeof(iv3),
+            NULL, 0, NULL, 0,
+            NULL, 0, tag3, sizeof(tag3));
+    if (ret != 0) {
+        return ret;
+    }
 
-	return 0;
+    return 0;
 }
 
 WOLFSSL_TEST_SUBROUTINE int aesgcm_test(void)
@@ -10361,8 +10361,8 @@ WOLFSSL_TEST_SUBROUTINE int gmac_test(void)
 #if (!defined(HAVE_FIPS) ||                                             \
      (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
 
-	/* FIPS builds only allow 16-byte auth tags. */
-	/* This sample uses a 15-byte auth tag. */
+    /* FIPS builds only allow 16-byte auth tags. */
+    /* This sample uses a 15-byte auth tag. */
     WOLFSSL_SMALL_STACK_STATIC const byte k2[] =
     {
         0x40, 0xf7, 0xec, 0xb2, 0x52, 0x6d, 0xaa, 0xd4,
@@ -11324,7 +11324,22 @@ WOLFSSL_TEST_SUBROUTINE int idea_test(void)
     {
         WC_RNG rng;
         byte key[IDEA_KEY_SIZE], iv[IDEA_BLOCK_SIZE],
-        rnd[1000], enc[1000], dec[1000];
+        *rnd, *enc, *dec;
+
+#define IDEA_SCRATCH_BUFFER_SIZE 1000
+        rnd = (byte *)XMALLOC(IDEA_SCRATCH_BUFFER_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        enc = (byte *)XMALLOC(IDEA_SCRATCH_BUFFER_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        dec = (byte *)XMALLOC(IDEA_SCRATCH_BUFFER_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if ((rnd == NULL) || (enc == NULL) || (dec == NULL)) {
+            if (rnd)
+                XFREE(rnd, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            if (enc)
+                XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            if (dec)
+                XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            return -6823;
+        }
 
         /* random values */
     #ifndef HAVE_FIPS
@@ -11347,7 +11362,7 @@ WOLFSSL_TEST_SUBROUTINE int idea_test(void)
                 return -6816;
 
             /* random data */
-            ret = wc_RNG_GenerateBlock(&rng, rnd, sizeof(rnd));
+            ret = wc_RNG_GenerateBlock(&rng, rnd, IDEA_SCRATCH_BUFFER_SIZE);
             if (ret != 0)
                 return -6817;
 
@@ -11360,8 +11375,8 @@ WOLFSSL_TEST_SUBROUTINE int idea_test(void)
             }
 
             /* Data encryption */
-            XMEMSET(enc, 0, sizeof(enc));
-            ret = wc_IdeaCbcEncrypt(&idea, enc, rnd, sizeof(rnd));
+            XMEMSET(enc, 0, IDEA_SCRATCH_BUFFER_SIZE);
+            ret = wc_IdeaCbcEncrypt(&idea, enc, rnd, IDEA_SCRATCH_BUFFER_SIZE);
             if (ret != 0) {
                 printf("wc_IdeaCbcEncrypt failed\n");
                 return -6819;
@@ -11376,18 +11391,23 @@ WOLFSSL_TEST_SUBROUTINE int idea_test(void)
             }
 
             /* Data decryption */
-            XMEMSET(dec, 0, sizeof(dec));
-            ret = wc_IdeaCbcDecrypt(&idea, dec, enc, sizeof(enc));
+            XMEMSET(dec, 0, IDEA_SCRATCH_BUFFER_SIZE);
+            ret = wc_IdeaCbcDecrypt(&idea, dec, enc, IDEA_SCRATCH_BUFFER_SIZE);
             if (ret != 0) {
                 printf("wc_IdeaCbcDecrypt failed\n");
                 return -6821;
             }
 
-            if (XMEMCMP(rnd, dec, sizeof(rnd))) {
+            if (XMEMCMP(rnd, dec, IDEA_SCRATCH_BUFFER_SIZE)) {
                 printf("Bad CBC decryption\n");
                 return -6822;
             }
         }
+
+        XFREE(rnd, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#undef IDEA_SCRATCH_BUFFER_SIZE
 
         wc_FreeRng(&rng);
     }
@@ -13925,14 +13945,14 @@ WOLFSSL_TEST_SUBROUTINE int rsa_no_pad_test(void)
     XMEMSET(key, 0, sizeof(RsaKey));
 #ifdef USE_CERT_BUFFERS_1024
     bytes = (size_t)sizeof_client_key_der_1024;
-	if (bytes < (size_t)sizeof_client_cert_der_1024)
-		bytes = (size_t)sizeof_client_cert_der_1024;
+    if (bytes < (size_t)sizeof_client_cert_der_1024)
+        bytes = (size_t)sizeof_client_cert_der_1024;
 #elif defined(USE_CERT_BUFFERS_2048)
     bytes = (size_t)sizeof_client_key_der_2048;
-	if (bytes < (size_t)sizeof_client_cert_der_2048)
-		bytes = (size_t)sizeof_client_cert_der_2048;
+    if (bytes < (size_t)sizeof_client_cert_der_2048)
+        bytes = (size_t)sizeof_client_cert_der_2048;
 #else
-	bytes = FOURK_BUF;
+    bytes = FOURK_BUF;
 #endif
 
     tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -14154,10 +14174,10 @@ static int rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
 
 #if defined(USE_CERT_BUFFERS_2048)
     bytes = (size_t)sizeof_client_key_der_2048;
-	if (bytes < (size_t)sizeof_client_cert_der_2048)
-		bytes = (size_t)sizeof_client_cert_der_2048;
+    if (bytes < (size_t)sizeof_client_cert_der_2048)
+        bytes = (size_t)sizeof_client_cert_der_2048;
 #else
-	bytes = FOURK_BUF;
+    bytes = FOURK_BUF;
 #endif
 
     tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -14634,9 +14654,9 @@ static int rsa_ecc_certgen_test(WC_RNG* rng, byte* tmp)
 #ifdef WOLFSSL_SMALL_STACK
     if ((caKey == NULL) || (caEccKey == NULL) || (caEccKeyPub == NULL)
 #ifdef WOLFSSL_TEST_CERT
-	|| (decode == NULL)
+        || (decode == NULL)
 #endif
-	)
+        )
         ERROR_OUT(MEMORY_E, exit_rsa);
 #endif
 
@@ -14959,11 +14979,11 @@ static int rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
     int ret = 0;
     word32 idx = 0;
     const char inStr[] = TEST_STRING;
-	const word32 inLen = (word32)TEST_STRING_SZ;
+    const word32 inLen = (word32)TEST_STRING_SZ;
     const word32 outSz   = RSA_TEST_BYTES;
     const word32 plainSz = RSA_TEST_BYTES;
-    byte*  res = NULL; 
-    
+    byte*  res = NULL;
+
     DECLARE_VAR(in, byte, TEST_STRING_SZ, HEAP_HINT);
     DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
@@ -14985,7 +15005,7 @@ static int rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
 #endif
-        
+
         if (ret >= 0) {
             ret = wc_RsaPublicEncrypt_ex(in, inLen, out, outSz, key, rng,
                        WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
@@ -15285,18 +15305,18 @@ exit_rsa:
     FREE_VAR(out, HEAP_HINT);
     FREE_VAR(plain, HEAP_HINT);
 
-    (void)idx;   
+    (void)idx;
     (void)inStr;
     (void)res;
-    
+
     if (ret >= 0)
         ret = 0;
-    
+
     return ret;
 
 }
-#endif 
-#endif 
+#endif
+#endif
 
 WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 {
@@ -15319,7 +15339,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 #endif
     word32 idx = 0;
     const char inStr[] = TEST_STRING;
-	const word32 inLen = (word32)TEST_STRING_SZ;
+    const word32 inLen = (word32)TEST_STRING_SZ;
     const word32 outSz   = RSA_TEST_BYTES;
     const word32 plainSz = RSA_TEST_BYTES;
     byte*  res = NULL;
@@ -15402,7 +15422,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     if (bytes < (size_t)sizeof_client_cert_der_4096)
         bytes = (size_t)sizeof_client_cert_der_4096;
 #else
-	bytes = FOURK_BUF;
+    bytes = FOURK_BUF;
 #endif
 
     tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -15956,8 +15976,8 @@ exit_rsa:
     (void)in;
     (void)out;
     (void)plain;
-    (void)idx; 
-    (void)inStr; 
+    (void)idx;
+    (void)inStr;
     (void)inLen;
     (void)outSz;
     (void)plainSz;
@@ -16585,7 +16605,7 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
     byte *pub2 = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     byte *agree = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     byte *agree2 = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (priv == NULL || pub == NULL || priv2 == NULL || pub2 == NULL || 
+    if (priv == NULL || pub == NULL || priv2 == NULL || pub2 == NULL ||
             agree == NULL || agree2 == NULL) {
         ERROR_OUT(-8100, done);
     }
@@ -21182,7 +21202,7 @@ static int ecc_test_deterministic_k(WC_RNG* rng)
         0xD4, 0x36, 0xC7, 0xA1, 0xB6, 0xE2, 0x9F, 0x65,
         0xF3, 0xE9, 0x00, 0xDB, 0xB9, 0xAF, 0xF4, 0x06,
         0x4D, 0xC4, 0xAB, 0x2F, 0x84, 0x3A, 0xCD, 0xA8
-    }; 
+    };
 
     ret = wc_ecc_init_ex(&key, HEAP_HINT, devId);
     if (ret != 0) {
@@ -23008,7 +23028,7 @@ static int ecc_def_curve_test(WC_RNG *rng)
         XFCLOSE(file);
         ret = wc_EccPrivateKeyDecode(der, &idx, key, derSz);
     }
-    #endif    
+    #endif
     if (ret != 0) {
         goto done;
     }
@@ -23029,7 +23049,7 @@ done:
 
     wc_ecc_free(key);
 #ifdef WOLFSSL_SMALL_STACK
-    if (key != NULL) {    
+    if (key != NULL) {
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
@@ -24405,6 +24425,8 @@ static int ecc_encrypt_kat(WC_RNG *rng)
             ret = -10456;
         }
     }
+#else
+    (void)rng;
 #endif
 
     if (ret == 0) {
@@ -27195,10 +27217,6 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
 #if defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_KEY_EXPORT) &&\
     defined(HAVE_ED448_KEY_IMPORT)
     byte   out[ED448_SIG_SIZE];
-    byte   exportPKey[ED448_KEY_SIZE];
-    byte   exportSKey[ED448_KEY_SIZE];
-    word32 exportPSz;
-    word32 exportSSz;
     int    i;
     word32 outlen;
 #ifdef HAVE_ED448_VERIFY
@@ -27209,8 +27227,13 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
 #endif /* HAVE_ED448_VERIFY */
 #endif /* HAVE_ED448_SIGN && HAVE_ED448_KEY_EXPORT && HAVE_ED448_KEY_IMPORT */
     word32 keySz, sigSz;
-    ed448_key key;
-    ed448_key key2;
+#ifdef WOLFSSL_SMALL_STACK
+    ed448_key *key = NULL;
+    ed448_key *key2 = NULL;
+#else
+    ed448_key key[1];
+    ed448_key key2[1];
+#endif
 
 #if defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_KEY_EXPORT) && \
     defined(HAVE_ED448_KEY_IMPORT)
@@ -27619,7 +27642,7 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
                                    sizeof(msg4)
     };
 #ifndef NO_ASN
-    static byte privateEd448[] = {
+    static const byte privateEd448[] = {
         0x30, 0x47, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06,
         0x03, 0x2b, 0x65, 0x71, 0x04, 0x3b, 0x04, 0x39,
         0x6c, 0x82, 0xa5, 0x62, 0xcb, 0x80, 0x8d, 0x10,
@@ -27631,7 +27654,7 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
         0x03, 0x2e, 0x75, 0x49, 0xa2, 0x00, 0x98, 0xf9,
         0x5b
     };
-    static byte publicEd448[] = {
+    static const byte publicEd448[] = {
         0x30, 0x43, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65,
         0x71, 0x03, 0x3a, 0x00, 0x5f, 0xd7, 0x44, 0x9b,
         0x59, 0xb4, 0x61, 0xfd, 0x2c, 0xe7, 0x87, 0xec,
@@ -27642,7 +27665,7 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
         0xf1, 0xe5, 0x0f, 0x6c, 0xd1, 0xfa, 0x1a, 0xbe,
         0xaf, 0xe8, 0x25, 0x61, 0x80
     };
-    static byte privPubEd448[] = {
+    static const byte privPubEd448[] = {
         0x30, 0x81, 0x84, 0x02, 0x01, 0x00, 0x30, 0x05,
         0x06, 0x03, 0x2b, 0x65, 0x71, 0x04, 0x3b, 0x04,
         0x39, 0x6c, 0x82, 0xa5, 0x62, 0xcb, 0x80, 0x8d,
@@ -27666,7 +27689,19 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
 #endif /* NO_ASN */
 #endif /* HAVE_ED448_SIGN && HAVE_ED448_KEY_EXPORT && HAVE_ED448_KEY_IMPORT */
 #if !defined(NO_ASN) && defined(HAVE_ED448_SIGN)
-    ed448_key key3;
+#ifdef WOLFSSL_SMALL_STACK
+    ed448_key *key3 = NULL;
+#else
+    ed448_key key3[1];
+#endif
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+    key = (ed448_key *)XMALLOC(sizeof(*key), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    key2 = (ed448_key *)XMALLOC(sizeof(*key2), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#if !defined(NO_ASN) && defined(HAVE_ED448_SIGN)
+    key3 = (ed448_key *)XMALLOC(sizeof(*key3), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 #endif
 
     /* create ed448 keys */
@@ -27675,20 +27710,27 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
 #else
     ret = wc_InitRng(&rng);
 #endif
-    if (ret != 0)
-        return -11700;
+    if (ret != 0) {
+        XMEMSET(&rng, 0, sizeof(rng));
+        ERROR_OUT(-11700, out);
+    }
 
-    wc_ed448_init(&key);
-    wc_ed448_init(&key2);
+    if (wc_ed448_init(key) < 0)
+        ERROR_OUT(-11903, out);
+    if (wc_ed448_init(key2) < 0)
+        ERROR_OUT(-11904, out);
 #if !defined(NO_ASN) && defined(HAVE_ED448_SIGN)
-    wc_ed448_init(&key3);
+    if (wc_ed448_init(key3) < 0)
+        ERROR_OUT(-11905, out);
 #endif
-    wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key);
-    wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key2);
+    if (wc_ed448_make_key(&rng, ED448_KEY_SIZE, key) < 0)
+        ERROR_OUT(-11906, out);
+    if (wc_ed448_make_key(&rng, ED448_KEY_SIZE, key2) < 0)
+        ERROR_OUT(-11907, out);
 
     /* helper functions for signature and key size */
-    keySz = wc_ed448_size(&key);
-    sigSz = wc_ed448_sig_size(&key);
+    keySz = wc_ed448_size(key);
+    sigSz = wc_ed448_sig_size(key);
 
 #if defined(HAVE_ED448_SIGN) && defined(HAVE_ED448_KEY_EXPORT) &&\
         defined(HAVE_ED448_KEY_IMPORT)
@@ -27697,142 +27739,193 @@ WOLFSSL_TEST_SUBROUTINE int ed448_test(void)
         XMEMSET(out, 0, sizeof(out));
 
         if (wc_ed448_import_private_key(sKeys[i], ED448_KEY_SIZE, pKeys[i],
-                pKeySz[i], &key) != 0)
-            return -11701 - i;
+                pKeySz[i], key) != 0)
+            ERROR_OUT(-11701 - i, out);
 
-        if (wc_ed448_sign_msg(msgs[i], msgSz[i], out, &outlen, &key, NULL,
-                                                                      0) != 0) {
-            return -11711 - i;
-        }
+        if (wc_ed448_sign_msg(msgs[i], msgSz[i], out, &outlen, key, NULL,
+                                                                      0) != 0)
+            ERROR_OUT(-11711 - i, out);
 
         if (XMEMCMP(out, sigs[i], 114))
-            return -11721 - i;
+            ERROR_OUT(-11721 - i, out);
 
 #if defined(HAVE_ED448_VERIFY)
         /* test verify on good msg */
-        if (wc_ed448_verify_msg(out, outlen, msgs[i], msgSz[i], &verify, &key,
-                                                 NULL, 0) != 0 || verify != 1) {
-            return -11731 - i;
-        }
+        if (wc_ed448_verify_msg(out, outlen, msgs[i], msgSz[i], &verify, key,
+                                                 NULL, 0) != 0 || verify != 1)
+            ERROR_OUT(-11731 - i, out);
 
 #ifdef WOLFSSL_ED448_STREAMING_VERIFY
         /* test verify on good msg using streaming interface directly */
         if (wc_ed448_verify_msg_init(out, outlen,
-                                       &key, (byte)Ed448, NULL, 0) != 0)
-            return -11911 - i;
+                                       key, (byte)Ed448, NULL, 0) != 0)
+            ERROR_OUT(-11911 - i, out);
         for (j = 0; j < msgSz[i]; j += i) {
-            if (wc_ed448_verify_msg_update(msgs[i] + j, MIN(i, msgSz[i] - j), &key) != 0)
-                return -11921 - i;
+            if (wc_ed448_verify_msg_update(msgs[i] + j, MIN(i, msgSz[i] - j), key) != 0)
+                ERROR_OUT(-11921 - i, out);
         }
         if (wc_ed448_verify_msg_final(out, outlen, &verify,
-                                        &key) != 0 || verify != 1)
-            return -11931 - i;
+                                        key) != 0 || verify != 1)
+            ERROR_OUT(-11931 - i, out);
 #endif /* WOLFSSL_ED448_STREAMING_VERIFY */
 
         /* test verify on bad msg */
         out[outlen-2] = out[outlen-2] + 1;
-        if (wc_ed448_verify_msg(out, outlen, msgs[i], msgSz[i], &verify, &key,
-                                                 NULL, 0) == 0 || verify == 1) {
-            return -11741 - i;
-        }
+        if (wc_ed448_verify_msg(out, outlen, msgs[i], msgSz[i], &verify, key,
+                                                 NULL, 0) == 0 || verify == 1)
+            ERROR_OUT(-11741 - i, out);
 #endif /* HAVE_ED448_VERIFY */
 
         /* test api for import/exporting keys */
-        exportPSz = sizeof(exportPKey);
-        exportSSz = sizeof(exportSKey);
-        if (wc_ed448_export_public(&key, exportPKey, &exportPSz) != 0)
-            return -11751 - i;
+        {
+            byte   *exportPKey = NULL;
+            byte   *exportSKey = NULL;
+            word32 exportPSz = ED448_KEY_SIZE;
+            word32 exportSSz = ED448_KEY_SIZE;
 
-        if (wc_ed448_import_public(exportPKey, exportPSz, &key2) != 0)
-            return -11761 - i;
+            exportPKey = (byte *)XMALLOC(exportPSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            exportSKey = (byte *)XMALLOC(exportSSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            if ((exportPKey == NULL) || (exportSKey == NULL))
+                ERROR_OUT(-11902, out);
 
-        if (wc_ed448_export_private_only(&key, exportSKey, &exportSSz) != 0)
-            return -11771 - i;
+            ret = 0;
 
-        if (wc_ed448_import_private_key(exportSKey, exportSSz,
-                                        exportPKey, exportPSz, &key2) != 0)
-            return -11781 - i;
+            do {
+                if (wc_ed448_export_public(key, exportPKey, &exportPSz) != 0) {
+                    ret = -11751 - i;
+                    break;
+                }
 
-        /* clear "out" buffer and test sign with imported keys */
-        outlen = sizeof(out);
-        XMEMSET(out, 0, sizeof(out));
-        if (wc_ed448_sign_msg(msgs[i], msgSz[i], out, &outlen, &key2, NULL,
-                                                                      0) != 0) {
-            return -11791 - i;
+                if (wc_ed448_import_public(exportPKey, exportPSz, key2) != 0) {
+                    ret = -11761 - i;
+                    break;
+                }
+
+                if (wc_ed448_export_private_only(key, exportSKey, &exportSSz) != 0) {
+                    ret = -11771 - i;
+                    break;
+                }
+
+                if (wc_ed448_import_private_key(exportSKey, exportSSz,
+                                                exportPKey, exportPSz, key2) != 0) {
+                    ret = -11781 - i;
+                    break;
+                }
+
+                /* clear "out" buffer and test sign with imported keys */
+                outlen = sizeof(out);
+                XMEMSET(out, 0, sizeof(out));
+                if (wc_ed448_sign_msg(msgs[i], msgSz[i], out, &outlen, key2, NULL,
+                                      0) != 0) {
+                    ret = -11791 - i;
+                    break;
+                }
+            } while(0);
+
+            XFREE(exportPKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(exportSKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+            if (ret != 0)
+                goto out;
         }
 
 #if defined(HAVE_ED448_VERIFY)
-        if (wc_ed448_verify_msg(out, outlen, msgs[i], msgSz[i], &verify, &key2,
+        if (wc_ed448_verify_msg(out, outlen, msgs[i], msgSz[i], &verify, key2,
                                 NULL, 0) != 0 || verify != 1)
-            return -11801 - i;
+            ERROR_OUT(-11801 - i, out);
 
         if (XMEMCMP(out, sigs[i], SIGSZ))
-            return -11811 - i;
+            ERROR_OUT(-11811 - i, out);
 #endif /* HAVE_ED448_VERIFY */
     }
 
     ret = ed448_ctx_test();
     if (ret != 0)
-        return ret;
+        goto out;
 
     ret = ed448ph_test();
     if (ret != 0)
-        return ret;
+        goto out;
 
 #ifndef NO_ASN
     /* Try ASN.1 encoded private-only key and public key. */
     idx = 0;
-    if (wc_Ed448PrivateKeyDecode(privateEd448, &idx, &key3,
+    if (wc_Ed448PrivateKeyDecode(privateEd448, &idx, key3,
                                  sizeof(privateEd448)) != 0)
-        return -11821;
+        ERROR_OUT(-11821, out);
 
-    if (wc_ed448_sign_msg(msgs[0], msgSz[0], out, &outlen, &key3, NULL, 0)
+    if (wc_ed448_sign_msg(msgs[0], msgSz[0], out, &outlen, key3, NULL, 0)
                 != BAD_FUNC_ARG)
-        return -11831;
+        ERROR_OUT(-11831, out);
 
     idx = 0;
-    if (wc_Ed448PublicKeyDecode(publicEd448, &idx, &key3,
+    if (wc_Ed448PublicKeyDecode(publicEd448, &idx, key3,
                                 sizeof(publicEd448)) != 0)
-        return -11841;
+        ERROR_OUT(-11841, out);
 
-    if (wc_ed448_sign_msg(msgs[0], msgSz[0], out, &outlen, &key3, NULL, 0) != 0)
-        return -11851;
+    if (wc_ed448_sign_msg(msgs[0], msgSz[0], out, &outlen, key3, NULL, 0) != 0)
+        ERROR_OUT(-11851, out);
 
     if (XMEMCMP(out, sigs[0], SIGSZ))
-        return -11861;
+        ERROR_OUT(-11861, out);
 
 #if defined(HAVE_ED448_VERIFY)
     /* test verify on good msg */
-    if (wc_ed448_verify_msg(out, outlen, msgs[0], msgSz[0], &verify, &key3,
+    if (wc_ed448_verify_msg(out, outlen, msgs[0], msgSz[0], &verify, key3,
                 NULL, 0) != 0 || verify != 1)
-        return -11871;
+        ERROR_OUT(-11871, out);
 #endif /* HAVE_ED448_VERIFY */
 
-    wc_ed448_free(&key3);
-    wc_ed448_init(&key3);
+    wc_ed448_free(key3);
+    if (wc_ed448_init(key3) < 0)
+        ERROR_OUT(-11908, out);
 
     idx = 0;
-    if (wc_Ed448PrivateKeyDecode(privPubEd448, &idx, &key3,
+    if (wc_Ed448PrivateKeyDecode(privPubEd448, &idx, key3,
                                  sizeof(privPubEd448)) != 0)
-        return -11881;
+        ERROR_OUT(-11881, out);
 
-    if (wc_ed448_sign_msg(msgs[0], msgSz[0], out, &outlen, &key3, NULL, 0) != 0)
-        return -11891;
+    if (wc_ed448_sign_msg(msgs[0], msgSz[0], out, &outlen, key3, NULL, 0) != 0)
+        ERROR_OUT(-11891, out);
 
     if (XMEMCMP(out, sigs[0], SIGSZ))
-        return -11901;
-
-    wc_ed448_free(&key3);
+        ERROR_OUT(-11901, out);
 #endif /* NO_ASN */
 #endif /* HAVE_ED448_SIGN && HAVE_ED448_KEY_EXPORT && HAVE_ED448_KEY_IMPORT */
 
-    /* clean up keys when done */
-    wc_ed448_free(&key);
-    wc_ed448_free(&key2);
+    ret = 0;
+
+  out:
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (key) {
+        wc_ed448_free(key);
+        XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (key2) {
+        wc_ed448_free(key2);
+        XFREE(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#if !defined(NO_ASN) && defined(HAVE_ED448_SIGN)
+    if (key3) {
+        wc_ed448_free(key3);
+        XFREE(key3, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+#else
+    wc_ed448_free(key);
+    wc_ed448_free(key2);
+#if !defined(NO_ASN) && defined(HAVE_ED448_SIGN)
+    wc_ed448_free(key3);
+#endif
+#endif
 
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
     wc_FreeRng(&rng);
 #endif
+
+    if (ret < 0)
+        return ret;
 
     /* hush warnings of unused keySz and sigSz */
     (void)keySz;
@@ -30155,7 +30248,7 @@ WOLFSSL_TEST_SUBROUTINE int cmac_test(void)
         tagSz = AES_BLOCK_SIZE;
 
 #if !defined(HAVE_FIPS) || \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3)    
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3)
         if (wc_InitCmac_ex(cmac, tc->k, tc->kSz, tc->type, NULL, HEAP_HINT, devId) != 0)
 #else
         if (wc_InitCmac(cmac, tc->k, tc->kSz, tc->type, NULL) != 0)
@@ -30822,9 +30915,9 @@ typedef struct {
     int          kariOptions;    /* KARI options flags */
 
     /* KEKRI specific */
-    byte*        secretKey;      /* key, only for kekri RecipientInfo types */
+    const byte*  secretKey;      /* key, only for kekri RecipientInfo types */
     word32       secretKeySz;    /* size of secretKey, bytes */
-    byte*        secretKeyId;    /* key identifier */
+    const byte*  secretKeyId;    /* key identifier */
     word32       secretKeyIdSz;  /* size of key identifier, bytes */
     void*        timePtr;        /* time_t pointer */
     byte*        otherAttrOID;   /* OPTIONAL, other attribute OID */
@@ -30834,9 +30927,9 @@ typedef struct {
     int          kekriOptions;   /* KEKRI options flags */
 
     /* PWRI specific */
-    char*        password;
+    const char*  password;
     word32       passwordSz;
-    byte*        salt;
+    const byte*  salt;
     word32       saltSz;
     int          kdfOID;
     int          hashOID;
@@ -31071,12 +31164,12 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
                                       byte* eccCert, word32 eccCertSz,
                                       byte* eccPrivKey,  word32 eccPrivKeySz)
 {
-    int ret = 0, testSz, i;
+    int ret = 0, testSz = 0, i;
     int envelopedSz, decodedSz;
 
-    byte   *enveloped;
-    byte   *decoded;
-    PKCS7* pkcs7;
+    byte   *enveloped = NULL;
+    byte   *decoded = NULL;
+    PKCS7* pkcs7 = NULL;
 #ifdef ECC_TIMING_RESISTANT
     WC_RNG rng;
 #endif
@@ -31099,13 +31192,13 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128) && \
     !defined(NO_SHA)
     /* encryption key for kekri recipient types */
-    byte secretKey[] = {
+    WOLFSSL_SMALL_STACK_STATIC const byte secretKey[] = {
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07
     };
 
     /* encryption key identifier */
-    byte secretKeyId[] = {
+    WOLFSSL_SMALL_STACK_STATIC const byte secretKeyId[] = {
         0x02,0x02,0x03,0x04
     };
 #endif
@@ -31114,57 +31207,85 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
     !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
 
     #ifndef HAVE_FIPS
-    char password[] = "password"; /* NOTE: Password is too short for FIPS */
+    WOLFSSL_SMALL_STACK_STATIC const char password[] = "password"; /* NOTE: Password is too short for FIPS */
     #else
-    char password[] = "passwordFIPS_MODE";
+    WOLFSSL_SMALL_STACK_STATIC const char password[] = "passwordFIPS_MODE";
     #endif
 
-    byte salt[] = {
+    WOLFSSL_SMALL_STACK_STATIC const byte salt[] = {
         0x12, 0x34, 0x56, 0x78, 0x78, 0x56, 0x34, 0x12
     };
 #endif
 
-    const pkcs7EnvelopedVector testVectors[] =
+    #define MAX_TESTVECTORS_LEN 13
+    #define ADD_PKCS7ENVELOPEDVECTOR(...) {                                 \
+            pkcs7EnvelopedVector _this_vector = { __VA_ARGS__ };            \
+            if (testSz == MAX_TESTVECTORS_LEN) {                                \
+                ret = -12534;                                                   \
+                goto out;                                                       \
+            }                                                                   \
+            XMEMCPY(&testVectors[testSz++], &_this_vector, sizeof _this_vector);\
+        }
+
+    pkcs7EnvelopedVector *testVectors = NULL;
+
+#ifdef ECC_TIMING_RESISTANT
+    XMEMSET(&rng, 0, sizeof(rng));
+#endif
+
+    testVectors = (pkcs7EnvelopedVector *)XMALLOC(MAX_TESTVECTORS_LEN * sizeof(*testVectors),
+                                     HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (testVectors == NULL) {
+        ret = -12534;
+        goto out;
+    }
+
     {
         /* key transport key encryption technique */
 #ifndef NO_RSA
     #ifndef NO_DES3
-        {data, (word32)sizeof(data), DATA, DES3b, 0, 0, rsaCert, rsaCertSz,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, DES3b, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL,
          0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataDES3.der"},
+         "pkcs7envelopedDataDES3.der");
     #endif
 
     #if !defined(NO_AES) && defined(HAVE_AES_CBC)
         #ifdef WOLFSSL_AES_128
-        {data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0, rsaCert, rsaCertSz,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL,
          0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataAES128CBC.der"},
+         "pkcs7envelopedDataAES128CBC.der");
         #endif
         #ifdef WOLFSSL_AES_192
-        {data, (word32)sizeof(data), DATA, AES192CBCb, 0, 0, rsaCert, rsaCertSz,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES192CBCb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL,
          0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataAES192CBC.der"},
+         "pkcs7envelopedDataAES192CBC.der");
         #endif
         #ifdef WOLFSSL_AES_256
-        {data, (word32)sizeof(data), DATA, AES256CBCb, 0, 0, rsaCert, rsaCertSz,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256CBCb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL,
          0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataAES256CBC.der"},
+         "pkcs7envelopedDataAES256CBC.der");
 
         /* explicitly using SKID for SubjectKeyIdentifier */
-        {data, (word32)sizeof(data), DATA, AES256CBCb, 0, 0, rsaCert, rsaCertSz,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256CBCb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, CMS_SKID, 0, NULL, 0, NULL, 0, NULL,
          NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataAES256CBC_SKID.der"},
+         "pkcs7envelopedDataAES256CBC_SKID.der");
 
         /* explicitly using IssuerAndSerialNumber for SubjectKeyIdentifier */
-        {data, (word32)sizeof(data), DATA, AES256CBCb, 0, 0, rsaCert, rsaCertSz,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256CBCb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, CMS_ISSUER_AND_SERIAL_NUMBER, 0,
          NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0,
-         0, 0, 0, 0, "pkcs7envelopedDataAES256CBC_IANDS.der"},
+         0, 0, 0, 0, "pkcs7envelopedDataAES256CBC_IANDS.der");
         #endif
     #endif /* !NO_AES && HAVE_AES_CBC */
 #endif
@@ -31173,34 +31294,38 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 #ifdef HAVE_ECC
     #if !defined(NO_AES) && defined(HAVE_AES_CBC)
         #if !defined(NO_SHA) && defined(WOLFSSL_AES_128)
-        {data, (word32)sizeof(data), DATA, AES128CBCb, AES128_WRAP,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES128CBCb, AES128_WRAP,
          dhSinglePass_stdDH_sha1kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0,
          0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataAES128CBC_ECDH_SHA1KDF.der"},
+         "pkcs7envelopedDataAES128CBC_ECDH_SHA1KDF.der");
         #endif
 
         #if !defined(NO_SHA256) && defined(WOLFSSL_AES_256)
-        {data, (word32)sizeof(data), DATA, AES256CBCb, AES256_WRAP,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256CBCb, AES256_WRAP,
          dhSinglePass_stdDH_sha256kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0,
          0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataAES256CBC_ECDH_SHA256KDF.der"},
+         "pkcs7envelopedDataAES256CBC_ECDH_SHA256KDF.der");
         #endif /* NO_SHA256 && WOLFSSL_AES_256 */
 
         #if defined(WOLFSSL_SHA512) && defined(WOLFSSL_AES_256)
-        {data, (word32)sizeof(data), DATA, AES256CBCb, AES256_WRAP,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256CBCb, AES256_WRAP,
          dhSinglePass_stdDH_sha512kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0,
          0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataAES256CBC_ECDH_SHA512KDF.der"},
+         "pkcs7envelopedDataAES256CBC_ECDH_SHA512KDF.der");
 
         /* with optional user keying material (ukm) */
-        {data, (word32)sizeof(data), DATA, AES256CBCb, AES256_WRAP,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256CBCb, AES256_WRAP,
          dhSinglePass_stdDH_sha512kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, optionalUkm, sizeof(optionalUkm), 0, 0, NULL, 0,
          NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataAES256CBC_ECDH_SHA512KDF_ukm.der"},
+         "pkcs7envelopedDataAES256CBC_ECDH_SHA512KDF_ukm.der");
         #endif /* WOLFSSL_SHA512 && WOLFSSL_AES_256 */
     #endif /* !NO_AES && HAVE_AES_CBC */
 #endif
@@ -31208,40 +31333,44 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         /* kekri (KEKRecipientInfo) recipient types */
 #if !defined(NO_AES) && defined(HAVE_AES_CBC)
         #if !defined(NO_SHA) && defined(WOLFSSL_AES_128)
-        {data, (word32)sizeof(data), DATA, AES128CBCb, AES128_WRAP, 0,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES128CBCb, AES128_WRAP, 0,
          NULL, 0, NULL, 0, NULL, 0, 0, 0, secretKey, sizeof(secretKey),
          secretKeyId, sizeof(secretKeyId), NULL, NULL, 0, NULL, 0,
          0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7envelopedDataAES128CBC_KEKRI.der"},
+         "pkcs7envelopedDataAES128CBC_KEKRI.der");
         #endif
 #endif /* !NO_AES && HAVE_AES_CBC */
 
         /* pwri (PasswordRecipientInfo) recipient types */
 #if !defined(NO_PWDBASED) && !defined(NO_AES) && defined(HAVE_AES_CBC)
         #if !defined(NO_SHA) && defined(WOLFSSL_AES_128)
-        {data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0,
          NULL, 0, NULL, 0, NULL, 0, 0, 0, NULL, 0,
          NULL, 0, NULL, NULL, 0, NULL, 0, 0, password,
          (word32)XSTRLEN(password), salt, sizeof(salt), PBKDF2_OID, WC_SHA, 5,
-         0, 0, 0, "pkcs7envelopedDataAES128CBC_PWRI.der"},
+         0, 0, 0, "pkcs7envelopedDataAES128CBC_PWRI.der");
         #endif
 #endif
 
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && !defined(NO_AES_128)
         /* ori (OtherRecipientInfo) recipient types */
-        {data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0, NULL, 0, NULL, 0,
+        ADD_PKCS7ENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0, NULL, 0, NULL, 0,
          NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0,
-         NULL, 0, 0, 0, 0, 0, 1, 0, "pkcs7envelopedDataAES128CBC_ORI.der"},
+         NULL, 0, 0, 0, 0, 0, 1, 0, "pkcs7envelopedDataAES128CBC_ORI.der");
 #endif
     };
+
+    #undef MAX_TESTVECTORS_LEN
+    #undef ADD_PKCS7ENVELOPEDVECTOR
 
     enveloped = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     decoded = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if ((! enveloped) || (! decoded)) {
         ERROR_OUT(-12170, out);
     }
-
-    testSz = sizeof(testVectors) / sizeof(pkcs7EnvelopedVector);
 
 #ifdef ECC_TIMING_RESISTANT
 #ifndef HAVE_FIPS
@@ -31282,8 +31411,8 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
             pkcs7->ukmSz        = testVectors[i].optionalUkmSz;
 
             ret = wc_PKCS7_AddRecipient_KEKRI(pkcs7, testVectors[i].keyWrapOID,
-                    testVectors[i].secretKey, testVectors[i].secretKeySz,
-                    testVectors[i].secretKeyId, testVectors[i].secretKeyIdSz,
+                    (byte *)testVectors[i].secretKey, testVectors[i].secretKeySz,
+                    (byte *)testVectors[i].secretKeyId, testVectors[i].secretKeyIdSz,
                     testVectors[i].timePtr, testVectors[i].otherAttrOID,
                     testVectors[i].otherAttrOIDSz, testVectors[i].otherAttr,
                     testVectors[i].otherAttrSz, testVectors[i].kekriOptions);
@@ -31294,7 +31423,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
             }
 
             /* set key, for decryption */
-            ret = wc_PKCS7_SetKey(pkcs7, testVectors[i].secretKey,
+            ret = wc_PKCS7_SetKey(pkcs7, (byte *)testVectors[i].secretKey,
                                   testVectors[i].secretKeySz);
 
             if (ret != 0) {
@@ -31319,9 +31448,9 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
             pkcs7->ukmSz        = testVectors[i].optionalUkmSz;
 
             ret = wc_PKCS7_AddRecipient_PWRI(pkcs7,
-                    (byte*)testVectors[i].password,
-                    testVectors[i].passwordSz, testVectors[i].salt,
-                    testVectors[i].saltSz, testVectors[i].kdfOID,
+                    (byte *)testVectors[i].password, testVectors[i].passwordSz,
+                    (byte *)testVectors[i].salt, testVectors[i].saltSz,
+                    testVectors[i].kdfOID,
                     testVectors[i].hashOID, testVectors[i].kdfIterations,
                     testVectors[i].encryptOID, testVectors[i].pwriOptions);
 
@@ -31498,6 +31627,8 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
     (void)rsaPrivKeySz;
 
   out:
+    if (testVectors)
+        XFREE(testVectors, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (enveloped)
         XFREE(enveloped, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (decoded)
@@ -31722,66 +31853,74 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
     };
 #endif
 
-    pkcs7AuthEnvelopedVector *testVectors = NULL;
-
-    {
-#define ADD_PKCS7_TEST_VEC(...) {                                       \
-            const pkcs7AuthEnvelopedVector vec = __VA_ARGS__;           \
-            testVectors = (pkcs7AuthEnvelopedVector *)                  \
-                XREALLOC(testVectors,                                   \
-                         sizeof *testVectors * (testSz + 1),            \
-                         HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);           \
-            if (testVectors == NULL)                                    \
-                ERROR_OUT(-12233, out);                                 \
-            XMEMCPY(&testVectors[testSz++], &vec, sizeof *testVectors); \
+    #define MAX_TESTVECTORS_LEN 20
+    #define ADD_PKCS7AUTHENVELOPEDVECTOR(...) {                                 \
+            pkcs7AuthEnvelopedVector _this_vector = { __VA_ARGS__ };            \
+            if (testSz == MAX_TESTVECTORS_LEN) {                                \
+                ret = -12534;                                                   \
+                goto out;                                                       \
+            }                                                                   \
+            XMEMCPY(&testVectors[testSz++], &_this_vector, sizeof _this_vector);\
         }
 
+    pkcs7AuthEnvelopedVector *testVectors = NULL;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    testVectors = (pkcs7AuthEnvelopedVector *)XMALLOC(MAX_TESTVECTORS_LEN * sizeof(*testVectors),
+                                     HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (testVectors == NULL) {
+        ret = -12534;
+        goto out;
+    }
+
+    {
         /* key transport key encryption technique */
 #ifndef NO_RSA
     #if !defined(NO_AES) && defined(HAVE_AESGCM)
         #ifdef WOLFSSL_AES_128
-        ADD_PKCS7_TEST_VEC(
-        {data, (word32)sizeof(data), DATA, AES128GCMb, 0, 0, rsaCert, rsaCertSz,
+        ADD_PKCS7AUTHENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES128GCMb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, NULL, 0, NULL, 0, 0, 0, NULL, 0,
          NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0,
-         0, 0, "pkcs7authEnvelopedDataAES128GCM.der"});
+         0, 0, "pkcs7authEnvelopedDataAES128GCM.der");
         #endif
         #ifdef WOLFSSL_AES_192
-        ADD_PKCS7_TEST_VEC(
-        {data, (word32)sizeof(data), DATA, AES192GCMb, 0, 0, rsaCert, rsaCertSz,
+        ADD_PKCS7AUTHENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES192GCMb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, NULL, 0, NULL, 0, 0, 0, NULL, 0,
          NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0,
-         0, 0, "pkcs7authEnvelopedDataAES192GCM.der"});
+         0, 0, "pkcs7authEnvelopedDataAES192GCM.der");
         #endif
         #ifdef WOLFSSL_AES_256
-        ADD_PKCS7_TEST_VEC(
-        {data, (word32)sizeof(data), DATA, AES256GCMb, 0, 0, rsaCert, rsaCertSz,
+        ADD_PKCS7AUTHENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256GCMb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, NULL, 0, NULL, 0, 0, 0, NULL, 0,
          NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0,
-         0, 0, "pkcs7authEnvelopedDataAES256GCM.der"});
+         0, 0, "pkcs7authEnvelopedDataAES256GCM.der");
 
         /* test with contentType set to FirmwarePkgData */
-        ADD_PKCS7_TEST_VEC(
-        {data, (word32)sizeof(data), FIRMWARE_PKG_DATA, AES256GCMb, 0, 0,
+        ADD_PKCS7AUTHENVELOPEDVECTOR(
+         data, (word32)sizeof(data), FIRMWARE_PKG_DATA, AES256GCMb, 0, 0,
          rsaCert, rsaCertSz, rsaPrivKey, rsaPrivKeySz, NULL, 0, NULL, 0, NULL,
          0, 0, 0, NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL,
          0, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7authEnvelopedDataAES256GCM_firmwarePkgData.der"});
+         "pkcs7authEnvelopedDataAES256GCM_firmwarePkgData.der");
 
         /* explicitly using SKID for SubjectKeyIdentifier */
-        ADD_PKCS7_TEST_VEC(
-        {data, (word32)sizeof(data), DATA, AES256GCMb, 0, 0, rsaCert, rsaCertSz,
+        ADD_PKCS7AUTHENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256GCMb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, NULL, 0, NULL, 0, CMS_SKID, 0,
          NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0,
-         0, 0, 0, 0, 0, "pkcs7authEnvelopedDataAES256GCM_SKID.der"});
+         0, 0, 0, 0, 0, "pkcs7authEnvelopedDataAES256GCM_SKID.der");
 
         /* explicitly using IssuerAndSerialNumber for SubjectKeyIdentifier */
-        ADD_PKCS7_TEST_VEC(
-        {data, (word32)sizeof(data), DATA, AES256GCMb, 0, 0, rsaCert, rsaCertSz,
+        ADD_PKCS7AUTHENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256GCMb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, NULL, 0, NULL, 0,
          CMS_ISSUER_AND_SERIAL_NUMBER, 0, NULL, 0, NULL, 0, NULL, NULL, 0,
          NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7authEnvelopedDataAES256GCM_IANDS.der"});
+         "pkcs7authEnvelopedDataAES256GCM_IANDS.der");
         #endif
     #endif /* NO_AES */
 #endif
@@ -31790,80 +31929,80 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 #ifdef HAVE_ECC
     #if !defined(NO_AES) && defined(HAVE_AESGCM)
         #if !defined(NO_SHA) && defined(WOLFSSL_AES_128)
-        ADD_PKCS7_TEST_VEC(
-        {data, (word32)sizeof(data), DATA, AES128GCMb, AES128_WRAP,
+        ADD_PKCS7AUTHENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES128GCMb, AES128_WRAP,
          dhSinglePass_stdDH_sha1kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, NULL, 0, NULL, 0, NULL, 0, 0, 0, NULL, 0, NULL, 0,
          NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7authEnvelopedDataAES128GCM_ECDH_SHA1KDF.der"});
+         "pkcs7authEnvelopedDataAES128GCM_ECDH_SHA1KDF.der");
         #endif
 
         #if !defined(NO_SHA256) && defined(WOLFSSL_AES_256)
-        ADD_PKCS7_TEST_VEC(
-        {data, (word32)sizeof(data), DATA, AES256GCMb, AES256_WRAP,
+        ADD_PKCS7AUTHENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256GCMb, AES256_WRAP,
          dhSinglePass_stdDH_sha256kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, NULL, 0, NULL, 0, NULL, 0, 0, 0, NULL, 0, NULL, 0,
          NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF.der"});
+         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF.der");
 
         /* with authenticated attributes */
-        ADD_PKCS7_TEST_VEC(
-        {data, (word32)sizeof(data), DATA, AES256GCMb, AES256_WRAP,
+        ADD_PKCS7AUTHENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256GCMb, AES256_WRAP,
          dhSinglePass_stdDH_sha256kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, attribs, (sizeof(attribs) / sizeof(PKCS7Attrib)),
          NULL, 0, NULL, 0, 0, 0, NULL, 0,
          NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0,
          0, 0, 0,
-         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_authAttribs.der"});
+         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_authAttribs.der");
 
         /* with unauthenticated attributes */
-        ADD_PKCS7_TEST_VEC(
-        {data, (word32)sizeof(data), DATA, AES256GCMb, AES256_WRAP,
+        ADD_PKCS7AUTHENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256GCMb, AES256_WRAP,
          dhSinglePass_stdDH_sha256kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, NULL, 0, attribs,
          (sizeof(attribs) / sizeof(PKCS7Attrib)), NULL, 0, 0, 0, NULL, 0,
          NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0,
          0, 0, 0,
-         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_unauthAttribs.der"});
+         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_unauthAttribs.der");
 
         /* with authenticated AND unauthenticated attributes */
-        ADD_PKCS7_TEST_VEC(
-        {data, (word32)sizeof(data), DATA, AES256GCMb, AES256_WRAP,
+        ADD_PKCS7AUTHENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256GCMb, AES256_WRAP,
          dhSinglePass_stdDH_sha256kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, attribs, (sizeof(attribs) / sizeof(PKCS7Attrib)),
          attribs, (sizeof(attribs) / sizeof(PKCS7Attrib)), NULL, 0, 0, 0,
          NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0,
          0, 0, 0, 0, 0, 0,
-         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_bothAttribs.der"});
+         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_bothAttribs.der");
 
         /* with authenticated AND unauthenticated attributes AND
          * contentType of FirmwarePkgData */
-        ADD_PKCS7_TEST_VEC(
-        {data, (word32)sizeof(data), FIRMWARE_PKG_DATA, AES256GCMb, AES256_WRAP,
+        ADD_PKCS7AUTHENVELOPEDVECTOR(
+         data, (word32)sizeof(data), FIRMWARE_PKG_DATA, AES256GCMb, AES256_WRAP,
          dhSinglePass_stdDH_sha256kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, attribs, (sizeof(attribs) / sizeof(PKCS7Attrib)),
          attribs, (sizeof(attribs) / sizeof(PKCS7Attrib)), NULL, 0, 0, 0,
          NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0,
          0, 0, 0, 0, 0, 0,
-         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_fw_bothAttribs.der"});
+         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_fw_bothAttribs.der");
         #endif /* NO_SHA256 && WOLFSSL_AES_256 */
 
         #if defined(WOLFSSL_SHA512) && defined(WOLFSSL_AES_256)
-        ADD_PKCS7_TEST_VEC(
-        {data, (word32)sizeof(data), DATA, AES256GCMb, AES256_WRAP,
+        ADD_PKCS7AUTHENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256GCMb, AES256_WRAP,
          dhSinglePass_stdDH_sha512kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, NULL, 0, NULL, 0, NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL,
          NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA512KDF.der"});
+         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA512KDF.der");
 
         /* with optional user keying material (ukm) */
-        ADD_PKCS7_TEST_VEC(
-        {data, (word32)sizeof(data), DATA, AES256GCMb, AES256_WRAP,
+        ADD_PKCS7AUTHENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES256GCMb, AES256_WRAP,
          dhSinglePass_stdDH_sha512kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, NULL, 0, NULL, 0, (byte *)optionalUkm, sizeof(optionalUkm), 0,
          0, NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0,
          0, 0, 0, 0, 0, 0,
-         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA512KDF_ukm.der"});
+         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA512KDF_ukm.der");
         #endif /* WOLFSSL_SHA512 && WOLFSSL_AES_256 */
     #endif /* NO_AES */
 #endif
@@ -31871,38 +32010,41 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         /* kekri (KEKRecipientInfo) recipient types */
 #if !defined(NO_AES) && defined(HAVE_AESGCM)
         #if !defined(NO_SHA) && defined(WOLFSSL_AES_128)
-        ADD_PKCS7_TEST_VEC(
-        {data, (word32)sizeof(data), DATA, AES128GCMb, AES128_WRAP, 0,
+        ADD_PKCS7AUTHENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES128GCMb, AES128_WRAP, 0,
          NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, 0, 0,
          (byte *)secretKey, sizeof(secretKey), (byte *)secretKeyId, sizeof(secretKeyId),
          NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7authEnvelopedDataAES128GCM_KEKRI.der"});
+         "pkcs7authEnvelopedDataAES128GCM_KEKRI.der");
         #endif
 #endif
 
         /* pwri (PasswordRecipientInfo) recipient types */
 #if !defined(NO_PWDBASED) && !defined(NO_AES) && defined(HAVE_AESGCM)
         #if !defined(NO_SHA) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
-        ADD_PKCS7_TEST_VEC(
-        {data, (word32)sizeof(data), DATA, AES128GCMb, 0, 0,
+        ADD_PKCS7AUTHENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES128GCMb, 0, 0,
          NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, 0, 0, NULL, 0,
          NULL, 0, NULL, NULL, 0, NULL, 0, 0, (char *)password,
          (word32)XSTRLEN(password), (byte *)salt, sizeof(salt), PBKDF2_OID, WC_SHA, 5,
-         AES128CBCb, 0, 0, 0, "pkcs7authEnvelopedDataAES128GCM_PWRI.der"});
+         AES128CBCb, 0, 0, 0, "pkcs7authEnvelopedDataAES128GCM_PWRI.der");
         #endif
 #endif
 
 #if !defined(NO_AES) && defined(HAVE_AESGCM)
         #ifdef WOLFSSL_AES_128
         /* ori (OtherRecipientInfo) recipient types */
-        ADD_PKCS7_TEST_VEC(
-        {data, (word32)sizeof(data), DATA, AES128GCMb, 0, 0, NULL, 0, NULL, 0,
+        ADD_PKCS7AUTHENVELOPEDVECTOR(
+         data, (word32)sizeof(data), DATA, AES128GCMb, 0, 0, NULL, 0, NULL, 0,
          NULL, 0, NULL, 0, NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL, 0,
          NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 1, 0,
-         "pkcs7authEnvelopedDataAES128GCM_ORI.der"});
+         "pkcs7authEnvelopedDataAES128GCM_ORI.der");
         #endif
 #endif
     }
+
+    #undef MAX_TESTVECTORS_LEN
+    #undef ADD_PKCS7AUTHENVELOPEDVECTOR
 
     enveloped = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     decoded = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -32547,13 +32689,13 @@ static int verifyBundle(byte* derBuf, word32 derSz, int keyHint)
 {
     int ret = 0;
     int usrCtx = 1; /* test value to pass as user context to callback */
-    PKCS7* pkcs7;
-    byte*  sid;
+    PKCS7* pkcs7 = NULL;
+    byte*  sid = NULL;
     word32 sidSz;
     byte key[256];
     word32 keySz = sizeof(key);
 
-    byte decoded[FOURK_BUF/2];
+    byte *decoded = NULL;
     int  decodedSz = FOURK_BUF/2;
 
     WOLFSSL_SMALL_STACK_STATIC const byte expectedSid[] = {
@@ -32562,89 +32704,87 @@ static int verifyBundle(byte* derBuf, word32 derSz, int keyHint)
         0xD7, 0x85, 0x65, 0xC0
     };
 
+    decoded = (byte *)XMALLOC(decodedSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (decoded == NULL) {
+        ret = MEMORY_E;
+        goto out;
+    }
+
     pkcs7 = wc_PKCS7_New(HEAP_HINT, INVALID_DEVID);
     if (pkcs7 == NULL) {
-        return MEMORY_E;
+        ret = MEMORY_E;
+        goto out;
     }
 
     /* Test verify */
     ret = wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID);
-    if (ret != 0) {
-        wc_PKCS7_Free(pkcs7);
-        return ret;
-    }
+    if (ret != 0)
+        goto out;
     ret = wc_PKCS7_InitWithCert(pkcs7, NULL, 0);
-    if (ret != 0) {
-        wc_PKCS7_Free(pkcs7);
-        return ret;
-    }
+    if (ret != 0)
+        goto out;
     ret = wc_PKCS7_VerifySignedData(pkcs7, derBuf, derSz);
-    if (ret != 0) {
-        wc_PKCS7_Free(pkcs7);
-        return ret;
-    }
+    if (ret != 0)
+        goto out;
 
     /* Get size of SID and print it out */
     ret = wc_PKCS7_GetSignerSID(pkcs7, NULL, &sidSz);
-    if (ret != LENGTH_ONLY_E) {
-        wc_PKCS7_Free(pkcs7);
-        return ret;
-    }
+    if (ret != LENGTH_ONLY_E)
+        goto out;
 
     sid = (byte*)XMALLOC(sidSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sid == NULL) {
-        wc_PKCS7_Free(pkcs7);
-        return ret;
+        ret = MEMORY_E;
+        goto out;
     }
 
     ret = wc_PKCS7_GetSignerSID(pkcs7, sid, &sidSz);
-    if (ret != 0) {
-        wc_PKCS7_Free(pkcs7);
-        XFREE(sid, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return ret;
-    }
+    if (ret != 0)
+        goto out;
     ret = XMEMCMP(sid, expectedSid, sidSz);
-    XFREE(sid, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (ret != 0) {
-        wc_PKCS7_Free(pkcs7);
-        return ret;
+        ret = PKCS7_NO_SIGNER_E; /* close enough */
+        goto out;
     }
 
     /* get expected fwWrappedFirmwareKey */
     if (keyHint == 0) {
         ret = getFirmwareKey(pkcs7, key, keySz);
-        if (ret < 0) {
-            wc_PKCS7_Free(pkcs7);
-            return ret;
-        }
+        if (ret < 0)
+            goto out;
         pkcs7->encryptionKey = key;
         pkcs7->encryptionKeySz = ret;
     }
     else {
         decodedSz = PKCS7_BUF_SIZE;
         ret = wc_PKCS7_SetDecodeEncryptedCb(pkcs7, myDecryptionFunc);
-        if (ret != 0) {
-            wc_PKCS7_Free(pkcs7);
-            return ret;
-        }
+        if (ret != 0)
+            goto out;
 
         ret = wc_PKCS7_SetDecodeEncryptedCtx(pkcs7, (void*)&usrCtx);
-        if (ret != 0) {
-            wc_PKCS7_Free(pkcs7);
-            return ret;
-        }
+        if (ret != 0)
+            goto out;
     }
 
     decodedSz = wc_PKCS7_DecodeEncryptedData(pkcs7, pkcs7->content,
             pkcs7->contentSz, decoded, decodedSz);
     if (decodedSz < 0) {
         ret = decodedSz;
-        wc_PKCS7_Free(pkcs7);
-        return ret;
+        goto out;
     }
 
-    wc_PKCS7_Free(pkcs7);
-    return 0;
+    ret = 0;
+
+  out:
+
+    if (decoded)
+        XFREE(decoded, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pkcs7)
+        wc_PKCS7_Free(pkcs7);
+    if (sid)
+        XFREE(sid, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
 }
 
 
@@ -33140,12 +33280,12 @@ static int pkcs7signed_run_vectors(
                         byte* eccClientCertBuf, word32 eccClientCertBufSz,
                         byte* eccClientPrivKeyBuf, word32 eccClientPrivKeyBufSz)
 {
-    int ret, testSz, i;
+    int ret, testSz = 0, i;
     int encodedSz;
-    byte*  out;
+    byte*  out = NULL;
     word32 outSz;
     WC_RNG rng;
-    PKCS7* pkcs7;
+    PKCS7* pkcs7 = NULL;
 #ifdef PKCS7_OUTPUT_TEST_BUNDLES
     XFILE  file;
 #endif
@@ -33187,216 +33327,249 @@ static int pkcs7signed_run_vectors(
                                         0x48, 0x86, 0xF7, 0x0D,
                                         0x01, 0x09, 0x10, 0x01, 0x10 };
 
-    const pkcs7SignedVector testVectors[] =
+    #define MAX_TESTVECTORS_LEN 20
+    #define ADD_PKCS7SIGNEDVECTOR(...) {                                        \
+            pkcs7SignedVector _this_vector = { __VA_ARGS__ };                   \
+            if (testSz == MAX_TESTVECTORS_LEN) {                                \
+                ret = -12534;                                                   \
+                goto out;                                                       \
+            }                                                                   \
+            XMEMCPY(&testVectors[testSz++], &_this_vector, sizeof _this_vector);\
+        }
+
+    pkcs7SignedVector *testVectors = NULL;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    testVectors = (pkcs7SignedVector *)XMALLOC(MAX_TESTVECTORS_LEN * sizeof(*testVectors),
+                                     HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (testVectors == NULL) {
+        ret = -12567;
+        goto out;
+    }
+
     {
 #ifndef NO_RSA
     #ifndef NO_SHA
         /* RSA with SHA */
-        {data, (word32)sizeof(data), SHAh, RSAk, rsaClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHAh, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_RSA_SHA.der", 0, NULL, 0, 0, 0, 0, NULL, 0, NULL,
-         0, 0},
+         0, 0);
 
         /* RSA with SHA, no signed attributes */
-        {data, (word32)sizeof(data), SHAh, RSAk, rsaClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHAh, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz,
          NULL, 0, NULL, 0,
          "pkcs7signedData_RSA_SHA_noattr.der", 0, NULL, 0, 0, 0, 0, NULL, 0,
-         NULL, 0, 0},
+         NULL, 0, 0);
     #endif
     #ifdef WOLFSSL_SHA224
         /* RSA with SHA224 */
-        {data, (word32)sizeof(data), SHA224h, RSAk, rsaClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA224h, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_RSA_SHA224.der", 0, NULL, 0, 0, 0, 0, NULL, 0,
-         NULL, 0, 0},
+         NULL, 0, 0);
     #endif
     #ifndef NO_SHA256
         /* RSA with SHA256 */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_RSA_SHA256.der", 0, NULL, 0, 0, 0, 0, NULL, 0,
-         NULL, 0, 0},
+         NULL, 0, 0);
 
         /* RSA with SHA256, detached signature */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_RSA_SHA256_detachedSig.der", 0, NULL, 0, 0, 0, 0,
-         NULL, 0, NULL, 0, 1},
+         NULL, 0, NULL, 0, 1);
 
         /* RSA with SHA256 and SubjectKeyIdentifier in SignerIdentifier */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_RSA_SHA256_SKID.der", 0, NULL, 0, CMS_SKID, 0, 0,
-        NULL, 0, NULL, 0, 0},
+         NULL, 0, NULL, 0, 0);
 
         /* RSA with SHA256 and custom contentType */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_RSA_SHA256_custom_contentType.der", 0,
          customContentType, sizeof(customContentType), 0, 0, 0, NULL, 0,
-         NULL, 0, 0},
+         NULL, 0, 0);
 
         /* RSA with SHA256 and FirmwarePkgData contentType */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_RSA_SHA256_firmwarePkgData.der",
-         FIRMWARE_PKG_DATA, NULL, 0, 0, 0, 0, NULL, 0, NULL, 0, 0},
+         FIRMWARE_PKG_DATA, NULL, 0, 0, 0, 0, NULL, 0, NULL, 0, 0);
 
         /* RSA with SHA256 using server cert and ca cert */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaServerPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, RSAk, rsaServerPrivKeyBuf,
          rsaServerPrivKeyBufSz, rsaServerCertBuf, rsaServerCertBufSz,
          rsaCaCertBuf, rsaCaCertBufSz,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_RSA_SHA256_with_ca_cert.der", 0, NULL, 0, 0, 0, 0,
-        NULL, 0, NULL, 0, 0},
+         NULL, 0, NULL, 0, 0);
     #endif
     #if defined(WOLFSSL_SHA384)
         /* RSA with SHA384 */
-        {data, (word32)sizeof(data), SHA384h, RSAk, rsaClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA384h, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_RSA_SHA384.der", 0, NULL, 0, 0, 0, 0, NULL, 0,
-         NULL, 0, 0},
+         NULL, 0, 0);
     #endif
     #if defined(WOLFSSL_SHA512)
         /* RSA with SHA512 */
-        {data, (word32)sizeof(data), SHA512h, RSAk, rsaClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA512h, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_RSA_SHA512.der", 0, NULL, 0, 0, 0, 0, NULL, 0,
-         NULL, 0, 0},
+         NULL, 0, 0);
     #endif
 #endif /* NO_RSA */
 
 #ifdef HAVE_ECC
     #ifndef NO_SHA
         /* ECDSA with SHA */
-        {data, (word32)sizeof(data), SHAh, ECDSAk, eccClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHAh, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_ECDSA_SHA.der", 0, NULL, 0, 0, 0, 0, NULL, 0,
-         NULL, 0, 0},
+         NULL, 0, 0);
 
         /* ECDSA with SHA, no signed attributes */
-        {data, (word32)sizeof(data), SHAh, ECDSAk, eccClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHAh, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz,
          NULL, 0, NULL, 0,
          "pkcs7signedData_ECDSA_SHA_noattr.der", 0, NULL, 0, 0, 0, 0, NULL, 0,
-         NULL, 0, 0},
+         NULL, 0, 0);
     #endif
     #ifdef WOLFSSL_SHA224
         /* ECDSA with SHA224 */
-        {data, (word32)sizeof(data), SHA224h, ECDSAk, eccClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA224h, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_ECDSA_SHA224.der", 0, NULL, 0, 0, 0, 0, NULL, 0,
-         NULL, 0, 0},
+         NULL, 0, 0);
     #endif
     #ifndef NO_SHA256
         /* ECDSA with SHA256 */
-        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_ECDSA_SHA256.der", 0, NULL, 0, 0, 0, 0, NULL, 0,
-         NULL, 0, 0},
+         NULL, 0, 0);
 
         /* ECDSA with SHA256 and SubjectKeyIdentifier in SigherIdentifier */
-        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_ECDSA_SHA256_SKID.der", 0, NULL, 0, CMS_SKID, 0, 0,
-        NULL, 0, NULL, 0, 0},
+         NULL, 0, NULL, 0, 0);
 
         /* ECDSA with SHA256 and custom contentType */
-        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_ECDSA_SHA256_custom_contentType.der", 0,
          customContentType, sizeof(customContentType), 0, 0, 0, NULL, 0,
-         NULL, 0, 0},
+         NULL, 0, 0);
 
         /* ECDSA with SHA256 and FirmwarePkgData contentType */
-        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_ECDSA_SHA256_firmwarePkgData.der",
-         FIRMWARE_PKG_DATA, NULL, 0, 0, 0, 0, NULL, 0, NULL, 0, 0},
+         FIRMWARE_PKG_DATA, NULL, 0, 0, 0, 0, NULL, 0, NULL, 0, 0);
     #endif
     #ifdef WOLFSSL_SHA384
         /* ECDSA with SHA384 */
-        {data, (word32)sizeof(data), SHA384h, ECDSAk, eccClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA384h, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_ECDSA_SHA384.der", 0, NULL, 0, 0, 0, 0, NULL, 0,
-         NULL, 0, 0},
+         NULL, 0, 0);
     #endif
     #ifdef WOLFSSL_SHA512
         /* ECDSA with SHA512 */
-        {data, (word32)sizeof(data), SHA512h, ECDSAk, eccClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA512h, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_ECDSA_SHA512.der", 0, NULL, 0, 0, 0, 0, NULL, 0,
-         NULL, 0, 0},
+         NULL, 0, 0);
     #endif
 #endif /* HAVE_ECC */
     };
 
-    testSz = sizeof(testVectors) / sizeof(pkcs7SignedVector);
+    #undef MAX_TESTVECTORS_LEN
+    #undef ADD_PKCS7SIGNEDVECTOR
 
     outSz = FOURK_BUF;
     out = (byte*)XMALLOC(outSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (out == NULL)
-        return -12510;
+        ERROR_OUT(-12510, out);
 
     XMEMSET(out, 0, outSz);
 
     ret = wc_PKCS7_PadData((byte*)data, sizeof(data), out, outSz, 16);
-    if (ret < 0) {
-        XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -12511;
-    }
+    if (ret < 0)
+        ERROR_OUT(-12511, out);
 
 #ifndef HAVE_FIPS
     ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
 #else
     ret = wc_InitRng(&rng);
 #endif
-    if (ret != 0) {
-        XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -12512;
-    }
+    if (ret != 0)
+        ERROR_OUT(-12512, out);
 
     for (i = 0; i < testSz; i++) {
+        if (pkcs7)
+            wc_PKCS7_Free(pkcs7);
         pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
         if (pkcs7 == NULL)
-            return -12513;
+            ERROR_OUT(-12513, out);
 
         ret = wc_PKCS7_InitWithCert(pkcs7, testVectors[i].cert,
                                     (word32)testVectors[i].certSz);
 
-        if (ret != 0) {
-            XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(pkcs7);
-            return -12514;
-        }
+        if (ret != 0)
+            ERROR_OUT(-12514, out);
 
         /* load CA certificate, if present */
         if (testVectors[i].caCert != NULL) {
             ret = wc_PKCS7_AddCertificate(pkcs7, testVectors[i].caCert,
                                           (word32)testVectors[i].caCertSz);
-            if (ret != 0) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12515;
-            }
+            if (ret != 0)
+                ERROR_OUT(-12515, out);
         }
 
         pkcs7->rng             = &rng;
@@ -33415,22 +33588,16 @@ static int pkcs7signed_run_vectors(
         if (testVectors[i].contentType != NULL) {
             ret = wc_PKCS7_SetContentType(pkcs7, testVectors[i].contentType,
                                           testVectors[i].contentTypeSz);
-            if (ret != 0) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12516;
-            }
+            if (ret != 0)
+                ERROR_OUT(-12516, out);
         }
 
         /* set SignerIdentifier to use SubjectKeyIdentifier if desired,
            default is IssuerAndSerialNumber */
         if (testVectors[i].sidType == CMS_SKID) {
             ret = wc_PKCS7_SetSignerIdentifierType(pkcs7, CMS_SKID);
-            if (ret != 0) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12517;
-            }
+            if (ret != 0)
+                ERROR_OUT(-12517, out);
         }
 
         /* generate senderNonce */
@@ -33439,11 +33606,8 @@ static int pkcs7signed_run_vectors(
             senderNonce[1] = PKCS7_NONCE_SZ;
 
             ret = wc_RNG_GenerateBlock(&rng, &senderNonce[2], PKCS7_NONCE_SZ);
-            if (ret != 0) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12518;
-            }
+            if (ret != 0)
+                ERROR_OUT(-12518, out);
         }
 
         /* generate transactionID (used with SCEP) */
@@ -33462,21 +33626,15 @@ static int pkcs7signed_run_vectors(
 
         #ifndef NO_SHA
             ret = wc_InitSha_ex(&sha, HEAP_HINT, devId);
-            if (ret != 0) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12519;
-            }
+            if (ret != 0)
+                ERROR_OUT(-12519, out);
             wc_ShaUpdate(&sha, pkcs7->publicKey, pkcs7->publicKeySz);
             wc_ShaFinal(&sha, digest);
             wc_ShaFree(&sha);
         #else
             ret = wc_InitSha256_ex(&sha, HEAP_HINT, devId);
-            if (ret != 0) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12520;
-            }
+            if (ret != 0)
+                ERROR_OUT(-12520, out);
             wc_Sha256Update(&sha, pkcs7->publicKey, pkcs7->publicKeySz);
             wc_Sha256Final(&sha, digest);
             wc_Sha256Free(&sha);
@@ -33490,42 +33648,30 @@ static int pkcs7signed_run_vectors(
         /* enable detached signature generation, if set */
         if (testVectors[i].detachedSignature == 1) {
             ret = wc_PKCS7_SetDetached(pkcs7, 1);
-            if (ret != 0) {
-            XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(pkcs7);
-            return -12521;
-            }
+            if (ret != 0)
+                ERROR_OUT(-12521, out);
         }
 
         encodedSz = wc_PKCS7_EncodeSignedData(pkcs7, out, outSz);
-        if (encodedSz < 0) {
-            XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(pkcs7);
-            return -12522;
-        }
+        if (encodedSz < 0)
+            ERROR_OUT(-12522, out);
 
     #ifdef PKCS7_OUTPUT_TEST_BUNDLES
         /* write PKCS#7 to output file for more testing */
         file = XFOPEN(testVectors[i].outFileName, "wb");
         if (!file) {
-            XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(pkcs7);
-            return -12523;
-        }
+            ERROR_OUT(-12523, out);
         ret = (int)XFWRITE(out, 1, encodedSz, file);
         XFCLOSE(file);
-        if (ret != (int)encodedSz) {
-            XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(pkcs7);
-            return -12524;
-        }
+        if (ret != (int)encodedSz)
+            ERROR_OUT(-12524, out);
     #endif /* PKCS7_OUTPUT_TEST_BUNDLES */
 
         wc_PKCS7_Free(pkcs7);
 
         pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
         if (pkcs7 == NULL)
-            return -12525;
+            ERROR_OUT(-12525, out);
         wc_PKCS7_InitWithCert(pkcs7, NULL, 0);
 
         if (testVectors[i].detachedSignature == 1) {
@@ -33535,27 +33681,21 @@ static int pkcs7signed_run_vectors(
         }
 
         ret = wc_PKCS7_VerifySignedData(pkcs7, out, outSz);
-        if (ret < 0) {
-            XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(pkcs7);
-            return -12526;
-        }
+        if (ret < 0)
+            ERROR_OUT(-12526, out);
 
         /* verify contentType extracted successfully for custom content types */
         if (testVectors[i].contentTypeSz > 0) {
             if (pkcs7->contentTypeSz != testVectors[i].contentTypeSz) {
-                return -12527;
+                ERROR_OUT(-12527, out);
             } else if (XMEMCMP(pkcs7->contentType, testVectors[i].contentType,
                        pkcs7->contentTypeSz) != 0) {
-                return -12528;
+                ERROR_OUT(-12528, out);
             }
         }
 
-        if (pkcs7->singleCert == NULL || pkcs7->singleCertSz == 0) {
-            XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(pkcs7);
-            return -12529;
-        }
+        if (pkcs7->singleCert == NULL || pkcs7->singleCertSz == 0)
+            ERROR_OUT(-12529, out);
 
         {
             /* check getting signed attributes */
@@ -33570,43 +33710,37 @@ static int pkcs7signed_run_vectors(
 
             if (testVectors[i].signedAttribs != NULL &&
                     wc_PKCS7_GetAttributeValue(pkcs7, oidPt, oidSz,
-                    NULL, (word32*)&bufSz) != LENGTH_ONLY_E) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12530;
-            }
+                    NULL, (word32*)&bufSz) != LENGTH_ONLY_E)
+                ERROR_OUT(-12530, out);
 
-            if (bufSz > (int)sizeof(buf)) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12531;
-            }
+            if (bufSz > (int)sizeof(buf))
+                ERROR_OUT(-12531, out);
 
             bufSz = wc_PKCS7_GetAttributeValue(pkcs7, oidPt, oidSz,
                     buf, (word32*)&bufSz);
             if ((testVectors[i].signedAttribs != NULL && bufSz < 0) ||
-                (testVectors[i].signedAttribs == NULL && bufSz > 0)) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12532;
-            }
+                (testVectors[i].signedAttribs == NULL && bufSz > 0))
+                ERROR_OUT(-12532, out);
         }
 
     #ifdef PKCS7_OUTPUT_TEST_BUNDLES
         file = XFOPEN("./pkcs7cert.der", "wb");
-        if (!file) {
-            XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(pkcs7);
-            return -12533;
-        }
+        if (!file)
+            ERROR_OUT(-12533, out);
         ret = (int)XFWRITE(pkcs7->singleCert, 1, pkcs7->singleCertSz, file);
         XFCLOSE(file);
     #endif /* PKCS7_OUTPUT_TEST_BUNDLES */
 
-        wc_PKCS7_Free(pkcs7);
     }
 
-    XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+  out:
+
+    if (pkcs7 != NULL)
+        wc_PKCS7_Free(pkcs7);
+    if (out != NULL)
+        XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (testVectors != NULL)
+        XFREE(testVectors, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     wc_FreeRng(&rng);
 
     if (ret > 0)
@@ -33643,15 +33777,20 @@ static int pkcs7signed_run_SingleShotVectors(
                         byte* eccClientCertBuf, word32 eccClientCertBufSz,
                         byte* eccClientPrivKeyBuf, word32 eccClientPrivKeyBufSz)
 {
-    int ret, testSz, i;
+    int ret, testSz = 0, i;
     int encodedSz;
-    byte*  out;
+    byte*  out = NULL;
     word32 outSz;
     WC_RNG rng;
-    PKCS7* pkcs7;
+    PKCS7* pkcs7 = NULL;
 #ifdef PKCS7_OUTPUT_TEST_BUNDLES
     XFILE  file;
 #endif
+    #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA) && \
+        !defined(NO_PKCS7_ENCRYPTED_DATA)
+    byte* encryptedTmp = NULL;
+    int encryptedTmpSz;
+    #endif
 
     WOLFSSL_SMALL_STACK_STATIC const byte data[] = { /* Hello World */
         0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
@@ -33679,90 +33818,120 @@ static int pkcs7signed_run_SingleShotVectors(
                                        sizeof(messageType) },
     };
 
-    const pkcs7SignedVector testVectors[] =
+    #define MAX_TESTVECTORS_LEN 19
+    #define ADD_PKCS7SIGNEDVECTOR(...) {                                        \
+            pkcs7SignedVector _this_vector = { __VA_ARGS__ };                   \
+            if (testSz == MAX_TESTVECTORS_LEN) {                                \
+                ret = -12568;                                                   \
+                goto out;                                                       \
+            }                                                                   \
+            XMEMCPY(&testVectors[testSz++], &_this_vector, sizeof _this_vector);\
+        }
+
+    pkcs7SignedVector *testVectors = NULL;
+
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    testVectors = (pkcs7SignedVector *)XMALLOC(MAX_TESTVECTORS_LEN * sizeof(*testVectors),
+                                     HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (testVectors == NULL) {
+        ret = -12567;
+        goto out;
+    }
+
     {
 #ifndef NO_RSA
     #ifndef NO_SHA256
         /* Signed FirmwarePkgData, RSA, SHA256, no attribs */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
          NULL, 0,
          "pkcs7signedFirmwarePkgData_RSA_SHA256_noattr.der", 0, NULL, 0, 0,
-         0, 0, NULL, 0, NULL, 0, 0},
+         0, 0, NULL, 0, NULL, 0, 0);
 
         /* Signed FirmwarePkgData, RSA, SHA256, attrs */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedFirmwarePkgData_RSA_SHA256.der", 0, NULL, 0, 0, 0, 0,
-        NULL, 0, NULL, 0, 0},
+         NULL, 0, NULL, 0, 0);
 
         /* Signed FirmwarePkgData, RSA, SHA256, SubjectKeyIdentifier, attrs */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedFirmwarePkgData_RSA_SHA256_SKID.der", 0, NULL,
-         0, CMS_SKID, 0, 0, NULL, 0, NULL, 0, 0},
+         0, CMS_SKID, 0, 0, NULL, 0, NULL, 0, 0);
 
         /* Signed FirmwraePkgData, RSA, SHA256, server cert and ca cert, attr */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaServerPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, RSAk, rsaServerPrivKeyBuf,
          rsaServerPrivKeyBufSz, rsaServerCertBuf, rsaServerCertBufSz,
          rsaCaCertBuf, rsaCaCertBufSz,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedFirmwarePkgData_RSA_SHA256_with_ca_cert.der", 0, NULL,
-         0, 0, 0, 0, NULL, 0, NULL, 0, 0},
+         0, 0, 0, 0, NULL, 0, NULL, 0, 0);
 
     #if !defined(NO_PKCS7_ENCRYPTED_DATA) && \
          defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
         /* Signed Encrypted FirmwarePkgData, RSA, SHA256, no attribs */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
          NULL, 0,
          "pkcs7signedEncryptedFirmwarePkgData_RSA_SHA256_noattr.der", 0,
-         NULL, 0, 0, AES256CBCb, 1, aes256Key, sizeof(aes256Key), NULL, 0, 0},
+         NULL, 0, 0, AES256CBCb, 1, aes256Key, sizeof(aes256Key), NULL, 0, 0);
 
         /* Signed Encrypted FirmwarePkgData, RSA, SHA256, attribs */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedEncryptedFirmwarePkgData_RSA_SHA256.der", 0,
          NULL, 0, 0, AES256CBCb, 1, aes256Key, sizeof(aes256Key),
-         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)), 0},
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)), 0);
     #endif /* WOLFSSL_AES_256 && !NO_PKCS7_ENCRYPTED_DATA */
 
     #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
         /* Signed Compressed FirmwarePkgData, RSA, SHA256, no attribs */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
          NULL, 0,
          "pkcs7signedCompressedFirmwarePkgData_RSA_SHA256_noattr.der", 0,
-         NULL, 0, 0, 0, 2, NULL, 0, NULL, 0, 0},
+         NULL, 0, 0, 0, 2, NULL, 0, NULL, 0, 0);
 
         /* Signed Compressed FirmwarePkgData, RSA, SHA256, attribs */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedCompressedFirmwarePkgData_RSA_SHA256.der", 0,
-         NULL, 0, 0, 0, 2, NULL, 0, NULL, 0, 0},
+         NULL, 0, 0, 0, 2, NULL, 0, NULL, 0, 0);
 
     #ifndef NO_PKCS7_ENCRYPTED_DATA
         /* Signed Encrypted Compressed FirmwarePkgData, RSA, SHA256,
            no attribs */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
          NULL, 0,
          "pkcs7signedEncryptedCompressedFirmwarePkgData_RSA_SHA256_noattr.der",
          0, NULL, 0, 0, AES256CBCb, 3, aes256Key, sizeof(aes256Key), NULL,
-         0, 0},
+         0, 0);
 
         /* Signed Encrypted Compressed FirmwarePkgData, RSA, SHA256,
            attribs */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedEncryptedCompressedFirmwarePkgData_RSA_SHA256.der",
          0, NULL, 0, 0, AES256CBCb, 3, aes256Key, sizeof(aes256Key),
-         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)), 0},
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)), 0);
     #endif /* !NO_PKCS7_ENCRYPTED_DATA */
 
     #endif /* HAVE_LIBZ && !NO_PKCS7_COMPRESSED_DATA */
@@ -33773,77 +33942,86 @@ static int pkcs7signed_run_SingleShotVectors(
 #ifdef HAVE_ECC
     #ifndef NO_SHA256
         /* Signed FirmwarePkgData, ECDSA, SHA256, no attribs */
-        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
          NULL, 0,
          "pkcs7signedFirmwarePkgData_ECDSA_SHA256_noattr.der", 0, NULL,
-         0, 0, 0, 0, NULL, 0, NULL, 0, 0},
+         0, 0, 0, 0, NULL, 0, NULL, 0, 0);
 
         /* Signed FirmwarePkgData, ECDSA, SHA256, attribs */
-        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedFirmwarePkgData_ECDSA_SHA256.der", 0, NULL,
-         0, 0, 0, 0, NULL, 0, NULL, 0, 0},
+         0, 0, 0, 0, NULL, 0, NULL, 0, 0);
 
         /* Signed FirmwarePkgData, ECDSA, SHA256, SubjectKeyIdentifier, attr */
-        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedFirmwarePkgData_ECDSA_SHA256_SKID.der", 0, NULL,
-         0, CMS_SKID, 0, 0, NULL, 0, NULL, 0, 0},
+         0, CMS_SKID, 0, 0, NULL, 0, NULL, 0, 0);
 
     #if !defined(NO_PKCS7_ENCRYPTED_DATA) && \
          defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
         /* Signed Encrypted FirmwarePkgData, ECDSA, SHA256, no attribs */
-        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
          NULL, 0,
          "pkcs7signedEncryptedFirmwarePkgData_ECDSA_SHA256_noattr.der", 0, NULL,
-         0, 0, AES256CBCb, 1, aes256Key, sizeof(aes256Key), NULL, 0, 0},
+         0, 0, AES256CBCb, 1, aes256Key, sizeof(aes256Key), NULL, 0, 0);
 
         /* Signed Encrypted FirmwarePkgData, ECDSA, SHA256, attribs */
-        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedEncryptedFirmwarePkgData_ECDSA_SHA256.der", 0, NULL,
          0, 0, AES256CBCb, 1, aes256Key, sizeof(aes256Key),
-         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)), 0},
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)), 0);
     #endif /* WOLFSSL_AES_256 && !NO_PKCS7_ENCRYPTED_DATA */
 
     #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
         /* Signed Compressed FirmwarePkgData, ECDSA, SHA256, no attribs */
-        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
          NULL, 0,
          "pkcs7signedCompressedFirmwarePkgData_ECDSA_SHA256_noattr.der", 0, NULL,
-         0, 0, 0, 2, NULL, 0, NULL, 0, 0},
+         0, 0, 0, 2, NULL, 0, NULL, 0, 0);
 
         /* Signed Compressed FirmwarePkgData, ECDSA, SHA256, attrib */
-        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedCompressedFirmwarePkgData_ECDSA_SHA256.der", 0, NULL,
-         0, 0, 0, 2, NULL, 0, NULL, 0, 0},
+         0, 0, 0, 2, NULL, 0, NULL, 0, 0);
 
     #ifndef NO_PKCS7_ENCRYPTED_DATA
         /* Signed Encrypted Compressed FirmwarePkgData, ECDSA, SHA256,
            no attribs */
-        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
          NULL, 0,
         "pkcs7signedEncryptedCompressedFirmwarePkgData_ECDSA_SHA256_noattr.der",
          0, NULL, 0, 0, AES256CBCb, 3, aes256Key, sizeof(aes256Key), NULL,
-         0, 0},
+         0, 0);
 
         /* Signed Encrypted Compressed FirmwarePkgData, ECDSA, SHA256,
            attribs */
-        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
+        ADD_PKCS7SIGNEDVECTOR(
+         data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
         "pkcs7signedEncryptedCompressedFirmwarePkgData_ECDSA_SHA256.der",
          0, NULL, 0, 0, AES256CBCb, 3, aes256Key, sizeof(aes256Key),
-         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)), 0},
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)), 0);
     #endif /* !NO_PKCS7_ENCRYPTED_DATA */
 
     #endif /* HAVE_LIBZ && !NO_PKCS7_COMPRESSED_DATA */
@@ -33852,65 +34030,55 @@ static int pkcs7signed_run_SingleShotVectors(
 #endif /* HAVE_ECC */
     };
 
-    testSz = sizeof(testVectors) / sizeof(pkcs7SignedVector);
+    #undef MAX_TESTVECTORS_LEN
+    #undef ADD_PKCS7SIGNEDVECTOR
 
     outSz = FOURK_BUF;
     out = (byte*)XMALLOC(outSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (out == NULL)
-        return -12540;
+        ERROR_OUT(-12540, out);
 
     XMEMSET(out, 0, outSz);
 
     ret = wc_PKCS7_PadData((byte*)data, sizeof(data), out, outSz, 16);
-    if (ret < 0) {
-        XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -12541;
-    }
+    if (ret < 0)
+        ERROR_OUT(-12541, out);
 
 #ifndef HAVE_FIPS
     ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
 #else
     ret = wc_InitRng(&rng);
 #endif
-    if (ret != 0) {
-        XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -12542;
-    }
+    if (ret != 0)
+        ERROR_OUT(-12542, out);
 
     for (i = 0; i < testSz; i++) {
+        if (pkcs7)
+            wc_PKCS7_Free(pkcs7);
         pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
         if (pkcs7 == NULL)
-            return -12543;
+            ERROR_OUT(-12543, out);
 
         ret = wc_PKCS7_InitWithCert(pkcs7, testVectors[i].cert,
                                     (word32)testVectors[i].certSz);
 
-        if (ret != 0) {
-            XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(pkcs7);
-            return -12544;
-        }
+        if (ret != 0)
+            ERROR_OUT(-12544, out);
 
         /* load CA certificate, if present */
         if (testVectors[i].caCert != NULL) {
             ret = wc_PKCS7_AddCertificate(pkcs7, testVectors[i].caCert,
                                           (word32)testVectors[i].caCertSz);
-            if (ret != 0) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12545;
-            }
+            if (ret != 0)
+                ERROR_OUT(-12545, out);
         }
 
         /* set SignerIdentifier to use SubjectKeyIdentifier if desired,
            default is IssuerAndSerialNumber */
         if (testVectors[i].sidType == CMS_SKID) {
             ret = wc_PKCS7_SetSignerIdentifierType(pkcs7, CMS_SKID);
-            if (ret != 0) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12546;
-            }
+            if (ret != 0)
+                ERROR_OUT(-12546, out);
         }
 
         if (testVectors[i].encCompFlag == 0) {
@@ -33923,11 +34091,8 @@ static int pkcs7signed_run_SingleShotVectors(
                     testVectors[i].signedAttribs,
                     testVectors[i].signedAttribsSz, out, outSz);
 
-            if (encodedSz < 0) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12547;
-            }
+            if (encodedSz < 0)
+                ERROR_OUT(-12547, out);
 
     #ifndef NO_PKCS7_ENCRYPTED_DATA
 
@@ -33944,11 +34109,8 @@ static int pkcs7signed_run_SingleShotVectors(
                     testVectors[i].signedAttribs,
                     testVectors[i].signedAttribsSz, out, outSz);
 
-            if (encodedSz <= 0) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12548;
-            }
+            if (encodedSz <= 0)
+                ERROR_OUT(-12548, out);
     #endif
 
     #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
@@ -33962,11 +34124,8 @@ static int pkcs7signed_run_SingleShotVectors(
                     testVectors[i].signedAttribs,
                     testVectors[i].signedAttribsSz, out, outSz);
 
-            if (encodedSz <= 0) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12549;
-            }
+            if (encodedSz <= 0)
+                ERROR_OUT(-12549, out);
 
         #ifndef NO_PKCS7_ENCRYPTED_DATA
         } else if (testVectors[i].encCompFlag == 3) {
@@ -33982,81 +34141,61 @@ static int pkcs7signed_run_SingleShotVectors(
                     testVectors[i].signedAttribs,
                     testVectors[i].signedAttribsSz, out, outSz);
 
-            if (encodedSz <= 0) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12550;
-            }
+            if (encodedSz <= 0)
+                ERROR_OUT(-12550, out);
 
         #endif /* NO_PKCS7_ENCRYPTED_DATA */
     #endif /* HAVE_LIBZ && !NO_PKCS7_COMPRESSED_DATA */
 
         } else {
             /* unsupported SignedData single-shot combination */
-            XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(pkcs7);
-            return -12551;
+            ERROR_OUT(-12551, out);
         }
 
     #ifdef PKCS7_OUTPUT_TEST_BUNDLES
         /* write PKCS#7 to output file for more testing */
         file = XFOPEN(testVectors[i].outFileName, "wb");
-        if (!file) {
-            XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(pkcs7);
-            return -12552;
-        }
+        if (!file)
+            ERROR_OUT(-12552, out);
         ret = (int)XFWRITE(out, 1, encodedSz, file);
         XFCLOSE(file);
-        if (ret != (int)encodedSz) {
-            XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(pkcs7);
-            return -12553;
-        }
+        file = NULL;
+        if (ret != (int)encodedSz)
+            ERROR_OUT(-12553);
     #endif /* PKCS7_OUTPUT_TEST_BUNDLES */
 
         wc_PKCS7_Free(pkcs7);
 
         pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
         if (pkcs7 == NULL)
-            return -12554;
+            ERROR_OUT(-12554, out);
         wc_PKCS7_InitWithCert(pkcs7, NULL, 0);
 
         ret = wc_PKCS7_VerifySignedData(pkcs7, out, outSz);
-        if (ret < 0) {
-            XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(pkcs7);
-            return -12555;
-        }
+        if (ret < 0)
+            ERROR_OUT(-12555, out);
 #ifndef NO_PKCS7_STREAM
         {
             word32 z;
             for (z = 0; z < outSz && ret != 0; z++) {
                 ret = wc_PKCS7_VerifySignedData(pkcs7, out + z, 1);
                 if (ret < 0 && ret != WC_PKCS7_WANT_READ_E) {
-                    XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                    wc_PKCS7_Free(pkcs7);
                     printf("unexpected error %d\n", ret);
-                    return -12556;
+                    ERROR_OUT(-12556, out);
                 }
             }
         }
 #endif
 
-        if (pkcs7->singleCert == NULL || pkcs7->singleCertSz == 0) {
-            XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(pkcs7);
-            return -12557;
-        }
+        if (pkcs7->singleCert == NULL || pkcs7->singleCertSz == 0)
+            ERROR_OUT(-12557, out);
 
         if (testVectors[i].encCompFlag == 0) {
             /* verify decoded content matches expected */
             if ((pkcs7->contentSz != testVectors[i].contentSz) ||
                 XMEMCMP(pkcs7->content, testVectors[i].content,
                         pkcs7->contentSz)) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12558;
+                ERROR_OUT(-12558, out);
             }
 
         }
@@ -34069,19 +34208,13 @@ static int pkcs7signed_run_SingleShotVectors(
 
             ret = wc_PKCS7_DecodeEncryptedData(pkcs7, pkcs7->content,
                                                pkcs7->contentSz, out, outSz);
-            if (ret < 0) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12559;
-            }
+            if (ret < 0)
+                ERROR_OUT(-12559, out);
 
             /* compare decrypted to expected */
             if (((word32)ret != testVectors[i].contentSz) ||
-                XMEMCMP(out, testVectors[i].content, ret)) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12560;
-            }
+                XMEMCMP(out, testVectors[i].content, ret))
+                ERROR_OUT(-12560, out);
         }
     #endif
     #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
@@ -34090,34 +34223,22 @@ static int pkcs7signed_run_SingleShotVectors(
             /* decompress inner compressedData */
             ret = wc_PKCS7_DecodeCompressedData(pkcs7, pkcs7->content,
                                                 pkcs7->contentSz, out, outSz);
-            if (ret < 0) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12561;
-            }
+            if (ret < 0)
+                ERROR_OUT(-12561, out);
 
             /* compare decompressed to expected */
             if (((word32)ret != testVectors[i].contentSz) ||
                 XMEMCMP(out, testVectors[i].content, ret)) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12562;
-            }
+                ERROR_OUT(-12562, out);
         }
     #ifndef NO_PKCS7_ENCRYPTED_DATA
         else if (testVectors[i].encCompFlag == 3) {
 
-            byte* encryptedTmp;
-            int encryptedTmpSz;
-
             encryptedTmpSz = FOURK_BUF;
             encryptedTmp = (byte*)XMALLOC(encryptedTmpSz, HEAP_HINT,
                                           DYNAMIC_TYPE_TMP_BUFFER);
-            if (encryptedTmp == NULL) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12563;
-            }
+            if (encryptedTmp == NULL)
+                ERROR_OUT(-12563, out);
 
             XMEMSET(encryptedTmp, 0, encryptedTmpSz);
 
@@ -34129,40 +34250,38 @@ static int pkcs7signed_run_SingleShotVectors(
                                                pkcs7->contentSz, encryptedTmp,
                                                encryptedTmpSz);
 
-            if (encryptedTmpSz < 0 || pkcs7->contentOID != COMPRESSED_DATA) {
-                XFREE(encryptedTmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12564;
-            }
+            if (encryptedTmpSz < 0 || pkcs7->contentOID != COMPRESSED_DATA)
+                ERROR_OUT(-12564, out);
 
             /* decompress inner compressedData */
             ret = wc_PKCS7_DecodeCompressedData(pkcs7, encryptedTmp,
                                                 encryptedTmpSz, out, outSz);
-            if (ret < 0) {
-                XFREE(encryptedTmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12565;
-            }
-
-            XFREE(encryptedTmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            if (ret < 0)
+                ERROR_OUT(-12565, out);
 
             /* compare decompressed to expected */
             if (((word32)ret != testVectors[i].contentSz) ||
-                XMEMCMP(out, testVectors[i].content, ret)) {
-                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(pkcs7);
-                return -12566;
-            }
+                XMEMCMP(out, testVectors[i].content, ret))
+                ERROR_OUT(-12566, out);
         }
     #endif /* NO_PKCS7_ENCRYPTED_DATA */
     #endif /* HAVE_LIBZ && !NO_PKCS7_COMPRESSED_DATA */
 
-        wc_PKCS7_Free(pkcs7);
     }
 
-    XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+  out:
+
+    if (pkcs7 != NULL)
+        wc_PKCS7_Free(pkcs7);
+    if (out != NULL)
+        XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA) && \
+        !defined(NO_PKCS7_ENCRYPTED_DATA)
+    if (encryptedTmp != NULL)
+        XFREE(encryptedTmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+    if (testVectors != NULL)
+        XFREE(testVectors, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     wc_FreeRng(&rng);
 
     if (ret > 0)
@@ -36698,7 +36817,7 @@ static int mp_test_mont(mp_int* a, mp_int* m, mp_int* n, mp_int* r, WC_RNG* rng)
     for (i = 0; i < (int)(sizeof(exp) / sizeof(*exp)); i++) {
         if (exp[i] >= DIGIT_BIT)
             continue;
-        
+
         mp_zero(m);
         ret = mp_set_bit(m, exp[i]);
         if (ret != MP_OKAY)
@@ -37042,7 +37161,7 @@ typedef struct pairs_t {
 
 
 /*
-n =p1p2p3, where pi = ki(p1−1)+1 with (k2,k3) = (173,293)
+n =p1p2p3, where pi = ki(p1-1)+1 with (k2,k3) = (173,293)
 p1 = 2^192 * 0x000000000000e24fd4f6d6363200bf2323ec46285cac1d3a
    + 2^0   * 0x0b2488b0c29d96c5e67f8bec15b54b189ae5636efe89b45b
 */
@@ -37166,7 +37285,7 @@ static int GenerateP(mp_int* p1, mp_int* p2, mp_int* p3,
         ret = GenerateNextP(p1, p3, k[1]);
 
   out:
-    
+
 #ifdef WOLFSSL_SMALL_STACK
     if (x != NULL) {
         mp_clear(x);

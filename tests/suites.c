@@ -544,7 +544,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     /* verify results */
     if ((cliArgs.return_code != 0 && cliTestShouldFail == 0) ||
         (cliArgs.return_code == 0 && cliTestShouldFail != 0)) {
-        printf("client_test failed %d %s\n", cliArgs.return_code, 
+        printf("client_test failed %d %s\n", cliArgs.return_code,
             cliTestShouldFail ? "(should fail)" : "");
         XEXIT(EXIT_FAILURE);
     }

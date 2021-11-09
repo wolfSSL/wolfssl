@@ -243,7 +243,7 @@ int wolfCrypt_Init(void)
     #endif
 
     #ifdef WOLFSSL_AFALG
-	WOLFSSL_MSG("Using AF_ALG for crypto acceleration");
+        WOLFSSL_MSG("Using AF_ALG for crypto acceleration");
     #endif
 
     #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
@@ -296,7 +296,7 @@ int wolfCrypt_Init(void)
 #endif
 
 #if defined(WOLFSSL_DSP) && !defined(WOLFSSL_DSP_BUILD)
-	if ((ret = wolfSSL_InitHandle()) != 0) {
+        if ((ret = wolfSSL_InitHandle()) != 0) {
             return ret;
         }
         rpcmem_init();
@@ -384,7 +384,7 @@ int wolfCrypt_Cleanup(void)
 #ifndef NO_FILESYSTEM
 
 /* Helpful function to load file into allocated buffer */
-int wc_FileLoad(const char* fname, unsigned char** buf, size_t* bufLen, 
+int wc_FileLoad(const char* fname, unsigned char** buf, size_t* bufLen,
     void* heap)
 {
     int ret;
@@ -834,7 +834,7 @@ int z_fs_close(XFILE file)
 
 #endif /* !NO_FILESYSTEM && !WOLFSSL_ZEPHYR */
 
-#if !defined(WOLFSSL_USER_MUTEX) 
+#if !defined(WOLFSSL_USER_MUTEX)
 wolfSSL_Mutex* wc_InitAndAllocMutex(void)
 {
     wolfSSL_Mutex* m = (wolfSSL_Mutex*) XMALLOC(sizeof(wolfSSL_Mutex), NULL,
@@ -1918,8 +1918,8 @@ int wolfSSL_CryptHwMutexUnLock(void)
         del = DeleteRtSemaphore(
             *m                      /* handle for RT semaphore */
         );
-    	if (del != TRUE)
-    		ret = BAD_MUTEX_E;
+        if (del != TRUE)
+            ret = BAD_MUTEX_E;
 
         return ret;
     }
@@ -1957,8 +1957,8 @@ int wolfSSL_CryptHwMutexUnLock(void)
             *m,                     /* handle for RT semaphore */
             1                       /* number of units to release to semaphore */
         );
-    	if (rel != TRUE)
-    		ret = BAD_MUTEX_E;
+        if (rel != TRUE)
+            ret = BAD_MUTEX_E;
 
         return ret;
     }
@@ -2107,7 +2107,7 @@ int wolfSSL_CryptHwMutexUnLock(void)
 #elif defined(WOLFSSL_USER_MUTEX)
 
     /* Use user own mutex */
-    
+
     /*
     int wc_InitMutex(wolfSSL_Mutex* m) { ... }
     int wc_FreeMutex(wolfSSL_Mutex *m) { ... }
@@ -2595,15 +2595,15 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
                     return ptr;
             }
 #endif /* ! __PIE__ */
-	}
+        }
 
-	nptr = kvmalloc_node(newsize, GFP_KERNEL, NUMA_NO_NODE);
-	if (nptr != NULL) {
+        nptr = kvmalloc_node(newsize, GFP_KERNEL, NUMA_NO_NODE);
+        if (nptr != NULL) {
             memcpy(nptr, ptr, oldsize);
             kvfree(ptr);
-	}
+        }
 
-	return nptr;
+        return nptr;
     }
 #endif /* WOLFSSL_LINUXKM && HAVE_KVMALLOC */
 

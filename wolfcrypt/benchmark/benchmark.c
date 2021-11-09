@@ -2509,12 +2509,12 @@ exit:
 void bench_aesgcm(int doAsync)
 {
 #if defined(WOLFSSL_AES_128) && !defined(WOLFSSL_AFALG_XILINX_AES) \
-	&& !defined(WOLFSSL_XILINX_CRYPT)
+        && !defined(WOLFSSL_XILINX_CRYPT)
     bench_aesgcm_internal(doAsync, bench_key, 16, bench_iv, 12,
                           "AES-128-GCM-enc", "AES-128-GCM-dec");
 #endif
 #if defined(WOLFSSL_AES_192) && !defined(WOLFSSL_AFALG_XILINX_AES) \
-	&& !defined(WOLFSSL_XILINX_CRYPT)
+        && !defined(WOLFSSL_XILINX_CRYPT)
     bench_aesgcm_internal(doAsync, bench_key, 24, bench_iv, 12,
                           "AES-192-GCM-enc", "AES-192-GCM-dec");
 #endif
@@ -2551,17 +2551,17 @@ void bench_gmac(void)
     XMEMSET(&gmac, 0, sizeof(Gmac)); /* clear context */
     (void)wc_AesInit((Aes*)&gmac, HEAP_HINT, INVALID_DEVID);
     wc_GmacSetKey(&gmac, bench_key, 16);
-    
+
     bench_stats_start(&count, &start);
-    do {                        
-        ret = wc_GmacUpdate(&gmac, bench_iv, 12, bench_plain, bench_size, 
+    do {
+        ret = wc_GmacUpdate(&gmac, bench_iv, 12, bench_plain, bench_size,
             tag, sizeof(tag));
 
         count++;
     } while (bench_stats_sym_check(start));
     wc_AesFree((Aes*)&gmac);
 
-    bench_stats_sym_finish(gmacStr, 0, count, bench_size, start, ret);    
+    bench_stats_sym_finish(gmacStr, 0, count, bench_size, start, ret);
 }
 
 #endif /* HAVE_AESGCM */
@@ -4307,10 +4307,10 @@ static void bench_hmac(int doAsync, int type, int digestSz,
 #ifdef WOLFSSL_ASYNC_CRYPT
     DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_MAX_DIGEST_SIZE, HEAP_HINT);
 #else
-	byte digest[BENCH_MAX_PENDING][WC_MAX_DIGEST_SIZE];
+    byte digest[BENCH_MAX_PENDING][WC_MAX_DIGEST_SIZE];
 #endif
 
-	(void)digestSz;
+    (void)digestSz;
 
     /* clear for done cleanup */
     XMEMSET(hmac, 0, sizeof(hmac));
@@ -4916,8 +4916,8 @@ void bench_rsa(int doAsync)
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
         /* setup an async context for each key */
-	ret = wc_InitRsaKey_ex(&rsaKey[i], HEAP_HINT,
-			       doAsync ? devId : INVALID_DEVID);
+        ret = wc_InitRsaKey_ex(&rsaKey[i], HEAP_HINT,
+                               doAsync ? devId : INVALID_DEVID);
         if (ret < 0) {
             goto exit_bench_rsa;
         }
@@ -5704,7 +5704,7 @@ void bench_curve25519KeyAgree(void)
     double start;
     int    ret, i, count;
     byte   shared[32];
-	const char**desc = bench_desc_words[lng_index];
+    const char**desc = bench_desc_words[lng_index];
     word32 x = 0;
 
     wc_curve25519_init(&genKey);
@@ -5861,7 +5861,7 @@ void bench_curve448KeyAgree(void)
     double start;
     int    ret, i, count;
     byte   shared[56];
-	const char**desc = bench_desc_words[lng_index];
+    const char**desc = bench_desc_words[lng_index];
     word32 x = 0;
 
     wc_curve448_init(&genKey);

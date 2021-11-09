@@ -2255,7 +2255,7 @@ static WC_INLINE unsigned int my_psk_server_tls13_cb(WOLFSSL* ssl,
        !defined(NO_FILESYSTEM)
 static unsigned char local_psk[32];
 #endif
-static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl, 
+static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl,
             const WOLFSSL_EVP_MD* md, const unsigned char **id,
             size_t* idlen,  WOLFSSL_SESSION **sess)
 {
@@ -2271,9 +2271,9 @@ static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl,
     int numCiphers = 0;
     (void)ssl;
     (void)md;
-    
+
     printf("use psk session callback \n");
-    
+
     lsess = wolfSSL_SESSION_new();
     if (lsess == NULL) {
         return 0;
@@ -2282,16 +2282,16 @@ static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl,
     numCiphers = sk_num(supportedCiphers);
 
     for (i = 0; i < numCiphers; ++i) {
-        
+
         if ((cipher = (const WOLFSSL_CIPHER*)sk_value(supportedCiphers, i))) {
             SSL_CIPHER_description(cipher, buf, sizeof(buf));
         }
-        
+
         if (XMEMCMP(cipher_id, buf, XSTRLEN(cipher_id)) == 0) {
             break;
         }
     }
-    
+
     if (i != numCiphers) {
         SSL_SESSION_set_cipher(lsess, cipher);
             for (i = 0; i < 32; i++, b += 0x22) {
@@ -2299,11 +2299,11 @@ static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl,
                 b = 0x01;
             local_psk[i] = b;
         }
-        
+
         *id = local_psk;
         *idlen = 32;
         *sess = lsess;
-        
+
         return 1;
     }
     else {
@@ -2318,7 +2318,7 @@ static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl,
     (void)id;
     (void)idlen;
     (void)sess;
-    
+
     return 0;
 #endif
 }
@@ -2706,7 +2706,7 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
         return 0; /* test failure case */
     }
 
-    if (myVerifyAction == VERIFY_OVERRIDE_DATE_ERR && 
+    if (myVerifyAction == VERIFY_OVERRIDE_DATE_ERR &&
         (store->error == ASN_BEFORE_DATE_E || store->error == ASN_AFTER_DATE_E)) {
         printf("Overriding cert date error as example for bad clock testing\n");
         return 1;
@@ -4901,7 +4901,7 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
             }
             wc_AesFree(&aes);
         #endif
-            
+
             if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
             *outLen = inLen;  /* no padding in this mode */
         }
@@ -4975,9 +4975,9 @@ static WC_INLINE void EarlyDataStatus(WOLFSSL* ssl)
     earlyData_status = wolfSSL_get_early_data_status(ssl);
 #endif
     if (earlyData_status < 0) return;
-    
+
     printf("Early Data was ");
-    
+
     switch(earlyData_status) {
         case WOLFSSL_EARLY_DATA_NOT_SENT:
                 printf("not sent.\n");

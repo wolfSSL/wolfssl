@@ -2601,9 +2601,9 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_CRYPT)
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
                   int dir)
-    {   
+    {
         int ret;
-        
+
         if (aes == NULL || (keylen != 16 && keylen != 24 && keylen != 32)) {
             return BAD_FUNC_ARG;
         }
@@ -4734,13 +4734,13 @@ static const __m128i MOD2_128 =
         M128_INIT(0x1, (long long int)0xc200000000000000UL);
 
 
-/* See Intel® Carry-Less Multiplication Instruction
+/* See Intel Carry-Less Multiplication Instruction
  * and its Usage for Computing the GCM Mode White Paper
  * by Shay Gueron, Intel Mobility Group, Israel Development Center;
  * and Michael E. Kounavis, Intel Labs, Circuits and Systems Research */
 
 
-/* Figure 9. AES-GCM – Encrypt With Single Block Ghash at a Time */
+/* Figure 9. AES-GCM - Encrypt With Single Block Ghash at a Time */
 
 static const __m128i ONE   = M128_INIT(0x0, 0x1);
 #ifndef AES_GCM_AESNI_NO_UNROLL
@@ -7796,7 +7796,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
 
     /* for cases where hardware cannot be used for authTag calculate it */
     /* if IV is not 12 calculate GHASH using software */
-    if (ivSz != GCM_NONCE_MID_SZ 
+    if (ivSz != GCM_NONCE_MID_SZ
     #ifndef CRYP_HEADERWIDTHUNIT_BYTE
         /* or harware that does not support partial block */
         || sz == 0 || partial != 0

@@ -37,7 +37,7 @@
 
 
 enum {
-	RABBIT_ENC_TYPE  = 5     /* cipher unique type */
+    RABBIT_ENC_TYPE  = 5     /* cipher unique type */
 };
 
 

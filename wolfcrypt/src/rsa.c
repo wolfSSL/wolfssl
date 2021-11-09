@@ -4369,10 +4369,10 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     tmp3 = (mp_int *)XMALLOC(sizeof *tmp3, key->heap, DYNAMIC_TYPE_RSA);
 
     if ((p == NULL) ||
-	(q == NULL) ||
-	(tmp1 == NULL) ||
-	(tmp2 == NULL) ||
-	(tmp3 == NULL)) {
+        (q == NULL) ||
+        (tmp1 == NULL) ||
+        (tmp2 == NULL) ||
+        (tmp3 == NULL)) {
       err = MEMORY_E;
       goto out;
     }

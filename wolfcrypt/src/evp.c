@@ -682,7 +682,7 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
         return WOLFSSL_FAILURE;
     }
 
-    /* if(inl == 0)wolfSSL_EVP_CipherUpdate_GCM to get tag */ 
+    /* if(inl == 0)wolfSSL_EVP_CipherUpdate_GCM to get tag */
     if (inl == 0) {
         return WOLFSSL_SUCCESS;
     }
@@ -2195,29 +2195,29 @@ static int DH_param_check(WOLFSSL_DH* dh_key)
     WOLFSSL_BN_CTX* ctx = NULL;
     WOLFSSL_BIGNUM *num1 = NULL;
     WOLFSSL_BIGNUM *num2 = NULL;
-    
+
     WOLFSSL_ENTER("DH_param_check");
-    
+
     ctx = wolfSSL_BN_CTX_new();
     if (ctx == NULL) {
         WOLFSSL_MSG("failed to allocate memory");
         return WOLFSSL_FAILURE;
     }
-    
+
     num1 = wolfSSL_BN_new();
     num2 = wolfSSL_BN_new();
     if (num1 == NULL || num2 == NULL) {
         WOLFSSL_MSG("failed to assign big number");
         ret = WOLFSSL_FAILURE;
     }
-    
+
     /* prime check */
     if (ret == WOLFSSL_SUCCESS &&
         wolfSSL_BN_is_odd(dh_key->p) == 0){
         WOLFSSL_MSG("dh_key->p is not prime");
         ret = WOLFSSL_FAILURE;
     } /* TODO safe prime check. need BN_rshift1 */
-    
+
     /* generator check */
     if (ret == WOLFSSL_SUCCESS &&
        (wolfSSL_BN_is_one(dh_key->g) ||
@@ -2226,13 +2226,13 @@ static int DH_param_check(WOLFSSL_DH* dh_key)
         WOLFSSL_MSG("dh_key->g is not suitable generator");
         ret = WOLFSSL_FAILURE;
     }
-    
+
     if (ret == WOLFSSL_SUCCESS &&
         wolfSSL_BN_cmp(dh_key->p, dh_key->g) <= 0) {
         WOLFSSL_MSG("dh_key->g is not suitable generator");
         ret = WOLFSSL_FAILURE;
     }
-    
+
     if (ret == WOLFSSL_SUCCESS &&
         dh_key->q != NULL)
     {
@@ -2257,12 +2257,12 @@ static int DH_param_check(WOLFSSL_DH* dh_key)
         } /* else TODO check q div q - 1. need BN_div */
 #endif
     }
-    
+
     /* clean up */
     wolfSSL_BN_CTX_free(ctx);
     wolfSSL_BN_free(num1);
     wolfSSL_BN_free(num2);
-    
+
     WOLFSSL_LEAVE("DH_param_check", WOLFSSL_SUCCESS);
     return ret;
 }
@@ -2276,12 +2276,12 @@ int wolfSSL_EVP_PKEY_param_check(WOLFSSL_EVP_PKEY_CTX* ctx)
     int type;
     int ret;
     WOLFSSL_DH* dh_key = NULL;
-    
+
     /* sanity check */
     if (ctx == NULL) {
         return WOLFSSL_FAILURE;
     }
-    
+
     type = wolfSSL_EVP_PKEY_type(wolfSSL_EVP_PKEY_base_id(ctx->pkey));
     switch (type) {
         #if !defined(NO_RSA)
@@ -3222,28 +3222,28 @@ int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
 #if defined(HAVE_SCRYPT) && defined(HAVE_PBKDF2) && !defined(NO_PWDBASED) && \
                                                     !defined(NO_SHA256)
 /**
- * Derives a key from the specified password and the salt using SCRYPT 
+ * Derives a key from the specified password and the salt using SCRYPT
  * algorithm.
- * 
+ *
  * Parameters:
  * - pass      :password data. no need to be null-terminated. NULL is accepted.
  * - passlen   :length of the password. Must be 0 when pass is NULL.
  * - salt      :salt. NULL is accepted.
  * - saltlen   :length of the salt. Must be 0 when salt is NULL.
- * - N         :cost parameter. Must be grater or equal to 2 and be a power of 2.     
+ * - N         :cost parameter. Must be grater or equal to 2 and be a power of 2.
  * - r         :block size. Must 1 or greater.
- * - p         :parallelism 
+ * - p         :parallelism
  * - maxmem    :maximum size of buffer used for calculation in definition,
  *              Not referred in this implementation.
  * - key       :derived key.
  * - keylen    :length of the derived key
- * 
+ *
  * Returns:
  *   1 on success, otherwise 0.
  */
 int wolfSSL_EVP_PBE_scrypt(const char *pass, size_t passlen,
                             const unsigned char *salt, size_t saltlen,
-                            word64 N, word64 r, word64 p, 
+                            word64 N, word64 r, word64 p,
                             word64 maxmem, unsigned char *key, size_t keylen)
 {
     (void)maxmem;
@@ -3256,7 +3256,7 @@ int wolfSSL_EVP_PBE_scrypt(const char *pass, size_t passlen,
         WOLFSSL_MSG("Doesn't support greater than 32 bit values of r and p");
         return WOLFSSL_FAILURE;
     }
-    /* N must be a power of 2 and > 2. 
+    /* N must be a power of 2 and > 2.
        if (N & (N-1)) is zero, it means N is a power of 2.
      */
     if (N < 2 || (N & (N-1)) || r <= 0 || p <= 0)
@@ -3265,7 +3265,7 @@ int wolfSSL_EVP_PBE_scrypt(const char *pass, size_t passlen,
     if (key == NULL)
         return WOLFSSL_SUCCESS;
 
-    /* get exponent of power of 2. Confirmed N is power of 2. */    
+    /* get exponent of power of 2. Confirmed N is power of 2. */
     while (N != 1) {
         N >>= 1;
         exp++;
@@ -3772,7 +3772,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         WOLFSSL_ENTER("EVP_blake2b512");
         return EVP_get_digestbyname("BLAKE2b512");
     }
-    
+
 #endif
 
 #ifdef HAVE_BLAKE2S
@@ -3853,19 +3853,19 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha512_224(void)
     {
         WOLFSSL_ENTER("EVP_sha512_224");
-        return EVP_get_digestbyname("SHA512_224");       
+        return EVP_get_digestbyname("SHA512_224");
     }
 
-#endif /* !WOLFSSL_NOSHA512_224 */ 
+#endif /* !WOLFSSL_NOSHA512_224 */
 
 #ifndef WOLFSSL_NOSHA512_224
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha512_256(void)
     {
         WOLFSSL_ENTER("EVP_sha512_256");
-        return EVP_get_digestbyname("SHA512_256");       
+        return EVP_get_digestbyname("SHA512_256");
     }
 
-#endif /* !WOLFSSL_NOSHA512_224 */ 
+#endif /* !WOLFSSL_NOSHA512_224 */
 
 #endif /* WOLFSSL_SHA512 */
 
@@ -4152,33 +4152,33 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         }
         return (WOLFSSL_EVP_MD *)NULL;
     }
-    
+
     /* return alias name if has
      * @param n message digest type name
      * @return alias name, otherwise NULL
      */
-    static const char* hasAliasName(const char* n) 
+    static const char* hasAliasName(const char* n)
     {
-        
+
         const char* aliasnm = NULL;
         const struct alias  *al;
-        
+
         for (al = alias_tbl; al->name != NULL; al++)
             if(XSTRNCMP(n, al->name, XSTRLEN(al->name)+1) == 0) {
                 aliasnm = al->alias;
                 break;
             }
-        
+
         return aliasnm;
     }
-    
-    
+
+
     struct do_all_md {
         void *arg;
-        void (*fn) (const WOLFSSL_EVP_MD *m, 
+        void (*fn) (const WOLFSSL_EVP_MD *m,
                     const char* from, const char* to, void *arg);
     };
-    
+
     /* do all md algorithm
      * @param nm a pointer to WOLFSSL_OBJ_NAME
      * @param arg arguments to pass to the callback
@@ -4187,14 +4187,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     static void md_do_all_func(const WOLFSSL_OBJ_NAME* nm, void* arg)
     {
         struct do_all_md *md = (struct do_all_md*)arg;
-        
+
         const struct s_ent *ent;
-        
+
         /* sanity check */
         if (md == NULL || nm == NULL || md->fn == NULL ||
             nm->type != WOLFSSL_OBJ_NAME_TYPE_MD_METH)
             return;
-        
+
         /* loop all md */
         for (ent = md_tbl; ent->name != NULL; ent++){
             /* check if the md has alias */
@@ -4206,7 +4206,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
             }
         }
     }
-    
+
     /* call md_do_all function to do all md algorithm via a callback function
      * @param fn a callback function to be called with all 'md'
      * @param args arguments to pass to the callback
@@ -4216,31 +4216,31 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                  const char* from, const char* to, void* xx), void* args)
     {
         struct do_all_md md;
-        
+
         md.fn = fn;
         md.arg = args;
-        
+
         wolfSSL_OBJ_NAME_do_all(WOLFSSL_OBJ_NAME_TYPE_MD_METH,
                         md_do_all_func, &md);
     }
-    
+
     /* call "fn" based on OBJ_NAME type
      * @param type OBJ_NAME type
      * @param fn a callback function
      * @param args arguments to pass to the callback
      * @return none
      */
-    void wolfSSL_OBJ_NAME_do_all(int type, 
+    void wolfSSL_OBJ_NAME_do_all(int type,
                 void (*fn)(const WOLFSSL_OBJ_NAME*, void* arg), void* arg)
     {
         WOLFSSL_OBJ_NAME objnm;
-        
+
         /* sanity check */
         if (!fn)
             return;
-        
+
         objnm.type = type;
-        
+
         switch(type) {
             case WOLFSSL_OBJ_NAME_TYPE_MD_METH:
                 fn(&objnm, arg);
@@ -4256,7 +4256,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 break;
         }
     }
-    
+
     #ifndef NO_AES
 
     #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
@@ -7916,8 +7916,8 @@ static int Indent(WOLFSSL_BIO* out, int indents)
 }
 /* PrintHexWithColon dump byte-data specified by "input" to the "out".
  * Each line has leading white spaces( "indent" gives the number ) plus
- * four spaces, then hex coded 15 byte data with separator ":" follow.   
- * Each line looks like: 
+ * four spaces, then hex coded 15 byte data with separator ":" follow.
+ * Each line looks like:
  * "    00:e6:ab: --- 9f:ef:"
  * Parmeters:
  * out     bio to output dump data
@@ -7966,15 +7966,15 @@ static int PrintHexWithColon(WOLFSSL_BIO* out, const byte* input,
     /* print pub element */
     idx = 0;
 
-    for (in = 0; in < (word32)inlen && ret == WOLFSSL_SUCCESS; in += 
+    for (in = 0; in < (word32)inlen && ret == WOLFSSL_SUCCESS; in +=
                                         EVP_PKEY_PRINT_DIGITS_PER_LINE ) {
         Indent(out, indent);
-        for (i = 0; (i < EVP_PKEY_PRINT_DIGITS_PER_LINE) && 
+        for (i = 0; (i < EVP_PKEY_PRINT_DIGITS_PER_LINE) &&
                                         (in + i < (word32)inlen); i++) {
-            
+
             if (ret == WOLFSSL_SUCCESS) {
                 outSz = sizeof(outHex);
-                ret = Base16_Encode((const byte*)&data[in + i], 1, 
+                ret = Base16_Encode((const byte*)&data[in + i], 1,
                                                     outHex, &outSz) == 0;
             }
             if (ret == WOLFSSL_SUCCESS) {
@@ -8043,7 +8043,7 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         indent = EVP_PKEY_PRINT_INDENT_MAX;
     }
     /* parse key to get modulus and exponent */
-    if (wc_RsaPublicKeyDecode_ex(pkey, &inOutIdx, pkeySz, 
+    if (wc_RsaPublicKeyDecode_ex(pkey, &inOutIdx, pkeySz,
                                             &n, &nSz, &e, &eSz) != 0) {
         return WOLFSSL_FAILURE;
     }
@@ -8078,7 +8078,7 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         return WOLFSSL_FAILURE;
     }
 
-    /* print modulus with leading zero if exists */    
+    /* print modulus with leading zero if exists */
     if (*n & 0x80 && *(n-1) == 0) {
         n--;
         nSz++;
@@ -8272,7 +8272,7 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     if (res == WOLFSSL_SUCCESS) {
         res = wolfSSL_BIO_write(out, "\n", 1) > 0;
     }
- 
+
     if (pub != NULL) {
         XFREE(pub, NULL, DYNAMIC_TYPE_ECC_BUFFER);
         pub = NULL;
@@ -8291,7 +8291,7 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
  * pkeySz  public key data size
  * indent  the number of spaces for indent
  * bitlen  bit size of the given key
- * pctx    context(not used) 
+ * pctx    context(not used)
  * Returns 1 on success, 0 on failure.
 */
 static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
@@ -8671,7 +8671,7 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 }
 #endif /* WOLFSSL_DH_EXTRA */
 
-/* wolfSSL_EVP_PKEY_print_public parses the specified key then 
+/* wolfSSL_EVP_PKEY_print_public parses the specified key then
  * outputs public key info in human readable format to the specified BIO.
  * White spaces of the same number which 'indent" gives, will be added to
  * each line to output and ignores pctx parameter.
@@ -8680,7 +8680,7 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
  * pkey    buffer holding public key data
  * indent  the number of spaces for indent
  * pctx    context(not used)
- * Returns 1 on success, 0 or negative on error, -2 means specified key 
+ * Returns 1 on success, 0 or negative on error, -2 means specified key
  * algo is not supported.
  * Can handle RSA, ECC, DSA and DH public keys.
  */
@@ -8878,7 +8878,7 @@ int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
     return WOLFSSL_SUCCESS;
 }
 
-/* Base64 encoding APIs */
+/* Base64 encoding APIs */
 #if defined(WOLFSSL_BASE64_ENCODE) || defined(WOLFSSL_BASE64_DECODE)
 
 /*  wolfSSL_EVP_ENCODE_CTX_new allocates WOLFSSL_EVP_ENCODE_CTX
@@ -8956,7 +8956,7 @@ int  wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
         if (ctx->remaining >= BASE64_ENCODE_BLOCK_SIZE) {
             /* Base64_Encode asks the out buff size via the 4th param*/
             outsz = BASE64_ENCODE_RESULT_BLOCK_SIZE + 1;
-            res = Base64_Encode(ctx->data, BASE64_ENCODE_BLOCK_SIZE, out, 
+            res = Base64_Encode(ctx->data, BASE64_ENCODE_BLOCK_SIZE, out,
             &outsz);
             if (res == 0) {
                 ctx->remaining = 0;
@@ -8971,7 +8971,7 @@ int  wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
             return  1;
         }
     }
-    /* Here, there is no data left in ctx, so try processing the data of 
+    /* Here, there is no data left in ctx, so try processing the data of
      * the specified input data.
      */
 

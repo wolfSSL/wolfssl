@@ -20,7 +20,7 @@
  */
 
 /* For simpler wolfSSL TLS client examples, visit
- * https://github.com/wolfSSL/wolfssl-examples/tree/master/tls 
+ * https://github.com/wolfSSL/wolfssl-examples/tree/master/tls
  */
 
 #ifdef HAVE_CONFIG_H
@@ -1708,7 +1708,7 @@ static void Usage(void)
     printf("%s", msg[++msgid]); /* --wolfsentry-config */
 #endif
     printf("%s", msg[++msgid]); /* -7 */
-    printf("%s", msg[++msgid]); /* Examples repo link */ 
+    printf("%s", msg[++msgid]); /* Examples repo link */
 #ifdef HAVE_LIBOQS
     printf("%s", msg[++msgid]);     /* --oqs */
     printf("%s", msg[++msgid]);     /* --oqs options */
@@ -2987,7 +2987,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         if (useCertFolder) {
             WOLFSSL_X509_STORE      *store;
             WOLFSSL_X509_LOOKUP     *lookup;
-            
+
             store = wolfSSL_CTX_get_cert_store(ctx);
             if (store == NULL) {
                 wolfSSL_CTX_free(ctx); ctx = NULL;

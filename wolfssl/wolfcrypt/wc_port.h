@@ -541,7 +541,9 @@
     /* remove this multifariously conflicting macro, picked up from
      * Linux arch/<arch>/include/asm/current.h.
      */
-    #undef current
+    #ifndef WOLFSSL_NEED_LINUX_CURRENT
+        #undef current
+    #endif
 
     /* prevent gcc's mm_malloc.h from being included, since it unconditionally
      * includes stdlib.h, which is kernel-incompatible.
@@ -741,7 +743,7 @@
     #elif defined(FREERTOS_TCP)
         #include "FreeRTOS.h"
         #include "semphr.h"
-		typedef SemaphoreHandle_t  wolfSSL_Mutex;
+        typedef SemaphoreHandle_t  wolfSSL_Mutex;
     #elif defined (RTTHREAD)
         #include "rtthread.h"
         typedef rt_mutex_t wolfSSL_Mutex;
@@ -1053,7 +1055,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define opendir   FCL_OPENDIR
     #define closedir  FCL_CLOSEDIR
     #define readdir   FCL_READDIR
-    #define dirent    fclDirent 
+    #define dirent    fclDirent
     #define strncasecmp FCL_STRNCASECMP
 
     /* FUSION SPECIFIC ERROR CODE */
@@ -1130,7 +1132,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         #define MAX_PATH 256
     #endif
 
-    WOLFSSL_LOCAL int wc_FileLoad(const char* fname, unsigned char** buf, 
+    WOLFSSL_LOCAL int wc_FileLoad(const char* fname, unsigned char** buf,
         size_t* bufLen, void* heap);
 
 #if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_NUCLEUS) && \

@@ -368,7 +368,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     if (recvd < 0) {
         WOLFSSL_MSG("Embed Receive From error");
         recvd = TranslateIoError(recvd);
-        if (recvd == WOLFSSL_CBIO_ERR_WANT_READ && 
+        if (recvd == WOLFSSL_CBIO_ERR_WANT_READ &&
             !wolfSSL_dtls_get_using_nonblock(ssl)) {
             recvd = WOLFSSL_CBIO_ERR_TIMEOUT;
         }
@@ -436,7 +436,7 @@ int EmbedReceiveFromMcast(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     if (recvd < 0) {
         WOLFSSL_MSG("Embed Receive From error");
         recvd = TranslateIoError(recvd);
-        if (recvd == WOLFSSL_CBIO_ERR_WANT_READ && 
+        if (recvd == WOLFSSL_CBIO_ERR_WANT_READ &&
             !wolfSSL_dtls_get_using_nonblock(ssl)) {
             recvd = WOLFSSL_CBIO_ERR_TIMEOUT;
         }

@@ -146,7 +146,7 @@ WOLFSSL_API WOLFSSL_DSA* wolfSSL_d2i_DSAparams(WOLFSSL_DSA**,
 #define DSA_SIG                    WOLFSSL_DSA_SIG
 
 #ifdef __cplusplus
-    }  /* extern "C" */ 
+    }  /* extern "C" */
 #endif
 
 #endif /* header */

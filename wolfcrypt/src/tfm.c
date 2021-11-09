@@ -497,7 +497,7 @@ WC_INLINE static int fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
 #else
    fp_int    *tmp;
 #endif
- 
+
    /* Variables used but not seen by cppcheck. */
    (void)ix; (void)iy; (void)iz;
 
@@ -604,7 +604,7 @@ int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
   dst->sign = A->sign ^ B->sign;
   fp_clamp(dst);
   fp_copy(dst, C);
-  
+
   /* Variables used but not seen by cppcheck. */
   (void)c0; (void)c1; (void)c2;
 
@@ -3230,7 +3230,7 @@ int fp_sqr_comba(fp_int *A, fp_int *B)
 #ifdef TFM_ISO
   (void)tt;
 #endif
-   
+
 #ifdef WOLFSSL_SMALL_STACK
   XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
@@ -4746,7 +4746,7 @@ static int fp_div_d(fp_int *a, fp_digit b, fp_int *c, fp_digit *d)
      if (w >= b) {
 #ifdef WOLFSSL_LINUXKM
         t = (fp_digit)w;
-	/* Linux kernel macro for in-place 64 bit integer division. */
+        /* Linux kernel macro for in-place 64 bit integer division. */
         do_div(t, b);
 #else
         t = (fp_digit)(w / b);

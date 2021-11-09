@@ -153,7 +153,7 @@ int testsuite_test(int argc, char** argv)
     #ifdef HAVE_STACK_SIZE
         StackSizeCheck(&server_args, wolfcrypt_test);
     #else
-	wolfcrypt_test(&server_args);
+        wolfcrypt_test(&server_args);
     #endif
     if (server_args.return_code != 0) return server_args.return_code;
 #endif

@@ -37,7 +37,7 @@
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
 #if defined(HAVE_FIPS) && \
-	(!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
 #define wc_Sha             Sha
 #define WC_SHA             SHA
 #define WC_SHA_BLOCK_SIZE  SHA_BLOCK_SIZE
@@ -53,7 +53,7 @@
 #endif
 
 #ifdef WOLFSSL_IMXRT_DCP
-	#include "fsl_dcp.h"
+    #include "fsl_dcp.h"
 #endif
 
 #ifdef __cplusplus

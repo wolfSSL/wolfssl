@@ -70,7 +70,7 @@ extern "C" {
 
 /* Optional Feature Disables */
 #define NO_SIG_WRAPPER
-//#define NO_ECC_KEY_EXPORT 
+//#define NO_ECC_KEY_EXPORT
 //#define NO_ECC_DHE
 //#define NO_ECC_SIGN
 //#define NO_ECC_VERIFY

@@ -770,7 +770,7 @@ enum SNICbReturn {
 
 /* WS_RETURN_CODE macro
  * Some OpenSSL APIs specify "0" as the return value when an error occurs.
- * However, some corresponding wolfSSL APIs　return negative values. Such
+ * However, some corresponding wolfSSL APIs return negative values. Such
  * functions should use this macro to fill this gap. Users who want them
  * to return the same return value as OpenSSL can define
  * WOLFSSL_ERR_CODE_OPENSSL.
@@ -1365,7 +1365,7 @@ WOLFSSL_API void wolfSSL_sk_GENERAL_NAME_pop_free(WOLFSSL_STACK* sk,
                                        void (*f) (WOLFSSL_GENERAL_NAME*));
 WOLFSSL_API void wolfSSL_sk_GENERAL_NAME_free(WOLFSSL_STACK* sk);
 WOLFSSL_API void wolfSSL_GENERAL_NAMES_free(WOLFSSL_GENERAL_NAMES* name);
-WOLFSSL_API int wolfSSL_GENERAL_NAME_print(WOLFSSL_BIO* out, 
+WOLFSSL_API int wolfSSL_GENERAL_NAME_print(WOLFSSL_BIO* out,
                                            WOLFSSL_GENERAL_NAME* name);
 
 WOLFSSL_API WOLFSSL_DIST_POINT* wolfSSL_DIST_POINT_new(void);
@@ -1431,7 +1431,7 @@ WOLFSSL_API int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_SESSION_new(void);
 WOLFSSL_API void wolfSSL_SESSION_free(WOLFSSL_SESSION* session);
-WOLFSSL_API int wolfSSL_SESSION_set_cipher(WOLFSSL_SESSION* session, 
+WOLFSSL_API int wolfSSL_SESSION_set_cipher(WOLFSSL_SESSION* session,
                                         const WOLFSSL_CIPHER* cipher);
 WOLFSSL_API int  wolfSSL_is_init_finished(WOLFSSL*);
 
@@ -1624,7 +1624,7 @@ WOLFSSL_API void wolfSSL_X509_STORE_set_verify_cb(WOLFSSL_X509_STORE *st,
                                  WOLFSSL_X509_STORE_CTX_verify_cb verify_cb);
 WOLFSSL_API int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* n,
                                                            unsigned char** out);
-WOLFSSL_API int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, 
+WOLFSSL_API int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name,
                                                     unsigned char** out);
 WOLFSSL_API WOLFSSL_X509_NAME *wolfSSL_d2i_X509_NAME(WOLFSSL_X509_NAME **name,
                                               unsigned char **in, long length);
@@ -1715,7 +1715,7 @@ WOLFSSL_API unsigned char* wolfSSL_ASN1_STRING_data(WOLFSSL_ASN1_STRING*);
 WOLFSSL_API const unsigned char* wolfSSL_ASN1_STRING_get0_data(
                                             const WOLFSSL_ASN1_STRING*);
 WOLFSSL_API int wolfSSL_ASN1_STRING_length(WOLFSSL_ASN1_STRING*);
-WOLFSSL_API int wolfSSL_ASN1_STRING_copy(WOLFSSL_ASN1_STRING* dst, 
+WOLFSSL_API int wolfSSL_ASN1_STRING_copy(WOLFSSL_ASN1_STRING* dst,
                                                 const WOLFSSL_ASN1_STRING* src);
 WOLFSSL_API int         wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX*);
 WOLFSSL_API const char* wolfSSL_X509_verify_cert_error_string(long);
@@ -1825,7 +1825,7 @@ WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_set1_ip(
        WOLFSSL_X509_VERIFY_PARAM* param, const unsigned char* ip, size_t iplen);
 WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_set1(WOLFSSL_X509_VERIFY_PARAM* to,
                                     const WOLFSSL_X509_VERIFY_PARAM* from);
-WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx, 
+WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
                                               const char *file, int type);
 WOLFSSL_API int wolfSSL_X509_load_cert_crl_file(WOLFSSL_X509_LOOKUP *ctx,
                                               const char *file, int type);
@@ -2359,10 +2359,10 @@ enum { /* ssl Constants */
     WOLFSSL_API void wolfSSL_set_psk_client_callback(WOLFSSL*,
                                                         wc_psk_client_callback);
     #ifdef OPENSSL_EXTRA
-    typedef int (*wc_psk_use_session_cb_func)(WOLFSSL* ssl, 
+    typedef int (*wc_psk_use_session_cb_func)(WOLFSSL* ssl,
                             const WOLFSSL_EVP_MD* md, const unsigned char **id,
                                         size_t* idlen,  WOLFSSL_SESSION **sess);
-    WOLFSSL_API void wolfSSL_set_psk_use_session_callback(WOLFSSL* ssl, 
+    WOLFSSL_API void wolfSSL_set_psk_use_session_callback(WOLFSSL* ssl,
                                                wc_psk_use_session_cb_func cb);
     #endif
 #ifdef WOLFSSL_TLS13
@@ -2636,7 +2636,7 @@ WOLFSSL_API WOLFSSL_X509*
 WOLFSSL_API int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out);
 WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL **crl,
                                                    const unsigned char *in, int len);
-WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_bio(WOLFSSL_BIO *bp, 
+WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_bio(WOLFSSL_BIO *bp,
                                                     WOLFSSL_X509_CRL **crl);
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp(XFILE file, WOLFSSL_X509_CRL **crl);
@@ -3583,7 +3583,7 @@ enum {
      * algorithms have LEVEL2 and LEVEL4 because none of these submissions
      * included them. */
 
-    WOLFSSL_OQS_MIN               = 532, 
+    WOLFSSL_OQS_MIN               = 532,
     WOLFSSL_OQS_SIMPLE_MIN        = 532,
     WOLFSSL_NTRU_HPS_LEVEL1       = 532, /* NTRU_HPS2048509 */
     WOLFSSL_NTRU_HPS_LEVEL3       = 533, /* NTRU_HPS2048677 */
@@ -3859,7 +3859,7 @@ WOLFSSL_LOCAL int NIDToEccEnum(int n);
 #define WOLFSSL_OBJ_NAME_TYPE_NUM           0x05
 #define WOLFSSL_OBJ_NAME_ALIAS              0x8000
 
-WOLFSSL_API void wolfSSL_OBJ_NAME_do_all(int type, 
+WOLFSSL_API void wolfSSL_OBJ_NAME_do_all(int type,
                            void (*fn) (const WOLFSSL_OBJ_NAME* , void *arg),
                            void* arg);
 /* end of object functions */
@@ -4716,9 +4716,9 @@ WOLFSSL_API int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
     const char* key, unsigned int keySz, int format);
 
 /* returns pointer to loaded key as ASN.1/DER */
-WOLFSSL_API int wolfSSL_CTX_get_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo, 
+WOLFSSL_API int wolfSSL_CTX_get_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
     const unsigned char** key, unsigned int* keySz);
-WOLFSSL_API int wolfSSL_get_ephemeral_key(WOLFSSL* ssl, int keyAlgo, 
+WOLFSSL_API int wolfSSL_get_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
     const unsigned char** key, unsigned int* keySz);
 #endif
 
