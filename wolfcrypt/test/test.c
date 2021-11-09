@@ -23028,7 +23028,7 @@ static int ecc_def_curve_test(WC_RNG *rng)
         XFCLOSE(file);
         ret = wc_EccPrivateKeyDecode(der, &idx, key, derSz);
     }
-    #endif    
+    #endif
     if (ret != 0) {
         goto done;
     }
@@ -23049,7 +23049,7 @@ done:
 
     wc_ecc_free(key);
 #ifdef WOLFSSL_SMALL_STACK
-    if (key != NULL) {    
+    if (key != NULL) {
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
