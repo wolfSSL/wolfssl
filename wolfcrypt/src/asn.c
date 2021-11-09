@@ -15081,19 +15081,29 @@ static int DecodePolicyConstraints(const byte* input, int sz, DecodedCert* cert)
  * X.509: RFC 5280, 4.2.1.13 - CRL Distribution Points.
  */
 static const ASNItem crlDistASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/*  1 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-                    /* Distribution point name */
-/*  2 */            { 2, DISTRIBUTION_POINT, 1, 1, 1 },
-                        /* fullName */
-/*  3 */                { 3, CRLDP_FULL_NAME, 1, 1, 2 },
-/*  4 */                    { 4, GENERALNAME_URI, 0, 0, 0 },
-                        /* nameRelativeToCRLIssuer */
-/*  5 */                { 3, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 2 },
-                    /* reasons: IMPLICIT BIT STRING */
-/*  6 */            { 2, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 1 },
-                    /* cRLIssuer */
-/*  7 */            { 2, ASN_CONTEXT_SPECIFIC | 2, 1, 0, 1 },
+/* crlDistASN_IDX_SEQ                */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* crlDistASN_IDX_DP_SEQ             */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+                                                /* Distribution point name */
+/* crlDistASN_IDX_DP_DISTPOINT       */         { 2, DISTRIBUTION_POINT, 1, 1, 1 },
+                                                    /* fullName */
+/* crlDistASN_IDX_DP_DISTPOINT_FN    */             { 3, CRLDP_FULL_NAME, 1, 1, 2 },
+/* crlDistASN_IDX_DP_DISTPOINT_FN_GN */                 { 4, GENERALNAME_URI, 0, 0, 0 },
+                                                    /* nameRelativeToCRLIssuer */
+/* crlDistASN_IDX_DP_DISTPOINT_RN    */             { 3, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 2 },
+                                                /* reasons: IMPLICIT BIT STRING */
+/* crlDistASN_IDX_DP_REASONS         */         { 2, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 1 },
+                                                /* cRLIssuer */
+/* crlDistASN_IDX_DP_CRLISSUER       */         { 2, ASN_CONTEXT_SPECIFIC | 2, 1, 0, 1 },
+};
+enum {
+    crlDistASN_IDX_SEQ = 0,
+    crlDistASN_IDX_DP_SEQ,
+    crlDistASN_IDX_DP_DISTPOINT,
+    crlDistASN_IDX_DP_DISTPOINT_FN,
+    crlDistASN_IDX_DP_DISTPOINT_FN_GN,
+    crlDistASN_IDX_DP_DISTPOINT_RN, /* Relative name */
+    crlDistASN_IDX_DP_REASONS,
+    crlDistASN_IDX_DP_CRLISSUER,
 };
 
 /* Number of items in ASN.1 template for CRL distribution points. */
@@ -15225,24 +15235,26 @@ static int DecodeCrlDist(const byte* input, int sz, DecodedCert* cert)
 
     if  (ret == 0) {
         /* Get the GeneralName choice */
-        GetASN_Choice(&dataASN[4], generalNameChoice);
-        /* Parse CRL distribution point. */
+        GetASN_Choice(&dataASN[crlDistASN_IDX_DP_DISTPOINT_FN_GN], generalNameChoice);
+        /* Parse CRL distribtion point. */
         ret = GetASN_Items(crlDistASN, dataASN, crlDistASN_Length, 0, input,
                            &idx, sz);
     }
     if (ret == 0) {
         /* If the choice was a URI, store it in certificate. */
-        if (dataASN[4].tag == GENERALNAME_URI) {
+        if (dataASN[crlDistASN_IDX_DP_DISTPOINT_FN_GN].tag == GENERALNAME_URI) {
             word32 sz32;
-            GetASN_GetConstRef(&dataASN[4], &cert->extCrlInfo, &sz32);
+            GetASN_GetConstRef(&dataASN[crlDistASN_IDX_DP_DISTPOINT_FN_GN],
+                    &cert->extCrlInfo, &sz32);
             cert->extCrlInfoSz = sz32;
         }
 
     #ifdef CRLDP_VALIDATE_DATA
-        if (dataASN[6].data.ref.data != NULL) {
+        if (dataASN[crlDistASN_IDX_DP_REASONS].data.ref.data != NULL) {
              /* TODO: test case */
              /* Validate ReasonFlags. */
-             ret = GetASN_BitString_Int16Bit(&dataASN[6], &reason);
+             ret = GetASN_BitString_Int16Bit(&dataASN[crlDistASN_IDX_DP_REASONS],
+                     &reason);
              /* First bit (LSB) unused and eight other bits defined. */
              if ((ret == 0) && ((reason >> 9) || (reason & 0x01))) {
                 ret = ASN_PARSE_E;
