@@ -330,6 +330,13 @@ then
 fi
 
 
+AC_ARG_ENABLE([benchmark],
+    [AS_HELP_STRING([--enable-benchmark],[Build benchmark when building crypttests (default: enabled)])],
+    [ENABLED_BENCHMARK=$enableval],
+    [ENABLED_BENCHMARK=yes]
+    )
+
+
 # Linux Kernel Module
 AC_ARG_ENABLE([linuxkm],
     [AS_HELP_STRING([--enable-linuxkm],[Enable Linux Kernel Module (default: disabled)])],
@@ -377,6 +384,7 @@ if test "x$ENABLED_LINUXKM" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM"
     ENABLED_NO_LIBRARY=yes
+    ENABLED_BENCHMARK=no
     output_objdir="$(realpath "$output_objdir")/linuxkm"
 
     if test "$KERNEL_ROOT" = ""; then
@@ -7267,6 +7275,7 @@ AM_CONDITIONAL([BUILD_HASHFLAGS],[test "x$ENABLED_HASHFLAGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CAAM],[test "x$ENABLED_CAAM" = "xyes" || test "x$ENABLED_CAAM" = "xqnx"])
 AM_CONDITIONAL([BUILD_LINUXKM],[test "$ENABLED_LINUXKM" = "yes"])
 AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "$ENABLED_NO_LIBRARY" = "yes"])
+AM_CONDITIONAL([BUILD_BENCHMARK],[test "$ENABLED_BENCHMARK" = "yes"])
 AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
 AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM" = "xqnx"])
 AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])

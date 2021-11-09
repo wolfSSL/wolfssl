@@ -2,7 +2,7 @@
 # All paths should be given relative to the root
 
 if BUILD_WOLFCRYPT_TESTS
-if !BUILD_LINUXKM
+if BUILD_BENCHMARK
 
 noinst_PROGRAMS += wolfcrypt/benchmark/benchmark
 wolfcrypt_benchmark_benchmark_SOURCES      = wolfcrypt/benchmark/benchmark.c
