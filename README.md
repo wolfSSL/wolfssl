@@ -65,7 +65,7 @@ If you want to mimic OpenSSL behavior of having `SSL_connect` succeed even if
 verifying the server fails and reducing security you can do this by calling:
 
 ```c
-wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
+wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
 ```
 
 before calling `wolfSSL_new();`. Though it's not recommended.

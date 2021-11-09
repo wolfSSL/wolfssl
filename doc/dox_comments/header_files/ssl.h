@@ -2513,8 +2513,8 @@ WOLFSSL_API
     \code
     WOLFSSL_CTX*    ctx    = 0;
     ...
-    wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER |
-                     SSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
+    wolfSSL_CTX_set_verify(ctx, (WOLFSSL_VERIFY_PEER |
+                           WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT), NULL);
     \endcode
 
     \sa wolfSSL_set_verify

@@ -535,9 +535,10 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
 #endif /* WOLFSSL_PEM_TO_DER */
 
 #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_PUB_PEM_TO_DER)
-    #ifndef NO_FILESYSTEM
+    #if !defined(NO_FILESYSTEM) && defined(WOLFSSL_PEM_TO_DER)
         WOLFSSL_API int wc_PemPubKeyToDer(const char* fileName,
                                           unsigned char* derBuf, int derSz);
+        WOLFSSL_API int wc_PemPubKeyToDer_ex(const char* fileName, DerBuffer** der);
     #endif
 
     WOLFSSL_API int wc_PubKeyPemToDer(const unsigned char*, int,
@@ -545,9 +546,10 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
 #endif /* WOLFSSL_CERT_EXT || WOLFSSL_PUB_PEM_TO_DER */
 
 #ifdef WOLFSSL_CERT_GEN
-    #ifndef NO_FILESYSTEM
+    #if !defined(NO_FILESYSTEM) && defined(WOLFSSL_PEM_TO_DER)
         WOLFSSL_API int wc_PemCertToDer(const char* fileName,
                                         unsigned char* derBuf, int derSz);
+        WOLFSSL_API int wc_PemCertToDer_ex(const char* fileName, DerBuffer** der);
     #endif
 #endif /* WOLFSSL_CERT_GEN */
 

@@ -19635,11 +19635,10 @@ int wc_PubKeyPemToDer(const unsigned char* pem, int pemSz,
 #endif /* WOLFSSL_CERT_EXT || WOLFSSL_PUB_PEM_TO_DER */
 #endif /* WOLFSSL_PEM_TO_DER */
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && defined(WOLFSSL_PEM_TO_DER)
 
 #ifdef WOLFSSL_CERT_GEN
-/* load pem cert from file into der buffer, return der size or error */
-int wc_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
+int wc_PemCertToDer_ex(const char* fileName, DerBuffer** der)
 {
 #ifdef WOLFSSL_SMALL_STACK
     byte   staticBuffer[1]; /* force XMALLOC */
@@ -19651,7 +19650,6 @@ int wc_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
     int    ret     = 0;
     long   sz      = 0;
     XFILE  file;
-    DerBuffer* converted = NULL;
 
     WOLFSSL_ENTER("wc_PemCertToDer");
 
@@ -19666,8 +19664,9 @@ int wc_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
     }
 
     if (ret == 0) {
-        if(XFSEEK(file, 0, XSEEK_END) != 0)
+        if (XFSEEK(file, 0, XSEEK_END) != 0) {
             ret = BUFFER_E;
+        }
         sz = XFTELL(file);
         XREWIND(file);
 
@@ -19677,35 +19676,23 @@ int wc_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
         else if (sz > (long)sizeof(staticBuffer)) {
         #ifdef WOLFSSL_STATIC_MEMORY
             WOLFSSL_MSG("File was larger then static buffer");
-            return MEMORY_E;
-        #endif
+            ret = MEMORY_E;
+        #else
             fileBuf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE);
             if (fileBuf == NULL)
                 ret = MEMORY_E;
             else
                 dynamic = 1;
+        #endif
         }
 
         if (ret == 0) {
             if ((size_t)XFREAD(fileBuf, 1, sz, file) != (size_t)sz) {
                 ret = BUFFER_E;
             }
-        #ifdef WOLFSSL_PEM_TO_DER
             else {
-                ret = PemToDer(fileBuf, sz, CA_TYPE, &converted,  0, NULL,NULL);
+                ret = PemToDer(fileBuf, sz, CA_TYPE, der,  0, NULL,NULL);
             }
-        #endif
-
-            if (ret == 0) {
-                if (converted->length < (word32)derSz) {
-                    XMEMCPY(derBuf, converted->buffer, converted->length);
-                    ret = converted->length;
-                }
-                else
-                    ret = BUFFER_E;
-            }
-
-            FreeDer(&converted);
         }
 
         XFCLOSE(file);
@@ -19715,12 +19702,29 @@ int wc_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
 
     return ret;
 }
+/* load pem cert from file into der buffer, return der size or error */
+int wc_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
+{
+    int ret;
+    DerBuffer* converted = NULL;
+    ret = wc_PemCertToDer_ex(fileName, &converted);
+    if (ret == 0) {
+        if (converted->length < (word32)derSz) {
+            XMEMCPY(derBuf, converted->buffer, converted->length);
+            ret = converted->length;
+        }
+        else
+            ret = BUFFER_E;
+
+        FreeDer(&converted);
+    }
+    return ret;
+}
 #endif /* WOLFSSL_CERT_GEN */
 
 #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_PUB_PEM_TO_DER)
 /* load pem public key from file into der buffer, return der size or error */
-int wc_PemPubKeyToDer(const char* fileName,
-                           unsigned char* derBuf, int derSz)
+int wc_PemPubKeyToDer_ex(const char* fileName, DerBuffer** der)
 {
 #ifdef WOLFSSL_SMALL_STACK
     byte   staticBuffer[1]; /* force XMALLOC */
@@ -19732,7 +19736,6 @@ int wc_PemPubKeyToDer(const char* fileName,
     int    ret     = 0;
     long   sz      = 0;
     XFILE  file;
-    DerBuffer* converted = NULL;
 
     WOLFSSL_ENTER("wc_PemPubKeyToDer");
 
@@ -19747,8 +19750,9 @@ int wc_PemPubKeyToDer(const char* fileName,
     }
 
     if (ret == 0) {
-        if(XFSEEK(file, 0, XSEEK_END) != 0)
+        if (XFSEEK(file, 0, XSEEK_END) != 0) {
             ret = BUFFER_E;
+        }
         sz = XFTELL(file);
         XREWIND(file);
 
@@ -19758,47 +19762,55 @@ int wc_PemPubKeyToDer(const char* fileName,
         else if (sz > (long)sizeof(staticBuffer)) {
         #ifdef WOLFSSL_STATIC_MEMORY
             WOLFSSL_MSG("File was larger then static buffer");
-            return MEMORY_E;
-        #endif
+            ret = MEMORY_E;
+        #else
             fileBuf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE);
             if (fileBuf == NULL)
                 ret = MEMORY_E;
             else
                 dynamic = 1;
+        #endif
         }
         if (ret == 0) {
             if ((size_t)XFREAD(fileBuf, 1, sz, file) != (size_t)sz) {
                 ret = BUFFER_E;
             }
-        #ifdef WOLFSSL_PEM_TO_DER
             else {
-                ret = PemToDer(fileBuf, sz, PUBLICKEY_TYPE, &converted,
+                ret = PemToDer(fileBuf, sz, PUBLICKEY_TYPE, der,
                                0, NULL, NULL);
             }
-        #endif
-
-            if (ret == 0) {
-                if (converted->length < (word32)derSz) {
-                    XMEMCPY(derBuf, converted->buffer, converted->length);
-                    ret = converted->length;
-                }
-                else
-                    ret = BUFFER_E;
-            }
-
-            FreeDer(&converted);
         }
 
         XFCLOSE(file);
-        if (dynamic)
+        if (dynamic) {
             XFREE(fileBuf, NULL, DYNAMIC_TYPE_FILE);
+        }
     }
 
     return ret;
 }
+/* load pem public key from file into der buffer, return der size or error */
+int wc_PemPubKeyToDer(const char* fileName,
+                           unsigned char* derBuf, int derSz)
+{
+    int ret;
+    DerBuffer* converted = NULL;
+    ret = wc_PemPubKeyToDer_ex(fileName, &converted);
+    if (ret == 0) {
+        if (converted->length < (word32)derSz) {
+            XMEMCPY(derBuf, converted->buffer, converted->length);
+            ret = converted->length;
+        }
+        else
+            ret = BUFFER_E;
+
+        FreeDer(&converted);
+    }
+    return ret;
+}
 #endif /* WOLFSSL_CERT_EXT || WOLFSSL_PUB_PEM_TO_DER */
 
-#endif /* !NO_FILESYSTEM */
+#endif /* !NO_FILESYSTEM && WOLFSSL_PEM_TO_DER */
 
 
 #if !defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || \
@@ -25032,27 +25044,17 @@ int wc_SetAuthKeyIdFromCert(Cert *cert, const byte *der, int derSz)
 int wc_SetAuthKeyId(Cert *cert, const char* file)
 {
     int         ret;
-    int         derSz;
-    byte*       der;
+    DerBuffer*  der = NULL;
 
     if (cert == NULL || file == NULL)
         return BAD_FUNC_ARG;
 
-    der = (byte*)XMALLOC(EIGHTK_BUF, cert->heap, DYNAMIC_TYPE_CERT);
-    if (der == NULL) {
-        WOLFSSL_MSG("wc_SetAuthKeyId OOF Problem");
-        return MEMORY_E;
-    }
-
-    derSz = wc_PemCertToDer(file, der, EIGHTK_BUF);
-    if (derSz <= 0)
+    ret = wc_PemCertToDer_ex(file, &der);
+    if (ret == 0)
     {
-        XFREE(der, cert->heap, DYNAMIC_TYPE_CERT);
-        return derSz;
+        ret = wc_SetAuthKeyIdFromCert(cert, der->buffer, der->length);
+        FreeDer(&der);
     }
-
-    ret = wc_SetAuthKeyIdFromCert(cert, der, derSz);
-    XFREE(der, cert->heap, DYNAMIC_TYPE_CERT);
 
     return ret;
 }
@@ -25430,22 +25432,18 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
 int wc_SetIssuer(Cert* cert, const char* issuerFile)
 {
     int         ret;
-    int         derSz;
-    byte*       der;
+    DerBuffer*  der = NULL;
 
-    if (cert == NULL) {
+    if (cert == NULL || issuerFile == NULL)
         return BAD_FUNC_ARG;
-    }
 
-    der = (byte*)XMALLOC(EIGHTK_BUF, cert->heap, DYNAMIC_TYPE_CERT);
-    if (der == NULL) {
-        WOLFSSL_MSG("wc_SetIssuer OOF Problem");
-        return MEMORY_E;
+    ret = wc_PemCertToDer_ex(issuerFile, &der);
+    if (ret == 0) {
+        cert->selfSigned = 0;
+        ret = SetNameFromCert(&cert->issuer, der->buffer, der->length);
+
+        FreeDer(&der);
     }
-    derSz = wc_PemCertToDer(issuerFile, der, EIGHTK_BUF);
-    cert->selfSigned = 0;
-    ret = SetNameFromCert(&cert->issuer, der, derSz);
-    XFREE(der, cert->heap, DYNAMIC_TYPE_CERT);
 
     return ret;
 }
@@ -25455,22 +25453,17 @@ int wc_SetIssuer(Cert* cert, const char* issuerFile)
 int wc_SetSubject(Cert* cert, const char* subjectFile)
 {
     int         ret;
-    int         derSz;
-    byte*       der;
+    DerBuffer*  der = NULL;
 
-    if (cert == NULL) {
+    if (cert == NULL || subjectFile == NULL)
         return BAD_FUNC_ARG;
-    }
 
-    der = (byte*)XMALLOC(EIGHTK_BUF, cert->heap, DYNAMIC_TYPE_CERT);
-    if (der == NULL) {
-        WOLFSSL_MSG("wc_SetSubject OOF Problem");
-        return MEMORY_E;
-    }
+    ret = wc_PemCertToDer_ex(subjectFile, &der);
+    if (ret == 0) {
+        ret = SetNameFromCert(&cert->subject, der->buffer, der->length);
 
-    derSz = wc_PemCertToDer(subjectFile, der, EIGHTK_BUF);
-    ret = SetNameFromCert(&cert->subject, der, derSz);
-    XFREE(der, cert->heap, DYNAMIC_TYPE_CERT);
+        FreeDer(&der);
+    }
 
     return ret;
 }
@@ -25481,21 +25474,18 @@ int wc_SetSubject(Cert* cert, const char* subjectFile)
 int wc_SetAltNames(Cert* cert, const char* file)
 {
     int         ret;
-    int         derSz;
-    byte*       der;
+    DerBuffer*  der = NULL;
 
     if (cert == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    der = (byte*)XMALLOC(EIGHTK_BUF, cert->heap, DYNAMIC_TYPE_CERT);
-    if (der == NULL) {
-        WOLFSSL_MSG("wc_SetAltNames OOF Problem");
-        return MEMORY_E;
+    ret = wc_PemCertToDer_ex(file, &der);
+    if (ret == 0) {
+        ret = SetAltNamesFromCert(cert, der->buffer, der->length);
+
+        FreeDer(&der);
     }
-    derSz = wc_PemCertToDer(file, der, EIGHTK_BUF);
-    ret = SetAltNamesFromCert(cert, der, derSz);
-    XFREE(der, cert->heap, DYNAMIC_TYPE_CERT);
 
     return ret;
 }

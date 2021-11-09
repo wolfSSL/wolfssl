@@ -3062,7 +3062,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, myVerify);
     }
     else if (!usePsk && !useAnon && doPeerCheck == 0) {
-        wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, 0);
+        wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
     }
     else if (!usePsk && !useAnon && myVerifyAction == VERIFY_OVERRIDE_DATE_ERR) {
         wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, myVerify);
@@ -3191,7 +3191,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 
     #if defined(WOLFSSL_MDK_ARM)
-    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, 0);
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
     #endif
 
     #if defined(OPENSSL_EXTRA)

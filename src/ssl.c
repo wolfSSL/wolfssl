@@ -17762,6 +17762,11 @@ cleanup:
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
     defined(HAVE_SECRET_CALLBACK)
 #if !defined(NO_WOLFSSL_SERVER)
+/* Return the amount of random bytes copied over or error case.
+ * ssl : ssl struct after handshake
+ * out : buffer to hold random bytes
+ * outSz : either 0 (return max buffer sz) or size of out buffer
+ */
 size_t wolfSSL_get_server_random(const WOLFSSL *ssl, unsigned char *out,
                                                                    size_t outSz)
 {
@@ -17776,7 +17781,7 @@ size_t wolfSSL_get_server_random(const WOLFSSL *ssl, unsigned char *out,
         return 0;
     }
 
-    if (ssl->options.saveArrays == 0 || ssl->arrays == NULL) {
+    if (ssl->arrays == NULL) {
         WOLFSSL_MSG("Arrays struct not saved after handshake");
         return 0;
     }
@@ -18497,8 +18502,6 @@ int wolfSSL_CTX_get_max_proto_version(WOLFSSL_CTX* ctx)
  * ssl : ssl struct after handshake
  * out : buffer to hold random bytes
  * outSz : either 0 (return max buffer sz) or size of out buffer
- *
- * NOTE: wolfSSL_KeepArrays(ssl) must be called to retain handshake information.
  */
 size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
                                                                    size_t outSz)
@@ -18514,7 +18517,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return 0;
     }
 
-    if (ssl->options.saveArrays == 0 || ssl->arrays == NULL) {
+    if (ssl->arrays == NULL) {
         WOLFSSL_MSG("Arrays struct not saved after handshake");
         return 0;
     }
@@ -55647,8 +55650,97 @@ int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey)
 #endif /* OPENSSL_ALL && !NO_CERTS && WOLFSSL_CERT_GEN && WOLFSSL_CERT_REQ */
 
 #ifdef WOLFSSL_STATIC_EPHEMERAL
-static int SetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo,
-    const char* key, unsigned int keySz, int format, void* heap)
+int wolfSSL_StaticEphemeralKeyLoad(WOLFSSL* ssl, int keyAlgo, void* keyPtr)
+{
+    int ret;
+    word32 idx = 0;
+    DerBuffer* der = NULL;
+
+    if (ssl == NULL || ssl->ctx == NULL || keyPtr == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifndef SINGLE_THREADED
+    if (!ssl->ctx->staticKELockInit) {
+        return BUFFER_E; /* no keys set */
+    }
+    ret = wc_LockMutex(&ssl->ctx->staticKELock);
+    if (ret != 0) {
+        return ret;
+    }
+#endif
+
+    ret = BUFFER_E; /* set default error */
+    switch (keyAlgo) {
+    #ifndef NO_DH
+        case WC_PK_TYPE_DH:
+            if (ssl != NULL)
+                der = ssl->staticKE.dhKey;
+            if (der == NULL)
+                der = ssl->ctx->staticKE.dhKey;
+            if (der != NULL) {
+                DhKey* key = (DhKey*)keyPtr;
+                WOLFSSL_MSG("Using static DH key");
+                ret = wc_DhKeyDecode(der->buffer, &idx, key, der->length);
+            }
+            break;
+    #endif
+    #ifdef HAVE_ECC
+        case WC_PK_TYPE_ECDH:
+            if (ssl != NULL)
+                der = ssl->staticKE.ecKey;
+            if (der == NULL)
+                der = ssl->ctx->staticKE.ecKey;
+            if (der != NULL) {
+                ecc_key* key = (ecc_key*)keyPtr;
+                WOLFSSL_MSG("Using static ECDH key");
+                ret = wc_EccPrivateKeyDecode(der->buffer, &idx, key, der->length);
+            }
+            break;
+    #endif
+    #ifdef HAVE_CURVE25519
+        case WC_PK_TYPE_CURVE25519:
+            if (ssl != NULL)
+                der = ssl->staticKE.x25519Key;
+            if (der == NULL)
+                der = ssl->ctx->staticKE.x25519Key;
+            if (der != NULL) {
+                curve25519_key* key = (curve25519_key*)keyPtr;
+                WOLFSSL_MSG("Using static X25519 key");
+                ret = wc_Curve25519PrivateKeyDecode(der->buffer, &idx, key,
+                    der->length);
+            }
+            break;
+    #endif
+    #ifdef HAVE_CURVE448
+        case WC_PK_TYPE_CURVE448:
+            if (ssl != NULL)
+                der = ssl->staticKE.x448Key;
+            if (der == NULL)
+                der = ssl->ctx->staticKE.x448Key;
+            if (der != NULL) {
+                curve448_key* key = (curve448_key*)keyPtr;
+                WOLFSSL_MSG("Using static X448 key");
+                ret = wc_Curve448PrivateKeyDecode(der->buffer, &idx, key,
+                    der->length);
+            }
+            break;
+    #endif
+        default:
+            /* not supported */
+            ret = NOT_COMPILED_IN;
+            break;
+    }
+
+#ifndef SINGLE_THREADED
+    wc_UnLockMutex(&ssl->ctx->staticKELock);
+#endif
+    return ret;
+}
+
+static int SetStaticEphemeralKey(WOLFSSL_CTX* ctx,
+    StaticKeyExchangeInfo_t* staticKE, int keyAlgo, const char* key,
+    unsigned int keySz, int format, void* heap)
 {
     int ret = 0;
     DerBuffer* der = NULL;
@@ -55744,6 +55836,20 @@ static int SetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo,
                 }
             }
         #endif
+        #ifdef HAVE_CURVE448
+            if (keyAlgo == WC_PK_TYPE_NONE) {
+                word32 idx = 0;
+                curve448_key x448Key;
+                ret = wc_curve448_init(&x448Key);
+                if (ret == 0) {
+                    ret = wc_Curve448PrivateKeyDecode(keyBuf, &idx, &x448Key,
+                        keySz);
+                    if (ret == 0)
+                        keyAlgo = WC_PK_TYPE_CURVE448;
+                    wc_curve448_free(&x448Key);
+                }
+            }
+        #endif
 
             if (keyAlgo != WC_PK_TYPE_NONE) {
                 ret = AllocDer(&der, keySz, PRIVATEKEY_TYPE, heap);
@@ -55761,52 +55867,60 @@ static int SetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo,
     }
 #endif
 
-    /* if key is already allocated then set free it */
-#ifndef NO_DH
-    if (keyAlgo == WC_PK_TYPE_DH && staticKE->dhKey && staticKE->weOwnDH) {
-        FreeDer(&staticKE->dhKey);
+#ifndef SINGLE_THREADED
+    if (ret == 0 && !ctx->staticKELockInit) {
+        ret = wc_InitMutex(&ctx->staticKELock);
+        if (ret == 0) {
+            ctx->staticKELockInit = 1;
+        }
     }
 #endif
-#ifdef HAVE_ECC
-    if (keyAlgo == WC_PK_TYPE_ECDH && staticKE->ecKey && staticKE->weOwnEC) {
-        FreeDer(&staticKE->ecKey);
-    }
-#endif
-#ifdef HAVE_CURVE25519
-    if (keyAlgo == WC_PK_TYPE_CURVE25519 && staticKE->x25519Key &&
-                                                        staticKE->weOwnX25519) {
-        FreeDer(&staticKE->x25519Key);
-    }
-#endif
+    if (ret == 0
+    #ifndef SINGLE_THREADED
+        && (ret = wc_LockMutex(&ctx->staticKELock)) == 0
+    #endif
+    ) {
+        switch (keyAlgo) {
+        #ifndef NO_DH
+            case WC_PK_TYPE_DH:
+                FreeDer(&staticKE->dhKey);
+                staticKE->dhKey = der; der = NULL;
+                break;
+        #endif
+        #ifdef HAVE_ECC
+            case WC_PK_TYPE_ECDH:
+                FreeDer(&staticKE->ecKey);
+                staticKE->ecKey = der; der = NULL;
+                break;
+        #endif
+        #ifdef HAVE_CURVE25519
+            case WC_PK_TYPE_CURVE25519:
+                FreeDer(&staticKE->x25519Key);
+                staticKE->x25519Key = der; der = NULL;
+                break;
+        #endif
+        #ifdef HAVE_CURVE448
+            case WC_PK_TYPE_CURVE448:
+                FreeDer(&staticKE->x448Key);
+                staticKE->x448Key = der; der = NULL;
+                break;
+        #endif
+            default:
+                /* not supported */
+                ret = NOT_COMPILED_IN;
+                break;
+        }
 
-    switch (keyAlgo) {
-    #ifndef NO_DH
-        case WC_PK_TYPE_DH:
-            staticKE->dhKey = der; der = NULL;
-            staticKE->weOwnDH = 1;
-            break;
+    #ifndef SINGLE_THREADED
+        wc_UnLockMutex(&ctx->staticKELock);
     #endif
-    #ifdef HAVE_ECC
-        case WC_PK_TYPE_ECDH:
-            staticKE->ecKey = der; der = NULL;
-            staticKE->weOwnEC = 1;
-            break;
-    #endif
-    #ifdef HAVE_CURVE25519
-        case WC_PK_TYPE_CURVE25519:
-            staticKE->x25519Key = der; der = NULL;
-            staticKE->weOwnX25519 = 1;
-            break;
-    #endif
-        default:
-            /* not supported */
-            ret = NOT_COMPILED_IN;
-            break;
     }
 
     if (ret != 0) {
         FreeDer(&der);
     }
+
+    (void)ctx; /* not used for single threaded */
 
     WOLFSSL_LEAVE("SetStaticEphemeralKey", ret);
 
@@ -55819,48 +55933,66 @@ int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
     if (ctx == NULL) {
         return BAD_FUNC_ARG;
     }
-
-    return SetStaticEphemeralKey(&ctx->staticKE, keyAlgo, key, keySz, format,
-        ctx->heap);
+    return SetStaticEphemeralKey(ctx, &ctx->staticKE, keyAlgo,
+        key, keySz, format, ctx->heap);
 }
 int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
     const char* key, unsigned int keySz, int format)
 {
-    if (ssl == NULL) {
+    if (ssl == NULL || ssl->ctx == NULL) {
         return BAD_FUNC_ARG;
     }
-
-    return SetStaticEphemeralKey(&ssl->staticKE, keyAlgo, key, keySz, format,
-        ssl->heap);
+    return SetStaticEphemeralKey(ssl->ctx, &ssl->staticKE, keyAlgo,
+        key, keySz, format, ssl->heap);
 }
 
-static int GetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo,
-    const unsigned char** key, unsigned int* keySz)
+static int GetStaticEphemeralKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
+    int keyAlgo, const unsigned char** key, unsigned int* keySz)
 {
     int ret = 0;
     DerBuffer* der = NULL;
 
-    if (staticKE == NULL || key == NULL || keySz == NULL) {
-        return BAD_FUNC_ARG;
-    }
+    if (key)   *key = NULL;
+    if (keySz) *keySz = 0;
 
-    *key = NULL;
-    *keySz = 0;
+#ifndef SINGLE_THREADED
+    if (ctx->staticKELockInit && 
+        (ret = wc_LockMutex(&ctx->staticKELock)) != 0) {
+        return ret;
+    }
+#endif
 
     switch (keyAlgo) {
     #ifndef NO_DH
         case WC_PK_TYPE_DH:
-            der = staticKE->dhKey;
+            if (ssl != NULL)
+                der = ssl->staticKE.dhKey;
+            if (der == NULL)
+                der = ctx->staticKE.dhKey;
             break;
     #endif
     #ifdef HAVE_ECC
         case WC_PK_TYPE_ECDH:
-            der = staticKE->ecKey;
+            if (ssl != NULL)
+                der = ssl->staticKE.ecKey;
+            if (der == NULL)
+                der = ctx->staticKE.ecKey;
             break;
     #endif
     #ifdef HAVE_CURVE25519
         case WC_PK_TYPE_CURVE25519:
-            der = staticKE->x25519Key;
+            if (ssl != NULL)
+                der = ssl->staticKE.x25519Key;
+            if (der == NULL)
+                der = ctx->staticKE.x25519Key;
+            break;
+    #endif
+    #ifdef HAVE_CURVE448
+        case WC_PK_TYPE_CURVE448:
+            if (ssl != NULL)
+                der = ssl->staticKE.x448Key;
+            if (der == NULL)
+                der = ctx->staticKE.x448Key;
             break;
     #endif
         default:
@@ -55870,9 +56002,15 @@ static int GetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo,
     }
 
     if (der) {
-        *key = der->buffer;
-        *keySz = der->length;
+        if (key)
+            *key = der->buffer;
+        if (keySz)
+            *keySz = der->length;
     }
+
+#ifndef SINGLE_THREADED
+    wc_UnLockMutex(&ctx->staticKELock);
+#endif
 
     return ret;
 }
@@ -55886,16 +56024,16 @@ int wolfSSL_CTX_get_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
         return BAD_FUNC_ARG;
     }
 
-    return GetStaticEphemeralKey(&ctx->staticKE, keyAlgo, key, keySz);
+    return GetStaticEphemeralKey(ctx, NULL, keyAlgo, key, keySz);
 }
 int wolfSSL_get_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
     const unsigned char** key, unsigned int* keySz)
 {
-    if (ssl == NULL) {
+    if (ssl == NULL || ssl->ctx == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    return GetStaticEphemeralKey(&ssl->staticKE, keyAlgo, key, keySz);
+    return GetStaticEphemeralKey(ssl->ctx, ssl, keyAlgo, key, keySz);
 }
 
 #endif /* WOLFSSL_STATIC_EPHEMERAL */
