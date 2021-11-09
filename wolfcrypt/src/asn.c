@@ -14446,6 +14446,9 @@ static const byte generalNameChoice[] = {
 static const ASNItem altNameASN[] = {
     { 0, ASN_CONTEXT_SPECIFIC | 0, 0, 1, 0 }
 };
+enum {
+    altNameASN_IDX_GN = 0,
+};
 
 /* Number of items in ASN.1 template for GeneralName. */
 #define altNameASN_Length (sizeof(altNameASN) / sizeof(ASNItem))
@@ -14868,13 +14871,13 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
         /* Clear dynamic data items. */
         XMEMSET(dataASN, 0, sizeof(dataASN));
         /* Parse GeneralName with the choices supported. */
-        GetASN_Choice(&dataASN[0], generalNameChoice);
+        GetASN_Choice(&dataASN[altNameASN_IDX_GN], generalNameChoice);
         /* Decode a GeneralName choice. */
         ret = GetASN_Items(altNameASN, dataASN, altNameASN_Length, 0, input,
                            &idx, sz);
         if (ret == 0) {
-            ret = DecodeGeneralName(input, &idx, dataASN[0].tag,
-                dataASN[0].length, cert);
+            ret = DecodeGeneralName(input, &idx, dataASN[altNameASN_IDX_GN].tag,
+                dataASN[altNameASN_IDX_GN].length, cert);
         }
     }
 
