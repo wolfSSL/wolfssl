@@ -129,8 +129,13 @@ enum ASN_Tags {
     ASN_IP_TYPE           = 0x07, /* the value 7 is from GeneralName OID */
 
     /* PKCS #7 types */
-    ASN_ENC_CONTENT       = 0X00,
-    ASN_OTHERNAME_VALUE   = 0X00,
+    ASN_ENC_CONTENT       = 0x00,
+    ASN_OTHERNAME_VALUE   = 0x00,
+
+    /* AuthorityKeyIdentifier fields */
+    ASN_AUTHKEYID_KEYID   = 0x00,
+    ASN_AUTHKEYID_ISSUER  = 0x01,
+    ASN_AUTHKEYID_SERIAL  = 0x02,
 };
 
 #define ASN_UTC_TIME_SIZE 14

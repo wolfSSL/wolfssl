@@ -15430,13 +15430,19 @@ static int DecodeAuthInfo(const byte* input, int sz, DecodedCert* cert)
  * X.509: RFC 5280, 4.2.1.1 - Authority Key Identifier.
  */
 static const ASNItem authKeyIdASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* keyIdentifier */
-/*  1 */        { 1, ASN_CONTEXT_SPECIFIC | 0, 0, 0, 1 },
-                /* authorityCertIssuer */
-/*  2 */        { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 1 },
-                /* authorityCertSerialNumber */
-/*  3 */        { 1, ASN_CONTEXT_SPECIFIC | 2, 0, 0, 1 },
+/* authKeyIdASN_IDX_SEQ    */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                     /* keyIdentifier */
+/* authKeyIdASN_IDX_KEYID  */        { 1, ASN_CONTEXT_SPECIFIC | ASN_AUTHKEYID_KEYID, 0, 0, 1 },
+                                     /* authorityCertIssuer */
+/* authKeyIdASN_IDX_ISSUER */        { 1, ASN_CONTEXT_SPECIFIC | ASN_AUTHKEYID_ISSUER, 1, 0, 1 },
+                                     /* authorityCertSerialNumber */
+/* authKeyIdASN_IDX_SERIAL */        { 1, ASN_CONTEXT_SPECIFIC | ASN_AUTHKEYID_SERIAL, 0, 0, 1 },
+};
+enum {
+    authKeyIdASN_IDX_SEQ = 0,
+    authKeyIdASN_IDX_KEYID,
+    authKeyIdASN_IDX_ISSUER,
+    authKeyIdASN_IDX_SERIAL,
 };
 
 /* Number of items in ASN.1 template for AuthorityKeyIdentifier. */
@@ -15511,7 +15517,7 @@ static int DecodeAuthKeyId(const byte* input, int sz, DecodedCert* cert)
     }
     if (ret == 0) {
         /* Key id is optional. */
-        if (dataASN[1].data.ref.data == NULL) {
+        if (dataASN[authKeyIdASN_IDX_KEYID].data.ref.data == NULL) {
             WOLFSSL_MSG("\tinfo: OPTIONAL item 0, not available");
         }
         else {
@@ -15521,13 +15527,14 @@ static int DecodeAuthKeyId(const byte* input, int sz, DecodedCert* cert)
             cert->extRawAuthKeyIdSrc = input;
             cert->extRawAuthKeyIdSz = sz;
 #endif
-            GetASN_GetConstRef(&dataASN[1], &cert->extAuthKeyIdSrc,
+            GetASN_GetConstRef(&dataASN[authKeyIdASN_IDX_KEYID], &cert->extAuthKeyIdSrc,
                                &cert->extAuthKeyIdSz);
 #endif /* OPENSSL_EXTRA */
 
             /* Get the hash or hash of the hash if wrong size. */
-            ret = GetHashId(dataASN[1].data.ref.data,
-                        dataASN[1].data.ref.length, cert->extAuthKeyId);
+            ret = GetHashId(dataASN[authKeyIdASN_IDX_KEYID].data.ref.data,
+                        dataASN[authKeyIdASN_IDX_KEYID].data.ref.length,
+                        cert->extAuthKeyId);
         }
     }
 
@@ -17651,12 +17658,16 @@ static int GetAKIHash(const byte* input, word32 maxIdx, byte* hash, int* set,
                 /* Parse AKI extension data. */
                 ret = GetASN_Items(authKeyIdASN, dataASN, authKeyIdASN_Length,
                         1, extData, &idx, extDataSz);
-                if ((ret == 0) && (dataASN[1].data.ref.data != NULL)) {
+                if ((ret == 0) &&
+                        (dataASN[authKeyIdASN_IDX_KEYID].data.ref.data
+                                != NULL)) {
                     /* We parsed successfully and have data. */
                     *set = 1;
                     /* Get the hash or hash of the hash if wrong size. */
-                    ret = GetHashId(dataASN[1].data.ref.data,
-                            dataASN[1].data.ref.length, hash);
+                    ret = GetHashId(
+                            dataASN[authKeyIdASN_IDX_KEYID].data.ref.data,
+                            dataASN[authKeyIdASN_IDX_KEYID].data.ref.length,
+                            hash);
                 }
                 break;
             }
@@ -30842,13 +30853,14 @@ static int ParseCRL_AuthKeyIdExt(const byte* input, int sz, DecodedCRL* dcrl)
     }
     if (ret == 0) {
         /* Key id is optional. */
-        if (dataASN[1].data.ref.data == NULL) {
+        if (dataASN[authKeyIdASN_IDX_KEYID].data.ref.data == NULL) {
             WOLFSSL_MSG("\tinfo: OPTIONAL item 0, not available");
         }
         else {
             /* Get the hash or hash of the hash if wrong size. */
-            ret = GetHashId(dataASN[1].data.ref.data,
-                dataASN[1].data.ref.length, dcrl->extAuthKeyId);
+            ret = GetHashId(dataASN[authKeyIdASN_IDX_KEYID].data.ref.data,
+                dataASN[authKeyIdASN_IDX_KEYID].data.ref.length,
+                dcrl->extAuthKeyId);
         }
     }
 
