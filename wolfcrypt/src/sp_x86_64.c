@@ -23483,19 +23483,6 @@ static WC_INLINE int sp_256_mod_4(sp_digit* r, const sp_digit* a,
 
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
-#ifdef WOLFSSL_SP_SMALL
-/* Order-2 for the P256 curve. */
-static const uint64_t p256_order_minus_2[4] = {
-    0xf3b9cac2fc63254fU,0xbce6faada7179e84U,0xffffffffffffffffU,
-    0xffffffff00000000U
-};
-#else
-/* The low half of the order-2 of the P256 curve. */
-static const uint64_t p256_order_low[2] = {
-    0xf3b9cac2fc63254fU,0xbce6faada7179e84U
-};
-#endif /* WOLFSSL_SP_SMALL */
-
 /* Multiply two number mod the order of P256 curve. (r = a * b mod order)
  *
  * r  Result of the multiplication.
@@ -23508,6 +23495,20 @@ static void sp_256_mont_mul_order_4(sp_digit* r, const sp_digit* a, const sp_dig
     sp_256_mul_4(r, a, b);
     sp_256_mont_reduce_order_4(r, p256_order, p256_mp_order);
 }
+
+#if defined(HAVE_ECC_SIGN) || (defined(HAVE_ECC_VERIFY) && defined(WOLFSSL_SP_SMALL))
+#ifdef WOLFSSL_SP_SMALL
+/* Order-2 for the P256 curve. */
+static const uint64_t p256_order_minus_2[4] = {
+    0xf3b9cac2fc63254fU,0xbce6faada7179e84U,0xffffffffffffffffU,
+    0xffffffff00000000U
+};
+#else
+/* The low half of the order-2 of the P256 curve. */
+static const uint64_t p256_order_low[2] = {
+    0xf3b9cac2fc63254fU,0xbce6faada7179e84U
+};
+#endif /* WOLFSSL_SP_SMALL */
 
 /* Square number mod the order of P256 curve. (r = a * a mod order)
  *
@@ -23695,8 +23696,10 @@ static void sp_256_mont_inv_order_4(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#endif /* HAVE_ECC_SIGN || (HAVE_ECC_VERIFY && WOLFSSL_SP_SMALL) */
 #ifdef HAVE_INTEL_AVX2
 extern void sp_256_mont_mul_order_avx2_4(sp_digit* r, const sp_digit* a, const sp_digit* b);
+#if defined(HAVE_ECC_SIGN) || (defined(HAVE_ECC_VERIFY) && defined(WOLFSSL_SP_SMALL))
 extern void sp_256_mont_sqr_order_avx2_4(sp_digit* r, const sp_digit* a);
 
 #ifndef WOLFSSL_SP_SMALL
@@ -23873,6 +23876,7 @@ static void sp_256_mont_inv_order_avx2_4(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#endif /* HAVE_ECC_SIGN || (HAVE_ECC_VERIFY && WOLFSSL_SP_SMALL) */
 #endif /* HAVE_INTEL_AVX2 */
 #endif /* HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
 #ifdef HAVE_ECC_SIGN
@@ -48074,6 +48078,19 @@ static WC_INLINE int sp_384_mod_6(sp_digit* r, const sp_digit* a,
 
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* Multiply two number mod the order of P384 curve. (r = a * b mod order)
+ *
+ * r  Result of the multiplication.
+ * a  First operand of the multiplication.
+ * b  Second operand of the multiplication.
+ */
+static void sp_384_mont_mul_order_6(sp_digit* r, const sp_digit* a, const sp_digit* b)
+{
+    sp_384_mul_6(r, a, b);
+    sp_384_mont_reduce_order_6(r, p384_order, p384_mp_order);
+}
+
+#if defined(HAVE_ECC_SIGN) || (defined(HAVE_ECC_VERIFY) && defined(WOLFSSL_SP_SMALL))
 #ifdef WOLFSSL_SP_SMALL
 /* Order-2 for the P384 curve. */
 static const uint64_t p384_order_minus_2[6] = {
@@ -48086,18 +48103,6 @@ static const uint64_t p384_order_low[3] = {
     0xecec196accc52971U,0x581a0db248b0a77aU,0xc7634d81f4372ddfU
 };
 #endif /* WOLFSSL_SP_SMALL */
-
-/* Multiply two number mod the order of P384 curve. (r = a * b mod order)
- *
- * r  Result of the multiplication.
- * a  First operand of the multiplication.
- * b  Second operand of the multiplication.
- */
-static void sp_384_mont_mul_order_6(sp_digit* r, const sp_digit* a, const sp_digit* b)
-{
-    sp_384_mul_6(r, a, b);
-    sp_384_mont_reduce_order_6(r, p384_order, p384_mp_order);
-}
 
 /* Square number mod the order of P384 curve. (r = a * a mod order)
  *
@@ -48240,6 +48245,7 @@ static void sp_384_mont_inv_order_6(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#endif /* HAVE_ECC_SIGN || (HAVE_ECC_VERIFY && WOLFSSL_SP_SMALL) */
 #ifdef HAVE_INTEL_AVX2
 /* Multiply two number mod the order of P384 curve. (r = a * b mod order)
  *
@@ -48253,6 +48259,7 @@ static void sp_384_mont_mul_order_avx2_6(sp_digit* r, const sp_digit* a, const s
     sp_384_mont_reduce_order_avx2_6(r, p384_order, p384_mp_order);
 }
 
+#if defined(HAVE_ECC_SIGN) || (defined(HAVE_ECC_VERIFY) && defined(WOLFSSL_SP_SMALL))
 /* Square number mod the order of P384 curve. (r = a * a mod order)
  *
  * r  Result of the squaring.
@@ -48394,6 +48401,7 @@ static void sp_384_mont_inv_order_avx2_6(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#endif /* HAVE_ECC_SIGN || (HAVE_ECC_VERIFY && WOLFSSL_SP_SMALL) */
 #endif /* HAVE_INTEL_AVX2 */
 #endif /* HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
 #ifdef HAVE_ECC_SIGN
