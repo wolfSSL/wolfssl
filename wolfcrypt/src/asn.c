@@ -14199,14 +14199,22 @@ static void AddAltName(DecodedCert* cert, DNS_entry* dnsEntry)
 #ifdef WOLFSSL_SEP
 /* ASN.1 template for OtherName of an X.509 certificate.
  * X.509: RFC 5280, 4.2.1.6 - OtherName (without implicit outer SEQUENCE).
+ * HW Name: RFC 4108, 5 - Hardware Module Name
  * Only support HW Name where the type is a HW serial number.
  */
 static const ASNItem otherNameASN[] = {
-/*  0 */    { 0, ASN_OBJECT_ID, 0, 0, 0 },
-/*  1 */    { 0, ASN_CONTEXT_SPECIFIC | 0, 1, 0, 0 },
-/*  2 */        { 1, ASN_SEQUENCE, 1, 0, 0 },
-/*  3 */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/*  4 */            { 2, ASN_OCTET_STRING, 0, 0, 0 }
+/* otherNameASN_IDX_TYPEID   */ { 0, ASN_OBJECT_ID, 0, 0, 0 },
+/* otherNameASN_IDX_VALUE    */ { 0, ASN_CONTEXT_SPECIFIC | ASN_OTHERNAME_VALUE, 1, 0, 0 },
+/* otherNameASN_IDX_HWN_SEQ  */     { 1, ASN_SEQUENCE, 1, 0, 0 },
+/* otherNameASN_IDX_HWN_TYPE */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* otherNameASN_IDX_HWN_NUM  */         { 2, ASN_OCTET_STRING, 0, 0, 0 }
+};
+enum {
+    otherNameASN_IDX_TYPEID = 0,
+    otherNameASN_IDX_VALUE,
+    otherNameASN_IDX_HWN_SEQ,
+    otherNameASN_IDX_HWN_TYPE,
+    otherNameASN_IDX_HWN_NUM,
 };
 
 /* Number of items in ASN.1 template for OtherName of an X.509 certificate. */
@@ -14238,24 +14246,24 @@ static int DecodeOtherName(DecodedCert* cert, const byte* input,
 
     if (ret == 0) {
         /* Check the first OID is a recognized Alt Cert Name type. */
-        GetASN_OID(&dataASN[0], oidCertAltNameType);
+        GetASN_OID(&dataASN[otherNameASN_IDX_TYPEID], oidCertAltNameType);
         /* Only support HW serial number. */
-        GetASN_OID(&dataASN[3], oidIgnoreType);
+        GetASN_OID(&dataASN[otherNameASN_IDX_HWN_TYPE], oidIgnoreType);
         /* Parse OtherName. */
         ret = GetASN_Items(otherNameASN, dataASN, otherNameASN_Length, 1, input,
                            inOutIdx, maxIdx);
     }
     if (ret == 0) {
         /* Ensure expected OID. */
-        if (dataASN[0].data.oid.sum != HW_NAME_OID) {
-            WOLFSSL_MSG("\tincorrect OID");
+        if (dataASN[otherNameASN_IDX_TYPEID].data.oid.sum != HW_NAME_OID) {
+            WOLFSSL_MSG("\tunsupported OID");
             ret = ASN_PARSE_E;
         }
     }
 
     if (ret == 0) {
-        oidLen = dataASN[3].data.oid.length;
-        serialLen = dataASN[4].data.ref.length;
+        oidLen = dataASN[otherNameASN_IDX_HWN_TYPE].data.oid.length;
+        serialLen = dataASN[otherNameASN_IDX_HWN_NUM].data.ref.length;
 
         /* Allocate space for HW type OID. */
         cert->hwType = (byte*)XMALLOC(oidLen, cert->heap,
@@ -14265,7 +14273,8 @@ static int DecodeOtherName(DecodedCert* cert, const byte* input,
     }
     if (ret == 0) {
         /* Copy, into cert HW type OID */
-        XMEMCPY(cert->hwType, dataASN[3].data.oid.data, oidLen);
+        XMEMCPY(cert->hwType,
+                dataASN[otherNameASN_IDX_HWN_TYPE].data.oid.data, oidLen);
         cert->hwTypeSz = oidLen;
         /* TODO: check this is the HW serial number OID - no test data. */
 
@@ -14279,7 +14288,8 @@ static int DecodeOtherName(DecodedCert* cert, const byte* input,
     }
     if (ret == 0) {
         /* Copy into cert HW serial number. */
-        XMEMCPY(cert->hwSerialNum, dataASN[4].data.ref.data, serialLen);
+        XMEMCPY(cert->hwSerialNum,
+                dataASN[otherNameASN_IDX_HWN_NUM].data.ref.data, serialLen);
         cert->hwSerialNum[serialLen] = '\0';
         cert->hwSerialNumSz = serialLen;
     }

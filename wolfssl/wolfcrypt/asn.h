@@ -130,6 +130,7 @@ enum ASN_Tags {
 
     /* PKCS #7 types */
     ASN_ENC_CONTENT       = 0X00,
+    ASN_OTHERNAME_VALUE   = 0X00,
 };
 
 #define ASN_UTC_TIME_SIZE 14
