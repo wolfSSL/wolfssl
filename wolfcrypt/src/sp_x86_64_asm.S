@@ -39026,14 +39026,14 @@ _sp_256_cond_copy_4:
 #ifndef __APPLE__
 .size	sp_256_cond_copy_4,.-sp_256_cond_copy_4
 #endif /* __APPLE__ */
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 #ifndef __APPLE__
 .text
@@ -39234,9 +39234,9 @@ _sp_256_mont_mul_4:
 /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 #ifndef __APPLE__
 .text
@@ -39637,8 +39637,8 @@ L_mont_loop_4:
 /* Add two Montgomery form numbers (r = a + b % m).
  *
  * r   Result of addition.
- * a   First number to add in Montogmery form.
- * b   Second number to add in Montogmery form.
+ * a   First number to add in Montgomery form.
+ * b   Second number to add in Montgomery form.
  * m   Modulus (prime).
  */
 #ifndef __APPLE__
@@ -39689,7 +39689,7 @@ _sp_256_mont_add_4:
 /* Double a Montgomery form number (r = a + a % m).
  *
  * r   Result of doubling.
- * a   Number to double in Montogmery form.
+ * a   Number to double in Montgomery form.
  * m   Modulus (prime).
  */
 #ifndef __APPLE__
@@ -39740,7 +39740,7 @@ _sp_256_mont_dbl_4:
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
  * r   Result of Tripling.
- * a   Number to triple in Montogmery form.
+ * a   Number to triple in Montgomery form.
  * m   Modulus (prime).
  */
 #ifndef __APPLE__
@@ -39812,8 +39812,8 @@ _sp_256_mont_tpl_4:
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
  * r   Result of subtration.
- * a   Number to subtract from in Montogmery form.
- * b   Number to subtract with in Montogmery form.
+ * a   Number to subtract from in Montgomery form.
+ * b   Number to subtract with in Montgomery form.
  * m   Modulus (prime).
  */
 #ifndef __APPLE__
@@ -40033,14 +40033,14 @@ L_256_get_point_33_avx2_4_start:
 #endif /* HAVE_INTEL_AVX2 */
 #endif /* !WC_NO_CACHE_RESISTANT */
 #ifdef HAVE_INTEL_AVX2
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 #ifndef __APPLE__
 .text
@@ -40223,9 +40223,9 @@ _sp_256_mont_mul_avx2_4:
 /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 #ifndef __APPLE__
 .text
@@ -41424,12 +41424,12 @@ _div_256_word_asm_4:
 #endif /* __APPLE__ */
 #endif /* _WIN64 */
 #ifdef HAVE_INTEL_AVX2
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  */
 #ifndef __APPLE__
 .text
@@ -41658,7 +41658,7 @@ _sp_256_mont_mul_order_avx2_4:
 /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  */
 #ifndef __APPLE__
 .text
@@ -44409,7 +44409,7 @@ L_mont_loop_order_avx2_6:
 /* Square a and put result in r. (r = a * a)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  */
 #ifndef __APPLE__
 .text
@@ -52230,8 +52230,8 @@ L_1024_mont_loop_16:
 /* Add two Montgomery form numbers (r = a + b % m).
  *
  * r   Result of addition.
- * a   First number to add in Montogmery form.
- * b   Second number to add in Montogmery form.
+ * a   First number to add in Montgomery form.
+ * b   Second number to add in Montgomery form.
  * m   Modulus (prime).
  */
 #ifndef __APPLE__
@@ -52405,7 +52405,7 @@ _sp_1024_mont_add_16:
 /* Double a Montgomery form number (r = a + a % m).
  *
  * r   Result of addition.
- * a   Number to souble in Montogmery form.
+ * a   Number to souble in Montgomery form.
  * m   Modulus (prime).
  */
 #ifndef __APPLE__
@@ -52579,7 +52579,7 @@ _sp_1024_mont_dbl_16:
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
  * r   Result of addition.
- * a   Number to souble in Montogmery form.
+ * a   Number to souble in Montgomery form.
  * m   Modulus (prime).
  */
 #ifndef __APPLE__
@@ -52903,8 +52903,8 @@ _sp_1024_mont_tpl_16:
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
  * r   Result of addition.
- * a   First number to add in Montogmery form.
- * b   Second number to add in Montogmery form.
+ * a   First number to add in Montgomery form.
+ * b   Second number to add in Montgomery form.
  * m   Modulus (prime).
  */
 #ifndef __APPLE__
@@ -53646,8 +53646,8 @@ L_1024_mont_loop_avx2_16:
 /* Add two Montgomery form numbers (r = a + b % m).
  *
  * r   Result of addition.
- * a   First number to add in Montogmery form.
- * b   Second number to add in Montogmery form.
+ * a   First number to add in Montgomery form.
+ * b   Second number to add in Montgomery form.
  * m   Modulus (prime).
  */
 #ifndef __APPLE__
@@ -53805,7 +53805,7 @@ _sp_1024_mont_add_avx2_16:
 /* Double a Montgomery form number (r = a + a % m).
  *
  * r   Result of addition.
- * a   Number to souble in Montogmery form.
+ * a   Number to souble in Montgomery form.
  * m   Modulus (prime).
  */
 #ifndef __APPLE__
@@ -53963,7 +53963,7 @@ _sp_1024_mont_dbl_avx2_16:
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
  * r   Result of addition.
- * a   Number to souble in Montogmery form.
+ * a   Number to souble in Montgomery form.
  * m   Modulus (prime).
  */
 #ifndef __APPLE__
@@ -54255,8 +54255,8 @@ _sp_1024_mont_tpl_avx2_16:
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
  * r   Result of addition.
- * a   First number to add in Montogmery form.
- * b   Second number to add in Montogmery form.
+ * a   First number to add in Montgomery form.
+ * b   Second number to add in Montgomery form.
  * m   Modulus (prime).
  */
 #ifndef __APPLE__

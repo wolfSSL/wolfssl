@@ -3897,14 +3897,14 @@ SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m,
     sp_2048_cond_sub_32(a - 32, a, m, (sp_digit)0 - ca);
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_2048_mont_mul_32(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -3916,9 +3916,9 @@ static void sp_2048_mont_mul_32(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_2048_mont_sqr_32(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -4721,7 +4721,9 @@ static WC_INLINE int sp_2048_mod_32(sp_digit* r, const sp_digit* a, const sp_dig
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success.
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
@@ -4741,11 +4743,20 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
     byte y;
     int err = MP_OKAY;
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 64), NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL)
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 64), NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL)
+            err = MEMORY_E;
+    }
 #endif
 
     if (err == MP_OKAY) {
@@ -4861,7 +4872,9 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success.
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
@@ -4881,11 +4894,20 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
     byte y;
     int err = MP_OKAY;
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (32 * 64), NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL)
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (32 * 64), NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL)
+            err = MEMORY_E;
+    }
 #endif
 
     if (err == MP_OKAY) {
@@ -6006,14 +6028,14 @@ SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m,
     sp_2048_cond_sub_64(a - 64, a, m, (sp_digit)0 - ca);
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_2048_mont_mul_64(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -6025,9 +6047,9 @@ static void sp_2048_mont_mul_64(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_2048_mont_sqr_64(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -7331,7 +7353,9 @@ static WC_INLINE int sp_2048_mod_64(sp_digit* r, const sp_digit* a, const sp_dig
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success.
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
@@ -7351,11 +7375,20 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
     byte y;
     int err = MP_OKAY;
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (8 * 128), NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL)
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (8 * 128), NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL)
+            err = MEMORY_E;
+    }
 #endif
 
     if (err == MP_OKAY) {
@@ -7462,7 +7495,9 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success.
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
@@ -7482,11 +7517,20 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
     byte y;
     int err = MP_OKAY;
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 128), NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL)
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 128), NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL)
+            err = MEMORY_E;
+    }
 #endif
 
     if (err == MP_OKAY) {
@@ -8644,7 +8688,9 @@ static void sp_2048_lshift_64(sp_digit* r, sp_digit* a, byte n)
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success.
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even.
  */
 static int sp_2048_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
         const sp_digit* m)
@@ -8665,11 +8711,17 @@ static int sp_2048_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
     byte y;
     int err = MP_OKAY;
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 193, NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL)
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 193, NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL)
+            err = MEMORY_E;
+    }
 #endif
 
     if (err == MP_OKAY) {
@@ -14518,14 +14570,14 @@ SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m,
     sp_3072_cond_sub_48(a - 48, a, m, (sp_digit)0 - ca);
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_3072_mont_mul_48(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -14537,9 +14589,9 @@ static void sp_3072_mont_mul_48(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_3072_mont_sqr_48(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -15630,7 +15682,9 @@ static WC_INLINE int sp_3072_mod_48(sp_digit* r, const sp_digit* a, const sp_dig
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success.
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
@@ -15650,11 +15704,20 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
     byte y;
     int err = MP_OKAY;
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 96), NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL)
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 96), NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL)
+            err = MEMORY_E;
+    }
 #endif
 
     if (err == MP_OKAY) {
@@ -15770,7 +15833,9 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success.
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
@@ -15790,11 +15855,20 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
     byte y;
     int err = MP_OKAY;
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (32 * 96), NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL)
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (32 * 96), NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL)
+            err = MEMORY_E;
+    }
 #endif
 
     if (err == MP_OKAY) {
@@ -17363,14 +17437,14 @@ SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m,
     sp_3072_cond_sub_96(a - 96, a, m, (sp_digit)0 - ca);
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_3072_mont_mul_96(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -17382,9 +17456,9 @@ static void sp_3072_mont_mul_96(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_3072_mont_sqr_96(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -19168,7 +19242,9 @@ static WC_INLINE int sp_3072_mod_96(sp_digit* r, const sp_digit* a, const sp_dig
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success.
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
@@ -19188,11 +19264,20 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
     byte y;
     int err = MP_OKAY;
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (8 * 192), NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL)
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (8 * 192), NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL)
+            err = MEMORY_E;
+    }
 #endif
 
     if (err == MP_OKAY) {
@@ -19299,7 +19384,9 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success.
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
@@ -19319,11 +19406,20 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
     byte y;
     int err = MP_OKAY;
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 192), NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL)
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 192), NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL)
+            err = MEMORY_E;
+    }
 #endif
 
     if (err == MP_OKAY) {
@@ -20753,7 +20849,9 @@ static void sp_3072_lshift_96(sp_digit* r, sp_digit* a, byte n)
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success.
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even.
  */
 static int sp_3072_mod_exp_2_96(sp_digit* r, const sp_digit* e, int bits,
         const sp_digit* m)
@@ -20774,11 +20872,17 @@ static int sp_3072_mod_exp_2_96(sp_digit* r, const sp_digit* e, int bits,
     byte y;
     int err = MP_OKAY;
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 289, NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL)
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 289, NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL)
+            err = MEMORY_E;
+    }
 #endif
 
     if (err == MP_OKAY) {
@@ -25362,14 +25466,14 @@ SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m,
     sp_4096_cond_sub_128(a - 128, a, m, (sp_digit)0 - ca);
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_4096_mont_mul_128(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -25381,9 +25485,9 @@ static void sp_4096_mont_mul_128(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_4096_mont_sqr_128(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -27647,7 +27751,9 @@ static WC_INLINE int sp_4096_mod_128(sp_digit* r, const sp_digit* a, const sp_di
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success.
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
@@ -27667,11 +27773,20 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
     byte y;
     int err = MP_OKAY;
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (8 * 256), NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL)
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (8 * 256), NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL)
+            err = MEMORY_E;
+    }
 #endif
 
     if (err == MP_OKAY) {
@@ -27778,7 +27893,9 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success.
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
@@ -27798,11 +27915,20 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
     byte y;
     int err = MP_OKAY;
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 256), NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL)
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 256), NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL)
+            err = MEMORY_E;
+    }
 #endif
 
     if (err == MP_OKAY) {
@@ -29504,7 +29630,9 @@ static void sp_4096_lshift_128(sp_digit* r, sp_digit* a, byte n)
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success.
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even.
  */
 static int sp_4096_mod_exp_2_128(sp_digit* r, const sp_digit* e, int bits,
         const sp_digit* m)
@@ -29525,11 +29653,17 @@ static int sp_4096_mod_exp_2_128(sp_digit* r, const sp_digit* e, int bits,
     byte y;
     int err = MP_OKAY;
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 385, NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL)
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 385, NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL)
+            err = MEMORY_E;
+    }
 #endif
 
     if (err == MP_OKAY) {
@@ -29704,12 +29838,12 @@ static const sp_digit p256_mod[8] = {
     0xffffffff,0xffffffff,0xffffffff,0x00000000,0x00000000,0x00000000,
     0x00000001,0xffffffff
 };
-/* The Montogmery normalizer for modulus of the curve P256. */
+/* The Montgomery normalizer for modulus of the curve P256. */
 static const sp_digit p256_norm_mod[8] = {
     0x00000001,0x00000000,0x00000000,0xffffffff,0xffffffff,0xffffffff,
     0xfffffffe,0x00000000
 };
-/* The Montogmery multiplier for modulus of the curve P256. */
+/* The Montgomery multiplier for modulus of the curve P256. */
 static const sp_digit p256_mp_mod = 0x00000001;
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
                                             defined(HAVE_ECC_VERIFY)
@@ -29725,14 +29859,14 @@ static const sp_digit p256_order2[8] = {
     0x00000000,0xffffffff
 };
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
-/* The Montogmery normalizer for order of the curve P256. */
+/* The Montgomery normalizer for order of the curve P256. */
 static const sp_digit p256_norm_order[8] = {
     0x039cdaaf,0x0c46353d,0x58e8617b,0x43190552,0x00000000,0x00000000,
     0xffffffff,0x00000000
 };
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
-/* The Montogmery multiplier for order of the curve P256. */
+/* The Montgomery multiplier for order of the curve P256. */
 static const sp_digit p256_mp_order = 0xee00bc4f;
 #endif
 /* The base point of curve P256. */
@@ -30896,7 +31030,7 @@ static sp_digit sp_256_sub_8(sp_digit* r, const sp_digit* a,
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-/* Multiply a number by Montogmery normalizer mod modulus (prime).
+/* Multiply a number by Montgomery normalizer mod modulus (prime).
  *
  * r  The resulting Montgomery form number.
  * a  The number to convert.
@@ -31323,14 +31457,14 @@ static int sp_256_point_to_ecc_point_8(const sp_point_256* p, ecc_point* pm)
     return err;
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
         const sp_digit* m, sp_digit mp)
@@ -31985,9 +32119,9 @@ SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r, const sp_digit* a, const 
 /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r, const sp_digit* a, const sp_digit* m,
         sp_digit mp)
@@ -32502,10 +32636,10 @@ SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r, const sp_digit* a, const 
 /* Square the Montgomery form number a number of times. (r = a ^ n mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * n   Number of times to square.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_256_mont_sqr_n_8(sp_digit* r, const sp_digit* a, int n,
         const sp_digit* m, sp_digit mp)
@@ -32979,8 +33113,8 @@ static void sp_256_map_8(sp_point_256* r, const sp_point_256* p,
 /* Add two Montgomery form numbers (r = a + b % m).
  *
  * r   Result of addition.
- * a   First number to add in Montogmery form.
- * b   Second number to add in Montogmery form.
+ * a   First number to add in Montgomery form.
+ * b   Second number to add in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_256_mont_add_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
@@ -33050,7 +33184,7 @@ static void sp_256_mont_add_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
 /* Double a Montgomery form number (r = a + a % m).
  *
  * r   Result of doubling.
- * a   Number to double in Montogmery form.
+ * a   Number to double in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_256_mont_dbl_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
@@ -33103,7 +33237,7 @@ static void sp_256_mont_dbl_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
  * r   Result of Tripling.
- * a   Number to triple in Montogmery form.
+ * a   Number to triple in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_256_mont_tpl_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
@@ -33200,8 +33334,8 @@ static void sp_256_mont_tpl_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
  * r   Result of subtration.
- * a   Number to subtract from in Montogmery form.
- * b   Number to subtract with in Montogmery form.
+ * a   Number to subtract from in Montgomery form.
+ * b   Number to subtract with in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_256_mont_sub_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
@@ -35172,7 +35306,7 @@ int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
  * km      Scalar to multiply by.
  * p       Point to multiply.
  * am      Point to add to scalar mulitply result.
- * inMont  Point to add is in montogmery form.
+ * inMont  Point to add is in montgomery form.
  * r       Resulting point.
  * map     Indicates whether to convert result to affine.
  * heap    Heap to use for allocation.
@@ -36721,7 +36855,7 @@ int sp_ecc_mulmod_base_256(const mp_int* km, ecc_point* r, int map, void* heap)
  *
  * km      Scalar to multiply by.
  * am      Point to add to scalar mulitply result.
- * inMont  Point to add is in montogmery form.
+ * inMont  Point to add is in montgomery form.
  * r       Resulting point.
  * map     Indicates whether to convert result to affine.
  * heap    Heap to use for allocation.
@@ -39212,12 +39346,12 @@ static const sp_digit p384_mod[12] = {
     0xffffffff,0x00000000,0x00000000,0xffffffff,0xfffffffe,0xffffffff,
     0xffffffff,0xffffffff,0xffffffff,0xffffffff,0xffffffff,0xffffffff
 };
-/* The Montogmery normalizer for modulus of the curve P384. */
+/* The Montgomery normalizer for modulus of the curve P384. */
 static const sp_digit p384_norm_mod[12] = {
     0x00000001,0xffffffff,0xffffffff,0x00000000,0x00000001,0x00000000,
     0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000
 };
-/* The Montogmery multiplier for modulus of the curve P384. */
+/* The Montgomery multiplier for modulus of the curve P384. */
 static sp_digit p384_mp_mod = 0x00000001;
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
                                             defined(HAVE_ECC_VERIFY)
@@ -39233,14 +39367,14 @@ static const sp_digit p384_order2[12] = {
     0xffffffff,0xffffffff,0xffffffff,0xffffffff,0xffffffff,0xffffffff
 };
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
-/* The Montogmery normalizer for order of the curve P384. */
+/* The Montgomery normalizer for order of the curve P384. */
 static const sp_digit p384_norm_order[12] = {
     0x333ad68d,0x1313e695,0xb74f5885,0xa7e5f24d,0x0bc8d220,0x389cb27e,
     0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000
 };
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
-/* The Montogmery multiplier for order of the curve P384. */
+/* The Montgomery multiplier for order of the curve P384. */
 static sp_digit p384_mp_order = 0xe88fdc45;
 #endif
 /* The base point of curve P384. */
@@ -41329,7 +41463,7 @@ static sp_digit sp_384_sub_12(sp_digit* r, const sp_digit* a,
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-/* Multiply a number by Montogmery normalizer mod modulus (prime).
+/* Multiply a number by Montgomery normalizer mod modulus (prime).
  *
  * r  The resulting Montgomery form number.
  * a  The number to convert.
@@ -41873,14 +42007,14 @@ SP_NOINLINE static void sp_384_mont_reduce_12(sp_digit* a, const sp_digit* m,
     sp_384_cond_sub_12(a - 12, a, m, (sp_digit)0 - ca);
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_384_mont_mul_12(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -41892,9 +42026,9 @@ static void sp_384_mont_mul_12(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_384_mont_sqr_12(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -41907,10 +42041,10 @@ static void sp_384_mont_sqr_12(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number a number of times. (r = a ^ n mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * n   Number of times to square.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_384_mont_sqr_n_12(sp_digit* r, const sp_digit* a, int n,
         const sp_digit* m, sp_digit mp)
@@ -42250,8 +42384,8 @@ static void sp_384_map_12(sp_point_384* r, const sp_point_384* p,
 /* Add two Montgomery form numbers (r = a + b % m).
  *
  * r   Result of addition.
- * a   First number to add in Montogmery form.
- * b   Second number to add in Montogmery form.
+ * a   First number to add in Montgomery form.
+ * b   Second number to add in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_384_mont_add_12(sp_digit* r, const sp_digit* a, const sp_digit* b,
@@ -42266,7 +42400,7 @@ static void sp_384_mont_add_12(sp_digit* r, const sp_digit* a, const sp_digit* b
 /* Double a Montgomery form number (r = a + a % m).
  *
  * r   Result of doubling.
- * a   Number to double in Montogmery form.
+ * a   Number to double in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_384_mont_dbl_12(sp_digit* r, const sp_digit* a, const sp_digit* m)
@@ -42280,7 +42414,7 @@ static void sp_384_mont_dbl_12(sp_digit* r, const sp_digit* a, const sp_digit* m
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
  * r   Result of Tripling.
- * a   Number to triple in Montogmery form.
+ * a   Number to triple in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_384_mont_tpl_12(sp_digit* r, const sp_digit* a, const sp_digit* m)
@@ -42402,8 +42536,8 @@ static sp_digit sp_384_cond_add_12(sp_digit* r, const sp_digit* a, const sp_digi
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
  * r   Result of subtration.
- * a   Number to subtract from in Montogmery form.
- * b   Number to subtract with in Montogmery form.
+ * a   Number to subtract from in Montgomery form.
+ * b   Number to subtract with in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_384_mont_sub_12(sp_digit* r, const sp_digit* a, const sp_digit* b,
@@ -44377,7 +44511,7 @@ int sp_ecc_mulmod_384(const mp_int* km, const ecc_point* gm, ecc_point* r,
  * km      Scalar to multiply by.
  * p       Point to multiply.
  * am      Point to add to scalar mulitply result.
- * inMont  Point to add is in montogmery form.
+ * inMont  Point to add is in montgomery form.
  * r       Resulting point.
  * map     Indicates whether to convert result to affine.
  * heap    Heap to use for allocation.
@@ -45926,7 +46060,7 @@ int sp_ecc_mulmod_base_384(const mp_int* km, ecc_point* r, int map, void* heap)
  *
  * km      Scalar to multiply by.
  * am      Point to add to scalar mulitply result.
- * inMont  Point to add is in montogmery form.
+ * inMont  Point to add is in montgomery form.
  * r       Resulting point.
  * map     Indicates whether to convert result to affine.
  * heap    Heap to use for allocation.
@@ -52048,7 +52182,7 @@ static const sp_digit p1024_mod[32] = {
     0xb3e01a2e,0xbe9ae358,0x9cb48261,0x416c0ce1,0xdad0657a,0x65c61198,
     0x0a563fda,0x997abb1f
 };
-/* The Montogmery normalizer for modulus of the curve P1024. */
+/* The Montgomery normalizer for modulus of the curve P1024. */
 static const sp_digit p1024_norm_mod[32] = {
     0x0157a015,0x99927f85,0x53853178,0x7f3a20ef,0x767a824f,0x031c17dc,
     0xa968e0e0,0x606b2950,0xe3c3f655,0x5830c3ad,0xce7ad57d,0x49500b57,
@@ -52057,7 +52191,7 @@ static const sp_digit p1024_norm_mod[32] = {
     0x4c1fe5d1,0x41651ca7,0x634b7d9e,0xbe93f31e,0x252f9a85,0x9a39ee67,
     0xf5a9c025,0x668544e0
 };
-/* The Montogmery multiplier for modulus of the curve P1024. */
+/* The Montgomery multiplier for modulus of the curve P1024. */
 static sp_digit p1024_mp_mod = 0x7c8f2f3d;
 #if defined(WOLFSSL_SP_SMALL) || defined(HAVE_ECC_CHECK_KEY)
 /* The order of the curve P1024. */
@@ -53234,7 +53368,7 @@ static WC_INLINE int sp_1024_mod_32(sp_digit* r, const sp_digit* a, const sp_dig
     return sp_1024_div_32(a, m, NULL, r);
 }
 
-/* Multiply a number by Montogmery normalizer mod modulus (prime).
+/* Multiply a number by Montgomery normalizer mod modulus (prime).
  *
  * r  The resulting Montgomery form number.
  * a  The number to convert.
@@ -53828,14 +53962,14 @@ SP_NOINLINE static void sp_1024_mont_reduce_32(sp_digit* a, const sp_digit* m,
     sp_1024_cond_sub_32(a - 32, a, m, ca);
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_1024_mont_mul_32(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -53847,9 +53981,9 @@ static void sp_1024_mont_mul_32(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_1024_mont_sqr_32(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -53968,8 +54102,8 @@ static void sp_1024_map_32(sp_point_1024* r, const sp_point_1024* p,
 /* Add two Montgomery form numbers (r = a + b % m).
  *
  * r   Result of addition.
- * a   First number to add in Montogmery form.
- * b   Second number to add in Montogmery form.
+ * a   First number to add in Montgomery form.
+ * b   Second number to add in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_1024_mont_add_32(sp_digit* r, const sp_digit* a, const sp_digit* b,
@@ -54138,7 +54272,7 @@ static void sp_1024_mont_add_32(sp_digit* r, const sp_digit* a, const sp_digit* 
 /* Double a Montgomery form number (r = a + a % m).
  *
  * r   Result of doubling.
- * a   Number to double in Montogmery form.
+ * a   Number to double in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_1024_mont_dbl_32(sp_digit* r, const sp_digit* a, const sp_digit* m)
@@ -54290,7 +54424,7 @@ static void sp_1024_mont_dbl_32(sp_digit* r, const sp_digit* a, const sp_digit* 
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
  * r   Result of Tripling.
- * a   Number to triple in Montogmery form.
+ * a   Number to triple in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_1024_mont_tpl_32(sp_digit* r, const sp_digit* a, const sp_digit* m)
@@ -54597,8 +54731,8 @@ static void sp_1024_mont_tpl_32(sp_digit* r, const sp_digit* a, const sp_digit* 
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
  * r   Result of subtration.
- * a   Number to subtract from in Montogmery form.
- * b   Number to subtract with in Montogmery form.
+ * a   Number to subtract from in Montgomery form.
+ * b   Number to subtract with in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_1024_mont_sub_32(sp_digit* r, const sp_digit* a, const sp_digit* b,
@@ -60547,7 +60681,7 @@ int sp_ecc_mulmod_base_1024(const mp_int* km, ecc_point* r, int map, void* heap)
  *
  * km      Scalar to multiply by.
  * am      Point to add to scalar mulitply result.
- * inMont  Point to add is in montogmery form.
+ * inMont  Point to add is in montgomery form.
  * r       Resulting point.
  * map     Indicates whether to convert result to affine.
  * heap    Heap to use for allocation.
