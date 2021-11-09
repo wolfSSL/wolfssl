@@ -13025,13 +13025,20 @@ word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
  * PKCS#1 v2.2: RFC 8017, A.2.4 - DigestInfo
  */
 static const ASNItem digestInfoASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* digestAlgorithm */
-/*  1 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-/*  2 */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/*  3 */            { 2, ASN_TAG_NULL, 0, 0, 0 },
-                /* digest */
-/*  4 */        { 1, ASN_OCTET_STRING, 0, 0, 0 }
+/* digestInfoASN_IDX_SEQ          */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                         /* digestAlgorithm */
+/* digestInfoASN_IDX_DIGALGO_SEQ  */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* digestInfoASN_IDX_DIGALGO_OID  */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* digestInfoASN_IDX_DIGALGO_NULL */         { 2, ASN_TAG_NULL, 0, 0, 0 },
+                                         /* digest */
+/* digestInfoASN_IDX_DIGEST       */     { 1, ASN_OCTET_STRING, 0, 0, 0 }
+};
+enum {
+    digestInfoASN_IDX_SEQ = 0,
+    digestInfoASN_IDX_DIGALGO_SEQ,
+    digestInfoASN_IDX_DIGALGO_OID,
+    digestInfoASN_IDX_DIGALGO_NULL,
+    digestInfoASN_IDX_DIGEST,
 };
 
 /* Number of items in ASN.1 template for DigestInfo for RSA. */
@@ -13073,9 +13080,9 @@ word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz,
 
     if (ret == 0) {
         /* Set hash OID and type. */
-        SetASN_OID(&dataASN[2], hashOID, oidHashType);
+        SetASN_OID(&dataASN[digestInfoASN_IDX_DIGALGO_OID], hashOID, oidHashType);
         /* Set digest. */
-        SetASN_Buffer(&dataASN[4], digest, digSz);
+        SetASN_Buffer(&dataASN[digestInfoASN_IDX_DIGEST], digest, digSz);
 
         /* Calculate size of encoding. */
         ret = SizeASN_Items(digestInfoASN, dataASN, digestInfoASN_Length, &sz);
