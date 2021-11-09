@@ -10751,13 +10751,19 @@ static const int certNameSubjectSz =
  * X.509: RFC 5280, 4.1.2.4 - RelativeDistinguishedName
  */
 static const ASNItem rdnASN[] = {
-/*  0 */        { 1, ASN_SET, 1, 1, 0 },
-                    /* AttributeTypeAndValue */
-/*  1 */            { 2, ASN_SEQUENCE, 1, 1, 0 },
-                        /* AttributeType */
-/*  2 */                { 3, ASN_OBJECT_ID, 0, 0, 0 },
-                        /* AttributeValue: Choice of tags - rdnChoice. */
-/*  3 */                { 3, 0, 0, 0, 0 },
+/* rdnASN_IDX_SET       */ { 1, ASN_SET, 1, 1, 0 },
+                           /* AttributeTypeAndValue */
+/* rdnASN_IDX_ATTR_SEQ  */     { 2, ASN_SEQUENCE, 1, 1, 0 },
+                                   /* AttributeType */
+/* rdnASN_IDX_ATTR_TYPE */         { 3, ASN_OBJECT_ID, 0, 0, 0 },
+                           /* AttributeValue: Choice of tags - rdnChoice. */
+/* rdnASN_IDX_ATTR_VAL  */         { 3, 0, 0, 0, 0 },
+};
+enum {
+    rdnASN_IDX_SET = 0,
+    rdnASN_IDX_ATTR_SEQ,
+    rdnASN_IDX_ATTR_TYPE,
+    rdnASN_IDX_ATTR_VAL,
 };
 
 /* Number of items in ASN.1 template for an RDN. */
@@ -10969,7 +10975,7 @@ static int SetSubject(DecodedCert* cert, int id, byte* str, word32 strLen,
  * @param [in, out] idx        Index int full name to place next component.
  * @param [in, out] nid        NID of component type.
  * @param [in]      isSubject  Whether this data is for a subject name.
- * @param [in]      dataASN    Decoded data of RDN.
+ * @param [in]      dataASN    Decoded data of RDN. Expected rdnASN type.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  ASN_PARSE_E when type not supported.
@@ -10987,7 +10993,7 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
     (void)nid;
 
     /* Get name type OID from data items. */
-    GetASN_OIDData(&dataASN[2], &oid, &oidSz);
+    GetASN_OIDData(&dataASN[rdnASN_IDX_ATTR_TYPE], &oid, &oidSz);
 
     /* v1 name types */
     if ((oidSz == 3) && (oid[0] == 0x55) && (oid[1] == 0x04)) {
@@ -11063,10 +11069,10 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
         /* OID type to store for subject name and add to full string. */
         byte*  str;
         word32 strLen;
-        byte   tag = dataASN[3].tag;
+        byte   tag = dataASN[rdnASN_IDX_ATTR_VAL].tag;
 
         /* Get the string reference and length. */
-        GetASN_GetRef(&dataASN[3], &str, &strLen);
+        GetASN_GetRef(&dataASN[rdnASN_IDX_ATTR_VAL], &str, &strLen);
 
         if (isSubject) {
             /* Store subject field components. */
@@ -11673,7 +11679,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
         ret = ASN_PARSE_E;
     }
 
-    ALLOC_ASNGETDATA(dataASN, rdnASN_Length, ret, cert->heap);
+    CALLOC_ASNGETDATA(dataASN, rdnASN_Length, ret, cert->heap);
 
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
     if (ret == 0) {
@@ -11710,10 +11716,9 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             int nid = 0;
 
             /* Initialize for data and setup RDN choice. */
-            XMEMSET(dataASN, 0, sizeof(*dataASN) * rdnASN_Length);
-            GetASN_Choice(&dataASN[3], rdnChoice);
+            GetASN_Choice(&dataASN[rdnASN_IDX_ATTR_VAL], rdnChoice);
             /* Ignore type OID as too many to store in table. */
-            GetASN_OID(&dataASN[2], oidIgnoreType);
+            GetASN_OID(&dataASN[rdnASN_IDX_ATTR_TYPE], oidIgnoreType);
             /* Parse RDN. */
             ret = GetASN_Items(rdnASN, dataASN, rdnASN_Length, 1, input,
                                &srcIdx, maxIdx);
@@ -11729,10 +11734,10 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 int enc;
                 byte*  str;
                 word32 strLen;
-                byte   tag = dataASN[3].tag;
+                byte   tag = dataASN[rdnASN_IDX_ATTR_VAL].tag;
 
                 /* Get string reference. */
-                GetASN_GetRef(&dataASN[3], &str, &strLen);
+                GetASN_GetRef(&dataASN[rdnASN_IDX_ATTR_VAL], &str, &strLen);
 
                 /* Convert BER tag to a OpenSSL type. */
                 switch (tag) {
@@ -22370,7 +22375,7 @@ static int EncodeName(EncodedName* name, const char* nameStr,
 
     return idx;
 #else
-    ASNSetData dataASN[rdnASN_Length];
+    DECL_ASNSETDATA(dataASN, rdnASN_Length);
     ASNItem namesASN[rdnASN_Length];
     byte dnOid[DN_OID_SZ] = { 0x55, 0x04, 0x00 };
     int ret = 0;
@@ -22384,14 +22389,12 @@ static int EncodeName(EncodedName* name, const char* nameStr,
         ret = BAD_FUNC_ARG;
     }
 
+    CALLOC_ASNSETDATA(dataASN, rdnASN_Length, ret, NULL);
     if (ret == 0) {
         nameSz = (word32)XSTRLEN(nameStr);
-
-        /* Clear data to use when encoding. */
-        XMEMSET(dataASN, 0, rdnASN_Length * sizeof(ASNSetData));
         /* Copy the RDN encoding template. ASN.1 tag for the name string is set
          * based on type. */
-        XMEMCPY(namesASN, rdnASN, rdnASN_Length * sizeof(ASNItem));
+        XMEMCPY(namesASN, rdnASN, sizeof(namesASN));
 
         /* Set OID and ASN.1 tag for name depending on type. */
         switch (type) {
@@ -22423,11 +22426,11 @@ static int EncodeName(EncodedName* name, const char* nameStr,
         }
 
         /* Set OID corresponding to the name type. */
-        SetASN_Buffer(&dataASN[2], oid, oidSz);
+        SetASN_Buffer(&dataASN[rdnASN_IDX_ATTR_TYPE], oid, oidSz);
         /* Set name string. */
-        SetASN_Buffer(&dataASN[3], (const byte *)nameStr, nameSz);
+        SetASN_Buffer(&dataASN[rdnASN_IDX_ATTR_VAL], (const byte *)nameStr, nameSz);
         /* Set the ASN.1 tag for the name string. */
-        namesASN[3].tag = nameTag;
+        namesASN[rdnASN_IDX_ATTR_VAL].tag = nameTag;
 
         /* Calculate size of encoded name and indexes of components. */
         ret = SizeASN_Items(namesASN, dataASN, rdnASN_Length, &sz);
@@ -22449,6 +22452,7 @@ static int EncodeName(EncodedName* name, const char* nameStr,
     }
     (void)cname;
 
+    FREE_ASNSETDATA(dataASN, NULL);
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
@@ -22491,9 +22495,9 @@ static void SetRdnItems(ASNItem* namesASN, ASNSetData* dataASN, const byte* oid,
     int oidSz, byte tag, const byte* data, int sz)
 {
     XMEMCPY(namesASN, rdnASN, sizeof(rdnASN));
-    SetASN_Buffer(&dataASN[2], oid, oidSz);
-    namesASN[3].tag = tag;
-    SetASN_Buffer(&dataASN[3], data, sz);
+    SetASN_Buffer(&dataASN[rdnASN_IDX_ATTR_TYPE], oid, oidSz);
+    namesASN[rdnASN_IDX_ATTR_VAL].tag = tag;
+    SetASN_Buffer(&dataASN[rdnASN_IDX_ATTR_VAL], data, sz);
 }
 
 #ifdef WOLFSSL_MULTI_ATTRIB
@@ -22641,7 +22645,7 @@ int SetNameEx(byte* output, word32 outputSz, CertName* name, void* heap)
 #else
     /* TODO: consider calculating size of entries, putting length into
      * SEQUENCE, encode SEQUENCE, encode entries into buffer.  */
-    ASNSetData* dataASN;
+    ASNSetData* dataASN; /* Can't use DECL_ASNSETDATA. Always dynamic. */
     ASNItem*    namesASN;
     int         i;
     int         idx;
