@@ -198,6 +198,11 @@
 #ifdef WOLFCRYPT_HAVE_SAKKE
     #include <wolfssl/wolfcrypt/sakke.h>
 #endif
+#ifdef HAVE_LIBOQS
+    #include <wolfssl/wolfcrypt/falcon.h>
+    #include "falcon_level1_key.h"
+    #include "falcon_level5_key.h"
+#endif
 
 #include <wolfssl/wolfcrypt/dh.h>
 #include <wolfssl/wolfcrypt/random.h>
@@ -320,6 +325,8 @@
 #define BENCH_SAKKE_RSKGEN       0x20000000
 #define BENCH_SAKKE_VALIDATE     0x40000000
 #define BENCH_SAKKE              0x80000000
+#define BENCH_FALCON_LEVEL1_SIGN 0x00000100
+#define BENCH_FALCON_LEVEL5_SIGN 0x00000200
 
 /* Other */
 #define BENCH_RNG                0x00000001
@@ -547,6 +554,10 @@ static const bench_alg bench_asym_opt[] = {
     { "-sakke-rsk",          BENCH_SAKKE_RSKGEN      },
     { "-sakke-val",          BENCH_SAKKE_VALIDATE    },
     { "-sakke",              BENCH_SAKKE             },
+#endif
+#ifdef HAVE_LIBOQS
+    { "-falcon_level1",      BENCH_FALCON_LEVEL1_SIGN   },
+    { "-falcon_level5",      BENCH_FALCON_LEVEL5_SIGN   },
 #endif
     { NULL, 0 }
 };
@@ -1325,7 +1336,7 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
 #ifdef BENCH_ASYM
 #if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
     defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
-    defined(HAVE_CURVE448) || defined(HAVE_ED448)
+    defined(HAVE_CURVE448) || defined(HAVE_ED448) || defined(HAVE_LIBOQS)
 static void bench_stats_asym_finish(const char* algo, int strength,
     const char* desc, int doAsync, int count, double start, int ret)
 {
@@ -1974,6 +1985,13 @@ static void* benchmarks_do(void* args)
             bench_eccsi();
         }
     #endif
+#endif
+
+#ifdef HAVE_LIBOQS
+    if (bench_all || (bench_asym_algs & BENCH_FALCON_LEVEL1_SIGN))
+        bench_falconKeySign(1);
+    if (bench_all || (bench_asym_algs & BENCH_FALCON_LEVEL5_SIGN))
+        bench_falconKeySign(5);
 #endif
 
 #ifdef WOLFCRYPT_HAVE_SAKKE
@@ -6403,6 +6421,97 @@ void bench_sakke(void)
 }
 #endif /* WOLFCRYPT_SAKKE_CLIENT */
 #endif /* WOLFCRYPT_HAVE_SAKKE */
+
+#ifdef HAVE_LIBOQS
+void bench_falconKeySign(byte level)
+{
+    int    ret = 0;
+    falcon_key key;
+    double start;
+    int    i, count;
+    byte   sig1[FALCON_LEVEL1_SIG_SIZE];
+    byte   sig5[FALCON_LEVEL5_SIG_SIZE];
+    byte   msg[512];
+    word32 x = 0;
+    const char**desc = bench_desc_words[lng_index];
+
+    ret = wc_falcon_init(&key);
+    if (ret != 0) {
+        printf("wc_falcon_init failed\n");
+        return;
+    }
+
+    ret = wc_falcon_set_level(&key, level);
+    if (ret != 0) {
+        printf("wc_falcon_set_level failed\n");
+        return;
+    }
+
+    if (level == 1) {
+        ret = wc_falcon_import_private_key(bench_falcon_level1_key,
+                                           sizeof(bench_falcon_level1_key), NULL, 0, &key);
+    }
+    else {
+        ret = wc_falcon_import_private_key(bench_falcon_level5_key,
+                                           sizeof(bench_falcon_level5_key), NULL, 0, &key);
+    }
+
+    if (ret != 0) {
+        printf("wc_falcon_import_private_key failed\n");
+        return;
+    }
+
+    /* make dummy msg */
+    for (i = 0; i < (int)sizeof(msg); i++) {
+        msg[i] = (byte)i;
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < agreeTimes; i++) {
+            if (level == 1) {
+                x = sizeof(sig1);
+                ret = wc_falcon_sign_msg(msg, sizeof(msg), sig1, &x, &key);
+            }
+            else {
+                x = sizeof(sig5);
+                ret = wc_falcon_sign_msg(msg, sizeof(msg), sig5, &x, &key);
+            }
+            if (ret != 0) {
+                printf("wc_falcon_sign_msg failed\n");
+                return;
+            }
+        }
+        count += i;
+    } while (bench_stats_sym_check(start));
+
+    bench_stats_asym_finish("FALCON", level, desc[4], 0, count, start, ret);
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < agreeTimes; i++) {
+            int verify = 0;
+            if (level == 1) {
+                 ret = wc_falcon_verify_msg(sig1, x, msg, sizeof(msg), &verify,
+                                            &key);
+            }
+            else {
+                 ret = wc_falcon_verify_msg(sig5, x, msg, sizeof(msg), &verify,
+                                            &key);
+            }
+            if (ret != 0 || verify != 1) {
+                printf("wc_falcon_verify_msg failed\n");
+                return;
+            }
+        }
+        count += i;
+    } while (bench_stats_sym_check(start));
+
+    bench_stats_asym_finish("FALCON", level, desc[5], 0, count, start, ret);
+
+    wc_falcon_free(&key);
+}
+#endif /* HAVE_LIBOQS */
 
 #ifndef HAVE_STACK_SIZE
 #if defined(_WIN32) && !defined(INTIME_RTOS)
