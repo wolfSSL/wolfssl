@@ -158,7 +158,7 @@ WOLFSSL_API int  wc_MakeCertReq(Cert*, byte* derBuffer, word32 derSz,
     word32 certSz;
     certSz = wc_SignCert(myCert.bodySz, myCert.sigType,derCert,FOURK_BUF,
     &key, NULL,
-&rng);
+    &rng);
     \endcode
 
     \sa wc_InitCert

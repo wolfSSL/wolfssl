@@ -97,7 +97,7 @@ WOLFSSL_API int wc_SrpSetUsername(Srp* srp, const byte* username, word32 size);
     \return 0 Success
     \return BAD_FUNC_ARG Returns if srp, N, g, or salt is null or if nSz < gSz.
     \return SRP_CALL_ORDER_E Returns if wc_SrpSetParams is called before
-wc_SrpSetUsername.
+    wc_SrpSetUsername.
     \return <0 Error
 
     \param srp the Srp structure.

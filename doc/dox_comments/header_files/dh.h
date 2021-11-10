@@ -240,15 +240,15 @@ WOLFSSL_API int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g
     \return BUFFER_E Returned if there is inadequate space in p or g to
     store the parsed parameters
 
-    \parma input pointer to a buffer containing a DER formatted
+    \param input pointer to a buffer containing a DER formatted
     Diffie-Hellman certificate to parse
-    \parma inSz size of the input buffer
-    \parma p pointer to a buffer in which to store the parsed prime
-    \parma pInOutSz pointer to a word32 object containing the available
+    \param inSz size of the input buffer
+    \param p pointer to a buffer in which to store the parsed prime
+    \param pInOutSz pointer to a word32 object containing the available
     size in the p buffer. Will be overwritten with the number of bytes
     written to the buffer after completing the function call
-    \parma g pointer to a buffer in which to store the parsed base
-    \parma gInOutSz pointer to a word32 object containing the available size
+    \param g pointer to a buffer in which to store the parsed base
+    \param gInOutSz pointer to a word32 object containing the available size
     in the g buffer. Will be overwritten with the number of bytes written to
     the buffer after completing the function call
 

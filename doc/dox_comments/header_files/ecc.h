@@ -505,7 +505,7 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 
     \brief Verify an ECC signature.  Result is written to stat.
     1 is valid, 0 is invalid.
-Note: Do not use the return value to test for valid.  Only use stat.
+    Note: Do not use the return value to test for valid.  Only use stat.
 
     \return MP_OKAY If successful (even if the signature is not valid)
     \return ECC_BAD_ARG_E Returns if arguments are null or if
@@ -1107,7 +1107,7 @@ int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key);
     through the HAVE_COMP_KEY option.
 
     \return 0 Returned on successfully importing the ecc_key
-NOT_COMPILED_IN Returned if the HAVE_COMP_KEY was not enabled at compile
+    NOT_COMPILED_IN Returned if the HAVE_COMP_KEY was not enabled at compile
     time, but the key is stored in compressed format
     \return ECC_BAD_ARG_E Returned if in or key evaluate to NULL, or the
     inLen is even (according to the x9.63 standard, the key must be odd)

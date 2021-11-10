@@ -141,7 +141,7 @@ WOLFSSL_API int  wc_Des_CbcEncryptWithKey(byte* out,
     a Des structure.
     \return <0 Returned on any error during encryption.
 
-    \parma out Final encrypted data
+    \param out Final encrypted data
     \param in Data to be encrypted, must be padded to Des block size.
     \param sz Size of input buffer.
     \param key Pointer to the key to use for encryption.
