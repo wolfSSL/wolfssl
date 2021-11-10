@@ -36533,7 +36533,7 @@ static int mp_test_mul_sqr(mp_int* a, mp_int* b, mp_int* r1, mp_int* r2,
     ret = mp_set(a, 1);
     if (ret != MP_OKAY)
         return -13149;
-    i = (SP_INT_DIGITS + 1) / 2;
+    i = (SP_INT_DIGITS / 2) + 1;
     ret = mp_mul_2d(a,  i * SP_WORD_SIZE - 1, a);
     if (ret != MP_OKAY)
         return -13150;
