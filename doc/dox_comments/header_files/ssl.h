@@ -4389,7 +4389,7 @@ WOLFSSL_API WOLFSSL_X509_NAME*  wolfSSL_X509_get_subject_name(WOLFSSL_X509*);
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
     _Example_
-    /code
+    \code
     WOLFSSL* ssl;
     ...
     WOLFSSL_CTX* ctx = wolfSSL_CTX_new( method );
@@ -12545,13 +12545,32 @@ WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_X509_get_notBefore(WOLFSSL_X509*);
 /*!
     \ingroup IO
 
-    \brief This function is called on the client side and initiates an SSL/TLS handshake with a server.  When this function is called, the underlying communication channel has already been set up.
-wolfSSL_connect() works with both blocking and non-blocking I/O.  When the underlying I/O is non-blocking, wolfSSL_connect() will return when the underlying I/O could not satisfy the needs of wolfSSL_connect to continue the handshake.  In this case, a call to wolfSSL_get_error() will yield either SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE.  The calling process must then repeat the call to wolfSSL_connect() when the underlying I/O is ready and wolfSSL will pick up where it left off. When using a non-blocking socket, nothing needs to be done, but select() can be used to check for the required condition.
-If the underlying I/O is blocking, wolfSSL_connect() will only return once the handshake has been finished or an error occurred.
-wolfSSL takes a different approach to certificate verification than OpenSSL does.  The default policy for the client is to verify the server, this means that if you don't load CAs to verify the server you'll get a connect error, unable to verify (-155).  It you want to mimic OpenSSL behavior of having SSL_connect succeed even if verifying the server fails and reducing security you can do this by calling: SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0); before calling SSL_new();  Though it's not recommended.
+    \brief This function is called on the client side and initiates an SSL/TLS
+    handshake with a server.  When this function is called, the underlying
+    communication channel has already been set up.
+    wolfSSL_connect() works with both blocking and non-blocking I/O.  When the
+    underlying I/O is non-blocking, wolfSSL_connect() will return when the
+    underlying I/O could not satisfy the needs of wolfSSL_connect to continue
+    the handshake.  In this case, a call to wolfSSL_get_error() will yield
+    either SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE.  The calling process
+    must then repeat the call to wolfSSL_connect() when the underlying I/O is
+    ready and wolfSSL will pick up where it left off. When using a non-blocking
+    socket, nothing needs to be done, but select() can be used to check for the
+    required condition.
+    If the underlying I/O is blocking, wolfSSL_connect() will only return once
+    the handshake has been finished or an error occurred.
+    wolfSSL takes a different approach to certificate verification than OpenSSL
+    does.  The default policy for the client is to verify the server, this
+    means that if you don't load CAs to verify the server you'll get a connect
+    error, unable to verify (-155).  It you want to mimic OpenSSL behavior of
+    having SSL_connect succeed even if verifying the server fails and reducing
+    security you can do this by calling:
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0); before calling SSL_new();
+    Though it's not recommended.
 
     \return SSL_SUCCESS If successful.
-    \return SSL_FATAL_ERROR will be returned if an error occurred.  To get a more detailed error code, call wolfSSL_get_error().
+    \return SSL_FATAL_ERROR will be returned if an error occurred.  To get a
+    more detailed error code, call wolfSSL_get_error().
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 

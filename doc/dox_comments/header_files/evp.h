@@ -205,7 +205,7 @@ WOLFSSL_API int  wolfSSL_EVP_EncryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
     EVP_aes_128_    cbc(), e, key, iv, 1));
     printf("cipher init ex success ret = %d\n", wolfSSL_EVP_DecryptInit_ex(ctx,
     EVP_aes_128_c    bc(), e, key, iv, 1));
-// free resources
+    // free resources
     \endcode
 
     \sa wolfSSL_EVP_CIPHER_CTX_new

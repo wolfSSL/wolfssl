@@ -178,7 +178,7 @@ WOLFSSL_API int  wc_Des_EcbEncrypt(Des* des, byte* out,
     \param sz length of the plaintext to encrypt
 
     _Example_
-    /code
+    \code
     Des3 enc; // Des3 structure used for encryption
     // initialize enc with wc_Des3_SetKey, use mode DES_ENCRYPTION
 
@@ -188,7 +188,7 @@ WOLFSSL_API int  wc_Des_EcbEncrypt(Des* des, byte* out,
     if ( wc_Des3_EcbEncrypt(&enc,cipher, plain, sizeof(plain)) != 0) {
         // error encrypting message
     }
-    /endcode
+    \endcode
 
     \sa wc_Des3_SetKey
 */

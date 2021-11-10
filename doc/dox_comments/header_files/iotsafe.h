@@ -225,8 +225,8 @@ WOLFSSL_API int wc_iotsafe_ecc_sign_hash(byte *in, word32 inlen, byte *out, word
     \ingroup IoTSafe
     \brief Verify an ECC signature against a pre-computed 256-bit HASH, using a public key previously stored, or pre-provisioned,
     in the IoT-Safe applet. Result is written to res. 1 is valid, 0 is invalid.
-Note: Do not use the return value to test for valid. Only use res.
-    
+    Note: Do not use the return value to test for valid. Only use res.
+
     \return 0 upon success (even if the signature is not valid)
     \return < 0 in case of failure.
 
@@ -235,7 +235,7 @@ Note: Do not use the return value to test for valid. Only use res.
     \param hashlen The length of the hash (octets)
     \param res Result of signature, 1==valid, 0==invalid
     \param key_id The id of the slot where the public ECC key is stored in the IoT-Safe applet
-    
+
     \sa wc_iotsafe_ecc_sign_hash
     \sa wc_iotsafe_ecc_gen_k
 
