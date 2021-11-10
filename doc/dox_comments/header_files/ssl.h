@@ -5226,7 +5226,7 @@ WOLFSSL_API int wolfSSL_CTX_use_psk_identity_hint(WOLFSSL_CTX*, const char*);
     \return SSL_FAILURE returned if the WOLFSSL or Arrays structures are NULL.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
-    \para hint a constant character pointer that holds the hint to be saved
+    \param hint a constant character pointer that holds the hint to be saved
     in memory.
 
     _Example_
