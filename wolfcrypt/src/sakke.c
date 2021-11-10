@@ -391,7 +391,7 @@ static int sakke_mulmod_base_add(SakkeKey* key, const mp_int* n, ecc_point* a,
     mp_digit mp = 0;
     SakkeKeyParams* params = &key->params;
 
-    /* Scalar multiply base by n - leaves ordinates in Montogmert form. */
+    /* Scalar multiply base by n - leaves ordinates in Montgomery form. */
     err = wc_ecc_mulmod(n, params->base, res, &params->a, &params->prime, 0);
     if (err == 0) {
         err = mp_montgomery_setup(&params->prime, &mp);
@@ -791,7 +791,7 @@ static int sakke_z_from_mont(SakkeKey* key)
  * Encode a point into a buffer.
  *
  * X and y ordinate of point concatenated. Each number is zero padded tosize.
- * Descriptor byte (0x04) is prepeneded when not raw.
+ * Descriptor byte (0x04) is prepended when not raw.
  *
  * @param  [in]      point    ECC point to encode.
  * @param  [in]      size     Size of prime in bytes - maximum ordinate length.
@@ -897,7 +897,7 @@ static int sakke_decode_point(ecc_point* point, word32 size, const byte* data,
  *
  * X and y ordinate of public key concatenated. Each number is zero padded to
  * key size.
- * Descriptor byte (0x04) is prepeneded when not raw.
+ * Descriptor byte (0x04) is prepended when not raw.
  *
  * @param  [in]      key      SAKKE key.
  * @param  [out]     data     Buffer to hold encoded data.
@@ -994,7 +994,7 @@ int wc_MakeSakkeRsk(SakkeKey* key, const byte* id, word16 idSz, ecc_point* rsk)
  *
  * X and y ordinate of RSK point concatenated. Each number is zero padded to
  * key size.
- * Descriptor byte (0x04) is prepeneded when not raw.
+ * Descriptor byte (0x04) is prepended when not raw.
  *
  * @param  [in]      key   SAKKE key.
  * @param  [in]      rsk   ECC point that is the Receiver Secret Key (RSK).
@@ -1208,7 +1208,7 @@ static int sakke_point_to_mont(ecc_point* p, mp_int* prime, mp_int* mu, int set)
     int err = 0;
 
     if (!set) {
-        /* Calculate multiplier that converts to Montgmery form. */
+        /* Calculate multiplier that converts to Montgomery form. */
         err = mp_montgomery_calc_normalization(mu, prime);
     }
     if (err == 0) {
@@ -2252,7 +2252,7 @@ static int sakke_pairing(SakkeKey* key, ecc_point* p, ecc_point* q, mp_int* r,
  * @param  [in]  key    SAKKE key.
  * @param  [in]  rsk    Receiver Secret Key (RSK) as an ECC point.
  * @param  [in]  table  Pre-computation table. May be NULL.
- * @param  [in]  len    Size of pre-compuration table in bytes.
+ * @param  [in]  len    Size of pre-computation table in bytes.
  * @return  0 on success.
  * @return BAD_FUNC_ARG when key or rsk is NULL.
  * @return  MEMORY_E when dynamic memory allocation fails.
@@ -6314,7 +6314,7 @@ int wc_GetSakkePointI(SakkeKey* key, byte* data, word32* sz)
 }
 
 /**
- * Set the elliptic curve point I - a partial calucation for point R - and the
+ * Set the elliptic curve point I - a partial calculation for point R - and the
  * identity that it belongs to.
  *
  * RFC 6508, Section 6.2.1, Step 3.\n

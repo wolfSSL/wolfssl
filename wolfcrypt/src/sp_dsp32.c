@@ -66,13 +66,13 @@ static const sp_digit p256_mod[10] __attribute__((aligned(128))) = {
     0x0000400,0x3ff0000,0x03fffff
 };
 #ifndef WOLFSSL_SP_SMALL
-/* The Montogmery normalizer for modulus of the curve P256. */
+/* The Montgomery normalizer for modulus of the curve P256. */
 static const sp_digit p256_norm_mod[10] __attribute__((aligned(128))) = {
     0x0000001,0x0000000,0x0000000,0x3fc0000,0x3ffffff,0x3ffffff,0x3ffffff,
     0x3fffbff,0x000ffff,0x0000000
 };
 #endif /* WOLFSSL_SP_SMALL */
-/* The Montogmery multiplier for modulus of the curve P256. */
+/* The Montgomery multiplier for modulus of the curve P256. */
 static const sp_digit p256_mp_mod __attribute__((aligned(128))) = 0x000001;
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
                                             defined(HAVE_ECC_VERIFY)
@@ -83,14 +83,14 @@ static const sp_digit p256_order[10] __attribute__((aligned(128))) = {
 };
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
-/* The Montogmery normalizer for order of the curve P256. */
+/* The Montgomery normalizer for order of the curve P256. */
 static const sp_digit p256_norm_order[10] __attribute__((aligned(128))) = {
     0x39cdaaf,0x18d4f40,0x217b0c4,0x14963a1,0x0431905,0x0000000,0x0000000,
     0x3fffc00,0x000ffff,0x0000000
 };
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
-/* The Montogmery multiplier for order of the curve P256. */
+/* The Montgomery multiplier for order of the curve P256. */
 static const sp_digit p256_mp_order __attribute__((aligned(128))) = 0x200bc4f;
 #endif
 /* The base point of curve P256. */
@@ -168,7 +168,7 @@ static void sp_ecc_point_free(sp_point* p, int clear, void* heap)
     (void)heap;
 }
 
-/* Multiply a number by Montogmery normalizer mod modulus (prime).
+/* Multiply a number by Montgomery normalizer mod modulus (prime).
  *
  * r  The resulting Montgomery form number.
  * a  The number to convert.
@@ -1173,14 +1173,14 @@ SP_NOINLINE static void sp_256_mul_10(sp_digit* r, const sp_digit* a,
 }
 
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_256_mont_mul_10(sp_digit* r, const sp_digit* a, const sp_digit* b,
         const sp_digit* m, sp_digit mp)
@@ -1279,9 +1279,9 @@ SP_NOINLINE static void sp_256_sqr_10(sp_digit* r, const sp_digit* a)
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_256_mont_sqr_10(sp_digit* r, const sp_digit* a, const sp_digit* m,
         sp_digit mp)
@@ -1294,10 +1294,10 @@ static void sp_256_mont_sqr_10(sp_digit* r, const sp_digit* a, const sp_digit* m
 /* Square the Montgomery form number a number of times. (r = a ^ n mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * n   Number of times to square.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_256_mont_sqr_n_10(sp_digit* r, const sp_digit* a, int n,
         const sp_digit* m, sp_digit mp)
@@ -1510,8 +1510,8 @@ SP_NOINLINE static int sp_256_add_10(sp_digit* r, const sp_digit* a,
 /* Add two Montgomery form numbers (r = a + b % m).
  *
  * r   Result of addition.
- * a   First number to add in Montogmery form.
- * b   Second number to add in Montogmery form.
+ * a   First number to add in Montgomery form.
+ * b   Second number to add in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_256_mont_add_10(sp_digit* r, const sp_digit* a, const sp_digit* b,
@@ -1528,7 +1528,7 @@ static void sp_256_mont_add_10(sp_digit* r, const sp_digit* a, const sp_digit* b
 /* Double a Montgomery form number (r = a + a % m).
  *
  * r   Result of doubling.
- * a   Number to double in Montogmery form.
+ * a   Number to double in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_256_mont_dbl_10(sp_digit* r, const sp_digit* a, const sp_digit* m)
@@ -1544,7 +1544,7 @@ static void sp_256_mont_dbl_10(sp_digit* r, const sp_digit* a, const sp_digit* m
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
  * r   Result of Tripling.
- * a   Number to triple in Montogmery form.
+ * a   Number to triple in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_256_mont_tpl_10(sp_digit* r, const sp_digit* a, const sp_digit* m)
@@ -1667,8 +1667,8 @@ static void sp_256_cond_add_10(sp_digit* r, const sp_digit* a,
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
  * r   Result of subtration.
- * a   Number to subtract from in Montogmery form.
- * b   Number to subtract with in Montogmery form.
+ * a   Number to subtract from in Montgomery form.
+ * b   Number to subtract with in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_256_mont_sub_10(sp_digit* r, const sp_digit* a, const sp_digit* b,

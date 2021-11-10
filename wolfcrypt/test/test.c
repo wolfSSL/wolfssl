@@ -28786,12 +28786,12 @@ static int eccsi_sign_verify_test(EccsiKey* priv, EccsiKey* pub, WC_RNG* rng,
     if (!verified)
         return -10166;
 
-    /* Check that the KPAK is converted from montogmery form. */
+    /* Check that the KPAK is converted from montgomery form. */
     ret = eccsi_imp_exp_key_test(priv);
     if (ret != 0)
         return ret;
 
-    /* Check that KPAK can converted to Montogmery form again. */
+    /* Check that KPAK can converted to Montgomery form again. */
     ret = wc_VerifyEccsiHash(priv, WC_HASH_TYPE_SHA256, msg, msgSz, sig, sigSz,
             &verified);
     if (ret != 0)
@@ -28799,7 +28799,7 @@ static int eccsi_sign_verify_test(EccsiKey* priv, EccsiKey* pub, WC_RNG* rng,
     if (!verified)
         return -10168;
 
-    /* Check that the KPAK is converted from montogmery form. */
+    /* Check that the KPAK is converted from montgomery form. */
     ret = wc_ValidateEccsiPair(pub, WC_HASH_TYPE_SHA256, id, idSz, ssk, pvt,
             &valid);
     if (ret != 0)
@@ -28807,7 +28807,7 @@ static int eccsi_sign_verify_test(EccsiKey* priv, EccsiKey* pub, WC_RNG* rng,
     if (!valid)
         return -10170;
 
-    /* Check that KPAK can converted to Montogmery form again. */
+    /* Check that KPAK can converted to Montgomery form again. */
     ret = wc_VerifyEccsiHash(priv, WC_HASH_TYPE_SHA256, msg, msgSz, sig, sigSz,
             &verified);
     if (ret != 0)
@@ -28815,7 +28815,7 @@ static int eccsi_sign_verify_test(EccsiKey* priv, EccsiKey* pub, WC_RNG* rng,
     if (!verified)
         return -10172;
 
-    /* Check that the KPAK is converted from montogmery form. */
+    /* Check that the KPAK is converted from montgomery form. */
     ret = eccsi_imp_exp_pubkey_test(priv, pub);
     if (ret != 0)
         return ret;

@@ -1088,7 +1088,7 @@ static int Hmac_UpdateFinal(Hmac* hmac, byte* digest, const byte* in,
             macSz = BLAKE2B_256;
             padSz = 0;
             break;
-    #endif /* HAVE_BLAK2 */
+    #endif /* HAVE_BLAKE2 */
 
         default:
             return BAD_FUNC_ARG;
@@ -6815,7 +6815,7 @@ static int TLSX_KeyShare_GenOqsKey(WOLFSSL *ssl, KeyShareEntry* kse)
 static int TLSX_KeyShare_GenKey(WOLFSSL *ssl, KeyShareEntry *kse)
 {
     int ret;
-    /* Named FFHE groups have a bit set to identify them. */
+    /* Named FFDHE groups have a bit set to identify them. */
     if (kse->group >= MIN_FFHDE_GROUP && kse->group <= MAX_FFHDE_GROUP)
         ret = TLSX_KeyShare_GenDhKey(ssl, kse);
     else if (kse->group == WOLFSSL_ECC_X25519)
@@ -11812,7 +11812,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
     #ifndef NO_OLD_TLS
     #ifdef WOLFSSL_ALLOW_TLSV10
-    /* Gets a WOLFSL_METHOD type that is not set as client or server
+    /* Gets a WOLFSSL_METHOD type that is not set as client or server
      *
      * Returns a pointer to a WOLFSSL_METHOD struct
      */
@@ -11837,7 +11837,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
     }
     #endif /* WOLFSSL_ALLOW_TLSV10 */
 
-    /* Gets a WOLFSL_METHOD type that is not set as client or server
+    /* Gets a WOLFSSL_METHOD type that is not set as client or server
      *
      * Returns a pointer to a WOLFSSL_METHOD struct
      */
@@ -11862,7 +11862,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
     #endif /* !NO_OLD_TLS */
 
     #ifndef WOLFSSL_NO_TLS12
-    /* Gets a WOLFSL_METHOD type that is not set as client or server
+    /* Gets a WOLFSSL_METHOD type that is not set as client or server
      *
      * Returns a pointer to a WOLFSSL_METHOD struct
      */
@@ -11887,7 +11887,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
     #endif /* !WOLFSSL_NO_TLS12 */
 
     #ifdef WOLFSSL_TLS13
-    /* Gets a WOLFSL_METHOD type that is not set as client or server
+    /* Gets a WOLFSSL_METHOD type that is not set as client or server
      *
      * Returns a pointer to a WOLFSSL_METHOD struct
      */

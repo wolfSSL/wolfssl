@@ -1090,7 +1090,7 @@ static const byte writeIVLabel[WRITE_IV_LABEL_SZ+1]   = "iv";
 /* Derive the keys and IVs for TLS v1.3.
  *
  * ssl      The SSL/TLS object.
- * sercret  early_data_key when deriving the key and IV for encrypting early
+ * secret   early_data_key when deriving the key and IV for encrypting early
  *          data application data and end_of_early_data messages.
  *          handshake_key when deriving keys and IVs for encrypting handshake
  *          messages.
@@ -2669,7 +2669,7 @@ static byte helloRetryRequestRandom[] = {
 /**
 * convert mac algorithm to WOLFSSL_EVP_MD
 * @param mac_alg mac algorithm
-* @return const WOLFSSL_EVP_MD on sucessful, otherwise NULL
+* @return const WOLFSSL_EVP_MD on successful, otherwise NULL
 */
 static const WOLFSSL_EVP_MD* ssl_handshake_md(const byte mac_alg)
 {
@@ -4303,7 +4303,7 @@ static int CheckCookie(WOLFSSL* ssl, byte* cookie, byte cookieSz)
 
 /* Length of the KeyShare Extension */
 #define HRR_KEY_SHARE_SZ   (OPAQUE16_LEN + OPAQUE16_LEN + OPAQUE16_LEN)
-/* Length of the Supported Vresions Extension */
+/* Length of the Supported Versions Extension */
 #define HRR_VERSIONS_SZ    (OPAQUE16_LEN + OPAQUE16_LEN + OPAQUE16_LEN)
 /* Length of the Cookie Extension excluding cookie data */
 #define HRR_COOKIE_HDR_SZ  (OPAQUE16_LEN + OPAQUE16_LEN + OPAQUE16_LEN)
@@ -7858,7 +7858,7 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                                          SERVER_ENCRYPTED_EXTENSIONS_COMPLETE &&
                                                   ssl->arrays != NULL &&
                                                   ssl->arrays->psk_keySz != 0) {
-                WOLFSSL_MSG("CertificateRequset received while using PSK");
+                WOLFSSL_MSG("CertificateRequest received while using PSK");
                 return SANITY_MSG_E;
             }
         #endif

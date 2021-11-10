@@ -850,7 +850,7 @@
     (defined(NO_DH) || !defined(HAVE_ANON)) && \
     defined(NO_RSA) && !defined(HAVE_ECC) && \
     !defined(HAVE_ED25519) && !defined(HAVE_ED448)
-   #error "No cipher suites avaialble with this build"
+   #error "No cipher suites available with this build"
 #endif
 
 #ifdef WOLFSSL_MULTICAST
@@ -1104,7 +1104,7 @@ enum {
     TLS_AES_128_CCM_SHA256       = 0x04,
     TLS_AES_128_CCM_8_SHA256     = 0x05,
 
-    /* TLS v1.3 Integity only cipher suites - 0xC0 (ECC) first byte */
+    /* TLS v1.3 Integrity only cipher suites - 0xC0 (ECC) first byte */
     TLS_SHA256_SHA256            = 0xB4,
     TLS_SHA384_SHA384            = 0xB5,
 
@@ -1182,7 +1182,7 @@ enum {
 #ifndef MAX_PSK_ID_LEN
     /* max psk identity/hint supported */
     #if defined(WOLFSSL_TLS13)
-        /* OpenSSL has a 1472 byte sessiont ticket */
+        /* OpenSSL has a 1472 byte session ticket */
         #define MAX_PSK_ID_LEN 1536
     #else
         #define MAX_PSK_ID_LEN 128
@@ -1444,7 +1444,7 @@ enum Misc {
     EVP_SALT_SIZE       =  8,  /* evp salt size 64 bits   */
 
 #ifndef ECDHE_SIZE /* allow this to be overridden at compile-time */
-    ECDHE_SIZE          = 32,  /* ECHDE server size defaults to 256 bit */
+    ECDHE_SIZE          = 32,  /* ECDHE server size defaults to 256 bit */
 #endif
     MAX_EXPORT_ECC_SZ   = 256, /* Export ANS X9.62 max future size */
     MAX_CURVE_NAME_SZ   = 16,  /* Maximum size of curve name string */
@@ -3167,7 +3167,7 @@ enum SigAlgRsaPss {
 };
 
 
-/* Supprted ECC Curve Types */
+/* Supported ECC Curve Types */
 enum EccCurves {
     named_curve = 3
 };
@@ -3647,7 +3647,7 @@ typedef struct Options {
 #endif
     word16            keepResources:1;    /* Keep resources after handshake */
     word16            useClientOrder:1;   /* Use client's cipher order */
-    word16            mutualAuth:1;       /* Mutual authentication is rquired */
+    word16            mutualAuth:1;       /* Mutual authentication is required */
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     word16            postHandshakeAuth:1;/* Client send post_handshake_auth
                                            * extension */

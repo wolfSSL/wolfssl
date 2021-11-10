@@ -119,7 +119,7 @@
        recommend using the CMake GUI in concert with Visual Studio, as described
     in these steps.
     2) Open CMake.
-    3) Where is the soure code: <root directory of wolfssl containing
+    3) Where is the source code: <root directory of wolfssl containing
        CMakeLists.txt>
     4) Where to build the binaries: <build directory, e.g. wolfssl/build>
     5) Hit Configure. CMake runs the code in CMakeLists.txt and builds up an

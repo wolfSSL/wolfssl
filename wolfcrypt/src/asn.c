@@ -991,7 +991,7 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
  * @param [in] input    BER encoded data.
  * @param [in] idx      Index of BIT_STRING data.
  * @param [in] length   Length of input data.
- * @param [in] positve  Indicates number must be positive.
+ * @param [in] positive Indicates number must be positive.
  * @return  0 on success.
  * @return  ASN_PARSE_E when 0 is not required but seen.
  * @return  ASN_EXPECT_0_E when 0 is required and not seen.
@@ -1998,7 +1998,7 @@ static int GetASN_BitString_Int16Bit(ASNGetData* dataASN, word16* val)
 }
 #endif /* CRLDP_VALIDATE_DATA */
 
-#endif /* WOFLSSL_ASN_TEMPLATE */
+#endif /* WOLFSSL_ASN_TEMPLATE */
 
 
 /* Decode the BER/DER length field.
@@ -2047,7 +2047,7 @@ int GetLength_ex(const byte* input, word32* inOutIdx, int* len, word32 maxIdx,
     /* Ensure zero return length on error. */
     *len = 0;
 
-    /* Check there is at least on byte avaialble containing length information.
+    /* Check there is at least on byte available containing length information.
      */
     if ((idx + 1) > maxIdx) {
         WOLFSSL_MSG("GetLength - bad index on input");
@@ -7572,7 +7572,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     if ((ret == 0) && (saltSz > MAX_SALT_SIZE)) {
         ret = ASN_PARSE_E;
     }
-    /* Get algorithm parameters for algorithm identifer. */
+    /* Get algorithm parameters for algorithm identifier. */
     if ((ret == 0) && CheckAlgo(vPKCS, vAlgo, &id, &version, &blockSz) < 0) {
         ret = ASN_INPUT_E;
     }
@@ -9854,7 +9854,7 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     }
     if (ret == 0) {
     #endif
-        /* Store publc key data length. */
+        /* Store public key data length. */
         cert->pubKeySize = pubKeyLen;
         /* Must allocated space for key.
          * Don't memcpy into constant pointer so use temp. */
@@ -10270,9 +10270,9 @@ static int GetHashId(const byte* id, int length, byte* hash)
 #define ASN_UID       0x101
 /* Id for domain component. */
 #define ASN_DC        0x102
-/* Id for juristiction country. */
+/* Id for jurisdiction country. */
 #define ASN_JURIS_C   0x203
-/* Id for juristiction state. */
+/* Id for jurisdiction state. */
 #define ASN_JURIS_ST  0x203
 
 /* Set the string for a name component into the subject name. */
@@ -10682,7 +10682,7 @@ static int SetSubject(DecodedCert* cert, int id, byte* str, word32 strLen,
     return ret;
 }
 
-/* Get a RelativeDistignuishedName from the encoding and put in certificate.
+/* Get a RelativeDistinguishedName from the encoding and put in certificate.
  *
  * @param [in, out] cert       Certificate object.
  * @param [in, out] full       Full name string. ([/<type>=<value>]*)
@@ -10794,7 +10794,7 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
         }
         if (ret == 0) {
             /* Check there is space for this in the full name string and
-             * terminating NUL characher. */
+             * terminating NUL character. */
             if ((typeStrLen + strLen) < (word32)(ASN_NAME_MAX - *idx))
             {
                 /* Add RDN to full string. */
@@ -10818,9 +10818,9 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
  * @param [in, out] cert      Decoded certificate object.
  * @param [out]     full      Buffer to hold full name as a string.
  * @param [out]     hash      Buffer to hold hash of name.
- * @param [in]      nameType  IUSSUER or SUBJECT.
+ * @param [in]      nameType  ISSUER or SUBJECT.
  * @param [in]      input     Buffer holding certificate name.
- * @param [in, out] inOutIdx  On in, start of certifica namtey.
+ * @param [in, out] inOutIdx  On in, start of certificate name.
  *                            On out, start of ASN.1 item after cert name.
  * @param [in]      maxIdx    Index of next item after certificate name.
  * @return  0 on success.
@@ -11406,7 +11406,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
 #endif /* WOLFSSL_X509_NAME_AVAILABLE */
 
     if (ret == 0) {
-        /* Expecing a SEQUENCE using up all data. */
+        /* Expecting a SEQUENCE using up all data. */
         ret = GetASN_Sequence(input, &srcIdx, &len, maxIdx, 1);
     }
     if (ret == 0) {
@@ -12009,7 +12009,7 @@ int wc_GetTime(void* timePtr, word32 timeSize)
 
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* TODO: use a CHOICE instead of two items? */
-/* ASN.1 template for a date - either UTC or Generatlized Time. */
+/* ASN.1 template for a date - either UTC or Generalized Time. */
 static const ASNItem dateASN[] = {
 /*  0 */    { 0, ASN_UTC_TIME, 0, 0, 2 },
 /*  1 */    { 0, ASN_GENERALIZED_TIME, 0, 0, 2 },
@@ -12231,7 +12231,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
                               int stopAfterPubKey);
 #endif
 
-/* Parse the ceritifcate up to the X.509 public key.
+/* Parse the certificate up to the X.509 public key.
  *
  * If cert data is invalid then badDate get set to error value.
  *
@@ -12301,7 +12301,7 @@ int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate)
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
-/* Parse the ceritifcate up to and including X.509 public key.
+/* Parse the certificate up to and including X.509 public key.
  *
  * @param [in, out] cert     Decoded certificate object.
  * @param [in]      verify   Whether to verify dates.
@@ -14001,7 +14001,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
         int strLen;
         word32 idxDir = idx;
 
-        /* Expecing a SEQUENCE using up all data. */
+        /* Expecting a SEQUENCE using up all data. */
         if (GetASN_Sequence(input, &idxDir, &strLen, idx + len, 1) < 0) {
             WOLFSSL_MSG("\tfail: seq length");
             return ASN_PARSE_E;
@@ -14115,7 +14115,7 @@ static const ASNItem altNameASN[] = {
     { 0, ASN_CONTEXT_SPECIFIC | 0, 0, 1, 0 }
 };
 
-/* Numbe of items in ASN.1 template for GeneralName. */
+/* Number of items in ASN.1 template for GeneralName. */
 #define altNameASN_Length (sizeof(altNameASN) / sizeof(ASNItem))
 #endif /* WOLFSSL_ASN_TEMPLATE */
 
@@ -14413,7 +14413,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
                 return ASN_PARSE_E;
             }
 
-            /* Certiciates issued with this OID in the subject alt name are for
+            /* Certificates issued with this OID in the subject alt name are for
              * verifying signatures created on a module.
              * RFC 4108 Section 5. */
             if (cert->hwType != NULL) {
@@ -14568,7 +14568,7 @@ static const ASNItem basicConsASN[] = {
  * @return  ASN_PARSE_E when CA boolean is present and false (default is false).
  * @return  ASN_PARSE_E when CA boolean is not present unless
  *          WOLFSSL_X509_BASICCONS_INT is defined. Only a CA extension.
- * @return  ASN_PARSE_E when path legth more than 7 bits.
+ * @return  ASN_PARSE_E when path length more than 7 bits.
  * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
  *          is invalid.
  * @return  BUFFER_E when data in buffer is too small.
@@ -14874,7 +14874,7 @@ static int DecodeCrlDist(const byte* input, int sz, DecodedCert* cert)
     if  (ret == 0) {
         /* Get the GeneralName choice */
         GetASN_Choice(&dataASN[4], generalNameChoice);
-        /* Parse CRL distribtion point. */
+        /* Parse CRL distribution point. */
         ret = GetASN_Items(crlDistASN, dataASN, crlDistASN_Length, 0, input,
                            &idx, sz);
     }
@@ -15360,7 +15360,7 @@ static int DecodeExtKeyUsage(const byte* input, int sz, DecodedCert* cert)
 
     if (ret == 0) {
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        /* Keep reference for WOFLSSL_X509. */
+        /* Keep reference for WOLFSSL_X509. */
         cert->extExtKeyUsageSrc = input + idx;
         cert->extExtKeyUsageSz = length;
     #endif
@@ -15407,7 +15407,7 @@ static int DecodeExtKeyUsage(const byte* input, int sz, DecodedCert* cert)
             }
 
         #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-            /* Keep count for WOFLSSL_X509. */
+            /* Keep count for WOLFSSL_X509. */
             cert->extExtKeyUsageCount++;
         #endif
         }
@@ -16058,7 +16058,7 @@ exit:
  *   CRL Distribution Points - CRL_DIST_OID
  *   Authority Information Access - AUTH_INFO_OID
  *   Subject Alternative Name - ALT_NAMES_OID
- *   Authority Key Identifer - AUTH_KEY_OID
+ *   Authority Key Identifier - AUTH_KEY_OID
  *   Subject Key Identifier - SUBJ_KEY_OID
  *   Certificate Policies - CERT_POLICY_OID (conditional parsing)
  *   Key Usage - KEY_USAGE_OID
