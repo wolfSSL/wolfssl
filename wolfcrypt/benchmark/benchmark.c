@@ -6435,30 +6435,35 @@ void bench_falconKeySign(byte level)
     word32 x = 0;
     const char**desc = bench_desc_words[lng_index];
 
-    ret = wc_falcon_init(&key);
-    if (ret != 0) {
-        printf("wc_falcon_init failed\n");
-        return;
+    if (ret == 0) {
+        ret = wc_falcon_init(&key);
+        if (ret != 0) {
+            printf("wc_falcon_init failed\n");
+        }
     }
 
-    ret = wc_falcon_set_level(&key, level);
-    if (ret != 0) {
-        printf("wc_falcon_set_level failed\n");
-        return;
+    if (ret == 0) {
+        ret = wc_falcon_set_level(&key, level);
+        if (ret != 0) {
+            printf("wc_falcon_set_level failed\n");
+        }
     }
 
-    if (level == 1) {
-        ret = wc_falcon_import_private_key(bench_falcon_level1_key,
-                                           sizeof(bench_falcon_level1_key), NULL, 0, &key);
-    }
-    else {
-        ret = wc_falcon_import_private_key(bench_falcon_level5_key,
-                                           sizeof(bench_falcon_level5_key), NULL, 0, &key);
-    }
+    if (ret == 0) {
+        if (level == 1) {
+            ret = wc_falcon_import_private_key(bench_falcon_level1_key,
+                                               sizeof(bench_falcon_level1_key),
+                                               NULL, 0, &key);
+        }
+        else {
+            ret = wc_falcon_import_private_key(bench_falcon_level5_key,
+                                               sizeof(bench_falcon_level5_key),
+                                               NULL, 0, &key);
+        }
 
-    if (ret != 0) {
-        printf("wc_falcon_import_private_key failed\n");
-        return;
+        if (ret != 0) {
+            printf("wc_falcon_import_private_key failed\n");
+        }
     }
 
     /* make dummy msg */
@@ -6469,45 +6474,53 @@ void bench_falconKeySign(byte level)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < agreeTimes; i++) {
-            if (level == 1) {
-                x = sizeof(sig1);
-                ret = wc_falcon_sign_msg(msg, sizeof(msg), sig1, &x, &key);
-            }
-            else {
-                x = sizeof(sig5);
-                ret = wc_falcon_sign_msg(msg, sizeof(msg), sig5, &x, &key);
-            }
-            if (ret != 0) {
-                printf("wc_falcon_sign_msg failed\n");
-                return;
+            if (ret == 0) {
+                if (level == 1) {
+                    x = sizeof(sig1);
+                    ret = wc_falcon_sign_msg(msg, sizeof(msg), sig1, &x, &key);
+                }
+                else {
+                    x = sizeof(sig5);
+                    ret = wc_falcon_sign_msg(msg, sizeof(msg), sig5, &x, &key);
+                }
+                if (ret != 0) {
+                    printf("wc_falcon_sign_msg failed\n");
+                }
             }
         }
         count += i;
     } while (bench_stats_sym_check(start));
 
-    bench_stats_asym_finish("FALCON", level, desc[4], 0, count, start, ret);
+    if (ret == 0) {
+        bench_stats_asym_finish("FALCON", level, desc[4], 0, count, start, ret);
+    }
 
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < agreeTimes; i++) {
-            int verify = 0;
-            if (level == 1) {
-                 ret = wc_falcon_verify_msg(sig1, x, msg, sizeof(msg), &verify,
-                                            &key);
-            }
-            else {
-                 ret = wc_falcon_verify_msg(sig5, x, msg, sizeof(msg), &verify,
-                                            &key);
-            }
-            if (ret != 0 || verify != 1) {
-                printf("wc_falcon_verify_msg failed\n");
-                return;
+            if (ret == 0) {
+                int verify = 0;
+                if (level == 1) {
+                    ret = wc_falcon_verify_msg(sig1, x, msg, sizeof(msg),
+                                               &verify, &key);
+                }
+                else {
+                    ret = wc_falcon_verify_msg(sig5, x, msg, sizeof(msg),
+                                               &verify, &key);
+                }
+
+                if (ret != 0 || verify != 1) {
+                    printf("wc_falcon_verify_msg failed\n");
+                    ret = -1;
+                }
             }
         }
         count += i;
     } while (bench_stats_sym_check(start));
 
-    bench_stats_asym_finish("FALCON", level, desc[5], 0, count, start, ret);
+    if (ret == 0) {
+        bench_stats_asym_finish("FALCON", level, desc[5], 0, count, start, ret);
+    }
 
     wc_falcon_free(&key);
 }
