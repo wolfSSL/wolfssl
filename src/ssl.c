@@ -55956,7 +55956,7 @@ static int GetStaticEphemeralKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     if (keySz) *keySz = 0;
 
 #ifndef SINGLE_THREADED
-    if (ctx->staticKELockInit && 
+    if (ctx->staticKELockInit &&
         (ret = wc_LockMutex(&ctx->staticKELock)) != 0) {
         return ret;
     }
