@@ -1825,11 +1825,12 @@ static void* benchmarks_do(void* args)
     #ifdef WOLFSSL_KEY_GEN
         if (bench_all || (bench_asym_algs & BENCH_RSA_KEYGEN)) {
         #ifndef NO_SW_BENCH
-            if (bench_asym_algs & BENCH_RSA_SZ) {
-                bench_rsaKeyGen_size(0, bench_size);
+            if (((word32)bench_asym_algs == 0xFFFFFFFFU) || 
+                        (bench_asym_algs & BENCH_RSA_SZ) == 0) {
+                bench_rsaKeyGen(0);
             }
             else {
-                bench_rsaKeyGen(0);
+                bench_rsaKeyGen_size(0, bench_size);
             }
         #endif
         #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA_KEYGEN) \
@@ -6432,18 +6433,15 @@ void bench_falconKeySign(byte level)
     word32 x = 0;
     const char**desc = bench_desc_words[lng_index];
 
-    if (ret == 0) {
-        ret = wc_falcon_init(&key);
-        if (ret != 0) {
-            printf("wc_falcon_init failed\n");
-        }
+    ret = wc_falcon_init(&key);
+    if (ret != 0) {
+        printf("wc_falcon_init failed %d\n", ret);
+        return;
     }
 
-    if (ret == 0) {
-        ret = wc_falcon_set_level(&key, level);
-        if (ret != 0) {
-            printf("wc_falcon_set_level failed\n");
-        }
+    ret = wc_falcon_set_level(&key, level);
+    if (ret != 0) {
+        printf("wc_falcon_set_level failed %d\n", ret);
     }
 
     if (ret == 0) {
@@ -6459,7 +6457,7 @@ void bench_falconKeySign(byte level)
         }
 
         if (ret != 0) {
-            printf("wc_falcon_import_private_key failed\n");
+            printf("wc_falcon_import_private_key failed %d\n", ret);
         }
     }
 
@@ -6507,7 +6505,8 @@ void bench_falconKeySign(byte level)
                 }
 
                 if (ret != 0 || verify != 1) {
-                    printf("wc_falcon_verify_msg failed\n");
+                    printf("wc_falcon_verify_msg failed %d, verify %d\n",
+                        ret, verify);
                     ret = -1;
                 }
             }
