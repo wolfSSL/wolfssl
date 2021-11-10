@@ -200,8 +200,6 @@
 #endif
 #ifdef HAVE_LIBOQS
     #include <wolfssl/wolfcrypt/falcon.h>
-    #include "falcon_level1_key.h"
-    #include "falcon_level5_key.h"
 #endif
 
 #include <wolfssl/wolfcrypt/dh.h>
@@ -6451,12 +6449,12 @@ void bench_falconKeySign(byte level)
     if (ret == 0) {
         if (level == 1) {
             ret = wc_falcon_import_private_key(bench_falcon_level1_key,
-                                               sizeof(bench_falcon_level1_key),
+                                               sizeof_bench_falcon_level1_key,
                                                NULL, 0, &key);
         }
         else {
             ret = wc_falcon_import_private_key(bench_falcon_level5_key,
-                                               sizeof(bench_falcon_level5_key),
+                                               sizeof_bench_falcon_level5_key,
                                                NULL, 0, &key);
         }
 
