@@ -6429,8 +6429,7 @@ void bench_falconKeySign(byte level)
     falcon_key key;
     double start;
     int    i, count;
-    byte   sig1[FALCON_LEVEL1_SIG_SIZE];
-    byte   sig5[FALCON_LEVEL5_SIG_SIZE];
+    byte   sig[FALCON_MAX_SIG_SIZE];
     byte   msg[512];
     word32 x = 0;
     const char**desc = bench_desc_words[lng_index];
@@ -6476,12 +6475,12 @@ void bench_falconKeySign(byte level)
         for (i = 0; i < agreeTimes; i++) {
             if (ret == 0) {
                 if (level == 1) {
-                    x = sizeof(sig1);
-                    ret = wc_falcon_sign_msg(msg, sizeof(msg), sig1, &x, &key);
+                    x = FALCON_LEVEL1_SIG_SIZE;
+                    ret = wc_falcon_sign_msg(msg, sizeof(msg), sig, &x, &key);
                 }
                 else {
-                    x = sizeof(sig5);
-                    ret = wc_falcon_sign_msg(msg, sizeof(msg), sig5, &x, &key);
+                    x = FALCON_LEVEL5_SIG_SIZE;
+                    ret = wc_falcon_sign_msg(msg, sizeof(msg), sig, &x, &key);
                 }
                 if (ret != 0) {
                     printf("wc_falcon_sign_msg failed\n");
@@ -6501,11 +6500,11 @@ void bench_falconKeySign(byte level)
             if (ret == 0) {
                 int verify = 0;
                 if (level == 1) {
-                    ret = wc_falcon_verify_msg(sig1, x, msg, sizeof(msg),
+                    ret = wc_falcon_verify_msg(sig, x, msg, sizeof(msg),
                                                &verify, &key);
                 }
                 else {
-                    ret = wc_falcon_verify_msg(sig5, x, msg, sizeof(msg),
+                    ret = wc_falcon_verify_msg(sig, x, msg, sizeof(msg),
                                                &verify, &key);
                 }
 
