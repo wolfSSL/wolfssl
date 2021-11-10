@@ -101,8 +101,8 @@ my @fileList_4096 = (
 #Falcon Post-Quantum Keys
 #Used with HAVE_LIBOQS
 my @fileList_falcon = (
-        ["certs/falcon/falcon_level1_root_key.der", "bench_falcon_level1_key" ],
-        ["certs/falcon/falcon_level5_root_key.der", "bench_falcon_level5_key" ],
+        ["certs/falcon/bench_falcon_level1_key.der", "bench_falcon_level1_key" ],
+        ["certs/falcon/bench_falcon_level5_key.der", "bench_falcon_level5_key" ],
         );
 
 # ----------------------------------------------------------------------------

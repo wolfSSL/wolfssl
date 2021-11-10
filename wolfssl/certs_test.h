@@ -3334,7 +3334,7 @@ static const int sizeof_dh_key_der_4096 = sizeof(dh_key_der_4096);
 
 #ifdef HAVE_LIBOQS
 
-/* certs/falcon/falcon_level1_root_key.der */
+/* certs/falcon/bench_falcon_level1_key.der */
 static const unsigned char bench_falcon_level1_key[] =
 {
         0x30, 0x82, 0x08, 0x96, 0x02, 0x01, 0x00, 0x30, 0x07, 0x06,
@@ -3561,7 +3561,7 @@ static const unsigned char bench_falcon_level1_key[] =
 };
 static const int sizeof_bench_falcon_level1_key = sizeof(bench_falcon_level1_key);
 
-/* certs/falcon/falcon_level5_root_key.der */
+/* certs/falcon/bench_falcon_level5_key.der */
 static const unsigned char bench_falcon_level5_key[] =
 {
         0x30, 0x82, 0x10, 0x16, 0x02, 0x01, 0x00, 0x30, 0x07, 0x06,
