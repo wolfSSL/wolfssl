@@ -9,6 +9,8 @@ wolfcrypt_benchmark_benchmark_SOURCES      = wolfcrypt/benchmark/benchmark.c
 wolfcrypt_benchmark_benchmark_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD)
 wolfcrypt_benchmark_benchmark_DEPENDENCIES = src/libwolfssl.la
 noinst_HEADERS += wolfcrypt/benchmark/benchmark.h
+noinst_HEADERS += wolfcrypt/benchmark/falcon_level1_key.h
+noinst_HEADERS += wolfcrypt/benchmark/falcon_level5_key.h
 
 endif
 endif
