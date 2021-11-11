@@ -5020,16 +5020,21 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
 
                 /* adjust to expected, remove duplicate */
                 *sslFrame += overlap;
-                *sslBytes -= overlap;
+                *sslBytes = (*sslBytes > overlap) ? *sslBytes - overlap : 0;
 
                 newEnd = *expected + *sslBytes;
                 if (newEnd > reassemblyList->begin) {
+                    int covered_data_len;
+
                     Trace(OVERLAP_REASSEMBLY_BEGIN_STR);
 
                     /* remove bytes already on reassembly list */
-                    *sslBytes -= newEnd - reassemblyList->begin;
+                    covered_data_len = newEnd - reassemblyList->begin;
+                    *sslFrame += covered_data_len;
+                    *sslBytes = (*sslBytes > covered_data_len) ? 
+                                 *sslBytes - covered_data_len : 0;
                 }
-                if (newEnd > reassemblyList->end) {
+                if ((*sslBytes  > 0) && (newEnd > reassemblyList->end)) {
                     Trace(OVERLAP_REASSEMBLY_END_STR);
 
                     /* may be past reassembly list end (could have more on list)
@@ -5093,12 +5098,17 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
             word32 newEnd = *expected + *sslBytes;
 
             if (newEnd > reassemblyList->begin) {
+                int covered_data_len;
+
                 Trace(OVERLAP_REASSEMBLY_BEGIN_STR);
 
                 /* remove bytes already on reassembly list */
-                *sslBytes -= newEnd - reassemblyList->begin;
+                covered_data_len = newEnd - reassemblyList->begin;
+                *sslFrame += covered_data_len;
+                *sslBytes = (*sslBytes > covered_data_len) ? 
+                             *sslBytes - covered_data_len : 0;
             }
-            if (newEnd > reassemblyList->end) {
+            if ((*sslBytes > 0) && (newEnd > reassemblyList->end)) {
                 Trace(OVERLAP_REASSEMBLY_END_STR);
 
                 /* may be past reassembly list end (could have more on list)
