@@ -131,11 +131,17 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
 
     #ifndef NO_SHA
         case sha_mac:
-        default:
             hash = WC_SHA;
             len  = WC_SHA_DIGEST_SIZE;
         break;
     #endif
+        default:
+        #ifdef WOLFSSL_SMALL_STACK
+            if (previous) XFREE(previous, heap, DYNAMIC_TYPE_DIGEST);
+            if (current)  XFREE(current,  heap, DYNAMIC_TYPE_DIGEST);
+            if (hmac)     XFREE(hmac,     heap, DYNAMIC_TYPE_HMAC);
+        #endif
+            return HASH_TYPE_E;
     }
 
     times   = resLen / len;
@@ -322,13 +328,16 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         FREE_VAR(labelSeed, heap);
     #endif
     }
-#ifndef NO_OLD_TLS
     else {
+#ifndef NO_OLD_TLS
         /* compute TLSv1 PRF (pseudo random function using HMAC) */
         ret = wc_PRF_TLSv1(digest, digLen, secret, secLen, label, labLen, seed,
                           seedLen, heap, devId);
-    }
+#else
+        ret = BAD_FUNC_ARG;
 #endif
+    }
+
 
     return ret;
 }
