@@ -29018,7 +29018,7 @@ void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value)
     }
     switch (type) {
         case V_ASN1_NULL:
-            a->value.ptr = value;
+            a->value.ptr = (char *)value;
             break;
         case V_ASN1_SEQUENCE:
             a->value.asn1_string = (WOLFSSL_ASN1_STRING*)value;
@@ -29276,9 +29276,9 @@ int wolfSSL_X509_PUBKEY_set(WOLFSSL_X509_PUBKEY **x, WOLFSSL_EVP_PKEY *key)
     if (!wolfSSL_X509_ALGOR_set0(pk->algor, wolfSSL_OBJ_nid2obj(key->type), ptype, pval)) {
         WOLFSSL_MSG("Failed to create algorithm object");
         if (ptype == V_ASN1_OBJECT)
-            ASN1_OBJECT_free(pval);
+            ASN1_OBJECT_free((WOLFSSL_ASN1_OBJECT *)pval);
         else
-            ASN1_STRING_free(pval);
+            ASN1_STRING_free((WOLFSSL_ASN1_STRING *)pval);
         goto error;
     }
 
@@ -55956,7 +55956,7 @@ static int GetStaticEphemeralKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     if (keySz) *keySz = 0;
 
 #ifndef SINGLE_THREADED
-    if (ctx->staticKELockInit && 
+    if (ctx->staticKELockInit &&
         (ret = wc_LockMutex(&ctx->staticKELock)) != 0) {
         return ret;
     }

@@ -13679,7 +13679,7 @@ static int MatchBaseName(int type, const char* name, int nameSz,
     if (base == NULL || baseSz <= 0 || name == NULL || nameSz <= 0 ||
             name[0] == '.' || nameSz < baseSz ||
             (type != ASN_RFC822_TYPE && type != ASN_DNS_TYPE &&
-	     type != ASN_DIR_TYPE)) {
+             type != ASN_DIR_TYPE)) {
         return 0;
     }
 

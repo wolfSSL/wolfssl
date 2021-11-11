@@ -117,24 +117,16 @@ static int wolfssl_init(void)
 {
     int ret;
 
-#if defined(CONFIG_MODULE_SIG_FORCE) || defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE)
+#ifdef WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE
     if (THIS_MODULE->sig_ok == false) {
-        pr_err("wolfSSL module load aborted -- bad or missing module signature with "
-#ifdef CONFIG_MODULE_SIG_FORCE
-               "CONFIG_MODULE_SIG_FORCE kernel"
-#else
-               "FIPS dynamic hash"
-#endif
-               ".\n");
+        pr_err("wolfSSL module load aborted -- bad or missing module signature with FIPS dynamic hash.\n");
         return -ECANCELED;
     }
-#ifdef WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE
     ret = updateFipsHash();
     if (ret < 0) {
         pr_err("wolfSSL module load aborted -- updateFipsHash: %s\n",wc_GetErrorString(ret));
         return -ECANCELED;
     }
-#endif
 #endif
 
 #ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
@@ -327,7 +319,7 @@ static int my_preempt_count(void) {
     return preempt_count();
 }
 
-#if defined(WOLFSSL_LINUXKM_SIMD_X86_IRQ_ALLOWED) && (LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0))
+#if defined(WOLFSSL_LINUXKM_SIMD_X86) && (LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0))
 static int my_copy_fpregs_to_fpstate(struct fpu *fpu) {
     return copy_fpregs_to_fpstate(fpu);
 }
@@ -422,18 +414,16 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
         kernel_fpu_begin;
     #endif
     wolfssl_linuxkm_pie_redirect_table.kernel_fpu_end = kernel_fpu_end;
-    #ifdef WOLFSSL_LINUXKM_SIMD_X86_IRQ_ALLOWED
-        #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
-            wolfssl_linuxkm_pie_redirect_table.copy_fpregs_to_fpstate = my_copy_fpregs_to_fpstate;
-            wolfssl_linuxkm_pie_redirect_table.copy_kernel_to_fpregs = my_copy_kernel_to_fpregs;
-        #else
-            wolfssl_linuxkm_pie_redirect_table.save_fpregs_to_fpstate = save_fpregs_to_fpstate;
-            wolfssl_linuxkm_pie_redirect_table.__restore_fpregs_from_fpstate = __restore_fpregs_from_fpstate;
-            wolfssl_linuxkm_pie_redirect_table.xfeatures_mask_all = &xfeatures_mask_all;
-        #endif
-        wolfssl_linuxkm_pie_redirect_table.cpu_number = &cpu_number;
-        wolfssl_linuxkm_pie_redirect_table.nr_cpu_ids = &nr_cpu_ids;
-#endif /* WOLFSSL_LINUXKM_SIMD_X86_IRQ_ALLOWED */
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
+        wolfssl_linuxkm_pie_redirect_table.copy_fpregs_to_fpstate = my_copy_fpregs_to_fpstate;
+        wolfssl_linuxkm_pie_redirect_table.copy_kernel_to_fpregs = my_copy_kernel_to_fpregs;
+    #else
+        wolfssl_linuxkm_pie_redirect_table.save_fpregs_to_fpstate = save_fpregs_to_fpstate;
+        wolfssl_linuxkm_pie_redirect_table.__restore_fpregs_from_fpstate = __restore_fpregs_from_fpstate;
+        wolfssl_linuxkm_pie_redirect_table.xfeatures_mask_all = &xfeatures_mask_all;
+    #endif
+    wolfssl_linuxkm_pie_redirect_table.cpu_number = &cpu_number;
+    wolfssl_linuxkm_pie_redirect_table.nr_cpu_ids = &nr_cpu_ids;
 #endif
 
     wolfssl_linuxkm_pie_redirect_table.__mutex_init = __mutex_init;
@@ -477,3 +467,213 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 }
 
 #endif /* USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE */
+
+
+#ifdef WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE
+
+#include <wolfssl/wolfcrypt/coding.h>
+
+PRAGMA_GCC_DIAG_PUSH;
+PRAGMA_GCC("GCC diagnostic ignored \"-Wnested-externs\"");
+PRAGMA_GCC("GCC diagnostic ignored \"-Wpointer-arith\"");
+#include <crypto/hash.h>
+PRAGMA_GCC_DIAG_POP;
+
+extern char verifyCore[WC_SHA256_DIGEST_SIZE*2 + 1];
+extern const char coreKey[WC_SHA256_DIGEST_SIZE*2 + 1];
+extern const unsigned int wolfCrypt_FIPS_ro_start[];
+extern const unsigned int wolfCrypt_FIPS_ro_end[];
+
+#define FIPS_IN_CORE_KEY_SZ 32
+#define FIPS_IN_CORE_VERIFY_SZ FIPS_IN_CORE_KEY_SZ
+typedef int (*fips_address_function)(void);
+#define MAX_FIPS_DATA_SZ  100000
+#define MAX_FIPS_CODE_SZ 1000000
+extern int GenBase16_Hash(const byte* in, int length, char* out, int outSz);
+
+static int updateFipsHash(void)
+{
+    struct crypto_shash *tfm = NULL;
+    struct shash_desc *desc = NULL;
+    word32 verifySz  = FIPS_IN_CORE_VERIFY_SZ;
+    word32 binCoreSz  = FIPS_IN_CORE_KEY_SZ;
+    int ret;
+    byte *hash = NULL;
+    char *base16_hash = NULL;
+    byte *binCoreKey = NULL;
+    byte *binVerify = NULL;
+
+    fips_address_function first = wolfCrypt_FIPS_first;
+    fips_address_function last  = wolfCrypt_FIPS_last;
+
+    char* start = (char*)wolfCrypt_FIPS_ro_start;
+    char* end   = (char*)wolfCrypt_FIPS_ro_end;
+
+    unsigned long code_sz = (unsigned long)last - (unsigned long)first;
+    unsigned long data_sz = (unsigned long)end - (unsigned long)start;
+
+    if (data_sz == 0 || data_sz > MAX_FIPS_DATA_SZ)
+        return BAD_FUNC_ARG;  /* bad fips data size */
+
+    if (code_sz == 0 || code_sz > MAX_FIPS_CODE_SZ)
+        return BAD_FUNC_ARG;  /* bad fips code size */
+
+    hash = XMALLOC(WC_SHA256_DIGEST_SIZE, 0, DYNAMIC_TYPE_TMP_BUFFER);
+    if (hash == NULL) {
+        ret = MEMORY_E;
+        goto out;
+    }
+    base16_hash = XMALLOC(WC_SHA256_DIGEST_SIZE*2 + 1, 0, DYNAMIC_TYPE_TMP_BUFFER);
+    if (base16_hash == NULL) {
+        ret = MEMORY_E;
+        goto out;
+    }
+    binCoreKey = XMALLOC(binCoreSz, 0, DYNAMIC_TYPE_TMP_BUFFER);
+    if (binCoreKey == NULL) {
+        ret = MEMORY_E;
+        goto out;
+    }
+    binVerify = XMALLOC(verifySz, 0, DYNAMIC_TYPE_TMP_BUFFER);
+    if (binVerify == NULL) {
+        ret = MEMORY_E;
+        goto out;
+    }
+
+    {
+        word32 base16_out_len = binCoreSz;
+        ret = Base16_Decode((const byte *)coreKey, sizeof coreKey - 1, binCoreKey, &base16_out_len);
+        if (ret != 0) {
+            pr_err("Base16_Decode for coreKey: %s\n", wc_GetErrorString(ret));
+            goto out;
+        }
+        if (base16_out_len != binCoreSz) {
+            pr_err("unexpected output length %u for coreKey from Base16_Decode.\n",base16_out_len);
+            ret = BAD_STATE_E;
+            goto out;
+        }
+    }
+
+    tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
+    if (IS_ERR(tfm)) {
+        if (PTR_ERR(tfm) == -ENOMEM) {
+            pr_err("crypto_alloc_shash failed: out of memory\n");
+            ret = MEMORY_E;
+        } else if (PTR_ERR(tfm) == -ENOENT) {
+            pr_err("crypto_alloc_shash failed: kernel is missing hmac(sha256) implementation\n");
+            pr_err("check for CONFIG_CRYPTO_SHA256 and CONFIG_CRYPTO_HMAC.\n");
+            ret = NOT_COMPILED_IN;
+        } else {
+            pr_err("crypto_alloc_shash failed with ret %ld\n",PTR_ERR(tfm));
+            ret = HASH_TYPE_E;
+        }
+        tfm = NULL;
+        goto out;
+    }
+
+    {
+        size_t desc_size = crypto_shash_descsize(tfm) + sizeof *desc;
+        desc = XMALLOC(desc_size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (desc == NULL) {
+            pr_err("failed allocating desc.");
+            ret = MEMORY_E;
+            goto out;
+        }
+        XMEMSET(desc, 0, desc_size);
+    }
+
+    ret = crypto_shash_setkey(tfm, binCoreKey, binCoreSz);
+    if (ret) {
+        pr_err("crypto_ahash_setkey failed: err %d\n", ret);
+        ret = BAD_STATE_E;
+        goto out;
+    }
+
+    desc->tfm = tfm;
+    ret = crypto_shash_init(desc);
+    if (ret) {
+        pr_err("crypto_shash_init failed: err %d\n", ret);
+        ret = BAD_STATE_E;
+        goto out;
+    }
+
+    ret = crypto_shash_update(desc, (byte *)(wc_ptr_t)first, (word32)code_sz);
+    if (ret) {
+        pr_err("crypto_shash_update failed: err %d\n", ret);
+        ret = BAD_STATE_E;
+        goto out;
+    }
+
+    /* don't hash verifyCore or changing verifyCore will change hash */
+    if (verifyCore >= start && verifyCore < end) {
+        data_sz = (unsigned long)verifyCore - (unsigned long)start;
+        ret = crypto_shash_update(desc, (byte*)start, (word32)data_sz);
+        if (ret) {
+                pr_err("crypto_shash_update failed: err %d\n", ret);
+                ret = BAD_STATE_E;
+                goto out;
+        }
+        start   = (char*)verifyCore + sizeof(verifyCore);
+        data_sz = (unsigned long)end - (unsigned long)start;
+    }
+    ret = crypto_shash_update(desc, (byte*)start, (word32)data_sz);
+    if (ret) {
+        pr_err("crypto_shash_update failed: err %d\n", ret);
+        ret = BAD_STATE_E;
+        goto out;
+    }
+
+    ret = crypto_shash_final(desc, hash);
+    if (ret) {
+        pr_err("crypto_shash_final failed: err %d\n", ret);
+        ret = BAD_STATE_E;
+        goto out;
+    }
+
+    ret = GenBase16_Hash(hash, WC_SHA256_DIGEST_SIZE, base16_hash, WC_SHA256_DIGEST_SIZE*2 + 1);
+    if (ret != 0) {
+        pr_err("GenBase16_Hash failed: %s\n", wc_GetErrorString(ret));
+        goto out;
+    }
+
+    {
+        word32 base16_out_len = verifySz;
+        ret = Base16_Decode((const byte *)verifyCore, sizeof verifyCore - 1, binVerify, &base16_out_len);
+        if (ret != 0) {
+            pr_err("Base16_Decode for verifyCore: %s\n", wc_GetErrorString(ret));
+            goto out;
+        }
+        if (base16_out_len != binCoreSz) {
+            pr_err("unexpected output length %u for verifyCore from Base16_Decode.\n",base16_out_len);
+            ret = BAD_STATE_E;
+            goto out;
+        }
+    }
+
+    if (XMEMCMP(hash, binVerify, WC_SHA256_DIGEST_SIZE) == 0)
+        pr_info("updateFipsHash: verifyCore already matches.\n");
+    else {
+        XMEMCPY(verifyCore, base16_hash, WC_SHA256_DIGEST_SIZE*2 + 1);
+        pr_info("updateFipsHash: verifyCore updated.\n");
+    }
+
+    ret = 0;
+
+  out:
+
+    if (tfm != NULL)
+        crypto_free_shash(tfm);
+    if (desc != NULL)
+        XFREE(desc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (hash != NULL)
+        XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (base16_hash != NULL)
+        XFREE(base16_hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (binCoreKey != NULL)
+        XFREE(binCoreKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (binVerify != NULL)
+        XFREE(binVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
+#endif /* WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE */
