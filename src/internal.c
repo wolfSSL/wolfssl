@@ -24446,6 +24446,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
             #else
                     enum wc_HashType hashType;
                     word16  verifySz;
+                    byte sigAlgo;
 
                     if (ssl->options.usingAnon_cipher) {
                         break;
@@ -24463,7 +24464,33 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         }
 
                         DecodeSigAlg(&input[args->idx], &args->hashAlgo,
-                                     &args->sigAlgo);
+                                     &sigAlgo);
+                    #ifndef NO_RSA
+                        if (sigAlgo == rsa_pss_sa_algo &&
+                                                 args->sigAlgo == rsa_sa_algo) {
+                            args->sigAlgo = sigAlgo;
+                        }
+                        else
+                    #endif
+                    #ifdef HAVE_ED25519
+                        if (sigAlgo == ed25519_sa_algo &&
+                                             args->sigAlgo == ecc_dsa_sa_algo) {
+                            args->sigAlgo = sigAlgo;
+                        }
+                        else
+                    #endif
+                    #ifdef HAVE_ED448
+                        if (sigAlgo == ed448_sa_algo &&
+                                             args->sigAlgo == ecc_dsa_sa_algo) {
+                            args->sigAlgo = sigAlgo;
+                        }
+                        else
+                    #endif
+                        /* Signature algorithm from message must match signature
+                         * algorithm in cipher suite. */
+                        if (sigAlgo != args->sigAlgo) {
+                            ERROR_OUT(ALGO_ID_E, exit_dske);
+                        }
                         args->idx += 2;
                         hashType = HashAlgoToType(args->hashAlgo);
                         if (hashType == WC_HASH_TYPE_NONE) {
