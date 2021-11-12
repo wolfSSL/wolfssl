@@ -47,7 +47,7 @@ decouple library dependencies with standard string, memory and so on.
      * needs to be defined somwhere that all structs can import
      * (with minimal depencencies).
      */
-    #if defined(HAVE_EX_DATA) || defined(FORTRESS)
+    #ifdef HAVE_EX_DATA
         #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
         typedef void (*wolfSSL_ex_data_cleanup_routine_t)(void *data);
         #endif
