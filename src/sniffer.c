@@ -5031,7 +5031,7 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                     /* remove bytes already on reassembly list */
                     covered_data_len = newEnd - reassemblyList->begin;
                     *sslFrame += covered_data_len;
-                    *sslBytes = (*sslBytes > covered_data_len) ? 
+                    *sslBytes = (*sslBytes > covered_data_len) ?
                                  *sslBytes - covered_data_len : 0;
                 }
                 if ((*sslBytes  > 0) && (newEnd > reassemblyList->end)) {
@@ -5105,7 +5105,7 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                 /* remove bytes already on reassembly list */
                 covered_data_len = newEnd - reassemblyList->begin;
                 *sslFrame += covered_data_len;
-                *sslBytes = (*sslBytes > covered_data_len) ? 
+                *sslBytes = (*sslBytes > covered_data_len) ?
                              *sslBytes - covered_data_len : 0;
             }
             if ((*sslBytes > 0) && (newEnd > reassemblyList->end)) {
