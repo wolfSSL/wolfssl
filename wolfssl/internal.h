@@ -3770,22 +3770,24 @@ typedef struct Arrays {
 #define MAX_DATE_SZ 32
 #endif
 
-#define STACK_TYPE_X509               0
-#define STACK_TYPE_GEN_NAME           1
-#define STACK_TYPE_BIO                2
-#define STACK_TYPE_OBJ                3
-#define STACK_TYPE_STRING             4
-#define STACK_TYPE_CIPHER             5
-#define STACK_TYPE_ACCESS_DESCRIPTION 6
-#define STACK_TYPE_X509_EXT           7
-#define STACK_TYPE_NULL               8
-#define STACK_TYPE_X509_NAME          9
-#define STACK_TYPE_CONF_VALUE         10
-#define STACK_TYPE_X509_INFO          11
-#define STACK_TYPE_BY_DIR_entry       12
-#define STACK_TYPE_BY_DIR_hash        13
-#define STACK_TYPE_X509_OBJ           14
-#define STACK_TYPE_DIST_POINT         15
+typedef enum {
+    STACK_TYPE_X509               = 0,
+    STACK_TYPE_GEN_NAME           = 1,
+    STACK_TYPE_BIO                = 2,
+    STACK_TYPE_OBJ                = 3,
+    STACK_TYPE_STRING             = 4,
+    STACK_TYPE_CIPHER             = 5,
+    STACK_TYPE_ACCESS_DESCRIPTION = 6,
+    STACK_TYPE_X509_EXT           = 7,
+    STACK_TYPE_NULL               = 8,
+    STACK_TYPE_X509_NAME          = 9,
+    STACK_TYPE_CONF_VALUE         = 10,
+    STACK_TYPE_X509_INFO          = 11,
+    STACK_TYPE_BY_DIR_entry       = 12,
+    STACK_TYPE_BY_DIR_hash        = 13,
+    STACK_TYPE_X509_OBJ           = 14,
+    STACK_TYPE_DIST_POINT         = 15
+} WOLF_STACK_TYPE;
 
 struct WOLFSSL_STACK {
     unsigned long num; /* number of nodes in stack
@@ -3818,7 +3820,7 @@ struct WOLFSSL_STACK {
     } data;
     void* heap; /* memory heap hint */
     WOLFSSL_STACK* next;
-    byte type;     /* Identifies type of stack. */
+    WOLF_STACK_TYPE type;     /* Identifies type of stack. */
 };
 
 struct WOLFSSL_X509_NAME {

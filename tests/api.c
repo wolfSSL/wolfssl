@@ -1410,7 +1410,7 @@ static void test_wolfSSL_CertManagerGetCerts(void)
 #endif /* DEBUG_WOLFSSL_VERBOSE */
     }
     wolfSSL_X509_free(cert1);
-    sk_X509_free(sk);
+    sk_X509_pop_free(sk, NULL);
     wolfSSL_CertManagerFree(cm);
     printf(resultFmt, passed);
 #endif /* defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
@@ -8052,7 +8052,7 @@ static void test_wolfSSL_PKCS12(void)
                     -1, -1, 100, -1, 0)));
     EVP_PKEY_free(pkey);
     X509_free(cert);
-    sk_X509_free(ca);
+    sk_X509_pop_free(ca, NULL);
 
     AssertIntEQ(PKCS12_parse(pkcs12_2, "a password", &pkey, &cert, &ca),
             SSL_SUCCESS);
@@ -8063,7 +8063,7 @@ static void test_wolfSSL_PKCS12(void)
              2000, 1, 0)));
     EVP_PKEY_free(pkey);
     X509_free(cert);
-    sk_X509_free(ca);
+    sk_X509_pop_free(ca, NULL);
 
     /* convert to DER then back and parse */
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
@@ -8093,7 +8093,7 @@ static void test_wolfSSL_PKCS12(void)
              2000, 1, 0)));
     EVP_PKEY_free(pkey);
     X509_free(cert);
-    sk_X509_free(ca);
+    sk_X509_pop_free(ca, NULL);
 
     AssertIntEQ(PKCS12_parse(pkcs12_2, "a password", &pkey, &cert, &ca),
             SSL_SUCCESS);
@@ -8104,7 +8104,7 @@ static void test_wolfSSL_PKCS12(void)
     X509_free(cert);
     PKCS12_free(pkcs12);
     PKCS12_free(pkcs12_2);
-    sk_X509_free(ca);
+    sk_X509_pop_free(ca, NULL);
 
 #ifdef HAVE_ECC
     /* test order of parsing */
@@ -8152,7 +8152,7 @@ static void test_wolfSSL_PKCS12(void)
     X509_free(cert);
     BIO_free(bio);
     PKCS12_free(pkcs12);
-    sk_X509_free(ca); /* TEST d2i_PKCS12_fp */
+    sk_X509_pop_free(ca, NULL); /* TEST d2i_PKCS12_fp */
 
     /* test order of parsing */
     f = XFOPEN(file, "rb");
@@ -8184,7 +8184,7 @@ static void test_wolfSSL_PKCS12(void)
 
     wolfSSL_EVP_PKEY_free(pkey);
     wolfSSL_X509_free(cert);
-    sk_X509_free(ca);
+    sk_X509_pop_free(ca, NULL);
 
     PKCS12_free(pkcs12);
 #endif /* HAVE_ECC */
@@ -8220,7 +8220,7 @@ static void test_wolfSSL_PKCS12(void)
 
     wolfSSL_EVP_PKEY_free(pkey);
     wolfSSL_X509_free(cert);
-    sk_X509_free(ca);
+    sk_X509_pop_free(ca, NULL);
 
     BIO_free(bio);
     PKCS12_free(pkcs12);
@@ -29757,7 +29757,7 @@ static void test_wolfSSL_X509_INFO(void)
 
     AssertNotNull(cert = BIO_new_file(cliCertFileExt, "rb"));
     AssertNotNull(info_stack = PEM_X509_INFO_read_bio(cert, NULL, NULL, NULL));
-    sk_X509_INFO_free(info_stack);
+    sk_X509_INFO_pop_free(info_stack, X509_INFO_free);
     BIO_free(cert);
 
     /* This case should fail due to invalid input. */
@@ -30244,7 +30244,7 @@ static void test_wolfSSL_certs(void)
     ext = X509V3_EXT_i2d(NID_ext_key_usage, crit, sk);
     AssertNotNull(ext);
     X509_EXTENSION_free(ext);
-    sk_ASN1_OBJECT_free(sk);
+    sk_ASN1_OBJECT_pop_free(sk, NULL);
 #else
     sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext, NID_ext_key_usage,
             &crit, NULL);
@@ -32641,7 +32641,7 @@ static void test_wolfSSL_X509_LOOKUP_ctrl_file(void)
     X509_free(issuer);
     X509_STORE_CTX_free(ctx);
     X509_STORE_free(str);
-    sk_X509_free(sk);
+    sk_X509_pop_free(sk, NULL);
     X509_free(x509Svr);
 
     AssertNotNull((str = wolfSSL_X509_STORE_new()));
@@ -32657,7 +32657,7 @@ static void test_wolfSSL_X509_LOOKUP_ctrl_file(void)
     }
 
     X509_STORE_free(str);
-    sk_X509_free(sk);
+    sk_X509_pop_free(sk, NULL);
     X509_free(cert1);
 
 #ifdef HAVE_CRL
@@ -32849,7 +32849,7 @@ static void test_wolfSSL_X509_STORE_CTX(void)
 
     X509_STORE_CTX_free(ctx);
 #ifdef OPENSSL_ALL
-    sk_X509_free(sk);
+    sk_X509_pop_free(sk, NULL);
 #endif
     X509_STORE_free(str);
     X509_free(x509);
@@ -32879,9 +32879,9 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     X509_STORE_free(str);
     /* CTX certs not freed yet */
     X509_free(x5092);
-    sk_X509_free(sk);
+    sk_X509_pop_free(sk, NULL);
     /* sk3 is dup so free here */
-    sk_X509_free(sk3);
+    sk_X509_pop_free(sk3, NULL);
 #endif
 
     /* test X509_STORE_CTX_get/set_ex_data */
@@ -39526,10 +39526,9 @@ static void test_wolfSSL_GENERAL_NAME_print(void)
     AssertIntEQ(XSTRNCMP((const char*)outbuf, uriStr, XSTRLEN(uriStr)), 0);
 
     wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(aia, NULL);
-
     aia = (AUTHORITY_INFO_ACCESS*)wolfSSL_X509V3_EXT_d2i(ext);
     AssertNotNull(aia);
-    AUTHORITY_INFO_ACCESS_free(aia);
+    AUTHORITY_INFO_ACCESS_pop_free(aia, NULL);
     X509_free(x509);
 
     /* test for GEN_IPADD */
@@ -46072,11 +46071,11 @@ static void test_sk_X509(void)
 
     AssertNotNull(s = sk_X509_new());
     AssertIntEQ(sk_X509_num(s), 0);
-    sk_X509_free(s);
+    sk_X509_pop_free(s, NULL);
 
     AssertNotNull(s = sk_X509_new_null());
     AssertIntEQ(sk_X509_num(s), 0);
-    sk_X509_free(s);
+    sk_X509_pop_free(s, NULL);
 
     AssertNotNull(s = sk_X509_new());
     sk_X509_push(s, (X509*)1);
@@ -48607,14 +48606,14 @@ static void test_wolfSSL_X509_STORE_get1_certs(void)
     AssertNotNull(certs = X509_STORE_get1_certs(storeCtx, subject));
     AssertIntEQ(1, wolfSSL_sk_X509_num(certs));
 
-    sk_X509_free(certs);
+    sk_X509_pop_free(certs, NULL);
 
     /* Should not find the cert */
     AssertNotNull(subject = X509_get_subject_name(svrX509));
     AssertNotNull(certs = X509_STORE_get1_certs(storeCtx, subject));
     AssertIntEQ(0, wolfSSL_sk_X509_num(certs));
 
-    sk_X509_free(certs);
+    sk_X509_pop_free(certs, NULL);
 
     X509_STORE_free(store);
     X509_STORE_CTX_free(storeCtx);

@@ -528,6 +528,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 
 #define sk_X509_OBJECT_new              wolfSSL_sk_X509_OBJECT_new
 #define sk_X509_OBJECT_free             wolfSSL_sk_X509_OBJECT_free
+#define sk_X509_OBJECT_pop_free         wolfSSL_sk_X509_OBJECT_pop_free
 
 #define sk_X509_EXTENSION_num           wolfSSL_sk_X509_EXTENSION_num
 #define sk_X509_EXTENSION_value         wolfSSL_sk_X509_EXTENSION_value
@@ -1306,7 +1307,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define DIST_POINT_new                  wolfSSL_DIST_POINT_new
 #define DIST_POINT_free                 wolfSSL_DIST_POINT_free
 #define DIST_POINTS_free                wolfSSL_DIST_POINTS_free
-#define CRL_DIST_POINTS_free            wolfSSL_sk_DIST_POINT_free
+#define CRL_DIST_POINTS_free(cdp)       wolfSSL_sk_DIST_POINT_pop_free((cdp), NULL)
 #define sk_DIST_POINT_push              wolfSSL_sk_DIST_POINT_push
 #define sk_DIST_POINT_value             wolfSSL_sk_DIST_POINT_value
 #define sk_DIST_POINT_num               wolfSSL_sk_DIST_POINT_num
@@ -1325,6 +1326,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define GENERAL_NAMES_free              wolfSSL_GENERAL_NAMES_free
 
 #define AUTHORITY_INFO_ACCESS_free      wolfSSL_AUTHORITY_INFO_ACCESS_free
+#define AUTHORITY_INFO_ACCESS_pop_free  wolfSSL_AUTHORITY_INFO_ACCESS_pop_free
 #define sk_ACCESS_DESCRIPTION_pop_free  wolfSSL_sk_ACCESS_DESCRIPTION_pop_free
 #define sk_ACCESS_DESCRIPTION_free      wolfSSL_sk_ACCESS_DESCRIPTION_free
 #define ACCESS_DESCRIPTION_free         wolfSSL_ACCESS_DESCRIPTION_free
