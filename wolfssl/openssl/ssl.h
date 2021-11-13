@@ -833,7 +833,10 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ASN1_STRING_set_default_mask_asc(...) 1
 #endif
 
+#define ASN1_OCTET_STRING               WOLFSSL_ASN1_STRING
+#define ASN1_OCTET_STRING_new           wolfSSL_ASN1_STRING_new
 #define ASN1_OCTET_STRING_free          wolfSSL_ASN1_STRING_free
+#define ASN1_OCTET_STRING_set           wolfSSL_ASN1_STRING_set
 
 #define ASN1_PRINTABLE_type(...)        V_ASN1_PRINTABLESTRING
 
@@ -841,7 +844,6 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define ASN1_IA5STRING                  WOLFSSL_ASN1_STRING
 
-#define ASN1_OCTET_STRING               WOLFSSL_ASN1_STRING
 #define ASN1_BOOLEAN                    WOLFSSL_ASN1_BOOLEAN
 
 #define SSL_load_client_CA_file         wolfSSL_load_client_CA_file
@@ -1109,10 +1111,6 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #include <wolfssl/openssl/pem.h>
 
 #define SSL_CTRL_CHAIN       88
-#define ERR_LIB_RSA          4
-#define ERR_LIB_EC           16
-#define ERR_LIB_SSL          20
-#define ERR_LIB_PKCS12       35
 #define SSL_R_SHORT_READ     10
 #define ERR_R_PEM_LIB        9
 #define SSL_CTRL_MODE        33
@@ -1412,10 +1410,17 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define PEM_R_BAD_DECRYPT               (-MIN_CODE_E + 4)
 #define ASN1_R_HEADER_TOO_LONG          (-MIN_CODE_E + 5)
 
+#define ERR_LIB_RSA             4
+#define ERR_LIB_EC              16
+#define ERR_LIB_SSL             20
+#define ERR_LIB_PKCS12          35
 #define ERR_LIB_PEM             9
 #define ERR_LIB_X509            10
 #define ERR_LIB_EVP             11
 #define ERR_LIB_ASN1            12
+#define ERR_LIB_DIGEST          13
+#define ERR_LIB_CIPHER          14
+#define ERR_LIB_USER            15
 
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
     defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_ALL) || \
