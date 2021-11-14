@@ -37856,14 +37856,14 @@ sp_256_cond_copy_4 PROC
         ret
 sp_256_cond_copy_4 ENDP
 _text ENDS
-; /* Multiply two Montogmery form numbers mod the modulus (prime).
+; /* Multiply two Montgomery form numbers mod the modulus (prime).
 ;  * (r = a * b mod m)
 ;  *
 ;  * r   Result of multiplication.
-;  * a   First number to multiply in Montogmery form.
-;  * b   Second number to multiply in Montogmery form.
+;  * a   First number to multiply in Montgomery form.
+;  * b   Second number to multiply in Montgomery form.
 ;  * m   Modulus (prime).
-;  * mp  Montogmery mulitplier.
+;  * mp  Montgomery mulitplier.
 ;  */
 _text SEGMENT READONLY PARA
 sp_256_mont_mul_4 PROC
@@ -38057,9 +38057,9 @@ _text ENDS
 ; /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
 ;  *
 ;  * r   Result of squaring.
-;  * a   Number to square in Montogmery form.
+;  * a   Number to square in Montgomery form.
 ;  * m   Modulus (prime).
-;  * mp  Montogmery mulitplier.
+;  * mp  Montgomery mulitplier.
 ;  */
 _text SEGMENT READONLY PARA
 sp_256_mont_sqr_4 PROC
@@ -38431,8 +38431,8 @@ _text ENDS
 ; /* Add two Montgomery form numbers (r = a + b % m).
 ;  *
 ;  * r   Result of addition.
-;  * a   First number to add in Montogmery form.
-;  * b   Second number to add in Montogmery form.
+;  * a   First number to add in Montgomery form.
+;  * b   Second number to add in Montgomery form.
 ;  * m   Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
@@ -38476,7 +38476,7 @@ _text ENDS
 ; /* Double a Montgomery form number (r = a + a % m).
 ;  *
 ;  * r   Result of doubling.
-;  * a   Number to double in Montogmery form.
+;  * a   Number to double in Montgomery form.
 ;  * m   Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
@@ -38520,7 +38520,7 @@ _text ENDS
 ; /* Triple a Montgomery form number (r = a + a + a % m).
 ;  *
 ;  * r   Result of Tripling.
-;  * a   Number to triple in Montogmery form.
+;  * a   Number to triple in Montgomery form.
 ;  * m   Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
@@ -38585,8 +38585,8 @@ _text ENDS
 ; /* Subtract two Montgomery form numbers (r = a - b % m).
 ;  *
 ;  * r   Result of subtration.
-;  * a   Number to subtract from in Montogmery form.
-;  * b   Number to subtract with in Montogmery form.
+;  * a   Number to subtract from in Montgomery form.
+;  * b   Number to subtract with in Montgomery form.
 ;  * m   Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
@@ -38770,14 +38770,14 @@ _text ENDS
 ENDIF
 ENDIF
 IFDEF HAVE_INTEL_AVX2
-; /* Multiply two Montogmery form numbers mod the modulus (prime).
+; /* Multiply two Montgomery form numbers mod the modulus (prime).
 ;  * (r = a * b mod m)
 ;  *
 ;  * r   Result of multiplication.
-;  * a   First number to multiply in Montogmery form.
-;  * b   Second number to multiply in Montogmery form.
+;  * a   First number to multiply in Montgomery form.
+;  * b   Second number to multiply in Montgomery form.
 ;  * m   Modulus (prime).
-;  * mp  Montogmery mulitplier.
+;  * mp  Montgomery mulitplier.
 ;  */
 _text SEGMENT READONLY PARA
 sp_256_mont_mul_avx2_4 PROC
@@ -38954,9 +38954,9 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
 ;  *
 ;  * r   Result of squaring.
-;  * a   Number to square in Montogmery form.
+;  * a   Number to square in Montgomery form.
 ;  * m   Modulus (prime).
-;  * mp  Montogmery mulitplier.
+;  * mp  Montgomery mulitplier.
 ;  */
 _text SEGMENT READONLY PARA
 sp_256_mont_sqr_avx2_4 PROC
@@ -39995,12 +39995,12 @@ div_256_word_asm_4 ENDP
 _text ENDS
 ENDIF
 IFDEF HAVE_INTEL_AVX2
-; /* Multiply two Montogmery form numbers mod the modulus (prime).
+; /* Multiply two Montgomery form numbers mod the modulus (prime).
 ;  * (r = a * b mod m)
 ;  *
 ;  * r   Result of multiplication.
-;  * a   First number to multiply in Montogmery form.
-;  * b   Second number to multiply in Montogmery form.
+;  * a   First number to multiply in Montgomery form.
+;  * b   Second number to multiply in Montgomery form.
 ;  */
 _text SEGMENT READONLY PARA
 sp_256_mont_mul_order_avx2_4 PROC
@@ -40223,7 +40223,7 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
 ;  *
 ;  * r   Result of squaring.
-;  * a   Number to square in Montogmery form.
+;  * a   Number to square in Montgomery form.
 ;  */
 _text SEGMENT READONLY PARA
 sp_256_mont_sqr_order_avx2_4 PROC
@@ -42789,7 +42789,7 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Square a and put result in r. (r = a * a)
 ;  *
 ;  * r   Result of squaring.
-;  * a   Number to square in Montogmery form.
+;  * a   Number to square in Montgomery form.
 ;  */
 _text SEGMENT READONLY PARA
 sp_384_sqr_avx2_6 PROC
@@ -50309,8 +50309,8 @@ _text ENDS
 ; /* Add two Montgomery form numbers (r = a + b % m).
 ;  *
 ;  * r   Result of addition.
-;  * a   First number to add in Montogmery form.
-;  * b   Second number to add in Montogmery form.
+;  * a   First number to add in Montgomery form.
+;  * b   Second number to add in Montgomery form.
 ;  * m   Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
@@ -50477,7 +50477,7 @@ _text ENDS
 ; /* Double a Montgomery form number (r = a + a % m).
 ;  *
 ;  * r   Result of addition.
-;  * a   Number to souble in Montogmery form.
+;  * a   Number to souble in Montgomery form.
 ;  * m   Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
@@ -50642,7 +50642,7 @@ _text ENDS
 ; /* Triple a Montgomery form number (r = a + a + a % m).
 ;  *
 ;  * r   Result of addition.
-;  * a   Number to souble in Montogmery form.
+;  * a   Number to souble in Montgomery form.
 ;  * m   Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
@@ -50957,8 +50957,8 @@ _text ENDS
 ; /* Subtract two Montgomery form numbers (r = a - b % m).
 ;  *
 ;  * r   Result of addition.
-;  * a   First number to add in Montogmery form.
-;  * b   Second number to add in Montogmery form.
+;  * a   First number to add in Montgomery form.
+;  * b   Second number to add in Montgomery form.
 ;  * m   Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
@@ -51669,8 +51669,8 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Add two Montgomery form numbers (r = a + b % m).
 ;  *
 ;  * r   Result of addition.
-;  * a   First number to add in Montogmery form.
-;  * b   Second number to add in Montogmery form.
+;  * a   First number to add in Montgomery form.
+;  * b   Second number to add in Montgomery form.
 ;  * m   Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
@@ -51821,7 +51821,7 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Double a Montgomery form number (r = a + a % m).
 ;  *
 ;  * r   Result of addition.
-;  * a   Number to souble in Montogmery form.
+;  * a   Number to souble in Montgomery form.
 ;  * m   Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
@@ -51970,7 +51970,7 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Triple a Montgomery form number (r = a + a + a % m).
 ;  *
 ;  * r   Result of addition.
-;  * a   Number to souble in Montogmery form.
+;  * a   Number to souble in Montgomery form.
 ;  * m   Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
@@ -52253,8 +52253,8 @@ IFDEF HAVE_INTEL_AVX2
 ; /* Subtract two Montgomery form numbers (r = a - b % m).
 ;  *
 ;  * r   Result of addition.
-;  * a   First number to add in Montogmery form.
-;  * b   Second number to add in Montogmery form.
+;  * a   First number to add in Montgomery form.
+;  * b   Second number to add in Montgomery form.
 ;  * m   Modulus (prime).
 ;  */
 _text SEGMENT READONLY PARA
