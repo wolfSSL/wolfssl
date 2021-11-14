@@ -655,14 +655,14 @@ SP_NOINLINE static void sp_2048_mul_17(sp_digit* r, const sp_digit* a,
     r[0] = (sp_digit)c;
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_2048_mont_mul_17(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -738,9 +738,9 @@ SP_NOINLINE static void sp_2048_sqr_17(sp_digit* r, const sp_digit* a)
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_2048_mont_sqr_17(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -1707,14 +1707,14 @@ static void sp_2048_mont_reduce_34(sp_digit* a, const sp_digit* m, sp_digit mp)
     sp_2048_norm_34(a);
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_2048_mont_mul_34(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -1726,9 +1726,9 @@ static void sp_2048_mont_mul_34(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_2048_mont_sqr_34(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -4527,14 +4527,14 @@ static void sp_2048_mont_reduce_18(sp_digit* a, const sp_digit* m, sp_digit mp)
     sp_2048_norm_18(a);
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_2048_mont_mul_18(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -4546,9 +4546,9 @@ static void sp_2048_mont_mul_18(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_2048_mont_sqr_18(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -5410,14 +5410,14 @@ static void sp_2048_mont_reduce_36(sp_digit* a, const sp_digit* m, sp_digit mp)
     sp_2048_norm_36(a);
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_2048_mont_mul_36(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -5429,9 +5429,9 @@ static void sp_2048_mont_mul_36(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_2048_mont_sqr_36(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -7821,14 +7821,14 @@ SP_NOINLINE static void sp_3072_mul_26(sp_digit* r, const sp_digit* a,
     r[0] = (sp_digit)c;
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_3072_mont_mul_26(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -7881,9 +7881,9 @@ SP_NOINLINE static void sp_3072_sqr_26(sp_digit* r, const sp_digit* a)
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_3072_mont_sqr_26(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -8768,14 +8768,14 @@ static void sp_3072_mont_reduce_52(sp_digit* a, const sp_digit* m, sp_digit mp)
     sp_3072_norm_52(a);
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_3072_mont_mul_52(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -8787,9 +8787,9 @@ static void sp_3072_mont_mul_52(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_3072_mont_sqr_52(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -11633,14 +11633,14 @@ static void sp_3072_mont_reduce_27(sp_digit* a, const sp_digit* m, sp_digit mp)
     sp_3072_norm_27(a);
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_3072_mont_mul_27(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -11652,9 +11652,9 @@ static void sp_3072_mont_mul_27(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_3072_mont_sqr_27(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -12528,14 +12528,14 @@ static void sp_3072_mont_reduce_54(sp_digit* a, const sp_digit* m, sp_digit mp)
     sp_3072_norm_54(a);
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_3072_mont_mul_54(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -12547,9 +12547,9 @@ static void sp_3072_mont_mul_54(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_3072_mont_sqr_54(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -14985,14 +14985,14 @@ SP_NOINLINE static void sp_4096_mul_35(sp_digit* r, const sp_digit* a,
     r[0] = (sp_digit)c;
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_4096_mont_mul_35(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -15045,9 +15045,9 @@ SP_NOINLINE static void sp_4096_sqr_35(sp_digit* r, const sp_digit* a)
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_4096_mont_sqr_35(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -15887,14 +15887,14 @@ static void sp_4096_mont_reduce_70(sp_digit* a, const sp_digit* m, sp_digit mp)
     sp_4096_norm_70(a);
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_4096_mont_mul_70(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -15906,9 +15906,9 @@ static void sp_4096_mont_mul_70(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_4096_mont_sqr_70(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -18759,14 +18759,14 @@ static void sp_4096_mont_reduce_39(sp_digit* a, const sp_digit* m, sp_digit mp)
     sp_4096_norm_39(a);
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_4096_mont_mul_39(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -18778,9 +18778,9 @@ static void sp_4096_mont_mul_39(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_4096_mont_sqr_39(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -19631,14 +19631,14 @@ static void sp_4096_mont_reduce_78(sp_digit* a, const sp_digit* m, sp_digit mp)
     sp_4096_norm_78(a);
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_4096_mont_mul_78(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -19650,9 +19650,9 @@ static void sp_4096_mont_mul_78(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_4096_mont_sqr_78(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -21458,12 +21458,12 @@ static const sp_digit p256_mod[5] = {
     0xfffffffffffffL,0x00fffffffffffL,0x0000000000000L,0x0001000000000L,
     0x0ffffffff0000L
 };
-/* The Montogmery normalizer for modulus of the curve P256. */
+/* The Montgomery normalizer for modulus of the curve P256. */
 static const sp_digit p256_norm_mod[5] = {
     0x0000000000001L,0xff00000000000L,0xfffffffffffffL,0xfffefffffffffL,
     0x000000000ffffL
 };
-/* The Montogmery multiplier for modulus of the curve P256. */
+/* The Montgomery multiplier for modulus of the curve P256. */
 static const sp_digit p256_mp_mod = 0x0000000000001;
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
                                             defined(HAVE_ECC_VERIFY)
@@ -21479,14 +21479,14 @@ static const sp_digit p256_order2[5] = {
     0x0ffffffff0000L
 };
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
-/* The Montogmery normalizer for order of the curve P256. */
+/* The Montgomery normalizer for order of the curve P256. */
 static const sp_digit p256_norm_order[5] = {
     0x6353d039cdaafL,0x5258e8617b0c4L,0x0000000431905L,0xffff000000000L,
     0x000000000ffffL
 };
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
-/* The Montogmery multiplier for order of the curve P256. */
+/* The Montgomery multiplier for order of the curve P256. */
 static const sp_digit p256_mp_order = 0x1c8aaee00bc4fL;
 #endif
 /* The base point of curve P256. */
@@ -22153,14 +22153,14 @@ static void sp_256_mont_reduce_5(sp_digit* a, const sp_digit* m, sp_digit mp)
     sp_256_norm_5(a);
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_256_mont_mul_5(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -22172,9 +22172,9 @@ static void sp_256_mont_mul_5(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_256_mont_sqr_5(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -22187,10 +22187,10 @@ static void sp_256_mont_sqr_5(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number a number of times. (r = a ^ n mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * n   Number of times to square.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_256_mont_sqr_n_5(sp_digit* r, const sp_digit* a, int n,
         const sp_digit* m, sp_digit mp)
@@ -22325,8 +22325,8 @@ static void sp_256_map_5(sp_point_256* r, const sp_point_256* p,
 /* Add two Montgomery form numbers (r = a + b % m).
  *
  * r   Result of addition.
- * a   First number to add in Montogmery form.
- * b   Second number to add in Montogmery form.
+ * a   First number to add in Montgomery form.
+ * b   Second number to add in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_256_mont_add_5(sp_digit* r, const sp_digit* a, const sp_digit* b,
@@ -22342,7 +22342,7 @@ static void sp_256_mont_add_5(sp_digit* r, const sp_digit* a, const sp_digit* b,
 /* Double a Montgomery form number (r = a + a % m).
  *
  * r   Result of doubling.
- * a   Number to double in Montogmery form.
+ * a   Number to double in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_256_mont_dbl_5(sp_digit* r, const sp_digit* a, const sp_digit* m)
@@ -22357,7 +22357,7 @@ static void sp_256_mont_dbl_5(sp_digit* r, const sp_digit* a, const sp_digit* m)
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
  * r   Result of Tripling.
- * a   Number to triple in Montogmery form.
+ * a   Number to triple in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_256_mont_tpl_5(sp_digit* r, const sp_digit* a, const sp_digit* m)
@@ -22403,8 +22403,8 @@ static void sp_256_cond_add_5(sp_digit* r, const sp_digit* a,
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
  * r   Result of subtration.
- * a   Number to subtract from in Montogmery form.
- * b   Number to subtract with in Montogmery form.
+ * a   Number to subtract from in Montgomery form.
+ * b   Number to subtract with in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_256_mont_sub_5(sp_digit* r, const sp_digit* a, const sp_digit* b,
@@ -22957,7 +22957,7 @@ static void sp_256_proj_point_add_5(sp_point_256* r,
     }
 }
 
-/* Multiply a number by Montogmery normalizer mod modulus (prime).
+/* Multiply a number by Montgomery normalizer mod modulus (prime).
  *
  * r  The resulting Montgomery form number.
  * a  The number to convert.
@@ -24404,7 +24404,7 @@ int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
  * km      Scalar to multiply by.
  * p       Point to multiply.
  * am      Point to add to scalar mulitply result.
- * inMont  Point to add is in montogmery form.
+ * inMont  Point to add is in montgomery form.
  * r       Resulting point.
  * map     Indicates whether to convert result to affine.
  * heap    Heap to use for allocation.
@@ -25862,7 +25862,7 @@ int sp_ecc_mulmod_base_256(const mp_int* km, ecc_point* r, int map, void* heap)
  *
  * km      Scalar to multiply by.
  * am      Point to add to scalar mulitply result.
- * inMont  Point to add is in montogmery form.
+ * inMont  Point to add is in montgomery form.
  * r       Resulting point.
  * map     Indicates whether to convert result to affine.
  * heap    Heap to use for allocation.
@@ -28053,12 +28053,12 @@ static const sp_digit p384_mod[7] = {
     0x000000ffffffffL,0x7ffe0000000000L,0x7ffffffffbffffL,0x7fffffffffffffL,
     0x7fffffffffffffL,0x7fffffffffffffL,0x3fffffffffffffL
 };
-/* The Montogmery normalizer for modulus of the curve P384. */
+/* The Montgomery normalizer for modulus of the curve P384. */
 static const sp_digit p384_norm_mod[7] = {
     0x7fffff00000001L,0x0001ffffffffffL,0x00000000040000L,0x00000000000000L,
     0x00000000000000L,0x00000000000000L,0x00000000000000L
 };
-/* The Montogmery multiplier for modulus of the curve P384. */
+/* The Montgomery multiplier for modulus of the curve P384. */
 static sp_digit p384_mp_mod = 0x0000100000001;
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
                                             defined(HAVE_ECC_VERIFY)
@@ -28074,14 +28074,14 @@ static const sp_digit p384_order2[7] = {
     0x7fffffffffffffL,0x7fffffffffffffL,0x3fffffffffffffL
 };
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
-/* The Montogmery normalizer for order of the curve P384. */
+/* The Montgomery normalizer for order of the curve P384. */
 static const sp_digit p384_norm_order[7] = {
     0x13e695333ad68dL,0x649b6e9eb10a26L,0x782f2348829f97L,0x00000001c4e593L,
     0x00000000000000L,0x00000000000000L,0x00000000000000L
 };
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
-/* The Montogmery multiplier for order of the curve P384. */
+/* The Montgomery multiplier for order of the curve P384. */
 static sp_digit p384_mp_order = 0x546089e88fdc45L;
 #endif
 /* The base point of curve P384. */
@@ -28806,14 +28806,14 @@ static void sp_384_mont_reduce_7(sp_digit* a, const sp_digit* m, sp_digit mp)
     sp_384_norm_7(a);
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_384_mont_mul_7(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -28825,9 +28825,9 @@ static void sp_384_mont_mul_7(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_384_mont_sqr_7(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -28840,10 +28840,10 @@ static void sp_384_mont_sqr_7(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number a number of times. (r = a ^ n mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * n   Number of times to square.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_384_mont_sqr_n_7(sp_digit* r, const sp_digit* a, int n,
         const sp_digit* m, sp_digit mp)
@@ -28994,8 +28994,8 @@ static void sp_384_map_7(sp_point_384* r, const sp_point_384* p,
 /* Add two Montgomery form numbers (r = a + b % m).
  *
  * r   Result of addition.
- * a   First number to add in Montogmery form.
- * b   Second number to add in Montogmery form.
+ * a   First number to add in Montgomery form.
+ * b   Second number to add in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_384_mont_add_7(sp_digit* r, const sp_digit* a, const sp_digit* b,
@@ -29011,7 +29011,7 @@ static void sp_384_mont_add_7(sp_digit* r, const sp_digit* a, const sp_digit* b,
 /* Double a Montgomery form number (r = a + a % m).
  *
  * r   Result of doubling.
- * a   Number to double in Montogmery form.
+ * a   Number to double in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_384_mont_dbl_7(sp_digit* r, const sp_digit* a, const sp_digit* m)
@@ -29026,7 +29026,7 @@ static void sp_384_mont_dbl_7(sp_digit* r, const sp_digit* a, const sp_digit* m)
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
  * r   Result of Tripling.
- * a   Number to triple in Montogmery form.
+ * a   Number to triple in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_384_mont_tpl_7(sp_digit* r, const sp_digit* a, const sp_digit* m)
@@ -29074,8 +29074,8 @@ static void sp_384_cond_add_7(sp_digit* r, const sp_digit* a,
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
  * r   Result of subtration.
- * a   Number to subtract from in Montogmery form.
- * b   Number to subtract with in Montogmery form.
+ * a   Number to subtract from in Montgomery form.
+ * b   Number to subtract with in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_384_mont_sub_7(sp_digit* r, const sp_digit* a, const sp_digit* b,
@@ -29631,7 +29631,7 @@ static void sp_384_proj_point_add_7(sp_point_384* r,
     }
 }
 
-/* Multiply a number by Montogmery normalizer mod modulus (prime).
+/* Multiply a number by Montgomery normalizer mod modulus (prime).
  *
  * r  The resulting Montgomery form number.
  * a  The number to convert.
@@ -31134,7 +31134,7 @@ int sp_ecc_mulmod_384(const mp_int* km, const ecc_point* gm, ecc_point* r,
  * km      Scalar to multiply by.
  * p       Point to multiply.
  * am      Point to add to scalar mulitply result.
- * inMont  Point to add is in montogmery form.
+ * inMont  Point to add is in montgomery form.
  * r       Resulting point.
  * map     Indicates whether to convert result to affine.
  * heap    Heap to use for allocation.
@@ -33102,7 +33102,7 @@ int sp_ecc_mulmod_base_384(const mp_int* km, ecc_point* r, int map, void* heap)
  *
  * km      Scalar to multiply by.
  * am      Point to add to scalar mulitply result.
- * inMont  Point to add is in montogmery form.
+ * inMont  Point to add is in montgomery form.
  * r       Resulting point.
  * map     Indicates whether to convert result to affine.
  * heap    Heap to use for allocation.
@@ -35694,7 +35694,7 @@ static const sp_digit p1024_mod[18] = {
     0x07e2fc0f1b22873L,0x19f00d177a05559L,0x0d20986fa6b8d62L,0x0caf482d819c339L,
     0x1da65c61198dad0L,0x04cbd5d8f852b1fL
 };
-/* The Montogmery normalizer for modulus of the curve P1024. */
+/* The Montgomery normalizer for modulus of the curve P1024. */
 static const sp_digit p1024_norm_mod[18] = {
     0x1927f850157a015L,0x11077a9c298bc4cL,0x1f71d9ea093dfceL,0x0152d1c1c006382L,
     0x03c3f655606b295L,0x1d6abeac1861d6fL,0x18c7925402d5f39L,0x0575daa7465352fL,
@@ -35702,7 +35702,7 @@ static const sp_digit p1024_norm_mod[18] = {
     0x181d03f0e4dd78cL,0x060ff2e885faaa6L,0x12df6790594729dL,0x1350b7d27e63cc6L,
     0x0259a39ee67252fL,0x03342a2707ad4e0L
 };
-/* The Montogmery multiplier for modulus of the curve P1024. */
+/* The Montgomery multiplier for modulus of the curve P1024. */
 static sp_digit p1024_mp_mod = 0x10420077c8f2f3d;
 #if defined(WOLFSSL_SP_SMALL) || defined(HAVE_ECC_CHECK_KEY)
 /* The order of the curve P1024. */
@@ -36205,7 +36205,7 @@ static int sp_1024_mod_18(sp_digit* r, const sp_digit* a, const sp_digit* m)
     return sp_1024_div_18(a, m, NULL, r);
 }
 
-/* Multiply a number by Montogmery normalizer mod modulus (prime).
+/* Multiply a number by Montgomery normalizer mod modulus (prime).
  *
  * r  The resulting Montgomery form number.
  * a  The number to convert.
@@ -36702,14 +36702,14 @@ static void sp_1024_mont_reduce_18(sp_digit* a, const sp_digit* m, sp_digit mp)
     sp_1024_norm_18(a);
 }
 
-/* Multiply two Montogmery form numbers mod the modulus (prime).
+/* Multiply two Montgomery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
  * r   Result of multiplication.
- * a   First number to multiply in Montogmery form.
- * b   Second number to multiply in Montogmery form.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_1024_mont_mul_18(sp_digit* r, const sp_digit* a,
         const sp_digit* b, const sp_digit* m, sp_digit mp)
@@ -36721,9 +36721,9 @@ static void sp_1024_mont_mul_18(sp_digit* r, const sp_digit* a,
 /* Square the Montgomery form number. (r = a * a mod m)
  *
  * r   Result of squaring.
- * a   Number to square in Montogmery form.
+ * a   Number to square in Montgomery form.
  * m   Modulus (prime).
- * mp  Montogmery mulitplier.
+ * mp  Montgomery mulitplier.
  */
 static void sp_1024_mont_sqr_18(sp_digit* r, const sp_digit* a,
         const sp_digit* m, sp_digit mp)
@@ -36836,8 +36836,8 @@ static void sp_1024_map_18(sp_point_1024* r, const sp_point_1024* p,
 /* Add two Montgomery form numbers (r = a + b % m).
  *
  * r   Result of addition.
- * a   First number to add in Montogmery form.
- * b   Second number to add in Montogmery form.
+ * a   First number to add in Montgomery form.
+ * b   Second number to add in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_1024_mont_add_18(sp_digit* r, const sp_digit* a, const sp_digit* b,
@@ -36853,7 +36853,7 @@ static void sp_1024_mont_add_18(sp_digit* r, const sp_digit* a, const sp_digit* 
 /* Double a Montgomery form number (r = a + a % m).
  *
  * r   Result of doubling.
- * a   Number to double in Montogmery form.
+ * a   Number to double in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_1024_mont_dbl_18(sp_digit* r, const sp_digit* a, const sp_digit* m)
@@ -36868,7 +36868,7 @@ static void sp_1024_mont_dbl_18(sp_digit* r, const sp_digit* a, const sp_digit* 
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
  * r   Result of Tripling.
- * a   Number to triple in Montogmery form.
+ * a   Number to triple in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_1024_mont_tpl_18(sp_digit* r, const sp_digit* a, const sp_digit* m)
@@ -36888,8 +36888,8 @@ static void sp_1024_mont_tpl_18(sp_digit* r, const sp_digit* a, const sp_digit* 
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
  * r   Result of subtration.
- * a   Number to subtract from in Montogmery form.
- * b   Number to subtract with in Montogmery form.
+ * a   Number to subtract from in Montgomery form.
+ * b   Number to subtract with in Montgomery form.
  * m   Modulus (prime).
  */
 static void sp_1024_mont_sub_18(sp_digit* r, const sp_digit* a, const sp_digit* b,
@@ -42154,7 +42154,7 @@ int sp_ecc_mulmod_base_1024(const mp_int* km, ecc_point* r, int map, void* heap)
  *
  * km      Scalar to multiply by.
  * am      Point to add to scalar mulitply result.
- * inMont  Point to add is in montogmery form.
+ * inMont  Point to add is in montgomery form.
  * r       Resulting point.
  * map     Indicates whether to convert result to affine.
  * heap    Heap to use for allocation.

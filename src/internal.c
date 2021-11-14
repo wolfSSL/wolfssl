@@ -329,7 +329,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
      * key-log-callback to pass the string for TLS1.3.
      * The user's key-logging callback has been set via
      * wolfSSL_CTX_set_keylog_callback function. The logging string format is:
-     * "<Lable> <hex-encoded client random> <hex-encoded secret>"
+     * "<Label> <hex-encoded client random> <hex-encoded secret>"
      *
      * parameter
      *  - ssl: WOLFSSL object
@@ -9648,7 +9648,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
     /* Does this cipher suite (first, second) have the requirement
        an ephemeral key exchange will still require the key for signing
-       the key exchange so ECHDE_RSA requires an rsa key thus rsa_kea */
+       the key exchange so ECDHE_RSA requires an rsa key thus rsa_kea */
     static int CipherRequires(byte first, byte second, int requirement)
     {
 
@@ -11537,7 +11537,7 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
             return MEMORY_E;
         }
 
-        /* set as FAILURE, if successfuly loading cert of CRL, this becomes */
+        /* set as FAILURE, if successfully loading cert of CRL, this becomes */
         /* WOLFSSL_SUCCESS                                                  */
         ret = WOLFSSL_FAILURE;
 
@@ -13650,7 +13650,7 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 #ifndef NO_WOLFSSL_CLIENT
         case certificate_status:
             if (ssl->msgsReceived.got_certificate_status) {
-                WOLFSSL_MSG("Duplicate CertificateSatatus received");
+                WOLFSSL_MSG("Duplicate CertificateStatus received");
                 return DUPLICATE_MSG_E;
             }
             ssl->msgsReceived.got_certificate_status = 1;
@@ -14348,7 +14348,7 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     #endif
         {
             /* for async this copy was already done, do not replace, since
-             * conents may have been changed for inline operations */
+             * contents may have been changed for inline operations */
             XMEMCPY(ssl->arrays->pendingMsg + ssl->arrays->pendingMsgOffset,
                     input + *inOutIdx, inputLength);
         }

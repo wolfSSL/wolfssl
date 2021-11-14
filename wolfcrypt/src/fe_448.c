@@ -341,7 +341,7 @@ void fe448_invert(word8* r, const word8* a)
 }
 
 /* Scalar multiply the point by a number. r = n.a
- * Uses Montogmery ladder and only requires the x-ordinate.
+ * Uses Montgomery ladder and only requires the x-ordinate.
  *
  * r  [in]  Field element to hold result.
  * n  [in]  Scalar as an array of bytes.
@@ -1111,7 +1111,7 @@ void fe448_invert(sword64* r, const sword64* a)
 }
 
 /* Scalar multiply the point by a number. r = n.a
- * Uses Montogmery ladder and only requires the x-ordinate.
+ * Uses Montgomery ladder and only requires the x-ordinate.
  *
  * r  [in]  Field element to hold result.
  * n  [in]  Scalar as an array of bytes.
@@ -2200,7 +2200,7 @@ void fe448_invert(sword32* r, const sword32* a)
 }
 
 /* Scalar multiply the point by a number. r = n.a
- * Uses Montogmery ladder and only requires the x-ordinate.
+ * Uses Montgomery ladder and only requires the x-ordinate.
  *
  * r  [in]  Field element to hold result.
  * n  [in]  Scalar as an array of bytes.

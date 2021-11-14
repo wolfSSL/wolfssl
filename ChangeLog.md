@@ -316,7 +316,7 @@ Release 4.8.0 of wolfSSL embedded TLS has bug fixes and new features including:
 * Added wolfSSL_CTX_get_TicketEncCtx getter function to return the ticket encryption ctx value
 * Added wc_AesKeyWrap_ex and wc_AesKeyUnWrap_ex APIs to accept an Aes object to use for the AES operations
 * Added implementation of AES-GCM streaming (--enable-aesgcm-stream)
-* Added deterministic generation of k with ECC following RFC6979 when the macro WOLFSL_ECDSA_DETERMINISTIC_K is defined and wc_ecc_set_deterministic function is called
+* Added deterministic generation of k with ECC following RFC6979 when the macro WOLFSSL_ECDSA_DETERMINISTIC_K is defined and wc_ecc_set_deterministic function is called
 * Implemented wc_DsaParamsDecode and wc_DsaKeyToParamsDer
 * Asynchronous support for TLS v1.3 TLSX ECC/DH key generation and key agreement
 * Added crypto callback support for Ed/Curve25519 and SHA2-512/384
@@ -2112,9 +2112,9 @@ More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
 
 - No filesystem build fixes for various configurations
 - Certificate generation now supports several extensions including KeyUsage,
-    SKID, AKID, and Ceritifcate Policies
+    SKID, AKID, and Certificate Policies
 - CRLs can be loaded from buffers as well as files now
-- SHA-512 Ceritifcate Signing generation
+- SHA-512 Certificate Signing generation
 - Fixes for sniffer reassembly processing
 
 See INSTALL file for build instructions.

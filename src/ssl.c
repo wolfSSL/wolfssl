@@ -9856,7 +9856,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
  * @param buf Output buffer. If this contains a pointer then it is free'd
  *            with the DYNAMIC_TYPE_X509_EXT hint.
  * @param len Output length
- * @return WOLFSSL_SUCCESS on sucess and WOLFSSL_FAILURE on error
+ * @return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on error
  */
 static int asn1_string_copy_to_buffer(WOLFSSL_ASN1_STRING* str, byte** buf,
         word32* len, void* heap) {
@@ -12743,7 +12743,7 @@ static WC_INLINE int RestoreCertRow(WOLFSSL_CERT_MANAGER* cm, byte* current,
         XMEMCPY(&signer->keyOID, current + idx, sizeof(signer->keyOID));
         idx += (int)sizeof(signer->keyOID);
 
-        /* pulicKey */
+        /* publicKey */
         if (start + minSz + signer->pubKeySize > end) {
             WOLFSSL_MSG("Would overread restore buffer");
             FreeSigner(signer, cm->heap);
@@ -13116,7 +13116,7 @@ static int wolfSSL_remove_ciphers(char* list, int sz, const char* toRemove)
  * @param onlytlsv13suites flag whether correcting w/ TLS13 suites
  *                         or w/o TLS13 suties
  * @param list   suites list that user wants to update
- * @return suites list on successs, otherwise NULL
+ * @return suites list on success, otherwise NULL
  */
 static char* buildEnabledCipherList(WOLFSSL_CTX* ctx, Suites* suites,
            int tls13Only, const char* list)
@@ -13276,7 +13276,7 @@ static int CheckcipherList(const char* list)
     }  while (next++); /* ++ needed to skip ':' */
 
     if (findTLSv13Suites == 0 && findbeforeSuites == 1) {
-        return 1;/* only before TLSv13 sutes */
+        return 1;/* only before TLSv13 suites */
     }
     else if (findTLSv13Suites == 1 && findbeforeSuites == 0) {
         return 2;/* only TLSv13 suties */
@@ -13374,7 +13374,7 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
         }
         else if (listattribute == 2) {
            /* list has only TLSv13 suites. Only update TLv13 suites
-            * simulate set_ciphersuites() comatibility layer API
+            * simulate set_ciphersuites() compatibility layer API
             */
             tls13Only = 0;
         }
@@ -13498,7 +13498,7 @@ int wolfSSL_export_keying_material(WOLFSSL *ssl,
     if (ssl->options.saveArrays == 0 || ssl->arrays == NULL) {
         WOLFSSL_MSG("To export keying material wolfSSL needs to keep handshake "
                     "data. Call wolfSSL_KeepArrays before attempting to "
-                    "export keyig material.");
+                    "export keyid material.");
         return WOLFSSL_FAILURE;
     }
 
@@ -44067,7 +44067,7 @@ err:
      * @param x509   Output
      * @param crl    Output
      * @param x_pkey Output
-     * @return WOLFSSL_SUCCESSS on success and WOLFSSL_FAILURE otherwise
+     * @return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE otherwise
      */
     static int wolfSSL_PEM_X509_X509_CRL_X509_PKEY_read_bio(
             WOLFSSL_BIO* bio, wc_pem_password_cb* cb, WOLFSSL_X509** x509,

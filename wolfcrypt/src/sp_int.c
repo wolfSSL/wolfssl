@@ -3089,7 +3089,7 @@ int sp_cmp_d(sp_int* a, sp_int_digit d)
 #endif
 
 #if defined(WOLFSSL_SP_ADD_D) || (defined(WOLFSSL_SP_INT_NEGATIVE) && \
-    defined(WOFLSSL_SP_SUB_D)) || defined(WOLFSSL_SP_READ_RADIX_10)
+    defined(WOLFSSL_SP_SUB_D)) || defined(WOLFSSL_SP_READ_RADIX_10)
 /* Add a one digit number to the multi-precision number.
  *
  * @param  [in]   a  SP integer be added to.
@@ -3136,7 +3136,7 @@ static int _sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
 
     return err;
 }
-#endif /* WOLFSSL_SP_ADD_D || (WOLFSSL_SP_INT_NEGATIVE && WOFLSSL_SP_SUB_D) ||
+#endif /* WOLFSSL_SP_ADD_D || (WOLFSSL_SP_INT_NEGATIVE && WOLFSSL_SP_SUB_D) ||
         * defined(WOLFSSL_SP_READ_RADIX_10) */
 
 #if (defined(WOLFSSL_SP_INT_NEGATIVE) && defined(WOLFSSL_SP_ADD_D)) || \
@@ -8053,7 +8053,7 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
  *
  * Modulus (m) must be a prime and greater than 2.
  *
- * @param  [in]   a   SP integer, Montogmery form, to find inverse of.
+ * @param  [in]   a   SP integer, Montgomery form, to find inverse of.
  * @param  [in]   m   SP integer this is the modulus.
  * @param  [out]  r   SP integer to hold result.
  * @param  [in]   mp  SP integer digit that is the bottom digit of inv(-m).
@@ -11886,7 +11886,7 @@ int sp_sqrmod(sp_int* a, sp_int* m, sp_int* r)
 #endif /* !WOLFSSL_RSA_VERIFY_ONLY */
 
 /**********************
- * Montogmery functions
+ * Montgomery functions
  **********************/
 
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \

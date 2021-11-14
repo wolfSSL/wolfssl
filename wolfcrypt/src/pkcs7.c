@@ -2808,7 +2808,7 @@ int wc_PKCS7_SetDetached(PKCS7* pkcs7, word16 flag)
 
 /* By default, SignedData bundles have the following signed attributes attached:
  *     contentType (1.2.840.113549.1.9.3)
- *     signgingTime (1.2.840.113549.1.9.5)
+ *     signingTime (1.2.840.113549.1.9.5)
  *     messageDigest (1.2.840.113549.1.9.4)
  *
  * Calling this API before wc_PKCS7_EncodeSignedData() will disable the
@@ -4058,7 +4058,7 @@ static int wc_PKCS7_SetPublicKeyOID(PKCS7* pkcs7, int sigOID)
  ** Sequence
  ****** Object ID
  ****** Set
- ********** {PritnableString, UTCTime, OCTET STRING ...}
+ ********** {PrintableString, UTCTime, OCTET STRING ...}
  *
  * pkcs7  the PKCS7 structure to put the parsed attributes into
  * in     buffer holding all attributes
@@ -6220,7 +6220,7 @@ int wc_PKCS7_AddRecipient_KARI(PKCS7* pkcs7, const byte* cert, word32 certSz,
                                   kari->senderKeyExportSz, origPubKeySeq);
     totalSz += origPubKeySeqSz;
 
-    /* outer OriginatorIdentiferOrKey IMPLICIT [0] */
+    /* outer OriginatorIdentifierOrKey IMPLICIT [0] */
     origIdOrKeySeqSz = SetImplicit(ASN_SEQUENCE, 0,
                                    origPubKeySeqSz + origAlgIdSz +
                                    origPubKeyStrSz + kari->senderKeyExportSz,
@@ -8514,7 +8514,7 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
                  *  issuerAndSerialNumber IssuerAndSerialNumber,
                  *  subjectKeyIdentifier [0] SubjectKeyIdentifier }
                  *
-                 * The choice of subjectKeyIdentifer (where version was 2) is
+                 * The choice of subjectKeyIdentifier (where version was 2) is
                  * context specific with tag number 0 within the class.
                  */
 
@@ -9045,7 +9045,7 @@ static int wc_PKCS7_KariGetRecipientEncryptedKeys(WC_PKCS7_KARI* kari,
         return ASN_PARSE_E;
 
     /* KeyAgreeRecipientIdentifier is CHOICE of IssuerAndSerialNumber
-     * or [0] IMMPLICIT RecipientKeyIdentifier */
+     * or [0] IMPLICIT RecipientKeyIdentifier */
     localIdx = *idx;
     if (GetASNTag(pkiMsg, &localIdx, &tag, pkiMsgSz) < 0)
         return ASN_PARSE_E;

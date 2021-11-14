@@ -472,7 +472,7 @@ int wc_MakeEccsiKey(EccsiKey* key, WC_RNG* rng)
  * Encode a point into a buffer.
  *
  * X and y ordinate of point concatenated. Each number is zero padded tosize.
- * Descriptor byte (0x04) is prepeneded when not raw.
+ * Descriptor byte (0x04) is prepended when not raw.
  *
  * @param  [in]      point    ECC point to encode.
  * @param  [in]      size     Size of prime in bytes - maximum ordinate length.
@@ -810,7 +810,7 @@ int wc_ImportEccsiPrivateKey(EccsiKey* key, const byte* data, word32 sz)
  *
  * X and y ordinate of public key concatenated. Each number is zero padded to
  * key size.
- * Descriptor byte (0x04) is prepeneded when not raw.
+ * Descriptor byte (0x04) is prepended when not raw.
  *
  * @param  [in]      key      ECCSI key.
  * @param  [out]     data     Buffer to hold the encoded public key.
@@ -1108,7 +1108,7 @@ int wc_DecodeEccsiSsk(const EccsiKey* key, const byte* data, word32 sz,
  *
  * X and y ordinate of public key concatenated. Each number is zero padded to
  * key size.
- * Descriptor byte (0x04) is prepeneded when not raw.
+ * Descriptor byte (0x04) is prepended when not raw.
  *
  * @param  [in]      key   ECCSI key.
  * @param  [in]      pvt   Public Validation Token (PVT) as an ECC point.
@@ -1198,7 +1198,7 @@ int wc_DecodeEccsiPair(const EccsiKey* key, const byte* data, word32 sz,
  *
  * X and y ordinate of public key concatenated. Each number is zero padded to
  * key size.
- * Descriptor byte (0x04) is prepeneded when not raw.
+ * Descriptor byte (0x04) is prepended when not raw.
  *
  * @param  [in]   key   ECCSI key.
  * @param  [in]   data  Buffer holding PVT data.
@@ -1234,7 +1234,7 @@ int wc_DecodeEccsiPvt(const EccsiKey* key, const byte* data, word32 sz,
  *
  * X and y ordinate of public key concatenated. Each number is zero padded to
  * key size.
- * Descriptor byte (0x04) is prepeneded when not raw.
+ * Descriptor byte (0x04) is prepended when not raw.
  *
  * @param  [in]   key   ECCSI key.
  * @param  [in]   sig   Buffer holding signature data.
@@ -1271,7 +1271,7 @@ int wc_DecodeEccsiPvtFromSig(const EccsiKey* key, const byte* sig, word32 sz,
  *
  * X and y ordinate of public key concatenated. Each number is zero padded to
  * key size.
- * Descriptor byte (0x04) is prepeneded when not raw.
+ * Descriptor byte (0x04) is prepended when not raw.
  *
  * @param  [in]  key      ECCSI key.
  * @param  [in]  data     Encoded public key as an array of bytes.
@@ -2079,7 +2079,7 @@ static int eccsi_calc_y(EccsiKey* key, ecc_point* pvt, mp_digit mp,
 
     err = mp_read_unsigned_bin(hs, key->idHash, key->idHashSz);
 #ifndef WOLFSSL_HAVE_SP_ECC
-    /* Need KPAK in montogmery form. */
+    /* Need KPAK in montgomery form. */
     if (err == 0) {
         err = eccsi_kpak_to_mont(key);
     }
