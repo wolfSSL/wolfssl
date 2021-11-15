@@ -16209,11 +16209,16 @@ exit:
      * X.509: RFC 5280, 4.2.1.4 - Certificate Policies.
      */
     static const ASNItem policyInfoASN[] = {
-    /*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                    /* policyIdentifier */
-    /*  1 */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-                    /* policyQualifiers */
-    /*  2 */        { 1, ASN_SEQUENCE, 1, 0, 1 },
+    /* policyInfoASN_IDX_SEQ   */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                      /* policyIdentifier */
+    /* policyInfoASN_IDX_ID    */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
+                                      /* policyQualifiers */
+    /* policyInfoASN_IDX_QUALI */     { 1, ASN_SEQUENCE, 1, 0, 1 },
+    };
+    enum {
+        policyInfoASN_IDX_SEQ = 0,
+        policyInfoASN_IDX_ID,
+        policyInfoASN_IDX_QUALI,
     };
 
     /* Number of items in ASN.1 template for PolicyInformation. */
@@ -16369,12 +16374,12 @@ exit:
 
             /* Clear dynamic data and check OID is a cert policy type. */
             XMEMSET(dataASN, 0, sizeof(dataASN));
-            GetASN_OID(&dataASN[1], oidCertPolicyType);
+            GetASN_OID(&dataASN[policyInfoASN_IDX_ID], oidCertPolicyType);
             ret = GetASN_Items(policyInfoASN, dataASN, policyInfoASN_Length, 1,
                                input, &idx, sz);
             if (ret == 0) {
                 /* Get the OID. */
-                GetASN_OIDData(&dataASN[1], &data, &length);
+                GetASN_OIDData(&dataASN[policyInfoASN_IDX_ID], &data, &length);
                 if (length == 0) {
                     ret = ASN_PARSE_E;
                 }
@@ -22174,12 +22179,12 @@ static int SetCertificatePolicies(byte *output,
 
         oidSz = sizeof(oid);
         XMEMSET(oid, 0, oidSz);
-        dataASN[2].noOut = 1;
+        dataASN[policyInfoASN_IDX_QUALI].noOut = 1;
 
         ret = EncodePolicyOID(oid, &oidSz, input[i], heap);
         if (ret == 0) {
             XMEMSET(dataASN, 0, sizeof(dataASN));
-            SetASN_Buffer(&dataASN[1], oid, oidSz);
+            SetASN_Buffer(&dataASN[policyInfoASN_IDX_ID], oid, oidSz);
             ret = SizeASN_Items(policyInfoASN, dataASN, policyInfoASN_Length,
                                 &piSz);
         }
