@@ -16699,8 +16699,12 @@ static int DecodeExtensionType(const byte* input, int length, word32 oid,
  * X.509: RFC 5280, 4.1 - Basic Certificate Fields.
  */
 static const ASNItem certExtHdrASN[] = {
-/*  0 */    { 0, ASN_CONTEXT_SPECIFIC | 3, 1, 1, 0 },
-/*  1 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* certExtHdrASN_IDX_EXTTAG */ { 0, ASN_CONTEXT_SPECIFIC | 3, 1, 1, 0 },
+/* certExtHdrASN_IDX_EXTSEQ */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+};
+enum {
+    certExtHdrASN_IDX_EXTTAG = 0,
+    certExtHdrASN_IDX_EXTSEQ,
 };
 
 /* Number of itesm in ASN.1 template for extensions. */
@@ -16842,7 +16846,7 @@ end:
 
 #ifdef WOLFSSL_CERT_REQ
     if (cert->isCSR) {
-        offset = 1;
+        offset = certExtHdrASN_IDX_EXTSEQ;
     }
 #endif
     if (ret == 0) {
