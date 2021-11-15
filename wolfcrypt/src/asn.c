@@ -16714,13 +16714,19 @@ enum {
  * X.509: RFC 5280, 4.1 - Basic Certificate Fields.
  */
 static const ASNItem certExtASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* Extension object id */
-/*  1 */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-                /* critical - when true, must be parseable. */
-/*  2 */        { 1, ASN_BOOLEAN, 0, 0, 1 },
-                /* Data for extension - leave index at start of data. */
-/*  3 */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
+/* certExtASN_IDX_SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                              /* Extension object id */
+/* certExtASN_IDX_OID  */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
+                              /* critical - when true, must be parseable. */
+/* certExtASN_IDX_CRIT */     { 1, ASN_BOOLEAN, 0, 0, 1 },
+                              /* Data for extension - leave index at start of data. */
+/* certExtASN_IDX_VAL  */     { 1, ASN_OCTET_STRING, 0, 1, 0 },
+};
+enum {
+    certExtASN_IDX_SEQ = 0,
+    certExtASN_IDX_OID,
+    certExtASN_IDX_CRIT,
+    certExtASN_IDX_VAL,
 };
 
 /* Number of items in ASN.1 template for Extension. */
@@ -16863,15 +16869,15 @@ end:
         /* Clear dynamic data. */
         XMEMSET(dataASN, 0, sizeof(*dataASN) * certExtASN_Length);
         /* Ensure OID is an extention type. */
-        GetASN_OID(&dataASN[1], oidCertExtType);
+        GetASN_OID(&dataASN[certExtASN_IDX_OID], oidCertExtType);
         /* Set criticality variable. */
-        GetASN_Int8Bit(&dataASN[2], &critical);
+        GetASN_Int8Bit(&dataASN[certExtASN_IDX_CRIT], &critical);
         /* Parse extension wrapper. */
         ret = GetASN_Items(certExtASN, dataASN, certExtASN_Length, 0, input,
                            &idx, sz);
         if (ret == 0) {
-            word32 oid = dataASN[1].data.oid.sum;
-            int length = dataASN[3].length;
+            word32 oid = dataASN[certExtASN_IDX_OID].data.oid.sum;
+            int length = dataASN[certExtASN_IDX_VAL].length;
 
             /* Decode the extension by type. */
             ret = DecodeExtensionType(input + idx, length, oid, critical, cert);
@@ -17669,20 +17675,20 @@ static int GetAKIHash(const byte* input, word32 maxIdx, byte* hash, int* set,
     while ((ret == 0) && (idx < extEndIdx)) {
         /* Clear dynamic data and check for certificate extension type OIDs. */
         XMEMSET(dataASN, 0, sizeof(*dataASN) * certExtASN_Length);
-        GetASN_OID(&dataASN[1], oidCertExtType);
+        GetASN_OID(&dataASN[certExtASN_IDX_OID], oidCertExtType);
         /* Set criticality variable. */
-        GetASN_Int8Bit(&dataASN[2], &critical);
+        GetASN_Int8Bit(&dataASN[certExtASN_IDX_CRIT], &critical);
         /* Parse an extension. */
         ret = GetASN_Items(certExtASN, dataASN, certExtASN_Length, 0, input,
                 &idx, extEndIdx);
         if (ret == 0) {
             /* Get reference to extension data and move index on past this
              * extension. */
-            GetASN_GetRef(&dataASN[3], &extData, &extDataSz);
+            GetASN_GetRef(&dataASN[certExtASN_IDX_VAL], &extData, &extDataSz);
             idx += extDataSz;
 
             /* Check whether we have the AKI extension. */
-            if (dataASN[1].data.oid.sum == AUTH_KEY_OID) {
+            if (dataASN[certExtASN_IDX_OID].data.oid.sum == AUTH_KEY_OID) {
                 /* Clear dynamic data. */
                 XMEMSET(dataASN, 0, sizeof(*dataASN) * authKeyIdASN_Length);
                 /* Start parsing extension data from the start. */
@@ -29221,12 +29227,13 @@ static int DecodeOcspRespExtensions(byte* source, word32* ioIndex,
 
     WOLFSSL_ENTER("DecodeOcspRespExtensions");
 
-    ALLOC_ASNGETDATA(dataASN, certExtASN_Length, ret, resp->heap);
+    CALLOC_ASNGETDATA(dataASN, certExtASN_Length, ret, resp->heap);
 
-    /* Check for header and move past. */
-    XMEMSET(dataASN, 0, sizeof(*dataASN) * respExtHdrASN_Length);
-    ret = GetASN_Items(respExtHdrASN, dataASN, respExtHdrASN_Length, 0,
-        source, &idx, sz);
+    if (ret == 0) {
+        /* Check for header and move past. */
+        ret = GetASN_Items(respExtHdrASN, dataASN, respExtHdrASN_Length, 0,
+            source, &idx, sz);
+    }
     if (ret == 0) {
         /* Keep end extensions index for total length check. */
         maxIdx = idx + dataASN[1].length;
@@ -29236,14 +29243,14 @@ static int DecodeOcspRespExtensions(byte* source, word32* ioIndex,
     while ((ret == 0) && (idx < maxIdx)) {
         /* Clear dynamic data, set OID type to expect. */
         XMEMSET(dataASN, 0, sizeof(*dataASN) * certExtASN_Length);
-        GetASN_OID(&dataASN[1], oidOcspType);
+        GetASN_OID(&dataASN[certExtASN_IDX_OID], oidOcspType);
         /* TODO: check criticality. */
         /* Decode OCSP response extension. */
         ret = GetASN_Items(certExtASN, dataASN, certExtASN_Length, 0,
                            source, &idx, sz);
         if (ret == 0) {
-            word32 oid = dataASN[1].data.oid.sum;
-            int length = dataASN[3].length;
+            word32 oid = dataASN[certExtASN_IDX_OID].data.oid.sum;
+            int length = dataASN[certExtASN_IDX_VAL].length;
 
             if (oid == OCSP_NONCE_OID) {
                 /* Extract nonce data. */
@@ -31015,17 +31022,17 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
         /* Clear dynamic data. */
         XMEMSET(dataASN, 0, sizeof(*dataASN) * certExtASN_Length);
         /* Ensure OID is an extention type. */
-        GetASN_OID(&dataASN[1], oidCertExtType);
+        GetASN_OID(&dataASN[certExtASN_IDX_OID], oidCertExtType);
         /* Set criticality variable. */
-        dataASN[2].data.u8 = &critical;
+        GetASN_Int8Bit(&dataASN[certExtASN_IDX_CRIT], &critical);
         /* Parse extension wrapper. */
         ret = GetASN_Items(certExtASN, dataASN, certExtASN_Length, 0, buf, &idx,
                 maxIdx);
         if (ret == 0) {
             /* OID in extension. */
-            word32 oid = dataASN[1].data.oid.sum;
+            word32 oid = dataASN[certExtASN_IDX_OID].data.oid.sum;
             /* Length of extension data. */
-            int length = dataASN[3].length;
+            int length = dataASN[certExtASN_IDX_VAL].length;
 
             if (oid == AUTH_KEY_OID) {
             #ifndef NO_SKID
