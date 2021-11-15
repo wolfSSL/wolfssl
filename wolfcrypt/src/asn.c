@@ -15649,7 +15649,10 @@ static int DecodeKeyUsage(const byte* input, int sz, DecodedCert* cert)
  * X.509: RFC 5280, 4.2.1.12 - Extended Key Usage.
  */
 static const ASNItem keyPurposeIdASN[] = {
-/*  0 */    { 0, ASN_OBJECT_ID, 0, 0, 0 },
+/* keyPurposeIdASN_IDX_OID */ { 0, ASN_OBJECT_ID, 0, 0, 0 },
+};
+enum {
+    keyPurposeIdASN_IDX_OID = 0,
 };
 
 /* Number of items in ASN.1 template for KeyPurposeId. */
@@ -15753,7 +15756,7 @@ static int DecodeExtKeyUsage(const byte* input, int sz, DecodedCert* cert)
 
         /* Clear dynamic data items and set OID type expected. */
         XMEMSET(dataASN, 0, sizeof(dataASN));
-        GetASN_OID(&dataASN[0], oidCertKeyUseType);
+        GetASN_OID(&dataASN[keyPurposeIdASN_IDX_OID], oidCertKeyUseType);
         /* Decode KeyPurposeId. */
         ret = GetASN_Items(keyPurposeIdASN, dataASN, keyPurposeIdASN_Length, 0,
                            input, &idx, sz);
@@ -15763,7 +15766,7 @@ static int DecodeExtKeyUsage(const byte* input, int sz, DecodedCert* cert)
         }
         else if (ret == 0) {
             /* Store the bit for the OID. */
-            switch (dataASN[0].data.oid.sum) {
+            switch (dataASN[keyPurposeIdASN_IDX_OID].data.oid.sum) {
                 case EKU_ANY_OID:
                     cert->extExtKeyUsage |= EXTKEYUSE_ANY;
                     break;
