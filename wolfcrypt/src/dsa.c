@@ -997,12 +997,10 @@ int wc_DsaVerify(const byte* digest, const byte* sig, DsaKey* key, int* answer)
     int    ret = 0;
     int    qSz;
 
-    do {
-        if (digest == NULL || sig == NULL || key == NULL || answer == NULL) {
-            ret = BAD_FUNC_ARG;
-            break;
-        }
+    if (digest == NULL || sig == NULL || key == NULL || answer == NULL)
+        return BAD_FUNC_ARG;
 
+    do {
 #ifdef WOLFSSL_SMALL_STACK
         w = (mp_int *)XMALLOC(sizeof *w, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         u1 = (mp_int *)XMALLOC(sizeof *u1, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
