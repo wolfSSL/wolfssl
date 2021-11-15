@@ -2882,7 +2882,7 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
             ret = MEMORY_E;
 #endif
 
-        if (mp_init(c) != MP_OKAY)
+        if (ret == 0 && mp_init(c) != MP_OKAY)
             ret = MP_INIT_E;
         if (ret == 0) {
             if (mp_read_unsigned_bin(c, in, inLen) != 0)
@@ -2906,7 +2906,8 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
         mp_clear(c);
 
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(c, key->heap, DYNAMIC_TYPE_RSA);
+        if (c != NULL)
+            XFREE(c, key->heap, DYNAMIC_TYPE_RSA);
 #endif
 
         if (ret != 0) {
