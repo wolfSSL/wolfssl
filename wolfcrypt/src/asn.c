@@ -15828,13 +15828,19 @@ static int DecodeNsCertType(const byte* input, int sz, DecodedCert* cert)
  * X.509: RFC 5280, 4.2.1.10 - Name Constraints.
  */
 static const ASNItem subTreeASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* base     GeneralName */
-/*  1 */        { 1, ASN_CONTEXT_SPECIFIC | 0, 0, 0, 0 },
-                /* minimum  BaseDistance DEFAULT 0*/
-/*  2 */        { 1, ASN_CONTEXT_SPECIFIC | 0, 0, 0, 1 },
-                /* maximum  BaseDistance OPTIONAL  */
-/*  3 */        { 1, ASN_CONTEXT_SPECIFIC | 1, 0, 0, 1 },
+/* subTreeASN_IDX_SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                              /* base     GeneralName */
+/* subTreeASN_IDX_BASE */     { 1, ASN_CONTEXT_SPECIFIC | 0, 0, 0, 0 },
+                              /* minimum  BaseDistance DEFAULT 0*/
+/* subTreeASN_IDX_MIN  */     { 1, ASN_CONTEXT_SPECIFIC | ASN_SUBTREE_MIN, 0, 0, 1 },
+                              /* maximum  BaseDistance OPTIONAL  */
+/* subTreeASN_IDX_MAX  */     { 1, ASN_CONTEXT_SPECIFIC | ASN_SUBTREE_MAX, 0, 0, 1 },
+};
+enum {
+    subTreeASN_IDX_SEQ = 0,
+    subTreeASN_IDX_BASE,
+    subTreeASN_IDX_MIN,
+    subTreeASN_IDX_MAX,
 };
 
 /* Number of items in ASN.1 template for GeneralSubtree. */
@@ -16006,14 +16012,14 @@ static int DecodeSubtree(const byte* input, int sz, Base_entry** head,
          * store minimum and maximum.
          */
         XMEMSET(dataASN, 0, sizeof(*dataASN) * subTreeASN_Length);
-        GetASN_Choice(&dataASN[1], generalNameChoice);
-        GetASN_Int8Bit(&dataASN[2], &minVal);
-        GetASN_Int8Bit(&dataASN[3], &maxVal);
+        GetASN_Choice(&dataASN[subTreeASN_IDX_BASE], generalNameChoice);
+        GetASN_Int8Bit(&dataASN[subTreeASN_IDX_MIN], &minVal);
+        GetASN_Int8Bit(&dataASN[subTreeASN_IDX_MAX], &maxVal);
         /* Parse GeneralSubtree. */
         ret = GetASN_Items(subTreeASN, dataASN, subTreeASN_Length, 0, input,
                            &idx, sz);
         if (ret == 0) {
-            byte t = dataASN[1].tag;
+            byte t = dataASN[subTreeASN_IDX_BASE].tag;
 
             /* Check GeneralName tag is one of the types we can handle. */
             if (t == (ASN_CONTEXT_SPECIFIC | ASN_DNS_TYPE) ||
@@ -16021,8 +16027,8 @@ static int DecodeSubtree(const byte* input, int sz, Base_entry** head,
                 t == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_DIR_TYPE)) {
                 /* Parse the general name and store a new entry. */
                 ret = DecodeSubtreeGeneralName(input +
-                    GetASNItem_DataIdx(dataASN[1], input),
-                    dataASN[1].length, t, head, heap);
+                    GetASNItem_DataIdx(dataASN[subTreeASN_IDX_BASE], input),
+                    dataASN[subTreeASN_IDX_BASE].length, t, head, heap);
             }
             /* Skip entry. */
         }

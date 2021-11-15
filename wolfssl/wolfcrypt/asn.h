@@ -136,6 +136,10 @@ enum ASN_Tags {
     ASN_AUTHKEYID_KEYID   = 0x00,
     ASN_AUTHKEYID_ISSUER  = 0x01,
     ASN_AUTHKEYID_SERIAL  = 0x02,
+
+    /* GeneralSubtree fields */
+    ASN_SUBTREE_MIN       = 0x00,
+    ASN_SUBTREE_MAX       = 0x01,
 };
 
 #define ASN_UTC_TIME_SIZE 14
