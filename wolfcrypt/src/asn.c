@@ -16908,66 +16908,96 @@ end:
  */
 static const ASNItem x509CertASN[] = {
         /* Certificate ::= SEQUENCE */
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-        /* tbsCertificate       TBSCertificate */
-        /* TBSCertificate ::= SEQUENCE */
-/*  1 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-        /* version         [0]  EXPLICT Version DEFAULT v1 */
-/*  2 */            { 2, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
-        /* Version ::= INTEGER { v1(0), v2(1), v3(2) */
-/*  3 */                { 3, ASN_INTEGER, 0, 0, 0 },
-        /* serialNumber         CertificateSerialNumber */
-        /* CetificateSerialNumber ::= INTEGER */
-/*  4 */            { 2, ASN_INTEGER, 0, 0, 0 },
-        /* signature            AlgorithmIdentifier */
-        /* AlgorithmIdentifier ::= SEQUENCE */
-/*  5 */            { 2, ASN_SEQUENCE, 1, 1, 0 },
-        /* Algorithm    OBJECT IDENTIFIER */
-/*  6 */                { 3, ASN_OBJECT_ID, 0, 0, 0 },
-        /* parameters   ANY defined by algorithm OPTIONAL */
-/*  7 */                { 3, ASN_TAG_NULL, 0, 0, 1 },
-        /* issuer               Name */
-/*  8 */            { 2, ASN_SEQUENCE, 1, 0, 0 },
-        /* validity             Validity */
-        /* Validity ::= SEQUENCE */
-/*  9 */            { 2, ASN_SEQUENCE, 1, 1, 0 },
-        /* notBefore   Time */
-        /* Time :: CHOICE { UTCTime, GeneralizedTime } */
-/* 10 */                { 3, ASN_UTC_TIME, 0, 0, 2 },
-/* 11 */                { 3, ASN_GENERALIZED_TIME, 0, 0, 2 },
-        /* notAfter   Time */
-        /* Time :: CHOICE { UTCTime, GeneralizedTime } */
-/* 12 */                { 3, ASN_UTC_TIME, 0, 0, 3 },
-/* 13 */                { 3, ASN_GENERALIZED_TIME, 0, 0, 3 },
-        /* subject              Name */
-/* 14 */            { 2, ASN_SEQUENCE, 1, 0, 0 },
-        /* subjectPublicKeyInfo SubjectPublicKeyInfo */
-/* 15 */            { 2, ASN_SEQUENCE, 1, 1, 0 },
-        /* algorithm          AlgorithmIdentifier */
-        /* AlgorithmIdentifier ::= SEQUENCE */
-/* 16 */                { 3, ASN_SEQUENCE, 1, 1, 0 },
-        /* Algorithm    OBJECT IDENTIFIER */
-/* 17 */                    { 4, ASN_OBJECT_ID, 0, 0, 0 },
-        /* parameters   ANY defined by algorithm OPTIONAL */
-/* 18 */                    { 4, ASN_TAG_NULL, 0, 0, 1 },
-/* 19 */                    { 4, ASN_OBJECT_ID, 0, 0, 1 },
-        /* subjectPublicKey   BIT STRING */
-/* 20 */                { 3, ASN_BIT_STRING, 0, 0, 0 },
-        /* issuerUniqueID       UniqueIdentfier OPTIONAL */
-/* 21 */            { 2, ASN_CONTEXT_SPECIFIC | 1, 0, 0, 1 },
-        /* subjectUniqueID      UniqueIdentfier OPTIONAL */
-/* 22 */            { 2, ASN_CONTEXT_SPECIFIC | 2, 0, 0, 1 },
-        /* extensions           Extensions OPTIONAL */
-/* 23 */            { 2, ASN_CONTEXT_SPECIFIC | 3, 1, 0, 1 },
-        /* signatureAlgorithm   AlgorithmIdentifier */
-        /* AlgorithmIdentifier ::= SEQUENCE */
-/* 24 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-        /* Algorithm    OBJECT IDENTIFIER */
-/* 25 */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
-        /* parameters   ANY defined by algorithm OPTIONAL */
-/* 26 */            { 2, ASN_TAG_NULL, 0, 0, 1 },
-        /* signature            BIT STRING */
-/* 27 */        { 1, ASN_BIT_STRING, 0, 0, 0 },
+/* x509CertASN_IDX_SEQ                           */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                                   /* tbsCertificate       TBSCertificate */
+                                                   /* TBSCertificate ::= SEQUENCE */
+/* x509CertASN_IDX_TBS_SEQ                       */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+                                                   /* version         [0]  EXPLICT Version DEFAULT v1 */
+/* x509CertASN_IDX_TBS_VER                       */            { 2, ASN_CONTEXT_SPECIFIC | ASN_X509_CERT_VERSION, 1, 1, 1 },
+                                                   /* Version ::= INTEGER { v1(0), v2(1), v3(2) */
+/* x509CertASN_IDX_TBS_VER_INT                   */                { 3, ASN_INTEGER, 0, 0, 0 },
+                                                   /* serialNumber         CertificateSerialNumber */
+                                                   /* CetificateSerialNumber ::= INTEGER */
+/* x509CertASN_IDX_TBS_SERIAL                    */            { 2, ASN_INTEGER, 0, 0, 0 },
+                                                   /* signature            AlgorithmIdentifier */
+                                                   /* AlgorithmIdentifier ::= SEQUENCE */
+/* x509CertASN_IDX_TBS_ALGOID_SEQ                */            { 2, ASN_SEQUENCE, 1, 1, 0 },
+                                                   /* Algorithm    OBJECT IDENTIFIER */
+/* x509CertASN_IDX_TBS_ALGOID_OID                */                { 3, ASN_OBJECT_ID, 0, 0, 0 },
+                                                   /* parameters   ANY defined by algorithm OPTIONAL */
+/* x509CertASN_IDX_TBS_ALGOID_PARAMS             */                { 3, ASN_TAG_NULL, 0, 0, 1 },
+                                                   /* issuer               Name */
+/* x509CertASN_IDX_TBS_ISSUER_SEQ                */            { 2, ASN_SEQUENCE, 1, 0, 0 },
+                                                   /* validity             Validity */
+                                                   /* Validity ::= SEQUENCE */
+/* x509CertASN_IDX_TBS_VALIDITY_SEQ              */            { 2, ASN_SEQUENCE, 1, 1, 0 },
+                                                   /* notBefore   Time */
+                                                   /* Time :: CHOICE { UTCTime, GeneralizedTime } */
+/* x509CertASN_IDX_TBS_VALIDITY_NOTB_UTC         */                { 3, ASN_UTC_TIME, 0, 0, 2 },
+/* x509CertASN_IDX_TBS_VALIDITY_NOTB_GT          */                { 3, ASN_GENERALIZED_TIME, 0, 0, 2 },
+                                                   /* notAfter   Time */
+                                                   /* Time :: CHOICE { UTCTime, GeneralizedTime } */
+/* x509CertASN_IDX_TBS_VALIDITY_NOTA_UTC         */                { 3, ASN_UTC_TIME, 0, 0, 3 },
+/* x509CertASN_IDX_TBS_VALIDITY_NOTA_GT          */                { 3, ASN_GENERALIZED_TIME, 0, 0, 3 },
+                                                   /* subject              Name */
+/* x509CertASN_IDX_TBS_SUBJECT_SEQ               */            { 2, ASN_SEQUENCE, 1, 0, 0 },
+                                                   /* subjectPublicKeyInfo SubjectPublicKeyInfo */
+/* x509CertASN_IDX_TBS_SPUBKEYINFO_SEQ           */            { 2, ASN_SEQUENCE, 1, 1, 0 },
+                                                   /* algorithm          AlgorithmIdentifier */
+                                                   /* AlgorithmIdentifier ::= SEQUENCE */
+/* x509CertASN_IDX_TBS_SPUBKEYINFO_ALGO_SEQ      */                { 3, ASN_SEQUENCE, 1, 1, 0 },
+                                                   /* Algorithm    OBJECT IDENTIFIER */
+/* x509CertASN_IDX_TBS_SPUBKEYINFO_ALGO_OID      */                    { 4, ASN_OBJECT_ID, 0, 0, 0 },
+                                                   /* parameters   ANY defined by algorithm OPTIONAL */
+/* x509CertASN_IDX_TBS_SPUBKEYINFO_ALGO_NOPARAMS */                    { 4, ASN_TAG_NULL, 0, 0, 1 },
+/* x509CertASN_IDX_TBS_SPUBKEYINFO_ALGO_CURVEID  */                    { 4, ASN_OBJECT_ID, 0, 0, 1 },
+                                                   /* subjectPublicKey   BIT STRING */
+/* x509CertASN_IDX_TBS_SPUBKEYINFO_PUBKEY        */                { 3, ASN_BIT_STRING, 0, 0, 0 },
+                                                   /* issuerUniqueID       UniqueIdentfier OPTIONAL */
+/* x509CertASN_IDX_TBS_ISSUERUID                 */            { 2, ASN_CONTEXT_SPECIFIC | 1, 0, 0, 1 },
+                                                   /* subjectUniqueID      UniqueIdentfier OPTIONAL */
+/* x509CertASN_IDX_TBS_SUBJECTUID                */            { 2, ASN_CONTEXT_SPECIFIC | 2, 0, 0, 1 },
+                                                   /* extensions           Extensions OPTIONAL */
+/* x509CertASN_IDX_TBS_EXT                       */            { 2, ASN_CONTEXT_SPECIFIC | 3, 1, 0, 1 },
+                                                   /* signatureAlgorithm   AlgorithmIdentifier */
+                                                   /* AlgorithmIdentifier ::= SEQUENCE */
+/* x509CertASN_IDX_SIGALGO_SEQ                   */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+                                                   /* Algorithm    OBJECT IDENTIFIER */
+/* x509CertASN_IDX_SIGALGO_OID                   */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
+                                                   /* parameters   ANY defined by algorithm OPTIONAL */
+/* x509CertASN_IDX_SIGALGO_PARAMS                */            { 2, ASN_TAG_NULL, 0, 0, 1 },
+                                                   /* signature            BIT STRING */
+/* x509CertASN_IDX_SIGNATURE                     */        { 1, ASN_BIT_STRING, 0, 0, 0 },
+};
+enum {
+    x509CertASN_IDX_SEQ = 0,
+    x509CertASN_IDX_TBS_SEQ,
+    x509CertASN_IDX_TBS_VER,
+    x509CertASN_IDX_TBS_VER_INT,
+    x509CertASN_IDX_TBS_SERIAL,
+    x509CertASN_IDX_TBS_ALGOID_SEQ,
+    x509CertASN_IDX_TBS_ALGOID_OID,
+    x509CertASN_IDX_TBS_ALGOID_PARAMS,
+    x509CertASN_IDX_TBS_ISSUER_SEQ,
+    x509CertASN_IDX_TBS_VALIDITY_SEQ,
+    x509CertASN_IDX_TBS_VALIDITY_NOTB_UTC,
+    x509CertASN_IDX_TBS_VALIDITY_NOTB_GT,
+    x509CertASN_IDX_TBS_VALIDITY_NOTA_UTC,
+    x509CertASN_IDX_TBS_VALIDITY_NOTA_GT,
+    x509CertASN_IDX_TBS_SUBJECT_SEQ,
+    x509CertASN_IDX_TBS_SPUBKEYINFO_SEQ,
+    x509CertASN_IDX_TBS_SPUBKEYINFO_ALGO_SEQ,
+    x509CertASN_IDX_TBS_SPUBKEYINFO_ALGO_OID,
+    x509CertASN_IDX_TBS_SPUBKEYINFO_ALGO_NOPARAMS,
+    x509CertASN_IDX_TBS_SPUBKEYINFO_ALGO_CURVEID,
+    x509CertASN_IDX_TBS_SPUBKEYINFO_PUBKEY,
+    x509CertASN_IDX_TBS_ISSUERUID,
+    x509CertASN_IDX_TBS_SUBJECTUID,
+    x509CertASN_IDX_TBS_EXT,
+    x509CertASN_IDX_SIGALGO_SEQ,
+    x509CertASN_IDX_SIGALGO_OID,
+    x509CertASN_IDX_SIGALGO_PARAMS,
+    x509CertASN_IDX_SIGNATURE,
 };
 
 /* Number of items in ASN template for an X509 certificate. */
@@ -17058,13 +17088,16 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         serialSz = EXTERNAL_SERIAL_SIZE;
 
         /* Get the version and put the serial number into the buffer. */
-        GetASN_Int8Bit(&dataASN[3], &version);
-        GetASN_Buffer(&dataASN[4], cert->serial, &serialSz);
+        GetASN_Int8Bit(&dataASN[x509CertASN_IDX_TBS_VER_INT], &version);
+        GetASN_Buffer(&dataASN[x509CertASN_IDX_TBS_SERIAL], cert->serial,
+                &serialSz);
         /* Check OID types for signature, algorithm, ECC curve and sigAlg. */
-        GetASN_OID(&dataASN[6], oidSigType);
-        GetASN_OID(&dataASN[17], oidKeyType);
-        GetASN_OID(&dataASN[19], oidCurveType);
-        GetASN_OID(&dataASN[25], oidSigType);
+        GetASN_OID(&dataASN[x509CertASN_IDX_TBS_ALGOID_OID], oidSigType);
+        GetASN_OID(&dataASN[x509CertASN_IDX_TBS_SPUBKEYINFO_ALGO_OID],
+                oidKeyType);
+        GetASN_OID(&dataASN[x509CertASN_IDX_TBS_SPUBKEYINFO_ALGO_CURVEID],
+                oidCurveType);
+        GetASN_OID(&dataASN[x509CertASN_IDX_SIGALGO_OID], oidSigType);
         /* Parse the X509 certificate. */
         ret = GetASN_Items(x509CertASN, dataASN, x509CertASN_Length, 1,
                            cert->source, &cert->srcIdx, cert->maxIdx);
@@ -17078,14 +17111,16 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         /* Set fields extracted from data. */
         cert->version = version;
         cert->serialSz = serialSz;
-        cert->signatureOID = dataASN[6].data.oid.sum;
-        cert->keyOID = dataASN[17].data.oid.sum;
-        cert->certBegin = dataASN[1].offset;
+        cert->signatureOID = dataASN[x509CertASN_IDX_TBS_ALGOID_OID].data.oid.sum;
+        cert->keyOID = dataASN[x509CertASN_IDX_TBS_SPUBKEYINFO_ALGO_OID].data.oid.sum;
+        cert->certBegin = dataASN[x509CertASN_IDX_TBS_SEQ].offset;
 
         /* No bad date error - don't always care. */
         badDate = 0;
         /* Find the item with the BEFORE date and check it. */
-        i = (dataASN[10].tag != 0) ? 10 : 11;
+        i = (dataASN[x509CertASN_IDX_TBS_VALIDITY_NOTB_UTC].tag != 0)
+                ? x509CertASN_IDX_TBS_VALIDITY_NOTB_UTC
+                : x509CertASN_IDX_TBS_VALIDITY_NOTB_GT;
         if ((CheckDate(&dataASN[i], BEFORE) < 0) && verify) {
             badDate = ASN_BEFORE_DATE_E;
         }
@@ -17094,7 +17129,9 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         cert->beforeDateLen = GetASNItem_Length(dataASN[i], cert->source);
 
         /* Find the item with the AFTER date and check it. */
-        i = (dataASN[12].tag != 0) ? 12 : 13;
+        i = (dataASN[x509CertASN_IDX_TBS_VALIDITY_NOTA_UTC].tag != 0)
+                ? x509CertASN_IDX_TBS_VALIDITY_NOTA_UTC
+                : x509CertASN_IDX_TBS_VALIDITY_NOTA_GT;
         if ((CheckDate(&dataASN[i], AFTER) < 0) && verify) {
             badDate = ASN_AFTER_DATE_E;
         }
@@ -17103,37 +17140,40 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         cert->afterDateLen = GetASNItem_Length(dataASN[i], cert->source);
 
         /* Get the issuer name and calculate hash. */
-        idx = dataASN[8].offset;
+        idx = dataASN[x509CertASN_IDX_TBS_ISSUER_SEQ].offset;
         ret = GetCertName(cert, cert->issuer, cert->issuerHash, ISSUER,
-                          cert->source, &idx, dataASN[9].offset);
+                          cert->source, &idx,
+                          dataASN[x509CertASN_IDX_TBS_VALIDITY_SEQ].offset);
     }
     if (ret == 0) {
         /* Get the subject name and calculate hash. */
-        idx = dataASN[14].offset;
+        idx = dataASN[x509CertASN_IDX_TBS_SUBJECT_SEQ].offset;
         ret = GetCertName(cert, cert->subject, cert->subjectHash, SUBJECT,
-                          cert->source, &idx, dataASN[15].offset);
+                          cert->source, &idx,
+                          dataASN[x509CertASN_IDX_TBS_SPUBKEYINFO_SEQ].offset);
     }
     if (ret == 0) {
-        /* Determine if self signed by comparig issuer and subject hashes. */
+        /* Determine if self signed by comparing issuer and subject hashes. */
         cert->selfSigned = XMEMCMP(cert->issuerHash, cert->subjectHash,
                                    KEYID_SIZE) == 0 ? 1 : 0;
 
         if (stopAtPubKey) {
-            /* Return any bad date error through badDateRed and return offset of
+            /* Return any bad date error through badDateRet and return offset of
              * subjectPublicKeyInfo.
              */
             if (badDateRet != NULL) {
                 *badDateRet = badDate;
             }
-            ret = dataASN[15].offset;
+            ret = dataASN[x509CertASN_IDX_TBS_SPUBKEYINFO_SEQ].offset;
             done = 1;
         }
     }
 
     if ((ret == 0) && (!done)) {
         /* Parse the public key. */
-        idx = dataASN[15].offset;
-        ret = GetCertKey(cert, cert->source, &idx, dataASN[21].offset);
+        idx = dataASN[x509CertASN_IDX_TBS_SPUBKEYINFO_SEQ].offset;
+        ret = GetCertKey(cert, cert->source, &idx,
+                dataASN[x509CertASN_IDX_TBS_ISSUERUID].offset);
         if ((ret == 0) && stopAfterPubKey) {
             /* Return any bad date error through badDateRed and return offset
              * after subjectPublicKeyInfo.
@@ -17144,7 +17184,8 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
             done = 1;
         }
     }
-    if ((ret == 0) && (!done) && (dataASN[23].data.ref.data != NULL)) {
+    if ((ret == 0) && (!done) &&
+            (dataASN[x509CertASN_IDX_TBS_EXT].data.ref.data != NULL)) {
     #ifndef ALLOW_V1_EXTENSIONS
         /* Certificate extensions were only defined in version 2. */
         if (cert->version < 2) {
@@ -17154,9 +17195,11 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
     #endif
         if (ret == 0) {
             /* Save references to extension data. */
-            cert->extensions    = GetASNItem_Addr(dataASN[23], cert->source);
-            cert->extensionsSz  = GetASNItem_Length(dataASN[23], cert->source);
-            cert->extensionsIdx = dataASN[23].offset;
+            cert->extensions    = GetASNItem_Addr(
+                    dataASN[x509CertASN_IDX_TBS_EXT], cert->source);
+            cert->extensionsSz  = GetASNItem_Length(
+                    dataASN[x509CertASN_IDX_TBS_EXT], cert->source);
+            cert->extensionsIdx = dataASN[x509CertASN_IDX_TBS_EXT].offset;
 
             /* Decode the extension data starting at [3]. */
             ret = DecodeCertExtensions(cert);
@@ -17174,20 +17217,23 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         }
         if (ret == 0) {
             /* Advance past extensions. */
-            cert->srcIdx = dataASN[24].offset;
+            cert->srcIdx = dataASN[x509CertASN_IDX_SIGALGO_SEQ].offset;
         }
     }
 
     if ((ret == 0) && (!done)) {
         /* Store the signature information. */
-        cert->sigIndex = dataASN[24].offset;
-        GetASN_GetConstRef(&dataASN[27], &cert->signature, &cert->sigLength);
+        cert->sigIndex = dataASN[x509CertASN_IDX_SIGALGO_SEQ].offset;
+        GetASN_GetConstRef(&dataASN[x509CertASN_IDX_SIGNATURE],
+                &cert->signature, &cert->sigLength);
         /* Make sure 'signature' and 'signatureAlgorithm' are the same. */
-        if (dataASN[25].data.oid.sum != cert->signatureOID) {
+        if (dataASN[x509CertASN_IDX_SIGALGO_OID].data.oid.sum
+                != cert->signatureOID) {
             ret = ASN_SIG_OID_E;
         }
         /* NULL tagged item not allowed after ECDSA or EdDSA algorithm OID. */
-        if (IsSigAlgoECC(cert->signatureOID) && (dataASN[26].tag != 0)) {
+        if (IsSigAlgoECC(cert->signatureOID) &&
+                (dataASN[x509CertASN_IDX_SIGALGO_PARAMS].tag != 0)) {
             ret = ASN_PARSE_E;
         }
     }
@@ -18081,26 +18127,31 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
         /* Clear dynamic data for certificate items. */
         XMEMSET(dataASN, 0, sizeof(ASNGetData) * x509CertASN_Length);
         /* Set OID types expected for signature and public key. */
-        GetASN_OID(&dataASN[6], oidSigType);
-        GetASN_OID(&dataASN[17], oidKeyType);
-        GetASN_OID(&dataASN[19], oidCurveType);
-        GetASN_OID(&dataASN[25], oidSigType);
+        GetASN_OID(&dataASN[x509CertASN_IDX_TBS_ALGOID_OID], oidSigType);
+        GetASN_OID(&dataASN[x509CertASN_IDX_TBS_SPUBKEYINFO_ALGO_OID],
+                oidKeyType);
+        GetASN_OID(&dataASN[x509CertASN_IDX_TBS_SPUBKEYINFO_ALGO_CURVEID],
+                oidCurveType);
+        GetASN_OID(&dataASN[x509CertASN_IDX_SIGALGO_OID], oidSigType);
         /* Parse certificate. */
         ret = GetASN_Items(x509CertASN, dataASN, x509CertASN_Length, 1, cert,
                            &idx, certSz);
 
         /* Check signature OIDs match. */
-        if ((ret == 0) && dataASN[6].data.oid.sum != dataASN[25].data.oid.sum) {
+        if ((ret == 0) && dataASN[x509CertASN_IDX_TBS_ALGOID_OID].data.oid.sum
+                != dataASN[x509CertASN_IDX_SIGALGO_OID].data.oid.sum) {
             ret = ASN_SIG_OID_E;
         }
         /* Store the data for verification in the certificate. */
         if (ret == 0) {
-            tbs = GetASNItem_Addr(dataASN[1], cert);
-            tbsSz = GetASNItem_Length(dataASN[1], cert);
-            caName = GetASNItem_Addr(dataASN[8], cert);
-            caNameLen = GetASNItem_Length(dataASN[8], cert);
-            sigOID = dataASN[25].data.oid.sum;
-            GetASN_GetConstRef(&dataASN[27], &sig, &sigSz);
+            tbs = GetASNItem_Addr(dataASN[x509CertASN_IDX_TBS_SEQ], cert);
+            tbsSz = GetASNItem_Length(dataASN[x509CertASN_IDX_TBS_SEQ], cert);
+            caName = GetASNItem_Addr(dataASN[x509CertASN_IDX_TBS_ISSUER_SEQ],
+                    cert);
+            caNameLen = GetASNItem_Length(dataASN[x509CertASN_IDX_TBS_ISSUER_SEQ],
+                    cert);
+            sigOID = dataASN[x509CertASN_IDX_SIGALGO_OID].data.oid.sum;
+            GetASN_GetConstRef(&dataASN[x509CertASN_IDX_SIGNATURE], &sig, &sigSz);
         }
     }
     else if (ret == 0) {
@@ -18132,11 +18183,12 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     if ((ret == 0) && (pubKey == NULL)) {
 #ifndef NO_SKID
         /* Find the AKI extension in list of extensions and get hash. */
-        if ((ret == 0) && (!req) && (dataASN[23].data.ref.data != NULL)) {
+        if ((ret == 0) && (!req) &&
+                (dataASN[x509CertASN_IDX_TBS_EXT].data.ref.data != NULL)) {
             /* TODO: test case */
-            ret = GetAKIHash(dataASN[23].data.ref.data,
-                             dataASN[23].data.ref.length, hash,
-                             &extAuthKeyIdSet, heap);
+            ret = GetAKIHash(dataASN[x509CertASN_IDX_TBS_EXT].data.ref.data,
+                             dataASN[x509CertASN_IDX_TBS_EXT].data.ref.length,
+                             hash, &extAuthKeyIdSet, heap);
         }
 
         /* Get the CA by hash one was found. */
@@ -24231,96 +24283,109 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
     }
     if (ret >= 0) {
         /* Don't write out outer sequence - only doing body. */
-        dataASN[0].noOut = 1;
+        dataASN[x509CertASN_IDX_SEQ].noOut = 1;
         /* Set version, serial number and signature OID */
-        SetASN_Int8Bit(&dataASN[3], cert->version);
-        SetASN_Buffer(&dataASN[4], cert->serial, cert->serialSz);
-        SetASN_OID(&dataASN[6], cert->sigType, oidSigType);
+        SetASN_Int8Bit(&dataASN[x509CertASN_IDX_TBS_VER_INT], cert->version);
+        SetASN_Buffer(&dataASN[x509CertASN_IDX_TBS_SERIAL], cert->serial,
+                cert->serialSz);
+        SetASN_OID(&dataASN[x509CertASN_IDX_TBS_ALGOID_OID], cert->sigType,
+                oidSigType);
         if (IsSigAlgoECC(cert->sigType)) {
             /* No NULL tagged item with ECDSA and EdDSA signature OIDs. */
-            dataASN[7].noOut = 1;
+            dataASN[x509CertASN_IDX_TBS_ALGOID_PARAMS].noOut = 1;
         }
         if (issRawLen > 0) {
     #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || \
         defined(WOLFSSL_CERT_REQ)
             /* Put in encoded issuer name. */
-            SetASN_Buffer(&dataASN[8], cert->issRaw, issuerSz);
+            SetASN_Buffer(&dataASN[x509CertASN_IDX_TBS_ISSUER_SEQ],
+                    cert->issRaw, issuerSz);
     #endif
         }
         else {
             /* Leave space for issuer name. */
-            SetASN_ReplaceBuffer(&dataASN[8], NULL, issuerSz);
+            SetASN_ReplaceBuffer(&dataASN[x509CertASN_IDX_TBS_ISSUER_SEQ],
+                    NULL, issuerSz);
         }
 
 #ifdef WOLFSSL_ALT_NAMES
         if (cert->beforeDateSz && cert->afterDateSz) {
             if (cert->beforeDate[0] == ASN_UTC_TIME) {
                 /* Make space for before date data. */
-                SetASN_Buffer(&dataASN[10], cert->beforeDate + 2,
-                    ASN_UTC_TIME_SIZE - 1);
+                SetASN_Buffer(&dataASN[x509CertASN_IDX_TBS_VALIDITY_NOTB_UTC],
+                        cert->beforeDate + 2, ASN_UTC_TIME_SIZE - 1);
                 /* Don't put out Generalized Time before data. */
-                dataASN[11].noOut = 1;
+                dataASN[x509CertASN_IDX_TBS_VALIDITY_NOTB_GT].noOut = 1;
             }
             else {
                 /* Don't put out UTC before data. */
-                dataASN[10].noOut = 1;
+                dataASN[x509CertASN_IDX_TBS_VALIDITY_NOTB_UTC].noOut = 1;
                 /* Make space for before date data. */
-                SetASN_Buffer(&dataASN[11], cert->beforeDate + 2,
-                    ASN_GEN_TIME_SZ);
+                SetASN_Buffer(&dataASN[x509CertASN_IDX_TBS_VALIDITY_NOTB_GT],
+                        cert->beforeDate + 2, ASN_GEN_TIME_SZ);
             }
             if (cert->afterDate[0] == ASN_UTC_TIME) {
                 /* Make space for after date data. */
-                SetASN_Buffer(&dataASN[12], cert->afterDate + 2,
-                    ASN_UTC_TIME_SIZE - 1);
+                SetASN_Buffer(&dataASN[x509CertASN_IDX_TBS_VALIDITY_NOTA_UTC],
+                        cert->afterDate + 2, ASN_UTC_TIME_SIZE - 1);
                 /* Don't put out UTC Generalized Time after data. */
-                dataASN[13].noOut = 1;
+                dataASN[x509CertASN_IDX_TBS_VALIDITY_NOTA_GT].noOut = 1;
             }
             else {
                 /* Don't put out UTC after data. */
-                dataASN[12].noOut = 1;
+                dataASN[x509CertASN_IDX_TBS_VALIDITY_NOTA_UTC].noOut = 1;
                 /* Make space for after date data. */
-                SetASN_Buffer(&dataASN[13], cert->afterDate + 2,
-                    ASN_GEN_TIME_SZ);
+                SetASN_Buffer(&dataASN[x509CertASN_IDX_TBS_VALIDITY_NOTA_GT],
+                        cert->afterDate + 2, ASN_GEN_TIME_SZ);
             }
         }
         else
 #endif
         {
             /* Don't put out UTC before data. */
-            dataASN[10].noOut = 1;
+            dataASN[x509CertASN_IDX_TBS_VALIDITY_NOTB_UTC].noOut = 1;
             /* Make space for before date data. */
-            SetASN_Buffer(&dataASN[11], NULL, ASN_GEN_TIME_SZ);
+            SetASN_Buffer(&dataASN[x509CertASN_IDX_TBS_VALIDITY_NOTB_GT],
+                    NULL, ASN_GEN_TIME_SZ);
             /* Don't put out UTC after data. */
-            dataASN[12].noOut = 1;
+            dataASN[x509CertASN_IDX_TBS_VALIDITY_NOTA_UTC].noOut = 1;
             /* Make space for after date data. */
-            SetASN_Buffer(&dataASN[13], NULL, ASN_GEN_TIME_SZ);
+            SetASN_Buffer(&dataASN[x509CertASN_IDX_TBS_VALIDITY_NOTA_GT],
+                    NULL, ASN_GEN_TIME_SZ);
         }
         if (sbjRawLen > 0) {
             /* Put in encoded subject name. */
     #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || \
         defined(WOLFSSL_CERT_REQ)
-            SetASN_Buffer(&dataASN[14], cert->sbjRaw, subjectSz);
+            SetASN_Buffer(&dataASN[x509CertASN_IDX_TBS_SUBJECT_SEQ],
+                    cert->sbjRaw, subjectSz);
     #endif
         }
         else {
             /* Leave space for subject name. */
-            SetASN_ReplaceBuffer(&dataASN[14], NULL, subjectSz);
+            SetASN_ReplaceBuffer(&dataASN[x509CertASN_IDX_TBS_SUBJECT_SEQ],
+                    NULL, subjectSz);
         }
         /* Leave space for public key. */
-        SetASN_ReplaceBuffer(&dataASN[15], NULL, publicKeySz);
+        SetASN_ReplaceBuffer(&dataASN[x509CertASN_IDX_TBS_SPUBKEYINFO_SEQ],
+                NULL, publicKeySz);
         /* Replacement buffer instead of algorithm identifier items. */
-        SetASNItem_NoOut(dataASN, 16, 20);
+        SetASNItem_NoOut(dataASN,
+                x509CertASN_IDX_TBS_SPUBKEYINFO_ALGO_SEQ,
+                x509CertASN_IDX_TBS_SPUBKEYINFO_PUBKEY);
         /* issuerUniqueID and subjectUniqueID not supported. */
-        dataASN[21].noOut = dataASN[22].noOut = 1;
+        dataASN[x509CertASN_IDX_TBS_ISSUERUID].noOut = 1;
+        dataASN[x509CertASN_IDX_TBS_SUBJECTUID].noOut = 1;
         /* Leave space for extensions if any set into certificate object. */
         if (extSz > 0) {
-            SetASN_Buffer(&dataASN[23], NULL, extSz);
+            SetASN_Buffer(&dataASN[x509CertASN_IDX_TBS_EXT], NULL, extSz);
         }
         else {
-            dataASN[23].noOut = 1;
+            dataASN[x509CertASN_IDX_TBS_EXT].noOut = 1;
         }
         /* No signature - added later. */
-        SetASNItem_NoOut(dataASN, 24, 27);
+        SetASNItem_NoOut(dataASN, x509CertASN_IDX_SIGALGO_SEQ,
+                x509CertASN_IDX_SIGNATURE);
 
         /* Calculate encoded certificate body size. */
         ret = SizeASN_Items(x509CertASN, dataASN, x509CertASN_Length, &sz);
@@ -24335,14 +24400,18 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
 
         if (issRawLen == 0) {
             /* Encode issuer name into buffer. */
-            ret = SetNameEx((byte*)dataASN[8].data.buffer.data,
-                dataASN[8].data.buffer.length, &cert->issuer, cert->heap);
+            ret = SetNameEx(
+                (byte*)dataASN[x509CertASN_IDX_TBS_ISSUER_SEQ].data.buffer.data,
+                dataASN[x509CertASN_IDX_TBS_ISSUER_SEQ].data.buffer.length,
+                &cert->issuer, cert->heap);
         }
     }
     if ((ret >= 0) && (sbjRawLen == 0)) {
         /* Encode subject name into buffer. */
-        ret = SetNameEx((byte*)dataASN[14].data.buffer.data,
-            dataASN[14].data.buffer.length, &cert->subject, cert->heap);
+        ret = SetNameEx(
+            (byte*)dataASN[x509CertASN_IDX_TBS_SUBJECT_SEQ].data.buffer.data,
+            dataASN[x509CertASN_IDX_TBS_SUBJECT_SEQ].data.buffer.length,
+            &cert->subject, cert->heap);
     }
     if (ret >= 0) {
 #ifdef WOLFSSL_ALT_NAMES
@@ -24350,20 +24419,27 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
 #endif
         {
             /* Encode validity into buffer. */
-            ret = SetValidity((byte*)dataASN[11].data.buffer.data,
-                (byte*)dataASN[13].data.buffer.data, cert->daysValid);
+            ret = SetValidity(
+                (byte*)dataASN[x509CertASN_IDX_TBS_VALIDITY_NOTB_GT]
+                               .data.buffer.data,
+                (byte*)dataASN[x509CertASN_IDX_TBS_VALIDITY_NOTA_GT]
+                               .data.buffer.data, cert->daysValid);
         }
     }
     if (ret >= 0) {
         /* Encode public key into buffer. */
         ret = EncodePublicKey(cert->keyType,
-            (byte*)dataASN[15].data.buffer.data, dataASN[15].data.buffer.length,
+            (byte*)dataASN[x509CertASN_IDX_TBS_SPUBKEYINFO_SEQ]
+                           .data.buffer.data,
+            dataASN[x509CertASN_IDX_TBS_SPUBKEYINFO_SEQ]
+                           .data.buffer.length,
             rsaKey, eccKey, ed25519Key, ed448Key, dsaKey);
     }
-    if ((ret >= 0) && (!dataASN[23].noOut)) {
+    if ((ret >= 0) && (!dataASN[x509CertASN_IDX_TBS_EXT].noOut)) {
         /* Encode extensions into buffer. */
-        ret = EncodeExtensions(cert, (byte*)dataASN[23].data.buffer.data,
-            dataASN[23].data.buffer.length, 0);
+        ret = EncodeExtensions(cert,
+                (byte*)dataASN[x509CertASN_IDX_TBS_EXT].data.buffer.data,
+                dataASN[x509CertASN_IDX_TBS_EXT].data.buffer.length, 0);
     }
     if (ret >= 0) {
         /* Store encoded certifcate body size. */

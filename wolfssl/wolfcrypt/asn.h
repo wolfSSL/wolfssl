@@ -140,6 +140,9 @@ enum ASN_Tags {
     /* GeneralSubtree fields */
     ASN_SUBTREE_MIN       = 0x00,
     ASN_SUBTREE_MAX       = 0x01,
+
+    /* x509 Cert Fields */
+    ASN_X509_CERT_VERSION = 0x00,
 };
 
 #define ASN_UTC_TIME_SIZE 14
