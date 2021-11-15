@@ -16044,11 +16044,16 @@ static int DecodeSubtree(const byte* input, int sz, Base_entry** head,
  * X.509: RFC 5280, 4.2.1.10 - Name Contraints.
  */
 static const ASNItem nameConstraintsASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* permittedSubtrees */
-/*  1 */        { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 0, 1 },
-                /* excludededSubtrees */
-/*  2 */        { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 1 },
+/* nameConstraintsASN_IDX_SEQ     */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                         /* permittedSubtrees */
+/* nameConstraintsASN_IDX_PERMIT  */     { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 0, 1 },
+                                         /* excludededSubtrees */
+/* nameConstraintsASN_IDX_EXCLUDE */     { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 1 },
+};
+enum {
+    nameConstraintsASN_IDX_SEQ = 0,
+    nameConstraintsASN_IDX_PERMIT,
+    nameConstraintsASN_IDX_EXCLUDE,
 };
 
 /* Number of items in ASN.1 template for NameConstraints. */
@@ -16108,27 +16113,33 @@ static int DecodeNameConstraints(const byte* input, int sz, DecodedCert* cert)
 
     return 0;
 #else
-    ASNGetData dataASN[nameConstraintsASN_Length];
+    DECL_ASNGETDATA(dataASN, nameConstraintsASN_Length);
     word32 idx = 0;
     int    ret = 0;
 
-    /* Clear dynamic data. */
-    XMEMSET(dataASN, 0, sizeof(dataASN));
-    /* Parse NameConstraints. */
-    ret = GetASN_Items(nameConstraintsASN, dataASN, nameConstraintsASN_Length,
-                       1, input, &idx, sz);
+    CALLOC_ASNGETDATA(dataASN, nameConstraintsASN_Length, ret, cert->heap);
+
+    if (ret == 0) {
+        /* Parse NameConstraints. */
+        ret = GetASN_Items(nameConstraintsASN, dataASN, nameConstraintsASN_Length,
+                           1, input, &idx, sz);
+    }
     if (ret == 0) {
         /* If there was a permittedSubtrees then parse it. */
-        if (dataASN[1].data.ref.data != NULL) {
-            ret = DecodeSubtree(dataASN[1].data.ref.data,
-                dataASN[1].data.ref.length, &cert->permittedNames, cert->heap);
+        if (dataASN[nameConstraintsASN_IDX_PERMIT].data.ref.data != NULL) {
+            ret = DecodeSubtree(
+                    dataASN[nameConstraintsASN_IDX_PERMIT].data.ref.data,
+                    dataASN[nameConstraintsASN_IDX_PERMIT].data.ref.length,
+                    &cert->permittedNames, cert->heap);
         }
     }
     if (ret == 0) {
         /* If there was a excludedSubtrees then parse it. */
-        if (dataASN[2].data.ref.data != NULL) {
-            ret = DecodeSubtree(dataASN[2].data.ref.data,
-                dataASN[2].data.ref.length, &cert->excludedNames, cert->heap);
+        if (dataASN[nameConstraintsASN_IDX_EXCLUDE].data.ref.data != NULL) {
+            ret = DecodeSubtree(
+                    dataASN[nameConstraintsASN_IDX_EXCLUDE].data.ref.data,
+                    dataASN[nameConstraintsASN_IDX_EXCLUDE].data.ref.length,
+                    &cert->excludedNames, cert->heap);
         }
     }
 
