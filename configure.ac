@@ -248,13 +248,13 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION=2
         ENABLED_FIPS="yes"
     ],
-    [v5-RC10],[
+    [v5|v5-RC10],[
         FIPS_VERSION="v5-RC10"
         HAVE_FIPS_VERSION=5
         HAVE_FIPS_VERSION_MINOR=2
         ENABLED_FIPS="yes"
     ],
-    [v5|v5-RC9|v5-REL],[
+    [v5-RC9|v5-REL],[
         FIPS_VERSION="v5-RC9"
         HAVE_FIPS_VERSION=5
         HAVE_FIPS_VERSION_MINOR=1
