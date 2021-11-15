@@ -39,6 +39,7 @@ Platform is one of:
     linuxv5-RC8 (old FIPS 140-3)
     linuxv5 (current FIPS 140-3)
     linuxv5-ready (ready FIPS 140-3)
+    linuxv5-RC10
 Keep (default off) retains the XXX-fips-test temp dir for inspection.
 
 Example:
@@ -305,6 +306,21 @@ linuxv5|linuxv5-RC9)
   FIPS_SRCS=( fips.c fips_test.c wolfcrypt_first.c wolfcrypt_last.c )
   FIPS_INCS=( fips.h )
   FIPS_OPTION="v5-RC9"
+  COPY_DIRECT=( wolfcrypt/src/aes_asm.S wolfcrypt/src/aes_asm.asm
+                wolfcrypt/src/sha256_asm.S wolfcrypt/src/sha512_asm.S )
+  ;;
+linuxv5-RC10)
+  FIPS_REPO="git@github.com:wolfSSL/fips.git"
+  FIPS_VERSION="WCv5.0-RC10"
+  CRYPT_REPO="git@github.com:wolfSSL/wolfssl.git"
+  CRYPT_VERSION="WCv5.0-RC10"
+  CRYPT_INC_PATH="wolfssl/wolfcrypt"
+  CRYPT_SRC_PATH="wolfcrypt/src"
+  WC_MODS=( aes sha sha256 sha512 rsa hmac random cmac dh ecc sha3 kdf )
+  RNG_VERSION="WCv5.0-RC10"
+  FIPS_SRCS=( fips.c fips_test.c wolfcrypt_first.c wolfcrypt_last.c )
+  FIPS_INCS=( fips.h )
+  FIPS_OPTION="v5-RC10"
   COPY_DIRECT=( wolfcrypt/src/aes_asm.S wolfcrypt/src/aes_asm.asm
                 wolfcrypt/src/sha256_asm.S wolfcrypt/src/sha512_asm.S )
   ;;
