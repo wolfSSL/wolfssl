@@ -354,8 +354,6 @@ static int expect_csim_response(const char *cmd, word32 size, char **reply)
     payload++;
     if (XSTRNCMP(payload, "61", 2) == 0) {
         if (hex_to_bytes(payload + 2, &len, 1) == 1) {
-            if (len == 0)
-                len = 256;
             iotsafe_cmd_start(csim_cmd,1,IOTSAFE_INS_GETRESPONSE, 0, 0);
             bytes_to_hex(&len, csim_cmd + AT_CSIM_CMD_SIZE + AT_CMD_LC_POS, 1);
             csim_cmd[AT_CSIM_CMD_SIZE + AT_CMD_HDR_SIZE] = 0;
