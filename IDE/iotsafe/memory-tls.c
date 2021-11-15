@@ -144,10 +144,10 @@ static int client_loop(void)
     int ret;
     const char* helloStr = "hello iot-safe wolfSSL";
     #if (IOTSAFE_ID_SIZE == 1)
-    byte cert_file_id, privkey_id, keypair_id, peer_pubkey_id, peer_cert_id;
+    byte cert_file_id, privkey_id, keypair_id, peer_pubkey_id, peer_cert_id, serv_cert_id;
     byte ca_cert_id;
     #else
-    word16 cert_file_id, privkey_id, keypair_id, peer_pubkey_id, peer_cert_id;
+    word16 cert_file_id, privkey_id, keypair_id, peer_pubkey_id, peer_cert_id, serv_cert_id;
     word16 ca_cert_id;
     #endif
     cert_file_id = CRT_CLIENT_FILE_ID;
@@ -156,6 +156,7 @@ static int client_loop(void)
     peer_pubkey_id = PEER_PUBKEY_ID;
     peer_cert_id = PEER_CERT_ID;
     ca_cert_id = CRT_SERVER_FILE_ID;
+    serv_cert_id = CRT_SERVER_FILE_ID;
 
 
     printf("=== CLIENT step %d ===\n", client_state);
@@ -174,18 +175,42 @@ static int client_loop(void)
         wolfSSL_CTX_iotsafe_enable(cli_ctx);
 
         printf("Loading CA\n");
+#ifdef SOFT_SERVER_CA
         ret = wolfSSL_CTX_load_verify_buffer(cli_ctx, ca_ecc_cert_der_256,
                 sizeof_ca_ecc_cert_der_256, WOLFSSL_FILETYPE_ASN1);
         if (ret != WOLFSSL_SUCCESS) {
             printf("Bad CA\n");
             return -1;
         }
-
-        cert_buffer_size = wolfIoTSafe_GetCert_ex(&ca_cert_id,IOTSAFE_ID_SIZE, 
-                cert_buffer, 
-            sizeof(cert_buffer));
+#else
+        cert_buffer_size = wolfIoTSafe_GetCert_ex(&ca_cert_id, IOTSAFE_ID_SIZE,
+                cert_buffer,
+                sizeof(cert_buffer));
         if (cert_buffer_size < 1) {
             printf("Bad server cert\n");
+            return -1;
+        }
+        printf("Loaded Server CA from IoT-Safe, size = %lu\n",
+                cert_buffer_size);
+#endif
+
+
+        printf("Loading Server Certificate\n");
+#ifdef SOFT_SERVER_CERT
+        /*
+        ret = wolfSSL_CTX_load_verify_buffer(cli_ctx, serv_ecc_der_256,
+                sizeof_serv_ecc_der_256, WOLFSSL_FILETYPE_ASN1);
+        if (ret != WOLFSSL_SUCCESS) {
+            printf("Bad Server certificate!\n");
+            return -1;
+        }
+        */
+#else
+        cert_buffer_size = wolfIoTSafe_GetCert_ex(&serv_cert_id,IOTSAFE_ID_SIZE,
+                cert_buffer,
+            sizeof(cert_buffer));
+        if (cert_buffer_size < 1) {
+            printf("Bad server certificate!\n");
             return -1;
         }
         printf("Loaded Server certificate from IoT-Safe, size = %lu\n",
@@ -195,6 +220,7 @@ static int client_loop(void)
             printf("Cannot load server cert\n");
             return -1;
         }
+#endif
         printf("Server certificate successfully imported.\n");
         wolfSSL_CTX_set_verify(cli_ctx, WOLFSSL_VERIFY_PEER, NULL);
 
@@ -381,7 +407,8 @@ int memory_tls_test(void)
     printf("Starting memory-tls test...\n");
     do {
         ret_s = server_loop();
-        ret_c = client_loop();
+        if (ret_s >= 0)
+            ret_c = client_loop();
     } while ((ret_s >= 0) && (ret_c >= 0));
 
     /* clean up */
