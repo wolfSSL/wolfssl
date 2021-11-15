@@ -24450,7 +24450,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
             #else
                     enum wc_HashType hashType;
                     word16  verifySz;
-                    byte sigAlgo;
+                    byte sigAlgo = 0;
 
                     if (ssl->options.usingAnon_cipher) {
                         break;
