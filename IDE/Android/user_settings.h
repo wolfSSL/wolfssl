@@ -8,12 +8,32 @@
     #define HAVE_FIPS
 #endif
 
+#ifdef __aarch64__
+    #if !defined(__clang__) || \
+        (defined(__clang__) && defined(__clang_major__) && __clang_major__ >= 5)
+        /* older clang v4 has issue with inline assembly contraints */
+        #define WOLFSSL_ARMASM
+    #endif
+#endif
+
+#if 1 /* SP Assembly Speedups (wPAA) */
+    #define WOLFSSL_SP
+    #define WOLFSSL_SP_SMALL      /* use smaller version of code */
+    #define WOLFSSL_HAVE_SP_RSA
+    #define WOLFSSL_HAVE_SP_DH
+    #define WOLFSSL_HAVE_SP_ECC
+    #ifdef WOLFSSL_ARMASM
+        #define WOLFSSL_SP_ARM64_ASM
+    #endif
+#endif
+
 /* WPA Supplicant Support */
 #define WOLFSSL_WPAS_SMALL
 #define OPENSSL_ALL
 #define HAVE_THREAD_LS
 
 #define USE_FAST_MATH
+#define FP_MAX_BITS (4096*2) /* Maximum math bits (Max RSA key bits * 2) */
 #define TFM_TIMING_RESISTANT
 #define ECC_TIMING_RESISTANT
 #define WC_RSA_BLINDING
@@ -22,8 +42,8 @@
 
 #if 1
     #define WOLFSSL_TLS13
-    #define WC_RSA_PSS
 #endif
+#define WC_RSA_PSS
 #define HAVE_SESSION_TICKET
 #define HAVE_TLS_EXTENSIONS
 #define HAVE_SUPPORTED_CURVES
@@ -58,7 +78,10 @@
 #define WOLFSSL_KEY_GEN
 #define WC_RSA_NO_PADDING
 
+#define WOLFSSL_DH_CONST
 #define HAVE_FFDHE_2048
+#define HAVE_FFDHE_3072
+#define HAVE_FFDHE_4096
 #define HAVE_DH_DEFAULT_PARAMS
 #ifdef HAVE_FIPS
     #define WOLFSSL_VALIDATE_FFC_IMPORT
@@ -68,6 +91,9 @@
 #define WOLFSSL_SHA224
 #define WOLFSSL_SHA512
 #define WOLFSSL_SHA384
+#define WOLFSSL_NOSHA512_256
+#define WOLFSSL_NOSHA512_224
+#define WOLFSSL_SHA3
 
 #define HAVE_HKDF
 #define HAVE_PKCS8
@@ -79,6 +105,9 @@
 #ifdef HAVE_FIPS
     #define HAVE_ECC_CDH
     #define WOLFSSL_VALIDATE_ECC_IMPORT
+#endif
+#ifdef __i386
+    #define TFM_NO_ASM
 #endif
 
 #define HAVE_AESGCM

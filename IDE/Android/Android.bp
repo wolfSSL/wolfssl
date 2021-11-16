@@ -17,6 +17,11 @@ cc_library_shared {
         "-DWOLFSSL_USER_SETTINGS",
         "-Os",
         "-fomit-frame-pointer",
+
+        /* If using WOLFSSL_ARMASM then add these cflags for ARM crypto extensions */
+        /* "-mcpu=cortex-a73+crypto", */
+        /* "-march=armv8-a", */
+        /* "-mstrict-align", */
     ],
     include_dirs: [
         "external/wolfssl/wolfssl",
@@ -72,6 +77,7 @@ cc_library_shared {
         "./wolfcrypt/src/hmac.c",
         "./wolfcrypt/src/idea.c",
         "./wolfcrypt/src/integer.c",
+        "./wolfcrypt/src/kdf.c",
         "./wolfcrypt/src/logging.c",
         "./wolfcrypt/src/md2.c",
         "./wolfcrypt/src/md4.c",
