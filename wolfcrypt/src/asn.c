@@ -17298,6 +17298,9 @@ enum {
 static const ASNItem strAttrASN[] = {
     { 0, 0, 0, 0, 0 },
 };
+enum {
+    strAttrASN_IDX_STR = 0,
+};
 
 /* Number of items in ASN.1 template for a string choice. */
 #define strAttrASN_Length (sizeof(strAttrASN) / sizeof(ASNItem))
@@ -17330,14 +17333,16 @@ static int DecodeCertReqAttrValue(DecodedCert* cert, int* criticalExt,
         case PKCS9_CONTENT_TYPE_OID:
             /* Clear dynamic data and specify choices acceptable. */
             XMEMSET(strDataASN, 0, sizeof(strDataASN));
-            GetASN_Choice(&strDataASN[0], strAttrChoice);
+            GetASN_Choice(&strDataASN[strAttrASN_IDX_STR], strAttrChoice);
             /* Parse a string. */
             ret = GetASN_Items(strAttrASN, strDataASN, strAttrASN_Length,
                                1, input, &idx, maxIdx);
             if (ret == 0) {
                 /* Store references to password data. */
-                cert->contentType = (char*)strDataASN[0].data.ref.data;
-                cert->contentTypeLen = strDataASN[0].data.ref.length;
+                cert->contentType =
+                        (char*)strDataASN[strAttrASN_IDX_STR].data.ref.data;
+                cert->contentTypeLen =
+                        strDataASN[strAttrASN_IDX_STR].data.ref.length;
             }
             break;
 
@@ -17347,14 +17352,15 @@ static int DecodeCertReqAttrValue(DecodedCert* cert, int* criticalExt,
         case CHALLENGE_PASSWORD_OID:
             /* Clear dynamic data and specify choices acceptable. */
             XMEMSET(strDataASN, 0, sizeof(strDataASN));
-            GetASN_Choice(&strDataASN[0], strAttrChoice);
+            GetASN_Choice(&strDataASN[strAttrASN_IDX_STR], strAttrChoice);
             /* Parse a string. */
             ret = GetASN_Items(strAttrASN, strDataASN, strAttrASN_Length,
                                1, input, &idx, maxIdx);
             if (ret == 0) {
                 /* Store references to password data. */
-                cert->cPwd = (char*)strDataASN[0].data.ref.data;
-                cert->cPwdLen = strDataASN[0].data.ref.length;
+                cert->cPwd =
+                        (char*)strDataASN[strAttrASN_IDX_STR].data.ref.data;
+                cert->cPwdLen = strDataASN[strAttrASN_IDX_STR].data.ref.length;
             }
             break;
 
@@ -17365,14 +17371,15 @@ static int DecodeCertReqAttrValue(DecodedCert* cert, int* criticalExt,
         case SERIAL_NUMBER_OID:
             /* Clear dynamic data and specify choices acceptable. */
             XMEMSET(strDataASN, 0, sizeof(strDataASN));
-            GetASN_Choice(&strDataASN[0], strAttrChoice);
+            GetASN_Choice(&strDataASN[strAttrASN_IDX_STR], strAttrChoice);
             /* Parse a string. */
             ret = GetASN_Items(strAttrASN, strDataASN, strAttrASN_Length,
                                1, input, &idx, maxIdx);
             if (ret == 0) {
                 /* Store references to serial number. */
-                cert->sNum = (char*)strDataASN[0].data.ref.data;
-                cert->sNumLen = strDataASN[0].data.ref.length;
+                cert->sNum =
+                        (char*)strDataASN[strAttrASN_IDX_STR].data.ref.data;
+                cert->sNumLen = strDataASN[strAttrASN_IDX_STR].data.ref.length;
                 /* Store serial number if small enough. */
                 if (cert->sNumLen <= EXTERNAL_SERIAL_SIZE) {
                     XMEMCPY(cert->serial, cert->sNum, cert->sNumLen);
