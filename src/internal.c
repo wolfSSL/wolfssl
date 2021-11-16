@@ -3822,8 +3822,7 @@ static WC_INLINE void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsTy
                 /* Hash performed as part of sign/verify operation. */
                 *hashAlgo = sha512_mac;
             }
-            else
-            if (input[1] == FALCON_LEVEL5_SA_MINOR) {
+            else if (input[1] == FALCON_LEVEL5_SA_MINOR) {
                 *hsType = falcon_level5_sa_algo;
                 /* Hash performed as part of sign/verify operation. */
                 *hashAlgo = sha512_mac;
