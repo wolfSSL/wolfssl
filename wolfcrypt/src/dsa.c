@@ -664,14 +664,12 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
     int     ret = 0, halfSz = 0;
     byte*   tmp;  /* initial output pointer */
 
+    if (digest == NULL || out == NULL || key == NULL || rng == NULL)
+        return BAD_FUNC_ARG;
+
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
     do {
-        if (digest == NULL || out == NULL || key == NULL || rng == NULL) {
-            ret = BAD_FUNC_ARG;
-            break;
-        }
-
 #ifdef WOLFSSL_SMALL_STACK
         k = (mp_int *)XMALLOC(sizeof *k, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         kInv = (mp_int *)XMALLOC(sizeof *kInv, key->heap,
@@ -997,12 +995,10 @@ int wc_DsaVerify(const byte* digest, const byte* sig, DsaKey* key, int* answer)
     int    ret = 0;
     int    qSz;
 
-    do {
-        if (digest == NULL || sig == NULL || key == NULL || answer == NULL) {
-            ret = BAD_FUNC_ARG;
-            break;
-        }
+    if (digest == NULL || sig == NULL || key == NULL || answer == NULL)
+        return BAD_FUNC_ARG;
 
+    do {
 #ifdef WOLFSSL_SMALL_STACK
         w = (mp_int *)XMALLOC(sizeof *w, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         u1 = (mp_int *)XMALLOC(sizeof *u1, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
