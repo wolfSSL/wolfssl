@@ -38159,6 +38159,48 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             }
         }
     #endif /* HAVE_AES_CBC */
+    #if defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
+        if (info->cipher.type == WC_CIPHER_AES_CCM) {
+            if (info->cipher.enc) {
+                /* set devId to invalid, so software is used */
+                info->cipher.aesccm_enc.aes->devId = INVALID_DEVID;
+
+                ret = wc_AesCcmEncrypt(
+                    info->cipher.aesccm_enc.aes,
+                    info->cipher.aesccm_enc.out,
+                    info->cipher.aesccm_enc.in,
+                    info->cipher.aesccm_enc.sz,
+                    info->cipher.aesccm_enc.nonce,
+                    info->cipher.aesccm_enc.nonceSz,
+                    info->cipher.aesccm_enc.authTag,
+                    info->cipher.aesccm_enc.authTagSz,
+                    info->cipher.aesccm_enc.authIn,
+                    info->cipher.aesccm_enc.authInSz);
+
+                /* reset devId */
+                info->cipher.aesccm_enc.aes->devId = devIdArg;
+            }
+            else {
+                /* set devId to invalid, so software is used */
+                info->cipher.aesccm_dec.aes->devId = INVALID_DEVID;
+
+                ret = wc_AesCcmDecrypt(
+                    info->cipher.aesccm_dec.aes,
+                    info->cipher.aesccm_dec.out,
+                    info->cipher.aesccm_dec.in,
+                    info->cipher.aesccm_dec.sz,
+                    info->cipher.aesccm_dec.nonce,
+                    info->cipher.aesccm_dec.nonceSz,
+                    info->cipher.aesccm_dec.authTag,
+                    info->cipher.aesccm_dec.authTagSz,
+                    info->cipher.aesccm_dec.authIn,
+                    info->cipher.aesccm_dec.authInSz);
+
+                /* reset devId */
+                info->cipher.aesccm_dec.aes->devId = devIdArg;
+            }
+        }
+    #endif
     #ifndef NO_DES3
         if (info->cipher.type == WC_CIPHER_DES3) {
             if (info->cipher.enc) {
@@ -38381,6 +38423,10 @@ WOLFSSL_TEST_SUBROUTINE int cryptocb_test(void)
     #ifdef HAVE_AES_CBC
     if (ret == 0)
         ret = aes_test();
+    #endif
+    #if defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
+    if (ret == 0)
+        ret = aesccm_test();
     #endif
 #endif /* !NO_AES */
 #ifndef NO_DES3

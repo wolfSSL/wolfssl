@@ -955,13 +955,14 @@ decouple library dependencies with standard string, memory and so on.
         WC_CIPHER_AES_CTR = 4,
         WC_CIPHER_AES_XTS = 5,
         WC_CIPHER_AES_CFB = 6,
+        WC_CIPHER_AES_CCM = 12,
         WC_CIPHER_DES3 = 7,
         WC_CIPHER_DES = 8,
         WC_CIPHER_CHACHA = 9,
         WC_CIPHER_HC128 = 10,
         WC_CIPHER_IDEA = 11,
 
-        WC_CIPHER_MAX = WC_CIPHER_HC128
+        WC_CIPHER_MAX = WC_CIPHER_AES_CCM
     };
 
     /* PK=public key (asymmetric) based algorithms */
