@@ -143,6 +143,9 @@ enum ASN_Tags {
 
     /* x509 Cert Fields */
     ASN_X509_CERT_VERSION = 0x00,
+
+    /* x509 Cert Extension Fields */
+    ASN_AKID_KEYID        = 0x00,
 };
 
 #define ASN_UTC_TIME_SIZE 14
@@ -614,6 +617,25 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
 #define SetASNItem_NoOutBelow(dataASN, asn, node, dataASNLen)          \
     do {                                                               \
         int ii;                                                        \
+        for (ii = node + 1; ii < (int)(dataASNLen); ii++) {            \
+            if (asn[ii].depth <= asn[node].depth)                      \
+                break;                                                 \
+            dataASN[ii].noOut = 1;                                     \
+        }                                                              \
+    }                                                                  \
+    while (0)
+
+/* Set the node and all nodes below to not be encoded.
+ *
+ * @param [in] dataASN  Dynamic ASN data item.
+ * @param [in] node     Node which should not be encoded. Child nodes will
+ *                      also not be encoded.
+ * @param [in] dataASNLen Number of items in dataASN.
+ */
+#define SetASNItem_NoOutNode(dataASN, asn, node, dataASNLen)           \
+    do {                                                               \
+        int ii;                                                        \
+        dataASN[node].noOut = 1;                                       \
         for (ii = node + 1; ii < (int)(dataASNLen); ii++) {            \
             if (asn[ii].depth <= asn[node].depth)                      \
                 break;                                                 \

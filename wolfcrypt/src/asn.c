@@ -23064,59 +23064,101 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
  */
 static const ASNItem certExtsASN[] = {
             /* Basic Constraints Extension - 4.2.1.9 */
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/*  1 */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/*  2 */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
-/*  3 */            { 2, ASN_SEQUENCE, 1, 1, 0 },
-                        /* cA */
-/*  4 */                { 3, ASN_BOOLEAN, 0, 0, 0 },
-                        /* pathLenConstraint */
-/*  5 */                { 3, ASN_INTEGER, 0, 0, 1 },
-            /* Subject Alternative Name - 4.2.1.6  */
-/*  6 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/*  7 */       { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/*  8 */       { 1, ASN_OCTET_STRING, 0, 0, 0 },
+/* certExtsASN_IDX_BC_SEQ        */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* certExtsASN_IDX_BC_OID        */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* certExtsASN_IDX_BC_STR        */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
+/* certExtsASN_IDX_BC_STR_SEQ    */            { 2, ASN_SEQUENCE, 1, 1, 0 },
+                                                   /* cA */
+/* certExtsASN_IDX_BC_CA         */                { 3, ASN_BOOLEAN, 0, 0, 0 },
+                                                   /* pathLenConstraint */
+/* certExtsASN_IDX_BC_PATHLEN    */                { 3, ASN_INTEGER, 0, 0, 1 },
+                                       /* Subject Alternative Name - 4.2.1.6  */
+/* certExtsASN_IDX_SAN_SEQ       */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* certExtsASN_IDX_SAN_OID       */       { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* certExtsASN_IDX_SAN_STR       */       { 1, ASN_OCTET_STRING, 0, 0, 0 },
 #ifdef WOLFSSL_CERT_EXT
             /* Subject Key Identifier - 4.2.1.2 */
-/*  9 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* 10 */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* 11 */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
-/* 12 */            { 2, ASN_OCTET_STRING, 0, 0, 0 },
-            /* Authority Key Identifier - 4.2.1.1 */
-/* 13 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* 14 */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* 15 */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
-/* 16 */            { 2, ASN_SEQUENCE, 1, 1, 0 },
-/* 17 */                { 3, ASN_CONTEXT_SPECIFIC | 0, 0, 0, 0 },
-            /* Key Usage - 4.2.1.3 */
-/* 18 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* 19 */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* 20 */        { 1, ASN_BOOLEAN, 0, 0, 0 },
-/* 21 */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
-/* 22 */            { 2, ASN_BIT_STRING, 0, 0, 0 },
-            /* Extended Key Usage - 4,2,1,12 */
-/* 23 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* 24 */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* 25 */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
-            /* Certificate Policies - 4.2.1.4 */
-/* 26 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* 27 */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* 28 */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
-/* 29 */            { 2, ASN_SEQUENCE, 0, 0, 0 },
-            /* Netscape Certificate Type */
-/* 30 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* 31 */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* 32 */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
-/* 33 */            { 2, ASN_BIT_STRING, 0, 0, 0 },
-/* 34 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* 35 */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* 36 */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
+/* certExtsASN_IDX_SKID_SEQ      */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* certExtsASN_IDX_SKID_OID      */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* certExtsASN_IDX_SKID_STR      */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
+/* certExtsASN_IDX_SKID_KEYID    */            { 2, ASN_OCTET_STRING, 0, 0, 0 },
+                                       /* Authority Key Identifier - 4.2.1.1 */
+/* certExtsASN_IDX_AKID_SEQ      */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* certExtsASN_IDX_AKID_OID      */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* certExtsASN_IDX_AKID_STR      */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
+/* certExtsASN_IDX_AKID_STR_SEQ, */            { 2, ASN_SEQUENCE, 1, 1, 0 },
+/* certExtsASN_IDX_AKID_KEYID    */                { 3, ASN_CONTEXT_SPECIFIC | 0, 0, 0, 0 },
+                                       /* Key Usage - 4.2.1.3 */
+/* certExtsASN_IDX_KU_SEQ        */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* certExtsASN_IDX_KU_OID        */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* certExtsASN_IDX_KU_CRIT       */        { 1, ASN_BOOLEAN, 0, 0, 0 },
+/* certExtsASN_IDX_KU_STR        */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
+/* certExtsASN_IDX_KU_USAGE      */            { 2, ASN_BIT_STRING, 0, 0, 0 },
+                                       /* Extended Key Usage - 4,2,1,12 */
+/* certExtsASN_IDX_EKU_SEQ       */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* certExtsASN_IDX_EKU_OID       */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* certExtsASN_IDX_EKU_STR       */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
+                                       /* Certificate Policies - 4.2.1.4 */
+/* certExtsASN_IDX_POLICIES_SEQ, */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* certExtsASN_IDX_POLICIES_OID, */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* certExtsASN_IDX_POLICIES_STR, */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
+/* certExtsASN_IDX_POLICIES_INFO */            { 2, ASN_SEQUENCE, 0, 0, 0 },
+                                       /* Netscape Certificate Type */
+/* certExtsASN_IDX_NSTYPE_SEQ    */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* certExtsASN_IDX_NSTYPE_OID    */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* certExtsASN_IDX_NSTYPE_STR    */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
+/* certExtsASN_IDX_NSTYPE_USAGE, */            { 2, ASN_BIT_STRING, 0, 0, 0 },
+/* certExtsASN_IDX_CRLINFO_SEQ   */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* certExtsASN_IDX_CRLINFO_OID   */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* certExtsASN_IDX_CRLINFO_STR   */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
 #endif /* WOLFSSL_CERT_EXT */
 #ifdef WOLFSSL_CUSTOM_OID
-/* 37 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* 38 */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* 39 */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
+/* certExtsASN_IDX_CUSTOM_SEQ    */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* certExtsASN_IDX_CUSTOM_OID    */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* certExtsASN_IDX_CUSTOM_STR    */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
 #endif
+};
+enum {
+    certExtsASN_IDX_BC_SEQ = 0,
+    certExtsASN_IDX_BC_OID,
+    certExtsASN_IDX_BC_STR,
+    certExtsASN_IDX_BC_STR_SEQ,
+    certExtsASN_IDX_BC_CA,
+    certExtsASN_IDX_BC_PATHLEN,
+    certExtsASN_IDX_SAN_SEQ,
+    certExtsASN_IDX_SAN_OID,
+    certExtsASN_IDX_SAN_STR,
+    certExtsASN_IDX_SKID_SEQ,
+    certExtsASN_IDX_SKID_OID,
+    certExtsASN_IDX_SKID_STR,
+    certExtsASN_IDX_SKID_KEYID,
+    certExtsASN_IDX_AKID_SEQ,
+    certExtsASN_IDX_AKID_OID,
+    certExtsASN_IDX_AKID_STR,
+    certExtsASN_IDX_AKID_STR_SEQ,
+    certExtsASN_IDX_AKID_KEYID,
+    certExtsASN_IDX_KU_SEQ,
+    certExtsASN_IDX_KU_OID,
+    certExtsASN_IDX_KU_CRIT,
+    certExtsASN_IDX_KU_STR,
+    certExtsASN_IDX_KU_USAGE,
+    certExtsASN_IDX_EKU_SEQ,
+    certExtsASN_IDX_EKU_OID,
+    certExtsASN_IDX_EKU_STR,
+    certExtsASN_IDX_POLICIES_SEQ,
+    certExtsASN_IDX_POLICIES_OID,
+    certExtsASN_IDX_POLICIES_STR,
+    certExtsASN_IDX_POLICIES_INFO,
+    certExtsASN_IDX_NSTYPE_SEQ,
+    certExtsASN_IDX_NSTYPE_OID,
+    certExtsASN_IDX_NSTYPE_STR,
+    certExtsASN_IDX_NSTYPE_USAGE,
+    certExtsASN_IDX_CRLINFO_SEQ,
+    certExtsASN_IDX_CRLINFO_OID,
+    certExtsASN_IDX_CRLINFO_STR,
+    certExtsASN_IDX_CUSTOM_SEQ,
+    certExtsASN_IDX_CUSTOM_OID,
+    certExtsASN_IDX_CUSTOM_STR,
 };
 
 /* Number of items in ASN.1 template for certificate extensions. */
@@ -23150,66 +23192,80 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
     if (ret == 0) {
         if (cert->isCA) {
             /* Set Basic Constraints to be a Certificate Authority. */
-            SetASN_Boolean(&dataASN[4], 1);
-            SetASN_Buffer(&dataASN[1], bcOID, sizeof(bcOID));
+            SetASN_Boolean(&dataASN[certExtsASN_IDX_BC_CA], 1);
+            SetASN_Buffer(&dataASN[certExtsASN_IDX_BC_OID], bcOID, sizeof(bcOID));
             /* TODO: consider adding path length field in Cert. */
-            dataASN[5].noOut = 1;
+            dataASN[certExtsASN_IDX_BC_PATHLEN].noOut = 1;
         }
         else {
             /* Don't write out Basic Constraints extension items. */
-            SetASNItem_NoOut(dataASN, 0, 5);
+            SetASNItem_NoOut(dataASN, certExtsASN_IDX_BC_SEQ,
+                    certExtsASN_IDX_BC_PATHLEN);
         }
     #ifdef WOLFSSL_ALT_NAMES
         if (!forRequest && cert->altNamesSz > 0) {
             /* Set Subject Alternative Name OID and data. */
-            SetASN_Buffer(&dataASN[7], sanOID, sizeof(sanOID));
-            SetASN_Buffer(&dataASN[8], cert->altNames, cert->altNamesSz);
+            SetASN_Buffer(&dataASN[certExtsASN_IDX_SAN_OID],
+                    sanOID, sizeof(sanOID));
+            SetASN_Buffer(&dataASN[certExtsASN_IDX_SAN_STR],
+                    cert->altNames, cert->altNamesSz);
         }
         else
     #endif
         {
             /* Don't write out Subject Alternative Name extension items. */
-            SetASNItem_NoOut(dataASN, 6, 8);
+            SetASNItem_NoOut(dataASN, certExtsASN_IDX_SAN_SEQ,
+                    certExtsASN_IDX_SAN_STR);
         }
     #ifdef WOLFSSL_CERT_EXT
         if (cert->skidSz > 0) {
             /* Set Subject Key Identifier OID and data. */
-            SetASN_Buffer(&dataASN[10], skidOID, sizeof(skidOID));
-            SetASN_Buffer(&dataASN[12], cert->skid, cert->skidSz);
+            SetASN_Buffer(&dataASN[certExtsASN_IDX_SKID_OID],
+                    skidOID, sizeof(skidOID));
+            SetASN_Buffer(&dataASN[certExtsASN_IDX_SKID_KEYID],
+                    cert->skid, cert->skidSz);
         }
         else {
             /* Don't write out Subject Key Identifier extension items. */
-            SetASNItem_NoOut(dataASN, 9, 12);
+            SetASNItem_NoOut(dataASN, certExtsASN_IDX_SKID_SEQ,
+                    certExtsASN_IDX_SKID_KEYID);
         }
         if (cert->akidSz > 0) {
             /* Set Authority Key Identifier OID and data. */
-            SetASN_Buffer(&dataASN[14], akidOID, sizeof(akidOID));
+            SetASN_Buffer(&dataASN[certExtsASN_IDX_AKID_OID],
+                    akidOID, sizeof(akidOID));
         #ifdef WOLFSSL_AKID_NAME
             if (cert->rawAkid) {
-                SetASN_Buffer(&dataASN[15], cert->akid, cert->akidSz);
+                SetASN_Buffer(&dataASN[certExtsASN_IDX_AKID_STR],
+                        cert->akid, cert->akidSz);
                 /* cert->akid contains the internal ext structure */
-                SetASNItem_NoOutBelow(dataASN, certExtsASN, 15,
-                        certExtsASN_Length);
+                SetASNItem_NoOutBelow(dataASN, certExtsASN,
+                        certExtsASN_IDX_AKID_STR, certExtsASN_Length);
             }
             else
         #endif
             {
-                SetASN_Buffer(&dataASN[17], cert->akid, cert->akidSz);
+                SetASN_Buffer(&dataASN[certExtsASN_IDX_AKID_KEYID],
+                        cert->akid, cert->akidSz);
             }
         }
         else {
             /* Don't write out Authority Key Identifier extension items. */
-            SetASNItem_NoOut(dataASN, 13, 17);
+            SetASNItem_NoOut(dataASN, certExtsASN_IDX_AKID_SEQ,
+                    certExtsASN_IDX_AKID_KEYID);
         }
         if (cert->keyUsage != 0) {
             /* Set Key Usage OID, critical and value. */
-            SetASN_Buffer(&dataASN[19], kuOID, sizeof(kuOID));
-            SetASN_Boolean(&dataASN[20], 1);
-            SetASN_Int16Bit(&dataASN[22], cert->keyUsage);
+            SetASN_Buffer(&dataASN[certExtsASN_IDX_KU_OID],
+                    kuOID, sizeof(kuOID));
+            SetASN_Boolean(&dataASN[certExtsASN_IDX_KU_CRIT], 1);
+            SetASN_Int16Bit(&dataASN[certExtsASN_IDX_KU_USAGE],
+                    cert->keyUsage);
         }
         else {
             /* Don't write out Key Usage extension items. */
-            SetASNItem_NoOut(dataASN, 18, 22);
+            SetASNItem_NoOut(dataASN, certExtsASN_IDX_KU_SEQ,
+                    certExtsASN_IDX_KU_USAGE);
         }
         if (cert->extKeyUsage != 0) {
             /* Calculate size of Extended Key Usage data. */
@@ -23218,12 +23274,15 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
                 ret = KEYUSAGE_E;
             }
             /* Set Extended Key Usage OID and data. */
-            SetASN_Buffer(&dataASN[24], ekuOID, sizeof(ekuOID));
-            SetASN_Buffer(&dataASN[25], NULL, sz);
+            SetASN_Buffer(&dataASN[certExtsASN_IDX_EKU_OID],
+                    ekuOID, sizeof(ekuOID));
+            SetASN_Buffer(&dataASN[certExtsASN_IDX_EKU_STR],
+                    NULL, sz);
         }
         else {
             /* Don't write out Extended Key Usage extension items. */
-            SetASNItem_NoOut(dataASN, 23, 25);
+            SetASNItem_NoOut(dataASN, certExtsASN_IDX_EKU_SEQ,
+                    certExtsASN_IDX_EKU_STR);
         }
 
         if ((!forRequest) && (cert->certPoliciesNb > 0)) {
@@ -23232,9 +23291,11 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
                     cert->certPoliciesNb, cert->heap);
             if (sz > 0) {
                 /* Set Certificate Policies OID. */
-                SetASN_Buffer(&dataASN[27], cpOID, sizeof(cpOID));
+                SetASN_Buffer(&dataASN[certExtsASN_IDX_POLICIES_OID],
+                        cpOID, sizeof(cpOID));
                 /* Make space for data. */
-                SetASN_Buffer(&dataASN[29], NULL, sz);
+                SetASN_Buffer(&dataASN[certExtsASN_IDX_POLICIES_INFO],
+                        NULL, sz);
             }
             else {
                 ret = CERTPOLICIES_E;
@@ -23242,29 +23303,36 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
         }
         else {
             /* Don't write out Certificate Policies extension items. */
-            SetASNItem_NoOut(dataASN, 26, 29);
+            SetASNItem_NoOut(dataASN, certExtsASN_IDX_POLICIES_SEQ,
+                    certExtsASN_IDX_POLICIES_INFO);
         }
     #ifndef IGNORE_NETSCAPE_CERT_TYPE
         /* Netscape Certificate Type */
         if (cert->nsCertType != 0) {
             /* Set Netscape Certificate Type OID and data. */
-            SetASN_Buffer(&dataASN[31], nsCertOID, sizeof(nsCertOID));
-            SetASN_Buffer(&dataASN[33], &cert->nsCertType, 1);
+            SetASN_Buffer(&dataASN[certExtsASN_IDX_NSTYPE_OID],
+                    nsCertOID, sizeof(nsCertOID));
+            SetASN_Buffer(&dataASN[certExtsASN_IDX_NSTYPE_USAGE],
+                    &cert->nsCertType, 1);
         }
         else
     #endif
         {
             /* Don't write out Netscape Certificate Type. */
-            SetASNItem_NoOut(dataASN, 30, 33);
+            SetASNItem_NoOut(dataASN, certExtsASN_IDX_NSTYPE_SEQ,
+                    certExtsASN_IDX_NSTYPE_USAGE);
         }
         if (cert->crlInfoSz > 0) {
             /* Set CRL Distribution Points OID and data. */
-            SetASN_Buffer(&dataASN[35], crlInfoOID, sizeof(crlInfoOID));
-            SetASN_Buffer(&dataASN[36], cert->crlInfo, cert->crlInfoSz);
+            SetASN_Buffer(&dataASN[certExtsASN_IDX_CRLINFO_OID],
+                    crlInfoOID, sizeof(crlInfoOID));
+            SetASN_Buffer(&dataASN[certExtsASN_IDX_CRLINFO_STR],
+                    cert->crlInfo, cert->crlInfoSz);
         }
         else {
             /* Don't write out CRL Distribution Points. */
-            SetASNItem_NoOut(dataASN, 34, 36);
+            SetASNItem_NoOut(dataASN, certExtsASN_IDX_CRLINFO_SEQ,
+                    certExtsASN_IDX_CRLINFO_STR);
         }
     #endif /* WOLFSSL_CERT_EXT */
 
@@ -23272,12 +23340,15 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
         /* encode a custom oid and value */
         if (cert->extCustom.oidSz > 0) {
             /* Set CRL Distribution Points OID and data. */
-            SetASN_Buffer(&dataASN[38], cert->extCustom.oid, cert->extCustom.oidSz);
-            SetASN_Buffer(&dataASN[39], cert->extCustom.val, cert->extCustom.valSz);
+            SetASN_Buffer(&dataASN[certExtsASN_IDX_CUSTOM_OID],
+                    cert->extCustom.oid, cert->extCustom.oidSz);
+            SetASN_Buffer(&dataASN[certExtsASN_IDX_CUSTOM_STR],
+                    cert->extCustom.val, cert->extCustom.valSz);
         }
         else {
             /* Don't write out custom OID. */
-            SetASNItem_NoOut(dataASN, 37, 39);
+            SetASNItem_NoOut(dataASN, certExtsASN_IDX_CUSTOM_SEQ,
+                    certExtsASN_IDX_CUSTOM_STR);
         }
     #endif
     }
@@ -23304,16 +23375,19 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
     #ifdef WOLFSSL_CERT_EXT
         if (cert->extKeyUsage != 0){
             /* Encode Extended Key Usage into space provided. */
-            if (SetExtKeyUsage(cert, (byte*)dataASN[26].data.buffer.data,
-                dataASN[26].data.buffer.length, cert->extKeyUsage) <= 0) {
+            if (SetExtKeyUsage(cert,
+                    (byte*)dataASN[certExtsASN_IDX_EKU_STR].data.buffer.data,
+                    dataASN[certExtsASN_IDX_EKU_STR].data.buffer.length,
+                    cert->extKeyUsage) <= 0) {
                 ret = KEYUSAGE_E;
             }
         }
         if ((!forRequest) && (cert->certPoliciesNb > 0)) {
             /* Encode Certificate Policies into space provided. */
-            if (SetCertificatePolicies((byte*)dataASN[30].data.buffer.data,
-                    dataASN[30].data.buffer.length, cert->certPolicies,
-                    cert->certPoliciesNb, cert->heap) <= 0) {
+            if (SetCertificatePolicies(
+                    (byte*)dataASN[certExtsASN_IDX_POLICIES_INFO].data.buffer.data,
+                    dataASN[certExtsASN_IDX_POLICIES_INFO].data.buffer.length,
+                    cert->certPolicies, cert->certPoliciesNb, cert->heap) <= 0) {
                 ret = CERTPOLICIES_E;
             }
         }
