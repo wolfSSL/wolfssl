@@ -22747,6 +22747,9 @@ static int FindMultiAttrib(CertName* name, int id, int* idx)
 static const ASNItem nameASN[] = {
     { 0, ASN_SEQUENCE, 1, 1, 0 },
 };
+enum {
+    nameASN_IDX_SEQ = 0,
+};
 
 /* Number of items in ASN.1 template for the SEQUENCE around the RDNs. */
 #define nameASN_Length (sizeof(nameASN) / sizeof(ASNItem))
