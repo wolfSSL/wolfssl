@@ -20956,17 +20956,25 @@ static int wc_SetCert_LoadDer(Cert* cert, const byte* der, word32 derSz)
  * See ASN.1 template 'eccSpecifiedASN' for specifiedCurve.
  */
 static const ASNItem eccPublicKeyASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* AlgorithmIdentifier */
-/*  1 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-                    /* algorithm */
-/*  2 */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
-                    /* namedCurve */
-/*  3 */            { 2, ASN_OBJECT_ID, 0, 0, 2 },
-                    /* specifiedCurve - explicit parameters */
-/*  4 */            { 2, ASN_SEQUENCE, 1, 0, 2 },
-                /*  */
-/*  5 */        { 1, ASN_BIT_STRING, 0, 0, 0 },
+/* eccPublicKeyASN_IDX_SEQ            */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                             /* AlgorithmIdentifier */
+/* eccPublicKeyASN_IDX_ALGOID_SEQ     */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+                                                 /* algorithm */
+/* eccPublicKeyASN_IDX_ALGOID_OID     */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+                                                 /* namedCurve */
+/* eccPublicKeyASN_IDX_ALGOID_CURVEID */         { 2, ASN_OBJECT_ID, 0, 0, 2 },
+                                                 /* specifiedCurve - explicit parameters */
+/* eccPublicKeyASN_IDX_ALGOID_PARAMS  */         { 2, ASN_SEQUENCE, 1, 0, 2 },
+                                             /* Public Key */
+/* eccPublicKeyASN_IDX_PUBKEY         */     { 1, ASN_BIT_STRING, 0, 0, 0 },
+};
+enum {
+    eccPublicKeyASN_IDX_SEQ = 0,
+    eccPublicKeyASN_IDX_ALGOID_SEQ,
+    eccPublicKeyASN_IDX_ALGOID_OID,
+    eccPublicKeyASN_IDX_ALGOID_CURVEID,
+    eccPublicKeyASN_IDX_ALGOID_PARAMS,
+    eccPublicKeyASN_IDX_PUBKEY,
 };
 
 /* Number of items in ASN.1 template for ECC public key. */
@@ -21129,13 +21137,15 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
 
         if (ret == 0) {
             /* Set the key type OID. */
-            SetASN_OID(&dataASN[2], ECDSAk, oidKeyType);
+            SetASN_OID(&dataASN[eccPublicKeyASN_IDX_ALGOID_OID], ECDSAk,
+                    oidKeyType);
             /* Set the curve OID. */
-            SetASN_Buffer(&dataASN[3], key->dp->oid, key->dp->oidSz);
+            SetASN_Buffer(&dataASN[eccPublicKeyASN_IDX_ALGOID_CURVEID],
+                    key->dp->oid, key->dp->oidSz);
             /* Don't try to write out explicit parameters. */
-            dataASN[4].noOut = 1;
+            dataASN[eccPublicKeyASN_IDX_ALGOID_PARAMS].noOut = 1;
             /* Set size of public point to ensure space is made for it. */
-            SetASN_Buffer(&dataASN[5], NULL, pubSz);
+            SetASN_Buffer(&dataASN[eccPublicKeyASN_IDX_PUBKEY], NULL, pubSz);
             /* Calculate size of ECC public key. */
             ret = SizeASN_Items(eccPublicKeyASN, dataASN,
                                 eccPublicKeyASN_Length, &sz);
@@ -27596,11 +27606,11 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     DECL_ASNGETDATA(dataASN, eccKeyASN_Length);
     int ret = 0;
     int curve_id = ECC_CURVE_DEF;
-    int oidIdx = 3;
+    int oidIdx = eccPublicKeyASN_IDX_ALGOID_CURVEID;
 #ifdef WOLFSSL_CUSTOM_CURVES
-    int specIdx = 4;
+    int specIdx = eccPublicKeyASN_IDX_ALGOID_PARAMS;
 #endif
-    int pubIdx = 5;
+    int pubIdx = eccPublicKeyASN_IDX_PUBKEY;
 
     if ((input == NULL) || (inOutIdx == NULL) || (key == NULL) || (inSz == 0)) {
         ret = BAD_FUNC_ARG;
@@ -27612,7 +27622,8 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         /* Clear dynamic data for ECC public key. */
         XMEMSET(dataASN, 0, sizeof(*dataASN) * eccPublicKeyASN_Length);
         /* Set required ECDSA OID and ignore the curve OID type. */
-        GetASN_ExpBuffer(&dataASN[2], keyEcdsaOid, sizeof(keyEcdsaOid));
+        GetASN_ExpBuffer(&dataASN[eccPublicKeyASN_IDX_ALGOID_OID], keyEcdsaOid,
+                sizeof(keyEcdsaOid));
         GetASN_OID(&dataASN[oidIdx], oidIgnoreType);
         /* Decode the public ECC key. */
         ret = GetASN_Items(eccPublicKeyASN, dataASN, eccPublicKeyASN_Length, 1,
