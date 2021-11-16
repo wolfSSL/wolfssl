@@ -21945,8 +21945,12 @@ static int SetOjectIdValue(byte* output, word32 outSz, int* idx,
  * Dynamic creation of template for encoding.
  */
 static const ASNItem ekuASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/*  1 */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* ekuASN_IDX_SEQ */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* ekuASN_IDX_OID */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
+};
+enum {
+    ekuASN_IDX_SEQ = 0,
+    ekuASN_IDX_OID,
 };
 
 /* OIDs corresponding to extended key usage. */
@@ -22076,7 +22080,7 @@ static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
 
     if (ret == 0) {
         /* Copy Sequence into dynamic ASN.1 template. */
-        XMEMCPY(&extKuASN[0], ekuASN, sizeof(ASNItem));
+        XMEMCPY(&extKuASN[ekuASN_IDX_SEQ], ekuASN, sizeof(ASNItem));
         /* Clear dynamic data. */
         XMEMSET(dataASN, 0, cnt * sizeof(ASNSetData));
 
@@ -22084,7 +22088,8 @@ static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
         /* If 'any' set, then just use it. */
         if ((input & EXTKEYUSE_ANY) == EXTKEYUSE_ANY) {
             /* Set template item. */
-            XMEMCPY(&extKuASN[1], &ekuASN[1], sizeof(ASNItem));
+            XMEMCPY(&extKuASN[ekuASN_IDX_OID], &ekuASN[ekuASN_IDX_OID],
+                    sizeof(ASNItem));
             /* Set data item. */
             SetASN_Buffer(&dataASN[asnIdx], extExtKeyUsageAnyOid,
                 sizeof(extExtKeyUsageAnyOid));
@@ -22095,7 +22100,8 @@ static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
             for (i = EKU_OID_LO; i <= EKU_OID_HI; i++) {
                 if ((input & (1 << i)) != 0) {
                     /* Set template item. */
-                    XMEMCPY(&extKuASN[asnIdx], &ekuASN[1], sizeof(ASNItem));
+                    XMEMCPY(&extKuASN[asnIdx], &ekuASN[ekuASN_IDX_OID],
+                            sizeof(ASNItem));
                     /* Set data item. */
                     SetASN_Buffer(&dataASN[asnIdx], ekuOid[i - 1].oid,
                         ekuOid[i - 1].oidSz);
@@ -22109,7 +22115,8 @@ static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
                     int sz = cert->extKeyUsageOIDSz[i];
                     if (sz > 0) {
                         /* Set template item. */
-                        XMEMCPY(&extKuASN[asnIdx], &ekuASN[1], sizeof(ASNItem));
+                        XMEMCPY(&extKuASN[asnIdx], &ekuASN[ekuASN_IDX_OID],
+                                sizeof(ASNItem));
                         /* Set data item. */
                         SetASN_Buffer(&dataASN[asnIdx], cert->extKeyUsageOID[i],
                             sz);
