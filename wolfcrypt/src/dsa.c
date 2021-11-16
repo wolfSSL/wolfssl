@@ -664,14 +664,12 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
     int     ret = 0, halfSz = 0;
     byte*   tmp;  /* initial output pointer */
 
+    if (digest == NULL || out == NULL || key == NULL || rng == NULL)
+        return BAD_FUNC_ARG;
+
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
 
     do {
-        if (digest == NULL || out == NULL || key == NULL || rng == NULL) {
-            ret = BAD_FUNC_ARG;
-            break;
-        }
-
 #ifdef WOLFSSL_SMALL_STACK
         k = (mp_int *)XMALLOC(sizeof *k, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         kInv = (mp_int *)XMALLOC(sizeof *kInv, key->heap,
