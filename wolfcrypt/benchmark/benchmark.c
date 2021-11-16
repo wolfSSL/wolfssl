@@ -50,8 +50,6 @@
     #include "wolfcrypt/benchmark/benchmark.h"
 #endif
 
-#define BENCH_EMBEDDED
-
 /* printf mappings */
 #ifdef FREESCALE_MQX
     #include <mqx.h>
