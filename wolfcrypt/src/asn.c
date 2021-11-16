@@ -26634,11 +26634,16 @@ int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
  * RFC 5912, 6 - DSA-Sig-Value
  */
 static const ASNItem dsaSigASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* r */
-/*  1 */        { 1, ASN_INTEGER, 0, 0, 0 },
-                /* s */
-/*  2 */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* dsaSigASN_IDX_SEQ */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                            /* r */
+/* dsaSigASN_IDX_R   */     { 1, ASN_INTEGER, 0, 0, 0 },
+                            /* s */
+/* dsaSigASN_IDX_S   */     { 1, ASN_INTEGER, 0, 0, 0 },
+};
+enum {
+    dsaSigASN_IDX_SEQ = 0,
+    dsaSigASN_IDX_R,
+    dsaSigASN_IDX_S,
 };
 
 #define dsaSigASN_Length (sizeof(dsaSigASN) / sizeof(ASNItem))
@@ -26687,8 +26692,8 @@ int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r, mp_int* s)
 
     /* Clear dynamic data and set mp_ints r and s */
     XMEMSET(dataASN, 0, sizeof(dataASN));
-    SetASN_MP(&dataASN[1], r);
-    SetASN_MP(&dataASN[2], s);
+    SetASN_MP(&dataASN[dsaSigASN_IDX_R], r);
+    SetASN_MP(&dataASN[dsaSigASN_IDX_S], s);
 
     /* Calculate size of encoding. */
     ret = SizeASN_Items(dsaSigASN, dataASN, dsaSigASN_Length, &sz);
@@ -26789,8 +26794,8 @@ int StoreECC_DSA_Sig_Bin(byte* out, word32* outLen, const byte* r, word32 rLen,
 
     /* Clear dynamic data and set buffers for r and s */
     XMEMSET(dataASN, 0, sizeof(dataASN));
-    SetASN_Buffer(&dataASN[1], r, rLen);
-    SetASN_Buffer(&dataASN[2], s, sLen);
+    SetASN_Buffer(&dataASN[dsaSigASN_IDX_R], r, rLen);
+    SetASN_Buffer(&dataASN[dsaSigASN_IDX_S], s, sLen);
 
     /* Calculate size of encoding. */
     ret = SizeASN_Items(dsaSigASN, dataASN, dsaSigASN_Length, &sz);
@@ -26867,8 +26872,8 @@ int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, byte* r, word32* rLen,
 
     /* Clear dynamic data and set buffers to put r and s into. */
     XMEMSET(dataASN, 0, sizeof(dataASN));
-    GetASN_Buffer(&dataASN[1], r, rLen);
-    GetASN_Buffer(&dataASN[2], s, sLen);
+    GetASN_Buffer(&dataASN[dsaSigASN_IDX_R], r, rLen);
+    GetASN_Buffer(&dataASN[dsaSigASN_IDX_S], s, sLen);
 
     /* Decode the DSA signature. */
     return GetASN_Items(dsaSigASN, dataASN, dsaSigASN_Length, 1, sig, &idx,
@@ -26924,8 +26929,8 @@ int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
 
     /* Clear dynamic data and set mp_ints to put r and s into. */
     XMEMSET(dataASN, 0, sizeof(dataASN));
-    GetASN_MP(&dataASN[1], r);
-    GetASN_MP(&dataASN[2], s);
+    GetASN_MP(&dataASN[dsaSigASN_IDX_R], r);
+    GetASN_MP(&dataASN[dsaSigASN_IDX_S], s);
 
     /* Decode the DSA signature. */
     return GetASN_Items(dsaSigASN, dataASN, dsaSigASN_Length, 1, sig, &idx,
