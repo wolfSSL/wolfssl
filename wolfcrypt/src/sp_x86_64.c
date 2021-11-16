@@ -459,13 +459,15 @@ static WC_INLINE int sp_2048_mod_16(sp_digit* r, const sp_digit* a,
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_2048_mod_exp_16(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[(33 * 32) + 32];
 #endif
@@ -482,11 +484,20 @@ static int sp_2048_mod_exp_16(sp_digit* r, const sp_digit* a, const sp_digit* e,
 
     ASSERT_SAVED_VECTOR_REGISTERS();
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (33 * 32) + 32, NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (33 * 32) + 32, NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL) {
+            err = MEMORY_E;
+        }
     }
 #endif
 
@@ -671,13 +682,15 @@ static void sp_2048_mont_sqr_avx2_16(sp_digit* r, const sp_digit* a,
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_2048_mod_exp_avx2_16(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[(33 * 32) + 32];
 #endif
@@ -694,11 +707,20 @@ static int sp_2048_mod_exp_avx2_16(sp_digit* r, const sp_digit* a, const sp_digi
 
     ASSERT_SAVED_VECTOR_REGISTERS();
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (33 * 32) + 32, NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (33 * 32) + 32, NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL) {
+            err = MEMORY_E;
+        }
     }
 #endif
 
@@ -1138,13 +1160,15 @@ static WC_INLINE int sp_2048_mod_32(sp_digit* r, const sp_digit* a,
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[(17 * 64) + 64];
 #endif
@@ -1161,11 +1185,20 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
 
     ASSERT_SAVED_VECTOR_REGISTERS();
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (17 * 64) + 64, NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (17 * 64) + 64, NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL) {
+            err = MEMORY_E;
+        }
     }
 #endif
 
@@ -1334,13 +1367,15 @@ static void sp_2048_mont_sqr_avx2_32(sp_digit* r, const sp_digit* a,
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_2048_mod_exp_avx2_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[(17 * 64) + 64];
 #endif
@@ -1357,11 +1392,20 @@ static int sp_2048_mod_exp_avx2_32(sp_digit* r, const sp_digit* a, const sp_digi
 
     ASSERT_SAVED_VECTOR_REGISTERS();
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (17 * 64) + 64, NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (17 * 64) + 64, NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL) {
+            err = MEMORY_E;
+        }
     }
 #endif
 
@@ -2069,13 +2113,15 @@ extern void sp_2048_lshift_32(sp_digit* r, const sp_digit* a, int n);
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success.
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even.
  */
 static int sp_2048_mod_exp_2_avx2_32(sp_digit* r, const sp_digit* e, int bits,
         const sp_digit* m)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[33 + 64];
 #endif
@@ -2092,11 +2138,17 @@ static int sp_2048_mod_exp_2_avx2_32(sp_digit* r, const sp_digit* e, int bits,
 
     ASSERT_SAVED_VECTOR_REGISTERS();
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (33 + 64), NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (33 + 64), NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL) {
+            err = MEMORY_E;
+        }
     }
 #endif
 
@@ -2196,13 +2248,15 @@ static int sp_2048_mod_exp_2_avx2_32(sp_digit* r, const sp_digit* e, int bits,
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success.
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even.
  */
 static int sp_2048_mod_exp_2_32(sp_digit* r, const sp_digit* e, int bits,
         const sp_digit* m)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[33 + 64];
 #endif
@@ -2219,11 +2273,17 @@ static int sp_2048_mod_exp_2_32(sp_digit* r, const sp_digit* e, int bits,
 
     ASSERT_SAVED_VECTOR_REGISTERS();
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (33 + 64), NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (33 + 64), NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL) {
+            err = MEMORY_E;
+        }
     }
 #endif
 
@@ -2924,13 +2984,15 @@ static WC_INLINE int sp_3072_mod_24(sp_digit* r, const sp_digit* a,
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_3072_mod_exp_24(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[(33 * 48) + 48];
 #endif
@@ -2947,11 +3009,20 @@ static int sp_3072_mod_exp_24(sp_digit* r, const sp_digit* a, const sp_digit* e,
 
     ASSERT_SAVED_VECTOR_REGISTERS();
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (33 * 48) + 48, NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (33 * 48) + 48, NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL) {
+            err = MEMORY_E;
+        }
     }
 #endif
 
@@ -3136,13 +3207,15 @@ static void sp_3072_mont_sqr_avx2_24(sp_digit* r, const sp_digit* a,
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_3072_mod_exp_avx2_24(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[(33 * 48) + 48];
 #endif
@@ -3159,11 +3232,20 @@ static int sp_3072_mod_exp_avx2_24(sp_digit* r, const sp_digit* a, const sp_digi
 
     ASSERT_SAVED_VECTOR_REGISTERS();
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (33 * 48) + 48, NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (33 * 48) + 48, NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL) {
+            err = MEMORY_E;
+        }
     }
 #endif
 
@@ -3603,13 +3685,15 @@ static WC_INLINE int sp_3072_mod_48(sp_digit* r, const sp_digit* a,
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[(17 * 96) + 96];
 #endif
@@ -3626,11 +3710,20 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
 
     ASSERT_SAVED_VECTOR_REGISTERS();
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (17 * 96) + 96, NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (17 * 96) + 96, NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL) {
+            err = MEMORY_E;
+        }
     }
 #endif
 
@@ -3799,13 +3892,15 @@ static void sp_3072_mont_sqr_avx2_48(sp_digit* r, const sp_digit* a,
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_3072_mod_exp_avx2_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[(17 * 96) + 96];
 #endif
@@ -3822,11 +3917,20 @@ static int sp_3072_mod_exp_avx2_48(sp_digit* r, const sp_digit* a, const sp_digi
 
     ASSERT_SAVED_VECTOR_REGISTERS();
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (17 * 96) + 96, NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (17 * 96) + 96, NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL) {
+            err = MEMORY_E;
+        }
     }
 #endif
 
@@ -4534,13 +4638,15 @@ extern void sp_3072_lshift_48(sp_digit* r, const sp_digit* a, int n);
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success.
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even.
  */
 static int sp_3072_mod_exp_2_avx2_48(sp_digit* r, const sp_digit* e, int bits,
         const sp_digit* m)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[49 + 96];
 #endif
@@ -4557,11 +4663,17 @@ static int sp_3072_mod_exp_2_avx2_48(sp_digit* r, const sp_digit* e, int bits,
 
     ASSERT_SAVED_VECTOR_REGISTERS();
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (49 + 96), NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (49 + 96), NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL) {
+            err = MEMORY_E;
+        }
     }
 #endif
 
@@ -4661,13 +4773,15 @@ static int sp_3072_mod_exp_2_avx2_48(sp_digit* r, const sp_digit* e, int bits,
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success.
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even.
  */
 static int sp_3072_mod_exp_2_48(sp_digit* r, const sp_digit* e, int bits,
         const sp_digit* m)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[49 + 96];
 #endif
@@ -4684,11 +4798,17 @@ static int sp_3072_mod_exp_2_48(sp_digit* r, const sp_digit* e, int bits,
 
     ASSERT_SAVED_VECTOR_REGISTERS();
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (49 + 96), NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (49 + 96), NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL) {
+            err = MEMORY_E;
+        }
     }
 #endif
 
@@ -5455,13 +5575,15 @@ static WC_INLINE int sp_4096_mod_64(sp_digit* r, const sp_digit* a,
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_4096_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[(17 * 128) + 128];
 #endif
@@ -5478,11 +5600,20 @@ static int sp_4096_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
 
     ASSERT_SAVED_VECTOR_REGISTERS();
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (17 * 128) + 128, NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (17 * 128) + 128, NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL) {
+            err = MEMORY_E;
+        }
     }
 #endif
 
@@ -5651,13 +5782,15 @@ static void sp_4096_mont_sqr_avx2_64(sp_digit* r, const sp_digit* a,
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even or exponent is 0.
  */
 static int sp_4096_mod_exp_avx2_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[(17 * 128) + 128];
 #endif
@@ -5674,11 +5807,20 @@ static int sp_4096_mod_exp_avx2_64(sp_digit* r, const sp_digit* a, const sp_digi
 
     ASSERT_SAVED_VECTOR_REGISTERS();
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+    else if (bits == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (17 * 128) + 128, NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (17 * 128) + 128, NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL) {
+            err = MEMORY_E;
+        }
     }
 #endif
 
@@ -6386,13 +6528,15 @@ extern void sp_4096_lshift_64(sp_digit* r, const sp_digit* a, int n);
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success.
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even.
  */
 static int sp_4096_mod_exp_2_avx2_64(sp_digit* r, const sp_digit* e, int bits,
         const sp_digit* m)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[65 + 128];
 #endif
@@ -6409,11 +6553,17 @@ static int sp_4096_mod_exp_2_avx2_64(sp_digit* r, const sp_digit* e, int bits,
 
     ASSERT_SAVED_VECTOR_REGISTERS();
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (65 + 128), NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (65 + 128), NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL) {
+            err = MEMORY_E;
+        }
     }
 #endif
 
@@ -6513,13 +6663,15 @@ static int sp_4096_mod_exp_2_avx2_64(sp_digit* r, const sp_digit* e, int bits,
  * e     A single precision number that is the exponent.
  * bits  The number of bits in the exponent.
  * m     A single precision number that is the modulus.
- * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ * returns  0 on success.
+ * returns  MEMORY_E on dynamic memory allocation failure.
+ * returns  MP_VAL when base is even.
  */
 static int sp_4096_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
         const sp_digit* m)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[65 + 128];
 #endif
@@ -6536,11 +6688,17 @@ static int sp_4096_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
 
     ASSERT_SAVED_VECTOR_REGISTERS();
 
+    if ((m[0] & 1) == 0) {
+        err = MP_VAL;
+    }
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (65 + 128), NULL,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
-        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (65 + 128), NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (td == NULL) {
+            err = MEMORY_E;
+        }
     }
 #endif
 
