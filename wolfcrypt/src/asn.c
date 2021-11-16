@@ -24193,15 +24193,23 @@ static int GenerateInteger(WC_RNG* rng, byte* out, int len)
  * X.509: RFC 5280, 4.1 - Basic Certificate Fields.
  */
 static const ASNItem sigASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* tbsCertificate */
-/*  1 */        { 1, ASN_SEQUENCE, 1, 0, 0 },
-                /* signatureAlgorithm */
-/*  2 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-/*  3 */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/*  4 */            { 2, ASN_TAG_NULL, 0, 0, 0 },
-                /* signatureValue */
-/*  5 */        { 1, ASN_BIT_STRING, 0, 0, 0 },
+/* sigASN_IDX_SEQ          */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                     /* tbsCertificate */
+/* sigASN_IDX_TBS_SEQ      */        { 1, ASN_SEQUENCE, 1, 0, 0 },
+                                     /* signatureAlgorithm */
+/* sigASN_IDX_SIGALGO_SEQ  */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* sigASN_IDX_SIGALGO_OID  */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* sigASN_IDX_SIGALGO_NULL */            { 2, ASN_TAG_NULL, 0, 0, 0 },
+                                     /* signatureValue */
+/* sigASN_IDX_SIGNATURE    */        { 1, ASN_BIT_STRING, 0, 0, 0 },
+};
+enum {
+    sigASN_IDX_SEQ = 0,
+    sigASN_IDX_TBS_SEQ,
+    sigASN_IDX_SIGALGO_SEQ,
+    sigASN_IDX_SIGALGO_OID,
+    sigASN_IDX_SIGALGO_NULL,
+    sigASN_IDX_SIGNATURE,
 };
 
 /* Number of items in ASN.1 template for a Certificate. */
@@ -24245,14 +24253,15 @@ int AddSignature(byte* buf, int bodySz, const byte* sig, int sigSz,
     /* In place, put body between SEQUENCE and signature. */
     if (ret == 0) {
         /* Set sigature OID and signature data. */
-        SetASN_OID(&dataASN[3], sigAlgoType, oidSigType);
+        SetASN_OID(&dataASN[sigASN_IDX_SIGALGO_OID], sigAlgoType, oidSigType);
         if (IsSigAlgoECC(sigAlgoType)) {
             /* ECDSA and EdDSA doesn't have NULL tagged item. */
-            dataASN[4].noOut = 1;
+            dataASN[sigASN_IDX_SIGALGO_NULL].noOut = 1;
         }
-        SetASN_Buffer(&dataASN[5], sig, sigSz);
+        SetASN_Buffer(&dataASN[sigASN_IDX_SIGNATURE], sig, sigSz);
         /* Calcuate size of signature data. */
-        ret = SizeASN_Items(&sigASN[2], &dataASN[2], sigASN_Length - 2, &sz);
+        ret = SizeASN_Items(&sigASN[sigASN_IDX_SIGALGO_SEQ],
+                &dataASN[sigASN_IDX_SIGALGO_SEQ], sigASN_Length - 2, &sz);
     }
     if (ret == 0) {
         /* Calculate size of outer sequence by calculating size of the encoded
@@ -24263,7 +24272,7 @@ int AddSignature(byte* buf, int bodySz, const byte* sig, int sigSz,
             XMEMMOVE(buf + seqSz, buf, bodySz);
         }
         /* Leave space for body in encoding. */
-        SetASN_ReplaceBuffer(&dataASN[1], NULL, bodySz);
+        SetASN_ReplaceBuffer(&dataASN[sigASN_IDX_TBS_SEQ], NULL, bodySz);
 
         /* Calculate overall size and put in offsets and lengths. */
         ret = SizeASN_Items(sigASN, dataASN, sigASN_Length, &sz);
