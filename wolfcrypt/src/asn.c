@@ -17473,36 +17473,57 @@ static int DecodeCertReqAttributes(DecodedCert* cert, int* criticalExt,
 
 /* ASN.1 template for a certificate request.
  * PKCS#10: RFC 2986, 4.1 - CertificationRequestInfo
+ * PKCS#10: RFC 2986, 4.2 - CertificationRequest
  */
 static const ASNItem certReqASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/*  1 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-                    /* version              INTEGER { v1(0), v2(1), v3(2) */
-/*  2 */            { 2, ASN_INTEGER, 0, 0, 0 },
-                    /* subject              Name */
-/*  3 */            { 2, ASN_SEQUENCE, 1, 0, 0 },
-                    /* subjectPublicKeyInfo SubjectPublicKeyInfo */
-/*  4 */            { 2, ASN_SEQUENCE, 1, 1, 0 },
-                        /* algorithm          AlgorithmIdentifier */
-/*  5 */                { 3, ASN_SEQUENCE, 1, 1, 0 },
-                            /* Algorithm    OBJECT IDENTIFIER */
-/*  6 */                    { 4, ASN_OBJECT_ID, 0, 0, 0 },
-                            /* parameters   ANY defined by algorithm OPTIONAL */
-/*  7 */                    { 4, ASN_TAG_NULL, 0, 0, 1 },
-/*  8 */                    { 4, ASN_OBJECT_ID, 0, 0, 1 },
-/*  9 */                    { 4, ASN_SEQUENCE, 1, 0, 1 },
-                        /* subjectPublicKey   BIT STRING */
-/* 10 */                { 3, ASN_BIT_STRING, 0, 0, 0 },
-                    /* attributes       [0] Attributes */
-/* 11 */            { 2, ASN_CONTEXT_SPECIFIC | 0, 1, 0, 1 },
-                /* signatureAlgorithm   AlgorithmIdentifier */
-/* 12 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-                    /* Algorithm    OBJECT IDENTIFIER */
-/* 13 */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
-                    /* parameters   ANY defined by algorithm OPTIONAL */
-/* 14 */            { 2, ASN_TAG_NULL, 0, 0, 1 },
-                /* signature            BIT STRING */
-/* 15 */        { 1, ASN_BIT_STRING, 0, 0, 0 },
+            /* CertificationRequest */
+/* certReqASN_IDX_SEQ                              */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                                          /* CertificationRequestInfo */
+/* certReqASN_IDX_INFO_SEQ                         */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+                                                              /* version              INTEGER { v1(0), v2(1), v3(2) */
+/* certReqASN_IDX_INFO_VER                         */         { 2, ASN_INTEGER, 0, 0, 0 },
+                                                              /* subject              Name */
+/* certReqASN_IDX_INFO_SUBJ_SEQ                    */         { 2, ASN_SEQUENCE, 1, 0, 0 },
+                                                              /* subjectPublicKeyInfo SubjectPublicKeyInfo */
+/* certReqASN_IDX_INFO_SPUBKEYINFO_SEQ             */         { 2, ASN_SEQUENCE, 1, 1, 0 },
+                                                                  /* algorithm          AlgorithmIdentifier */
+/* certReqASN_IDX_INFO_SPUBKEYINFO_ALGOID_SEQ      */             { 3, ASN_SEQUENCE, 1, 1, 0 },
+                                                                      /* Algorithm    OBJECT IDENTIFIER */
+/* certReqASN_IDX_INFO_SPUBKEYINFO_ALGOID_OID      */                 { 4, ASN_OBJECT_ID, 0, 0, 0 },
+                                                                      /* parameters   ANY defined by algorithm OPTIONAL */
+/* certReqASN_IDX_INFO_SPUBKEYINFO_ALGOID_NOPARAMS */                 { 4, ASN_TAG_NULL, 0, 0, 1 },
+/* certReqASN_IDX_INFO_SPUBKEYINFO_ALGOID_CURVEID  */                 { 4, ASN_OBJECT_ID, 0, 0, 1 },
+/* certReqASN_IDX_INFO_SPUBKEYINFO_ALGOID_PARAMS   */                 { 4, ASN_SEQUENCE, 1, 0, 1 },
+                                                                  /* subjectPublicKey   BIT STRING */
+/* certReqASN_IDX_INFO_SPUBKEYINFO_PUBKEY          */             { 3, ASN_BIT_STRING, 0, 0, 0 },
+                                                              /* attributes       [0] Attributes */
+/* certReqASN_IDX_INFO_ATTRS                       */         { 2, ASN_CONTEXT_SPECIFIC | 0, 1, 0, 1 },
+                                                          /* signatureAlgorithm   AlgorithmIdentifier */
+/* certReqASN_IDX_INFO_SIGALGO_SEQ                 */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+                                                              /* Algorithm    OBJECT IDENTIFIER */
+/* certReqASN_IDX_INFO_SIGALGO_OID                 */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+                                                              /* parameters   ANY defined by algorithm OPTIONAL */
+/* certReqASN_IDX_INFO_SIGALGO_NOPARAMS            */         { 2, ASN_TAG_NULL, 0, 0, 1 },
+                                                          /* signature            BIT STRING */
+/* certReqASN_IDX_INFO_SIGNATURE                   */     { 1, ASN_BIT_STRING, 0, 0, 0 },
+};
+enum {
+    certReqASN_IDX_SEQ = 0,
+    certReqASN_IDX_INFO_SEQ,
+    certReqASN_IDX_INFO_VER,
+    certReqASN_IDX_INFO_SUBJ_SEQ,
+    certReqASN_IDX_INFO_SPUBKEYINFO_SEQ,
+    certReqASN_IDX_INFO_SPUBKEYINFO_ALGOID_SEQ,
+    certReqASN_IDX_INFO_SPUBKEYINFO_ALGOID_OID,
+    certReqASN_IDX_INFO_SPUBKEYINFO_ALGOID_NOPARAMS,
+    certReqASN_IDX_INFO_SPUBKEYINFO_ALGOID_CURVEID,
+    certReqASN_IDX_INFO_SPUBKEYINFO_ALGOID_PARAMS,
+    certReqASN_IDX_INFO_SPUBKEYINFO_PUBKEY,
+    certReqASN_IDX_INFO_ATTRS,
+    certReqASN_IDX_INFO_SIGALGO_SEQ,
+    certReqASN_IDX_INFO_SIGALGO_OID,
+    certReqASN_IDX_INFO_SIGALGO_NOPARAMS,
+    certReqASN_IDX_INFO_SIGNATURE,
 };
 
 /* Number of items in ASN.1 template for a certificate request. */
@@ -17539,10 +17560,12 @@ static int DecodeCertReq(DecodedCert* cert, int* criticalExt)
         version = 0;
 
         /* Set version var and OID types to expect. */
-        GetASN_Int8Bit(&dataASN[2], &version);
-        GetASN_OID(&dataASN[6], oidKeyType);
-        GetASN_OID(&dataASN[8], oidCurveType);
-        GetASN_OID(&dataASN[13], oidSigType);
+        GetASN_Int8Bit(&dataASN[certReqASN_IDX_INFO_VER], &version);
+        GetASN_OID(&dataASN[certReqASN_IDX_INFO_SPUBKEYINFO_ALGOID_OID],
+                oidKeyType);
+        GetASN_OID(&dataASN[certReqASN_IDX_INFO_SPUBKEYINFO_ALGOID_CURVEID],
+                oidCurveType);
+        GetASN_OID(&dataASN[certReqASN_IDX_INFO_SIGALGO_OID], oidSigType);
         /* Parse a certificate request. */
         ret = GetASN_Items(certReqASN, dataASN, certReqASN_Length, 1,
                            cert->source, &cert->srcIdx, cert->maxIdx);
@@ -17555,29 +17578,36 @@ static int DecodeCertReq(DecodedCert* cert, int* criticalExt)
     if (ret == 0) {
         /* Set fields of certificate request. */
         cert->version = version;
-        cert->signatureOID = dataASN[13].data.oid.sum;
-        cert->keyOID = dataASN[6].data.oid.sum;
-        cert->certBegin = dataASN[1].offset;
+        cert->signatureOID =
+              dataASN[certReqASN_IDX_INFO_SIGALGO_OID].data.oid.sum;
+        cert->keyOID =
+              dataASN[certReqASN_IDX_INFO_SPUBKEYINFO_ALGOID_OID].data.oid.sum;
+        cert->certBegin = dataASN[certReqASN_IDX_INFO_SEQ].offset;
 
         /* Parse the subject name. */
-        idx = dataASN[3].offset;
+        idx = dataASN[certReqASN_IDX_INFO_SUBJ_SEQ].offset;
         ret = GetCertName(cert, cert->subject, cert->subjectHash, SUBJECT,
-                          cert->source, &idx, dataASN[4].offset);
+                          cert->source, &idx,
+                          dataASN[certReqASN_IDX_INFO_SPUBKEYINFO_SEQ].offset);
     }
     if (ret == 0) {
         /* Parse the certificate request Attributes. */
         ret = DecodeCertReqAttributes(cert, criticalExt,
-            GetASNItem_DataIdx(dataASN[11], cert->source), dataASN[12].offset);
+                GetASNItem_DataIdx(dataASN[certReqASN_IDX_INFO_ATTRS],
+                        cert->source),
+                dataASN[certReqASN_IDX_INFO_SIGALGO_SEQ].offset);
     }
     if (ret == 0) {
         /* Parse the certificate request's key. */
-        idx = dataASN[4].offset;
-        ret = GetCertKey(cert, cert->source, &idx, dataASN[11].offset);
+        idx = dataASN[certReqASN_IDX_INFO_SPUBKEYINFO_SEQ].offset;
+        ret = GetCertKey(cert, cert->source, &idx,
+                dataASN[certReqASN_IDX_INFO_ATTRS].offset);
     }
     if (ret == 0) {
         /* Store references to signature. */
-        cert->sigIndex = dataASN[12].offset;
-        GetASN_GetConstRef(&dataASN[15], &cert->signature, &cert->sigLength);
+        cert->sigIndex = dataASN[certReqASN_IDX_INFO_SIGALGO_SEQ].offset;
+        GetASN_GetConstRef(&dataASN[certReqASN_IDX_INFO_SIGNATURE],
+                &cert->signature, &cert->sigLength);
     }
 
     FREE_ASNGETDATA(dataASN, cert->heap);
@@ -18174,20 +18204,25 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
         /* Clear dynamic data for certificate request items. */
         XMEMSET(dataASN, 0, sizeof(ASNGetData) * certReqASN_Length);
         /* Set OID types expected for signature and public key. */
-        GetASN_OID(&dataASN[6], oidKeyType);
-        GetASN_OID(&dataASN[8], oidCurveType);
-        GetASN_OID(&dataASN[13], oidSigType);
+        GetASN_OID(&dataASN[certReqASN_IDX_INFO_SPUBKEYINFO_ALGOID_OID],
+                oidKeyType);
+        GetASN_OID(&dataASN[certReqASN_IDX_INFO_SPUBKEYINFO_ALGOID_CURVEID],
+                oidCurveType);
+        GetASN_OID(&dataASN[certReqASN_IDX_INFO_SIGALGO_OID], oidSigType);
         /* Parse certificate request. */
         ret = GetASN_Items(certReqASN, dataASN, certReqASN_Length, 1, cert,
                            &idx, certSz);
         if (ret == 0) {
             /* Store the data for verification in the certificate. */
-            tbs = GetASNItem_Addr(dataASN[1], cert);
-            tbsSz = GetASNItem_Length(dataASN[1], cert);
-            caName = GetASNItem_Addr(dataASN[3], cert);
-            caNameLen = GetASNItem_Length(dataASN[3], cert);
-            sigOID = dataASN[13].data.oid.sum;
-            GetASN_GetConstRef(&dataASN[15], &sig, &sigSz);
+            tbs = GetASNItem_Addr(dataASN[certReqASN_IDX_INFO_SEQ], cert);
+            tbsSz = GetASNItem_Length(dataASN[certReqASN_IDX_INFO_SEQ], cert);
+            caName = GetASNItem_Addr(
+                    dataASN[certReqASN_IDX_INFO_SUBJ_SEQ], cert);
+            caNameLen = GetASNItem_Length(
+                    dataASN[certReqASN_IDX_INFO_SUBJ_SEQ], cert);
+            sigOID = dataASN[certReqASN_IDX_INFO_SIGALGO_OID].data.oid.sum;
+            GetASN_GetConstRef(&dataASN[certReqASN_IDX_INFO_SIGNATURE], &sig,
+                    &sigSz);
         }
 #endif
     }
