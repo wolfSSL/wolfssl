@@ -21272,13 +21272,19 @@ int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve)
  */
 static const ASNItem edPubKeyASN[] = {
             /* SubjectPublicKeyInfo */
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* AlgorithmIdentifier */
-/*  1 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-                    /* Ed25519/Ed448 OID */
-/*  2 */            { 2, ASN_OBJECT_ID, 0, 0, 1 },
-                /* Public key stream */
-/*  3 */        { 1, ASN_BIT_STRING, 0, 0, 0 },
+/* edPubKeyASN_IDX_SEQ        */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                     /* AlgorithmIdentifier */
+/* edPubKeyASN_IDX_ALGOID_SEQ */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+                                         /* Ed25519/Ed448 OID */
+/* edPubKeyASN_IDX_ALGOID_OID */         { 2, ASN_OBJECT_ID, 0, 0, 1 },
+                                     /* Public key stream */
+/* edPubKeyASN_IDX_PUBKEY     */     { 1, ASN_BIT_STRING, 0, 0, 0 },
+};
+enum {
+    edPubKeyASN_IDX_SEQ = 0,
+    edPubKeyASN_IDX_ALGOID_SEQ,
+    edPubKeyASN_IDX_ALGOID_OID,
+    edPubKeyASN_IDX_PUBKEY,
 };
 
 /* Number of items in ASN.1 template for Ed25519 and Ed448 public key. */
@@ -21364,9 +21370,10 @@ static int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
 
         if (ret == 0) {
             /* Set the OID. */
-            SetASN_OID(&dataASN[2], keyType, oidKeyType);
+            SetASN_OID(&dataASN[edPubKeyASN_IDX_ALGOID_OID], keyType,
+                    oidKeyType);
             /* Leave space for public point. */
-            SetASN_Buffer(&dataASN[3], NULL, pubKeyLen);
+            SetASN_Buffer(&dataASN[edPubKeyASN_IDX_PUBKEY], NULL, pubKeyLen);
             /* Calculate size of public key encoding. */
             ret = SizeASN_Items(edPubKeyASN, dataASN, edPubKeyASN_Length, &sz);
         }
@@ -21377,7 +21384,7 @@ static int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
             /* Encode public key. */
             SetASN_Items(edPubKeyASN, dataASN, edPubKeyASN_Length, output);
             /* Set location to encode public point. */
-            output = (byte*)dataASN[3].data.buffer.data;
+            output = (byte*)dataASN[edPubKeyASN_IDX_PUBKEY].data.buffer.data;
         }
 
         FREE_ASNSETDATA(dataASN, NULL);
@@ -28315,7 +28322,7 @@ static int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
         word32 oidSz;
         const byte* oid = OidFromId(keyType, oidKeyType, &oidSz);
 
-        GetASN_ExpBuffer(&dataASN[2], oid, oidSz);
+        GetASN_ExpBuffer(&dataASN[edPubKeyASN_IDX_ALGOID_OID], oid, oidSz);
         /* Decode Ed25519 private key. */
         ret = GetASN_Items(edPubKeyASN, dataASN, edPubKeyASN_Length, 1, input,
                 inOutIdx, inSz);
@@ -28326,16 +28333,19 @@ static int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
             ret = ASN_PARSE_E;
     }
     /* Check the public value length is correct. */
-    if ((ret == 0) && (dataASN[3].data.ref.length > *pubKeyLen)) {
+    if ((ret == 0) &&
+            (dataASN[edPubKeyASN_IDX_PUBKEY].data.ref.length > *pubKeyLen)) {
         ret = ASN_PARSE_E;
     }
     /* Check that the all the buffer was used. */
-    if ((ret == 0) && (GetASNItem_Length(dataASN[0], input) != len)) {
+    if ((ret == 0) &&
+            (GetASNItem_Length(dataASN[edPubKeyASN_IDX_SEQ], input) != len)) {
         ret = ASN_PARSE_E;
     }
     if (ret == 0) {
-        *pubKeyLen = dataASN[3].data.ref.length;
-        XMEMCPY(pubKey, dataASN[3].data.ref.data, *pubKeyLen);
+        *pubKeyLen = dataASN[edPubKeyASN_IDX_PUBKEY].data.ref.length;
+        XMEMCPY(pubKey, dataASN[edPubKeyASN_IDX_PUBKEY].data.ref.data,
+                *pubKeyLen);
     }
 
     FREE_ASNGETDATA(dataASN, NULL);
