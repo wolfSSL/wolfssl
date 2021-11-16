@@ -627,8 +627,8 @@ static int iotsafe_put_public_key(byte *pubkey_id, unsigned long id_size,
 
     /* Export raw Qx, Qy values */
     ret = wc_ecc_export_public_raw(key,
-        ecc_pub_raw + 4 + id_size, &qxlen,
-        ecc_pub_raw + 4 + id_size + IOTSAFE_ECC_KSIZE, &qylen);
+        ecc_pub_raw + 5, &qxlen,
+        ecc_pub_raw + 5 + IOTSAFE_ECC_KSIZE, &qylen);
     if (ret != 0) {
         WOLFSSL_MSG("IoT Safe: Could not export public key: Error");
         return ret;

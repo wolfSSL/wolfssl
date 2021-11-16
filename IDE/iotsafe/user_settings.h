@@ -40,17 +40,13 @@
     #define CRT_SERVER_FILE_ID  0x3330
     #define PRIVKEY_ID          0x3230     /* pre-provisioned */
     #define ECDH_KEYPAIR_ID     0x3330
-    #define PEER_PUBKEY_ID      0x3430
-    #define PEER_CERT_ID        0x3530
+    #define PEER_PUBKEY_ID      0x3530
+    #define PEER_CERT_ID        0x3430
 
     /* In this version of the demo, the server certificate is
      * stored in a buffer, while the CA is read from a file slot in IoT-SAFE
      */
     #define SOFT_SERVER_CERT
-
-    /* DELME */
-    #define SOFT_SERVER_CA
-
 #else
     #define IOTSAFE_ID_SIZE     1
     #define CRT_CLIENT_FILE_ID  0x03     /* pre-provisioned */

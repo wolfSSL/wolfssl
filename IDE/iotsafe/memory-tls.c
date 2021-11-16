@@ -192,6 +192,8 @@ static int client_loop(void)
         }
         printf("Loaded Server CA from IoT-Safe, size = %lu\n",
                 cert_buffer_size);
+        ret = wolfSSL_CTX_load_verify_buffer(cli_ctx, cert_buffer,
+                cert_buffer_size, WOLFSSL_FILETYPE_ASN1);
 #endif
 
 
