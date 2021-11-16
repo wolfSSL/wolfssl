@@ -123,14 +123,17 @@ static int bytes_to_hex(const unsigned char *bytes, char *hex, unsigned long sz)
 
 static int expect_tok(const char *cmd, int size, const char *tok, char **repl)
 {
-    int ret = 0;
     char *r_found = NULL;
     static char parser_line[MAXBUF / 2];
-    if (repl) {
-        *repl = NULL;
-    }
+    char *reply = NULL;
+    int ret;
     if (cmd) {
         ret = csim_write(cmd, size);
+        if (ret <= 0)
+            return ret;
+    } else {
+        /* Force enter the read loop on cmd == NULL */
+        ret = 1;
     }
     while (ret > 0) {
         ret = csim_read(csim_read_buf, MAXBUF);
@@ -150,12 +153,25 @@ static int expect_tok(const char *cmd, int size, const char *tok, char **repl)
             }
         }
     }
-    if ((ret >= 0) && (repl && r_found)) {
-        *repl = parser_line + XSTRLEN(tok);
+    if ((ret >= 0) && (r_found)) {
+        reply = parser_line + XSTRLEN(tok);
+        /* If the reply consists of token only,
+         * return the entire string.
+         */
+        if (XSTRLEN(reply) == 0) {
+            reply = parser_line;
+        }
     }
-    if (r_found) {
-        ret = (int)XSTRLEN(*repl);
-    }
+    /* Assign the pointer to the received reply
+     * only if repl is not NULL
+     */
+    if (repl)
+        *repl = reply;
+
+    if (reply)
+        ret = (int)XSTRLEN(reply);
+    else
+        ret = 0;
     return ret;
 }
 
@@ -565,7 +581,6 @@ static int iotsafe_parse_public_key(char* resp, int len, ecc_key *key)
         return ret;
     }
     WOLFSSL_MSG("Get Public key: OK");
-    printf("public key: %s, %s\n", Qx, Qy);
     return 0;
 }
 
@@ -674,7 +689,6 @@ static int iotsafe_put_public_key(byte *pubkey_id, unsigned long id_size,
             ret = 0;
         }
     }
-    //printf("put_public returning %d\n", ret);
     return ret;
 }
 
@@ -716,7 +730,7 @@ static int iotsafe_sign_hash(byte *privkey_idx, uint16_t id_size,
         } while (ret == 0);
         if (ret < 0)
             return WC_HW_E;
-        
+
         /* Compose sign_update message with hash to sign */
         iotsafe_cmd_start(csim_cmd, IOTSAFE_CLASS,
                 IOTSAFE_INS_SIGN_UPDATE,
@@ -820,7 +834,6 @@ static int iotsafe_verify_hash(byte *pubkey_idx, uint16_t id_size,
             }
         }
         else if (ret == 0) {
-            //printf("Verify OK!\n");
             *result = 1;
             ret = 0;
         }
@@ -832,7 +845,7 @@ static int iotsafe_verify_hash(byte *pubkey_idx, uint16_t id_size,
             *result = 0;
             ret = WC_HW_E;
         }
-        
+
         do {
             ret = expect_ok("AT\r\n", 4);
         } while (ret == 0);
