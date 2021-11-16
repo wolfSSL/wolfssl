@@ -25098,26 +25098,42 @@ static int WriteCertReqBody(DerCert* der, byte* buf)
  * PKCS #10: RFC 2986, 4.1 - CertificationRequestInfo
  */
 static const ASNItem certReqBodyASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* version */
-/*  1 */        { 1, ASN_INTEGER, 0, 0, 0 },
-                /* subject */
-/*  2 */        { 1, ASN_SEQUENCE, 1, 0, 0 },
-                /* subjectPKInfo */
-/*  3 */        { 1, ASN_SEQUENCE, 1, 0, 0 },
-                /*  attributes*/
-/*  4 */        { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
-                    /* Challenge Password Attribute */
-/*  5 */            { 2, ASN_SEQUENCE, 1, 1, 1 },
-/*  6 */                { 3, ASN_OBJECT_ID, 0, 0, 0 },
-/*  7 */                { 3, ASN_SET, 1, 1, 0 },
-/*  8 */                    { 4, ASN_PRINTABLE_STRING, 0, 0, 0 },
-/*  9 */                    { 4, ASN_UTF8STRING, 0, 0, 0 },
-                    /* Extensions Attribute */
-/* 10 */            { 2, ASN_SEQUENCE, 1, 1, 1 },
-/* 11 */                { 3, ASN_OBJECT_ID, 0, 0, 0 },
-/* 12 */                { 3, ASN_SET, 1, 1, 0 },
-/* 13 */                    { 4, ASN_SEQUENCE, 1, 0, 0 },
+/* certReqBodyASN_IDX_SEQ             */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                             /* version */
+/* certReqBodyASN_IDX_VER             */     { 1, ASN_INTEGER, 0, 0, 0 },
+                                             /* subject */
+/* certReqBodyASN_IDX_SUBJ_SEQ        */     { 1, ASN_SEQUENCE, 1, 0, 0 },
+                                             /* subjectPKInfo */
+/* certReqBodyASN_IDX_SPUBKEYINFO_SEQ */     { 1, ASN_SEQUENCE, 1, 0, 0 },
+                                             /*  attributes*/
+/* certReqBodyASN_IDX_ATTRS           */     { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
+                                                 /* Challenge Password Attribute */
+/* certReqBodyASN_IDX_ATTRS_CPW_SEQ   */         { 2, ASN_SEQUENCE, 1, 1, 1 },
+/* certReqBodyASN_IDX_ATTRS_CPW_OID   */             { 3, ASN_OBJECT_ID, 0, 0, 0 },
+/* certReqBodyASN_IDX_ATTRS_CPW_SET   */             { 3, ASN_SET, 1, 1, 0 },
+/* certReqBodyASN_IDX_ATTRS_CPW_PS    */                 { 4, ASN_PRINTABLE_STRING, 0, 0, 0 },
+/* certReqBodyASN_IDX_ATTRS_CPW_UTF   */                 { 4, ASN_UTF8STRING, 0, 0, 0 },
+                                                 /* Extensions Attribute */
+/* certReqBodyASN_IDX_EXT_SEQ         */         { 2, ASN_SEQUENCE, 1, 1, 1 },
+/* certReqBodyASN_IDX_EXT_OID         */             { 3, ASN_OBJECT_ID, 0, 0, 0 },
+/* certReqBodyASN_IDX_EXT_SET         */             { 3, ASN_SET, 1, 1, 0 },
+/* certReqBodyASN_IDX_EXT_BODY        */                 { 4, ASN_SEQUENCE, 1, 0, 0 },
+};
+enum {
+    certReqBodyASN_IDX_SEQ = 0,
+    certReqBodyASN_IDX_VER,
+    certReqBodyASN_IDX_SUBJ_SEQ,
+    certReqBodyASN_IDX_SPUBKEYINFO_SEQ,
+    certReqBodyASN_IDX_ATTRS,
+    certReqBodyASN_IDX_ATTRS_CPW_SEQ,
+    certReqBodyASN_IDX_ATTRS_CPW_OID,
+    certReqBodyASN_IDX_ATTRS_CPW_SET,
+    certReqBodyASN_IDX_ATTRS_CPW_PS,
+    certReqBodyASN_IDX_ATTRS_CPW_UTF,
+    certReqBodyASN_IDX_EXT_SEQ,
+    certReqBodyASN_IDX_EXT_OID,
+    certReqBodyASN_IDX_EXT_SET,
+    certReqBodyASN_IDX_EXT_BODY,
 };
 
 /* Number of items in ASN.1 template for Certificate Request body. */
@@ -25244,55 +25260,62 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
     }
     if (ret >= 0) {
         /* Set version. */
-        SetASN_Int8Bit(&dataASN[1], cert->version);
+        SetASN_Int8Bit(&dataASN[certReqBodyASN_IDX_VER], cert->version);
     #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA)
         if (sbjRawSz > 0) {
             /* Put in encoded subject name. */
-            SetASN_Buffer(&dataASN[2], cert->sbjRaw, subjectSz);
+            SetASN_Buffer(&dataASN[certReqBodyASN_IDX_SUBJ_SEQ], cert->sbjRaw,
+                    subjectSz);
         }
         else
     #endif
         {
             /* Leave space for subject name. */
-            SetASN_ReplaceBuffer(&dataASN[2], NULL, subjectSz);
+            SetASN_ReplaceBuffer(&dataASN[certReqBodyASN_IDX_SUBJ_SEQ], NULL,
+                    subjectSz);
         }
         /* Leave space for public key. */
-        SetASN_ReplaceBuffer(&dataASN[3], NULL, publicKeySz);
+        SetASN_ReplaceBuffer(&dataASN[certReqBodyASN_IDX_SPUBKEYINFO_SEQ],
+                NULL, publicKeySz);
         if (cert->challengePw[0] != '\0') {
             /* Add challenge password attribute. */
             /* Set challenge password OID. */
-            SetASN_Buffer(&dataASN[6], attrChallengePasswordOid,
+            SetASN_Buffer(&dataASN[certReqBodyASN_IDX_ATTRS_CPW_OID], attrChallengePasswordOid,
                 sizeof(attrChallengePasswordOid));
             /* Enable the ASN template item with the appropriate tag. */
             if (cert->challengePwPrintableString) {
                 /* PRINTABLE_STRING - set buffer */
-                SetASN_Buffer(&dataASN[8], (byte*)cert->challengePw,
-                              (word32)XSTRLEN(cert->challengePw));
+                SetASN_Buffer(&dataASN[certReqBodyASN_IDX_ATTRS_CPW_PS],
+                        (byte*)cert->challengePw,
+                        (word32)XSTRLEN(cert->challengePw));
                 /* UTF8STRING - don't encode */
-                dataASN[9].noOut = 1;
+                dataASN[certReqBodyASN_IDX_ATTRS_CPW_UTF].noOut = 1;
             }
             else {
                 /* PRINTABLE_STRING - don't encode */
-                dataASN[8].noOut = 1;
+                dataASN[certReqBodyASN_IDX_ATTRS_CPW_PS].noOut = 1;
                 /* UTF8STRING - set buffer */
-                SetASN_Buffer(&dataASN[9], (byte*)cert->challengePw,
-                              (word32)XSTRLEN(cert->challengePw));
+                SetASN_Buffer(&dataASN[certReqBodyASN_IDX_ATTRS_CPW_UTF],
+                        (byte*)cert->challengePw,
+                        (word32)XSTRLEN(cert->challengePw));
             }
         }
         else {
             /* Leave out challenge password attribute items. */
-            SetASNItem_NoOut(dataASN, 5, 9);
+            SetASNItem_NoOutNode(dataASN, certReqBodyASN,
+                    certReqBodyASN_IDX_ATTRS_CPW_SEQ, certReqBodyASN_Length);
         }
         if (extSz > 0) {
             /* Set extension attribute OID. */
-            SetASN_Buffer(&dataASN[11], attrExtensionRequestOid,
+            SetASN_Buffer(&dataASN[certReqBodyASN_IDX_EXT_OID], attrExtensionRequestOid,
                 sizeof(attrExtensionRequestOid));
             /* Leave space for data. */
-            SetASN_Buffer(&dataASN[13], NULL, extSz);
+            SetASN_Buffer(&dataASN[certReqBodyASN_IDX_EXT_BODY], NULL, extSz);
         }
         else {
             /* Leave out extension attribute items. */
-            SetASNItem_NoOut(dataASN, 10, 13);
+            SetASNItem_NoOutNode(dataASN, certReqBodyASN,
+                    certReqBodyASN_IDX_EXT_SEQ, certReqBodyASN_Length);
         }
 
         /* Calculate size of encoded certificate request body. */
@@ -25313,20 +25336,24 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
     #endif
         {
             /* Encode subject name into space in buffer. */
-            ret = SetNameEx((byte*)dataASN[2].data.buffer.data,
-                    dataASN[2].data.buffer.length, &cert->subject, cert->heap);
+            ret = SetNameEx(
+                (byte*)dataASN[certReqBodyASN_IDX_SUBJ_SEQ].data.buffer.data,
+                dataASN[certReqBodyASN_IDX_SUBJ_SEQ].data.buffer.length,
+                &cert->subject, cert->heap);
         }
     }
     if (ret >= 0) {
         /* Encode public key into space in buffer. */
-        ret = EncodePublicKey(cert->keyType, (byte*)dataASN[3].data.buffer.data,
-            dataASN[3].data.buffer.length, rsaKey, eccKey, ed25519Key, ed448Key,
-            dsaKey);
+        ret = EncodePublicKey(cert->keyType,
+            (byte*)dataASN[certReqBodyASN_IDX_SPUBKEYINFO_SEQ].data.buffer.data,
+            dataASN[certReqBodyASN_IDX_SPUBKEYINFO_SEQ].data.buffer.length,
+            rsaKey, eccKey, ed25519Key, ed448Key, dsaKey);
     }
-    if ((ret >= 0) && (!dataASN[13].noOut)) {
+    if ((ret >= 0) && (!dataASN[certReqBodyASN_IDX_EXT_BODY].noOut)) {
         /* Encode extensions into space in buffer. */
-        ret = EncodeExtensions(cert, (byte*)dataASN[13].data.buffer.data,
-            dataASN[13].data.buffer.length, 1);
+        ret = EncodeExtensions(cert,
+                (byte*)dataASN[certReqBodyASN_IDX_EXT_BODY].data.buffer.data,
+                dataASN[certReqBodyASN_IDX_EXT_BODY].data.buffer.length, 1);
     }
     if (ret >= 0) {
         /* Store encoded certifcate request body size. */
