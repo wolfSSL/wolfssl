@@ -17279,11 +17279,16 @@ int DecodeCert(DecodedCert* cert, int verify, int* criticalExt)
  * PKCS #10: RFC 2986, 4.1 - CertificationRequestInfo
  */
 static const ASNItem reqAttrASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* type */
-/*  1 */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-                /* values */
-/*  2 */        { 1, ASN_SET, 1, 0, 0 },
+/* reqAttrASN_IDX_SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                              /* type */
+/* reqAttrASN_IDX_TYPE */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
+                              /* values */
+/* reqAttrASN_IDX_VALS */     { 1, ASN_SET, 1, 0, 0 },
+};
+enum {
+    reqAttrASN_IDX_SEQ = 0,
+    reqAttrASN_IDX_TYPE,
+    reqAttrASN_IDX_VALS,
 };
 
 /* Number of items in ASN.1 template for certificate request Attribute. */
@@ -17440,7 +17445,7 @@ static int DecodeCertReqAttributes(DecodedCert* cert, int* criticalExt,
     while ((ret == 0) && (idx < maxIdx)) {
         /* Clear dynamic data. */
         XMEMSET(dataASN, 0, sizeof(ASNGetData) * reqAttrASN_Length);
-        GetASN_OID(&dataASN[1], oidIgnoreType);
+        GetASN_OID(&dataASN[reqAttrASN_IDX_TYPE], oidIgnoreType);
 
         /* Parse an attribute. */
         ret = GetASN_Items(reqAttrASN, dataASN, reqAttrASN_Length, 0,
@@ -17448,9 +17453,10 @@ static int DecodeCertReqAttributes(DecodedCert* cert, int* criticalExt,
         /* idx is now at end of attribute data. */
         if (ret == 0) {
             ret = DecodeCertReqAttrValue(cert, criticalExt,
-                dataASN[1].data.oid.sum,
-                GetASNItem_DataIdx(dataASN[2], cert->source),
-                dataASN[2].data.ref.data, dataASN[2].data.ref.length);
+                dataASN[reqAttrASN_IDX_TYPE].data.oid.sum,
+                GetASNItem_DataIdx(dataASN[reqAttrASN_IDX_VALS], cert->source),
+                dataASN[reqAttrASN_IDX_VALS].data.ref.data,
+                dataASN[reqAttrASN_IDX_VALS].data.ref.length);
         }
     }
 
@@ -18183,7 +18189,7 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     if ((ret == 0) && (pubKey == NULL)) {
 #ifndef NO_SKID
         /* Find the AKI extension in list of extensions and get hash. */
-        if ((ret == 0) && (!req) &&
+        if ((!req) &&
                 (dataASN[x509CertASN_IDX_TBS_EXT].data.ref.data != NULL)) {
             /* TODO: test case */
             ret = GetAKIHash(dataASN[x509CertASN_IDX_TBS_EXT].data.ref.data,
