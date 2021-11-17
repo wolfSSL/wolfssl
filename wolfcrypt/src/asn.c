@@ -29155,40 +29155,60 @@ static int GetEnumerated(const byte* input, word32* inOutIdx, int *value,
  * RFC 6960, 4.2.1 - ASN.1 Specification of the OCSP Response
  */
 static const ASNItem singleResponseASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* certId */
-/*  1 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-                    /* hashAlgorithm */
-/*  2 */            { 2, ASN_SEQUENCE, 1, 1, 0 },
-/*  3 */                { 3, ASN_OBJECT_ID, 0, 0, 0 },
-/*  4 */                { 3, ASN_TAG_NULL, 0, 0, 1 },
-                    /* issuerNameHash */
-/*  5 */            { 2, ASN_OCTET_STRING, 0, 0, 0 },
-                    /* issuerKeyHash */
-/*  6 */            { 2, ASN_OCTET_STRING, 0, 0, 0 },
-                    /* serialNumber */
-/*  7 */            { 2, ASN_INTEGER, 0, 0, 0 },
-                /* certStatus - CHOICE */
-                /* good              [0] IMPLICIT NULL */
-/*  8 */        { 1, ASN_CONTEXT_SPECIFIC | 0, 0, 0, 2 },
-                /* revoked           [1] IMPLICIT RevokedInfo */
-/*  9 */        { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 1, 2 },
-                    /* revocationTime */
-/* 10 */            { 2, ASN_GENERALIZED_TIME, 0, 0, 0 },
-                    /* revocationReason  [0] EXPLICIT CRLReason OPTIONAL */
-/* 11 */            { 2, ASN_CONTEXT_SPECIFIC | 0, 0, 1, 1 },
-                        /* crlReason */
-/* 12 */                { 3, ASN_ENUMERATED, 0, 0, 0 },
-                /* unknown           [2] IMPLICIT UnknownInfo ::= NULL */
-/* 13 */        { 1, ASN_CONTEXT_SPECIFIC | 2, 0, 0, 2 },
+/* singleResponseASN_IDX_SEQ                   */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                                      /* certId */
+/* singleResponseASN_IDX_CID_SEQ               */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+                                                          /* hashAlgorithm */
+/* singleResponseASN_IDX_CID_HASHALGO_SEQ      */         { 2, ASN_SEQUENCE, 1, 1, 0 },
+/* singleResponseASN_IDX_CID_HASHALGO_OID      */             { 3, ASN_OBJECT_ID, 0, 0, 0 },
+/* singleResponseASN_IDX_CID_HASHALGO_NULL     */             { 3, ASN_TAG_NULL, 0, 0, 1 },
+                                                          /* issuerNameHash */
+/* singleResponseASN_IDX_CID_ISSUERHASH        */         { 2, ASN_OCTET_STRING, 0, 0, 0 },
+                                                          /* issuerKeyHash */
+/* singleResponseASN_IDX_CID_ISSUERKEYHASH     */         { 2, ASN_OCTET_STRING, 0, 0, 0 },
+                                                          /* serialNumber */
+/* singleResponseASN_IDX_CID_SERIAL            */         { 2, ASN_INTEGER, 0, 0, 0 },
+                                                      /* certStatus - CHOICE */
+                                                      /* good              [0] IMPLICIT NULL */
+/* singleResponseASN_IDX_CS_GOOD               */     { 1, ASN_CONTEXT_SPECIFIC | 0, 0, 0, 2 },
+                                                      /* revoked           [1] IMPLICIT RevokedInfo */
+/* singleResponseASN_IDX_CS_REVOKED            */     { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 1, 2 },
+                                                          /* revocationTime */
+/* singleResponseASN_IDX_CS_REVOKED_TIME       */         { 2, ASN_GENERALIZED_TIME, 0, 0, 0 },
+                                                          /* revocationReason  [0] EXPLICIT CRLReason OPTIONAL */
+/* singleResponseASN_IDX_CS_REVOKED_REASON     */         { 2, ASN_CONTEXT_SPECIFIC | 0, 0, 1, 1 },
+                                                              /* crlReason */
+/* singleResponseASN_IDX_CS_REVOKED_REASON_VAL */             { 3, ASN_ENUMERATED, 0, 0, 0 },
+                                                      /* unknown           [2] IMPLICIT UnknownInfo ::= NULL */
+/* singleResponseASN_IDX_UNKNOWN               */     { 1, ASN_CONTEXT_SPECIFIC | 2, 0, 0, 2 },
 
-                /* thisUpdate */
-/* 14 */        { 1, ASN_GENERALIZED_TIME, 0, 0, 0 },
-                /* nextUpdate */
-/* 15 */        { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
-/* 16 */            { 2, ASN_GENERALIZED_TIME, 0, 0, 0 },
-                /* singleExtensions */
-/* 17 */        { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 1 },
+                                                      /* thisUpdate */
+/* singleResponseASN_IDX_THISUPDATE_GT         */     { 1, ASN_GENERALIZED_TIME, 0, 0, 0 },
+                                                      /* nextUpdate */
+/* singleResponseASN_IDX_NEXTUPDATE            */     { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
+/* singleResponseASN_IDX_NEXTUPDATE_GT         */         { 2, ASN_GENERALIZED_TIME, 0, 0, 0 },
+                                                      /* singleExtensions */
+/* singleResponseASN_IDX_EXT                   */     { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 1 },
+};
+enum {
+    singleResponseASN_IDX_SEQ = 0,
+    singleResponseASN_IDX_CID_SEQ,
+    singleResponseASN_IDX_CID_HASHALGO_SEQ,
+    singleResponseASN_IDX_CID_HASHALGO_OID,
+    singleResponseASN_IDX_CID_HASHALGO_NULL,
+    singleResponseASN_IDX_CID_ISSUERHASH,
+    singleResponseASN_IDX_CID_ISSUERKEYHASH,
+    singleResponseASN_IDX_CID_SERIAL,
+    singleResponseASN_IDX_CS_GOOD,
+    singleResponseASN_IDX_CS_REVOKED,
+    singleResponseASN_IDX_CS_REVOKED_TIME,
+    singleResponseASN_IDX_CS_REVOKED_REASON,
+    singleResponseASN_IDX_CS_REVOKED_REASON_VAL,
+    singleResponseASN_IDX_UNKNOWN,
+    singleResponseASN_IDX_THISUPDATE_GT,
+    singleResponseASN_IDX_NEXTUPDATE,
+    singleResponseASN_IDX_NEXTUPDATE_GT,
+    singleResponseASN_IDX_EXT,
 };
 
 /* Number of items in ASN.1 template for OCSP single response. */
@@ -29370,12 +29390,18 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
         nextDateLen      = MAX_DATE_SIZE;
 
         /* Set OID type, buffers to hold data and variables to hold size. */
-        GetASN_OID(&dataASN[3], oidHashType);
-        GetASN_Buffer(&dataASN[5], single->issuerHash, &issuerHashLen);
-        GetASN_Buffer(&dataASN[6], single->issuerKeyHash, &issuerKeyHashLen);
-        GetASN_Buffer(&dataASN[7], cs->serial, &serialSz);
-        GetASN_Buffer(&dataASN[14], cs->thisDate, &thisDateLen);
-        GetASN_Buffer(&dataASN[16], cs->nextDate, &nextDateLen);
+        GetASN_OID(&dataASN[singleResponseASN_IDX_CID_HASHALGO_OID],
+                oidHashType);
+        GetASN_Buffer(&dataASN[singleResponseASN_IDX_CID_ISSUERHASH],
+                single->issuerHash, &issuerHashLen);
+        GetASN_Buffer(&dataASN[singleResponseASN_IDX_CID_ISSUERKEYHASH],
+                single->issuerKeyHash, &issuerKeyHashLen);
+        GetASN_Buffer(&dataASN[singleResponseASN_IDX_CID_SERIAL], cs->serial,
+                &serialSz);
+        GetASN_Buffer(&dataASN[singleResponseASN_IDX_THISUPDATE_GT],
+                cs->thisDate, &thisDateLen);
+        GetASN_Buffer(&dataASN[singleResponseASN_IDX_NEXTUPDATE_GT],
+                cs->nextDate, &nextDateLen);
         /* TODO: decode revoked time and reason. */
         /* Decode OCSP single response. */
         ret = GetASN_Items(singleResponseASN, dataASN, singleResponseASN_Length,
@@ -29394,13 +29420,13 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
         cs->serialSz = serialSz;
 
         /* Determine status by which item was found. */
-        if (dataASN[8].tag != 0) {
+        if (dataASN[singleResponseASN_IDX_CS_GOOD].tag != 0) {
             cs->status = CERT_GOOD;
         }
-        if (dataASN[9].tag != 0) {
+        if (dataASN[singleResponseASN_IDX_CS_REVOKED].tag != 0) {
             cs->status = CERT_REVOKED;
         }
-        if (dataASN[13].tag != 0) {
+        if (dataASN[singleResponseASN_IDX_UNKNOWN].tag != 0) {
             cs->status = CERT_UNKNOWN;
         }
 
@@ -29417,14 +29443,16 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
         defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
         /* Store ASN.1 version of thisDate. */
-        cs->thisDateAsn = GetASNItem_Addr(dataASN[14], source);
+        cs->thisDateAsn = GetASNItem_Addr(
+                dataASN[singleResponseASN_IDX_THISUPDATE_GT], source);
         at = &cs->thisDateParsed;
         at->type = ASN_GENERALIZED_TIME;
         XMEMCPY(at->data, cs->thisDate, thisDateLen);
         at->length = thisDateLen;
     #endif
     }
-    if ((ret == 0) && (dataASN[16].tag != 0)) {
+    if ((ret == 0) &&
+            (dataASN[singleResponseASN_IDX_NEXTUPDATE_GT].tag != 0)) {
         /* Store the nextDate format - only one possible. */
         cs->nextDateFormat = ASN_GENERALIZED_TIME;
     #if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_OCSP_DATE_CHECK)
@@ -29433,12 +29461,14 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
             ret = ASN_AFTER_DATE_E;
         }
     }
-    if ((ret == 0) && (dataASN[16].tag != 0)) {
+    if ((ret == 0) &&
+            (dataASN[singleResponseASN_IDX_NEXTUPDATE_GT].tag != 0)) {
     #endif
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
         defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
         /* Store ASN.1 version of thisDate. */
-        cs->nextDateAsn = GetASNItem_Addr(dataASN[16], source);
+        cs->nextDateAsn = GetASNItem_Addr(
+                dataASN[singleResponseASN_IDX_NEXTUPDATE_GT], source);
         at = &cs->nextDateParsed;
         at->type = ASN_GENERALIZED_TIME;
         XMEMCPY(at->data, cs->nextDate, nextDateLen);
