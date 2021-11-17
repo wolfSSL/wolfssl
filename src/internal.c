@@ -22666,6 +22666,10 @@ exit_dpk:
         WOLFSSL_START(WC_FUNC_CLIENT_HELLO_SEND);
         WOLFSSL_ENTER("SendClientHello");
 
+        if (ssl == NULL || ssl->arrays == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
         if (ssl->suites == NULL) {
             WOLFSSL_MSG("Bad suites pointer in SendClientHello");
             return SUITES_ERROR;
