@@ -15,7 +15,7 @@
     #undef HAVE_FIPS_VERSION
     #define HAVE_FIPS_VERSION 5
     #undef HAVE_FIPS_VERSION_MINOR
-    #define HAVE_FIPS_VERSION_MINOR 1
+    #define HAVE_FIPS_VERSION_MINOR 2
 #endif
 
 

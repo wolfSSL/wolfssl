@@ -269,7 +269,7 @@ AS_CASE([$ENABLED_FIPS],
     [ready|v5-ready],[
         FIPS_VERSION="v5-ready"
         HAVE_FIPS_VERSION=5
-        HAVE_FIPS_VERSION_MINOR=1
+        HAVE_FIPS_VERSION_MINOR=2
         ENABLED_FIPS="yes"
     ],
     [

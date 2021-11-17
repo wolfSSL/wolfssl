@@ -1825,7 +1825,7 @@ static void* benchmarks_do(void* args)
     #ifdef WOLFSSL_KEY_GEN
         if (bench_all || (bench_asym_algs & BENCH_RSA_KEYGEN)) {
         #ifndef NO_SW_BENCH
-            if (((word32)bench_asym_algs == 0xFFFFFFFFU) || 
+            if (((word32)bench_asym_algs == 0xFFFFFFFFU) ||
                         (bench_asym_algs & BENCH_RSA_SZ) == 0) {
                 bench_rsaKeyGen(0);
             }
