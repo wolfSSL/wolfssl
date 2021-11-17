@@ -30393,16 +30393,23 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap, int noVerify)
  * X.509: RFC 5280, 4.1 - Basic Certificate Fields. (Extension)
  */
 static const ASNItem ocspNonceExtASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* Extension */
-/*  1 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-                   /* extnId */
-/*  2 */           {2, ASN_OBJECT_ID, 0, 0, 0 },
-                   /* critcal not encoded. */
-                   /* extnValue */
-/*  3 */           {2, ASN_OCTET_STRING, 0, 1, 0 },
-                       /* nonce */
-/*  4 */               {3, ASN_OCTET_STRING, 0, 0, 0 },
+/* ocspNonceExtASN_IDX_SEQ       */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                     /* Extension */
+/* ocspNonceExtASN_IDX_EXT       */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+                                        /* extnId */
+/* ocspNonceExtASN_IDX_EXT_OID   */        {2, ASN_OBJECT_ID, 0, 0, 0 },
+                                        /* critcal not encoded. */
+                                        /* extnValue */
+/* ocspNonceExtASN_IDX_EXT_VAL   */        {2, ASN_OCTET_STRING, 0, 1, 0 },
+                                               /* nonce */
+/* ocspNonceExtASN_IDX_EXT_NONCE */            {3, ASN_OCTET_STRING, 0, 0, 0 },
+};
+enum {
+    ocspNonceExtASN_IDX_SEQ = 0,
+    ocspNonceExtASN_IDX_EXT,
+    ocspNonceExtASN_IDX_EXT_OID,
+    ocspNonceExtASN_IDX_EXT_VAL,
+    ocspNonceExtASN_IDX_EXT_NONCE,
 };
 
 /* Number of items in ASN.1 template for OCSP nonce extension. */
@@ -30469,8 +30476,10 @@ word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output, word32 size)
         CALLOC_ASNSETDATA(dataASN, ocspNonceExtASN_Length, ret, req->heap);
 
         /* Set nonce extension OID and nonce. */
-        SetASN_Buffer(&dataASN[2], NonceObjId, sizeof(NonceObjId));
-        SetASN_Buffer(&dataASN[4], req->nonce, req->nonceSz);
+        SetASN_Buffer(&dataASN[ocspNonceExtASN_IDX_EXT_OID], NonceObjId,
+                sizeof(NonceObjId));
+        SetASN_Buffer(&dataASN[ocspNonceExtASN_IDX_EXT_NONCE], req->nonce,
+                req->nonceSz);
         /* Calculate size of nonce extension. */
         ret = SizeASN_Items(ocspNonceExtASN, dataASN, ocspNonceExtASN_Length,
                             &sz);
