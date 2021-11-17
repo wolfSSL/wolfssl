@@ -27005,29 +27005,43 @@ static int DataToHexStringAlloc(const byte* input, word32 inSz, char** out,
  * NOTE: characteristic-two-field not supported. */
 static const ASNItem eccSpecifiedASN[] = {
             /* version */
-/*  0 */    { 0, ASN_INTEGER, 0, 0, 0 },
-            /* fieldID */
-/*  1 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* prime-field or characteristic-two-field */
-/*  2 */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-                /* Prime-p */
-/*  3 */        { 1, ASN_INTEGER, 0, 0, 0 },
-            /* fieldID */
-/*  4 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* a */
-/*  5 */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
-                /* b */
-/*  6 */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
-                /* seed */
-/*  7 */        { 1, ASN_BIT_STRING, 0, 0, 1 },
-            /* base */
-/*  8 */    { 0, ASN_OCTET_STRING, 0, 0, 0 },
-            /* order */
-/*  9 */    { 0, ASN_INTEGER, 0, 0, 0 },
-            /* cofactor */
-/* 10 */    { 0, ASN_INTEGER, 0, 0, 1 },
-            /* hash */
-/* 11 */    { 0, ASN_SEQUENCE, 0, 0, 1 },
+/* eccSpecifiedASN_IDX_VER        */ { 0, ASN_INTEGER, 0, 0, 0 },
+                                     /* fieldID */
+/* eccSpecifiedASN_IDX_PRIME_SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                         /* prime-field or characteristic-two-field */
+/* eccSpecifiedASN_IDX_PRIME_OID  */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
+                                         /* Prime-p */
+/* eccSpecifiedASN_IDX_PRIME_P    */     { 1, ASN_INTEGER, 0, 0, 0 },
+                                     /* fieldID */
+/* eccSpecifiedASN_IDX_PARAM_SEQ, */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                         /* a */
+/* eccSpecifiedASN_IDX_PARAM_A    */     { 1, ASN_OCTET_STRING, 0, 0, 0 },
+                                         /* b */
+/* eccSpecifiedASN_IDX_PARAM_B    */     { 1, ASN_OCTET_STRING, 0, 0, 0 },
+                                         /* seed */
+/* eccSpecifiedASN_IDX_PARAM_SEED */     { 1, ASN_BIT_STRING, 0, 0, 1 },
+                                     /* base */
+/* eccSpecifiedASN_IDX_BASE       */ { 0, ASN_OCTET_STRING, 0, 0, 0 },
+                                     /* order */
+/* eccSpecifiedASN_IDX_ORDER      */ { 0, ASN_INTEGER, 0, 0, 0 },
+                                     /* cofactor */
+/* eccSpecifiedASN_IDX_COFACTOR   */ { 0, ASN_INTEGER, 0, 0, 1 },
+                                     /* hash */
+/* eccSpecifiedASN_IDX_HASH_SEQ   */ { 0, ASN_SEQUENCE, 0, 0, 1 },
+};
+enum {
+    eccSpecifiedASN_IDX_VER = 0,
+    eccSpecifiedASN_IDX_PRIME_SEQ,
+    eccSpecifiedASN_IDX_PRIME_OID,
+    eccSpecifiedASN_IDX_PRIME_P,
+    eccSpecifiedASN_IDX_PARAM_SEQ,
+    eccSpecifiedASN_IDX_PARAM_A,
+    eccSpecifiedASN_IDX_PARAM_B,
+    eccSpecifiedASN_IDX_PARAM_SEED,
+    eccSpecifiedASN_IDX_BASE,
+    eccSpecifiedASN_IDX_ORDER,
+    eccSpecifiedASN_IDX_COFACTOR,
+    eccSpecifiedASN_IDX_HASH_SEQ,
 };
 
 /* Number of items in ASN.1 template for SpecifiedECDomain. */
@@ -27072,9 +27086,10 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
         curve->id = ECC_CURVE_CUSTOM;
 
         /* Get version, must have prime field OID and get co-factor. */
-        GetASN_Int8Bit(&dataASN[0], &version);
-        GetASN_ExpBuffer(&dataASN[2], primeFieldOID, sizeof(primeFieldOID));
-        GetASN_Int8Bit(&dataASN[10], &cofactor);
+        GetASN_Int8Bit(&dataASN[eccSpecifiedASN_IDX_VER], &version);
+        GetASN_ExpBuffer(&dataASN[eccSpecifiedASN_IDX_PRIME_OID],
+                primeFieldOID, sizeof(primeFieldOID));
+        GetASN_Int8Bit(&dataASN[eccSpecifiedASN_IDX_COFACTOR], &cofactor);
         /* Decode the explicit parameters. */
         ret = GetASN_Items(eccSpecifiedASN, dataASN, eccSpecifiedASN_Length, 1,
                            input, &idx, inSz);
@@ -27084,22 +27099,26 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
         ret = ASN_PARSE_E;
     }
     /* Only version 2 and above can have a seed. */
-    if ((ret == 0) && (dataASN[7].tag != 0) && (version < 2)) {
+    if ((ret == 0) && (dataASN[eccSpecifiedASN_IDX_PARAM_SEED].tag != 0) &&
+            (version < 2)) {
         ret = ASN_PARSE_E;
     }
     /* Only version 2 and above can have a hash algorithm. */
-    if ((ret == 0) && (dataASN[11].tag != 0) && (version < 2)) {
+    if ((ret == 0) && (dataASN[eccSpecifiedASN_IDX_HASH_SEQ].tag != 0) &&
+            (version < 2)) {
         ret = ASN_PARSE_E;
     }
-    if ((ret == 0) && (dataASN[10].tag != 0)) {
+    if ((ret == 0) && (dataASN[eccSpecifiedASN_IDX_COFACTOR].tag != 0)) {
         /* Store optional co-factor. */
         curve->cofactor = cofactor;
     }
     if (ret == 0) {
         /* Length of the prime in bytes is the curve size. */
-        curve->size = (int)dataASN[3].data.ref.length;
+        curve->size =
+                (int)dataASN[eccSpecifiedASN_IDX_PRIME_P].data.ref.length;
         /* Base point: 0x04 <x> <y> (must be uncompressed). */
-        GetASN_GetConstRef(&dataASN[8], &base, &baseLen);
+        GetASN_GetConstRef(&dataASN[eccSpecifiedASN_IDX_BASE], &base,
+                &baseLen);
         if ((baseLen < (word32)curve->size * 2 + 1) || (base[0] != 0x4)) {
             ret = ASN_PARSE_E;
         }
@@ -27123,31 +27142,31 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
     }
     if (ret == 0) {
         /* Prime */
-        ret = DataToHexStringAlloc(dataASN[3].data.ref.data,
-                                   dataASN[3].data.ref.length,
-                                   (char**)&curve->prime, key->heap,
-                                   DYNAMIC_TYPE_ECC_BUFFER);
+        ret = DataToHexStringAlloc(
+                dataASN[eccSpecifiedASN_IDX_PRIME_P].data.ref.data,
+                dataASN[eccSpecifiedASN_IDX_PRIME_P].data.ref.length,
+                (char**)&curve->prime, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
     }
     if (ret == 0) {
         /* Parameter A */
-        ret = DataToHexStringAlloc(dataASN[5].data.ref.data,
-                                   dataASN[5].data.ref.length,
-                                   (char**)&curve->Af, key->heap,
-                                   DYNAMIC_TYPE_ECC_BUFFER);
+        ret = DataToHexStringAlloc(
+                dataASN[eccSpecifiedASN_IDX_PARAM_A].data.ref.data,
+                dataASN[eccSpecifiedASN_IDX_PARAM_A].data.ref.length,
+                (char**)&curve->Af, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
     }
     if (ret == 0) {
         /* Parameter B */
-        ret = DataToHexStringAlloc(dataASN[6].data.ref.data,
-                                   dataASN[6].data.ref.length,
-                                   (char**)&curve->Bf, key->heap,
-                                   DYNAMIC_TYPE_ECC_BUFFER);
+        ret = DataToHexStringAlloc(
+                dataASN[eccSpecifiedASN_IDX_PARAM_B].data.ref.data,
+                dataASN[eccSpecifiedASN_IDX_PARAM_B].data.ref.length,
+                (char**)&curve->Bf, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
     }
     if (ret == 0) {
         /* Order of curve */
-        ret = DataToHexStringAlloc(dataASN[9].data.ref.data,
-                                   dataASN[9].data.ref.length,
-                                   (char**)&curve->order, key->heap,
-                                   DYNAMIC_TYPE_ECC_BUFFER);
+        ret = DataToHexStringAlloc(
+                dataASN[eccSpecifiedASN_IDX_ORDER].data.ref.data,
+                dataASN[eccSpecifiedASN_IDX_ORDER].data.ref.length,
+                (char**)&curve->order, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
     }
     #else
     if (ret == 0) {
@@ -27156,16 +27175,20 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
         /* Base Y-ordinate */
         DataToHexString(base + 1 + curve->size, curve->size, curve->Gy);
         /* Prime */
-        DataToHexString(dataASN[3].data.ref.data, dataASN[3].data.ref.length,
+        DataToHexString(dataASN[eccSpecifiedASN_IDX_PRIME_P].data.ref.data,
+                        dataASN[eccSpecifiedASN_IDX_PRIME_P].data.ref.length,
                         curve->prime);
         /* Parameter A */
-        DataToHexString(dataASN[5].data.ref.data, dataASN[5].data.ref.length,
+        DataToHexString(dataASN[eccSpecifiedASN_IDX_PARAM_A].data.ref.data,
+                        dataASN[eccSpecifiedASN_IDX_PARAM_A].data.ref.length,
                         curve->Af);
         /* Parameter B */
-        DataToHexString(dataASN[6].data.ref.data, dataASN[6].data.ref.length,
+        DataToHexString(dataASN[eccSpecifiedASN_IDX_PARAM_B].data.ref.data,
+                        dataASN[eccSpecifiedASN_IDX_PARAM_B].data.ref.length,
                         curve->Bf);
         /* Order of curve */
-        DataToHexString(dataASN[9].data.ref.data, dataASN[9].data.ref.length,
+        DataToHexString(dataASN[eccSpecifiedASN_IDX_ORDER].data.ref.data,
+                        dataASN[eccSpecifiedASN_IDX_ORDER].data.ref.length,
                         curve->order);
     }
     #endif /* WOLFSSL_ECC_CURVE_STATIC */
