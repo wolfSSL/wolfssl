@@ -31771,9 +31771,14 @@ end:
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* Template for PIV. */
 static const ASNItem pivASN[] = {
-/*  0 */    { 0, ASN_PIV_CERT, 0, 0, 0 },
-/*  1 */    { 0, ASN_PIV_NONCE, 0, 0, 1 },
-/*  2 */    { 0, ASN_PIV_SIGNED_NONCE, 0, 0, 1 },
+/* pivASN_IDX_CERT        */ { 0, ASN_PIV_CERT, 0, 0, 0 },
+/* pivASN_IDX_NONCE       */ { 0, ASN_PIV_NONCE, 0, 0, 1 },
+/* pivASN_IDX_SIGNEDNONCE */ { 0, ASN_PIV_SIGNED_NONCE, 0, 0, 1 },
+};
+enum {
+    pivASN_IDX_CERT = 0,
+    pivASN_IDX_NONCE,
+    pivASN_IDX_SIGNEDNONCE,
 };
 
 #define pivASN_Length (sizeof(pivASN) / sizeof(ASNItem))
@@ -31891,16 +31896,17 @@ int wc_ParseCertPIV(wc_CertPIV* piv, const byte* buf, word32 totalSz)
             /* Identiv wrapper found. */
             piv->isIdentiv = 1;
             /* Get nonce reference. */
-            if (dataASN[1].tag != 0) {
-                GetASN_GetConstRef(&dataASN[1], &piv->nonce, &piv->nonceSz);
+            if (dataASN[pivASN_IDX_NONCE].tag != 0) {
+                GetASN_GetConstRef(&dataASN[pivASN_IDX_NONCE], &piv->nonce,
+                        &piv->nonceSz);
             }
             /* Get signedNonce reference. */
-            if (dataASN[2].tag != 0) {
-                GetASN_GetConstRef(&dataASN[2], &piv->signedNonce,
-                    &piv->signedNonceSz);
+            if (dataASN[pivASN_IDX_SIGNEDNONCE].tag != 0) {
+                GetASN_GetConstRef(&dataASN[pivASN_IDX_SIGNEDNONCE],
+                        &piv->signedNonce, &piv->signedNonceSz);
             }
             /* Get the certificate data for parsing. */
-            GetASN_GetConstRef(&dataASN[0], &buf, &totalSz);
+            GetASN_GetConstRef(&dataASN[pivASN_IDX_CERT], &buf, &totalSz);
         }
         ret = 0;
     }
