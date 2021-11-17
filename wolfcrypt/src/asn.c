@@ -29645,20 +29645,30 @@ static int DecodeOcspRespExtensions(byte* source, word32* ioIndex,
  * RFC 6960, 4.2.1 - ASN.1 Specification of the OCSP Response
  */
 static const ASNItem ocspRespDataASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* version DEFAULT v1 */
-/*  1 */        { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
-/*  2 */            { 2, ASN_INTEGER, 1, 0, 0 },
-                /* byName */
-/*  3 */        { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 2 },
-                /* byKey */
-/*  4 */        { 1, ASN_CONTEXT_SPECIFIC | 2, 1, 0, 2 },
-                /* producedAt */
-/*  5 */        { 1, ASN_GENERALIZED_TIME, 0, 0, 0, },
-                /* responses */
-/*  6 */        { 1, ASN_SEQUENCE, 1, 0, 0 },
-                /* responseExtensions */
-/*  7 */        { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 1 }
+/* ocspRespDataASN_IDX_SEQ         */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                             /* version DEFAULT v1 */
+/* ocspRespDataASN_IDX_VER_PRESENT */        { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
+/* ocspRespDataASN_IDX_VER         */            { 2, ASN_INTEGER, 1, 0, 0 },
+                                             /* byName */
+/* ocspRespDataASN_IDX_BYNAME      */        { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 2 },
+                                             /* byKey */
+/* ocspRespDataASN_IDX_BYKEY       */        { 1, ASN_CONTEXT_SPECIFIC | 2, 1, 0, 2 },
+                                             /* producedAt */
+/* ocspRespDataASN_IDX_PA          */        { 1, ASN_GENERALIZED_TIME, 0, 0, 0, },
+                                             /* responses */
+/* ocspRespDataASN_IDX_RESP        */        { 1, ASN_SEQUENCE, 1, 0, 0 },
+                                             /* responseExtensions */
+/* ocspRespDataASN_IDX_RESPEXT     */        { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 1 }
+};
+enum {
+    ocspRespDataASN_IDX_SEQ = 0,
+    ocspRespDataASN_IDX_VER_PRESENT,
+    ocspRespDataASN_IDX_VER,
+    ocspRespDataASN_IDX_BYNAME,
+    ocspRespDataASN_IDX_BYKEY,
+    ocspRespDataASN_IDX_PA,
+    ocspRespDataASN_IDX_RESP,
+    ocspRespDataASN_IDX_RESPEXT,
 };
 
 /* Number of items in ASN.1 template for OCSP ResponseData. */
@@ -29779,8 +29789,9 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
         dateSz = MAX_DATE_SIZE;
 
         /* Set the where to put version an produced date. */
-        GetASN_Int8Bit(&dataASN[2], &version);
-        GetASN_Buffer(&dataASN[5], resp->producedDate, &dateSz);
+        GetASN_Int8Bit(&dataASN[ocspRespDataASN_IDX_VER], &version);
+        GetASN_Buffer(&dataASN[ocspRespDataASN_IDX_PA], resp->producedDate,
+                &dateSz);
         /* Decode the ResponseData. */
         ret = GetASN_Items(ocspRespDataASN, dataASN, ocspRespDataASN_Length,
                 1, source, ioIndex, size);
@@ -29798,14 +29809,14 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
         /* Store size of response. */
         resp->responseSz = *ioIndex - idx;
         /* Store date format/tag. */
-        resp->producedDateFormat = dataASN[5].tag;
+        resp->producedDateFormat = dataASN[ocspRespDataASN_IDX_PA].tag;
 
         /* Get the index of the responses SEQUENCE. */
-        idx = GetASNItem_DataIdx(dataASN[6], source);
+        idx = GetASNItem_DataIdx(dataASN[ocspRespDataASN_IDX_RESP], source);
         /* Start with the pre-existing OcspEntry. */
         single = resp->single;
     }
-    while ((ret == 0) && (idx < dataASN[7].offset)) {
+    while ((ret == 0) && (idx < dataASN[ocspRespDataASN_IDX_RESPEXT].offset)) {
         /* Allocate and use a new OCSP entry if this is used. */
         if (single->used) {
             single->next = (OcspEntry*)XMALLOC(sizeof(OcspEntry), resp->heap,
@@ -29836,16 +29847,18 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
         }
         if (ret == 0) {
             /* Decode SingleResponse into OcspEntry. */
-            ret = DecodeSingleResponse(source, &idx, dataASN[7].offset,
-                    dataASN[6].length, single);
+            ret = DecodeSingleResponse(source, &idx,
+                    dataASN[ocspRespDataASN_IDX_RESPEXT].offset,
+                    dataASN[ocspRespDataASN_IDX_RESP].length, single);
             /* single->used set on successful decode. */
         }
     }
 
     /* Check if there were extensions. */
-    if ((ret == 0) && (dataASN[7].data.buffer.data != NULL)) {
+    if ((ret == 0) &&
+            (dataASN[ocspRespDataASN_IDX_RESPEXT].data.buffer.data != NULL)) {
         /* Get index of [1] */
-        idx = dataASN[7].offset;
+        idx = dataASN[ocspRespDataASN_IDX_RESPEXT].offset;
         /* Decode the response extensions. */
         if (DecodeOcspRespExtensions(source, &idx, resp, *ioIndex) < 0) {
             ret = ASN_PARSE_E;
