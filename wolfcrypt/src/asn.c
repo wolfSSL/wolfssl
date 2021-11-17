@@ -31784,14 +31784,20 @@ enum {
 #define pivASN_Length (sizeof(pivASN) / sizeof(ASNItem))
 
 static const ASNItem pivCertASN[] = {
-                /* 0x53 = 0x40 | 0x13 */
-/*  0 */        { 1, ASN_APPLICATION | 0x13, 0, 1, 0 },
-                     /* 0x70 = 0x40 | 0x10 + 0x20 (CONSTRUCTED) */
-/*  1 */             { 2, ASN_APPLICATION | 0x10, 1, 0, 0 },
-                     /* 0x71 = 0x40 | 0x11 + 0x20 (CONSTRUCTED) */
-/*  2 */             { 2, ASN_APPLICATION | 0x11, 1, 0, 1 },
-                     /* 0xFE = 0xC0 | 0x1E + 0x20 (CONSTRUCTED) */
-/*  3 */             { 2, ASN_PRIVATE | 0x1e, 1, 0, 1 },
+                          /* 0x53 = 0x40 | 0x13 */
+/* pivCertASN_IDX_CERT */ { 1, ASN_APPLICATION | 0x13, 0, 1, 0 },
+                               /* 0x70 = 0x40 | 0x10 + 0x20 (CONSTRUCTED) */
+/* pivCertASN_IDX_X509 */      { 2, ASN_APPLICATION | 0x10, 1, 0, 0 },
+                               /* 0x71 = 0x40 | 0x11 + 0x20 (CONSTRUCTED) */
+/* pivCertASN_IDX_INFO */      { 2, ASN_APPLICATION | 0x11, 1, 0, 1 },
+                               /* 0xFE = 0xC0 | 0x1E + 0x20 (CONSTRUCTED) */
+/* pivCertASN_IDX_ERR */      { 2, ASN_PRIVATE | 0x1e, 1, 0, 1 },
+};
+enum {
+    pivCertASN_IDX_CERT,
+    pivCertASN_IDX_X509,
+    pivCertASN_IDX_INFO,
+    pivCertASN_IDX_ERR,
 };
 
 #define pivCertASN_Length (sizeof(pivCertASN) / sizeof(ASNItem))
@@ -31913,7 +31919,7 @@ int wc_ParseCertPIV(wc_CertPIV* piv, const byte* buf, word32 totalSz)
     if (ret == 0) {
         /* Clear dynamic data and set variable to put cert info into. */
         XMEMSET(dataASN, 0, sizeof(*dataASN) * pivCertASN_Length);
-        GetASN_Int8Bit(&dataASN[2], &info);
+        GetASN_Int8Bit(&dataASN[pivCertASN_IDX_INFO], &info);
         /* Start parsing from start of buffer. */
         idx = 0;
         /* Parse PIV cetificate data. */
@@ -31921,16 +31927,17 @@ int wc_ParseCertPIV(wc_CertPIV* piv, const byte* buf, word32 totalSz)
                 totalSz);
         if (ret == 0) {
             /* Get X.509 certificate reference. */
-            GetASN_GetConstRef(&dataASN[1], &piv->cert, &piv->certSz);
+            GetASN_GetConstRef(&dataASN[pivCertASN_IDX_X509], &piv->cert,
+                    &piv->certSz);
             /* Set the certificate info if available. */
-            if (dataASN[2].tag != 0) {
+            if (dataASN[pivCertASN_IDX_INFO].tag != 0) {
                 /* Bits 1 and 2 are compression. */
                 piv->compression = info & ASN_PIV_CERT_INFO_COMPRESSED;
                 /* Bits 3 is X509 flag. */
                 piv->isX509 = ((info & ASN_PIV_CERT_INFO_ISX509) != 0);
             }
-            /* Get X.509 certificate error detecton reference. */
-            GetASN_GetConstRef(&dataASN[3], &piv->certErrDet,
+            /* Get X.509 certificate error detection reference. */
+            GetASN_GetConstRef(&dataASN[pivCertASN_IDX_ERR], &piv->certErrDet,
                      &piv->certErrDetSz);
         }
         ret = 0;
