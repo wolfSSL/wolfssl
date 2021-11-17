@@ -146,6 +146,10 @@ enum ASN_Tags {
 
     /* x509 Cert Extension Fields */
     ASN_AKID_KEYID        = 0x00,
+
+    /* ECC Key Fields */
+    ASN_ECC_PARAMS        = 0x00,
+    ASN_ECC_PUBKEY        = 0x01,
 };
 
 #define ASN_UTC_TIME_SIZE 14

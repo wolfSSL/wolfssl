@@ -27220,21 +27220,31 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
  * SEC.1 Ver 2.0, C.4 - Syntax for Elliptic Curve Private Keys
  */
 static const ASNItem eccKeyASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* version */
-/*  1 */        { 1, ASN_INTEGER, 0, 0, 0 },
-                /* privateKey */
-/*  2 */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
-                /* parameters */
-/*  3 */        { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
-                    /* named */
-/*  4 */            { 2, ASN_OBJECT_ID, 0, 0, 2 },
-                    /* specified */
-/*  5 */            { 2, ASN_SEQUENCE, 1, 0, 2 },
-                /* publicKey */
-/*  6 */        { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 1, 1 },
-                    /* Uncompressed point - X9.62. */
-/*  7 */            { 2, ASN_BIT_STRING, 0, 0, 0 },
+/* eccKeyASN_IDX_SEQ         */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                       /* version */
+/* eccKeyASN_IDX_VER         */        { 1, ASN_INTEGER, 0, 0, 0 },
+                                       /* privateKey */
+/* eccKeyASN_IDX_PKEY        */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
+                                       /* parameters */
+/* eccKeyASN_IDX_PARAMS      */        { 1, ASN_CONTEXT_SPECIFIC | ASN_ECC_PARAMS, 1, 1, 1 },
+                                           /* named */
+/* eccKeyASN_IDX_CURVEID     */            { 2, ASN_OBJECT_ID, 0, 0, 2 },
+                                           /* specified */
+/* eccKeyASN_IDX_CURVEPARAMS */            { 2, ASN_SEQUENCE, 1, 0, 2 },
+                                       /* publicKey */
+/* eccKeyASN_IDX_PUBKEY      */        { 1, ASN_CONTEXT_SPECIFIC | ASN_ECC_PUBKEY, 1, 1, 1 },
+                                           /* Uncompressed point - X9.62. */
+/* eccKeyASN_IDX_PUBKEY_VAL, */            { 2, ASN_BIT_STRING, 0, 0, 0 },
+};
+enum {
+    eccKeyASN_IDX_SEQ = 0,
+    eccKeyASN_IDX_VER,
+    eccKeyASN_IDX_PKEY,
+    eccKeyASN_IDX_PARAMS,
+    eccKeyASN_IDX_CURVEID,
+    eccKeyASN_IDX_CURVEPARAMS,
+    eccKeyASN_IDX_PUBKEY,
+    eccKeyASN_IDX_PUBKEY_VAL,
 };
 
 /* Number of items in ASN.1 template for ECC private key. */
@@ -27397,8 +27407,8 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
 
     if (ret == 0) {
         /* Get the version and set the expected OID type. */
-        GetASN_Int8Bit(&dataASN[1], &version);
-        GetASN_OID(&dataASN[4], oidCurveType);
+        GetASN_Int8Bit(&dataASN[eccKeyASN_IDX_VER], &version);
+        GetASN_OID(&dataASN[eccKeyASN_IDX_CURVEID], oidCurveType);
         /* Decode the private ECC key. */
         ret = GetASN_Items(eccKeyASN, dataASN, eccKeyASN_Length, 1, input,
                            inOutIdx, inSz);
@@ -27408,10 +27418,10 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
         ret = ASN_PARSE_E;
     }
     /* Curve Parameters are optional. */
-    if ((ret == 0) && (dataASN[3].tag != 0)) {
-        if (dataASN[4].tag != 0) {
+    if ((ret == 0) && (dataASN[eccKeyASN_IDX_PARAMS].tag != 0)) {
+        if (dataASN[eccKeyASN_IDX_CURVEID].tag != 0) {
             /* Named curve - check and get id. */
-            curve_id = CheckCurve(dataASN[4].data.oid.sum);
+            curve_id = CheckCurve(dataASN[eccKeyASN_IDX_CURVEID].data.oid.sum);
             if (curve_id < 0) {
                 ret = ECC_CURVE_OID_E;
             }
@@ -27419,8 +27429,9 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
         else {
     #ifdef WOLFSSL_CUSTOM_CURVES
             /* Parse explicit parameters. */
-            ret = EccSpecifiedECDomainDecode(dataASN[5].data.ref.data,
-                    dataASN[5].data.ref.length, key);
+            ret = EccSpecifiedECDomainDecode(
+                    dataASN[eccKeyASN_IDX_CURVEPARAMS].data.ref.data,
+                    dataASN[eccKeyASN_IDX_CURVEPARAMS].data.ref.length, key);
     #else
             /* Explicit parameters not supported in build configuration. */
             ret = ASN_PARSE_E;
@@ -27429,9 +27440,12 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     }
     if (ret == 0) {
         /* Import private key value and public point (may be NULL). */
-        ret = wc_ecc_import_private_key_ex(dataASN[2].data.ref.data,
-                dataASN[2].data.ref.length, dataASN[7].data.ref.data,
-                dataASN[7].data.ref.length, key, curve_id);
+        ret = wc_ecc_import_private_key_ex(
+                dataASN[eccKeyASN_IDX_PKEY].data.ref.data,
+                dataASN[eccKeyASN_IDX_PKEY].data.ref.length,
+                dataASN[eccKeyASN_IDX_PUBKEY_VAL].data.ref.data,
+                dataASN[eccKeyASN_IDX_PUBKEY_VAL].data.ref.length,
+                key, curve_id);
     }
 
     FREE_ASNGETDATA(dataASN, key->heap);
@@ -27784,11 +27798,11 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         ret = GetASN_Items(eccPublicKeyASN, dataASN, eccPublicKeyASN_Length, 1,
                            input, inOutIdx, inSz);
         if (ret != 0) {
-            oidIdx = 4;
+            oidIdx = eccKeyASN_IDX_CURVEID;
         #ifdef WOLFSSL_CUSTOM_CURVES
-            specIdx = 5;
+            specIdx = eccKeyASN_IDX_CURVEPARAMS;
         #endif
-            pubIdx = 7;
+            pubIdx = eccKeyASN_IDX_PUBKEY_VAL;
 
             /* Clear dynamic data for ECC private key. */
             XMEMSET(dataASN, 0, sizeof(*dataASN) * eccKeyASN_Length);
@@ -28044,26 +28058,28 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
     }
     if (ret == 0) {
         /* Version: 1 */
-        SetASN_Int8Bit(&dataASN[1], 1);
+        SetASN_Int8Bit(&dataASN[eccKeyASN_IDX_VER], 1);
         /* Leave space for private key. */
-        SetASN_Buffer(&dataASN[2], NULL, privSz);
+        SetASN_Buffer(&dataASN[eccKeyASN_IDX_PKEY], NULL, privSz);
         if (curveIn) {
             /* Curve OID */
-            SetASN_Buffer(&dataASN[4], key->dp->oid, key->dp->oidSz);
+            SetASN_Buffer(&dataASN[eccKeyASN_IDX_CURVEID], key->dp->oid,
+                    key->dp->oidSz);
+            /* TODO: add support for SpecifiedECDomain curve. */
+            dataASN[eccKeyASN_IDX_CURVEPARAMS].noOut = 1;
         }
         else {
-             dataASN[3].noOut = 1;
-             dataASN[4].noOut = 1;
+            SetASNItem_NoOutNode(dataASN, eccKeyASN, eccKeyASN_IDX_PARAMS,
+                    eccKeyASN_Length);
         }
-        /* TODO: add support for SpecifiedECDomain curve. */
-        dataASN[5].noOut = 1;
         if (pubIn) {
             /* Leave space for public key. */
-            SetASN_Buffer(&dataASN[7], NULL, pubSz);
+            SetASN_Buffer(&dataASN[eccKeyASN_IDX_PUBKEY_VAL], NULL, pubSz);
         }
         else {
             /* Don't write out public key. */
-            dataASN[6].noOut = dataASN[7].noOut = 1;
+            SetASNItem_NoOutNode(dataASN, eccKeyASN, eccKeyASN_IDX_PUBKEY,
+                    eccKeyASN_Length);
         }
         /* Calculate size of the private key encoding. */
         ret = SizeASN_Items(eccKeyASN, dataASN, eccKeyASN_Length, &sz);
@@ -28083,11 +28099,12 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
 
         /* Export the private value into the buffer. */
         ret = wc_ecc_export_private_only(key,
-                (byte*)dataASN[2].data.buffer.data, &privSz);
+                (byte*)dataASN[eccKeyASN_IDX_PKEY].data.buffer.data, &privSz);
         if ((ret == 0) && pubIn) {
             /* Export the public point into the buffer. */
             PRIVATE_KEY_UNLOCK();
-            ret = wc_ecc_export_x963(key, (byte*)dataASN[7].data.buffer.data,
+            ret = wc_ecc_export_x963(key,
+                    (byte*)dataASN[eccKeyASN_IDX_PUBKEY_VAL].data.buffer.data,
                     &pubSz);
             PRIVATE_KEY_LOCK();
         }
