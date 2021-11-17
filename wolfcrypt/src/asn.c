@@ -30233,18 +30233,31 @@ void FreeOcspResponse(OcspResponse* resp)
  * RFC 6960, 4.2.1 - ASN.1 Specification of the OCSP Response
  */
 static const ASNItem ocspResponseASN[] = {
-            /* OCSPResponse ::= SEQUENCE */
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* responseStatus      OCSPResponseStatus */
-/*  1 */        { 1, ASN_ENUMERATED, 0, 0, 0, },
-                /* responseBytes   [0] EXPLICIT ResponseBytes OPTIONAL */
-/*  2 */        { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
-                    /* ResponseBytes ::= SEQUENCE */
-/*  3 */            { 2, ASN_SEQUENCE, 1, 1, 0 },
-                       /* responseType   OBJECT IDENTIFIER */
-/*  4 */               { 3, ASN_OBJECT_ID, 0, 0, 0 },
-                       /* response       OCTET STRING */
-/*  5 */               { 3, ASN_OCTET_STRING, 0, 0, 0 },
+                                     /* OCSPResponse ::= SEQUENCE */
+/* ocspResponseASN_IDX_SEQ        */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                         /* responseStatus      OCSPResponseStatus */
+/* ocspResponseASN_IDX_STATUS     */     { 1, ASN_ENUMERATED, 0, 0, 0, },
+                                         /* responseBytes   [0] EXPLICIT ResponseBytes OPTIONAL */
+/* ocspResponseASN_IDX_BYTES      */     { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
+                                             /* ResponseBytes ::= SEQUENCE */
+/* ocspResponseASN_IDX_BYTES_SEQ  */         { 2, ASN_SEQUENCE, 1, 1, 0 },
+                                                /* responseType   OBJECT IDENTIFIER */
+/* ocspResponseASN_IDX_BYTES_TYPE */            { 3, ASN_OBJECT_ID, 0, 0, 0 },
+                                                /* response       OCTET STRING */
+/* ocspResponseASN_IDX_BYTES_VAL  */            { 3, ASN_OCTET_STRING, 0, 0, 0 },
+};
+enum {
+    ocspResponseASN_IDX_SEQ = 0,
+
+    ocspResponseASN_IDX_STATUS,
+
+    ocspResponseASN_IDX_BYTES,
+
+    ocspResponseASN_IDX_BYTES_SEQ,
+
+    ocspResponseASN_IDX_BYTES_TYPE,
+
+    ocspResponseASN_IDX_BYTES_VAL,
 };
 
 /* Number of items in ASN.1 template for OCSPResponse. */
@@ -30343,8 +30356,8 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap, int noVerify)
 
     if (ret == 0) {
         /* Set variable to put status in and expect OCSP OID. */
-        GetASN_Int8Bit(&dataASN[1], &status);
-        GetASN_OID(&dataASN[4], oidOcspType);
+        GetASN_Int8Bit(&dataASN[ocspResponseASN_IDX_STATUS], &status);
+        GetASN_OID(&dataASN[ocspResponseASN_IDX_BYTES_TYPE], oidOcspType);
         /* Decode OCSPResponse (and ResponseBytes). */
         ret = GetASN_Items(ocspResponseASN, dataASN, ocspResponseASN_Length, 1,
             source, &idx, size);
@@ -30352,9 +30365,11 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap, int noVerify)
     if (ret == 0) {
         /* Get response. */
         resp->responseStatus = status;
-        if (dataASN[4].data.oid.sum == OCSP_BASIC_OID) {
+        if (dataASN[ocspResponseASN_IDX_BYTES_TYPE].data.oid.sum
+                == OCSP_BASIC_OID) {
             /* Get reference to BasicOCSPResponse. */
-            GetASN_GetRef(&dataASN[5], &basic, &basicSz);
+            GetASN_GetRef(&dataASN[ocspResponseASN_IDX_BYTES_VAL], &basic,
+                    &basicSz);
             idx = 0;
             /* Decode BasicOCSPResponse. */
             ret = DecodeBasicOcspResponse(basic, &idx, resp, basicSz, cm, heap,
