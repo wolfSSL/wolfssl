@@ -9264,7 +9264,17 @@ static int wc_PKCS7_DecryptPwri(PKCS7* pkcs7, byte* in, word32 inSz,
                    pkcs7->stream->length, &pkiMsg, idx)) != 0) {
                 return ret;
             }
-            pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
+            #ifdef ASN_BER_TO_DER
+            /* check if pkcs7->der is being used after BER to DER */
+            if (pkcs7->derSz > 0) {
+                pkiMsgSz = pkcs7->derSz;
+            }
+            else
+            #endif
+            {
+                pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length:
+                                                        inSz;
+            }
         #endif
             /* remove KeyDerivationAlgorithmIdentifier */
             if (GetASNTag(pkiMsg, idx, &tag, pkiMsgSz) < 0)
