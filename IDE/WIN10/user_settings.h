@@ -15,7 +15,7 @@
     #undef HAVE_FIPS_VERSION
     #define HAVE_FIPS_VERSION 5
     #undef HAVE_FIPS_VERSION_MINOR
-    #define HAVE_FIPS_VERSION_MINOR 1
+    #define HAVE_FIPS_VERSION_MINOR 2
 #endif
 
 
@@ -98,6 +98,7 @@
         #define HAVE_FFDHE_4096
         #define HAVE_FFDHE_6144
         #define HAVE_FFDHE_8192
+        #define WOLFSSL_AES_OFB
         #define FP_MAX_BITS 16384
     #endif /* FIPS v5 */
 #else
