@@ -52994,10 +52994,8 @@ static WOLFSSL_BN_ULONG wolfSSL_BN_get_word_1(mp_int *mp) {
     WOLFSSL_BN_ULONG ret = 0UL;
     int digit_i;
 
-    for (digit_i = 0; digit_i < mp->used; ++digit_i) {
-        ret <<= (WOLFSSL_BN_ULONG)DIGIT_BIT;
-        ret |= (WOLFSSL_BN_ULONG)mp->dp[digit_i];
-    }
+    for (digit_i = 0; digit_i < mp->used; ++digit_i)
+        ret |= ((WOLFSSL_BN_ULONG)mp->dp[digit_i]) << (DIGIT_BIT * digit_i);
 
     return ret;
 #endif
