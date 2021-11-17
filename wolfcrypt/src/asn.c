@@ -29912,18 +29912,28 @@ static int DecodeCerts(byte* source,
  * RFC 6960, 4.2.1 - ASN.1 Specification of the OCSP Response
  */
 static const ASNItem ocspBasicRespASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* tbsResponseData */
-/*  1 */        { 1, ASN_SEQUENCE, 1, 0, 0, },
-                /* signatureAlgorithm */
-/*  2 */        { 1, ASN_SEQUENCE, 1, 1, 0, },
-/*  3 */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/*  4 */            { 2, ASN_TAG_NULL, 0, 0, 1 },
-                /* signature */
-/*  5 */        { 1, ASN_BIT_STRING, 0, 0, 0 },
-                /* certs */
-/*  6 */        { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
-/*  7 */            { 2, ASN_SEQUENCE, 1, 0, 0, },
+/* ocspBasicRespASN_IDX_SEQ          */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                            /* tbsResponseData */
+/* ocspBasicRespASN_IDX_TBS_SEQ      */     { 1, ASN_SEQUENCE, 1, 0, 0, },
+                                            /* signatureAlgorithm */
+/* ocspBasicRespASN_IDX_SIGALGO      */     { 1, ASN_SEQUENCE, 1, 1, 0, },
+/* ocspBasicRespASN_IDX_SIGALGO_OID  */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* ocspBasicRespASN_IDX_SIGALGO_NULL */         { 2, ASN_TAG_NULL, 0, 0, 1 },
+                                            /* signature */
+/* ocspBasicRespASN_IDX_SIGNATURE    */     { 1, ASN_BIT_STRING, 0, 0, 0 },
+                                            /* certs */
+/* ocspBasicRespASN_IDX_CERTS        */     { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
+/* ocspBasicRespASN_IDX_CERTS_SEQ    */         { 2, ASN_SEQUENCE, 1, 0, 0, },
+};
+enum {
+    ocspBasicRespASN_IDX_SEQ = 0,
+    ocspBasicRespASN_IDX_TBS_SEQ,
+    ocspBasicRespASN_IDX_SIGALGO,
+    ocspBasicRespASN_IDX_SIGALGO_OID,
+    ocspBasicRespASN_IDX_SIGALGO_NULL,
+    ocspBasicRespASN_IDX_SIGNATURE,
+    ocspBasicRespASN_IDX_CERTS,
+    ocspBasicRespASN_IDX_CERTS_SEQ,
 };
 
 /* Number of items in ASN.1 template for BasicOCSPResponse. */
@@ -30070,7 +30080,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 
     if (ret == 0) {
         /* Set expecting signature OID. */
-        GetASN_OID(&dataASN[3], oidSigType);
+        GetASN_OID(&dataASN[ocspBasicRespASN_IDX_SIGALGO_OID], oidSigType);
         /* Decode BasicOCSPResponse. */
         ret = GetASN_Items(ocspBasicRespASN, dataASN, ocspBasicRespASN_Length,
                 1, source, &idx, size);
@@ -30078,21 +30088,27 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     if (ret == 0) {
         word32 dataIdx = 0;
         /* Decode the response data. */
-        if (DecodeResponseData(GetASNItem_Addr(dataASN[1], source), &dataIdx,
-                resp, GetASNItem_Length(dataASN[1], source)) < 0) {
+        if (DecodeResponseData(
+                GetASNItem_Addr(dataASN[ocspBasicRespASN_IDX_TBS_SEQ], source),
+                &dataIdx, resp,
+                GetASNItem_Length(dataASN[ocspBasicRespASN_IDX_TBS_SEQ], source)
+                ) < 0) {
             ret = ASN_PARSE_E;
         }
     }
     if (ret == 0) {
         /* Get the signature OID and signature. */
-        resp->sigOID = dataASN[3].data.oid.sum;
-        GetASN_GetRef(&dataASN[5], &resp->sig, &resp->sigSz);
+        resp->sigOID = dataASN[ocspBasicRespASN_IDX_SIGALGO_OID].data.oid.sum;
+        GetASN_GetRef(&dataASN[ocspBasicRespASN_IDX_SIGNATURE], &resp->sig,
+                &resp->sigSz);
     }
 #ifndef WOLFSSL_NO_OCSP_OPTIONAL_CERTS
-    if ((ret == 0) && (dataASN[7].data.ref.data != NULL)) {
+    if ((ret == 0) &&
+            (dataASN[ocspBasicRespASN_IDX_CERTS_SEQ].data.ref.data != NULL)) {
         /* TODO: support more than one certificate. */
         /* Store reference to certificate BER data. */
-        GetASN_GetRef(&dataASN[7], &resp->cert, &resp->certSz);
+        GetASN_GetRef(&dataASN[ocspBasicRespASN_IDX_CERTS_SEQ], &resp->cert,
+                &resp->certSz);
 
         /* Allocate a certificate object to decode cert into. */
     #ifdef WOLFSSL_SMALL_STACK
@@ -30102,7 +30118,8 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             ret = MEMORY_E;
         }
     }
-    if ((ret == 0) && (dataASN[7].data.ref.data != NULL)) {
+    if ((ret == 0) &&
+            (dataASN[ocspBasicRespASN_IDX_CERTS_SEQ].data.ref.data != NULL)) {
     #endif
         /* Initialize the crtificate object. */
         InitDecodedCert(cert, resp->cert, resp->certSz, heap);
@@ -30115,7 +30132,8 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             WOLFSSL_MSG("\tOCSP Responder certificate parsing failed");
         }
     }
-    if ((ret == 0) && (dataASN[7].data.ref.data != NULL)) {
+    if ((ret == 0) &&
+            (dataASN[ocspBasicRespASN_IDX_CERTS_SEQ].data.ref.data != NULL)) {
         /* TODO: ConfirmSignature is blocking here */
         /* Check the signature of the response. */
         ret = ConfirmSignature(&cert->sigCtx, resp->response, resp->responseSz,
@@ -30126,7 +30144,8 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             ret = ASN_OCSP_CONFIRM_E;
         }
     }
-    if ((ret == 0) && (dataASN[7].data.ref.data == NULL))
+    if ((ret == 0) &&
+            (dataASN[ocspBasicRespASN_IDX_CERTS_SEQ].data.ref.data == NULL))
 #else
     if (ret == 0)
 #endif /* WOLFSSL_NO_OCSP_OPTIONAL_CERTS */
