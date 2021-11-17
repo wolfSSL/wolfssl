@@ -150,6 +150,10 @@ enum ASN_Tags {
     /* ECC Key Fields */
     ASN_ECC_PARAMS        = 0x00,
     ASN_ECC_PUBKEY        = 0x01,
+
+    /* OneAsymmetricKey Fields */
+    ASN_ASYMKEY_ATTRS     = 0x00,
+    ASN_ASYMKEY_PUBKEY    = 0x01,
 };
 
 #define ASN_UTC_TIME_SIZE 14
