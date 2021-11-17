@@ -31516,35 +31516,55 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
  * X.509: RFC 5280, 5.1 - CRL Fields
  */
 static const ASNItem crlASN[] = {
-            /* CertificateList */
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* tbsCertList */
-/*  1 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-                    /* version     Version OPTIONAL if present must be v2 */
-/*  2 */            { 2, ASN_INTEGER, 0, 0, 1 },
-                    /* signature */
-/*  3 */            { 2, ASN_SEQUENCE, 1, 1, 0 },
-/*  4 */                { 3, ASN_OBJECT_ID, 0, 0, 0 },
-/*  5 */                { 3, ASN_TAG_NULL, 0, 0, 1 },
-                    /* issuer */
-/*  6 */            { 2, ASN_SEQUENCE, 1, 0, 0 },
-                    /* thisUpdate */
-/*  7 */            { 2, ASN_UTC_TIME, 0, 0, 2 },
-/*  8 */            { 2, ASN_GENERALIZED_TIME, 0, 0, 2 },
-                    /* nextUpdate */
-/*  9 */            { 2, ASN_UTC_TIME, 0, 0, 3 },
-/* 10 */            { 2, ASN_GENERALIZED_TIME, 0, 0, 3 },
-                    /* revokedCertificates */
-/* 11 */            { 2, ASN_SEQUENCE, 1, 0, 1 },
-                    /* crlExtensions */
-/* 12 */            { 2, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
-/* 13 */                { 3, ASN_SEQUENCE, 1, 0, 0 },
-                /* signatureAlgorithm */
-/* 14 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-/* 15 */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/* 16 */            { 2, ASN_TAG_NULL, 0, 0, 1 },
-                /* signatureValue */
-/* 17 */        { 1, ASN_BIT_STRING, 0, 0, 0 },
+                                       /* CertificateList */
+/* crlASN_IDX_SEQ                */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                           /* tbsCertList */
+/* crlASN_IDX_TBS                */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+                                               /* version     Version OPTIONAL if present must be v2 */
+/* crlASN_IDX_TBS_VER            */            { 2, ASN_INTEGER, 0, 0, 1 },
+                                               /* signature */
+/* crlASN_IDX_TBS_SIGALGO        */            { 2, ASN_SEQUENCE, 1, 1, 0 },
+/* crlASN_IDX_TBS_SIGALGO_OID    */                { 3, ASN_OBJECT_ID, 0, 0, 0 },
+/* crlASN_IDX_TBS_SIGALGO_NULL   */                { 3, ASN_TAG_NULL, 0, 0, 1 },
+                                               /* issuer */
+/* crlASN_IDX_TBS_ISSUER         */            { 2, ASN_SEQUENCE, 1, 0, 0 },
+                                               /* thisUpdate */
+/* crlASN_IDX_TBS_THISUPDATE_UTC */            { 2, ASN_UTC_TIME, 0, 0, 2 },
+/* crlASN_IDX_TBS_THISUPDATE_GT  */            { 2, ASN_GENERALIZED_TIME, 0, 0, 2 },
+                                               /* nextUpdate */
+/* crlASN_IDX_TBS_NEXTUPDATE_UTC */            { 2, ASN_UTC_TIME, 0, 0, 3 },
+/* crlASN_IDX_TBS_NEXTUPDATE_GT  */            { 2, ASN_GENERALIZED_TIME, 0, 0, 3 },
+                                               /* revokedCertificates */
+/* crlASN_IDX_TBS_REVOKEDCERTS   */            { 2, ASN_SEQUENCE, 1, 0, 1 },
+                                               /* crlExtensions */
+/* crlASN_IDX_TBS_EXT            */            { 2, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
+/* crlASN_IDX_TBS_EXT_SEQ        */                { 3, ASN_SEQUENCE, 1, 0, 0 },
+                                           /* signatureAlgorithm */
+/* crlASN_IDX_SIGALGO            */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* crlASN_IDX_SIGALGO_OID        */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* crlASN_IDX_SIGALGO_NULL       */            { 2, ASN_TAG_NULL, 0, 0, 1 },
+                                           /* signatureValue */
+/* crlASN_IDX_SIGNATURE          */        { 1, ASN_BIT_STRING, 0, 0, 0 },
+};
+enum {
+    crlASN_IDX_SEQ = 0,
+    crlASN_IDX_TBS,
+    crlASN_IDX_TBS_VER,
+    crlASN_IDX_TBS_SIGALGO,
+    crlASN_IDX_TBS_SIGALGO_OID,
+    crlASN_IDX_TBS_SIGALGO_NULL,
+    crlASN_IDX_TBS_ISSUER,
+    crlASN_IDX_TBS_THISUPDATE_UTC,
+    crlASN_IDX_TBS_THISUPDATE_GT,
+    crlASN_IDX_TBS_NEXTUPDATE_UTC,
+    crlASN_IDX_TBS_NEXTUPDATE_GT,
+    crlASN_IDX_TBS_REVOKEDCERTS,
+    crlASN_IDX_TBS_EXT,
+    crlASN_IDX_TBS_EXT_SEQ,
+    crlASN_IDX_SIGALGO,
+    crlASN_IDX_SIGALGO_OID,
+    crlASN_IDX_SIGALGO_NULL,
+    crlASN_IDX_SIGNATURE,
 };
 
 /* Number of items in ASN.1 template for a CRL- CertificateList. */
@@ -31649,21 +31669,26 @@ end:
 
     if (ret == 0) {
         /* Set variable to store version. */
-        GetASN_Int8Bit(&dataASN[2], &version);
+        GetASN_Int8Bit(&dataASN[crlASN_IDX_TBS_VER], &version);
         /* Set expecting signature OID. */
-        GetASN_OID(&dataASN[4], oidSigType);
+        GetASN_OID(&dataASN[crlASN_IDX_TBS_SIGALGO_OID], oidSigType);
         /* Set buffer to put last and next date into. */
-        GetASN_Buffer(&dataASN[7], dcrl->lastDate, &lastDateSz);
-        GetASN_Buffer(&dataASN[8], dcrl->lastDate, &lastDateSz);
-        GetASN_Buffer(&dataASN[9], dcrl->nextDate, &nextDateSz);
-        GetASN_Buffer(&dataASN[10], dcrl->nextDate, &nextDateSz);
+        GetASN_Buffer(&dataASN[crlASN_IDX_TBS_THISUPDATE_UTC], dcrl->lastDate,
+                &lastDateSz);
+        GetASN_Buffer(&dataASN[crlASN_IDX_TBS_THISUPDATE_GT], dcrl->lastDate,
+                &lastDateSz);
+        GetASN_Buffer(&dataASN[crlASN_IDX_TBS_NEXTUPDATE_UTC], dcrl->nextDate,
+                &nextDateSz);
+        GetASN_Buffer(&dataASN[crlASN_IDX_TBS_NEXTUPDATE_GT], dcrl->nextDate,
+                &nextDateSz);
         /* Set expecting signature OID. */
-        GetASN_OID(&dataASN[14], oidSigType);
+        GetASN_OID(&dataASN[crlASN_IDX_SIGALGO_OID], oidSigType);
         /* Decode the CRL. */
         ret = GetASN_Items(crlASN, dataASN, crlASN_Length, 1, buff, &idx, sz);
     }
     /* Version must be v2 = 1 if present. */
-    if ((ret == 0) && (dataASN[2].tag != 0) && (version != 1)) {
+    if ((ret == 0) && (dataASN[crlASN_IDX_TBS_VER].tag != 0) &&
+            (version != 1)) {
         ret = ASN_PARSE_E;
     }
     /* Check minimum size of last date. */
@@ -31675,23 +31700,27 @@ end:
         ret = ASN_PARSE_E;
     }
     /* 'signatureAlgorithm' OID must be the same as 'signature' OID. */
-    if ((ret == 0) && (dataASN[15].data.oid.sum != dataASN[4].data.oid.sum)) {
+    if ((ret == 0) && (dataASN[crlASN_IDX_SIGALGO_OID].data.oid.sum !=
+            dataASN[crlASN_IDX_TBS_SIGALGO_OID].data.oid.sum)) {
         ret = ASN_PARSE_E;
     }
     if (ret == 0) {
         /* Store offset of to be signed part. */
-        dcrl->certBegin = dataASN[1].offset;
+        dcrl->certBegin = dataASN[crlASN_IDX_TBS].offset;
         /* Store index of signature. */
-        dcrl->sigIndex = dataASN[14].offset;
+        dcrl->sigIndex = dataASN[crlASN_IDX_SIGALGO].offset;
         /* Store address and length of signature data. */
-        GetASN_GetRef(&dataASN[17], &dcrl->signature, &dcrl->sigLength);
+        GetASN_GetRef(&dataASN[crlASN_IDX_SIGNATURE], &dcrl->signature,
+                &dcrl->sigLength);
         /* Get the signature OID. */
-        dcrl->signatureOID = dataASN[15].data.oid.sum;
+        dcrl->signatureOID = dataASN[crlASN_IDX_SIGALGO_OID].data.oid.sum;
         /* Get the format/tag of the last and next date. */
-        dcrl->lastDateFormat = (dataASN[7].tag != 0) ? dataASN[7].tag
-                                                     : dataASN[8].tag;
-        dcrl->nextDateFormat = (dataASN[9].tag != 0) ? dataASN[9].tag
-                                                     : dataASN[10].tag;
+        dcrl->lastDateFormat = (dataASN[crlASN_IDX_TBS_THISUPDATE_UTC].tag != 0)
+                ? dataASN[crlASN_IDX_TBS_THISUPDATE_UTC].tag
+                : dataASN[crlASN_IDX_TBS_THISUPDATE_GT].tag;
+        dcrl->nextDateFormat = (dataASN[crlASN_IDX_TBS_NEXTUPDATE_UTC].tag != 0)
+                ? dataASN[crlASN_IDX_TBS_NEXTUPDATE_UTC].tag
+                : dataASN[crlASN_IDX_TBS_NEXTUPDATE_GT].tag;
     #ifndef NO_ASN_TIME
         if (dcrl->nextDateFormat != 0) {
             /* Next date was set, so validate it. */
@@ -31704,23 +31733,24 @@ end:
     if (ret == 0) {
     #endif
         /* Calculate the Hash id from the issuer name. */
-        ret = CalcHashId(GetASNItem_Addr(dataASN[6], buff),
-                         GetASNItem_Length(dataASN[6], buff), dcrl->issuerHash);
+        ret = CalcHashId(GetASNItem_Addr(dataASN[crlASN_IDX_TBS_ISSUER], buff),
+                GetASNItem_Length(dataASN[crlASN_IDX_TBS_ISSUER], buff),
+                dcrl->issuerHash);
         if (ret < 0) {
             ret = ASN_PARSE_E;
         }
     }
-    if ((ret == 0) && (dataASN[11].tag != 0)) {
+    if ((ret == 0) && (dataASN[crlASN_IDX_TBS_REVOKEDCERTS].tag != 0)) {
         /* Parse revoked cerificates - starting after SEQUENCE OF. */
         ret = ParseCRL_RevokedCerts(dcrl, buff,
-            GetASNItem_DataIdx(dataASN[11], buff),
-            GetASNItem_EndIdx(dataASN[11], buff));
+            GetASNItem_DataIdx(dataASN[crlASN_IDX_TBS_REVOKEDCERTS], buff),
+            GetASNItem_EndIdx(dataASN[crlASN_IDX_TBS_REVOKEDCERTS], buff));
     }
     if (ret == 0) {
         /* Parse the extensions - starting after SEQUENCE OF. */
         ret = ParseCRL_Extensions(dcrl, buff,
-            GetASNItem_DataIdx(dataASN[13], buff),
-            GetASNItem_EndIdx(dataASN[13], buff));
+            GetASNItem_DataIdx(dataASN[crlASN_IDX_TBS_EXT_SEQ], buff),
+            GetASNItem_EndIdx(dataASN[crlASN_IDX_TBS_EXT_SEQ], buff));
     }
     if (ret == 0) {
         /* Find signer and verify signature. */
