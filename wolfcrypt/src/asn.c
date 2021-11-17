@@ -29490,10 +29490,14 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
  * RFC 6960, 4.2.1 - ASN.1 Specification of the OCSP Response
  */
 static const ASNItem respExtHdrASN[] = {
-            /* responseExtensions */
-/*  0 */    { 0, ASN_CONTEXT_SPECIFIC | 1, 1, 1, 0 },
-                /* extensions */
-/*  1 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+                                   /* responseExtensions */
+/* respExtHdrASN_IDX_EXT     */    { 0, ASN_CONTEXT_SPECIFIC | 1, 1, 1, 0 },
+                                       /* extensions */
+/* respExtHdrASN_IDX_EXT_SEQ */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+};
+enum {
+    respExtHdrASN_IDX_EXT = 0,
+    respExtHdrASN_IDX_EXT_SEQ,
 };
 
 /* Number of items in ASN.1 template for OCSP response extension header. */
@@ -29595,7 +29599,7 @@ static int DecodeOcspRespExtensions(byte* source, word32* ioIndex,
     }
     if (ret == 0) {
         /* Keep end extensions index for total length check. */
-        maxIdx = idx + dataASN[1].length;
+        maxIdx = idx + dataASN[respExtHdrASN_IDX_EXT_SEQ].length;
     }
 
     /* Step through all extensions. */
