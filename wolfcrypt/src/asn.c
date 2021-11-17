@@ -30864,8 +30864,12 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for certificate name hash. */
 static const ASNItem nameHashASN[] = {
-/*  0 */    { 0, ASN_OBJECT_ID, 0, 0, 1 },
-/*  1 */    { 0, ASN_SEQUENCE, 1, 0, 0 },
+/* nameHashASN_IDX_OID  */ { 0, ASN_OBJECT_ID, 0, 0, 1 },
+/* nameHashASN_IDX_NAME */ { 0, ASN_SEQUENCE, 1, 0, 0 },
+};
+enum {
+    nameHashASN_IDX_OID = 0,
+    nameHashASN_IDX_NAME,
 };
 
 /* Number of items in ASN.1 template for certificate name hash. */
@@ -30912,7 +30916,7 @@ int GetNameHash(const byte* source, word32* idx, byte* hash, int maxIdx)
 
     XMEMSET(dataASN, 0, sizeof(dataASN));
     /* Ignore the OID even when present. */
-    GetASN_OID(&dataASN[0], oidIgnoreType);
+    GetASN_OID(&dataASN[nameHashASN_IDX_OID], oidIgnoreType);
     /* Decode certificate name. */
     ret = GetASN_Items(nameHashASN, dataASN, nameHashASN_Length, 0, source, idx,
            maxIdx);
@@ -30921,8 +30925,10 @@ int GetNameHash(const byte* source, word32* idx, byte* hash, int maxIdx)
          * calculated over the entire DER encoding of the Name field, including
          * the tag and length. */
         /* Calculate hash of complete name including SEQUENCE. */
-        ret = CalcHashId(GetASNItem_Addr(dataASN[1], source),
-                         GetASNItem_Length(dataASN[1], source), hash);
+        ret = CalcHashId(
+                GetASNItem_Addr(dataASN[nameHashASN_IDX_NAME], source),
+                GetASNItem_Length(dataASN[nameHashASN_IDX_NAME], source),
+                hash);
     }
 
     return ret;
@@ -30965,14 +30971,21 @@ void FreeDecodedCRL(DecodedCRL* dcrl)
  * X.509: RFC 5280, 5.1 - CRL Fields
  */
 static const ASNItem revokedASN[] = {
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* userCertificate    CertificateSerialNumber */
-/*  1 */        { 1, ASN_INTEGER, 0, 0, 0 },
-                /* revocationDate     Time */
-/*  2 */        { 1, ASN_UTC_TIME, 0, 0, 2 },
-/*  3 */        { 1, ASN_GENERALIZED_TIME, 0, 0, 2 },
-                /* crlEntryExensions  Extensions */
-/*  4 */        { 1, ASN_SEQUENCE, 1, 0, 1 },
+/* revokedASN_IDX_SEQ      */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                     /* userCertificate    CertificateSerialNumber */
+/* revokedASN_IDX_CERT     */        { 1, ASN_INTEGER, 0, 0, 0 },
+                                     /* revocationDate     Time */
+/* revokedASN_IDX_TIME_UTC */        { 1, ASN_UTC_TIME, 0, 0, 2 },
+/* revokedASN_IDX_TIME_GT  */        { 1, ASN_GENERALIZED_TIME, 0, 0, 2 },
+                                     /* crlEntryExensions  Extensions */
+/* revokedASN_IDX_TIME_EXT */        { 1, ASN_SEQUENCE, 1, 0, 1 },
+};
+enum {
+    revokedASN_IDX_SEQ = 0,
+    revokedASN_IDX_CERT,
+    revokedASN_IDX_TIME_UTC,
+    revokedASN_IDX_TIME_GT,
+    revokedASN_IDX_TIME_EXT,
 };
 
 /* Number of items in ASN.1 template for revoked certificates. */
@@ -31042,7 +31055,8 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
 
     if (ret == 0) {
         /* Set buffer to place serial number into. */
-        GetASN_Buffer(&dataASN[1], rc->serialNumber, &serialSz);
+        GetASN_Buffer(&dataASN[revokedASN_IDX_CERT], rc->serialNumber,
+                &serialSz);
         /* Decode the Revoked */
         ret = GetASN_Items(revokedASN, dataASN, revokedASN_Length, 1, buff, idx,
                 maxIdx);
