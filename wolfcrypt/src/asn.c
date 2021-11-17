@@ -30510,30 +30510,43 @@ word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output, word32 size)
  * RFC 6960, 4.1.1 - ASN.1 Specification of the OCSP Request
  */
 static const ASNItem ocspRequestASN[] = {
-            /* OCSPRequest */
-/*  0 */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-                /* tbsRequest */
-/*  1 */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-                    /* version not written - v1 */
-                    /* requestorName not written */
-                    /* requestList */
-/*  2 */            { 2, ASN_SEQUENCE, 1, 1, 0 },
-                        /* Request */
-/*  3 */                { 3, ASN_SEQUENCE, 1, 1, 0 },
-                            /* reqCert */
-/*  4 */                    { 4, ASN_SEQUENCE, 1, 1, 0 },
-                                /* hashAlgorithm */
-/*  5 */                        { 5, ASN_SEQUENCE, 1, 1, 0 },
-/*  6 */                            { 6, ASN_OBJECT_ID, 0, 0, 0 },
-                                /* issuerNameHash */
-/*  7 */                        { 5, ASN_OCTET_STRING, 0, 0, 0 },
-                                /* issuerKeyHash */
-/*  8 */                        { 5, ASN_OCTET_STRING, 0, 0, 0 },
-                                /* serialNumber */
-/*  9 */                        { 5, ASN_INTEGER, 0, 0, 0 },
-                    /* requestExtensions */
-/* 10 */            { 2, ASN_CONTEXT_SPECIFIC | 2, 1, 0, 0 },
-                /* optionalSignature not written. */
+                                              /* OCSPRequest */
+/* ocspRequestASN_IDX_SEQ               */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+                                                  /* tbsRequest */
+/* ocspRequestASN_IDX_TBS               */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+                                                      /* version not written - v1 */
+                                                      /* requestorName not written */
+                                                      /* requestList */
+/* ocspRequestASN_IDX_TBS_SEQ           */            { 2, ASN_SEQUENCE, 1, 1, 0 },
+                                                          /* Request */
+/* ocspRequestASN_IDX_TBS_LIST          */                { 3, ASN_SEQUENCE, 1, 1, 0 },
+                                                              /* reqCert */
+/* ocspRequestASN_IDX_TBS_REQ_CID       */                    { 4, ASN_SEQUENCE, 1, 1, 0 },
+                                                                  /* hashAlgorithm */
+/* ocspRequestASN_IDX_TBS_REQ_HASH      */                        { 5, ASN_SEQUENCE, 1, 1, 0 },
+/* ocspRequestASN_IDX_TBS_REQ_HASH_OID  */                            { 6, ASN_OBJECT_ID, 0, 0, 0 },
+                                                                  /* issuerNameHash */
+/* ocspRequestASN_IDX_TBS_REQ_ISSUER    */                        { 5, ASN_OCTET_STRING, 0, 0, 0 },
+                                                                  /* issuerKeyHash */
+/* ocspRequestASN_IDX_TBS_REQ_ISSUERKEY */                        { 5, ASN_OCTET_STRING, 0, 0, 0 },
+                                                                  /* serialNumber */
+/* ocspRequestASN_IDX_TBS_REQ_SERIAL    */                        { 5, ASN_INTEGER, 0, 0, 0 },
+                                                      /* requestExtensions */
+/* ocspRequestASN_IDX_TBS_REQEXT        */            { 2, ASN_CONTEXT_SPECIFIC | 2, 1, 0, 0 },
+                                                  /* optionalSignature not written. */
+};
+enum {
+    ocspRequestASN_IDX_SEQ = 0,
+    ocspRequestASN_IDX_TBS,
+    ocspRequestASN_IDX_TBS_SEQ,
+    ocspRequestASN_IDX_TBS_LIST,
+    ocspRequestASN_IDX_TBS_REQ_CID,
+    ocspRequestASN_IDX_TBS_REQ_HASH,
+    ocspRequestASN_IDX_TBS_REQ_HASH_OID,
+    ocspRequestASN_IDX_TBS_REQ_ISSUER,
+    ocspRequestASN_IDX_TBS_REQ_ISSUERKEY,
+    ocspRequestASN_IDX_TBS_REQ_SERIAL,
+    ocspRequestASN_IDX_TBS_REQEXT,
 };
 
 /* Number of items in ASN.1 template for OCSPRequest. */
@@ -30628,27 +30641,32 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
     if (ret == 0) {
         /* Set OID of hash algorithm use on issuer and key. */
     #ifdef NO_SHA
-        SetASN_OID(&dataASN[6], SHA256h, oidHashType);
+        SetASN_OID(&dataASN[ocspRequestASN_IDX_TBS_REQ_HASH_OID], SHA256h,
+                oidHashType);
     #else
-        SetASN_OID(&dataASN[6], SHAh, oidHashType);
+        SetASN_OID(&dataASN[ocspRequestASN_IDX_TBS_REQ_HASH_OID], SHAh,
+                oidHashType);
     #endif
         /* Set issuer, issuer key hash and serial number of certificate being
          * checked. */
-        SetASN_Buffer(&dataASN[7], req->issuerHash, KEYID_SIZE);
-        SetASN_Buffer(&dataASN[8], req->issuerKeyHash, KEYID_SIZE);
-        SetASN_Buffer(&dataASN[9], req->serial, req->serialSz);
+        SetASN_Buffer(&dataASN[ocspRequestASN_IDX_TBS_REQ_ISSUER],
+                req->issuerHash, KEYID_SIZE);
+        SetASN_Buffer(&dataASN[ocspRequestASN_IDX_TBS_REQ_ISSUERKEY],
+                req->issuerKeyHash, KEYID_SIZE);
+        SetASN_Buffer(&dataASN[ocspRequestASN_IDX_TBS_REQ_SERIAL],
+                req->serial, req->serialSz);
         /* Only extension to write is nonce - check if one to encode. */
         if (req->nonceSz) {
             /* Get size of extensions and leave space for them in encoding. */
             ret = extSz = EncodeOcspRequestExtensions(req, NULL, 0);
-            SetASN_Buffer(&dataASN[10], NULL, extSz);
+            SetASN_Buffer(&dataASN[ocspRequestASN_IDX_TBS_REQEXT], NULL, extSz);
             if (ret > 0) {
                 ret = 0;
             }
         }
         else {
             /* Don't write out extensions. */
-            dataASN[10].noOut = 1;
+            dataASN[ocspRequestASN_IDX_TBS_REQEXT].noOut = 1;
         }
     }
     if (ret == 0) {
@@ -30666,7 +30684,8 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
         if (req->nonceSz) {
             /* Encode extensions into space provided. */
             ret = EncodeOcspRequestExtensions(req,
-                (byte*)dataASN[10].data.buffer.data, extSz);
+                (byte*)dataASN[ocspRequestASN_IDX_TBS_REQEXT].data.buffer.data,
+                extSz);
             if (ret > 0) {
                 ret = 0;
             }
