@@ -3695,7 +3695,7 @@ const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
     const struct s_ent *ent;
 
     for (i = 0; i < sizeof(nameUpper) && name[i] != '\0'; i++) {
-        nameUpper[i] = (char)XTOUPPER((unsigned int) name[i]);
+        nameUpper[i] = (char)XTOUPPER((unsigned char) name[i]);
     }
     if (i < sizeof(nameUpper))
         nameUpper[i] = '\0';
