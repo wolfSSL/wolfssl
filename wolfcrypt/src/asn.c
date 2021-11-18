@@ -19650,7 +19650,7 @@ int wc_PemCertToDer_ex(const char* fileName, DerBuffer** der)
     int    dynamic = 0;
     int    ret     = 0;
     long   sz      = 0;
-    XFILE  file;
+    XFILE  file    = NULL;
 
     WOLFSSL_ENTER("wc_PemCertToDer");
 

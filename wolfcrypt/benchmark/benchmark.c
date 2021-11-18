@@ -2588,7 +2588,7 @@ void bench_gmac(void)
 static void bench_aesecb_internal(int doAsync, const byte* key, word32 keySz,
                                   const char* encLabel, const char* decLabel)
 {
-    int    ret, i, count = 0, times, pending = 0;
+    int    ret = 0, i, count = 0, times, pending = 0;
     Aes    enc[BENCH_MAX_PENDING];
     double start;
 

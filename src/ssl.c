@@ -16879,7 +16879,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     /**
      * Internal wrapper for calling certSetupCb
-     * @param ssl
+     * @param ssl The SSL/TLS Object
      * @return 0 on success
      */
     int CertSetupCbWrapper(WOLFSSL* ssl)
@@ -17856,7 +17856,7 @@ int wolfSSL_get_server_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
 /**
  * This function checks if any compiled in protocol versions are
  * left enabled after calls to set_min or set_max API.
- * @param ctx The WOLFSSL_CTX to check
+ * @param major The SSL/TLS major version
  * @return WOLFSSL_SUCCESS on valid settings and WOLFSSL_FAILURE when no
  *         protocol versions are left enabled.
  */
@@ -17933,7 +17933,7 @@ static const int protoVerTbl[] = {
  * This API also accept 0 as version, to set the minimum version automatically.
  * CheckSslMethodVersion() is called to check if any remaining protocol versions
  * are enabled.
- * @param ctx
+ * @param ctx The wolfSSL CONTEXT factory for spawning SSL/TLS objects
  * @param version Any of the following
  *          * 0
  *          * SSL3_VERSION
@@ -18093,8 +18093,8 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
  * This API also accept 0 as version, to set the maximum version automatically.
  * CheckSslMethodVersion() is called to check if any remaining protocol versions
  * are enabled.
- * @param ctx
- * @param version Any of the following
+ * @param ctx The wolfSSL CONTEXT factory for spawning SSL/TLS objects
+ * @param ver Any of the following
  *          * 0
  *          * SSL3_VERSION
  *          * TLS1_VERSION
@@ -18155,13 +18155,13 @@ static int Set_CTX_max_proto_version(WOLFSSL_CTX* ctx, int ver)
 int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
 {
     int i;
-    int ret;
+    int ret = WOLFSSL_FAILURE;
     int minProto;
 
     WOLFSSL_ENTER("wolfSSL_CTX_set_max_proto_version");
 
     if (ctx == NULL) {
-        return WOLFSSL_FAILURE;
+        return ret;
     }
 
     /* clear out flags and reset min protocol version */
@@ -55993,7 +55993,7 @@ wolfSSL_CTX_keylog_cb_func wolfSSL_CTX_get_keylog_callback(
  * @param dh a pointer to WOLFSSL_DH
  * @param p  a pointer to WOLFSSL_BIGNUM to be obtained from dh
  * @param q  a pointer to WOLFSSL_BIGNUM to be obtained from dh
- * @param q  a pointer to WOLFSSL_BIGNUM to be obtained from dh
+ * @param g  a pointer to WOLFSSL_BIGNUM to be obtained from dh
  */
 void wolfSSL_DH_get0_pqg(const WOLFSSL_DH *dh, const WOLFSSL_BIGNUM **p,
                     const WOLFSSL_BIGNUM **q, const WOLFSSL_BIGNUM **g)
@@ -56175,7 +56175,7 @@ int wolfSSL_CRYPTO_set_ex_data_with_cleanup(
  *  - CRYPTO_EX_INDEX_SSL
  *  - CRYPTO_EX_INDEX_SSL_CTX
  *  - CRYPTO_EX_INDEX_X509
- * @param class index one of CRYPTO_EX_INDEX_xxx
+ * @param class_index index one of CRYPTO_EX_INDEX_xxx
  * @param argp  parameters to be saved
  * @param argl  parameters to be saved
  * @param new_func a pointer to WOLFSSL_CRYPTO_EX_new
@@ -57364,7 +57364,6 @@ WOLFSSL_CONF_CTX* wolfSSL_CONF_CTX_new(void)
 /**
  * Release WOLFSSL_CONF_CTX instance
  * @param cctx a pointer to WOLFSSL_CONF_CTX structure to be freed
- * @return none
  */
 void wolfSSL_CONF_CTX_free(WOLFSSL_CONF_CTX* cctx)
 {
@@ -57380,7 +57379,6 @@ void wolfSSL_CONF_CTX_free(WOLFSSL_CONF_CTX* cctx)
  * @param cctx a pointer to WOLFSSL_CONF_CTX structure to set a WOLFSSL_CTX
  *             pointer to its ctx
  * @param ctx  a pointer to WOLFSSL_CTX structure to be set
- * @return none
  */
 void wolfSSL_CONF_CTX_set_ssl_ctx(WOLFSSL_CONF_CTX* cctx, WOLFSSL_CTX *ctx)
 {
@@ -57997,7 +57995,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
     /**
      * Create new socket BIO object. This is a pure TCP connection with
      * no SSL or TLS protection.
-     * @param str IP address to connect to
+     * @param port port  to connect to
      * @return New BIO object or NULL on failure
      */
     WOLFSSL_BIO *wolfSSL_BIO_new_accept(const char *port)
