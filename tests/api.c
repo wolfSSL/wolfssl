@@ -48551,7 +48551,6 @@ static void test_wolfSSL_ASN1_INTEGER_get_set(void)
     AssertIntEQ(ASN1_INTEGER_get(a), val);
     ASN1_INTEGER_free(a);
 
-#ifndef TIME_T_NOT_64BIT
     /* int max (2147483647) */
     a = ASN1_INTEGER_new();
     val = 2147483647;
@@ -48567,7 +48566,6 @@ static void test_wolfSSL_ASN1_INTEGER_get_set(void)
     AssertIntEQ(ret, 1);
     AssertIntEQ(ASN1_INTEGER_get(a), val);
     ASN1_INTEGER_free(a);
-#endif
 
     printf(resultFmt, passed);
 #endif
