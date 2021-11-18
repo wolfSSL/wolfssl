@@ -46971,28 +46971,78 @@ static int test_tls13_apis(void)
 #endif /* HAVE_ECC */
 
 #ifdef WOLFSSL_EARLY_DATA
+#ifndef OPENSSL_EXTRA
     AssertIntEQ(wolfSSL_CTX_set_max_early_data(NULL, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_CTX_get_max_early_data(NULL), BAD_FUNC_ARG);
+#else
+    AssertIntEQ(SSL_CTX_set_max_early_data(NULL, 0), BAD_FUNC_ARG);
+    AssertIntEQ(SSL_CTX_get_max_early_data(NULL), BAD_FUNC_ARG);
+#endif
 #ifndef NO_WOLFSSL_CLIENT
+#ifndef OPENSSL_EXTRA
     AssertIntEQ(wolfSSL_CTX_set_max_early_data(clientCtx, 0), SIDE_ERROR);
+    AssertIntEQ(wolfSSL_CTX_get_max_early_data(clientCtx), SIDE_ERROR);
+#else
+    AssertIntEQ(SSL_CTX_set_max_early_data(clientCtx, 0), SIDE_ERROR);
+    AssertIntEQ(SSL_CTX_get_max_early_data(clientCtx), SIDE_ERROR);
+#endif
 #endif
 #ifndef NO_WOLFSSL_SERVER
 #ifndef WOLFSSL_NO_TLS12
+#ifndef OPENSSL_EXTRA
     AssertIntEQ(wolfSSL_CTX_set_max_early_data(serverTls12Ctx, 0),
                 BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_CTX_get_max_early_data(serverTls12Ctx), BAD_FUNC_ARG);
+#else
+    AssertIntEQ(SSL_CTX_set_max_early_data(serverTls12Ctx, 0),
+                BAD_FUNC_ARG);
+    AssertIntEQ(SSL_CTX_get_max_early_data(serverTls12Ctx), BAD_FUNC_ARG);
 #endif
-    AssertIntEQ(wolfSSL_CTX_set_max_early_data(serverCtx, 0), 0);
+#endif
+#ifndef OPENSSL_EXTRA
+    AssertIntEQ(wolfSSL_CTX_set_max_early_data(serverCtx, 32), 0);
+    AssertIntEQ(wolfSSL_CTX_get_max_early_data(serverCtx), 32);
+#else
+    AssertIntEQ(SSL_CTX_set_max_early_data(serverCtx, 32), 1);
+    AssertIntEQ(SSL_CTX_get_max_early_data(serverCtx), 32);
+#endif
 #endif
 
+#ifndef OPENSSL_EXTRA
     AssertIntEQ(wolfSSL_set_max_early_data(NULL, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_get_max_early_data(NULL), BAD_FUNC_ARG);
+#else
+    AssertIntEQ(SSL_set_max_early_data(NULL, 0), BAD_FUNC_ARG);
+    AssertIntEQ(SSL_get_max_early_data(NULL), BAD_FUNC_ARG);
+#endif
 #ifndef NO_WOLFSSL_CLIENT
+#ifndef OPENSSL_EXTRA
     AssertIntEQ(wolfSSL_set_max_early_data(clientSsl, 0), SIDE_ERROR);
+    AssertIntEQ(wolfSSL_get_max_early_data(clientSsl), SIDE_ERROR);
+#else
+    AssertIntEQ(SSL_set_max_early_data(clientSsl, 0), SIDE_ERROR);
+    AssertIntEQ(SSL_get_max_early_data(clientSsl), SIDE_ERROR);
+#endif
 #endif
 #ifndef NO_WOLFSSL_SERVER
 #ifndef WOLFSSL_NO_TLS12
+#ifndef OPENSSL_EXTRA
     AssertIntEQ(wolfSSL_set_max_early_data(serverTls12Ssl, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_get_max_early_data(serverTls12Ssl), BAD_FUNC_ARG);
+#else
+    AssertIntEQ(SSL_set_max_early_data(serverTls12Ssl, 0), BAD_FUNC_ARG);
+    AssertIntEQ(SSL_get_max_early_data(serverTls12Ssl), BAD_FUNC_ARG);
 #endif
-    AssertIntEQ(wolfSSL_set_max_early_data(serverSsl, 0), 0);
 #endif
+#ifndef OPENSSL_EXTRA
+    AssertIntEQ(wolfSSL_set_max_early_data(serverSsl, 16), 0);
+    AssertIntEQ(wolfSSL_get_max_early_data(serverSsl), 16);
+#else
+    AssertIntEQ(SSL_set_max_early_data(serverSsl, 16), 1);
+    AssertIntEQ(SSL_get_max_early_data(serverSsl), 16);
+#endif
+#endif
+
 
     AssertIntEQ(wolfSSL_write_early_data(NULL, earlyData, sizeof(earlyData),
                                          &outSz), BAD_FUNC_ARG);

@@ -9616,7 +9616,12 @@ int wolfSSL_CTX_set_max_early_data(WOLFSSL_CTX* ctx, unsigned int sz)
 
     ctx->maxEarlyDataSz = sz;
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    /* 1 on success in OpenSSL*/
+    return WOLFSSL_SUCCESS;
+#else
     return 0;
+#endif
 }
 
 /* Sets the maximum amount of early data that can be seen by server when using
@@ -9637,8 +9642,51 @@ int wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz)
         return SIDE_ERROR;
 
     ssl->options.maxEarlyDataSz = sz;
-
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    /* 1 on success in OpenSSL*/
+    return WOLFSSL_SUCCESS;
+#else
     return 0;
+#endif
+}
+
+/* Sets the maximum amount of early data that can be seen by server when using
+ * session tickets for resumption.
+ * A value of zero indicates no early data is to be sent by client using session
+ * tickets.
+ *
+ * ctx  The SSL/TLS CTX object.
+ * returns BAD_FUNC_ARG when ctx is NULL, SIDE_ERROR when not a server and
+ * returns the maximum amount of early data to be set
+ */
+int wolfSSL_CTX_get_max_early_data(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL || !IsAtLeastTLSv1_3(ctx->method->version))
+        return BAD_FUNC_ARG;
+    if (ctx->method->side == WOLFSSL_CLIENT_END)
+        return SIDE_ERROR;
+
+    return ctx->maxEarlyDataSz;
+}
+
+/* Gets the maximum amount of early data that can be seen by server when using
+ * session tickets for resumption.
+ * A value of zero indicates no early data is to be sent by client using session
+ * tickets.
+ *
+ * ssl  The SSL/TLS object.
+ * returns BAD_FUNC_ARG when ssl is NULL, or not using TLS v1.3,
+ * SIDE_ERROR when not a server and 
+ * returns the maximum amount of early data to be set
+ */
+int wolfSSL_get_max_early_data(WOLFSSL* ssl)
+{
+    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
+        return BAD_FUNC_ARG;
+    if (ssl->options.side == WOLFSSL_CLIENT_END)
+        return SIDE_ERROR;
+
+    return ssl->options.maxEarlyDataSz;
 }
 
 /* Write early data to the server.
