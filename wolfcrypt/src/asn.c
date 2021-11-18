@@ -9290,20 +9290,6 @@ int wc_SetDsaPublicKey(byte* output, DsaKey* key, int outLen, int with_header)
         return ySz;
     }
 
-    innerSeqSz  = SetSequence(pSz + qSz + gSz, innerSeq);
-
-    /* check output size */
-    if ((innerSeqSz + pSz + qSz + gSz) > outLen) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(p,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(q,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(g,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(y,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        WOLFSSL_MSG("Error, output size smaller than outlen");
-        return BUFFER_E;
-    }
-
     if (with_header) {
         int algoSz;
 #ifdef WOLFSSL_SMALL_STACK
@@ -9320,6 +9306,7 @@ int wc_SetDsaPublicKey(byte* output, DsaKey* key, int outLen, int with_header)
 #else
         byte algo[MAX_ALGO_SZ];
 #endif
+        innerSeqSz  = SetSequence(pSz + qSz + gSz, innerSeq);
         algoSz = SetAlgoID(DSAk, algo, oidKeyType, 0);
         bitStringSz  = SetBitString(ySz, 0, bitString);
         outerSeqSz = SetSequence(algoSz + innerSeqSz + pSz + qSz + gSz,
@@ -9352,6 +9339,20 @@ int wc_SetDsaPublicKey(byte* output, DsaKey* key, int outLen, int with_header)
         XFREE(algo, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     } else {
+        innerSeqSz  = SetSequence(pSz + qSz + gSz + ySz, innerSeq);
+
+        /* check output size */
+        if ((innerSeqSz + pSz + qSz + gSz + ySz) > outLen) {
+    #ifdef WOLFSSL_SMALL_STACK
+            XFREE(p,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(q,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(g,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(y,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+            WOLFSSL_MSG("Error, output size smaller than outlen");
+            return BUFFER_E;
+        }
+
         idx = 0;
     }
 
