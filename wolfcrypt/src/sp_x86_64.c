@@ -23279,7 +23279,7 @@ static int sp_256_ecc_gen_k_4(WC_RNG* rng, sp_digit* k)
         err = wc_RNG_GenerateBlock(rng, buf, sizeof(buf));
         if (err == 0) {
             sp_256_from_bin(k, 4, buf, (int)sizeof(buf));
-            if (sp_256_cmp_4(k, p256_order2) < 0) {
+            if (sp_256_cmp_4(k, p256_order2) <= 0) {
                 sp_256_add_one_4(k);
                 break;
             }
@@ -47869,7 +47869,7 @@ static int sp_384_ecc_gen_k_6(WC_RNG* rng, sp_digit* k)
         err = wc_RNG_GenerateBlock(rng, buf, sizeof(buf));
         if (err == 0) {
             sp_384_from_bin(k, 6, buf, (int)sizeof(buf));
-            if (sp_384_cmp_6(k, p384_order2) < 0) {
+            if (sp_384_cmp_6(k, p384_order2) <= 0) {
                 sp_384_add_one_6(k);
                 break;
             }
