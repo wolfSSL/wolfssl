@@ -5531,7 +5531,7 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 
     if (ret == 0) {
         /* Register variable to hold version field. */
-        GetASN_Int8Bit(&dataASN[1], &version);
+        GetASN_Int8Bit(&dataASN[rsaKeyASN_IDX_VER], &version);
         /* Setup data to store INTEGER data in mp_int's in RSA object. */
     #if defined(WOLFSSL_RSA_PUBLIC_ONLY)
         /* Extract all public fields. */
@@ -12303,8 +12303,12 @@ int wc_GetTime(void* timePtr, word32 timeSize)
 /* TODO: use a CHOICE instead of two items? */
 /* ASN.1 template for a date - either UTC or Generalized Time. */
 static const ASNItem dateASN[] = {
-/*  0 */    { 0, ASN_UTC_TIME, 0, 0, 2 },
-/*  1 */    { 0, ASN_GENERALIZED_TIME, 0, 0, 2 },
+/* dateASN_IDX_UTC */ { 0, ASN_UTC_TIME, 0, 0, 2 },
+/* dateASN_IDX_GT  */ { 0, ASN_GENERALIZED_TIME, 0, 0, 2 },
+};
+enum {
+    dateASN_IDX_UTC = 0,
+    dateASN_IDX_GT,
 };
 
 /* Number of items in ASN.1 template for a date. */
@@ -12379,7 +12383,8 @@ static int GetDateInfo(const byte* source, word32* idx, const byte** pDate,
     }
     if (ret == 0) {
         /* Determine which tag was seen. */
-        i = (dataASN[0].tag != 0) ? 0 : 1;
+        i = (dataASN[dateASN_IDX_UTC].tag != 0) ? dateASN_IDX_UTC
+                                                : dateASN_IDX_GT;
         /* Return data from seen item. */
         if (pFormat != NULL) {
             *pFormat = dataASN[i].tag;
