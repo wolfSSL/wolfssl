@@ -151,7 +151,9 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define CRYPTO_EX_new                   WOLFSSL_CRYPTO_EX_new
 #define CRYPTO_EX_dup                   WOLFSSL_CRYPTO_EX_dup
 #define CRYPTO_EX_free                  WOLFSSL_CRYPTO_EX_free
-#define CRYPTO_EX_DATA                  WOLFSSL_CRYPTO_EX_DATA
+#ifdef HAVE_EX_DATA
+    #define CRYPTO_EX_DATA                  WOLFSSL_CRYPTO_EX_DATA
+#endif
 
 #define CRYPTO_set_mem_functions        wolfSSL_CRYPTO_set_mem_functions
 

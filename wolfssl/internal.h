@@ -4362,7 +4362,7 @@ struct WOLFSSL {
                                             flag found in buffers.weOwnCert) */
 #endif
     byte             keepCert;           /* keep certificate after handshake */
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+#ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data; /* external data, for Fortress */
 #endif
     int              devId;             /* async device id to use */

@@ -32889,7 +32889,7 @@ static void test_wolfSSL_X509_STORE_CTX(void)
         int i = 0, tmpData = 5;
         void* tmpDataRet;
         AssertNotNull(ctx = X509_STORE_CTX_new());
-    #if defined(HAVE_EX_DATA) || defined(FORTRESS)
+    #ifdef HAVE_EX_DATA
         for (i = 0; i < MAX_EX_DATA; i++) {
             AssertIntEQ(X509_STORE_CTX_set_ex_data(ctx, i, &tmpData),
                         WOLFSSL_SUCCESS);
@@ -32911,7 +32911,7 @@ static void test_wolfSSL_X509_STORE_CTX(void)
         int i = 0, tmpData = 99;
         void* tmpDataRet;
         AssertNotNull(str = X509_STORE_new());
-    #if defined(HAVE_EX_DATA)
+    #ifdef HAVE_EX_DATA
         for (i = 0; i < MAX_EX_DATA; i++) {
             AssertIntEQ(X509_STORE_set_ex_data(str, i, &tmpData),
                         WOLFSSL_SUCCESS);
@@ -34751,7 +34751,7 @@ static void test_wolfSSL_set_options(void)
     AssertTrue(SSL_CTX_set_msg_callback(ctx, msg_cb) == SSL_SUCCESS);
 
     AssertNotNull(ssl = SSL_new(ctx));
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+#ifdef HAVE_EX_DATA
     AssertIntEQ(SSL_set_app_data(ssl, (void*)appData), SSL_SUCCESS);
     AssertNotNull(SSL_get_app_data((const WOLFSSL*)ssl));
     if (ssl) {
@@ -50449,7 +50449,7 @@ static void test_CONF_CTX_FILE(void)
 
 static void test_wolfSSL_CRYPTO_get_ex_new_index(void)
 {
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+#ifdef HAVE_EX_DATA
     int idx1,idx2;
 
     printf(testingFmt, "test_wolfSSL_CRYPTO_get_ex_new_index()");
@@ -50509,7 +50509,7 @@ static void test_wolfSSL_CRYPTO_get_ex_new_index(void)
     AssertIntNE(idx1, idx2);
 
     printf(resultFmt, "passed");
-#endif /* HAVE_EX_DATA || FORTRESS */
+#endif /* HAVE_EX_DATA */
 }
 
 static void test_wolfSSL_set_psk_use_session_callback(void)
