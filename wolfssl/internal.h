@@ -3151,7 +3151,8 @@ enum SignatureAlgorithm {
     rsa_pss_pss_algo      = 10,
     ed448_sa_algo         = 11,
     falcon_level1_sa_algo = 12,
-    falcon_level5_sa_algo = 13
+    falcon_level5_sa_algo = 13,
+    invalid_sa_algo       = 255
 };
 
 #define PSS_RSAE_TO_PSS_PSS(macAlgo) \
