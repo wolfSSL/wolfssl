@@ -89,6 +89,10 @@ struct curve25519_key {
     int devId;
 #endif
 
+#ifdef WOLFSSL_SE050
+    int keyId;
+#endif
+
     /* bit fields */
     byte pubSet:1;
     byte privSet:1;

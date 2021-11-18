@@ -24,6 +24,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/visibility.h>
+#include <wolfssl/wolfcrypt/asn_public.h>
 
 #ifdef __GNUC__
 #pragma GCC diagnostic push
@@ -145,4 +146,7 @@ WOLFSSL_LOCAL int se050_ed25519_verify_msg(const byte* signature,
     word32 signatureLen, const byte* msg, word32 msgLen,
     struct ed25519_key* key, int* res);
 
+WOLFSSL_LOCAL int se050_curve25519_create_key(curve25519_key* key, int keySize);
+WOLFSSL_LOCAL int se050_curve25519_shared_secret(curve25519_key* private_key,
+    curve25519_key* public_key, byte* out, word32* outlen);
 #endif /* _SE050_PORT_H_ */

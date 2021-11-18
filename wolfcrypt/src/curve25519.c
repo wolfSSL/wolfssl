@@ -226,6 +226,10 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
         /* fall-through when unavailable */
     }
 #endif
+#ifdef WOLFSSL_SE050
+ret = se050_curve25519_create_key(key, keysize);
+
+#endif /* WOLFSSL_SE050 */
 
     ret = wc_curve25519_make_priv(rng, keysize, key->k);
     if (ret == 0) {
@@ -251,6 +255,10 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
                                    curve25519_key* public_key,
                                    byte* out, word32* outlen, int endian)
 {
+#ifdef WOLFSSL_SE050
+    (void)endian;
+    int ret = se050_curve25519_shared_secret(private_key, public_key, out, outlen);
+#else
     ECPoint o;
     int ret = 0;
 
@@ -302,7 +310,7 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
     *outlen = CURVE25519_KEYSIZE;
 
     ForceZero(&o, sizeof(o));
-
+#endif /* WOLFSSL_SE050 */
     return ret;
 }
 
