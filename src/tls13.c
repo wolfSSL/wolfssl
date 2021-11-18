@@ -9650,7 +9650,7 @@ int wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz)
 #endif
 }
 
-/* Sets the maximum amount of early data that can be seen by server when using
+/* Gets the maximum amount of early data that can be seen by server when using
  * session tickets for resumption.
  * A value of zero indicates no early data is to be sent by client using session
  * tickets.
