@@ -1388,6 +1388,11 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 
     #endif /* BUILDING_WOLFSSL */
 
+#elif defined(HAL_RTC_MODULE_ENABLED)
+    #include <time.h>
+    WOLFSSL_LOCAL time_t* stm32_hal_time(time_t* t1);
+    #define XTIME(t1) stm32_hal_time(t1)
+    #define WOLFSSL_GMTIME
 #else
     /* default */
     /* uses complete <time.h> facility */

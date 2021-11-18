@@ -2300,6 +2300,13 @@ extern void uITRON4_free(void *p) ;
     #define SSL_CTRL_SET_TLSEXT_HOSTNAME 55
 #endif
 
+#ifdef WOLFSSL_LWIP_NATIVE
+    #include "lwip/tcp.h"
+    #include "lwip/sockets.h"
+
+    #undef WOLFSSL_USER_IO
+    #define WOLFSSL_USER_IO
+#endif
 
 /* both CURVE and ED small math should be enabled */
 #ifdef CURVED25519_SMALL

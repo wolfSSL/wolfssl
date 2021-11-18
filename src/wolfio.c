@@ -2552,4 +2552,152 @@ int GNRC_GenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *_ctx)
 
 #endif /* WOLFSSL_GNRC */
 
+#ifdef WOLFSSL_LWIP_NATIVE
+int LwIPNativeSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    err_t ret;
+    WOLFSSL_LWIP_NATIVE_STATE* nlwip = (WOLFSSL_LWIP_NATIVE_STATE*)ctx;
+
+    ret = tcp_write(nlwip->pcb, buf, sz, TCP_WRITE_FLAG_COPY);
+    if (ret != ERR_OK) {
+        sz = -1;
+    }
+
+    return sz;
+}
+
+
+int LwIPNativeReceive(WOLFSSL* ssl, char* buf, int sz,
+                                     void* ctx)
+{
+    struct pbuf *current, *head;
+    WOLFSSL_LWIP_NATIVE_STATE* nlwip;
+    int ret;
+
+    if (nlwip == NULL || ctx == NULL) {
+            return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+    nlwip = (WOLFSSL_LWIP_NATIVE_STATE*)ctx;
+
+    current = nlwip->pbuf;
+    if (current == NULL) {
+        WOLFSSL_MSG("LwIP native pbuf list is null, want read");
+        ret = WOLFSSL_CBIO_ERR_WANT_READ;
+    }
+    else {
+        int read = 0; /* total amount read */
+        head = nlwip->pbuf; /* save pointer to current head */
+
+        /* loop through buffers reading data */
+        while (current != NULL) {
+            int len; /* current amount to be read */
+
+            len = (current->len - nlwip->pulled < sz) ?
+                                            (current->len - nlwip->pulled) : sz;
+
+            if (read + len > sz) {
+                /* should never be hit but have sanity check before use */
+                return WOLFSSL_CBIO_ERR_GENERAL;
+            }
+
+            WOLFSSL_MSG("Reading from payload");
+            /* check if is a partial read from before */
+            XMEMCPY(&buf[read],
+                   (const char *)&(((char *)(current->payload))[nlwip->pulled]),
+
+                   len);
+            nlwip->pulled = nlwip->pulled + len;
+            if (nlwip->pulled >= current->len) {
+                WOLFSSL_LEAVE("Read full pbuf, advancing. LEN was ",
+                               current->len);
+                nlwip->pbuf = current->next;
+                current = nlwip->pbuf;
+                nlwip->pulled = 0;
+            }
+            read = read + len;
+
+            /* read enough break out */
+            if (read >= sz) {
+                /* if more pbuf's are left in the chain then increment the
+                 * ref count for next in chain and free all from begining till
+                 * next */
+                if (current != NULL) {
+                    WOLFSSL_MSG("Case where partial read or at next");
+                    pbuf_ref(current);
+                }
+
+                /* ack and start free'ing from the current head of the chain */
+                pbuf_free(head);
+                ret = read;
+                break;
+            }
+        }
+    }
+    WOLFSSL_LEAVE("LwIPNativeReceive", ret);
+    return ret;
+}
+
+
+static err_t LwIPNativeReceiveCB(void* cb, struct tcp_pcb* pcb,
+                                struct pbuf* pbuf, err_t err)
+{
+    WOLFSSL_LWIP_NATIVE_STATE* nlwip;
+
+    if (cb == NULL || pcb == NULL) {
+        WOLFSSL_MSG("Expected callback was null, abort");
+        return ERR_ABRT;
+    }
+
+    nlwip = (WOLFSSL_LWIP_NATIVE_STATE*)cb;
+    if (pbuf == NULL && err == ERR_OK) {
+        return ERR_OK;
+    }
+
+    if (nlwip->pbuf == NULL) {
+        nlwip->pbuf = pbuf;
+    }
+    else {
+        if (nlwip->pbuf != pbuf) {
+            tcp_recved(nlwip->pcb, pbuf->tot_len);
+            pbuf_cat(nlwip->pbuf, pbuf); /* add chain to head */
+        }
+    }
+    return ERR_OK;
+}
+
+
+static err_t LwIPNativeSentCB(void* cb, struct tcp_pcb* pcb, u16_t len)
+{
+    (void)cb;
+    (void)pcb;
+    (void)len;
+    return ERR_OK;
+}
+
+
+int wolfSSL_SetIO_LwIP(WOLFSSL* ssl, void* pcb,
+                          tcp_recv_fn recv_fn, tcp_sent_fn sent_fn, void *arg)
+{
+    if (ssl == NULL || pcb == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->lwipCtx.pcb = (struct tcp_pcb *)pcb;
+    ssl->lwipCtx.recv_fn = recv_fn; /*  recv user callback */
+    ssl->lwipCtx.sent_fn = sent_fn; /*  sent user callback */
+    ssl->lwipCtx.arg  = arg;
+    ssl->lwipCtx.pbuf = 0;
+    ssl->lwipCtx.pulled = 0;
+    ssl->lwipCtx.wait   = 0;
+
+    /* wolfSSL_LwIP_recv/sent_cb invokes recv/sent user callback in them. */
+    tcp_recv(pcb, LwIPNativeReceiveCB);
+    tcp_sent(pcb, LwIPNativeSentCB);
+    tcp_arg (pcb, (void *)&(ssl->lwipCtx));
+    wolfSSL_SetIOReadCtx(ssl, &ssl->lwipCtx);
+    wolfSSL_SetIOWriteCtx(ssl, &ssl->lwipCtx);
+
+    return ERR_OK;
+}
+#endif
+
 #endif /* WOLFCRYPT_ONLY */
