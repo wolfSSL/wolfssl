@@ -368,7 +368,7 @@ v1)
     ;;
 
 
-v2|rand|v5-RC8|v5-RC9)
+v2|rand|v5-RC8|v5-RC9|v5-RC10)
     $GIT branch --no-track "my$CRYPT_VERSION" $CRYPT_VERSION || exit $?
     # Checkout the fips versions of the wolfCrypt files from the repo.
     for MOD in "${WC_MODS[@]}"
