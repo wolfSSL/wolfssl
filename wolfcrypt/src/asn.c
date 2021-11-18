@@ -8313,7 +8313,7 @@ int wc_DhKeyToDer(DhKey* key, byte* output, word32* outSz, int exportPriv)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     int ret, privSz = 0, pubSz = 0, keySz;
-    word32 idx, total;
+    word32 idx, len, total;
 
     if (key == NULL || outSz == NULL) {
         return BAD_FUNC_ARG;
@@ -8342,8 +8342,9 @@ int wc_DhKeyToDer(DhKey* key, byte* output, word32* outSz, int exportPriv)
     /* object dhKeyAgreement 1.2.840.113549.1.3.1 */
     idx += SetObjectId(sizeof(keyDhOid), NULL);
     idx += sizeof(keyDhOid);
+    len = idx - keySz;
     /* sequence - all but pub/priv */
-    idx += SetSequence(idx - keySz, NULL);
+    idx += SetSequence(len, NULL);
     if (exportPriv) {
         /* version: 0 (ASN_INTEGER, 0x01, 0x00) */
         idx += 3;
@@ -8370,7 +8371,7 @@ int wc_DhKeyToDer(DhKey* key, byte* output, word32* outSz, int exportPriv)
         idx += SetMyVersion(0, output + idx, 0);
     }
     /* sequence - all but pub/priv */
-    idx += SetSequence(total - keySz - idx, output + idx);
+    idx += SetSequence(len, output + idx);
     /* object dhKeyAgreement 1.2.840.113549.1.3.1 */
     idx += SetObjectId(sizeof(keyDhOid), output + idx);
     XMEMCPY(output + idx, keyDhOid, sizeof(keyDhOid));
