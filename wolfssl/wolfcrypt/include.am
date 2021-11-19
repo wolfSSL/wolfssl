@@ -96,6 +96,7 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h \
                          wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h \
                          wolfssl/wolfcrypt/port/Renesas/renesas_sync.h \
+                         wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h \
                          wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h
 
 if BUILD_CRYPTOAUTHLIB
