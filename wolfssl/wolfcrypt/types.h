@@ -315,7 +315,7 @@ decouple library dependencies with standard string, memory and so on.
                 #define FALL_THROUGH fallthrough
             #elif ((__GNUC__ > 7) || ((__GNUC__ == 7) && (__GNUC_MINOR__ >= 1)))
                 #define FALL_THROUGH ; __attribute__ ((fallthrough))
-            #elif defined(__clang__) && defined(__clang_major__) &&
+            #elif defined(__clang__) && defined(__clang_major__) && \
                     (__clang_major__ >= 4)
                 #define FALL_THROUGH ; __attribute__ ((fallthrough))
             #endif

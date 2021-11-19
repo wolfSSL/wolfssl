@@ -9676,7 +9676,7 @@ int wolfSSL_CTX_get_max_early_data(WOLFSSL_CTX* ctx)
  *
  * ssl  The SSL/TLS object.
  * returns BAD_FUNC_ARG when ssl is NULL, or not using TLS v1.3,
- * SIDE_ERROR when not a server and 
+ * SIDE_ERROR when not a server and
  * returns the maximum amount of early data to be set
  */
 int wolfSSL_get_max_early_data(WOLFSSL* ssl)
