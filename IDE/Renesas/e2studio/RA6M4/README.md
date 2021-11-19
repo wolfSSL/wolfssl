@@ -43,11 +43,11 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 |FreeRTOS+TCP|v2.3.2+fsp.3.4.0a|
 |FreeRTOS - Buffer Allocation 2|v2.3.2+fsp.3.4.0a|
 
-## Setup Steps
+## Setup Steps and Build wolfSSL Library
 
 1.) Import  projects from [File]->[Open projects from File System]
 
-+ Select folder at /path/to/wolfssl/IDE/Renesas/e2studio/RA6M
++ Select folder at /path/to/wolfssl/IDE/Renesas/e2studio/RA6M4
 + Deselect the Non-Eclipse project, RA6M4, by clicking the checkbox\
    Only the folders with 'Eclipse project' under 'Import as' need to be selected.
 
@@ -91,30 +91,92 @@ The wolfssl Project Summary is listed below and is relevant for every project.
     OR\
     you can specify "RTT control block" to 0x20020000 0x10000 by Search Range
   
+## Run Client
+1.) Enable TLS_CLIENT definition in wolfssl_demo.h of test_RA6M4 projet
 
-6.) Prepare peer wolfssl server
-    On Linux\
+2.) Client IP address and Server IP address
+
++ Client IP address can be changed by the following line in wolf_client.c.
 ```
-    $ autogen.sh\
+static const byte ucIPAddress[4]          = { 192, 168, 11, 241 };
+```
++ Client IP address can be changed by the following line in wolf_client.c.
+```
+#define SERVER_IP    "192.168.11.40"
+```
+
+3.) Build test_RA6M4 project
+
+4.) Prepare peer wolfssl server
+
++ On Linux
+```
+    $ autogen.sh
     $ ./configure --enable-extended-master=no CFLAGS="-DWOLFSSL_STATIC_RSA -DHAVE_AES_CBC"
 ```
+Run peer wolfSSL server
 
-7.) Run the example Client
+RSA sign and verify use, launch server with the following option
 ```
-   RSA sign and verify use, launch server
       $./example/server/server -b -d -i
 ```
 
+You will see the following message on J-LinK RTT Viewer
 ```
-   ECDSA sign and verifyuse, launch server
+cipher : AES128-SHA256
+Received: I hear you fa shizzle!
+
+cipher : AES256-SHA256
+Received: I hear you fa shizzle!
+
+cipher : ECDHE-RSA-AES128-SHA256
+Received: I hear you fa shizzle!
+
+cipher : ECDHE-RSA-AES128-GCM-SHA256
+Received: I hear you fa shizzle!
+```
+
+ECDSA sign and verifyuse, launch server with the following option
+```
       $./examples/server/server -b -d -c ./certs/server-ecc.pem -k ./certs/ecc-key.pem
 ```
 
-  **Note**\
-  To run "RSA sign and verify" client, enable "#define USE_CERT_BUFFERS_2048" in wolfssl_demo.h\
-  To run "ECDSA sign and verify" client, enable "#define USE_CERT_BUFFERS_256" in wolfssl_demo.h
-         
-  **Note**\
-  To run Crypt test, enable "CRYPT_TEST" macro in wolfssl_demo.h\
-  To run Benchmark, enable "BENCHMARK" macro in wolfssl_demo.h
-         
+You will see the following message on J-LinK RTT Viewer
+```
+cipher : ECDHE-ECDSA-AES128-SHA256
+Received: I hear you fa shizzle!
+
+cipher : ECDHE-ECDSA-AES128-GCM-SHA256
+Received: I hear you fa shizzle!
+```
+
+5.) Run the example Client
+
+ **Note**\
+   To run "RSA verify" client, enable "#define USE_CERT_BUFFERS_2048" in wolfssl_demo.h\
+   To run "ECDSA verify" client, enable "#define USE_CERT_BUFFERS_256" in wolfssl_demo.h
+
+## Run Crypt test and Benchmark
+
+1.) Enable CRYPT_TEST and/or BENCHMARK definition in wolfssl_demo.h
+
+2.) Enable SCEKEY_INSTALLED definition in user_settings.h if you have installed key for AES
+
+In the example code for benchmark, it assumes that AES key is installed at DIRECT_KEY_ADDRESS which is 0x08000000U as follows:
+```
+#if defined(SCEKEY_INSTALLED)
+    /* aes 256 */
+    memcpy(guser_PKCbInfo.sce_wrapped_key_aes256.value,
+           (uint32_t *)DIRECT_KEY_ADDRESS, HW_SCE_AES256_KEY_INDEX_WORD_SIZE*4);
+    guser_PKCbInfo.sce_wrapped_key_aes256.type = SCE_KEY_INDEX_TYPE_AES256;
+    guser_PKCbInfo.aes256_installedkey_set = 1;
+    /* aes 128 */
+    guser_PKCbInfo.aes128_installedkey_set = 0;
+#endif
+```
+
+To install key, please refer [Installing and Updating Secure Keys](chrome-extension://oemmndcbldboiebfnladdacbdfmadadm/https://www.renesas.com/us/en/document/apn/installing-and-updating-secure-keys-ra-family).
+
+You can update code above to handle AES128 key when you install its key.
+
+3.) Run Benchmark and Crypto Test
