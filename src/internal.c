@@ -1186,10 +1186,12 @@ static int ExportOptions(WOLFSSL* ssl, byte* exp, word32 len, byte ver,
     exp[idx++] = options->asyncState;
 
     if (type == WOLFSSL_EXPORT_TLS) {
+#ifdef HAVE_ENCRYPT_THEN_MAC
         exp[idx++] = options->disallowEncThenMac;
         exp[idx++] = options->encThenMac;
         exp[idx++] = options->startedETMRead;
         exp[idx++] = options->startedETMWrite;
+#endif
     }
 
     /* version of connection */
@@ -1362,10 +1364,12 @@ static int ImportOptions(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
     options->asyncState     = exp[idx++];
 
     if (type == WOLFSSL_EXPORT_TLS) {
+#ifdef HAVE_ENCRYPT_THEN_MAC
         options->disallowEncThenMac = exp[idx++];
         options->encThenMac         = exp[idx++];
         options->startedETMRead     = exp[idx++];
         options->startedETMWrite    = exp[idx++];
+#endif
     }
 
     /* version of connection */
