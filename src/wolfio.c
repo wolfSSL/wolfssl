@@ -2572,7 +2572,7 @@ int LwIPNativeReceive(WOLFSSL* ssl, char* buf, int sz,
 {
     struct pbuf *current, *head;
     WOLFSSL_LWIP_NATIVE_STATE* nlwip;
-    int ret;
+    int ret = 0;
 
     if (nlwip == NULL || ctx == NULL) {
             return WOLFSSL_CBIO_ERR_GENERAL;
@@ -2580,8 +2580,8 @@ int LwIPNativeReceive(WOLFSSL* ssl, char* buf, int sz,
     nlwip = (WOLFSSL_LWIP_NATIVE_STATE*)ctx;
 
     current = nlwip->pbuf;
-    if (current == NULL) {
-        WOLFSSL_MSG("LwIP native pbuf list is null, want read");
+    if (current == NULL || sz > current->tot_len) {
+        WOLFSSL_MSG("LwIP native pbuf list is null or not enough data, want read");
         ret = WOLFSSL_CBIO_ERR_WANT_READ;
     }
     else {
@@ -2600,7 +2600,6 @@ int LwIPNativeReceive(WOLFSSL* ssl, char* buf, int sz,
                 return WOLFSSL_CBIO_ERR_GENERAL;
             }
 
-            WOLFSSL_MSG("Reading from payload");
             /* check if is a partial read from before */
             XMEMCPY(&buf[read],
                    (const char *)&(((char *)(current->payload))[nlwip->pulled]),
@@ -2608,13 +2607,13 @@ int LwIPNativeReceive(WOLFSSL* ssl, char* buf, int sz,
                    len);
             nlwip->pulled = nlwip->pulled + len;
             if (nlwip->pulled >= current->len) {
-                WOLFSSL_LEAVE("Read full pbuf, advancing. LEN was ",
-                               current->len);
+                WOLFSSL_MSG("Native LwIP read full pbuf");
                 nlwip->pbuf = current->next;
                 current = nlwip->pbuf;
                 nlwip->pulled = 0;
             }
             read = read + len;
+            ret  = read;
 
             /* read enough break out */
             if (read >= sz) {
@@ -2622,13 +2621,11 @@ int LwIPNativeReceive(WOLFSSL* ssl, char* buf, int sz,
                  * ref count for next in chain and free all from begining till
                  * next */
                 if (current != NULL) {
-                    WOLFSSL_MSG("Case where partial read or at next");
                     pbuf_ref(current);
                 }
 
                 /* ack and start free'ing from the current head of the chain */
                 pbuf_free(head);
-                ret = read;
                 break;
             }
         }
@@ -2662,6 +2659,8 @@ static err_t LwIPNativeReceiveCB(void* cb, struct tcp_pcb* pcb,
             pbuf_cat(nlwip->pbuf, pbuf); /* add chain to head */
         }
     }
+
+    WOLFSSL_LEAVE("LwIPNativeReceiveCB", nlwip->pbuf->tot_len);
     return ERR_OK;
 }
 

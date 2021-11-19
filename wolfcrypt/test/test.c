@@ -406,7 +406,9 @@ WOLFSSL_TEST_SUBROUTINE int  hmac_sha256_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha384_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha512_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha3_test(void);
+#ifdef HAVE_HKDF
 /* WOLFSSL_TEST_SUBROUTINE */ static int  hkdf_test(void);
+#endif
 WOLFSSL_TEST_SUBROUTINE int  sshkdf_test(void);
 WOLFSSL_TEST_SUBROUTINE int  x963kdf_test(void);
 WOLFSSL_TEST_SUBROUTINE int  arc4_test(void);
@@ -642,6 +644,8 @@ static int wolfssl_pb_print(const char* msg, ...)
         ASSERT_RESTORED_VECTOR_REGISTERS(exit(1););
     }
 #else
+    #ifndef test_pass
+
     /* redirect to printf */
     #define test_pass(...) {                                    \
         if (STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK                \
@@ -651,6 +655,8 @@ static int wolfssl_pb_print(const char* msg, ...)
         PRINT_HEAP_CHECKPOINT();                                \
         ASSERT_RESTORED_VECTOR_REGISTERS(exit(1););             \
     }
+    #endif
+
     /* stub the sleep macro */
     #define TEST_SLEEP()
 #endif
@@ -674,9 +680,11 @@ int wolfcrypt_test(void* args)
     heap_baselineBytes = wolfCrypt_heap_peakBytes_checkpoint();
 #endif
 
+#ifndef NO_TEST_PRINTF
     printf("------------------------------------------------------------------------------\n");
     printf(" wolfSSL version %s\n", LIBWOLFSSL_VERSION_STRING);
     printf("------------------------------------------------------------------------------\n");
+#endif
 
     if (args) {
 #ifdef HAVE_WOLFCRYPT_TEST_OPTIONS
@@ -22369,7 +22377,9 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
                 and HAVE_ECC_KOBLITZ */
         }
         else {
+            #ifndef NO_TEST_PRINTF
             printf("ecc_test_curve_size %d failed!: %d\n", keySize, ret);
+            #endif
             return ret;
         }
     }
@@ -22377,7 +22387,9 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
 #ifdef HAVE_ECC_VECTOR_TEST
     ret = ecc_test_vector(keySize);
     if (ret < 0) {
+        #ifndef NO_TEST_PRINTF
         printf("ecc_test_vector %d failed!: %d\n", keySize, ret);
+        #endif
         return ret;
     }
 #endif
@@ -22390,7 +22402,9 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
             /* ignore error for curves not found */
         }
         else {
+            #ifndef NO_TEST_PRINTF
             printf("ecc_test_key_decode %d failed!: %d\n", keySize, ret);
+            #endif
             return ret;
         }
     }
@@ -22403,7 +22417,9 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
             /* ignore error for curves not found */
         }
         else {
+            #ifndef NO_TEST_PRINTF
             printf("ecc_test_key_gen %d failed!: %d\n", keySize, ret);
+            #endif
             return ret;
         }
     }
@@ -24202,14 +24218,18 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test(void)
 #if defined(HAVE_ECC_SIGN) && defined(WOLFSSL_ECDSA_SET_K)
     ret = ecc_test_sign_vectors(&rng);
     if (ret != 0) {
+        #ifndef NO_TEST_PRINTF
         printf("ecc_test_sign_vectors failed! %d\n", ret);
+        #endif
         goto done;
     }
 #endif
 #ifdef HAVE_ECC_CDH
     ret = ecc_test_cdh_vectors(&rng);
     if (ret != 0) {
+        #ifndef NO_TEST_PRINTF
         printf("ecc_test_cdh_vectors failed! %d\n", ret);
+        #endif
         goto done;
     }
 #endif
@@ -24217,7 +24237,9 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test(void)
   !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_SILABS_SE_ACCEL)
     ret = ecc_test_make_pub(&rng);
     if (ret != 0) {
+        #ifndef NO_TEST_PRINTF
         printf("ecc_test_make_pub failed!: %d\n", ret);
+        #endif
         goto done;
     }
 #elif defined(HAVE_ECC_KEY_IMPORT)
@@ -24226,14 +24248,18 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test(void)
 #ifdef WOLFSSL_CERT_GEN
     ret = ecc_test_cert_gen(&rng);
     if (ret != 0) {
+        #ifndef NO_TEST_PRINTF
         printf("ecc_test_cert_gen failed!: %d\n", ret);
+        #endif
         goto done;
     }
 #endif
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && !defined(WOLFSSL_NO_MALLOC)
     ret = ecc_test_allocator(&rng);
     if (ret != 0) {
+        #ifndef NO_TEST_PRINTF
         printf("ecc_test_allocator failed!: %d\n", ret);
+        #endif
         goto done;
     }
 #endif
