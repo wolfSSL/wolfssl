@@ -4567,7 +4567,7 @@ int mp_montgomery_calc_normalization(mp_int *a, mp_int *b)
     return fp_montgomery_calc_normalization(a, b);
 }
 
-#endif /* WOLFSSL_KEYGEN || HAVE_ECC */
+#endif /* WOLFSSL_KEY_GEN || HAVE_ECC */
 
 static int fp_cond_swap_ct (mp_int * a, mp_int * b, int c, int m)
 {
