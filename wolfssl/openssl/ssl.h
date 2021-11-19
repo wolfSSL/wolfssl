@@ -1540,7 +1540,15 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_do_handshake                wolfSSL_SSL_do_handshake
 
 #if defined(WOLFSSL_EARLY_DATA)
+#define SSL_EARLY_DATA_NOT_SENT         WOLFSSL_EARLY_DATA_NOT_SENT
+#define SSL_EARLY_DATA_REJECTED         WOLFSSL_EARLY_DATA_REJECTED
+#define SSL_EARLY_DATA_ACCEPTED         WOLFSSL_EARLY_DATA_ACCEPTED
+
 #define SSL_get_early_data_status       wolfSSL_get_early_data_status
+#define SSL_set_max_early_data          wolfSSL_set_max_early_data
+#define SSL_get_max_early_data          wolfSSL_get_max_early_data
+#define SSL_CTX_set_max_early_data      wolfSSL_CTX_set_max_early_data
+#define SSL_CTX_get_max_early_data      wolfSSL_CTX_get_max_early_data
 #endif
 
 #endif  /* OPENSSL_EXTRA */
