@@ -3014,6 +3014,10 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     WOLFSSL_START(WC_FUNC_CLIENT_HELLO_SEND);
     WOLFSSL_ENTER("SendTls13ClientHello");
 
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef HAVE_SESSION_TICKET
     if (ssl->options.resuming &&
             (ssl->session.version.major != ssl->version.major ||
@@ -3130,6 +3134,9 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     /* Keep for downgrade. */
     ssl->chVersion = ssl->version;
 
+    if (ssl->arrays == NULL) {
+        return BAD_FUNC_ARG;
+    }
     /* Client Random */
     if (ssl->options.connectState == CONNECT_BEGIN) {
         ret = wc_RNG_GenerateBlock(ssl->rng, args->output + args->idx, RAN_LEN);
