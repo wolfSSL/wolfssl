@@ -221,6 +221,21 @@
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
+#ifdef HAVE_FIPS
+    #include <wolfssl/wolfcrypt/fips_test.h>
+
+    static void myFipsCb(int ok, int err, const char* hash)
+    {
+        printf("in my Fips callback, ok = %d, err = %d\n", ok, err);
+        printf("message = %s\n", wc_GetErrorString(err));
+        printf("hash = %s\n", hash);
+
+        if (err == IN_CORE_FIPS_E) {
+            printf("In core integrity hash check failure, copy above hash\n");
+            printf("into verifyCore[] in fips_test.c and rebuild\n");
+        }
+    }
+#endif
 
 #ifdef WOLFSSL_STATIC_MEMORY
     static WOLFSSL_HEAP_HINT* HEAP_HINT;
@@ -2143,6 +2158,10 @@ int benchmark_test(void *args)
     printf("------------------------------------------------------------------------------\n");
     printf(" wolfSSL version %s\n", LIBWOLFSSL_VERSION_STRING);
     printf("------------------------------------------------------------------------------\n");
+
+#ifdef HAVE_FIPS
+    wolfCrypt_SetCb_fips(myFipsCb);
+#endif
 
     ret = benchmark_init();
     if (ret != 0)

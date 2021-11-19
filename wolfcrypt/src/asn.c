@@ -10188,7 +10188,7 @@ int wc_OBJ_sn2nid(const char *sn)
         sn = "SECP256R1";
     /* OpenSSL allows lowercase curve names */
     for (i = 0; i < (int)(sizeof(curveName) - 1) && *sn; i++) {
-        curveName[i] = (char)XTOUPPER(*sn++);
+        curveName[i] = (char)XTOUPPER((unsigned char) *sn++);
     }
     curveName[i] = '\0';
     /* find based on name and return NID */
