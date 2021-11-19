@@ -2633,7 +2633,7 @@ int sp_cmp_mag(sp_int* a, sp_int* b)
 #endif
 
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(HAVE_ECC) || !defined(NO_DSA) || \
-    defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA) || !defined(NO_DH) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
 /* Compare two multi-precision numbers.
  *
@@ -2674,7 +2674,8 @@ static int _sp_cmp(sp_int* a, sp_int* b)
 }
 #endif
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(HAVE_ECC)
+#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    !defined(NO_DSA) || defined(HAVE_ECC) || !defined(NO_DH)
 /* Compare two multi-precision numbers.
  *
  * Pointers are compared such that NULL is less than not NULL.
