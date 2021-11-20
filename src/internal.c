@@ -16711,7 +16711,7 @@ static WC_INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
         padByte = 1;
 
         if (ssl->options.tls) {
-#if defined(HAVE_PK_CALLBACKS)
+#if !defined(NO_CERTS) && defined(HAVE_PK_CALLBACKS)
             ret = PROTOCOLCB_UNAVAILABLE;
             if(ssl->ctx->VerifymacCb) {
                 void* ctx = wolfSSL_GetVerifymacCtx(ssl);

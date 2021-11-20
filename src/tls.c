@@ -210,7 +210,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             side = tls_server;
 
 #ifdef WOLFSSL_HAVE_PRF
-#if defined(HAVE_PK_CALLBACKS)
+#if !defined(NO_CERTS) && defined(HAVE_PK_CALLBACKS)
         if (ssl->ctx->TlsFinishedCb) {
             void* ctx = wolfSSL_GetTlsFinishedCtx(ssl);
             ret = ssl->ctx->TlsFinishedCb(ssl, side, handshake_hash, 
@@ -401,7 +401,7 @@ int DeriveTlsKeys(WOLFSSL* ssl)
         ret = tsip_generateSeesionKey(ssl);
     else {
 #endif
-#if defined(HAVE_PK_CALLBACKS)
+#if !defined(NO_CERTS) && defined(HAVE_PK_CALLBACKS)
         ret = PROTOCOLCB_UNAVAILABLE;
         if (ssl->ctx->GenSessionKeyCb) {
             void* ctx = wolfSSL_GetGenSesssionKeyCtx(ssl);
@@ -593,7 +593,7 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
             #endif
         } else
 #endif
-#if defined(HAVE_PK_CALLBACKS)
+#if !defined(NO_CERTS) && defined(HAVE_PK_CALLBACKS)
         ret = PROTOCOLCB_UNAVAILABLE;
         if (ssl->ctx->GenMasterCb) {
             void* ctx = wolfSSL_GetGenMasterSecretCtx(ssl);

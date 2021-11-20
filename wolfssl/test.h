@@ -4768,6 +4768,7 @@ static WC_INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx)
         wolfSSL_CTX_SetRsaDecCb(ctx, myRsaDec);
     #endif /* NO_RSA */
     
+    #ifndef NO_CERTS
     wolfSSL_CTX_SetGenMasterSecretCb(ctx, myGenMaster);
     wolfSSL_CTX_SetGenPreMasterCb(ctx, myGenPreMaster);
     wolfSSL_CTX_SetGenSesssionKeyCb(ctx, myGenSessionKey);
@@ -4778,6 +4779,7 @@ static WC_INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx)
     #endif
     
     wolfSSL_CTX_SetTlsFinishedCb(ctx, myTlsFinished);
+    #endif /* NO_CERTS */
 }
 
 static WC_INLINE void SetupPkCallbackContexts(WOLFSSL* ssl, void* myCtx)
@@ -4818,6 +4820,7 @@ static WC_INLINE void SetupPkCallbackContexts(WOLFSSL* ssl, void* myCtx)
         wolfSSL_SetRsaDecCtx(ssl, myCtx);
     #endif /* NO_RSA */
     
+    #ifndef NO_CERTS
     wolfSSL_SetGenMasterSecretCtx(ssl, myCtx);
     wolfSSL_SetGenPreMasterCtx(ssl, myCtx);
     wolfSSL_SetGenSesssionKeyCtx(ssl, myCtx);
@@ -4828,6 +4831,7 @@ static WC_INLINE void SetupPkCallbackContexts(WOLFSSL* ssl, void* myCtx)
     #endif
     
     wolfSSL_SetTlsFinishedCtx(ssl, myCtx);
+    #endif
 }
 
 #endif /* HAVE_PK_CALLBACKS */
