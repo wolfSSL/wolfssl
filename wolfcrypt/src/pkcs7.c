@@ -11692,8 +11692,8 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_AUTHENV_ATRBEND);
             FALL_THROUGH;
 
-authenv_atrbend:
         case WC_PKCS7_AUTHENV_ATRBEND:
+authenv_atrbend:
         #ifndef NO_PKCS7_STREAM
             if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz, MAX_LENGTH_SZ +
                             ASN_TAG_SZ, &pkiMsg, &idx)) != 0) {

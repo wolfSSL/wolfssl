@@ -311,12 +311,13 @@ decouple library dependencies with standard string, memory and so on.
     #ifndef FALL_THROUGH
         /* GCC 7 has new switch() fall-through detection */
         #if defined(__GNUC__)
-            #if ((__GNUC__ > 7) || ((__GNUC__ == 7) && (__GNUC_MINOR__ >= 1)))
-                #if defined(WOLFSSL_LINUXKM) && defined(fallthrough)
-                    #define FALL_THROUGH fallthrough
-                #else
-                    #define FALL_THROUGH ; __attribute__ ((fallthrough))
-                #endif
+            #if defined(fallthrough)
+                #define FALL_THROUGH fallthrough
+            #elif ((__GNUC__ > 7) || ((__GNUC__ == 7) && (__GNUC_MINOR__ >= 1)))
+                #define FALL_THROUGH ; __attribute__ ((fallthrough))
+            #elif defined(__clang__) && defined(__clang_major__) && \
+                    (__clang_major__ >= 11)
+                #define FALL_THROUGH ; __attribute__ ((fallthrough))
             #endif
         #endif
     #endif /* FALL_THROUGH */

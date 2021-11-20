@@ -22662,6 +22662,10 @@ exit_dpk:
         int                ret;
         word16             extSz = 0;
 
+        if (ssl == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
 #ifdef WOLFSSL_TLS13
         if (IsAtLeastTLSv1_3(ssl->version))
             return SendTls13ClientHello(ssl);
@@ -22718,6 +22722,10 @@ exit_dpk:
             length += extSz + HELLO_EXT_SZ_SZ;
 #endif
         sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
+
+        if (ssl->arrays == NULL) {
+            return BAD_FUNC_ARG;
+        }
 
 #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {

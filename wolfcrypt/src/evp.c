@@ -1964,6 +1964,7 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
                     pkey->ownEcc = 1;
                 }
             }
+            break;
 #endif
         default:
             break;
