@@ -402,6 +402,7 @@ int DeriveTlsKeys(WOLFSSL* ssl)
     else {
 #endif
 #if defined(HAVE_PK_CALLBACKS)
+        ret = PROTOCOLCB_UNAVAILABLE;
         if (ssl->ctx->GenSessionKeyCb) {
             void* ctx = wolfSSL_GetGenSesssionKeyCtx(ssl);
             ret = ssl->ctx->GenSessionKeyCb(ssl, ctx);
@@ -593,6 +594,7 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
         } else
 #endif
 #if defined(HAVE_PK_CALLBACKS)
+        ret = PROTOCOLCB_UNAVAILABLE;
         if (ssl->ctx->GenMasterCb) {
             void* ctx = wolfSSL_GetGenMasterSecretCtx(ssl);
             ret = ssl->ctx->GenMasterCb(ssl, ctx);

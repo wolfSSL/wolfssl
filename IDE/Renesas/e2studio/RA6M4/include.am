@@ -15,6 +15,7 @@ EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/test/src/wolf_client.c
 EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/test/src/hal_entry.c
 EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/test/src/sce_tst_thread_entry.c
 EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/test/src/SEGGER_RTT/myprint.c
+EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/test/src/common/.gitignore
 EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/test/key_data/key_data_sce.c
 EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/test/key_data/key_data.h
 EXTRA_DIST+= IDE/Renesas/e2studio/RA6M4/common/wolfssl_demo.h
