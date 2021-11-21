@@ -112,6 +112,9 @@ clean:
 .PHONY: check
 check:
 
+.PHONY: distclean
+distclean: clean
+
 .PHONY: dist
 dist:
 
