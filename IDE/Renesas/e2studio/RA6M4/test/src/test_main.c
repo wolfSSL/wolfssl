@@ -24,7 +24,10 @@
 #include "stdint.h"
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
+#if defined(WOLFSSL_RENESAS_SCEPROTECT)
 #include <wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h>
+User_SCEPKCbInfo        guser_PKCbInfo;
+#endif
 #include <wolfssl_demo.h>
 #include "key_data.h"
 
@@ -34,7 +37,7 @@ void abort(void);
 }
 #endif
 
-User_SCEPKCbInfo        guser_PKCbInfo;
+
 
 #if defined(TLS_CLIENT) || defined(TLS_SERVER) || defined(EXTRA_SCE_TSIP_TEST)
 
@@ -117,7 +120,7 @@ void sce_test(void)
     #include "r_sce.h"
 
     printf("Prepare Installed key\n");
-#if defined(SCEKEY_INSTALLED)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) && defined(SCEKEY_INSTALLED)
     /* aes 256 */
     memcpy(guser_PKCbInfo.sce_wrapped_key_aes256.value,
            (uint32_t *)DIRECT_KEY_ADDRESS, HW_SCE_AES256_KEY_INDEX_WORD_SIZE*4);
@@ -135,22 +138,22 @@ void sce_test(void)
     #include "hal_data.h"
     #include "r_sce.h"
     
-#if   defined(WOLFSSL_RENESAS_SCEPROTECT)
   #if defined(USE_CERT_BUFFERS_256)
-#ifdef TEST_CIPHER_SPECIFIED
+   #if defined(TEST_CIPHER_SPECIFIED)
     const char* cipherlist[] = {
        "ECDHE-ECDSA-AES128-SHA256",
        "ECDHE-ECDSA-AES128-GCM-SHA256"
     };
     const int cipherlist_sz = 2;
-#else
+   #else
     const char* cipherlist[] = {
        NULL
     };
     const int cipherlist_sz = 1;
-#endif
+   #endif /* TEST_CIPHER_SPECIFIED */
+
   #else
-#ifdef TEST_CIPHER_SPECIFIED
+   #if defined(TEST_CIPHER_SPECIFIED)
     const char* cipherlist[] = {
        "AES128-SHA256",
        "AES256-SHA256",
@@ -158,34 +161,42 @@ void sce_test(void)
        "ECDHE-RSA-AES128-GCM-SHA256"
     };
     const int cipherlist_sz = 4;
-#else
+   #else
     const char* cipherlist[] = {
        NULL
     };
     const int cipherlist_sz = 1;
-#endif
+   #endif /* TEST_CIPHER_SPECIFIED */
   #endif
-#else
-    const char* cipherlist[] = { NULL };
-    const int cipherlist_sz = 0;
 
-#endif
     int i = 0;
-    
+    int j = 0;
+    uint32_t elapsed_time_total = 0;
+    uint32_t elapsed_time = 0.0;
+    const int benchmark_times = 1;
+
     SetScetlsKey();
     
     TCPInit();
 
     do {
-        if(cipherlist_sz > 0 && cipherlist[i] != NULL ) printf("cipher : %s\n", cipherlist[i]);
+        if(cipherlist_sz > 0 && cipherlist[i] != NULL )
+        		printf("cipher : %s\n", cipherlist[i]);
 
-        wolfSSL_TLS_client_init(cipherlist[i]);
-
-        wolfSSL_TLS_client();
+        elapsed_time_total = 0;
+        for(j = 0; j < benchmark_times; j++){
+        	wolfSSL_TLS_client_init(cipherlist[i]);
+        	elapsed_time = wolfSSL_TLS_client();
+        	elapsed_time_total += elapsed_time;
+        	printf("elapsed_time(%d) %d mS\n", j, elapsed_time);
+        }
+        if(cipherlist_sz > 0 && i < cipherlist_sz && cipherlist[i] != NULL ) {
+        	printf("cipher : %s took %d mS for TLS connection(%d times).\n\n", cipherlist[i],
+        						elapsed_time_total, benchmark_times);
+        }
 
         i++;
     } while (i < cipherlist_sz);
-
 #endif
 }
 

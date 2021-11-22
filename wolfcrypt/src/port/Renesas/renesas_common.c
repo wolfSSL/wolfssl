@@ -21,6 +21,8 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_TSIP_TLS)
+
 #if defined(WOLFSSL_RENESAS_SCEPROTECT)
   #include <wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h>
 #elif defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -802,4 +804,4 @@ int Renesas_cmn_SigPkCbEccVerify(const unsigned char* sig, unsigned int sigSz,
     
     return ret;
 }
-
+#endif /* SCEPROTECT || TSIP */

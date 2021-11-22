@@ -75,6 +75,6 @@
 #define WOLF_CRYPTO_CB
 /* Enable SCEKEY_INSTALLED if keys are installed */
 #define SCEKEY_INSTALLED
-#if defined(SCEKEY_INSTALLED)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) && defined(SCEKEY_INSTALLED)
     #define HAVE_RENESAS_SYNC
 #endif

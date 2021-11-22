@@ -59,7 +59,7 @@
 #endif
 
 void wolfSSL_TLS_client_init();
-void wolfSSL_TLS_client();
+uint32_t wolfSSL_TLS_client();
 
 static void util_Cleanup(xSocket_t xSock, WOLFSSL_CTX *ctx, WOLFSSL *ssl) {
     printf("Cleaning up socket and wolfSSL objects.\n");
