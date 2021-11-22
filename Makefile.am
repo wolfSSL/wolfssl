@@ -161,7 +161,6 @@ include cyassl/include.am
 include wolfssl/include.am
 include certs/include.am
 include doc/include.am
-include swig/include.am
 
 include src/include.am
 include support/include.am

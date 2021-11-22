@@ -1,3 +1,10 @@
+# wolfSSL Release 5.X.X (TBD)
+Release 5.X.X of wolfSSL embedded TLS has bug fixes and new features including:
+
+###### Wrappers
+* swig wrapper removed (./swig) - for Java wrappers, see wolfSSL JNI/JSSE and wolfCrypt JNI/JCE. For Python wrapper see wolfssl-py and wolfcrypt-py.
+
+
 # wolfSSL Release 5.0.0 (Nov 01, 2021)
 Release 5.0.0 of wolfSSL embedded TLS has bug fixes and new features including:
 
