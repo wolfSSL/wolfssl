@@ -109,6 +109,12 @@ install modules_install:
 clean:
 	+$(MAKE) -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(MODULE_TOP) clean
 
+.PHONY: check
+check:
+
+.PHONY: distclean
+distclean: clean
+
 .PHONY: dist
 dist:
 
