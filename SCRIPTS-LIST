@@ -38,8 +38,6 @@ scripts/
  ocsp-stapling2.test - example client test against example server, part of tests
  sniffer-testsuite.test - runs snifftest on a pcap of testsuite, part of tests
                           in sniffer mode
-swig/
- PythonBuild.sh - builds and runs simple python example
 
 valgrind-error.sh - deprecated, was used to detect valgrind errors before
                     automake switched to concurrent tests

@@ -208,14 +208,6 @@ TAGS
 support/cyassl.pc
 support/wolfssl.pc
 cyassl/ctaocrypt/stamp-h1
-swig/_cyassl.so
-swig/_wolfssl.so
-swig/cyassl.py
-swig/wolfssl.py
-swig/cyassl.pyc
-swig/wolfssl.pyc
-swig/cyassl_wrap.c
-swig/wolfssl_wrap.c
 stamp-h1
 clang_output_*
 internal.plist

@@ -66,7 +66,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="src/bio.c|wolfcrypt/src/evp.c|wolfcrypt/src/misc.c|IDE/LPCXPRESSO/wolf_example|tirtos|testsuite|tests|swig|support|sslSniffer|scripts|rpm|mqx|mplabx|mcapi|m4|IDE/WORKBENCH|IDE/WIN|IDE/ROWLEY-CROSSWORKS-ARM|IDE/MYSQL|IDE/MDK-ARM|IDE/MDK5-ARM|IDE/LPCXPRESSO/wolf_demo|IDE/LPCXPRESSO/lpc_chip_18xx|IDE/LPCXPRESSO/lpc_board_nxp_lpcxpresso_1837|IDE/iOS|IDE/IAR-EWARM|examples|Debug|certs|build-aux|Backup|autom4te.cache|wolfcrypt/src/aes_asm.s|wolfcrypt/src/aes_asm.asm|wolfcrypt/user-crypto" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="src/bio.c|wolfcrypt/src/evp.c|wolfcrypt/src/misc.c|IDE/LPCXPRESSO/wolf_example|tirtos|testsuite|tests|support|sslSniffer|scripts|rpm|mqx|mplabx|mcapi|m4|IDE/WORKBENCH|IDE/WIN|IDE/ROWLEY-CROSSWORKS-ARM|IDE/MYSQL|IDE/MDK-ARM|IDE/MDK5-ARM|IDE/LPCXPRESSO/wolf_demo|IDE/LPCXPRESSO/lpc_chip_18xx|IDE/LPCXPRESSO/lpc_board_nxp_lpcxpresso_1837|IDE/iOS|IDE/IAR-EWARM|examples|Debug|certs|build-aux|Backup|autom4te.cache|wolfcrypt/src/aes_asm.s|wolfcrypt/src/aes_asm.asm|wolfcrypt/user-crypto" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -152,7 +152,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="IDE/LPCXPRESSO/wolf_example|tirtos|testsuite|tests|swig|support|sslSniffer|scripts|rpm|mqx|mplabx|mcapi|m4|IDE/WORKBENCH|IDE/WIN|IDE/ROWLEY-CROSSWORKS-ARM|IDE/MYSQL|IDE/MDK-ARM|IDE/MDK5-ARM|IDE/LPCXPRESSO/wolf_demo|IDE/LPCXPRESSO/lpc_board_nxp_lpcxpresso_1837|IDE/iOS|IDE/IAR-EWARM|examples|Debug|certs|build-aux|Backup|autom4te.cache|wolfcrypt/src/aes_asm.s|wolfcrypt/src/aes_asm.asm|wolfcrypt/user-crypto" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="IDE/LPCXPRESSO/wolf_example|tirtos|testsuite|tests|support|sslSniffer|scripts|rpm|mqx|mplabx|mcapi|m4|IDE/WORKBENCH|IDE/WIN|IDE/ROWLEY-CROSSWORKS-ARM|IDE/MYSQL|IDE/MDK-ARM|IDE/MDK5-ARM|IDE/LPCXPRESSO/wolf_demo|IDE/LPCXPRESSO/lpc_board_nxp_lpcxpresso_1837|IDE/iOS|IDE/IAR-EWARM|examples|Debug|certs|build-aux|Backup|autom4te.cache|wolfcrypt/src/aes_asm.s|wolfcrypt/src/aes_asm.asm|wolfcrypt/user-crypto" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
