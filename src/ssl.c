@@ -43264,10 +43264,11 @@ cleanup:
             return NULL;
         }
 
-        pem = (unsigned char*)XMALLOC(l, 0, DYNAMIC_TYPE_PEM);
+        pemSz = (int)l;
+        pem   = (unsigned char*)XMALLOC(pemSz, 0, DYNAMIC_TYPE_PEM);
         if (pem == NULL)
             return NULL;
-        XMEMSET(pem, 0, l);
+        XMEMSET(pem, 0, pemSz);
 
         i = 0;
         if (wc_PemGetHeaderFooter(type, NULL, &footer) != 0) {
@@ -43301,15 +43302,20 @@ cleanup:
     #else
         (void)l;
     #endif
-        pemSz = (int)i;
-    #ifdef WOLFSSL_CERT_REQ
-        if (type == CERTREQ_TYPE)
-            x509 = wolfSSL_X509_REQ_load_certificate_buffer(pem, pemSz,
-                                                        WOLFSSL_FILETYPE_PEM);
-        else
-    #endif
-            x509 = wolfSSL_X509_load_certificate_buffer(pem, pemSz,
-                                                        WOLFSSL_FILETYPE_PEM);
+        if (i > pemSz) {
+            WOLFSSL_MSG("Error parsing PEM");
+        }
+        else {
+            pemSz = (int)i;
+        #ifdef WOLFSSL_CERT_REQ
+            if (type == CERTREQ_TYPE)
+                x509 = wolfSSL_X509_REQ_load_certificate_buffer(pem, pemSz,
+                                                          WOLFSSL_FILETYPE_PEM);
+            else
+        #endif
+                x509 = wolfSSL_X509_load_certificate_buffer(pem, pemSz,
+                                                          WOLFSSL_FILETYPE_PEM);
+        }
 
         if (x != NULL) {
             *x = x509;
