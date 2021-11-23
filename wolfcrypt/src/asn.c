@@ -3980,14 +3980,16 @@ static const byte extExtKeyUsageEmailProtectOid[] = {43, 6, 1, 5, 5, 7, 3, 4};
 static const byte extExtKeyUsageTimestampOid[]    = {43, 6, 1, 5, 5, 7, 3, 8};
 static const byte extExtKeyUsageOcspSignOid[]     = {43, 6, 1, 5, 5, 7, 3, 9};
 
-#ifdef WOLFSSL_CERT_REQ
+#if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN)
 /* csrAttrType */
 static const byte attrEmailOid[] =             {42, 134, 72, 134, 247, 13, 1, 9, 1};
+#ifdef WOLFSSL_CERT_REQ
 static const byte attrUnstructuredNameOid[] =  {42, 134, 72, 134, 247, 13, 1, 9, 2};
 static const byte attrPkcs9ContentTypeOid[] =  {42, 134, 72, 134, 247, 13, 1, 9, 3};
 static const byte attrChallengePasswordOid[] = {42, 134, 72, 134, 247, 13, 1, 9, 7};
 static const byte attrExtensionRequestOid[] =  {42, 134, 72, 134, 247, 13, 1, 9, 14};
 static const byte attrSerialNumberOid[] = {85, 4, 5};
+#endif
 #endif
 
 /* kdfType */
@@ -4021,7 +4023,7 @@ static const byte tlsFeatureOid[] = {43, 6, 1, 5, 5, 7, 1, 24};
 static const byte dnsSRVOid[] = {43, 6, 1, 5, 5, 7, 8, 7};
 #endif
 
-#ifdef WOLFSSL_CERT_REQ
+#if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN)
 /* Pilot attribute types (0.9.2342.19200300.100.1.*) */
 #ifdef WOLFSSL_ASN_TEMPLATE
 static const byte uidOid[] = {9, 146, 38, 137, 147, 242, 44, 100, 1, 1}; /* user id */
