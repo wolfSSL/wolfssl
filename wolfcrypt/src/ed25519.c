@@ -44,6 +44,9 @@
 #ifdef FREESCALE_LTC_ECC
     #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
 #endif
+#ifdef WOLFSSL_SE050
+    #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
@@ -825,10 +828,6 @@ int wc_ed25519_init_ex(ed25519_key* key, void* heap, int devId)
 
 #ifndef FREESCALE_LTC_ECC
     fe_init();
-#endif
-
-#ifdef WOLFSSL_SE050
-    se050_ed25519_create_key(key);
 #endif
 
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA

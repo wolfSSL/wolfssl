@@ -64,6 +64,9 @@
 #ifndef SE050_KEYSTOREID_ECC
 #define SE050_KEYSTOREID_ECC     60
 #endif
+#ifndef SE050_KEYSTOREID_CURVE25519
+#define SE050_KEYSTOREID_CURVE25519 59
+#endif
 
 enum {
     SSS_BLOCK_SIZE = 512,
@@ -75,7 +78,8 @@ enum SE050KeyType {
     SE050_ANY_KEY,
     SE050_AES_KEY,
     SE050_ECC_KEY,
-    SE050_ED25519_KEY
+    SE050_ED25519_KEY,
+    SE050_CURVE25519_KEY
 };
 
 
@@ -146,7 +150,10 @@ WOLFSSL_LOCAL int se050_ed25519_verify_msg(const byte* signature,
     word32 signatureLen, const byte* msg, word32 msgLen,
     struct ed25519_key* key, int* res);
 
-WOLFSSL_LOCAL int se050_curve25519_create_key(curve25519_key* key, int keySize);
-WOLFSSL_LOCAL int se050_curve25519_shared_secret(curve25519_key* private_key,
-    curve25519_key* public_key, byte* out, word32* outlen);
+struct curve25519_key;
+struct ECPoint;
+WOLFSSL_LOCAL int se050_curve25519_create_key(struct curve25519_key* key, int keySize);
+WOLFSSL_LOCAL int se050_curve25519_shared_secret(struct curve25519_key* private_key,
+    struct curve25519_key* public_key, struct ECPoint* out);
+WOLFSSL_LOCAL void se050_curve25519_free_key(struct curve25519_key* key);
 #endif /* _SE050_PORT_H_ */
