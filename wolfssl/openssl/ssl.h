@@ -1000,6 +1000,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_check_private_key           wolfSSL_check_private_key
 
 #define SSL_CTX_set_mode                wolfSSL_CTX_set_mode
+#define SSL_CTX_clear_mode              wolfSSL_CTX_clear_mode
 #define SSL_CTX_get_mode                wolfSSL_CTX_get_mode
 #define SSL_CTX_set_default_read_ahead  wolfSSL_CTX_set_default_read_ahead
 

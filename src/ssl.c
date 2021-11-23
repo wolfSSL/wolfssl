@@ -510,6 +510,7 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
 #ifdef OPENSSL_COMPATIBLE_DEFAULTS
     if (ctx) {
         wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+        wolfSSL_CTX_set_mode(ctx, SSL_MODE_AUTO_RETRY);
         if (wolfSSL_CTX_set_min_proto_version(ctx,
                 SSL3_VERSION) != WOLFSSL_SUCCESS ||
 #ifdef HAVE_ANON
@@ -19896,6 +19897,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
                 WOLFSSL_MSG("SSL_MODE_RELEASE_BUFFERS not implemented.");
                 break;
             #endif
+            case SSL_MODE_AUTO_RETRY:
+                ctx->autoRetry = 1;
+                break;
             default:
                 WOLFSSL_MSG("Mode Not Implemented");
         }
@@ -19904,6 +19908,33 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
          * Should not return -1 with renegotiation on read/write */
 
         return mode;
+    }
+
+    long wolfSSL_CTX_clear_mode(WOLFSSL_CTX* ctx, long mode)
+    {
+        /* WOLFSSL_MODE_ACCEPT_MOVING_WRITE_BUFFER is wolfSSL default mode */
+
+        WOLFSSL_ENTER("SSL_CTX_set_mode");
+        switch(mode) {
+            case SSL_MODE_ENABLE_PARTIAL_WRITE:
+                ctx->partialWrite = 0;
+                break;
+            #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+            case SSL_MODE_RELEASE_BUFFERS:
+                WOLFSSL_MSG("SSL_MODE_RELEASE_BUFFERS not implemented.");
+                break;
+            #endif
+            case SSL_MODE_AUTO_RETRY:
+                ctx->autoRetry = 0;
+                break;
+            default:
+                WOLFSSL_MSG("Mode Not Implemented");
+        }
+
+        /* SSL_MODE_AUTO_RETRY
+         * Should not return -1 with renegotiation on read/write */
+
+        return 0;
     }
 #endif
 

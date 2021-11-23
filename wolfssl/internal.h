@@ -2811,6 +2811,7 @@ struct WOLFSSL_CTX {
     byte        haveFalconSig:1;  /* server cert signed w/ Falcon */
     byte        haveStaticECC:1;  /* static server ECC private key */
     byte        partialWrite:1;   /* only one msg per write call */
+    byte        autoRetry:1;      /* retry read/write on a WANT_{READ|WRITE} */
     byte        quietShutdown:1;  /* don't send close notify */
     byte        groupMessages:1;  /* group handshake messages before sending */
     byte        minDowngrade;     /* minimum downgrade version */
