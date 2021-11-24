@@ -3961,12 +3961,6 @@ AC_ARG_WITH([liboqs],
             AC_MSG_RESULT([yes])
         fi
 
-        if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
-        then
-            ENABLED_OPENSSLEXTRA="yes"
-            AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
-        fi
-
         AM_CFLAGS="$AM_CFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS"
         ENABLED_LIBOQS="yes"
     ]
