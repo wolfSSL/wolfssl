@@ -139,6 +139,10 @@ ASN Options:
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
 
+#ifdef WOLFSSL_RENESAS_SCEPROTECT
+    #include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>
+#endif
+
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
 #if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_CRYPTOCELL)
@@ -198,9 +202,7 @@ int tsip_tls_CertVerify(const byte *cert, word32 certSz,
                         word32 key_e_start, word32 key_e_len,
                         byte *tsip_encRsaKeyIdx);
 #endif
-#ifdef WOLFSSL_RENESAS_SCEPROTECT
-byte Rnesas_cmn_checkCA(word32 cmdIdx);
-#endif
+
 
 /* Calculates the minimum number of bytes required to encode the value.
  *
@@ -13105,9 +13107,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
 #else
     CertAttribute* certatt = NULL;
     
-    #if !defined(NO_RSA)
-    certatt = (CertAttribute*)&sigCtx->CertAtt;
-    #elif defined(HAVE_ECC)
+    #if !defined(NO_RSA) || defined(HAVE_ECC)
     certatt = (CertAttribute*)&sigCtx->CertAtt;
     #endif
     if(certatt) {
@@ -13462,12 +13462,12 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                         if (rsaKeyIdx != NULL)
                         {
                             ret = tsip_tls_CertVerify(buf, bufSz, sigCtx->sigCpy,
-                                sigSz,
-                                sigCtx->.CertAtt.pubkey_n_start - sigCtx->certBegin,
-                                sigCtx->.CertAtt.pubkey_n_len - 1,
-                                sigCtx->.CertAtt.pubkey_e_start - sigCtx->certBegin,
-                                sigCtx->.CertAtt.pubkey_e_len - 1,
-                                rsaKeyIdx);
+                            sigSz,
+                            sigCtx->.CertAtt.pubkey_n_start - sigCtx->certBegin,
+                            sigCtx->.CertAtt.pubkey_n_len - 1,
+                            sigCtx->.CertAtt.pubkey_e_start - sigCtx->certBegin,
+                            sigCtx->.CertAtt.pubkey_e_len - 1,
+                            rsaKeyIdx);
 
                             if (ret == 0){
                                 sigCtx->verifyByTSIP_SCE = 1;
@@ -18209,7 +18209,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     /* check if we can use TSIP for cert verification */
     /* if the ca is verified as tsip root ca.         */
     /* TSIP can only handle 2048 bits(256 byte) key.  */
-    if (cert->ca && Rnesas_cmn_checkCA(cert->ca->cm_idx) != 0 &&
+    if (cert->ca && Renesas_cmn_checkCA(cert->ca->cm_idx) != 0 &&
         (cert->sigCtx.CertAtt.pubkey_n_len == 256 || 
          cert->sigCtx.CertAtt.curve_id == ECC_SECP256R1)) {
 
@@ -18223,7 +18223,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     } else {
         if (cert->ca) {
             /* TSIP isn't usable */
-            if (Rnesas_cmn_checkCA(cert->ca->cm_idx) == 0)
+            if (Renesas_cmn_checkCA(cert->ca->cm_idx) == 0)
                 WOLFSSL_MSG("SCE-TSIP isn't usable because the ca isn't verified "
                             "by TSIP.");
             else if (cert->sigCtx.CertAtt.pubkey_n_len != 256)

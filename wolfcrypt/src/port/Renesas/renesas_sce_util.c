@@ -78,7 +78,7 @@ static int sce_CryptHwMutexUnLock(wolfSSL_Mutex* mutex)
 * lock hw engine
 * this should be called before using engine.
 */
-int sce_hw_lock()
+WOLFSSL_LOCAL int wc_sce_hw_lock()
 {
     int ret = 0;
 
@@ -104,17 +104,17 @@ int sce_hw_lock()
 /*
 * release hw engine
 */
-void sce_hw_unlock( void )
+WOLFSSL_LOCAL void wc_sce_hw_unlock( void )
 {
     sce_CryptHwMutexUnLock(&sce_mutex);
 }
 
 /* Open sce driver for use */
-int sce_Open()
+WOLFSSL_LOCAL int wc_sce_Open()
 {
-    WOLFSSL_ENTER("sce_Open");
+    WOLFSSL_ENTER("wc_sce_Open");
     int ret;
-    if ((ret = sce_hw_lock()) == 0) {
+    if ((ret = wc_sce_hw_lock()) == 0) {
         
         ret = R_SCE_Open(&sce_ctrl, &sce_cfg);
         
@@ -139,24 +139,24 @@ int sce_Open()
     }
 
     /* unlock hw */
-    sce_hw_unlock();
+    wc_sce_hw_unlock();
     
-    WOLFSSL_LEAVE("sce_Open", ret);
+    WOLFSSL_LEAVE("wc_sce_Open", ret);
     return ret;
 }
 
 /* close SCE driver */
-void sce_Close()
+WOLFSSL_LOCAL void wc_sce_Close()
 {
     WOLFSSL_ENTER("sce Close");
     int ret;
     
-    if ((ret = sce_hw_lock()) == 0) {
+    if ((ret = wc_sce_hw_lock()) == 0) {
         /* close SCE */
         ret = R_SCE_Close(&sce_ctrl);
         
         /* unlock hw */
-        sce_hw_unlock();
+        wc_sce_hw_unlock();
         if( ret != FSP_SUCCESS ) {
             WOLFSSL_MSG("RENESAS SCE Close failed");
         }
@@ -226,7 +226,7 @@ static int SCE_ServerKeyExVerify(uint32_t type, WOLFSSL* ssl, const uint8_t* sig
     return ret;
 }
 /* Callback for Rsa Verify */
-int SCE_RsaVerify(WOLFSSL* ssl, byte* sig, uint32_t sigSz,
+WOLFSSL_LOCAL int wc_SCE_RsaVerify(WOLFSSL* ssl, byte* sig, uint32_t sigSz,
         uint8_t** out, const byte* key, uint32_t keySz, void* ctx)
 {
     int ret = WOLFSSL_FAILURE;
@@ -236,7 +236,7 @@ int SCE_RsaVerify(WOLFSSL* ssl, byte* sig, uint32_t sigSz,
     
     WOLFSSL_PKMSG("SCE RSA Verify: sigSz %d, keySz %d\n", sigSz, keySz);
     
-    if (sce_useable(ssl, 0))
+    if (wc_sce_usable(ssl, 0))
       ret = SCE_ServerKeyExVerify(0, ssl, sig, sigSz, ctx);
     else
       ret = CRYPTOCB_UNAVAILABLE;
@@ -249,9 +249,9 @@ int SCE_RsaVerify(WOLFSSL* ssl, byte* sig, uint32_t sigSz,
     return ret;
 }
 /* Callback for Ecc Verify */
-int SCE_EccVerify(WOLFSSL* ssl, const uint8_t* sig, uint32_t sigSz,
-        const uint8_t* hash, uint32_t hashSz, const uint8_t* key, uint32_t keySz,
-        int* result, void* ctx)
+WOLFSSL_LOCAL int wc_SCE_EccVerify(WOLFSSL* ssl, const uint8_t* sig, 
+        uint32_t sigSz,  const uint8_t* hash, uint32_t hashSz, 
+        const uint8_t* key, uint32_t keySz, int* result, void* ctx)
 {
     int ret = WOLFSSL_FAILURE;
     uint8_t *sigforSCE;
@@ -270,7 +270,7 @@ int SCE_EccVerify(WOLFSSL* ssl, const uint8_t* sig, uint32_t sigSz,
     WOLFSSL_PKMSG("SCE ECC Verify: ssl->options.serverState = %d sigSz %d, hashSz %d, keySz %d\n", 
                     ssl->options.serverState, sigSz, hashSz, keySz);
     
-    if (!sce_useable(ssl, 0)) {
+    if (!wc_sce_usable(ssl, 0)) {
       WOLFSSL_PKMSG("Cannot handle cipher suite by SCE");
       return CRYPTOCB_UNAVAILABLE;
     }
@@ -321,7 +321,7 @@ int SCE_EccVerify(WOLFSSL* ssl, const uint8_t* sig, uint32_t sigSz,
     return ret;
 }
 /* Callback for ECC shared secret */
-int SCE_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
+WOLFSSL_LOCAL int SCE_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
         uint8_t* pubKeyDer, unsigned int* pubKeySz,
         uint8_t* out, unsigned int* outlen, int side, void* ctx)
 {
@@ -379,28 +379,19 @@ int SCE_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
     return ret;
 }
 #endif
-/* Return cipher suite enumuration used in SCE library */
-uint32_t GetSceCipherSuite( 
+/* Return tls cipher suite enumuration that is supported by SCE library */
+static  uint32_t GetSceCipherSuite(
                     uint8_t cipherSuiteFirst,
                     uint8_t cipherSuite)
 {
-    WOLFSSL_ENTER("GetTsipCipherSuite");
+    WOLFSSL_ENTER("GetSceCipherSuite");
     uint32_t sceCipher;
 
     if(cipherSuiteFirst == CIPHER_BYTE )
     {
         switch(cipherSuite){
-
-            case TLS_RSA_WITH_AES_128_CBC_SHA: /*2F*/
-                sceCipher = SCE_TLS_RSA_WITH_AES_128_CBC_SHA; /*0*/
-                break;
-
             case TLS_RSA_WITH_AES_128_CBC_SHA256:
                 sceCipher = SCE_TLS_RSA_WITH_AES_128_CBC_SHA256;
-                break;
-
-            case TLS_RSA_WITH_AES_256_CBC_SHA:
-                sceCipher = SCE_TLS_RSA_WITH_AES_256_CBC_SHA;
                 break;
 
             case TLS_RSA_WITH_AES_256_CBC_SHA256:
@@ -411,7 +402,7 @@ uint32_t GetSceCipherSuite(
                 sceCipher = (uint32_t)WOLFSSL_SCE_ILLEGAL_CIPHERSUITE;
                 break;
         }
-        WOLFSSL_MSG( "<< GetTsipCipherSuite");
+        WOLFSSL_MSG( "<< GetSceCipherSuite");
         return sceCipher;
     }
     else if( cipherSuiteFirst == ECC_BYTE )
@@ -454,10 +445,11 @@ uint32_t GetSceCipherSuite(
 /* ssl     : a pointer to WOLFSSL object                       */
 /* session_key_generated : if session key has been generated   */
 /* return  1 for usable, 0 for unusable                        */
-int sce_useable(const struct WOLFSSL *ssl, uint8_t session_key_generated)
+WOLFSSL_LOCAL int wc_sce_usable(const struct WOLFSSL *ssl, 
+                                                uint8_t session_key_generated)
 {
     WOLFSSL_ENTER("sce_usable"); 
-    byte cipher;
+    byte Scecipher;
     byte side;
     const Ciphers *enc;
     const Ciphers *dec;
@@ -492,25 +484,19 @@ int sce_useable(const struct WOLFSSL *ssl, uint8_t session_key_generated)
             return 0;
         }
     }
-    
-    cipher = ssl->options.cipherSuite;
+    /* retrieve cipher suite if SCE supports */
+    Scecipher = GetSceCipherSuite(ssl->options.cipherSuite0,
+                                     ssl->options.cipherSuite);
     side = ssl->options.side;
     
-    if (((cipher == l_TLS_RSA_WITH_AES_128_CBC_SHA256           ||
-         cipher == l_TLS_RSA_WITH_AES_256_CBC_SHA256)           ||
-        (cipher == l_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256      ||
-         cipher == l_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256    ||
-         cipher == l_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256    ||
-         cipher == l_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)) &&
-         side == WOLFSSL_CLIENT_END)
-        
+    if (Scecipher != WOLFSSL_SCE_ILLEGAL_CIPHERSUITE && side == WOLFSSL_CLIENT_END)
         return 1;
     else
         return 0;
 }
 
 /* Generate Hmac by sha256*/
-int sce_Sha256GenerateHmac(const struct WOLFSSL *ssl,const uint8_t* myInner, 
+WOLFSSL_LOCAL int wc_sce_Sha256GenerateHmac(const struct WOLFSSL *ssl,const uint8_t* myInner, 
         uint32_t innerSz,const uint8_t* in, uint32_t sz, byte* digest)
 {
     WOLFSSL_ENTER("sce_Sha256HmacGenerate");
@@ -525,7 +511,7 @@ int sce_Sha256GenerateHmac(const struct WOLFSSL *ssl,const uint8_t* myInner,
     
     wrapped_key = ssl->keys.sce_client_write_MAC_secret;
     
-    if ((ret = sce_hw_lock()) != 0) {
+    if ((ret = wc_sce_hw_lock()) != 0) {
         WOLFSSL_MSG("hw lock failed\n");
         return ret;
     }
@@ -555,14 +541,15 @@ int sce_Sha256GenerateHmac(const struct WOLFSSL *ssl,const uint8_t* myInner,
         ret = WOLFSSL_FAILURE;
     
     /* unlock hw */
-    sce_hw_unlock();
+    wc_sce_hw_unlock();
     WOLFSSL_LEAVE("sce_Sha256HmacGenerate", ret);
     return ret;
 }
 
 /* Verify hmac */
-int sce_Sha256VerifyHmac(const struct WOLFSSL *ssl,const uint8_t* message,
-        uint32_t messageSz,uint32_t macSz, uint32_t content)
+WOLFSSL_LOCAL int wc_sce_Sha256VerifyHmac(const struct WOLFSSL *ssl,
+        const uint8_t* message, uint32_t messageSz, 
+        uint32_t macSz, uint32_t content)
 {
     WOLFSSL_ENTER("sce_Sha256HmacVerify");
 
@@ -576,7 +563,7 @@ int sce_Sha256VerifyHmac(const struct WOLFSSL *ssl,const uint8_t* message,
     
     wrapped_key = ssl->keys.sce_server_write_MAC_secret;
 
-    if ((ret = sce_hw_lock()) != 0) {
+    if ((ret = wc_sce_hw_lock()) != 0) {
         WOLFSSL_MSG("hw lock failed\n");
         return ret;
     }
@@ -611,13 +598,13 @@ int sce_Sha256VerifyHmac(const struct WOLFSSL *ssl,const uint8_t* message,
     }
     
     /* unlock hw */
-    sce_hw_unlock();
+    wc_sce_hw_unlock();
     WOLFSSL_LEAVE("sce_Sha256HmacVerify", ret);
     return ret;
 }
 
 /* generate Verify Data based on master secret */
-int sce_generateVerifyData(const uint8_t *ms, /* master secret */
+WOLFSSL_LOCAL int wc_sce_generateVerifyData(const uint8_t *ms, /* master secret */
                            const uint8_t *side, const uint8_t *handshake_hash,
                            uint8_t *hashes /* out */)
 {
@@ -635,7 +622,7 @@ int sce_generateVerifyData(const uint8_t *ms, /* master secret */
         l_side = SCE_TLS_GENERATE_SERVER_VERIFY;
     }
     
-    if ((ret = sce_hw_lock()) == 0) {
+    if ((ret = wc_sce_hw_lock()) == 0) {
         ret = R_SCE_TLS_VerifyDataGenerate(l_side, (uint32_t*)ms,
                        (uint8_t*)handshake_hash, hashes/* out */);
         if (ret != FSP_SUCCESS) {
@@ -643,14 +630,14 @@ int sce_generateVerifyData(const uint8_t *ms, /* master secret */
         }
     }
     /* unlock hw */
-    sce_hw_unlock();
+    wc_sce_hw_unlock();
     WOLFSSL_LEAVE("sce_generateVerifyData", ret);
     return ret;
 }
 
 /* generate keys for TLS communication */
-int sce_generateSeesionKey(struct WOLFSSL *ssl, User_SCEPKCbInfo* cbInfo, 
-                                                                    int devId)
+WOLFSSL_LOCAL int wc_sce_generateSeesionKey(struct WOLFSSL *ssl, 
+                User_SCEPKCbInfo* cbInfo, int devId)
 {
     WOLFSSL_MSG("sce_generateSeesionKey()");
     int ret;
@@ -667,9 +654,9 @@ int sce_generateSeesionKey(struct WOLFSSL *ssl, User_SCEPKCbInfo* cbInfo,
       return BAD_FUNC_ARG;
       
     
-    if ((ret = sce_hw_lock()) == 0) {
-        if (sceCS == l_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 ||
-                sceCS == l_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+    if ((ret = wc_sce_hw_lock()) == 0) {
+        if (sceCS == TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 ||
+                sceCS == TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
         {
             WOLFSSL_MSG("Session key for AES-GCM generation skipped.");
             
@@ -736,18 +723,18 @@ int sce_generateSeesionKey(struct WOLFSSL *ssl, User_SCEPKCbInfo* cbInfo,
                 XMEMCPY(&dec->aes->ctx.sce_wrapped_key, &key_client_aes, 
                                                     sizeof(key_client_aes));
             }
-            /* copy hac key index into keys */
+            /* copy mac key index into keys */
             ssl->keys.sce_client_write_MAC_secret = key_client_mac;
             ssl->keys.sce_server_write_MAC_secret = key_server_mac;
     
-            /* set up key size and marked readly */
+            /* set up key size and marked ready */
             if (enc){
                 enc->aes->ctx.keySize = ssl->specs.key_size;
                 enc->aes->ctx.setup = 1;
                 /* ready for use */
                 enc->setup = 1;
             }
-            /* set up key size and marked readly */
+            /* set up key size and marked ready */
             if (dec) {
                 dec->aes->ctx.keySize = ssl->specs.key_size;
                 dec->aes->ctx.setup = 1;
@@ -767,7 +754,7 @@ int sce_generateSeesionKey(struct WOLFSSL *ssl, User_SCEPKCbInfo* cbInfo,
             cbInfo->session_key_set = 1;
         }
         /* unlock hw */
-        sce_hw_unlock();
+        wc_sce_hw_unlock();
     } else 
         WOLFSSL_LEAVE("hw lock failed\n", ret);
     
@@ -776,7 +763,7 @@ int sce_generateSeesionKey(struct WOLFSSL *ssl, User_SCEPKCbInfo* cbInfo,
 }
 
 /* generate master secret based on pre-master which is generated by SCE */
-int sce_generateMasterSecret(
+WOLFSSL_LOCAL int wc_sce_generateMasterSecret(
         uint8_t        cipherSuiteFirst,
         uint8_t        cipherSuite,
         const uint8_t *pr, /* pre-master    */
@@ -795,7 +782,7 @@ int sce_generateMasterSecret(
     if( sceCS == 0xffffffff)
         return BAD_FUNC_ARG;
 
-    if ((ret = sce_hw_lock()) == 0) {
+    if ((ret = wc_sce_hw_lock()) == 0) {
         ret = R_SCE_TLS_MasterSecretGenerate( 
             sceCS,
             (uint32_t*)pr,
@@ -804,7 +791,7 @@ int sce_generateMasterSecret(
             WOLFSSL_MSG("R_SCE_TLS_MasterSecretGenerate failed\n");
         } 
         /* unlock hw */
-        sce_hw_unlock();
+        wc_sce_hw_unlock();
     } else {
         WOLFSSL_MSG(" hw lock failed ");
     }
@@ -813,7 +800,8 @@ int sce_generateMasterSecret(
 }
 
 /* generate pre-Master secrete by SCE */
-int sce_generatePremasterSecret(uint8_t *premaster, uint32_t preSz)
+WOLFSSL_LOCAL int wc_sce_generatePremasterSecret(uint8_t *premaster, 
+                                                        uint32_t preSz)
 {
     WOLFSSL_ENTER("sce_generatePremasterSecret");
     int ret;
@@ -821,7 +809,7 @@ int sce_generatePremasterSecret(uint8_t *premaster, uint32_t preSz)
     if (premaster == NULL)
       return BAD_FUNC_ARG;
             
-    if ((ret = sce_hw_lock()) == 0 && preSz >=
+    if ((ret = wc_sce_hw_lock()) == 0 && preSz >=
                                     (SCE_TLS_MASTER_SECRET_WORD_SIZE*4)) {
             /* generate pre-master, 80 bytes */
             ret = R_SCE_TLS_PreMasterSecretGenerateForRSA2048((uint32_t*)premaster);
@@ -829,7 +817,7 @@ int sce_generatePremasterSecret(uint8_t *premaster, uint32_t preSz)
                 WOLFSSL_MSG(" R_SCE_TLS_GeneratePreMasterSecret failed\n");
             }
         /* unlock hw */
-        sce_hw_unlock();
+        wc_sce_hw_unlock();
     } else {
         WOLFSSL_MSG(" hw lock failed or preSz is smaller than 80");
     }
@@ -842,7 +830,7 @@ int sce_generatePremasterSecret(uint8_t *premaster, uint32_t preSz)
 /* 
 * generate encrypted pre-Master secrete by SCE
 */
-int sce_generateEncryptPreMasterSecret(
+WOLFSSL_LOCAL int wc_sce_generateEncryptPreMasterSecret(
         WOLFSSL*    ssl,
         uint8_t*       out,
         uint32_t*     outSz)
@@ -853,7 +841,7 @@ int sce_generateEncryptPreMasterSecret(
     if ((ssl == NULL) || (out == NULL) || (outSz == NULL))
       return BAD_FUNC_ARG;
     
-    if ((ret = sce_hw_lock()) == 0) {
+    if ((ret = wc_sce_hw_lock()) == 0) {
         if (*outSz >= 256)
             ret = R_SCE_TLS_PreMasterSecretEncryptWithRSA2048(
                         (uint32_t*)ssl->peerSceTsipEncRsaKeyIndex,
@@ -865,13 +853,14 @@ int sce_generateEncryptPreMasterSecret(
         if (ret != FSP_SUCCESS) {
             WOLFSSL_MSG("R_SCE_TLS_PreMasterSecretEncryptWithRSA2048 failed\n");
         } else {
-            *outSz = 256; /* TSIP can only handles 2048 RSA */
-            /* set GenMaster Callbackt for Master secret generation */
+            *outSz = 256; /* SCE can only handles 2048 RSA */
+            /* set GenMaster Callback for Master secret generation */
             void* ctx = wolfSSL_GetRsaVerifyCtx(ssl);
-            wolfSSL_CTX_SetGenMasterSecretCb(ssl->ctx, Renesas_cmn_genMasterSecret);
+            wolfSSL_CTX_SetGenMasterSecretCb(ssl->ctx, 
+                                                Renesas_cmn_genMasterSecret);
             wolfSSL_SetGenMasterSecretCtx(ssl, ctx);
         }
-        sce_hw_unlock();
+        wc_sce_hw_unlock();
 
     } else {
         WOLFSSL_MSG(" hw lock failed ");
@@ -882,7 +871,7 @@ int sce_generateEncryptPreMasterSecret(
 
 
 /* Certificate verification by SCE */
-int sce_tls_CertVerify(
+WOLFSSL_LOCAL int wc_sce_tls_CertVerify(
         const uint8_t* cert,       uint32_t certSz,
         const uint8_t* signature,  uint32_t sigSz,
         uint32_t      key_n_start,uint32_t key_n_len,
@@ -948,7 +937,7 @@ int sce_tls_CertVerify(
     }
                                   
     
-    if ((ret = sce_hw_lock()) == 0) {
+    if ((ret = wc_sce_hw_lock()) == 0) {
         ret = R_SCE_TLS_CertificateVerify(
                 g_user_key_info.encrypted_user_tls_key_type,
                 (uint32_t*)g_encrypted_publicCA_key,/* encrypted public key  */
@@ -967,7 +956,7 @@ int sce_tls_CertVerify(
         if (sigforSCE) {
           XFREE(sigforSCE, NULL, DYNAMIC_TYPE_TEMP);
         }
-        sce_hw_unlock();
+        wc_sce_hw_unlock();
     } else {
         WOLFSSL_MSG(" hw lock failed ");
     }
@@ -976,7 +965,7 @@ int sce_tls_CertVerify(
 }
 
 /* Root Certificate verification */
-int sce_tls_RootCertVerify(
+WOLFSSL_LOCAL int wc_sce_tls_RootCertVerify(
         const uint8_t* cert,        uint32_t cert_len,
         uint32_t      key_n_start,    uint32_t key_n_len,
         uint32_t      key_e_start,    uint32_t key_e_len,
@@ -986,7 +975,7 @@ int sce_tls_RootCertVerify(
     /* call to generate encrypted public key for certificate verification */
     uint8_t *signature = (uint8_t*)ca_cert_sig;
 
-    WOLFSSL_ENTER("sce_tls_RootCertVerify");
+    WOLFSSL_ENTER("wc_sce_tls_RootCertVerify");
     
     if (cert == NULL)
       return BAD_FUNC_ARG;
@@ -996,7 +985,7 @@ int sce_tls_RootCertVerify(
         return -1;
     }
    
-    if ((ret = sce_hw_lock()) == 0) {
+    if ((ret = wc_sce_hw_lock()) == 0) {
         ret = R_SCE_TLS_RootCertificateVerify(
                 g_user_key_info.encrypted_user_tls_key_type,            
                 (uint8_t*)cert,             /* CA cert */            
@@ -1013,52 +1002,18 @@ int sce_tls_RootCertVerify(
         } else {
             g_CAscm_Idx = cm_row;
         }
-      sce_hw_unlock();
+        wc_sce_hw_unlock();
     } else {
         WOLFSSL_MSG(" hw lock failed ");
     }
-    WOLFSSL_LEAVE("sce_tls_RootCertVerify", ret);
+    WOLFSSL_LEAVE("wc_sce_tls_RootCertVerify", ret);
     return ret;
 }
 
-/* to inform ca certificate sign */
-/* signature format expects RSA 2048 PSS with SHA256 */
-void sce_inform_cert_sign(const uint8_t *sign)
-{
-    if(sign)
-        ca_cert_sig = sign;
-}
-
-void sce_inform_user_keys(
-    uint8_t*     encrypted_provisioning_key,
-	uint8_t*     iv,
-    uint8_t*     encrypted_user_tls_key,
-    uint32_t    encrypted_user_tls_key_type)
-{
-    WOLFSSL_ENTER("sce_inform_user_keys");
-    g_user_key_info.encrypted_provisioning_key = NULL;
-    g_user_key_info.iv = NULL;
-    g_user_key_info.encrypted_user_tls_key = NULL;
-    
-    if ( encrypted_provisioning_key ) {
-        g_user_key_info.encrypted_provisioning_key = encrypted_provisioning_key;
-    }
-    if ( iv ) {
-        g_user_key_info.iv = iv;
-    }
-    if ( encrypted_user_tls_key ) {
-        g_user_key_info.encrypted_user_tls_key = encrypted_user_tls_key;
-    }
-    
-    g_user_key_info.encrypted_user_tls_key_type = encrypted_user_tls_key_type;
-    
-    /* set callback for ECC */
-    WOLFSSL_MSG("sce_inform_user_keys_ex");
-}
 /*  store elements for session key generation into ssl->keys.
  *  return 0 on success, negative value on failure
  */
-int sce_storeKeyCtx(struct WOLFSSL* ssl, User_SCEPKCbInfo* info)
+WOLFSSL_LOCAL int wc_sce_storeKeyCtx(struct WOLFSSL* ssl, User_SCEPKCbInfo* info)
 {
     int ret = 0;
 
@@ -1080,19 +1035,56 @@ int sce_storeKeyCtx(struct WOLFSSL* ssl, User_SCEPKCbInfo* info)
     return ret;
 }
 
+/* to inform ca certificate sign */
+/* signature format expects RSA 2048 PSS with SHA256 */
+WOLFSSL_API void wc_sce_inform_cert_sign(const uint8_t *sign)
+{
+    if(sign)
+        ca_cert_sig = sign;
+}
+
+/* let wolfSSL know user key information using TLS operation by SCE */
+WOLFSSL_API void wc_sce_inform_user_keys(
+    uint8_t*     encrypted_provisioning_key,
+    uint8_t*     iv,
+    uint8_t*     encrypted_user_tls_key,
+    uint32_t     encrypted_user_tls_key_type)
+{
+    WOLFSSL_ENTER("sce_inform_user_keys");
+    g_user_key_info.encrypted_provisioning_key = NULL;
+    g_user_key_info.iv = NULL;
+    g_user_key_info.encrypted_user_tls_key = NULL;
+    
+    if ( encrypted_provisioning_key ) {
+        g_user_key_info.encrypted_provisioning_key = encrypted_provisioning_key;
+    }
+    if ( iv ) {
+        g_user_key_info.iv = iv;
+    }
+    if ( encrypted_user_tls_key ) {
+        g_user_key_info.encrypted_user_tls_key = encrypted_user_tls_key;
+    }
+    
+    g_user_key_info.encrypted_user_tls_key_type = encrypted_user_tls_key_type;
+    
+    /* set callback for ECC */
+    WOLFSSL_MSG("sce_inform_user_keys_ex");
+}
+
+
 /* Set callbacks needed for sce TLS api handling */
-void sce_set_callbacks(WOLFSSL_CTX* ctx)
+WOLFSSL_API void wc_sce_set_callbacks(WOLFSSL_CTX* ctx)
 {
     wolfSSL_CTX_SetEccVerifyCb(ctx, Renesas_cmn_EccVerify);
     wolfSSL_CTX_SetRsaVerifyCb(ctx, Renesas_cmn_RsaVerify);
     wolfSSL_CTX_SetGenPreMasterCb(ctx, Renesas_cmn_generatePremasterSecret);
     wolfSSL_CTX_SetRsaEncCb(ctx, Renesas_cmn_RsaEnc);
-    wolfSSL_CTX_SetVerifymacCb(ctx, Renesas_cmn_VerifyHmac);
+    wolfSSL_CTX_SetVerifyMacCb(ctx, Renesas_cmn_VerifyHmac);
     
     wolfSSL_CTX_SetEccSharedSecretCb(ctx, NULL);
 }
 /* Set callback contexts needed for sce TLS api handling */
-int sce_set_callback_ctx(WOLFSSL* ssl, void* user_ctx)
+WOLFSSL_API int wc_sce_set_callback_ctx(WOLFSSL* ssl, void* user_ctx)
 {
     if (sce_sess_idx > MAX_SCE_CBINDEX) {
         WOLFSSL_MSG("exceeds maximum session index");
@@ -1103,13 +1095,14 @@ int sce_set_callback_ctx(WOLFSSL* ssl, void* user_ctx)
     gSCE_PKCbInfo.user_PKCbInfo[sce_sess_idx]->session_key_set = 0;
     
     wolfSSL_SetEccVerifyCtx(ssl, user_ctx);
+    wolfSSL_SetRsaEncCtx(ssl, user_ctx);
     wolfSSL_SetRsaVerifyCtx(ssl, user_ctx);
     wolfSSL_SetGenPreMasterCtx(ssl, user_ctx);
     wolfSSL_SetEccSharedSecretCtx(ssl, NULL);
-    wolfSSL_SetVerifymacCtx(ssl, user_ctx);
+    wolfSSL_SetVerifyMacCtx(ssl, user_ctx);
     
     /* set up crypt callback */
-    wc_CryptoCb_CryptInitRenesascmn(ssl, user_ctx);
+    wc_CryptoCb_CryptInitRenesasCmn(ssl, user_ctx);
     
     gSCE_PKCbInfo.num_session = ++sce_sess_idx;
     

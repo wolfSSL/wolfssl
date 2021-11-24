@@ -1,4 +1,4 @@
-/* cavium_octeon_sync.h
+/* renesas_sync.h
  *
  * Copyright (C) 2006-2021 wolfSSL Inc.
  *
@@ -28,8 +28,8 @@ struct WOLFSSL;
 struct User_SCEPKCbInfo;
 extern User_SCEPKCbInfo guser_PKCbInfo;
 
-WOLFSSL_API int wc_CryptoCb_CryptInitRenesascmn(struct WOLFSSL* ssl, void* ctx);
-WOLFSSL_API void wc_CryptoCb_CleanupRenesascmn(int* id);
+WOLFSSL_API int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx);
+WOLFSSL_API void wc_CryptoCb_CleanupRenesasCmn(int* id);
 
 #endif /* HAVE_RENESAS_SYNC */
 #endif /* _RENESAS_SYNC_H_ */

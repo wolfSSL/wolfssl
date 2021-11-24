@@ -45,13 +45,6 @@ static const byte ucDNSServerAddress[4]   = { 192, 168, 11, 1 };
 
 #define FR_SOCKET_SUCCESS 0
 
-static uint32_t TimeNowInMilliseconds(void)
-{
-        return (unsigned int)(((float)xTaskGetTickCount()) /
-                              (configTICK_RATE_HZ / 1000));
-}
-
-
 void TCPInit( )
 {
    BaseType_t fr_status;
@@ -98,7 +91,7 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
     }
     #if defined(WOLFSSL_RENESAS_SCEPROTECT)
     /* set callback functions for ECC */
-    sce_set_callbacks(client_ctx);
+    wc_sce_set_callbacks(client_ctx);
     #endif
     
     #if !defined(NO_FILESYSTEM)
@@ -120,11 +113,10 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
     }
 }
 
-uint32_t wolfSSL_TLS_client( )
+void wolfSSL_TLS_client( )
 {
     int ret;
     /* FreeRTOS+TCP Objects */
-    uint32_t elipsed_time = 0;
     socklen_t xSize = sizeof(struct freertos_sockaddr);
     xSocket_t xClientSocket = NULL;
     struct freertos_sockaddr xRemoteAddress;
@@ -159,11 +151,11 @@ uint32_t wolfSSL_TLS_client( )
     
     if((ssl = wolfSSL_new(ctx)) == NULL) {
         printf("ERROR wolfSSL_new: %d\n", wolfSSL_get_error(ssl, 0));
-        return elipsed_time;
+        return;
     }
     #if defined(WOLFSSL_RENESAS_SCEPROTECT)
     /* set callback ctx */
-    sce_set_callback_ctx(ssl, (void*)&guser_PKCbInfo);
+    wc_sce_set_callback_ctx(ssl, (void*)&guser_PKCbInfo);
     #endif
     /* Attach wolfSSL to the socket */
     ret = wolfSSL_set_fd(ssl, (int) xClientSocket);
@@ -172,21 +164,19 @@ uint32_t wolfSSL_TLS_client( )
         util_inf_loop(xClientSocket, ctx, ssl);
     }
 
-    elipsed_time = TimeNowInMilliseconds( );
     if(wolfSSL_connect(ssl) != SSL_SUCCESS) {
         printf("ERROR SSL connect: %d\n",  wolfSSL_get_error(ssl, 0));
-        return elipsed_time;;
+        return;
     }
-    elipsed_time = TimeNowInMilliseconds( ) - elipsed_time;
 
     if (wolfSSL_write(ssl, sendBuff, strlen(sendBuff)) != strlen(sendBuff)) {
         printf("ERROR SSL write: %d\n", wolfSSL_get_error(ssl, 0));
-        return elipsed_time;;
+        return;
     }
 
     if ((ret=wolfSSL_read(ssl, rcvBuff, BUFF_SIZE)) < 0) {
         printf("ERROR SSL read: %d\n", wolfSSL_get_error(ssl, 0));
-        return elipsed_time;;
+        return;
     }
 
     rcvBuff[ret] = '\0' ;
@@ -196,7 +186,4 @@ uint32_t wolfSSL_TLS_client( )
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
     wolfSSL_Cleanup();
-
-
-    return elipsed_time;
 }

@@ -404,7 +404,7 @@ int DeriveTlsKeys(WOLFSSL* ssl)
 #if !defined(NO_CERTS) && defined(HAVE_PK_CALLBACKS)
         ret = PROTOCOLCB_UNAVAILABLE;
         if (ssl->ctx->GenSessionKeyCb) {
-            void* ctx = wolfSSL_GetGenSesssionKeyCtx(ssl);
+            void* ctx = wolfSSL_GetGenSessionKeyCtx(ssl);
             ret = ssl->ctx->GenSessionKeyCb(ssl, ctx);
         }
         if (!ssl->ctx->GenSessionKeyCb || ret == PROTOCOLCB_UNAVAILABLE)

@@ -212,7 +212,7 @@
 /* Uncomment next line if using RENESAS RX64N */
 /* #define WOLFSSL_RENESAS_RX65N */
 
-/* Uncomment next line if using RENESAS SCE PROTECT MODE */
+/* Uncomment next line if using RENESAS SCE Protected Mode */
 /* #define WOLFSSL_RENESAS_SCEPROTECT */
 
 /* Uncomment next line if using RENESAS RA6M4 */

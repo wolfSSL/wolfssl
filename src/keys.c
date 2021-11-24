@@ -44,9 +44,7 @@
 #endif
 
 #if defined(WOLFSSL_RENESAS_SCEPROTECT)
-/* callback for TLS hmac in SCE use case */
-int Renesas_cmn_TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in,
-             word32 sz, int padSz, int content, int verify, int epochOrder);
+#include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>
 #endif
 
 int SetCipherSpecs(WOLFSSL* ssl)
@@ -3121,11 +3119,11 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 
 #if !defined(NO_CERTS) && defined(HAVE_PK_CALLBACKS)
     ret = PROTOCOLCB_UNAVAILABLE;
-    if (ssl->ctx->SetKeysCb) {
-        void* ctx = wolfSSL_GetSetKeysCtx(ssl);
-        ret = ssl->ctx->SetKeysCb(ssl, ctx);
+    if (ssl->ctx->EncryptKeysCb) {
+        void* ctx = wolfSSL_GetEncryptKeysCtx(ssl);
+        ret = ssl->ctx->EncryptKeysCb(ssl, ctx);
     }
-    if (!ssl->ctx->SetKeysCb || ret == PROTOCOLCB_UNAVAILABLE)
+    if (!ssl->ctx->EncryptKeysCb || ret == PROTOCOLCB_UNAVAILABLE)
 #endif
     ret = SetKeys(wc_encrypt, wc_decrypt, keys, &ssl->specs, ssl->options.side,
                   ssl->heap, ssl->devId, ssl->rng, ssl->options.tls1_3);

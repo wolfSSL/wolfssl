@@ -1,19 +1,21 @@
-<WIP>wolfSSL for Renesas RA Evaluation Kit (EK-RA6M4)
+wolfSSL for Renesas RA Evaluation Kit (EK-RA6M4)
 =================================================
 
 ## Description
 
-This directory contains e2studio projects targeted at the Renesas RA 32-bit MCUs.\
-The example projects include a wolfSSL TLS client.\
+This directory contains e2studio projects targeted at the Renesas RA 32-bit MCUs.
+The example projects include a wolfSSL TLS client. 
 They also include benchmark and cryptography tests for the wolfCrypt library.
 
-The wolfssl project contains both the wolfSSL and wolfCrypt libraries.\
-It is built as a `Renesas RA C Library Project` and contains the Renesas RA\
-configuration. The wolfssl project uses `Secure Cryptography Engine on RA6 Protected Mode` \
+
+The wolfssl project contains both the wolfSSL and wolfCrypt libraries.
+It is built as a `Renesas RA C Library Project` and contains the Renesas RA
+configuration. The wolfssl project uses `Secure Cryptography Engine on RA6 Protected Mode` 
 as hardware acceleration for cypto and TLS operation.
 
-The other projects (benchmark, client, and test) are built as a\
-`Renesas RA C Project Using RA Library`, where the RA library is the wolfssl project.\
+
+The other projects (benchmark, client, and test) are built as a
+`Renesas RA C Project Using RA Library`, where the RA library is the wolfssl project.
 The wolfssl Project Summary is listed below and is relevant for every project.
 
 ### Project Summary
@@ -51,25 +53,66 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 + Deselect the Non-Eclipse project, RA6M4, by clicking the checkbox\
    Only the folders with 'Eclipse project' under 'Import as' need to be selected.
 
-2.) Create project Content by Smart Configurator
+2.) Create a `dummy_library` Static Library.
 
-+ Open Smart Configurator by clicking configuration.xml in wolfSSL_RA6M4 project
-+ Create project content by clicking `Generate Project Content`
++ Click File->New->`RA C/C++ Project`.
++ Select `EK-RA6M4` from Drop-down list.
++ Check `Static Library`.
++ Select FreeRTOS from RTOS selection. Click Next.
++ Check `FreeRTOS minimal - Static Allocation`. Click Finish.
++ Open Smart Configurator by clicking configuration.xml in the project
++ Go to `BSP` tab and increase Heap Size under `RA Common` on Properties page
++ Go to `Stacks` tab
++ Add `SCE Protected Mode` stack from `New Stack` -> `Driver` -> `Crypt`
++ Add New thead and set properties
+
+|Property|Value|
+|:--|:--|
+|Thread Symbol|sce_tst_thread|
+|Thread Name|sce_tst_thread|
+|Thread Stack size|increase depending on your environment|
+|Thread MemoryAllocation|Dyamic|
+|Common General Use Mutexes|Enabled|
+|Common General Enable Backward Compatibility|Enabled|
+|Common Memory Allocation Support Dynamic Allocation|Enabled|
+|Common Memory Allocation Total Heap Size|increase depending on your environment|
+
++ Add `Heap 4` stack to sce_tst_thread from `New Stack` -> `FreeRTOS` -> `Memory Management`
++ Add `FreeRTOS + TCP` stack to sce_tst_thread from `New Stack` -> `FreeRTOS` -> `Libraries` and set properties
+
+|Property|Value|
+|:--|:--|
+|Network Events call vApplicationIPNetworkEventHook|Disable|
+|Use DHCP|Disable|
+  
++ Save `dummy_library` FSP configuration
++ Copy <u>configuration.xml</u> and pincfg under `dummy_library` to `wolfSSL_RA6M4`
++ Open Smart Configurator by clicking copied configuration.xml
++ Click `Generate Project Content` on Smart Configurator
 
 3.) Build the wolfSSL project
 
-4.) Create a 'dummy' Renesas RA C Project Using RA Library.
+4.) Create a 'dummy_application' Renesas RA C Project Using RA Library.
 
 + Click File->New->`RA C/C++ Project`.
 + Select `EK-RA6M4` from Drop-down list.
 + Check `Executable Using an RA Static Library`.
 + Select FreeRTOS from RTOS selection. Click Finish.
-+ Enter `dummy_app` as the project name. Click Next.
++ Enter `dummy_application` as the project name. Click Next.
 + Under `RA library project`, select `wolfSSL_RA6M4`.
 + Click Finish.
 + Copy the followng folder inside dummy_app to `test_RA6M4`\
   script/
+  src/sce_tst_thread_entry.c
   
++ Add `sce_test()` call under /* TODO: add your own code here */ line at sce_tst_thread_entry.c
+```
+...
+  /* TODO: add your own code here */
+   sce_test();
+...
+```
+
 5.) Prepare SEGGER_RTT to logging
 
 + Download J-Link software from [Segger](https://www.segger.com/downloads/jlink)
@@ -111,14 +154,14 @@ static const byte ucIPAddress[4]          = { 192, 168, 11, 241 };
 
 + On Linux
 ```
-    $ autogen.sh
-    $ ./configure --enable-extended-master=no CFLAGS="-DWOLFSSL_STATIC_RSA -DHAVE_AES_CBC"
+$ autogen.sh
+$ ./configure --enable-extended-master=no CFLAGS="-DWOLFSSL_STATIC_RSA -DHAVE_AES_CBC"
 ```
 Run peer wolfSSL server
 
 RSA sign and verify use, launch server with the following option
 ```
-      $./example/server/server -b -d -i
+$./example/server/server -b -d -i
 ```
 
 You will see the following message on J-LinK RTT Viewer
@@ -136,9 +179,9 @@ cipher : ECDHE-RSA-AES128-GCM-SHA256
 Received: I hear you fa shizzle!
 ```
 
-ECDSA sign and verifyuse, launch server with the following option
+ECDSA sign and verify use, launch server with the following option
 ```
-      $./examples/server/server -b -d -c ./certs/server-ecc.pem -k ./certs/ecc-key.pem
+$./examples/server/server -b -d -c ./certs/server-ecc.pem -k ./certs/ecc-key.pem
 ```
 
 You will see the following message on J-LinK RTT Viewer
@@ -175,8 +218,13 @@ In the example code for benchmark, it assumes that AES key is installed at DIREC
 #endif
 ```
 
-To install key, please refer [Installing and Updating Secure Keys](chrome-extension://oemmndcbldboiebfnladdacbdfmadadm/https://www.renesas.com/us/en/document/apn/installing-and-updating-secure-keys-ra-family).
+To install key, please refer [Installing and Updating Secure Keys](https://www.renesas.com/us/en/document/apn/installing-and-updating-secure-keys-ra-family).
 
 You can update code above to handle AES128 key when you install its key.
 
 3.) Run Benchmark and Crypto Test
+
+
+## Support
+
+For support inquiries and questions, please email support@wolfssl.com. Feel free to reach out to info@wolfssl.jp as well.

@@ -239,11 +239,7 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
 #endif
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
-    /* for root ca verification */
-int Renesas_cmn_RootCertVerify(const byte *cert, word32 cert_len,
-                            word32 key_n_start, word32 key_n_len,
-                            word32 key_e_start, word32 key_e_len,
-                            word32 cm_row);
+#include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>
 #endif
 
 #ifdef WOLFSSL_SESSION_EXPORT
@@ -5006,7 +5002,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     if ( ret == 0 && signer != NULL ) {
         signer->cm_idx = row;
         if (type == WOLFSSL_USER_CA) {
-            if ((ret = Renesas_cmn_RootCertVerify(cert->source, cert->maxIdx,
+            if ((ret = wc_Renesas_cmn_RootCertVerify(cert->source, cert->maxIdx,
                  cert->sigCtx.CertAtt.pubkey_n_start, 
                  cert->sigCtx.CertAtt.pubkey_n_len - 1,
                  cert->sigCtx.CertAtt.pubkey_e_start, 
@@ -41986,13 +41982,13 @@ void  wolfSSL_CTX_SetGenPreMasterCb(WOLFSSL_CTX* ctx, CallbackGenPreMaster cb)
     if (ctx)
         ctx->GenPreMasterCb = cb;
 }
-/* Set master secret generation callback context */
+/* Set premaster secret generation callback context */
 void  wolfSSL_SetGenPreMasterCtx(WOLFSSL* ssl, void *ctx)
 {
     if (ssl)
         ssl->GenPreMasterCtx = ctx;
 }
-/* Get master secret generation callback context */
+/* Get premaster secret generation callback context */
 void* wolfSSL_GetGenPreMasterCtx(WOLFSSL* ssl)
 {
     if (ssl)
@@ -42001,19 +41997,19 @@ void* wolfSSL_GetGenPreMasterCtx(WOLFSSL* ssl)
     return NULL;
 }
 
-/* callback for premaster secret generation */
+/* callback for master secret generation */
 void  wolfSSL_CTX_SetGenMasterSecretCb(WOLFSSL_CTX* ctx, CallbackGenMasterSecret cb)
 {
     if (ctx)
         ctx->GenMasterCb = cb;
 }
-/* Set premaster secret generation callback context */
+/* Set master secret generation callback context */
 void  wolfSSL_SetGenMasterSecretCtx(WOLFSSL* ssl, void *ctx)
 {
     if (ssl)
         ssl->GenMasterCtx = ctx;
 }
-/* Get premaster secret generation callback context */
+/* Get master secret generation callback context */
 void* wolfSSL_GetGenMasterSecretCtx(WOLFSSL* ssl)
 {
     if (ssl)
@@ -42023,19 +42019,19 @@ void* wolfSSL_GetGenMasterSecretCtx(WOLFSSL* ssl)
 }
 
 /* callback for session key generation */
-void  wolfSSL_CTX_SetGenSesssionKeyCb(WOLFSSL_CTX* ctx, CallbackGenSessionKey cb)
+void  wolfSSL_CTX_SetGenSessionKeyCb(WOLFSSL_CTX* ctx, CallbackGenSessionKey cb)
 {
     if (ctx)
         ctx->GenSessionKeyCb = cb;
 }
 /* Set sesssion key generation callback context */
-void  wolfSSL_SetGenSesssionKeyCtx(WOLFSSL* ssl, void *ctx)
+void  wolfSSL_SetGenSessionKeyCtx(WOLFSSL* ssl, void *ctx)
 {
     if (ssl)
         ssl->GenSessionKeyCtx = ctx;
 }
 /* Get sesssion key generation callback context */
-void* wolfSSL_GetGenSesssionKeyCtx(WOLFSSL* ssl)
+void* wolfSSL_GetGenSessionKeyCtx(WOLFSSL* ssl)
 {
     if (ssl)
         return ssl->GenSessionKeyCtx;
@@ -42043,40 +42039,41 @@ void* wolfSSL_GetGenSesssionKeyCtx(WOLFSSL* ssl)
     return NULL;
 }
 
-/* callback for set  keys */
-void  wolfSSL_CTX_SetSetKeysCb(WOLFSSL_CTX* ctx, CallbackSetKeys cb)
+/* callback for setting encryption keys */
+void  wolfSSL_CTX_SetEncryptKeysCb(WOLFSSL_CTX* ctx, CallbackEncryptKeys cb)
 {
     if (ctx)
-        ctx->SetKeysCb = cb;
+        ctx->EncryptKeysCb = cb;
 }
-/* Set set keys callback context */
-void  wolfSSL_SetSetKeysCtx(WOLFSSL* ssl, void *ctx)
+/* Set encryption keys callback context */
+void  wolfSSL_SetEncryptKeysCtx(WOLFSSL* ssl, void *ctx)
 {
     if (ssl)
-        ssl->SetKeysCtx = ctx;
+        ssl->EncryptKeysCtx = ctx;
 }
-/* Get set  keys callback context */
-void* wolfSSL_GetSetKeysCtx(WOLFSSL* ssl)
+/* Get encryption keys callback context */
+void* wolfSSL_GetEncryptKeysCtx(WOLFSSL* ssl)
 {
     if (ssl)
-        return ssl->SetKeysCtx;
+        return ssl->EncryptKeysCtx;
 
     return NULL;
 }
 
-/* callback for verify data */
+/* callback for Tls finished */
+/* the callback can be used to build TLS Finished message if enabled */
 void  wolfSSL_CTX_SetTlsFinishedCb(WOLFSSL_CTX* ctx, CallbackTlsFinished cb)
 {
     if (ctx)
         ctx->TlsFinishedCb = cb;
 }
-/* Set set keys callback context */
+/* Set Tls finished callback context */
 void  wolfSSL_SetTlsFinishedCtx(WOLFSSL* ssl, void *ctx)
 {
     if (ssl)
         ssl->TlsFinishedCtx = ctx;
 }
-/* Get set  keys callback context */
+/* Get Tls finished callback context */
 void* wolfSSL_GetTlsFinishedCtx(WOLFSSL* ssl)
 {
     if (ssl)
@@ -42086,22 +42083,23 @@ void* wolfSSL_GetTlsFinishedCtx(WOLFSSL* ssl)
 }
 #if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)
 /* callback for verify data */
-void  wolfSSL_CTX_SetVerifymacCb(WOLFSSL_CTX* ctx, CallbackVerifymac cb)
+void  wolfSSL_CTX_SetVerifyMacCb(WOLFSSL_CTX* ctx, CallbackVerifyMac cb)
 {
     if (ctx)
-        ctx->VerifymacCb = cb;
+        ctx->VerifyMacCb = cb;
 }
+
 /* Set set keys callback context */
-void  wolfSSL_SetVerifymacCtx(WOLFSSL* ssl, void *ctx)
+void  wolfSSL_SetVerifyMacCtx(WOLFSSL* ssl, void *ctx)
 {
     if (ssl)
-        ssl->VerifymacCtx = ctx;
+        ssl->VerifyMacCtx = ctx;
 }
 /* Get set  keys callback context */
-void* wolfSSL_GetVerifymacCtx(WOLFSSL* ssl)
+void* wolfSSL_GetVerifyMacCtx(WOLFSSL* ssl)
 {
     if (ssl)
-        return ssl->VerifymacCtx;
+        return ssl->VerifyMacCtx;
 
     return NULL;
 }

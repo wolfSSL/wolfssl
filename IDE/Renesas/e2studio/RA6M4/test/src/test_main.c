@@ -24,12 +24,15 @@
 #include "stdint.h"
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
+
 #if defined(WOLFSSL_RENESAS_SCEPROTECT)
-#include <wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h>
-User_SCEPKCbInfo        guser_PKCbInfo;
+ #include <wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h>
+ User_SCEPKCbInfo        guser_PKCbInfo;
 #endif
+
 #include <wolfssl_demo.h>
 #include "key_data.h"
+#include "hal_data.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,7 +40,17 @@ void abort(void);
 }
 #endif
 
+/* the function is called just before main() to set up pins */
+/* this needs to be called to setup IO Port */
+void R_BSP_WarmStart (bsp_warm_start_event_t event)
+{
 
+    if (BSP_WARM_START_POST_C == event) {
+        /* C runtime environment and system clocks are setup. */
+        /* Configure pins. */
+        R_IOPORT_Open(&g_ioport_ctrl, g_ioport.p_cfg);
+    }
+}
 
 #if defined(TLS_CLIENT) || defined(TLS_SERVER) || defined(EXTRA_SCE_TSIP_TEST)
 
@@ -53,12 +66,12 @@ static int SetScetlsKey()
     #if defined(TLS_CLIENT) || defined(EXTRA_SCE_TSIP_TEST)
 
       #if defined(USE_CERT_BUFFERS_256)
-        sce_inform_cert_sign((const byte *)ca_ecc_cert_der_sign);
+        wc_sce_inform_cert_sign((const byte *)ca_ecc_cert_der_sign);
         encrypted_user_key_type = 2;
       #else
-        sce_inform_cert_sign((const byte *)ca_cert_der_sign);
+        wc_sce_inform_cert_sign((const byte *)ca_cert_der_sign);
       #endif
-        sce_inform_user_keys(
+        wc_sce_inform_user_keys(
             (byte*)&g_key_block_data.encrypted_provisioning_key,
             (byte*)&g_key_block_data.iv,
             (byte*)&g_key_block_data.encrypted_user_rsa2048_ne_key,
@@ -69,8 +82,8 @@ static int SetScetlsKey()
 
     #elif defined(TLS_SERVER)
 
-        sce_inform_cert_sign((const byte *)client_cert_der_sign);
-        sce_inform_user_keys(
+        wc_sce_inform_cert_sign((const byte *)client_cert_der_sign);
+        wc_sce_inform_user_keys(
             (byte*)&g_key_block_data.encrypted_provisioning_key,
             (byte*)&g_key_block_data.iv,
             (byte*)&g_key_block_data.encrypted_user_rsa2048_ne_key,
@@ -96,7 +109,6 @@ int  benchmark_test(void *args);
 
 void sce_test(void)
 {
-    /*(void)timeTick;*/
 
 #if defined(CRYPT_TEST) || defined(BENCHMARK)
 #if defined(CRYPT_TEST)
@@ -170,10 +182,6 @@ void sce_test(void)
   #endif
 
     int i = 0;
-    int j = 0;
-    uint32_t elapsed_time_total = 0;
-    uint32_t elapsed_time = 0.0;
-    const int benchmark_times = 1;
 
     SetScetlsKey();
     
@@ -181,20 +189,11 @@ void sce_test(void)
 
     do {
         if(cipherlist_sz > 0 && cipherlist[i] != NULL )
-        		printf("cipher : %s\n", cipherlist[i]);
+            printf("cipher : %s\n", cipherlist[i]);
 
-        elapsed_time_total = 0;
-        for(j = 0; j < benchmark_times; j++){
-        	wolfSSL_TLS_client_init(cipherlist[i]);
-        	elapsed_time = wolfSSL_TLS_client();
-        	elapsed_time_total += elapsed_time;
-        	printf("elapsed_time(%d) %d mS\n", j, elapsed_time);
-        }
-        if(cipherlist_sz > 0 && i < cipherlist_sz && cipherlist[i] != NULL ) {
-        	printf("cipher : %s took %d mS for TLS connection(%d times).\n\n", cipherlist[i],
-        						elapsed_time_total, benchmark_times);
-        }
-
+        wolfSSL_TLS_client_init(cipherlist[i]);
+        wolfSSL_TLS_client();
+        
         i++;
     } while (i < cipherlist_sz);
 #endif

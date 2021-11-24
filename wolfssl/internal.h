@@ -3060,9 +3060,9 @@ struct WOLFSSL_CTX {
     CallbackGenPreMaster        GenPreMasterCb;     /* Use generate pre-master handler */
     CallbackGenMasterSecret     GenMasterCb;        /* Use generate master secret handler */
     CallbackGenSessionKey       GenSessionKeyCb;    /* Use generate session key handler */
-    CallbackSetKeys             SetKeysCb;          /* Use set keys handler */
+    CallbackEncryptKeys         EncryptKeysCb;/* Use setting encrypt keys handler */
     CallbackTlsFinished         TlsFinishedCb;      /* Use Tls finished handler */
-    CallbackVerifymac           VerifymacCb;        /* Use Verify mac handler */
+    CallbackVerifyMac           VerifyMacCb;        /* Use Verify mac handler */
 #endif /* HAVE_PK_CALLBACKS */
 #ifdef HAVE_WOLF_EVENT
     WOLF_EVENT_QUEUE event_queue;
@@ -4485,9 +4485,9 @@ struct WOLFSSL {
     void* GenPreMasterCtx;   /* Generate Premaster Callback Context */
     void* GenMasterCtx;      /* Generate Master Callback Context */
     void* GenSessionKeyCtx;  /* Generate Sesssion Key Callback Context */
-    void* SetKeysCtx;        /* Generate Sesssion Key Callback Context */
+    void* EncryptKeysCtx;    /* Set Encrypt keys Callback Context */
     void* TlsFinishedCtx;    /* Generate Tls Finished Callback Context */
-    void* VerifymacCtx;      /* Verify mac Callback Context */
+    void* VerifyMacCtx;      /* Verify mac Callback Context */
 #endif /* HAVE_PK_CALLBACKS */
 #ifdef HAVE_SECRET_CALLBACK
         SessionSecretCb sessionSecretCb;

@@ -3209,25 +3209,29 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
 
 /* Protocol Callback */
 typedef int (*CallbackGenMasterSecret)(WOLFSSL* ssl, void* ctx);
-WOLFSSL_API void  wolfSSL_CTX_SetGenMasterSecretCb(WOLFSSL_CTX*, CallbackGenMasterSecret);
+WOLFSSL_API void  wolfSSL_CTX_SetGenMasterSecretCb(WOLFSSL_CTX*, 
+                                                    CallbackGenMasterSecret);
 WOLFSSL_API void  wolfSSL_SetGenMasterSecretCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetGenMasterSecretCtx(WOLFSSL* ssl);
 
 typedef int (*CallbackGenPreMaster)(WOLFSSL* ssl, byte *premaster,
                                                    word32 preSz, void* ctx);
-WOLFSSL_API void  wolfSSL_CTX_SetGenPreMasterCb(WOLFSSL_CTX*, CallbackGenPreMaster);
+WOLFSSL_API void  wolfSSL_CTX_SetGenPreMasterCb(WOLFSSL_CTX*, 
+                                                        CallbackGenPreMaster);
 WOLFSSL_API void  wolfSSL_SetGenPreMasterCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetGenPreMasterCtx(WOLFSSL* ssl);
 
 typedef int (*CallbackGenSessionKey)(WOLFSSL* ssl, void* ctx);
-WOLFSSL_API void  wolfSSL_CTX_SetGenSesssionKeyCb(WOLFSSL_CTX*, CallbackGenSessionKey);
-WOLFSSL_API void  wolfSSL_SetGenSesssionKeyCtx(WOLFSSL* ssl, void *ctx);
-WOLFSSL_API void* wolfSSL_GetGenSesssionKeyCtx(WOLFSSL* ssl);
+WOLFSSL_API void  wolfSSL_CTX_SetGenSessionKeyCb(WOLFSSL_CTX*, 
+                                                        CallbackGenSessionKey);
+WOLFSSL_API void  wolfSSL_SetGenSessionKeyCtx(WOLFSSL* ssl, void *ctx);
+WOLFSSL_API void* wolfSSL_GetGenSessionKeyCtx(WOLFSSL* ssl);
 
-typedef int (*CallbackSetKeys)(WOLFSSL* ssl, void* ctx);
-WOLFSSL_API void  wolfSSL_CTX_SetSetKeysCb(WOLFSSL_CTX*, CallbackSetKeys);
-WOLFSSL_API void  wolfSSL_SetSetKeysCtx(WOLFSSL* ssl, void *ctx);
-WOLFSSL_API void* wolfSSL_GetSetKeysCtx(WOLFSSL* ssl);
+typedef int (*CallbackEncryptKeys)(WOLFSSL* ssl, void* ctx);
+WOLFSSL_API void  wolfSSL_CTX_SetEncryptKeysCb(WOLFSSL_CTX*, 
+                                                        CallbackEncryptKeys);
+WOLFSSL_API void  wolfSSL_SetEncryptKeysCtx(WOLFSSL* ssl, void *ctx);
+WOLFSSL_API void* wolfSSL_GetEncryptKeysCtx(WOLFSSL* ssl);
 
 typedef int (*CallbackTlsFinished)(WOLFSSL* ssl,
                             const byte *side, 
@@ -3238,11 +3242,11 @@ WOLFSSL_API void  wolfSSL_SetTlsFinishedCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetTlsFinishedCtx(WOLFSSL* ssl);
 
 #if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)
-typedef int (*CallbackVerifymac)(WOLFSSL *ssl, const byte* message, 
+typedef int (*CallbackVerifyMac)(WOLFSSL *ssl, const byte* message, 
                     word32 messageSz, word32 macSz, word32 content, void* ctx);
-WOLFSSL_API void  wolfSSL_CTX_SetVerifymacCb(WOLFSSL_CTX*, CallbackVerifymac);
-WOLFSSL_API void  wolfSSL_SetVerifymacCtx(WOLFSSL* ssl, void *ctx);
-WOLFSSL_API void* wolfSSL_GetVerifymacCtx(WOLFSSL* ssl);
+WOLFSSL_API void  wolfSSL_CTX_SetVerifyMacCb(WOLFSSL_CTX*, CallbackVerifyMac);
+WOLFSSL_API void  wolfSSL_SetVerifyMacCtx(WOLFSSL* ssl, void *ctx);
+WOLFSSL_API void* wolfSSL_GetVerifyMacCtx(WOLFSSL* ssl);
 #endif
 
 #endif /* HAVE_PK_CALLBACKS */

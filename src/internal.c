@@ -225,15 +225,8 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
     int tsip_generatePremasterSecret();
     int tsip_generateEncryptPreMasterSecret(WOLFSSL *ssl, byte *out, word32 *outSz);
 #endif
-#ifdef WOLFSSL_RENESAS_SCEPROTECT
-    int Renesas_cmn_useable(const WOLFSSL *ssl, byte seskey_gennerated);
-    int Renesas_cmn_SigPkCbRsaVerify(unsigned char* sig, unsigned int sigSz,
-       unsigned char** out, const unsigned char* keyDer, unsigned int keySz,
-       void* ctx);
-    int Renesas_cmn_SigPkCbEccVerify(const unsigned char* sig, unsigned int sigSz,
-       const unsigned char* hash, unsigned int hashSz,
-       const unsigned char* keyDer, unsigned int keySz,
-       int* result, void* ctx);
+#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+#include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>
 #endif
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_SECRET_CALLBACK)
@@ -11071,29 +11064,29 @@ int InitSigPkCb(WOLFSSL* ssl, SignatureCtx* sigCtx)
 
     /* only setup the verify callback if a PK is set */
 #ifdef HAVE_ECC
-    #if !defined(WOLFSSL_RENESAS_SCEPROTECT)
+    #if defined(WOLFSSL_RENESAS_SCEPROTECT)
+    sigCtx->pkCbEcc = Renesas_cmn_SigPkCbEccVerify;
+    sigCtx->pkCtxEcc = (void*)&sigCtx->CertAtt;
+    (void)SigPkCbEccVerify;
+    #else
     if (ssl->ctx->EccVerifyCb) {
         sigCtx->pkCbEcc = SigPkCbEccVerify;
         sigCtx->pkCtxEcc = ssl;
     }
-    #else
-    sigCtx->pkCbEcc = Renesas_cmn_SigPkCbEccVerify;
-    sigCtx->pkCtxEcc = (void*)&sigCtx->CertAtt;
-    (void)SigPkCbEccVerify;
     #endif
     
 #endif
 #ifndef NO_RSA
     /* only setup the verify callback if a PK is set */
-    #if !defined(WOLFSSL_RENESAS_SCEPROTECT)
+    #if defined(WOLFSSL_RENESAS_SCEPROTECT)
+    sigCtx->pkCbRsa = Renesas_cmn_SigPkCbRsaVerify;
+    sigCtx->pkCtxRsa = (void*)&sigCtx->CertAtt;
+    (void)SigPkCbRsaVerify;
+    #else
     if (ssl->ctx->RsaVerifyCb) {
         sigCtx->pkCbRsa = SigPkCbRsaVerify;
         sigCtx->pkCtxRsa = ssl;
     }
-    #else
-    sigCtx->pkCbRsa = Renesas_cmn_SigPkCbRsaVerify;
-    sigCtx->pkCtxRsa = (void*)&sigCtx->CertAtt;
-    (void)SigPkCbRsaVerify;
     #endif
     
 #endif
@@ -12824,7 +12817,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         }
                         else {
                             ssl->peerRsaKeyPresent = 1;
-                    #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+                    #if defined(WOLFSSL_RENESAS_TSIP_TLS) || \
+                                             defined(WOLFSSL_RENESAS_SCEPROTECT)
                         /* copy encrypted tsip key index into ssl object */
                         if (args->dCert->sce_tsip_encRsaKeyIdx) {
                             if (!ssl->peerSceTsipEncRsaKeyIndex) {
@@ -12888,7 +12882,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         int keyRet = 0;
                         word32 idx = 0;
                     #if defined(WOLFSSL_RENESAS_SCEPROTECT)
-                        /* copy encrypted tsip key index into ssl object */
+                        /* copy encrypted tsip/sce key index into ssl object */
                         if (args->dCert->sce_tsip_encRsaKeyIdx) {
                             if (!ssl->peerSceTsipEncRsaKeyIndex) {
                                 ssl->peerSceTsipEncRsaKeyIndex = (byte*)XMALLOC(
@@ -12896,7 +12890,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                     ssl->heap, DYNAMIC_TYPE_RSA);
                                 if (!ssl->peerSceTsipEncRsaKeyIndex) {
                                     args->lastErr = MEMORY_E;
-                                    goto exit_ppc;
+                                    ERROR_OUT(MEMORY_ERROR, exit_ppc);
                                 }
                             }
 
@@ -16713,16 +16707,16 @@ static WC_INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
         if (ssl->options.tls) {
 #if !defined(NO_CERTS) && defined(HAVE_PK_CALLBACKS)
             ret = PROTOCOLCB_UNAVAILABLE;
-            if(ssl->ctx->VerifymacCb) {
-                void* ctx = wolfSSL_GetVerifymacCtx(ssl);
-                ret = ssl->ctx->VerifymacCb(ssl, input, 
+            if(ssl->ctx->VerifyMacCb) {
+                void* ctx = wolfSSL_GetVerifyMacCtx(ssl);
+                ret = ssl->ctx->VerifyMacCb(ssl, input, 
                            (msgSz - ivExtra) - digestSz - pad - 1,
                            digestSz, content, ctx);
                 if (ret != 0 && ret != PROTOCOLCB_UNAVAILABLE) {
                     return ret;
                 }
             }
-            if (!ssl->ctx->VerifymacCb || ret == PROTOCOLCB_UNAVAILABLE)
+            if (!ssl->ctx->VerifyMacCb || ret == PROTOCOLCB_UNAVAILABLE)
 #endif
             ret = TimingPadVerify(ssl, input, pad, digestSz, msgSz - ivExtra,
                                   content);
@@ -24935,9 +24929,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                   defined(WOLFSSL_RENESAS_SCEPROTECT_ECC)
                             /* already checked signature result by SCE */
                             /* skip the sign checks below              */
-                            if (Renesas_cmn_useable(ssl, 0)) {
+                            if (Renesas_cmn_usable(ssl, 0)) {
                                 break;
-                             } else 
+                             }
                             #endif
                             if (IsAtLeastTLSv1_2(ssl)) {
                             #ifdef WOLFSSL_SMALL_STACK

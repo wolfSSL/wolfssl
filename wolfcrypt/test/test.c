@@ -22721,7 +22721,7 @@ static int ecc_exp_imp_test(ecc_key* key)
 #else
     ecc_key    keyImp[1];
 #endif
-    byte       priv[32*4];
+    byte       priv[32];
     word32     privLen;
     byte       pub[65*2];
     word32     pubLen, pubLenX, pubLenY;

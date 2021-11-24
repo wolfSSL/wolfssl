@@ -1441,7 +1441,7 @@ static void* benchmarks_do(void* args)
     }
 #endif
 #ifdef HAVE_RENESAS_SYNC
-    devId = wc_CryptoCb_CryptInitRenesascmn(NULL, &guser_PKCbInfo);
+    devId = wc_CryptoCb_CryptInitRenesasCmn(NULL, &guser_PKCbInfo);
     if (devId == INVALID_DEVID) {
         printf("Couldn't get the Renesas device ID\n");
     }
@@ -2119,7 +2119,7 @@ int benchmark_free(void)
     wc_CryptoCb_CleanupOcteon(&devId);
 #endif
 #ifdef HAVE_RENESAS_SYNC
-    wc_CryptoCb_CleanupRenesascmn(&devId);
+    wc_CryptoCb_CleanupRenesasCmn(&devId);
 #endif
 #endif
 

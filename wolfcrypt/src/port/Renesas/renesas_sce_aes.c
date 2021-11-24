@@ -68,12 +68,12 @@ typedef fsp_err_t (*aesGcmDecFinalFn)
  * sz     Length of cipher text/plaintext in bytes
  * iv     Buffer holding IV/nonce
  * ivSz   Length of IV/nonce in bytes
- * authTag Buffer to hold authntication data
+ * authTag Buffer to hold authentication data
  * authTagSz Length of authentication data in bytes
  * ctx    The callback context
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
-int  wc_sce_AesGcmEncrypt(struct Aes* aes, byte* out,
+WOLFSSL_LOCAL int  wc_sce_AesGcmEncrypt(struct Aes* aes, byte* out,
                               const byte* in, word32 sz,
                               byte* iv, word32 ivSz,
                               byte* authTag, word32 authTagSz,
@@ -111,6 +111,11 @@ int  wc_sce_AesGcmEncrypt(struct Aes* aes, byte* out,
         return BAD_FUNC_ARG;
     }
     
+    if (aes->ctx.keySize != 16 && aes->ctx.keySize != 32) {
+        WOLFSSL_MSG("keySize is invalid, neither 16 or 32.");
+        return BAD_FUNC_ARG;
+    }
+
     if (aes->ctx.keySize == 16) {
         initFn   = R_SCE_AES128GCM_EncryptInit;
         updateFn = R_SCE_AES128GCM_EncryptUpdate;
@@ -124,10 +129,10 @@ int  wc_sce_AesGcmEncrypt(struct Aes* aes, byte* out,
     
     
     /* check if AES GCM can be used by SCE */
-    if ((ret = sce_hw_lock()) == 0) {
+    if ((ret = wc_sce_hw_lock()) == 0) {
         
         /* allocate buffers for plaintaxt, ciphertext and authTag to make sure
-         * those buffers 32bit aligned as TSIP requests.  
+         * those buffers 32bit aligned as SCE requests.  
          */
         delta = sz % AES_BLOCK_SIZE;
         plainBuf  = XMALLOC(sz, aes->heap, DYNAMIC_TYPE_AES);
@@ -136,7 +141,7 @@ int  wc_sce_AesGcmEncrypt(struct Aes* aes, byte* out,
                                                         DYNAMIC_TYPE_AES);
         
         if (plainBuf == NULL || cipherBuf == NULL || aTagBuf == NULL) {
-            WOLFSSL_MSG("wc_tsip_AesGcmEncrypt: buffer allocation faild");
+            WOLFSSL_MSG("wc_sce_AesGcmEncrypt: buffer allocation faild");
             ret = -1;
         }
         
@@ -189,14 +194,14 @@ int  wc_sce_AesGcmEncrypt(struct Aes* aes, byte* out,
                 ret = updateFn(&_handle, plainBuf, cipherBuf, sz, NULL, 0UL);
             }
             if (ret != FSP_SUCCESS) {
-                WOLFSSL_MSG("R_TSIP_AesXXXGcmEncryptUpdate: failed");
+                WOLFSSL_MSG("R_SCE_AesXXXGcmEncryptUpdate: failed");
                 ret = -1;
             }
         
             if (ret == FSP_SUCCESS) {
-                /* Once R_TSIP_AesxxxGcmEncryptInit or R_TSIP_AesxxxEncryptUpdate is
-                * called, R_TSIP_AesxxxGcmEncryptFinal must be called regardless of
-                * the result of the previous call. Otherwise, TSIP can not come out
+                /* Once R_SCE_AesxxxGcmEncryptInit or R_SCE_AesxxxEncryptUpdate is
+                * called, R_SCE_AesxxxGcmEncryptFinal must be called regardless of
+                * the result of the previous call. Otherwise, SCE can not come out
                 * from its error state and all the trailing APIs will fail.
                 */
                 dataLen = 0;
@@ -215,7 +220,7 @@ int  wc_sce_AesGcmEncrypt(struct Aes* aes, byte* out,
 
                 }
                 else {
-                    WOLFSSL_MSG("R_TSIP_AesxxxGcmEncryptFinal: failed");
+                    WOLFSSL_MSG("R_SCE_AesxxxGcmEncryptFinal: failed");
                     ret = -1;
                 }
             }
@@ -225,7 +230,7 @@ int  wc_sce_AesGcmEncrypt(struct Aes* aes, byte* out,
         XFREE(cipherBuf, aes->heap, DYNAMIC_TYPE_AES);
         XFREE(aTagBuf,   aes->heap, DYNAMIC_TYPE_AES);
     
-        sce_hw_unlock();
+        wc_sce_hw_unlock();
         
     } 
     
@@ -244,7 +249,7 @@ int  wc_sce_AesGcmEncrypt(struct Aes* aes, byte* out,
  * ctx    The Callback context
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
-int  wc_sce_AesGcmDecrypt(struct Aes* aes, byte* out,
+WOLFSSL_LOCAL int  wc_sce_AesGcmDecrypt(struct Aes* aes, byte* out,
                           const byte* in, word32 sz,
                           const byte* iv, word32 ivSz,
                           const byte* authTag, word32 authTagSz,
@@ -282,7 +287,11 @@ int  wc_sce_AesGcmDecrypt(struct Aes* aes, byte* out,
         return BAD_FUNC_ARG;
     }
     
-    
+    if (aes->ctx.keySize != 16 && aes->ctx.keySize != 32) {
+        WOLFSSL_MSG("keySize is invalid, neither 16 or 32.");
+        return BAD_FUNC_ARG;
+    }
+
     if (aes->ctx.keySize == 16) {
         initFn   = R_SCE_AES128GCM_DecryptInit;
         updateFn = R_SCE_AES128GCM_DecryptUpdate;
@@ -295,7 +304,7 @@ int  wc_sce_AesGcmDecrypt(struct Aes* aes, byte* out,
     }
     
     
-    if ((ret = sce_hw_lock()) == 0) {
+    if ((ret = wc_sce_hw_lock()) == 0) {
        /* allocate buffers for plain-taxt, cipher-text, authTag and AAD.
          * TSIP requests those buffers 32bit aligned. 
          */
@@ -332,7 +341,7 @@ int  wc_sce_AesGcmDecrypt(struct Aes* aes, byte* out,
                     &key_server_aes,
                     NULL, NULL);
             if (ret != FSP_SUCCESS) {
-                WOLFSSL_MSG("R_TSIP_TlsGenerateSessionKey failed");
+                WOLFSSL_MSG("R_SCE_TLS_SessionKeyGenerate failed");
                 ret = -1;
             }
         } else if (info->aes256_installedkey_set == 1) {
@@ -358,7 +367,7 @@ int  wc_sce_AesGcmDecrypt(struct Aes* aes, byte* out,
                 ret = updateFn(&_handle, cipherBuf, plainBuf, sz, NULL, 0UL);
             }
             if (ret != FSP_SUCCESS) {
-                WOLFSSL_MSG("R_TSIP_AesXXXGcmDecryptUpdate: failed in decrypt");
+                WOLFSSL_MSG("R_SCE_AesXXXGcmDecryptUpdate: failed in decrypt");
                 ret = -1;
             }
         
@@ -375,7 +384,7 @@ int  wc_sce_AesGcmDecrypt(struct Aes* aes, byte* out,
                     XMEMCPY(out, plainBuf, dataLen);
                 }
                 else {
-                    WOLFSSL_MSG("R_TSIP_AesXXXGcmDecryptFinal: failed");
+                    WOLFSSL_MSG("R_SCE_AesXXXGcmDecryptFinal: failed");
                     ret = -1;
                 }
             }
@@ -385,7 +394,7 @@ int  wc_sce_AesGcmDecrypt(struct Aes* aes, byte* out,
         XFREE(plainBuf,  aes->heap, DYNAMIC_TYPE_AES);
         XFREE(cipherBuf, aes->heap, DYNAMIC_TYPE_AES);
 
-        sce_hw_unlock();
+        wc_sce_hw_unlock();
     }
     
     return ret;
@@ -398,7 +407,8 @@ int  wc_sce_AesGcmDecrypt(struct Aes* aes, byte* out,
  * sz     Length of cipher text/plaintext in bytes
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
-int wc_sce_AesCbcEncrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
+WOLFSSL_LOCAL int wc_sce_AesCbcEncrypt(struct Aes* aes, byte* out,
+                                                const byte* in, word32 sz)
 {
     sce_aes_handle_t _handle;
     word32 ret;
@@ -413,7 +423,7 @@ int wc_sce_AesCbcEncrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
      * on the device. iv is dummy                                   */
     iv = (uint8_t*)aes->reg;
     
-    if((ret = sce_hw_lock()) != 0){
+    if((ret = wc_sce_hw_lock()) != 0){
         WOLFSSL_MSG("Failed to lock");
         return ret;
     }
@@ -423,7 +433,8 @@ int wc_sce_AesCbcEncrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
     } else if (aes->ctx.keySize == 32) {
         ret = R_SCE_AES256CBC_EncryptInit(&_handle, &aes->ctx.sce_wrapped_key, iv);
     } else {
-        sce_hw_unlock();
+        WOLFSSL_MSG("invalid key Size for SCE. Key size is neither 16 or 32.");
+        wc_sce_hw_unlock();
         return -1;
     }
     
@@ -451,7 +462,7 @@ int wc_sce_AesCbcEncrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
         ret = -1;
     }
     
-    sce_hw_unlock();
+    wc_sce_hw_unlock();
     return ret;
 }
 /* Perform Aes Cbc decryption by SCE
@@ -462,7 +473,7 @@ int wc_sce_AesCbcEncrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
  * sz     Length of cipher text/plaintext in bytes
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
-int wc_sce_AesCbcDecrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
+WOLFSSL_LOCAL int wc_sce_AesCbcDecrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
 {
     sce_aes_handle_t _handle;
     word32 ret;
@@ -475,7 +486,7 @@ int wc_sce_AesCbcDecrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
     
     iv = (uint8_t*)aes->reg;
 
-    if((ret = sce_hw_lock()) != 0){
+    if((ret = wc_sce_hw_lock()) != 0){
         WOLFSSL_MSG("Failed to lock");
         return ret;
     }
@@ -485,7 +496,7 @@ int wc_sce_AesCbcDecrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
     } else if (aes->ctx.keySize == 32) {
         ret = R_SCE_AES256CBC_DecryptInit(&_handle, &aes->ctx.sce_wrapped_key, iv);
     } else {
-        sce_hw_unlock();
+        wc_sce_hw_unlock();
         return -1;
     }
     
@@ -512,7 +523,7 @@ int wc_sce_AesCbcDecrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
         ret = -1;
     }
     
-    sce_hw_unlock();
+    wc_sce_hw_unlock();
     return ret;
 }
 

@@ -158,7 +158,7 @@ int wolfCrypt_Init(void)
     #endif
     
     #if defined(WOLFSSL_RENESAS_SCEPROTECT)
-        ret = sce_Open( );
+        ret = wc_sce_Open( );
         if( ret != FSP_SUCCESS ) {
             WOLFSSL_MSG("RENESAS SCE Open failed");
             /* not return 1 since WOLFSSL_SUCCESS=1*/
@@ -368,7 +368,7 @@ int wolfCrypt_Cleanup(void)
     #endif
     
     #ifdef WOLFSSL_RENESAS_SCEPROTECT
-        sce_Close();
+        wc_sce_Close();
     #else
         
     #ifdef WOLFSSL_SCE

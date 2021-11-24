@@ -32,9 +32,7 @@
 #define FLASH_HP_DF_BLOCK_1   0x08000040U /*   64 B:  0x40100040 - 0x4010007F */
 #define FLASH_HP_DF_BLOCK_2   0x08000080U /*   64 B:  0x40100080 - 0x401000BF */
 #define FLASH_HP_DF_BLOCK_3   0x080000C0U /*   64 B:  0x401000C0 - 0x401000FF */
-
 #define DIRECT_KEY_ADDRESS      FLASH_HP_DF_BLOCK_1
-
 
 /* Enable wolfcrypt test */
 /* can be enabled with benchmark test */
@@ -45,13 +43,17 @@
 /*#define BENCHMARK*/
 
 /* Enable TLS client     */
-/* cannot enable with other definition */
+/* cannot enable with CRYPT_TEST or BENCHMARK */
 #define TLS_CLIENT
+/* Specifiy cipher suites that are supported by SCE 
+ * ClientHello specifies the cipher suite to communicate peer Server 
+ * so that TLS handshake uses SCE protect mode 
+ */
 #define TEST_CIPHER_SPECIFIED
 
-/* RSA certification use */
+/* Use RSA certificates */
 #define USE_CERT_BUFFERS_2048
-/* ECC certification use */
+/* Use ECC certificates */
 /*#define USE_CERT_BUFFERS_256*/
 
 #if defined(USE_CERT_BUFFERS_2048) && defined(USE_CERT_BUFFERS_256)
@@ -59,7 +61,7 @@
 #endif
 
 void wolfSSL_TLS_client_init();
-uint32_t wolfSSL_TLS_client();
+void wolfSSL_TLS_client();
 
 static void util_Cleanup(xSocket_t xSock, WOLFSSL_CTX *ctx, WOLFSSL *ssl) {
     printf("Cleaning up socket and wolfSSL objects.\n");

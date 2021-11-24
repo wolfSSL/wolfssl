@@ -156,7 +156,7 @@ static int SCEHashFinal(wolfssl_SCE_Hash* hash, byte* out, word32 outSz)
     
     heap = hash->heap;
     
-    sce_hw_lock();
+    wc_sce_hw_lock();
     
     if (Init(&handle) == FSP_SUCCESS) {
         ret = Update(&handle, (uint8_t*)hash->msg, hash->used);
@@ -167,7 +167,7 @@ static int SCEHashFinal(wolfssl_SCE_Hash* hash, byte* out, word32 outSz)
             }
         }
     }
-    sce_hw_unlock();
+    wc_sce_hw_unlock();
     
     SCEHashFree(hash);
     return SCEHashInit(hash, heap, 0, hash->sha_type);
@@ -194,7 +194,7 @@ static int SCEHashGet(wolfssl_SCE_Hash* hash, byte* out, word32 outSz)
     } else 
         return BAD_FUNC_ARG;
     
-    sce_hw_lock();
+    wc_sce_hw_lock();
     
     if (Init(&handle) == FSP_SUCCESS) {
         ret = Update(&handle, (uint8_t*)hash->msg, hash->used);
@@ -206,7 +206,7 @@ static int SCEHashGet(wolfssl_SCE_Hash* hash, byte* out, word32 outSz)
         }
     }
     
-    sce_hw_unlock();
+    wc_sce_hw_unlock();
     
     return 0;
 }
