@@ -52,7 +52,7 @@ static tsip_key_data g_user_key_info;
 /* tsip only keep one encrypted ca public key */
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
 static uint32_t     g_encrypted_publicCA_key[R_TSIP_SINST_WORD_SIZE];
-static uint32_t     g_CAscm_Idx;          /* index of CM table    */
+static uint32_t     g_CAscm_Idx = (uint32_t)-1; /* index of CM table */
 #endif
 
 
