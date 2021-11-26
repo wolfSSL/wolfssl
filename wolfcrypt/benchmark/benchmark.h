@@ -107,6 +107,8 @@ void bench_blake2b(void);
 void bench_blake2s(void);
 void bench_pbkdf2(void);
 void bench_falconKeySign(byte level);
+void bench_oqsKemKeygen(word32 alg);
+void bench_oqsKemEncapDecap(word32 alg);
 
 void bench_stats_print(void);
 
