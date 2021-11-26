@@ -40,6 +40,5 @@ Including the following examples:
 
  Note: This is tested with :  
    - OS: Ubuntu 18.04.1 LTS and Microsoft Windows 10 Pro 10.0.19041 and well as WSL Ubuntu
-   - ESP-IDF: v4.1 and v4.0.1  
+   - ESP-IDF: v4.4-dev-4031-gef98a363e3-dirty and v4.0.1-dirty 
    - Module : ESP32-WROOM-32
-

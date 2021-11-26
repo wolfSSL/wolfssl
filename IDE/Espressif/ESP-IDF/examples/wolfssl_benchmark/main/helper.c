@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
 #include <wolfcrypt/benchmark/benchmark.h>
 
 #include "sdkconfig.h"
