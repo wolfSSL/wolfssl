@@ -3042,6 +3042,15 @@ WOLFSSL_API void  wolfSSL_SetEccSharedSecretCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetEccSharedSecretCtx(WOLFSSL* ssl);
 #endif
 
+#ifdef HAVE_HKDF
+#include <wolfssl/wolfcrypt/kdf.h>
+typedef int (*CallbackHKDFExtract)(byte* prk, const byte* salt, word32 saltLen,
+       byte* ikm, word32 ikmLen, int digest, void* ctx);
+WOLFSSL_ABI WOLFSSL_API void  wolfSSL_CTX_SetHKDFExtractCb(WOLFSSL_CTX*, CallbackHKDFExtract);
+WOLFSSL_API void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl);
+WOLFSSL_API void wolfSSL_SetHKDFExtractCtx(WOLFSSL* ssl, void *ctx);
+#endif
+
 #ifndef NO_DH
 /* Public DH Key Callback support */
 struct DhKey;

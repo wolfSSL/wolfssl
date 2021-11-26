@@ -42001,6 +42001,29 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 }
 #endif /* HAVE_PK_CALLBACKS && !NO_DH */
 
+#if defined(HAVE_PK_CALLBACKS) && defined(HAVE_HKDF)
+
+WOLFSSL_ABI
+void  wolfSSL_CTX_SetHKDFExtractCb(WOLFSSL_CTX* ctx, CallbackHKDFExtract cb)
+{
+    if (ctx)
+        ctx->HkdfExtractCb = cb;
+}
+
+void wolfSSL_SetHKDFExtractCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->HkdfExtractCtx = ctx;
+}
+
+void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->HkdfExtractCtx;
+
+    return NULL;
+}
+#endif /* HAVE_PK_CALLBACKS && HAVE_HKDF */
 
 #ifdef WOLFSSL_HAVE_WOLFSCEP
     /* Used by autoconf to see if wolfSCEP is available */
