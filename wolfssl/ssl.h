@@ -3021,6 +3021,16 @@ typedef int (*CallbackEccSign)(WOLFSSL* ssl,
        void* ctx);
 WOLFSSL_ABI WOLFSSL_API void  wolfSSL_CTX_SetEccSignCb(WOLFSSL_CTX*,
                                                                CallbackEccSign);
+//hkdf callback
+typedef int (*CallbackHKDFExtract)(WOLFSSL* ssl,
+       byte* prk, const byte* salt, int saltLen,
+       byte* ikm, int ikmLen, int mac,
+       void* ctx);
+WOLFSSL_ABI WOLFSSL_API void  wolfSSL_CTX_SetHKDFExtractCb(WOLFSSL_CTX*,
+                                                               CallbackHKDFExtract);
+WOLFSSL_API void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl);
+
+
 WOLFSSL_API void  wolfSSL_SetEccSignCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetEccSignCtx(WOLFSSL* ssl);
 

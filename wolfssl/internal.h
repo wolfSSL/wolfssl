@@ -3011,6 +3011,7 @@ struct WOLFSSL_CTX {
         CallbackEccKeyGen EccKeyGenCb;  /* User EccKeyGen Callback Handler */
         CallbackEccSign   EccSignCb;    /* User EccSign   Callback handler */
         CallbackEccVerify EccVerifyCb;  /* User EccVerify Callback handler */
+        CallbackHKDFExtract HkdfExtractCb; /* User hkdf Extract Callback handler */
         CallbackEccSharedSecret EccSharedSecretCb; /* User EccVerify Callback handler */
     #endif /* HAVE_ECC */
     #ifdef HAVE_ED25519
@@ -4437,6 +4438,7 @@ struct WOLFSSL {
     #ifdef HAVE_ECC
         void* EccKeyGenCtx;          /* EccKeyGen  Callback Context */
         void* EccSignCtx;            /* Ecc Sign   Callback Context */
+        void* HkdfExtractCtx;        /* Hkdf Extract Callback Context */
         void* EccVerifyCtx;          /* Ecc Verify Callback Context */
         void* EccSharedSecretCtx;    /* Ecc Pms    Callback Context */
     #endif /* HAVE_ECC */

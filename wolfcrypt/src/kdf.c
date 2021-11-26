@@ -349,6 +349,7 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     /* Extract data using HMAC, salt and input.
      * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF)
      *
+	 * ssl      The SSL/TLS object.
      * prk      The generated pseudorandom key.
      * salt     The salt.
      * saltLen  The length of the salt.
@@ -357,11 +358,16 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
      * digest   The type of digest to use.
      * returns 0 on success, otherwise failure.
      */
-    int wc_Tls13_HKDF_Extract(byte* prk, const byte* salt, int saltLen,
+    int wc_Tls13_HKDF_Extract(WOLFSSL* ssl, byte* prk, const byte* salt, int saltLen,
                                  byte* ikm, int ikmLen, int digest)
     {
         int ret;
         int len = 0;
+		
+		#ifndef HAVE_PK_CALLBACKS
+        /* Avoid compiler warnings */
+        (void) ssl;
+        #endif
 
         switch (digest) {
             #ifndef NO_SHA256
@@ -398,6 +404,27 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         WOLFSSL_BUFFER(ikm, ikmLen);
 #endif
 
+#if defined(HAVE_PK_CALLBACKS)
+	  if (ssl->ctx->HkdfExtractCb && saltLen != 0) { //If salt is null during the early secret, no need to use the IoT safe applet to compute HKDF-Extract
+			void* ctx = wolfSSL_GetHKDFExtractCtx(ssl);
+			  ret = ssl->ctx->HkdfExtractCb(ssl, prk, salt, saltLen, ikm, ikmLen, digest, ctx);
+			  #ifdef WOLFSSL_DEBUG_TLS
+				WOLFSSL_MSG("  PRK IOT SAFE");
+				WOLFSSL_BUFFER(prk, len);
+			  #endif
+			  return ret;
+
+	  }
+	  else
+	  {
+		   ret = wc_HKDF_Extract(digest, salt, saltLen, ikm, ikmLen, prk);
+		   #ifdef WOLFSSL_DEBUG_TLS
+				WOLFSSL_MSG("  PRK");
+				WOLFSSL_BUFFER(prk, len);
+			#endif
+		   return ret;
+	  }
+#endif
         ret = wc_HKDF_Extract(digest, salt, saltLen, ikm, ikmLen, prk);
 
 #ifdef WOLFSSL_DEBUG_TLS

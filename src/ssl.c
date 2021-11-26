@@ -41644,6 +41644,20 @@ void* wolfSSL_GetEccKeyGenCtx(WOLFSSL* ssl)
 }
 
 WOLFSSL_ABI
+void  wolfSSL_CTX_SetHKDFExtractCb(WOLFSSL_CTX* ctx, CallbackHKDFExtract cb)
+{
+    if (ctx)
+        ctx->HkdfExtractCb = cb;
+}
+void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->HkdfExtractCtx;
+
+    return NULL;
+}
+
+WOLFSSL_ABI
 void  wolfSSL_CTX_SetEccSignCb(WOLFSSL_CTX* ctx, CallbackEccSign cb)
 {
     if (ctx)
