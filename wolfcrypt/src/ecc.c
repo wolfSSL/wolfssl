@@ -12387,15 +12387,16 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
   mp_int *M = (mp_int *)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC_BUFFER);
   mp_int *T = (mp_int *)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC_BUFFER);
   mp_int *R = (mp_int *)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  mp_int *N = (mp_int *)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC_BUFFER);
   mp_int *two = (mp_int *)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC_BUFFER);
 #else
-  mp_int t1[1], C[1], Q[1], S[1], Z[1], M[1], T[1], R[1], two[1];
+  mp_int t1[1], C[1], Q[1], S[1], Z[1], M[1], T[1], R[1], N[1], two[1];
 #endif
 
   SAVE_VECTOR_REGISTERS(res = _svr_ret; goto out;);
 
   if ((mp_init_multi(t1, C, Q, S, Z, M) != MP_OKAY) ||
-      (mp_init_multi(T, R, two, NULL, NULL, NULL) != MP_OKAY)) {
+      (mp_init_multi(T, R, N, two, NULL, NULL) != MP_OKAY)) {
     res = MP_INIT_E;
     goto out;
   }
@@ -12409,6 +12410,7 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
       (M == NULL) ||
       (T == NULL) ||
       (R == NULL) ||
+      (N == NULL) ||
       (two == NULL)) {
     res = MP_MEM;
     goto out;
@@ -12432,8 +12434,19 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
     goto out;
   }
 
+  /* reduce n to less than prime */
+  res = mp_mod(n, prime, N);
+  if (res != MP_OKAY) {
+    goto out;
+  }
+  /* when N is zero, sqrt is zero */
+  if (mp_iszero(N)) {
+    mp_set(ret, 0);
+    goto out;
+  }
+
   /* is quadratic non-residue mod prime */
-  if ((res = mp_jacobi(n, prime, &legendre)) != MP_OKAY) {
+  if ((res = mp_jacobi(N, prime, &legendre)) != MP_OKAY) {
     goto out;
   }
   if (legendre == -1) {
@@ -12454,7 +12467,7 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
     if (res == MP_OKAY)
       res = mp_div_2(t1, t1);
     if (res == MP_OKAY)
-      res = mp_exptmod(n, t1, prime, ret);
+      res = mp_exptmod(N, t1, prime, ret);
 
     done = 1;
   }
@@ -12509,11 +12522,11 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
 
     /* R = n ^ ((Q + 1) / 2) mod prime */
     if (res == MP_OKAY)
-      res = mp_exptmod(n, t1, prime, R);
+      res = mp_exptmod(N, t1, prime, R);
 
     /* T = n ^ Q mod prime */
     if (res == MP_OKAY)
-      res = mp_exptmod(n, Q, prime, T);
+      res = mp_exptmod(N, Q, prime, T);
 
     /* M = S */
     if (res == MP_OKAY)
@@ -12616,6 +12629,11 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
       mp_clear(R);
     XFREE(R, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
+  if (N) {
+    if (res != MP_INIT_E)
+      mp_clear(N);
+    XFREE(N, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  }
   if (two) {
     if (res != MP_INIT_E)
       mp_clear(two);
@@ -12631,6 +12649,7 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
     mp_clear(M);
     mp_clear(T);
     mp_clear(R);
+    mp_clear(N);
     mp_clear(two);
   }
 #endif
