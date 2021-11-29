@@ -387,8 +387,9 @@ static int expect_csim_response(const char *cmd, word32 size, char **reply)
     ret -= 2;
     if (ret >= 4) {
         endstr = XSTRSTR(payload, "9000\"");
-        if (endstr == NULL)
+        if (endstr == NULL) {
             endstr = XSTRSTR(payload, "\"");
+        }
         if (endstr) {
             *endstr = 0;
             ret = (int)XSTRLEN(payload);
@@ -420,7 +421,7 @@ static int iotsafe_init(void)
 
     WOLFSSL_MSG("ATE0 OK!");
     if (expect_csim_response(atcmd_load_applet_str,
-                (word32)XSTRLEN(atcmd_load_applet_str), &reply) < 1) {
+                (word32)XSTRLEN(atcmd_load_applet_str), &reply) < 0) {
         WOLFSSL_MSG("FAIL: no Applet code response from iot-safe init");
     } else {
         WOLFSSL_MSG("IoT Safe Applet INIT OK");
