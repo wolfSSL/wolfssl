@@ -2188,7 +2188,7 @@ AC_ARG_ENABLE([keygen],
     [ ENABLED_KEYGEN=no ]
     )
 
-if test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_OPENRESTY" = "yes"
+if test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_OPENRESTY" = "yes" || test "$ENABLED_NGINX" = "yes"
 then
     ENABLED_KEYGEN=yes
 fi
