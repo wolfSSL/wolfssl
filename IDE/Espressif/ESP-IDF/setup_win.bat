@@ -17,13 +17,14 @@ set WOLFSSL_ESPIDFDIR=%BASEDIR%\IDE\Espressif\ESP-IDF
 set WOLFSSLLIB_TRG_DIR=%IDF_PATH%\components\wolfssl
 set WOLFSSLEXP_TRG_DIR=%IDF_PATH%\examples\protocols
 
-echo Copy files into $IDF_PATH%
+echo Copy files into %IDF_PATH%
 rem Remove/Create directories
 rmdir /S/Q %WOLFSSLLIB_TRG_DIR%
 mkdir      %WOLFSSLLIB_TRG_DIR%
 mkdir      %WOLFSSLLIB_TRG_DIR%\src
 mkdir      %WOLFSSLLIB_TRG_DIR%\wolfcrypt\src
 mkdir      %WOLFSSLLIB_TRG_DIR%\wolfssl
+mkdir      %WOLFSSLLIB_TRG_DIR%\wolfssl\openssl
 mkdir      %WOLFSSLLIB_TRG_DIR%\test
 mkdir      %WOLFSSLLIB_TRG_DIR%\include
 
@@ -33,8 +34,12 @@ xcopy /Y/Q %BASEDIR%\wolfcrypt\src\*.c %WOLFSSLLIB_TRG_DIR%\wolfcrypt\src
 xcopy /Y/Q %BASEDIR%\wolfcrypt\src\*.i %WOLFSSLLIB_TRG_DIR%\wolfcrypt\src
 xcopy /E/Y/Q %BASEDIR%\wolfcrypt\src\port %WOLFSSLLIB_TRG_DIR%\wolfcrypt\src\port\
 xcopy /E/Y/Q %BASEDIR%\wolfcrypt\test %WOLFSSLLIB_TRG_DIR%\wolfcrypt\test\
+rem Copy dummy test_paths.h to handle the case configure hasn't yet executed 
+echo F |xcopy /E/Y %WOLFSSL_ESPIDFDIR%\dummy_test_paths.h %WOLFSSLLIB_TRG_DIR%\wolfcrypt\test\test_paths.h
+xcopy /E/Y/Q %WOLFSSL_ESPIDFDIR%\dummy_test_paths.h %WOLFSSLIB_TRG_DIR%\wolfcrypt\test\test_paths.h
 xcopy /E/Y/Q %BASEDIR%\wolfcrypt\benchmark %WOLFSSLLIB_TRG_DIR%\wolfcrypt\benchmark\
 xcopy /Y/Q %BASEDIR%\wolfssl\*.h %WOLFSSLLIB_TRG_DIR%\wolfssl\
+xcopy /Y/Q %BASEDIR%\wolfssl\openssl\*.h %WOLFSSLLIB_TRG_DIR%\wolfssl\openssl\
 xcopy /E/Y/Q %BASEDIR%\wolfssl\wolfcrypt %WOLFSSLLIB_TRG_DIR%\wolfssl\wolfcrypt\
 
 rem user_settings.h
@@ -50,11 +55,11 @@ rem Benchmark program
 rmdir /S/Q %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\
 mkdir      %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\main\
 
-xcopy      %BASEDIR%\wolfcrypt\benchmark\benchmark.h  %BASEDIR%\IDE\Espressif\ESP-IDF\examples\wolfssl_benchmark\main\benchmark.h
-xcopy      %BASEDIR%\wolfcrypt\benchmark\benchmark.c  %BASEDIR%\IDE\Espressif\ESP-IDF\examples\wolfssl_benchmark\main\benchmark.c
+echo F |xcopy /E/Y %BASEDIR%\wolfcrypt\benchmark\benchmark.h  %BASEDIR%\IDE\Espressif\ESP-IDF\examples\wolfssl_benchmark\main\benchmark.h
+echo F |xcopy /E/Y %BASEDIR%\wolfcrypt\benchmark\benchmark.c  %BASEDIR%\IDE\Espressif\ESP-IDF\examples\wolfssl_benchmark\main\benchmark.c
 
 xcopy /F/Q %BASEDIR%\wolfcrypt\benchmark\benchmark.c %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\main\
-xcopy /E/F/Q %WOLFSSL_ESPIDFDIR%\examples\wolfssl_benchmark %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\
+xcopy /E/F/Q/Y %WOLFSSL_ESPIDFDIR%\examples\wolfssl_benchmark %WOLFSSLEXP_TRG_DIR%\wolfssl_benchmark\
 
 rem Crypt Test program
 rmdir /S/Q %WOLFSSLEXP_TRG_DIR%\wolfssl_test\

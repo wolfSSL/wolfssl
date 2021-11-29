@@ -58,6 +58,7 @@ ${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/src
 ${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/wolfcrypt
 ${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/src
 ${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/wolfssl
+${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/wolfssl/openssl
 ${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/test
 ${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/include
 
@@ -76,9 +77,12 @@ ${CPDCMD} ./src/*.c ${WOLFSSLLIB_TRG_DIR}/src/
 ${CPDCMD} -r ./wolfcrypt/src/*.{c,i} ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/src/
 ${CPDCMD} -r ./wolfcrypt/src/port  ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/src/port/
 ${CPDCMD} -r ./wolfcrypt/test ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/
+# Copy dummy test_paths.h to handle the case configure hasn't yet executed 
+${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/dummy_test_paths.h ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/test/test_paths.h 
 ${CPDCMD} -r ./wolfcrypt/benchmark ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/
 
 ${CPDCMD} -r ./wolfssl/*.h ${WOLFSSLLIB_TRG_DIR}/wolfssl/
+${CPDCMD} -r ./wolfssl/openssl/*.h ${WOLFSSLLIB_TRG_DIR}/wolfssl/openssl/
 ${CPDCMD} -r ./wolfssl/wolfcrypt ${WOLFSSLLIB_TRG_DIR}/wolfssl/
 
 # user_settings.h
