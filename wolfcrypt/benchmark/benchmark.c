@@ -6642,7 +6642,8 @@ void bench_sakke(void)
 
 #ifdef HAVE_LIBOQS
 static void bench_oqsKemInit(word32 alg, byte **priv_key, byte **pub_key,
-                   const char **wolf_name, OQS_KEM **kem) {
+                   const char **wolf_name, OQS_KEM **kem)
+{
     int i;
     const char *oqs_name = NULL;
 
