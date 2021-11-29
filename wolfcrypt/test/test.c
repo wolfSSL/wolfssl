@@ -21580,12 +21580,12 @@ static int ecc_test_make_pub(WC_RNG* rng)
     if (pubPoint == NULL) {
         ERROR_OUT(-9858, done);
     }
-
+#if !defined(WOLFSSL_CRYPTOCELL)
     ret = wc_ecc_make_pub(key, pubPoint);
     if (ret != 0) {
-        ERROR_OUT(-9859, done);
+       ERROR_OUT(-9859, done);
     }
-
+#endif
     TEST_SLEEP();
 
 #ifdef HAVE_ECC_KEY_EXPORT
@@ -22840,7 +22840,8 @@ done:
 }
 #endif /* HAVE_ECC_KEY_IMPORT && HAVE_ECC_KEY_EXPORT */
 
-#if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT)
+#if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && \
+    !defined(WOLFSSL_CRYPTOCELL)
 static int ecc_mulmod_test(ecc_key* key1)
 {
     int ret;
@@ -22999,7 +23000,7 @@ static int ecc_def_curve_test(WC_RNG *rng)
     #endif
     TEST_SLEEP();
 
-    #ifdef HAVE_ECC_DHE
+    #if defined(HAVE_ECC_DHE) && !defined(WOLFSSL_CRYPTOCELL)
     ret = ecc_ssh_test(key, rng);
     if (ret < 0)
         goto done;
@@ -23038,7 +23039,8 @@ static int ecc_def_curve_test(WC_RNG *rng)
     if (ret < 0)
         goto done;
 #endif
-#if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT)
+#if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT) && \
+    !defined(WOLFSSL_CRYPTOCELL)
     ret = ecc_mulmod_test(key);
     if (ret < 0)
         goto done;

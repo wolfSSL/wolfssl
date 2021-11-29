@@ -48,11 +48,11 @@
 /* Signature wrapper disabled check */
 #ifndef NO_SIG_WRAPPER
 
-#ifdef WOLFSSL_CRYPTOCELL
-extern int cc310_RsaSSL_Verify(const byte* in, word32 inLen, byte* sig,
-                            RsaKey* key, CRYS_RSA_HASH_OpMode_t mode);
-extern int cc310_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
-                word32 outLen, RsaKey* key, CRYS_RSA_HASH_OpMode_t mode);
+#if !defined(NO_RSA) && defined(WOLFSSL_CRYPTOCELL)
+    extern int cc310_RsaSSL_Verify(const byte* in, word32 inLen, byte* sig,
+                                RsaKey* key, CRYS_RSA_HASH_OpMode_t mode);
+    extern int cc310_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
+                    word32 outLen, RsaKey* key, CRYS_RSA_HASH_OpMode_t mode);
 #endif
 
 #if !defined(NO_RSA) && !defined(NO_ASN)
