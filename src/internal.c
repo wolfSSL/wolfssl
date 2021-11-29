@@ -2121,8 +2121,8 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->CBIORecv = Mynewt_Receive;
     ctx->CBIOSend = Mynewt_Send;
 #elif defined WOLFSSL_LWIP_NATIVE
-		ctx->CBIORecv = LwIPNativeReceive;
-		ctx->CBIOSend = LwIPNativeSend;
+    ctx->CBIORecv = LwIPNativeReceive;
+    ctx->CBIOSend = LwIPNativeSend;
 #elif defined(WOLFSSL_GNRC)
     ctx->CBIORecv = GNRC_ReceiveFrom;
     ctx->CBIOSend = GNRC_SendTo;

@@ -2485,7 +2485,8 @@ time_t stm32_hal_time(time_t *t1)
     RTC_TimeTypeDef time;
     RTC_DateTypeDef date;
 
-    /* must get time and date here due to STM32 HW bug */
+    /* order of GetTime followed by GetDate required here due to STM32 HW
+     * requirement */
     HAL_RTC_GetTime(&hrtc, &time, FORMAT_BIN);
     HAL_RTC_GetDate(&hrtc, &date, FORMAT_BIN);
 

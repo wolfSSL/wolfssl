@@ -2567,15 +2567,14 @@ int LwIPNativeSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 }
 
 
-int LwIPNativeReceive(WOLFSSL* ssl, char* buf, int sz,
-                                     void* ctx)
+int LwIPNativeReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
     struct pbuf *current, *head;
     WOLFSSL_LWIP_NATIVE_STATE* nlwip;
     int ret = 0;
 
     if (nlwip == NULL || ctx == NULL) {
-            return WOLFSSL_CBIO_ERR_GENERAL;
+        return WOLFSSL_CBIO_ERR_GENERAL;
     }
     nlwip = (WOLFSSL_LWIP_NATIVE_STATE*)ctx;
 
@@ -2604,7 +2603,7 @@ int LwIPNativeReceive(WOLFSSL* ssl, char* buf, int sz,
             XMEMCPY(&buf[read],
                    (const char *)&(((char *)(current->payload))[nlwip->pulled]),
 
-                   len);
+                    len);
             nlwip->pulled = nlwip->pulled + len;
             if (nlwip->pulled >= current->len) {
                 WOLFSSL_MSG("Native LwIP read full pbuf");
@@ -2660,6 +2659,10 @@ static err_t LwIPNativeReceiveCB(void* cb, struct tcp_pcb* pcb,
         }
     }
 
+    if (nlwip->recv_fn) {
+        return nlwip->recv_fn(nlwip->arg, pcb, pbuf, err);
+    }
+
     WOLFSSL_LEAVE("LwIPNativeReceiveCB", nlwip->pbuf->tot_len);
     return ERR_OK;
 }
@@ -2667,9 +2670,17 @@ static err_t LwIPNativeReceiveCB(void* cb, struct tcp_pcb* pcb,
 
 static err_t LwIPNativeSentCB(void* cb, struct tcp_pcb* pcb, u16_t len)
 {
-    (void)cb;
-    (void)pcb;
-    (void)len;
+    WOLFSSL_LWIP_NATIVE_STATE* nlwip;
+
+    if (cb == NULL || pcb == NULL) {
+        WOLFSSL_MSG("Expected callback was null, abort");
+        return ERR_ABRT;
+    }
+
+    nlwip = (WOLFSSL_LWIP_NATIVE_STATE*)cb;
+    if (nlwip->sent_fn) {
+        return nlwip->sent_fn(nlwip->arg, pcb, len);
+    }
     return ERR_OK;
 }
 
@@ -2691,7 +2702,7 @@ int wolfSSL_SetIO_LwIP(WOLFSSL* ssl, void* pcb,
     /* wolfSSL_LwIP_recv/sent_cb invokes recv/sent user callback in them. */
     tcp_recv(pcb, LwIPNativeReceiveCB);
     tcp_sent(pcb, LwIPNativeSentCB);
-    tcp_arg (pcb, (void *)&(ssl->lwipCtx));
+    tcp_arg (pcb, (void *)&ssl->lwipCtx);
     wolfSSL_SetIOReadCtx(ssl, &ssl->lwipCtx);
     wolfSSL_SetIOWriteCtx(ssl, &ssl->lwipCtx);
 
