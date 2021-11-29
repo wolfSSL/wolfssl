@@ -62,6 +62,7 @@ WOLFSSL_OBJS += 	\
 	$(WOLFSSL_BUILD)/wolfcrypt/poly1305.o  \
 	$(WOLFSSL_BUILD)/wolfcrypt/pwdbased.o  \
 	$(WOLFSSL_BUILD)/wolfcrypt/random.o  \
+	$(WOLFSSL_BUILD)/wolfcrypt/kdf.o  \
 	$(WOLFSSL_BUILD)/wolfcrypt/sha.o  \
 	$(WOLFSSL_BUILD)/wolfcrypt/sha256.o  \
 	$(WOLFSSL_BUILD)/wolfcrypt/sha512.o  \

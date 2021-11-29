@@ -26,7 +26,7 @@
 #include <stdint.h>
 
 /* Uncomment next line to enable 2-bytes ID demo */
-#define TWO_BYTES_ID_DEMO
+/* #define TWO_BYTES_ID_DEMO */
 
 
 /* IOT-Safe slot configurations for this example:
