@@ -210,6 +210,14 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             side = tls_server;
 
 #ifdef WOLFSSL_HAVE_PRF
+#if !defined(NO_CERTS) && defined(HAVE_PK_CALLBACKS)
+        if (ssl->ctx->TlsFinishedCb) {
+            void* ctx = wolfSSL_GetTlsFinishedCtx(ssl);
+            ret = ssl->ctx->TlsFinishedCb(ssl, side, handshake_hash, 
+                                        (byte*)hashes, ctx);
+        }
+        if (!ssl->ctx->TlsFinishedCb || ret == PROTOCOLCB_UNAVAILABLE)
+#endif
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
         if (tsip_useable(ssl)) {
@@ -393,15 +401,23 @@ int DeriveTlsKeys(WOLFSSL* ssl)
         ret = tsip_generateSeesionKey(ssl);
     else {
 #endif
-    ret = _DeriveTlsKeys(key_dig, key_dig_len,
+#if !defined(NO_CERTS) && defined(HAVE_PK_CALLBACKS)
+        ret = PROTOCOLCB_UNAVAILABLE;
+        if (ssl->ctx->GenSessionKeyCb) {
+            void* ctx = wolfSSL_GetGenSessionKeyCtx(ssl);
+            ret = ssl->ctx->GenSessionKeyCb(ssl, ctx);
+        }
+        if (!ssl->ctx->GenSessionKeyCb || ret == PROTOCOLCB_UNAVAILABLE)
+#endif
+        ret = _DeriveTlsKeys(key_dig, key_dig_len,
                          ssl->arrays->masterSecret, SECRET_LEN,
                          ssl->arrays->serverRandom, ssl->arrays->clientRandom,
                          IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm,
                          ssl->heap, ssl->devId);
     if (ret == 0)
         ret = StoreKeys(ssl, key_dig, PROVISION_CLIENT_SERVER);
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
-    !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
+#if (defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+    !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION))
     }
 #endif
 
@@ -576,6 +592,14 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
 
             #endif
         } else
+#endif
+#if !defined(NO_CERTS) && defined(HAVE_PK_CALLBACKS)
+        ret = PROTOCOLCB_UNAVAILABLE;
+        if (ssl->ctx->GenMasterCb) {
+            void* ctx = wolfSSL_GetGenMasterSecretCtx(ssl);
+            ret = ssl->ctx->GenMasterCb(ssl, ctx);
+        }
+        if (!ssl->ctx->GenMasterCb || ret == PROTOCOLCB_UNAVAILABLE)
 #endif
         ret = _MakeTlsMasterSecret(ssl->arrays->masterSecret, SECRET_LEN,
               ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz,
@@ -1196,6 +1220,7 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
         return ret;
     }
 #endif
+
     ret = wc_HmacInit(&hmac, ssl->heap, ssl->devId);
     if (ret != 0)
         return ret;

@@ -218,7 +218,7 @@ int tsip_useable(const struct WOLFSSL *ssl)
     
     /* when rsa key index == NULL, tsip isn't used for cert verification. */
     /* in the case, we cannot use TSIP.                                   */
-    if (!ssl->peerTsipEncRsaKeyIndex)
+    if (!ssl->peerSceTsipEncRsaKeyIndex)
         return 0;
     
     /* when enabled Extended Master Secret, we cannot use TSIP.           */
@@ -242,19 +242,7 @@ int tsip_useable(const struct WOLFSSL *ssl)
         return 0;
 }
 
-/* check if the g_alreadyVerified CA's key can be used for *
- * peer's certification                                    */
-byte tsip_checkCA(word32 cmIdx)
-{
-    return (cmIdx == g_CAscm_Idx? 1:0);
-}
 
-/* check if the root CA has been verified by TSIP, *
- * and it exists in the CM table.                  */
-byte tsip_rootCAverified( )
-{
-    return (g_CAscm_Idx != (uint32_t)-1 ? 1:0);
-}
 
 /* open TSIP driver for use */
 int tsip_Open()
@@ -820,14 +808,14 @@ int tsip_generateEncryptPreMasterSecret(
             #if  (WOLFSSL_RENESAS_TSIP_VER>=109)
            
             ret = R_TSIP_TlsEncryptPreMasterSecretWithRsa2048PublicKey(
-                        (uint32_t*)ssl->peerTsipEncRsaKeyIndex,
+                        (uint32_t*)ssl->peerSceTsipEncRsaKeyIndex,
                         (uint32_t*)&ssl->arrays->preMasterSecret[VERSION_SZ],
                         (uint8_t*)out);
 
             #elif (WOLFSSL_RENESAS_TSIP_VER>=106)
             
             ret = R_TSIP_TlsEncryptPreMasterSecret(
-                          (uint32_t*)ssl->peerTsipEncRsaKeyIndex,
+                          (uint32_t*)ssl->peerSceTsipEncRsaKeyIndex,
                           (uint32_t*)&ssl->arrays->preMasterSecret[VERSION_SZ],
                           (uint8_t*)out);
             

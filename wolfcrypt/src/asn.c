@@ -139,6 +139,10 @@ ASN Options:
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
 
+#ifdef WOLFSSL_RENESAS_SCEPROTECT
+    #include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>
+#endif
+
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
 #if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_CRYPTOCELL)
@@ -198,6 +202,7 @@ int tsip_tls_CertVerify(const byte *cert, word32 certSz,
                         word32 key_e_start, word32 key_e_len,
                         byte *tsip_encRsaKeyIdx);
 #endif
+
 
 /* Calculates the minimum number of bytes required to encode the value.
  *
@@ -7647,7 +7652,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
 #ifndef NO_RSA
 
 #ifndef HAVE_USER_RSA
-#ifdef WOLFSSL_RENESAS_TSIP
+#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
 /* This function is to retrieve key position information in a cert.*
  * The information will be used to call TSIP TLS-linked API for    *
  * certificate verification.                                       */
@@ -9586,9 +9591,9 @@ void FreeDecodedCert(DecodedCert* cert)
     if (cert->subjectName != NULL)
         wolfSSL_X509_NAME_free((WOLFSSL_X509_NAME*)cert->subjectName);
 #endif /* WOLFSSL_X509_NAME_AVAILABLE */
-#ifdef WOLFSSL_RENESAS_TSIP_TLS
-    if (cert->tsip_encRsaKeyIdx != NULL)
-        XFREE(cert->tsip_encRsaKeyIdx, cert->heap, DYNAMIC_TYPE_RSA);
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+    if (cert->sce_tsip_encRsaKeyIdx != NULL)
+        XFREE(cert->sce_tsip_encRsaKeyIdx, cert->heap, DYNAMIC_TYPE_RSA);
 #endif
 #ifndef NO_CERTS
     FreeSignatureCtx(&cert->sigCtx);
@@ -9709,8 +9714,9 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     if (GetSequence(source, srcIdx, &length, pubIdx + pubLen) < 0)
         return ASN_PARSE_E;
 
-#if defined(WOLFSSL_RENESAS_TSIP)
-    cert->sigCtx.pubkey_n_start = cert->sigCtx.pubkey_e_start = pubIdx;
+#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+    cert->sigCtx.CertAtt.pubkey_n_start = 
+            cert->sigCtx.CertAtt.pubkey_e_start = pubIdx;
 #endif
     cert->pubKeySize = pubLen;
     cert->publicKey = source + pubIdx;
@@ -9735,10 +9741,10 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
          * SEQUENCE. */
         GetASN_GetConstRef(&dataASN[0], &cert->publicKey, &cert->pubKeySize);
 
-    #if defined(WOLFSSL_RENESAS_TSIP)
+    #if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
         /* Start of SEQUENCE. */
-        cert->sigCtx.pubkey_n_start = cert->sigCtx.pubkey_e_start =
-                dataASN[1].offset;
+        cert->sigCtx.CertAtt.pubkey_n_start = 
+            cert->sigCtx.CertAtt.pubkey_e_start = dataASN[1].offset;
     #endif
     #ifdef HAVE_OCSP
         /* Calculate the hash of the public key for OCSP. */
@@ -9806,13 +9812,25 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
                                                                     maxIdx) < 0)
             return ASN_PARSE_E;
 
-        if (CheckCurve(cert->pkCurveOID) < 0)
+        if ((ret = CheckCurve(cert->pkCurveOID)) < 0)
             return ECC_CURVE_OID_E;
-
+        
+    #if defined(WOLFSSL_RENESAS_SCEPROTECT)
+        cert->sigCtx.CertAtt.curve_id = ret;
+    #endif
         /* key header */
         ret = CheckBitString(source, srcIdx, &length, maxIdx, 1, NULL);
         if (ret != 0)
             return ret;
+    #if defined(WOLFSSL_RENESAS_SCEPROTECT)
+        cert->sigCtx.CertAtt.pubkey_n_start = 
+                cert->sigCtx.CertAtt.pubkey_e_start = (*srcIdx + 1);
+        cert->sigCtx.CertAtt.pubkey_n_len = ((length - 1) >> 1);
+        cert->sigCtx.CertAtt.pubkey_e_start +=
+                cert->sigCtx.CertAtt.pubkey_n_len;
+        cert->sigCtx.CertAtt.pubkey_e_len   = 
+                cert->sigCtx.CertAtt.pubkey_n_len;
+    #endif
     #ifdef HAVE_OCSP
         ret = CalcHashId(source + *srcIdx, length, cert->subjectKeyHash);
         if (ret != 0)
@@ -13072,9 +13090,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
     const byte* sig, word32 sigSz, word32 sigOID, byte* rsaKeyIdx)
 {
     int ret = 0;
-#ifndef WOLFSSL_RENESAS_TSIP_TLS
-    (void)rsaKeyIdx;
-#endif
+    
     if (sigCtx == NULL || buf == NULL || bufSz == 0 || key == NULL ||
         keySz == 0 || sig == NULL || sigSz == 0) {
         return BAD_FUNC_ARG;
@@ -13087,6 +13103,21 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
 
     WOLFSSL_ENTER("ConfirmSignature");
 
+#if !defined(WOLFSSL_RENESAS_TSIP_TLS) && !defined(WOLFSSL_RENESAS_SCEPROTECT)
+    (void)rsaKeyIdx;
+#else
+    CertAttribute* certatt = NULL;
+    
+    #if !defined(NO_RSA) || defined(HAVE_ECC)
+    certatt = (CertAttribute*)&sigCtx->CertAtt;
+    #endif
+    if(certatt) {
+        certatt->keyIndex = rsaKeyIdx;
+        certatt->cert = buf;
+        certatt->certSz = bufSz;
+    }
+#endif
+    
 #ifndef NO_ASN_CRYPT
     switch (sigCtx->state) {
         case SIG_STATE_BEGIN:
@@ -13413,29 +13444,34 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
             #ifndef NO_RSA
                 case RSAk:
                 {
-                #ifdef HAVE_PK_CALLBACKS
+                #if defined(HAVE_PK_CALLBACKS) && \
+                    !defined(WOLFSSL_RENESAS_TSIP_TLS)
                     if (sigCtx->pkCbRsa) {
                         ret = sigCtx->pkCbRsa(
                                 sigCtx->sigCpy, sigSz, &sigCtx->out,
                                 key, keySz,
                                 sigCtx->pkCtxRsa);
                     }
+                #if !defined(WOLFSSL_RENESAS_SCEPROTECT)
                     else
+                #else
+                    if (!sigCtx->pkCbRsa || ret == CRYPTOCB_UNAVAILABLE)
+                #endif /* WOLFSSL_RENESAS_SCEPROTECT */
                 #endif /* HAVE_PK_CALLBACKS */
                     {
                      #ifdef WOLFSSL_RENESAS_TSIP_TLS
                         if (rsaKeyIdx != NULL)
                         {
                             ret = tsip_tls_CertVerify(buf, bufSz, sigCtx->sigCpy,
-                                sigSz,
-                                sigCtx->pubkey_n_start - sigCtx->certBegin,
-                                sigCtx->pubkey_n_len - 1,
-                                sigCtx->pubkey_e_start - sigCtx->certBegin,
-                                sigCtx->pubkey_e_len - 1,
-                                rsaKeyIdx);
+                            sigSz,
+                            sigCtx->.CertAtt.pubkey_n_start - sigCtx->certBegin,
+                            sigCtx->.CertAtt.pubkey_n_len - 1,
+                            sigCtx->.CertAtt.pubkey_e_start - sigCtx->certBegin,
+                            sigCtx->.CertAtt.pubkey_e_len - 1,
+                            rsaKeyIdx);
 
                             if (ret == 0){
-                                sigCtx->verifyByTSIP = 1;
+                                sigCtx->verifyByTSIP_SCE = 1;
                                 ret = 0;
                             } else {
                                 WOLFSSL_MSG("RSA Verify by tsip didn't match");
@@ -13460,7 +13496,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
             #if defined(HAVE_ECC)
                 case ECDSAk:
                 {
-                #ifdef HAVE_PK_CALLBACKS
+                #if defined(HAVE_PK_CALLBACKS)
                     if (sigCtx->pkCbEcc) {
                         ret = sigCtx->pkCbEcc(
                                 sig, sigSz,
@@ -13468,7 +13504,11 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                                 key, keySz, &sigCtx->verify,
                                 sigCtx->pkCtxEcc);
                     }
+                #if !defined(WOLFSSL_RENESAS_SCEPROTECT)
                     else
+                #else
+                    if (!sigCtx->pkCbEcc || ret == CRYPTOCB_UNAVAILABLE)
+                #endif /* WOLFSSL_RENESAS_SCEPROTECT */
                 #endif /* HAVE_PK_CALLBACKS */
                     {
                         ret = wc_ecc_verify_hash(sig, sigSz, sigCtx->digest,
@@ -13532,8 +13572,9 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 case RSAk:
                 {
                     int encodedSigSz, verifySz;
-                #ifdef WOLFSSL_RENESAS_TSIP
-                    if (sigCtx->verifyByTSIP == 1) break;
+                #if defined(WOLFSSL_RENESAS_TSIP) || \
+                                            defined(WOLFSSL_RENESAS_SCEPROTECT)
+                    if (sigCtx->CertAtt.verifyByTSIP_SCE == 1) break;
                 #endif
                 #ifdef WOLFSSL_SMALL_STACK
                     byte* encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
@@ -17791,10 +17832,10 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     int    len = 0;
 #endif
 #endif
-#if defined(WOLFSSL_RENESAS_TSIP)
+#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
     int    idx = 0;
 #endif
-    byte*  tsip_encRsaKeyIdx;
+    byte*  sce_tsip_encRsaKeyIdx;
 
     if (cert == NULL) {
         return BAD_FUNC_ARG;
@@ -18149,52 +18190,56 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         }
         #endif /* HAVE_OCSP */
     }
-#if defined(WOLFSSL_RENESAS_TSIP)
+#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
     /* prepare for TSIP TLS cert verification API use */
     if (cert->keyOID == RSAk) {
         /* to call TSIP API, it needs keys position info in bytes */
         if ((ret = RsaPublicKeyDecodeRawIndex(cert->publicKey, (word32*)&idx,
                                    cert->pubKeySize,
-                                   &cert->sigCtx.pubkey_n_start,
-                                   &cert->sigCtx.pubkey_n_len,
-                                   &cert->sigCtx.pubkey_e_start,
-                                   &cert->sigCtx.pubkey_e_len)) != 0) {
+                                   &cert->sigCtx.CertAtt.pubkey_n_start,
+                                   &cert->sigCtx.CertAtt.pubkey_n_len,
+                                   &cert->sigCtx.CertAtt.pubkey_e_start,
+                                   &cert->sigCtx.CertAtt.pubkey_e_len)) != 0) {
             WOLFSSL_MSG("Decoding index from cert failed.");
             return ret;
         }
-        cert->sigCtx.certBegin = cert->certBegin;
+        cert->sigCtx.CertAtt.certBegin = cert->certBegin;
+    } else if (cert->keyOID == ECDSAk) {
+        cert->sigCtx.CertAtt.certBegin = cert->certBegin;
     }
     /* check if we can use TSIP for cert verification */
     /* if the ca is verified as tsip root ca.         */
     /* TSIP can only handle 2048 bits(256 byte) key.  */
-    if (cert->ca && tsip_checkCA(cert->ca->cm_idx) != 0 &&
-        cert->sigCtx.pubkey_n_len == 256) {
+    if (cert->ca && Renesas_cmn_checkCA(cert->ca->cm_idx) != 0 &&
+        (cert->sigCtx.CertAtt.pubkey_n_len == 256 || 
+         cert->sigCtx.CertAtt.curve_id == ECC_SECP256R1)) {
 
         /* assign memory to encrypted tsip Rsa key index */
-        if (!cert->tsip_encRsaKeyIdx)
-            cert->tsip_encRsaKeyIdx =
+        if (!cert->sce_tsip_encRsaKeyIdx)
+            cert->sce_tsip_encRsaKeyIdx =
                             (byte*)XMALLOC(TSIP_TLS_ENCPUBKEY_SZ_BY_CERTVRFY,
                              cert->heap, DYNAMIC_TYPE_RSA);
-        if (cert->tsip_encRsaKeyIdx == NULL)
+        if (cert->sce_tsip_encRsaKeyIdx == NULL)
                 return MEMORY_E;
     } else {
         if (cert->ca) {
             /* TSIP isn't usable */
-            if (tsip_checkCA(cert->ca->cm_idx) == 0)
-                WOLFSSL_MSG("TSIP isn't usable because the ca isn't verified "
+            if (Renesas_cmn_checkCA(cert->ca->cm_idx) == 0)
+                WOLFSSL_MSG("SCE-TSIP isn't usable because the ca isn't verified "
                             "by TSIP.");
-            else if (cert->sigCtx.pubkey_n_len != 256)
-                WOLFSSL_MSG("TSIP isn't usable because the ca isn't signed by "
+            else if (cert->sigCtx.CertAtt.pubkey_n_len != 256)
+                WOLFSSL_MSG("SCE-TSIP isn't usable because the ca isn't signed by "
                             "RSA 2048.");
             else
-                WOLFSSL_MSG("TSIP isn't usable");
+                WOLFSSL_MSG("SCE-TSIP isn't usable");
         }
-        cert->tsip_encRsaKeyIdx = NULL;
+        cert->sce_tsip_encRsaKeyIdx = NULL;
     }
-
-    tsip_encRsaKeyIdx = cert->tsip_encRsaKeyIdx;
+    
+    sce_tsip_encRsaKeyIdx = cert->sce_tsip_encRsaKeyIdx;
+    
 #else
-    tsip_encRsaKeyIdx = NULL;
+    sce_tsip_encRsaKeyIdx = NULL;
 #endif
 
     if (verify != NO_VERIFY && type != CA_TYPE && type != TRUSTED_PEER_TYPE) {
@@ -18208,7 +18253,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                         cert->ca->publicKey, cert->ca->pubKeySize,
                         cert->ca->keyOID, cert->signature,
                         cert->sigLength, cert->signatureOID,
-                        tsip_encRsaKeyIdx)) != 0) {
+                        sce_tsip_encRsaKeyIdx)) != 0) {
                     if (ret != WC_PENDING_E) {
                         WOLFSSL_MSG("Confirm signature failed");
                     }

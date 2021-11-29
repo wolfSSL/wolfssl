@@ -554,6 +554,8 @@ const char* wc_GetErrorString(int error)
     case FIPS_PRIVATE_KEY_LOCKED_E:
         return "Cannot export private key, locked";
 
+    case PROTOCOLCB_UNAVAILABLE:
+        return "Protocol callback unavailable";
     default:
         return "unknown error number";
 

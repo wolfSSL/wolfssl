@@ -2256,6 +2256,11 @@ typedef struct Keys {
     tsip_hmac_sha_key_index_t tsip_server_write_MAC_secret;
 
 #endif
+#ifdef WOLFSSL_RENESAS_SCEPROTECT
+
+    sce_hmac_sha_wrapped_key_t sce_client_write_MAC_secret;
+    sce_hmac_sha_wrapped_key_t sce_server_write_MAC_secret;
+#endif
 } Keys;
 
 
@@ -3052,6 +3057,12 @@ struct WOLFSSL_CTX {
         CallbackRsaEnc    RsaEncCb;     /* User Rsa Public Encrypt  handler */
         CallbackRsaDec    RsaDecCb;     /* User Rsa Private Decrypt handler */
     #endif /* NO_RSA */
+    CallbackGenPreMaster        GenPreMasterCb;     /* Use generate pre-master handler */
+    CallbackGenMasterSecret     GenMasterCb;        /* Use generate master secret handler */
+    CallbackGenSessionKey       GenSessionKeyCb;    /* Use generate session key handler */
+    CallbackEncryptKeys         EncryptKeysCb;/* Use setting encrypt keys handler */
+    CallbackTlsFinished         TlsFinishedCb;      /* Use Tls finished handler */
+    CallbackVerifyMac           VerifyMacCb;        /* Use Verify mac handler */
 #endif /* HAVE_PK_CALLBACKS */
 #ifdef HAVE_WOLF_EVENT
     WOLF_EVENT_QUEUE event_queue;
@@ -3756,6 +3767,9 @@ typedef struct Arrays {
    !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
     byte            tsip_masterSecret[TSIP_TLS_MASTERSECRET_SIZE];
 #endif
+#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+    byte            sce_masterSecret[SCE_TLS_MASTERSECRET_SIZE];
+#endif
 #ifdef WOLFSSL_DTLS
     byte            cookie[MAX_COOKIE_LEN];
     byte            cookieSz;
@@ -4242,8 +4256,8 @@ struct WOLFSSL {
 #endif /* OPENSSL_EXTRA */
 #ifndef NO_RSA
     RsaKey*         peerRsaKey;
-#ifdef WOLFSSL_RENESAS_TSIP_TLS
-    byte            *peerTsipEncRsaKeyIndex;
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+    byte*           peerSceTsipEncRsaKeyIndex;
 #endif
     byte            peerRsaKeyPresent;
 #endif
@@ -4469,6 +4483,12 @@ struct WOLFSSL {
         void* RsaEncCtx;      /* Rsa Public  Encrypt   Callback Context */
         void* RsaDecCtx;      /* Rsa Private Decrypt   Callback Context */
     #endif /* NO_RSA */
+    void* GenPreMasterCtx;   /* Generate Premaster Callback Context */
+    void* GenMasterCtx;      /* Generate Master Callback Context */
+    void* GenSessionKeyCtx;  /* Generate Sesssion Key Callback Context */
+    void* EncryptKeysCtx;    /* Set Encrypt keys Callback Context */
+    void* TlsFinishedCtx;    /* Generate Tls Finished Callback Context */
+    void* VerifyMacCtx;      /* Verify mac Callback Context */
 #endif /* HAVE_PK_CALLBACKS */
 #ifdef HAVE_SECRET_CALLBACK
         SessionSecretCb sessionSecretCb;
