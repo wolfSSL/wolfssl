@@ -4349,6 +4349,23 @@ int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx)
                                 ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF |
                                 ECC_CURVE_FIELD_BF);
     }
+
+    /* x must be in the range [0, p-1] */
+    if (err == MP_OKAY) {
+        if (mp_cmp(p->x, curve->prime) != MP_LT)
+            err = ECC_OUT_OF_RANGE_E;
+    }
+    /* y must be in the range [0, p-1] */
+    if (err == MP_OKAY) {
+        if (mp_cmp(p->y, curve->prime) != MP_LT)
+            err = ECC_OUT_OF_RANGE_E;
+    }
+    /* z must be 1 */
+    if (err == MP_OKAY) {
+        if (!mp_isone(p->z))
+            err = ECC_BAD_ARG_E;
+    }
+
     if (err == MP_OKAY) {
         err = wc_ecc_is_point(p, curve->Af, curve->Bf, curve->prime);
     }
