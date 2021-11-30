@@ -11079,7 +11079,7 @@ int InitSigPkCb(WOLFSSL* ssl, SignatureCtx* sigCtx)
         sigCtx->pkCtxEcc = ssl;
     }
     #endif
-    
+
 #endif
 #ifndef NO_RSA
     /* only setup the verify callback if a PK is set */
@@ -11093,7 +11093,7 @@ int InitSigPkCb(WOLFSSL* ssl, SignatureCtx* sigCtx)
         sigCtx->pkCtxRsa = ssl;
     }
     #endif
-    
+
 #endif
 
     return 0;
@@ -16714,7 +16714,7 @@ static WC_INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
             ret = PROTOCOLCB_UNAVAILABLE;
             if(ssl->ctx->VerifyMacCb) {
                 void* ctx = wolfSSL_GetVerifyMacCtx(ssl);
-                ret = ssl->ctx->VerifyMacCb(ssl, input, 
+                ret = ssl->ctx->VerifyMacCb(ssl, input,
                            (msgSz - ivExtra) - digestSz - pad - 1,
                            digestSz, content, ctx);
                 if (ret != 0 && ret != PROTOCOLCB_UNAVAILABLE) {
@@ -25438,7 +25438,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         if (ret != 0) {
                             goto exit_scke;
                         }
-                      
+
                         ssl->arrays->preMasterSecret[0] = ssl->chVersion.major;
                         ssl->arrays->preMasterSecret[1] = ssl->chVersion.minor;
 

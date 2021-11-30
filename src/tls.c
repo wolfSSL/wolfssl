@@ -213,7 +213,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #if !defined(NO_CERTS) && defined(HAVE_PK_CALLBACKS)
         if (ssl->ctx->TlsFinishedCb) {
             void* ctx = wolfSSL_GetTlsFinishedCtx(ssl);
-            ret = ssl->ctx->TlsFinishedCb(ssl, side, handshake_hash, 
+            ret = ssl->ctx->TlsFinishedCb(ssl, side, handshake_hash,
                                         (byte*)hashes, ctx);
         }
         if (!ssl->ctx->TlsFinishedCb || ret == PROTOCOLCB_UNAVAILABLE)

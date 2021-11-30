@@ -9715,7 +9715,7 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
         return ASN_PARSE_E;
 
 #if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
-    cert->sigCtx.CertAtt.pubkey_n_start = 
+    cert->sigCtx.CertAtt.pubkey_n_start =
             cert->sigCtx.CertAtt.pubkey_e_start = pubIdx;
 #endif
     cert->pubKeySize = pubLen;
@@ -9743,7 +9743,7 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
 
     #if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
         /* Start of SEQUENCE. */
-        cert->sigCtx.CertAtt.pubkey_n_start = 
+        cert->sigCtx.CertAtt.pubkey_n_start =
             cert->sigCtx.CertAtt.pubkey_e_start = dataASN[1].offset;
     #endif
     #ifdef HAVE_OCSP
@@ -9814,21 +9814,23 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
 
         if ((ret = CheckCurve(cert->pkCurveOID)) < 0)
             return ECC_CURVE_OID_E;
-        
+
     #if defined(WOLFSSL_RENESAS_SCEPROTECT)
         cert->sigCtx.CertAtt.curve_id = ret;
+    #else
+        (void)ret;
     #endif
         /* key header */
         ret = CheckBitString(source, srcIdx, &length, maxIdx, 1, NULL);
         if (ret != 0)
             return ret;
     #if defined(WOLFSSL_RENESAS_SCEPROTECT)
-        cert->sigCtx.CertAtt.pubkey_n_start = 
+        cert->sigCtx.CertAtt.pubkey_n_start =
                 cert->sigCtx.CertAtt.pubkey_e_start = (*srcIdx + 1);
         cert->sigCtx.CertAtt.pubkey_n_len = ((length - 1) >> 1);
         cert->sigCtx.CertAtt.pubkey_e_start +=
                 cert->sigCtx.CertAtt.pubkey_n_len;
-        cert->sigCtx.CertAtt.pubkey_e_len   = 
+        cert->sigCtx.CertAtt.pubkey_e_len   =
                 cert->sigCtx.CertAtt.pubkey_n_len;
     #endif
     #ifdef HAVE_OCSP
@@ -13090,7 +13092,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
     const byte* sig, word32 sigSz, word32 sigOID, byte* rsaKeyIdx)
 {
     int ret = 0;
-    
+
     if (sigCtx == NULL || buf == NULL || bufSz == 0 || key == NULL ||
         keySz == 0 || sig == NULL || sigSz == 0) {
         return BAD_FUNC_ARG;
@@ -13107,7 +13109,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
     (void)rsaKeyIdx;
 #else
     CertAttribute* certatt = NULL;
-    
+
     #if !defined(NO_RSA) || defined(HAVE_ECC)
     certatt = (CertAttribute*)&sigCtx->CertAtt;
     #endif
@@ -13117,7 +13119,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
         certatt->certSz = bufSz;
     }
 #endif
-    
+
 #ifndef NO_ASN_CRYPT
     switch (sigCtx->state) {
         case SIG_STATE_BEGIN:
@@ -18211,7 +18213,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     /* if the ca is verified as tsip root ca.         */
     /* TSIP can only handle 2048 bits(256 byte) key.  */
     if (cert->ca && Renesas_cmn_checkCA(cert->ca->cm_idx) != 0 &&
-        (cert->sigCtx.CertAtt.pubkey_n_len == 256 || 
+        (cert->sigCtx.CertAtt.pubkey_n_len == 256 ||
          cert->sigCtx.CertAtt.curve_id == ECC_SECP256R1)) {
 
         /* assign memory to encrypted tsip Rsa key index */
@@ -18235,9 +18237,9 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         }
         cert->sce_tsip_encRsaKeyIdx = NULL;
     }
-    
+
     sce_tsip_encRsaKeyIdx = cert->sce_tsip_encRsaKeyIdx;
-    
+
 #else
     sce_tsip_encRsaKeyIdx = NULL;
 #endif

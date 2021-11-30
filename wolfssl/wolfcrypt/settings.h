@@ -217,7 +217,7 @@
 
 /* Uncomment next line if using RENESAS RA6M4 */
 /* #define WOLFSSL_RENESAS_RA6M4 */
-        
+
 /* Uncomment next line if using Solaris OS*/
 /* #define WOLFSSL_SOLARIS */
 
@@ -339,7 +339,7 @@
     #define SCE_TLS_CLIENTRANDOM_SZ           36  /* in bytes */
     #define SCE_TLS_SERVERRANDOM_SZ           36  /* in bytes */
     #define SCE_TLS_ENCRYPTED_ECCPUBKEY_SZ    96  /* in bytes */
-        
+
     #define WOLFSSL_RENESAS_SCEPROTECT_ECC
     #if defined(WOLFSSL_RENESAS_SCEPROTECT_ECC)
         #define HAVE_PK_CALLBACKS

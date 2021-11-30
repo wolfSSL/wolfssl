@@ -1567,7 +1567,7 @@ struct DecodedCert {
 #if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
     byte*  sce_tsip_encRsaKeyIdx;
 #endif
-    
+
     int badDate;
     int criticalExt;
 

@@ -156,7 +156,7 @@ int wolfCrypt_Init(void)
             return ret;
         }
     #endif
-    
+
     #if defined(WOLFSSL_RENESAS_SCEPROTECT)
         ret = wc_sce_Open( );
         if( ret != FSP_SUCCESS ) {
@@ -166,7 +166,7 @@ int wolfCrypt_Init(void)
             return ret;
         }
     #endif
-    
+
     #if defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
         ret = InitMemoryTracker();
         if (ret != 0) {
@@ -366,13 +366,12 @@ int wolfCrypt_Cleanup(void)
     #ifdef WOLFSSL_ASYNC_CRYPT
         wolfAsync_HardwareStop();
     #endif
-    
+
     #ifdef WOLFSSL_RENESAS_SCEPROTECT
         wc_sce_Close();
     #else
-        
+
     #ifdef WOLFSSL_SCE
-   
         WOLFSSL_SCE_GSCE_HANDLE.p_api->close(WOLFSSL_SCE_GSCE_HANDLE.p_ctrl);
     #endif
     #endif

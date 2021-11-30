@@ -184,7 +184,7 @@ where 0 <= L < 2^64.
     !defined(WOLFSSL_PSOC6_CRYPTO) && !defined(WOLFSSL_IMXRT_DCP) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
     !defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_SE050_HASH) && \
     (!defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(NO_WOLFSSL_RENESAS_SCEPROTECT_HASH))
-      
+
 
 
 static int InitSha256(wc_Sha256* sha256)
@@ -749,7 +749,7 @@ static int InitSha256(wc_Sha256* sha256)
     !defined(NO_WOLFSSL_RENESAS_SCEPROTECT_HASH)
 
     /* implemented in wolfcrypt/src/port/Renesas/renesas_sce_sha.c */
-      
+
 #elif defined(WOLFSSL_PSOC6_CRYPTO)
 
     /* implemented in wolfcrypt/src/port/cypress/psoc6_crypto.c */
@@ -1650,7 +1650,7 @@ void wc_Sha256Free(wc_Sha256* sha256)
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)) && \
     (defined(WOLFSSL_RENESAS_SCEPROTECT) && \
     !defined(NO_WOLFSSL_RENESAS_SCEPROTECT_HASH))
-      
+
     if (sha256->msg != NULL) {
         XFREE(sha256->msg, sha256->heap, DYNAMIC_TYPE_TMP_BUFFER);
         sha256->msg = NULL;
