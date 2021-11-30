@@ -197,6 +197,11 @@ static int _SignatureVerifyRSA(const byte* hash_data, word32 hash_len,
         ret = SIG_VERIFY_E;
     }
 #else
+    (void)hash_data;
+    (void)hash_len;
+    (void)sig;
+    (void)sig_len;
+    (void)key;
     ret = SIG_TYPE_E;
 #endif
     return ret;
@@ -227,6 +232,11 @@ static int _SignatureVerifyECC(const byte* hash_data, word32 hash_len,
         ret = SIG_VERIFY_E;
     }
 #else
+    (void)hash_data;
+    (void)hash_len;
+    (void)sig;
+    (void)sig_len;
+    (void)key;
     ret = SIG_TYPE_E;
 #endif
     return ret;
@@ -253,7 +263,6 @@ int wc_SignatureVerifyHash(
         WOLFSSL_MSG("wc_SignatureVerify: Invalid hash type/len");
         return ret;
     }
-    ret = 0;
 
     /* Verify signature using hash */
     switch (sig_type) {
