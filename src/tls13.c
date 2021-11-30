@@ -851,7 +851,7 @@ static int DeriveTrafficSecret(WOLFSSL* ssl, byte* secret)
 }
 
 
-static inline int Tls13_HKDF_Extract(WOLFSSL *ssl, byte* prk, const byte* salt, int saltLen,
+static int Tls13_HKDF_Extract(WOLFSSL *ssl, byte* prk, const byte* salt, int saltLen,
                                  byte* ikm, int ikmLen, int digest)
 {
     int ret;

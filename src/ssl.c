@@ -42003,8 +42003,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
 #if defined(HAVE_PK_CALLBACKS) && defined(HAVE_HKDF)
 
-WOLFSSL_ABI
-void  wolfSSL_CTX_SetHKDFExtractCb(WOLFSSL_CTX* ctx, CallbackHKDFExtract cb)
+void wolfSSL_CTX_SetHKDFExtractCb(WOLFSSL_CTX* ctx, CallbackHKDFExtract cb)
 {
     if (ctx)
         ctx->HkdfExtractCb = cb;
