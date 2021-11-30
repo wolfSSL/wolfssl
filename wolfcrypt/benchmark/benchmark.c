@@ -199,6 +199,7 @@
     #include <wolfssl/wolfcrypt/sakke.h>
 #endif
 #ifdef HAVE_LIBOQS
+    #include <oqs/kem.h>
     #include <wolfssl/wolfcrypt/falcon.h>
 #endif
 
@@ -341,8 +342,36 @@
 #define BENCH_SAKKE_RSKGEN       0x20000000
 #define BENCH_SAKKE_VALIDATE     0x40000000
 #define BENCH_SAKKE              0x80000000
-#define BENCH_FALCON_LEVEL1_SIGN 0x00000100
-#define BENCH_FALCON_LEVEL5_SIGN 0x00000200
+
+/* Post-Quantum Asymmetric algorithms. */
+#define BENCH_FALCON_LEVEL1_SIGN     0x00000001
+#define BENCH_FALCON_LEVEL5_SIGN     0x00000002
+#define BENCH_KYBER_LEVEL1_KEYGEN    0x00000004
+#define BENCH_KYBER_LEVEL1_ENCAP     0x00000008
+#define BENCH_KYBER_LEVEL3_KEYGEN    0x00000010
+#define BENCH_KYBER_LEVEL3_ENCAP     0x00000020
+#define BENCH_KYBER_LEVEL5_KEYGEN    0x00000040
+#define BENCH_KYBER_LEVEL5_ENCAP     0x00000080
+#define BENCH_KYBER90S_LEVEL1_KEYGEN 0x00000100
+#define BENCH_KYBER90S_LEVEL1_ENCAP  0x00000200
+#define BENCH_KYBER90S_LEVEL3_KEYGEN 0x00000400
+#define BENCH_KYBER90S_LEVEL3_ENCAP  0x00000800
+#define BENCH_KYBER90S_LEVEL5_KEYGEN 0x00001000
+#define BENCH_KYBER90S_LEVEL5_ENCAP  0x00002000
+#define BENCH_SABER_LEVEL1_KEYGEN    0x00004000
+#define BENCH_SABER_LEVEL1_ENCAP     0x00008000
+#define BENCH_SABER_LEVEL3_KEYGEN    0x00010000
+#define BENCH_SABER_LEVEL3_ENCAP     0x00020000
+#define BENCH_SABER_LEVEL5_KEYGEN    0x00040000
+#define BENCH_SABER_LEVEL5_ENCAP     0x00080000
+#define BENCH_NTRUHPS_LEVEL1_KEYGEN  0x00100000
+#define BENCH_NTRUHPS_LEVEL1_ENCAP   0x00200000
+#define BENCH_NTRUHPS_LEVEL3_KEYGEN  0x00400000
+#define BENCH_NTRUHPS_LEVEL3_ENCAP   0x00800000
+#define BENCH_NTRUHPS_LEVEL5_KEYGEN  0x01000000
+#define BENCH_NTRUHPS_LEVEL5_ENCAP   0x02000000
+#define BENCH_NTRUHRSS_LEVEL3_KEYGEN 0x04000000
+#define BENCH_NTRUHRSS_LEVEL3_ENCAP  0x08000000
 
 /* Other */
 #define BENCH_RNG                0x00000001
@@ -362,6 +391,8 @@ static int bench_digest_algs = 0;
 static int bench_mac_algs = 0;
 /* Asymmetric algorithms to benchmark. */
 static int bench_asym_algs = 0;
+/* Post-Quantum Asymmetric algorithms to benchmark. */
+static int bench_pq_asym_algs = 0;
 /* Other cryptographic algorithms to benchmark. */
 static int bench_other_algs = 0;
 
@@ -571,11 +602,82 @@ static const bench_alg bench_asym_opt[] = {
     { "-sakke-val",          BENCH_SAKKE_VALIDATE    },
     { "-sakke",              BENCH_SAKKE             },
 #endif
-#ifdef HAVE_LIBOQS
-    { "-falcon_level1",      BENCH_FALCON_LEVEL1_SIGN   },
-    { "-falcon_level5",      BENCH_FALCON_LEVEL5_SIGN   },
-#endif
     { NULL, 0 }
+};
+
+/* The post-quantum-specific mapping of command line option to bit values and
+ * OQS name. */
+typedef struct bench_pq_alg {
+    /* Command line option string. */
+    const char* str;
+    /* Bit values to set. */
+    word32 val;
+    const char* oqs_name;
+} bench_pq_alg;
+
+/* All recognized post-quantum asymmetric algorithm choosing command line
+ * options. */
+static const bench_pq_alg bench_pq_asym_opt[] = {
+    { "-pq",                 0xffffffff, NULL},
+#ifdef HAVE_LIBOQS
+    { "-falcon_level1",      BENCH_FALCON_LEVEL1_SIGN,
+      OQS_SIG_alg_falcon_512 },
+    { "-falcon_level5",      BENCH_FALCON_LEVEL5_SIGN,
+      OQS_SIG_alg_falcon_1024 },
+    { "-kyber_level1-kg",    BENCH_KYBER_LEVEL1_KEYGEN,
+      OQS_KEM_alg_kyber_512 },
+    { "-kyber_level1-ed",       BENCH_KYBER_LEVEL1_ENCAP,
+      OQS_KEM_alg_kyber_512 },
+    { "-kyber_level3-kg",    BENCH_KYBER_LEVEL3_KEYGEN,
+      OQS_KEM_alg_kyber_768 },
+    { "-kyber_level3-ed",       BENCH_KYBER_LEVEL3_ENCAP,
+      OQS_KEM_alg_kyber_768 },
+    { "-kyber_level5-kg",    BENCH_KYBER_LEVEL5_KEYGEN,
+      OQS_KEM_alg_kyber_1024 },
+    { "-kyber_level5-ed",       BENCH_KYBER_LEVEL5_ENCAP,
+      OQS_KEM_alg_kyber_1024 },
+    { "-kyber90s_level1-kg", BENCH_KYBER90S_LEVEL1_KEYGEN,
+      OQS_KEM_alg_kyber_512_90s },
+    { "-kyber90s_level1-ed",    BENCH_KYBER90S_LEVEL1_ENCAP,
+      OQS_KEM_alg_kyber_512_90s },
+    { "-kyber90s_level3-kg", BENCH_KYBER90S_LEVEL3_KEYGEN,
+      OQS_KEM_alg_kyber_768_90s },
+    { "-kyber90s_level3-ed",    BENCH_KYBER90S_LEVEL3_ENCAP,
+      OQS_KEM_alg_kyber_768_90s },
+    { "-kyber90s_level5-kg", BENCH_KYBER90S_LEVEL5_KEYGEN,
+      OQS_KEM_alg_kyber_1024_90s},
+    { "-kyber90s_level5-ed",    BENCH_KYBER90S_LEVEL5_ENCAP,
+      OQS_KEM_alg_kyber_1024_90s },
+    { "-saber_level1-kg",    BENCH_SABER_LEVEL1_KEYGEN,
+      OQS_KEM_alg_saber_lightsaber },
+    { "-saber_level1-ed",       BENCH_SABER_LEVEL1_ENCAP,
+      OQS_KEM_alg_saber_lightsaber },
+    { "-saber_level3-kg",    BENCH_SABER_LEVEL3_KEYGEN,
+      OQS_KEM_alg_saber_saber },
+    { "-saber_level3-ed",       BENCH_SABER_LEVEL3_ENCAP,
+      OQS_KEM_alg_saber_saber },
+    { "-saber_level5-kg",    BENCH_SABER_LEVEL5_KEYGEN,
+      OQS_KEM_alg_saber_firesaber },
+    { "-saber_level5-ed",       BENCH_SABER_LEVEL5_ENCAP,
+      OQS_KEM_alg_saber_firesaber },
+    { "-ntruHPS_level1-kg",  BENCH_NTRUHPS_LEVEL1_KEYGEN,
+      OQS_KEM_alg_ntru_hps2048509 },
+    { "-ntruHPS_level1-ed",     BENCH_NTRUHPS_LEVEL1_ENCAP,
+      OQS_KEM_alg_ntru_hps2048509 },
+    { "-ntruHPS_level3-kg",  BENCH_NTRUHPS_LEVEL3_KEYGEN,
+      OQS_KEM_alg_ntru_hps2048677 },
+    { "-ntruHPS_level3-ed",     BENCH_NTRUHPS_LEVEL3_ENCAP,
+      OQS_KEM_alg_ntru_hps2048677 },
+    { "-ntruHPS_level5-kg",  BENCH_NTRUHPS_LEVEL5_KEYGEN,
+      OQS_KEM_alg_ntru_hps4096821 },
+    { "-ntruHPS_level5-ed",     BENCH_NTRUHPS_LEVEL5_ENCAP,
+      OQS_KEM_alg_ntru_hps4096821 },
+    { "-ntruHRSS_level3-kg", BENCH_NTRUHRSS_LEVEL3_KEYGEN,
+      OQS_KEM_alg_ntru_hrss701 },
+    { "-ntruHRSS_level3-ed",    BENCH_NTRUHRSS_LEVEL3_ENCAP,
+      OQS_KEM_alg_ntru_hrss701 },
+#endif
+    { NULL, 0, NULL }
 };
 
 /* All recognized other cryptographic algorithm choosing command line options.
@@ -1352,7 +1454,7 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
 #ifdef BENCH_ASYM
 #if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
     defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
-    defined(HAVE_CURVE448) || defined(HAVE_ED448) || defined(HAVE_LIBOQS)
+    defined(HAVE_CURVE448) || defined(HAVE_ED448)
 static void bench_stats_asym_finish(const char* algo, int strength,
     const char* desc, int doAsync, int count, double start, int ret)
 {
@@ -1390,6 +1492,52 @@ static void bench_stats_asym_finish(const char* algo, int strength,
 
     /* Add to thread stats */
     bench_stats_add(BENCH_STAT_ASYM, algo, strength, desc, doAsync, opsSec, kOpsSec, ret);
+
+    (void)doAsync;
+    (void)ret;
+
+    TEST_SLEEP();
+}
+#endif
+
+#if defined(HAVE_LIBOQS)
+static void bench_stats_pq_asym_finish(const char* algo, int doAsync, int count,
+                                       double start, int ret)
+{
+    double total, each = 0, opsSec, milliEach;
+    const char **word = bench_result_words2[lng_index];
+    const char* kOpsSec = "Ops/Sec";
+    char msg[128] = {0};
+
+    total = current_time(0) - start;
+    if (count > 0)
+        each  = total / count; /* per second  */
+    opsSec = count / total;    /* ops second */
+    milliEach = each * 1000;   /* milliseconds */
+
+    /* format and print to terminal */
+    if (csv_format == 1) {
+        /* only print out header once */
+        if (csv_header_count == 1) {
+            printf("\nPost Quantum Asymmetric Ciphers:\n\n");
+            printf("Algorithm,avg ms,ops/sec,\n");
+            csv_header_count++;
+        }
+        XSNPRINTF(msg, sizeof(msg), "%s %.3f,%.3f,\n", algo, milliEach, opsSec);
+    } else {
+         XSNPRINTF(msg, sizeof(msg), "%-18s %s %6d %s %5.3f %s, %s %5.3f ms,"
+         " %.3f %s\n", algo, BENCH_ASYNC_GET_NAME(doAsync),
+         count, word[0], total, word[1], word[2], milliEach, opsSec, word[3]);
+    }
+    printf("%s", msg);
+
+    /* show errors */
+    if (ret < 0) {
+        printf("Benchmark %s failed: %d\n", algo, ret);
+    }
+
+    /* Add to thread stats */
+    bench_stats_add(BENCH_STAT_ASYM, algo, 0, "", doAsync, opsSec, kOpsSec, ret);
 
     (void)doAsync;
     (void)ret;
@@ -2013,10 +2161,62 @@ static void* benchmarks_do(void* args)
 #endif
 
 #ifdef HAVE_LIBOQS
-    if (bench_all || (bench_asym_algs & BENCH_FALCON_LEVEL1_SIGN))
+    if (bench_all || (bench_pq_asym_algs & BENCH_FALCON_LEVEL1_SIGN))
         bench_falconKeySign(1);
-    if (bench_all || (bench_asym_algs & BENCH_FALCON_LEVEL5_SIGN))
+    if (bench_all || (bench_pq_asym_algs & BENCH_FALCON_LEVEL5_SIGN))
         bench_falconKeySign(5);
+    if (bench_all || (bench_pq_asym_algs & BENCH_KYBER_LEVEL1_KEYGEN))
+        bench_oqsKemKeygen(BENCH_KYBER_LEVEL1_KEYGEN);
+    if (bench_all || (bench_pq_asym_algs & BENCH_KYBER_LEVEL1_ENCAP))
+        bench_oqsKemEncapDecap(BENCH_KYBER_LEVEL1_ENCAP);
+    if (bench_all || (bench_pq_asym_algs & BENCH_KYBER_LEVEL3_KEYGEN))
+        bench_oqsKemKeygen(BENCH_KYBER_LEVEL3_KEYGEN);
+    if (bench_all || (bench_pq_asym_algs & BENCH_KYBER_LEVEL3_ENCAP))
+        bench_oqsKemEncapDecap(BENCH_KYBER_LEVEL3_ENCAP);
+    if (bench_all || (bench_pq_asym_algs & BENCH_KYBER_LEVEL5_KEYGEN))
+        bench_oqsKemKeygen(BENCH_KYBER_LEVEL5_KEYGEN);
+    if (bench_all || (bench_pq_asym_algs & BENCH_KYBER_LEVEL5_ENCAP))
+        bench_oqsKemEncapDecap(BENCH_KYBER_LEVEL5_ENCAP);
+    if (bench_all || (bench_pq_asym_algs & BENCH_KYBER90S_LEVEL1_KEYGEN))
+        bench_oqsKemKeygen(BENCH_KYBER90S_LEVEL1_KEYGEN);
+    if (bench_all || (bench_pq_asym_algs & BENCH_KYBER90S_LEVEL1_ENCAP))
+        bench_oqsKemEncapDecap(BENCH_KYBER90S_LEVEL1_ENCAP);
+    if (bench_all || (bench_pq_asym_algs & BENCH_KYBER90S_LEVEL3_KEYGEN))
+        bench_oqsKemKeygen(BENCH_KYBER90S_LEVEL3_KEYGEN);
+    if (bench_all || (bench_pq_asym_algs & BENCH_KYBER90S_LEVEL3_ENCAP))
+        bench_oqsKemEncapDecap(BENCH_KYBER90S_LEVEL3_ENCAP);
+    if (bench_all || (bench_pq_asym_algs & BENCH_KYBER90S_LEVEL5_KEYGEN))
+        bench_oqsKemKeygen(BENCH_KYBER90S_LEVEL5_KEYGEN);
+    if (bench_all || (bench_pq_asym_algs & BENCH_KYBER90S_LEVEL5_ENCAP))
+        bench_oqsKemEncapDecap(BENCH_KYBER90S_LEVEL5_ENCAP);
+    if (bench_all || (bench_pq_asym_algs & BENCH_SABER_LEVEL1_KEYGEN))
+        bench_oqsKemKeygen(BENCH_SABER_LEVEL1_KEYGEN);
+    if (bench_all || (bench_pq_asym_algs & BENCH_SABER_LEVEL1_ENCAP))
+        bench_oqsKemEncapDecap(BENCH_SABER_LEVEL1_ENCAP);
+    if (bench_all || (bench_pq_asym_algs & BENCH_SABER_LEVEL3_KEYGEN))
+        bench_oqsKemKeygen(BENCH_SABER_LEVEL3_KEYGEN);
+    if (bench_all || (bench_pq_asym_algs & BENCH_SABER_LEVEL3_ENCAP))
+        bench_oqsKemEncapDecap(BENCH_SABER_LEVEL3_ENCAP);
+    if (bench_all || (bench_pq_asym_algs & BENCH_SABER_LEVEL5_KEYGEN))
+        bench_oqsKemKeygen(BENCH_SABER_LEVEL5_KEYGEN);
+    if (bench_all || (bench_pq_asym_algs & BENCH_SABER_LEVEL5_ENCAP))
+        bench_oqsKemEncapDecap(BENCH_SABER_LEVEL5_ENCAP);
+    if (bench_all || (bench_pq_asym_algs & BENCH_NTRUHPS_LEVEL1_KEYGEN))
+        bench_oqsKemKeygen(BENCH_NTRUHPS_LEVEL1_KEYGEN);
+    if (bench_all || (bench_pq_asym_algs & BENCH_NTRUHPS_LEVEL1_ENCAP))
+        bench_oqsKemEncapDecap(BENCH_NTRUHPS_LEVEL1_ENCAP);
+    if (bench_all || (bench_pq_asym_algs & BENCH_NTRUHPS_LEVEL3_KEYGEN))
+        bench_oqsKemKeygen(BENCH_NTRUHPS_LEVEL3_KEYGEN);
+    if (bench_all || (bench_pq_asym_algs & BENCH_NTRUHPS_LEVEL3_ENCAP))
+        bench_oqsKemEncapDecap(BENCH_NTRUHPS_LEVEL3_ENCAP);
+    if (bench_all || (bench_pq_asym_algs & BENCH_NTRUHPS_LEVEL5_KEYGEN))
+        bench_oqsKemKeygen(BENCH_NTRUHPS_LEVEL5_KEYGEN);
+    if (bench_all || (bench_pq_asym_algs & BENCH_NTRUHPS_LEVEL5_ENCAP))
+        bench_oqsKemEncapDecap(BENCH_NTRUHPS_LEVEL5_ENCAP);
+    if (bench_all || (bench_pq_asym_algs & BENCH_NTRUHRSS_LEVEL3_KEYGEN))
+        bench_oqsKemKeygen(BENCH_NTRUHRSS_LEVEL3_KEYGEN);
+    if (bench_all || (bench_pq_asym_algs & BENCH_NTRUHRSS_LEVEL3_ENCAP))
+        bench_oqsKemEncapDecap(BENCH_NTRUHRSS_LEVEL3_ENCAP);
 #endif
 
 #ifdef WOLFCRYPT_HAVE_SAKKE
@@ -6457,6 +6657,149 @@ void bench_sakke(void)
 #endif /* WOLFCRYPT_HAVE_SAKKE */
 
 #ifdef HAVE_LIBOQS
+static void bench_oqsKemInit(word32 alg, byte **priv_key, byte **pub_key,
+                   const char **wolf_name, OQS_KEM **kem)
+{
+    int i;
+    const char *oqs_name = NULL;
+
+    *pub_key = NULL;
+    *priv_key = NULL;
+
+    for (i=0; bench_pq_asym_opt[i].str != NULL; i++) {
+        if (alg ==  bench_pq_asym_opt[i].val) {
+            oqs_name = bench_pq_asym_opt[i].oqs_name;
+            *wolf_name = bench_pq_asym_opt[i].str;
+            break;
+        }
+    }
+
+    if (oqs_name == NULL) {
+        printf("Bad OQS Alg specified\n");
+        return;
+    }
+
+    *kem = OQS_KEM_new(oqs_name);
+    if (*kem == NULL) {
+        printf("OQS_KEM_new() failed\n");
+        return;
+    }
+
+    *pub_key = (byte*)XMALLOC((*kem)->length_public_key, HEAP_HINT,
+                              DYNAMIC_TYPE_TMP_BUFFER);
+
+
+    *priv_key = (byte*)XMALLOC((*kem)->length_secret_key, HEAP_HINT,
+                               DYNAMIC_TYPE_TMP_BUFFER);
+
+}
+
+void bench_oqsKemKeygen(word32 alg)
+{
+    const char *wolf_name = NULL;
+    OQS_KEM* kem = NULL;
+    double start;
+    int i, count, ret;
+    byte *priv_key;
+    byte *pub_key;
+
+    bench_oqsKemInit(alg, &priv_key, &pub_key, &wolf_name, &kem);
+
+    if (wolf_name == NULL || kem == NULL || pub_key == NULL ||
+        priv_key == NULL) {
+        printf("bench_oqsKemInit() failed\n");
+        goto exit;
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < genTimes; i++) {
+            ret = OQS_KEM_keypair(kem, pub_key, priv_key);
+            if (ret != OQS_SUCCESS) {
+                printf("OQS_KEM_keypair() failed: %d\n", ret);
+                goto exit;
+            }
+        }
+        count += i;
+    } while (bench_stats_sym_check(start));
+
+    /* + 1 gets rid of the leading dash (-) */
+    bench_stats_pq_asym_finish(wolf_name + 1, 0, count, start, 0);
+
+exit:
+    XFREE(priv_key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pub_key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    OQS_KEM_free(kem);
+
+}
+
+void bench_oqsKemEncapDecap(word32 alg)
+{
+    const char *wolf_name = NULL;
+    OQS_KEM* kem = NULL;
+    double start;
+    int i, count, ret;
+    byte *priv_key;
+    byte *pub_key;
+    byte *ciphertext = NULL;
+    byte *shared_secret = NULL;
+
+    bench_oqsKemInit(alg, &priv_key, &pub_key, &wolf_name, &kem);
+
+    if (wolf_name == NULL || kem == NULL || pub_key == NULL ||
+        priv_key == NULL) {
+        printf("bench_oqsKemInit() failed\n");
+        goto exit;
+    }
+
+    ret = OQS_KEM_keypair(kem, pub_key, priv_key);
+    if (ret != OQS_SUCCESS) {
+        printf("OQS_KEM_keypair() failed: %d\n", ret);
+        goto exit;
+    }
+
+    shared_secret = (byte*)XMALLOC(kem->length_shared_secret, HEAP_HINT,
+                                   DYNAMIC_TYPE_TMP_BUFFER);
+
+    ciphertext = (byte*)XMALLOC(kem->length_ciphertext, HEAP_HINT,
+                                   DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (shared_secret == NULL || ciphertext == NULL) {
+        printf("XMALLOC() failed\n");
+        goto exit;
+    }
+
+    if (ret == OQS_SUCCESS) {
+        bench_stats_start(&count, &start);
+        do {
+            for (i = 0; i < agreeTimes; i++) {
+                ret = OQS_KEM_encaps(kem, ciphertext, shared_secret, pub_key);
+                if (ret != OQS_SUCCESS) {
+                    printf("OQS_KEM_encaps() failed: %d\n", ret);
+                    goto exit;
+                }
+
+                ret = OQS_KEM_decaps(kem, shared_secret, ciphertext, priv_key);
+                if (ret != OQS_SUCCESS) {
+                    printf("OQS_KEM_decaps() failed: %d\n", ret);
+                    goto exit;
+                }
+            }
+            count += i;
+        } while (bench_stats_sym_check(start));
+
+        /* + 1 gets rid of the leading dash (-) */
+        bench_stats_pq_asym_finish(wolf_name + 1, 0, count, start, ret);
+    }
+
+exit:
+    XFREE(ciphertext, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(shared_secret, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(priv_key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pub_key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    OQS_KEM_free(kem);
+}
+
 void bench_falconKeySign(byte level)
 {
     int    ret = 0;
@@ -7045,6 +7388,14 @@ int main(int argc, char** argv)
             for (i=0; !optMatched && bench_asym_opt[i].str != NULL; i++) {
                 if (string_matches(argv[1], bench_asym_opt[i].str)) {
                     bench_asym_algs |= bench_asym_opt[i].val;
+                    bench_all = 0;
+                    optMatched = 1;
+                }
+            }
+            /* Known asymmetric post-quantum algorithms */
+            for (i=0; !optMatched && bench_pq_asym_opt[i].str != NULL; i++) {
+                if (string_matches(argv[1], bench_pq_asym_opt[i].str)) {
+                    bench_pq_asym_algs |= bench_pq_asym_opt[i].val;
                     bench_all = 0;
                     optMatched = 1;
                 }
