@@ -497,6 +497,7 @@ WC_INLINE static int fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
 #else
    fp_int    *tmp;
 #endif
+   fp_digit  carry;
 
    /* Variables used but not seen by cppcheck. */
    (void)ix; (void)iy; (void)iz;
@@ -520,7 +521,7 @@ WC_INLINE static int fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
       dst = tmp;
    }
 
-   TFM_INTEL_MUL_COMBA(A, B, dst) ;
+   TFM_INTEL_MUL_COMBA(A, B, carry, dst) ;
 
   dst->used = pa;
   dst->sign = A->sign ^ B->sign;
