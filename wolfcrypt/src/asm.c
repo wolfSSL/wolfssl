@@ -1475,7 +1475,7 @@ __asm__  (                                                \
 
 
 #if defined(HAVE_INTEL_MULX)
-#define MULADD_BODY(a,b,c)                              \
+#define MULADD_BODY(a,b,carry,c)                        \
     __asm__ volatile(                                   \
          "movq  %[a0],%%rdx\n\t"                        \
          "xorq  %%rcx, %%rcx\n\t"                       \
@@ -1483,10 +1483,9 @@ __asm__  (                                                \
          "movq  8(%[cp]),%%r9\n\t"                      \
          "movq  16(%[cp]),%%r10\n\t"                    \
          "movq  24(%[cp]),%%r11\n\t"                    \
-         "movq  32(%[cp]),%%r12\n\t"                    \
-         "movq  40(%[cp]),%%r13\n\t"                    \
                                                         \
          "mulx  (%[bp]),%%rax, %%rbx\n\t"               \
+         "adcxq  %[ca], %%r8\n\t"                       \
          "adoxq  %%rax, %%r8\n\t"                       \
          "mulx  8(%[bp]),%%rax, %%rcx\n\t"              \
          "adcxq  %%rbx, %%r9\n\t"                       \
@@ -1496,32 +1495,32 @@ __asm__  (                                                \
          "adoxq  %%rax, %%r10\n\t"                      \
          "mulx  24(%[bp]),%%rax, %%rcx\n\t"             \
          "adcxq  %%rbx, %%r11\n\t"                      \
+         "mov $0, %[ca]\n\t"                            \
          "adoxq  %%rax, %%r11\n\t"                      \
-         "adcxq  %%rcx, %%r12\n\t"                      \
+         "adcxq  %%rcx, %[ca]\n\t"                      \
          "mov $0, %%rdx\n\t"                            \
-         "adox %%rdx, %%r12\n\t"                        \
-         "adcx %%rdx, %%r13\n\t"                        \
+         "adoxq  %%rdx, %[ca]\n\t"                      \
                                                         \
          "movq  %%r8, 0(%[cp])\n\t"                     \
          "movq  %%r9, 8(%[cp])\n\t"                     \
          "movq  %%r10, 16(%[cp])\n\t"                   \
          "movq  %%r11, 24(%[cp])\n\t"                   \
-         "movq  %%r12, 32(%[cp])\n\t"                   \
-         "movq  %%r13, 40(%[cp])\n\t"                   \
-      :                                                 \
+      : [ca] "+r" (carry)                               \
       : [a0] "r" (a->dp[ix]), [bp] "r" (&(b->dp[iy])),  \
         [cp] "r" (&(c->dp[iz]))                         \
-      : "%r8", "%r9", "%r10", "%r11", "%r12", "%r13",   \
+      : "%r8", "%r9", "%r10", "%r11",                   \
         "%rdx", "%rax", "%rcx", "%rbx"                  \
     )
 
-#define TFM_INTEL_MUL_COMBA(a, b, c)       \
+#define TFM_INTEL_MUL_COMBA(a, b, ca, c)   \
     for (iz=0; iz<pa; iz++) c->dp[iz] = 0; \
     for (ix=0; ix<a->used; ix++) {         \
+        ca = 0;                            \
         for (iy=0; iy<b->used; iy+=4) {    \
             iz = ix + iy;                  \
-            MULADD_BODY(a, b, c);          \
+            MULADD_BODY(a, b, ca, c);      \
         }                                  \
+        c->dp[ix + iy] = ca;               \
     }
 #endif
 
