@@ -3015,7 +3015,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #ifdef TEST_BEFORE_DATE
         verify_flags |= WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY;
     #endif
-        if (wolfSSL_CTX_load_verify_locations_ex(ctx, verifyCert, 0, verify_flags)
+        if (doPeerCheck != 0 &&
+            wolfSSL_CTX_load_verify_locations_ex(ctx, verifyCert, 0, verify_flags)
                                                            != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("can't load ca file, Please run from wolfSSL home dir");
@@ -3027,13 +3028,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #ifdef HAVE_ECC
         /* load ecc verify too, echoserver uses it by default w/ ecc */
         #ifdef NO_FILESYSTEM
-        if (wolfSSL_CTX_load_verify_buffer(ctx, ca_ecc_cert_der_256,
+        if (doPeerCheck != 0 &&
+            wolfSSL_CTX_load_verify_buffer(ctx, ca_ecc_cert_der_256,
                 sizeof_ca_ecc_cert_der_256, SSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("can't load ecc ca buffer");
         }
         #elif !defined(TEST_LOAD_BUFFER)
-        if (wolfSSL_CTX_load_verify_locations_ex(ctx, eccCertFile, 0, verify_flags)
+        if (doPeerCheck != 0 &&
+            wolfSSL_CTX_load_verify_locations_ex(ctx, eccCertFile, 0, verify_flags)
                                                            != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("can't load ecc ca file, Please run from wolfSSL home dir");
