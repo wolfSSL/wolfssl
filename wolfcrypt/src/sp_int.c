@@ -9285,7 +9285,7 @@ int sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
     }
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     else if (mp_iseven(m)) {
-        err = _sp_exptmod_ex(b, e, e->used, m, r);
+        err = _sp_exptmod_ex(b, e, e->used * SP_WORD_SIZE, m, r);
     }
 #endif
     else {
