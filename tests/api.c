@@ -27556,7 +27556,8 @@ static void test_wc_PKCS7_EncodeSignedData_ex(void)
     AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
 
-    /* required parameter even on verify when using _ex */
+    /* required parameter even on verify when using _ex, if using outputHead
+     * and outputFoot */
     pkcs7->contentSz = (word32)sizeof(data);
     AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
         outputHead, outputHeadSz, outputFoot, outputFootSz), 0);
@@ -27782,6 +27783,12 @@ static void test_wc_PKCS7_VerifySignedData(void)
     word32 badOutSz = 0;
     byte   badContent[] = "This is different content than was signed";
 
+    int ret;
+    wc_HashAlg  hash;
+    enum wc_HashType hashType = WC_HASH_TYPE_SHA;
+    byte        hashBuf[WC_MAX_DIGEST_SIZE];
+    word32      hashSz = wc_HashGetDigestSize(hashType);
+
     AssertIntGT((outputSz = CreatePKCS7SignedData(output, outputSz, data,
                                                   (word32)sizeof(data),
                                                   0, 0)), 0);
@@ -27824,6 +27831,27 @@ static void test_wc_PKCS7_VerifySignedData(void)
     pkcs7->contentSz = sizeof(data);
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
     wc_PKCS7_Free(pkcs7);
+
+    /* verify using pre-computed content digest only (no content) */
+    {
+        /* calculate hash for content */
+        ret = wc_HashInit(&hash, hashType);
+        if (ret == 0) {
+            ret = wc_HashUpdate(&hash, hashType, data, sizeof(data));
+            if (ret == 0) {
+                ret = wc_HashFinal(&hash, hashType, hashBuf);
+            }
+            wc_HashFree(&hash, hashType);
+        }
+        AssertIntEQ(ret, 0);
+
+        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+        AssertIntEQ(wc_PKCS7_Init(pkcs7, NULL, 0), 0);
+        AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
+                                                 output, outputSz,
+                                                 NULL, 0), 0);
+        wc_PKCS7_Free(pkcs7);
+    }
 
     printf(resultFmt, passed);
 #endif

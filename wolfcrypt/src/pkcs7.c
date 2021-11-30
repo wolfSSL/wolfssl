@@ -4672,10 +4672,16 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             }
             else {
 
-                /* if pkcs7->content and pkcs7->contentSz are set, try to
-                   process as a detached signature */
+                /* If either pkcs7->content and pkcs7->contentSz are set
+                 * (detached signature where user has set content explicitly
+                 * into pkcs7->content/contentSz) OR pkcs7->hashBuf and
+                 * pkcs7->hashSz are set (user has pre-computed content
+                 * digest and passed in instead of content directly), try to
+                 * process as a detached signature */
                 if (!degenerate &&
-                    (pkcs7->content != NULL && pkcs7->contentSz != 0)) {
+                    ((pkcs7->content != NULL && pkcs7->contentSz != 0) ||
+                     (hashBuf != NULL && hashSz > 0)) ) {
+                    WOLFSSL_MSG("Trying to process as detached signature");
                     detached = 1;
                 }
 
@@ -5350,8 +5356,27 @@ int wc_PKCS7_GetSignerSID(PKCS7* pkcs7, byte* out, word32* outSz)
 }
 
 
-/* variant that allows computed data hash and header/foot,
- * which is useful for large data signing */
+/* SignedData verification function variant that allows pre-computed content
+ * message digest and optional PKCS7/CMS bundle content header/footer to be
+ * used for verification. Useful for large data signing.
+ *
+ * pkcs7 - pointer to initialized PKCS7 structure
+ * hashBuf - message digest of content
+ * hashSz - size of hashBuf, octets
+ * pkiMsgHead - PKCS7/CMS header that goes on top of the raw data signed,
+ *              as output from wc_PKCS7_EncodeSignedData_ex (if also using
+ *              pkiMsgFoot). Otherwise, PKCS7/CMS bundle with
+ *              detached signature - will use hashBuf/hashSz to verify.
+ * pkiMsgHeadSz - size of pkiMsgHead, octets
+ * pkiMsgFoot - PKCS7/CMS footer that goes at the end of the raw data signed,
+ *              as output from wc_PKCS7_EncodeSignedData_ex. Can be NULL
+ *              if pkiMsgHead is a direct detached signature bundle to be used
+ *              with hashBuf/hashSz.
+ * pkiMsgFootSz - size of pkiMsgFoot, octets. Should be 0 if pkiMsgFoot is NULL.
+ *
+ * Returns 0 on success, negative upon error.
+ *
+ */
 int wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
     word32 hashSz, byte* pkiMsgHead, word32 pkiMsgHeadSz, byte* pkiMsgFoot,
     word32 pkiMsgFootSz)
