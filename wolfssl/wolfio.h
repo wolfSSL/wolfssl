@@ -593,6 +593,9 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 #endif
 
 #ifdef WOLFSSL_LWIP_NATIVE
+    #include "lwip/tcp.h"
+    #include "lwip/sockets.h"
+
     typedef struct WOLFSSL_LWIP_NATIVE_STATE {
         struct tcp_pcb * pcb;
         tcp_recv_fn recv_fn;
