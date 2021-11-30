@@ -288,6 +288,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_connect                     wolfSSL_connect
 #define SSL_clear                       wolfSSL_clear
 #define SSL_state                       wolfSSL_state
+#define SSL_read_early_data(ssl, d, dLen, len)   wolfSSL_read_early_data(ssl, d, (int)dLen, (int *)len)
+#define SSL_write_early_data(ssl, d, dLen, len)  wolfSSL_write_early_data(ssl, d, (int)dLen, (int *)len)
 
 #define SSL_write                       wolfSSL_write
 #define SSL_read                        wolfSSL_read
