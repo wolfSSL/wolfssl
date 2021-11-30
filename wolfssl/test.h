@@ -3873,6 +3873,49 @@ static WC_INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
 
 #endif /* HAVE_ECC */
 
+#ifdef HAVE_HKDF
+static WC_INLINE int myHkdfExtract(byte* prk, const byte* salt, word32 saltLen,
+       byte* ikm, word32 ikmLen, int digest, void* ctx)
+{
+    int ret;
+    int len = 0;
+
+    switch (digest) {
+#ifndef NO_SHA256
+        case WC_SHA256:
+            len = WC_SHA256_DIGEST_SIZE;
+            break;
+#endif
+
+#ifdef WOLFSSL_SHA384
+        case WC_SHA384:
+            len = WC_SHA384_DIGEST_SIZE;
+            break;
+#endif
+
+#ifdef WOLFSSL_TLS13_SHA512
+        case WC_SHA512:
+            len = WC_SHA512_DIGEST_SIZE;
+            break;
+#endif
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    /* When length is 0 then use zeroed data of digest length. */
+    if (ikmLen == 0) {
+        ikmLen = len;
+        XMEMSET(ikm, 0, len);
+    }
+
+    (void)ctx;
+    ret = wc_HKDF_Extract(digest, salt, saltLen, ikm, ikmLen, prk);
+    WOLFSSL_PKMSG("PK HKDF Extract: ret %d saltLen %d ikmLen %d\n", ret, saltLen,
+            ikmLen);
+    return ret;
+}
+#endif /* HAVE_HKDF */
+
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
 #ifdef HAVE_ED25519_SIGN
 static WC_INLINE int myEd25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
@@ -4728,6 +4771,9 @@ static WC_INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx)
         wolfSSL_CTX_SetEccVerifyCb(ctx, myEccVerify);
         wolfSSL_CTX_SetEccSharedSecretCb(ctx, myEccSharedSecret);
     #endif /* HAVE_ECC */
+    #ifdef HAVE_HKDF
+        wolfSSL_CTX_SetHKDFExtractCb(ctx, myHkdfExtract);
+    #endif /* HAVE_HKDF */
     #ifndef NO_DH
         wolfSSL_CTX_SetDhAgreeCb(ctx, myDhCallback);
     #endif
@@ -4790,6 +4836,9 @@ static WC_INLINE void SetupPkCallbackContexts(WOLFSSL* ssl, void* myCtx)
         wolfSSL_SetEccVerifyCtx(ssl, myCtx);
         wolfSSL_SetEccSharedSecretCtx(ssl, myCtx);
     #endif /* HAVE_ECC */
+    #ifdef HAVE_HKDF
+        wolfSSL_SetHKDFExtractCtx(ssl, myCtx);
+    #endif /* HAVE_HKDF */
     #ifndef NO_DH
         wolfSSL_SetDhAgreeCtx(ssl, myCtx);
     #endif

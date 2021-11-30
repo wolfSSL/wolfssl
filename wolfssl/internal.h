@@ -119,6 +119,9 @@
 #ifdef HAVE_LIBOQS
     #include <wolfssl/wolfcrypt/falcon.h>
 #endif
+#ifdef HAVE_HKDF
+    #include <wolfssl/wolfcrypt/kdf.h>
+#endif
 #ifndef WOLFSSL_NO_DEF_TICKET_ENC_CB
     #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
         !defined(WOLFSSL_TICKET_ENC_AES128_GCM) && \
@@ -3018,6 +3021,9 @@ struct WOLFSSL_CTX {
         CallbackEccVerify EccVerifyCb;  /* User EccVerify Callback handler */
         CallbackEccSharedSecret EccSharedSecretCb; /* User EccVerify Callback handler */
     #endif /* HAVE_ECC */
+    #ifdef HAVE_HKDF
+        CallbackHKDFExtract HkdfExtractCb; /* User hkdf Extract Callback handler */
+    #endif
     #ifdef HAVE_ED25519
         /* User Ed25519Sign   Callback handler */
         CallbackEd25519Sign   Ed25519SignCb;
@@ -4454,6 +4460,9 @@ struct WOLFSSL {
         void* EccVerifyCtx;          /* Ecc Verify Callback Context */
         void* EccSharedSecretCtx;    /* Ecc Pms    Callback Context */
     #endif /* HAVE_ECC */
+    #ifdef HAVE_HKDF
+        void* HkdfExtractCtx;       /* Hkdf extract callback context */
+    #endif
     #ifdef HAVE_ED25519
         void* Ed25519SignCtx;        /* ED25519 Sign   Callback Context */
         void* Ed25519VerifyCtx;      /* ED25519 Verify Callback Context */
