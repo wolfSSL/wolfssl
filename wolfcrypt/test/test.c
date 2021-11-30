@@ -1226,7 +1226,7 @@ initDefaultName();
         test_pass("OPENSSL (EVP Sign/Verify) passed!\n");
 
 #endif
-    
+
 #ifdef HAVE_ECC
     PRIVATE_KEY_UNLOCK();
     if ( (ret = ecc_test()) != 0)
@@ -2316,7 +2316,7 @@ WOLFSSL_TEST_SUBROUTINE int sha_test(void)
 
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
-#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT) 
+#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
     const char* large_digest =
             "\x1d\x6a\x5a\xf6\xe5\x7c\x86\xce\x7f\x7c\xaf\xd5\xdb\x08\xcd\x59"
             "\x15\x8c\x6d\xb6";
@@ -2328,7 +2328,7 @@ WOLFSSL_TEST_SUBROUTINE int sha_test(void)
     for (i = 0; i < (int)sizeof(large_input); i++) {
         large_input[i] = (byte)(i & 0xFF);
     }
-#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT) 
+#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
     times = 20;
 #else
     times = 100;
@@ -2706,7 +2706,7 @@ WOLFSSL_TEST_SUBROUTINE int sha256_test(void)
 
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
-#if defined(WOLFSSL_RENESAS_TSIP_CRYPT) || defined(WOLFSSL_RENESAS_SCEPROTECT) 
+#if defined(WOLFSSL_RENESAS_TSIP_CRYPT) || defined(WOLFSSL_RENESAS_SCEPROTECT)
     const char* large_digest =
             "\xa4\x75\x9e\x7a\xa2\x03\x38\x32\x88\x66\xa2\xea\x17\xea\xf8\xc7"
             "\xfe\x4e\xc6\xbb\xe3\xbb\x71\xce\xe7\xdf\x7c\x04\x61\xb3\xc2\x2f";

@@ -579,20 +579,6 @@
         extern void fipsEntry(void);
     #endif
 
-    /* needed to suppress inclusion of stdio.h in wolfssl/wolfcrypt/types.h */
-    #define XSNPRINTF snprintf
-
-    /* the rigmarole around kstrtoll() here is to accommodate its warn-unused-result attribute. */
-    #define XATOI(s) ({                                 \
-          long long _xatoi_res = 0;                     \
-          int _xatoi_ret = kstrtoll(s, 10, &_xatoi_res); \
-          if (_xatoi_ret != 0) {                        \
-            _xatoi_res = 0;                             \
-          }                                             \
-          (int)_xatoi_res;                              \
-        })
-
-
     /* suppress false-positive "writing 1 byte into a region of size 0" warnings
      * building old kernels with new gcc:
      */
@@ -601,6 +587,20 @@
     #endif
 
     #endif /* BUILDING_WOLFSSL */
+
+    /* needed to suppress inclusion of stdio.h in wolfssl/wolfcrypt/types.h */
+    #define XSNPRINTF snprintf
+
+    /* the rigmarole around kstrtoll() here is to accommodate its warn-unused-result attribute. */
+    /* also needed to suppress inclusion of stdlib.h in wolfssl/wolfcrypt/types.h */
+    #define XATOI(s) ({                                 \
+          long long _xatoi_res = 0;                     \
+          int _xatoi_ret = kstrtoll(s, 10, &_xatoi_res); \
+          if (_xatoi_ret != 0) {                        \
+            _xatoi_res = 0;                             \
+          }                                             \
+          (int)_xatoi_res;                              \
+        })
 
 #endif /* WOLFSSL_LINUXKM */
 

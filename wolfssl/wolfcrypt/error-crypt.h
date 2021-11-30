@@ -247,7 +247,7 @@ enum {
     ECC_PCT_E           = -286,  /* ECDHE Pairwise Consistency Test failure */
     FIPS_PRIVATE_KEY_LOCKED_E = -287, /* Cannot export private key. */
     PROTOCOLCB_UNAVAILABLE  = -288, /* Protocol callback unavailable */
-    
+
     WC_LAST_E           = -288,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 

@@ -5003,9 +5003,9 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         signer->cm_idx = row;
         if (type == WOLFSSL_USER_CA) {
             if ((ret = wc_Renesas_cmn_RootCertVerify(cert->source, cert->maxIdx,
-                 cert->sigCtx.CertAtt.pubkey_n_start, 
+                 cert->sigCtx.CertAtt.pubkey_n_start,
                  cert->sigCtx.CertAtt.pubkey_n_len - 1,
-                 cert->sigCtx.CertAtt.pubkey_e_start, 
+                 cert->sigCtx.CertAtt.pubkey_e_start,
                 cert->sigCtx.CertAtt.pubkey_e_len - 1,
                  row/* cm index */))
                 < 0)
@@ -5015,7 +5015,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         }
     }
 #endif /* TSIP or SCE */
-    
+
     WOLFSSL_MSG("\tFreeing Parsed CA");
     FreeDecodedCert(cert);
 #ifdef WOLFSSL_SMALL_STACK

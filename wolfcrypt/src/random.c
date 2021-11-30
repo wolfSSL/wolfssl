@@ -2490,7 +2490,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
 #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
     #include "r_sce.h"
-    
+
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int ret;
@@ -2513,7 +2513,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
         return ret;
     }
-    
+
 #elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_TRNG)
     #include "hal_data.h"
 
