@@ -1326,10 +1326,8 @@ static WC_INLINE void tcp_socket(SOCKET_T* sockfd, int udp, int sctp)
 #endif
 
 struct wolfsentry_data {
-    struct wolfsentry_sockaddr remote;
-    byte remote_addrbuf[16];
-    struct wolfsentry_sockaddr local;
-    byte local_addrbuf[16];
+    WOLFSENTRY_SOCKADDR(128) remote;
+    WOLFSENTRY_SOCKADDR(128) local;
     wolfsentry_route_flags_t flags;
     void *heap;
     int alloctype;
@@ -1360,8 +1358,8 @@ static WC_INLINE int wolfsentry_store_endpoints(
     wolfsentry_data->alloctype = DYNAMIC_TYPE_SOCKADDR;
 
 #ifdef TEST_IPV6
-    if ((sizeof wolfsentry_data->remote_addrbuf < sizeof remote->sin6_addr) ||
-        (sizeof wolfsentry_data->local_addrbuf < sizeof local->sin6_addr))
+    if ((sizeof wolfsentry_data->remote.addr < sizeof remote->sin6_addr) ||
+        (sizeof wolfsentry_data->local.addr < sizeof local->sin6_addr))
         return WOLFSSL_FAILURE;
     wolfsentry_data->remote.sa_family = wolfsentry_data->local.sa_family = remote->sin6_family;
     wolfsentry_data->remote.sa_port = ntohs(remote->sin6_port);
@@ -1381,8 +1379,8 @@ static WC_INLINE int wolfsentry_store_endpoints(
         XMEMCPY(wolfsentry_data->local.addr, &local->sin6_addr, sizeof local->sin6_addr);
     }
 #else
-    if ((sizeof wolfsentry_data->remote_addrbuf < sizeof remote->sin_addr) ||
-        (sizeof wolfsentry_data->local_addrbuf < sizeof local->sin_addr))
+    if ((sizeof wolfsentry_data->remote.addr < sizeof remote->sin_addr) ||
+        (sizeof wolfsentry_data->local.addr < sizeof local->sin_addr))
         return WOLFSSL_FAILURE;
     wolfsentry_data->remote.sa_family = wolfsentry_data->local.sa_family = remote->sin_family;
     wolfsentry_data->remote.sa_port = ntohs(remote->sin_port);
@@ -1435,8 +1433,8 @@ static int wolfSentry_NetworkFilterCallback(
 
     ret = wolfsentry_route_event_dispatch(
         _wolfsentry,
-        &data->remote,
-        &data->local,
+        (const struct wolfsentry_sockaddr *)&data->remote,
+        (const struct wolfsentry_sockaddr *)&data->local,
         data->flags,
         NULL /* event_label */,
         0 /* event_label_len */,
@@ -1535,7 +1533,7 @@ static int wolfsentry_setup(
         }
         fclose(f);
 
-        if ((ret = wolfsentry_config_json_fini(jps, err_buf, sizeof err_buf)) < 0) {
+        if ((ret = wolfsentry_config_json_fini(&jps, err_buf, sizeof err_buf)) < 0) {
             fprintf(stderr, "%.*s\n", (int)sizeof err_buf, err_buf);
             err_sys("error while loading wolfSentry config file");
         }
@@ -1555,10 +1553,7 @@ static int wolfsentry_setup(
             return ret;
 
         if (WOLFSENTRY_MASKIN_BITS(route_flags, WOLFSENTRY_ROUTE_FLAG_DIRECTION_OUT)) {
-            struct {
-                struct wolfsentry_sockaddr sa;
-                byte buf[16];
-            } remote, local;
+            WOLFSENTRY_SOCKADDR(128) remote, local;
             wolfsentry_ent_id_t id;
             wolfsentry_action_res_t action_results;
 
@@ -1576,17 +1571,19 @@ static int wolfsentry_setup(
             XMEMSET(&remote, 0, sizeof remote);
             XMEMSET(&local, 0, sizeof local);
 #ifdef TEST_IPV6
-            remote.sa.sa_family = local.sa.sa_family = AF_INET6;
-            remote.sa.addr_len = 128;
-            XMEMCPY(remote.sa.addr, "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\001", 16);
+            remote.sa_family = local.sa_family = AF_INET6;
+            remote.addr_len = 128;
+            XMEMCPY(remote.addr, "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\001", 16);
 #else
-            remote.sa.sa_family = local.sa.sa_family = AF_INET;
-            remote.sa.addr_len = 32;
-            XMEMCPY(remote.sa.addr, "\177\000\000\001", 4);
+            remote.sa_family = local.sa_family = AF_INET;
+            remote.addr_len = 32;
+            XMEMCPY(remote.addr, "\177\000\000\001", 4);
 #endif
 
             if ((ret = wolfsentry_route_insert_static
-                 (*_wolfsentry, NULL /* caller_context */, &remote.sa, &local.sa,
+                 (*_wolfsentry, NULL /* caller_context */,
+                  (const struct wolfsentry_sockaddr *)&remote,
+                  (const struct wolfsentry_sockaddr *)&local,
                   route_flags                                    |
                   WOLFSENTRY_ROUTE_FLAG_GREENLISTED              |
                   WOLFSENTRY_ROUTE_FLAG_PARENT_EVENT_WILDCARD    |
@@ -1604,10 +1601,7 @@ static int wolfsentry_setup(
                 return ret;
             }
         } else if (WOLFSENTRY_MASKIN_BITS(route_flags, WOLFSENTRY_ROUTE_FLAG_DIRECTION_IN)) {
-            struct {
-                struct wolfsentry_sockaddr sa;
-                byte buf[16];
-            } remote, local;
+            WOLFSENTRY_SOCKADDR(128) remote, local;
             wolfsentry_ent_id_t id;
             wolfsentry_action_res_t action_results;
 
@@ -1625,17 +1619,18 @@ static int wolfsentry_setup(
             XMEMSET(&remote, 0, sizeof remote);
             XMEMSET(&local, 0, sizeof local);
 #ifdef TEST_IPV6
-            remote.sa.sa_family = local.sa.sa_family = AF_INET6;
-            remote.sa.addr_len = 128;
-            XMEMCPY(remote.sa.addr, "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\001", 16);
+            remote.sa_family = local.sa_family = AF_INET6;
+            remote.addr_len = 128;
+            XMEMCPY(remote.addr, "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\001", 16);
 #else
-            remote.sa.sa_family = local.sa.sa_family = AF_INET;
-            remote.sa.addr_len = 32;
-            XMEMCPY(remote.sa.addr, "\177\000\000\001", 4);
+            remote.sa_family = local.sa_family = AF_INET;
+            remote.addr_len = 32;
+            XMEMCPY(remote.addr, "\177\000\000\001", 4);
 #endif
 
             if ((ret = wolfsentry_route_insert_static
-                 (*_wolfsentry, NULL /* caller_context */, &remote.sa, &local.sa,
+                 (*_wolfsentry, NULL /* caller_context */,
+                  (const struct wolfsentry_sockaddr *)&remote, (const struct wolfsentry_sockaddr *)&local,
                   route_flags                                    |
                   WOLFSENTRY_ROUTE_FLAG_GREENLISTED              |
                   WOLFSENTRY_ROUTE_FLAG_PARENT_EVENT_WILDCARD    |
@@ -1696,8 +1691,8 @@ static WC_INLINE int tcp_connect_with_wolfSentry(
 
     ret = wolfsentry_route_event_dispatch(
         _wolfsentry,
-        &wolfsentry_data->remote,
-        &wolfsentry_data->local,
+        (const struct wolfsentry_sockaddr *)&wolfsentry_data->remote,
+        (const struct wolfsentry_sockaddr *)&wolfsentry_data->local,
         wolfsentry_data->flags,
         NULL /* event_label */,
         0    /* event_label_len */,
