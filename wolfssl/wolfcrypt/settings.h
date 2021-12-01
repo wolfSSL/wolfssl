@@ -351,12 +351,17 @@
     /* settings in user_settings.h */
 #endif
 
-#if defined(HAVE_LWIP_NATIVE) /* using LwIP native TCP socket */
+#if defined(WOLFSSL_LWIP_NATIVE) || \
+    defined(HAVE_LWIP_NATIVE) /* using LwIP native TCP socket */
+    #undef WOLFSSL_USER_IO
+    #define WOLFSSL_USER_IO
+
+    #if defined(HAVE_LWIP_NATIVE)
     #define WOLFSSL_LWIP
     #define NO_WRITEV
     #define SINGLE_THREADED
-    #define WOLFSSL_USER_IO
     #define NO_FILESYSTEM
+    #endif
 #endif
 
 #if defined(WOLFSSL_CONTIKI)
@@ -2320,7 +2325,6 @@ extern void uITRON4_free(void *p) ;
 #ifdef HAVE_SNI
     #define SSL_CTRL_SET_TLSEXT_HOSTNAME 55
 #endif
-
 
 /* both CURVE and ED small math should be enabled */
 #ifdef CURVED25519_SMALL

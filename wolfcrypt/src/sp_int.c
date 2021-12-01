@@ -12549,7 +12549,7 @@ static int _sp_read_radix_16(sp_int* a, const char* in)
 
     a->dp[0] = 0;
     for (i = (int)(XSTRLEN(in) - 1); i >= 0; i--) {
-        int ch = (int)(signed char)HexCharToByte(in[i]);
+        int ch = (int)HexCharToByte(in[i]);
         if (ch < 0) {
             err = MP_VAL;
             break;

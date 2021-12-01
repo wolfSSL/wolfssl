@@ -422,17 +422,18 @@ WC_STATIC WC_INLINE word32 btoi(byte b)
 }
 #endif
 
-WC_STATIC WC_INLINE char HexCharToByte(char ch)
+WC_STATIC WC_INLINE signed char HexCharToByte(char ch)
 {
-    if (ch >= '0' && ch <= '9')
-        ch -= '0';
-    else if (ch >= 'A' && ch <= 'F')
-        ch -= 'A' - 10;
-    else if (ch >= 'a' && ch <= 'f')
-        ch -= 'a' - 10;
+    signed char ret = (signed char)ch;
+    if (ret >= '0' && ret <= '9')
+        ret -= '0';
+    else if (ret >= 'A' && ret <= 'F')
+        ret -= 'A' - 10;
+    else if (ret >= 'a' && ret <= 'f')
+        ret -= 'a' - 10;
     else
-        ch = -1; /* error case - return code must be signed */
-    return ch;
+        ret = -1; /* error case - return code must be signed */
+    return ret;
 }
 
 WC_STATIC WC_INLINE char ByteToHex(byte in)

@@ -4551,6 +4551,9 @@ struct WOLFSSL {
 #if defined(WOLFSSL_IOTSAFE) && defined(HAVE_PK_CALLBACKS)
     IOTSAFE iotsafe;
 #endif
+#ifdef WOLFSSL_LWIP_NATIVE
+    WOLFSSL_LWIP_NATIVE_STATE      lwipCtx; /* LwIP native socket IO Context */
+#endif
 };
 
 /*

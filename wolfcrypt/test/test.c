@@ -406,7 +406,9 @@ WOLFSSL_TEST_SUBROUTINE int  hmac_sha256_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha384_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha512_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha3_test(void);
+#ifdef HAVE_HKDF
 /* WOLFSSL_TEST_SUBROUTINE */ static int  hkdf_test(void);
+#endif
 WOLFSSL_TEST_SUBROUTINE int  sshkdf_test(void);
 WOLFSSL_TEST_SUBROUTINE int  x963kdf_test(void);
 WOLFSSL_TEST_SUBROUTINE int  arc4_test(void);
@@ -629,7 +631,10 @@ static int wolfssl_pb_print(const char* msg, ...)
 #endif /* WOLFSSL_PB */
 
 /* optional macro to add sleep between tests */
-#ifdef TEST_SLEEP
+#ifndef TEST_SLEEP
+#define TEST_SLEEP()
+#else
+    #define TEST_PASS test_pass
     #include <stdarg.h> /* for var args */
     static WC_INLINE void test_pass(const char* fmt, ...)
     {
@@ -641,9 +646,12 @@ static int wolfssl_pb_print(const char* msg, ...)
         TEST_SLEEP();
         ASSERT_RESTORED_VECTOR_REGISTERS(exit(1););
     }
-#else
+#endif
+
+/* set test pass output to printf if not overriden */
+#ifndef TEST_PASS
     /* redirect to printf */
-    #define test_pass(...) {                                    \
+    #define TEST_PASS(...) {                                    \
         if (STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK                \
             (max_relative_stack, printf(__VA_ARGS__)) < 0) {    \
             return err_sys("post-test check failed", -1);       \
@@ -651,8 +659,6 @@ static int wolfssl_pb_print(const char* msg, ...)
         PRINT_HEAP_CHECKPOINT();                                \
         ASSERT_RESTORED_VECTOR_REGISTERS(exit(1););             \
     }
-    /* stub the sleep macro */
-    #define TEST_SLEEP()
 #endif
 
 #ifdef HAVE_STACK_SIZE
@@ -785,29 +791,29 @@ initDefaultName();
     if ( (ret = wolfCrypt_SelfTest()) != 0)
         return err_sys("CAVP selftest failed!\n", ret);
     else
-        test_pass("CAVP selftest passed!\n");
+        TEST_PASS("CAVP selftest passed!\n");
 #endif
 
     if ( (ret = error_test()) != 0)
         return err_sys("error    test failed!\n", ret);
     else
-        test_pass("error    test passed!\n");
+        TEST_PASS("error    test passed!\n");
 
     if ( (ret = memory_test()) != 0)
         return err_sys("MEMORY   test failed!\n", ret);
     else
-        test_pass("MEMORY   test passed!\n");
+        TEST_PASS("MEMORY   test passed!\n");
 
 #ifndef NO_CODING
     if ( (ret = base64_test()) != 0)
         return err_sys("base64   test failed!\n", ret);
     else
-        test_pass("base64   test passed!\n");
+        TEST_PASS("base64   test passed!\n");
 #ifdef WOLFSSL_BASE16
     if ( (ret = base16_test()) != 0)
         return err_sys("base16   test failed!\n", ret);
     else
-        test_pass("base16   test passed!\n");
+        TEST_PASS("base16   test passed!\n");
 #endif
 #endif /* !NO_CODING */
 
@@ -815,111 +821,111 @@ initDefaultName();
     if ( (ret = asn_test()) != 0)
         return err_sys("asn      test failed!\n", ret);
     else
-        test_pass("asn      test passed!\n");
+        TEST_PASS("asn      test passed!\n");
 #endif
 
 #ifndef WC_NO_RNG
     if ( (ret = random_test()) != 0)
         return err_sys("RANDOM   test failed!\n", ret);
     else
-        test_pass("RANDOM   test passed!\n");
+        TEST_PASS("RANDOM   test passed!\n");
 #endif /* WC_NO_RNG */
 
 #ifndef NO_MD5
     if ( (ret = md5_test()) != 0)
         return err_sys("MD5      test failed!\n", ret);
     else
-        test_pass("MD5      test passed!\n");
+        TEST_PASS("MD5      test passed!\n");
 #endif
 
 #ifdef WOLFSSL_MD2
     if ( (ret = md2_test()) != 0)
         return err_sys("MD2      test failed!\n", ret);
     else
-        test_pass("MD2      test passed!\n");
+        TEST_PASS("MD2      test passed!\n");
 #endif
 
 #ifndef NO_MD4
     if ( (ret = md4_test()) != 0)
         return err_sys("MD4      test failed!\n", ret);
     else
-        test_pass("MD4      test passed!\n");
+        TEST_PASS("MD4      test passed!\n");
 #endif
 
 #ifndef NO_SHA
     if ( (ret = sha_test()) != 0)
         return err_sys("SHA      test failed!\n", ret);
     else
-        test_pass("SHA      test passed!\n");
+        TEST_PASS("SHA      test passed!\n");
 #endif
 
 #ifdef WOLFSSL_SHA224
     if ( (ret = sha224_test()) != 0)
         return err_sys("SHA-224  test failed!\n", ret);
     else
-        test_pass("SHA-224  test passed!\n");
+        TEST_PASS("SHA-224  test passed!\n");
 #endif
 
 #ifndef NO_SHA256
     if ( (ret = sha256_test()) != 0)
         return err_sys("SHA-256  test failed!\n", ret);
     else
-        test_pass("SHA-256  test passed!\n");
+        TEST_PASS("SHA-256  test passed!\n");
 #endif
 
 #ifdef WOLFSSL_SHA384
     if ( (ret = sha384_test()) != 0)
         return err_sys("SHA-384  test failed!\n", ret);
     else
-        test_pass("SHA-384  test passed!\n");
+        TEST_PASS("SHA-384  test passed!\n");
 #endif
 
 #ifdef WOLFSSL_SHA512
     if ( (ret = sha512_test()) != 0)
         return err_sys("SHA-512  test failed!\n", ret);
     else
-        test_pass("SHA-512  test passed!\n");
+        TEST_PASS("SHA-512  test passed!\n");
 #endif
 
 #ifdef WOLFSSL_SHA3
     if ( (ret = sha3_test()) != 0)
         return err_sys("SHA-3    test failed!\n", ret);
     else
-        test_pass("SHA-3    test passed!\n");
+        TEST_PASS("SHA-3    test passed!\n");
 #endif
 
 #ifdef WOLFSSL_SHAKE256
     if ( (ret = shake256_test()) != 0)
         return err_sys("SHAKE256 test failed!\n", ret);
     else
-        test_pass("SHAKE256 test passed!\n");
+        TEST_PASS("SHAKE256 test passed!\n");
 #endif
 
 #ifndef NO_HASH_WRAPPER
     if ( (ret = hash_test()) != 0)
         return err_sys("Hash     test failed!\n", ret);
     else
-        test_pass("Hash     test passed!\n");
+        TEST_PASS("Hash     test passed!\n");
 #endif
 
 #ifdef WOLFSSL_RIPEMD
     if ( (ret = ripemd_test()) != 0)
         return err_sys("RIPEMD   test failed!\n", ret);
     else
-        test_pass("RIPEMD   test passed!\n");
+        TEST_PASS("RIPEMD   test passed!\n");
 #endif
 
 #ifdef HAVE_BLAKE2
     if ( (ret = blake2b_test()) != 0)
         return err_sys("BLAKE2b  test failed!\n", ret);
     else
-        test_pass("BLAKE2b  test passed!\n");
+        TEST_PASS("BLAKE2b  test passed!\n");
 #endif
 #ifdef HAVE_BLAKE2S
     if ( (ret = blake2s_test()) != 0)
         return err_sys("BLAKE2s  test failed!\n", ret);
     else
-        test_pass("BLAKE2s  test passed!\n");
+        TEST_PASS("BLAKE2s  test passed!\n");
 #endif
 
 #ifndef NO_HMAC
@@ -928,42 +934,42 @@ initDefaultName();
         if ( (ret = hmac_md5_test()) != 0)
             return err_sys("HMAC-MD5 test failed!\n", ret);
         else
-            test_pass("HMAC-MD5 test passed!\n");
+            TEST_PASS("HMAC-MD5 test passed!\n");
     #endif
 
     #ifndef NO_SHA
     if ( (ret = hmac_sha_test()) != 0)
         return err_sys("HMAC-SHA test failed!\n", ret);
     else
-        test_pass("HMAC-SHA test passed!\n");
+        TEST_PASS("HMAC-SHA test passed!\n");
     #endif
 
     #ifdef WOLFSSL_SHA224
         if ( (ret = hmac_sha224_test()) != 0)
             return err_sys("HMAC-SHA224 test failed!\n", ret);
         else
-            test_pass("HMAC-SHA224 test passed!\n");
+            TEST_PASS("HMAC-SHA224 test passed!\n");
     #endif
 
     #ifndef NO_SHA256
         if ( (ret = hmac_sha256_test()) != 0)
             return err_sys("HMAC-SHA256 test failed!\n", ret);
         else
-            test_pass("HMAC-SHA256 test passed!\n");
+            TEST_PASS("HMAC-SHA256 test passed!\n");
     #endif
 
     #ifdef WOLFSSL_SHA384
         if ( (ret = hmac_sha384_test()) != 0)
             return err_sys("HMAC-SHA384 test failed!\n", ret);
         else
-            test_pass("HMAC-SHA384 test passed!\n");
+            TEST_PASS("HMAC-SHA384 test passed!\n");
     #endif
 
     #ifdef WOLFSSL_SHA512
         if ( (ret = hmac_sha512_test()) != 0)
             return err_sys("HMAC-SHA512 test failed!\n", ret);
         else
-            test_pass("HMAC-SHA512 test passed!\n");
+            TEST_PASS("HMAC-SHA512 test passed!\n");
     #endif
 
     #if !defined(NO_HMAC) && defined(WOLFSSL_SHA3) && \
@@ -972,7 +978,7 @@ initDefaultName();
         if ( (ret = hmac_sha3_test()) != 0)
             return err_sys("HMAC-SHA3   test failed!\n", ret);
         else
-            test_pass("HMAC-SHA3   test passed!\n");
+            TEST_PASS("HMAC-SHA3   test passed!\n");
     #endif
 
     #ifdef HAVE_HKDF
@@ -980,7 +986,7 @@ initDefaultName();
         if ( (ret = hkdf_test()) != 0)
             return err_sys("HMAC-KDF    test failed!\n", ret);
         else
-            test_pass("HMAC-KDF    test passed!\n");
+            TEST_PASS("HMAC-KDF    test passed!\n");
         PRIVATE_KEY_LOCK();
     #endif
 #endif /* !NO_HMAC */
@@ -990,7 +996,7 @@ initDefaultName();
     if ( (ret = sshkdf_test()) != 0)
         return err_sys("SSH-KDF     test failed!\n", ret);
     else
-        test_pass("SSH-KDF     test passed!\n");
+        TEST_PASS("SSH-KDF     test passed!\n");
     PRIVATE_KEY_LOCK();
 #endif /* WOLFSSL_WOLFSSH */
 
@@ -998,7 +1004,7 @@ initDefaultName();
     if ( (ret = x963kdf_test()) != 0)
         return err_sys("X963-KDF    test failed!\n", ret);
     else
-        test_pass("X963-KDF    test passed!\n");
+        TEST_PASS("X963-KDF    test passed!\n");
 #endif
 
 #if defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && \
@@ -1006,111 +1012,111 @@ initDefaultName();
     if ( (ret = gmac_test()) != 0)
         return err_sys("GMAC     test failed!\n", ret);
     else
-        test_pass("GMAC     test passed!\n");
+        TEST_PASS("GMAC     test passed!\n");
 #endif
 
 #ifdef WC_RC2
     if ( (ret = rc2_test()) != 0)
         return err_sys("RC2      test failed!\n", ret);
     else
-        test_pass("RC2      test passed!\n");
+        TEST_PASS("RC2      test passed!\n");
 #endif
 
 #ifndef NO_RC4
     if ( (ret = arc4_test()) != 0)
         return err_sys("ARC4     test failed!\n", ret);
     else
-        test_pass("ARC4     test passed!\n");
+        TEST_PASS("ARC4     test passed!\n");
 #endif
 
 #ifndef NO_HC128
     if ( (ret = hc128_test()) != 0)
         return err_sys("HC-128   test failed!\n", ret);
     else
-        test_pass("HC-128   test passed!\n");
+        TEST_PASS("HC-128   test passed!\n");
 #endif
 
 #ifndef NO_RABBIT
     if ( (ret = rabbit_test()) != 0)
         return err_sys("Rabbit   test failed!\n", ret);
     else
-        test_pass("Rabbit   test passed!\n");
+        TEST_PASS("Rabbit   test passed!\n");
 #endif
 
 #ifdef HAVE_CHACHA
     if ( (ret = chacha_test()) != 0)
         return err_sys("Chacha   test failed!\n", ret);
     else
-        test_pass("Chacha   test passed!\n");
+        TEST_PASS("Chacha   test passed!\n");
 #endif
 
 #ifdef HAVE_XCHACHA
     if ( (ret = XChaCha_test()) != 0)
         return err_sys("XChacha  test failed!\n", ret);
     else
-        test_pass("XChacha  test passed!\n");
+        TEST_PASS("XChacha  test passed!\n");
 #endif
 
 #ifdef HAVE_POLY1305
     if ( (ret = poly1305_test()) != 0)
         return err_sys("POLY1305 test failed!\n", ret);
     else
-        test_pass("POLY1305 test passed!\n");
+        TEST_PASS("POLY1305 test passed!\n");
 #endif
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     if ( (ret = chacha20_poly1305_aead_test()) != 0)
         return err_sys("ChaCha20-Poly1305 AEAD test failed!\n", ret);
     else
-        test_pass("ChaCha20-Poly1305 AEAD test passed!\n");
+        TEST_PASS("ChaCha20-Poly1305 AEAD test passed!\n");
 #endif
 
 #if defined(HAVE_XCHACHA) && defined(HAVE_POLY1305)
     if ( (ret = XChaCha20Poly1305_test()) != 0)
         return err_sys("XChaCha20-Poly1305 AEAD test failed!\n", ret);
     else
-        test_pass("XChaCha20-Poly1305 AEAD test passed!\n");
+        TEST_PASS("XChaCha20-Poly1305 AEAD test passed!\n");
 #endif
 
 #ifndef NO_DES3
     if ( (ret = des_test()) != 0)
         return err_sys("DES      test failed!\n", ret);
     else
-        test_pass("DES      test passed!\n");
+        TEST_PASS("DES      test passed!\n");
 #endif
 
 #ifndef NO_DES3
     if ( (ret = des3_test()) != 0)
         return err_sys("DES3     test failed!\n", ret);
     else
-        test_pass("DES3     test passed!\n");
+        TEST_PASS("DES3     test passed!\n");
 #endif
 
 #ifndef NO_AES
     if ( (ret = aes_test()) != 0)
         return err_sys("AES      test failed!\n", ret);
     else
-        test_pass("AES      test passed!\n");
+        TEST_PASS("AES      test passed!\n");
 
 #ifdef WOLFSSL_AES_192
     if ( (ret = aes192_test()) != 0)
         return err_sys("AES192   test failed!\n", ret);
     else
-        test_pass("AES192   test passed!\n");
+        TEST_PASS("AES192   test passed!\n");
 #endif
 
 #ifdef WOLFSSL_AES_256
     if ( (ret = aes256_test()) != 0)
         return err_sys("AES256   test failed!\n", ret);
     else
-        test_pass("AES256   test passed!\n");
+        TEST_PASS("AES256   test passed!\n");
 #endif
 
 #ifdef WOLFSSL_AES_OFB
     if ( (ret = aesofb_test()) != 0)
         return err_sys("AES-OFB  test failed!\n", ret);
     else
-        test_pass("AESOFB   test passed!\n");
+        TEST_PASS("AESOFB   test passed!\n");
 #endif
 
 #ifdef HAVE_AESGCM
@@ -1125,20 +1131,20 @@ initDefaultName();
         return err_sys("AES-GCM  test failed!\n", ret);
     }
     #endif
-    test_pass("AES-GCM  test passed!\n");
+    TEST_PASS("AES-GCM  test passed!\n");
 #endif
 
 #if defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
     if ( (ret = aesccm_test()) != 0)
         return err_sys("AES-CCM  test failed!\n", ret);
     else
-        test_pass("AES-CCM  test passed!\n");
+        TEST_PASS("AES-CCM  test passed!\n");
 #endif
 #ifdef HAVE_AES_KEYWRAP
     if ( (ret = aeskeywrap_test()) != 0)
         return err_sys("AES Key Wrap test failed!\n", ret);
     else
-        test_pass("AES Key Wrap test passed!\n");
+        TEST_PASS("AES Key Wrap test passed!\n");
 #endif
 #endif
 
@@ -1146,14 +1152,14 @@ initDefaultName();
     if ( (ret = camellia_test()) != 0)
         return err_sys("CAMELLIA test failed!\n", ret);
     else
-        test_pass("CAMELLIA test passed!\n");
+        TEST_PASS("CAMELLIA test passed!\n");
 #endif
 
 #ifdef HAVE_IDEA
     if ( (ret = idea_test()) != 0)
         return err_sys("IDEA     test failed!\n", ret);
     else
-        test_pass("IDEA     test passed!\n");
+        TEST_PASS("IDEA     test passed!\n");
 #endif
 
 #ifndef NO_RSA
@@ -1161,12 +1167,12 @@ initDefaultName();
     if ( (ret = rsa_no_pad_test()) != 0)
         return err_sys("RSA NOPAD test failed!\n", ret);
     else
-        test_pass("RSA NOPAD test passed!\n");
+        TEST_PASS("RSA NOPAD test passed!\n");
     #endif
     if ( (ret = rsa_test()) != 0)
         return err_sys("RSA      test failed!\n", ret);
     else
-        test_pass("RSA      test passed!\n");
+        TEST_PASS("RSA      test passed!\n");
 #endif
 
 #ifndef NO_DH
@@ -1174,7 +1180,7 @@ initDefaultName();
     if ( (ret = dh_test()) != 0)
         return err_sys("DH       test failed!\n", ret);
     else
-        test_pass("DH       test passed!\n");
+        TEST_PASS("DH       test passed!\n");
     PRIVATE_KEY_LOCK();
 #endif
 
@@ -1182,48 +1188,48 @@ initDefaultName();
     if ( (ret = dsa_test()) != 0)
         return err_sys("DSA      test failed!\n", ret);
     else
-        test_pass("DSA      test passed!\n");
+        TEST_PASS("DSA      test passed!\n");
 #endif
 
 #ifdef WOLFCRYPT_HAVE_SRP
     if ( (ret = srp_test()) != 0)
         return err_sys("SRP      test failed!\n", ret);
     else
-        test_pass("SRP      test passed!\n");
+        TEST_PASS("SRP      test passed!\n");
 #endif
 
 #ifndef NO_PWDBASED
     if ( (ret = pwdbased_test()) != 0)
         return err_sys("PWDBASED test failed!\n", ret);
     else
-        test_pass("PWDBASED test passed!\n");
+        TEST_PASS("PWDBASED test passed!\n");
 #endif
 
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
     if ( (ret = openssl_test()) != 0)
         return err_sys("OPENSSL  test failed!\n", ret);
     else
-        test_pass("OPENSSL  test passed!\n");
+        TEST_PASS("OPENSSL  test passed!\n");
 
     if ( (ret = openSSL_evpMD_test()) != 0)
         return err_sys("OPENSSL (EVP MD) test failed!\n", ret);
     else
-        test_pass("OPENSSL (EVP MD) passed!\n");
+        TEST_PASS("OPENSSL (EVP MD) passed!\n");
 
     if ( (ret = openssl_pkey0_test()) != 0)
         return err_sys("OPENSSL (PKEY0) test failed!\n", ret);
     else
-        test_pass("OPENSSL (PKEY0) passed!\n");
+        TEST_PASS("OPENSSL (PKEY0) passed!\n");
 
     if ( (ret = openssl_pkey1_test()) != 0)
         return err_sys("OPENSSL (PKEY1) test failed!\n", ret);
     else
-        test_pass("OPENSSL (PKEY1) passed!\n");
+        TEST_PASS("OPENSSL (PKEY1) passed!\n");
 
     if ( (ret = openssl_evpSig_test()) != 0)
         return err_sys("OPENSSL (EVP Sign/Verify) test failed!\n", ret);
     else
-        test_pass("OPENSSL (EVP Sign/Verify) passed!\n");
+        TEST_PASS("OPENSSL (EVP Sign/Verify) passed!\n");
 
 #endif
 
@@ -1232,14 +1238,14 @@ initDefaultName();
     if ( (ret = ecc_test()) != 0)
         return err_sys("ECC      test failed!\n", ret);
     else
-        test_pass("ECC      test passed!\n");
+        TEST_PASS("ECC      test passed!\n");
     PRIVATE_KEY_LOCK();
     #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_AES_CBC) && \
         defined(WOLFSSL_AES_128)
         if ( (ret = ecc_encrypt_test()) != 0)
             return err_sys("ECC Enc  test failed!\n", ret);
         else
-            test_pass("ECC Enc  test passed!\n");
+            TEST_PASS("ECC Enc  test passed!\n");
     #endif
     #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
         !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
@@ -1248,7 +1254,7 @@ initDefaultName();
         if ( (ret = ecc_test_buffers()) != 0)
             return err_sys("ECC buffer test failed!\n", ret);
         else
-            test_pass("ECC buffer test passed!\n");
+            TEST_PASS("ECC buffer test passed!\n");
     #endif
 #endif
 
@@ -1257,7 +1263,7 @@ initDefaultName();
     if ( (ret = cert_test()) != 0)
         return err_sys("CERT     test failed!\n", ret);
     else
-        test_pass("CERT     test passed!\n");
+        TEST_PASS("CERT     test passed!\n");
 #endif
 
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
@@ -1265,7 +1271,7 @@ initDefaultName();
     if ( (ret = certext_test()) != 0)
         return err_sys("CERT EXT test failed!\n", ret);
     else
-        test_pass("CERT EXT test passed!\n");
+        TEST_PASS("CERT EXT test passed!\n");
 #endif
 
 #if defined(WOLFSSL_CERT_GEN_CACHE) && defined(WOLFSSL_TEST_CERT) && \
@@ -1273,62 +1279,62 @@ initDefaultName();
     if ( (ret = decodedCertCache_test()) != 0)
         return err_sys("DECODED CERT CACHE test failed!\n", ret);
     else
-        test_pass("DECODED CERT CACHE test passed!\n");
+        TEST_PASS("DECODED CERT CACHE test passed!\n");
 #endif
 
 #ifdef HAVE_CURVE25519
     if ( (ret = curve25519_test()) != 0)
         return err_sys("CURVE25519 test failed!\n", ret);
     else
-        test_pass("CURVE25519 test passed!\n");
+        TEST_PASS("CURVE25519 test passed!\n");
 #endif
 
 #ifdef HAVE_ED25519
     if ( (ret = ed25519_test()) != 0)
         return err_sys("ED25519  test failed!\n", ret);
     else
-        test_pass("ED25519  test passed!\n");
+        TEST_PASS("ED25519  test passed!\n");
 #endif
 
 #ifdef HAVE_CURVE448
     if ( (ret = curve448_test()) != 0)
         return err_sys("CURVE448 test failed!\n", ret);
     else
-        test_pass("CURVE448 test passed!\n");
+        TEST_PASS("CURVE448 test passed!\n");
 #endif
 
 #ifdef HAVE_ED448
     if ( (ret = ed448_test()) != 0)
         return err_sys("ED448    test failed!\n", ret);
     else
-        test_pass("ED448    test passed!\n");
+        TEST_PASS("ED448    test passed!\n");
 #endif
 
 #ifdef WOLFCRYPT_HAVE_ECCSI
     if ( (ret = eccsi_test()) != 0)
         return err_sys("ECCSI    test failed!\n", ret);
     else
-        test_pass("ECCSI    test passed!\n");
+        TEST_PASS("ECCSI    test passed!\n");
 #endif
 #ifdef WOLFCRYPT_HAVE_SAKKE
     if ( (ret = sakke_test()) != 0)
         return err_sys("SAKKE    test failed!\n", ret);
     else
-        test_pass("SAKKE    test passed!\n");
+        TEST_PASS("SAKKE    test passed!\n");
 #endif
 
 #if defined(WOLFSSL_CMAC) && !defined(NO_AES)
     if ( (ret = cmac_test()) != 0)
         return err_sys("CMAC     test failed!\n", ret);
     else
-        test_pass("CMAC     test passed!\n");
+        TEST_PASS("CMAC     test passed!\n");
 #endif
 
 #ifdef HAVE_LIBZ
     if ( (ret = compress_test()) != 0)
         return err_sys("COMPRESS test failed!\n", ret);
     else
-        test_pass("COMPRESS test passed!\n");
+        TEST_PASS("COMPRESS test passed!\n");
 #endif
 
 #ifdef HAVE_PKCS7
@@ -1336,29 +1342,29 @@ initDefaultName();
         if ( (ret = pkcs7encrypted_test()) != 0)
             return err_sys("PKCS7encrypted  test failed!\n", ret);
         else
-            test_pass("PKCS7encrypted  test passed!\n");
+            TEST_PASS("PKCS7encrypted  test passed!\n");
     #endif
     #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
         if ( (ret = pkcs7compressed_test()) != 0)
             return err_sys("PKCS7compressed test failed!\n", ret);
         else
-            test_pass("PKCS7compressed test passed!\n");
+            TEST_PASS("PKCS7compressed test passed!\n");
     #endif
     if ( (ret = pkcs7signed_test()) != 0)
         return err_sys("PKCS7signed     test failed!\n", ret);
     else
-        test_pass("PKCS7signed     test passed!\n");
+        TEST_PASS("PKCS7signed     test passed!\n");
 
     if ( (ret = pkcs7enveloped_test()) != 0)
         return err_sys("PKCS7enveloped  test failed!\n", ret);
     else
-        test_pass("PKCS7enveloped  test passed!\n");
+        TEST_PASS("PKCS7enveloped  test passed!\n");
 
     #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
         if ( (ret = pkcs7authenveloped_test()) != 0)
             return err_sys("PKCS7authenveloped  test failed!\n", ret);
         else
-            test_pass("PKCS7authenveloped  test passed!\n");
+            TEST_PASS("PKCS7authenveloped  test passed!\n");
     #endif
 #endif
 
@@ -1366,14 +1372,14 @@ initDefaultName();
     if ( (ret = mp_test()) != 0)
         return err_sys("mp       test failed!\n", ret);
     else
-        test_pass("mp       test passed!\n");
+        TEST_PASS("mp       test passed!\n");
 #endif
 
 #if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN)
     if ( (ret = prime_test()) != 0)
         return err_sys("prime    test failed!\n", ret);
     else
-        test_pass("prime    test passed!\n");
+        TEST_PASS("prime    test passed!\n");
 #endif
 
 #if defined(ASN_BER_TO_DER) && \
@@ -1382,31 +1388,31 @@ initDefaultName();
     if ( (ret = berder_test()) != 0)
         return err_sys("ber-der  test failed!\n", ret);
     else
-        test_pass("ber-der  test passed!\n");
+        TEST_PASS("ber-der  test passed!\n");
 #endif
 
     if ( (ret = logging_test()) != 0)
         return err_sys("logging  test failed!\n", ret);
     else
-        test_pass("logging  test passed!\n");
+        TEST_PASS("logging  test passed!\n");
 
     if ( (ret = mutex_test()) != 0)
         return err_sys("mutex    test failed!\n", ret);
     else
-        test_pass("mutex    test passed!\n");
+        TEST_PASS("mutex    test passed!\n");
 
 #if defined(USE_WOLFSSL_MEMORY) && !defined(FREERTOS)
     if ( (ret = memcb_test()) != 0)
         return err_sys("memcb    test failed!\n", ret);
     else
-        test_pass("memcb    test passed!\n");
+        TEST_PASS("memcb    test passed!\n");
 #endif
 
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
     if ( (ret = blob_test()) != 0)
         return err_sys("blob     test failed!\n", ret);
     else
-        test_pass("blob     test passed!\n");
+        TEST_PASS("blob     test passed!\n");
 #endif
 
 #if defined(WOLF_CRYPTO_CB) && \
@@ -1415,14 +1421,14 @@ initDefaultName();
     if ( (ret = cryptocb_test()) != 0)
         return err_sys("crypto callback test failed!\n", ret);
     else
-        test_pass("crypto callback test passed!\n");
+        TEST_PASS("crypto callback test passed!\n");
 #endif
 
 #ifdef WOLFSSL_CERT_PIV
     if ( (ret = certpiv_test()) != 0)
         return err_sys("cert piv test failed!\n", ret);
     else
-        test_pass("cert piv test passed!\n");
+        TEST_PASS("cert piv test passed!\n");
 #endif
 
 #ifdef WOLF_CRYPTO_CB
@@ -1446,7 +1452,7 @@ initDefaultName();
     if (args)
         ((func_args*)args)->return_code = ret;
 
-    test_pass("Test complete\n");
+    TEST_PASS("Test complete\n");
 
     EXIT_TEST(ret);
 }

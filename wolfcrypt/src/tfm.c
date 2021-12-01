@@ -5483,7 +5483,7 @@ static int fp_read_radix_16(fp_int *a, const char *str)
   j = 0;
   k = 0;
   for (i = (int)(XSTRLEN(str) - 1); i >= 0; i--) {
-      ch = (int)(signed char)HexCharToByte(str[i]);
+      ch = (int)HexCharToByte(str[i]);
       if (ch < 0) {
         return FP_VAL;
       }

@@ -279,6 +279,14 @@
     #define SOCKET_EPIPE       FCL_EPIPE
     #define SOCKET_ECONNREFUSED FCL_ECONNREFUSED
     #define SOCKET_ECONNABORTED FNS_ECONNABORTED
+#elif defined(WOLFSSL_LWIP_NATIVE)
+    #define SOCKET_EWOULDBLOCK ERR_WOULDBLOCK
+    #define SOCKET_EAGAIN      ERR_WOULDBLOCK
+    #define SOCKET_ECONNRESET  ERR_RST
+    #define SOCKET_EINTR       ERR_CLSD
+    #define SOCKET_EPIPE       ERR_CLSD
+    #define SOCKET_ECONNREFUSED ERR_CONN
+    #define SOCKET_ECONNABORTED ERR_ABRT
 #else
     #define SOCKET_EWOULDBLOCK EWOULDBLOCK
     #define SOCKET_EAGAIN      EAGAIN
@@ -586,6 +594,27 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 
 #endif
 
+#ifdef WOLFSSL_LWIP_NATIVE
+    #include "lwip/tcp.h"
+    #include "lwip/sockets.h"
+
+    typedef struct WOLFSSL_LWIP_NATIVE_STATE {
+        struct tcp_pcb * pcb;
+        tcp_recv_fn recv_fn;
+        tcp_sent_fn sent_fn;
+        int    pulled;
+        struct pbuf *pbuf;
+        int    wait;
+        void * arg;   /* arg for application */
+        int    idle_count;
+    } WOLFSSL_LWIP_NATIVE_STATE;
+
+    WOLFSSL_LOCAL int LwIPNativeSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+    WOLFSSL_LOCAL int LwIPNativeReceive(WOLFSSL* ssl, char* buf, int sz,
+                                     void* ctx);
+    WOLFSSL_API   int wolfSSL_SetIO_LwIP(WOLFSSL* ssl, void *pcb,
+                                tcp_recv_fn recv, tcp_sent_fn sent, void *arg);
+#endif
 
 #ifdef WOLFSSL_DTLS
     typedef int (*CallbackGenCookie)(WOLFSSL* ssl, unsigned char* buf, int sz,

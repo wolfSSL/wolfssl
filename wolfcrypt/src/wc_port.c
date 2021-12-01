@@ -2495,6 +2495,34 @@ time_t time(time_t * timer)
 }
 #endif /* WOLFSSL_LINUXKM */
 
+#ifdef HAL_RTC_MODULE_ENABLED
+extern RTC_HandleTypeDef hrtc;
+time_t stm32_hal_time(time_t *t1)
+{
+    struct tm tm_time;
+    time_t ret;
+    RTC_TimeTypeDef time;
+    RTC_DateTypeDef date;
+
+    /* order of GetTime followed by GetDate required here due to STM32 HW
+     * requirement */
+    HAL_RTC_GetTime(&hrtc, &time, FORMAT_BIN);
+    HAL_RTC_GetDate(&hrtc, &date, FORMAT_BIN);
+
+    tm_time.tm_year  = date.Year;
+    tm_time.tm_mon   = date.Month - 1;          /* gm starts at 0 */
+    tm_time.tm_mday  = date.Date;
+    tm_time.tm_hour  = time.Hours;
+    tm_time.tm_min   = time.Minutes;
+    tm_time.tm_sec   = time.Seconds;
+
+    ret = mktime(&tm_time);
+    if (t1 != NULL)
+        *t1 = ret;
+    return ret;
+}
+#endif /* HAL_RTC_MODULE_ENABLED */
+
 #endif /* !NO_ASN_TIME */
 
 #if !defined(WOLFSSL_LEANPSK) && !defined(STRING_USER)
