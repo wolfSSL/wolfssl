@@ -32775,7 +32775,7 @@ static void test_wolfSSL_X509_STORE_CTX_get0_current_issuer(void)
         cmp = X509_NAME_cmp(caName, issuerName);
         AssertIntEQ(cmp, 0);
     #else
-        AssertNotNull(issuerName);
+        AssertNull(issuerName);
     #endif
 
     X509_free(issuer);

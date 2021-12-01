@@ -23525,7 +23525,7 @@ WOLFSSL_ABI
 WOLFSSL_X509_NAME* wolfSSL_X509_get_subject_name(WOLFSSL_X509* cert)
 {
     WOLFSSL_ENTER("wolfSSL_X509_get_subject_name");
-    if (cert)
+    if (cert && cert->subject.sz > 0)
         return &cert->subject;
     return NULL;
 }
@@ -23601,7 +23601,7 @@ WOLFSSL_ABI
 WOLFSSL_X509_NAME* wolfSSL_X509_get_issuer_name(WOLFSSL_X509* cert)
 {
     WOLFSSL_ENTER("X509_get_issuer_name");
-    if (cert && cert->issuer.sz != 0)
+    if (cert && cert->issuer.sz > 0)
         return &cert->issuer;
     return NULL;
 }
@@ -57917,6 +57917,43 @@ static const conf_cmd_tbl conf_cmds_tbl[] = {
 static const size_t size_of_cmd_tbls = sizeof(conf_cmds_tbl)
                                                     / sizeof(conf_cmd_tbl);
 
+static const conf_cmd_tbl* wolfssl_conf_find_cmd(WOLFSSL_CONF_CTX* cctx,
+                                         const char* cmd)
+{
+    size_t i = 0;
+    size_t cmdlen = 0;
+
+    if (cctx->flags & WOLFSSL_CONF_FLAG_CMDLINE) {
+        cmdlen = XSTRLEN(cmd);
+
+        if (cmdlen < 2) {
+            WOLFSSL_MSG("bad cmdline command");
+            return NULL;
+        }
+        /* skip "-" prefix */
+        ++cmd;
+    }
+
+    for (i = 0; i < size_of_cmd_tbls; i++) {
+        /* check if the cmd is valid */
+        if (cctx->flags & WOLFSSL_CONF_FLAG_CMDLINE) {
+            if (conf_cmds_tbl[i].cmdline_cmd != NULL &&
+                XSTRCMP(cmd, conf_cmds_tbl[i].cmdline_cmd) == 0) {
+                return &conf_cmds_tbl[i];
+            }
+        }
+
+        if (cctx->flags & WOLFSSL_CONF_FLAG_FILE) {
+            if (conf_cmds_tbl[i].file_cmd != NULL &&
+                XSTRCMP(cmd, conf_cmds_tbl[i].file_cmd) == 0) {
+                return &conf_cmds_tbl[i];
+            }
+        }
+    }
+
+    return NULL;
+}
+
 /**
  * send configuration command
  * @param cctx  a pointer to WOLFSSL_CONF_CTX structure
@@ -57931,14 +57968,8 @@ static const size_t size_of_cmd_tbls = sizeof(conf_cmds_tbl)
 int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
 {
     int ret = WOLFSSL_FAILURE;
-    size_t i = 0;
-    size_t cmdlen = 0;
-    const char* c = NULL;
+    const conf_cmd_tbl* confcmd = NULL;
     WOLFSSL_ENTER("wolfSSL_CONF_cmd");
-
-    (void)cctx;
-    (void)cmd;
-    (void)value;
 
     /* sanity check */
     if (cctx == NULL || cmd == NULL) {
@@ -57946,50 +57977,16 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
         return ret;
     }
 
-    if (cctx->flags & WOLFSSL_CONF_FLAG_CMDLINE) {
-        cmdlen = XSTRLEN(cmd);
+    confcmd = wolfssl_conf_find_cmd(cctx, cmd);
+    if (confcmd == NULL)
+        return -2;
 
-        if (cmdlen < 2) {
-            WOLFSSL_MSG("bad cmdline command");
-            return -2;
-        }
-        /* skip "-" prefix */
-        c = ++cmd;
+    if (confcmd->cmdfunc == NULL) {
+        WOLFSSL_MSG("cmd not yet implemented");
+        return -2;
     }
 
-    for (i = 0; i < size_of_cmd_tbls; i++) {
-        /* check if the cmd is valid */
-        if (cctx->flags & WOLFSSL_CONF_FLAG_CMDLINE) {
-            if (c != NULL && conf_cmds_tbl[i].cmdline_cmd != NULL &&
-                XSTRCMP(c, conf_cmds_tbl[i].cmdline_cmd) == 0) {
-                if (conf_cmds_tbl[i].cmdfunc != NULL) {
-                    ret = conf_cmds_tbl[i].cmdfunc(cctx, value);
-                    break;
-                } else {
-                    WOLFSSL_MSG("cmd not yet implemented");
-                    return -2;
-                }
-            }
-        }
-
-        if (cctx->flags & WOLFSSL_CONF_FLAG_FILE) {
-            if (conf_cmds_tbl[i].file_cmd != NULL &&
-                XSTRCMP(cmd, conf_cmds_tbl[i].file_cmd) == 0) {
-                if (conf_cmds_tbl[i].cmdfunc != NULL) {
-                    ret = conf_cmds_tbl[i].cmdfunc(cctx, value);
-                    break;
-                } else {
-                    WOLFSSL_MSG("cmd not yet implemented");
-                    return -2;
-                }
-            }
-        }
-    }
-
-    if (i == size_of_cmd_tbls) {
-        WOLFSSL_MSG("invalid command");
-        ret = -2;
-    }
+    ret = confcmd->cmdfunc(cctx, value);
 
     /* return code compliant with OpenSSL */
     if (ret < -3)
@@ -57997,6 +57994,24 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
 
     WOLFSSL_LEAVE("wolfSSL_CONF_cmd", ret);
     return ret;
+}
+
+/**
+ *
+ * @param cctx a pointer to WOLFSSL_CONF_CTX structure
+ * @param cmd  configuration command
+ * @return The SSL_CONF_TYPE_* type or SSL_CONF_TYPE_UNKNOWN if an
+ *         unvalid command
+ */
+int wolfSSL_CONF_cmd_value_type(WOLFSSL_CONF_CTX *cctx, const char *cmd)
+{
+    const conf_cmd_tbl* confcmd = NULL;
+    WOLFSSL_ENTER("wolfSSL_CONF_cmd_value_type");
+
+    confcmd = wolfssl_conf_find_cmd(cctx, cmd);
+    if (confcmd == NULL)
+        return SSL_CONF_TYPE_UNKNOWN;
+    return (int)confcmd->data_type;
 }
 
 #endif /* OPENSSL_EXTRA */

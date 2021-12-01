@@ -5950,7 +5950,11 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
     ssl->timeout = ctx->timeout;
     ssl->verifyCallback    = ctx->verifyCallback;
-    ssl->options.side      = ctx->method->side;
+    /* If we are setting the ctx on an already initialized SSL object
+     * then we possibly already have a side defined. Don't overwrite unless
+     * the context has a well defined role. */
+    if (newSSL || ctx->method->side != WOLFSSL_NEITHER_END)
+        ssl->options.side      = ctx->method->side;
     ssl->options.downgrade    = ctx->method->downgrade;
     ssl->options.minDowngrade = ctx->minDowngrade;
 

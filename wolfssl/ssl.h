@@ -4802,12 +4802,18 @@ WOLFSSL_API int wolfSSL_CONF_CTX_finish(WOLFSSL_CONF_CTX* cctx);
 
 #define WOLFSSL_CONF_FLAG_CMDLINE       0x1
 #define WOLFSSL_CONF_FLAG_FILE          0x2
+#define WOLFSSL_CONF_FLAG_CLIENT        0x4
+#define WOLFSSL_CONF_FLAG_SERVER        0x8
+#define WOLFSSL_CONF_FLAG_SHOW_ERRORS   0x10
 #define WOLFSSL_CONF_FLAG_CERTIFICATE   0x20
 
+#define WOLFSSL_CONF_TYPE_UNKNOWN       0x0
 #define WOLFSSL_CONF_TYPE_STRING        0x1
 #define WOLFSSL_CONF_TYPE_FILE          0x2
+#define WOLFSSL_CONF_TYPE_DIR           0x3
 
 WOLFSSL_API int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value);
+WOLFSSL_API int wolfSSL_CONF_cmd_value_type(WOLFSSL_CONF_CTX *cctx, const char *cmd);
 #endif /* OPENSSL_EXTRA */
 #if defined(HAVE_EX_DATA) || defined(WOLFSSL_WPAS_SMALL)
 WOLFSSL_API int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,

@@ -1264,13 +1264,16 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define DTLS_MAX_VERSION                 DTLS1_2_VERSION
 
 /* apache and lighty use SSL_CONF_FLAG_FILE to enable conf support */
-#if !defined(WOLFSSL_APACHE_HTTPD) && !defined(HAVE_LIGHTY)
 #define SSL_CONF_FLAG_CMDLINE            WOLFSSL_CONF_FLAG_CMDLINE
 #define SSL_CONF_FLAG_FILE               WOLFSSL_CONF_FLAG_FILE
 #define SSL_CONF_FLAG_CERTIFICATE        WOLFSSL_CONF_FLAG_CERTIFICATE
+#define SSL_CONF_FLAG_SERVER             WOLFSSL_CONF_FLAG_SERVER
+#define SSL_CONF_FLAG_CLIENT             WOLFSSL_CONF_FLAG_CLIENT
+#define SSL_CONF_FLAG_SHOW_ERRORS        WOLFSSL_CONF_FLAG_SHOW_ERRORS
+#define SSL_CONF_TYPE_UNKNOWN            WOLFSSL_CONF_TYPE_UNKNOWN
 #define SSL_CONF_TYPE_STRING             WOLFSSL_CONF_TYPE_STRING
 #define SSL_CONF_TYPE_FILE               WOLFSSL_CONF_TYPE_FILE
-#endif
+#define SSL_CONF_TYPE_DIR                WOLFSSL_CONF_TYPE_DIR
 
 #if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(OPENSSL_EXTRA) \
                                                          || defined(OPENSSL_ALL)
@@ -1597,6 +1600,7 @@ typedef WOLFSSL_CONF_CTX SSL_CONF_CTX;
 #define SSL_CONF_CTX_set_flags          wolfSSL_CONF_CTX_set_flags
 #define SSL_CONF_CTX_finish             wolfSSL_CONF_CTX_finish
 #define SSL_CONF_cmd                    wolfSSL_CONF_cmd
+#define SSL_CONF_cmd_value_type         wolfSSL_CONF_cmd_value_type
 
 #ifdef __cplusplus
     } /* extern "C" */
