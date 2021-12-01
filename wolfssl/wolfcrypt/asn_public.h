@@ -64,9 +64,9 @@ This library defines the interface APIs for X509 certificates.
     #define WC_RSAKEY_TYPE_DEFINED
 #endif
 #ifndef WC_RNG_TYPE_DEFINED
+    typedef struct OS_Seed OS_Seed;
     typedef struct WC_RNG WC_RNG;
     #ifdef WC_RNG_SEED_CB
-    typedef struct OS_Seed OS_Seed;
     typedef int (*wc_RngSeed_Cb)(OS_Seed* os, byte* seed, word32 sz);
     #endif
     #define WC_RNG_TYPE_DEFINED
