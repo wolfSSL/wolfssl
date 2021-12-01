@@ -37267,9 +37267,14 @@ int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
     WOLFSSL_ENTER("wolfSSL_EC_KEY_generate_key");
 
     if (key == NULL || key->internal == NULL ||
-        key->group == NULL || key->group->curve_idx < 0) {
+        key->group == NULL) {
         WOLFSSL_MSG("wolfSSL_EC_KEY_generate_key Bad arguments");
         return 0;
+    }
+    if (key->group->curve_idx < 0) {
+        /* generate key using the default curve */
+        /* group should be set, but to retain compat use index 0 */
+        key->group->curve_idx = ECC_CURVE_DEF;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -37431,27 +37436,29 @@ int wolfSSL_EC_KEY_check_key(const WOLFSSL_EC_KEY *key)
 }
 /* End EC_KEY */
 
+/* Calculate and return maximum size of the ECDSA signature for the curve */
 int wolfSSL_ECDSA_size(const WOLFSSL_EC_KEY *key)
 {
     const EC_GROUP *group;
     int bits, bytes;
-    word32 headerSz = 4;   /* 2*ASN_TAG + 2*LEN(ENUM) */
+    word32 headerSz = SIG_HEADER_SZ; /* 2*ASN_TAG + 2*LEN(ENUM) */
 
-    if (!key) {
+    if (key == NULL) {
         return WOLFSSL_FAILURE;
     }
 
-    if (!(group = wolfSSL_EC_KEY_get0_group(key))) {
+    if ((group = wolfSSL_EC_KEY_get0_group(key)) == NULL) {
         return WOLFSSL_FAILURE;
     }
     if ((bits = wolfSSL_EC_GROUP_order_bits(group)) == 0) {
+        /* group is not set */
         return WOLFSSL_FAILURE;
     }
-    bytes = (bits + 7) / 8; /* bytes needed to hold bits */
+
+    bytes = (bits + 7) / 8;  /* bytes needed to hold bits */
     return headerSz +
-            2 + /* possible leading zeroes in r and s */
-            bytes + bytes + /* r and s */
-            2;
+            ECC_MAX_PAD_SZ + /* possible leading zeroes in r and s */
+            bytes + bytes;   /* r and s */
 }
 
 int wolfSSL_ECDSA_sign(int type,
@@ -37710,16 +37717,12 @@ void wolfSSL_EC_GROUP_set_asn1_flag(WOLFSSL_EC_GROUP *group, int flag)
 WOLFSSL_EC_GROUP *wolfSSL_EC_GROUP_new_by_curve_name(int nid)
 {
     WOLFSSL_EC_GROUP *g;
-    int x;
-    int eccEnum;
+    int x, eccEnum;
 
     WOLFSSL_ENTER("wolfSSL_EC_GROUP_new_by_curve_name");
 
-    /* If NID passed in is OpenSSL type, convert it to ecc_curve_id enum */
-    eccEnum = NIDToEccEnum(nid);
-
     /* curve group */
-    g = (WOLFSSL_EC_GROUP*) XMALLOC(sizeof(WOLFSSL_EC_GROUP), NULL,
+    g = (WOLFSSL_EC_GROUP*)XMALLOC(sizeof(WOLFSSL_EC_GROUP), NULL,
                                     DYNAMIC_TYPE_ECC);
     if (g == NULL) {
         WOLFSSL_MSG("wolfSSL_EC_GROUP_new_by_curve_name malloc failure");
@@ -37729,15 +37732,19 @@ WOLFSSL_EC_GROUP *wolfSSL_EC_GROUP_new_by_curve_name(int nid)
 
     /* set the nid of the curve */
     g->curve_nid = nid;
+    g->curve_idx = -1;
 
+    /* If NID passed in is OpenSSL type, convert it to ecc_curve_id enum */
+    eccEnum = NIDToEccEnum(nid);
     if (eccEnum != -1) {
         /* search and set the corresponding internal curve idx */
-        for (x = 0; ecc_sets[x].size != 0; x++)
+        for (x = 0; ecc_sets[x].size != 0; x++) {
             if (ecc_sets[x].id == eccEnum) {
                 g->curve_idx = x;
                 g->curve_oid = ecc_sets[x].oidSum;
                 break;
             }
+        }
     }
 
     return g;
