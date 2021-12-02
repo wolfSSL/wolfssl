@@ -585,6 +585,13 @@ static int iotsafe_parse_public_key(char* resp, int len, ecc_key *key)
     return 0;
 }
 
+/* Execute GEN_KEYPAIR on the IoT-SAFE applet.
+ *
+ * Return -1 on error; 0 if the operation is successful, but
+ * the generated public key was not yet stored in `key`; 1 if 
+ * the operation is successful and the public key was found in the
+ * command response and copied to the `key` structure.
+ */
 static int iotsafe_gen_keypair(byte *wr_slot, unsigned long id_size,
                                ecc_key *key)
 {
@@ -598,9 +605,15 @@ static int iotsafe_gen_keypair(byte *wr_slot, unsigned long id_size,
         WOLFSSL_MSG("Unexpected reply from Keygen");
         ret = WC_HW_E;
     } else {
-        if (!iotsafe_parse_public_key(resp, ret, key)) {
+        if (iotsafe_parse_public_key(resp, ret, key) == 0) {
+            /* iotsafe_parse_public_key was successful on response.
+             * Return '1' here to indicate that the key is populated.
+             */
             ret = 1;
         } else {
+            /* The keygen operation was successful but we have not
+             * retrieved the generated public key yet.
+             */
             ret = 0;
         }
     }
@@ -1291,6 +1304,8 @@ int wc_iotsafe_ecc_gen_k_ex(byte *key_id, uint16_t id_size)
     int ret = 0;
     ecc_key* key = XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
     ret = iotsafe_gen_keypair(key_id, id_size, key);
+    if (ret > 0)
+        ret = 0;
     XFREE(key, NULL, DYNAMIC_TYPE_ECC);
     return ret;
 }
@@ -1324,6 +1339,8 @@ int wc_iotsafe_ecc_gen_k(byte key_id)
     int ret = 0;
     ecc_key* key = XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
     ret = iotsafe_gen_keypair(&key_id, 1, key);
+    if (ret > 0)
+        ret = 0;
     XFREE(key, NULL, DYNAMIC_TYPE_ECC);
     return ret;
 }
