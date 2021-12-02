@@ -423,6 +423,7 @@ static int iotsafe_init(void)
     if (expect_csim_response(atcmd_load_applet_str,
                 (word32)XSTRLEN(atcmd_load_applet_str), &reply) < 0) {
         WOLFSSL_MSG("FAIL: no Applet code response from iot-safe init");
+        expect_ok("AT", 2);
     } else {
         WOLFSSL_MSG("IoT Safe Applet INIT OK");
     }
