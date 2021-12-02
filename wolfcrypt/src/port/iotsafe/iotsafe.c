@@ -909,6 +909,9 @@ static int wolfIoT_ecc_keygen(WOLFSSL* ssl, struct ecc_key* key,
         if (ret == 0) {
             ret = iotsafe_get_public_key((byte *)&iotsafe->ecdh_keypair_slot,
                     IOTSAFE_ID_SIZE, key);
+        } else if (ret > 0) {
+            /* Key has been stored during generation */
+            ret = 0;
         }
     } else {
         WC_RNG *rng = wolfSSL_GetRNG(ssl);
