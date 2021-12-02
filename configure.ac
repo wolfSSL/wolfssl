@@ -911,6 +911,7 @@ AC_ARG_ENABLE([mcast],
 # WOLFSSL_MYSQL_COMPATIBLE
 # web server (--enable-webserver) HAVE_WEBSERVER
 # net-snmp (--enable-net-snmp)
+# krb (--enable-krb) WOLFSSL_KRB
 
 
 # Bind DNS compatibility Build
@@ -1033,6 +1034,14 @@ AC_ARG_ENABLE([net-snmp],
     [ ENABLED_NETSNMP=no ]
     )
 
+# kerberos 5 Build
+AC_ARG_ENABLE([krb],
+    [AS_HELP_STRING([--enable-krb],[Enable kerberos 5 support (default: disabled)])],
+    [ ENABLED_KRB=$enableval ],
+    [ ENABLED_KRB=no ]
+    )
+    
+
 #IP alternative name Support
 AC_ARG_ENABLE([ip-alt-name],
     [AS_HELP_STRING([--enable-ip-alt-name],[Enable IP subject alternative name (default: disabled)])],
@@ -1104,7 +1113,8 @@ if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || \
    test "$ENABLED_WPAS_DPP" = "yes" || test "$ENABLED_SMIME" = "yes" || \
    test "$ENABLED_HAPROXY" = "yes" || test "$ENABLED_BIND" = "yes" || \
    test "$ENABLED_NTP" = "yes" || test "$ENABLED_NETSNMP" = "yes" || \
-   test "$ENABLED_OPENRESTY" = "yes" || test "$ENABLED_RSYSLOG" = "yes"
+   test "$ENABLED_OPENRESTY" = "yes" || test "$ENABLED_RSYSLOG" = "yes" || \
+   test "$ENABLED_KRB" = "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
@@ -3249,7 +3259,7 @@ AC_ARG_ENABLE([des3],
     [ ENABLED_DES3=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "x$ENABLED_WPAS" != "xno"  || test "$ENABLED_NETSNMP" = "yes" || test "$ENABLED_LIBSSH2" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "x$ENABLED_WPAS" != "xno"  || test "$ENABLED_NETSNMP" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_KRB" = "yes"
 then
     ENABLED_DES3="yes"
 fi
@@ -3267,7 +3277,7 @@ then
 fi
 
 # ARC4
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_WPAS" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_KRB" = "yes"
 then
     # Requires RC4 make sure on (if not forcefully disabled with --disable-arc4)
     test "$enable_arc4" = "" && enable_arc4=yes
@@ -3824,7 +3834,8 @@ AC_ARG_ENABLE([crl],
     )
 
 if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes" || \
-   test "x$ENABLED_WPAS" != "xno" || test "x$ENABLED_LIGHTY" = "xyes" || test "x$ENABLED_NETSNMP" = "xyes"
+   test "x$ENABLED_WPAS" != "xno" || test "x$ENABLED_LIGHTY" = "xyes" || test "x$ENABLED_NETSNMP" = "xyes" || \
+   test "x$ENABLED_KRB" = "xyes"
 then
     ENABLED_CRL=yes
 fi
@@ -4713,6 +4724,17 @@ then
     fi
 fi
 
+if test "$ENABLED_KRB" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KRB -DWOLFSSL_AES_DIRECT"
+
+    # Requires PKCS7
+    if test "x$ENABLED_PKCS7" = "xno"
+    then
+        ENABLED_PKCS7="yes"
+    fi
+fi
+
 if test "$ENABLED_SIGNAL" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIGNAL -DWOLFSSL_AES_COUNTER -DWOLFSSL_AES_DIRECT"
@@ -5158,7 +5180,7 @@ AC_ARG_ENABLE([md4],
 if test "$ENABLED_MD4" = "no"
 then
     #turn on MD4 if using stunnel
-    if test "x$ENABLED_STUNNEL" = "xyes" || test "x$ENABLED_WPAS" != "xno"
+    if test "x$ENABLED_STUNNEL" = "xyes" || test "x$ENABLED_WPAS" != "xno" || test "x$ENABLED_KRB" = "xyes"
     then
         ENABLED_MD4="yes"
     else
@@ -6809,7 +6831,7 @@ then
   AM_CFLAGS="-DOPENSSL_EXTRA -DWOLFSSL_ALWAYS_VERIFY_CB $AM_CFLAGS"
   AM_CFLAGS="-DWOLFSSL_VERIFY_CB_ALL_CERTS -DWOLFSSL_EXTRA_ALERTS $AM_CFLAGS"
   AM_CFLAGS="-DHAVE_EXT_CACHE -DWOLFSSL_FORCE_CACHE_ON_TICKET $AM_CFLAGS"
-  AM_CFLAGS="-DWOLFSSL_AKID_NAME $AM_CFLAGS"
+  AM_CFLAGS="-DWOLFSSL_AKID_NAME -DHAVE_CTS $AM_CFLAGS"
 fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "x509small"

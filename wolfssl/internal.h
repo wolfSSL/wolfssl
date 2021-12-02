@@ -3807,7 +3807,8 @@ typedef enum {
     STACK_TYPE_BY_DIR_entry       = 12,
     STACK_TYPE_BY_DIR_hash        = 13,
     STACK_TYPE_X509_OBJ           = 14,
-    STACK_TYPE_DIST_POINT         = 15
+    STACK_TYPE_DIST_POINT         = 15,
+    STACK_TYPE_X509_CRL           = 16,
 } WOLF_STACK_TYPE;
 
 struct WOLFSSL_STACK {
@@ -3838,6 +3839,7 @@ struct WOLFSSL_STACK {
         WOLFSSL_BY_DIR_HASH*   dir_hash;
         WOLFSSL_X509_OBJECT*   x509_obj;
         WOLFSSL_DIST_POINT*    dp;
+        WOLFSSL_X509_CRL*      crl;
     } data;
     void* heap; /* memory heap hint */
     WOLFSSL_STACK* next;

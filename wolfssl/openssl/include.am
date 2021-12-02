@@ -30,6 +30,7 @@ nobase_include_HEADERS+= \
                          wolfssl/openssl/lhash.h \
                          wolfssl/openssl/md4.h \
                          wolfssl/openssl/md5.h \
+                         wolfssl/openssl/modes.h \
                          wolfssl/openssl/ripemd.h \
                          wolfssl/openssl/obj_mac.h \
                          wolfssl/openssl/objects.h \

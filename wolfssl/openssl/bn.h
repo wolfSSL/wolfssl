@@ -104,6 +104,7 @@ WOLFSSL_API int wolfSSL_mask_bits(WOLFSSL_BIGNUM*, int n);
 
 WOLFSSL_API int wolfSSL_BN_pseudo_rand(WOLFSSL_BIGNUM*, int bits, int top,
         int bottom);
+WOLFSSL_API int wolfSSL_BN_rand_range(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *range);
 WOLFSSL_API int wolfSSL_BN_rand(WOLFSSL_BIGNUM*, int bits, int top, int bottom);
 WOLFSSL_API int wolfSSL_BN_is_bit_set(const WOLFSSL_BIGNUM*, int n);
 WOLFSSL_API int wolfSSL_BN_hex2bn(WOLFSSL_BIGNUM**, const char* str);
@@ -187,6 +188,7 @@ typedef WOLFSSL_BN_GENCB BN_GENCB;
 
 #define BN_pseudo_rand wolfSSL_BN_pseudo_rand
 #define BN_rand        wolfSSL_BN_rand
+#define BN_rand_range  wolfSSL_BN_rand_range
 #define BN_is_bit_set  wolfSSL_BN_is_bit_set
 #define BN_hex2bn      wolfSSL_BN_hex2bn
 
@@ -213,6 +215,7 @@ typedef WOLFSSL_BN_GENCB BN_GENCB;
 #define BN_is_prime_ex wolfSSL_BN_is_prime_ex
 #define BN_print_fp wolfSSL_BN_print_fp
 #define BN_rshift wolfSSL_BN_rshift
+#define BN_rshift1(r, a) wolfSSL_BN_rshift((r), (a), 1)
 #define BN_mod_word wolfSSL_BN_mod_word
 
 #define BN_CTX_get wolfSSL_BN_CTX_get

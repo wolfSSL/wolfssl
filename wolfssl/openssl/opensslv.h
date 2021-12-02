@@ -32,7 +32,7 @@
      /* valid version */
 #elif defined(WOLFSSL_APACHE_HTTPD) || defined(HAVE_LIBEST) || \
       defined(WOLFSSL_BIND) || defined(WOLFSSL_NGINX) || \
-      defined(WOLFSSL_RSYSLOG)
+      defined(WOLFSSL_RSYSLOG) || defined(WOLFSSL_KRB)
     /* For Apache httpd, Use 1.1.0 compatibility */
      #define OPENSSL_VERSION_NUMBER 0x10100003L
 #elif defined(WOLFSSL_QT) || defined(WOLFSSL_PYTHON)

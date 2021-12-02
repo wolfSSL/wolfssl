@@ -313,6 +313,7 @@
     #include <wolfssl/openssl/hmac.h>
     #include <wolfssl/openssl/objects.h>
     #include <wolfssl/openssl/rand.h>
+    #include <wolfssl/openssl/modes.h>
 #ifdef OPENSSL_ALL
     #include <wolfssl/openssl/txt_db.h>
     #include <wolfssl/openssl/lhash.h>
@@ -34284,7 +34285,7 @@ static void test_wolfSSL_BN(void)
     /* check result 3*2 */
     AssertIntEQ(BN_get_word(d), 6);
 
-    /* c/b = */
+    /* c/b => db + a */
     AssertIntEQ(BN_div(d, NULL, c, b, NULL), WOLFSSL_FAILURE);
     AssertIntEQ(BN_div(d, a, c, b, NULL), WOLFSSL_SUCCESS);
 
@@ -34312,6 +34313,14 @@ static void test_wolfSSL_BN(void)
     /* check result gcd(16, 24) */
     AssertIntEQ(BN_get_word(d), 8);
 #endif /* WOLFSSL_KEY_GEN */
+
+    AssertIntEQ(BN_set_word(a, 1 << 6), SSL_SUCCESS);
+    AssertIntEQ(BN_rshift(b, a, 6), SSL_SUCCESS);
+    AssertIntEQ(BN_is_zero(b), 0);
+    AssertIntEQ(BN_rshift(b, a, 7), SSL_SUCCESS);
+    AssertIntEQ(BN_is_zero(b), 1);
+    AssertIntEQ(BN_rshift1(b, a), SSL_SUCCESS);
+    AssertIntEQ(BN_is_zero(b), 0);
 
     /* set b back to 2 */
     AssertIntEQ(BN_set_word(b, 2), SSL_SUCCESS);
@@ -36802,6 +36811,7 @@ static void test_wolfSSL_BN_rand(void)
 {
     #if defined(OPENSSL_EXTRA)
     BIGNUM* bn;
+    BIGNUM* range;
 
     printf(testingFmt, "wolfSSL_BN_rand()");
 
@@ -36816,6 +36826,13 @@ static void test_wolfSSL_BN_rand(void)
     AssertNotNull(bn = BN_new());
     AssertIntEQ(BN_rand(bn, 64, 0, 0), SSL_SUCCESS);
     BN_free(bn);
+
+    AssertNotNull(bn = BN_new());
+    AssertNotNull(range = BN_new());
+    AssertIntEQ(BN_rand(range, 64, 0, 0), SSL_SUCCESS);
+    AssertIntEQ(BN_rand_range(bn, range), SSL_SUCCESS);
+    BN_free(bn);
+    BN_free(range);
 
     printf(resultFmt, passed);
     #endif
@@ -37558,6 +37575,7 @@ static void test_wolfSSL_OBJ(void)
     !defined(HAVE_FIPS) && !defined(NO_SHA) && defined(WOLFSSL_CERT_EXT) && \
     defined(WOLFSSL_CERT_GEN)
     ASN1_OBJECT *obj = NULL;
+    ASN1_OBJECT *obj2 = NULL;
     char buf[50];
 
     XFILE fp;
@@ -37600,7 +37618,10 @@ static void test_wolfSSL_OBJ(void)
     AssertIntEQ(OBJ_txt2nid(buf), NID_sha256);
 #endif
     AssertIntGT(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 0), 0);
+    AssertNotNull(obj2 = OBJ_dup(obj));
+    AssertIntEQ(OBJ_cmp(obj, obj2), 0);
     ASN1_OBJECT_free(obj);
+    ASN1_OBJECT_free(obj2);
 
     for (i = 0; f[i] != NULL; i++)
     {
@@ -41791,8 +41812,6 @@ static void test_wolfSSL_AES_cbc_encrypt(void)
     int keySzN = -1;
     byte out[AES_BLOCK_SIZE] = {0};
     byte* outN = NULL;
-    const int enc1 = AES_ENCRYPT;
-    const int enc2 = AES_DECRYPT;
 
     /* Test vectors retrieved from:
      *   <begin URL>
@@ -41828,15 +41847,15 @@ static void test_wolfSSL_AES_cbc_encrypt(void)
     #define RESET_IV(x, y) XMEMCPY(x, y, AES_BLOCK_SIZE)
 
     printf(testingFmt, "Stressing wolfSSL_AES_cbc_encrypt()");
-    STRESS_T(pt128N, out, len, &aes, iv128tmp, enc1, ct128, AES_BLOCK_SIZE, 0);
-    STRESS_T(pt128, out, len, &aes, iv128N, enc1, ct128, AES_BLOCK_SIZE, 0);
+    STRESS_T(pt128N, out, len, &aes, iv128tmp, 1, ct128, AES_BLOCK_SIZE, 0);
+    STRESS_T(pt128, out, len, &aes, iv128N, 1, ct128, AES_BLOCK_SIZE, 0);
 
-    wolfSSL_AES_cbc_encrypt(pt128, outN, len, &aes, iv128tmp, enc1);
+    wolfSSL_AES_cbc_encrypt(pt128, outN, len, &aes, iv128tmp, 1);
     AssertIntNE(XMEMCMP(out, ct128, AES_BLOCK_SIZE), 0);
-    wolfSSL_AES_cbc_encrypt(pt128, out, len, aesN, iv128tmp, enc1);
+    wolfSSL_AES_cbc_encrypt(pt128, out, len, aesN, iv128tmp, 1);
     AssertIntNE(XMEMCMP(out, ct128, AES_BLOCK_SIZE), 0);
 
-    STRESS_T(pt128, out, lenB, &aes, iv128tmp, enc1, ct128, AES_BLOCK_SIZE, 0);
+    STRESS_T(pt128, out, lenB, &aes, iv128tmp, 1, ct128, AES_BLOCK_SIZE, 0);
     printf(resultFmt, "Stress Tests: passed");
 
     printf(testingFmt, "Stressing wolfSSL_AES_set_encrypt_key");
@@ -41860,7 +41879,7 @@ static void test_wolfSSL_AES_cbc_encrypt(void)
     RESET_IV(iv128tmp, iv128);
 
     AssertIntEQ(wolfSSL_AES_set_encrypt_key(key128, sizeof(key128)*8, &aes), 0);
-    wolfSSL_AES_cbc_encrypt(pt128, out, len, &aes, iv128tmp, enc1);
+    wolfSSL_AES_cbc_encrypt(pt128, out, len, &aes, iv128tmp, 1);
     AssertIntEQ(XMEMCMP(out, ct128, AES_BLOCK_SIZE), 0);
     printf(resultFmt, "passed");
 
@@ -41872,7 +41891,7 @@ static void test_wolfSSL_AES_cbc_encrypt(void)
     len = sizeof(ct128);
 
     AssertIntEQ(wolfSSL_AES_set_decrypt_key(key128, sizeof(key128)*8, &aes), 0);
-    wolfSSL_AES_cbc_encrypt(ct128, out, len, &aes, iv128tmp, enc2);
+    wolfSSL_AES_cbc_encrypt(ct128, out, len, &aes, iv128tmp, 0);
     AssertIntEQ(XMEMCMP(out, pt128, AES_BLOCK_SIZE), 0);
     printf(resultFmt, "passed");
 
@@ -41905,7 +41924,7 @@ static void test_wolfSSL_AES_cbc_encrypt(void)
     RESET_IV(iv192tmp, iv192);
 
     AssertIntEQ(wolfSSL_AES_set_encrypt_key(key192, sizeof(key192)*8, &aes), 0);
-    wolfSSL_AES_cbc_encrypt(pt192, out, len, &aes, iv192tmp, enc1);
+    wolfSSL_AES_cbc_encrypt(pt192, out, len, &aes, iv192tmp, 1);
     AssertIntEQ(XMEMCMP(out, ct192, AES_BLOCK_SIZE), 0);
     printf(resultFmt, "passed");
 
@@ -41917,7 +41936,7 @@ static void test_wolfSSL_AES_cbc_encrypt(void)
     XMEMSET(out, 0, AES_BLOCK_SIZE);
 
     AssertIntEQ(wolfSSL_AES_set_decrypt_key(key192, sizeof(key192)*8, &aes), 0);
-    wolfSSL_AES_cbc_encrypt(ct192, out, len, &aes, iv192tmp, enc2);
+    wolfSSL_AES_cbc_encrypt(ct192, out, len, &aes, iv192tmp, 0);
     AssertIntEQ(XMEMCMP(out, pt192, AES_BLOCK_SIZE), 0);
     printf(resultFmt, "passed");
 
@@ -41950,7 +41969,7 @@ static void test_wolfSSL_AES_cbc_encrypt(void)
     RESET_IV(iv256tmp, iv256);
 
     AssertIntEQ(wolfSSL_AES_set_encrypt_key(key256, sizeof(key256)*8, &aes), 0);
-    wolfSSL_AES_cbc_encrypt(pt256, out, len, &aes, iv256tmp, enc1);
+    wolfSSL_AES_cbc_encrypt(pt256, out, len, &aes, iv256tmp, 1);
     AssertIntEQ(XMEMCMP(out, ct256, AES_BLOCK_SIZE), 0);
     printf(resultFmt, "passed");
 
@@ -41962,7 +41981,7 @@ static void test_wolfSSL_AES_cbc_encrypt(void)
     XMEMSET(out, 0, AES_BLOCK_SIZE);
 
     AssertIntEQ(wolfSSL_AES_set_decrypt_key(key256, sizeof(key256)*8, &aes), 0);
-    wolfSSL_AES_cbc_encrypt(ct256, out, len, &aes, iv256tmp, enc2);
+    wolfSSL_AES_cbc_encrypt(ct256, out, len, &aes, iv256tmp, 0);
     AssertIntEQ(XMEMCMP(out, pt256, AES_BLOCK_SIZE), 0);
     printf(resultFmt, "passed");
 
@@ -42003,6 +42022,90 @@ static void test_wolfSSL_AES_cbc_encrypt(void)
     #endif /* HAVE_AES_KEYWRAP */
   #endif /* WOLFSSL_AES_256 */
 #endif
+}
+
+static void test_wolfSSL_CRYPTO_cts128(void)
+{
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(OPENSSL_EXTRA) \
+    && defined(HAVE_CTS)
+    byte tmp[64]; /* Largest vector size */
+    /* Test vectors taken form RFC3962 Appendix B */
+    const testVector vects[] = {
+        {
+            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+            "\x20",
+            "\xc6\x35\x35\x68\xf2\xbf\x8c\xb4\xd8\xa5\x80\x36\x2d\xa7\xff\x7f"
+            "\x97",
+            17, 17
+        },
+        {
+            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20",
+            "\xfc\x00\x78\x3e\x0e\xfd\xb2\xc1\xd4\x45\xd4\xc8\xef\xf7\xed\x22"
+            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5",
+            31, 31
+        },
+        {
+            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43",
+            "\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5\xa8"
+            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84",
+            32, 32
+        },
+        {
+            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
+            "\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c",
+            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84"
+            "\xb3\xff\xfd\x94\x0c\x16\xa1\x8c\x1b\x55\x49\xd2\xf8\x38\x02\x9e"
+            "\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5",
+            47, 47
+        },
+        {
+            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
+            "\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c\x20",
+            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84"
+            "\x9d\xad\x8b\xbb\x96\xc4\xcd\xc0\x3b\xc1\x03\xe1\xa1\x94\xbb\xd8"
+            "\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5\xa8",
+            48, 48
+        },
+        {
+            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
+            "\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c\x20"
+            "\x61\x6e\x64\x20\x77\x6f\x6e\x74\x6f\x6e\x20\x73\x6f\x75\x70\x2e",
+            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84"
+            "\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5\xa8"
+            "\x48\x07\xef\xe8\x36\xee\x89\xa5\x26\x73\x0d\xbc\x2f\x7b\xc8\x40"
+            "\x9d\xad\x8b\xbb\x96\xc4\xcd\xc0\x3b\xc1\x03\xe1\xa1\x94\xbb\xd8",
+            64, 64
+        }
+    };
+    byte keyBytes[AES_128_KEY_SIZE] = {
+        0x63, 0x68, 0x69, 0x63, 0x6b, 0x65, 0x6e, 0x20,
+        0x74, 0x65, 0x72, 0x69, 0x79, 0x61, 0x6b, 0x69
+    };
+    size_t i;
+    XMEMSET(tmp, 0, sizeof(tmp));
+    for (i = 0; i < sizeof(vects)/sizeof(vects[0]); i++) {
+        AES_KEY encKey;
+        AES_KEY decKey;
+        byte iv[AES_IV_SIZE]; /* All-zero IV for all cases */
+        XMEMSET(iv, 0, sizeof(iv));
+        AssertIntEQ(AES_set_encrypt_key(keyBytes, AES_128_KEY_SIZE * 8, &encKey), 0);
+        AssertIntEQ(AES_set_decrypt_key(keyBytes, AES_128_KEY_SIZE * 8, &decKey), 0);
+        AssertIntEQ(CRYPTO_cts128_encrypt((const unsigned char*)vects[i].input,
+                tmp, vects[i].inLen, &encKey, iv, (cbc128_f)AES_cbc_encrypt),
+                vects[i].outLen);
+        AssertIntEQ(XMEMCMP(tmp, vects[i].output, vects[i].outLen), 0);
+        XMEMSET(iv, 0, sizeof(iv));
+        AssertIntEQ(CRYPTO_cts128_decrypt((const unsigned char*)vects[i].output,
+                tmp, vects[i].outLen, &decKey, iv, (cbc128_f)AES_cbc_encrypt),
+                vects[i].inLen);
+        AssertIntEQ(XMEMCMP(tmp, vects[i].input, vects[i].inLen), 0);
+    }
+#endif /* !NO_AES && HAVE_AES_CBC && OPENSSL_EXTRA && HAVE_CTS */
 }
 
 #if defined(OPENSSL_ALL)
@@ -46120,6 +46223,31 @@ static void test_sk_X509(void)
 #endif
 }
 
+static void test_sk_X509_CRL(void)
+{
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && defined(HAVE_CRL)
+    X509_CRL* crl;
+    XFILE fp;
+    STACK_OF(X509_CRL)* s;
+
+    printf(testingFmt, "test_sk_X509_CRL");
+
+    fp = XFOPEN("./certs/crl/crl.pem", "rb");
+    AssertTrue((fp != XBADFILE));
+    AssertNotNull(crl = (X509_CRL*)PEM_read_X509_CRL(fp, (X509_CRL **)NULL, NULL, NULL));
+    XFCLOSE(fp);
+
+    AssertNotNull(s = sk_X509_CRL_new());
+    AssertIntEQ(sk_X509_CRL_num(s), 0);
+    AssertIntEQ(sk_X509_CRL_push(s, crl), 1);
+    AssertIntEQ(sk_X509_CRL_num(s), 1);
+    AssertPtrEq(sk_X509_CRL_value(s, 0), crl);
+    sk_X509_CRL_free(s);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_X509_get_signature_nid(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
@@ -46241,6 +46369,7 @@ static void test_wolfssl_PKCS7(void)
     BIO*   bio;
     byte   key[sizeof(client_key_der_2048)];
     word32 keySz = (word32)sizeof(key);
+    byte*  out = NULL;
 #endif
 
     AssertIntGT((len = CreatePKCS7SignedData(data, len, content,
@@ -46276,6 +46405,8 @@ static void test_wolfssl_PKCS7(void)
     pkcs7->hashOID = SHAh;
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
     AssertIntEQ(i2d_PKCS7_bio(bio, pkcs7), 1);
+    AssertIntEQ(i2d_PKCS7(pkcs7, &out), 644);
+    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     BIO_free(bio);
 #endif
 
@@ -51975,6 +52106,7 @@ void ApiTest(void)
     test_wolfSSL_DC_cert();
     test_wolfSSL_DES_ncbc();
     test_wolfSSL_AES_cbc_encrypt();
+    test_wolfSSL_CRYPTO_cts128();
     test_wolfssl_EVP_aes_gcm_AAD_2_parts();
     test_wolfssl_EVP_aes_gcm();
     test_wolfSSL_PKEY_up_ref();
@@ -52109,6 +52241,8 @@ void ApiTest(void)
     test_ERR_load_crypto_strings();
     /* OpenSSL sk_X509 API test */
     test_sk_X509();
+    /* OpenSSL sk_X509_CRL API test */
+    test_sk_X509_CRL();
     /* OpenSSL X509 API test */
     test_X509_get_signature_nid();
     /* OpenSSL X509 REQ API test */
