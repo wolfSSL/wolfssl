@@ -43,6 +43,9 @@
 #if defined(FREESCALE_LTC_ECC)
     #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
 #endif
+#ifdef WOLFSSL_SE050
+    #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
@@ -227,6 +230,9 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
     }
 #endif
 
+#ifdef WOLFSSL_SE050
+    ret = se050_curve25519_create_key(key, keysize);
+#else
     ret = wc_curve25519_make_priv(rng, keysize, key->k);
     if (ret == 0) {
         key->privSet = 1;
@@ -234,6 +240,7 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
                                      (int)sizeof(key->k), key->k);
         key->pubSet = (ret == 0);
     }
+#endif
     return ret;
 }
 
@@ -251,8 +258,8 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
                                    curve25519_key* public_key,
                                    byte* out, word32* outlen, int endian)
 {
+    int ret;
     ECPoint o;
-    int ret = 0;
 
     /* sanity check */
     if (private_key == NULL || public_key == NULL ||
@@ -261,7 +268,11 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
     }
 
     /* make sure we have a populated private and public key */
-    if (!private_key->privSet || !public_key->pubSet) {
+    if (!public_key->pubSet
+    #ifndef WOLFSSL_SE050
+        || !private_key->privSet
+    #endif
+    ) {
         return ECC_BAD_ARG_E;
     }
 
@@ -269,8 +280,6 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
     if (public_key->p.point[CURVE25519_KEYSIZE-1] & 0x80) {
         return ECC_BAD_ARG_E;
     }
-
-    XMEMSET(&o, 0, sizeof(o));
 
 #ifdef WOLF_CRYPTO_CB
     if (private_key->devId != INVALID_DEVID) {
@@ -282,17 +291,28 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
     }
 #endif
 
-    #ifdef FREESCALE_LTC_ECC
-        /* input point P on Curve25519 */
-        ret = nxp_ltc_curve25519(&o, private_key->k, &public_key->p,
-                                 kLTC_Curve25519);
-    #else
-        SAVE_VECTOR_REGISTERS(return _svr_ret;);
+    XMEMSET(&o, 0, sizeof(o));
 
-        ret = curve25519(o.point, private_key->k, public_key->p.point);
-
-        RESTORE_VECTOR_REGISTERS();
+#ifdef FREESCALE_LTC_ECC
+    /* input point P on Curve25519 */
+    ret = nxp_ltc_curve25519(&o, private_key->k, &public_key->p,
+        kLTC_Curve25519);
+#else
+    #ifdef WOLFSSL_SE050
+    if (!private_key->privSet) {
+        /* use NXP SE050 is private key is not set */
+        ret = se050_curve25519_shared_secret(private_key, public_key, &o);
+    }
+    else
     #endif
+    {
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+
+    ret = curve25519(o.point, private_key->k, public_key->p.point);
+
+    RESTORE_VECTOR_REGISTERS();
+    }
+#endif
     if (ret != 0) {
         ForceZero(&o, sizeof(o));
         return ret;
@@ -575,6 +595,11 @@ int wc_curve25519_import_private_ex(const byte* priv, word32 privSz,
         return ECC_BAD_ARG_E;
     }
 
+#ifdef WOLFSSL_SE050
+    /* release NXP resources if set */
+    se050_curve25519_free_key(key);
+#endif
+
     /* import private scalar with endianess */
     curve25519_copy_point(key->k, priv, endian);
     key->privSet = 1;
@@ -621,6 +646,10 @@ void wc_curve25519_free(curve25519_key* key)
 {
     if (key == NULL)
        return;
+
+#ifdef WOLFSSL_SE050
+    se050_curve25519_free_key(key);
+#endif
 
     key->dp = NULL;
     ForceZero(key->k, sizeof(key->k));

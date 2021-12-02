@@ -35,6 +35,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/ed25519.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/curve25519.h>
 
 #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
 
@@ -126,6 +127,7 @@ int se050_allocate_key(int keyType)
         case SE050_AES_KEY:
         case SE050_ECC_KEY:
         case SE050_ED25519_KEY:
+        case SE050_CURVE25519_KEY:
         case SE050_ANY_KEY:
             keyId = keyId_allocator++;
             break;
@@ -481,6 +483,23 @@ static int se050_map_curve(int curve_id, int keySize,
     return ret;
 }
 
+static sss_algorithm_t se050_map_hash_alg(int hashLen)
+{
+    sss_algorithm_t algorithm = kAlgorithm_None;
+    if (hashLen == 20) {
+        algorithm = kAlgorithm_SSS_SHA1;
+    } else if (hashLen == 28) {
+        algorithm = kAlgorithm_SSS_SHA224;
+    } else if (hashLen == 32) {
+        algorithm = kAlgorithm_SSS_SHA256;
+    } else if (hashLen == 48) {
+        algorithm = kAlgorithm_SSS_SHA384;
+    } else if (hashLen == 64) {
+        algorithm = kAlgorithm_SSS_SHA512;
+    }
+    return algorithm;
+}
+
 int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
                          word32 *outLen, struct ecc_key* key)
 {
@@ -489,7 +508,7 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
     sss_asymmetric_t    ctx_asymm;
     sss_key_store_t     host_keystore;
     sss_object_t        newKey;
-    sss_algorithm_t     algorithm = kAlgorithm_None;
+    sss_algorithm_t     algorithm;
     int                 keySize;
     int                 keySizeBits;
 
@@ -515,18 +534,12 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
     if (inLen > (word32)keySize)
         inLen = (word32)keySize;
 
-    if (inLen == 20)
-        algorithm = kAlgorithm_SSS_SHA1;
-    else if (inLen == 28)
-        algorithm = kAlgorithm_SSS_SHA224;
-    else if (inLen == 32)
-        algorithm = kAlgorithm_SSS_SHA256;
-    else if (inLen == 48)
-        algorithm = kAlgorithm_SSS_SHA384;
-    else if (inLen == 64)
-        algorithm = kAlgorithm_SSS_SHA512;
-    else {
-        /* not supported curve key size */
+    algorithm = se050_map_hash_alg(inLen);
+    if (algorithm == kAlgorithm_None) {
+        inLen = keySize; /* try key size */
+        algorithm = se050_map_hash_alg(inLen);
+    }
+    if (algorithm == kAlgorithm_None) {
         return ECC_CURVE_OID_E;
     }
 
@@ -553,8 +566,8 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, byte* out,
         if (status == kStatus_SSS_Success) {
             byte sigBuf[ECC_MAX_SIG_SIZE];
             size_t sigSz = sizeof(sigBuf);
-            status = sss_asymmetric_sign_digest(&ctx_asymm, (uint8_t*)in,
-                inLen, sigBuf, &sigSz);
+            status = sss_asymmetric_sign_digest(&ctx_asymm, (uint8_t*)in, inLen,
+                sigBuf, &sigSz);
             if (status == kStatus_SSS_Success) {
                 /* SE050 returns ASN.1 encoded signature */
                 word32 rLen = keySize, sLen = keySize;
@@ -596,7 +609,7 @@ int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, byte* sigRS,
     sss_asymmetric_t    ctx_asymm;
     sss_object_t        newKey;
     sss_key_store_t     host_keystore;
-    sss_algorithm_t     algorithm = kAlgorithm_None;
+    sss_algorithm_t     algorithm;
     int                 keyId;
     int                 keySize;
     int                 keySizeBits;
@@ -625,18 +638,12 @@ int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, byte* sigRS,
     if (hashLen > (word32)keySize)
         hashLen = (word32)keySize;
 
-    if (hashLen == 20)
-        algorithm = kAlgorithm_SSS_SHA1;
-    else if (hashLen == 28)
-        algorithm = kAlgorithm_SSS_SHA224;
-    else if (hashLen == 32)
-        algorithm = kAlgorithm_SSS_SHA256;
-    else if (hashLen == 48)
-        algorithm = kAlgorithm_SSS_SHA384;
-    else if (hashLen == 64)
-        algorithm = kAlgorithm_SSS_SHA512;
-    else {
-        /* not supported curve key size */
+    algorithm = se050_map_hash_alg(hashLen);
+    if (algorithm == kAlgorithm_None) {
+        hashLen = keySize; /* try key size */
+        algorithm = se050_map_hash_alg(hashLen);
+    }
+    if (algorithm == kAlgorithm_None) {
         return ECC_CURVE_OID_E;
     }
 
@@ -814,7 +821,7 @@ int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize)
     if (status == kStatus_SSS_Success) {
         keyId = se050_allocate_key(SE050_ECC_KEY);
         status = sss_key_object_allocate_handle(&keyPair, keyId,
-            kSSS_KeyPart_Pair, curveType, keySizeBits,
+            kSSS_KeyPart_Pair, curveType, keySize,
             kKeyObject_Mode_Transient);
     }
     if (status == kStatus_SSS_Success) {
@@ -914,7 +921,7 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     if (status == kStatus_SSS_Success) {
         keyId = public_key->keyId;
         if (keyId <= 0) {
-            byte derBuf[256];
+            byte derBuf[SE050_ECC_DER_MAX];
             word32 derSz;
 
             ret = wc_EccPublicKeyToDer(public_key, derBuf,
@@ -1167,7 +1174,6 @@ int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
     return ret;
 }
 
-
 int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
     const byte* msg, word32 msgLen, struct ed25519_key* key, int* res)
 {
@@ -1267,5 +1273,266 @@ int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
 }
 
 #endif /* HAVE_ED25519 */
+
+
+#ifdef HAVE_CURVE25519
+
+int se050_curve25519_create_key(curve25519_key* key, int keySize)
+{
+    int             ret;
+    sss_status_t    status = kStatus_SSS_Success;
+    sss_object_t    keyPair;
+    sss_key_store_t host_keystore;
+    uint8_t         derBuf[SE050_ECC_DER_MAX];
+    size_t          derSz = sizeof(derBuf);
+    int             keyId;
+    int             keyCreated = 0;
+
+#ifdef SE050_DEBUG
+    printf("se050_curve25519_create_key: key %p, keySize %d\n",
+        key, keySize);
+#endif
+
+    if (cfg_se050_i2c_pi == NULL) {
+        return WC_HW_E;
+    }
+    if (wolfSSL_CryptHwMutexLock() != 0) {
+        return BAD_MUTEX_E;
+    }
+
+    status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_store_allocate(&host_keystore,
+            SE050_KEYSTOREID_CURVE25519);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_object_init(&keyPair, &host_keystore);
+    }
+    if (status == kStatus_SSS_Success) {
+        keyId = se050_allocate_key(SE050_CURVE25519_KEY);
+        status = sss_key_object_allocate_handle(&keyPair, keyId,
+            kSSS_KeyPart_Pair, kSSS_CipherType_EC_MONTGOMERY, keySize,
+            kKeyObject_Mode_None);
+    }
+    if (status == kStatus_SSS_Success) {
+        keyCreated = 1;
+        status = sss_key_store_generate_key(&host_keystore, &keyPair,
+            keySize * 8, NULL);
+    }
+    if (status == kStatus_SSS_Success) {
+        size_t derSzBits = derSz * 8;
+        status = sss_key_store_get_key(&host_keystore, &keyPair,
+            derBuf, &derSz, &derSzBits);
+        (void)derSzBits; /* not used */
+    }
+    if (status == kStatus_SSS_Success) {
+        word32 idx = 0;
+        ret = wc_Curve25519PublicKeyDecode(derBuf, &idx, key, (word32)derSz);
+        if (ret == 0) {
+            key->p.point[CURVE25519_KEYSIZE-1] &= ~0x80; /* clear MSB */
+        }
+        else {
+            status = kStatus_SSS_Fail;
+        }
+    }
+
+    if (status == kStatus_SSS_Success) {
+        key->keyId = keyId;
+        ret = 0;
+    }
+    else {
+        if (keyCreated) {
+            sss_key_store_erase_key(&host_keystore, &keyPair);
+            sss_key_object_free(&keyPair);
+        }
+        ret = WC_HW_E;
+    }
+    wolfSSL_CryptHwMutexUnLock();
+
+#ifdef SE050_DEBUG
+    printf("se050_curve25519_create_key: key %p, ret %d, keyId %d\n",
+        key, ret, key->keyId);
+#endif
+
+    return ret;
+}
+
+int se050_curve25519_shared_secret(curve25519_key* private_key,
+    curve25519_key* public_key, ECPoint* out)
+{
+    int               ret;
+    sss_status_t      status = kStatus_SSS_Success;
+    sss_key_store_t   host_keystore;
+    sss_object_t      ref_private_key;
+    sss_object_t      ref_public_key;
+    sss_object_t      deriveKey;
+    sss_derive_key_t  ctx_derive_key;
+    int               keyId;
+    int               keySize = CURVE25519_KEYSIZE;
+    int               keyCreated = 0;
+    int               deriveKeyCreated = 0;
+
+#ifdef SE050_DEBUG
+    printf("se050_curve25519_shared_secret: priv %p, pub %p, out %p (%d)\n",
+        private_key, public_key, out, out->pointSz);
+#endif
+
+    if (cfg_se050_i2c_pi == NULL) {
+        return WC_HW_E;
+    }
+    if (private_key->keyId <= 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (wolfSSL_CryptHwMutexLock() != 0) {
+        return BAD_MUTEX_E;
+    }
+
+    status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_store_allocate(&host_keystore,
+            SE050_KEYSTOREID_CURVE25519);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_object_init(&ref_private_key, &host_keystore);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_object_get_handle(&ref_private_key, private_key->keyId);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_object_init(&ref_public_key, &host_keystore);
+    }
+    if (status == kStatus_SSS_Success) {
+        keyId = public_key->keyId;
+        if (keyId <= 0) {
+            byte derBuf[SE050_ECC_DER_MAX];
+            word32 derSz;
+
+            ret = wc_Curve25519PublicKeyToDer(public_key, derBuf,
+                (word32)sizeof(derBuf), 1);
+            if (ret >= 0) {
+                derSz = ret;
+                ret = 0;
+            }
+            else {
+                status = kStatus_SSS_Fail;
+            }
+            if (status == kStatus_SSS_Success) {
+                keyId = se050_allocate_key(SE050_CURVE25519_KEY);
+                status = sss_key_object_allocate_handle(&ref_public_key,
+                    keyId, kSSS_KeyPart_Public, kSSS_CipherType_EC_MONTGOMERY,
+                    keySize, kKeyObject_Mode_Transient);
+            }
+            if (status == kStatus_SSS_Success) {
+                keyCreated = 1;
+                status = sss_key_store_set_key(&host_keystore, &ref_public_key,
+                    derBuf, derSz, keySize * 8, NULL, 0);
+            }
+        }
+        else {
+            status = sss_key_object_get_handle(&ref_public_key, keyId);
+        }
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_object_init(&deriveKey, &host_keystore);
+    }
+    if (status == kStatus_SSS_Success) {
+        int keyIdAes = se050_allocate_key(SE050_AES_KEY);
+        deriveKeyCreated = 1;
+        status = sss_key_object_allocate_handle(&deriveKey,
+            keyIdAes,
+            kSSS_KeyPart_Default,
+            kSSS_CipherType_Binary,
+            keySize,
+            kKeyObject_Mode_Transient);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_derive_key_context_init(&ctx_derive_key, cfg_se050_i2c_pi,
+                                    &ref_private_key, kAlgorithm_SSS_ECDH,
+                                    kMode_SSS_ComputeSharedSecret);
+        if (status == kStatus_SSS_Success) {
+            status = sss_derive_key_dh(&ctx_derive_key, &ref_public_key,
+                &deriveKey);
+        }
+        if (status == kStatus_SSS_Success) {
+            size_t outlenSz = sizeof(out->point);
+            size_t outlenSzBits = outlenSz * 8;
+            /* derived key export */
+            status = sss_key_store_get_key(&host_keystore, &deriveKey,
+                out->point, &outlenSz, &outlenSzBits);
+            out->pointSz = (word32)outlenSz;
+            (void)outlenSzBits; /* not used */
+        }
+
+        sss_derive_key_context_free(&ctx_derive_key);
+    }
+    if (deriveKeyCreated) {
+        sss_key_store_erase_key(&host_keystore, &deriveKey);
+        sss_key_object_free(&deriveKey);
+    }
+
+    if (status == kStatus_SSS_Success) {
+        public_key->keyId = keyId;
+        ret = 0;
+    }
+    else {
+        if (keyCreated) {
+            sss_key_store_erase_key(&host_keystore, &public_key);
+            sss_key_object_free(&public_key);
+        }
+        if (ret == 0)
+            ret = WC_HW_E;
+    }
+
+    wolfSSL_CryptHwMutexUnLock();
+
+#ifdef SE050_DEBUG
+    printf("se050_curve25519_shared_secret: ret %d, outlen %d\n",
+        ret, out->pointSz);
+#endif
+
+    return ret;
+}
+
+void se050_curve25519_free_key(struct curve25519_key* key)
+{
+    sss_status_t status;
+    sss_object_t newKey;
+    sss_key_store_t host_keystore;
+
+#ifdef SE050_DEBUG
+    printf("se050_curve25519_free_key: %p, id %d\n", key, key->keyId);
+#endif
+
+    if (cfg_se050_i2c_pi == NULL) {
+        return;
+    }
+    if (key->keyId <= 0) {
+        return;
+    }
+
+    if (wolfSSL_CryptHwMutexLock() != 0) {
+        return;
+    }
+
+    status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
+
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_store_allocate(&host_keystore,
+            SE050_KEYSTOREID_CURVE25519);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_object_init(&newKey, &host_keystore);
+    }
+    if (status == kStatus_SSS_Success) {
+        status = sss_key_object_get_handle(&newKey, key->keyId);
+    }
+    if (status == kStatus_SSS_Success) {
+        sss_key_object_free(&newKey);
+        key->keyId = -1;
+    }
+    wolfSSL_CryptHwMutexUnLock();
+}
+#endif /* HAVE_CURVE25519 */
 
 #endif /* WOLFSSL_SE050 */

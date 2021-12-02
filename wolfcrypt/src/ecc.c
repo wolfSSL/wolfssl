@@ -171,6 +171,10 @@ ECC Curve Sizes:
     #include <wolfssl/wolfcrypt/port/kcapi/kcapi_ecc.h>
 #endif
 
+#ifdef WOLFSSL_SE050
+    #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
+#endif
+
 #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     #define GEN_MEM_ERR MP_MEM
 #elif defined(USE_FAST_MATH)
@@ -5258,9 +5262,15 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
         }
     #elif defined(WOLFSSL_KCAPI_ECC)
         err = KcapiEcc_Sign(key, in, inlen, out, outlen);
+        if (err != MP_OKAY) {
+            return err;
+        }
         (void)rng;
     #elif defined(WOLFSSL_SE050)
         err = se050_ecc_sign_hash_ex(in, inlen, out, outlen, key);
+        if (err != MP_OKAY) {
+            return err;
+        }
         (void)rng;
     #endif
 

@@ -47,10 +47,6 @@
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
-#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
-    #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
-#endif
-
 /* deprecated USE_SLOW_SHA2 (replaced with USE_SLOW_SHA512) */
 #if defined(USE_SLOW_SHA2) && !defined(USE_SLOW_SHA512)
     #define USE_SLOW_SHA512
@@ -149,6 +145,10 @@
 #else
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
+#endif
+
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
+    #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
 #endif
 
 

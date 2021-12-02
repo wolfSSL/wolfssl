@@ -21607,7 +21607,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
 
     /* create a new key since above test for loading key is not supported */
 #if defined(WOLFSSL_CRYPTOCELL) || defined(NO_ECC256) || \
-    defined(WOLFSSL_QNX_CAAM)
+    defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_SE050)
     ret  = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, key);
     if (ret != 0) {
         ERROR_OUT(-9861, done);
@@ -21622,8 +21622,10 @@ static int ecc_test_make_pub(WC_RNG* rng)
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
-        if (ret == 0)
-            ret = wc_ecc_sign_hash(msg, (word32)XSTRLEN((const char* )msg), tmp, &tmpSz, rng, key);
+        if (ret == 0) {
+            ret = wc_ecc_sign_hash(msg, (word32)XSTRLEN((const char* )msg), tmp,
+                &tmpSz, rng, key);
+        }
     } while (ret == WC_PENDING_E);
     if (ret != 0) {
         ERROR_OUT(-9862, done);
@@ -21637,8 +21639,10 @@ static int ecc_test_make_pub(WC_RNG* rng)
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
-        if (ret == 0)
-            ret = wc_ecc_verify_hash(tmp, tmpSz, msg, (word32)XSTRLEN((const char* )msg), &verify, key);
+        if (ret == 0) {
+            ret = wc_ecc_verify_hash(tmp, tmpSz, msg,
+                (word32)XSTRLEN((const char*)msg), &verify, key);
+        }
     } while (ret == WC_PENDING_E);
     if (ret != 0) {
         ERROR_OUT(-9863, done);
@@ -21668,7 +21672,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
         ERROR_OUT(-9866, done);
     }
 
-#ifndef WOLFSSL_QNX_CAAM
+#if !defined(WOLFSSL_QNX_CAAM) && !defined(WOLFSSL_SE050)
     /* make private only key */
     wc_ecc_free(key);
     wc_ecc_init_ex(key, HEAP_HINT, devId);
@@ -25331,12 +25335,16 @@ WOLFSSL_TEST_SUBROUTINE int curve25519_test(void)
 #ifdef HAVE_CURVE25519_SHARED_SECRET
     /* find shared secret key */
     x = sizeof(sharedA);
-    if (wc_curve25519_shared_secret(&userA, &userB, sharedA, &x) != 0)
+    if ((ret = wc_curve25519_shared_secret(&userA, &userB, sharedA, &x)) != 0) {
+        printf("wc_curve25519_shared_secret 1 %d\n", ret);
         return -10703;
+    }
 
     y = sizeof(sharedB);
-    if (wc_curve25519_shared_secret(&userB, &userA, sharedB, &y) != 0)
+    if ((ret = wc_curve25519_shared_secret(&userB, &userA, sharedB, &y)) != 0) {
+        printf("wc_curve25519_shared_secret 2 %d\n", ret);
         return -10704;
+    }
 
     /* compare shared secret keys to test they are the same */
     if (y != x)
@@ -25400,6 +25408,9 @@ WOLFSSL_TEST_SUBROUTINE int curve25519_test(void)
     if (wc_curve25519_import_private_raw(sa, sizeof(sa), pa, sizeof(pa), &userA)
         != 0)
         return -10717;
+
+    wc_curve25519_free(&userB);
+    wc_curve25519_init_ex(&userB, HEAP_HINT, devId);
 
     if (wc_curve25519_make_key(&rng, 32, &userB) != 0)
         return -10718;

@@ -145,7 +145,9 @@ where 0 <= L < 2^64.
 #ifdef WOLFSSL_DEVCRYPTO_HASH
     #include <wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h>
 #endif
-
+#if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
+    #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
+#endif
 
 
 #if defined(USE_INTEL_SPEEDUP)
@@ -587,7 +589,6 @@ static int InitSha256(wc_Sha256* sha256)
 
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
 
-    #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
     int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     {
         if (sha256 == NULL) {
@@ -1418,7 +1419,6 @@ static int InitSha256(wc_Sha256* sha256)
     }
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
 
-    #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
     int wc_InitSha224_ex(wc_Sha224* sha224, void* heap, int devId)
     {
         if (sha224 == NULL) {
