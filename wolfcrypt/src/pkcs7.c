@@ -4436,7 +4436,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                         NO_USER_CHECK) < 0)
                 ret = ASN_PARSE_E;
 
-            if (ret == 0 && length == 0 && pkiMsg[idx-1] == 0x80) {
+            if (ret == 0 && length == 0 && pkiMsg[idx-1] == ASN_INDEF_LENGTH) {
         #ifdef ASN_BER_TO_DER
                 word32 len = 0;
 
@@ -4512,7 +4512,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
             /* Skip the set. */
             idx += length;
-            degenerate = (length == 0)? 1 : 0;
+            degenerate = (length == 0) ? 1 : 0;
             if (pkcs7->noDegenerate == 1 && degenerate == 1) {
                 ret = PKCS7_NO_SIGNER_E;
             }
@@ -4559,15 +4559,23 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
             /* Get the inner ContentInfo contentType */
             if (ret == 0) {
+                int isIndef = 0;
                 word32 tmpIdx = idx;
-
-                if (GetASNObjectId(pkiMsg, &idx, &length, pkiMsgSz) != 0)
+                if (length == 0 && pkiMsg[idx-1] == ASN_INDEF_LENGTH) {
+                    isIndef = 1;
+                }
+                if (GetASNObjectId(pkiMsg, &idx, &length, pkiMsgSz) == 0) {
+                    contentType = pkiMsg + tmpIdx;
+                    contentTypeSz = length + (idx - tmpIdx);
+                    idx += length;
+                }
+                else {
                     ret = ASN_PARSE_E;
-
-                contentType = pkiMsg + tmpIdx;
-                contentTypeSz = length + (idx - tmpIdx);
-
-                idx += length;
+                }
+                /* if indef, skip EOF */
+                if (isIndef && pkiMsg[idx] == ASN_EOC && pkiMsg[idx+1] == 0) {
+                    idx += 2; /* skip EOF + zero byte */
+                }
             }
 
             if (ret != 0)
