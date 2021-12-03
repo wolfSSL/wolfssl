@@ -13636,6 +13636,12 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 
 #ifndef NO_WOLFSSL_CLIENT
         case hello_request:
+        #ifndef NO_WOLFSSL_SERVER
+            if (ssl->options.side == WOLFSSL_SERVER_END) {
+                WOLFSSL_MSG("HelloRequest received by server");
+                return SIDE_ERROR;
+            }
+        #endif
             if (ssl->msgsReceived.got_hello_request) {
                 WOLFSSL_MSG("Duplicate HelloRequest received");
                 return DUPLICATE_MSG_E;
@@ -13647,6 +13653,12 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 
 #ifndef NO_WOLFSSL_SERVER
         case client_hello:
+        #ifndef NO_WOLFSSL_CLIENT
+            if (ssl->options.side == WOLFSSL_CLIENT_END) {
+                WOLFSSL_MSG("ClientHello received by client");
+                return SIDE_ERROR;
+            }
+        #endif
             if (ssl->msgsReceived.got_client_hello) {
                 WOLFSSL_MSG("Duplicate ClientHello received");
     #ifdef WOLFSSL_EXTRA_ALERTS
@@ -13661,6 +13673,12 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 
 #ifndef NO_WOLFSSL_CLIENT
         case server_hello:
+        #ifndef NO_WOLFSSL_SERVER
+            if (ssl->options.side == WOLFSSL_SERVER_END) {
+                WOLFSSL_MSG("ServerHello received by server");
+                return SIDE_ERROR;
+            }
+        #endif
             if (ssl->msgsReceived.got_server_hello) {
                 WOLFSSL_MSG("Duplicate ServerHello received");
                 return DUPLICATE_MSG_E;
@@ -13672,6 +13690,12 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 
 #ifndef NO_WOLFSSL_CLIENT
         case hello_verify_request:
+        #ifndef NO_WOLFSSL_SERVER
+            if (ssl->options.side == WOLFSSL_SERVER_END) {
+                WOLFSSL_MSG("HelloVerifyRequest received by server");
+                return SIDE_ERROR;
+            }
+        #endif
             if (ssl->msgsReceived.got_hello_verify_request) {
                 WOLFSSL_MSG("Duplicate HelloVerifyRequest received");
                 return DUPLICATE_MSG_E;
@@ -13683,6 +13707,12 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 
 #ifndef NO_WOLFSSL_CLIENT
         case session_ticket:
+        #ifndef NO_WOLFSSL_SERVER
+            if (ssl->options.side == WOLFSSL_SERVER_END) {
+                WOLFSSL_MSG("SessionTicket received by server");
+                return SIDE_ERROR;
+            }
+        #endif
             if (ssl->msgsReceived.got_session_ticket) {
                 WOLFSSL_MSG("Duplicate SessionTicket received");
                 return DUPLICATE_MSG_E;
@@ -13719,6 +13749,12 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 
 #ifndef NO_WOLFSSL_CLIENT
         case certificate_status:
+        #ifndef NO_WOLFSSL_SERVER
+            if (ssl->options.side == WOLFSSL_SERVER_END) {
+                WOLFSSL_MSG("CertificateStatus received by server");
+                return SIDE_ERROR;
+            }
+        #endif
             if (ssl->msgsReceived.got_certificate_status) {
                 WOLFSSL_MSG("Duplicate CertificateStatus received");
                 return DUPLICATE_MSG_E;
@@ -13739,6 +13775,12 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 
 #ifndef NO_WOLFSSL_CLIENT
         case server_key_exchange:
+        #ifndef NO_WOLFSSL_SERVER
+            if (ssl->options.side == WOLFSSL_SERVER_END) {
+                WOLFSSL_MSG("ServerKeyExchange received by server");
+                return SIDE_ERROR;
+            }
+        #endif
             if (ssl->msgsReceived.got_server_key_exchange) {
                 WOLFSSL_MSG("Duplicate ServerKeyExchange received");
                 return DUPLICATE_MSG_E;
@@ -13791,6 +13833,12 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 
 #ifndef NO_WOLFSSL_CLIENT
         case certificate_request:
+        #ifndef NO_WOLFSSL_SERVER
+            if (ssl->options.side == WOLFSSL_SERVER_END) {
+                WOLFSSL_MSG("CertificateRequest received by server");
+                return SIDE_ERROR;
+            }
+        #endif
             if (ssl->msgsReceived.got_certificate_request) {
                 WOLFSSL_MSG("Duplicate CertificateRequest received");
                 return DUPLICATE_MSG_E;
@@ -13802,6 +13850,12 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 
 #ifndef NO_WOLFSSL_CLIENT
         case server_hello_done:
+        #ifndef NO_WOLFSSL_SERVER
+            if (ssl->options.side == WOLFSSL_SERVER_END) {
+                WOLFSSL_MSG("ServerHelloDone received by server");
+                return SIDE_ERROR;
+            }
+        #endif
             if (ssl->msgsReceived.got_server_hello_done) {
                 WOLFSSL_MSG("Duplicate ServerHelloDone received");
                 return DUPLICATE_MSG_E;
@@ -13842,6 +13896,12 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 
 #ifndef NO_WOLFSSL_SERVER
         case certificate_verify:
+        #ifndef NO_WOLFSSL_CLIENT
+            if (ssl->options.side == WOLFSSL_CLIENT_END) {
+                WOLFSSL_MSG("CertificateVerify received by client");
+                return SIDE_ERROR;
+            }
+        #endif
             if (ssl->msgsReceived.got_certificate_verify) {
                 WOLFSSL_MSG("Duplicate CertificateVerify received");
                 return DUPLICATE_MSG_E;
@@ -13857,6 +13917,12 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 
 #ifndef NO_WOLFSSL_SERVER
         case client_key_exchange:
+        #ifndef NO_WOLFSSL_CLIENT
+            if (ssl->options.side == WOLFSSL_CLIENT_END) {
+                WOLFSSL_MSG("ClientKeyExchange received by client");
+                return SIDE_ERROR;
+            }
+        #endif
             if (ssl->msgsReceived.got_client_key_exchange) {
                 WOLFSSL_MSG("Duplicate ClientKeyExchange received");
     #ifdef WOLFSSL_EXTRA_ALERTS
@@ -29869,7 +29935,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #ifdef HAVE_SNI
                 if((ret=SNI_Callback(ssl)))
                     goto out;
-                ssl->options.side = WOLFSSL_SERVER_END;
     #endif
 
                 i += totalExtSz;
@@ -31513,12 +31578,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
             case TLS_ASYNC_BEGIN:
             {
                 /* Sanity checks */
-                if (ssl->options.side != WOLFSSL_SERVER_END) {
-                    WOLFSSL_MSG("Client received client keyexchange, attack?");
-                    WOLFSSL_ERROR(ssl->error = SIDE_ERROR);
-                    ERROR_OUT(WOLFSSL_FATAL_ERROR, exit_dcke);
-                }
-
+                /* server side checked in SanityCheckMsgReceived */
                 if (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
                     WOLFSSL_MSG("Client sending keyexchange at wrong time");
                     SendAlert(ssl, alert_fatal, unexpected_message);
