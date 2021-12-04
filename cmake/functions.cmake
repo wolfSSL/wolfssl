@@ -887,7 +887,7 @@ function(generate_lib_src_list LIB_SOURCES)
 endfunction()
 
 function(add_to_options_file DEFINITIONS OPTION_FILE)
-    #list(REMOVE_DUPLICATES DEFINITIONS)
+    list(REMOVE_DUPLICATES DEFINITIONS)
     foreach(DEF IN LISTS DEFINITIONS)
         if(DEF MATCHES "^-D")
             if(DEF MATCHES "^-D(N)?DEBUG(=.+)?")

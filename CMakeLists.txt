@@ -200,7 +200,7 @@ add_option("WOLFSSL_32BIT" ${WOLFSSL_32BIT_HELP_STRING} "no" "yes;no")
 set(WOLFSSL_16BIT_HELP_STRING "Enables 16-bit support (default: disabled)")
 add_option("WOLFSSL_16BIT" ${WOLFSSL_16BIT_HELP_STRING} "no" "yes;no")
 if(WOLFSSL_16BIT)
-        list(APPEND WOLFSSL_DEFINITIONS "-DWC_16BIT_CPU")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWC_16BIT_CPU")
 endif()
 
 # Support for disabling all ASM
