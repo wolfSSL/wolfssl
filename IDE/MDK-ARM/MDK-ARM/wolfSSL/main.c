@@ -74,7 +74,7 @@ __task void tcp_tick (void)
 
 __task void tcp_poll (void)
 {
-    WOLFSSL_MSG("TCP polling started.\n") ;
+    WOLFSSL_MSG("TCP polling started.") ;
     while (1) {
         main_TcpNet ();
         #if defined (HAVE_KEIL_RTX)
@@ -128,7 +128,7 @@ void main_task (void)
     #endif
 
     #ifdef   HAVE_KEIL_RTX
-    WOLFSSL_MSG("Terminating tcp_main\n") ;
+    WOLFSSL_MSG("Terminating tcp_main") ;
     os_tsk_delete_self ();
     #endif
 

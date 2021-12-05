@@ -614,11 +614,11 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             /* allow using malloc for creating ctx and method */
             if (type == DYNAMIC_TYPE_CTX || type == DYNAMIC_TYPE_METHOD ||
                                             type == DYNAMIC_TYPE_CERT_MANAGER) {
-                WOLFSSL_MSG("ERROR allowing null heap hint for ctx/method\n");
+                WOLFSSL_MSG("ERROR allowing null heap hint for ctx/method");
                 res = malloc(size);
             }
             else {
-                WOLFSSL_MSG("ERROR null heap hint passed into XMALLOC\n");
+                WOLFSSL_MSG("ERROR null heap hint passed into XMALLOC");
                 res = NULL;
             }
         #else
@@ -767,10 +767,10 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
             /* allow using malloc for creating ctx and method */
             if (type == DYNAMIC_TYPE_CTX || type == DYNAMIC_TYPE_METHOD ||
                                             type == DYNAMIC_TYPE_CERT_MANAGER) {
-                WOLFSSL_MSG("ERROR allowing null heap hint for ctx/method\n");
+                WOLFSSL_MSG("ERROR allowing null heap hint for ctx/method");
             }
             else {
-                WOLFSSL_MSG("ERROR null heap hint passed into XFREE\n");
+                WOLFSSL_MSG("ERROR null heap hint passed into XFREE");
             }
         #endif
         #ifndef WOLFSSL_NO_MALLOC
@@ -871,7 +871,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
 
     if (heap == NULL) {
         #ifdef WOLFSSL_HEAP_TEST
-            WOLFSSL_MSG("ERROR null heap hint passed in to XREALLOC\n");
+            WOLFSSL_MSG("ERROR null heap hint passed in to XREALLOC");
         #endif
         #ifndef WOLFSSL_NO_MALLOC
             res = realloc(ptr, size);

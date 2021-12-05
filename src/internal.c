@@ -636,7 +636,7 @@ static int ExportCipherSpecState(WOLFSSL* ssl, byte* exp, word32 len, byte ver,
         byte *pt = (byte*)ssl->encrypt.aes->reg;
 
         if ((idx + 2*AES_BLOCK_SIZE) > len) {
-            WOLFSSL_MSG("Can not fit AES state into buffer\n");
+            WOLFSSL_MSG("Can not fit AES state into buffer");
             return BUFFER_E;
         }
         XMEMCPY(exp + idx, pt, AES_BLOCK_SIZE);
@@ -1533,7 +1533,7 @@ int wolfSSL_dtls_export_state_internal(WOLFSSL* ssl, byte* buf, word32 sz)
     {
         char debug[256];
         XSNPRINTF(debug, sizeof(debug), "Exporting DTLS session state\n"
-                   "\tVersion  : %d\n\tProtocol : %02X%01X\n\tLength of: %d\n\n"
+                   "\tVersion  : %d\n\tProtocol : %02X%01X\n\tLength of: %d"
                , (int)WOLFSSL_EXPORT_VERSION, buf[0], (buf[1] >> 4), idx - 2);
         WOLFSSL_MSG(debug);
     }
@@ -1577,7 +1577,7 @@ int wolfSSL_dtls_import_state_internal(WOLFSSL* ssl, const byte* buf, word32 sz)
     {
         char debug[256];
         XSNPRINTF(debug, sizeof(debug), "Importing DTLS session state\n"
-                   "\tVersion  : %d\n\tProtocol : %02X%01X\n\tLength of: %d\n\n"
+                   "\tVersion  : %d\n\tProtocol : %02X%01X\n\tLength of: %d"
                , (int)version, buf[0], (buf[1] >> 4), length);
         WOLFSSL_MSG(debug);
     }
@@ -1683,7 +1683,7 @@ int wolfSSL_session_import_internal(WOLFSSL* ssl, const unsigned char* buf,
     {
         char debug[256];
         XSNPRINTF(debug, sizeof(debug), "Importing DTLS session\n"
-                   "\tVersion  : %d\n\tProtocol : %02X%01X\n\tLength of: %d\n\n"
+                   "\tVersion  : %d\n\tProtocol : %02X%01X\n\tLength of: %d"
                , (int)version, buf[0], (buf[1] >> 4), length);
         WOLFSSL_MSG(debug);
     }
@@ -1965,7 +1965,7 @@ int wolfSSL_session_export_internal(WOLFSSL* ssl, byte* buf, word32* sz,
         {
             char debug[256];
             XSNPRINTF(debug, sizeof(debug), "Exporting TLS session\n"
-                   "\tVersion  : %d\n\tProtocol : %02X%01X\n\tLength of: %d\n\n"
+                   "\tVersion  : %d\n\tProtocol : %02X%01X\n\tLength of: %d"
                   ,(int)WOLFSSL_EXPORT_VERSION, buf[0], (buf[1] >> 4), idx - 2);
             WOLFSSL_MSG(debug);
         }
@@ -9028,7 +9028,7 @@ retry:
 /* Switch dynamic output buffer back to static, buffer is assumed clear */
 void ShrinkOutputBuffer(WOLFSSL* ssl)
 {
-    WOLFSSL_MSG("Shrinking output buffer\n");
+    WOLFSSL_MSG("Shrinking output buffer");
     XFREE(ssl->buffers.outputBuffer.buffer - ssl->buffers.outputBuffer.offset,
           ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
     ssl->buffers.outputBuffer.buffer = ssl->buffers.outputBuffer.staticBuffer;
@@ -9047,7 +9047,7 @@ void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree)
     if (!forcedFree && usedLength > STATIC_BUFFER_LEN)
         return;
 
-    WOLFSSL_MSG("Shrinking input buffer\n");
+    WOLFSSL_MSG("Shrinking input buffer");
 
     if (!forcedFree && usedLength > 0)
         XMEMCPY(ssl->buffers.inputBuffer.staticBuffer,
@@ -9167,7 +9167,7 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
 
     tmp = (byte*)XMALLOC(size + ssl->buffers.outputBuffer.length + align,
                              ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
-    WOLFSSL_MSG("growing output buffer\n");
+    WOLFSSL_MSG("growing output buffer");
 
     if (tmp == NULL)
         return MEMORY_E;
@@ -9241,7 +9241,7 @@ int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
 
     tmp = (byte*)XMALLOC(size + usedLength + align,
                              ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-    WOLFSSL_MSG("growing input buffer\n");
+    WOLFSSL_MSG("growing input buffer");
 
     if (tmp == NULL)
         return MEMORY_E;
@@ -11605,7 +11605,7 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
                        ret = wolfSSL_X509_STORE_add_cert(store, x509);
                        wolfSSL_X509_free(x509);
                     } else {
-                       WOLFSSL_MSG("failed to load certificate\n");
+                       WOLFSSL_MSG("failed to load certificate");
                        ret = WOLFSSL_FAILURE;
                        break;
                     }
@@ -11615,7 +11615,7 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
                     ret = wolfSSL_X509_load_crl_file(&store->lookup, filename,
                                                     WOLFSSL_FILETYPE_PEM);
                     if (ret != WOLFSSL_SUCCESS) {
-                        WOLFSSL_MSG("failed to load CRL\n");
+                        WOLFSSL_MSG("failed to load CRL");
                         break;
                     }
                 }

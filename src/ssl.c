@@ -22281,7 +22281,7 @@ int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
             mp_prime_is_prime_ex((mp_int*)dh->p->internal,8,&isPrime,&rng);
         }
         else {
-            WOLFSSL_MSG("Error initializing rng\n");
+            WOLFSSL_MSG("Error initializing rng");
             return WOLFSSL_FAILURE;
         }
         wc_FreeRng(&rng);
@@ -27335,7 +27335,7 @@ int wolfSSL_X509_VERIFY_PARAM_set1_ip(WOLFSSL_X509_VERIFY_PARAM* param,
            }
            /* sanity check */
            if (XSTRLEN(buf) > max_ipv6_len) {
-               WOLFSSL_MSG("The target ip adress exceeds buffer length(40)\n");
+               WOLFSSL_MSG("The target ip adress exceeds buffer length(40)");
                XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                buf = NULL;
                break;
@@ -62250,7 +62250,7 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
     section[sectionLen] = '\0';
     ret = wc_MIME_parse_headers(section, sectionLen, &allHdrs);
     if (ret < 0) {
-        WOLFSSL_MSG("Parsing MIME headers failed.\n");
+        WOLFSSL_MSG("Parsing MIME headers failed.");
         goto error;
     }
     isEnd = 0;
@@ -62397,7 +62397,7 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
             section[sectionLen] = '\0';
             ret = wc_MIME_parse_headers(section, sectionLen, &allHdrs);
             if (ret < 0) {
-                WOLFSSL_MSG("Parsing MIME headers failed.\n");
+                WOLFSSL_MSG("Parsing MIME headers failed.");
                 goto error;
             }
             curHdr = wc_MIME_find_header_name(kContType, allHdrs);
@@ -62406,7 +62406,7 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
                                    XSTRNCMP(curHdr->body, kAppXPkcsSign,
                                    XSTR_SIZEOF(kAppXPkcsSign)))) {
                 WOLFSSL_MSG("S/MIME headers not found inside "
-                            "multipart message.\n");
+                            "multipart message.");
                 goto error;
             }
 
@@ -62438,12 +62438,12 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
         }
         ret = wolfSSL_BIO_read(in, section, sectionLen);
         if (ret < 0 || ret != sectionLen) {
-            WOLFSSL_MSG("Error reading input BIO.\n");
+            WOLFSSL_MSG("Error reading input BIO.");
             goto error;
         }
     }
     else {
-        WOLFSSL_MSG("S/MIME headers not found.\n");
+        WOLFSSL_MSG("S/MIME headers not found.");
         goto error;
     }
 
@@ -62454,7 +62454,7 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
     }
     else if (XSTRNCMP(curHdr->body, "base64", XSTRLEN("base64"))) {
         WOLFSSL_MSG("S/MIME encodings other than base64 are not "
-                    "currently supported.\n");
+                    "currently supported.");
         goto error;
     }
 
@@ -62475,7 +62475,7 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
     section[sectionLen] = '\0';
     ret = Base64_Decode((const byte*)section, sectionLen, out, &outLen);
     if (ret < 0) {
-        WOLFSSL_MSG("Error base64 decoding S/MIME message.\n");
+        WOLFSSL_MSG("Error base64 decoding S/MIME message.");
         goto error;
     }
     pkcs7 = wolfSSL_d2i_PKCS7_ex(NULL, (const unsigned char**)&out, outLen,
