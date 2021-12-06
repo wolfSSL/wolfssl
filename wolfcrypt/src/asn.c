@@ -10876,7 +10876,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
         cert->issuerRawLen = length;
     }
 #endif
-#ifndef IGNORE_NAME_CONSTRAINTS
+#if !defined(IGNORE_NAME_CONSTRAINTS) || defined(WOLFSSL_CERT_EXT)
     if (nameType == SUBJECT) {
         cert->subjectRaw = &input[srcIdx];
         cert->subjectRawLen = length;
@@ -11417,7 +11417,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             cert->issuerRawLen = len;
         }
     #endif
-    #ifndef IGNORE_NAME_CONSTRAINTS
+    #if !defined(IGNORE_NAME_CONSTRAINTS) || defined(WOLFSSL_CERT_EXT)
         /* Store pointer and length to raw subject. */
         if (nameType == SUBJECT) {
             cert->subjectRaw = &input[srcIdx];
