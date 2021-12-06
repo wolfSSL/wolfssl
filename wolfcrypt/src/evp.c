@@ -8178,13 +8178,14 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     char line[32] = { 0 };
     (void)pctx;
 
-    if( mp_init(&a) != 0) {
+    if (mp_init(&a) != 0) {
         return WOLFSSL_FAILURE;
     }
+
     if (indent < 0) {
         indent = 0;
     }
-    if (indent > EVP_PKEY_PRINT_INDENT_MAX) {
+    else if (indent > EVP_PKEY_PRINT_INDENT_MAX) {
         indent = EVP_PKEY_PRINT_INDENT_MAX;
     }
 
@@ -8214,15 +8215,17 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     }
     if (res == WOLFSSL_SUCCESS) {
         pub = (byte*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-        if (pub == NULL) {
-            return WOLFSSL_FAILURE;
-        }
-        pubSz = ECC_BUFSIZE;
-        XMEMSET(pub, 0, ECC_BUFSIZE);
+        if (pub != NULL) {
+            pubSz = ECC_BUFSIZE;
+            XMEMSET(pub, 0, ECC_BUFSIZE);
 
-        PRIVATE_KEY_UNLOCK();
-        res = wc_ecc_export_x963(&key, pub, &pubSz) == 0;
-        PRIVATE_KEY_LOCK();
+            PRIVATE_KEY_UNLOCK();
+            res = wc_ecc_export_x963(&key, pub, &pubSz) == 0;
+            PRIVATE_KEY_LOCK();
+        }
+        else {
+            res = WOLFSSL_FAILURE;
+        }
     }
     if (res == WOLFSSL_SUCCESS) {
         idx = 0;
@@ -8293,6 +8296,9 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         XFREE(pub, NULL, DYNAMIC_TYPE_ECC_BUFFER);
         pub = NULL;
     }
+
+    wc_ecc_free(&key);
+    mp_free(&a);
 
     return res;
 }
