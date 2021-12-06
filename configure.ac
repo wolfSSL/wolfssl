@@ -1040,7 +1040,7 @@ AC_ARG_ENABLE([krb],
     [ ENABLED_KRB=$enableval ],
     [ ENABLED_KRB=no ]
     )
-    
+
 
 #IP alternative name Support
 AC_ARG_ENABLE([ip-alt-name],

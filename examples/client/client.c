@@ -698,7 +698,7 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     int onlyKeyShare)
 {
     double start, conn_time = 0, tx_time = 0, rx_time = 0;
-    SOCKET_T sockfd;
+    SOCKET_T sockfd = WOLFSSL_SOCKET_INVALID;
     WOLFSSL* ssl;
     int ret = 0, err = 0;
 
