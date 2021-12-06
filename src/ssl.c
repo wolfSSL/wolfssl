@@ -31078,11 +31078,20 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
         WOLFSSL_MSG("Error, BAD_FUNC_ARG");
         return;
     }
-
+    #if defined(WOLFSSL_QT)
+    /* In Qt v15.5, it calls OPENSSL_sk_free(xxx, OPENSSL_sk_free). 
+    *  By using OPENSSL_sk_free for free causes access violation. 
+    *  Therefore, switching free func to wolfSSL_ACCESS_DESCRIPTION_free 
+    *  is needed even the func isn't NULL.
+    */
+    if (sk->type == STACK_TYPE_ACCESS_DESCRIPTION) {
+        func = (wolfSSL_sk_freefunc)wolfSSL_ACCESS_DESCRIPTION_free;
+    }
+    #endif
     if (func == NULL) {
         switch(sk->type) {
             case STACK_TYPE_ACCESS_DESCRIPTION:
-            #if defined(OPENSSL_ALL) || defined (WOLFSSL_QT)
+            #if defined(OPENSSL_ALL)
                 func = (wolfSSL_sk_freefunc)wolfSSL_ACCESS_DESCRIPTION_free;
             #endif
                 break;
