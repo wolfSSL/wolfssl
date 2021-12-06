@@ -1174,6 +1174,9 @@ struct DNS_entry {
     int        type;   /* i.e. ASN_DNS_TYPE */
     int        len;    /* actual DNS len */
     char*      name;   /* actual DNS name */
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+    char*      ipString; /* human readable form of IP address */
+#endif
 };
 
 

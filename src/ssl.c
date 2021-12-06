@@ -20658,6 +20658,12 @@ char* wolfSSL_X509_get_next_altname(WOLFSSL_X509* cert)
         return NULL;
 
     ret = cert->altNamesNext->name;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+    /* return the IP address as a string */
+    if (cert->altNamesNext->type == ASN_IP_TYPE) {
+        ret = cert->altNamesNext->ipString;
+    }
+#endif
     cert->altNamesNext = cert->altNamesNext->next;
 
     return ret;

@@ -10368,33 +10368,12 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, int* checkCN)
     }
 
     while (altName) {
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
-        char name[WOLFSSL_MAX_IPSTR] = {0};
-#endif
-
         WOLFSSL_MSG("\tindividual AltName check");
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
-        /* check if alt name is stored as IP addr octet */
         if (altName->type == ASN_IP_TYPE) {
-            const unsigned char *ip = (const unsigned char*)altName->name;
-            if (altName->len == WOLFSSL_IP4_ADDR_LEN) {
-                XSNPRINTF(name, sizeof(name), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
-            }
-            else if (altName->len == WOLFSSL_IP6_ADDR_LEN) {
-                int i;
-                for (i = 0; i < 8; i++) {
-                    XSNPRINTF(name + i * 5, sizeof(name) - i * 5, "%02X%02X%s",
-                              ip[2 * i], ip[2 * i + 1], (i < 7) ? ":" : "");
-                }
-            }
-            else {
-                WOLFSSL_MSG("\tnot an IPv4 or IPv6 address");
-                altName = altName->next;
-                continue;
-            }
-            buf = name;
-            len = (word32)XSTRLEN(name);
+            buf = altName->ipString;
+            len = (word32)XSTRLEN(buf);
         }
         else
 #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */

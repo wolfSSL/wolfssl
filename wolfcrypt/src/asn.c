@@ -9514,6 +9514,9 @@ void FreeAltNames(DNS_entry* altNames, void* heap)
         DNS_entry* tmp = altNames->next;
 
         XFREE(altNames->name, heap, DYNAMIC_TYPE_ALTNAME);
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+        XFREE(altNames->ipString, heap, DYNAMIC_TYPE_ALTNAME);
+    #endif
         XFREE(altNames,       heap, DYNAMIC_TYPE_ALTNAME);
         altNames = tmp;
     }
@@ -10579,6 +10582,59 @@ static const byte rdnChoice[] = {
 };
 #endif
 
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+/* used to set the human readable string for the IP address with a ASN_IP_TYPE
+ * DNS entry
+ * return 0 on success
+ */
+static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
+{
+    int ret = 0;
+    int nameSz;
+    char tmpName[WOLFSSL_MAX_IPSTR] = {0};
+    char* ip;
+
+    if (entry == NULL || entry->type != ASN_IP_TYPE) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (entry->len != WOLFSSL_IP4_ADDR_LEN &&
+            entry->len != WOLFSSL_IP6_ADDR_LEN) {
+        WOLFSSL_MSG("Unexpected IP size");
+        return BAD_FUNC_ARG;
+    }
+    ip = entry->name;
+
+    /* store IP addresses as a string */
+    if (entry->len == WOLFSSL_IP4_ADDR_LEN) {
+        XSNPRINTF(tmpName, sizeof(tmpName), "%u.%u.%u.%u", 0xFF & ip[0],
+                0xFF & ip[1], 0xFF & ip[2], 0xFF & ip[3]);
+    }
+
+    if (entry->len == WOLFSSL_IP6_ADDR_LEN) {
+        int i;
+        for (i = 0; i < 8; i++) {
+            XSNPRINTF(tmpName + i * 5, sizeof(tmpName) - i * 5,
+                    "%02X%02X%s", 0xFF & ip[2 * i], 0xFF & ip[2 * i + 1],
+                    (i < 7) ? ":" : "");
+        }
+    }
+
+    nameSz = (int)XSTRLEN(tmpName);
+    entry->ipString = (char*)XMALLOC(nameSz + 1, heap, DYNAMIC_TYPE_ALTNAME);
+    if (entry->ipString == NULL) {
+        ret = MEMORY_E;
+    }
+
+    if (ret == 0) {
+        XMEMCPY(entry->ipString, tmpName, nameSz);
+        entry->ipString[nameSz] = '\0';
+    }
+
+    return ret;
+}
+#endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
+
 #ifdef WOLFSSL_ASN_TEMPLATE
 #if defined(WOLFSSL_CERT_GEN) || \
     (!defined(NO_CERTS) && !defined(IGNORE_NAME_CONSTRAINTS))
@@ -10623,6 +10679,18 @@ static int SetDNSEntry(DecodedCert* cert, const char* str, int strLen,
         XMEMCPY(dnsEntry->name, str, strLen);
         dnsEntry->name[strLen] = '\0';
 
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+        /* store IP addresses as a string */
+        if (type == ASN_IP_TYPE) {
+            if ((ret = GenerateDNSEntryIPString(dnsEntry, cert->heap)) != 0) {
+                XFREE(dnsEntry->name, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
+            }
+        }
+    #endif
+    }
+
+    if (ret == 0) {
     #if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_ALT_NAMES_NO_REV)
         dnsEntry->next = NULL;
         if (*entries == NULL) {
@@ -14424,6 +14492,14 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             XMEMCPY(ipAddr->name, &input[idx], strLen);
             ipAddr->name[strLen] = '\0';
 
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+            if (GenerateDNSEntryIPString(ipAddr, cert->heap) != 0) {
+                WOLFSSL_MSG("\tOut of Memory for IP string");
+                XFREE(ipAddr->name, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                XFREE(ipAddr, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                return MEMORY_E;
+            }
+        #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
             AddAltName(cert, ipAddr);
 
             length -= strLen;
