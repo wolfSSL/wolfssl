@@ -2102,7 +2102,8 @@ int SetCipherSpecs(WOLFSSL* ssl)
     }  /* if ECC / Normal suites else */
 
     /* set TLS if it hasn't been turned off */
-    if (ssl->version.major == 3 && ssl->version.minor >= 1) {
+    if (ssl->version.major == SSLv3_MAJOR &&
+            ssl->version.minor >= TLSv1_MINOR) {
 #ifndef NO_TLS
         ssl->options.tls = 1;
     #if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)
@@ -2112,9 +2113,9 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->hmac = Renesas_cmn_TLS_hmac;
         #endif
     #endif
-        if (ssl->version.minor >= 2) {
+        if (ssl->version.minor >= TLSv1_1_MINOR) {
             ssl->options.tls1_1 = 1;
-            if (ssl->version.minor >= 4)
+            if (ssl->version.minor >= TLSv1_3_MINOR)
                 ssl->options.tls1_3 = 1;
         }
 #endif

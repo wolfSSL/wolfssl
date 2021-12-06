@@ -77,6 +77,7 @@
 
 #ifdef OPENSSL_EXTRA
     /* openssl headers begin */
+    #include <wolfssl/openssl/ssl.h>
     #include <wolfssl/openssl/aes.h>
 #ifndef WOLFCRYPT_ONLY
     #include <wolfssl/openssl/hmac.h>
@@ -19745,6 +19746,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.isClosed = 0;
         ssl->options.connReset = 0;
         ssl->options.sentNotify = 0;
+        ssl->options.closeNotify = 0;
         ssl->options.sendVerify = 0;
         ssl->options.serverState = NULL_STATE;
         ssl->options.clientState = NULL_STATE;
@@ -23000,10 +23002,24 @@ int wolfSSL_get_shutdown(const WOLFSSL* ssl)
     WOLFSSL_ENTER("wolfSSL_get_shutdown");
 
     if (ssl) {
-        /* in OpenSSL, WOLFSSL_SENT_SHUTDOWN = 1, when closeNotifySent   *
-         * WOLFSSL_RECEIVED_SHUTDOWN = 2, from close notify or fatal err */
-        isShutdown = ((ssl->options.closeNotify||ssl->options.connReset) << 1)
-                    | (ssl->options.sentNotify);
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+        if (ssl->options.handShakeState == NULL_STATE) {
+            /* The SSL object was possibly cleared with wolfSSL_clear after
+             * a successful shutdown. Simulate a response for a full
+             * bidirectional shutdown. */
+            isShutdown = WOLFSSL_SENT_SHUTDOWN | WOLFSSL_RECEIVED_SHUTDOWN;
+        }
+        else
+#endif
+        {
+            /* in OpenSSL, WOLFSSL_SENT_SHUTDOWN = 1, when closeNotifySent   *
+             * WOLFSSL_RECEIVED_SHUTDOWN = 2, from close notify or fatal err */
+            if (ssl->options.sentNotify)
+                isShutdown |= WOLFSSL_SENT_SHUTDOWN;
+            if (ssl->options.closeNotify||ssl->options.connReset)
+                isShutdown |= WOLFSSL_RECEIVED_SHUTDOWN;
+        }
+
     }
     return isShutdown;
 }
@@ -23311,6 +23327,9 @@ WOLFSSL_CIPHER* wolfSSL_get_current_cipher(WOLFSSL* ssl)
     if (ssl) {
         ssl->cipher.cipherSuite0 = ssl->options.cipherSuite0;
         ssl->cipher.cipherSuite  = ssl->options.cipherSuite;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        ssl->cipher.bits = ssl->specs.key_size * 8;
+#endif
         return &ssl->cipher;
     }
     else
@@ -27976,6 +27995,8 @@ int wolfSSL_ERR_GET_LIB(unsigned long err)
 
     value = (err & 0xFFFFFFL);
     switch (value) {
+    case -SSL_R_HTTP_REQUEST:
+        return ERR_LIB_SSL;
     case PEM_R_NO_START_LINE:
     case PEM_R_PROBLEMS_GETTING_PASSWORD:
     case PEM_R_BAD_PASSWORD_READ:
@@ -28010,6 +28031,8 @@ int wolfSSL_ERR_GET_REASON(unsigned long err)
     /* Nginx looks for this error to know to stop parsing certificates. */
     if (err == ((ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE))
         return PEM_R_NO_START_LINE;
+    if (err == ((ERR_LIB_SSL << 24) | -SSL_R_HTTP_REQUEST))
+        return SSL_R_HTTP_REQUEST;
 #endif
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
     if (err == ((ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG))
@@ -44305,23 +44328,6 @@ err:
         }
         return ret;
     }
-
-
-    /* sets the values of X509_PKEY based on certificate passed in
-     * return WOLFSSL_SUCCESS on success */
-    static int wolfSSL_X509_PKEY_set(WOLFSSL_X509_PKEY* xPkey,
-            WOLFSSL_X509* x509)
-    {
-        if (xPkey == NULL || x509 == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        wolfSSL_EVP_PKEY_free(xPkey->dec_pkey);
-        xPkey->dec_pkey = wolfSSL_X509_get_pubkey(x509);
-        if (xPkey->dec_pkey == NULL) {
-            return WOLFSSL_FAILURE;
-        }
-        return WOLFSSL_SUCCESS;
-    }
 #endif /* !NO_BIO */
 
 
@@ -44337,47 +44343,9 @@ err:
 
 #ifndef NO_BIO
 
-    /* Takes control of x509 on success
-     * helper function to break out code needed to set WOLFSSL_X509_INFO up
-     * free's "info" passed in if is not defaults
-     *
-     * returns WOLFSSL_SUCCESS on success
-     */
-    static int wolfSSL_X509_INFO_set(WOLFSSL_X509_INFO** info,
-            WOLFSSL_X509* x509)
-    {
-        if (info == NULL || x509 == NULL) {
-            return BAD_FUNC_ARG;
-        }
-
-        if (*info == NULL) {
-            return BAD_FUNC_ARG;
-        }
-
-        /* check is fresh "info" passed in, if not free it */
-        if ((*info)->x509 != NULL || (*info)->x_pkey != NULL) {
-            WOLFSSL_X509_INFO* tmp;
-
-            tmp = wolfSSL_X509_INFO_new();
-            if (tmp == NULL) {
-                WOLFSSL_MSG("Unable to create new structure");
-                return MEMORY_E;
-            }
-            wolfSSL_X509_INFO_free(*info);
-            (*info) = tmp;
-        }
-
-        (*info)->x509 = x509;
-
-        /* @TODO info->num */
-        /* @TODO info->enc_cipher */
-        /* @TODO info->enc_len */
-        /* @TODO info->enc_data */
-        /* @TODO info->crl */
-
-        (*info)->x_pkey = wolfSSL_X509_PKEY_new(x509->heap);
-        return wolfSSL_X509_PKEY_set((*info)->x_pkey, x509);
-    }
+#define PEM_COMPARE_HEADER(start, end, header) \
+        end - start == XSTR_SIZEOF(header) && XMEMCMP(start, header, \
+                XSTR_SIZEOF(header)) == 0
 
     /**
      * This read one structure from bio and returns the read structure
@@ -44405,8 +44373,7 @@ err:
     #ifdef HAVE_CRL
         DerBuffer* der = NULL;
     #endif
-
-        (void)cb;
+        WOLFSSL_BIO* pemBio = NULL;
 
         if (!bio || !x509 || *x509 || !crl || *crl || !x_pkey || *x_pkey) {
             WOLFSSL_MSG("Bad input parameter or output parameters "
@@ -44428,6 +44395,7 @@ err:
 
         if (wolfSSL_BIO_read(bio, &pem[0], pem_struct_min_sz) !=
                 pem_struct_min_sz) {
+            WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
             goto err;
         }
 
@@ -44487,10 +44455,8 @@ err:
             goto err;
         }
         else {
-            if (headerEnd - header ==
-                    XSTR_SIZEOF("-----BEGIN CERTIFICATE-----") &&
-                    XMEMCMP(header, "-----BEGIN CERTIFICATE-----",
-                            XSTR_SIZEOF("-----BEGIN CERTIFICATE-----")) == 0) {
+            if (PEM_COMPARE_HEADER(header, headerEnd,
+                    "-----BEGIN CERTIFICATE-----")) {
                 /* We have a certificate */
                 WOLFSSL_MSG("Parsing x509 cert");
                 *x509 = wolfSSL_X509_load_certificate_buffer(
@@ -44502,10 +44468,8 @@ err:
                 }
             }
     #ifdef HAVE_CRL
-            else if (headerEnd - header ==
-                    XSTR_SIZEOF("-----BEGIN X509 CRL-----") &&
-                    XMEMCMP(header, "-----BEGIN X509 CRL-----",
-                            XSTR_SIZEOF("-----BEGIN X509 CRL-----")) == 0) {
+            else if (PEM_COMPARE_HEADER(header, headerEnd,
+                        "-----BEGIN X509 CRL-----")) {
                 /* We have a crl */
                 WOLFSSL_MSG("Parsing crl");
                 if((PemToDer((const unsigned char*) header, footerEnd - header,
@@ -44521,9 +44485,31 @@ err:
             }
     #endif
             else {
-                /* TODO support WOLFSSL_X509_PKEY as well */
-                WOLFSSL_MSG("Unsupported PEM structure");
-                goto err;
+                WOLFSSL_MSG("Parsing x509 key");
+
+                if (!(*x_pkey = wolfSSL_X509_PKEY_new(NULL))) {
+                    WOLFSSL_MSG("wolfSSL_X509_PKEY_new error");
+                    goto err;
+                }
+
+                if (!(pemBio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()))) {
+                    WOLFSSL_MSG("wolfSSL_BIO_new error");
+                    goto err;
+                }
+
+                if (wolfSSL_BIO_write(pemBio, header,
+                        (int)(footerEnd - header)) != footerEnd - header) {
+                    WOLFSSL_MSG("wolfSSL_BIO_new error");
+                    goto err;
+                }
+
+                if (wolfSSL_PEM_read_bio_PrivateKey(pemBio,
+                        &(*x_pkey)->dec_pkey, cb, NULL) == NULL) {
+                    WOLFSSL_MSG("wolfSSL_PEM_read_bio_PrivateKey error");
+                    goto err;
+                }
+
+                wolfSSL_BIO_free(pemBio);
             }
         }
 
@@ -44540,6 +44526,12 @@ err:
         if (der)
             FreeDer(&der);
     #endif
+        if (*x_pkey) {
+            wolfSSL_X509_PKEY_free(*x_pkey);
+            *x_pkey = NULL;
+        }
+        if (pemBio)
+            wolfSSL_BIO_free(pemBio);
         return WOLFSSL_FAILURE;
 #endif /* WOLFSSL_PEM_TO_DER || WOLFSSL_DER_TO_PEM */
     }
@@ -44573,74 +44565,106 @@ err:
     {
         WOLF_STACK_OF(WOLFSSL_X509_INFO)* localSk = NULL;
         int ret = WOLFSSL_SUCCESS;
+        WOLFSSL_X509_INFO* current = NULL;
+        WOLFSSL_X509*      x509 = NULL;
+        WOLFSSL_X509_CRL*  crl  = NULL;
+        WOLFSSL_X509_PKEY* x_pkey = NULL;
 
         (void)u;
 
         WOLFSSL_ENTER("wolfSSL_PEM_X509_INFO_read_bio");
 
+        /* attempt to use passed in stack or create a new one */
+        if (sk != NULL) {
+            localSk = sk;
+        }
+        else {
+            localSk = wolfSSL_sk_X509_INFO_new_null();
+        }
+        if (localSk == NULL) {
+            WOLFSSL_LEAVE("wolfSSL_PEM_X509_INFO_read_bio",
+                    MEMORY_E);
+            return NULL;
+        }
+
         /* parse through BIO and push new info's found onto stack */
         while (1) {
-            WOLFSSL_X509      *x509 = NULL;
-            WOLFSSL_X509_CRL  *crl  = NULL;
-            WOLFSSL_X509_PKEY *x_pkey = NULL;
+            x509 = NULL;
+            crl  = NULL;
+            x_pkey = NULL;
 
             if (wolfSSL_PEM_X509_X509_CRL_X509_PKEY_read_bio(bio, cb,
                     &x509, &crl, &x_pkey) == WOLFSSL_SUCCESS) {
-                WOLFSSL_X509_INFO* current;
-
-                current = wolfSSL_X509_INFO_new();
-                if (current == NULL) {
-                    WOLFSSL_LEAVE("wolfSSL_PEM_X509_INFO_read_bio", MEMORY_E);
-                    wolfSSL_sk_pop_free(localSk, NULL);
-                    return NULL;
+                if (current == NULL ||
+                        (x509 && current->x509) ||
+                        (crl && current->crl) ||
+                        (x_pkey && current->x_pkey)) {
+                    /* Need to create new current since existing one already
+                     * has the member filled or this is the first successful
+                     * read. */
+                    current = wolfSSL_X509_INFO_new();
+                    if (current == NULL) {
+                        ret = MEMORY_E;
+                        break;
+                    }
+                    if (wolfSSL_sk_X509_INFO_push(localSk, current) !=
+                            WOLFSSL_SUCCESS) {
+                        wolfSSL_X509_INFO_free(current);
+                        current = NULL;
+                        ret = WOLFSSL_FAILURE;
+                        break;
+                    }
                 }
+
                 if (x509) {
-                    ret = wolfSSL_X509_INFO_set(&current, x509);
+                    current->x509 = x509;
                 }
                 else if (crl) {
                     current->crl = crl;
-                    ret = WOLFSSL_SUCCESS;
                 }
                 else if (x_pkey) {
                     current->x_pkey = x_pkey;
-                    ret = WOLFSSL_SUCCESS;
                 }
                 else {
                     WOLFSSL_MSG("No output parameters set");
-                    WOLFSSL_LEAVE("wolfSSL_PEM_X509_INFO_read_bio", WOLFSSL_FAILURE);
-                    wolfSSL_sk_pop_free(localSk, NULL);
-                    wolfSSL_X509_INFO_free(current);
-                    return NULL;
-                }
-                if (ret != WOLFSSL_SUCCESS) {
-                    wolfSSL_X509_free(x509);
-#ifdef HAVE_CRL
-                    wolfSSL_X509_CRL_free(crl);
-#endif
-                    wolfSSL_X509_PKEY_free(x_pkey);
-                }
-                else {
-                    if (!localSk) {
-                        /* attempt to used passed in stack
-                         * or create a new one */
-                        if (sk != NULL) {
-                            localSk = sk;
-                        }
-                        else {
-                            localSk = wolfSSL_sk_X509_INFO_new_null();
-                        }
-                        if (localSk == NULL) {
-                            WOLFSSL_LEAVE("wolfSSL_PEM_X509_INFO_read_bio",
-                                    MEMORY_E);
-                            return NULL;
-                        }
-                    }
-                    wolfSSL_sk_X509_INFO_push(localSk, current);
+                    ret = WOLFSSL_FAILURE;
+                    break;
                 }
             }
             else {
+                int err = (int)wolfSSL_ERR_peek_last_error();
+                if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
+                        ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
+                    /*
+                     * wolfSSL_PEM_X509_X509_CRL_X509_PKEY_read_bio pushes an
+                     * ASN_NO_PEM_HEADER error to the error queue on file end.
+                     * This should not be left for the caller to find so we
+                     * clear the last error. This also indicates that nothing
+                     * more was found in the BIO.
+                     */
+                    wc_RemoveErrorNode(-1);
+                }
+                else {
+                    ret = WOLFSSL_FAILURE;
+                }
                 break;
             }
+        }
+        if (ret != WOLFSSL_SUCCESS ||
+                wolfSSL_sk_X509_INFO_num(localSk) == 0) {
+            /* current should always be pushed onto the localsk stack at this
+             * point. The only case when it isn't is when
+             * wolfSSL_sk_X509_INFO_push fails but in that case the current
+             * free is handled inside the loop. */
+            if (localSk != sk) {
+                wolfSSL_sk_pop_free(localSk, NULL);
+            }
+            wolfSSL_X509_free(x509);
+#ifdef HAVE_CRL
+            wolfSSL_X509_CRL_free(crl);
+#endif
+            wolfSSL_X509_PKEY_free(x_pkey);
+            localSk = NULL;
         }
         WOLFSSL_LEAVE("wolfSSL_PEM_X509_INFO_read_bio", ret);
         return localSk;
@@ -47726,24 +47750,19 @@ int wolfSSL_sk_X509_INFO_num(const WOLF_STACK_OF(WOLFSSL_X509_INFO) *sk)
 {
     WOLFSSL_ENTER("wolfSSL_sk_X509_INFO_num");
 
-    if (sk == NULL)
-        return -1;
-    return (int)sk->num;
+    return wolfSSL_sk_num(sk);
 }
 
-WOLFSSL_X509_INFO* wolfSSL_sk_X509_INFO_value(const WOLF_STACK_OF(WOLFSSL_X509_INFO) *sk, int i)
+WOLFSSL_X509_INFO* wolfSSL_sk_X509_INFO_value(
+        const WOLF_STACK_OF(WOLFSSL_X509_INFO) *sk, int i)
 {
     WOLFSSL_ENTER("wolfSSL_sk_X509_INFO_value");
 
-    for (; sk != NULL && i > 0; i--)
-        sk = sk->next;
-
-    if (i != 0 || sk == NULL)
-        return NULL;
-    return sk->data.info;
+    return wolfSSL_sk_value(sk, i);
 }
 
-WOLFSSL_X509_INFO* wolfSSL_sk_X509_INFO_pop(WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk)
+WOLFSSL_X509_INFO* wolfSSL_sk_X509_INFO_pop(
+        WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk)
 {
     WOLFSSL_STACK* node;
     WOLFSSL_X509_INFO* info;
@@ -47793,37 +47812,7 @@ void wolfSSL_sk_X509_INFO_free(WOLF_STACK_OF(WOLFSSL_X509_INFO) *sk)
 int wolfSSL_sk_X509_INFO_push(WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk,
                                                       WOLFSSL_X509_INFO* in)
 {
-    WOLFSSL_STACK* node;
-
-    if (sk == NULL || in == NULL) {
-        return WOLFSSL_FAILURE;
-    }
-
-    /* no previous values in stack */
-    if (sk->data.info == NULL) {
-        sk->data.info = in;
-        sk->num += 1;
-        return WOLFSSL_SUCCESS;
-    }
-
-    /* stack already has value(s) create a new node and add more */
-    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
-            DYNAMIC_TYPE_X509);
-    if (node == NULL) {
-        WOLFSSL_MSG("Memory error");
-        return WOLFSSL_FAILURE;
-    }
-    XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
-
-    /* push new obj onto head of stack */
-    node->data.info = sk->data.info;
-    node->next      = sk->next;
-    node->type      = sk->type;
-    sk->next        = node;
-    sk->data.info   = in;
-    sk->num        += 1;
-
-    return WOLFSSL_SUCCESS;
+    return wolfSSL_sk_push(sk, in);
 }
 
 /* Creates a duplicate of WOLF_STACK_OF(WOLFSSL_X509_NAME).
@@ -49391,6 +49380,11 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 
             if (ret == -ASN_NO_PEM_HEADER)
                 return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
+        #ifdef OPENSSL_ALL
+            /* PARSE_ERROR is returned if an HTTP request is detected. */
+            if (ret == -SSL_R_HTTP_REQUEST)
+                return (ERR_LIB_SSL << 24) | -SSL_R_HTTP_REQUEST;
+        #endif
         #if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
             if (ret == ASN1_R_HEADER_TOO_LONG) {
                 return (ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG;
@@ -59431,21 +59425,20 @@ void wolfSSL_BIO_set_init(WOLFSSL_BIO* bio, int init)
     (void)bio;
     (void)init;
 }
+#endif /* NO_WOLFSSL_STUB */
 
 void wolfSSL_BIO_set_shutdown(WOLFSSL_BIO* bio, int shut)
 {
-    WOLFSSL_STUB("wolfSSL_BIO_set_shutdown");
-    (void)bio;
-    (void)shut;
-
+    WOLFSSL_ENTER("wolfSSL_BIO_set_shutdown");
+    if (bio != NULL)
+        bio->shutdown = shut;
 }
+
 int wolfSSL_BIO_get_shutdown(WOLFSSL_BIO* bio)
 {
-    WOLFSSL_STUB("wolfSSL_BIO_get_shutdown");
-    (void)bio;
-    return 0;
+    WOLFSSL_ENTER("wolfSSL_BIO_get_shutdown");
+    return bio != NULL && bio->shutdown;
 }
-#endif /* NO_WOLFSSL_STUB */
 
 void wolfSSL_BIO_clear_retry_flags(WOLFSSL_BIO* bio)
 {

@@ -1421,6 +1421,9 @@ WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_E
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     ctx->padding = RSA_PKCS1_PADDING;
 #endif
+#ifdef HAVE_ECC
+    ctx->curveNID = ECC_CURVE_DEF;
+#endif
     if (wolfSSL_EVP_PKEY_up_ref(pkey) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Couldn't increase key reference count");
     }
@@ -1920,6 +1923,49 @@ int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
 }
 
 
+int wolfSSL_EVP_PKEY_paramgen_init(WOLFSSL_EVP_PKEY_CTX *ctx)
+{
+    (void)ctx;
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_EVP_PKEY_CTX_set_ec_paramgen_curve_nid(WOLFSSL_EVP_PKEY_CTX *ctx,
+        int nid)
+{
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_CTX_set_ec_paramgen_curve_nid");
+#ifdef HAVE_ECC
+    if (ctx != NULL && ctx->pkey != NULL && ctx->pkey->type == EVP_PKEY_EC) {
+        ctx->curveNID = nid;
+        return WOLFSSL_SUCCESS;
+    }
+    else
+#endif
+    {
+#ifndef HAVE_ECC
+        (void)ctx;
+        (void)nid;
+        WOLFSSL_MSG("Support not compiled in");
+#else
+        WOLFSSL_MSG("Bad parameter");
+#endif
+        return WOLFSSL_FAILURE;
+    }
+}
+
+/* wolfSSL only supports writing out named curves so no need to store the flag.
+ * In short, it is preferred to write out the name of the curve chosen instead
+ * of the explicit parameters.
+ * The difference is nicely explained and illustrated in section
+ * "ECDH and Named Curves" of
+ * https://wiki.openssl.org/index.php/Elliptic_Curve_Diffie_Hellman */
+int EVP_PKEY_CTX_set_ec_param_enc(WOLFSSL_EVP_PKEY_CTX *ctx,
+        int flag)
+{
+    (void)ctx;
+    (void)flag;
+    return WOLFSSL_SUCCESS;
+}
+
 int wolfSSL_EVP_PKEY_keygen_init(WOLFSSL_EVP_PKEY_CTX *ctx)
 {
     (void)ctx;
@@ -1933,14 +1979,23 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
     int ownPkey = 0;
     WOLFSSL_EVP_PKEY* pkey;
 
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_keygen");
+
     if (ctx == NULL || ppkey == NULL) {
         return BAD_FUNC_ARG;
     }
 
     pkey = *ppkey;
     if (pkey == NULL) {
+        if (ctx->pkey == NULL ||
+                (ctx->pkey->type != EVP_PKEY_EC &&
+                        ctx->pkey->type != EVP_PKEY_RSA)) {
+            WOLFSSL_MSG("Key not set or key type not supported");
+            return BAD_FUNC_ARG;
+        }
         ownPkey = 1;
         pkey = wolfSSL_EVP_PKEY_new();
+        pkey->type = ctx->pkey->type;
 
         if (pkey == NULL)
             return ret;
@@ -1962,7 +2017,7 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
 #endif
 #ifdef HAVE_ECC
         case EVP_PKEY_EC:
-            pkey->ecc = wolfSSL_EC_KEY_new();
+            pkey->ecc = wolfSSL_EC_KEY_new_by_curve_name(ctx->curveNID);
             if (pkey->ecc) {
                 ret = wolfSSL_EC_KEY_generate_key(pkey->ecc);
                 if (ret == WOLFSSL_SUCCESS) {

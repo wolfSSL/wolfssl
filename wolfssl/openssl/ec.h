@@ -76,7 +76,8 @@ enum {
     NID_ED25519 = ED25519k,
 #endif
 
-    OPENSSL_EC_NAMED_CURVE  = 0x001
+    OPENSSL_EC_EXPLICIT_CURVE  = 0x000,
+    OPENSSL_EC_NAMED_CURVE  = 0x001,
 };
 
 #ifndef WOLFSSL_EC_TYPE_DEFINED /* guard on redeclaration */
