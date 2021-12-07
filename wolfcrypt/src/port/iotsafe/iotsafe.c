@@ -1420,17 +1420,17 @@ int wolfSSL_iotsafe_on_ex(WOLFSSL *ssl, byte *privkey_id,
 #if defined(HAVE_PK_CALLBACKS)
     int ret;
     IOTSAFE iotsafe;
-    if (id_size == 1) {
-        iotsafe.privkey_id = *privkey_id;
-        iotsafe.ecdh_keypair_slot = *ecdh_keypair_slot;
-        iotsafe.peer_pubkey_slot = *peer_pubkey_slot;
-        iotsafe.peer_cert_slot = *peer_cert_slot;
-    } else if (id_size == 2) {
-        XMEMCPY(&iotsafe.privkey_id, privkey_id, id_size);
-        XMEMCPY(&iotsafe.ecdh_keypair_slot, ecdh_keypair_slot, id_size);
-        XMEMCPY(&iotsafe.peer_pubkey_slot, peer_pubkey_slot, id_size);
-        XMEMCPY(&iotsafe.peer_cert_slot, peer_cert_slot, id_size);
-    }
+#ifdef TWO_BYTES_ID_DEMO
+    iotsafe.privkey_id = *privkey_id;
+    iotsafe.ecdh_keypair_slot = *ecdh_keypair_slot;
+    iotsafe.peer_pubkey_slot = *peer_pubkey_slot;
+    iotsafe.peer_cert_slot = *peer_cert_slot;
+#else
+    XMEMCPY(&iotsafe.privkey_id, privkey_id, id_size);
+    XMEMCPY(&iotsafe.ecdh_keypair_slot, ecdh_keypair_slot, id_size);
+    XMEMCPY(&iotsafe.peer_pubkey_slot, peer_pubkey_slot, id_size);
+    XMEMCPY(&iotsafe.peer_cert_slot, peer_cert_slot, id_size);
+#endif
     iotsafe.enabled = 1;
     ret = wolfSSL_set_iotsafe_ctx(ssl, &iotsafe);
     if (ret == 0) {

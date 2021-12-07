@@ -46,6 +46,7 @@ WOLFSSL_API void wolfIoTSafe_SetCSIM_write_cb(wolfSSL_IOTSafe_CSIM_write_cb wf);
 
 WOLFSSL_API int wolfIoTSafe_GetRandom(unsigned char* out, word32 sz);
 WOLFSSL_API int wolfIoTSafe_GetCert(uint8_t id, unsigned char *output, unsigned long sz);
+WOLFSSL_API int wolfIoTSafe_GetCert_ex(uint8_t *id, uint16_t id_sz, unsigned char *output, unsigned long sz);
 
 #ifdef HAVE_ECC
 #include <wolfssl/wolfcrypt/ecc.h>
