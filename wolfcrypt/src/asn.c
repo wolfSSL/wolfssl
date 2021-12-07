@@ -3982,12 +3982,13 @@ static const byte extExtKeyUsageOcspSignOid[]     = {43, 6, 1, 5, 5, 7, 3, 9};
 
 #if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN)
 /* csrAttrType */
-static const byte attrEmailOid[] =             {42, 134, 72, 134, 247, 13, 1, 9, 1};
+#define CSR_ATTR_TYPE_OID_BASE(num) {42, 134, 72, 134, 247, 13, 1, 9, num}
+static const byte attrEmailOid[] =             CSR_ATTR_TYPE_OID_BASE(1);
 #ifdef WOLFSSL_CERT_REQ
-static const byte attrUnstructuredNameOid[] =  {42, 134, 72, 134, 247, 13, 1, 9, 2};
-static const byte attrPkcs9ContentTypeOid[] =  {42, 134, 72, 134, 247, 13, 1, 9, 3};
-static const byte attrChallengePasswordOid[] = {42, 134, 72, 134, 247, 13, 1, 9, 7};
-static const byte attrExtensionRequestOid[] =  {42, 134, 72, 134, 247, 13, 1, 9, 14};
+static const byte attrUnstructuredNameOid[] =  CSR_ATTR_TYPE_OID_BASE(2);
+static const byte attrPkcs9ContentTypeOid[] =  CSR_ATTR_TYPE_OID_BASE(3);
+static const byte attrChallengePasswordOid[] = CSR_ATTR_TYPE_OID_BASE(7);
+static const byte attrExtensionRequestOid[] =  CSR_ATTR_TYPE_OID_BASE(14);
 static const byte attrSerialNumberOid[] = {85, 4, 5};
 #endif
 #endif
@@ -24029,11 +24030,14 @@ static int SetCustomObjectId(Cert* cert, byte* output, word32 outSz,
     cust_oidSz = SetObjectId(custom->oidSz, NULL);
 
     /* check for output buffer room */
-    if ((word32)(custom->valSz + custom->oidSz + cust_lenSz + cust_oidSz) > outSz)
+    if ((word32)(custom->valSz + custom->oidSz + cust_lenSz + cust_oidSz) >
+                                                                        outSz) {
         return BUFFER_E;
+    }
 
     /* put sequence with total */
-    idx = SetSequence(custom->valSz + custom->oidSz + cust_lenSz + cust_oidSz, output);
+    idx = SetSequence(custom->valSz + custom->oidSz + cust_lenSz + cust_oidSz,
+                      output);
 
     /* put oid header */
     idx += SetObjectId(custom->oidSz, output+idx);
@@ -24056,6 +24060,8 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
                          ed25519_key* ed25519Key, ed448_key* ed448Key,
                          falcon_key* falconKey)
 {
+    int ret;
+
     (void)eccKey;
     (void)ed25519Key;
     (void)ed448Key;
@@ -24234,17 +24240,16 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
 #ifdef WOLFSSL_CUSTOM_OID
     /* encode a custom oid and value */
     /* zero returns, means none set */
-    der->extCustomSz = SetCustomObjectId(cert, der->extCustom,
+    ret = SetCustomObjectId(cert, der->extCustom,
         sizeof(der->extCustom), &cert->extCustom);
-    if (der->extCustomSz < 0)
-        return der->extCustomSz;
+    if (ret < 0)
+        return ret;
+    der->extCustomSz = ret;
     der->extensionsSz += der->extCustomSz;
 #endif
 
     /* put extensions */
     if (der->extensionsSz > 0) {
-        int ret;
-
         /* put the start of sequence (ID, Size) */
         der->extensionsSz = SetSequence(der->extensionsSz, der->extensions);
         if (der->extensionsSz <= 0)
