@@ -183,7 +183,13 @@ void mp_clear (mp_int * a)
       return;
 
   /* only do anything if a hasn't been freed previously */
-  if (a->dp != NULL) {
+#ifndef HAVE_WOLF_BIGINT
+  /* When HAVE_WOLF_BIGINT then mp_free -> wc_bigint_free needs to be called
+   * because a->raw->buf may be allocated even when a->dp == NULL. This is the
+   * case for when a zero is loaded into the mp_int. */
+  if (a->dp != NULL)
+#endif
+  {
     /* first zero the digits */
     for (i = 0; i < a->used; i++) {
         a->dp[i] = 0;
