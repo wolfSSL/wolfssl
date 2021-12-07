@@ -40,7 +40,7 @@
     #define CRT_SERVER_FILE_ID  0x3330
     #define PRIVKEY_ID          0x3230     /* pre-provisioned */
     #define ECDH_KEYPAIR_ID     0x3330
-    #define PEER_PUBKEY_ID      0x3530
+    #define PEER_PUBKEY_ID      0x3730
     #define PEER_CERT_ID        0x3430
 
     /* In this version of the demo, the server certificate is
@@ -75,7 +75,9 @@
 
 /* Debugging */
 #define WOLFSSL_LOG_PRINTF
-#if 1
+
+/* Change to "if 1" to enable debug */
+#if 0
     #define DEBUG_WOLFSSL
     #define WOLFSSL_DEBUG_TLS
     #define DEBUG_IOTSAFE

@@ -140,8 +140,6 @@ static int expect_tok(const char *cmd, int size, const char *tok, char **repl)
 #ifdef DEBUG_IOTSAFE
         if (ret > 0)
             printf("<<< %s\n", csim_read_buf);
-        else
-            printf("<<< csim_read returned %d\n", ret);
 #endif
         if (tok && (ret > 0) && !r_found) {
             /* Mark the beginning of the match in the reply. */
@@ -462,7 +460,9 @@ static int iotsafe_readfile(uint8_t *file_id, uint16_t file_id_sz,
             return -1;
         file_sz = (fs_msb << 8) + fs_lsb;
         WOLFSSL_MSG("Stat successful on file");
-        printf("File size: %d (%04x)", file_sz, file_sz);
+        #ifdef DEBUG_IOTSAFE
+            printf("File size: %d (%04x)", file_sz, file_sz);
+        #endif
     }
 
     if (file_sz > max_size) {
@@ -1056,7 +1056,9 @@ static int wolfIoT_ecc_verify(WOLFSSL *ssl,
             /* Store public key in IoT-safe slot */
             ret = iotsafe_put_public_key(pubkey_slot, id_size, key);
             if (ret < 0) {
+            #ifdef DEBUG_IOTSAFE
                 printf("IOTSAFE: put public key failed\n");
+            #endif
             }
         }
         if (ret == 0) {
