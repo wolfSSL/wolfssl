@@ -8182,14 +8182,19 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         return WOLFSSL_FAILURE;
     }
 
+    if (wc_ecc_init(&key) != 0) {
+        /* Return early so we don't have to remember if init succeeded
+         * or not. */
+        mp_free(&a);
+        return WOLFSSL_FAILURE;
+    }
+
     if (indent < 0) {
         indent = 0;
     }
     else if (indent > EVP_PKEY_PRINT_INDENT_MAX) {
         indent = EVP_PKEY_PRINT_INDENT_MAX;
     }
-
-    res = wc_ecc_init(&key) == 0;
 
     if (res == WOLFSSL_SUCCESS) {
         res = wc_EccPublicKeyDecode(pkey, &inOutIdx, &key, pkeySz) == 0;
