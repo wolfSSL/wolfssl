@@ -4003,8 +4003,8 @@ static int DoPreSharedKeys(WOLFSSL* ssl, byte* suite, int* usingPSK, int* first)
              */
             if (diff > (int)ssl->timeout * 1000 || diff < -1000 ||
                                      diff - MAX_TICKET_AGE_SECS * 1000 > 1000) {
-                /* Invalid difference, fallback to full handshake. */
-                ssl->options.resuming = 0;
+                current = current->next;
+                continue;
             }
 
         #ifndef WOLFSSL_PSK_ONE_ID
