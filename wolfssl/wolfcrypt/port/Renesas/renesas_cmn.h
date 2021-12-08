@@ -32,7 +32,7 @@ WOLFSSL_LOCAL int Renesas_cmn_RsaEnc(WOLFSSL* ssl, const unsigned char* in,
        unsigned int inSz, unsigned char* out, word32* outSz,
        const unsigned char* keyDer, unsigned int keySz, void* ctx);
 WOLFSSL_LOCAL int Renesas_cmn_VerifyHmac(WOLFSSL *ssl, const byte* message, 
-                    word32 messageSz, word32 macSz, word32 content);
+                    word32 messageSz, word32 macSz, word32 content, void* ctx);
 WOLFSSL_LOCAL int Renesas_cmn_EccVerify(WOLFSSL* ssl, const uint8_t* sig, 
         uint32_t sigSz, const uint8_t* hash, uint32_t hashSz, 
         const uint8_t* key, uint32_t keySz, int* result, void* ctx);
