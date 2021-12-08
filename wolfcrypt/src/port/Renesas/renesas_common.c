@@ -37,8 +37,8 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
-extern uint32_t     g_CAscm_Idx = (uint32_t)-1; /* index of CM table    */
-static int devId = 7890;                        /* dev Id for Crypt Callback */
+uint32_t     g_CAscm_Idx = (uint32_t)-1; /* index of CM table    */
+static int devId = 7890;                 /* dev Id for Crypt Callback */
 
 #ifdef WOLF_CRYPTO_CB
 

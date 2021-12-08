@@ -53,7 +53,7 @@ static const byte*  ca_cert_sig;
 static sce_key_data g_user_key_info;
 
 static uint32_t     g_encrypted_publicCA_key[HW_SCE_SINST_WORD_SIZE];
-uint32_t            g_CAscm_Idx;          /* index of CM table    */
+extern uint32_t     g_CAscm_Idx;          /* index of CM table    */
 wolfSSL_Mutex       sce_mutex;
 static int          sce_CryptHwMutexInit_ = 0;
 static uint32_t     sce_sess_idx = 0;
