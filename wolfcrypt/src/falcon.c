@@ -588,9 +588,22 @@ int wc_falcon_export_key(falcon_key* key, byte* priv, word32 *privSz,
  */
 int wc_falcon_check_key(falcon_key* key)
 {
-    /* Might want to try to sign and verify a random message here. */
+    /* Sign and verify a message. */
     int ret = 0;
-    (void)key;
+    int res = 0;
+    byte msg[] = "The wolfSSL team is here to make you ready for quantum computers!!";
+    word32 msglen = sizeof(msg);
+    byte sig[FALCON_MAX_SIG_SIZE];
+    word32 siglen = sizeof(sig);
+
+    ret = wc_falcon_sign_msg(msg, msglen, sig, &siglen, key);
+
+    if (ret == 0) {
+        ret = wc_falcon_verify_msg(sig, siglen, msg, msglen, &res, key);
+        if ((ret != 0) || (res != 1)) {
+            ret = SIG_VERIFY_E;
+        }
+    }
     return ret;
 }
 

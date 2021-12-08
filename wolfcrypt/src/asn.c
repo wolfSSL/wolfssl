@@ -28158,8 +28158,7 @@ int wc_Falcon_PrivateKeyDecode(const byte* input, word32* inOutIdx,
                         pubKey, &pubKeyLen, keytype);
     if (ret == 0) {
         if (pubKeyLen == 0) {
-            ret = wc_falcon_import_private_only(privKey, privKeyLen,
-                                                key);
+            ret = wc_falcon_import_private_only(input, inSz, key);
         }
         else {
             ret = wc_falcon_import_private_key(privKey, privKeyLen,
