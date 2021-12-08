@@ -289,7 +289,7 @@
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
     #include <wolfssl/wolfcrypt/logging.h>
 #endif
-#ifdef WOLFSSL_IMX6_CAAM_BLOB
+#ifdef WOLFSSL_CAAM
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
 #ifdef WOLF_CRYPTO_CB
@@ -349,13 +349,18 @@
     #define NO_INTM_HASH_TEST
 #endif
 
+#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+    defined(WOLFSSL_SECO_CAAM)
+    #define HASH_SIZE_LIMIT
+#endif
+
 #if defined(WOLFSSL_CERT_GEN) && (!defined(NO_RSA) || defined(HAVE_ECC)) || \
   (defined(WOLFSSL_TEST_CERT) && (defined(HAVE_ED25519) || defined(HAVE_ED448)))
 static void initDefaultName(void);
 #endif
 
 /* for async devices */
-#ifdef WOLFSSL_QNX_CAAM
+#ifdef WOLFSSL_CAAM_DEVID
 static int devId = WOLFSSL_CAAM_DEVID;
 #else
 static int devId = INVALID_DEVID;
@@ -2720,7 +2725,7 @@ WOLFSSL_TEST_SUBROUTINE int sha256_test(void)
 
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
-#if defined(WOLFSSL_RENESAS_TSIP_CRYPT) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#ifdef HASH_SIZE_LIMIT
     const char* large_digest =
             "\xa4\x75\x9e\x7a\xa2\x03\x38\x32\x88\x66\xa2\xea\x17\xea\xf8\xc7"
             "\xfe\x4e\xc6\xbb\xe3\xbb\x71\xce\xe7\xdf\x7c\x04\x61\xb3\xc2\x2f";
@@ -2732,7 +2737,7 @@ WOLFSSL_TEST_SUBROUTINE int sha256_test(void)
     for (i = 0; i < (int)sizeof(large_input); i++) {
         large_input[i] = (byte)(i & 0xFF);
     }
-#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#ifdef HASH_SIZE_LIMIT
     times = 20;
 #else
     times = 100;
@@ -2840,16 +2845,28 @@ WOLFSSL_TEST_SUBROUTINE int sha512_test(void)
 
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
+#ifdef HASH_SIZE_LIMIT
+    const char* large_digest =
+        "\x30\x9B\x96\xA6\xE9\x43\x78\x30\xA3\x71\x51\x61\xC1\xEB\xE1\xBE"
+        "\xC8\xA5\xF9\x13\x5A\xD6\x6D\x9E\x46\x31\x31\x67\x8D\xE2\xC0\x0B"
+        "\x2A\x1A\x03\xE1\xF3\x48\xA7\x33\xBD\x49\xF8\xFF\xF1\xC2\xC2\x95"
+        "\xCB\xF0\xAF\x87\x61\x85\x58\x63\x6A\xCA\x70\x9C\x8B\x83\x3F\x5D";
+#else
     const char* large_digest =
         "\x5a\x1f\x73\x90\xbd\x8c\xe4\x63\x54\xce\xa0\x9b\xef\x32\x78\x2d"
         "\x2e\xe7\x0d\x5e\x2f\x9d\x15\x1b\xdd\x2d\xde\x65\x0c\x7b\xfa\x83"
         "\x5e\x80\x02\x13\x84\xb8\x3f\xff\x71\x62\xb5\x09\x89\x63\xe1\xdc"
         "\xa5\xdc\xfc\xfa\x9d\x1a\x4d\xc0\xfa\x3a\x14\xf6\x01\x51\x90\xa4";
+#endif
 
     for (i = 0; i < (int)sizeof(large_input); i++) {
         large_input[i] = (byte)(i & 0xFF);
     }
+#ifdef HASH_SIZE_LIMIT
+    times = 20;
+#else
     times = 100;
+#endif
     for (i = 0; i < times; ++i) {
         ret = wc_Sha512Update(&sha, (byte*)large_input,
             (word32)sizeof(large_input));
@@ -2956,15 +2973,26 @@ WOLFSSL_TEST_SUBROUTINE int sha384_test(void)
 
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
+#ifdef HASH_SIZE_LIMIT
+    const char* large_digest =
+        "\xB5\xAD\x66\x6F\xD9\x58\x5E\x68\xDD\x5E\x30\xD3\x95\x72\x33\xA4"
+        "\xE9\x4B\x99\x3A\xEF\xF8\xE1\xBF\x1F\x05\x32\xAA\x16\x00\x82\xEC"
+        "\x15\xDA\xF2\x75\xEE\xE9\x06\xAF\x52\x8A\x5C\xEF\x72\x81\x80\xD6";
+#else
     const char* large_digest =
         "\x37\x01\xdb\xff\x1e\x40\x4f\xe1\xe2\xea\x0b\x40\xbb\x3b\x39\x9a"
         "\xcc\xe8\x44\x8e\x7e\xe5\x64\xb5\x6b\x7f\x56\x64\xa7\x2b\x84\xe3"
         "\xc5\xd7\x79\x03\x25\x90\xf7\xa4\x58\xcb\x97\xa8\x8b\xb1\xa4\x81";
+#endif
 
     for (i = 0; i < (int)sizeof(large_input); i++) {
         large_input[i] = (byte)(i & 0xFF);
     }
+#ifdef HASH_SIZE_LIMIT
+    times = 20;
+#else
     times = 100;
+#endif
     for (i = 0; i < times; ++i) {
         ret = wc_Sha384Update(&sha, (byte*)large_input,
             (word32)sizeof(large_input));
@@ -21372,7 +21400,8 @@ static int ecc_test_make_pub(WC_RNG* rng)
 
     /* create a new key since above test for loading key is not supported */
 #if defined(WOLFSSL_CRYPTOCELL) || defined(NO_ECC256) || \
-    defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_SE050)
+    defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_SE050) || \
+    defined(WOLFSSL_SECO_CAAM)
     ret  = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, key);
     if (ret != 0) {
         ERROR_OUT(-9861, done);

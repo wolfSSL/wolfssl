@@ -1010,6 +1010,9 @@ int wc_HmacInit(Hmac* hmac, void* heap, int devId)
     hmac->devId = devId;
     hmac->devCtx = NULL;
 #endif
+#if defined(WOLFSSL_DEVCRYPTO_HMAC)
+    hmac->ctx.cfd = -1;
+#endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     ret = wolfAsync_DevCtxInit(&hmac->asyncDev, WOLFSSL_ASYNC_MARKER_HMAC,

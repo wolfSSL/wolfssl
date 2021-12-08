@@ -727,6 +727,71 @@ int wc_CryptoCb_AesCbcDecrypt(Aes* aes, byte* out,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* HAVE_AES_CBC */
+#ifdef HAVE_AES_ECB
+int wc_CryptoCb_AesEcbEncrypt(Aes* aes, byte* out,
+                               const byte* in, word32 sz)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    if (aes) {
+        dev = wc_CryptoCb_FindDevice(aes->devId);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
+        cryptoInfo.cipher.type = WC_CIPHER_AES_ECB;
+        cryptoInfo.cipher.enc = 1;
+        cryptoInfo.cipher.aesecb.aes = aes;
+        cryptoInfo.cipher.aesecb.out = out;
+        cryptoInfo.cipher.aesecb.in = in;
+        cryptoInfo.cipher.aesecb.sz = sz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_AesEcbDecrypt(Aes* aes, byte* out,
+                               const byte* in, word32 sz)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    if (aes) {
+        dev = wc_CryptoCb_FindDevice(aes->devId);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
+        cryptoInfo.cipher.type = WC_CIPHER_AES_ECB;
+        cryptoInfo.cipher.enc = 0;
+        cryptoInfo.cipher.aesecb.aes = aes;
+        cryptoInfo.cipher.aesecb.out = out;
+        cryptoInfo.cipher.aesecb.in = in;
+        cryptoInfo.cipher.aesecb.sz = sz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* HAVE_AES_ECB */
 #endif /* !NO_AES */
 
 #ifndef NO_DES3
@@ -1051,4 +1116,18 @@ int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
 }
 #endif
 
+/* returns the default dev id for the current build */
+int wc_CryptoCb_DefaultDevID()
+{
+    int ret;
+
+    /* conditional macro selection based on build */
+#ifdef WOLFSSL_CAAM_DEVID
+    ret = WOLFSSL_CAAM_DEVID;
+#else
+    ret = INVALID_DEVID;
+#endif
+
+    return ret;
+}
 #endif /* WOLF_CRYPTO_CB */

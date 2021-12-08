@@ -55,6 +55,10 @@
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
+#if defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_HMAC)
+    #include <wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h>
+#endif
+
 #ifndef NO_OLD_WC_NAMES
     #define HMAC_BLOCK_SIZE WC_HMAC_BLOCK_SIZE
 #endif
@@ -155,6 +159,9 @@ struct Hmac {
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
+#if defined(WOLFSSL_DEVCRYPTO) && defined(WOLFSSL_DEVCRYPTO_HMAC)
+    WC_CRYPTODEV ctx;
+#endif
 #ifdef WOLF_CRYPTO_CB
     int     devId;
     void*   devCtx;

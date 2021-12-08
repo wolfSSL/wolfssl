@@ -1,4 +1,4 @@
-/* wolfcaam_ecdsa.h
+/* wolfcaam_rsa.h
  *
  * Copyright (C) 2006-2021 wolfSSL Inc.
  *
@@ -21,22 +21,20 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifndef WOLFCAAM_ECDSA_H
-#define WOLFCAAM_ECDSA_H
+#ifndef WOLFCAAM_RSA_H
+#define WOLFCAAM_RSA_H
 
-#if defined(HAVE_ECC) && defined(WOLFSSL_CAAM)
+#if !defined(NO_RSA) && defined(WOLFSSL_CAAM)
 
-#include <wolfssl/wolfcrypt/ecc.h>
+#include <wolfssl/wolfcrypt/rsa.h>
 
-WOLFSSL_LOCAL int wc_CAAM_EccSign(const byte* in, int inlen, byte* out,
-        word32* outlen, WC_RNG *rng, ecc_key *key, int devId);
-WOLFSSL_LOCAL int wc_CAAM_EccVerify(const byte* sig, word32 siglen,
-        const byte* hash, word32 hashlen, int* res, ecc_key* key, int devId);
-WOLFSSL_LOCAL int wc_CAAM_Ecdh(ecc_key* private_key, ecc_key* public_key,
-        byte* out, word32* outlen, int devId);
-WOLFSSL_LOCAL int wc_CAAM_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key,
-        int curveId, int devId);
-WOLFSSL_LOCAL int wc_CAAM_EccCheckPrivKey(ecc_key* key, const byte* pubKey,
-        word32 pubKeySz);
-#endif /* HAVE_ECC && WOLFSSL_QNX_CAAM */
-#endif /* WOLFCAAM_ECDSA_H */
+WOLFSSL_LOCAL int wc_CAAM_Rsa(const byte* in, word32 inLen, byte* out,
+    word32* outLen, int type, RsaKey* key, WC_RNG* rng);
+#ifdef WOLFSSL_KEY_GEN
+WOLFSSL_LOCAL int wc_CAAM_MakeRsaKey(RsaKey* key, int size, long e,
+    WC_RNG* rng);
+#endif
+
+#endif /* !NO_RSA && WOLFSSL_CAAM */
+#endif /* WOLFCAAM_RSA_H */
+

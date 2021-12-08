@@ -196,6 +196,8 @@ struct wc_Sha256 {
 #endif /* !FREESCALE_LTC_SHA && !STM32_HASH_SHA2 */
 #ifdef WOLFSSL_DEVCRYPTO_HASH
     WC_CRYPTODEV ctx;
+#endif
+#if defined(WOLFSSL_DEVCRYPTO_HASH) || defined(WOLFSSL_HASH_KEEP)
     byte*  msg;
     word32 used;
     word32 len;
@@ -237,7 +239,12 @@ WOLFSSL_API void wc_Sha256Free(wc_Sha256* sha256);
 #if defined(OPENSSL_EXTRA)
 WOLFSSL_API int wc_Sha256Transform(wc_Sha256* sha, const unsigned char* data);
 #endif
-WOLFSSL_API int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash);
+#if defined(WOLFSSL_HASH_KEEP)
+WOLFSSL_API int wc_Sha256_Grow(wc_Sha256* sha256, const byte* in, int inSz);
+WOLFSSL_LOCAL int _wc_Sha_Grow(byte** msg, word32* used, word32* len,
+        const byte* in, int inSz, void* heap);
+#endif
+WOLFSSL_API int wc_Sha256GetHash(wc_Sha256*, byte*);
 WOLFSSL_API int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst);
 
 #ifdef WOLFSSL_PIC32MZ_HASH
@@ -286,7 +293,10 @@ WOLFSSL_API int wc_Sha224Update(wc_Sha224* sha224, const byte* data, word32 len)
 WOLFSSL_API int wc_Sha224Final(wc_Sha224* sha224, byte* hash);
 WOLFSSL_API void wc_Sha224Free(wc_Sha224* sha224);
 
-WOLFSSL_API int wc_Sha224GetHash(wc_Sha224* sha224, byte* hash);
+#if defined(WOLFSSL_HASH_KEEP)
+WOLFSSL_API int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz);
+#endif
+WOLFSSL_API int wc_Sha224GetHash(wc_Sha224*, byte*);
 WOLFSSL_API int wc_Sha224Copy(wc_Sha224* src, wc_Sha224* dst);
 
 #ifdef WOLFSSL_HASH_FLAGS

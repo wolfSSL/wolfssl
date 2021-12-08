@@ -180,6 +180,11 @@ struct wc_Sha512 {
 #if defined(WOLFSSL_SE050)
     SE050_HASH_Context se050Ctx;
 #endif
+#if defined(WOLFSSL_HASH_KEEP)
+    byte*  msg;
+    word32 used;
+    word32 len;
+#endif
 #ifdef WOLF_CRYPTO_CB
     int    devId;
     void*  devCtx; /* generic crypto callback context */
@@ -215,6 +220,9 @@ WOLFSSL_API void wc_Sha512Free(wc_Sha512* sha);
 WOLFSSL_API int wc_Sha512GetHash(wc_Sha512* sha512, byte* hash);
 WOLFSSL_API int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst);
 
+#if defined(WOLFSSL_HASH_KEEP)
+    WOLFSSL_API int wc_Sha512_Grow(wc_Sha512* sha512, const byte* in, int inSz);
+#endif
 #ifdef WOLFSSL_HASH_FLAGS
     WOLFSSL_API int wc_Sha512SetFlags(wc_Sha512* sha512, word32 flags);
     WOLFSSL_API int wc_Sha512GetFlags(wc_Sha512* sha512, word32* flags);
@@ -310,6 +318,9 @@ WOLFSSL_API void wc_Sha384Free(wc_Sha384* sha);
 WOLFSSL_API int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash);
 WOLFSSL_API int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst);
 
+#if defined(WOLFSSL_HASH_KEEP)
+    WOLFSSL_API int wc_Sha384_Grow(wc_Sha384* sha384, const byte* in, int inSz);
+#endif
 #ifdef WOLFSSL_HASH_FLAGS
     WOLFSSL_API int wc_Sha384SetFlags(wc_Sha384* sha384, word32 flags);
     WOLFSSL_API int wc_Sha384GetFlags(wc_Sha384* sha384, word32* flags);

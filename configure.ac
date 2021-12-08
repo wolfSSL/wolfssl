@@ -1872,6 +1872,18 @@ fi
 
 
 # CAAM build
+trylibsecodir="/usr"
+AC_ARG_WITH([seco],
+    [AS_HELP_STRING([--with-seco=PATH],[PATH to SECO install (default /usr/lib/)])],
+    [
+AC_MSG_CHECKING([for SECO])
+
+if test "x$withval" != "xno" ; then
+    trylibsecodir=$withval
+fi
+]
+)
+
 AC_ARG_ENABLE([caam],
     [AS_HELP_STRING([--enable-caam],[Enable wolfSSL support for CAAM (default: disabled)])],
     [ ENABLED_CAAM=$enableval ],
@@ -1887,6 +1899,17 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_IMX6_CAAM -DWOLFSSL_QNX_CAAM"
 fi
 
+if test "$ENABLED_CAAM" = "seco"
+then
+    SECO_DIR=$trylibsecodir
+    AM_CPPFLAGS="$AM_CPPFLAGS -I$SECO_DIR/include"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CAAM -DWOLFSSL_SECO_CAAM -DWOLFSSL_HASH_KEEP"
+
+    AC_CHECK_LIB([hsm_lib],[hsm_open_session])
+    AC_CHECK_LIB([seco_nvm_manager],[seco_nvm_manager])
+    LIB_STATIC_ADD="$LIB_STATIC_ADD $SECO_DIR/lib/hsm_lib.a $SECO_DIR/lib/seco_nvm_manager.a"
+    LIB_ADD="$LIB_ADD -lz"
+fi
 
 # INTEL AES-NI
 AC_ARG_ENABLE([aesni],
@@ -2161,6 +2184,30 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO_HASH"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_HASH_RAW"
+    ENABLED_DEVCRYPTO=yes
+fi
+if test "$ENABLED_DEVCRYPTO" = "hmac"
+then
+    #enable only hmac algorithm support
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO_HMAC"
+    ENABLED_DEVCRYPTO=yes
+fi
+if test "$ENABLED_DEVCRYPTO" = "rsa"
+then
+    #enable only rsa algorithm support
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO_RSA"
+    ENABLED_DEVCRYPTO=yes
+fi
+if test "$ENABLED_DEVCRYPTO" = "seco"
+then
+    #enable support of devcrypto for algos not supported with seco
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO_HMAC"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO_RSA"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO_CURVE25519"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO_ECDSA"
     ENABLED_DEVCRYPTO=yes
 fi
 
@@ -6652,7 +6699,7 @@ AC_ARG_ENABLE([cryptocb],
     [ ENABLED_CRYPTOCB=no ]
     )
 
-if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" = "qnx"
+if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" = "qnx" || test  "$ENABLED_CAAM" = "seco"
 then
     ENABLED_CRYPTOCB=yes
 fi
@@ -7321,7 +7368,9 @@ AS_IF([(test "x$ENABLED_AFALG" = "xyes") && (test "x$ENABLED_SHA224" = "xyes")],
       [AC_MSG_ERROR([--enable-sha224 with --enable-afalg not yet supported])])
 
 # WOLFSSL_DEVCRYPTO does not support SHA224 yet
-AS_IF([(test "x$ENABLED_DEVCRYPTO" = "xyes") && (test "x$ENABLED_SHA224" = "xyes")],
+AS_IF([(test "x$ENABLED_DEVCRYPTO" = "xyes") && \
+       (test "x$ENABLED_CAAM" = "xno") && \
+       (test "x$ENABLED_SHA224" = "xyes")],
       [AC_MSG_ERROR([--enable-sha224 with --enable-devcrypto not yet supported])])
 
 # SCTP and Multicast require DTLS
@@ -7653,7 +7702,7 @@ AM_CONDITIONAL([BUILD_DES3],[test "x$ENABLED_DES3" = "xyes" || test "x$ENABLED_U
 AM_CONDITIONAL([BUILD_PKCS7],[test "x$ENABLED_PKCS7" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SMIME],[test "x$ENABLED_SMIME" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_HASHFLAGS],[test "x$ENABLED_HASHFLAGS" = "xyes"])
-AM_CONDITIONAL([BUILD_CAAM],[test "x$ENABLED_CAAM" = "xyes" || test "x$ENABLED_CAAM" = "xqnx"])
+AM_CONDITIONAL([BUILD_CAAM],[test "x$ENABLED_CAAM" = "xyes" || test "x$ENABLED_CAAM" = "xqnx" || test "x$ENABLED_CAAM" = "xseco"])
 AM_CONDITIONAL([BUILD_LINUXKM],[test "$ENABLED_LINUXKM" = "yes"])
 AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "$ENABLED_NO_LIBRARY" = "yes"])
 AM_CONDITIONAL([BUILD_BENCHMARK],[test "$ENABLED_BENCHMARK" = "yes"])
@@ -8073,7 +8122,7 @@ echo "   * Linux AF_ALG:               $ENABLED_AFALG"
 echo "   * Linux KCAPI:                $ENABLED_KCAPI"
 echo "   * Linux devcrypto:            $ENABLED_DEVCRYPTO"
 echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
-echo "   * i.MX6 CAAM:                 $ENABLED_CAAM"
+echo "   * i.MX CAAM:                  $ENABLED_CAAM"
 echo "   * IoT-Safe:                   $ENABLED_IOTSAFE"
 echo "   * IoT-Safe HWRNG:             $ENABLED_IOTSAFE_HWRNG"
 echo "   * NXP SE050:                  $ENABLED_SE050"

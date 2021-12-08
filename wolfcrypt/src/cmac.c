@@ -56,6 +56,46 @@
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
+#ifdef WOLFSSL_HASH_KEEP
+/* Some hardware have issues with update, this function stores the data to be
+ * hashed into an array. Once ready, the Final operation is called on all of the
+ * data to be hashed at once.
+ * returns 0 on success
+ */
+static int _wc_CMAC_Grow(byte** msg, word32* used, word32* len, const byte* in,
+                        int inSz, void* heap)
+{
+    if (*len < *used + inSz) {
+        if (*msg == NULL) {
+            *msg = (byte*)XMALLOC(*used + inSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+        else {
+            byte* pt = (byte*)XMALLOC(*used + inSz, heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (pt == NULL) {
+                return MEMORY_E;
+            }
+            XMEMCPY(pt, *msg, *used);
+            XFREE(*msg, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            *msg = pt;
+        }
+        if (*msg == NULL) {
+            return MEMORY_E;
+        }
+        *len = *used + inSz;
+    }
+    XMEMCPY(*msg + *used, in, inSz);
+    *used += inSz;
+    return 0;
+}
+
+
+int wc_CMAC_Grow(Cmac* cmac, const byte* in, int inSz)
+{
+    return _wc_CMAC_Grow(&cmac->msg, &cmac->used, &cmac->len, in, inSz, NULL);
+}
+#endif /* WOLFSSL_HASH_KEEP */
+
 
 /* Used by AES-SIV. See aes.c. */
 void ShiftAndXorRb(byte* out, byte* in)
@@ -86,7 +126,7 @@ int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,
     (void)unused;
     (void)heap;
 
-    if (cmac == NULL || keySz == 0 || type != WC_CMAC_AES) {
+    if (cmac == NULL || type != WC_CMAC_AES) {
         return BAD_FUNC_ARG;
     }
 
@@ -107,7 +147,7 @@ int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,
     (void)devId;
 #endif
 
-    if (key == NULL) {
+    if (key == NULL || keySz == 0) {
         return BAD_FUNC_ARG;
     }
 
@@ -226,6 +266,12 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
         XMEMCPY(out, cmac->digest, *outSz);
     }
 
+#if defined(WOLFSSL_HASH_KEEP)
+    if (cmac->msg != NULL) {
+        XFREE(cmac->msg, cmac->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        cmac->msg = NULL;
+    }
+#endif
     wc_AesFree(&cmac->aes);
     ForceZero(cmac, sizeof(Cmac));
 

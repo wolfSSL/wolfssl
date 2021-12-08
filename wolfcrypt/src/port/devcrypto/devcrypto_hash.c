@@ -86,7 +86,8 @@ static int HashUpdate(void* ctx, int type, const byte* input, word32 inputSz)
         return BAD_FUNC_ARG;
     }
 
-    wc_SetupCrypt(&crt, dev, (byte*)input, inputSz, NULL, digest, COP_FLAG_UPDATE);
+    wc_SetupCrypt(&crt, dev, (byte*)input, inputSz, NULL, digest,
+        COP_FLAG_UPDATE, COP_ENCRYPT);
     if (ioctl(dev->cfd, CIOCCRYPT, &crt)) {
         WOLFSSL_MSG("Error with call to ioctl");
         return WC_DEVCRYPTO_E;
@@ -107,7 +108,7 @@ static int GetDigest(void* ctx, int type, byte* out)
         return BAD_FUNC_ARG;
     }
 
-    wc_SetupCrypt(&crt, dev, NULL, 0, NULL, out, COP_FLAG_FINAL);
+    wc_SetupCrypt(&crt, dev, NULL, 0, NULL, out, COP_FLAG_FINAL, COP_ENCRYPT);
     if (ioctl(dev->cfd, CIOCCRYPT, &crt)) {
         WOLFSSL_MSG("Error with call to ioctl");
         return WC_DEVCRYPTO_E;

@@ -1,4 +1,4 @@
-/* wolfcaam_ecdsa.h
+/* wolfcaam_x25519.h
  *
  * Copyright (C) 2006-2021 wolfSSL Inc.
  *
@@ -21,22 +21,18 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifndef WOLFCAAM_ECDSA_H
-#define WOLFCAAM_ECDSA_H
+#ifndef WOLFCAAM_X25519_H
+#define WOLFCAAM_X25519_H
 
-#if defined(HAVE_ECC) && defined(WOLFSSL_CAAM)
+#if defined(HAVE_CURVE25519) && defined(WOLFSSL_CAAM)
 
-#include <wolfssl/wolfcrypt/ecc.h>
+#include <wolfssl/wolfcrypt/curve25519.h>
 
-WOLFSSL_LOCAL int wc_CAAM_EccSign(const byte* in, int inlen, byte* out,
-        word32* outlen, WC_RNG *rng, ecc_key *key, int devId);
-WOLFSSL_LOCAL int wc_CAAM_EccVerify(const byte* sig, word32 siglen,
-        const byte* hash, word32 hashlen, int* res, ecc_key* key, int devId);
-WOLFSSL_LOCAL int wc_CAAM_Ecdh(ecc_key* private_key, ecc_key* public_key,
-        byte* out, word32* outlen, int devId);
-WOLFSSL_LOCAL int wc_CAAM_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key,
-        int curveId, int devId);
-WOLFSSL_LOCAL int wc_CAAM_EccCheckPrivKey(ecc_key* key, const byte* pubKey,
-        word32 pubKeySz);
-#endif /* HAVE_ECC && WOLFSSL_QNX_CAAM */
-#endif /* WOLFCAAM_ECDSA_H */
+WOLFSSL_LOCAL int wc_CAAM_MakeCurve25519Key(curve25519_key* key, int keySize,
+    WC_RNG* rng);
+WOLFSSL_LOCAL int wc_CAAM_Curve25519(byte* out, word32* outlen,
+    curve25519_key* k, curve25519_key* pubKey, int endian);
+
+#endif /* !NO_RSA && WOLFSSL_CAAM */
+#endif /* WOLFCAAM_X25519_H */
+
