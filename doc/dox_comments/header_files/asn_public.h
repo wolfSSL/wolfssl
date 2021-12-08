@@ -1250,6 +1250,29 @@ WOLFSSL_API int wc_CertPemToDer(const unsigned char*, int,
                                      unsigned char*, int, int);
 
 /*!
+    \ingroup CertsKeys
+
+    \brief This function gets the public key in DER format from a populated
+    DecodedCert struct. Users must call wc_InitDecodedCert() and wc_ParseCert()
+    before calling this API. wc_InitDecodedCert() accepts a DER/ASN.1 encoded
+    certificate. To convert a PEM cert to DER, first use wc_CertPemToDer()
+    before calling wc_InitDecodedCert().
+
+    \return 0 on success, negative on error. LENGTH_ONLY_E if derKey is NULL
+    and returning length only.
+
+    \param cert populated DecodedCert struct holding X.509 certificate
+    \param derKey output buffer to place DER encoded public key
+    \param derKeySz [IN/OUT] size of derKey buffer on input, size of public key
+    on return. If derKey is passed in as NULL, derKeySz will be set to required
+    buffer size for public key and LENGTH_ONLY_E will be returned from function.
+
+    \sa wc_GetPubKeyDerFromCert
+*/
+WOLFSSL_API int wc_GetPubKeyDerFromCert(struct DecodedCert* cert,
+                                        byte* derKey, word32* derKeySz);
+
+/*!
     \ingroup ASN
 
     \brief This function reads in an ECC private key from the input buffer,
