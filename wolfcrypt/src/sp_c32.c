@@ -4067,6 +4067,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
         sp_2048_norm_36(tmpa);
         sp_2048_cond_add_36(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[35] >> 31));
         sp_2048_cond_add_36(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[35] >> 31));
+        sp_2048_norm_36(tmpa);
 
         sp_2048_from_mp(qi, 36, qim);
         sp_2048_mul_36(tmpa, tmpa, qi);
@@ -4165,6 +4166,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
         sp_2048_norm_36(tmpa);
         sp_2048_cond_add_36(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[35] >> 31));
         sp_2048_cond_add_36(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[35] >> 31));
+        sp_2048_norm_36(tmpa);
         sp_2048_mul_36(tmpa, tmpa, qi);
         err = sp_2048_mod_36(tmpa, tmpa, p);
     }
@@ -7640,6 +7642,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
         sp_3072_norm_53(tmpa);
         sp_3072_cond_add_53(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[52] >> 31));
         sp_3072_cond_add_53(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[52] >> 31));
+        sp_3072_norm_53(tmpa);
 
         sp_3072_from_mp(qi, 53, qim);
         sp_3072_mul_53(tmpa, tmpa, qi);
@@ -7738,6 +7741,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
         sp_3072_norm_53(tmpa);
         sp_3072_cond_add_53(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[52] >> 31));
         sp_3072_cond_add_53(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[52] >> 31));
+        sp_3072_norm_53(tmpa);
         sp_3072_mul_53(tmpa, tmpa, qi);
         err = sp_3072_mod_53(tmpa, tmpa, p);
     }
@@ -11798,6 +11802,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
         sp_3072_norm_55(tmpa);
         sp_3072_cond_add_56(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[54] >> 31));
         sp_3072_cond_add_56(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[54] >> 31));
+        sp_3072_norm_56(tmpa);
 
         sp_3072_from_mp(qi, 56, qim);
         sp_3072_mul_56(tmpa, tmpa, qi);
@@ -11896,6 +11901,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
         sp_3072_norm_55(tmpa);
         sp_3072_cond_add_56(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[54] >> 31));
         sp_3072_cond_add_56(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[54] >> 31));
+        sp_3072_norm_56(tmpa);
         sp_3072_mul_56(tmpa, tmpa, qi);
         err = sp_3072_mod_56(tmpa, tmpa, p);
     }
@@ -15453,6 +15459,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
         sp_4096_norm_71(tmpa);
         sp_4096_cond_add_71(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[70] >> 31));
         sp_4096_cond_add_71(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[70] >> 31));
+        sp_4096_norm_71(tmpa);
 
         sp_4096_from_mp(qi, 71, qim);
         sp_4096_mul_71(tmpa, tmpa, qi);
@@ -15551,6 +15558,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
         sp_4096_norm_71(tmpa);
         sp_4096_cond_add_71(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[70] >> 31));
         sp_4096_cond_add_71(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[70] >> 31));
+        sp_4096_norm_71(tmpa);
         sp_4096_mul_71(tmpa, tmpa, qi);
         err = sp_4096_mod_71(tmpa, tmpa, p);
     }
@@ -19419,6 +19427,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
         sp_4096_norm_79(tmpa);
         sp_4096_cond_add_81(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[78] >> 31));
         sp_4096_cond_add_81(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[78] >> 31));
+        sp_4096_norm_81(tmpa);
 
         sp_4096_from_mp(qi, 81, qim);
         sp_4096_mul_81(tmpa, tmpa, qi);
@@ -19517,6 +19526,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
         sp_4096_norm_79(tmpa);
         sp_4096_cond_add_81(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[78] >> 31));
         sp_4096_cond_add_81(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[78] >> 31));
+        sp_4096_norm_81(tmpa);
         sp_4096_mul_81(tmpa, tmpa, qi);
         err = sp_4096_mod_81(tmpa, tmpa, p);
     }
