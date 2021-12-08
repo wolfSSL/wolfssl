@@ -62,6 +62,7 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
 {
     int ret = 0;
     OQS_SIG *oqssig = NULL;
+    size_t localOutLen = 0;
 
     /* sanity check on arguments */
     if ((in == NULL) || (out == NULL) || (outLen == NULL) || (key == NULL)) {
@@ -95,12 +96,17 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
             *outLen = FALCON_LEVEL5_SIG_SIZE;
             ret = BUFFER_E;
         }
+        localOutLen = *outLen;
     }
 
     if ((ret == 0) &&
-        (OQS_SIG_sign(oqssig, out, (size_t *)outLen, in, inLen, key->k)
+        (OQS_SIG_sign(oqssig, out, &localOutLen, in, inLen, key->k)
          == OQS_ERROR)) {
         ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        *outLen = (word32)localOutLen;
     }
 
     if (oqssig != NULL) {
