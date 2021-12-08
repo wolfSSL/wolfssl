@@ -129,6 +129,10 @@ static int TranslateIoError(int err)
         WOLFSSL_MSG("\tSocket interrupted");
         return WOLFSSL_CBIO_ERR_ISR;
     }
+    else if (err == SOCKET_EPIPE) {
+        WOLFSSL_MSG("\tBroken pipe");
+        return WOLFSSL_CBIO_ERR_CONN_CLOSE;
+    }
     else if (err == SOCKET_ECONNABORTED) {
         WOLFSSL_MSG("\tConnection aborted");
         return WOLFSSL_CBIO_ERR_CONN_CLOSE;
