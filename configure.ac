@@ -626,6 +626,9 @@ then
 
     # Enable DH Extra
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_EXTRA"
+
+    # Enable deterministic ECC signing API with variant
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
 fi
 
 
