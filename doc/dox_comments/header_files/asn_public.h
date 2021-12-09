@@ -1767,3 +1767,97 @@ WOLFSSL_API int wc_CreateEncryptedPKCS8Key(byte* key, word32 keySz, byte* out,
         word32* outSz, const char* password, int passwordSz, int vPKCS,
         int pbeOid, int encAlgId, byte* salt, word32 saltSz, int itt,
         WC_RNG* rng, void* heap);
+
+/*!
+    \ingroup ASN
+
+    \brief This function initializes the DecodedCert pointed to by the "cert"
+     parameter. It saves the "source" pointer to a DER-encoded certificate of
+     length "inSz." This certificate can be parsed by a subsequent call to
+     wc_ParseCert.
+
+    \param cert Pointer to an allocated DecodedCert object.
+    \param source Pointer to a DER-encoded certificate.
+    \param inSz Length of the DER-encoded certificate in bytes.
+    \param heap A pointer to the heap used for dynamic allocation. Can be NULL.
+
+    _Example_
+    \code
+    DecodedCert decodedCert; // Decoded certificate object.
+    byte* certBuf;           // DER-encoded certificate buffer.
+    word32 certBufSz;        // Size of certBuf in bytes.
+
+    wc_InitDecodedCert(&decodedCert, certBuf, certBufSz, NULL);
+    \endcode
+
+    \sa wc_ParseCert
+    \sa wc_FreeDecodedCert
+*/
+WOLFSSL_API void wc_InitDecodedCert(struct DecodedCert* cert,
+    const byte* source, word32 inSz, void* heap);
+
+/*!
+    \ingroup ASN
+
+    \brief This function parses the DER-encoded certificate saved in the
+    DecodedCert object and populates the fields of that object. The DecodedCert
+    must have been initialized with a prior call to wc_InitDecodedCert. This
+    function takes an optional pointer to a CertificateManager object, which
+    is used to populate the certificate authority information of the
+    DecodedCert, if the CA is found in the CertificateManager.
+
+    \return 0 on success.
+    \return Other negative values on failure.
+
+    \param cert Pointer to an initialized DecodedCert object.
+    \param type Type of certificate. See the CertType enum in asn_public.h.
+    \param verify Flag that, if set, indicates the user wants to verify the
+    validity of the certificate.
+    \param cm An optional pointer to a CertificateManager. Can be NULL.
+
+    _Example_
+    \code
+    int ret;
+    DecodedCert decodedCert; // Decoded certificate object.
+    byte* certBuf;           // DER-encoded certificate buffer.
+    word32 certBufSz;        // Size of certBuf in bytes.
+
+    wc_InitDecodedCert(&decodedCert, certBuf, certBufSz, NULL);
+    ret = wc_ParseCert(&decodedCert, CERT_TYPE, NO_VERIFY, NULL);
+    if (ret != 0) {
+        fprintf(stderr, "wc_ParseCert failed.\n");
+    }
+    \endcode
+
+    \sa wc_InitDecodedCert
+    \sa wc_FreeDecodedCert
+*/
+WOLFSSL_API int wc_ParseCert(DecodedCert* cert, int type, int verify, void* cm);
+
+/*!
+    \ingroup ASN
+
+    \brief This function frees a DecodedCert that was previously initialized
+    with wc_InitDecodedCert.
+
+    \param cert Pointer to an initialized DecodedCert object.
+
+    _Example_
+    \code
+    int ret;
+    DecodedCert decodedCert; // Decoded certificate object.
+    byte* certBuf;           // DER-encoded certificate buffer.
+    word32 certBufSz;        // Size of certBuf in bytes.
+
+    wc_InitDecodedCert(&decodedCert, certBuf, certBufSz, NULL);
+    ret = wc_ParseCert(&decodedCert, CERT_TYPE, NO_VERIFY, NULL);
+    if (ret != 0) {
+        fprintf(stderr, "wc_ParseCert failed.\n");
+    }
+    wc_FreeDecodedCert(&decodedCert);
+    \endcode
+
+    \sa wc_InitDecodedCert
+    \sa wc_ParseCert
+*/
+WOLFSSL_API void wc_FreeDecodedCert(struct DecodedCert* cert);
