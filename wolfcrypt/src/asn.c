@@ -6217,9 +6217,7 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
             keyIdx = 0;
             if ((ret = wc_falcon_import_public(pubKey, pubKeySz,
                                                key_pair)) == 0) {
-                /* public and private extracted successfully no check if is
-                 * a pair and also do sanity checks on key. wc_ecc_check_key
-                 * checks that private * base generator equals pubkey */
+                /* Public and private extracted successfully. Sanity check. */
                 if ((ret = wc_falcon_check_key(key_pair)) == 0)
                     ret = 1;
             }

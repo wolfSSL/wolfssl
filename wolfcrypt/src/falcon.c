@@ -588,24 +588,12 @@ int wc_falcon_export_key(falcon_key* key, byte* priv, word32 *privSz,
  */
 int wc_falcon_check_key(falcon_key* key)
 {
-    /* Sign and verify a message. */
-    int ret = 0;
-    int res = 0;
-    const byte *msg = (const byte *)"The wolfSSL team is here to make you "
-                      "ready for quantum computers!!";
-    word32 msglen = (word32)sizeof(msg);
-    byte sig[FALCON_MAX_SIG_SIZE];
-    word32 siglen = (word32)sizeof(sig);
-
-    ret = wc_falcon_sign_msg(msg, msglen, sig, &siglen, key);
-
-    if (ret == 0) {
-        ret = wc_falcon_verify_msg(sig, siglen, msg, msglen, &res, key);
-        if ((ret != 0) || (res != 1)) {
-            ret = SIG_VERIFY_E;
-        }
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
     }
-    return ret;
+
+    /* Assume everything is fine. */
+    return 0;
 }
 
 /* Returns the size of a falcon private key.
