@@ -591,10 +591,11 @@ int wc_falcon_check_key(falcon_key* key)
     /* Sign and verify a message. */
     int ret = 0;
     int res = 0;
-    byte msg[] = "The wolfSSL team is here to make you ready for quantum computers!!";
-    word32 msglen = sizeof(msg);
+    const byte *msg = (const byte *)"The wolfSSL team is here to make you "
+                      "ready for quantum computers!!";
+    word32 msglen = (word32)sizeof(msg);
     byte sig[FALCON_MAX_SIG_SIZE];
-    word32 siglen = sizeof(sig);
+    word32 siglen = (word32)sizeof(sig);
 
     ret = wc_falcon_sign_msg(msg, msglen, sig, &siglen, key);
 
