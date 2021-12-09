@@ -3987,22 +3987,28 @@ static int DoPreSharedKeys(WOLFSSL* ssl, byte* suite, int* usingPSK, int* first)
         /* Decode the identity. */
         if (DoClientTicket(ssl, current->identity, current->identityLen)
                                                      == WOLFSSL_TICKET_RET_OK) {
-            word32 now;
-            int    diff;
+            word32  now;
+            sword64 diff;
 
             now = TimeNowInMilliseconds();
             if (now == (word32)GETTIME_ERROR)
                 return now;
-            if (now < ssl->session.ticketSeen)
-                diff = (0xFFFFFFFFU - ssl->session.ticketSeen) + 1 + now;
-            else
-                diff = now - ssl->session.ticketSeen;
-            diff -= current->ticketAge - ssl->session.ticketAdd;
+            /* Difference between now and time ticket constructed
+             * (from decrypted ticket). */
+            diff = now;
+            diff -= ssl->session.ticketSeen;
+            if (diff > (sword64)ssl->timeout * 1000 ||
+                diff > (sword64)TLS13_MAX_TICKET_AGE * 1000) {
+                current = current->next;
+                continue;
+            }
+            /* Subtract client's ticket age and unobfuscate. */
+            diff -= current->ticketAge;
+            diff += ssl->session.ticketAdd;
             /* Check session and ticket age timeout.
              * Allow +/- 1000 milliseconds on ticket age.
              */
-            if (diff > (int)ssl->timeout * 1000 || diff < -1000 ||
-                                     diff - MAX_TICKET_AGE_SECS * 1000 > 1000) {
+            if (diff < -1000 || diff - MAX_TICKET_AGE_DIFF * 1000 > 1000) {
                 current = current->next;
                 continue;
             }
