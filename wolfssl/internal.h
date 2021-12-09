@@ -1490,11 +1490,12 @@ enum Misc {
     DTLS_TIMEOUT_MAX        = 64, /* default max timeout for DTLS receive */
     DTLS_TIMEOUT_MULTIPLIER =  2, /* default timeout multiplier for DTLS recv */
 
-    NULL_TERM_LEN      =   1,  /* length of null '\0' termination character */
-    MAX_PSK_KEY_LEN    =  64,  /* max psk key supported */
-    MIN_PSK_ID_LEN     =   6,  /* min length of identities */
-    MIN_PSK_BINDERS_LEN=  33,  /* min length of binders */
-    MAX_TICKET_AGE_SECS=  10,  /* maximum ticket age in seconds */
+    NULL_TERM_LEN        =   1,  /* length of null '\0' termination character */
+    MAX_PSK_KEY_LEN      =  64,  /* max psk key supported */
+    MIN_PSK_ID_LEN       =   6,  /* min length of identities */
+    MIN_PSK_BINDERS_LEN  =  33,  /* min length of binders */
+    MAX_TICKET_AGE_DIFF  =  10,  /* maximum ticket age difference in seconds */
+    TLS13_MAX_TICKET_AGE =  7*24*60*60,  /* max ticket age in seconds, 7 days */
 
 #ifndef MAX_WOLFSSL_FILE_SIZE
     MAX_WOLFSSL_FILE_SIZE = 1024ul * 1024ul * 4,  /* 4 mb file size alloc limit */
