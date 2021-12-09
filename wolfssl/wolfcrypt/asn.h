@@ -622,7 +622,8 @@ enum DN_Tags {
     ASN_ORGUNIT_NAME  = 0x0b,   /* OU */
     ASN_BUS_CAT       = 0x0f,   /* businessCategory */
     ASN_POSTAL_CODE   = 0x11,   /* postalCode */
-    ASN_EMAIL_NAME    = 0x98,   /* not oid number there is 97 in 2.5.4.0-97 */
+    ASN_EMAIL_NAME    = 0x98,   /* not actual OID (see attrEmailOid) */
+    ASN_CUSTOM_NAME   = 0x99,   /* not actual OID (see CertOidField) */
 
     /* pilot attribute types
      * OID values of 0.9.2342.19200300.100.1.* */
@@ -1954,14 +1955,6 @@ WOLFSSL_LOCAL int wc_MIME_free_hdrs(MimeHdr* head);
 #ifdef WOLFSSL_CERT_GEN
 
 enum cert_enums {
-#ifdef WOLFSSL_CERT_EXT
-    NAME_ENTRIES      = 12,
-#else
-    NAME_ENTRIES      = 11,
-#endif
-    JOINT_LEN         = 2,
-    EMAIL_JOINT_LEN   = 9,
-    PILOT_JOINT_LEN   = 10,
     RSA_KEY           = 10,
     ECC_KEY           = 12,
     ED25519_KEY       = 13,

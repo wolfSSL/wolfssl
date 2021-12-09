@@ -310,6 +310,15 @@ typedef struct NameAttrib {
 } NameAttrib;
 #endif /* WOLFSSL_MULTI_ATTRIB */
 
+#ifdef WOLFSSL_CUSTOM_OID
+typedef struct CertOidField {
+    byte*  oid;
+    byte*  val;
+    int    oidSz;
+    int    valSz;
+    char   enc;
+} CertOidField;
+#endif
 
 typedef struct CertName {
     char country[CTC_NAME_SIZE];
@@ -343,6 +352,9 @@ typedef struct CertName {
     char email[CTC_NAME_SIZE];  /* !!!! email has to be last !!!! */
 #ifdef WOLFSSL_MULTI_ATTRIB
     NameAttrib name[CTC_MAX_ATTRIB];
+#endif
+#ifdef WOLFSSL_CUSTOM_OID
+    CertOidField custom;
 #endif
 } CertName;
 
@@ -409,6 +421,10 @@ typedef struct Cert {
     char     challengePw[CTC_NAME_SIZE];
     int      challengePwPrintableString; /* encode as PrintableString */
 #endif
+#ifdef WOLFSSL_CUSTOM_OID
+    CertOidField extCustom; /* user oid and value to go in req extensions */
+#endif
+
     void*   decodedCert;    /* internal DecodedCert allocated from heap */
     byte*   der;            /* Pointer to buffer of current DecodedCert cache */
     void*   heap;           /* heap hint */

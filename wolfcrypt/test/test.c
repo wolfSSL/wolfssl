@@ -355,7 +355,7 @@ _Pragma("GCC diagnostic ignored \"-Wunused-function\"")
     #define NO_INTM_HASH_TEST
 #endif
 
-#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_MULTI_ATTRIB)
+#ifdef WOLFSSL_CERT_GEN
 static void initDefaultName(void);
 #endif
 
@@ -759,8 +759,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif /* USE_FAST_MATH */
 #endif /* !NO_BIG_INT */
 
-#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_MULTI_ATTRIB)
-initDefaultName();
+#ifdef WOLFSSL_CERT_GEN
+    initDefaultName();
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -12258,14 +12258,19 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
 
 #if defined(WOLFSSL_CERT_GEN) && (!defined(NO_RSA) || defined(HAVE_ECC)) || \
   (defined(WOLFSSL_TEST_CERT) && (defined(HAVE_ED25519) || defined(HAVE_ED448)))
-#ifdef WOLFSSL_MULTI_ATTRIB
 static CertName certDefaultName;
 static void initDefaultName(void)
 {
+#if defined(WOLFSSL_MULTI_ATTRIB) && defined(WOLFSSL_TEST_CERT)
+    NameAttrib* n;
+#endif
+
     XMEMCPY(certDefaultName.country, "US", sizeof("US"));
     certDefaultName.countryEnc = CTC_PRINTABLE;
     XMEMCPY(certDefaultName.state, "Oregon", sizeof("Oregon"));
     certDefaultName.stateEnc = CTC_UTF8;
+    XMEMCPY(certDefaultName.street, "Main St", sizeof("Main St"));
+    certDefaultName.streetEnc = CTC_UTF8;
     XMEMCPY(certDefaultName.locality, "Portland", sizeof("Portland"));
     certDefaultName.localityEnc = CTC_UTF8;
     XMEMCPY(certDefaultName.sur, "Test", sizeof("Test"));
@@ -12278,59 +12283,45 @@ static void initDefaultName(void)
     certDefaultName.commonNameEnc = CTC_UTF8;
     XMEMCPY(certDefaultName.serialDev, "wolfSSL12345", sizeof("wolfSSL12345"));
     certDefaultName.serialDevEnc = CTC_PRINTABLE;
+    XMEMCPY(certDefaultName.postalCode, "12-456", sizeof("12-456"));
+    certDefaultName.postalCodeEnc = CTC_PRINTABLE;
 #ifdef WOLFSSL_CERT_EXT
     XMEMCPY(certDefaultName.busCat, "Private Organization", sizeof("Private Organization"));
     certDefaultName.busCatEnc = CTC_UTF8;
+    XMEMCPY(certDefaultName.joiSt, "US", sizeof("US"));
+    certDefaultName.joiStEnc = CTC_PRINTABLE;
+    XMEMCPY(certDefaultName.joiC, "Oregon", sizeof("Oregon"));
+    certDefaultName.joiCEnc = CTC_PRINTABLE;
 #endif
     XMEMCPY(certDefaultName.email, "info@wolfssl.com", sizeof("info@wolfssl.com"));
 
-#ifdef WOLFSSL_TEST_CERT
-    {
-        NameAttrib* n;
-        /* test having additional OUs and setting DC */
-        n = &certDefaultName.name[0];
-        n->id   = ASN_ORGUNIT_NAME;
-        n->type = CTC_UTF8;
-        n->sz   = sizeof("Development-2");
-        XMEMCPY(n->value, "Development-2", sizeof("Development-2"));
+#if defined(WOLFSSL_MULTI_ATTRIB) && defined(WOLFSSL_TEST_CERT)
+    /* test having additional OUs and setting DC */
+    n = &certDefaultName.name[0];
+    n->id   = ASN_ORGUNIT_NAME;
+    n->type = CTC_UTF8;
+    n->sz   = sizeof("Development-2");
+    XMEMCPY(n->value, "Development-2", sizeof("Development-2"));
 
     #if CTC_MAX_ATTRIB > 3
-        n = &certDefaultName.name[1];
-        n->id   = ASN_DOMAIN_COMPONENT;
-        n->type = CTC_UTF8;
-        n->sz   = sizeof("com");
-        XMEMCPY(n->value, "com", sizeof("com"));
+    n = &certDefaultName.name[1];
+    n->id   = ASN_DOMAIN_COMPONENT;
+    n->type = CTC_UTF8;
+    n->sz   = sizeof("com");
+    XMEMCPY(n->value, "com", sizeof("com"));
 
-        n = &certDefaultName.name[2];
-        n->id   = ASN_DOMAIN_COMPONENT;
-        n->type = CTC_UTF8;
-        n->sz   = sizeof("wolfssl");
-        XMEMCPY(n->value, "wolfssl", sizeof("wolfssl"));
-
+    n = &certDefaultName.name[2];
+    n->id   = ASN_DOMAIN_COMPONENT;
+    n->type = CTC_UTF8;
+    n->sz   = sizeof("wolfssl");
+    XMEMCPY(n->value, "wolfssl", sizeof("wolfssl"));
     #endif
-    }
-#endif /* WOLFSSL_TEST_CERT */
-}
-#else
-static const CertName certDefaultName = {
-    "US",               CTC_PRINTABLE,  /* country */
-    "Oregon",           CTC_UTF8,       /* state */
-    "Main St",          CTC_UTF8,       /* street */
-    "Portland",         CTC_UTF8,       /* locality */
-    "Test",             CTC_UTF8,       /* sur */
-    "wolfSSL",          CTC_UTF8,       /* org */
-    "Development",      CTC_UTF8,       /* unit */
-    "www.wolfssl.com",  CTC_UTF8,       /* commonName */
-    "wolfSSL12345",     CTC_PRINTABLE,  /* serial number of device */
-    "12-456",           CTC_PRINTABLE,  /* Postal Code */
-#ifdef WOLFSSL_CERT_EXT
-    "Private Organization", CTC_UTF8,   /* businessCategory */
-    "US",               CTC_PRINTABLE,  /* jurisdiction country */
-    "Oregon",           CTC_PRINTABLE,  /* jurisdiction state */
+#endif /* WOLFSSL_MULTI_ATTRIB && WOLFSSL_TEST_CERT */
+
+#ifdef WOLFSSL_CUSTOM_OID
+    /* TODO: Add test case for custom OID's */
 #endif
-    "info@wolfssl.com",                 /* email */
-};
-#endif /* WOLFSSL_MULTI_ATTRIB */
+}
 
 #ifdef WOLFSSL_CERT_EXT
     #if ((defined(HAVE_ED25519) || defined(HAVE_ED448)) && \

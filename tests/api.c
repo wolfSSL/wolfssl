@@ -345,8 +345,7 @@
 
 #if (defined(SESSION_CERTS) && defined(TEST_PEER_CERT_CHAIN)) || \
     defined(HAVE_SESSION_TICKET) || (defined(OPENSSL_EXTRA) && \
-    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN) && \
-    !defined(WOLFSSL_ASN_TEMPLATE))
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN))
     /* for testing SSL_get_peer_cert_chain, or SESSION_TICKET_HINT_DEFAULT,
      * or for setting authKeyIdSrc in WOLFSSL_X509 */
 #include "wolfssl/internal.h"
@@ -41594,24 +41593,25 @@ static void test_wolfSSL_X509_check_ip_asc(void){
 
 static void test_wolfSSL_DC_cert(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
-    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_KEY_GEN) && \
-    defined(WOLFSSL_CERT_EXT)
-    Cert    cert;
-    RsaKey  key;
-    WC_RNG  rng;
-    byte    der[FOURK_BUF];
-    int     certSz;
-    int     ret, idx;
-    const byte  mySerial[8] = {1,2,3,4,5,6,7,8};
-    const unsigned char* pt;
-
-    X509*   x509;
-    X509_NAME* x509name;
-    X509_NAME_ENTRY* entry;
-    ASN1_STRING* entryValue;
-
+#if !defined(NO_RSA) && defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
+    int      ret;
+    Cert     cert;
     CertName name;
+    RsaKey   key;
+    WC_RNG   rng;
+    byte     der[FOURK_BUF];
+    word32   idx;
+    const byte mySerial[8] = {1,2,3,4,5,6,7,8};
+
+#ifdef OPENSSL_EXTRA
+    const unsigned char* pt;
+    int                  certSz;
+    X509*                x509;
+    X509_NAME*           x509name;
+    X509_NAME_ENTRY*     entry;
+    ASN1_STRING*         entryValue;
+#endif
+
     printf(testingFmt, "wolfSSL Certs with DC");
 
     XMEMSET(&name, 0, sizeof(CertName));
@@ -41658,8 +41658,19 @@ static void test_wolfSSL_DC_cert(void)
 #else
     AssertIntEQ(wc_InitRng(&rng), 0);
 #endif
-    AssertIntEQ(wc_MakeRsaKey(&key, 2048, 3, &rng), 0);
 
+    /* load test RSA key */
+    idx = 0;
+#if defined(USE_CERT_BUFFERS_1024)
+    AssertIntEQ(wc_RsaPrivateKeyDecode(server_key_der_1024, &idx, &key,
+                sizeof_server_key_der_1024), 0);
+#elif defined(USE_CERT_BUFFERS_2048)
+    AssertIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &key,
+                sizeof_server_key_der_2048), 0);
+#else
+    /* error case, no RSA key loaded, happens later */
+    (void)idx;
+#endif
 
     XMEMSET(&cert, 0 , sizeof(Cert));
     AssertIntEQ(wc_InitCert(&cert), 0);
@@ -41690,9 +41701,10 @@ static void test_wolfSSL_DC_cert(void)
         }
     } while (ret == WC_PENDING_E);
     AssertIntGT(ret, 0);
-    certSz = ret;
 
+#ifdef OPENSSL_EXTRA
     /* der holds a certificate with DC's now check X509 parsing of it */
+    certSz = ret;
     pt = der;
     AssertNotNull(x509 = d2i_X509(NULL, &pt, certSz));
     AssertNotNull(x509name = X509_get_subject_name(x509));
@@ -41730,8 +41742,9 @@ static void test_wolfSSL_DC_cert(void)
     AssertNull(entry = X509_NAME_get_entry(x509name, 11));
     AssertNull(entry = X509_NAME_get_entry(x509name, 20));
 
-    (void)idx;
     X509_free(x509);
+#endif /* OPENSSL_EXTRA */
+
     wc_FreeRsaKey(&key);
     wc_FreeRng(&rng);
     printf(resultFmt, passed);
