@@ -58,6 +58,8 @@ static wolfSSL_IOTSafe_CSIM_read_cb csim_read_cb = NULL;
 static wolfSSL_IOTSafe_CSIM_write_cb csim_write_cb = NULL;
 
 #define GETRAND_CMD_SIZE (24 + 2)
+#define IOTSAFE_MAX_RETRIES (8)
+
 
 #define AT_CSIM_CMD_SIZE 13
 #define AT_CMD_HDR_SIZE  10
@@ -480,10 +482,6 @@ static int iotsafe_readfile(uint8_t *file_id, uint16_t file_id_sz,
         iotsafe_cmd_complete(csim_cmd);
         ret = expect_csim_response(csim_cmd, (word32)XSTRLEN(csim_cmd), &resp);
         if (ret > 0) {
-            /*
-            if (ret > 2 * 0xF3)
-                ret = 2 * 0xF3;
-            */
             if (ret > 2 * (file_sz - off))
                 ret = 2 * (file_sz - off);
             if (hex_to_bytes(resp, content + off, (ret / 2)) < 0) {
@@ -529,7 +527,9 @@ static int iotsafe_getrandom(unsigned char* output, unsigned long sz)
         else
             ret = 0;
     }
-    for (i = 0; i < 3; i++) {
+
+    /* Send an empty command until the applet is responsive again */
+    for (i = 0; i < IOTSAFE_MAX_RETRIES; i++) {
         if (expect_tok(NULL, 0, NULL, NULL) < 0) {
             ret = WC_HW_E;
         }
@@ -591,7 +591,7 @@ static int iotsafe_parse_public_key(char* resp, int len, ecc_key *key)
  * Return -1 on error; 0 if the operation is successful, but
  * the generated public key was not yet stored in `key`; 1 if 
  * the operation is successful and the public key was found in the
- * command response and copied to the `key` structure.
+ * command response and copied to the `key` structure, if not NULL.
  */
 static int iotsafe_gen_keypair(byte *wr_slot, unsigned long id_size,
                                ecc_key *key)
@@ -605,7 +605,7 @@ static int iotsafe_gen_keypair(byte *wr_slot, unsigned long id_size,
     if (ret < 1) {
         WOLFSSL_MSG("Unexpected reply from Keygen");
         ret = WC_HW_E;
-    } else {
+    } else if (key != NULL) {
         if (iotsafe_parse_public_key(resp, ret, key) == 0) {
             /* iotsafe_parse_public_key was successful on response.
              * Return '1' here to indicate that the key is populated.
@@ -617,6 +617,8 @@ static int iotsafe_gen_keypair(byte *wr_slot, unsigned long id_size,
              */
             ret = 0;
         }
+    } else {
+        ret = 0;
     }
     return ret;
 }
@@ -646,6 +648,7 @@ static int iotsafe_put_public_key(byte *pubkey_id, unsigned long id_size,
 {
     char *resp;
     int ret;
+    int retries = 0;
     word32 qxlen = IOTSAFE_ECC_KSIZE, qylen = IOTSAFE_ECC_KSIZE;
     byte ecc_pub_raw[IOTSAFE_TAG_ECC_KEY_FIELD_SZ] =  {
         IOTSAFE_TAG_ECC_KEY_TYPE,
@@ -676,7 +679,12 @@ static int iotsafe_put_public_key(byte *pubkey_id, unsigned long id_size,
 
     do {
         ret = expect_ok("AT\r\n", 4);
+        if (ret == 0) {
+            if (++retries > IOTSAFE_MAX_RETRIES)
+                return WC_HW_E;
+        }
     } while (ret == 0);
+    retries = 0;
 
     if (ret > 0) {
         /* Put Public Update */
@@ -700,8 +708,13 @@ static int iotsafe_put_public_key(byte *pubkey_id, unsigned long id_size,
             }
             do {
                 ret = expect_ok("AT\r\n", 4);
+                if (ret == 0) {
+                    if (++retries > IOTSAFE_MAX_RETRIES)
+                        ret = WC_HW_E;
+                }
             } while (ret == 0);
-            ret = 0;
+            if (ret > 0)
+                ret = 0;
         }
     }
     return ret;
@@ -717,6 +730,7 @@ static int iotsafe_sign_hash(byte *privkey_idx, uint16_t id_size,
     char *resp;
     char R[2 * IOTSAFE_ECC_KSIZE + 1];
     char S[2 * IOTSAFE_ECC_KSIZE + 1];
+    int retries = 0;
 
     R[2*IOTSAFE_ECC_KSIZE] = '\0';
     S[2*IOTSAFE_ECC_KSIZE] = '\0';
@@ -742,9 +756,14 @@ static int iotsafe_sign_hash(byte *privkey_idx, uint16_t id_size,
         }
         do {
             ret = expect_ok("AT\r\n", 4);
+            if (ret == 0) {
+                if (++retries > IOTSAFE_MAX_RETRIES)
+                    return WC_HW_E;
+            }
         } while (ret == 0);
         if (ret < 0)
             return WC_HW_E;
+        retries = 0;
 
         /* Compose sign_update message with hash to sign */
         iotsafe_cmd_start(csim_cmd, IOTSAFE_CLASS,
@@ -781,6 +800,10 @@ static int iotsafe_sign_hash(byte *privkey_idx, uint16_t id_size,
         }
         do {
             ret = expect_ok("AT\r\n", 4);
+            if (ret == 0) {
+                if (++retries > IOTSAFE_MAX_RETRIES)
+                    ret = WC_HW_E;
+            }
         } while (ret == 0);
         if (ret < 0)
             return WC_HW_E;
@@ -803,6 +826,7 @@ static int iotsafe_verify_hash(byte *pubkey_idx, uint16_t id_size,
     uint16_t hash_algo_be = XHTONS(hash_algo);
     int ret = 1;
     char *resp;
+    int retries = 0;
     *result = 0;
 
     iotsafe_cmd_start(csim_cmd, IOTSAFE_CLASS, IOTSAFE_INS_VERIFY_INIT, 0, 1);
@@ -821,9 +845,14 @@ static int iotsafe_verify_hash(byte *pubkey_idx, uint16_t id_size,
         }
         do {
             ret = expect_ok("AT\r\n", 4);
+            if (ret == 0) {
+                if (++retries > IOTSAFE_MAX_RETRIES)
+                    return WC_HW_E;
+            }
         } while (ret == 0);
         if (ret < 0)
             return WC_HW_E;
+        retries = 0;
 
         /* Compose verify_update message with hash + signature */
         iotsafe_cmd_start(csim_cmd, IOTSAFE_CLASS,
@@ -863,12 +892,17 @@ static int iotsafe_verify_hash(byte *pubkey_idx, uint16_t id_size,
 
         do {
             ret = expect_ok("AT\r\n", 4);
+            if (ret == 0) {
+                if (++retries > IOTSAFE_MAX_RETRIES)
+                    return WC_HW_E;
+            }
         } while (ret == 0);
         if (ret < 0) {
             return WC_HW_E;
         } else {
             ret = 0;
         }
+        retries = 0;
     } else {
         /* TODO: RSA */
         ret = NOT_COMPILED_IN;
@@ -905,7 +939,8 @@ static int wolfIoT_ecc_keygen(WOLFSSL* ssl, struct ecc_key* key,
 #endif
 
     if (iotsafe->enabled) {
-        ret = iotsafe_gen_keypair((byte *)&iotsafe->ecdh_keypair_slot, IOTSAFE_ID_SIZE, key);
+        ret = iotsafe_gen_keypair((byte *)&iotsafe->ecdh_keypair_slot,
+                IOTSAFE_ID_SIZE, key);
         if (ret == 0) {
             ret = iotsafe_get_public_key((byte *)&iotsafe->ecdh_keypair_slot,
                     IOTSAFE_ID_SIZE, key);
@@ -1095,6 +1130,7 @@ static int wolfIoT_ecc_shared_secret(WOLFSSL* ssl, struct ecc_key* otherKey,
     IOTSAFE *iotsafe = wolfSSL_get_iotsafe_ctx(ssl);
     byte *keypair_slot;
     byte *pubkey_idx;
+    int retries = 0;
 #ifndef WOLFSSL_SMALL_STACK
     ecc_key _tmpKey;
     tmpKey = &_tmpKey;
@@ -1151,7 +1187,8 @@ static int wolfIoT_ecc_shared_secret(WOLFSSL* ssl, struct ecc_key* otherKey,
                 /* Exporting generated public key into DER buffer */
                 ret = wc_ecc_export_x963(tmpKey, pubKeyDer, pubKeySz);
                 if (ret == 0) {
-                    WOLFSSL_MSG("IoT-SAFE: Key pair generated, public key exported");
+                    WOLFSSL_MSG(
+                            "IoT-SAFE: Key pair generated, public key exported");
                 } else {
                     WOLFSSL_MSG("IoT-SAFE: Error storing Public key.");
                 }
@@ -1168,20 +1205,23 @@ static int wolfIoT_ecc_shared_secret(WOLFSSL* ssl, struct ecc_key* otherKey,
         if (ret == 0) {
             do {
                 ret = expect_ok("AT\r\n", 4);
+                if (ret == 0) {
+                    if (++retries > IOTSAFE_MAX_RETRIES)
+                        ret = WC_HW_E;
+                }
             } while (ret == 0);
             if (ret > 0) {
                 /* Generating shared secret
                 */
-#if (IOTSAFE_ID_SIZE == 1)
-#elif (IOTSAFE_ID_SIZE == 2)
-#else
-#error "IOTSAFE key generation unsupported for key size"
-#endif
-                iotsafe_cmd_start(csim_cmd, IOTSAFE_CLASS, IOTSAFE_INS_COMPUTE_DH, 0, 0);
-                iotsafe_cmd_add_tlv(csim_cmd, IOTSAFE_TAG_PRIVKEY_ID, IOTSAFE_ID_SIZE, keypair_slot);
-                iotsafe_cmd_add_tlv(csim_cmd, IOTSAFE_TAG_PUBKEY_ID, IOTSAFE_ID_SIZE, pubkey_idx);
+                iotsafe_cmd_start(csim_cmd, IOTSAFE_CLASS, IOTSAFE_INS_COMPUTE_DH,
+                        0, 0);
+                iotsafe_cmd_add_tlv(csim_cmd, IOTSAFE_TAG_PRIVKEY_ID,
+                        IOTSAFE_ID_SIZE, keypair_slot);
+                iotsafe_cmd_add_tlv(csim_cmd, IOTSAFE_TAG_PUBKEY_ID,
+                        IOTSAFE_ID_SIZE, pubkey_idx);
                 iotsafe_cmd_complete(csim_cmd);
-                ret = expect_csim_response(csim_cmd, (word32)XSTRLEN(csim_cmd), &resp);
+                ret = expect_csim_response(csim_cmd, (word32)XSTRLEN(csim_cmd),
+                        &resp);
             }
         }
         if (ret <= 0) {
@@ -1281,8 +1321,8 @@ int wc_iotsafe_ecc_export_public_ex(ecc_key *key, byte *key_id, uint16_t id_size
 int wc_iotsafe_ecc_sign_hash_ex(byte *in, word32 inlen, byte *out,
         word32 *outlen, byte *key_id, uint16_t id_size)
 {
-    return iotsafe_sign_hash(key_id, id_size, IOTSAFE_HASH_SHA256, IOTSAFE_SIGN_ECDSA,
-            in, inlen, out, outlen);
+    return iotsafe_sign_hash(key_id, id_size, IOTSAFE_HASH_SHA256,
+            IOTSAFE_SIGN_ECDSA, in, inlen, out, outlen);
 }
 
 int wc_iotsafe_ecc_verify_hash_ex(byte *sig, word32 siglen, byte *hash,
@@ -1300,20 +1340,15 @@ int wc_iotsafe_ecc_verify_hash_ex(byte *sig, word32 siglen, byte *hash,
     ret = wc_ecc_sig_to_rs(sig, siglen, sig_raw, &r_size, sig_raw
             + IOTSAFE_ECC_KSIZE, &s_size);
     if (ret == 0)
-        ret = iotsafe_verify_hash(key_id, id_size, IOTSAFE_HASH_SHA256, IOTSAFE_SIGN_ECDSA,
-            hash, hashlen, sig_raw, 2 * IOTSAFE_ECC_KSIZE, res);
+        ret = iotsafe_verify_hash(key_id, id_size, IOTSAFE_HASH_SHA256,
+                IOTSAFE_SIGN_ECDSA, hash, hashlen, sig_raw, 2 * IOTSAFE_ECC_KSIZE,
+                res);
     return ret;
 }
 
 int wc_iotsafe_ecc_gen_k_ex(byte *key_id, uint16_t id_size)
 {
-    int ret = 0;
-    ecc_key* key = XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
-    ret = iotsafe_gen_keypair(key_id, id_size, key);
-    if (ret > 0)
-        ret = 0;
-    XFREE(key, NULL, DYNAMIC_TYPE_ECC);
-    return ret;
+    return iotsafe_gen_keypair(key_id, id_size, NULL);
 }
 
 int wc_iotsafe_ecc_import_public(ecc_key *key, byte key_id)
@@ -1342,13 +1377,7 @@ int wc_iotsafe_ecc_verify_hash(byte *sig, word32 siglen, byte *hash,
 }
 int wc_iotsafe_ecc_gen_k(byte key_id)
 {
-    int ret = 0;
-    ecc_key* key = XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
-    ret = iotsafe_gen_keypair(&key_id, 1, key);
-    if (ret > 0)
-        ret = 0;
-    XFREE(key, NULL, DYNAMIC_TYPE_ECC);
-    return ret;
+    return iotsafe_gen_keypair(&key_id, 1, NULL);
 }
 
 #endif /* HAVE_ECC */
@@ -1414,23 +1443,16 @@ int wolfSSL_CTX_iotsafe_enable(WOLFSSL_CTX *ctx)
     return 0;
 }
 
-int wolfSSL_iotsafe_on_ex(WOLFSSL *ssl, byte *privkey_id,
-       byte *ecdh_keypair_slot, byte *peer_pubkey_slot, byte *peer_cert_slot, word16 id_size)
+int wolfSSL_iotsafe_on_ex(WOLFSSL *ssl, byte *privkey_id, byte *ecdh_keypair_slot,
+        byte *peer_pubkey_slot, byte *peer_cert_slot, word16 id_size)
 {
 #if defined(HAVE_PK_CALLBACKS)
     int ret;
     IOTSAFE iotsafe;
-#ifdef TWO_BYTES_ID_DEMO
-    iotsafe.privkey_id = *privkey_id;
-    iotsafe.ecdh_keypair_slot = *ecdh_keypair_slot;
-    iotsafe.peer_pubkey_slot = *peer_pubkey_slot;
-    iotsafe.peer_cert_slot = *peer_cert_slot;
-#else
     XMEMCPY(&iotsafe.privkey_id, privkey_id, id_size);
     XMEMCPY(&iotsafe.ecdh_keypair_slot, ecdh_keypair_slot, id_size);
     XMEMCPY(&iotsafe.peer_pubkey_slot, peer_pubkey_slot, id_size);
     XMEMCPY(&iotsafe.peer_cert_slot, peer_cert_slot, id_size);
-#endif
     iotsafe.enabled = 1;
     ret = wolfSSL_set_iotsafe_ctx(ssl, &iotsafe);
     if (ret == 0) {
@@ -1453,7 +1475,7 @@ int wolfSSL_iotsafe_on_ex(WOLFSSL *ssl, byte *privkey_id,
 int wolfSSL_iotsafe_on(WOLFSSL *ssl, byte privkey_id,
        byte ecdh_keypair_slot, byte peer_pubkey_slot, byte peer_cert_slot)
 {
-    return wolfSSL_iotsafe_on_ex(ssl, &privkey_id, &ecdh_keypair_slot, &peer_pubkey_slot,
-            &peer_cert_slot, 1);
+    return wolfSSL_iotsafe_on_ex(ssl, &privkey_id, &ecdh_keypair_slot,
+            &peer_pubkey_slot, &peer_cert_slot, 1);
 }
 #endif /* WOLFSSL_IOTSAFE */
