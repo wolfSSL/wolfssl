@@ -188,14 +188,14 @@ static char *search_tlv(const char *haystack, int size, uint8_t tag)
     return NULL;
 }
 
-static int iotsafe_cmd_start(char *cmd, byte class, byte ins, byte p1, byte p2)
+static int iotsafe_cmd_start(char *cmd, byte cmd_class, byte ins, byte p1, byte p2)
 {
     byte lc = 0;
     char *out;
     XMEMSET(cmd, 0, IOTSAFE_CMDSIZE_MAX);
     XSTRNCPY(cmd, "AT+CSIM= 10,\"", IOTSAFE_CMDSIZE_MAX - 1);
     out = cmd + AT_CSIM_CMD_SIZE;
-    bytes_to_hex(&class, out, 1);
+    bytes_to_hex(&cmd_class, out, 1);
     bytes_to_hex(&ins, out + AT_CMD_INS_POS, 1);
     bytes_to_hex(&p1, out + AT_CMD_P1_POS, 1);
     bytes_to_hex(&p2, out + AT_CMD_P2_POS, 1);
