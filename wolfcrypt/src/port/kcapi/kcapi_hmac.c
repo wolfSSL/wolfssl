@@ -105,6 +105,11 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         ret = BAD_FUNC_ARG;
     }
 
+#ifdef HAVE_FIPS
+    if (length < HMAC_FIPS_MIN_KEY)
+        return HMAC_MIN_KEYLEN_E;
+#endif
+
     if (ret == 0) {
         switch (type) {
         #ifndef NO_MD5

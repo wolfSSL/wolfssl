@@ -78,50 +78,81 @@ int unit_test(int argc, char** argv)
 #endif
 
 #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 5)
+#if !defined(NO_AES) && !defined(NO_AES_CBC)
     if (wc_RunCast_fips(FIPS_CAST_AES_CBC) != 0) {
         err_sys("AES-CBC CAST failed");
     }
+#endif
+#ifdef HAVE_AESGCM
     if (wc_RunCast_fips(FIPS_CAST_AES_GCM) != 0) {
         err_sys("AES-GCM CAST failed");
     }
+#endif
+#ifndef NO_SHA
     if (wc_RunCast_fips(FIPS_CAST_HMAC_SHA1) != 0) {
         err_sys("HMAC-SHA1 CAST failed");
     }
+#endif
+    /* the only non-optional CAST */
     if (wc_RunCast_fips(FIPS_CAST_HMAC_SHA2_256) != 0) {
         err_sys("HMAC-SHA2-256 CAST failed");
     }
+#ifdef WOLFSSL_SHA512
     if (wc_RunCast_fips(FIPS_CAST_HMAC_SHA2_512) != 0) {
         err_sys("HMAC-SHA2-512 CAST failed");
     }
+#endif
+#ifdef WOLFSSL_SHA3
     if (wc_RunCast_fips(FIPS_CAST_HMAC_SHA3_256) != 0) {
         err_sys("HMAC-SHA3-256 CAST failed");
     }
+#endif
+#ifdef HAVE_HASHDRBG
     if (wc_RunCast_fips(FIPS_CAST_DRBG) != 0) {
         err_sys("Hash_DRBG CAST failed");
     }
+#endif
+#ifndef NO_RSA
     if (wc_RunCast_fips(FIPS_CAST_RSA_SIGN_PKCS1v15) != 0) {
         err_sys("RSA sign CAST failed");
     }
+#endif
+#if defined(HAVE_ECC_CDH) && defined(HAVE_ECC_CDH_CAST)
+    if (wc_RunCast_fips(FIPS_CAST_ECC_CDH) != 0) {
+        err_sys("RSA sign CAST failed");
+    }
+#endif
+#ifdef HAVE_ECC_DHE
     if (wc_RunCast_fips(FIPS_CAST_ECC_PRIMITIVE_Z) != 0) {
         err_sys("ECC Primitive Z CAST failed");
     }
-    if (wc_RunCast_fips(FIPS_CAST_DH_PRIMITIVE_Z) != 0) {
-        err_sys("DH Primitive Z CAST failed");
-    }
+#endif
+#ifdef HAVE_ECC
     if (wc_RunCast_fips(FIPS_CAST_ECDSA) != 0) {
         err_sys("ECDSA CAST failed");
     }
+#endif
+#ifndef NO_DH
+    if (wc_RunCast_fips(FIPS_CAST_DH_PRIMITIVE_Z) != 0) {
+        err_sys("DH Primitive Z CAST failed");
+    }
+#endif
+#ifdef WOLFSSL_HAVE_PRF
     if (wc_RunCast_fips(FIPS_CAST_KDF_TLS12) != 0) {
         err_sys("KDF TLSv1.2 CAST failed");
     }
+#endif
+#if defined(WOLFSSL_HAVE_PRF) && defined(WOLFSSL_TLS13)
     if (wc_RunCast_fips(FIPS_CAST_KDF_TLS13) != 0) {
         err_sys("KDF TLSv1.3 CAST failed");
     }
+#endif
+#ifdef WOLFSSL_WOLFSSH
     if (wc_RunCast_fips(FIPS_CAST_KDF_SSH) != 0) {
         err_sys("KDF SSHv2.0 CAST failed");
     }
 #endif
-
+#endif /* HAVE_FIPS && HAVE_FIPS_VERSION == 5 */
 #ifdef WOLFSSL_ALLOW_SKIP_UNIT_TESTS
     if (argc == 1)
 #endif

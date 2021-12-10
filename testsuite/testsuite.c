@@ -603,6 +603,10 @@ int main(int argc, char** argv)
     wolfcrypt_test_args.argc = argc;
     wolfcrypt_test_args.argv = argv;
 
+#ifdef WC_RNG_SEED_CB
+    wc_SetSeed_Cb(wc_GenerateSeed);
+#endif
+
     wolfSSL_Init();
     ChangeToWolfRoot();
 
