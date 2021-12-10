@@ -2063,7 +2063,7 @@ enum {
     WOLFSSL_OP_CIPHER_SERVER_PREFERENCE           = 0x02000000,
     WOLFSSL_OP_NO_TLSv1_1                         = 0x04000000,
     WOLFSSL_OP_NO_TLSv1_2                         = 0x08000000,
-    SSL_OP_NO_COMPRESSION                         = 0x10000000,
+    WOLFSSL_OP_NO_COMPRESSION                     = 0x10000000,
     WOLFSSL_OP_NO_TLSv1_3                         = 0x20000000,
     WOLFSSL_OP_NO_SSLv2                           = 0x40000000,
     SSL_OP_ALL   =

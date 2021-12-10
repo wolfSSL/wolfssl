@@ -2297,9 +2297,9 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_GMTIME_R /* don't trust macro with windows */
 #endif /* WOLFSSL_MYSQL_COMPATIBLE */
 
+#define SSL_OP_NO_COMPRESSION    WOLFSSL_OP_NO_COMPRESSION
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
  || defined(HAVE_LIGHTY)
-    #define SSL_OP_NO_COMPRESSION    SSL_OP_NO_COMPRESSION
     #define OPENSSL_NO_ENGINE
     #ifndef OPENSSL_EXTRA
         #define OPENSSL_EXTRA
