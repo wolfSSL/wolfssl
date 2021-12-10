@@ -8522,6 +8522,70 @@ static WOLFSSL_EVP_PKEY* d2iGenericKey(WOLFSSL_EVP_PKEY** out,
     #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
     #endif /* !NO_DH &&  OPENSSL_EXTRA && WOLFSSL_DH_EXTRA */
 
+    #ifdef HAVE_LIBOQS
+    {
+        int isFalcon;
+    #ifdef WOLFSSL_SMALL_STACK
+        falcon_key *falcon = (falcon_key *)MALLOC(sizeof(falcon_key), NULL,
+                                                  DYNAMIC_TYPE_FALCON);
+        if (falcon == NULL) {
+            return NULL;
+        }
+    #else
+        falcon_key falcon[1];
+    #endif
+        XMEMSET(falcon, 0, sizeof(falcon_key));
+
+        /* test if Falcon key */
+        if (priv) {
+            /* Try level 1 */
+            isFalcon = wc_falcon_init(falcon) == 0 &&
+                       wc_falcon_set_level(falcon, 1) == 0 &&
+                       wc_falcon_import_private_only(mem, (word32)memSz,
+                                                     falcon) == 0;
+            if (!isFalcon) {
+                /* Try level 5 */
+                isFalcon = wc_falcon_init(falcon) == 0 &&
+                           wc_falcon_set_level(falcon, 5) == 0 &&
+                           wc_falcon_import_private_only(mem, (word32)memSz,
+                                                         falcon) == 0;
+            }
+        } else {
+            /* Try level 1 */
+            isFalcon = wc_falcon_init(falcon) == 0 &&
+                       wc_falcon_set_level(falcon, 1) == 0 &&
+                       wc_falcon_import_public(mem, (word32)memSz, falcon) == 0;
+
+            if (!isFalcon) {
+                /* Try level 5 */
+                isFalcon = wc_falcon_init(falcon) == 0 &&
+                           wc_falcon_set_level(falcon, 5) == 0 &&
+                           wc_falcon_import_public(mem, (word32)memSz,
+                                                         falcon) == 0;
+            }
+        }
+
+        wc_falcon_free(falcon);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(falcon, NULL, DYNAMIC_TYPE_FALCON);
+    #endif
+        if (isFalcon) {
+            /* Create a fake Falcon EVP_PKEY. In the future, we might integrate
+             * Falcon into the compatibility layer. */
+            pkey = wolfSSL_EVP_PKEY_new();
+            if (pkey == NULL) {
+                WOLFSSL_MSG("Falcon wolfSSL_EVP_PKEY_new error");
+                return NULL;
+            }
+            pkey->type = EVP_PKEY_FALCON;
+            pkey->pkey.ptr = NULL;
+            pkey->pkey_sz = 0;
+            return pkey;
+        }
+
+    }
+    #endif /* HAVE_LIBOQS */
+
     if (pkey == NULL) {
         WOLFSSL_MSG("wolfSSL_d2i_PUBKEY couldn't determine key type");
     }

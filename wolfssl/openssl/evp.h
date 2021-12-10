@@ -247,6 +247,7 @@ enum {
     NID_rc4           = 5,
     EVP_PKEY_DH       = NID_dhKeyAgreement,
     EVP_PKEY_HMAC     = NID_hmac,
+    EVP_PKEY_FALCON = 300,
     AES_128_CFB1_TYPE = 24,
     AES_192_CFB1_TYPE = 25,
     AES_256_CFB1_TYPE = 26,
