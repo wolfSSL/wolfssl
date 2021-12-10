@@ -8534,38 +8534,36 @@ static WOLFSSL_EVP_PKEY* d2iGenericKey(WOLFSSL_EVP_PKEY** out,
     #else
         falcon_key falcon[1];
     #endif
-        XMEMSET(falcon, 0, sizeof(falcon_key));
 
-        /* test if Falcon key */
-        if (priv) {
-            /* Try level 1 */
-            isFalcon = wc_falcon_init(falcon) == 0 &&
-                       wc_falcon_set_level(falcon, 1) == 0 &&
-                       wc_falcon_import_private_only(mem, (word32)memSz,
-                                                     falcon) == 0;
-            if (!isFalcon) {
-                /* Try level 5 */
-                isFalcon = wc_falcon_init(falcon) == 0 &&
-                           wc_falcon_set_level(falcon, 5) == 0 &&
+        if (wc_falcon_init(falcon) == 0) {
+            /* test if Falcon key */
+            if (priv) {
+                /* Try level 1 */
+                isFalcon = wc_falcon_set_level(falcon, 1) == 0 &&
                            wc_falcon_import_private_only(mem, (word32)memSz,
                                                          falcon) == 0;
-            }
-        } else {
-            /* Try level 1 */
-            isFalcon = wc_falcon_init(falcon) == 0 &&
-                       wc_falcon_set_level(falcon, 1) == 0 &&
-                       wc_falcon_import_public(mem, (word32)memSz, falcon) == 0;
+                if (!isFalcon) {
+                    /* Try level 5 */
+                    isFalcon = wc_falcon_set_level(falcon, 5) == 0 &&
+                               wc_falcon_import_private_only(mem, (word32)memSz,
+                                                             falcon) == 0;
+                }
+            } else {
+                /* Try level 1 */
+                isFalcon = wc_falcon_set_level(falcon, 1) == 0 &&
+                           wc_falcon_import_public(mem, (word32)memSz, falcon)
+                           == 0;
 
-            if (!isFalcon) {
-                /* Try level 5 */
-                isFalcon = wc_falcon_init(falcon) == 0 &&
-                           wc_falcon_set_level(falcon, 5) == 0 &&
-                           wc_falcon_import_public(mem, (word32)memSz,
-                                                         falcon) == 0;
+                if (!isFalcon) {
+                    /* Try level 5 */
+                    isFalcon = wc_falcon_set_level(falcon, 5) == 0 &&
+                               wc_falcon_import_public(mem, (word32)memSz,
+                                                       falcon) == 0;
+                }
             }
+            wc_falcon_free(falcon);
         }
 
-        wc_falcon_free(falcon);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(falcon, NULL, DYNAMIC_TYPE_FALCON);
     #endif
