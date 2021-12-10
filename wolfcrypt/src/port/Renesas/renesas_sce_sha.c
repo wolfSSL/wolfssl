@@ -93,7 +93,8 @@ static int SCEHashUpdate(wolfssl_SCE_Hash* hash, const byte* data, word32 sz)
         if (hash->msg == NULL) {
             hash->msg = (byte*)XMALLOC(hash->used + sz, hash->heap,
                     DYNAMIC_TYPE_TMP_BUFFER);
-        } else {
+        }
+        else {
 #ifdef FREERTOS
             byte* pt = (byte*)XMALLOC(hash->used + sz, hash->heap,
                     DYNAMIC_TYPE_TMP_BUFFER);
@@ -151,7 +152,8 @@ static int SCEHashFinal(wolfssl_SCE_Hash* hash, byte* out, word32 outSz)
         Init = R_SCE_SHA256_Init;
         Update = R_SCE_SHA256_Update;
         Final = R_SCE_SHA256_Final;
-    } else 
+    }
+    else 
         return BAD_FUNC_ARG;
     
     heap = hash->heap;
@@ -191,7 +193,8 @@ static int SCEHashGet(wolfssl_SCE_Hash* hash, byte* out, word32 outSz)
         Init = R_SCE_SHA256_Init;
         Update = R_SCE_SHA256_Update;
         Final = R_SCE_SHA256_Final;
-    } else 
+    }
+    else 
         return BAD_FUNC_ARG;
     
     wc_sce_hw_lock();

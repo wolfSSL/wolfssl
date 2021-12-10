@@ -78,7 +78,8 @@ static int TSIPHashUpdate(wolfssl_TSIP_Hash* hash, const byte* data, word32 sz)
         if (hash->msg == NULL) {
             hash->msg = (byte*)XMALLOC(hash->used + sz, hash->heap,
                     DYNAMIC_TYPE_TMP_BUFFER);
-        } else {
+        }
+        else {
 #ifdef FREERTOS
             byte* pt = (byte*)XMALLOC(hash->used + sz, hash->heap,
                     DYNAMIC_TYPE_TMP_BUFFER);
@@ -128,11 +129,13 @@ static int TSIPHashFinal(wolfssl_TSIP_Hash* hash, byte* out, word32 outSz)
         Init = R_TSIP_Sha1Init;
         Update = R_TSIP_Sha1Update;
         Final = R_TSIP_Sha1Final;
-    } else if (hash->sha_type == TSIP_SHA256) {
+    }
+    else if (hash->sha_type == TSIP_SHA256) {
         Init = R_TSIP_Sha256Init;
         Update = R_TSIP_Sha256Update;
         Final = R_TSIP_Sha256Final;
-    } else 
+    }
+    else 
         return BAD_FUNC_ARG;
     
     heap = hash->heap;
@@ -172,11 +175,13 @@ static int TSIPHashGet(wolfssl_TSIP_Hash* hash, byte* out, word32 outSz)
         Init = R_TSIP_Sha1Init;
         Update = R_TSIP_Sha1Update;
         Final = R_TSIP_Sha1Final;
-    } else if (hash->sha_type == TSIP_SHA256) {
+    }
+    else if (hash->sha_type == TSIP_SHA256) {
         Init = R_TSIP_Sha256Init;
         Update = R_TSIP_Sha256Update;
         Final = R_TSIP_Sha256Final;
-    } else 
+    }
+    else 
         return BAD_FUNC_ARG;
     
     tsip_hw_lock();
