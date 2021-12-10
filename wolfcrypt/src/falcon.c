@@ -588,10 +588,12 @@ int wc_falcon_export_key(falcon_key* key, byte* priv, word32 *privSz,
  */
 int wc_falcon_check_key(falcon_key* key)
 {
-    /* Might want to try to sign and verify a random message here. */
-    int ret = 0;
-    (void)key;
-    return ret;
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Assume everything is fine. */
+    return 0;
 }
 
 /* Returns the size of a falcon private key.
