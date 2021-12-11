@@ -72,8 +72,10 @@ WOLFSSL_API int wolfSSL_BN_mul(WOLFSSL_BIGNUM*, WOLFSSL_BIGNUM*,
         WOLFSSL_BIGNUM*, WOLFSSL_BN_CTX*);
 WOLFSSL_API int wolfSSL_BN_div(WOLFSSL_BIGNUM*, WOLFSSL_BIGNUM*,
         const WOLFSSL_BIGNUM*, const WOLFSSL_BIGNUM*, WOLFSSL_BN_CTX*);
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
 WOLFSSL_API int wolfSSL_BN_gcd(WOLFSSL_BIGNUM*, WOLFSSL_BIGNUM*,
                                WOLFSSL_BIGNUM*, WOLFSSL_BN_CTX*);
+#endif
 WOLFSSL_API int wolfSSL_BN_mod(WOLFSSL_BIGNUM*, const WOLFSSL_BIGNUM*,
                              const WOLFSSL_BIGNUM*, const WOLFSSL_BN_CTX*);
 WOLFSSL_API int wolfSSL_BN_mod_exp(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
@@ -130,12 +132,14 @@ WOLFSSL_API int wolfSSL_BN_mod_add(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
                                    const WOLFSSL_BIGNUM *b, const WOLFSSL_BIGNUM *m,
                                    WOLFSSL_BN_CTX *ctx);
 WOLFSSL_API char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM*);
+#if defined(WOLFSSL_KEY_GEN) && (!defined(NO_RSA) || !defined(NO_DH) || !defined(NO_DSA))
 WOLFSSL_API int wolfSSL_BN_generate_prime_ex(WOLFSSL_BIGNUM*, int, int,
     const WOLFSSL_BIGNUM*, const WOLFSSL_BIGNUM*, WOLFSSL_BN_GENCB*);
 WOLFSSL_API int wolfSSL_BN_is_prime_ex(const WOLFSSL_BIGNUM*, int,
                                        WOLFSSL_BN_CTX*, WOLFSSL_BN_GENCB*);
 WOLFSSL_API WOLFSSL_BN_ULONG wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM*,
                                                  WOLFSSL_BN_ULONG);
+#endif
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
     WOLFSSL_API int wolfSSL_BN_print_fp(XFILE, const WOLFSSL_BIGNUM*);
 #endif
