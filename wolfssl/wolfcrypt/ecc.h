@@ -395,7 +395,7 @@ typedef struct {
     mp_int* z;        /* The z coordinate */
     alt_fp_int xyz[3];
 #endif
-#ifdef WOLFSSL_SMALL_STACK_CACHE
+#if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WOLFSSL_ECC_NO_SMALL_STACK)
     ecc_key* key;
 #endif
 } ecc_point;
@@ -496,7 +496,7 @@ struct ecc_key {
     byte deterministic:1;
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK_CACHE
+#if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WOLFSSL_ECC_NO_SMALL_STACK)
     mp_int* t1;
     mp_int* t2;
 #ifdef ALT_ECC_SIZE
