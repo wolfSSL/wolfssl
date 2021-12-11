@@ -759,6 +759,12 @@ typedef struct _wc_CertPIV {
 WOLFSSL_API int wc_ParseCertPIV(wc_CertPIV* cert, const byte* buf, word32 totalSz);
 #endif /* WOLFSSL_CERT_PIV */
 
+/* Forward declaration needed, as DecodedCert is defined in asn.h.*/
+struct DecodedCert;
+
+WOLFSSL_API void wc_InitDecodedCert(struct DecodedCert*, const byte*, word32, void*);
+WOLFSSL_API void wc_FreeDecodedCert(struct DecodedCert*);
+WOLFSSL_API int  wc_ParseCert(struct DecodedCert*, int, int, void*);
 
 #ifdef __cplusplus
     } /* extern "C" */

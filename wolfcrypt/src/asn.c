@@ -9511,6 +9511,12 @@ void InitDecodedCert(DecodedCert* cert,
     }
 }
 
+void wc_InitDecodedCert(DecodedCert* cert, const byte* source, word32 inSz,
+                        void* heap)
+{
+    InitDecodedCert(cert, source, inSz, heap);
+}
+
 /* Free the alternative names object.
  *
  * Frees each linked list items and its name.
@@ -9613,6 +9619,11 @@ void FreeDecodedCert(DecodedCert* cert)
 #ifndef NO_CERTS
     FreeSignatureCtx(&cert->sigCtx);
 #endif
+}
+
+void wc_FreeDecodedCert(DecodedCert* cert)
+{
+    FreeDecodedCert(cert);
 }
 
 #ifndef WOLFSSL_ASN_TEMPLATE
@@ -17263,6 +17274,11 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
     }
 
     return ret;
+}
+
+int wc_ParseCert(DecodedCert* cert, int type, int verify, void* cm)
+{
+    return ParseCert(cert, type, verify, cm);
 }
 
 #if !defined(OPENSSL_EXTRA) && !defined(OPENSSL_EXTRA_X509_SMALL) && \

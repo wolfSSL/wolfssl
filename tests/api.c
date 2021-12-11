@@ -45710,6 +45710,23 @@ static void test_CheckCertSignature(void)
 #endif
 }
 
+static void test_wc_ParseCert(void)
+{
+#if !defined(NO_CERTS) && !defined(NO_RSA)
+    DecodedCert decodedCert;
+    const byte* rawCert = client_cert_der_2048;
+    const int rawCertSize = sizeof_client_cert_der_2048;
+
+    printf(testingFmt, "wc_ParseCert");
+
+    wc_InitDecodedCert(&decodedCert, rawCert, rawCertSize, NULL);
+    AssertIntEQ(wc_ParseCert(&decodedCert, CERT_TYPE, NO_VERIFY, NULL), 0);
+    wc_FreeDecodedCert(&decodedCert);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 /*----------------------------------------------------------------------------*
  | wolfCrypt ECC
  *----------------------------------------------------------------------------*/
@@ -52280,6 +52297,7 @@ void ApiTest(void)
     test_wc_SetSubjectKeyId();
     test_wc_SetSubject();
     test_CheckCertSignature();
+    test_wc_ParseCert();
 
     /* wolfCrypt ECC tests */
     test_wc_ecc_get_curve_size_from_name();
