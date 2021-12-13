@@ -8567,14 +8567,14 @@ static int _sp_exptmod_mont_ex(sp_int* b, sp_int* e, int bits, sp_int* m,
  */
 static int _sp_exptmod_base_2(sp_int* e, int digits, sp_int* m, sp_int* r)
 {
-    int i;
+    int i = 0;
     int j;
-    int c;
+    int c = 0;
     int y;
     int err = MP_OKAY;
     sp_int* t = NULL;
     sp_int* tr = NULL;
-    sp_int_digit mp = 0, n;
+    sp_int_digit mp = 0, n = 0;
     DECL_SP_INT_ARRAY(d, m->used * 2 + 1, 2);
 
     if (0) {
