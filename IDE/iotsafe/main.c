@@ -79,7 +79,7 @@ void main(void)
 {
     uint32_t last_mark = 0;
     int i;
-    char randombytes[16];
+    uint8_t randombytes[16];
     int ret;
     char c;
     WC_RNG rng;

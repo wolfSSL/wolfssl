@@ -34,6 +34,9 @@ WOLFSSL_API int wolfSSL_CTX_iotsafe_enable(WOLFSSL_CTX *ctx);
 WOLFSSL_API int wolfSSL_iotsafe_on(WOLFSSL *ssl, byte privkey_id,
        byte ecdh_keypair_slot, byte peer_pubkey_slot, byte peer_cert_slot);
 
+WOLFSSL_API int wolfSSL_iotsafe_on_ex(WOLFSSL *ssl, byte *privkey_id,
+       byte *ecdh_keypair_slot, byte *peer_pubkey_slot, byte *peer_cert_slot, word16 id_size);
+
 
 typedef int  (*wolfSSL_IOTSafe_CSIM_write_cb)(const char*, int);
 typedef int  (*wolfSSL_IOTSafe_CSIM_read_cb)(char *, int);
@@ -43,6 +46,7 @@ WOLFSSL_API void wolfIoTSafe_SetCSIM_write_cb(wolfSSL_IOTSafe_CSIM_write_cb wf);
 
 WOLFSSL_API int wolfIoTSafe_GetRandom(unsigned char* out, word32 sz);
 WOLFSSL_API int wolfIoTSafe_GetCert(uint8_t id, unsigned char *output, unsigned long sz);
+WOLFSSL_API int wolfIoTSafe_GetCert_ex(uint8_t *id, uint16_t id_sz, unsigned char *output, unsigned long sz);
 
 #ifdef HAVE_ECC
 #include <wolfssl/wolfcrypt/ecc.h>
@@ -54,6 +58,13 @@ WOLFSSL_API int wc_iotsafe_ecc_export_private(ecc_key *key, byte key_id);
 WOLFSSL_API int wc_iotsafe_ecc_sign_hash(byte *in, word32 inlen, byte *out, word32 *outlen, byte key_id);
 WOLFSSL_API int wc_iotsafe_ecc_verify_hash(byte *sig, word32 siglen, byte *hash, word32 hashlen, int *res, byte key_id);
 WOLFSSL_API int wc_iotsafe_ecc_gen_k(byte key_id);
+
+WOLFSSL_API int wc_iotsafe_ecc_import_public_ex(ecc_key *key, byte *key_id, word16 id_size);
+WOLFSSL_API int wc_iotsafe_ecc_export_public_ex(ecc_key *key, byte *key_id, word16 id_size);
+WOLFSSL_API int wc_iotsafe_ecc_export_private_ex(ecc_key *key, byte *key_id, word16 id_size);
+WOLFSSL_API int wc_iotsafe_ecc_sign_hash_ex(byte *in, word32 inlen, byte *out, word32 *outlen, byte *key_id, word16 id_size);
+WOLFSSL_API int wc_iotsafe_ecc_verify_hash_ex(byte *sig, word32 siglen, byte *hash, word32 hashlen, int *res, byte *key_id, word16 id_size);
+WOLFSSL_API int wc_iotsafe_ecc_gen_k_ex(byte *key_id, word16 id_size);
 #endif
 
 
@@ -65,12 +76,26 @@ WOLFSSL_API int wc_iotsafe_ecc_gen_k(byte key_id);
     #endif
 #endif
 
+#ifndef IOTSAFE_ID_SIZE
+#   define IOTSAFE_ID_SIZE 1
+#endif
+
 struct wc_IOTSAFE {
     int enabled;
+
+#if (IOTSAFE_ID_SIZE == 1)
     byte privkey_id;
     byte ecdh_keypair_slot;
     byte peer_pubkey_slot;
     byte peer_cert_slot;
+#elif (IOTSAFE_ID_SIZE == 2)
+    word16 privkey_id;
+    word16 ecdh_keypair_slot;
+    word16 peer_pubkey_slot;
+    word16 peer_cert_slot;
+#else
+#error "IOTSAFE: ID_SIZE not supported"
+#endif
 };
 typedef struct wc_IOTSAFE IOTSAFE;
 
