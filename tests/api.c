@@ -29162,6 +29162,20 @@ static void test_wc_i2d_PKCS12(void)
     XFREE(pt, NULL, DYNAMIC_TYPE_PKCS);
     wc_PKCS12_free(pkcs12);
 
+    /* Run the same test but use wc_d2i_PKCS12_fp. */
+    AssertNotNull(pkcs12 = wc_PKCS12_new());
+    AssertIntEQ(wc_d2i_PKCS12_fp("./certs/test-servercert.p12", &pkcs12), 0);
+    AssertIntEQ(wc_i2d_PKCS12(pkcs12, NULL, &outSz), LENGTH_ONLY_E);
+    AssertIntEQ(outSz, derSz);
+    wc_PKCS12_free(pkcs12);
+
+    /* wc_d2i_PKCS12_fp can also allocate the PKCS12 object for the caller. */
+    pkcs12 = NULL;
+    AssertIntEQ(wc_d2i_PKCS12_fp("./certs/test-servercert.p12", &pkcs12), 0);
+    AssertIntEQ(wc_i2d_PKCS12(pkcs12, NULL, &outSz), LENGTH_ONLY_E);
+    AssertIntEQ(outSz, derSz);
+    wc_PKCS12_free(pkcs12);
+
     printf(resultFmt, passed);
 
 #endif

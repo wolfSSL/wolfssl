@@ -707,6 +707,66 @@ int wc_d2i_PKCS12(const byte* der, word32 derSz, WC_PKCS12* pkcs12)
     return ret;
 }
 
+#ifndef NO_FILESYSTEM
+/* Parse the DER-encoded PKCS #12 object in the provided file. Populate the
+ * WC_PKCS12 object pointed to by the passed in pointer, allocating the object
+ * if necessary.
+ *
+ * file  : path to PKCS #12 file.
+ * pkcs12: pointer to a pointer to a WC_PKCS12 object to populate. If *pkcs12 is
+ *         NULL, this function will allocate a new WC_PKCS12.
+ * return 0 on success and negative on failure.
+ */
+int wc_d2i_PKCS12_fp(const char* file, WC_PKCS12** pkcs12)
+{
+    int ret = 0;
+    byte* buf;
+    size_t bufSz;
+    WC_PKCS12* tmpPkcs12 = NULL;
+    int callerAlloc = 1;
+
+    WOLFSSL_ENTER("wc_d2i_PKCS12_fp");
+
+    if (pkcs12 == NULL) {
+        WOLFSSL_MSG("pkcs12 parameter NULL.");
+        ret = BAD_FUNC_ARG;
+    }
+
+    ret = wc_FileLoad(file, &buf, &bufSz, NULL);
+    if (ret == 0) {
+        if (*pkcs12 == NULL) {
+            tmpPkcs12 = wc_PKCS12_new();
+            if (tmpPkcs12 == NULL) {
+                WOLFSSL_MSG("Failed to allocate PKCS12 object.");
+                ret = MEMORY_E;
+            }
+            else {
+                *pkcs12 = tmpPkcs12;
+                callerAlloc = 0;
+            }
+        }
+    }
+    if (ret == 0) {
+        ret = wc_d2i_PKCS12(buf, (word32)bufSz, *pkcs12);
+        if (ret != 0) {
+            WOLFSSL_MSG("wc_d2i_PKCS12 failed.");
+        }
+    }
+
+    if (ret != 0 && callerAlloc == 0 && *pkcs12 != NULL) {
+        wc_PKCS12_free(*pkcs12);
+        *pkcs12 = NULL;
+    }
+    if (buf != NULL) {
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    WOLFSSL_LEAVE("wc_d2i_PKCS12_fp", ret);
+
+    return ret;
+}
+#endif /* NO_FILESYSTEM */
+
 /* Convert WC_PKCS12 struct to allocated DER buffer.
  * pkcs12 : non-null pkcs12 pointer
  * der    : pointer-pointer to der buffer. If NULL space will be
