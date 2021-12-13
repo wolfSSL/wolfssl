@@ -31147,9 +31147,9 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
         return;
     }
     #if defined(WOLFSSL_QT)
-    /* In Qt v15.5, it calls OPENSSL_sk_free(xxx, OPENSSL_sk_free). 
-    *  By using OPENSSL_sk_free for free causes access violation. 
-    *  Therefore, switching free func to wolfSSL_ACCESS_DESCRIPTION_free 
+    /* In Qt v15.5, it calls OPENSSL_sk_free(xxx, OPENSSL_sk_free).
+    *  By using OPENSSL_sk_free for free causes access violation.
+    *  Therefore, switching free func to wolfSSL_ACCESS_DESCRIPTION_free
     *  is needed even the func isn't NULL.
     */
     if (sk->type == STACK_TYPE_ACCESS_DESCRIPTION) {
@@ -52640,7 +52640,7 @@ int wolfSSL_BN_div(WOLFSSL_BIGNUM* dv, WOLFSSL_BIGNUM* rem,
     return ret;
 }
 
-#ifdef WOLFSSL_KEY_GEN /* Needed to get mp_gcd. */
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) /* Needed to get mp_gcd. */
 int wolfSSL_BN_gcd(WOLFSSL_BIGNUM* r, WOLFSSL_BIGNUM* a, WOLFSSL_BIGNUM* b,
                    WOLFSSL_BN_CTX* ctx)
 {
@@ -52670,7 +52670,7 @@ int wolfSSL_BN_gcd(WOLFSSL_BIGNUM* r, WOLFSSL_BIGNUM* a, WOLFSSL_BIGNUM* b,
 
     return ret;
 }
-#endif /* WOLFSSL_KEY_GEN */
+#endif /* !NO_RSA && WOLFSSL_KEY_GEN */
 
 /* WOLFSSL_SUCCESS on ok */
 int wolfSSL_BN_mod(WOLFSSL_BIGNUM* r, const WOLFSSL_BIGNUM* a,
@@ -53680,7 +53680,7 @@ int wolfSSL_BN_mod_add(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
     return WOLFSSL_SUCCESS;
 }
 
-#ifdef WOLFSSL_KEY_GEN
+#if defined(WOLFSSL_KEY_GEN) && (!defined(NO_RSA) || !defined(NO_DH) || !defined(NO_DSA))
 
 int wolfSSL_BN_generate_prime_ex(WOLFSSL_BIGNUM* prime, int bits,
     int safe, const WOLFSSL_BIGNUM* add, const WOLFSSL_BIGNUM* rem,
@@ -53847,7 +53847,7 @@ WOLFSSL_BN_ULONG wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM *bn,
 
     return ret;
 }
-#endif /* #ifdef WOLFSSL_KEY_GEN */
+#endif /* WOLFSSL_KEY_GEN && (!NO_RSA || !NO_DH || !NO_DSA) */
 
 char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM *bn)
 {

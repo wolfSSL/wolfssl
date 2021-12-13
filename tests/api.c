@@ -6171,7 +6171,7 @@ done:
 
 static void test_wolfSSL_get_finished(void)
 {
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
+#if !defined(NO_RSA) && defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
 
     tcp_ready ready;
     func_args client_args;
@@ -26397,6 +26397,7 @@ static int test_wc_EccPrivateKeyToDer (void)
 static int test_wc_DhPublicKeyDecode(void)
 {
     int ret = 0;
+#ifndef NO_DH
     word32 inOutIdx;
 
 #if defined(WOLFSSL_DH_EXTRA) && defined(USE_CERT_BUFFERS_2048)
@@ -26427,6 +26428,7 @@ static int test_wc_DhPublicKeyDecode(void)
 
 #endif
     (void)inOutIdx;
+#endif /* !NO_DH */
     return ret;
 }
 
@@ -33759,7 +33761,8 @@ static void test_wolfSSL_Tls13_Key_Logging_test(void)
 #endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK && WOLFSSL_TLS13 */
 }
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+#if defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
     defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
 static void post_auth_version_cb(WOLFSSL* ssl)
 {
@@ -33799,7 +33802,8 @@ static void set_post_auth_cb(WOLFSSL* ssl)
 
 static void test_wolfSSL_Tls13_postauth(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+#if defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
     defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     tcp_ready ready;
     func_args client_args;
@@ -34304,14 +34308,14 @@ static void test_wolfSSL_BN(void)
     AssertIntEQ(BN_set_word(a, 16), SSL_SUCCESS);
     AssertIntEQ(BN_set_word(b, 24), SSL_SUCCESS);
 
-#ifdef WOLFSSL_KEY_GEN
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     /* gcd of a and b */
     AssertIntEQ(BN_gcd(d, NULL, b, NULL), SSL_FAILURE);
     AssertIntEQ(BN_gcd(d, a, b, NULL), SSL_SUCCESS);
 
     /* check result gcd(16, 24) */
     AssertIntEQ(BN_get_word(d), 8);
-#endif /* WOLFSSL_KEY_GEN */
+#endif /* !NO_RSA && WOLFSSL_KEY_GEN */
 
     AssertIntEQ(BN_set_word(a, 1 << 6), SSL_SUCCESS);
     AssertIntEQ(BN_rshift(b, a, 6), SSL_SUCCESS);
@@ -34417,7 +34421,7 @@ static void test_wolfSSL_BN(void)
     }
     #endif
 
-#ifdef WOLFSSL_KEY_GEN
+#if defined(WOLFSSL_KEY_GEN) && (!defined(NO_RSA) || !defined(NO_DH) || !defined(NO_DSA))
     AssertNotNull(a = BN_new());
     AssertIntEQ(BN_generate_prime_ex(a, 512, 0, NULL, NULL, NULL),
         SSL_SUCCESS);

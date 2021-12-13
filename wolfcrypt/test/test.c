@@ -34440,7 +34440,7 @@ WOLFSSL_TEST_SUBROUTINE int pkcs7signed_test(void)
                             eccClientCertBuf, (word32)eccClientCertBufSz,
                             eccClientPrivKeyBuf, (word32)eccClientPrivKeyBufSz);
 
-#if !defined(NO_AES) && defined(HAVE_AES_CBC)
+#if !defined(NO_RSA) && !defined(NO_AES) && defined(HAVE_AES_CBC)
     if (ret >= 0)
         ret = pkcs7callback_test(
                             rsaClientCertBuf, (word32)rsaClientCertBufSz,

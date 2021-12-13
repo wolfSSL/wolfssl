@@ -28,6 +28,11 @@
 /* in case user set HAVE_ECC there */
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifdef WOLFSSL_ECC_NO_SMALL_STACK
+#undef WOLFSSL_SMALL_STACK
+#undef WOLFSSL_SMALL_STACK_CACHE
+#endif
+
 /*
 Possible ECC enable options:
  * HAVE_ECC:            Overall control of ECC                  default: on
