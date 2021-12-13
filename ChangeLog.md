@@ -1,9 +1,12 @@
 # wolfSSL Release 5.X.X (TBD)
 Release 5.X.X of wolfSSL embedded TLS has bug fixes and new features including:
 
+### New Feature Additions
 ###### Wrappers
 * swig wrapper removed (./swig) - for Java wrappers, see wolfSSL JNI/JSSE and wolfCrypt JNI/JCE. For Python wrapper see wolfssl-py and wolfcrypt-py.
 
+###### Post Quantum
+* Support for OQS's (liboqs version 0.7.0) implementation of NIST Round 3 FALCON as TLS 1.3 SignatureScheme --with-liboqs
 
 # wolfSSL Release 5.0.0 (Nov 01, 2021)
 Release 5.0.0 of wolfSSL embedded TLS has bug fixes and new features including:
