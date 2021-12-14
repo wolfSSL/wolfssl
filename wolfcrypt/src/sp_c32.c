@@ -35767,6 +35767,7 @@ static void sp_1024_cond_add_42(sp_digit* r, const sp_digit* a,
         r[i + 7] = a[i + 7] + (b[i + 7] & m);
     }
     r[40] = a[40] + (b[40] & m);
+    r[41] = a[41] + (b[41] & m);
 #endif /* WOLFSSL_SP_SMALL */
 }
 
