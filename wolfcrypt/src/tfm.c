@@ -38,6 +38,11 @@
 /* in case user set USE_FAST_MATH there */
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifdef WOLFSSL_TFM_NO_SMALL_STACK
+#undef WOLFSSL_SMALL_STACK
+#undef WOLFSSL_SMALL_STACK_CACHE
+#endif
+
 #ifdef USE_FAST_MATH
 
 #ifdef NO_INLINE
