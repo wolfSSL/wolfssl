@@ -45,7 +45,7 @@
 /* Enable TLS client     */
 /* cannot enable with CRYPT_TEST or BENCHMARK */
 #define TLS_CLIENT
-/* Specifiy cipher suites that are supported by SCE 
+/* Specify cipher suites that are supported by SCE 
  * ClientHello specifies the cipher suite to communicate peer Server 
  * so that TLS handshake uses SCE protect mode 
  */
@@ -57,7 +57,7 @@
 /*#define USE_CERT_BUFFERS_256*/
 
 #if defined(USE_CERT_BUFFERS_2048) && defined(USE_CERT_BUFFERS_256)
-	#error please set either macro USE_CERT_BUFFERS_2048 or USE_CERT_BUFFERS_256
+    #error please set either macro USE_CERT_BUFFERS_2048 or USE_CERT_BUFFERS_256
 #endif
 
 void wolfSSL_TLS_client_init();

@@ -24,26 +24,27 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 |Board|EK-RA6M4|
 |Device|R7FA6M4AF3CFB|
 |Toolchain|GCC ARM Embedded|
-|FSP Version|3.4.0a|
+|FSP Version|3.5.0|
 
 #### Selected software components
 
 |Components|Version|
 |:--|:--|
-|Board Support Package Common Files|v3.4.0a|
-|Secure Cryptography Engine on RA6 Protected Mode|v3.4.0a|
-|I/O Port|v3.4.0a|
-|Arm CMSIS Version 5 - Core (M)|v5.7.0+fsp.3.4.0a|
-|RA6M3G-EK Board Support Files|v3.4.0a|
-|Board support package for R7FA6M4AF3CFB|v3.4.0a|
-|Board support package for RA6M4|v3.4.0a|
-|FreeRTOS|v10.4.3+fsp.3.4.0a|
-|FreeRTOS - Memory Management - Heap 4|v10.4.3+fsp.3.4.0a|
-|r_ether to FreeRTOS+TCP Wrapper|v3.4.0a|
-|Ethernet|v3.4.0.a|
-|Ethernet PHY|v3.4.0a|
-|FreeRTOS+TCP|v2.3.2+fsp.3.4.0a|
-|FreeRTOS - Buffer Allocation 2|v2.3.2+fsp.3.4.0a|
+|Board Support Package Common Files|v3.5.0|
+|Secure Cryptography Engine on RA6 Protected Mode|v3.5.0|
+|I/O Port|v3.5.0|
+|Arm CMSIS Version 5 - Core (M)|v5.8.0+fsp.3.5.0|
+|RA6M3G-EK Board Support Files|v3.5.0|
+|Board support package for R7FA6M4AF3CFB|v3.5.0|
+|Board support package for RA6M4|v3.5.0|
+|Board support package for RA6M4 - FSP Data|v3.5.0|
+|FreeRTOS|v10.4.3-LTS.Patch.2+fsp.3.5.0|
+|FreeRTOS - Memory Management - Heap 4|v10.4.3-LTS.Patch.2+fsp.3.5.0|
+|r_ether to FreeRTOS+TCP Wrapper|v3.5.0|
+|Ethernet|v3.5.0|
+|Ethernet PHY|v3.5.0|
+|FreeRTOS+TCP|v2.3.2-LTS.Patch.1+fsp.3.5.0|
+|FreeRTOS - Buffer Allocation 2|v2.3.2-LTS.Patch.1+fsp.3.5.0|
 
 ## Setup Steps and Build wolfSSL Library
 
@@ -61,24 +62,24 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 + Select FreeRTOS from RTOS selection. Click Next.
 + Check `FreeRTOS minimal - Static Allocation`. Click Finish.
 + Open Smart Configurator by clicking configuration.xml in the project
-+ Go to `BSP` tab and increase Heap Size under `RA Common` on Properties page
++ Go to `BSP` tab and increase Heap Size under `RA Common` on Properties page, e.g. 0x1000
 + Go to `Stacks` tab
-+ Add `SCE Protected Mode` stack from `New Stack` -> `Driver` -> `Crypt`
++ Add `SCE Protected Mode` stack from `New Stack` -> `Security`
 + Add New thead and set properties
 
 |Property|Value|
 |:--|:--|
 |Thread Symbol|sce_tst_thread|
 |Thread Name|sce_tst_thread|
-|Thread Stack size|increase depending on your environment|
+|Thread Stack size|increase depending on your environment<br> e.g. 0xA000|
 |Thread MemoryAllocation|Dyamic|
 |Common General Use Mutexes|Enabled|
 |Common General Enable Backward Compatibility|Enabled|
 |Common Memory Allocation Support Dynamic Allocation|Enabled|
-|Common Memory Allocation Total Heap Size|increase depending on your environment|
+|Common Memory Allocation Total Heap Size|increase depending on your environment<br> e.g. 0x20000|
 
-+ Add `Heap 4` stack to sce_tst_thread from `New Stack` -> `FreeRTOS` -> `Memory Management`
-+ Add `FreeRTOS + TCP` stack to sce_tst_thread from `New Stack` -> `FreeRTOS` -> `Libraries` and set properties
++ Add `Heap 4` stack to sce_tst_thread from `New Stack` -> `RTOS` -> `FreeRTOS Heap 4`
++ Add `FreeRTOS + TCP` stack to sce_tst_thread from `New Stack` -> `Networking` -> `FreeRTOS+TCP` and set properties
 
 |Property|Value|
 |:--|:--|
@@ -101,8 +102,8 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 + Enter `dummy_application` as the project name. Click Next.
 + Under `RA library project`, select `wolfSSL_RA6M4`.
 + Click Finish.
-+ Copy the followng folder inside dummy_app to `test_RA6M4`\
-  script/
++ Copy the followng folder and file at `dummy_application` to `test_RA6M4`\
+  script/\
   src/sce_tst_thread_entry.c
   
 + Add `sce_test()` call under /* TODO: add your own code here */ line at sce_tst_thread_entry.c
