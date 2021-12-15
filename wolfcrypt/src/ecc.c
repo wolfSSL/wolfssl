@@ -87,6 +87,11 @@ Possible ECC enable options:
  *                      the variant macro is used the bits2octets operation on
  *                      the hash is removed.
  *                                                              default: off
+ *
+ * WC_PROTECT_ENCRYPTED_MEM:
+ *                      Enables implementations that protect data that is in
+ *                      encrypted memory.
+ *                                                              default: off
  */
 
 /*
@@ -2762,6 +2767,7 @@ static int wc_ecc_gen_z(WC_RNG* rng, int size, ecc_point* p,
     return err;
 }
 
+#ifndef WC_PROTECT_ENCRYPTED_MEM
 #define M_POINTS 3
 
 /* Joye double-add ladder.
@@ -2924,6 +2930,183 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
 
     return err;
 }
+
+#else
+/* Number of points to allocate for use during scalar multiplication. */
+#define M_POINTS        5
+/* Last of the points is used as a temporary during calculations. */
+#define TMP_IDX         M_POINTS - 1
+
+static void mp_cond_swap_into_ct(mp_int* ra, mp_int* rb, mp_int* a, mp_int* b,
+    int digits, int m)
+{
+    int i;
+
+#if !defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_INT_NEGATIVE)
+    /* Only using positive numbers in ECC operations. */
+    ra->sign = 0;
+    rb->sign = 0;
+#endif
+    /* Don't store 0 when mask is 0, it will be in a register. */
+    ra->used = (int)(((a->used ^ b->used) & ((mp_digit)0 - (m & 1))) ^ a->used);
+    rb->used = (int)(((a->used ^ b->used) & ((mp_digit)0 - (m & 1))) ^ b->used);
+    for (i = 0; i < digits; i++) {
+        ra->dp[i] = ((a->dp[i] ^ b->dp[i]) & ((mp_digit)0 - (m & 1))) ^
+                    a->dp[i];
+        rb->dp[i] = ((a->dp[i] ^ b->dp[i]) & ((mp_digit)0 - (m & 1))) ^
+                    b->dp[i];
+    }
+}
+
+static void ecc_cond_swap_into_ct(ecc_point* ra, ecc_point* rb, ecc_point* a,
+    ecc_point* b, int digits, int m)
+{
+    /* Conditionally swap each ordinate. */
+    mp_cond_swap_into_ct(ra->x, rb->x, a->x, b->x, digits, m);
+    mp_cond_swap_into_ct(ra->y, rb->y, a->y, b->y, digits, m);
+    mp_cond_swap_into_ct(ra->z, rb->z, a->z, b->z, digits, m);
+}
+
+/* Joye double-add ladder.
+ * "Highly Regular Right-to-Left Algorithms for Scalar Multiplication"
+ * by Marc Joye (2007)
+ *
+ * Algorithm 1':
+ *   Input: P element of curve, k = (k[t-1],..., k[0]) base 2
+ *   Output: Q = kP
+ *   1: R[0] = P; R[1] = P
+ *   2: for j = 1 to t-1 do
+ *   3:   b = 1 - k[j]; R[b] = 2*R[b] + R[k[j]]
+ *   4: end for
+ *   5: b = k[0]; R[b] = R[b] - P
+ *   6: return R[0]
+ *
+ * Assumes: k < order.
+ */
+static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
+    ecc_point** R, mp_int* a, mp_int* modulus, mp_digit mp, WC_RNG* rng)
+{
+    int          err = MP_OKAY;
+    int          bytes = (mp_count_bits(modulus) + 7) / 8;
+    int          i;
+    int          j = 1;
+    int          cnt;
+    int          t = 0;
+    mp_int*      kt = R[TMP_IDX]->x;
+    /* First bit always 1 (fix at end) and swap equals first bit */
+    register int swap = 1;
+    /* Which pair of points has current value. R[0,1] or R[2,3] */
+    int          set = 0;
+    int          infinity;
+
+    /* Step 1: R[0] = P; R[1] = P */
+    /* R[0] = P */
+    if (err == MP_OKAY)
+        err = mp_copy(P->x, R[0]->x);
+    if (err == MP_OKAY)
+        err = mp_copy(P->y, R[0]->y);
+    if (err == MP_OKAY)
+        err = mp_copy(P->z, R[0]->z);
+
+    /* R[1] = P */
+    if (err == MP_OKAY)
+        err = mp_copy(P->x, R[1]->x);
+    if (err == MP_OKAY)
+        err = mp_copy(P->y, R[1]->y);
+    if (err == MP_OKAY)
+        err = mp_copy(P->z, R[1]->z);
+
+    /* Randomize z ordinates to obfuscate timing. */
+    if ((err == MP_OKAY) && (rng != NULL))
+        err = wc_ecc_gen_z(rng, bytes, R[0], modulus, mp, R[TMP_IDX]->x,
+                           R[TMP_IDX]->y);
+    if ((err == MP_OKAY) && (rng != NULL))
+        err = wc_ecc_gen_z(rng, bytes, R[1], modulus, mp, R[TMP_IDX]->x,
+                           R[TMP_IDX]->y);
+
+    if (err == MP_OKAY) {
+        /* Order could be one greater than the size of the modulus. */
+        t = mp_count_bits(modulus) + 1;
+        err = mp_copy(k, kt);
+    }
+    if (err == MP_OKAY) {
+        err = mp_grow(kt, modulus->used + 1);
+    }
+    /* Step 2: for j = 1 to t-1 do */
+    for (i = 1, j = 0, cnt = 0; (err == MP_OKAY) && (i < t); i++) {
+        if (++cnt == DIGIT_BIT) {
+            j++;
+            cnt = 0;
+        }
+
+        /* Step 3: b = 1 - k[j]; R[b] = 2*R[b] + R[k[j]] */
+        /* Swap R[0] and R[1] if other index is needed. */
+        /* Ensure 'swap' changes when shifted word is 0. */
+        swap += (kt->dp[j] >> cnt) + 2;
+        ecc_cond_swap_into_ct(R[(2 - set) + 0], R[(2 - set) + 1],
+                              R[set + 0], R[set + 1], modulus->used, swap);
+        /* Change to operate on set copied into. */
+        set = 2 - set;
+        /* Ensure 'swap' changes to a previously unseen value. */
+        swap += (kt->dp[j] >> cnt) + swap;
+
+        err = ecc_projective_dbl_point_safe(R[set + 0], R[set + 0], a, modulus,
+                                            mp);
+        if (err == MP_OKAY) {
+            err = ecc_projective_add_point_safe(R[set + 0], R[set + 1],
+                                         R[set + 0], a, modulus, mp, &infinity);
+        }
+    }
+    /* Step 4: end for */
+    /* Swap back if last bit is 0. */
+    /* Ensure 'swap' changes. */
+    swap += 1;
+    if (err == MP_OKAY) {
+        ecc_cond_swap_into_ct(R[(2 - set) + 0], R[(2 - set) + 1],
+                              R[set + 0], R[set + 1], modulus->used, swap);
+        set = 2 - set;
+    }
+
+    /* Step 5: b = k[0]; R[b] = R[b] - P */
+    /* R[TMP_IDX] = -P */
+    if (err == MP_OKAY)
+        err = mp_copy(P->x, R[TMP_IDX]->x);
+    if (err == MP_OKAY)
+        err = mp_sub(modulus, P->y, R[TMP_IDX]->y);
+    if (err == MP_OKAY)
+        err = mp_copy(P->z, R[TMP_IDX]->z);
+    /* Subtract point by adding negative. */
+    if (err == MP_OKAY) {
+        /* Swap R[0] and R[1], if necessary, to operate on the one we want.
+         * Last bit of k->dp[0] is being used to make decision to swap.
+         */
+        ecc_cond_swap_into_ct(R[(2 - set) + 0], R[(2 - set) + 1],
+                              R[set + 0], R[set + 1], modulus->used,
+                              (int)k->dp[0]);
+        set = 2 - set;
+        err = ecc_projective_add_point_safe(R[set + 0], R[TMP_IDX], R[set + 0],
+                                            a, modulus, mp, &infinity);
+        /* Swap back if necessary. */
+        if (err == MP_OKAY) {
+            ecc_cond_swap_into_ct(R[(2 - set) + 0], R[(2 - set) + 1],
+                                  R[set + 0], R[set + 1], modulus->used,
+                                  (int)k->dp[0]);
+            set = 2 - set;
+        }
+    }
+
+    /* Step 6: return R[0] */
+    if (err == MP_OKAY)
+        err = mp_copy(R[set + 0]->x, Q->x);
+    if (err == MP_OKAY)
+        err = mp_copy(R[set + 0]->y, Q->y);
+    if (err == MP_OKAY)
+        err = mp_copy(R[set + 0]->z, Q->z);
+
+    return err;
+}
+
+#endif
 
 #endif
 
