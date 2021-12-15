@@ -17245,12 +17245,16 @@ static int DecodeCertReq(DecodedCert* cert, int* criticalExt)
 int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
 {
     int   ret;
+#ifndef WOLFSSL_NO_MALLOC
     char* ptr;
+#endif
 
     ret = ParseCertRelative(cert, type, verify, cm);
     if (ret < 0)
         return ret;
 
+#ifndef WOLFSSL_NO_MALLOC
+    /* cert->subjectCN not stored as copy of WOLFSSL_NO_MALLOC defind */
     if (cert->subjectCNLen > 0) {
         ptr = (char*) XMALLOC(cert->subjectCNLen + 1, cert->heap,
                               DYNAMIC_TYPE_SUBJECT_CN);
@@ -17261,7 +17265,10 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
         cert->subjectCN = ptr;
         cert->subjectCNStored = 1;
     }
+#endif
 
+#ifndef WOLFSSL_NO_MALLOC
+    /* cert->publicKey not stored as copy if WOLFSSL_NO_MALLOC defined */
     if (cert->keyOID == RSAk &&
                           cert->publicKey != NULL  && cert->pubKeySize > 0) {
         ptr = (char*) XMALLOC(cert->pubKeySize, cert->heap,
@@ -17272,6 +17279,7 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
         cert->publicKey = (byte *)ptr;
         cert->pubKeyStored = 1;
     }
+#endif
 
     return ret;
 }
@@ -19950,6 +19958,57 @@ int wc_PemPubKeyToDer(const char* fileName,
 
 #endif /* !NO_FILESYSTEM && WOLFSSL_PEM_TO_DER */
 
+/* Get public key in DER format from a populated DecodedCert struct.
+ *
+ * Users must call wc_InitDecodedCert() and wc_ParseCert() before calling
+ * this API. wc_InitDecodedCert() accepts a DER/ASN.1 encoded certificate.
+ * To convert a PEM cert to DER first use wc_CertPemToDer() before calling
+ * wc_InitDecodedCert().
+ *
+ * cert   - populated DecodedCert struct holding X.509 certificate
+ * derKey - output buffer to place DER/ASN.1 encoded public key
+ * derKeySz [IN/OUT] - size of derKey buffer on input, size of public key
+ *                     on return. If derKey is passed in as NULL, derKeySz
+ *                     will be set to required buffer size for public key
+ *                     and LENGTH_ONLY_E will be returned from function.
+ * Returns 0 on success, or negative error code on failure. LENGTH_ONLY_E
+ * if derKey is NULL and returning length only.
+ */
+int wc_GetPubKeyDerFromCert(struct DecodedCert* cert,
+                            byte* derKey, word32* derKeySz)
+{
+    int ret = 0;
+
+    /* derKey may be NULL to return length only */
+    if (cert == NULL || derKeySz == NULL ||
+        (derKey != NULL && *derKeySz == 0)) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (cert->publicKey == NULL) {
+        WOLFSSL_MSG("DecodedCert does not contain public key\n");
+        return BAD_FUNC_ARG;
+    }
+
+    /* if derKey is NULL, return required output buffer size in derKeySz */
+    if (derKey == NULL) {
+        *derKeySz = cert->pubKeySize;
+        ret = LENGTH_ONLY_E;
+    }
+
+    if (ret == 0) {
+        if (cert->pubKeySize > *derKeySz) {
+            WOLFSSL_MSG("Output buffer not large enough for public key DER");
+            ret = BAD_FUNC_ARG;
+        }
+        else {
+            XMEMCPY(derKey, cert->publicKey, cert->pubKeySize);
+            *derKeySz = cert->pubKeySize;
+        }
+    }
+
+    return ret;
+}
 
 #if !defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || \
     defined(WOLFSSL_KCAPI_RSA) || \

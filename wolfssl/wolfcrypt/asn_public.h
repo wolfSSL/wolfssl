@@ -200,6 +200,9 @@ enum Ctc_Misc {
     CTC_MAX_ALT_SIZE  = WC_CTC_MAX_ALT_SIZE, /* may be huge, default: 16384 */
     CTC_SERIAL_SIZE   =    20,
     CTC_GEN_SERIAL_SZ =    16,
+    CTC_FILETYPE_ASN1 =     2,
+    CTC_FILETYPE_PEM  =     1,
+    CTC_FILETYPE_DEFAULT =  2,
 #ifdef WOLFSSL_CERT_EXT
     /* AKID could contains: hash + (Option) AuthCertIssuer,AuthCertSerialNum
      * We support only hash */
@@ -765,6 +768,9 @@ struct DecodedCert;
 WOLFSSL_API void wc_InitDecodedCert(struct DecodedCert*, const byte*, word32, void*);
 WOLFSSL_API void wc_FreeDecodedCert(struct DecodedCert*);
 WOLFSSL_API int  wc_ParseCert(struct DecodedCert*, int, int, void*);
+
+WOLFSSL_API int wc_GetPubKeyDerFromCert(struct DecodedCert* cert,
+                                        byte* derKey, word32* derKeySz);
 
 #ifdef __cplusplus
     } /* extern "C" */

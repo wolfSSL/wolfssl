@@ -12238,10 +12238,10 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
     #ifdef WOLFSSL_CERT_GEN
         static const char* otherCertPemFile = CERT_WRITE_TEMP_DIR "othercert.pem";
         static const char* certPemFile = CERT_WRITE_TEMP_DIR "cert.pem";
-    #endif
-    #ifdef WOLFSSL_CERT_REQ
-        static const char* certReqDerFile = CERT_WRITE_TEMP_DIR "certreq.der";
-        static const char* certReqPemFile = CERT_WRITE_TEMP_DIR "certreq.pem";
+        #ifdef WOLFSSL_CERT_REQ
+            static const char* certReqDerFile = CERT_WRITE_TEMP_DIR "certreq.der";
+            static const char* certReqPemFile = CERT_WRITE_TEMP_DIR "certreq.pem";
+        #endif
     #endif
 #endif /* !NO_RSA */
 
