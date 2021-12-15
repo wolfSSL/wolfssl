@@ -730,9 +730,12 @@ int wc_d2i_PKCS12_fp(const char* file, WC_PKCS12** pkcs12)
     if (pkcs12 == NULL) {
         WOLFSSL_MSG("pkcs12 parameter NULL.");
         ret = BAD_FUNC_ARG;
+        buf = NULL;
     }
 
-    ret = wc_FileLoad(file, &buf, &bufSz, NULL);
+    if (ret == 0)
+        ret = wc_FileLoad(file, &buf, &bufSz, NULL);
+
     if (ret == 0) {
         if (*pkcs12 == NULL) {
             tmpPkcs12 = wc_PKCS12_new();
