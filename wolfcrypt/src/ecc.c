@@ -75,6 +75,18 @@ Possible ECC enable options:
  *                      signing. If the value is invalid then an error is
  *                      returned rather than generating a new 'k'. (For testing)
  *                                                              default: off
+ * WOLFSSL_ECDSA_DETERMINISTIC_K: Enables RFC6979 implementation of
+ *                      deterministic ECC signatures. The following function
+ *                      can be used to set the deterministic signing flag in the
+ *                      ecc key structure.
+ *                      int wc_ecc_set_deterministic(ecc_key* key, byte flag)
+ *                                                              default: off
+ *
+ * WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT: RFC6979 lists a variant that uses the
+ *                      hash directly instead of doing bits2octets(H(m)), when
+ *                      the variant macro is used the bits2octets operation on
+ *                      the hash is removed.
+ *                                                              default: off
  */
 
 /*
@@ -5484,7 +5496,8 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 }
 #endif /* !NO_ASN */
 
-#if defined(WOLFSSL_ECDSA_DETERMINISTIC_K)
+#if defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
 /* returns MP_OKAY on success */
 static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
 {
@@ -5527,7 +5540,8 @@ static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
     FREE_CURVE_SPECS();
     return err;
 }
-#endif /* WOLFSSL_ECDSA_DETERMINISTIC_K */
+#endif /* WOLFSSL_ECDSA_DETERMINISTIC_K ||
+          WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT */
 
 #if defined(WOLFSSL_STM32_PKA)
 int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
@@ -5587,7 +5601,8 @@ static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
              break;
         }
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
-           defined(WOLFSSL_ECDSA_DETERMINISTIC_K)
+           defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+           defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
         if (key->sign_k != NULL) {
             if (loop_check > 1) {
                err = RNG_FAILURE_E;
@@ -5606,7 +5621,8 @@ static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
     #ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
             loop_check = 64;
     #endif
-    #ifdef WOLFSSL_ECDSA_DETERMINISTIC_K
+    #if defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+        defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
             if (key->deterministic == 1) {
                 /* sign_k generated earlier in function for SP calls.
                  * Only go through the loop once and fail if error */
@@ -5713,6 +5729,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT) || \
     (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
     (defined(HAVE_CAVIUM_V) || defined(HAVE_INTEL_QA)))
    DECLARE_CURVE_SPECS(curve, ECC_CURVE_FIELD_COUNT);
@@ -5743,7 +5760,8 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
     }
 #endif
 
-#if defined(WOLFSSL_ECDSA_DETERMINISTIC_K)
+#if defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
     /* generate deterministic 'k' value to be used either with SP or normal */
     if (key->deterministic == 1) {
         if (deterministic_sign_helper(in, inlen, key)) {
@@ -5760,7 +5778,8 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
     #endif
     ) {
     #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) \
-        || defined(WOLFSSL_ECDSA_DETERMINISTIC_K)
+        || defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+           defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
         mp_int* sign_k = key->sign_k;
     #else
         mp_int* sign_k = NULL;
@@ -5874,7 +5893,8 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
    /* load curve info */
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
-    defined(WOLFSSL_ECDSA_DETERMINISTIC_K)
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
     ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT, err);
     if (err == MP_OKAY)
         err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
@@ -6022,13 +6042,15 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    return err;
 }
 
-#if defined(WOLFSSL_ECDSA_DETERMINISTIC_K)
+#if defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
 /* helper function to do HMAC operations
  * returns 0 on success and updates "out" buffer
  */
 static int _HMAC_K(byte* K, word32 KSz, byte* V, word32 VSz,
         const byte* h1, word32 h1Sz, byte* x, word32 xSz, byte* oct,
-        byte* out, enum wc_HashType hashType, void* heap) {
+        byte* out, enum wc_HashType hashType, void* heap)
+{
     Hmac hmac;
     int  ret, init;
 
@@ -6140,7 +6162,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     }
 #endif
 
-    VSz = KSz = h1len = hashSz;
+    VSz = KSz = h1len = xSz = hashSz;
 
     /* 3.2 b. Set V = 0x01 0x01 ... */
     XMEMSET(V, 0x01, VSz);
@@ -6149,7 +6171,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     XMEMSET(K, 0x00, KSz);
 
     mp_init(&z1); /* always init z1 and free z1 */
-    ret = mp_to_unsigned_bin(priv, x);
+    ret = mp_to_unsigned_bin_len(priv, x, hashSz);
     if (ret == 0) {
         qbits = mp_count_bits(order);
         ret = mp_read_unsigned_bin(&z1, hash, hashSz);
@@ -6161,7 +6183,11 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         mp_rshb(&z1, (hashSz * WOLFSSL_BIT_SIZE) - qbits);
         XMEMSET(h1, 0, WC_MAX_DIGEST_SIZE);
 
-        /* mod reduce by order using conditional subtract */
+    #if !defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
+        /* mod reduce by order using conditional subtract
+         * RFC6979 lists a variant that uses the hash directly instead of
+         * doing bits2octets(H(m)), when variant macro is used avoid this
+         * bits2octets operation */
         if (mp_cmp(&z1, order) == MP_GT) {
             mp_sub(&z1, order, &z1);
             h1len = mp_unsigned_bin_size(&z1);
@@ -6172,7 +6198,9 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
                 ret = mp_to_unsigned_bin(&z1, h1);
             }
         }
-        else {
+        else
+    #endif
+        {
             /* use original hash and keep leading 0's */
             h1len = hashSz;
             XMEMCPY(h1, hash, hashSz);

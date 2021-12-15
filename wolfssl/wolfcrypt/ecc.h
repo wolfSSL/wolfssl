@@ -489,10 +489,12 @@ struct ecc_key {
 #endif
 
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
-    defined(WOLFSSL_ECDSA_DETERMINISTIC_K)
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
     mp_int *sign_k;
 #endif
-#if defined(WOLFSSL_ECDSA_DETERMINISTIC_K)
+#if defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
     byte deterministic:1;
 #endif
 
@@ -598,7 +600,8 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 WOLFSSL_API
 int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                         ecc_key* key, mp_int *r, mp_int *s);
-#ifdef WOLFSSL_ECDSA_DETERMINISTIC_K
+#if defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
 WOLFSSL_API
 int wc_ecc_set_deterministic(ecc_key* key, byte flag);
 WOLFSSL_API
