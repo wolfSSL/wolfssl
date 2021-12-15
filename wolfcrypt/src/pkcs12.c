@@ -720,8 +720,8 @@ int wc_d2i_PKCS12(const byte* der, word32 derSz, WC_PKCS12* pkcs12)
 int wc_d2i_PKCS12_fp(const char* file, WC_PKCS12** pkcs12)
 {
     int ret = 0;
-    byte* buf;
-    size_t bufSz;
+    byte* buf = NULL;
+    size_t bufSz = 0;
     WC_PKCS12* tmpPkcs12 = NULL;
     int callerAlloc = 1;
 
@@ -732,7 +732,9 @@ int wc_d2i_PKCS12_fp(const char* file, WC_PKCS12** pkcs12)
         ret = BAD_FUNC_ARG;
     }
 
-    ret = wc_FileLoad(file, &buf, &bufSz, NULL);
+    if (ret == 0)
+        ret = wc_FileLoad(file, &buf, &bufSz, NULL);
+
     if (ret == 0) {
         if (*pkcs12 == NULL) {
             tmpPkcs12 = wc_PKCS12_new();
