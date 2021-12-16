@@ -6119,7 +6119,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         return BAD_FUNC_ARG;
     }
 
-    if ((xSz = mp_unsigned_bin_size(priv)) > MAX_ECC_BYTES) {
+    if (mp_unsigned_bin_size(priv) > MAX_ECC_BYTES) {
         WOLFSSL_MSG("private key larger than max expected!");
         return BAD_FUNC_ARG;
     }
