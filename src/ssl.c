@@ -17686,6 +17686,7 @@ cleanup:
     {
         WOLFSSL_ENTER("wolfSSL_ERR_get_error");
 
+#ifdef WOLFSSL_HAVE_ERROR_QUEUE
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
         {
             unsigned long ret = wolfSSL_ERR_peek_error_line_data(NULL, NULL,
@@ -17693,7 +17694,7 @@ cleanup:
             wc_RemoveErrorNode(-1);
             return ret;
         }
-#elif (defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE))
+#else
         {
             int ret = wc_PullErrorNode(NULL, NULL, NULL);
 
@@ -17709,12 +17710,13 @@ cleanup:
 
             return (unsigned long)ret;
         }
+#endif
 #else
         return (unsigned long)(0 - NOT_COMPILED_IN);
 #endif
     }
 
-#if (defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE))
+#ifdef WOLFSSL_HAVE_ERROR_QUEUE
 #ifndef NO_BIO
     /* print out and clear all errors */
     void wolfSSL_ERR_print_errors(WOLFSSL_BIO* bio)
@@ -17747,7 +17749,7 @@ cleanup:
         }
     }
 #endif /* !NO_BIO */
-#endif /* OPENSSL_EXTRA || DEBUG_WOLFSSL_VERBOSE */
+#endif /* WOLFSSL_HAVE_ERROR_QUEUE */
 
 #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
 
@@ -19475,9 +19477,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     void wolfSSL_ERR_clear_error(void)
     {
         WOLFSSL_ENTER("wolfSSL_ERR_clear_error");
-
-#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX) || \
-    defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
         wc_ClearErrorNodes();
 #endif
     }
@@ -19951,7 +19951,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
      */
     unsigned long wolfSSL_ERR_get_error_line(const char** file, int* line)
     {
-    #ifdef DEBUG_WOLFSSL
+    #ifdef WOLFSSL_HAVE_ERROR_QUEUE
         int ret = wc_PullErrorNode(file, NULL, line);
         if (ret < 0) {
             if (ret == BAD_STATE_E) return 0; /* no errors in queue */
@@ -20057,9 +20057,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     unsigned long wolfSSL_ERR_get_error_line_data(const char** file, int* line,
                                                   const char** data, int *flags)
     {
+#ifdef WOLFSSL_HAVE_ERROR_QUEUE
         int ret;
 
-        WOLFSSL_STUB("wolfSSL_ERR_get_error_line_data");
+        WOLFSSL_ENTER("wolfSSL_ERR_get_error_line_data");
 
         if (flags != NULL) {
             if ((*flags & ERR_TXT_STRING) == ERR_TXT_STRING) {
@@ -20090,6 +20091,15 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         }
 
         return (unsigned long)ret;
+#else
+        WOLFSSL_ENTER("wolfSSL_ERR_get_error_line_data");
+        WOLFSSL_MSG("Error queue turned off, can not get error line");
+        (void)file;
+        (void)line;
+        (void)data;
+        (void)flags;
+        return 0;
+#endif
     }
 
 #endif /* OPENSSL_EXTRA */
@@ -44382,10 +44392,8 @@ err:
         }
 
         if ((l = wolfSSL_BIO_get_len(bio)) <= 0) {
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
             /* No certificate in buffer */
             WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
-    #endif
             return WOLFSSL_FAILURE;
         }
 
@@ -44632,6 +44640,7 @@ err:
                 }
             }
             else {
+#ifdef WOLFSSL_HAVE_ERROR_QUEUE
                 int err = (int)wolfSSL_ERR_peek_last_error();
                 if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
                         ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
@@ -44644,6 +44653,13 @@ err:
                      */
                     wc_RemoveErrorNode(-1);
                 }
+#else
+                if (wolfSSL_sk_X509_INFO_num(localSk) > 0) {
+                    WOLFSSL_MSG("At least one X509_INFO object on stack."
+                                "Assuming error means EOF or no more PEM"
+                                "headers found.");
+                }
+#endif
                 else {
                     ret = WOLFSSL_FAILURE;
                 }
@@ -45921,8 +45937,7 @@ unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line)
 
     (void)line;
     (void)file;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(DEBUG_WOLFSSL) || \
-    defined(WOLFSSL_HAPROXY)
+#ifdef WOLFSSL_HAVE_ERROR_QUEUE
     {
         int ret;
 
@@ -48283,7 +48298,7 @@ unsigned long wolfSSL_ERR_peek_last_error(void)
 {
     WOLFSSL_ENTER("wolfSSL_ERR_peek_last_error");
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_NGINX)
+#ifdef WOLFSSL_HAVE_ERROR_QUEUE
     {
         int ret;
 
@@ -49361,9 +49376,7 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
         *flags = 0;
     }
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_OPENSSH) || defined(WOLFSSL_HAPROXY) || \
-    defined(WOLFSSL_MYSQL_COMPATIBLE)
+#ifdef WOLFSSL_HAVE_ERROR_QUEUE
     {
         int ret = 0;
 

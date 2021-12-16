@@ -105,6 +105,12 @@ WOLFSSL_API void wolfSSL_Debugging_OFF(void);
     WOLFSSL_API const char *wolfSSL_global_cflags(void);
 #endif
 
+
+#if (defined(OPENSSL_EXTRA) && !defined(_WIN32) && \
+        !defined(NO_ERROR_QUEUE)) || defined(DEBUG_WOLFSSL_VERBOSE)
+#define WOLFSSL_HAVE_ERROR_QUEUE
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
     WOLFSSL_LOCAL int wc_LoggingInit(void);
     WOLFSSL_LOCAL int wc_LoggingCleanup(void);
@@ -175,8 +181,7 @@ WOLFSSL_API void wolfSSL_Debugging_OFF(void);
 #if defined(DEBUG_WOLFSSL) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) ||\
     defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
 
-    #if (!defined(NO_ERROR_QUEUE) && defined(OPENSSL_EXTRA) && !defined(_WIN32))\
-        || defined(DEBUG_WOLFSSL_VERBOSE)
+    #ifdef WOLFSSL_HAVE_ERROR_QUEUE
         WOLFSSL_API void WOLFSSL_ERROR_LINE(int err, const char* func, unsigned int line,
             const char* file, void* ctx);
         #define WOLFSSL_ERROR(x) \
