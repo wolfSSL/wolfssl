@@ -15224,7 +15224,7 @@ static int DecodeAuthKeyId(const byte* input, int sz, DecodedCert* cert)
     WOLFSSL_ENTER("DecodeAuthKeyId");
 
     if (GetSequence(input, &idx, &length, sz) < 0) {
-        WOLFSSL_MSG("\tfail: should be a SEQUENCE\n");
+        WOLFSSL_MSG("\tfail: should be a SEQUENCE");
         return ASN_PARSE_E;
     }
 
@@ -15233,7 +15233,7 @@ static int DecodeAuthKeyId(const byte* input, int sz, DecodedCert* cert)
     }
 
     if (tag != (ASN_CONTEXT_SPECIFIC | 0)) {
-        WOLFSSL_MSG("\tinfo: OPTIONAL item 0, not available\n");
+        WOLFSSL_MSG("\tinfo: OPTIONAL item 0, not available");
         cert->extAuthKeyIdSet = 0;
         return 0;
     }
@@ -22332,7 +22332,7 @@ int SetNameEx(byte* output, word32 outputSz, CertName* name, void* heap)
             #ifdef WOLFSSL_SMALL_STACK
                 XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             #endif
-                WOLFSSL_MSG("EncodeName on multiple attributes failed\n");
+                WOLFSSL_MSG("EncodeName on multiple attributes failed");
                 return BUFFER_E;
             }
             totalBytes += ret;
@@ -30475,7 +30475,7 @@ static int ParseCRL_AuthKeyIdExt(const byte* input, int sz, DecodedCRL* dcrl)
     WOLFSSL_ENTER("ParseCRL_AuthKeyIdExt");
 
     if (GetSequence(input, &idx, &length, sz) < 0) {
-        WOLFSSL_MSG("\tfail: should be a SEQUENCE\n");
+        WOLFSSL_MSG("\tfail: should be a SEQUENCE");
         return ASN_PARSE_E;
     }
 
@@ -30484,7 +30484,7 @@ static int ParseCRL_AuthKeyIdExt(const byte* input, int sz, DecodedCRL* dcrl)
     }
 
     if (tag != (ASN_CONTEXT_SPECIFIC | 0)) {
-        WOLFSSL_MSG("\tinfo: OPTIONAL item 0, not available\n");
+        WOLFSSL_MSG("\tinfo: OPTIONAL item 0, not available");
         return 0;
     }
 

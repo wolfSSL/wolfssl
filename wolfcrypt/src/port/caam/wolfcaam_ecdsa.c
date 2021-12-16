@@ -117,7 +117,7 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
     /* check for known predetermined parameters */
     ecdsel = GetECDSEL(dp->id, CAAM_ECDSA_PD);
     if (ecdsel == 0) {
-        WOLFSSL_MSG("Unsupported curve type\n");
+        WOLFSSL_MSG("Unsupported curve type");
         return BAD_FUNC_ARG;
     }
 
@@ -175,7 +175,7 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
         mp_free(&mpr);
         mp_free(&mps);
         if (ret != 0) {
-            WOLFSSL_MSG("Issue converting to signature\n");
+            WOLFSSL_MSG("Issue converting to signature");
             return -1;
         }
     }

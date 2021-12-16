@@ -329,7 +329,7 @@ int tsip_Open()
         /* unlock hw */
         tsip_hw_unlock();
     } else 
-        WOLFSSL_MSG("Failed to lock tsip hw \n");
+        WOLFSSL_MSG("Failed to lock tsip hw ");
     
     WOLFSSL_MSG( "<< tsip_Open");
     return ret;
@@ -353,7 +353,7 @@ void tsip_Close()
             WOLFSSL_MSG("RENESAS TSIP Close failed");
         }
     } else
-        WOLFSSL_MSG("Failed to unlock tsip hw \n");
+        WOLFSSL_MSG("Failed to unlock tsip hw ");
     WOLFSSL_MSG("<< tsip_Close");    
 }
 
@@ -441,7 +441,7 @@ int tsip_Sha1Hmac(
       return BAD_FUNC_ARG;
     
     if ((ret = tsip_hw_lock()) != 0) {
-        WOLFSSL_MSG("hw lock failed\n");
+        WOLFSSL_MSG("hw lock failed");
         return ret;
     }
     
@@ -507,7 +507,7 @@ int tsip_Sha256Hmac(
         key_index = ssl->keys.tsip_server_write_MAC_secret;
 
     if ((ret = tsip_hw_lock()) != 0) {
-        WOLFSSL_MSG("hw lock failed\n");
+        WOLFSSL_MSG("hw lock failed");
         return ret;
     }
     
@@ -561,7 +561,7 @@ int tsip_generateVerifyData(const byte *ms, /* master secret */
         ret = R_TSIP_TlsGenerateVerifyData(l_side, (uint32_t*)ms,
                        (uint8_t*)handshake_hash, hashes/* out */);
         if (ret != TSIP_SUCCESS) {
-            WOLFSSL_MSG("R_TSIP_TlsGenerateSessionKey failed\n");
+            WOLFSSL_MSG("R_TSIP_TlsGenerateSessionKey failed");
         }
     }
     /* unlock hw */
@@ -620,7 +620,7 @@ int tsip_generateSeesionKey(struct WOLFSSL *ssl)
                     NULL, NULL);
 #endif                
         if (ret != TSIP_SUCCESS) {
-            WOLFSSL_MSG("R_TSIP_TlsGenerateSessionKey failed\n");
+            WOLFSSL_MSG("R_TSIP_TlsGenerateSessionKey failed");
         } else {
             /* succeeded creating session keys */
             /* alloc aes instance for both enc and dec */
@@ -685,7 +685,7 @@ int tsip_generateSeesionKey(struct WOLFSSL *ssl)
         /* unlock hw */
         tsip_hw_unlock();
     } else 
-        WOLFSSL_MSG("hw lock failed\n");
+        WOLFSSL_MSG("hw lock failed");
     
     WOLFSSL_MSG("<< tsip_generateSeesionKey");
     return ret;
@@ -718,7 +718,7 @@ int tsip_generateMasterSecretEx(
             (uint32_t*)pr,
             (uint8_t*)cr, (uint8_t*)sr, (uint32_t*)ms);
         if (ret != TSIP_SUCCESS) {
-            WOLFSSL_MSG("R_TSIP_TlsGenerateMasterSecret failed\n");
+            WOLFSSL_MSG("R_TSIP_TlsGenerateMasterSecret failed");
         }
         /* unlock hw */
         tsip_hw_unlock();
@@ -751,7 +751,7 @@ int tsip_generateMasterSecret(
                 (uint32_t*)ms);
 
         if (ret != TSIP_SUCCESS) {
-            WOLFSSL_MSG("R_TSIP_TlsGenerateMasterSecret failed\n");
+            WOLFSSL_MSG("R_TSIP_TlsGenerateMasterSecret failed");
         }
         /* unlock hw */
         tsip_hw_unlock();
@@ -776,7 +776,7 @@ int tsip_generatePremasterSecret(byte *premaster, word32 preSz )
         /* generate pre-master, 80 bytes */
         ret = R_TSIP_TlsGeneratePreMasterSecret( (uint32_t*)premaster );
         if (ret != TSIP_SUCCESS) {
-            WOLFSSL_MSG(" R_TSIP_TlsGeneratePreMasterSecret failed\n");
+            WOLFSSL_MSG(" R_TSIP_TlsGeneratePreMasterSecret failed");
         }
         
         /* unlock hw */
@@ -824,7 +824,7 @@ int tsip_generateEncryptPreMasterSecret(
             ret = -1;
             
         if (ret != TSIP_SUCCESS) {
-            WOLFSSL_MSG(" R_TSIP_TlsEncryptPreMasterSecret failed\n");
+            WOLFSSL_MSG(" R_TSIP_TlsEncryptPreMasterSecret failed");
         } else {
             *outSz = 256; /* TSIP can only handles 2048 RSA */
         }
@@ -854,11 +854,11 @@ int tsip_tls_CertVerify(
       return BAD_FUNC_ARG;
     
     if (!signature) {
-        WOLFSSL_MSG(" signature for ca verification is not set\n");
+        WOLFSSL_MSG(" signature for ca verification is not set");
         return -1;
     }
     if (!tsip_encRsaKeyIndex) {
-        WOLFSSL_MSG(" tsip_encRsaKeyIndex is NULL.\n");
+        WOLFSSL_MSG(" tsip_encRsaKeyIndex is NULL.");
         return -1;
     }
     
@@ -920,7 +920,7 @@ int tsip_tls_RootCertVerify(
       return BAD_FUNC_ARG;
       
     if (!signature) {
-        WOLFSSL_MSG(" signature for ca verification is not set\n");
+        WOLFSSL_MSG(" signature for ca verification is not set");
         return -1;
     }
     

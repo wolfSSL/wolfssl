@@ -1118,7 +1118,7 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
         ret = wc_PKCS7_CheckPublicKeyDer(pkcs7, dCert->keyOID,
                                          dCert->publicKey, dCert->pubKeySize);
         if (ret != 0) {
-            WOLFSSL_MSG("Invalid public key, check pkcs7->cert\n");
+            WOLFSSL_MSG("Invalid public key, check pkcs7->cert");
             FreeDecodedCert(dCert);
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
@@ -1128,7 +1128,7 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
 
         if (dCert->pubKeySize > (MAX_RSA_INT_SZ + MAX_RSA_E_SZ) ||
             dCert->serialSz > MAX_SN_SZ) {
-            WOLFSSL_MSG("Invalid size in certificate\n");
+            WOLFSSL_MSG("Invalid size in certificate");
             FreeDecodedCert(dCert);
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);

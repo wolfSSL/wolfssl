@@ -236,7 +236,7 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
 
     switch (oid) {
         case WC_PKCS12_ENCRYPTED_DATA:
-            WOLFSSL_MSG("Found PKCS12 OBJECT: ENCRYPTED DATA\n");
+            WOLFSSL_MSG("Found PKCS12 OBJECT: ENCRYPTED DATA");
             break;
 
         case WC_PKCS12_DATA:
