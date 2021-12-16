@@ -369,12 +369,12 @@ int wolfCrypt_Cleanup(void)
 
     #ifdef WOLFSSL_RENESAS_SCEPROTECT
         wc_sce_Close();
-    #else
+    #endif
 
     #ifdef WOLFSSL_SCE
         WOLFSSL_SCE_GSCE_HANDLE.p_api->close(WOLFSSL_SCE_GSCE_HANDLE.p_ctrl);
     #endif
-    #endif
+    
     #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
         defined(WOLFSSL_IMX6_CAAM_BLOB)
         wc_caamFree();
