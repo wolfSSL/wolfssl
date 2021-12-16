@@ -14837,6 +14837,10 @@ static int DecodePolicyConstraints(const byte* input, int sz, DecodedCert* cert)
         WOLFSSL_MSG("\tfail: skip value too big");
         return BUFFER_E;
     }
+    if (idx >= (word32)sz) {
+        WOLFSSL_MSG("\tfail: no policy const skip to read");
+        return BUFFER_E;
+    }
     cert->policyConstSkip = input[idx];
 
     return 0;
