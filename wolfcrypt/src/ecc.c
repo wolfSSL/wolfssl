@@ -6100,15 +6100,16 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     byte V[WC_MAX_DIGEST_SIZE];
     byte K[WC_MAX_DIGEST_SIZE];
     byte x[MAX_ECC_BYTES];
+    mp_int z1[1];
 #else
     byte *h1 = NULL;
     byte *V  = NULL;
     byte *K  = NULL;
     byte *x  = NULL;
+    mp_int *z1 = NULL;
 #endif
     word32 xSz, VSz, KSz, h1len;
     byte intOct;
-    mp_int z1;
 
     if (hash == NULL || k == NULL || order == NULL) {
         return BAD_FUNC_ARG;
@@ -6148,6 +6149,12 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
             ret = MEMORY_E;
     }
 
+    if (ret == 0) {
+        z1 = (mp_int *)XMALLOC(sizeof(z1), heap, DYNAMIC_TYPE_ECC_BUFFER);
+        if (z1 == NULL)
+            ret = MEMORY_E;
+    }
+
     /* bail out if any error has been hit at this point */
     if (ret != 0) {
         if (x != NULL)
@@ -6170,17 +6177,17 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     /* 3.2 c. Set K = 0x00 0x00 ... */
     XMEMSET(K, 0x00, KSz);
 
-    mp_init(&z1); /* always init z1 and free z1 */
+    mp_init(z1); /* always init z1 and free z1 */
     ret = mp_to_unsigned_bin_len(priv, x, hashSz);
     if (ret == 0) {
         qbits = mp_count_bits(order);
-        ret = mp_read_unsigned_bin(&z1, hash, hashSz);
+        ret = mp_read_unsigned_bin(z1, hash, hashSz);
     }
 
     /* bits2octets on h1 */
     if (ret == 0) {
         /* right shift by bits in hash minus bits in order */
-        mp_rshb(&z1, (hashSz * WOLFSSL_BIT_SIZE) - qbits);
+        mp_rshb(z1, (hashSz * WOLFSSL_BIT_SIZE) - qbits);
         XMEMSET(h1, 0, WC_MAX_DIGEST_SIZE);
 
     #if !defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
@@ -6188,14 +6195,14 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
          * RFC6979 lists a variant that uses the hash directly instead of
          * doing bits2octets(H(m)), when variant macro is used avoid this
          * bits2octets operation */
-        if (mp_cmp(&z1, order) == MP_GT) {
-            mp_sub(&z1, order, &z1);
-            h1len = mp_unsigned_bin_size(&z1);
+        if (mp_cmp(z1, order) == MP_GT) {
+            mp_sub(z1, order, z1);
+            h1len = mp_unsigned_bin_size(z1);
             if (h1len < 0 || h1len > WC_MAX_DIGEST_SIZE) {
                 ret = BUFFER_E;
             }
             else {
-                ret = mp_to_unsigned_bin(&z1, h1);
+                ret = mp_to_unsigned_bin(z1, h1);
             }
         }
         else
@@ -6206,7 +6213,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
             XMEMCPY(h1, hash, hashSz);
         }
     }
-    mp_free(&z1);
+    mp_free(z1);
 
     /* 3.2 step d. K = HMAC_K(V || 0x00 || int2octests(x) || bits2octests(h1) */
     if (ret == 0) {
@@ -6282,6 +6289,8 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
+    if (z1 != NULL)
+        XFREE(z1, heap, DYNAMIC_TYPE_ECC_BUFFER);
     if (x != NULL)
         XFREE(x, heap, DYNAMIC_TYPE_PRIVATE_KEY);
     if (K != NULL)
