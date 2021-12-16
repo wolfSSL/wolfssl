@@ -1235,6 +1235,9 @@ enum Misc {
     HELLO_EXT_EXTMS = 0x0017,   /* ID for the extended master secret ext */
     SECRET_LEN      = WOLFSSL_MAX_MASTER_KEY_LENGTH,
                                 /* pre RSA and all master */
+#ifdef HAVE_LIBOQS
+    ENCRYPT_LEN     = 1500,     /* allow 1500 bit static buffer for falcon */
+#else
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) || \
     (defined(USE_FAST_MATH) && defined(FP_MAX_BITS) && FP_MAX_BITS >= 16384)
 #if !defined(NO_PSK) && defined(USE_FAST_MATH)
@@ -1245,9 +1248,6 @@ enum Misc {
 #else
 #ifndef NO_PSK
     ENCRYPT_LEN     = 512 + MAX_PSK_ID_LEN + 2,    /* 4096 bit static buffer */
-#else
-#ifdef HAVE_LIBOQS
-    ENCRYPT_LEN     = 1500,     /* allow 1500 bit static buffer for falcon */
 #else
     ENCRYPT_LEN     = 512,      /* allow 4096 bit static buffer */
 #endif
