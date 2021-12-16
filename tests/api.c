@@ -8825,7 +8825,11 @@ static void test_set_x509_badversion(WOLFSSL_CTX* ctx)
 /* override certificate version error */
 static int test_override_x509(int preverify, WOLFSSL_X509_STORE_CTX* store)
 {
+#ifndef OPENSSL_COMPATIBLE_DEFAULTS
     AssertIntEQ(store->error, ASN_VERSION_E);
+#else
+    AssertIntEQ(store->error, 0);
+#endif
     AssertIntEQ((int)wolfSSL_X509_get_version(store->current_cert), 1);
     (void)preverify;
     return 1;
@@ -8897,8 +8901,13 @@ static void test_wolfSSL_X509_TLS_version(void)
     test_client_nofail(&client_args, NULL);
     join_thread(serverThread);
 
+#ifndef OPENSSL_COMPATIBLE_DEFAULTS
     AssertIntEQ(client_args.return_code, TEST_FAIL);
     AssertIntEQ(server_args.return_code, TEST_FAIL);
+#else
+    AssertIntEQ(client_args.return_code, TEST_SUCCESS);
+    AssertIntEQ(server_args.return_code, TEST_SUCCESS);
+#endif
 
     FreeTcpReady(&ready);
 
@@ -29761,6 +29770,68 @@ static void test_wolfSSL_X509_NAME_hash(void)
 }
 
 #ifndef NO_BIO
+static void test_wolfSSL_X509_INFO_multiple_info(void)
+{
+#if defined(OPENSSL_ALL) && !defined(NO_RSA)
+    STACK_OF(X509_INFO) *info_stack;
+    X509_INFO *info;
+    int len;
+    int i;
+    const char* files[] = {
+        cliCertFile,
+        cliKeyFile,
+        /* This needs to be the order as svrCertFile contains the
+         * intermediate cert as well. */
+        svrKeyFile,
+        svrCertFile,
+        NULL,
+    };
+    const char** curFile;
+    BIO *fileBIO;
+    BIO *concatBIO = NULL;
+    byte tmp[FOURK_BUF];
+
+    /* concatenate the cert and the key file to force PEM_X509_INFO_read_bio
+     * to group objects together. */
+    AssertNotNull(concatBIO = BIO_new(BIO_s_mem()));
+    for (curFile = files; *curFile != NULL; curFile++) {
+        int fileLen;
+        AssertNotNull(fileBIO = BIO_new_file(*curFile, "rb"));
+        fileLen = wolfSSL_BIO_get_len(fileBIO);
+        while ((len = BIO_read(fileBIO, tmp, sizeof(tmp))) > 0) {
+            AssertIntEQ(BIO_write(concatBIO, tmp, len), len);
+            fileLen -= len;
+        }
+        /* Make sure we read the entire file */
+        AssertIntEQ(fileLen, 0);
+        BIO_free(fileBIO);
+    }
+
+    AssertNotNull(info_stack = PEM_X509_INFO_read_bio(concatBIO, NULL, NULL,
+                                                      NULL));
+    AssertIntEQ(sk_X509_INFO_num(info_stack), 3);
+    for (i = 0; i < sk_X509_INFO_num(info_stack); i++) {
+        AssertNotNull(info = sk_X509_INFO_value(info_stack, i));
+        AssertNotNull(info->x509);
+        AssertNull(info->crl);
+        if (i != 0) {
+            AssertNotNull(info->x_pkey);
+            AssertIntEQ(X509_check_private_key(info->x509,
+                                               info->x_pkey->dec_pkey), 1);
+        }
+        else {
+            AssertNull(info->x_pkey);
+        }
+    }
+
+    sk_X509_INFO_pop_free(info_stack, X509_INFO_free);
+    BIO_free(concatBIO);
+
+#endif
+}
+#endif
+
+#ifndef NO_BIO
 static void test_wolfSSL_X509_INFO(void)
 {
 #if defined(OPENSSL_ALL) && !defined(NO_RSA)
@@ -29795,6 +29866,7 @@ static void test_wolfSSL_X509_INFO(void)
         AssertNotNull(info = sk_X509_INFO_value(info_stack, i));
         AssertNotNull(info->x509);
         AssertNull(info->crl);
+        AssertNull(info->x_pkey);
     }
     sk_X509_INFO_pop_free(info_stack, X509_INFO_free);
     BIO_free(cert);
@@ -43307,6 +43379,34 @@ static void test_wolfSSL_EVP_PKEY_id(void)
     printf(resultFmt, passed);
 #endif
 }
+
+static void test_wolfSSL_EVP_PKEY_paramgen(void)
+{
+#if defined(OPENSSL_ALL) && \
+    !defined(NO_ECC_SECP) && \
+    /* This last bit is taken from ecc.c. It is the condition that
+     * defines ECC256 */ \
+    ((!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && \
+            ECC_MIN_KEY_SZ <= 256)
+    EVP_PKEY_CTX*   ctx;
+    EVP_PKEY*       pkey = NULL;
+
+    printf(testingFmt, "wolfSSL_EVP_PKEY_paramgen");
+
+    AssertNotNull(ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL));
+    AssertIntEQ(EVP_PKEY_paramgen_init(ctx), 1);
+    AssertIntEQ(EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx, NID_X9_62_prime256v1), 1);
+    AssertIntEQ(EVP_PKEY_CTX_set_ec_param_enc(ctx, OPENSSL_EC_NAMED_CURVE), 1);
+    AssertIntEQ(EVP_PKEY_keygen_init(ctx), 1);
+    AssertIntEQ(EVP_PKEY_keygen(ctx, &pkey), 1);
+
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_EVP_PKEY_keygen(void)
 {
 #if defined(OPENSSL_ALL)
@@ -48860,9 +48960,6 @@ static void test_wolfSSL_PEM_X509_INFO_read_bio(void)
 
     /* using dereference to maintain testing for Apache port*/
     AssertNotNull(info = sk_X509_INFO_pop(sk));
-    AssertNotNull(info->x_pkey);
-    AssertNotNull(info->x_pkey->dec_pkey);
-    AssertIntEQ(EVP_PKEY_bits(info->x_pkey->dec_pkey), 2048);
     AssertNotNull(subject =
             X509_NAME_oneline(X509_get_subject_name(info->x509), 0, 0));
 
@@ -52114,6 +52211,7 @@ void ApiTest(void)
     test_wolfSSL_X509_NAME();
     test_wolfSSL_X509_NAME_hash();
 #ifndef NO_BIO
+    test_wolfSSL_X509_INFO_multiple_info();
     test_wolfSSL_X509_INFO();
 #endif
     test_wolfSSL_X509_subject_name_hash();
@@ -52367,6 +52465,7 @@ void ApiTest(void)
     test_wolfSSL_EVP_PKEY_assign();
     test_wolfSSL_EVP_PKEY_base_id();
     test_wolfSSL_EVP_PKEY_id();
+    test_wolfSSL_EVP_PKEY_paramgen();
     test_wolfSSL_EVP_PKEY_keygen();
     test_wolfSSL_EVP_PKEY_keygen_init();
     test_wolfSSL_EVP_PKEY_missing_parameters();

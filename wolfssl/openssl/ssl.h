@@ -298,7 +298,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_CTX_free                    wolfSSL_CTX_free
 #define SSL_free                        wolfSSL_free
 #define SSL_shutdown                    wolfSSL_shutdown
-#define SSL_set_timeout                 wolfSSL_set_timeout
+#define SSL_set_timeout                 wolfSSL_SSL_SESSION_set_timeout
 
 #define SSL_CTX_set_quiet_shutdown      wolfSSL_CTX_set_quiet_shutdown
 #define SSL_set_quiet_shutdown          wolfSSL_set_quiet_shutdown
@@ -1441,8 +1441,9 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ERR_LIB_USER            15
 
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
-    defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_ALL) || \
-    defined(HAVE_LIGHTY) || defined(HAVE_STUNNEL)
+    defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA) || \
+    defined(HAVE_LIGHTY) || defined(HAVE_STUNNEL) || \
+    defined(WOLFSSL_WPAS_SMALL)
 
 #include <wolfssl/error-ssl.h>
 

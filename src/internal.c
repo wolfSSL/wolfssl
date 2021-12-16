@@ -5876,7 +5876,11 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ret = WOLFSSL_SUCCESS; /* set default ret */
 
     ssl->ctx     = ctx; /* only for passing to calls, options could change */
-    ssl->version = ctx->method->version;
+    /* Don't change version on a SSL object that has already started a
+     * handshake */
+    if (!ssl->msgsReceived.got_client_hello &&
+            !ssl->msgsReceived.got_server_hello)
+        ssl->version = ctx->method->version;
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     ssl->options.mask = ctx->mask;
     ssl->options.minProto = ctx->minProto;
@@ -9343,6 +9347,9 @@ int CheckAvailableSize(WOLFSSL *ssl, int size)
 static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                            RecordLayerHeader* rh, word16 *size)
 {
+#ifdef OPENSSL_ALL
+    word32 start = *inOutIdx;
+#endif
     if (!ssl->options.dtls) {
 #ifdef HAVE_FUZZER
         if (ssl->fuzzerCb)
@@ -9453,6 +9460,22 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             break;
         case no_type:
         default:
+#ifdef OPENSSL_ALL
+            {
+                char *method = (char*)input + start;
+                /* Attempt to identify if this is a plain HTTP request.
+                 * No size checks because this function assumes at least
+                 * RECORD_HEADER_SZ size of data has been read which is
+                 * also the longest string comparison in this if. */
+                if (XSTRNCMP(method, "GET ", XSTR_SIZEOF("GET ")) == 0 ||
+                    XSTRNCMP(method, "POST ", XSTR_SIZEOF("POST ")) == 0 ||
+                    XSTRNCMP(method, "HEAD ", XSTR_SIZEOF("HEAD ")) == 0 ||
+                    XSTRNCMP(method, "PUT ", XSTR_SIZEOF("PUT ")) == 0) {
+                    WOLFSSL_MSG("Plain HTTP request detected");
+                    return SSL_R_HTTP_REQUEST;
+                }
+            }
+#endif
             WOLFSSL_MSG("Unknown Record Type");
             return UNKNOWN_RECORD_TYPE;
     }
@@ -12445,9 +12468,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                 #endif /* SESSION_CERTS && WOLFSSL_ALT_CERT_CHAINS */
 
+                #ifndef OPENSSL_COMPATIBLE_DEFAULTS
                     /* Check peer's certificate version number. TLS 1.2 / 1.3
                      * requires the clients certificate be version 3 unless a
-                     * different version has been negotiated using RFC 7250 */
+                     * different version has been negotiated using RFC 7250.
+                     * OpenSSL doesn't appear to be performing this check.
+                     * For TLS 1.3 see RFC8446 Section 4.4.2.3 */
                     if (ssl->options.side == WOLFSSL_SERVER_END) {
                         if (args->dCert->version != WOLFSSL_X509_V3) {
                             WOLFSSL_MSG("Peers certificate was not version 3!");
@@ -12456,6 +12482,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                              * giving the user a chance to override */
                         }
                     }
+                #endif
 
                     /* check if fatal error */
                     if (args->verifyErr) {
@@ -30023,8 +30050,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ret == 0 && ssl->options.dtls)
             DtlsMsgPoolReset(ssl);
 #endif
-        WOLFSSL_LEAVE("DoClientHello", ret);
-        WOLFSSL_END(WC_FUNC_CLIENT_HELLO_DO);
 
     out:
 
@@ -30036,6 +30061,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ret == 0)
             ret = CertSetupCbWrapper(ssl);
 #endif
+
+        WOLFSSL_LEAVE("DoClientHello", ret);
+        WOLFSSL_END(WC_FUNC_CLIENT_HELLO_DO);
 
         return ret;
     }

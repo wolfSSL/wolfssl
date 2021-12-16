@@ -412,6 +412,9 @@ struct WOLFSSL_EVP_PKEY_CTX {
     int op; /* operation */
     int padding;
     int nbits;
+#ifdef HAVE_ECC
+    int curveNID;
+#endif
 };
 
 struct WOLFSSL_ASN1_PCTX {
@@ -625,6 +628,11 @@ WOLFSSL_API const unsigned char* wolfSSL_EVP_PKEY_get0_hmac(const WOLFSSL_EVP_PK
 WOLFSSL_API int wolfSSL_EVP_PKEY_sign_init(WOLFSSL_EVP_PKEY_CTX *ctx);
 WOLFSSL_API int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx,
   unsigned char *sig, size_t *siglen, const unsigned char *tbs, size_t tbslen);
+WOLFSSL_API int wolfSSL_EVP_PKEY_paramgen_init(WOLFSSL_EVP_PKEY_CTX *ctx);
+WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_ec_paramgen_curve_nid(WOLFSSL_EVP_PKEY_CTX *ctx,
+        int nid);
+WOLFSSL_API int EVP_PKEY_CTX_set_ec_param_enc(WOLFSSL_EVP_PKEY_CTX *ctx,
+        int flag);
 WOLFSSL_API int wolfSSL_EVP_PKEY_keygen_init(WOLFSSL_EVP_PKEY_CTX *ctx);
 WOLFSSL_API int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
   WOLFSSL_EVP_PKEY **ppkey);
@@ -925,6 +933,8 @@ WOLFSSL_API void wolfSSL_EVP_MD_do_all(void (*fn) (const WOLFSSL_EVP_MD *md,
 #define EVP_MD_CTX_copy_ex             wolfSSL_EVP_MD_CTX_copy_ex
 #define EVP_PKEY_sign_init             wolfSSL_EVP_PKEY_sign_init
 #define EVP_PKEY_sign                  wolfSSL_EVP_PKEY_sign
+#define EVP_PKEY_paramgen_init         wolfSSL_EVP_PKEY_paramgen_init
+#define EVP_PKEY_CTX_set_ec_paramgen_curve_nid wolfSSL_EVP_PKEY_CTX_set_ec_paramgen_curve_nid
 #define EVP_PKEY_keygen                wolfSSL_EVP_PKEY_keygen
 #define EVP_PKEY_keygen_init           wolfSSL_EVP_PKEY_keygen_init
 #define EVP_PKEY_bits                  wolfSSL_EVP_PKEY_bits

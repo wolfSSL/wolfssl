@@ -29581,43 +29581,68 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap, int noVerify)
     WOLFSSL_ENTER("OcspResponseDecode");
 
     /* peel the outer SEQUENCE wrapper */
-    if (GetSequence(source, &idx, &length, size) < 0)
+    if (GetSequence(source, &idx, &length, size) < 0) {
+        WOLFSSL_LEAVE("OcspResponseDecode", ASN_PARSE_E);
         return ASN_PARSE_E;
+    }
 
     /* First get the responseStatus, an ENUMERATED */
-    if (GetEnumerated(source, &idx, &resp->responseStatus, size) < 0)
+    if (GetEnumerated(source, &idx, &resp->responseStatus, size) < 0) {
+        WOLFSSL_LEAVE("OcspResponseDecode", ASN_PARSE_E);
         return ASN_PARSE_E;
+    }
 
-    if (resp->responseStatus != OCSP_SUCCESSFUL)
+    if (resp->responseStatus != OCSP_SUCCESSFUL) {
+        WOLFSSL_LEAVE("OcspResponseDecode", 0);
         return 0;
+    }
 
     /* Next is an EXPLICIT record called ResponseBytes, OPTIONAL */
-    if (idx >= size)
-        return ASN_INPUT_E;
-    if (GetASNTag(source, &idx, &tag, size) < 0)
+    if (idx >= size) {
+        WOLFSSL_LEAVE("OcspResponseDecode", ASN_PARSE_E);
         return ASN_PARSE_E;
-    if (tag != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC))
+    }
+    if (GetASNTag(source, &idx, &tag, size) < 0) {
+        WOLFSSL_LEAVE("OcspResponseDecode", ASN_PARSE_E);
         return ASN_PARSE_E;
-    if (GetLength(source, &idx, &length, size) < 0)
+    }
+    if (tag != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC)) {
+        WOLFSSL_LEAVE("OcspResponseDecode", ASN_PARSE_E);
         return ASN_PARSE_E;
+    }
+    if (GetLength(source, &idx, &length, size) < 0) {
+        WOLFSSL_LEAVE("OcspResponseDecode", ASN_PARSE_E);
+        return ASN_PARSE_E;
+    }
 
     /* Get the responseBytes SEQUENCE */
-    if (GetSequence(source, &idx, &length, size) < 0)
+    if (GetSequence(source, &idx, &length, size) < 0) {
+        WOLFSSL_LEAVE("OcspResponseDecode", ASN_PARSE_E);
         return ASN_PARSE_E;
+    }
 
     /* Check ObjectID for the resposeBytes */
-    if (GetObjectId(source, &idx, &oid, oidOcspType, size) < 0)
+    if (GetObjectId(source, &idx, &oid, oidOcspType, size) < 0) {
+        WOLFSSL_LEAVE("OcspResponseDecode", ASN_PARSE_E);
         return ASN_PARSE_E;
-    if (oid != OCSP_BASIC_OID)
+    }
+    if (oid != OCSP_BASIC_OID) {
+        WOLFSSL_LEAVE("OcspResponseDecode", ASN_PARSE_E);
         return ASN_PARSE_E;
+    }
     ret = GetOctetString(source, &idx, &length, size);
-    if (ret < 0)
+    if (ret < 0) {
+        WOLFSSL_LEAVE("OcspResponseDecode", ret);
         return ret;
+    }
 
     ret = DecodeBasicOcspResponse(source, &idx, resp, size, cm, heap, noVerify);
-    if (ret < 0)
+    if (ret < 0) {
+        WOLFSSL_LEAVE("OcspResponseDecode", ret);
         return ret;
+    }
 
+    WOLFSSL_LEAVE("OcspResponseDecode", 0);
     return 0;
 #else
     DECL_ASNGETDATA(dataASN, ocspResponseASN_Length);
@@ -29658,6 +29683,7 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap, int noVerify)
     }
 
     FREE_ASNGETDATA(dataASN, resp->heap);
+    WOLFSSL_LEAVE("OcspResponseDecode", ret);
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }

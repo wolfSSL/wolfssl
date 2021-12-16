@@ -1895,7 +1895,11 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
     if (bio == NULL)
         return WOLFSSL_FAILURE;
 
-    if (bio->type == WOLFSSL_BIO_FILE) {
+    if (bio->method != NULL && bio->method->ctrlCb != NULL) {
+        WOLFSSL_MSG("Calling custom BIO flush callback");
+        return (int)bio->method->ctrlCb(bio, BIO_CTRL_FLUSH, 0, NULL);
+    }
+    else if (bio->type == WOLFSSL_BIO_FILE) {
 #if !defined(NO_FILESYSTEM) && defined(XFFLUSH)
         if (XFFLUSH((FILE *)bio->ptr) != 0)
             return WOLFSSL_FAILURE;
