@@ -2146,8 +2146,9 @@ enum {
     SSL_CB_MODE_WRITE = 2,
 
     SSL_MODE_ENABLE_PARTIAL_WRITE = 2,
-    SSL_MODE_AUTO_RETRY = 3, /* wolfSSL default is to block with blocking io
-                              * and auto retry */
+    SSL_MODE_AUTO_RETRY = 3, /* wolfSSL default is to return WANT_{READ|WRITE}
+                              * to the user. This is set by default with
+                              * OPENSSL_COMPATIBLE_DEFAULTS. */
     SSL_MODE_RELEASE_BUFFERS = -1, /* For libwebsockets build. No current use. */
 
     BIO_CLOSE   = 1,
@@ -2483,6 +2484,7 @@ WOLFSSL_API int  wolfSSL_state(WOLFSSL* ssl);
 
 WOLFSSL_API void wolfSSL_cleanup_all_ex_data(void);
 WOLFSSL_API long wolfSSL_CTX_set_mode(WOLFSSL_CTX* ctx, long mode);
+WOLFSSL_API long wolfSSL_CTX_clear_mode(WOLFSSL_CTX* ctx, long mode);
 WOLFSSL_API long wolfSSL_CTX_get_mode(WOLFSSL_CTX* ctx);
 WOLFSSL_API void wolfSSL_CTX_set_default_read_ahead(WOLFSSL_CTX* ctx, int m);
 WOLFSSL_API long wolfSSL_SSL_get_mode(WOLFSSL* ssl);
