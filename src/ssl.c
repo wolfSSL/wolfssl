@@ -47866,7 +47866,7 @@ WOLFSSL_X509_INFO* wolfSSL_sk_X509_INFO_value(
 {
     WOLFSSL_ENTER("wolfSSL_sk_X509_INFO_value");
 
-    return wolfSSL_sk_value(sk, i);
+    return (WOLFSSL_X509_INFO *)wolfSSL_sk_value(sk, i);
 }
 
 WOLFSSL_X509_INFO* wolfSSL_sk_X509_INFO_pop(
