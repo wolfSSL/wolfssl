@@ -8526,7 +8526,7 @@ static WOLFSSL_EVP_PKEY* d2iGenericKey(WOLFSSL_EVP_PKEY** out,
 
     #ifdef HAVE_LIBOQS
     {
-        int isFalcon;
+        int isFalcon = 0;
     #ifdef WOLFSSL_SMALL_STACK
         falcon_key *falcon = (falcon_key *)MALLOC(sizeof(falcon_key), NULL,
                                                   DYNAMIC_TYPE_FALCON);
