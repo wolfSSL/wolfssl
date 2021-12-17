@@ -482,10 +482,10 @@ decouple library dependencies with standard string, memory and so on.
 
     /* declare/free variable handling for async and smallstack */
     #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_SMALL_STACK)
-        #define DECLARE_VAR_IS_HEAP_ALLOC
-        #define DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
+        #define WC_DECLARE_VAR_IS_HEAP_ALLOC
+        #define WC_DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
             VAR_TYPE* VAR_NAME = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * VAR_SIZE, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT)
-        #define DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
+        #define WC_DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
             VAR_TYPE* VAR_NAME[VAR_ITEMS]; \
             int idx##VAR_NAME, inner_idx_##VAR_NAME; \
             for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
@@ -501,31 +501,31 @@ decouple library dependencies with standard string, memory and so on.
                     break; \
                 } \
             }
-        #define FREE_VAR(VAR_NAME, HEAP) \
+        #define WC_FREE_VAR(VAR_NAME, HEAP) \
             XFREE(VAR_NAME, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT)
-        #define FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP) \
+        #define WC_FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP) \
             for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
                 XFREE(VAR_NAME[idx##VAR_NAME], (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
             }
 
-        #define DECLARE_ARRAY_DYNAMIC_DEC(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
-            DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP)
-        #define DECLARE_ARRAY_DYNAMIC_EXE(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP)
-        #define FREE_ARRAY_DYNAMIC(VAR_NAME, VAR_ITEMS, HEAP) \
-            FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP)
+        #define WC_DECLARE_ARRAY_DYNAMIC_DEC(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
+            WC_DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP)
+        #define WC_DECLARE_ARRAY_DYNAMIC_EXE(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP)
+        #define WC_FREE_ARRAY_DYNAMIC(VAR_NAME, VAR_ITEMS, HEAP) \
+            WC_FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP)
     #else
-        #undef DECLARE_VAR_IS_HEAP_ALLOC
-        #define DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
+        #undef WC_DECLARE_VAR_IS_HEAP_ALLOC
+        #define WC_DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
             VAR_TYPE VAR_NAME[VAR_SIZE]
-        #define DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
+        #define WC_DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
             VAR_TYPE VAR_NAME[VAR_ITEMS][VAR_SIZE]
-        #define FREE_VAR(VAR_NAME, HEAP) /* nothing to free, its stack */
-        #define FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP)  /* nothing to free, its stack */
+        #define WC_FREE_VAR(VAR_NAME, HEAP) /* nothing to free, its stack */
+        #define WC_FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP)  /* nothing to free, its stack */
 
-        #define DECLARE_ARRAY_DYNAMIC_DEC(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
+        #define WC_DECLARE_ARRAY_DYNAMIC_DEC(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
             VAR_TYPE* VAR_NAME[VAR_ITEMS]; \
             int idx##VAR_NAME, inner_idx_##VAR_NAME;
-        #define DECLARE_ARRAY_DYNAMIC_EXE(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
+        #define WC_DECLARE_ARRAY_DYNAMIC_EXE(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
             for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
                 VAR_NAME[idx##VAR_NAME] = (VAR_TYPE*)XMALLOC(VAR_SIZE, (HEAP), DYNAMIC_TYPE_TMP_BUFFER); \
                 if (VAR_NAME[idx##VAR_NAME] == NULL) { \
@@ -539,11 +539,22 @@ decouple library dependencies with standard string, memory and so on.
                     break; \
                 } \
             }
-        #define FREE_ARRAY_DYNAMIC(VAR_NAME, VAR_ITEMS, HEAP) \
+        #define WC_FREE_ARRAY_DYNAMIC(VAR_NAME, VAR_ITEMS, HEAP) \
             for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
                 XFREE(VAR_NAME[idx##VAR_NAME], (HEAP), DYNAMIC_TYPE_TMP_BUFFER); \
             }
     #endif
+
+    #if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
+        /* These are here for the FIPS code that can't be changed. New definitions don't need to be added here. */
+        #define DECLARE_VAR                 WC_DECLARE_VAR
+        #define DECLARE_ARRAY               WC_DECLARE_ARRAY
+        #define FREE_VAR                    WC_FREE_VAR
+        #define FREE_ARRAY                  WC_FREE_ARRAY
+        #define DECLARE_ARRAY_DYNAMIC_DEC   WC_DECLARE_ARRAY_DYNAMIC_DEC
+        #define DECLARE_ARRAY_DYNAMIC_EXE   WC_DECLARE_ARRAY_DYNAMIC_EXE
+        #define FREE_ARRAY_DYNAMIC          WC_FREE_ARRAY_DYNAMIC
+    #endif /* HAVE_FIPS */
 
     #if !defined(USE_WOLF_STRTOK) && \
             ((defined(__MINGW32__) && !defined(__MINGW64_VERSION_MAJOR)) || \

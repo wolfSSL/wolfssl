@@ -2610,9 +2610,9 @@ static void bench_aesgcm_internal(int doAsync, const byte* key, word32 keySz,
 #endif
     double start;
 
-    DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
-    DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
-#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (bench_additional == NULL || bench_tag == NULL) {
         printf("bench_aesgcm_internal malloc failed\n");
         goto exit;
@@ -2754,8 +2754,8 @@ exit:
         wc_AesFree(&enc[i]);
     }
 
-    FREE_VAR(bench_additional, HEAP_HINT);
-    FREE_VAR(bench_tag, HEAP_HINT);
+    WC_FREE_VAR(bench_additional, HEAP_HINT);
+    WC_FREE_VAR(bench_tag, HEAP_HINT);
 }
 
 void bench_aesgcm(int doAsync)
@@ -3122,10 +3122,10 @@ void bench_aesccm(void)
     double start;
     int    ret, i, count;
 
-    DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
-    DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
 
-#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (bench_additional == NULL || bench_tag == NULL) {
         printf("bench_aesccm malloc failed\n");
         goto exit;
@@ -3164,8 +3164,8 @@ void bench_aesccm(void)
 
   exit:
 
-    FREE_VAR(bench_additional, HEAP_HINT);
-    FREE_VAR(bench_tag, HEAP_HINT);
+    WC_FREE_VAR(bench_additional, HEAP_HINT);
+    WC_FREE_VAR(bench_tag, HEAP_HINT);
 }
 #endif /* HAVE_AESCCM */
 #endif /* !NO_AES */
@@ -3485,7 +3485,7 @@ void bench_md5(int doAsync)
     wc_Md5 hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_MD5_DIGEST_SIZE, HEAP_HINT);
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_MD5_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
@@ -3561,7 +3561,7 @@ exit:
     }
 #endif
 
-    FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 }
 #endif /* !NO_MD5 */
 
@@ -3572,7 +3572,7 @@ void bench_sha(int doAsync)
     wc_Sha hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA_DIGEST_SIZE, HEAP_HINT);
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
@@ -3646,7 +3646,7 @@ exit:
         wc_ShaFree(&hash[i]);
     }
 
-    FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 }
 #endif /* NO_SHA */
 
@@ -3657,7 +3657,7 @@ void bench_sha224(int doAsync)
     wc_Sha224 hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA224_DIGEST_SIZE, HEAP_HINT);
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA224_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
@@ -3727,7 +3727,7 @@ exit:
         wc_Sha224Free(&hash[i]);
     }
 
-    FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 }
 #endif
 
@@ -3737,7 +3737,7 @@ void bench_sha256(int doAsync)
     wc_Sha256 hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA256_DIGEST_SIZE, HEAP_HINT);
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA256_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
@@ -3810,7 +3810,7 @@ exit:
         wc_Sha256Free(&hash[i]);
     }
 
-    FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 }
 #endif
 
@@ -3820,7 +3820,7 @@ void bench_sha384(int doAsync)
     wc_Sha384 hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA384_DIGEST_SIZE, HEAP_HINT);
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA384_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
@@ -3890,7 +3890,7 @@ exit:
         wc_Sha384Free(&hash[i]);
     }
 
-    FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 }
 #endif
 
@@ -3900,7 +3900,7 @@ void bench_sha512(int doAsync)
     wc_Sha512 hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA512_DIGEST_SIZE, HEAP_HINT);
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA512_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
@@ -3970,7 +3970,7 @@ exit:
         wc_Sha512Free(&hash[i]);
     }
 
-    FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 }
 #endif
 
@@ -3982,7 +3982,7 @@ void bench_sha3_224(int doAsync)
     wc_Sha3   hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA3_224_DIGEST_SIZE, HEAP_HINT);
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA3_224_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
@@ -4052,7 +4052,7 @@ exit:
         wc_Sha3_224_Free(&hash[i]);
     }
 
-    FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 }
 #endif /* WOLFSSL_NOSHA3_224 */
 
@@ -4062,7 +4062,7 @@ void bench_sha3_256(int doAsync)
     wc_Sha3   hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA3_256_DIGEST_SIZE, HEAP_HINT);
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA3_256_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
@@ -4132,7 +4132,7 @@ exit:
         wc_Sha3_256_Free(&hash[i]);
     }
 
-    FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 }
 #endif /* WOLFSSL_NOSHA3_256 */
 
@@ -4142,7 +4142,7 @@ void bench_sha3_384(int doAsync)
     wc_Sha3   hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA3_384_DIGEST_SIZE, HEAP_HINT);
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA3_384_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
@@ -4212,7 +4212,7 @@ exit:
         wc_Sha3_384_Free(&hash[i]);
     }
 
-    FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 }
 #endif /* WOLFSSL_NOSHA3_384 */
 
@@ -4222,7 +4222,7 @@ void bench_sha3_512(int doAsync)
     wc_Sha3   hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA3_512_DIGEST_SIZE, HEAP_HINT);
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA3_512_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
@@ -4292,7 +4292,7 @@ exit:
         wc_Sha3_512_Free(&hash[i]);
     }
 
-    FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 }
 #endif /* WOLFSSL_NOSHA3_512 */
 #endif
@@ -4557,7 +4557,7 @@ static void bench_hmac(int doAsync, int type, int digestSz,
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
 #ifdef WOLFSSL_ASYNC_CRYPT
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_MAX_DIGEST_SIZE, HEAP_HINT);
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_MAX_DIGEST_SIZE, HEAP_HINT);
 #else
     byte digest[BENCH_MAX_PENDING][WC_MAX_DIGEST_SIZE];
 #endif
@@ -4628,7 +4628,7 @@ exit:
     }
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 #endif
 }
 
@@ -4938,18 +4938,18 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
     double      start = 0.0f;
     const char**desc = bench_desc_words[lng_index];
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
-    DECLARE_VAR(message, byte, TEST_STRING_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(message, byte, TEST_STRING_SZ, HEAP_HINT);
 #endif
     #if !defined(WOLFSSL_MDK5_COMPLv5) && !defined(_WIN32_WCE)
     /* MDK5 compiler regard this as a executable statement, and does not allow declarations after the line. */
-    DECLARE_ARRAY_DYNAMIC_DEC(enc, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
+    WC_DECLARE_ARRAY_DYNAMIC_DEC(enc, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
     #else
         byte* enc[BENCH_MAX_PENDING];
     #endif
     #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
         #if !defined(WOLFSSL_MDK5_COMPLv5) && !defined(_WIN32_WCE)
           /* MDK5 compiler regard this as a executable statement, and does not allow declarations after the line. */
-            DECLARE_ARRAY_DYNAMIC_DEC(out, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
+            WC_DECLARE_ARRAY_DYNAMIC_DEC(out, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
             #else
               byte* out[BENCH_MAX_PENDING];
         #endif
@@ -4957,9 +4957,9 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
         byte* out[BENCH_MAX_PENDING];
     #endif
 
-    DECLARE_ARRAY_DYNAMIC_EXE(enc, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
+    WC_DECLARE_ARRAY_DYNAMIC_EXE(enc, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
     #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-        DECLARE_ARRAY_DYNAMIC_EXE(out, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
+        WC_DECLARE_ARRAY_DYNAMIC_EXE(out, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
         if (out[0] == NULL) {
             ret = MEMORY_E;
             goto exit;
@@ -4969,7 +4969,7 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
         ret = MEMORY_E;
         goto exit;
     }
-#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (message == NULL) {
         ret = MEMORY_E;
         goto exit;
@@ -5127,11 +5127,11 @@ exit_rsa_verifyinline:
 
 exit:
 
-    FREE_ARRAY_DYNAMIC(enc, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_ARRAY_DYNAMIC(enc, BENCH_MAX_PENDING, HEAP_HINT);
 #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-    FREE_ARRAY_DYNAMIC(out, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_ARRAY_DYNAMIC(out, BENCH_MAX_PENDING, HEAP_HINT);
 #endif
-    FREE_VAR(message, HEAP_HINT);
+    WC_FREE_VAR(message, HEAP_HINT);
 }
 
 void bench_rsa(int doAsync)
@@ -5335,12 +5335,12 @@ void bench_dh(int doAsync)
 #endif
 #endif
 
-    DECLARE_ARRAY(pub, byte, BENCH_MAX_PENDING, BENCH_DH_KEY_SIZE, HEAP_HINT);
-    DECLARE_VAR(pub2, byte, BENCH_DH_KEY_SIZE, HEAP_HINT);
-    DECLARE_ARRAY(agree, byte, BENCH_MAX_PENDING, BENCH_DH_KEY_SIZE, HEAP_HINT);
-    DECLARE_ARRAY(priv, byte, BENCH_MAX_PENDING, BENCH_DH_PRIV_SIZE, HEAP_HINT);
-    DECLARE_VAR(priv2, byte, BENCH_DH_PRIV_SIZE, HEAP_HINT);
-#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    WC_DECLARE_ARRAY(pub, byte, BENCH_MAX_PENDING, BENCH_DH_KEY_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(pub2, byte, BENCH_DH_KEY_SIZE, HEAP_HINT);
+    WC_DECLARE_ARRAY(agree, byte, BENCH_MAX_PENDING, BENCH_DH_KEY_SIZE, HEAP_HINT);
+    WC_DECLARE_ARRAY(priv, byte, BENCH_MAX_PENDING, BENCH_DH_PRIV_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(priv2, byte, BENCH_DH_PRIV_SIZE, HEAP_HINT);
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (pub[0] == NULL || pub2 == NULL || agree[0] == NULL || priv[0] == NULL || priv2 == NULL) {
         ret = MEMORY_E;
         goto exit;
@@ -5506,11 +5506,11 @@ exit:
         wc_FreeDhKey(&dhKey[i]);
     }
 
-    FREE_ARRAY(pub, BENCH_MAX_PENDING, HEAP_HINT);
-    FREE_VAR(pub2, HEAP_HINT);
-    FREE_ARRAY(priv, BENCH_MAX_PENDING, HEAP_HINT);
-    FREE_VAR(priv2, HEAP_HINT);
-    FREE_ARRAY(agree, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_ARRAY(pub, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_VAR(pub2, HEAP_HINT);
+    WC_FREE_ARRAY(priv, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_VAR(priv2, HEAP_HINT);
+    WC_FREE_ARRAY(agree, BENCH_MAX_PENDING, HEAP_HINT);
 }
 #endif /* !NO_DH */
 
@@ -5630,11 +5630,11 @@ void bench_ecc(int doAsync, int curveId)
     const char**desc = bench_desc_words[lng_index];
 
 #ifdef HAVE_ECC_DHE
-    DECLARE_ARRAY(shared, byte, BENCH_MAX_PENDING, MAX_ECC_BYTES, HEAP_HINT);
+    WC_DECLARE_ARRAY(shared, byte, BENCH_MAX_PENDING, MAX_ECC_BYTES, HEAP_HINT);
 #endif
 #if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
-    DECLARE_ARRAY(sig, byte, BENCH_MAX_PENDING, ECC_MAX_SIG_SIZE, HEAP_HINT);
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, MAX_ECC_BYTES, HEAP_HINT);
+    WC_DECLARE_ARRAY(sig, byte, BENCH_MAX_PENDING, ECC_MAX_SIG_SIZE, HEAP_HINT);
+    WC_DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, MAX_ECC_BYTES, HEAP_HINT);
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -5808,11 +5808,11 @@ exit:
     }
 
 #ifdef HAVE_ECC_DHE
-    FREE_ARRAY(shared, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_ARRAY(shared, BENCH_MAX_PENDING, HEAP_HINT);
 #endif
 #if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
-    FREE_ARRAY(sig, BENCH_MAX_PENDING, HEAP_HINT);
-    FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_ARRAY(sig, BENCH_MAX_PENDING, HEAP_HINT);
+    WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 #endif
 
     (void)doAsync;

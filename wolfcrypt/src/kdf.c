@@ -223,7 +223,7 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
     byte  sha_result[MAX_PRF_DIG];    /* digLen is real size */
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-    DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, heap);
+    WC_DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, heap);
     if (labelSeed == NULL)
         return MEMORY_E;
 #else
@@ -235,7 +235,7 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
         digLen > MAX_PRF_DIG)
     {
     #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-        FREE_VAR(labelSeed, heap);
+        WC_FREE_VAR(labelSeed, heap);
     #endif
         return BUFFER_E;
     }
@@ -253,7 +253,7 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
         if (md5_result) XFREE(md5_result, heap, DYNAMIC_TYPE_DIGEST);
         if (sha_result) XFREE(sha_result, heap, DYNAMIC_TYPE_DIGEST);
     #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-        FREE_VAR(labelSeed, heap);
+        WC_FREE_VAR(labelSeed, heap);
     #endif
 
         return MEMORY_E;
@@ -287,7 +287,7 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-    FREE_VAR(labelSeed, heap);
+    WC_FREE_VAR(labelSeed, heap);
 #endif
 
     return ret;
@@ -303,7 +303,7 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 
     if (useAtLeastSha256) {
     #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-        DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, heap);
+        WC_DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, heap);
         if (labelSeed == NULL)
             return MEMORY_E;
     #else
@@ -325,7 +325,7 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
                      labLen + seedLen, hash_type, heap, devId);
 
     #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-        FREE_VAR(labelSeed, heap);
+        WC_FREE_VAR(labelSeed, heap);
     #endif
     }
     else {

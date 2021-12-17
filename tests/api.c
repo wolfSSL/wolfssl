@@ -19259,11 +19259,11 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
     const word32 cipherLen = TEST_RSA_BYTES;
     word32 cipherLenResult = cipherLen;
 
-    DECLARE_VAR(in, byte, TEST_STRING_SZ, NULL);
-    DECLARE_VAR(plain, byte, TEST_STRING_SZ, NULL);
-    DECLARE_VAR(cipher, byte, TEST_RSA_BYTES, NULL);
+    WC_DECLARE_VAR(in, byte, TEST_STRING_SZ, NULL);
+    WC_DECLARE_VAR(plain, byte, TEST_STRING_SZ, NULL);
+    WC_DECLARE_VAR(cipher, byte, TEST_RSA_BYTES, NULL);
 
-#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (in == NULL || plain == NULL || cipher == NULL) {
         printf("test_wc_RsaPublicEncryptDecrypt malloc failed\n");
         return MEMORY_E;
@@ -19316,9 +19316,9 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
     /* Pass in bad args. */
    /* Tests RsaPrivateDecryptEx() which, is tested by another fn. No need dup.*/
 
-    FREE_VAR(in, NULL);
-    FREE_VAR(plain, NULL);
-    FREE_VAR(cipher, NULL);
+    WC_FREE_VAR(in, NULL);
+    WC_FREE_VAR(plain, NULL);
+    WC_FREE_VAR(cipher, NULL);
     if (wc_FreeRsaKey(&key) || ret != 0) {
         ret = WOLFSSL_FATAL_ERROR;
     }
@@ -19352,11 +19352,11 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
     int          bits = TEST_RSA_BITS;
     const word32 cipherSz = TEST_RSA_BYTES;
 
-    DECLARE_VAR(in, byte, TEST_STRING_SZ, NULL);
-    DECLARE_VAR(plain, byte, TEST_STRING_SZ, NULL);
-    DECLARE_VAR(cipher, byte, TEST_RSA_BYTES, NULL);
+    WC_DECLARE_VAR(in, byte, TEST_STRING_SZ, NULL);
+    WC_DECLARE_VAR(plain, byte, TEST_STRING_SZ, NULL);
+    WC_DECLARE_VAR(cipher, byte, TEST_RSA_BYTES, NULL);
 
-#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (in == NULL || plain == NULL || cipher == NULL) {
         printf("test_wc_RsaPublicEncryptDecrypt_exmalloc failed\n");
         return MEMORY_E;
@@ -19439,9 +19439,9 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
     }
 #endif
 
-    FREE_VAR(in, NULL);
-    FREE_VAR(plain, NULL);
-    FREE_VAR(cipher, NULL);
+    WC_FREE_VAR(in, NULL);
+    WC_FREE_VAR(plain, NULL);
+    WC_FREE_VAR(cipher, NULL);
     if (wc_FreeRsaKey(&key) || ret != 0) {
         ret = WOLFSSL_FATAL_ERROR;
     }
@@ -19472,11 +19472,11 @@ static int test_wc_RsaSSL_SignVerify (void)
     int          bits = TEST_RSA_BITS;
     const word32 outSz = TEST_RSA_BYTES;
 
-    DECLARE_VAR(in, byte, TEST_STRING_SZ, NULL);
-    DECLARE_VAR(out, byte, TEST_RSA_BYTES, NULL);
-    DECLARE_VAR(plain, byte, TEST_STRING_SZ, NULL);
+    WC_DECLARE_VAR(in, byte, TEST_STRING_SZ, NULL);
+    WC_DECLARE_VAR(out, byte, TEST_RSA_BYTES, NULL);
+    WC_DECLARE_VAR(plain, byte, TEST_STRING_SZ, NULL);
 
-#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (in == NULL || out == NULL || plain == NULL) {
         printf("test_wc_RsaSSL_SignVerify failed\n");
         return MEMORY_E;
@@ -19600,9 +19600,9 @@ static int test_wc_RsaSSL_SignVerify (void)
         }
     #endif
 
-    FREE_VAR(in, NULL);
-    FREE_VAR(out, NULL);
-    FREE_VAR(plain, NULL);
+    WC_FREE_VAR(in, NULL);
+    WC_FREE_VAR(out, NULL);
+    WC_FREE_VAR(plain, NULL);
     if (wc_FreeRsaKey(&key) || ret != 0) {
         ret = WOLFSSL_FATAL_ERROR;
     }
