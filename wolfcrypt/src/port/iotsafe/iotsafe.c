@@ -980,7 +980,7 @@ static int wolfIoT_ecc_sign(WOLFSSL* ssl,
     if (iotsafe == NULL) {
         return BAD_FUNC_ARG;
     }
-    WOLFSSL_MSG("IOTSAFE: Called wolfIoT_ecc_sign\n");
+    WOLFSSL_MSG("IOTSAFE: Called wolfIoT_ecc_sign");
 
 #ifdef DEBUG_IOTSAFE
     printf("IOTSAFE PK ECC Sign: InSz %d, KeySz %d\n", inSz, keySz);
@@ -1140,7 +1140,7 @@ static int wolfIoT_ecc_shared_secret(WOLFSSL* ssl, struct ecc_key* otherKey,
         return BAD_FUNC_ARG;
     }
 
-    WOLFSSL_MSG("IOTSAFE: Called wolfIoT_ecc_shared_secret\n");
+    WOLFSSL_MSG("IOTSAFE: Called wolfIoT_ecc_shared_secret");
 
 #ifdef DEBUG_IOTSAFE
     printf("IOTSAFE PK ECC PMS: Side %s, Peer Curve %d\n",
@@ -1286,7 +1286,7 @@ static int wolfIoT_dh_agree(WOLFSSL* ssl, struct DhKey* key,
         void* ctx)
 {
 
-    WOLFSSL_MSG("IOTSAFE: Called wolfIoT_ecc_dh_agree\n");
+    WOLFSSL_MSG("IOTSAFE: Called wolfIoT_ecc_dh_agree");
     (void)ctx;
     (void)ssl;
     (void)key;

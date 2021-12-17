@@ -7539,7 +7539,7 @@ static int TLSX_KeyShare_ProcessOqs(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     }
 
     if (sharedSecretLen > ENCRYPT_LEN) {
-        WOLFSSL_MSG("shared secret is too long.\n");
+        WOLFSSL_MSG("shared secret is too long.");
         ret = LENGTH_ERROR;
     }
 

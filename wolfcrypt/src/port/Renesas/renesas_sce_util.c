@@ -133,7 +133,7 @@ WOLFSSL_LOCAL int wc_sce_Open()
              g_CAscm_Idx = (uint32_t)-1;
             
         } else {
-            WOLFSSL_MSG("Failed to lock sce hw \n");
+            WOLFSSL_MSG("Failed to lock sce hw ");
         }
 
     }
@@ -161,7 +161,7 @@ WOLFSSL_LOCAL void wc_sce_Close()
             WOLFSSL_MSG("RENESAS SCE Close failed");
         }
     } else {
-        WOLFSSL_MSG("Failed to unlock sce hw \n");
+        WOLFSSL_MSG("Failed to unlock sce hw ");
     }
 }
 
@@ -512,7 +512,7 @@ WOLFSSL_LOCAL int wc_sce_Sha256GenerateHmac(const struct WOLFSSL *ssl,const uint
     wrapped_key = ssl->keys.sce_client_write_MAC_secret;
     
     if ((ret = wc_sce_hw_lock()) != 0) {
-        WOLFSSL_MSG("hw lock failed\n");
+        WOLFSSL_MSG("hw lock failed");
         return ret;
     }
     
@@ -564,7 +564,7 @@ WOLFSSL_LOCAL int wc_sce_Sha256VerifyHmac(const struct WOLFSSL *ssl,
     wrapped_key = ssl->keys.sce_server_write_MAC_secret;
 
     if ((ret = wc_sce_hw_lock()) != 0) {
-        WOLFSSL_MSG("hw lock failed\n");
+        WOLFSSL_MSG("hw lock failed");
         return ret;
     }
     
@@ -626,7 +626,7 @@ WOLFSSL_LOCAL int wc_sce_generateVerifyData(const uint8_t *ms, /* master secret 
         ret = R_SCE_TLS_VerifyDataGenerate(l_side, (uint32_t*)ms,
                        (uint8_t*)handshake_hash, hashes/* out */);
         if (ret != FSP_SUCCESS) {
-            WOLFSSL_MSG("R_SCE_TLS_VerifyDataGenerate failed\n");
+            WOLFSSL_MSG("R_SCE_TLS_VerifyDataGenerate failed");
         }
     }
     /* unlock hw */
@@ -680,7 +680,7 @@ WOLFSSL_LOCAL int wc_sce_generateSeesionKey(struct WOLFSSL *ssl,
         }
         
         if (ret != FSP_SUCCESS) {
-            WOLFSSL_MSG("R_SCE_TLS_SessionKeyGenerate failed\n");
+            WOLFSSL_MSG("R_SCE_TLS_SessionKeyGenerate failed");
         } else {
             /* succeeded creating session keys */
             /* alloc aes instance for both enc and dec */
@@ -756,7 +756,7 @@ WOLFSSL_LOCAL int wc_sce_generateSeesionKey(struct WOLFSSL *ssl,
         /* unlock hw */
         wc_sce_hw_unlock();
     } else 
-        WOLFSSL_LEAVE("hw lock failed\n", ret);
+        WOLFSSL_LEAVE("hw lock failed", ret);
     
     WOLFSSL_LEAVE("sce_generateSeesionKey", ret);
     return ret;
@@ -788,7 +788,7 @@ WOLFSSL_LOCAL int wc_sce_generateMasterSecret(
             (uint32_t*)pr,
             (uint8_t*)cr, (uint8_t*)sr, (uint32_t*)ms);
         if (ret != FSP_SUCCESS) {
-            WOLFSSL_MSG("R_SCE_TLS_MasterSecretGenerate failed\n");
+            WOLFSSL_MSG("R_SCE_TLS_MasterSecretGenerate failed");
         } 
         /* unlock hw */
         wc_sce_hw_unlock();
@@ -814,7 +814,7 @@ WOLFSSL_LOCAL int wc_sce_generatePremasterSecret(uint8_t *premaster,
             /* generate pre-master, 80 bytes */
             ret = R_SCE_TLS_PreMasterSecretGenerateForRSA2048((uint32_t*)premaster);
             if (ret != FSP_SUCCESS) {
-                WOLFSSL_MSG(" R_SCE_TLS_GeneratePreMasterSecret failed\n");
+                WOLFSSL_MSG(" R_SCE_TLS_GeneratePreMasterSecret failed");
             }
         /* unlock hw */
         wc_sce_hw_unlock();
@@ -851,7 +851,7 @@ WOLFSSL_LOCAL int wc_sce_generateEncryptPreMasterSecret(
             ret = -1;
             
         if (ret != FSP_SUCCESS) {
-            WOLFSSL_MSG("R_SCE_TLS_PreMasterSecretEncryptWithRSA2048 failed\n");
+            WOLFSSL_MSG("R_SCE_TLS_PreMasterSecretEncryptWithRSA2048 failed");
         } else {
             *outSz = 256; /* SCE can only handles 2048 RSA */
             /* set GenMaster Callback for Master secret generation */
@@ -893,11 +893,11 @@ WOLFSSL_LOCAL int wc_sce_tls_CertVerify(
       return BAD_FUNC_ARG;
     
     if (!signature) {
-        WOLFSSL_MSG(" signature for ca verification is not set\n");
+        WOLFSSL_MSG(" signature for ca verification is not set");
         return -1;
     }
     if (!sce_encPublickey) {
-        WOLFSSL_MSG(" sce_encPublickey is NULL.\n");
+        WOLFSSL_MSG(" sce_encPublickey is NULL.");
         return -1;
     }
     
@@ -981,7 +981,7 @@ WOLFSSL_LOCAL int wc_sce_tls_RootCertVerify(
       return BAD_FUNC_ARG;
       
     if (!signature) {
-        WOLFSSL_MSG(" signature for ca verification is not set\n");
+        WOLFSSL_MSG(" signature for ca verification is not set");
         return -1;
     }
    
