@@ -3070,7 +3070,9 @@ struct WOLFSSL_CTX {
     CallbackGenSessionKey       GenSessionKeyCb;    /* Use generate session key handler */
     CallbackEncryptKeys         EncryptKeysCb;/* Use setting encrypt keys handler */
     CallbackTlsFinished         TlsFinishedCb;      /* Use Tls finished handler */
+#if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)
     CallbackVerifyMac           VerifyMacCb;        /* Use Verify mac handler */
+#endif
 #endif /* HAVE_PK_CALLBACKS */
 #ifdef HAVE_WOLF_EVENT
     WOLF_EVENT_QUEUE event_queue;
