@@ -3299,7 +3299,7 @@ static int GetBerHeader(const byte* data, word32* idx, word32 maxIdx,
     tag = data[i++];
 
     /* Indefinite length handled specially */
-    if (data[i] == 0x80) {
+    if (data[i] == ASN_INDEF_LENGTH) {
         /* Check valid tag for indefinite */
         if (((tag & 0xc0) == 0) && ((tag & ASN_CONSTRUCTED) == 0x00)) {
             return ASN_PARSE_E;
