@@ -2591,6 +2591,10 @@ extern void uITRON4_free(void *p) ;
 #define HAVE_PQC
 #endif
 
+#if defined(HAVE_PQC) && !defined(HAVE_LIBOQS)
+#error "You must have a post-quantum cryptography implementation to use PQC."
+#endif
+
 /* ---------------------------------------------------------------------------
  * Depricated Algorithm Handling
  *   Unless allowed via a build macro, disable support
