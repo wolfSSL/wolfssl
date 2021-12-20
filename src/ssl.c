@@ -117,7 +117,7 @@
     #include <wolfssl/wolfcrypt/curve25519.h>
     #include <wolfssl/wolfcrypt/ed25519.h>
     #include <wolfssl/wolfcrypt/curve448.h>
-    #if defined(HAVE_LIBOQS)
+    #if defined(HAVE_PQC)
         #include <wolfssl/wolfcrypt/falcon.h>
     #endif
     #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL)
@@ -208,7 +208,7 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
     {XSTR_SIZEOF("B-320"),   "B-320",   NID_brainpoolP320r1},
     {XSTR_SIZEOF("B-384"),   "B-384",   NID_brainpoolP384r1},
     {XSTR_SIZEOF("B-512"),   "B-512",   NID_brainpoolP512r1},
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     {XSTR_SIZEOF("KYBER_LEVEL1"), "KYBER_LEVEL1", WOLFSSL_KYBER_LEVEL1},
     {XSTR_SIZEOF("KYBER_LEVEL3"), "KYBER_LEVEL3", WOLFSSL_KYBER_LEVEL3},
     {XSTR_SIZEOF("KYBER_LEVEL5"), "KYBER_LEVEL5", WOLFSSL_KYBER_LEVEL5},
@@ -2615,7 +2615,7 @@ static int isValidCurveGroup(word16 name)
         case WOLFSSL_FFDHE_6144:
         case WOLFSSL_FFDHE_8192:
 
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
         case WOLFSSL_KYBER_LEVEL1:
         case WOLFSSL_KYBER_LEVEL3:
         case WOLFSSL_KYBER_LEVEL5:
@@ -3939,7 +3939,7 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap)
         #ifdef HAVE_ECC
             cm->minEccKeySz = MIN_ECCKEY_SZ;
         #endif
-        #ifdef HAVE_LIBOQS
+        #ifdef HAVE_PQC
             cm->minFalconKeySz = MIN_FALCONKEY_SZ;
         #endif
 
@@ -4887,7 +4887,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
                 }
                 break;
             #endif /* HAVE_ED448 */
-            #ifdef HAVE_LIBOQS
+            #ifdef HAVE_PQC
             case FALCON_LEVEL1k:
                 if (cm->minFalconKeySz < 0 ||
                           FALCON_LEVEL1_KEY_SIZE < (word16)cm->minFalconKeySz) {
@@ -4902,7 +4902,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
                     WOLFSSL_MSG("\tCA Falcon level 5 key size error");
                 }
                 break;
-            #endif /* HAVE_LIBOQS */
+            #endif /* HAVE_PQC */
 
             default:
                 WOLFSSL_MSG("\tNo key size check done on CA");
@@ -5442,7 +5442,7 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
         #endif
             if (ret != 0) {
             #if !defined(HAVE_ECC) && !defined(HAVE_ED25519) && \
-                !defined(HAVE_ED448) && !defined(HAVE_LIBOQS)
+                !defined(HAVE_ED448) && !defined(HAVE_PQC)
                 WOLFSSL_MSG("RSA decode failed and other algorithms "
                             "not enabled to try");
                 ret = WOLFSSL_BAD_FILE;
@@ -5675,7 +5675,7 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
     #endif
     }
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     if (ret == 0 && ((*keyFormat == 0) || (*keyFormat == FALCON_LEVEL1k) ||
                      (*keyFormat == FALCON_LEVEL5k))) {
         /* make sure Falcon key can be used */
@@ -5739,7 +5739,7 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
         }
         XFREE(key, heap, DYNAMIC_TYPE_FALCON);
     }
-#endif /* HAVE_LIBOQS */
+#endif /* HAVE_PQC */
     return ret;
 }
 
@@ -6087,7 +6087,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         }
 
     #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-        defined(HAVE_LIBOQS)
+        defined(HAVE_PQC)
         if (ssl) {
             ssl->pkCurveOID = cert->pkCurveOID;
         #ifndef WC_STRICT_SIG
@@ -6104,7 +6104,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     ssl->options.haveECC = 1;
                 }
             #endif
-            #ifdef HAVE_LIBOQS
+            #ifdef HAVE_PQC
                 else if (cert->keyOID == FALCON_LEVEL1k ||
                          cert->keyOID == FALCON_LEVEL5k) {
                     ssl->options.haveFalconSig = 1;
@@ -6130,7 +6130,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     ctx->haveECC = 1;
                 }
             #endif
-            #ifdef HAVE_LIBOQS
+            #ifdef HAVE_PQC
                 else if (cert->keyOID == FALCON_LEVEL1k ||
                          cert->keyOID == FALCON_LEVEL5k) {
                     ctx->haveFalconSig = 1;
@@ -6243,7 +6243,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 }
                 break;
         #endif /* HAVE_ED448 */
-        #ifdef HAVE_LIBOQS
+        #ifdef HAVE_PQC
             case FALCON_LEVEL1k:
             case FALCON_LEVEL5k:
                 /* Falcon is fixed key size */
@@ -6263,7 +6263,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     }
                 }
                 break;
-        #endif /* HAVE_LIBOQS */
+        #endif /* HAVE_PQC */
 
             default:
                 WOLFSSL_MSG("No key size check done on certificate");
@@ -8524,7 +8524,7 @@ static WOLFSSL_EVP_PKEY* d2iGenericKey(WOLFSSL_EVP_PKEY** out,
     #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
     #endif /* !NO_DH &&  OPENSSL_EXTRA && WOLFSSL_DH_EXTRA */
 
-    #ifdef HAVE_LIBOQS
+    #ifdef HAVE_PQC
     {
         int isFalcon = 0;
     #ifdef WOLFSSL_SMALL_STACK
@@ -8584,7 +8584,7 @@ static WOLFSSL_EVP_PKEY* d2iGenericKey(WOLFSSL_EVP_PKEY** out,
         }
 
     }
-    #endif /* HAVE_LIBOQS */
+    #endif /* HAVE_PQC */
 
     if (pkey == NULL) {
         WOLFSSL_MSG("wolfSSL_d2i_PUBKEY couldn't determine key type");
@@ -32216,7 +32216,7 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
     #ifdef HAVE_ED25519
         { NID_ED25519, ED25519k,  oidKeyType, "ED25519", "ED25519"},
     #endif
-    #ifdef HAVE_LIBOQS
+    #ifdef HAVE_PQC
         { CTC_FALCON_LEVEL1, FALCON_LEVEL1k,  oidKeyType, "Falcon Level 1",
                                                           "Falcon Level 1"},
         { CTC_FALCON_LEVEL5, FALCON_LEVEL5k,  oidKeyType, "Falcon Level 5",
@@ -36959,7 +36959,7 @@ struct WOLFSSL_HashSigInfo {
 #ifdef HAVE_ED448
     { no_mac, ed448_sa_algo, CTC_ED448 },
 #endif
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     { no_mac, falcon_level1_sa_algo, CTC_FALCON_LEVEL1 },
     { no_mac, falcon_level5_sa_algo, CTC_FALCON_LEVEL5 },
 #endif

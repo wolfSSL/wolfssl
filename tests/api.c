@@ -47079,7 +47079,7 @@ static int test_tls13_apis(void)
 #endif
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
     int          groups[2] = { WOLFSSL_ECC_SECP256R1,
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
                                WOLFSSL_SABER_LEVEL3
 #else
                                WOLFSSL_ECC_SECP256R1
@@ -47099,11 +47099,11 @@ static int test_tls13_apis(void)
 #endif
 #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
             "P-256"
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
             ":P256_SABER_LEVEL1"
 #endif
 #endif
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
             ":KYBER_LEVEL1"
 #endif
             "";
@@ -47209,7 +47209,7 @@ static int test_tls13_apis(void)
 #endif
 #endif
 
-#if defined(HAVE_LIBOQS)
+#if defined(HAVE_PQC)
     AssertIntEQ(wolfSSL_UseKeyShare(NULL, WOLFSSL_KYBER_LEVEL3), BAD_FUNC_ARG);
 #ifndef NO_WOLFSSL_SERVER
     AssertIntEQ(wolfSSL_UseKeyShare(serverSsl, WOLFSSL_KYBER_LEVEL3),

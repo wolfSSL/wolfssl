@@ -3332,7 +3332,7 @@ static const int sizeof_dh_key_der_4096 = sizeof(dh_key_der_4096);
 
 #endif /* USE_CERT_BUFFERS_4096 */
 
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
 
 /* certs/falcon/bench_falcon_level1_key.der */
 static const unsigned char bench_falcon_level1_key[] =
@@ -3980,7 +3980,7 @@ static const unsigned char bench_falcon_level5_key[] =
 };
 static const int sizeof_bench_falcon_level5_key = sizeof(bench_falcon_level5_key);
 
-#endif /* HAVE_LIBOQS */
+#endif /* HAVE_PQC */
 
 #if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
 

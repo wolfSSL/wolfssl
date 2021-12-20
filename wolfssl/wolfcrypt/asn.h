@@ -1262,7 +1262,7 @@ struct SignatureCtx {
     #ifdef HAVE_ED448
         struct ed448_key* ed448;
     #endif
-    #ifdef HAVE_LIBOQS
+    #ifdef HAVE_PQC
         struct falcon_key* falcon;
     #endif
         void* ptr;

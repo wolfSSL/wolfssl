@@ -200,6 +200,8 @@
 #endif
 #ifdef HAVE_LIBOQS
     #include <oqs/kem.h>
+#endif
+#ifdef HAVE_PQC
     #include <wolfssl/wolfcrypt/falcon.h>
 #endif
 
@@ -612,7 +614,7 @@ typedef struct bench_pq_alg {
     const char* str;
     /* Bit values to set. */
     word32 val;
-    const char* oqs_name;
+    const char* pqc_name;
 } bench_pq_alg;
 
 /* All recognized post-quantum asymmetric algorithm choosing command line
@@ -1500,7 +1502,7 @@ static void bench_stats_asym_finish(const char* algo, int strength,
 }
 #endif
 
-#if defined(HAVE_LIBOQS)
+#if defined(HAVE_PQC)
 static void bench_stats_pq_asym_finish(const char* algo, int doAsync, int count,
                                        double start, int ret)
 {
@@ -2160,63 +2162,63 @@ static void* benchmarks_do(void* args)
     #endif
 #endif
 
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     if (bench_all || (bench_pq_asym_algs & BENCH_FALCON_LEVEL1_SIGN))
         bench_falconKeySign(1);
     if (bench_all || (bench_pq_asym_algs & BENCH_FALCON_LEVEL5_SIGN))
         bench_falconKeySign(5);
     if (bench_all || (bench_pq_asym_algs & BENCH_KYBER_LEVEL1_KEYGEN))
-        bench_oqsKemKeygen(BENCH_KYBER_LEVEL1_KEYGEN);
+        bench_pqcKemKeygen(BENCH_KYBER_LEVEL1_KEYGEN);
     if (bench_all || (bench_pq_asym_algs & BENCH_KYBER_LEVEL1_ENCAP))
-        bench_oqsKemEncapDecap(BENCH_KYBER_LEVEL1_ENCAP);
+        bench_pqcKemEncapDecap(BENCH_KYBER_LEVEL1_ENCAP);
     if (bench_all || (bench_pq_asym_algs & BENCH_KYBER_LEVEL3_KEYGEN))
-        bench_oqsKemKeygen(BENCH_KYBER_LEVEL3_KEYGEN);
+        bench_pqcKemKeygen(BENCH_KYBER_LEVEL3_KEYGEN);
     if (bench_all || (bench_pq_asym_algs & BENCH_KYBER_LEVEL3_ENCAP))
-        bench_oqsKemEncapDecap(BENCH_KYBER_LEVEL3_ENCAP);
+        bench_pqcKemEncapDecap(BENCH_KYBER_LEVEL3_ENCAP);
     if (bench_all || (bench_pq_asym_algs & BENCH_KYBER_LEVEL5_KEYGEN))
-        bench_oqsKemKeygen(BENCH_KYBER_LEVEL5_KEYGEN);
+        bench_pqcKemKeygen(BENCH_KYBER_LEVEL5_KEYGEN);
     if (bench_all || (bench_pq_asym_algs & BENCH_KYBER_LEVEL5_ENCAP))
-        bench_oqsKemEncapDecap(BENCH_KYBER_LEVEL5_ENCAP);
+        bench_pqcKemEncapDecap(BENCH_KYBER_LEVEL5_ENCAP);
     if (bench_all || (bench_pq_asym_algs & BENCH_KYBER90S_LEVEL1_KEYGEN))
-        bench_oqsKemKeygen(BENCH_KYBER90S_LEVEL1_KEYGEN);
+        bench_pqcKemKeygen(BENCH_KYBER90S_LEVEL1_KEYGEN);
     if (bench_all || (bench_pq_asym_algs & BENCH_KYBER90S_LEVEL1_ENCAP))
-        bench_oqsKemEncapDecap(BENCH_KYBER90S_LEVEL1_ENCAP);
+        bench_pqcKemEncapDecap(BENCH_KYBER90S_LEVEL1_ENCAP);
     if (bench_all || (bench_pq_asym_algs & BENCH_KYBER90S_LEVEL3_KEYGEN))
-        bench_oqsKemKeygen(BENCH_KYBER90S_LEVEL3_KEYGEN);
+        bench_pqcKemKeygen(BENCH_KYBER90S_LEVEL3_KEYGEN);
     if (bench_all || (bench_pq_asym_algs & BENCH_KYBER90S_LEVEL3_ENCAP))
-        bench_oqsKemEncapDecap(BENCH_KYBER90S_LEVEL3_ENCAP);
+        bench_pqcKemEncapDecap(BENCH_KYBER90S_LEVEL3_ENCAP);
     if (bench_all || (bench_pq_asym_algs & BENCH_KYBER90S_LEVEL5_KEYGEN))
-        bench_oqsKemKeygen(BENCH_KYBER90S_LEVEL5_KEYGEN);
+        bench_pqcKemKeygen(BENCH_KYBER90S_LEVEL5_KEYGEN);
     if (bench_all || (bench_pq_asym_algs & BENCH_KYBER90S_LEVEL5_ENCAP))
-        bench_oqsKemEncapDecap(BENCH_KYBER90S_LEVEL5_ENCAP);
+        bench_pqcKemEncapDecap(BENCH_KYBER90S_LEVEL5_ENCAP);
     if (bench_all || (bench_pq_asym_algs & BENCH_SABER_LEVEL1_KEYGEN))
-        bench_oqsKemKeygen(BENCH_SABER_LEVEL1_KEYGEN);
+        bench_pqcKemKeygen(BENCH_SABER_LEVEL1_KEYGEN);
     if (bench_all || (bench_pq_asym_algs & BENCH_SABER_LEVEL1_ENCAP))
-        bench_oqsKemEncapDecap(BENCH_SABER_LEVEL1_ENCAP);
+        bench_pqcKemEncapDecap(BENCH_SABER_LEVEL1_ENCAP);
     if (bench_all || (bench_pq_asym_algs & BENCH_SABER_LEVEL3_KEYGEN))
-        bench_oqsKemKeygen(BENCH_SABER_LEVEL3_KEYGEN);
+        bench_pqcKemKeygen(BENCH_SABER_LEVEL3_KEYGEN);
     if (bench_all || (bench_pq_asym_algs & BENCH_SABER_LEVEL3_ENCAP))
-        bench_oqsKemEncapDecap(BENCH_SABER_LEVEL3_ENCAP);
+        bench_pqcKemEncapDecap(BENCH_SABER_LEVEL3_ENCAP);
     if (bench_all || (bench_pq_asym_algs & BENCH_SABER_LEVEL5_KEYGEN))
-        bench_oqsKemKeygen(BENCH_SABER_LEVEL5_KEYGEN);
+        bench_pqcKemKeygen(BENCH_SABER_LEVEL5_KEYGEN);
     if (bench_all || (bench_pq_asym_algs & BENCH_SABER_LEVEL5_ENCAP))
-        bench_oqsKemEncapDecap(BENCH_SABER_LEVEL5_ENCAP);
+        bench_pqcKemEncapDecap(BENCH_SABER_LEVEL5_ENCAP);
     if (bench_all || (bench_pq_asym_algs & BENCH_NTRUHPS_LEVEL1_KEYGEN))
-        bench_oqsKemKeygen(BENCH_NTRUHPS_LEVEL1_KEYGEN);
+        bench_pqcKemKeygen(BENCH_NTRUHPS_LEVEL1_KEYGEN);
     if (bench_all || (bench_pq_asym_algs & BENCH_NTRUHPS_LEVEL1_ENCAP))
-        bench_oqsKemEncapDecap(BENCH_NTRUHPS_LEVEL1_ENCAP);
+        bench_pqcKemEncapDecap(BENCH_NTRUHPS_LEVEL1_ENCAP);
     if (bench_all || (bench_pq_asym_algs & BENCH_NTRUHPS_LEVEL3_KEYGEN))
-        bench_oqsKemKeygen(BENCH_NTRUHPS_LEVEL3_KEYGEN);
+        bench_pqcKemKeygen(BENCH_NTRUHPS_LEVEL3_KEYGEN);
     if (bench_all || (bench_pq_asym_algs & BENCH_NTRUHPS_LEVEL3_ENCAP))
-        bench_oqsKemEncapDecap(BENCH_NTRUHPS_LEVEL3_ENCAP);
+        bench_pqcKemEncapDecap(BENCH_NTRUHPS_LEVEL3_ENCAP);
     if (bench_all || (bench_pq_asym_algs & BENCH_NTRUHPS_LEVEL5_KEYGEN))
-        bench_oqsKemKeygen(BENCH_NTRUHPS_LEVEL5_KEYGEN);
+        bench_pqcKemKeygen(BENCH_NTRUHPS_LEVEL5_KEYGEN);
     if (bench_all || (bench_pq_asym_algs & BENCH_NTRUHPS_LEVEL5_ENCAP))
-        bench_oqsKemEncapDecap(BENCH_NTRUHPS_LEVEL5_ENCAP);
+        bench_pqcKemEncapDecap(BENCH_NTRUHPS_LEVEL5_ENCAP);
     if (bench_all || (bench_pq_asym_algs & BENCH_NTRUHRSS_LEVEL3_KEYGEN))
-        bench_oqsKemKeygen(BENCH_NTRUHRSS_LEVEL3_KEYGEN);
+        bench_pqcKemKeygen(BENCH_NTRUHRSS_LEVEL3_KEYGEN);
     if (bench_all || (bench_pq_asym_algs & BENCH_NTRUHRSS_LEVEL3_ENCAP))
-        bench_oqsKemEncapDecap(BENCH_NTRUHRSS_LEVEL3_ENCAP);
+        bench_pqcKemEncapDecap(BENCH_NTRUHRSS_LEVEL3_ENCAP);
 #endif
 
 #ifdef WOLFCRYPT_HAVE_SAKKE
@@ -6656,34 +6658,36 @@ void bench_sakke(void)
 #endif /* WOLFCRYPT_SAKKE_CLIENT */
 #endif /* WOLFCRYPT_HAVE_SAKKE */
 
-#ifdef HAVE_LIBOQS
-static void bench_oqsKemInit(word32 alg, byte **priv_key, byte **pub_key,
+#ifdef HAVE_PQC
+static void bench_pqcKemInit(word32 alg, byte **priv_key, byte **pub_key,
                    const char **wolf_name, OQS_KEM **kem)
 {
     int i;
-    const char *oqs_name = NULL;
+    const char *pqc_name = NULL;
 
     *pub_key = NULL;
     *priv_key = NULL;
 
     for (i=0; bench_pq_asym_opt[i].str != NULL; i++) {
         if (alg ==  bench_pq_asym_opt[i].val) {
-            oqs_name = bench_pq_asym_opt[i].oqs_name;
+            pqc_name = bench_pq_asym_opt[i].pqc_name;
             *wolf_name = bench_pq_asym_opt[i].str;
             break;
         }
     }
 
-    if (oqs_name == NULL) {
+    if (pqc_name == NULL) {
         printf("Bad OQS Alg specified\n");
         return;
     }
 
-    *kem = OQS_KEM_new(oqs_name);
+#ifdef HAVE_LIBOQS
+    *kem = OQS_KEM_new(pqc_name);
     if (*kem == NULL) {
         printf("OQS_KEM_new() failed\n");
         return;
     }
+#endif
 
     *pub_key = (byte*)XMALLOC((*kem)->length_public_key, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
@@ -6694,7 +6698,7 @@ static void bench_oqsKemInit(word32 alg, byte **priv_key, byte **pub_key,
 
 }
 
-void bench_oqsKemKeygen(word32 alg)
+void bench_pqcKemKeygen(word32 alg)
 {
     const char *wolf_name = NULL;
     OQS_KEM* kem = NULL;
@@ -6703,22 +6707,24 @@ void bench_oqsKemKeygen(word32 alg)
     byte *priv_key;
     byte *pub_key;
 
-    bench_oqsKemInit(alg, &priv_key, &pub_key, &wolf_name, &kem);
+    bench_pqcKemInit(alg, &priv_key, &pub_key, &wolf_name, &kem);
 
     if (wolf_name == NULL || kem == NULL || pub_key == NULL ||
         priv_key == NULL) {
-        printf("bench_oqsKemInit() failed\n");
+        printf("bench_pqcKemInit() failed\n");
         goto exit;
     }
 
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < genTimes; i++) {
+#ifdef HAVE_LIBOQS
             ret = OQS_KEM_keypair(kem, pub_key, priv_key);
             if (ret != OQS_SUCCESS) {
                 printf("OQS_KEM_keypair() failed: %d\n", ret);
                 goto exit;
             }
+#endif
         }
         count += i;
     } while (bench_stats_sym_check(start));
@@ -6733,7 +6739,7 @@ exit:
 
 }
 
-void bench_oqsKemEncapDecap(word32 alg)
+void bench_pqcKemEncapDecap(word32 alg)
 {
     const char *wolf_name = NULL;
     OQS_KEM* kem = NULL;
@@ -6744,19 +6750,21 @@ void bench_oqsKemEncapDecap(word32 alg)
     byte *ciphertext = NULL;
     byte *shared_secret = NULL;
 
-    bench_oqsKemInit(alg, &priv_key, &pub_key, &wolf_name, &kem);
+    bench_pqcKemInit(alg, &priv_key, &pub_key, &wolf_name, &kem);
 
     if (wolf_name == NULL || kem == NULL || pub_key == NULL ||
         priv_key == NULL) {
-        printf("bench_oqsKemInit() failed\n");
+        printf("bench_pqcKemInit() failed\n");
         goto exit;
     }
 
+#ifdef HAVE_LIBOQS
     ret = OQS_KEM_keypair(kem, pub_key, priv_key);
     if (ret != OQS_SUCCESS) {
         printf("OQS_KEM_keypair() failed: %d\n", ret);
         goto exit;
     }
+#endif
 
     shared_secret = (byte*)XMALLOC(kem->length_shared_secret, HEAP_HINT,
                                    DYNAMIC_TYPE_TMP_BUFFER);
@@ -6773,6 +6781,7 @@ void bench_oqsKemEncapDecap(word32 alg)
         bench_stats_start(&count, &start);
         do {
             for (i = 0; i < agreeTimes; i++) {
+#ifdef HAVE_LIBOQS
                 ret = OQS_KEM_encaps(kem, ciphertext, shared_secret, pub_key);
                 if (ret != OQS_SUCCESS) {
                     printf("OQS_KEM_encaps() failed: %d\n", ret);
@@ -6784,6 +6793,7 @@ void bench_oqsKemEncapDecap(word32 alg)
                     printf("OQS_KEM_decaps() failed: %d\n", ret);
                     goto exit;
                 }
+#endif
             }
             count += i;
         } while (bench_stats_sym_check(start));
@@ -6898,7 +6908,7 @@ void bench_falconKeySign(byte level)
 
     wc_falcon_free(&key);
 }
-#endif /* HAVE_LIBOQS */
+#endif /* HAVE_PQC */
 
 #ifndef HAVE_STACK_SIZE
 #if defined(_WIN32) && !defined(INTIME_RTOS)

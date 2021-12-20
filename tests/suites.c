@@ -877,7 +877,7 @@ int SuiteTest(int argc, char** argv)
         goto exit;
     }
     #endif
-    #ifdef HAVE_LIBOQS
+    #ifdef HAVE_PQC
     /* add TLSv13 pq tests */
     strcpy(argv0[1], "tests/test-tls13-pq.conf");
     printf("starting TLSv13 post-quantum groups tests\n");
