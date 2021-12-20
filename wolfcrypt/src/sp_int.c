@@ -4615,6 +4615,10 @@ int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
     if ((err == MP_OKAY) && (rem != NULL) && (rem->size < a->used + 1)) {
         err = MP_VAL;
     }
+    /* May need to shift number being divided left into a new word. */
+    if ((err == MP_OKAY) && (a->used == SP_INT_DIGITS)) {
+        err = MP_VAL;
+    }
 
     #if 0
     if (err == MP_OKAY) {
