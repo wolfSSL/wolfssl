@@ -860,6 +860,11 @@ static int Tls13_HKDF_Extract(WOLFSSL *ssl, byte* prk, const byte* salt, int sal
     CallbackHKDFExtract cb = ssl->ctx->HkdfExtractCb;
     if (cb != NULL) {
         ret = cb(prk, salt, saltLen, ikm, ikmLen, digest, cb_ctx);
+        if(ret == NOT_COMPILED_IN)
+        {
+            WOLFSSL_MSG("Not supported by callback, fallback to software implementation");
+            ret = wc_Tls13_HKDF_Extract(prk, salt, saltLen, ikm, ikmLen, digest);
+        }
     }
     else
 #endif
