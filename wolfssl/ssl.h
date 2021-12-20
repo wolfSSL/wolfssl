@@ -794,7 +794,7 @@ enum SNICbReturn {
 /* Maximum master key length (SECRET_LEN) */
 #define WOLFSSL_MAX_MASTER_KEY_LENGTH 48
 /* Maximum number of groups that can be set */
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
 #define WOLFSSL_MAX_GROUP_COUNT       36
 #else
 #define WOLFSSL_MAX_GROUP_COUNT       10
@@ -3638,8 +3638,8 @@ enum {
     WOLFSSL_FFDHE_6144    = 259,
     WOLFSSL_FFDHE_8192    = 260,
 
-#ifdef HAVE_LIBOQS
-    /* These group numbers were taken from liboqs' openssl fork, see:
+#ifdef HAVE_PQC
+    /* These group numbers were taken from OQS's openssl fork, see:
      * https://github.com/open-quantum-safe/openssl/blob/OQS-OpenSSL_1_1_1-stable/
      * oqs-template/oqs-kem-info.md.
      *
@@ -3655,8 +3655,8 @@ enum {
      * algorithms have LEVEL2 and LEVEL4 because none of these submissions
      * included them. */
 
-    WOLFSSL_OQS_MIN               = 532,
-    WOLFSSL_OQS_SIMPLE_MIN        = 532,
+    WOLFSSL_PQC_MIN               = 532,
+    WOLFSSL_PQC_SIMPLE_MIN        = 532,
     WOLFSSL_NTRU_HPS_LEVEL1       = 532, /* NTRU_HPS2048509 */
     WOLFSSL_NTRU_HPS_LEVEL3       = 533, /* NTRU_HPS2048677 */
     WOLFSSL_NTRU_HPS_LEVEL5       = 534, /* NTRU_HPS4096821 */
@@ -3670,9 +3670,9 @@ enum {
     WOLFSSL_KYBER_90S_LEVEL1      = 574, /* KYBER_90S_512 */
     WOLFSSL_KYBER_90S_LEVEL3      = 575, /* KYBER_90S_768 */
     WOLFSSL_KYBER_90S_LEVEL5      = 576, /* KYBER_90S_1024 */
-    WOLFSSL_OQS_SIMPLE_MAX        = 576,
+    WOLFSSL_PQC_SIMPLE_MAX        = 576,
 
-    WOLFSSL_OQS_HYBRID_MIN        = 12052,
+    WOLFSSL_PQC_HYBRID_MIN        = 12052,
     WOLFSSL_P256_NTRU_HPS_LEVEL1  = 12052,
     WOLFSSL_P384_NTRU_HPS_LEVEL3  = 12053,
     WOLFSSL_P521_NTRU_HPS_LEVEL5  = 12054,
@@ -3686,8 +3686,8 @@ enum {
     WOLFSSL_P256_KYBER_90S_LEVEL1 = 12094,
     WOLFSSL_P384_KYBER_90S_LEVEL3 = 12095,
     WOLFSSL_P521_KYBER_90S_LEVEL5 = 12096,
-    WOLFSSL_OQS_HYBRID_MAX        = 12096,
-    WOLFSSL_OQS_MAX               = 12096,
+    WOLFSSL_PQC_HYBRID_MAX        = 12096,
+    WOLFSSL_PQC_MAX               = 12096,
 #endif
 };
 

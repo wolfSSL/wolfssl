@@ -2585,6 +2585,11 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+/* Enable Post-Quantum Cryptography if we have liboqs from the OpenQuantumSafe
+ * group */
+#ifdef HAVE_LIBOQS
+#define HAVE_PQC
+#endif
 
 /* ---------------------------------------------------------------------------
  * Depricated Algorithm Handling

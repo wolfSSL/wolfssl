@@ -133,7 +133,7 @@ ASN Options:
     #include <wolfssl/wolfcrypt/curve448.h>
 #endif
 
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     #include <wolfssl/wolfcrypt/falcon.h>
 #endif
 
@@ -3822,13 +3822,13 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 #ifdef HAVE_ED448
     static const byte sigEd448Oid[] = {43, 101, 113};
 #endif /* HAVE_ED448 */
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     /* Falcon Level 1: 1 3 9999 3 1 */
     static const byte sigFalcon_Level1Oid[] = {43, 206, 15, 3, 1};
 
     /* Falcon Level 5: 1 3 9999 3 4 */
     static const byte sigFalcon_Level5Oid[] = {43, 206, 15, 3, 4};
-#endif /* HAVE_LIBOQS */
+#endif /* HAVE_PQC */
 
 /* keyType */
 #ifndef NO_DSA
@@ -3855,13 +3855,13 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 #ifndef NO_DH
     static const byte keyDhOid[] = {42, 134, 72, 134, 247, 13, 1, 3, 1};
 #endif /* !NO_DH */
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     /* Falcon Level 1: 1 3 9999 3 1 */
     static const byte keyFalcon_Level1Oid[] = {43, 206, 15, 3, 1};
 
     /* Falcon Level 5: 1 3 9999 3 4 */
     static const byte keyFalcon_Level5Oid[] = {43, 206, 15, 3, 4};
-#endif /* HAVE_LIBOQS */
+#endif /* HAVE_PQC */
 
 /* curveType */
 #ifdef HAVE_ECC
@@ -4286,7 +4286,7 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(sigEd448Oid);
                     break;
                 #endif
-                #ifdef HAVE_LIBOQS
+                #ifdef HAVE_PQC
                 case CTC_FALCON_LEVEL1:
                     oid = sigFalcon_Level1Oid;
                     *oidSz = sizeof(sigFalcon_Level1Oid);
@@ -4351,7 +4351,7 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(keyDhOid);
                     break;
                 #endif /* !NO_DH */
-                #ifdef HAVE_LIBOQS
+                #ifdef HAVE_PQC
                 case FALCON_LEVEL1k:
                     oid = keyFalcon_Level1Oid;
                     *oidSz = sizeof(keyFalcon_Level1Oid);
@@ -6189,7 +6189,7 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
     }
     else
     #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT && !NO_ASN_CRYPT */
-    #if defined(HAVE_LIBOQS)
+    #if defined(HAVE_PQC)
     if ((ks == FALCON_LEVEL1k) || (ks == FALCON_LEVEL5k)) {
     #ifdef WOLFSSL_SMALL_STACK
         falcon_key* key_pair = NULL;
@@ -6242,7 +6242,7 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
     #endif
     }
     else
-    #endif /* HAVE_LIBOQS */
+    #endif /* HAVE_PQC */
     {
         ret = 0;
     }
@@ -6544,7 +6544,7 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         XFREE(ed448, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT && !NO_ASN_CRYPT */
-#if defined(HAVE_LIBOQS)
+#if defined(HAVE_PQC)
     if (*algoID == 0) {
         falcon_key *falcon = (falcon_key *)XMALLOC(sizeof(*falcon), heap,
             DYNAMIC_TYPE_TMP_BUFFER);
@@ -6578,7 +6578,7 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         }
         XFREE(falcon, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
-#endif /* HAVE_LIBOQS */
+#endif /* HAVE_PQC */
 
     /* if flag is not set then this is not a key that we understand. */
     if (*algoID == 0) {
@@ -9657,7 +9657,7 @@ static int GetCertHeader(DecodedCert* cert)
 }
 #endif
 
-#if defined(HAVE_ED25519) || defined(HAVE_ED448) || defined(HAVE_LIBOQS)
+#if defined(HAVE_ED25519) || defined(HAVE_ED448) || defined(HAVE_PQC)
 /* Store the key data under the BIT_STRING in dynamicly allocated data.
  *
  * @param [in, out] cert    Certificate object.
@@ -10087,7 +10087,7 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
             ret = StoreKey(cert, source, &srcIdx, maxIdx);
             break;
     #endif /* HAVE_ED448 */
-    #ifdef HAVE_LIBOQS
+    #ifdef HAVE_PQC
         case FALCON_LEVEL1k:
             cert->pkCurveOID = FALCON_LEVEL1k;
             ret = StoreKey(cert, source, &srcIdx, maxIdx);
@@ -10096,7 +10096,7 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
             cert->pkCurveOID = FALCON_LEVEL5k;
             ret = StoreKey(cert, source, &srcIdx, maxIdx);
             break;
-    #endif /* HAVE_LIBOQS */
+    #endif /* HAVE_PQC */
     #ifndef NO_DSA
         case DSAk:
             cert->publicKey = source + pubIdx;
@@ -12710,7 +12710,7 @@ static WC_INLINE int IsSigAlgoECC(int algoOID)
         #ifdef HAVE_CURVE448
               || (algoOID == X448k)
         #endif
-        #ifdef HAVE_LIBOQS
+        #ifdef HAVE_PQC
               || (algoOID == FALCON_LEVEL1k)
               || (algoOID == FALCON_LEVEL5k)
         #endif
@@ -12992,7 +12992,7 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
                 sigCtx->key.ed448 = NULL;
                 break;
         #endif /* HAVE_ED448 */
-        #ifdef HAVE_LIBOQS
+        #ifdef HAVE_PQC
             case FALCON_LEVEL1k:
             case FALCON_LEVEL5k:
                 wc_falcon_free(sigCtx->key.falcon);
@@ -13000,7 +13000,7 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
                       DYNAMIC_TYPE_FALCON);
                 sigCtx->key.falcon = NULL;
                 break;
-        #endif /* HAVE_LIBOQS */
+        #endif /* HAVE_PQC */
             default:
                 break;
         } /* switch (keyOID) */
@@ -13138,7 +13138,7 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
              */
             break;
     #endif
-    #ifdef HAVE_LIBOQS
+    #ifdef HAVE_PQC
         case CTC_FALCON_LEVEL1:
         case CTC_FALCON_LEVEL5:
             /* Hashes done in signing operation. */
@@ -13444,7 +13444,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     break;
                 }
             #endif
-            #if defined(HAVE_LIBOQS)
+            #if defined(HAVE_PQC)
                 case FALCON_LEVEL1k:
                 {
                     sigCtx->verify = 0;
@@ -13614,7 +13614,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     break;
                 }
             #endif
-            #if defined(HAVE_LIBOQS)
+            #if defined(HAVE_PQC)
                 case FALCON_LEVEL1k:
                 case FALCON_LEVEL5k:
                 {
@@ -13737,7 +13737,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     break;
                 }
             #endif /* HAVE_ED448 */
-            #ifdef HAVE_LIBOQS
+            #ifdef HAVE_PQC
                 case FALCON_LEVEL1k:
                 {
                     if (sigCtx->verify == 1) {
@@ -13760,7 +13760,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     }
                     break;
                 }
-            #endif /* HAVE_LIBOQS */
+            #endif /* HAVE_PQC */
                 default:
                     break;
             }  /* switch (keyOID) */
@@ -18741,7 +18741,7 @@ wcchar END_PUB_KEY          = "-----END PUBLIC KEY-----";
     wcchar BEGIN_EDDSA_PRIV = "-----BEGIN EDDSA PRIVATE KEY-----";
     wcchar END_EDDSA_PRIV   = "-----END EDDSA PRIVATE KEY-----";
 #endif
-#if defined(HAVE_LIBOQS)
+#if defined(HAVE_PQC)
     wcchar BEGIN_FALCON_LEVEL1_PRIV  = "-----BEGIN FALCON_LEVEL1 PRIVATE KEY-----";
     wcchar END_FALCON_LEVEL1_PRIV    = "-----END FALCON_LEVEL1 PRIVATE KEY-----";
     wcchar BEGIN_FALCON_LEVEL5_PRIV = "-----BEGIN FALCON_LEVEL5 PRIVATE KEY-----";
@@ -18841,7 +18841,7 @@ int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
             ret = 0;
             break;
     #endif
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
         case FALCON_LEVEL1_TYPE:
             if (header) *header = BEGIN_FALCON_LEVEL1_PRIV;
             if (footer) *footer = END_FALCON_LEVEL1_PRIV;
@@ -21070,7 +21070,7 @@ int wc_Ed448PublicKeyToDer(ed448_key* key, byte* output, word32 inLen,
 }
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_EXPORT */
 
-#if defined(HAVE_LIBOQS)
+#if defined(HAVE_PQC)
 /* Encode the public part of an Falcon key in DER.
  *
  * Pass NULL for output to get the size of the encoding.
@@ -21113,7 +21113,7 @@ int wc_Falcon_PublicKeyToDer(falcon_key* key, byte* output, word32 inLen,
 
     return ret;
 }
-#endif /* HAVE_LIBOQS */
+#endif /* HAVE_PQC */
 
 #ifdef WOLFSSL_CERT_GEN
 
@@ -23149,7 +23149,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     }
 #endif
 
-#if defined(HAVE_LIBOQS)
+#if defined(HAVE_PQC)
     if ((cert->keyType == FALCON_LEVEL1_KEY) ||
         (cert->keyType == FALCON_LEVEL5_KEY)) {
         if (falconKey == NULL)
@@ -23627,14 +23627,14 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, int sz,
         }
     #endif /* HAVE_ED448 && HAVE_ED448_SIGN */
 
-    #if defined(HAVE_LIBOQS)
+    #if defined(HAVE_PQC)
         if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && falconKey) {
             word32 outSz = sigSz;
             ret = wc_falcon_sign_msg(buf, sz, sig, &outSz, falconKey);
             if (ret == 0)
                 ret = outSz;
         }
-    #endif /* HAVE_LIBOQS */
+    #endif /* HAVE_PQC */
 
         break;
     }
@@ -23824,7 +23824,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         cert->keyType = ED25519_KEY;
     else if (ed448Key)
         cert->keyType = ED448_KEY;
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     else if ((falconKey != NULL) && (falconKey->level == 1))
         cert->keyType = FALCON_LEVEL1_KEY;
     else if ((falconKey != NULL) && (falconKey->level == 5))
@@ -23885,7 +23885,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
             cert->keyType = ED448_KEY;
         }
         else if (falconKey != NULL) {
-        #ifdef HAVE_LIBOQS
+        #ifdef HAVE_PQC
             if (falconKey->level == 1)
                 cert->keyType = FALCON_LEVEL1_KEY;
             else if (falconKey->level == 5)
@@ -24353,7 +24353,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
             (word32)sizeof(der->publicKey), 1);
     }
 #endif
-#if defined(HAVE_LIBOQS)
+#if defined(HAVE_PQC)
     if ((cert->keyType == FALCON_LEVEL1_KEY) ||
         (cert->keyType == FALCON_LEVEL5_KEY)) {
         if (falconKey == NULL)
@@ -24626,7 +24626,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
         cert->keyType = ED25519_KEY;
     else if (ed448Key)
         cert->keyType = ED448_KEY;
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     else if ((falconKey != NULL) && (falconKey->level == 1))
         cert->keyType = FALCON_LEVEL1_KEY;
     else if ((falconKey != NULL) && (falconKey->level == 5))
@@ -24686,7 +24686,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
             cert->keyType = ED448_KEY;
         }
         else if (falconKey != NULL) {
-        #ifdef HAVE_LIBOQS
+        #ifdef HAVE_PQC
             if (falconKey->level == 1)
                 cert->keyType = FALCON_LEVEL1_KEY;
             else if (falconKey->level == 5)
@@ -25040,7 +25040,7 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
         bufferSz = wc_Ed448PublicKeyToDer(ed448Key, buf, MAX_PUBLIC_KEY_SZ, 0);
     }
 #endif
-#if defined(HAVE_LIBOQS)
+#if defined(HAVE_PQC)
     if (falconKey != NULL) {
         bufferSz = wc_Falcon_PublicKeyToDer(falconKey, buf, MAX_PUBLIC_KEY_SZ,
                                             0);
@@ -28252,7 +28252,7 @@ int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
 }
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
 
-#if defined(HAVE_LIBOQS)
+#if defined(HAVE_PQC)
 int wc_Falcon_PrivateKeyDecode(const byte* input, word32* inOutIdx,
                                      falcon_key* key, word32 inSz)
 {
@@ -28319,7 +28319,7 @@ int wc_Falcon_PublicKeyDecode(const byte* input, word32* inOutIdx,
     }
     return ret;
 }
-#endif /* HAVE_LIBOQS */
+#endif /* HAVE_PQC */
 
 #if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)
 int wc_Curve448PrivateKeyDecode(const byte* input, word32* inOutIdx,
@@ -28386,7 +28386,7 @@ int wc_Ed448PrivateKeyToDer(ed448_key* key, byte* output, word32 inLen)
 
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_EXPORT */
 
-#if defined(HAVE_LIBOQS)
+#if defined(HAVE_PQC)
 int wc_Falcon_KeyToDer(falcon_key* key, byte* output, word32 inLen)
 {
     if (key == NULL) {
@@ -28425,7 +28425,7 @@ int wc_Falcon_PrivateKeyToDer(falcon_key* key, byte* output, word32 inLen)
     return BAD_FUNC_ARG;
 }
 
-#endif /* HAVE_LIBOQS */
+#endif /* HAVE_PQC */
 
 #if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_EXPORT)
 /* Write private Curve448 key to DER format,

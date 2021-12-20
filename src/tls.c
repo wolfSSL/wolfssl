@@ -48,8 +48,10 @@
 #ifdef HAVE_CURVE448
     #include <wolfssl/wolfcrypt/curve448.h>
 #endif
+#ifdef HAVE_PQC
 #ifdef HAVE_LIBOQS
     #include <oqs/kem.h>
+#endif
 #endif
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
@@ -3800,7 +3802,7 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
 #ifdef HAVE_SUPPORTED_CURVES
 
 #if !defined(HAVE_ECC) && !defined(HAVE_CURVE25519) && !defined(HAVE_CURVE448) \
-                       && !defined(HAVE_FFDHE) && !defined(HAVE_LIBOQS)
+                       && !defined(HAVE_FFDHE) && !defined(HAVE_PQC)
 #error Elliptic Curves Extension requires Elliptic Curve Cryptography or liboqs groups. \
        Use --enable-ecc and/or --enable-liboqs in the configure script or \
        define HAVE_ECC. Alternatively use FFDHE for DH ciphersuites.
@@ -6633,6 +6635,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
     return ret;
 }
 
+#ifdef HAVE_PQC
 #ifdef HAVE_LIBOQS
 /* Transform a group ID into an OQS Algorithm name as a string. */
 static const char* OQS_ID2name(int id)
@@ -6655,73 +6658,75 @@ static const char* OQS_ID2name(int id)
     }
     return NULL;
 }
+#endif /* HAVE_LIBOQS */
 
-typedef struct OqsHybridMapping {
+typedef struct PqcHybridMapping {
     int hybrid;
     int ecc;
-    int oqs;
-} OqsHybridMapping;
+    int pqc;
+} PqcHybridMapping;
 
-static const OqsHybridMapping oqs_hybrid_mapping[] = {
-    {.hybrid = WOLFSSL_P256_NTRU_HPS_LEVEL1, .ecc = WOLFSSL_ECC_SECP256R1,
-     .oqs = WOLFSSL_NTRU_HPS_LEVEL1},
-    {.hybrid = WOLFSSL_P384_NTRU_HPS_LEVEL3, .ecc = WOLFSSL_ECC_SECP384R1,
-     .oqs = WOLFSSL_NTRU_HPS_LEVEL3},
-    {.hybrid = WOLFSSL_P521_NTRU_HPS_LEVEL5, .ecc = WOLFSSL_ECC_SECP521R1,
-     .oqs = WOLFSSL_NTRU_HPS_LEVEL5},
-    {.hybrid = WOLFSSL_P384_NTRU_HRSS_LEVEL3,    .ecc = WOLFSSL_ECC_SECP384R1,
-     .oqs = WOLFSSL_NTRU_HRSS_LEVEL3},
-    {.hybrid = WOLFSSL_P256_SABER_LEVEL1,      .ecc = WOLFSSL_ECC_SECP256R1,
-     .oqs = WOLFSSL_SABER_LEVEL1},
-    {.hybrid = WOLFSSL_P384_SABER_LEVEL3,           .ecc = WOLFSSL_ECC_SECP384R1,
-     .oqs = WOLFSSL_SABER_LEVEL3},
-    {.hybrid = WOLFSSL_P521_SABER_LEVEL5,       .ecc = WOLFSSL_ECC_SECP521R1,
-     .oqs = WOLFSSL_SABER_LEVEL5},
-    {.hybrid = WOLFSSL_P256_KYBER_LEVEL1,        .ecc = WOLFSSL_ECC_SECP256R1,
-     .oqs = WOLFSSL_KYBER_LEVEL1},
-    {.hybrid = WOLFSSL_P384_KYBER_LEVEL3,        .ecc = WOLFSSL_ECC_SECP384R1,
-     .oqs = WOLFSSL_KYBER_LEVEL3},
-    {.hybrid = WOLFSSL_P521_KYBER_LEVEL5,       .ecc = WOLFSSL_ECC_SECP521R1,
-     .oqs = WOLFSSL_KYBER_LEVEL5},
-    {.hybrid = WOLFSSL_P256_KYBER_90S_LEVEL1,     .ecc = WOLFSSL_ECC_SECP256R1,
-     .oqs = WOLFSSL_KYBER_90S_LEVEL1},
-    {.hybrid = WOLFSSL_P384_KYBER_90S_LEVEL3,     .ecc = WOLFSSL_ECC_SECP384R1,
-     .oqs = WOLFSSL_KYBER_90S_LEVEL3},
-    {.hybrid = WOLFSSL_P521_KYBER_90S_LEVEL5,    .ecc = WOLFSSL_ECC_SECP521R1,
-     .oqs = WOLFSSL_KYBER_90S_LEVEL5},
-    {.hybrid = 0, .ecc = 0, .oqs = 0}
+static const PqcHybridMapping pqc_hybrid_mapping[] = {
+    {.hybrid = WOLFSSL_P256_NTRU_HPS_LEVEL1,  .ecc = WOLFSSL_ECC_SECP256R1,
+     .pqc = WOLFSSL_NTRU_HPS_LEVEL1},
+    {.hybrid = WOLFSSL_P384_NTRU_HPS_LEVEL3,  .ecc = WOLFSSL_ECC_SECP384R1,
+     .pqc = WOLFSSL_NTRU_HPS_LEVEL3},
+    {.hybrid = WOLFSSL_P521_NTRU_HPS_LEVEL5,  .ecc = WOLFSSL_ECC_SECP521R1,
+     .pqc = WOLFSSL_NTRU_HPS_LEVEL5},
+    {.hybrid = WOLFSSL_P384_NTRU_HRSS_LEVEL3, .ecc = WOLFSSL_ECC_SECP384R1,
+     .pqc = WOLFSSL_NTRU_HRSS_LEVEL3},
+    {.hybrid = WOLFSSL_P256_SABER_LEVEL1,     .ecc = WOLFSSL_ECC_SECP256R1,
+     .pqc = WOLFSSL_SABER_LEVEL1},
+    {.hybrid = WOLFSSL_P384_SABER_LEVEL3,     .ecc = WOLFSSL_ECC_SECP384R1,
+     .pqc = WOLFSSL_SABER_LEVEL3},
+    {.hybrid = WOLFSSL_P521_SABER_LEVEL5,     .ecc = WOLFSSL_ECC_SECP521R1,
+     .pqc = WOLFSSL_SABER_LEVEL5},
+    {.hybrid = WOLFSSL_P256_KYBER_LEVEL1,     .ecc = WOLFSSL_ECC_SECP256R1,
+     .pqc = WOLFSSL_KYBER_LEVEL1},
+    {.hybrid = WOLFSSL_P384_KYBER_LEVEL3,     .ecc = WOLFSSL_ECC_SECP384R1,
+     .pqc = WOLFSSL_KYBER_LEVEL3},
+    {.hybrid = WOLFSSL_P521_KYBER_LEVEL5,     .ecc = WOLFSSL_ECC_SECP521R1,
+     .pqc = WOLFSSL_KYBER_LEVEL5},
+    {.hybrid = WOLFSSL_P256_KYBER_90S_LEVEL1, .ecc = WOLFSSL_ECC_SECP256R1,
+     .pqc = WOLFSSL_KYBER_90S_LEVEL1},
+    {.hybrid = WOLFSSL_P384_KYBER_90S_LEVEL3, .ecc = WOLFSSL_ECC_SECP384R1,
+     .pqc = WOLFSSL_KYBER_90S_LEVEL3},
+    {.hybrid = WOLFSSL_P521_KYBER_90S_LEVEL5, .ecc = WOLFSSL_ECC_SECP521R1,
+     .pqc = WOLFSSL_KYBER_90S_LEVEL5},
+    {.hybrid = 0, .ecc = 0, .pqc = 0}
 };
 
-/* This will map an ecc-oqs hybrid group into its ecc group and oqs group.
- * If it cannot find a mapping then *oqs is set to group. ecc is optional. */
-static void findEccOqs(int *ecc, int *oqs, int group)
+/* This will map an ecc-pqs hybrid group into its ecc group and pqc kem group.
+ * If it cannot find a mapping then *pqc is set to group. ecc is optional. */
+static void findEccPqc(int *ecc, int *pqc, int group)
 {
     int i;
-    if (oqs == NULL) {
+    if (pqc == NULL) {
         return;
     }
 
-    *oqs = 0;
+    *pqc = 0;
     if (ecc != NULL) {
         *ecc = 0;
     }
 
-    for (i = 0; oqs_hybrid_mapping[i].hybrid != 0; i++) {
-        if (oqs_hybrid_mapping[i].hybrid == group) {
-            *oqs = oqs_hybrid_mapping[i].oqs;
+    for (i = 0; pqc_hybrid_mapping[i].hybrid != 0; i++) {
+        if (pqc_hybrid_mapping[i].hybrid == group) {
+            *pqc = pqc_hybrid_mapping[i].pqc;
             if (ecc != NULL) {
-                *ecc = oqs_hybrid_mapping[i].ecc;
+                *ecc = pqc_hybrid_mapping[i].ecc;
             }
             break;
         }
     }
 
-    if (*oqs == 0) {
+    if (*pqc == 0) {
         /* It is not a hybrid, so maybe its simple. */
-        *oqs = group;
+        *pqc = group;
     }
 }
 
+#ifdef HAVE_LIBOQS
 /* Create a key share entry using liboqs parameters group.
  * Generates a key pair.
  *
@@ -6740,7 +6745,7 @@ static int TLSX_KeyShare_GenOqsKey(WOLFSSL *ssl, KeyShareEntry* kse)
     int oqs_group = 0;
     int ecc_group = 0;
 
-    findEccOqs(&ecc_group, &oqs_group, kse->group);
+    findEccPqc(&ecc_group, &oqs_group, kse->group);
     algName = OQS_ID2name(oqs_group);
     if (algName == NULL) {
         WOLFSSL_MSG("Invalid OQS algorithm specified.");
@@ -6830,7 +6835,8 @@ static int TLSX_KeyShare_GenOqsKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
     return ret;
 }
-#endif
+#endif /* HAVE_LIBOQS */
+#endif /* HAVE_PQC */
 
 /* Generate a secret/key using the key share entry.
  *
@@ -6847,9 +6853,11 @@ static int TLSX_KeyShare_GenKey(WOLFSSL *ssl, KeyShareEntry *kse)
         ret = TLSX_KeyShare_GenX25519Key(ssl, kse);
     else if (kse->group == WOLFSSL_ECC_X448)
         ret = TLSX_KeyShare_GenX448Key(ssl, kse);
+#ifdef HAVE_PQC
 #ifdef HAVE_LIBOQS
-    else if (kse->group >= WOLFSSL_OQS_MIN && kse->group <= WOLFSSL_OQS_MAX)
+    else if (kse->group >= WOLFSSL_PQC_MIN && kse->group <= WOLFSSL_PQC_MAX)
         ret = TLSX_KeyShare_GenOqsKey(ssl, kse);
+#endif
 #endif
     else
         ret = TLSX_KeyShare_GenEccKey(ssl, kse);
@@ -6886,9 +6894,9 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
             wc_curve448_free((curve448_key*)current->key);
 #endif
         }
-#ifdef HAVE_LIBOQS
-        else if (current->group >= WOLFSSL_OQS_MIN &&
-                 current->group <= WOLFSSL_OQS_MAX &&
+#ifdef HAVE_PQC
+        else if (current->group >= WOLFSSL_PQC_MIN &&
+                 current->group <= WOLFSSL_PQC_MAX &&
                  current->key != NULL) {
             ForceZero((byte*)current->key, current->keyLen);
         }
@@ -7408,6 +7416,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     return ret;
 }
 
+#ifdef HAVE_PQC
 #ifdef HAVE_LIBOQS
 /* Process the liboqs key share extension on the client side.
  *
@@ -7450,7 +7459,7 @@ static int TLSX_KeyShare_ProcessOqs(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     }
 
     /* I am the client, the ciphertext is in keyShareEntry->ke */
-    findEccOqs(&ecc_group, &oqs_group, keyShareEntry->group);
+    findEccPqc(&ecc_group, &oqs_group, keyShareEntry->group);
 
     algName = OQS_ID2name(oqs_group);
     if (algName == NULL) {
@@ -7559,6 +7568,7 @@ static int TLSX_KeyShare_ProcessOqs(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     return ret;
 }
 #endif
+#endif
 
 /* Process the key share extension on the client side.
  *
@@ -7581,10 +7591,12 @@ static int TLSX_KeyShare_Process(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         ret = TLSX_KeyShare_ProcessX25519(ssl, keyShareEntry);
     else if (keyShareEntry->group == WOLFSSL_ECC_X448)
         ret = TLSX_KeyShare_ProcessX448(ssl, keyShareEntry);
+#ifdef HAVE_PQC
 #ifdef HAVE_LIBOQS
-    else if (keyShareEntry->group >= WOLFSSL_OQS_MIN &&
-             keyShareEntry->group <= WOLFSSL_OQS_MAX)
+    else if (keyShareEntry->group >= WOLFSSL_PQC_MIN &&
+             keyShareEntry->group <= WOLFSSL_PQC_MAX)
         ret = TLSX_KeyShare_ProcessOqs(ssl, keyShareEntry);
+#endif
 #endif
     else
         ret = TLSX_KeyShare_ProcessEcc(ssl, keyShareEntry);
@@ -7633,9 +7645,9 @@ static int TLSX_KeyShareEntry_Parse(WOLFSSL* ssl, const byte* input,
     if (keLen > length - offset)
         return BUFFER_ERROR;
 
-#ifdef HAVE_LIBOQS
-    if (group >= WOLFSSL_OQS_MIN &&
-        group <= WOLFSSL_OQS_MAX &&
+#ifdef HAVE_PQC
+    if (group >= WOLFSSL_PQC_MIN &&
+        group <= WOLFSSL_PQC_MAX &&
         ssl->options.side == WOLFSSL_SERVER_END) {
         /* For KEMs, the public key is not stored. Casting away const because
          * we know for KEMs, it will be read-only.*/
@@ -7800,7 +7812,7 @@ static int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
         /* Not in list sent if there isn't a private key. */
         if (keyShareEntry == NULL || (keyShareEntry->key == NULL
-        #if !defined(NO_DH) || defined(HAVE_LIBOQS)
+        #if !defined(NO_DH) || defined(HAVE_PQC)
             && keyShareEntry->privKey == NULL
         #endif
         )) {
@@ -7838,9 +7850,9 @@ static int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 return ret;
         }
 
-#ifdef HAVE_LIBOQS
-        /* For oqs groups, do this in TLSX_PopulateExtensions(). */
-        if (group < WOLFSSL_OQS_MIN || group > WOLFSSL_OQS_MAX)
+#ifdef HAVE_PQC
+        /* For post-quantum groups, do this in TLSX_PopulateExtensions(). */
+        if (group < WOLFSSL_PQC_MIN || group > WOLFSSL_PQC_MAX)
 #endif
             ret = TLSX_KeyShare_Use(ssl, group, 0, NULL, NULL);
     }
@@ -7888,6 +7900,7 @@ static int TLSX_KeyShare_New(KeyShareEntry** list, int group, void *heap,
     return 0;
 }
 
+#ifdef HAVE_PQC
 #ifdef HAVE_LIBOQS
 static int server_generate_oqs_ciphertext(WOLFSSL* ssl,
                                           KeyShareEntry* keyShareEntry,
@@ -7908,7 +7921,7 @@ static int server_generate_oqs_ciphertext(WOLFSSL* ssl,
     ecc_key eccpubkey;
     word32 outlen = 0;
 
-    findEccOqs(&ecc_group, &oqs_group, keyShareEntry->group);
+    findEccPqc(&ecc_group, &oqs_group, keyShareEntry->group);
     algName = OQS_ID2name(oqs_group);
     if (algName == NULL) {
         WOLFSSL_MSG("Invalid OQS algorithm specified.");
@@ -8034,6 +8047,7 @@ static int server_generate_oqs_ciphertext(WOLFSSL* ssl,
     return ret;
 }
 #endif
+#endif
 
 /* Use the data to create a new key share object in the extensions.
  *
@@ -8082,9 +8096,10 @@ int TLSX_KeyShare_Use(WOLFSSL* ssl, word16 group, word16 len, byte* data,
     }
 
 
+#ifdef HAVE_PQC
 #ifdef HAVE_LIBOQS
-    if (group >= WOLFSSL_OQS_MIN &&
-        group <= WOLFSSL_OQS_MAX &&
+    if (group >= WOLFSSL_PQC_MIN &&
+        group <= WOLFSSL_PQC_MAX &&
         ssl->options.side == WOLFSSL_SERVER_END) {
         ret = server_generate_oqs_ciphertext(ssl, keyShareEntry, data,
                                              len);
@@ -8092,6 +8107,7 @@ int TLSX_KeyShare_Use(WOLFSSL* ssl, word16 group, word16 len, byte* data,
             return ret;
     }
     else
+#endif
 #endif
     if (data != NULL) {
         if (keyShareEntry->ke != NULL) {
@@ -8243,7 +8259,7 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
             break;
         #endif
     #endif
-    #ifdef HAVE_LIBOQS
+    #ifdef HAVE_PQC
         case WOLFSSL_KYBER_LEVEL1:
         case WOLFSSL_KYBER_LEVEL3:
         case WOLFSSL_KYBER_LEVEL5:
@@ -8270,10 +8286,12 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
         case WOLFSSL_P256_KYBER_90S_LEVEL1:
         case WOLFSSL_P384_KYBER_90S_LEVEL3:
         case WOLFSSL_P521_KYBER_90S_LEVEL5:
-            findEccOqs(NULL, &namedGroup, namedGroup);
+    #ifdef HAVE_LIBOQS
+            findEccPqc(NULL, &namedGroup, namedGroup);
             if (! OQS_KEM_alg_is_enabled(OQS_ID2name(namedGroup))) {
                 return 0;
             }
+    #endif
             break;
     #endif
         default:
@@ -8341,7 +8359,7 @@ static int TLSX_KeyShare_GroupRank(WOLFSSL* ssl, int group)
         #ifdef HAVE_FFDHE_8192
             ssl->group[ssl->numGroups++] = WOLFSSL_FFDHE_8192;
         #endif
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
             /* For the liboqs groups we need to do a runtime check because
              * liboqs could be compiled to make an algorithm unavailable.
              */
@@ -8524,9 +8542,9 @@ int TLSX_KeyShare_Establish(WOLFSSL *ssl, int* doHelloRetry)
             clientKSE->group > MAX_FFHDE_GROUP) {
             /* Check max value supported. */
             if (clientKSE->group > WOLFSSL_ECC_MAX) {
-#ifdef HAVE_LIBOQS
-                if (clientKSE->group < WOLFSSL_OQS_MIN ||
-                    clientKSE->group > WOLFSSL_OQS_MAX )
+#ifdef HAVE_PQC
+                if (clientKSE->group < WOLFSSL_PQC_MIN ||
+                    clientKSE->group > WOLFSSL_PQC_MAX )
 #endif
                     continue;
             }
@@ -8566,9 +8584,9 @@ int TLSX_KeyShare_Establish(WOLFSSL *ssl, int* doHelloRetry)
         return ret;
 
     if (clientKSE->key == NULL) {
-#ifdef HAVE_LIBOQS
-        if (clientKSE->group >= WOLFSSL_OQS_MIN &&
-            clientKSE->group <= WOLFSSL_OQS_MAX ) {
+#ifdef HAVE_PQC
+        if (clientKSE->group >= WOLFSSL_PQC_MIN &&
+            clientKSE->group <= WOLFSSL_PQC_MAX ) {
             /* Going to need the public key (AKA ciphertext). */
             serverKSE->pubKey = clientKSE->pubKey;
             clientKSE->pubKey = NULL;
@@ -10220,7 +10238,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         #endif
 #endif
 
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL1, ssl->heap);
     if (ret == WOLFSSL_SUCCESS)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL3,
@@ -10298,7 +10316,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P521_KYBER_90S_LEVEL5,
                                      ssl->heap);
 
-#endif /* HAVE_LIBOQS */
+#endif /* HAVE_PQC */
 
     (void)ssl;
     (void)extensions;
@@ -10469,9 +10487,9 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     namedGroup = kse->group;
             }
             if (namedGroup > 0) {
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
                 /* For KEMs, the key share has already been generated. */
-                if (namedGroup < WOLFSSL_OQS_MIN || namedGroup > WOLFSSL_OQS_MAX)
+                if (namedGroup < WOLFSSL_PQC_MIN || namedGroup > WOLFSSL_PQC_MAX)
 #endif
                     ret = TLSX_KeyShare_Use(ssl, namedGroup, 0, NULL, NULL);
                 if (ret != 0)

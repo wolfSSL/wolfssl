@@ -116,7 +116,7 @@
 #ifdef HAVE_CURVE448
     #include <wolfssl/wolfcrypt/curve448.h>
 #endif
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     #include <wolfssl/wolfcrypt/falcon.h>
 #endif
 #ifdef HAVE_HKDF
@@ -1235,7 +1235,7 @@ enum Misc {
     HELLO_EXT_EXTMS = 0x0017,   /* ID for the extended master secret ext */
     SECRET_LEN      = WOLFSSL_MAX_MASTER_KEY_LENGTH,
                                 /* pre RSA and all master */
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     ENCRYPT_LEN     = 1500,     /* allow 1500 bit static buffer for falcon */
 #else
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) || \
@@ -1458,7 +1458,7 @@ enum Misc {
     ED448_SA_MAJOR      = 8,   /* Most significant byte for ED448 */
     ED448_SA_MINOR      = 8,   /* Least significant byte for ED448 */
 
-    OQS_SA_MAJOR        = 0xFE,/* Most significant byte used with OQS sig algos
+    PQC_SA_MAJOR        = 0xFE,/* Most significant byte used with PQC sig algos
 */
     /* These match what OQS has defined in their OpenSSL fork. */
     FALCON_LEVEL1_SA_MAJOR = 0xFE,
@@ -1470,7 +1470,7 @@ enum Misc {
     MIN_RSA_SHA512_PSS_BITS = 512 * 2 + 8 * 8, /* Min key size */
     MIN_RSA_SHA384_PSS_BITS = 384 * 2 + 8 * 8, /* Min key size */
 
-#if defined(HAVE_LIBOQS)
+#if defined(HAVE_PQC)
     MAX_CERT_VERIFY_SZ = 1600,            /* For Falcon */
 #elif !defined(NO_RSA)
     MAX_CERT_VERIFY_SZ = WOLFSSL_MAX_RSA_BITS / 8, /* max RSA bytes */
@@ -1501,7 +1501,7 @@ enum Misc {
     MAX_WOLFSSL_FILE_SIZE = 1024ul * 1024ul * 4,  /* 4 mb file size alloc limit */
 #endif
 
-#if defined(HAVE_LIBOQS)
+#if defined(HAVE_PQC)
     MAX_X509_SIZE      = 5120, /* max static x509 buffer size; falcon is big */
 #elif defined(WOLFSSL_HAPROXY)
     MAX_X509_SIZE      = 3072, /* max static x509 buffer size */
@@ -1572,7 +1572,7 @@ enum Misc {
 #endif
 #define MIN_ECCKEY_SZ (WOLFSSL_MIN_ECC_BITS / 8)
 
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
 /* set minimum Falcon key size allowed */
 #ifndef MIN_FALCONKEY_SZ
     #define MIN_FALCONKEY_SZ    897
@@ -2123,7 +2123,7 @@ struct WOLFSSL_CERT_MANAGER {
     wolfSSL_Mutex   refMutex;   /* reference count mutex */
 #endif
     int             refCount;         /* reference count */
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     short           minFalconKeySz;      /* minimum allowed Falcon key size */
 #endif
 
@@ -2622,7 +2622,7 @@ typedef struct KeyShareEntry {
     word32                keyLen;    /* Key size (bytes)                  */
     byte*                 pubKey;    /* Public key                        */
     word32                pubKeyLen; /* Public key length                 */
-#if !defined(NO_DH) || defined(HAVE_LIBOQS)
+#if !defined(NO_DH) || defined(HAVE_PQC)
     byte*                 privKey;   /* Private key - DH ond PQ KEMs only */
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -2873,7 +2873,7 @@ struct WOLFSSL_CTX {
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     short       minEccKeySz;      /* minimum ECC key size */
 #endif
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     short       minFalconKeySz;   /* minimum Falcon key size */
 #endif
     unsigned long     mask;             /* store SSL_OP_ flags */
@@ -3733,7 +3733,7 @@ typedef struct Options {
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     short           minEccKeySz;      /* minimum ECC key size */
 #endif
-#if defined(HAVE_LIBOQS)
+#if defined(HAVE_PQC)
     short           minFalconKeySz;   /* minimum Falcon key size */
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -3908,9 +3908,9 @@ struct WOLFSSL_X509 {
     int              pubKeyOID;
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-    defined(HAVE_LIBOQS)
+    defined(HAVE_PQC)
     word32       pkCurveOID;
-#endif /* HAVE_ECC || HAVE_LIBOQS */
+#endif /* HAVE_ECC || HAVE_PQC */
 #ifndef NO_CERTS
     DerBuffer*   derCert;                            /* may need  */
 #endif
@@ -4318,7 +4318,7 @@ struct WOLFSSL {
     curve448_key*   peerX448Key;
     byte            peerX448KeyPresent;
 #endif
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     falcon_key*     peerFalconKey;
     byte            peerFalconKeyPresent;
 #endif
@@ -4695,7 +4695,7 @@ extern const WOLF_EC_NIST_NAME kNistCurves[];
 /* This is the longest and shortest curve name in the kNistCurves list. Note we
  * also have quantum-safe group names as well. */
 #define kNistCurves_MIN_NAME_LEN 5
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
 #define kNistCurves_MAX_NAME_LEN 32
 #else
 #define kNistCurves_MAX_NAME_LEN 7
