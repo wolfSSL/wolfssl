@@ -27665,6 +27665,11 @@ WOLFSSL_ASN1_TIME *wolfSSL_X509_time_adj(WOLFSSL_ASN1_TIME *asnTime,
 {
     return wolfSSL_X509_time_adj_ex(asnTime, 0, offset_sec, in_tm);
 }
+
+WOLFSSL_ASN1_TIME* wolfSSL_X509_gmtime_adj(WOLFSSL_ASN1_TIME *s, long adj)
+{
+    return wolfSSL_X509_time_adj(s, adj, NULL);
+}
 #endif
 
 #ifndef NO_WOLFSSL_STUB
@@ -28978,11 +28983,6 @@ WOLFSSL_API long wolfSSL_set_tlsext_status_exts(WOLFSSL *s, void *arg)
     (void)arg;
     WOLFSSL_STUB("wolfSSL_set_tlsext_status_exts");
     return WOLFSSL_FAILURE;
-}
-
-WOLFSSL_ASN1_TIME* wolfSSL_X509_gmtime_adj(WOLFSSL_ASN1_TIME *s, long adj)
-{
-    return wolfSSL_X509_time_adj(s, adj, NULL);
 }
 #endif
 
