@@ -4500,7 +4500,7 @@ int mp_sub_d (mp_int * a, mp_digit b, mp_int * c)
 
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(HAVE_ECC) || \
     defined(DEBUG_WOLFSSL) || !defined(NO_RSA) || !defined(NO_DSA) || \
-    !defined(NO_DH)
+    !defined(NO_DH) || defined(WC_MP_TO_RADIX)
 
 static const int lnz[16] = {
    4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0
@@ -5208,7 +5208,7 @@ LBL_U:mp_clear (&u);
 
 #if !defined(NO_DSA) || defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN) || \
     defined(HAVE_COMP_KEY) || defined(WOLFSSL_DEBUG_MATH) || \
-    defined(DEBUG_WOLFSSL) || defined(OPENSSL_EXTRA)
+    defined(DEBUG_WOLFSSL) || defined(OPENSSL_EXTRA) || defined(WC_MP_TO_RADIX)
 
 /* chars used in radix conversions */
 const char *mp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"

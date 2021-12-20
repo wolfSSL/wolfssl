@@ -20291,7 +20291,7 @@ static int test_wc_DsaSignVerify (void)
     mp_init(&key.q);
     AssertIntEQ(wc_DsaSign(hash, signature, &key, &rng), BAD_FUNC_ARG);
 
-    mp_set_int(&key.q, 1);
+    mp_set(&key.q, 1);
     AssertIntEQ(wc_DsaSign(hash, signature, &key, &rng), BAD_FUNC_ARG);
 #endif
 
@@ -47962,7 +47962,8 @@ static int test_get_digit_count (void)
 static int test_mp_cond_copy (void)
 {
     int     ret = 0;
-#if defined(WOLFSSL_PUBLIC_MP)
+#if (defined(HAVE_ECC) || defined(WOLFSSL_MP_COND_COPY)) && \
+    defined(WOLFSSL_PUBLIC_MP)
     mp_int  a;
     mp_int  b;
     int     copy = 0;
@@ -48102,7 +48103,8 @@ static int test_get_digit (void)
 static int test_wc_export_int(void)
 {
     int         ret = 0;
-#if defined(WOLFSSL_PUBLIC_MP)
+#if (defined(HAVE_ECC) || defined(WOLFSSL_EXPORT_INT)) && \
+    defined(WOLFSSL_PUBLIC_MP)
     mp_int      mp;
     byte        buf[32];
     word32      keySz = (word32)sizeof(buf);
@@ -48114,7 +48116,7 @@ static int test_wc_export_int(void)
         ret = -1;
     }
     if (ret == 0) {
-        ret = mp_set_int(&mp, 1234);
+        ret = mp_set(&mp, 1234);
     }
     if (ret == 0) {
         ret = wc_export_int(NULL, buf, &len, keySz, WC_TYPE_UNSIGNED_BIN);

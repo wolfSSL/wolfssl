@@ -16681,6 +16681,7 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
     }
 
 #ifdef NO_ASN
+#ifndef WOLFSSL_SP_MATH
     ret = wc_DhSetKey(key, dh_p, sizeof(dh_p), dh_g, sizeof(dh_g));
     if (ret != 0) {
         ERROR_OUT(-8106, done);
@@ -16690,6 +16691,19 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
     if (ret != 0) {
         ERROR_OUT(-8107, done);
     }
+#else
+    ret = wc_DhSetKey(key, dh2048_p, sizeof(dh2048_p), dh2048_g,
+        sizeof(dh2048_g));
+    if (ret != 0) {
+        ERROR_OUT(-8106, done);
+    }
+
+    ret = wc_DhSetKey(key2, dh2048_p, sizeof(dh2048_p), dh2048_g,
+        sizeof(dh2048_g));
+    if (ret != 0) {
+        ERROR_OUT(-8107, done);
+    }
+#endif
 #else
     ret = wc_DhKeyDecode(tmp, &idx, key, bytes);
     if (ret != 0) {

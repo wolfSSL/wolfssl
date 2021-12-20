@@ -5944,6 +5944,14 @@ if test "$ENABLED_SP_NONBLOCK" = "yes"; then
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NONBLOCK"
 fi
 
+# Check that we enable SP with RSA, DH or ECC.
+if test "$ENABLED_SP" = "no"; then
+    # Didn't need SP, don't need SP_MATH.
+    if test "$ENABLED_SP_MATH" = "yes"; then
+        ENABLED_SP_MATH=no
+    fi
+fi
+
 if test "$ENABLED_SP_MATH" = "yes"; then
     if test "$ENABLED_SP" = "no"; then
         AC_MSG_ERROR([Must have SP enabled: --enable-sp])
