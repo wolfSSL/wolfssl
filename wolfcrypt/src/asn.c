@@ -16964,7 +16964,8 @@ static const ASNItem x509CertASN[] = {
                                                    /* subjectUniqueID      UniqueIdentfier OPTIONAL */
 /* TBS_SUBJECTUID                */            { 2, ASN_CONTEXT_SPECIFIC | 2, 0, 0, 1 },
                                                    /* extensions           Extensions OPTIONAL */
-/* TBS_EXT                       */            { 2, ASN_CONTEXT_SPECIFIC | 3, 1, 0, 1 },
+/* TBS_EXT                       */            { 2, ASN_CONTEXT_SPECIFIC | 3, 1, 1, 1 },
+/* TBS_EXT_SEQ                   */                { 3, ASN_SEQUENCE, 1, 0, 0 },
                                                    /* signatureAlgorithm   AlgorithmIdentifier */
                                                    /* AlgorithmIdentifier ::= SEQUENCE */
 /* SIGALGO_SEQ                   */        { 1, ASN_SEQUENCE, 1, 1, 0 },
@@ -17000,6 +17001,7 @@ enum {
     X509CERTASN_IDX_TBS_ISSUERUID,
     X509CERTASN_IDX_TBS_SUBJECTUID,
     X509CERTASN_IDX_TBS_EXT,
+    X509CERTASN_IDX_TBS_EXT_SEQ,
     X509CERTASN_IDX_SIGALGO_SEQ,
     X509CERTASN_IDX_SIGALGO_OID,
     X509CERTASN_IDX_SIGALGO_PARAMS,
@@ -17191,7 +17193,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         }
     }
     if ((ret == 0) && (!done) &&
-            (dataASN[X509CERTASN_IDX_TBS_EXT].data.ref.data != NULL)) {
+            (dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].data.ref.data != NULL)) {
     #ifndef ALLOW_V1_EXTENSIONS
         /* Certificate extensions were only defined in version 2. */
         if (cert->version < 2) {
@@ -17751,7 +17753,6 @@ static int GetAKIHash(const byte* input, word32 maxIdx, byte* hash, int* set,
     DECL_ASNGETDATA(dataASN, certExtASN_Length);
     int ret = 0;
     word32 idx = 0;
-    int extLen = 0;
     word32 extEndIdx;
     byte* extData;
     word32 extDataSz;
@@ -17760,11 +17761,7 @@ static int GetAKIHash(const byte* input, word32 maxIdx, byte* hash, int* set,
     ALLOC_ASNGETDATA(dataASN, certExtASN_Length, ret, heap);
     (void)heap;
 
-    /* Parse the outer SEQUENCE and calculate end index of extensions. */
-    if ((ret == 0) && (GetASN_Sequence(input, &idx, &extLen, maxIdx, 1) < 0)) {
-        ret = ASN_PARSE_E;
-    }
-    extEndIdx = idx + extLen;
+    extEndIdx = idx + maxIdx;
 
     /* Step through each extension looking for AKI. */
     while ((ret == 0) && (idx < extEndIdx)) {
@@ -18238,10 +18235,10 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
 #ifndef NO_SKID
         /* Find the AKI extension in list of extensions and get hash. */
         if ((!req) &&
-                (dataASN[X509CERTASN_IDX_TBS_EXT].data.ref.data != NULL)) {
+                (dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].data.ref.data != NULL)) {
             /* TODO: test case */
-            ret = GetAKIHash(dataASN[X509CERTASN_IDX_TBS_EXT].data.ref.data,
-                             dataASN[X509CERTASN_IDX_TBS_EXT].data.ref.length,
+            ret = GetAKIHash(dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].data.ref.data,
+                             dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].data.ref.length,
                              hash, &extAuthKeyIdSet, heap);
         }
 
@@ -24542,10 +24539,11 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         dataASN[X509CERTASN_IDX_TBS_SUBJECTUID].noOut = 1;
         /* Leave space for extensions if any set into certificate object. */
         if (extSz > 0) {
-            SetASN_Buffer(&dataASN[X509CERTASN_IDX_TBS_EXT], NULL, extSz);
+            SetASN_Buffer(&dataASN[X509CERTASN_IDX_TBS_EXT_SEQ], NULL, extSz);
         }
         else {
-            dataASN[X509CERTASN_IDX_TBS_EXT].noOut = 1;
+            SetASNItem_NoOutNode(dataASN, x509CertASN,
+                    X509CERTASN_IDX_TBS_EXT, x509CertASN_Length);
         }
         /* No signature - added later. */
         SetASNItem_NoOut(dataASN, X509CERTASN_IDX_SIGALGO_SEQ,
@@ -24599,11 +24597,11 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
                            .data.buffer.length,
             rsaKey, eccKey, ed25519Key, ed448Key, dsaKey);
     }
-    if ((ret >= 0) && (!dataASN[X509CERTASN_IDX_TBS_EXT].noOut)) {
+    if ((ret >= 0) && (!dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].noOut)) {
         /* Encode extensions into buffer. */
         ret = EncodeExtensions(cert,
-                (byte*)dataASN[X509CERTASN_IDX_TBS_EXT].data.buffer.data,
-                dataASN[X509CERTASN_IDX_TBS_EXT].data.buffer.length, 0);
+                (byte*)dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].data.buffer.data,
+                dataASN[X509CERTASN_IDX_TBS_EXT_SEQ].data.buffer.length, 0);
     }
     if (ret >= 0) {
         /* Store encoded certifcate body size. */
