@@ -20958,8 +20958,6 @@ static int sp_256_point_to_ecc_point_9(const sp_point_256* p, ecc_point* pm)
     return err;
 }
 
-#define sp_256_mont_reduce_order_9         sp_256_mont_reduce_9
-
 /* Compare a with b in constant time.
  *
  * a  A single precision integer.
@@ -21169,37 +21167,86 @@ static void sp_256_mont_shift_9(sp_digit* r, const sp_digit* a)
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
-static void sp_256_mont_reduce_9(sp_digit* a, const sp_digit* m, sp_digit mp)
+static void sp_256_mont_reduce_order_9(sp_digit* a, const sp_digit* m, sp_digit mp)
 {
     int i;
     sp_digit mu;
 
-    if (mp != 1) {
-        for (i=0; i<8; i++) {
-            mu = (a[i] * mp) & 0x1fffffff;
-            sp_256_mul_add_9(a+i, m, mu);
-            a[i+1] += a[i] >> 29;
-        }
-        mu = (a[i] * mp) & 0xffffffL;
+    sp_256_norm_9(a + 9);
+
+    for (i=0; i<8; i++) {
+        mu = (a[i] * mp) & 0x1fffffff;
         sp_256_mul_add_9(a+i, m, mu);
         a[i+1] += a[i] >> 29;
-        a[i] &= 0x1fffffff;
     }
-    else {
-        for (i=0; i<8; i++) {
-            mu = a[i] & 0x1fffffff;
-            sp_256_mul_add_9(a+i, p256_mod, mu);
-            a[i+1] += a[i] >> 29;
-        }
-        mu = a[i] & 0xffffffL;
-        sp_256_mul_add_9(a+i, p256_mod, mu);
-        a[i+1] += a[i] >> 29;
-        a[i] &= 0x1fffffff;
-    }
-
+    mu = (a[i] * mp) & 0xffffffL;
+    sp_256_mul_add_9(a+i, m, mu);
+    a[i+1] += a[i] >> 29;
+    a[i] &= 0x1fffffff;
     sp_256_mont_shift_9(a, a);
     sp_256_cond_sub_9(a, a, m, 0 - (((a[8] >> 24) > 0) ?
             (sp_digit)1 : (sp_digit)0));
+    sp_256_norm_9(a);
+}
+
+/* Reduce the number back to 256 bits using Montgomery reduction.
+ *
+ * a   A single precision number to reduce in place.
+ * m   The single precision number representing the modulus.
+ * mp  The digit representing the negative inverse of m mod 2^n.
+ */
+static void sp_256_mont_reduce_9(sp_digit* a, const sp_digit* m, sp_digit mp)
+{
+    int i;
+    sp_digit am;
+
+    (void)m;
+    (void)mp;
+
+    for (i = 0; i < 8; i++) {
+        am = a[i] & 0x1fffffff;
+        a[i + 3] += (am << 9) & 0x1fffffff;
+        a[i + 4] += am >> 20;
+        a[i + 6] += (am << 18) & 0x1fffffff;
+        a[i + 7] += (am >> 11) - ((am << 21) & 0x1fffffff);
+        a[i + 8] += -(am >> 8) + ((am << 24) & 0x1fffffff);
+        a[i + 9] += am >> 5;
+
+        a[i+1] += a[i] >> 29;
+    }
+    am = a[8] & 0xffffff;
+    a[8 + 3] += (am << 9) & 0x1fffffff;
+    a[8 + 4] += am >> 20;
+    a[8 + 6] += (am << 18) & 0x1fffffff;
+    a[8 + 7] += (am >> 11) - ((am << 21) & 0x1fffffff);
+    a[8 + 8] += -(am >> 8) + ((am << 24) & 0x1fffffff);
+    a[8 + 9] += am >> 5;
+
+    a[0] = (a[ 8] >> 24) + ((a[ 9] << 5) & 0x1fffffff);
+    a[1] = (a[ 9] >> 24) + ((a[10] << 5) & 0x1fffffff);
+    a[2] = (a[10] >> 24) + ((a[11] << 5) & 0x1fffffff);
+    a[3] = (a[11] >> 24) + ((a[12] << 5) & 0x1fffffff);
+    a[4] = (a[12] >> 24) + ((a[13] << 5) & 0x1fffffff);
+    a[5] = (a[13] >> 24) + ((a[14] << 5) & 0x1fffffff);
+    a[6] = (a[14] >> 24) + ((a[15] << 5) & 0x1fffffff);
+    a[7] = (a[15] >> 24) + ((a[16] << 5) & 0x1fffffff);
+    a[8] = (a[16] >> 24) +  (a[17] << 5);
+
+    /* Get the bit over, if any. */
+    am = a[8] >> 24;
+    /* Create mask. */
+    am = 0 - am;
+
+    a[0] -= 0x1fffffff & am;
+    a[1] -= 0x1fffffff & am;
+    a[2] -= 0x1fffffff & am;
+    a[3] -= 0x000001ff & am;
+    /* p256_mod[4] is zero */
+    /* p256_mod[5] is zero */
+    a[6] -= 0x00040000 & am;
+    a[7] -= 0x1fe00000 & am;
+    a[8] -= 0x00ffffff & am;
+
     sp_256_norm_9(a);
 }
 
@@ -28075,8 +28122,6 @@ static int sp_384_point_to_ecc_point_15(const sp_point_384* p, ecc_point* pm)
     return err;
 }
 
-#define sp_384_mont_reduce_order_15         sp_384_mont_reduce_15
-
 /* Compare a with b in constant time.
  *
  * a  A single precision integer.
@@ -28302,7 +28347,7 @@ static void sp_384_mont_shift_15(sp_digit* r, const sp_digit* a)
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
-static void sp_384_mont_reduce_15(sp_digit* a, const sp_digit* m, sp_digit mp)
+static void sp_384_mont_reduce_order_15(sp_digit* a, const sp_digit* m, sp_digit mp)
 {
     int i;
     sp_digit mu;
@@ -28321,6 +28366,83 @@ static void sp_384_mont_reduce_15(sp_digit* a, const sp_digit* m, sp_digit mp)
     sp_384_mont_shift_15(a, a);
     sp_384_cond_sub_15(a, a, m, 0 - (((a[14] >> 20) > 0) ?
             (sp_digit)1 : (sp_digit)0));
+    sp_384_norm_15(a);
+}
+
+/* Reduce the number back to 384 bits using Montgomery reduction.
+ *
+ * a   A single precision number to reduce in place.
+ * m   The single precision number representing the modulus.
+ * mp  The digit representing the negative inverse of m mod 2^n.
+ */
+static void sp_384_mont_reduce_15(sp_digit* a, const sp_digit* m, sp_digit mp)
+{
+    int i;
+    sp_digit am;
+
+    (void)m;
+    (void)mp;
+
+    for (i = 0; i < 14; i++) {
+        am = (a[i] * 0x1) & 0x3ffffff;
+        a[i +  1] += (am << 6) & 0x3ffffff;
+        a[i +  2] += am >> 20;
+        a[i +  3] -= (am << 18) & 0x3ffffff;
+        a[i +  4] -= am >> 8;
+        a[i +  4] -= (am << 24) & 0x3ffffff;
+        a[i +  5] -= am >> 2;
+        a[i + 14] += (am << 20) & 0x3ffffff;
+        a[i + 15] += am >> 6;
+
+        a[i+1] += a[i] >> 26;
+    }
+    am = (a[14] * 0x1) & 0xfffff;
+    a[14 +  1] += (am << 6) & 0x3ffffff;
+    a[14 +  2] += am >> 20;
+    a[14 +  3] -= (am << 18) & 0x3ffffff;
+    a[14 +  4] -= am >> 8;
+    a[14 +  4] -= (am << 24) & 0x3ffffff;
+    a[14 +  5] -= am >> 2;
+    a[14 + 14] += (am << 20) & 0x3ffffff;
+    a[14 + 15] += am >> 6;
+
+    a[0] = (a[14] >> 20) + ((a[15] << 6) & 0x3ffffff);
+    a[1] = (a[15] >> 20) + ((a[16] << 6) & 0x3ffffff);
+    a[2] = (a[16] >> 20) + ((a[17] << 6) & 0x3ffffff);
+    a[3] = (a[17] >> 20) + ((a[18] << 6) & 0x3ffffff);
+    a[4] = (a[18] >> 20) + ((a[19] << 6) & 0x3ffffff);
+    a[5] = (a[19] >> 20) + ((a[20] << 6) & 0x3ffffff);
+    a[6] = (a[20] >> 20) + ((a[21] << 6) & 0x3ffffff);
+    a[7] = (a[21] >> 20) + ((a[22] << 6) & 0x3ffffff);
+    a[8] = (a[22] >> 20) + ((a[23] << 6) & 0x3ffffff);
+    a[9] = (a[23] >> 20) + ((a[24] << 6) & 0x3ffffff);
+    a[10] = (a[24] >> 20) + ((a[25] << 6) & 0x3ffffff);
+    a[11] = (a[25] >> 20) + ((a[26] << 6) & 0x3ffffff);
+    a[12] = (a[26] >> 20) + ((a[27] << 6) & 0x3ffffff);
+    a[13] = (a[27] >> 20) + ((a[28] << 6) & 0x3ffffff);
+    a[14] = (a[14 + 14] >> 20) +  (a[29] << 6);
+
+    /* Get the bit over, if any. */
+    am = a[14] >> 20;
+    /* Create mask. */
+    am = 0 - am;
+
+    a[0] -= 0x03ffffff & am;
+    a[1] -= 0x0000003f & am;
+    /* p384_mod[2] is zero */
+    a[3] -= 0x03fc0000 & am;
+    a[4] -= 0x02ffffff & am;
+    a[5] -= 0x03ffffff & am;
+    a[6] -= 0x03ffffff & am;
+    a[7] -= 0x03ffffff & am;
+    a[8] -= 0x03ffffff & am;
+    a[9] -= 0x03ffffff & am;
+    a[10] -= 0x03ffffff & am;
+    a[11] -= 0x03ffffff & am;
+    a[12] -= 0x03ffffff & am;
+    a[13] -= 0x03ffffff & am;
+    a[14] -= 0x000fffff & am;
+
     sp_384_norm_15(a);
 }
 
@@ -35777,7 +35899,6 @@ static void sp_1024_cond_add_42(sp_digit* r, const sp_digit* a,
         r[i + 7] = a[i + 7] + (b[i + 7] & m);
     }
     r[40] = a[40] + (b[40] & m);
-    r[41] = a[41] + (b[41] & m);
 #endif /* WOLFSSL_SP_SMALL */
 }
 
