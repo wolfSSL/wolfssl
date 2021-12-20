@@ -2829,7 +2829,7 @@ static int SetASNIntRSA(void* n, byte* output)
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for an INTEGER. */
 static const ASNItem intASN[] = {
-    { 0, ASN_INTEGER, 0, 0, 0 }
+/* INT */ { 0, ASN_INTEGER, 0, 0, 0 }
 };
 enum {
     INTASN_IDX_INT = 0
@@ -3127,7 +3127,7 @@ static int SkipInt(const byte* input, word32* inOutIdx, word32 maxIdx)
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for a BIT_STRING. */
 static const ASNItem bitStringASN[] = {
-    { 0, ASN_BIT_STRING, 0, 1, 0 }
+/* BIT_STR */ { 0, ASN_BIT_STRING, 0, 1, 0 }
 };
 enum {
     BITSTRINGASN_IDX_BIT_STR = 0
@@ -5185,7 +5185,7 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for an OBJECT_ID. */
 static const ASNItem objectIdASN[] = {
-    { 0, ASN_OBJECT_ID, 0, 0, 0 }
+/* OID */ { 0, ASN_OBJECT_ID, 0, 0, 0 }
 };
 enum {
     OBJECTIDASN_IDX_OID = 0
@@ -5389,19 +5389,19 @@ static mp_int* GetRsaInt(RsaKey* key, byte idx)
  * PKCS #1: RFC 8017, A.1.2 - RSAPrivateKey
  */
 static const ASNItem rsaKeyASN[] = {
-/*  RSAKEYASN_IDX_SEQ */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/*  RSAKEYASN_IDX_VER */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  SEQ */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/*  VER */        { 1, ASN_INTEGER, 0, 0, 0 },
                 /* Integers need to be in this specific order
                  * as asn code depends on this. */
-/*  RSAKEYASN_IDX_N   */        { 1, ASN_INTEGER, 0, 0, 0 },
-/*  RSAKEYASN_IDX_E   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  N   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  E   */        { 1, ASN_INTEGER, 0, 0, 0 },
 #if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_KEY_GEN)
-/*  RSAKEYASN_IDX_D   */        { 1, ASN_INTEGER, 0, 0, 0 },
-/*  RSAKEYASN_IDX_P   */        { 1, ASN_INTEGER, 0, 0, 0 },
-/*  RSAKEYASN_IDX_Q   */        { 1, ASN_INTEGER, 0, 0, 0 },
-/*  RSAKEYASN_IDX_DP  */        { 1, ASN_INTEGER, 0, 0, 0 },
-/*  RSAKEYASN_IDX_DQ  */        { 1, ASN_INTEGER, 0, 0, 0 },
-/*  RSAKEYASN_IDX_U   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  D   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  P   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  Q   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  DP  */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  DQ  */        { 1, ASN_INTEGER, 0, 0, 0 },
+/*  U   */        { 1, ASN_INTEGER, 0, 0, 0 },
                 /* otherPrimeInfos  OtherPrimeInfos OPTIONAL
                  * v2 - multiprime */
 #endif
@@ -6650,25 +6650,25 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
  *                    C   - AlgorithmIdentifier
  */
 static const ASNItem pbes2ParamsASN[] = {
-/* PBES2PARAMSASN_IDX_KDF_SEQ                */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* KDF_SEQ                */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                /* PBKDF2 */
-/* PBES2PARAMSASN_IDX_KDF_OID                */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* PBES2PARAMSASN_IDX_PBKDF2_PARAMS_SEQ      */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* KDF_OID                */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* PBKDF2_PARAMS_SEQ      */     { 1, ASN_SEQUENCE, 1, 1, 0 },
                    /* Salt */
-/* PBES2PARAMSASN_IDX_PBKDF2_PARAMS_SALT     */         { 2, ASN_OCTET_STRING, 0, 0, 0 },
+/* PBKDF2_PARAMS_SALT     */         { 2, ASN_OCTET_STRING, 0, 0, 0 },
                    /* Iteration count */
-/* PBES2PARAMSASN_IDX_PBKDF2_PARAMS_ITER     */         { 2, ASN_INTEGER, 0, 0, 0 },
+/* PBKDF2_PARAMS_ITER     */         { 2, ASN_INTEGER, 0, 0, 0 },
                    /* Key length */
-/* PBES2PARAMSASN_IDX_PBKDF2_PARAMS_KEYLEN   */         { 2, ASN_INTEGER, 0, 0, 1 },
+/* PBKDF2_PARAMS_KEYLEN   */         { 2, ASN_INTEGER, 0, 0, 1 },
                    /* PRF - default is HMAC-SHA1 */
-/* PBES2PARAMSASN_IDX_PBKDF2_PARAMS_PRF      */         { 2, ASN_SEQUENCE, 1, 1, 1 },
-/* PBES2PARAMSASN_IDX_PBKDF2_PARAMS_PRF_OID  */             { 3, ASN_OBJECT_ID, 0, 0, 0 },
-/* PBES2PARAMSASN_IDX_PBKDF2_PARAMS_PRF_NULL */             { 3, ASN_TAG_NULL, 0, 0, 1 },
-/* PBES2PARAMSASN_IDX_ENCS_SEQ               */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* PBKDF2_PARAMS_PRF      */         { 2, ASN_SEQUENCE, 1, 1, 1 },
+/* PBKDF2_PARAMS_PRF_OID  */             { 3, ASN_OBJECT_ID, 0, 0, 0 },
+/* PBKDF2_PARAMS_PRF_NULL */             { 3, ASN_TAG_NULL, 0, 0, 1 },
+/* ENCS_SEQ               */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                    /* Encryption algorithm */
-/* PBES2PARAMSASN_IDX_ENCS_OID               */   { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* ENCS_OID               */   { 1, ASN_OBJECT_ID, 0, 0, 0 },
                    /* IV for CBC */
-/* PBES2PARAMSASN_IDX_ENCS_PARAMS            */   { 1, ASN_OCTET_STRING, 0, 0, 0 },
+/* ENCS_PARAMS            */   { 1, ASN_OCTET_STRING, 0, 0, 0 },
 };
 enum {
     PBES2PARAMSASN_IDX_KDF_SEQ = 0,
@@ -6693,9 +6693,9 @@ enum {
  */
 static const ASNItem pbes1ParamsASN[] = {
             /* Salt */
-/* PBES1PARAMSASN_IDX_SALT */    { 0, ASN_OCTET_STRING, 0, 0, 0 },
+/* SALT */    { 0, ASN_OCTET_STRING, 0, 0, 0 },
             /* Iteration count */
-/* PBES1PARAMSASN_IDX_ITER */    { 0, ASN_INTEGER, 0, 0, 0 },
+/* ITER */    { 0, ASN_INTEGER, 0, 0, 0 },
 };
 enum {
     PBES1PARAMSASN_IDX_SALT = 0,
@@ -7046,14 +7046,14 @@ int wc_CreateEncryptedPKCS8Key(byte* key, word32 keySz, byte* out,
  * PKCS #7: RFC 2315, 10.1 - EncryptedContentInfo without outer SEQUENCE
  */
 static const ASNItem pkcs8DecASN[] = {
-/* PKCS8DECASN_IDX_ENCALGO_SEQ    */ { 1, ASN_SEQUENCE, 1, 1, 0 },
-/* PKCS8DECASN_IDX_ENCALGO_OID    */     { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/* PKCS8DECASN_IDX_ENCALGO_PARAMS */     { 2, ASN_SEQUENCE, 1, 0, 0 },
+/* ENCALGO_SEQ    */ { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* ENCALGO_OID    */     { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* ENCALGO_PARAMS */     { 2, ASN_SEQUENCE, 1, 0, 0 },
             /* PKCS #7 */
-/* PKCS8DECASN_IDX_ENCCONTENT     */ { 1, ASN_CONTEXT_SPECIFIC | ASN_ENC_CONTENT,
+/* ENCCONTENT     */ { 1, ASN_CONTEXT_SPECIFIC | ASN_ENC_CONTENT,
                                        0, 0, 2 },
             /* PKCS #8 */
-/* PKCS8DECASN_IDX_ENCDATA        */ { 1, ASN_OCTET_STRING, 0, 0, 2 },
+/* ENCDATA        */ { 1, ASN_OCTET_STRING, 0, 0, 2 },
 };
 enum {
     PKCS8DECASN_IDX_ENCALGO_SEQ = 0,
@@ -7408,16 +7408,16 @@ static int Pkcs8Pad(byte* buf, int sz, int blockSz)
  * PKCS #5: RFC 8018, A.3 - PBEParameter
  */
 static const ASNItem p8EncPbes1ASN[] = {
-/* P8ENCPBES1ASN_IDX_SEQ                   */ { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* P8ENCPBES1ASN_IDX_ENCALGO_SEQ           */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ                   */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* ENCALGO_SEQ           */     { 1, ASN_SEQUENCE, 1, 1, 0 },
                     /* PBE algorithm */
-/* P8ENCPBES1ASN_IDX_ENCALGO_OID           */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/* P8ENCPBES1ASN_IDX_ENCALGO_PBEPARAM_SEQ  */         { 2, ASN_SEQUENCE, 1, 1, 0 },
+/* ENCALGO_OID           */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* ENCALGO_PBEPARAM_SEQ  */         { 2, ASN_SEQUENCE, 1, 1, 0 },
                         /* Salt */
-/* P8ENCPBES1ASN_IDX_ENCALGO_PBEPARAM_SALT */             { 3, ASN_OCTET_STRING, 0, 0, 0 },
+/* ENCALGO_PBEPARAM_SALT */             { 3, ASN_OCTET_STRING, 0, 0, 0 },
                         /* Iteration Count */
-/* P8ENCPBES1ASN_IDX_ENCALGO_PBEPARAM_ITER */             { 3, ASN_INTEGER, 0, 0, 0 },
-/* P8ENCPBES1ASN_IDX_ENCDATA               */     { 1, ASN_OCTET_STRING, 0, 0, 0 },
+/* ENCALGO_PBEPARAM_ITER */             { 3, ASN_INTEGER, 0, 0, 0 },
+/* ENCDATA               */     { 1, ASN_OCTET_STRING, 0, 0, 0 },
 };
 enum {
     P8ENCPBES1ASN_IDX_SEQ = 0,
@@ -7831,15 +7831,15 @@ static int RsaPublicKeyDecodeRawIndex(const byte* input, word32* inOutIdx,
  * PKCS #1: RFC 8017, A.1.1 - RSAPublicKey
  */
 static const ASNItem rsaPublicKeyASN[] = {
-/*  RSAPUBLICKEYASN_IDX_SEQ            */ { 0, ASN_SEQUENCE, 1, 1, 0 },
-/*  RSAPUBLICKEYASN_IDX_ALGOID_SEQ     */     { 1, ASN_SEQUENCE, 1, 1, 0 },
-/*  RSAPUBLICKEYASN_IDX_ALGOID_OID     */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/*  RSAPUBLICKEYASN_IDX_ALGOID_NULL    */         { 2, ASN_TAG_NULL, 0, 0, 1 },
-/*  RSAPUBLICKEYASN_IDX_PUBKEY         */     { 1, ASN_BIT_STRING, 0, 1, 0 },
+/*  SEQ            */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/*  ALGOID_SEQ     */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/*  ALGOID_OID     */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/*  ALGOID_NULL    */         { 2, ASN_TAG_NULL, 0, 0, 1 },
+/*  PUBKEY         */     { 1, ASN_BIT_STRING, 0, 1, 0 },
                                                   /* RSAPublicKey */
-/*  RSAPUBLICKEYASN_IDX_PUBKEY_RSA_SEQ */         { 2, ASN_SEQUENCE, 1, 1, 0 },
-/*  RSAPUBLICKEYASN_IDX_PUBKEY_RSA_N   */             { 3, ASN_INTEGER, 0, 0, 0 },
-/*  RSAPUBLICKEYASN_IDX_PUBKEY_RSA_E   */             { 3, ASN_INTEGER, 0, 0, 0 },
+/*  PUBKEY_RSA_SEQ */         { 2, ASN_SEQUENCE, 1, 1, 0 },
+/*  PUBKEY_RSA_N   */             { 3, ASN_INTEGER, 0, 0, 0 },
+/*  PUBKEY_RSA_E   */             { 3, ASN_INTEGER, 0, 0, 0 },
 };
 enum {
     RSAPUBLICKEYASN_IDX_SEQ = 0,
@@ -8193,13 +8193,13 @@ int wc_DhPublicKeyDecode(const byte* input, word32* inOutIdx,
  * (Also in: RFC 2786, 3)
  */
 static const ASNItem dhParamASN[] = {
-/* DHPARAMASN_IDX_SEQ     */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ     */    { 0, ASN_SEQUENCE, 1, 1, 0 },
                 /* prime */
-/* DHPARAMASN_IDX_PRIME   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* PRIME   */        { 1, ASN_INTEGER, 0, 0, 0 },
                 /* base */
-/* DHPARAMASN_IDX_BASE    */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* BASE    */        { 1, ASN_INTEGER, 0, 0, 0 },
                 /* privateValueLength */
-/* DHPARAMASN_IDX_PRIVLEN */        { 1, ASN_INTEGER, 0, 0, 1 },
+/* PRIVLEN */        { 1, ASN_INTEGER, 0, 0, 1 },
 };
 enum {
     DHPARAMASN_IDX_SEQ = 0,
@@ -8218,28 +8218,28 @@ enum {
  * RFC 3279, 2.3.3 - DH in SubjectPublicKeyInfo
  */
 static const ASNItem dhKeyPkcs8ASN[] = {
-/* DHKEYPKCS8ASN_IDX_SEQ                  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* DHKEYPKCS8ASN_IDX_VER                  */     { 1, ASN_INTEGER, 0, 0, 1 },
-/* DHKEYPKCS8ASN_IDX_PKEYALGO_SEQ         */     { 1, ASN_SEQUENCE, 1, 1, 0 },
-/* DHKEYPKCS8ASN_IDX_PKEYALGO_OID         */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* SEQ                  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* VER                  */     { 1, ASN_INTEGER, 0, 0, 1 },
+/* PKEYALGO_SEQ         */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* PKEYALGO_OID         */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
                                                      /* DHParameter */
-/* DHKEYPKCS8ASN_IDX_PKEYALGO_PARAM_SEQ   */         { 2, ASN_SEQUENCE, 1, 1, 0 },
+/* PKEYALGO_PARAM_SEQ   */         { 2, ASN_SEQUENCE, 1, 1, 0 },
                                                          /* p */
-/* DHKEYPKCS8ASN_IDX_PKEYALGO_PARAM_P     */             { 3, ASN_INTEGER, 0, 0, 0 },
+/* PKEYALGO_PARAM_P     */             { 3, ASN_INTEGER, 0, 0, 0 },
                                                          /* g */
-/* DHKEYPKCS8ASN_IDX_PKEYALGO_PARAM_G     */             { 3, ASN_INTEGER, 0, 0, 0 },
+/* PKEYALGO_PARAM_G     */             { 3, ASN_INTEGER, 0, 0, 0 },
                                                          /* q - factor of p-1 */
-/* DHKEYPKCS8ASN_IDX_PKEYALGO_PARAM_Q     */             { 3, ASN_INTEGER, 0, 0, 1 },
+/* PKEYALGO_PARAM_Q     */             { 3, ASN_INTEGER, 0, 0, 1 },
                                                          /* j - subgroup factor */
-/* DHKEYPKCS8ASN_IDX_PKEYALGO_PARAM_J     */             { 3, ASN_INTEGER, 0, 0, 1 },
+/* PKEYALGO_PARAM_J     */             { 3, ASN_INTEGER, 0, 0, 1 },
                                                          /* ValidationParms */
-/* DHKEYPKCS8ASN_IDX_PKEYALGO_PARAM_VALID */             { 3, ASN_SEQUENCE, 0, 0, 1 },
+/* PKEYALGO_PARAM_VALID */             { 3, ASN_SEQUENCE, 0, 0, 1 },
                                                  /* PrivateKey - PKCS #8 */
-/* DHKEYPKCS8ASN_IDX_PKEY_STR             */     { 1, ASN_OCTET_STRING, 0, 1, 2 },
-/* DHKEYPKCS8ASN_IDX_PKEY_INT             */         { 2, ASN_INTEGER, 0, 0, 0 },
+/* PKEY_STR             */     { 1, ASN_OCTET_STRING, 0, 1, 2 },
+/* PKEY_INT             */         { 2, ASN_INTEGER, 0, 0, 0 },
                                                  /* PublicKey - SubjectPublicKeyInfo. */
-/* DHKEYPKCS8ASN_IDX_PUBKEY_STR           */     { 1, ASN_BIT_STRING, 0, 1, 2 },
-/* DHKEYPKCS8ASN_IDX_PUBKEY_INT           */         { 2, ASN_INTEGER, 0, 0, 0 },
+/* PUBKEY_STR           */     { 1, ASN_BIT_STRING, 0, 1, 2 },
+/* PUBKEY_INT           */         { 2, ASN_INTEGER, 0, 0, 0 },
 };
 enum {
     DHKEYPKCS8ASN_IDX_SEQ = 0,
@@ -8802,13 +8802,13 @@ static mp_int* GetDsaInt(DsaKey* key, int idx)
  * RFC 3279, 2.3.2 - DSA in SubjectPublicKeyInfo
  */
 static const ASNItem dsaKeyASN[] = {
-/* DSAKEYASN_IDX_SEQ */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* DSAKEYASN_IDX_VER */        { 1, ASN_INTEGER, 0, 0, 0 },
-/* DSAKEYASN_IDX_P   */        { 1, ASN_INTEGER, 0, 0, 0 },
-/* DSAKEYASN_IDX_Q   */        { 1, ASN_INTEGER, 0, 0, 0 },
-/* DSAKEYASN_IDX_G   */        { 1, ASN_INTEGER, 0, 0, 0 },
-/* DSAKEYASN_IDX_Y   */        { 1, ASN_INTEGER, 0, 0, 0 },
-/* DSAKEYASN_IDX_X   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* SEQ */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* VER */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* P   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* Q   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* G   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* Y   */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* X   */        { 1, ASN_INTEGER, 0, 0, 0 },
 };
 enum {
     DSAKEYASN_IDX_SEQ = 0,
@@ -8830,19 +8830,19 @@ enum {
  * RFC 3279, 2.3.2 - DSA in SubjectPublicKeyInfo
  */
 static const ASNItem dsaPubKeyASN[] = {
-/* DSAPUBKEYASN_IDX_SEQ             */ { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* DSAPUBKEYASN_IDX_ALGOID_SEQ      */     { 1, ASN_SEQUENCE, 1, 1, 0 },
-/* DSAPUBKEYASN_IDX_ALGOID_OID      */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/* DSAPUBKEYASN_IDX_ALGOID_PARAMS   */         { 2, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ             */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* ALGOID_SEQ      */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* ALGOID_OID      */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* ALGOID_PARAMS   */         { 2, ASN_SEQUENCE, 1, 1, 0 },
                                                    /* p */
-/* DSAPUBKEYASN_IDX_ALGOID_PARAMS_P */             { 3, ASN_INTEGER, 0, 0, 0 },
+/* ALGOID_PARAMS_P */             { 3, ASN_INTEGER, 0, 0, 0 },
                                                    /* q */
-/* DSAPUBKEYASN_IDX_ALGOID_PARAMS_Q */             { 3, ASN_INTEGER, 0, 0, 0 },
+/* ALGOID_PARAMS_Q */             { 3, ASN_INTEGER, 0, 0, 0 },
                                                    /* g */
-/* DSAPUBKEYASN_IDX_ALGOID_PARAMS_G */             { 3, ASN_INTEGER, 0, 0, 0 },
-/* DSAPUBKEYASN_IDX_PUBKEY_STR      */     { 1, ASN_BIT_STRING, 0, 1, 1 },
+/* ALGOID_PARAMS_G */             { 3, ASN_INTEGER, 0, 0, 0 },
+/* PUBKEY_STR      */     { 1, ASN_BIT_STRING, 0, 1, 1 },
                                                /* y */
-/* DSAPUBKEYASN_IDX_PUBKEY_Y        */         { 2, ASN_INTEGER, 0, 0, 0 },
+/* PUBKEY_Y        */         { 2, ASN_INTEGER, 0, 0, 0 },
 };
 enum {
     DSAPUBKEYASN_IDX_SEQ = 0,
@@ -9006,17 +9006,17 @@ int wc_DsaParamsDecode(const byte* input, word32* inOutIdx, DsaKey* key,
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for a DSA key holding private key in an OCTET_STRING. */
 static const ASNItem dsaKeyOctASN[] = {
-/*  DSAKEYOCTASN_IDX_SEQ      */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/*  SEQ      */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                 /* p */
-/*  DSAKEYOCTASN_IDX_P        */     { 1, ASN_INTEGER, 0, 0, 0 },
+/*  P        */     { 1, ASN_INTEGER, 0, 0, 0 },
                 /* q */
-/*  DSAKEYOCTASN_IDX_Q        */     { 1, ASN_INTEGER, 0, 0, 0 },
+/*  Q        */     { 1, ASN_INTEGER, 0, 0, 0 },
                 /* g */
-/*  DSAKEYOCTASN_IDX_G        */     { 1, ASN_INTEGER, 0, 0, 0 },
+/*  G        */     { 1, ASN_INTEGER, 0, 0, 0 },
                 /* Private key */
-/*  DSAKEYOCTASN_IDX_PKEY_STR */     { 1, ASN_OCTET_STRING, 0, 1, 0 },
+/*  PKEY_STR */     { 1, ASN_OCTET_STRING, 0, 1, 0 },
                     /* x */
-/*  DSAKEYOCTASN_IDX_X        */         { 2, ASN_INTEGER, 0, 0, 0 },
+/*  X        */         { 2, ASN_INTEGER, 0, 0, 0 },
 };
 enum {
     DSAKEYOCTASN_IDX_SEQ = 0,
@@ -9863,8 +9863,8 @@ static int StoreKey(DecodedCert* cert, const byte* source, word32* srcIdx,
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for header before RSA key in certificate. */
 static const ASNItem rsaCertKeyASN[] = {
-/* RSACERTKEYASN_IDX_STR */ { 0, ASN_BIT_STRING, 0, 1, 0 },
-/* RSACERTKEYASN_IDX_SEQ */     { 1, ASN_SEQUENCE, 1, 0, 0 },
+/* STR */ { 0, ASN_BIT_STRING, 0, 1, 0 },
+/* SEQ */     { 1, ASN_SEQUENCE, 1, 0, 0 },
 };
 enum {
     RSACERTKEYASN_IDX_STR = 0,
@@ -9957,11 +9957,11 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for header before ECC key in certificate. */
 static const ASNItem eccCertKeyASN[] = {
-/* ECCCERTKEYASN_IDX_OID        */     { 1, ASN_OBJECT_ID, 0, 0, 2 },
+/* OID        */     { 1, ASN_OBJECT_ID, 0, 0, 2 },
                             /* Algo parameters */
-/* ECCCERTKEYASN_IDX_PARAMS     */     { 1, ASN_SEQUENCE, 1, 0, 2 },
+/* PARAMS     */     { 1, ASN_SEQUENCE, 1, 0, 2 },
                             /* Subject public key */
-/* ECCCERTKEYASN_IDX_SUBJPUBKEY */ { 0, ASN_BIT_STRING, 0, 0, 0 },
+/* SUBJPUBKEY */ { 0, ASN_BIT_STRING, 0, 0, 0 },
 };
 enum {
     ECCCERTKEYASN_IDX_OID = 0,
@@ -10752,13 +10752,13 @@ static const int certNameSubjectSz =
  * X.509: RFC 5280, 4.1.2.4 - RelativeDistinguishedName
  */
 static const ASNItem rdnASN[] = {
-/* RDNASN_IDX_SET       */ { 1, ASN_SET, 1, 1, 0 },
+/* SET       */ { 1, ASN_SET, 1, 1, 0 },
                            /* AttributeTypeAndValue */
-/* RDNASN_IDX_ATTR_SEQ  */     { 2, ASN_SEQUENCE, 1, 1, 0 },
+/* ATTR_SEQ  */     { 2, ASN_SEQUENCE, 1, 1, 0 },
                                    /* AttributeType */
-/* RDNASN_IDX_ATTR_TYPE */         { 3, ASN_OBJECT_ID, 0, 0, 0 },
+/* ATTR_TYPE */         { 3, ASN_OBJECT_ID, 0, 0, 0 },
                            /* AttributeValue: Choice of tags - rdnChoice. */
-/* RDNASN_IDX_ATTR_VAL  */         { 3, 0, 0, 0, 0 },
+/* ATTR_VAL  */         { 3, 0, 0, 0, 0 },
 };
 enum {
     RDNASN_IDX_SET = 0,
@@ -11802,8 +11802,8 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for certificate name. */
 static const ASNItem certNameASN[] = {
-/* CERTNAMEASN_IDX_OID  */ { 0, ASN_OBJECT_ID, 0, 0, 1 },
-/* CERTNAMEASN_IDX_NAME */ { 0, ASN_SEQUENCE, 1, 0, 0 },
+/* OID  */ { 0, ASN_OBJECT_ID, 0, 0, 1 },
+/* NAME */ { 0, ASN_SEQUENCE, 1, 0, 0 },
 };
 enum {
     CERTNAMEASN_IDX_OID = 0,
@@ -12304,8 +12304,8 @@ int wc_GetTime(void* timePtr, word32 timeSize)
 /* TODO: use a CHOICE instead of two items? */
 /* ASN.1 template for a date - either UTC or Generalized Time. */
 static const ASNItem dateASN[] = {
-/* DATEASN_IDX_UTC */ { 0, ASN_UTC_TIME, 0, 0, 2 },
-/* DATEASN_IDX_GT  */ { 0, ASN_GENERALIZED_TIME, 0, 0, 2 },
+/* UTC */ { 0, ASN_UTC_TIME, 0, 0, 2 },
+/* GT  */ { 0, ASN_GENERALIZED_TIME, 0, 0, 2 },
 };
 enum {
     DATEASN_IDX_UTC = 0,
@@ -13031,13 +13031,13 @@ word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
  * PKCS#1 v2.2: RFC 8017, A.2.4 - DigestInfo
  */
 static const ASNItem digestInfoASN[] = {
-/* DIGESTINFOASN_IDX_SEQ          */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ          */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                                          /* digestAlgorithm */
-/* DIGESTINFOASN_IDX_DIGALGO_SEQ  */     { 1, ASN_SEQUENCE, 1, 1, 0 },
-/* DIGESTINFOASN_IDX_DIGALGO_OID  */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/* DIGESTINFOASN_IDX_DIGALGO_NULL */         { 2, ASN_TAG_NULL, 0, 0, 0 },
+/* DIGALGO_SEQ  */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* DIGALGO_OID  */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* DIGALGO_NULL */         { 2, ASN_TAG_NULL, 0, 0, 0 },
                                          /* digest */
-/* DIGESTINFOASN_IDX_DIGEST       */     { 1, ASN_OCTET_STRING, 0, 0, 0 }
+/* DIGEST       */     { 1, ASN_OCTET_STRING, 0, 0, 0 }
 };
 enum {
     DIGESTINFOASN_IDX_SEQ = 0,
@@ -14209,11 +14209,11 @@ static void AddAltName(DecodedCert* cert, DNS_entry* dnsEntry)
  * Only support HW Name where the type is a HW serial number.
  */
 static const ASNItem otherNameASN[] = {
-/* OTHERNAMEASN_IDX_TYPEID   */ { 0, ASN_OBJECT_ID, 0, 0, 0 },
-/* OTHERNAMEASN_IDX_VALUE    */ { 0, ASN_CONTEXT_SPECIFIC | ASN_OTHERNAME_VALUE, 1, 0, 0 },
-/* OTHERNAMEASN_IDX_HWN_SEQ  */     { 1, ASN_SEQUENCE, 1, 0, 0 },
-/* OTHERNAMEASN_IDX_HWN_TYPE */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/* OTHERNAMEASN_IDX_HWN_NUM  */         { 2, ASN_OCTET_STRING, 0, 0, 0 }
+/* TYPEID   */ { 0, ASN_OBJECT_ID, 0, 0, 0 },
+/* VALUE    */ { 0, ASN_CONTEXT_SPECIFIC | ASN_OTHERNAME_VALUE, 1, 0, 0 },
+/* HWN_SEQ  */     { 1, ASN_SEQUENCE, 1, 0, 0 },
+/* HWN_TYPE */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* HWN_NUM  */         { 2, ASN_OCTET_STRING, 0, 0, 0 }
 };
 enum {
     OTHERNAMEASN_IDX_TYPEID = 0,
@@ -14896,9 +14896,9 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
  * X.509: RFC 5280, 4.2.1.9 - BasicConstraints.
  */
 static const ASNItem basicConsASN[] = {
-/* BASICCONSASN_IDX_SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* BASICCONSASN_IDX_CA   */     { 1, ASN_BOOLEAN, 0, 0, 1 },
-/* BASICCONSASN_IDX_PLEN */     { 1, ASN_INTEGER, 0, 0, 1 }
+/* SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* CA   */     { 1, ASN_BOOLEAN, 0, 0, 1 },
+/* PLEN */     { 1, ASN_INTEGER, 0, 0, 1 }
 };
 enum {
     BASICCONSASN_IDX_SEQ = 0,
@@ -15087,19 +15087,19 @@ static int DecodePolicyConstraints(const byte* input, int sz, DecodedCert* cert)
  * X.509: RFC 5280, 4.2.1.13 - CRL Distribution Points.
  */
 static const ASNItem crlDistASN[] = {
-/* CRLDISTASN_IDX_SEQ                */ { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* CRLDISTASN_IDX_DP_SEQ             */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ                */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* DP_SEQ             */     { 1, ASN_SEQUENCE, 1, 1, 0 },
                                                 /* Distribution point name */
-/* CRLDISTASN_IDX_DP_DISTPOINT       */         { 2, DISTRIBUTION_POINT, 1, 1, 1 },
+/* DP_DISTPOINT       */         { 2, DISTRIBUTION_POINT, 1, 1, 1 },
                                                     /* fullName */
-/* CRLDISTASN_IDX_DP_DISTPOINT_FN    */             { 3, CRLDP_FULL_NAME, 1, 1, 2 },
-/* CRLDISTASN_IDX_DP_DISTPOINT_FN_GN */                 { 4, GENERALNAME_URI, 0, 0, 0 },
+/* DP_DISTPOINT_FN    */             { 3, CRLDP_FULL_NAME, 1, 1, 2 },
+/* DP_DISTPOINT_FN_GN */                 { 4, GENERALNAME_URI, 0, 0, 0 },
                                                     /* nameRelativeToCRLIssuer */
-/* CRLDISTASN_IDX_DP_DISTPOINT_RN    */             { 3, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 2 },
+/* DP_DISTPOINT_RN    */             { 3, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 2 },
                                                 /* reasons: IMPLICIT BIT STRING */
-/* CRLDISTASN_IDX_DP_REASONS         */         { 2, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 1 },
+/* DP_REASONS         */         { 2, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 1 },
                                                 /* cRLIssuer */
-/* CRLDISTASN_IDX_DP_CRLISSUER       */         { 2, ASN_CONTEXT_SPECIFIC | 2, 1, 0, 1 },
+/* DP_CRLISSUER       */         { 2, ASN_CONTEXT_SPECIFIC | 2, 1, 0, 1 },
 };
 enum {
     CRLDISTASN_IDX_SEQ = 0,
@@ -15286,11 +15286,11 @@ static int DecodeCrlDist(const byte* input, int sz, DecodedCert* cert)
  * X.509: RFC 5280, 4.2.2.1 - Authority Information Access.
  */
 static const ASNItem accessDescASN[] = {
-/* ACCESSDESCASN_IDX_SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                                  /* accessMethod */
-/* ACCESSDESCASN_IDX_METH */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* METH */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
                                  /* accessLocation: GeneralName */
-/* ACCESSDESCASN_IDX_LOC  */     { 1, ASN_CONTEXT_SPECIFIC | 0, 0, 0, 0 },
+/* LOC  */     { 1, ASN_CONTEXT_SPECIFIC | 0, 0, 0, 0 },
 };
 enum {
     ACCESSDESCASN_IDX_SEQ = 0,
@@ -15436,13 +15436,13 @@ static int DecodeAuthInfo(const byte* input, int sz, DecodedCert* cert)
  * X.509: RFC 5280, 4.2.1.1 - Authority Key Identifier.
  */
 static const ASNItem authKeyIdASN[] = {
-/* AUTHKEYIDASN_IDX_SEQ    */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ    */    { 0, ASN_SEQUENCE, 1, 1, 0 },
                                      /* keyIdentifier */
-/* AUTHKEYIDASN_IDX_KEYID  */        { 1, ASN_CONTEXT_SPECIFIC | ASN_AUTHKEYID_KEYID, 0, 0, 1 },
+/* KEYID  */        { 1, ASN_CONTEXT_SPECIFIC | ASN_AUTHKEYID_KEYID, 0, 0, 1 },
                                      /* authorityCertIssuer */
-/* AUTHKEYIDASN_IDX_ISSUER */        { 1, ASN_CONTEXT_SPECIFIC | ASN_AUTHKEYID_ISSUER, 1, 0, 1 },
+/* ISSUER */        { 1, ASN_CONTEXT_SPECIFIC | ASN_AUTHKEYID_ISSUER, 1, 0, 1 },
                                      /* authorityCertSerialNumber */
-/* AUTHKEYIDASN_IDX_SERIAL */        { 1, ASN_CONTEXT_SPECIFIC | ASN_AUTHKEYID_SERIAL, 0, 0, 1 },
+/* SERIAL */        { 1, ASN_CONTEXT_SPECIFIC | ASN_AUTHKEYID_SERIAL, 0, 0, 1 },
 };
 enum {
     AUTHKEYIDASN_IDX_SEQ = 0,
@@ -15593,7 +15593,7 @@ static int DecodeSubjKeyId(const byte* input, int sz, DecodedCert* cert)
  * X.509: RFC 5280, 4.2.1.3 - Key Usage.
  */
 static const ASNItem keyUsageASN[] = {
-/* KEYUSAGEASN_IDX_STR */ { 0, ASN_BIT_STRING, 0, 0, 0 },
+/* STR */ { 0, ASN_BIT_STRING, 0, 0, 0 },
 };
 enum {
     KEYUSAGEASN_IDX_STR = 0,
@@ -15655,7 +15655,7 @@ static int DecodeKeyUsage(const byte* input, int sz, DecodedCert* cert)
  * X.509: RFC 5280, 4.2.1.12 - Extended Key Usage.
  */
 static const ASNItem keyPurposeIdASN[] = {
-/* KEYPURPOSEIDASN_IDX_OID */ { 0, ASN_OBJECT_ID, 0, 0, 0 },
+/* OID */ { 0, ASN_OBJECT_ID, 0, 0, 0 },
 };
 enum {
     KEYPURPOSEIDASN_IDX_OID = 0,
@@ -15834,13 +15834,13 @@ static int DecodeNsCertType(const byte* input, int sz, DecodedCert* cert)
  * X.509: RFC 5280, 4.2.1.10 - Name Constraints.
  */
 static const ASNItem subTreeASN[] = {
-/* SUBTREEASN_IDX_SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                               /* base     GeneralName */
-/* SUBTREEASN_IDX_BASE */     { 1, ASN_CONTEXT_SPECIFIC | 0, 0, 0, 0 },
+/* BASE */     { 1, ASN_CONTEXT_SPECIFIC | 0, 0, 0, 0 },
                               /* minimum  BaseDistance DEFAULT 0*/
-/* SUBTREEASN_IDX_MIN  */     { 1, ASN_CONTEXT_SPECIFIC | ASN_SUBTREE_MIN, 0, 0, 1 },
+/* MIN  */     { 1, ASN_CONTEXT_SPECIFIC | ASN_SUBTREE_MIN, 0, 0, 1 },
                               /* maximum  BaseDistance OPTIONAL  */
-/* SUBTREEASN_IDX_MAX  */     { 1, ASN_CONTEXT_SPECIFIC | ASN_SUBTREE_MAX, 0, 0, 1 },
+/* MAX  */     { 1, ASN_CONTEXT_SPECIFIC | ASN_SUBTREE_MAX, 0, 0, 1 },
 };
 enum {
     SUBTREEASN_IDX_SEQ = 0,
@@ -16050,11 +16050,11 @@ static int DecodeSubtree(const byte* input, int sz, Base_entry** head,
  * X.509: RFC 5280, 4.2.1.10 - Name Contraints.
  */
 static const ASNItem nameConstraintsASN[] = {
-/* NAMECONSTRAINTSASN_IDX_SEQ     */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ     */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                                          /* permittedSubtrees */
-/* NAMECONSTRAINTSASN_IDX_PERMIT  */     { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 0, 1 },
+/* PERMIT  */     { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 0, 1 },
                                          /* excludededSubtrees */
-/* NAMECONSTRAINTSASN_IDX_EXCLUDE */     { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 1 },
+/* EXCLUDE */     { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 1 },
 };
 enum {
     NAMECONSTRAINTSASN_IDX_SEQ = 0,
@@ -16215,11 +16215,11 @@ exit:
      * X.509: RFC 5280, 4.2.1.4 - Certificate Policies.
      */
     static const ASNItem policyInfoASN[] = {
-    /* POLICYINFOASN_IDX_SEQ   */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+    /* SEQ   */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                                       /* policyIdentifier */
-    /* POLICYINFOASN_IDX_ID    */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
+    /* ID    */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
                                       /* policyQualifiers */
-    /* POLICYINFOASN_IDX_QUALI */     { 1, ASN_SEQUENCE, 1, 0, 1 },
+    /* QUALI */     { 1, ASN_SEQUENCE, 1, 0, 1 },
     };
     enum {
         POLICYINFOASN_IDX_SEQ = 0,
@@ -16705,8 +16705,8 @@ static int DecodeExtensionType(const byte* input, int length, word32 oid,
  * X.509: RFC 5280, 4.1 - Basic Certificate Fields.
  */
 static const ASNItem certExtHdrASN[] = {
-/* CERTEXTHDRASN_IDX_EXTTAG */ { 0, ASN_CONTEXT_SPECIFIC | 3, 1, 1, 0 },
-/* CERTEXTHDRASN_IDX_EXTSEQ */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* EXTTAG */ { 0, ASN_CONTEXT_SPECIFIC | 3, 1, 1, 0 },
+/* EXTSEQ */     { 1, ASN_SEQUENCE, 1, 1, 0 },
 };
 enum {
     CERTEXTHDRASN_IDX_EXTTAG = 0,
@@ -16720,13 +16720,13 @@ enum {
  * X.509: RFC 5280, 4.1 - Basic Certificate Fields.
  */
 static const ASNItem certExtASN[] = {
-/* CERTEXTASN_IDX_SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                               /* Extension object id */
-/* CERTEXTASN_IDX_OID  */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* OID  */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
                               /* critical - when true, must be parseable. */
-/* CERTEXTASN_IDX_CRIT */     { 1, ASN_BOOLEAN, 0, 0, 1 },
+/* CRIT */     { 1, ASN_BOOLEAN, 0, 0, 1 },
                               /* Data for extension - leave index at start of data. */
-/* CERTEXTASN_IDX_VAL  */     { 1, ASN_OCTET_STRING, 0, 1, 0 },
+/* VAL  */     { 1, ASN_OCTET_STRING, 0, 1, 0 },
 };
 enum {
     CERTEXTASN_IDX_SEQ = 0,
@@ -16914,66 +16914,66 @@ end:
  */
 static const ASNItem x509CertASN[] = {
         /* Certificate ::= SEQUENCE */
-/* X509CERTASN_IDX_SEQ                           */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ                           */    { 0, ASN_SEQUENCE, 1, 1, 0 },
                                                    /* tbsCertificate       TBSCertificate */
                                                    /* TBSCertificate ::= SEQUENCE */
-/* X509CERTASN_IDX_TBS_SEQ                       */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* TBS_SEQ                       */        { 1, ASN_SEQUENCE, 1, 1, 0 },
                                                    /* version         [0]  EXPLICT Version DEFAULT v1 */
-/* X509CERTASN_IDX_TBS_VER                       */            { 2, ASN_CONTEXT_SPECIFIC | ASN_X509_CERT_VERSION, 1, 1, 1 },
+/* TBS_VER                       */            { 2, ASN_CONTEXT_SPECIFIC | ASN_X509_CERT_VERSION, 1, 1, 1 },
                                                    /* Version ::= INTEGER { v1(0), v2(1), v3(2) */
-/* X509CERTASN_IDX_TBS_VER_INT                   */                { 3, ASN_INTEGER, 0, 0, 0 },
+/* TBS_VER_INT                   */                { 3, ASN_INTEGER, 0, 0, 0 },
                                                    /* serialNumber         CertificateSerialNumber */
                                                    /* CetificateSerialNumber ::= INTEGER */
-/* X509CERTASN_IDX_TBS_SERIAL                    */            { 2, ASN_INTEGER, 0, 0, 0 },
+/* TBS_SERIAL                    */            { 2, ASN_INTEGER, 0, 0, 0 },
                                                    /* signature            AlgorithmIdentifier */
                                                    /* AlgorithmIdentifier ::= SEQUENCE */
-/* X509CERTASN_IDX_TBS_ALGOID_SEQ                */            { 2, ASN_SEQUENCE, 1, 1, 0 },
+/* TBS_ALGOID_SEQ                */            { 2, ASN_SEQUENCE, 1, 1, 0 },
                                                    /* Algorithm    OBJECT IDENTIFIER */
-/* X509CERTASN_IDX_TBS_ALGOID_OID                */                { 3, ASN_OBJECT_ID, 0, 0, 0 },
+/* TBS_ALGOID_OID                */                { 3, ASN_OBJECT_ID, 0, 0, 0 },
                                                    /* parameters   ANY defined by algorithm OPTIONAL */
-/* X509CERTASN_IDX_TBS_ALGOID_PARAMS             */                { 3, ASN_TAG_NULL, 0, 0, 1 },
+/* TBS_ALGOID_PARAMS             */                { 3, ASN_TAG_NULL, 0, 0, 1 },
                                                    /* issuer               Name */
-/* X509CERTASN_IDX_TBS_ISSUER_SEQ                */            { 2, ASN_SEQUENCE, 1, 0, 0 },
+/* TBS_ISSUER_SEQ                */            { 2, ASN_SEQUENCE, 1, 0, 0 },
                                                    /* validity             Validity */
                                                    /* Validity ::= SEQUENCE */
-/* X509CERTASN_IDX_TBS_VALIDITY_SEQ              */            { 2, ASN_SEQUENCE, 1, 1, 0 },
+/* TBS_VALIDITY_SEQ              */            { 2, ASN_SEQUENCE, 1, 1, 0 },
                                                    /* notBefore   Time */
                                                    /* Time :: CHOICE { UTCTime, GeneralizedTime } */
-/* X509CERTASN_IDX_TBS_VALIDITY_NOTB_UTC         */                { 3, ASN_UTC_TIME, 0, 0, 2 },
-/* X509CERTASN_IDX_TBS_VALIDITY_NOTB_GT          */                { 3, ASN_GENERALIZED_TIME, 0, 0, 2 },
+/* TBS_VALIDITY_NOTB_UTC         */                { 3, ASN_UTC_TIME, 0, 0, 2 },
+/* TBS_VALIDITY_NOTB_GT          */                { 3, ASN_GENERALIZED_TIME, 0, 0, 2 },
                                                    /* notAfter   Time */
                                                    /* Time :: CHOICE { UTCTime, GeneralizedTime } */
-/* X509CERTASN_IDX_TBS_VALIDITY_NOTA_UTC         */                { 3, ASN_UTC_TIME, 0, 0, 3 },
-/* X509CERTASN_IDX_TBS_VALIDITY_NOTA_GT          */                { 3, ASN_GENERALIZED_TIME, 0, 0, 3 },
+/* TBS_VALIDITY_NOTA_UTC         */                { 3, ASN_UTC_TIME, 0, 0, 3 },
+/* TBS_VALIDITY_NOTA_GT          */                { 3, ASN_GENERALIZED_TIME, 0, 0, 3 },
                                                    /* subject              Name */
-/* X509CERTASN_IDX_TBS_SUBJECT_SEQ               */            { 2, ASN_SEQUENCE, 1, 0, 0 },
+/* TBS_SUBJECT_SEQ               */            { 2, ASN_SEQUENCE, 1, 0, 0 },
                                                    /* subjectPublicKeyInfo SubjectPublicKeyInfo */
-/* X509CERTASN_IDX_TBS_SPUBKEYINFO_SEQ           */            { 2, ASN_SEQUENCE, 1, 1, 0 },
+/* TBS_SPUBKEYINFO_SEQ           */            { 2, ASN_SEQUENCE, 1, 1, 0 },
                                                    /* algorithm          AlgorithmIdentifier */
                                                    /* AlgorithmIdentifier ::= SEQUENCE */
-/* X509CERTASN_IDX_TBS_SPUBKEYINFO_ALGO_SEQ      */                { 3, ASN_SEQUENCE, 1, 1, 0 },
+/* TBS_SPUBKEYINFO_ALGO_SEQ      */                { 3, ASN_SEQUENCE, 1, 1, 0 },
                                                    /* Algorithm    OBJECT IDENTIFIER */
-/* X509CERTASN_IDX_TBS_SPUBKEYINFO_ALGO_OID      */                    { 4, ASN_OBJECT_ID, 0, 0, 0 },
+/* TBS_SPUBKEYINFO_ALGO_OID      */                    { 4, ASN_OBJECT_ID, 0, 0, 0 },
                                                    /* parameters   ANY defined by algorithm OPTIONAL */
-/* X509CERTASN_IDX_TBS_SPUBKEYINFO_ALGO_NOPARAMS */                    { 4, ASN_TAG_NULL, 0, 0, 1 },
-/* X509CERTASN_IDX_TBS_SPUBKEYINFO_ALGO_CURVEID  */                    { 4, ASN_OBJECT_ID, 0, 0, 1 },
+/* TBS_SPUBKEYINFO_ALGO_NOPARAMS */                    { 4, ASN_TAG_NULL, 0, 0, 1 },
+/* TBS_SPUBKEYINFO_ALGO_CURVEID  */                    { 4, ASN_OBJECT_ID, 0, 0, 1 },
                                                    /* subjectPublicKey   BIT STRING */
-/* X509CERTASN_IDX_TBS_SPUBKEYINFO_PUBKEY        */                { 3, ASN_BIT_STRING, 0, 0, 0 },
+/* TBS_SPUBKEYINFO_PUBKEY        */                { 3, ASN_BIT_STRING, 0, 0, 0 },
                                                    /* issuerUniqueID       UniqueIdentfier OPTIONAL */
-/* X509CERTASN_IDX_TBS_ISSUERUID                 */            { 2, ASN_CONTEXT_SPECIFIC | 1, 0, 0, 1 },
+/* TBS_ISSUERUID                 */            { 2, ASN_CONTEXT_SPECIFIC | 1, 0, 0, 1 },
                                                    /* subjectUniqueID      UniqueIdentfier OPTIONAL */
-/* X509CERTASN_IDX_TBS_SUBJECTUID                */            { 2, ASN_CONTEXT_SPECIFIC | 2, 0, 0, 1 },
+/* TBS_SUBJECTUID                */            { 2, ASN_CONTEXT_SPECIFIC | 2, 0, 0, 1 },
                                                    /* extensions           Extensions OPTIONAL */
-/* X509CERTASN_IDX_TBS_EXT                       */            { 2, ASN_CONTEXT_SPECIFIC | 3, 1, 0, 1 },
+/* TBS_EXT                       */            { 2, ASN_CONTEXT_SPECIFIC | 3, 1, 0, 1 },
                                                    /* signatureAlgorithm   AlgorithmIdentifier */
                                                    /* AlgorithmIdentifier ::= SEQUENCE */
-/* X509CERTASN_IDX_SIGALGO_SEQ                   */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* SIGALGO_SEQ                   */        { 1, ASN_SEQUENCE, 1, 1, 0 },
                                                    /* Algorithm    OBJECT IDENTIFIER */
-/* X509CERTASN_IDX_SIGALGO_OID                   */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* SIGALGO_OID                   */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
                                                    /* parameters   ANY defined by algorithm OPTIONAL */
-/* X509CERTASN_IDX_SIGALGO_PARAMS                */            { 2, ASN_TAG_NULL, 0, 0, 1 },
+/* SIGALGO_PARAMS                */            { 2, ASN_TAG_NULL, 0, 0, 1 },
                                                    /* signature            BIT STRING */
-/* X509CERTASN_IDX_SIGNATURE                     */        { 1, ASN_BIT_STRING, 0, 0, 0 },
+/* SIGNATURE                     */        { 1, ASN_BIT_STRING, 0, 0, 0 },
 };
 enum {
     X509CERTASN_IDX_SEQ = 0,
@@ -17285,11 +17285,11 @@ int DecodeCert(DecodedCert* cert, int verify, int* criticalExt)
  * PKCS #10: RFC 2986, 4.1 - CertificationRequestInfo
  */
 static const ASNItem reqAttrASN[] = {
-/* REQATTRASN_IDX_SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                               /* type */
-/* REQATTRASN_IDX_TYPE */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* TYPE */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
                               /* values */
-/* REQATTRASN_IDX_VALS */     { 1, ASN_SET, 1, 0, 0 },
+/* VALS */     { 1, ASN_SET, 1, 0, 0 },
 };
 enum {
     REQATTRASN_IDX_SEQ = 0,
@@ -17483,35 +17483,35 @@ static int DecodeCertReqAttributes(DecodedCert* cert, int* criticalExt,
  */
 static const ASNItem certReqASN[] = {
             /* CertificationRequest */
-/* CERTREQASN_IDX_SEQ                              */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ                              */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                                                           /* CertificationRequestInfo */
-/* CERTREQASN_IDX_INFO_SEQ                         */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* INFO_SEQ                         */     { 1, ASN_SEQUENCE, 1, 1, 0 },
                                                               /* version              INTEGER { v1(0), v2(1), v3(2) */
-/* CERTREQASN_IDX_INFO_VER                         */         { 2, ASN_INTEGER, 0, 0, 0 },
+/* INFO_VER                         */         { 2, ASN_INTEGER, 0, 0, 0 },
                                                               /* subject              Name */
-/* CERTREQASN_IDX_INFO_SUBJ_SEQ                    */         { 2, ASN_SEQUENCE, 1, 0, 0 },
+/* INFO_SUBJ_SEQ                    */         { 2, ASN_SEQUENCE, 1, 0, 0 },
                                                               /* subjectPublicKeyInfo SubjectPublicKeyInfo */
-/* CERTREQASN_IDX_INFO_SPUBKEYINFO_SEQ             */         { 2, ASN_SEQUENCE, 1, 1, 0 },
+/* INFO_SPUBKEYINFO_SEQ             */         { 2, ASN_SEQUENCE, 1, 1, 0 },
                                                                   /* algorithm          AlgorithmIdentifier */
-/* CERTREQASN_IDX_INFO_SPUBKEYINFO_ALGOID_SEQ      */             { 3, ASN_SEQUENCE, 1, 1, 0 },
+/* INFO_SPUBKEYINFO_ALGOID_SEQ      */             { 3, ASN_SEQUENCE, 1, 1, 0 },
                                                                       /* Algorithm    OBJECT IDENTIFIER */
-/* CERTREQASN_IDX_INFO_SPUBKEYINFO_ALGOID_OID      */                 { 4, ASN_OBJECT_ID, 0, 0, 0 },
+/* INFO_SPUBKEYINFO_ALGOID_OID      */                 { 4, ASN_OBJECT_ID, 0, 0, 0 },
                                                                       /* parameters   ANY defined by algorithm OPTIONAL */
-/* CERTREQASN_IDX_INFO_SPUBKEYINFO_ALGOID_NOPARAMS */                 { 4, ASN_TAG_NULL, 0, 0, 1 },
-/* CERTREQASN_IDX_INFO_SPUBKEYINFO_ALGOID_CURVEID  */                 { 4, ASN_OBJECT_ID, 0, 0, 1 },
-/* CERTREQASN_IDX_INFO_SPUBKEYINFO_ALGOID_PARAMS   */                 { 4, ASN_SEQUENCE, 1, 0, 1 },
+/* INFO_SPUBKEYINFO_ALGOID_NOPARAMS */                 { 4, ASN_TAG_NULL, 0, 0, 1 },
+/* INFO_SPUBKEYINFO_ALGOID_CURVEID  */                 { 4, ASN_OBJECT_ID, 0, 0, 1 },
+/* INFO_SPUBKEYINFO_ALGOID_PARAMS   */                 { 4, ASN_SEQUENCE, 1, 0, 1 },
                                                                   /* subjectPublicKey   BIT STRING */
-/* CERTREQASN_IDX_INFO_SPUBKEYINFO_PUBKEY          */             { 3, ASN_BIT_STRING, 0, 0, 0 },
+/* INFO_SPUBKEYINFO_PUBKEY          */             { 3, ASN_BIT_STRING, 0, 0, 0 },
                                                               /* attributes       [0] Attributes */
-/* CERTREQASN_IDX_INFO_ATTRS                       */         { 2, ASN_CONTEXT_SPECIFIC | 0, 1, 0, 1 },
+/* INFO_ATTRS                       */         { 2, ASN_CONTEXT_SPECIFIC | 0, 1, 0, 1 },
                                                           /* signatureAlgorithm   AlgorithmIdentifier */
-/* CERTREQASN_IDX_INFO_SIGALGO_SEQ                 */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* INFO_SIGALGO_SEQ                 */     { 1, ASN_SEQUENCE, 1, 1, 0 },
                                                               /* Algorithm    OBJECT IDENTIFIER */
-/* CERTREQASN_IDX_INFO_SIGALGO_OID                 */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* INFO_SIGALGO_OID                 */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
                                                               /* parameters   ANY defined by algorithm OPTIONAL */
-/* CERTREQASN_IDX_INFO_SIGALGO_NOPARAMS            */         { 2, ASN_TAG_NULL, 0, 0, 1 },
+/* INFO_SIGALGO_NOPARAMS            */         { 2, ASN_TAG_NULL, 0, 0, 1 },
                                                           /* signature            BIT STRING */
-/* CERTREQASN_IDX_INFO_SIGNATURE                   */     { 1, ASN_BIT_STRING, 0, 0, 0 },
+/* INFO_SIGNATURE                   */     { 1, ASN_BIT_STRING, 0, 0, 0 },
 };
 enum {
     CERTREQASN_IDX_SEQ = 0,
@@ -20962,17 +20962,17 @@ static int wc_SetCert_LoadDer(Cert* cert, const byte* der, word32 derSz)
  * See ASN.1 template 'eccSpecifiedASN' for specifiedCurve.
  */
 static const ASNItem eccPublicKeyASN[] = {
-/* ECCPUBLICKEYASN_IDX_SEQ            */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ            */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                                              /* AlgorithmIdentifier */
-/* ECCPUBLICKEYASN_IDX_ALGOID_SEQ     */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* ALGOID_SEQ     */     { 1, ASN_SEQUENCE, 1, 1, 0 },
                                                  /* algorithm */
-/* ECCPUBLICKEYASN_IDX_ALGOID_OID     */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* ALGOID_OID     */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
                                                  /* namedCurve */
-/* ECCPUBLICKEYASN_IDX_ALGOID_CURVEID */         { 2, ASN_OBJECT_ID, 0, 0, 2 },
+/* ALGOID_CURVEID */         { 2, ASN_OBJECT_ID, 0, 0, 2 },
                                                  /* specifiedCurve - explicit parameters */
-/* ECCPUBLICKEYASN_IDX_ALGOID_PARAMS  */         { 2, ASN_SEQUENCE, 1, 0, 2 },
+/* ALGOID_PARAMS  */         { 2, ASN_SEQUENCE, 1, 0, 2 },
                                              /* Public Key */
-/* ECCPUBLICKEYASN_IDX_PUBKEY         */     { 1, ASN_BIT_STRING, 0, 0, 0 },
+/* PUBKEY         */     { 1, ASN_BIT_STRING, 0, 0, 0 },
 };
 enum {
     ECCPUBLICKEYASN_IDX_SEQ = 0,
@@ -21278,13 +21278,13 @@ int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve)
  */
 static const ASNItem edPubKeyASN[] = {
             /* SubjectPublicKeyInfo */
-/* EDPUBKEYASN_IDX_SEQ        */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ        */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                                      /* AlgorithmIdentifier */
-/* EDPUBKEYASN_IDX_ALGOID_SEQ */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* ALGOID_SEQ */     { 1, ASN_SEQUENCE, 1, 1, 0 },
                                          /* Ed25519/Ed448 OID */
-/* EDPUBKEYASN_IDX_ALGOID_OID */         { 2, ASN_OBJECT_ID, 0, 0, 1 },
+/* ALGOID_OID */         { 2, ASN_OBJECT_ID, 0, 0, 1 },
                                      /* Public key stream */
-/* EDPUBKEYASN_IDX_PUBKEY     */     { 1, ASN_BIT_STRING, 0, 0, 0 },
+/* PUBKEY     */     { 1, ASN_BIT_STRING, 0, 0, 0 },
 };
 enum {
     EDPUBKEYASN_IDX_SEQ = 0,
@@ -21951,8 +21951,8 @@ static int SetOjectIdValue(byte* output, word32 outSz, int* idx,
  * Dynamic creation of template for encoding.
  */
 static const ASNItem ekuASN[] = {
-/* EKUASN_IDX_SEQ */ { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* EKUASN_IDX_OID */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* SEQ */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* OID */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
 };
 enum {
     EKUASN_IDX_SEQ = 0,
@@ -23070,58 +23070,58 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
  */
 static const ASNItem certExtsASN[] = {
             /* Basic Constraints Extension - 4.2.1.9 */
-/* CERTEXTSASN_IDX_BC_SEQ        */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* CERTEXTSASN_IDX_BC_OID        */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* CERTEXTSASN_IDX_BC_STR        */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
-/* CERTEXTSASN_IDX_BC_STR_SEQ    */            { 2, ASN_SEQUENCE, 1, 1, 0 },
+/* BC_SEQ        */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* BC_OID        */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* BC_STR        */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
+/* BC_STR_SEQ    */            { 2, ASN_SEQUENCE, 1, 1, 0 },
                                                    /* cA */
-/* CERTEXTSASN_IDX_BC_CA         */                { 3, ASN_BOOLEAN, 0, 0, 0 },
+/* BC_CA         */                { 3, ASN_BOOLEAN, 0, 0, 0 },
                                                    /* pathLenConstraint */
-/* CERTEXTSASN_IDX_BC_PATHLEN    */                { 3, ASN_INTEGER, 0, 0, 1 },
+/* BC_PATHLEN    */                { 3, ASN_INTEGER, 0, 0, 1 },
                                        /* Subject Alternative Name - 4.2.1.6  */
-/* CERTEXTSASN_IDX_SAN_SEQ       */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* CERTEXTSASN_IDX_SAN_OID       */       { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* CERTEXTSASN_IDX_SAN_STR       */       { 1, ASN_OCTET_STRING, 0, 0, 0 },
+/* SAN_SEQ       */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SAN_OID       */       { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* SAN_STR       */       { 1, ASN_OCTET_STRING, 0, 0, 0 },
 #ifdef WOLFSSL_CERT_EXT
             /* Subject Key Identifier - 4.2.1.2 */
-/* CERTEXTSASN_IDX_SKID_SEQ      */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* CERTEXTSASN_IDX_SKID_OID      */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* CERTEXTSASN_IDX_SKID_STR      */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
-/* CERTEXTSASN_IDX_SKID_KEYID    */            { 2, ASN_OCTET_STRING, 0, 0, 0 },
+/* SKID_SEQ      */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SKID_OID      */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* SKID_STR      */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
+/* SKID_KEYID    */            { 2, ASN_OCTET_STRING, 0, 0, 0 },
                                        /* Authority Key Identifier - 4.2.1.1 */
-/* CERTEXTSASN_IDX_AKID_SEQ      */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* CERTEXTSASN_IDX_AKID_OID      */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* CERTEXTSASN_IDX_AKID_STR      */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
-/* CERTEXTSASN_IDX_AKID_STR_SEQ, */            { 2, ASN_SEQUENCE, 1, 1, 0 },
-/* CERTEXTSASN_IDX_AKID_KEYID    */                { 3, ASN_CONTEXT_SPECIFIC | 0, 0, 0, 0 },
+/* AKID_SEQ      */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* AKID_OID      */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* AKID_STR      */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
+/* AKID_STR_SEQ, */            { 2, ASN_SEQUENCE, 1, 1, 0 },
+/* AKID_KEYID    */                { 3, ASN_CONTEXT_SPECIFIC | 0, 0, 0, 0 },
                                        /* Key Usage - 4.2.1.3 */
-/* CERTEXTSASN_IDX_KU_SEQ        */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* CERTEXTSASN_IDX_KU_OID        */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* CERTEXTSASN_IDX_KU_CRIT       */        { 1, ASN_BOOLEAN, 0, 0, 0 },
-/* CERTEXTSASN_IDX_KU_STR        */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
-/* CERTEXTSASN_IDX_KU_USAGE      */            { 2, ASN_BIT_STRING, 0, 0, 0 },
+/* KU_SEQ        */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* KU_OID        */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* KU_CRIT       */        { 1, ASN_BOOLEAN, 0, 0, 0 },
+/* KU_STR        */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
+/* KU_USAGE      */            { 2, ASN_BIT_STRING, 0, 0, 0 },
                                        /* Extended Key Usage - 4,2,1,12 */
-/* CERTEXTSASN_IDX_EKU_SEQ       */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* CERTEXTSASN_IDX_EKU_OID       */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* CERTEXTSASN_IDX_EKU_STR       */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
+/* EKU_SEQ       */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* EKU_OID       */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* EKU_STR       */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
                                        /* Certificate Policies - 4.2.1.4 */
-/* CERTEXTSASN_IDX_POLICIES_SEQ, */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* CERTEXTSASN_IDX_POLICIES_OID, */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* CERTEXTSASN_IDX_POLICIES_STR, */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
-/* CERTEXTSASN_IDX_POLICIES_INFO */            { 2, ASN_SEQUENCE, 0, 0, 0 },
+/* POLICIES_SEQ, */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* POLICIES_OID, */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* POLICIES_STR, */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
+/* POLICIES_INFO */            { 2, ASN_SEQUENCE, 0, 0, 0 },
                                        /* Netscape Certificate Type */
-/* CERTEXTSASN_IDX_NSTYPE_SEQ    */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* CERTEXTSASN_IDX_NSTYPE_OID    */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* CERTEXTSASN_IDX_NSTYPE_STR    */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
-/* CERTEXTSASN_IDX_NSTYPE_USAGE, */            { 2, ASN_BIT_STRING, 0, 0, 0 },
-/* CERTEXTSASN_IDX_CRLINFO_SEQ   */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* CERTEXTSASN_IDX_CRLINFO_OID   */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* CERTEXTSASN_IDX_CRLINFO_STR   */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
+/* NSTYPE_SEQ    */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* NSTYPE_OID    */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* NSTYPE_STR    */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
+/* NSTYPE_USAGE, */            { 2, ASN_BIT_STRING, 0, 0, 0 },
+/* CRLINFO_SEQ   */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* CRLINFO_OID   */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* CRLINFO_STR   */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
 #endif /* WOLFSSL_CERT_EXT */
 #ifdef WOLFSSL_CUSTOM_OID
-/* CERTEXTSASN_IDX_CUSTOM_SEQ    */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/* CERTEXTSASN_IDX_CUSTOM_OID    */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
-/* CERTEXTSASN_IDX_CUSTOM_STR    */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
+/* CUSTOM_SEQ    */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* CUSTOM_OID    */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* CUSTOM_STR    */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
 #endif
 };
 enum {
@@ -24199,15 +24199,15 @@ static int GenerateInteger(WC_RNG* rng, byte* out, int len)
  * X.509: RFC 5280, 4.1 - Basic Certificate Fields.
  */
 static const ASNItem sigASN[] = {
-/* SIGASN_IDX_SEQ          */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ          */    { 0, ASN_SEQUENCE, 1, 1, 0 },
                                      /* tbsCertificate */
-/* SIGASN_IDX_TBS_SEQ      */        { 1, ASN_SEQUENCE, 1, 0, 0 },
+/* TBS_SEQ      */        { 1, ASN_SEQUENCE, 1, 0, 0 },
                                      /* signatureAlgorithm */
-/* SIGASN_IDX_SIGALGO_SEQ  */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-/* SIGASN_IDX_SIGALGO_OID  */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/* SIGASN_IDX_SIGALGO_NULL */            { 2, ASN_TAG_NULL, 0, 0, 0 },
+/* SIGALGO_SEQ  */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* SIGALGO_OID  */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* SIGALGO_NULL */            { 2, ASN_TAG_NULL, 0, 0, 0 },
                                      /* signatureValue */
-/* SIGASN_IDX_SIGNATURE    */        { 1, ASN_BIT_STRING, 0, 0, 0 },
+/* SIGNATURE    */        { 1, ASN_BIT_STRING, 0, 0, 0 },
 };
 enum {
     SIGASN_IDX_SEQ = 0,
@@ -25104,26 +25104,26 @@ static int WriteCertReqBody(DerCert* der, byte* buf)
  * PKCS #10: RFC 2986, 4.1 - CertificationRequestInfo
  */
 static const ASNItem certReqBodyASN[] = {
-/* CERTREQBODYASN_IDX_SEQ             */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ             */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                                              /* version */
-/* CERTREQBODYASN_IDX_VER             */     { 1, ASN_INTEGER, 0, 0, 0 },
+/* VER             */     { 1, ASN_INTEGER, 0, 0, 0 },
                                              /* subject */
-/* CERTREQBODYASN_IDX_SUBJ_SEQ        */     { 1, ASN_SEQUENCE, 1, 0, 0 },
+/* SUBJ_SEQ        */     { 1, ASN_SEQUENCE, 1, 0, 0 },
                                              /* subjectPKInfo */
-/* CERTREQBODYASN_IDX_SPUBKEYINFO_SEQ */     { 1, ASN_SEQUENCE, 1, 0, 0 },
+/* SPUBKEYINFO_SEQ */     { 1, ASN_SEQUENCE, 1, 0, 0 },
                                              /*  attributes*/
-/* CERTREQBODYASN_IDX_ATTRS           */     { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
+/* ATTRS           */     { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
                                                  /* Challenge Password Attribute */
-/* CERTREQBODYASN_IDX_ATTRS_CPW_SEQ   */         { 2, ASN_SEQUENCE, 1, 1, 1 },
-/* CERTREQBODYASN_IDX_ATTRS_CPW_OID   */             { 3, ASN_OBJECT_ID, 0, 0, 0 },
-/* CERTREQBODYASN_IDX_ATTRS_CPW_SET   */             { 3, ASN_SET, 1, 1, 0 },
-/* CERTREQBODYASN_IDX_ATTRS_CPW_PS    */                 { 4, ASN_PRINTABLE_STRING, 0, 0, 0 },
-/* CERTREQBODYASN_IDX_ATTRS_CPW_UTF   */                 { 4, ASN_UTF8STRING, 0, 0, 0 },
+/* ATTRS_CPW_SEQ   */         { 2, ASN_SEQUENCE, 1, 1, 1 },
+/* ATTRS_CPW_OID   */             { 3, ASN_OBJECT_ID, 0, 0, 0 },
+/* ATTRS_CPW_SET   */             { 3, ASN_SET, 1, 1, 0 },
+/* ATTRS_CPW_PS    */                 { 4, ASN_PRINTABLE_STRING, 0, 0, 0 },
+/* ATTRS_CPW_UTF   */                 { 4, ASN_UTF8STRING, 0, 0, 0 },
                                                  /* Extensions Attribute */
-/* CERTREQBODYASN_IDX_EXT_SEQ         */         { 2, ASN_SEQUENCE, 1, 1, 1 },
-/* CERTREQBODYASN_IDX_EXT_OID         */             { 3, ASN_OBJECT_ID, 0, 0, 0 },
-/* CERTREQBODYASN_IDX_EXT_SET         */             { 3, ASN_SET, 1, 1, 0 },
-/* CERTREQBODYASN_IDX_EXT_BODY        */                 { 4, ASN_SEQUENCE, 1, 0, 0 },
+/* EXT_SEQ         */         { 2, ASN_SEQUENCE, 1, 1, 1 },
+/* EXT_OID         */             { 3, ASN_OBJECT_ID, 0, 0, 0 },
+/* EXT_SET         */             { 3, ASN_SET, 1, 1, 0 },
+/* EXT_BODY        */                 { 4, ASN_SEQUENCE, 1, 0, 0 },
 };
 enum {
     CERTREQBODYASN_IDX_SEQ = 0,
@@ -26640,11 +26640,11 @@ int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
  * RFC 5912, 6 - DSA-Sig-Value
  */
 static const ASNItem dsaSigASN[] = {
-/* DSASIGASN_IDX_SEQ */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                             /* r */
-/* DSASIGASN_IDX_R   */     { 1, ASN_INTEGER, 0, 0, 0 },
+/* R   */     { 1, ASN_INTEGER, 0, 0, 0 },
                             /* s */
-/* DSASIGASN_IDX_S   */     { 1, ASN_INTEGER, 0, 0, 0 },
+/* S   */     { 1, ASN_INTEGER, 0, 0, 0 },
 };
 enum {
     DSASIGASN_IDX_SEQ = 0,
@@ -27011,29 +27011,29 @@ static int DataToHexStringAlloc(const byte* input, word32 inSz, char** out,
  * NOTE: characteristic-two-field not supported. */
 static const ASNItem eccSpecifiedASN[] = {
             /* version */
-/* ECCSPECIFIEDASN_IDX_VER        */ { 0, ASN_INTEGER, 0, 0, 0 },
+/* VER        */ { 0, ASN_INTEGER, 0, 0, 0 },
                                      /* fieldID */
-/* ECCSPECIFIEDASN_IDX_PRIME_SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* PRIME_SEQ  */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                                          /* prime-field or characteristic-two-field */
-/* ECCSPECIFIEDASN_IDX_PRIME_OID  */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
+/* PRIME_OID  */     { 1, ASN_OBJECT_ID, 0, 0, 0 },
                                          /* Prime-p */
-/* ECCSPECIFIEDASN_IDX_PRIME_P    */     { 1, ASN_INTEGER, 0, 0, 0 },
+/* PRIME_P    */     { 1, ASN_INTEGER, 0, 0, 0 },
                                      /* fieldID */
-/* ECCSPECIFIEDASN_IDX_PARAM_SEQ, */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* PARAM_SEQ, */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                                          /* a */
-/* ECCSPECIFIEDASN_IDX_PARAM_A    */     { 1, ASN_OCTET_STRING, 0, 0, 0 },
+/* PARAM_A    */     { 1, ASN_OCTET_STRING, 0, 0, 0 },
                                          /* b */
-/* ECCSPECIFIEDASN_IDX_PARAM_B    */     { 1, ASN_OCTET_STRING, 0, 0, 0 },
+/* PARAM_B    */     { 1, ASN_OCTET_STRING, 0, 0, 0 },
                                          /* seed */
-/* ECCSPECIFIEDASN_IDX_PARAM_SEED */     { 1, ASN_BIT_STRING, 0, 0, 1 },
+/* PARAM_SEED */     { 1, ASN_BIT_STRING, 0, 0, 1 },
                                      /* base */
-/* ECCSPECIFIEDASN_IDX_BASE       */ { 0, ASN_OCTET_STRING, 0, 0, 0 },
+/* BASE       */ { 0, ASN_OCTET_STRING, 0, 0, 0 },
                                      /* order */
-/* ECCSPECIFIEDASN_IDX_ORDER      */ { 0, ASN_INTEGER, 0, 0, 0 },
+/* ORDER      */ { 0, ASN_INTEGER, 0, 0, 0 },
                                      /* cofactor */
-/* ECCSPECIFIEDASN_IDX_COFACTOR   */ { 0, ASN_INTEGER, 0, 0, 1 },
+/* COFACTOR   */ { 0, ASN_INTEGER, 0, 0, 1 },
                                      /* hash */
-/* ECCSPECIFIEDASN_IDX_HASH_SEQ   */ { 0, ASN_SEQUENCE, 0, 0, 1 },
+/* HASH_SEQ   */ { 0, ASN_SEQUENCE, 0, 0, 1 },
 };
 enum {
     ECCSPECIFIEDASN_IDX_VER = 0,
@@ -27226,21 +27226,21 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
  * SEC.1 Ver 2.0, C.4 - Syntax for Elliptic Curve Private Keys
  */
 static const ASNItem eccKeyASN[] = {
-/* ECCKEYASN_IDX_SEQ         */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ         */    { 0, ASN_SEQUENCE, 1, 1, 0 },
                                        /* version */
-/* ECCKEYASN_IDX_VER         */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* VER         */        { 1, ASN_INTEGER, 0, 0, 0 },
                                        /* privateKey */
-/* ECCKEYASN_IDX_PKEY        */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
+/* PKEY        */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
                                        /* parameters */
-/* ECCKEYASN_IDX_PARAMS      */        { 1, ASN_CONTEXT_SPECIFIC | ASN_ECC_PARAMS, 1, 1, 1 },
+/* PARAMS      */        { 1, ASN_CONTEXT_SPECIFIC | ASN_ECC_PARAMS, 1, 1, 1 },
                                            /* named */
-/* ECCKEYASN_IDX_CURVEID     */            { 2, ASN_OBJECT_ID, 0, 0, 2 },
+/* CURVEID     */            { 2, ASN_OBJECT_ID, 0, 0, 2 },
                                            /* specified */
-/* ECCKEYASN_IDX_CURVEPARAMS */            { 2, ASN_SEQUENCE, 1, 0, 2 },
+/* CURVEPARAMS */            { 2, ASN_SEQUENCE, 1, 0, 2 },
                                        /* publicKey */
-/* ECCKEYASN_IDX_PUBKEY      */        { 1, ASN_CONTEXT_SPECIFIC | ASN_ECC_PUBKEY, 1, 1, 1 },
+/* PUBKEY      */        { 1, ASN_CONTEXT_SPECIFIC | ASN_ECC_PUBKEY, 1, 1, 1 },
                                            /* Uncompressed point - X9.62. */
-/* ECCKEYASN_IDX_PUBKEY_VAL, */            { 2, ASN_BIT_STRING, 0, 0, 0 },
+/* PUBKEY_VAL, */            { 2, ASN_BIT_STRING, 0, 0, 0 },
 };
 enum {
     ECCKEYASN_IDX_SEQ = 0,
@@ -28275,22 +28275,22 @@ int wc_EccKeyToPKCS8(ecc_key* key, byte* output,
  * RFC 8410, 7 - Private Key Format (but public value is EXPLICIT OCTET_STRING)
  */
 static const ASNItem edKeyASN[] = {
-/* EDKEYASN_IDX_SEQ            */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ            */    { 0, ASN_SEQUENCE, 1, 1, 0 },
                                          /* Version */
-/* EDKEYASN_IDX_VER            */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* VER            */        { 1, ASN_INTEGER, 0, 0, 0 },
                                          /* privateKeyAlgorithm */
-/* EDKEYASN_IDX_PKEYALGO_SEQ   */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-/* EDKEYASN_IDX_PKEYALGO_OID   */            { 2, ASN_OBJECT_ID, 0, 0, 1 },
+/* PKEYALGO_SEQ   */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* PKEYALGO_OID   */            { 2, ASN_OBJECT_ID, 0, 0, 1 },
                                          /* privateKey */
-/* EDKEYASN_IDX_PKEY           */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
+/* PKEY           */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
                                              /* CurvePrivateKey */
-/* EDKEYASN_IDX_PKEY_CURVEPKEY */            { 2, ASN_OCTET_STRING, 0, 0, 0 },
+/* PKEY_CURVEPKEY */            { 2, ASN_OCTET_STRING, 0, 0, 0 },
                                          /* attributes */
-/* EDKEYASN_IDX_ATTRS          */        { 1, ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_ATTRS, 1, 1, 1 },
+/* ATTRS          */        { 1, ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_ATTRS, 1, 1, 1 },
                                          /* publicKey */
-/* EDKEYASN_IDX_PUBKEY         */        { 1, ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY, 1, 1, 1 },
+/* PUBKEY         */        { 1, ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY, 1, 1, 1 },
                                              /* Public value */
-/* EDKEYASN_IDX_PUBKEY_VAL     */            { 2, ASN_OCTET_STRING, 0, 0, 0 }
+/* PUBKEY_VAL     */            { 2, ASN_OCTET_STRING, 0, 0, 0 }
 };
 enum {
     EDKEYASN_IDX_SEQ = 0,
@@ -29161,40 +29161,40 @@ static int GetEnumerated(const byte* input, word32* inOutIdx, int *value,
  * RFC 6960, 4.2.1 - ASN.1 Specification of the OCSP Response
  */
 static const ASNItem singleResponseASN[] = {
-/* SINGLERESPONSEASN_IDX_SEQ                   */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ                   */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                                                       /* certId */
-/* SINGLERESPONSEASN_IDX_CID_SEQ               */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* CID_SEQ               */     { 1, ASN_SEQUENCE, 1, 1, 0 },
                                                           /* hashAlgorithm */
-/* SINGLERESPONSEASN_IDX_CID_HASHALGO_SEQ      */         { 2, ASN_SEQUENCE, 1, 1, 0 },
-/* SINGLERESPONSEASN_IDX_CID_HASHALGO_OID      */             { 3, ASN_OBJECT_ID, 0, 0, 0 },
-/* SINGLERESPONSEASN_IDX_CID_HASHALGO_NULL     */             { 3, ASN_TAG_NULL, 0, 0, 1 },
+/* CID_HASHALGO_SEQ      */         { 2, ASN_SEQUENCE, 1, 1, 0 },
+/* CID_HASHALGO_OID      */             { 3, ASN_OBJECT_ID, 0, 0, 0 },
+/* CID_HASHALGO_NULL     */             { 3, ASN_TAG_NULL, 0, 0, 1 },
                                                           /* issuerNameHash */
-/* SINGLERESPONSEASN_IDX_CID_ISSUERHASH        */         { 2, ASN_OCTET_STRING, 0, 0, 0 },
+/* CID_ISSUERHASH        */         { 2, ASN_OCTET_STRING, 0, 0, 0 },
                                                           /* issuerKeyHash */
-/* SINGLERESPONSEASN_IDX_CID_ISSUERKEYHASH     */         { 2, ASN_OCTET_STRING, 0, 0, 0 },
+/* CID_ISSUERKEYHASH     */         { 2, ASN_OCTET_STRING, 0, 0, 0 },
                                                           /* serialNumber */
-/* SINGLERESPONSEASN_IDX_CID_SERIAL            */         { 2, ASN_INTEGER, 0, 0, 0 },
+/* CID_SERIAL            */         { 2, ASN_INTEGER, 0, 0, 0 },
                                                       /* certStatus - CHOICE */
                                                       /* good              [0] IMPLICIT NULL */
-/* SINGLERESPONSEASN_IDX_CS_GOOD               */     { 1, ASN_CONTEXT_SPECIFIC | 0, 0, 0, 2 },
+/* CS_GOOD               */     { 1, ASN_CONTEXT_SPECIFIC | 0, 0, 0, 2 },
                                                       /* revoked           [1] IMPLICIT RevokedInfo */
-/* SINGLERESPONSEASN_IDX_CS_REVOKED            */     { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 1, 2 },
+/* CS_REVOKED            */     { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 1, 2 },
                                                           /* revocationTime */
-/* SINGLERESPONSEASN_IDX_CS_REVOKED_TIME       */         { 2, ASN_GENERALIZED_TIME, 0, 0, 0 },
+/* CS_REVOKED_TIME       */         { 2, ASN_GENERALIZED_TIME, 0, 0, 0 },
                                                           /* revocationReason  [0] EXPLICIT CRLReason OPTIONAL */
-/* SINGLERESPONSEASN_IDX_CS_REVOKED_REASON     */         { 2, ASN_CONTEXT_SPECIFIC | 0, 0, 1, 1 },
+/* CS_REVOKED_REASON     */         { 2, ASN_CONTEXT_SPECIFIC | 0, 0, 1, 1 },
                                                               /* crlReason */
-/* SINGLERESPONSEASN_IDX_CS_REVOKED_REASON_VAL */             { 3, ASN_ENUMERATED, 0, 0, 0 },
+/* CS_REVOKED_REASON_VAL */             { 3, ASN_ENUMERATED, 0, 0, 0 },
                                                       /* unknown           [2] IMPLICIT UnknownInfo ::= NULL */
-/* SINGLERESPONSEASN_IDX_UNKNOWN               */     { 1, ASN_CONTEXT_SPECIFIC | 2, 0, 0, 2 },
+/* UNKNOWN               */     { 1, ASN_CONTEXT_SPECIFIC | 2, 0, 0, 2 },
 
                                                       /* thisUpdate */
-/* SINGLERESPONSEASN_IDX_THISUPDATE_GT         */     { 1, ASN_GENERALIZED_TIME, 0, 0, 0 },
+/* THISUPDATE_GT         */     { 1, ASN_GENERALIZED_TIME, 0, 0, 0 },
                                                       /* nextUpdate */
-/* SINGLERESPONSEASN_IDX_NEXTUPDATE            */     { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
-/* SINGLERESPONSEASN_IDX_NEXTUPDATE_GT         */         { 2, ASN_GENERALIZED_TIME, 0, 0, 0 },
+/* NEXTUPDATE            */     { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
+/* NEXTUPDATE_GT         */         { 2, ASN_GENERALIZED_TIME, 0, 0, 0 },
                                                       /* singleExtensions */
-/* SINGLERESPONSEASN_IDX_EXT                   */     { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 1 },
+/* EXT                   */     { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 1 },
 };
 enum {
     SINGLERESPONSEASN_IDX_SEQ = 0,
@@ -29497,9 +29497,9 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
  */
 static const ASNItem respExtHdrASN[] = {
                                    /* responseExtensions */
-/* RESPEXTHDRASN_IDX_EXT     */    { 0, ASN_CONTEXT_SPECIFIC | 1, 1, 1, 0 },
+/* EXT     */    { 0, ASN_CONTEXT_SPECIFIC | 1, 1, 1, 0 },
                                        /* extensions */
-/* RESPEXTHDRASN_IDX_EXT_SEQ */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* EXT_SEQ */        { 1, ASN_SEQUENCE, 1, 1, 0 },
 };
 enum {
     RESPEXTHDRASN_IDX_EXT = 0,
@@ -29651,20 +29651,20 @@ static int DecodeOcspRespExtensions(byte* source, word32* ioIndex,
  * RFC 6960, 4.2.1 - ASN.1 Specification of the OCSP Response
  */
 static const ASNItem ocspRespDataASN[] = {
-/* OCSPRESPDATAASN_IDX_SEQ         */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ         */    { 0, ASN_SEQUENCE, 1, 1, 0 },
                                              /* version DEFAULT v1 */
-/* OCSPRESPDATAASN_IDX_VER_PRESENT */        { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
-/* OCSPRESPDATAASN_IDX_VER         */            { 2, ASN_INTEGER, 1, 0, 0 },
+/* VER_PRESENT */        { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
+/* VER         */            { 2, ASN_INTEGER, 1, 0, 0 },
                                              /* byName */
-/* OCSPRESPDATAASN_IDX_BYNAME      */        { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 2 },
+/* BYNAME      */        { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 2 },
                                              /* byKey */
-/* OCSPRESPDATAASN_IDX_BYKEY       */        { 1, ASN_CONTEXT_SPECIFIC | 2, 1, 0, 2 },
+/* BYKEY       */        { 1, ASN_CONTEXT_SPECIFIC | 2, 1, 0, 2 },
                                              /* producedAt */
-/* OCSPRESPDATAASN_IDX_PA          */        { 1, ASN_GENERALIZED_TIME, 0, 0, 0, },
+/* PA          */        { 1, ASN_GENERALIZED_TIME, 0, 0, 0, },
                                              /* responses */
-/* OCSPRESPDATAASN_IDX_RESP        */        { 1, ASN_SEQUENCE, 1, 0, 0 },
+/* RESP        */        { 1, ASN_SEQUENCE, 1, 0, 0 },
                                              /* responseExtensions */
-/* OCSPRESPDATAASN_IDX_RESPEXT     */        { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 1 }
+/* RESPEXT     */        { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 1 }
 };
 enum {
     OCSPRESPDATAASN_IDX_SEQ = 0,
@@ -29918,18 +29918,18 @@ static int DecodeCerts(byte* source,
  * RFC 6960, 4.2.1 - ASN.1 Specification of the OCSP Response
  */
 static const ASNItem ocspBasicRespASN[] = {
-/* OCSPBASICRESPASN_IDX_SEQ          */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ          */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                                             /* tbsResponseData */
-/* OCSPBASICRESPASN_IDX_TBS_SEQ      */     { 1, ASN_SEQUENCE, 1, 0, 0, },
+/* TBS_SEQ      */     { 1, ASN_SEQUENCE, 1, 0, 0, },
                                             /* signatureAlgorithm */
-/* OCSPBASICRESPASN_IDX_SIGALGO      */     { 1, ASN_SEQUENCE, 1, 1, 0, },
-/* OCSPBASICRESPASN_IDX_SIGALGO_OID  */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/* OCSPBASICRESPASN_IDX_SIGALGO_NULL */         { 2, ASN_TAG_NULL, 0, 0, 1 },
+/* SIGALGO      */     { 1, ASN_SEQUENCE, 1, 1, 0, },
+/* SIGALGO_OID  */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* SIGALGO_NULL */         { 2, ASN_TAG_NULL, 0, 0, 1 },
                                             /* signature */
-/* OCSPBASICRESPASN_IDX_SIGNATURE    */     { 1, ASN_BIT_STRING, 0, 0, 0 },
+/* SIGNATURE    */     { 1, ASN_BIT_STRING, 0, 0, 0 },
                                             /* certs */
-/* OCSPBASICRESPASN_IDX_CERTS        */     { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
-/* OCSPBASICRESPASN_IDX_CERTS_SEQ    */         { 2, ASN_SEQUENCE, 1, 0, 0, },
+/* CERTS        */     { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
+/* CERTS_SEQ    */         { 2, ASN_SEQUENCE, 1, 0, 0, },
 };
 enum {
     OCSPBASICRESPASN_IDX_SEQ = 0,
@@ -30240,17 +30240,17 @@ void FreeOcspResponse(OcspResponse* resp)
  */
 static const ASNItem ocspResponseASN[] = {
                                      /* OCSPResponse ::= SEQUENCE */
-/* OCSPRESPONSEASN_IDX_SEQ        */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ        */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                                          /* responseStatus      OCSPResponseStatus */
-/* OCSPRESPONSEASN_IDX_STATUS     */     { 1, ASN_ENUMERATED, 0, 0, 0, },
+/* STATUS     */     { 1, ASN_ENUMERATED, 0, 0, 0, },
                                          /* responseBytes   [0] EXPLICIT ResponseBytes OPTIONAL */
-/* OCSPRESPONSEASN_IDX_BYTES      */     { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
+/* BYTES      */     { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
                                              /* ResponseBytes ::= SEQUENCE */
-/* OCSPRESPONSEASN_IDX_BYTES_SEQ  */         { 2, ASN_SEQUENCE, 1, 1, 0 },
+/* BYTES_SEQ  */         { 2, ASN_SEQUENCE, 1, 1, 0 },
                                                 /* responseType   OBJECT IDENTIFIER */
-/* OCSPRESPONSEASN_IDX_BYTES_TYPE */            { 3, ASN_OBJECT_ID, 0, 0, 0 },
+/* BYTES_TYPE */            { 3, ASN_OBJECT_ID, 0, 0, 0 },
                                                 /* response       OCTET STRING */
-/* OCSPRESPONSEASN_IDX_BYTES_VAL  */            { 3, ASN_OCTET_STRING, 0, 0, 0 },
+/* BYTES_VAL  */            { 3, ASN_OCTET_STRING, 0, 0, 0 },
 };
 enum {
     OCSPRESPONSEASN_IDX_SEQ = 0,
@@ -30399,16 +30399,16 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap, int noVerify)
  * X.509: RFC 5280, 4.1 - Basic Certificate Fields. (Extension)
  */
 static const ASNItem ocspNonceExtASN[] = {
-/* OCSPNONCEEXTASN_IDX_SEQ       */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ       */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                                      /* Extension */
-/* OCSPNONCEEXTASN_IDX_EXT       */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* EXT       */     { 1, ASN_SEQUENCE, 1, 1, 0 },
                                         /* extnId */
-/* OCSPNONCEEXTASN_IDX_EXT_OID   */        {2, ASN_OBJECT_ID, 0, 0, 0 },
+/* EXT_OID   */        {2, ASN_OBJECT_ID, 0, 0, 0 },
                                         /* critcal not encoded. */
                                         /* extnValue */
-/* OCSPNONCEEXTASN_IDX_EXT_VAL   */        {2, ASN_OCTET_STRING, 0, 1, 0 },
+/* EXT_VAL   */        {2, ASN_OCTET_STRING, 0, 1, 0 },
                                                /* nonce */
-/* OCSPNONCEEXTASN_IDX_EXT_NONCE */            {3, ASN_OCTET_STRING, 0, 0, 0 },
+/* EXT_NONCE */            {3, ASN_OCTET_STRING, 0, 0, 0 },
 };
 enum {
     OCSPNONCEEXTASN_IDX_SEQ = 0,
@@ -30517,28 +30517,28 @@ word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output, word32 size)
  */
 static const ASNItem ocspRequestASN[] = {
                                               /* OCSPRequest */
-/* OCSPREQUESTASN_IDX_SEQ               */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ               */    { 0, ASN_SEQUENCE, 1, 1, 0 },
                                                   /* tbsRequest */
-/* OCSPREQUESTASN_IDX_TBS               */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* TBS               */        { 1, ASN_SEQUENCE, 1, 1, 0 },
                                                       /* version not written - v1 */
                                                       /* requestorName not written */
                                                       /* requestList */
-/* OCSPREQUESTASN_IDX_TBS_SEQ           */            { 2, ASN_SEQUENCE, 1, 1, 0 },
+/* TBS_SEQ           */            { 2, ASN_SEQUENCE, 1, 1, 0 },
                                                           /* Request */
-/* OCSPREQUESTASN_IDX_TBS_LIST          */                { 3, ASN_SEQUENCE, 1, 1, 0 },
+/* TBS_LIST          */                { 3, ASN_SEQUENCE, 1, 1, 0 },
                                                               /* reqCert */
-/* OCSPREQUESTASN_IDX_TBS_REQ_CID       */                    { 4, ASN_SEQUENCE, 1, 1, 0 },
+/* TBS_REQ_CID       */                    { 4, ASN_SEQUENCE, 1, 1, 0 },
                                                                   /* hashAlgorithm */
-/* OCSPREQUESTASN_IDX_TBS_REQ_HASH      */                        { 5, ASN_SEQUENCE, 1, 1, 0 },
-/* OCSPREQUESTASN_IDX_TBS_REQ_HASH_OID  */                            { 6, ASN_OBJECT_ID, 0, 0, 0 },
+/* TBS_REQ_HASH      */                        { 5, ASN_SEQUENCE, 1, 1, 0 },
+/* TBS_REQ_HASH_OID  */                            { 6, ASN_OBJECT_ID, 0, 0, 0 },
                                                                   /* issuerNameHash */
-/* OCSPREQUESTASN_IDX_TBS_REQ_ISSUER    */                        { 5, ASN_OCTET_STRING, 0, 0, 0 },
+/* TBS_REQ_ISSUER    */                        { 5, ASN_OCTET_STRING, 0, 0, 0 },
                                                                   /* issuerKeyHash */
-/* OCSPREQUESTASN_IDX_TBS_REQ_ISSUERKEY */                        { 5, ASN_OCTET_STRING, 0, 0, 0 },
+/* TBS_REQ_ISSUERKEY */                        { 5, ASN_OCTET_STRING, 0, 0, 0 },
                                                                   /* serialNumber */
-/* OCSPREQUESTASN_IDX_TBS_REQ_SERIAL    */                        { 5, ASN_INTEGER, 0, 0, 0 },
+/* TBS_REQ_SERIAL    */                        { 5, ASN_INTEGER, 0, 0, 0 },
                                                       /* requestExtensions */
-/* OCSPREQUESTASN_IDX_TBS_REQEXT        */            { 2, ASN_CONTEXT_SPECIFIC | 2, 1, 0, 0 },
+/* TBS_REQEXT        */            { 2, ASN_CONTEXT_SPECIFIC | 2, 1, 0, 0 },
                                                   /* optionalSignature not written. */
 };
 enum {
@@ -30870,8 +30870,8 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for certificate name hash. */
 static const ASNItem nameHashASN[] = {
-/* NAMEHASHASN_IDX_OID  */ { 0, ASN_OBJECT_ID, 0, 0, 1 },
-/* NAMEHASHASN_IDX_NAME */ { 0, ASN_SEQUENCE, 1, 0, 0 },
+/* OID  */ { 0, ASN_OBJECT_ID, 0, 0, 1 },
+/* NAME */ { 0, ASN_SEQUENCE, 1, 0, 0 },
 };
 enum {
     NAMEHASHASN_IDX_OID = 0,
@@ -30977,14 +30977,14 @@ void FreeDecodedCRL(DecodedCRL* dcrl)
  * X.509: RFC 5280, 5.1 - CRL Fields
  */
 static const ASNItem revokedASN[] = {
-/* REVOKEDASN_IDX_SEQ      */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ      */    { 0, ASN_SEQUENCE, 1, 1, 0 },
                                      /* userCertificate    CertificateSerialNumber */
-/* REVOKEDASN_IDX_CERT     */        { 1, ASN_INTEGER, 0, 0, 0 },
+/* CERT     */        { 1, ASN_INTEGER, 0, 0, 0 },
                                      /* revocationDate     Time */
-/* REVOKEDASN_IDX_TIME_UTC */        { 1, ASN_UTC_TIME, 0, 0, 2 },
-/* REVOKEDASN_IDX_TIME_GT  */        { 1, ASN_GENERALIZED_TIME, 0, 0, 2 },
+/* TIME_UTC */        { 1, ASN_UTC_TIME, 0, 0, 2 },
+/* TIME_GT  */        { 1, ASN_GENERALIZED_TIME, 0, 0, 2 },
                                      /* crlEntryExensions  Extensions */
-/* REVOKEDASN_IDX_TIME_EXT */        { 1, ASN_SEQUENCE, 1, 0, 1 },
+/* TIME_EXT */        { 1, ASN_SEQUENCE, 1, 0, 1 },
 };
 enum {
     REVOKEDASN_IDX_SEQ = 0,
@@ -31523,34 +31523,34 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
  */
 static const ASNItem crlASN[] = {
                                        /* CertificateList */
-/* CRLASN_IDX_SEQ                */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* SEQ                */    { 0, ASN_SEQUENCE, 1, 1, 0 },
                                            /* tbsCertList */
-/* CRLASN_IDX_TBS                */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* TBS                */        { 1, ASN_SEQUENCE, 1, 1, 0 },
                                                /* version     Version OPTIONAL if present must be v2 */
-/* CRLASN_IDX_TBS_VER            */            { 2, ASN_INTEGER, 0, 0, 1 },
+/* TBS_VER            */            { 2, ASN_INTEGER, 0, 0, 1 },
                                                /* signature */
-/* CRLASN_IDX_TBS_SIGALGO        */            { 2, ASN_SEQUENCE, 1, 1, 0 },
-/* CRLASN_IDX_TBS_SIGALGO_OID    */                { 3, ASN_OBJECT_ID, 0, 0, 0 },
-/* CRLASN_IDX_TBS_SIGALGO_NULL   */                { 3, ASN_TAG_NULL, 0, 0, 1 },
+/* TBS_SIGALGO        */            { 2, ASN_SEQUENCE, 1, 1, 0 },
+/* TBS_SIGALGO_OID    */                { 3, ASN_OBJECT_ID, 0, 0, 0 },
+/* TBS_SIGALGO_NULL   */                { 3, ASN_TAG_NULL, 0, 0, 1 },
                                                /* issuer */
-/* CRLASN_IDX_TBS_ISSUER         */            { 2, ASN_SEQUENCE, 1, 0, 0 },
+/* TBS_ISSUER         */            { 2, ASN_SEQUENCE, 1, 0, 0 },
                                                /* thisUpdate */
-/* CRLASN_IDX_TBS_THISUPDATE_UTC */            { 2, ASN_UTC_TIME, 0, 0, 2 },
-/* CRLASN_IDX_TBS_THISUPDATE_GT  */            { 2, ASN_GENERALIZED_TIME, 0, 0, 2 },
+/* TBS_THISUPDATE_UTC */            { 2, ASN_UTC_TIME, 0, 0, 2 },
+/* TBS_THISUPDATE_GT  */            { 2, ASN_GENERALIZED_TIME, 0, 0, 2 },
                                                /* nextUpdate */
-/* CRLASN_IDX_TBS_NEXTUPDATE_UTC */            { 2, ASN_UTC_TIME, 0, 0, 3 },
-/* CRLASN_IDX_TBS_NEXTUPDATE_GT  */            { 2, ASN_GENERALIZED_TIME, 0, 0, 3 },
+/* TBS_NEXTUPDATE_UTC */            { 2, ASN_UTC_TIME, 0, 0, 3 },
+/* TBS_NEXTUPDATE_GT  */            { 2, ASN_GENERALIZED_TIME, 0, 0, 3 },
                                                /* revokedCertificates */
-/* CRLASN_IDX_TBS_REVOKEDCERTS   */            { 2, ASN_SEQUENCE, 1, 0, 1 },
+/* TBS_REVOKEDCERTS   */            { 2, ASN_SEQUENCE, 1, 0, 1 },
                                                /* crlExtensions */
-/* CRLASN_IDX_TBS_EXT            */            { 2, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
-/* CRLASN_IDX_TBS_EXT_SEQ        */                { 3, ASN_SEQUENCE, 1, 0, 0 },
+/* TBS_EXT            */            { 2, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 1 },
+/* TBS_EXT_SEQ        */                { 3, ASN_SEQUENCE, 1, 0, 0 },
                                            /* signatureAlgorithm */
-/* CRLASN_IDX_SIGALGO            */        { 1, ASN_SEQUENCE, 1, 1, 0 },
-/* CRLASN_IDX_SIGALGO_OID        */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/* CRLASN_IDX_SIGALGO_NULL       */            { 2, ASN_TAG_NULL, 0, 0, 1 },
+/* SIGALGO            */        { 1, ASN_SEQUENCE, 1, 1, 0 },
+/* SIGALGO_OID        */            { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* SIGALGO_NULL       */            { 2, ASN_TAG_NULL, 0, 0, 1 },
                                            /* signatureValue */
-/* CRLASN_IDX_SIGNATURE          */        { 1, ASN_BIT_STRING, 0, 0, 0 },
+/* SIGNATURE          */        { 1, ASN_BIT_STRING, 0, 0, 0 },
 };
 enum {
     CRLASN_IDX_SEQ = 0,
@@ -31777,9 +31777,9 @@ end:
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* Template for PIV. */
 static const ASNItem pivASN[] = {
-/* PIVASN_IDX_CERT        */ { 0, ASN_PIV_CERT, 0, 0, 0 },
-/* PIVASN_IDX_NONCE       */ { 0, ASN_PIV_NONCE, 0, 0, 1 },
-/* PIVASN_IDX_SIGNEDNONCE */ { 0, ASN_PIV_SIGNED_NONCE, 0, 0, 1 },
+/* CERT        */ { 0, ASN_PIV_CERT, 0, 0, 0 },
+/* NONCE       */ { 0, ASN_PIV_NONCE, 0, 0, 1 },
+/* SIGNEDNONCE */ { 0, ASN_PIV_SIGNED_NONCE, 0, 0, 1 },
 };
 enum {
     PIVASN_IDX_CERT = 0,
@@ -31791,13 +31791,13 @@ enum {
 
 static const ASNItem pivCertASN[] = {
                           /* 0x53 = 0x40 | 0x13 */
-/* PIVCERTASN_IDX_CERT */ { 1, ASN_APPLICATION | 0x13, 0, 1, 0 },
+/* CERT */ { 1, ASN_APPLICATION | 0x13, 0, 1, 0 },
                                /* 0x70 = 0x40 | 0x10 + 0x20 (CONSTRUCTED) */
-/* PIVCERTASN_IDX_X509 */      { 2, ASN_APPLICATION | 0x10, 1, 0, 0 },
+/* X509 */      { 2, ASN_APPLICATION | 0x10, 1, 0, 0 },
                                /* 0x71 = 0x40 | 0x11 + 0x20 (CONSTRUCTED) */
-/* PIVCERTASN_IDX_INFO */      { 2, ASN_APPLICATION | 0x11, 1, 0, 1 },
+/* INFO */      { 2, ASN_APPLICATION | 0x11, 1, 0, 1 },
                                /* 0xFE = 0xC0 | 0x1E + 0x20 (CONSTRUCTED) */
-/* PIVCERTASN_IDX_ERR */      { 2, ASN_PRIVATE | 0x1e, 1, 0, 1 },
+/* ERR */      { 2, ASN_PRIVATE | 0x1e, 1, 0, 1 },
 };
 enum {
     PIVCERTASN_IDX_CERT,
