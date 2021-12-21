@@ -720,28 +720,56 @@ static int iotsafe_put_public_key(byte *pubkey_id, unsigned long id_size,
     return ret;
 }
 #ifdef HAVE_HKDF
-//hkdf extract
 static int iotsafe_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
        byte* ikm, word32 ikmLen, int digest)
 {
     int ret;
     char *resp;
 	uint16_t hash_algo  = 0;
+    int len;
 
     WOLFSSL_MSG("Enter iotsafe_hkdf_extract");
      switch (digest) {
         case WC_SHA256:
          hash_algo = (uint16_t)1;
+         if (ikmLen == 0) {
+             len = WC_SHA256_DIGEST_SIZE;
+         }
             break;
         case WC_SHA384:
           hash_algo = (uint16_t)2;
+           if (ikmLen == 0) {
+             len = WC_SHA384_DIGEST_SIZE;
+         }
              break;
         case WC_SHA512:
             hash_algo = (uint16_t)4;
+             if (ikmLen == 0) {
+             len = WC_SHA512_DIGEST_SIZE;
+         }
             break;
         default:
             break;
      }
+
+    if (ikmLen == 0) {
+        ikmLen = len;
+        XMEMSET(ikm, 0, len);
+    }
+
+    #ifdef DEBUG_IOTSAFE
+    printf("IOTSAFE PK HKDF Extract\n");
+    printf("salt: ");
+    for(word32 i = 0; i < saltLen; i++)
+        printf("%02X", salt[i]);
+
+    printf("\nikm: ");
+    for(word32 i = 0; i < ikmLen; i++)
+        printf("%02X", ikm[i]);
+
+    printf("\nhash: %d\n", digest);
+    #endif
+
 	uint16_t hash_algo_be = XHTONS(hash_algo);
 
     iotsafe_cmd_start(csim_cmd, IOTSAFE_CLASS, IOTSAFE_INS_HKDF_EXTRACT, 0, 0);
@@ -820,14 +848,13 @@ static int iotsafe_sign_hash(byte *privkey_idx, uint16_t id_size,
 
         ret = expect_csim_response(csim_cmd, (word32)XSTRLEN(csim_cmd), &resp);
         if (ret >= 0) {
-            byte sig_hdr[3];
-            if (hex_to_bytes(resp, sig_hdr, 3) < 0) {
+            byte sig_hdr[2];
+            if (hex_to_bytes(resp, sig_hdr, 2) < 0) {
                ret = BAD_FUNC_ARG;
             } else if ((sig_hdr[0] == IOTSAFE_TAG_SIGNATURE_FIELD) &&
-                       (sig_hdr[1] == 0) &&
-                       (sig_hdr[2] == 2 * IOTSAFE_ECC_KSIZE)) {
-                XSTRNCPY(R, resp + 6, IOTSAFE_ECC_KSIZE * 2);
-                XSTRNCPY(S, resp + 6 + IOTSAFE_ECC_KSIZE * 2,
+                       (sig_hdr[1] ==  2 * IOTSAFE_ECC_KSIZE)) {
+                XSTRNCPY(R, resp + 4, IOTSAFE_ECC_KSIZE * 2);
+                XSTRNCPY(S, resp + 4 + IOTSAFE_ECC_KSIZE * 2,
                         IOTSAFE_ECC_KSIZE * 2);
                 ret = wc_ecc_rs_to_sig(R, S, signature, sigLen);
             } else {
@@ -1006,8 +1033,6 @@ static int wolfIoT_ecc_keygen(WOLFSSL* ssl, struct ecc_key* key,
 }
 
 #ifdef HAVE_HKDF
-
-//hkdf extract iot safe
 static int wolfIoT_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
        byte* ikm, word32 ikmLen, int digest, void* ctx)
 {
@@ -1016,23 +1041,14 @@ static int wolfIoT_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
 
     WOLFSSL_MSG("IOTSAFE: Called wolfIoT_hkdf_extract\n");
 
-    #ifdef DEBUG_IOTSAFE
-    printf("IOTSAFE PK HKDF Extract\n");
-    printf("salt: ");
-    for(word32 i = 0; i < saltLen; i++)
-        printf("%02X", salt[i]);
-
-    printf("\nikm: ");
-    for(word32 i = 0; i < ikmLen; i++)
-        printf("%02X", ikm[i]);
-
-    printf("\nhash: %d\n", digest);
-    #endif
     if(saltLen != 0){
          ret = iotsafe_hkdf_extract(prk, salt, saltLen, ikm, ikmLen, digest);
     }
     else{
-        return NOT_COMPILED_IN;
+        #ifdef DEBUG_IOTSAFE
+        printf("SALT is NULL, not support by IoT Safe Applet, fallback to software implementation\n");
+        #endif
+        ret = wc_Tls13_HKDF_Extract(prk, salt, saltLen, ikm, ikmLen, digest);
     }     
     return ret;
 

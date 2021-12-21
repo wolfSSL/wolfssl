@@ -56,8 +56,6 @@
 
 static int serial_fd = -1;
 
-
-
 /* Function Declarations */
 
 extern int client_loop(const char *peer_ip, const char *peer_name, const char *peer_port, const char *temperature);
@@ -133,10 +131,11 @@ static int usart_read(char *buf, int len)
 
     int ret = 0;
     int i = 0;
-    char c;
+    char c;  
     memset(buf, 0, len);
 
-    // Read 1 byte at one time until *buf is full or a POSIX read error like timeout occurs.
+  
+   /* Read 1 byte at one time until *buf is full or a POSIX read error like timeout occurs. */
     do
     {
         ret = read(serial_fd, &c, 1U);
@@ -147,6 +146,8 @@ static int usart_read(char *buf, int len)
                 break;
         }
     } while (i < len && ret > 0);
+     
+
 
 #ifdef DEBUG_UART_IO
     printf("UART Read Actual   : %d bytes\n", i);
@@ -200,7 +201,7 @@ static void show_usage(const char *program)
     printf("\t-ip <server IPv4 address eg: 127.0.0.1>\n");
     printf("\t-h <server name eg: xxx.amazon.com>\n");
     printf("\t-p <server port eg: 443>\n");
-    printf("\t-t <temperature eg: 25Celcius>\n");
+    printf("\t-t <temperature eg: 25 Celsius>\n");
     printf("\t-d <serial device eg: /dev/ttyACM0>\n");
     exit(-1);
 }
