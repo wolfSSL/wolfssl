@@ -215,7 +215,7 @@ int client_loop(const char *peer_ip, const char *peer_name, const char *peer_por
     strcat(buff, "\"sensorValue\": \"");
     strcat(buff, temperature);
     strcat(buff, "\",");
-    strcat(buff, "\"sensorUnit\": \"Celcius\",");
+    strcat(buff, "\"sensorUnit\": \"Celsius\",");
     strcat(buff, "\"sensorTime\": 1582181510");
     strcat(buff, "}");
     strcat(buff, "\r\n");
