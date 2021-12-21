@@ -91,7 +91,7 @@ echo ""
 echo -e "US\\nMontana\\nBozeman\\nwolfSSL_ed25519\\nClient-ed25519\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n\\n\\n\\n" | openssl req -new -key client-ed25519-priv.pem -config ../renewcerts/wolfssl.cnf -nodes -out client-ed25519.csr
 check_result $? "Generate request"
 
-openssl x509 -req -in client-ed25519.csr -days 1000 -extfile ../renewcerts/wolfssl.cnf -extensions client_ecc -signkey client-ed25519-priv.pem -out client-ed25519.pem
+openssl x509 -req -in client-ed25519.csr -days 1000 -extfile ../renewcerts/wolfssl.cnf -extensions wolfssl_opts -signkey client-ed25519-priv.pem -out client-ed25519.pem
 check_result $? "Generate certificate"
 rm client-ed25519.csr
 
