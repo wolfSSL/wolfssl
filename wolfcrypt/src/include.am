@@ -184,3 +184,7 @@ endif
 if BUILD_SE050
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/nxp/se050_port.c
 endif
+
+if BUILD_PSA
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/psa/psa.c
+endif
