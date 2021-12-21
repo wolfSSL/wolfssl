@@ -950,7 +950,7 @@ int DeriveMasterSecret(WOLFSSL* ssl)
     PRIVATE_KEY_UNLOCK();
     ret = Tls13_HKDF_Extract(ssl, ssl->arrays->masterSecret,
             key, ssl->specs.hash_size,
-            ssl->arrays->masterSecret, 32, mac2hash(ssl->specs.mac_algorithm));
+            ssl->arrays->masterSecret, 0, mac2hash(ssl->specs.mac_algorithm));
     PRIVATE_KEY_LOCK();
 
 #ifdef HAVE_KEYING_MATERIAL
