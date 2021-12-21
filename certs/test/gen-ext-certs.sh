@@ -76,6 +76,8 @@ nsComment       = "Testing name constraints"
 
 EOF
 gen_cert
+rm -f ./certs/test/cert-ext-mnc.cfg
+rm -f ./certs/test/cert-ext-mnc.pem
 
 
 OUT=certs/test/cert-ext-ncdns
@@ -105,6 +107,8 @@ nsComment       = "Testing name constraints"
 
 EOF
 gen_cert
+rm -f ./certs/test/cert-ext-ncdns.cfg
+rm -f ./certs/test/cert-ext-ncdns.pem
 
 OUT=certs/test/cert-ext-ncmixed
 KEYFILE=certs/test/cert-ext-ncmixed-key.der
@@ -133,6 +137,8 @@ nsComment       = "Testing name constraints"
 
 EOF
 gen_cert
+rm -f ./certs/test/cert-ext-ncmixed.cfg
+rm -f ./certs/test/cert-ext-ncmixed.pem
 
 OUT=certs/test/cert-ext-ia
 KEYFILE=certs/test/cert-ext-ia-key.der
