@@ -791,7 +791,7 @@ enum ECC_TYPES
 
 #ifndef WC_ASN_NAME_MAX
     #ifdef OPENSSL_EXTRA
-        #define WC_ASN_NAME_MAX 300
+        #define WC_ASN_NAME_MAX 330
     #else
         #define WC_ASN_NAME_MAX 256
     #endif
@@ -923,7 +923,11 @@ enum Misc_ASN {
 
 #ifndef WC_MAX_NAME_ENTRIES
     /* entries added to x509 name struct */
+    #ifdef OPENSSL_EXTRA
+    #define WC_MAX_NAME_ENTRIES 15
+    #else
     #define WC_MAX_NAME_ENTRIES 13
+    #endif
 #endif
 #define MAX_NAME_ENTRIES WC_MAX_NAME_ENTRIES
 

@@ -300,6 +300,14 @@ authorityKeyIdentifier=keyid:always,issuer:always
 basicConstraints=CA:false
 subjectAltName=URI:../relative/page.html
 
+# client cert ext
+[ client_cert_ext ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:true
+subjectAltName=DNS:example.com
+keyUsage=critical, digitalSignature, keyCertSign, cRLSign
+
 # test CRL distribution points
 [ crl_dist_points ]
 crlDistributionPoints=URI:http://www.wolfssl.com/crl.pem
