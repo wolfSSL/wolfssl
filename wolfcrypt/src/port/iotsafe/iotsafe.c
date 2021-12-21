@@ -1046,7 +1046,7 @@ static int wolfIoT_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
     }
     else{
         #ifdef DEBUG_IOTSAFE
-        printf("SALT is NULL, not support by IoT Safe Applet, fallback to software implementation\n");
+        printf("NULL Salt length not supported by IoT Safe Applet, fallback to software implementation\n");
         #endif
         ret = wc_Tls13_HKDF_Extract(prk, salt, saltLen, ikm, ikmLen, digest);
     }     
