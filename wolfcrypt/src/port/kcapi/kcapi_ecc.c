@@ -179,6 +179,10 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
                   word32* sigLen)
 {
     int ret = 0;
+    unsigned char* buf_aligned = NULL;
+    unsigned char* hash_aligned = NULL;
+    unsigned char* sig_aligned = NULL;
+    size_t pageSz = (size_t)sysconf(_SC_PAGESIZE);
 
     if (key->handle == NULL) {
         ret = kcapi_akcipher_init(&key->handle, WC_NAME_ECDSA, 0);
@@ -190,12 +194,37 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
         }
     }
     if (ret == 0) {
-        ret = kcapi_akcipher_sign(key->handle, hash, hashLen, sig, *sigLen,
+        if (((size_t)sig % pageSz != 0) || ((size_t)hash % pageSz != 0)) {
+            ret = posix_memalign((void*)&buf_aligned, pageSz, pageSz * 2);
+            if (ret < 0) {
+                ret = MEMORY_E;
+            }
+        }
+    }
+    if (ret == 0) {
+        sig_aligned = ((size_t)sig % pageSz == 0) ? sig : buf_aligned;
+        if ((size_t)hash % pageSz == 0) {
+            hash_aligned = (unsigned char*)hash;
+        }
+        else {
+            hash_aligned = buf_aligned + pageSz;
+            XMEMCPY(hash_aligned, hash, hashLen);
+        }
+        ret = kcapi_akcipher_sign(key->handle, hash_aligned, hashLen,
+                                  sig_aligned, *sigLen,
                                   KCAPI_ACCESS_HEURISTIC);
         if (ret >= 0) {
             *sigLen = ret;
             ret = 0;
+            if (sig_aligned != sig) {
+                XMEMCPY(sig, sig_aligned, ret);
+            }
         }
+    }
+    /* Using free as this is in an environment that will have it
+     * available along with posix_memalign. */
+    if (buf_aligned != NULL) {
+        free(buf_aligned);
     }
 
     return ret;
@@ -225,7 +254,8 @@ int KcapiEcc_Verify(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
                     word32 sigLen)
 {
     int ret = 0;
-    unsigned char* sigHash = NULL;
+    unsigned char* sigHash_aligned = NULL;
+    size_t pageSz = (size_t)sysconf(_SC_PAGESIZE);
 
     if (key->handle == NULL) {
         ret = kcapi_akcipher_init(&key->handle, WC_NAME_ECDSA, 0);
@@ -238,25 +268,26 @@ int KcapiEcc_Verify(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
     }
 
     if (ret == 0) {
-        sigHash = (unsigned char*)XMALLOC(sigLen + hashLen, key->heap,
-                                          DYNAMIC_TYPE_TMP_BUFFER);
-        if (sigHash == NULL) {
+        ret = posix_memalign((void*)&sigHash_aligned, pageSz, sigLen + hashLen);
+        if (ret < 0) {
             ret = MEMORY_E;
         }
     }
     if (ret == 0) {
-        XMEMCPY(sigHash, sig, sigLen);
-        XMEMCPY(sigHash + sigLen, hash, hashLen);
+        XMEMCPY(sigHash_aligned, sig, sigLen);
+        XMEMCPY(sigHash_aligned + sigLen, hash, hashLen);
 
-        ret = kcapi_akcipher_verify(key->handle, sigHash, sigLen + hashLen,
-                                    NULL, hashLen, KCAPI_ACCESS_HEURISTIC);
+        ret = kcapi_akcipher_verify(key->handle, sigHash_aligned,
+                sigLen + hashLen, NULL, hashLen, KCAPI_ACCESS_HEURISTIC);
         if (ret >= 0) {
             ret = 0;
         }
     }
 
-    if (sigHash != NULL) {
-        XFREE(sigHash, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    /* Using free as this is in an environment that will have it
+     * available along with posix_memalign. */
+    if (sigHash_aligned != NULL) {
+        free(sigHash_aligned);
     }
     return ret;
 }
