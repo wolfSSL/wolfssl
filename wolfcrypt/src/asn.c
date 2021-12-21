@@ -9930,15 +9930,14 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     return 0;
 #endif
 #else
-    int ret = 0;
-    DECL_ASNGETDATA(dataASN, rsaCertKeyASN_Length);
+    ASNGetData dataASN[rsaCertKeyASN_Length];
+    int ret;
 
-    CALLOC_ASNGETDATA(dataASN, rsaCertKeyASN_Length, ret, cert->heap);
-    if (ret == 0) {
-        /* Decode the header before the key data. */
-        ret = GetASN_Items(rsaCertKeyASN, dataASN, rsaCertKeyASN_Length, 1,
-                source, srcIdx, maxIdx);
-    }
+    /* No dynamic data. */
+    XMEMSET(dataASN, 0, sizeof(dataASN));
+    /* Decode the header before the key data. */
+    ret = GetASN_Items(rsaCertKeyASN, dataASN, rsaCertKeyASN_Length, 1, source,
+                       srcIdx, maxIdx);
     if (ret == 0) {
         /* Store the pointer and length in certificate object starting at
          * SEQUENCE. */
@@ -9956,7 +9955,6 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
                          cert->subjectKeyHash);
     #endif
     }
-    FREE_ASNGETDATA(dataASN, cert->heap);
 
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
@@ -11890,7 +11888,7 @@ int GetName(DecodedCert* cert, int nameType, int maxIdx)
     return GetCertName(cert, full, hash, nameType, cert->source, &cert->srcIdx,
                        cert->srcIdx + length);
 #else
-    DECL_ASNGETDATA(dataASN, certNameASN_Length);
+    ASNGetData dataASN[certNameASN_Length];
     word32 idx = cert->srcIdx;
     int    ret = 0;
     char*  full;
@@ -11898,13 +11896,11 @@ int GetName(DecodedCert* cert, int nameType, int maxIdx)
 
     WOLFSSL_MSG("Getting Cert Name");
 
-    CALLOC_ASNGETDATA(dataASN, certNameASN_Length, ret, cert->heap);
-    if (ret == 0) {
-        /* Initialize for data and don't check optional prefix OID. */
-        GetASN_OID(&dataASN[CERTNAMEASN_IDX_OID], oidIgnoreType);
-        ret = GetASN_Items(certNameASN, dataASN, certNameASN_Length, 0,
-                           cert->source, &idx, maxIdx);
-    }
+    XMEMSET(dataASN, 0, sizeof(dataASN));
+    /* Initialize for data and don't check optional prefix OID. */
+    GetASN_OID(&dataASN[CERTNAMEASN_IDX_OID], oidIgnoreType);
+    ret = GetASN_Items(certNameASN, dataASN, certNameASN_Length, 0,
+                       cert->source, &idx, maxIdx);
     if (ret == 0) {
         /* Store offset of SEQUENCE that is start of name. */
         cert->srcIdx = dataASN[CERTNAMEASN_IDX_NAME].offset;
@@ -11924,7 +11920,6 @@ int GetName(DecodedCert* cert, int nameType, int maxIdx)
                           &cert->srcIdx, idx);
     }
 
-    FREE_ASNGETDATA(dataASN, cert->heap);
     return ret;
 #endif
 }
