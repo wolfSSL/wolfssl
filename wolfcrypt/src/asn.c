@@ -5544,14 +5544,14 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     #if defined(WOLFSSL_RSA_PUBLIC_ONLY)
         /* Extract all public fields. */
         for (i = 0; i < RSA_PUB_INTS; i++) {
-            GetASN_MP(&dataASN[RSAKEYASN_IDX_N + i], GetRsaInt(key, i));
+            GetASN_MP(&dataASN[(byte)RSAKEYASN_IDX_N + i], GetRsaInt(key, i));
         }
         /* Not extracting all data from BER encoding. */
         #define RSA_ASN_COMPLETE    0
     #else
         /* Extract all private fields. */
         for (i = 0; i < RSA_INTS; i++) {
-            GetASN_MP(&dataASN[RSAKEYASN_IDX_N + i], GetRsaInt(key, i));
+            GetASN_MP(&dataASN[(byte)RSAKEYASN_IDX_N + i], GetRsaInt(key, i));
         }
         /* Extracting all data from BER encoding. */
         #define RSA_ASN_COMPLETE    1
@@ -7697,15 +7697,17 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
             saltSz = PKCS5_SALT_SZ;
             /* Salt generated into encoding below. */
         }
-        SetASN_Buffer(&dataASN[P8ENCPBES1ASN_IDX_ENCALGO_PBEPARAM_SALT], salt, saltSz);
+        SetASN_Buffer(&dataASN[P8ENCPBES1ASN_IDX_ENCALGO_PBEPARAM_SALT],
+                salt, saltSz);
         SetASN_Int16Bit(&dataASN[P8ENCPBES1ASN_IDX_ENCALGO_PBEPARAM_ITER], itt);
         pkcs8Sz = Pkcs8Pad(NULL, inputSz, blockSz);
         SetASN_Buffer(&dataASN[P8ENCPBES1ASN_IDX_ENCDATA], NULL, pkcs8Sz);
 
         /* Calculate size of encoding. */
         ret = SizeASN_Items(p8EncPbes1ASN + P8ENCPBES1ASN_IDX_ENCALGO_SEQ,
-                            dataASN + P8ENCPBES1ASN_IDX_ENCALGO_SEQ,
-                            p8EncPbes1ASN_Length - P8ENCPBES1ASN_IDX_ENCALGO_SEQ, &sz);
+                dataASN + P8ENCPBES1ASN_IDX_ENCALGO_SEQ,
+                (int)(p8EncPbes1ASN_Length - P8ENCPBES1ASN_IDX_ENCALGO_SEQ),
+                &sz);
     }
     /* Return size when no output buffer. */
     if ((ret == 0) && (out == NULL)) {
@@ -7719,9 +7721,9 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     if (ret == 0) {
         /* Encode PKCS#8 key. */
         SetASN_Items(p8EncPbes1ASN + P8ENCPBES1ASN_IDX_ENCALGO_SEQ,
-                     dataASN + P8ENCPBES1ASN_IDX_ENCALGO_SEQ,
-                     p8EncPbes1ASN_Length - P8ENCPBES1ASN_IDX_ENCALGO_SEQ,
-                     out);
+                 dataASN + P8ENCPBES1ASN_IDX_ENCALGO_SEQ,
+                 (int)(p8EncPbes1ASN_Length - P8ENCPBES1ASN_IDX_ENCALGO_SEQ),
+                 out);
 
         if (salt == NULL) {
             /* Generate salt into encoding. */
@@ -7980,9 +7982,9 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
     if (ret == 0) {
         /* Try decoding PKCS #1 public key by ignoring rest of ASN.1. */
         ret = GetASN_Items(&rsaPublicKeyASN[RSAPUBLICKEYASN_IDX_PUBKEY_RSA_SEQ],
-                           &dataASN[RSAPUBLICKEYASN_IDX_PUBKEY_RSA_SEQ],
-                           rsaPublicKeyASN_Length - RSAPUBLICKEYASN_IDX_PUBKEY_RSA_SEQ,
-                           0, input, inOutIdx, inSz);
+           &dataASN[RSAPUBLICKEYASN_IDX_PUBKEY_RSA_SEQ],
+           (int)(rsaPublicKeyASN_Length - RSAPUBLICKEYASN_IDX_PUBKEY_RSA_SEQ),
+           0, input, inOutIdx, inSz);
         if (ret != 0) {
             /* Didn't work - try whole SubjectKeyInfo instead. */
             /* Set the OID to expect. */
@@ -8069,9 +8071,9 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
         GetASN_MP(&dataASN[RSAPUBLICKEYASN_IDX_PUBKEY_RSA_E], &key->e);
         /* Try decoding PKCS #1 public key by ignoring rest of ASN.1. */
         ret = GetASN_Items(&rsaPublicKeyASN[RSAPUBLICKEYASN_IDX_PUBKEY_RSA_SEQ],
-                           &dataASN[RSAPUBLICKEYASN_IDX_PUBKEY_RSA_SEQ],
-                           rsaPublicKeyASN_Length - RSAPUBLICKEYASN_IDX_PUBKEY_RSA_SEQ,
-                           0, input, inOutIdx, inSz);
+               &dataASN[RSAPUBLICKEYASN_IDX_PUBKEY_RSA_SEQ],
+               (int)(rsaPublicKeyASN_Length - RSAPUBLICKEYASN_IDX_PUBKEY_RSA_SEQ),
+               0, input, inOutIdx, inSz);
         if (ret != 0) {
             /* Didn't work - try whole SubjectKeyInfo instead. */
             /* Set the OID to expect. */
@@ -8958,7 +8960,7 @@ int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
          *   p, q, g, y
          * Start DSA ints from DSAKEYASN_IDX_VER instead of DSAKEYASN_IDX_P */
         for (i = 0; i < DSA_INTS - 1; i++)
-            GetASN_MP(&dataASN[DSAKEYASN_IDX_VER + i], GetDsaInt(key, i));
+            GetASN_MP(&dataASN[(int)DSAKEYASN_IDX_VER + i], GetDsaInt(key, i));
         /* Parse as simple form. */
         ret = GetASN_Items(dsaKeyASN, dataASN, dsaPublicKeyASN_Length, 1, input,
                            inOutIdx, inSz);
@@ -8970,7 +8972,7 @@ int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
                     keyDsaOid, sizeof(keyDsaOid));
             /* p, q, g */
             for (i = 0; i < DSA_INTS - 2; i++)
-                GetASN_MP(&dataASN[DSAPUBKEYASN_IDX_ALGOID_PARAMS_P + i],
+                GetASN_MP(&dataASN[(int)DSAPUBKEYASN_IDX_ALGOID_PARAMS_P + i],
                         GetDsaInt(key, i));
             /* y */
             GetASN_MP(&dataASN[DSAPUBKEYASN_IDX_PUBKEY_Y], GetDsaInt(key, i));
@@ -9152,7 +9154,7 @@ int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
         /* Try dsaKeyOctASN */
         /* Initialize key data and set mp_ints for params */
         for (i = 0; i < DSA_INTS - 2; i++) {
-            GetASN_MP(&dataASN[DSAKEYOCTASN_IDX_P + i], GetDsaInt(key, i));
+            GetASN_MP(&dataASN[(int)DSAKEYOCTASN_IDX_P + i], GetDsaInt(key, i));
         }
         /* and priv */
         GetASN_MP(&dataASN[DSAKEYOCTASN_IDX_X], GetDsaInt(key, i));
@@ -9165,7 +9167,7 @@ int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
             XMEMSET(dataASN, 0, sizeof(*dataASN) * dsaKeyASN_Length);
             GetASN_Int8Bit(&dataASN[DSAKEYASN_IDX_VER], &version);
             for (i = 0; i < DSA_INTS; i++) {
-                GetASN_MP(&dataASN[DSAKEYASN_IDX_P + i], GetDsaInt(key, i));
+                GetASN_MP(&dataASN[(int)DSAKEYASN_IDX_P + i], GetDsaInt(key, i));
             }
 
             /* Try simple OCTET_STRING form. */
@@ -9418,7 +9420,7 @@ int wc_SetDsaPublicKey(byte* output, DsaKey* key, int outLen, int with_header)
             SetASN_OID(&dataASN[DSAPUBKEYASN_IDX_ALGOID_OID], DSAk, oidKeyType);
             /* Set the mp_ints to encode - parameters and public value. */
             for (i = 0; i < DSA_INTS - 2; i++) {
-                SetASN_MP(&dataASN[DSAPUBKEYASN_IDX_ALGOID_PARAMS_P + i],
+                SetASN_MP(&dataASN[(int)DSAPUBKEYASN_IDX_ALGOID_PARAMS_P + i],
                         GetDsaInt(key, i));
             }
             SetASN_MP(&dataASN[DSAPUBKEYASN_IDX_PUBKEY_Y], GetDsaInt(key, i));
@@ -9431,7 +9433,7 @@ int wc_SetDsaPublicKey(byte* output, DsaKey* key, int outLen, int with_header)
             for (i = 0; i < DSA_INTS - 1; i++) {
                 /* Move all DSA ints up one slot (ignore VERSION so now
                  * it means P) */
-                SetASN_MP(&dataASN[DSAKEYASN_IDX_VER + i],
+                SetASN_MP(&dataASN[(int)DSAKEYASN_IDX_VER + i],
                         GetDsaInt(key, i));
             }
         }
@@ -9574,9 +9576,9 @@ static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen,
         /* Set the mp_ints to encode - params, public and private value. */
         for (i = 0; i < DSA_INTS; i++) {
             if (i < ints)
-                SetASN_MP(&dataASN[DSAKEYASN_IDX_P + i], GetDsaInt(key, i));
+                SetASN_MP(&dataASN[(int)DSAKEYASN_IDX_P + i], GetDsaInt(key, i));
             else
-                dataASN[DSAKEYASN_IDX_P + i].noOut = 1;
+                dataASN[(int)DSAKEYASN_IDX_P + i].noOut = 1;
         }
         /* Calculate size of the encoding. */
         ret = SizeASN_Items(dsaKeyASN, dataASN, dsaKeyASN_Length, &sz);
@@ -20694,7 +20696,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
         SetASN_Int8Bit(&dataASN[RSAKEYASN_IDX_VER], 0);
         /* Set all the mp_ints in private key. */
         for (i = 0; i < RSA_INTS; i++) {
-            SetASN_MP(&dataASN[RSAKEYASN_IDX_N + i], GetRsaInt(key, i));
+            SetASN_MP(&dataASN[(byte)RSAKEYASN_IDX_N + i], GetRsaInt(key, i));
         }
 
         /* Calculate size of RSA private key encoding. */
