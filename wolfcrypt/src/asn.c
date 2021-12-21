@@ -7733,6 +7733,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
         /* Store PKCS#8 key in output buffer. */
         pkcs8 = (byte*)dataASN[P8ENCPBES1ASN_IDX_ENCDATA].data.buffer.data;
         XMEMCPY(pkcs8, input, inputSz);
+        Pkcs8Pad(pkcs8, inputSz, blockSz);
 
         /* Encrypt PKCS#8 key inline. */
         ret = wc_CryptKey(password, passwordSz, salt, saltSz, itt, id, pkcs8,
