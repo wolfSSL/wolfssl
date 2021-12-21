@@ -701,7 +701,15 @@ int SizeASN_Items(const ASNItem* asn, ASNSetData *data, int count, int* encSz)
                     if (data[i].data.buffer.data != NULL) {
                         /* Force all child nodes to be ignored. Buffer
                          * overwrites children. */
-                        SetASNItem_NoOutBelow(data, asn, i, count);
+                        {
+                            int ii;
+                            for (ii = i + 1; ii < count; ii++) {
+                                if (asn[ii].depth <= asn[i].depth)
+                                    break;
+                                sz -= data[ii].length;
+                                data[ii].noOut = 1;
+                            }
+                        }
                     }
                     else {
                         /* Calculate data length from items below if no buffer
@@ -22756,6 +22764,105 @@ enum {
 
 /* Number of items in ASN.1 template for the SEQUENCE around the RDNs. */
 #define nameASN_Length (sizeof(nameASN) / sizeof(ASNItem))
+
+static int SetNameRdnItems(ASNSetData* dataASN, ASNItem* namesASN,
+        int maxIdx, CertName* name)
+{
+    int         i;
+    int         idx;
+    int         ret = 0;
+    int         nameLen[NAME_ENTRIES];
+#ifdef WOLFSSL_MULTI_ATTRIB
+    int         j;
+#endif
+
+    for (i = 0; i < NAME_ENTRIES; i++) {
+        /* Keep name length to identify component is to be encoded. */
+        const char* nameStr = GetOneCertName(name, i);
+        nameLen[i] = nameStr ? (int)XSTRLEN(nameStr) : 0;
+    }
+
+    idx = nameASN_Length;
+    for (i = 0; i < NAME_ENTRIES; i++) {
+        int type = GetCertNameId(i);
+
+    #ifdef WOLFSSL_MULTI_ATTRIB
+        j = -1;
+        /* Put DomainComponents before OrgUnitName. */
+        while (FindMultiAttrib(name, type, &j)) {
+            if (dataASN != NULL && namesASN != NULL) {
+                if (idx > maxIdx - (int)rdnASN_Length) {
+                    WOLFSSL_MSG("Wanted to write more ASN than allocated");
+                    ret = BUFFER_E;
+                    break;
+                }
+                /* Copy data into dynamic vars. */
+                SetRdnItems(namesASN + idx, dataASN + idx, dcOid,
+                    sizeof(dcOid), name->name[j].type,
+                    (byte*)name->name[j].value, name->name[j].sz);
+            }
+            idx += rdnASN_Length;
+        }
+        if (ret != 0)
+            break;
+    #endif
+
+        if (nameLen[i] > 0) {
+            if (dataASN != NULL && nameASN != NULL) {
+                if (idx > maxIdx - (int)rdnASN_Length) {
+                    WOLFSSL_MSG("Wanted to write more ASN than allocated");
+                    ret = BUFFER_E;
+                    break;
+                }
+                /* Write out first instance of attribute type. */
+                if (type == ASN_EMAIL_NAME) {
+                    /* Copy email data into dynamic vars. */
+                    SetRdnItems(namesASN + idx, dataASN + idx, attrEmailOid,
+                        sizeof(attrEmailOid), ASN_IA5_STRING,
+                        (const byte*)GetOneCertName(name, i), nameLen[i]);
+                }
+                else if (type == ASN_CUSTOM_NAME) {
+                #ifdef WOLFSSL_CUSTOM_OID
+                    SetRdnItems(namesASN + idx, dataASN + idx, name->custom.oid,
+                        name->custom.oidSz, name->custom.enc,
+                        name->custom.val, name->custom.valSz);
+                #endif
+                }
+                else {
+                    /* Copy name data into dynamic vars. */
+                    SetRdnItems(namesASN + idx, dataASN + idx, nameOid[i],
+                        NAME_OID_SZ, GetNameType(name, i),
+                        (const byte*)GetOneCertName(name, i), nameLen[i]);
+                }
+            }
+            idx += rdnASN_Length;
+        }
+
+    #ifdef WOLFSSL_MULTI_ATTRIB
+        j = -1;
+        /* Write all other attributes of this type. */
+        while (FindMultiAttrib(name, type, &j)) {
+            if (dataASN != NULL && namesASN != NULL) {
+                if (idx > maxIdx - (int)rdnASN_Length) {
+                    WOLFSSL_MSG("Wanted to write more ASN than allocated");
+                    ret = BUFFER_E;
+                    break;
+                }
+                /* Copy data into dynamic vars. */
+                SetRdnItems(namesASN + idx, dataASN + idx, nameOid[type],
+                    NAME_OID_SZ, name->name[j].type,
+                    (byte*)name->name[j].value, name->name[j].sz);
+            }
+            idx += rdnASN_Length;
+        }
+        if (ret != 0)
+            break;
+    #endif
+    }
+    if (ret == 0)
+        ret = idx;
+    return ret;
+}
 #endif
 
 /* encode CertName into output, return total bytes written */
@@ -22875,44 +22982,28 @@ int SetNameEx(byte* output, word32 outputSz, CertName* name, void* heap)
 #else
     /* TODO: consider calculating size of entries, putting length into
      * SEQUENCE, encode SEQUENCE, encode entries into buffer.  */
-    ASNSetData* dataASN; /* Can't use DECL_ASNSETDATA. Always dynamic. */
-    ASNItem*    namesASN;
-    int         i;
-    int         idx;
+    ASNSetData* dataASN = NULL; /* Can't use DECL_ASNSETDATA. Always dynamic. */
+    ASNItem*    namesASN = NULL;
+    int         items;
     int         ret = 0;
     int         sz;
-    int         nameLen[NAME_ENTRIES];
-#ifdef WOLFSSL_MULTI_ATTRIB
-    int         j;
-#endif
 
     /* Calculate length of name entries and size for allocating. */
-    idx = nameASN_Length;
-    for (i = 0; i < NAME_ENTRIES; i++) {
-        /* Keep name length to identify component is to be encoded. */
-        const char* nameStr = GetOneCertName(name, i);
-        nameLen[i] = nameStr ? (int)XSTRLEN(nameStr) : 0;
-        if (nameLen[i] > 0) {
-            idx += rdnASN_Length;
-        }
+    ret = SetNameRdnItems(NULL, NULL, 0, name);
+    if (ret > 0) {
+        items = ret;
+        ret = 0;
     }
-    #ifdef WOLFSSL_MULTI_ATTRIB
-    /* Count the extra attributes too. */
-    for (i = 0; i < CTC_MAX_ATTRIB; i++) {
-        if (name->name[i].sz > 0)
-            idx += rdnASN_Length;
-    }
-    #endif
 
     /* Allocate dynamic data items. */
-    dataASN = (ASNSetData*)XMALLOC(idx * sizeof(ASNSetData), heap,
+    dataASN = (ASNSetData*)XMALLOC(items * sizeof(ASNSetData), heap,
                                    DYNAMIC_TYPE_TMP_BUFFER);
     if (dataASN == NULL) {
         ret = MEMORY_E;
     }
     else {
         /* Allocate dynamic ASN.1 template items. */
-        namesASN = (ASNItem*)XMALLOC(idx * sizeof(ASNItem), heap,
+        namesASN = (ASNItem*)XMALLOC(items * sizeof(ASNItem), heap,
                                      DYNAMIC_TYPE_TMP_BUFFER);
         if (namesASN == NULL) {
             ret = MEMORY_E;
@@ -22921,81 +23012,41 @@ int SetNameEx(byte* output, word32 outputSz, CertName* name, void* heap)
 
     if (ret == 0) {
         /* Clear the dynamic data. */
-        XMEMSET(dataASN, 0, idx * sizeof(ASNSetData));
+        XMEMSET(dataASN, 0, items * sizeof(ASNSetData));
         /* Copy in the outer sequence. */
         XMEMCPY(namesASN, nameASN, sizeof(nameASN));
 
-        idx = nameASN_Length;
-        for (i = 0; i < NAME_ENTRIES; i++) {
-            int type = GetCertNameId(i);
-
-        #ifdef WOLFSSL_MULTI_ATTRIB
-            j = -1;
-            /* Put DomainComponents before OrgUnitName. */
-            while (FindMultiAttrib(name, type, &j)) {
-                /* Copy data into dynamic vars. */
-                SetRdnItems(namesASN + idx, dataASN + idx, dcOid,
-                    sizeof(dcOid), name->name[j].type,
-                    (byte*)name->name[j].value, name->name[j].sz);
-                idx += rdnASN_Length;
-            }
-        #endif
-
-            if (nameLen[i] > 0) {
-                /* Write out first instance of attribute type. */
-                if (type == ASN_EMAIL_NAME) {
-                    /* Copy email data into dynamic vars. */
-                    SetRdnItems(namesASN + idx, dataASN + idx, attrEmailOid,
-                        sizeof(attrEmailOid), ASN_IA5_STRING,
-                        (const byte*)GetOneCertName(name, i), nameLen[i]);
-                }
-                else if (type == ASN_CUSTOM_NAME) {
-                #ifdef WOLFSSL_CUSTOM_OID
-                    SetRdnItems(namesASN + idx, dataASN + idx, name->custom.oid,
-                        name->custom.oidSz, name->custom.enc,
-                        name->custom.val, name->custom.valSz);
-                #endif
-                }
-                else {
-                    /* Copy name data into dynamic vars. */
-                    SetRdnItems(namesASN + idx, dataASN + idx, nameOid[i],
-                        NAME_OID_SZ, GetNameType(name, i),
-                        (const byte*)GetOneCertName(name, i), nameLen[i]);
-                }
-                idx += rdnASN_Length;
-            }
-
-        #ifdef WOLFSSL_MULTI_ATTRIB
-            j = -1;
-            /* Write all other attributes of this type. */
-            while (FindMultiAttrib(name, type, &j)) {
-                /* Copy data into dynamic vars. */
-                SetRdnItems(namesASN + idx, dataASN + idx, nameOid[type],
-                    NAME_OID_SZ, name->name[j].type,
-                    (byte*)name->name[j].value, name->name[j].sz);
-                idx += rdnASN_Length;
-            }
-        #endif
+        ret = SetNameRdnItems(dataASN, namesASN, items, name);
+        if (ret == items)
+            ret = 0;
+        else if (ret > 0) {
+            WOLFSSL_MSG("SetNameRdnItems returned different length");
+            ret = BUFFER_E;
         }
-
-        /* Calculate size of encoding. */
-        ret = SizeASN_Items(namesASN, dataASN, idx, &sz);
-    }
-    /* Check buffer size if passed in. */
-    if ((ret == 0) && (output != NULL) && (sz > (int)outputSz)) {
-        ret = BUFFER_E;
-    }
-    if ((ret == 0) && (output != NULL)) {
-        /* Encode Name. */
-        SetASN_Items(namesASN, dataASN, idx, output);
     }
     if (ret == 0) {
-        /* Return the encoding size. */
-        ret = sz;
+        /* Calculate size of encoding. */
+        ret = SizeASN_Items(namesASN, dataASN, items, &sz);
+    }
+    /* Check buffer size if passed in. */
+    if (ret == 0 && output != NULL && sz > (int)outputSz) {
+        ret = BUFFER_E;
+    }
+    if (ret == 0) {
+        if (output != NULL) {
+            /* Encode Name. */
+            ret = SetASN_Items(namesASN, dataASN, items, output);
+        }
+        else {
+            /* Return the encoding size. */
+            ret = sz;
+        }
     }
 
-    XFREE(namesASN, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(dataASN, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (namesASN != NULL)
+        XFREE(namesASN, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (dataASN != NULL)
+        XFREE(dataASN, heap, DYNAMIC_TYPE_TMP_BUFFER);
     (void)heap;
     return ret;
 #endif
