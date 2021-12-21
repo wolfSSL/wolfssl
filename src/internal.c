@@ -29404,7 +29404,17 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
         #endif
 
-            if (ret == 0) {
+            if (ret == 0 && ssl->options.resuming) {
+                /* for resumption use the cipher suite from session */
+                ssl->options.cipherSuite0 = session->cipherSuite0;
+                ssl->options.cipherSuite =  session->cipherSuite;
+                ret = SetCipherSpecs(ssl);
+                if (ret == 0) {
+                    ret = PickHashSigAlgo(ssl, clSuites->hashSigAlgo,
+                                               clSuites->hashSigAlgoSz);
+                }
+            }
+            else if (ret == 0) {
                 if (MatchSuite(ssl, clSuites) < 0) {
                     WOLFSSL_MSG("Unsupported cipher suite, ClientHello");
                     ret = UNSUPPORTED_SUITE;
