@@ -29,6 +29,7 @@
  *
  * WOLFSSL_HAVE_PSA: Global switch to enable PSA
  * WOLFSSL_PSA_NO_RNG: disable PSA random generator support
+ * WOLFSSL_PSA_NO_HASH: disable PSA hashing support
  */
 
 #ifndef WOLFSSL_PSA_H
@@ -44,6 +45,7 @@
 
 #include <psa/crypto.h>
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/visibility.h>
 
 
 int wc_psa_init(void);

@@ -185,7 +185,8 @@ where 0 <= L < 2^64.
     (!defined(WOLFSSL_RENESAS_TSIP_CRYPT) || defined(NO_WOLFSSL_RENESAS_TSIP_HASH)) && \
     !defined(WOLFSSL_PSOC6_CRYPTO) && !defined(WOLFSSL_IMXRT_DCP) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
     !defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_SE050_HASH) && \
-    (!defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(NO_WOLFSSL_RENESAS_SCEPROTECT_HASH))
+    (!defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(NO_WOLFSSL_RENESAS_SCEPROTECT_HASH)) && \
+    (!defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH))
 
 
 
@@ -764,6 +765,9 @@ static int InitSha256(wc_Sha256* sha256)
 
 #elif defined(WOLFSSL_KCAPI_HASH)
     /* implemented in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+
+#elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_HASH)
+    /* implemented in wolfcrypt/src/port/psa/psa_hash.c */
 
 #else
     #define NEED_SOFT_SHA256
@@ -1459,6 +1463,9 @@ static int InitSha256(wc_Sha256* sha256)
 #elif defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_NO_KCAPI_SHA224)
     /* implemented in wolfcrypt/src/port/kcapi/kcapi_hash.c */
 
+#elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_HASH)
+    /* implemented in wolfcrypt/src/port/psa/psa_hash.c */
+
 #else
 
     #define NEED_SOFT_SHA224
@@ -1582,6 +1589,9 @@ static int InitSha256(wc_Sha256* sha256)
         return wc_InitSha224_ex(sha224, NULL, INVALID_DEVID);
     }
 
+#if !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)
+    /* implemented in wolfcrypt/src/port/psa/psa_hash.c */
+
     void wc_Sha224Free(wc_Sha224* sha224)
     {
         if (sha224 == NULL)
@@ -1606,12 +1616,16 @@ static int InitSha256(wc_Sha256* sha256)
     #endif
     }
 #endif /* WOLFSSL_SHA224 */
+#endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH) */
 
 
 int wc_InitSha256(wc_Sha256* sha256)
 {
     return wc_InitSha256_ex(sha256, NULL, INVALID_DEVID);
 }
+
+#if !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)
+    /* implemented in wolfcrypt/src/port/psa/psa_hash.c */
 
 void wc_Sha256Free(wc_Sha256* sha256)
 {
@@ -1664,6 +1678,7 @@ void wc_Sha256Free(wc_Sha256* sha256)
 #endif
 }
 
+#endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH) */
 #endif /* !WOLFSSL_TI_HASH */
 #endif /* HAVE_FIPS */
 
@@ -1673,6 +1688,8 @@ void wc_Sha256Free(wc_Sha256* sha256)
 
 #if defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_NO_KCAPI_SHA224)
     /* implemented in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+#elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_HASH)
+    /* implemented in wolfcrypt/src/port/psa/psa_hash.c */
 
 #else
 
@@ -1761,6 +1778,9 @@ void wc_Sha256Free(wc_Sha256* sha256)
     /* implemented in wolfcrypt/src/port/nxp/dcp_port.c */
 #elif defined(WOLFSSL_KCAPI_HASH)
     /* implemented in wolfcrypt/src/port/kcapi/kcapi_hash.c */
+
+#elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_HASH)
+    /* implemented in wolfcrypt/src/port/psa/psa_hash.c */
 
 #else
 
