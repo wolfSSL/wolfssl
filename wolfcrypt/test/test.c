@@ -7702,11 +7702,14 @@ static int aes_key_size_test(void)
         ERROR_OUT(-5307, out);
 /* CryptoCell handles rounds internally */
 #if !defined(HAVE_FIPS) && !defined(WOLFSSL_CRYPTOCELL)
+    /* PSA don't use aes->rounds */
+#if !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_AES)
     /* Force invalid rounds */
     aes->rounds = 16;
     ret = wc_AesGetKeySize(aes, &keySize);
     if (ret != BAD_FUNC_ARG)
         ERROR_OUT(-5308, out);
+#endif
 #endif
 
     ret = wc_AesSetKey(aes, key16, sizeof(key16), iv, AES_ENCRYPTION);

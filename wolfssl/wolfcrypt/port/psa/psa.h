@@ -30,6 +30,7 @@
  * WOLFSSL_HAVE_PSA: Global switch to enable PSA
  * WOLFSSL_PSA_NO_RNG: disable PSA random generator support
  * WOLFSSL_PSA_NO_HASH: disable PSA hashing support
+ * WOLFSSL_PSA_NO_AES: disable PSA AES support
  */
 
 #ifndef WOLFSSL_PSA_H
@@ -47,6 +48,11 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/visibility.h>
 
+#if !defined(WOLFSSL_PSA_NO_AES)
+#if !defined(NO_AES)
+#include <wolfssl/wolfcrypt/aes.h>
+#endif
+#endif /* WOLFSSL_PSA_NO_AES */
 
 int wc_psa_init(void);
 
@@ -59,7 +65,28 @@ WOLFSSL_API int wc_psa_get_random(unsigned char *out, word32 sz);
 #define CUSTOM_RAND_GENERATE_SEED wc_psa_get_random
 #endif
 
+#endif /* WOLFSSL_HAVE_PSA_RNG */
+
+#if !defined(WOLFSSL_PSA_NO_AES) && !defined(NO_AES)
+
+int wc_psa_aes_init(Aes *aes);
+int wc_psa_aes_free(Aes *aes);
+int wc_psa_aes_get_key_size(Aes *aes, word32 *keySize);
+int wc_psa_aes_set_key(Aes *aes, const uint8_t *key,
+                       size_t key_length, uint8_t *iv,
+                       psa_algorithm_t alg, int dir);
+
+WOLFSSL_API int wc_psa_aes_encrypt_decrypt(Aes *aes, const uint8_t *input,
+                                           uint8_t *output, size_t length,
+                                           psa_algorithm_t alg, int direction);
+
+WOLFSSL_API int wc_AesEncrypt(Aes *aes, const byte *inBlock, byte *outBlock);
+
+#if defined(HAVE_AES_DECRYPT)
+WOLFSSL_API int wc_AesDecrypt(Aes *aes, const byte *inBlock, byte *outBlock);
 #endif
 
 #endif
+
+#endif /* WOLFSSL_HAVE_PSA */
 #endif /* WOLFSSL_PSA_H */
