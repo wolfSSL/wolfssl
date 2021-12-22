@@ -34,7 +34,7 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 |Secure Cryptography Engine on RA6 Protected Mode|v3.5.0|
 |I/O Port|v3.5.0|
 |Arm CMSIS Version 5 - Core (M)|v5.8.0+fsp.3.5.0|
-|RA6M3G-EK Board Support Files|v3.5.0|
+|RA6M4-EK Board Support Files|v3.5.0|
 |Board support package for R7FA6M4AF3CFB|v3.5.0|
 |Board support package for RA6M4|v3.5.0|
 |Board support package for RA6M4 - FSP Data|v3.5.0|

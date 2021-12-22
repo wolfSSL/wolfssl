@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>wolfSSL_RA6M3G</name>
+	<name>wolfSSL_RA6M3</name>
 	<comment></comment>
 	<projects>
 	</projects>
@@ -216,11 +216,6 @@
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/hash.c</locationURI>
 		</link>
 		<link>
-			<name>wolfcrypt/kdf.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/kdf.c</locationURI>
-		</link>
-		<link>
 			<name>wolfcrypt/hc128.c</name>
 			<type>1</type>
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/hc128.c</locationURI>
@@ -244,6 +239,11 @@
 			<name>wolfcrypt/integer.c</name>
 			<type>1</type>
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/integer.c</locationURI>
+		</link>
+		<link>
+			<name>wolfcrypt/kdf.c</name>
+			<type>1</type>
+			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/kdf.c</locationURI>
 		</link>
 		<link>
 			<name>wolfcrypt/logging.c</name>

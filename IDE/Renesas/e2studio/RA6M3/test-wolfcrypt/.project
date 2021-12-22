@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>test_wolfCrypt_RA6M3G</name>
+	<name>test_wolfCrypt_RA6M3</name>
 	<comment></comment>
 	<projects>
 	</projects>
 	<buildSpec>
+		<buildCommand>
+			<name>org.eclipse.xtext.ui.shared.xtextBuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
 		<buildCommand>
 			<name>org.eclipse.cdt.managedbuilder.core.genmakebuilder</name>
 			<triggers>clean,full,incremental,</triggers>
@@ -23,6 +28,7 @@
 		<nature>com.renesas.cdt.ra.contentgen.raExecutableNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
+		<nature>org.eclipse.xtext.ui.shared.xtextNature</nature>
 	</natures>
 	<linkedResources>
 		<link>
@@ -34,16 +40,6 @@
 			<name>common/util.h</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/common/util.h</locationURI>
-		</link>
-		<link>
-			<name>script/ra6m3.ld</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/common/ra6m3g/script/ra6m3.ld</locationURI>
-		</link>
-		<link>
-			<name>src/hal_entry.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/common/ra6m3g/src/hal_entry.c</locationURI>
 		</link>
 		<link>
 			<name>src/test.c</name>
