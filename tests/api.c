@@ -18495,18 +18495,21 @@ static int test_RsaDecryptBoundsCheck(void)
 
         ret = wc_RsaDirect(flatC, flatCSz, out, &outSz, &key,
                            RSA_PRIVATE_DECRYPT, &rng);
+
+        if (ret == RSA_OUT_OF_RANGE_E) {
+            mp_int c;
+            mp_init_copy(&c, &key.n);
+            mp_sub_d(&c, 1, &c);
+            mp_to_unsigned_bin(&c, flatC);
+            ret = wc_RsaDirect(flatC, flatCSz, out, &outSz, &key,
+                               RSA_PRIVATE_DECRYPT, NULL);
+            mp_clear(&c);
+        }
+        if (ret == RSA_OUT_OF_RANGE_E)
+            ret = 0;
+        else
+            ret = WOLFSSL_FATAL_ERROR;
     }
-    if (ret == RSA_OUT_OF_RANGE_E) {
-        mp_int c;
-        mp_init_copy(&c, &key.n);
-        mp_sub_d(&c, 1, &c);
-        mp_to_unsigned_bin(&c, flatC);
-        ret = wc_RsaDirect(flatC, flatCSz, out, &outSz, &key,
-                           RSA_PRIVATE_DECRYPT, NULL);
-        mp_clear(&c);
-    }
-    if (ret == RSA_OUT_OF_RANGE_E)
-        ret = 0;
 
     if (wc_FreeRsaKey(&key) || wc_FreeRng(&rng) || ret != 0)
         ret = WOLFSSL_FATAL_ERROR;
