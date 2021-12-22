@@ -13622,11 +13622,11 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #endif
                                };
 
-    DECLARE_VAR(in, byte, RSA_TEST_BYTES, HEAP_HINT);
-    DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
-    DECLARE_VAR(sig, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(in, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(sig, byte, RSA_TEST_BYTES, HEAP_HINT);
 
-#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (in == NULL || out == NULL || sig == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa_pss);
 #endif
@@ -13903,9 +13903,9 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
 
     ret = 0;
 exit_rsa_pss:
-    FREE_VAR(sig, HEAP_HINT);
-    FREE_VAR(in, HEAP_HINT);
-    FREE_VAR(out, HEAP_HINT);
+    WC_FREE_VAR(sig, HEAP_HINT);
+    WC_FREE_VAR(in, HEAP_HINT);
+    WC_FREE_VAR(out, HEAP_HINT);
 
     return ret;
 }
@@ -13928,11 +13928,11 @@ WOLFSSL_TEST_SUBROUTINE int rsa_no_pad_test(void)
     !defined(NO_FILESYSTEM)
     XFILE  file;
 #endif
-    DECLARE_VAR(key, RsaKey, 1, HEAP_HINT);
-    DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
-    DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(key, RsaKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
 
-#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (key == NULL || out == NULL || plain == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa_nopadding);
 #endif
@@ -14128,9 +14128,9 @@ WOLFSSL_TEST_SUBROUTINE int rsa_no_pad_test(void)
 exit_rsa_nopadding:
     wc_FreeRsaKey(key);
     XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    FREE_VAR(key, HEAP_HINT);
-    FREE_VAR(out, HEAP_HINT);
-    FREE_VAR(plain, HEAP_HINT);
+    WC_FREE_VAR(key, HEAP_HINT);
+    WC_FREE_VAR(out, HEAP_HINT);
+    WC_FREE_VAR(plain, HEAP_HINT);
     wc_FreeRng(&rng);
 
     return ret;
@@ -14155,11 +14155,11 @@ static int rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
     !defined(USE_CERT_BUFFERS_4096) && !defined(NO_FILESYSTEM)
     XFILE  file;
 #endif
-    DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
-    DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
 #endif
-#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (out == NULL
     #ifndef WOLFSSL_RSA_PUBLIC_ONLY
         || plain == NULL
@@ -14285,9 +14285,9 @@ static int rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
 
 exit_rsa_even_mod:
     XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    FREE_VAR(out, HEAP_HINT);
+    WC_FREE_VAR(out, HEAP_HINT);
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
-    FREE_VAR(plain, HEAP_HINT);
+    WC_FREE_VAR(plain, HEAP_HINT);
 #endif
 
     (void)out;
@@ -14981,18 +14981,18 @@ static int rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
     const word32 plainSz = RSA_TEST_BYTES;
     byte*  res = NULL;
 
-    DECLARE_VAR(in, byte, TEST_STRING_SZ, HEAP_HINT);
-    DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
-    DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(in, byte, TEST_STRING_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
 
-#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (in == NULL || out == NULL || plain == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa);
 #endif
 
     XMEMCPY(in, inStr, inLen);
 
-#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (in == NULL || out == NULL || plain == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa);
 #endif
@@ -15298,9 +15298,9 @@ static int rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 
 exit_rsa:
-    FREE_VAR(in, HEAP_HINT);
-    FREE_VAR(out, HEAP_HINT);
-    FREE_VAR(plain, HEAP_HINT);
+    WC_FREE_VAR(in, HEAP_HINT);
+    WC_FREE_VAR(out, HEAP_HINT);
+    WC_FREE_VAR(plain, HEAP_HINT);
 
     (void)idx;
     (void)inStr;
@@ -15365,11 +15365,11 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 #endif
 #endif
 
-    DECLARE_VAR(in, byte, TEST_STRING_SZ, HEAP_HINT);
-    DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
-    DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(in, byte, TEST_STRING_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
 
-#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (in == NULL || out == NULL || plain == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa);
 #endif
@@ -15963,9 +15963,9 @@ exit_rsa:
     XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     wc_FreeRng(&rng);
 
-    FREE_VAR(in, HEAP_HINT);
-    FREE_VAR(out, HEAP_HINT);
-    FREE_VAR(plain, HEAP_HINT);
+    WC_FREE_VAR(in, HEAP_HINT);
+    WC_FREE_VAR(out, HEAP_HINT);
+    WC_FREE_VAR(plain, HEAP_HINT);
 
     (void)res;
     (void)bytes;
@@ -20848,15 +20848,15 @@ static int ecc_test_vector_item(const eccVector* vector)
 #else
     ecc_key userA[1];
 #endif
-    DECLARE_VAR(sig, byte, ECC_SIG_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(sig, byte, ECC_SIG_SIZE, HEAP_HINT);
 #if !defined(NO_ASN) && !defined(HAVE_SELFTEST)
     word32  sigRawSz, rSz = MAX_ECC_BYTES, sSz = MAX_ECC_BYTES;
-    DECLARE_VAR(sigRaw, byte, ECC_SIG_SIZE, HEAP_HINT);
-    DECLARE_VAR(r, byte, MAX_ECC_BYTES, HEAP_HINT);
-    DECLARE_VAR(s, byte, MAX_ECC_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(sigRaw, byte, ECC_SIG_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(r, byte, MAX_ECC_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(s, byte, MAX_ECC_BYTES, HEAP_HINT);
 #endif
 
-#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
     if (sig == NULL)
         ERROR_OUT(MEMORY_E, done);
 #if !defined(NO_ASN) && !defined(HAVE_SELFTEST)
@@ -20934,11 +20934,11 @@ done:
 #endif
 
 #if !defined(NO_ASN) && !defined(HAVE_SELFTEST)
-    FREE_VAR(sigRaw, HEAP_HINT);
-    FREE_VAR(r, HEAP_HINT);
-    FREE_VAR(s, HEAP_HINT);
+    WC_FREE_VAR(sigRaw, HEAP_HINT);
+    WC_FREE_VAR(r, HEAP_HINT);
+    WC_FREE_VAR(s, HEAP_HINT);
 #endif
-    FREE_VAR(sig, HEAP_HINT);
+    WC_FREE_VAR(sig, HEAP_HINT);
 
     return ret;
 }
@@ -21942,12 +21942,12 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 {
 #if (defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)) && !defined(WC_NO_RNG) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
-    DECLARE_VAR(sharedA, byte, ECC_SHARED_SIZE, HEAP_HINT);
-    DECLARE_VAR(sharedB, byte, ECC_SHARED_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(sharedA, byte, ECC_SHARED_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(sharedB, byte, ECC_SHARED_SIZE, HEAP_HINT);
 #endif
 #ifdef HAVE_ECC_KEY_EXPORT
     #define ECC_KEY_EXPORT_BUF_SIZE (MAX_ECC_BYTES * 2 + 32)
-    DECLARE_VAR(exportBuf, byte, ECC_KEY_EXPORT_BUF_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(exportBuf, byte, ECC_KEY_EXPORT_BUF_SIZE, HEAP_HINT);
 #endif
     word32  x = 0;
 #if (defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)) && !defined(WC_NO_RNG) && \
@@ -21955,8 +21955,8 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     word32  y;
 #endif
 #ifdef HAVE_ECC_SIGN
-    DECLARE_VAR(sig, byte, ECC_SIG_SIZE, HEAP_HINT);
-    DECLARE_VAR(digest, byte, ECC_DIGEST_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(sig, byte, ECC_SIG_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(digest, byte, ECC_DIGEST_SIZE, HEAP_HINT);
     int     i;
 #ifdef HAVE_ECC_VERIFY
     int     verify;
@@ -21976,7 +21976,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     int     curveSize;
 #endif
 
-#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
 #if (defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)) && !defined(WC_NO_RNG) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
     if (sharedA == NULL || sharedB == NULL)
@@ -22350,15 +22350,15 @@ done:
 #endif
 
 #if defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)
-    FREE_VAR(sharedA, HEAP_HINT);
-    FREE_VAR(sharedB, HEAP_HINT);
+    WC_FREE_VAR(sharedA, HEAP_HINT);
+    WC_FREE_VAR(sharedB, HEAP_HINT);
 #endif
 #ifdef HAVE_ECC_KEY_EXPORT
-    FREE_VAR(exportBuf, HEAP_HINT);
+    WC_FREE_VAR(exportBuf, HEAP_HINT);
 #endif
 #ifdef HAVE_ECC_SIGN
-    FREE_VAR(sig, HEAP_HINT);
-    FREE_VAR(digest, HEAP_HINT);
+    WC_FREE_VAR(sig, HEAP_HINT);
+    WC_FREE_VAR(digest, HEAP_HINT);
 #endif
 
     (void)keySize;

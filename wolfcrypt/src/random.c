@@ -351,7 +351,7 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
     wc_Sha256 sha[1];
 #endif
 #ifdef WC_ASYNC_ENABLE_SHA256
-    DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
+    WC_DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
     if (digest == NULL)
         return MEMORY_E;
 #else
@@ -419,7 +419,7 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
     ForceZero(digest, WC_SHA256_DIGEST_SIZE);
 
 #ifdef WC_ASYNC_ENABLE_SHA256
-    FREE_VAR(digest, drbg->heap);
+    WC_FREE_VAR(digest, drbg->heap);
 #endif
 
     return (ret == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
@@ -486,7 +486,7 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
     wc_Sha256 sha[1];
 #endif
 #ifdef WC_ASYNC_ENABLE_SHA256
-    DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
+    WC_DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
     if (digest == NULL)
         return MEMORY_E;
 #else
@@ -556,7 +556,7 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
     ForceZero(data, sizeof(data));
 
 #ifdef WC_ASYNC_ENABLE_SHA256
-    FREE_VAR(digest, drbg->heap);
+    WC_FREE_VAR(digest, drbg->heap);
 #endif
 
     return (ret == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
@@ -601,7 +601,7 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
         return DRBG_NEED_RESEED;
     } else {
     #ifdef WC_ASYNC_ENABLE_SHA256
-        DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
+        WC_DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
         if (digest == NULL)
             return MEMORY_E;
     #else
@@ -644,7 +644,7 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
         }
         ForceZero(digest, WC_SHA256_DIGEST_SIZE);
     #ifdef WC_ASYNC_ENABLE_SHA256
-        FREE_VAR(digest, drbg->heap);
+        WC_FREE_VAR(digest, drbg->heap);
     #endif
     }
 
@@ -801,7 +801,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 
     if (wc_RNG_HealthTestLocal(0) == 0) {
     #ifdef WC_ASYNC_ENABLE_SHA256
-        DECLARE_VAR(seed, byte, MAX_SEED_SZ, rng->heap);
+        WC_DECLARE_VAR(seed, byte, MAX_SEED_SZ, rng->heap);
         if (seed == NULL)
             return MEMORY_E;
     #else
@@ -855,7 +855,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 
         ForceZero(seed, seedSz);
     #ifdef WC_ASYNC_ENABLE_SHA256
-        FREE_VAR(seed, rng->heap);
+        WC_FREE_VAR(seed, rng->heap);
     #endif
     }
     else
