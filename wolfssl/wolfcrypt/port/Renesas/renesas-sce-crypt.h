@@ -176,12 +176,21 @@ WOLFSSL_LOCAL int wc_sce_Sha256VerifyHmac(
         uint32_t      macSz,
         uint32_t      content);
 
-WOLFSSL_LOCAL int wc_sce_storeKeyCtx(struct WOLFSSL* ssl, User_SCEPKCbInfo* info);
-WOLFSSL_LOCAL int wc_sce_generateVerifyData(const uint8_t *ms, /* master secret */
-                           const uint8_t *side, const uint8_t *handshake_hash,
-                           uint8_t *hashes /* out */);
-WOLFSSL_LOCAL int wc_sce_generateSeesionKey(struct WOLFSSL *ssl, User_SCEPKCbInfo* cbInfo, 
-                                                                    int devId);
+WOLFSSL_LOCAL int wc_sce_storeKeyCtx(
+        struct WOLFSSL* ssl,
+        User_SCEPKCbInfo* info);
+
+WOLFSSL_LOCAL int wc_sce_generateVerifyData(
+        const uint8_t*  ms, /* master secret */
+        const uint8_t*  side,
+        const uint8_t*  handshake_hash,
+        uint8_t*        hashes /* out */);
+
+WOLFSSL_LOCAL int wc_sce_generateSessionKey(
+        struct WOLFSSL*   ssl,
+        User_SCEPKCbInfo* cbInfo, 
+        int               devId);
+        
 WOLFSSL_LOCAL int wc_sce_generateMasterSecret(
         uint8_t        cipherSuiteFirst,
         uint8_t        cipherSuite,

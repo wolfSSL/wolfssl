@@ -367,6 +367,10 @@ int wolfCrypt_Cleanup(void)
         wolfAsync_HardwareStop();
     #endif
 
+    #ifdef WOLFSSL_RENESAS_TSIP
+        tsip_Close();
+    #endif   
+
     #ifdef WOLFSSL_RENESAS_SCEPROTECT
         wc_sce_Close();
     #endif

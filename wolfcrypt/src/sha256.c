@@ -1647,7 +1647,7 @@ void wc_Sha256Free(wc_Sha256* sha256)
 #if (defined(WOLFSSL_AFALG_HASH) && defined(WOLFSSL_AFALG_HASH_KEEP)) || \
     (defined(WOLFSSL_DEVCRYPTO_HASH) && defined(WOLFSSL_DEVCRYPTO_HASH_KEEP)) || \
     (defined(WOLFSSL_RENESAS_TSIP_CRYPT) && \
-    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)) && \
+    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)) || \
     (defined(WOLFSSL_RENESAS_SCEPROTECT) && \
     !defined(NO_WOLFSSL_RENESAS_SCEPROTECT_HASH))
 

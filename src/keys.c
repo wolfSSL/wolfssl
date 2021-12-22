@@ -38,12 +38,7 @@
     #endif
 #endif
 
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
-    !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
- int tsip_useable(const WOLFSSL *ssl);
-#endif
-
-#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_TSIP_TLS)
 #include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>
 #endif
 
@@ -2107,7 +2102,8 @@ int SetCipherSpecs(WOLFSSL* ssl)
 #ifndef NO_TLS
         ssl->options.tls = 1;
     #if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)
-        #if !defined(WOLFSSL_RENESAS_SCEPROTECT)
+        #if !defined(WOLFSSL_RENESAS_SCEPROTECT) && \
+            !defined(WOLFSSL_RENESAS_TSIP_TLS)
         ssl->hmac = TLS_hmac;
         #else
         ssl->hmac = Renesas_cmn_TLS_hmac;
@@ -2128,7 +2124,8 @@ int SetCipherSpecs(WOLFSSL* ssl)
 
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_AEAD_ONLY)
     if (ssl->options.dtls)
-        #if !defined(WOLFSSL_RENESAS_SCEPROTECT)
+        #if !defined(WOLFSSL_RENESAS_SCEPROTECT) && \
+            !defined(WOLFSSL_RENESAS_TSIP_TLS)
         ssl->hmac = TLS_hmac;
         #else
         ssl->hmac = Renesas_cmn_TLS_hmac;
@@ -3108,14 +3105,6 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
         if (ret != 0)
            return ret;
     }
-#endif
-
-#if (defined(WOLFSSL_RENESAS_TSIP_TLS) && \
-    !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION))
-    /* check if keys for TSIP has been created */
-    if (tsip_useable(ssl) == 1)
-        ret = 0;
-    else
 #endif
 
 #if !defined(NO_CERTS) && defined(HAVE_PK_CALLBACKS)

@@ -321,6 +321,9 @@
 #endif
 #endif /* WOLFSSL_ESPIDF */
 
+#if defined(WOLFCRYPT_ONLY)
+    #undef WOLFSSL_RENESAS_TSIP
+#endif /* WOLFCRYPT_ONLY */
 #if defined(WOLFSSL_RENESAS_TSIP)
     #define TSIP_TLS_HMAC_KEY_INDEX_WORDSIZE 64
     #define TSIP_TLS_MASTERSECRET_SIZE       80   /* 20 words */
@@ -330,7 +333,7 @@
         #define WOLFSSL_RENESAS_TSIP_TLS
         #define WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT
     #endif
-#endif
+#endif /* WOLFSSL_RENESAS_TSIP */
 
 #if defined(WOLFSSL_RENESAS_SCEPROTECT)
     #define SCE_TLS_MASTERSECRET_SIZE         80  /* 20 words */
