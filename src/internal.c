@@ -25011,7 +25011,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         {
                             #if (defined(WOLFSSL_RENESAS_SCEPROTECT) && \
                                 defined(WOLFSSL_RENESAS_SCEPROTECT_ECC)) || \
-                                defined(WOLFSSL_RENESAS_TSIP_TLS) 
+                                defined(WOLFSSL_RENESAS_TSIP_TLS)
                             /* already checked signature result by SCE */
                             /* skip the sign checks below              */
                             if (Renesas_cmn_usable(ssl, 0)) {

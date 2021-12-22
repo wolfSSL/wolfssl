@@ -369,7 +369,7 @@ int wolfCrypt_Cleanup(void)
 
     #ifdef WOLFSSL_RENESAS_TSIP
         tsip_Close();
-    #endif   
+    #endif
 
     #ifdef WOLFSSL_RENESAS_SCEPROTECT
         wc_sce_Close();
