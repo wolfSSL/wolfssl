@@ -1242,14 +1242,15 @@ static int wc_ecc_export_x963_compressed(ecc_key*, byte* out, word32* outLen);
 #endif
 
 
-#if (defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || !defined(WOLFSSL_SP_MATH)) && \
+
+#if !defined(WOLFSSL_SP_MATH) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050)
 static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
-        mp_int* prime, mp_int* order);
+    mp_int* prime, mp_int* order);
 #endif
 static int _ecc_validate_public_key(ecc_key* key, int partial, int priv);
-#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(WOLFSSL_VALIDATE_ECC_IMPORT)
+#if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)
 static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng);
 #endif
 
@@ -5087,10 +5088,10 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
 
     err = _ecc_make_key_ex(rng, keysize, key, curve_id, flags);
 
+#if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)
     if (err == MP_OKAY) {
         err = _ecc_validate_public_key(key, 0, 0);
     }
-#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(WOLFSSL_VALIDATE_ECC_IMPORT)
     if (err == MP_OKAY) {
         err = _ecc_pairwise_consistency_test(key, rng);
     }
@@ -8381,7 +8382,8 @@ int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
 #endif
 }
 
-#if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_VALIDATE_ECC_IMPORT)
+#if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || \
+    (defined(WOLFSSL_VALIDATE_ECC_IMPORT) && !defined(WOLFSSL_SP_MATH))
 /* validate privkey * generator == pubkey, 0 on success */
 static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
 {
@@ -8508,9 +8510,10 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
 
     return err;
 }
-#endif /* !WOLFSSL_SP_MATH || WOLFSSL_VALIDATE_ECC_IMPORT */
+#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN ||
+        * (!WOLFSSL_SP_MATH && WOLFSSL_VALIDATE_ECC_IMPORT) */
 
-#ifdef WOLFSSL_VALIDATE_ECC_IMPORT
+#if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)
 
 /* check privkey generator helper, creates prime needed */
 static int ecc_check_privkey_gen_helper(ecc_key* key)
@@ -8549,18 +8552,16 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
     return err;
 }
 
-#endif /* WOLFSSL_VALIDATE_ECC_IMPORT */
-
-
-#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(WOLFSSL_VALIDATE_ECC_IMPORT)
 /* Performs a Pairwise Consistency Test on an ECC key pair. */
 static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng)
 {
     int err = 0;
     int flags = key->flags;
 
-    if ((flags & (WC_ECC_FLAG_COFACTOR | WC_ECC_FLAG_DEC_SIGN)) == 0)
+    /* If flags not set default to cofactor and dec/sign */
+    if ((flags & (WC_ECC_FLAG_COFACTOR | WC_ECC_FLAG_DEC_SIGN)) == 0) {
         flags = (WC_ECC_FLAG_COFACTOR | WC_ECC_FLAG_DEC_SIGN);
+    }
 
     if (flags & WC_ECC_FLAG_COFACTOR) {
         err = ecc_check_privkey_gen_helper(key);
@@ -8606,16 +8607,16 @@ static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng)
         ForceZero(sig, sigLen + digestLen);
         XFREE(sig, NULL, DYNAMIC_TYPE_ECC);
     }
+    (void)rng;
 
     if (err != 0)
         err = ECC_PCT_E;
 
     return err;
 }
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN || WOLFSSL_VALIDATE_ECC_IMPORT */
+#endif /* FIPS v5 or later || WOLFSSL_VALIDATE_ECC_KEYGEN */
 
-
-#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || !defined(WOLFSSL_SP_MATH)
+#ifndef WOLFSSL_SP_MATH
 /* validate order * pubkey = point at infinity, 0 on success */
 static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
         mp_int* prime, mp_int* order)
@@ -8668,7 +8669,8 @@ static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
 
     return err;
 }
-#endif
+#endif /* !WOLFSSL_SP_MATH */
+
 #endif /* !WOLFSSL_ATECC508A && !WOLFSSL_CRYPTOCELL*/
 
 #ifdef OPENSSL_EXTRA
@@ -8858,10 +8860,12 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
             err = ECC_PRIV_KEY_E;
         }
 
+    #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
         /* SP 800-56Ar3, section 5.6.2.1.4, method (b) for ECC */
         /* private * base generator must equal pubkey */
         if (err == MP_OKAY && key->type == ECC_PRIVATEKEY)
             err = ecc_check_privkey_gen(key, curve->Af, curve->prime);
+    #endif
     }
 
     wc_ecc_curve_free(curve);

@@ -63,7 +63,8 @@ Possible DH enable options:
                         directly effect this file, but it does speed up DH
                         removing the testing. It is not recommended to
                         disable the prime checking.           default: off
-
+ * WOLFSSL_VALIDATE_DH_KEYGEN: Enable DH key gen consistency checking
+ *                             (on for FIPS 140-3 or later)   default: off
 */
 
 
@@ -995,8 +996,10 @@ int wc_FreeDhKey(DhKey* key)
 
 static int _ffc_validate_public_key(DhKey* key, const byte* pub, word32 pubSz,
        const byte* prime, word32 primeSz, int partial);
+#if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_DH_KEYGEN)
 static int _ffc_pairwise_consistency_test(DhKey* key,
         const byte* pub, word32 pubSz, const byte* priv, word32 privSz);
+#endif
 
 #ifndef WOLFSSL_KCAPI_DH
 
@@ -1364,12 +1367,13 @@ static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
 
     if (ret == 0)
         ret = GeneratePublicDh(key, priv, *privSz, pub, pubSz);
-#if defined(WOLFSSL_SP_MATH) || defined(HAVE_FFDHE)
+#if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_DH_KEYGEN)
     if (ret == 0)
         ret = _ffc_validate_public_key(key, pub, *pubSz, NULL, 0, 0);
-#endif
     if (ret == 0)
         ret = _ffc_pairwise_consistency_test(key, pub, *pubSz, priv, *privSz);
+#endif /* FIPS V5 or later || WOLFSSL_VALIDATE_DH_KEYGEN */
+
 
     RESTORE_VECTOR_REGISTERS();
 
