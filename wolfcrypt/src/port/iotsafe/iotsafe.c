@@ -453,7 +453,7 @@ static int iotsafe_readfile(uint8_t *file_id, uint16_t file_id_sz,
         return ret;
     }
 
-    filesz_s = search_tlv(resp, ret, 0x20);
+    filesz_s = search_tlv(resp + 4, ret, 0x20);
     if ((filesz_s) && (XSTRLEN(filesz_s)) >= 8) {
         uint8_t fs_msb, fs_lsb;
         if (hex_to_bytes(filesz_s + 4, &fs_msb, 1) < 0)
@@ -730,25 +730,32 @@ static int iotsafe_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
 
     WOLFSSL_MSG("Enter iotsafe_hkdf_extract");
      switch (digest) {
+        #ifndef NO_SHA256
         case WC_SHA256:
          hash_algo = (uint16_t)1;
          if (ikmLen == 0) {
              len = WC_SHA256_DIGEST_SIZE;
          }
             break;
+        #endif
+        #ifdef WOLFSSL_SHA384
         case WC_SHA384:
           hash_algo = (uint16_t)2;
            if (ikmLen == 0) {
              len = WC_SHA384_DIGEST_SIZE;
          }
              break;
+        #endif
+        #ifdef WOLFSSL_TLS13_SHA512
         case WC_SHA512:
             hash_algo = (uint16_t)4;
              if (ikmLen == 0) {
              len = WC_SHA512_DIGEST_SIZE;
          }
             break;
+        #endif
         default:
+            return BAD_FUNC_ARG;
             break;
      }
 
@@ -848,13 +855,14 @@ static int iotsafe_sign_hash(byte *privkey_idx, uint16_t id_size,
 
         ret = expect_csim_response(csim_cmd, (word32)XSTRLEN(csim_cmd), &resp);
         if (ret >= 0) {
-            byte sig_hdr[2];
-            if (hex_to_bytes(resp, sig_hdr, 2) < 0) {
+            byte sig_hdr[3];
+            if (hex_to_bytes(resp, sig_hdr, 3) < 0) {
                ret = BAD_FUNC_ARG;
             } else if ((sig_hdr[0] == IOTSAFE_TAG_SIGNATURE_FIELD) &&
-                       (sig_hdr[1] ==  2 * IOTSAFE_ECC_KSIZE)) {
-                XSTRNCPY(R, resp + 4, IOTSAFE_ECC_KSIZE * 2);
-                XSTRNCPY(S, resp + 4 + IOTSAFE_ECC_KSIZE * 2,
+                       (sig_hdr[1] == 0) &&
+                       (sig_hdr[2] ==  2 * IOTSAFE_ECC_KSIZE)) {
+                XSTRNCPY(R, resp + 6, IOTSAFE_ECC_KSIZE * 2);
+                XSTRNCPY(S, resp + 6 + IOTSAFE_ECC_KSIZE * 2,
                         IOTSAFE_ECC_KSIZE * 2);
                 ret = wc_ecc_rs_to_sig(R, S, signature, sigLen);
             } else {
@@ -1045,8 +1053,8 @@ static int wolfIoT_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
          ret = iotsafe_hkdf_extract(prk, salt, saltLen, ikm, ikmLen, digest);
     }
     else{
-        #ifdef DEBUG_IOTSAFE
-        printf("NULL Salt length not supported by IoT Safe Applet, fallback to software implementation\n");
+         #ifdef DEBUG_IOTSAFE
+        printf("SALT is NULL, not supported by IoT Safe Applet, fallback to software implementation\n");
         #endif
         ret = wc_Tls13_HKDF_Extract(prk, salt, saltLen, ikm, ikmLen, digest);
     }     

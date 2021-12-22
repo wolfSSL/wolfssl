@@ -187,7 +187,7 @@ int client_loop(const char *peer_ip, const char *peer_name, const char *peer_por
 
     /* Construct HTTP POST */
 
-    // Header
+    /* Header */
     strcat(buff, "POST /iot/device HTTP/1.1\r\n");
     strcat(buff, "Content-Type: application/json\r\n");
     strcat(buff, "Content-Length: 1000\r\n");
@@ -198,10 +198,10 @@ int client_loop(const char *peer_ip, const char *peer_name, const char *peer_por
     strcat(buff, peer_port);
     strcat(buff, "\r\n");
 
-    // Delimiter
+    /* Delimiter */
     strcat(buff, "\r\n");
 
-    // Body
+    /* Body */
     srand(time(NULL));
     int devid    = rand() % 100;
     char snum[5] = {0};
@@ -240,7 +240,7 @@ int client_loop(const char *peer_ip, const char *peer_name, const char *peer_por
 
     /* Fill in the server address */
     printf("Peer port: %s\n", peer_port);
-    servAddr.sin_family = AF_INET; // Using IPv4
+    servAddr.sin_family = AF_INET; /* Using IPv4 */
     servAddr.sin_port   = htons(atoi(peer_port));
 
     /* Get the server IPv4 address from the command line call */

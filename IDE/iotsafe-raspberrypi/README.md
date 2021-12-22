@@ -108,15 +108,17 @@ wolfSSL_iotsafe_on(ssl, PRIVKEY_ID, ECDH_KEYPAIR_ID, PEER_PUBKEY_ID, PEER_CERT_I
 
 First, user needs to build wolfSSL with the following options:
 ```
-./configure --enable-tls13 --enable-pkcallbacks --enable-debug --enable-iotsafe --enable-hkdf
+./configure CFLAGS="-DWOLFSSL_TRUST_PEER_CERT" --enable-tls13 --enable-pkcallbacks --enable-debug --enable-iotsafe --enable-hkdf
 ```
 
 Additionally, user can pass `CFLAGS="-DDEBUG_WOLFSSL -DWOLFSSL_DEBUG_TLS -DDEBUG_IOTSAFE"` if more debugging information is to be used. This can clutter the demo stdout more than `--enable-debug` does, but this is very useful to see the overall TLS 1.3 handshaking process with IoT-SAFE.
 
 Hence, the full wolfSSL build for the demo is:
 ```
-./configure CFLAGS="-DDEBUG_WOLFSSL -DWOLFSSL_DEBUG_TLS -DDEBUG_IOTSAFE" --enable-tls13 --enable-pkcallbacks --enable-debug --enable-iotsafe
+./configure CFLAGS="-DWOLFSSL_TRUST_PEER_CERT -DDEBUG_WOLFSSL -DWOLFSSL_DEBUG_TLS -DDEBUG_IOTSAFE" --enable-tls13 --enable-pkcallbacks --enable-debug --enable-iotsafe
 ```
+
+`-DWOLFSSL_TRUST_PEER_CERT` is needed for `wolfSSL_CTX_trust_peer_buffer` in `IDE/iotsafe-raspberrypi/client-tls13.c`
 
 ### Running
 
@@ -129,7 +131,7 @@ make all
 
 Run below to enable printing UART IO:
 ```
-make all ENABLE_DEBUG_UART_IO_EXTRA=on
+make all ENABLE_DEBUG_UART_IO_EXTRA=on|off
 ```
 
 Run the built `./main.bin` to print the help usage.
