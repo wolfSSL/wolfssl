@@ -127,6 +127,33 @@ enum ASN_Tags {
     ASN_DIR_TYPE          = 0x04,
     ASN_URI_TYPE          = 0x06, /* the value 6 is from GeneralName OID */
     ASN_IP_TYPE           = 0x07, /* the value 7 is from GeneralName OID */
+
+    /* PKCS #7 types */
+    ASN_ENC_CONTENT       = 0x00,
+    ASN_OTHERNAME_VALUE   = 0x00,
+
+    /* AuthorityKeyIdentifier fields */
+    ASN_AUTHKEYID_KEYID   = 0x00,
+    ASN_AUTHKEYID_ISSUER  = 0x01,
+    ASN_AUTHKEYID_SERIAL  = 0x02,
+
+    /* GeneralSubtree fields */
+    ASN_SUBTREE_MIN       = 0x00,
+    ASN_SUBTREE_MAX       = 0x01,
+
+    /* x509 Cert Fields */
+    ASN_X509_CERT_VERSION = 0x00,
+
+    /* x509 Cert Extension Fields */
+    ASN_AKID_KEYID        = 0x00,
+
+    /* ECC Key Fields */
+    ASN_ECC_PARAMS        = 0x00,
+    ASN_ECC_PUBKEY        = 0x01,
+
+    /* OneAsymmetricKey Fields */
+    ASN_ASYMKEY_ATTRS     = 0x00,
+    ASN_ASYMKEY_PUBKEY    = 0x01,
 };
 
 #define ASN_UTC_TIME_SIZE 14
@@ -598,6 +625,25 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
 #define SetASNItem_NoOutBelow(dataASN, asn, node, dataASNLen)          \
     do {                                                               \
         int ii;                                                        \
+        for (ii = node + 1; ii < (int)(dataASNLen); ii++) {            \
+            if (asn[ii].depth <= asn[node].depth)                      \
+                break;                                                 \
+            dataASN[ii].noOut = 1;                                     \
+        }                                                              \
+    }                                                                  \
+    while (0)
+
+/* Set the node and all nodes below to not be encoded.
+ *
+ * @param [in] dataASN  Dynamic ASN data item.
+ * @param [in] node     Node which should not be encoded. Child nodes will
+ *                      also not be encoded.
+ * @param [in] dataASNLen Number of items in dataASN.
+ */
+#define SetASNItem_NoOutNode(dataASN, asn, node, dataASNLen)           \
+    do {                                                               \
+        int ii;                                                        \
+        dataASN[node].noOut = 1;                                       \
         for (ii = node + 1; ii < (int)(dataASNLen); ii++) {            \
             if (asn[ii].depth <= asn[node].depth)                      \
                 break;                                                 \

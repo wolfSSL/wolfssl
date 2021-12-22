@@ -1463,8 +1463,9 @@ static int test_wolfSSL_CertManagerSetVerify(void)
 
 #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(DEBUG_UNIT_TEST_CERTS)
-/* used when debugging name constraint tests */
-static void DEBUG_WRITE_CERT_X509(WOLFSSL_X509* x509, const char* fileName)
+/* Used when debugging name constraint tests. Not static to allow use in
+ * multiple locations with complex define guards. */
+void DEBUG_WRITE_CERT_X509(WOLFSSL_X509* x509, const char* fileName)
 {
     BIO* out = BIO_new(BIO_s_file());
     if (out != NULL) {
@@ -1474,7 +1475,7 @@ static void DEBUG_WRITE_CERT_X509(WOLFSSL_X509* x509, const char* fileName)
         BIO_free(out);
     }
 }
-static void DEBUG_WRITE_CERT_DER(const byte* der, int derSz, const char* fileName)
+void DEBUG_WRITE_DER(const byte* der, int derSz, const char* fileName)
 {
     BIO* out = BIO_new(BIO_s_file());
     if (out != NULL) {
@@ -1486,7 +1487,7 @@ static void DEBUG_WRITE_CERT_DER(const byte* der, int derSz, const char* fileNam
 }
 #else
 #define DEBUG_WRITE_CERT_X509(x509, fileName)
-#define DEBUG_WRITE_CERT_DER(der, derSz, fileName)
+#define DEBUG_WRITE_DER(der, derSz, fileName)
 #endif
 
 
@@ -1572,7 +1573,7 @@ static void test_wolfSSL_CertManagerNameConstraint(void)
                 WOLFSSL_FILETYPE_ASN1));
 
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(ca, &derSz)));
-    DEBUG_WRITE_CERT_DER(der, derSz, "ca.der");
+    DEBUG_WRITE_DER(der, derSz, "ca.der");
 
     AssertIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
@@ -1853,7 +1854,7 @@ static void test_wolfSSL_CertManagerNameConstraint3(void)
     AssertNotNull(ca = wolfSSL_X509_load_certificate_file(ca_cert,
                 WOLFSSL_FILETYPE_ASN1));
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(ca, &derSz)));
-    DEBUG_WRITE_CERT_DER(der, derSz, "ca.der");
+    DEBUG_WRITE_DER(der, derSz, "ca.der");
 
     AssertIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
@@ -1968,7 +1969,7 @@ static void test_wolfSSL_CertManagerNameConstraint4(void)
     AssertNotNull(ca = wolfSSL_X509_load_certificate_file(ca_cert,
                 WOLFSSL_FILETYPE_ASN1));
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(ca, &derSz)));
-    DEBUG_WRITE_CERT_DER(der, derSz, "ca.der");
+    DEBUG_WRITE_DER(der, derSz, "ca.der");
 
     AssertIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
@@ -2124,7 +2125,7 @@ static void test_wolfSSL_CertManagerNameConstraint5(void)
     AssertNotNull(ca = wolfSSL_X509_load_certificate_file(ca_cert,
                 WOLFSSL_FILETYPE_ASN1));
     AssertNotNull((der = (byte*)wolfSSL_X509_get_der(ca, &derSz)));
-    DEBUG_WRITE_CERT_DER(der, derSz, "ca.der");
+    DEBUG_WRITE_DER(der, derSz, "ca.der");
 
     AssertIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
@@ -18500,7 +18501,7 @@ static int test_RsaDecryptBoundsCheck(void)
         mp_init_copy(&c, &key.n);
         mp_sub_d(&c, 1, &c);
         mp_to_unsigned_bin(&c, flatC);
-        ret = wc_RsaDirect(flatC, sizeof(flatC), out, &outSz, &key,
+        ret = wc_RsaDirect(flatC, flatCSz, out, &outSz, &key,
                            RSA_PRIVATE_DECRYPT, NULL);
         mp_clear(&c);
     }
@@ -20608,6 +20609,20 @@ static int test_wc_DsaKeyToPublicDer(void)
 
     if (ret == 0) {
         ret = wc_DsaKeyToPublicDer(&genKey, der, ONEK_BUF);
+        if (ret >= 0) {
+            sz = ret;
+            ret = 0;
+        } else {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    if (ret == 0) {
+        word32 idx = 0;
+        ret = wc_DsaPublicKeyDecode(der, &idx, &genKey, sz);
+    }
+    /* Test without the SubjectPublicKeyInfo header */
+    if (ret == 0) {
+        ret = wc_SetDsaPublicKey(der, &genKey, ONEK_BUF, 0);
         if (ret >= 0) {
             sz = ret;
             ret = 0;
@@ -36321,9 +36336,12 @@ static void test_wolfSSL_X509_sign(void)
 
     AssertIntEQ(wolfSSL_X509_get_serial_number(x509, sn, &snSz),
                 WOLFSSL_SUCCESS);
-    DEBUG_WRITE_CERT_X509(x509, "signed.der");
+    DEBUG_WRITE_CERT_X509(x509, "signed.pem");
 
-    /* Variation in size depends on ASN.1 encoding when MSB is set */
+    /* Variation in size depends on ASN.1 encoding when MSB is set.
+     * WOLFSSL_ASN_TEMPLATE code does not generate a serial number
+     * with the MSB set. See GenerateInteger in asn.c */
+#ifndef USE_CERT_BUFFERS_1024
 #ifndef WOLFSSL_ALT_NAMES
     /* Valid case - size should be 798-797 with 16 byte serial number */
     AssertTrue((ret == 781 + snSz) || (ret == 782 + snSz));
@@ -36333,6 +36351,18 @@ static void test_wolfSSL_X509_sign(void)
 #else
     /* Valid case - size should be 926-927 with 16 byte serial number */
     AssertTrue((ret == 910 + snSz) || (ret == 911 + snSz));
+#endif
+#else
+#ifndef WOLFSSL_ALT_NAMES
+    /* Valid case - size should be 537-538 with 16 byte serial number */
+    AssertTrue((ret == 521 + snSz) || (ret == 522 + snSz));
+#elif defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+    /* Valid case - size should be 695-696 with 16 byte serial number */
+    AssertTrue((ret == 679 + snSz) || (ret == 680 + snSz));
+#else
+    /* Valid case - size should be 666-667 with 16 byte serial number */
+    AssertTrue((ret == 650 + snSz) || (ret == 651 + snSz));
+#endif
 #endif
     /* check that issuer name is as expected after signature */
     InitDecodedCert(&dCert, certIssuer, (word32)certIssuerSz, 0);
@@ -36759,6 +36789,7 @@ static void test_wolfSSL_X509_PUBKEY_DSA(void)
     AssertIntEQ(pptype, V_ASN1_SEQUENCE);
     AssertIntEQ(OBJ_obj2nid(pa_oid), EVP_PKEY_DSA);
     str = (ASN1_STRING *)pval;
+    DEBUG_WRITE_DER(ASN1_STRING_data(str), ASN1_STRING_length(str), "str.der");
 #ifdef USE_CERT_BUFFERS_1024
     AssertIntEQ(ASN1_STRING_length(str), 291);
 #else
@@ -42746,12 +42777,12 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_DSA(void)
     word32  bytes;
     int     answer;
 #ifdef USE_CERT_BUFFERS_1024
-    const unsigned char* dsaKeyDer = dsa_key_der1024;
+    const unsigned char* dsaKeyDer = dsa_key_der_1024;
     int dsaKeySz  = sizeof_dsa_key_der_1024;
     byte    tmp[ONEK_BUF];
     XMEMSET(tmp, 0, sizeof(tmp));
     XMEMCPY(tmp, dsaKeyDer , dsaKeySz);
-    bytes = dsa_key_der_sz;
+    bytes = dsaKeySz;
 #elif defined(USE_CERT_BUFFERS_2048)
     const unsigned char* dsaKeyDer = dsa_key_der_2048;
     int dsaKeySz  = sizeof_dsa_key_der_2048;
@@ -42760,16 +42791,15 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_DSA(void)
     XMEMCPY(tmp, dsaKeyDer , dsaKeySz);
     bytes = dsaKeySz;
 #else
-    const unsigned char* dsaKeyDer = dsa_key_der_2048;
-    int dsaKeySz  = sizeof_dsa_key_der_2048;
     byte    tmp[TWOK_BUF];
+    const unsigned char* dsaKeyDer = (const unsigned char*)tmp;
+    int dsaKeySz;
     XMEMSET(tmp, 0, sizeof(tmp));
-    XMEMCPY(tmp, dsaKeyDer , dsaKeySz);
-    XFILE fp = XOPEN("./certs/dsa2048.der", "rb");
+    XFILE fp = XFOPEN("./certs/dsa2048.der", "rb");
     if (fp == XBADFILE) {
         return WOLFSSL_BAD_FILE;
     }
-    bytes = (word32) XFREAD(tmp, 1, sizeof(tmp), fp);
+    dsaKeySz = bytes = (word32) XFREAD(tmp, 1, sizeof(tmp), fp);
     XFCLOSE(fp);
 #endif /* END USE_CERT_BUFFERS_1024 */
 
@@ -42793,7 +42823,11 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_DSA(void)
     AssertNotNull(dsa = EVP_PKEY_get0_DSA(pkey));
     AssertNotNull(dsa = EVP_PKEY_get1_DSA(pkey));
 
+#ifdef USE_CERT_BUFFERS_1024
+    AssertIntEQ(DSA_bits(dsa), 1024);
+#else
     AssertIntEQ(DSA_bits(dsa), 2048);
+#endif
 
     /* Sign */
     AssertIntEQ(wolfSSL_DSA_do_sign(hash, signature, dsa), WOLFSSL_SUCCESS);
@@ -46498,6 +46532,7 @@ static void test_X509_REQ(void)
     EVP_PKEY* priv;
     EVP_PKEY* pub;
     unsigned char* der = NULL;
+    int len;
 #endif
 #ifndef NO_RSA
     EVP_MD_CTX *mctx = NULL;
@@ -46513,7 +46548,6 @@ static void test_X509_REQ(void)
 #ifdef HAVE_ECC
     const unsigned char* ecPriv = (const unsigned char*)ecc_clikey_der_256;
     const unsigned char* ecPub = (unsigned char*)ecc_clikeypub_der_256;
-    int len;
 #endif
 
     AssertNotNull(name = X509_NAME_new());
@@ -46540,7 +46574,13 @@ static void test_X509_REQ(void)
     AssertIntEQ(X509_REQ_sign(req, NULL, EVP_sha256()), WOLFSSL_FAILURE);
     AssertIntEQ(X509_REQ_sign(req, priv, NULL), WOLFSSL_FAILURE);
     AssertIntEQ(X509_REQ_sign(req, priv, EVP_sha256()), WOLFSSL_SUCCESS);
-    AssertIntEQ(i2d_X509_REQ(req, &der), 643);
+    len = i2d_X509_REQ(req, &der);
+    DEBUG_WRITE_DER(der, len, "req.der");
+#ifdef USE_CERT_BUFFERS_1024
+    AssertIntEQ(len, 381);
+#else
+    AssertIntEQ(len, 643);
+#endif
     XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
     der = NULL;
 
