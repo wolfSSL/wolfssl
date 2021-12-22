@@ -599,15 +599,15 @@ void fe448_to_bytes(unsigned char* b, const sword64* a)
     in0 += o;
     in4 += o;
     in7 -= o << 56;
-    o = (in0  >> 56); in1  += o; t = o << 56; in0  -= t;
-    o = (in1  >> 56); in2  += o; t = o << 56; in1  -= t;
-    o = (in2  >> 56); in3  += o; t = o << 56; in2  -= t;
-    o = (in3  >> 56); in4  += o; t = o << 56; in3  -= t;
-    o = (in4  >> 56); in5  += o; t = o << 56; in4  -= t;
-    o = (in5  >> 56); in6  += o; t = o << 56; in5  -= t;
-    o = (in6  >> 56); in7  += o; t = o << 56; in6  -= t;
+    o = (in0  >> 56); in1  += o; t = o << 56; in0  -= (sword64)t;
+    o = (in1  >> 56); in2  += o; t = o << 56; in1  -= (sword64)t;
+    o = (in2  >> 56); in3  += o; t = o << 56; in2  -= (sword64)t;
+    o = (in3  >> 56); in4  += o; t = o << 56; in3  -= (sword64)t;
+    o = (in4  >> 56); in5  += o; t = o << 56; in4  -= (sword64)t;
+    o = (in5  >> 56); in6  += o; t = o << 56; in5  -= (sword64)t;
+    o = (in6  >> 56); in7  += o; t = o << 56; in6  -= (sword64)t;
     o = (in7  >> 56); in0  += o;
-                    in4  += o; t = o << 56; in7  -= t;
+                    in4  += o; t = o << 56; in7  -= (sword64)t;
 
     /* Output as bytes */
     b[ 0] = (in0  >>  0);
@@ -1468,23 +1468,23 @@ void fe448_to_bytes(unsigned char* b, const sword32* a)
     in0 += o;
     in8 += o;
     in15 -= o << 28;
-    o = (in0  >> 28); in1  += o; t = o << 28; in0  -= t;
-    o = (in1  >> 28); in2  += o; t = o << 28; in1  -= t;
-    o = (in2  >> 28); in3  += o; t = o << 28; in2  -= t;
-    o = (in3  >> 28); in4  += o; t = o << 28; in3  -= t;
-    o = (in4  >> 28); in5  += o; t = o << 28; in4  -= t;
-    o = (in5  >> 28); in6  += o; t = o << 28; in5  -= t;
-    o = (in6  >> 28); in7  += o; t = o << 28; in6  -= t;
-    o = (in7  >> 28); in8  += o; t = o << 28; in7  -= t;
-    o = (in8  >> 28); in9  += o; t = o << 28; in8  -= t;
-    o = (in9  >> 28); in10 += o; t = o << 28; in9  -= t;
-    o = (in10 >> 28); in11 += o; t = o << 28; in10 -= t;
-    o = (in11 >> 28); in12 += o; t = o << 28; in11 -= t;
-    o = (in12 >> 28); in13 += o; t = o << 28; in12 -= t;
-    o = (in13 >> 28); in14 += o; t = o << 28; in13 -= t;
-    o = (in14 >> 28); in15 += o; t = o << 28; in14 -= t;
+    o = (in0  >> 28); in1  += o; t = o << 28; in0  -= (sword32)t;
+    o = (in1  >> 28); in2  += o; t = o << 28; in1  -= (sword32)t;
+    o = (in2  >> 28); in3  += o; t = o << 28; in2  -= (sword32)t;
+    o = (in3  >> 28); in4  += o; t = o << 28; in3  -= (sword32)t;
+    o = (in4  >> 28); in5  += o; t = o << 28; in4  -= (sword32)t;
+    o = (in5  >> 28); in6  += o; t = o << 28; in5  -= (sword32)t;
+    o = (in6  >> 28); in7  += o; t = o << 28; in6  -= (sword32)t;
+    o = (in7  >> 28); in8  += o; t = o << 28; in7  -= (sword32)t;
+    o = (in8  >> 28); in9  += o; t = o << 28; in8  -= (sword32)t;
+    o = (in9  >> 28); in10 += o; t = o << 28; in9  -= (sword32)t;
+    o = (in10 >> 28); in11 += o; t = o << 28; in10 -= (sword32)t;
+    o = (in11 >> 28); in12 += o; t = o << 28; in11 -= (sword32)t;
+    o = (in12 >> 28); in13 += o; t = o << 28; in12 -= (sword32)t;
+    o = (in13 >> 28); in14 += o; t = o << 28; in13 -= (sword32)t;
+    o = (in14 >> 28); in15 += o; t = o << 28; in14 -= (sword32)t;
     o = (in15 >> 28); in0  += o;
-                    in8  += o; t = o << 28; in15 -= t;
+                    in8  += o; t = o << 28; in15 -= (sword32)t;
 
     /* Output as bytes */
     b[ 0] = (in0  >>  0);
@@ -1734,23 +1734,23 @@ void fe448_reduce(sword32* a)
 {
     sword64 o;
 
-    o = a[0 ] >> 28; a[1 ] += o; a[0 ] -= o << 28;
-    o = a[1 ] >> 28; a[2 ] += o; a[1 ] -= o << 28;
-    o = a[2 ] >> 28; a[3 ] += o; a[2 ] -= o << 28;
-    o = a[3 ] >> 28; a[4 ] += o; a[3 ] -= o << 28;
-    o = a[4 ] >> 28; a[5 ] += o; a[4 ] -= o << 28;
-    o = a[5 ] >> 28; a[6 ] += o; a[5 ] -= o << 28;
-    o = a[6 ] >> 28; a[7 ] += o; a[6 ] -= o << 28;
-    o = a[7 ] >> 28; a[8 ] += o; a[7 ] -= o << 28;
-    o = a[8 ] >> 28; a[9 ] += o; a[8 ] -= o << 28;
-    o = a[9 ] >> 28; a[10] += o; a[9 ] -= o << 28;
-    o = a[10] >> 28; a[11] += o; a[10] -= o << 28;
-    o = a[11] >> 28; a[12] += o; a[11] -= o << 28;
-    o = a[12] >> 28; a[13] += o; a[12] -= o << 28;
-    o = a[13] >> 28; a[14] += o; a[13] -= o << 28;
-    o = a[14] >> 28; a[15] += o; a[14] -= o << 28;
-    o = a[15] >> 28; a[0]  += o;
-                     a[8]  += o; a[15] -= o << 28;
+    o = a[0 ] >> 28; a[1 ] += (sword32)o; a[0 ] -= (sword32)(o << 28);
+    o = a[1 ] >> 28; a[2 ] += (sword32)o; a[1 ] -= (sword32)(o << 28);
+    o = a[2 ] >> 28; a[3 ] += (sword32)o; a[2 ] -= (sword32)(o << 28);
+    o = a[3 ] >> 28; a[4 ] += (sword32)o; a[3 ] -= (sword32)(o << 28);
+    o = a[4 ] >> 28; a[5 ] += (sword32)o; a[4 ] -= (sword32)(o << 28);
+    o = a[5 ] >> 28; a[6 ] += (sword32)o; a[5 ] -= (sword32)(o << 28);
+    o = a[6 ] >> 28; a[7 ] += (sword32)o; a[6 ] -= (sword32)(o << 28);
+    o = a[7 ] >> 28; a[8 ] += (sword32)o; a[7 ] -= (sword32)(o << 28);
+    o = a[8 ] >> 28; a[9 ] += (sword32)o; a[8 ] -= (sword32)(o << 28);
+    o = a[9 ] >> 28; a[10] += (sword32)o; a[9 ] -= (sword32)(o << 28);
+    o = a[10] >> 28; a[11] += (sword32)o; a[10] -= (sword32)(o << 28);
+    o = a[11] >> 28; a[12] += (sword32)o; a[11] -= (sword32)(o << 28);
+    o = a[12] >> 28; a[13] += (sword32)o; a[12] -= (sword32)(o << 28);
+    o = a[13] >> 28; a[14] += (sword32)o; a[13] -= (sword32)(o << 28);
+    o = a[14] >> 28; a[15] += (sword32)o; a[14] -= (sword32)(o << 28);
+    o = a[15] >> 28; a[0]  += (sword32)o;
+                     a[8]  += (sword32)o; a[15] -= (sword32)(o << 28);
 }
 /* Mulitply a field element by 39081. r = (39081 * a) mod (2^448 - 2^224 - 1)
  *
