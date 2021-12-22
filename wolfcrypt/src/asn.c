@@ -22982,7 +22982,7 @@ int SetNameEx(byte* output, word32 outputSz, CertName* name, void* heap)
      * SEQUENCE, encode SEQUENCE, encode entries into buffer.  */
     ASNSetData* dataASN = NULL; /* Can't use DECL_ASNSETDATA. Always dynamic. */
     ASNItem*    namesASN = NULL;
-    int         items;
+    int         items = 0;
     int         ret = 0;
     int         sz;
 
