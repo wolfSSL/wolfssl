@@ -286,7 +286,7 @@ static void ShowVersions(void)
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
 #define MAX_GROUP_NUMBER 4
 static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
-                        int useX448, int useLibOqs, char* oqsAlg, int setGroups)
+                        int useX448, int usePqc, char* pqcAlg, int setGroups)
 {
     int ret;
     int groups[MAX_GROUP_NUMBER] = {0};
@@ -294,8 +294,8 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
 
     (void)useX25519;
     (void)useX448;
-    (void)useLibOqs;
-    (void)oqsAlg;
+    (void)usePqc;
+    (void)pqcAlg;
 
     WOLFSSL_START(WC_FUNC_CLIENT_KEY_EXCHANGE_SEND);
     if (onlyKeyShare == 0 || onlyKeyShare == 2) {
@@ -362,120 +362,120 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
         } while (ret == WC_PENDING_E);
     #endif
     }
-    #ifdef HAVE_LIBOQS
+    #ifdef HAVE_PQC
     if (onlyKeyShare == 0 || onlyKeyShare == 3) {
-        if (useLibOqs) {
+        if (usePqc) {
             int group = 0;
 
-            if (XSTRNCMP(oqsAlg, "KYBER_LEVEL1", XSTRLEN("KYBER_LEVEL1")) == 0) {
+            if (XSTRNCMP(pqcAlg, "KYBER_LEVEL1", XSTRLEN("KYBER_LEVEL1")) == 0) {
                 group = WOLFSSL_KYBER_LEVEL1;
             }
-            else if (XSTRNCMP(oqsAlg, "KYBER_LEVEL3",
+            else if (XSTRNCMP(pqcAlg, "KYBER_LEVEL3",
                                 XSTRLEN("KYBER_LEVEL3")) == 0) {
                 group = WOLFSSL_KYBER_LEVEL3;
             }
-            else if (XSTRNCMP(oqsAlg, "KYBER_LEVEL5",
+            else if (XSTRNCMP(pqcAlg, "KYBER_LEVEL5",
                                 XSTRLEN("KYBER_LEVEL5")) == 0) {
                 group = WOLFSSL_KYBER_LEVEL5;
             }
-            else if (XSTRNCMP(oqsAlg, "NTRU_HPS_LEVEL1",
+            else if (XSTRNCMP(pqcAlg, "NTRU_HPS_LEVEL1",
                                 XSTRLEN("NTRU_HPS_LEVEL1")) == 0) {
                 group = WOLFSSL_NTRU_HPS_LEVEL1;
             }
-            else if (XSTRNCMP(oqsAlg, "NTRU_HPS_LEVEL3",
+            else if (XSTRNCMP(pqcAlg, "NTRU_HPS_LEVEL3",
                                 XSTRLEN("NTRU_HPS_LEVEL3")) == 0) {
                 group = WOLFSSL_NTRU_HPS_LEVEL3;
             }
-            else if (XSTRNCMP(oqsAlg, "NTRU_HPS_LEVEL5",
+            else if (XSTRNCMP(pqcAlg, "NTRU_HPS_LEVEL5",
                                 XSTRLEN("NTRU_HPS_LEVEL5")) == 0) {
                 group = WOLFSSL_NTRU_HPS_LEVEL5;
             }
-            else if (XSTRNCMP(oqsAlg, "NTRU_HRSS_LEVEL3",
+            else if (XSTRNCMP(pqcAlg, "NTRU_HRSS_LEVEL3",
                                 XSTRLEN("NTRU_HRSS_LEVEL3")) == 0) {
                 group = WOLFSSL_NTRU_HRSS_LEVEL3;
             }
-            else if (XSTRNCMP(oqsAlg, "SABER_LEVEL1",
+            else if (XSTRNCMP(pqcAlg, "SABER_LEVEL1",
                                 XSTRLEN("SABER_LEVEL1")) == 0) {
                 group = WOLFSSL_SABER_LEVEL1;
             }
-            else if (XSTRNCMP(oqsAlg, "SABER_LEVEL3",
+            else if (XSTRNCMP(pqcAlg, "SABER_LEVEL3",
                                 XSTRLEN("SABER_LEVEL3")) == 0) {
                 group = WOLFSSL_SABER_LEVEL3;
             }
-            else if (XSTRNCMP(oqsAlg, "SABER_LEVEL5",
+            else if (XSTRNCMP(pqcAlg, "SABER_LEVEL5",
                                 XSTRLEN("SABER_LEVEL5")) == 0) {
                 group = WOLFSSL_SABER_LEVEL5;
             }
-            else if (XSTRNCMP(oqsAlg, "KYBER_90S_LEVEL1",
+            else if (XSTRNCMP(pqcAlg, "KYBER_90S_LEVEL1",
                                 XSTRLEN("KYBER_90S_LEVEL1")) == 0) {
                 group = WOLFSSL_KYBER_90S_LEVEL1;
             }
-            else if (XSTRNCMP(oqsAlg, "KYBER_90S_LEVEL3",
+            else if (XSTRNCMP(pqcAlg, "KYBER_90S_LEVEL3",
                                 XSTRLEN("KYBER_90S_LEVEL3")) == 0) {
                 group = WOLFSSL_KYBER_90S_LEVEL3;
             }
-            else if (XSTRNCMP(oqsAlg, "KYBER_90S_LEVEL5",
+            else if (XSTRNCMP(pqcAlg, "KYBER_90S_LEVEL5",
                                 XSTRLEN("KYBER_90S_LEVEL5")) == 0) {
                 group = WOLFSSL_KYBER_90S_LEVEL5;
             }
-            else if (XSTRNCMP(oqsAlg, "P256_NTRU_HPS_LEVEL1",
+            else if (XSTRNCMP(pqcAlg, "P256_NTRU_HPS_LEVEL1",
                                 XSTRLEN("P256_NTRU_HPS_LEVEL1")) == 0) {
                 group = WOLFSSL_P256_NTRU_HPS_LEVEL1;
             }
-            else if (XSTRNCMP(oqsAlg, "P384_NTRU_HPS_LEVEL3",
+            else if (XSTRNCMP(pqcAlg, "P384_NTRU_HPS_LEVEL3",
                                 XSTRLEN("P384_NTRU_HPS_LEVEL3")) == 0) {
                 group = WOLFSSL_P384_NTRU_HPS_LEVEL3;
             }
-            else if (XSTRNCMP(oqsAlg, "P521_NTRU_HPS_LEVEL5",
+            else if (XSTRNCMP(pqcAlg, "P521_NTRU_HPS_LEVEL5",
                                 XSTRLEN("P521_NTRU_HPS_LEVEL5")) == 0) {
                 group = WOLFSSL_P521_NTRU_HPS_LEVEL5;
             }
-            else if (XSTRNCMP(oqsAlg, "P384_NTRU_HRSS_LEVEL3",
+            else if (XSTRNCMP(pqcAlg, "P384_NTRU_HRSS_LEVEL3",
                                 XSTRLEN("P384_NTRU_HRSS_LEVEL3")) == 0) {
                 group = WOLFSSL_P384_NTRU_HRSS_LEVEL3;
             }
-            else if (XSTRNCMP(oqsAlg, "P256_SABER_LEVEL1",
+            else if (XSTRNCMP(pqcAlg, "P256_SABER_LEVEL1",
                                 XSTRLEN("P256_SABER_LEVEL1")) == 0) {
                 group = WOLFSSL_P256_SABER_LEVEL1;
             }
-            else if (XSTRNCMP(oqsAlg, "P384_SABER_LEVEL3",
+            else if (XSTRNCMP(pqcAlg, "P384_SABER_LEVEL3",
                                 XSTRLEN("P384_SABER_LEVEL3")) == 0) {
                 group = WOLFSSL_P384_SABER_LEVEL3;
             }
-            else if (XSTRNCMP(oqsAlg, "P521_SABER_LEVEL5",
+            else if (XSTRNCMP(pqcAlg, "P521_SABER_LEVEL5",
                                 XSTRLEN("P521_SABER_LEVEL5")) == 0) {
                 group = WOLFSSL_P521_SABER_LEVEL5;
             }
-            else if (XSTRNCMP(oqsAlg, "P256_KYBER_LEVEL1",
+            else if (XSTRNCMP(pqcAlg, "P256_KYBER_LEVEL1",
                                 XSTRLEN("P256_KYBER_LEVEL1")) == 0) {
                 group = WOLFSSL_P256_KYBER_LEVEL1;
             }
-            else if (XSTRNCMP(oqsAlg, "P384_KYBER_LEVEL3",
+            else if (XSTRNCMP(pqcAlg, "P384_KYBER_LEVEL3",
                                 XSTRLEN("P384_KYBER_LEVEL3")) == 0) {
                 group = WOLFSSL_P384_KYBER_LEVEL3;
             }
-            else if (XSTRNCMP(oqsAlg, "P521_KYBER_LEVEL5",
+            else if (XSTRNCMP(pqcAlg, "P521_KYBER_LEVEL5",
                                 XSTRLEN("P521_KYBER_LEVEL5")) == 0) {
                 group = WOLFSSL_P521_KYBER_LEVEL5;
             }
-            else if (XSTRNCMP(oqsAlg, "P256_KYBER_90S_LEVEL1",
+            else if (XSTRNCMP(pqcAlg, "P256_KYBER_90S_LEVEL1",
                                 XSTRLEN("P256_KYBER_90S_LEVEL1")) == 0) {
                 group = WOLFSSL_P256_KYBER_90S_LEVEL1;
             }
-            else if (XSTRNCMP(oqsAlg, "P384_KYBER_90S_LEVEL3",
+            else if (XSTRNCMP(pqcAlg, "P384_KYBER_90S_LEVEL3",
                                 XSTRLEN("P384_KYBER_90S_LEVEL3")) == 0) {
                 group = WOLFSSL_P384_KYBER_90S_LEVEL3;
             }
-            else if (XSTRNCMP(oqsAlg, "P521_KYBER_90S_LEVEL5",
+            else if (XSTRNCMP(pqcAlg, "P521_KYBER_90S_LEVEL5",
                                 XSTRLEN("P521_KYBER_90S_LEVEL5")) == 0) {
                 group = WOLFSSL_P521_KYBER_90S_LEVEL5;
             } else {
-                err_sys("invalid OQS KEM specified");
+                err_sys("invalid post-quantum KEM specified");
             }
 
-            printf("Using OQS KEM: %s\n", oqsAlg);
+            printf("Using Post-Quantum KEM: %s\n", pqcAlg);
             if (wolfSSL_UseKeyShare(ssl, group) != WOLFSSL_SUCCESS) {
-                err_sys("unable to use oqs KEM");
+                err_sys("unable to use post-quantum KEM");
             }
         }
     }
@@ -560,7 +560,7 @@ static const char* client_bench_conmsg[][5] = {
 
 static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     int dtlsUDP, int dtlsSCTP, int benchmark, int resumeSession, int useX25519,
-    int useX448, int useLibOqs, char* oqsAlg, int helloRetry, int onlyKeyShare,
+    int useX448, int usePqc, char* pqcAlg, int helloRetry, int onlyKeyShare,
     int version, int earlyData)
 {
     /* time passed in number of connects give average */
@@ -578,8 +578,8 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     (void)resumeSession;
     (void)useX25519;
     (void)useX448;
-    (void)useLibOqs;
-    (void)oqsAlg;
+    (void)usePqc;
+    (void)pqcAlg;
     (void)helloRetry;
     (void)onlyKeyShare;
     (void)version;
@@ -610,7 +610,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
             else if (version >= 4) {
                 if (!helloRetry)
                     SetKeyShare(ssl, onlyKeyShare, useX25519, useX448,
-                                useLibOqs, oqsAlg, 1);
+                                usePqc, pqcAlg, 1);
                 else
                     wolfSSL_NoKeyShares(ssl);
             }
@@ -694,7 +694,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 /* Measures throughput in mbps. Throughput = number of bytes */
 static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     int dtlsUDP, int dtlsSCTP, int block, size_t throughput, int useX25519,
-    int useX448, int useLibOqs, char* oqsAlg, int exitWithRet, int version,
+    int useX448, int usePqc, char* pqcAlg, int exitWithRet, int version,
     int onlyKeyShare)
 {
     double start, conn_time = 0, tx_time = 0, rx_time = 0;
@@ -714,14 +714,14 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
 
     (void)useX25519;
     (void)useX448;
-    (void)useLibOqs;
-    (void)oqsAlg;
+    (void)usePqc;
+    (void)pqcAlg;
     (void)version;
     (void)onlyKeyShare;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
     if (version >= 4) {
-        SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, useLibOqs,
-                    oqsAlg, 1);
+        SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, usePqc,
+                    pqcAlg, 1);
     }
 #endif
 
@@ -1303,8 +1303,8 @@ static const char* client_usage_msg[][70] = {
         "-7          Set minimum downgrade protocol version [0-4] "
         " SSLv3(0) - TLS1.3(4)\n",                  /* 69 */
 #endif
-#ifdef HAVE_LIBOQS
-        "--oqs <alg> Key Share with specified liboqs algorithm only [KYBER_LEVEL1, KYBER_LEVEL3,\n",
+#ifdef HAVE_PQC
+        "--pqc <alg> Key Share with specified post-quantum algorithm only [KYBER_LEVEL1, KYBER_LEVEL3,\n",
         "            KYBER_LEVEL5, KYBER_90S_LEVEL1, KYBER_90S_LEVEL3, KYBER_90S_LEVEL5,\n",
         "            NTRU_HPS_LEVEL1, NTRU_HPS_LEVEL3, NTRU_HPS_LEVEL5, NTRU_HRSS_LEVEL3,\n",
         "            SABER_LEVEL1, SABER_LEVEL3, SABER_LEVEL5, P256_NTRU_HPS_LEVEL1,\n"
@@ -1513,8 +1513,8 @@ static const char* client_usage_msg[][70] = {
         "-7          最小ダウングレード可能なプロトコルバージョンを設定します [0-4] "
         " SSLv3(0) - TLS1.3(4)\n",                            /* 69 */
 #endif
-#ifdef HAVE_LIBOQS
-        "--oqs <alg> liboqs 名前付きグループとの鍵共有のみ\n",
+#ifdef HAVE_PQC
+        "--pqc <alg> post-quantum 名前付きグループとの鍵共有のみ\n",
         "[KYBER_LEVEL1, KYBER_LEVEL3, KYBER_LEVEL5, KYBER_90S_LEVEL1, KYBER_90S_LEVEL3, KYBER_90S_LEVEL5,\n",
         " NTRU_HPS_LEVEL1, NTRU_HPS_LEVEL3, NTRU_HPS_LEVEL5, NTRU_HRSS_LEVEL3,\n",
         " LIGHTSABER, SABER, FIRESABER, P256_NTRU_HPS_LEVEL1,\n"
@@ -1740,11 +1740,11 @@ static void Usage(void)
 #endif
     printf("%s", msg[++msgid]); /* -7 */
     printf("%s", msg[++msgid]); /* Examples repo link */
-#ifdef HAVE_LIBOQS
-    printf("%s", msg[++msgid]);     /* --oqs */
-    printf("%s", msg[++msgid]);     /* --oqs options */
-    printf("%s", msg[++msgid]);     /* more --oqs options */
-    printf("%s", msg[++msgid]);     /* more --oqs options */
+#ifdef HAVE_PQC
+    printf("%s", msg[++msgid]);     /* --pqc */
+    printf("%s", msg[++msgid]);     /* --pqc options */
+    printf("%s", msg[++msgid]);     /* more --pqc options */
+    printf("%s", msg[++msgid]);     /* more --pqc options */
 #endif
 }
 
@@ -1784,8 +1784,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
         { "help", 0, 257 },
         { "ヘルプ", 0, 258 },
-#if defined(HAVE_LIBOQS)
-        { "oqs", 1, 259 },
+#if defined(HAVE_PQC)
+        { "pqc", 1, 259 },
 #endif
         { 0, 0, 0 }
     };
@@ -1891,8 +1891,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
     int useX25519 = 0;
     int useX448 = 0;
-    int useLibOqs = 0;
-    char* oqsAlg = NULL;
+    int usePqc = 0;
+    char* pqcAlg = NULL;
     int exitWithRet = 0;
     int loadCertKeyIntoSSLObj = 0;
 
@@ -1981,8 +1981,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)onlyKeyShare;
     (void)useSupCurve;
     (void)loadCertKeyIntoSSLObj;
-    (void)useLibOqs;
-    (void)oqsAlg;
+    (void)usePqc;
+    (void)pqcAlg;
     StackTrap();
 
     /* Reinitialize the global myVerifyAction. */
@@ -2541,11 +2541,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
 #if defined(WOLFSSL_TLS13) &&  defined(HAVE_SUPPORTED_CURVES) && \
-    defined(HAVE_LIBOQS)
+    defined(HAVE_PQC)
             case 259:
-                useLibOqs = 1;
+                usePqc = 1;
                 onlyKeyShare = 3;
-                oqsAlg = myoptarg;
+                pqcAlg = myoptarg;
                 break;
 #endif
             default:
@@ -2664,14 +2664,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         err_sys("can't load whitewood net random config file");
 #endif
 
-#ifdef HAVE_LIBOQS
-    if (useLibOqs) {
+#ifdef HAVE_PQC
+    if (usePqc) {
         if (version == CLIENT_DOWNGRADE_VERSION ||
             version == EITHER_DOWNGRADE_VERSION)
             printf("WARNING: If a TLS 1.3 connection is not negotiated, you "
-                   "will not be using a liboqs group.\n");
+                   "will not be using a post-quantum group.\n");
         else if (version != 4)
-            err_sys("can only use liboqs groups with TLS 1.3");
+            err_sys("can only use post-quantum groups with TLS 1.3");
     }
 #endif
 
@@ -3205,7 +3205,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         ((func_args*)args)->return_code =
             ClientBenchmarkConnections(ctx, host, port, dtlsUDP, dtlsSCTP,
                                        benchmark, resumeSession, useX25519,
-                                       useX448, useLibOqs, oqsAlg, helloRetry,
+                                       useX448, usePqc, pqcAlg, helloRetry,
                                        onlyKeyShare, version, earlyData);
         wolfSSL_CTX_free(ctx); ctx = NULL;
         XEXIT_T(EXIT_SUCCESS);
@@ -3215,7 +3215,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         ((func_args*)args)->return_code =
             ClientBenchmarkThroughput(ctx, host, port, dtlsUDP, dtlsSCTP,
                                       block, throughput, useX25519, useX448,
-                                      useLibOqs, oqsAlg, exitWithRet, version,
+                                      usePqc, pqcAlg, exitWithRet, version,
                                       onlyKeyShare);
         wolfSSL_CTX_free(ctx); ctx = NULL;
         if (((func_args*)args)->return_code != EXIT_SUCCESS && !exitWithRet)
@@ -3340,8 +3340,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
     if (!helloRetry && version >= 4) {
-        SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, useLibOqs,
-                    oqsAlg, 0);
+        SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, usePqc,
+                    pqcAlg, 0);
     }
     else {
         wolfSSL_NoKeyShares(ssl);

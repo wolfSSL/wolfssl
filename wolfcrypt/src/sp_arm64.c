@@ -37759,6 +37759,19 @@ static WC_INLINE int sp_256_mod_4(sp_digit* r, const sp_digit* a, const sp_digit
 
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* Multiply two number mod the order of P256 curve. (r = a * b mod order)
+ *
+ * r  Result of the multiplication.
+ * a  First operand of the multiplication.
+ * b  Second operand of the multiplication.
+ */
+static void sp_256_mont_mul_order_4(sp_digit* r, const sp_digit* a, const sp_digit* b)
+{
+    sp_256_mul_4(r, a, b);
+    sp_256_mont_reduce_order_4(r, p256_order, p256_mp_order);
+}
+
+#if defined(HAVE_ECC_SIGN) || (defined(HAVE_ECC_VERIFY) && defined(WOLFSSL_SP_SMALL))
 #ifdef WOLFSSL_SP_SMALL
 /* Order-2 for the P256 curve. */
 static const uint64_t p256_order_minus_2[4] = {
@@ -37771,18 +37784,6 @@ static const sp_int_digit p256_order_low[2] = {
     0xf3b9cac2fc63254fU,0xbce6faada7179e84U
 };
 #endif /* WOLFSSL_SP_SMALL */
-
-/* Multiply two number mod the order of P256 curve. (r = a * b mod order)
- *
- * r  Result of the multiplication.
- * a  First operand of the multiplication.
- * b  Second operand of the multiplication.
- */
-static void sp_256_mont_mul_order_4(sp_digit* r, const sp_digit* a, const sp_digit* b)
-{
-    sp_256_mul_4(r, a, b);
-    sp_256_mont_reduce_order_4(r, p256_order, p256_mp_order);
-}
 
 /* Square number mod the order of P256 curve. (r = a * a mod order)
  *
@@ -37954,6 +37955,7 @@ static void sp_256_mont_inv_order_4(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#endif /* HAVE_ECC_SIGN || (HAVE_ECC_VERIFY && WOLFSSL_SP_SMALL) */
 #endif /* HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
 #ifdef HAVE_ECC_SIGN
 #ifndef SP_ECC_MAX_SIG_GEN
@@ -40525,8 +40527,6 @@ static void sp_384_cond_copy_6(sp_digit* r, const sp_digit* a, sp_digit m)
     );
 }
 
-#define sp_384_mont_reduce_order_6    sp_384_mont_reduce_6
-
 /* Reduce the number back to 384 bits using Montgomery reduction.
  *
  * a   A single precision number to reduce in place.
@@ -40534,6 +40534,143 @@ static void sp_384_cond_copy_6(sp_digit* r, const sp_digit* a, sp_digit m)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 SP_NOINLINE static void sp_384_mont_reduce_6(sp_digit* a, const sp_digit* m,
+        sp_digit mp)
+{
+    __asm__ __volatile__ (
+        "ldp	x7, x8, [%[a], #0]\n\t"
+        "ldp	x9, x10, [%[a], #16]\n\t"
+        "ldp	x11, x12, [%[a], #32]\n\t"
+        "mov	x6, xzr\n\t"
+        "# a[0-7] += m[0-5] * mu[0..1] = m[0-5] * (a[0..1] * mp)\n\t"
+        "ldp	x13, x14, [%[a], #48]\n\t"
+        "lsl	x2, x8, 32\n\t"
+        "lsl	x1, x7, 32\n\t"
+        "orr	x2, x2, x7, lsr 32\n\t"
+        "adds	x1, x1, x7\n\t"
+        "adc	x2, x2, x8\n\t"
+        "add	x2, x2, x7\n\t"
+        "lsl	x3, x1, 32\n\t"
+        "lsl	x4, x2, 32\n\t"
+        "orr	x4, x4, x1, lsr 32\n\t"
+        "lsr	x5, x2, 32\n\t"
+        "adds	x7, x7, x3\n\t"
+        "adcs	x8, x8, x4\n\t"
+        "adcs	x9, x9, x5\n\t"
+        "adcs	x10, x10, xzr\n\t"
+        "adcs	x11, x11, xzr\n\t"
+        "adcs	x12, x12, xzr\n\t"
+        "adcs	x13, x13, x1\n\t"
+        "adcs	x14, x14, x2\n\t"
+        "adcs	x6, x6, xzr\n\t"
+        "adds	x3, x3, x2\n\t"
+        "adcs	x4, x4, x1\n\t"
+        "adcs	x5, x5, x2\n\t"
+        "adcs	x2, xzr, xzr\n\t"
+        "subs	x9, x9, x4\n\t"
+        "sbcs	x10, x10, x5\n\t"
+        "sbcs	x11, x11, x2\n\t"
+        "sbcs	x12, x12, xzr\n\t"
+        "sbcs	x13, x13, xzr\n\t"
+        "sbcs	x14, x14, xzr\n\t"
+        "sbc	x6, x6, xzr\n\t"
+        "# a[2-9] += m[0-5] * mu[0..1] = m[0-5] * (a[2..3] * mp)\n\t"
+        "ldp	x7, x8, [%[a], #64]\n\t"
+        "lsl	x2, x10, 32\n\t"
+        "lsl	x1, x9, 32\n\t"
+        "orr	x2, x2, x9, lsr 32\n\t"
+        "adds	x1, x1, x9\n\t"
+        "adc	x2, x2, x10\n\t"
+        "add	x2, x2, x9\n\t"
+        "lsl	x3, x1, 32\n\t"
+        "lsl	x4, x2, 32\n\t"
+        "orr	x4, x4, x1, lsr 32\n\t"
+        "lsr	x5, x2, 32\n\t"
+        "adds	x7, x7, x6\n\t"
+        "adcs	x8, x8, xzr\n\t"
+        "adc	x6, xzr, xzr\n\t"
+        "adds	x9, x9, x3\n\t"
+        "adcs	x10, x10, x4\n\t"
+        "adcs	x11, x11, x5\n\t"
+        "adcs	x12, x12, xzr\n\t"
+        "adcs	x13, x13, xzr\n\t"
+        "adcs	x14, x14, xzr\n\t"
+        "adcs	x7, x7, x1\n\t"
+        "adcs	x8, x8, x2\n\t"
+        "adcs	x6, x6, xzr\n\t"
+        "adds	x3, x3, x2\n\t"
+        "adcs	x4, x4, x1\n\t"
+        "adcs	x5, x5, x2\n\t"
+        "adcs	x2, xzr, xzr\n\t"
+        "subs	x11, x11, x4\n\t"
+        "sbcs	x12, x12, x5\n\t"
+        "sbcs	x13, x13, x2\n\t"
+        "sbcs	x14, x14, xzr\n\t"
+        "sbcs	x7, x7, xzr\n\t"
+        "sbcs	x8, x8, xzr\n\t"
+        "sbc	x6, x6, xzr\n\t"
+        "# a[4-11] += m[0-5] * mu[0..1] = m[0-5] * (a[4..5] * mp)\n\t"
+        "ldp	x9, x10, [%[a], #80]\n\t"
+        "lsl	x2, x12, 32\n\t"
+        "lsl	x1, x11, 32\n\t"
+        "orr	x2, x2, x11, lsr 32\n\t"
+        "adds	x1, x1, x11\n\t"
+        "adc	x2, x2, x12\n\t"
+        "add	x2, x2, x11\n\t"
+        "lsl	x3, x1, 32\n\t"
+        "lsl	x4, x2, 32\n\t"
+        "orr	x4, x4, x1, lsr 32\n\t"
+        "lsr	x5, x2, 32\n\t"
+        "adds	x9, x9, x6\n\t"
+        "adcs	x10, x10, xzr\n\t"
+        "adc	x6, xzr, xzr\n\t"
+        "adds	x11, x11, x3\n\t"
+        "adcs	x12, x12, x4\n\t"
+        "adcs	x13, x13, x5\n\t"
+        "adcs	x14, x14, xzr\n\t"
+        "adcs	x7, x7, xzr\n\t"
+        "adcs	x8, x8, xzr\n\t"
+        "adcs	x9, x9, x1\n\t"
+        "adcs	x10, x10, x2\n\t"
+        "adcs	x6, x6, xzr\n\t"
+        "adds	x3, x3, x2\n\t"
+        "adcs	x4, x4, x1\n\t"
+        "adcs	x5, x5, x2\n\t"
+        "adcs	x2, xzr, xzr\n\t"
+        "subs	x13, x13, x4\n\t"
+        "sbcs	x14, x14, x5\n\t"
+        "sbcs	x7, x7, x2\n\t"
+        "sbcs	x8, x8, xzr\n\t"
+        "sbcs	x9, x9, xzr\n\t"
+        "sbcs	x10, x10, xzr\n\t"
+        "sbc	x6, x6, xzr\n\t"
+        "# Subtract mod if carry\n\t"
+        "neg	x6, x6\n\t"
+        "mov	x5, -2\n\t"
+        "lsr	x3, x6, 32\n\t"
+        "lsl	x4, x6, 32\n\t"
+        "and	x5, x5, x6\n\t"
+        "subs	x13, x13, x3\n\t"
+        "sbcs	x14, x14, x4\n\t"
+        "sbcs	x7, x7, x5\n\t"
+        "sbcs	x8, x8, x6\n\t"
+        "sbcs	x9, x9, x6\n\t"
+        "sbc	x10, x10, x6\n\t"
+        "stp	x13, x14, [%[a], #0]\n\t"
+        "stp	x7, x8, [%[a], #16]\n\t"
+        "stp	x9, x10, [%[a], #32]\n\t"
+        :
+        : [a] "r" (a), [m] "r" (m), [mp] "r" (mp)
+        : "memory", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14"
+    );
+}
+
+/* Reduce the number back to 384 bits using Montgomery reduction.
+ *
+ * a   A single precision number to reduce in place.
+ * m   The single precision number representing the modulus.
+ * mp  The digit representing the negative inverse of m mod 2^n.
+ */
+SP_NOINLINE static void sp_384_mont_reduce_order_6(sp_digit* a, const sp_digit* m,
         sp_digit mp)
 {
 
@@ -63546,6 +63683,19 @@ static WC_INLINE int sp_384_mod_6(sp_digit* r, const sp_digit* a, const sp_digit
 
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* Multiply two number mod the order of P384 curve. (r = a * b mod order)
+ *
+ * r  Result of the multiplication.
+ * a  First operand of the multiplication.
+ * b  Second operand of the multiplication.
+ */
+static void sp_384_mont_mul_order_6(sp_digit* r, const sp_digit* a, const sp_digit* b)
+{
+    sp_384_mul_6(r, a, b);
+    sp_384_mont_reduce_order_6(r, p384_order, p384_mp_order);
+}
+
+#if defined(HAVE_ECC_SIGN) || (defined(HAVE_ECC_VERIFY) && defined(WOLFSSL_SP_SMALL))
 #ifdef WOLFSSL_SP_SMALL
 /* Order-2 for the P384 curve. */
 static const uint64_t p384_order_minus_2[6] = {
@@ -63558,18 +63708,6 @@ static const uint64_t p384_order_low[3] = {
     0xecec196accc52971U,0x581a0db248b0a77aU,0xc7634d81f4372ddfU
 };
 #endif /* WOLFSSL_SP_SMALL */
-
-/* Multiply two number mod the order of P384 curve. (r = a * b mod order)
- *
- * r  Result of the multiplication.
- * a  First operand of the multiplication.
- * b  Second operand of the multiplication.
- */
-static void sp_384_mont_mul_order_6(sp_digit* r, const sp_digit* a, const sp_digit* b)
-{
-    sp_384_mul_6(r, a, b);
-    sp_384_mont_reduce_order_6(r, p384_order, p384_mp_order);
-}
 
 /* Square number mod the order of P384 curve. (r = a * a mod order)
  *
@@ -63712,6 +63850,7 @@ static void sp_384_mont_inv_order_6(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#endif /* HAVE_ECC_SIGN || (HAVE_ECC_VERIFY && WOLFSSL_SP_SMALL) */
 #endif /* HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
 #ifdef HAVE_ECC_SIGN
 #ifndef SP_ECC_MAX_SIG_GEN

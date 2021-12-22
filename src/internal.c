@@ -2012,7 +2012,7 @@ int InitSSL_Side(WOLFSSL* ssl, word16 side)
         ssl->options.haveECC  = 1;      /* server turns on with ECC key cert */
     }
 #endif
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
         ssl->options.haveFalconSig  = 1; /* always on client side */
     }
@@ -2080,7 +2080,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->minEccKeySz  = MIN_ECCKEY_SZ;
     ctx->eccTempKeySz = ECDHE_SIZE;
 #endif
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     ctx->minFalconKeySz = MIN_FALCONKEY_SZ;
 #endif
     ctx->verifyDepth = MAX_CHAIN_DEPTH;
@@ -2140,7 +2140,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->CBIOSend = GNRC_SendTo;
 #endif
 
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     if (method->side == WOLFSSL_CLIENT_END)
         ctx->haveFalconSig = 1;        /* always on client side */
                                        /* server can turn on by loading key */
@@ -2683,7 +2683,7 @@ static WC_INLINE void AddSuiteHashSigAlgo(Suites* suites, byte macAlgo,
         }
         else
     #endif
-    #ifdef HAVE_LIBOQS
+    #ifdef HAVE_PQC
         if (sigAlgo == falcon_level1_sa_algo) {
             suites->hashSigAlgo[*inOutIdx] = FALCON_LEVEL1_SA_MAJOR;
             *inOutIdx += 1;
@@ -2760,10 +2760,10 @@ void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
     }
 #endif /* HAVE_ECC || HAVE_ED25519 || HAVE_ED448 */
     if (haveFalconSig) {
-#if defined(HAVE_LIBOQS)
+#if defined(HAVE_PQC)
         AddSuiteHashSigAlgo(suites, no_mac, falcon_level1_sa_algo, keySz, &idx);
         AddSuiteHashSigAlgo(suites, no_mac, falcon_level5_sa_algo, keySz, &idx);
-#endif /* HAVE_LIBOQS */
+#endif /* HAVE_PQC */
     }
     if (haveRSAsig) {
     #ifdef WC_RSA_PSS
@@ -3830,8 +3830,8 @@ static WC_INLINE void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsTy
                 *hashAlgo = input[1];
             }
             break;
-#ifdef HAVE_LIBOQS
-        case OQS_SA_MAJOR:
+#ifdef HAVE_PQC
+        case PQC_SA_MAJOR:
             if (input[1] == FALCON_LEVEL1_SA_MINOR) {
                 *hsType = falcon_level1_sa_algo;
                 /* Hash performed as part of sign/verify operation. */
@@ -6000,7 +6000,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef HAVE_ECC
     ssl->options.minEccKeySz = ctx->minEccKeySz;
 #endif
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     ssl->options.minFalconKeySz = ctx->minFalconKeySz;
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -6736,11 +6736,11 @@ void FreeKey(WOLFSSL* ssl, int type, void** pKey)
                 wc_curve448_free((curve448_key*)*pKey);
                 break;
         #endif /* HAVE_CURVE448 */
-        #ifdef HAVE_LIBOQS
+        #ifdef HAVE_PQC
             case DYNAMIC_TYPE_FALCON:
                 wc_falcon_free((falcon_key*)*pKey);
                 break;
-        #endif /* HAVE_LIBOQS */
+        #endif /* HAVE_PQC */
         #ifndef NO_DH
             case DYNAMIC_TYPE_DH:
                 wc_FreeDhKey((DhKey*)*pKey);
@@ -6803,11 +6803,11 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
             sz = sizeof(curve448_key);
             break;
     #endif /* HAVE_CURVE448 */
-    #ifdef HAVE_LIBOQS
+    #ifdef HAVE_PQC
         case DYNAMIC_TYPE_FALCON:
             sz = sizeof(falcon_key);
             break;
-    #endif /* HAVE_LIBOQS */
+    #endif /* HAVE_PQC */
     #ifndef NO_DH
         case DYNAMIC_TYPE_DH:
             sz = sizeof(DhKey);
@@ -6853,7 +6853,7 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
             ret = 0;
             break;
     #endif /* HAVE_CURVE448 */
-    #ifdef HAVE_LIBOQS
+    #ifdef HAVE_PQC
         case DYNAMIC_TYPE_FALCON:
             wc_falcon_init((falcon_key*)*pKey);
             ret = 0;
@@ -6884,7 +6884,7 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
 
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
     defined(HAVE_CURVE25519) || defined(HAVE_ED448) || \
-    defined(HAVE_CURVE448) || defined(HAVE_LIBOQS)
+    defined(HAVE_CURVE448) || defined(HAVE_PQC)
 static int ReuseKey(WOLFSSL* ssl, int type, void* pKey)
 {
     int ret = 0;
@@ -6930,12 +6930,12 @@ static int ReuseKey(WOLFSSL* ssl, int type, void* pKey)
             ret = wc_curve448_init((curve448_key*)pKey);
             break;
     #endif /* HAVE_CURVE448 */
-    #ifdef HAVE_LIBOQS
+    #ifdef HAVE_PQC
         case DYNAMIC_TYPE_FALCON:
             wc_falcon_free((falcon_key*)pKey);
             ret = wc_falcon_init((falcon_key*)pKey);
             break;
-    #endif /* HAVE_LIBOQS */
+    #endif /* HAVE_PQC */
     #ifndef NO_DH
         case DYNAMIC_TYPE_DH:
             wc_FreeDhKey((DhKey*)pKey);
@@ -7173,7 +7173,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         }
     #endif
 #endif
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     FreeKey(ssl, DYNAMIC_TYPE_FALCON, (void**)&ssl->peerFalconKey);
     ssl->peerFalconKeyPresent = 0;
 #endif
@@ -7396,10 +7396,10 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         FreeKey(ssl, DYNAMIC_TYPE_ED448, (void**)&ssl->peerEd448Key);
         ssl->peerEd448KeyPresent = 0;
 #endif /* HAVE_ED448 */
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
         FreeKey(ssl, DYNAMIC_TYPE_FALCON, (void**)&ssl->peerFalconKey);
         ssl->peerFalconKeyPresent = 0;
-#endif /* HAVE_LIBOQS */
+#endif /* HAVE_PQC */
     }
 
 #ifdef HAVE_ECC
@@ -11860,7 +11860,7 @@ static int ProcessPeerCertCheckKey(WOLFSSL* ssl, ProcPeerCertArgs* args)
             }
             break;
     #endif /* HAVE_ED448 */
-    #ifdef HAVE_LIBOQS
+    #ifdef HAVE_PQC
         case FALCON_LEVEL1k:
             if (ssl->options.minFalconKeySz < 0 ||
                  FALCON_LEVEL1_KEY_SIZE < (word16)ssl->options.minFalconKeySz) {
@@ -11877,7 +11877,7 @@ static int ProcessPeerCertCheckKey(WOLFSSL* ssl, ProcPeerCertArgs* args)
                 ret = FALCON_KEY_SIZE_E;
             }
             break;
-    #endif /* HAVE_LIBOQS */
+    #endif /* HAVE_PQC */
         default:
             WOLFSSL_MSG("Key size not checked");
             /* key not being checked for size if not in
@@ -13080,7 +13080,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
-                #ifdef HAVE_LIBOQS
+                #ifdef HAVE_PQC
                     case FALCON_LEVEL1k:
                     case FALCON_LEVEL5k:
                     {
@@ -13125,7 +13125,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             WOLFSSL_MSG("Peer Falcon key is too small");
                         }
                     }
-                #endif /* HAVE_LIBOQS */
+                #endif /* HAVE_PQC */
                     default:
                         break;
                 }
@@ -21703,7 +21703,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
                                                              defined(HAVE_ED448)
                     haveECDSAsig = 1;
                 #endif
-                #if defined(HAVE_LIBOQS)
+                #if defined(HAVE_PQC)
                     haveFalconSig = 1;
                 #endif
                 }
@@ -21922,7 +21922,7 @@ static int MatchSigAlgo(WOLFSSL* ssl, int sigAlgo)
         return sigAlgo == ed448_sa_algo;
     }
 #endif
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     if (ssl->pkCurveOID == CTC_FALCON_LEVEL1) {
         /* Certificate has Falcon level 1 key, only match with Falcon level 1
          * sig alg  */
@@ -22036,7 +22036,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
             break;
         }
     #endif
-    #if defined(HAVE_LIBOQS)
+    #if defined(HAVE_PQC)
         if (ssl->pkCurveOID == CTC_FALCON_LEVEL1 ||
             ssl->pkCurveOID == CTC_FALCON_LEVEL5 ) {
             /* Matched Falcon - set chosen and finished. */
@@ -22702,7 +22702,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         }
     }
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
     if (ssl->buffers.keyType == falcon_level1_sa_algo ||
         ssl->buffers.keyType == falcon_level5_sa_algo ||
         ssl->buffers.keyType == 0) {
@@ -22762,7 +22762,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
             goto exit_dpk;
         }
     }
-#endif /* HAVE_LIBOQS */
+#endif /* HAVE_PQC */
 
     (void)idx;
     (void)keySz;

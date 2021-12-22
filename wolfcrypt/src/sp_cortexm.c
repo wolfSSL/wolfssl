@@ -22954,6 +22954,19 @@ static WC_INLINE int sp_256_mod_8(sp_digit* r, const sp_digit* a, const sp_digit
 
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* Multiply two number mod the order of P256 curve. (r = a * b mod order)
+ *
+ * r  Result of the multiplication.
+ * a  First operand of the multiplication.
+ * b  Second operand of the multiplication.
+ */
+static void sp_256_mont_mul_order_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
+{
+    sp_256_mul_8(r, a, b);
+    sp_256_mont_reduce_order_8(r, p256_order, p256_mp_order);
+}
+
+#if defined(HAVE_ECC_SIGN) || (defined(HAVE_ECC_VERIFY) && defined(WOLFSSL_SP_SMALL))
 #ifdef WOLFSSL_SP_SMALL
 /* Order-2 for the P256 curve. */
 static const uint32_t p256_order_minus_2[8] = {
@@ -22966,18 +22979,6 @@ static const sp_int_digit p256_order_low[4] = {
     0xfc63254fU,0xf3b9cac2U,0xa7179e84U,0xbce6faadU
 };
 #endif /* WOLFSSL_SP_SMALL */
-
-/* Multiply two number mod the order of P256 curve. (r = a * b mod order)
- *
- * r  Result of the multiplication.
- * a  First operand of the multiplication.
- * b  Second operand of the multiplication.
- */
-static void sp_256_mont_mul_order_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
-{
-    sp_256_mul_8(r, a, b);
-    sp_256_mont_reduce_order_8(r, p256_order, p256_mp_order);
-}
 
 /* Square number mod the order of P256 curve. (r = a * a mod order)
  *
@@ -23149,6 +23150,7 @@ static void sp_256_mont_inv_order_8(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#endif /* HAVE_ECC_SIGN || (HAVE_ECC_VERIFY && WOLFSSL_SP_SMALL) */
 #endif /* HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
 #ifdef HAVE_ECC_SIGN
 #ifndef SP_ECC_MAX_SIG_GEN
@@ -30165,6 +30167,19 @@ static WC_INLINE int sp_384_mod_12(sp_digit* r, const sp_digit* a, const sp_digi
 
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* Multiply two number mod the order of P384 curve. (r = a * b mod order)
+ *
+ * r  Result of the multiplication.
+ * a  First operand of the multiplication.
+ * b  Second operand of the multiplication.
+ */
+static void sp_384_mont_mul_order_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
+{
+    sp_384_mul_12(r, a, b);
+    sp_384_mont_reduce_order_12(r, p384_order, p384_mp_order);
+}
+
+#if defined(HAVE_ECC_SIGN) || (defined(HAVE_ECC_VERIFY) && defined(WOLFSSL_SP_SMALL))
 #ifdef WOLFSSL_SP_SMALL
 /* Order-2 for the P384 curve. */
 static const uint32_t p384_order_minus_2[12] = {
@@ -30177,18 +30192,6 @@ static const uint32_t p384_order_low[6] = {
     0xccc52971U,0xecec196aU,0x48b0a77aU,0x581a0db2U,0xf4372ddfU,0xc7634d81U
 };
 #endif /* WOLFSSL_SP_SMALL */
-
-/* Multiply two number mod the order of P384 curve. (r = a * b mod order)
- *
- * r  Result of the multiplication.
- * a  First operand of the multiplication.
- * b  Second operand of the multiplication.
- */
-static void sp_384_mont_mul_order_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
-{
-    sp_384_mul_12(r, a, b);
-    sp_384_mont_reduce_order_12(r, p384_order, p384_mp_order);
-}
 
 /* Square number mod the order of P384 curve. (r = a * a mod order)
  *
@@ -30331,6 +30334,7 @@ static void sp_384_mont_inv_order_12(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#endif /* HAVE_ECC_SIGN || (HAVE_ECC_VERIFY && WOLFSSL_SP_SMALL) */
 #endif /* HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
 #ifdef HAVE_ECC_SIGN
 #ifndef SP_ECC_MAX_SIG_GEN

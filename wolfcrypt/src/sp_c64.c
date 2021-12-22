@@ -22364,8 +22364,6 @@ static int sp_256_point_to_ecc_point_5(const sp_point_256* p, ecc_point* pm)
     return err;
 }
 
-#define sp_256_mont_reduce_order_5         sp_256_mont_reduce_5
-
 /* Compare a with b in constant time.
  *
  * a  A single precision integer.
@@ -22527,37 +22525,83 @@ static void sp_256_mont_shift_5(sp_digit* r, const sp_digit* a)
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
-static void sp_256_mont_reduce_5(sp_digit* a, const sp_digit* m, sp_digit mp)
+static void sp_256_mont_reduce_order_5(sp_digit* a, const sp_digit* m, sp_digit mp)
 {
     int i;
     sp_digit mu;
 
-    if (mp != 1) {
-        for (i=0; i<4; i++) {
-            mu = (a[i] * mp) & 0xfffffffffffffL;
-            sp_256_mul_add_5(a+i, m, mu);
-            a[i+1] += a[i] >> 52;
-        }
-        mu = (a[i] * mp) & 0xffffffffffffL;
+    sp_256_norm_5(a + 5);
+
+    for (i=0; i<4; i++) {
+        mu = (a[i] * mp) & 0xfffffffffffffL;
         sp_256_mul_add_5(a+i, m, mu);
         a[i+1] += a[i] >> 52;
-        a[i] &= 0xfffffffffffffL;
     }
-    else {
-        for (i=0; i<4; i++) {
-            mu = a[i] & 0xfffffffffffffL;
-            sp_256_mul_add_5(a+i, p256_mod, mu);
-            a[i+1] += a[i] >> 52;
-        }
-        mu = a[i] & 0xffffffffffffL;
-        sp_256_mul_add_5(a+i, p256_mod, mu);
-        a[i+1] += a[i] >> 52;
-        a[i] &= 0xfffffffffffffL;
-    }
-
+    mu = (a[i] * mp) & 0xffffffffffffL;
+    sp_256_mul_add_5(a+i, m, mu);
+    a[i+1] += a[i] >> 52;
+    a[i] &= 0xfffffffffffffL;
     sp_256_mont_shift_5(a, a);
     sp_256_cond_sub_5(a, a, m, 0 - (((a[4] >> 48) > 0) ?
             (sp_digit)1 : (sp_digit)0));
+    sp_256_norm_5(a);
+}
+
+/* Reduce the number back to 256 bits using Montgomery reduction.
+ *
+ * a   A single precision number to reduce in place.
+ * m   The single precision number representing the modulus.
+ * mp  The digit representing the negative inverse of m mod 2^n.
+ */
+static void sp_256_mont_reduce_5(sp_digit* a, const sp_digit* m, sp_digit mp)
+{
+    int i;
+    sp_int128 t;
+    sp_digit am;
+
+    (void)m;
+    (void)mp;
+
+    for (i = 0; i < 4; i++) {
+        am = a[i] & 0xfffffffffffffL;
+        /* Fifth word of modulus word */
+        t = am; t *= 0x0ffffffff0000L;
+
+        a[i+1] += (am << 44) & 0xfffffffffffffL;
+        a[i+2] += am >> 8;
+        a[i+3] += (am << 36) & 0xfffffffffffffL;
+        a[i+4] += (am >> 16) + (t & 0xfffffffffffffL);
+        a[i+5] +=  t >> 52;
+
+        a[i+1] += a[i] >> 52;
+    }
+    am = a[4] & 0xffffffffffff;
+    /* Fifth word of modulus word */
+    t = am; t *= 0x0ffffffff0000L;
+
+    a[4+1] += (am << 44) & 0xfffffffffffffL;
+    a[4+2] += am >> 8;
+    a[4+3] += (am << 36) & 0xfffffffffffffL;
+    a[4+4] += (am >> 16) + (t & 0xfffffffffffffL);
+    a[4+5] +=  t >> 52;
+
+    a[0] = (a[4] >> 48) + ((a[5] << 4) & 0xfffffffffffffL);
+    a[1] = (a[5] >> 48) + ((a[6] << 4) & 0xfffffffffffffL);
+    a[2] = (a[6] >> 48) + ((a[7] << 4) & 0xfffffffffffffL);
+    a[3] = (a[7] >> 48) + ((a[8] << 4) & 0xfffffffffffffL);
+    a[4] = (a[8] >> 48) +  (a[9] << 4);
+
+    /* Get the bit over, if any. */
+    am = a[4] >> 48;
+    /* Create mask. */
+    am = 0 - am;
+
+    a[0] -= 0x000fffffffffffffL & am;
+    a[1] -= 0x00000fffffffffffL & am;
+    /* p256_mod[2] is zero */
+    a[3] -= 0x0000001000000000L & am;
+    a[4] -= 0x0000ffffffff0000L & am;
+
     sp_256_norm_5(a);
 }
 
@@ -26822,6 +26866,19 @@ static int sp_256_mod_5(sp_digit* r, const sp_digit* a, const sp_digit* m)
 
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* Multiply two number mod the order of P256 curve. (r = a * b mod order)
+ *
+ * r  Result of the multiplication.
+ * a  First operand of the multiplication.
+ * b  Second operand of the multiplication.
+ */
+static void sp_256_mont_mul_order_5(sp_digit* r, const sp_digit* a, const sp_digit* b)
+{
+    sp_256_mul_5(r, a, b);
+    sp_256_mont_reduce_order_5(r, p256_order, p256_mp_order);
+}
+
+#if defined(HAVE_ECC_SIGN) || (defined(HAVE_ECC_VERIFY) && defined(WOLFSSL_SP_SMALL))
 #ifdef WOLFSSL_SP_SMALL
 /* Order-2 for the P256 curve. */
 static const uint64_t p256_order_minus_2[4] = {
@@ -26834,18 +26891,6 @@ static const sp_int_digit p256_order_low[2] = {
     0xf3b9cac2fc63254fU,0xbce6faada7179e84U
 };
 #endif /* WOLFSSL_SP_SMALL */
-
-/* Multiply two number mod the order of P256 curve. (r = a * b mod order)
- *
- * r  Result of the multiplication.
- * a  First operand of the multiplication.
- * b  Second operand of the multiplication.
- */
-static void sp_256_mont_mul_order_5(sp_digit* r, const sp_digit* a, const sp_digit* b)
-{
-    sp_256_mul_5(r, a, b);
-    sp_256_mont_reduce_order_5(r, p256_order, p256_mp_order);
-}
 
 /* Square number mod the order of P256 curve. (r = a * a mod order)
  *
@@ -27017,6 +27062,7 @@ static void sp_256_mont_inv_order_5(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#endif /* HAVE_ECC_SIGN || (HAVE_ECC_VERIFY && WOLFSSL_SP_SMALL) */
 #endif /* HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
 #ifdef HAVE_ECC_SIGN
 #ifndef SP_ECC_MAX_SIG_GEN
@@ -29011,8 +29057,6 @@ static int sp_384_point_to_ecc_point_7(const sp_point_384* p, ecc_point* pm)
     return err;
 }
 
-#define sp_384_mont_reduce_order_7         sp_384_mont_reduce_7
-
 /* Compare a with b in constant time.
  *
  * a  A single precision integer.
@@ -29192,7 +29236,7 @@ static void sp_384_mont_shift_7(sp_digit* r, const sp_digit* a)
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
-static void sp_384_mont_reduce_7(sp_digit* a, const sp_digit* m, sp_digit mp)
+static void sp_384_mont_reduce_order_7(sp_digit* a, const sp_digit* m, sp_digit mp)
 {
     int i;
     sp_digit mu;
@@ -29211,6 +29255,63 @@ static void sp_384_mont_reduce_7(sp_digit* a, const sp_digit* m, sp_digit mp)
     sp_384_mont_shift_7(a, a);
     sp_384_cond_sub_7(a, a, m, 0 - (((a[6] >> 54) > 0) ?
             (sp_digit)1 : (sp_digit)0));
+    sp_384_norm_7(a);
+}
+
+/* Reduce the number back to 384 bits using Montgomery reduction.
+ *
+ * a   A single precision number to reduce in place.
+ * m   The single precision number representing the modulus.
+ * mp  The digit representing the negative inverse of m mod 2^n.
+ */
+static void sp_384_mont_reduce_7(sp_digit* a, const sp_digit* m, sp_digit mp)
+{
+    int i;
+    sp_digit am;
+
+    (void)m;
+    (void)mp;
+
+    for (i = 0; i < 6; i++) {
+        am = (a[i] * 0x100000001) & 0x7fffffffffffffL;
+        a[i + 0] += (am << 32) & 0x7fffffffffffffL;
+        a[i + 1] += (am >> 23) - ((am << 41) & 0x7fffffffffffffL);
+        a[i + 2] += -(am >> 14) - ((am << 18) & 0x7fffffffffffffL);
+        a[i + 3] += -(am >> 37);
+        a[i + 6] += (am << 54) & 0x7fffffffffffffL;
+        a[i + 7] += am >> 1;
+
+        a[i+1] += a[i] >> 55;
+    }
+    am = (a[6] * 0x100000001) & 0x3fffffffffffff;
+    a[6 + 0] += (am << 32) & 0x7fffffffffffffL;
+    a[6 + 1] += (am >> 23) - ((am << 41) & 0x7fffffffffffffL);
+    a[6 + 2] += -(am >> 14) - ((am << 18) & 0x7fffffffffffffL);
+    a[6 + 3] += -(am >> 37);
+    a[6 + 6] += (am << 54) & 0x7fffffffffffffL;
+    a[6 + 7] += am >> 1;
+
+    a[0] = (a[6] >> 54) + ((a[7] << 1) & 0x7fffffffffffffL);
+    a[1] = (a[7] >> 54) + ((a[8] << 1) & 0x7fffffffffffffL);
+    a[2] = (a[8] >> 54) + ((a[9] << 1) & 0x7fffffffffffffL);
+    a[3] = (a[9] >> 54) + ((a[10] << 1) & 0x7fffffffffffffL);
+    a[4] = (a[10] >> 54) + ((a[11] << 1) & 0x7fffffffffffffL);
+    a[5] = (a[11] >> 54) + ((a[12] << 1) & 0x7fffffffffffffL);
+    a[6] = (a[12] >> 54) +  (a[13] << 1);
+
+    /* Get the bit over, if any. */
+    am = a[6] >> 54;
+    /* Create mask. */
+    am = 0 - am;
+
+    a[0] -= 0x00000000ffffffffL & am;
+    a[1] -= 0x007ffe0000000000L & am;
+    a[2] -= 0x007ffffffffbffffL & am;
+    a[3] -= 0x007fffffffffffffL & am;
+    a[4] -= 0x007fffffffffffffL & am;
+    a[5] -= 0x007fffffffffffffL & am;
+    a[6] -= 0x003fffffffffffffL & am;
+
     sp_384_norm_7(a);
 }
 
@@ -34070,6 +34171,19 @@ static int sp_384_mod_7(sp_digit* r, const sp_digit* a, const sp_digit* m)
 
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* Multiply two number mod the order of P384 curve. (r = a * b mod order)
+ *
+ * r  Result of the multiplication.
+ * a  First operand of the multiplication.
+ * b  Second operand of the multiplication.
+ */
+static void sp_384_mont_mul_order_7(sp_digit* r, const sp_digit* a, const sp_digit* b)
+{
+    sp_384_mul_7(r, a, b);
+    sp_384_mont_reduce_order_7(r, p384_order, p384_mp_order);
+}
+
+#if defined(HAVE_ECC_SIGN) || (defined(HAVE_ECC_VERIFY) && defined(WOLFSSL_SP_SMALL))
 #ifdef WOLFSSL_SP_SMALL
 /* Order-2 for the P384 curve. */
 static const uint64_t p384_order_minus_2[6] = {
@@ -34082,18 +34196,6 @@ static const uint64_t p384_order_low[3] = {
     0xecec196accc52971U,0x581a0db248b0a77aU,0xc7634d81f4372ddfU
 };
 #endif /* WOLFSSL_SP_SMALL */
-
-/* Multiply two number mod the order of P384 curve. (r = a * b mod order)
- *
- * r  Result of the multiplication.
- * a  First operand of the multiplication.
- * b  Second operand of the multiplication.
- */
-static void sp_384_mont_mul_order_7(sp_digit* r, const sp_digit* a, const sp_digit* b)
-{
-    sp_384_mul_7(r, a, b);
-    sp_384_mont_reduce_order_7(r, p384_order, p384_mp_order);
-}
 
 /* Square number mod the order of P384 curve. (r = a * a mod order)
  *
@@ -34236,6 +34338,7 @@ static void sp_384_mont_inv_order_7(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#endif /* HAVE_ECC_SIGN || (HAVE_ECC_VERIFY && WOLFSSL_SP_SMALL) */
 #endif /* HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
 #ifdef HAVE_ECC_SIGN
 #ifndef SP_ECC_MAX_SIG_GEN

@@ -640,7 +640,7 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_EXPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_EXPORT)) || \
-     (defined(HAVE_LIBOQS)))
+     (defined(HAVE_PQC)))
     #define WC_ENABLE_ASYM_KEY_EXPORT
 #endif
 
@@ -649,7 +649,7 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_IMPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_IMPORT)) || \
-     (defined(HAVE_LIBOQS)))
+     (defined(HAVE_PQC)))
     #define WC_ENABLE_ASYM_KEY_IMPORT
 #endif
 
@@ -688,13 +688,13 @@ WOLFSSL_API int wc_Ed448PublicKeyToDer(ed448_key*, byte*, word32, int);
 #endif
 #endif /* HAVE_ED448 */
 
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
 WOLFSSL_API int wc_Falcon_PrivateKeyDecode(const byte*, word32*, falcon_key*, word32);
 WOLFSSL_API int wc_Falcon_PublicKeyDecode(const byte*, word32*, falcon_key*, word32);
 WOLFSSL_API int wc_Falcon_KeyToDer(falcon_key*, byte*, word32);
 WOLFSSL_API int wc_Falcon_PrivateKeyToDer(falcon_key*, byte*, word32);
 WOLFSSL_API int wc_Falcon_PublicKeyToDer(falcon_key*, byte*, word32, int);
-#endif /* HAVE_LIBOQS */
+#endif /* HAVE_PQC */
 
 #ifdef HAVE_CURVE448
 #ifdef HAVE_CURVE448_KEY_IMPORT

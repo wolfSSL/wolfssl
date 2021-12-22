@@ -25,15 +25,16 @@
     #include <config.h>
 #endif
 
-/* in case user set HAVE_LIBOQS there */
+/* in case user set HAVE_PQC there */
 #include <wolfssl/wolfcrypt/settings.h>
 
 #include <wolfssl/wolfcrypt/asn.h>
 
+#ifdef HAVE_PQC
+
 #ifdef HAVE_LIBOQS
-
 #include <oqs/oqs.h>
-
+#endif
 
 #include <wolfssl/wolfcrypt/falcon.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -61,6 +62,7 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
                               falcon_key* key)
 {
     int ret = 0;
+#ifdef HAVE_LIBOQS
     OQS_SIG *oqssig = NULL;
     size_t localOutLen = 0;
 
@@ -112,7 +114,7 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
     if (oqssig != NULL) {
         OQS_SIG_free(oqssig);
     }
-
+#endif
     return ret;
 }
 
@@ -132,6 +134,7 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
                         word32 msgLen, int* res, falcon_key* key)
 {
     int ret = 0;
+#ifdef HAVE_LIBOQS
     OQS_SIG *oqssig = NULL;
 
     if (key == NULL || sig == NULL || msg == NULL || res == NULL) {
@@ -168,6 +171,7 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     if (oqssig != NULL) {
         OQS_SIG_free(oqssig);
     }
+#endif
 
     return ret;
 }
@@ -683,4 +687,4 @@ int wc_falcon_sig_size(falcon_key* key)
 
     return BAD_FUNC_ARG;
 }
-#endif /* HAVE_LIBOQS */
+#endif /* HAVE_PQC */

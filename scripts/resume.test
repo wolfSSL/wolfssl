@@ -69,6 +69,7 @@ do_test() {
     esac
 
     remove_ready_file
+    echo "./examples/server/server -r -R "$ready_file" -p $resume_port"
     ./examples/server/server -r -R "$ready_file" -p $resume_port &
     server_pid=$!
 
@@ -92,6 +93,7 @@ do_test() {
     # get created port 0 ephemeral port
     resume_port=`cat "$ready_file"`
 
+    echo "./examples/client/client $1 -r -p $resume_port"
     capture_out=$(./examples/client/client $1 -r -p $resume_port 2>&1)
     client_result=$?
 

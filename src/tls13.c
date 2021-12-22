@@ -5241,7 +5241,7 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
 
 #ifndef NO_CERTS
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-    defined(HAVE_ED448) || defined(HAVE_LIBOQS)
+    defined(HAVE_ED448) || defined(HAVE_PQC)
 /* Encode the signature algorithm into buffer.
  *
  * hashalgo  The hash algorithm.
@@ -5280,7 +5280,7 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
             output[1] = hashAlgo;
             break;
 #endif
-#ifdef HAVE_LIBOQS
+#ifdef HAVE_PQC
         case falcon_level1_sa_algo:
             output[0] = FALCON_LEVEL1_SA_MAJOR;
             output[1] = FALCON_LEVEL1_SA_MINOR;
@@ -5333,8 +5333,8 @@ static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
             else
                 ret = INVALID_PARAMETER;
             break;
-#ifdef HAVE_LIBOQS
-        case OQS_SA_MAJOR:
+#ifdef HAVE_PQC
+        case PQC_SA_MAJOR:
             if (input[1] == FALCON_LEVEL1_SA_MINOR) {
                 *hsType = falcon_level1_sa_algo;
                 /* Hash performed as part of sign/verify operation. */
@@ -5967,7 +5967,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 }
 
 #if (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-     defined(HAVE_ED448) || defined(HAVE_LIBOQS)) && \
+     defined(HAVE_ED448) || defined(HAVE_PQC)) && \
     (!defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH))
 typedef struct Scv13Args {
     byte*  output; /* not allocated */
@@ -6112,7 +6112,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             else if (ssl->hsType == DYNAMIC_TYPE_ED448)
                 args->sigAlgo = ed448_sa_algo;
         #endif
-        #ifdef HAVE_LIBOQS
+        #ifdef HAVE_PQC
             else if (ssl->hsType == DYNAMIC_TYPE_FALCON) {
                 falcon_key* fkey = (falcon_key*)ssl->hsKey;
                 byte level = 0;
@@ -6206,11 +6206,11 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 sig->length = ED448_SIG_SIZE;
             }
         #endif /* HAVE_ED448 */
-        #ifdef HAVE_LIBOQS
+        #ifdef HAVE_PQC
             if (ssl->hsType == DYNAMIC_TYPE_FALCON) {
                 sig->length = FALCON_MAX_SIG_SIZE;
             }
-        #endif /* HAVE_LIBOQS */
+        #endif /* HAVE_PQC */
 
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_DO;
@@ -6262,7 +6262,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 args->length = (word16)sig->length;
             }
         #endif
-        #ifdef HAVE_LIBOQS
+        #ifdef HAVE_PQC
             if (ssl->hsType == DYNAMIC_TYPE_FALCON) {
                 ret = wc_falcon_sign_msg(args->sigData, args->sigDataSz,
                                          args->verify + HASH_SIG_SIZE +
@@ -6270,7 +6270,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                                          (falcon_key*)ssl->hsKey);
                 args->length = (word16)sig->length;
             }
-        #endif /* HAVE_LIBOQS */
+        #endif /* HAVE_PQC */
         #ifndef NO_RSA
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
                 ret = RsaSign(ssl, sig->buffer, (word32)sig->length,
@@ -6581,7 +6581,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 goto exit_dcv;
             }
         #endif
-        #ifdef HAVE_LIBOQS
+        #ifdef HAVE_PQC
             if (args->sigAlgo == falcon_level1_sa_algo && !ssl->peerFalconKeyPresent) {
                 WOLFSSL_MSG("Peer sent Falcon Level 1 sig but different cert");
                 ret = SIG_VERIFY_E;
@@ -6664,7 +6664,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 ret = 0;
             }
        #endif
-       #ifdef HAVE_LIBOQS
+       #ifdef HAVE_PQC
             if (ssl->peerFalconKeyPresent) {
                 WOLFSSL_MSG("Doing Falcon peer cert verify");
 
@@ -6758,7 +6758,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 }
             }
         #endif
-        #ifdef HAVE_LIBOQS
+        #ifdef HAVE_PQC
             if (ssl->peerFalconKeyPresent) {
                 int res = 0;
                 WOLFSSL_MSG("Doing Falcon peer cert verify");
@@ -8141,7 +8141,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif
 
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-    defined(HAVE_ED448) || defined(HAVE_LIBOQS)
+    defined(HAVE_ED448) || defined(HAVE_PQC)
     case certificate_verify:
         WOLFSSL_MSG("processing certificate verify");
         ret = DoTls13CertificateVerify(ssl, input, inOutIdx, size);
@@ -8579,7 +8579,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         case FIRST_REPLY_THIRD:
         #if (!defined(NO_CERTS) && (!defined(NO_RSA) || defined(HAVE_ECC) || \
              defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-             defined(HAVE_LIBOQS))) && (!defined(NO_WOLFSSL_SERVER) || \
+             defined(HAVE_PQC))) && (!defined(NO_WOLFSSL_SERVER) || \
              !defined(WOLFSSL_NO_CLIENT_AUTH))
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 ssl->error = SendTls13CertificateVerify(ssl);
@@ -8740,9 +8740,9 @@ int wolfSSL_UseKeyShare(WOLFSSL* ssl, word16 group)
     }
 #endif
 
-#ifdef HAVE_LIBOQS
-    if (group >= WOLFSSL_OQS_MIN &&
-        group <= WOLFSSL_OQS_MAX) {
+#ifdef HAVE_PQC
+    if (group >= WOLFSSL_PQC_MIN &&
+        group <= WOLFSSL_PQC_MAX) {
 
         if (ssl->ctx != NULL && ssl->ctx->method != NULL &&
             ssl->ctx->method->version.minor != TLSv1_3_MINOR) {
@@ -9525,7 +9525,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 
         case TLS13_CERT_SENT :
 #if !defined(NO_CERTS) && (!defined(NO_RSA) || defined(HAVE_ECC) || \
-     defined(HAVE_ED25519) || defined(HAVE_ED448) || defined(HAVE_LIBOQS))
+     defined(HAVE_ED25519) || defined(HAVE_ED448) || defined(HAVE_PQC))
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 if ((ssl->error = SendTls13CertificateVerify(ssl)) != 0) {
                     WOLFSSL_ERROR(ssl->error);

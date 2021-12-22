@@ -5176,4 +5176,11 @@ static WC_INLINE void EarlyDataStatus(WOLFSSL* ssl)
 }
 #endif /* WOLFSSL_EARLY_DATA */
 
+
+#if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
+    defined(DEBUG_UNIT_TEST_CERTS)
+void DEBUG_WRITE_CERT_X509(WOLFSSL_X509* x509, const char* fileName);
+void DEBUG_WRITE_DER(const byte* der, int derSz, const char* fileName);
+#endif
+
 #endif /* wolfSSL_TEST_H */

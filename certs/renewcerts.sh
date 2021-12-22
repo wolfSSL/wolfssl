@@ -59,6 +59,11 @@ check_result(){
 
 #the function that will be called when we are ready to renew the certs.
 run_renewcerts(){
+
+    #call update for some ecc certs
+    ./certs/ecc/genecc.sh
+    check_result $? "Step 0"
+
     cd certs/ || { echo "Couldn't cd to certs directory"; exit 1; }
     echo ""
 
@@ -122,6 +127,27 @@ run_renewcerts(){
     openssl x509 -in client-relative-uri.pem -text > tmp.pem
     check_result $? "Step 3"
     mv tmp.pem client-relative-uri.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
+    #### update the self-signed (2048-bit) client-cert-ext.pem
+    ############################################################
+    echo "Updating 2048-bit client-cert-ext.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_2048\\nProgramming-2048\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key client-key.pem -config ./wolfssl.cnf -nodes -out client-cert.csr
+    check_result $? "Step 1"
+
+
+    openssl x509 -req -in client-cert.csr -days 1000 -extfile wolfssl.cnf -extensions client_cert_ext -signkey client-key.pem -out client-cert-ext.pem
+    check_result $? "Step 2"
+    rm client-cert.csr
+
+    openssl x509 -in client-cert-ext.pem -outform DER -out client-cert-ext.der
+    check_result $? "Step 3"
+    openssl x509 -in client-cert-ext.pem -text > tmp.pem
+    check_result $? "Step 4"
+    mv tmp.pem client-cert-ext.pem
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ############################################################
@@ -798,6 +824,10 @@ else
     echo ""
     make clean
     check_result $? "make clean"
+
+    run_renewcerts
+    cd ../ || exit 1
+    rm ./certs/wolfssl.cnf
 
     # restore previous configure state
     restore_config

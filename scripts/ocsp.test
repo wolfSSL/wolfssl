@@ -35,6 +35,7 @@ if [ "$OUTPUT" = "SNI is: ON" ]; then
 
     if [ $RESULT -eq 0 ]; then
         # client test against the server
+        echo "./examples/client/client -X -C -h $server -p 443 -A "$ca" -g -o -N -v d -S $server"
         ./examples/client/client -X -C -h $server -p 443 -A "$ca" -g -o -N -v d -S $server
         GL_RESULT=$?
         [ $GL_RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection failed"
@@ -54,6 +55,7 @@ ${SCRIPT_DIR}/ping.test $server 2
 RESULT=$?
 if [ $RESULT -eq 0 ]; then
     # client test against the server
+    echo "./examples/client/client -X -C -h $server -p 443 -A "$ca" -g -o -N"
     ./examples/client/client -X -C -h $server -p 443 -A "$ca" -g -o -N
     GR_RESULT=$?
     [ $GR_RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection failed"

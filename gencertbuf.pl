@@ -99,7 +99,7 @@ my @fileList_4096 = (
         );
 
 #Falcon Post-Quantum Keys
-#Used with HAVE_LIBOQS
+#Used with HAVE_PQC
 my @fileList_falcon = (
         ["certs/falcon/bench_falcon_level1_key.der", "bench_falcon_level1_key" ],
         ["certs/falcon/bench_falcon_level5_key.der", "bench_falcon_level5_key" ],
@@ -194,7 +194,7 @@ for (my $i = 0; $i < $num_4096; $i++) {
 print OUT_FILE "#endif /* USE_CERT_BUFFERS_4096 */\n\n";
 
 # convert and print falcon keys
-print OUT_FILE "#ifdef HAVE_LIBOQS\n\n";
+print OUT_FILE "#ifdef HAVE_PQC\n\n";
 for (my $i = 0; $i < $num_falcon; $i++) {
 
     my $fname = $fileList_falcon[$i][0];
@@ -208,7 +208,7 @@ for (my $i = 0; $i < $num_falcon; $i++) {
     print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
 }
 
-print OUT_FILE "#endif /* HAVE_LIBOQS */\n\n";
+print OUT_FILE "#endif /* HAVE_PQC */\n\n";
 
 # convert and print 256-bit cert/keys
 print OUT_FILE "#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)\n\n";
