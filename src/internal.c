@@ -6637,9 +6637,16 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     }
 #endif /*OPENSSL_EXTRA && HAVE_SECRET_CALLBACK */
 
+    ssl->session.masterSecret = ssl->session._masterSecret;
+#ifndef NO_CLIENT_CACHE
+    ssl->session.serverID = ssl->session._serverID;
+#endif
+#ifdef OPENSSL_EXTRA
+    ssl->session.sessionCtx = ssl->session._sessionCtx;
+#endif
 #ifdef HAVE_SESSION_TICKET
     ssl->options.noTicketTls12 = ctx->noTicketTls12;
-    ssl->session.ticket = ssl->session.staticTicket;
+    ssl->session.ticket = ssl->session._staticTicket;
 #endif
 
 #ifdef WOLFSSL_MULTICAST
@@ -7215,10 +7222,10 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif
 
 #ifdef HAVE_SESSION_TICKET
-    if (ssl->session.isDynamic) {
+    if (ssl->session.ticketLenAlloc > 0) {
         XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
-        ssl->session.ticket = ssl->session.staticTicket;
-        ssl->session.isDynamic = 0;
+        ssl->session.ticket = ssl->session._staticTicket;
+        ssl->session.ticketLenAlloc = 0;
         ssl->session.ticketLen = 0;
     }
 #endif
@@ -7492,10 +7499,10 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #endif /* HAVE_PK_CALLBACKS */
 
 #ifdef HAVE_SESSION_TICKET
-    if (ssl->session.isDynamic) {
+    if (ssl->session.ticketLenAlloc > 0) {
         XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
-        ssl->session.ticket = ssl->session.staticTicket;
-        ssl->session.isDynamic = 0;
+        ssl->session.ticket = ssl->session._staticTicket;
+        ssl->session.ticketLenAlloc = 0;
         ssl->session.ticketLen = 0;
     }
 #endif
@@ -26787,19 +26794,19 @@ exit_scv:
 int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
 {
     /* Free old dynamic ticket if we already had one */
-    if (ssl->session.isDynamic) {
+    if (ssl->session.ticketLenAlloc > 0) {
         XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
-        ssl->session.ticket = ssl->session.staticTicket;
-        ssl->session.isDynamic = 0;
+        ssl->session.ticket = ssl->session._staticTicket;
+        ssl->session.ticketLenAlloc = 0;
     }
 
-    if (length > sizeof(ssl->session.staticTicket)) {
+    if (length > sizeof(ssl->session._staticTicket)) {
         byte* sessionTicket =
                    (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
         if (sessionTicket == NULL)
             return MEMORY_E;
         ssl->session.ticket = sessionTicket;
-        ssl->session.isDynamic = 1;
+        ssl->session.ticketLenAlloc = (word16)length;
     }
     ssl->session.ticketLen = (word16)length;
 

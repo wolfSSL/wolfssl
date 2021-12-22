@@ -39177,20 +39177,21 @@ static void test_wolfSSL_cert_cb(void)
 static void test_wolfSSL_SESSION(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
-    !defined(NO_RSA) && defined(HAVE_EXT_CACHE) && \
-    defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(NO_SESSION_CACHE)
+    !defined(NO_RSA) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    !defined(NO_SESSION_CACHE)
 
     WOLFSSL*     ssl;
     WOLFSSL_CTX* ctx;
     WOLFSSL_SESSION* sess;
     WOLFSSL_SESSION* sess_copy;
+#ifdef OPENSSL_EXTRA
     unsigned char* sessDer = NULL;
     unsigned char* ptr     = NULL;
-#ifdef OPENSSL_EXTRA
     const unsigned char context[] = "user app context";
     unsigned int contextSz = (unsigned int)sizeof(context);
+    int sz;
 #endif
-    int ret, err, sockfd, sz;
+    int ret, err, sockfd;
     tcp_ready ready;
     func_args server_args;
     THREAD_TYPE serverThread;
@@ -39208,9 +39209,12 @@ static void test_wolfSSL_SESSION(void)
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
 #endif
 
-    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
-    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
-    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0), SSL_SUCCESS);
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, cliCertFile,
+        WOLFSSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile,
+        WOLFSSL_FILETYPE_PEM));
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0),
+        WOLFSSL_SUCCESS);
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
@@ -39239,7 +39243,7 @@ static void test_wolfSSL_SESSION(void)
     /* client connection */
     ssl = wolfSSL_new(ctx);
     tcp_connect(&sockfd, wolfSSLIP, ready.port, 0, 0, ssl);
-    AssertIntEQ(wolfSSL_set_fd(ssl, sockfd), SSL_SUCCESS);
+    AssertIntEQ(wolfSSL_set_fd(ssl, sockfd), WOLFSSL_SUCCESS);
 
     #ifdef WOLFSSL_ASYNC_CRYPT
     err = 0; /* Reset error */
@@ -39286,15 +39290,17 @@ static void test_wolfSSL_SESSION(void)
     } while (err == WC_PENDING_E);
     AssertIntEQ(ret, 23);
 
+    AssertPtrNE((sess = wolfSSL_get1_session(ssl)), NULL); /* ref count 1 */
+    AssertPtrNE((sess_copy = wolfSSL_get1_session(ssl)), NULL); /* ref count 2 */
+    AssertPtrEq(sess, sess_copy); /* they should be the same pointer */
+    wolfSSL_SESSION_free(sess_copy); sess_copy = NULL;
+    wolfSSL_SESSION_free(sess);      sess = NULL; /* free session ref */
+
     sess = wolfSSL_get_session(ssl);
 
-    #if defined(OPENSSL_EXTRA)
+#ifdef OPENSSL_EXTRA
     AssertIntEQ(SSL_SESSION_is_resumable(NULL), 0);
     AssertIntEQ(SSL_SESSION_is_resumable(sess), 1);
-    #else
-    AssertIntEQ(wolfSSL_SESSION_is_resumable(NULL), 0);
-    AssertIntEQ(wolfSSL_SESSION_is_resumable(sess), 1);
-    #endif
 
     AssertIntEQ(wolfSSL_SESSION_has_ticket(NULL), 0);
     AssertIntEQ(wolfSSL_SESSION_get_ticket_lifetime_hint(NULL), 0);
@@ -39305,6 +39311,7 @@ static void test_wolfSSL_SESSION(void)
     #else
     AssertIntEQ(wolfSSL_SESSION_has_ticket(sess), 0);
     #endif
+#endif /* OPENSSL_EXTRA */
 
     wolfSSL_shutdown(ssl);
     wolfSSL_free(ssl);
@@ -39337,24 +39344,32 @@ static void test_wolfSSL_SESSION(void)
     }
 #endif
 
+#ifdef HAVE_EXT_CACHE
     AssertNotNull(sess_copy = wolfSSL_SESSION_dup(sess));
     wolfSSL_SESSION_free(sess_copy);
+    sess_copy = NULL;
+#endif
 
+#ifdef OPENSSL_EXTRA
     /* get session from DER and update the timeout */
     AssertIntEQ(wolfSSL_i2d_SSL_SESSION(NULL, &sessDer), BAD_FUNC_ARG);
     AssertIntGT((sz = wolfSSL_i2d_SSL_SESSION(sess, &sessDer)), 0);
     wolfSSL_SESSION_free(sess);
+    sess = NULL;
     ptr = sessDer;
     AssertNull(sess = wolfSSL_d2i_SSL_SESSION(NULL, NULL, sz));
     AssertNotNull(sess = wolfSSL_d2i_SSL_SESSION(NULL,
                 (const unsigned char**)&ptr, sz));
     XFREE(sessDer, NULL, DYNAMIC_TYPE_OPENSSL);
+    sessDer = NULL;
+
     AssertIntGT(wolfSSL_SESSION_get_time(sess), 0);
     AssertIntEQ(wolfSSL_SSL_SESSION_set_timeout(sess, 500), SSL_SUCCESS);
+#endif
 
     /* successful set session test */
     AssertNotNull(ssl = wolfSSL_new(ctx));
-    AssertIntEQ(wolfSSL_set_session(ssl, sess), SSL_SUCCESS);
+    AssertIntEQ(wolfSSL_set_session(ssl, sess), WOLFSSL_SUCCESS);
 
 #ifdef HAVE_SESSION_TICKET
     /* Test set/get session ticket */
@@ -39364,7 +39379,8 @@ static void test_wolfSSL_SESSION(void)
         word32 bufSz = (word32)sizeof(buf);
 
         AssertIntEQ(SSL_SUCCESS,
-            wolfSSL_set_SessionTicket(ssl, (byte *)ticket, (word32)XSTRLEN(ticket)));
+            wolfSSL_set_SessionTicket(ssl, (byte *)ticket,
+                (word32)XSTRLEN(ticket)));
         AssertIntEQ(SSL_SUCCESS,
             wolfSSL_get_SessionTicket(ssl, (byte *)buf, &bufSz));
         AssertStrEQ(ticket, buf);
@@ -39372,7 +39388,6 @@ static void test_wolfSSL_SESSION(void)
 #endif
 
 #ifdef OPENSSL_EXTRA
-
     /* session timeout case */
     /* make the session to be expired */
     AssertIntEQ(SSL_SESSION_set_timeout(sess,1), SSL_SUCCESS);
@@ -39393,16 +39408,17 @@ static void test_wolfSSL_SESSION(void)
             SSL_SUCCESS);
     AssertIntEQ(wolfSSL_set_session(ssl, sess), SSL_FAILURE);
     wolfSSL_free(ssl);
+
     AssertIntEQ(SSL_CTX_set_session_id_context(NULL, context, contextSz),
             SSL_FAILURE);
     AssertIntEQ(SSL_CTX_set_session_id_context(ctx, context, contextSz),
             SSL_SUCCESS);
     AssertNotNull(ssl = wolfSSL_new(ctx));
     AssertIntEQ(wolfSSL_set_session(ssl, sess), SSL_FAILURE);
-#endif
-    wolfSSL_free(ssl);
+#endif /* OPENSSL_EXTRA */
 
-    SSL_SESSION_free(sess);
+    wolfSSL_free(ssl);
+    wolfSSL_SESSION_free(sess);
     wolfSSL_CTX_free(ctx);
     printf(resultFmt, passed);
 #endif

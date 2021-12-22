@@ -2269,7 +2269,7 @@ static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl,
 
     printf("use psk session callback \n");
 
-    lsess = wolfSSL_SESSION_new();
+    lsess = SSL_SESSION_new();
     if (lsess == NULL) {
         return 0;
     }
@@ -2305,6 +2305,7 @@ static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl,
         *id = NULL;
         *idlen = 0;
         *sess = NULL;
+        SSL_SESSION_free(lsess);
         return 0;
     }
 #else
