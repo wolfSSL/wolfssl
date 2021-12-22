@@ -607,6 +607,7 @@ then
         then
 # these use DES3:
             test "$enable_stunnel" = "" && enable_stunnel=yes
+            test "$enable_curl" = "" && enable_curl=yes
             test "$enable_tcpdump" = "" && enable_tcpdump=yes
 
             test "$enable_eccsi" = "" && enable_eccsi=yes
@@ -908,6 +909,7 @@ AC_ARG_ENABLE([mcast],
 # lighty (--enable-lighty) HAVE_LIGHTY
 # rsyslog (--enable-rsyslog)
 # stunnel (--enable-stunnel) HAVE_STUNNEL
+# curl (--enable-curl) HAVE_CURL
 # libest (--enable-libest) HAVE_LIBEST
 # asio (--enable-asio) WOLFSSL_ASIO
 # libwebsockets (--enable-libwebsockets) WOLFSSL_LIBWEBSOCKETS
@@ -5075,6 +5077,27 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL -DWOLFSSL_ALWAYS_VERIFY_CB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI -DHAVE_EX_DATA"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB -DWOLFSSL_SIGNER_DER_CERT"
+fi
+
+# curl Support
+AC_ARG_ENABLE([curl],
+    [AS_HELP_STRING([--enable-curl],[Enable curl (default: disabled)])],
+    [ ENABLED_CURL=$enableval ],
+    [ ENABLED_CURL=no ]
+    )
+# curl support requires all the features enabled within this conditional.
+if test "$ENABLED_CURL" = "yes"
+then
+    if test "x$ENABLED_DES3" = "xno"
+    then
+        ENABLED_DES3="yes"
+    fi
+
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+    then
+        ENABLED_OPENSSLEXTRA="yes"
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
 fi
 
 if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no" \
