@@ -860,7 +860,7 @@ static int iotsafe_sign_hash(byte *privkey_idx, uint16_t id_size,
                ret = BAD_FUNC_ARG;
             } else if ((sig_hdr[0] == IOTSAFE_TAG_SIGNATURE_FIELD) &&
                        (sig_hdr[1] == 0) &&
-                       (sig_hdr[2] ==  2 * IOTSAFE_ECC_KSIZE)) {
+                       (sig_hdr[2] == 2 * IOTSAFE_ECC_KSIZE)) {
                 XSTRNCPY(R, resp + 6, IOTSAFE_ECC_KSIZE * 2);
                 XSTRNCPY(S, resp + 6 + IOTSAFE_ECC_KSIZE * 2,
                         IOTSAFE_ECC_KSIZE * 2);
