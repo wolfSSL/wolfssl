@@ -2083,11 +2083,12 @@ enum {
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
     defined(HAVE_WEBSERVER)
 /* for compatibility these must be macros */
-#define SSL_OP_NO_SSLv2   WOLFSSL_OP_NO_SSLv2
-#define SSL_OP_NO_SSLv3   WOLFSSL_OP_NO_SSLv3
-#define SSL_OP_NO_TLSv1   WOLFSSL_OP_NO_TLSv1
-#define SSL_OP_NO_TLSv1_1 WOLFSSL_OP_NO_TLSv1_1
-#define SSL_OP_NO_TLSv1_2 WOLFSSL_OP_NO_TLSv1_2
+#define SSL_OP_NO_SSLv2       WOLFSSL_OP_NO_SSLv2
+#define SSL_OP_NO_SSLv3       WOLFSSL_OP_NO_SSLv3
+#define SSL_OP_NO_TLSv1       WOLFSSL_OP_NO_TLSv1
+#define SSL_OP_NO_TLSv1_1     WOLFSSL_OP_NO_TLSv1_1
+#define SSL_OP_NO_TLSv1_2     WOLFSSL_OP_NO_TLSv1_2
+#define SSL_OP_NO_COMPRESSION WOLFSSL_OP_NO_COMPRESSION
 #if !(!defined(WOLFSSL_TLS13) && defined(WOLFSSL_APACHE_HTTPD)) /* apache uses this to determine if TLS 1.3 is enabled */
 #define SSL_OP_NO_TLSv1_3 WOLFSSL_OP_NO_TLSv1_3
 #endif
