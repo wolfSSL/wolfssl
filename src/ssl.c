@@ -5194,6 +5194,14 @@ int wolfSSL_Init(void)
         }
 #endif
 
+    #ifdef WC_RNG_SEED_CB
+        wc_SetSeed_Cb(wc_GenerateSeed);
+    #endif
+
+    #if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 5
+        wolfCrypt_SetPrivateKeyReadEnable_fips(1, WC_KEYTYPE_ALL);
+    #endif
+
 #ifdef OPENSSL_EXTRA
     #ifndef WOLFSSL_NO_OPENSSL_RAND_CB
         if ((ret == WOLFSSL_SUCCESS) && (wolfSSL_RAND_InitMutex() != 0)) {
