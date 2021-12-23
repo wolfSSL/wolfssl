@@ -162,9 +162,6 @@ extern int wc_InitRsaHw(RsaKey* key);
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
-#ifdef WOLFSSL_IP_ALT_NAME
-    #include <wolfssl/ssl.h>
-#endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     #include <wolfssl/internal.h>
     #include <wolfssl/openssl/objects.h>
