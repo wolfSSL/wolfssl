@@ -615,7 +615,73 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
     WOLFSSL_API   int wolfSSL_SetIO_LwIP(WOLFSSL* ssl, void *pcb,
                                 tcp_recv_fn recv, tcp_sent_fn sent, void *arg);
 #endif
+#ifdef WOLFSSL_ISOTP
+    #define ISOTP_DEFAULT_TIMEOUT 100
+    #define ISOTP_DEFAULT_WAIT_COUNT 3
+    #define ISOTP_DEFAULT_BUFFER_SIZE 16384
 
+    enum isotp_frame_type {
+        ISOTP_FRAME_TYPE_SINGLE      = 0,
+        ISOTP_FRAME_TYPE_FIRST       = 1,
+        ISOTP_FRAME_TYPE_CONSECUTIVE = 2,
+        ISOTP_FRAME_TYPE_CONTROL     = 3
+    };
+
+    enum isotp_flow_control {
+        ISOTP_FLOW_CONTROL_CTS   = 0,
+        ISOTP_FLOW_CONTROL_WAIT  = 1,
+        ISOTP_FLOW_CONTROL_ABORT = 2
+    };
+
+    enum isotp_connection_state {
+        ISOTP_CONN_STATE_IDLE,
+        ISOTP_CONN_STATE_SENDING,
+        ISOTP_CONN_STATE_RECEIVING
+    };
+
+    typedef struct isotp_can_data {
+        byte data[8];
+        byte length;
+    } isotp_can_data;
+
+    /* User supplied functions for sending/receiving CAN bus messages of up to
+     * 8 bytes, as well as a function to add an artificial delay when a
+     * receiver requests one. */
+    typedef int (*can_recv_fn)(struct isotp_can_data *data, void *arg,
+            int timeout);
+    typedef int (*can_send_fn)(struct isotp_can_data *data, void *arg);
+    typedef void (*can_delay_fn)(int microseconds);
+
+    typedef struct isotp_wolfssl_ctx {
+        int socket;
+        struct isotp_can_data frame;
+        can_recv_fn recv_fn;
+        can_send_fn send_fn;
+        can_delay_fn delay_fn;
+        byte sequence;
+        byte flow_packets;
+        byte flow_counter;
+        byte frame_delay;
+        byte wait_counter;
+        char *buf_ptr;
+        word16 buf_length;
+        byte receive_delay;
+        char *receive_buffer;
+        char *receive_buffer_ptr;
+        int receive_buffer_len;
+        int receive_buffer_size;
+        enum isotp_connection_state state;
+        void *arg;
+    } isotp_wolfssl_ctx;
+
+    WOLFSSL_LOCAL int ISOTP_Receive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+    WOLFSSL_LOCAL int ISOTP_Send(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+    WOLFSSL_API int wolfSSL_SetIO_ISOTP(WOLFSSL *ssl, isotp_wolfssl_ctx *ctx,
+            can_recv_fn recv_fn, can_send_fn send_fn, can_delay_fn delay_fn,
+            word32 receive_delay, char *receive_buffer,
+            int receive_buffer_size, void *arg);
+
+#endif
 #ifdef WOLFSSL_DTLS
     typedef int (*CallbackGenCookie)(WOLFSSL* ssl, unsigned char* buf, int sz,
                                      void* ctx);
