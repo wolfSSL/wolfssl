@@ -28,4 +28,43 @@
 
 #if defined(WOLFSSL_HAVE_PSA)
 
+#include <psa/crypto.h>
+
+#include <wolfssl/wolfcrypt/port/psa/psa.h>
+
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/types.h>
+
+
+int wc_psa_init()
+{
+    psa_status_t s;
+
+    s = psa_crypto_init();
+    if (s != PSA_SUCCESS)
+        return WC_HW_E;
+
+    return 0;
+}
+
+#if !defined(WOLFSSL_PSA_NO_RNG)
+/**
+ * wc_psa_get_random() - generate @size random bytes in @out
+ * @out: output buffer
+ * @size: number of random bytes to generate
+ *
+ * return: 0 on success
+ */
+int wc_psa_get_random(unsigned char *out, word32 sz)
+{
+    psa_status_t s;
+
+    s = psa_generate_random((uint8_t*)out, sz);
+    if (s != PSA_SUCCESS)
+        return WC_HW_E;
+
+    return 0;
+}
+#endif
+
 #endif /* WOLFSSL_HAVE_PSA */

@@ -177,6 +177,10 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #include <wolfssl/wolfcrypt/port/iotsafe/iotsafe.h>
 #endif
 
+#if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_RNG)
+#include <wolfssl/wolfcrypt/port/psa/psa.h>
+#endif
+
 #if defined(HAVE_INTEL_RDRAND) || defined(HAVE_INTEL_RDSEED)
     static word32 intel_flags = 0;
     static void wc_InitRng_IntelRD(void)
