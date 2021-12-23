@@ -32,12 +32,12 @@ project(wolfssl VERSION 5.0.1 LANGUAGES C)
 
 # shared library versioning
 # increment if interfaces have been added, removed or changed
-set(LIBTOOL_CURRENT 27)
+set(LIBTOOL_CURRENT 30)
 # increment if source code has changed  set to zero if current is incremented
 set(LIBTOOL_REVISION 0)
 # increment if interfaces have been added set to zero if interfaces have been
 # removed or changed
-set(LIBTOOL_AGE 3)
+set(LIBTOOL_AGE 0)
 
 math(EXPR LIBTOOL_SO_VERSION "${LIBTOOL_CURRENT} - ${LIBTOOL_AGE}")
 set(LIBTOOL_FULL_VERSION ${LIBTOOL_SO_VERSION}.${LIBTOOL_AGE}.${LIBTOOL_REVISION})
@@ -177,8 +177,6 @@ find_package(Threads)
 #       - Single precision math
 #       - Enable all
 #       - Enable all crypto
-#       - 32-bit mode
-#       - 16-bit mode
 
 # For reproducible build, gate out from the build anything that might
 # introduce semantically frivolous jitter, maximizing chance of
@@ -187,9 +185,22 @@ set(WOLFSSL_REPRODUCIBLE_BUILD_HELP_STRING "Enable maximally reproducible build 
 add_option("WOLFSSL_REPRODUCIBLE_BUILD" ${WOLFSSL_REPRODUCIBLE_BUILD_HELP_STRING} "no" "yes;no")
 
 if(WOLFSSL_REPRODUCIBLE_BUILD)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_REPRODUCIBLE_BUILD")
     set(CMAKE_C_ARCHIVE_CREATE "<CMAKE_AR> Dqc <TARGET> <LINK_FLAGS> <OBJECTS>")
     set(CMAKE_C_ARCHIVE_APPEND "<CMAKE_AR> Dq  <TARGET> <LINK_FLAGS> <OBJECTS>")
     set(CMAKE_C_ARCHIVE_FINISH "<CMAKE_RANLIB> -D <TARGET>")
+endif()
+
+# Support for forcing 32-bit mode
+# TODO: detect platform from other options
+set(WOLFSSL_32BIT_HELP_STRING "Enables 32-bit support (default: disabled)")
+add_option("WOLFSSL_32BIT" ${WOLFSSL_32BIT_HELP_STRING} "no" "yes;no")
+
+# 16-bit compiler support
+set(WOLFSSL_16BIT_HELP_STRING "Enables 16-bit support (default: disabled)")
+add_option("WOLFSSL_16BIT" ${WOLFSSL_16BIT_HELP_STRING} "no" "yes;no")
+if(WOLFSSL_16BIT)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWC_16BIT_CPU")
 endif()
 
 # Support for disabling all ASM
@@ -312,11 +323,15 @@ endif()
 
 # AES-GCM
 set(WOLFSSL_AESGCM_HELP_STRING "Enable wolfSSL AES-GCM support (default: enabled)")
-add_option("WOLFSSL_AESGCM" ${WOLFSSL_AESGCM_HELP_STRING} "yes" "yes;no;table;small;word32")
+add_option("WOLFSSL_AESGCM" ${WOLFSSL_AESGCM_HELP_STRING} "yes" "yes;no;table;small;word32;4bit")
 
 # leanpsk and leantls don't need gcm
 if(WOLFSSL_LEAN_PSK OR (WOLFSSL_LEAN_TLS AND NOT WOLFSSL_TLS13))
     override_cache(WOLFSSL_AESGCM "no")
+endif()
+
+if(WOLFSSL_AESGCM AND NOT WORDS_BIGENDIAN)
+    override_cache(WOLFSSL_AESGCM "4bit")
 endif()
 
 if(WOLFSSL_AESGCM)
@@ -335,10 +350,16 @@ if(WOLFSSL_AESGCM)
         override_cache(WOLFSSL_AESGCM "yes")
     endif()
 
+    if("${WOLFSSL_AESGCM}" STREQUAL "4bit")
+        list(APPEND WOLFSSL_DEFINITIONS "-DGCM_TABLE_4BIT")
+        override_cache(WOLFSSL_AESGCM "yes")
+    endif()
+
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_AESGCM")
 endif()
 
 # TODO: - AES-CCM
+#       - AES-GCM stream
 #       - AES-CTR
 #       - AES-OFB
 #       - AES-CFB
@@ -355,6 +376,13 @@ endif()
 #       - RIPEMD
 #       - BLAKE2
 
+
+# Align data
+set(WOLFSSL_ALIGN_DATA_HELP_STRING "Align data for ciphers (default: enabled)")
+add_option("WOLFSSL_ALIGN_DATA" ${WOLFSSL_ALIGN_DATA_HELP_STRING} "yes" "yes;no")
+if(WOLFSSL_ALIGN_DATA)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_USE_ALIGN")
+endif()
 
 # SHA224
 set(SHA224_DEFAULT "no")
@@ -693,7 +721,7 @@ else()
     endif()
 endif()
 if(WOLFSSL_RSA_PSS)
-    list(APPEND WOLFSSL_DEFINITIONS "-DWC_RSA_PSS") 
+    list(APPEND WOLFSSL_DEFINITIONS "-DWC_RSA_PSS")
 endif()
 
 # DH
@@ -708,7 +736,7 @@ if(NOT WOLFSSL_DH)
     list(APPEND WOLFSSL_DEFINITIONS "-DNO_DH")
 else()
     if(WOLFSSL_LEAN_PSK OR WOLFSSL_LEAN_TLS)
-      list(APPEND WOLFSSL_DEFINITIONS "-DNO_DH")  
+      list(APPEND WOLFSSL_DEFINITIONS "-DNO_DH")
       override_cache(WOLFSSL_DH "no")
     endif()
 endif()
@@ -815,7 +843,7 @@ set(WOLFSSL_BASE64_ENCODE_HELP_STRING "Enable Base64 encoding (default: enabled 
 add_option("WOLFSSL_BASE64_ENCODE" ${WOLFSSL_BASE64_ENCODE_HELP_STRING} ${BASE64_ENCODE_DEFAULT} "yes;no")
 
 if(WOLFSSL_BASE64_ENCODE)
-    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_BASE64_ENCODE")  
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_BASE64_ENCODE")
 endif()
 
 # TODO: - Base16
@@ -839,16 +867,6 @@ add_option("WOLFSSL_ARC4" ${WOLFSSL_ARC4_HELP_STRING} "no" "yes;no")
 
 if(WOLFSSL_OPENSSH OR WOLFSSL_WPAS)
     override_cache(WOLFSSL_ARC4 "yes")
-endif()
-
-if(NOT WOLFSSL_ARC4)
-    list(APPEND WOLFSSL_DEFINITIONS "-DNO_RC4")
-else()
-    # turn off ARC4 if leanpsk or leantls on
-    if(WOLFSSL_LEAN_PSK OR WOLFSSL_LEAN_TLS)
-        list(APPEND WOLFSSL_DEFINITIONS "-DNO_RC4")
-        override_cache(WOLFSSL_ARC4 "no")
-    endif()
 endif()
 
 # MD5
@@ -921,10 +939,6 @@ if(WOLFSSL_SHA3 AND NOT WOLFSSL_32BIT)
 endif()
 
 # SHAKE256
-if(NOT WOLFSSL_SHAKE256)
-    override_cache(WOLFSSL_SHAKE256 ${WOLFSSL_SHA3})
-endif()
-
 if(WOLFSSL_SHAKE256)
     if(NOT WOLFSSL_32BIT)
         list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHAKE256")
@@ -1069,7 +1083,7 @@ add_option("WOLFSSL_SUPPORTED_CURVES" ${WOLFSSL_SUPPORTED_CURVES_HELP_STRING} "y
 
 if(WOLFSSL_SUPPORTED_CURVES)
     if(NOT WOLFSSL_ECC AND NOT WOLFSSL_CURVE25519 AND NOT WOLFSSL_CURVE448)
-        override_cache(WOLFSSL_SUPPORTED_CURVES "no")        
+        override_cache(WOLFSSL_SUPPORTED_CURVES "no")
     else()
         list(APPEND WOLFSSL_DEFINITIONS
             "-DHAVE_TLS_EXTENSIONS"
@@ -1095,9 +1109,10 @@ if (NOT WOLFSSL_ECC AND
 endif()
 if (WOLFSSL_TLS13)
     list(APPEND WOLFSSL_DEFINITIONS
+        "-DHAVE_SUPPORTED_CURVES"
         "-DWOLFSSL_TLS13"
         "-DHAVE_TLS_EXTENSIONS"
-        "-DHAVE_SUPPORTED_CURVES")
+        )
 endif()
 
 # Session Ticket Extension
@@ -1120,6 +1135,17 @@ add_option("WOLFSSL_EXTENDED_MASTER" ${WOLFSSL_EXTENDED_MASTER_HELP_STRING} "yes
 
 if(WOLFSSL_EXTENDED_MASTER)
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_EXTENDED_MASTER")
+endif()
+
+
+if(NOT WOLFSSL_ARC4)
+    list(APPEND WOLFSSL_DEFINITIONS "-DNO_RC4")
+else()
+    # turn off ARC4 if leanpsk or leantls on
+    if(WOLFSSL_LEAN_PSK OR WOLFSSL_LEAN_TLS)
+        list(APPEND WOLFSSL_DEFINITIONS "-DNO_RC4")
+        override_cache(WOLFSSL_ARC4 "no")
+    endif()
 endif()
 
 # TODO: - TLS extensions
@@ -1161,14 +1187,14 @@ endif()
 set(WOLFSSL_STUNNEL_HELP_STRING "Enable stunnel (default: disabled)")
 add_option("WOLFSSL_STUNNEL" ${WOLFSSL_STUNNEL_HELP_STRING} "no" "yes;no")
 
+if(WOLFSSL_ENC_THEN_MAC)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ENCRYPT_THEN_MAC")
+endif()
+
 if(NOT WOLFSSL_PSK AND
    NOT WOLFSSL_LEAN_PSK AND
    NOT WOLFSSL_STUNNEL)
     list(APPEND WOLFSSL_DEFINITIONS "-DNO_PSK")
-endif()
-
-if(WOLFSSL_ENC_THEN_MAC)
-    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ENCRYPT_THEN_MAC")
 endif()
 
 # MD4
@@ -1184,7 +1210,34 @@ if(NOT WOLFSSL_MD4)
     endif()
 endif()
 
-#  TODO: - Encrypted keys
+#  Encrypted keys
+set(WOLFSSL_ENCKEYS_HELP_STRING "Enable PEM encrypted key support (default: disabled)")
+add_option("WOLFSSL_ENCKEYS" ${WOLFSSL_ENCKEYS_HELP_STRING} "no" "yes;no")
+
+if(NOT WOLFSSL_ENCKEYS)
+    if(WOLFSSL_OPENSSLEXTRA OR
+        WOLFSSL_WEBSERVER OR
+        WOLFSSL_WPAS)
+        # opensslextra, webserver, and WPAS  needs enckeys
+        override_cache(WOLFSSL_ENCKEYS "yes")
+    endif()
+endif()
+
+if(WOLFSSL_ENCKEYS)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ENCRYPTED_KEYS")
+endif()
+
+# PKCS#12
+set(WOLFSSL_PKCS12_HELP_STRING "Enable pkcs12 (default: enabled)")
+add_option("WOLFSSL_PKCS12" ${WOLFSSL_PKCS12_HELP_STRING} "yes" "yes;no")
+if(NOT WOLFSSL_ASN)
+  override_cache(WOLFSSL_PKCS12 "no")
+endif()
+
+if(NOT WOLFSSL_PKCS12)
+  list(APPEND WOLFSSL_DEFINITIONS "-DNO_PKCS12")
+endif()
+
 
 # PWDBASED has to come after certservice since we want it on w/o explicit on
 # PWDBASED
@@ -1195,7 +1248,8 @@ if(NOT WOLFSSL_PWDBASED)
     if(WOLFSSL_OPENSSLEXTRA OR
         WOLFSSL_OPENSSLALL OR
         WOLFSSL_WEBSERVER OR
-        WOLFSSL_ENC_KEYS)
+        WOLFSSL_ENC_KEYS OR
+        WOLFSSL_PKCS12)
         # opensslextra, opensslall, webserver, and enckeys needs pwdbased
         override_cache(WOLFSSL_PWDBASED "yes")
     else()
@@ -1280,7 +1334,6 @@ add_option("WOLFSSL_CRYPT_TESTS_LIBS" ${WOLFSSL_CRYPT_TESTS_LIBS_HELP_STRING} "n
 
 # TODO: - LIBZ
 #       - PKCS#11
-#       - PKCS#12
 #       - Cavium
 #       - Cavium V
 #       - Cavium Octeon
@@ -1435,6 +1488,8 @@ file(APPEND ${CYASSL_OPTION_FILE} ${OPTION_FILE_CONTENTS})
 
 # TODO: - Build shared/static libs based on enables. Check CMake
 #         global flag BUILD_SHARED_LIBS.
+option(BUILD_SHARED_LIBS "Build shared libraries (.dll/.so) instead of static ones (.lib/.a)" ON)
+
 set(LIB_SOURCES "")
 # Generates a list of sources to include in the library.
 # Corresponds to the instances of "src_libwolfssl_la_SOURCES += ..."
@@ -1605,25 +1660,125 @@ endif()
 
 include(GNUInstallDirs)
 
-set(EXCLUDED_HEADERS_REGEX
-    "(internal|\
-    options|\
-    pic32mz-crypt|\
-    ti-hash|\
-    ti-ccm|\
-    nrf51|\
-    ksdk_port|\
-    dcp_port|\
-    xil-sha3|\
-    caam_driver|\
-    wolfcaam|\
-    wolfcaam_sha|\
-    stm32|\
-    stsafe|\
-    esp32-cry|\
-    cryptoCell|\
-    renesas-tsip-crypt|\
-    psoc6_crypto).h")
+set(HEADER_EXCLUDE
+  "internal.h"
+  "cyassl/ctaocrypt/port"
+  "wolfssl/wolfcrypt/port/nrf51.h"
+  "wolfssl/wolfcrypt/port/arm"
+  "wolfssl/wolfcrypt/port/cypress"
+  "wolfssl/wolfcrypt/port/Espressif"
+  "wolfssl/wolfcrypt/port/iotsafe"
+  "wolfssl/wolfcrypt/port/nxp"
+  "wolfssl/wolfcrypt/port/pic"
+  "wolfssl/wolfcrypt/port/Renesas"
+  "wolfssl/wolfcrypt/port/silabs"
+  "wolfssl/wolfcrypt/port/st"
+  "wolfssl/wolfcrypt/port/ti"
+  "wolfssl/wolfcrypt/port/xilinx"
+  )
+
+# TODO: add support for the various ports
+
+# For distro build don't install options.h.
+# It depends on the architecture and conflicts with Multi-Arch.
+if(BUILD_DISTRO)
+  list(APPEND HEADER_EXCLUDE
+    "options.h")
+endif()
+
+if(NOT BUILD_CRYPTOAUTHLIB)
+  list(APPEND HEADER_EXCLUDE
+    "wolfssl/wolfcrypt/port/atmel")
+endif()
+
+if(NOT BUILD_AFALG)
+  list(APPEND HEADER_EXCLUDE
+    "wolfssl/wolfcrypt/port/af_alg")
+endif()
+
+if(NOT BUILD_KCAPI)
+  list(APPEND HEADER_EXCLUDE
+    "wolfssl/wolfcrypt/port/kcapi"
+    )
+endif()
+
+if(NOT BUILD_DEVCRYPTO)
+  list(APPEND HEADER_EXCLUDE
+    "wolfssl/wolfcrypt/port/devcrypto")
+endif()
+
+if(NOT BUILD_ASYNCCRYPT)
+  list(APPEND HEADER_EXCLUDE
+    "wolfssl/wolfcrypt/async.h")
+endif()
+
+if(NOT BUILD_PKCS11)
+    list(APPEND HEADER_EXCLUDE
+      "wolfssl/wolfcrypt/wc_pkcs11.h"
+      "wolfssl/wolfcrypt/pkcs11.h"
+      )
+endif()
+
+if(NOT BUILD_CAVIUM AND NOT BUILD_OCTEON_SYNC)
+  list(APPEND HEADER_EXCLUDE
+    "wolfssl/wolfcrypt/port/cavium")
+else()
+  if(NOT BUILD_CAVIUM)
+    list(APPEND HEADER_EXCLUDE
+      "wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h")
+  endif()
+
+  if(NOT BUILD_OCTEON_SYNC)
+    list(APPEND HEADER_EXCLUDE
+      "wolfssl/wolfcrypt/port/cavium/cavium_octeon_sync.h"
+      )
+  endif()
+endif()
+
+
+if(NOT BUILD_INTEL_QA AND NOT BUILD_INTEL_QA_SYNC)
+  list(APPEND HEADER_EXCLUDE
+    "wolfssl/wolfcrypt/port/intel")
+else()
+  if(NOT BUILD_INTEL_QA)
+    list(APPEND HEADER_EXCLUDE
+      "wolfssl/wolfcrypt/port/intel/quickassist.h"
+      "wolfssl/wolfcrypt/port/intel/quickassist_mem.h"
+      )
+  endif()
+
+  if(NOT BUILD_INTEL_QA_SYNC)
+    list(APPEND HEADER_EXCLUDE
+      "wolfssl/wolfcrypt/port/intel/quickassist_sync.h")
+  endif()
+endif()
+
+if(NOT BUILD_SP)
+  list(APPEND HEADER_EXCLUDE
+    "wolfssl/wolfcrypt/sp.h"
+    "wolfssl/wolfcrypt/sp_int.h")
+endif()
+
+if(NOT BUILD_SELFTEST)
+  list(APPEND HEADER_EXCLUDE
+    "wolfssl/wolfcrypt/selftest.h")
+endif()
+
+if(NOT BUILD_FIPS OR BUILD_FIPS_V1)
+  list(APPEND HEADER_EXCLUDE
+    "wolfssl/wolfcrypt/fips.h")
+endif()
+
+if(NOT BUILD_QNXCAAM)
+  list(APPEND HEADER_EXCLUDE
+    "wolfssl/wolfcrypt/port/caam"
+    )
+endif()
+
+list(JOIN HEADER_EXCLUDE "|" EXCLUDED_HEADERS_REGEX)
+
+string(PREPEND EXCLUDED_HEADERS_REGEX "(")
+string(APPEND  EXCLUDED_HEADERS_REGEX ")")
 
 set(INSTALLED_EXAMPLES
     ${CMAKE_CURRENT_SOURCE_DIR}/examples/echoserver/echoserver.c
@@ -1646,6 +1801,12 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/wolfssl/
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wolfssl
         FILES_MATCHING PATTERN "*.h"
         REGEX ${EXCLUDED_HEADERS_REGEX} EXCLUDE)
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cyassl/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cyassl
+        FILES_MATCHING PATTERN "*.h"
+        REGEX ${EXCLUDED_HEADERS_REGEX} EXCLUDE)
+
+
 # Install the examples
 install(FILES ${INSTALLED_EXAMPLES}
         DESTINATION ${CMAKE_INSTALL_DOCDIR}/example)
@@ -1653,7 +1814,7 @@ install(FILES ${INSTALLED_EXAMPLES}
 install(FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/doc/README.txt
         ${CMAKE_CURRENT_SOURCE_DIR}/certs/taoCert.txt
-        DESTINATION ${CMAKE_INSTALL_DOCDIR}/wolfssl)
+        DESTINATION ${CMAKE_INSTALL_DOCDIR})
 # Install the export set
 install(EXPORT wolfssl-targets
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/wolfssl
@@ -1661,3 +1822,13 @@ install(EXPORT wolfssl-targets
 
 # TODO: Distro build + rules for what to include in the distro.
 #       See various include.am files.
+
+set(prefix ${CMAKE_INSTALL_PREFIX})
+set(exec_prefix "\${prefix}")
+set(libdir "\${exec_prefix}/lib")
+set(includedir "\${prefix}/include")
+set(VERSION ${PROJECT_VERSION})
+
+configure_file(support/wolfssl.pc.in ${CMAKE_CURRENT_BINARY_DIR}/support/wolfssl.pc @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/support/wolfssl.pc
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
