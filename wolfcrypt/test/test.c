@@ -34259,7 +34259,7 @@ static int pkcs7signed_run_SingleShotVectors(
 
             /* compare decompressed to expected */
             if (((word32)ret != testVectors[i].contentSz) ||
-                XMEMCMP(out, testVectors[i].content, ret)) {
+                XMEMCMP(out, testVectors[i].content, ret))
                 ERROR_OUT(-12562, out);
         }
     #ifndef NO_PKCS7_ENCRYPTED_DATA
