@@ -5177,6 +5177,14 @@ int wolfSSL_Init(void)
 
     WOLFSSL_ENTER("wolfSSL_Init");
 
+    #if defined(HAVE_FIPS_VERSION) && ((HAVE_FIPS_VERSION > 5) || ((HAVE_FIPS_VERSION == 5) && (HAVE_FIPS_VERSION_MINOR >= 1)))
+        ret = wolfCrypt_SetPrivateKeyReadEnable_fips(1, WC_KEYTYPE_ALL);
+        if (ret != 0)
+            return ret;
+        else
+            ret = WOLFSSL_SUCCESS;
+    #endif
+
     if (initRefCount == 0) {
         /* Initialize crypto for use with TLS connection */
         if (wolfCrypt_Init() != 0) {
@@ -5196,10 +5204,6 @@ int wolfSSL_Init(void)
 
     #ifdef WC_RNG_SEED_CB
         wc_SetSeed_Cb(wc_GenerateSeed);
-    #endif
-
-    #if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 5
-        wolfCrypt_SetPrivateKeyReadEnable_fips(1, WC_KEYTYPE_ALL);
     #endif
 
 #ifdef OPENSSL_EXTRA
@@ -14886,6 +14890,13 @@ int wolfSSL_Cleanup(void)
         if (ret == WOLFSSL_SUCCESS)
             ret = WC_CLEANUP_E;
     }
+
+#if defined(HAVE_FIPS_VERSION) && ((HAVE_FIPS_VERSION > 5) || ((HAVE_FIPS_VERSION == 5) && (HAVE_FIPS_VERSION_MINOR >= 1)))
+    if (wolfCrypt_SetPrivateKeyReadEnable_fips(0, WC_KEYTYPE_ALL) < 0) {
+        if (ret == WOLFSSL_SUCCESS)
+            ret = WC_CLEANUP_E;
+    }
+#endif
 
 #ifdef HAVE_GLOBAL_RNG
     if ((globalRNGMutex_valid == 1) && (wc_FreeMutex(&globalRNGMutex) != 0)) {
