@@ -5093,10 +5093,45 @@ then
         ENABLED_DES3="yes"
     fi
 
+    if test "x$ENABLED_ALPN" = "xno"
+    then
+        ENABLED_ALPN="yes"
+    fi
+
+    if test "x$ENABLED_WOLFSSH" = "xno"
+    then
+        ENABLED_WOLFSSH="yes"
+    fi
+
     if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
     fi
+
+    if test "x$ENABLED_CRL" = "xno"
+    then
+        ENABLED_CRL="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
+    fi
+
+    if test "x$ENABLED_OCSP" = "xno"
+    then
+        ENABLED_OCSP="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
+    fi
+
+    if test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xno"
+    then
+        ENABLED_CERTIFICATE_STATUS_REQUEST="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_CERTIFICATE_STATUS_REQUEST"
+    fi
+
+    if test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xno"
+    then
+        ENABLED_CERTIFICATE_STATUS_REQUEST_V2="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_CERTIFICATE_STATUS_REQUEST_V2"
+    fi
+
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
 fi
 
