@@ -618,7 +618,9 @@
                 #include <winsock2.h>
             #endif
             #include <windows.h>
-            #include <ws2tcpip.h>
+            #ifndef WOLFSSL_USER_IO
+                #include <ws2tcpip.h> /* required for InetPton */
+            #endif
         #endif /* WOLFSSL_SGX */
     #endif
 #elif defined(THREADX)
