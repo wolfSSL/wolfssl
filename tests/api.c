@@ -30953,7 +30953,7 @@ static void test_wolfSSL_private_keys(void)
                                                          WOLFSSL_FILETYPE_PEM));
     AssertNotNull(ssl = SSL_new(ctx));
 
-    #if !defined(HAVE_USER_RSA) && !defined(NO_CHECK_PRIVATE_KEY)
+    #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
     AssertIntNE(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
     #endif
 
