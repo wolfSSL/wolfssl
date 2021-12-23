@@ -1191,6 +1191,11 @@ static int ExportOptions(WOLFSSL* ssl, byte* exp, word32 len, byte ver,
         exp[idx++] = options->encThenMac;
         exp[idx++] = options->startedETMRead;
         exp[idx++] = options->startedETMWrite;
+#else
+        exp[idx++] = 0;
+        exp[idx++] = 0;
+        exp[idx++] = 0;
+        exp[idx++] = 0;
 #endif
     }
 
@@ -1369,6 +1374,11 @@ static int ImportOptions(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
         options->encThenMac         = exp[idx++];
         options->startedETMRead     = exp[idx++];
         options->startedETMWrite    = exp[idx++];
+#else
+        idx++;
+        idx++;
+        idx++;
+        idx++;
 #endif
     }
 
