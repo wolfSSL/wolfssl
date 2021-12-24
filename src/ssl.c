@@ -23322,7 +23322,6 @@ WOLFSSL_SESSION* GetSessionRef(WOLFSSL* ssl)
         WOLFSSL_MSG("Error allocating client session reference");
         return NULL;
     }
-    
 
     XMEMCPY(ref, session, refSize);
     ref->type = WOLFSSL_SESSION_TYPE_REF;
@@ -23527,7 +23526,7 @@ void FreeSession(WOLFSSL_SESSION* session)
 
 #ifdef HAVE_SESSION_TICKET
     if (session->ticketLenAlloc > 0) {
-        XFREE(session->ticket, heap, DYNAMIC_TYPE_SESSION_TICK);
+        XFREE(session->ticket, session->heap, DYNAMIC_TYPE_SESSION_TICK);
     }
 #endif
 
