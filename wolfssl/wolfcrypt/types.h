@@ -751,7 +751,11 @@ decouple library dependencies with standard string, memory and so on.
     #endif
 
     #ifndef OFFSETOF
-        #define OFFSETOF(type, field) ((size_t)&(((type *)0)->field))
+        #if defined(__clang__) || defined(__GNUC__)
+            #define OFFSETOF(type, field) __builtin_offsetof(type, field)
+        #else
+            #define OFFSETOF(type, field) ((size_t)&(((type *)0)->field))
+        #endif
     #endif
 
 
@@ -851,6 +855,7 @@ decouple library dependencies with standard string, memory and so on.
         DYNAMIC_TYPE_AES          = 93,
         DYNAMIC_TYPE_CMAC         = 94,
         DYNAMIC_TYPE_FALCON       = 95,
+        DYNAMIC_TYPE_SESSION      = 96,
         DYNAMIC_TYPE_SNIFFER_SERVER     = 1000,
         DYNAMIC_TYPE_SNIFFER_SESSION    = 1001,
         DYNAMIC_TYPE_SNIFFER_PB         = 1002,

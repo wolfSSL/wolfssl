@@ -1753,17 +1753,20 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     SOCKET_T sockfd = WOLFSSL_SOCKET_INVALID;
 
     wolfSSL_method_func method = NULL;
-    WOLFSSL_CTX*     ctx     = 0;
-    WOLFSSL*         ssl     = 0;
+    WOLFSSL_CTX*     ctx     = NULL;
+    WOLFSSL*         ssl     = NULL;
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
     wolfsentry_errcode_t wolfsentry_ret;
 #endif
 
-    WOLFSSL*         sslResume = 0;
-    WOLFSSL_SESSION* session = 0;
+    WOLFSSL*         sslResume = NULL;
+    WOLFSSL_SESSION* session = NULL;
+#if !defined(NO_SESSION_CACHE) && (defined(OPENSSL_EXTRA) || \
+        defined(HAVE_EXT_CACHE))
     byte*            flatSession = NULL;
     int              flatSessionSz = 0;
+#endif
 
     char msg[CLI_MSG_SZ];
     int  msgSz = 0;
@@ -1957,8 +1960,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
     (void)session;
-    (void)flatSession;
-    (void)flatSessionSz;
     (void)sslResume;
     (void)atomicUser;
     (void)scr;
@@ -3898,7 +3899,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef NO_SESSION_CACHE
     if (resumeSession) {
-        session = wolfSSL_get_session(ssl);
+        session = wolfSSL_get1_session(ssl);
     }
 #endif
 
@@ -3914,6 +3915,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 XFREE(flatSession, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 err_sys("flat session size check failure");
             }
+            /* using heap based flat session, free original session */
+            wolfSSL_SESSION_free(session);
+            session = NULL;
         }
     }
 #endif
@@ -4006,9 +4010,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE)
         if (flatSession) {
             XFREE(flatSession, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            wolfSSL_SESSION_free(session);
         }
 #endif
+        wolfSSL_SESSION_free(session);
+        session = NULL;
+
 #ifdef HAVE_SESSION_TICKET
         wolfSSL_set_SessionTicket_cb(sslResume, sessionTicketCB,
                                     (void*)"resumed session");

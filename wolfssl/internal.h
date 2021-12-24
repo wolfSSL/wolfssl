@@ -3340,57 +3340,68 @@ struct WOLFSSL_X509_CHAIN {
     x509_buffer certs[MAX_CHAIN_DEPTH];   /* only allow max depth 4 for now */
 };
 
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_SESSION_CACHE_REF)
+    /* enable allocation of a smaller reference for the internal cache,
+     * to prevent client from using internal cache reference. */
+    #define ENABLE_CLIENT_SESSION_REF
+#endif
+
+typedef enum WOLFSSL_SESSION_TYPE {
+    WOLFSSL_SESSION_TYPE_UNKNOWN,
+    WOLFSSL_SESSION_TYPE_SSL,    /* in ssl->session */
+    WOLFSSL_SESSION_TYPE_CACHE,  /* pointer to internal cache */
+    WOLFSSL_SESSION_TYPE_HEAP    /* allocated from heap SESSION_new */
+#ifdef ENABLE_CLIENT_SESSION_REF
+   ,WOLFSSL_SESSION_TYPE_REF     /* smaller allocation with reference to internal cache */
+#endif
+} WOLFSSL_SESSION_TYPE;
 
 /* wolfSSL session type */
 struct WOLFSSL_SESSION {
-    int                cacheRow;                  /* row in session cache     */
-    word32             bornOn;                    /* create time in seconds   */
-    word32             timeout;                   /* timeout in seconds       */
-    byte               sessionID[ID_LEN];         /* id for protocol          */
+    WOLFSSL_SESSION_TYPE type;
+    byte               side;              /* Either WOLFSSL_CLIENT_END or
+                                                    WOLFSSL_SERVER_END */
+
+    int                cacheRow;          /* row in session cache     */
+    word32             bornOn;            /* create time in seconds   */
+    word32             timeout;           /* timeout in seconds       */
+
+    byte               sessionID[ID_LEN]; /* id for protocol          */
     byte               sessionIDSz;
-    byte               masterSecret[SECRET_LEN];  /* stored secret            */
-    word16             haveEMS;                   /* ext master secret flag   */
-#ifdef SESSION_CERTS
-#ifdef OPENSSL_EXTRA
-    WOLFSSL_X509*      peer;                      /* peer cert */
-#endif
-    WOLFSSL_X509_CHAIN chain;                     /* peer cert chain, static  */
-    #ifdef WOLFSSL_ALT_CERT_CHAINS
-    WOLFSSL_X509_CHAIN altChain;                  /* peer alt cert chain, static */
-    #endif
+
+    byte*              masterSecret;      /* stored secret            */
+    word16             haveEMS;           /* ext master secret flag   */
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+    WOLFSSL_X509*      peer;              /* peer cert */
 #endif
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
                                defined(HAVE_SESSION_TICKET))
-    ProtocolVersion    version;                   /* which version was used   */
+    ProtocolVersion    version;           /* which version was used   */
 #endif
 #if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK) || \
                         (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET))
-    byte               cipherSuite0;              /* first byte, normally 0   */
-    byte               cipherSuite;               /* 2nd byte, actual suite   */
+    byte               cipherSuite0;      /* first byte, normally 0   */
+    byte               cipherSuite;       /* 2nd byte, actual suite   */
 #endif
 #ifndef NO_CLIENT_CACHE
-    word16             idLen;                     /* serverID length          */
-    byte               serverID[SERVER_ID_LEN];   /* for easier client lookup */
+    word16             idLen;             /* serverID length          */
+    byte*              serverID;          /* for easier client lookup */
 #endif
 #ifdef OPENSSL_EXTRA
-    byte               sessionCtxSz;              /* sessionCtx length        */
-    byte               sessionCtx[ID_LEN];        /* app specific context id  */
-#ifndef SINGLE_THREADED
-    wolfSSL_Mutex      refMutex;                  /* ref count mutex */
-#endif
-    int                refCount;                  /* reference count */
+    byte               sessionCtxSz;      /* sessionCtx length        */
+    byte*              sessionCtx;        /* app specific context id  */
 #endif /* OPENSSL_EXTRA */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    byte               peerVerifyRet;             /* cert verify error */
+    byte               peerVerifyRet;     /* cert verify error */
 #endif
 #ifdef WOLFSSL_TLS13
     word16             namedGroup;
 #endif
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     #ifdef WOLFSSL_TLS13
-    word32             ticketSeen;                /* Time ticket seen (ms) */
-    word32             ticketAdd;                 /* Added by client */
-    TicketNonce        ticketNonce;               /* Nonce used to derive PSK */
+    word32             ticketSeen;        /* Time ticket seen (ms) */
+    word32             ticketAdd;         /* Added by client */
+    TicketNonce        ticketNonce;       /* Nonce used to derive PSK */
     #endif
     #ifdef WOLFSSL_EARLY_DATA
     word32             maxEarlyDataSz;
@@ -3399,23 +3410,53 @@ struct WOLFSSL_SESSION {
 #ifdef HAVE_SESSION_TICKET
     byte*              ticket;
     word16             ticketLen;
-    byte               staticTicket[SESSION_TICKET_LEN];
-    byte               isDynamic;
+    word16             ticketLenAlloc;    /* is dynamic */
 #endif
-#if defined(HAVE_EXT_CACHE) || defined(OPENSSL_EXTRA)
-    byte               isAlloced;
+    int                refCount;          /* reference count */
+    void*              heap;
+
+#ifdef ENABLE_CLIENT_SESSION_REF
+    /* pointer to WOLFSSL_SESSION in internal cache (for WOLFSSL_SESSION_TYPE_REF) */
+    void*              refPtr;
+#endif
+
+    /* Below buffers are not allocated for the WOLFSSL_SESSION_TYPE_REF, instead
+     * the above pointers reference the session cache for backwards
+     * compatibility. For all other session types the above pointers reference
+     * these buffers directly */
+    byte               _masterSecret[SECRET_LEN];
+#ifndef NO_CLIENT_CACHE
+    byte               _serverID[SERVER_ID_LEN];
+#endif
+#ifdef HAVE_SESSION_TICKET
+    byte               _staticTicket[SESSION_TICKET_LEN];
+#endif
+#ifdef OPENSSL_EXTRA
+    byte               _sessionCtx[ID_LEN];
+#endif
+
+#ifdef SESSION_CERTS
+    WOLFSSL_X509_CHAIN chain;             /* peer cert chain, static  */
+    #ifdef WOLFSSL_ALT_CERT_CHAINS
+    WOLFSSL_X509_CHAIN altChain;          /* peer alt cert chain, static */
+    #endif
 #endif
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
-    byte               side;                      /* Either WOLFSSL_CLIENT_END or
-                                                            WOLFSSL_SERVER_END */
+#ifdef OPENSSL_EXTRA
+    #ifndef SINGLE_THREADED
+    wolfSSL_Mutex      refMutex;          /* ref count mutex */
+    #endif
+#endif
 };
 
 
+WOLFSSL_LOCAL WOLFSSL_SESSION* NewSession(void* heap);
 WOLFSSL_LOCAL WOLFSSL_SESSION* GetSession(WOLFSSL*, byte*, byte);
+WOLFSSL_LOCAL WOLFSSL_SESSION* GetSessionRef(WOLFSSL*);
 WOLFSSL_LOCAL int              SetSession(WOLFSSL*, WOLFSSL_SESSION*);
-WOLFSSL_LOCAL void             FreeSession(WOLFSSL_SESSION*, int);
+WOLFSSL_LOCAL void             FreeSession(WOLFSSL_SESSION*);
 
 typedef int (*hmacfp) (WOLFSSL*, byte*, const byte*, word32, int, int, int, int);
 

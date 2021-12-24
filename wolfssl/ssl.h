@@ -1443,6 +1443,7 @@ WOLFSSL_API int  wolfSSL_session_reused(WOLFSSL*);
 WOLFSSL_API int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_SESSION_new(void);
+WOLFSSL_API WOLFSSL_SESSION* wolfSSL_SESSION_new_ex(void* heap);
 WOLFSSL_API void wolfSSL_SESSION_free(WOLFSSL_SESSION* session);
 WOLFSSL_API int wolfSSL_SESSION_set_cipher(WOLFSSL_SESSION* session,
                                         const WOLFSSL_CIPHER* cipher);
@@ -1465,7 +1466,6 @@ WOLFSSL_API const char*  wolfSSL_SESSION_CIPHER_get_name(WOLFSSL_SESSION* sessio
 WOLFSSL_API const char*  wolfSSL_get_cipher(WOLFSSL*);
 WOLFSSL_API void wolfSSL_sk_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl);
-                           /* what's ref count */
 
 WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_new(void);
 #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
