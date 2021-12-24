@@ -3989,7 +3989,8 @@ static const byte extExtKeyUsageEmailProtectOid[] = {43, 6, 1, 5, 5, 7, 3, 4};
 static const byte extExtKeyUsageTimestampOid[]    = {43, 6, 1, 5, 5, 7, 3, 8};
 static const byte extExtKeyUsageOcspSignOid[]     = {43, 6, 1, 5, 5, 7, 3, 9};
 
-#if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN) || \
+    defined(WOLFSSL_ASN_TEMPLATE)
 /* csrAttrType */
 #define CSR_ATTR_TYPE_OID_BASE(num) {42, 134, 72, 134, 247, 13, 1, 9, num}
 static const byte attrEmailOid[] =             CSR_ATTR_TYPE_OID_BASE(1);
@@ -4033,7 +4034,8 @@ static const byte tlsFeatureOid[] = {43, 6, 1, 5, 5, 7, 1, 24};
 static const byte dnsSRVOid[] = {43, 6, 1, 5, 5, 7, 8, 7};
 #endif
 
-#if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN) || \
+    defined(WOLFSSL_ASN_TEMPLATE)
 /* Pilot attribute types (0.9.2342.19200300.100.1.*) */
 #ifdef WOLFSSL_ASN_TEMPLATE
 static const byte uidOid[] = {9, 146, 38, 137, 147, 242, 44, 100, 1, 1}; /* user id */
@@ -10625,10 +10627,6 @@ static const CertNameData certNameSubject[] = {
         OFFSETOF(DecodedCert, subjectStreet),
         OFFSETOF(DecodedCert, subjectStreetLen),
         OFFSETOF(DecodedCert, subjectStreetEnc),
-#else
-        0,
-        0,
-        0,
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
         NID_streetAddress
