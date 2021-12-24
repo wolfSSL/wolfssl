@@ -77,7 +77,7 @@
     #ifndef _WIN32
         #include <arpa/inet.h>
     #else
-        #include <WS2tcpip.h>
+        #include <ws2tcpip.h>
     #endif
 #endif
 
