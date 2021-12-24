@@ -76,6 +76,10 @@ WOLFSSL_API void wc_Pkcs11_Finalize(Pkcs11Dev* dev);
 WOLFSSL_API int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev,
     int slotId, const char* tokenName, const unsigned char *userPin,
     int userPinSz);
+WOLFSSL_API int wc_Pkcs11Token_InitName(Pkcs11Token* token, Pkcs11Dev* dev,
+    const char* tokenName, int tokenSz,
+    const unsigned char* userPin, int userPinSz);
+
 WOLFSSL_API void wc_Pkcs11Token_Final(Pkcs11Token* token);
 WOLFSSL_API int wc_Pkcs11Token_Open(Pkcs11Token* token, int readWrite);
 WOLFSSL_API void wc_Pkcs11Token_Close(Pkcs11Token* token);

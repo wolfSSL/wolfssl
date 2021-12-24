@@ -495,36 +495,44 @@ void wc_Pkcs11_Finalize(Pkcs11Dev* dev)
     }
 }
 
-/**
- * Set up a token for use.
- *
- * @param  [in]  token      Token object.
- * @param  [in]  dev        PKCS#11 device object.
- * @param  [in]  slotId     Slot number of the token.<br>
- *                          Passing -1 uses the first available slot.
- * @param  [in]  tokenName  Name of token to initialize.
- * @param  [in]  userPin    PIN to use to login as user.
- * @param  [in]  userPinSz  Number of bytes in PIN.
- * @return  BAD_FUNC_ARG when token, dev and/or tokenName is NULL.
- * @return  WC_INIT_E when initializing token fails.
- * @return  WC_HW_E when another PKCS#11 library call fails.
- * @return  -1 when no slot available.
- *          0 on success.
- */
-int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
-    const char* tokenName, const unsigned char* userPin, int userPinSz)
+/* lookup by token name and return slotId or (-1) if not found */
+static int Pkcs11Slot_FindByTokenName(Pkcs11Dev* dev,
+    const char* tokenName, size_t tokenNameSz)
+{
+    CK_RV         rv;
+    CK_ULONG      slotCnt = 0;
+    CK_TOKEN_INFO tinfo;
+    int           slotId = -1;
+    rv = dev->func->C_GetSlotList(CK_TRUE, NULL, &slotCnt);
+    if (rv == CKR_OK) {
+        for (slotId = 0; slotId < (int)slotCnt; slotId++) {
+            rv = dev->func->C_GetTokenInfo(slotId, &tinfo);
+            PKCS11_RV("C_GetTokenInfo", rv);
+            if (rv == CKR_OK &&
+                XMEMCMP(tinfo.label, tokenName, tokenNameSz) == 0) {
+                return slotId;
+            }
+        }
+    }
+    return -1;
+}
+
+/* lookup by slotId or tokenName */
+static int Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
+    const char* tokenName, size_t tokenNameSz,
+    const unsigned char* userPin, size_t userPinSz)
 {
     int         ret = 0;
     CK_RV       rv;
     CK_SLOT_ID* slot = NULL;
     CK_ULONG    slotCnt = 0;
 
-    if (token == NULL || dev == NULL || tokenName == NULL)
+    if (token == NULL || dev == NULL) {
         ret = BAD_FUNC_ARG;
+    }
 
     if (ret == 0) {
         if (slotId < 0) {
-            /* Use first available slot with a token. */
             rv = dev->func->C_GetSlotList(CK_TRUE, NULL, &slotCnt);
             PKCS11_RV("C_GetSlotList", rv);
             if (rv != CKR_OK) {
@@ -544,10 +552,24 @@ int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
                 }
             }
             if (ret == 0) {
-                if (slotCnt > 0)
+                if (tokenName != NULL && tokenNameSz > 0) {
+                    /* find based on token name */
+                    slotId = Pkcs11Slot_FindByTokenName(dev,
+                        tokenName, tokenNameSz);
+                }
+                else {
+                    /* Use first available slot with a token. */
                     slotId = (int)slot[0];
-                else
-                    ret = WC_HW_E;
+                }
+            }
+        }
+        else {
+            /* verify slotId is valid */
+            CK_SLOT_INFO sinfo;
+            rv = dev->func->C_GetSlotInfo(slotId, &sinfo);
+            PKCS11_RV("C_GetSlotInfo", rv);
+            if (rv != CKR_OK) {
+                ret = WC_INIT_E;
             }
         }
     }
@@ -559,10 +581,59 @@ int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
         token->userPinSz = (CK_ULONG)userPinSz;
     }
 
-    if (slot != NULL)
+    if (slot != NULL) {
         XFREE(slot, dev->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 
     return ret;
+}
+
+/**
+ * Set up a token for use. Lookup by slotId or tokenName
+ *
+ * @param  [in]  token      Token object.
+ * @param  [in]  dev        PKCS#11 device object.
+ * @param  [in]  slotId     Slot number of the token.<br>
+ *                          Passing -1 uses the first available slot.
+ * @param  [in]  tokenName  Name of token to initialize (optional)
+ * @param  [in]  userPin    PIN to use to login as user.
+ * @param  [in]  userPinSz  Number of bytes in PIN.
+ * @return  BAD_FUNC_ARG when token, dev and/or tokenName is NULL.
+ * @return  WC_INIT_E when initializing token fails.
+ * @return  WC_HW_E when another PKCS#11 library call fails.
+ * @return  0 on success.
+ */
+int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
+    const char* tokenName, const unsigned char* userPin, int userPinSz)
+{
+    size_t tokenNameSz = 0;
+    if (tokenName != NULL) {
+        tokenNameSz = XSTRLEN(tokenName);
+    }
+    return Pkcs11Token_Init(token, dev, slotId, tokenName, tokenNameSz,
+        userPin, (size_t)userPinSz);
+}
+
+/**
+ * Set up a token for use. Lookup by slotId or tokenName/size
+ *
+ * @param  [in]  token       Token object.
+ * @param  [in]  dev         PKCS#11 device object.
+ * @param  [in]  tokenName   Name of token to initialize.
+ * @param  [in]  tokenNameSz Name size for token
+ * @param  [in]  userPin     PIN to use to login as user.
+ * @param  [in]  userPinSz   Number of bytes in PIN.
+ * @return  BAD_FUNC_ARG when token, dev and/or tokenName is NULL.
+ * @return  WC_INIT_E when initializing token fails.
+ * @return  WC_HW_E when another PKCS#11 library call fails.
+ * @return  0 on success.
+ */
+int wc_Pkcs11Token_InitName(Pkcs11Token* token, Pkcs11Dev* dev,
+                             const char* tokenName, int tokenNameSz,
+                             const unsigned char* userPin, int userPinSz)
+{
+    return Pkcs11Token_Init(token, dev, -1, tokenName, (size_t)tokenNameSz,
+        userPin, (size_t)userPinSz);
 }
 
 /**
