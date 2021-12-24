@@ -222,92 +222,131 @@ int sp_ecc_uncompress_384(mp_int* xm, int odd, mp_int* ym);
 
 #else
 
-int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* rm,
-    int map, void* heap);
-int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
+WOLFSSL_LOCAL int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm,
+    ecc_point* rm, int map, void* heap);
+WOLFSSL_LOCAL int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
     const ecc_point* am, int inMont, ecc_point* rm, int map, void* heap);
-int sp_ecc_mulmod_base_256(const mp_int* km, ecc_point* rm, int map,
-    void* heap);
-int sp_ecc_mulmod_base_add_256(const mp_int* km, const ecc_point* am,
-    int inMont, ecc_point* rm, int map, void* heap);
-
-int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap);
-int sp_ecc_secret_gen_256(const mp_int* priv, const ecc_point* pub, byte* out,
-    word32* outlen, void* heap);
-int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng,
-    const mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap);
-int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
-    const mp_int* pY, const mp_int* pZ, const mp_int* r, const mp_int* sm,
-    int* res, void* heap);
-int sp_ecc_is_point_256(const mp_int* pX, const mp_int* pY);
-int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
-    const mp_int* privm, void* heap);
-int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
-    mp_int* qX, mp_int* qY, mp_int* qZ, mp_int* rX, mp_int* rY, mp_int* rZ);
-int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
-    mp_int* rX, mp_int* rY, mp_int* rZ);
-int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ);
-int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym);
-
-int sp_ecc_mulmod_384(const mp_int* km, const ecc_point* gm, ecc_point* rm,
+WOLFSSL_LOCAL int sp_ecc_mulmod_base_256(const mp_int* km, ecc_point* rm,
     int map, void* heap);
-int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
+WOLFSSL_LOCAL int sp_ecc_mulmod_base_add_256(const mp_int* km,
     const ecc_point* am, int inMont, ecc_point* rm, int map, void* heap);
-int sp_ecc_mulmod_base_384(const mp_int* km, ecc_point* rm, int map,
-    void* heap);
-int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
-    int inMont, ecc_point* rm, int map, void* heap);
 
-int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap);
-int sp_ecc_secret_gen_384(const mp_int* priv, const ecc_point* pub, byte* out,
-    word32* outlen, void* heap);
-int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng,
+WOLFSSL_LOCAL int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub,
+    void* heap);
+WOLFSSL_LOCAL int sp_ecc_secret_gen_256(const mp_int* priv,
+    const ecc_point* pub, byte* out, word32* outlen, void* heap);
+WOLFSSL_LOCAL int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng,
     const mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap);
-int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
-    const mp_int* pY, const mp_int* pZ, const mp_int* r, const mp_int* sm,
-    int* res, void* heap);
-int sp_ecc_is_point_384(const mp_int* pX, const mp_int* pY);
-int sp_ecc_check_key_384(const mp_int* pX, const mp_int* pY,
+WOLFSSL_LOCAL int sp_ecc_verify_256(const byte* hash, word32 hashLen,
+    const mp_int* pX, const mp_int* pY, const mp_int* pZ, const mp_int* r,
+    const mp_int* sm, int* res, void* heap);
+WOLFSSL_LOCAL int sp_ecc_is_point_256(const mp_int* pX, const mp_int* pY);
+WOLFSSL_LOCAL int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
     const mp_int* privm, void* heap);
-int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
+WOLFSSL_LOCAL int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
     mp_int* qX, mp_int* qY, mp_int* qZ, mp_int* rX, mp_int* rY, mp_int* rZ);
-int sp_ecc_proj_dbl_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
+WOLFSSL_LOCAL int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
     mp_int* rX, mp_int* rY, mp_int* rZ);
-int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ);
-int sp_ecc_uncompress_384(mp_int* xm, int odd, mp_int* ym);
+WOLFSSL_LOCAL int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ);
+WOLFSSL_LOCAL int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym);
 
-int sp_ecc_mulmod_1024(const mp_int* km, const ecc_point* gm, ecc_point* rm,
+WOLFSSL_LOCAL int sp_ecc_mulmod_384(const mp_int* km, const ecc_point* gm,
+    ecc_point* rm, int map, void* heap);
+WOLFSSL_LOCAL int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
+    const ecc_point* am, int inMont, ecc_point* rm, int map, void* heap);
+WOLFSSL_LOCAL int sp_ecc_mulmod_base_384(const mp_int* km, ecc_point* rm,
     int map, void* heap);
-int sp_ecc_mulmod_base_1024(const mp_int* km, ecc_point* rm, int map,
-    void* heap);
-int sp_ecc_mulmod_base_add_1024(const mp_int* km, const ecc_point* am,
-    int inMont, ecc_point* rm, int map, void* heap);
-int sp_ecc_gen_table_1024(const ecc_point* gm, byte* table, word32* len,
-    void* heap);
-int sp_ecc_mulmod_table_1024(const mp_int* km, const ecc_point* gm, byte* table,
-    ecc_point* r, int map, void* heap);
-int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res);
-int sp_Pairing_1024(const ecc_point* p, const ecc_point* q, mp_int* res);
-int sp_Pairing_gen_precomp_1024(const ecc_point* p, byte* table, word32* len);
-int sp_Pairing_precomp_1024(const ecc_point* p, const ecc_point* q, mp_int* res,
-    const byte* table, word32 len);
-int sp_ecc_is_point_1024(const mp_int* pX, const mp_int* pY);
-int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
+WOLFSSL_LOCAL int sp_ecc_mulmod_base_add_384(const mp_int* km,
+    const ecc_point* am, int inMont, ecc_point* rm, int map, void* heap);
+
+WOLFSSL_LOCAL int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap);
+WOLFSSL_LOCAL int sp_ecc_secret_gen_384(const mp_int* priv,
+    const ecc_point* pub, byte* out, word32* outlen, void* heap);
+WOLFSSL_LOCAL int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng,
+    const mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap);
+WOLFSSL_LOCAL int sp_ecc_verify_384(const byte* hash, word32 hashLen,
+    const mp_int* pX, const mp_int* pY, const mp_int* pZ, const mp_int* r,
+    const mp_int* sm, int* res, void* heap);
+WOLFSSL_LOCAL int sp_ecc_is_point_384(const mp_int* pX, const mp_int* pY);
+WOLFSSL_LOCAL int sp_ecc_check_key_384(const mp_int* pX, const mp_int* pY,
+    const mp_int* privm, void* heap);
+WOLFSSL_LOCAL int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
+    mp_int* qX, mp_int* qY, mp_int* qZ, mp_int* rX, mp_int* rY, mp_int* rZ);
+WOLFSSL_LOCAL int sp_ecc_proj_dbl_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
+    mp_int* rX, mp_int* rY, mp_int* rZ);
+WOLFSSL_LOCAL int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ);
+WOLFSSL_LOCAL int sp_ecc_uncompress_384(mp_int* xm, int odd, mp_int* ym);
+
+WOLFSSL_LOCAL int sp_ecc_mulmod_521(const mp_int* km, const ecc_point* gm,
+    ecc_point* rm, int map, void* heap);
+WOLFSSL_LOCAL int sp_ecc_mulmod_add_521(const mp_int* km, const ecc_point* gm,
+    const ecc_point* am, int inMont, ecc_point* rm, int map, void* heap);
+WOLFSSL_LOCAL int sp_ecc_mulmod_base_521(const mp_int* km, ecc_point* rm,
+    int map, void* heap);
+WOLFSSL_LOCAL int sp_ecc_mulmod_base_add_521(const mp_int* km,
+    const ecc_point* am, int inMont, ecc_point* rm, int map, void* heap);
+
+WOLFSSL_LOCAL int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap);
+WOLFSSL_LOCAL int sp_ecc_secret_gen_521(const mp_int* priv,
+    const ecc_point* pub, byte* out, word32* outlen, void* heap);
+WOLFSSL_LOCAL int sp_ecc_sign_521(const byte* hash, word32 hashLen, WC_RNG* rng,
+    const mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap);
+WOLFSSL_LOCAL int sp_ecc_verify_521(const byte* hash, word32 hashLen,
+    const mp_int* pX, const mp_int* pY, const mp_int* pZ, const mp_int* r,
+    const mp_int* sm, int* res, void* heap);
+WOLFSSL_LOCAL int sp_ecc_is_point_521(const mp_int* pX, const mp_int* pY);
+WOLFSSL_LOCAL int sp_ecc_check_key_521(const mp_int* pX, const mp_int* pY,
+    const mp_int* privm, void* heap);
+WOLFSSL_LOCAL int sp_ecc_proj_add_point_521(mp_int* pX, mp_int* pY, mp_int* pZ,
+    mp_int* qX, mp_int* qY, mp_int* qZ, mp_int* rX, mp_int* rY, mp_int* rZ);
+WOLFSSL_LOCAL int sp_ecc_proj_dbl_point_521(mp_int* pX, mp_int* pY, mp_int* pZ,
+    mp_int* rX, mp_int* rY, mp_int* rZ);
+WOLFSSL_LOCAL int sp_ecc_map_521(mp_int* pX, mp_int* pY, mp_int* pZ);
+WOLFSSL_LOCAL int sp_ecc_uncompress_521(mp_int* xm, int odd, mp_int* ym);
+
+WOLFSSL_LOCAL int sp_ecc_mulmod_1024(const mp_int* km, const ecc_point* gm,
+    ecc_point* rm, int map, void* heap);
+WOLFSSL_LOCAL int sp_ecc_mulmod_base_1024(const mp_int* km, ecc_point* rm,
+    int map, void* heap);
+WOLFSSL_LOCAL int sp_ecc_mulmod_base_add_1024(const mp_int* km,
+    const ecc_point* am, int inMont, ecc_point* rm, int map, void* heap);
+WOLFSSL_LOCAL int sp_ecc_gen_table_1024(const ecc_point* gm, byte* table,
+    word32* len, void* heap);
+WOLFSSL_LOCAL int sp_ecc_mulmod_table_1024(const mp_int* km,
+    const ecc_point* gm, byte* table, ecc_point* r, int map, void* heap);
+WOLFSSL_LOCAL int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp,
+    mp_int* res);
+WOLFSSL_LOCAL int sp_Pairing_1024(const ecc_point* p, const ecc_point* q,
+    mp_int* res);
+WOLFSSL_LOCAL int sp_Pairing_gen_precomp_1024(const ecc_point* p, byte* table,
+    word32* len);
+WOLFSSL_LOCAL int sp_Pairing_precomp_1024(const ecc_point* p,
+    const ecc_point* q, mp_int* res, const byte* table, word32 len);
+WOLFSSL_LOCAL int sp_ecc_is_point_1024(const mp_int* pX, const mp_int* pY);
+WOLFSSL_LOCAL int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
     const mp_int* privm, void* heap);
 
 #endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2  && !WOLFSSL_SP_ARM[32|64]_ASM */
 
 #ifdef WOLFSSL_SP_NONBLOCK
-int sp_ecc_sign_256_nb(sp_ecc_ctx_t* ctx, const byte* hash, word32 hashLen,
-    WC_RNG* rng, mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap);
-int sp_ecc_verify_256_nb(sp_ecc_ctx_t* ctx, const byte* hash, word32 hashLen,
-    const mp_int* pX, const mp_int* pY, const mp_int* pZ, const mp_int* r,
-    const mp_int* sm, int* res, void* heap);
-int sp_ecc_sign_384_nb(sp_ecc_ctx_t* ctx, const byte* hash, word32 hashLen,
-    WC_RNG* rng, mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap);
-int sp_ecc_verify_384_nb(sp_ecc_ctx_t* ctx, const byte* hash, word32 hashLen,
-    const mp_int* pX, const mp_int* pY, const mp_int* pZ, const mp_int* r,
-    const mp_int* sm, int* res, void* heap);
+WOLFSSL_LOCAL int sp_ecc_sign_256_nb(sp_ecc_ctx_t* ctx, const byte* hash,
+    word32 hashLen, WC_RNG* rng, mp_int* priv, mp_int* rm, mp_int* sm,
+    mp_int* km, void* heap);
+WOLFSSL_LOCAL int sp_ecc_verify_256_nb(sp_ecc_ctx_t* ctx, const byte* hash,
+    word32 hashLen, const mp_int* pX, const mp_int* pY, const mp_int* pZ,
+    const mp_int* r, const mp_int* sm, int* res, void* heap);
+WOLFSSL_LOCAL int sp_ecc_sign_384_nb(sp_ecc_ctx_t* ctx, const byte* hash,
+    word32 hashLen, WC_RNG* rng, mp_int* priv, mp_int* rm, mp_int* sm,
+    mp_int* km, void* heap);
+WOLFSSL_LOCAL int sp_ecc_verify_384_nb(sp_ecc_ctx_t* ctx, const byte* hash,
+    word32 hashLen, const mp_int* pX, const mp_int* pY, const mp_int* pZ,
+    const mp_int* r, const mp_int* sm, int* res, void* heap);
+WOLFSSL_LOCAL int sp_ecc_sign_521_nb(sp_ecc_ctx_t* ctx, const byte* hash,
+    word32 hashLen, WC_RNG* rng, mp_int* priv, mp_int* rm, mp_int* sm,
+    mp_int* km, void* heap);
+WOLFSSL_LOCAL int sp_ecc_verify_521_nb(sp_ecc_ctx_t* ctx, const byte* hash,
+    word32 hashLen, const mp_int* pX, const mp_int* pY, const mp_int* pZ,
+    const mp_int* r, const mp_int* sm, int* res, void* heap);
 #endif /* WOLFSSL_SP_NONBLOCK */
 
 #endif /* WOLFSSL_HAVE_SP_ECC */

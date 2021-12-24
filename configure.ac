@@ -5938,6 +5938,7 @@ ENABLED_SP_FF_4096=no
 ENABLED_SP_ECC=no
 ENABLED_SP_EC_256=no
 ENABLED_SP_EC_384=no
+ENABLED_SP_EC_521=no
 ENABLED_SP_SAKKE_1024=$ENABLED_SAKKE
 ENABLED_SP_NO_MALLOC=no
 ENABLED_SP_NONBLOCK=no
@@ -5956,6 +5957,7 @@ do
     if test "$host_cpu" = "x86_64"; then
       ENABLED_SP_FF_4096=yes
       ENABLED_SP_EC_384=yes
+      ENABLED_SP_EC_521=yes
     fi
     ;;
 
@@ -5970,6 +5972,7 @@ do
     if test "$host_cpu" = "x86_64"; then
       ENABLED_SP_FF_4096=yes
       ENABLED_SP_EC_384=yes
+      ENABLED_SP_EC_521=yes
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_FAST_MODEXP"
     ;;
@@ -5984,6 +5987,7 @@ do
     if test "$host_cpu" = "x86_64"; then
       ENABLED_SP_FF_4096=yes
       ENABLED_SP_EC_384=yes
+      ENABLED_SP_EC_521=yes
     fi
     ;;
 
@@ -6007,6 +6011,15 @@ do
   ec384 | p384 | 384)
     ENABLED_SP_ECC=yes
     ENABLED_SP_EC_384=yes
+    ;;
+  smallec521 | smallp521 | small521)
+    ENABLED_SP_SMALL=yes
+    ENABLED_SP_ECC=yes
+    ENABLED_SP_EC_521=yes
+    ;;
+  ec521 | p521 | 521)
+    ENABLED_SP_ECC=yes
+    ENABLED_SP_EC_521=yes
     ;;
   smallec1024 | smallp1024 | small1024)
     ENABLED_SP_ECC=yes
@@ -6146,6 +6159,10 @@ if test "$ENABLED_ECC" != "no" && test "$ENABLED_SP_ECC" = "yes"; then
     if test "$ENABLED_SP_EC_384" = "yes"; then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC384 -DWOLFSSL_SP_384"
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_384"
+    fi
+    if test "$ENABLED_SP_EC_521" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC521 -DWOLFSSL_SP_521"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_521"
     fi
     if test "$ENABLED_SP_SAKKE_1024" = "yes"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_1024"

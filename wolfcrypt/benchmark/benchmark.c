@@ -333,6 +333,7 @@
 #define BENCH_ED448_SIGN         0x00800000
 #define BENCH_ECC_P256           0x01000000
 #define BENCH_ECC_P384           0x02000000
+#define BENCH_ECC_P521           0x04000000
 #define BENCH_ECCSI_KEYGEN       0x00000020
 #define BENCH_ECCSI_PAIRGEN      0x00000040
 #define BENCH_ECCSI_VALIDATE     0x00000080
@@ -706,7 +707,7 @@ static int lng_index = 0;
 
 #ifndef NO_MAIN_DRIVER
 #ifndef MAIN_NO_ARGS
-static const char* bench_Usage_msg1[][17] = {
+static const char* bench_Usage_msg1[][18] = {
     /* 0 English  */
     {   "-? <num>    Help, print this usage\n            0: English, 1: Japanese\n",
         "-csv        Print terminal output in csv format\n",
@@ -719,6 +720,7 @@ static const char* bench_Usage_msg1[][17] = {
         "-ffhdhe3072 Measure DH using FFDHE 3072-bit parameters.\n",
         "-p256       Measure ECC using P-256 curve.\n",
         "-p384       Measure ECC using P-384 curve.\n",
+        "-p521       Measure ECC using P-521 curve.\n",
         "-ecc-all    Bench all enabled ECC curves.\n",
         "-<alg>      Algorithm to benchmark. Available algorithms include:\n",
         "-lng <num>  Display benchmark result by specified language.\n            0: English, 1: Japanese\n",
@@ -739,6 +741,7 @@ static const char* bench_Usage_msg1[][17] = {
         "-ffhdhe3072 Measure DH using FFDHE 3072-bit parameters.\n",
         "-p256       Measure ECC using P-256 curve.\n",
         "-p384       Measure ECC using P-384 curve.\n",
+        "-p521       Measure ECC using P-521 curve.\n",
         "-ecc-all    Bench all enabled ECC curves.\n",
         "-<alg>      アルゴリズムのベンチマークを実施します。\n            利用可能なアルゴリズムは下記を含みます:\n",
         "-lng <num>  指定された言語でベンチマーク結果を表示します。\n            0: 英語、 1: 日本語\n",
@@ -2093,6 +2096,9 @@ static void* benchmarks_do(void* args)
         }
         else if (bench_asym_algs & BENCH_ECC_P384) {
             bench_ecc_curve((int)ECC_SECP384R1);
+        }
+        else if (bench_asym_algs & BENCH_ECC_P521) {
+            bench_ecc_curve((int)ECC_SECP521R1);
         }
         else {
             #ifndef NO_ECC256
@@ -7305,11 +7311,14 @@ static void Usage(void)
 #if defined(HAVE_ECC) && defined(HAVE_ECC384)
     printf("%s", bench_Usage_msg1[lng_index][10]);   /* option -p384 */
 #endif
+#if defined(HAVE_ECC) && defined(HAVE_ECC521)
+    printf("%s", bench_Usage_msg1[lng_index][11]);   /* option -p521 */
+#endif
 #if defined(HAVE_ECC)
-    printf("%s", bench_Usage_msg1[lng_index][11]);   /* option -ecc-all */
+    printf("%s", bench_Usage_msg1[lng_index][12]);   /* option -ecc-all */
 #endif
 #ifndef WOLFSSL_BENCHMARK_ALL
-    printf("%s", bench_Usage_msg1[lng_index][12]);   /* option -<alg> */
+    printf("%s", bench_Usage_msg1[lng_index][13]);   /* option -<alg> */
     printf("             ");
     line = 13;
     for (i=0; bench_cipher_opt[i].str != NULL; i++)
@@ -7332,12 +7341,12 @@ static void Usage(void)
         print_alg(bench_other_opt[i].str + 1, &line);
     printf("\n");
 #endif
-    printf("%s", bench_Usage_msg1[lng_index][13]);   /* option -lng */
-    printf("%s", bench_Usage_msg1[lng_index][14]);   /* option <num> */
+    printf("%s", bench_Usage_msg1[lng_index][14]);   /* option -lng */
+    printf("%s", bench_Usage_msg1[lng_index][15]);   /* option <num> */
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
-    printf("%s", bench_Usage_msg1[lng_index][15]);   /* option -threads <num> */
+    printf("%s", bench_Usage_msg1[lng_index][16]);   /* option -threads <num> */
 #endif
-    printf("%s", bench_Usage_msg1[lng_index][16]);   /* option -print */
+    printf("%s", bench_Usage_msg1[lng_index][17]);   /* option -print */
 }
 
 /* Match the command line argument with the string.
@@ -7437,6 +7446,10 @@ int main(int argc, char** argv)
 #if defined(HAVE_ECC) && defined(HAVE_ECC384)
         else if (string_matches(argv[1], "-p384"))
             bench_asym_algs |= BENCH_ECC_P384;
+#endif
+#if defined(HAVE_ECC) && defined(HAVE_ECC521)
+        else if (string_matches(argv[1], "-p521"))
+            bench_asym_algs |= BENCH_ECC_P521;
 #endif
 #ifdef BENCH_ASYM
         else if (string_matches(argv[1], "-csv")) {

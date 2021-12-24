@@ -342,7 +342,9 @@ extern "C" {
 #if defined(WOLFSSL_HAVE_SP_ECC) && defined(WOLFSSL_SP_NONBLOCK)
 /* Non-blocking ECC operation context. */
 typedef struct sp_ecc_ctx {
-    #ifdef WOLFSSL_SP_384
+    #ifdef WOLFSSL_SP_521
+    byte data[66*80]; /* stack data */
+    #elif defined(WOLFSSL_SP_384)
     byte data[48*80]; /* stack data */
     #else
     byte data[32*80]; /* stack data */
