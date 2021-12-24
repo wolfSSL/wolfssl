@@ -305,6 +305,7 @@
     <ClCompile Include="wolfcrypt\src\ed448.c" />
     <ClCompile Include="wolfcrypt\src\error.c" />
     <ClCompile Include="wolfcrypt\src\fe_448.c" />
+    <ClCompile Include="wolfcrypt\src\fe_low_mem.c" />
     <ClCompile Include="wolfcrypt\src\fe_operations.c" />
     <ClCompile Include="wolfcrypt\src\ge_448.c" />
     <ClCompile Include="wolfcrypt\src\ge_low_mem.c" />
