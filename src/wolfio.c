@@ -2721,7 +2721,7 @@ static int isotp_send_single_frame(struct isotp_wolfssl_ctx *ctx, char *buf,
     /* Length will be at most 7 bytes to get here. Packet is length and type
      * for the first byte, then up to 7 bytes of data */
     ctx->frame.data[0] = ((byte)length) | (ISOTP_FRAME_TYPE_SINGLE << 4);
-    memcpy(&ctx->frame.data[1], buf, length);
+    XMEMCPY(&ctx->frame.data[1], buf, length);
     ctx->frame.length = length + 1;
     return ctx->send_fn(&ctx->frame, ctx->arg);
 }
@@ -2740,10 +2740,10 @@ static int isotp_send_flow_control(struct isotp_wolfssl_ctx *ctx,
             (ISOTP_FRAME_TYPE_CONTROL << 4);
     }
     /* Set the number of frames between flow control to infinite */
-    ctx->frame.data[1] = 0;
+    ctx->frame.data[1] = ISOTP_FLOW_CONTROL_FRAMES;
     /* User specified frame delay */
     ctx->frame.data[2] = ctx->receive_delay;
-    ctx->frame.length = 3;
+    ctx->frame.length = ISOTP_FLOW_CONTROL_PACKET_SIZE;
     ret = ctx->send_fn(&ctx->frame, ctx->arg);
     return ret;
 }
@@ -2784,19 +2784,20 @@ static int isotp_send_consecutive_frame(struct isotp_wolfssl_ctx *ctx)
     /* Sequence is 0 - 15 and then starts again, the first frame has an
      * implied sequence of '0' */
     ctx->sequence += 1;
-    if (ctx->sequence == 16) {
+    if (ctx->sequence > ISOTP_MAX_SEQUENCE_COUNTER) {
         ctx->sequence = 0;
     }
     ctx->flow_counter++;
     /* First byte it type and sequence number, up to 7 bytes of data */
     ctx->frame.data[0] = ctx->sequence | (ISOTP_FRAME_TYPE_CONSECUTIVE << 4);
-    if (ctx->buf_length > 7) {
-        memcpy(&ctx->frame.data[1], ctx->buf_ptr, 7);
-        ctx->buf_ptr += 7;
-        ctx->buf_length -= 7;
-        ctx->frame.length = 8;
+    if (ctx->buf_length > ISOTP_MAX_CONSECUTIVE_FRAME_DATA_SIZE) {
+        XMEMCPY(&ctx->frame.data[1], ctx->buf_ptr,
+                ISOTP_MAX_CONSECUTIVE_FRAME_DATA_SIZE);
+        ctx->buf_ptr += ISOTP_MAX_CONSECUTIVE_FRAME_DATA_SIZE;
+        ctx->buf_length -= ISOTP_MAX_CONSECUTIVE_FRAME_DATA_SIZE;
+        ctx->frame.length = ISOTP_CAN_BUS_PAYLOAD_SIZE;
     } else {
-        memcpy(&ctx->frame.data[1], ctx->buf_ptr, ctx->buf_length);
+        XMEMCPY(&ctx->frame.data[1], ctx->buf_ptr, ctx->buf_length);
         ctx->frame.length = ctx->buf_length + 1;
         ctx->buf_length = 0;
     }
@@ -2815,10 +2816,10 @@ static int isotp_send_first_frame(struct isotp_wolfssl_ctx *ctx, char *buf,
      * 6 bytes for data*/
     ctx->frame.data[0] = (length >> 8) | (ISOTP_FRAME_TYPE_FIRST << 4);
     ctx->frame.data[1] = length & 0xff;
-    memcpy(&ctx->frame.data[2], buf, 6);
-    ctx->buf_ptr = buf + 6;
-    ctx->buf_length = length - 6;
-    ctx->frame.length = 8;
+    XMEMCPY(&ctx->frame.data[2], buf, ISOTP_FIRST_FRAME_DATA_SIZE);
+    ctx->buf_ptr = buf + ISOTP_FIRST_FRAME_DATA_SIZE;
+    ctx->buf_length = length - ISOTP_FIRST_FRAME_DATA_SIZE;
+    ctx->frame.length = ISOTP_CAN_BUS_PAYLOAD_SIZE;
     ret = ctx->send_fn(&ctx->frame, ctx->arg);
     if (ret <= 0) {
         WOLFSSL_MSG("ISO-TP error sending first frame");
@@ -2833,7 +2834,7 @@ static int isotp_send_first_frame(struct isotp_wolfssl_ctx *ctx, char *buf,
         }
         /* Frame delay <= 0x7f is in ms, 0xfX is X * 100 us */
         if (ctx->frame_delay) {
-            if (ctx->frame_delay <= 127) {
+            if (ctx->frame_delay <= ISOTP_MAX_MS_FRAME_DELAY) {
                 ctx->delay_fn(ctx->frame_delay * 1000);
             } else {
                 ctx->delay_fn((ctx->frame_delay & 0xf) * 100);
@@ -2874,7 +2875,7 @@ int ISOTP_Send(WOLFSSL* ssl, char* buf, int sz, void* ctx)
     (void) ssl;
     int ret;
     struct isotp_wolfssl_ctx *isotp_ctx = (struct isotp_wolfssl_ctx*) ctx;
-    if (sz > 4095) {
+    if (sz > ISOTP_MAX_DATA_SIZE) {
         WOLFSSL_MSG("ISO-TP packets can be at most 4095 bytes");
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
@@ -2885,7 +2886,7 @@ int ISOTP_Send(WOLFSSL* ssl, char* buf, int sz, void* ctx)
     isotp_ctx->state = ISOTP_CONN_STATE_SENDING;
 
     /* Assuming normal addressing */
-    if (sz <= 7) {
+    if (sz <= ISOTP_SINGLE_FRAME_DATA_SIZE) {
         ret = isotp_send_single_frame(isotp_ctx, buf, (word16)sz);
     } else {
         ret = isotp_send_first_frame(isotp_ctx, buf, (word16)sz);
@@ -2909,7 +2910,7 @@ static int isotp_receive_single_frame(struct isotp_wolfssl_ctx *ctx)
         WOLFSSL_MSG("ISO-TP buffer is too small to receive data");
         return BUFFER_E;
     }
-    memcpy(ctx->receive_buffer, &ctx->frame.data[1], data_size);
+    XMEMCPY(ctx->receive_buffer, &ctx->frame.data[1], data_size);
     return data_size;
 }
 
@@ -2920,14 +2921,14 @@ static int isotp_receive_multi_frame(struct isotp_wolfssl_ctx *ctx)
     byte delay = 0;
 
     /* Increase receive timeout for enforced ms delay */
-    if (ctx->receive_delay <= 0x7f) {
+    if (ctx->receive_delay <= ISOTP_MAX_MS_FRAME_DELAY) {
         delay = ctx->receive_delay;
     }
     /* Still processing first frame.
      * Full data size is lower nibble of first byte for the most significant
      * followed by the second byte for the rest. Last 6 bytes are data */
     data_size = ((ctx->frame.data[0] & 0xf) << 8) + ctx->frame.data[1];
-    memcpy(ctx->receive_buffer, &ctx->frame.data[2], 6);
+    XMEMCPY(ctx->receive_buffer, &ctx->frame.data[2], ISOTP_FIRST_FRAME_DATA_SIZE);
     /* Need to send a flow control packet to either cancel or continue
      * transmission of data */
     if (ctx->receive_buffer_size < data_size) {
@@ -2937,9 +2938,9 @@ static int isotp_receive_multi_frame(struct isotp_wolfssl_ctx *ctx)
     }
     isotp_send_flow_control(ctx, FALSE);
 
-    ctx->buf_length = 6;
-    ctx->buf_ptr = ctx->receive_buffer + 6;
-    data_size -= 6;
+    ctx->buf_length = ISOTP_FIRST_FRAME_DATA_SIZE;
+    ctx->buf_ptr = ctx->receive_buffer + ISOTP_FIRST_FRAME_DATA_SIZE;
+    data_size -= ISOTP_FIRST_FRAME_DATA_SIZE;
     ctx->sequence = 1;
 
     while(data_size) {
@@ -2964,14 +2965,14 @@ static int isotp_receive_multi_frame(struct isotp_wolfssl_ctx *ctx)
         }
         /* Last 7 bytes or whatever we got after the first byte is data */
         frame_len = ctx->frame.length - 1;
-        memcpy(ctx->buf_ptr, &ctx->frame.data[1], frame_len);
+        XMEMCPY(ctx->buf_ptr, &ctx->frame.data[1], frame_len);
         ctx->buf_ptr += frame_len;
         ctx->buf_length += frame_len;
         data_size -= frame_len;
 
         /* Sequence is 0 - 15 (first 0 is implied for first packet */
         ctx->sequence++;
-        if (ctx->sequence == 16) {
+        if (ctx->sequence > ISOTP_MAX_SEQUENCE_COUNTER) {
             ctx->sequence = 0;
         }
     }
@@ -3033,12 +3034,12 @@ int ISOTP_Receive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 
     /* Return from the buffer */
     if (isotp_ctx->receive_buffer_len >= sz) {
-        memcpy(buf, isotp_ctx->receive_buffer_ptr, sz);
+        XMEMCPY(buf, isotp_ctx->receive_buffer_ptr, sz);
         isotp_ctx->receive_buffer_ptr+= sz;
         isotp_ctx->receive_buffer_len-= sz;
         return sz;
     } else {
-        memcpy(buf, isotp_ctx->receive_buffer_ptr,
+        XMEMCPY(buf, isotp_ctx->receive_buffer_ptr,
                 isotp_ctx->receive_buffer_len);
         sz = isotp_ctx->receive_buffer_len;
         isotp_ctx->receive_buffer_len = 0;
@@ -3082,7 +3083,7 @@ int wolfSSL_SetIO_ISOTP(WOLFSSL *ssl, isotp_wolfssl_ctx *ctx,
      * >= 1000 is divided by 1000. > 127ms is invalid */
     if (receive_delay < 1000) {
         ctx->receive_delay = 0xf0 + (receive_delay / 100);
-    } else if (receive_delay <= 1270000) {
+    } else if (receive_delay <= ISOTP_MAX_MS_FRAME_DELAY * 1000) {
         ctx->receive_delay = receive_delay / 1000;
     } else {
         WOLFSSL_MSG("ISO-TP delay parameter out of bounds");
