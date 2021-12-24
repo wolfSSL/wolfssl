@@ -31417,6 +31417,7 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
     WOLFSSL_ENTER("wolfSSL_sk_pop_free");
 
     if (sk == NULL) {
+        /* pop_free can be called with NULL, do not print bad argument */
         return;
     }
     #if defined(WOLFSSL_QT)

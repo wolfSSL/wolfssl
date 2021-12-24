@@ -7492,6 +7492,10 @@ static int TLSX_KeyShare_Process(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     ssl->session.namedGroup = (byte)keyShareEntry->group;
 #endif
+    /* reset the pre master secret size */
+    if (ssl->arrays->preMasterSz == 0)
+        ssl->arrays->preMasterSz = ENCRYPT_LEN;
+
     /* Use Key Share Data from server. */
     if (keyShareEntry->group >= MIN_FFHDE_GROUP &&
         keyShareEntry->group <= MAX_FFHDE_GROUP)
