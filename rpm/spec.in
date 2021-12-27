@@ -185,6 +185,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/openssl/bn.h
 %{_includedir}/wolfssl/openssl/cms.h
 %{_includedir}/wolfssl/openssl/buffer.h
+%{_includedir}/wolfssl/openssl/camellia.h
 %{_includedir}/wolfssl/openssl/cmac.h
 %{_includedir}/wolfssl/openssl/compat_types.h
 %{_includedir}/wolfssl/openssl/conf.h
@@ -206,6 +207,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/openssl/lhash.h
 %{_includedir}/wolfssl/openssl/md4.h
 %{_includedir}/wolfssl/openssl/md5.h
+%{_includedir}/wolfssl/openssl/modes.h
 %{_includedir}/wolfssl/openssl/obj_mac.h
 %{_includedir}/wolfssl/openssl/objects.h
 %{_includedir}/wolfssl/openssl/ocsp.h
@@ -262,6 +264,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/ed25519.h
 %{_includedir}/wolfssl/wolfcrypt/ed448.h
 %{_includedir}/wolfssl/wolfcrypt/error-crypt.h
+%{_includedir}/wolfssl/wolfcrypt/falcon.h
 %{_includedir}/wolfssl/wolfcrypt/fe_448.h
 %{_includedir}/wolfssl/wolfcrypt/fe_operations.h
 %{_includedir}/wolfssl/wolfcrypt/fips_test.h
@@ -310,6 +313,9 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Mon Dec 27 2021 Jacob Barthelmeh <jacob@wolfssl.com>
+- Add a missing headers camellia.h, modes.h from compat layer.
+- Add a missing header falcon.h.
 * Mon Nov 01 2021 Jacob Barthelmeh <jacob@wolfssl.com>
 - Add a missing headers cmac.h, compat_types.h from compat layer.
 * Thu Jul 08 2021 Jacob Barthelmeh <jacob@wolfssl.com>
