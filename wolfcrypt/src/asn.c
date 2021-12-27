@@ -22775,7 +22775,7 @@ static int SetNameRdnItems(ASNSetData* dataASN, ASNItem* namesASN,
     #endif
 
         if (nameLen[i] > 0) {
-            if (dataASN != NULL && nameASN != NULL) {
+            if (dataASN != NULL) {
                 if (idx > maxIdx - (int)rdnASN_Length) {
                     WOLFSSL_MSG("Wanted to write more ASN than allocated");
                     ret = BUFFER_E;
