@@ -147,6 +147,7 @@ Release 5.1.0 of wolfSSL embedded TLS has bug fixes and new features including:
 * Fix for build with OPENSSL_EXTRA and NO_WOLFSSL_STUB both defined
 * Use page aligned memory with ECDSA signing and KCAPI
 * Skip expired sessions for TLS 1.3 rather than turning off the resume behavior
+* Fix for DTLS handling dropped or retransmitted messages
 
 ### Improvements/Optimizations
 ###### Build Options and Warnings

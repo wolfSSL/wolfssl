@@ -8224,6 +8224,10 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
 #endif
 
 
+                /* add back in header space from saved pool size */
+                sendSz += DTLS_HANDSHAKE_EXTRA;
+                sendSz += DTLS_RECORD_EXTRA;
+
                 if ((ret = CheckAvailableSize(ssl, sendSz)) != 0) {
                     WOLFSSL_ERROR(ret);
                     return ret;
