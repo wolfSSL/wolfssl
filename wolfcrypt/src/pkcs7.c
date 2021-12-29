@@ -5008,7 +5008,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                     version = pkcs7->version;
 
                     if (ret == 0) {
-                        byte isDynamic = pkcs7->isDynamic;
+                        byte isDynamic = (byte)pkcs7->isDynamic;
                     #ifndef NO_PKCS7_STREAM
                         PKCS7State* stream = pkcs7->stream;
                         pkcs7->stream = NULL;

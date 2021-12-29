@@ -321,6 +321,9 @@
 #endif
 #endif /* WOLFSSL_ESPIDF */
 
+#if defined(WOLFCRYPT_ONLY)
+    #undef WOLFSSL_RENESAS_TSIP
+#endif /* WOLFCRYPT_ONLY */
 #if defined(WOLFSSL_RENESAS_TSIP)
     #define TSIP_TLS_HMAC_KEY_INDEX_WORDSIZE 64
     #define TSIP_TLS_MASTERSECRET_SIZE       80   /* 20 words */
@@ -330,7 +333,7 @@
         #define WOLFSSL_RENESAS_TSIP_TLS
         #define WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT
     #endif
-#endif
+#endif /* WOLFSSL_RENESAS_TSIP */
 
 #if defined(WOLFSSL_RENESAS_SCEPROTECT)
     #define SCE_TLS_MASTERSECRET_SIZE         80  /* 20 words */
@@ -2297,7 +2300,6 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_GMTIME_R /* don't trust macro with windows */
 #endif /* WOLFSSL_MYSQL_COMPATIBLE */
 
-#define SSL_OP_NO_COMPRESSION    WOLFSSL_OP_NO_COMPRESSION
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
  || defined(HAVE_LIGHTY)
     #define OPENSSL_NO_ENGINE

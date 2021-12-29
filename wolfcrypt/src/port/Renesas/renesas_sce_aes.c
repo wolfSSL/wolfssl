@@ -172,7 +172,8 @@ WOLFSSL_LOCAL int  wc_sce_AesGcmEncrypt(struct Aes* aes, byte* out,
                 ret = -1;
             }
          
-        } else if (info->aes256_installedkey_set == 1) {
+        }
+        else if (info->aes256_installedkey_set == 1) {
           XMEMCPY(&key_client_aes, &info->sce_wrapped_key_aes256, 
                     sizeof(sce_aes_wrapped_key_t));
           iv_l = iv;
@@ -344,7 +345,8 @@ WOLFSSL_LOCAL int  wc_sce_AesGcmDecrypt(struct Aes* aes, byte* out,
                 WOLFSSL_MSG("R_SCE_TLS_SessionKeyGenerate failed");
                 ret = -1;
             }
-        } else if (info->aes256_installedkey_set == 1) {
+        }
+        else if (info->aes256_installedkey_set == 1) {
             XMEMCPY(&key_server_aes, &info->sce_wrapped_key_aes256, 
                       sizeof(sce_aes_wrapped_key_t));
             iv_l = iv;
@@ -430,9 +432,11 @@ WOLFSSL_LOCAL int wc_sce_AesCbcEncrypt(struct Aes* aes, byte* out,
     
     if (aes->ctx.keySize == 16) {
         ret = R_SCE_AES128CBC_EncryptInit(&_handle, &aes->ctx.sce_wrapped_key, iv);
-    } else if (aes->ctx.keySize == 32) {
+    }
+    else if (aes->ctx.keySize == 32) {
         ret = R_SCE_AES256CBC_EncryptInit(&_handle, &aes->ctx.sce_wrapped_key, iv);
-    } else {
+    }
+    else {
         WOLFSSL_MSG("invalid key Size for SCE. Key size is neither 16 or 32.");
         wc_sce_hw_unlock();
         return -1;
@@ -454,10 +458,12 @@ WOLFSSL_LOCAL int wc_sce_AesCbcEncrypt(struct Aes* aes, byte* out,
     if (ret == FSP_SUCCESS) {
         if (aes->ctx.keySize == 16) {
             ret = R_SCE_AES128CBC_EncryptFinal(&_handle, out, &dataLength);
-        } else {
+        }
+        else {
             ret = R_SCE_AES256CBC_EncryptFinal(&_handle, out, &dataLength);
         }
-    } else {
+    }
+    else {
         WOLFSSL_MSG("SCE AES CBC encryption failed");
         ret = -1;
     }
@@ -493,9 +499,11 @@ WOLFSSL_LOCAL int wc_sce_AesCbcDecrypt(struct Aes* aes, byte* out, const byte* i
     
     if (aes->ctx.keySize == 16) {
         ret = R_SCE_AES128CBC_DecryptInit(&_handle, &aes->ctx.sce_wrapped_key, iv);
-    } else if (aes->ctx.keySize == 32) {
+    }
+    else if (aes->ctx.keySize == 32) {
         ret = R_SCE_AES256CBC_DecryptInit(&_handle, &aes->ctx.sce_wrapped_key, iv);
-    } else {
+    }
+    else {
         wc_sce_hw_unlock();
         return -1;
     }
@@ -518,7 +526,8 @@ WOLFSSL_LOCAL int wc_sce_AesCbcDecrypt(struct Aes* aes, byte* out, const byte* i
             ret = R_SCE_AES128CBC_DecryptFinal(&_handle, out, &dataLength);
         else
             ret = R_SCE_AES256CBC_DecryptFinal(&_handle, out, &dataLength);
-    } else {
+    }
+    else {
         WOLFSSL_MSG("SCE AES CBC decryption failed");
         ret = -1;
     }

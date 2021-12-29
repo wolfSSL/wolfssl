@@ -1496,6 +1496,10 @@
             return BAD_FUNC_ARG;
         }
 
+        XMEMSET(des->key, 0, sizeof(*(des->key)));
+        XMEMSET(des->reg, 0, sizeof(*(des->reg)));
+        XMEMSET(des->tmp, 0, sizeof(*(des->tmp)));
+
     #if defined(WOLF_CRYPTO_CB) || \
         (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES))
         #ifdef WOLF_CRYPTO_CB

@@ -55,22 +55,96 @@ static int devId = 7890;                 /* dev Id for Crypt Callback */
 static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
     int ret = NOT_COMPILED_IN; /* return this to bypass HW and use SW */
+
+    WOLFSSL_ENTER("Renesas_cmn_CryptoDevCb");
+
+#if defined(WOLFSSL_RENESAS_TSIP_TLS)
+    TsipUserCtx*      cbInfo = (TsipUserCtx*)ctx;
+#elif defined(WOLFSSL_RENESAS_SCEPROTECT)
     User_SCEPKCbInfo* cbInfo = (User_SCEPKCbInfo*) ctx;
-    
+#endif
+
     if (info == NULL || ctx == NULL)
         return BAD_FUNC_ARG;
 
 #ifdef DEBUG_WOLFSSL
-    printf("CryptoDevCb: Algo Type %d\n", info->algo_type);
+    printf("CryptoDevCb: Algo Type %d session key set: %d\n",
+                                    info->algo_type, cbInfo->session_key_set);
 #endif
-    #if defined(WOLFSSL_RENESAS_TSIP)
-      /* TODO call tsip aes api */
-    #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
-    
+
+#if defined(WOLFSSL_RENESAS_TSIP)
+
     if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
-           
+
     #if !defined(NO_AES) || !defined(NO_DES3)
-        #ifdef HAVE_AESGCM
+    #ifdef HAVE_AESGCM
+        if (info->cipher.type == WC_CIPHER_AES_GCM && 
+            cbInfo->session_key_set == 1) {
+            
+            if (info->cipher.enc) {
+                    
+                ret = wc_tsip_AesGcmEncrypt(
+                        info->cipher.aesgcm_enc.aes,
+                        (byte*)info->cipher.aesgcm_enc.out,
+                        (byte*)info->cipher.aesgcm_enc.in,
+                        info->cipher.aesgcm_enc.sz,
+                        (byte*)info->cipher.aesgcm_enc.iv,
+                        info->cipher.aesgcm_enc.ivSz,
+                        (byte*)info->cipher.aesgcm_enc.authTag,
+                        info->cipher.aesgcm_enc.authTagSz,
+                        (byte*)info->cipher.aesgcm_enc.authIn,
+                        info->cipher.aesgcm_enc.authInSz,
+                        (void*)ctx);
+              
+            } 
+            else {
+              
+                ret = wc_tsip_AesGcmDecrypt(
+                        info->cipher.aesgcm_dec.aes,
+                        (byte*)info->cipher.aesgcm_dec.out,
+                        (byte*)info->cipher.aesgcm_dec.in,
+                        info->cipher.aesgcm_dec.sz,
+                        (byte*)info->cipher.aesgcm_dec.iv,
+                        info->cipher.aesgcm_dec.ivSz,
+                        (byte*)info->cipher.aesgcm_dec.authTag,
+                        info->cipher.aesgcm_dec.authTagSz,
+                        (byte*)info->cipher.aesgcm_dec.authIn,
+                        info->cipher.aesgcm_dec.authInSz,
+                        (void*)ctx);
+            }
+        }
+    #endif /* HAVE_AESGCM */
+    #ifdef HAVE_AES_CBC
+        if (info->cipher.type == WC_CIPHER_AES_CBC && 
+            cbInfo->session_key_set == 1) {
+                   
+            if (info->cipher.enc) {
+                            
+                ret = wc_tsip_AesCbcEncrypt(
+                    info->cipher.aescbc.aes,
+                    (byte*)info->cipher.aescbc.out,
+                    (byte*)info->cipher.aescbc.in,
+                    info->cipher.aescbc.sz);
+            
+            }
+            else {
+                
+                ret = wc_tsip_AesCbcDecrypt(
+                    info->cipher.aescbc.aes,
+                    (byte*)info->cipher.aescbc.out,
+                    (byte*)info->cipher.aescbc.in,
+                    info->cipher.aescbc.sz);
+            }
+        }
+    #endif /* HAVE_AES_CBC */
+    #endif /* !NO_AES || !NO_DES3 */
+    }
+#elif defined(WOLFSSL_RENESAS_SCEPROTECT)
+
+    if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
+
+    #if !defined(NO_AES) || !defined(NO_DES3)
+    #ifdef HAVE_AESGCM
         if (info->cipher.type == WC_CIPHER_AES_GCM) {
             
             if (info->cipher.enc && 
@@ -88,7 +162,8 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                         sizeof(sce_aes_wrapped_key_t));
                     info->cipher.aesgcm_enc.aes->ctx.keySize = 32;
                         
-                } else if (cbInfo->aes128_installedkey_set == 1 && 
+                }
+                else if (cbInfo->aes128_installedkey_set == 1 && 
                     info->cipher.aesgcm_enc.aes->keylen == 16) {
                          
                     XMEMCPY(&info->cipher.aesgcm_enc.aes->ctx.sce_wrapped_key,
@@ -110,7 +185,8 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                         info->cipher.aesgcm_enc.authInSz,
                         (void*)ctx);
               
-           } else if (cbInfo->session_key_set == 1 || 
+            }
+            else if (cbInfo->session_key_set == 1 || 
                       (cbInfo->aes256_installedkey_set == 1 && 
                        info->cipher.aesgcm_dec.aes->keylen == 32) ||
                       (cbInfo->aes128_installedkey_set == 1 && 
@@ -124,7 +200,8 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                             sizeof(sce_aes_wrapped_key_t));
                     info->cipher.aesgcm_dec.aes->ctx.keySize = 32;
                         
-                } else if (cbInfo->aes128_installedkey_set == 1 && 
+                }
+                else if (cbInfo->aes128_installedkey_set == 1 && 
                     info->cipher.aesgcm_dec.aes->keylen == 16) {
                          
                     XMEMCPY(&info->cipher.aesgcm_dec.aes->ctx.sce_wrapped_key,
@@ -147,8 +224,8 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                         (void*)ctx);
             }
         }
-        #endif /* HAVE_AESGCM */
-        #ifdef HAVE_AES_CBC
+    #endif /* HAVE_AESGCM */
+    #ifdef HAVE_AES_CBC
         if ((info->cipher.type == WC_CIPHER_AES_CBC) && 
             (cbInfo->session_key_set == 1 || 
             (cbInfo->aes256_installedkey_set == 1 && 
@@ -164,7 +241,8 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                                 sizeof(sce_aes_wrapped_key_t));
                         info->cipher.aescbc.aes->ctx.keySize = 32;
                         
-                    } else if (cbInfo->aes128_installedkey_set == 1 && 
+                    }
+                    else if (cbInfo->aes128_installedkey_set == 1 && 
                        info->cipher.aescbc.aes->keylen == 16) {
                         XMEMCPY(&info->cipher.aescbc.aes->ctx.sce_wrapped_key,
                                 &cbInfo->sce_wrapped_key_aes128,
@@ -201,10 +279,10 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                         info->cipher.aescbc.sz);
                 }
         }
-        #endif /* HAVE_AES_CBC */
+    #endif /* HAVE_AES_CBC */
     #endif /* !NO_AES || !NO_DES3 */
-    #endif /* TSIP or SCE */
     }
+#endif /* TSIP or SCE */
 
     (void)devIdArg;
     (void)ctx;
@@ -223,8 +301,8 @@ int Renesas_cmn_usable(const WOLFSSL* ssl, byte session_key_generated)
 {
     int ret;
     
-    #if defined(WOLFSSL_RENESAS_TSIP)
-        /* TODO call tsip api */
+    #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+        ret = tsip_usable(ssl, session_key_generated);
     #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
         ret = wc_sce_usable(ssl, session_key_generated);
     #endif
@@ -244,8 +322,8 @@ int wc_CryptoCb_CryptInitRenesasCmn(WOLFSSL* ssl, void* ctx)
     (void)ssl;
     (void)ctx;
     
- #if defined(WOLFSSL_RENESAS_TSIP)
-    void* cbInfo = NULL;/* TODO cast tsip cb context */
+ #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+    TsipUserCtx* cbInfo = (TsipUserCtx*)ctx;
  #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
     User_SCEPKCbInfo* cbInfo = (User_SCEPKCbInfo*)ctx;
  #endif
@@ -283,6 +361,7 @@ void wc_CryptoCb_CleanupRenesasCmn(int* id)
  */
 WOLFSSL_LOCAL byte Renesas_cmn_checkCA(word32 cmIdx)
 {
+    WOLFSSL_ENTER("Renesas_cmn_checkCA");
     return (cmIdx == g_CAscm_Idx? 1:0);
 }
 
@@ -291,6 +370,7 @@ WOLFSSL_LOCAL byte Renesas_cmn_checkCA(word32 cmIdx)
  */
 static byte sce_tsip_rootCAverified( )
 {
+    WOLFSSL_ENTER("sce_tsip_rootCAverified");
     return (g_CAscm_Idx != (uint32_t)-1 ? 1:0);
 }
 /* Renesas Security Library Common Callback
@@ -307,10 +387,24 @@ static byte sce_tsip_rootCAverified( )
 WOLFSSL_LOCAL int Renesas_cmn_RsaVerify(WOLFSSL* ssl, byte* sig, word32 sigSz,
         byte** out, const byte* key, word32 keySz, void* ctx)
 {
-    int ret;
+    int ret = 0;
     
-    #if defined(WOLFSSL_RENESAS_TSIP)
-        /* TODO TSIP */
+    WOLFSSL_ENTER("Renesas_cmn_RsaVerify");
+
+    #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+        ret = wc_tsip_RsaVerify(ssl, sig, sigSz, out, key, keySz, ctx);
+
+        if (ret == 0) {
+            /* Set Call back for SharedScret when being successful */
+            wolfSSL_CTX_SetEccSharedSecretCb(ssl->ctx, wc_tsip_EccSharedSecret);
+            wolfSSL_SetEccSharedSecretCtx(ssl, ctx);
+        }
+        else {
+            WOLFSSL_MSG("failed wc_tsip_RsaVerify");
+            wolfSSL_CTX_SetEccSharedSecretCb(ctx, NULL);
+            wolfSSL_SetEccSharedSecretCtx(ssl, NULL);
+        }
+
     #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
         ret = wc_SCE_RsaVerify(ssl, sig, sigSz, out,key, keySz, ctx);
 
@@ -318,7 +412,8 @@ WOLFSSL_LOCAL int Renesas_cmn_RsaVerify(WOLFSSL* ssl, byte* sig, word32 sigSz,
             /* Set Call back for SharedScret when being successful */
             wolfSSL_CTX_SetEccSharedSecretCb(ssl->ctx, SCE_EccSharedSecret);
             wolfSSL_SetEccSharedSecretCtx(ssl, ctx);
-        } else {
+        }
+        else {
             WOLFSSL_MSG("failed R_SCE_TLS_ServerKeyExchangeVerify");
             wolfSSL_CTX_SetEccSharedSecretCb(ctx, NULL);
             wolfSSL_SetEccSharedSecretCtx(ssl, NULL);
@@ -344,18 +439,32 @@ WOLFSSL_LOCAL int Renesas_cmn_EccVerify(WOLFSSL* ssl, const uint8_t* sig,
         uint32_t sigSz, const uint8_t* hash, uint32_t hashSz, 
         const uint8_t* key, uint32_t keySz, int* result, void* ctx)
 {
-    int ret;
+    int ret = 0;
     
+    WOLFSSL_ENTER("Renesas_cmn_EccVerify");
+
     #if defined(WOLFSSL_RENESAS_TSIP)
-        /* TODO TSIP */
+        ret = wc_tsip_EccVerify(ssl, sig, sigSz, hash, hashSz, key, keySz,
+                                                            result, ctx);
+        if (ret == 0 && *result == 1) {
+            /* Set callback for SharedScret when being successful */
+            wolfSSL_CTX_SetEccSharedSecretCb(ssl->ctx, wc_tsip_EccSharedSecret);
+            wolfSSL_SetEccSharedSecretCtx(ssl, ctx);
+        }
+        else {
+            WOLFSSL_MSG("failed wc_tsip_EccVerify");
+            wolfSSL_CTX_SetEccSharedSecretCb(ctx, NULL);
+            wolfSSL_SetEccSharedSecretCtx(ssl, NULL);
+        }
     #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
         ret = wc_SCE_EccVerify(ssl, sig, sigSz, hash, hashSz, key, keySz,
                                                             result, ctx);
         if (ret == 0 && *result == 1 && ret != CRYPTOCB_UNAVAILABLE) {
-            /* Set Call back for SharedScret when being successful */
+            /* Set callback for SharedScret when being successful */
             wolfSSL_CTX_SetEccSharedSecretCb(ssl->ctx, SCE_EccSharedSecret);
             wolfSSL_SetEccSharedSecretCtx(ssl, ctx);
-        } else {
+        }
+        else {
             WOLFSSL_MSG("failed R_SCE_TLS_ServerKeyExchangeVerify");
             wolfSSL_CTX_SetEccSharedSecretCb(ctx, NULL);
             wolfSSL_SetEccSharedSecretCtx(ssl, NULL);
@@ -381,10 +490,12 @@ int wc_Renesas_cmn_RootCertVerify(const byte* cert, word32 cert_len, word32 key_
 {
     int ret;
     
+    WOLFSSL_ENTER("wc_Renesas_cmn_RootCertVerify");
+
     if (sce_tsip_rootCAverified() == 0) {
         
-        #if defined(WOLFSSL_RENESAS_TSIP)
-          ret = tsip_tls_RootCertVerify(cert, cert_len, key_n_start, 
+        #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+          ret = wc_tsip_tls_RootCertVerify(cert, cert_len, key_n_start, 
                     key_n_len, key_e_start, key_e_len, cm_row);
         
         #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
@@ -392,7 +503,8 @@ int wc_Renesas_cmn_RootCertVerify(const byte* cert, word32 cert_len, word32 key_
           ret = wc_sce_tls_RootCertVerify(cert, cert_len, key_n_start, 
                     key_n_len, key_e_start, key_e_len, cm_row);
         #endif
-    } else {
+    }
+    else {
         /* already verified. skipped */
         ret = 0;
     }
@@ -416,12 +528,15 @@ WOLFSSL_LOCAL int Renesas_cmn_TlsFinished(WOLFSSL* ssl, const byte *side,
     
     (void)ctx;
 
+    WOLFSSL_ENTER("Renesas_cmn_TlsFinished");
+
     /* sanity check */
     if (ssl == NULL || ctx == NULL || side == NULL || handshake_hash == NULL ||
         hashes == NULL )
         return BAD_FUNC_ARG;
- #if defined(WOLFSSL_RENESAS_TSIP)
-    /* TODO call tsip api */
+ #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+    ret = wc_tsip_generateVerifyData(ssl->arrays->tsip_masterSecret,
+                            side, handshake_hash, hashes);
  #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
     ret = wc_sce_generateVerifyData(ssl->arrays->sce_masterSecret, /* master secret */
                             side, handshake_hash, hashes);
@@ -442,25 +557,30 @@ static int Renesas_cmn_EncryptKeys(WOLFSSL* ssl, void* ctx)
 {
     int ret;
 
+    WOLFSSL_ENTER("Renesas_cmn_EncryptKeys");
+
     /* sanity check */
     if (ssl == NULL || ctx == NULL)
         return BAD_FUNC_ARG;
     
- #if defined(WOLFSSL_RENESAS_TSIP)
-    /* TODO call tsip api */
+ #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+    TsipUserCtx* cbInfo = (TsipUserCtx*)ctx;
  #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
     User_SCEPKCbInfo* cbInfo = (User_SCEPKCbInfo*)ctx;
+ #endif
+
     if (cbInfo->session_key_set == 1) {
         ret = 0;
         
         wolfSSL_CTX_SetTlsFinishedCb(ssl->ctx, Renesas_cmn_TlsFinished);
         wolfSSL_SetTlsFinishedCtx(ssl, cbInfo);
-    } else {
+    }
+    else {
         wolfSSL_CTX_SetTlsFinishedCb(ssl->ctx, NULL);
         wolfSSL_SetTlsFinishedCtx(ssl, NULL);
         ret = -1;
     }
- #endif
+
     return ret;
 }
 
@@ -473,27 +593,31 @@ static int Renesas_cmn_EncryptKeys(WOLFSSL* ssl, void* ctx)
  * ctx      Callback context
  * return FSP_SUCCESS(0) on sucess, otherwise SCE/TSIP error code
  */
-WOLFSSL_LOCAL int Renesas_cmn_generateSeesionKey(WOLFSSL* ssl, void* ctx)
+WOLFSSL_LOCAL int Renesas_cmn_generateSessionKey(WOLFSSL* ssl, void* ctx)
 {
     int ret = -1;
     
     (void)ctx;
 
+    WOLFSSL_ENTER("Renesas_cmn_generateSessionKey");
+    
     /* sanity check */
     if (ssl == NULL || ctx == NULL)
         return BAD_FUNC_ARG;
- #if defined(WOLFSSL_RENESAS_TSIP)
-    /* TODO call tsip api */
- #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
-    ret = wc_sce_generateSeesionKey(ssl, ctx, devId);
+ #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+    ret = wc_tsip_generateSessionKey(ssl, (TsipUserCtx*)ctx, devId);
+#elif defined(WOLFSSL_RENESAS_SCEPROTECT)
+    ret = wc_sce_generateSessionKey(ssl, ctx, devId);
+#endif
     if (ret == 0) {
       wolfSSL_CTX_SetEncryptKeysCb(ssl->ctx, Renesas_cmn_EncryptKeys);
       wolfSSL_SetEncryptKeysCtx(ssl, ctx);
-    } else {
+    }
+    else {
       wolfSSL_CTX_SetEncryptKeysCb(ssl->ctx, NULL);
       wolfSSL_SetEncryptKeysCtx(ssl, NULL);
     }
- #endif
+
     return ret;
 }
 
@@ -518,13 +642,22 @@ WOLFSSL_LOCAL int Renesas_cmn_generatePremasterSecret(WOLFSSL* ssl,
     (void) ctx;
     (void) ssl;
 
-    #if defined(WOLFSSL_RENESAS_TSIP)
-        /* TODO call tsip api */
+    WOLFSSL_ENTER("Renesas_cmn_generatePremasterSecret");
+
+    #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+     if (Renesas_cmn_usable(ssl, 0)) {
+        ret = wc_tsip_generatePremasterSecret(premaster, preSz);
+        ssl->arrays->preMasterSz = preSz;
+    }
+    else
+        ret = PROTOCOLCB_UNAVAILABLE;
+
     #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
     if (Renesas_cmn_usable(ssl, 0)) {
         ret = wc_sce_generatePremasterSecret(premaster, preSz);
         ssl->arrays->preMasterSz = preSz;
-    } else
+    }
+    else
         ret = PROTOCOLCB_UNAVAILABLE;
     #endif
     
@@ -549,8 +682,42 @@ WOLFSSL_LOCAL int Renesas_cmn_genMasterSecret(struct WOLFSSL* ssl, void* ctx)
     (void) ret;
     (void) ctx;
 
- #if defined(WOLFSSL_RENESAS_TSIP)
-    /* TODO call tsip api */
+    WOLFSSL_ENTER("Renesas_cmn_genMasterSecret");
+
+ #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+
+    if (Renesas_cmn_usable(ssl, 0)) {
+        #if (WOLFSSL_RENESAS_TSIP_VER >= 109 )
+        ret = wc_tsip_generateMasterSecretEx(
+                            ssl->options.cipherSuite0,
+                            ssl->options.cipherSuite,
+                            ssl->arrays->preMasterSecret,
+                            ssl->arrays->clientRandom,
+                            ssl->arrays->serverRandom,
+                            ssl->arrays->tsip_masterSecret);
+        #else
+        ret = wc_tsip_generateMasterSecret(
+                            ssl->arrays->preMasterSecret,
+                            ssl->arrays->clientRandom,
+                            ssl->arrays->serverRandom,
+                            ssl->arrays->tsip_masterSecret);
+        #endif
+
+        if (ret == 0) {
+            wc_tsip_storeKeyCtx(ssl, (TsipUserCtx*)ctx);
+            /* set Session Key generation Callback for use */
+            wolfSSL_CTX_SetGenSessionKeyCb(ssl->ctx, 
+                                                Renesas_cmn_generateSessionKey);
+            wolfSSL_SetGenSessionKeyCtx(ssl, ctx);
+        }
+        else {
+            wolfSSL_CTX_SetGenSessionKeyCb(ssl->ctx, NULL);
+            wolfSSL_SetGenSessionKeyCtx(ssl, NULL);
+        }
+    }
+    else
+        ret = PROTOCOLCB_UNAVAILABLE;
+
  #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
     if (Renesas_cmn_usable(ssl, 0)) {
         ret = wc_sce_generateMasterSecret(
@@ -564,13 +731,15 @@ WOLFSSL_LOCAL int Renesas_cmn_genMasterSecret(struct WOLFSSL* ssl, void* ctx)
             wc_sce_storeKeyCtx(ssl, ctx);
             /* set Session Key generation Callback for use */
             wolfSSL_CTX_SetGenSessionKeyCb(ssl->ctx, 
-                                                Renesas_cmn_generateSeesionKey);
+                                                Renesas_cmn_generateSessionKey);
             wolfSSL_SetGenSessionKeyCtx(ssl, ctx);
-        } else {
+        }
+        else {
             wolfSSL_CTX_SetGenSessionKeyCb(ssl->ctx, NULL);
             wolfSSL_SetGenSessionKeyCtx(ssl, NULL);
         }
-    } else
+    }
+    else
         ret = PROTOCOLCB_UNAVAILABLE;
         
  #endif
@@ -606,6 +775,8 @@ WOLFSSL_LOCAL int Renesas_cmn_RsaEnc(WOLFSSL* ssl, const unsigned char* in,
     (void)keySz;
     (void)EncSz;
 
+    WOLFSSL_ENTER("Renesas_cmn_RsaEnc");
+
     /* sanity check */
     if (ssl == NULL || in == NULL || out == NULL || keyDer == NULL || 
             ctx == NULL) {
@@ -614,12 +785,26 @@ WOLFSSL_LOCAL int Renesas_cmn_RsaEnc(WOLFSSL* ssl, const unsigned char* in,
     
     EncSz = wc_RsaEncryptSize(ssl->peerRsaKey);
 
- #if defined(WOLFSSL_RENESAS_TSIP)
-    /* TODO call tsip api */
+ #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+
+    if (tsip_usable(ssl, 0)) {
+        if (EncSz == 256) {
+            ret = wc_tsip_generateEncryptPreMasterSecret(ssl, out, outSz);
+        }
+        else {
+            WOLFSSL_MSG("TSIP can only handle 256 bytes for RSA encrypt size.");
+            ret = CRYPTOCB_UNAVAILABLE;
+        }
+    }
+    else {
+        ret = CRYPTOCB_UNAVAILABLE;
+    }
+
  #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
     if (wc_sce_usable(ssl, 0) && EncSz == 256) {
         ret = wc_sce_generateEncryptPreMasterSecret(ssl, out, outSz);
-    } else {
+    }
+    else {
         if (EncSz != 256)
             WOLFSSL_MSG("SCE cannot use"
                      "because Rsa Encrypt Size isn't 256 bytes(2048 bits).");
@@ -649,12 +834,19 @@ WOLFSSL_LOCAL int Renesas_cmn_VerifyHmac(WOLFSSL *ssl, const byte* message,
     int ret;
     (void)ctx;
 
-    #if defined(WOLFSSL_RENESAS_TSIP)
-        /* TODO call tsip api */
+    WOLFSSL_ENTER("Renesas_cmn_VerifyHmac");
+
+    #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+    if (tsip_usable(ssl, 1)) {
+        ret = wc_tsip_ShaXHmacVerify(ssl, message, messageSz, macSz, content);
+    }
+    else
+        ret = PROTOCOLCB_UNAVAILABLE;       
     #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
     if (wc_sce_usable(ssl, 1)) {
         ret = wc_sce_Sha256VerifyHmac(ssl, message, messageSz, macSz, content);
-    } else
+    }
+    else
         ret = PROTOCOLCB_UNAVAILABLE;
     #endif
     
@@ -679,8 +871,32 @@ WOLFSSL_LOCAL int Renesas_cmn_TLS_hmac(WOLFSSL* ssl, byte* digest,
     int ret;
     byte   myInner[WOLFSSL_TLS_HMAC_INNER_SZ];
     
-    #if defined(WOLFSSL_RENESAS_TSIP)
-        /* TODO call tsip api */
+    WOLFSSL_ENTER("Renesas_cmn_TLS_hmac");
+
+    #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+    if (Renesas_cmn_usable(ssl, 1)) {
+        
+        wolfSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
+
+        if (ssl->specs.hash_size == WC_SHA_DIGEST_SIZE) {
+            ret = wc_tsip_Sha1HmacGenerate(ssl, myInner, 
+                                    WOLFSSL_TLS_HMAC_INNER_SZ, in, sz, digest);
+        }
+        else if (ssl->specs.hash_size == WC_SHA256_DIGEST_SIZE) {
+            ret = wc_tsip_Sha256HmacGenerate(ssl, myInner, 
+                                    WOLFSSL_TLS_HMAC_INNER_SZ, in, sz, digest);
+        }
+        else {
+            ret = TSIP_MAC_DIGSZ_E;
+        }
+    }
+    else {
+        WOLFSSL_MSG("TLS_hmac is used instead of TSIP");
+        /* fall through to original TLS hmac method when TSIP cannot be used */
+        ret = TLS_hmac(ssl, digest, in, sz, padSz, content, verify, epochOrder);
+
+    }
+
     #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
     if (Renesas_cmn_usable(ssl, 1)) {
         if (ssl->specs.hash_size == WC_SHA256_DIGEST_SIZE) {
@@ -690,7 +906,8 @@ WOLFSSL_LOCAL int Renesas_cmn_TLS_hmac(WOLFSSL* ssl, byte* digest,
         }
         else
             ret = TSIP_MAC_DIGSZ_E;
-    } else {
+    }
+    else {
         /* fall through to original TLS hmac method when SCE cannot be used */
         ret = TLS_hmac(ssl, digest, in, sz, padSz, content, verify, epochOrder);
     }
@@ -724,6 +941,8 @@ WOLFSSL_LOCAL int Renesas_cmn_SigPkCbRsaVerify(unsigned char* sig,
     (void)keyDer;
     (void)keySz;
     
+    WOLFSSL_ENTER("Renesas_cmn_SigPkCbRsaVerify");
+
     /* sanity check */
     if (sig == NULL || out == NULL || keyDer == NULL || ctx == NULL)
         return BAD_FUNC_ARG;
@@ -733,8 +952,26 @@ WOLFSSL_LOCAL int Renesas_cmn_SigPkCbRsaVerify(unsigned char* sig,
         return CRYPTOCB_UNAVAILABLE;
     }
     
-    #if defined(WOLFSSL_RENESAS_TSIP)
-        /* TODO call tsip api */
+    #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+    if (CertAtt->keyIndex != NULL)
+    {
+        ret = wc_tsip_tls_CertVerify(CertAtt->cert, CertAtt->certSz, sig, sigSz,
+                                 CertAtt->pubkey_n_start - CertAtt->certBegin,
+                                 CertAtt->pubkey_n_len - 1,
+                                 CertAtt->pubkey_e_start - CertAtt->certBegin,
+                                 CertAtt->pubkey_e_len -1,
+                                 (uint8_t*)CertAtt->keyIndex);
+        if (ret == 0){
+            CertAtt->verifyByTSIP_SCE = 1;
+        }
+        else {
+            WOLFSSL_MSG("RSA Verify by TSIP didn't match");
+            ret = ASN_SIG_CONFIRM_E;
+        }
+    }
+    else
+        ret = CRYPTOCB_UNAVAILABLE;
+
     #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
     if (CertAtt->keyIndex != NULL)
     {
@@ -746,11 +983,13 @@ WOLFSSL_LOCAL int Renesas_cmn_SigPkCbRsaVerify(unsigned char* sig,
                                  (uint8_t*)CertAtt->keyIndex);
         if (ret == 0){
             CertAtt->verifyByTSIP_SCE = 1;
-        } else {
+        }
+        else {
             WOLFSSL_MSG("RSA Verify by SCE didn't match");
             ret = ASN_SIG_CONFIRM_E;
         }
-    } else
+    }
+    else
         ret = CRYPTOCB_UNAVAILABLE;
     #endif
     
@@ -785,6 +1024,9 @@ WOLFSSL_LOCAL int Renesas_cmn_SigPkCbEccVerify(const unsigned char* sig,
     (void)keySz;
     (void)hash;
     (void)hashSz;
+
+    WOLFSSL_ENTER("Renesas_cmn_SigPkCbEccVerify");
+
     /* sanity check */
     if (sig == NULL || keyDer == NULL || hash == NULL || ctx == NULL ||
         result == NULL)
@@ -796,8 +1038,26 @@ WOLFSSL_LOCAL int Renesas_cmn_SigPkCbEccVerify(const unsigned char* sig,
         return CRYPTOCB_UNAVAILABLE;
     }
     
-    #if defined(WOLFSSL_RENESAS_TSIP)
-        /* TODO call tsip api */
+    #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+    if (CertAtt->keyIndex != NULL)
+    {
+        ret = wc_tsip_tls_CertVerify(CertAtt->cert, CertAtt->certSz, sig, sigSz,
+                                 CertAtt->pubkey_n_start - CertAtt->certBegin,
+                                 CertAtt->pubkey_n_len - 1,
+                                 CertAtt->pubkey_e_start - CertAtt->certBegin,
+                                 CertAtt->pubkey_e_len -1,
+                                 (uint8_t*)CertAtt->keyIndex);
+        if (ret == 0) {
+            CertAtt->verifyByTSIP_SCE = 1;
+            *result = 1;
+        }
+        else {
+            WOLFSSL_MSG("RSA Verify by TSIP didn't match");
+            ret = ASN_SIG_CONFIRM_E;
+        }
+    }
+    else
+        ret = CRYPTOCB_UNAVAILABLE;
     #elif defined(WOLFSSL_RENESAS_SCEPROTECT)
     if (CertAtt->keyIndex != NULL)
     {
@@ -810,11 +1070,13 @@ WOLFSSL_LOCAL int Renesas_cmn_SigPkCbEccVerify(const unsigned char* sig,
         if (ret == 0) {
             CertAtt->verifyByTSIP_SCE = 1;
             *result = 1;
-        } else {
+        }
+        else {
             WOLFSSL_MSG("RSA Verify by SCE didn't match");
             ret = ASN_SIG_CONFIRM_E;
         }
-    } else
+    }
+    else
         ret = CRYPTOCB_UNAVAILABLE;
     #endif
     

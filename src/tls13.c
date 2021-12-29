@@ -4265,8 +4265,10 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         else
     #endif
         {
-            if ((modes & (1 << PSK_KE)) == 0)
+            if ((modes & (1 << PSK_KE)) == 0) {
+                WOLFSSL_MSG("psk_ke mode does not allow key share");
                 return PSK_KEY_ERROR;
+            }
             ssl->options.noPskDheKe = 1;
             ssl->arrays->preMasterSz = 0;
 

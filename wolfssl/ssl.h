@@ -603,13 +603,6 @@ struct WOLFSSL_X509_STORE {
 #define WOLFSSL_NO_WILDCARDS         0x2
 #define WOLFSSL_NO_PARTIAL_WILDCARDS 0x4
 
-#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
-    defined(WOLFSSL_WPAS_SMALL) || defined(WOLFSSL_IP_ALT_NAME)
-    #define WOLFSSL_MAX_IPSTR 46 /* max ip size IPv4 mapped IPv6 */
-    #define WOLFSSL_IP4_ADDR_LEN 4
-    #define WOLFSSL_IP6_ADDR_LEN 16
-#endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
-
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 #define WOLFSSL_USE_CHECK_TIME 0x2
 #define WOLFSSL_NO_CHECK_TIME  0x200000
@@ -620,6 +613,10 @@ struct WOLFSSL_X509_STORE {
 #define WOLFSSL_VPARAM_RESET_FLAGS      0x4
 #define WOLFSSL_VPARAM_LOCKED           0x8
 #define WOLFSSL_VPARAM_ONCE             0x10
+
+#ifndef WOLFSSL_MAX_IPSTR
+    #define WOLFSSL_MAX_IPSTR 46 /* max ip size IPv4 mapped IPv6 */
+#endif
 
 struct WOLFSSL_X509_VERIFY_PARAM {
     time_t         check_time;
@@ -1446,6 +1443,7 @@ WOLFSSL_API int  wolfSSL_session_reused(WOLFSSL*);
 WOLFSSL_API int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_SESSION_new(void);
+WOLFSSL_API WOLFSSL_SESSION* wolfSSL_SESSION_new_ex(void* heap);
 WOLFSSL_API void wolfSSL_SESSION_free(WOLFSSL_SESSION* session);
 WOLFSSL_API int wolfSSL_SESSION_set_cipher(WOLFSSL_SESSION* session,
                                         const WOLFSSL_CIPHER* cipher);
@@ -1468,7 +1466,6 @@ WOLFSSL_API const char*  wolfSSL_SESSION_CIPHER_get_name(WOLFSSL_SESSION* sessio
 WOLFSSL_API const char*  wolfSSL_get_cipher(WOLFSSL*);
 WOLFSSL_API void wolfSSL_sk_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl);
-                           /* what's ref count */
 
 WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_new(void);
 #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
@@ -2083,11 +2080,12 @@ enum {
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
     defined(HAVE_WEBSERVER)
 /* for compatibility these must be macros */
-#define SSL_OP_NO_SSLv2   WOLFSSL_OP_NO_SSLv2
-#define SSL_OP_NO_SSLv3   WOLFSSL_OP_NO_SSLv3
-#define SSL_OP_NO_TLSv1   WOLFSSL_OP_NO_TLSv1
-#define SSL_OP_NO_TLSv1_1 WOLFSSL_OP_NO_TLSv1_1
-#define SSL_OP_NO_TLSv1_2 WOLFSSL_OP_NO_TLSv1_2
+#define SSL_OP_NO_SSLv2       WOLFSSL_OP_NO_SSLv2
+#define SSL_OP_NO_SSLv3       WOLFSSL_OP_NO_SSLv3
+#define SSL_OP_NO_TLSv1       WOLFSSL_OP_NO_TLSv1
+#define SSL_OP_NO_TLSv1_1     WOLFSSL_OP_NO_TLSv1_1
+#define SSL_OP_NO_TLSv1_2     WOLFSSL_OP_NO_TLSv1_2
+#define SSL_OP_NO_COMPRESSION WOLFSSL_OP_NO_COMPRESSION
 #if !(!defined(WOLFSSL_TLS13) && defined(WOLFSSL_APACHE_HTTPD)) /* apache uses this to determine if TLS 1.3 is enabled */
 #define SSL_OP_NO_TLSv1_3 WOLFSSL_OP_NO_TLSv1_3
 #endif

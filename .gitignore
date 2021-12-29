@@ -354,6 +354,24 @@ IDE/XCODE/Index
 /IDE/Renesas/e2studio/Projects/test/*.launch
 /IDE/Renesas/e2studio/Projects/test/*.scfg
 
+/IDE/Renesas/e2studio/RX65N/GR-ROSE/.metadata
+/IDE/Renesas/e2studio/RX65N/GR-ROSE/smc/src
+/IDE/Renesas/e2studio/RX65N/GR-ROSE/smc/trash
+/IDE/Renesas/e2studio/RX65N/GR-ROSE/test/src/smc_gen
+/IDE/Renesas/e2studio/RX65N/GR-ROSE/test/generate
+
+/IDE/Renesas/e2studio/RX65N/RSK/.metadata
+/IDE/Renesas/e2studio/RX65N/RSK/smc/src
+/IDE/Renesas/e2studio/RX65N/RSK/smc/trash
+/IDE/Renesas/e2studio/RX65N/RSK/test/src/smc_gen
+/IDE/Renesas/e2studio/RX65N/RSK/test/generate
+
+/IDE/Renesas/e2studio/RX72N/EnvisionKit/.metadata
+/IDE/Renesas/e2studio/RX72N/EnvisionKit/smc/src
+/IDE/Renesas/e2studio/RX72N/EnvisionKit/smc/trash
+/IDE/Renesas/e2studio/RX72N/EnvisionKit/test/src/smc_gen
+/IDE/Renesas/e2studio/RX72N/EnvisionKit/test/generate
+
 # QNX CAAM
 /IDE/QNX/example-server/server-tls
 /IDE/QNX/example-client/client-tls

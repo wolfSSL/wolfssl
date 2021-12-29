@@ -354,6 +354,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_set_session_id_context      wolfSSL_set_session_id_context
 #define SSL_set_connect_state           wolfSSL_set_connect_state
 #define SSL_set_accept_state            wolfSSL_set_accept_state
+#define SSL_SESSION_new                 wolfSSL_SESSION_new
 #define SSL_session_reused              wolfSSL_session_reused
 #define SSL_SESSION_up_ref              wolfSSL_SESSION_up_ref
 #define SSL_SESSION_dup                 wolfSSL_SESSION_dup

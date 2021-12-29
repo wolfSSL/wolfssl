@@ -141,7 +141,7 @@ ASN Options:
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
 
-#ifdef WOLFSSL_RENESAS_SCEPROTECT
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_TSIP_TLS)
     #include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>
 #endif
 
@@ -193,16 +193,6 @@ extern int wc_InitRsaHw(RsaKey* key);
     };
     #endif
     #endif /* HAVE_SELFTEST */
-#endif
-#ifdef WOLFSSL_RENESAS_TSIP_TLS
-void tsip_inform_key_position(const word32 key_n_start,
-                const word32 key_n_len, const word32 key_e_start,
-                const word32 key_e_len);
-int tsip_tls_CertVerify(const byte *cert, word32 certSz,
-                        const byte *signature, word32 sigSz,
-                        word32 key_n_start, word32 key_n_len,
-                        word32 key_e_start, word32 key_e_len,
-                        byte *tsip_encRsaKeyIdx);
 #endif
 
 
@@ -3999,7 +3989,8 @@ static const byte extExtKeyUsageEmailProtectOid[] = {43, 6, 1, 5, 5, 7, 3, 4};
 static const byte extExtKeyUsageTimestampOid[]    = {43, 6, 1, 5, 5, 7, 3, 8};
 static const byte extExtKeyUsageOcspSignOid[]     = {43, 6, 1, 5, 5, 7, 3, 9};
 
-#if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN) || \
+    defined(WOLFSSL_ASN_TEMPLATE)
 /* csrAttrType */
 #define CSR_ATTR_TYPE_OID_BASE(num) {42, 134, 72, 134, 247, 13, 1, 9, num}
 static const byte attrEmailOid[] =             CSR_ATTR_TYPE_OID_BASE(1);
@@ -4043,7 +4034,8 @@ static const byte tlsFeatureOid[] = {43, 6, 1, 5, 5, 7, 1, 24};
 static const byte dnsSRVOid[] = {43, 6, 1, 5, 5, 7, 8, 7};
 #endif
 
-#if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN) || \
+    defined(WOLFSSL_ASN_TEMPLATE)
 /* Pilot attribute types (0.9.2342.19200300.100.1.*) */
 #ifdef WOLFSSL_ASN_TEMPLATE
 static const byte uidOid[] = {9, 146, 38, 137, 147, 242, 44, 100, 1, 1}; /* user id */
@@ -7758,7 +7750,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
 #ifndef NO_RSA
 
 #ifndef HAVE_USER_RSA
-#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
 /* This function is to retrieve key position information in a cert.*
  * The information will be used to call TSIP TLS-linked API for    *
  * certificate verification.                                       */
@@ -9916,7 +9908,7 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
     if (GetSequence(source, srcIdx, &length, pubIdx + pubLen) < 0)
         return ASN_PARSE_E;
 
-#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
     cert->sigCtx.CertAtt.pubkey_n_start =
             cert->sigCtx.CertAtt.pubkey_e_start = pubIdx;
 #endif
@@ -9944,7 +9936,7 @@ static int StoreRsaKey(DecodedCert* cert, const byte* source, word32* srcIdx,
         GetASN_GetConstRef(&dataASN[RSACERTKEYASN_IDX_STR],
                 &cert->publicKey, &cert->pubKeySize);
 
-    #if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+    #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
         /* Start of SEQUENCE. */
         cert->sigCtx.CertAtt.pubkey_n_start =
             cert->sigCtx.CertAtt.pubkey_e_start = dataASN[RSACERTKEYASN_IDX_SEQ].offset;
@@ -10025,7 +10017,7 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
         if ((ret = CheckCurve(cert->pkCurveOID)) < 0)
             return ECC_CURVE_OID_E;
 
-    #if defined(WOLFSSL_RENESAS_SCEPROTECT)
+    #if defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_TSIP_TLS)
         cert->sigCtx.CertAtt.curve_id = ret;
     #else
         (void)ret;
@@ -10034,7 +10026,7 @@ static int StoreEccKey(DecodedCert* cert, const byte* source, word32* srcIdx,
         ret = CheckBitString(source, srcIdx, &length, maxIdx, 1, NULL);
         if (ret != 0)
             return ret;
-    #if defined(WOLFSSL_RENESAS_SCEPROTECT)
+    #if defined(WOLFSSL_RENESAS_SCEPROTECT) || defined(WOLFSSL_RENESAS_TSIP_TLS)
         cert->sigCtx.CertAtt.pubkey_n_start =
                 cert->sigCtx.CertAtt.pubkey_e_start = (*srcIdx + 1);
         cert->sigCtx.CertAtt.pubkey_n_len = ((length - 1) >> 1);
@@ -10635,10 +10627,6 @@ static const CertNameData certNameSubject[] = {
         OFFSETOF(DecodedCert, subjectStreet),
         OFFSETOF(DecodedCert, subjectStreetLen),
         OFFSETOF(DecodedCert, subjectStreetEnc),
-#else
-        0,
-        0,
-        0,
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
         NID_streetAddress
@@ -13736,41 +13724,21 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
             #ifndef NO_RSA
                 case RSAk:
                 {
-                #if defined(HAVE_PK_CALLBACKS) && \
-                    !defined(WOLFSSL_RENESAS_TSIP_TLS)
+                #if defined(HAVE_PK_CALLBACKS)
                     if (sigCtx->pkCbRsa) {
                         ret = sigCtx->pkCbRsa(
                                 sigCtx->sigCpy, sigSz, &sigCtx->out,
                                 key, keySz,
                                 sigCtx->pkCtxRsa);
                     }
-                #if !defined(WOLFSSL_RENESAS_SCEPROTECT)
+                #if !defined(WOLFSSL_RENESAS_SCEPROTECT) && \
+                    !defined(WOLFSSL_RENESAS_TSIP_TLS)
                     else
                 #else
                     if (!sigCtx->pkCbRsa || ret == CRYPTOCB_UNAVAILABLE)
                 #endif /* WOLFSSL_RENESAS_SCEPROTECT */
                 #endif /* HAVE_PK_CALLBACKS */
                     {
-                     #ifdef WOLFSSL_RENESAS_TSIP_TLS
-                        if (rsaKeyIdx != NULL)
-                        {
-                            ret = tsip_tls_CertVerify(buf, bufSz, sigCtx->sigCpy,
-                            sigSz,
-                            sigCtx->.CertAtt.pubkey_n_start - sigCtx->certBegin,
-                            sigCtx->.CertAtt.pubkey_n_len - 1,
-                            sigCtx->.CertAtt.pubkey_e_start - sigCtx->certBegin,
-                            sigCtx->.CertAtt.pubkey_e_len - 1,
-                            rsaKeyIdx);
-
-                            if (ret == 0){
-                                sigCtx->verifyByTSIP_SCE = 1;
-                                ret = 0;
-                            } else {
-                                WOLFSSL_MSG("RSA Verify by tsip didn't match");
-                                ret = ASN_SIG_CONFIRM_E;
-                            }
-                        } else
-                    #endif
                         ret = wc_RsaSSL_VerifyInline(sigCtx->sigCpy, sigSz,
                                                  &sigCtx->out, sigCtx->key.rsa);
                     }
@@ -13796,7 +13764,8 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                                 key, keySz, &sigCtx->verify,
                                 sigCtx->pkCtxEcc);
                     }
-                #if !defined(WOLFSSL_RENESAS_SCEPROTECT)
+                #if !defined(WOLFSSL_RENESAS_SCEPROTECT) && \
+                    !defined(WOLFSSL_RENESAS_TSIP_TLS)
                     else
                 #else
                     if (!sigCtx->pkCbEcc || ret == CRYPTOCB_UNAVAILABLE)
@@ -13864,7 +13833,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 case RSAk:
                 {
                     int encodedSigSz, verifySz;
-                #if defined(WOLFSSL_RENESAS_TSIP) || \
+                #if defined(WOLFSSL_RENESAS_TSIP_TLS) || \
                                             defined(WOLFSSL_RENESAS_SCEPROTECT)
                     if (sigCtx->CertAtt.verifyByTSIP_SCE == 1) break;
                 #endif
@@ -18332,7 +18301,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     int    len = 0;
 #endif
 #endif
-#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
     int    idx = 0;
 #endif
     byte*  sce_tsip_encRsaKeyIdx;
@@ -18690,7 +18659,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         }
         #endif /* HAVE_OCSP */
     }
-#if defined(WOLFSSL_RENESAS_TSIP) || defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
     /* prepare for TSIP TLS cert verification API use */
     if (cert->keyOID == RSAk) {
         /* to call TSIP API, it needs keys position info in bytes */
@@ -22806,7 +22775,7 @@ static int SetNameRdnItems(ASNSetData* dataASN, ASNItem* namesASN,
     #endif
 
         if (nameLen[i] > 0) {
-            if (dataASN != NULL && nameASN != NULL) {
+            if (dataASN != NULL) {
                 if (idx > maxIdx - (int)rdnASN_Length) {
                     WOLFSSL_MSG("Wanted to write more ASN than allocated");
                     ret = BUFFER_E;
@@ -22982,7 +22951,7 @@ int SetNameEx(byte* output, word32 outputSz, CertName* name, void* heap)
      * SEQUENCE, encode SEQUENCE, encode entries into buffer.  */
     ASNSetData* dataASN = NULL; /* Can't use DECL_ASNSETDATA. Always dynamic. */
     ASNItem*    namesASN = NULL;
-    int         items;
+    int         items = 0;
     int         ret = 0;
     int         sz;
 

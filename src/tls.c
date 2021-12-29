@@ -120,37 +120,6 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
     #define HSHASH_SZ FINISHED_SZ
 #endif
 
-#ifdef WOLFSSL_RENESAS_TSIP_TLS
-
-    #if (WOLFSSL_RENESAS_TSIP_VER >=109)
-
-    int tsip_generateMasterSecretEx(
-            byte        cipherSuiteFirst,
-            byte        cipherSuite,
-            const byte* pr,                 /* pre-master    */
-            const byte* cr,                 /* client random */
-            const byte* sr,                 /* server random */
-            byte*       ms);
-
-    #elif (WOLFSSL_RENESAS_TSIP_VER >=106)
-
-    int tsip_generateMasterSecret(
-            const byte* pre,
-            const byte* cr,
-            const byte* sr,
-            byte*       ms);
-
-    #endif
-
-    int tsip_useable(const WOLFSSL *ssl);
-    int tsip_generateSeesionKey(WOLFSSL *ssl);
-    int tsip_generateVerifyData(
-            const byte* ms,
-            const byte* side,
-            const byte* handshake_hash,
-            byte*       hashes);
-
-#endif /*WOLFSSL_RENESAS_TSIP_TLS*/
 
 int BuildTlsHandshakeHash(WOLFSSL* ssl, byte* hash, word32* hashLen)
 {
@@ -197,7 +166,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     const byte* side;
     word32 hashSz = HSHASH_SZ;
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-    DECLARE_VAR(handshake_hash, byte, HSHASH_SZ, ssl->heap);
+    WC_DECLARE_VAR(handshake_hash, byte, HSHASH_SZ, ssl->heap);
     if (handshake_hash == NULL)
         return MEMORY_E;
 #else
@@ -220,13 +189,6 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         }
         if (!ssl->ctx->TlsFinishedCb || ret == PROTOCOLCB_UNAVAILABLE)
 #endif
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
-    !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
-        if (tsip_useable(ssl)) {
-            ret = tsip_generateVerifyData(ssl->arrays->tsip_masterSecret,
-                            side, handshake_hash, (byte*)hashes /* out */);
-        } else
-#endif
         {
             PRIVATE_KEY_UNLOCK();
             ret = wc_PRF_TLS((byte*)hashes, TLS_FINISHED_SZ,
@@ -247,7 +209,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-    FREE_VAR(handshake_hash, ssl->heap);
+    WC_FREE_VAR(handshake_hash, ssl->heap);
 #endif
 
     return ret;
@@ -326,7 +288,7 @@ static int _DeriveTlsKeys(byte* key_dig, word32 key_dig_len,
 {
     int ret;
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-    DECLARE_VAR(seed, byte, SEED_LEN, heap);
+    WC_DECLARE_VAR(seed, byte, SEED_LEN, heap);
     if (seed == NULL)
         return MEMORY_E;
 #else
@@ -362,7 +324,7 @@ static int _DeriveTlsKeys(byte* key_dig, word32 key_dig_len,
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-    FREE_VAR(seed, heap);
+    WC_FREE_VAR(seed, heap);
 #endif
 
     return ret;
@@ -397,12 +359,6 @@ int DeriveTlsKeys(WOLFSSL* ssl)
         return MEMORY_E;
     }
 #endif
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
-    !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
-    if (tsip_useable(ssl))
-        ret = tsip_generateSeesionKey(ssl);
-    else {
-#endif
 #if !defined(NO_CERTS) && defined(HAVE_PK_CALLBACKS)
         ret = PROTOCOLCB_UNAVAILABLE;
         if (ssl->ctx->GenSessionKeyCb) {
@@ -418,10 +374,6 @@ int DeriveTlsKeys(WOLFSSL* ssl)
                          ssl->heap, ssl->devId);
     if (ret == 0)
         ret = StoreKeys(ssl, key_dig, PROVISION_CLIENT_SERVER);
-#if (defined(WOLFSSL_RENESAS_TSIP_TLS) && \
-    !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION))
-    }
-#endif
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key_dig, ssl->heap, DYNAMIC_TYPE_DIGEST);
@@ -438,7 +390,7 @@ static int _MakeTlsMasterSecret(byte* ms, word32 msLen,
 {
     int ret;
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-    DECLARE_VAR(seed, byte, SEED_LEN, heap);
+    WC_DECLARE_VAR(seed, byte, SEED_LEN, heap);
     if (seed == NULL)
         return MEMORY_E;
 #else
@@ -469,7 +421,7 @@ static int _MakeTlsMasterSecret(byte* ms, word32 msLen,
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-    FREE_VAR(seed, heap);
+    WC_FREE_VAR(seed, heap);
 #endif
 
     return ret;
@@ -566,35 +518,7 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
     else
 #endif /* HAVE_EXTENDED_MASTER */
     {
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
-    !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
-        if (tsip_useable(ssl)) {
 
-            #if (WOLFSSL_RENESAS_TSIP_VER>=109)
-
-            ret = tsip_generateMasterSecretEx(
-                            ssl->options.cipherSuite0,
-                            ssl->options.cipherSuite,
-                            &ssl->arrays->preMasterSecret[VERSION_SZ],
-                            ssl->arrays->clientRandom,
-                            ssl->arrays->serverRandom,
-                            ssl->arrays->tsip_masterSecret);
-
-            #elif (WOLFSSL_RENESAS_TSIP_VER>=106)
-
-            ret = tsip_generateMasterSecret(
-                            &ssl->arrays->preMasterSecret[VERSION_SZ],
-                            ssl->arrays->clientRandom,
-                            ssl->arrays->serverRandom,
-                            ssl->arrays->tsip_masterSecret);
-
-            #else
-
-            ret = NOT_COMPILED_IN;
-
-            #endif
-        } else
-#endif
 #if !defined(NO_CERTS) && defined(HAVE_PK_CALLBACKS)
         ret = PROTOCOLCB_UNAVAILABLE;
         if (ssl->ctx->GenMasterCb) {
@@ -1207,21 +1131,6 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
         wolfSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
     else
         wolfSSL_SetTlsHmacInner(ssl, myInner, sz, content, epochOrder);
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
-    !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
-    if (tsip_useable(ssl)) {
-        if (ssl->specs.hash_size == WC_SHA_DIGEST_SIZE)
-            ret = tsip_Sha1Hmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ,
-                                                        in, sz, digest, verify);
-        else if (ssl->specs.hash_size == WC_SHA256_DIGEST_SIZE)
-            ret = tsip_Sha256Hmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ,
-                                                        in, sz, digest, verify);
-        else
-            ret = TSIP_MAC_DIGSZ_E;
-
-        return ret;
-    }
-#endif
 
     ret = wc_HmacInit(&hmac, ssl->heap, ssl->devId);
     if (ret != 0)
@@ -7583,6 +7492,10 @@ static int TLSX_KeyShare_Process(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     ssl->session.namedGroup = (byte)keyShareEntry->group;
 #endif
+    /* reset the pre master secret size */
+    if (ssl->arrays->preMasterSz == 0)
+        ssl->arrays->preMasterSz = ENCRYPT_LEN;
+
     /* Use Key Share Data from server. */
     if (keyShareEntry->group >= MIN_FFHDE_GROUP &&
         keyShareEntry->group <= MAX_FFHDE_GROUP)

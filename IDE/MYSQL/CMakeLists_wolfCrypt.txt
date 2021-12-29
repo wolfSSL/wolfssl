@@ -28,7 +28,7 @@ ADD_DEFINITIONS(${SSL_DEFINES})
 SET(WOLFCRYPT_SOURCES		src/aes.c src/arc4.c src/asn.c src/blake2b.c
         src/camellia.c src/chacha.c src/coding.c src/compress.c src/des3.c
         src/dh.c src/dsa.c src/ecc.c src/error.c src/hc128.c src/hmac.c
-        src/integer.c src/logging.c src/md2.c src/md4.c src/md5.c src/memory.c
+        src/integer.c src/kdf.c src/logging.c src/md2.c src/md4.c src/md5.c src/memory.c
         src/pkcs7.c src/pkcs12.c src/poly1305.c src/pwdbased.c src/rabbit.c
         src/random.c src/ripemd.c src/rsa.c src/sha.c src/sha256.c src/sha512.c
         src/tfm.c src/wc_port.c src/wc_encrypt.c src/hash.c src/wolfmath.c

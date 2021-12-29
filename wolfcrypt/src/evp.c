@@ -4817,7 +4817,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 /* OpenSSL increments the IV. Not sure why */
                 IncCtr(ctx->iv, ctx->ivSz);
                 /* Clear any leftover AAD. */
-                XMEMSET(ctx->gcmAuthIn, 0, ctx->gcmAuthInSz);
+                if (ctx->gcmAuthIn != NULL)
+                    XMEMSET(ctx->gcmAuthIn, 0, ctx->gcmAuthInSz);
                 ctx->gcmAuthInSz = 0;
                 ret = WOLFSSL_SUCCESS;
                 break;

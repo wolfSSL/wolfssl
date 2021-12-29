@@ -88,7 +88,8 @@ WOLFSSL_LOCAL int wc_sce_hw_lock()
       
         if(ret == 0) {
             sce_CryptHwMutexInit_ = 1;
-        } else {
+        }
+        else {
             WOLFSSL_MSG(" mutex initialization failed.");
             return -1;
         }
@@ -118,10 +119,10 @@ WOLFSSL_LOCAL int wc_sce_Open()
         
         ret = R_SCE_Open(&sce_ctrl, &sce_cfg);
         
-        if( ret != FSP_SUCCESS ) {
+        if ( ret != FSP_SUCCESS ) {
             WOLFSSL_MSG("RENESAS SCE Open failed");
         }
-        if( ret == FSP_SUCCESS && g_user_key_info.encrypted_user_tls_key ){
+        if ( ret == FSP_SUCCESS && g_user_key_info.encrypted_user_tls_key ) {
 
             ret = R_SCE_TLS_RootCertificateRSA2048PublicKeyInstall(
                     g_user_key_info.encrypted_provisioning_key,
@@ -132,7 +133,8 @@ WOLFSSL_LOCAL int wc_sce_Open()
             /* init vars */
              g_CAscm_Idx = (uint32_t)-1;
             
-        } else {
+        }
+        else {
             WOLFSSL_MSG("Failed to lock sce hw ");
         }
 
@@ -160,7 +162,8 @@ WOLFSSL_LOCAL void wc_sce_Close()
         if( ret != FSP_SUCCESS ) {
             WOLFSSL_MSG("RENESAS SCE Close failed");
         }
-    } else {
+    }
+    else {
         WOLFSSL_MSG("Failed to unlock sce hw ");
     }
 }
@@ -217,7 +220,8 @@ static int SCE_ServerKeyExVerify(uint32_t type, WOLFSSL* ssl, const uint8_t* sig
     if (ret != FSP_SUCCESS) {
         WOLFSSL_MSG("failed R_SCE_TLS_ServerKeyExchangeVerify");
         cbInfo->pk_key_set = 0;
-    } else {
+    }
+    else {
         ret = WOLFSSL_SUCCESS;
         cbInfo->pk_key_set = 1;
     }
@@ -291,17 +295,20 @@ WOLFSSL_LOCAL int wc_SCE_EccVerify(WOLFSSL* ssl, const uint8_t* sig,
         /* s */
         if (sig[offset] == 0x20) {
           XMEMCPY(&sigforSCE[rs_size], &sig[offset+1], rs_size);
-        } else {
+        }
+        else {
           XMEMCPY(&sigforSCE[rs_size], &sig[offset+2], rs_size);
         }
-    } else {
+    }
+    else {
         XMEMCPY(sigforSCE, &sig[offset+2], rs_size);
         
         offset = 0x26;
         /* s */
         if (sig[offset] == rs_size) {
           XMEMCPY(&sigforSCE[rs_size], &sig[offset+1], rs_size);
-        } else {
+        }
+        else {
           XMEMCPY(&sigforSCE[rs_size], &sig[offset+2], rs_size);
         }
     }
@@ -313,7 +320,8 @@ WOLFSSL_LOCAL int wc_SCE_EccVerify(WOLFSSL* ssl, const uint8_t* sig,
     if (ret == WOLFSSL_SUCCESS) {
         *result = 1;
         ret = 0; /* for success */
-    } else
+    }
+    else
         *result = 0;
     
     WOLFSSL_PKMSG("SCE ECC Verify: ret %d, result %d\n", ret, *result);
@@ -366,7 +374,8 @@ WOLFSSL_LOCAL int SCE_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
         if (ret != FSP_SUCCESS) {
             WOLFSSL_PKMSG("Failed PreMasterSecretGenerateForECC_secp256r1 %d\n", ret);
             return ret;
-        } else {
+        }
+        else {
             /* set master secret generation callback for use */
             wolfSSL_CTX_SetGenMasterSecretCb(ssl->ctx, Renesas_cmn_genMasterSecret);
             wolfSSL_SetGenMasterSecretCtx(ssl, cbInfo);
@@ -636,10 +645,10 @@ WOLFSSL_LOCAL int wc_sce_generateVerifyData(const uint8_t *ms, /* master secret 
 }
 
 /* generate keys for TLS communication */
-WOLFSSL_LOCAL int wc_sce_generateSeesionKey(struct WOLFSSL *ssl, 
+WOLFSSL_LOCAL int wc_sce_generateSessionKey(struct WOLFSSL *ssl, 
                 User_SCEPKCbInfo* cbInfo, int devId)
 {
-    WOLFSSL_MSG("sce_generateSeesionKey()");
+    WOLFSSL_MSG("sce_generateSessionKey()");
     int ret;
     Ciphers *enc;
     Ciphers *dec;
@@ -663,7 +672,8 @@ WOLFSSL_LOCAL int wc_sce_generateSeesionKey(struct WOLFSSL *ssl,
             wolfSSL_KeepArrays(ssl);
             ret = FSP_SUCCESS;
             
-        } else {
+        }
+        else {
             ret = R_SCE_TLS_SessionKeyGenerate(
                     GetSceCipherSuite(
                         ssl->options.cipherSuite0,
@@ -681,7 +691,8 @@ WOLFSSL_LOCAL int wc_sce_generateSeesionKey(struct WOLFSSL *ssl,
         
         if (ret != FSP_SUCCESS) {
             WOLFSSL_MSG("R_SCE_TLS_SessionKeyGenerate failed");
-        } else {
+        }
+        else {
             /* succeeded creating session keys */
             /* alloc aes instance for both enc and dec */
             enc = &ssl->encrypt;
@@ -717,7 +728,8 @@ WOLFSSL_LOCAL int wc_sce_generateSeesionKey(struct WOLFSSL *ssl,
                                                     sizeof(key_client_aes));
                 XMEMCPY(&dec->aes->ctx.sce_wrapped_key, &key_server_aes, 
                                                     sizeof(key_server_aes));
-            } else {
+            }
+            else {
                 XMEMCPY(&enc->aes->ctx.sce_wrapped_key, &key_server_aes, 
                                                     sizeof(key_server_aes));
                 XMEMCPY(&dec->aes->ctx.sce_wrapped_key, &key_client_aes, 
@@ -728,7 +740,7 @@ WOLFSSL_LOCAL int wc_sce_generateSeesionKey(struct WOLFSSL *ssl,
             ssl->keys.sce_server_write_MAC_secret = key_server_mac;
     
             /* set up key size and marked ready */
-            if (enc){
+            if (enc) {
                 enc->aes->ctx.keySize = ssl->specs.key_size;
                 enc->aes->ctx.setup = 1;
                 /* ready for use */
@@ -755,10 +767,11 @@ WOLFSSL_LOCAL int wc_sce_generateSeesionKey(struct WOLFSSL *ssl,
         }
         /* unlock hw */
         wc_sce_hw_unlock();
-    } else 
+    }
+    else 
         WOLFSSL_LEAVE("hw lock failed", ret);
     
-    WOLFSSL_LEAVE("sce_generateSeesionKey", ret);
+    WOLFSSL_LEAVE("sce_generateSessionKey", ret);
     return ret;
 }
 
@@ -792,7 +805,8 @@ WOLFSSL_LOCAL int wc_sce_generateMasterSecret(
         } 
         /* unlock hw */
         wc_sce_hw_unlock();
-    } else {
+    }
+    else {
         WOLFSSL_MSG(" hw lock failed ");
     }
     WOLFSSL_LEAVE("sce_generateMasterSecret", ret);
@@ -818,7 +832,8 @@ WOLFSSL_LOCAL int wc_sce_generatePremasterSecret(uint8_t *premaster,
             }
         /* unlock hw */
         wc_sce_hw_unlock();
-    } else {
+    }
+    else {
         WOLFSSL_MSG(" hw lock failed or preSz is smaller than 80");
     }
     
@@ -852,7 +867,8 @@ WOLFSSL_LOCAL int wc_sce_generateEncryptPreMasterSecret(
             
         if (ret != FSP_SUCCESS) {
             WOLFSSL_MSG("R_SCE_TLS_PreMasterSecretEncryptWithRSA2048 failed");
-        } else {
+        }
+        else {
             *outSz = 256; /* SCE can only handles 2048 RSA */
             /* set GenMaster Callback for Master secret generation */
             void* ctx = wolfSSL_GetRsaVerifyCtx(ssl);
@@ -862,7 +878,8 @@ WOLFSSL_LOCAL int wc_sce_generateEncryptPreMasterSecret(
         }
         wc_sce_hw_unlock();
 
-    } else {
+    }
+    else {
         WOLFSSL_MSG(" hw lock failed ");
     }
     WOLFSSL_LEAVE("sce_generateEncryptPreMasterSecret", ret);
@@ -918,21 +935,25 @@ WOLFSSL_LOCAL int wc_sce_tls_CertVerify(
         offset = 0x25;
         if (signature[offset] == 0x20) {
           XMEMCPY(&sigforSCE[rs_size], &signature[offset+1], rs_size);
-        } else {
+        }
+        else {
           XMEMCPY(&sigforSCE[rs_size], &signature[offset+2], rs_size);
         }
-      } else {
+      }
+      else {
         XMEMCPY(sigforSCE, &signature[offset+2], rs_size);
         offset = 0x26;
          
         if (signature[offset] == rs_size) {
           XMEMCPY(&sigforSCE[rs_size], &signature[offset+1], rs_size);
-        } else {
+        }
+        else {
           XMEMCPY(&sigforSCE[rs_size], &signature[offset+2], rs_size);
         }
       }
       pSig = sigforSCE;
-    } else {
+    }
+    else {
       pSig = (uint8_t*)signature;
     }
                                   
@@ -957,7 +978,8 @@ WOLFSSL_LOCAL int wc_sce_tls_CertVerify(
           XFREE(sigforSCE, NULL, DYNAMIC_TYPE_TEMP);
         }
         wc_sce_hw_unlock();
-    } else {
+    }
+    else {
         WOLFSSL_MSG(" hw lock failed ");
     }
     WOLFSSL_LEAVE("sce_tls_CertVerify", ret);
@@ -999,11 +1021,13 @@ WOLFSSL_LOCAL int wc_sce_tls_RootCertVerify(
                                             /* ECDSA 96 bytes */
         if (ret != FSP_SUCCESS) {
             WOLFSSL_MSG(" R_SCE_TLS_RootCertificateVerify() failed");
-        } else {
+        }
+        else {
             g_CAscm_Idx = cm_row;
         }
         wc_sce_hw_unlock();
-    } else {
+    }
+    else {
         WOLFSSL_MSG(" hw lock failed ");
     }
     WOLFSSL_LEAVE("wc_sce_tls_RootCertVerify", ret);
@@ -1017,7 +1041,7 @@ WOLFSSL_LOCAL int wc_sce_storeKeyCtx(struct WOLFSSL* ssl, User_SCEPKCbInfo* info
 {
     int ret = 0;
 
-    WOLFSSL_MSG(">> sce_storeKeyCtx");
+    WOLFSSL_ENTER("sce_storeKeyCtx");
 
     if (ssl == NULL || info == NULL)
         ret = BAD_FUNC_ARG;
@@ -1031,7 +1055,7 @@ WOLFSSL_LOCAL int wc_sce_storeKeyCtx(struct WOLFSSL* ssl, User_SCEPKCbInfo* info
         info->sce_cipher = GetSceCipherSuite(ssl->options.cipherSuite0,
                                ssl->options.cipherSuite);
     }
-    
+    WOLFSSL_LEAVE("sce_storeKeyCtx", ret);
     return ret;
 }
 
