@@ -20621,6 +20621,7 @@ static int test_wc_DsaKeyToPublicDer(void)
     }
     if (ret == 0) {
         word32 idx = 0;
+        wc_FreeDsaKey(&genKey);
         ret = wc_DsaPublicKeyDecode(der, &idx, &genKey, sz);
     }
     /* Test without the SubjectPublicKeyInfo header */
@@ -20635,6 +20636,7 @@ static int test_wc_DsaKeyToPublicDer(void)
     }
     if (ret == 0) {
         word32 idx = 0;
+        wc_FreeDsaKey(&genKey);
         ret = wc_DsaPublicKeyDecode(der, &idx, &genKey, sz);
     }
 
