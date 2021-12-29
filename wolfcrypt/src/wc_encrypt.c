@@ -625,6 +625,8 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
         case PBE_AES256_CBC:
         case PBE_AES128_CBC:
         {
+            int free_aes;
+
 #ifdef WOLFSSL_SMALL_STACK
             Aes *aes;
             aes = (Aes *)XMALLOC(sizeof *aes, NULL, DYNAMIC_TYPE_AES);
@@ -633,8 +635,10 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
 #else
             Aes aes[1];
 #endif
+            free_aes = 0;
             ret = wc_AesInit(aes, NULL, INVALID_DEVID);
             if (ret == 0) {
+                free_aes = 1;
                 if (enc) {
                     ret = wc_AesSetKey(aes, key, derivedLen, cbcIv,
                                                                 AES_ENCRYPTION);
@@ -650,6 +654,8 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                 else
                     ret = wc_AesCbcDecrypt(aes, input, input, length);
             }
+            if (free_aes)
+                wc_AesFree(aes);
             ForceZero(aes, sizeof(Aes));
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(aes, NULL, DYNAMIC_TYPE_AES);
