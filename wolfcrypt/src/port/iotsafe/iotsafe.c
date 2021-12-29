@@ -727,31 +727,32 @@ static int iotsafe_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
     char *resp;
 	uint16_t hash_algo  = 0;
     int len;
+    uint16_t hash_algo_be = 0;
 
     WOLFSSL_MSG("Enter iotsafe_hkdf_extract");
      switch (digest) {
         #ifndef NO_SHA256
         case WC_SHA256:
-         hash_algo = (uint16_t)1;
-         if (ikmLen == 0) {
-             len = WC_SHA256_DIGEST_SIZE;
-         }
+        hash_algo = (uint16_t)1;
+        if (ikmLen == 0) {
+            len = WC_SHA256_DIGEST_SIZE;
+        }
             break;
         #endif
         #ifdef WOLFSSL_SHA384
         case WC_SHA384:
-          hash_algo = (uint16_t)2;
-           if (ikmLen == 0) {
-             len = WC_SHA384_DIGEST_SIZE;
-         }
-             break;
+        hash_algo = (uint16_t)2;
+        if (ikmLen == 0) {
+            len = WC_SHA384_DIGEST_SIZE;
+        }
+            break;
         #endif
         #ifdef WOLFSSL_TLS13_SHA512
         case WC_SHA512:
-            hash_algo = (uint16_t)4;
-             if (ikmLen == 0) {
-             len = WC_SHA512_DIGEST_SIZE;
-         }
+        hash_algo = (uint16_t)4;
+        if (ikmLen == 0) {
+            len = WC_SHA512_DIGEST_SIZE;
+        }
             break;
         #endif
         default:
@@ -777,7 +778,7 @@ static int iotsafe_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
     printf("\nhash: %d\n", digest);
     #endif
 
-	uint16_t hash_algo_be = XHTONS(hash_algo);
+    hash_algo_be = XHTONS(hash_algo);
 
     iotsafe_cmd_start(csim_cmd, IOTSAFE_CLASS, IOTSAFE_INS_HKDF_EXTRACT, 0, 0);
     iotsafe_cmd_add_tlv(csim_cmd, IOTSAFE_TAG_SECRET, ikmLen, ikm);
