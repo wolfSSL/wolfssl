@@ -18366,8 +18366,6 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 ret = wc_RNG_GenerateBlock(ssl->rng, args->iv, args->ivSz);
                 if (ret != 0)
                     goto exit_buildmsg;
-
-                XMEMSET(args->iv, 0, args->ivSz);
             }
 #if !defined(NO_PUBLIC_GCM_SET_IV) && \
     ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
