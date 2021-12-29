@@ -249,6 +249,7 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
     }
 #endif
 
+    wc_AesFree(&cmac->aes);
     ForceZero(cmac, sizeof(Cmac));
 
     return ret;
