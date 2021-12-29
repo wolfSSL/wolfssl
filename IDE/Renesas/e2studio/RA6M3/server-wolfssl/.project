@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>server_wolfSSL_RA6M3G</name>
+	<name>server_wolfSSL_RA6M3</name>
 	<comment></comment>
 	<projects>
 	</projects>
@@ -40,16 +40,6 @@
 			<name>common/util.h</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/common/util.h</locationURI>
-		</link>
-		<link>
-			<name>script/ra6m3.ld</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/common/ra6m3g/script/ra6m3.ld</locationURI>
-		</link>
-		<link>
-			<name>src/hal_entry.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/common/ra6m3g/src/hal_entry.c</locationURI>
 		</link>
 		<link>
 			<name>common/src/freertos_tcp_port.c</name>

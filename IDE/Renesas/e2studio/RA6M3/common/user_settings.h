@@ -30,7 +30,9 @@
 #define WOLFSSL_TLS13
 #define HAVE_HKDF
 #define WC_RSA_PSS
-
+#if defined(WOLFSSL_TLS13)
+    #include <sys/time.h>
+#endif
 /* Operating Environment and Threading */
 #define FREERTOS
 #define FREERTOS_TCP

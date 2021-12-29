@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>benchmark_wolfCrypt_RA6M3G</name>
+	<name>benchmark_wolfCrypt_RA6M3</name>
 	<comment></comment>
 	<projects>
 	</projects>
@@ -39,11 +39,6 @@
 			<name>common/util.h</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/common/util.h</locationURI>
-		</link>
-		<link>
-			<name>script/ra6m3.ld</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/common/ra6m3g/script/ra6m3.ld</locationURI>
 		</link>
 		<link>
 			<name>src/benchmark.c</name>
