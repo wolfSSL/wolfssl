@@ -5132,6 +5132,18 @@ then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_CERTIFICATE_STATUS_REQUEST_V2"
     fi
 
+    if test "x$ENABLED_SNI" = "xno"
+    then
+        ENABLED_SNI="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI"
+    fi
+
+    if test "x$ENABLED_ALT_CERT_CHAINS" = "xno"
+    then
+        ENABLED_ALT_CERT_CHAINS="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALT_CERT_CHAINS"
+    fi
+
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
 fi
 
