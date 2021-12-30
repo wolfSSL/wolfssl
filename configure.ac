@@ -216,8 +216,9 @@ AC_ARG_ENABLE([fips],
 #   v5-RC8 - historical FIPS 140-3 (wolfCrypt WCv5.0-RC8)
 #   v5-RC9 - historical FIPS 140-3 (wolfCrypt WCv5.0-RC9)
 #   v5-RC10 - historical FIPS 140-3, wolfCrypt/fips WCv5.0-RC10
-#   v5-RC11 - FIPS 140-3, wolfCrypt/fips WCv5.0-RC11
-#   v5 - currently, alias for v5-RC11
+#   v5-RC11 - historical FIPS 140-3, wolfCrypt/fips WCv5.0-RC11
+#   v5-RC12 - FIPS 140-3, wolfCrypt/fips WCv5.0-RC12
+#   v5 - currently, alias for v5-RC12
 #   v5-ready - FIPS 140-3 settings with in-tree wolfcrypt sources, feature locked
 #   v5-dev - FIPS 140-3 settings with in-tree wolfcrypt sources, features freely adjustable
 #   ready - currently, same as v5-ready
@@ -264,8 +265,14 @@ AS_CASE([$ENABLED_FIPS],
         HAVE_FIPS_VERSION_MINOR=2
         ENABLED_FIPS="yes"
     ],
-    [v5|v5-RC11],[
+    [v5-RC11],[
         FIPS_VERSION="v5-RC11"
+        HAVE_FIPS_VERSION=5
+        HAVE_FIPS_VERSION_MINOR=2
+        ENABLED_FIPS="yes"
+    ],
+    [v5|v5-RC12],[
+        FIPS_VERSION="v5-RC12"
         HAVE_FIPS_VERSION=5
         HAVE_FIPS_VERSION_MINOR=2
         ENABLED_FIPS="yes"
