@@ -223,22 +223,22 @@ netos-7.6)
 
 linuxv5)
   FIPS_REPO="git@github.com:wolfSSL/fips.git"
-  FIPS_VERSION="WCv5.0-RC11"
+  FIPS_VERSION="WCv5.0-RC12"
   CRYPT_REPO="git@github.com:wolfSSL/wolfssl.git"
-  CRYPT_VERSION="WCv5.0-RC11"
+  CRYPT_VERSION="WCv5.0-RC12"
   CRYPT_INC_PATH="wolfssl/wolfcrypt"
   CRYPT_SRC_PATH="wolfcrypt/src"
   WC_MODS=( aes sha sha256 sha512 rsa hmac random cmac dh ecc sha3 kdf )
-  RNG_VERSION="WCv5.0-RC11"
+  RNG_VERSION="WCv5.0-RC12"
   FIPS_SRCS=( fips.c fips_test.c wolfcrypt_first.c wolfcrypt_last.c )
   FIPS_INCS=( fips.h )
-  FIPS_OPTION="v5-RC11"
+  FIPS_OPTION="v5-RC12"
   COPY_DIRECT=( wolfcrypt/src/aes_asm.S wolfcrypt/src/aes_asm.asm
                 wolfcrypt/src/sha256_asm.S wolfcrypt/src/sha512_asm.S )
   ;;
 linuxv5-ready|fips-ready|fips-v5-ready)
   FIPS_REPO="git@github.com:wolfSSL/fips.git"
-  FIPS_VERSION="WCv5.0-RC11"
+  FIPS_VERSION="WCv5.0-RC12"
   CRYPT_INC_PATH=wolfssl/wolfcrypt
   CRYPT_SRC_PATH=wolfcrypt/src
   FIPS_SRCS=( fips.c fips_test.c wolfcrypt_first.c wolfcrypt_last.c )
