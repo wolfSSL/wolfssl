@@ -35,12 +35,35 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/types.h>
 
+#if defined(WOLFSSL_PSA_GLOBAL_LOCK)
+static wolfSSL_Mutex psa_global_mutex;
+
+void PSA_LOCK()
+{
+    /* ideally we should propagate the return error here. Leaving out for code
+       simplicity for now. */
+    wc_LockMutex(&psa_global_mutex);
+}
+
+void PSA_UNLOCK()
+{
+    wc_UnLockMutex(&psa_global_mutex);
+}
+
+#endif
+
 
 int wc_psa_init()
 {
     psa_status_t s;
 
+#if defined(WOLFSSL_PSA_GLOBAL_LOCK)
+    wc_InitMutex(&psa_global_mutex);
+#endif
+
+    PSA_LOCK();
     s = psa_crypto_init();
+    PSA_UNLOCK();
     if (s != PSA_SUCCESS)
         return WC_HW_E;
 
@@ -59,7 +82,9 @@ int wc_psa_get_random(unsigned char *out, word32 sz)
 {
     psa_status_t s;
 
+    PSA_LOCK();
     s = psa_generate_random((uint8_t*)out, sz);
+    PSA_UNLOCK();
     if (s != PSA_SUCCESS)
         return WC_HW_E;
 

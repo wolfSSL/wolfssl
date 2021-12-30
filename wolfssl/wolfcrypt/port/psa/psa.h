@@ -31,6 +31,7 @@
  * WOLFSSL_PSA_NO_RNG: disable PSA random generator support
  * WOLFSSL_PSA_NO_HASH: disable PSA hashing support
  * WOLFSSL_PSA_NO_AES: disable PSA AES support
+ * WOLFSSL_PSA_GLOBAL_LOCK: serialize the access to the underlying PSA lib
  */
 
 #ifndef WOLFSSL_PSA_H
@@ -53,6 +54,14 @@
 #include <wolfssl/wolfcrypt/aes.h>
 #endif
 #endif /* WOLFSSL_PSA_NO_AES */
+
+#if defined(WOLFSSL_PSA_GLOBAL_LOCK)
+void PSA_LOCK(void);
+void PSA_UNLOCK(void);
+#else
+#define PSA_LOCK()
+#define PSA_UNLOCK()
+#endif
 
 int wc_psa_init(void);
 

@@ -57,7 +57,9 @@ static int wc_psa_aes_import_key(Aes *aes, const uint8_t *key,
                             dir == AES_DECRYPTION ? PSA_KEY_USAGE_DECRYPT : 0);
     psa_set_key_algorithm(&key_attr, alg);
 
+    PSA_LOCK();
     s = psa_import_key(&key_attr, key, key_length, &id);
+    PSA_UNLOCK();
     if (s != PSA_SUCCESS)
         return WC_HW_E;
 
@@ -100,12 +102,16 @@ int wc_psa_aes_get_key_size(Aes *aes, word32 *keySize)
     if (aes->key_id == PSA_KEY_ID_NULL)
         return BAD_FUNC_ARG;
 
+    PSA_LOCK();
     s = psa_get_key_attributes(aes->key_id, &attr);
+    PSA_UNLOCK();
     if (s != PSA_SUCCESS)
         return WC_HW_E;
 
     *keySize = (word32)(psa_get_key_bits(&attr) / 8);
+    PSA_LOCK();
     psa_reset_key_attributes(&attr);
+    PSA_UNLOCK();
     return 0;
 }
 
@@ -135,15 +141,21 @@ int wc_psa_aes_set_key(Aes *aes, const uint8_t *key, size_t key_length,
 
     /* the object was already used for other encryption. Reset the context */
     if (aes->ctx_initialized) {
+        PSA_LOCK();
         s = psa_cipher_abort(&aes->psa_ctx);
+        PSA_UNLOCK();
         if (s != PSA_SUCCESS)
             return WC_HW_E;
+
         aes->ctx_initialized =0;
     }
 
     /* a key was already imported, destroy it first */
     if (aes->key_id != PSA_KEY_ID_NULL) {
+        PSA_LOCK();
         psa_destroy_key(aes->key_id);
+        PSA_UNLOCK();
+
         aes->key_id = PSA_KEY_ID_NULL;
     }
 
@@ -154,7 +166,9 @@ int wc_psa_aes_set_key(Aes *aes, const uint8_t *key, size_t key_length,
         XMEMCPY(aes->key, key, key_length);
         aes->key_need_importing = 1;
     } else {
+        PSA_LOCK();
         ret = wc_psa_aes_import_key(aes, key, key_length, alg, dir);
+        PSA_UNLOCK();
         if (ret != 0)
             return ret;
     }
@@ -203,9 +217,13 @@ int wc_psa_aes_encrypt_decrypt(Aes *aes, const uint8_t *input,
         }
 
         if (direction == AES_ENCRYPTION) {
+            PSA_LOCK();
             s = psa_cipher_encrypt_setup(&aes->psa_ctx, aes->key_id, alg);
+            PSA_UNLOCK();
         } else {
+            PSA_LOCK();
             s = psa_cipher_decrypt_setup(&aes->psa_ctx, aes->key_id, alg);
+            PSA_UNLOCK();
         }
 
         if (s != PSA_SUCCESS)
@@ -217,16 +235,21 @@ int wc_psa_aes_encrypt_decrypt(Aes *aes, const uint8_t *input,
         if (alg != PSA_ALG_ECB_NO_PADDING) {
 
             /* wc_SetIV stores the IV in reg */
+            PSA_LOCK();
             s = psa_cipher_set_iv(&aes->psa_ctx,
                                   (uint8_t*)aes->reg, AES_IV_SIZE);
+            PSA_UNLOCK();
+
             if (s != PSA_SUCCESS)
                 goto err;
         }
 
     }
 
+    PSA_LOCK();
     s = psa_cipher_update(&aes->psa_ctx, input,
                           length, output, length, &output_length);
+    PSA_UNLOCK();
     if (s != PSA_SUCCESS)
         goto err;
 
@@ -247,12 +270,16 @@ int wc_psa_aes_encrypt_decrypt(Aes *aes, const uint8_t *input,
 int wc_psa_aes_free(Aes *aes)
 {
     if (aes->key_id != PSA_KEY_ID_NULL) {
+        PSA_LOCK();
         psa_destroy_key(aes->key_id);
+        PSA_UNLOCK();
         aes->key_id = PSA_KEY_ID_NULL;
     }
 
     if (aes->ctx_initialized == 1) {
+        PSA_LOCK();
         psa_cipher_abort(&aes->psa_ctx);
+        PSA_UNLOCK();
         aes->ctx_initialized = 0;
     }
 

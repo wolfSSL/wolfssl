@@ -50,10 +50,14 @@ static int wc_psa_hash_init_and_setup(psa_hash_operation_t *ctx,
 
     XMEMSET(ctx, 0, sizeof(*ctx));
 
+    PSA_LOCK();
     s = psa_hash_setup(ctx, alg);
+    PSA_UNLOCK();
 
     if (s != PSA_SUCCESS) {
+        PSA_LOCK();
         psa_hash_abort(ctx);
+        PSA_UNLOCK();
         return WC_HW_E;
     }
 
@@ -68,10 +72,14 @@ static int wc_psa_hash_update(psa_hash_operation_t *ctx, const uint8_t *input,
     if (ctx == NULL || (input == NULL && input_length > 0))
         return BAD_FUNC_ARG;
 
+    PSA_LOCK();
     s = psa_hash_update(ctx, input, input_length);
+    PSA_UNLOCK();
 
     if (s != PSA_SUCCESS) {
+        PSA_LOCK();
         psa_hash_abort(ctx);
+        PSA_UNLOCK();
         return WC_HW_E;
     }
 
@@ -87,15 +95,23 @@ static int wc_psa_hash_finish_setup(psa_hash_operation_t *ctx,
     if (ctx == NULL || output == NULL)
         return BAD_FUNC_ARG;
 
+    PSA_LOCK();
     s = psa_hash_finish(ctx, output, PSA_HASH_LENGTH(alg), &hash_length);
+    PSA_UNLOCK();
     if (s != PSA_SUCCESS) {
+        PSA_LOCK();
         psa_hash_abort(ctx);
+        PSA_UNLOCK();
         return WC_HW_E;
     }
 
+    PSA_LOCK();
     s = psa_hash_setup(ctx, alg);
+    PSA_UNLOCK();
     if (s != PSA_SUCCESS) {
+        PSA_LOCK();
         psa_hash_abort(ctx);
+        PSA_UNLOCK();
         return WC_HW_E;
     }
 
@@ -110,9 +126,14 @@ static int wc_psa_hash_clone(const psa_hash_operation_t *src,
     if (src == NULL || dst == NULL)
         return BAD_FUNC_ARG;
 
+    PSA_LOCK();
     psa_hash_abort(dst);
+    PSA_UNLOCK();
 
+    PSA_LOCK();
     s = psa_hash_clone(src, dst);
+    PSA_UNLOCK();
+
     if (s != PSA_SUCCESS)
         return WC_HW_E;
 
@@ -126,7 +147,9 @@ static int wc_psa_hash_abort(psa_hash_operation_t *ctx)
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
+    PSA_LOCK();
     s = psa_hash_abort(ctx);
+    PSA_UNLOCK();
     if (s != PSA_SUCCESS)
         return WC_HW_E;
 
@@ -146,15 +169,21 @@ static int wc_psa_get_hash(psa_hash_operation_t *ctx,
         return BAD_FUNC_ARG;
 
     XMEMSET(&tmp, 0, sizeof(tmp));
+    PSA_LOCK();
     s = psa_hash_clone(ctx, &tmp);
+    PSA_UNLOCK();
     if (s != PSA_SUCCESS) {
         psa_hash_abort(&tmp);
         return WC_HW_E;
     }
 
+    PSA_LOCK();
     s = psa_hash_finish(&tmp, out, PSA_HASH_LENGTH(alg), &hash_length);
+    PSA_UNLOCK();
     if (s != PSA_SUCCESS) {
+        PSA_LOCK();
         psa_hash_abort(&tmp);
+        PSA_UNLOCK();
         return WC_HW_E;
     }
 
