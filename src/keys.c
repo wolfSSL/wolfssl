@@ -2476,17 +2476,25 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         int aesRet = 0;
 
         if (enc) {
-            if (enc->aes == NULL)
+            if (enc->aes == NULL) {
                 enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-            if (enc->aes == NULL)
-                return MEMORY_E;
+                if (enc->aes == NULL)
+                    return MEMORY_E;
+            } else {
+                wc_AesFree(enc->aes);
+            }
+
             XMEMSET(enc->aes, 0, sizeof(Aes));
         }
         if (dec) {
-            if (dec->aes == NULL)
+            if (dec->aes == NULL) {
                 dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-            if (dec->aes == NULL)
-                return MEMORY_E;
+                if (dec->aes == NULL)
+                    return MEMORY_E;
+            } else {
+                wc_AesFree(dec->aes);
+            }
+
             XMEMSET(dec->aes, 0, sizeof(Aes));
         }
         if (enc) {
@@ -2553,17 +2561,25 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         int gcmRet;
 
         if (enc) {
-            if (enc->aes == NULL)
+            if (enc->aes == NULL) {
                 enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-            if (enc->aes == NULL)
-                return MEMORY_E;
+                if (enc->aes == NULL)
+                    return MEMORY_E;
+            } else {
+                wc_AesFree(enc->aes);
+            }
+
             XMEMSET(enc->aes, 0, sizeof(Aes));
         }
         if (dec) {
-            if (dec->aes == NULL)
+            if (dec->aes == NULL) {
                 dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-            if (dec->aes == NULL)
-                return MEMORY_E;
+                if (dec->aes == NULL)
+                    return MEMORY_E;
+            } else {
+                wc_AesFree(dec->aes);
+            }
+
             XMEMSET(dec->aes, 0, sizeof(Aes));
         }
 
@@ -2653,17 +2669,24 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         int CcmRet;
 
         if (enc) {
-            if (enc->aes == NULL)
+            if (enc->aes == NULL) {
                 enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-            if (enc->aes == NULL)
-                return MEMORY_E;
+                if (enc->aes == NULL)
+                    return MEMORY_E;
+            } else {
+                wc_AesFree(enc->aes);
+            }
+
             XMEMSET(enc->aes, 0, sizeof(Aes));
         }
         if (dec) {
-            if (dec->aes == NULL)
+            if (dec->aes == NULL) {
                 dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-            if (dec->aes == NULL)
+                if (dec->aes == NULL)
                 return MEMORY_E;
+            } else {
+                wc_AesFree(dec->aes);
+            }
             XMEMSET(dec->aes, 0, sizeof(Aes));
         }
 

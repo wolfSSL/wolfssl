@@ -7007,6 +7007,8 @@ EVP_TEST_END:
 
   out:
 
+        wc_AesFree(enc);
+        wc_AesFree(dec);
 #ifdef WOLFSSL_SMALL_STACK
     if (enc)
         XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
@@ -8043,6 +8045,8 @@ static int aes_xts_128_test(void)
         ERROR_OUT(-5402, out);
 
     XMEMSET(buf, 0, sizeof(buf));
+    wc_AesXtsFree(aes);
+
     if (wc_AesXtsSetKey(aes, k1, sizeof(k1), AES_ENCRYPTION,
             HEAP_HINT, devId) != 0)
         ERROR_OUT(-5403, out);
@@ -8089,6 +8093,7 @@ static int aes_xts_128_test(void)
         ERROR_OUT(-5410, out);
     if (XMEMCMP(p1, buf, AES_BLOCK_SIZE))
         ERROR_OUT(-5411, out);
+    wc_AesXtsFree(aes);
 
     /* fail case with decrypting using wrong key */
     XMEMSET(buf, 0, sizeof(buf));
@@ -8243,6 +8248,7 @@ static int aes_xts_256_test(void)
         ERROR_OUT(-5501, out);
     if (XMEMCMP(c2, buf, sizeof(c2)))
         ERROR_OUT(-5502, out);
+    wc_AesXtsFree(aes);
 
     XMEMSET(buf, 0, sizeof(buf));
     if (wc_AesXtsSetKey(aes, k1, sizeof(k1), AES_ENCRYPTION,
@@ -8291,6 +8297,7 @@ static int aes_xts_256_test(void)
         ERROR_OUT(-5510, out);
     if (XMEMCMP(p1, buf, AES_BLOCK_SIZE))
         ERROR_OUT(-5511, out);
+    wc_AesXtsFree(aes);
 
     XMEMSET(buf, 0, sizeof(buf));
     if (wc_AesXtsSetKey(aes, k2, sizeof(k2), AES_DECRYPTION,
@@ -8398,6 +8405,7 @@ static int aes_xts_sector_test(void)
         ERROR_OUT(-5601, out);
     if (XMEMCMP(c1, buf, AES_BLOCK_SIZE))
         ERROR_OUT(-5602, out);
+    wc_AesXtsFree(aes);
 
     /* decrypt test */
     XMEMSET(buf, 0, sizeof(buf));
@@ -8427,6 +8435,7 @@ static int aes_xts_sector_test(void)
         ERROR_OUT(-5607, out);
     if (XMEMCMP(c2, buf, sizeof(c2)))
         ERROR_OUT(-5608, out);
+    wc_AesXtsFree(aes);
 
     /* decrypt test */
     XMEMSET(buf, 0, sizeof(buf));
@@ -10399,7 +10408,7 @@ WOLFSSL_TEST_SUBROUTINE int gmac_test(void)
 #endif
 
     XMEMSET(gmac, 0, sizeof *gmac); /* clear context */
-    (void)wc_AesInit((Aes*)gmac, HEAP_HINT, INVALID_DEVID); /* Make sure devId updated */
+    (void)wc_AesInit(&gmac->aes, HEAP_HINT, INVALID_DEVID); /* Make sure devId updated */
     XMEMSET(tag, 0, sizeof(tag));
     wc_GmacSetKey(gmac, k1, sizeof(k1));
     wc_GmacUpdate(gmac, iv1, sizeof(iv1), a1, sizeof(a1), tag, sizeof(t1));
@@ -10460,6 +10469,7 @@ WOLFSSL_TEST_SUBROUTINE int gmac_test(void)
     ret = 0;
 
   out:
+    wc_AesFree(&gmac->aes);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(gmac, HEAP_HINT, DYNAMIC_TYPE_AES);
 #endif
@@ -10613,6 +10623,7 @@ WOLFSSL_TEST_SUBROUTINE int aesccm_test(void)
     XMEMSET(c2, 0, sizeof(c2));
     if (XMEMCMP(p2, c2, sizeof(p2)))
         ERROR_OUT(-6507, out);
+    wc_AesFree(enc);
 
     XMEMSET(enc, 0, sizeof(Aes)); /* clear context */
     XMEMSET(t2, 0, sizeof(t2));
@@ -10725,6 +10736,8 @@ WOLFSSL_TEST_SUBROUTINE int aesccm_test(void)
                               sizeof(a));
     if (result != 0)
         ERROR_OUT(-6526, out);
+
+    wc_AesFree(enc);
 
     ret = 0;
 

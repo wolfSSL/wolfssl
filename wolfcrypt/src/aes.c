@@ -9415,6 +9415,10 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
         }
     }
 
+    /* reset the state */
+    if (ret == 0)
+        wc_AesFree(aes);
+
     return ret;
 }
 #endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
@@ -10384,6 +10388,7 @@ void wc_AesFree(Aes* aes)
     !defined(WOLFSSL_AESNI)
     if (aes->streamData != NULL) {
         XFREE(aes->streamData, aes->heap, DYNAMIC_TYPE_AES);
+        aes->streamData = NULL;
     }
 #endif
 

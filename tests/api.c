@@ -14998,16 +14998,21 @@ static int test_wc_InitCmac (void)
     ret = wc_InitCmac(&cmac1, key1, key1Sz, type, NULL);
 #endif
 #ifdef WOLFSSL_AES_192
-    if (ret == 0)
+    if (ret == 0) {
+        wc_AesFree(&cmac1.aes);
         ret = wc_InitCmac(&cmac2, key2, key2Sz, type, NULL);
+    }
 #endif
 #ifdef WOLFSSL_AES_256
-    if (ret == 0)
+    if (ret == 0) {
+        wc_AesFree(&cmac2.aes);
         ret = wc_InitCmac(&cmac3, key3, key3Sz, type, NULL);
+    }
 #endif
 
     /* Test bad args. */
     if (ret == 0) {
+        wc_AesFree(&cmac3.aes);
         ret = wc_InitCmac(NULL, key3, key3Sz, type, NULL);
         if (ret == BAD_FUNC_ARG) {
             ret = wc_InitCmac(&cmac3, NULL, key3Sz, type, NULL);
@@ -15084,6 +15089,7 @@ static int test_wc_CmacUpdate (void)
         } else if (ret == 0) {
             ret = WOLFSSL_FATAL_ERROR;
         }
+        wc_AesFree(&cmac.aes);
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
@@ -15205,6 +15211,8 @@ static int test_wc_AesCmacGenerate (void)
     ret = wc_CmacUpdate(&cmac, msg, msgSz);
     if (ret != 0) {
         return ret;
+    } else {
+        wc_AesFree(&cmac.aes);
     }
 
     printf(testingFmt, "wc_AesCmacGenerate()");
@@ -17489,7 +17497,9 @@ static int test_wc_GmacUpdate (void)
         if (ret == 0) {
             ret = XMEMCMP(tag1, tagOut, sizeof(tag1));
         }
+        wc_AesFree(&gmac.aes);
     }
+
 #endif
 
 #ifdef WOLFSSL_AES_192
@@ -17503,6 +17513,7 @@ static int test_wc_GmacUpdate (void)
     }
     if (ret == 0) {
         ret = XMEMCMP(tagOut2, tag2, sizeof(tag2));
+        wc_AesFree(&gmac.aes);
     }
 #endif
 
