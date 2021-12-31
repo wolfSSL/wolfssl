@@ -56,7 +56,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 #       the same checks.
 # TODO: Turn on warnings.
 
-if(APPLE)
+if(CMAKE_C_COMPILER_ID MATCHES "AppleClang")
     # Silence ranlib warning "has no symbols"
     set(CMAKE_C_ARCHIVE_CREATE   "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
     set(CMAKE_CXX_ARCHIVE_CREATE "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
