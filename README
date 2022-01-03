@@ -77,7 +77,7 @@ https://www.wolfssl.com/docs/security-vulnerabilities/
 See INSTALL file for build instructions.
 More info can be found on-line at https://wolfssl.com/wolfSSL/Docs.html
 
-# wolfSSL Release 5.1.1 (Jan 3rd, 2021)
+# wolfSSL Release 5.1.1 (Jan 3rd, 2022)
 Release 5.1.1 of wolfSSL embedded TLS has a high vulnerability fix:
 
 ### Vulnerabilities
