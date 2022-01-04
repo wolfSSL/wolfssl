@@ -536,9 +536,13 @@ static int doECDSA_KEYPAIR(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int
     }
 
     /* claim ownership of a secure memory location */
-    pthread_mutex_lock(&sm_mutex);
-    sm_ownerId[args[2]] = (CAAM_ADDRESS)ocb;
-    pthread_mutex_unlock(&sm_mutex);
+    if (pthread_mutex_lock(&sm_mutex) != EOK) {
+        return ECANCELED;
+    }
+    else {
+        sm_ownerId[args[2]] = (CAAM_ADDRESS)ocb;
+        pthread_mutex_unlock(&sm_mutex);
+    }
 
     return EOK;
 }
@@ -944,9 +948,13 @@ static int doGET_PART(resmgr_context_t *ctp, io_devctl_t *msg,
     SETIOV(&out_iov, &partAddr, sizeof(CAAM_ADDRESS));
     resmgr_msgwritev(ctp, &out_iov, 1, sizeof(msg->o));
 
-    pthread_mutex_lock(&sm_mutex);
-    sm_ownerId[partNumber] = (CAAM_ADDRESS)ocb;
-    pthread_mutex_unlock(&sm_mutex);
+    if (pthread_mutex_lock(&sm_mutex) != EOK) {
+        return ECANCELED;
+    }
+    else {
+        sm_ownerId[partNumber] = (CAAM_ADDRESS)ocb;
+        pthread_mutex_unlock(&sm_mutex);
+    }
     return EOK;
 }
 
@@ -1116,10 +1124,14 @@ int io_devctl (resmgr_context_t *ctp, io_devctl_t *msg, iofunc_ocb_t *ocb)
         case WC_CAAM_FREE_PART:
             caamFreePart(args[0]);
 
-            pthread_mutex_lock(&sm_mutex);
-            sm_ownerId[args[0]] = 0;
-            pthread_mutex_unlock(&sm_mutex);
-            ret = EOK;
+            if (pthread_mutex_lock(&sm_mutex) != EOK) {
+                ret = ECANCELED;
+            }
+            else {
+                sm_ownerId[args[0]] = 0;
+                pthread_mutex_unlock(&sm_mutex);
+                ret = EOK;
+            }
             break;
 
         case WC_CAAM_FIND_PART:
@@ -1165,17 +1177,21 @@ int io_close_ocb(resmgr_context_t *ctp, void *reserved, RESMGR_OCB_T *ocb)
     WOLFSSL_MSG("shutting down");
 
     /* free up any dangling owned memory */
-    pthread_mutex_lock(&sm_mutex);
-    for (i = 0; i < MAX_PART; i++) {
-        if (sm_ownerId[i] == (CAAM_ADDRESS)ocb) {
-            sm_ownerId[i] = 0;
-        #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
-            printf("found dangiling partition at index %d\n", i);
-        #endif
-            caamFreePart(i);
-        }
+    if (pthread_mutex_lock(&sm_mutex) != EOK) {
+        return ECANCELED;
     }
-    pthread_mutex_unlock(&sm_mutex);
+    else {
+        for (i = 0; i < MAX_PART; i++) {
+            if (sm_ownerId[i] == (CAAM_ADDRESS)ocb) {
+                sm_ownerId[i] = 0;
+            #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
+                printf("found dangiling partition at index %d\n", i);
+            #endif
+                caamFreePart(i);
+            }
+        }
+        pthread_mutex_unlock(&sm_mutex);
+    }
     return iofunc_close_ocb_default(ctp, reserved, ocb);
 }
 
