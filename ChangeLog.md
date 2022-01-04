@@ -1,4 +1,4 @@
-# wolfSSL Release 5.1.1 (Jan 3rd, 2021)
+# wolfSSL Release 5.1.1 (Jan 3rd, 2022)
 Release 5.1.1 of wolfSSL embedded TLS has a high vulnerability fix:
 
 ### Vulnerabilities
