@@ -2356,8 +2356,19 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 
 #if defined(WOLFSSL_SP_MATH)
     (void)rng;
+    #ifndef WOLFSSL_HAVE_SP_RSA
+    (void)in;
+    (void)inLen;
+    (void)out;
+    (void)outLen;
+    (void)type;
+    (void)key;
+    #error RSA SP option invalid (enable WOLFSSL_HAVE_SP_RSA or disable WOLFSSL_SP_MATH)
+    return NOT_COMPILED_IN;
+    #else
     WOLFSSL_MSG("SP Key Size Error");
     return WC_KEY_SIZE_E;
+    #endif
 #else
     (void)rng;
 

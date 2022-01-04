@@ -2263,6 +2263,7 @@ exit:
     (void)bench_mac_algs;
     (void)bench_asym_algs;
     (void)bench_other_algs;
+    (void)bench_pq_asym_algs;
 
     return NULL;
 }
