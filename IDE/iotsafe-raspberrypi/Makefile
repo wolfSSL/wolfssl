@@ -3,6 +3,9 @@ CINCS  := -I. -I/usr/local/wolfssl
 CLIBS  := -L/usr/local/lib
 CDEPS  := -lc -lg -lm -lwolfssl
 
+WOLFSSL_BUILD=build
+MKDIR_P = mkdir -p
+
 ENABLE_DEBUG_UART_IO       := off
 ENABLE_DEBUG_UART_IO_EXTRA := off
 ENABLE_SECRET_CALLBACK     := off
@@ -19,7 +22,7 @@ ifeq ($(ENABLE_SECRET_CALLBACK), on)
 	CFLAGS+=-DUSE_SECRET_CALLBACK
 endif
 
-OBJS:=main.o client-tls13.o
+OBJS:=$(WOLFSSL_BUILD)/main.o $(WOLFSSL_BUILD)/client-tls13.o
 
 .PHONY: all clean help
 
@@ -57,16 +60,22 @@ endef
 help:
 	@$(run-help)
 
-all: main.bin
+all: directories main.bin
+
+directories: $(WOLFSSL_BUILD)
+
+$(WOLFSSL_BUILD):
+	${MKDIR_P} $(WOLFSSL_BUILD)
 
 main.bin: $(OBJS)
 	$(CC) $(CFLAGS) $(CINCS) $(CLIBS) -o $@ $^ $(CDEPS)
 
-main.o: main.c
+$(WOLFSSL_BUILD)/main.o: main.c
 	$(CC) $(CFLAGS) $(CINCS) $(CLIBS) -c -o $@ $^ $(CDEPS)
 
-client-tls13.o: client-tls13.c
+$(WOLFSSL_BUILD)/client-tls13.o: client-tls13.c
 	$(CC) $(CFLAGS) $(CINCS) $(CLIBS) -c -o $@ $^ $(CDEPS)
 
 clean:
 	rm -f *.o *.bin
+	rm -rf build

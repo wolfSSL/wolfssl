@@ -1047,24 +1047,28 @@ static int wolfIoT_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
 {
     (void)ctx;
     int ret;
+    const  byte* localSalt;  /* either points to user input or tmp */
+    byte tmp[WC_MAX_DIGEST_SIZE]; /* localSalt helper */
 
     WOLFSSL_MSG("IOTSAFE: Called wolfIoT_hkdf_extract\n");
 
-    if(saltLen != 0){
-         ret = iotsafe_hkdf_extract(prk, salt, saltLen, ikm, ikmLen, digest);
-    }
-    else{
-         #ifdef DEBUG_IOTSAFE
-        printf("SALT is NULL, not supported by IoT Safe Applet, fallback to software implementation\n");
-        #endif
-        ret = wc_Tls13_HKDF_Extract(prk, salt, saltLen, ikm, ikmLen, digest);
-    }     
-    return ret;
+    localSalt = salt;
 
+    if(saltLen == 0) {
+        ret = wc_HmacSizeByType(digest);
+            if (ret < 0)
+                return ret;
+            saltLen = ret;
+            if (localSalt == NULL) {
+                XMEMSET(tmp, 0, saltLen);
+                localSalt = tmp;
+            }
+    }
+    
+    ret = iotsafe_hkdf_extract(prk, localSalt, saltLen, ikm, ikmLen, digest);    
+    return ret;
 }       
 #endif
-
-
 
 static int wolfIoT_ecc_sign(WOLFSSL* ssl,
        const unsigned char* in, unsigned int inSz,
