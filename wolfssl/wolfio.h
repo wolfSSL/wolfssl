@@ -649,7 +649,7 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
     };
 
     typedef struct isotp_can_data {
-        byte data[8];
+        byte data[ISOTP_CAN_BUS_PAYLOAD_SIZE];
         byte length;
     } isotp_can_data;
 
@@ -662,25 +662,24 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
     typedef void (*can_delay_fn)(int microseconds);
 
     typedef struct isotp_wolfssl_ctx {
-        int socket;
         struct isotp_can_data frame;
+        char *buf_ptr;
+        char *receive_buffer;
+        char *receive_buffer_ptr;
         can_recv_fn recv_fn;
         can_send_fn send_fn;
         can_delay_fn delay_fn;
+        void *arg;
+        int receive_buffer_len;
+        int receive_buffer_size;
+        enum isotp_connection_state state;
+        word16 buf_length;
         byte sequence;
         byte flow_packets;
         byte flow_counter;
         byte frame_delay;
         byte wait_counter;
-        char *buf_ptr;
-        word16 buf_length;
         byte receive_delay;
-        char *receive_buffer;
-        char *receive_buffer_ptr;
-        int receive_buffer_len;
-        int receive_buffer_size;
-        enum isotp_connection_state state;
-        void *arg;
     } isotp_wolfssl_ctx;
 
     WOLFSSL_LOCAL int ISOTP_Receive(WOLFSSL* ssl, char* buf, int sz, void* ctx);

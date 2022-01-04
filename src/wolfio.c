@@ -2872,9 +2872,16 @@ static int isotp_send_first_frame(struct isotp_wolfssl_ctx *ctx, char *buf,
 
 int ISOTP_Send(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
-    (void) ssl;
     int ret;
-    struct isotp_wolfssl_ctx *isotp_ctx = (struct isotp_wolfssl_ctx*) ctx;
+    struct isotp_wolfssl_ctx *isotp_ctx;
+    (void) ssl;
+
+    if (!ctx) {
+        WOLFSSL_MSG("ISO-TP requires wolfSSL_SetIO_ISOTP to be called first");
+        return WOLFSSL_CBIO_ERR_TIMEOUT;
+    }
+    isotp_ctx = (struct isotp_wolfssl_ctx*) ctx;
+
     if (sz > ISOTP_MAX_DATA_SIZE) {
         WOLFSSL_MSG("ISO-TP packets can be at most 4095 bytes");
         return WOLFSSL_CBIO_ERR_GENERAL;
@@ -2984,14 +2991,20 @@ static int isotp_receive_multi_frame(struct isotp_wolfssl_ctx *ctx)
  * incoming data, even if wolfSSL doesn't want it all yet */
 int ISOTP_Receive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
-    (void) ssl;
     enum isotp_frame_type type;
     int ret;
-    struct isotp_wolfssl_ctx *isotp_ctx = (struct isotp_wolfssl_ctx*)ctx;
+    struct isotp_wolfssl_ctx *isotp_ctx;
+    (void) ssl;
+
+    if (!ctx) {
+        WOLFSSL_MSG("ISO-TP requires wolfSSL_SetIO_ISOTP to be called first");
+        return WOLFSSL_CBIO_ERR_TIMEOUT;
+    }
+    isotp_ctx = (struct isotp_wolfssl_ctx*)ctx;
 
     /* Is buffer empty? If so, fill it */
     if (!isotp_ctx->receive_buffer_len) {
-            /* Can't send whilst we are receiving */
+        /* Can't send whilst we are receiving */
         if (isotp_ctx->state != ISOTP_CONN_STATE_IDLE) {
             return WOLFSSL_ERROR_WANT_READ;
         }
@@ -3047,25 +3060,15 @@ int ISOTP_Receive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
     }
 }
 
-/* Setup ISPTP
- *
- * Parameters:
- * ssl - The wolfSSL context
- * ctx - A user created ISOTP context which this function initializes
- * recv_fn - A user CAN bus receive callback
- * send_fn - A user CAN bus send callback
- * delay_fn - A user microsecond granularity delay function
- * receive_delay - A set amount of microseconds to delay each CAN bus packet
- * receive_buffer - A user supplied buffer to receive data, recommended that is
- *                  allocated to ISOTP_DEFAULT_BUFFER_SIZE bytes
- * receive_buffer_size - The size of receive_buffer
- * arg - An arbitrary pointer sent to recv_fn and send_fn
- */
 int wolfSSL_SetIO_ISOTP(WOLFSSL *ssl, isotp_wolfssl_ctx *ctx,
         can_recv_fn recv_fn, can_send_fn send_fn, can_delay_fn delay_fn,
         word32 receive_delay, char *receive_buffer, int receive_buffer_size,
         void *arg)
 {
+    if (!ctx || !recv_fn || !send_fn || !delay_fn || !receive_buffer) {
+        WOLFSSL_MSG("ISO-TP has missing required parameter");
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
     ctx->recv_fn = recv_fn;
     ctx->send_fn = send_fn;
     ctx->arg = arg;
