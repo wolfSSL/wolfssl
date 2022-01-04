@@ -4697,6 +4697,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_LIGHTY -DHAVE_WOLFSSL_SSL_H=1"
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
     AM_CFLAGS="$AM_CFLAGS -DOPENSSL_ALL"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"
     # recommended if building wolfSSL specifically for use by lighttpd
     if test "x$ENABLED_ALL" = "xno"; then
         AM_CFLAGS="$AM_CFLAGS -DOPENSSL_NO_SSL2 -DOPENSSL_NO_COMP"
