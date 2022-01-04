@@ -27,6 +27,7 @@ nobase_include_HEADERS+= \
                          wolfssl/openssl/engine.h \
                          wolfssl/openssl/err.h \
                          wolfssl/openssl/evp.h \
+                         wolfssl/openssl/fips_rand.h \
                          wolfssl/openssl/hmac.h \
                          wolfssl/openssl/lhash.h \
                          wolfssl/openssl/md4.h \
