@@ -2145,6 +2145,9 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 #elif defined(WOLFSSL_GNRC)
     ctx->CBIORecv = GNRC_ReceiveFrom;
     ctx->CBIOSend = GNRC_SendTo;
+#elif defined WOLFSSL_ISOTP
+    ctx->CBIORecv = ISOTP_Receive;
+    ctx->CBIOSend = ISOTP_Send;
 #endif
 
 #ifdef HAVE_PQC
