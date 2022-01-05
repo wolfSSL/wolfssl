@@ -15659,7 +15659,7 @@ static int DecodeExtKeyUsage(const byte* input, int sz, DecodedCert* cert)
     word32 idx = 0, oid;
     int length, ret;
 
-    WOLFSSL_MSG("DecodeExtKeyUsage");
+    WOLFSSL_ENTER("DecodeExtKeyUsage");
 
     if (GetSequence(input, &idx, &length, sz) < 0) {
         WOLFSSL_MSG("\tfail: should be a SEQUENCE");
@@ -15715,7 +15715,7 @@ static int DecodeExtKeyUsage(const byte* input, int sz, DecodedCert* cert)
     int length;
     int ret = 0;
 
-    WOLFSSL_MSG("DecodeExtKeyUsage");
+    WOLFSSL_ENTER("DecodeExtKeyUsage");
 
     /* Strip SEQUENCE OF and expect to account for all the data. */
     if (GetASN_Sequence(input, &idx, &length, sz, 1) < 0) {
@@ -16454,7 +16454,7 @@ exit:
  *   Inhibit anyPolicy - INHIBIT_ANY_OID
  *   Netscape Certificate Type - NETSCAPE_CT_OID (able to be excluded)
  *   OCSP no check - OCSP_NOCHECK_OID (when compiling OCSP)
- * Unsupported extensions from RFC 580:
+ * Unsupported extensions from RFC 5280:
  *   4.2.1.5 - Policy mappings
  *   4.2.1.7 - Issuer Alternative Name
  *   4.2.1.8 - Subject Directory Attributes
