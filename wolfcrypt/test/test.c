@@ -23529,7 +23529,7 @@ static int ecc_test_cert_gen(WC_RNG* rng)
     TEST_SLEEP();
 
 #ifdef WOLFSSL_TEST_CERT
-    InitDecodedCert(decode, der, certSz, 0);
+    InitDecodedCert(decode, der, certSz, HEAP_HINT);
     ret = ParseCert(decode, CERT_TYPE, NO_VERIFY, 0);
     if (ret != 0) {
         FreeDecodedCert(decode);
