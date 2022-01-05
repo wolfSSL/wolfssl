@@ -618,13 +618,14 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 #ifdef WOLFSSL_ISOTP
     #define ISOTP_DEFAULT_TIMEOUT 100
     #define ISOTP_DEFAULT_WAIT_COUNT 3
-    #define ISOTP_DEFAULT_BUFFER_SIZE 16384
     #define ISOTP_FIRST_FRAME_DATA_SIZE 6
     #define ISOTP_SINGLE_FRAME_DATA_SIZE 7
     #define ISOTP_MAX_CONSECUTIVE_FRAME_DATA_SIZE 7
     #define ISOTP_MAX_MS_FRAME_DELAY 0x7f
     #define ISOTP_CAN_BUS_PAYLOAD_SIZE 8
     #define ISOTP_MAX_DATA_SIZE 4095
+    /* Packets will never be larger than the ISO-TP max data size */
+    #define ISOTP_DEFAULT_BUFFER_SIZE ISOTP_MAX_DATA_SIZE
     #define ISOTP_FLOW_CONTROL_PACKET_SIZE 3
     #define ISOTP_FLOW_CONTROL_FRAMES 0 /* infinite */
     #define ISOTP_MAX_SEQUENCE_COUNTER 15

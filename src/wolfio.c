@@ -2810,8 +2810,9 @@ static int isotp_send_first_frame(struct isotp_wolfssl_ctx *ctx, char *buf,
 {
     int ret;
     ctx->sequence = 0;
-    ctx->flow_packets = 0;
-    ctx->flow_counter = 0;
+    /* Set to 1 to trigger a flow control straight away, the flow control
+     * packet will set these properly */
+    ctx->flow_packets = ctx->flow_counter = 1;
     /* First frame has 1 nibble for type, 3 nibbles for length followed by
      * 6 bytes for data*/
     ctx->frame.data[0] = (length >> 8) | (ISOTP_FRAME_TYPE_FIRST << 4);
@@ -2829,7 +2830,8 @@ static int isotp_send_first_frame(struct isotp_wolfssl_ctx *ctx, char *buf,
         /* The receiver can set how often to get a flow control packet. If it
          * is time, then get the packet. Note that this will always happen
          * after the first packet */
-        if (ctx->flow_counter == ctx->flow_packets) {
+        if ((ctx->flow_packets > 0) &&
+                (ctx->flow_counter == ctx->flow_packets)) {
             ret = isotp_receive_flow_control(ctx);
         }
         /* Frame delay <= 0x7f is in ms, 0xfX is X * 100 us */
@@ -2878,13 +2880,14 @@ int ISOTP_Send(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 
     if (!ctx) {
         WOLFSSL_MSG("ISO-TP requires wolfSSL_SetIO_ISOTP to be called first");
-        return WOLFSSL_CBIO_ERR_TIMEOUT;
+        return WOLFSSL_CBIO_ERR_GENERAL;
     }
     isotp_ctx = (struct isotp_wolfssl_ctx*) ctx;
 
+    /* ISO-TP cannot send more than 4095 bytes, this limits the packet size
+     * and wolfSSL will try again with the remaining data */
     if (sz > ISOTP_MAX_DATA_SIZE) {
-        WOLFSSL_MSG("ISO-TP packets can be at most 4095 bytes");
-        return WOLFSSL_CBIO_ERR_GENERAL;
+        sz = ISOTP_MAX_DATA_SIZE;
     }
     /* Can't send whilst we are receiving */
     if (isotp_ctx->state != ISOTP_CONN_STATE_IDLE) {
@@ -2908,12 +2911,12 @@ int ISOTP_Send(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 
 static int isotp_receive_single_frame(struct isotp_wolfssl_ctx *ctx)
 {
-    word16 data_size;
+    byte data_size;
 
     /* 1 nibble for data size which will be 1 - 7 in a regular 8 byte CAN
      * packet */
-    data_size = ctx->frame.data[0] & 0xf;
-    if (ctx->receive_buffer_size < data_size) {
+    data_size = (byte)ctx->frame.data[0] & 0xf;
+    if (ctx->receive_buffer_size < (int)data_size) {
         WOLFSSL_MSG("ISO-TP buffer is too small to receive data");
         return BUFFER_E;
     }
@@ -3022,7 +3025,7 @@ int ISOTP_Receive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
 
-        type = isotp_ctx->frame.data[0] >> 4;
+        type = (enum isotp_frame_type) isotp_ctx->frame.data[0] >> 4;
 
         if (type == ISOTP_FRAME_TYPE_SINGLE) {
             isotp_ctx->receive_buffer_len =
