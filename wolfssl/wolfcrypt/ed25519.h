@@ -77,6 +77,12 @@ enum {
     #define WC_ED25519KEY_TYPE_DEFINED
 #endif
 
+/* ED25519 Flags */
+enum {
+    WC_ED25519_FLAG_NONE     = 0x00,
+    WC_ED25519_FLAG_DEC_SIGN = 0x01,
+};
+
 /* An ED25519 Key */
 struct ed25519_key {
     byte    p[ED25519_PUB_KEY_SIZE]; /* compressed public key */
@@ -88,6 +94,7 @@ struct ed25519_key {
 #endif
 #ifdef WOLFSSL_SE050
     int keyId;
+    word32 flags;
 #endif
     word16 pubKeySet:1;
 #ifdef WOLFSSL_ASYNC_CRYPT
