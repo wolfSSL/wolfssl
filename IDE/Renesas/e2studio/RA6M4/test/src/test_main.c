@@ -135,11 +135,14 @@ void sce_test(void)
 #if defined(WOLFSSL_RENESAS_SCEPROTECT) && defined(SCEKEY_INSTALLED)
     /* aes 256 */
     memcpy(guser_PKCbInfo.sce_wrapped_key_aes256.value,
-           (uint32_t *)DIRECT_KEY_ADDRESS, HW_SCE_AES256_KEY_INDEX_WORD_SIZE*4);
+           (uint32_t *)DIRECT_KEY_ADDRESS_256, HW_SCE_AES256_KEY_INDEX_WORD_SIZE*4);
     guser_PKCbInfo.sce_wrapped_key_aes256.type = SCE_KEY_INDEX_TYPE_AES256;
     guser_PKCbInfo.aes256_installedkey_set = 1;
     /* aes 128 */
-    guser_PKCbInfo.aes128_installedkey_set = 0;
+    memcpy(guser_PKCbInfo.sce_wrapped_key_aes128.value,
+               (uint32_t *)DIRECT_KEY_ADDRESS_128, HW_SCE_AES128_KEY_INDEX_WORD_SIZE*4);
+        guser_PKCbInfo.sce_wrapped_key_aes128.type = SCE_KEY_INDEX_TYPE_AES128;
+    guser_PKCbInfo.aes128_installedkey_set = 1;
 #endif
     printf("Start wolfCrypt Benchmark\n");
     benchmark_test(NULL);

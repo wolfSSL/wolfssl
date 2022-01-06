@@ -173,11 +173,19 @@ WOLFSSL_LOCAL int  wc_sce_AesGcmEncrypt(struct Aes* aes, byte* out,
             }
          
         }
-        else if (info->aes256_installedkey_set == 1) {
-          XMEMCPY(&key_client_aes, &info->sce_wrapped_key_aes256, 
+        else if (info->aes256_installedkey_set == 1 || info->aes128_installedkey_set == 1) {
+            if(aes->ctx.keySize == 32) {
+                XMEMCPY(&key_client_aes, &info->sce_wrapped_key_aes256,
                     sizeof(sce_aes_wrapped_key_t));
-          iv_l = iv;
-          ivSz_l = ivSz;
+            } else {
+                XMEMCPY(&key_client_aes, &info->sce_wrapped_key_aes128,
+                    sizeof(sce_aes_wrapped_key_t));
+            }
+            iv_l = iv;
+            ivSz_l = ivSz;
+        } else {
+            WOLFSSL_MSG("AES kes for SCE is not set.");
+            ret = -1;
         }
         
         if (ret == 0) {
@@ -346,11 +354,19 @@ WOLFSSL_LOCAL int  wc_sce_AesGcmDecrypt(struct Aes* aes, byte* out,
                 ret = -1;
             }
         }
-        else if (info->aes256_installedkey_set == 1) {
-            XMEMCPY(&key_server_aes, &info->sce_wrapped_key_aes256, 
-                      sizeof(sce_aes_wrapped_key_t));
+        else if (info->aes256_installedkey_set == 1 || info->aes128_installedkey_set == 1) {
+            if(aes->ctx.keySize == 32) {
+                XMEMCPY(&key_server_aes, &info->sce_wrapped_key_aes256,
+                    sizeof(sce_aes_wrapped_key_t));
+            } else {
+                XMEMCPY(&key_server_aes, &info->sce_wrapped_key_aes128,
+                    sizeof(sce_aes_wrapped_key_t));
+            }
             iv_l = iv;
             ivSz_l = ivSz;
+        } else {
+            WOLFSSL_MSG("AES kes for SCE is not set.");
+            ret = -1;
         }
 
         if (ret == 0) {
