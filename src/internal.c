@@ -5751,12 +5751,14 @@ int InitSSL_Suites(WOLFSSL* ssl)
 #ifndef NO_PSK
     havePSK = (byte)ssl->options.havePSK;
 #endif /* NO_PSK */
+#if !defined(NO_CERTS) && !defined(WOLFSSL_SESSION_EXPORT)
 #ifdef HAVE_ANON
     haveAnon = (byte)ssl->options.haveAnon;
 #endif /* HAVE_ANON*/
 #ifdef WOLFSSL_MULTICAST
     haveMcast = (byte)ssl->options.haveMcast;
 #endif /* WOLFSSL_MULTICAST */
+#endif /* !NO_CERTS && !WOLFSSL_SESSION_EXPORT */
 
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->options.side == WOLFSSL_SERVER_END)

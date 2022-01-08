@@ -4314,7 +4314,9 @@ static int nonblocking_accept_read(void* args, WOLFSSL* ssl, SOCKET_T* sockfd)
 
     loop_count = ((func_args*)args)->argc;
 
+    #ifdef WOLFSSL_ASYNC_CRYPT
     err = 0; /* Reset error */
+    #endif
     do {
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (err == WC_PENDING_E) {
