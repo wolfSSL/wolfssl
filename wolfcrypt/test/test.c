@@ -746,8 +746,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 
 #if !defined(NO_BIG_INT)
     if (CheckCtcSettings() != 1) {
-        printf("Sizeof mismatch (build) %x != (run) %x\n",
-            CTC_SETTINGS, CheckRunTimeSettings());
+        printf("Sizeof mismatch (build) %x != (run) %lx\n",
+               CTC_SETTINGS, (unsigned long)CheckRunTimeSettings());
         return err_sys("Build vs runtime math mismatch\n", -1000);
     }
 
