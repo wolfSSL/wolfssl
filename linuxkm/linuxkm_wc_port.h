@@ -596,11 +596,11 @@
     #define XGMTIME(c, t) gmtime(c)
     #define NO_TIMEVAL 1
 
+    #endif /* BUILDING_WOLFSSL */
+
     #define XMALLOC(s, h, t)     ({(void)(h); (void)(t); kmalloc(s, GFP_KERNEL);})
     #define XFREE(p, h, t)       ({void* _xp; (void)(h); _xp = (p); if(_xp) kfree(_xp);})
     #define XREALLOC(p, n, h, t) ({(void)(h); (void)(t); krealloc((p), (n), GFP_KERNEL);})
-
-    #endif /* BUILDING_WOLFSSL */
 
     /* needed to suppress inclusion of stdio.h in wolfssl/wolfcrypt/types.h */
     #define XSNPRINTF snprintf
