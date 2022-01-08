@@ -956,12 +956,14 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
 
 static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 {
-    byte* local = (byte*)sha512->buffer;
+    byte* local;
     int ret;
 
     if (sha512 == NULL) {
         return BAD_FUNC_ARG;
     }
+
+    local = (byte*)sha512->buffer;
 
     local[sha512->buffLen++] = 0x80;  /* add 1 */
 
