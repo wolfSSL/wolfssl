@@ -611,8 +611,11 @@ int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size)
             if (((i = (mp_int *)XMALLOC(sizeof(*i), srp->heap, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) ||
                 ((j = (mp_int *)XMALLOC(sizeof(*j), srp->heap, DYNAMIC_TYPE_TMP_BUFFER)) == NULL))
                 r = MEMORY_E;
+            if (!r)
 #endif
-            if (!r) r = mp_init_multi(i, j, 0, 0, 0, 0);
+            {
+                r = mp_init_multi(i, j, 0, 0, 0, 0);
+            }
             if (!r) r = mp_read_unsigned_bin(i, srp->k,SrpHashSize(srp->type));
             if (!r) r = mp_iszero(i) == MP_YES ? SRP_BAD_KEY_E : 0;
             if (!r) r = mp_exptmod(&srp->g, &srp->priv, &srp->N, pubkey);
