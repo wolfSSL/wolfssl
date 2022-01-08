@@ -277,6 +277,9 @@
 #define FP_MAX_SIZE           (FP_MAX_BITS+(8*DIGIT_BIT))
 
 /* will this lib work? */
+#if CHAR_BIT == 0
+   #error CHAR_BIT must be nonzero
+#endif
 #if (CHAR_BIT & 7)
    #error CHAR_BIT must be a multiple of eight.
 #endif
