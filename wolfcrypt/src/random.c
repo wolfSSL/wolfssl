@@ -2468,7 +2468,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        int ret;
+        int ret = 0;
         word32 buffer[4];
 
         while (sz > 0) {
@@ -2493,7 +2493,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        int ret;
+        int ret = 0;
         word32 buffer[4];
 
         while (sz > 0) {
@@ -2551,7 +2551,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 return -1;
             }
             ret = WOLFSSL_SCE_TRNG_HANDLE.p_api->read(WOLFSSL_SCE_TRNG_HANDLE.p_ctrl,
-                                                      (word32*)tmp, 1);
+                                                      (word32*)&tmp, 1);
             if (ret != SSP_SUCCESS) {
                 return -1;
             }
