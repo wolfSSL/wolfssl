@@ -2718,7 +2718,7 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     XMEMCPY(output2 + idx, esd->encContentDigest, esd->encContentDigestSz);
     idx += esd->encContentDigestSz;
 
-    if (output2 && output2Sz) {
+    if (output2Sz) {
         *output2Sz = idx;
         idx = 0; /* success */
     }
