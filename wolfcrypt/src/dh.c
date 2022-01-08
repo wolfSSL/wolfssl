@@ -1736,10 +1736,8 @@ int wc_DhCheckPrivKey_ex(DhKey* key, const byte* priv, word32 privSz,
     if (ret == 0) {
         if (mp_iszero(q) == MP_NO) {
             /* priv (x) shouldn't be greater than q - 1 */
-            if (ret == 0) {
-                if (mp_copy(&key->q, q) != MP_OKAY)
-                    ret = MP_INIT_E;
-            }
+            if (mp_copy(&key->q, q) != MP_OKAY)
+                ret = MP_INIT_E;
             if (ret == 0) {
                 if (mp_sub_d(q, 1, q) != MP_OKAY)
                     ret = MP_SUB_E;
