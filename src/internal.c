@@ -1640,7 +1640,7 @@ int wolfSSL_session_import_internal(WOLFSSL* ssl, const unsigned char* buf,
     word32 idx    = 0;
     word16 length = 0;
     int version   = 0;
-    int ret = BAD_FUNC_ARG;
+    int ret = 0;
     int optSz = 0;
     int rc;
     byte validProto = 0; /* did we find a valid protocol */
