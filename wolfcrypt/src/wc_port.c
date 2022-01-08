@@ -130,7 +130,7 @@ int wolfCrypt_Init(void)
             time_t seed = time(NULL);
             srand((word32)seed);
             rngMallocFail = rand() % 2000; /* max 2000 */
-            printf("\n--- RNG MALLOC FAIL AT %d---\n", rngMallocFail);
+            printf("\n--- RNG MALLOC FAIL AT %u ---\n", rngMallocFail);
             wolfSSL_SetMemFailCount(rngMallocFail);
         }
     #endif
@@ -1649,7 +1649,7 @@ int wolfSSL_CryptHwMutexUnLock(void)
       void *newp = NULL;
       if(p) {
           ercd = get_mpl(ID_wolfssl_MPOOL, sz, (VP)&newp);
-          if (ercd == E_OK) {
+          if ((ercd == E_OK) && (newp != NULL)) {
               XMEMCPY(newp, p, sz);
               ercd = rel_mpl(ID_wolfssl_MPOOL, (VP)p);
               if (ercd == E_OK) {
@@ -1743,7 +1743,7 @@ int wolfSSL_CryptHwMutexUnLock(void)
       void *newp = NULL;
       if (p) {
           ercd = tk_get_mpl(ID_wolfssl_MPOOL, sz, (VP)&newp, TMO_FEVR);
-          if (ercd == E_OK) {
+          if ((ercd == E_OK) && (newp != NULL)) {
               XMEMCPY(newp, p, sz);
               ercd = tk_rel_mpl(ID_wolfssl_MPOOL, (VP)p);
               if (ercd == E_OK) {
@@ -2150,10 +2150,7 @@ time_t windows_time(time_t* timer)
     SYSTEMTIME     sysTime;
     FILETIME       fTime;
     ULARGE_INTEGER intTime;
-    time_t         localTime;
 
-    if (timer == NULL)
-        timer = &localTime;
 
     GetSystemTime(&sysTime);
     SystemTimeToFileTime(&sysTime, &fTime);
@@ -2163,9 +2160,11 @@ time_t windows_time(time_t* timer)
     intTime.QuadPart -= 0x19db1ded53e8000;
     /* to secs */
     intTime.QuadPart /= 10000000;
-    *timer = (time_t)intTime.QuadPart;
 
-    return *timer;
+    if (timer != NULL)
+        *timer = (time_t)intTime.QuadPart;
+
+    return (time_t)intTime.QuadPart;
 }
 #endif /*  _WIN32_WCE */
 
@@ -2275,19 +2274,17 @@ time_t pic32_time(time_t* timer)
 #else
     word32 sec = 0;
 #endif
-    time_t localTime;
-
-    if (timer == NULL)
-        timer = &localTime;
 
 #ifdef MICROCHIP_MPLAB_HARMONY
     sec = TCPIP_SNTP_UTCSecondsGet();
 #else
     sec = SNTPGetUTCSeconds();
 #endif
-    *timer = (time_t) sec;
 
-    return *timer;
+    if (timer != NULL)
+        *timer = (time_t)sec;
+
+    return (time_t)sec;
 }
 
 #endif /* MICROCHIP_TCPIP || MICROCHIP_TCPIP_V5 */
@@ -2331,16 +2328,14 @@ time_t micrium_time(time_t* timer)
 
 time_t mqx_time(time_t* timer)
 {
-    time_t localTime;
     TIME_STRUCT time_s;
 
-    if (timer == NULL)
-        timer = &localTime;
-
     _time_get(&time_s);
-    *timer = (time_t) time_s.SECONDS;
 
-    return *timer;
+    if (timer != NULL)
+        *timer = (time_t)time_s.SECONDS;
+
+    return (time_t)time_s.SECONDS;
 }
 
 #endif /* FREESCALE_MQX || FREESCALE_KSDK_MQX */
