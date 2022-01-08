@@ -15009,11 +15009,6 @@ static int rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
 
     XMEMCPY(in, inStr, inLen);
 
-#ifdef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    if (in == NULL || out == NULL || plain == NULL)
-        ERROR_OUT(MEMORY_E, exit_rsa);
-#endif
-
 #ifndef NO_SHA
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
