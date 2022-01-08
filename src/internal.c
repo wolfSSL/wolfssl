@@ -1640,8 +1640,8 @@ int wolfSSL_session_import_internal(WOLFSSL* ssl, const unsigned char* buf,
     word32 idx    = 0;
     word16 length = 0;
     int version   = 0;
-    int ret = 0;
-    int optSz;
+    int ret = BAD_FUNC_ARG;
+    int optSz = 0;
     int rc;
     byte validProto = 0; /* did we find a valid protocol */
 
@@ -1825,8 +1825,8 @@ int wolfSSL_session_import_internal(WOLFSSL* ssl, const unsigned char* buf,
 
 #ifndef WOLFSSL_AEAD_ONLY
     /* set hmac function to use when verifying */
-    if (ssl->options.tls == 1 || ssl->options.tls1_1 == 1 ||
-            ssl->options.dtls == 1) {
+    if (ret == 0 && (ssl->options.tls == 1 || ssl->options.tls1_1 == 1 ||
+                     ssl->options.dtls == 1)) {
     #if !defined(WOLFSSL_RENESAS_SCEPROTECT) && \
         !defined(WOLFSSL_RENESAS_TSIP_TLS)
         ssl->hmac = TLS_hmac;
@@ -4318,7 +4318,7 @@ int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, int sigAlgo,
               int hashAlgo, RsaKey* key, buffer* keyBufInfo)
 {
-    int ret;
+    int ret = SIG_VERIFY_E;
 
 #ifdef HAVE_PK_CALLBACKS
     const byte* keyBuf = NULL;
@@ -4592,7 +4592,7 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
 int RsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out, word32* outSz,
     RsaKey* key, buffer* keyBufInfo)
 {
-    int ret;
+    int ret = BAD_FUNC_ARG;
 #ifdef HAVE_PK_CALLBACKS
     const byte* keyBuf = NULL;
     word32 keySz = 0;
@@ -4710,7 +4710,7 @@ int EccSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
     word32 outSz, ecc_key* key, buffer* keyBufInfo)
 {
-    int ret;
+    int ret = SIG_VERIFY_E;
 #ifdef HAVE_PK_CALLBACKS
     const byte* keyBuf = NULL;
     word32 keySz = 0;
@@ -21475,9 +21475,6 @@ const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]) {
 int IsCipherAEAD(char n[][MAX_SEGMENT_SZ])
 {
     const char *n1,*n2,*n3;
-    n1 = n[1];
-    n2 = n[2];
-    n3 = n[3];
 
     WOLFSSL_ENTER("IsCipherAEAD");
 
@@ -21485,6 +21482,10 @@ int IsCipherAEAD(char n[][MAX_SEGMENT_SZ])
         WOLFSSL_MSG("bad function argumet. n is NULL.");
         return 0;
     }
+
+    n1 = n[1];
+    n2 = n[2];
+    n3 = n[3];
 
     if ((XSTRNCMP(n2,"GCM",3) == 0) || (XSTRNCMP(n3,"GCM",3) == 0) ||
         (XSTRNCMP(n1,"CCM",3) == 0) ||
@@ -22820,15 +22821,15 @@ exit_dpk:
         byte              *output;
         word32             length, idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
         int                sendSz;
-        int                idSz = ssl->options.resuming
-                                ? ssl->session.sessionIDSz
-                                : 0;
+        int                idSz;
         int                ret;
         word16             extSz = 0;
 
         if (ssl == NULL) {
             return BAD_FUNC_ARG;
         }
+
+        idSz = ssl->options.resuming ? ssl->session.sessionIDSz : 0;
 
 #ifdef WOLFSSL_TLS13
         if (IsAtLeastTLSv1_3(ssl->version))
