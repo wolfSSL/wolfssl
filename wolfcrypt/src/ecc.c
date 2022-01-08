@@ -3706,6 +3706,9 @@ int wc_ecc_is_valid_idx(int n)
 {
    int x;
 
+   if (n >= (int)ECC_SET_COUNT)
+       return 0;
+
    for (x = 0; ecc_sets[x].size != 0; x++)
        ;
    /* -1 is a valid index --- indicating that the domain params
@@ -5154,11 +5157,11 @@ static void wc_ecc_dump_oids(void)
         for (i = 0; i < (int)oidSz; i++) {
             sum += oid[i];
         }
-        printf("Sum: %d\n", sum);
+        printf("Sum: %u\n", sum);
 
         /* validate sum */
         if (ecc_sets[x].oidSum != sum) {
-            printf("  Sum %d Not Valid!\n", ecc_sets[x].oidSum);
+            printf("  Sum %u Not Valid!\n", ecc_sets[x].oidSum);
         }
     }
     mOidDumpDone = 1;
@@ -11077,12 +11080,10 @@ static int accel_fp_mul2add(int idx1, int idx2,
                     first = 0;
              }
              if (zB && first == 0) {
-                if (zB) {
-                   if ((err = ecc_projective_add_point_safe(R,
-                                              fp_cache[idx2].LUT[zB], R, a,
-                                              modulus, mp, &first)) != MP_OKAY){
-                      break;
-                   }
+                if ((err = ecc_projective_add_point_safe(R,
+                                        fp_cache[idx2].LUT[zB], R, a,
+                                        modulus, mp, &first)) != MP_OKAY){
+                   break;
                 }
              } else if (zB && first == 1) {
                  if ((mp_copy(fp_cache[idx2].LUT[zB]->x, R->x) != MP_OKAY) ||
