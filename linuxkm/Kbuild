@@ -29,7 +29,7 @@ ifeq "$(WOLFSSL_CFLAGS)" ""
     $(error $$WOLFSSL_CFLAGS is unset.)
 endif
 
-WOLFSSL_CFLAGS += -ffreestanding -Wframe-larger-than=$(MAX_STACK_FRAME_SIZE)
+WOLFSSL_CFLAGS += -ffreestanding -Wframe-larger-than=$(MAX_STACK_FRAME_SIZE) -isystem $(shell $(CC) -print-file-name=include)
 
 ifeq "$(KERNEL_ARCH)" "x86"
     WOLFSSL_CFLAGS += -mpreferred-stack-boundary=4

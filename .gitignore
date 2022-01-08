@@ -227,6 +227,7 @@ IDE/MDK-ARM/LPC43xx/LPC43xx/
 !linuxkm/Makefile
 /Kbuild
 linuxkm/*.ko
+linuxkm/*.ko.signed
 linuxkm/Module.symvers
 linuxkm/built-in.a
 linuxkm/modules.order

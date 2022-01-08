@@ -415,7 +415,11 @@ decouple library dependencies with standard string, memory and so on.
         /* Telit M2MB SDK requires use m2mb_os API's, not std malloc/free */
         /* Use of malloc/free will cause CPU reboot */
         #define XMALLOC(s, h, t)     ((void)h, (void)t, m2mb_os_malloc((s)))
-        #define XFREE(p, h, t)       {void* xp = (p); if((xp)) m2mb_os_free((xp));}
+        #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
+            #define XFREE(p, h, t)       m2mb_os_free(xp)
+        #else
+            #define XFREE(p, h, t)       {void* xp = (p); if (xp) m2mb_os_free(xp);}
+        #endif
         #define XREALLOC(p, n, h, t) m2mb_os_realloc((p), (n))
 
     #elif defined(NO_WOLFSSL_MEMORY)
@@ -439,15 +443,17 @@ decouple library dependencies with standard string, memory and so on.
         /* just use plain C stdlib stuff if desired */
         #include <stdlib.h>
         #define XMALLOC(s, h, t)     malloc((size_t)(s))
-        #define XFREE(p, h, t)       {void* xp = (p); if((xp)) free((xp));}
+        #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
+            #define XFREE(p, h, t)       free(xp)
+        #else
+            #define XFREE(p, h, t)       {void* xp = (p); if (xp) free(xp);}
+        #endif
         #define XREALLOC(p, n, h, t) realloc((p), (size_t)(n))
         #endif
 
     #elif defined(WOLFSSL_LINUXKM)
-        /* the requisite linux/slab.h is included in wc_port.h, with incompatible warnings masked out. */
-        #define XMALLOC(s, h, t)     ({(void)(h); (void)(t); kmalloc(s, GFP_KERNEL);})
-        #define XFREE(p, h, t)       ({void* _xp; (void)(h); _xp = (p); if(_xp) kfree(_xp);})
-        #define XREALLOC(p, n, h, t) ({(void)(h); (void)(t); krealloc((p), (n), GFP_KERNEL);})
+
+        /* definitions are in linuxkm/linuxkm_wc_port.h */
 
     #elif !defined(MICRIUM_MALLOC) && !defined(EBSNET) \
             && !defined(WOLFSSL_SAFERTOS) && !defined(FREESCALE_MQX) \
@@ -460,21 +466,37 @@ decouple library dependencies with standard string, memory and so on.
         #ifdef WOLFSSL_STATIC_MEMORY
             #ifdef WOLFSSL_DEBUG_MEMORY
                 #define XMALLOC(s, h, t)     wolfSSL_Malloc((s), (h), (t), __func__, __LINE__)
-                #define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp), (h), (t), __func__, __LINE__);}
+                #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
+                    #define XFREE(p, h, t)       wolfSSL_Free(xp, h, t, __func__, __LINE__)
+                #else
+                    #define XFREE(p, h, t)       {void* xp = (p); if (xp) wolfSSL_Free(xp, h, t, __func__, __LINE__);}
+                #endif
                 #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n), (h), (t), __func__, __LINE__)
             #else
                 #define XMALLOC(s, h, t)     wolfSSL_Malloc((s), (h), (t))
-                #define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp), (h), (t));}
+                #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
+                    #define XFREE(p, h, t)       wolfSSL_Free(xp, h, t)
+                #else
+                    #define XFREE(p, h, t)       {void* xp = (p); if (xp) wolfSSL_Free(xp, h, t);}
+                #endif
                 #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n), (h), (t))
             #endif /* WOLFSSL_DEBUG_MEMORY */
         #elif !defined(FREERTOS) && !defined(FREERTOS_TCP)
             #ifdef WOLFSSL_DEBUG_MEMORY
                 #define XMALLOC(s, h, t)     ((void)(h), (void)(t), wolfSSL_Malloc((s), __func__, __LINE__))
-                #define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp), __func__, __LINE__);}
+                #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
+                    #define XFREE(p, h, t)       wolfSSL_Free(xp, __func__, __LINE__)
+                #else
+                    #define XFREE(p, h, t)       {void* xp = (p); if (xp) wolfSSL_Free(xp, __func__, __LINE__);}
+                #endif
                 #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n), __func__, __LINE__)
             #else
                 #define XMALLOC(s, h, t)     ((void)(h), (void)(t), wolfSSL_Malloc((s)))
-                #define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp));}
+                #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
+                    #define XFREE(p, h, t)       wolfSSL_Free(p)
+                #else
+                    #define XFREE(p, h, t)       {void* xp = (p); if (xp) wolfSSL_Free(xp);}
+                #endif
                 #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n))
             #endif /* WOLFSSL_DEBUG_MEMORY */
         #endif /* WOLFSSL_STATIC_MEMORY */
