@@ -2420,32 +2420,41 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
         #if defined(WC_RSA_BLINDING) && !defined(WC_NO_RNG)
             /* blind */
             ret = mp_rand(rnd, get_digit_count(&key->n), rng);
-
+            if (ret != 0)
+                break;
             /* rndi = 1/rnd mod n */
-            if (ret == 0 && mp_invmod(rnd, &key->n, rndi) != MP_OKAY)
+            if (mp_invmod(rnd, &key->n, rndi) != MP_OKAY) {
                 ret = MP_INVMOD_E;
+                break;
+            }
 
             /* rnd = rnd^e */
         #ifndef WOLFSSL_SP_MATH_ALL
-            if (ret == 0 && mp_exptmod(rnd, &key->e, &key->n, rnd) != MP_OKAY)
+            if (mp_exptmod(rnd, &key->e, &key->n, rnd) != MP_OKAY) {
                 ret = MP_EXPTMOD_E;
+                break;
+            }
         #else
-            if (ret == 0 && mp_exptmod_nct(rnd, &key->e, &key->n,
-                                                              rnd) != MP_OKAY) {
+            if (mp_exptmod_nct(rnd, &key->e, &key->n, rnd) != MP_OKAY) {
                 ret = MP_EXPTMOD_E;
+                break;
             }
         #endif
 
             /* tmp = tmp*rnd mod n */
-            if (ret == 0 && mp_mulmod(tmp, rnd, &key->n, tmp) != MP_OKAY)
+            if (mp_mulmod(tmp, rnd, &key->n, tmp) != MP_OKAY) {
                 ret = MP_MULMOD_E;
+                break;
+            }
         #endif /* WC_RSA_BLINDING && !WC_NO_RNG */
 
         #ifdef RSA_LOW_MEM      /* half as much memory but twice as slow */
-            if (ret == 0 && mp_exptmod(tmp, &key->d, &key->n, tmp) != MP_OKAY)
+            if (mp_exptmod(tmp, &key->d, &key->n, tmp) != MP_OKAY) {
                 ret = MP_EXPTMOD_E;
+                break;
+            }
         #else
-            if (ret == 0) {
+            {
             #ifdef WOLFSSL_SMALL_STACK
                 mp_int* tmpa;
                 mp_int* tmpb = NULL;
@@ -2461,9 +2470,9 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                     tmpb = tmpa + 1;
                 else
                     ret = MEMORY_E;
+                if (ret == 0)
             #endif
-
-                if (ret == 0) {
+                {
                     if (mp_init(tmpa) != MP_OKAY)
                         ret = MP_INIT_E;
                     else
