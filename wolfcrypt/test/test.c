@@ -11969,9 +11969,6 @@ static int simple_mem_test(int sz)
 WOLFSSL_TEST_SUBROUTINE int memory_test(void)
 {
     int ret = 0;
-#if !defined(USE_FAST_MATH) && !defined(WOLFSSL_NO_MALLOC)
-    byte* b = NULL;
-#endif
 #if defined(COMPLEX_MEM_TEST) || defined(WOLFSSL_STATIC_MEMORY)
     int i;
 #endif
@@ -12088,15 +12085,22 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
 
 #if !defined(USE_FAST_MATH) && !defined(WOLFSSL_NO_MALLOC)
     /* realloc test */
-    b = (byte*)XMALLOC(MEM_TEST_SZ, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (b) {
-        b = (byte*)XREALLOC(b, MEM_TEST_SZ+sizeof(word32), HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER);
+    {
+        byte *c = NULL;
+        byte *b = (byte*)XMALLOC(MEM_TEST_SZ, HEAP_HINT,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
+        if (b) {
+            c = (byte*)XREALLOC(b, MEM_TEST_SZ+sizeof(word32), HEAP_HINT,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+            if (c)
+                b = c;
+        }
+        if (b)
+            XFREE(b, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if ((b == NULL) || (c == NULL)) {
+            return -7217;
+        }
     }
-    if (b == NULL) {
-        return -7217;
-    }
-    XFREE(b, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;
@@ -18353,10 +18357,10 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
         ret = EVP_DigestFinal(&md_ctx, hash, 0);
     }
     EVP_MD_CTX_cleanup(&md_ctx);
-    if (ret != WOLFSSL_SUCCESS ||
-            XMEMCMP(hash, a.output, WC_MD5_DIGEST_SIZE) != 0) {
+    if (ret != WOLFSSL_SUCCESS)
+        return -18601;
+    if (XMEMCMP(hash, a.output, WC_MD5_DIGEST_SIZE) != 0)
         return -8601;
-    }
 #endif /* NO_MD5 */
 
 #ifndef NO_SHA
@@ -18376,10 +18380,10 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
             ret = EVP_DigestFinal(&md_ctx, hash, 0);
     }
     EVP_MD_CTX_cleanup(&md_ctx);
-    if (ret != WOLFSSL_SUCCESS ||
-            XMEMCMP(hash, b.output, WC_SHA_DIGEST_SIZE) != 0) {
+    if (ret != WOLFSSL_SUCCESS)
+        return -18602;
+    if (XMEMCMP(hash, b.output, WC_SHA_DIGEST_SIZE) != 0)
         return -8602;
-    }
 #endif /* NO_SHA */
 
 #ifdef WOLFSSL_SHA224
