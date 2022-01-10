@@ -3452,17 +3452,17 @@ struct WOLFSSL_SESSION {
 };
 
 
-WOLFSSL_LOCAL WOLFSSL_SESSION* NewSession(void* heap);
-WOLFSSL_LOCAL WOLFSSL_SESSION* GetSession(WOLFSSL*, byte*, byte);
-WOLFSSL_LOCAL WOLFSSL_SESSION* GetSessionRef(WOLFSSL*);
-WOLFSSL_LOCAL int              SetSession(WOLFSSL*, WOLFSSL_SESSION*);
-WOLFSSL_LOCAL void             FreeSession(WOLFSSL_SESSION*);
+WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_NewSession(void* heap);
+WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSession(WOLFSSL*, byte*, byte);
+WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSessionRef(WOLFSSL*);
+WOLFSSL_LOCAL int              wolfSSL_SetSession(WOLFSSL*, WOLFSSL_SESSION*);
+WOLFSSL_LOCAL void             wolfSSL_FreeSession(WOLFSSL_SESSION*);
 
 typedef int (*hmacfp) (WOLFSSL*, byte*, const byte*, word32, int, int, int, int);
 
 #ifndef NO_CLIENT_CACHE
     WOLFSSL_LOCAL
-    WOLFSSL_SESSION* GetSessionClient(WOLFSSL*, const byte*, int);
+    WOLFSSL_SESSION* wolfSSL_GetSessionClient(WOLFSSL*, const byte*, int);
 #endif
 
 /* client connect state for nonblocking restart */

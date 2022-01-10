@@ -29276,7 +29276,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ssl->options.haveSessionId = 1;
         /* DoClientHello uses same resume code */
         if (ssl->options.resuming) {  /* let's try */
-            WOLFSSL_SESSION* session = GetSession(ssl,
+            WOLFSSL_SESSION* session = wolfSSL_GetSession(ssl,
                                                   ssl->arrays->masterSecret, 1);
             #ifdef HAVE_SESSION_TICKET
                 if (ssl->options.useTicket == 1) {
@@ -29351,7 +29351,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         } else
     #endif
         {
-            session = GetSession(ssl, ssl->arrays->masterSecret, 1);
+            session = wolfSSL_GetSession(ssl, ssl->arrays->masterSecret, 1);
         #ifdef HAVE_EXT_CACHE
             gotSess = 1;
         #endif
