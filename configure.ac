@@ -4171,6 +4171,14 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SECURE_RENEGOTIATION -DHAVE_SERVER_RENEGOTIATION_INFO"
 fi
 
+# Secure Renegotiation Info
+AC_ARG_ENABLE([secure-renegotiation-info],
+    [AS_HELP_STRING([--enable-secure-renegotiation-info],[Enable Secure Renegotiation info extension (default: enabled)])],
+    [ ENABLED_SECURE_RENEGOTIATION_INFO=$enableval ],
+    [ ENABLED_SECURE_RENEGOTIATION_INFO=yes ]
+    )
+
+
 # Fallback SCSV
 AC_ARG_ENABLE([fallback-scsv],
     [AS_HELP_STRING([--enable-fallback-scsv],[Enable Fallback SCSV (default: disabled)])],
@@ -7153,7 +7161,20 @@ AS_IF([test "x$ENABLED_WOLFSSH" = "xyes"],[AM_CPPFLAGS="$AM_CPPFLAGS -DWOLFSSL_W
 
 if test "x$ENABLED_CERTS" = "xno" || test "x$ENABLED_LEANPSK" = "xyes" || test "x$ENABLED_ASN" = "xno"; then
    AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS"
+   ENABLED_ASN=no
 fi
+
+# only allow secure renegotiation info with TLSV12 and ASN
+if test "x$ENABLED_ASN" = "xno" || \
+    test "x$ENABLED_TLSV12" = "xno" || \
+    test "x$ENABLED_RENEGOTIATION_INDICATION" = "xyes"; then
+    ENABLED_SECURE_RENEGOTIATION_INFO="no"
+fi
+
+if test "x$ENABLED_SECURE_RENEGOTIATION_INFO" = "xyes"; then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SERVER_RENEGOTIATION_INFO"
+fi
+
 
 
 # Depricated Algorithm Handling

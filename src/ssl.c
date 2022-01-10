@@ -2863,7 +2863,7 @@ int wolfSSL_ALPN_FreePeerProtocol(WOLFSSL* ssl, char **list)
 #endif /* HAVE_ALPN */
 
 /* Secure Renegotiation */
-#ifdef HAVE_SECURE_RENEGOTIATION
+#ifdef HAVE_SERVER_RENEGOTIATION_INFO
 
 /* user is forcing ability to use secure renegotiation, we discourage it */
 int wolfSSL_UseSecureRenegotiation(WOLFSSL* ssl)
@@ -2954,7 +2954,7 @@ static int _Rehandshake(WOLFSSL* ssl)
 
         ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
 
-#if !defined(NO_WOLFSSL_SERVER) && defined(HAVE_SERVER_RENEGOTIATION_INFO)
+#if !defined(NO_WOLFSSL_SERVER) && defined(HAVE_SECURE_RENEGOTIATION)
         if (ssl->options.side == WOLFSSL_SERVER_END) {
             ret = SendHelloRequest(ssl);
             if (ret != 0) {
@@ -3041,7 +3041,7 @@ long wolfSSL_SSL_get_secure_renegotiation_support(WOLFSSL* ssl)
     return ssl->secure_renegotiation->enabled;
 }
 
-#endif /* HAVE_SECURE_RENEGOTIATION */
+#endif /* HAVE_SECURE_RENEGOTIATION_INFO */
 
 #if defined(HAVE_SESSION_TICKET)
 /* Session Ticket */
