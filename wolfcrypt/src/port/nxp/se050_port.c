@@ -1107,6 +1107,10 @@ void se050_ed25519_free_key(ed25519_key* key)
         status = sss_key_object_get_handle(&newKey, key->keyId);
     }
     if (status == kStatus_SSS_Success) {
+        if ((key->flags & WC_ED25519_FLAG_DEC_SIGN) == 0) {
+            /* key was not used for signing, so release it */
+            sss_key_store_erase_key(&host_keystore, &newKey);
+        }
         sss_key_object_free(&newKey);
         key->keyId = -1;
     }
@@ -1137,6 +1141,9 @@ int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
     if (wolfSSL_CryptHwMutexLock() != 0) {
         return BAD_MUTEX_E;
     }
+
+    /* mark that key was used for signing */
+    key->flags |= WC_ED25519_FLAG_DEC_SIGN;
 
     status = sss_key_store_context_init(&host_keystore, cfg_se050_i2c_pi);
     if (status == kStatus_SSS_Success) {
@@ -1209,11 +1216,10 @@ int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
     if (status == kStatus_SSS_Success) {
         keyId = key->keyId;
         if (keyId <= 0) {
-            byte derBuf[48];
-            word32 derSz = 0, idx = 0;
-
-            ret = wc_Ed25519PublicKeyDecode(derBuf, &idx, key,
-                (word32)sizeof(derBuf));
+            byte derBuf[ED25519_PUB_KEY_SIZE + 12]; /* seq + algo + bitstring */
+            word32 derSz = 0;
+            
+            ret = wc_Ed25519PublicKeyToDer(key, derBuf, (word32)sizeof(derBuf), 1);
             if (ret >= 0) {
                 derSz = ret;
                 ret = 0;
@@ -1224,7 +1230,7 @@ int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
             if (status == kStatus_SSS_Success) {
                 keyId = se050_allocate_key(SE050_ED25519_KEY);
                 status = sss_key_object_allocate_handle(&newKey, keyId,
-                    kSSS_KeyPart_Pair, kSSS_CipherType_EC_TWISTED_ED, keySize,
+                    kSSS_KeyPart_Public, kSSS_CipherType_EC_TWISTED_ED, keySize,
                     kKeyObject_Mode_Transient);
             }
             if (status == kStatus_SSS_Success) {
@@ -1360,7 +1366,7 @@ int se050_curve25519_create_key(curve25519_key* key, int keySize)
 int se050_curve25519_shared_secret(curve25519_key* private_key,
     curve25519_key* public_key, ECPoint* out)
 {
-    int               ret;
+    int               ret = 0;
     sss_status_t      status = kStatus_SSS_Success;
     sss_key_store_t   host_keystore;
     sss_object_t      ref_private_key;
@@ -1405,7 +1411,7 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
     if (status == kStatus_SSS_Success) {
         keyId = public_key->keyId;
         if (keyId <= 0) {
-            byte derBuf[SE050_ECC_DER_MAX];
+            byte derBuf[CURVE25519_PUB_KEY_SIZE + 12]; /* seq + algo + bitstring */
             word32 derSz;
 
             ret = wc_Curve25519PublicKeyToDer(public_key, derBuf,
@@ -1528,6 +1534,7 @@ void se050_curve25519_free_key(struct curve25519_key* key)
         status = sss_key_object_get_handle(&newKey, key->keyId);
     }
     if (status == kStatus_SSS_Success) {
+        sss_key_store_erase_key(&host_keystore, &newKey);
         sss_key_object_free(&newKey);
         key->keyId = -1;
     }

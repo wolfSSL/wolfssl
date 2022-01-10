@@ -300,7 +300,7 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
 #else
     #ifdef WOLFSSL_SE050
     if (!private_key->privSet) {
-        /* use NXP SE050 is private key is not set */
+        /* use NXP SE050: "privSet" is not set */
         ret = se050_curve25519_shared_secret(private_key, public_key, &o);
     }
     else

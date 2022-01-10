@@ -1471,6 +1471,7 @@ AC_ARG_WITH([se050],
             CPPFLAGS="$CPPFLAGS -I$trylibse050dir/sss/ex/inc"
             CPPFLAGS="$CPPFLAGS -I$trylibse050dir/sss/port/default"
             CPPFLAGS="$CPPFLAGS -I$trylibse050dir/hostlib/hostLib/inc"
+            CPPFLAGS="$CPPFLAGS -I$trylibse050dir/hostlib/hostLib/libCommon/log/"
             CPPFLAGS="$CPPFLAGS -I$trylibse050dir/hostlib/hostLib/libCommon/infra"
 
             if test -e "$trylibse050dir/build/sss/libSSS_APIs.a"; then
@@ -1483,6 +1484,7 @@ AC_ARG_WITH([se050],
                                 $trylibse050dir/build/sss/libSSS_APIs.a \
                                 $trylibse050dir/build/hostlib/hostLib/se05x/libse05x.a \
                                 $trylibse050dir/build/hostlib/hostLib/liba7x_utils.a \
+                                $trylibse050dir/build/hostlib/hostLib/libCommon/log/libmwlog.a \
                                 $trylibse050dir/build/hostlib/hostLib/libCommon/libsmCom.a $LIB_STATIC_ADD"
             else
                 AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <fsl_sss_api.h>]], [[ sss_mac_init(0); ]])],[ libse050_linked=yes ],[ libse050_linked=no ])
