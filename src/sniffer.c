@@ -3084,7 +3084,8 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
 
         /* Use the wolf Session cache to retain resumption secret */
         if (session->flags.cached == 0) {
-            WOLFSSL_SESSION* sess = GetSession(session->sslServer, NULL, 0);
+            WOLFSSL_SESSION* sess = wolfSSL_GetSession(session->sslServer,
+                NULL, 0);
             if (sess == NULL) {
                 AddSession(session->sslServer); /* don't re add */
             #ifdef WOLFSSL_SNIFFER_STATS
@@ -3121,8 +3122,8 @@ static int DoResume(SnifferSession* session, char* error)
 
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(session->sslServer->version)) {
-        resume = GetSession(session->sslServer,
-                            session->sslServer->session.masterSecret, 0);
+        resume = wolfSSL_GetSession(session->sslServer,
+                                    session->sslServer->session.masterSecret, 0);
         if (resume == NULL) {
             /* TLS v1.3 with hello_retry uses session_id even for new session,
                 so ignore error here */
@@ -3132,8 +3133,8 @@ static int DoResume(SnifferSession* session, char* error)
     else
 #endif
     {
-        resume = GetSession(session->sslServer,
-                            session->sslServer->arrays->masterSecret, 0);
+        resume = wolfSSL_GetSession(session->sslServer,
+                                    session->sslServer->arrays->masterSecret, 0);
         if (resume == NULL) {
         #ifdef WOLFSSL_SNIFFER_STATS
             INC_STAT(SnifferStats.sslResumeMisses);
@@ -3967,7 +3968,7 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
     if (ret == 0 && session->flags.cached == 0) {
         if (session->sslServer->options.haveSessionId) {
         #ifndef NO_SESSION_CACHE
-            WOLFSSL_SESSION* sess = GetSession(session->sslServer, NULL, 0);
+            WOLFSSL_SESSION* sess = wolfSSL_GetSession(session->sslServer, NULL, 0);
             if (sess == NULL) {
                 AddSession(session->sslServer); /* don't re add */
             #ifdef WOLFSSL_SNIFFER_STATS

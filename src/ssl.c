@@ -12231,7 +12231,7 @@ WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("SSL_get_session");
     if (ssl)
-        return GetSession(ssl, NULL, 1);
+        return wolfSSL_GetSession(ssl, NULL, 1);
 
     return NULL;
 }
@@ -12241,7 +12241,7 @@ WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl)
 {
     WOLFSSL_SESSION* sess = NULL;
     if (ssl != NULL) {
-        sess = GetSessionRef(ssl);
+        sess = wolfSSL_GetSessionRef(ssl);
         if (sess != NULL) {
             /* wolfSSL_get_session returns either static cache or ref. If ref then
             * increase reference counter */
@@ -12280,7 +12280,7 @@ int wolfSSL_set_session(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 {
     WOLFSSL_ENTER("SSL_set_session");
     if (session)
-        return SetSession(ssl, session);
+        return wolfSSL_SetSession(ssl, session);
 
     return WOLFSSL_FAILURE;
 }
@@ -12301,11 +12301,11 @@ int wolfSSL_SetServerID(WOLFSSL* ssl, const byte* id, int len, int newSession)
         return BAD_FUNC_ARG;
 
     if (newSession == 0) {
-        session = GetSessionClient(ssl, id, len);
+        session = wolfSSL_GetSessionClient(ssl, id, len);
         if (session) {
-            if (SetSession(ssl, session) != WOLFSSL_SUCCESS) {
+            if (wolfSSL_SetSession(ssl, session) != WOLFSSL_SUCCESS) {
             #ifdef HAVE_EXT_CACHE
-                FreeSession(session);
+                wolfSSL_FreeSession(session);
             #endif
                 WOLFSSL_MSG("SetSession failed");
                 session = NULL;
@@ -12321,7 +12321,7 @@ int wolfSSL_SetServerID(WOLFSSL* ssl, const byte* id, int len, int newSession)
     }
 #ifdef HAVE_EXT_CACHE
     else {
-        FreeSession(session);
+        wolfSSL_FreeSession(session);
     }
 #endif
 
@@ -15054,7 +15054,7 @@ int wolfSSL_CTX_set_timeout(WOLFSSL_CTX* ctx, unsigned int to)
 #ifndef NO_CLIENT_CACHE
 
 /* Get Session from Client cache based on id/len, return NULL on failure */
-WOLFSSL_SESSION* GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
+WOLFSSL_SESSION* wolfSSL_GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
 {
     WOLFSSL_SESSION* ret = NULL;
     word32          row;
@@ -15196,7 +15196,7 @@ static int SslSessionCacheOff(const WOLFSSL* ssl, const WOLFSSL_SESSION* session
                 ;
 }
 
-WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
+WOLFSSL_SESSION* wolfSSL_GetSession(WOLFSSL* ssl, byte* masterSecret,
         byte restoreSessionCerts)
 {
     WOLFSSL_SESSION* ret = NULL;
@@ -15288,7 +15288,7 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
     return ret;
 }
 
-int SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
+int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 {
     int ret = WOLFSSL_SUCCESS, row = -1;
 #ifdef HAVE_SESSION_TICKET
@@ -15758,7 +15758,7 @@ int AddSession(WOLFSSL* ssl)
         cbRet = ssl->ctx->new_sess_cb(ssl, session);
     }
     if (ssl->options.internalCacheOff && cbRet == 0) {
-        FreeSession(session);
+        wolfSSL_FreeSession(session);
     }
 #endif
 
@@ -16016,7 +16016,7 @@ int wolfSSL_get_session_stats(word32* active, word32* total, word32* peak,
 #else  /* NO_SESSION_CACHE */
 
 /* No session cache version */
-WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
+WOLFSSL_SESSION* wolfSSL_GetSession(WOLFSSL* ssl, byte* masterSecret,
         byte restoreSessionCerts)
 {
     (void)ssl;
@@ -23292,7 +23292,7 @@ int wolfSSL_session_reused(WOLFSSL* ssl)
     return resuming;
 }
 
-WOLFSSL_SESSION* GetSessionRef(WOLFSSL* ssl)
+WOLFSSL_SESSION* wolfSSL_GetSessionRef(WOLFSSL* ssl)
 {
     WOLFSSL_SESSION* session;
 #ifdef ENABLE_CLIENT_SESSION_REF
@@ -23302,13 +23302,14 @@ WOLFSSL_SESSION* GetSessionRef(WOLFSSL* ssl)
     int refCount = 0;
 #endif
 
-    session = GetSession(ssl, NULL, 1);
+    session = wolfSSL_GetSession(ssl, NULL, 1);
     if (session == NULL) {
         return session;
     }
 
 #ifdef ENABLE_CLIENT_SESSION_REF
-    /* if GetSessionRef has already been called then use existing pointer */
+    /* if wolfSSL_GetSessionRef has already been called then use existing
+     * pointer */
     ref = (WOLFSSL_SESSION*)ssl->session.refPtr;
     if (ref == NULL) {
         ref = (WOLFSSL_SESSION*)XMALLOC(refSize, ssl->heap,
@@ -23338,7 +23339,7 @@ WOLFSSL_SESSION* GetSessionRef(WOLFSSL* ssl)
 #if defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)
 
 /* return a new malloc'd session with default settings on success */
-WOLFSSL_SESSION* NewSession(void* heap)
+WOLFSSL_SESSION* wolfSSL_NewSession(void* heap)
 {
     WOLFSSL_SESSION* ret = NULL;
 
@@ -23365,7 +23366,7 @@ WOLFSSL_SESSION* NewSession(void* heap)
 
 WOLFSSL_SESSION* wolfSSL_SESSION_new_ex(void* heap)
 {
-    WOLFSSL_SESSION* ret = NewSession(heap);
+    WOLFSSL_SESSION* ret = wolfSSL_NewSession(heap);
 
 #ifdef OPENSSL_EXTRA
     if (ret != NULL) {
@@ -23428,7 +23429,7 @@ WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
     }
 #endif
 
-    copy = NewSession(session->heap);
+    copy = wolfSSL_NewSession(session->heap);
     if (copy != NULL) {
         XMEMCPY(copy, session, sizeof(WOLFSSL_SESSION));
         copy->type = WOLFSSL_SESSION_TYPE_HEAP;
@@ -23473,7 +23474,7 @@ WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
 
 #endif /* OPENSSL_EXTRA || HAVE_EXT_CACHE */
 
-void FreeSession(WOLFSSL_SESSION* session)
+void wolfSSL_FreeSession(WOLFSSL_SESSION* session)
 {
     if (session == NULL)
         return;
@@ -23537,7 +23538,7 @@ void FreeSession(WOLFSSL_SESSION* session)
 
 void wolfSSL_SESSION_free(WOLFSSL_SESSION* session)
 {
-    FreeSession(session);
+    wolfSSL_FreeSession(session);
 }
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)

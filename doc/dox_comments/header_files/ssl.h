@@ -2384,7 +2384,7 @@ WOLFSSL_API void       wolfSSL_flush_sessions(WOLFSSL_CTX*, long);
     }
     \endcode
 
-    \sa GetSessionClient
+    \sa wolfSSL_set_session
 */
 WOLFSSL_API int        wolfSSL_SetServerID(WOLFSSL*, const unsigned char*,
                                          int, int);
@@ -3794,7 +3794,10 @@ WOLFSSL_API const char*  wolfSSL_get_cipher(WOLFSSL*);
 /*!
     \ingroup Setup
 
-    \brief This function returns the WOLFSSL_SESSION from the WOLFSSL structure.
+    \brief This function returns the WOLFSSL_SESSION from the WOLFSSL structure
+    as a reference type. This requires calling wolfSSL_SESSION_free to release
+    the session reference. If the referred to session expires from the cache an
+    error will occur when trying to set the session.
 
     \return WOLFSSL_SESSION On success return session pointer.
     \return NULL on failure returns NULL.
@@ -3806,12 +3809,18 @@ WOLFSSL_API const char*  wolfSSL_get_cipher(WOLFSSL*);
     WOLFSSL* ssl;
     WOLFSSL_SESSION* ses;
     // attempt/complete handshake
+    wolfSSL_connect(ssl);
     ses  = wolfSSL_get1_session(ssl);
     // check ses information
+    // disconnect / setup new SSL instance
+    wolfSSL_set_session(ssl, ses);
+    // attempt/resume handshake
+    wolfSSL_SESSION_free(ses);
     \endcode
 
     \sa wolfSSL_new
     \sa wolfSSL_free
+    \sa wolfSSL_SESSION_free
 */
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl);
 
