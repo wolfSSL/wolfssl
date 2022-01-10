@@ -32,6 +32,7 @@
  * WOLFSSL_PSA_NO_HASH: disable PSA hashing support
  * WOLFSSL_PSA_NO_AES: disable PSA AES support
  * WOLFSSL_PSA_GLOBAL_LOCK: serialize the access to the underlying PSA lib
+ * WOLFSSL_PSA_NO_PKCBS: disable PK callbacks support
  */
 
 #ifndef WOLFSSL_PSA_H
@@ -54,6 +55,10 @@
 #include <wolfssl/wolfcrypt/aes.h>
 #endif
 #endif /* WOLFSSL_PSA_NO_AES */
+
+#if !defined(WOLFSSL_PSA_NO_PKCB)
+#include <wolfssl/ssl.h>
+#endif
 
 #if defined(WOLFSSL_PSA_GLOBAL_LOCK)
 void PSA_LOCK(void);
@@ -95,6 +100,20 @@ WOLFSSL_API int wc_AesEncrypt(Aes *aes, const byte *inBlock, byte *outBlock);
 WOLFSSL_API int wc_AesDecrypt(Aes *aes, const byte *inBlock, byte *outBlock);
 #endif
 
+#endif
+
+#if defined(HAVE_PK_CALLBACKS) &&  !defined(WOLFSSL_PSA_NO_PKCB)
+
+struct psa_ssl_ctx {
+    psa_key_id_t private_key;
+    psa_key_id_t dh_key;
+};
+
+WOLFSSL_API int wolfSSL_CTX_psa_enable(WOLFSSL_CTX *ctx);
+WOLFSSL_API int wolfSSL_set_psa_ctx(WOLFSSL *ssl, struct psa_ssl_ctx *ctx);
+WOLFSSL_API void wolfSSL_free_psa_ctx(struct psa_ssl_ctx *ctx);
+WOLFSSL_API int wolfSSL_psa_set_private_key_id(struct psa_ssl_ctx *ctx,
+                                               psa_key_id_t id);
 #endif
 
 #endif /* WOLFSSL_HAVE_PSA */

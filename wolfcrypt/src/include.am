@@ -189,4 +189,5 @@ if BUILD_PSA
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/psa/psa.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/psa/psa_hash.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/psa/psa_aes.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/psa/psa_pkcbs.c
 endif
