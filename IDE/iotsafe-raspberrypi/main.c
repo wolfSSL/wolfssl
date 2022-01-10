@@ -1,6 +1,6 @@
 /* main.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
@@ -24,15 +24,11 @@
  */
 
 /* C Standard Library */
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
-
-
 /* POSIX Library */
-
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -40,40 +36,32 @@
 #include <termios.h>
 #include <signal.h>
 
-
-
 /* wolfSSL Library */
-
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/port/iotsafe/iotsafe.h>
 
-
-
 /* Variable Declarations */
-
 static int serial_fd = -1;
 
 /* Function Declarations */
-
-extern int client_loop(const char *peer_ip, const char *peer_name, const char *peer_port, const char *temperature);
-
+extern int client_loop(const char *peer_ip, const char *peer_name,
+    const char *peer_port, const char *temperature);
+#ifdef DEBUG_UART_IO
 static void print_buffer_hex(const char *buf, int len);
 static void print_buffer_char(const char *buf, int len);
-
+#endif
 static int usart_init(const char *dev_name, int *fd);
 static int usart_clean(int fd);
 static int usart_read(char *buf, int len);
 static int usart_write(const char *buf, int len);
-
 static void show_usage(const char *program);
 
 
-
 /* Function Definitions */
-
+#ifdef DEBUG_UART_IO
 static void print_buffer_hex(const char *buf, int len)
 {
     for (int i = 0; i < len; i++)
@@ -85,6 +73,7 @@ static void print_buffer_char(const char *buf, int len)
     for (int i = 0; i < len; i++)
         printf("%c", *(buf++));
 }
+#endif
 
 static int usart_init(const char *dev_name, int *fd)
 {
@@ -131,23 +120,20 @@ static int usart_read(char *buf, int len)
 
     int ret = 0;
     int i = 0;
-    char c;  
+    char c;
     memset(buf, 0, len);
 
-  
-   /* Read 1 byte at one time until *buf is full or a POSIX read error like timeout occurs. */
+   /* Read 1 byte at one time until *buf is full or a POSIX read error like
+    * timeout occurs. */
     do
     {
         ret = read(serial_fd, &c, 1U);
-        if (ret > 0)
-        {
+        if (ret > 0) {
             buf[i++] = c;
             if (c == '\n')
                 break;
         }
     } while (i < len && ret > 0);
-     
-
 
 #ifdef DEBUG_UART_IO
     printf("UART Read Actual   : %d bytes\n", i);
@@ -196,7 +182,8 @@ static int usart_write(const char *buf, int len)
 static void show_usage(const char *program)
 {
     printf("\nUsage:\n");
-    printf("\t%s -ip SERVER_IP_ADDRESS -h SERVER_HOST_NAME -p PORT_NUMBER -t TEMPERATURE -d DEVICE_FILE_PATH\n", program);
+    printf("\t%s -ip SERVER_IP_ADDRESS -h SERVER_HOST_NAME -p PORT_NUMBER "
+                     "-t TEMPERATURE -d DEVICE_FILE_PATH\n", program);
     printf("\n");
     printf("\t-ip <server IPv4 address eg: 127.0.0.1>\n");
     printf("\t-h <server name eg: xxx.amazon.com>\n");

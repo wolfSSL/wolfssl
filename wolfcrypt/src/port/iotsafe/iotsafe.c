@@ -1,6 +1,6 @@
 /* iotsafe.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -241,7 +241,7 @@ static int iotsafe_cmd_add_tlv_ex(char *cmd, byte tag, uint16_t len,
     char *len_csim_str = (cmd + AT_CSIM_CMD_SIZE - 5);
     word32 cmdlen;
 
-    cmdlen = XSTRLEN(cmd);
+    cmdlen = (word32)XSTRLEN(cmd);
     if (cmdlen < AT_CSIM_CMD_SIZE) {
         return BAD_FUNC_ARG;
     }

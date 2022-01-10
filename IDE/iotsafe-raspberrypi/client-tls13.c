@@ -1,6 +1,6 @@
 /* client-tls13.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
@@ -20,32 +20,23 @@
  */
 
 /* C Standard Library */
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 
-
-
 /* POSIX Library */
-
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <unistd.h>
 
-
-
 /* wolfSSL Library */
-
 #include <wolfssl/options.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfio.h>
 #include <wolfssl/wolfcrypt/port/iotsafe/iotsafe.h>
 #include <wolfssl/error-ssl.h>
-
-
 
 /* IoTSAFE Certificate slots */
 
@@ -84,21 +75,16 @@
 #define PEER_CERT_ID    0x05
 
 
-
 /* Function Declarations */
-
-extern int client_loop(const char *peer_ip, const char *peer_name, const char *peer_port, const char *temperature);
-
+extern int client_loop(const char *peer_ip, const char *peer_name,
+ const char *peer_port, const char *temperature);
 #if defined(USE_SECRET_CALLBACK)
-
-static int Tls13SecretCallback(WOLFSSL* ssl, int id, const unsigned char* secret, int secretSz, void* ctx);
-
+static int Tls13SecretCallback(WOLFSSL* ssl, int id, const unsigned char* secret,
+ int secretSz, void* ctx);
 #endif
 
 
-
 /* Function Definitions */
-
 #if defined(USE_SECRET_CALLBACK)
 
 #ifndef WOLFSSL_SSLKEYLOGFILE_OUTPUT
@@ -157,12 +143,10 @@ static int Tls13SecretCallback(WOLFSSL* ssl, int id, const unsigned char* secret
 
     return 0;
 }
-
 #endif /* USE_SECRET_CALLBACK */
 
-
-
-int client_loop(const char *peer_ip, const char *peer_name, const char *peer_port, const char *temperature)
+int client_loop(const char *peer_ip, const char *peer_name,
+    const char *peer_port, const char *temperature)
 {
     int ret = 0;
 

@@ -24,7 +24,8 @@ endif
 
 OBJS:=$(WOLFSSL_BUILD)/main.o $(WOLFSSL_BUILD)/client-tls13.o
 
-.PHONY: all clean help
+default: all
+	.PHONY: all clean help
 
 define run-help =
 echo "Run 'make TARGET* OPTION*'"
