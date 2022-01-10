@@ -73,6 +73,13 @@ int wc_InitSha512(wc_Sha512* sha)
     return (int) Cy_Crypto_Core_Sha_Start(crypto_base, &sha->hash_state);
 }
 
+int wc_InitSha512_ex(wc_Sha512* sha, void *heap, int devid)
+{
+    (void)heap;
+    (void)devid;
+    return wc_InitSha512(sha);
+}
+
 int wc_Sha512Update(wc_Sha512* sha, const byte* in, word32 sz)
 {
     if ((!sha) || (!in))
