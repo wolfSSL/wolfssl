@@ -787,7 +787,8 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 #ifndef WOLFSSL_SP_DIV_WORD_HALF
 /* Divide a two digit number by a digit number and return. (hi | lo) / d
  *
- * Using divl instruction on Intel x64.
+ * Using udiv instruction on Aarch64.
+ * Constant time.
  *
  * @param  [in]  hi  SP integer digit. High digit of the dividend.
  * @param  [in]  lo  SP integer digit. Lower digit of the dividend.
@@ -797,54 +798,52 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
                                           sp_int_digit d)
 {
-    sp_int_digit r;
-
     __asm__ __volatile__ (
-        "lsr    x5, %[d], 32\n\t"
-        "add    x5, x5, 1\n\t"
+        "lsr	x5, %[d], 32\n\t"
+        "add	x5, x5, 1\n\t"
 
-        "udiv   x3, %[hi], x5\n\t"
-        "lsl    x6, x3, 32\n\t"
-        "mul    x4, %[d], x6\n\t"
-        "umulh  x3, %[d], x6\n\t"
-        "subs   %[lo], %[lo], x4\n\t"
-        "sbc    %[hi], %[hi], x3\n\t"
+        "udiv	x3, %[hi], x5\n\t"
+        "lsl	x6, x3, 32\n\t"
+        "mul	x4, %[d], x6\n\t"
+        "umulh	x3, %[d], x6\n\t"
+        "subs	%[lo], %[lo], x4\n\t"
+        "sbc	%[hi], %[hi], x3\n\t"
 
-        "udiv   x3, %[hi], x5\n\t"
-        "lsl    x3, x3, 32\n\t"
-        "add    x6, x6, x3\n\t"
-        "mul    x4, %[d], x3\n\t"
-        "umulh  x3, %[d], x3\n\t"
-        "subs   %[lo], %[lo], x4\n\t"
-        "sbc    %[hi], %[hi], x3\n\t"
+        "udiv	x3, %[hi], x5\n\t"
+        "lsl	x3, x3, 32\n\t"
+        "add	x6, x6, x3\n\t"
+        "mul	x4, %[d], x3\n\t"
+        "umulh	x3, %[d], x3\n\t"
+        "subs	%[lo], %[lo], x4\n\t"
+        "sbc	%[hi], %[hi], x3\n\t"
 
-        "lsr    x3, %[lo], 32\n\t"
-        "orr    x3, x3, %[hi], lsl 32\n\t"
+        "lsr	x3, %[lo], 32\n\t"
+        "orr	x3, x3, %[hi], lsl 32\n\t"
 
-        "udiv   x3, x3, x5\n\t"
-        "add    x6, x6, x3\n\t"
-        "mul    x4, %[d], x3\n\t"
-        "umulh  x3, %[d], x3\n\t"
-        "subs   %[lo], %[lo], x4\n\t"
-        "sbc    %[hi], %[hi], x3\n\t"
+        "udiv	x3, x3, x5\n\t"
+        "add	x6, x6, x3\n\t"
+        "mul	x4, %[d], x3\n\t"
+        "umulh	x3, %[d], x3\n\t"
+        "subs	%[lo], %[lo], x4\n\t"
+        "sbc	%[hi], %[hi], x3\n\t"
 
-        "lsr    x3, %[lo], 32\n\t"
-        "orr    x3, x3, %[hi], lsl 32\n\t"
+        "lsr	x3, %[lo], 32\n\t"
+        "orr	x3, x3, %[hi], lsl 32\n\t"
 
-        "udiv   x3, x3, x5\n\t"
-        "add    x6, x6, x3\n\t"
-        "mul    x4, %[d], x3\n\t"
-        "sub    %[lo], %[lo], x4\n\t"
+        "udiv	x3, x3, x5\n\t"
+        "add	x6, x6, x3\n\t"
+        "mul	x4, %[d], x3\n\t"
+        "sub	%[lo], %[lo], x4\n\t"
 
-        "udiv   x3, %[lo], %[d]\n\t"
-        "add    %[r], x6, x3\n\t"
+        "udiv	x3, %[lo], %[d]\n\t"
+        "add	%[hi], x6, x3\n\t"
 
-        : [r] "=r" (r)
-        : [hi] "r" (hi), [lo] "r" (lo), [d] "r" (d)
+        : [hi] "+r" (hi), [lo] "+r" (lo)
+        : [d] "r" (d)
         : "x3", "x4", "x5", "x6"
     );
 
-    return r;
+    return hi;
 }
 #define SP_ASM_DIV_WORD
 #endif
@@ -984,9 +983,11 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     )
 
 #ifndef WOLFSSL_SP_DIV_WORD_HALF
+#ifndef WOLFSSL_SP_ARM32_UDIV
 /* Divide a two digit number by a digit number and return. (hi | lo) / d
  *
- * Using divl instruction on Intel x64.
+ * No division instruction used - does operation bit by bit.
+ * Constant time.
  *
  * @param  [in]  hi  SP integer digit. High digit of the dividend.
  * @param  [in]  lo  SP integer digit. Lower digit of the dividend.
@@ -996,56 +997,117 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
                                           sp_int_digit d)
 {
-    sp_digit r = 0;
+    sp_int_digit r = 0;
 
     __asm__ __volatile__ (
-        "lsr    r5, %[d], #1\n\t"
-        "add    r5, r5, #1\n\t"
-        "mov    r6, %[lo]\n\t"
-        "mov    r7, %[hi]\n\t"
+        "lsr	r5, %[d], #1\n\t"
+        "add	r5, r5, #1\n\t"
+        "mov	r6, %[lo]\n\t"
+        "mov	r7, %[hi]\n\t"
         "# Do top 32\n\t"
-        "subs   r8, r5, r7\n\t"
-        "sbc    r8, r8, r8\n\t"
-        "add    %[r], %[r], %[r]\n\t"
-        "sub    %[r], %[r], r8\n\t"
-        "and    r8, r8, r5\n\t"
-        "subs   r7, r7, r8\n\t"
+        "subs	r8, r5, r7\n\t"
+        "sbc	r8, r8, r8\n\t"
+        "add	%[r], %[r], %[r]\n\t"
+        "sub	%[r], %[r], r8\n\t"
+        "and	r8, r8, r5\n\t"
+        "subs	r7, r7, r8\n\t"
         "# Next 30 bits\n\t"
-        "mov    r4, #29\n\t"
+        "mov	r4, #29\n\t"
         "1:\n\t"
-        "movs   r6, r6, lsl #1\n\t"
-        "adc    r7, r7, r7\n\t"
-        "subs   r8, r5, r7\n\t"
-        "sbc    r8, r8, r8\n\t"
-        "add    %[r], %[r], %[r]\n\t"
-        "sub    %[r], %[r], r8\n\t"
-        "and    r8, r8, r5\n\t"
-        "subs   r7, r7, r8\n\t"
-        "subs   r4, r4, #1\n\t"
-        "bpl    1b\n\t"
-        "add    %[r], %[r], %[r]\n\t"
-        "add    %[r], %[r], #1\n\t"
-        "umull  r4, r5, %[r], %[d]\n\t"
-        "subs   r4, %[lo], r4\n\t"
-        "sbc    r5, %[hi], r5\n\t"
-        "add    %[r], %[r], r5\n\t"
-        "umull  r4, r5, %[r], %[d]\n\t"
-        "subs   r4, %[lo], r4\n\t"
-        "sbc    r5, %[hi], r5\n\t"
-        "add    %[r], %[r], r5\n\t"
-        "umull  r4, r5, %[r], %[d]\n\t"
-        "subs   r4, %[lo], r4\n\t"
-        "sbc    r5, %[hi], r5\n\t"
-        "add    %[r], %[r], r5\n\t"
-        "subs   r8, %[d], r4\n\t"
-        "sbc    r8, r8, r8\n\t"
-        "sub    %[r], %[r], r8\n\t"
+        "movs	r6, r6, lsl #1\n\t"
+        "adc	r7, r7, r7\n\t"
+        "subs	r8, r5, r7\n\t"
+        "sbc	r8, r8, r8\n\t"
+        "add	%[r], %[r], %[r]\n\t"
+        "sub	%[r], %[r], r8\n\t"
+        "and	r8, r8, r5\n\t"
+        "subs	r7, r7, r8\n\t"
+        "subs	r4, r4, #1\n\t"
+        "bpl	1b\n\t"
+        "add	%[r], %[r], %[r]\n\t"
+        "add	%[r], %[r], #1\n\t"
+        "umull	r4, r5, %[r], %[d]\n\t"
+        "subs	r4, %[lo], r4\n\t"
+        "sbc	r5, %[hi], r5\n\t"
+        "add	%[r], %[r], r5\n\t"
+        "umull	r4, r5, %[r], %[d]\n\t"
+        "subs	r4, %[lo], r4\n\t"
+        "sbc	r5, %[hi], r5\n\t"
+        "add	%[r], %[r], r5\n\t"
+        "umull	r4, r5, %[r], %[d]\n\t"
+        "subs	r4, %[lo], r4\n\t"
+        "sbc	r5, %[hi], r5\n\t"
+        "add	%[r], %[r], r5\n\t"
+        "subs	r8, %[d], r4\n\t"
+        "sbc	r8, r8, r8\n\t"
+        "sub	%[r], %[r], r8\n\t"
         : [r] "+r" (r)
         : [hi] "r" (hi), [lo] "r" (lo), [d] "r" (d)
         : "r4", "r5", "r6", "r7", "r8"
     );
+
     return r;
 }
+#else
+/* Divide a two digit number by a digit number and return. (hi | lo) / d
+ *
+ * Using udiv instruction on arm32
+ * Constant time.
+ *
+ * @param  [in]  hi  SP integer digit. High digit of the dividend.
+ * @param  [in]  lo  SP integer digit. Lower digit of the dividend.
+ * @param  [in]  d   SP integer digit. Number to divide by.
+ * @return  The division result.
+ */
+static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
+                                          sp_int_digit d)
+{
+    __asm__ __volatile__ (
+        "lsr	r5, %[d], 16\n\t"
+        "add	r5, r5, 1\n\t"
+
+        "udiv	r3, %[hi], r5\n\t"
+        "lsl	r6, r3, 16\n\t"
+        "umull	r4, r3, %[d], r6\n\t"
+        "subs	%[lo], %[lo], r4\n\t"
+        "sbc	%[hi], %[hi], r3\n\t"
+
+        "udiv	r3, %[hi], r5\n\t"
+        "lsl	r3, r3, 16\n\t"
+        "add	r6, r6, r3\n\t"
+        "umull	r4, r3, %[d], r3\n\t"
+        "subs	%[lo], %[lo], r4\n\t"
+        "sbc	%[hi], %[hi], r3\n\t"
+
+        "lsr	r3, %[lo], 16\n\t"
+        "orr	r3, r3, %[hi], lsl 16\n\t"
+
+        "udiv	r3, r3, r5\n\t"
+        "add	r6, r6, r3\n\t"
+        "umull	r4, r3, %[d], r3\n\t"
+        "subs	%[lo], %[lo], r4\n\t"
+        "sbc	%[hi], %[hi], r3\n\t"
+
+        "lsr	r3, %[lo], 16\n\t"
+        "orr	r3, r3, %[hi], lsl 16\n\t"
+
+        "udiv	r3, r3, r5\n\t"
+        "add	r6, r6, r3\n\t"
+        "mul	r4, %[d], r3\n\t"
+        "sub	%[lo], %[lo], r4\n\t"
+
+        "udiv	r3, %[lo], %[d]\n\t"
+        "add	%[hi], r6, r3\n\t"
+
+        : [hi] "+r" (hi), [lo] "+r" (lo)
+        : [d] "r" (d)
+        : "r3", "r4", "r5", "r6"
+    );
+
+    return hi;
+}
+#endif
+
 #define SP_ASM_DIV_WORD
 #endif
 
@@ -12127,7 +12189,7 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
     sp_int_digit mask;
 
     bits = sp_count_bits(m);
-    mask = (1UL << (bits & (SP_WORD_SIZE - 1))) - 1;
+    mask = ((sp_int_digit)1 << (bits & (SP_WORD_SIZE - 1))) - 1;
 
     for (i = a->used; i < m->used * 2; i++) {
         a->dp[i] = 0;
@@ -12139,12 +12201,12 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
         mu = mp * a->dp[0];
         w = a->dp[0];
         w += (sp_int_word)mu * m->dp[0];
-        a->dp[0] = w;
+        a->dp[0] = (sp_int_digit)w;
         w >>= SP_WORD_SIZE;
         w += a->dp[1];
-        a->dp[1] = w;
+        a->dp[1] = (sp_int_digit)w;
         w >>= SP_WORD_SIZE;
-        a->dp[2] = w;
+        a->dp[2] = (sp_int_digit)w;
         a->used = m->used * 2 + 1;
         /* mp is SP_WORD_SIZE */
         bits = SP_WORD_SIZE;
