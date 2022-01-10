@@ -191,3 +191,4 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/port/psa/psa_hash.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/psa/psa_aes.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/psa/psa_pkcbs.c
 endif
+EXTRA_DIST += wolfcrypt/src/port/psa/README.md

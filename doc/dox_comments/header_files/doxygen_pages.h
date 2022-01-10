@@ -18,6 +18,7 @@
         <li>\ref Compression</li>
         <li>\ref Error</li>
         <li>\ref IoTSafe</li>
+        <li>\ref PSA</li>
         <li>\ref Keys</li>
         <li>\ref Logging</li>
         <li>\ref Math</li>

@@ -226,7 +226,7 @@
 
     If compiled in, the module supports IoT-Safe random number generator as source of entropy for wolfCrypt.
 
-
+    \defgroup PSA Platform Security Architecture (PSA) API
     \defgroup Keys Key and Cert Conversion
     \defgroup Logging Logging
     \defgroup Math Math API
