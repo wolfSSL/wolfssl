@@ -5457,12 +5457,12 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
     (void)devId;
 
     if (ctx == NULL && ssl == NULL)
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
     if (!der || !keySz || !idx || !resetSuites || !keyFormat)
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
 
 #ifndef NO_RSA
-    if (ret == 0 && (*keyFormat == 0 || *keyFormat == RSAk)) {
+    if ((*keyFormat == 0 || *keyFormat == RSAk)) {
         /* make sure RSA key can be used */
     #ifdef WOLFSSL_SMALL_STACK
         RsaKey* key;
@@ -5530,10 +5530,12 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, heap, DYNAMIC_TYPE_RSA);
     #endif
+        if (ret != 0)
+            return ret;
     }
 #endif
 #ifdef HAVE_ECC
-    if (ret == 0 && (*keyFormat == 0 || *keyFormat == ECDSAk)) {
+    if ((*keyFormat == 0 || *keyFormat == ECDSAk)) {
         /* make sure ECC key can be used */
     #ifdef WOLFSSL_SMALL_STACK
         ecc_key* key;
@@ -5593,10 +5595,12 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, heap, DYNAMIC_TYPE_ECC);
     #endif
+        if (ret != 0)
+            return ret;
     }
 #endif /* HAVE_ECC */
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
-    if (ret == 0 && (*keyFormat == 0 || *keyFormat == ED25519k)) {
+    if ((*keyFormat == 0 || *keyFormat == ED25519k)) {
         /* make sure Ed25519 key can be used */
     #ifdef WOLFSSL_SMALL_STACK
         ed25519_key* key;
@@ -5662,10 +5666,12 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, heap, DYNAMIC_TYPE_ED25519);
     #endif
+        if (ret != 0)
+            return ret;
     }
 #endif /* HAVE_ED25519 && HAVE_ED25519_KEY_IMPORT */
 #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
-    if (ret == 0 && (*keyFormat == 0 || *keyFormat == ED448k)) {
+    if ((*keyFormat == 0 || *keyFormat == ED448k)) {
         /* make sure Ed448 key can be used */
     #ifdef WOLFSSL_SMALL_STACK
         ed448_key* key = NULL;
@@ -5720,11 +5726,13 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, heap, DYNAMIC_TYPE_ED448);
     #endif
+        if (ret != 0)
+            return ret;
     }
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
 #ifdef HAVE_PQC
-    if (ret == 0 && ((*keyFormat == 0) || (*keyFormat == FALCON_LEVEL1k) ||
-                     (*keyFormat == FALCON_LEVEL5k))) {
+    if (((*keyFormat == 0) || (*keyFormat == FALCON_LEVEL1k) ||
+         (*keyFormat == FALCON_LEVEL5k))) {
         /* make sure Falcon key can be used */
         falcon_key* key = (falcon_key*)XMALLOC(sizeof(falcon_key), heap,
                                                DYNAMIC_TYPE_FALCON);
@@ -5768,7 +5776,7 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
                     }
                     ssl->buffers.keySz = *keySz;
                 }
-                else if (ctx) {
+                else {
                     if (*keyFormat == FALCON_LEVEL1k) {
                         ctx->privateKeyType = falcon_level1_sa_algo;
                     }
@@ -5785,6 +5793,8 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
             wc_falcon_free(key);
         }
         XFREE(key, heap, DYNAMIC_TYPE_FALCON);
+        if (ret != 0)
+            return ret;
     }
 #endif /* HAVE_PQC */
     return ret;
@@ -7154,7 +7164,7 @@ int wolfSSL_CTX_DisableOCSPMustStaple(WOLFSSL_CTX* ctx)
 #define GET_VERIFY_SETTING_CTX(ctx) \
     (ctx && ctx->verifyNone ? NO_VERIFY : VERIFY)
 #define GET_VERIFY_SETTING_SSL(ssl) \
-    (ssl && ssl->options.verifyNone ? NO_VERIFY : VERIFY)
+    (ssl->options.verifyNone ? NO_VERIFY : VERIFY)
 
 #ifndef NO_FILESYSTEM
 
@@ -15423,7 +15433,9 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     #endif
         return ret;
     }
-    session = NULL; /* invalidate the provided session, only use ssl->session */
+    /* don't use the provided session pointer from here to end of func, only use
+     * ssl->session.
+     */
 
 #ifdef OPENSSL_EXTRA
     /* check for application context id */
@@ -15977,12 +15989,12 @@ int wolfSSL_get_session_stats(word32* active, word32* total, word32* peak,
                                         &peak, &maxSessions);
         if (ret != WOLFSSL_SUCCESS)
             return ret;
-        printf("Total Sessions Seen = %d\n", totalSessionsSeen);
-        printf("Total Sessions Now  = %d\n", totalSessionsNow);
+        printf("Total Sessions Seen = %u\n", totalSessionsSeen);
+        printf("Total Sessions Now  = %u\n", totalSessionsNow);
 #ifdef WOLFSSL_PEAK_SESSIONS
-        printf("Peak  Sessions      = %d\n", peak);
+        printf("Peak  Sessions      = %u\n", peak);
 #endif
-        printf("Max   Sessions      = %d\n", maxSessions);
+        printf("Max   Sessions      = %u\n", maxSessions);
 
         E = (double)totalSessionsSeen / SESSION_ROWS;
 
@@ -18691,7 +18703,7 @@ int wolfSSL_CTX_get_max_proto_version(WOLFSSL_CTX* ctx)
         options = wolfSSL_CTX_get_options(ctx);
     }
 
-    if (ctx->maxProto) {
+    if ((ctx != NULL) && ctx->maxProto) {
         ret = 0;
     }
     else {
@@ -25197,7 +25209,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
                         #endif
                         }
                         XSNPRINTF(tmp, sizeof(tmp) - 1,
-                            "\n                Exponent: %d (0x%x)\n",idx, idx);
+                            "\n                Exponent: %u (0x%x)\n",idx, idx);
                         if (wolfSSL_BIO_write(bio, tmp,
                                                       (int)XSTRLEN(tmp)) <= 0) {
                             XFREE(rawKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -32056,13 +32068,15 @@ end:
 int wolfSSL_SESSION_has_ticket(const WOLFSSL_SESSION* sess)
 {
     WOLFSSL_ENTER("wolfSSL_SESSION_has_ticket");
-    sess = GetSessionPtr(sess);
 #ifdef HAVE_SESSION_TICKET
+    sess = GetSessionPtr(sess);
     if (sess) {
         if ((sess->ticketLen > 0) && (sess->ticket != NULL)) {
             return WOLFSSL_SUCCESS;
         }
     }
+#else
+    (void)sess;
 #endif
     return WOLFSSL_FAILURE;
 }
@@ -40969,7 +40983,7 @@ int wolfSSL_RSA_print(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa, int offset)
                     idx = ByteReverseWord32(idx);
                 #endif
             }
-            XSNPRINTF(tmp, sizeof(tmp) - 1, "\nExponent: %d (0x%x)", idx, idx);
+            XSNPRINTF(tmp, sizeof(tmp) - 1, "\nExponent: %u (0x%x)", idx, idx);
             if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
                 XFREE(rawKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 return WOLFSSL_FAILURE;
@@ -44850,6 +44864,8 @@ err:
         }
         if (pemBio)
             wolfSSL_BIO_free(pemBio);
+        return WOLFSSL_FAILURE;
+#else /* ! (WOLFSSL_PEM_TO_DER || WOLFSSL_DER_TO_PEM) */
         return WOLFSSL_FAILURE;
 #endif /* WOLFSSL_PEM_TO_DER || WOLFSSL_DER_TO_PEM */
     }
@@ -55213,7 +55229,7 @@ int wolfSSL_PEM_write_bio_PKCS8PrivateKey(WOLFSSL_BIO* bio,
     int algId;
     const byte* curveOid;
     word32 oidSz;
-    int encAlgId;
+    int encAlgId = 0;
 
     if (bio == NULL || pkey == NULL)
         return -1;
@@ -62189,7 +62205,7 @@ int wolfSSL_i2d_PKCS7(PKCS7 *p7, unsigned char **out)
             WOLFSSL_MSG("wc_InitRng error");
             return WOLFSSL_FAILURE;
         }
-        p7->rng = &rng;
+        p7->rng = &rng; // cppcheck-suppress autoVariables
     }
 
     if ((len = wc_PKCS7_EncodeSignedData(p7, NULL, 0)) < 0) {
@@ -62536,13 +62552,13 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
     size_t boundLen = 0;
     char* boundary = NULL;
 
-    static const char* kContType = "Content-Type";
-    static const char* kCTE = "Content-Transfer-Encoding";
-    static const char* kMultSigned = "multipart/signed";
-    static const char* kAppPkcsSign = "application/pkcs7-signature";
-    static const char* kAppXPkcsSign = "application/x-pkcs7-signature";
-    static const char* kAppPkcs7Mime = "application/pkcs7-mime";
-    static const char* kAppXPkcs7Mime = "application/x-pkcs7-mime";
+    static const char kContType[] = "Content-Type";
+    static const char kCTE[] = "Content-Transfer-Encoding";
+    static const char kMultSigned[] = "multipart/signed";
+    static const char kAppPkcsSign[] = "application/pkcs7-signature";
+    static const char kAppXPkcsSign[] = "application/x-pkcs7-signature";
+    static const char kAppPkcs7Mime[] = "application/pkcs7-mime";
+    static const char kAppXPkcs7Mime[] = "application/x-pkcs7-mime";
 
 
     if (in == NULL || bcont == NULL) {

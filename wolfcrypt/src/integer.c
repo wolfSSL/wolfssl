@@ -1993,7 +1993,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
    * one of many reduction algorithms without modding the guts of
    * the code with if statements everywhere.
    */
-  int     (*redux)(mp_int*,mp_int*,mp_digit) = NULL;
+  int     (*redux)(mp_int*,mp_int*,mp_digit) = NULL; // cppcheck-suppress nullPointerRedundantCheck // cppcheck 2.6.3 false positive
 
 #ifdef WOLFSSL_SMALL_STACK
   M = (mp_int*) XMALLOC(sizeof(mp_int) * TAB_SIZE, NULL,

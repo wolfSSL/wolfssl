@@ -2041,7 +2041,7 @@ static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
     word32         i = 0;
     int            curveIdx;
     unsigned char* point = NULL;
-    int            pointSz;
+    int            pointSz = 0;
     byte           tag;
     CK_RV          rv;
     CK_ATTRIBUTE   tmpl[] = {

@@ -1234,7 +1234,7 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
         }
 
         /* read data if no \r\n or first time */
-        if (end == NULL) {
+        if ((start == NULL) || (end == NULL)) {
             result = wolfIO_Recv(sfd, (char*)httpBuf+len, httpBufSz-len-1, 0);
             if (result > 0) {
                 len += result;
@@ -2577,7 +2577,7 @@ int LwIPNativeReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
     WOLFSSL_LWIP_NATIVE_STATE* nlwip;
     int ret = 0;
 
-    if (nlwip == NULL || ctx == NULL) {
+    if (ctx == NULL) {
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
     nlwip = (WOLFSSL_LWIP_NATIVE_STATE*)ctx;

@@ -33,13 +33,17 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/ssl.h>
+#ifdef WOLFCRYPT_ONLY
+    #include <wolfssl/version.h>
+#else
+    #include <wolfssl/ssl.h>
+#endif
 #ifdef HAVE_FIPS
-#include <wolfssl/wolfcrypt/fips_test.h>
+    #include <wolfssl/wolfcrypt/fips_test.h>
 #endif
 #ifndef NO_CRYPT_TEST
-#include <wolfcrypt/test/test.h>
-#include <linux/delay.h>
+    #include <wolfcrypt/test/test.h>
+    #include <linux/delay.h>
 #endif
 
 static int libwolfssl_cleanup(void) {
@@ -170,7 +174,7 @@ static int wolfssl_init(void)
             text_hash = 0;
         }
 
-        if ((pie_rodata_start < pie_rodata_end) &&
+        if ((pie_rodata_start < pie_rodata_end) && // cppcheck-suppress comparePointers
             (pie_rodata_start >= (char *)THIS_MODULE_BASE + THIS_MODULE_TEXT_SIZE) &&
             (pie_rodata_end - (char *)THIS_MODULE_BASE <= THIS_MODULE_RO_SIZE))
         {
@@ -414,13 +418,21 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
         kernel_fpu_begin;
     #endif
     wolfssl_linuxkm_pie_redirect_table.kernel_fpu_end = kernel_fpu_end;
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
-        wolfssl_linuxkm_pie_redirect_table.copy_fpregs_to_fpstate = my_copy_fpregs_to_fpstate;
-        wolfssl_linuxkm_pie_redirect_table.copy_kernel_to_fpregs = my_copy_kernel_to_fpregs;
-    #else
-        wolfssl_linuxkm_pie_redirect_table.save_fpregs_to_fpstate = save_fpregs_to_fpstate;
-        wolfssl_linuxkm_pie_redirect_table.__restore_fpregs_from_fpstate = __restore_fpregs_from_fpstate;
-        wolfssl_linuxkm_pie_redirect_table.xfeatures_mask_all = &xfeatures_mask_all;
+    #ifdef LINUXKM_SIMD_IRQ
+        #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
+            wolfssl_linuxkm_pie_redirect_table.copy_fpregs_to_fpstate = my_copy_fpregs_to_fpstate;
+            wolfssl_linuxkm_pie_redirect_table.copy_kernel_to_fpregs = my_copy_kernel_to_fpregs;
+        #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
+            wolfssl_linuxkm_pie_redirect_table.save_fpregs_to_fpstate = save_fpregs_to_fpstate;
+            wolfssl_linuxkm_pie_redirect_table.__restore_fpregs_from_fpstate = __restore_fpregs_from_fpstate;
+            wolfssl_linuxkm_pie_redirect_table.xfeatures_mask_all = &xfeatures_mask_all;
+        /*
+         * #else
+         *  wolfssl_linuxkm_pie_redirect_table.save_fpregs_to_fpstate = save_fpregs_to_fpstate;
+         *  wolfssl_linuxkm_pie_redirect_table.restore_fpregs_from_fpstate = restore_fpregs_from_fpstate;
+         *  wolfssl_linuxkm_pie_redirect_table.fpu_kernel_cfg = &fpu_kernel_cfg;
+         */
+        #endif
     #endif
     wolfssl_linuxkm_pie_redirect_table.cpu_number = &cpu_number;
     wolfssl_linuxkm_pie_redirect_table.nr_cpu_ids = &nr_cpu_ids;

@@ -141,7 +141,7 @@ static void xc_diffadd(byte *x5, byte *z5,
 }
 
 #ifndef FREESCALE_LTC_ECC
-int curve25519(byte *result, const byte *e, const byte *q)
+int curve25519(byte *result, const byte *n, const byte *p)
 {
     /* Current point: P_m */
     byte xm[F25519_SIZE];
@@ -154,19 +154,19 @@ int curve25519(byte *result, const byte *e, const byte *q)
     int i;
 
     /* Note: bit 254 is assumed to be 1 */
-    lm_copy(xm, q);
+    lm_copy(xm, p);
 
     for (i = 253; i >= 0; i--) {
-        const int bit = (e[i >> 3] >> (i & 7)) & 1;
+        const int bit = (n[i >> 3] >> (i & 7)) & 1;
         byte xms[F25519_SIZE];
         byte zms[F25519_SIZE];
 
         /* From P_m and P_(m-1), compute P_(2m) and P_(2m-1) */
-        xc_diffadd(xm1, zm1, q, f25519_one, xm, zm, xm1, zm1);
+        xc_diffadd(xm1, zm1, p, f25519_one, xm, zm, xm1, zm1);
         xc_double(xm, zm, xm, zm);
 
         /* Compute P_(2m+1) */
-        xc_diffadd(xms, zms, xm1, zm1, xm, zm, q, f25519_one);
+        xc_diffadd(xms, zms, xm1, zm1, xm, zm, p, f25519_one);
 
         /* Select:
          *   bit = 1 --> (P_(2m+1), P_(2m))

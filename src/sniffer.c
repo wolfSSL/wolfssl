@@ -364,7 +364,7 @@ static const char* const msgTable[] =
 static void GetError(int idx, char* str)
 {
     if (str == NULL ||
-            idx < 0 || idx > (int)(sizeof(msgTable)/sizeof(const char* const)))
+            idx <= 0 || idx > (int)(sizeof(msgTable)/sizeof(const char* const)))
         return;
     XSTRNCPY(str, msgTable[idx - 1], MAX_ERROR_LEN-1);
     str[MAX_ERROR_LEN-1] = '\0';

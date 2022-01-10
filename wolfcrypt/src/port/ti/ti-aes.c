@@ -209,6 +209,7 @@ WOLFSSL_API void wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz
                 XMEMCPY(out, out_block+aes->left,odd) ;
                 aes->left += odd ;
             }
+            return; // work around cppcheck 2.6.3 false positive missingReturn
 }
 #endif
 

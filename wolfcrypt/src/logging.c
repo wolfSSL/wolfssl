@@ -487,7 +487,7 @@ void WOLFSSL_ERROR(int error)
             if (error < 0)
                 error = error - (2 * error); /* get absolute value */
             XSNPRINTF(buffer, sizeof(buffer),
-                    "wolfSSL error occurred, error = %d line:%d file:%s",
+                    "wolfSSL error occurred, error = %d line:%u file:%s",
                     error, line, file);
 
             if (wc_AddErrorNode(error, line, buffer, (char*)file) != 0) {

@@ -359,6 +359,9 @@ typedef struct ecc_set_type {
 #endif
 
 /* verify alignment */
+#if CHAR_BIT == 0
+   #error CHAR_BIT must be nonzero
+#endif
 #if FP_MAX_BITS_ECC % CHAR_BIT
     #error FP_MAX_BITS_ECC must be a multiple of CHAR_BIT
 #endif

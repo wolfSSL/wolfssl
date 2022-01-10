@@ -698,7 +698,7 @@ int wc_ShaFinalRaw(wc_Sha* sha, byte* hash)
 
 #ifdef LITTLE_ENDIAN_ORDER
     ByteReverseWords((word32*)digest, (word32*)sha->digest, WC_SHA_DIGEST_SIZE);
-    XMEMCPY(hash, digest, WC_SHA_DIGEST_SIZE);
+    XMEMCPY(hash, (byte *)&digest[0], WC_SHA_DIGEST_SIZE);
 #else
     XMEMCPY(hash, sha->digest, WC_SHA_DIGEST_SIZE);
 #endif
@@ -802,7 +802,7 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
     ByteReverseWords(sha->digest, sha->digest, WC_SHA_DIGEST_SIZE);
 #endif
 
-    XMEMCPY(hash, sha->digest, WC_SHA_DIGEST_SIZE);
+    XMEMCPY(hash, (byte *)&sha->digest[0], WC_SHA_DIGEST_SIZE);
 
     (void)InitSha(sha); /* reset state */
 

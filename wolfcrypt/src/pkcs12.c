@@ -188,7 +188,6 @@ void wc_PKCS12_free(WC_PKCS12* pkcs12)
     }
 
     XFREE(pkcs12, NULL, DYNAMIC_TYPE_PKCS);
-    pkcs12 = NULL;
 }
 
 

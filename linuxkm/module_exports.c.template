@@ -31,8 +31,10 @@
 #endif
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/ssl.h>
-#include <wolfssl/internal.h>
+#ifndef WOLFCRYPT_ONLY
+    #include <wolfssl/ssl.h>
+    #include <wolfssl/internal.h>
+#endif
 #ifndef NO_CRYPT_TEST
 #include <wolfcrypt/test/test.h>
 #include <linux/delay.h>
@@ -109,6 +111,9 @@
 #endif
 #ifdef HAVE_PKCS7
     #include <wolfssl/wolfcrypt/pkcs7.h>
+#endif
+#ifdef HAVE_PKCS12
+    #include <wolfssl/wolfcrypt/pkcs12.h>
 #endif
 #ifdef HAVE_FIPS
     #include <wolfssl/wolfcrypt/fips.h>
