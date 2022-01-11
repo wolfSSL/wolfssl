@@ -184,7 +184,7 @@ WOLFSSL_LOCAL int  wc_sce_AesGcmEncrypt(struct Aes* aes, byte* out,
             iv_l = iv;
             ivSz_l = ivSz;
         } else {
-            WOLFSSL_MSG("AES kes for SCE is not set.");
+            WOLFSSL_MSG("AES key for SCE is not set.");
             ret = -1;
         }
         
@@ -365,7 +365,7 @@ WOLFSSL_LOCAL int  wc_sce_AesGcmDecrypt(struct Aes* aes, byte* out,
             iv_l = iv;
             ivSz_l = ivSz;
         } else {
-            WOLFSSL_MSG("AES kes for SCE is not set.");
+            WOLFSSL_MSG("AES key for SCE is not set.");
             ret = -1;
         }
 
