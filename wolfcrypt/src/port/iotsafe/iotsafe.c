@@ -725,7 +725,7 @@ static int iotsafe_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
 {
     int ret;
     char *resp;
-	uint16_t hash_algo  = 0;
+    uint16_t hash_algo = 0;
     int len;
     uint16_t hash_algo_be = 0;
 
@@ -765,7 +765,7 @@ static int iotsafe_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
         XMEMSET(ikm, 0, len);
     }
 
-    #ifdef DEBUG_IOTSAFE
+#ifdef DEBUG_IOTSAFE
     printf("IOTSAFE PK HKDF Extract\n");
     printf("salt: ");
     for(word32 i = 0; i < saltLen; i++)
@@ -776,7 +776,7 @@ static int iotsafe_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
         printf("%02X", ikm[i]);
 
     printf("\nhash: %d\n", digest);
-    #endif
+#endif
 
     hash_algo_be = XHTONS(hash_algo);
 
@@ -1045,7 +1045,6 @@ static int wolfIoT_ecc_keygen(WOLFSSL* ssl, struct ecc_key* key,
 static int wolfIoT_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
        byte* ikm, word32 ikmLen, int digest, void* ctx)
 {
-    (void)ctx;
     int ret;
     const  byte* localSalt;  /* either points to user input or tmp */
     byte tmp[WC_MAX_DIGEST_SIZE]; /* localSalt helper */
@@ -1054,7 +1053,7 @@ static int wolfIoT_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
 
     localSalt = salt;
 
-    if(saltLen == 0) {
+    if (saltLen == 0) {
         ret = wc_HmacSizeByType(digest);
             if (ret < 0)
                 return ret;
@@ -1066,6 +1065,7 @@ static int wolfIoT_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
     }
     
     ret = iotsafe_hkdf_extract(prk, localSalt, saltLen, ikm, ikmLen, digest);    
+    (void)ctx;
     return ret;
 }       
 #endif
