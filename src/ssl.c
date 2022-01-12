@@ -3024,7 +3024,7 @@ int wolfSSL_SecureResume(WOLFSSL* ssl)
 
     if (ssl->options.side == WOLFSSL_SERVER_END) {
         ssl->error = SIDE_ERROR;
-        return SSL_FATAL_ERROR;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     return _Rehandshake(ssl);
@@ -41263,7 +41263,7 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
         else {
              WOLFSSL_MSG("RsaPublicKeyDecode failed");
         }
-        return SSL_FATAL_ERROR;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     if (SetRsaExternal(rsa) != WOLFSSL_SUCCESS) {
@@ -52746,7 +52746,7 @@ int wolfSSL_RSA_private_encrypt(int len, const unsigned char* in,
     #endif
     {
         WOLFSSL_MSG("Error with random number");
-        return SSL_FATAL_ERROR;
+        return WOLFSSL_FATAL_ERROR;
     }
 #endif
 
@@ -52781,7 +52781,7 @@ int wolfSSL_RSA_private_encrypt(int len, const unsigned char* in,
     #if !defined(WC_RSA_BLINDING) || defined(HAVE_USER_RSA)
     if (wc_FreeRng(rng) != 0) {
         WOLFSSL_MSG("Error freeing random number generator");
-        return SSL_FATAL_ERROR;
+        return WOLFSSL_FATAL_ERROR;
     }
     #endif
     if (sz <= 0) {
