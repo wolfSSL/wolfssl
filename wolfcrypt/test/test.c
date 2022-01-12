@@ -12223,6 +12223,16 @@ WOLFSSL_TEST_SUBROUTINE int memory_test(void)
     #endif
 #endif /* !USE_CERT_BUFFER_* */
 
+#if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT) && \
+    !defined(NO_FILESYSTEM)
+    static const char* certExtNc  =
+            CERT_ROOT "test" CERT_PATH_SEP "cert-ext-nc.der";
+    static const char* certExtIa  =
+            CERT_ROOT "test" CERT_PATH_SEP "cert-ext-ia.der";
+    static const char* certExtNct =
+            CERT_ROOT "test" CERT_PATH_SEP "cert-ext-nct.der";
+#endif
+
 #ifndef NO_WRITE_TEMP_FILES
 #ifdef HAVE_ECC
     #ifdef WOLFSSL_CERT_GEN
@@ -12480,11 +12490,7 @@ WOLFSSL_TEST_SUBROUTINE int cert_test(void)
         return -7400;
 
     /* Certificate with Name Constraints extension. */
-#ifdef FREESCALE_MQX
-    file = XFOPEN(".\\certs\\test\\cert-ext-nc.der", "rb");
-#else
-    file = XFOPEN("./certs/test/cert-ext-nc.der", "rb");
-#endif
+    file = XFOPEN(certExtNc, "rb");
     if (!file) {
         ERROR_OUT(-7401, done);
     }
@@ -12498,11 +12504,7 @@ WOLFSSL_TEST_SUBROUTINE int cert_test(void)
     FreeDecodedCert(&cert);
 
     /* Certificate with Inhibit Any Policy extension. */
-#ifdef FREESCALE_MQX
-    file = XFOPEN(".\\certs\\test\\cert-ext-ia.der", "rb");
-#else
-    file = XFOPEN("./certs/test/cert-ext-ia.der", "rb");
-#endif
+    file = XFOPEN(certExtIa, "rb");
     if (!file) {
         ERROR_OUT(-7403, done);
     }
@@ -12516,11 +12518,7 @@ WOLFSSL_TEST_SUBROUTINE int cert_test(void)
     FreeDecodedCert(&cert);
 
     /* Certificate with Netscape Certificate Type extension. */
-#ifdef FREESCALE_MQX
-    file = XFOPEN(".\\certs\\test\\cert-ext-nct.der", "rb");
-#else
-    file = XFOPEN("./certs/test/cert-ext-nct.der", "rb");
-#endif
+    file = XFOPEN(certExtNct, "rb");
     if (!file) {
         ERROR_OUT(-7405, done);
     }
@@ -23047,7 +23045,7 @@ static int ecc_def_curve_test(WC_RNG *rng)
         sizeof_ecc_key_der_256);
     #else
     {
-        XFILE file = XFOPEN("./certs/ecc-key.der", "rb");
+        XFILE file = XFOPEN(eccKeyDerFile, "rb");
         byte der[128];
         word32 derSz;
         if (!file) {
