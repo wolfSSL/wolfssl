@@ -8119,10 +8119,10 @@ int sp_mulmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
 int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
-    sp_int* u;
-    sp_int* v;
-    sp_int* b;
-    sp_int* c;
+    sp_int* u = NULL;
+    sp_int* v = NULL;
+    sp_int* b = NULL;
+    sp_int* c = NULL;
     int used = ((m == NULL) || (a == NULL)) ? 1 :
                    ((m->used >= a->used) ? m->used + 1 : a->used + 1);
     DECL_SP_INT_ARRAY(t, used, 4);
@@ -8264,9 +8264,9 @@ int sp_invmod_mont_ct(sp_int* a, sp_int* m, sp_int* r, sp_int_digit mp)
 {
     int err = MP_OKAY;
     int i;
-    int j;
-    sp_int* t;
-    sp_int* e;
+    int j = 0;
+    sp_int* t = NULL;
+    sp_int* e = NULL;
     DECL_SP_INT_ARRAY(pre, (m == NULL) ? 1 : m->used * 2 + 1,
                                                         CT_INV_MOD_PRE_CNT + 2);
 
@@ -9112,10 +9112,10 @@ int sp_exptmod(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
  */
 static int _sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
 {
-    int i;
-    int j;
-    int c;
-    int y;
+    int i = 0;
+    int j = 0;
+    int c = 0;
+    int y = 0;
     int bits;
     int winBits;
     int preCnt;
@@ -9362,7 +9362,7 @@ static int _sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
     int i;
     int err = MP_OKAY;
     int done = 0;
-    int y;
+    int y = 0;
     int bits = sp_count_bits(e);
     sp_int_digit mp;
     DECL_SP_INT_ARRAY(t, m->used * 2 + 1, 2);
