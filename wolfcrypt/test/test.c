@@ -33702,6 +33702,7 @@ static int pkcs7signed_run_vectors(
         file = XFOPEN(testVectors[i].outFileName, "wb");
         if (!file) {
             ERROR_OUT(-12523, out);
+        }
         ret = (int)XFWRITE(out, 1, encodedSz, file);
         XFCLOSE(file);
         if (ret != (int)encodedSz)
@@ -34202,7 +34203,7 @@ static int pkcs7signed_run_SingleShotVectors(
         XFCLOSE(file);
         file = NULL;
         if (ret != (int)encodedSz)
-            ERROR_OUT(-12553);
+            ERROR_OUT(-12553, out);
     #endif /* PKCS7_OUTPUT_TEST_BUNDLES */
 
         wc_PKCS7_Free(pkcs7);
