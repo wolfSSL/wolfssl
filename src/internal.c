@@ -30022,6 +30022,16 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if (ret != 0)
                 goto out;
 
+#if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_ENCRYPT_THEN_MAC) && \
+    !defined(WOLFSSL_AEAD_ONLY)
+            if (ssl->options.encThenMac && ssl->specs.cipher_type == block) {
+                ret = TLSX_EncryptThenMac_Respond(ssl);
+                if (ret != 0)
+                    goto out;
+            }
+            else
+                ssl->options.encThenMac = 0;
+#endif
             if (ssl->options.clientState == CLIENT_KEYEXCHANGE_COMPLETE) {
                 WOLFSSL_LEAVE("DoClientHello", ret);
                 WOLFSSL_END(WC_FUNC_CLIENT_HELLO_DO);
@@ -30048,6 +30058,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             SendAlert(ssl, alert_fatal, decode_error);
         else if (ret < 0)
             SendAlert(ssl, alert_fatal, handshake_failure);
+#endif
+#if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_ENCRYPT_THEN_MAC) && \
+    !defined(WOLFSSL_AEAD_ONLY)
+        if (ret == 0 && ssl->options.encThenMac &&
+                                              ssl->specs.cipher_type == block) {
+            ret = TLSX_EncryptThenMac_Respond(ssl);
+        }
+        else
+            ssl->options.encThenMac = 0;
 #endif
 
 #ifdef WOLFSSL_DTLS
