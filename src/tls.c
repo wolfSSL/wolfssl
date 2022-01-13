@@ -5282,7 +5282,6 @@ static int TLSX_EncryptThenMac_Parse(WOLFSSL* ssl, const byte* input,
             ret = TLSX_EncryptThenMac_Use(ssl);
             if (ret != 0)
                 return ret;
-            TLSX_SetResponse(ssl, TLSX_ENCRYPT_THEN_MAC);
         }
         return 0;
     }
@@ -5316,6 +5315,24 @@ static int TLSX_EncryptThenMac_Use(WOLFSSL* ssl)
         if (ret != 0)
             return ret;
     }
+
+    return 0;
+}
+
+/**
+ * Set the Encrypt-Then-MAC extension as one to respond too.
+ *
+ * ssl      SSL object
+ * return EXT_MISSING when EncryptThenMac extension not in list.
+ */
+int TLSX_EncryptThenMac_Respond(WOLFSSL* ssl)
+{
+    TLSX* extension;
+
+    extension = TLSX_Find(ssl->extensions, TLSX_ENCRYPT_THEN_MAC);
+    if (extension == NULL)
+        return EXT_MISSING;
+    extension->resp = 1;
 
     return 0;
 }

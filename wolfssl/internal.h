@@ -2600,6 +2600,10 @@ WOLFSSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket, void* heap);
 
 #endif /* HAVE_SESSION_TICKET */
 
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+int TLSX_EncryptThenMac_Respond(WOLFSSL* ssl);
+#endif
+
 #ifdef WOLFSSL_TLS13
 /* Cookie extension information - cookie data. */
 typedef struct Cookie {
