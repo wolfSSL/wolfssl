@@ -4451,17 +4451,32 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                     return ret;
 
                 pkiMsg   = in = pkcs7->der;
-                pkiMsgSz = pkcs7->derSz = len;
+                pkiMsgSz = inSz = pkcs7->derSz = len;
                 idx = 0;
-                if (GetSequence_ex(pkiMsg, &idx, &length, pkiMsgSz,
-                            NO_USER_CHECK) < 0)
-                    return ASN_PARSE_E;
-
             #ifndef NO_PKCS7_STREAM
+                wc_PKCS7_ResetStream(pkcs7);
+                if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
+                                MAX_SEQ_SZ + MAX_VERSION_SZ + MAX_SEQ_SZ +
+                                MAX_LENGTH_SZ + ASN_TAG_SZ + MAX_OID_SZ +
+                                MAX_SEQ_SZ, &pkiMsg, &idx)) != 0) {
+                    break;
+                }
+
+                pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length:
+                                                        inSz;
+
+                totalSz = pkiMsgSz;
+                if (pkiMsg2 && pkiMsg2Sz > 0) {
+                    totalSz += pkiMsg2Sz + pkcs7->contentSz;
+                }
+
                 if ((ret = wc_PKCS7_SetMaxStream(pkcs7, in, len)) != 0) {
                     break;
                 }
             #endif
+                if (GetSequence_ex(pkiMsg, &idx, &length, pkiMsgSz,
+                            NO_USER_CHECK) < 0)
+                    return ASN_PARSE_E;
         #else
                 ret = BER_INDEF_E;
         #endif
