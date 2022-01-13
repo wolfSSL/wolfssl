@@ -10497,8 +10497,10 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
 
         #ifdef ASN_BER_TO_DER
             /* check if content was BER and has been converted to DER */
-            if (pkcs7->derSz > 0)
+            if (pkcs7->derSz > 0) {
                 pkiMsg = in = pkcs7->der;
+                pkiMsgSz = inSz = pkcs7->derSz;
+            }
         #endif
 
             decryptedKey = (byte*)XMALLOC(MAX_ENCRYPTED_KEY_SZ, pkcs7->heap,
