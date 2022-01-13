@@ -2839,7 +2839,7 @@ struct WOLFSSL_CTX {
     byte        dhKeyTested:1;   /* Set when key has been tested. */
     #endif
 #endif
-#ifdef HAVE_SECURE_RENEGOTIATION
+#if defined(HAVE_SECURE_RENEGOTIATION) || defined(HAVE_SERVER_RENEGOTIATION_INFO)
     byte        useSecureReneg:1; /* when set will set WOLFSSL objects generated to enable */
 #endif
 #ifdef HAVE_ENCRYPT_THEN_MAC
@@ -4760,7 +4760,7 @@ WOLFSSL_LOCAL int SendCertificateRequest(WOLFSSL*);
 WOLFSSL_LOCAL int CreateOcspResponse(WOLFSSL*, OcspRequest**, buffer*);
 #endif
 #if defined(HAVE_SECURE_RENEGOTIATION) && \
-    defined(HAVE_SERVER_RENEGOTIATION_INFO)
+    !defined(WOLFSSL_NO_SERVER)
 WOLFSSL_LOCAL int SendHelloRequest(WOLFSSL*);
 #endif
 WOLFSSL_LOCAL int SendCertificateStatus(WOLFSSL*);

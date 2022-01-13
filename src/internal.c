@@ -31371,7 +31371,6 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
 #ifndef WOLFSSL_NO_TLS12
 
 #if defined(HAVE_SECURE_RENEGOTIATION) && \
-    defined(HAVE_SERVER_RENEGOTIATION_INFO) && \
     !defined(WOLFSSL_NO_SERVER)
 
     /* handle generation of server's hello_request (0) */
@@ -31440,7 +31439,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         return ret;
     }
 
-#endif /* HAVE_SECURE_RENEGOTIATION && HAVE_SERVER_RENEGOTIATION_INFO */
+#endif /* HAVE_SECURE_RENEGOTIATION && !WOLFSSL_NO_SERVER */
 
 #ifdef WOLFSSL_DTLS
     /* handle generation of DTLS hello_verify_request (3) */

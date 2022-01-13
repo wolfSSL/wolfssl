@@ -2579,6 +2579,14 @@ extern void uITRON4_free(void *p) ;
      */
 #endif
 
+/* if secure renegotiation is enabled, make sure server info is enabled */
+#if !defined(HAVE_RENEGOTIATION_INDICATION) &&                               \
+  !defined(HAVE_SERVER_RENEGOTIATION_INFO) &&   \
+  defined(HAVE_SECURE_RENEGOTIATION) &&         \
+  !defined(NO_WOLFSSL_SERVER)
+    #define HAVE_SERVER_RENEGOTIATION_INFO
+#endif
+
 /* Crypto callbacks should enable hash flag support */
 #if defined(WOLF_CRYPTO_CB) && !defined(WOLFSSL_HASH_FLAGS)
     /* FIPS v1 and v2 do not support hash flags, so do not allow it with
