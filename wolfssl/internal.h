@@ -2285,7 +2285,7 @@ typedef enum {
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
     TLSX_SIGNATURE_ALGORITHMS       = 0x000d, /* HELLO_EXT_SIG_ALGO */
 #endif
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SRTP)
+#ifdef WOLFSSL_SRTP
     TLSX_USE_SRTP                   = 0x000e, /* 14 */
 #endif
     TLSX_APPLICATION_LAYER_PROTOCOL = 0x0010, /* a.k.a. ALPN */
@@ -2864,8 +2864,9 @@ struct WOLFSSL_CTX {
     word16      minProto:1; /* sets min to min available */
     word16      maxProto:1; /* sets max to max available */
 
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SRTP)
-    word16      dtlsSrtpProfile;  /* DTLS-with-SRTP mode */
+#ifdef WOLFSSL_SRTP
+    word16      dtlsSrtpProfiles;  /* DTLS-with-SRTP mode
+                                    * (list of selected profiles - up to 16) */
 #endif
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST)
     byte        haveMcast;        /* multicast requested */
@@ -4408,7 +4409,9 @@ struct WOLFSSL {
     word32 replayDropCount;
 #endif /* WOLFSSL_DTLS_DROP_STATS */
 #ifdef WOLFSSL_SRTP
-    word16          dtlsSrtpProfile;    /* DTLS-with-SRTP mode */
+    word16         dtlsSrtpProfiles;   /* DTLS-with-SRTP profiles list
+                                        * (selected profiles - up to 16) */
+    word16         dtlsSrtpId;         /* DTLS-with-SRTP profile ID selected */
 #endif
 #endif /* WOLFSSL_DTLS */
 #ifdef WOLFSSL_CALLBACKS

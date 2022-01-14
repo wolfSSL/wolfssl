@@ -1313,7 +1313,7 @@ static const char* client_usage_msg[][70] = {
         "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5, P256_KYBER_90S_LEVEL1, P384_KYBER_90S_LEVEL3,\n"
         "            P521_KYBER_90S_LEVEL5]\n",                  /* 70 */
 #endif
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SRTP)
+#ifdef WOLFSSL_SRTP
         "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n", /* 71 */
 #endif
         "\n"
@@ -1527,7 +1527,7 @@ static const char* client_usage_msg[][70] = {
         "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5, P256_KYBER_90S_LEVEL1, P384_KYBER_90S_LEVEL3,\n"
         "            P521_KYBER_90S_LEVEL5]\n",                  /* 70 */
 #endif
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SRTP)
+#ifdef WOLFSSL_SRTP
         "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n", /* 71 */
 #endif
         "\n"
@@ -1754,7 +1754,7 @@ static void Usage(void)
     printf("%s", msg[++msgid]);     /* more --pqc options */
     printf("%s", msg[++msgid]);     /* more --pqc options */
 #endif
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SRTP)
+#ifdef WOLFSSL_SRTP
     printf("%s", msg[++msgid]);     /* dtls-srtp */
 #endif
 }
@@ -1801,7 +1801,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #if defined(HAVE_PQC)
         { "pqc", 1, 259 },
 #endif
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SRTP)
+#ifdef WOLFSSL_SRTP
         { "srtp", 2, 260 }, /* optional argument */
 #endif
         { 0, 0, 0 }
@@ -1925,8 +1925,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
     int useCertFolder = 0;
 #endif
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SRTP)
-    const char* dtlsSrtpProfile = NULL;
+#ifdef WOLFSSL_SRTP
+    const char* dtlsSrtpProfiles = NULL;
 #endif
 
     char buffer[WOLFSSL_MAX_ERROR_SZ];
@@ -2066,12 +2066,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             #endif
                 break;
 
-        #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SRTP)
+        #ifdef WOLFSSL_SRTP
             case 260:
                 doDTLS = 1;
                 dtlsUDP = 1;
-                dtlsSrtpProfile = myoptarg != NULL ? myoptarg :
+                dtlsSrtpProfiles = myoptarg != NULL ? myoptarg :
                     "SRTP_AES128_CM_SHA1_80";
+                printf("Using SRTP Profile(s): %s\n", dtlsSrtpProfiles);
                 break;
         #endif
 
@@ -2831,9 +2832,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SRTP)
-    if (dtlsSrtpProfile != NULL) {
-        if (wolfSSL_CTX_set_tlsext_use_srtp(ctx, dtlsSrtpProfile)
+#ifdef WOLFSSL_SRTP
+    if (dtlsSrtpProfiles != NULL) {
+        if (wolfSSL_CTX_set_tlsext_use_srtp(ctx, dtlsSrtpProfiles)
                                                            != WOLFSSL_SUCCESS) {
             err_sys("unable to set DTLS SRTP profile");
         }

@@ -1277,15 +1277,29 @@ int wolfSSL_dtls_set_mtu(WOLFSSL* ssl, word16 newMtu)
 
 #endif /* WOLFSSL_DTLS && (WOLFSSL_SCTP || WOLFSSL_DTLS_MTU) */
 
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SRTP)
+#ifdef WOLFSSL_SRTP
 
 static const WOLFSSL_SRTP_PROTECTION_PROFILE gSrtpProfiles[] = {
-    /* AES CCM 128, Salt:112-bits, HMAC-SHA1, Tag:80 bits */
-    {"SRTP_AES128_CM_SHA1_80", SRTP_AES128_CM_SHA1_80}
+    /* AES CCM 128, Salt:112-bits, Auth HMAC-SHA1 Tag: 80-bits
+     * (master_key:128bits + master_salt:112bits) * 2 = 480 bits (60) */
+    {"SRTP_AES128_CM_SHA1_80", SRTP_AES128_CM_SHA1_80, (((128 + 112) * 2) / 8) },
+    /* AES CCM 128, Salt:112-bits, Auth HMAC-SHA1 Tag: 32-bits
+     * (master_key:128bits + master_salt:112bits) * 2 = 480 bits (60) */
+    {"SRTP_AES128_CM_SHA1_32", SRTP_AES128_CM_SHA1_32, (((128 + 112) * 2) / 8) },
+    /* NULL Cipher, Salt:112-bits, Auth HMAC-SHA1 Tag 80-bits */
+    {"SRTP_NULL_SHA1_80", SRTP_NULL_SHA1_80, ((112 * 2) / 8)},
+    /* NULL Cipher, Salt:112-bits, Auth HMAC-SHA1 Tag 32-bits */
+    {"SRTP_NULL_SHA1_32", SRTP_NULL_SHA1_32, ((112 * 2) / 8)},
+    /* AES GCM 128, Salt: 96-bits, Auth GCM Tag 128-bits
+     * (master_key:128bits + master_salt:96bits) * 2 = 480 bits (60) */
+    {"SRTP_AEAD_AES_128_GCM", SRTP_AEAD_AES_128_GCM, (((128 + 96) * 2) / 8) },
+    /* AES GCM 256, Salt: 96-bits, Auth GCM Tag 128-bits
+     * (master_key:256bits + master_salt:96bits) * 2 = 480 bits (60) */
+    {"SRTP_AEAD_AES_256_GCM", SRTP_AEAD_AES_256_GCM, (((256 + 96) * 2) / 8) },
 };
 
-static const WOLFSSL_SRTP_PROTECTION_PROFILE* FindDtlsSrtpProfile(
-    const char* profile_str, unsigned long id)
+static const WOLFSSL_SRTP_PROTECTION_PROFILE* DtlsSrtpFindProfile(
+    const char* profile_str, word32 profile_str_len, unsigned long id)
 {
     int i;
     const WOLFSSL_SRTP_PROTECTION_PROFILE* profile = NULL;
@@ -1293,7 +1307,8 @@ static const WOLFSSL_SRTP_PROTECTION_PROFILE* FindDtlsSrtpProfile(
          i<(int)(sizeof(gSrtpProfiles)/sizeof(WOLFSSL_SRTP_PROTECTION_PROFILE));
          i++) {
         if (profile_str != NULL) {
-            if (XSTRCMP(gSrtpProfiles[i].name, profile_str) == 0) {
+            if (XMEMCMP(gSrtpProfiles[i].name, profile_str, profile_str_len) 
+                                                                         == 0) {
                 profile = &gSrtpProfiles[i];
                 break;
             }
@@ -1305,14 +1320,43 @@ static const WOLFSSL_SRTP_PROTECTION_PROFILE* FindDtlsSrtpProfile(
     }
     return profile;
 }
+
+/* profile_str: accepts ":" colon separated list of SRTP profiles */
+static int DtlsSrtpSelProfiles(word16* id, const char* profile_str)
+{
+    const WOLFSSL_SRTP_PROTECTION_PROFILE* profile;
+    const char *current, *next = NULL;
+    word32 length = 0, current_length;
+    
+    *id = 0; /* reset destination ID's */
+
+    if (profile_str == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* loop on end of line or colon ":" */
+    next = profile_str;
+    length = (word32)XSTRLEN(profile_str);
+    do {
+        current = next;
+        next = XSTRSTR(current, ":");
+        current_length = (!next) ? (word32)XSTRLEN(current)
+                                 : (word32)(next - current);
+        if (current_length < length)
+            length = current_length;
+        profile = DtlsSrtpFindProfile(current, current_length, 0);
+        if (profile != NULL) {
+            *id |= (1 << profile->id); /* selected bit based on ID */
+        }
+    } while (next != NULL && next++); /* ++ needed to skip ':' */
+    return WOLFSSL_SUCCESS;
+}
+
 int wolfSSL_CTX_set_tlsext_use_srtp(WOLFSSL_CTX* ctx, const char* profile_str)
 {
     int ret = WOLFSSL_FAILURE;
     if (ctx != NULL) {
-        const WOLFSSL_SRTP_PROTECTION_PROFILE* profile = 
-            FindDtlsSrtpProfile(profile_str, 0);
-        ctx->dtlsSrtpProfile = profile != NULL ? profile->id : 0;
-        ret = WOLFSSL_SUCCESS;
+        ret = DtlsSrtpSelProfiles(&ctx->dtlsSrtpProfiles, profile_str);
     }
     return ret;
 }
@@ -1320,49 +1364,68 @@ int wolfSSL_set_tlsext_use_srtp(WOLFSSL* ssl, const char* profile_str)
 {
     int ret = WOLFSSL_FAILURE;
     if (ssl != NULL) {
-        const WOLFSSL_SRTP_PROTECTION_PROFILE* profile = 
-            FindDtlsSrtpProfile(profile_str, 0);
-        ssl->dtlsSrtpProfile = profile != NULL ? profile->id : 0;
-        ret = WOLFSSL_SUCCESS;
+        ret = DtlsSrtpSelProfiles(&ssl->dtlsSrtpProfiles, profile_str);
     }
     return ret;
 }
 
-const WOLFSSL_SRTP_PROTECTION_PROFILE* wolfSSL_get_selected_srtp_profile(WOLFSSL* ssl)
+const WOLFSSL_SRTP_PROTECTION_PROFILE* wolfSSL_get_selected_srtp_profile(
+    WOLFSSL* ssl)
 {
     const WOLFSSL_SRTP_PROTECTION_PROFILE* profile = NULL;
     if (ssl) {
-        profile = FindDtlsSrtpProfile(NULL, ssl->dtlsSrtpProfile);
+        profile = DtlsSrtpFindProfile(NULL, 0, ssl->dtlsSrtpId);
     }
     return profile;
 }
+#ifndef NO_WOLFSSL_STUB
+WOLF_STACK_OF(WOLFSSL_SRTP_PROTECTION_PROFILE)* wolfSSL_get_srtp_profiles(
+    WOLFSSL* ssl)
+{
+    /* Not yet implemented - should return list of available SRTP profiles
+     * ssl->dtlsSrtpProfiles */
+    (void)ssl;
+    return NULL;
+}
+#endif
 
 int wolfSSL_export_dtls_srtp_keying_material(WOLFSSL* ssl,
     unsigned char* out, size_t* olen)
 {
-	int ret = WOLFSSL_FAILURE;
-	const char* label = "EXTRACTOR-dtls_srtp";
+    int ret = WOLFSSL_FAILURE;
+    const char* label = "EXTRACTOR-dtls_srtp";
+    const WOLFSSL_SRTP_PROTECTION_PROFILE* profile = NULL;
+    byte seed[SEED_LEN];
 
-    /* (master_key:128bits + master_salt:112bits) * 2 = 480 bits (60) */
-	size_t length = (128 + (112 * 2)) / 8;
+    if (ssl == NULL || olen == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
-	if (ssl == NULL || out == NULL || olen == NULL || *olen < length) {
-		return BAD_FUNC_ARG;
+    profile = DtlsSrtpFindProfile(NULL, 0, ssl->dtlsSrtpId);
+    if (profile == NULL) {
+        WOLFSSL_MSG("Not using DTLS SRTP");
+        return EXT_MISSING;
+    }
+    if (*olen < (size_t)profile->kdfBits) {
+        return BUFFER_E;
+    }
+    if (out == NULL) {
+        *olen = profile->kdfBits;
+        return LENGTH_ONLY_E;
     }
 
 #ifdef WOLFSSL_HAVE_PRF
-    /* pass the seed via the output (it gets copied out first) */
-    XMEMCPY(out,           ssl->arrays->serverRandom, RAN_LEN);
-    XMEMCPY(out + RAN_LEN, ssl->arrays->clientRandom, RAN_LEN);
+    XMEMCPY(seed,           ssl->arrays->serverRandom, RAN_LEN);
+    XMEMCPY(seed + RAN_LEN, ssl->arrays->clientRandom, RAN_LEN);
 
     PRIVATE_KEY_UNLOCK();
-    ret = wc_PRF_TLSv1(out, (word32)length,
+    ret = wc_PRF_TLSv1(out, profile->kdfBits,   /* out: generated keys / salt */
         ssl->arrays->masterSecret, SECRET_LEN,  /* existing master secret */
         (const byte*)label, (int)XSTRLEN(label),/* label */
-        out, SEED_LEN,                          /* seed = client/server random */
+        seed, SEED_LEN,                         /* seed: client/server random */
         ssl->heap, INVALID_DEVID);
     if (ret == 0) {
-        *olen = length;
+        *olen = profile->kdfBits;
         ret = WOLFSSL_SUCCESS;
     }
     PRIVATE_KEY_LOCK();
@@ -1374,7 +1437,7 @@ int wolfSSL_export_dtls_srtp_keying_material(WOLFSSL* ssl,
     return ret;
 }
 
-#endif /* WOLFSSL_DTLS && WOLFSSL_SRTP */
+#endif /* WOLFSSL_SRTP */
 
 
 #ifdef WOLFSSL_DTLS_DROP_STATS

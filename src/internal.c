@@ -500,11 +500,11 @@ int IsDtlsNotSctpMode(WOLFSSL* ssl)
 
 /* Secure Real-time Transport Protocol */
 /* If SRTP is not enabled returns the state of the dtls option.
- * If SRTP is enabled returns dtls && !dtlsSrtpProfile. */
+ * If SRTP is enabled returns dtls && !dtlsSrtpProfiles. */
 int IsDtlsNotSrtpMode(WOLFSSL* ssl)
 {
 #ifdef WOLFSSL_SRTP
-    return ssl->options.dtls && !ssl->dtlsSrtpProfile;
+    return ssl->options.dtls && !ssl->dtlsSrtpProfiles;
 #else
     return ssl->options.dtls;
 #endif
@@ -6412,7 +6412,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         ssl->options.dtlsSctp           = ctx->dtlsSctp;
     #endif
     #ifdef WOLFSSL_SRTP
-        ssl->dtlsSrtpProfile            = ctx->dtlsSrtpProfile;
+        ssl->dtlsSrtpProfiles           = ctx->dtlsSrtpProfiles;
     #endif
     #if defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
         ssl->dtlsMtuSz                  = ctx->dtlsMtuSz;
@@ -17294,7 +17294,7 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                     if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
                         ssl->buffers.inputBuffer.idx += ssl->specs.block_size;
                 #endif
-                        /* go past TLSv1.1 IV */
+                    /* go past TLSv1.1 IV */
                     if (CipherHasExpIV(ssl))
                         ssl->buffers.inputBuffer.idx += AESGCM_EXP_IV_SZ;
             #endif

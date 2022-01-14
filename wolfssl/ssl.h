@@ -1292,15 +1292,15 @@ WOLFSSL_API int  wolfSSL_dtls_set_sctp(WOLFSSL*);
 WOLFSSL_API int  wolfSSL_CTX_dtls_set_mtu(WOLFSSL_CTX*, unsigned short);
 WOLFSSL_API int  wolfSSL_dtls_set_mtu(WOLFSSL*, unsigned short);
 
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SRTP)
+#ifdef WOLFSSL_SRTP
 
-/* SRTP Profile ID's */
-/* NOTE: we only support the SRTP_AES128_CM_SHA1_80 profile
- * (as required by draft-ietf-rtcweb-security-arch) */
+/* SRTP Profile ID's from RFC 5764 and RFC 7714 */
+/* For WebRTC support for profile SRTP_AES128_CM_SHA1_80 is required per
+ * draft-ietf-rtcweb-security-arch) */
 #define SRTP_AES128_CM_SHA1_80 0x0001
 #define SRTP_AES128_CM_SHA1_32 0x0002
-#define SRTP_AES128_F8_SHA1_80 0x0003
-#define SRTP_AES128_F8_SHA1_32 0x0004
+#define SRTP_AES128_F8_SHA1_80 0x0003 /* not supported */
+#define SRTP_AES128_F8_SHA1_32 0x0004 /* not supported */
 #define SRTP_NULL_SHA1_80      0x0005
 #define SRTP_NULL_SHA1_32      0x0006
 #define SRTP_AEAD_AES_128_GCM  0x0007
@@ -1309,15 +1309,21 @@ WOLFSSL_API int  wolfSSL_dtls_set_mtu(WOLFSSL*, unsigned short);
 typedef struct WOLFSSL_SRTP_PROTECTION_PROFILE {
     const char*   name;
     unsigned long id;
+    int           kdfBits;
 } WOLFSSL_SRTP_PROTECTION_PROFILE;
 
+/* Compatibility API's for SRTP */
 WOLFSSL_API int wolfSSL_CTX_set_tlsext_use_srtp(WOLFSSL_CTX*, const char*);
 WOLFSSL_API int wolfSSL_set_tlsext_use_srtp(WOLFSSL*, const char*);
 WOLFSSL_API const WOLFSSL_SRTP_PROTECTION_PROFILE* 
                 wolfSSL_get_selected_srtp_profile(WOLFSSL*);
+WOLFSSL_API WOLF_STACK_OF(WOLFSSL_SRTP_PROTECTION_PROFILE)*
+    wolfSSL_get_srtp_profiles(WOLFSSL*);
+
+/* Non standard API for getting the SRTP session keys using KDF */
 WOLFSSL_API int wolfSSL_export_dtls_srtp_keying_material(WOLFSSL*,
     unsigned char*, size_t*);
-#endif /* WOLFSSL_DTLS && WOLFSSL_SRTP */
+#endif /* WOLFSSL_SRTP */
 
 WOLFSSL_API int  wolfSSL_dtls_get_drop_stats(WOLFSSL*,
                                              unsigned int*, unsigned int*);
