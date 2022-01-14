@@ -126,7 +126,8 @@ void app_main(void)
 
     ESP_LOGI(TAG, "Initialize wifi");
     /* TCP/IP adapter initialization */
-#if ESP_IDF_VERSION_MAJOR >= 4 && ESP_IDF_VERSION_MINOR >= 1
+#if (ESP_IDF_VERSION_MAJOR >= 4 && ESP_IDF_VERSION_MINOR >= 1) || \
+    (ESP_IDF_VERSION_MAJOR > 5)
     esp_netif_init();
 #else
     tcpip_adapter_init();
