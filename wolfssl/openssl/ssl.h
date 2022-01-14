@@ -1080,6 +1080,15 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define DTLSv1_handle_timeout               wolfSSL_DTLSv1_handle_timeout
 #define DTLSv1_set_initial_timeout_duration wolfSSL_DTLSv1_set_initial_timeout_duration
 
+/* DTLS SRTP */
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SRTP)
+typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
+#endif
+#define SSL_CTX_set_tlsext_use_srtp          wolfSSL_CTX_set_tlsext_use_srtp
+#define SSL_set_tlsext_use_srtp              wolfSSL_set_tlsext_use_srtp
+#define SSL_get_selected_srtp_profile        wolfSSL_get_selected_srtp_profile
+#define SSL_export_dtls_srtp_keying_material wolfSSL_export_dtls_srtp_keying_material
+
 #ifndef NO_WOLFSSL_STUB
 #define SSL_CTX_set_current_time_cb(ssl, cb) ({ (void)ssl; (void)cb; })
 #endif

@@ -726,7 +726,7 @@ static WC_INLINE int mygetopt(int argc, char** argv, const char* optstring)
 
 struct mygetopt_long_config {
     const char *name;
-    int takes_arg;
+    int takes_arg; /* 0=no arg, 1=required arg, 2=optional arg */
     int value;
 };
 
@@ -794,10 +794,13 @@ static WC_INLINE int mygetopt_long(int argc, char** argv, const char* optstring,
                         *longindex = (int)((i - longopts) / sizeof *i);
                     if (i->takes_arg) {
                         if (myoptind < argc) {
-                            myoptarg = argv[myoptind];
-                            myoptind++;
-                        } else
+                            if (i->takes_arg == 1 || argv[myoptind][0] != '-') {
+                                myoptarg = argv[myoptind];
+                                myoptind++;
+                            }
+                        } else if (i->takes_arg != 2) {
                             return -1;
+                        }
                     }
                     break;
                 }

@@ -5351,6 +5351,165 @@ int TLSX_EncryptThenMac_Respond(WOLFSSL* ssl)
 
 #endif /* HAVE_ENCRYPT_THEN_MAC && !WOLFSSL_AEAD_ONLY */
 
+
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SRTP)
+
+/******************************************************************************/
+/* DTLS SRTP (Secure Real-time Transport Protocol)                            */
+/******************************************************************************/
+
+/* Only support single SRTP profile */
+typedef struct TlsxSrtp {
+    word16 len;
+    word16 id;
+} TlsxSrtp;
+
+static int TLSX_UseSRTP_GetSize(TlsxSrtp *srtp)
+{
+    /* only supports single profile */
+    const int profileCount = 1;
+    (void)srtp;
+    /*   SRTP Profile Len (2)
+     *      SRTP Profiles (2)
+     *   MKI (master key id) Length */
+    return (OPAQUE16_LEN + (profileCount * OPAQUE16_LEN) + 1);
+}
+
+static TlsxSrtp* TLSX_UseSRTP_New(word16 id, void* heap)
+{
+    TlsxSrtp* srtp;
+
+    srtp = (TlsxSrtp*)XMALLOC(sizeof(TlsxSrtp), heap, DYNAMIC_TYPE_TLSX);
+    if (srtp == NULL) {
+        WOLFSSL_MSG("TLSX SRTP Memory failure");
+        return NULL;
+    }
+    srtp->len = 2;
+    srtp->id = id;
+
+    return srtp;
+}
+
+static void TLSX_UseSRTP_Free(TlsxSrtp *srtp, void* heap)
+{
+    if (srtp != NULL) {
+        XFREE(srtp, heap, DYNAMIC_TYPE_TLSX);
+    }
+    (void)heap;
+}
+
+static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
+    byte isRequest)
+{
+    int ret = BAD_FUNC_ARG;
+#ifndef NO_WOLFSSL_SERVER
+    int i;
+    TlsxSrtp* srtp = NULL;
+    word16 profile_len = 0;
+    word16 profile_value = 0;
+    word16 offset = 0;
+#endif
+
+    if (length < OPAQUE16_LEN) {
+        return BUFFER_ERROR;
+    }
+
+    if (!isRequest) {
+#ifndef NO_WOLFSSL_CLIENT
+        ssl->dtlsSrtpProfile = ssl->ctx->dtlsSrtpProfile;
+        ret = 0; /* success */
+#endif
+    }
+#ifndef NO_WOLFSSL_SERVER
+    else {
+        /* total length, not include itself */
+        ato16(input, &profile_len);
+        offset += OPAQUE16_LEN;
+        /* parse remainder one profile at a time, looking for match in CTX */
+        for (i=offset; i<length; i+=OPAQUE16_LEN) {
+            ato16(input+i, &profile_value);
+            if (profile_value == ssl->ctx->dtlsSrtpProfile) {
+                ssl->dtlsSrtpProfile = profile_value;
+
+                srtp = TLSX_UseSRTP_New(profile_value, ssl->heap);
+                if (srtp != NULL) {
+                    ret = TLSX_Push(&ssl->extensions, TLSX_USE_SRTP,
+                        (void*)srtp, ssl->heap);
+                    if (ret == 0) {
+                        TLSX_SetResponse(ssl, TLSX_USE_SRTP);
+                    }
+                }
+                else {
+                    ret = MEMORY_E;
+                }
+            }
+        }
+        (void)profile_len;
+    }
+
+    if (ret != 0) {
+        ssl->dtlsSrtpProfile = 0;
+        TLSX_UseSRTP_Free(srtp, ssl->heap);
+    }
+#endif
+
+    return ret;
+}
+
+static word16 TLSX_UseSRTP_Write(TlsxSrtp* srtp, byte* output)
+{
+    word16 offset = 0;
+
+    c16toa(srtp->len, output+offset);
+    offset += OPAQUE16_LEN;
+    c16toa(srtp->id, output+offset);
+    offset += srtp->len;
+    output[offset++] = 0x00; /* MKI Length */
+
+    return offset;
+}
+
+static int TLSX_UseSRTP(TLSX** extensions, word16 profile_value, void* heap)
+{
+    int ret = 0;
+    TlsxSrtp *srtp = NULL;
+    TLSX* extension;
+
+    if (extensions == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    srtp = TLSX_UseSRTP_New(profile_value, heap);
+    if (srtp == NULL) {
+        return MEMORY_E;
+    }
+
+    extension = TLSX_Find(*extensions, TLSX_USE_SRTP);
+    if (extension == NULL) {
+        ret = TLSX_Push(extensions, TLSX_USE_SRTP, (void*)srtp, heap);
+        if (ret != 0) {
+            TLSX_UseSRTP_Free(srtp, heap);
+        }
+    }
+
+    return ret;
+}
+
+#ifndef NO_WOLFSSL_SERVER
+    #define SRTP_FREE     TLSX_UseSRTP_Free
+    #define SRTP_PARSE    TLSX_UseSRTP_Parse
+    #define SRTP_WRITE    TLSX_UseSRTP_Write
+    #define SRTP_GET_SIZE TLSX_UseSRTP_GetSize
+#else
+    #define SRTP_FREE(a, b)
+    #define SRTP_PARSE(a, b, c, d)      0
+    #define SRTP_WRITE(a, b)            0
+    #define SRTP_GET_SIZE(a)            0
+#endif
+
+#endif /* WOLFSSL_DTLS && WOLFSSL_SRTP */
+
+
 /******************************************************************************/
 /* Supported Versions                                                         */
 /******************************************************************************/
@@ -9630,6 +9789,11 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 KS_FREE_ALL((KeyShareEntry*)extension->data, heap);
                 break;
 #endif
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SRTP)
+            case TLSX_USE_SRTP:
+                SRTP_FREE((TlsxSrtp*)extension->data, heap);
+                break;
+#endif
 
             default:
                 break;
@@ -9779,6 +9943,11 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
 
             case TLSX_KEY_SHARE:
                 length += KS_GET_SIZE((KeyShareEntry*)extension->data, msgType);
+                break;
+#endif
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SRTP)
+            case TLSX_USE_SRTP:
+                length += SRTP_GET_SIZE((TlsxSrtp*)extension->data);
                 break;
 #endif
             default:
@@ -9962,6 +10131,11 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 WOLFSSL_MSG("Key Share extension to write");
                 offset += KS_WRITE((KeyShareEntry*)extension->data,
                                                       output + offset, msgType);
+                break;
+#endif
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SRTP)
+            case TLSX_USE_SRTP:
+                offset += SRTP_WRITE((TlsxSrtp*)extension->data, output+offset);
                 break;
 #endif
             default:
@@ -10340,6 +10514,17 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         }
 #endif /* (HAVE_ECC || CURVE25519 || CURVE448) && HAVE_SUPPORTED_CURVES */
     } /* is not server */
+
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SRTP)
+    if (ssl->options.dtls && ssl->dtlsSrtpProfile != 0) {
+        WOLFSSL_MSG("Adding DTLS SRTP extension");
+        if ((ret = TLSX_UseSRTP(&ssl->extensions, ssl->dtlsSrtpProfile,
+                                                             ssl->heap)) != 0) {
+            return ret;
+        }
+    }
+
+#endif
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
     WOLFSSL_MSG("Adding signature algorithms extension");
@@ -11561,6 +11746,12 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
     #endif
 
                 ret = KS_PARSE(ssl, input + offset, size, msgType);
+                break;
+#endif
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SRTP)
+            case TLSX_USE_SRTP:
+                WOLFSSL_MSG("Use SRTP extension received");
+                ret = SRTP_PARSE(ssl, input + offset, size, isRequest);
                 break;
 #endif
             default:
