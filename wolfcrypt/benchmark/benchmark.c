@@ -171,6 +171,9 @@
 #ifndef NO_HMAC
     #include <wolfssl/wolfcrypt/hmac.h>
 #endif
+#ifdef WOLFSSL_SIPHASH
+    #include <wolfssl/wolfcrypt/siphash.h>
+#endif
 #ifndef NO_PWDBASED
     #include <wolfssl/wolfcrypt/pwdbased.h>
 #endif
@@ -316,6 +319,7 @@
                                   BENCH_HMAC_SHA224 | BENCH_HMAC_SHA256 | \
                                   BENCH_HMAC_SHA384 | BENCH_HMAC_SHA512)
 #define BENCH_PBKDF2             0x00000100
+#define BENCH_SIPHASH            0x00000200
 
 /* Asymmetric algorithms. */
 #define BENCH_RSA_KEYGEN         0x00000001
@@ -546,6 +550,9 @@ static const bench_alg bench_mac_opt[] = {
     #endif
     #ifndef NO_PWDBASED
     { "-pbkdf2",             BENCH_PBKDF2            },
+    #endif
+    #ifdef WOLFSSL_SIPHASH
+    { "-siphash",            BENCH_SIPHASH           },
     #endif
 #endif
     { NULL, 0 }
@@ -1988,6 +1995,11 @@ static void* benchmarks_do(void* args)
     #ifndef NO_PWDBASED
         if (bench_all || (bench_mac_algs & BENCH_PBKDF2)) {
             bench_pbkdf2();
+        }
+    #endif
+    #ifdef WOLFSSL_SIPHASH
+        if (bench_all || (bench_mac_algs & BENCH_SIPHASH)) {
+            bench_siphash();
         }
     #endif
 #endif /* NO_HMAC */
@@ -4751,6 +4763,37 @@ void bench_pbkdf2(void)
 #endif /* !NO_PWDBASED */
 
 #endif /* NO_HMAC */
+
+#ifdef WOLFSSL_SIPHASH
+void bench_siphash(void)
+{
+    double start;
+    int    ret = 0, count;
+    const char* passwd16 = "passwordpassword";
+    byte out[16];
+    int    i;
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            ret = wc_SipHash((const byte*)passwd16, bench_plain, BENCH_SIZE,
+                out, 8);
+        }
+        count += i;
+    } while (bench_stats_sym_check(start));
+    bench_stats_sym_finish("SipHash-8", 1, count, BENCH_SIZE, start, ret);
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            ret = wc_SipHash((const byte*)passwd16, bench_plain, BENCH_SIZE,
+                out, 16);
+        }
+        count += i;
+    } while (bench_stats_sym_check(start));
+    bench_stats_sym_finish("SipHash-16", 1, count, BENCH_SIZE, start, ret);
+}
+#endif
 
 #ifndef NO_RSA
 

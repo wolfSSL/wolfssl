@@ -487,6 +487,10 @@ endif !BUILD_FIPS_CURRENT
 
 endif !BUILD_FIPS_RAND
 
+if BUILD_SIPHASH
+src_libwolfssl_la_SOURCES += wolfcrypt/src/siphash.c
+endif
+
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/logging.c \
                wolfcrypt/src/wc_port.c \

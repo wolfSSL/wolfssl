@@ -77,6 +77,7 @@ void bench_hmac_sha224(int);
 void bench_hmac_sha256(int);
 void bench_hmac_sha384(int);
 void bench_hmac_sha512(int);
+void bench_siphash(void);
 void bench_rsaKeyGen(int);
 void bench_rsaKeyGen_size(int, int);
 void bench_rsa(int);
