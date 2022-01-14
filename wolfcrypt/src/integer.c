@@ -43,7 +43,7 @@
 
 #ifndef NO_BIG_INT
 
-#ifndef USE_FAST_MATH
+#if !defined(USE_FAST_MATH) && defined(USE_INTEGER_HEAP_MATH)
 
 #ifndef WOLFSSL_SP_MATH
 
@@ -5483,6 +5483,6 @@ void mp_dump(const char* desc, mp_int* a, byte verbose)
 
 #endif /* WOLFSSL_SP_MATH */
 
-#endif /* USE_FAST_MATH */
+#endif /* !USE_FAST_MATH && USE_INTEGER_HEAP_MATH */
 
 #endif /* NO_BIG_INT */

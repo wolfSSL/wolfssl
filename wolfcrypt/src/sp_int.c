@@ -4328,6 +4328,9 @@ static void _sp_zero(sp_int* a)
 #ifdef WOLFSSL_SP_INT_NEGATIVE
     a->sign = MP_ZPOS;
 #endif
+#ifdef HAVE_WOLF_BIGINT
+    wc_bigint_init(&a->raw);
+#endif
 }
 
 /* Initialize the multi-precision number to be zero.
@@ -4347,14 +4350,19 @@ int sp_init(sp_int* a)
     if (err == MP_OKAY) {
         _sp_zero(a);
         a->size = SP_INT_DIGITS;
-    #ifdef HAVE_WOLF_BIGINT
-        wc_bigint_init(&a->raw);
-    #endif
     }
 
     return err;
 }
 
+/* Initialize the multi-precision number to be zero and have a maximum size.
+ *
+ * @param  [out]  a     SP integer.
+ * @param  [in]   size  Number of words to say are available.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_VAL when a is NULL.
+ */
 int sp_init_size(sp_int* a, int size)
 {
     int err = sp_init(a);
@@ -5183,7 +5191,8 @@ int sp_cmp_d(sp_int* a, sp_int_digit d)
 #endif
 
 #if !defined(NO_PWDBASED) || defined(WOLFSSL_KEY_GEN) || !defined(NO_DH) || \
-    !defined(NO_DSA) || (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
+    !defined(NO_DSA) || (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    defined(OPENSSL_EXTRA)
 #define WOLFSSL_SP_ADD_D
 #endif
 #if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
@@ -14758,7 +14767,7 @@ int sp_to_unsigned_bin_len(sp_int* a, byte* out, int outSz)
             for (i = 0; (j >= 0) && (i < a->used); i++) {
                 int b;
                 for (b = 0; b < SP_WORD_SIZE; b += 8) {
-                    out[j--] = (byte) (a->dp[i] >> b);
+                    out[j--] = (byte)(a->dp[i] >> b);
                     if (j < 0) {
                         break;
                     }
@@ -15040,11 +15049,11 @@ int sp_tohex(sp_int* a, char* str)
     #endif /* WC_DISABLE_RADIX_ZERO_PAD */
             /* Most-significant word. */
             for (; j >= 0; j -= 4) {
-                *(str++) = ByteToHex((byte) (a->dp[i] >> j));
+                *(str++) = ByteToHex((byte)(a->dp[i] >> j));
             }
             for (--i; i >= 0; i--) {
                 for (j = SP_WORD_SIZE - 4; j >= 0; j -= 4) {
-                    *(str++) = (byte) ByteToHex((byte) (a->dp[i] >> j));
+                    *(str++) = (byte)ByteToHex((byte)(a->dp[i] >> j));
                 }
             }
             *str = '\0';
@@ -15104,14 +15113,14 @@ int sp_todecimal(sp_int* a, char* str)
             i = 0;
             while (!sp_iszero(t)) {
                 sp_div_d(t, 10, t, &d);
-                str[i++] = (char) ('0' + d);
+                str[i++] = (char)('0' + d);
             }
             str[i] = '\0';
 
             for (j = 0; j <= (i - 1) / 2; j++) {
                 int c = (unsigned char)str[j];
                 str[j] = str[i - 1 - j];
-                str[i - 1 - j] = (char) c;
+                str[i - 1 - j] = (char)c;
             }
         }
 

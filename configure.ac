@@ -494,15 +494,6 @@ fi
 
 
 # Single Precision maths implementation
-if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
-then
-    ENABLED_SP_DEFAULT=yes
-    ENABLED_SP_MATH_ALL_DEFAULT=yes
-else
-    ENABLED_SP_DEFAULT=no
-    ENABLED_SP_MATH_ALL_DEFAULT=no
-fi
-
 AC_ARG_ENABLE([sp],
     [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation (default: disabled)])],
     [ ENABLED_SP=$enableval ],
@@ -510,12 +501,12 @@ AC_ARG_ENABLE([sp],
     )
 
 AC_ARG_ENABLE([sp-math-all],
-    [AS_HELP_STRING([--enable-sp-math-all],[Enable Single Precision math implementation for full algorithm suite (default: disabled)])],
+    [AS_HELP_STRING([--enable-sp-math-all],[Enable Single Precision math implementation for full algorithm suite (default: enabled)])],
     [ ENABLED_SP_MATH_ALL=$enableval ],
-    [ ENABLED_SP_MATH_ALL=$ENABLED_SP_MATH_ALL_DEFAULT ],
+    [ ENABLED_SP_MATH_ALL=yes ],
     )
 
-# Single Precision maths exclusively (no fastmath)
+# Single Precision maths (acceleration for common key sizes and curves)
 if test "$ENABLED_LINUXKM_DEFAULTS" = "yes" && test "$ENABLED_SP" != "no" && test "$ENABLED_SP_MATH_ALL" = "no"
 then
     ENABLED_SP_MATH_DEFAULT=yes
@@ -528,12 +519,21 @@ AC_ARG_ENABLE([sp-math],
     [ ENABLED_SP_MATH=$ENABLED_SP_MATH_DEFAULT ],
     )
 
-
+# enable SP math assembly support automatically for x86_64 and aarch64 (except Linux kernel module)
+SP_ASM_DEFAULT=no
+if test "$ENABLED_SP_MATH" = "yes" && test "$ENABLED_LINUXKM_DEFAULTS" = "no"
+then
+    if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
+    then
+        SP_ASM_DEFAULT=yes
+    fi
+fi
 AC_ARG_ENABLE([sp-asm],
-    [AS_HELP_STRING([--enable-sp-asm],[Enable Single Precision assembly implementation (default: disabled)])],
+    [AS_HELP_STRING([--enable-sp-asm],[Enable Single Precision assembly implementation (default: enabled on x86_64/aarch64)])],
     [ ENABLED_SP_ASM=$enableval ],
-    [ ENABLED_SP_ASM=no ],
+    [ ENABLED_SP_ASM=$SP_ASM_DEFAULT ],
     )
+
 
 # ALL FEATURES
 AC_ARG_ENABLE([all],
@@ -677,7 +677,7 @@ then
 
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
         then
-# these use DES3:
+            # these use DES3:
             test "$enable_stunnel" = "" && enable_stunnel=yes
             test "$enable_curl" = "" && enable_curl=yes
             test "$enable_tcpdump" = "" && enable_tcpdump=yes
@@ -1417,7 +1417,7 @@ then
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
 fi
 
-ENABLED_SLOWMATH="yes"
+ENABLED_HEAPMATH="yes"
 
 # lean psk build
 AC_ARG_ENABLE([leanpsk],
@@ -3465,11 +3465,12 @@ then
     AC_MSG_ERROR([please disable dsa if disabling asn.])
 fi
 
-# DH and ECC need bigint
+# No Big Int (ASN, RSA, DH and ECC need bigint)
 if test "$ENABLED_ASN" = "no" && test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no" && test "$ENABLED_RSA" = "no"
 then
+    ENABLED_SP_MATH_ALL=no
     ENABLED_FASTMATH=no
-    ENABLED_SLOWMATH=no
+    ENABLED_HEAPMATH=no
 fi
 
 
@@ -5732,30 +5733,16 @@ then
     fi
 fi
 
-# set fastmath default
-FASTMATH_DEFAULT=no
-
-if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
-then
-    FASTMATH_DEFAULT=yes
-fi
-if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
-then
-    FASTMATH_DEFAULT=no
-fi
-if test "$ENABLED_SP_MATH" = "yes"
-then
-    FASTMATH_DEFAULT=no
-fi
 
 # fastmath
 AC_ARG_ENABLE([fastmath],
-    [AS_HELP_STRING([--enable-fastmath],[Enable fast math ops (default: enabled on x86_64/aarch64)])],
+    [AS_HELP_STRING([--enable-fastmath],[Enable fast math ops (default: disabled)])],
     [ ENABLED_FASTMATH=$enableval ],
-    [ ENABLED_FASTMATH=$FASTMATH_DEFAULT]
+    [ ENABLED_FASTMATH=no]
     )
 
-if test "x$ENABLED_FASTMATH" = "xyes"
+# if sp-math-all is not set, then enable fast math
+if test "x$ENABLED_FASTMATH" = "xyes" && test "$enable_sp_math_all" = ""
 then
     # turn off fastmth if leanpsk on or asn off (w/o DH and ECC)
     if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_ASN" = "no"
@@ -5765,11 +5752,12 @@ then
             ENABLED_FASTMATH=no
         else
             AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
-            ENABLED_SLOWMATH="no"
+            ENABLED_HEAPMATH=no
         fi
     else
         AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
-        ENABLED_SLOWMATH="no"
+        ENABLED_HEAPMATH="no"
+        ENABLED_SP_MATH_ALL=no
     fi
     if test "$host_cpu" = "x86_64"
     then
@@ -5784,6 +5772,18 @@ then
     fi
 fi
 
+# heap based integer.c math (not timing resistant)
+AC_ARG_ENABLE([heapmath],
+    [AS_HELP_STRING([--enable-heapmath],[Enable heap based integer.c math ops (default: disabled)])],
+    [ ENABLED_HEAPMATH=$enableval ],
+    [ ENABLED_HEAPMATH=no]
+    )
+if test "x$ENABLED_HEAPMATH" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DUSE_INTEGER_HEAP_MATH"
+    ENABLED_HEAPMATH=yes
+    ENABLED_SP_MATH_ALL=no
+fi
 
 # fast HUGE math
 AC_ARG_ENABLE([fasthugemath],
@@ -5801,7 +5801,7 @@ if test "$ENABLED_FASTHUGEMATH" = "yes"
 then
     ENABLED_FASTMATH="yes"
     AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
-    ENABLED_SLOWMATH="no"
+    ENABLED_HEAPMATH="no"
 fi
 
 
@@ -6369,9 +6369,6 @@ if test "$ENABLED_SP_MATH" = "yes"; then
     if test "$ENABLED_SP_DH" = "no" && test "$ENABLED_DH" = "yes"; then
         AC_MSG_ERROR([Cannot use DH single precision only math and DH])
     fi
-
-    ENABLED_FASTMATH="no"
-    ENABLED_SLOWMATH="no"
 fi
 
 for v in `echo $ENABLED_SP_MATH_ALL | tr "," " "`
@@ -6695,6 +6692,10 @@ if test "x$ENABLED_STATICMEMORY" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY"
 
+    if test "x$ENABLED_HEAPMATH" = "xyes"
+    then
+        AC_MSG_ERROR([please use --enable-fastmath if enabling staticmemory.])
+    fi
     if test "$ENABLED_LOWRESOURCE" = "yes" && test "$ENABLED_RSA" = "no"
     then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY_SMALL"
@@ -7812,7 +7813,7 @@ AM_CONDITIONAL([BUILD_PWDBASED],[test "x$ENABLED_PWDBASED" = "xyes" || test "x$E
 AM_CONDITIONAL([BUILD_SCRYPT],[test "x$ENABLED_SCRYPT" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CRYPTONLY],[test "x$ENABLED_CRYPTONLY" = "xyes" && test "x$ENABLED_OPENSSLEXTRA" = "xno"])
 AM_CONDITIONAL([BUILD_FASTMATH],[test "x$ENABLED_FASTMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_SLOWMATH],[test "x$ENABLED_SLOWMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_HEAPMATH],[test "x$ENABLED_HEAPMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_EXAMPLE_SERVERS],[test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_EXAMPLE_CLIENTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
 AM_CONDITIONAL([BUILD_TESTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
@@ -8092,7 +8093,21 @@ echo "   * Old Names:                  $ENABLED_OLDNAMES"
 echo "   * Max Strength Build:         $ENABLED_MAXSTRENGTH"
 echo "   * Distro Build:               $ENABLED_DISTRO"
 echo "   * Reproducible Build:         $ENABLED_REPRODUCIBLE_BUILD"
-echo "   * fastmath:                   $ENABLED_FASTMATH"
+echo "   * Single Precision Math:      $ENABLED_SP"
+if test "$ENABLED_SP_MATH_ALL" != "no"
+then
+    ENABLED_SP_MATH_DESC="all"
+else
+    if test "$ENABLED_SP_MATH" != "no"
+    then
+        ENABLED_SP_MATH_DESC="restricted"
+    else
+        ENABLED_SP_MATH_DESC="no"
+    fi
+fi
+echo "   * SP implementation:          $ENABLED_SP_MATH_DESC"
+echo "   * Fast Math:                  $ENABLED_FASTMATH"
+echo "   * Heap Math:                  $ENABLED_HEAPMATH"
 echo "   * Assembly Allowed:           $ENABLED_ASM"
 echo "   * sniffer:                    $ENABLED_SNIFFER"
 echo "   * snifftest:                  $ENABLED_SNIFFTEST"
@@ -8243,19 +8258,6 @@ echo "   * Stack sizes in tests:       $ENABLED_STACKSIZE"
 echo "   * Heap stats in tests:        $ENABLED_TRACKMEMORY"
 echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
 echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
-echo "   * Single Precision:           $ENABLED_SP"
-if test "$ENABLED_SP_MATH_ALL" != "no"
-then
-    ENABLED_SP_MATH_DESC="all"
-else
-    if test "$ENABLED_SP_MATH" != "no"
-    then
-        ENABLED_SP_MATH_DESC="restricted"
-    else
-        ENABLED_SP_MATH_DESC="no"
-    fi
-fi
-echo "   * SP math implementation:     $ENABLED_SP_MATH_DESC"
 echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
 echo "   * PKCS#8:                     $ENABLED_PKCS8"
 echo "   * PKCS#11:                    $ENABLED_PKCS11"
