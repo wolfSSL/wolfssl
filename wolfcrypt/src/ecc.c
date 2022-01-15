@@ -11924,12 +11924,12 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx)
 {
     int          ret = 0;
-    word32       blockSz;
+    word32       blockSz = 0;
 #ifndef WOLFSSL_ECIES_OLD
     byte         iv[ECC_MAX_IV_SIZE];
-    word32       pubKeySz;
+    word32       pubKeySz = 0;
 #endif
-    word32       digestSz;
+    word32       digestSz = 0;
     ecEncCtx     localCtx;
 #ifdef WOLFSSL_SMALL_STACK
     byte*        sharedSecret;
@@ -11948,13 +11948,13 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     /* 'Uncompressed' byte | public key x | public key y | secret */
     word32       sharedSz = 1 + ECC_MAXSIZE * 3;
 #endif
-    int          keysLen;
-    int          encKeySz;
-    int          ivSz;
+    int          keysLen = 0;
+    int          encKeySz = 0;
+    int          ivSz = 0;
     int          offset = 0;         /* keys offset if doing msg exchange */
-    byte*        encKey;
-    byte*        encIv;
-    byte*        macKey;
+    byte*        encKey = NULL;
+    byte*        encIv = NULL;
+    byte*        macKey = NULL;
 
     if (privKey == NULL || pubKey == NULL || msg == NULL || out == NULL ||
                            outSz  == NULL)
@@ -12191,17 +12191,17 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx)
 {
     int          ret = 0;
-    word32       blockSz;
+    word32       blockSz = 0;
 #ifndef WOLFSSL_ECIES_OLD
     byte         iv[ECC_MAX_IV_SIZE];
-    word32       pubKeySz;
+    word32       pubKeySz = 0;
 #ifdef WOLFSSL_SMALL_STACK
     ecc_key*     peerKey = NULL;
 #else
     ecc_key      peerKey[1];
 #endif
 #endif
-    word32       digestSz;
+    word32       digestSz = 0;
     ecEncCtx     localCtx;
 #ifdef WOLFSSL_SMALL_STACK
     byte*        sharedSecret;
@@ -12219,13 +12219,13 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 #else
     word32       sharedSz = ECC_MAXSIZE * 3 + 1;
 #endif
-    int          keysLen;
-    int          encKeySz;
-    int          ivSz;
+    int          keysLen = 0;
+    int          encKeySz = 0;
+    int          ivSz = 0;
     int          offset = 0;       /* in case using msg exchange */
-    byte*        encKey;
-    byte*        encIv;
-    byte*        macKey;
+    byte*        encKey = NULL;
+    byte*        encIv = NULL;
+    byte*        macKey = NULL;
 
 
     if (privKey == NULL || msg == NULL || out == NULL || outSz  == NULL)

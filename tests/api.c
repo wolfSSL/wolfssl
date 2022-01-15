@@ -18803,7 +18803,7 @@ static int test_wc_RsaPSS_VerifyCheck (void)
     int                 sz = 256; /* 2048/8 */
     byte*               pt;
     byte                digest[32];
-    word32              digestSz;
+    word32              digestSz = sizeof(digest);
     unsigned char       pSignature[2048/8]; /* 2048 is RSA_KEY_SIZE */
     word32              pSignatureSz = sizeof(pSignature);
     unsigned char       pDecrypted[2048/8];
@@ -18898,7 +18898,7 @@ static int test_wc_RsaPSS_VerifyCheckInline (void)
     int                 sz = 256;
     byte*               pt;
     byte                digest[32];
-    word32              digestSz;
+    word32              digestSz = sizeof(digest);
     unsigned char       pSignature[2048/8]; /* 2048 is RSA_KEY_SIZE */
     unsigned char       pDecrypted[2048/8];
     pt = pDecrypted;
