@@ -1884,3 +1884,56 @@ WOLFSSL_API int wc_ParseCert(DecodedCert* cert, int type, int verify, void* cm);
     \sa wc_ParseCert
 */
 WOLFSSL_API void wc_FreeDecodedCert(struct DecodedCert* cert);
+
+/*!
+    \ingroup ASN
+
+    \brief This function registers a time callback that will be used anytime
+    wolfSSL needs to get the current time. The prototype of the callback should
+    be the same as the "time" function from the C standard library.
+
+    \return 0 Returned on success.
+
+    \param f function to register as the time callback.
+
+    _Example_
+    \code
+    int ret = 0;
+    // Time callback prototype
+    time_t my_time_cb(time_t* t);
+    // Register it
+    ret = wc_SetTimeCb(my_time_cb);
+    if (ret != 0) {
+        // failed to set time callback
+    }
+    time_t my_time_cb(time_t* t)
+    {
+        // custom time function
+    }
+    \endcode
+
+    \sa wc_Time
+*/
+WOLFSSL_API int wc_SetTimeCb(wc_time_cb f);
+
+/*!
+    \ingroup ASN
+
+    \brief This function gets the current time. By default, it uses the XTIME
+    macro, which varies between platforms. The user can use a function of their
+    choosing instead via the wc_SetTimeCb function.
+
+    \return Time Current time returned on success.
+
+    \param t Optional time_t pointer to populate with current time.
+
+    _Example_
+    \code
+    time_t currentTime = 0;
+    currentTime = wc_Time(NULL);
+    wc_Time(&currentTime);
+    \endcode
+
+    \sa wc_SetTimeCb
+*/
+WOLFSSL_API time_t wc_Time(time_t* t);
