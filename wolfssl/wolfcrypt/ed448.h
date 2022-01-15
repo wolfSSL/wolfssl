@@ -137,19 +137,19 @@ int wc_ed448_verify_msg_update(const byte* msgSegment, word32 msgSegmentLen,
                              ed448_key* key);
 WOLFSSL_API
 int wc_ed448_verify_msg_final(const byte* sig, word32 sigLen,
-                              int* stat, ed448_key* key);
+                              int* res, ed448_key* key);
 #endif /* WOLFSSL_ED448_STREAMING_VERIFY */
 WOLFSSL_API
 int wc_ed448_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
-                        word32 msgLen, int* stat, ed448_key* key,
+                        word32 msgLen, int* res, ed448_key* key,
                         const byte* context, byte contextLen);
 WOLFSSL_API
 int wc_ed448ph_verify_hash(const byte* sig, word32 sigLen, const byte* hash,
-                           word32 hashLen, int* stat, ed448_key* key,
+                           word32 hashLen, int* res, ed448_key* key,
                            const byte* context, byte contextLen);
 WOLFSSL_API
 int wc_ed448ph_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
-                          word32 msgLen, int* stat, ed448_key* key,
+                          word32 msgLen, int* res, ed448_key* key,
                           const byte* context, byte contextLen);
 #endif /* HAVE_ED448_VERIFY */
 WOLFSSL_API

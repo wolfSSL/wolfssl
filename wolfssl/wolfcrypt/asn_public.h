@@ -530,7 +530,7 @@ WOLFSSL_API int wc_GetDateInfo(const byte* certDate, int certDateSz,
     const byte** date, byte* format, int* length);
 #ifndef NO_ASN_TIME
 WOLFSSL_API int wc_GetDateAsCalendarTime(const byte* date, int length,
-    byte format, struct tm* time);
+    byte format, struct tm* timearg);
 #endif
 
 #if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)
