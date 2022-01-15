@@ -282,6 +282,7 @@
 #define BENCH_IDEA               0x00008000
 #define BENCH_AES_CFB            0x00010000
 #define BENCH_AES_OFB            0x00020000
+#define BENCH_AES_SIV            0x00040000
 /* Digest algorithms. */
 #define BENCH_MD5                0x00000001
 #define BENCH_POLY1305           0x00000002
@@ -433,6 +434,9 @@ static const bench_alg bench_cipher_opt[] = {
 #endif
 #ifdef HAVE_AESCCM
     { "-aes-ccm",            BENCH_AES_CCM           },
+#endif
+#ifdef WOLFSSL_AES_SIV
+    { "-aes-siv",            BENCH_AES_SIV           },
 #endif
 #ifdef HAVE_CAMELLIA
     { "-camellia",           BENCH_CAMELLIA          },
@@ -1135,7 +1139,11 @@ static const XGEN_ALIGN byte bench_key_buf[] =
     0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
     0xfe,0xde,0xba,0x98,0x76,0x54,0x32,0x10,
     0x89,0xab,0xcd,0xef,0x01,0x23,0x45,0x67,
-    0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef
+    0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
+    0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,
+    0xf8,0xf9,0xfa,0xfb,0xfc,0xfd,0xfe,0xff,
+    0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+    0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,
 };
 
 static const XGEN_ALIGN byte bench_iv_buf[] =
@@ -1729,6 +1737,10 @@ static void* benchmarks_do(void* args)
 #ifdef HAVE_AESCCM
     if (bench_all || (bench_cipher_algs & BENCH_AES_CCM))
         bench_aesccm();
+#endif
+#ifdef WOLFSSL_AES_SIV
+    if (bench_all || (bench_cipher_algs & BENCH_AES_SIV))
+        bench_aessiv();
 #endif
 #endif /* !NO_AES */
 
@@ -3162,6 +3174,58 @@ void bench_aesccm(void)
     WC_FREE_VAR(bench_tag, HEAP_HINT);
 }
 #endif /* HAVE_AESCCM */
+
+
+#ifdef WOLFSSL_AES_SIV
+static void bench_aessiv_internal(const byte* key, word32 keySz, const char*
+                                  encLabel, const char* decLabel)
+{
+    int i;
+    int ret = 0;
+    byte assoc[AES_BLOCK_SIZE];
+    byte nonce[AES_BLOCK_SIZE];
+    byte siv[AES_BLOCK_SIZE];
+    int count = 0;
+    double start;
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            ret = wc_AesSivEncrypt(key, keySz, assoc, AES_BLOCK_SIZE, nonce,
+                                   AES_BLOCK_SIZE, bench_plain, bench_size,
+                                   siv, bench_cipher);
+            if (ret != 0) {
+                printf("wc_AesSivEncrypt failed (%d)\n", ret);
+                return;
+            }
+        }
+        count += i;
+    } while (bench_stats_sym_check(start));
+    bench_stats_sym_finish(encLabel, 0, count, bench_size, start, ret);
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            ret = wc_AesSivDecrypt(key, keySz, assoc, AES_BLOCK_SIZE, nonce,
+                                   AES_BLOCK_SIZE, bench_cipher, bench_size,
+                                   siv, bench_plain);
+            if (ret != 0) {
+                printf("wc_AesSivDecrypt failed (%d)\n", ret);
+                return;
+            }
+        }
+        count += i;
+    } while (bench_stats_sym_check(start));
+    bench_stats_sym_finish(decLabel, 0, count, bench_size, start, ret);
+}
+
+void bench_aessiv(void)
+{
+    bench_aessiv_internal(bench_key, 32, "AES-256-SIV-enc", "AES-256-SIV-dec");
+    bench_aessiv_internal(bench_key, 48, "AES-384-SIV-enc", "AES-384-SIV-dec");
+    bench_aessiv_internal(bench_key, 64, "AES-512-SIV-enc", "AES-512-SIV-dec");
+}
+#endif /* WOLFSSL_AES_SIV */
 #endif /* !NO_AES */
 
 

@@ -57,7 +57,12 @@
 #endif
 
 
+#ifdef HAVE_FIPS
 static void ShiftAndXorRb(byte* out, byte* in)
+#else
+/* Used by AES-SIV. See aes.c. */
+void ShiftAndXorRb(byte* out, byte* in)
+#endif
 {
     int i, j, xorRb;
     int mask = 0, last = 0;
@@ -75,8 +80,6 @@ static void ShiftAndXorRb(byte* out, byte* in)
         }
     }
 }
-
-
 
 /* returns 0 on success */
 int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,

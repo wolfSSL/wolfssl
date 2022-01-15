@@ -523,6 +523,17 @@ WOLFSSL_API int  wc_AesInit_Label(Aes* aes, const char* label, void* heap,
 #endif
 WOLFSSL_API void wc_AesFree(Aes* aes);
 
+#ifdef WOLFSSL_AES_SIV
+WOLFSSL_API
+int wc_AesSivEncrypt(const byte* key, word32 keySz, const byte* assoc,
+                     word32 assocSz, const byte* nonce, word32 nonceSz,
+                     const byte* in, word32 inSz, byte* siv, byte* out);
+WOLFSSL_API
+int wc_AesSivDecrypt(const byte* key, word32 keySz, const byte* assoc,
+                     word32 assocSz, const byte* nonce, word32 nonceSz,
+                     const byte* in, word32 inSz, byte* siv, byte* out);
+#endif
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

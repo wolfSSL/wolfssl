@@ -72,6 +72,10 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
 #endif
 
+#ifdef WOLFSSL_AES_SIV
+    #include <wolfssl/wolfcrypt/cmac.h>
+#endif
+
 /* fips wrapper calls, user can call direct */
 #if defined(HAVE_FIPS) && \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
@@ -11683,6 +11687,232 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 }
 
 #endif /* WOLFSSL_AES_XTS */
+
+#ifdef WOLFSSL_AES_SIV
+
+/* 
+ * See RFC 5297 Section 2.4.
+ */
+static int S2V(const byte* key, word32 keySz, const byte* assoc, word32 assocSz,
+               const byte* nonce, word32 nonceSz, const byte* data,
+               word32 dataSz, byte* out)
+{
+#ifdef WOLFSSL_SMALL_STACK
+    byte* tmp[3] = {NULL, NULL, NULL};
+    int i;
+    Cmac* cmac;
+#else
+    byte tmp[3][AES_BLOCK_SIZE];
+    Cmac cmac[1];
+#endif
+    word32 macSz = AES_BLOCK_SIZE;
+    int ret = 0;
+    word32 zeroBytes;
+
+#ifdef WOLFSSL_SMALL_STACK
+    for (i = 0; i < 3; ++i) {
+        tmp[i] = (byte*)XMALLOC(AES_BLOCK_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmp[i] == NULL) {
+            ret = MEMORY_E;
+            break;
+        }
+    }
+    if (ret == 0)
+#endif
+    {
+        XMEMSET(tmp[1], 0, AES_BLOCK_SIZE);
+        XMEMSET(tmp[2], 0, AES_BLOCK_SIZE);
+
+        ret = wc_AesCmacGenerate(tmp[0], &macSz, tmp[1], AES_BLOCK_SIZE,
+                                 key, keySz);
+        if (ret == 0) {
+            ShiftAndXorRb(tmp[1], tmp[0]);
+            ret = wc_AesCmacGenerate(tmp[0], &macSz, assoc, assocSz, key,
+                                     keySz);
+            if (ret == 0) {
+                xorbuf(tmp[1], tmp[0], AES_BLOCK_SIZE);
+            }
+        }
+    }
+
+    if (ret == 0) {
+        ShiftAndXorRb(tmp[0], tmp[1]);
+        ret = wc_AesCmacGenerate(tmp[1], &macSz, nonce, nonceSz, key, keySz);
+        if (ret == 0) {
+            xorbuf(tmp[0], tmp[1], AES_BLOCK_SIZE);
+        }
+    }
+
+    if (ret == 0) {
+        if (dataSz >= AES_BLOCK_SIZE) {
+
+        #ifdef WOLFSSL_SMALL_STACK
+            cmac = (Cmac*)XMALLOC(sizeof(Cmac), NULL, DYNAMIC_TYPE_CMAC);
+            if (cmac == NULL) {
+                ret = MEMORY_E;
+            }
+            if (ret == 0)
+        #endif
+            {
+                xorbuf(tmp[0], data + (dataSz - AES_BLOCK_SIZE),
+                       AES_BLOCK_SIZE);
+                ret = wc_InitCmac(cmac, key, keySz, WC_CMAC_AES, NULL);
+                if (ret == 0) {
+                    ret = wc_CmacUpdate(cmac, data, dataSz - AES_BLOCK_SIZE);
+                }
+                if (ret == 0) {
+                    ret = wc_CmacUpdate(cmac, tmp[0], AES_BLOCK_SIZE);
+                }
+                if (ret == 0) {
+                    ret = wc_CmacFinal(cmac, out, &macSz);
+                }
+            }
+        #ifdef WOLFSSL_SMALL_STACK
+            if (cmac != NULL) {
+                XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
+            }
+        #endif
+        }
+        else {
+            XMEMCPY(tmp[2], data, dataSz);
+            tmp[2][dataSz] |= 0x80;
+            zeroBytes = AES_BLOCK_SIZE - (dataSz + 1);
+            if (zeroBytes != 0) {
+                XMEMSET(tmp[2] + dataSz + 1, 0, zeroBytes);
+            }
+            ShiftAndXorRb(tmp[1], tmp[0]);
+            xorbuf(tmp[1], tmp[2], AES_BLOCK_SIZE);
+            ret = wc_AesCmacGenerate(out, &macSz, tmp[1], AES_BLOCK_SIZE, key,
+                                     keySz);
+        }
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    for (i = 0; i < 3; ++i) {
+        if (tmp[i] != NULL) {
+            XFREE(tmp[i], NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+    }
+#endif
+
+    return ret;
+}
+
+static int AesSivCipher(const byte* key, word32 keySz, const byte* assoc,
+                        word32 assocSz, const byte* nonce, word32 nonceSz,
+                        const byte* data, word32 dataSz, byte* siv, byte* out,
+                        int enc)
+{
+    int ret = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    Aes* aes = NULL;
+#else
+    Aes aes[1];
+#endif
+    byte sivTmp[AES_BLOCK_SIZE];
+
+    if (key == NULL || siv == NULL || out == NULL) {
+        WOLFSSL_MSG("Bad parameter");
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0 && keySz != 32 && keySz != 48 && keySz != 64) {
+        WOLFSSL_MSG("Bad key size. Must be 256, 384, or 512 bits.");
+        ret = BAD_FUNC_ARG;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (ret == 0) {
+        aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_AES);
+        if (aes == NULL) {
+            ret = MEMORY_E;
+        }
+    }
+#endif
+
+    if (ret == 0) {
+        if (enc == 1) {
+            ret = S2V(key, keySz / 2, assoc, assocSz, nonce, nonceSz, data,
+                      dataSz, sivTmp);
+            if (ret != 0) {
+                WOLFSSL_MSG("S2V failed.");
+            }
+            else {
+                XMEMCPY(siv, sivTmp, AES_BLOCK_SIZE);
+            }
+        }
+        else {
+            XMEMCPY(sivTmp, siv, AES_BLOCK_SIZE);
+        }
+    }
+
+    if (ret == 0) {
+        ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+        if (ret != 0) {
+            WOLFSSL_MSG("Failed to initialized AES object.");
+        }
+    }
+
+    if (ret == 0 && dataSz > 0) {
+        sivTmp[12] &= 0x7f;
+        sivTmp[8] &= 0x7f;
+        ret = wc_AesSetKey(aes, key + keySz / 2, keySz / 2, sivTmp,
+                           AES_ENCRYPTION);
+        if (ret != 0) {
+            WOLFSSL_MSG("Failed to set key for AES-CTR.");
+        }
+        else {
+            ret = wc_AesCtrEncrypt(aes, out, data, dataSz);
+            if (ret != 0) {
+                WOLFSSL_MSG("AES-CTR encryption failed.");
+            }
+        }
+    }
+
+    if (ret == 0 && enc == 0) {
+        ret = S2V(key, keySz / 2, assoc, assocSz, nonce, nonceSz, out, dataSz,
+                  sivTmp);
+        if (ret != 0) {
+            WOLFSSL_MSG("S2V failed.");
+        }
+
+        if (XMEMCMP(siv, sivTmp, AES_BLOCK_SIZE) != 0) {
+            WOLFSSL_MSG("Computed SIV doesn't match received SIV.");
+            ret = AES_SIV_AUTH_E;
+        }
+    }
+
+    wc_AesFree(aes);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+#endif
+
+    return ret;
+}
+
+/* 
+ * See RFC 5297 Section 2.6.
+ */
+int wc_AesSivEncrypt(const byte* key, word32 keySz, const byte* assoc,
+                     word32 assocSz, const byte* nonce, word32 nonceSz,
+                     const byte* in, word32 inSz, byte* siv, byte* out)
+{
+    return AesSivCipher(key, keySz, assoc, assocSz, nonce, nonceSz, in, inSz,
+                        siv, out, 1);
+}
+
+/* 
+ * See RFC 5297 Section 2.7.
+ */
+int wc_AesSivDecrypt(const byte* key, word32 keySz, const byte* assoc,
+                     word32 assocSz, const byte* nonce, word32 nonceSz,
+                     const byte* in, word32 inSz, byte* siv, byte* out)
+{
+    return AesSivCipher(key, keySz, assoc, assocSz, nonce, nonceSz, in, inSz,
+                        siv, out, 0);
+}
+
+#endif /* WOLFSSL_AES_SIV */
 
 #endif /* HAVE_FIPS */
 #endif /* !NO_AES */

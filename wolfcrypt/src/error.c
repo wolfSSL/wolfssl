@@ -230,6 +230,9 @@ const char* wc_GetErrorString(int error)
     case AES_CCM_AUTH_E:
         return "AES-CCM Authentication check fail";
 
+    case AES_SIV_AUTH_E:
+        return "AES-SIV authentication failure";
+
     case ASYNC_INIT_E:
         return "Async Init error";
 

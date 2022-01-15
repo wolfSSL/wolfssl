@@ -358,9 +358,32 @@ if(WOLFSSL_AESGCM)
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_AESGCM")
 endif()
 
+# AES-SIV
+set(WOLFSSL_AESSIV_HELP_STRING "Enable wolfSSL AES-SIV support (default: disabled)")
+add_option("WOLFSSL_AESSIV" ${WOLFSSL_AESSIV_HELP_STRING} "no" "yes;no")
+
+if(WOLFSSL_AESSIV)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AES_SIV")
+endif()
+
+# AES-CTR
+set(WOLFSSL_AESCTR_HELP_STRING "Enable wolfSSL AES-CTR support (default: disabled)")
+add_option("WOLFSSL_AESCTR" ${WOLFSSL_AESCTR_HELP_STRING} "no" "yes;no")
+
+if(WOLFSSL_OPENVPN OR
+   WOLFSSL_LIBSSH2 OR
+   WOLFSSL_AESSIV)
+    override_cache(WOLFSSL_AESCTR "yes")
+endif()
+
+if(WOLFSSL_AESCTR AND NOT WOLFSSL_FORTRESS)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_AES_COUNTER"
+        "-DWOLFSSL_AES_DIRECT")
+endif()
+
 # TODO: - AES-CCM
 #       - AES-GCM stream
-#       - AES-CTR
 #       - AES-OFB
 #       - AES-CFB
 #       - AES-ARM
@@ -623,7 +646,7 @@ add_option("WOLFSSL_ERROR_STRINGS" ${WOLFSSL_ERROR_STRINGS_HELP_STRING} "yes" "y
 if(NOT WOLFSSL_ERROR_STRINGS)
     list(APPEND WOLFSSL_DEFINITIONS "-DNO_ERROR_STRINGS")
 else()
-    # turn off error strings if leanpsk or leantls o
+    # turn off error strings if leanpsk or leantls on
     if(WOLFSSL_LEAN_PSK OR WOLFSSL_LEAN_TLS)
         list(APPEND WOLFSSL_DEFINITIONS "-DNO_ERROR_STRINGS")
         override_cache(WOLFSSL_ERROR_STRINGS "no")
@@ -897,10 +920,27 @@ else()
     endif()
 endif()
 
-# TODO: - CMAC
-#       - AES-XTS
+# TODO: - AES-XTS
 #       - Web server
 #       - Web client
+set(WOLFSSL_CMAC_HELP_STRING "Enable CMAC (default: disabled)")
+add_option("WOLFSSL_CMAC" ${WOLFSSL_CMAC_HELP_STRING} "no" "yes;no")
+
+if(WOLFSSL_WPAS OR
+   WOLFSSL_NTP OR
+   WOLFSSL_AESSIV)
+    override_cache(WOLFSSL_CMAC "yes")
+endif()
+
+if(WOLFSSL_CMAC)
+    if (NOT WOLFSSL_AES)
+        message(FATAL_ERROR "Cannot use CMAC without AES.")
+    else()
+        list(APPEND WOLFSSL_DEFINITIONS
+            "-DWOLFSSL_CMAC"
+            "-DWOLFSSL_AES_DIRECT")
+    endif()
+endif()
 
 # RABBIT
 if(NOT WOLFSSL_RABBIT)
