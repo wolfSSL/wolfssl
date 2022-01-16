@@ -803,7 +803,7 @@ static int check_aescbc(void)
         printf("mcapi aes-128 key set failed\n");
         return -1;
     }
-    ret = wc_AesSetKey(&defAes, key, 16, iv, DES_DECRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 16, iv, AES_DECRYPTION);
     if (ret != 0) {
         printf("default aes-128 key set failed\n");
         return -1;
@@ -1148,7 +1148,7 @@ static int check_aesdirect(void)
         printf("mcapi aes-128 key set failed\n");
         return -1;
     }
-    ret = wc_AesSetKey(&defAes, key, 16, iv, DES_DECRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 16, iv, AES_DECRYPTION);
     if (ret != 0) {
         printf("default aes-128 key set failed\n");
         return -1;

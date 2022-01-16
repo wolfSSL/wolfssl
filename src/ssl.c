@@ -19826,7 +19826,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         lb_sz = length%DES_BLOCK_SIZE;
         blk   = length/DES_BLOCK_SIZE;
 
-        if (enc){
+        if (enc == DES_ENCRYPT){
             wc_Des_CbcEncrypt(&myDes, output, input, (word32)blk*DES_BLOCK_SIZE);
             if(lb_sz){
                 XMEMSET(lastblock, 0, DES_BLOCK_SIZE);
@@ -19872,7 +19872,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         /* OpenSSL compat, no ret */
         (void)wc_Des3Init(&des, NULL, INVALID_DEVID);
 
-        if (enc) {
+        if (enc == DES_ENCRYPT) {
             if (wc_Des3_SetKey(&des, key, (const byte*)ivec,
                     DES_ENCRYPTION) == 0) {
                 ret = wc_Des3_CbcEncrypt(&des, output, input, (word32)blk*DES_BLOCK_SIZE);
@@ -19941,7 +19941,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         if (lb_sz) {
             idx += DES_BLOCK_SIZE - lb_sz;
         }
-        if (enc){
+        if (enc == DES_ENCRYPT){
             wc_Des_CbcEncrypt(&myDes, output, input,
                     (word32)blk * DES_BLOCK_SIZE);
             if (lb_sz){
@@ -30590,7 +30590,7 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
             WOLFSSL_MSG("wc_Des_SetKey return error.");
             return;
         }
-        if (enc){
+        if (enc == DES_ENCRYPT){
             if (wc_Des_EcbEncrypt(&myDes, (byte*) desb, (const byte*) desa,
                         sizeof(WOLFSSL_DES_cblock)) != 0){
                 WOLFSSL_MSG("wc_Des_EcbEncrypt return error.");
@@ -30714,7 +30714,7 @@ int wolfSSL_AES_set_encrypt_key(const unsigned char *key, const int bits,
     }
 
     XMEMSET(aes, 0, sizeof(AES_KEY));
-    if (wc_AesSetKey((Aes*)aes, key, ((bits)/8), NULL, AES_ENCRYPTION) != 0) {
+    if (wc_AesSetKey((Aes*)aes, key, ((bits)/8), NULL, AES_ENCRYPT) != 0) {
         WOLFSSL_MSG("Error in setting AES key");
         return -1;
     }
@@ -30742,7 +30742,7 @@ int wolfSSL_AES_set_decrypt_key(const unsigned char *key, const int bits,
     }
 
     XMEMSET(aes, 0, sizeof(AES_KEY));
-    if (wc_AesSetKey((Aes*)aes, key, ((bits)/8), NULL, AES_DECRYPTION) != 0) {
+    if (wc_AesSetKey((Aes*)aes, key, ((bits)/8), NULL, AES_DECRYPT) != 0) {
         WOLFSSL_MSG("Error in setting AES key");
         return -1;
     }
@@ -30797,7 +30797,7 @@ void wolfSSL_AES_ecb_encrypt(const unsigned char *in, unsigned char* out,
  * len length of input buffer
  * key AES structure to use with encryption/decryption
  * iv  iv to use with operation
- * enc AES_ENCRPT for encryption and AES_DECRYPT for decryption
+ * enc AES_ENCRYPT for encryption and AES_DECRYPT for decryption
  */
 void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
         size_t len, AES_KEY *key, unsigned char* iv, const int enc)
@@ -30817,7 +30817,7 @@ void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
         return;
     }
 
-    if (enc) {
+    if (enc == AES_ENCRYPT) {
         if (wc_AesCbcEncrypt(aes, out, in, (word32)len) != 0) {
             WOLFSSL_MSG("Error with AES CBC encrypt");
         }
@@ -30843,7 +30843,7 @@ void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
  * key AES structure to use with encryption/decryption
  * iv  iv to use with operation
  * num contains the amount of block used
- * enc AES_ENCRPT for encryption and AES_DECRYPT for decryption
+ * enc AES_ENCRYPT for encryption and AES_DECRYPT for decryption
  */
 void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
         size_t len, AES_KEY *key, unsigned char* iv, int* num,
@@ -30932,7 +30932,6 @@ int wolfSSL_AES_unwrap_key(AES_KEY *key, const unsigned char *iv,
     return ret < 0 ? WOLFSSL_FAILURE : ret;
 }
 #endif /* HAVE_AES_KEYWRAP && !HAVE_FIPS && !HAVE_SELFTEST */
-#endif /* NO_AES */
 
 #ifdef HAVE_CTS
 /*
@@ -30956,7 +30955,7 @@ size_t wolfSSL_CRYPTO_cts128_encrypt(const unsigned char *in,
         lastBlkLen = WOLFSSL_CTS128_BLOCK_SZ;
 
     /* Encrypt data up to last block */
-    (*cbc)(in, out, len - lastBlkLen, key, iv, 1);
+    (*cbc)(in, out, len - lastBlkLen, key, iv, AES_ENCRYPT);
 
     /* Move to last block */
     in += len - lastBlkLen;
@@ -30968,7 +30967,7 @@ size_t wolfSSL_CRYPTO_cts128_encrypt(const unsigned char *in,
     /* RFC2040: Select the first Ln bytes of En-1 to create Cn */
     XMEMCPY(out, out - WOLFSSL_CTS128_BLOCK_SZ, lastBlkLen);
     (*cbc)(lastBlk, out - WOLFSSL_CTS128_BLOCK_SZ, WOLFSSL_CTS128_BLOCK_SZ,
-            key, iv, 1);
+            key, iv, AES_ENCRYPT);
 
     return len;
 }
@@ -30992,7 +30991,8 @@ size_t wolfSSL_CRYPTO_cts128_decrypt(const unsigned char *in,
         lastBlkLen = WOLFSSL_CTS128_BLOCK_SZ;
 
     /* Decrypt up to last two blocks */
-    (*cbc)(in, out, len - lastBlkLen - WOLFSSL_CTS128_BLOCK_SZ, key, iv, 0);
+    (*cbc)(in, out, len - lastBlkLen - WOLFSSL_CTS128_BLOCK_SZ, key, iv,
+            AES_DECRYPTION);
 
     /* Move to last two blocks */
     in += len - lastBlkLen - WOLFSSL_CTS128_BLOCK_SZ;
@@ -31002,17 +31002,18 @@ size_t wolfSSL_CRYPTO_cts128_decrypt(const unsigned char *in,
      * Use 0 buffer as IV to do straight decryption.
      * This places the Cn-1 block at lastBlk */
     XMEMSET(lastBlk, 0, WOLFSSL_CTS128_BLOCK_SZ);
-    (*cbc)(in, prevBlk, WOLFSSL_CTS128_BLOCK_SZ, key, lastBlk, 0);
+    (*cbc)(in, prevBlk, WOLFSSL_CTS128_BLOCK_SZ, key, lastBlk, AES_DECRYPT);
     /* RFC2040: Append the tail (BB minus Ln) bytes of Xn to Cn
      *          to create En. */
     XMEMCPY(prevBlk, in + WOLFSSL_CTS128_BLOCK_SZ, lastBlkLen);
     /* Cn and Cn-1 can now be decrypted */
-    (*cbc)(prevBlk, out, WOLFSSL_CTS128_BLOCK_SZ, key, iv, 0);
-    (*cbc)(lastBlk, lastBlk, WOLFSSL_CTS128_BLOCK_SZ, key, iv, 0);
+    (*cbc)(prevBlk, out, WOLFSSL_CTS128_BLOCK_SZ, key, iv, AES_DECRYPT);
+    (*cbc)(lastBlk, lastBlk, WOLFSSL_CTS128_BLOCK_SZ, key, iv, AES_DECRYPT);
     XMEMCPY(out + WOLFSSL_CTS128_BLOCK_SZ, lastBlk, lastBlkLen);
     return len;
 }
 #endif /* HAVE_CTS */
+#endif /* NO_AES */
 
 #ifndef NO_ASN_TIME
 #ifndef NO_BIO
