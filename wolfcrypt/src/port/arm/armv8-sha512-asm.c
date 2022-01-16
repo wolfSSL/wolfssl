@@ -1135,9 +1135,13 @@ static const uint64_t L_SHA512_transform_crypto_len_k[] = {
     0x6c44198c4a475817UL,
 };
 
+void Transform_Sha512_Len_crypto(wc_Sha512* sha512, const byte* data, word32 len);
 void Transform_Sha512_Len_crypto(wc_Sha512* sha512, const byte* data, word32 len)
 {
     __asm__ __volatile__ (
+#ifdef __APPLE__
+    ".arch_extension sha3\n\t"
+#endif /* __APPLE__ */
 #ifndef __APPLE__
         "adrp x4, %[L_SHA512_transform_crypto_len_k]\n\t"
         "add  x4, x4, :lo12:%[L_SHA512_transform_crypto_len_k]\n\t"
@@ -1652,7 +1656,7 @@ void Transform_Sha512_Len_crypto(wc_Sha512* sha512, const byte* data, word32 len
         /* Store digest back */
         "st1	{v24.2d, v25.2d, v26.2d, v27.2d}, [%x[sha512]]\n\t"
         : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len)
-        : [L_SHA512_transform_neon_len_k] "S" (L_SHA512_transform_neon_len_k), [L_SHA512_transform_neon_len_ror8] "S" (L_SHA512_transform_neon_len_ror8), [L_SHA512_transform_crypto_len_k] "S" (L_SHA512_transform_crypto_len_k)
+        : [L_SHA512_transform_crypto_len_k] "S" (L_SHA512_transform_crypto_len_k)
         : "memory", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
     );
 }

@@ -1215,6 +1215,9 @@ _Transform_Sha512_Len_crypto:
 	stp	d26, d27, [x29, #160]
 	stp	d28, d29, [x29, #176]
 	stp	d30, d31, [x29, #192]
+#ifdef __APPLE__
+.arch_extension sha3
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x4, L_SHA512_transform_crypto_len_k
 	add  x4, x4, :lo12:L_SHA512_transform_crypto_len_k
