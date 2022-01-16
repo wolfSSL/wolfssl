@@ -12019,42 +12019,56 @@ int wolfSSL_SESSION_get_master_key_length(const WOLFSSL_SESSION* ses)
 
 #endif /* OPENSSL_EXTRA */
 
+typedef struct {
+    byte verifyPeer:1;
+    byte verifyNone:1;
+    byte failNoCert:1;
+    byte failNoCertxPSK:1;
+    byte verifyPostHandshake:1;
+} SetVerifyOptions;
+
+static SetVerifyOptions ModeToVerifyOptions(int mode)
+{
+    SetVerifyOptions opts;
+    XMEMSET(&opts, 0, sizeof(SetVerifyOptions));
+
+    if (mode != WOLFSSL_VERIFY_DEFAULT) {
+        opts.verifyNone = (mode == WOLFSSL_VERIFY_NONE);
+        if (!opts.verifyNone) {
+            opts.verifyPeer =
+                    (mode & WOLFSSL_VERIFY_PEER) != 0;
+            opts.failNoCertxPSK =
+                    (mode & WOLFSSL_VERIFY_FAIL_EXCEPT_PSK) != 0;
+            opts.failNoCert =
+                    (mode & WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT) != 0;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+            opts.verifyPostHandshake =
+                    (mode & WOLFSSL_VERIFY_POST_HANDSHAKE) != 0;
+#endif
+        }
+    }
+
+    return opts;
+}
+
 WOLFSSL_ABI
 void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode, VerifyCallback vc)
 {
+    SetVerifyOptions opts;
+
     WOLFSSL_ENTER("wolfSSL_CTX_set_verify");
     if (ctx == NULL)
         return;
 
-    ctx->verifyPeer     = 0;
-    ctx->verifyNone     = 0;
-    ctx->failNoCert     = 0;
-    ctx->failNoCertxPSK = 0;
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-    ctx->verifyPostHandshake = 0;
-#endif
+    opts = ModeToVerifyOptions(mode);
 
-    if (mode != WOLFSSL_VERIFY_DEFAULT) {
-        if (mode == WOLFSSL_VERIFY_NONE) {
-            ctx->verifyNone = 1;
-        }
-        else {
-            if (mode & WOLFSSL_VERIFY_PEER) {
-                ctx->verifyPeer = 1;
-            }
-            if (mode & WOLFSSL_VERIFY_FAIL_EXCEPT_PSK) {
-                ctx->failNoCertxPSK = 1;
-            }
-            if (mode & WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT) {
-                ctx->failNoCert = 1;
-            }
+    ctx->verifyNone     = opts.verifyNone;
+    ctx->verifyPeer     = opts.verifyPeer;
+    ctx->failNoCert     = opts.failNoCert;
+    ctx->failNoCertxPSK = opts.failNoCertxPSK;
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-            if (mode & WOLFSSL_VERIFY_POST_HANDSHAKE) {
-                ctx->verifyPostHandshake = 1;
-            }
+    ctx->verifyPostHandshake = opts.verifyPostHandshake;
 #endif
-        }
-    }
 
     ctx->verifyCallback = vc;
 }
@@ -12075,21 +12089,20 @@ void wolfSSL_CTX_set_cert_verify_callback(WOLFSSL_CTX* ctx,
 
 void wolfSSL_set_verify(WOLFSSL* ssl, int mode, VerifyCallback vc)
 {
+    SetVerifyOptions opts;
+
     WOLFSSL_ENTER("wolfSSL_set_verify");
     if (ssl == NULL)
         return;
 
-    /* Special case for verifyNone since WOLFSSL_VERIFY_NONE == 0  */
-    ssl->options.verifyNone     =  mode == WOLFSSL_VERIFY_NONE;
-    ssl->options.verifyPeer     = (mode & WOLFSSL_VERIFY_PEER)
-                                        == WOLFSSL_VERIFY_PEER;
-    ssl->options.failNoCert     = (mode & WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT)
-                                        == WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT;
-    ssl->options.failNoCertxPSK = (mode & WOLFSSL_VERIFY_FAIL_EXCEPT_PSK)
-                                        == WOLFSSL_VERIFY_FAIL_EXCEPT_PSK;
+    opts = ModeToVerifyOptions(mode);
+
+    ssl->options.verifyNone = opts.verifyNone;
+    ssl->options.verifyPeer = opts.verifyPeer;
+    ssl->options.failNoCert = opts.failNoCert;
+    ssl->options.failNoCertxPSK = opts.failNoCertxPSK;
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-    ssl->options.verifyPostHandshake = (mode & WOLFSSL_VERIFY_POST_HANDSHAKE)
-                                        == WOLFSSL_VERIFY_POST_HANDSHAKE;
+    ssl->options.verifyPostHandshake = opts.verifyPostHandshake;
 #endif
 
     ssl->verifyCallback = vc;
@@ -27467,30 +27480,32 @@ int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
                                          const char* name,
                                          unsigned int nameSz)
 {
-    unsigned int sz = 0;
+    WOLFSSL_ENTER("wolfSSL_X509_VERIFY_PARAM_set1_host");
 
     if (pParam == NULL)
         return WOLFSSL_FAILURE;
 
-    XMEMSET(pParam->hostName, 0, WOLFSSL_HOST_NAME_MAX);
-
     if (name == NULL)
         return WOLFSSL_SUCCESS;
 
-    sz = (unsigned int)XSTRLEN(name);
-
     /* If name is NULL-terminated, namelen can be set to zero. */
-    if (nameSz == 0 || nameSz > sz)
-        nameSz = sz;
+    if (nameSz == 0) {
+        nameSz = (unsigned int)XSTRLEN(name);
+    }
 
     if (nameSz > 0 && name[nameSz - 1] == '\0')
         nameSz--;
 
-    if (nameSz > WOLFSSL_HOST_NAME_MAX-1)
+    if (nameSz > WOLFSSL_HOST_NAME_MAX-1) {
+        WOLFSSL_MSG("Truncating name");
         nameSz = WOLFSSL_HOST_NAME_MAX-1;
+    }
 
-    if (nameSz > 0)
+    if (nameSz > 0) {
         XMEMCPY(pParam->hostName, name, nameSz);
+        XMEMSET(pParam->hostName + nameSz, 0,
+                WOLFSSL_HOST_NAME_MAX - nameSz);
+    }
 
     pParam->hostName[nameSz] = '\0';
 

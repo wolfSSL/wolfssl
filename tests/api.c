@@ -36638,6 +36638,92 @@ static void test_wolfSSL_X509_VERIFY_PARAM(void)
 #endif
 }
 
+#if defined(OPENSSL_EXTRA) && defined(HAVE_IO_TESTS_DEPENDENCIES)
+
+static int test_wolfSSL_check_domain_verify_count = 0;
+
+static WC_INLINE int test_wolfSSL_check_domain_verify_cb(int preverify,
+        WOLFSSL_X509_STORE_CTX* store)
+{
+    AssertIntEQ(X509_STORE_CTX_get_error(store), 0);
+    AssertIntEQ(preverify, 1);
+    test_wolfSSL_check_domain_verify_count++;
+    return 1;
+}
+
+static void test_wolfSSL_check_domain_client_cb(WOLFSSL* ssl)
+{
+    X509_VERIFY_PARAM *param = SSL_get0_param(ssl);
+
+    /* Domain check should only be done on the leaf cert */
+    X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+    AssertIntEQ(X509_VERIFY_PARAM_set1_host(param,
+        "wolfSSL Server Chain", 0), 1);
+    wolfSSL_set_verify(ssl, WOLFSSL_VERIFY_PEER,
+            test_wolfSSL_check_domain_verify_cb);
+}
+
+static void test_wolfSSL_check_domain_server_cb(WOLFSSL_CTX* ctx)
+{
+    /* Use a cert with different domains in chain */
+    AssertIntEQ(wolfSSL_CTX_use_certificate_chain_file(ctx,
+            "certs/intermediate/server-chain.pem"), WOLFSSL_SUCCESS);
+}
+
+static void test_wolfSSL_check_domain(void)
+{
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+    callback_functions func_cb_client;
+    callback_functions func_cb_server;
+
+    printf(testingFmt, "wolfSSL_check_domain");
+
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+    XMEMSET(&func_cb_client, 0, sizeof(callback_functions));
+    XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+#if defined(USE_WINDOWS_API)
+    /* use RNG to get random port if using windows */
+    ready.port = GetRandomPort();
+#endif
+
+    server_args.signal = &ready;
+    client_args.signal = &ready;
+
+    func_cb_client.ssl_ready = &test_wolfSSL_check_domain_client_cb;
+    func_cb_server.ctx_ready = &test_wolfSSL_check_domain_server_cb;
+
+    client_args.callbacks = &func_cb_client;
+    server_args.callbacks = &func_cb_server;
+
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args, NULL);
+    join_thread(serverThread);
+
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+
+    FreeTcpReady(&ready);
+
+    /* Should have been called once for each cert in sent chain */
+    AssertIntEQ(test_wolfSSL_check_domain_verify_count, 3);
+
+    printf(resultFmt, passed);
+}
+
+#endif /* OPENSSL_EXTRA && HAVE_IO_TESTS_DEPENDENCIES */
+
 static void test_wolfSSL_X509_get_X509_PUBKEY(void)
 {
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD))
@@ -52295,6 +52381,9 @@ void ApiTest(void)
     test_wolfSSL_X509_sign2();
     test_wolfSSL_X509_get0_tbs_sigalg();
     test_wolfSSL_X509_ALGOR_get0();
+#if defined(OPENSSL_EXTRA) && defined(HAVE_IO_TESTS_DEPENDENCIES)
+    test_wolfSSL_check_domain();
+#endif
     test_wolfSSL_X509_get_X509_PUBKEY();
     test_wolfSSL_X509_PUBKEY_RSA();
     test_wolfSSL_X509_PUBKEY_EC();

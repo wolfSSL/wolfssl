@@ -11222,36 +11222,39 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
     }
 #endif
 #if defined(OPENSSL_EXTRA)
-    /* perform domain name check on the peer certificate */
-    if (args->dCertInit && args->dCert && (ssl != NULL) &&
-            ssl->param && ssl->param->hostName[0]) {
-        /* If altNames names is present, then subject common name is ignored */
-        if (args->dCert->altNames != NULL) {
-            if (CheckForAltNames(args->dCert, ssl->param->hostName, NULL) != 1) {
-                if (ret == 0) {
-                    ret = DOMAIN_NAME_MISMATCH;
-                }
-            }
-        }
-        else {
-            if (args->dCert->subjectCN) {
-                if (MatchDomainName(args->dCert->subjectCN,
-                                    args->dCert->subjectCNLen,
-                                    ssl->param->hostName) == 0) {
+    /* Perform domain and IP check only for the leaf certificate */
+    if (args->certIdx == 0) {
+        /* perform domain name check on the peer certificate */
+        if (args->dCertInit && args->dCert && (ssl != NULL) &&
+                ssl->param && ssl->param->hostName[0]) {
+            /* If altNames names is present, then subject common name is ignored */
+            if (args->dCert->altNames != NULL) {
+                if (CheckForAltNames(args->dCert, ssl->param->hostName, NULL) != 1) {
                     if (ret == 0) {
                         ret = DOMAIN_NAME_MISMATCH;
                     }
                 }
             }
+            else {
+                if (args->dCert->subjectCN) {
+                    if (MatchDomainName(args->dCert->subjectCN,
+                                        args->dCert->subjectCNLen,
+                                        ssl->param->hostName) == 0) {
+                        if (ret == 0) {
+                            ret = DOMAIN_NAME_MISMATCH;
+                        }
+                    }
+                }
+            }
         }
-    }
 
-    /* perform IP address check on the peer certificate */
-    if ((args->dCertInit != 0) && (args->dCert != NULL) && (ssl != NULL) &&
-        (ssl->param != NULL) && (XSTRLEN(ssl->param->ipasc) > 0)) {
-        if (CheckIPAddr(args->dCert, ssl->param->ipasc) != 0) {
-            if (ret == 0) {
-                ret = IPADDR_MISMATCH;
+        /* perform IP address check on the peer certificate */
+        if ((args->dCertInit != 0) && (args->dCert != NULL) && (ssl != NULL) &&
+            (ssl->param != NULL) && (XSTRLEN(ssl->param->ipasc) > 0)) {
+            if (CheckIPAddr(args->dCert, ssl->param->ipasc) != 0) {
+                if (ret == 0) {
+                    ret = IPADDR_MISMATCH;
+                }
             }
         }
     }
