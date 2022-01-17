@@ -1439,7 +1439,7 @@ int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
 
 #ifdef WOLFSSL_DTLS
 
-int wolfSSL_mcast_peer_add(WOLFSSL* ssl, word16 peerId, int remove)
+int wolfSSL_mcast_peer_add(WOLFSSL* ssl, word16 peerId, int sub)
 {
     WOLFSSL_DTLS_PEERSEQ* p = NULL;
     int ret = WOLFSSL_SUCCESS;
@@ -1449,7 +1449,7 @@ int wolfSSL_mcast_peer_add(WOLFSSL* ssl, word16 peerId, int remove)
     if (ssl == NULL || peerId > 255)
         return BAD_FUNC_ARG;
 
-    if (!remove) {
+    if (!sub) {
         /* Make sure it isn't already present, while keeping the first
          * open spot. */
         for (i = 0; i < WOLFSSL_DTLS_PEERSEQ_SZ; i++) {
@@ -21440,11 +21440,11 @@ int wolfSSL_sk_X509_CRL_num(WOLF_STACK_OF(WOLFSSL_X509)* sk)
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
 /* return 1 on success 0 on fail */
 int wolfSSL_sk_ACCESS_DESCRIPTION_push(WOLF_STACK_OF(ACCESS_DESCRIPTION)* sk,
-                                              WOLFSSL_ACCESS_DESCRIPTION* access)
+                                              WOLFSSL_ACCESS_DESCRIPTION* a)
 {
     WOLFSSL_ENTER("wolfSSL_sk_ACCESS_DESCRIPTION_push");
 
-    return wolfSSL_sk_push(sk, access);
+    return wolfSSL_sk_push(sk, a);
 }
 
 /* Frees all nodes in ACCESS_DESCRIPTION stack
@@ -21484,19 +21484,19 @@ void wolfSSL_AUTHORITY_INFO_ACCESS_pop_free(
 }
 
 
-void wolfSSL_ACCESS_DESCRIPTION_free(WOLFSSL_ACCESS_DESCRIPTION* access)
+void wolfSSL_ACCESS_DESCRIPTION_free(WOLFSSL_ACCESS_DESCRIPTION* a)
 {
     WOLFSSL_ENTER("wolfSSL_ACCESS_DESCRIPTION_free");
-    if (access == NULL)
+    if (a == NULL)
         return;
 
-    if (access->method)
-        wolfSSL_ASN1_OBJECT_free(access->method);
-    if (access->location)
-        wolfSSL_GENERAL_NAME_free(access->location);
-    XFREE(access, NULL, DYNAMIC_TYPE_X509_EXT);
+    if (a->method)
+        wolfSSL_ASN1_OBJECT_free(a->method);
+    if (a->location)
+        wolfSSL_GENERAL_NAME_free(a->location);
+    XFREE(a, NULL, DYNAMIC_TYPE_X509_EXT);
 
-    /* access = NULL, don't try to access or double free it */
+    /* a = NULL, don't try to a or double free it */
 }
 #endif /* OPENSSL_ALL || WOLFSSL_QT */
 
@@ -22418,7 +22418,7 @@ void wolfSSL_sk_X509_EXTENSION_pop_free(
  */
 WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
 {
-    WOLFSSL_EC_KEY *dup;
+    WOLFSSL_EC_KEY *newKey;
     ecc_key *key, *srcKey;
     int ret;
 
@@ -22431,16 +22431,16 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
         return NULL;
     }
 
-    dup = wolfSSL_EC_KEY_new();
-    if (dup == NULL) {
+    newKey = wolfSSL_EC_KEY_new();
+    if (newKey == NULL) {
         WOLFSSL_MSG("wolfSSL_EC_KEY_new error");
         return NULL;
     }
 
-    key = (ecc_key*)dup->internal;
+    key = (ecc_key*)newKey->internal;
     if (key == NULL) {
         WOLFSSL_MSG("ecc_key NULL error");
-        wolfSSL_EC_KEY_free(dup);
+        wolfSSL_EC_KEY_free(newKey);
         return NULL;
     }
     srcKey = (ecc_key*)src->internal;
@@ -22450,7 +22450,7 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
     ret = wc_ecc_copy_point(&srcKey->pubkey, &key->pubkey);
     if (ret != MP_OKAY) {
         WOLFSSL_MSG("wc_ecc_copy_point error");
-        wolfSSL_EC_KEY_free(dup);
+        wolfSSL_EC_KEY_free(newKey);
         return NULL;
     }
 
@@ -22458,7 +22458,7 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
     ret = mp_copy(&srcKey->k, &key->k);
     if (ret != MP_OKAY) {
         WOLFSSL_MSG("mp_copy error");
-        wolfSSL_EC_KEY_free(dup);
+        wolfSSL_EC_KEY_free(newKey);
         return NULL;
     }
 
@@ -22477,73 +22477,73 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
     key->flags = srcKey->flags;
 
     /* Copy group */
-    if (dup->group == NULL) {
+    if (newKey->group == NULL) {
         WOLFSSL_MSG("EC_GROUP_new_by_curve_name error");
-        wolfSSL_EC_KEY_free(dup);
+        wolfSSL_EC_KEY_free(newKey);
         return NULL;
     }
 
-    dup->group->curve_idx = src->group->curve_idx;
-    dup->group->curve_nid = src->group->curve_nid;
-    dup->group->curve_oid = src->group->curve_oid;
+    newKey->group->curve_idx = src->group->curve_idx;
+    newKey->group->curve_nid = src->group->curve_nid;
+    newKey->group->curve_oid = src->group->curve_oid;
 
     /* Copy public key */
-    if (src->pub_key->internal == NULL || dup->pub_key->internal == NULL) {
+    if (src->pub_key->internal == NULL || newKey->pub_key->internal == NULL) {
         WOLFSSL_MSG("NULL pub_key error");
-        wolfSSL_EC_KEY_free(dup);
+        wolfSSL_EC_KEY_free(newKey);
         return NULL;
     }
 
     /* Copy public key internal */
     ret = wc_ecc_copy_point((ecc_point*)src->pub_key->internal, \
-                            (ecc_point*)dup->pub_key->internal);
+                            (ecc_point*)newKey->pub_key->internal);
     if (ret != MP_OKAY) {
         WOLFSSL_MSG("ecc_copy_point error");
-        wolfSSL_EC_KEY_free(dup);
+        wolfSSL_EC_KEY_free(newKey);
         return NULL;
     }
 
     /* Copy X, Y, Z */
-    dup->pub_key->X = wolfSSL_BN_dup(src->pub_key->X);
-    if (!dup->pub_key->X && src->pub_key->X) {
+    newKey->pub_key->X = wolfSSL_BN_dup(src->pub_key->X);
+    if (!newKey->pub_key->X && src->pub_key->X) {
         WOLFSSL_MSG("Error copying EC_POINT");
-        wolfSSL_EC_KEY_free(dup);
+        wolfSSL_EC_KEY_free(newKey);
         return NULL;
     }
-    dup->pub_key->Y = wolfSSL_BN_dup(src->pub_key->Y);
-    if (!dup->pub_key->Y && src->pub_key->Y) {
+    newKey->pub_key->Y = wolfSSL_BN_dup(src->pub_key->Y);
+    if (!newKey->pub_key->Y && src->pub_key->Y) {
         WOLFSSL_MSG("Error copying EC_POINT");
-        wolfSSL_EC_KEY_free(dup);
+        wolfSSL_EC_KEY_free(newKey);
         return NULL;
     }
-    dup->pub_key->Z = wolfSSL_BN_dup(src->pub_key->Z);
-    if (!dup->pub_key->Z && src->pub_key->Z) {
+    newKey->pub_key->Z = wolfSSL_BN_dup(src->pub_key->Z);
+    if (!newKey->pub_key->Z && src->pub_key->Z) {
         WOLFSSL_MSG("Error copying EC_POINT");
-        wolfSSL_EC_KEY_free(dup);
+        wolfSSL_EC_KEY_free(newKey);
         return NULL;
     }
 
-    dup->pub_key->inSet = src->pub_key->inSet;
-    dup->pub_key->exSet = src->pub_key->exSet;
-    dup->pkcs8HeaderSz = src->pkcs8HeaderSz;
+    newKey->pub_key->inSet = src->pub_key->inSet;
+    newKey->pub_key->exSet = src->pub_key->exSet;
+    newKey->pkcs8HeaderSz = src->pkcs8HeaderSz;
 
     /* Copy private key */
-    if (src->priv_key->internal == NULL || dup->priv_key->internal == NULL) {
+    if (src->priv_key->internal == NULL || newKey->priv_key->internal == NULL) {
         WOLFSSL_MSG("NULL priv_key error");
-        wolfSSL_EC_KEY_free(dup);
+        wolfSSL_EC_KEY_free(newKey);
         return NULL;
     }
 
-    /* Free priv_key before call to dup function */
-    wolfSSL_BN_free(dup->priv_key);
-    dup->priv_key = wolfSSL_BN_dup(src->priv_key);
-    if (dup->priv_key == NULL) {
-        WOLFSSL_MSG("BN_dup error");
-        wolfSSL_EC_KEY_free(dup);
+    /* Free priv_key before call to newKey function */
+    wolfSSL_BN_free(newKey->priv_key);
+    newKey->priv_key = wolfSSL_BN_dup(src->priv_key);
+    if (newKey->priv_key == NULL) {
+        WOLFSSL_MSG("BN_newKey error");
+        wolfSSL_EC_KEY_free(newKey);
         return NULL;
     }
 
-    return dup;
+    return newKey;
 
 }
 #endif /* HAVE_ECC */
@@ -41355,7 +41355,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *EM,
     }
 
     hashType = wolfSSL_EVP_md2macType(hashAlg);
-    if (hashType < WC_HASH_TYPE_NONE || hashType > WC_HASH_TYPE_MAX) {
+    if (hashType > WC_HASH_TYPE_MAX) {
         WOLFSSL_MSG("wolfSSL_EVP_md2macType error");
         goto cleanup;
     }
@@ -41462,7 +41462,7 @@ int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
     }
 
     hashType = wolfSSL_EVP_md2macType(hashAlg);
-    if (hashType < WC_HASH_TYPE_NONE || hashType > WC_HASH_TYPE_MAX) {
+    if (hashType > WC_HASH_TYPE_MAX) {
         WOLFSSL_MSG("wolfSSL_EVP_md2macType error");
         return WOLFSSL_FAILURE;
     }
@@ -46375,17 +46375,17 @@ static int get_ex_new_index(int class_index)
     static int ssl_idx = 0;
     static int x509_idx = 0;
 
-    int index = -1;
+    int idx = -1;
 
     switch(class_index) {
         case CRYPTO_EX_INDEX_SSL:
-            index = ssl_idx++;
+            idx = ssl_idx++;
             break;
         case CRYPTO_EX_INDEX_SSL_CTX:
-            index = ctx_idx++;
+            idx = ctx_idx++;
             break;
         case CRYPTO_EX_INDEX_X509:
-            index = x509_idx++;
+            idx = x509_idx++;
             break;
 
         /* following class indexes are not supoprted */
@@ -46405,7 +46405,7 @@ static int get_ex_new_index(int class_index)
         default:
             break;
     }
-    return index;
+    return idx;
 }
 #endif /* HAVE_EX_DATA || WOLFSSL_WPAS_SMALL */
 

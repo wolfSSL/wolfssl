@@ -116,9 +116,9 @@ WOLFSSL_API void wolfSSL_Debugging_OFF(void);
     WOLFSSL_LOCAL int wc_LoggingCleanup(void);
     WOLFSSL_LOCAL int wc_AddErrorNode(int error, int line, char* buf,
             char* file);
-    WOLFSSL_LOCAL int wc_PeekErrorNode(int index, const char **file,
+    WOLFSSL_LOCAL int wc_PeekErrorNode(int idx, const char **file,
             const char **reason, int *line);
-    WOLFSSL_LOCAL void wc_RemoveErrorNode(int index);
+    WOLFSSL_LOCAL void wc_RemoveErrorNode(int idx);
     WOLFSSL_LOCAL void wc_ClearErrorNodes(void);
     WOLFSSL_LOCAL int wc_PullErrorNode(const char **file, const char **reason,
                             int *line);

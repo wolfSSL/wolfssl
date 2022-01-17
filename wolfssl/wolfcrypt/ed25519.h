@@ -140,18 +140,18 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #ifdef HAVE_ED25519_VERIFY
 WOLFSSL_API
 int wc_ed25519_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
-                          word32 msgLen, int* stat, ed25519_key* key);
+                          word32 msgLen, int* res, ed25519_key* key);
 WOLFSSL_API
 int wc_ed25519ctx_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
-                             word32 msgLen, int* stat, ed25519_key* key,
+                             word32 msgLen, int* res, ed25519_key* key,
                              const byte* context, byte contextLen);
 WOLFSSL_API
 int wc_ed25519ph_verify_hash(const byte* sig, word32 sigLen, const byte* hash,
-                             word32 hashLen, int* stat, ed25519_key* key,
+                             word32 hashLen, int* res, ed25519_key* key,
                              const byte* context, byte contextLen);
 WOLFSSL_API
 int wc_ed25519ph_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
-                            word32 msgLen, int* stat, ed25519_key* key,
+                            word32 msgLen, int* res, ed25519_key* key,
                             const byte* context, byte contextLen);
 WOLFSSL_API
 int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,

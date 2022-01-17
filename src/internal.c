@@ -11539,7 +11539,7 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
     char*   filename = NULL;
     const char* post = "";
     byte*   pbuf = NULL;
-    int     len, num, i, index;
+    int     len, num, i, idx;
     byte    suffix = 0;
     int retHash = NOT_COMPILED_IN;
     byte dgt[WC_MAX_DIGEST_SIZE];
@@ -11595,10 +11595,10 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
             }
 
             hash_tmp.hash_value = hash;
-            index = wolfSSL_sk_BY_DIR_HASH_find(entry->hashes, &hash_tmp);
-            if (index >= 0) {
+            idx = wolfSSL_sk_BY_DIR_HASH_find(entry->hashes, &hash_tmp);
+            if (idx >= 0) {
                 WOLFSSL_MSG("find hashed CRL in list");
-                ph = wolfSSL_sk_BY_DIR_HASH_value(entry->hashes, index);
+                ph = wolfSSL_sk_BY_DIR_HASH_value(entry->hashes, idx);
                 suffix = ph->last_suffix;
             } else {
                 ph = NULL;

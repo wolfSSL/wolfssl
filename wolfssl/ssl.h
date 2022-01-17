@@ -1339,7 +1339,7 @@ WOLFSSL_API int wolfSSL_sk_push(WOLFSSL_STACK *st, const void *data);
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
 WOLFSSL_API int wolfSSL_sk_ACCESS_DESCRIPTION_push(
                                        WOLF_STACK_OF(ACCESS_DESCRIPTION)* sk,
-                                       WOLFSSL_ACCESS_DESCRIPTION* access);
+                                       WOLFSSL_ACCESS_DESCRIPTION* a);
 #endif /* defined(OPENSSL_ALL) || defined(WOLFSSL_QT) */
 
 typedef WOLF_STACK_OF(WOLFSSL_GENERAL_NAME) WOLFSSL_GENERAL_NAMES;
@@ -1401,7 +1401,7 @@ WOLFSSL_API WOLFSSL_ACCESS_DESCRIPTION* wolfSSL_sk_ACCESS_DESCRIPTION_value(
 WOLFSSL_API void wolfSSL_sk_ACCESS_DESCRIPTION_free(WOLFSSL_STACK* sk);
 WOLFSSL_API void wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(WOLFSSL_STACK* sk,
         void (*f) (WOLFSSL_ACCESS_DESCRIPTION*));
-WOLFSSL_API void wolfSSL_ACCESS_DESCRIPTION_free(WOLFSSL_ACCESS_DESCRIPTION* access);
+WOLFSSL_API void wolfSSL_ACCESS_DESCRIPTION_free(WOLFSSL_ACCESS_DESCRIPTION* a);
 WOLFSSL_API void wolfSSL_sk_X509_EXTENSION_pop_free(
         WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* sk,
         void (*f) (WOLFSSL_X509_EXTENSION*));

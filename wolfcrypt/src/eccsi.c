@@ -1707,17 +1707,17 @@ int wc_SetEccsiPair(EccsiKey* key, const mp_int* ssk, const ecc_point* pvt)
  *
  * @param  [in]   a      MP integer to fix.
  * @param  [in]   order  MP integer representing order of curve.
- * @param  [in]   max    Maximum number of bytes to encode into.
+ * @param  [in]   m      Maximum number of bytes to encode into.
  * @param  [out]  r      MP integer that is the result after fixing.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
-static int eccsi_fit_to_octets(const mp_int* a, mp_int* order, int max,
+static int eccsi_fit_to_octets(const mp_int* a, mp_int* order, int m,
         mp_int* r)
 {
     int err;
 
-    if (mp_count_bits(a) > max * 8) {
+    if (mp_count_bits(a) > m * 8) {
         err = mp_sub(order, (mp_int*)a, r);
     }
     else
@@ -1737,16 +1737,16 @@ static int eccsi_fit_to_octets(const mp_int* a, mp_int* order, int max,
  *
  * @param  [in]   a      MP integer to fix.
  * @param  [in]   order  MP integer representing order of curve.
- * @param  [in]   max    Maximum number of bytes to encode into.
+ * @param  [in]   m      Maximum number of bytes to encode into.
  * @param  [out]  r      MP integer that is the result after fixing.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
-static int eccsi_fit_to_octets(const mp_int* a, const mp_int* order, int max,
+static int eccsi_fit_to_octets(const mp_int* a, const mp_int* order, int m,
         mp_int* r)
 {
     (void)order;
-    (void)max;
+    (void)m;
 
     /* Duplicate line to stop static analyzer complaining. */
     return mp_copy(a, r);
