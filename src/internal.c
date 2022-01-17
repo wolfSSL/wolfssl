@@ -501,7 +501,7 @@ int IsDtlsNotSctpMode(WOLFSSL* ssl)
 /* Secure Real-time Transport Protocol */
 /* If SRTP is not enabled returns the state of the dtls option.
  * If SRTP is enabled returns dtls && !dtlsSrtpProfiles. */
-int IsDtlsNotSrtpMode(WOLFSSL* ssl)
+static WC_INLINE int IsDtlsNotSrtpMode(WOLFSSL* ssl)
 {
 #ifdef WOLFSSL_SRTP
     return ssl->options.dtls && !ssl->dtlsSrtpProfiles;

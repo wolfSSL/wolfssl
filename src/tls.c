@@ -5430,7 +5430,10 @@ static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         /* total length, not include itself */
         ato16(input, &profile_len);
         offset += OPAQUE16_LEN;
+
         /* parse remainder one profile at a time, looking for match in CTX */
+        ret = 0;
+        ssl->dtlsSrtpId = 0;
         for (i=offset; i<length; i+=OPAQUE16_LEN) {
             ato16(input+i, &profile_value);
             /* find first match */
@@ -5456,12 +5459,14 @@ static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         (void)profile_len;
     }
 
-    if (ret != 0) {
+    if (ret == 0 && ssl->dtlsSrtpId == 0) {
         WOLFSSL_MSG("SRP Profile not found!");
-        ssl->dtlsSrtpId = 0;
-        TLSX_UseSRTP_Free(srtp, ssl->heap);
         /* not fatal, so return 0 */
         ret = 0;
+    }
+    else if (ret != 0) {
+        ssl->dtlsSrtpId = 0;
+        TLSX_UseSRTP_Free(srtp, ssl->heap);
     }
 #endif
 

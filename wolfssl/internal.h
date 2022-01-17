@@ -4949,7 +4949,6 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
 #endif
     WOLFSSL_LOCAL int IsSCR(WOLFSSL* ssl);
     WOLFSSL_LOCAL int IsDtlsNotSctpMode(WOLFSSL* ssl);
-    WOLFSSL_LOCAL int IsDtlsNotSrtpMode(WOLFSSL* ssl);
 
     WOLFSSL_LOCAL void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out);
 
