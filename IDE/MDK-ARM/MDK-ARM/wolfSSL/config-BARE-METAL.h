@@ -138,12 +138,6 @@
 #define NO_HMAC
 #endif
 //  </e>
-//      <e>HC128
-#define MDK_CONF_HC128 0
-#if MDK_CONF_HC128 == 1
-#define HAVE_HC128
-#endif
-//  </e>
 //  <e>RABBIT
 #define MDK_CONF_RABBIT 1
 #if MDK_CONF_RABBI == 0

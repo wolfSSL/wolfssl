@@ -52,7 +52,6 @@
           <Path>..\..\..\..\..\..\wolfcrypt\src\ge_low_mem.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\ge_operations.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\hash.c</Path>
-          <Path>..\..\..\..\..\..\wolfcrypt\src\hc128.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\hmac.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\idea.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\integer.c</Path>
@@ -169,7 +168,6 @@
           <Path>Debug\ge_low_mem.obj</Path>
           <Path>Debug\ge_operations.obj</Path>
           <Path>Debug\hash.obj</Path>
-          <Path>Debug\hc128.obj</Path>
           <Path>Debug\hmac.obj</Path>
           <Path>Debug\idea.obj</Path>
           <Path>Debug\integer.obj</Path>

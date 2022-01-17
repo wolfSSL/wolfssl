@@ -167,11 +167,6 @@
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/hash.c</locationURI>
 		</link>
 		<link>
-			<name>wolfCrypt/hc128.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/hc128.c</locationURI>
-		</link>
-		<link>
 			<name>wolfCrypt/hmac.c</name>
 			<type>1</type>
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/hmac.c</locationURI>

@@ -171,11 +171,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/wolfcrypt/src/kdf.c</locationURI>
 		</link>
 		<link>
-			<name>src/wolfcrypt-src/hc128.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/wolfcrypt/src/hc128.c</locationURI>
-		</link>
-		<link>
 			<name>src/wolfcrypt-src/hmac.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/wolfcrypt/src/hmac.c</locationURI>

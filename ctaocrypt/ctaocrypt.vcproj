@@ -181,10 +181,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\include\hc128.h"
-				>
-			</File>
-			<File
 				RelativePath=".\include\hmac.h"
 				>
 			</File>
@@ -278,10 +274,6 @@
 			</File>
 			<File
 				RelativePath=".\src\dsa.c"
-				>
-			</File>
-			<File
-				RelativePath=".\src\hc128.c"
 				>
 			</File>
 			<File

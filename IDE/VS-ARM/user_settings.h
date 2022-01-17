@@ -14,7 +14,6 @@
 #define USE_FAST_MATH
 #define TFM_TIMING_RESISTANT
 #define ECC_TIMING_RESISTANT
-#define NO_HC128
 #define NO_RC4
 #define NO_RABBIT
 #define NO_DSA

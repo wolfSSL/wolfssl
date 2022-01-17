@@ -231,10 +231,6 @@
     #include <wolfssl/wolfcrypt/aes.h>
 #endif
 
-#ifdef HAVE_HC128
-    #include <wolfssl/wolfcrypt/hc128.h>
-#endif
-
 #ifdef HAVE_PKCS7
     #include <wolfssl/wolfcrypt/pkcs7.h>
     #include <wolfssl/wolfcrypt/asn.h>
@@ -686,7 +682,7 @@ static void test_for_double_Free(void)
 "AES128-CBC-SHA256:PSK-AES128-CBC-SHA:PSK-AES256-CBC-SHA:DHE-PSK-AES128-CCM:DHE"
 "-PSK-AES256-CCM:PSK-AES128-CCM:PSK-AES256-CCM:PSK-AES128-CCM-8:PSK-AES256-CCM-"
 "8:DHE-PSK-NULL-SHA384:DHE-PSK-NULL-SHA256:PSK-NULL-SHA384:PSK-NULL-SHA256:PSK-"
-"NULL-SHA:HC128-MD5:HC128-SHA:RABBIT-SHA:AES128-CCM-8:AES256-CCM-8:ECDHE-ECDSA-"
+"NULL-SHA:RABBIT-SHA:AES128-CCM-8:AES256-CCM-8:ECDHE-ECDSA-"
 "AES128-CCM:ECDHE-ECDSA-AES128-CCM-8:ECDHE-ECDSA-AES256-CCM-8:ECDHE-RSA-AES128-"
 "SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA:ECDHE-R"
 "SA-RC4-SHA:ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-RC4-SHA:ECDHE-ECDSA-DES-CBC3-SHA"
@@ -20067,93 +20063,6 @@ static int test_wc_AesCcmEncryptDecrypt (void)
     return ret;
 
 } /* END test_wc_AesCcmEncryptDecrypt */
-
-
-
-/*
- * Test wc_Hc128_SetKey()
- */
-static int test_wc_Hc128_SetKey (void)
-{
-    int ret = 0;
-#ifdef HAVE_HC128
-    HC128 ctx;
-    const char* key = "\x80\x00\x00\x00\x00\x00\x00\x00"
-                      "\x00\x00\x00\x00\x00\x00\x00\x00";
-    const char* iv =  "\x0D\x74\xDB\x42\xA9\x10\x77\xDE"
-                      "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";
-
-    printf(testingFmt, "wc_Hc128_SetKey()");
-        ret = wc_Hc128_SetKey(&ctx, (byte*)key, (byte*)iv);
-        /* Test bad args. */
-        if (ret == 0) {
-            ret = wc_Hc128_SetKey(NULL, (byte*)key, (byte*)iv);
-            if (ret == BAD_FUNC_ARG) {
-                ret = wc_Hc128_SetKey(&ctx, NULL, (byte*)iv);
-            }
-            if (ret == BAD_FUNC_ARG) {
-                ret = wc_Hc128_SetKey(&ctx, (byte*)key, NULL);
-            }
-        }
-
-    printf(resultFmt, ret == 0 ? passed : failed);
-
-
-#endif
-    return ret;
-
-} /* END test_wc_Hc128_SetKey */
-
-/*
- * Testing wc_Hc128_Process()
- */
-static int test_wc_Hc128_Process (void)
-{
-    int ret = 0;
-#ifdef HAVE_HC128
-    HC128 enc;
-    HC128 dec;
-    const char* key =  "\x0F\x62\xB5\x08\x5B\xAE\x01\x54"
-                       "\xA7\xFA\x4D\xA0\xF3\x46\x99\xEC";
-    const char* input = "Encrypt Hc128, and then Decrypt.";
-    size_t inlen = XSTRLEN(input) + 1; /* Add null terminator */
-    byte cipher[inlen];
-    byte plain[inlen];
-
-    printf(testingFmt, "wc_Hc128_Process()");
-    ret = wc_Hc128_SetKey(&enc, (byte*)key, NULL);
-    if (ret == 0) {
-        ret = wc_Hc128_SetKey(&dec, (byte*)key, NULL);
-    }
-    if (ret == 0) {
-        ret = wc_Hc128_Process(&enc, cipher, (byte*)input, (word32)inlen);
-        if (ret == 0) {
-            ret = wc_Hc128_Process(&dec, plain, cipher, (word32)inlen);
-        }
-    }
-
-    /* Bad args. */
-    if (ret == 0) {
-        ret = wc_Hc128_Process(NULL, plain, cipher, (word32)inlen);
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_Hc128_Process(&dec, NULL, cipher, (word32)inlen);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_Hc128_Process(&dec, plain, NULL, (word32)inlen);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            ret = 0;
-        } else {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    }
-
-    printf(resultFmt, ret == 0 ? passed : failed);
-
-   #endif
-    return ret;
-
-} /* END test_wc_Hc128_Process */
 
 
 /*
@@ -52874,8 +52783,6 @@ void ApiTest(void)
     AssertIntEQ(test_RsaDecryptBoundsCheck(), 0);
     AssertIntEQ(test_wc_AesCcmSetKey(), 0);
     AssertIntEQ(test_wc_AesCcmEncryptDecrypt(), 0);
-    AssertIntEQ(test_wc_Hc128_SetKey(), 0);
-    AssertIntEQ(test_wc_Hc128_Process(), 0);
     AssertIntEQ(test_wc_InitDsaKey(), 0);
     AssertIntEQ(test_wc_DsaSignVerify(), 0);
     AssertIntEQ(test_wc_DsaPublicPrivateKeyDecode(), 0);

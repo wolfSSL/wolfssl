@@ -8342,8 +8342,7 @@ WOLFSSL_API int                  wolfSSL_IsTLSv1_1(WOLFSSL*);
 
     \return If successful the call will return one of the following:
     wolfssl_cipher_null, wolfssl_des, wolfssl_triple_des, wolfssl_aes,
-    wolfssl_aes_gcm, wolfssl_aes_ccm, wolfssl_camellia, wolfssl_hc128,
-    wolfssl_rabbit.
+    wolfssl_aes_gcm, wolfssl_aes_ccm, wolfssl_camellia, wolfssl_rabbit.
     \return BAD_FUNC_ARG will be returned for an error state.
 
     \param ssl a pointer to a WOLFSSL object, created using wolfSSL_new().

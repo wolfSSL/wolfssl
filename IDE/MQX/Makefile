@@ -98,7 +98,6 @@ $(WOLF_ROOT)/wolfcrypt/src/fe_operations.o\
 $(WOLF_ROOT)/wolfcrypt/src/ge_low_mem.o\
 $(WOLF_ROOT)/wolfcrypt/src/ge_operations.o\
 $(WOLF_ROOT)/wolfcrypt/src/hash.o\
-$(WOLF_ROOT)/wolfcrypt/src/hc128.o\
 $(WOLF_ROOT)/wolfcrypt/src/hmac.o\
 $(WOLF_ROOT)/wolfcrypt/src/idea.o\
 $(WOLF_ROOT)/wolfcrypt/src/integer.o\

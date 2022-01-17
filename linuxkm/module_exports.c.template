@@ -78,7 +78,6 @@
 #include <wolfssl/wolfcrypt/dsa.h>
 #include <wolfssl/wolfcrypt/srp.h>
 #include <wolfssl/wolfcrypt/idea.h>
-#include <wolfssl/wolfcrypt/hc128.h>
 #include <wolfssl/wolfcrypt/rabbit.h>
 #include <wolfssl/wolfcrypt/chacha.h>
 #include <wolfssl/wolfcrypt/chacha20_poly1305.h>

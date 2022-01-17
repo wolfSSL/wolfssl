@@ -191,7 +191,6 @@
     #define NO_SHA512
     #define NO_DH
     #define NO_DSA
-    #define NO_HC128
     #define HAVE_ECC
     #define NO_SESSION_CACHE
     #define CYASSL_CMSIS_RTOS
@@ -285,9 +284,6 @@
     #ifndef NO_DSA
         #define NO_DSA
     #endif
-    #ifndef NO_HC128
-        #define NO_HC128
-    #endif
 
     #ifndef SINGLE_THREADED
         #include "FreeRTOS.h"
@@ -367,7 +363,6 @@
     #define NO_SHA512
     #define NO_DH
     #define NO_DSA
-    #define NO_HC128
     #define NO_DEV_RANDOM
     #define NO_CYASSL_DIR
     #define NO_RABBIT
@@ -555,12 +550,6 @@
         #undef  NO_RABBIT
     #else
         #define NO_RABBIT
-    #endif
-
-    #if (SSL_CFG_HC128_EN == DEF_ENABLED)
-        #undef  NO_HC128
-    #else
-        #define NO_HC128
     #endif
 
     #if (CPU_CFG_ENDIAN_TYPE == CPU_ENDIAN_TYPE_BIG)

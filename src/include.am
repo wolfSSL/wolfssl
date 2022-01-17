@@ -579,10 +579,6 @@ if BUILD_BLAKE2S
 src_libwolfssl_la_SOURCES += wolfcrypt/src/blake2s.c
 endif
 
-if BUILD_HC128
-src_libwolfssl_la_SOURCES += wolfcrypt/src/hc128.c
-endif
-
 if BUILD_RABBIT
 src_libwolfssl_la_SOURCES += wolfcrypt/src/rabbit.c
 endif

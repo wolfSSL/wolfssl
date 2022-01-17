@@ -173,7 +173,6 @@ HMAC-SHA256 test passed!
 HMAC-SHA384 test passed!
 HMAC-SHA512 test passed!
 GMAC     test passed!
-HC-128   test passed!
 Rabbit   test passed!
 Chacha   test passed!
 POLY1305 test passed!

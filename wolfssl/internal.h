@@ -33,9 +33,6 @@
 #ifndef NO_DES3
     #include <wolfssl/wolfcrypt/des3.h>
 #endif
-#ifndef NO_HC128
-    #include <wolfssl/wolfcrypt/hc128.h>
-#endif
 #ifndef NO_RABBIT
     #include <wolfssl/wolfcrypt/rabbit.h>
 #endif
@@ -463,15 +460,6 @@
     #endif
 
 #if defined(WOLFSSL_STATIC_RSA)
-    #if !defined(NO_HC128) && !defined(NO_RSA) && !defined(NO_TLS)
-        #ifndef NO_MD5
-            #define BUILD_TLS_RSA_WITH_HC_128_MD5
-        #endif
-        #if !defined(NO_SHA)
-            #define BUILD_TLS_RSA_WITH_HC_128_SHA
-        #endif
-    #endif
-
     #if !defined(NO_RABBIT) && !defined(NO_TLS) && !defined(NO_RSA)
         #if !defined(NO_SHA)
             #define BUILD_TLS_RSA_WITH_RABBIT_SHA
@@ -915,11 +903,6 @@
     #define NO_CHAPOL_AEAD
 #endif
 
-#if defined(BUILD_TLS_RSA_WITH_HC_128_SHA) || \
-    defined(BUILD_TLS_RSA_WITH_HC_128_MD5)
-    #define BUILD_HC128
-#endif
-
 #if defined(BUILD_TLS_RSA_WITH_RABBIT_SHA)
     #define BUILD_RABBIT
 #endif
@@ -1022,8 +1005,6 @@ enum {
     TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 = 0x26,
 
     /* wolfSSL extension - eSTREAM */
-    TLS_RSA_WITH_HC_128_MD5       = 0xFB,
-    TLS_RSA_WITH_HC_128_SHA       = 0xFC,
     TLS_RSA_WITH_RABBIT_SHA       = 0xFD,
     WDM_WITH_NULL_SHA256          = 0xFE, /* wolfSSL DTLS Multicast */
 
@@ -1437,9 +1418,6 @@ enum Misc {
     POLY1305_AUTH_SZ    = 16,  /* 128 bits                */
 
     HMAC_NONCE_SZ       = 12,  /* Size of HMAC nonce */
-
-    HC_128_KEY_SIZE     = 16,  /* 128 bits                */
-    HC_128_IV_SIZE      = 16,  /* also 128 bits           */
 
     RABBIT_KEY_SIZE     = 16,  /* 128 bits                */
     RABBIT_IV_SIZE      =  8,  /* 64 bits for iv          */
@@ -3258,9 +3236,6 @@ typedef struct Ciphers {
 #endif
 #ifdef HAVE_CHACHA
     ChaCha*   chacha;
-#endif
-#ifdef HAVE_HC128
-    HC128*  hc128;
 #endif
 #ifdef BUILD_RABBIT
     Rabbit* rabbit;

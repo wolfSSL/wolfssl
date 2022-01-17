@@ -517,7 +517,6 @@ then
     test "$enable_idea" = "" && enable_idea=yes
     test "$enable_cmac" = "" && enable_cmac=yes
     test "$enable_xts" = "" && enable_xts=yes
-    test "$enable_hc128" = "" && enable_hc128=yes
     test "$enable_rabbit" = "" && enable_rabbit=yes
     test "$enable_ocsp" = "" && enable_ocsp=yes
     test "$enable_ocspstapling" = "" && enable_ocspstapling=yes
@@ -684,7 +683,6 @@ then
     test "$enable_idea" = "" && enable_idea=yes
     test "$enable_cmac" = "" && enable_cmac=yes
     test "$enable_xts" = "" && enable_xts=yes
-    test "$enable_hc128" = "" && enable_hc128=yes
     test "$enable_rabbit" = "" && enable_rabbit=yes
     test "$enable_ocsp" = "" && enable_ocsp=yes
     test "$enable_ocspstapling" = "" && enable_ocspstapling=yes
@@ -3402,21 +3400,6 @@ AC_ARG_ENABLE([webclient],
 if test "$ENABLED_WEBCLIENT" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_HTTP_CLIENT"
-fi
-
-
-# HC128
-AC_ARG_ENABLE([hc128],
-    [AS_HELP_STRING([--enable-hc128],[Enable HC-128 (default: disabled)])],
-    [ ENABLED_HC128=$enableval ],
-    [ ENABLED_HC128=no ]
-    )
-
-if test "$ENABLED_HC128" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_HC128"
-else
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_HC128"
 fi
 
 
@@ -7385,7 +7368,6 @@ AM_CONDITIONAL([BUILD_IDEA],[test "x$ENABLED_IDEA" = "xyes" || test "x$ENABLED_U
 AM_CONDITIONAL([BUILD_RC4],[test "x$ENABLED_ARC4" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MD5],[test "x$ENABLED_MD5" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SHA],[test "x$ENABLED_SHA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_HC128],[test "x$ENABLED_HC128" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_RABBIT],[test "x$ENABLED_RABBIT" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_FIPS],[test "x$ENABLED_FIPS" = "xyes"])
 AM_CONDITIONAL([BUILD_FIPS_V1],[test "$HAVE_FIPS_VERSION" = 1])
@@ -7719,7 +7701,6 @@ echo "   * certgen:                    $ENABLED_CERTGEN"
 echo "   * certreq:                    $ENABLED_CERTREQ"
 echo "   * certext:                    $ENABLED_CERTEXT"
 echo "   * certgencache:               $ENABLED_certgencache"
-echo "   * HC-128:                     $ENABLED_HC128"
 echo "   * RABBIT:                     $ENABLED_RABBIT"
 echo "   * CHACHA:                     $ENABLED_CHACHA"
 echo "   * XCHACHA:                    $ENABLED_XCHACHA"

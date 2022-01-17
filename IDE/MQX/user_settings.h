@@ -34,7 +34,6 @@
 #define WC_RSA_PSS
 #define WOLFSSL_BASE64_ENCODE
 #define NO_RC4
-#define NO_HC128
 #define NO_RABBIT
 #define WOLFSSL_SHA224
 #define WOLFSSL_SHA3

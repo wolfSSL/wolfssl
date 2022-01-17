@@ -273,13 +273,6 @@
       <TreeImageGuid>941832c1-fc3b-4e1b-94e8-01ea17128b42</TreeImageGuid>
       <ParentItem>2170607d-803e-45b0-80af-6507d495a8de</ParentItem>
     </Instance>
-    <Instance Guid="980e2f67-afb3-4b48-bc51-8de94240ee4f">
-      <Name>hc128.c</Name>
-      <Type>File</Type>
-      <RelativePath>..\..\..\..\..\wolfcrypt\src\hc128.c</RelativePath>
-      <TreeImageGuid>941832c1-fc3b-4e1b-94e8-01ea17128b42</TreeImageGuid>
-      <ParentItem>2170607d-803e-45b0-80af-6507d495a8de</ParentItem>
-    </Instance>
     <Instance Guid="85c26e25-fbfe-4ece-afca-4d142c6ea135">
       <Name>hmac.c</Name>
       <Type>File</Type>

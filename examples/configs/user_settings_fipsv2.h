@@ -100,7 +100,6 @@ extern "C" {
 
 /* Disabled Algorithms */
 #define NO_DSA
-#define NO_HC128
 #define NO_MD4
 #define NO_PSK
 #define NO_PWDBASED

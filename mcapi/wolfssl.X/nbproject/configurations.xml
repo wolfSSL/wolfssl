@@ -29,7 +29,6 @@
         <itemPath>../../wolfcrypt/src/ecc.c</itemPath>
         <itemPath>../../wolfcrypt/src/ecc_fp.c</itemPath>
         <itemPath>../../wolfcrypt/src/error.c</itemPath>
-        <itemPath>../../wolfcrypt/src/hc128.c</itemPath>
         <itemPath>../../wolfcrypt/src/hmac.c</itemPath>
         <itemPath>../../wolfcrypt/src/integer.c</itemPath>
         <itemPath>../../wolfcrypt/src/logging.c</itemPath>

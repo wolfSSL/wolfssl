@@ -25693,7 +25693,6 @@ int wolfSSL_CIPHER_get_cipher_nid(const WOLFSSL_CIPHER* cipher)
         {"None",                    NID_undef},
         {"IDEA",                    NID_idea_cbc},
         {"RABBIT",                  NID_undef},
-        {"HC128",                   NID_undef},
         {NULL,                      NID_undef}
     };
 
@@ -26097,11 +26096,6 @@ static WC_INLINE const char* wolfssl_cipher_to_string(int cipher, int key_size)
                 encStr = "Camellia(256)";
             else
                 encStr = "Camellia(?)";
-            break;
-#endif
-#if defined(HAVE_HC128) && !defined(NO_HC128)
-        case wolfssl_hc128:
-            encStr = "HC128(128)";
             break;
 #endif
 #if defined(HAVE_RABBIT) && !defined(NO_RABBIT)

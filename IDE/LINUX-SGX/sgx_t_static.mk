@@ -62,7 +62,6 @@ Wolfssl_C_Files :=$(WOLFSSL_ROOT)/wolfcrypt/src/aes.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/error.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/hash.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/kdf.c\
-					$(WOLFSSL_ROOT)/wolfcrypt/src/hc128.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/hmac.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/integer.c\
 					$(WOLFSSL_ROOT)/src/internal.c\

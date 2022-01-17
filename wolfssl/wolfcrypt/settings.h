@@ -465,7 +465,6 @@
     /* Allows use of DH with fixed points if uncommented and NO_DH is removed */
     /* WOLFSSL_DH_CONST */
     #define NO_DSA
-    #define NO_HC128
     #define HAVE_ECC
     #define NO_SESSION_CACHE
     #define WOLFSSL_CMSIS_RTOS
@@ -802,9 +801,6 @@ extern void uITRON4_free(void *p) ;
     #ifndef NO_DSA
         #define NO_DSA
     #endif
-    #ifndef NO_HC128
-        #define NO_HC128
-    #endif
 
     #ifndef SINGLE_THREADED
         #include "semphr.h"
@@ -934,7 +930,6 @@ extern void uITRON4_free(void *p) ;
     /* Allows use of DH with fixed points if uncommented and NO_DH is removed */
     /* WOLFSSL_DH_CONST */
     #define NO_DSA
-    #define NO_HC128
     #define NO_DEV_RANDOM
     #define NO_WOLFSSL_DIR
     #define NO_RABBIT
@@ -2031,7 +2026,7 @@ extern void uITRON4_free(void *p) ;
 #if (defined(WOLFSSL_TLS13) && defined(WOLFSSL_NO_TLS12)) || \
     (!defined(HAVE_AES_CBC) && defined(NO_DES3) && defined(NO_RC4) && \
      !defined(HAVE_CAMELLIA) && !defined(HAVE_IDEA) && \
-     !defined(HAVE_NULL_CIPHER) && !defined(HAVE_HC128))
+     !defined(HAVE_NULL_CIPHER))
     #define WOLFSSL_AEAD_ONLY
 #endif
 

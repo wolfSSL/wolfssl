@@ -264,10 +264,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\wolfcrypt\src\hc128.c"
-				>
-			</File>
-			<File
 				RelativePath=".\wolfcrypt\src\hmac.c"
 				>
 			</File>

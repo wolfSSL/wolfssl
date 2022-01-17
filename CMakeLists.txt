@@ -902,16 +902,6 @@ endif()
 #       - Web server
 #       - Web client
 
-# HC128
-set(WOLFSSL_HC128_HELP_STRING "Enable HC-128 (default: disabled)")
-add_option("WOLFSSL_HC128" ${WOLFSSL_HC128_HELP_STRING} "no" "yes;no")
-
-if(NOT WOLFSSL_HC128)
-    list(APPEND WOLFSSL_DEFINITIONS "-DNO_HC128")
-else()
-    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_HC128")
-endif()
-
 # RABBIT
 if(NOT WOLFSSL_RABBIT)
     list(APPEND WOLFSSL_DEFINITIONS "-DNO_RABBIT")

@@ -86,7 +86,6 @@ extern "C" {
 #define NO_MD4
 #define NO_MD5
 #define NO_SHA
-#define NO_HC128
 #define NO_RABBIT
 #define NO_PWDBASED
 #define NO_PKCS12
