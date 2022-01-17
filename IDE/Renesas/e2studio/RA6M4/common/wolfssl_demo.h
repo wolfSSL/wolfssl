@@ -32,7 +32,8 @@
 #define FLASH_HP_DF_BLOCK_1   0x08000040U /*   64 B:  0x40100040 - 0x4010007F */
 #define FLASH_HP_DF_BLOCK_2   0x08000080U /*   64 B:  0x40100080 - 0x401000BF */
 #define FLASH_HP_DF_BLOCK_3   0x080000C0U /*   64 B:  0x401000C0 - 0x401000FF */
-#define DIRECT_KEY_ADDRESS      FLASH_HP_DF_BLOCK_1
+#define DIRECT_KEY_ADDRESS_256      FLASH_HP_DF_BLOCK_1
+#define DIRECT_KEY_ADDRESS_128      FLASH_HP_DF_BLOCK_2
 
 /* Enable wolfcrypt test */
 /* can be enabled with benchmark test */
