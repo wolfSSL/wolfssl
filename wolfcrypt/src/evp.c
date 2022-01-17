@@ -3501,56 +3501,45 @@ int wolfSSL_EVP_CIPHER_nid(const WOLFSSL_EVP_CIPHER *cipher)
 
 const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
 {
-
     const struct alias {
         const char *name;
         const char *alias;
-    } alias_tbl[] =
-    {
+    } alias_tbl[] = {
 #ifndef NO_DES3
-        {EVP_DES_CBC, "DES"},
         {EVP_DES_CBC, "des"},
-        {EVP_DES_ECB, "DES-ECB"},
         {EVP_DES_ECB, "des-ecb"},
-        {EVP_DES_EDE3_CBC, "DES3"},
         {EVP_DES_EDE3_CBC, "des3"},
         {EVP_DES_EDE3_CBC, "3des"},
-        {EVP_DES_EDE3_ECB, "DES-EDE3"},
         {EVP_DES_EDE3_ECB, "des-ede3"},
         {EVP_DES_EDE3_ECB, "des-ede3-ecb"},
 #endif
 #ifdef HAVE_IDEA
-        {EVP_IDEA_CBC, "IDEA"},
         {EVP_IDEA_CBC, "idea"},
 #endif
 #ifndef NO_AES
     #ifdef HAVE_AES_CBC
         #ifdef WOLFSSL_AES_128
-            {EVP_AES_128_CBC, "AES128-CBC"},
             {EVP_AES_128_CBC, "aes128-cbc"},
             {EVP_AES_128_CBC, "aes128"},
         #endif
         #ifdef WOLFSSL_AES_192
-            {EVP_AES_192_CBC, "AES192-CBC"},
             {EVP_AES_192_CBC, "aes192-cbc"},
+            {EVP_AES_192_CBC, "aes192"},
         #endif
         #ifdef WOLFSSL_AES_256
-            {EVP_AES_256_CBC, "AES256-CBC"},
             {EVP_AES_256_CBC, "aes256-cbc"},
             {EVP_AES_256_CBC, "aes256"},
         #endif
     #endif
     #ifdef HAVE_AES_ECB
         #ifdef WOLFSSL_AES_128
-            {EVP_AES_128_ECB, "AES128-ECB"},
             {EVP_AES_128_ECB, "aes128-ecb"},
         #endif
         #ifdef WOLFSSL_AES_192
-            {EVP_AES_192_ECB, "AES192-ECB"},
             {EVP_AES_192_ECB, "aes192-ecb"},
         #endif
         #ifdef WOLFSSL_AES_256
-            {EVP_AES_256_ECB, "AES256-ECB"},
+            {EVP_AES_256_ECB, "aes256-ecb"},
         #endif
     #endif
     #ifdef HAVE_AESGCM
@@ -3579,16 +3568,20 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
 
     WOLFSSL_ENTER("EVP_get_cipherbyname");
 
-    for( al = alias_tbl; al->name != NULL; al++)
-        if(XSTRNCMP(name, al->alias, XSTRLEN(al->alias)+1) == 0) {
+    for (al = alias_tbl; al->name != NULL; al++) {
+        /* Accept any case alternative version of an alias. */
+        if (XSTRNCASECMP(name, al->alias, XSTRLEN(al->alias)+1) == 0) {
             name = al->name;
             break;
         }
+    }
 
-    for( ent = cipher_tbl; ent->name != NULL; ent++)
-        if(XSTRNCMP(name, ent->name, XSTRLEN(ent->name)+1) == 0) {
+    for (ent = cipher_tbl; ent->name != NULL; ent++) {
+        /* Accept any case alternative version of name. */
+        if (XSTRNCASECMP(name, ent->name, XSTRLEN(ent->name)+1) == 0) {
             return (WOLFSSL_EVP_CIPHER *)ent->name;
         }
+    }
 
     return NULL;
 }
