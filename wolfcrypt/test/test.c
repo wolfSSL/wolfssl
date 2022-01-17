@@ -88,10 +88,6 @@
 #define PRINT_HEAP_CHECKPOINT()
 #endif
 
-#ifdef __GNUC__
-_Pragma("GCC diagnostic ignored \"-Wunused-function\"")
-#endif
-
 #ifdef USE_FLAT_TEST_H
     #ifdef HAVE_CONFIG_H
         #include "test_paths.h"
@@ -412,7 +408,9 @@ WOLFSSL_TEST_SUBROUTINE int  hmac_sha3_test(void);
 WOLFSSL_TEST_SUBROUTINE int  sshkdf_test(void);
 WOLFSSL_TEST_SUBROUTINE int  x963kdf_test(void);
 WOLFSSL_TEST_SUBROUTINE int  arc4_test(void);
+#ifdef WC_RC2
 WOLFSSL_TEST_SUBROUTINE int  rc2_test(void);
+#endif
 WOLFSSL_TEST_SUBROUTINE int  hc128_test(void);
 WOLFSSL_TEST_SUBROUTINE int  rabbit_test(void);
 WOLFSSL_TEST_SUBROUTINE int  chacha_test(void);
@@ -433,7 +431,9 @@ WOLFSSL_TEST_SUBROUTINE int  gmac_test(void);
 WOLFSSL_TEST_SUBROUTINE int  aesccm_test(void);
 WOLFSSL_TEST_SUBROUTINE int  aeskeywrap_test(void);
 WOLFSSL_TEST_SUBROUTINE int  camellia_test(void);
+#ifdef WC_RSA_NO_PADDING
 WOLFSSL_TEST_SUBROUTINE int  rsa_no_pad_test(void);
+#endif
 WOLFSSL_TEST_SUBROUTINE int  rsa_test(void);
 WOLFSSL_TEST_SUBROUTINE int  dh_test(void);
 WOLFSSL_TEST_SUBROUTINE int  dsa_test(void);
@@ -535,7 +535,9 @@ WOLFSSL_TEST_SUBROUTINE int mp_test(void);
 #if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN)
 WOLFSSL_TEST_SUBROUTINE int prime_test(void);
 #endif
-#ifdef ASN_BER_TO_DER
+#if defined(ASN_BER_TO_DER) && \
+    (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
+     defined(OPENSSL_EXTRA_X509_SMALL))
 WOLFSSL_TEST_SUBROUTINE int berder_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE int logging_test(void);
@@ -14251,8 +14253,8 @@ static int rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
     }
 
     /* after loading in key use tmp as the test buffer */
-#if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2) && \
-    !defined(WOLFSSL_SP_ARM64_ASM)
+#if !(defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2) && \
+    (defined(WOLFSSL_SP_ARM64_ASM) || defined(WOLFSSL_SP_ARM32_ASM)))
     /* The ARM64_ASM code that was FIPS validated did not return these expected
      * failure codes. These tests cases were added after the assembly was
      * in-lined in the module and validated, these tests will be available in
@@ -14293,7 +14295,7 @@ static int rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
         ERROR_OUT(-7813, exit_rsa_even_mod);
     }
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
-#endif /* HAVE_FIPS_VERSION == 2 && !WOLFSSL_SP_ARM64_ASM */
+#endif /* !(HAVE_FIPS_VERSION == 2 && WOLFSSL_SP_ARMxx_ASM) */
     /* if making it to this point of code without hitting an ERROR_OUT then
      * all tests have passed */
     ret = 0;
@@ -16395,6 +16397,10 @@ static int dh_test_check_pubvalue(void)
 #endif
 
 #ifndef WC_NO_RNG
+
+#if !(defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2) && \
+      (defined(WOLFSSL_SP_ARM64_ASM) || defined(WOLFSSL_SP_ARM32_ASM)))
+
 #ifdef HAVE_PUBLIC_FFDHE
 static int dh_ffdhe_test(WC_RNG *rng, const DhParams* params)
 #else
@@ -16570,6 +16576,7 @@ done:
 
     return ret;
 }
+#endif /* !(HAVE_FIPS_VERSION == 2 && WOLFSSL_SP_ARMxx_ASM) */
 #endif /* !WC_NO_RNG */
 #endif /* HAVE_FFDHE */
 
@@ -16902,8 +16909,8 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
         ERROR_OUT(-8125, done);
 #endif
 
-#if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2) && \
-    !defined(WOLFSSL_SP_ARM64_ASM)
+#if !(defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2) && \
+      (defined(WOLFSSL_SP_ARM64_ASM) || defined(WOLFSSL_SP_ARM32_ASM)))
 /* RNG with DH and SP_ASM code not supported in the in-lined FIPS ASM code,
  * this will be available for testing in the 140-3 module */
 #ifndef WC_NO_RNG
@@ -36123,7 +36130,7 @@ static int mp_test_shbd(mp_int* a, mp_int* b, WC_RNG* rng)
 }
 #endif
 
-#ifndef WOLFSSL_SP_MATH
+#if !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)
 static int mp_test_div(mp_int* a, mp_int* d, mp_int* r, mp_int* rem,
                        WC_RNG* rng)
 {
@@ -37140,7 +37147,7 @@ WOLFSSL_TEST_SUBROUTINE int mp_test(void)
     if ((ret = mp_test_set_is_bit(&a)) != 0)
         return ret;
 #endif
-#ifdef WOLFSSL_SP_MATH_ALL
+#if !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)
     if ((ret = mp_test_div(&a, &b, &r1, &r2, &rng)) != 0)
         return ret;
 #endif
