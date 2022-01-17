@@ -4,7 +4,7 @@
 
 Including the following examples:
 
-* simple `tls_client`/`tls_server`
+* simple `TLS client`/`server`
 * crypt benchmark
 
  The `user_settings.h` file enables some of the hardened settings.
@@ -15,11 +15,11 @@ Including the following examples:
 2. Microchip CryptoAuthentication Library: https://github.com/MicrochipTech/cryptoauthlib
 
 ## Setup
-1. wolfSSL under ESP-IDF. Please see [README.md](https://github.com/wolfSSL/wolfssl/blob/master/IDE/Espressif/ESP-IDF/README.md)
-2. CryptoAuthentication Library under ESP-IDF. Please see [README.md](https://github.com/miyazakh/cryptoauthlib_esp_idf/blob/master/README.md)
-3. Uncomment out `#define WOLFSSL_ESPWROOM32SE` in `/path/to/wolfssl/wolfssl/wolfcrypt/settings.h`
-    * **Note:** Need to enable `WOLFSSL_ESPIDF`
+1. Comment out `#define WOLFSSL_ESPWROOM32` in `/path/to/wolfssl/IDE/Espressif/ESP-IDF/user_settings.h`\
+   Uncomment out `#define WOLFSSL_ESPWROOM32SE` in `/path/to/wolfssl/IDE/Espressif/ESP-IDF/user_settings.h`
     * **Note:** crypt test will fail if enabled `WOLFSSL_ESPWROOM32SE`
+3. wolfSSL under ESP-IDF. Please see [README.md](https://github.com/wolfSSL/wolfssl/blob/master/IDE/Espressif/ESP-IDF/README.md)
+4. CryptoAuthentication Library under ESP-IDF. Please see [README.md](https://github.com/miyazakh/cryptoauthlib_esp_idf/blob/master/README.md)
 
 ## Configuration
 1. The `user_settings.h` can be found in `/path/to/esp-idf/components/wolfssl/include/user_settings.h`
