@@ -635,8 +635,6 @@
       <SourceItemType32>CSource</SourceItemType32>
       <SourceItemGuid33>1529a7d4-0b6c-4ea8-900a-ec81b5eac904</SourceItemGuid33>
       <SourceItemType33>CSource</SourceItemType33>
-      <SourceItemGuid34>980e2f67-afb3-4b48-bc51-8de94240ee4f</SourceItemGuid34>
-      <SourceItemType34>CSource</SourceItemType34>
       <SourceItemGuid35>85c26e25-fbfe-4ece-afca-4d142c6ea135</SourceItemGuid35>
       <SourceItemType35>CSource</SourceItemType35>
       <SourceItemGuid36>74663551-9e8b-4269-9c36-d538d56a3414</SourceItemGuid36>
@@ -1723,10 +1721,6 @@
     <Instance Guid="1529a7d4-0b6c-4ea8-900a-ec81b5eac904">
       <ItemAddTime>636575488940589048</ItemAddTime>
       <ItemAddTimeCount>27</ItemAddTimeCount>
-    </Instance>
-    <Instance Guid="980e2f67-afb3-4b48-bc51-8de94240ee4f">
-      <ItemAddTime>636575488940589048</ItemAddTime>
-      <ItemAddTimeCount>28</ItemAddTimeCount>
     </Instance>
     <Instance Guid="85c26e25-fbfe-4ece-afca-4d142c6ea135">
       <ItemAddTime>636575488940589048</ItemAddTime>
