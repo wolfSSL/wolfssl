@@ -1279,6 +1279,12 @@ end:
 #endif
 
 #elif defined(TIME_OVERRIDES)
+#if !defined(NO_ASN) && !defined(NO_ASN_TIME)
+    word32 TimeNowInMilliseconds(void)
+    {
+        return (word32) wc_Time(0) * 1000;
+    }
+#else
     #ifndef HAVE_TIME_T_TYPE
         typedef long time_t;
     #endif
@@ -1294,6 +1300,7 @@ end:
     {
         return (word32) XTIME(0) * 1000;
     }
+#endif
 
 #elif defined(XTIME_MS)
     word32 TimeNowInMilliseconds(void)

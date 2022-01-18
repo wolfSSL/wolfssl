@@ -8341,9 +8341,14 @@ ProtocolVersion MakeDTLSv1_2(void)
 #endif
 
 #elif defined(TIME_OVERRIDES)
-
+#if !defined(NO_ASN) && !defined(NO_ASN_TIME)
     /* use same asn time overrides unless user wants tick override above */
 
+    word32 LowResTimer(void)
+    {
+        return (word32) wc_Time(0);
+    }
+#else
     #ifndef HAVE_TIME_T_TYPE
         typedef long time_t;
     #endif
@@ -8353,6 +8358,7 @@ ProtocolVersion MakeDTLSv1_2(void)
     {
         return (word32) XTIME(0);
     }
+#endif
 
 #elif defined(USE_WINDOWS_API)
 
@@ -8546,7 +8552,11 @@ ProtocolVersion MakeDTLSv1_2(void)
 
     word32 LowResTimer(void)
     {
+    #if !defined(NO_ASN) && !defined(NO_ASN_TIME)
+        return (word32)wc_Time(0);
+    #else
         return (word32)XTIME(0);
+    #endif
     }
 #endif
 #else

@@ -35954,8 +35954,8 @@ static void test_wolfSSL_X509_time_adj(void)
         WOLFSSL_FILETYPE_ASN1));
 
     t = 0;
-    not_before = XTIME(0);
-    not_after = XTIME(0) + (60 * 24 * 30); /* 30 days after */
+    not_before = wc_Time(0);
+    not_after = wc_Time(0) + (60 * 24 * 30); /* 30 days after */
     AssertNotNull(X509_time_adj(X509_get_notBefore(x509), not_before, &t));
     AssertNotNull(X509_time_adj(X509_get_notAfter(x509), not_after, &t));
     /* Check X509_gmtime_adj, too. */
@@ -49731,7 +49731,7 @@ static void test_openssl_make_self_signed_certificate(EVP_PKEY* pkey)
     AssertIntNE(X509_set_subject_name(x509, name), 0);
     AssertIntNE(X509_set_issuer_name(x509, name), 0);
 
-    not_before = (long)XTIME(NULL);
+    not_before = (long)wc_Time(NULL);
     not_after = not_before + (365 * 24 * 60 * 60);
     AssertNotNull(X509_time_adj(X509_get_notBefore(x509), not_before, &epoch_off));
     AssertNotNull(X509_time_adj(X509_get_notAfter(x509), not_after, &epoch_off));

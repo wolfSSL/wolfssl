@@ -12217,7 +12217,7 @@ int wc_ValidateDate(const byte* date, byte format, int dateType)
 #endif
     (void)tmpTime;
 
-    ltime = XTIME(0);
+    ltime = wc_Time(0);
 
 #ifdef WOLFSSL_BEFORE_DATE_CLOCK_SKEW
     if (dateType == BEFORE) {
@@ -12288,9 +12288,32 @@ int wc_GetTime(void* timePtr, word32 timeSize)
         return BUFFER_E;
     }
 
-    *ltime = XTIME(0);
+    *ltime = wc_Time(0);
 
     return 0;
+}
+
+#ifdef TIME_OVERRIDES
+    #ifndef HAVE_TIME_T_TYPE
+        typedef long time_t;
+    #endif
+    extern time_t XTIME(time_t* t);
+#endif
+
+static wc_time_cb timeFunc = NULL;
+
+int wc_SetTimeCb(wc_time_cb f)
+{
+    timeFunc = f;
+    return 0;
+}
+
+time_t wc_Time(time_t* t)
+{
+    if (timeFunc != NULL) {
+        return timeFunc(t);
+    }
+    return XTIME(t);
 }
 
 #endif /* !NO_ASN_TIME */
@@ -23457,7 +23480,7 @@ static int SetValidity(byte* output, int daysValid)
 #endif
     (void)tmpTime;
 
-    now = XTIME(0);
+    now = wc_Time(0);
 
     /* before now */
     before[0] = ASN_GENERALIZED_TIME;
@@ -23528,7 +23551,7 @@ static int SetValidity(byte* before, byte* after, int daysValid)
 #endif
     (void)tmpTime;
 
-    now = XTIME(0);
+    now = wc_Time(0);
 
     /* subtract 1 day of seconds for more compliance */
     then = now - 86400;

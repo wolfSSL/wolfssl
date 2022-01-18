@@ -27863,7 +27863,7 @@ int wolfSSL_X509_cmp_time(const WOLFSSL_ASN1_TIME* asnTime, time_t* cmpTime)
 
     if (cmpTime == NULL) {
         /* Use current time */
-        *pTime = XTIME(0);
+        *pTime = wc_Time(0);
     }
     else {
         pTime = cmpTime;
@@ -27893,7 +27893,7 @@ WOLFSSL_ASN1_TIME *wolfSSL_X509_time_adj_ex(WOLFSSL_ASN1_TIME *asnTime,
     int offset_day, long offset_sec, time_t *in_tm)
 {
     /* get current time if in_tm is null */
-    time_t t = in_tm ? *in_tm : XTIME(0);
+    time_t t = in_tm ? *in_tm : wc_Time(0);
     return wolfSSL_ASN1_TIME_adj(asnTime, t, offset_day, offset_sec);
 }
 
@@ -28209,7 +28209,7 @@ int wolfSSL_ASN1_TIME_to_tm(const WOLFSSL_ASN1_TIME* asnTime, struct tm* tm)
             return WOLFSSL_FAILURE;
         }
 
-        currentTime = XTIME(0);
+        currentTime = wc_Time(0);
         if (currentTime <= 0) {
             WOLFSSL_MSG("Failed to get current time.");
             return WOLFSSL_FAILURE;
@@ -31087,7 +31087,7 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
     }
 
     if (from == NULL) {
-        fromSecs = XTIME(0);
+        fromSecs = wc_Time(0);
         fromTm = XGMTIME(&fromSecs, tmpTs);
         if (fromTm == NULL) {
             WOLFSSL_MSG("XGMTIME for from time failed.");
@@ -31106,7 +31106,7 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
     }
 
     if (to == NULL) {
-        toSecs = XTIME(0);
+        toSecs = wc_Time(0);
         toTm = XGMTIME(&toSecs, tmpTs);
         if (toTm == NULL) {
             WOLFSSL_MSG("XGMTIME for to time failed.");

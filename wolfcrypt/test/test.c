@@ -541,6 +541,9 @@ WOLFSSL_TEST_SUBROUTINE int prime_test(void);
 WOLFSSL_TEST_SUBROUTINE int berder_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE int logging_test(void);
+#if !defined(NO_ASN) && !defined(NO_ASN_TIME)
+WOLFSSL_TEST_SUBROUTINE int time_test(void);
+#endif
 WOLFSSL_TEST_SUBROUTINE int mutex_test(void);
 #if defined(USE_WOLFSSL_MEMORY) && !defined(FREERTOS)
 WOLFSSL_TEST_SUBROUTINE int memcb_test(void);
@@ -1397,6 +1400,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         return err_sys("logging  test failed!\n", ret);
     else
         TEST_PASS("logging  test passed!\n");
+
+#if !defined(NO_ASN) && !defined(NO_ASN_TIME)
+    if ( (ret = time_test()) != 0)
+        return err_sys("time test failed!\n", ret);
+    else
+        TEST_PASS("time test passed!\n");
+#endif
 
     if ( (ret = mutex_test()) != 0)
         return err_sys("mutex    test failed!\n", ret);
@@ -38606,6 +38616,35 @@ WOLFSSL_TEST_SUBROUTINE int certpiv_test(void)
 }
 #endif /* WOLFSSL_CERT_PIV */
 
+#if !defined(NO_ASN) && !defined(NO_ASN_TIME)
+static time_t time_cb(time_t* t)
+{
+    if (t != NULL) {
+        *t = 99;
+    }
+
+    return 99;
+}
+
+WOLFSSL_TEST_SUBROUTINE int time_test(void)
+{
+    time_t t;
+
+    if (wc_SetTimeCb(time_cb) != 0)
+        return -15000;
+    t = wc_Time(NULL);
+    if (t != 99)
+        return -15001;
+    if (wc_GetTime(&t, sizeof(time_t)) != 0)
+        return -15002;
+    if (t != 99)
+        return -15003;
+    if (wc_SetTimeCb(NULL) != 0)
+        return -15004;
+
+    return 0;
+}
+#endif
 
 #undef ERROR_OUT
 

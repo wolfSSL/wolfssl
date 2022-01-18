@@ -1048,7 +1048,7 @@ static void Trace(int idx)
 static void TraceHeader(void)
 {
     if (TraceOn) {
-        time_t ticks = XTIME(NULL);
+        time_t ticks = wc_Time(NULL);
         XFPRINTF(TraceFile, "\n%s", XCTIME(&ticks));
     }
 }
@@ -1449,7 +1449,7 @@ static word32 SessionHash(IpInfo* ipInfo, TcpInfo* tcpInfo)
 static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
 {
     SnifferSession* session;
-    time_t          currTime = XTIME(NULL);
+    time_t          currTime = wc_Time(NULL);
     word32          row = SessionHash(ipInfo, tcpInfo);
 
     wc_LockMutex(&SessionMutex);
@@ -4487,7 +4487,7 @@ static void RemoveStaleSessions(void)
         session = SessionTable[i];
         while (session) {
             SnifferSession* next = session->next;
-            if (XTIME(NULL) >= session->lastUsed + WOLFSSL_SNIFFER_TIMEOUT) {
+            if (wc_Time(NULL) >= session->lastUsed + WOLFSSL_SNIFFER_TIMEOUT) {
                 TraceStaleSession();
                 RemoveSession(session, NULL, NULL, i);
             }
@@ -4536,7 +4536,7 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     session->cliPort = (word16)tcpInfo->srcPort;
     session->cliSeqStart = tcpInfo->sequence;
     session->cliExpected = 1;  /* relative */
-    session->lastUsed= XTIME(NULL);
+    session->lastUsed= wc_Time(NULL);
     session->keySz = 0;
 #ifdef HAVE_SNI
     session->sni = NULL;

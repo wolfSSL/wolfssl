@@ -1927,7 +1927,7 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
         if (signingTime == NULL || signingTimeSz == 0)
             return BAD_FUNC_ARG;
 
-        tm = XTIME(0);
+        tm = wc_Time(0);
         timeSz = GetAsnTimeString(&tm, signingTime, signingTimeSz);
         if (timeSz < 0)
             return timeSz;
