@@ -82,7 +82,7 @@ single call hash function. Instead the name `WC_SHA`, `WC_SHA256`, `WC_SHA384` a
 Release 5.1.1 of wolfSSL embedded TLS has a high vulnerability fix:
 
 ### Vulnerabilities
-* \[High\]  In connections using AES-CBC or DES3 with TLS/DTLS 1.2 or 1.1 the IV being used is not random. Users using wolfSSL version 5.0.0 or 5.1.0 doing TLS/DTLS 1.2 or 1.1 connections, without AEAD only, should update the version of wolfSSL used.
+* \[High\]  In connections using AES-CBC or DES3 with TLS/DTLS 1.2 or 1.1 the IV being used is not random. Users using wolfSSL version 5.0.0 or 5.1.0 doing TLS/DTLS 1.2 or 1.1 connections, without AEAD only, should update the version of wolfSSL used. (CVE-2022-23408)
 
 # wolfSSL Release 5.1.0 (Dec 27, 2021)
 Release 5.1.0 of wolfSSL embedded TLS has bug fixes and new features including:
