@@ -11,7 +11,8 @@
     \param len length of the key passed in
     \param iv pointer to the initialization vector used to initialize the key
     \param dir Cipher direction. Set AES_ENCRYPTION to encrypt,  or
-    AES_DECRYPTION to decrypt.
+    AES_DECRYPTION to decrypt. Direction for some modes (CFB and CTR) is
+    always AES_ENCRYPTION.
 
     _Example_
     \code
@@ -870,3 +871,66 @@ WOLFSSL_API int wc_AesXtsFree(XtsAes* aes);
 */
 WOLFSSL_API int  wc_AesInit(Aes*, void*, int);
 
+/*!
+    \ingroup AES
+
+    \brief AES with CFB mode.
+
+    \return 0 Success and negative error values on failure
+
+    \param aes   AES keys to use for block encrypt/decrypt
+    \param out   output buffer to hold cipher text must be at least as large
+    as inputbuffer)
+    \param in    input plain text buffer to encrypt
+    \param sz    size of input buffer
+
+    _Example_
+    \code
+    Aes aes;
+    unsigned char plain[SIZE];
+    unsigned char cipher[SIZE];
+
+    //set up key with AES_ENCRYPTION as dir for both encrypt and decrypt
+
+    if(wc_AesCfbEncrypt(&aes, cipher, plain, SIZE) != 0)
+    {
+        // Handle error
+    }
+    \endcode
+
+    \sa wc_AesCfbDecrypt
+    \sa wc_AesSetKey
+*/
+WOLFSSL_API int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
+
+/*!
+    \ingroup AES
+
+    \brief AES with CFB mode.
+
+    \return 0 Success and negative error values on failure
+
+    \param aes   AES keys to use for block encrypt/decrypt
+    \param out   output buffer to hold decrypted text must be at least as large
+    as inputbuffer)
+    \param in    input buffer to decrypt
+    \param sz    size of input buffer
+
+    _Example_
+    \code
+    Aes aes;
+    unsigned char plain[SIZE];
+    unsigned char cipher[SIZE];
+
+    //set up key with AES_ENCRYPTION as dir for both encrypt and decrypt
+
+    if(wc_AesCfbDecrypt(&aes, plain, cipher, SIZE) != 0)
+    {
+        // Handle error
+    }
+    \endcode
+
+    \sa wc_AesCfbEncrypt
+    \sa wc_AesSetKey
+*/
+WOLFSSL_API int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz);
