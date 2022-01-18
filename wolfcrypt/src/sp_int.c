@@ -8109,7 +8109,7 @@ int sp_mulmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
  *
  * @param  [in]   a  SP integer to find inverse of.
  * @param  [in]   m  SP integer this is the modulus.
- * @param  [out]  r  SP integer to hold result.
+ * @param  [out]  r  SP integer to hold result. r cannot be m.
  *
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a, m or r is NULL; a or m is zero; a and m are even or
@@ -8125,9 +8125,11 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
     sp_int* c = NULL;
     int used = ((m == NULL) || (a == NULL)) ? 1 :
                    ((m->used >= a->used) ? m->used + 1 : a->used + 1);
+    int evenMod = 0;
     DECL_SP_INT_ARRAY(t, used, 4);
+    (void)used;
 
-    if ((a == NULL) || (m == NULL) || (r == NULL)) {
+    if ((a == NULL) || (m == NULL) || (r == NULL) || (r == m)) {
         err = MP_VAL;
     }
 
@@ -8143,19 +8145,18 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
         v = t[1];
         b = t[2];
         c = t[3];
-        sp_init_size(v, used + 1);
 
         if (_sp_cmp_abs(a, m) != MP_LT) {
-            err = sp_mod(a, m, v);
-            a = v;
+            err = sp_mod(a, m, r);
+            a = r;
         }
     }
 
 #ifdef WOLFSSL_SP_INT_NEGATIVE
     if ((err == MP_OKAY) && (a->sign == MP_NEG)) {
         /* Make 'a' positive */
-        err = sp_add(m, a, v);
-        a = v;
+        err = sp_add(m, a, r);
+        a = r;
     }
 #endif
 
@@ -8174,29 +8175,29 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
     }
     else if (err != MP_OKAY) {
     }
-    else if (sp_iseven(m)) {
-        /* a^-1 mod m = m + (1 - m*(m^-1 % a)) / a
-         *            = m - (m*(m^-1 % a) - 1) / a
-         */
-        err = sp_invmod(m, a, r);
-        if (err == MP_OKAY) {
-            err = sp_mul(r, m, r);
-        }
-        if (err == MP_OKAY) {
-            _sp_sub_d(r, 1, r);
-            err = sp_div(r, a, r, NULL);
-            if (err == MP_OKAY) {
-                sp_sub(m, r, r);
-            }
-        }
-    }
     else {
         sp_init_size(u, m->used + 1);
+        sp_init_size(v, 2*m->used + 1);
         sp_init_size(b, m->used + 1);
         sp_init_size(c, m->used + 1);
 
-        sp_copy(m, u);
-        sp_copy(a, v);
+        if (sp_iseven(m)) {
+            sp_int* ts;
+            /* a^-1 mod m = m + (1 - m*(m^-1 % a)) / a
+             *            = m - (m*(m^-1 % a) - 1) / a
+             */
+            /* Reverse a and m and perform invmod. */
+            ts = a;
+            a = m;
+            m = ts;
+            sp_copy(m, u);
+            sp_mod(a, m, v);
+            evenMod = 1;
+        }
+        else {
+            sp_copy(m, u);
+            sp_copy(a, v);
+        }
         _sp_zero(b);
         sp_set(c, 1);
 
@@ -8232,6 +8233,20 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
         }
         if (sp_iszero(u)) {
             err = MP_VAL;
+        }
+        else if (evenMod) {
+            /* a and m were reversed and now we need to finish operation.
+             *    m - ((m*r - 1) / a)    (reverse a and m)
+             * => a - ((a*r - 1) / m)
+             */
+            err = sp_mul(c, a, v);
+            if (err == MP_OKAY) {
+                _sp_sub_d(v, 1, v);
+                err = sp_div(v, m, v, NULL);
+            }
+            if (err == MP_OKAY) {
+                sp_sub(a, v, r);
+            }
         }
         else {
             err = sp_copy(c, r);

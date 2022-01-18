@@ -36670,18 +36670,20 @@ static int mp_test_invmod(mp_int* a, mp_int* m, mp_int* r)
     ret = mp_invmod(a, m, r);
     if (ret != MP_OKAY)
         return -13175;
+    if (mp_cmp_d(r, 3))
+        return -13176;
 
     mp_set(a, 3);
     mp_set(m, 5);
     ret = mp_invmod(a, m, r);
     if (ret != MP_OKAY)
-        return -13176;
+        return -13177;
 
 #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_INT_NEGATIVE)
     mp_read_radix(a, "-3", 16);
     ret = mp_invmod(a, m, r);
     if (ret != MP_OKAY)
-        return -13177;
+        return -13178;
 #endif
 
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
@@ -36689,28 +36691,28 @@ static int mp_test_invmod(mp_int* a, mp_int* m, mp_int* r)
     mp_set(m, 3);
     ret = mp_invmod_mont_ct(a, m, r, 1);
     if (ret != MP_VAL)
-        return -13178;
+        return -13179;
     mp_set(a, 1);
     mp_set(m, 0);
     ret = mp_invmod_mont_ct(a, m, r, 1);
     if (ret != MP_VAL)
-        return -13179;
+        return -13180;
     mp_set(a, 1);
     mp_set(m, 1);
     ret = mp_invmod_mont_ct(a, m, r, 1);
     if (ret != MP_VAL)
-        return -13180;
+        return -13181;
     mp_set(a, 1);
     mp_set(m, 2);
     ret = mp_invmod_mont_ct(a, m, r, 1);
     if (ret != MP_VAL)
-        return -13181;
+        return -13182;
 
     mp_set(a, 1);
     mp_set(m, 3);
     ret = mp_invmod_mont_ct(a, m, r, 1);
     if (ret != MP_OKAY)
-        return -13182;
+        return -13183;
 #endif
 
     return 0;
