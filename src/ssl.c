@@ -1406,12 +1406,13 @@ int wolfSSL_export_dtls_srtp_keying_material(WOLFSSL* ssl,
         WOLFSSL_MSG("Not using DTLS SRTP");
         return EXT_MISSING;
     }
-    if (*olen < (size_t)profile->kdfBits) {
-        return BUFFER_E;
-    }
     if (out == NULL) {
         *olen = profile->kdfBits;
         return LENGTH_ONLY_E;
+    }
+
+    if (*olen < (size_t)profile->kdfBits) {
+        return BUFFER_E;
     }
 
 #ifdef WOLFSSL_HAVE_PRF

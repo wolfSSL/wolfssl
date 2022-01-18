@@ -5407,33 +5407,44 @@ static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     byte isRequest)
 {
     int ret = BAD_FUNC_ARG;
-#ifndef NO_WOLFSSL_SERVER
-    int i;
-    TlsxSrtp* srtp = NULL;
     word16 profile_len = 0;
     word16 profile_value = 0;
     word16 offset = 0;
+#ifndef NO_WOLFSSL_SERVER
+    int i;
+    TlsxSrtp* srtp = NULL;
 #endif
 
     if (length < OPAQUE16_LEN) {
         return BUFFER_ERROR;
     }
 
+    /* reset selected DTLS SRTP profile ID */
+    ssl->dtlsSrtpId = 0;
+
+    /* total length, not include itself */
+    ato16(input, &profile_len);
+    offset += OPAQUE16_LEN;
+
     if (!isRequest) {
 #ifndef NO_WOLFSSL_CLIENT
-        ssl->dtlsSrtpProfiles = ssl->ctx->dtlsSrtpProfiles;
-        ret = 0; /* success */
+        if (length < offset + OPAQUE16_LEN)
+            return BUFFER_ERROR;
+
+        ato16(input + offset, &profile_value);
+
+        /* check that the profile received was in the ones we support */
+        if (profile_value < 16 && 
+                               (ssl->dtlsSrtpProfiles & (1 << profile_value))) {
+            ssl->dtlsSrtpId = profile_value;
+            ret = 0; /* success */
+        }
 #endif
     }
 #ifndef NO_WOLFSSL_SERVER
     else {
-        /* total length, not include itself */
-        ato16(input, &profile_len);
-        offset += OPAQUE16_LEN;
-
         /* parse remainder one profile at a time, looking for match in CTX */
         ret = 0;
-        ssl->dtlsSrtpId = 0;
         for (i=offset; i<length; i+=OPAQUE16_LEN) {
             ato16(input+i, &profile_value);
             /* find first match */
@@ -5448,6 +5459,7 @@ static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                         (void*)srtp, ssl->heap);
                     if (ret == 0) {
                         TLSX_SetResponse(ssl, TLSX_USE_SRTP);
+                        /* successfully set extension */
                     }
                 }
                 else {
@@ -5456,19 +5468,18 @@ static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 break;
             }
         }
-        (void)profile_len;
     }
 
     if (ret == 0 && ssl->dtlsSrtpId == 0) {
-        WOLFSSL_MSG("SRP Profile not found!");
-        /* not fatal, so return 0 */
-        ret = 0;
+        WOLFSSL_MSG("TLSX_UseSRTP_Parse profile not found!");
+        /* not fatal */
     }
     else if (ret != 0) {
         ssl->dtlsSrtpId = 0;
         TLSX_UseSRTP_Free(srtp, ssl->heap);
     }
 #endif
+    (void)profile_len;
 
     return ret;
 }
