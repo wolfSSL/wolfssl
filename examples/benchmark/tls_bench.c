@@ -1995,6 +1995,10 @@ int bench_tls(void* args)
         #endif
         #endif
                 if (argClientOnly) {
+            #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
+                    /* to avoid to wait server forever */
+                    info->serverListening = 1;
+            #endif
             #ifndef NO_WOLFSSL_CLIENT
                     ret = bench_tls_client(info);
             #endif
