@@ -12171,7 +12171,7 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
     sp_clamp(a);
     sp_rshb(a, bits, a);
 
-    if (_sp_cmp(a, m) != MP_LT) {
+    if (_sp_cmp_abs(a, m) != MP_LT) {
         _sp_sub_off(a, m, a, 0);
     }
 
@@ -12370,7 +12370,7 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
     sp_clamp(a);
     sp_rshb(a, bits, a);
 
-    if (_sp_cmp(a, m) != MP_LT) {
+    if (_sp_cmp_abs(a, m) != MP_LT) {
         sp_sub(a, m, a);
     }
 
