@@ -224,6 +224,12 @@ then
 fi
 AC_SUBST([ENABLED_ASM])
 
+
+# Default math is SP Math all and not fast math
+# FIPS v1 and v2 must use fast math
+DEF_SP_MATH="yes"
+DEF_FAST_MATH="no"
+
 # FIPS 140
 AC_ARG_ENABLE([fips],
     [AS_HELP_STRING([--enable-fips],[Enable FIPS 140-2, Will NOT work w/o FIPS license (default: disabled)])],
@@ -286,65 +292,87 @@ AS_CASE([$ENABLED_FIPS],
     [disabled],[
         FIPS_VERSION="disabled"
         ENABLED_FIPS="no"
+        DEF_SP_MATH="no"
+        DEF_FAST_MATH="yes"
     ],
     [v1|yes|cert2425],[
         FIPS_VERSION="v1"
         HAVE_FIPS_VERSION=1
         ENABLED_FIPS="yes"
+        DEF_SP_MATH="no"
+        DEF_FAST_MATH="yes"
     ],
     [v2|cert3389],[
         FIPS_VERSION="v2"
         HAVE_FIPS_VERSION=2
         HAVE_FIPS_VERSION_MINOR=0
         ENABLED_FIPS="yes"
+        DEF_SP_MATH="no"
+        DEF_FAST_MATH="yes"
     ],
     [rand],[
         FIPS_VERSION="rand"
         HAVE_FIPS_VERSION=2
         HAVE_FIPS_VERSION_MINOR=1
         ENABLED_FIPS="yes"
+        DEF_SP_MATH="no"
+        DEF_FAST_MATH="yes"
     ],
     [v5-RC8],[
         FIPS_VERSION="v5-RC8"
         HAVE_FIPS_VERSION=5
         HAVE_FIPS_VERSION_MINOR=0
         ENABLED_FIPS="yes"
+        DEF_SP_MATH="no"
+        DEF_FAST_MATH="yes"
     ],
     [v5-RC9],[
         FIPS_VERSION="v5-RC9"
         HAVE_FIPS_VERSION=5
         HAVE_FIPS_VERSION_MINOR=1
         ENABLED_FIPS="yes"
+        DEF_SP_MATH="no"
+        DEF_FAST_MATH="yes"
     ],
     [v5-RC10],[
         FIPS_VERSION="v5-RC10"
         HAVE_FIPS_VERSION=5
         HAVE_FIPS_VERSION_MINOR=2
         ENABLED_FIPS="yes"
+        DEF_SP_MATH="no"
+        DEF_FAST_MATH="yes"
     ],
     [v5-RC11],[
         FIPS_VERSION="v5-RC11"
         HAVE_FIPS_VERSION=5
         HAVE_FIPS_VERSION_MINOR=2
         ENABLED_FIPS="yes"
+        DEF_SP_MATH="no"
+        DEF_FAST_MATH="yes"
     ],
     [v5|v5-RC12],[
         FIPS_VERSION="v5-RC12"
         HAVE_FIPS_VERSION=5
         HAVE_FIPS_VERSION_MINOR=2
         ENABLED_FIPS="yes"
+        DEF_SP_MATH="no"
+        DEF_FAST_MATH="yes"
     ],
     [ready|v5-ready],[
         FIPS_VERSION="v5-ready"
         HAVE_FIPS_VERSION=5
         HAVE_FIPS_VERSION_MINOR=3
         ENABLED_FIPS="yes"
+        DEF_SP_MATH="no"
+        DEF_FAST_MATH="yes"
     ],
     [dev|v5-dev],[
         FIPS_VERSION="v5-dev"
         HAVE_FIPS_VERSION=5
         HAVE_FIPS_VERSION_MINOR=3
         ENABLED_FIPS="yes"
+        DEF_SP_MATH="no"
+        DEF_FAST_MATH="yes"
     ],
     [
         AC_MSG_ERROR([Invalid value for --enable-fips "$ENABLED_FIPS" (main options: v1, v2, v5, ready, dev, rand, no, disabled)])
@@ -503,7 +531,7 @@ AC_ARG_ENABLE([sp],
 AC_ARG_ENABLE([sp-math-all],
     [AS_HELP_STRING([--enable-sp-math-all],[Enable Single Precision math implementation for full algorithm suite (default: enabled)])],
     [ ENABLED_SP_MATH_ALL=$enableval ],
-    [ ENABLED_SP_MATH_ALL=yes ],
+    [ ENABLED_SP_MATH_ALL=$DEF_SP_MATH ],
     )
 
 # Single Precision maths (acceleration for common key sizes and curves)
@@ -518,6 +546,22 @@ AC_ARG_ENABLE([sp-math],
     [ ENABLED_SP_MATH=$enableval ],
     [ ENABLED_SP_MATH=$ENABLED_SP_MATH_DEFAULT ],
     )
+
+if test "$enable_sp_math" != ""
+then
+    # When the restricted SP Math is selected and not SP Math ALL, then disable
+    # SP Math ALL.
+    if test "$enable_sp_math" != "no" && test "$enable_sp_math_all" = ""
+    then
+        ENABLED_SP_MATH_ALL="no"
+    else
+        # Can't choose restricted and unrestricted SP Math
+        if test "$enable_sp_math" != "no" && test "$enable_sp_math_all" != "no"
+        then
+            AC_MSG_ERROR([--enable-sp-math and --enable-sp-math-all are incompatible. Use --enable-sp-math-all only when all key sizes need to be supported.])
+        fi
+    fi
+fi
 
 # enable SP math assembly support automatically for x86_64 and aarch64 (except Linux kernel module)
 SP_ASM_DEFAULT=no
@@ -5738,8 +5782,25 @@ fi
 AC_ARG_ENABLE([fastmath],
     [AS_HELP_STRING([--enable-fastmath],[Enable fast math ops (default: disabled)])],
     [ ENABLED_FASTMATH=$enableval ],
-    [ ENABLED_FASTMATH=no]
+    [ ENABLED_FASTMATH=$DEF_FAST_MATH ]
     )
+
+# fast HUGE math
+AC_ARG_ENABLE([fasthugemath],
+    [AS_HELP_STRING([--enable-fasthugemath],[Enable fast math + huge code (default: disabled)])],
+    [ ENABLED_FASTHUGEMATH=$enableval ],
+    [ ENABLED_FASTHUGEMATH=no ]
+    )
+
+if test "$ENABLED_BUMP" = "yes"
+then
+    ENABLED_FASTHUGEMATH="yes"
+fi
+
+if test "$ENABLED_FASTHUGEMATH" = "yes"
+then
+    ENABLED_FASTMATH="yes"
+fi
 
 # if sp-math-all is not set, then enable fast math
 if test "x$ENABLED_FASTMATH" = "xyes" && test "$enable_sp_math_all" = ""
@@ -5749,15 +5810,15 @@ then
     then
         if test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no" && test "$ENABLED_RSA" = "no"
         then
-            ENABLED_FASTMATH=no
+            ENABLED_FASTMATH="no"
         else
             AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
-            ENABLED_HEAPMATH=no
+            ENABLED_HEAPMATH="no"
         fi
     else
         AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
         ENABLED_HEAPMATH="no"
-        ENABLED_SP_MATH_ALL=no
+        ENABLED_SP_MATH_ALL="no"
     fi
     if test "$host_cpu" = "x86_64"
     then
@@ -5783,25 +5844,6 @@ then
     AM_CFLAGS="$AM_CFLAGS -DUSE_INTEGER_HEAP_MATH"
     ENABLED_HEAPMATH=yes
     ENABLED_SP_MATH_ALL=no
-fi
-
-# fast HUGE math
-AC_ARG_ENABLE([fasthugemath],
-    [AS_HELP_STRING([--enable-fasthugemath],[Enable fast math + huge code (default: disabled)])],
-    [ ENABLED_FASTHUGEMATH=$enableval ],
-    [ ENABLED_FASTHUGEMATH=no ]
-    )
-
-if test "$ENABLED_BUMP" = "yes"
-then
-    ENABLED_FASTHUGEMATH="yes"
-fi
-
-if test "$ENABLED_FASTHUGEMATH" = "yes"
-then
-    ENABLED_FASTMATH="yes"
-    AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
-    ENABLED_HEAPMATH="no"
 fi
 
 
@@ -6399,6 +6441,10 @@ do
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_MALLOC"
     ENABLED_SP_MATH_ALL="yes"
     ;;
+  neg)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_INT_NEGATIVE"
+    ENABLED_SP_MATH_ALL="yes"
+    ;;
   *)
     AC_MSG_ERROR([Support SP int bit sizes: 256, 384, 521, 1024, 2048, 3072, 4096. $ENABLED_SP_MATH_ALL not supported])
     ;;
@@ -6414,13 +6460,13 @@ if test "$ENABLED_SP_MATH_ALL" = "yes"; then
 
   case $host_cpu in
   *x86_64*)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86_64"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86_64 -DWOLFSSL_X86_64_BUILD"
     ;;
   *x86*)
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86"
     ;;
   *aarch64*)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM64"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM64 -DWOLFSSL_AARCH64_BUILD"
     ;;
   *arm*)
     if test $host_alias = "thumb"; then
@@ -6455,6 +6501,10 @@ if test "$ENABLED_SP_MATH_ALL" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_S390X"
     ;;
   esac
+
+  if test "$ENABLED_FIPS=" != "no" || test "$SELFTEST_VERSION=" != "no"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_INT_NEGATIVE"
+  fi
 fi
 
 
@@ -7026,7 +7076,6 @@ then
         ENABLED_PKI="yes"
     fi
 fi
-
 
 # When building for wolfRand, strip out all options to disable everything.
 AS_IF([test "x$ENABLED_FIPS" = "xyes" && test "x$FIPS_VERSION" = "xrand"],

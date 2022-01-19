@@ -724,6 +724,11 @@ typedef struct sp_ecc_ctx {
 /* Unused error. Defined for backward compatability. */
 #define MP_RANGE        MP_NOT_INF
 
+#ifdef USE_FAST_MATH
+/* For old FIPS, need FP_MEM defined for old implementation. */
+#define FP_MEM          (-2)
+#endif
+
 /* Number of bits in each word/digit. */
 #define DIGIT_BIT  SP_WORD_SIZE
 /* Mask of all used bits in word/digit. */
@@ -846,7 +851,8 @@ MP_API int sp_sub(sp_int* a, sp_int* b, sp_int* r);
     defined(WOLFCRYPT_HAVE_ECCSI) || defined(WOLFCRYPT_HAVE_SAKKE)
 MP_API int sp_addmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r);
 #endif
-#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if defined(WOLFSSL_SP_MATH_ALL) && (!defined(WOLFSSL_RSA_VERIFY_ONLY) || \
+    defined(HAVE_ECC))
 MP_API int sp_submod(sp_int* a, sp_int* b, sp_int* m, sp_int* r);
 #endif
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
@@ -913,7 +919,8 @@ MP_API int sp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng);
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
 MP_API int sp_gcd(sp_int* a, sp_int* b, sp_int* r);
 #endif
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(WC_RSA_BLINDING)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
+    (!defined(WC_RSA_BLINDING) || defined(HAVE_FIPS) || defined(HAVE_SELFTEST))
 MP_API int sp_lcm(sp_int* a, sp_int* b, sp_int* r);
 #endif
 

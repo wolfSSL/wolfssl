@@ -621,7 +621,8 @@ static void myFipsCb(int ok, int err, const char* hash)
         static byte gTestMemory[14000];
     #elif defined(WOLFSSL_CERT_EXT)
         static byte gTestMemory[140000];
-    #elif defined(USE_FAST_MATH) && !defined(ALT_ECC_SIZE)
+    #elif (defined(WOLFSSL_SP_MATH_ALL) || defined(USE_FAST_MATH)) && \
+          !defined(ALT_ECC_SIZE)
         static byte gTestMemory[160000];
     #else
         static byte gTestMemory[80000];
@@ -16291,7 +16292,7 @@ static int dh_ffdhe_test(WC_RNG *rng, int name)
         ERROR_OUT(-8059, done);
     }
 
-#if defined(WOLFSSL_HAVE_SP_DH) && defined(USE_FAST_MATH)
+#if defined(WOLFSSL_HAVE_SP_DH) || defined(USE_FAST_MATH)
     /* Make p even */
     key->p.dp[0] &= (mp_digit)-2;
     if (ret != 0) {
@@ -16315,7 +16316,8 @@ static int dh_ffdhe_test(WC_RNG *rng, int name)
     }
 
     ret = wc_DhCheckKeyPair(key, pub, pubSz, priv, privSz);
-    if (ret != MP_VAL && ret != MP_EXPTMOD_E && ret != ASYNC_OP_E) {
+    if (ret != MP_VAL && ret != MP_EXPTMOD_E && ret != MP_CMP_E &&
+            ret != ASYNC_OP_E) {
         ERROR_OUT(-8057, done);
     }
 

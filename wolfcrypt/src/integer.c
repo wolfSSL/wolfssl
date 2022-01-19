@@ -34,18 +34,18 @@
 /* in case user set USE_FAST_MATH there */
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifndef NO_BIG_INT
+
+#if !defined(USE_FAST_MATH) && defined(USE_INTEGER_HEAP_MATH)
+
+#ifndef WOLFSSL_SP_MATH
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
-
-#ifndef NO_BIG_INT
-
-#if !defined(USE_FAST_MATH) && defined(USE_INTEGER_HEAP_MATH)
-
-#ifndef WOLFSSL_SP_MATH
 
 #include <wolfssl/wolfcrypt/integer.h>
 

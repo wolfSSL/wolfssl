@@ -148,6 +148,10 @@ endif
 if BUILD_SP
 nobase_include_HEADERS+= wolfssl/wolfcrypt/sp.h
 nobase_include_HEADERS+= wolfssl/wolfcrypt/sp_int.h
+else
+if BUILD_SP_INT
+nobase_include_HEADERS+= wolfssl/wolfcrypt/sp_int.h
+endif
 endif
 
 if BUILD_SELFTEST
