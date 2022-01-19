@@ -240,7 +240,6 @@
 #include <wolfssl/wolfcrypt/dsa.h>
 #include <wolfssl/wolfcrypt/srp.h>
 #include <wolfssl/wolfcrypt/idea.h>
-#include <wolfssl/wolfcrypt/rabbit.h>
 #include <wolfssl/wolfcrypt/chacha.h>
 #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
 #include <wolfssl/wolfcrypt/pwdbased.h>
@@ -413,7 +412,6 @@ WOLFSSL_TEST_SUBROUTINE int  arc4_test(void);
 #ifdef WC_RC2
 WOLFSSL_TEST_SUBROUTINE int  rc2_test(void);
 #endif
-WOLFSSL_TEST_SUBROUTINE int  rabbit_test(void);
 WOLFSSL_TEST_SUBROUTINE int  chacha_test(void);
 WOLFSSL_TEST_SUBROUTINE int  XChaCha_test(void);
 WOLFSSL_TEST_SUBROUTINE int  chacha20_poly1305_aead_test(void);
@@ -1039,13 +1037,6 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         return err_sys("ARC4     test failed!\n", ret);
     else
         TEST_PASS("ARC4     test passed!\n");
-#endif
-
-#ifndef NO_RABBIT
-    if ( (ret = rabbit_test()) != 0)
-        return err_sys("Rabbit   test failed!\n", ret);
-    else
-        TEST_PASS("Rabbit   test passed!\n");
 #endif
 
 #ifdef HAVE_CHACHA
@@ -5070,82 +5061,6 @@ WOLFSSL_TEST_SUBROUTINE int arc4_test(void)
     return 0;
 }
 #endif
-
-#ifndef NO_RABBIT
-WOLFSSL_TEST_SUBROUTINE int rabbit_test(void)
-{
-    byte cipher[16];
-    byte plain[16];
-
-    const char* keys[] =
-    {
-        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-        "\xAC\xC3\x51\xDC\xF1\x62\xFC\x3B\xFE\x36\x3D\x2E\x29\x13\x28\x91"
-    };
-
-    const char* ivs[] =
-    {
-        "\x00\x00\x00\x00\x00\x00\x00\x00",
-        "\x59\x7E\x26\xC1\x75\xF5\x73\xC3",
-        0
-    };
-
-    testVector a, b, c;
-    testVector test_rabbit[3];
-
-    int times = sizeof(test_rabbit) / sizeof(testVector), i;
-
-    a.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
-    a.output = "\xED\xB7\x05\x67\x37\x5D\xCD\x7C";
-    a.inLen  = 8;
-    a.outLen = 8;
-
-    b.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
-    b.output = "\x6D\x7D\x01\x22\x92\xCC\xDC\xE0";
-    b.inLen  = 8;
-    b.outLen = 8;
-
-    c.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
-    c.output = "\x04\xCE\xCA\x7A\x1A\x86\x6E\x77";
-    c.inLen  = 8;
-    c.outLen = 8;
-
-    test_rabbit[0] = a;
-    test_rabbit[1] = b;
-    test_rabbit[2] = c;
-
-    for (i = 0; i < times; ++i) {
-        Rabbit enc;
-        Rabbit dec;
-        byte*  iv;
-
-        /* align keys/ivs in plain/cipher buffers */
-        XMEMCPY(plain,  keys[i], 16);
-        if (ivs[i]) {
-            XMEMCPY(cipher, ivs[i],   8);
-            iv = cipher;
-        } else
-            iv = NULL;
-        wc_RabbitSetKey(&enc, plain, iv);
-        wc_RabbitSetKey(&dec, plain, iv);
-
-        /* align input */
-        XMEMCPY(plain, test_rabbit[i].input, test_rabbit[i].outLen);
-        wc_RabbitProcess(&enc, cipher, plain,  (word32)test_rabbit[i].outLen);
-        wc_RabbitProcess(&dec, plain,  cipher, (word32)test_rabbit[i].outLen);
-
-        if (XMEMCMP(plain, test_rabbit[i].input, test_rabbit[i].outLen))
-            return -4600 - i;
-
-        if (XMEMCMP(cipher, test_rabbit[i].output, test_rabbit[i].outLen))
-            return -4610 - i;
-    }
-
-    return 0;
-}
-#endif /* NO_RABBIT */
-
 
 #ifdef HAVE_CHACHA
 WOLFSSL_TEST_SUBROUTINE int chacha_test(void)

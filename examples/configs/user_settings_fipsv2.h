@@ -103,7 +103,6 @@ extern "C" {
 #define NO_MD4
 #define NO_PSK
 #define NO_PWDBASED
-#define NO_RABBIT
 #define NO_RC4
 #define WOLFSSL_NO_SHAKE256
 

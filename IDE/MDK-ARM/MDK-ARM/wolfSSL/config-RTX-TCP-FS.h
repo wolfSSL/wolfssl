@@ -197,13 +197,6 @@
 #define NO_HMAC
 #endif
 //  </e>
-//  <e>RABBIT
-#define MDK_CONF_RABBIT 1
-#if MDK_CONF_RABBI == 0
-#define NO_RABBIT
-#endif
-//  </e>
-
 //      <e>AEAD
 #define MDK_CONF_AEAD 0
 #if MDK_CONF_AEAD == 1

@@ -43,7 +43,6 @@ void benchmark_configure(int block_size);
 void bench_des(int doAsync);
 void bench_idea(void);
 void bench_arc4(int doAsync);
-void bench_rabbit(void);
 void bench_chacha(void);
 void bench_chacha20_poly1305_aead(void);
 void bench_aescbc(int doAsync);

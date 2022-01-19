@@ -40,7 +40,6 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/wc_encrypt.h \
                          wolfssl/wolfcrypt/wc_port.h \
                          wolfssl/wolfcrypt/pwdbased.h \
-                         wolfssl/wolfcrypt/rabbit.h \
                          wolfssl/wolfcrypt/chacha.h \
                          wolfssl/wolfcrypt/chacha20_poly1305.h \
                          wolfssl/wolfcrypt/random.h \

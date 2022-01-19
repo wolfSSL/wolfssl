@@ -122,8 +122,6 @@
 
 #define NO_DSA
 #define NO_RC4
-#define NO_RABBIT
-#define NO_RC4
 #define NO_PSK
 #define WOLFSSL_NO_SHAKE256
 #define NO_MD4

@@ -59,7 +59,6 @@
     <ClCompile Include="..\..\wolfcrypt\src\pkcs7.c" />
     <ClCompile Include="..\..\wolfcrypt\src\poly1305.c" />
     <ClCompile Include="..\..\wolfcrypt\src\pwdbased.c" />
-    <ClCompile Include="..\..\wolfcrypt\src\rabbit.c" />
     <ClCompile Include="..\..\wolfcrypt\src\random.c" />
     <ClCompile Include="..\..\wolfcrypt\src\ripemd.c" />
     <ClCompile Include="..\..\wolfcrypt\src\rsa.c" />
@@ -129,7 +128,6 @@
     <ClInclude Include="..\..\wolfssl\wolfcrypt\pkcs7.h" />
     <ClInclude Include="..\..\wolfssl\wolfcrypt\poly1305.h" />
     <ClInclude Include="..\..\wolfssl\wolfcrypt\pwdbased.h" />
-    <ClInclude Include="..\..\wolfssl\wolfcrypt\rabbit.h" />
     <ClInclude Include="..\..\wolfssl\wolfcrypt\random.h" />
     <ClInclude Include="..\..\wolfssl\wolfcrypt\ripemd.h" />
     <ClInclude Include="..\..\wolfssl\wolfcrypt\rsa.h" />

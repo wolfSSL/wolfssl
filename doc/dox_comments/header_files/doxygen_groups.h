@@ -204,7 +204,6 @@
     \defgroup Poly1305 Algorithms - Poly1305
     \defgroup RIPEMD Algorithms - RIPEMD
     \defgroup RSA Algorithms - RSA
-    \defgroup Rabbit Algorithms - Rabbit
     \defgroup SHA Algorithms - SHA 128/224/256/384/512
     \defgroup SipHash Algorithm - SipHash
     \defgroup SRP Algorithms - SRP

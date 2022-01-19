@@ -110,7 +110,6 @@ $(WOLF_ROOT)/wolfcrypt/src/pkcs12.o\
 $(WOLF_ROOT)/wolfcrypt/src/pkcs7.o\
 $(WOLF_ROOT)/wolfcrypt/src/poly1305.o\
 $(WOLF_ROOT)/wolfcrypt/src/pwdbased.o\
-$(WOLF_ROOT)/wolfcrypt/src/rabbit.o\
 $(WOLF_ROOT)/wolfcrypt/src/random.o\
 $(WOLF_ROOT)/wolfcrypt/src/ripemd.o\
 $(WOLF_ROOT)/wolfcrypt/src/rsa.o\

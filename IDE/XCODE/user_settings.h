@@ -7,7 +7,6 @@
 
 #ifdef HAVE_FIPS
     #define NO_MD4
-    #define NO_RABBIT
     #define NO_DSA
     #define NO_PWDBASED
 #else
@@ -68,7 +67,6 @@
     /* off by default */
     #define NO_RC4
     #define NO_MD4
-    #define NO_RABBIT
     #define NO_DSA
     #define NO_PSK
     #define NO_PWDBASED

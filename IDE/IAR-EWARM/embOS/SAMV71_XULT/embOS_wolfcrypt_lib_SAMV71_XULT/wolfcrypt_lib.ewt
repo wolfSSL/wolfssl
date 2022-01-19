@@ -2371,9 +2371,6 @@
       <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\pwdbased.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\rabbit.c</name>
-    </file>
-    <file>
       <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\random.c</name>
     </file>
     <file>

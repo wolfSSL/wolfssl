@@ -2543,10 +2543,6 @@ void InitCiphers(WOLFSSL* ssl)
     ssl->encrypt.cam = NULL;
     ssl->decrypt.cam = NULL;
 #endif
-#ifdef BUILD_RABBIT
-    ssl->encrypt.rabbit = NULL;
-    ssl->decrypt.rabbit = NULL;
-#endif
 #ifdef HAVE_CHACHA
     ssl->encrypt.chacha = NULL;
     ssl->decrypt.chacha = NULL;
@@ -2602,10 +2598,6 @@ void FreeCiphers(WOLFSSL* ssl)
 #ifdef HAVE_CAMELLIA
     XFREE(ssl->encrypt.cam, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->decrypt.cam, ssl->heap, DYNAMIC_TYPE_CIPHER);
-#endif
-#ifdef BUILD_RABBIT
-    XFREE(ssl->encrypt.rabbit, ssl->heap, DYNAMIC_TYPE_CIPHER);
-    XFREE(ssl->decrypt.rabbit, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 #ifdef HAVE_CHACHA
     XFREE(ssl->encrypt.chacha, ssl->heap, DYNAMIC_TYPE_CIPHER);
@@ -3686,13 +3678,6 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     if (haveRSA ) {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = SSL_RSA_WITH_3DES_EDE_CBC_SHA;
-    }
-#endif
-
-#ifdef BUILD_TLS_RSA_WITH_RABBIT_SHA
-    if (!dtls && tls && haveRSA) {
-        suites->suites[idx++] = CIPHER_BYTE;
-        suites->suites[idx++] = TLS_RSA_WITH_RABBIT_SHA;
     }
 #endif
 
@@ -10243,13 +10228,6 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
-#ifndef NO_RABBIT
-        case TLS_RSA_WITH_RABBIT_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-#endif /* !NO_RABBIT */
-
         case TLS_RSA_WITH_AES_128_GCM_SHA256 :
         case TLS_RSA_WITH_AES_256_GCM_SHA384 :
             if (requirement == REQUIRES_RSA)
@@ -15617,12 +15595,6 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
             break;
     #endif
 
-    #ifdef BUILD_RABBIT
-        case wolfssl_rabbit:
-            ret = wc_RabbitProcess(ssl->encrypt.rabbit, out, input, sz);
-            break;
-    #endif
-
     #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
         !defined(NO_CHAPOL_AEAD)
         case wolfssl_chacha:
@@ -15874,12 +15846,6 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
     #ifdef HAVE_CAMELLIA
         case wolfssl_camellia:
             ret = wc_CamelliaCbcDecrypt(ssl->decrypt.cam, plain, input, sz);
-            break;
-    #endif
-
-    #ifdef BUILD_RABBIT
-        case wolfssl_rabbit:
-            ret = wc_RabbitProcess(ssl->decrypt.rabbit, plain, input, sz);
             break;
     #endif
 
@@ -20928,10 +20894,6 @@ static const CipherSuiteInfo cipher_names[] =
     SUITE_INFO("PSK-NULL-SHA","TLS_PSK_WITH_NULL_SHA",CIPHER_BYTE,TLS_PSK_WITH_NULL_SHA,TLSv1_MINOR,SSLv3_MAJOR),
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_RABBIT_SHA
-    SUITE_INFO("RABBIT-SHA","TLS_RSA_WITH_RABBIT_SHA",CIPHER_BYTE,TLS_RSA_WITH_RABBIT_SHA,TLSv1_MINOR,SSLv3_MAJOR),
-#endif
-
 #ifdef BUILD_TLS_RSA_WITH_AES_128_CCM_8
     SUITE_INFO("AES128-CCM-8","TLS_RSA_WITH_AES_128_CCM_8",ECC_BYTE,TLS_RSA_WITH_AES_128_CCM_8, TLSv1_2_MINOR, SSLv3_MAJOR),
     SUITE_ALIAS("AES128-CCM8",ECC_BYTE,TLS_RSA_WITH_AES_128_CCM_8, TLSv1_2_MINOR, SSLv3_MAJOR)
@@ -21438,8 +21400,6 @@ const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]) {
         encStr = "None";
     else if ((XSTRNCMP(n0,"IDEA",4) == 0))
         encStr = "IDEA";
-    else if ((XSTRNCMP(n0,"RABBIT",4) == 0))
-        encStr = "RABBIT";
     else
         encStr = "unknown";
 
@@ -21661,8 +21621,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
             #ifdef WOLFSSL_DTLS
                 /* don't allow stream ciphers with DTLS */
                 if (ctx->method->version.major == DTLS_MAJOR) {
-                    if (XSTRSTR(name, "RC4") ||
-                        XSTRSTR(name, "RABBIT"))
+                    if (XSTRSTR(name, "RC4"))
                     {
                         WOLFSSL_MSG("Stream ciphers not supported with DTLS");
                         continue;

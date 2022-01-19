@@ -152,7 +152,6 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/des3.h>
 #include <wolfssl/wolfcrypt/arc4.h>
-#include <wolfssl/wolfcrypt/rabbit.h>
 #include <wolfssl/wolfcrypt/chacha.h>
 #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
 #include <wolfssl/wolfcrypt/aes.h>
@@ -278,7 +277,6 @@
 #define BENCH_AES_CCM            0x00000020
 #define BENCH_CAMELLIA           0x00000100
 #define BENCH_ARC4               0x00000200
-#define BENCH_RABBIT             0x00000800
 #define BENCH_CHACHA20           0x00001000
 #define BENCH_CHACHA20_POLY1305  0x00002000
 #define BENCH_DES                0x00004000
@@ -447,9 +445,6 @@ static const bench_alg bench_cipher_opt[] = {
 #endif
 #ifndef NO_RC4
     { "-arc4",               BENCH_ARC4              },
-#endif
-#ifndef NO_RABBIT
-    { "-rabbit",             BENCH_RABBIT            },
 #endif
 #ifdef HAVE_CHACHA
     { "-chacha20",           BENCH_CHACHA20          },
@@ -1765,10 +1760,6 @@ static void* benchmarks_do(void* args)
         bench_arc4(1);
     #endif
     }
-#endif
-#ifndef NO_RABBIT
-    if (bench_all || (bench_cipher_algs & BENCH_RABBIT))
-        bench_rabbit();
 #endif
 #ifdef HAVE_CHACHA
     if (bench_all || (bench_cipher_algs & BENCH_CHACHA20))
@@ -3458,27 +3449,6 @@ exit:
     }
 }
 #endif /* !NO_RC4 */
-
-
-#ifndef NO_RABBIT
-void bench_rabbit(void)
-{
-    Rabbit enc;
-    double start;
-    int    i, count;
-
-    wc_RabbitSetKey(&enc, bench_key, bench_iv);
-
-    bench_stats_start(&count, &start);
-    do {
-        for (i = 0; i < numBlocks; i++) {
-            wc_RabbitProcess(&enc, bench_cipher, bench_plain, BENCH_SIZE);
-        }
-        count += i;
-    } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("RABBIT", 0, count, bench_size, start, 0);
-}
-#endif /* NO_RABBIT */
 
 
 #ifdef HAVE_CHACHA

@@ -78,7 +78,6 @@ Wolfssl_C_Files :=$(WOLFSSL_ROOT)/wolfcrypt/src/aes.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/wc_port.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/wolfmath.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/pwdbased.c\
-					$(WOLFSSL_ROOT)/wolfcrypt/src/rabbit.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/random.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/ripemd.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/rsa.c\

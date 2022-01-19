@@ -38,7 +38,6 @@
 		521646471A8992CC0062516A /* pkcs7.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646261A8992CC0062516A /* pkcs7.c */; };
 		521646481A8992CC0062516A /* poly1305.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646271A8992CC0062516A /* poly1305.c */; };
 		521646491A8992CC0062516A /* pwdbased.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646281A8992CC0062516A /* pwdbased.c */; };
-		5216464A1A8992CC0062516A /* rabbit.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646291A8992CC0062516A /* rabbit.c */; };
 		5216464B1A8992CC0062516A /* random.c in Sources */ = {isa = PBXBuildFile; fileRef = 5216462A1A8992CC0062516A /* random.c */; };
 		5216464C1A8992CC0062516A /* ripemd.c in Sources */ = {isa = PBXBuildFile; fileRef = 5216462B1A8992CC0062516A /* ripemd.c */; };
 		5216464D1A8992CC0062516A /* rsa.c in Sources */ = {isa = PBXBuildFile; fileRef = 5216462C1A8992CC0062516A /* rsa.c */; };
@@ -86,7 +85,6 @@
 		521646E91A8A7FF30062516A /* pkcs7.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216467B1A8993770062516A /* pkcs7.h */; };
 		521646EA1A8A7FF30062516A /* poly1305.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216467C1A8993770062516A /* poly1305.h */; };
 		521646EB1A8A7FF30062516A /* pwdbased.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216467D1A8993770062516A /* pwdbased.h */; };
-		521646EC1A8A7FF30062516A /* rabbit.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216467E1A8993770062516A /* rabbit.h */; };
 		521646ED1A8A7FF30062516A /* random.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216467F1A8993770062516A /* random.h */; };
 		521646EE1A8A7FF30062516A /* ripemd.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646801A8993770062516A /* ripemd.h */; };
 		521646EF1A8A7FF30062516A /* rsa.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646811A8993770062516A /* rsa.h */; };
@@ -137,7 +135,6 @@
 		5216471D1A8A80100062516A /* pkcs7.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646B11A8993F50062516A /* pkcs7.h */; };
 		5216471E1A8A80100062516A /* poly1305.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646B21A8993F50062516A /* poly1305.h */; };
 		5216471F1A8A80100062516A /* pwdbased.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646B31A8993F50062516A /* pwdbased.h */; };
-		521647201A8A80100062516A /* rabbit.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646B41A8993F50062516A /* rabbit.h */; };
 		521647211A8A80100062516A /* random.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646B51A8993F50062516A /* random.h */; };
 		521647221A8A80100062516A /* ripemd.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646B61A8993F50062516A /* ripemd.h */; };
 		521647231A8A80100062516A /* rsa.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646B71A8993F50062516A /* rsa.h */; };
@@ -192,7 +189,6 @@
 		A4A54E0C1BC5C3E0002866CD /* misc.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646251A8992CC0062516A /* misc.c */; };
 		A4A54E0E1BC5C3E0002866CD /* asn.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646131A8992CC0062516A /* asn.c */; };
 		A4A54E0F1BC5C3E0002866CD /* sha512.c in Sources */ = {isa = PBXBuildFile; fileRef = 5216462F1A8992CC0062516A /* sha512.c */; };
-		A4A54E101BC5C3E0002866CD /* rabbit.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646291A8992CC0062516A /* rabbit.c */; };
 		A4A54E111BC5C3E0002866CD /* md5.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646231A8992CC0062516A /* md5.c */; };
 		A4A54E121BC5C3E0002866CD /* ssl.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646071A89928E0062516A /* ssl.c */; };
 		A4A54E131BC5C3E0002866CD /* rsa.c in Sources */ = {isa = PBXBuildFile; fileRef = 5216462C1A8992CC0062516A /* rsa.c */; };
@@ -263,7 +259,6 @@
 		A4A54E581BC5C3E0002866CD /* pkcs7.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216467B1A8993770062516A /* pkcs7.h */; };
 		A4A54E591BC5C3E0002866CD /* poly1305.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216467C1A8993770062516A /* poly1305.h */; };
 		A4A54E5A1BC5C3E0002866CD /* pwdbased.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216467D1A8993770062516A /* pwdbased.h */; };
-		A4A54E5B1BC5C3E0002866CD /* rabbit.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216467E1A8993770062516A /* rabbit.h */; };
 		A4A54E5C1BC5C3E0002866CD /* random.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216467F1A8993770062516A /* random.h */; };
 		A4A54E5D1BC5C3E0002866CD /* ripemd.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646801A8993770062516A /* ripemd.h */; };
 		A4A54E5E1BC5C3E0002866CD /* rsa.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646811A8993770062516A /* rsa.h */; };
@@ -314,7 +309,6 @@
 		A4A54E8E1BC5C3E0002866CD /* pkcs7.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646B11A8993F50062516A /* pkcs7.h */; };
 		A4A54E8F1BC5C3E0002866CD /* poly1305.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646B21A8993F50062516A /* poly1305.h */; };
 		A4A54E901BC5C3E0002866CD /* pwdbased.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646B31A8993F50062516A /* pwdbased.h */; };
-		A4A54E911BC5C3E0002866CD /* rabbit.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646B41A8993F50062516A /* rabbit.h */; };
 		A4A54E921BC5C3E0002866CD /* random.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646B51A8993F50062516A /* random.h */; };
 		A4A54E931BC5C3E0002866CD /* ripemd.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646B61A8993F50062516A /* ripemd.h */; };
 		A4A54E941BC5C3E0002866CD /* rsa.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646B71A8993F50062516A /* rsa.h */; };
@@ -368,7 +362,6 @@
 				521646E91A8A7FF30062516A /* pkcs7.h in CopyFiles */,
 				521646EA1A8A7FF30062516A /* poly1305.h in CopyFiles */,
 				521646EB1A8A7FF30062516A /* pwdbased.h in CopyFiles */,
-				521646EC1A8A7FF30062516A /* rabbit.h in CopyFiles */,
 				521646ED1A8A7FF30062516A /* random.h in CopyFiles */,
 				521646EE1A8A7FF30062516A /* ripemd.h in CopyFiles */,
 				521646EF1A8A7FF30062516A /* rsa.h in CopyFiles */,
@@ -437,7 +430,6 @@
 				5216471D1A8A80100062516A /* pkcs7.h in CopyFiles */,
 				5216471E1A8A80100062516A /* poly1305.h in CopyFiles */,
 				5216471F1A8A80100062516A /* pwdbased.h in CopyFiles */,
-				521647201A8A80100062516A /* rabbit.h in CopyFiles */,
 				521647211A8A80100062516A /* random.h in CopyFiles */,
 				521647221A8A80100062516A /* ripemd.h in CopyFiles */,
 				521647231A8A80100062516A /* rsa.h in CopyFiles */,
@@ -527,7 +519,6 @@
 				A4A54E581BC5C3E0002866CD /* pkcs7.h in CopyFiles */,
 				A4A54E591BC5C3E0002866CD /* poly1305.h in CopyFiles */,
 				A4A54E5A1BC5C3E0002866CD /* pwdbased.h in CopyFiles */,
-				A4A54E5B1BC5C3E0002866CD /* rabbit.h in CopyFiles */,
 				A4A54E5C1BC5C3E0002866CD /* random.h in CopyFiles */,
 				A4A54E5D1BC5C3E0002866CD /* ripemd.h in CopyFiles */,
 				A4A54E5E1BC5C3E0002866CD /* rsa.h in CopyFiles */,
@@ -596,7 +587,6 @@
 				A4A54E8E1BC5C3E0002866CD /* pkcs7.h in CopyFiles */,
 				A4A54E8F1BC5C3E0002866CD /* poly1305.h in CopyFiles */,
 				A4A54E901BC5C3E0002866CD /* pwdbased.h in CopyFiles */,
-				A4A54E911BC5C3E0002866CD /* rabbit.h in CopyFiles */,
 				A4A54E921BC5C3E0002866CD /* random.h in CopyFiles */,
 				A4A54E931BC5C3E0002866CD /* ripemd.h in CopyFiles */,
 				A4A54E941BC5C3E0002866CD /* rsa.h in CopyFiles */,
@@ -646,7 +636,6 @@
 		521646261A8992CC0062516A /* pkcs7.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = pkcs7.c; path = ../../wolfcrypt/src/pkcs7.c; sourceTree = SOURCE_ROOT; };
 		521646271A8992CC0062516A /* poly1305.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = poly1305.c; path = ../../wolfcrypt/src/poly1305.c; sourceTree = SOURCE_ROOT; };
 		521646281A8992CC0062516A /* pwdbased.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = pwdbased.c; path = ../../wolfcrypt/src/pwdbased.c; sourceTree = SOURCE_ROOT; };
-		521646291A8992CC0062516A /* rabbit.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = rabbit.c; path = ../../wolfcrypt/src/rabbit.c; sourceTree = SOURCE_ROOT; };
 		5216462A1A8992CC0062516A /* random.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = random.c; path = ../../wolfcrypt/src/random.c; sourceTree = SOURCE_ROOT; };
 		5216462B1A8992CC0062516A /* ripemd.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ripemd.c; path = ../../wolfcrypt/src/ripemd.c; sourceTree = SOURCE_ROOT; };
 		5216462C1A8992CC0062516A /* rsa.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = rsa.c; path = ../../wolfcrypt/src/rsa.c; sourceTree = SOURCE_ROOT; };
@@ -694,7 +683,6 @@
 		5216467B1A8993770062516A /* pkcs7.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = pkcs7.h; path = ../../wolfssl/wolfcrypt/pkcs7.h; sourceTree = "<group>"; };
 		5216467C1A8993770062516A /* poly1305.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = poly1305.h; path = ../../wolfssl/wolfcrypt/poly1305.h; sourceTree = "<group>"; };
 		5216467D1A8993770062516A /* pwdbased.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = pwdbased.h; path = ../../wolfssl/wolfcrypt/pwdbased.h; sourceTree = "<group>"; };
-		5216467E1A8993770062516A /* rabbit.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = rabbit.h; path = ../../wolfssl/wolfcrypt/rabbit.h; sourceTree = "<group>"; };
 		5216467F1A8993770062516A /* random.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = random.h; path = ../../wolfssl/wolfcrypt/random.h; sourceTree = "<group>"; };
 		521646801A8993770062516A /* ripemd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ripemd.h; path = ../../wolfssl/wolfcrypt/ripemd.h; sourceTree = "<group>"; };
 		521646811A8993770062516A /* rsa.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = rsa.h; path = ../../wolfssl/wolfcrypt/rsa.h; sourceTree = "<group>"; };
@@ -745,7 +733,6 @@
 		521646B11A8993F50062516A /* pkcs7.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = pkcs7.h; path = ../../cyassl/ctaocrypt/pkcs7.h; sourceTree = "<group>"; };
 		521646B21A8993F50062516A /* poly1305.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = poly1305.h; path = ../../cyassl/ctaocrypt/poly1305.h; sourceTree = "<group>"; };
 		521646B31A8993F50062516A /* pwdbased.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = pwdbased.h; path = ../../cyassl/ctaocrypt/pwdbased.h; sourceTree = "<group>"; };
-		521646B41A8993F50062516A /* rabbit.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = rabbit.h; path = ../../cyassl/ctaocrypt/rabbit.h; sourceTree = "<group>"; };
 		521646B51A8993F50062516A /* random.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = random.h; path = ../../cyassl/ctaocrypt/random.h; sourceTree = "<group>"; };
 		521646B61A8993F50062516A /* ripemd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ripemd.h; path = ../../cyassl/ctaocrypt/ripemd.h; sourceTree = "<group>"; };
 		521646B71A8993F50062516A /* rsa.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = rsa.h; path = ../../cyassl/ctaocrypt/rsa.h; sourceTree = "<group>"; };
@@ -843,7 +830,6 @@
 				521646B11A8993F50062516A /* pkcs7.h */,
 				521646B21A8993F50062516A /* poly1305.h */,
 				521646B31A8993F50062516A /* pwdbased.h */,
-				521646B41A8993F50062516A /* rabbit.h */,
 				521646B51A8993F50062516A /* random.h */,
 				521646B61A8993F50062516A /* ripemd.h */,
 				521646B71A8993F50062516A /* rsa.h */,
@@ -911,7 +897,6 @@
 				5216467B1A8993770062516A /* pkcs7.h */,
 				5216467C1A8993770062516A /* poly1305.h */,
 				5216467D1A8993770062516A /* pwdbased.h */,
-				5216467E1A8993770062516A /* rabbit.h */,
 				5216467F1A8993770062516A /* random.h */,
 				521646801A8993770062516A /* ripemd.h */,
 				521646811A8993770062516A /* rsa.h */,
@@ -983,7 +968,6 @@
 				521646261A8992CC0062516A /* pkcs7.c */,
 				521646271A8992CC0062516A /* poly1305.c */,
 				521646281A8992CC0062516A /* pwdbased.c */,
-				521646291A8992CC0062516A /* rabbit.c */,
 				5216462A1A8992CC0062516A /* random.c */,
 				5216462B1A8992CC0062516A /* ripemd.c */,
 				5216462C1A8992CC0062516A /* rsa.c */,
@@ -1149,7 +1133,6 @@
 				521646461A8992CC0062516A /* misc.c in Sources */,
 				521646341A8992CC0062516A /* asn.c in Sources */,
 				521646501A8992CC0062516A /* sha512.c in Sources */,
-				5216464A1A8992CC0062516A /* rabbit.c in Sources */,
 				521646441A8992CC0062516A /* md5.c in Sources */,
 				5216460F1A89928E0062516A /* ssl.c in Sources */,
 				5216464D1A8992CC0062516A /* rsa.c in Sources */,
@@ -1211,7 +1194,6 @@
 				A4A54E0C1BC5C3E0002866CD /* misc.c in Sources */,
 				A4A54E0E1BC5C3E0002866CD /* asn.c in Sources */,
 				A4A54E0F1BC5C3E0002866CD /* sha512.c in Sources */,
-				A4A54E101BC5C3E0002866CD /* rabbit.c in Sources */,
 				A4A54E111BC5C3E0002866CD /* md5.c in Sources */,
 				A4A54E121BC5C3E0002866CD /* ssl.c in Sources */,
 				A4A54E131BC5C3E0002866CD /* rsa.c in Sources */,

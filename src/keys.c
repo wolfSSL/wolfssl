@@ -1783,23 +1783,6 @@ int SetCipherSpecs(WOLFSSL* ssl)
         break;
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_RABBIT_SHA
-    case TLS_RSA_WITH_RABBIT_SHA :
-        ssl->specs.bulk_cipher_algorithm = wolfssl_rabbit;
-        ssl->specs.cipher_type           = stream;
-        ssl->specs.mac_algorithm         = sha_mac;
-        ssl->specs.kea                   = rsa_kea;
-        ssl->specs.sig_algo              = rsa_sa_algo;
-        ssl->specs.hash_size             = WC_SHA_DIGEST_SIZE;
-        ssl->specs.pad_size              = PAD_SHA;
-        ssl->specs.static_ecdh           = 0;
-        ssl->specs.key_size              = RABBIT_KEY_SIZE;
-        ssl->specs.block_size            = 0;
-        ssl->specs.iv_size               = RABBIT_IV_SIZE;
-
-        break;
-#endif
-
 #ifdef BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256
     case TLS_RSA_WITH_AES_128_GCM_SHA256 :
         ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
@@ -2264,55 +2247,6 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             dec->setup = 1;
     }
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */
-
-#ifdef BUILD_RABBIT
-    /* check that buffer sizes are sufficient */
-    #if (MAX_WRITE_IV_SZ < 8) /* RABBIT_IV_SIZE */
-        #error MAX_WRITE_IV_SZ too small for RABBIT
-    #endif
-
-    if (specs->bulk_cipher_algorithm == wolfssl_rabbit) {
-        int rabRet;
-        if (enc && enc->rabbit == NULL)
-            enc->rabbit =
-                    (Rabbit*)XMALLOC(sizeof(Rabbit), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc && enc->rabbit == NULL)
-            return MEMORY_E;
-        if (dec && dec->rabbit == NULL)
-            dec->rabbit =
-                    (Rabbit*)XMALLOC(sizeof(Rabbit), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec && dec->rabbit == NULL)
-            return MEMORY_E;
-        if (side == WOLFSSL_CLIENT_END) {
-            if (enc) {
-                rabRet = wc_RabbitSetKey(enc->rabbit, keys->client_write_key,
-                                      keys->client_write_IV);
-                if (rabRet != 0) return rabRet;
-            }
-            if (dec) {
-                rabRet = wc_RabbitSetKey(dec->rabbit, keys->server_write_key,
-                                      keys->server_write_IV);
-                if (rabRet != 0) return rabRet;
-            }
-        }
-        else {
-            if (enc) {
-                rabRet = wc_RabbitSetKey(enc->rabbit, keys->server_write_key,
-                                      keys->server_write_IV);
-                if (rabRet != 0) return rabRet;
-            }
-            if (dec) {
-                rabRet = wc_RabbitSetKey(dec->rabbit, keys->client_write_key,
-                                      keys->client_write_IV);
-                if (rabRet != 0) return rabRet;
-            }
-        }
-        if (enc)
-            enc->setup = 1;
-        if (dec)
-            dec->setup = 1;
-    }
-#endif /* BUILD_RABBIT */
 
 #ifdef BUILD_DES3
     /* check that buffer sizes are sufficient */

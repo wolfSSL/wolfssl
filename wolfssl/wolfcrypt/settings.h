@@ -932,7 +932,6 @@ extern void uITRON4_free(void *p) ;
     #define NO_DSA
     #define NO_DEV_RANDOM
     #define NO_WOLFSSL_DIR
-    #define NO_RABBIT
     #ifndef NO_FILESYSTEM
         #define LSR_FS
         #include "inc/hw_types.h"
@@ -1102,8 +1101,6 @@ extern void uITRON4_free(void *p) ;
     #define NO_WRITEV
     #undef  NO_DEV_RANDOM
     #define NO_DEV_RANDOM
-    #undef  NO_RABBIT
-    #define NO_RABBIT
     #undef  NO_WOLFSSL_DIR
     #define NO_WOLFSSL_DIR
     #undef  NO_RC4
@@ -1298,8 +1295,6 @@ extern void uITRON4_free(void *p) ;
     #endif
     #define NO_DEV_RANDOM
     #define NO_WOLFSSL_DIR
-    #undef  NO_RABBIT
-    #define NO_RABBIT
     #ifndef NO_STM32_RNG
         #undef  STM32_RNG
         #define STM32_RNG

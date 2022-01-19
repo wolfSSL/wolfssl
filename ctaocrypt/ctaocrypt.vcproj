@@ -209,10 +209,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\include\rabbit.h"
-				>
-			</File>
-			<File
 				RelativePath=".\include\chacha.h"
 				>
 			</File>
@@ -294,10 +290,6 @@
 			</File>
 			<File
 				RelativePath=".\src\wc_port.c"
-				>
-			</File>
-			<File
-				RelativePath=".\src\rabbit.c"
 				>
 			</File>
 			<File

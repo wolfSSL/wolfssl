@@ -308,10 +308,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\wolfcrypt\src\rabbit.c"
-				>
-			</File>
-			<File
 				RelativePath=".\wolfcrypt\src\random.c"
 				>
 			</File>
