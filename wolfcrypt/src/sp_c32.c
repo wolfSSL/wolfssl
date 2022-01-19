@@ -21212,7 +21212,7 @@ static void sp_256_mont_reduce_9(sp_digit* a, const sp_digit* m, sp_digit mp)
         a[i + 8] += -(am >> 8) + ((am << 24) & 0x1fffffff);
         a[i + 9] += am >> 5;
 
-        a[i+1] += a[i] >> 29;
+        a[i + 1] += a[i] >> 29;
     }
     am = a[8] & 0xffffff;
     a[8 + 3] += (am << 9) & 0x1fffffff;
@@ -21232,6 +21232,15 @@ static void sp_256_mont_reduce_9(sp_digit* a, const sp_digit* m, sp_digit mp)
     a[7] = (a[15] >> 24) + ((a[16] << 5) & 0x1fffffff);
     a[8] = (a[16] >> 24) +  (a[17] << 5);
 
+    a[1] += a[0] >> 29; a[0] &= 0x1fffffff;
+    a[2] += a[1] >> 29; a[1] &= 0x1fffffff;
+    a[3] += a[2] >> 29; a[2] &= 0x1fffffff;
+    a[4] += a[3] >> 29; a[3] &= 0x1fffffff;
+    a[5] += a[4] >> 29; a[4] &= 0x1fffffff;
+    a[6] += a[5] >> 29; a[5] &= 0x1fffffff;
+    a[7] += a[6] >> 29; a[6] &= 0x1fffffff;
+    a[8] += a[7] >> 29; a[7] &= 0x1fffffff;
+
     /* Get the bit over, if any. */
     am = a[8] >> 24;
     /* Create mask. */
@@ -21247,7 +21256,14 @@ static void sp_256_mont_reduce_9(sp_digit* a, const sp_digit* m, sp_digit mp)
     a[7] -= 0x1fe00000 & am;
     a[8] -= 0x00ffffff & am;
 
-    sp_256_norm_9(a);
+    a[1] += a[0] >> 29; a[0] &= 0x1fffffff;
+    a[2] += a[1] >> 29; a[1] &= 0x1fffffff;
+    a[3] += a[2] >> 29; a[2] &= 0x1fffffff;
+    a[4] += a[3] >> 29; a[3] &= 0x1fffffff;
+    a[5] += a[4] >> 29; a[4] &= 0x1fffffff;
+    a[6] += a[5] >> 29; a[5] &= 0x1fffffff;
+    a[7] += a[6] >> 29; a[6] &= 0x1fffffff;
+    a[8] += a[7] >> 29; a[7] &= 0x1fffffff;
 }
 
 /* Multiply two Montgomery form numbers mod the modulus (prime).
@@ -28396,7 +28412,7 @@ static void sp_384_mont_reduce_15(sp_digit* a, const sp_digit* m, sp_digit mp)
         a[i + 14] += (am << 20) & 0x3ffffff;
         a[i + 15] += am >> 6;
 
-        a[i+1] += a[i] >> 26;
+        a[i +  1] += a[i] >> 26;
     }
     am = (a[14] * 0x1) & 0xfffff;
     a[14 +  1] += (am << 6) & 0x3ffffff;
@@ -28424,6 +28440,21 @@ static void sp_384_mont_reduce_15(sp_digit* a, const sp_digit* m, sp_digit mp)
     a[13] = (a[27] >> 20) + ((a[28] << 6) & 0x3ffffff);
     a[14] = (a[14 + 14] >> 20) +  (a[29] << 6);
 
+    a[1] += a[0] >> 26; a[0] &= 0x3ffffff;
+    a[2] += a[1] >> 26; a[1] &= 0x3ffffff;
+    a[3] += a[2] >> 26; a[2] &= 0x3ffffff;
+    a[4] += a[3] >> 26; a[3] &= 0x3ffffff;
+    a[5] += a[4] >> 26; a[4] &= 0x3ffffff;
+    a[6] += a[5] >> 26; a[5] &= 0x3ffffff;
+    a[7] += a[6] >> 26; a[6] &= 0x3ffffff;
+    a[8] += a[7] >> 26; a[7] &= 0x3ffffff;
+    a[9] += a[8] >> 26; a[8] &= 0x3ffffff;
+    a[10] += a[9] >> 26; a[9] &= 0x3ffffff;
+    a[11] += a[10] >> 26; a[10] &= 0x3ffffff;
+    a[12] += a[11] >> 26; a[11] &= 0x3ffffff;
+    a[13] += a[12] >> 26; a[12] &= 0x3ffffff;
+    a[14] += a[13] >> 26; a[13] &= 0x3ffffff;
+
     /* Get the bit over, if any. */
     am = a[14] >> 20;
     /* Create mask. */
@@ -28445,7 +28476,20 @@ static void sp_384_mont_reduce_15(sp_digit* a, const sp_digit* m, sp_digit mp)
     a[13] -= 0x03ffffff & am;
     a[14] -= 0x000fffff & am;
 
-    sp_384_norm_15(a);
+    a[1] += a[0] >> 26; a[0] &= 0x3ffffff;
+    a[2] += a[1] >> 26; a[1] &= 0x3ffffff;
+    a[3] += a[2] >> 26; a[2] &= 0x3ffffff;
+    a[4] += a[3] >> 26; a[3] &= 0x3ffffff;
+    a[5] += a[4] >> 26; a[4] &= 0x3ffffff;
+    a[6] += a[5] >> 26; a[5] &= 0x3ffffff;
+    a[7] += a[6] >> 26; a[6] &= 0x3ffffff;
+    a[8] += a[7] >> 26; a[7] &= 0x3ffffff;
+    a[9] += a[8] >> 26; a[8] &= 0x3ffffff;
+    a[10] += a[9] >> 26; a[9] &= 0x3ffffff;
+    a[11] += a[10] >> 26; a[10] &= 0x3ffffff;
+    a[12] += a[11] >> 26; a[11] &= 0x3ffffff;
+    a[13] += a[12] >> 26; a[12] &= 0x3ffffff;
+    a[14] += a[13] >> 26; a[13] &= 0x3ffffff;
 }
 
 /* Multiply two Montgomery form numbers mod the modulus (prime).
