@@ -1290,41 +1290,44 @@ static void Usage(void)
  * calls srtp_helper_set_ekm() to wake the client and share the ekm with
  * him. The client will check that the ekm matches the one computed by itself.
  */
-static int server_srtp_test(WOLFSSL *ssl, struct srtp_test_helper *srtp_helper)
+static int server_srtp_test(WOLFSSL *ssl, srtp_test_helper *srtp_helper)
 {
     size_t srtp_secret_length;
-    uint8_t *srtp_secret, *p;
+    byte *srtp_secret, *p;
     int ret;
 
     ret = wolfSSL_export_dtls_srtp_keying_material(ssl, NULL,
                                                    &srtp_secret_length);
     if (ret != LENGTH_ONLY_E) {
-        printf("SRTP: can't get dtsl_srtp keying material");
+        printf("DTLS SRTP: Error getting key material length\n");
         return ret;
     }
 
-    srtp_secret = (uint8_t*)XMALLOC(srtp_secret_length,
+    srtp_secret = (byte*)XMALLOC(srtp_secret_length,
                                     NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (srtp_secret == NULL)
-        err_sys("SRTP: low memory");
+    if (srtp_secret == NULL) {
+        err_sys("DTLS SRTP: Memory error");
+    }
 
     ret = wolfSSL_export_dtls_srtp_keying_material(ssl, srtp_secret,
                                                    &srtp_secret_length);
     if (ret != WOLFSSL_SUCCESS) {
-        printf("SRTP: can't get dtsl_srtp keying material");
+        XFREE(srtp_secret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        printf("DTLS SRTP: Error getting key material\n");
         return ret;
     }
 
-    printf("DTLS-SRTP exported key material:\n");
+    printf("DTLS SRTP: Exported key material:\n");
     for (p = srtp_secret; p < srtp_secret + srtp_secret_length; p++)
         printf("%02X", *p);
     printf("\n");
 
      if (srtp_helper != NULL) {
         srtp_helper_set_ekm(srtp_helper, srtp_secret, srtp_secret_length);
-        /* client code will free srtp_sercret buffer after checking for
+        /* client code will free srtp_secret buffer after checking for
            correctness */
-    } else {
+    }
+    else {
         XFREE(srtp_secret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
@@ -3143,7 +3146,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
 #ifdef WOLFSSL_SRTP
     if (dtlsSrtpProfiles != NULL) {
-        err = server_srtp_test(ssl, ((func_args*)args)->srtp_test_helper);
+        err = server_srtp_test(ssl, ((func_args*)args)->srtp_helper);
         if (err != 0) {
             if (exitWithRet) {
                 ((func_args*)args)->return_code = err;
@@ -3155,8 +3158,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             err_sys("SRTP check failed");
         }
     }
-
-#endif
+#endif /* WOLFSSL_SRTP */
 
 #ifdef HAVE_ALPN
         if (alpnList != NULL) {
@@ -3422,7 +3424,7 @@ exit:
         args.signal = &ready;
         args.return_code = 0;
 #ifdef WOLFSSL_SRTP
-        args.srtp_test_helper = NULL;
+        args.srtp_helper = NULL;
 #endif
         InitTcpReady(&ready);
 

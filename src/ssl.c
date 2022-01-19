@@ -1301,18 +1301,15 @@ static const WOLFSSL_SRTP_PROTECTION_PROFILE gSrtpProfiles[] = {
 static const WOLFSSL_SRTP_PROTECTION_PROFILE* DtlsSrtpFindProfile(
     const char* profile_str, word32 profile_str_len, unsigned long id)
 {
-    size_t srtp_profile_len;
     int i;
     const WOLFSSL_SRTP_PROTECTION_PROFILE* profile = NULL;
     for (i=0;
          i<(int)(sizeof(gSrtpProfiles)/sizeof(WOLFSSL_SRTP_PROTECTION_PROFILE));
          i++) {
         if (profile_str != NULL) {
-            srtp_profile_len = strlen(gSrtpProfiles[i].name);
-            if (srtp_profile_len != profile_str_len)
-                continue;
-
-            if (XMEMCMP(gSrtpProfiles[i].name, profile_str, profile_str_len)
+            word32 srtp_profile_len = (word32)XSTRLEN(gSrtpProfiles[i].name);
+            if (srtp_profile_len == profile_str_len &&
+                XMEMCMP(gSrtpProfiles[i].name, profile_str, profile_str_len)
                                                                          == 0) {
                 profile = &gSrtpProfiles[i];
                 break;

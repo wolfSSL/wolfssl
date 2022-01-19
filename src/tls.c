@@ -5507,20 +5507,19 @@ static word16 TLSX_UseSRTP_Write(TlsxSrtp* srtp, byte* output)
 static int TLSX_UseSRTP(TLSX** extensions, word16 profiles, void* heap)
 {
     int ret = 0;
-    TlsxSrtp *srtp = NULL;
     TLSX* extension;
 
     if (extensions == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    srtp = TLSX_UseSRTP_New(profiles, heap);
-    if (srtp == NULL) {
-        return MEMORY_E;
-    }
-
     extension = TLSX_Find(*extensions, TLSX_USE_SRTP);
     if (extension == NULL) {
+        TlsxSrtp* srtp = TLSX_UseSRTP_New(profiles, heap);
+        if (srtp == NULL) {
+            return MEMORY_E;
+        }
+
         ret = TLSX_Push(extensions, TLSX_USE_SRTP, (void*)srtp, heap);
         if (ret != 0) {
             TLSX_UseSRTP_Free(srtp, heap);

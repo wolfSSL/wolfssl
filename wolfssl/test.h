@@ -521,14 +521,14 @@ typedef struct callback_functions {
 } callback_functions;
 
 #ifdef WOLFSSL_SRTP
-struct srtp_test_helper {
+typedef struct srtp_test_helper {
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_mutex_t mutex;
     pthread_cond_t  cond;
 #endif
-    uint8_t *server_srtp_ekm;
-    size_t server_srtp_ekm_size;
-};
+    uint8_t* server_srtp_ekm;
+    size_t   server_srtp_ekm_size;
+} srtp_test_helper;
 #endif
 
 typedef struct func_args {
@@ -538,7 +538,7 @@ typedef struct func_args {
     tcp_ready* signal;
     callback_functions *callbacks;
 #ifdef WOLFSSL_SRTP
-    struct srtp_test_helper *srtp_test_helper;
+    srtp_test_helper* srtp_helper;
 #endif
 } func_args;
 
@@ -645,7 +645,7 @@ extern char* myoptarg;
 
 #ifdef WOLFSSL_SRTP
 
-static WC_INLINE void srtp_helper_init(struct srtp_test_helper *srtp)
+static WC_INLINE void srtp_helper_init(srtp_test_helper *srtp)
 {
     srtp->server_srtp_ekm_size = 0;
     srtp->server_srtp_ekm = NULL;
@@ -664,7 +664,7 @@ static WC_INLINE void srtp_helper_init(struct srtp_test_helper *srtp)
  * This function wait that the other peer calls strp_helper_set_ekm() and then
  * store the buffer pointer/size in @ekm and @size.
  */
-static WC_INLINE void srtp_helper_get_ekm(struct srtp_test_helper *srtp,
+static WC_INLINE void srtp_helper_get_ekm(srtp_test_helper *srtp,
                                           uint8_t **ekm, size_t *size)
 {
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
@@ -695,7 +695,7 @@ static WC_INLINE void srtp_helper_get_ekm(struct srtp_test_helper *srtp,
  *
  * used in client_srtp_test()/server_srtp_test()
  */
-static WC_INLINE void srtp_helper_set_ekm(struct srtp_test_helper *srtp,
+static WC_INLINE void srtp_helper_set_ekm(srtp_test_helper *srtp,
                                           uint8_t *ekm, size_t size)
 {
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
@@ -709,7 +709,7 @@ static WC_INLINE void srtp_helper_set_ekm(struct srtp_test_helper *srtp,
 #endif
 }
 
-static WC_INLINE void srtp_helper_free(struct srtp_test_helper *srtp)
+static WC_INLINE void srtp_helper_free(srtp_test_helper *srtp)
 {
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_mutex_destroy(&srtp->mutex);
@@ -717,7 +717,7 @@ static WC_INLINE void srtp_helper_free(struct srtp_test_helper *srtp)
 #endif
 }
 
-#endif
+#endif /* WOLFSSL_SRTP */
 
 /**
  *

@@ -1770,32 +1770,34 @@ static void Usage(void)
  * calls srtp_helper_get_ekm() to wait and then get the ekm computed by the
  * server, then check if it matches the one computed by itself.
  */
-static int client_srtp_test(WOLFSSL *ssl, struct srtp_test_helper *srtp_helper)
+static int client_srtp_test(WOLFSSL *ssl, srtp_test_helper *srtp_helper)
 {
-    uint8_t *srtp_secret, *other_secret, *p;
-    size_t srtp_secret_length, other_size;
+    byte *srtp_secret, *other_secret = NULL, *p;
+    size_t srtp_secret_length, other_size = 0;
     int ret;
 
     ret = wolfSSL_export_dtls_srtp_keying_material(ssl, NULL,
                                                    &srtp_secret_length);
     if (ret != LENGTH_ONLY_E) {
-        printf("SRTP: can't get dtsl_srtp keying material");
+        printf("DTLS SRTP: Error getting keying material length\n");
         return ret;
     }
 
-    srtp_secret = (uint8_t*)XMALLOC(srtp_secret_length,
+    srtp_secret = (byte*)XMALLOC(srtp_secret_length,
                                     NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (srtp_secret == NULL)
-        err_sys("SRTP: low memory");
+    if (srtp_secret == NULL) {
+        err_sys("DTLS SRTP: Low memory");
+    }
 
     ret = wolfSSL_export_dtls_srtp_keying_material(ssl, srtp_secret,
                                                    &srtp_secret_length);
     if (ret != WOLFSSL_SUCCESS) {
-        printf("SRTP: can't get dtsl_srtp keying material");
+        XFREE(srtp_secret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        printf("DTLS SRTP: Error getting keying material\n");
         return ret;
     }
 
-    printf("DTLS-SRTP exported key material:\n");
+    printf("DTLS SRTP: Exported key material:\n");
     for (p = srtp_secret; p < srtp_secret + srtp_secret_length; p++)
         printf("%02X", *p);
     printf("\n");
@@ -1808,7 +1810,7 @@ static int client_srtp_test(WOLFSSL *ssl, struct srtp_test_helper *srtp_helper)
 
             /* we are delegated from server to free this buffer  */
             XFREE(other_secret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            printf("SRTP: Exported Keying Material mismatch");
+            printf("DTLS SRTP: Exported Keying Material mismatch\n");
             return WOLFSSL_UNKNOWN;
         }
 
@@ -1820,7 +1822,7 @@ static int client_srtp_test(WOLFSSL *ssl, struct srtp_test_helper *srtp_helper)
 
     return 0;
 }
-#endif
+#endif /* WOLFSSL_SRTP */
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 {
@@ -3974,7 +3976,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifdef WOLFSSL_SRTP
     if (dtlsSrtpProfiles != NULL) {
-        err = client_srtp_test(ssl, ((func_args*)args)->srtp_test_helper);
+        err = client_srtp_test(ssl, ((func_args*)args)->srtp_helper);
         if (err != 0) {
             if (exitWithRet) {
                 ((func_args*)args)->return_code = err;
@@ -3986,7 +3988,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             err_sys("SRTP check failed");
         }
     }
-#endif
+#endif /* WOLFSSL_SRTP */
 
 #ifdef WOLFSSL_TLS13
     if (updateKeysIVs)
@@ -4340,7 +4342,7 @@ exit:
         StartTCP();
 
 #ifdef WOLFSSL_SRTP
-        args.srtp_test_helper = NULL;
+        args.srtp_helper = NULL;
 #endif
         args.argc = argc;
         args.argv = argv;

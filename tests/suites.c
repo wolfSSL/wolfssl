@@ -322,7 +322,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
 #endif
 
 #ifdef WOLFSSL_SRTP
-    struct srtp_test_helper srtp_helper;
+    srtp_test_helper srtp_helper;
 #endif
     /* Is Valid Cipher and Version Checks */
     /* build command list for the Is checks below */
@@ -454,8 +454,8 @@ static int execute_test_case(int svr_argc, char** svr_argv,
 
 #ifdef WOLFSSL_SRTP
     srtp_helper_init(&srtp_helper);
-    cliArgs.srtp_test_helper = &srtp_helper;
-    svrArgs.srtp_test_helper = &srtp_helper;
+    cliArgs.srtp_helper = &srtp_helper;
+    svrArgs.srtp_helper = &srtp_helper;
 #endif
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
