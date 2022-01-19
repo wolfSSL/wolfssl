@@ -28,7 +28,7 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
      You must delete them, or cmake will refuse to work.")
 endif()
 
-project(wolfssl VERSION 5.1.2 LANGUAGES C)
+project(wolfssl VERSION 5.1.2 LANGUAGES C ASM)
 
 # shared library versioning
 # increment if interfaces have been added, removed or changed
@@ -221,6 +221,7 @@ add_option("WOLFSSL_SINGLE_THREADED" ${WOLFSSL_SINGLE_THREADED_HELP_STRING} "no"
 if(NOT WOLFSSL_SINGLE_THREADED)
     if(CMAKE_USE_PTHREADS_INIT)
         list(APPEND WOLFSSL_LINK_LIBS Threads::Threads)
+        set(HAVE_PTHREAD 1)
         list(APPEND WOLFSSL_DEFINITIONS
             "-DHAVE_PTHREAD"
             "-D_POSIX_THREADS")
