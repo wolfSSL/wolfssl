@@ -22567,29 +22567,34 @@ static void sp_256_mont_reduce_5(sp_digit* a, const sp_digit* m, sp_digit mp)
         /* Fifth word of modulus word */
         t = am; t *= 0x0ffffffff0000L;
 
-        a[i+1] += (am << 44) & 0xfffffffffffffL;
-        a[i+2] += am >> 8;
-        a[i+3] += (am << 36) & 0xfffffffffffffL;
-        a[i+4] += (am >> 16) + (t & 0xfffffffffffffL);
-        a[i+5] +=  t >> 52;
+        a[i + 1] += (am << 44) & 0xfffffffffffffL;
+        a[i + 2] += am >> 8;
+        a[i + 3] += (am << 36) & 0xfffffffffffffL;
+        a[i + 4] += (am >> 16) + (t & 0xfffffffffffffL);
+        a[i + 5] +=  t >> 52;
 
-        a[i+1] += a[i] >> 52;
+        a[i + 1] += a[i] >> 52;
     }
     am = a[4] & 0xffffffffffff;
     /* Fifth word of modulus word */
     t = am; t *= 0x0ffffffff0000L;
 
-    a[4+1] += (am << 44) & 0xfffffffffffffL;
-    a[4+2] += am >> 8;
-    a[4+3] += (am << 36) & 0xfffffffffffffL;
-    a[4+4] += (am >> 16) + (t & 0xfffffffffffffL);
-    a[4+5] +=  t >> 52;
+    a[4 + 1] += (am << 44) & 0xfffffffffffffL;
+    a[4 + 2] += am >> 8;
+    a[4 + 3] += (am << 36) & 0xfffffffffffffL;
+    a[4 + 4] += (am >> 16) + (t & 0xfffffffffffffL);
+    a[4 + 5] +=  t >> 52;
 
     a[0] = (a[4] >> 48) + ((a[5] << 4) & 0xfffffffffffffL);
     a[1] = (a[5] >> 48) + ((a[6] << 4) & 0xfffffffffffffL);
     a[2] = (a[6] >> 48) + ((a[7] << 4) & 0xfffffffffffffL);
     a[3] = (a[7] >> 48) + ((a[8] << 4) & 0xfffffffffffffL);
     a[4] = (a[8] >> 48) +  (a[9] << 4);
+
+    a[1] += a[0] >> 52; a[0] &= 0xfffffffffffffL;
+    a[2] += a[1] >> 52; a[1] &= 0xfffffffffffffL;
+    a[3] += a[2] >> 52; a[2] &= 0xfffffffffffffL;
+    a[4] += a[3] >> 52; a[3] &= 0xfffffffffffffL;
 
     /* Get the bit over, if any. */
     am = a[4] >> 48;
@@ -22602,7 +22607,10 @@ static void sp_256_mont_reduce_5(sp_digit* a, const sp_digit* m, sp_digit mp)
     a[3] -= 0x0000001000000000L & am;
     a[4] -= 0x0000ffffffff0000L & am;
 
-    sp_256_norm_5(a);
+    a[1] += a[0] >> 52; a[0] &= 0xfffffffffffffL;
+    a[2] += a[1] >> 52; a[1] &= 0xfffffffffffffL;
+    a[3] += a[2] >> 52; a[2] &= 0xfffffffffffffL;
+    a[4] += a[3] >> 52; a[3] &= 0xfffffffffffffL;
 }
 
 /* Multiply two Montgomery form numbers mod the modulus (prime).
@@ -29281,7 +29289,7 @@ static void sp_384_mont_reduce_7(sp_digit* a, const sp_digit* m, sp_digit mp)
         a[i + 6] += (am << 54) & 0x7fffffffffffffL;
         a[i + 7] += am >> 1;
 
-        a[i+1] += a[i] >> 55;
+        a[i + 1] += a[i] >> 55;
     }
     am = (a[6] * 0x100000001) & 0x3fffffffffffff;
     a[6 + 0] += (am << 32) & 0x7fffffffffffffL;
@@ -29299,6 +29307,13 @@ static void sp_384_mont_reduce_7(sp_digit* a, const sp_digit* m, sp_digit mp)
     a[5] = (a[11] >> 54) + ((a[12] << 1) & 0x7fffffffffffffL);
     a[6] = (a[12] >> 54) +  (a[13] << 1);
 
+    a[1] += a[0] >> 55; a[0] &= 0x7fffffffffffffL;
+    a[2] += a[1] >> 55; a[1] &= 0x7fffffffffffffL;
+    a[3] += a[2] >> 55; a[2] &= 0x7fffffffffffffL;
+    a[4] += a[3] >> 55; a[3] &= 0x7fffffffffffffL;
+    a[5] += a[4] >> 55; a[4] &= 0x7fffffffffffffL;
+    a[6] += a[5] >> 55; a[5] &= 0x7fffffffffffffL;
+
     /* Get the bit over, if any. */
     am = a[6] >> 54;
     /* Create mask. */
@@ -29312,7 +29327,12 @@ static void sp_384_mont_reduce_7(sp_digit* a, const sp_digit* m, sp_digit mp)
     a[5] -= 0x007fffffffffffffL & am;
     a[6] -= 0x003fffffffffffffL & am;
 
-    sp_384_norm_7(a);
+    a[1] += a[0] >> 55; a[0] &= 0x7fffffffffffffL;
+    a[2] += a[1] >> 55; a[1] &= 0x7fffffffffffffL;
+    a[3] += a[2] >> 55; a[2] &= 0x7fffffffffffffL;
+    a[4] += a[3] >> 55; a[3] &= 0x7fffffffffffffL;
+    a[5] += a[4] >> 55; a[4] &= 0x7fffffffffffffL;
+    a[6] += a[5] >> 55; a[5] &= 0x7fffffffffffffL;
 }
 
 /* Multiply two Montgomery form numbers mod the modulus (prime).
