@@ -520,12 +520,26 @@ typedef struct callback_functions {
     unsigned char loadToSSL:1;
 } callback_functions;
 
+#ifdef WOLFSSL_SRTP
+struct srtp_test_helper {
+#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
+    pthread_mutex_t mutex;
+    pthread_cond_t  cond;
+#endif
+    uint8_t *server_srtp_ekm;
+    size_t server_srtp_ekm_size;
+};
+#endif
+
 typedef struct func_args {
     int    argc;
     char** argv;
     int    return_code;
     tcp_ready* signal;
     callback_functions *callbacks;
+#ifdef WOLFSSL_SRTP
+    struct srtp_test_helper *srtp_test_helper;
+#endif
 } func_args;
 
 #ifdef NETOS
@@ -628,6 +642,82 @@ err_sys_with_errno(const char* msg)
 
 extern int   myoptind;
 extern char* myoptarg;
+
+#ifdef WOLFSSL_SRTP
+
+static WC_INLINE void srtp_helper_init(struct srtp_test_helper *srtp)
+{
+    srtp->server_srtp_ekm_size = 0;
+    srtp->server_srtp_ekm = NULL;
+#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
+    pthread_mutex_init(&srtp->mutex, 0);
+    pthread_cond_init(&srtp->cond, 0);
+#endif
+}
+
+/**
+ * strp_helper_get_ekm() - get exported key material of other peer
+ * @srtp: srtp_test_helper struct shared with other peer [in]
+ * @ekm: where to store the shared buffer pointer [out]
+ * @size: size of the shared buffer returned [out]
+ *
+ * This function wait that the other peer calls strp_helper_set_ekm() and then
+ * store the buffer pointer/size in @ekm and @size.
+ */
+static WC_INLINE void srtp_helper_get_ekm(struct srtp_test_helper *srtp,
+                                          uint8_t **ekm, size_t *size)
+{
+#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
+    pthread_mutex_lock(&srtp->mutex);
+
+    if (srtp->server_srtp_ekm == NULL)
+        pthread_cond_wait(&srtp->cond, &srtp->mutex);
+
+    *ekm = srtp->server_srtp_ekm;
+    *size = srtp->server_srtp_ekm_size;
+
+    /* reset */
+    srtp->server_srtp_ekm = NULL;
+    srtp->server_srtp_ekm_size = 0;
+
+    pthread_mutex_unlock(&srtp->mutex);
+#endif
+}
+
+/**
+ * strp_helper_set_ekm() - set exported key material of other peer
+ * @srtp: srtp_test_helper struct shared with other peer [in]
+ * @ekm: pointer to the shared buffer [in]
+ * @size: size of the shared buffer [in]
+ *
+ * This function set the @ekm and wakes up a peer waiting in
+ * srtp_helper_get_ekm().
+ *
+ * used in client_srtp_test()/server_srtp_test()
+ */
+static WC_INLINE void srtp_helper_set_ekm(struct srtp_test_helper *srtp,
+                                          uint8_t *ekm, size_t size)
+{
+#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
+    pthread_mutex_lock(&srtp->mutex);
+
+    srtp->server_srtp_ekm_size = size;
+    srtp->server_srtp_ekm = ekm;
+    pthread_cond_signal(&srtp->cond);
+
+    pthread_mutex_unlock(&srtp->mutex);
+#endif
+}
+
+static WC_INLINE void srtp_helper_free(struct srtp_test_helper *srtp)
+{
+#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
+    pthread_mutex_destroy(&srtp->mutex);
+    pthread_cond_destroy(&srtp->cond);
+#endif
+}
+
+#endif
 
 /**
  *

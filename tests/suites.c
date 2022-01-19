@@ -294,7 +294,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
                              int addDisableEMS, int forceSrvDefCipherList,
                              int forceCliDefCipherList)
 {
-#ifdef WOLFSSL_TIRTOS
+#if defined(WOLFSSL_TIRTOS) || defined(WOLFSSL_SRTP)
     func_args cliArgs = {0};
     func_args svrArgs = {0};
     cliArgs.argc = cli_argc;
@@ -321,6 +321,9 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     int         reqClientCert;
 #endif
 
+#ifdef WOLFSSL_SRTP
+    struct srtp_test_helper srtp_helper;
+#endif
     /* Is Valid Cipher and Version Checks */
     /* build command list for the Is checks below */
     commandLine[0] = '\0';
@@ -449,6 +452,11 @@ static int execute_test_case(int svr_argc, char** svr_argv,
 
     InitTcpReady(&ready);
 
+#ifdef WOLFSSL_SRTP
+    srtp_helper_init(&srtp_helper);
+    cliArgs.srtp_test_helper = &srtp_helper;
+    svrArgs.srtp_test_helper = &srtp_helper;
+#endif
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
@@ -561,6 +569,10 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     fdCloseSession(Task_self());
 #endif
     FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_SRTP
+    srtp_helper_free(&srtp_helper);
+#endif
 
     /* only run the first test for expected failure cases */
     /* the example server/client are not designed to handle expected failure in
@@ -1041,6 +1053,32 @@ int SuiteTest(int argc, char** argv)
     }
     strcpy(argv0[2], "");
 #endif
+
+#ifdef WOLFSSL_SRTP
+    args.argc = 2;
+    strcpy(argv0[1], "tests/test-dtls-srtp.conf");
+    printf("starting dtls srtp suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+
+    /* failure tests */
+    args.argc = 3;
+    strcpy(argv0[1], "tests/test-dtls-srtp-fails.conf");
+    strcpy(argv0[2], "expFail"); /* tests are expected to fail */
+    printf("starting dtls srtp profile mismatch tests that expect failure\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    strcpy(argv0[2], "");
+#endif
+
 #endif
 #ifdef WOLFSSL_SCTP
     /* add dtls-sctp extra suites */
