@@ -29,7 +29,6 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/error-crypt.h \
                          wolfssl/wolfcrypt/fips_test.h \
                          wolfssl/wolfcrypt/hash.h \
-                         wolfssl/wolfcrypt/hc128.h \
                          wolfssl/wolfcrypt/hmac.h \
                          wolfssl/wolfcrypt/kdf.h \
                          wolfssl/wolfcrypt/integer.h \

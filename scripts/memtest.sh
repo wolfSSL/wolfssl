@@ -4,7 +4,7 @@
 
 ./autogen.sh
 ./configure --enable-debug --disable-shared --enable-memtest \
-	--enable-opensslextra --enable-des3 --enable-dh --enable-ecc --enable-aesgcm --enable-aesccm --enable-hc128 \
+	--enable-opensslextra --enable-des3 --enable-dh --enable-ecc --enable-aesgcm --enable-aesccm \
 	--enable-sniffer --enable-psk --enable-rabbit --enable-camellia --enable-sha512 --enable-crl --enable-ocsp --enable-savesession \
 	--enable-savecert --enable-atomicuser --enable-pkcallbacks --enable-scep;
 

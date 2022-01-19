@@ -193,7 +193,6 @@
     Generate a random SSV (wc_GenerateSakkeSSV()) for key exchange.\n
     Derive the SSV, (wc_DeriveSakkeSSV()) on the recipient from the encapsulated SSV.
 
-    \defgroup HC128 Algorithms - HC-128
     \defgroup HMAC Algorithms - HMAC
     \defgroup IDEA Algorithms - IDEA
     \defgroup MD2 Algorithms - MD2

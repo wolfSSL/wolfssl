@@ -239,7 +239,6 @@
 #include <wolfssl/wolfcrypt/dsa.h>
 #include <wolfssl/wolfcrypt/srp.h>
 #include <wolfssl/wolfcrypt/idea.h>
-#include <wolfssl/wolfcrypt/hc128.h>
 #include <wolfssl/wolfcrypt/rabbit.h>
 #include <wolfssl/wolfcrypt/chacha.h>
 #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
@@ -411,7 +410,6 @@ WOLFSSL_TEST_SUBROUTINE int  arc4_test(void);
 #ifdef WC_RC2
 WOLFSSL_TEST_SUBROUTINE int  rc2_test(void);
 #endif
-WOLFSSL_TEST_SUBROUTINE int  hc128_test(void);
 WOLFSSL_TEST_SUBROUTINE int  rabbit_test(void);
 WOLFSSL_TEST_SUBROUTINE int  chacha_test(void);
 WOLFSSL_TEST_SUBROUTINE int  XChaCha_test(void);
@@ -1032,13 +1030,6 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         return err_sys("ARC4     test failed!\n", ret);
     else
         TEST_PASS("ARC4     test passed!\n");
-#endif
-
-#ifndef NO_HC128
-    if ( (ret = hc128_test()) != 0)
-        return err_sys("HC-128   test failed!\n", ret);
-    else
-        TEST_PASS("HC-128   test passed!\n");
 #endif
 
 #ifndef NO_RABBIT
@@ -5057,119 +5048,6 @@ WOLFSSL_TEST_SUBROUTINE int arc4_test(void)
     return 0;
 }
 #endif
-
-
-WOLFSSL_TEST_SUBROUTINE int hc128_test(void)
-{
-#ifdef HAVE_HC128
-    byte cipher[16];
-    byte plain[16];
-
-    const char* keys[] =
-    {
-        "\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-        "\x00\x53\xA6\xF9\x4C\x9F\xF2\x45\x98\xEB\x3E\x91\xE4\x37\x8A\xDD",
-        "\x0F\x62\xB5\x08\x5B\xAE\x01\x54\xA7\xFA\x4D\xA0\xF3\x46\x99\xEC"
-    };
-
-    const char* ivs[] =
-    {
-        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-        "\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-        "\x0D\x74\xDB\x42\xA9\x10\x77\xDE\x45\xAC\x13\x7A\xE1\x48\xAF\x16",
-        "\x28\x8F\xF6\x5D\xC4\x2B\x92\xF9\x60\xC7\x2E\x95\xFC\x63\xCA\x31"
-    };
-
-
-    testVector a, b, c, d;
-    testVector test_hc128[4];
-
-    int times = sizeof(test_hc128) / sizeof(testVector), i;
-
-    int ret = 0;
-#if !defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC)
-    HC128 enc[1], dec[1];
-#else
-    HC128 *enc = (HC128 *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    HC128 *dec = (HC128 *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if ((! enc) || (! dec)) {
-        ERROR_OUT(-4500, out);
-    }
-#endif
-
-    a.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
-    a.output = "\x37\x86\x02\xB9\x8F\x32\xA7\x48";
-    a.inLen  = 8;
-    a.outLen = 8;
-
-    b.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
-    b.output = "\x33\x7F\x86\x11\xC6\xED\x61\x5F";
-    b.inLen  = 8;
-    b.outLen = 8;
-
-    c.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
-    c.output = "\x2E\x1E\xD1\x2A\x85\x51\xC0\x5A";
-    c.inLen  = 8;
-    c.outLen = 8;
-
-    d.input  = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
-    d.output = "\x1C\xD8\xAE\xDD\xFE\x52\xE2\x17\xE8\x35\xD0\xB7\xE8\x4E\x29";
-    d.inLen  = 15;
-    d.outLen = 15;
-
-    test_hc128[0] = a;
-    test_hc128[1] = b;
-    test_hc128[2] = c;
-    test_hc128[3] = d;
-
-    for (i = 0; i < times; ++i) {
-        /* align keys/ivs in plain/cipher buffers */
-        XMEMCPY(plain,  keys[i], 16);
-        XMEMCPY(cipher, ivs[i],  16);
-
-        wc_Hc128_SetKey(enc, plain, cipher);
-        wc_Hc128_SetKey(dec, plain, cipher);
-
-        /* align input */
-        XMEMCPY(plain, test_hc128[i].input, test_hc128[i].outLen);
-        if (wc_Hc128_Process(enc, cipher, plain,
-                                           (word32)test_hc128[i].outLen) != 0) {
-            ret = -4501;
-            goto out;
-        }
-        if (wc_Hc128_Process(dec, plain, cipher,
-                                           (word32)test_hc128[i].outLen) != 0) {
-            ret = -4502;
-            goto out;
-        }
-
-        if (XMEMCMP(plain, test_hc128[i].input, test_hc128[i].outLen)) {
-            ret = -4503 - i;
-            goto out;
-        }
-
-        if (XMEMCMP(cipher, test_hc128[i].output, test_hc128[i].outLen)) {
-            ret = -4513 - i;
-            goto out;
-        }
-    }
-
-  out:
-
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    if (enc)
-        XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (dec)
-        XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-    return ret;
-#else
-    return 0;
-#endif /* HAVE_HC128 */
-}
-
 
 #ifndef NO_RABBIT
 WOLFSSL_TEST_SUBROUTINE int rabbit_test(void)

@@ -7,7 +7,6 @@
 
 #ifdef HAVE_FIPS
     #define NO_MD4
-    #define NO_HC128
     #define NO_RABBIT
     #define NO_DSA
     #define NO_PWDBASED
@@ -69,7 +68,6 @@
     /* off by default */
     #define NO_RC4
     #define NO_MD4
-    #define NO_HC128
     #define NO_RABBIT
     #define NO_DSA
     #define NO_PSK

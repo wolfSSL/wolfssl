@@ -118,7 +118,6 @@ libwolfssl_C_SRCS += \
 	../../wolfcrypt/src/wc_encrypt \
 	../../wolfcrypt/src/hash \
 	../../wolfcrypt/src/wc_pkcs11 \
-	../../wolfcrypt/src/hc128 \
 	../../wolfcrypt/src/wc_port \
 	../../wolfcrypt/src/hmac \
 	../../wolfcrypt/src/wolfcrypt_first \

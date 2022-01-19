@@ -998,7 +998,6 @@ decouple library dependencies with standard string, memory and so on.
         WC_CIPHER_DES3 = 7,
         WC_CIPHER_DES = 8,
         WC_CIPHER_CHACHA = 9,
-        WC_CIPHER_HC128 = 10,
         WC_CIPHER_IDEA = 11,
 
         WC_CIPHER_MAX = WC_CIPHER_AES_CCM

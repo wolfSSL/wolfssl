@@ -1783,40 +1783,6 @@ int SetCipherSpecs(WOLFSSL* ssl)
         break;
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_MD5
-    case TLS_RSA_WITH_HC_128_MD5 :
-        ssl->specs.bulk_cipher_algorithm = wolfssl_hc128;
-        ssl->specs.cipher_type           = stream;
-        ssl->specs.mac_algorithm         = md5_mac;
-        ssl->specs.kea                   = rsa_kea;
-        ssl->specs.sig_algo              = rsa_sa_algo;
-        ssl->specs.hash_size             = WC_MD5_DIGEST_SIZE;
-        ssl->specs.pad_size              = PAD_MD5;
-        ssl->specs.static_ecdh           = 0;
-        ssl->specs.key_size              = HC_128_KEY_SIZE;
-        ssl->specs.block_size            = 0;
-        ssl->specs.iv_size               = HC_128_IV_SIZE;
-
-        break;
-#endif
-
-#ifdef BUILD_TLS_RSA_WITH_HC_128_SHA
-        case TLS_RSA_WITH_HC_128_SHA :
-            ssl->specs.bulk_cipher_algorithm = wolfssl_hc128;
-            ssl->specs.cipher_type           = stream;
-            ssl->specs.mac_algorithm         = sha_mac;
-            ssl->specs.kea                   = rsa_kea;
-            ssl->specs.sig_algo              = rsa_sa_algo;
-            ssl->specs.hash_size             = WC_SHA_DIGEST_SIZE;
-            ssl->specs.pad_size              = PAD_SHA;
-            ssl->specs.static_ecdh           = 0;
-            ssl->specs.key_size              = HC_128_KEY_SIZE;
-            ssl->specs.block_size            = 0;
-            ssl->specs.iv_size               = HC_128_IV_SIZE;
-
-            break;
-#endif
-
 #ifdef BUILD_TLS_RSA_WITH_RABBIT_SHA
     case TLS_RSA_WITH_RABBIT_SHA :
         ssl->specs.bulk_cipher_algorithm = wolfssl_rabbit;
@@ -2298,56 +2264,6 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             dec->setup = 1;
     }
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */
-
-
-#ifdef HAVE_HC128
-    /* check that buffer sizes are sufficient */
-    #if (MAX_WRITE_IV_SZ < 16) /* HC_128_IV_SIZE */
-        #error MAX_WRITE_IV_SZ too small for HC128
-    #endif
-
-    if (specs->bulk_cipher_algorithm == wolfssl_hc128) {
-        int hcRet;
-        if (enc && enc->hc128 == NULL)
-            enc->hc128 =
-                      (HC128*)XMALLOC(sizeof(HC128), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc && enc->hc128 == NULL)
-            return MEMORY_E;
-        if (dec && dec->hc128 == NULL)
-            dec->hc128 =
-                      (HC128*)XMALLOC(sizeof(HC128), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec && dec->hc128 == NULL)
-            return MEMORY_E;
-        if (side == WOLFSSL_CLIENT_END) {
-            if (enc) {
-                hcRet = wc_Hc128_SetKey(enc->hc128, keys->client_write_key,
-                                     keys->client_write_IV);
-                if (hcRet != 0) return hcRet;
-            }
-            if (dec) {
-                hcRet = wc_Hc128_SetKey(dec->hc128, keys->server_write_key,
-                                     keys->server_write_IV);
-                if (hcRet != 0) return hcRet;
-            }
-        }
-        else {
-            if (enc) {
-                hcRet = wc_Hc128_SetKey(enc->hc128, keys->server_write_key,
-                                     keys->server_write_IV);
-                if (hcRet != 0) return hcRet;
-            }
-            if (dec) {
-                hcRet = wc_Hc128_SetKey(dec->hc128, keys->client_write_key,
-                                     keys->client_write_IV);
-                if (hcRet != 0) return hcRet;
-            }
-        }
-        if (enc)
-            enc->setup = 1;
-        if (dec)
-            dec->setup = 1;
-    }
-#endif /* HAVE_HC128 */
 
 #ifdef BUILD_RABBIT
     /* check that buffer sizes are sufficient */

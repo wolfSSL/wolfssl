@@ -4291,12 +4291,6 @@ static int Decrypt(WOLFSSL* ssl, byte* output, const byte* input, word32 sz)
             break;
         #endif
 
-        #ifdef HAVE_HC128
-        case wolfssl_hc128:
-            wc_Hc128_Process(ssl->decrypt.hc128, output, input, sz);
-            break;
-        #endif
-
         #ifdef BUILD_RABBIT
         case wolfssl_rabbit:
             wc_RabbitProcess(ssl->decrypt.rabbit, output, input, sz);

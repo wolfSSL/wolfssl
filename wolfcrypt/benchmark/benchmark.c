@@ -152,7 +152,6 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/des3.h>
 #include <wolfssl/wolfcrypt/arc4.h>
-#include <wolfssl/wolfcrypt/hc128.h>
 #include <wolfssl/wolfcrypt/rabbit.h>
 #include <wolfssl/wolfcrypt/chacha.h>
 #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
@@ -276,7 +275,6 @@
 #define BENCH_AES_CCM            0x00000020
 #define BENCH_CAMELLIA           0x00000100
 #define BENCH_ARC4               0x00000200
-#define BENCH_HC128              0x00000400
 #define BENCH_RABBIT             0x00000800
 #define BENCH_CHACHA20           0x00001000
 #define BENCH_CHACHA20_POLY1305  0x00002000
@@ -441,9 +439,6 @@ static const bench_alg bench_cipher_opt[] = {
 #endif
 #ifndef NO_RC4
     { "-arc4",               BENCH_ARC4              },
-#endif
-#ifdef HAVE_HC128
-    { "-hc128",              BENCH_HC128             },
 #endif
 #ifndef NO_RABBIT
     { "-rabbit",             BENCH_RABBIT            },
@@ -1751,10 +1746,6 @@ static void* benchmarks_do(void* args)
         bench_arc4(1);
     #endif
     }
-#endif
-#ifdef HAVE_HC128
-    if (bench_all || (bench_cipher_algs & BENCH_HC128))
-        bench_hc128();
 #endif
 #ifndef NO_RABBIT
     if (bench_all || (bench_cipher_algs & BENCH_RABBIT))
@@ -3391,27 +3382,6 @@ exit:
     }
 }
 #endif /* !NO_RC4 */
-
-
-#ifdef HAVE_HC128
-void bench_hc128(void)
-{
-    HC128  enc;
-    double start;
-    int    i, count;
-
-    wc_Hc128_SetKey(&enc, bench_key, bench_iv);
-
-    bench_stats_start(&count, &start);
-    do {
-        for (i = 0; i < numBlocks; i++) {
-            wc_Hc128_Process(&enc, bench_cipher, bench_plain, BENCH_SIZE);
-        }
-        count += i;
-    } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("HC128", 0, count, bench_size, start, 0);
-}
-#endif /* HAVE_HC128 */
 
 
 #ifndef NO_RABBIT
