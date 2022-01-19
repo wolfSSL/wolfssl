@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include "wolfssl/wolfcrypt/settings.h"
+
 #ifndef HAVE_INTEL_AVX1
 #define HAVE_INTEL_AVX1
 #endif /* HAVE_INTEL_AVX1 */
