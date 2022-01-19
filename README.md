@@ -78,6 +78,15 @@ macro `NO_OLD_SHA_NAMES`. These names get mapped to the OpenSSL API for a
 single call hash function. Instead the name `WC_SHA`, `WC_SHA256`, `WC_SHA384` and
 `WC_SHA512` should be used for the enum name.
 
+# wolfSSL Release TBD (Date TBD)
+
+### Misc.
+
+* The following algorithms have been removed:
+** HC-128
+
+If this adversely affects you or your customers, please get in cotact with the wolfSSL team. (support@wolfssl.com)
+
 # wolfSSL Release 5.1.1 (Jan 3rd, 2022)
 Release 5.1.1 of wolfSSL embedded TLS has a high vulnerability fix:
 
