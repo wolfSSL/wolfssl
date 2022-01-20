@@ -1291,10 +1291,10 @@ static const WOLFSSL_SRTP_PROTECTION_PROFILE gSrtpProfiles[] = {
     /* NULL Cipher, Salt:112-bits, Auth HMAC-SHA1 Tag 32-bits */
     {"SRTP_NULL_SHA1_32", SRTP_NULL_SHA1_32, ((112 * 2) / 8)},
     /* AES GCM 128, Salt: 96-bits, Auth GCM Tag 128-bits
-     * (master_key:128bits + master_salt:96bits) * 2 = 480 bits (60) */
+     * (master_key:128bits + master_salt:96bits) * 2 = 448 bits (56) */
     {"SRTP_AEAD_AES_128_GCM", SRTP_AEAD_AES_128_GCM, (((128 + 96) * 2) / 8) },
     /* AES GCM 256, Salt: 96-bits, Auth GCM Tag 128-bits
-     * (master_key:256bits + master_salt:96bits) * 2 = 480 bits (60) */
+     * (master_key:256bits + master_salt:96bits) * 2 = 704 bits (88) */
     {"SRTP_AEAD_AES_256_GCM", SRTP_AEAD_AES_256_GCM, (((256 + 96) * 2) / 8) },
 };
 
