@@ -974,6 +974,19 @@ AC_ARG_ENABLE([nginx],
     [ ENABLED_NGINX=no ]
     )
 
+# chrony support. Needs the compatibility layer for SNI callback functionality,
+# but otherwise uses pure wolfCrypt.
+AC_ARG_ENABLE([chrony],
+    [AS_HELP_STRING([--enable-chrony],[Enable chrony support (default: disabled)])],
+    [ ENABLED_CHRONY=$enableval ],
+    [ ENABLED_CHRONY=no ]
+    )
+
+if test "$ENABLED_CHRONY" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
+fi
+
 if test "$ENABLED_OPENRESTY" = "yes"
 then
     ENABLED_NGINX="yes"
@@ -1137,7 +1150,7 @@ if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || \
    test "$ENABLED_HAPROXY" = "yes" || test "$ENABLED_BIND" = "yes" || \
    test "$ENABLED_NTP" = "yes" || test "$ENABLED_NETSNMP" = "yes" || \
    test "$ENABLED_OPENRESTY" = "yes" || test "$ENABLED_RSYSLOG" = "yes" || \
-   test "$ENABLED_KRB" = "yes"
+   test "$ENABLED_KRB" = "yes" || test "$ENABLED_CHRONY" = "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
@@ -1598,7 +1611,12 @@ AC_ARG_ENABLE([aessiv],
     [ ENABLED_AESSIV=no ]
     )
 
-# AES-CTR
+if test "$ENABLED_CHRONY" = "yes"
+then
+    ENABLED_AESSIV=yes
+fi
+
+# AES-CTRf
 AC_ARG_ENABLE([aesctr],
     [AS_HELP_STRING([--enable-aesctr],[Enable wolfSSL AES-CTR support (default: disabled)])],
     [ ENABLED_AESCTR=$enableval ],
@@ -2254,7 +2272,7 @@ AC_ARG_ENABLE([certgen],
     [ ENABLED_CERTGEN=$enableval ],
     [ ENABLED_CERTGEN=no ]
     )
-if test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" = "yes"
+if test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" = "yes" || test "$ENABLED_CHRONY" = "yes"
 then
     ENABLED_CERTGEN=yes
 fi
@@ -2503,7 +2521,7 @@ AC_ARG_ENABLE([ed25519-stream],
     )
 
 
-if test "$ENABLED_OPENSSH" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_CHRONY" = "yes"
 then
     ENABLED_ED25519="yes"
 fi
@@ -4201,6 +4219,10 @@ AC_ARG_ENABLE([keying-material],
     [ ENABLED_KEYING_MATERIAL=no ]
     )
 
+if test "$ENABLED_CHRONY" = "yes"
+then
+    ENABLED_KEYING_MATERIAL=yes
+fi
 if test "x$ENABLED_KEYING_MATERIAL" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_KEYING_MATERIAL"
@@ -4305,7 +4327,7 @@ AC_ARG_ENABLE([tlsx],
     [ ENABLED_TLSX=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_SIGNAL" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_SIGNAL" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes" || test "$ENABLED_CHRONY" = "yes"
 then
     ENABLED_TLSX=yes
 fi
@@ -7780,6 +7802,7 @@ echo "   * LIBWEBSOCKETS:              $ENABLED_LIBWEBSOCKETS"
 echo "   * Qt:                         $ENABLED_QT"
 echo "   * Qt Unit Testing:            $ENABLED_QT_TEST"
 echo "   * SIGNAL:                     $ENABLED_SIGNAL"
+echo "   * chrony:                     $ENABLED_CHRONY"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
 echo "   * SCTP:                       $ENABLED_SCTP"
