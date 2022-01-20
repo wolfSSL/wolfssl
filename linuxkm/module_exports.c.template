@@ -58,6 +58,9 @@
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/sha512.h>
+#ifdef WOLFSSL_SIPHASH
+#include <wolfssl/wolfcrypt/siphash.h>
+#endif
 #include <wolfssl/wolfcrypt/arc4.h>
 #if defined(WC_NO_RNG)
     #include <wolfssl/wolfcrypt/integer.h>
