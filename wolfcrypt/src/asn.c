@@ -551,9 +551,9 @@ static const char* TagString(byte tag)
 
 /* Returns whether ASN.1 item is an integer and the Most-Significant Bit is set.
  *
- * @param [in] asn    ASN.1 items to encode.
- * @param [in] data_a   Data to place in each item. Lengths set were not known.
- * @param [in] i      Index of item to check.
+ * @param [in] asn     ASN.1 items to encode.
+ * @param [in] data_a  Data to place in each item. Lengths set were not known.
+ * @param [in] i       Index of item to check.
  * @return  1 when ASN.1 item is an integer and MSB is 1.
  * @erturn  0 otherwise.
  */

@@ -2558,13 +2558,11 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
             ret = RSA_BUFFER_E;
     }
 
-#ifndef WOLFSSL_XILINX_CRYPT // NOLINT(readability-redundant-preprocessor)
     if (ret == 0) {
         *outLen = keyLen;
         if (mp_to_unsigned_bin_len(tmp, out, keyLen) != MP_OKAY)
              ret = MP_TO_E;
     }
-#endif
 #else
     (void)type;
     (void)key;

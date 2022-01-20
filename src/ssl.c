@@ -6549,9 +6549,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #ifndef NO_RSA
             haveRSA = 1;
         #endif
-        #ifndef NO_CERTS // NOLINT(readability-redundant-preprocessor)
             keySz = ssl->buffers.keySz;
-        #endif
 
         /* let's reset suites */
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA,
@@ -8111,7 +8109,6 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
         return WOLFSSL_FAILURE;
     }
 
-#ifndef NO_CERTS // NOLINT(readability-redundant-preprocessor)
 #ifdef WOLFSSL_SMALL_STACK
     der = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL, DYNAMIC_TYPE_DCERT);
     if (der == NULL)
@@ -8197,10 +8194,6 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
 #endif
 
     return ret;
-#else
-    WOLFSSL_MSG("NO_CERTS is defined, can not check private key");
-    return WOLFSSL_FAILURE;
-#endif
 }
 #endif /* !NO_CHECK_PRIVATE_KEY */
 
@@ -11374,7 +11367,6 @@ err:
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 #ifdef OPENSSL_EXTRA
-#ifndef NO_CERTS // NOLINT(readability-redundant-preprocessor)
 int wolfSSL_X509_add_altname_ex(WOLFSSL_X509* x509, const char* name,
         word32 nameSz, int type)
 {
@@ -11972,11 +11964,8 @@ int wolfSSL_use_certificate(WOLFSSL* ssl, WOLFSSL_X509* x509)
     return WOLFSSL_FAILURE;
 }
 
-#endif /* NO_CERTS */
-
 #endif /* OPENSSL_EXTRA */
 
-#ifndef NO_CERTS // NOLINT(readability-redundant-preprocessor)
 int wolfSSL_use_certificate_ASN1(WOLFSSL* ssl, const unsigned char* der,
                                  int derSz)
 {
@@ -12068,7 +12057,6 @@ int wolfSSL_use_certificate_chain_file_format(WOLFSSL* ssl, const char* file,
 }
 
 #endif /* !NO_FILESYSTEM */
-#endif /* !NO_CERTS */
 
 #ifdef HAVE_ECC
 
@@ -33013,60 +33001,72 @@ static int i2dProcessMembers(const void *src, byte *buf,
     return len;
 }
 
-int wolfSSL_ASN1_item_i2d(const void *src, byte **dest, // NOLINT(misc-no-recursion) /* fixme */
-                          const WOLFSSL_ASN1_ITEM *tpl)
+static int wolfSSL_ASN1_item_i2d_1(const void *src, byte *buf,
+                                       const WOLFSSL_ASN1_ITEM *tpl, int *len)
 {
-    int len = 0;
-    byte *buf = NULL;
-
-    WOLFSSL_ENTER("wolfSSL_ASN1_item_i2d");
-
-    if (!src || !tpl) {
-        WOLFSSL_LEAVE("wolfSSL_ASN1_item_i2d", WOLFSSL_FAILURE);
-        return WOLFSSL_FAILURE;
-    }
-
-    if (dest && !*dest) {
-        len = wolfSSL_ASN1_item_i2d(src, NULL, tpl);
-        if (!len) {
-            goto error;
-        }
-        buf = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_ASN1);
-        if (!buf) {
-            goto error;
-        }
-        len = 0;
-    }
+    *len = 0;
 
     switch (tpl->type) {
         case ASN_SEQUENCE:
         {
             int seq_len = i2dProcessMembers(src, NULL, tpl->members,
                                          tpl->mcount);
-            if (!seq_len) {
-                goto error;
+            if (seq_len == WOLFSSL_FAILURE)
+                return WOLFSSL_FAILURE;
+            *len += SetSequence(seq_len, bufLenOrNull(buf, *len));
+            if (buf) {
+                if (i2dProcessMembers(src, bufLenOrNull(buf, *len), tpl->members,
+                                      tpl->mcount) != seq_len) {
+                    WOLFSSL_MSG("Inconsistent sequence length");
+                    return WOLFSSL_FAILURE;
+                }
             }
-            len += SetSequence(seq_len, bufLenOrNull(buf, len));
-            if (buf &&
-                    i2dProcessMembers(src, bufLenOrNull(buf, len), tpl->members,
-                                   tpl->mcount) != seq_len) {
-                WOLFSSL_MSG("Inconsistent sequence length");
-                goto error;
-            }
-            len += seq_len;
+            *len += seq_len;
             break;
         }
         default:
             WOLFSSL_MSG("Type not supported in wolfSSL_ASN1_item_i2d");
-            goto error;
+            return WOLFSSL_FAILURE;
     }
 
-    if (dest && !*dest) {
-        *dest = buf;
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_ASN1_item_i2d(const void *src, byte **dest,
+                          const WOLFSSL_ASN1_ITEM *tpl)
+{
+    int len;
+    byte *buf = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_ASN1_item_i2d");
+
+    if ((src == NULL) || (tpl == NULL))
+        goto error;
+
+    if (wolfSSL_ASN1_item_i2d_1(src, NULL, tpl, &len) != WOLFSSL_SUCCESS)
+        goto error;
+
+    if (dest == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_ASN1_item_i2d", WOLFSSL_SUCCESS);
+        return len;
     }
-    else if (dest && *dest && buf) {
-        /* *dest length is not checked because the user is responsible
-         * for providing a long enough buffer */
+
+    if (*dest == NULL) {
+        buf = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_ASN1);
+        if (buf == NULL)
+            goto error;
+    } else
+        buf = *dest;
+
+    if (wolfSSL_ASN1_item_i2d_1(src, buf, tpl, &len) != WOLFSSL_SUCCESS)
+        goto error;
+
+    if (*dest == NULL)
+        *dest = buf;
+    else {
+        /* XXX *dest length is not checked because the user is responsible
+         * for providing a long enough buffer
+         */
         XMEMCPY(*dest, buf, len);
     }
 
@@ -33079,6 +33079,7 @@ error:
     WOLFSSL_LEAVE("wolfSSL_ASN1_item_i2d", WOLFSSL_FAILURE);
     return WOLFSSL_FAILURE;
 }
+
 #endif /* OPENSSL_ALL */
 
 #ifndef NO_DH
