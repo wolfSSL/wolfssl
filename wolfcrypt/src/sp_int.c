@@ -9639,11 +9639,8 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
     sp_int* b = NULL;
     sp_int* c = NULL;
     sp_int* mm;
-    int used = ((m == NULL) || (a == NULL)) ? 1 :
-                   ((m->used >= a->used) ? m->used + 1 : a->used + 1);
     int evenMod = 0;
-    DECL_SP_INT_ARRAY(t, used, 4);
-    (void)used;
+    DECL_SP_INT_ARRAY(t, (m == NULL) ? 1 : (m->used + 1), 4);
 
     if ((a == NULL) || (m == NULL) || (r == NULL) || (r == m)) {
         err = MP_VAL;
@@ -9655,7 +9652,7 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
     }
 #endif
 
-    ALLOC_SP_INT_ARRAY(t, (m == NULL) ? 0 : m->used + 1, 4, err, NULL);
+    ALLOC_SP_INT_ARRAY(t, m->used + 1, 4, err, NULL);
     if (err == MP_OKAY) {
         u = t[0];
         v = t[1];
@@ -9721,30 +9718,30 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
             if (sp_iseven(u)) {
                 sp_div_2(u, u);
                 if (sp_isodd(b)) {
-                    sp_add(b, mm, b);
+                    _sp_add_off(b, mm, b, 0);
                 }
                 sp_div_2(b, b);
             }
             else if (sp_iseven(v)) {
                 sp_div_2(v, v);
                 if (sp_isodd(c)) {
-                    sp_add(c, mm, c);
+                    _sp_add_off(c, mm, c, 0);
                 }
                 sp_div_2(c, c);
             }
             else if (_sp_cmp(u, v) != MP_LT) {
-                sp_sub(u, v, u);
+                _sp_sub_off(u, v, u, 0);
                 if (_sp_cmp(b, c) == MP_LT) {
-                    sp_add(b, mm, b);
+                    _sp_add_off(b, mm, b, 0);
                 }
-                sp_sub(b, c, b);
+                _sp_sub_off(b, c, b, 0);
             }
             else {
-                sp_sub(v, u, v);
+                _sp_sub_off(v, u, v, 0);
                 if (_sp_cmp(c, b) == MP_LT) {
-                    sp_add(c, mm, c);
+                    _sp_add_off(c, mm, c, 0);
                 }
-                sp_sub(c, b, c);
+                _sp_sub_off(c, b, c, 0);
             }
         }
         if (sp_iszero(u)) {
