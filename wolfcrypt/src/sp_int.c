@@ -67,6 +67,8 @@ This library provides single precision (SP) integer math functions.
  *      (used with -mthumb)
  * WOLFSSL_SP_X86_64            Enable Intel x86 64-bit assembly speedups
  * WOLFSSL_SP_X86               Enable Intel x86 assembly speedups
+ * WOLFSSL_SP_ARM_THUMB         Enable ARM Thumb assembly speedups
+ *                              (explicitly uses register 'r7')
  * WOLFSSL_SP_PPC64             Enable PPC64 assembly speedups
  * WOLFSSL_SP_PPC               Enable PPC assembly speedups
  * WOLFSSL_SP_MIPS64            Enable MIPS64 assembly speedups
@@ -1114,6 +1116,1519 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 #define SP_INT_ASM_AVAILABLE
 
     #endif /* (WOLFSSL_SP_ARM32 || ARM_CORTEX_M) && SP_WORD_SIZE == 32 */
+
+    #if defined(WOLFSSL_SP_ARM_THUMB) && SP_WORD_SIZE == 32
+/*
+ * CPU: ARM Thumb (like Cortex-M0)
+ */
+
+/* Compile with -fomit-frame-pointer, or similar, if compiler complains about
+ * usage of register 'r7'.
+ */
+
+#if defined(__clang__)
+
+/* Multiply va by vb and store double size result in: vh | vl */
+#define SP_ASM_MUL(vl, vh, va, vb)                       \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	%[l], %[b]		\n\t"            \
+        "muls	%[l], r6		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	%[h], r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "muls	r7, r6			\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        : [h] "+l" (vh), [l] "+l" (vl)                   \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Multiply va by vb and store double size result in: vo | vh | vl */
+#define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	%[l], %[b]		\n\t"            \
+        "muls	%[l], r6		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	%[h], r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "movs	%[o], #0		\n\t"            \
+        "adcs	%[h], %[o]		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "muls	r7, r6			\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r6", "r7", "cc"                               \
+    )
+/* Multiply va by vb and add double size result into: vo | vh | vl */
+#define SP_ASM_MUL_ADD(vl, vh, vo, va, vb)               \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r7, r6			\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r7, r6			\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Multiply va by vb and add double size result into: vh | vl */
+#define SP_ASM_MUL_ADD_NO(vl, vh, va, vb)                \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r7, r6			\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r7, r6			\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Multiply va by vb and add double size result twice into: vo | vh | vl */
+#define SP_ASM_MUL_ADD2(vl, vh, vo, va, vb)              \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r7, r6			\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r7, r6			\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Multiply va by vb and add double size result twice into: vo | vh | vl
+ * Assumes first add will not overflow vh | vl
+ */
+#define SP_ASM_MUL_ADD2_NO(vl, vh, vo, va, vb)           \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r7, r6			\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r7, r6			\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Square va and store double size result in: vh | vl */
+#define SP_ASM_SQR(vl, vh, va)                           \
+    __asm__ __volatile__ (                               \
+        "lsrs	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        "mov	%[l], r6		\n\t"            \
+        "mov	%[h], r7		\n\t"            \
+        /* al * al */                                    \
+        "muls	%[l], %[l]		\n\t"            \
+        /* ah * ah */                                    \
+        "muls	%[h], %[h]		\n\t"            \
+        /* 2 * al * ah */                                \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #15		\n\t"            \
+        "lsls	r6, r6, #17		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        : [h] "+l" (vh), [l] "+l" (vl)                   \
+        : [a] "l" (va)                                   \
+        : "r6", "r7", "cc"                               \
+    )
+/* Square va and add double size result into: vo | vh | vl */
+#define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
+    __asm__ __volatile__ (                               \
+        "lsrs	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* al * al */                                    \
+        "muls	r6, r6			\n\t"            \
+        /* ah * ah */                                    \
+        "muls	r7, r7			\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        "lsrs	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* 2 * al * ah */                                \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #15		\n\t"            \
+        "lsls	r6, r6, #17		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va)                                   \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Square va and add double size result into: vh | vl */
+#define SP_ASM_SQR_ADD_NO(vl, vh, va)                    \
+    __asm__ __volatile__ (                               \
+        "lsrs	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* al * al */                                    \
+        "muls	r6, r6			\n\t"            \
+        /* ah * ah */                                    \
+        "muls	r7, r7			\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "lsrs	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* 2 * al * ah */                                \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #15		\n\t"            \
+        "lsls	r6, r6, #17		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va)                                   \
+        : "r6", "r7", "cc"                               \
+    )
+/* Add va into: vh | vl */
+#define SP_ASM_ADDC(vl, vh, va)                          \
+    __asm__ __volatile__ (                               \
+        "adds	%[l], %[l], %[a]	\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va)                                   \
+        : "r5", "cc"                                     \
+    )
+/* Sub va from: vh | vl */
+#define SP_ASM_SUBC(vl, vh, va)                          \
+    __asm__ __volatile__ (                               \
+        "subs	%[l], %[l], %[a]	\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "sbcs	%[h], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va)                                   \
+        : "r5", "cc"                                     \
+    )
+/* Add two times vc | vb | va into vo | vh | vl */
+#define SP_ASM_ADD_DBL_3(vl, vh, vo, va, vb, vc)         \
+    __asm__ __volatile__ (                               \
+        "adds	%[l], %[l], %[a]	\n\t"            \
+        "adcs	%[h], %[b]		\n\t"            \
+        "adcs	%[o], %[c]		\n\t"            \
+        "adds	%[l], %[l], %[a]	\n\t"            \
+        "adcs	%[h], %[b]		\n\t"            \
+        "adcs	%[o], %[c]		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb), [c] "l" (vc)       \
+        : "cc"                                           \
+    )
+
+#elif defined(WOLFSSL_KEIL)
+
+/* Multiply va by vb and store double size result in: vh | vl */
+#define SP_ASM_MUL(vl, vh, va, vb)                       \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	%[l], %[b]		\n\t"            \
+        "muls	%[l], r6, %[l]		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	%[h], r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "muls	r7, r6, r7		\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        : [h] "+l" (vh), [l] "+l" (vl)                   \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Multiply va by vb and store double size result in: vo | vh | vl */
+#define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	%[l], %[b]		\n\t"            \
+        "muls	%[l], r6, %[l]		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	%[h], r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "movs	%[o], #0		\n\t"            \
+        "adcs	%[h], %[h], %[o]	\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "muls	r7, r6, r7		\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r6", "r7", "cc"                               \
+    )
+/* Multiply va by vb and add double size result into: vo | vh | vl */
+#define SP_ASM_MUL_ADD(vl, vh, vo, va, vb)               \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r7, r6, r7		\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7, r7		\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r7, r6, r7		\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Multiply va by vb and add double size result into: vh | vl */
+#define SP_ASM_MUL_ADD_NO(vl, vh, va, vb)                \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r7, r6, r7		\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r7, r6, r7		\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Multiply va by vb and add double size result twice into: vo | vh | vl */
+#define SP_ASM_MUL_ADD2(vl, vh, vo, va, vb)              \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r7, r6, r7		\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r7, r6, r7		\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Multiply va by vb and add double size result twice into: vo | vh | vl
+ * Assumes first add will not overflow vh | vl
+ */
+#define SP_ASM_MUL_ADD2_NO(vl, vh, vo, va, vb)           \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r7, r6, r7		\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r7, r6, r7		\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Square va and store double size result in: vh | vl */
+#define SP_ASM_SQR(vl, vh, va)                           \
+    __asm__ __volatile__ (                               \
+        "lsrs	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        "mov	%[l], r6		\n\t"            \
+        "mov	%[h], r7		\n\t"            \
+        /* al * al */                                    \
+        "muls	%[l], %[l], %[l]	\n\t"            \
+        /* ah * ah */                                    \
+        "muls	%[h], %[h], %[h]	\n\t"            \
+        /* 2 * al * ah */                                \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #15		\n\t"            \
+        "lsls	r6, r6, #17		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        : [h] "+l" (vh), [l] "+l" (vl)                   \
+        : [a] "l" (va)                                   \
+        : "r6", "r7", "cc"                               \
+    )
+/* Square va and add double size result into: vo | vh | vl */
+#define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
+    __asm__ __volatile__ (                               \
+        "lsrs	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* al * al */                                    \
+        "muls	r6, r6, r6		\n\t"            \
+        /* ah * ah */                                    \
+        "muls	r7, r7, r7		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        "lsrs	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* 2 * al * ah */                                \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #15		\n\t"            \
+        "lsls	r6, r6, #17		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va)                                   \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Square va and add double size result into: vh | vl */
+#define SP_ASM_SQR_ADD_NO(vl, vh, va)                    \
+    __asm__ __volatile__ (                               \
+        "lsrs	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* al * al */                                    \
+        "muls	r6, r6, r6		\n\t"            \
+        /* ah * ah */                                    \
+        "muls	r7, r7, r7		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "lsrs	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* 2 * al * ah */                                \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #15		\n\t"            \
+        "lsls	r6, r6, #17		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va)                                   \
+        : "r6", "r7", "cc"                               \
+    )
+/* Add va into: vh | vl */
+#define SP_ASM_ADDC(vl, vh, va)                          \
+    __asm__ __volatile__ (                               \
+        "adds	%[l], %[l], %[a]	\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va)                                   \
+        : "r5", "cc"                                     \
+    )
+/* Sub va from: vh | vl */
+#define SP_ASM_SUBC(vl, vh, va)                          \
+    __asm__ __volatile__ (                               \
+        "subs	%[l], %[l], %[a]	\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "sbcs	%[h], %[h], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va)                                   \
+        : "r5", "cc"                                     \
+    )
+/* Add two times vc | vb | va into vo | vh | vl */
+#define SP_ASM_ADD_DBL_3(vl, vh, vo, va, vb, vc)         \
+    __asm__ __volatile__ (                               \
+        "adds	%[l], %[l], %[a]	\n\t"            \
+        "adcs	%[h], %[h], %[b]	\n\t"            \
+        "adcs	%[o], %[o], %[c]	\n\t"            \
+        "adds	%[l], %[l], %[a]	\n\t"            \
+        "adcs	%[h], %[h], %[b]	\n\t"            \
+        "adcs	%[o], %[o], %[c]	\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb), [c] "l" (vc)       \
+        : "cc"                                           \
+    )
+
+#elif defined(__GNUC__)
+
+/* Multiply va by vb and store double size result in: vh | vl */
+#define SP_ASM_MUL(vl, vh, va, vb)                       \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	%[l], %[b]		\n\t"            \
+        "mul	%[l], r6		\n\t"            \
+        /* al * bh */                                    \
+        "lsr	r7, %[b], #16		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	%[h], r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "mov	r5, #0			\n\t"            \
+        "adc	%[h], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsr	r6, %[a], #16		\n\t"            \
+        "mul	r7, r6			\n\t"            \
+        "add	%[h], %[h], r7		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        : [h] "+l" (vh), [l] "+l" (vl)                   \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Multiply va by vb and store double size result in: vo | vh | vl */
+#define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	%[l], %[b]		\n\t"            \
+        "mul	%[l], r6		\n\t"            \
+        /* al * bh */                                    \
+        "lsr	r7, %[b], #16		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	%[h], r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "mov	%[o], #0		\n\t"            \
+        "adc	%[h], %[o]		\n\t"            \
+        /* ah * bh */                                    \
+        "lsr	r6, %[a], #16		\n\t"            \
+        "mul	r7, r6			\n\t"            \
+        "add	%[h], %[h], r7		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r6", "r7", "cc"                               \
+    )
+/* Multiply va by vb and add double size result into: vo | vh | vl */
+#define SP_ASM_MUL_ADD(vl, vh, vo, va, vb)               \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "mul	r7, r6			\n\t"            \
+        "add	%[l], %[l], r7		\n\t"            \
+        "mov	r5, #0			\n\t"            \
+        "adc	%[h], r5		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsr	r7, %[b], #16		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsr	r6, %[a], #16		\n\t"            \
+        "lsr	r7, %[b], #16		\n\t"            \
+        "mul	r7, r6			\n\t"            \
+        "add	%[h], %[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Multiply va by vb and add double size result into: vh | vl */
+#define SP_ASM_MUL_ADD_NO(vl, vh, va, vb)                \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "mul	r7, r6			\n\t"            \
+        "add	%[l], %[l], r7		\n\t"            \
+        "mov	r5, #0			\n\t"            \
+        "adc	%[h], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsr	r7, %[b], #16		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        /* ah * bh */                                    \
+        "lsr	r6, %[a], #16		\n\t"            \
+        "lsr	r7, %[b], #16		\n\t"            \
+        "mul	r7, r6			\n\t"            \
+        "add	%[h], %[h], r7		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Multiply va by vb and add double size result twice into: vo | vh | vl */
+#define SP_ASM_MUL_ADD2(vl, vh, vo, va, vb)              \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "mul	r7, r6			\n\t"            \
+        "add	%[l], %[l], r7		\n\t"            \
+        "mov	r5, #0			\n\t"            \
+        "adc	%[h], r5		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        "add	%[l], %[l], r7		\n\t"            \
+        "adc	%[h], r5		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsr	r7, %[b], #16		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsr	r6, %[a], #16		\n\t"            \
+        "lsr	r7, %[b], #16		\n\t"            \
+        "mul	r7, r6			\n\t"            \
+        "add	%[h], %[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        "add	%[h], %[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Multiply va by vb and add double size result twice into: vo | vh | vl
+ * Assumes first add will not overflow vh | vl
+ */
+#define SP_ASM_MUL_ADD2_NO(vl, vh, vo, va, vb)           \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "mul	r7, r6			\n\t"            \
+        "add	%[l], %[l], r7		\n\t"            \
+        "mov	r5, #0			\n\t"            \
+        "adc	%[h], r5		\n\t"            \
+        "add	%[l], %[l], r7		\n\t"            \
+        "adc	%[h], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsr	r7, %[b], #16		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsr	r6, %[a], #16		\n\t"            \
+        "lsr	r7, %[b], #16		\n\t"            \
+        "mul	r7, r6			\n\t"            \
+        "add	%[h], %[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        "add	%[h], %[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Square va and store double size result in: vh | vl */
+#define SP_ASM_SQR(vl, vh, va)                           \
+    __asm__ __volatile__ (                               \
+        "lsr	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        "mov	%[l], r6		\n\t"            \
+        "mov	%[h], r7		\n\t"            \
+        /* al * al */                                    \
+        "mul	%[l], %[l]		\n\t"            \
+        /* ah * ah */                                    \
+        "mul	%[h], %[h]		\n\t"            \
+        /* 2 * al * ah */                                \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #15		\n\t"            \
+        "lsl	r6, r6, #17		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        : [h] "+l" (vh), [l] "+l" (vl)                   \
+        : [a] "l" (va)                                   \
+        : "r6", "r7", "cc"                               \
+    )
+/* Square va and add double size result into: vo | vh | vl */
+#define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
+    __asm__ __volatile__ (                               \
+        "lsr	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* al * al */                                    \
+        "mul	r6, r6			\n\t"            \
+        /* ah * ah */                                    \
+        "mul	r7, r7			\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "mov	r5, #0			\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        "lsr	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* 2 * al * ah */                                \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #15		\n\t"            \
+        "lsl	r6, r6, #17		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va)                                   \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Square va and add double size result into: vh | vl */
+#define SP_ASM_SQR_ADD_NO(vl, vh, va)                    \
+    __asm__ __volatile__ (                               \
+        "lsr	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* al * al */                                    \
+        "mul	r6, r6			\n\t"            \
+        /* ah * ah */                                    \
+        "mul	r7, r7			\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "lsr	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* 2 * al * ah */                                \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #15		\n\t"            \
+        "lsl	r6, r6, #17		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va)                                   \
+        : "r6", "r7", "cc"                               \
+    )
+/* Add va into: vh | vl */
+#define SP_ASM_ADDC(vl, vh, va)                          \
+    __asm__ __volatile__ (                               \
+        "add	%[l], %[l], %[a]	\n\t"            \
+        "mov	r5, #0			\n\t"            \
+        "adc	%[h], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va)                                   \
+        : "r5", "cc"                                     \
+    )
+/* Sub va from: vh | vl */
+#define SP_ASM_SUBC(vl, vh, va)                          \
+    __asm__ __volatile__ (                               \
+        "sub	%[l], %[l], %[a]	\n\t"            \
+        "mov	r5, #0			\n\t"            \
+        "sbc	%[h], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va)                                   \
+        : "r5", "cc"                                     \
+    )
+/* Add two times vc | vb | va into vo | vh | vl */
+#define SP_ASM_ADD_DBL_3(vl, vh, vo, va, vb, vc)         \
+    __asm__ __volatile__ (                               \
+        "add	%[l], %[l], %[a]	\n\t"            \
+        "adc	%[h], %[b]		\n\t"            \
+        "adc	%[o], %[c]		\n\t"            \
+        "add	%[l], %[l], %[a]	\n\t"            \
+        "adc	%[h], %[b]		\n\t"            \
+        "adc	%[o], %[c]		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb), [c] "l" (vc)       \
+        : "cc"                                           \
+    )
+
+#endif
+
+#ifndef WOLFSSL_SP_DIV_WORD_HALF
+/* Divide a two digit number by a digit number and return. (hi | lo) / d
+ *
+ * No division instruction used - does operation bit by bit.
+ * Constant time.
+ *
+ * @param  [in]  hi  SP integer digit. High digit of the dividend.
+ * @param  [in]  lo  SP integer digit. Lower digit of the dividend.
+ * @param  [in]  d   SP integer digit. Number to divide by.
+ * @return  The division result.
+ */
+static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
+                                          sp_int_digit d)
+{
+    __asm__ __volatile__ (
+        "movs   r3, #0\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r5, %[d], #1\n\t"
+#else
+        "lsr    r5, %[d], #1\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r5, r5, #1\n\t"
+#else
+        "add    r5, r5, #1\n\t"
+#endif
+        "mov    r8, %[lo]\n\t"
+        "mov    r9, %[hi]\n\t"
+        "# Do top 32\n\t"
+        "movs   r6, r5\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   r6, r6, %[hi]\n\t"
+#else
+        "sub    r6, r6, %[hi]\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "sbcs   r6, r6, r6\n\t"
+#elif defined(__clang__)
+        "sbcs   r6, r6\n\t"
+#else
+        "sbc    r6, r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r3, r3, r3\n\t"
+#else
+        "add    r3, r3, r3\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   r3, r3, r6\n\t"
+#else
+        "sub    r3, r3, r6\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "ands   r6, r6, r5\n\t"
+#elif defined(__clang__)
+        "ands   r6, r5\n\t"
+#else
+        "and    r6, r5\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   %[hi], %[hi], r6\n\t"
+#else
+        "sub    %[hi], %[hi], r6\n\t"
+#endif
+        "movs   r4, #29\n\t"
+        "\n"
+    "L_sp_div_word_loop%=:\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsls   %[lo], %[lo], #1\n\t"
+#else
+        "lsl    %[lo], %[lo], #1\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "adcs   %[hi], %[hi], %[hi]\n\t"
+#elif defined(__clang__)
+        "adcs   %[hi], %[hi]\n\t"
+#else
+        "adc    %[hi], %[hi]\n\t"
+#endif
+        "movs   r6, r5\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   r6, r6, %[hi]\n\t"
+#else
+        "sub    r6, r6, %[hi]\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "sbcs   r6, r6, r6\n\t"
+#elif defined(__clang__)
+        "sbcs   r6, r6\n\t"
+#else
+        "sbc    r6, r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r3, r3, r3\n\t"
+#else
+        "add    r3, r3, r3\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   r3, r3, r6\n\t"
+#else
+        "sub    r3, r3, r6\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "ands   r6, r6, r5\n\t"
+#elif defined(__clang__)
+        "ands   r6, r5\n\t"
+#else
+        "and    r6, r5\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   %[hi], %[hi], r6\n\t"
+#else
+        "sub    %[hi], %[hi], r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   r4, r4, #1\n\t"
+#else
+        "sub    r4, r4, #1\n\t"
+#endif
+        "bpl    L_sp_div_word_loop%=\n\t"
+        "movs   r7, #0\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r3, r3, r3\n\t"
+#else
+        "add    r3, r3, r3\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r3, r3, #1\n\t"
+#else
+        "add    r3, r3, #1\n\t"
+#endif
+        "# r * d - Start\n\t"
+        "uxth   %[hi], r3\n\t"
+        "uxth   r4, %[d]\n\t"
+#ifdef WOLFSSL_KEIL
+        "muls   r4, %[hi], r4\n\t"
+#elif defined(__clang__)
+        "muls   r4, %[hi]\n\t"
+#else
+        "mul    r4, %[hi]\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r6, %[d], #16\n\t"
+#else
+        "lsr    r6, %[d], #16\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "muls   %[hi], r6, %[hi]\n\t"
+#elif defined(__clang__)
+        "muls   %[hi], r6\n\t"
+#else
+        "mul    %[hi], r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r5, %[hi], #16\n\t"
+#else
+        "lsr    r5, %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsls   %[hi], %[hi], #16\n\t"
+#else
+        "lsl    %[hi], %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r4, r4, %[hi]\n\t"
+#else
+        "add    r4, r4, %[hi]\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "adcs   r5, r5, r7\n\t"
+#elif defined(__clang__)
+        "adcs   r5, r7\n\t"
+#else
+        "adc    r5, r7\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   %[hi], r3, #16\n\t"
+#else
+        "lsr    %[hi], r3, #16\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "muls   r6, %[hi], r6\n\t"
+#elif defined(__clang__)
+        "muls   r6, %[hi]\n\t"
+#else
+        "mul    r6, %[hi]\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r5, r5, r6\n\t"
+#else
+        "add    r5, r5, r6\n\t"
+#endif
+        "uxth   r6, %[d]\n\t"
+#ifdef WOLFSSL_KEIL
+        "muls   %[hi], r6, %[hi]\n\t"
+#elif defined(__clang__)
+        "muls   %[hi], r6\n\t"
+#else
+        "mul    %[hi], r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r6, %[hi], #16\n\t"
+#else
+        "lsr    r6, %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsls   %[hi], %[hi], #16\n\t"
+#else
+        "lsl    %[hi], %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r4, r4, %[hi]\n\t"
+#else
+        "add    r4, r4, %[hi]\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "adcs   r5, r5, r6\n\t"
+#elif defined(__clang__)
+        "adcs   r5, r6\n\t"
+#else
+        "adc    r5, r6\n\t"
+#endif
+        "# r * d - Done\n\t"
+        "mov    %[hi], r8\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   %[hi], %[hi], r4\n\t"
+#else
+        "sub    %[hi], %[hi], r4\n\t"
+#endif
+        "movs   r4, %[hi]\n\t"
+        "mov    %[hi], r9\n\t"
+#ifdef WOLFSSL_KEIL
+        "sbcs   %[hi], %[hi], r5\n\t"
+#elif defined(__clang__)
+        "sbcs   %[hi], r5\n\t"
+#else
+        "sbc    %[hi], r5\n\t"
+#endif
+        "movs   r5, %[hi]\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r3, r3, r5\n\t"
+#else
+        "add    r3, r3, r5\n\t"
+#endif
+        "# r * d - Start\n\t"
+        "uxth   %[hi], r3\n\t"
+        "uxth   r4, %[d]\n\t"
+#ifdef WOLFSSL_KEIL
+        "muls   r4, %[hi], r4\n\t"
+#elif defined(__clang__)
+        "muls   r4, %[hi]\n\t"
+#else
+        "mul    r4, %[hi]\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r6, %[d], #16\n\t"
+#else
+        "lsr    r6, %[d], #16\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "muls   %[hi], r6, %[hi]\n\t"
+#elif defined(__clang__)
+        "muls   %[hi], r6\n\t"
+#else
+        "mul    %[hi], r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r5, %[hi], #16\n\t"
+#else
+        "lsr    r5, %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsls   %[hi], %[hi], #16\n\t"
+#else
+        "lsl    %[hi], %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r4, r4, %[hi]\n\t"
+#else
+        "add    r4, r4, %[hi]\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "adcs   r5, r5, r7\n\t"
+#elif defined(__clang__)
+        "adcs   r5, r7\n\t"
+#else
+        "adc    r5, r7\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   %[hi], r3, #16\n\t"
+#else
+        "lsr    %[hi], r3, #16\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "muls   r6, %[hi], r6\n\t"
+#elif defined(__clang__)
+        "muls   r6, %[hi]\n\t"
+#else
+        "mul    r6, %[hi]\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r5, r5, r6\n\t"
+#else
+        "add    r5, r5, r6\n\t"
+#endif
+        "uxth   r6, %[d]\n\t"
+#ifdef WOLFSSL_KEIL
+        "muls   %[hi], r6, %[hi]\n\t"
+#elif defined(__clang__)
+        "muls   %[hi], r6\n\t"
+#else
+        "mul    %[hi], r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r6, %[hi], #16\n\t"
+#else
+        "lsr    r6, %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsls   %[hi], %[hi], #16\n\t"
+#else
+        "lsl    %[hi], %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r4, r4, %[hi]\n\t"
+#else
+        "add    r4, r4, %[hi]\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "adcs   r5, r5, r6\n\t"
+#elif defined(__clang__)
+        "adcs   r5, r6\n\t"
+#else
+        "adc    r5, r6\n\t"
+#endif
+        "# r * d - Done\n\t"
+        "mov    %[hi], r8\n\t"
+        "mov    r6, r9\n\t"
+#ifdef WOLFSSL_KEIL
+        "subs   r4, %[hi], r4\n\t"
+#else
+#ifdef __clang__
+        "subs   r4, %[hi], r4\n\t"
+#else
+        "sub    r4, %[hi], r4\n\t"
+#endif
+#endif
+#ifdef WOLFSSL_KEIL
+        "sbcs   r6, r6, r5\n\t"
+#elif defined(__clang__)
+        "sbcs   r6, r5\n\t"
+#else
+        "sbc    r6, r5\n\t"
+#endif
+        "movs   r5, r6\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r3, r3, r5\n\t"
+#else
+        "add    r3, r3, r5\n\t"
+#endif
+        "# r * d - Start\n\t"
+        "uxth   %[hi], r3\n\t"
+        "uxth   r4, %[d]\n\t"
+#ifdef WOLFSSL_KEIL
+        "muls   r4, %[hi], r4\n\t"
+#elif defined(__clang__)
+        "muls   r4, %[hi]\n\t"
+#else
+        "mul    r4, %[hi]\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r6, %[d], #16\n\t"
+#else
+        "lsr    r6, %[d], #16\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "muls   %[hi], r6, %[hi]\n\t"
+#elif defined(__clang__)
+        "muls   %[hi], r6\n\t"
+#else
+        "mul    %[hi], r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r5, %[hi], #16\n\t"
+#else
+        "lsr    r5, %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsls   %[hi], %[hi], #16\n\t"
+#else
+        "lsl    %[hi], %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r4, r4, %[hi]\n\t"
+#else
+        "add    r4, r4, %[hi]\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "adcs   r5, r5, r7\n\t"
+#elif defined(__clang__)
+        "adcs   r5, r7\n\t"
+#else
+        "adc    r5, r7\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   %[hi], r3, #16\n\t"
+#else
+        "lsr    %[hi], r3, #16\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "muls   r6, %[hi], r6\n\t"
+#elif defined(__clang__)
+        "muls   r6, %[hi]\n\t"
+#else
+        "mul    r6, %[hi]\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r5, r5, r6\n\t"
+#else
+        "add    r5, r5, r6\n\t"
+#endif
+        "uxth   r6, %[d]\n\t"
+#ifdef WOLFSSL_KEIL
+        "muls   %[hi], r6, %[hi]\n\t"
+#elif defined(__clang__)
+        "muls   %[hi], r6\n\t"
+#else
+        "mul    %[hi], r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r6, %[hi], #16\n\t"
+#else
+        "lsr    r6, %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsls   %[hi], %[hi], #16\n\t"
+#else
+        "lsl    %[hi], %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r4, r4, %[hi]\n\t"
+#else
+        "add    r4, r4, %[hi]\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "adcs   r5, r5, r6\n\t"
+#elif defined(__clang__)
+        "adcs   r5, r6\n\t"
+#else
+        "adc    r5, r6\n\t"
+#endif
+        "# r * d - Done\n\t"
+        "mov    %[hi], r8\n\t"
+        "mov    r6, r9\n\t"
+#ifdef WOLFSSL_KEIL
+        "subs   r4, %[hi], r4\n\t"
+#else
+#ifdef __clang__
+        "subs   r4, %[hi], r4\n\t"
+#else
+        "sub    r4, %[hi], r4\n\t"
+#endif
+#endif
+#ifdef WOLFSSL_KEIL
+        "sbcs   r6, r6, r5\n\t"
+#elif defined(__clang__)
+        "sbcs   r6, r5\n\t"
+#else
+        "sbc    r6, r5\n\t"
+#endif
+        "movs   r5, r6\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r3, r3, r5\n\t"
+#else
+        "add    r3, r3, r5\n\t"
+#endif
+        "movs   r6, %[d]\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   r6, r6, r4\n\t"
+#else
+        "sub    r6, r6, r4\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "sbcs   r6, r6, r6\n\t"
+#elif defined(__clang__)
+        "sbcs   r6, r6\n\t"
+#else
+        "sbc    r6, r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   r3, r3, r6\n\t"
+#else
+        "sub    r3, r3, r6\n\t"
+#endif
+        "movs   %[hi], r3\n\t"
+        : [hi] "+l" (hi), [lo] "+l" (lo), [d] "+l" (d)
+        :
+        : "r3", "r4", "r5", "r6", "r7", "r8", "r9"
+    );
+    return (uint32_t)(size_t)hi;
+}
+
+#define SP_ASM_DIV_WORD
+#endif /* !WOLFSSL_SP_DIV_WORD_HALF */
+
+#define SP_INT_ASM_AVAILABLE
+
+    #endif /* WOLFSSL_SP_ARM_THUMB && SP_WORD_SIZE == 32 */
 
     #if defined(WOLFSSL_SP_PPC64) && SP_WORD_SIZE == 64
 /*
@@ -10179,6 +11694,10 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
         sp_int_digit to;
         sp_int_digit t[8];
 
+    #if defined(WOLFSSL_SP_ARM_THUMB) && SP_WORD_SIZE == 32
+        to = 0;
+    #endif
+
         SP_ASM_SQR(h, l, a->dp[0]);
         t[0] = h;
         h = 0;
@@ -10302,6 +11821,10 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
         sp_int_digit th = 0;
         sp_int_digit to;
         sp_int_digit t[12];
+
+    #if defined(WOLFSSL_SP_ARM_THUMB) && SP_WORD_SIZE == 32
+        to = 0;
+    #endif
 
         SP_ASM_SQR(h, l, a->dp[0]);
         t[0] = h;
