@@ -9638,6 +9638,7 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
     sp_int* v = NULL;
     sp_int* b = NULL;
     sp_int* c = NULL;
+    sp_int* mm;
     int used = ((m == NULL) || (a == NULL)) ? 1 :
                    ((m->used >= a->used) ? m->used + 1 : a->used + 1);
     int evenMod = 0;
@@ -9697,19 +9698,19 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
         sp_init_size(c, m->used + 1);
 
         if (sp_iseven(m)) {
-            sp_int* ts;
-            /* a^-1 mod m = m + (1 - m*(m^-1 % a)) / a
-             *            = m - (m*(m^-1 % a) - 1) / a
-             */
-            /* Reverse a and m and perform invmod. */
-            ts = a;
-            a = m;
-            m = ts;
-            sp_copy(m, u);
-            sp_mod(a, m, v);
+            /* a^-1 mod m = m + ((1 - m*(m^-1 % a)) / a) */
+            mm = a;
+            sp_copy(a, u);
+            sp_mod(m, a, v);
+            /* v == 0 when a divides m evenly - no inverse.  */
+            if (sp_iszero(v)) {
+                /* Force u to no inverse answer. */
+                sp_set(u, 0);
+            }
             evenMod = 1;
         }
         else {
+            mm = m;
             sp_copy(m, u);
             sp_copy(a, v);
         }
@@ -9720,28 +9721,28 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
             if (sp_iseven(u)) {
                 sp_div_2(u, u);
                 if (sp_isodd(b)) {
-                    sp_add(b, m, b);
+                    sp_add(b, mm, b);
                 }
                 sp_div_2(b, b);
             }
             else if (sp_iseven(v)) {
                 sp_div_2(v, v);
                 if (sp_isodd(c)) {
-                    sp_add(c, m, c);
+                    sp_add(c, mm, c);
                 }
                 sp_div_2(c, c);
             }
             else if (_sp_cmp(u, v) != MP_LT) {
                 sp_sub(u, v, u);
                 if (_sp_cmp(b, c) == MP_LT) {
-                    sp_add(b, m, b);
+                    sp_add(b, mm, b);
                 }
                 sp_sub(b, c, b);
             }
             else {
                 sp_sub(v, u, v);
                 if (_sp_cmp(c, b) == MP_LT) {
-                    sp_add(c, m, c);
+                    sp_add(c, mm, c);
                 }
                 sp_sub(c, b, c);
             }
@@ -9750,17 +9751,17 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
             err = MP_VAL;
         }
         else if (evenMod) {
-            /* a and m were reversed and now we need to finish operation.
-             *    m - ((m*r - 1) / a)    (reverse a and m)
-             * => a - ((a*r - 1) / m)
+            /* Finish operation.
+             *    a^-1 mod m = m + ((1 - m*c) / a)
+             * => a^-1 mod m = m - ((m*c - 1) / a)
              */
-            err = sp_mul(c, a, v);
+            err = sp_mul(c, m, v);
             if (err == MP_OKAY) {
                 _sp_sub_d(v, 1, v);
-                err = sp_div(v, m, v, NULL);
+                err = sp_div(v, a, v, NULL);
             }
             if (err == MP_OKAY) {
-                sp_sub(a, v, r);
+                sp_sub(m, v, r);
             }
         }
         else {
