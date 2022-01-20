@@ -934,3 +934,97 @@ WOLFSSL_API int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     \sa wc_AesSetKey
 */
 WOLFSSL_API int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz);
+
+/*!
+    \ingroup AES
+
+    \brief This function performs SIV (synthetic initialization vector)
+    encryption as described in RFC 5297.
+
+    \return 0 On successful encryption.
+    \return BAD_FUNC_ARG If key, SIV, or output buffer are NULL. Also returned
+    if the key size isn't 32, 48, or 64 bytes.
+    \return Other Other negative error values returned if AES or CMAC operations
+    fail.
+
+    \param key Byte buffer containing the key to use.
+    \param keySz Length of the key buffer in bytes.
+    \param assoc Additional, authenticated associated data (AD).
+    \param assocSz Length of AD buffer in bytes.
+    \param nonce A number used once. Used by the algorithm in the same manner as
+    the AD.
+    \param nonceSz Length of nonce buffer in bytes.
+    \param in Plaintext buffer to encrypt.
+    \param inSz Length of plaintext buffer.
+    \param siv The SIV output by S2V (see RFC 5297 2.4).
+    \param out Buffer to hold the ciphertext. Should be the same length as the
+    plaintext buffer.
+
+    _Example_
+    \code
+    byte key[] = { some 32, 48, or 64 byte key };
+    byte assoc[] = {0x01, 0x2, 0x3};
+    byte nonce[] = {0x04, 0x5, 0x6};
+    byte plainText[] = {0xDE, 0xAD, 0xBE, 0xEF};
+    byte siv[AES_BLOCK_SIZE];
+    byte cipherText[sizeof(plainText)];
+    if (wc_AesSivEncrypt(key, sizeof(key), assoc, sizeof(assoc), nonce,
+        sizeof(nonce), plainText, sizeof(plainText), siv, cipherText) != 0) {
+        // failed to encrypt
+    }
+    \endcode
+
+    \sa wc_AesSivDecrypt
+*/
+
+WOLFSSL_API
+int wc_AesSivEncrypt(const byte* key, word32 keySz, const byte* assoc,
+                     word32 assocSz, const byte* nonce, word32 nonceSz,
+                     const byte* in, word32 inSz, byte* siv, byte* out);
+
+/*!
+    \ingroup AES
+    \brief This function performs SIV (synthetic initialization vector)
+    decryption as described in RFC 5297.
+
+    \return 0 On successful decryption.
+    \return BAD_FUNC_ARG If key, SIV, or output buffer are NULL. Also returned
+    if the key size isn't 32, 48, or 64 bytes.
+    \return AES_SIV_AUTH_E If the SIV derived by S2V doesn't match the input
+    SIV (see RFC 5297 2.7). 
+    \return Other Other negative error values returned if AES or CMAC operations
+    fail.
+
+    \param key Byte buffer containing the key to use.
+    \param keySz Length of the key buffer in bytes.
+    \param assoc Additional, authenticated associated data (AD).
+    \param assocSz Length of AD buffer in bytes.
+    \param nonce A number used once. Used by the underlying algorithm in the
+    same manner as the AD.
+    \param nonceSz Length of nonce buffer in bytes.
+    \param in Ciphertext buffer to decrypt.
+    \param inSz Length of ciphertext buffer.
+    \param siv The SIV that accompanies the ciphertext (see RFC 5297 2.4).
+    \param out Buffer to hold the decrypted plaintext. Should be the same length
+    as the ciphertext buffer.
+
+    _Example_
+    \code
+    byte key[] = { some 32, 48, or 64 byte key };
+    byte assoc[] = {0x01, 0x2, 0x3};
+    byte nonce[] = {0x04, 0x5, 0x6};
+    byte cipherText[] = {0xDE, 0xAD, 0xBE, 0xEF};
+    byte siv[AES_BLOCK_SIZE] = { the SIV that came with the ciphertext };
+    byte plainText[sizeof(cipherText)];
+    if (wc_AesSivDecrypt(key, sizeof(key), assoc, sizeof(assoc), nonce,
+        sizeof(nonce), cipherText, sizeof(cipherText), siv, plainText) != 0) {
+        // failed to decrypt
+    }
+    \endcode
+
+    \sa wc_AesSivEncrypt
+*/
+WOLFSSL_API
+int wc_AesSivDecrypt(const byte* key, word32 keySz, const byte* assoc,
+                     word32 assocSz, const byte* nonce, word32 nonceSz,
+                     const byte* in, word32 inSz, byte* siv, byte* out);

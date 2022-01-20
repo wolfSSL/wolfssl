@@ -247,8 +247,9 @@ enum {
     ECC_PCT_E           = -286,  /* ECDHE Pairwise Consistency Test failure */
     FIPS_PRIVATE_KEY_LOCKED_E = -287, /* Cannot export private key. */
     PROTOCOLCB_UNAVAILABLE  = -288, /* Protocol callback unavailable */
+    AES_SIV_AUTH_E = -289, /* AES-SIV authentication failed */
 
-    WC_LAST_E           = -288,  /* Update this to indicate last error */
+    WC_LAST_E           = -289,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes
