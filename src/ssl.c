@@ -1422,10 +1422,11 @@ int wolfSSL_export_dtls_srtp_keying_material(WOLFSSL* ssl,
     XMEMCPY(seed + RAN_LEN, ssl->arrays->serverRandom, RAN_LEN);
 
     PRIVATE_KEY_UNLOCK();
-    ret = wc_PRF_TLSv1(out, profile->kdfBits,   /* out: generated keys / salt */
+    ret = wc_PRF_TLS(out, profile->kdfBits,   /* out: generated keys / salt */
         ssl->arrays->masterSecret, SECRET_LEN,  /* existing master secret */
         (const byte*)label, (int)XSTRLEN(label),/* label */
         seed, SEED_LEN,                         /* seed: client/server random */
+        IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm,
         ssl->heap, INVALID_DEVID);
     if (ret == 0) {
         *olen = profile->kdfBits;
