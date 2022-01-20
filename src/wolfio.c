@@ -813,7 +813,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     char strPort[6];
 #else
 #if !defined(WOLFSSL_USE_POPEN_HOST)
-#if defined(__GNUC__) && !defined(SINGLE_THREADED)
+#if (__GLIBC__ >= 2) && defined(__USE_MISC) && !defined(SINGLE_THREADED)
     HOSTENT entry_buf, *entry = NULL;
     char *ghbn_r_buf = NULL;
     int ghbn_r_errno;
@@ -917,7 +917,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
         }
     }
 #else
-#if defined(__GNUC__) && !defined(SINGLE_THREADED)
+#if (__GLIBC__ >= 2) && defined(__USE_MISC) && !defined(SINGLE_THREADED)
     ghbn_r_buf = (char *)XMALLOC(2048, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (ghbn_r_buf != NULL) {
         gethostbyname_r(ip, &entry_buf, ghbn_r_buf, 2048, &entry, &ghbn_r_errno);
@@ -933,7 +933,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
         XMEMCPY(&sin->sin_addr.s_addr, entry->h_addr_list[0], entry->h_length);
     }
 
-#if defined(__GNUC__) && !defined(SINGLE_THREADED)
+#if (__GLIBC__ >= 2) && defined(__USE_MISC) && !defined(SINGLE_THREADED)
     XFREE(ghbn_r_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
