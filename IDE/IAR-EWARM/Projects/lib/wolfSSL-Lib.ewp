@@ -1982,9 +1982,6 @@
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\hmac.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\idea.c</name>
-    </file>
-    <file>
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\integer.c</name>
     </file>
     <file>

@@ -430,11 +430,6 @@
 			<locationURI>WOLFSSL_ROOT/wolfcrypt/src/hmac.c</locationURI>
 		</link>
 		<link>
-			<name>wolfcrypt/src/idea.c</name>
-			<type>1</type>
-			<locationURI>WOLFSSL_ROOT/wolfcrypt/src/idea.c</locationURI>
-		</link>
-		<link>
 			<name>wolfcrypt/src/integer.c</name>
 			<type>1</type>
 			<locationURI>WOLFSSL_ROOT/wolfcrypt/src/integer.c</locationURI>

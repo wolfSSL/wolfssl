@@ -73,7 +73,6 @@
 		A4ADF9051FCE0C5600A06E90 /* cmac.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8A91FCE0C5000A06E90 /* cmac.c */; };
 		A4ADF9061FCE0C5600A06E90 /* wc_encrypt.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8AA1FCE0C5000A06E90 /* wc_encrypt.c */; };
 		A4ADF9071FCE0C5600A06E90 /* dh.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8AB1FCE0C5000A06E90 /* dh.c */; };
-		A4ADF9091FCE0C5600A06E90 /* idea.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8AD1FCE0C5100A06E90 /* idea.c */; };
 		A4ADF90A1FCE0C5600A06E90 /* sha512.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8AE1FCE0C5100A06E90 /* sha512.c */; };
 		A4ADF90B1FCE0C5600A06E90 /* logging.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8AF1FCE0C5100A06E90 /* logging.c */; };
 		A4ADF90C1FCE0C5600A06E90 /* ripemd.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8B01FCE0C5100A06E90 /* ripemd.c */; };
@@ -174,7 +173,6 @@
 		A4ADF8A91FCE0C5000A06E90 /* cmac.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = cmac.c; path = ../../../wolfcrypt/src/cmac.c; sourceTree = "<group>"; };
 		A4ADF8AA1FCE0C5000A06E90 /* wc_encrypt.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = wc_encrypt.c; path = ../../../wolfcrypt/src/wc_encrypt.c; sourceTree = "<group>"; };
 		A4ADF8AB1FCE0C5000A06E90 /* dh.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = dh.c; path = ../../../wolfcrypt/src/dh.c; sourceTree = "<group>"; };
-		A4ADF8AD1FCE0C5100A06E90 /* idea.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = idea.c; path = ../../../wolfcrypt/src/idea.c; sourceTree = "<group>"; };
 		A4ADF8AE1FCE0C5100A06E90 /* sha512.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sha512.c; path = ../../../wolfcrypt/src/sha512.c; sourceTree = "<group>"; };
 		A4ADF8AF1FCE0C5100A06E90 /* logging.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = logging.c; path = ../../../wolfcrypt/src/logging.c; sourceTree = "<group>"; };
 		A4ADF8B01FCE0C5100A06E90 /* ripemd.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ripemd.c; path = ../../../wolfcrypt/src/ripemd.c; sourceTree = "<group>"; };
@@ -310,7 +308,6 @@
 				A4ADF88E1FCE0C4E00A06E90 /* ge_operations.c */,
 				A4ADF89A1FCE0C4F00A06E90 /* hash.c */,
 				A4ADF8751FCE0C4C00A06E90 /* hmac.c */,
-				A4ADF8AD1FCE0C5100A06E90 /* idea.c */,
 				A4ADF8A21FCE0C5000A06E90 /* integer.c */,
 				A4ADF8AF1FCE0C5100A06E90 /* logging.c */,
 				A4ADF8A51FCE0C5000A06E90 /* md2.c */,
@@ -448,7 +445,6 @@
 				A46FE18D2493E8F800A25BE7 /* fe_448.c in Sources */,
 				A4ADF8721FCE0C1C00A06E90 /* crl.c in Sources */,
 				A4ADF91B1FCE0C5600A06E90 /* srp.c in Sources */,
-				A4ADF9091FCE0C5600A06E90 /* idea.c in Sources */,
 				A46FE16F2493E8F800A25BE7 /* armv8-chacha.c in Sources */,
 				A4ADF8FE1FCE0C5600A06E90 /* integer.c in Sources */,
 				A4ADF9231FCE0C5600A06E90 /* camellia.c in Sources */,

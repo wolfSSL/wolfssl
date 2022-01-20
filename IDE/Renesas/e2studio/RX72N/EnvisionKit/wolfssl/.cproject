@@ -107,7 +107,6 @@
 									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/src\ge_operations.obj&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/src\hash.obj&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/src\hmac.obj&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/src\idea.obj&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/src\integer.obj&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/src\kdf.obj&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/src\logging.obj&quot;"/>

@@ -74,7 +74,6 @@ cc_library_shared {
         "./wolfcrypt/src/hash.c",
         "./wolfcrypt/src/kdf.c",
         "./wolfcrypt/src/hmac.c",
-        "./wolfcrypt/src/idea.c",
         "./wolfcrypt/src/integer.c",
         "./wolfcrypt/src/kdf.c",
         "./wolfcrypt/src/logging.c",

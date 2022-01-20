@@ -73,7 +73,6 @@
           <file file_name="../../wolfcrypt/src/hash.c" />
           <file file_name="../../wolfcrypt/src/kdf.c" />
           <file file_name="../../wolfcrypt/src/hmac.c" />
-          <file file_name="../../wolfcrypt/src/idea.c" />
           <file file_name="../../wolfcrypt/src/include.am" />
           <file file_name="../../wolfcrypt/src/integer.c" />
           <file file_name="../../wolfcrypt/src/logging.c" />

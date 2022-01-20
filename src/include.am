@@ -716,10 +716,6 @@ if BUILD_SRP
 src_libwolfssl_la_SOURCES += wolfcrypt/src/srp.c
 endif
 
-if BUILD_IDEA
-src_libwolfssl_la_SOURCES += wolfcrypt/src/idea.c
-endif
-
 if BUILD_AFALG
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/af_alg/wc_afalg.c
 endif

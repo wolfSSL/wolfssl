@@ -53,7 +53,6 @@
           <Path>..\..\..\..\..\..\wolfcrypt\src\ge_operations.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\hash.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\hmac.c</Path>
-          <Path>..\..\..\..\..\..\wolfcrypt\src\idea.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\integer.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\kdf.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\logging.c</Path>
@@ -173,7 +172,6 @@
           <Path>Debug\ge_operations.obj</Path>
           <Path>Debug\hash.obj</Path>
           <Path>Debug\hmac.obj</Path>
-          <Path>Debug\idea.obj</Path>
           <Path>Debug\integer.obj</Path>
           <Path>Debug\kdf.obj</Path>
           <Path>Debug\logging.obj</Path>

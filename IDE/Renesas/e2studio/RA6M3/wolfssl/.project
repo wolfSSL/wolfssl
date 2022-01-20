@@ -221,11 +221,6 @@
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/hmac.c</locationURI>
 		</link>
 		<link>
-			<name>wolfcrypt/idea.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/idea.c</locationURI>
-		</link>
-		<link>
 			<name>wolfcrypt/include.am</name>
 			<type>1</type>
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/include.am</locationURI>

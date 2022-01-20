@@ -178,9 +178,6 @@
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
-#ifdef HAVE_IDEA
-    #include <wolfssl/wolfcrypt/idea.h>
-#endif
 #ifdef HAVE_CURVE25519
     #include <wolfssl/wolfcrypt/curve25519.h>
 #endif
@@ -280,7 +277,6 @@
 #define BENCH_CHACHA20           0x00001000
 #define BENCH_CHACHA20_POLY1305  0x00002000
 #define BENCH_DES                0x00004000
-#define BENCH_IDEA               0x00008000
 #define BENCH_AES_CFB            0x00010000
 #define BENCH_AES_OFB            0x00020000
 #define BENCH_AES_SIV            0x00040000
@@ -454,9 +450,6 @@ static const bench_alg bench_cipher_opt[] = {
 #endif
 #ifndef NO_DES3
     { "-des",                BENCH_DES               },
-#endif
-#ifdef HAVE_IDEA
-    { "-idea",               BENCH_IDEA              },
 #endif
     { NULL, 0 }
 };
@@ -1781,11 +1774,6 @@ static void* benchmarks_do(void* args)
     #endif
     }
 #endif
-#ifdef HAVE_IDEA
-    if (bench_all || (bench_cipher_algs & BENCH_IDEA))
-        bench_idea();
-#endif
-
 #ifndef NO_MD5
     if (bench_all || (bench_digest_algs & BENCH_MD5)) {
     #ifndef NO_SW_BENCH
@@ -3368,32 +3356,6 @@ exit:
     }
 }
 #endif /* !NO_DES3 */
-
-
-#ifdef HAVE_IDEA
-void bench_idea(void)
-{
-    Idea   enc;
-    double start;
-    int    ret = 0, i, count;
-
-    ret = wc_IdeaSetKey(&enc, bench_key, IDEA_KEY_SIZE, bench_iv,
-        IDEA_ENCRYPTION);
-    if (ret != 0) {
-        printf("Des3_SetKey failed, ret = %d\n", ret);
-        return;
-    }
-
-    bench_stats_start(&count, &start);
-    do {
-        for (i = 0; i < numBlocks; i++) {
-            wc_IdeaCbcEncrypt(&enc, bench_plain, bench_cipher, BENCH_SIZE);
-        }
-        count += i;
-    } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("IDEA", 0, count, bench_size, start, ret);
-}
-#endif /* HAVE_IDEA */
 
 
 #ifndef NO_RC4

@@ -182,7 +182,6 @@ SRC_C += ../../wolfcrypt/src/arc4.c
 SRC_C += ../../wolfcrypt/src/blake2b.c
 SRC_C += ../../wolfcrypt/src/camellia.c
 SRC_C += ../../wolfcrypt/src/dsa.c
-SRC_C += ../../wolfcrypt/src/idea.c
 SRC_C += ../../wolfcrypt/src/md2.c
 SRC_C += ../../wolfcrypt/src/md4.c
 SRC_C += ../../wolfcrypt/src/ripemd.c

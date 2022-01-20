@@ -4297,12 +4297,6 @@ static int Decrypt(WOLFSSL* ssl, byte* output, const byte* input, word32 sz)
             break;
         #endif
 
-        #ifdef HAVE_IDEA
-        case wolfssl_idea:
-            wc_IdeaCbcDecrypt(ssl->decrypt.idea, output, input, sz);
-            break;
-        #endif
-
         #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
         case wolfssl_aes_gcm:
         case wolfssl_aes_ccm: /* GCM AEAD macros use same size as CCM */

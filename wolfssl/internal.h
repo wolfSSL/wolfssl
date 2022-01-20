@@ -86,9 +86,6 @@
 #ifdef WOLFSSL_RIPEMD
     #include <wolfssl/wolfcrypt/ripemd.h>
 #endif
-#ifdef HAVE_IDEA
-    #include <wolfssl/wolfcrypt/idea.h>
-#endif
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
 #endif
@@ -314,12 +311,6 @@
             #if defined(WOLFSSL_STATIC_RSA)
                 #define BUILD_SSL_RSA_WITH_3DES_EDE_CBC_SHA
             #endif
-        #endif
-    #endif
-
-    #if !defined(NO_RSA) && defined(HAVE_IDEA)
-        #if !defined(NO_SHA) && defined(WOLFSSL_STATIC_RSA)
-            #define BUILD_SSL_RSA_WITH_IDEA_CBC_SHA
         #endif
     #endif
 #endif /* !WOLFSSL_AEAD_ONLY */
@@ -932,10 +923,6 @@
     #define HAVE_PFS
 #endif
 
-#if defined(BUILD_SSL_RSA_WITH_IDEA_CBC_SHA)
-    #define BUILD_IDEA
-#endif
-
 /* actual cipher values, 2nd byte */
 enum {
     TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA = 0x16,
@@ -956,7 +943,6 @@ enum {
     SSL_RSA_WITH_RC4_128_SHA          = 0x05,
     SSL_RSA_WITH_RC4_128_MD5          = 0x04,
     SSL_RSA_WITH_3DES_EDE_CBC_SHA     = 0x0A,
-    SSL_RSA_WITH_IDEA_CBC_SHA         = 0x07,
 
     /* ECC suites, first byte is 0xC0 (ECC_BYTE) */
     TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA    = 0x14,
@@ -3228,9 +3214,6 @@ typedef struct Ciphers {
 #endif
 #ifdef HAVE_CHACHA
     ChaCha*   chacha;
-#endif
-#ifdef HAVE_IDEA
-    Idea* idea;
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER)
     Hmac* hmac;

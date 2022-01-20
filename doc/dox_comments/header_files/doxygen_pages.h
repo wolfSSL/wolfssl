@@ -44,7 +44,6 @@
         <li>\ref ECCSI</li>
         <li>\ref SAKKE</li>
         <li>\ref HMAC</li>
-        <li>\ref IDEA</li>
         <li>\ref MD2</li>
         <li>\ref MD4</li>
         <li>\ref MD5</li>
