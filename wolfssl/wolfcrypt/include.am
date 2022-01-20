@@ -69,6 +69,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/pkcs12.h \
                          wolfssl/wolfcrypt/wolfmath.h \
                          wolfssl/wolfcrypt/sha3.h \
+                         wolfssl/wolfcrypt/siphash.h \
                          wolfssl/wolfcrypt/cpuid.h \
                          wolfssl/wolfcrypt/cryptocb.h
 

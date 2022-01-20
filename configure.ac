@@ -684,6 +684,7 @@ then
     test "$enable_psk" = "" && enable_psk=yes
     test "$enable_idea" = "" && enable_idea=yes
     test "$enable_cmac" = "" && enable_cmac=yes
+    test "$enable_siphash" = "" && enable_siphash=yes
     test "$enable_xts" = "" && enable_xts=yes
     test "$enable_rabbit" = "" && enable_rabbit=yes
     test "$enable_ocsp" = "" && enable_ocsp=yes
@@ -3358,6 +3359,17 @@ else
         ENABLED_SHA=no
     fi
 fi
+
+
+# SipHash
+AC_ARG_ENABLE([siphash],
+    [AS_HELP_STRING([--enable-siphash],[Enable SipHash (default: disabled)])],
+    [ ENABLED_SIPHASH=$enableval ],
+    [ ENABLED_SIPHASH=no ]
+    )
+
+AS_IF([test "x$ENABLED_SIPHASH" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIPHASH"])
 
 
 # CMAC
@@ -7386,6 +7398,7 @@ AM_CONDITIONAL([BUILD_FIPS_RAND],[test "x$FIPS_VERSION" = "xrand"])
 AM_CONDITIONAL([BUILD_FIPS_V3],[test "$HAVE_FIPS_VERSION" = 3])
 AM_CONDITIONAL([BUILD_FIPS_V5],[test "$HAVE_FIPS_VERSION" = 5])
 AM_CONDITIONAL([BUILD_FIPS_CURRENT],[test "$HAVE_FIPS_VERSION" -ge 2 ])
+AM_CONDITIONAL([BUILD_SIPHASH],[test "x$ENABLED_SIPHASH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CMAC],[test "x$ENABLED_CMAC" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SELFTEST],[test "x$ENABLED_SELFTEST" = "xyes"])
 AM_CONDITIONAL([BUILD_SHA224],[test "x$ENABLED_SHA224" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -7706,6 +7719,7 @@ echo "   * SHA3:                       $ENABLED_SHA3"
 echo "   * SHAKE256:                   $ENABLED_SHAKE256"
 echo "   * BLAKE2:                     $ENABLED_BLAKE2"
 echo "   * BLAKE2S:                    $ENABLED_BLAKE2S"
+echo "   * SipHash:                    $ENABLED_SIPHASH"
 echo "   * CMAC:                       $ENABLED_CMAC"
 echo "   * keygen:                     $ENABLED_KEYGEN"
 echo "   * certgen:                    $ENABLED_CERTGEN"
