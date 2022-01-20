@@ -498,7 +498,6 @@ then
     test "$enable_aesctr" = "" && enable_aesctr=yes
     test "$enable_aesofb" = "" && enable_aesofb=yes
     test "$enable_aescfb" = "" && enable_aescfb=yes
-    test "$enable_aessiv" = "" && enable_aessiv=yes
     test "$enable_aescbc_length_checks" = "" && enable_aescbc_length_checks=yes
     test "$enable_camellia" = "" && enable_camellia=yes
     test "$enable_ripemd" = "" && enable_ripemd=yes
@@ -629,6 +628,10 @@ then
         fi
     fi
 
+    if test "$ENABLED_FIPS" = "no" || test "$ENABLED_FIPS" = "v5-dev"; then
+        test "$enable_aessiv" = "" && enable_aessiv=yes
+    fi
+
     # Enable DH const table speedups (eliminates `-lm` math lib dependency)
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
@@ -665,7 +668,6 @@ then
     test "$enable_aesctr" = "" && enable_aesctr=yes
     test "$enable_aesofb" = "" && enable_aesofb=yes
     test "$enable_aescfb" = "" && enable_aescfb=yes
-    test "$enable_aessiv" = "" && enable_aessiv=yes
     test "$enable_aescbc_length_checks" = "" && enable_aescbc_length_checks=yes
     test "$enable_camellia" = "" && enable_camellia=yes
     test "$enable_ripemd" = "" && enable_ripemd=yes
@@ -750,6 +752,10 @@ then
             test "$enable_eccsi" = "" && enable_eccsi=yes
             test "$enable_sakke" = "" && enable_sakke=yes
         fi
+    fi
+
+    if test "$ENABLED_FIPS" = "no" || test "$ENABLED_FIPS" = "v5-dev"; then
+        test "$enable_aessiv" = "" && enable_aessiv=yes
     fi
 
     # Enable AES Decrypt, AES ECB, Alt Names, DER Load

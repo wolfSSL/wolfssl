@@ -38870,7 +38870,7 @@ typedef struct {
   const byte plaintext[83];
   word32     plaintextSz;
   const byte siv[AES_BLOCK_SIZE+1];
-  const byte ciphertext[83];
+  const byte ciphertext[82];
   word32     ciphertextSz;
 } AesSivTestVector;
 
