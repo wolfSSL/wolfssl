@@ -1418,8 +1418,8 @@ int wolfSSL_export_dtls_srtp_keying_material(WOLFSSL* ssl,
     }
 
 #ifdef WOLFSSL_HAVE_PRF
-    XMEMCPY(seed,           ssl->arrays->serverRandom, RAN_LEN);
-    XMEMCPY(seed + RAN_LEN, ssl->arrays->clientRandom, RAN_LEN);
+    XMEMCPY(seed, ssl->arrays->clientRandom, RAN_LEN);
+    XMEMCPY(seed + RAN_LEN, ssl->arrays->serverRandom, RAN_LEN);
 
     PRIVATE_KEY_UNLOCK();
     ret = wc_PRF_TLSv1(out, profile->kdfBits,   /* out: generated keys / salt */
