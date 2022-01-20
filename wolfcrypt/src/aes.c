@@ -11690,7 +11690,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
 #ifdef WOLFSSL_AES_SIV
 
-/* 
+/*
  * See RFC 5297 Section 2.4.
  */
 static int S2V(const byte* key, word32 keySz, const byte* assoc, word32 assocSz,
@@ -11890,7 +11890,7 @@ static int AesSivCipher(const byte* key, word32 keySz, const byte* assoc,
     return ret;
 }
 
-/* 
+/*
  * See RFC 5297 Section 2.6.
  */
 int wc_AesSivEncrypt(const byte* key, word32 keySz, const byte* assoc,
@@ -11901,7 +11901,7 @@ int wc_AesSivEncrypt(const byte* key, word32 keySz, const byte* assoc,
                         siv, out, 1);
 }
 
-/* 
+/*
  * See RFC 5297 Section 2.7.
  */
 int wc_AesSivDecrypt(const byte* key, word32 keySz, const byte* assoc,
