@@ -1770,11 +1770,18 @@ static void Usage(void)
  * calls srtp_helper_get_ekm() to wait and then get the ekm computed by the
  * server, then check if it matches the one computed by itself.
  */
-static int client_srtp_test(WOLFSSL *ssl, srtp_test_helper *srtp_helper)
+static int client_srtp_test(WOLFSSL *ssl, func_args *args)
 {
-    byte *srtp_secret, *other_secret = NULL, *p;
-    size_t srtp_secret_length, other_size = 0;
+    size_t srtp_secret_length;
+    byte *srtp_secret, *p;
     int ret;
+#if !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
+    srtp_test_helper *srtp_helper = args->srtp_helper;
+    byte *other_secret = NULL;
+    size_t other_size = 0;
+#else
+    (void)args;
+#endif
 
     ret = wolfSSL_export_dtls_srtp_keying_material(ssl, NULL,
                                                    &srtp_secret_length);
@@ -1797,11 +1804,12 @@ static int client_srtp_test(WOLFSSL *ssl, srtp_test_helper *srtp_helper)
         return ret;
     }
 
-    printf("DTLS SRTP: Exported key material:\n");
+    printf("DTLS SRTP: Exported key material: ");
     for (p = srtp_secret; p < srtp_secret + srtp_secret_length; p++)
         printf("%02X", *p);
     printf("\n");
 
+#if !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
     if (srtp_helper != NULL) {
         srtp_helper_get_ekm(srtp_helper, &other_secret, &other_size);
 
@@ -1817,6 +1825,7 @@ static int client_srtp_test(WOLFSSL *ssl, srtp_test_helper *srtp_helper)
         /* we are delegated from server to free this buffer  */
         XFREE(other_secret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
+#endif
 
     XFREE(srtp_secret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -3976,7 +3985,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifdef WOLFSSL_SRTP
     if (dtlsSrtpProfiles != NULL) {
-        err = client_srtp_test(ssl, ((func_args*)args)->srtp_helper);
+        err = client_srtp_test(ssl, (func_args*)args);
         if (err != 0) {
             if (exitWithRet) {
                 ((func_args*)args)->return_code = err;
@@ -4341,7 +4350,7 @@ exit:
 
         StartTCP();
 
-#ifdef WOLFSSL_SRTP
+#if defined(WOLFSSL_SRTP) && !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
         args.srtp_helper = NULL;
 #endif
         args.argc = argc;

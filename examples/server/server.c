@@ -1290,11 +1290,16 @@ static void Usage(void)
  * calls srtp_helper_set_ekm() to wake the client and share the ekm with
  * him. The client will check that the ekm matches the one computed by itself.
  */
-static int server_srtp_test(WOLFSSL *ssl, srtp_test_helper *srtp_helper)
+static int server_srtp_test(WOLFSSL *ssl, func_args *args)
 {
     size_t srtp_secret_length;
     byte *srtp_secret, *p;
     int ret;
+#if !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
+    srtp_test_helper *srtp_helper = args->srtp_helper;
+#else
+    (void)args;
+#endif
 
     ret = wolfSSL_export_dtls_srtp_keying_material(ssl, NULL,
                                                    &srtp_secret_length);
@@ -1317,20 +1322,22 @@ static int server_srtp_test(WOLFSSL *ssl, srtp_test_helper *srtp_helper)
         return ret;
     }
 
-    printf("DTLS SRTP: Exported key material:\n");
+    printf("DTLS SRTP: Exported key material: ");
     for (p = srtp_secret; p < srtp_secret + srtp_secret_length; p++)
         printf("%02X", *p);
     printf("\n");
 
-     if (srtp_helper != NULL) {
+#if !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
+    if (srtp_helper != NULL) {
         srtp_helper_set_ekm(srtp_helper, srtp_secret, srtp_secret_length);
+
         /* client code will free srtp_secret buffer after checking for
            correctness */
+        return 0;
     }
-    else {
-        XFREE(srtp_secret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+#endif /* _POSIX_THREADS */
 
+    XFREE(srtp_secret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return 0;
 }
 #endif
@@ -3146,7 +3153,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
 #ifdef WOLFSSL_SRTP
     if (dtlsSrtpProfiles != NULL) {
-        err = server_srtp_test(ssl, ((func_args*)args)->srtp_helper);
+        err = server_srtp_test(ssl, (func_args*)args);
         if (err != 0) {
             if (exitWithRet) {
                 ((func_args*)args)->return_code = err;
@@ -3423,7 +3430,7 @@ exit:
         args.argv = argv;
         args.signal = &ready;
         args.return_code = 0;
-#ifdef WOLFSSL_SRTP
+#if defined(WOLFSSL_SRTP) && !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
         args.srtp_helper = NULL;
 #endif
         InitTcpReady(&ready);

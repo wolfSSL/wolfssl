@@ -321,7 +321,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     int         reqClientCert;
 #endif
 
-#ifdef WOLFSSL_SRTP
+#if defined(WOLFSSL_SRTP) && !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
     srtp_test_helper srtp_helper;
 #endif
     /* Is Valid Cipher and Version Checks */
@@ -452,11 +452,12 @@ static int execute_test_case(int svr_argc, char** svr_argv,
 
     InitTcpReady(&ready);
 
-#ifdef WOLFSSL_SRTP
+#if defined(WOLFSSL_SRTP) && !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
     srtp_helper_init(&srtp_helper);
     cliArgs.srtp_helper = &srtp_helper;
     svrArgs.srtp_helper = &srtp_helper;
 #endif
+
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
@@ -570,7 +571,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
 #endif
     FreeTcpReady(&ready);
 
-#ifdef WOLFSSL_SRTP
+#if defined (WOLFSSL_SRTP) &&!defined(SINGLE_THREADED) &&  defined(_POSIX_THREADS)
     srtp_helper_free(&srtp_helper);
 #endif
 

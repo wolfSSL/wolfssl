@@ -520,12 +520,10 @@ typedef struct callback_functions {
     unsigned char loadToSSL:1;
 } callback_functions;
 
-#ifdef WOLFSSL_SRTP
+#if defined(WOLFSSL_SRTP) && !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
 typedef struct srtp_test_helper {
-#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_mutex_t mutex;
     pthread_cond_t  cond;
-#endif
     uint8_t* server_srtp_ekm;
     size_t   server_srtp_ekm_size;
 } srtp_test_helper;
@@ -537,7 +535,7 @@ typedef struct func_args {
     int    return_code;
     tcp_ready* signal;
     callback_functions *callbacks;
-#ifdef WOLFSSL_SRTP
+#if defined(WOLFSSL_SRTP) && !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
     srtp_test_helper* srtp_helper;
 #endif
 } func_args;
@@ -643,16 +641,15 @@ err_sys_with_errno(const char* msg)
 extern int   myoptind;
 extern char* myoptarg;
 
-#ifdef WOLFSSL_SRTP
+#if defined(WOLFSSL_SRTP) && !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
 
 static WC_INLINE void srtp_helper_init(srtp_test_helper *srtp)
 {
     srtp->server_srtp_ekm_size = 0;
     srtp->server_srtp_ekm = NULL;
-#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
+
     pthread_mutex_init(&srtp->mutex, 0);
     pthread_cond_init(&srtp->cond, 0);
-#endif
 }
 
 /**
@@ -667,7 +664,6 @@ static WC_INLINE void srtp_helper_init(srtp_test_helper *srtp)
 static WC_INLINE void srtp_helper_get_ekm(srtp_test_helper *srtp,
                                           uint8_t **ekm, size_t *size)
 {
-#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_mutex_lock(&srtp->mutex);
 
     if (srtp->server_srtp_ekm == NULL)
@@ -681,7 +677,6 @@ static WC_INLINE void srtp_helper_get_ekm(srtp_test_helper *srtp,
     srtp->server_srtp_ekm_size = 0;
 
     pthread_mutex_unlock(&srtp->mutex);
-#endif
 }
 
 /**
@@ -698,7 +693,6 @@ static WC_INLINE void srtp_helper_get_ekm(srtp_test_helper *srtp,
 static WC_INLINE void srtp_helper_set_ekm(srtp_test_helper *srtp,
                                           uint8_t *ekm, size_t size)
 {
-#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_mutex_lock(&srtp->mutex);
 
     srtp->server_srtp_ekm_size = size;
@@ -706,18 +700,15 @@ static WC_INLINE void srtp_helper_set_ekm(srtp_test_helper *srtp,
     pthread_cond_signal(&srtp->cond);
 
     pthread_mutex_unlock(&srtp->mutex);
-#endif
 }
 
 static WC_INLINE void srtp_helper_free(srtp_test_helper *srtp)
 {
-#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_mutex_destroy(&srtp->mutex);
     pthread_cond_destroy(&srtp->cond);
-#endif
 }
 
-#endif /* WOLFSSL_SRTP */
+#endif /* WOLFSSL_SRTP && !SINGLE_THREADED && POSIX_THREADS */
 
 /**
  *
