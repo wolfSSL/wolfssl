@@ -680,31 +680,31 @@ static const word64 K512[80] = {
 #define blk0(i) (W[i] = sha512->buffer[i])
 
 #define blk2(i) (\
-               W[ i     & 15] += \
-            s1(W[(i-2)  & 15])+ \
-               W[(i-7)  & 15] + \
-            s0(W[(i-15) & 15])  \
+               W[ (i)     & 15] += \
+            s1(W[((i)-2)  & 15])+ \
+               W[((i)-7)  & 15] + \
+            s0(W[((i)-15) & 15])  \
         )
 
-#define Ch(x,y,z)  (z ^ (x & (y ^ z)))
-#define Maj(x,y,z) ((x & y) | (z & (x | y)))
+#define Ch(x,y,z)  ((z) ^ ((x) & ((y) ^ (z))))
+#define Maj(x,y,z) (((x) & (y)) | ((z) & ((x) | (y))))
 
-#define a(i) T[(0-i) & 7]
-#define b(i) T[(1-i) & 7]
-#define c(i) T[(2-i) & 7]
-#define d(i) T[(3-i) & 7]
-#define e(i) T[(4-i) & 7]
-#define f(i) T[(5-i) & 7]
-#define g(i) T[(6-i) & 7]
-#define h(i) T[(7-i) & 7]
+#define a(i) T[(0-(i)) & 7]
+#define b(i) T[(1-(i)) & 7]
+#define c(i) T[(2-(i)) & 7]
+#define d(i) T[(3-(i)) & 7]
+#define e(i) T[(4-(i)) & 7]
+#define f(i) T[(5-(i)) & 7]
+#define g(i) T[(6-(i)) & 7]
+#define h(i) T[(7-(i)) & 7]
 
 #define S0(x) (rotrFixed64(x,28) ^ rotrFixed64(x,34) ^ rotrFixed64(x,39))
 #define S1(x) (rotrFixed64(x,14) ^ rotrFixed64(x,18) ^ rotrFixed64(x,41))
-#define s0(x) (rotrFixed64(x,1)  ^ rotrFixed64(x,8)  ^ (x>>7))
-#define s1(x) (rotrFixed64(x,19) ^ rotrFixed64(x,61) ^ (x>>6))
+#define s0(x) (rotrFixed64(x,1)  ^ rotrFixed64(x,8)  ^ ((x)>>7))
+#define s1(x) (rotrFixed64(x,19) ^ rotrFixed64(x,61) ^ ((x)>>6))
 
 #define R(i) \
-    h(i) += S1(e(i)) + Ch(e(i),f(i),g(i)) + K[i+j] + (j ? blk2(i) : blk0(i)); \
+    h(i) += S1(e(i)) + Ch(e(i),f(i),g(i)) + K[(i)+j] + (j ? blk2(i) : blk0(i)); \
     d(i) += h(i); \
     h(i) += S0(a(i)) + Maj(a(i),b(i),c(i))
 

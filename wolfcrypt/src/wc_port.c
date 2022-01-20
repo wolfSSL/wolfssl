@@ -476,24 +476,25 @@ int wc_FileExists(const char* fname)
     if (XSTAT(fname, &ctx.s) != 0) {
          WOLFSSL_MSG("stat on name failed");
          return BAD_PATH_ERROR;
-    } else
+    } else {
 #if defined(USE_WINDOWS_API)
-    if (XS_ISREG(ctx.s.st_mode)) {
-        return 0;
-    }
+        if (XS_ISREG(ctx.s.st_mode)) {
+            return 0;
+        }
 #elif defined(WOLFSSL_ZEPHYR)
-    if (XS_ISREG(ctx.s.type)) {
-        return 0;
-    }
+        if (XS_ISREG(ctx.s.type)) {
+            return 0;
+        }
 #elif defined(WOLFSSL_TELIT_M2MB)
-    if (XS_ISREG(ctx.s.st_mode)) {
-        return 0;
-    }
+        if (XS_ISREG(ctx.s.st_mode)) {
+            return 0;
+        }
 #else
-    if (XS_ISREG(ctx.s.st_mode)) {
-        return 0;
-    }
+        if (XS_ISREG(ctx.s.st_mode)) {
+            return 0;
+        }
 #endif
+    }
     return WC_ISFILEEXIST_NOFILE;
 }
 
@@ -957,6 +958,41 @@ char* wc_strsep(char **stringp, const char *delim)
     return s;
 }
 #endif /* USE_WOLF_STRSEP */
+
+#ifdef USE_WOLF_STRLCPY
+size_t wc_strlcpy(char *dst, const char *src, size_t dstSize)
+{
+    size_t i;
+
+    if (!dstSize)
+        return 0;
+
+    /* Always have to leave a space for NULL */
+    for (i = 0; i < (dstSize - 1) && *src != '\0'; i++) {
+        *dst++ = *src++;
+    }
+    *dst = '\0';
+
+    return i; /* return length without NULL */
+}
+#endif /* USE_WOLF_STRLCPY */
+
+#ifdef USE_WOLF_STRLCAT
+size_t wc_strlcat(char *dst, const char *src, size_t dstSize)
+{
+    size_t dstLen;
+
+    if (!dstSize)
+        return 0;
+
+    dstLen = XSTRLEN(dst);
+
+    if (dstSize < dstLen)
+        return dstLen + XSTRLEN(src);
+
+    return dstLen + wc_strlcpy(dst + dstLen, src, dstSize - dstLen);
+}
+#endif /* USE_WOLF_STRLCAT */
 
 #if WOLFSSL_CRYPT_HW_MUTEX
 /* Mutex for protection of cryptography hardware */

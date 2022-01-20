@@ -380,6 +380,8 @@ typedef struct testVector {
 #define WOLFSSL_TEST_SUBROUTINE
 #endif
 
+PRAGMA_GCC("GCC diagnostic ignored \"-Wunused-function\"")
+
 WOLFSSL_TEST_SUBROUTINE int  error_test(void);
 WOLFSSL_TEST_SUBROUTINE int  base64_test(void);
 WOLFSSL_TEST_SUBROUTINE int  base16_test(void);
@@ -14957,7 +14959,6 @@ static int rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
 
     #ifndef NO_SHA256
     XMEMSET(plain, 0, plainSz);
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -14971,7 +14972,6 @@ static int rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
         ERROR_OUT(-7921, exit_rsa);
     }
     TEST_SLEEP();
-#endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
     idx = (word32)ret;
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
@@ -15018,7 +15018,6 @@ static int rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
 
     /* check fails if not using the same optional label */
     XMEMSET(plain, 0, plainSz);
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -15032,7 +15031,6 @@ static int rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
         ERROR_OUT(-7927, exit_rsa);
     }
     TEST_SLEEP();
-#endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
 /* TODO: investigate why Cavium Nitrox doesn't detect decrypt error here */
 #if !defined(HAVE_CAVIUM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
@@ -15057,7 +15055,6 @@ static int rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
 
     /* check using optional label with encrypt/decrypt */
     XMEMSET(plain, 0, plainSz);
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -15071,7 +15068,6 @@ static int rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
         ERROR_OUT(-7929, exit_rsa);
     }
     TEST_SLEEP();
-#endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
     idx = (word32)ret;
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
@@ -15094,7 +15090,6 @@ static int rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
     TEST_SLEEP();
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
     #ifndef NO_SHA
         /* check fail using mismatch hash algorithms */
         XMEMSET(plain, 0, plainSz);
@@ -15133,7 +15128,6 @@ static int rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
         TEST_SLEEP();
     #endif /* !HAVE_CAVIUM */
     #endif /* NO_SHA */
-#endif /* WOLFSSL_RSA_VERIFY_ONLY */
 #endif /* NO_SHA256 */
 
 #ifdef WOLFSSL_SHA512
@@ -19462,7 +19456,7 @@ static void show(const char *title, const char *p, unsigned int s) {
 
 #define FOURK_BUFF 4096
 
-#define ERR_BASE_PKEY -5000
+#define ERR_BASE_PKEY (-5000)
 WOLFSSL_TEST_SUBROUTINE int openssl_pkey0_test(void)
 {
     int ret = 0;
@@ -19874,7 +19868,7 @@ openssl_pkey1_test_done:
 }
 
 
-#define ERR_BASE_EVPSIG -5100
+#define ERR_BASE_EVPSIG (-5100)
 
 WOLFSSL_TEST_SUBROUTINE int openssl_evpSig_test(void)
 {
@@ -21337,10 +21331,8 @@ static int ecc_test_cdh_vectors(WC_RNG* rng)
     ret = wc_ecc_init_ex(priv_key, HEAP_HINT, devId);
     if (ret != 0)
         goto done;
-#ifdef HAVE_ECC_CDH
     wc_ecc_set_flags(pub_key, WC_ECC_FLAG_COFACTOR);
     wc_ecc_set_flags(priv_key, WC_ECC_FLAG_COFACTOR);
-#endif
     ret = wc_ecc_import_raw(pub_key, QCAVSx, QCAVSy, NULL, "SECP256R1");
     if (ret != 0)
         goto done;

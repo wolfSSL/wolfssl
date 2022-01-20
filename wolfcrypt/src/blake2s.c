@@ -227,14 +227,14 @@ static WC_INLINE int blake2s_compress(
   v[15] = S->f[1] ^ blake2s_IV[7];
 #define G(r,i,a,b,c,d) \
   do { \
-    a = a + b + m[blake2s_sigma[r][2*i+0]]; \
-    d = rotr32(d ^ a, 16); \
-    c = c + d; \
-    b = rotr32(b ^ c, 12); \
-    a = a + b + m[blake2s_sigma[r][2*i+1]]; \
-    d = rotr32(d ^ a, 8); \
-    c = c + d; \
-    b = rotr32(b ^ c, 7); \
+      (a) = (a) + (b) + m[blake2s_sigma[r][2*(i)+0]];   \
+      (d) = rotr32((d) ^ (a), 16);                      \
+      (c) = (c) + (d);                                  \
+      (b) = rotr32((b) ^ (c), 12);                      \
+      (a) = (a) + (b) + m[blake2s_sigma[r][2*(i)+1]];   \
+      (d) = rotr32((d) ^ (a), 8);                       \
+      (c) = (c) + (d);                                  \
+      (b) = rotr32((b) ^ (c), 7);                       \
   } while(0)
 #define ROUND(r)  \
   do { \

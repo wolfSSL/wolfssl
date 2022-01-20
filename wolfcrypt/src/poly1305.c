@@ -114,10 +114,10 @@ static word32 cpu_flags_set = 0;
             typedef unsigned word128 __attribute__((mode(TI)));
         #endif
 
-        #define MUL(out, x, y) out = ((word128)x * y)
-        #define ADD(out, in) out += in
-        #define ADDLO(out, in) out += in
-        #define SHR(in, shift) (word64)(in >> (shift))
+        #define MUL(out, x, y) out = ((word128)(x) * (y))
+        #define ADD(out, in) (out) += (in)
+        #define ADDLO(out, in) (out) += (in)
+        #define SHR(in, shift) (word64)((in) >> (shift))
         #define LO(in) (word64)(in)
     #endif
 #endif

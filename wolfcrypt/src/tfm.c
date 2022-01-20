@@ -3568,7 +3568,7 @@ int fp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct)
           ++_c;
        }
        LOOP_END;
-       while (cy) {
+       while (cy) { // NOLINT(bugprone-infinite-loop) /* PROPCARRY is an asm macro */
            PROPCARRY;
            ++_c;
        }

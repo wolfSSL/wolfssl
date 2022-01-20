@@ -1846,24 +1846,24 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
 #ifndef WOLFSSL_AES_NO_UNROLL
 /* Unroll the loop. */
-#define ENC_ROUND_T_S(o)                                          \
-    t0 = Te[0][GETBYTE(s0, 3)] ^ Te[1][GETBYTE(s1, 2)] ^          \
-         Te[2][GETBYTE(s2, 1)] ^ Te[3][GETBYTE(s3, 0)] ^ rk[o+4]; \
-    t1 = Te[0][GETBYTE(s1, 3)] ^ Te[1][GETBYTE(s2, 2)] ^          \
-         Te[2][GETBYTE(s3, 1)] ^ Te[3][GETBYTE(s0, 0)] ^ rk[o+5]; \
-    t2 = Te[0][GETBYTE(s2, 3)] ^ Te[1][GETBYTE(s3, 2)] ^          \
-         Te[2][GETBYTE(s0, 1)] ^ Te[3][GETBYTE(s1, 0)] ^ rk[o+6]; \
-    t3 = Te[0][GETBYTE(s3, 3)] ^ Te[1][GETBYTE(s0, 2)] ^          \
-         Te[2][GETBYTE(s1, 1)] ^ Te[3][GETBYTE(s2, 0)] ^ rk[o+7]
-#define ENC_ROUND_S_T(o)                                          \
-    s0 = Te[0][GETBYTE(t0, 3)] ^ Te[1][GETBYTE(t1, 2)] ^          \
-         Te[2][GETBYTE(t2, 1)] ^ Te[3][GETBYTE(t3, 0)] ^ rk[o+0]; \
-    s1 = Te[0][GETBYTE(t1, 3)] ^ Te[1][GETBYTE(t2, 2)] ^          \
-         Te[2][GETBYTE(t3, 1)] ^ Te[3][GETBYTE(t0, 0)] ^ rk[o+1]; \
-    s2 = Te[0][GETBYTE(t2, 3)] ^ Te[1][GETBYTE(t3, 2)] ^          \
-         Te[2][GETBYTE(t0, 1)] ^ Te[3][GETBYTE(t1, 0)] ^ rk[o+2]; \
-    s3 = Te[0][GETBYTE(t3, 3)] ^ Te[1][GETBYTE(t0, 2)] ^          \
-         Te[2][GETBYTE(t1, 1)] ^ Te[3][GETBYTE(t2, 0)] ^ rk[o+3]
+#define ENC_ROUND_T_S(o)                                            \
+    t0 = Te[0][GETBYTE(s0, 3)] ^ Te[1][GETBYTE(s1, 2)] ^            \
+         Te[2][GETBYTE(s2, 1)] ^ Te[3][GETBYTE(s3, 0)] ^ rk[(o)+4]; \
+    t1 = Te[0][GETBYTE(s1, 3)] ^ Te[1][GETBYTE(s2, 2)] ^            \
+         Te[2][GETBYTE(s3, 1)] ^ Te[3][GETBYTE(s0, 0)] ^ rk[(o)+5]; \
+    t2 = Te[0][GETBYTE(s2, 3)] ^ Te[1][GETBYTE(s3, 2)] ^            \
+         Te[2][GETBYTE(s0, 1)] ^ Te[3][GETBYTE(s1, 0)] ^ rk[(o)+6]; \
+    t3 = Te[0][GETBYTE(s3, 3)] ^ Te[1][GETBYTE(s0, 2)] ^            \
+         Te[2][GETBYTE(s1, 1)] ^ Te[3][GETBYTE(s2, 0)] ^ rk[(o)+7]
+#define ENC_ROUND_S_T(o)                                            \
+    s0 = Te[0][GETBYTE(t0, 3)] ^ Te[1][GETBYTE(t1, 2)] ^            \
+         Te[2][GETBYTE(t2, 1)] ^ Te[3][GETBYTE(t3, 0)] ^ rk[(o)+0]; \
+    s1 = Te[0][GETBYTE(t1, 3)] ^ Te[1][GETBYTE(t2, 2)] ^            \
+         Te[2][GETBYTE(t3, 1)] ^ Te[3][GETBYTE(t0, 0)] ^ rk[(o)+1]; \
+    s2 = Te[0][GETBYTE(t2, 3)] ^ Te[1][GETBYTE(t3, 2)] ^            \
+         Te[2][GETBYTE(t0, 1)] ^ Te[3][GETBYTE(t1, 0)] ^ rk[(o)+2]; \
+    s3 = Te[0][GETBYTE(t3, 3)] ^ Te[1][GETBYTE(t0, 2)] ^            \
+         Te[2][GETBYTE(t1, 1)] ^ Te[3][GETBYTE(t2, 0)] ^ rk[(o)+3]
 
                        ENC_ROUND_T_S( 0);
     ENC_ROUND_S_T( 8); ENC_ROUND_T_S( 8);
@@ -2178,24 +2178,24 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
 #ifndef WOLFSSL_AES_NO_UNROLL
 /* Unroll the loop. */
-#define DEC_ROUND_T_S(o)                                          \
-    t0 = Td[0][GETBYTE(s0, 3)] ^ Td[1][GETBYTE(s3, 2)] ^          \
-         Td[2][GETBYTE(s2, 1)] ^ Td[3][GETBYTE(s1, 0)] ^ rk[o+4]; \
-    t1 = Td[0][GETBYTE(s1, 3)] ^ Td[1][GETBYTE(s0, 2)] ^          \
-         Td[2][GETBYTE(s3, 1)] ^ Td[3][GETBYTE(s2, 0)] ^ rk[o+5]; \
-    t2 = Td[0][GETBYTE(s2, 3)] ^ Td[1][GETBYTE(s1, 2)] ^          \
-         Td[2][GETBYTE(s0, 1)] ^ Td[3][GETBYTE(s3, 0)] ^ rk[o+6]; \
-    t3 = Td[0][GETBYTE(s3, 3)] ^ Td[1][GETBYTE(s2, 2)] ^          \
-         Td[2][GETBYTE(s1, 1)] ^ Td[3][GETBYTE(s0, 0)] ^ rk[o+7]
-#define DEC_ROUND_S_T(o)                                          \
-    s0 = Td[0][GETBYTE(t0, 3)] ^ Td[1][GETBYTE(t3, 2)] ^          \
-         Td[2][GETBYTE(t2, 1)] ^ Td[3][GETBYTE(t1, 0)] ^ rk[o+0]; \
-    s1 = Td[0][GETBYTE(t1, 3)] ^ Td[1][GETBYTE(t0, 2)] ^          \
-         Td[2][GETBYTE(t3, 1)] ^ Td[3][GETBYTE(t2, 0)] ^ rk[o+1]; \
-    s2 = Td[0][GETBYTE(t2, 3)] ^ Td[1][GETBYTE(t1, 2)] ^          \
-         Td[2][GETBYTE(t0, 1)] ^ Td[3][GETBYTE(t3, 0)] ^ rk[o+2]; \
-    s3 = Td[0][GETBYTE(t3, 3)] ^ Td[1][GETBYTE(t2, 2)] ^          \
-         Td[2][GETBYTE(t1, 1)] ^ Td[3][GETBYTE(t0, 0)] ^ rk[o+3]
+#define DEC_ROUND_T_S(o)                                            \
+    t0 = Td[0][GETBYTE(s0, 3)] ^ Td[1][GETBYTE(s3, 2)] ^            \
+         Td[2][GETBYTE(s2, 1)] ^ Td[3][GETBYTE(s1, 0)] ^ rk[(o)+4]; \
+    t1 = Td[0][GETBYTE(s1, 3)] ^ Td[1][GETBYTE(s0, 2)] ^            \
+         Td[2][GETBYTE(s3, 1)] ^ Td[3][GETBYTE(s2, 0)] ^ rk[(o)+5]; \
+    t2 = Td[0][GETBYTE(s2, 3)] ^ Td[1][GETBYTE(s1, 2)] ^            \
+         Td[2][GETBYTE(s0, 1)] ^ Td[3][GETBYTE(s3, 0)] ^ rk[(o)+6]; \
+    t3 = Td[0][GETBYTE(s3, 3)] ^ Td[1][GETBYTE(s2, 2)] ^            \
+         Td[2][GETBYTE(s1, 1)] ^ Td[3][GETBYTE(s0, 0)] ^ rk[(o)+7]
+#define DEC_ROUND_S_T(o)                                            \
+    s0 = Td[0][GETBYTE(t0, 3)] ^ Td[1][GETBYTE(t3, 2)] ^            \
+         Td[2][GETBYTE(t2, 1)] ^ Td[3][GETBYTE(t1, 0)] ^ rk[(o)+0]; \
+    s1 = Td[0][GETBYTE(t1, 3)] ^ Td[1][GETBYTE(t0, 2)] ^            \
+         Td[2][GETBYTE(t3, 1)] ^ Td[3][GETBYTE(t2, 0)] ^ rk[(o)+1]; \
+    s2 = Td[0][GETBYTE(t2, 3)] ^ Td[1][GETBYTE(t1, 2)] ^            \
+         Td[2][GETBYTE(t0, 1)] ^ Td[3][GETBYTE(t3, 0)] ^ rk[(o)+2]; \
+    s3 = Td[0][GETBYTE(t3, 3)] ^ Td[1][GETBYTE(t2, 2)] ^            \
+         Td[2][GETBYTE(t1, 1)] ^ Td[3][GETBYTE(t0, 0)] ^ rk[(o)+3]
 
                        DEC_ROUND_T_S( 0);
     DEC_ROUND_S_T( 8); DEC_ROUND_T_S( 8);
@@ -6444,7 +6444,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
 #define GHASH_ONE_BLOCK(aes, block)                     \
     do {                                                \
         xorbuf(AES_TAG(aes), block, AES_BLOCK_SIZE);    \
-        GMULT(AES_TAG(aes), aes->M0);                   \
+        GMULT(AES_TAG(aes), (aes)->M0);                 \
     }                                                   \
     while (0)
 #endif /* WOLFSSL_AESGCM_STREAM */
@@ -7040,13 +7040,13 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
  *
  * @param [in, out] aes  AES GCM object.
  */
-#define GHASH_LEN_BLOCK(aes)                    \
-    do {                                        \
-        byte scratch[AES_BLOCK_SIZE];           \
-        FlattenSzInBits(&scratch[0], aes->aSz); \
-        FlattenSzInBits(&scratch[8], aes->cSz); \
-        GHASH_ONE_BLOCK(aes, scratch);          \
-    }                                           \
+#define GHASH_LEN_BLOCK(aes)                      \
+    do {                                          \
+        byte scratch[AES_BLOCK_SIZE];             \
+        FlattenSzInBits(&scratch[0], (aes)->aSz); \
+        FlattenSzInBits(&scratch[8], (aes)->cSz); \
+        GHASH_ONE_BLOCK(aes, scratch);            \
+    }                                             \
     while (0)
 #endif
 

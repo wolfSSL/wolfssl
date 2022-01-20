@@ -4083,7 +4083,6 @@ static int DoPreSharedKeys(WOLFSSL* ssl, byte* suite, int* usingPSK, int* first)
             continue;
         }
 
-    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
         ssl->options.sendVerify = 0;
 
         /* Derive the Finished message secret. */
@@ -4106,13 +4105,9 @@ static int DoPreSharedKeys(WOLFSSL* ssl, byte* suite, int* usingPSK, int* first)
         current->chosen = 1;
         ext->resp = 1;
         break;
-    #endif
     }
 
-#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-    if (current == NULL)
-#endif
-    {
+    if (current == NULL) {
 #ifdef WOLFSSL_PSK_ID_PROTECTION
     #ifndef NO_CERTS
         if (ssl->buffers.certChainCnt != 0)
@@ -4296,7 +4291,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
 
     return 0;
 }
-#endif
+#endif /* HAVE_SESSION_TICKET || !NO_PSK */
 
 #if defined(WOLFSSL_SEND_HRR_COOKIE)
 /* Check that the Cookie data's integrity.

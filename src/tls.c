@@ -5180,7 +5180,7 @@ int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket, void* heap)
 #define WOLF_STK_GET_SIZE         TLSX_SessionTicket_GetSize
 #define WOLF_STK_WRITE            TLSX_SessionTicket_Write
 #define WOLF_STK_PARSE            TLSX_SessionTicket_Parse
-#define WOLF_STK_FREE(stk, heap)  TLSX_SessionTicket_Free((SessionTicket*)stk,(heap))
+#define WOLF_STK_FREE(stk, heap)  TLSX_SessionTicket_Free((SessionTicket*)(stk),(heap))
 
 #else
 

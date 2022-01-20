@@ -889,7 +889,7 @@ int mp_lshd (mp_int * a, int b)
 #if defined(FREESCALE_LTC_TFM)
 int wolfcrypt_mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
 #else
-int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
+    int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y) // NOLINT(misc-no-recursion)
 #endif
 {
   int dr;
@@ -1754,7 +1754,7 @@ int s_mp_add (mp_int * a, mp_int * b, mp_int * c)
     if (min_ab != max_ab) {
       for (; i < max_ab; i++) {
         /* T[i] = X[i] + U */
-        *tmpc = x->dp[i] + u;
+          *tmpc = x->dp[i] + u; // NOLINT(clang-analyzer-core.NullDereference) /* clang-tidy 13 false positive */
 
         /* U = carry bit of T[i] */
         u = *tmpc >> ((mp_digit)DIGIT_BIT);
@@ -4330,7 +4330,7 @@ int mp_sqrmod (mp_int * a, mp_int * b, mp_int * c)
     (!defined(NO_RSA) && !defined(NO_RSA_BOUNDS_CHECK))
 
 /* single digit addition */
-int mp_add_d (mp_int* a, mp_digit b, mp_int* c)
+int mp_add_d (mp_int* a, mp_digit b, mp_int* c) // NOLINT(misc-no-recursion)
 {
   int     res, ix, oldused;
   mp_digit *tmpa, *tmpc, mu;
@@ -4424,7 +4424,7 @@ int mp_add_d (mp_int* a, mp_digit b, mp_int* c)
 
 
 /* single digit subtraction */
-int mp_sub_d (mp_int * a, mp_digit b, mp_int * c)
+int mp_sub_d (mp_int * a, mp_digit b, mp_int * c) // NOLINT(misc-no-recursion)
 {
   mp_digit *tmpa, *tmpc, mu;
   int       res, ix, oldused;

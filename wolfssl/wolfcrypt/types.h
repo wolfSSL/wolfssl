@@ -586,6 +586,12 @@ decouple library dependencies with standard string, memory and so on.
     #if !defined(USE_WOLF_STRSEP) && (defined(WOLF_C99))
         #define USE_WOLF_STRSEP
     #endif
+    #if !defined(XSTRLCPY) && !defined(USE_WOLF_STRLCPY)
+        #define USE_WOLF_STRLCPY
+    #endif
+    #if !defined(XSTRLCAT) && !defined(USE_WOLF_STRLCAT)
+        #define USE_WOLF_STRLCAT
+    #endif
 
         #ifndef STRING_USER
         #if defined(WOLFSSL_LINUXKM)
@@ -744,6 +750,15 @@ decouple library dependencies with standard string, memory and so on.
     #endif
     #ifdef USE_WOLF_STRSEP
         WOLFSSL_API char* wc_strsep(char **stringp, const char *delim);
+    #endif
+
+    #ifdef USE_WOLF_STRLCPY
+        WOLFSSL_API size_t wc_strlcpy(char *dst, const char *src, size_t dstSize);
+        #define XSTRLCPY(s1,s2,n) wc_strlcpy((s1),(s2),(n))
+    #endif
+    #ifdef USE_WOLF_STRLCAT
+        WOLFSSL_API size_t wc_strlcat(char *dst, const char *src, size_t dstSize);
+        #define XSTRLCAT(s1,s2,n) wc_strlcat((s1),(s2),(n))
     #endif
 
     #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \

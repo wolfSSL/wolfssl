@@ -36,7 +36,7 @@
     #ifndef _MSC_VER
         #define cpuid(reg, leaf, sub)\
             __asm__ __volatile__ ("cpuid":\
-                "=a" (reg[0]), "=b" (reg[1]), "=c" (reg[2]), "=d" (reg[3]) :\
+                "=a" ((reg)[0]), "=b" ((reg)[1]), "=c" ((reg)[2]), "=d" ((reg)[3]) :\
                 "a" (leaf), "c"(sub));
 
         #define XASM_LINK(f) asm(f)

@@ -4451,9 +4451,11 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                     return ret;
 
                 pkiMsg   = in = pkcs7->der;
-                pkiMsgSz = inSz = pkcs7->derSz = len;
+                inSz = pkcs7->derSz = len;
                 idx = 0;
-            #ifndef NO_PKCS7_STREAM
+            #ifdef NO_PKCS7_STREAM
+                pkiMsgSz = len;
+            #else
                 wc_PKCS7_ResetStream(pkcs7);
                 if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
                                 MAX_SEQ_SZ + MAX_VERSION_SZ + MAX_SEQ_SZ +
@@ -10514,7 +10516,10 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
             /* check if content was BER and has been converted to DER */
             if (pkcs7->derSz > 0) {
                 pkiMsg = in = pkcs7->der;
-                pkiMsgSz = inSz = pkcs7->derSz;
+                inSz = pkcs7->derSz;
+            #ifdef NO_PKCS7_STREAM
+                pkiMsgSz = pkcs7->derSz;
+            #endif
             }
         #endif
 
@@ -11887,11 +11892,9 @@ authenv_atrbend:
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             decryptedKey = NULL;
-        #ifdef WOLFSSL_SMALL_STACK
             #ifndef NO_PKCS7_STREAM
             pkcs7->stream->key = NULL;
             #endif
-        #endif
         #endif
             ret = encryptedContentSz;
         #ifndef NO_PKCS7_STREAM

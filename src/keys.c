@@ -3054,8 +3054,10 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
     }
     if (!ssl->ctx->EncryptKeysCb || ret == PROTOCOLCB_UNAVAILABLE)
 #endif
-    ret = SetKeys(wc_encrypt, wc_decrypt, keys, &ssl->specs, ssl->options.side,
-                  ssl->heap, ssl->devId, ssl->rng, ssl->options.tls1_3);
+    {
+        ret = SetKeys(wc_encrypt, wc_decrypt, keys, &ssl->specs, ssl->options.side,
+                      ssl->heap, ssl->devId, ssl->rng, ssl->options.tls1_3);
+    }
 
 #ifdef HAVE_SECURE_RENEGOTIATION
 #ifdef WOLFSSL_DTLS

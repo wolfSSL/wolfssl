@@ -474,7 +474,7 @@ void fp_init_copy(fp_int *a, fp_int *b);
 void fp_rshd(fp_int *a, int x);
 
 /* right shift x bits */
-void fp_rshb(fp_int *a, int x);
+void fp_rshb(fp_int *c, int x);
 
 /* left shift x digits */
 int fp_lshd(fp_int *a, int x);
@@ -490,8 +490,8 @@ void fp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d);
 void fp_mod_2d(fp_int *a, int b, fp_int *c);
 int  fp_mul_2d(fp_int *a, int b, fp_int *c);
 void fp_2expt (fp_int *a, int b);
-int  fp_mul_2(fp_int *a, fp_int *c);
-void fp_div_2(fp_int *a, fp_int *c);
+int  fp_mul_2(fp_int *a, fp_int *b);
+void fp_div_2(fp_int *a, fp_int *b);
 /* c = a / 2 (mod b) - constant time (a < b and positive) */
 int fp_div_2_mod_ct(fp_int *a, fp_int *b, fp_int *c);
 
@@ -571,7 +571,7 @@ int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp);
 /*int fp_lcm(fp_int *a, fp_int *b, fp_int *c);*/
 
 /* setups the montgomery reduction */
-int fp_montgomery_setup(fp_int *a, fp_digit *mp);
+int fp_montgomery_setup(fp_int *a, fp_digit *rho);
 
 /* computes a = B**n mod b without division or multiplication useful for
  * normalizing numbers in a Montgomery system.
@@ -583,9 +583,9 @@ int fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
 int fp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct);
 
 /* d = a**b (mod c) */
-int fp_exptmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
-int fp_exptmod_ex(fp_int *a, fp_int *b, int minDigits, fp_int *c, fp_int *d);
-int fp_exptmod_nct(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
+int fp_exptmod(fp_int *G, fp_int *X, fp_int *P, fp_int *Y);
+int fp_exptmod_ex(fp_int *G, fp_int *X, int minDigits, fp_int *P, fp_int *Y);
+int fp_exptmod_nct(fp_int *G, fp_int *X, fp_int *P, fp_int *Y);
 
 #ifdef WC_RSA_NONBLOCK
 

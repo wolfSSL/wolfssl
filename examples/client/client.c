@@ -1131,8 +1131,8 @@ static const char* client_usage_msg[][70] = {
         "INFINITE\n",                                               /* 2 */
 #endif
         "-? <num>    Help, print this usage\n"
-        "            0: English, 1: Japanese\n"
-        "--help      Help, in English\n",                           /* 3 */
+           "            0: English, 1: Japanese\n"
+           "--help      Help, in English\n",                        /* 3 */
         "-h <host>   Host to connect to, default",                  /* 4 */
         "-p <num>    Port to connect on, not 0, default",           /* 5 */
 
@@ -1289,19 +1289,19 @@ static const char* client_usage_msg[][70] = {
         "            files in the folder would have the form \"hash.N\" file name\n"
         "            e.g symbolic link to the file at certs folder\n"
         "            ln -s ca-cert.pem  `openssl x509 -in ca-cert.pem -hash -noout`.0\n",
-                                                                       /* 67 */
+                                                                        /* 67 */
 #endif
 #if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && \
     !defined(WOLFSENTRY_NO_JSON)
         "--wolfsentry-config <file>    Path for JSON wolfSentry config\n",
-                                                                       /* 68 */
+                                                                        /* 68 */
 #endif
 #ifndef WOLFSSL_TLS13
         "-7          Set minimum downgrade protocol version [0-3] "
         " SSLv3(0) - TLS1.2(3)\n",
 #else
         "-7          Set minimum downgrade protocol version [0-4] "
-        " SSLv3(0) - TLS1.3(4)\n",                  /* 69 */
+           " SSLv3(0) - TLS1.3(4)\n",                                   /* 69 */
 #endif
 #ifdef HAVE_PQC
         "--pqc <alg> Key Share with specified post-quantum algorithm only [KYBER_LEVEL1, KYBER_LEVEL3,\n",
@@ -1311,14 +1311,14 @@ static const char* client_usage_msg[][70] = {
         "            P384_NTRU_HPS_LEVEL3, P521_NTRU_HPS_LEVEL5, P384_NTRU_HRSS_LEVEL3,\n"
         "            P256_SABER_LEVEL1, P384_SABER_LEVEL3, P521_SABER_LEVEL5, P256_KYBER_LEVEL1,\n"
         "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5, P256_KYBER_90S_LEVEL1, P384_KYBER_90S_LEVEL3,\n"
-        "            P521_KYBER_90S_LEVEL5]\n",                  /* 70 */
+        "            P521_KYBER_90S_LEVEL5]\n",                         /* 70 */
 #endif
 #ifdef WOLFSSL_SRTP
-        "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n", /* 71 */
+        "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n",       /* 71 */
 #endif
         "\n"
-        "For simpler wolfSSL TLS client examples, visit\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 72 */
+           "For simpler wolfSSL TLS client examples, visit\n"
+           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 72 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -2412,7 +2412,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
                     myoptargSz = (word32)XSTRLEN(myoptarg);
                     if (myoptargSz > 0 &&
-                            XTOUPPER(myoptarg[myoptargSz-1]) == 'M') {
+                        XTOUPPER((unsigned char)myoptarg[myoptargSz-1]) == 'M') {
                         mustStaple = 1;
                     }
                 }
