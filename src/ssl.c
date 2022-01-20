@@ -31504,7 +31504,9 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
             #endif
                 break;
             case STACK_TYPE_BIO:
+#if !defined(NO_BIO)
                 func = (wolfSSL_sk_freefunc)wolfSSL_BIO_vfree;
+#endif
                 break;
             case STACK_TYPE_BY_DIR_entry:
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
