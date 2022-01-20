@@ -813,7 +813,13 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     char strPort[6];
 #else
 #if !defined(WOLFSSL_USE_POPEN_HOST)
-    HOSTENT* entry;
+#if defined(__GNUC__) && !defined(SINGLE_THREADED)
+    HOSTENT entry_buf, *entry = NULL;
+    char *ghbn_r_buf = NULL;
+    int ghbn_r_errno;
+#else
+    HOSTENT *entry;
+#endif
 #endif
     SOCKADDR_IN *sin;
 #endif
@@ -911,7 +917,14 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
         }
     }
 #else
+#if defined(__GNUC__) && !defined(SINGLE_THREADED)
+    ghbn_r_buf = (char *)XMALLOC(2048, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ghbn_r_buf != NULL) {
+        gethostbyname_r(ip, &entry_buf, ghbn_r_buf, 2048, &entry, &ghbn_r_errno);
+    }
+#else
     entry = gethostbyname(ip);
+#endif
     sin = (SOCKADDR_IN *)&addr;
 
     if (entry) {
@@ -919,7 +932,12 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
         sin->sin_port = XHTONS(port);
         XMEMCPY(&sin->sin_addr.s_addr, entry->h_addr_list[0], entry->h_length);
     }
-    else {
+
+#if defined(__GNUC__) && !defined(SINGLE_THREADED)
+    XFREE(ghbn_r_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    if (entry == NULL) {
         WOLFSSL_MSG("no addr info for responder");
         return -1;
     }
