@@ -3142,11 +3142,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #elif defined(WOLFSSL_DEVCRYPTO_AES)
         /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
 
-    #elif defined(WOLFSSL_LINUXKM)
+    #elif defined(WOLFSSL_LINUXKM) && defined(WOLFSSL_AESNI)
 
-        #ifdef WOLFSSL_AESNI
-
-        __must_check int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
+        WARN_UNUSED_RESULT int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
         {
             int ret;
             if (haveAESNI && aes->use_aesni)
@@ -3163,7 +3161,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         #define wc_AesEncryptDirect(aes, out, in) wc_AesEncrypt(aes, in, out)
         #ifdef HAVE_AES_DECRYPT
         /* Allow direct access to one block decrypt */
-        __must_check int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
+        WARN_UNUSED_RESULT int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
         {
             int ret;
             if (haveAESNI && aes->use_aesni)
@@ -3176,25 +3174,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         #define wc_AesDecryptDirect(aes, out, in) wc_AesDecrypt(aes, in, out)
         #endif /* HAVE_AES_DECRYPT */
 
-        #else /* !WOLFSSL_AESNI */
-
-        __must_check int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
-        {
-            return wc_AesEncrypt(aes, in, out);
-        }
-        #define wc_AesEncryptDirect(aes, out, in) wc_AesEncrypt(aes, in, out)
-        #ifdef HAVE_AES_DECRYPT
-        /* Allow direct access to one block decrypt */
-        __must_check int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
-        {
-            return wc_AesDecrypt(aes, in, out);
-        }
-        #define wc_AesDecryptDirect(aes, out, in) wc_AesDecrypt(aes, in, out)
-        #endif /* HAVE_AES_DECRYPT */
-
-        #endif /* WOLFSSL_AESNI */
-
     #else
+
         /* Allow direct access to one block encrypt */
         int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
         {
