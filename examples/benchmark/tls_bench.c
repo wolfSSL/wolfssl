@@ -22,13 +22,14 @@
 
 /*
 Example gcc build statement
-gcc -lwolfssl -lpthread -o tls_bench tls_bench.c
-./tls_bench
+
+  gcc -lwolfssl -lpthread -o tls_bench tls_bench.c
+  ./tls_bench
 
 Or
 
-#include <examples/benchmark/tls_bench.h>
-bench_tls(args);
+  #include <examples/benchmark/tls_bench.h>
+  bench_tls(args);
 */
 
 

@@ -99,7 +99,6 @@ void echoclient_test(void* args)
     argv = ((func_args*)args)->argv;
 
     if (argc >= 2) {
-fprintf(stderr,"fopen(%s,r)\n",argv[1]);
         fin  = fopen(argv[1], "r");
         inCreated = 1;
     }

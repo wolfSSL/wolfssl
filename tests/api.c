@@ -2671,12 +2671,12 @@ static void test_wolfSSL_CTX_ticket_API(void)
 static void test_wolfSSL_set_minmax_proto_version(void)
 {
 #ifdef OPENSSL_EXTRA
-WOLFSSL_CTX *ctx;
-WOLFSSL *ssl;
-int ret;
-(void)ret;
-(void)ssl;
-printf(testingFmt, "test_wolfSSL_set_minmax_proto_version");
+    WOLFSSL_CTX *ctx;
+    WOLFSSL *ssl;
+    int ret;
+    (void)ret;
+    (void)ssl;
+    printf(testingFmt, "test_wolfSSL_set_minmax_proto_version");
 
 #ifndef NO_WOLFSSL_CLIENT
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
