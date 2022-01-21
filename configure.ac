@@ -1680,8 +1680,6 @@ then
                 break;;
             esac
             ENABLED_ARMASM_SHA512=yes
-            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512"
-            AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512"
             ;;
         *)
             AC_MSG_ERROR([Invalid choice of ARM asm inclusions (yes, sha512-crypto): $ENABLED_ARMASM.])
@@ -1701,6 +1699,8 @@ then
         *aarch64*)
             case $host_os in
             *darwin*)
+                # All known Aarch64 Mac computers support SHA-512 instructions
+                ENABLED_ARMASM_SHA512=yes
                 ;;
             *)
                 # +crypto needed for hardware acceleration
@@ -1733,6 +1733,11 @@ then
             AC_MSG_NOTICE([32bit ARMv8 found, setting mfpu to crypto-neon-fp-armv8]);;
         esac
     esac
+fi
+
+if test "$ENABLED_ARMASM_SHA512" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512"
 fi
 
 # Xilinx hardened crypto
