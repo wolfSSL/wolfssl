@@ -900,6 +900,11 @@ AS_IF([test "x$ENABLED_SCTP" = "xyes"],
 : ,
 : )])
 
+# DTLS-SRTP
+AC_ARG_ENABLE([srtp],
+    [AS_HELP_STRING([--enable-srtp],[Enable wolfSSL DTLS-SRTP support (default: disabled)])],
+    [ENABLED_SRTP=$enableval],
+    [ENABLED_SRTP=no])
 
 # DTLS-MULTICAST
 AC_ARG_ENABLE([mcast],
@@ -7150,6 +7155,9 @@ AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
 AS_IF([test "x$ENABLED_SCTP" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SCTP"])
 
+AS_IF([test "x$ENABLED_SRTP" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SRTP"])
+
 AS_IF([test "x$ENABLED_MCAST" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MULTICAST"])
 
@@ -7163,7 +7171,7 @@ AS_IF([(test "x$ENABLED_DEVCRYPTO" = "xyes") && (test "x$ENABLED_SHA224" = "xyes
 
 # SCTP and Multicast require DTLS
 AS_IF([(test "x$ENABLED_DTLS" = "xno") && \
-        (test "x$ENABLED_SCTP" = "xyes" || test "x$ENABLED_MCAST" = "xyes")],
+        (test "x$ENABLED_SCTP" = "xyes" || test "x$ENABLED_MCAST" = "xyes" || test "x$ENABLED_SRTP" = "xyes")],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS"
        ENABLED_DTLS=yes])
 
@@ -7366,6 +7374,7 @@ AM_CONDITIONAL([BUILD_ALL],[test "x$ENABLED_ALL" = "xyes"])
 AM_CONDITIONAL([BUILD_TLS13],[test "x$ENABLED_TLS13" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_RNG],[test "x$ENABLED_RNG" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SCTP],[test "x$ENABLED_SCTP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_SRTP],[test "x$ENABLED_SRTP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MCAST],[test "x$ENABLED_MCAST" = "xyes"])
 AM_CONDITIONAL([BUILD_IPV6],[test "x$ENABLED_IPV6" = "xyes"])
 AM_CONDITIONAL([BUILD_LEANPSK],[test "x$ENABLED_LEANPSK" = "xyes"])
@@ -7810,6 +7819,7 @@ echo "   * chrony:                     $ENABLED_CHRONY"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
 echo "   * SCTP:                       $ENABLED_SCTP"
+echo "   * SRTP:                       $ENABLED_SRTP"
 echo "   * Indefinite Length:          $ENABLED_BER_INDEF"
 echo "   * Multicast:                  $ENABLED_MCAST"
 echo "   * SSL v3.0 (Old):             $ENABLED_SSLV3"

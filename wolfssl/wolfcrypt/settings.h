@@ -2431,7 +2431,8 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_NO_WORD64_OPS
 #endif
 
-#if !defined(WOLFCRYPT_ONLY) && !defined(WOLFSSL_NO_TLS12)
+#if !defined(WOLFCRYPT_ONLY) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(HAVE_KEYING_MATERIAL))
     #undef  WOLFSSL_HAVE_PRF
     #define WOLFSSL_HAVE_PRF
 #endif
@@ -2601,6 +2602,14 @@ extern void uITRON4_free(void *p) ;
 #if defined(HAVE_PQC) && !defined(HAVE_LIBOQS)
 #error "You must have a post-quantum cryptography implementation to use PQC."
 #endif
+
+
+/* SRTP requires DTLS */
+#if defined(WOLFSSL_SRTP) && !defined(WOLFSSL_DTLS)
+    #error The SRTP extension requires DTLS
+#endif
+
+
 
 /* ---------------------------------------------------------------------------
  * Depricated Algorithm Handling

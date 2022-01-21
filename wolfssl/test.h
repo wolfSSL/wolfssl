@@ -520,12 +520,24 @@ typedef struct callback_functions {
     unsigned char loadToSSL:1;
 } callback_functions;
 
+#if defined(WOLFSSL_SRTP) && !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
+typedef struct srtp_test_helper {
+    pthread_mutex_t mutex;
+    pthread_cond_t  cond;
+    uint8_t* server_srtp_ekm;
+    size_t   server_srtp_ekm_size;
+} srtp_test_helper;
+#endif
+
 typedef struct func_args {
     int    argc;
     char** argv;
     int    return_code;
     tcp_ready* signal;
     callback_functions *callbacks;
+#if defined(WOLFSSL_SRTP) && !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
+    srtp_test_helper* srtp_helper;
+#endif
 } func_args;
 
 #ifdef NETOS
@@ -629,6 +641,75 @@ err_sys_with_errno(const char* msg)
 extern int   myoptind;
 extern char* myoptarg;
 
+#if defined(WOLFSSL_SRTP) && !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
+
+static WC_INLINE void srtp_helper_init(srtp_test_helper *srtp)
+{
+    srtp->server_srtp_ekm_size = 0;
+    srtp->server_srtp_ekm = NULL;
+
+    pthread_mutex_init(&srtp->mutex, 0);
+    pthread_cond_init(&srtp->cond, 0);
+}
+
+/**
+ * strp_helper_get_ekm() - get exported key material of other peer
+ * @srtp: srtp_test_helper struct shared with other peer [in]
+ * @ekm: where to store the shared buffer pointer [out]
+ * @size: size of the shared buffer returned [out]
+ *
+ * This function wait that the other peer calls strp_helper_set_ekm() and then
+ * store the buffer pointer/size in @ekm and @size.
+ */
+static WC_INLINE void srtp_helper_get_ekm(srtp_test_helper *srtp,
+                                          uint8_t **ekm, size_t *size)
+{
+    pthread_mutex_lock(&srtp->mutex);
+
+    if (srtp->server_srtp_ekm == NULL)
+        pthread_cond_wait(&srtp->cond, &srtp->mutex);
+
+    *ekm = srtp->server_srtp_ekm;
+    *size = srtp->server_srtp_ekm_size;
+
+    /* reset */
+    srtp->server_srtp_ekm = NULL;
+    srtp->server_srtp_ekm_size = 0;
+
+    pthread_mutex_unlock(&srtp->mutex);
+}
+
+/**
+ * strp_helper_set_ekm() - set exported key material of other peer
+ * @srtp: srtp_test_helper struct shared with other peer [in]
+ * @ekm: pointer to the shared buffer [in]
+ * @size: size of the shared buffer [in]
+ *
+ * This function set the @ekm and wakes up a peer waiting in
+ * srtp_helper_get_ekm().
+ *
+ * used in client_srtp_test()/server_srtp_test()
+ */
+static WC_INLINE void srtp_helper_set_ekm(srtp_test_helper *srtp,
+                                          uint8_t *ekm, size_t size)
+{
+    pthread_mutex_lock(&srtp->mutex);
+
+    srtp->server_srtp_ekm_size = size;
+    srtp->server_srtp_ekm = ekm;
+    pthread_cond_signal(&srtp->cond);
+
+    pthread_mutex_unlock(&srtp->mutex);
+}
+
+static WC_INLINE void srtp_helper_free(srtp_test_helper *srtp)
+{
+    pthread_mutex_destroy(&srtp->mutex);
+    pthread_cond_destroy(&srtp->cond);
+}
+
+#endif /* WOLFSSL_SRTP && !SINGLE_THREADED && POSIX_THREADS */
+
 /**
  *
  * @param argc Number of argv strings
@@ -726,7 +807,7 @@ static WC_INLINE int mygetopt(int argc, char** argv, const char* optstring)
 
 struct mygetopt_long_config {
     const char *name;
-    int takes_arg;
+    int takes_arg; /* 0=no arg, 1=required arg, 2=optional arg */
     int value;
 };
 
@@ -794,10 +875,13 @@ static WC_INLINE int mygetopt_long(int argc, char** argv, const char* optstring,
                         *longindex = (int)((i - longopts) / sizeof *i);
                     if (i->takes_arg) {
                         if (myoptind < argc) {
-                            myoptarg = argv[myoptind];
-                            myoptind++;
-                        } else
+                            if (i->takes_arg == 1 || argv[myoptind][0] != '-') {
+                                myoptarg = argv[myoptind];
+                                myoptind++;
+                            }
+                        } else if (i->takes_arg != 2) {
                             return -1;
+                        }
                     }
                     break;
                 }

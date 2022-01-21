@@ -1311,10 +1311,14 @@ static const char* client_usage_msg[][70] = {
         "            P384_NTRU_HPS_LEVEL3, P521_NTRU_HPS_LEVEL5, P384_NTRU_HRSS_LEVEL3,\n"
         "            P256_SABER_LEVEL1, P384_SABER_LEVEL3, P521_SABER_LEVEL5, P256_KYBER_LEVEL1,\n"
         "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5, P256_KYBER_90S_LEVEL1, P384_KYBER_90S_LEVEL3,\n"
-        "            P521_KYBER_90S_LEVEL5]\n\n",                  /* 70 */
+        "            P521_KYBER_90S_LEVEL5]\n",                  /* 70 */
 #endif
+#ifdef WOLFSSL_SRTP
+        "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n", /* 71 */
+#endif
+        "\n"
         "For simpler wolfSSL TLS client examples, visit\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 71 */
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 72 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1514,17 +1518,21 @@ static const char* client_usage_msg[][70] = {
         " SSLv3(0) - TLS1.3(4)\n",                            /* 69 */
 #endif
 #ifdef HAVE_PQC
-        "--pqc <alg> post-quantum 名前付きグループとの鍵共有のみ\n",
-        "[KYBER_LEVEL1, KYBER_LEVEL3, KYBER_LEVEL5, KYBER_90S_LEVEL1, KYBER_90S_LEVEL3, KYBER_90S_LEVEL5,\n",
-        " NTRU_HPS_LEVEL1, NTRU_HPS_LEVEL3, NTRU_HPS_LEVEL5, NTRU_HRSS_LEVEL3,\n",
-        " LIGHTSABER, SABER, FIRESABER, P256_NTRU_HPS_LEVEL1,\n"
-        " P384_NTRU_HPS_LEVEL3, P521_NTRU_HPS_LEVEL5, P384_NTRU_HRSS_LEVEL3,\n"
-        " P256_SABER_LEVEL1, P384_SABER_LEVEL3, P521_SABER_LEVEL5, P256_KYBER_LEVEL1,\n"
-        " P384_KYBER_LEVEL3, P521_KYBER_LEVEL5, P256_KYBER_90S_LEVEL1, P384_KYBER_90S_LEVEL3,\n"
-        " P521_KYBER_90S_LEVEL5]\n\n",                            /* 70 */
+        "--pqc <alg> post-quantum 名前付きグループとの鍵共有のみ [KYBER_LEVEL1, KYBER_LEVEL3,\n",
+        "            KYBER_LEVEL5, KYBER_90S_LEVEL1, KYBER_90S_LEVEL3, KYBER_90S_LEVEL5,\n",
+        "            NTRU_HPS_LEVEL1, NTRU_HPS_LEVEL3, NTRU_HPS_LEVEL5, NTRU_HRSS_LEVEL3,\n",
+        "            SABER_LEVEL1, SABER_LEVEL3, SABER_LEVEL5, P256_NTRU_HPS_LEVEL1,\n"
+        "            P384_NTRU_HPS_LEVEL3, P521_NTRU_HPS_LEVEL5, P384_NTRU_HRSS_LEVEL3,\n"
+        "            P256_SABER_LEVEL1, P384_SABER_LEVEL3, P521_SABER_LEVEL5, P256_KYBER_LEVEL1,\n"
+        "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5, P256_KYBER_90S_LEVEL1, P384_KYBER_90S_LEVEL3,\n"
+        "            P521_KYBER_90S_LEVEL5]\n",                  /* 70 */
 #endif
+#ifdef WOLFSSL_SRTP
+        "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n", /* 71 */
+#endif
+        "\n"
         "For simpler wolfSSL TLS client examples, visit\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 71 */
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 72 */
         NULL,
     },
 #endif
@@ -1746,7 +1754,84 @@ static void Usage(void)
     printf("%s", msg[++msgid]);     /* more --pqc options */
     printf("%s", msg[++msgid]);     /* more --pqc options */
 #endif
+#ifdef WOLFSSL_SRTP
+    printf("%s", msg[++msgid]);     /* dtls-srtp */
+#endif
 }
+
+#ifdef WOLFSSL_SRTP
+/**
+ * client_srtp_test() - test that the computed ekm matches with the server one
+ * @ssl: ssl context
+ * @srtp_helper: srtp_test_helper struct shared  with the server
+ *
+ * if @srtp_helper is NULL no check is made, but the ekm is printed.
+ *
+ * calls srtp_helper_get_ekm() to wait and then get the ekm computed by the
+ * server, then check if it matches the one computed by itself.
+ */
+static int client_srtp_test(WOLFSSL *ssl, func_args *args)
+{
+    size_t srtp_secret_length;
+    byte *srtp_secret, *p;
+    int ret;
+#if !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
+    srtp_test_helper *srtp_helper = args->srtp_helper;
+    byte *other_secret = NULL;
+    size_t other_size = 0;
+#else
+    (void)args;
+#endif
+
+    ret = wolfSSL_export_dtls_srtp_keying_material(ssl, NULL,
+                                                   &srtp_secret_length);
+    if (ret != LENGTH_ONLY_E) {
+        printf("DTLS SRTP: Error getting keying material length\n");
+        return ret;
+    }
+
+    srtp_secret = (byte*)XMALLOC(srtp_secret_length,
+                                    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (srtp_secret == NULL) {
+        err_sys("DTLS SRTP: Low memory");
+    }
+
+    ret = wolfSSL_export_dtls_srtp_keying_material(ssl, srtp_secret,
+                                                   &srtp_secret_length);
+    if (ret != WOLFSSL_SUCCESS) {
+        XFREE(srtp_secret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        printf("DTLS SRTP: Error getting keying material\n");
+        return ret;
+    }
+
+    printf("DTLS SRTP: Exported key material: ");
+    for (p = srtp_secret; p < srtp_secret + srtp_secret_length; p++)
+        printf("%02X", *p);
+    printf("\n");
+
+#if !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
+    if (srtp_helper != NULL) {
+        srtp_helper_get_ekm(srtp_helper, &other_secret, &other_size);
+
+        if (other_size != srtp_secret_length ||
+            (XMEMCMP(other_secret, srtp_secret, srtp_secret_length) != 0)) {
+
+            /* we are delegated from server to free this buffer  */
+            XFREE(other_secret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            printf("DTLS SRTP: Exported Keying Material mismatch\n");
+            return WOLFSSL_UNKNOWN;
+        }
+
+        /* we are delegated from server to free this buffer  */
+        XFREE(other_secret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+
+    XFREE(srtp_secret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return 0;
+}
+#endif /* WOLFSSL_SRTP */
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 {
@@ -1789,6 +1874,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         { "ヘルプ", 0, 258 },
 #if defined(HAVE_PQC)
         { "pqc", 1, 259 },
+#endif
+#ifdef WOLFSSL_SRTP
+        { "srtp", 2, 260 }, /* optional argument */
 #endif
         { 0, 0, 0 }
     };
@@ -1911,6 +1999,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
     int useCertFolder = 0;
 #endif
+#ifdef WOLFSSL_SRTP
+    const char* dtlsSrtpProfiles = NULL;
+#endif
+
     char buffer[WOLFSSL_MAX_ERROR_SZ];
 
     int     argc = ((func_args*)args)->argc;
@@ -2048,9 +2140,20 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             #endif
                 break;
 
+        #ifdef WOLFSSL_SRTP
+            case 260:
+                doDTLS = 1;
+                dtlsUDP = 1;
+                dtlsSrtpProfiles = myoptarg != NULL ? myoptarg :
+                    "SRTP_AES128_CM_SHA1_80";
+                printf("Using SRTP Profile(s): %s\n", dtlsSrtpProfiles);
+                break;
+        #endif
+
             case 'G' :
             #ifdef WOLFSSL_SCTP
                 doDTLS = 1;
+                dtlsUDP = 1;
                 dtlsSCTP = 1;
             #endif
                 break;
@@ -2800,6 +2903,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     /* Restore wolfSSL verify defaults */
     if (ctx) {
         wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_DEFAULT, NULL);
+    }
+#endif
+
+#ifdef WOLFSSL_SRTP
+    if (dtlsSrtpProfiles != NULL) {
+        if (wolfSSL_CTX_set_tlsext_use_srtp(ctx, dtlsSrtpProfiles)
+                                                           != WOLFSSL_SUCCESS) {
+            err_sys("unable to set DTLS SRTP profile");
+        }
     }
 #endif
 
@@ -3871,6 +3983,22 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     TEST_DELAY();
 #endif /* WOLFSSL_SESSION_EXPORT_DEBUG */
 
+#ifdef WOLFSSL_SRTP
+    if (dtlsSrtpProfiles != NULL) {
+        err = client_srtp_test(ssl, (func_args*)args);
+        if (err != 0) {
+            if (exitWithRet) {
+                ((func_args*)args)->return_code = err;
+                wolfSSL_free(ssl); ssl = NULL;
+                wolfSSL_CTX_free(ctx); ctx = NULL;
+                goto exit;
+            }
+            /* else */
+            err_sys("SRTP check failed");
+        }
+    }
+#endif /* WOLFSSL_SRTP */
+
 #ifdef WOLFSSL_TLS13
     if (updateKeysIVs)
         wolfSSL_update_keys(ssl);
@@ -4222,6 +4350,9 @@ exit:
 
         StartTCP();
 
+#if defined(WOLFSSL_SRTP) && !defined(SINGLE_THREADED) && defined(_POSIX_THREADS)
+        args.srtp_helper = NULL;
+#endif
         args.argc = argc;
         args.argv = argv;
         args.return_code = 0;

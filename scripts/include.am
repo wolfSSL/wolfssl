@@ -85,6 +85,11 @@ dist_noinst_SCRIPTS+= scripts/unit.test
 noinst_SCRIPTS+= scripts/unit.test.in
 
 endif
+
+if BUILD_SRTP
+dist_noinst_SCRIPTS+= scripts/openssl_srtp.test
+endif
+
 endif
 
 EXTRA_DIST +=  scripts/testsuite.pcap \

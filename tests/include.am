@@ -37,6 +37,8 @@ EXTRA_DIST += tests/unit.h \
               tests/test-dtls-reneg-server.conf \
               tests/test-dtls-resume.conf \
               tests/test-dtls-sha2.conf \
+              tests/test-dtls-srtp.conf \
+              tests/test-dtls-srtp-fails.conf \
               tests/test-sctp.conf \
               tests/test-sctp-sha2.conf \
               tests/test-sig.conf \

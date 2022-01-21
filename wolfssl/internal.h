@@ -2263,6 +2263,9 @@ typedef enum {
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
     TLSX_SIGNATURE_ALGORITHMS       = 0x000d, /* HELLO_EXT_SIG_ALGO */
 #endif
+#ifdef WOLFSSL_SRTP
+    TLSX_USE_SRTP                   = 0x000e, /* 14 */
+#endif
     TLSX_APPLICATION_LAYER_PROTOCOL = 0x0010, /* a.k.a. ALPN */
     TLSX_STATUS_REQUEST_V2          = 0x0011, /* a.k.a. OCSP stapling v2 */
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
@@ -2833,16 +2836,22 @@ struct WOLFSSL_CTX {
 #if defined(WOLFSSL_STATIC_EPHEMERAL) && !defined(SINGLE_THREADED)
     byte        staticKELockInit:1;
 #endif
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SCTP)
+    byte        dtlsSctp:1;         /* DTLS-over-SCTP mode */
+#endif
+    word16      minProto:1; /* sets min to min available */
+    word16      maxProto:1; /* sets max to max available */
 
-#ifdef WOLFSSL_MULTICAST
+#ifdef WOLFSSL_SRTP
+    word16      dtlsSrtpProfiles;  /* DTLS-with-SRTP mode
+                                    * (list of selected profiles - up to 16) */
+#endif
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST)
     byte        haveMcast;        /* multicast requested */
     byte        mcastID;          /* multicast group ID */
 #endif
-#if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
-    byte        dtlsSctp;         /* DTLS-over-SCTP mode */
-#endif
-#if (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)) && \
-                                                           defined(WOLFSSL_DTLS)
+#if defined(WOLFSSL_DTLS) && \
+    (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU))
     word16      dtlsMtuSz;        /* DTLS MTU size */
 #endif
 #ifndef NO_DH
@@ -2859,8 +2868,6 @@ struct WOLFSSL_CTX {
     short       minFalconKeySz;   /* minimum Falcon key size */
 #endif
     unsigned long     mask;             /* store SSL_OP_ flags */
-    word16            minProto:1; /* sets min to min available */
-    word16            maxProto:1; /* sets max to max available */
 #ifdef OPENSSL_EXTRA
     byte              sessionCtx[ID_LEN]; /* app session context ID */
     word32            disabledCurves;   /* curves disabled by user */
@@ -3683,7 +3690,7 @@ typedef struct Options {
 #ifdef WOLFSSL_SCTP
     word16            dtlsSctp:1;         /* DTLS-over-SCTP mode */
 #endif
-#endif
+#endif /* WOLFSSL_DTLS */
 #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SUPPORTED_CURVES)
     word16            userCurves:1;       /* indicates user called wolfSSL_UseSupportedCurve */
 #endif
@@ -4376,6 +4383,11 @@ struct WOLFSSL {
     word32 macDropCount;
     word32 replayDropCount;
 #endif /* WOLFSSL_DTLS_DROP_STATS */
+#ifdef WOLFSSL_SRTP
+    word16         dtlsSrtpProfiles;   /* DTLS-with-SRTP profiles list
+                                        * (selected profiles - up to 16) */
+    word16         dtlsSrtpId;         /* DTLS-with-SRTP profile ID selected */
+#endif
 #endif /* WOLFSSL_DTLS */
 #ifdef WOLFSSL_CALLBACKS
     TimeoutInfo     timeoutInfo;        /* info saved during handshake */
@@ -4911,6 +4923,7 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
     WOLFSSL_LOCAL int DtlsCheckOrder(WOLFSSL* ssl, int order);
 #endif
     WOLFSSL_LOCAL int IsSCR(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int IsDtlsNotSctpMode(WOLFSSL* ssl);
 
     WOLFSSL_LOCAL void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out);
 
