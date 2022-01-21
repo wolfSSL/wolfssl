@@ -128,7 +128,7 @@ extern ${variable.value} ${variable.name};
     #define HAL_CONSOLE_UART huart2
     #define NO_STM32_RNG
     #define WOLFSSL_GENSEED_FORTEST
-#elif defined(STM32U575xx)
+#elif defined(STM32U575xx) || defined(STM32U585xx)
     #define HAL_CONSOLE_UART huart1
     #define WOLFSSL_STM32U5
     #define STM32_HAL_V2
@@ -273,6 +273,14 @@ extern ${variable.value} ${variable.name};
     #define SMALL_SESSION_CACHE
 #else
     #define NO_SESSION_CACHE
+#endif
+
+/* Post Quantum
+ * Note: PQM4 is compatible with STM32. The project can be found at:
+ * https://github.com/mupq/pqm4
+ */
+#if defined(WOLF_CONF_PQM4) && WOLF_CONF_PQM4 == 1
+    #define HAVE_PQM4
 #endif
 
 

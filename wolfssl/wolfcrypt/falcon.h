@@ -31,7 +31,7 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-#ifdef HAVE_PQC
+#if defined(HAVE_PQC) && defined(HAVE_FALCON)
 
 #ifdef HAVE_LIBOQS
 #include <oqs/oqs.h>
@@ -129,5 +129,5 @@ int wc_falcon_sig_size(falcon_key* key);
     }    /* extern "C" */
 #endif
 
-#endif /* HAVE_PQC */
+#endif /* HAVE_PQC && HAVE_FALCON */
 #endif /* WOLF_CRYPT_FALCON_H */
