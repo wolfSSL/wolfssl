@@ -1315,7 +1315,7 @@ typedef struct WOLFSSL_SRTP_PROTECTION_PROFILE {
 /* Compatibility API's for SRTP */
 WOLFSSL_API int wolfSSL_CTX_set_tlsext_use_srtp(WOLFSSL_CTX*, const char*);
 WOLFSSL_API int wolfSSL_set_tlsext_use_srtp(WOLFSSL*, const char*);
-WOLFSSL_API const WOLFSSL_SRTP_PROTECTION_PROFILE* 
+WOLFSSL_API const WOLFSSL_SRTP_PROTECTION_PROFILE*
                 wolfSSL_get_selected_srtp_profile(WOLFSSL*);
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_SRTP_PROTECTION_PROFILE)*
     wolfSSL_get_srtp_profiles(WOLFSSL*);

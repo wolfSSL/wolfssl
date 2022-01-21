@@ -1329,7 +1329,7 @@ static int DtlsSrtpSelProfiles(word16* id, const char* profile_str)
     const WOLFSSL_SRTP_PROTECTION_PROFILE* profile;
     const char *current, *next = NULL;
     word32 length = 0, current_length;
-    
+
     *id = 0; /* reset destination ID's */
 
     if (profile_str == NULL) {
