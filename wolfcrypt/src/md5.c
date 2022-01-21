@@ -186,13 +186,13 @@ static int Transform_Len(wc_Md5* md5, const byte* data, word32 len)
 
 #define XTRANSFORM(S,B)  Transform((S),(B))
 
-#define F1(x, y, z) (z ^ (x & (y ^ z)))
+#define F1(x, y, z) ((z) ^ ((x) & ((y) ^ (z))))
 #define F2(x, y, z) F1(z, x, y)
-#define F3(x, y, z) (x ^ y ^ z)
-#define F4(x, y, z) (y ^ (x | ~z))
+#define F3(x, y, z) ((x) ^ (y) ^ (z))
+#define F4(x, y, z) ((y) ^ ((x) | ~(z)))
 
 #define MD5STEP(f, w, x, y, z, data, s) \
-        w = rotlFixed(w + f(x, y, z) + data, s) + x
+    (w) = (rotlFixed((w) + f(x, y, z) + (data), s) + (x))
 
 static int Transform(wc_Md5* md5, const byte* data)
 {

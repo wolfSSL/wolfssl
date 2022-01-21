@@ -1790,7 +1790,7 @@ WOLFSSL_LOCAL int DoTls13ServerHello(WOLFSSL* ssl, const byte* input,
                                      byte* extMsgType);
 WOLFSSL_LOCAL int RestartHandshakeHash(WOLFSSL* ssl);
 #endif
-int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int t,
+int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
                     int pLen, int content);
 
 

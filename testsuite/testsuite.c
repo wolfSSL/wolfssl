@@ -46,15 +46,15 @@
 
 
 #ifndef NO_SHA256
-void file_test(const char* file, byte* hash);
+void file_test(const char* file, byte* check);
 #endif
 
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
 
 #ifdef HAVE_STACK_SIZE
-static THREAD_RETURN simple_test(func_args*);
+static THREAD_RETURN simple_test(func_args *args);
 #else
-static void simple_test(func_args*);
+static void simple_test(func_args *args);
 #endif
 static int test_tls(func_args* server_args);
 static void show_ciphers(void);
@@ -252,9 +252,9 @@ static int test_tls(func_args* server_args)
     echo_args.argc = 3;
     echo_args.argv = myArgv;
 
-    strcpy(arg[0], "testsuite");
-    strcpy(arg[1], "input");
-    strcpy(arg[2], outputName);
+    XSTRLCPY(arg[0], "testsuite", sizeof(arg[0]));
+    XSTRLCPY(arg[1], "input", sizeof(arg[1]));
+    XSTRLCPY(arg[2], outputName, sizeof(arg[2]));
 
     /* Share the signal, it has the new port number in it. */
     echo_args.signal = server_args->signal;
@@ -279,7 +279,7 @@ static int test_tls(func_args* server_args)
 
     /* Next client connection - send quit to shutdown server. */
     echo_args.argc = 2;
-    strcpy(echo_args.argv[1], "quit");
+    XSTRLCPY(arg[1], "quit", sizeof(arg[1]));
 
     /* Do a client TLS connection. */
 #ifdef HAVE_STACK_SIZE
@@ -359,14 +359,14 @@ static void simple_test(func_args* args)
     for (i = 0; i < 3; i++)
         cliArgv[i] = argvc[i];
 
-    strcpy(argvs[0], "SimpleServer");
+    XSTRLCPY(argvs[0], "SimpleServer", sizeof(argvs[0]));
     svrArgs.argc = 1;
     svrArgs.argv = svrArgv;
     svrArgs.return_code = 0;
     #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_SNIFFER)  && \
                                      !defined(WOLFSSL_TIRTOS)
-        strcpy(argvs[svrArgs.argc++], "-p");
-        strcpy(argvs[svrArgs.argc++], "0");
+        XSTRLCPY(argvs[svrArgs.argc++], "-p", sizeof(argvs[svrArgs.argc]));
+        XSTRLCPY(argvs[svrArgs.argc++], "0", sizeof(argvs[svrArgs.argc]));
     #endif
     /* Set the last arg later, when it is known. */
 
@@ -376,12 +376,12 @@ static void simple_test(func_args* args)
     wait_tcp_ready(&svrArgs);
 
     /* Setting the actual port number. */
-    strcpy(argvc[0], "SimpleClient");
+    XSTRLCPY(argvc[0], "SimpleClient", sizeof(argvc[0]));
     cliArgs.argv = cliArgv;
     cliArgs.return_code = 0;
 #ifndef USE_WINDOWS_API
     cliArgs.argc = NUMARGS;
-    strcpy(argvc[1], "-p");
+    XSTRLCPY(argvc[1], "-p", sizeof(argvc[1]));
     snprintf(argvc[2], sizeof(argvc[2]), "%d", (int)svrArgs.signal->port);
 #else
     cliArgs.argc = 1;

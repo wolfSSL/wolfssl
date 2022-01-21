@@ -807,8 +807,8 @@ static const char* server_usage_msg[][60] = {
     {
         " NOTE: All files relative to wolfSSL home dir\n",               /* 0 */
         "-? <num>    Help, print this usage\n"
-        "            0: English, 1: Japanese\n"
-        "--help      Help, in English\n",                                /* 1 */
+           "            0: English, 1: Japanese\n"
+           "--help      Help, in English\n",                             /* 1 */
         "-p <num>    Port to listen on, not 0, default",                 /* 2 */
 #ifndef WOLFSSL_TLS13
         "-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default", /* 3 */
@@ -932,18 +932,18 @@ static const char* server_usage_msg[][60] = {
         "            files in the folder would have the form \"hash.N\" file name\n"
         "            e.g symbolic link to the file at certs folder\n"
         "            ln -s client-ca.pem  `openssl x509 -in client-ca.pem -hash -noout`.0\n",
-                                                                       /* 57 */
+                                                                        /* 57 */
 #endif
 #if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && !defined(WOLFSENTRY_NO_JSON)
         "--wolfsentry-config <file>    Path for JSON wolfSentry config\n",
-                                                                       /* 58 */
+                                                                        /* 58 */
 #endif
 #ifndef WOLFSSL_TLS13
         "-7          Set minimum downgrade protocol version [0-3] "
         " SSLv3(0) - TLS1.2(3)\n",
 #else
         "-7          Set minimum downgrade protocol version [0-4] "
-        " SSLv3(0) - TLS1.3(4)\n",                          /* 59 */
+           " SSLv3(0) - TLS1.3(4)\n",                                   /* 59 */
 #endif
 #ifdef HAVE_PQC
         "--pqc <alg> Key Share with specified post-quantum algorithm only [KYBER_LEVEL1, KYBER_LEVEL3,\n",
@@ -956,11 +956,11 @@ static const char* server_usage_msg[][60] = {
         "            P521_KYBER_90S_LEVEL5]\n",                          /* 60 */
 #endif
 #ifdef WOLFSSL_SRTP
-        "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n", /* 61 */
+        "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n",       /* 61 */
 #endif
         "\n"
-        "For simpler wolfSSL TLS server examples, visit\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 62 */
+           "For simpler wolfSSL TLS server examples, visit\n"
+           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 62 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT

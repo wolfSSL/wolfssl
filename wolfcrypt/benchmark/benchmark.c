@@ -795,12 +795,12 @@ static const char* bench_desc_words[][14] = {
     #define END_INTEL_CYCLES   total_cycles = get_intel_cycles() - total_cycles;
     /* s == size in bytes that 1 count represents, normally BENCH_SIZE */
     #define SHOW_INTEL_CYCLES(b, n, s) \
-        XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), " %s = %6.2f\n", \
+        XSNPRINTF((b) + XSTRLEN(b), (n) - XSTRLEN(b), " %s = %6.2f\n", \
             bench_result_words1[lng_index][2], \
-            count == 0 ? 0 : (float)total_cycles / ((word64)count*s))
+            count == 0 ? 0 : (float)total_cycles / ((word64)count*(s)))
     #define SHOW_INTEL_CYCLES_CSV(b, n, s) \
-        XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), "%.2f,\n", \
-            count == 0 ? 0 : (float)total_cycles / ((word64)count*s))
+        XSNPRINTF((b) + XSTRLEN(b), (n) - XSTRLEN(b), "%.2f,\n", \
+            count == 0 ? 0 : (float)total_cycles / ((word64)count*(s)))
 #elif defined(LINUX_CYCLE_COUNT)
     #include <linux/perf_event.h>
     #include <sys/syscall.h>
@@ -883,7 +883,7 @@ static const char* bench_desc_words[][14] = {
 #ifdef WOLFSSL_CURRTIME_REMAP
     #define current_time WOLFSSL_CURRTIME_REMAP
 #elif !defined(HAVE_STACK_SIZE)
-    double current_time(int);
+    double current_time(int reset);
 #endif
 
 #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND) && \
@@ -1115,7 +1115,7 @@ static THREAD_LS_T int devId = INVALID_DEVID;
         agreeTimes = 100
     };
     static int    numBlocks  = 5; /* how many megs to test (en/de)cryption */
-    static word32 bench_size = (1024*1024ul);
+    static word32 bench_size = (1024*1024UL);
 #endif
 static int base2 = 1;
 static int digest_stream = 1;
@@ -1186,7 +1186,7 @@ static void benchmark_static_init(void)
         bench_size = (1024ul);
     #else
         numBlocks  = 5; /* how many megs to test (en/de)cryption */
-        bench_size = (1024*1024ul);
+        bench_size = (1024*1024UL);
     #endif
     #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
         aesAuthAddSz = AES_AUTH_ADD_SZ;
@@ -1405,8 +1405,8 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
 
     if (base2) {
         /* determine if we should show as KB or MB */
-        if (blocks > (1024ul * 1024ul)) {
-            blocks /= (1024ul * 1024ul);
+        if (blocks > (1024UL * 1024UL)) {
+            blocks /= (1024UL * 1024UL);
             blockType = "MB";
         }
         else if (blocks > 1024) {
@@ -1419,8 +1419,8 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
     }
     else {
         /* determine if we should show as kB or mB */
-        if (blocks > (1000ul * 1000ul)) {
-            blocks /= (1000ul * 1000ul);
+        if (blocks > (1000UL * 1000UL)) {
+            blocks /= (1000UL * 1000UL);
             blockType = "mB";
         }
         else if (blocks > 1000) {
@@ -5015,7 +5015,7 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
     const char* messageStr = TEST_STRING;
     const int   len = (int)TEST_STRING_SZ;
 #endif
-    double      start = 0.0f;
+    double      start = 0.0F;
     const char**desc = bench_desc_words[lng_index];
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
     WC_DECLARE_VAR(message, byte, TEST_STRING_SZ, HEAP_HINT);
@@ -5315,7 +5315,7 @@ void bench_rsa_key(int doAsync, int rsaKeySz)
     int     ret = 0, i, pending = 0;
     RsaKey  rsaKey[BENCH_MAX_PENDING];
     int     isPending[BENCH_MAX_PENDING];
-    long    exp = 65537l;
+    long    exp = 65537L;
 
     /* clear for done cleanup */
     XMEMSET(rsaKey, 0, sizeof(rsaKey));
@@ -5394,7 +5394,7 @@ void bench_dh(int doAsync)
     int    ret = 0, i;
     int    count = 0, times, pending = 0;
     const byte* tmp = NULL;
-    double start = 0.0f;
+    double start = 0.0F;
     DhKey  dhKey[BENCH_MAX_PENDING];
     int    dhKeySz = BENCH_DH_KEY_SIZE * 8; /* used in printf */
     const char**desc = bench_desc_words[lng_index];

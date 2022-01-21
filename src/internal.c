@@ -136,29 +136,32 @@ WOLFSSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
 #ifndef WOLFSSL_NO_TLS12
 
 #ifndef NO_WOLFSSL_CLIENT
-    static int DoHelloVerifyRequest(WOLFSSL* ssl, const byte* input, word32*,
-                                                                        word32);
-    static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input, word32*,
-                                                                        word32);
+    static int DoHelloVerifyRequest(WOLFSSL* ssl, const byte* input,
+                                    word32* inOutIdx, word32 size);
+    static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
+                                   word32* inOutIdx, word32 size);
     #ifndef NO_CERTS
-        static int DoCertificateRequest(WOLFSSL* ssl, const byte* input, word32*,
-                                                                        word32);
+        static int DoCertificateRequest(WOLFSSL* ssl, const byte* input,
+                                        word32* inOutIdx, word32 size);
     #endif
     #ifdef HAVE_SESSION_TICKET
-        static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32*,
-                                                                        word32);
+        static int DoSessionTicket(WOLFSSL* ssl, const byte* input,
+                                   word32* inOutIdx, word32 size);
     #endif
 #endif
 
 
 #ifndef NO_WOLFSSL_SERVER
-    static int DoClientKeyExchange(WOLFSSL* ssl, byte* input, word32*, word32);
+    static int DoClientKeyExchange(WOLFSSL* ssl, byte* input,
+                                   word32* inOutIdx, word32 size);
     #if (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
                         defined(HAVE_ED448)) && !defined(WOLFSSL_NO_CLIENT_AUTH)
-        static int DoCertificateVerify(WOLFSSL* ssl, byte*, word32*, word32);
+        static int DoCertificateVerify(WOLFSSL* ssl, byte* input,
+                                       word32* inOutIdx, word32 size);
     #endif
     #ifdef WOLFSSL_DTLS
-        static int SendHelloVerifyRequest(WOLFSSL*, const byte*, byte);
+        static int SendHelloVerifyRequest(WOLFSSL* ssl,
+                                          const byte* cookie, byte cookieSz);
     #endif /* WOLFSSL_DTLS */
 
 #endif /* !NO_WOLFSSL_SERVER */
@@ -214,7 +217,7 @@ static const byte tls13Downgrade[7] = {
 
 #if !defined(NO_OLD_TLS) && !defined(WOLFSSL_AEAD_ONLY)
 static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
-                    int padSz, int content, int verify, int epochOrder);
+                    int padLen, int content, int verify, int epochOrder);
 
 #endif
 
@@ -12880,31 +12883,29 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                          }
                     #endif
                     #ifdef HAVE_PK_CALLBACKS
-                        #ifndef NO_RSA
-                            #if defined(HAVE_SECURE_RENEGOTIATION) || \
-                                            defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-                            if (ssl->buffers.peerRsaKey.buffer) {
-                                XFREE(ssl->buffers.peerRsaKey.buffer,
-                                        ssl->heap, DYNAMIC_TYPE_RSA);
-                                ssl->buffers.peerRsaKey.buffer = NULL;
-                            }
-                            #endif
+                        #if defined(HAVE_SECURE_RENEGOTIATION) || \
+                                        defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+                        if (ssl->buffers.peerRsaKey.buffer) {
+                            XFREE(ssl->buffers.peerRsaKey.buffer,
+                                    ssl->heap, DYNAMIC_TYPE_RSA);
+                            ssl->buffers.peerRsaKey.buffer = NULL;
+                        }
+                        #endif
 
 
-                            ssl->buffers.peerRsaKey.buffer =
-                                   (byte*)XMALLOC(args->dCert->pubKeySize,
-                                                ssl->heap, DYNAMIC_TYPE_RSA);
-                            if (ssl->buffers.peerRsaKey.buffer == NULL) {
-                                ret = MEMORY_ERROR;
-                            }
-                            else {
-                                XMEMCPY(ssl->buffers.peerRsaKey.buffer,
-                                        args->dCert->publicKey,
-                                        args->dCert->pubKeySize);
-                                ssl->buffers.peerRsaKey.length =
-                                    args->dCert->pubKeySize;
-                            }
-                        #endif /* NO_RSA */
+                        ssl->buffers.peerRsaKey.buffer =
+                               (byte*)XMALLOC(args->dCert->pubKeySize,
+                                            ssl->heap, DYNAMIC_TYPE_RSA);
+                        if (ssl->buffers.peerRsaKey.buffer == NULL) {
+                            ret = MEMORY_ERROR;
+                        }
+                        else {
+                            XMEMCPY(ssl->buffers.peerRsaKey.buffer,
+                                    args->dCert->publicKey,
+                                    args->dCert->pubKeySize);
+                            ssl->buffers.peerRsaKey.length =
+                                args->dCert->pubKeySize;
+                        }
                     #endif /* HAVE_PK_CALLBACKS */
                         }
 
@@ -13430,9 +13431,7 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
             }
 
-            #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-                ssl->status_request_v2 = 0;
-            #endif
+            ssl->status_request_v2 = 0;
 
             #ifdef WOLFSSL_SMALL_STACK
                 XFREE(status,   NULL, DYNAMIC_TYPE_OCSP_STATUS);
@@ -29023,7 +29022,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return 1;
     }
 
-#ifndef NO_WOLFSSL_SERVER
     static int CompareSuites(WOLFSSL* ssl, Suites* peerSuites, word16 i,
                              word16 j)
     {
@@ -29091,7 +29089,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         return MATCH_SUITE_ERROR;
     }
-#endif
 
 #ifdef OLD_HELLO_ALLOWED
 

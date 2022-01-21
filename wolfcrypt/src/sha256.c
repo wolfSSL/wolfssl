@@ -835,14 +835,14 @@ static int InitSha256(wc_Sha256* sha256)
     #define Gamma0(x)       (S(x, 7)  ^ S(x, 18) ^ R(x, 3))
     #define Gamma1(x)       (S(x, 17) ^ S(x, 19) ^ R(x, 10))
 
-    #define a(i) S[(0-i) & 7]
-    #define b(i) S[(1-i) & 7]
-    #define c(i) S[(2-i) & 7]
-    #define d(i) S[(3-i) & 7]
-    #define e(i) S[(4-i) & 7]
-    #define f(i) S[(5-i) & 7]
-    #define g(i) S[(6-i) & 7]
-    #define h(i) S[(7-i) & 7]
+    #define a(i) S[(0-(i)) & 7]
+    #define b(i) S[(1-(i)) & 7]
+    #define c(i) S[(2-(i)) & 7]
+    #define d(i) S[(3-(i)) & 7]
+    #define e(i) S[(4-(i)) & 7]
+    #define f(i) S[(5-(i)) & 7]
+    #define g(i) S[(6-(i)) & 7]
+    #define h(i) S[(7-(i)) & 7]
 
     #ifndef XTRANSFORM
          #define XTRANSFORM(S, D)         Transform_Sha256((S),(D))
@@ -850,7 +850,7 @@ static int InitSha256(wc_Sha256* sha256)
 
 #ifndef SHA256_MANY_REGISTERS
     #define RND(j) \
-         t0 = h(j) + Sigma1(e(j)) + Ch(e(j), f(j), g(j)) + K[i+j] + W[i+j]; \
+         t0 = h(j) + Sigma1(e(j)) + Ch(e(j), f(j), g(j)) + K[i+(j)] + W[i+(j)]; \
          t1 = Sigma0(a(j)) + Maj(a(j), b(j), c(j)); \
          d(j) += t0; \
          h(j)  = t0 + t1

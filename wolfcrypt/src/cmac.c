@@ -57,12 +57,8 @@
 #endif
 
 
-#ifdef HAVE_FIPS
-static void ShiftAndXorRb(byte* out, byte* in)
-#else
 /* Used by AES-SIV. See aes.c. */
 void ShiftAndXorRb(byte* out, byte* in)
-#endif
 {
     int i, j, xorRb;
     int mask = 0, last = 0;

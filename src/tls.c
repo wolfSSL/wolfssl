@@ -5180,7 +5180,7 @@ int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket, void* heap)
 #define WOLF_STK_GET_SIZE         TLSX_SessionTicket_GetSize
 #define WOLF_STK_WRITE            TLSX_SessionTicket_Write
 #define WOLF_STK_PARSE            TLSX_SessionTicket_Parse
-#define WOLF_STK_FREE(stk, heap)  TLSX_SessionTicket_Free((SessionTicket*)stk,(heap))
+#define WOLF_STK_FREE(stk, heap)  TLSX_SessionTicket_Free((SessionTicket*)(stk),(heap))
 
 #else
 
@@ -5434,7 +5434,7 @@ static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         ato16(input + offset, &profile_value);
 
         /* check that the profile received was in the ones we support */
-        if (profile_value < 16 && 
+        if (profile_value < 16 &&
                                (ssl->dtlsSrtpProfiles & (1 << profile_value))) {
             ssl->dtlsSrtpId = profile_value;
             ret = 0; /* success */
@@ -5448,7 +5448,7 @@ static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         for (i=offset; i<length; i+=OPAQUE16_LEN) {
             ato16(input+i, &profile_value);
             /* find first match */
-            if (profile_value < 16 && 
+            if (profile_value < 16 &&
                                  ssl->dtlsSrtpProfiles & (1 << profile_value)) {
                 ssl->dtlsSrtpId = profile_value;
 

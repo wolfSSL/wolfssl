@@ -118,10 +118,10 @@ This library provides single precision (SP) integer math functions.
     /* Dynamically allocate just enough data to support size. */
     #define ALLOC_SP_INT(n, s, err, h)                                         \
     do {                                                                       \
-        if (err == MP_OKAY) {                                                  \
-            n = (sp_int*)XMALLOC(MP_INT_SIZEOF(s), h, DYNAMIC_TYPE_BIGINT);    \
-            if (n == NULL) {                                                   \
-                err = MP_MEM;                                                  \
+        if ((err) == MP_OKAY) {                                                \
+            (n) = (sp_int*)XMALLOC(MP_INT_SIZEOF(s), (h), DYNAMIC_TYPE_BIGINT); \
+            if ((n) == NULL) {                                                 \
+                (err) = MP_MEM;                                                \
             }                                                                  \
         }                                                                      \
     }                                                                          \
@@ -131,8 +131,8 @@ This library provides single precision (SP) integer math functions.
     #define ALLOC_SP_INT_SIZE(n, s, err, h)                                    \
     do {                                                                       \
         ALLOC_SP_INT(n, s, err, h);                                            \
-        if (err == MP_OKAY) {                                                  \
-            n->size = s;                                                       \
+        if ((err) == MP_OKAY) {                                                \
+            (n)->size = (s);                                                   \
         }                                                                      \
     }                                                                          \
     while (0)
@@ -150,7 +150,7 @@ This library provides single precision (SP) integer math functions.
     /* Free dynamically allocated data. */
     #define FREE_SP_INT(n, h)                   \
     do {                                        \
-        if (n != NULL) {                        \
+        if ((n) != NULL) {                      \
             XFREE(n, h, DYNAMIC_TYPE_BIGINT);   \
         }                                       \
     }                                           \
@@ -167,19 +167,19 @@ This library provides single precision (SP) integer math functions.
     /* Declare a variable that will be assigned a value on XMALLOC. */
     #define DECL_SP_INT_ARRAY(n, s, c)  \
         sp_int* n##d = NULL;            \
-        sp_int* n[c] = { NULL, }
+        sp_int* (n)[c] = { NULL, }
 #else
     #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
         defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
         /* Declare a variable on the stack with the required data size. */
         #define DECL_SP_INT_ARRAY(n, s, c)          \
             byte    n##d[MP_INT_SIZEOF(s) * (c)];   \
-            sp_int* n[c]
+            sp_int* (n)[c]
     #else
         /* Declare a variable on the stack. */
         #define DECL_SP_INT_ARRAY(n, s, c)      \
             sp_int n##d[c];                     \
-            sp_int* n[c]
+            sp_int* (n)[c]
     #endif
 #endif
 
@@ -191,19 +191,19 @@ This library provides single precision (SP) integer math functions.
      */
     #define ALLOC_SP_INT_ARRAY(n, s, c, err, h)                                \
     do {                                                                       \
-        if (err == MP_OKAY) {                                                  \
-            n##d = (sp_int*)XMALLOC(MP_INT_SIZEOF(s) * (c), h,                 \
+        if ((err) == MP_OKAY) {                                                \
+            n##d = (sp_int*)XMALLOC(MP_INT_SIZEOF(s) * (c), (h),               \
                                                          DYNAMIC_TYPE_BIGINT); \
             if (n##d == NULL) {                                                \
-                err = MP_MEM;                                                  \
+                (err) = MP_MEM;                                                \
             }                                                                  \
             else {                                                             \
                 int n##ii;                                                     \
-                n[0] = n##d;                                                   \
-                n[0]->size = s;                                                \
+                (n)[0] = n##d;                                                 \
+                (n)[0]->size = (s);                                            \
                 for (n##ii = 1; n##ii < (c); n##ii++) {                        \
-                    n[n##ii] = MP_INT_NEXT(n[n##ii-1], s);                     \
-                    n[n##ii]->size = s;                                        \
+                    (n)[n##ii] = MP_INT_NEXT((n)[n##ii-1], s);                 \
+                    (n)[n##ii]->size = (s);                                    \
                 }                                                              \
             }                                                                  \
         }                                                                      \
@@ -217,13 +217,13 @@ This library provides single precision (SP) integer math functions.
          */
         #define ALLOC_SP_INT_ARRAY(n, s, c, err, h)                            \
         do {                                                                   \
-            if (err == MP_OKAY) {                                              \
+            if ((err) == MP_OKAY) {                                            \
                 int n##ii;                                                     \
-                n[0] = (sp_int*)n##d;                                          \
-                n[0]->size = s;                                                \
+                (n)[0] = (sp_int*)n##d;                                        \
+                (n)[0]->size = (s);                                            \
                 for (n##ii = 1; n##ii < (c); n##ii++) {                        \
-                    n[n##ii] = MP_INT_NEXT(n[n##ii-1], s);                     \
-                    n[n##ii]->size = s;                                        \
+                    (n)[n##ii] = MP_INT_NEXT((n)[n##ii-1], s);                 \
+                    (n)[n##ii]->size = (s);                                    \
                 }                                                              \
             }                                                                  \
         }                                                                      \
@@ -234,11 +234,11 @@ This library provides single precision (SP) integer math functions.
          */
         #define ALLOC_SP_INT_ARRAY(n, s, c, err, h)                            \
         do {                                                                   \
-            if (err == MP_OKAY) {                                              \
+            if ((err) == MP_OKAY) {                                            \
                 int n##ii;                                                     \
                 for (n##ii = 0; n##ii < (c); n##ii++) {                        \
-                    n[n##ii] = &n##d[n##ii];                                   \
-                    n[n##ii]->size = s;                                        \
+                    (n)[n##ii] = &n##d[n##ii];                                 \
+                    (n)[n##ii]->size = (s);                                    \
                 }                                                              \
             }                                                                  \
         }                                                                      \
@@ -5172,8 +5172,8 @@ static void _sp_div_3(sp_int* a, sp_int* r, sp_int_digit* rem)
     sp_int_word t;
     sp_int_digit tr = 0;
     sp_int_digit tt;
-    static const char sp_r6[6] = { 0, 0, 0, 1, 1, 1 };
-    static const char sp_rem6[6] = { 0, 1, 2, 0, 1, 2 };
+    static const unsigned char sp_r6[6] = { 0, 0, 0, 1, 1, 1 };
+    static const unsigned char sp_rem6[6] = { 0, 1, 2, 0, 1, 2 };
 
     if (r == NULL) {
         for (i = a->used - 1; i >= 0; i--) {
@@ -14561,7 +14561,7 @@ int sp_todecimal(sp_int* a, char* str)
             str[i] = '\0';
 
             for (j = 0; j <= (i - 1) / 2; j++) {
-                int c = str[j];
+                int c = (unsigned char)str[j];
                 str[j] = str[i - 1 - j];
                 str[i - 1 - j] = c;
             }

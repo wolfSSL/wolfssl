@@ -120,7 +120,7 @@
         #endif
     #endif
     #if !defined(DER_SZ)
-        #define DER_SZ(ks) (ks * 2 + 1)
+        #define DER_SZ(ks) ((ks) * 2 + 1)
     #endif
 #endif
 #ifndef NO_ASN
@@ -218,7 +218,7 @@
     #define GEN_BUF  294
 
     #ifndef USER_CRYPTO_ERROR
-        #define USER_CRYPTO_ERROR -101 /* error returned by IPP lib. */
+        #define USER_CRYPTO_ERROR (-101) /* error returned by IPP lib. */
     #endif
 #endif
 
@@ -20444,10 +20444,10 @@ static int test_wc_DsaKeyToDer (void)
     bytes = (word32) XFREAD(tmp, 1, sizeof(tmp), fp);
     XFCLOSE(fp);
 #endif /* END USE_CERT_BUFFERS_1024 */
-#if !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN)
+
     XMEMSET(&rng, 0, sizeof(rng));
     XMEMSET(&genKey, 0, sizeof(genKey));
-#endif
+
     ret = wc_InitRng(&rng);
     if (ret == 0) {
         ret = wc_InitDsaKey(&genKey);
@@ -20493,7 +20493,7 @@ static int test_wc_DsaKeyToDer (void)
 
     wc_FreeDsaKey(&genKey);
 
-#endif
+#endif /* !NO_DSA && WOLFSSL_KEY_GEN */
 
     return ret;
 
@@ -43260,7 +43260,6 @@ static void test_wolfSSL_DH_check(void)
 
 static void test_wolfSSL_EVP_PKEY_assign(void)
 {
-#if defined(OPENSSL_ALL)
     int type;
     WOLFSSL_EVP_PKEY* pkey;
 #ifndef NO_RSA
@@ -43314,11 +43313,9 @@ static void test_wolfSSL_EVP_PKEY_assign(void)
     (void)type;
 
     printf(resultFmt, passed);
-#endif /* OPENSSL_ALL */
 }
 static void test_wolfSSL_EVP_PKEY_base_id(void)
 {
-#if defined(OPENSSL_ALL)
     WOLFSSL_EVP_PKEY* pkey;
 
     printf(testingFmt, "wolfSSL_EVP_PKEY_base_id");
@@ -43332,11 +43329,9 @@ static void test_wolfSSL_EVP_PKEY_base_id(void)
     EVP_PKEY_free(pkey);
 
     printf(resultFmt, passed);
-#endif
 }
 static void test_wolfSSL_EVP_PKEY_id(void)
 {
-#if defined(OPENSSL_ALL)
     WOLFSSL_EVP_PKEY* pkey;
 
     printf(testingFmt, "wolfSSL_EVP_PKEY_id");
@@ -43350,7 +43345,6 @@ static void test_wolfSSL_EVP_PKEY_id(void)
     EVP_PKEY_free(pkey);
 
     printf(resultFmt, passed);
-#endif
 }
 
 static void test_wolfSSL_EVP_PKEY_paramgen(void)
@@ -43382,7 +43376,6 @@ static void test_wolfSSL_EVP_PKEY_paramgen(void)
 
 static void test_wolfSSL_EVP_PKEY_keygen(void)
 {
-#if defined(OPENSSL_ALL)
     WOLFSSL_EVP_PKEY*   pkey;
     EVP_PKEY_CTX        *ctx;
 
@@ -43404,11 +43397,9 @@ static void test_wolfSSL_EVP_PKEY_keygen(void)
     EVP_PKEY_free(pkey);
 
     printf(resultFmt, passed);
-#endif
 }
 static void test_wolfSSL_EVP_PKEY_keygen_init(void)
 {
-#if defined(OPENSSL_ALL)
     WOLFSSL_EVP_PKEY*   pkey;
     EVP_PKEY_CTX        *ctx;
 
@@ -43424,7 +43415,6 @@ static void test_wolfSSL_EVP_PKEY_keygen_init(void)
     EVP_PKEY_free(pkey);
 
     printf(resultFmt, passed);
-#endif
 }
 static void test_wolfSSL_EVP_PKEY_missing_parameters(void)
 {
@@ -43444,7 +43434,6 @@ static void test_wolfSSL_EVP_PKEY_missing_parameters(void)
 }
 static void test_wolfSSL_EVP_PKEY_CTX_set_rsa_keygen_bits(void)
 {
-#if defined(OPENSSL_ALL)
     WOLFSSL_EVP_PKEY*   pkey;
     EVP_PKEY_CTX        *ctx;
     int                 bits = 2048;
@@ -43463,13 +43452,10 @@ static void test_wolfSSL_EVP_PKEY_CTX_set_rsa_keygen_bits(void)
     EVP_PKEY_free(pkey);
 
     printf(resultFmt, passed);
-#endif
 }
 
 static void test_wolfSSL_EVP_CIPHER_CTX_iv_length(void)
 {
-#if defined(OPENSSL_ALL)
-
     /* This is large enough to be used for all key sizes */
     byte key[AES_256_KEY_SIZE] = {0};
     byte iv[AES_BLOCK_SIZE] = {0};
@@ -43539,11 +43525,10 @@ static void test_wolfSSL_EVP_CIPHER_CTX_iv_length(void)
     }
 
     printf(resultFmt, passed);
-#endif
 }
 static void test_wolfSSL_EVP_CIPHER_CTX_key_length(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_DES3)
+#if !defined(NO_DES3)
     byte key[AES_256_KEY_SIZE] = {0};
     byte iv[AES_BLOCK_SIZE] = {0};
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
@@ -43563,7 +43548,7 @@ static void test_wolfSSL_EVP_CIPHER_CTX_key_length(void)
 }
 static void test_wolfSSL_EVP_CIPHER_CTX_set_key_length(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_DES3)
+#if !defined(NO_DES3)
     byte key[AES_256_KEY_SIZE] = {0};
     byte iv[AES_BLOCK_SIZE] = {0};
     int keylen;
@@ -43588,7 +43573,7 @@ static void test_wolfSSL_EVP_CIPHER_CTX_set_key_length(void)
 }
 static void test_wolfSSL_EVP_CIPHER_CTX_set_iv(void)
 {
-#if defined(OPENSSL_ALL) && defined(HAVE_AESGCM) && !defined(NO_DES3)
+#if defined(HAVE_AESGCM) && !defined(NO_DES3)
     byte key[DES3_KEY_SIZE] = {0};
     byte iv[DES_BLOCK_SIZE] = {0};
     int ivLen, keyLen;
@@ -43620,7 +43605,6 @@ static void test_wolfSSL_EVP_CIPHER_CTX_set_iv(void)
 }
 static void test_wolfSSL_EVP_PKEY_CTX_new_id(void)
 {
-#if defined(OPENSSL_ALL)
     WOLFSSL_ENGINE* e = NULL;
     int id = 0;
     EVP_PKEY_CTX *ctx;
@@ -43632,11 +43616,10 @@ static void test_wolfSSL_EVP_PKEY_CTX_new_id(void)
     EVP_PKEY_CTX_free(ctx);
 
     printf(resultFmt, passed);
-#endif
 }
 static void test_wolfSSL_EVP_rc4(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_RC4)
+#if !defined(NO_RC4)
 
     printf(testingFmt, "wolfSSL_EVP_rc4");
 
@@ -43647,18 +43630,15 @@ static void test_wolfSSL_EVP_rc4(void)
 }
 static void test_wolfSSL_EVP_enc_null(void)
 {
-#if defined(OPENSSL_ALL)
-
     printf(testingFmt, "wolfSSL_EVP_enc_null");
 
     AssertNotNull(wolfSSL_EVP_enc_null());
 
     printf(resultFmt, passed);
-#endif
 }
 static void test_wolfSSL_EVP_rc2_cbc(void)
 {
-#if defined(OPENSSL_ALL) && defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB)
+#if defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB)
 
     printf(testingFmt, "wolfSSL_EVP_rc2_cbc");
 
@@ -43669,7 +43649,7 @@ static void test_wolfSSL_EVP_rc2_cbc(void)
 }
 static void test_wolfSSL_EVP_mdc2(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_WOLFSSL_STUB)
+#if !defined(NO_WOLFSSL_STUB)
 
     printf(testingFmt, "wolfSSL_EVP_mdc2");
 
@@ -43680,7 +43660,7 @@ static void test_wolfSSL_EVP_mdc2(void)
 }
 static void test_wolfSSL_EVP_md4(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_MD4)
+#if !defined(NO_MD4)
 
     printf(testingFmt, "wolfSSL_EVP_md4");
 
@@ -43691,29 +43671,24 @@ static void test_wolfSSL_EVP_md4(void)
 }
 static void test_wolfSSL_EVP_aes_256_gcm(void)
 {
-#if defined(OPENSSL_ALL)
 
     printf(testingFmt, "wolfSSL_EVP_aes_256_gcm");
 
     AssertNotNull(wolfSSL_EVP_aes_256_gcm());
 
     printf(resultFmt, passed);
-#endif
 }
 static void test_wolfSSL_EVP_aes_192_gcm(void)
 {
-#if defined(OPENSSL_ALL)
-
     printf(testingFmt, "wolfSSL_EVP_aes_192_gcm");
 
     AssertNotNull(wolfSSL_EVP_aes_192_gcm());
 
     printf(resultFmt, passed);
-#endif
 }
 static void test_wolfSSL_EVP_ripemd160(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_WOLFSSL_STUB)
+#if !defined(NO_WOLFSSL_STUB)
 
     printf(testingFmt, "wolfSSL_EVP_ripemd160");
 
@@ -43724,8 +43699,6 @@ static void test_wolfSSL_EVP_ripemd160(void)
 }
 static void test_wolfSSL_EVP_get_digestbynid(void)
 {
-#if defined(OPENSSL_ALL)
-
     printf(testingFmt, "wolfSSL_EVP_get_digestbynid");
 
 #ifndef NO_MD5
@@ -43735,12 +43708,9 @@ static void test_wolfSSL_EVP_get_digestbynid(void)
     AssertNull(wolfSSL_EVP_get_digestbynid(0));
 
     printf(resultFmt, passed);
-#endif
 }
 static void test_wolfSSL_EVP_MD_nid(void)
 {
-#if defined(OPENSSL_ALL)
-
     printf(testingFmt, "wolfSSL_EVP_MD_nid");
 
 #ifndef NO_MD5
@@ -43755,11 +43725,10 @@ static void test_wolfSSL_EVP_MD_nid(void)
     AssertIntEQ(EVP_MD_nid(NULL), NID_undef);
 
     printf(resultFmt, passed);
-#endif
 }
 static void test_wolfSSL_EVP_PKEY_get0_EC_KEY(void)
 {
-#if defined(HAVE_ECC) && defined(OPENSSL_ALL)
+#if defined(HAVE_ECC)
     WOLFSSL_EVP_PKEY*   pkey;
 
     printf(testingFmt, "wolfSSL_EVP_PKEY_get0_EC_KEY");
@@ -43773,7 +43742,7 @@ static void test_wolfSSL_EVP_PKEY_get0_EC_KEY(void)
 }
 static void test_wolfSSL_EVP_X_STATE(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_DES3) && !defined(NO_RC4)
+#if !defined(NO_DES3) && !defined(NO_RC4)
 
     byte key[DES3_KEY_SIZE] = {0};
     byte iv[DES_IV_SIZE] = {0};
@@ -43809,7 +43778,7 @@ static void test_wolfSSL_EVP_X_STATE(void)
 }
 static void test_wolfSSL_EVP_X_STATE_LEN(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_DES3) && !defined(NO_RC4)
+#if !defined(NO_DES3) && !defined(NO_RC4)
 
     byte key[DES3_KEY_SIZE] = {0};
     byte iv[DES_IV_SIZE] = {0};
@@ -43847,8 +43816,6 @@ static void test_wolfSSL_EVP_X_STATE_LEN(void)
 
 static void test_wolfSSL_EVP_CIPHER_block_size(void)
 {
-#if defined(OPENSSL_ALL)
-
 #ifdef HAVE_AES_CBC
     #ifdef WOLFSSL_AES_128
     AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_cbc()), AES_BLOCK_SIZE);
@@ -43912,13 +43879,10 @@ static void test_wolfSSL_EVP_CIPHER_block_size(void)
 #ifndef NO_RC4
     AssertIntEQ(EVP_CIPHER_block_size(wolfSSL_EVP_rc4()), 1);
 #endif
-
-#endif /* OPENSSL_ALL */
 }
 
 static void test_wolfSSL_EVP_CIPHER_iv_length(void)
 {
-#if defined(OPENSSL_ALL)
     int i, enumlen;
 
 
@@ -44023,11 +43987,9 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
     }
 
     printf(resultFmt, passed);
-#endif
 }
 static void test_wolfSSL_EVP_SignInit_ex(void)
 {
-#if defined(OPENSSL_ALL)
     WOLFSSL_EVP_MD_CTX  mdCtx;
     WOLFSSL_ENGINE*     e = 0;
     const               EVP_MD* md;
@@ -44041,11 +44003,10 @@ static void test_wolfSSL_EVP_SignInit_ex(void)
     AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
 
     printf(resultFmt, passed);
-#endif
 }
 static void test_wolfSSL_EVP_DigestFinal_ex(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_SHA256)
+#if !defined(NO_SHA256)
     WOLFSSL_EVP_MD_CTX  mdCtx;
     unsigned int        s = 0;
     unsigned char       md[WC_SHA256_DIGEST_SIZE];
@@ -44082,7 +44043,7 @@ static void test_wolfSSL_EVP_DigestFinal_ex(void)
 }
 static void test_wolfSSL_EVP_PKEY_assign_DH(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_DH) && \
+#if !defined(NO_DH) && \
  !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
     FILE*                   f = NULL;
     unsigned char           buf[4096];
@@ -44199,7 +44160,7 @@ static void test_wolfSSL_EVP_PKEY_param_check(void)
 }
 static void test_wolfSSL_EVP_BytesToKey(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_AES) && defined(HAVE_AES_CBC)
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
     byte                key[AES_BLOCK_SIZE] = {0};
     byte                iv[AES_BLOCK_SIZE] = {0};
     int                 sz = 5;
@@ -44236,7 +44197,7 @@ static void test_wolfSSL_EVP_BytesToKey(void)
 }
 static void test_IncCtr(void)
 {
-#if defined(OPENSSL_ALL) && defined(HAVE_AESGCM) && !defined(HAVE_FIPS)
+#if defined(HAVE_AESGCM) && !defined(HAVE_FIPS)
     byte key[AES_128_KEY_SIZE] = {0};
     byte iv[GCM_NONCE_MID_SZ] = {0};
     int type = EVP_CTRL_GCM_IV_GEN;
@@ -46825,7 +46786,6 @@ static void test_wolfSSL_PEM_write_bio_PKCS7(void)
     pkcs7->signedAttribs   = NULL;
     pkcs7->signedAttribsSz = 0;
 
-#ifndef NO_BIO
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
     /* Write PKCS#7 PEM to BIO, the function converts the DER to PEM cert*/
     AssertIntEQ(PEM_write_bio_PKCS7(bio, pkcs7), WOLFSSL_SUCCESS);
@@ -46835,7 +46795,6 @@ static void test_wolfSSL_PEM_write_bio_PKCS7(void)
     AssertIntGE(ret, 0);
 
     BIO_free(bio);
-#endif
     wc_PKCS7_Free(pkcs7);
     wc_FreeRng(&rng);
 
@@ -49990,20 +49949,20 @@ static int verify_cert_with_cm(WOLFSSL_CERT_MANAGER* cm, char* certA)
 }
 #define LOAD_ONE_CA(a, b, c, d)                         \
                     do {                                \
-                        a = load_ca_into_cm(c, d);      \
-                        if (a != 0)                     \
-                            return b;                   \
+                        (a) = load_ca_into_cm(c, d);    \
+                        if ((a) != 0)                   \
+                            return (b);                 \
                         else                            \
-                            b--;                        \
+                            (b)--;                      \
                     } while(0)
 
 #define VERIFY_ONE_CERT(a, b, c, d)                     \
                     do {                                \
-                        a = verify_cert_with_cm(c, d);  \
-                        if (a != 0)                     \
-                            return b;                   \
+                        (a) = verify_cert_with_cm(c, d); \
+                        if ((a) != 0)                   \
+                            return (b);                 \
                         else                            \
-                            b--;                        \
+                            (b)--;                      \
                     } while(0)
 
 static int test_chainG(WOLFSSL_CERT_MANAGER* cm)

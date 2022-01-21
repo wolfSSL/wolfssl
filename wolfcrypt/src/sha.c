@@ -409,7 +409,7 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
 #ifndef XTRANSFORM
     #define XTRANSFORM(S,B)   Transform((S),(B))
 
-    #define blk0(i) (W[i] = *((word32*)&data[i*sizeof(word32)]))
+    #define blk0(i) (W[i] = *((word32*)&data[(i)*sizeof(word32)]))
     #define blk1(i) (W[(i)&15] = \
         rotlFixed(W[((i)+13)&15]^W[((i)+8)&15]^W[((i)+2)&15]^W[(i)&15],1))
 
