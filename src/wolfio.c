@@ -918,6 +918,11 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     }
 #else
 #if (__GLIBC__ >= 2) && defined(__USE_MISC) && !defined(SINGLE_THREADED)
+    /* 2048 is a magic number that empirically works.  the header and
+     * documentation provide no guidance on appropriate buffer size other than
+     * "if buf is too small, the functions will return ERANGE, and the call
+     * should be retried with a larger buffer."
+     */
     ghbn_r_buf = (char *)XMALLOC(2048, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (ghbn_r_buf != NULL) {
         gethostbyname_r(ip, &entry_buf, ghbn_r_buf, 2048, &entry, &ghbn_r_errno);
