@@ -301,19 +301,15 @@ static int wc_Afalg_AesDirect(Aes* aes, byte* out, const byte* in, word32 sz)
 
 
 #if defined(WOLFSSL_AES_DIRECT) && defined(WOLFSSL_AFALG)
-void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
+int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
 {
-    if (wc_Afalg_AesDirect(aes, out, in, AES_BLOCK_SIZE) != 0) {
-        WOLFSSL_MSG("Error with AES encrypt direct call");
-    }
+    return wc_Afalg_AesDirect(aes, out, in, AES_BLOCK_SIZE);
 }
 
 
-void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
+int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
 {
-    if (wc_Afalg_AesDirect(aes, out, in, AES_BLOCK_SIZE) != 0) {
-        WOLFSSL_MSG("Error with AES decrypt direct call");
-    }
+    return wc_Afalg_AesDirect(aes, out, in, AES_BLOCK_SIZE);
 }
 
 
@@ -639,7 +635,9 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         XMEMCPY(initalCounter, iv, ivSz);
         initalCounter[AES_BLOCK_SIZE - 1] = 1;
         GHASH(aes, authIn, authInSz, out, sz, authTag, authTagSz);
-        wc_AesEncryptDirect(aes, scratch, initalCounter);
+        ret = wc_AesEncryptDirect(aes, scratch, initalCounter);
+        if (ret < 0)
+            return ret;
         xorbuf(authTag, scratch, authTagSz);
     }
 #else
@@ -786,7 +784,9 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         initalCounter[AES_BLOCK_SIZE - 1] = 1;
         tag = buf;
         GHASH(aes, NULL, 0, in, sz, tag, AES_BLOCK_SIZE);
-        wc_AesEncryptDirect(aes, scratch, initalCounter);
+        ret = wc_AesEncryptDirect(aes, scratch, initalCounter);
+        if (ret < 0)
+            return ret;
         xorbuf(tag, scratch, AES_BLOCK_SIZE);
         if (ret != 0) {
             return AES_GCM_AUTH_E;
@@ -836,7 +836,9 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* check on tag */
     if (authIn != NULL && authInSz > 0) {
         GHASH(aes, authIn, authInSz, in, sz, tag, AES_BLOCK_SIZE);
-        wc_AesEncryptDirect(aes, scratch, initalCounter);
+        ret = wc_AesEncryptDirect(aes, scratch, initalCounter);
+        if (ret < 0)
+            return ret;
         xorbuf(tag, scratch, AES_BLOCK_SIZE);
         if (ConstantCompare(tag, authTag, authTagSz) != 0) {
             return AES_GCM_AUTH_E;

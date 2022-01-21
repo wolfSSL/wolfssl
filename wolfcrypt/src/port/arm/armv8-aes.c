@@ -5320,23 +5320,23 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 /* AES-DIRECT */
 #if defined(WOLFSSL_AES_DIRECT)
         /* Allow direct access to one block encrypt */
-        void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
+        int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
         {
             if (aes == NULL || out == NULL || in == NULL) {
                 WOLFSSL_MSG("Invalid input to wc_AesEncryptDirect");
-                return;
+                return BAD_FUNC_ARG;
             }
-            wc_AesEncrypt(aes, in, out);
+            return wc_AesEncrypt(aes, in, out);
         }
     #ifdef HAVE_AES_DECRYPT
         /* Allow direct access to one block decrypt */
-        void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
+        int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
         {
             if (aes == NULL || out == NULL || in == NULL) {
                 WOLFSSL_MSG("Invalid input to wc_AesDecryptDirect");
                 return;
             }
-            wc_AesDecrypt(aes, in, out);
+            return wc_AesDecrypt(aes, in, out);
         }
     #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_DIRECT */

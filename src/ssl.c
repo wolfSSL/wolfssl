@@ -30798,7 +30798,15 @@ void wolfSSL_AES_encrypt(const unsigned char* input, unsigned char* output,
         return;
     }
 
+#if !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    if (wc_AesEncryptDirect((Aes*)key, output, input) != 0) {
+        WOLFSSL_MSG("wc_AesEncryptDirect failed");
+        return;
+    }
+#else
     wc_AesEncryptDirect((Aes*)key, output, input);
+#endif
 }
 
 
@@ -30818,7 +30826,15 @@ void wolfSSL_AES_decrypt(const unsigned char* input, unsigned char* output,
         return;
     }
 
+#if !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    if (wc_AesDecryptDirect((Aes*)key, output, input) != 0) {
+        WOLFSSL_MSG("wc_AesDecryptDirect failed");
+        return;
+    }
+#else
     wc_AesDecryptDirect((Aes*)key, output, input);
+#endif
 }
 #endif /* WOLFSSL_AES_DIRECT */
 
@@ -30948,11 +30964,13 @@ void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
     if (enc == AES_ENCRYPT) {
         if (wc_AesCbcEncrypt(aes, out, in, (word32)len) != 0) {
             WOLFSSL_MSG("Error with AES CBC encrypt");
+            return;
         }
     }
     else {
         if (wc_AesCbcDecrypt(aes, out, in, (word32)len) != 0) {
             WOLFSSL_MSG("Error with AES CBC decrypt");
+            return;
         }
     }
 
@@ -31006,11 +31024,13 @@ void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
     if (enc == AES_ENCRYPT) {
         if (wc_AesCfbEncrypt(aes, out, in, (word32)len) != 0) {
             WOLFSSL_MSG("Error with AES CBC encrypt");
+            return;
         }
     }
     else {
         if (wc_AesCfbDecrypt(aes, out, in, (word32)len) != 0) {
             WOLFSSL_MSG("Error with AES CBC decrypt");
+            return;
         }
     }
 

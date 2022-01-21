@@ -169,15 +169,15 @@ static int wc_DevCrypto_AesDirect(Aes* aes, byte* out, const byte* in,
 
 
 #if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESCCM)
-void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
+int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
 {
-    wc_DevCrypto_AesDirect(aes, out, in, AES_BLOCK_SIZE, COP_ENCRYPT);
+    return wc_DevCrypto_AesDirect(aes, out, in, AES_BLOCK_SIZE, COP_ENCRYPT);
 }
 
 
-void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
+int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
 {
-    wc_DevCrypto_AesDirect(aes, out, in, AES_BLOCK_SIZE, COP_DECRYPT);
+    return wc_DevCrypto_AesDirect(aes, out, in, AES_BLOCK_SIZE, COP_DECRYPT);
 }
 
 
@@ -208,6 +208,7 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     int ret;
     struct crypt_op crt;
     byte* tmp;
+    int ret;
 
     if (aes == NULL || out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
@@ -253,9 +254,11 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     /* create key stream for later if needed */
     if (sz > 0) {
         Aes tmpAes;
-        wc_AesSetKey(&tmpAes, (byte*)aes->devKey, aes->keylen, (byte*)aes->reg,
-                AES_ENCRYPTION);
-        wc_AesEncryptDirect(&tmpAes, (byte*)aes->tmp, (const byte*)aes->reg);
+        if ((ret = wc_AesSetKey(&tmpAes, (byte*)aes->devKey, aes->keylen, (byte*)aes->reg,
+                                AES_ENCRYPTION)) != 0)
+            return ret;
+        if ((ret = wc_AesEncryptDirect(&tmpAes, (byte*)aes->tmp, (const byte*)aes->reg)) != 0)
+            return ret;
         wc_AesFree(&tmpAes);
         IncrementAesCounter((byte*)aes->reg);
 
