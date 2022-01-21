@@ -62,7 +62,11 @@
 
 /* Forward reference */
 
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x0090801fL
 typedef void *(*X509V3_EXT_D2I)(void *, const unsigned char **, long);
+#else
+typedef void *(*X509V3_EXT_D2I)(void *, unsigned char **, long);
+#endif
 typedef int (*X509V3_EXT_I2D) (void *, unsigned char **);
 typedef STACK_OF(CONF_VALUE) *(*X509V3_EXT_I2V) (
                                 struct WOLFSSL_v3_ext_method *method,
@@ -117,8 +121,13 @@ WOLFSSL_API WOLFSSL_BASIC_CONSTRAINTS* wolfSSL_BASIC_CONSTRAINTS_new(void);
 WOLFSSL_API void wolfSSL_BASIC_CONSTRAINTS_free(WOLFSSL_BASIC_CONSTRAINTS *bc);
 WOLFSSL_API WOLFSSL_AUTHORITY_KEYID* wolfSSL_AUTHORITY_KEYID_new(void);
 WOLFSSL_API void wolfSSL_AUTHORITY_KEYID_free(WOLFSSL_AUTHORITY_KEYID *id);
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 WOLFSSL_API const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(
                                                     WOLFSSL_X509_EXTENSION* ex);
+#else
+WOLFSSL_API WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(
+                                                    WOLFSSL_X509_EXTENSION* ex);
+#endif
 WOLFSSL_API void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ex);
 WOLFSSL_API char* wolfSSL_i2s_ASN1_STRING(WOLFSSL_v3_ext_method *method,
                                           const WOLFSSL_ASN1_STRING *s);
