@@ -38869,16 +38869,16 @@ WOLFSSL_TEST_SUBROUTINE int time_test(void)
 #ifdef WOLFSSL_AES_SIV
 
 typedef struct {
-  const byte key[32];
+  const byte key[33];
   word32     keySz;
-  const byte nonce[48];
+  const byte nonce[49];
   word32     nonceSz;
-  const byte assoc[80];
+  const byte assoc[81];
   word32     assocSz;
-  const byte plaintext[82];
+  const byte plaintext[83];
   word32     plaintextSz;
-  const byte siv[AES_BLOCK_SIZE];
-  const byte ciphertext[82];
+  const byte siv[AES_BLOCK_SIZE+1];
+  const byte ciphertext[83];
   word32     ciphertextSz;
 } AesSivTestVector;
 
