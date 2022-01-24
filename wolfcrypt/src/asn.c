@@ -15968,6 +15968,12 @@ static int DecodeSubtree(const byte* input, int sz, Base_entry** head,
             WOLFSSL_MSG("\tfail: should be a SEQUENCE");
             return ASN_PARSE_E;
         }
+
+        if (idx >= (word32)sz) {
+            WOLFSSL_MSG("\tfail: expecting tag");
+            return ASN_PARSE_E;
+        }
+
         nameIdx = idx;
         b = input[nameIdx++];
 
