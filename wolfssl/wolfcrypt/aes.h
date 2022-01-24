@@ -380,9 +380,13 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
  WOLFSSL_API int wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
                                 const byte* iv, int dir);
 #elif defined(BUILDING_WOLFSSL)
- WOLFSSL_API WARN_UNUSED_RESULT int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
- WOLFSSL_API WARN_UNUSED_RESULT int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
- WOLFSSL_API WARN_UNUSED_RESULT int wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
+ WOLFSSL_API WARN_UNUSED_RESULT int wc_AesEncryptDirect(Aes* aes, byte* out,
+                                                        const byte* in);
+ WOLFSSL_API WARN_UNUSED_RESULT int wc_AesDecryptDirect(Aes* aes, byte* out,
+                                                        const byte* in);
+ WOLFSSL_API WARN_UNUSED_RESULT int wc_AesSetKeyDirect(Aes* aes,
+                                                       const byte* key,
+                                                       word32 len,
                                 const byte* iv, int dir);
 #else
  WOLFSSL_API int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);

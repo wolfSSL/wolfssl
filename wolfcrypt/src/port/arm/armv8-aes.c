@@ -5334,7 +5334,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         {
             if (aes == NULL || out == NULL || in == NULL) {
                 WOLFSSL_MSG("Invalid input to wc_AesDecryptDirect");
-                return;
+                return BAD_FUNC_ARG;
             }
             return wc_AesDecrypt(aes, in, out);
         }

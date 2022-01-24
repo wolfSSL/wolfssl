@@ -322,7 +322,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
 
-    static WARN_UNUSED_RESULT int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    static WARN_UNUSED_RESULT int wc_AesEncrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock)
     {
         int ret = 0;
     #ifdef WOLFSSL_STM32_CUBEMX
@@ -415,7 +416,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #ifdef HAVE_AES_DECRYPT
     #if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESCCM)
-    static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    static WARN_UNUSED_RESULT int wc_AesDecrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock)
     {
         int ret = 0;
     #ifdef WOLFSSL_STM32_CUBEMX
@@ -531,7 +533,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #endif
 
         /* if LTC doesn't have GCM, use software with LTC AES ECB mode */
-        static WARN_UNUSED_RESULT int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+        static WARN_UNUSED_RESULT int wc_AesEncrypt(
+            Aes* aes, const byte* inBlock, byte* outBlock)
         {
             word32 keySize = 0;
             byte* key = (byte*)aes->key;
@@ -545,7 +548,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
             return 0;
         }
         #ifdef HAVE_AES_DECRYPT
-        static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+        static WARN_UNUSED_RESULT int wc_AesDecrypt(
+            Aes* aes, const byte* inBlock, byte* outBlock)
         {
             word32 keySize = 0;
             byte* key = (byte*)aes->key;
@@ -572,7 +576,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         #include "fsl_mmcau.h"
     #endif
 
-    static WARN_UNUSED_RESULT int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    static WARN_UNUSED_RESULT int wc_AesEncrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock)
     {
         if (wolfSSL_CryptHwMutexLock() == 0) {
         #ifdef FREESCALE_MMCAU_CLASSIC
@@ -590,7 +595,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         return 0;
     }
     #ifdef HAVE_AES_DECRYPT
-    static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    static WARN_UNUSED_RESULT int wc_AesDecrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock)
     {
         if (wolfSSL_CryptHwMutexLock() == 0) {
         #ifdef FREESCALE_MMCAU_CLASSIC
@@ -614,7 +620,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h>
 
     #if defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT)
-    static WARN_UNUSED_RESULT int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    static WARN_UNUSED_RESULT int wc_AesEncrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock)
     {
         /* Thread mutex protection handled in Pic32Crypto */
         return wc_Pic32AesCrypt(aes->key, aes->keylen, NULL, 0,
@@ -624,7 +631,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #endif
 
     #if defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_AES_DIRECT)
-    static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    static WARN_UNUSED_RESULT int wc_AesDecrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock)
     {
         /* Thread mutex protection handled in Pic32Crypto */
         return wc_Pic32AesCrypt(aes->key, aes->keylen, NULL, 0,
@@ -637,12 +645,14 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     /* Use built-in AES hardware - AES 128 ECB Encrypt Only */
     #include "wolfssl/wolfcrypt/port/nrf51.h"
 
-    static WARN_UNUSED_RESULT int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    static WARN_UNUSED_RESULT int wc_AesEncrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock)
     {
         int ret;
         ret = wolfSSL_CryptHwMutexLock();
         if (ret == 0) {
-            ret = nrf51_aes_encrypt(inBlock, (byte*)aes->key, aes->rounds, outBlock);
+            ret = nrf51_aes_encrypt(inBlock, (byte*)aes->key, aes->rounds,
+                                    outBlock);
             wolfSSL_CryptHwMutexUnLock();
         }
         return ret;
@@ -658,7 +668,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include "wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h"
 
     #if defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT)
-    static WARN_UNUSED_RESULT int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    static WARN_UNUSED_RESULT int wc_AesEncrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock)
     {
         /* Thread mutex protection handled in esp_aes_hw_InUse */
         return wc_esp32AesEncrypt(aes, inBlock, outBlock);
@@ -666,7 +677,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #endif
 
     #if defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_AES_DIRECT)
-    static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    static WARN_UNUSED_RESULT int wc_AesDecrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock)
     {
         /* Thread mutex protection handled in esp_aes_hw_InUse */
        return wc_esp32AesDecrypt(aes, inBlock, outBlock);
@@ -756,8 +768,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
                                XASM_LINK("AES_256_Key_Expansion");
 
 
-    static WARN_UNUSED_RESULT int AES_set_encrypt_key(const unsigned char *userKey, const int bits,
-                                   Aes* aes)
+    static WARN_UNUSED_RESULT int AES_set_encrypt_key(
+        const unsigned char *userKey, const int bits, Aes* aes)
     {
         int ret;
 
@@ -782,8 +794,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     }
 
     #ifdef HAVE_AES_DECRYPT
-        static WARN_UNUSED_RESULT int AES_set_decrypt_key(const unsigned char* userKey,
-                                                    const int bits, Aes* aes)
+        static WARN_UNUSED_RESULT int AES_set_decrypt_key(
+            const unsigned char* userKey, const int bits, Aes* aes)
         {
             int nr;
 #ifdef WOLFSSL_SMALL_STACK
@@ -859,7 +871,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         && !defined(WOLFSSL_QNX_CAAM)) || \
       ((defined(WOLFSSL_AFALG) || defined(WOLFSSL_DEVCRYPTO_AES)) && \
         defined(HAVE_AESCCM))
-        static WARN_UNUSED_RESULT int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+        static WARN_UNUSED_RESULT int wc_AesEncrypt(
+            Aes* aes, const byte* inBlock, byte* outBlock)
         {
             return wc_AesEncryptDirect(aes, outBlock, inBlock);
         }
@@ -871,23 +884,25 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     /* implemented in wolfcrypt/src/port/devcrypto/devcrypto_aes.c */
 
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_CRYPT)
-    static WARN_UNUSED_RESULT int AES_ECB_encrypt(Aes* aes, const byte* inBlock, byte* outBlock,
-        int sz)
+    static WARN_UNUSED_RESULT int AES_ECB_encrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock, int sz)
     {
         return se050_aes_crypt(aes, inBlock, outBlock, sz, AES_ENCRYPTION,
             kAlgorithm_SSS_AES_ECB);
     }
-    static WARN_UNUSED_RESULT int AES_ECB_decrypt(Aes* aes, const byte* inBlock, byte* outBlock,
-        int sz)
+    static WARN_UNUSED_RESULT int AES_ECB_decrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock, int sz)
     {
         return se050_aes_crypt(aes, inBlock, outBlock, sz, AES_DECRYPTION,
             kAlgorithm_SSS_AES_ECB);
     }
-    static WARN_UNUSED_RESULT int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    static WARN_UNUSED_RESULT int wc_AesEncrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock)
     {
         return AES_ECB_encrypt(aes, inBlock, outBlock, AES_BLOCK_SIZE);
     }
-    static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    static WARN_UNUSED_RESULT int wc_AesDecrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock)
     {
         return AES_ECB_decrypt(aes, inBlock, outBlock, AES_BLOCK_SIZE);
     }
@@ -907,8 +922,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         #define WOLFSSL_SCE_AES128_HANDLE g_sce_aes_128
     #endif
 
-    static WARN_UNUSED_RESULT int AES_ECB_encrypt(Aes* aes, const byte* inBlock, byte* outBlock,
-            int sz)
+    static WARN_UNUSED_RESULT int AES_ECB_encrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock, int sz)
     {
         word32 ret;
 
@@ -965,8 +980,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     }
 
     #if defined(HAVE_AES_DECRYPT)
-    static WARN_UNUSED_RESULT int AES_ECB_decrypt(Aes* aes, const byte* inBlock, byte* outBlock,
-            int sz)
+    static WARN_UNUSED_RESULT int AES_ECB_decrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock, int sz)
     {
         word32 ret;
 
@@ -1022,14 +1037,16 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #endif /* HAVE_AES_DECRYPT */
 
     #if defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT)
-    static WARN_UNUSED_RESULT int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    static WARN_UNUSED_RESULT int wc_AesEncrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock)
     {
         return AES_ECB_encrypt(aes, inBlock, outBlock, AES_BLOCK_SIZE);
     }
     #endif
 
     #if defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_AES_DIRECT)
-    static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    static WARN_UNUSED_RESULT int wc_AesDecrypt(
+        Aes* aes, const byte* inBlock, byte* outBlock)
     {
         return AES_ECB_decrypt(aes, inBlock, outBlock, AES_BLOCK_SIZE);
     }
@@ -1679,7 +1696,8 @@ static const byte Tsbox[256] = {
 
 #define AES_XTIME(x)    ((byte)((byte)((x) << 1) ^ ((0 - ((x) >> 7)) & 0x1b)))
 
-static WARN_UNUSED_RESULT word32 col_mul(word32 t, int i2, int i3, int ia, int ib)
+static WARN_UNUSED_RESULT word32 col_mul(
+    word32 t, int i2, int i3, int ia, int ib)
 {
     byte t3 = GETBYTE(t, i3);
     byte tm = AES_XTIME(GETBYTE(t, i2) ^ t3);
@@ -1688,7 +1706,8 @@ static WARN_UNUSED_RESULT word32 col_mul(word32 t, int i2, int i3, int ia, int i
 }
 
 #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
-static WARN_UNUSED_RESULT word32 inv_col_mul(word32 t, int i9, int ib, int id, int ie)
+static WARN_UNUSED_RESULT word32 inv_col_mul(
+    word32 t, int i9, int ib, int id, int ie)
 {
     byte t9 = GETBYTE(t, i9);
     byte tb = GETBYTE(t, ib);
@@ -1746,7 +1765,8 @@ static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchSBox(void)
 #endif
 
 /* Software AES - ECB Encrypt */
-static WARN_UNUSED_RESULT int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+static WARN_UNUSED_RESULT int wc_AesEncrypt(
+    Aes* aes, const byte* inBlock, byte* outBlock)
 {
     word32 s0, s1, s2, s3;
     word32 t0, t1, t2, t3;
@@ -2103,7 +2123,8 @@ static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTd4(void)
 #endif
 
 /* Software AES - ECB Decrypt */
-static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+static WARN_UNUSED_RESULT int wc_AesDecrypt(
+    Aes* aes, const byte* inBlock, byte* outBlock)
 {
     word32 s0, s1, s2, s3;
     word32 t0, t1, t2, t3;
@@ -2788,8 +2809,9 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte*
 #else
 
     /* Software AES - SetKey */
-    static WARN_UNUSED_RESULT int wc_AesSetKeyLocal(Aes* aes, const byte* userKey, word32 keylen,
-                const byte* iv, int dir, int checkKeyLen)
+    static WARN_UNUSED_RESULT int wc_AesSetKeyLocal(
+        Aes* aes, const byte* userKey, word32 keylen, const byte* iv, int dir,
+        int checkKeyLen)
     {
         int ret;
         word32 *rk;
@@ -3144,7 +3166,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
     #elif defined(WOLFSSL_LINUXKM) && defined(WOLFSSL_AESNI)
 
-        WARN_UNUSED_RESULT int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
+        WARN_UNUSED_RESULT int wc_AesEncryptDirect(
+            Aes* aes, byte* out, const byte* in)
         {
             int ret;
             if (haveAESNI && aes->use_aesni)
@@ -3161,7 +3184,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         #define wc_AesEncryptDirect(aes, out, in) wc_AesEncrypt(aes, in, out)
         #ifdef HAVE_AES_DECRYPT
         /* Allow direct access to one block decrypt */
-        WARN_UNUSED_RESULT int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
+        WARN_UNUSED_RESULT int wc_AesDecryptDirect(
+            Aes* aes, byte* out, const byte* in)
         {
             int ret;
             if (haveAESNI && aes->use_aesni)
@@ -3238,8 +3262,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         ret = HAL_CRYPEx_AES(&hcryp, (uint8_t*)in, blocks * AES_BLOCK_SIZE,
             out, STM32_HAL_TIMEOUT);
     #else
-        ret = HAL_CRYP_AESCBC_Encrypt(&hcryp, (uint8_t*)in, blocks * AES_BLOCK_SIZE,
-            out, STM32_HAL_TIMEOUT);
+        ret = HAL_CRYP_AESCBC_Encrypt(&hcryp, (uint8_t*)in,
+                                      blocks * AES_BLOCK_SIZE,
+                                      out, STM32_HAL_TIMEOUT);
     #endif
         if (ret != HAL_OK) {
             ret = WC_TIMEOUT_E;
@@ -3300,7 +3325,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         ret = HAL_CRYPEx_AES(&hcryp, (uint8_t*)in, blocks * AES_BLOCK_SIZE,
             out, STM32_HAL_TIMEOUT);
     #else
-        ret = HAL_CRYP_AESCBC_Decrypt(&hcryp, (uint8_t*)in, blocks * AES_BLOCK_SIZE,
+        ret = HAL_CRYP_AESCBC_Decrypt(&hcryp, (uint8_t*)in,
+                                      blocks * AES_BLOCK_SIZE,
             out, STM32_HAL_TIMEOUT);
     #endif
         if (ret != HAL_OK) {
@@ -3497,8 +3523,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #endif /* WOLFSSL_STM32_CUBEMX */
 
 #elif defined(HAVE_COLDFIRE_SEC)
-    static WARN_UNUSED_RESULT int wc_AesCbcCrypt(Aes* aes, byte* po, const byte* pi, word32 sz,
-        word32 descHeader)
+    static WARN_UNUSED_RESULT int wc_AesCbcCrypt(
+        Aes* aes, byte* po, const byte* pi, word32 sz, word32 descHeader)
     {
         #ifdef DEBUG_WOLFSSL
             int i; int stat1, stat2; int ret;
@@ -8313,7 +8339,8 @@ static WARN_UNUSED_RESULT int AesGcmInit_C(Aes* aes, const byte* iv, word32 ivSz
  * @param [in]      in   Plaintext or cipher text buffer.
  * @param [in]      sz   Length of data.
  */
-static WARN_UNUSED_RESULT int AesGcmCryptUpdate_C(Aes* aes, byte* out, const byte* in, word32 sz)
+static WARN_UNUSED_RESULT int AesGcmCryptUpdate_C(
+    Aes* aes, byte* out, const byte* in, word32 sz)
 {
     word32 blocks;
     word32 partial;
@@ -8401,7 +8428,8 @@ static WARN_UNUSED_RESULT int AesGcmCryptUpdate_C(Aes* aes, byte* out, const byt
  * @param [out]     authTag    Buffer to store authentication tag in.
  * @param [in]      authTagSz  Length of tag to create.
  */
-static WARN_UNUSED_RESULT int AesGcmFinal_C(Aes* aes, byte* authTag, word32 authTagSz)
+static WARN_UNUSED_RESULT int AesGcmFinal_C(
+    Aes* aes, byte* authTag, word32 authTagSz)
 {
     /* Calculate authentication tag. */
     GHASH_FINAL(aes, authTag, authTagSz);
@@ -8487,7 +8515,8 @@ extern void AES_GCM_encrypt_final_aesni(unsigned char* tag,
  * @param [in]      iv    IV/nonce buffer.
  * @param [in]      ivSz  Length of IV/nonce data.
  */
-static WARN_UNUSED_RESULT int AesGcmInit_aesni(Aes* aes, const byte* iv, word32 ivSz)
+static WARN_UNUSED_RESULT int AesGcmInit_aesni(
+    Aes* aes, const byte* iv, word32 ivSz)
 {
     /* Reset state fields. */
     aes->aSz = 0;
@@ -8534,7 +8563,8 @@ static WARN_UNUSED_RESULT int AesGcmInit_aesni(Aes* aes, const byte* iv, word32 
  * @param [in]      aSz   Length of authentication data in bytes.
  * @param [in]      endA  Whether no more authentication data is expected.
  */
-static WARN_UNUSED_RESULT int AesGcmAadUpdate_aesni(Aes* aes, const byte* a, word32 aSz, int endA)
+static WARN_UNUSED_RESULT int AesGcmAadUpdate_aesni(
+    Aes* aes, const byte* a, word32 aSz, int endA)
 {
     word32 blocks;
     int partial;
@@ -8654,8 +8684,8 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_aesni(Aes* aes, const byte* a, wor
  * @param [in]      a    Buffer holding authentication data.
  * @param [in]      aSz  Length of authentication data in bytes.
  */
-static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_aesni(Aes* aes, byte* c, const byte* p,
-    word32 cSz, const byte* a, word32 aSz)
+static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_aesni(
+    Aes* aes, byte* c, const byte* p, word32 cSz, const byte* a, word32 aSz)
 {
     word32 blocks;
     int partial;
@@ -8784,7 +8814,8 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_aesni(Aes* aes, byte* c, const
  * @param [in]      authTagSz  Length of authentication tag in bytes.
  * @return  0 on success.
  */
-static WARN_UNUSED_RESULT int AesGcmEncryptFinal_aesni(Aes* aes, byte* authTag, word32 authTagSz)
+static WARN_UNUSED_RESULT int AesGcmEncryptFinal_aesni(
+    Aes* aes, byte* authTag, word32 authTagSz)
 {
     /* AAD block incomplete when > 0 */
     byte over = aes->aOver;
@@ -8881,8 +8912,8 @@ extern void AES_GCM_decrypt_final_aesni(unsigned char* tag,
  * @param [in]      a    Buffer holding authentication data.
  * @param [in]      aSz  Length of authentication data in bytes.
  */
-static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_aesni(Aes* aes, byte* p, const byte* c,
-    word32 cSz, const byte* a, word32 aSz)
+static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_aesni(
+    Aes* aes, byte* p, const byte* c, word32 cSz, const byte* a, word32 aSz)
 {
     word32 blocks;
     int partial;
@@ -9015,8 +9046,8 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_aesni(Aes* aes, byte* p, const
  * @return  AES_GCM_AUTH_E when authentication tag doesn't match calculated
  *          value.
  */
-static WARN_UNUSED_RESULT int AesGcmDecryptFinal_aesni(Aes* aes, const byte* authTag,
-                                    word32 authTagSz)
+static WARN_UNUSED_RESULT int AesGcmDecryptFinal_aesni(
+    Aes* aes, const byte* authTag, word32 authTagSz)
 {
     int ret = 0;
     int res;
@@ -9862,7 +9893,8 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 #else
 
 /* Software CCM */
-static WARN_UNUSED_RESULT int roll_x(Aes* aes, const byte* in, word32 inSz, byte* out)
+static WARN_UNUSED_RESULT int roll_x(
+    Aes* aes, const byte* in, word32 inSz, byte* out)
 {
     int ret;
 
@@ -9888,7 +9920,8 @@ static WARN_UNUSED_RESULT int roll_x(Aes* aes, const byte* in, word32 inSz, byte
     return 0;
 }
 
-static WARN_UNUSED_RESULT int roll_auth(Aes* aes, const byte* in, word32 inSz, byte* out)
+static WARN_UNUSED_RESULT int roll_auth(
+    Aes* aes, const byte* in, word32 inSz, byte* out)
 {
     word32 authLenSz;
     word32 remainder;
@@ -10571,7 +10604,8 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #else
 
 /* Software AES - ECB */
-static WARN_UNUSED_RESULT int _AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+static WARN_UNUSED_RESULT int _AesEcbEncrypt(
+    Aes* aes, byte* out, const byte* in, word32 sz)
 {
     word32 blocks = sz / AES_BLOCK_SIZE;
 
@@ -10590,7 +10624,8 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(Aes* aes, byte* out, const byte* in
     return 0;
 }
 
-static WARN_UNUSED_RESULT int _AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+static WARN_UNUSED_RESULT int _AesEcbDecrypt(
+    Aes* aes, byte* out, const byte* in, word32 sz)
 {
     word32 blocks = sz / AES_BLOCK_SIZE;
 
@@ -10652,8 +10687,8 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
  * returns 0 on success and negative error values on failure
  */
 /* Software AES - CFB Encrypt */
-static WARN_UNUSED_RESULT int wc_AesFeedbackEncrypt(Aes* aes, byte* out, const byte* in,
-        word32 sz, byte mode)
+static WARN_UNUSED_RESULT int wc_AesFeedbackEncrypt(
+    Aes* aes, byte* out, const byte* in, word32 sz, byte mode)
 {
     byte*  tmp = NULL;
 #ifdef WOLFSSL_AES_CFB
@@ -10755,8 +10790,8 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackEncrypt(Aes* aes, byte* out, const b
  * returns 0 on success and negative error values on failure
  */
 /* Software AES - CFB Decrypt */
-static WARN_UNUSED_RESULT int wc_AesFeedbackDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
-        byte mode)
+static WARN_UNUSED_RESULT int wc_AesFeedbackDecrypt(
+    Aes* aes, byte* out, const byte* in, word32 sz, byte mode)
 {
     byte*  tmp;
     int ret = 0;
@@ -10899,8 +10934,8 @@ static void shiftLeftArray(byte* ary, byte shift)
 
 
 /* returns 0 on success and negative values on failure */
-static WARN_UNUSED_RESULT int wc_AesFeedbackCFB8(Aes* aes, byte* out, const byte* in,
-        word32 sz, byte dir)
+static WARN_UNUSED_RESULT int wc_AesFeedbackCFB8(
+    Aes* aes, byte* out, const byte* in, word32 sz, byte dir)
 {
     byte *pt;
     int ret = 0;
@@ -10952,8 +10987,8 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackCFB8(Aes* aes, byte* out, const byte
 
 
 /* returns 0 on success and negative values on failure */
-static WARN_UNUSED_RESULT int wc_AesFeedbackCFB1(Aes* aes, byte* out, const byte* in,
-        word32 sz, byte dir)
+static WARN_UNUSED_RESULT int wc_AesFeedbackCFB1(
+    Aes* aes, byte* out, const byte* in, word32 sz, byte dir)
 {
     byte tmp;
     byte cur = 0; /* hold current work in order to handle inline in=out */
@@ -11527,7 +11562,8 @@ int wc_AesXtsDecryptSector(XtsAes* aes, byte* out, const byte* in, word32 sz,
 
 #ifdef HAVE_AES_ECB
 /* helper function for encrypting / decrypting full buffer at once */
-static WARN_UNUSED_RESULT int _AesXtsHelper(Aes* aes, byte* out, const byte* in, word32 sz, int dir)
+static WARN_UNUSED_RESULT int _AesXtsHelper(
+    Aes* aes, byte* out, const byte* in, word32 sz, int dir)
 {
     word32 outSz   = sz;
     word32 totalSz = (sz / AES_BLOCK_SIZE) * AES_BLOCK_SIZE; /* total bytes */
@@ -11666,6 +11702,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
             XMEMCPY(buf, out - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
             if (sz >= AES_BLOCK_SIZE) { /* extra sanity check before copy */
+                RESTORE_VECTOR_REGISTERS();
                 return BUFFER_E;
             }
             XMEMCPY(out, buf, sz);
@@ -11855,9 +11892,10 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 /*
  * See RFC 5297 Section 2.4.
  */
-static WARN_UNUSED_RESULT int S2V(const byte* key, word32 keySz, const byte* assoc, word32 assocSz,
-               const byte* nonce, word32 nonceSz, const byte* data,
-               word32 dataSz, byte* out)
+static WARN_UNUSED_RESULT int S2V(
+    const byte* key, word32 keySz, const byte* assoc, word32 assocSz,
+    const byte* nonce, word32 nonceSz, const byte* data,
+    word32 dataSz, byte* out)
 {
 #ifdef WOLFSSL_SMALL_STACK
     byte* tmp[3] = {NULL, NULL, NULL};
@@ -11960,10 +11998,11 @@ static WARN_UNUSED_RESULT int S2V(const byte* key, word32 keySz, const byte* ass
     return ret;
 }
 
-static WARN_UNUSED_RESULT int AesSivCipher(const byte* key, word32 keySz, const byte* assoc,
-                        word32 assocSz, const byte* nonce, word32 nonceSz,
-                        const byte* data, word32 dataSz, byte* siv, byte* out,
-                        int enc)
+static WARN_UNUSED_RESULT int AesSivCipher(
+    const byte* key, word32 keySz, const byte* assoc,
+    word32 assocSz, const byte* nonce, word32 nonceSz,
+    const byte* data, word32 dataSz, byte* siv, byte* out,
+    int enc)
 {
     int ret = 0;
 #ifdef WOLFSSL_SMALL_STACK
