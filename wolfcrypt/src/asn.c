@@ -17653,7 +17653,7 @@ static int DecodeCertReq(DecodedCert* cert, int* criticalExt)
 int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
 {
     int   ret;
-#ifndef WOLFSSL_NO_MALLOC
+#if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_DYN_CERT)
     char* ptr;
 #endif
 
@@ -17661,7 +17661,7 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
     if (ret < 0)
         return ret;
 
-#ifndef WOLFSSL_NO_MALLOC
+#if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_DYN_CERT)
     /* cert->subjectCN not stored as copy of WOLFSSL_NO_MALLOC defind */
     if (cert->subjectCNLen > 0) {
         ptr = (char*) XMALLOC(cert->subjectCNLen + 1, cert->heap,
@@ -17675,7 +17675,7 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
     }
 #endif
 
-#ifndef WOLFSSL_NO_MALLOC
+#if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_DYN_CERT)
     /* cert->publicKey not stored as copy if WOLFSSL_NO_MALLOC defined */
     if (cert->keyOID == RSAk &&
                           cert->publicKey != NULL  && cert->pubKeySize > 0) {
