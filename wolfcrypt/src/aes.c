@@ -538,7 +538,9 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         {
             word32 keySize = 0;
             byte* key = (byte*)aes->key;
-            wc_AesGetKeySize(aes, &keySize);
+            int ret = wc_AesGetKeySize(aes, &keySize);
+            if (ret != 0)
+                return ret;
 
             if (wolfSSL_CryptHwMutexLock() == 0) {
                 LTC_AES_EncryptEcb(LTC_BASE, inBlock, outBlock, AES_BLOCK_SIZE,
@@ -553,7 +555,9 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         {
             word32 keySize = 0;
             byte* key = (byte*)aes->key;
-            wc_AesGetKeySize(aes, &keySize);
+            int ret = wc_AesGetKeySize(aes, &keySize);
+            if (ret != 0)
+                return ret;
 
             if (wolfSSL_CryptHwMutexLock() == 0) {
                 LTC_AES_DecryptEcb(LTC_BASE, inBlock, outBlock, AES_BLOCK_SIZE,
@@ -4311,7 +4315,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                 iv      = (byte*)aes->reg;
                 enc_key = (byte*)aes->key;
 
-                wc_AesGetKeySize(aes, &keySize);
+                ret = wc_AesGetKeySize(aes, &keySize);
+                if (ret != 0)
+                    return ret;
 
                 ret = wolfSSL_CryptHwMutexLock();
                 if (ret != 0)
