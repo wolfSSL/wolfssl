@@ -6618,698 +6618,970 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
  */
 
 #ifdef SQR_MUL_ASM
-    /* Multiply a by b into r where a and b have same no. digits. r = a * b
-     *
-     * Optimised code for when number of digits in a and b are the same.
-     *
-     * @param  [in]   a    SP integer to mulitply.
-     * @param  [in]   b    SP integer to mulitply by.
-     * @param  [out]  r    SP integer to hod reult.
-     *
-     * @return  MP_OKAY otherwise.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_nxn(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        int j;
-        int k;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_digit* t = NULL;
-    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
-        defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
-        sp_int_digit t[a->used * 2];
-    #else
-        sp_int_digit t[SP_INT_DIGITS];
-    #endif
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used * 2), NULL,
-                                    DYNAMIC_TYPE_BIGINT);
-         if (t == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-        if (err == MP_OKAY) {
-            sp_int_digit l, h, o;
-            sp_int_digit* dp;
-
-            h = 0;
-            l = 0;
-            SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
-            t[0] = h;
-            h = 0;
-            o = 0;
-            for (k = 1; k <= a->used - 1; k++) {
-                j = k;
-                dp = a->dp;
-                for (; j >= 0; dp++, j--) {
-                    SP_ASM_MUL_ADD(l, h, o, dp[0], b->dp[j]);
-                }
-                t[k] = l;
-                l = h;
-                h = o;
-                o = 0;
-            }
-            for (; k <= (a->used - 1) * 2; k++) {
-                i = k - (b->used - 1);
-                dp = &b->dp[b->used - 1];
-                for (; i < a->used; i++, dp--) {
-                    SP_ASM_MUL_ADD(l, h, o, a->dp[i], dp[0]);
-                }
-                t[k] = l;
-                l = h;
-                h = o;
-                o = 0;
-            }
-            t[k] = l;
-            r->used = k + 1;
-            XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
-            sp_clamp(r);
-        }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (t != NULL) {
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
-    }
-
-    /* Multiply a by b into r. r = a * b
-     *
-     * @param  [in]   a    SP integer to mulitply.
-     * @param  [in]   b    SP integer to mulitply by.
-     * @param  [out]  r    SP integer to hod reult.
-     *
-     * @return  MP_OKAY otherwise.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        int j;
-        int k;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_digit* t = NULL;
-    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
-        defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
-        sp_int_digit t[a->used + b->used];
-    #else
-        sp_int_digit t[SP_INT_DIGITS];
-    #endif
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used + b->used),
-                                    NULL, DYNAMIC_TYPE_BIGINT);
-         if (t == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-        if (err == MP_OKAY) {
-            sp_int_digit l;
-            sp_int_digit h;
-            sp_int_digit o;
-
-            h = 0;
-            l = 0;
-            SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
-            t[0] = h;
-            h = 0;
-            o = 0;
-            for (k = 1; k <= b->used - 1; k++) {
-                i = 0;
-                j = k;
-                for (; (i < a->used) && (j >= 0); i++, j--) {
-                    SP_ASM_MUL_ADD(l, h, o, a->dp[i], b->dp[j]);
-                }
-                t[k] = l;
-                l = h;
-                h = o;
-                o = 0;
-            }
-            for (; k <= (a->used - 1) + (b->used - 1); k++) {
-                j = b->used - 1;
-                i = k - j;
-                for (; (i < a->used) && (j >= 0); i++, j--) {
-                    SP_ASM_MUL_ADD(l, h, o, a->dp[i], b->dp[j]);
-                }
-                t[k] = l;
-                l = h;
-                h = o;
-                o = 0;
-            }
-            t[k] = l;
-            r->used = k + 1;
-            XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
-            sp_clamp(r);
-        }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (t != NULL) {
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
-    }
+/* Multiply a by b into r where a and b have same no. digits. r = a * b
+ *
+ * Optimised code for when number of digits in a and b are the same.
+ *
+ * @param  [in]   a    SP integer to mulitply.
+ * @param  [in]   b    SP integer to mulitply by.
+ * @param  [out]  r    SP integer to hod reult.
+ *
+ * @return  MP_OKAY otherwise.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_nxn(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    int j;
+    int k;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_digit* t = NULL;
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
+    defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
+    sp_int_digit t[a->used * 2];
 #else
-    /* Multiply a by b into r. r = a * b
-     *
-     * @param  [in]   a    SP integer to mulitply.
-     * @param  [in]   b    SP integer to mulitply by.
-     * @param  [out]  r    SP integer to hod reult.
-     *
-     * @return  MP_OKAY otherwise.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        int j;
-        int k;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_digit* t = NULL;
-    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
-        defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
-        sp_int_digit t[a->used + b->used];
-    #else
-        sp_int_digit t[SP_INT_DIGITS];
-    #endif
+    sp_int_digit t[SP_INT_DIGITS];
+#endif
 
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used + b->used),
-                                    NULL, DYNAMIC_TYPE_BIGINT);
-         if (t == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-        if (err == MP_OKAY) {
-            sp_int_word w;
-            sp_int_word l;
-            sp_int_word h;
-        #ifdef SP_WORD_OVERFLOW
-            sp_int_word o;
-        #endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used * 2), NULL,
+        DYNAMIC_TYPE_BIGINT);
+    if (t == NULL) {
+        err = MP_MEM;
+    }
+#endif
+    if (err == MP_OKAY) {
+        sp_int_digit l, h, o;
+        sp_int_digit* dp;
 
-            w = (sp_int_word)a->dp[0] * b->dp[0];
-            t[0] = (sp_int_digit)w;
-            l = (sp_int_digit)(w >> SP_WORD_SIZE);
-            h = 0;
-        #ifdef SP_WORD_OVERFLOW
+        h = 0;
+        l = 0;
+        SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
+        t[0] = h;
+        h = 0;
+        o = 0;
+        for (k = 1; k <= a->used - 1; k++) {
+            j = k;
+            dp = a->dp;
+            for (; j >= 0; dp++, j--) {
+                SP_ASM_MUL_ADD(l, h, o, dp[0], b->dp[j]);
+            }
+            t[k] = l;
+            l = h;
+            h = o;
             o = 0;
-        #endif
-            for (k = 1; k <= (a->used - 1) + (b->used - 1); k++) {
-                i = k - (b->used - 1);
-                i &= ~(i >> (sizeof(i) * 8 - 1));
-                j = k - i;
-                for (; (i < a->used) && (j >= 0); i++, j--) {
-                    w = (sp_int_word)a->dp[i] * b->dp[j];
-                    l += (sp_int_digit)w;
-                    h += (sp_int_digit)(w >> SP_WORD_SIZE);
-                #ifdef SP_WORD_OVERFLOW
-                    h += (sp_int_digit)(l >> SP_WORD_SIZE);
-                    l &= SP_MASK;
-                    o += (sp_int_digit)(h >> SP_WORD_SIZE);
-                    h &= SP_MASK;
-                #endif
-                }
-                t[k] = (sp_int_digit)l;
-                l >>= SP_WORD_SIZE;
-                l += (sp_int_digit)h;
-                h >>= SP_WORD_SIZE;
+        }
+        for (; k <= (a->used - 1) * 2; k++) {
+            i = k - (b->used - 1);
+            dp = &b->dp[b->used - 1];
+            for (; i < a->used; i++, dp--) {
+                SP_ASM_MUL_ADD(l, h, o, a->dp[i], dp[0]);
+            }
+            t[k] = l;
+            l = h;
+            h = o;
+            o = 0;
+        }
+        t[k] = l;
+        r->used = k + 1;
+        XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
+        sp_clamp(r);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+#endif
+    return err;
+}
+
+/* Multiply a by b into r. r = a * b
+ *
+ * @param  [in]   a    SP integer to mulitply.
+ * @param  [in]   b    SP integer to mulitply by.
+ * @param  [out]  r    SP integer to hod reult.
+ *
+ * @return  MP_OKAY otherwise.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    int j;
+    int k;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_digit* t = NULL;
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
+    defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
+    sp_int_digit t[a->used + b->used];
+#else
+    sp_int_digit t[SP_INT_DIGITS];
+#endif
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used + b->used), NULL,
+        DYNAMIC_TYPE_BIGINT);
+    if (t == NULL) {
+        err = MP_MEM;
+    }
+#endif
+    if (err == MP_OKAY) {
+        sp_int_digit l;
+        sp_int_digit h;
+        sp_int_digit o;
+
+        h = 0;
+        l = 0;
+        SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
+        t[0] = h;
+        h = 0;
+        o = 0;
+        for (k = 1; k <= b->used - 1; k++) {
+            i = 0;
+            j = k;
+            for (; (i < a->used) && (j >= 0); i++, j--) {
+                SP_ASM_MUL_ADD(l, h, o, a->dp[i], b->dp[j]);
+            }
+            t[k] = l;
+            l = h;
+            h = o;
+            o = 0;
+        }
+        for (; k <= (a->used - 1) + (b->used - 1); k++) {
+            j = b->used - 1;
+            i = k - j;
+            for (; (i < a->used) && (j >= 0); i++, j--) {
+                SP_ASM_MUL_ADD(l, h, o, a->dp[i], b->dp[j]);
+            }
+            t[k] = l;
+            l = h;
+            h = o;
+            o = 0;
+        }
+        t[k] = l;
+        r->used = k + 1;
+        XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
+        sp_clamp(r);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+#endif
+    return err;
+}
+#else
+/* Multiply a by b into r. r = a * b
+ *
+ * @param  [in]   a    SP integer to mulitply.
+ * @param  [in]   b    SP integer to mulitply by.
+ * @param  [out]  r    SP integer to hod reult.
+ *
+ * @return  MP_OKAY otherwise.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    int j;
+    int k;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_digit* t = NULL;
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
+    defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
+    sp_int_digit t[a->used + b->used];
+#else
+    sp_int_digit t[SP_INT_DIGITS];
+#endif
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used + b->used), NULL,
+        DYNAMIC_TYPE_BIGINT);
+    if (t == NULL) {
+        err = MP_MEM;
+    }
+#endif
+    if (err == MP_OKAY) {
+        sp_int_word w;
+        sp_int_word l;
+        sp_int_word h;
+    #ifdef SP_WORD_OVERFLOW
+        sp_int_word o;
+    #endif
+
+        w = (sp_int_word)a->dp[0] * b->dp[0];
+        t[0] = (sp_int_digit)w;
+        l = (sp_int_digit)(w >> SP_WORD_SIZE);
+        h = 0;
+    #ifdef SP_WORD_OVERFLOW
+        o = 0;
+    #endif
+        for (k = 1; k <= (a->used - 1) + (b->used - 1); k++) {
+            i = k - (b->used - 1);
+            i &= ~(i >> (sizeof(i) * 8 - 1));
+            j = k - i;
+            for (; (i < a->used) && (j >= 0); i++, j--) {
+                w = (sp_int_word)a->dp[i] * b->dp[j];
+                l += (sp_int_digit)w;
+                h += (sp_int_digit)(w >> SP_WORD_SIZE);
             #ifdef SP_WORD_OVERFLOW
-                h += o & SP_MASK;
-                o >>= SP_WORD_SIZE;
+                h += (sp_int_digit)(l >> SP_WORD_SIZE);
+                l &= SP_MASK;
+                o += (sp_int_digit)(h >> SP_WORD_SIZE);
+                h &= SP_MASK;
             #endif
             }
             t[k] = (sp_int_digit)l;
-            r->used = k + 1;
-            XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
-            sp_clamp(r);
+            l >>= SP_WORD_SIZE;
+            l += (sp_int_digit)h;
+            h >>= SP_WORD_SIZE;
+        #ifdef SP_WORD_OVERFLOW
+            h += o & SP_MASK;
+            o >>= SP_WORD_SIZE;
+        #endif
         }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (t != NULL) {
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
+        t[k] = (sp_int_digit)l;
+        r->used = k + 1;
+        XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
+        sp_clamp(r);
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+#endif
+    return err;
+}
 #endif
 
 #ifndef WOLFSSL_SP_SMALL
 #if !defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC)
 #if SP_WORD_SIZE == 64
 #ifndef SQR_MUL_ASM
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_4(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_word* w = NULL;
-    #else
-        sp_int_word w[16];
-    #endif
-        sp_int_digit* da = a->dp;
-        sp_int_digit* db = b->dp;
+/* Multiply a by b and store in r: r = a * b
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_4(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_word* w = NULL;
+#else
+    sp_int_word w[16];
+#endif
+    sp_int_digit* da = a->dp;
+    sp_int_digit* db = b->dp;
 
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         w = (sp_int_word*)XMALLOC(sizeof(sp_int_word) * 16, NULL,
-                                   DYNAMIC_TYPE_BIGINT);
-         if (w == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-
-        if (err == MP_OKAY) {
-            w[0] = (sp_int_word)da[0] * db[0];
-            w[1] = (sp_int_word)da[0] * db[1];
-            w[2] = (sp_int_word)da[1] * db[0];
-            w[3] = (sp_int_word)da[0] * db[2];
-            w[4] = (sp_int_word)da[1] * db[1];
-            w[5] = (sp_int_word)da[2] * db[0];
-            w[6] = (sp_int_word)da[0] * db[3];
-            w[7] = (sp_int_word)da[1] * db[2];
-            w[8] = (sp_int_word)da[2] * db[1];
-            w[9] = (sp_int_word)da[3] * db[0];
-            w[10] = (sp_int_word)da[1] * db[3];
-            w[11] = (sp_int_word)da[2] * db[2];
-            w[12] = (sp_int_word)da[3] * db[1];
-            w[13] = (sp_int_word)da[2] * db[3];
-            w[14] = (sp_int_word)da[3] * db[2];
-            w[15] = (sp_int_word)da[3] * db[3];
-
-            r->dp[0] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[1];
-            w[0] += (sp_int_digit)w[2];
-            r->dp[1] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[1] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[1];
-            w[2] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[2];
-            w[0] += (sp_int_digit)w[3];
-            w[0] += (sp_int_digit)w[4];
-            w[0] += (sp_int_digit)w[5];
-            r->dp[2] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[3] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[3];
-            w[4] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[4];
-            w[5] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[5];
-            w[0] += (sp_int_digit)w[6];
-            w[0] += (sp_int_digit)w[7];
-            w[0] += (sp_int_digit)w[8];
-            w[0] += (sp_int_digit)w[9];
-            r->dp[3] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[6] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[6];
-            w[7] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[7];
-            w[8] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[8];
-            w[9] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[9];
-            w[0] += (sp_int_digit)w[10];
-            w[0] += (sp_int_digit)w[11];
-            w[0] += (sp_int_digit)w[12];
-            r->dp[4] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[10] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[10];
-            w[11] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[11];
-            w[12] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[12];
-            w[0] += (sp_int_digit)w[13];
-            w[0] += (sp_int_digit)w[14];
-            r->dp[5] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[13] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[13];
-            w[14] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[14];
-            w[0] += (sp_int_digit)w[15];
-            r->dp[6] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[15] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[15];
-            r->dp[7] = w[0];
-
-            r->used = 8;
-            sp_clamp(r);
-        }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (w != NULL) {
-            XFREE(w, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    w = (sp_int_word*)XMALLOC(sizeof(sp_int_word) * 16, NULL,
+        DYNAMIC_TYPE_BIGINT);
+    if (w == NULL) {
+        err = MP_MEM;
     }
-#else /* SQR_MUL_ASM */
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_4(sp_int* a, sp_int* b, sp_int* r)
-    {
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit t[4];
+#endif
 
-        SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
-        t[0] = h;
-        h = 0;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
-        t[1] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
-        t[2] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
-        t[3] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
-        r->dp[4] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
-        r->dp[5] = l;
-        l = h;
-        h = o;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[3], b->dp[3]);
-        r->dp[6] = l;
-        r->dp[7] = h;
-        XMEMCPY(r->dp, t, 4 * sizeof(sp_int_digit));
+    if (err == MP_OKAY) {
+        w[0] = (sp_int_word)da[0] * db[0];
+        w[1] = (sp_int_word)da[0] * db[1];
+        w[2] = (sp_int_word)da[1] * db[0];
+        w[3] = (sp_int_word)da[0] * db[2];
+        w[4] = (sp_int_word)da[1] * db[1];
+        w[5] = (sp_int_word)da[2] * db[0];
+        w[6] = (sp_int_word)da[0] * db[3];
+        w[7] = (sp_int_word)da[1] * db[2];
+        w[8] = (sp_int_word)da[2] * db[1];
+        w[9] = (sp_int_word)da[3] * db[0];
+        w[10] = (sp_int_word)da[1] * db[3];
+        w[11] = (sp_int_word)da[2] * db[2];
+        w[12] = (sp_int_word)da[3] * db[1];
+        w[13] = (sp_int_word)da[2] * db[3];
+        w[14] = (sp_int_word)da[3] * db[2];
+        w[15] = (sp_int_word)da[3] * db[3];
+
+        r->dp[0] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[1];
+        w[0] += (sp_int_digit)w[2];
+        r->dp[1] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[1] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[1];
+        w[2] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[2];
+        w[0] += (sp_int_digit)w[3];
+        w[0] += (sp_int_digit)w[4];
+        w[0] += (sp_int_digit)w[5];
+        r->dp[2] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[3] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[3];
+        w[4] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[4];
+        w[5] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[5];
+        w[0] += (sp_int_digit)w[6];
+        w[0] += (sp_int_digit)w[7];
+        w[0] += (sp_int_digit)w[8];
+        w[0] += (sp_int_digit)w[9];
+        r->dp[3] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[6] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[6];
+        w[7] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[7];
+        w[8] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[8];
+        w[9] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[9];
+        w[0] += (sp_int_digit)w[10];
+        w[0] += (sp_int_digit)w[11];
+        w[0] += (sp_int_digit)w[12];
+        r->dp[4] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[10] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[10];
+        w[11] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[11];
+        w[12] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[12];
+        w[0] += (sp_int_digit)w[13];
+        w[0] += (sp_int_digit)w[14];
+        r->dp[5] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[13] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[13];
+        w[14] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[14];
+        w[0] += (sp_int_digit)w[15];
+        r->dp[6] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[15] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[15];
+        r->dp[7] = w[0];
+
         r->used = 8;
         sp_clamp(r);
-
-        return MP_OKAY;
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (w != NULL) {
+        XFREE(w, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+#endif
+    return err;
+}
+#else /* SQR_MUL_ASM */
+/* Multiply a by b and store in r: r = a * b
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_4(sp_int* a, sp_int* b, sp_int* r)
+{
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit t[4];
+
+    SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
+    t[0] = h;
+    h = 0;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
+    t[1] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
+    t[2] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
+    t[3] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
+    r->dp[4] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
+    r->dp[5] = l;
+    l = h;
+    h = o;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[3], b->dp[3]);
+    r->dp[6] = l;
+    r->dp[7] = h;
+    XMEMCPY(r->dp, t, 4 * sizeof(sp_int_digit));
+    r->used = 8;
+    sp_clamp(r);
+
+    return MP_OKAY;
+}
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 64 */
 #if SP_WORD_SIZE == 64
 #ifdef SQR_MUL_ASM
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_6(sp_int* a, sp_int* b, sp_int* r)
-    {
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit t[6];
+/* Multiply a by b and store in r: r = a * b
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_6(sp_int* a, sp_int* b, sp_int* r)
+{
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit t[6];
 
-        SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
-        t[0] = h;
-        h = 0;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
-        t[1] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
-        t[2] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
-        t[3] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[0]);
-        t[4] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[0]);
-        t[5] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[1]);
-        r->dp[6] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[2]);
-        r->dp[7] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[3]);
-        r->dp[8] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[4]);
-        r->dp[9] = l;
-        l = h;
-        h = o;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[5], b->dp[5]);
-        r->dp[10] = l;
-        r->dp[11] = h;
-        XMEMCPY(r->dp, t, 6 * sizeof(sp_int_digit));
-        r->used = 12;
-        sp_clamp(r);
+    SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
+    t[0] = h;
+    h = 0;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
+    t[1] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
+    t[2] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
+    t[3] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[0]);
+    t[4] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[0]);
+    t[5] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[1]);
+    r->dp[6] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[2]);
+    r->dp[7] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[3]);
+    r->dp[8] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[4]);
+    r->dp[9] = l;
+    l = h;
+    h = o;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[5], b->dp[5]);
+    r->dp[10] = l;
+    r->dp[11] = h;
+    XMEMCPY(r->dp, t, 6 * sizeof(sp_int_digit));
+    r->used = 12;
+    sp_clamp(r);
 
-        return MP_OKAY;
-    }
+    return MP_OKAY;
+}
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 64 */
 #if SP_WORD_SIZE == 32
 #ifdef SQR_MUL_ASM
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_8(sp_int* a, sp_int* b, sp_int* r)
-    {
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit t[8];
+/* Multiply a by b and store in r: r = a * b
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_8(sp_int* a, sp_int* b, sp_int* r)
+{
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit t[8];
 
-        SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
-        t[0] = h;
-        h = 0;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
-        t[1] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
-        t[2] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
-        t[3] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[0]);
-        t[4] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[0]);
-        t[5] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[6]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[0]);
-        t[6] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[7]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[6]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[0]);
-        t[7] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[7]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[6]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[1]);
-        r->dp[8] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[7]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[6]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[2]);
-        r->dp[9] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[7]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[6]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[3]);
-        r->dp[10] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[7]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[6]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[4]);
-        r->dp[11] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[7]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[6]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[5]);
-        r->dp[12] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[7]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[6]);
-        r->dp[13] = l;
-        l = h;
-        h = o;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[7], b->dp[7]);
-        r->dp[14] = l;
-        r->dp[15] = h;
-        XMEMCPY(r->dp, t, 8 * sizeof(sp_int_digit));
-        r->used = 16;
-        sp_clamp(r);
+    SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
+    t[0] = h;
+    h = 0;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
+    t[1] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
+    t[2] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
+    t[3] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[0]);
+    t[4] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[0]);
+    t[5] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[0]);
+    t[6] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[0]);
+    t[7] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[1]);
+    r->dp[8] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[2]);
+    r->dp[9] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[3]);
+    r->dp[10] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[4]);
+    r->dp[11] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[5]);
+    r->dp[12] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[6]);
+    r->dp[13] = l;
+    l = h;
+    h = o;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[7], b->dp[7]);
+    r->dp[14] = l;
+    r->dp[15] = h;
+    XMEMCPY(r->dp, t, 8 * sizeof(sp_int_digit));
+    r->used = 16;
+    sp_clamp(r);
 
-        return MP_OKAY;
-    }
+    return MP_OKAY;
+}
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 32 */
 #if SP_WORD_SIZE == 32
 #ifdef SQR_MUL_ASM
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_12(sp_int* a, sp_int* b, sp_int* r)
-    {
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit t[12];
+/* Multiply a by b and store in r: r = a * b
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_12(sp_int* a, sp_int* b, sp_int* r)
+{
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit t[12];
 
+    SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
+    t[0] = h;
+    h = 0;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
+    t[1] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
+    t[2] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
+    t[3] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[0]);
+    t[4] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[0]);
+    t[5] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[0]);
+    t[6] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[0]);
+    t[7] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[0]);
+    t[8] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[0]);
+    t[9] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[0]);
+    t[10] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[0]);
+    t[11] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[1]);
+    r->dp[12] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[2]);
+    r->dp[13] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[3]);
+    r->dp[14] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[4]);
+    r->dp[15] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[5]);
+    r->dp[16] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[6]);
+    r->dp[17] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[7]);
+    r->dp[18] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[8]);
+    r->dp[19] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[9]);
+    r->dp[20] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[10]);
+    r->dp[21] = l;
+    l = h;
+    h = o;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[11], b->dp[11]);
+    r->dp[22] = l;
+    r->dp[23] = h;
+    XMEMCPY(r->dp, t, 12 * sizeof(sp_int_digit));
+    r->used = 24;
+    sp_clamp(r);
+
+    return MP_OKAY;
+}
+#endif /* SQR_MUL_ASM */
+#endif /* SP_WORD_SIZE == 32 */
+#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
+
+#if defined(SQR_MUL_ASM) && defined(WOLFSSL_SP_INT_LARGE_COMBA)
+    #if SP_INT_DIGITS >= 32
+/* Multiply a by b and store in r: r = a * b
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_16(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_digit* t = NULL;
+#else
+    sp_int_digit t[16];
+#endif
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+     t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * 16, NULL,
+         DYNAMIC_TYPE_BIGINT);
+     if (t == NULL) {
+         err = MP_MEM;
+     }
+#endif
+    if (err == MP_OKAY) {
         SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
         t[0] = h;
         h = 0;
@@ -7434,6 +7706,7 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[10]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[9]);
@@ -7445,10 +7718,13 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
         SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[3]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[2]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[1]);
-        r->dp[12] = l;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[0]);
+        t[12] = l;
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[10]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[9]);
@@ -7459,10 +7735,15 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
         SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[4]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[3]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[2]);
-        r->dp[13] = l;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[0]);
+        t[13] = l;
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[10]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[9]);
@@ -7472,10 +7753,17 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
         SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[5]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[4]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[3]);
-        r->dp[14] = l;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[0]);
+        t[14] = l;
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[10]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[9]);
@@ -7484,10 +7772,18 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
         SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[6]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[5]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[4]);
-        r->dp[15] = l;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[0]);
+        t[15] = l;
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[10]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[9]);
@@ -7495,1939 +7791,1643 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
         SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[7]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[6]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[1]);
         r->dp[16] = l;
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[10]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[9]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[8]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[7]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[2]);
         r->dp[17] = l;
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[10]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[9]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[8]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[3]);
         r->dp[18] = l;
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[10]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[9]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[4]);
         r->dp[19] = l;
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[10]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[5]);
         r->dp[20] = l;
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[6]);
         r->dp[21] = l;
         l = h;
         h = o;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[11], b->dp[11]);
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[7]);
         r->dp[22] = l;
-        r->dp[23] = h;
-        XMEMCPY(r->dp, t, 12 * sizeof(sp_int_digit));
-        r->used = 24;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[8]);
+        r->dp[23] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[9]);
+        r->dp[24] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[10]);
+        r->dp[25] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[11]);
+        r->dp[26] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[12]);
+        r->dp[27] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[13]);
+        r->dp[28] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[14]);
+        r->dp[29] = l;
+        l = h;
+        h = o;
+        SP_ASM_MUL_ADD_NO(l, h, a->dp[15], b->dp[15]);
+        r->dp[30] = l;
+        r->dp[31] = h;
+        XMEMCPY(r->dp, t, 16 * sizeof(sp_int_digit));
+        r->used = 32;
         sp_clamp(r);
-
-        return MP_OKAY;
     }
-#endif /* SQR_MUL_ASM */
-#endif /* SP_WORD_SIZE == 32 */
-#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
 
-#if defined(SQR_MUL_ASM) && defined(WOLFSSL_SP_INT_LARGE_COMBA)
-    #if SP_INT_DIGITS >= 32
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_16(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_digit* t = NULL;
-    #else
-        sp_int_digit t[16];
-    #endif
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * 16, NULL,
-                                    DYNAMIC_TYPE_BIGINT);
-         if (t == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-        if (err == MP_OKAY) {
-            SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
-            t[0] = h;
-            h = 0;
-            SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
-            t[1] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
-            t[2] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
-            t[3] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[0]);
-            t[4] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[0]);
-            t[5] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[0]);
-            t[6] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[0]);
-            t[7] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[0]);
-            t[8] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[0]);
-            t[9] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[0]);
-            t[10] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[0]);
-            t[11] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[0]);
-            t[12] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[0]);
-            t[13] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[0]);
-            t[14] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[0]);
-            t[15] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[1]);
-            r->dp[16] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[2]);
-            r->dp[17] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[3]);
-            r->dp[18] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[4]);
-            r->dp[19] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[5]);
-            r->dp[20] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[6]);
-            r->dp[21] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[7]);
-            r->dp[22] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[8]);
-            r->dp[23] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[9]);
-            r->dp[24] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[10]);
-            r->dp[25] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[11]);
-            r->dp[26] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[12]);
-            r->dp[27] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[13]);
-            r->dp[28] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[14]);
-            r->dp[29] = l;
-            l = h;
-            h = o;
-            SP_ASM_MUL_ADD_NO(l, h, a->dp[15], b->dp[15]);
-            r->dp[30] = l;
-            r->dp[31] = h;
-            XMEMCPY(r->dp, t, 16 * sizeof(sp_int_digit));
-            r->used = 32;
-            sp_clamp(r);
-        }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (t != NULL) {
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
     }
+#endif
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 32 */
 
     #if SP_INT_DIGITS >= 48
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_24(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_digit* t = NULL;
-    #else
-        sp_int_digit t[24];
-    #endif
+/* Multiply a by b and store in r: r = a * b
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_24(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_digit* t = NULL;
+#else
+    sp_int_digit t[24];
+#endif
 
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * 24, NULL,
-                                    DYNAMIC_TYPE_BIGINT);
-         if (t == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-        if (err == MP_OKAY) {
-            SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
-            t[0] = h;
-            h = 0;
-            SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
-            t[1] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
-            t[2] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
-            t[3] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[0]);
-            t[4] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[0]);
-            t[5] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[0]);
-            t[6] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[0]);
-            t[7] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[0]);
-            t[8] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[0]);
-            t[9] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[0]);
-            t[10] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[0]);
-            t[11] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[0]);
-            t[12] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[0]);
-            t[13] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[0]);
-            t[14] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[0]);
-            t[15] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[0]);
-            t[16] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[0]);
-            t[17] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[0]);
-            t[18] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[0]);
-            t[19] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[0]);
-            t[20] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[0]);
-            t[21] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[0]);
-            t[22] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[0]);
-            t[23] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[1]);
-            r->dp[24] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[2]);
-            r->dp[25] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[3]);
-            r->dp[26] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[4]);
-            r->dp[27] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[5]);
-            r->dp[28] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[6]);
-            r->dp[29] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[7]);
-            r->dp[30] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[8]);
-            r->dp[31] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[9]);
-            r->dp[32] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[10]);
-            r->dp[33] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[11]);
-            r->dp[34] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[12]);
-            r->dp[35] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[13]);
-            r->dp[36] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[14]);
-            r->dp[37] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[15]);
-            r->dp[38] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[16]);
-            r->dp[39] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[17]);
-            r->dp[40] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[18]);
-            r->dp[41] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[19]);
-            r->dp[42] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[20]);
-            r->dp[43] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[21]);
-            r->dp[44] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[22]);
-            r->dp[45] = l;
-            l = h;
-            h = o;
-            SP_ASM_MUL_ADD_NO(l, h, a->dp[23], b->dp[23]);
-            r->dp[46] = l;
-            r->dp[47] = h;
-            XMEMCPY(r->dp, t, 24 * sizeof(sp_int_digit));
-            r->used = 48;
-            sp_clamp(r);
-        }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (t != NULL) {
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+     t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * 24, NULL,
+         DYNAMIC_TYPE_BIGINT);
+     if (t == NULL) {
+         err = MP_MEM;
+     }
+#endif
+    if (err == MP_OKAY) {
+        SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
+        t[0] = h;
+        h = 0;
+        SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
+        t[1] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
+        t[2] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
+        t[3] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[0]);
+        t[4] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[0]);
+        t[5] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[0]);
+        t[6] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[0]);
+        t[7] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[0]);
+        t[8] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[0]);
+        t[9] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[0]);
+        t[10] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[0]);
+        t[11] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[0]);
+        t[12] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[0]);
+        t[13] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[0]);
+        t[14] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[0]);
+        t[15] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[0]);
+        t[16] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[0]);
+        t[17] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[0]);
+        t[18] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[0]);
+        t[19] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[0]);
+        t[20] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[0]);
+        t[21] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[0]);
+        t[22] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[0]);
+        t[23] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[1]);
+        r->dp[24] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[2]);
+        r->dp[25] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[3]);
+        r->dp[26] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[4]);
+        r->dp[27] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[5]);
+        r->dp[28] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[6]);
+        r->dp[29] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[7]);
+        r->dp[30] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[8]);
+        r->dp[31] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[9]);
+        r->dp[32] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[10]);
+        r->dp[33] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[11]);
+        r->dp[34] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[12]);
+        r->dp[35] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[13]);
+        r->dp[36] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[14]);
+        r->dp[37] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[15]);
+        r->dp[38] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[16]);
+        r->dp[39] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[17]);
+        r->dp[40] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[18]);
+        r->dp[41] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[19]);
+        r->dp[42] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[20]);
+        r->dp[43] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[21]);
+        r->dp[44] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[22]);
+        r->dp[45] = l;
+        l = h;
+        h = o;
+        SP_ASM_MUL_ADD_NO(l, h, a->dp[23], b->dp[23]);
+        r->dp[46] = l;
+        r->dp[47] = h;
+        XMEMCPY(r->dp, t, 24 * sizeof(sp_int_digit));
+        r->used = 48;
+        sp_clamp(r);
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+#endif
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 48 */
 
     #if SP_INT_DIGITS >= 64
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_32(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        sp_int_digit l;
-        sp_int_digit h;
-        sp_int* a1;
-        sp_int* b1;
-        sp_int* z0;
-        sp_int* z1;
-        sp_int* z2;
-        sp_int_digit ca;
-        sp_int_digit cb;
-        DECL_SP_INT_ARRAY(t, 16, 2);
-        DECL_SP_INT_ARRAY(z, 33, 2);
+/* Multiply a by b and store in r: r = a * b
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_32(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    sp_int_digit l;
+    sp_int_digit h;
+    sp_int* a1;
+    sp_int* b1;
+    sp_int* z0;
+    sp_int* z1;
+    sp_int* z2;
+    sp_int_digit ca;
+    sp_int_digit cb;
+    DECL_SP_INT_ARRAY(t, 16, 2);
+    DECL_SP_INT_ARRAY(z, 33, 2);
 
-        ALLOC_SP_INT_ARRAY(t, 16, 2, err, NULL);
-        ALLOC_SP_INT_ARRAY(z, 33, 2, err, NULL);
-        if (err == MP_OKAY) {
-            a1 = t[0];
-            b1 = t[1];
-            z1 = z[0];
-            z2 = z[1];
-            z0 = r;
+    ALLOC_SP_INT_ARRAY(t, 16, 2, err, NULL);
+    ALLOC_SP_INT_ARRAY(z, 33, 2, err, NULL);
+    if (err == MP_OKAY) {
+        a1 = t[0];
+        b1 = t[1];
+        z1 = z[0];
+        z2 = z[1];
+        z0 = r;
 
-            XMEMCPY(a1->dp, &a->dp[16], sizeof(sp_int_digit) * 16);
-            a1->used = 16;
-            XMEMCPY(b1->dp, &b->dp[16], sizeof(sp_int_digit) * 16);
-            b1->used = 16;
+        XMEMCPY(a1->dp, &a->dp[16], sizeof(sp_int_digit) * 16);
+        a1->used = 16;
+        XMEMCPY(b1->dp, &b->dp[16], sizeof(sp_int_digit) * 16);
+        b1->used = 16;
 
-            /* z2 = a1 * b1 */
-            err = _sp_mul_16(a1, b1, z2);
-        }
-        if (err == MP_OKAY) {
-            l = a1->dp[0];
-            h = 0;
-            SP_ASM_ADDC(l, h, a->dp[0]);
-            a1->dp[0] = l;
+        /* z2 = a1 * b1 */
+        err = _sp_mul_16(a1, b1, z2);
+    }
+    if (err == MP_OKAY) {
+        l = a1->dp[0];
+        h = 0;
+        SP_ASM_ADDC(l, h, a->dp[0]);
+        a1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 16; i++) {
+            SP_ASM_ADDC(l, h, a1->dp[i]);
+            SP_ASM_ADDC(l, h, a->dp[i]);
+            a1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 16; i++) {
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a->dp[i]);
-                a1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            ca = l;
-            /* b01 = b0 + b1 */
-            l = b1->dp[0];
-            h = 0;
-            SP_ASM_ADDC(l, h, b->dp[0]);
-            b1->dp[0] = l;
+        }
+        ca = l;
+        /* b01 = b0 + b1 */
+        l = b1->dp[0];
+        h = 0;
+        SP_ASM_ADDC(l, h, b->dp[0]);
+        b1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 16; i++) {
+            SP_ASM_ADDC(l, h, b1->dp[i]);
+            SP_ASM_ADDC(l, h, b->dp[i]);
+            b1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 16; i++) {
-                SP_ASM_ADDC(l, h, b1->dp[i]);
-                SP_ASM_ADDC(l, h, b->dp[i]);
-                b1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            cb = l;
+        }
+        cb = l;
 
-            /* z0 = a0 * b0 */
-            err = _sp_mul_16(a, b, z0);
-        }
-        if (err == MP_OKAY) {
-            /* z1 = (a0 + a1) * (b0 + b1) */
-            err = _sp_mul_16(a1, b1, z1);
-        }
-        if (err == MP_OKAY) {
-            /* r = (z2 << 32) + (z1 - z0 - z2) << 16) + z0 */
-            /* r = z0 */
-            /* r += (z1 - z0 - z2) << 16 */
-            z1->dp[32] = ca & cb;
-            l = 0;
-            if (ca) {
-                h = 0;
-                for (i = 0; i < 16; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 16]);
-                    SP_ASM_ADDC(l, h, b1->dp[i]);
-                    z1->dp[i + 16] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[32] += l;
-            l = 0;
-            if (cb) {
-                h = 0;
-                for (i = 0; i < 16; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 16]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    z1->dp[i + 16] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[32] += l;
-            /* z1 = z1 - z0 - z1 */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 32; i++) {
-                l += z1->dp[i];
-                SP_ASM_SUBC(l, h, z0->dp[i]);
-                SP_ASM_SUBC(l, h, z2->dp[i]);
-                z1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            z1->dp[i] += l;
-            /* r += z1 << 16 */
-            l = 0;
+        /* z0 = a0 * b0 */
+        err = _sp_mul_16(a, b, z0);
+    }
+    if (err == MP_OKAY) {
+        /* z1 = (a0 + a1) * (b0 + b1) */
+        err = _sp_mul_16(a1, b1, z1);
+    }
+    if (err == MP_OKAY) {
+        /* r = (z2 << 32) + (z1 - z0 - z2) << 16) + z0 */
+        /* r = z0 */
+        /* r += (z1 - z0 - z2) << 16 */
+        z1->dp[32] = ca & cb;
+        l = 0;
+        if (ca) {
             h = 0;
             for (i = 0; i < 16; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 16]);
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 16] = l;
+                SP_ASM_ADDC(l, h, z1->dp[i + 16]);
+                SP_ASM_ADDC(l, h, b1->dp[i]);
+                z1->dp[i + 16] = l;
                 l = h;
                 h = 0;
             }
-            for (; i < 33; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 16] = l;
-                l = h;
-                h = 0;
-            }
-            /* r += z2 << 32  */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 17; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 32]);
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 32] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 32; i++) {
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 32] = l;
-                l = h;
-                h = 0;
-            }
-            r->used = 64;
-            sp_clamp(r);
         }
-
-        FREE_SP_INT_ARRAY(z, NULL);
-        FREE_SP_INT_ARRAY(t, NULL);
-        return err;
+        z1->dp[32] += l;
+        l = 0;
+        if (cb) {
+            h = 0;
+            for (i = 0; i < 16; i++) {
+                SP_ASM_ADDC(l, h, z1->dp[i + 16]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                z1->dp[i + 16] = l;
+                l = h;
+                h = 0;
+            }
+        }
+        z1->dp[32] += l;
+        /* z1 = z1 - z0 - z1 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 32; i++) {
+            l += z1->dp[i];
+            SP_ASM_SUBC(l, h, z0->dp[i]);
+            SP_ASM_SUBC(l, h, z2->dp[i]);
+            z1->dp[i] = l;
+            l = h;
+            h = 0;
+        }
+        z1->dp[i] += l;
+        /* r += z1 << 16 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 16; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 16]);
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 16] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 33; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 16] = l;
+            l = h;
+            h = 0;
+        }
+        /* r += z2 << 32  */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 17; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 32]);
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 32] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 32; i++) {
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 32] = l;
+            l = h;
+            h = 0;
+        }
+        r->used = 64;
+        sp_clamp(r);
     }
+
+    FREE_SP_INT_ARRAY(z, NULL);
+    FREE_SP_INT_ARRAY(t, NULL);
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 64 */
 
     #if SP_INT_DIGITS >= 96
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_48(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        sp_int_digit l;
-        sp_int_digit h;
-        sp_int* a1;
-        sp_int* b1;
-        sp_int* z0;
-        sp_int* z1;
-        sp_int* z2;
-        sp_int_digit ca;
-        sp_int_digit cb;
-        DECL_SP_INT_ARRAY(t, 24, 2);
-        DECL_SP_INT_ARRAY(z, 49, 2);
+/* Multiply a by b and store in r: r = a * b
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_48(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    sp_int_digit l;
+    sp_int_digit h;
+    sp_int* a1;
+    sp_int* b1;
+    sp_int* z0;
+    sp_int* z1;
+    sp_int* z2;
+    sp_int_digit ca;
+    sp_int_digit cb;
+    DECL_SP_INT_ARRAY(t, 24, 2);
+    DECL_SP_INT_ARRAY(z, 49, 2);
 
-        ALLOC_SP_INT_ARRAY(t, 24, 2, err, NULL);
-        ALLOC_SP_INT_ARRAY(z, 49, 2, err, NULL);
-        if (err == MP_OKAY) {
-            a1 = t[0];
-            b1 = t[1];
-            z1 = z[0];
-            z2 = z[1];
-            z0 = r;
+    ALLOC_SP_INT_ARRAY(t, 24, 2, err, NULL);
+    ALLOC_SP_INT_ARRAY(z, 49, 2, err, NULL);
+    if (err == MP_OKAY) {
+        a1 = t[0];
+        b1 = t[1];
+        z1 = z[0];
+        z2 = z[1];
+        z0 = r;
 
-            XMEMCPY(a1->dp, &a->dp[24], sizeof(sp_int_digit) * 24);
-            a1->used = 24;
-            XMEMCPY(b1->dp, &b->dp[24], sizeof(sp_int_digit) * 24);
-            b1->used = 24;
+        XMEMCPY(a1->dp, &a->dp[24], sizeof(sp_int_digit) * 24);
+        a1->used = 24;
+        XMEMCPY(b1->dp, &b->dp[24], sizeof(sp_int_digit) * 24);
+        b1->used = 24;
 
-            /* z2 = a1 * b1 */
-            err = _sp_mul_24(a1, b1, z2);
-        }
-        if (err == MP_OKAY) {
-            l = a1->dp[0];
-            h = 0;
-            SP_ASM_ADDC(l, h, a->dp[0]);
-            a1->dp[0] = l;
+        /* z2 = a1 * b1 */
+        err = _sp_mul_24(a1, b1, z2);
+    }
+    if (err == MP_OKAY) {
+        l = a1->dp[0];
+        h = 0;
+        SP_ASM_ADDC(l, h, a->dp[0]);
+        a1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 24; i++) {
+            SP_ASM_ADDC(l, h, a1->dp[i]);
+            SP_ASM_ADDC(l, h, a->dp[i]);
+            a1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 24; i++) {
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a->dp[i]);
-                a1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            ca = l;
-            /* b01 = b0 + b1 */
-            l = b1->dp[0];
-            h = 0;
-            SP_ASM_ADDC(l, h, b->dp[0]);
-            b1->dp[0] = l;
+        }
+        ca = l;
+        /* b01 = b0 + b1 */
+        l = b1->dp[0];
+        h = 0;
+        SP_ASM_ADDC(l, h, b->dp[0]);
+        b1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 24; i++) {
+            SP_ASM_ADDC(l, h, b1->dp[i]);
+            SP_ASM_ADDC(l, h, b->dp[i]);
+            b1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 24; i++) {
-                SP_ASM_ADDC(l, h, b1->dp[i]);
-                SP_ASM_ADDC(l, h, b->dp[i]);
-                b1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            cb = l;
+        }
+        cb = l;
 
-            /* z0 = a0 * b0 */
-            err = _sp_mul_24(a, b, z0);
-        }
-        if (err == MP_OKAY) {
-            /* z1 = (a0 + a1) * (b0 + b1) */
-            err = _sp_mul_24(a1, b1, z1);
-        }
-        if (err == MP_OKAY) {
-            /* r = (z2 << 48) + (z1 - z0 - z2) << 24) + z0 */
-            /* r = z0 */
-            /* r += (z1 - z0 - z2) << 24 */
-            z1->dp[48] = ca & cb;
-            l = 0;
-            if (ca) {
-                h = 0;
-                for (i = 0; i < 24; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 24]);
-                    SP_ASM_ADDC(l, h, b1->dp[i]);
-                    z1->dp[i + 24] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[48] += l;
-            l = 0;
-            if (cb) {
-                h = 0;
-                for (i = 0; i < 24; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 24]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    z1->dp[i + 24] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[48] += l;
-            /* z1 = z1 - z0 - z1 */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 48; i++) {
-                l += z1->dp[i];
-                SP_ASM_SUBC(l, h, z0->dp[i]);
-                SP_ASM_SUBC(l, h, z2->dp[i]);
-                z1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            z1->dp[i] += l;
-            /* r += z1 << 16 */
-            l = 0;
+        /* z0 = a0 * b0 */
+        err = _sp_mul_24(a, b, z0);
+    }
+    if (err == MP_OKAY) {
+        /* z1 = (a0 + a1) * (b0 + b1) */
+        err = _sp_mul_24(a1, b1, z1);
+    }
+    if (err == MP_OKAY) {
+        /* r = (z2 << 48) + (z1 - z0 - z2) << 24) + z0 */
+        /* r = z0 */
+        /* r += (z1 - z0 - z2) << 24 */
+        z1->dp[48] = ca & cb;
+        l = 0;
+        if (ca) {
             h = 0;
             for (i = 0; i < 24; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 24]);
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 24] = l;
+                SP_ASM_ADDC(l, h, z1->dp[i + 24]);
+                SP_ASM_ADDC(l, h, b1->dp[i]);
+                z1->dp[i + 24] = l;
                 l = h;
                 h = 0;
             }
-            for (; i < 49; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 24] = l;
-                l = h;
-                h = 0;
-            }
-            /* r += z2 << 48  */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 25; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 48]);
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 48] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 48; i++) {
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 48] = l;
-                l = h;
-                h = 0;
-            }
-            r->used = 96;
-            sp_clamp(r);
         }
-
-        FREE_SP_INT_ARRAY(z, NULL);
-        FREE_SP_INT_ARRAY(t, NULL);
-        return err;
+        z1->dp[48] += l;
+        l = 0;
+        if (cb) {
+            h = 0;
+            for (i = 0; i < 24; i++) {
+                SP_ASM_ADDC(l, h, z1->dp[i + 24]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                z1->dp[i + 24] = l;
+                l = h;
+                h = 0;
+            }
+        }
+        z1->dp[48] += l;
+        /* z1 = z1 - z0 - z1 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 48; i++) {
+            l += z1->dp[i];
+            SP_ASM_SUBC(l, h, z0->dp[i]);
+            SP_ASM_SUBC(l, h, z2->dp[i]);
+            z1->dp[i] = l;
+            l = h;
+            h = 0;
+        }
+        z1->dp[i] += l;
+        /* r += z1 << 16 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 24; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 24]);
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 24] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 49; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 24] = l;
+            l = h;
+            h = 0;
+        }
+        /* r += z2 << 48  */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 25; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 48]);
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 48] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 48; i++) {
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 48] = l;
+            l = h;
+            h = 0;
+        }
+        r->used = 96;
+        sp_clamp(r);
     }
+
+    FREE_SP_INT_ARRAY(z, NULL);
+    FREE_SP_INT_ARRAY(t, NULL);
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 96 */
 
     #if SP_INT_DIGITS >= 128
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_64(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        sp_int_digit l;
-        sp_int_digit h;
-        sp_int* a1;
-        sp_int* b1;
-        sp_int* z0;
-        sp_int* z1;
-        sp_int* z2;
-        sp_int_digit ca;
-        sp_int_digit cb;
-        DECL_SP_INT_ARRAY(t, 32, 2);
-        DECL_SP_INT_ARRAY(z, 65, 2);
+/* Multiply a by b and store in r: r = a * b
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_64(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    sp_int_digit l;
+    sp_int_digit h;
+    sp_int* a1;
+    sp_int* b1;
+    sp_int* z0;
+    sp_int* z1;
+    sp_int* z2;
+    sp_int_digit ca;
+    sp_int_digit cb;
+    DECL_SP_INT_ARRAY(t, 32, 2);
+    DECL_SP_INT_ARRAY(z, 65, 2);
 
-        ALLOC_SP_INT_ARRAY(t, 32, 2, err, NULL);
-        ALLOC_SP_INT_ARRAY(z, 65, 2, err, NULL);
-        if (err == MP_OKAY) {
-            a1 = t[0];
-            b1 = t[1];
-            z1 = z[0];
-            z2 = z[1];
-            z0 = r;
+    ALLOC_SP_INT_ARRAY(t, 32, 2, err, NULL);
+    ALLOC_SP_INT_ARRAY(z, 65, 2, err, NULL);
+    if (err == MP_OKAY) {
+        a1 = t[0];
+        b1 = t[1];
+        z1 = z[0];
+        z2 = z[1];
+        z0 = r;
 
-            XMEMCPY(a1->dp, &a->dp[32], sizeof(sp_int_digit) * 32);
-            a1->used = 32;
-            XMEMCPY(b1->dp, &b->dp[32], sizeof(sp_int_digit) * 32);
-            b1->used = 32;
+        XMEMCPY(a1->dp, &a->dp[32], sizeof(sp_int_digit) * 32);
+        a1->used = 32;
+        XMEMCPY(b1->dp, &b->dp[32], sizeof(sp_int_digit) * 32);
+        b1->used = 32;
 
-            /* z2 = a1 * b1 */
-            err = _sp_mul_32(a1, b1, z2);
-        }
-        if (err == MP_OKAY) {
-            l = a1->dp[0];
-            h = 0;
-            SP_ASM_ADDC(l, h, a->dp[0]);
-            a1->dp[0] = l;
+        /* z2 = a1 * b1 */
+        err = _sp_mul_32(a1, b1, z2);
+    }
+    if (err == MP_OKAY) {
+        l = a1->dp[0];
+        h = 0;
+        SP_ASM_ADDC(l, h, a->dp[0]);
+        a1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 32; i++) {
+            SP_ASM_ADDC(l, h, a1->dp[i]);
+            SP_ASM_ADDC(l, h, a->dp[i]);
+            a1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 32; i++) {
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a->dp[i]);
-                a1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            ca = l;
-            /* b01 = b0 + b1 */
-            l = b1->dp[0];
-            h = 0;
-            SP_ASM_ADDC(l, h, b->dp[0]);
-            b1->dp[0] = l;
+        }
+        ca = l;
+        /* b01 = b0 + b1 */
+        l = b1->dp[0];
+        h = 0;
+        SP_ASM_ADDC(l, h, b->dp[0]);
+        b1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 32; i++) {
+            SP_ASM_ADDC(l, h, b1->dp[i]);
+            SP_ASM_ADDC(l, h, b->dp[i]);
+            b1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 32; i++) {
-                SP_ASM_ADDC(l, h, b1->dp[i]);
-                SP_ASM_ADDC(l, h, b->dp[i]);
-                b1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            cb = l;
+        }
+        cb = l;
 
-            /* z0 = a0 * b0 */
-            err = _sp_mul_32(a, b, z0);
-        }
-        if (err == MP_OKAY) {
-            /* z1 = (a0 + a1) * (b0 + b1) */
-            err = _sp_mul_32(a1, b1, z1);
-        }
-        if (err == MP_OKAY) {
-            /* r = (z2 << 64) + (z1 - z0 - z2) << 32) + z0 */
-            /* r = z0 */
-            /* r += (z1 - z0 - z2) << 32 */
-            z1->dp[64] = ca & cb;
-            l = 0;
-            if (ca) {
-                h = 0;
-                for (i = 0; i < 32; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 32]);
-                    SP_ASM_ADDC(l, h, b1->dp[i]);
-                    z1->dp[i + 32] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[64] += l;
-            l = 0;
-            if (cb) {
-                h = 0;
-                for (i = 0; i < 32; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 32]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    z1->dp[i + 32] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[64] += l;
-            /* z1 = z1 - z0 - z1 */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 64; i++) {
-                l += z1->dp[i];
-                SP_ASM_SUBC(l, h, z0->dp[i]);
-                SP_ASM_SUBC(l, h, z2->dp[i]);
-                z1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            z1->dp[i] += l;
-            /* r += z1 << 16 */
-            l = 0;
+        /* z0 = a0 * b0 */
+        err = _sp_mul_32(a, b, z0);
+    }
+    if (err == MP_OKAY) {
+        /* z1 = (a0 + a1) * (b0 + b1) */
+        err = _sp_mul_32(a1, b1, z1);
+    }
+    if (err == MP_OKAY) {
+        /* r = (z2 << 64) + (z1 - z0 - z2) << 32) + z0 */
+        /* r = z0 */
+        /* r += (z1 - z0 - z2) << 32 */
+        z1->dp[64] = ca & cb;
+        l = 0;
+        if (ca) {
             h = 0;
             for (i = 0; i < 32; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 32]);
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 32] = l;
+                SP_ASM_ADDC(l, h, z1->dp[i + 32]);
+                SP_ASM_ADDC(l, h, b1->dp[i]);
+                z1->dp[i + 32] = l;
                 l = h;
                 h = 0;
             }
-            for (; i < 65; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 32] = l;
-                l = h;
-                h = 0;
-            }
-            /* r += z2 << 64  */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 33; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 64]);
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 64] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 64; i++) {
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 64] = l;
-                l = h;
-                h = 0;
-            }
-            r->used = 128;
-            sp_clamp(r);
         }
-
-        FREE_SP_INT_ARRAY(z, NULL);
-        FREE_SP_INT_ARRAY(t, NULL);
-        return err;
+        z1->dp[64] += l;
+        l = 0;
+        if (cb) {
+            h = 0;
+            for (i = 0; i < 32; i++) {
+                SP_ASM_ADDC(l, h, z1->dp[i + 32]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                z1->dp[i + 32] = l;
+                l = h;
+                h = 0;
+            }
+        }
+        z1->dp[64] += l;
+        /* z1 = z1 - z0 - z1 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 64; i++) {
+            l += z1->dp[i];
+            SP_ASM_SUBC(l, h, z0->dp[i]);
+            SP_ASM_SUBC(l, h, z2->dp[i]);
+            z1->dp[i] = l;
+            l = h;
+            h = 0;
+        }
+        z1->dp[i] += l;
+        /* r += z1 << 16 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 32; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 32]);
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 32] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 65; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 32] = l;
+            l = h;
+            h = 0;
+        }
+        /* r += z2 << 64  */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 33; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 64]);
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 64] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 64; i++) {
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 64] = l;
+            l = h;
+            h = 0;
+        }
+        r->used = 128;
+        sp_clamp(r);
     }
+
+    FREE_SP_INT_ARRAY(z, NULL);
+    FREE_SP_INT_ARRAY(t, NULL);
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 128 */
 
     #if SP_INT_DIGITS >= 192
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_96(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        sp_int_digit l;
-        sp_int_digit h;
-        sp_int* a1;
-        sp_int* b1;
-        sp_int* z0;
-        sp_int* z1;
-        sp_int* z2;
-        sp_int_digit ca;
-        sp_int_digit cb;
-        DECL_SP_INT_ARRAY(t, 48, 2);
-        DECL_SP_INT_ARRAY(z, 97, 2);
+/* Multiply a by b and store in r: r = a * b
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_96(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    sp_int_digit l;
+    sp_int_digit h;
+    sp_int* a1;
+    sp_int* b1;
+    sp_int* z0;
+    sp_int* z1;
+    sp_int* z2;
+    sp_int_digit ca;
+    sp_int_digit cb;
+    DECL_SP_INT_ARRAY(t, 48, 2);
+    DECL_SP_INT_ARRAY(z, 97, 2);
 
-        ALLOC_SP_INT_ARRAY(t, 48, 2, err, NULL);
-        ALLOC_SP_INT_ARRAY(z, 97, 2, err, NULL);
-        if (err == MP_OKAY) {
-            a1 = t[0];
-            b1 = t[1];
-            z1 = z[0];
-            z2 = z[1];
-            z0 = r;
+    ALLOC_SP_INT_ARRAY(t, 48, 2, err, NULL);
+    ALLOC_SP_INT_ARRAY(z, 97, 2, err, NULL);
+    if (err == MP_OKAY) {
+        a1 = t[0];
+        b1 = t[1];
+        z1 = z[0];
+        z2 = z[1];
+        z0 = r;
 
-            XMEMCPY(a1->dp, &a->dp[48], sizeof(sp_int_digit) * 48);
-            a1->used = 48;
-            XMEMCPY(b1->dp, &b->dp[48], sizeof(sp_int_digit) * 48);
-            b1->used = 48;
+        XMEMCPY(a1->dp, &a->dp[48], sizeof(sp_int_digit) * 48);
+        a1->used = 48;
+        XMEMCPY(b1->dp, &b->dp[48], sizeof(sp_int_digit) * 48);
+        b1->used = 48;
 
-            /* z2 = a1 * b1 */
-            err = _sp_mul_48(a1, b1, z2);
-        }
-        if (err == MP_OKAY) {
-            l = a1->dp[0];
-            h = 0;
-            SP_ASM_ADDC(l, h, a->dp[0]);
-            a1->dp[0] = l;
+        /* z2 = a1 * b1 */
+        err = _sp_mul_48(a1, b1, z2);
+    }
+    if (err == MP_OKAY) {
+        l = a1->dp[0];
+        h = 0;
+        SP_ASM_ADDC(l, h, a->dp[0]);
+        a1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 48; i++) {
+            SP_ASM_ADDC(l, h, a1->dp[i]);
+            SP_ASM_ADDC(l, h, a->dp[i]);
+            a1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 48; i++) {
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a->dp[i]);
-                a1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            ca = l;
-            /* b01 = b0 + b1 */
-            l = b1->dp[0];
-            h = 0;
-            SP_ASM_ADDC(l, h, b->dp[0]);
-            b1->dp[0] = l;
+        }
+        ca = l;
+        /* b01 = b0 + b1 */
+        l = b1->dp[0];
+        h = 0;
+        SP_ASM_ADDC(l, h, b->dp[0]);
+        b1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 48; i++) {
+            SP_ASM_ADDC(l, h, b1->dp[i]);
+            SP_ASM_ADDC(l, h, b->dp[i]);
+            b1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 48; i++) {
-                SP_ASM_ADDC(l, h, b1->dp[i]);
-                SP_ASM_ADDC(l, h, b->dp[i]);
-                b1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            cb = l;
+        }
+        cb = l;
 
-            /* z0 = a0 * b0 */
-            err = _sp_mul_48(a, b, z0);
-        }
-        if (err == MP_OKAY) {
-            /* z1 = (a0 + a1) * (b0 + b1) */
-            err = _sp_mul_48(a1, b1, z1);
-        }
-        if (err == MP_OKAY) {
-            /* r = (z2 << 96) + (z1 - z0 - z2) << 48) + z0 */
-            /* r = z0 */
-            /* r += (z1 - z0 - z2) << 48 */
-            z1->dp[96] = ca & cb;
-            l = 0;
-            if (ca) {
-                h = 0;
-                for (i = 0; i < 48; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 48]);
-                    SP_ASM_ADDC(l, h, b1->dp[i]);
-                    z1->dp[i + 48] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[96] += l;
-            l = 0;
-            if (cb) {
-                h = 0;
-                for (i = 0; i < 48; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 48]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    z1->dp[i + 48] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[96] += l;
-            /* z1 = z1 - z0 - z1 */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 96; i++) {
-                l += z1->dp[i];
-                SP_ASM_SUBC(l, h, z0->dp[i]);
-                SP_ASM_SUBC(l, h, z2->dp[i]);
-                z1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            z1->dp[i] += l;
-            /* r += z1 << 16 */
-            l = 0;
+        /* z0 = a0 * b0 */
+        err = _sp_mul_48(a, b, z0);
+    }
+    if (err == MP_OKAY) {
+        /* z1 = (a0 + a1) * (b0 + b1) */
+        err = _sp_mul_48(a1, b1, z1);
+    }
+    if (err == MP_OKAY) {
+        /* r = (z2 << 96) + (z1 - z0 - z2) << 48) + z0 */
+        /* r = z0 */
+        /* r += (z1 - z0 - z2) << 48 */
+        z1->dp[96] = ca & cb;
+        l = 0;
+        if (ca) {
             h = 0;
             for (i = 0; i < 48; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 48]);
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 48] = l;
+                SP_ASM_ADDC(l, h, z1->dp[i + 48]);
+                SP_ASM_ADDC(l, h, b1->dp[i]);
+                z1->dp[i + 48] = l;
                 l = h;
                 h = 0;
             }
-            for (; i < 97; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 48] = l;
-                l = h;
-                h = 0;
-            }
-            /* r += z2 << 96  */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 49; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 96]);
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 96] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 96; i++) {
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 96] = l;
-                l = h;
-                h = 0;
-            }
-            r->used = 192;
-            sp_clamp(r);
         }
-
-        FREE_SP_INT_ARRAY(z, NULL);
-        FREE_SP_INT_ARRAY(t, NULL);
-        return err;
+        z1->dp[96] += l;
+        l = 0;
+        if (cb) {
+            h = 0;
+            for (i = 0; i < 48; i++) {
+                SP_ASM_ADDC(l, h, z1->dp[i + 48]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                z1->dp[i + 48] = l;
+                l = h;
+                h = 0;
+            }
+        }
+        z1->dp[96] += l;
+        /* z1 = z1 - z0 - z1 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 96; i++) {
+            l += z1->dp[i];
+            SP_ASM_SUBC(l, h, z0->dp[i]);
+            SP_ASM_SUBC(l, h, z2->dp[i]);
+            z1->dp[i] = l;
+            l = h;
+            h = 0;
+        }
+        z1->dp[i] += l;
+        /* r += z1 << 16 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 48; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 48]);
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 48] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 97; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 48] = l;
+            l = h;
+            h = 0;
+        }
+        /* r += z2 << 96  */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 49; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 96]);
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 96] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 96; i++) {
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 96] = l;
+            l = h;
+            h = 0;
+        }
+        r->used = 192;
+        sp_clamp(r);
     }
+
+    FREE_SP_INT_ARRAY(z, NULL);
+    FREE_SP_INT_ARRAY(t, NULL);
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 192 */
 
 #endif /* SQR_MUL_ASM && WOLFSSL_SP_INT_LARGE_COMBA */
@@ -9637,12 +9637,15 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
     sp_int* u = NULL;
     sp_int* v = NULL;
     sp_int* b = NULL;
-    sp_int* c = NULL;
     sp_int* mm;
     int evenMod = 0;
-    DECL_SP_INT_ARRAY(t, (m == NULL) ? 1 : (m->used + 1), 4);
+    DECL_SP_INT_ARRAY(t, (m == NULL) ? 1 : (m->used + 1), 3);
+    DECL_SP_INT(c, (m == NULL) ? 1 : (2 * m->used + 1));
 
     if ((a == NULL) || (m == NULL) || (r == NULL) || (r == m)) {
+        err = MP_VAL;
+    }
+    if ((err == MP_OKAY) && (m->used * 2 > r->size)) {
         err = MP_VAL;
     }
 
@@ -9652,12 +9655,13 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
     }
 #endif
 
-    ALLOC_SP_INT_ARRAY(t, m->used + 1, 4, err, NULL);
+    ALLOC_SP_INT_ARRAY(t, m->used + 1, 3, err, NULL);
+    ALLOC_SP_INT(c, 2 * m->used + 1, err, NULL);
     if (err == MP_OKAY) {
         u = t[0];
         v = t[1];
         b = t[2];
-        c = t[3];
+        /* c allocated separately and larger for even mod case. */
 
         if (_sp_cmp_abs(a, m) != MP_LT) {
             err = sp_mod(a, m, r);
@@ -9690,9 +9694,9 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
     }
     else {
         sp_init_size(u, m->used + 1);
-        sp_init_size(v, 2*m->used + 1);
+        sp_init_size(v, m->used + 1);
         sp_init_size(b, m->used + 1);
-        sp_init_size(c, m->used + 1);
+        sp_init_size(c, 2 * m->used + 1);
 
         if (sp_iseven(m)) {
             /* a^-1 mod m = m + ((1 - m*(m^-1 % a)) / a) */
@@ -9752,13 +9756,13 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
              *    a^-1 mod m = m + ((1 - m*c) / a)
              * => a^-1 mod m = m - ((m*c - 1) / a)
              */
-            err = sp_mul(c, m, v);
+            err = sp_mul(c, m, c);
             if (err == MP_OKAY) {
-                _sp_sub_d(v, 1, v);
-                err = sp_div(v, a, v, NULL);
+                _sp_sub_d(c, 1, c);
+                err = sp_div(c, a, c, NULL);
             }
             if (err == MP_OKAY) {
-                sp_sub(m, v, r);
+                sp_sub(m, c, r);
             }
         }
         else {
@@ -9766,6 +9770,7 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
         }
     }
 
+    FREE_SP_INT(c, NULL);
     FREE_SP_INT_ARRAY(t, NULL);
     return err;
 }
@@ -11205,215 +11210,215 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
 
 #if !defined(WOLFSSL_SP_MATH) || !defined(WOLFSSL_SP_SMALL)
 #ifdef SQR_MUL_ASM
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr(sp_int* a, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        int j;
-        int k;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_digit* t = NULL;
-    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
-        defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
-        sp_int_digit t[a->used * 2];
-    #else
-        sp_int_digit t[SP_INT_DIGITS];
-    #endif
+/* Square a and store in r. r = a * a
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr(sp_int* a, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    int j;
+    int k;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_digit* t = NULL;
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
+    defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
+    sp_int_digit t[a->used * 2];
+#else
+    sp_int_digit t[SP_INT_DIGITS];
+#endif
 
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used * 2), NULL,
-                                    DYNAMIC_TYPE_BIGINT);
-         if (t == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-        if ((err == MP_OKAY) && (a->used <= 1)) {
-            sp_int_digit l, h;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used * 2), NULL,
+        DYNAMIC_TYPE_BIGINT);
+    if (t == NULL) {
+        err = MP_MEM;
+    }
+#endif
+    if ((err == MP_OKAY) && (a->used <= 1)) {
+        sp_int_digit l, h;
 
-            h = 0;
-            l = 0;
-            SP_ASM_SQR(h, l, a->dp[0]);
-            t[0] = h;
-            t[1] = l;
-        }
-        else if (err == MP_OKAY) {
-            sp_int_digit l, h, o;
+        h = 0;
+        l = 0;
+        SP_ASM_SQR(h, l, a->dp[0]);
+        t[0] = h;
+        t[1] = l;
+    }
+    else if (err == MP_OKAY) {
+        sp_int_digit l, h, o;
 
-            h = 0;
-            l = 0;
-            SP_ASM_SQR(h, l, a->dp[0]);
-            t[0] = h;
-            h = 0;
-            o = 0;
-            for (k = 1; k < (a->used + 1) / 2; k++) {
-                i = k;
-                j = k - 1;
-                for (; (j >= 0); i++, j--) {
-                    SP_ASM_MUL_ADD2(l, h, o, a->dp[i], a->dp[j]);
-                }
-                t[k * 2 - 1] = l;
-                l = h;
-                h = o;
-                o = 0;
-
-                SP_ASM_SQR_ADD(l, h, o, a->dp[k]);
-                i = k + 1;
-                j = k - 1;
-                for (; (j >= 0); i++, j--) {
-                    SP_ASM_MUL_ADD2(l, h, o, a->dp[i], a->dp[j]);
-                }
-                t[k * 2] = l;
-                l = h;
-                h = o;
-                o = 0;
-            }
-            for (; k < a->used; k++) {
-                i = k;
-                j = k - 1;
-                for (; (i < a->used); i++, j--) {
-                    SP_ASM_MUL_ADD2(l, h, o, a->dp[i], a->dp[j]);
-                }
-                t[k * 2 - 1] = l;
-                l = h;
-                h = o;
-                o = 0;
-
-                SP_ASM_SQR_ADD(l, h, o, a->dp[k]);
-                i = k + 1;
-                j = k - 1;
-                for (; (i < a->used); i++, j--) {
-                    SP_ASM_MUL_ADD2(l, h, o, a->dp[i], a->dp[j]);
-                }
-                t[k * 2] = l;
-                l = h;
-                h = o;
-                o = 0;
+        h = 0;
+        l = 0;
+        SP_ASM_SQR(h, l, a->dp[0]);
+        t[0] = h;
+        h = 0;
+        o = 0;
+        for (k = 1; k < (a->used + 1) / 2; k++) {
+            i = k;
+            j = k - 1;
+            for (; (j >= 0); i++, j--) {
+                SP_ASM_MUL_ADD2(l, h, o, a->dp[i], a->dp[j]);
             }
             t[k * 2 - 1] = l;
-        }
-
-        if (err == MP_OKAY) {
-            r->used = a->used * 2;
-            XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
-            sp_clamp(r);
-        }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (t != NULL) {
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
-    }
-#else /* !SQR_MUL_ASM */
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr(sp_int* a, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        int j;
-        int k;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_digit* t = NULL;
-    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
-        defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
-        sp_int_digit t[a->used * 2];
-    #else
-        sp_int_digit t[SP_INT_DIGITS];
-    #endif
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used * 2), NULL,
-                                    DYNAMIC_TYPE_BIGINT);
-         if (t == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-        if (err == MP_OKAY) {
-            sp_int_word w;
-            sp_int_word l;
-            sp_int_word h;
-        #ifdef SP_WORD_OVERFLOW
-            sp_int_word o;
-        #endif
-
-            w = (sp_int_word)a->dp[0] * a->dp[0];
-            t[0] = (sp_int_digit)w;
-            l = (sp_int_digit)(w >> SP_WORD_SIZE);
-            h = 0;
-        #ifdef SP_WORD_OVERFLOW
+            l = h;
+            h = o;
             o = 0;
-        #endif
-            for (k = 1; k <= (a->used - 1) * 2; k++) {
-                i = k / 2;
-                j = k - i;
-                if (i == j) {
-                    w = (sp_int_word)a->dp[i] * a->dp[j];
-                    l += (sp_int_digit)w;
-                    h += (sp_int_digit)(w >> SP_WORD_SIZE);
-                #ifdef SP_WORD_OVERFLOW
-                    h += (sp_int_digit)(l >> SP_WORD_SIZE);
-                    l &= SP_MASK;
-                    o += (sp_int_digit)(h >> SP_WORD_SIZE);
-                    h &= SP_MASK;
-                #endif
-                }
-                for (++i, --j; (i < a->used) && (j >= 0); i++, j--) {
-                    w = (sp_int_word)a->dp[i] * a->dp[j];
-                    l += (sp_int_digit)w;
-                    h += (sp_int_digit)(w >> SP_WORD_SIZE);
-                #ifdef SP_WORD_OVERFLOW
-                    h += (sp_int_digit)(l >> SP_WORD_SIZE);
-                    l &= SP_MASK;
-                    o += (sp_int_digit)(h >> SP_WORD_SIZE);
-                    h &= SP_MASK;
-                #endif
-                    l += (sp_int_digit)w;
-                    h += (sp_int_digit)(w >> SP_WORD_SIZE);
-                #ifdef SP_WORD_OVERFLOW
-                    h += (sp_int_digit)(l >> SP_WORD_SIZE);
-                    l &= SP_MASK;
-                    o += (sp_int_digit)(h >> SP_WORD_SIZE);
-                    h &= SP_MASK;
-                #endif
-                }
-                t[k] = (sp_int_digit)l;
-                l >>= SP_WORD_SIZE;
-                l += (sp_int_digit)h;
-                h >>= SP_WORD_SIZE;
+
+            SP_ASM_SQR_ADD(l, h, o, a->dp[k]);
+            i = k + 1;
+            j = k - 1;
+            for (; (j >= 0); i++, j--) {
+                SP_ASM_MUL_ADD2(l, h, o, a->dp[i], a->dp[j]);
+            }
+            t[k * 2] = l;
+            l = h;
+            h = o;
+            o = 0;
+        }
+        for (; k < a->used; k++) {
+            i = k;
+            j = k - 1;
+            for (; (i < a->used); i++, j--) {
+                SP_ASM_MUL_ADD2(l, h, o, a->dp[i], a->dp[j]);
+            }
+            t[k * 2 - 1] = l;
+            l = h;
+            h = o;
+            o = 0;
+
+            SP_ASM_SQR_ADD(l, h, o, a->dp[k]);
+            i = k + 1;
+            j = k - 1;
+            for (; (i < a->used); i++, j--) {
+                SP_ASM_MUL_ADD2(l, h, o, a->dp[i], a->dp[j]);
+            }
+            t[k * 2] = l;
+            l = h;
+            h = o;
+            o = 0;
+        }
+        t[k * 2 - 1] = l;
+    }
+
+    if (err == MP_OKAY) {
+        r->used = a->used * 2;
+        XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
+        sp_clamp(r);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+#endif
+    return err;
+}
+#else /* !SQR_MUL_ASM */
+/* Square a and store in r. r = a * a
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr(sp_int* a, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    int j;
+    int k;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_digit* t = NULL;
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
+    defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
+    sp_int_digit t[a->used * 2];
+#else
+    sp_int_digit t[SP_INT_DIGITS];
+#endif
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used * 2), NULL,
+        DYNAMIC_TYPE_BIGINT);
+    if (t == NULL) {
+        err = MP_MEM;
+    }
+#endif
+    if (err == MP_OKAY) {
+        sp_int_word w;
+        sp_int_word l;
+        sp_int_word h;
+    #ifdef SP_WORD_OVERFLOW
+        sp_int_word o;
+    #endif
+
+        w = (sp_int_word)a->dp[0] * a->dp[0];
+        t[0] = (sp_int_digit)w;
+        l = (sp_int_digit)(w >> SP_WORD_SIZE);
+        h = 0;
+    #ifdef SP_WORD_OVERFLOW
+        o = 0;
+    #endif
+        for (k = 1; k <= (a->used - 1) * 2; k++) {
+            i = k / 2;
+            j = k - i;
+            if (i == j) {
+                w = (sp_int_word)a->dp[i] * a->dp[j];
+                l += (sp_int_digit)w;
+                h += (sp_int_digit)(w >> SP_WORD_SIZE);
             #ifdef SP_WORD_OVERFLOW
-                h += o & SP_MASK;
-                o >>= SP_WORD_SIZE;
+                h += (sp_int_digit)(l >> SP_WORD_SIZE);
+                l &= SP_MASK;
+                o += (sp_int_digit)(h >> SP_WORD_SIZE);
+                h &= SP_MASK;
+            #endif
+            }
+            for (++i, --j; (i < a->used) && (j >= 0); i++, j--) {
+                w = (sp_int_word)a->dp[i] * a->dp[j];
+                l += (sp_int_digit)w;
+                h += (sp_int_digit)(w >> SP_WORD_SIZE);
+            #ifdef SP_WORD_OVERFLOW
+                h += (sp_int_digit)(l >> SP_WORD_SIZE);
+                l &= SP_MASK;
+                o += (sp_int_digit)(h >> SP_WORD_SIZE);
+                h &= SP_MASK;
+            #endif
+                l += (sp_int_digit)w;
+                h += (sp_int_digit)(w >> SP_WORD_SIZE);
+            #ifdef SP_WORD_OVERFLOW
+                h += (sp_int_digit)(l >> SP_WORD_SIZE);
+                l &= SP_MASK;
+                o += (sp_int_digit)(h >> SP_WORD_SIZE);
+                h &= SP_MASK;
             #endif
             }
             t[k] = (sp_int_digit)l;
-            r->used = k + 1;
-            XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
-            sp_clamp(r);
+            l >>= SP_WORD_SIZE;
+            l += (sp_int_digit)h;
+            h >>= SP_WORD_SIZE;
+        #ifdef SP_WORD_OVERFLOW
+            h += o & SP_MASK;
+            o >>= SP_WORD_SIZE;
+        #endif
         }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (t != NULL) {
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
+        t[k] = (sp_int_digit)l;
+        r->used = k + 1;
+        XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
+        sp_clamp(r);
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+#endif
+    return err;
+}
 #endif /* SQR_MUL_ASM */
 #endif /* !WOLFSSL_SP_MATH || !WOLFSSL_SP_SMALL */
 
@@ -11421,409 +11426,638 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
 #if !defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC)
 #if SP_WORD_SIZE == 64
 #ifndef SQR_MUL_ASM
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_4(sp_int* a, sp_int* r)
-    {
-        int err = MP_OKAY;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_word* w = NULL;
-    #else
-        sp_int_word w[10];
-    #endif
-        sp_int_digit* da = a->dp;
+/* Square a and store in r. r = a * a
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_4(sp_int* a, sp_int* r)
+{
+    int err = MP_OKAY;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_word* w = NULL;
+#else
+    sp_int_word w[10];
+#endif
+    sp_int_digit* da = a->dp;
 
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         w = (sp_int_word*)XMALLOC(sizeof(sp_int_word) * 10, NULL,
-                                   DYNAMIC_TYPE_BIGINT);
-         if (w == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-
-
-        if (err == MP_OKAY) {
-            w[0] = (sp_int_word)da[0] * da[0];
-            w[1] = (sp_int_word)da[0] * da[1];
-            w[2] = (sp_int_word)da[0] * da[2];
-            w[3] = (sp_int_word)da[1] * da[1];
-            w[4] = (sp_int_word)da[0] * da[3];
-            w[5] = (sp_int_word)da[1] * da[2];
-            w[6] = (sp_int_word)da[1] * da[3];
-            w[7] = (sp_int_word)da[2] * da[2];
-            w[8] = (sp_int_word)da[2] * da[3];
-            w[9] = (sp_int_word)da[3] * da[3];
-
-            r->dp[0] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[1];
-            w[0] += (sp_int_digit)w[1];
-            r->dp[1] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[1] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[1];
-            w[0] += (sp_int_digit)w[1];
-            w[0] += (sp_int_digit)w[2];
-            w[0] += (sp_int_digit)w[2];
-            w[0] += (sp_int_digit)w[3];
-            r->dp[2] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[2] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[2];
-            w[0] += (sp_int_digit)w[2];
-            w[3] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[3];
-            w[0] += (sp_int_digit)w[4];
-            w[0] += (sp_int_digit)w[4];
-            w[0] += (sp_int_digit)w[5];
-            w[0] += (sp_int_digit)w[5];
-            r->dp[3] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[4] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[4];
-            w[0] += (sp_int_digit)w[4];
-            w[5] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[5];
-            w[0] += (sp_int_digit)w[5];
-            w[0] += (sp_int_digit)w[6];
-            w[0] += (sp_int_digit)w[6];
-            w[0] += (sp_int_digit)w[7];
-            r->dp[4] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[6] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[6];
-            w[0] += (sp_int_digit)w[6];
-            w[7] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[7];
-            w[0] += (sp_int_digit)w[8];
-            w[0] += (sp_int_digit)w[8];
-            r->dp[5] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[8] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[8];
-            w[0] += (sp_int_digit)w[8];
-            w[0] += (sp_int_digit)w[9];
-            r->dp[6] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[9] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[9];
-            r->dp[7] = w[0];
-
-            r->used = 8;
-            sp_clamp(r);
-        }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (w != NULL) {
-            XFREE(w, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    w = (sp_int_word*)XMALLOC(sizeof(sp_int_word) * 10, NULL,
+        DYNAMIC_TYPE_BIGINT);
+    if (w == NULL) {
+        err = MP_MEM;
     }
-#else /* SQR_MUL_ASM */
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_4(sp_int* a, sp_int* r)
-    {
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit t[4];
+#endif
 
-        SP_ASM_SQR(h, l, a->dp[0]);
-        t[0] = h;
-        h = 0;
-        SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
-        t[1] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
-        t[2] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
-        t[3] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
-        r->dp[4] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[2], a->dp[3]);
-        r->dp[5] = l;
-        l = h;
-        h = o;
-        SP_ASM_SQR_ADD_NO(l, h, a->dp[3]);
-        r->dp[6] = l;
-        r->dp[7] = h;
-        XMEMCPY(r->dp, t, 4 * sizeof(sp_int_digit));
+
+    if (err == MP_OKAY) {
+        w[0] = (sp_int_word)da[0] * da[0];
+        w[1] = (sp_int_word)da[0] * da[1];
+        w[2] = (sp_int_word)da[0] * da[2];
+        w[3] = (sp_int_word)da[1] * da[1];
+        w[4] = (sp_int_word)da[0] * da[3];
+        w[5] = (sp_int_word)da[1] * da[2];
+        w[6] = (sp_int_word)da[1] * da[3];
+        w[7] = (sp_int_word)da[2] * da[2];
+        w[8] = (sp_int_word)da[2] * da[3];
+        w[9] = (sp_int_word)da[3] * da[3];
+
+        r->dp[0] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[1];
+        w[0] += (sp_int_digit)w[1];
+        r->dp[1] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[1] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[1];
+        w[0] += (sp_int_digit)w[1];
+        w[0] += (sp_int_digit)w[2];
+        w[0] += (sp_int_digit)w[2];
+        w[0] += (sp_int_digit)w[3];
+        r->dp[2] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[2] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[2];
+        w[0] += (sp_int_digit)w[2];
+        w[3] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[3];
+        w[0] += (sp_int_digit)w[4];
+        w[0] += (sp_int_digit)w[4];
+        w[0] += (sp_int_digit)w[5];
+        w[0] += (sp_int_digit)w[5];
+        r->dp[3] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[4] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[4];
+        w[0] += (sp_int_digit)w[4];
+        w[5] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[5];
+        w[0] += (sp_int_digit)w[5];
+        w[0] += (sp_int_digit)w[6];
+        w[0] += (sp_int_digit)w[6];
+        w[0] += (sp_int_digit)w[7];
+        r->dp[4] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[6] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[6];
+        w[0] += (sp_int_digit)w[6];
+        w[7] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[7];
+        w[0] += (sp_int_digit)w[8];
+        w[0] += (sp_int_digit)w[8];
+        r->dp[5] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[8] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[8];
+        w[0] += (sp_int_digit)w[8];
+        w[0] += (sp_int_digit)w[9];
+        r->dp[6] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[9] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[9];
+        r->dp[7] = w[0];
+
         r->used = 8;
         sp_clamp(r);
-
-        return MP_OKAY;
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (w != NULL) {
+        XFREE(w, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+#endif
+    return err;
+}
+#else /* SQR_MUL_ASM */
+/* Square a and store in r. r = a * a
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_4(sp_int* a, sp_int* r)
+{
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit t[4];
+
+#if defined(WOLFSSL_SP_ARM_THUMB) && SP_WORD_SIZE == 32
+    to = 0;
+#endif
+
+    SP_ASM_SQR(h, l, a->dp[0]);
+    t[0] = h;
+    h = 0;
+    SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
+    t[1] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
+    t[2] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
+    t[3] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
+    r->dp[4] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[2], a->dp[3]);
+    r->dp[5] = l;
+    l = h;
+    h = o;
+    SP_ASM_SQR_ADD_NO(l, h, a->dp[3]);
+    r->dp[6] = l;
+    r->dp[7] = h;
+    XMEMCPY(r->dp, t, 4 * sizeof(sp_int_digit));
+    r->used = 8;
+    sp_clamp(r);
+
+    return MP_OKAY;
+}
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 64 */
 #if SP_WORD_SIZE == 64
 #ifdef SQR_MUL_ASM
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_6(sp_int* a, sp_int* r)
-    {
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit tl = 0;
-        sp_int_digit th = 0;
-        sp_int_digit to;
-        sp_int_digit t[6];
+/* Square a and store in r. r = a * a
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_6(sp_int* a, sp_int* r)
+{
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit tl = 0;
+    sp_int_digit th = 0;
+    sp_int_digit to;
+    sp_int_digit t[6];
 
-        SP_ASM_SQR(h, l, a->dp[0]);
-        t[0] = h;
-        h = 0;
-        SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
-        t[1] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
-        t[2] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
-        t[3] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[4]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
-        t[4] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[5]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[4]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[3]);
-        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        t[5] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[5]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[2], a->dp[4]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[3]);
-        r->dp[6] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[2], a->dp[5]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[3], a->dp[4]);
-        r->dp[7] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[3], a->dp[5]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[4]);
-        r->dp[8] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[4], a->dp[5]);
-        r->dp[9] = l;
-        l = h;
-        h = o;
-        SP_ASM_SQR_ADD_NO(l, h, a->dp[5]);
-        r->dp[10] = l;
-        r->dp[11] = h;
-        XMEMCPY(r->dp, t, 6 * sizeof(sp_int_digit));
-        r->used = 12;
-        sp_clamp(r);
+#if defined(WOLFSSL_SP_ARM_THUMB) && SP_WORD_SIZE == 32
+    to = 0;
+#endif
 
-        return MP_OKAY;
-    }
+    SP_ASM_SQR(h, l, a->dp[0]);
+    t[0] = h;
+    h = 0;
+    SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
+    t[1] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
+    t[2] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
+    t[3] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[4]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
+    t[4] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[5]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[4]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[3]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[5] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[5]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[2], a->dp[4]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[3]);
+    r->dp[6] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[2], a->dp[5]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[3], a->dp[4]);
+    r->dp[7] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[3], a->dp[5]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[4]);
+    r->dp[8] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[4], a->dp[5]);
+    r->dp[9] = l;
+    l = h;
+    h = o;
+    SP_ASM_SQR_ADD_NO(l, h, a->dp[5]);
+    r->dp[10] = l;
+    r->dp[11] = h;
+    XMEMCPY(r->dp, t, 6 * sizeof(sp_int_digit));
+    r->used = 12;
+    sp_clamp(r);
+
+    return MP_OKAY;
+}
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 64 */
 #if SP_WORD_SIZE == 32
 #ifdef SQR_MUL_ASM
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_8(sp_int* a, sp_int* r)
-    {
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit tl = 0;
-        sp_int_digit th = 0;
-        sp_int_digit to;
-        sp_int_digit t[8];
+/* Square a and store in r. r = a * a
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_8(sp_int* a, sp_int* r)
+{
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit tl = 0;
+    sp_int_digit th = 0;
+    sp_int_digit to;
+    sp_int_digit t[8];
 
-    #if defined(WOLFSSL_SP_ARM_THUMB) && SP_WORD_SIZE == 32
-        to = 0;
-    #endif
+#if defined(WOLFSSL_SP_ARM_THUMB) && SP_WORD_SIZE == 32
+    to = 0;
+#endif
 
-        SP_ASM_SQR(h, l, a->dp[0]);
-        t[0] = h;
-        h = 0;
-        SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
-        t[1] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
-        t[2] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
-        t[3] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[4]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
-        t[4] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[5]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[4]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[3]);
-        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        t[5] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[6]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[5]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[4]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[3]);
-        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        t[6] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[7]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[6]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[5]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[4]);
-        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        t[7] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[1], a->dp[7]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[6]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[5]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[4]);
-        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        r->dp[8] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[2], a->dp[7]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[6]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[5]);
-        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        r->dp[9] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[3], a->dp[7]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[4], a->dp[6]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[5]);
-        r->dp[10] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[4], a->dp[7]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[5], a->dp[6]);
-        r->dp[11] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[5], a->dp[7]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[6]);
-        r->dp[12] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[6], a->dp[7]);
-        r->dp[13] = l;
-        l = h;
-        h = o;
-        SP_ASM_SQR_ADD_NO(l, h, a->dp[7]);
-        r->dp[14] = l;
-        r->dp[15] = h;
-        XMEMCPY(r->dp, t, 8 * sizeof(sp_int_digit));
-        r->used = 16;
-        sp_clamp(r);
+    SP_ASM_SQR(h, l, a->dp[0]);
+    t[0] = h;
+    h = 0;
+    SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
+    t[1] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
+    t[2] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
+    t[3] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[4]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
+    t[4] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[5]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[4]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[3]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[5] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[6]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[5]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[4]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[3]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[6] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[7]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[6]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[5]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[4]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[7] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[1], a->dp[7]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[6]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[5]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[4]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    r->dp[8] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[2], a->dp[7]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[6]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[5]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    r->dp[9] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[3], a->dp[7]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[4], a->dp[6]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[5]);
+    r->dp[10] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[4], a->dp[7]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[5], a->dp[6]);
+    r->dp[11] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[5], a->dp[7]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[6]);
+    r->dp[12] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[6], a->dp[7]);
+    r->dp[13] = l;
+    l = h;
+    h = o;
+    SP_ASM_SQR_ADD_NO(l, h, a->dp[7]);
+    r->dp[14] = l;
+    r->dp[15] = h;
+    XMEMCPY(r->dp, t, 8 * sizeof(sp_int_digit));
+    r->used = 16;
+    sp_clamp(r);
 
-        return MP_OKAY;
-    }
+    return MP_OKAY;
+}
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 32 */
 #if SP_WORD_SIZE == 32
 #ifdef SQR_MUL_ASM
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_12(sp_int* a, sp_int* r)
-    {
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit tl = 0;
-        sp_int_digit th = 0;
-        sp_int_digit to;
-        sp_int_digit t[12];
+/* Square a and store in r. r = a * a
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_12(sp_int* a, sp_int* r)
+{
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit tl = 0;
+    sp_int_digit th = 0;
+    sp_int_digit to;
+    sp_int_digit t[12];
 
-    #if defined(WOLFSSL_SP_ARM_THUMB) && SP_WORD_SIZE == 32
-        to = 0;
-    #endif
+#if defined(WOLFSSL_SP_ARM_THUMB) && SP_WORD_SIZE == 32
+    to = 0;
+#endif
 
+    SP_ASM_SQR(h, l, a->dp[0]);
+    t[0] = h;
+    h = 0;
+    SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
+    t[1] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
+    t[2] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
+    t[3] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[4]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
+    t[4] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[5]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[4]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[3]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[5] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[6]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[5]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[4]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[3]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[6] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[7]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[6]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[5]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[4]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[7] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[8]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[7]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[6]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[5]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[4]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[8] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[9]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[8]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[7]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[6]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[5]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[9] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[10]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[9]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[8]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[7]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[6]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[5]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[10] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[11]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[10]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[9]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[8]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[7]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[6]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[11] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[1], a->dp[11]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[10]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[9]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[8]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[7]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[6]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    r->dp[12] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[2], a->dp[11]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[10]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[9]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[8]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[7]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    r->dp[13] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[3], a->dp[11]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[10]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[9]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[8]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[7]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    r->dp[14] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[4], a->dp[11]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[10]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[9]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[8]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    r->dp[15] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[5], a->dp[11]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[10]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[9]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[8]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    r->dp[16] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[6], a->dp[11]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[10]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[9]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    r->dp[17] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[7], a->dp[11]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[8], a->dp[10]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[9]);
+    r->dp[18] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[8], a->dp[11]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[9], a->dp[10]);
+    r->dp[19] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[9], a->dp[11]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[10]);
+    r->dp[20] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[10], a->dp[11]);
+    r->dp[21] = l;
+    l = h;
+    h = o;
+    SP_ASM_SQR_ADD_NO(l, h, a->dp[11]);
+    r->dp[22] = l;
+    r->dp[23] = h;
+    XMEMCPY(r->dp, t, 12 * sizeof(sp_int_digit));
+    r->used = 24;
+    sp_clamp(r);
+
+    return MP_OKAY;
+}
+#endif /* SQR_MUL_ASM */
+#endif /* SP_WORD_SIZE == 32 */
+#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
+
+#if defined(SQR_MUL_ASM) && defined(WOLFSSL_SP_INT_LARGE_COMBA)
+    #if SP_INT_DIGITS >= 32
+/* Square a and store in r. r = a * a
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_16(sp_int* a, sp_int* r)
+{
+    int err = MP_OKAY;
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit tl = 0;
+    sp_int_digit th = 0;
+    sp_int_digit to;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_digit* t = NULL;
+#else
+    sp_int_digit t[16];
+#endif
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+     t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * 16, NULL,
+         DYNAMIC_TYPE_BIGINT);
+     if (t == NULL) {
+         err = MP_MEM;
+     }
+#endif
+    if (err == MP_OKAY) {
         SP_ASM_SQR(h, l, a->dp[0]);
         t[0] = h;
         h = 0;
@@ -11919,47 +12153,61 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[1], a->dp[11]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[11]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[10]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[9]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[8]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[7]);
         SP_ASM_SQR_ADD(l, h, o, a->dp[6]);
         SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        r->dp[12] = l;
+        t[12] = l;
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[2], a->dp[11]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[11]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[10]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[9]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[8]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[7]);
         SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        r->dp[13] = l;
+        t[13] = l;
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[3], a->dp[11]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[11]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[10]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[9]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[8]);
         SP_ASM_SQR_ADD(l, h, o, a->dp[7]);
         SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        r->dp[14] = l;
+        t[14] = l;
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[4], a->dp[11]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[11]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[10]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[9]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[8]);
         SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        r->dp[15] = l;
+        t[15] = l;
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[5], a->dp[11]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[1], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[11]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[10]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[9]);
         SP_ASM_SQR_ADD(l, h, o, a->dp[8]);
@@ -11968,7 +12216,11 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[6], a->dp[11]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[2], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[11]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[10]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[9]);
         SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
@@ -11976,1477 +12228,1238 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[7], a->dp[11]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[8], a->dp[10]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[3], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[10]);
         SP_ASM_SQR_ADD(l, h, o, a->dp[9]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
         r->dp[18] = l;
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[8], a->dp[11]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[9], a->dp[10]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[4], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[10]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
         r->dp[19] = l;
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[9], a->dp[11]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[5], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[11]);
         SP_ASM_SQR_ADD(l, h, o, a->dp[10]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
         r->dp[20] = l;
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[10], a->dp[11]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[6], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[11]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
         r->dp[21] = l;
         l = h;
         h = o;
-        SP_ASM_SQR_ADD_NO(l, h, a->dp[11]);
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[7], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[12]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[11]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
         r->dp[22] = l;
-        r->dp[23] = h;
-        XMEMCPY(r->dp, t, 12 * sizeof(sp_int_digit));
-        r->used = 24;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[8], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[12]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[23] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[9], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[13]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[12]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[24] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[10], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[13]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[25] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[11], a->dp[15]);
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[12], a->dp[14]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[13]);
+        r->dp[26] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[12], a->dp[15]);
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[13], a->dp[14]);
+        r->dp[27] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[13], a->dp[15]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[14]);
+        r->dp[28] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[14], a->dp[15]);
+        r->dp[29] = l;
+        l = h;
+        h = o;
+        SP_ASM_SQR_ADD_NO(l, h, a->dp[15]);
+        r->dp[30] = l;
+        r->dp[31] = h;
+        XMEMCPY(r->dp, t, 16 * sizeof(sp_int_digit));
+        r->used = 32;
         sp_clamp(r);
-
-        return MP_OKAY;
     }
-#endif /* SQR_MUL_ASM */
-#endif /* SP_WORD_SIZE == 32 */
-#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
 
-#if defined(SQR_MUL_ASM) && defined(WOLFSSL_SP_INT_LARGE_COMBA)
-    #if SP_INT_DIGITS >= 32
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_16(sp_int* a, sp_int* r)
-    {
-        int err = MP_OKAY;
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit tl = 0;
-        sp_int_digit th = 0;
-        sp_int_digit to;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_digit* t = NULL;
-    #else
-        sp_int_digit t[16];
-    #endif
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * 16, NULL,
-                                    DYNAMIC_TYPE_BIGINT);
-         if (t == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-        if (err == MP_OKAY) {
-            SP_ASM_SQR(h, l, a->dp[0]);
-            t[0] = h;
-            h = 0;
-            SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
-            t[1] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
-            t[2] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
-            t[3] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[4]);
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
-            t[4] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[5]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[4]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[3]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[5] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[6]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[5]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[4]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[3]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[6] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[6]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[5]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[4]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[7] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[6]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[5]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[4]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[8] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[6]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[5]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[9] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[6]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[5]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[10] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[6]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[11] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[7]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[6]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[12] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[7]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[13] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[8]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[7]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[14] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[8]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[15] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[1], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[9]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[8]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[16] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[2], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[9]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[17] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[3], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[10]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[9]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[18] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[4], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[10]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[19] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[5], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[11]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[10]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[20] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[6], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[11]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[21] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[7], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[12]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[11]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[22] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[8], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[12]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[23] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[9], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[13]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[12]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[24] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[10], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[13]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[25] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[11], a->dp[15]);
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[12], a->dp[14]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[13]);
-            r->dp[26] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[12], a->dp[15]);
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[13], a->dp[14]);
-            r->dp[27] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[13], a->dp[15]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[14]);
-            r->dp[28] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[14], a->dp[15]);
-            r->dp[29] = l;
-            l = h;
-            h = o;
-            SP_ASM_SQR_ADD_NO(l, h, a->dp[15]);
-            r->dp[30] = l;
-            r->dp[31] = h;
-            XMEMCPY(r->dp, t, 16 * sizeof(sp_int_digit));
-            r->used = 32;
-            sp_clamp(r);
-        }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (t != NULL) {
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
     }
+#endif
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 32 */
 
     #if SP_INT_DIGITS >= 48
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_24(sp_int* a, sp_int* r)
-    {
-        int err = MP_OKAY;
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit tl = 0;
-        sp_int_digit th = 0;
-        sp_int_digit to;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_digit* t = NULL;
-    #else
-        sp_int_digit t[24];
-    #endif
+/* Square a and store in r. r = a * a
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_24(sp_int* a, sp_int* r)
+{
+    int err = MP_OKAY;
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit tl = 0;
+    sp_int_digit th = 0;
+    sp_int_digit to;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_digit* t = NULL;
+#else
+    sp_int_digit t[24];
+#endif
 
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * 24, NULL,
-                                    DYNAMIC_TYPE_BIGINT);
-         if (t == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-        if (err == MP_OKAY) {
-            SP_ASM_SQR(h, l, a->dp[0]);
-            t[0] = h;
-            h = 0;
-            SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
-            t[1] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
-            t[2] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
-            t[3] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[4]);
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
-            t[4] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[5]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[4]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[3]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[5] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[6]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[5]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[4]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[3]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[6] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[6]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[5]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[4]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[7] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[6]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[5]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[4]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[8] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[6]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[5]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[9] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[6]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[5]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[10] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[6]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[11] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[7]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[6]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[12] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[7]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[13] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[8]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[7]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[14] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[8]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[15] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[9]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[8]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[16] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[9]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[17] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[10]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[9]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[18] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[10]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[19] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[11]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[10]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[20] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[11]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[21] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[12]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[11]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[22] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[12]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[23] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[1], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[13]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[12]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[24] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[2], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[13]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[25] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[3], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[14]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[13]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[26] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[4], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[14]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[27] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[5], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[15]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[14]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[28] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[6], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[15]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[29] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[7], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[16]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[15]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[30] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[8], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[16]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[31] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[9], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[17]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[16]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[32] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[10], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[17]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[33] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[11], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[18]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[17]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[34] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[12], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[18]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[35] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[13], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[19]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[18]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[36] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[14], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[18], a->dp[19]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[37] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[15], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[18], a->dp[20]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[19]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[38] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[16], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[18], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[19], a->dp[20]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[39] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[17], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[18], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[19], a->dp[21]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[20]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[40] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[18], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[19], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[20], a->dp[21]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[41] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[19], a->dp[23]);
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[20], a->dp[22]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[21]);
-            r->dp[42] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[20], a->dp[23]);
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[21], a->dp[22]);
-            r->dp[43] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[21], a->dp[23]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[22]);
-            r->dp[44] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[22], a->dp[23]);
-            r->dp[45] = l;
-            l = h;
-            h = o;
-            SP_ASM_SQR_ADD_NO(l, h, a->dp[23]);
-            r->dp[46] = l;
-            r->dp[47] = h;
-            XMEMCPY(r->dp, t, 24 * sizeof(sp_int_digit));
-            r->used = 48;
-            sp_clamp(r);
-        }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (t != NULL) {
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+     t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * 24, NULL,
+         DYNAMIC_TYPE_BIGINT);
+     if (t == NULL) {
+         err = MP_MEM;
+     }
+#endif
+    if (err == MP_OKAY) {
+        SP_ASM_SQR(h, l, a->dp[0]);
+        t[0] = h;
+        h = 0;
+        SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
+        t[1] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
+        t[2] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
+        t[3] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[4]);
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
+        t[4] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[5]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[4]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[3]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[5] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[6]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[5]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[4]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[3]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[6] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[7]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[6]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[5]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[4]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[7] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[8]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[7]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[6]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[5]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[4]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[8] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[9]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[8]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[7]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[6]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[5]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[9] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[10]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[9]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[8]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[7]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[6]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[5]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[10] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[10]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[9]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[8]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[7]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[6]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[11] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[10]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[9]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[8]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[7]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[6]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[12] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[10]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[9]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[8]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[7]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[13] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[10]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[9]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[8]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[7]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[14] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[10]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[9]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[8]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[15] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[10]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[9]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[8]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[16] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[10]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[9]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[17] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[10]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[9]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[18] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[10]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[19] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[11]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[10]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[20] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[11]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[21] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[12]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[11]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[22] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[12]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[23] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[1], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[13]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[12]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[24] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[2], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[13]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[25] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[3], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[14]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[13]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[26] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[4], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[14]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[27] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[5], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[15]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[14]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[28] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[6], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[15]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[29] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[7], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[16]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[15]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[30] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[8], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[16]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[31] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[9], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[17]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[16]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[32] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[10], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[17]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[33] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[11], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[18]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[17]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[34] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[12], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[18]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[35] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[13], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[19]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[18]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[36] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[14], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[18], a->dp[19]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[37] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[15], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[18], a->dp[20]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[19]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[38] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[16], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[18], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[19], a->dp[20]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[39] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[17], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[18], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[19], a->dp[21]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[20]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[40] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[18], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[19], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[20], a->dp[21]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[41] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[19], a->dp[23]);
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[20], a->dp[22]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[21]);
+        r->dp[42] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[20], a->dp[23]);
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[21], a->dp[22]);
+        r->dp[43] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[21], a->dp[23]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[22]);
+        r->dp[44] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[22], a->dp[23]);
+        r->dp[45] = l;
+        l = h;
+        h = o;
+        SP_ASM_SQR_ADD_NO(l, h, a->dp[23]);
+        r->dp[46] = l;
+        r->dp[47] = h;
+        XMEMCPY(r->dp, t, 24 * sizeof(sp_int_digit));
+        r->used = 48;
+        sp_clamp(r);
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+#endif
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 48 */
 
     #if SP_INT_DIGITS >= 64
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_32(sp_int* a, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        sp_int_digit l;
-        sp_int_digit h;
-        sp_int* z0;
-        sp_int* z1;
-        sp_int* z2;
-        sp_int_digit ca;
-        DECL_SP_INT(a1, 16);
-        DECL_SP_INT_ARRAY(z, 33, 2);
+/* Square a and store in r. r = a * a
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_32(sp_int* a, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    sp_int_digit l;
+    sp_int_digit h;
+    sp_int* z0;
+    sp_int* z1;
+    sp_int* z2;
+    sp_int_digit ca;
+    DECL_SP_INT(a1, 16);
+    DECL_SP_INT_ARRAY(z, 33, 2);
 
-        ALLOC_SP_INT(a1, 16, err, NULL);
-        ALLOC_SP_INT_ARRAY(z, 33, 2, err, NULL);
-        if (err == MP_OKAY) {
-            z1 = z[0];
-            z2 = z[1];
-            z0 = r;
+    ALLOC_SP_INT(a1, 16, err, NULL);
+    ALLOC_SP_INT_ARRAY(z, 33, 2, err, NULL);
+    if (err == MP_OKAY) {
+        z1 = z[0];
+        z2 = z[1];
+        z0 = r;
 
-            XMEMCPY(a1->dp, &a->dp[16], sizeof(sp_int_digit) * 16);
-            a1->used = 16;
+        XMEMCPY(a1->dp, &a->dp[16], sizeof(sp_int_digit) * 16);
+        a1->used = 16;
 
-            /* z2 = a1 ^ 2 */
-            err = _sp_sqr_16(a1, z2);
-        }
-        if (err == MP_OKAY) {
-            l = 0;
-            h = 0;
-            for (i = 0; i < 16; i++) {
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a->dp[i]);
-                a1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            ca = l;
-
-            /* z0 = a0 ^ 2 */
-            err = _sp_sqr_16(a, z0);
-        }
-        if (err == MP_OKAY) {
-            /* z1 = (a0 + a1) ^ 2 */
-            err = _sp_sqr_16(a1, z1);
-        }
-        if (err == MP_OKAY) {
-            /* r = (z2 << 32) + (z1 - z0 - z2) << 16) + z0 */
-            /* r = z0 */
-            /* r += (z1 - z0 - z2) << 16 */
-            z1->dp[32] = ca;
-            l = 0;
-            if (ca) {
-                l = z1->dp[0 + 16];
-                h = 0;
-                SP_ASM_ADDC(l, h, a1->dp[0]);
-                SP_ASM_ADDC(l, h, a1->dp[0]);
-                z1->dp[0 + 16] = l;
-                l = h;
-                h = 0;
-                for (i = 1; i < 16; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 16]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    z1->dp[i + 16] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[32] += l;
-            /* z1 = z1 - z0 - z1 */
-            l = z1->dp[0];
-            h = 0;
-            SP_ASM_SUBC(l, h, z0->dp[0]);
-            SP_ASM_SUBC(l, h, z2->dp[0]);
-            z1->dp[0] = l;
+        /* z2 = a1 ^ 2 */
+        err = _sp_sqr_16(a1, z2);
+    }
+    if (err == MP_OKAY) {
+        l = 0;
+        h = 0;
+        for (i = 0; i < 16; i++) {
+            SP_ASM_ADDC(l, h, a1->dp[i]);
+            SP_ASM_ADDC(l, h, a->dp[i]);
+            a1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 32; i++) {
-                l += z1->dp[i];
-                SP_ASM_SUBC(l, h, z0->dp[i]);
-                SP_ASM_SUBC(l, h, z2->dp[i]);
-                z1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            z1->dp[i] += l;
-            /* r += z1 << 16 */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 16; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 16]);
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 16] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 33; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 16] = l;
-                l = h;
-                h = 0;
-            }
-            /* r += z2 << 32  */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 17; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 32]);
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 32] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 32; i++) {
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 32] = l;
-                l = h;
-                h = 0;
-            }
-            r->used = 64;
-            sp_clamp(r);
         }
+        ca = l;
 
-        FREE_SP_INT_ARRAY(z, NULL);
-        FREE_SP_INT(a1, NULL);
-        return err;
+        /* z0 = a0 ^ 2 */
+        err = _sp_sqr_16(a, z0);
     }
+    if (err == MP_OKAY) {
+        /* z1 = (a0 + a1) ^ 2 */
+        err = _sp_sqr_16(a1, z1);
+    }
+    if (err == MP_OKAY) {
+        /* r = (z2 << 32) + (z1 - z0 - z2) << 16) + z0 */
+        /* r = z0 */
+        /* r += (z1 - z0 - z2) << 16 */
+        z1->dp[32] = ca;
+        l = 0;
+        if (ca) {
+            l = z1->dp[0 + 16];
+            h = 0;
+            SP_ASM_ADDC(l, h, a1->dp[0]);
+            SP_ASM_ADDC(l, h, a1->dp[0]);
+            z1->dp[0 + 16] = l;
+            l = h;
+            h = 0;
+            for (i = 1; i < 16; i++) {
+                SP_ASM_ADDC(l, h, z1->dp[i + 16]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                z1->dp[i + 16] = l;
+                l = h;
+                h = 0;
+            }
+        }
+        z1->dp[32] += l;
+        /* z1 = z1 - z0 - z1 */
+        l = z1->dp[0];
+        h = 0;
+        SP_ASM_SUBC(l, h, z0->dp[0]);
+        SP_ASM_SUBC(l, h, z2->dp[0]);
+        z1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 32; i++) {
+            l += z1->dp[i];
+            SP_ASM_SUBC(l, h, z0->dp[i]);
+            SP_ASM_SUBC(l, h, z2->dp[i]);
+            z1->dp[i] = l;
+            l = h;
+            h = 0;
+        }
+        z1->dp[i] += l;
+        /* r += z1 << 16 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 16; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 16]);
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 16] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 33; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 16] = l;
+            l = h;
+            h = 0;
+        }
+        /* r += z2 << 32  */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 17; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 32]);
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 32] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 32; i++) {
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 32] = l;
+            l = h;
+            h = 0;
+        }
+        r->used = 64;
+        sp_clamp(r);
+    }
+
+    FREE_SP_INT_ARRAY(z, NULL);
+    FREE_SP_INT(a1, NULL);
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 64 */
 
     #if SP_INT_DIGITS >= 96
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_48(sp_int* a, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        sp_int_digit l;
-        sp_int_digit h;
-        sp_int* z0;
-        sp_int* z1;
-        sp_int* z2;
-        sp_int_digit ca;
-        DECL_SP_INT(a1, 24);
-        DECL_SP_INT_ARRAY(z, 49, 2);
+/* Square a and store in r. r = a * a
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_48(sp_int* a, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    sp_int_digit l;
+    sp_int_digit h;
+    sp_int* z0;
+    sp_int* z1;
+    sp_int* z2;
+    sp_int_digit ca;
+    DECL_SP_INT(a1, 24);
+    DECL_SP_INT_ARRAY(z, 49, 2);
 
-        ALLOC_SP_INT(a1, 24, err, NULL);
-        ALLOC_SP_INT_ARRAY(z, 49, 2, err, NULL);
-        if (err == MP_OKAY) {
-            z1 = z[0];
-            z2 = z[1];
-            z0 = r;
+    ALLOC_SP_INT(a1, 24, err, NULL);
+    ALLOC_SP_INT_ARRAY(z, 49, 2, err, NULL);
+    if (err == MP_OKAY) {
+        z1 = z[0];
+        z2 = z[1];
+        z0 = r;
 
-            XMEMCPY(a1->dp, &a->dp[24], sizeof(sp_int_digit) * 24);
-            a1->used = 24;
+        XMEMCPY(a1->dp, &a->dp[24], sizeof(sp_int_digit) * 24);
+        a1->used = 24;
 
-            /* z2 = a1 ^ 2 */
-            err = _sp_sqr_24(a1, z2);
-        }
-        if (err == MP_OKAY) {
-            l = 0;
-            h = 0;
-            for (i = 0; i < 24; i++) {
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a->dp[i]);
-                a1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            ca = l;
-
-            /* z0 = a0 ^ 2 */
-            err = _sp_sqr_24(a, z0);
-        }
-        if (err == MP_OKAY) {
-            /* z1 = (a0 + a1) ^ 2 */
-            err = _sp_sqr_24(a1, z1);
-        }
-        if (err == MP_OKAY) {
-            /* r = (z2 << 48) + (z1 - z0 - z2) << 24) + z0 */
-            /* r = z0 */
-            /* r += (z1 - z0 - z2) << 24 */
-            z1->dp[48] = ca;
-            l = 0;
-            if (ca) {
-                l = z1->dp[0 + 24];
-                h = 0;
-                SP_ASM_ADDC(l, h, a1->dp[0]);
-                SP_ASM_ADDC(l, h, a1->dp[0]);
-                z1->dp[0 + 24] = l;
-                l = h;
-                h = 0;
-                for (i = 1; i < 24; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 24]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    z1->dp[i + 24] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[48] += l;
-            /* z1 = z1 - z0 - z1 */
-            l = z1->dp[0];
-            h = 0;
-            SP_ASM_SUBC(l, h, z0->dp[0]);
-            SP_ASM_SUBC(l, h, z2->dp[0]);
-            z1->dp[0] = l;
+        /* z2 = a1 ^ 2 */
+        err = _sp_sqr_24(a1, z2);
+    }
+    if (err == MP_OKAY) {
+        l = 0;
+        h = 0;
+        for (i = 0; i < 24; i++) {
+            SP_ASM_ADDC(l, h, a1->dp[i]);
+            SP_ASM_ADDC(l, h, a->dp[i]);
+            a1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 48; i++) {
-                l += z1->dp[i];
-                SP_ASM_SUBC(l, h, z0->dp[i]);
-                SP_ASM_SUBC(l, h, z2->dp[i]);
-                z1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            z1->dp[i] += l;
-            /* r += z1 << 16 */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 24; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 24]);
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 24] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 49; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 24] = l;
-                l = h;
-                h = 0;
-            }
-            /* r += z2 << 48  */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 25; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 48]);
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 48] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 48; i++) {
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 48] = l;
-                l = h;
-                h = 0;
-            }
-            r->used = 96;
-            sp_clamp(r);
         }
+        ca = l;
 
-        FREE_SP_INT_ARRAY(z, NULL);
-        FREE_SP_INT(a1, NULL);
-        return err;
+        /* z0 = a0 ^ 2 */
+        err = _sp_sqr_24(a, z0);
     }
+    if (err == MP_OKAY) {
+        /* z1 = (a0 + a1) ^ 2 */
+        err = _sp_sqr_24(a1, z1);
+    }
+    if (err == MP_OKAY) {
+        /* r = (z2 << 48) + (z1 - z0 - z2) << 24) + z0 */
+        /* r = z0 */
+        /* r += (z1 - z0 - z2) << 24 */
+        z1->dp[48] = ca;
+        l = 0;
+        if (ca) {
+            l = z1->dp[0 + 24];
+            h = 0;
+            SP_ASM_ADDC(l, h, a1->dp[0]);
+            SP_ASM_ADDC(l, h, a1->dp[0]);
+            z1->dp[0 + 24] = l;
+            l = h;
+            h = 0;
+            for (i = 1; i < 24; i++) {
+                SP_ASM_ADDC(l, h, z1->dp[i + 24]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                z1->dp[i + 24] = l;
+                l = h;
+                h = 0;
+            }
+        }
+        z1->dp[48] += l;
+        /* z1 = z1 - z0 - z1 */
+        l = z1->dp[0];
+        h = 0;
+        SP_ASM_SUBC(l, h, z0->dp[0]);
+        SP_ASM_SUBC(l, h, z2->dp[0]);
+        z1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 48; i++) {
+            l += z1->dp[i];
+            SP_ASM_SUBC(l, h, z0->dp[i]);
+            SP_ASM_SUBC(l, h, z2->dp[i]);
+            z1->dp[i] = l;
+            l = h;
+            h = 0;
+        }
+        z1->dp[i] += l;
+        /* r += z1 << 16 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 24; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 24]);
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 24] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 49; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 24] = l;
+            l = h;
+            h = 0;
+        }
+        /* r += z2 << 48  */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 25; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 48]);
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 48] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 48; i++) {
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 48] = l;
+            l = h;
+            h = 0;
+        }
+        r->used = 96;
+        sp_clamp(r);
+    }
+
+    FREE_SP_INT_ARRAY(z, NULL);
+    FREE_SP_INT(a1, NULL);
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 96 */
 
     #if SP_INT_DIGITS >= 128
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_64(sp_int* a, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        sp_int_digit l;
-        sp_int_digit h;
-        sp_int* z0;
-        sp_int* z1;
-        sp_int* z2;
-        sp_int_digit ca;
-        DECL_SP_INT(a1, 32);
-        DECL_SP_INT_ARRAY(z, 65, 2);
+/* Square a and store in r. r = a * a
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_64(sp_int* a, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    sp_int_digit l;
+    sp_int_digit h;
+    sp_int* z0;
+    sp_int* z1;
+    sp_int* z2;
+    sp_int_digit ca;
+    DECL_SP_INT(a1, 32);
+    DECL_SP_INT_ARRAY(z, 65, 2);
 
-        ALLOC_SP_INT(a1, 32, err, NULL);
-        ALLOC_SP_INT_ARRAY(z, 65, 2, err, NULL);
-        if (err == MP_OKAY) {
-            z1 = z[0];
-            z2 = z[1];
-            z0 = r;
+    ALLOC_SP_INT(a1, 32, err, NULL);
+    ALLOC_SP_INT_ARRAY(z, 65, 2, err, NULL);
+    if (err == MP_OKAY) {
+        z1 = z[0];
+        z2 = z[1];
+        z0 = r;
 
-            XMEMCPY(a1->dp, &a->dp[32], sizeof(sp_int_digit) * 32);
-            a1->used = 32;
+        XMEMCPY(a1->dp, &a->dp[32], sizeof(sp_int_digit) * 32);
+        a1->used = 32;
 
-            /* z2 = a1 ^ 2 */
-            err = _sp_sqr_32(a1, z2);
-        }
-        if (err == MP_OKAY) {
-            l = 0;
-            h = 0;
-            for (i = 0; i < 32; i++) {
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a->dp[i]);
-                a1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            ca = l;
-
-            /* z0 = a0 ^ 2 */
-            err = _sp_sqr_32(a, z0);
-        }
-        if (err == MP_OKAY) {
-            /* z1 = (a0 + a1) ^ 2 */
-            err = _sp_sqr_32(a1, z1);
-        }
-        if (err == MP_OKAY) {
-            /* r = (z2 << 64) + (z1 - z0 - z2) << 32) + z0 */
-            /* r = z0 */
-            /* r += (z1 - z0 - z2) << 32 */
-            z1->dp[64] = ca;
-            l = 0;
-            if (ca) {
-                l = z1->dp[0 + 32];
-                h = 0;
-                SP_ASM_ADDC(l, h, a1->dp[0]);
-                SP_ASM_ADDC(l, h, a1->dp[0]);
-                z1->dp[0 + 32] = l;
-                l = h;
-                h = 0;
-                for (i = 1; i < 32; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 32]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    z1->dp[i + 32] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[64] += l;
-            /* z1 = z1 - z0 - z1 */
-            l = z1->dp[0];
-            h = 0;
-            SP_ASM_SUBC(l, h, z0->dp[0]);
-            SP_ASM_SUBC(l, h, z2->dp[0]);
-            z1->dp[0] = l;
+        /* z2 = a1 ^ 2 */
+        err = _sp_sqr_32(a1, z2);
+    }
+    if (err == MP_OKAY) {
+        l = 0;
+        h = 0;
+        for (i = 0; i < 32; i++) {
+            SP_ASM_ADDC(l, h, a1->dp[i]);
+            SP_ASM_ADDC(l, h, a->dp[i]);
+            a1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 64; i++) {
-                l += z1->dp[i];
-                SP_ASM_SUBC(l, h, z0->dp[i]);
-                SP_ASM_SUBC(l, h, z2->dp[i]);
-                z1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            z1->dp[i] += l;
-            /* r += z1 << 16 */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 32; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 32]);
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 32] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 65; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 32] = l;
-                l = h;
-                h = 0;
-            }
-            /* r += z2 << 64  */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 33; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 64]);
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 64] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 64; i++) {
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 64] = l;
-                l = h;
-                h = 0;
-            }
-            r->used = 128;
-            sp_clamp(r);
         }
+        ca = l;
 
-        FREE_SP_INT_ARRAY(z, NULL);
-        FREE_SP_INT(a1, NULL);
-        return err;
+        /* z0 = a0 ^ 2 */
+        err = _sp_sqr_32(a, z0);
     }
+    if (err == MP_OKAY) {
+        /* z1 = (a0 + a1) ^ 2 */
+        err = _sp_sqr_32(a1, z1);
+    }
+    if (err == MP_OKAY) {
+        /* r = (z2 << 64) + (z1 - z0 - z2) << 32) + z0 */
+        /* r = z0 */
+        /* r += (z1 - z0 - z2) << 32 */
+        z1->dp[64] = ca;
+        l = 0;
+        if (ca) {
+            l = z1->dp[0 + 32];
+            h = 0;
+            SP_ASM_ADDC(l, h, a1->dp[0]);
+            SP_ASM_ADDC(l, h, a1->dp[0]);
+            z1->dp[0 + 32] = l;
+            l = h;
+            h = 0;
+            for (i = 1; i < 32; i++) {
+                SP_ASM_ADDC(l, h, z1->dp[i + 32]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                z1->dp[i + 32] = l;
+                l = h;
+                h = 0;
+            }
+        }
+        z1->dp[64] += l;
+        /* z1 = z1 - z0 - z1 */
+        l = z1->dp[0];
+        h = 0;
+        SP_ASM_SUBC(l, h, z0->dp[0]);
+        SP_ASM_SUBC(l, h, z2->dp[0]);
+        z1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 64; i++) {
+            l += z1->dp[i];
+            SP_ASM_SUBC(l, h, z0->dp[i]);
+            SP_ASM_SUBC(l, h, z2->dp[i]);
+            z1->dp[i] = l;
+            l = h;
+            h = 0;
+        }
+        z1->dp[i] += l;
+        /* r += z1 << 16 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 32; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 32]);
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 32] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 65; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 32] = l;
+            l = h;
+            h = 0;
+        }
+        /* r += z2 << 64  */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 33; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 64]);
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 64] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 64; i++) {
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 64] = l;
+            l = h;
+            h = 0;
+        }
+        r->used = 128;
+        sp_clamp(r);
+    }
+
+    FREE_SP_INT_ARRAY(z, NULL);
+    FREE_SP_INT(a1, NULL);
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 128 */
 
     #if SP_INT_DIGITS >= 192
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_96(sp_int* a, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        sp_int_digit l;
-        sp_int_digit h;
-        sp_int* z0;
-        sp_int* z1;
-        sp_int* z2;
-        sp_int_digit ca;
-        DECL_SP_INT(a1, 48);
-        DECL_SP_INT_ARRAY(z, 97, 2);
+/* Square a and store in r. r = a * a
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_96(sp_int* a, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    sp_int_digit l;
+    sp_int_digit h;
+    sp_int* z0;
+    sp_int* z1;
+    sp_int* z2;
+    sp_int_digit ca;
+    DECL_SP_INT(a1, 48);
+    DECL_SP_INT_ARRAY(z, 97, 2);
 
-        ALLOC_SP_INT(a1, 48, err, NULL);
-        ALLOC_SP_INT_ARRAY(z, 97, 2, err, NULL);
-        if (err == MP_OKAY) {
-            z1 = z[0];
-            z2 = z[1];
-            z0 = r;
+    ALLOC_SP_INT(a1, 48, err, NULL);
+    ALLOC_SP_INT_ARRAY(z, 97, 2, err, NULL);
+    if (err == MP_OKAY) {
+        z1 = z[0];
+        z2 = z[1];
+        z0 = r;
 
-            XMEMCPY(a1->dp, &a->dp[48], sizeof(sp_int_digit) * 48);
-            a1->used = 48;
+        XMEMCPY(a1->dp, &a->dp[48], sizeof(sp_int_digit) * 48);
+        a1->used = 48;
 
-            /* z2 = a1 ^ 2 */
-            err = _sp_sqr_48(a1, z2);
-        }
-        if (err == MP_OKAY) {
-            l = 0;
-            h = 0;
-            for (i = 0; i < 48; i++) {
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a->dp[i]);
-                a1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            ca = l;
-
-            /* z0 = a0 ^ 2 */
-            err = _sp_sqr_48(a, z0);
-        }
-        if (err == MP_OKAY) {
-            /* z1 = (a0 + a1) ^ 2 */
-            err = _sp_sqr_48(a1, z1);
-        }
-        if (err == MP_OKAY) {
-            /* r = (z2 << 96) + (z1 - z0 - z2) << 48) + z0 */
-            /* r = z0 */
-            /* r += (z1 - z0 - z2) << 48 */
-            z1->dp[96] = ca;
-            l = 0;
-            if (ca) {
-                l = z1->dp[0 + 48];
-                h = 0;
-                SP_ASM_ADDC(l, h, a1->dp[0]);
-                SP_ASM_ADDC(l, h, a1->dp[0]);
-                z1->dp[0 + 48] = l;
-                l = h;
-                h = 0;
-                for (i = 1; i < 48; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 48]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    z1->dp[i + 48] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[96] += l;
-            /* z1 = z1 - z0 - z1 */
-            l = z1->dp[0];
-            h = 0;
-            SP_ASM_SUBC(l, h, z0->dp[0]);
-            SP_ASM_SUBC(l, h, z2->dp[0]);
-            z1->dp[0] = l;
+        /* z2 = a1 ^ 2 */
+        err = _sp_sqr_48(a1, z2);
+    }
+    if (err == MP_OKAY) {
+        l = 0;
+        h = 0;
+        for (i = 0; i < 48; i++) {
+            SP_ASM_ADDC(l, h, a1->dp[i]);
+            SP_ASM_ADDC(l, h, a->dp[i]);
+            a1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 96; i++) {
-                l += z1->dp[i];
-                SP_ASM_SUBC(l, h, z0->dp[i]);
-                SP_ASM_SUBC(l, h, z2->dp[i]);
-                z1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            z1->dp[i] += l;
-            /* r += z1 << 16 */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 48; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 48]);
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 48] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 97; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 48] = l;
-                l = h;
-                h = 0;
-            }
-            /* r += z2 << 96  */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 49; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 96]);
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 96] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 96; i++) {
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 96] = l;
-                l = h;
-                h = 0;
-            }
-            r->used = 192;
-            sp_clamp(r);
         }
+        ca = l;
 
-        FREE_SP_INT_ARRAY(z, NULL);
-        FREE_SP_INT(a1, NULL);
-        return err;
+        /* z0 = a0 ^ 2 */
+        err = _sp_sqr_48(a, z0);
     }
+    if (err == MP_OKAY) {
+        /* z1 = (a0 + a1) ^ 2 */
+        err = _sp_sqr_48(a1, z1);
+    }
+    if (err == MP_OKAY) {
+        /* r = (z2 << 96) + (z1 - z0 - z2) << 48) + z0 */
+        /* r = z0 */
+        /* r += (z1 - z0 - z2) << 48 */
+        z1->dp[96] = ca;
+        l = 0;
+        if (ca) {
+            l = z1->dp[0 + 48];
+            h = 0;
+            SP_ASM_ADDC(l, h, a1->dp[0]);
+            SP_ASM_ADDC(l, h, a1->dp[0]);
+            z1->dp[0 + 48] = l;
+            l = h;
+            h = 0;
+            for (i = 1; i < 48; i++) {
+                SP_ASM_ADDC(l, h, z1->dp[i + 48]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                z1->dp[i + 48] = l;
+                l = h;
+                h = 0;
+            }
+        }
+        z1->dp[96] += l;
+        /* z1 = z1 - z0 - z1 */
+        l = z1->dp[0];
+        h = 0;
+        SP_ASM_SUBC(l, h, z0->dp[0]);
+        SP_ASM_SUBC(l, h, z2->dp[0]);
+        z1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 96; i++) {
+            l += z1->dp[i];
+            SP_ASM_SUBC(l, h, z0->dp[i]);
+            SP_ASM_SUBC(l, h, z2->dp[i]);
+            z1->dp[i] = l;
+            l = h;
+            h = 0;
+        }
+        z1->dp[i] += l;
+        /* r += z1 << 16 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 48; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 48]);
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 48] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 97; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 48] = l;
+            l = h;
+            h = 0;
+        }
+        /* r += z2 << 96  */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 49; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 96]);
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 96] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 96; i++) {
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 96] = l;
+            l = h;
+            h = 0;
+        }
+        r->used = 192;
+        sp_clamp(r);
+    }
+
+    FREE_SP_INT_ARRAY(z, NULL);
+    FREE_SP_INT(a1, NULL);
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 192 */
 
 #endif /* SQR_MUL_ASM && WOLFSSL_SP_INT_LARGE_COMBA */
