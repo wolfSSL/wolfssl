@@ -55,7 +55,7 @@ enum {
 
 /* avoid redefinition of structs */
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
-        (HAVE_FIPS_VERSION == 2 || HAVE_FIPS_VERSION == 3))
+    HAVE_FIPS_VERSION >= 2)
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
