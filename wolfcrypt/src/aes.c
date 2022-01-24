@@ -1777,12 +1777,9 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
     word32 r = aes->rounds >> 1;
     const word32* rk = aes->key;
 
-#ifdef DEBUG_WOLFSSL
     if (r > 7 || r == 0) {
-        WOLFSSL_MSG("AesEncrypt encountered improper key, set it up");
         return KEYUSAGE_E;
     }
-#endif
 
 #ifdef WOLFSSL_AESNI
     if (haveAESNI && aes->use_aesni) {
@@ -2135,12 +2132,9 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     word32 r = aes->rounds >> 1;
     const word32* rk = aes->key;
 
-#ifdef DEBUG_WOLFSSL
     if (r > 7 || r == 0) {
-        WOLFSSL_MSG("AesDecrypt encountered improper key, set it up");
         return KEYUSAGE_E;
     }
-#endif
 
 #ifdef WOLFSSL_AESNI
     if (haveAESNI && aes->use_aesni) {
@@ -3922,7 +3916,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
         word32 blocks;
-        int ret;
 
         if (aes == NULL || out == NULL || in == NULL) {
             return BAD_FUNC_ARG;
@@ -3947,9 +3940,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
     #ifdef WOLF_CRYPTO_CB
         if (aes->devId != INVALID_DEVID) {
-            ret = wc_CryptoCb_AesCbcEncrypt(aes, out, in, sz);
-            if (ret != CRYPTOCB_UNAVAILABLE)
-                return ret;
+            int crypto_cb_ret = wc_CryptoCb_AesCbcEncrypt(aes, out, in, sz);
+            if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
+                return crypto_cb_ret;
             /* fall-through when unavailable */
         }
     #endif
@@ -4026,6 +4019,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #endif
 
         while (blocks--) {
+            int ret;
             xorbuf((byte*)aes->reg, in, AES_BLOCK_SIZE);
             ret = wc_AesEncrypt(aes, (byte*)aes->reg, (byte*)aes->reg);
             if (ret != 0)
@@ -4044,7 +4038,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
         word32 blocks;
-        int ret;
 
         if (aes == NULL || out == NULL || in == NULL) {
             return BAD_FUNC_ARG;
@@ -4071,9 +4064,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
     #ifdef WOLF_CRYPTO_CB
         if (aes->devId != INVALID_DEVID) {
-            ret = wc_CryptoCb_AesCbcDecrypt(aes, out, in, sz);
-            if (ret != CRYPTOCB_UNAVAILABLE)
-                return ret;
+            int crypto_cb_ret = wc_CryptoCb_AesCbcDecrypt(aes, out, in, sz);
+            if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
+                return crypto_cb_ret;
             /* fall-through when unavailable */
         }
     #endif
@@ -4133,6 +4126,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #endif
 
         while (blocks--) {
+            int ret;
             XMEMCPY(aes->tmp, in, AES_BLOCK_SIZE);
             ret = wc_AesDecrypt(aes, (byte*)aes->tmp, out);
             if (ret != 0)
@@ -7656,10 +7650,11 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #ifdef WOLF_CRYPTO_CB
     if (aes->devId != INVALID_DEVID) {
-        int ret = wc_CryptoCb_AesGcmEncrypt(aes, out, in, sz, iv, ivSz,
-            authTag, authTagSz, authIn, authInSz);
-        if (ret != CRYPTOCB_UNAVAILABLE)
-            return ret;
+        int crypto_cb_ret =
+            wc_CryptoCb_AesGcmEncrypt(aes, out, in, sz, iv, ivSz, authTag,
+                                      authTagSz, authIn, authInSz);
+        if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
+            return crypto_cb_ret;
         /* fall-through when unavailable */
     }
 #endif
@@ -8189,10 +8184,11 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #ifdef WOLF_CRYPTO_CB
     if (aes->devId != INVALID_DEVID) {
-        int ret = wc_CryptoCb_AesGcmDecrypt(aes, out, in, sz, iv, ivSz,
-            authTag, authTagSz, authIn, authInSz);
-        if (ret != CRYPTOCB_UNAVAILABLE)
-            return ret;
+        int crypto_cb_ret =
+            wc_CryptoCb_AesGcmDecrypt(aes, out, in, sz, iv, ivSz,
+                                      authTag, authTagSz, authIn, authInSz);
+        if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
+            return crypto_cb_ret;
         /* fall-through when unavailable */
     }
 #endif
@@ -10058,10 +10054,11 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
 #ifdef WOLF_CRYPTO_CB
     if (aes->devId != INVALID_DEVID) {
-        ret = wc_CryptoCb_AesCcmEncrypt(aes, out, in, inSz, nonce, nonceSz,
-            authTag, authTagSz, authIn, authInSz);
-        if (ret != CRYPTOCB_UNAVAILABLE)
-            return ret;
+        int crypto_cb_ret =
+            wc_CryptoCb_AesCcmEncrypt(aes, out, in, inSz, nonce, nonceSz,
+                                      authTag, authTagSz, authIn, authInSz);
+        if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
+            return crypto_cb_ret;
         /* fall-through when unavailable */
     }
 #endif
@@ -10184,10 +10181,11 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
 #ifdef WOLF_CRYPTO_CB
     if (aes->devId != INVALID_DEVID) {
-        ret = wc_CryptoCb_AesCcmDecrypt(aes, out, in, inSz, nonce, nonceSz,
+        int crypto_cb_ret =
+            wc_CryptoCb_AesCcmDecrypt(aes, out, in, inSz, nonce, nonceSz,
             authTag, authTagSz, authIn, authInSz);
-        if (ret != CRYPTOCB_UNAVAILABLE)
-            return ret;
+        if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
+            return crypto_cb_ret;
         /* fall-through when unavailable */
     }
 #endif
