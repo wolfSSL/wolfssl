@@ -2124,7 +2124,7 @@ enum KeyStuff {
 
 };
 
-#ifndef NO_OLD_TLS
+#if !defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_TLS_SHA1)
 /* true or false, zero for error */
 static int SetPrefix(byte* sha_input, int idx)
 {
@@ -3251,7 +3251,7 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
     return 0;
 }
 
-#ifndef NO_OLD_TLS
+#if !defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_TLS_SHA1)
 int DeriveKeys(WOLFSSL* ssl)
 {
     int    length = 2 * ssl->specs.hash_size +
@@ -3507,14 +3507,14 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
 
     return ret;
 }
-#endif
+#endif /* #if !NO_OLD_TLS || WOLFSSL_ALLOW_TLS_SHA1 */
 
 
 /* Master wrapper, doesn't use SSL stack space in TLS mode */
 int MakeMasterSecret(WOLFSSL* ssl)
 {
     /* append secret to premaster : premaster | SerSi | CliSi */
-#ifndef NO_OLD_TLS
+#if !defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_TLS_SHA1)
     if (ssl->options.tls) return MakeTlsMasterSecret(ssl);
     return MakeSslMasterSecret(ssl);
 #elif !defined(WOLFSSL_NO_TLS12) && !defined(NO_TLS)

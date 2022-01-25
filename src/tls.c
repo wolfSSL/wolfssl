@@ -148,6 +148,8 @@ int BuildTlsHandshakeHash(WOLFSSL* ssl, byte* hash, word32* hashLen)
     /* for constant timing perform these even if error */
 #ifndef NO_OLD_TLS
     ret |= wc_Md5GetHash(&ssl->hsHashes->hashMd5, hash);
+#endif
+#if !defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_TLS_SHA1)
     ret |= wc_ShaGetHash(&ssl->hsHashes->hashSha, &hash[WC_MD5_DIGEST_SIZE]);
 #endif
 

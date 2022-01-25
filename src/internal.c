@@ -6441,6 +6441,8 @@ int InitHandshakeHashes(WOLFSSL* ssl)
         wc_Md5SetFlags(&ssl->hsHashes->hashMd5, WC_HASH_FLAG_WILLCOPY);
     #endif
 #endif
+#endif
+#if !defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_TLS_SHA1)
 #ifndef NO_SHA
     ret = wc_InitSha_ex(&ssl->hsHashes->hashSha, ssl->heap, ssl->devId);
     if (ret != 0)
@@ -6449,7 +6451,7 @@ int InitHandshakeHashes(WOLFSSL* ssl)
         wc_ShaSetFlags(&ssl->hsHashes->hashSha, WC_HASH_FLAG_WILLCOPY);
     #endif
 #endif
-#endif /* !NO_OLD_TLS */
+#endif /* !NO_OLD_TLS || WOLFSSL_ALLOW_TLS_SHA1 */
 #ifndef NO_SHA256
     ret = wc_InitSha256_ex(&ssl->hsHashes->hashSha256, ssl->heap, ssl->devId);
     if (ret != 0)
@@ -6485,10 +6487,12 @@ void FreeHandshakeHashes(WOLFSSL* ssl)
     #ifndef NO_MD5
         wc_Md5Free(&ssl->hsHashes->hashMd5);
     #endif
+#endif
+#if !defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_TLS_SHA1)
     #ifndef NO_SHA
         wc_ShaFree(&ssl->hsHashes->hashSha);
     #endif
-#endif /* !NO_OLD_TLS */
+#endif /* !NO_OLD_TLS || WOLFSSL_ALLOW_TLS_SHA1 */
     #ifndef NO_SHA256
         wc_Sha256Free(&ssl->hsHashes->hashSha256);
     #endif
@@ -9259,14 +9263,16 @@ int HashRaw(WOLFSSL* ssl, const byte* data, int sz)
     }
 #endif /* WOLFSSL_RENESAS_TSIP_TLS && WOLFSSL_RENESAS_TSIP_VER >= 115 */
 
-#ifndef NO_OLD_TLS
+#if !defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_TLS_SHA1)
     #ifndef NO_SHA
-        wc_ShaUpdate(&ssl->hsHashes->hashSha, data, sz);
+    wc_ShaUpdate(&ssl->hsHashes->hashSha, data, sz);
     #endif
+#endif /* !NO_OLD_TLS  || WOLFSSL_ALLOW_TLS_SHA1 */
+#ifndef NO_OLD_TLS
     #ifndef NO_MD5
-        wc_Md5Update(&ssl->hsHashes->hashMd5, data, sz);
+    wc_Md5Update(&ssl->hsHashes->hashMd5, data, sz);
     #endif
-#endif /* NO_OLD_TLS */
+#endif /* !NO_OLD_TLS */
 
     if (IsAtLeastTLSv1_2(ssl)) {
     #ifndef NO_SHA256
@@ -10517,8 +10523,7 @@ int GetDtlsHandShakeHeader(WOLFSSL* ssl, const byte* input,
 #endif
 
 
-#if !defined(NO_OLD_TLS) || \
-    (defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLS_SHA1))
+#if !defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_TLS_SHA1)
 /* fill with MD5 pad size since biggest required */
 static const byte PAD1[PAD_MD5] =
                               { 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36,
@@ -10536,10 +10541,9 @@ static const byte PAD2[PAD_MD5] =
                                 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c,
                                 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c
                               };
-#endif /* !NO_OLD_TLS || (NO_OLD_TLS && WOLFSSL_ALLOW_TLS_SHA1) */
+#endif
 
 #ifndef NO_OLD_TLS
-
 /* calculate MD5 hash for finished */
 #ifdef WOLFSSL_TI_HASH
 #include <wolfssl/wolfcrypt/hash.h>
@@ -10589,8 +10593,9 @@ static int BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
     return ret;
 }
+#endif /* !NO_OLD_TLS */
 
-
+#if !defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_TLS_SHA1)
 /* calculate SHA hash for finished */
 static int BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 {
@@ -10635,7 +10640,7 @@ static int BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
     return ret;
 }
-#endif
+#endif /* !NO_OLD_TLS || WOLFSSL_ALLOW_TLS_SHA1 */
 
 #ifndef WOLFSSL_NO_TLS12
 
@@ -10655,14 +10660,18 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     (void)hashes;
     (void)sender;
 #endif
-#ifndef NO_OLD_TLS
+
     if (!ssl->options.tls) {
+#ifndef NO_OLD_TLS
         ret = BuildMD5(ssl, hashes, sender);
-        if (ret == 0) {
+        if (ret == 0)
+#endif
+#if !defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_TLS_SHA1)
+        {
             ret = BuildSHA(ssl, hashes, sender);
         }
-    }
 #endif
+    }
 
     return ret;
 }
@@ -17790,7 +17799,6 @@ static int SanityCheckCipherText(WOLFSSL* ssl, word32 encryptSz)
 #define COMPRESS_CONSTANT   13
 
 #ifndef NO_OLD_TLS
-
 static WC_INLINE void Md5Rounds(int rounds, const byte* data, int sz)
 {
     wc_Md5 md5;
@@ -17802,9 +17810,10 @@ static WC_INLINE void Md5Rounds(int rounds, const byte* data, int sz)
         wc_Md5Update(&md5, data, sz);
     wc_Md5Free(&md5); /* in case needed to release resources */
 }
+#endif
 
 
-
+#if !defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_TLS_SHA1)
 /* do a dummy sha round */
 static WC_INLINE void ShaRounds(int rounds, const byte* data, int sz)
 {
@@ -17904,17 +17913,19 @@ static WC_INLINE void DoRounds(int type, int rounds, const byte* data, int sz)
             break;
 
 #ifndef NO_OLD_TLS
-#ifndef NO_MD5
+    #ifndef NO_MD5
         case md5_mac :
             Md5Rounds(rounds, data, sz);
             break;
+    #endif
 #endif
 
-#ifndef NO_SHA
+#if !defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_TLS_SHA1)
+    #ifndef NO_SHA
         case sha_mac :
             ShaRounds(rounds, data, sz);
             break;
-#endif
+    #endif
 #endif
 
 #ifndef NO_SHA256
@@ -27906,11 +27917,14 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         }
                     } else {
                         /* only using sha and md5 for rsa */
-                        #ifndef NO_OLD_TLS
+                        #if !defined(NO_OLD_TLS) || \
+                            defined(WOLFSSL_ALLOW_TLS_SHA1)
                             hashType = WC_HASH_TYPE_SHA;
+                            #ifndef NO_OLD_TLS
                             if (args->sigAlgo == rsa_sa_algo) {
                                 hashType = WC_HASH_TYPE_MD5_SHA;
                             }
+                            #endif
                         #else
                             ERROR_OUT(ALGO_ID_E, exit_dske);
                         #endif
@@ -29791,7 +29805,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
             }
         #endif
 
-    #ifndef NO_OLD_TLS
+    #if !defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_TLS_SHA1)
         #ifndef NO_SHA
             /* old tls default */
             SetDigest(ssl, sha_mac);
@@ -29801,7 +29815,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
             /* new tls default */
             SetDigest(ssl, sha256_mac);
         #endif
-    #endif /* !NO_OLD_TLS */
+    #endif /* !NO_OLD_TLS || WOLFSSL_ALLOW_TLS_SHA1*/
 
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
         #ifdef WC_RSA_PSS
@@ -29826,10 +29840,10 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 args->extraSz = HASH_SIG_SIZE;
                 SetDigest(ssl, ssl->suites->hashAlgo);
             }
-        #ifndef NO_OLD_TLS
+        #if !defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_TLS_SHA1)
             else {
                 /* if old TLS load MD5 and SHA hash as value to sign
-                 * MD5 and SHA must be first two buffers in stucture */
+                 * MD5 and SHA must be first two buffers in structure */
                 XMEMCPY(ssl->buffers.sig.buffer,
                                 (byte*)&ssl->hsHashes->certHashes, FINISHED_SZ);
             }
@@ -31501,11 +31515,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                         } else {
                             /* only using sha and md5 for rsa */
-                        #ifndef NO_OLD_TLS
+                        #if !defined(NO_OLD_TLS) || \
+                            defined(WOLFSSL_ALLOW_TLS_SHA1)
                             hashType = WC_HASH_TYPE_SHA;
+                            #ifndef NO_OLD_TLS
                             if (ssl->suites->sigAlgo == rsa_sa_algo) {
                                 hashType = WC_HASH_TYPE_MD5_SHA;
                             }
+                            #endif
                         #else
                             ERROR_OUT(ALGO_ID_E, exit_sske);
                         #endif
@@ -31724,11 +31741,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             }
                         } else {
                             /* only using sha and md5 for rsa */
-                        #ifndef NO_OLD_TLS
+                        #if !defined(NO_OLD_TLS) || \
+                            defined(WOLFSSL_ALLOW_TLS_SHA1)
                             hashType = WC_HASH_TYPE_SHA;
+                            #ifndef NO_OLD_TLS
                             if (ssl->suites->sigAlgo == rsa_sa_algo) {
                                 hashType = WC_HASH_TYPE_MD5_SHA;
                             }
+                            #endif
                         #else
                             ERROR_OUT(ALGO_ID_E, exit_sske);
                         #endif
@@ -32456,12 +32476,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         /* manually hash input since different format */
 #ifndef NO_OLD_TLS
-#ifndef NO_MD5
+    #ifndef NO_MD5
         wc_Md5Update(&ssl->hsHashes->hashMd5, input + idx, sz);
+    #endif
 #endif
-#ifndef NO_SHA
+#if !defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_TLS_SHA1)
+    #ifndef NO_SHA
         wc_ShaUpdate(&ssl->hsHashes->hashSha, input + idx, sz);
-#endif
+    #endif
 #endif
 #ifndef NO_SHA256
         if (IsAtLeastTLSv1_2(ssl)) {
