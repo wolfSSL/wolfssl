@@ -326,6 +326,12 @@ unsigned long wolfSSL_EVP_CIPHER_CTX_mode(const WOLFSSL_EVP_CIPHER_CTX *ctx)
   return ctx->flags & WOLFSSL_EVP_CIPH_MODE;
 }
 
+unsigned long wolfSSL_EVP_CIPHER_CTX_flags(const WOLFSSL_EVP_CIPHER_CTX *ctx)
+{
+    if (ctx == NULL) return 0;
+    return ctx->flags;
+}
+
 int  wolfSSL_EVP_EncryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {

@@ -748,6 +748,9 @@ enum
     NID_sha512 = 674,
     NID_sha512_224 = 1094,
     NID_sha512_256 = 1095,
+    NID_pkcs7_signed = 22,
+    NID_pkcs7_enveloped = 23,
+    NID_pkcs7_signedAndEnveloped = 24,
     NID_pkcs9_unstructuredName = 49,
     NID_pkcs9_contentType = 50, /* 1.2.840.113549.1.9.3 */
     NID_pkcs9_challengePassword = 54,

@@ -606,10 +606,16 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define X509_NAME_entry_count           wolfSSL_X509_NAME_entry_count
-#define X509_NAME_ENTRY_get_object      wolfSSL_X509_NAME_ENTRY_get_object
 #define X509_NAME_get_entry             wolfSSL_X509_NAME_get_entry
+#define X509_NAME_ENTRY_get_object      wolfSSL_X509_NAME_ENTRY_get_object
 #define X509_NAME_ENTRY_get_data        wolfSSL_X509_NAME_ENTRY_get_data
 #define X509_NAME_ENTRY_get_object      wolfSSL_X509_NAME_ENTRY_get_object
+
+#define sk_X509_NAME_ENTRY_new          wolfSSL_sk_X509_NAME_ENTRY_new
+#define sk_X509_NAME_ENTRY_push         wolfSSL_sk_X509_NAME_ENTRY_push
+#define sk_X509_NAME_ENTRY_num          wolfSSL_sk_X509_NAME_ENTRY_num
+#define sk_X509_NAME_ENTRY_value        wolfSSL_sk_X509_NAME_ENTRY_value
+#define sk_X509_NAME_ENTRY_free         wolfSSL_sk_X509_NAME_ENTRY_free
 
 #define X509_V_FLAG_CRL_CHECK     WOLFSSL_CRL_CHECK
 #define X509_V_FLAG_CRL_CHECK_ALL WOLFSSL_CRL_CHECKALL
