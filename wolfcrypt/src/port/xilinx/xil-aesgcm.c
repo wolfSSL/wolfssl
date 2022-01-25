@@ -95,6 +95,7 @@ int  wc_AesGcmEncrypt(Aes* aes, byte* out,
     byte* tmp;
     byte scratch[AES_BLOCK_SIZE];
     byte initalCounter[AES_BLOCK_SIZE];
+    int ret;
 
     if ((in == NULL && sz > 0) || iv == NULL || authTag == NULL ||
             authTagSz > AES_GCM_AUTH_SZ) {
@@ -136,7 +137,9 @@ int  wc_AesGcmEncrypt(Aes* aes, byte* out,
         XMEMCPY(initalCounter, iv, ivSz);
         initalCounter[AES_BLOCK_SIZE - 1] = 1;
         GHASH(aes, authIn, authInSz, out, sz, authTag, authTagSz);
-        wc_AesEncryptDirect(aes, scratch, initalCounter);
+        ret = wc_AesEncryptDirect(aes, scratch, initalCounter);
+        if (ret < 0)
+            return ret;
         xorbuf(authTag, scratch, authTagSz);
     }
 
@@ -154,6 +157,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out,
     byte buf[AES_GCM_AUTH_SZ];
     byte scratch[AES_BLOCK_SIZE];
     byte initalCounter[AES_BLOCK_SIZE];
+    int ret;
 
     if (in == NULL || iv == NULL || authTag == NULL ||
             authTagSz < AES_GCM_AUTH_SZ) {
@@ -172,7 +176,9 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out,
         initalCounter[AES_BLOCK_SIZE - 1] = 1;
         tag = buf;
         GHASH(aes, NULL, 0, in, sz, tag, AES_GCM_AUTH_SZ);
-        wc_AesEncryptDirect(aes, scratch, initalCounter);
+        ret = wc_AesEncryptDirect(aes, scratch, initalCounter);
+        if (ret < 0)
+            return ret;
         xorbuf(tag, scratch, AES_GCM_AUTH_SZ);
     }
     else {
@@ -187,7 +193,9 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out,
     /* account for additional data */
     if (authIn != NULL && authInSz > 0) {
         GHASH(aes, authIn, authInSz, in, sz, tag, AES_GCM_AUTH_SZ);
-        wc_AesEncryptDirect(aes, scratch, initalCounter);
+        ret = wc_AesEncryptDirect(aes, scratch, initalCounter);
+        if (ret < 0)
+            return ret;
         xorbuf(tag, scratch, AES_GCM_AUTH_SZ);
         if (ConstantCompare(authTag, tag, authTagSz) != 0) {
             return AES_GCM_AUTH_E;

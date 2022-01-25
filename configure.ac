@@ -280,13 +280,13 @@ AS_CASE([$ENABLED_FIPS],
     [ready|v5-ready],[
         FIPS_VERSION="v5-ready"
         HAVE_FIPS_VERSION=5
-        HAVE_FIPS_VERSION_MINOR=2
+        HAVE_FIPS_VERSION_MINOR=3
         ENABLED_FIPS="yes"
     ],
     [dev|v5-dev],[
         FIPS_VERSION="v5-dev"
         HAVE_FIPS_VERSION=5
-        HAVE_FIPS_VERSION_MINOR=2
+        HAVE_FIPS_VERSION_MINOR=3
         ENABLED_FIPS="yes"
     ],
     [

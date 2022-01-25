@@ -8914,11 +8914,17 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
 #endif
 
 #ifdef WOLFSSL_AES_128
-        wc_AesSetKeyDirect(enc, ctr128Key, sizeof(ctr128Key),
+        ret = wc_AesSetKeyDirect(enc, ctr128Key, sizeof(ctr128Key),
                            ctrIv, AES_ENCRYPTION);
+        if (ret != 0) {
+            ERROR_OUT(-5947, out);
+        }
         /* Ctr only uses encrypt, even on key setup */
-        wc_AesSetKeyDirect(dec, ctr128Key, sizeof(ctr128Key),
+        ret = wc_AesSetKeyDirect(dec, ctr128Key, sizeof(ctr128Key),
                            ctrIv, AES_ENCRYPTION);
+        if (ret != 0) {
+            ERROR_OUT(-5948, out);
+        }
 
         ret = wc_AesCtrEncrypt(enc, cipher, ctrPlain, sizeof(ctrPlain));
         if (ret != 0) {
@@ -8935,11 +8941,17 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
             ERROR_OUT(-5926, out);
 
         /* let's try with just 9 bytes, non block size test */
-        wc_AesSetKeyDirect(enc, ctr128Key, AES_BLOCK_SIZE,
+        ret = wc_AesSetKeyDirect(enc, ctr128Key, AES_BLOCK_SIZE,
                            ctrIv, AES_ENCRYPTION);
+        if (ret != 0) {
+            ERROR_OUT(-5949, out);
+        }
         /* Ctr only uses encrypt, even on key setup */
-        wc_AesSetKeyDirect(dec, ctr128Key, AES_BLOCK_SIZE,
+        ret = wc_AesSetKeyDirect(dec, ctr128Key, AES_BLOCK_SIZE,
                            ctrIv, AES_ENCRYPTION);
+        if (ret != 0) {
+            ERROR_OUT(-5952, out);
+        }
 
         ret = wc_AesCtrEncrypt(enc, cipher, ctrPlain, sizeof(oddCipher));
         if (ret != 0) {
@@ -8975,11 +8987,17 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
 
 #ifdef WOLFSSL_AES_192
         /* 192 bit key */
-        wc_AesSetKeyDirect(enc, ctr192Key, sizeof(ctr192Key),
+        ret = wc_AesSetKeyDirect(enc, ctr192Key, sizeof(ctr192Key),
                            ctrIv, AES_ENCRYPTION);
+        if (ret != 0) {
+            ERROR_OUT(-5953, out);
+        }
         /* Ctr only uses encrypt, even on key setup */
-        wc_AesSetKeyDirect(dec, ctr192Key, sizeof(ctr192Key),
+        ret = wc_AesSetKeyDirect(dec, ctr192Key, sizeof(ctr192Key),
                            ctrIv, AES_ENCRYPTION);
+        if (ret != 0) {
+            ERROR_OUT(-5954, out);
+        }
 
         XMEMSET(plain, 0, sizeof(plain));
         ret = wc_AesCtrEncrypt(enc, plain, ctr192Cipher, sizeof(ctr192Cipher));
@@ -9000,11 +9018,17 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
 
 #ifdef WOLFSSL_AES_256
         /* 256 bit key */
-        wc_AesSetKeyDirect(enc, ctr256Key, sizeof(ctr256Key),
+        ret = wc_AesSetKeyDirect(enc, ctr256Key, sizeof(ctr256Key),
                            ctrIv, AES_ENCRYPTION);
+        if (ret != 0) {
+            ERROR_OUT(-5955, out);
+        }
         /* Ctr only uses encrypt, even on key setup */
-        wc_AesSetKeyDirect(dec, ctr256Key, sizeof(ctr256Key),
+        ret = wc_AesSetKeyDirect(dec, ctr256Key, sizeof(ctr256Key),
                            ctrIv, AES_ENCRYPTION);
+        if (ret != 0) {
+            ERROR_OUT(-5956, out);
+        }
 
         XMEMSET(plain, 0, sizeof(plain));
         ret = wc_AesCtrEncrypt(enc, plain, ctr256Cipher, sizeof(ctr256Cipher));
@@ -9051,7 +9075,10 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
         ret = wc_AesSetKey(enc, niKey, sizeof(niKey), cipher, AES_ENCRYPTION);
         if (ret != 0)
             ERROR_OUT(-5943, out);
-#ifdef WOLFSSL_LINUXKM
+#if !defined(HAVE_SELFTEST) && \
+    (defined(WOLFSSL_LINUXKM) || \
+     !defined(HAVE_FIPS) || \
+     (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
         if (wc_AesEncryptDirect(enc, cipher, niPlain) != 0)
             ERROR_OUT(-5950, out);
 #else
@@ -9064,7 +9091,10 @@ WOLFSSL_TEST_SUBROUTINE int aes_test(void)
         ret = wc_AesSetKey(dec, niKey, sizeof(niKey), plain, AES_DECRYPTION);
         if (ret != 0)
             ERROR_OUT(-5945, out);
-#ifdef WOLFSSL_LINUXKM
+#if !defined(HAVE_SELFTEST) && \
+    (defined(WOLFSSL_LINUXKM) || \
+     !defined(HAVE_FIPS) || \
+     (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
         if (wc_AesDecryptDirect(dec, plain, niCipher) != 0)
             ERROR_OUT(-5951, out);
 #else

@@ -214,6 +214,9 @@ WOLFSSL_API int wc_AesCtrEncrypt(Aes* aes, byte* out,
     use cases ECB mode is considered to be less secure. Please avoid using ECB
     API’s directly whenever possible
 
+    \return int integer values corresponding to wolfSSL error or success
+    status
+
     \param aes pointer to the AES object used to encrypt data
     \param out pointer to the output buffer in which to store the cipher
     text of the encrypted message
@@ -232,7 +235,7 @@ WOLFSSL_API int wc_AesCtrEncrypt(Aes* aes, byte* out,
     \sa wc_AesDecryptDirect
     \sa wc_AesSetKeyDirect
 */
-WOLFSSL_API void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
+WOLFSSL_API int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
 
 /*!
     \ingroup AES
@@ -245,7 +248,8 @@ WOLFSSL_API void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
     ECB mode is considered to be less secure. Please avoid using ECB API’s
     directly whenever possible
 
-    \return none
+    \return int integer values corresponding to wolfSSL error or success
+    status
 
     \param aes pointer to the AES object used to encrypt data
     \param out pointer to the output buffer in which to store the plain
@@ -266,7 +270,7 @@ WOLFSSL_API void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
     \sa wc_AesEncryptDirect
     \sa wc_AesSetKeyDirect
  */
-WOLFSSL_API void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
+WOLFSSL_API int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
 
 /*!
     \ingroup AES
