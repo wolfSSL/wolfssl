@@ -85,11 +85,6 @@ dist_noinst_SCRIPTS+= scripts/unit.test
 noinst_SCRIPTS+= scripts/unit.test.in
 
 endif
-
-if BUILD_SRTP
-dist_noinst_SCRIPTS+= scripts/openssl_srtp.test
-endif
-
 endif
 
 EXTRA_DIST +=  scripts/testsuite.pcap \
@@ -101,7 +96,8 @@ EXTRA_DIST +=  scripts/testsuite.pcap \
                scripts/sniffer-tls13-hrr.pcap \
                scripts/ping.test \
                scripts/benchmark.test \
-               scripts/memtest.sh
+               scripts/memtest.sh \
+               scripts/openssl_srtp.test
 
 
 # leave openssl.test as extra until non bash works
