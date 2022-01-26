@@ -1,6 +1,6 @@
 /* fe_x25519_128.i
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -17,6 +17,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+ */
+
+/* Generated using (from wolfssl):
+ *   cd ../scripts
+ *   ruby ./x25519/fe_x25519_128_gen.rb > ../wolfssl/wolfcrypt/src/fe_x25519_128.i
  */
 
 void fe_init(void)
@@ -189,9 +194,9 @@ void fe_copy(fe r, const fe a)
 
 /* Constant time, conditional swap of field elements a and b.
  *
- * a  A field element.
- * b  A field element.
- * c  If 1 then swap and if 0 then don't swap.
+ * f  A field element.
+ * g  A field element.
+ * b  If 1 then swap and if 0 then don't swap.
  */
 void fe_cswap(fe f, fe g, int b)
 {
@@ -501,9 +506,9 @@ void fe_neg(fe r, const fe a)
 /* Constant time, conditional move of b into a.
  * a is not changed if the condition is 0.
  *
- * a  A field element.
- * b  A field element.
- * c  If 1 then copy and if 0 then don't copy.
+ * f  A field element.
+ * g  A field element.
+ * b  If 1 then copy and if 0 then don't copy.
  */
 void fe_cmov(fe f, const fe g, int b)
 {
