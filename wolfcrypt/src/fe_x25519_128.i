@@ -193,30 +193,30 @@ void fe_copy(fe r, const fe a)
  * b  A field element.
  * c  If 1 then swap and if 0 then don't swap.
  */
-void fe_cswap(fe a, fe b, int c)
+void fe_cswap(fe f, fe g, int b)
 {
-    sword64 m = c;
+    sword64 m = b;
     sword64 t0, t1, t2, t3, t4;
 
     /* Convert conditional into mask. */
     m = -m;
-    t0 = m & (a[0] ^ b[0]);
-    t1 = m & (a[1] ^ b[1]);
-    t2 = m & (a[2] ^ b[2]);
-    t3 = m & (a[3] ^ b[3]);
-    t4 = m & (a[4] ^ b[4]);
+    t0 = m & (f[0] ^ g[0]);
+    t1 = m & (f[1] ^ g[1]);
+    t2 = m & (f[2] ^ g[2]);
+    t3 = m & (f[3] ^ g[3]);
+    t4 = m & (f[4] ^ g[4]);
 
-    a[0] ^= t0;
-    a[1] ^= t1;
-    a[2] ^= t2;
-    a[3] ^= t3;
-    a[4] ^= t4;
+    f[0] ^= t0;
+    f[1] ^= t1;
+    f[2] ^= t2;
+    f[3] ^= t3;
+    f[4] ^= t4;
 
-    b[0] ^= t0;
-    b[1] ^= t1;
-    b[2] ^= t2;
-    b[3] ^= t3;
-    b[4] ^= t4;
+    g[0] ^= t0;
+    g[1] ^= t1;
+    g[2] ^= t2;
+    g[3] ^= t3;
+    g[4] ^= t4;
 }
 
 /* Subtract b from a into r. (r = a - b)
@@ -505,24 +505,24 @@ void fe_neg(fe r, const fe a)
  * b  A field element.
  * c  If 1 then copy and if 0 then don't copy.
  */
-void fe_cmov(fe a, const fe b, int c)
+void fe_cmov(fe f, const fe g, int b)
 {
-    sword64 m = c;
+    sword64 m = b;
     sword64 t0, t1, t2, t3, t4;
 
     /* Convert conditional into mask. */
     m = -m;
-    t0 = m & (a[0] ^ b[0]);
-    t1 = m & (a[1] ^ b[1]);
-    t2 = m & (a[2] ^ b[2]);
-    t3 = m & (a[3] ^ b[3]);
-    t4 = m & (a[4] ^ b[4]);
+    t0 = m & (f[0] ^ g[0]);
+    t1 = m & (f[1] ^ g[1]);
+    t2 = m & (f[2] ^ g[2]);
+    t3 = m & (f[3] ^ g[3]);
+    t4 = m & (f[4] ^ g[4]);
 
-    a[0] ^= t0;
-    a[1] ^= t1;
-    a[2] ^= t2;
-    a[3] ^= t3;
-    a[4] ^= t4;
+    f[0] ^= t0;
+    f[1] ^= t1;
+    f[2] ^= t2;
+    f[3] ^= t3;
+    f[4] ^= t4;
 }
 
 void fe_pow22523(fe r, const fe a)
