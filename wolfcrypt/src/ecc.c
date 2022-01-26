@@ -197,6 +197,11 @@ ECC Curve Sizes:
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
 #endif
 
+#if defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
+    #include <wolfssl/wolfcrypt/hmac.h>
+#endif
+
 #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     #define GEN_MEM_ERR MP_MEM
 #elif defined(USE_FAST_MATH)
@@ -6383,12 +6388,15 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
          * doing bits2octets(H(m)), when variant macro is used avoid this
          * bits2octets operation */
         if (mp_cmp(z1, order) == MP_GT) {
+            int z1Sz;
+
             mp_sub(z1, order, z1);
-            h1len = mp_unsigned_bin_size(z1);
-            if (h1len < 0 || h1len > WC_MAX_DIGEST_SIZE) {
+            z1Sz = mp_unsigned_bin_size(z1);
+            if (z1Sz < 0 || z1Sz > WC_MAX_DIGEST_SIZE) {
                 ret = BUFFER_E;
             }
             else {
+                h1len = (word32)z1Sz;
                 ret = mp_to_unsigned_bin(z1, h1);
             }
         }
