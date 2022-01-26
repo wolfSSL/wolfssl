@@ -813,7 +813,8 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     char strPort[6];
 #else
 #if !defined(WOLFSSL_USE_POPEN_HOST)
-#if (__GLIBC__ >= 2) && defined(__USE_MISC) && !defined(SINGLE_THREADED)
+#if defined(__GLIBC__) && (__GLIBC__ >= 2) && defined(__USE_MISC) && \
+    !defined(SINGLE_THREADED)
     HOSTENT entry_buf, *entry = NULL;
     char *ghbn_r_buf = NULL;
     int ghbn_r_errno;
@@ -917,7 +918,8 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
         }
     }
 #else
-#if (__GLIBC__ >= 2) && defined(__USE_MISC) && !defined(SINGLE_THREADED)
+#if defined(__GLIBC__) && (__GLIBC__ >= 2) && defined(__USE_MISC) && \
+    !defined(SINGLE_THREADED)
     /* 2048 is a magic number that empirically works.  the header and
      * documentation provide no guidance on appropriate buffer size other than
      * "if buf is too small, the functions will return ERANGE, and the call
@@ -938,7 +940,8 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
         XMEMCPY(&sin->sin_addr.s_addr, entry->h_addr_list[0], entry->h_length);
     }
 
-#if (__GLIBC__ >= 2) && defined(__USE_MISC) && !defined(SINGLE_THREADED)
+#if defined(__GLIBC__) && (__GLIBC__ >= 2) && defined(__USE_MISC) && \
+    !defined(SINGLE_THREADED)
     XFREE(ghbn_r_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
