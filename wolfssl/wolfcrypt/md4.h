@@ -53,9 +53,9 @@ typedef struct Md4 {
 } Md4;
 
 
-WOLFSSL_API void wc_InitMd4(Md4*);
-WOLFSSL_API void wc_Md4Update(Md4*, const byte*, word32);
-WOLFSSL_API void wc_Md4Final(Md4*, byte*);
+WOLFSSL_API void wc_InitMd4(Md4* md4);
+WOLFSSL_API void wc_Md4Update(Md4* md4, const byte* data, word32 len);
+WOLFSSL_API void wc_Md4Final(Md4* md4, byte* hash);
 
 
 #ifdef __cplusplus

@@ -50,11 +50,11 @@
 #define RSA_FLAG_NO_CONSTTIME           (1 << 8)
 
 /* Salt length same as digest length */
-#define RSA_PSS_SALTLEN_DIGEST   -1
+#define RSA_PSS_SALTLEN_DIGEST   (-1)
 /* Old max salt length */
-#define RSA_PSS_SALTLEN_MAX_SIGN -2
+#define RSA_PSS_SALTLEN_MAX_SIGN (-2)
 /* Max salt length */
-#define RSA_PSS_SALTLEN_MAX      -3
+#define RSA_PSS_SALTLEN_MAX      (-3)
 
 typedef struct WOLFSSL_RSA_METHOD {
     int flags;
@@ -103,43 +103,49 @@ typedef WOLFSSL_RSA_METHOD            RSA_METHOD;
 
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSA_new_ex(void* heap, int devId);
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSA_new(void);
-WOLFSSL_API void        wolfSSL_RSA_free(WOLFSSL_RSA*);
+WOLFSSL_API void        wolfSSL_RSA_free(WOLFSSL_RSA* rsa);
 
-WOLFSSL_API int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA*, int bits, WOLFSSL_BIGNUM*,
-                                          void* cb);
+WOLFSSL_API int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits,
+                                            WOLFSSL_BIGNUM* bn, void* cb);
 
-WOLFSSL_API int wolfSSL_RSA_blinding_on(WOLFSSL_RSA*, WOLFSSL_BN_CTX*);
-WOLFSSL_API int wolfSSL_RSA_check_key(const WOLFSSL_RSA*);
+WOLFSSL_API int wolfSSL_RSA_blinding_on(WOLFSSL_RSA* rsa, WOLFSSL_BN_CTX* bn);
+WOLFSSL_API int wolfSSL_RSA_check_key(const WOLFSSL_RSA* rsa);
 WOLFSSL_API int wolfSSL_RSA_public_encrypt(int len, const unsigned char* fr,
-                                       unsigned char* to, WOLFSSL_RSA*, int padding);
+                                       unsigned char* to, WOLFSSL_RSA* rsa,
+                                       int padding);
 WOLFSSL_API int wolfSSL_RSA_private_decrypt(int len, const unsigned char* fr,
-                                       unsigned char* to, WOLFSSL_RSA*, int padding);
+                                       unsigned char* to, WOLFSSL_RSA* rsa,
+                                       int padding);
 WOLFSSL_API int wolfSSL_RSA_private_encrypt(int len, const unsigned char* in,
                             unsigned char* out, WOLFSSL_RSA* rsa, int padding);
 
-WOLFSSL_API int wolfSSL_RSA_size(const WOLFSSL_RSA*);
-WOLFSSL_API int wolfSSL_RSA_bits(const WOLFSSL_RSA*);
+WOLFSSL_API int wolfSSL_RSA_size(const WOLFSSL_RSA* rsa);
+WOLFSSL_API int wolfSSL_RSA_bits(const WOLFSSL_RSA* rsa);
 WOLFSSL_API int wolfSSL_RSA_sign(int type, const unsigned char* m,
                                unsigned int mLen, unsigned char* sigRet,
-                               unsigned int* sigLen, WOLFSSL_RSA*);
+                               unsigned int* sigLen, WOLFSSL_RSA* rsa);
 WOLFSSL_API int wolfSSL_RSA_sign_ex(int type, const unsigned char* m,
                                unsigned int mLen, unsigned char* sigRet,
-                               unsigned int* sigLen, WOLFSSL_RSA*, int);
+                               unsigned int* sigLen, WOLFSSL_RSA* rsa,
+                               int flag);
 WOLFSSL_API int wolfSSL_RSA_sign_generic_padding(int type, const unsigned char* m,
                                unsigned int mLen, unsigned char* sigRet,
-                               unsigned int* sigLen, WOLFSSL_RSA*, int, int);
+                               unsigned int* sigLen, WOLFSSL_RSA* rsa, int flag,
+                               int padding);
 WOLFSSL_API int wolfSSL_RSA_verify(int type, const unsigned char* m,
                                unsigned int mLen, const unsigned char* sig,
-                               unsigned int sigLen, WOLFSSL_RSA*);
+                               unsigned int sigLen, WOLFSSL_RSA* rsa);
 WOLFSSL_API int wolfSSL_RSA_verify_ex(int type, const unsigned char* m,
                                unsigned int mLen, const unsigned char* sig,
                                unsigned int sigLen, WOLFSSL_RSA* rsa,
                                int padding);
 WOLFSSL_API int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
-                                  unsigned char* to, WOLFSSL_RSA*, int padding);
-WOLFSSL_API int wolfSSL_RSA_GenAdd(WOLFSSL_RSA*);
-WOLFSSL_API int wolfSSL_RSA_LoadDer(WOLFSSL_RSA*, const unsigned char*, int sz);
-WOLFSSL_API int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA*, const unsigned char*, int sz, int opt);
+                               unsigned char* to, WOLFSSL_RSA* rsa, int padding);
+WOLFSSL_API int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa);
+WOLFSSL_API int wolfSSL_RSA_LoadDer(WOLFSSL_RSA* rsa,
+                               const unsigned char* derBuf, int derSz);
+WOLFSSL_API int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa,
+                               const unsigned char* derBuf, int derSz, int opt);
 
 WOLFSSL_API WOLFSSL_RSA_METHOD *wolfSSL_RSA_meth_new(const char *name, int flags);
 WOLFSSL_API void wolfSSL_RSA_meth_free(WOLFSSL_RSA_METHOD *meth);

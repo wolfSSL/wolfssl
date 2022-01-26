@@ -49,12 +49,14 @@ typedef struct WOLFSSL_MD5_CTX {
 #endif
 } WOLFSSL_MD5_CTX;
 
-WOLFSSL_API int wolfSSL_MD5_Init(WOLFSSL_MD5_CTX*);
-WOLFSSL_API int wolfSSL_MD5_Update(WOLFSSL_MD5_CTX*, const void*, unsigned long);
-WOLFSSL_API int wolfSSL_MD5_Final(unsigned char*, WOLFSSL_MD5_CTX*);
-WOLFSSL_API int wolfSSL_MD5_Transform(WOLFSSL_MD5_CTX*, const unsigned char*);
+WOLFSSL_API int wolfSSL_MD5_Init(WOLFSSL_MD5_CTX* md5);
+WOLFSSL_API int wolfSSL_MD5_Update(WOLFSSL_MD5_CTX* md5, const void* input,
+                           unsigned long sz);
+WOLFSSL_API int wolfSSL_MD5_Final(unsigned char* output, WOLFSSL_MD5_CTX* md5);
+WOLFSSL_API int wolfSSL_MD5_Transform(WOLFSSL_MD5_CTX* md5, const unsigned char* data);
 
-WOLFSSL_API unsigned char *wolfSSL_MD5(const unsigned char*, size_t, unsigned char*);
+WOLFSSL_API unsigned char *wolfSSL_MD5(const unsigned char* data, size_t len,
+            unsigned char* hash);
 
 typedef WOLFSSL_MD5_CTX MD5_CTX;
 

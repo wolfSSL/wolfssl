@@ -190,7 +190,7 @@ int wc_ed25519_import_private_key(const byte* priv, word32 privSz,
 
 #ifdef HAVE_ED25519_KEY_EXPORT
 WOLFSSL_API
-int wc_ed25519_export_public(ed25519_key*, byte* out, word32* outLen);
+int wc_ed25519_export_public(ed25519_key* key, byte* out, word32* outLen);
 WOLFSSL_API
 int wc_ed25519_export_private_only(ed25519_key* key, byte* out, word32* outLen);
 WOLFSSL_API

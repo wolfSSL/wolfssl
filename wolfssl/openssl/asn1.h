@@ -107,7 +107,7 @@
 
 
 WOLFSSL_API WOLFSSL_ASN1_INTEGER *wolfSSL_BN_to_ASN1_INTEGER(
-    const WOLFSSL_BIGNUM*, WOLFSSL_ASN1_INTEGER*);
+    const WOLFSSL_BIGNUM *bn, WOLFSSL_ASN1_INTEGER *ai);
 
 WOLFSSL_API void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value);
 
@@ -164,6 +164,7 @@ WOLFSSL_API int wolfSSL_ASN1_item_i2d(const void *src, byte **dest,
                                       const WOLFSSL_ASN1_ITEM *tpl);
 
 /* Need function declaration otherwise compiler complains */
+// NOLINTBEGIN(readability-named-parameter)
 #define IMPLEMENT_ASN1_FUNCTIONS(type) \
     type *type##_new(void); \
     type *type##_new(void){ \
@@ -178,6 +179,7 @@ WOLFSSL_API int wolfSSL_ASN1_item_i2d(const void *src, byte **dest,
     { \
         return wolfSSL_ASN1_item_i2d(src, dest, &type##_template_data);\
     }
+// NOLINTEND(readability-named-parameter)
 
 #endif /* OPENSSL_ALL */
 

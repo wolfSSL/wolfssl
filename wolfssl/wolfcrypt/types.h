@@ -506,19 +506,19 @@ decouple library dependencies with standard string, memory and so on.
     #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_SMALL_STACK)
         #define WC_DECLARE_VAR_IS_HEAP_ALLOC
         #define WC_DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
-            VAR_TYPE* VAR_NAME = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * VAR_SIZE, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT)
+            VAR_TYPE* VAR_NAME = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * (VAR_SIZE), (HEAP), DYNAMIC_TYPE_WOLF_BIGINT)
         #define WC_DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
             VAR_TYPE* VAR_NAME[VAR_ITEMS]; \
             int idx##VAR_NAME, inner_idx_##VAR_NAME; \
-            for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
-                VAR_NAME[idx##VAR_NAME] = (VAR_TYPE*)XMALLOC(VAR_SIZE, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
-                if (VAR_NAME[idx##VAR_NAME] == NULL) { \
+            for (idx##VAR_NAME=0; idx##VAR_NAME<(VAR_ITEMS); idx##VAR_NAME++) { \
+                (VAR_NAME)[idx##VAR_NAME] = (VAR_TYPE*)XMALLOC(VAR_SIZE, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
+                if ((VAR_NAME)[idx##VAR_NAME] == NULL) { \
                     for (inner_idx_##VAR_NAME = 0; inner_idx_##VAR_NAME < idx##VAR_NAME; inner_idx_##VAR_NAME++) { \
-                        XFREE(VAR_NAME[inner_idx_##VAR_NAME], HEAP, DYNAMIC_TYPE_WOLF_BIGINT); \
-                        VAR_NAME[inner_idx_##VAR_NAME] = NULL; \
+                        XFREE((VAR_NAME)[inner_idx_##VAR_NAME], (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
+                        (VAR_NAME)[inner_idx_##VAR_NAME] = NULL; \
                     } \
-                    for (inner_idx_##VAR_NAME = idx##VAR_NAME + 1; inner_idx_##VAR_NAME < VAR_ITEMS; inner_idx_##VAR_NAME++) { \
-                        VAR_NAME[inner_idx_##VAR_NAME] = NULL; \
+                    for (inner_idx_##VAR_NAME = idx##VAR_NAME + 1; inner_idx_##VAR_NAME < (VAR_ITEMS); inner_idx_##VAR_NAME++) { \
+                        (VAR_NAME)[inner_idx_##VAR_NAME] = NULL; \
                     } \
                     break; \
                 } \
@@ -526,8 +526,8 @@ decouple library dependencies with standard string, memory and so on.
         #define WC_FREE_VAR(VAR_NAME, HEAP) \
             XFREE(VAR_NAME, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT)
         #define WC_FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP) \
-            for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
-                XFREE(VAR_NAME[idx##VAR_NAME], (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
+            for (idx##VAR_NAME=0; idx##VAR_NAME<(VAR_ITEMS); idx##VAR_NAME++) { \
+                XFREE((VAR_NAME)[idx##VAR_NAME], (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
             }
 
         #define WC_DECLARE_ARRAY_DYNAMIC_DEC(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
@@ -548,22 +548,22 @@ decouple library dependencies with standard string, memory and so on.
             VAR_TYPE* VAR_NAME[VAR_ITEMS]; \
             int idx##VAR_NAME, inner_idx_##VAR_NAME;
         #define WC_DECLARE_ARRAY_DYNAMIC_EXE(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
-            for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
-                VAR_NAME[idx##VAR_NAME] = (VAR_TYPE*)XMALLOC(VAR_SIZE, (HEAP), DYNAMIC_TYPE_TMP_BUFFER); \
-                if (VAR_NAME[idx##VAR_NAME] == NULL) { \
+            for (idx##VAR_NAME=0; idx##VAR_NAME<(VAR_ITEMS); idx##VAR_NAME++) { \
+                (VAR_NAME)[idx##VAR_NAME] = (VAR_TYPE*)XMALLOC(VAR_SIZE, (HEAP), DYNAMIC_TYPE_TMP_BUFFER); \
+                if ((VAR_NAME)[idx##VAR_NAME] == NULL) { \
                     for (inner_idx_##VAR_NAME = 0; inner_idx_##VAR_NAME < idx##VAR_NAME; inner_idx_##VAR_NAME++) { \
-                        XFREE(VAR_NAME[inner_idx_##VAR_NAME], HEAP, DYNAMIC_TYPE_TMP_BUFFER); \
-                        VAR_NAME[inner_idx_##VAR_NAME] = NULL; \
+                        XFREE((VAR_NAME)[inner_idx_##VAR_NAME], HEAP, DYNAMIC_TYPE_TMP_BUFFER); \
+                        (VAR_NAME)[inner_idx_##VAR_NAME] = NULL; \
                     } \
-                    for (inner_idx_##VAR_NAME = idx##VAR_NAME + 1; inner_idx_##VAR_NAME < VAR_ITEMS; inner_idx_##VAR_NAME++) { \
-                        VAR_NAME[inner_idx_##VAR_NAME] = NULL; \
+                    for (inner_idx_##VAR_NAME = idx##VAR_NAME + 1; inner_idx_##VAR_NAME < (VAR_ITEMS); inner_idx_##VAR_NAME++) { \
+                        (VAR_NAME)[inner_idx_##VAR_NAME] = NULL; \
                     } \
                     break; \
                 } \
             }
         #define WC_FREE_ARRAY_DYNAMIC(VAR_NAME, VAR_ITEMS, HEAP) \
-            for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
-                XFREE(VAR_NAME[idx##VAR_NAME], (HEAP), DYNAMIC_TYPE_TMP_BUFFER); \
+            for (idx##VAR_NAME=0; idx##VAR_NAME<(VAR_ITEMS); idx##VAR_NAME++) { \
+                XFREE((VAR_NAME)[idx##VAR_NAME], (HEAP), DYNAMIC_TYPE_TMP_BUFFER); \
             }
     #endif
 
@@ -1073,7 +1073,7 @@ decouple library dependencies with standard string, memory and so on.
     #define CheckCtcSettings() (CTC_SETTINGS == CheckRunTimeSettings())
 
     /* invalid device id */
-    #define INVALID_DEVID    -2
+    #define INVALID_DEVID    (-2)
 
 
     /* AESNI requires alignment and ARMASM gains some performance from it
@@ -1332,6 +1332,15 @@ decouple library dependencies with standard string, memory and so on.
     #else
         #define PRIVATE_KEY_LOCK() do{}while(0)
         #define PRIVATE_KEY_UNLOCK() do{}while(0)
+    #endif
+
+
+    #ifdef _MSC_VER
+        /* disable buggy MSC warning (incompatible with clang-tidy
+         * readability-avoid-const-params-in-decls)
+         * "warning C4028: formal parameter x different from declaration"
+         */
+        #pragma warning(disable: 4028)
     #endif
 
 

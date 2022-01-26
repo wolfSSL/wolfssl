@@ -83,12 +83,12 @@
 #endif /* WOLFSSL_STATIC_MEMORY */
 
 /* Public get/set functions */
-WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb,
-                                      wolfSSL_Free_cb,
-                                      wolfSSL_Realloc_cb);
-WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb*,
-                                      wolfSSL_Free_cb*,
-                                      wolfSSL_Realloc_cb*);
+WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb mf,
+                                      wolfSSL_Free_cb ff,
+                                      wolfSSL_Realloc_cb rf);
+WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
+                                      wolfSSL_Free_cb* ff,
+                                      wolfSSL_Realloc_cb* rf);
 
 #ifdef WOLFSSL_STATIC_MEMORY
     #define WOLFSSL_STATIC_TIMEOUT 1

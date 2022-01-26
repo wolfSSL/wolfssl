@@ -262,7 +262,7 @@
         typedef void*         THREAD_RETURN;
         typedef pthread_t     THREAD_TYPE;
         #define WOLFSSL_THREAD
-        #define INFINITE -1
+        #define INFINITE (-1)
         #define WAIT_OBJECT_0 0L
     #elif defined(WOLFSSL_MDK_ARM)|| defined(WOLFSSL_KEIL_TCP_NET) || defined(FREESCALE_MQX)
         typedef unsigned int  THREAD_RETURN;
@@ -546,7 +546,7 @@ typedef struct func_args {
     #define printf dc_log_printf
 #endif
 
-void wait_tcp_ready(func_args*);
+void wait_tcp_ready(func_args* args);
 
 #ifdef WOLFSSL_ZEPHYR
 typedef void THREAD_FUNC(void*, void*, void*);
@@ -554,8 +554,8 @@ typedef void THREAD_FUNC(void*, void*, void*);
 typedef THREAD_RETURN WOLFSSL_THREAD THREAD_FUNC(void*);
 #endif
 
-void start_thread(THREAD_FUNC, func_args*, THREAD_TYPE*);
-void join_thread(THREAD_TYPE);
+void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread);
+void join_thread(THREAD_TYPE thread);
 
 /* wolfSSL */
 #ifndef TEST_IPV6
@@ -872,7 +872,7 @@ static WC_INLINE int mygetopt_long(int argc, char** argv, const char* optstring,
                     c = i->value;
                     myoptind++;
                     if (longindex)
-                        *longindex = (int)((i - longopts) / sizeof *i);
+                        *longindex = (int)((size_t)(i - longopts) / sizeof i[0]);
                     if (i->takes_arg) {
                         if (myoptind < argc) {
                             if (i->takes_arg == 1 || argv[myoptind][0] != '-') {
@@ -895,7 +895,7 @@ static WC_INLINE int mygetopt_long(int argc, char** argv, const char* optstring,
         myoptind++;
     }
 
-    c  = *next++;
+    c  = (int)(unsigned char)*next++;
     /* The C++ strchr can return a different value */
     cp = (char*)strchr(optstring, c);
 

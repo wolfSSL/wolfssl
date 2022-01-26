@@ -54,10 +54,10 @@ typedef struct Md2 {
 } Md2;
 
 
-WOLFSSL_API void wc_InitMd2(Md2*);
-WOLFSSL_API void wc_Md2Update(Md2*, const byte*, word32);
-WOLFSSL_API void wc_Md2Final(Md2*, byte*);
-WOLFSSL_API int  wc_Md2Hash(const byte*, word32, byte*);
+WOLFSSL_API void wc_InitMd2(Md2* md2);
+WOLFSSL_API void wc_Md2Update(Md2* md2, const byte* data, word32 len);
+WOLFSSL_API void wc_Md2Final(Md2* md2, byte* hash);
+WOLFSSL_API int  wc_Md2Hash(const byte* data, word32 len, byte* hash);
 
 
 #ifdef __cplusplus

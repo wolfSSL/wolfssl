@@ -298,11 +298,11 @@
 #endif /* WOLFSSL_CRYPT_HW_MUTEX */
 
 /* Mutex functions */
-WOLFSSL_API int wc_InitMutex(wolfSSL_Mutex*);
+WOLFSSL_API int wc_InitMutex(wolfSSL_Mutex* m);
 WOLFSSL_API wolfSSL_Mutex* wc_InitAndAllocMutex(void);
-WOLFSSL_API int wc_FreeMutex(wolfSSL_Mutex*);
-WOLFSSL_API int wc_LockMutex(wolfSSL_Mutex*);
-WOLFSSL_API int wc_UnLockMutex(wolfSSL_Mutex*);
+WOLFSSL_API int wc_FreeMutex(wolfSSL_Mutex* m);
+WOLFSSL_API int wc_LockMutex(wolfSSL_Mutex* m);
+WOLFSSL_API int wc_UnLockMutex(wolfSSL_Mutex* m);
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
 /* dynamically set which mutex to use. unlock / lock is controlled by flag */
 typedef void (mutex_cb)(int flag, int type, const char* file, int line);
@@ -624,13 +624,13 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         char name[MAX_FILENAME_SZ];
     } ReadDirCtx;
 
-    #define WC_READDIR_NOFILE -1
+    #define WC_READDIR_NOFILE (-1)
 
     WOLFSSL_API int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name);
     WOLFSSL_API int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name);
     WOLFSSL_API void wc_ReadDirClose(ReadDirCtx* ctx);
 #endif /* !NO_WOLFSSL_DIR */
-    #define WC_ISFILEEXIST_NOFILE -1
+    #define WC_ISFILEEXIST_NOFILE (-1)
 
     WOLFSSL_API int wc_FileExists(const char* fname);
 

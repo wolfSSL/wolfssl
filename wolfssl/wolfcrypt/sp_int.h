@@ -639,9 +639,9 @@ typedef struct sp_ecc_ctx {
 #define sp_clamp(a)                                               \
     do {                                                          \
         int ii;                                                   \
-        for (ii = a->used - 1; ii >= 0 && a->dp[ii] == 0; ii--) { \
+        for (ii = (a)->used - 1; ii >= 0 && (a)->dp[ii] == 0; ii--) { \
         }                                                         \
-        a->used = ii + 1;                                         \
+        (a)->used = ii + 1;                                       \
     } while (0)
 
 /* Check the compiled and linked math implementation are the same.
@@ -691,21 +691,21 @@ typedef struct sp_ecc_ctx {
 /** Result of comparison is they are equal. */
 #define MP_EQ    0
 /** Result of comparison is that the first number is less than second. */
-#define MP_LT    -1
+#define MP_LT    (-1)
 
 /* ERROR VALUES */
 /** Error value on success. */
 #define MP_OKAY          0
 /** Error value when dynamic memory allocation fails. */
-#define MP_MEM          -2
+#define MP_MEM          (-2)
 /** Error value when value passed is not able to be used. */
-#define MP_VAL          -3
+#define MP_VAL          (-3)
 /** Error value when non-blocking operation is returning after partial
  * completion.
  */
-#define FP_WOULDBLOCK   -4
+#define FP_WOULDBLOCK   (-4)
 /* Unused error. Defined for backward compatability. */
-#define MP_NOT_INF      -5
+#define MP_NOT_INF      (-5)
 /* Unused error. Defined for backward compatability. */
 #define MP_RANGE        MP_NOT_INF
 
@@ -817,7 +817,7 @@ MP_API int sp_div_d(sp_int* a, sp_int_digit d, sp_int* r, sp_int_digit* rem);
 #endif
 #if defined(WOLFSSL_SP_MATH_ALL) || (defined(HAVE_ECC) && \
     defined(HAVE_COMP_KEY))
-MP_API int sp_mod_d(sp_int* a, const sp_int_digit d, sp_int_digit* r);
+MP_API int sp_mod_d(sp_int* a, sp_int_digit d, sp_int_digit* r);
 #endif
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
 MP_API int sp_div_2_mod_ct (sp_int* a, sp_int* b, sp_int* c);
@@ -910,7 +910,7 @@ WOLFSSL_API word32 CheckRunTimeFastMath(void);
 #define mp_mul_2(a, r)                      sp_mul_2d(a, 1, r)
 #define mp_div_3(a, r, rem)                 sp_div_d(a, 3, r, rem)
 #define mp_rshb(A,x)                        sp_rshb(A,x,A)
-#define mp_is_bit_set(a,b)                  sp_is_bit_set(a,(unsigned int)b)
+#define mp_is_bit_set(a,b)                  sp_is_bit_set(a,(unsigned int)(b))
 #define mp_montgomery_reduce                sp_mont_red
 #define mp_montgomery_setup                 sp_mont_setup
 #define mp_montgomery_calc_normalization    sp_mont_norm

@@ -52,7 +52,7 @@ WOLFSSL_API unsigned long wolfSSLeay(void);
 WOLFSSL_API unsigned long wolfSSL_OpenSSL_version_num(void);
 
 #ifdef OPENSSL_EXTRA
-WOLFSSL_API void wolfSSL_OPENSSL_free(void*);
+WOLFSSL_API void wolfSSL_OPENSSL_free(void* p);
 WOLFSSL_API void *wolfSSL_OPENSSL_malloc(size_t a);
 WOLFSSL_API int wolfSSL_OPENSSL_hexchar2int(unsigned char c);
 WOLFSSL_API unsigned char *wolfSSL_OPENSSL_hexstr2buf(const char *str, long *len);
