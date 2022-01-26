@@ -172,7 +172,7 @@ int wc_ed448_import_private_key(const byte* priv, word32 privSz,
 
 #ifdef HAVE_ED448_KEY_EXPORT
 WOLFSSL_API
-int wc_ed448_export_public(ed448_key*, byte* out, word32* outLen);
+int wc_ed448_export_public(ed448_key* key, byte* out, word32* outLen);
 WOLFSSL_API
 int wc_ed448_export_private_only(ed448_key* key, byte* out, word32* outLen);
 WOLFSSL_API

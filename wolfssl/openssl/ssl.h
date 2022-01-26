@@ -288,8 +288,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_connect                     wolfSSL_connect
 #define SSL_clear                       wolfSSL_clear
 #define SSL_state                       wolfSSL_state
-#define SSL_read_early_data(ssl, d, dLen, len)   wolfSSL_read_early_data(ssl, d, (int)dLen, (int *)len)
-#define SSL_write_early_data(ssl, d, dLen, len)  wolfSSL_write_early_data(ssl, d, (int)dLen, (int *)len)
+#define SSL_read_early_data(ssl, d, dLen, len)   wolfSSL_read_early_data(ssl, d, (int)(dLen), (int *)(len))
+#define SSL_write_early_data(ssl, d, dLen, len)  wolfSSL_write_early_data(ssl, d, (int)(dLen), (int *)(len))
 
 #define SSL_write                       wolfSSL_write
 #define SSL_read                        wolfSSL_read
@@ -878,7 +878,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTX_set_default_passwd_cb   wolfSSL_CTX_set_default_passwd_cb
 
 #define SSL_CTX_set_timeout(ctx, to)    \
-                                 wolfSSL_CTX_set_timeout(ctx, (unsigned int) to)
+                                 wolfSSL_CTX_set_timeout(ctx, (unsigned int)(to))
 #define SSL_CTX_set_info_callback       wolfSSL_CTX_set_info_callback
 #define SSL_CTX_set_alpn_protos         wolfSSL_CTX_set_alpn_protos
 
@@ -1089,7 +1089,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_get_srtp_profiles                wolfSSL_get_srtp_profiles
 
 #ifndef NO_WOLFSSL_STUB
-#define SSL_CTX_set_current_time_cb(ssl, cb) ({ (void)ssl; (void)cb; })
+#define SSL_CTX_set_current_time_cb(ssl, cb) ({ (void)(ssl); (void)(cb); })
 #endif
 
 #define SSL_CTX_use_certificate         wolfSSL_CTX_use_certificate
@@ -1426,7 +1426,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
  * PEM_read_bio_X509 is called and the return error is lost.
  * The error that needs to be detected is: SSL_NO_PEM_HEADER.
  */
-#define ERR_GET_FUNC(l) (int)((((unsigned long)l) >> 12L) & 0xfffL)
+#define ERR_GET_FUNC(l) (int)((((unsigned long)(l)) >> 12L) & 0xfffL)
 
 #define PEM_F_PEM_DEF_CALLBACK  100
 

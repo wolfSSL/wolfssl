@@ -599,7 +599,7 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
  * @return  Unused bits byte in BIT_STRING.
  */
 #define GetASNItem_UnusedBits(dataASN)                                 \
-    (*(dataASN.data.ref.data - 1))
+    (*((dataASN).data.ref.data - 1))
 
 /* Set the data items at indices start to end inclusive to not be encoded.
  *
@@ -610,8 +610,8 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
 #define SetASNItem_NoOut(dataASN, start, end)                          \
     do {                                                               \
         int ii;                                                        \
-        for (ii = start; ii <= end; ii++) {                            \
-            dataASN[ii].noOut = 1;                                     \
+        for (ii = (start); ii <= (end); ii++) {                        \
+            (dataASN)[ii].noOut = 1;                                   \
         }                                                              \
     }                                                                  \
     while (0)
@@ -625,10 +625,10 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
 #define SetASNItem_NoOutBelow(dataASN, asn, node, dataASNLen)          \
     do {                                                               \
         int ii;                                                        \
-        for (ii = node + 1; ii < (int)(dataASNLen); ii++) {            \
-            if (asn[ii].depth <= asn[node].depth)                      \
+        for (ii = (node) + 1; ii < (int)(dataASNLen); ii++) {          \
+            if ((asn)[ii].depth <= (asn)[node].depth)                  \
                 break;                                                 \
-            dataASN[ii].noOut = 1;                                     \
+            (dataASN)[ii].noOut = 1;                                   \
         }                                                              \
     }                                                                  \
     while (0)
@@ -643,11 +643,11 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
 #define SetASNItem_NoOutNode(dataASN, asn, node, dataASNLen)           \
     do {                                                               \
         int ii;                                                        \
-        dataASN[node].noOut = 1;                                       \
-        for (ii = node + 1; ii < (int)(dataASNLen); ii++) {            \
-            if (asn[ii].depth <= asn[node].depth)                      \
+        (dataASN)[node].noOut = 1;                                     \
+        for (ii = (node) + 1; ii < (int)(dataASNLen); ii++) {          \
+            if ((asn)[ii].depth <= (asn)[node].depth)                  \
                 break;                                                 \
-            dataASN[ii].noOut = 1;                                     \
+            (dataASN)[ii].noOut = 1;                                   \
         }                                                              \
     }                                                                  \
     while (0)
@@ -1797,42 +1797,46 @@ WOLFSSL_LOCAL int GetName(DecodedCert* cert, int nameType, int maxIdx);
 WOLFSSL_ASN_API int wc_BerToDer(const byte* ber, word32 berSz, byte* der,
                                 word32* derSz);
 
-WOLFSSL_ASN_API void FreeAltNames(DNS_entry*, void*);
-WOLFSSL_ASN_API DNS_entry* AltNameNew(void*);
+WOLFSSL_ASN_API void FreeAltNames(DNS_entry* altNames, void* heap);
+WOLFSSL_ASN_API DNS_entry* AltNameNew(void* heap);
 #ifndef IGNORE_NAME_CONSTRAINTS
-    WOLFSSL_ASN_API void FreeNameSubtrees(Base_entry*, void*);
+    WOLFSSL_ASN_API void FreeNameSubtrees(Base_entry* names, void* heap);
 #endif /* IGNORE_NAME_CONSTRAINTS */
-WOLFSSL_ASN_API void InitDecodedCert(DecodedCert*, const byte*, word32, void*);
-WOLFSSL_ASN_API void FreeDecodedCert(DecodedCert*);
-WOLFSSL_ASN_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
+WOLFSSL_ASN_API void InitDecodedCert(DecodedCert* cert, const byte* source,
+                                     word32 inSz, void* heap);
+WOLFSSL_ASN_API void FreeDecodedCert(DecodedCert* cert);
+WOLFSSL_ASN_API int  ParseCert(DecodedCert* cert, int type, int verify,
+                               void* cm);
 
-WOLFSSL_LOCAL int DecodePolicyOID(char *o, word32 oSz,
-                                  const byte *in, word32 inSz);
+WOLFSSL_LOCAL int DecodePolicyOID(char *out, word32 outSz, const byte *in,
+                                  word32 inSz);
 WOLFSSL_LOCAL int EncodePolicyOID(byte *out, word32 *outSz,
                                   const char *in, void* heap);
 WOLFSSL_API int CheckCertSignature(const byte*,word32,void*,void* cm);
 WOLFSSL_LOCAL int CheckCertSignaturePubKey(const byte* cert, word32 certSz,
         void* heap, const byte* pubKey, word32 pubKeySz, int pubKeyOID);
 #ifdef WOLFSSL_CERT_REQ
-WOLFSSL_LOCAL int CheckCSRSignaturePubKey(const byte* cert, word32 certSz, void* heap,
-        const byte* pubKey, word32 pubKeySz, int pubKeyOID);
+WOLFSSL_LOCAL int CheckCSRSignaturePubKey(const byte* cert, word32 certSz,
+        void* heap, const byte* pubKey, word32 pubKeySz, int pubKeyOID);
 #endif /* WOLFSSL_CERT_REQ */
 WOLFSSL_LOCAL int AddSignature(byte* buf, int bodySz, const byte* sig, int sigSz,
                         int sigAlgoType);
-WOLFSSL_LOCAL int ParseCertRelative(DecodedCert*,int type,int verify,void* cm);
-WOLFSSL_LOCAL int DecodeToKey(DecodedCert*, int verify);
+WOLFSSL_LOCAL int ParseCertRelative(DecodedCert* cert, int type, int verify,
+                                    void* cm);
+WOLFSSL_LOCAL int DecodeToKey(DecodedCert* cert, int verify);
 #ifdef WOLFSSL_ASN_TEMPLATE
-WOLFSSL_LOCAL int DecodeCert(DecodedCert*, int verify, int* criticalExt);
+WOLFSSL_LOCAL int DecodeCert(DecodedCert* cert, int verify, int* criticalExt);
 #endif
 WOLFSSL_LOCAL int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate);
 
 WOLFSSL_LOCAL const byte* OidFromId(word32 id, word32 type, word32* oidSz);
-WOLFSSL_LOCAL Signer* MakeSigner(void*);
-WOLFSSL_LOCAL void    FreeSigner(Signer*, void*);
-WOLFSSL_LOCAL void    FreeSignerTable(Signer**, int, void*);
+WOLFSSL_LOCAL Signer* MakeSigner(void* heap);
+WOLFSSL_LOCAL void    FreeSigner(Signer* signer, void* heap);
+WOLFSSL_LOCAL void    FreeSignerTable(Signer** table, int rows, void* heap);
 #ifdef WOLFSSL_TRUST_PEER_CERT
-WOLFSSL_LOCAL void    FreeTrustedPeer(TrustedPeerCert*, void*);
-WOLFSSL_LOCAL void    FreeTrustedPeerTable(TrustedPeerCert**, int, void*);
+WOLFSSL_LOCAL void    FreeTrustedPeer(TrustedPeerCert* tp, void* heap);
+WOLFSSL_LOCAL void    FreeTrustedPeerTable(TrustedPeerCert** table, int rows,
+                                           void* heap);
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
 WOLFSSL_ASN_API int ToTraditional(byte* buffer, word32 length);
@@ -1842,8 +1846,8 @@ WOLFSSL_LOCAL int ToTraditionalInline(const byte* input, word32* inOutIdx,
                                       word32 length);
 WOLFSSL_LOCAL int ToTraditionalInline_ex(const byte* input, word32* inOutIdx,
                                          word32 length, word32* algId);
-WOLFSSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*,int,
-                                   word32* algId);
+WOLFSSL_LOCAL int ToTraditionalEnc(byte* input, word32 sz, const char* password,
+                     int passwordSz, word32* algId);
 WOLFSSL_ASN_API int UnTraditionalEnc(byte* key, word32 keySz, byte* out,
         word32* outSz, const char* password, int passwordSz, int vPKCS,
         int vAlgo, byte* salt, word32 saltSz, int itt, WC_RNG* rng, void* heap);
@@ -1958,7 +1962,8 @@ WOLFSSL_LOCAL int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
 WOLFSSL_API int wc_DhPublicKeyDecode(const byte* input, word32* inOutIdx,
                         DhKey* key, word32 inSz);
 #endif
-WOLFSSL_LOCAL int FlattenAltNames( byte*, word32, const DNS_entry*);
+WOLFSSL_LOCAL int FlattenAltNames(byte* output, word32 outputSz,
+                                  const DNS_entry* names);
 
 WOLFSSL_LOCAL int wc_EncodeName(EncodedName* name, const char* nameStr,
         char nameType, byte type);
@@ -2172,17 +2177,22 @@ struct OcspRequest {
     void*  ssl;
 };
 
-WOLFSSL_LOCAL void InitOcspResponse(OcspResponse*, OcspEntry*, CertStatus*, byte*, word32, void*);
-WOLFSSL_LOCAL void FreeOcspResponse(OcspResponse*);
-WOLFSSL_LOCAL int OcspResponseDecode(OcspResponse*, void*, void* heap, int);
+WOLFSSL_LOCAL void InitOcspResponse(OcspResponse* resp, OcspEntry* single,
+                     CertStatus* status, byte* source, word32 inSz, void* heap);
+WOLFSSL_LOCAL void FreeOcspResponse(OcspResponse* resp);
+WOLFSSL_LOCAL int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap,
+                                     int noVerify);
 
-WOLFSSL_LOCAL int    InitOcspRequest(OcspRequest*, DecodedCert*, byte, void*);
-WOLFSSL_LOCAL void   FreeOcspRequest(OcspRequest*);
-WOLFSSL_LOCAL int    EncodeOcspRequest(OcspRequest*, byte*, word32);
-WOLFSSL_LOCAL word32 EncodeOcspRequestExtensions(OcspRequest*, byte*, word32);
+WOLFSSL_LOCAL int    InitOcspRequest(OcspRequest* req, DecodedCert* cert,
+                                     byte useNonce, void* heap);
+WOLFSSL_LOCAL void   FreeOcspRequest(OcspRequest* req);
+WOLFSSL_LOCAL int    EncodeOcspRequest(OcspRequest* req, byte* output,
+                                       word32 size);
+WOLFSSL_LOCAL word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output,
+                                                 word32 size);
 
 
-WOLFSSL_LOCAL int  CompareOcspReqResp(OcspRequest*, OcspResponse*);
+WOLFSSL_LOCAL int  CompareOcspReqResp(OcspRequest* req, OcspResponse* resp);
 
 
 #endif /* HAVE_OCSP */
@@ -2222,14 +2232,15 @@ struct DecodedCRL {
 #endif
 };
 
-WOLFSSL_LOCAL void InitDecodedCRL(DecodedCRL*, void* heap);
+WOLFSSL_LOCAL void InitDecodedCRL(DecodedCRL* dcrl, void* heap);
 WOLFSSL_LOCAL int VerifyCRL_Signature(SignatureCtx* sigCtx,
                                       const byte* toBeSigned, word32 tbsSz,
                                       const byte* signature, word32 sigSz,
                                       word32 signatureOID, Signer *ca,
                                       void* heap);
-WOLFSSL_LOCAL int  ParseCRL(DecodedCRL*, const byte* buff, word32 sz, void* cm);
-WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL*);
+WOLFSSL_LOCAL int  ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz,
+                            void* cm);
+WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL* dcrl);
 
 
 #endif /* HAVE_CRL */

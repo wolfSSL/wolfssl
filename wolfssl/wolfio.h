@@ -349,7 +349,7 @@
 #else
     typedef int SOCKET_T;
     #ifndef SOCKET_INVALID
-        #define SOCKET_INVALID -1
+        #define SOCKET_INVALID (-1)
     #endif
 #endif
 
@@ -436,13 +436,14 @@ WOLFSSL_API int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     WOLFSSL_API int EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
     #ifdef WOLFSSL_DTLS
-        WOLFSSL_API int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void*);
-        WOLFSSL_API int EmbedSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
-        WOLFSSL_API int EmbedGenerateCookie(WOLFSSL* ssl, unsigned char* buf,
-                                           int sz, void*);
+        WOLFSSL_API int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz,
+                                         void *ctx);
+        WOLFSSL_API int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx);
+        WOLFSSL_API int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz,
+                                            void *ctx);
         #ifdef WOLFSSL_MULTICAST
-            WOLFSSL_API int EmbedReceiveFromMcast(WOLFSSL* ssl,
-                                                  char* buf, int sz, void*);
+            WOLFSSL_API int EmbedReceiveFromMcast(WOLFSSL *ssl, char *buf,
+                                                  int sz, void *ctx);
         #endif /* WOLFSSL_MULTICAST */
     #endif /* WOLFSSL_DTLS */
 #endif /* USE_WOLFSSL_IO */
@@ -454,9 +455,9 @@ WOLFSSL_API int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
         unsigned char** respBuf, unsigned char* httpBuf, int httpBufSz,
         void* heap);
 
-    WOLFSSL_API int EmbedOcspLookup(void*, const char*, int, unsigned char*,
-                                   int, unsigned char**);
-    WOLFSSL_API void EmbedOcspRespFree(void*, unsigned char*);
+    WOLFSSL_API int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
+                        byte* ocspReqBuf, int ocspReqSz, byte** ocspRespBuf);
+    WOLFSSL_API void EmbedOcspRespFree(void* ctx, byte *resp);
 #endif
 
 #ifdef HAVE_CRL_IO
@@ -489,10 +490,10 @@ WOLFSSL_API int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 /* I/O callbacks */
 typedef int (*CallbackIORecv)(WOLFSSL *ssl, char *buf, int sz, void *ctx);
 typedef int (*CallbackIOSend)(WOLFSSL *ssl, char *buf, int sz, void *ctx);
-WOLFSSL_API void wolfSSL_CTX_SetIORecv(WOLFSSL_CTX*, CallbackIORecv);
-WOLFSSL_API void wolfSSL_CTX_SetIOSend(WOLFSSL_CTX*, CallbackIOSend);
-WOLFSSL_API void wolfSSL_SSLSetIORecv(WOLFSSL*, CallbackIORecv);
-WOLFSSL_API void wolfSSL_SSLSetIOSend(WOLFSSL*, CallbackIOSend);
+WOLFSSL_API void wolfSSL_CTX_SetIORecv(WOLFSSL_CTX *ctx, CallbackIORecv CBIORecv);
+WOLFSSL_API void wolfSSL_CTX_SetIOSend(WOLFSSL_CTX *ctx, CallbackIOSend CBIOSend);
+WOLFSSL_API void wolfSSL_SSLSetIORecv(WOLFSSL *ssl, CallbackIORecv CBIORecv);
+WOLFSSL_API void wolfSSL_SSLSetIOSend(WOLFSSL *ssl, CallbackIOSend CBIOSend);
 /* deprecated old name */
 #define wolfSSL_SetIORecv wolfSSL_CTX_SetIORecv
 #define wolfSSL_SetIOSend wolfSSL_CTX_SetIOSend
@@ -694,7 +695,8 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 #ifdef WOLFSSL_DTLS
     typedef int (*CallbackGenCookie)(WOLFSSL* ssl, unsigned char* buf, int sz,
                                      void* ctx);
-    WOLFSSL_API void  wolfSSL_CTX_SetGenCookie(WOLFSSL_CTX*, CallbackGenCookie);
+    WOLFSSL_API void  wolfSSL_CTX_SetGenCookie(WOLFSSL_CTX* ctx,
+                                               CallbackGenCookie cb);
     WOLFSSL_API void  wolfSSL_SetCookieCtx(WOLFSSL* ssl, void *ctx);
     WOLFSSL_API void* wolfSSL_GetCookieCtx(WOLFSSL* ssl);
 

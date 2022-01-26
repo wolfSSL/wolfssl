@@ -62,8 +62,8 @@ WOLFSSL_API int wolfSSL_DES_set_key(WOLFSSL_const_DES_cblock* myDes,
                                                WOLFSSL_DES_key_schedule* key);
 WOLFSSL_API int wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* myDes,
                                                WOLFSSL_DES_key_schedule* key);
-WOLFSSL_API void wolfSSL_DES_set_key_unchecked(WOLFSSL_const_DES_cblock*,
-                                             WOLFSSL_DES_key_schedule*);
+WOLFSSL_API void wolfSSL_DES_set_key_unchecked(WOLFSSL_const_DES_cblock* myDes,
+                                               WOLFSSL_DES_key_schedule* key);
 WOLFSSL_API int  wolfSSL_DES_key_sched(WOLFSSL_const_DES_cblock* key,
                                      WOLFSSL_DES_key_schedule* schedule);
 WOLFSSL_API void wolfSSL_DES_cbc_encrypt(const unsigned char* input,
@@ -81,10 +81,10 @@ WOLFSSL_API void wolfSSL_DES_ncbc_encrypt(const unsigned char* input,
                       WOLFSSL_DES_key_schedule* schedule,
                       WOLFSSL_DES_cblock* ivec, int enc);
 
-WOLFSSL_API void wolfSSL_DES_set_odd_parity(WOLFSSL_DES_cblock*);
-WOLFSSL_API void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock*, WOLFSSL_DES_cblock*,
-                                       WOLFSSL_DES_key_schedule*, int);
-WOLFSSL_API int wolfSSL_DES_check_key_parity(WOLFSSL_DES_cblock*);
+WOLFSSL_API void wolfSSL_DES_set_odd_parity(WOLFSSL_DES_cblock* myDes);
+WOLFSSL_API void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
+             WOLFSSL_DES_cblock* desb, WOLFSSL_DES_key_schedule* key, int enc);
+WOLFSSL_API int wolfSSL_DES_check_key_parity(WOLFSSL_DES_cblock *myDes);
 
 
 typedef WOLFSSL_DES_cblock DES_cblock;

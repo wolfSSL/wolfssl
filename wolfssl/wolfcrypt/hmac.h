@@ -180,14 +180,14 @@ struct Hmac {
 #endif /* HAVE_FIPS */
 
 /* does init */
-WOLFSSL_API int wc_HmacSetKey(Hmac*, int type, const byte* key, word32 keySz);
-WOLFSSL_API int wc_HmacUpdate(Hmac*, const byte*, word32);
-WOLFSSL_API int wc_HmacFinal(Hmac*, byte*);
+WOLFSSL_API int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 keySz);
+WOLFSSL_API int wc_HmacUpdate(Hmac* hmac, const byte* in, word32 sz);
+WOLFSSL_API int wc_HmacFinal(Hmac* hmac, byte* out);
 #ifdef WOLFSSL_KCAPI_HMAC
-WOLFSSL_API int wc_HmacSetKey_Software(Hmac*, int type, const byte* key,
+WOLFSSL_API int wc_HmacSetKey_Software(Hmac* hmac, int type, const byte* key,
                                        word32 keySz);
-WOLFSSL_API int wc_HmacUpdate_Software(Hmac*, const byte*, word32);
-WOLFSSL_API int wc_HmacFinal_Software(Hmac*, byte*);
+WOLFSSL_API int wc_HmacUpdate_Software(Hmac* hmac, const byte* in, word32 sz);
+WOLFSSL_API int wc_HmacFinal_Software(Hmac* hmac, byte* out);
 #endif
 WOLFSSL_API int wc_HmacSizeByType(int type);
 
@@ -198,7 +198,7 @@ WOLFSSL_API int wc_HmacInit_Id(Hmac* hmac, byte* id, int len, void* heap,
 WOLFSSL_API int wc_HmacInit_Label(Hmac* hmac, const char* label, void* heap,
                                   int devId);
 #endif
-WOLFSSL_API void wc_HmacFree(Hmac*);
+WOLFSSL_API void wc_HmacFree(Hmac* hmac);
 
 WOLFSSL_API int wolfSSL_GetHmacMaxSize(void);
 

@@ -303,13 +303,13 @@
 
 /* return codes */
 #define FP_OKAY      0
-#define FP_VAL      -1
-#define FP_MEM      -2
-#define FP_NOT_INF  -3
-#define FP_WOULDBLOCK -4
+#define FP_VAL      (-1)
+#define FP_MEM      (-2)
+#define FP_NOT_INF  (-3)
+#define FP_WOULDBLOCK (-4)
 
 /* equalities */
-#define FP_LT        -1   /* less than */
+#define FP_LT        (-1)   /* less than */
 #define FP_EQ         0   /* equal to */
 #define FP_GT         1   /* greater than */
 
@@ -445,8 +445,8 @@ MP_API void fp_free(fp_int* a);
     (((a)->used > 0  && (((a)->dp[0] & 1) == 1)) ? FP_YES : FP_NO)
 #define fp_isneg(a)  (((a)->sign != FP_ZPOS) ? FP_YES : FP_NO)
 #define fp_isword(a, w) \
-    (((((a)->used == 1) && ((a)->dp[0] == w)) || \
-                               ((w == 0) && ((a)->used == 0))) ? FP_YES : FP_NO)
+    (((((a)->used == 1) && ((a)->dp[0] == (w))) || \
+                               (((w) == 0) && ((a)->used == 0))) ? FP_YES : FP_NO)
 
 /* set to a small digit */
 void fp_set(fp_int *a, fp_digit b);

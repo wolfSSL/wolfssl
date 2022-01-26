@@ -168,17 +168,17 @@ struct wc_Sha {
 
 #endif /* HAVE_FIPS */
 
-WOLFSSL_API int wc_InitSha(wc_Sha*);
+WOLFSSL_API int wc_InitSha(wc_Sha* sha);
 WOLFSSL_API int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId);
-WOLFSSL_API int wc_ShaUpdate(wc_Sha*, const byte*, word32);
-WOLFSSL_API int wc_ShaFinalRaw(wc_Sha*, byte*);
-WOLFSSL_API int wc_ShaFinal(wc_Sha*, byte*);
-WOLFSSL_API void wc_ShaFree(wc_Sha*);
+WOLFSSL_API int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len);
+WOLFSSL_API int wc_ShaFinalRaw(wc_Sha* sha, byte* hash);
+WOLFSSL_API int wc_ShaFinal(wc_Sha* sha, byte* hash);
+WOLFSSL_API void wc_ShaFree(wc_Sha* sha);
 
-WOLFSSL_API int wc_ShaGetHash(wc_Sha*, byte*);
-WOLFSSL_API int wc_ShaCopy(wc_Sha*, wc_Sha*);
+WOLFSSL_API int wc_ShaGetHash(wc_Sha* sha, byte* hash);
+WOLFSSL_API int wc_ShaCopy(wc_Sha* src, wc_Sha* dst);
 #if defined(OPENSSL_EXTRA)
-WOLFSSL_API int wc_ShaTransform(wc_Sha*, const byte*);
+WOLFSSL_API int wc_ShaTransform(wc_Sha* sha, const unsigned char* data);
 #endif
 
 #ifdef WOLFSSL_PIC32MZ_HASH

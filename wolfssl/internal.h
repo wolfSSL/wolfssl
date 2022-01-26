@@ -1476,7 +1476,7 @@ enum Misc {
     TLS13_MAX_TICKET_AGE =  7*24*60*60,  /* max ticket age in seconds, 7 days */
 
 #ifndef MAX_WOLFSSL_FILE_SIZE
-    MAX_WOLFSSL_FILE_SIZE = 1024ul * 1024ul * 4,  /* 4 mb file size alloc limit */
+    MAX_WOLFSSL_FILE_SIZE = 1024UL * 1024UL * 4,  /* 4 mb file size alloc limit */
 #endif
 
 #if defined(HAVE_PQC)
@@ -1588,8 +1588,8 @@ enum Misc {
 /* assumes MAX_CHAIN_DEPTH number of certificates at 2kb per certificate */
 #ifndef MAX_CERTIFICATE_SZ
     #define MAX_CERTIFICATE_SZ \
-                CERT_HEADER_SZ + \
-                (MAX_X509_SIZE + CERT_HEADER_SZ) * MAX_CHAIN_DEPTH
+                (CERT_HEADER_SZ + \
+                (MAX_X509_SIZE + CERT_HEADER_SZ) * MAX_CHAIN_DEPTH)
 #endif
 
 /* max size of a handshake message, currently set to the certificate */
@@ -1714,7 +1714,7 @@ typedef struct Suites Suites;
 
 
 /* defaults to client */
-WOLFSSL_LOCAL void InitSSL_Method(WOLFSSL_METHOD*, ProtocolVersion);
+WOLFSSL_LOCAL void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv);
 
 WOLFSSL_LOCAL int InitSSL_Suites(WOLFSSL* ssl);
 WOLFSSL_LOCAL int InitSSL_Side(WOLFSSL* ssl, word16 side);
@@ -1734,14 +1734,14 @@ WOLFSSL_LOCAL int  HandleTlsResumption(WOLFSSL* ssl, int bogusID,
 #ifdef WOLFSSL_TLS13
 WOLFSSL_LOCAL byte SuiteMac(byte* suite);
 #endif
-WOLFSSL_LOCAL int  DoClientHello(WOLFSSL* ssl, const byte* input, word32*,
-                                 word32);
+WOLFSSL_LOCAL int  DoClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
+                             word32 helloSz);
 #ifdef WOLFSSL_TLS13
 WOLFSSL_LOCAL int DoTls13ClientHello(WOLFSSL* ssl, const byte* input,
                                      word32* inOutIdx, word32 helloSz);
 #endif
-WOLFSSL_LOCAL int  DoServerHello(WOLFSSL* ssl, const byte* input, word32*,
-                                 word32);
+WOLFSSL_LOCAL int  DoServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
+                      word32 helloSz);
 WOLFSSL_LOCAL int  CompleteServerHello(WOLFSSL *ssl);
 WOLFSSL_LOCAL int  CheckVersion(WOLFSSL *ssl, ProtocolVersion pv);
 WOLFSSL_LOCAL int  PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
@@ -1895,8 +1895,9 @@ WOLFSSL_LOCAL void InitSuites(Suites* suites, ProtocolVersion pv, int keySz,
                               word16 haveAnon, int side);
 
 WOLFSSL_LOCAL int  MatchSuite(WOLFSSL* ssl, Suites* peerSuites);
-WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
-WOLFSSL_LOCAL int  SetSuitesHashSigAlgo(Suites*, const char* list);
+WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX* ctx, Suites* suites,
+                                 const char* list);
+WOLFSSL_LOCAL int  SetSuitesHashSigAlgo(Suites* suites, const char* list);
 
 #ifndef PSK_TYPES_DEFINED
     typedef unsigned int (*wc_psk_client_callback)(WOLFSSL*, const char*, char*,
@@ -2107,11 +2108,15 @@ struct WOLFSSL_CERT_MANAGER {
 
 };
 
-WOLFSSL_LOCAL int CM_SaveCertCache(WOLFSSL_CERT_MANAGER*, const char*);
-WOLFSSL_LOCAL int CM_RestoreCertCache(WOLFSSL_CERT_MANAGER*, const char*);
-WOLFSSL_LOCAL int CM_MemSaveCertCache(WOLFSSL_CERT_MANAGER*, void*, int, int*);
-WOLFSSL_LOCAL int CM_MemRestoreCertCache(WOLFSSL_CERT_MANAGER*, const void*, int);
-WOLFSSL_LOCAL int CM_GetCertCacheMemSize(WOLFSSL_CERT_MANAGER*);
+WOLFSSL_LOCAL int CM_SaveCertCache(WOLFSSL_CERT_MANAGER* cm,
+                                   const char* fname);
+WOLFSSL_LOCAL int CM_RestoreCertCache(WOLFSSL_CERT_MANAGER* cm,
+                                      const char* fname);
+WOLFSSL_LOCAL int CM_MemSaveCertCache(WOLFSSL_CERT_MANAGER* cm, void* mem,
+                                      int sz, int* used);
+WOLFSSL_LOCAL int CM_MemRestoreCertCache(WOLFSSL_CERT_MANAGER* cm,
+                                         const void* mem, int sz);
+WOLFSSL_LOCAL int CM_GetCertCacheMemSize(WOLFSSL_CERT_MANAGER* cm);
 WOLFSSL_LOCAL int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
                                     long sz, int format, int err_val);
 
@@ -2406,7 +2411,7 @@ WOLFSSL_LOCAL int TLSX_ALPN_GetRequest(TLSX* extensions,
 WOLFSSL_LOCAL int TLSX_UseALPN(TLSX** extensions, const void* data,
                                word16 size, byte options, void* heap);
 
-WOLFSSL_LOCAL int TLSX_ALPN_SetOptions(TLSX** extensions, const byte option);
+WOLFSSL_LOCAL int TLSX_ALPN_SetOptions(TLSX** extensions, byte option);
 
 #endif /* HAVE_ALPN */
 
@@ -3087,11 +3092,11 @@ struct WOLFSSL_CTX {
 };
 
 WOLFSSL_LOCAL
-int InitSSL_Ctx(WOLFSSL_CTX*, WOLFSSL_METHOD*, void* heap);
+int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap);
 WOLFSSL_LOCAL
-void FreeSSL_Ctx(WOLFSSL_CTX*);
+void FreeSSL_Ctx(WOLFSSL_CTX* ctx);
 WOLFSSL_LOCAL
-void SSL_CtxResourceFree(WOLFSSL_CTX*);
+void SSL_CtxResourceFree(WOLFSSL_CTX* ctx);
 
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
 void wolfSSL_CRYPTO_cleanup_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data);
@@ -3166,10 +3171,10 @@ enum SignatureAlgorithm {
 };
 
 #define PSS_RSAE_TO_PSS_PSS(macAlgo) \
-    (macAlgo + (pss_sha256 - sha256_mac))
+    ((macAlgo) + (pss_sha256 - sha256_mac))
 
 #define PSS_PSS_HASH_TO_MAC(macAlgo) \
-    (macAlgo - (pss_sha256 - sha256_mac))
+    ((macAlgo) - (pss_sha256 - sha256_mac))
 
 enum SigAlgRsaPss {
     pss_sha256  = 0x09,
@@ -3439,16 +3444,17 @@ struct WOLFSSL_SESSION {
 
 
 WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_NewSession(void* heap);
-WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSession(WOLFSSL*, byte*, byte);
-WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSessionRef(WOLFSSL*);
-WOLFSSL_LOCAL int              wolfSSL_SetSession(WOLFSSL*, WOLFSSL_SESSION*);
-WOLFSSL_LOCAL void             wolfSSL_FreeSession(WOLFSSL_SESSION*);
+WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSession(
+    WOLFSSL* ssl, byte* masterSecret, byte restoreSessionCerts);
+WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSessionRef(WOLFSSL* ssl);
+WOLFSSL_LOCAL int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session);
+WOLFSSL_LOCAL void wolfSSL_FreeSession(WOLFSSL_SESSION* session);
 
 typedef int (*hmacfp) (WOLFSSL*, byte*, const byte*, word32, int, int, int, int);
 
 #ifndef NO_CLIENT_CACHE
-    WOLFSSL_LOCAL
-    WOLFSSL_SESSION* wolfSSL_GetSessionClient(WOLFSSL*, const byte*, int);
+    WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSessionClient(
+        WOLFSSL* ssl, const byte* id, int len);
 #endif
 
 /* client connect state for nonblocking restart */
@@ -4600,22 +4606,22 @@ struct WOLFSSL {
  * Always use SSL specific objects when available and revert to CTX otherwise.
  */
 #ifdef WOLFSSL_LOCAL_X509_STORE
-#define SSL_CM(ssl) (ssl->x509_store_pt ? ssl->x509_store_pt->cm : ssl->ctx->cm)
-#define SSL_STORE(ssl) (ssl->x509_store_pt ? ssl->x509_store_pt : \
-                  (ssl->ctx->x509_store_pt ? ssl->ctx->x509_store_pt : \
-                                            &ssl->ctx->x509_store))
+#define SSL_CM(ssl) ((ssl)->x509_store_pt ? (ssl)->x509_store_pt->cm : (ssl)->ctx->cm)
+#define SSL_STORE(ssl) ((ssl)->x509_store_pt ? (ssl)->x509_store_pt : \
+                  ((ssl)->ctx->x509_store_pt ? (ssl)->ctx->x509_store_pt : \
+                                            &(ssl)->ctx->x509_store))
 #else
-#define SSL_CM(ssl) ssl->ctx->cm
+#define SSL_CM(ssl) (ssl)->ctx->cm
 #endif
 
-#define SSL_CA_NAMES(ssl) (ssl->ca_names != NULL ? ssl->ca_names : \
-        ssl->ctx->ca_names)
+#define SSL_CA_NAMES(ssl) ((ssl)->ca_names != NULL ? (ssl)->ca_names : \
+        (ssl)->ctx->ca_names)
 
 WOLFSSL_LOCAL int  SSL_CTX_RefCount(WOLFSSL_CTX* ctx, int incr);
-WOLFSSL_LOCAL int  SetSSL_CTX(WOLFSSL*, WOLFSSL_CTX*, int);
-WOLFSSL_LOCAL int  InitSSL(WOLFSSL*, WOLFSSL_CTX*, int);
-WOLFSSL_LOCAL void FreeSSL(WOLFSSL*, void* heap);
-WOLFSSL_API   void SSL_ResourceFree(WOLFSSL*);   /* Micrium uses */
+WOLFSSL_LOCAL int  SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup);
+WOLFSSL_LOCAL int  InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup);
+WOLFSSL_LOCAL void FreeSSL(WOLFSSL* ssl, void* heap);
+WOLFSSL_API   void SSL_ResourceFree(WOLFSSL* ssl);   /* Micrium uses */
 
 
 #ifndef NO_CERTS
@@ -4633,24 +4639,17 @@ WOLFSSL_API   void SSL_ResourceFree(WOLFSSL*);   /* Micrium uses */
 
 
 #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
-    WOLFSSL_LOCAL
-    void InitHandShakeInfo(HandShakeInfo*, WOLFSSL*);
-    WOLFSSL_LOCAL
-    void FinishHandShakeInfo(HandShakeInfo*);
-    WOLFSSL_LOCAL
-    void AddPacketName(WOLFSSL* ssl, const char* name);
+    WOLFSSL_LOCAL void InitHandShakeInfo(HandShakeInfo* info, WOLFSSL* ssl);
+    WOLFSSL_LOCAL void FinishHandShakeInfo(HandShakeInfo* info);
+    WOLFSSL_LOCAL void AddPacketName(WOLFSSL* ssl, const char* name);
 
-    WOLFSSL_LOCAL
-    void InitTimeoutInfo(TimeoutInfo*);
-    WOLFSSL_LOCAL
-    void FreeTimeoutInfo(TimeoutInfo*, void*);
-    WOLFSSL_LOCAL
-    void AddPacketInfo(WOLFSSL* ssl, const char* name, int type,
+    WOLFSSL_LOCAL void InitTimeoutInfo(TimeoutInfo* info);
+    WOLFSSL_LOCAL void FreeTimeoutInfo(TimeoutInfo* info, void* heap);
+    WOLFSSL_LOCAL void AddPacketInfo(WOLFSSL* ssl, const char* name, int type,
                              const byte* data, int sz, int written, void* heap);
-    WOLFSSL_LOCAL
-    void AddLateName(const char*, TimeoutInfo*);
-    WOLFSSL_LOCAL
-    void AddLateRecordHeader(const RecordLayerHeader* rl, TimeoutInfo* info);
+    WOLFSSL_LOCAL void AddLateName(const char* name, TimeoutInfo* info);
+    WOLFSSL_LOCAL void AddLateRecordHeader(const RecordLayerHeader* rl,
+                                           TimeoutInfo* info);
 #endif
 
 
@@ -4737,44 +4736,45 @@ extern const WOLF_EC_NIST_NAME kNistCurves[];
 #endif
 
 /* internal functions */
-WOLFSSL_LOCAL int SendChangeCipher(WOLFSSL*);
-WOLFSSL_LOCAL int SendTicket(WOLFSSL*);
-WOLFSSL_LOCAL int DoClientTicket(WOLFSSL*, const byte*, word32);
-WOLFSSL_LOCAL int SendData(WOLFSSL*, const void*, int);
+WOLFSSL_LOCAL int SendChangeCipher(WOLFSSL* ssl);
+WOLFSSL_LOCAL int SendTicket(WOLFSSL* ssl);
+WOLFSSL_LOCAL int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len);
+WOLFSSL_LOCAL int SendData(WOLFSSL* ssl, const void* data, int sz);
 #ifdef WOLFSSL_TLS13
-WOLFSSL_LOCAL int SendTls13ServerHello(WOLFSSL*, byte);
+WOLFSSL_LOCAL int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType);
 #endif
-WOLFSSL_LOCAL int SendCertificate(WOLFSSL*);
-WOLFSSL_LOCAL int SendCertificateRequest(WOLFSSL*);
+WOLFSSL_LOCAL int SendCertificate(WOLFSSL* ssl);
+WOLFSSL_LOCAL int SendCertificateRequest(WOLFSSL* ssl);
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-WOLFSSL_LOCAL int CreateOcspResponse(WOLFSSL*, OcspRequest**, buffer*);
+WOLFSSL_LOCAL int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
+                       buffer* response);
 #endif
 #if defined(HAVE_SECURE_RENEGOTIATION) && \
     !defined(WOLFSSL_NO_SERVER)
-WOLFSSL_LOCAL int SendHelloRequest(WOLFSSL*);
+WOLFSSL_LOCAL int SendHelloRequest(WOLFSSL* ssl);
 #endif
-WOLFSSL_LOCAL int SendCertificateStatus(WOLFSSL*);
-WOLFSSL_LOCAL int SendServerKeyExchange(WOLFSSL*);
-WOLFSSL_LOCAL int SendBuffered(WOLFSSL*);
-WOLFSSL_LOCAL int ReceiveData(WOLFSSL*, byte*, int, int);
-WOLFSSL_LOCAL int SendFinished(WOLFSSL*);
-WOLFSSL_LOCAL int SendAlert(WOLFSSL*, int, int);
-WOLFSSL_LOCAL int ProcessReply(WOLFSSL*);
-WOLFSSL_LOCAL int ProcessReplyEx(WOLFSSL*, int);
+WOLFSSL_LOCAL int SendCertificateStatus(WOLFSSL* ssl);
+WOLFSSL_LOCAL int SendServerKeyExchange(WOLFSSL* ssl);
+WOLFSSL_LOCAL int SendBuffered(WOLFSSL* ssl);
+WOLFSSL_LOCAL int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek);
+WOLFSSL_LOCAL int SendFinished(WOLFSSL* ssl);
+WOLFSSL_LOCAL int SendAlert(WOLFSSL* ssl, int severity, int type);
+WOLFSSL_LOCAL int ProcessReply(WOLFSSL* ssl);
+WOLFSSL_LOCAL int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr);
 
-WOLFSSL_LOCAL const char* AlertTypeToString(int);
+WOLFSSL_LOCAL const char* AlertTypeToString(int type);
 
-WOLFSSL_LOCAL int SetCipherSpecs(WOLFSSL*);
-WOLFSSL_LOCAL int MakeMasterSecret(WOLFSSL*);
+WOLFSSL_LOCAL int SetCipherSpecs(WOLFSSL* ssl);
+WOLFSSL_LOCAL int MakeMasterSecret(WOLFSSL* ssl);
 
-WOLFSSL_LOCAL int AddSession(WOLFSSL*);
+WOLFSSL_LOCAL int AddSession(WOLFSSL* ssl);
 WOLFSSL_LOCAL int DeriveKeys(WOLFSSL* ssl);
 WOLFSSL_LOCAL int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side);
 
 WOLFSSL_LOCAL int IsTLS(const WOLFSSL* ssl);
 WOLFSSL_LOCAL int IsAtLeastTLSv1_2(const WOLFSSL* ssl);
-WOLFSSL_LOCAL int IsAtLeastTLSv1_3(const ProtocolVersion pv);
+WOLFSSL_LOCAL int IsAtLeastTLSv1_3(ProtocolVersion pv);
 WOLFSSL_LOCAL int TLSv1_3_Capable(WOLFSSL* ssl);
 
 WOLFSSL_LOCAL void FreeHandshakeResources(WOLFSSL* ssl);
@@ -4783,7 +4783,7 @@ WOLFSSL_LOCAL void ShrinkOutputBuffer(WOLFSSL* ssl);
 
 WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
 
-WOLFSSL_LOCAL int SetTicket(WOLFSSL*, const byte*, word32);
+WOLFSSL_LOCAL int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length);
 WOLFSSL_LOCAL int wolfSSL_GetMaxFragSize(WOLFSSL* ssl, int maxFragment);
 
 #if defined(WOLFSSL_IOTSAFE) && defined(HAVE_PK_CALLBACKS)
@@ -4875,7 +4875,7 @@ WOLFSSL_LOCAL  int CheckAvailableSize(WOLFSSL *ssl, int size);
 WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
 
 #ifndef NO_TLS
-    WOLFSSL_LOCAL int  MakeTlsMasterSecret(WOLFSSL*);
+    WOLFSSL_LOCAL int  MakeTlsMasterSecret(WOLFSSL* ssl);
 #ifndef WOLFSSL_AEAD_ONLY
     WOLFSSL_LOCAL int  TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in,
                                 word32 sz, int padSz, int content, int verify, int epochOrder);
@@ -4883,37 +4883,42 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
 #endif
 
 #ifndef NO_WOLFSSL_CLIENT
-    WOLFSSL_LOCAL int SendClientHello(WOLFSSL*);
+    WOLFSSL_LOCAL int SendClientHello(WOLFSSL* ssl);
     #ifdef WOLFSSL_TLS13
-    WOLFSSL_LOCAL int SendTls13ClientHello(WOLFSSL*);
+    WOLFSSL_LOCAL int SendTls13ClientHello(WOLFSSL* ssl);
     #endif
-    WOLFSSL_LOCAL int SendClientKeyExchange(WOLFSSL*);
-    WOLFSSL_LOCAL int SendCertificateVerify(WOLFSSL*);
+    WOLFSSL_LOCAL int SendClientKeyExchange(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int SendCertificateVerify(WOLFSSL* ssl);
 #endif /* NO_WOLFSSL_CLIENT */
 
 #ifndef NO_WOLFSSL_SERVER
-    WOLFSSL_LOCAL int SendServerHello(WOLFSSL*);
-    WOLFSSL_LOCAL int SendServerHelloDone(WOLFSSL*);
+    WOLFSSL_LOCAL int SendServerHello(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int SendServerHelloDone(WOLFSSL* ssl);
 #endif /* NO_WOLFSSL_SERVER */
 
 #ifdef WOLFSSL_DTLS
-    WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32, void*);
-    WOLFSSL_LOCAL void DtlsMsgDelete(DtlsMsg*, void*);
-    WOLFSSL_LOCAL void DtlsMsgListDelete(DtlsMsg*, void*);
+    WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32 sz, void* heap);
+    WOLFSSL_LOCAL void DtlsMsgDelete(DtlsMsg* item, void* heap);
+    WOLFSSL_LOCAL void DtlsMsgListDelete(DtlsMsg* head, void* heap);
     WOLFSSL_LOCAL void DtlsTxMsgListClean(WOLFSSL* ssl);
-    WOLFSSL_LOCAL int  DtlsMsgSet(DtlsMsg*, word32, word16, const byte*, byte,
-                                                       word32, word32, void*);
-    WOLFSSL_LOCAL DtlsMsg* DtlsMsgFind(DtlsMsg*, word32, word32);
-    WOLFSSL_LOCAL void DtlsMsgStore(WOLFSSL*, word32, word32, const byte*, word32,
-                                                byte, word32, word32, void*);
-    WOLFSSL_LOCAL DtlsMsg* DtlsMsgInsert(DtlsMsg*, DtlsMsg*);
+    WOLFSSL_LOCAL int  DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch,
+                                  const byte* data, byte type,
+                                  word32 fragOffset, word32 fragSz, void* heap);
+    WOLFSSL_LOCAL DtlsMsg* DtlsMsgFind(DtlsMsg* head, word32 epoch, word32 seq);
+    WOLFSSL_LOCAL void DtlsMsgStore(WOLFSSL* ssl, word32 epoch, word32 seq,
+                                    const byte* data, word32 dataSz, byte type,
+                                    word32 fragOffset, word32 fragSz,
+                                    void* heap);
+    WOLFSSL_LOCAL DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item);
 
-    WOLFSSL_LOCAL int  DtlsMsgPoolSave(WOLFSSL*, const byte*, word32, enum HandShakeType);
-    WOLFSSL_LOCAL int  DtlsMsgPoolTimeout(WOLFSSL*);
-    WOLFSSL_LOCAL int  VerifyForDtlsMsgPoolSend(WOLFSSL*, byte, word32);
-    WOLFSSL_LOCAL int  VerifyForTxDtlsMsgDelete(WOLFSSL* ssl, DtlsMsg* head);
-    WOLFSSL_LOCAL void DtlsMsgPoolReset(WOLFSSL*);
-    WOLFSSL_LOCAL int  DtlsMsgPoolSend(WOLFSSL*, int);
+    WOLFSSL_LOCAL int  DtlsMsgPoolSave(WOLFSSL* ssl, const byte* data,
+                                       word32 dataSz, enum HandShakeType type);
+    WOLFSSL_LOCAL int  DtlsMsgPoolTimeout(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int  VerifyForDtlsMsgPoolSend(WOLFSSL* ssl, byte type,
+                                                word32 fragOffset);
+    WOLFSSL_LOCAL int  VerifyForTxDtlsMsgDelete(WOLFSSL* ssl, DtlsMsg* item);
+    WOLFSSL_LOCAL void DtlsMsgPoolReset(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int  DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket);
 #endif /* WOLFSSL_DTLS */
 
 #if defined(HAVE_SECURE_RENEGOTIATION) && defined(WOLFSSL_DTLS)
@@ -4935,11 +4940,14 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
 WOLFSSL_LOCAL word32  LowResTimer(void);
 
 #ifndef NO_CERTS
-    WOLFSSL_LOCAL void InitX509Name(WOLFSSL_X509_NAME*, int, void*);
+    WOLFSSL_LOCAL void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag,
+                                    void* heap);
     WOLFSSL_LOCAL void FreeX509Name(WOLFSSL_X509_NAME* name);
-    WOLFSSL_LOCAL void InitX509(WOLFSSL_X509*, int, void* heap);
-    WOLFSSL_LOCAL void FreeX509(WOLFSSL_X509*);
-    WOLFSSL_LOCAL int  CopyDecodedToX509(WOLFSSL_X509*, DecodedCert*);
+    WOLFSSL_LOCAL void InitX509(WOLFSSL_X509* x509, int dynamicFlag,
+                                void* heap);
+    WOLFSSL_LOCAL void FreeX509(WOLFSSL_X509* x509);
+    WOLFSSL_LOCAL int  CopyDecodedToX509(WOLFSSL_X509* x509,
+                                         DecodedCert* dCert);
 #endif
 
 #ifndef MAX_CIPHER_NAME
@@ -4969,15 +4977,15 @@ typedef struct CipherSuiteInfo {
 
 WOLFSSL_LOCAL const CipherSuiteInfo* GetCipherNames(void);
 WOLFSSL_LOCAL int GetCipherNamesSize(void);
-WOLFSSL_LOCAL const char* GetCipherNameInternal(const byte cipherSuite0, const byte cipherSuite);
+WOLFSSL_LOCAL const char* GetCipherNameInternal(byte cipherSuite0, byte cipherSuite);
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
 /* used in wolfSSL_sk_CIPHER_description */
 #define MAX_SEGMENTS    5
 #define MAX_SEGMENT_SZ 20
-WOLFSSL_LOCAL int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER*);
+WOLFSSL_LOCAL int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher);
 WOLFSSL_LOCAL const char* GetCipherSegment(const WOLFSSL_CIPHER* cipher,
                                            char n[][MAX_SEGMENT_SZ]);
-WOLFSSL_LOCAL const char* GetCipherProtocol(const byte minor);
+WOLFSSL_LOCAL const char* GetCipherProtocol(byte minor);
 WOLFSSL_LOCAL const char* GetCipherKeaStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherAuthStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]);
@@ -4985,7 +4993,7 @@ WOLFSSL_LOCAL const char* GetCipherMacStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL int SetCipherBits(const char* enc);
 WOLFSSL_LOCAL int IsCipherAEAD(char n[][MAX_SEGMENT_SZ]);
 #endif
-WOLFSSL_LOCAL const char* GetCipherNameIana(const byte cipherSuite0, const byte cipherSuite);
+WOLFSSL_LOCAL const char* GetCipherNameIana(byte cipherSuite0, byte cipherSuite);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_iana(WOLFSSL* ssl);
 WOLFSSL_LOCAL int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
@@ -4998,7 +5006,7 @@ enum encrypt_side {
     ENCRYPT_AND_DECRYPT_SIDE
 };
 
-WOLFSSL_LOCAL int SetKeysSide(WOLFSSL*, enum encrypt_side);
+WOLFSSL_LOCAL int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side);
 
 /* Set*Internal and Set*External functions */
 WOLFSSL_LOCAL int SetDsaInternal(WOLFSSL_DSA* dsa);
