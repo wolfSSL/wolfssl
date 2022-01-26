@@ -18960,12 +18960,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
 
 
-    int wolfSSL_MD5_Final(byte* input, WOLFSSL_MD5_CTX* md5)
+    int wolfSSL_MD5_Final(byte* output, WOLFSSL_MD5_CTX* md5)
     {
         int ret;
 
         WOLFSSL_ENTER("MD5_Final");
-        ret = wc_Md5Final((wc_Md5*)md5, input);
+        ret = wc_Md5Final((wc_Md5*)md5, output);
 
         /* have to actually free the resources (if any) here, because the
          * OpenSSL API doesn't include SHA*_Free().
@@ -19057,12 +19057,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
 
 
-    int wolfSSL_SHA_Final(byte* input, WOLFSSL_SHA_CTX* sha)
+    int wolfSSL_SHA_Final(byte* output, WOLFSSL_SHA_CTX* sha)
     {
         int ret;
 
         WOLFSSL_ENTER("SHA_Final");
-        ret = wc_ShaFinal((wc_Sha*)sha, input);
+        ret = wc_ShaFinal((wc_Sha*)sha, output);
 
         /* have to actually free the resources (if any) here, because the
          * OpenSSL API doesn't include SHA*_Free().
@@ -19121,10 +19121,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
 
 
-    int wolfSSL_SHA1_Final(byte* input, WOLFSSL_SHA_CTX* sha)
+    int wolfSSL_SHA1_Final(byte* output, WOLFSSL_SHA_CTX* sha)
     {
         WOLFSSL_ENTER("SHA1_Final");
-        return SHA_Final(input, sha);
+        return SHA_Final(output, sha);
     }
     #if defined(OPENSSL_EXTRA)
     #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
@@ -19176,12 +19176,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
 
 
-    int wolfSSL_SHA224_Final(byte* input, WOLFSSL_SHA224_CTX* sha)
+    int wolfSSL_SHA224_Final(byte* output, WOLFSSL_SHA224_CTX* sha)
     {
         int ret;
 
         WOLFSSL_ENTER("SHA224_Final");
-        ret = wc_Sha224Final((wc_Sha224*)sha, input);
+        ret = wc_Sha224Final((wc_Sha224*)sha, output);
 
         /* have to actually free the resources (if any) here, because the
          * OpenSSL API doesn't include SHA*_Free().
@@ -19232,12 +19232,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
 
 
-    int wolfSSL_SHA256_Final(byte* input, WOLFSSL_SHA256_CTX* sha)
+    int wolfSSL_SHA256_Final(byte* output, WOLFSSL_SHA256_CTX* sha)
     {
         int ret;
 
         WOLFSSL_ENTER("SHA256_Final");
-        ret = wc_Sha256Final((wc_Sha256*)sha, input);
+        ret = wc_Sha256Final((wc_Sha256*)sha, output);
 
         /* have to actually free the resources (if any) here, because the
          * OpenSSL API doesn't include SHA*_Free().
@@ -19318,12 +19318,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
 
 
-    int wolfSSL_SHA384_Final(byte* input, WOLFSSL_SHA384_CTX* sha)
+    int wolfSSL_SHA384_Final(byte* output, WOLFSSL_SHA384_CTX* sha)
     {
         int ret;
 
         WOLFSSL_ENTER("SHA384_Final");
-        ret = wc_Sha384Final((wc_Sha384*)sha, input);
+        ret = wc_Sha384Final((wc_Sha384*)sha, output);
 
         /* have to actually free the resources (if any) here, because the
          * OpenSSL API doesn't include SHA*_Free().
@@ -19376,12 +19376,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
 
 
-    int wolfSSL_SHA512_Final(byte* input, WOLFSSL_SHA512_CTX* sha)
+    int wolfSSL_SHA512_Final(byte* output, WOLFSSL_SHA512_CTX* sha)
     {
         int ret;
 
         WOLFSSL_ENTER("SHA512_Final");
-        ret = wc_Sha512Final((wc_Sha512*)sha, input);
+        ret = wc_Sha512Final((wc_Sha512*)sha, output);
 
         /* have to actually free the resources (if any) here, because the
          * OpenSSL API doesn't include SHA*_Free().
@@ -19451,12 +19451,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return WOLFSSL_FAILURE;
     }
 
-    int wolfSSL_SHA512_224_Final(byte* input, WOLFSSL_SHA512_224_CTX* sha)
+    int wolfSSL_SHA512_224_Final(byte* output, WOLFSSL_SHA512_224_CTX* sha)
     {
         int ret;
 
         WOLFSSL_ENTER("wolfSSL_SHA512_224_Final");
-        ret = wc_Sha512_224Final((wc_Sha512*)sha, input);
+        ret = wc_Sha512_224Final((wc_Sha512*)sha, output);
 
         /* return WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE otherwise */
         if (ret == 0)
@@ -19521,12 +19521,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return WOLFSSL_FAILURE;
     }
 
-    int wolfSSL_SHA512_256_Final(byte* input, WOLFSSL_SHA512_256_CTX* sha)
+    int wolfSSL_SHA512_256_Final(byte* output, WOLFSSL_SHA512_256_CTX* sha)
     {
         int ret;
 
         WOLFSSL_ENTER("wolfSSL_SHA512_256_Final");
-        ret = wc_Sha512_256Final((wc_Sha512*)sha, input);
+        ret = wc_Sha512_256Final((wc_Sha512*)sha, output);
 
         /* return WOLFSSL_SUCCESS on success, 0 otherwise */
         if (ret == 0)
@@ -19602,12 +19602,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
 
 
-    int wolfSSL_SHA3_224_Final(byte* input, WOLFSSL_SHA3_224_CTX* sha)
+    int wolfSSL_SHA3_224_Final(byte* output, WOLFSSL_SHA3_224_CTX* sha)
     {
         int ret;
 
         WOLFSSL_ENTER("SHA3_224_Final");
-        ret = wc_Sha3_224_Final((wc_Sha3*)sha, input);
+        ret = wc_Sha3_224_Final((wc_Sha3*)sha, output);
 
         /* have to actually free the resources (if any) here, because the
          * OpenSSL API doesn't include SHA*_Free().
@@ -19659,12 +19659,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
 
 
-    int wolfSSL_SHA3_256_Final(byte* input, WOLFSSL_SHA3_256_CTX* sha)
+    int wolfSSL_SHA3_256_Final(byte* output, WOLFSSL_SHA3_256_CTX* sha)
     {
         int ret;
 
         WOLFSSL_ENTER("SHA3_256_Final");
-        ret = wc_Sha3_256_Final((wc_Sha3*)sha, input);
+        ret = wc_Sha3_256_Final((wc_Sha3*)sha, output);
 
         /* have to actually free the resources (if any) here, because the
          * OpenSSL API doesn't include SHA*_Free().
@@ -19714,12 +19714,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
 
 
-    int wolfSSL_SHA3_384_Final(byte* input, WOLFSSL_SHA3_384_CTX* sha)
+    int wolfSSL_SHA3_384_Final(byte* output, WOLFSSL_SHA3_384_CTX* sha)
     {
         int ret;
 
         WOLFSSL_ENTER("SHA3_384_Final");
-        ret = wc_Sha3_384_Final((wc_Sha3*)sha, input);
+        ret = wc_Sha3_384_Final((wc_Sha3*)sha, output);
 
         /* have to actually free the resources (if any) here, because the
          * OpenSSL API doesn't include SHA*_Free().
@@ -19771,12 +19771,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
 
 
-    int wolfSSL_SHA3_512_Final(byte* input, WOLFSSL_SHA3_512_CTX* sha)
+    int wolfSSL_SHA3_512_Final(byte* output, WOLFSSL_SHA3_512_CTX* sha)
     {
         int ret;
 
         WOLFSSL_ENTER("SHA3_512_Final");
-        ret = wc_Sha3_512_Final((wc_Sha3*)sha, input);
+        ret = wc_Sha3_512_Final((wc_Sha3*)sha, output);
 
         /* have to actually free the resources (if any) here, because the
          * OpenSSL API doesn't include SHA*_Free().
