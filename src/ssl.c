@@ -19464,6 +19464,32 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         return WOLFSSL_FAILURE;
     }
+
+    #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+    /* Apply SHA512 transformation to the data */
+    int wolfSSL_SHA512_224_Transform(WOLFSSL_SHA512_CTX* sha512,
+                                          const unsigned char* data)
+    {
+       int ret;
+
+       WOLFSSL_ENTER("SHA512_224_Transform");
+       /* sanity check */
+       if (sha512 == NULL || data == NULL) {
+            return WOLFSSL_FAILURE;
+       }
+
+       ret = wc_Sha512_224Transform((wc_Sha512*)sha512, data);
+
+       /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return WOLFSSL_SUCCESS;
+        else
+            return WOLFSSL_FAILURE;
+    }
+    #endif /* !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+              (HAVE_FIPS_VERSION > 2)) */
+
 #endif /* !WOLFSSL_NOSHA512_224 */
 #if !defined(WOLFSSL_NOSHA512_256)
     int wolfSSL_SHA512_256_Init(WOLFSSL_SHA512_256_CTX* sha)
@@ -19508,6 +19534,32 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         return WOLFSSL_FAILURE;
     }
+
+    #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+    /* Apply SHA512 transformation to the data */
+    int wolfSSL_SHA512_256_Transform(WOLFSSL_SHA512_CTX* sha512,
+                                          const unsigned char* data)
+    {
+       int ret;
+
+       WOLFSSL_ENTER("SHA512_256_Transform");
+       /* sanity check */
+       if (sha512 == NULL || data == NULL) {
+            return WOLFSSL_FAILURE;
+       }
+
+       ret = wc_Sha512_256Transform((wc_Sha512*)sha512, data);
+
+       /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return WOLFSSL_SUCCESS;
+        else
+            return WOLFSSL_FAILURE;
+    }
+    #endif /* !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+              (HAVE_FIPS_VERSION > 2)) */
+
 #endif /* !WOLFSSL_NOSHA512_256 */
 #endif /* !HAVE_FIPS && !HAVE_SELFTEST */
 
