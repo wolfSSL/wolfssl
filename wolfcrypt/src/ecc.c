@@ -11928,8 +11928,8 @@ static int ecc_get_key_sizes(ecEncCtx* ctx, int* encKeySz, int* ivSz,
    ctx holds non default algos and inputs
    msgSz should be the right size for encAlgo, i.e., already padded
    return 0 on success */
-int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
-                word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx)
+int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
+    word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx, int compressed)
 {
     int          ret = 0;
     word32       blockSz = 0;
@@ -11979,7 +11979,12 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         return ret;
 
 #ifndef WOLFSSL_ECIES_OLD
-    pubKeySz = 1 + wc_ecc_size(privKey) * 2;
+    if (!compressed) {
+        pubKeySz = 1 + wc_ecc_size(privKey) * 2;
+    }
+    else {
+        pubKeySz = 1 + wc_ecc_size(privKey);
+    }
 #endif
 
     if (ctx->protocol == REQ_RESP_SERVER) {
@@ -12027,7 +12032,7 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         if (ret != 0)
             return ret;
     }
-    ret = wc_ecc_export_x963(privKey, out, &pubKeySz);
+    ret = wc_ecc_export_x963_ex(privKey, out, &pubKeySz, compressed);
     if (ret != 0)
         return ret;
     out += pubKeySz;
@@ -12191,6 +12196,15 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     return ret;
 }
 
+/* ecc encrypt with shared secret run through kdf
+   ctx holds non default algos and inputs
+   msgSz should be the right size for encAlgo, i.e., already padded
+   return 0 on success */
+int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
+                word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx)
+{
+    return wc_ecc_encrypt_ex(privKey, pubKey, msg, msgSz, out, outSz, ctx, 0);
+}
 
 /* ecc decrypt with shared secret run through kdf
    ctx holds non default algos and inputs
@@ -12257,6 +12271,11 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     ret = ecc_public_key_size(privKey, &pubKeySz);
     if (ret != 0)
         return ret;
+#ifdef HAVE_COMP_KEY
+    if ((msgSz > 1) && ((msg[0] == 0x02) || (msg[0] == 0x03))) {
+        pubKeySz = (pubKeySz / 2) + 1;
+    }
+#endif
 #endif
 
     if (ctx->protocol == REQ_RESP_CLIENT) {

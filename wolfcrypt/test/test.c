@@ -24642,6 +24642,66 @@ WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
         ret = -10412; goto done;
     }
 
+#ifdef HAVE_COMP_KEY
+    /* Create new client and server contexts. */
+    wc_ecc_ctx_free(srvCtx);
+    wc_ecc_ctx_free(cliCtx);
+    /* let's verify message exchange works, A is client, B is server */
+    cliCtx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng);
+    srvCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, &rng);
+    if (cliCtx == NULL || srvCtx == NULL) {
+        ret = -10416; goto done;
+    }
+
+    /* get salt to send to peer */
+    tmpSalt = wc_ecc_ctx_get_own_salt(cliCtx);
+    if (tmpSalt == NULL) {
+        ret = -10417; goto done;
+    }
+    XMEMCPY(cliSalt, tmpSalt, EXCHANGE_SALT_SZ);
+
+    tmpSalt = wc_ecc_ctx_get_own_salt(srvCtx);
+    if (tmpSalt == NULL) {
+        ret = -10418; goto done;
+    }
+    XMEMCPY(srvSalt, tmpSalt, EXCHANGE_SALT_SZ);
+
+    /* in actual use, we'd get the peer's salt over the transport */
+    ret = wc_ecc_ctx_set_peer_salt(cliCtx, srvSalt);
+    if (ret != 0)
+        goto done;
+    ret = wc_ecc_ctx_set_peer_salt(srvCtx, cliSalt);
+    if (ret != 0)
+        goto done;
+
+    ret = wc_ecc_ctx_set_info(cliCtx, (byte*)"wolfSSL MSGE", 11);
+    if (ret != 0)
+        goto done;
+    ret = wc_ecc_ctx_set_info(srvCtx, (byte*)"wolfSSL MSGE", 11);
+    if (ret != 0)
+        goto done;
+
+    /* get encrypted msg (request) to send to B - compressed public key */
+    outSz = sizeof(out);
+    ret = wc_ecc_encrypt_ex(userA, userB, msg, sizeof(msg), out, &outSz, cliCtx,
+        1);
+    if (ret != 0)
+        goto done;
+
+#ifndef WOLFSSL_ECIES_OLD
+    wc_ecc_free(tmpKey);
+#endif
+    /* B decrypts msg (request) from A - out has a compressed public key */
+    plainSz = sizeof(plain);
+    ret = wc_ecc_decrypt(userB, tmpKey, out, outSz, plain, &plainSz, srvCtx);
+    if (ret != 0)
+        goto done;
+
+    if (XMEMCMP(plain, msg, sizeof(msg)) != 0) {
+        ret = -10419; goto done;
+    }
+#endif /* HAVE_COMP_KEY */
+
 #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
     ret = ecc_encrypt_kat(&rng);
 #endif

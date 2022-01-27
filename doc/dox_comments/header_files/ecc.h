@@ -1539,6 +1539,7 @@ int wc_ecc_sig_size(ecc_key* key);
     \endcode
 
     \sa wc_ecc_encrypt
+    \sa wc_ecc_encrypt_ex
     \sa wc_ecc_decrypt
 */
 WOLFSSL_API
@@ -1759,11 +1760,76 @@ int wc_ecc_ctx_set_info(ecEncCtx*, const byte* info, int sz);
     }
     \endcode
 
+    \sa wc_ecc_encrypt_ex
     \sa wc_ecc_decrypt
 */
 WOLFSSL_API
 int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
+
+/*!
+    \ingroup ECC
+
+    \brief This function encrypts the given input message from msg
+    to out. This function takes an optional ctx object as parameter.
+    When supplied, encryption proceeds based on the ecEncCtx's
+    encAlgo, kdfAlgo, and macAlgo. If ctx is not supplied, processing
+    completes with the default algorithms, ecAES_128_CBC,
+    ecHKDF_SHA256 and ecHMAC_SHA256. This function requires that
+    the messages are padded according to the encryption type specified by ctx.
+
+    \return 0 Returned upon successfully encrypting the input message
+    \return BAD_FUNC_ARG Returned if privKey, pubKey, msg, msgSz, out,
+    or outSz are NULL, or the ctx object specifies an unsupported
+    encryption type
+    \return BAD_ENC_STATE_E Returned if the ctx object given is in a
+    state that is not appropriate for encryption
+    \return BUFFER_E Returned if the supplied output buffer is too
+    small to store the encrypted ciphertext
+    \return MEMORY_E Returned if there is an error allocating memory
+    for the shared secret key
+
+    \param privKey pointer to the ecc_key object containing the
+    private key to use for encryption
+    \param pubKey pointer to the ecc_key object containing the public
+    key of the peer with whom one wishes to communicate
+    \param msg pointer to the buffer holding the message to encrypt
+    \param msgSz size of the buffer to encrypt
+    \param out pointer to the buffer in which to store the encrypted
+    ciphertext
+    \param outSz pointer to a word32 object containing the available
+    size in the out buffer. Upon successfully encrypting the message,
+    holds the number of bytes written to the output buffer
+    \param ctx Optional: pointer to an ecEncCtx object specifying different
+    encryption algorithms to use
+    \param compressed Public key field is to be output in compressed format.
+
+    _Example_
+    \code
+    byte msg[] = { initialize with msg to encrypt. Ensure padded to block size };
+    byte out[sizeof(msg)];
+    word32 outSz = sizeof(out);
+    int ret;
+    ecc_key cli, serv;
+    // initialize cli with private key
+    // initialize serv with received public key
+
+    ecEncCtx* cliCtx, servCtx;
+    // initialize cliCtx and servCtx
+    // exchange salts
+    ret = wc_ecc_encrypt_ex(&cli, &serv, msg, sizeof(msg), out, &outSz, cliCtx,
+        1);
+    if(ret != 0) {
+    	// error encrypting message
+    }
+    \endcode
+
+    \sa wc_ecc_encrypt
+    \sa wc_ecc_decrypt
+*/
+WOLFSSL_API
+int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
+    word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx, int compressed);
 
 /*!
     \ingroup ECC
@@ -1822,6 +1888,7 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     \endcode
 
     \sa wc_ecc_encrypt
+    \sa wc_ecc_encrypt_ex
 */
 WOLFSSL_API
 int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
