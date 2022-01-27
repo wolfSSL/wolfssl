@@ -4599,8 +4599,7 @@ int wc_ecc_point_is_at_infinity(ecc_point* p)
 {
     if (p == NULL)
         return BAD_FUNC_ARG;
-
-    if ((p->x->used == 0) && (p->y->used == 0))
+    if (mp_iszero(p->x) && mp_iszero(p->y))
         return 1;
 
     return 0;
