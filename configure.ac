@@ -3514,10 +3514,6 @@ AS_CASE([$FIPS_VERSION],
 
         DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=8192
 
-        # DES3 is incompatible with FIPS 140-3
-        AS_IF([test "$ENABLED_DES3" != "no"],
-            [ENABLED_DES3="no"])
-
         # force various features to FIPS 140-3 defaults, unless overridden with v5-dev:
 
         AS_IF([test "$ENABLED_KEYGEN" != "yes" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_keygen" != "no")],
@@ -3568,6 +3564,9 @@ AS_CASE([$FIPS_VERSION],
 
         AS_IF([test "$ENABLED_MD5" != "no" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_md5" != "yes")],
             [ENABLED_MD5="no"; ENABLED_OLD_TLS="no"; AM_CFLAGS="$AM_CFLAGS -DNO_MD5 -DNO_OLD_TLS"])
+
+        AS_IF([test "$ENABLED_DES3" != "no" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_des3" != "yes")],
+            [ENABLED_DES3="no"])
 
         AS_IF([test $HAVE_FIPS_VERSION_MINOR -ge 2],
             [AS_IF([test "x$ENABLED_AESOFB" = "xno" && (test "$FIPS_VERSION" != "v5-dev" || test "$enable_aesofb" != "no")],

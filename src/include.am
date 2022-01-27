@@ -452,11 +452,13 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/cmac.c
 endif
 endif !BUILD_FIPS_CURRENT
 
-if !BUILD_FIPS_CURRENT
+if !BUILD_FIPS_V2
+if !BUILD_FIPS_V3
 if BUILD_DES3
 src_libwolfssl_la_SOURCES += wolfcrypt/src/des3.c
-endif
-endif !BUILD_FIPS_CURRENT
+endif BUILD_DES3
+endif !BUILD_FIPS_V3
+endif !BUILD_FIPS_V2
 
 if !BUILD_FIPS_CURRENT
 if BUILD_SHA
