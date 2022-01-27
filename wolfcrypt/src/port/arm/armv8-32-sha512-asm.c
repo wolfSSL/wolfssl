@@ -23,13 +23,17 @@
  *   cd ../scripts
  *   ruby ./sha2/sha512.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-sha512-asm.c
  */
-#if defined(WOLFSSL_ARMASM) && defined(WOLFSSL_SHA512)
+
+#include <wolfssl/wolfcrypt/settings.h>
+
+#ifdef WOLFSSL_ARMASM
 #ifndef __aarch64__
 #include <stdint.h>
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif /* HAVE_CONFIG_H */
 #include <wolfssl/wolfcrypt/settings.h>
+#ifdef WOLFSSL_SHA512
 #include <wolfssl/wolfcrypt/sha512.h>
 
 #ifdef WOLFSSL_ARMASM_NO_NEON
@@ -4775,5 +4779,6 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
 }
 
 #endif /* !WOLFSSL_ARMASM_NO_NEON */
+#endif /* WOLFSSL_SHA512 */
 #endif /* !__aarch64__ */
-#endif /* WOLFSSL_ARMASM && WOLFSSL_SHA512 */
+#endif /* WOLFSSL_ARMASM */
