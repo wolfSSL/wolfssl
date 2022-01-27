@@ -36194,6 +36194,9 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
             hmac_error = wc_HmacSetKey(&ctx->hmac, ctx->type, (const byte*)key,
                                        (word32)keylen);
             if (hmac_error < 0){
+                /* in FIPS mode a key < 14 characters will fail here */
+                WOLFSSL_MSG("hmac set key error");
+                WOLFSSL_ERROR(hmac_error);
                 wc_HmacFree(&ctx->hmac);
                 return WOLFSSL_FAILURE;
             }
@@ -36218,7 +36221,9 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
                                        WC_HMAC_BLOCK_SIZE);
             if ((hmac_error = _HMAC_Init(&ctx->hmac, ctx->hmac.macType, heap))
                     !=0) {
-               return hmac_error;
+                WOLFSSL_MSG("hmac init error");
+                WOLFSSL_ERROR(hmac_error);
+                return WOLFSSL_FAILURE;
             }
         }
     }
