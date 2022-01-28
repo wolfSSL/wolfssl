@@ -1741,7 +1741,7 @@ struct TrustedPeerCert {
                                      /* sha hash of names in certificate */
     #ifndef NO_SKID
         byte    subjectKeyIdHash[SIGNER_DIGEST_SIZE];
-                                     /* sha hash of names in certificate */
+                                     /* sha hash of SKID in certificate */
     #endif
     word32 sigLen;
     byte*  sig;

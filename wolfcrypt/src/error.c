@@ -252,7 +252,11 @@ const char* wc_GetErrorString(int error)
         return "Bad alignment error, no alloc help";
 
     case ASN_NO_SIGNER_E :
+#ifndef OPENSSL_EXTRA
         return "ASN no signer error to confirm failure";
+#else
+        return "certificate verify failed";
+#endif
 
     case ASN_CRL_CONFIRM_E :
         return "ASN CRL sig error, confirm failure";

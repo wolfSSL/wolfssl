@@ -319,6 +319,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_set_post_handshake_auth     wolfSSL_set_post_handshake_auth
 #define SSL_CTX_set_post_handshake_auth wolfSSL_CTX_set_post_handshake_auth
 #define SSL_pending                     wolfSSL_pending
+#define SSL_has_pending                 wolfSSL_has_pending
 #define SSL_load_error_strings          wolfSSL_load_error_strings
 #define SSL_library_init                wolfSSL_library_init
 #define OPENSSL_cleanup                 (void)wolfSSL_Cleanup

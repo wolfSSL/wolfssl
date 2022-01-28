@@ -2758,6 +2758,7 @@ struct WOLFSSL_CTX {
     byte        sessionCacheFlushOff:1;
 #ifdef HAVE_EXT_CACHE
     byte        internalCacheOff:1;
+    byte        internalCacheLookupOff:1;
 #endif
     byte        sendVerify:2;     /* for client side (can not be single bit) */
     byte        haveRSA:1;        /* RSA available */
@@ -3083,7 +3084,7 @@ int ProcessOldClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     WOLFSSL_LOCAL
     int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify);
     WOLFSSL_LOCAL
-    int AlreadyTrustedPeer(WOLFSSL_CERT_MANAGER* cm, byte* hash);
+    int AlreadyTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DecodedCert* cert);
 #endif
 #endif
 
@@ -3364,27 +3365,10 @@ struct WOLFSSL_SESSION {
     word16             ticketLenAlloc;    /* is dynamic */
 #endif
     int                refCount;          /* reference count */
+#ifndef SINGLE_THREADED
+    wolfSSL_Mutex      refMutex;          /* ref count mutex */
+#endif
     void*              heap;
-
-#ifdef ENABLE_CLIENT_SESSION_REF
-    /* pointer to WOLFSSL_SESSION in internal cache (for WOLFSSL_SESSION_TYPE_REF) */
-    void*              refPtr;
-#endif
-
-    /* Below buffers are not allocated for the WOLFSSL_SESSION_TYPE_REF, instead
-     * the above pointers reference the session cache for backwards
-     * compatibility. For all other session types the above pointers reference
-     * these buffers directly */
-    byte               _masterSecret[SECRET_LEN];
-#ifndef NO_CLIENT_CACHE
-    byte               _serverID[SERVER_ID_LEN];
-#endif
-#ifdef HAVE_SESSION_TICKET
-    byte               _staticTicket[SESSION_TICKET_LEN];
-#endif
-#ifdef OPENSSL_EXTRA
-    byte               _sessionCtx[ID_LEN];
-#endif
 
 #ifdef SESSION_CERTS
     WOLFSSL_X509_CHAIN chain;             /* peer cert chain, static  */
@@ -3395,10 +3379,26 @@ struct WOLFSSL_SESSION {
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
+
+#ifdef ENABLE_CLIENT_SESSION_REF
+    /* pointer to WOLFSSL_SESSION in internal cache (for WOLFSSL_SESSION_TYPE_REF) */
+    void*              refPtr;
+#endif
+
+    /* Below buffers are not allocated for the WOLFSSL_SESSION_TYPE_REF, instead
+     * the above pointers reference the session cache for backwards
+     * compatibility. For all other session types the above pointers reference
+     * these buffers directly. Keep these buffers at the end so that they don't
+     * get copied into the WOLFSSL_SESSION_TYPE_REF object. */
+    byte               _masterSecret[SECRET_LEN];
+#ifndef NO_CLIENT_CACHE
+    byte               _serverID[SERVER_ID_LEN];
+#endif
+#ifdef HAVE_SESSION_TICKET
+    byte               _staticTicket[SESSION_TICKET_LEN];
+#endif
 #ifdef OPENSSL_EXTRA
-    #ifndef SINGLE_THREADED
-    wolfSSL_Mutex      refMutex;          /* ref count mutex */
-    #endif
+    byte               _sessionCtx[ID_LEN];
 #endif
 };
 
@@ -3598,6 +3598,7 @@ typedef struct Options {
     word16            sessionCacheFlushOff:1;
 #ifdef HAVE_EXT_CACHE
     word16            internalCacheOff:1;
+    word16            internalCacheLookupOff:1;
 #endif
     word16            side:2;             /* client, server or neither end */
     word16            verifyPeer:1;
@@ -3702,6 +3703,9 @@ typedef struct Options {
     word16            encThenMac:1;           /* Doing Encrypt-Then-MAC */
     word16            startedETMRead:1;       /* Doing Encrypt-Then-MAC read */
     word16            startedETMWrite:1;      /* Doing Encrypt-Then-MAC write */
+#endif
+#ifdef WOLFSSL_TICKET_HAVE_ID
+    word16          haveTicketSessionID:1;
 #endif
 
     /* need full byte values for this section */
@@ -4235,6 +4239,9 @@ struct WOLFSSL {
 #ifdef HAVE_EXT_CACHE
     WOLFSSL_SESSION* extSession;
 #endif
+#ifdef WOLFSSL_TICKET_HAVE_ID
+    byte            ticketSessionID[ID_LEN];
+#endif
     WOLFSSL_ALERT_HISTORY alert_history;
     int             error;
     int             rfd;                /* read  file descriptor */
@@ -4390,6 +4397,8 @@ struct WOLFSSL {
     WOLFSSL_X509_STORE* x509_store_pt; /* take ownership of external store */
 #endif
 #ifdef KEEP_PEER_CERT
+    /* TODO put this on the heap so we can properly use the
+     * reference counter and not have to duplicate it. */
     WOLFSSL_X509     peerCert;           /* X509 peer cert */
 #endif
 #ifdef KEEP_OUR_CERT
@@ -4571,6 +4580,22 @@ struct WOLFSSL {
     WOLFSSL_LWIP_NATIVE_STATE      lwipCtx; /* LwIP native socket IO Context */
 #endif
 };
+
+/*
+ * wolfSSL_PEM_read_bio_X509 pushes an ASN_NO_PEM_HEADER error
+ * to the error queue on file end. This should not be left
+ * for the caller to find so we clear the last error.
+ */
+#ifdef WOLFSSL_HAVE_ERROR_QUEUE
+#define CLEAR_ASN_NO_PEM_HEADER_ERROR(err)                  \
+    err = wolfSSL_ERR_peek_last_error();                    \
+    if (ERR_GET_LIB(err) == ERR_LIB_PEM &&                  \
+            ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {   \
+        wc_RemoveErrorNode(-1);                             \
+    }
+#else
+#define CLEAR_ASN_NO_PEM_HEADER_ERROR(err) (void)err;
+#endif
 
 /*
  * The SSL object may have its own certificate store. The below macros simplify
@@ -4827,8 +4852,7 @@ WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
         #define WC_MATCH_SKID 0
         #define WC_MATCH_NAME 1
 
-        WOLFSSL_LOCAL TrustedPeerCert* GetTrustedPeer(void* vp, byte* hash,
-                                                                      int type);
+        WOLFSSL_LOCAL TrustedPeerCert* GetTrustedPeer(void* vp, DecodedCert* cert);
         WOLFSSL_LOCAL int MatchTrustedPeer(TrustedPeerCert* tp,
                                                              DecodedCert* cert);
     #endif

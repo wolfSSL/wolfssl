@@ -45,6 +45,12 @@
     WOLFSSL_API void wolfSSL_SetMemFailCount(int memFailCount);
 #endif
 
+#ifdef OPENSSL_EXTRA
+    typedef void *(*wolfSSL_OSSL_Malloc_cb)(size_t, const char *, int);
+    typedef void  (*wolfSSL_OSSL_Free_cb)(void *, const char *, int);
+    typedef void *(*wolfSSL_OSSL_Realloc_cb)(void *, size_t, const char *, int);
+#endif /* OPENSSL_EXTRA */
+
 #ifdef WOLFSSL_STATIC_MEMORY
     #ifdef WOLFSSL_DEBUG_MEMORY
         typedef void *(*wolfSSL_Malloc_cb)(size_t size, void* heap, int type, const char* func, unsigned int line);

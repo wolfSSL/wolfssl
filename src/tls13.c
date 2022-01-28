@@ -3562,17 +3562,21 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     case TLS_ASYNC_FINALIZE:
     {
 #ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
-    if (args->sessIdSz == 0)
+    if (args->sessIdSz == 0) {
+        WOLFSSL_MSG("args->sessIdSz == 0");
         return INVALID_PARAMETER;
+    }
     if (ssl->session.sessionIDSz != 0) {
         if (ssl->session.sessionIDSz != args->sessIdSz ||
             XMEMCMP(ssl->session.sessionID, args->sessId,
                 args->sessIdSz) != 0) {
+            WOLFSSL_MSG("session id doesn't match");
             return INVALID_PARAMETER;
         }
     }
     else if (XMEMCMP(ssl->arrays->clientRandom, args->sessId,
             args->sessIdSz) != 0) {
+        WOLFSSL_MSG("session id doesn't match client random");
         return INVALID_PARAMETER;
     }
 #else

@@ -32,10 +32,11 @@
 /* for users not using preprocessor flags*/
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
-#include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
-#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/memory.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 /* For the types */
 #include <wolfssl/openssl/compat_types.h>
@@ -1192,7 +1193,8 @@ WOLFSSL_API int wolfSSL_set_post_handshake_auth(WOLFSSL* ssl, int val);
 
 WOLFSSL_API void wolfSSL_SetCertCbCtx(WOLFSSL* ssl, void* ctx);
 
-WOLFSSL_ABI WOLFSSL_API int  wolfSSL_pending(WOLFSSL* ssl);
+WOLFSSL_ABI WOLFSSL_API int  wolfSSL_pending(const WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_has_pending(const WOLFSSL* ssl);
 
 WOLFSSL_API void wolfSSL_load_error_strings(void);
 WOLFSSL_API int  wolfSSL_library_init(void);
@@ -2199,12 +2201,12 @@ enum {
 
     X509_V_OK                                    = 0,
     X509_V_ERR_CRL_SIGNATURE_FAILURE             = 8,
-    X509_V_ERR_CERT_HAS_EXPIRED                  = 10,
+    X509_V_ERR_CERT_HAS_EXPIRED                  = ASN_AFTER_DATE_E,
     X509_V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD    = 14,
     X509_V_ERR_CRL_HAS_EXPIRED                   = 15,
     X509_V_ERR_CERT_CHAIN_TOO_LONG               = 17,
     X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT         = 18,
-    X509_V_ERR_CERT_NOT_YET_VALID                = 19,
+    X509_V_ERR_CERT_NOT_YET_VALID                = ASN_BEFORE_DATE_E,
     X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD    = 20,
     X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD     = 22,
     X509_V_ERR_CERT_REVOKED                      = 23,
@@ -2214,7 +2216,7 @@ enum {
     X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN         = 26,
     X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY = 27,
     X509_V_ERR_CERT_UNTRUSTED                    = 28,
-    X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE   = 29,
+    X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE   = ASN_NO_SIGNER_E,
     X509_V_ERR_SUBJECT_ISSUER_MISMATCH           = 30,
     /* additional X509_V_ERR_* enums not used in wolfSSL */
     X509_V_ERR_UNABLE_TO_GET_CRL,
@@ -3348,6 +3350,8 @@ WOLFSSL_API void* wolfSSL_GetVerifyMacCtx(WOLFSSL* ssl);
             VerifyCallback vc);
     WOLFSSL_API int wolfSSL_CertManagerLoadCRL(WOLFSSL_CERT_MANAGER* cm,
                                                          const char* path, int type, int monitor);
+    WOLFSSL_API int wolfSSL_CertManagerLoadCRLFile(WOLFSSL_CERT_MANAGER* cm,
+                                                         const char* file, int type);
     WOLFSSL_API int wolfSSL_CertManagerLoadCRLBuffer(WOLFSSL_CERT_MANAGER* cm,
                                             const unsigned char* buff, long sz, int type);
     WOLFSSL_API int wolfSSL_CertManagerSetCRL_Cb(WOLFSSL_CERT_MANAGER* cm,
@@ -3389,6 +3393,7 @@ WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_get1_certs(
     WOLFSSL_API int wolfSSL_EnableCRL(WOLFSSL* ssl, int options);
     WOLFSSL_API int wolfSSL_DisableCRL(WOLFSSL* ssl);
     WOLFSSL_API int wolfSSL_LoadCRL(WOLFSSL* ssl, const char* path, int type, int monitor);
+    WOLFSSL_API int wolfSSL_LoadCRLFile(WOLFSSL* ssl, const char* file, int type);
     WOLFSSL_API int wolfSSL_LoadCRLBuffer(WOLFSSL* ssl,
                                           const unsigned char* buff, long sz, int type);
     WOLFSSL_API int wolfSSL_SetCRL_Cb(WOLFSSL* ssl, CbMissingCRL cb);
@@ -3405,6 +3410,7 @@ WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_get1_certs(
     WOLFSSL_API int wolfSSL_CTX_EnableCRL(WOLFSSL_CTX* ctx, int options);
     WOLFSSL_API int wolfSSL_CTX_DisableCRL(WOLFSSL_CTX* ctx);
     WOLFSSL_API int wolfSSL_CTX_LoadCRL(WOLFSSL_CTX* ctx, const char* path, int type, int monitor);
+    WOLFSSL_API int wolfSSL_CTX_LoadCRLFile(WOLFSSL_CTX* ctx, const char* path, int type);
     WOLFSSL_API int wolfSSL_CTX_LoadCRLBuffer(WOLFSSL_CTX* ctx,
                                             const unsigned char* buff, long sz, int type);
     WOLFSSL_API int wolfSSL_CTX_SetCRL_Cb(WOLFSSL_CTX* ctx, CbMissingCRL cb);
@@ -4313,9 +4319,9 @@ WOLFSSL_API WOLFSSL_ASN1_TYPE *wolfSSL_X509_ATTRIBUTE_get0_type(
 #include <wolfssl/openssl/crypto.h>
 
 WOLFSSL_API int wolfSSL_CRYPTO_set_mem_functions(
-        wolfSSL_Malloc_cb  m,
-        wolfSSL_Realloc_cb r,
-        wolfSSL_Free_cb    f);
+        wolfSSL_OSSL_Malloc_cb  m,
+        wolfSSL_OSSL_Realloc_cb r,
+        wolfSSL_OSSL_Free_cb    f);
 WOLFSSL_API int wolfSSL_CRYPTO_set_mem_ex_functions(void *(*m) (size_t, const char *, int),
     void *(*r) (void *, size_t, const char *, int), void (*f) (void *));
 
