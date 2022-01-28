@@ -431,21 +431,11 @@ endif()
 set(WOLFSSL_AESCCM_HELP_STRING "Enable wolfSSL AES-CCM support (default: disabled)")
 add_option("WOLFSSL_AESCCM" ${WOLFSSL_AESCCM_HELP_STRING} "no" "yes;no")
 
-if(WOLFSSL_AESCCM)
-    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_AESCCM")
-endif()
-
 # AES-OFB
 set(WOLFSSL_AESOFB_HELP_STRING "Enable wolfSSL AES-OFB support (default: disabled)")
 add_option("WOLFSSL_AESOFB" ${WOLFSSL_AESOFB_HELP_STRING} "no" "yes;no")
 
-if(WOLFSSL_AESOFB)
-    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AES_OFB" "-DWOLFSSL_AES_DIRECT")
-endif()
-
-
 # TODO: - AES-GCM stream
-#       - AES-CFB
 #       - AES-ARM
 #       - Xilinx hardened crypto
 #       - Intel AES-NI
@@ -459,6 +449,8 @@ endif()
 #       - RIPEMD
 #       - BLAKE2
 
+set(WOLFSSL_AESCFB_HELP_STRING "Enable wolfSSL AES-CFB support (default: disabled)")
+add_option("WOLFSSL_AESCFB" ${WOLFSSL_AESCFB_HELP_STRING} "no" "yes;no")
 
 # Align data
 set(WOLFSSL_ALIGN_DATA_HELP_STRING "Align data for ciphers (default: enabled)")
@@ -542,11 +534,19 @@ endif()
 
 # TODO: - Session certs
 #       - Key generation
-#       - Cert generation
-#       - Cert request generation
-#       - Cert request extension
-#       - Decoded cert cache
 #       - SEP
+
+set(WOLFSSL_CERTGEN_HELP_STRING "Enable cert generation (default: disabled)")
+add_option("WOLFSSL_CERTGEN" ${WOLFSSL_CERTGEN_HELP_STRING} "no" "yes;no")
+
+set(WOLFSSL_CERTREQ_HELP_STRING "Enable cert request generation (default: disabled)")
+add_option("WOLFSSL_CERTREQ" ${WOLFSSL_CERTREQ_HELP_STRING} "no" "yes;no")
+
+set(WOLFSSL_CERTEXT_HELP_STRING "Enable cert request extensions (default: disabled)")
+add_option("WOLFSSL_CERTEXT" ${WOLFSSL_CERTEXT_HELP_STRING} "no" "yes;no")
+
+set(WOLFSSL_CERTGENCACHE_HELP_STRING "Enable decoded cert caching (default: disabled)")
+add_option("WOLFSSL_CERTGENCACHE" ${WOLFSSL_CERTGENCACHE_HELP_STRING} "no" "yes;no")
 
 # HKDF
 set(WOLFSSL_HKDF_HELP_STRING "Enable HKDF (HMAC-KDF) support (default: disabled)")
@@ -559,8 +559,6 @@ endif()
 if(WOLFSSL_HKDF)
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_HKDF")
 endif()
-
-# TODO: - X9.63 KDF
 
 # DSA
 set(WOLFSSL_DSA_HELP_STRING "Enable DSA (default: disabled)")
@@ -1240,7 +1238,6 @@ endif()
 
 # TODO: - TLS extensions
 #       - Early data handshake
-#       - PKCS7
 #       - wolfSSH options
 #       - SCEP
 #       - Secure remote password
@@ -1255,6 +1252,19 @@ endif()
 #       - lighttpd/lighty
 #       - Asio
 #       - Apache HTTPD
+
+set(WOLFSSL_PKCS7_HELP_STRING "Enable PKCS7 (default: disabled)")
+add_option(WOLFSSL_PKCS7 ${WOLFSSL_PKCS7_HELP_STRING} "no" "yes;no")
+
+set(WOLFSSL_TPM_HELP_STRING "Enable wolfTPM options (default: disabled)")
+add_option(WOLFSSL_TPM ${WOLFSSL_TPM_HELP_STRING} "no" "yes;no")
+
+set(WOLFSSL_AESKEYWRAP_HELP_STRING "Enable AES key wrap support (default: disabled)")
+add_option(WOLFSSL_AESKEYWRAP ${WOLFSSL_AESKEYWRAP_HELP_STRING} "no" "yes;no")
+
+set(WOLFSSL_X963KDF_HELP_STRING "Enable X9.63 KDF support (default: disabled)")
+add_option(WOLFSSL_X963KDF ${WOLFSSL_X963KDF_HELP_STRING} "no" "yes;no")
+
 
 # Encrypt-then-mac
 set(WOLFSSL_ENC_THEN_MAC_HELP_STRING "Enable Encryptr-Then-Mac extension (default: enabled)")
@@ -1456,9 +1466,11 @@ else()
 endif()
 
 # TODO: - cryptodev
-#       - cryptocb
 #       - Session export
-#       - AES key wrap
+
+set(WOLFSSL_CRYPTOCB_HELP_STRING "Enable crypto callbacks (default: disabled)")
+add_option("WOLFSSL_CRYPTOCB" ${WOLFSSL_CRYPTOCB_HELP_STRING} "no" "yes;no")
+
 
 set(WOLFSSL_OLD_NAMES_HELP_STRING "Keep backwards compat with old names (default: enabled)")
 add_option("WOLFSSL_OLD_NAMES" ${WOLFSSL_OLD_NAMES_HELP_STRING} "yes" "yes;no")
@@ -1498,6 +1510,69 @@ add_option("WOLFSSL_USER_SETTINGS" ${WOLFSSL_USER_SETTINGS_HELP_STRING} "no" "ye
 
 set(WOLFSSL_OPTFLAGS_HELP_STRING "Enable default optimization CFLAGS for the compiler (default: enabled)")
 add_option("WOLFSSL_OPTFLAGS" ${WOLFSSL_OPTFLAGS_HELP_STRING} "yes" "yes;no")
+
+# FLAGS operations
+
+if(WOLFSSL_AESCCM)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_AESCCM")
+endif()
+
+if(WOLFSSL_AESOFB)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AES_OFB" "-DWOLFSSL_AES_DIRECT")
+endif()
+
+if(WOLFSSL_TPM)
+    override_cache(WOLFSSL_CERTGEN "yes")
+    override_cache(WOLFSSL_CRYPTOCB "yes")
+    override_cache(WOLFSSL_CERTREQ "yes")
+    override_cache(WOLFSSL_CERTEXT "yes")
+    override_cache(WOLFSSL_PKCS7   "yes")
+    override_cache(WOLFSSL_AESCFB  "yes")
+endif()
+
+if(WOLFSSL_AESCFB)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AES_CFB")
+endif()
+
+
+if(WOLFSSL_PKCS7)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_PKCS7")
+    override_cache(WOLFSSL_AESKEYWRAP "yes")
+    # Enable prereqs if not already enabled
+    if(WOLFSSL_ECC)
+        override_cache(WOLFSSL_X963KDF "yes")
+    endif()
+endif()
+
+if(WOLFSSL_X963KDF)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_X963_KDF")
+endif()
+
+if(WOLFSSL_AESKEYWRAP)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DHAVE_AES_KEYWRAP"
+        "-DWOLFSSL_AES_DIRECT"
+        )
+endif()
+
+
+if(WOLFSSL_CERTGEN)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_CERT_GEN")
+endif()
+if(WOLFSSL_CERTREQ)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_CERT_REQ")
+endif()
+if(WOLFSSL_CERTEXT)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_CERT_EXT")
+endif()
+if(WOLFSSL_CERTGENCACHE)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_CERT_GEN_CACHE")
+endif()
+
+if(WOLFSSL_CRYPTOCB)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLF_CRYPTO_CB")
+endif()
+
 
 # Generates the BUILD_* flags. These control what source files are included in
 # the library. A series of AM_CONDITIONALs handle this in configure.ac.
@@ -1593,8 +1668,10 @@ set_target_properties(wolfssl
         VERSION ${LIBTOOL_FULL_VERSION}
 )
 
-target_compile_options(wolfssl PRIVATE "-DBUILDING_WOLFSSL")
-
+target_compile_definitions(wolfssl PRIVATE "BUILDING_WOLFSSL")
+if(${BUILD_SHARED_LIBS})
+    target_compile_definitions(wolfssl PUBLIC "WOLFSSL_DLL")
+endif()
 
 ####################################################
 # Include Directories
