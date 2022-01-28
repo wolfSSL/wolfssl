@@ -1605,6 +1605,38 @@ int wc_ecc_ctx_reset(ecEncCtx*, WC_RNG*);  /* reset for use again w/o alloc/free
 /*!
     \ingroup ECC
 
+    \brief This function can optionally be called after
+    wc_ecc_ctx_new. It sets the encryption, KDF, and MAC algorithms
+    into an ecEncCtx object.
+
+    \return 0 Returned upon successfully setting the information
+    for the ecEncCtx object.
+    \return BAD_FUNC_ARG Returned if the given ecEncCtx object is
+    NULL.
+
+    \param ctx pointer to the ecEncCtx for which to set the info
+    \param encAlgo encryption algorithm to use.
+    \param kdfAlgo KDF algorithm to use.
+    \param macAlgo MAC algorithm to use.
+
+    _Example_
+    \code
+    ecEncCtx* ctx;
+    // initialize ctx
+    if(wc_ecc_ctx_set_algo(&ctx, ecAES_128_CTR, ecHKDF_SHA256, ecHMAC_SHA256))) {
+	    // error setting info
+    }
+    \endcode
+
+    \sa wc_ecc_ctx_new
+*/
+WOLFSSL_API
+int wc_ecc_ctx_set_algo(ecEncCtx* ctx, byte encAlgo, byte kdfAlgo,
+    byte macAlgo);
+
+/*!
+    \ingroup ECC
+
     \brief This function returns the salt of an ecEncCtx object. This
     function should only be called when the ecEncCtx's state is
     ecSRV_INIT or ecCLI_INIT.
