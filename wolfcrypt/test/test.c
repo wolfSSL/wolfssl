@@ -24642,7 +24642,8 @@ WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
         ret = -10412; goto done;
     }
 
-#ifdef HAVE_COMP_KEY
+#if defined(HAVE_COMP_KEY) && \
+    (! defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
     /* Create new client and server contexts. */
     wc_ecc_ctx_free(srvCtx);
     wc_ecc_ctx_free(cliCtx);
@@ -24700,7 +24701,7 @@ WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
     if (XMEMCMP(plain, msg, sizeof(msg)) != 0) {
         ret = -10419; goto done;
     }
-#endif /* HAVE_COMP_KEY */
+#endif /* HAVE_COMP_KEY && (!FIPS || FIPS>=5.3) */
 
 #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
     ret = ecc_encrypt_kat(&rng);
