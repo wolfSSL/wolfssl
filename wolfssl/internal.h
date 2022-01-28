@@ -3861,7 +3861,7 @@ struct WOLFSSL_STACK {
     union {
         WOLFSSL_X509*          x509;
         WOLFSSL_X509_NAME*     name;
-        WOLFSSL_X509_NAME_ENTRY* nameentry;
+        WOLFSSL_X509_NAME_ENTRY* name_entry;
         WOLFSSL_X509_INFO*     info;
         WOLFSSL_BIO*           bio;
         WOLFSSL_ASN1_OBJECT*   obj;

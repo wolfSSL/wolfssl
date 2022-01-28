@@ -31487,7 +31487,7 @@ void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i)
         case STACK_TYPE_X509_NAME:
             return (void*)sk->data.name;
         case STACK_TYPE_X509_NAME_ENTRY:
-            return (void*)sk->data.nameentry;
+            return (void*)sk->data.name_entry;
         case STACK_TYPE_CONF_VALUE:
             return (void*)sk->data.conf;
         case STACK_TYPE_X509_INFO:
@@ -48127,22 +48127,26 @@ WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* wolfSSL_sk_X509_NAME_ENTRY_new(
     }
     return sk;
 }
+
 int wolfSSL_sk_X509_NAME_ENTRY_push(WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* sk,
-    WOLFSSL_X509_NAME_ENTRY* nameentry)
+    WOLFSSL_X509_NAME_ENTRY* name_entry)
 {
-    return wolfSSL_sk_push(sk, nameentry);
+    return wolfSSL_sk_push(sk, name_entry);
 }
+
 WOLFSSL_X509_NAME_ENTRY* wolfSSL_sk_X509_NAME_ENTRY_value(
     const WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* sk, int i)
 {
     return (WOLFSSL_X509_NAME_ENTRY*)wolfSSL_sk_value(sk, i);
 }
+
 int wolfSSL_sk_X509_NAME_ENTRY_num(const WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* sk)
 {
     if (sk == NULL)
         return BAD_FUNC_ARG;
     return (int)sk->num;
 }
+
 void wolfSSL_sk_X509_NAME_ENTRY_free(WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* sk)
 {
     wolfSSL_sk_free(sk);
