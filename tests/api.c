@@ -13772,9 +13772,18 @@ static int test_wc_Md5HmacSetKey (void)
     for (itr = 0; itr < times; itr++) {
         ret = wc_HmacSetKey(&hmac, WC_MD5, (byte*)keys[itr],
                             (word32)XSTRLEN(keys[itr]));
+#if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 5)
+        wc_HmacFree(&hmac);
+        if (ret == BAD_FUNC_ARG)
+            return 0;
+        else {
+            return WOLFSSL_FATAL_ERROR;
+        }
+#else
         if (ret != 0) {
             flag = ret;
         }
+#endif
     }
 
     /* Bad args. */
@@ -14166,7 +14175,7 @@ static int test_wc_Sha384HmacSetKey (void)
 static int test_wc_Md5HmacUpdate (void)
 {
     int flag = 0;
-#if !defined(NO_HMAC) && !defined(NO_MD5)
+#if !defined(NO_HMAC) && !defined(NO_MD5) && !(defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 5))
     Hmac hmac;
     testVector a, b;
     int ret;
@@ -14567,7 +14576,7 @@ static int test_wc_Sha384HmacUpdate (void)
 static int test_wc_Md5HmacFinal (void)
 {
     int flag = 0;
-#if !defined(NO_HMAC) && !defined(NO_MD5)
+#if !defined(NO_HMAC) && !defined(NO_MD5) && !(defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 5))
     Hmac hmac;
     byte hash[WC_MD5_DIGEST_SIZE];
     testVector a;

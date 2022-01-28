@@ -77,16 +77,15 @@ WOLFSSL_API const char* wolfCrypt_GetCoreHash_fips(void);
 
 #ifdef HAVE_FORCE_FIPS_FAILURE
     /* Public function to force failure mode for operational testing */
-    WOLFSSL_API int wolfCrypt_SetStatus_fips(int);
+    WOLFSSL_API int wolfCrypt_SetStatus_fips(int status);
 #endif
 
-WOLFSSL_LOCAL int DoIntegrityTest(char*, int);
-WOLFSSL_LOCAL int DoPOST(char*, int);
-WOLFSSL_LOCAL int DoCAST(int);
-WOLFSSL_LOCAL int DoKnownAnswerTests(char*, int); /* FIPSv1 and FIPSv2 */
+WOLFSSL_LOCAL int DoPOST(char* base16_hash, int base16_hashSz);
+WOLFSSL_LOCAL int DoCAST(int type);
+WOLFSSL_LOCAL int DoKnownAnswerTests(char* base16_hash, int base16_hashSz); /* FIPSv1 and FIPSv2 */
 
-WOLFSSL_API int wc_RunCast_fips(int);
-WOLFSSL_API int wc_GetCastStatus_fips(int);
+WOLFSSL_API int wc_RunCast_fips(int type);
+WOLFSSL_API int wc_GetCastStatus_fips(int type);
 
 #ifdef __cplusplus
     } /* extern "C" */
