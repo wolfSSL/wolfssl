@@ -170,8 +170,7 @@ find_package(Threads)
 ####################################################
 # Build Options
 ####################################################
-# TODO: - Debug
-#       - FIPS
+# TODO: - FIPS
 #       - Distro
 #       - Linux Kernel Module
 #       - Single precision math
@@ -213,6 +212,18 @@ if(NOT WOLFSSL_ASM)
         "-DWOLFSSL_NO_ASM")
 endif()
 
+# Enable Debugging
+set(WOLFSSL_DEBUG_HELP_STRING "Enables option for debug (default: disabled)")
+add_option("WOLFSSL_DEBUG" ${WOLFSSL_DEBUG_HELP_STRING} "no" "yes;no")
+
+if(WOLFSSL_DEBUG)
+    set(CMAKE_C_FLAGS "-g ${CMAKE_C_FLAGS}")
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DDEBUG_WOLFSSL"
+        "-DDEBUG")
+endif()
+
+
 # Single threaded
 set(WOLFSSL_SINGLE_THREADED_HELP_STRING "Enable wolfSSL single threaded (default: disabled)")
 add_option("WOLFSSL_SINGLE_THREADED" ${WOLFSSL_SINGLE_THREADED_HELP_STRING} "no" "yes;no")
@@ -228,8 +239,16 @@ if(NOT WOLFSSL_SINGLE_THREADED)
     endif()
 endif()
 
-# TODO: - DTLS
-#       - TLS v1.3 Draft 18
+
+# DTLS
+set(WOLFSSL_DTLS_HELP_STRING "Enables wolfSSL DTLS (default: disabled)")
+add_option("WOLFSSL_DTLS" ${WOLFSSL_DTLS_HELP_STRING} "no" "yes;no")
+
+if(WOLFSSL_DTLS)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DWOLFSSL_DTLS")
+endif()
+
 
 # TLS v1.3
 set(WOLFSSL_TLS13_HELP_STRING "Enable wolfSSL TLS v1.3 (default: enabled)")
@@ -239,8 +258,33 @@ if("${FIPS_VERSION}" STREQUAL "v1")
     override_cache(WOLFSSL_TLS13 "no")
 endif()
 
-# TODO: Post-handshake authentication
-#       Hello retry request cookie
+# Post-handshake authentication
+set(WOLFSSL_POSTAUTH_HELP_STRING "Enable wolfSSL Post-handshake Authentication (default: disabled)")
+add_option("WOLFSSL_POSTAUTH" ${WOLFSSL_POSTAUTH_HELP_STRING} "no" "yes;no")
+
+if(WOLFSSL_POSTAUTH)
+    if(NOT WOLFSSL_TLS13)
+        message(WARNING "TLS 1.3 is disabled - disabling Post-handshake Authentication")
+        override_cache(WOLFSSL_POSTAUTH "no")
+    else()
+        list(APPEND WOLFSSL_DEFINITIONS
+            "-DWOLFSSL_POST_HANDSHAKE_AUTH")
+    endif()
+endif()
+
+# Hello Retry Request Cookie
+set(WOLFSSL_HRR_COOKIE_HELP_STRING "Enable the server to send Cookie Extension in HRR with state (default: disabled)")
+add_option("WOLFSSL_HRR_COOKIE" ${WOLFSSL_HRR_COOKIE_HELP_STRING} "no" "yes;no")
+
+if(WOLFSSL_HRR_COOKIE)
+    if(NOT WOLFSSL_TLS13)
+        message(WARNING "TLS 1.3 is disabled - disabling HRR Cookie")
+        override_cache(WOLFSSL_HRR_COOKIE "no")
+    else()
+        list(APPEND WOLFSSL_DEFINITIONS
+            "-DWOLFSSL_SEND_HRR_COOKIE")
+    endif()
+endif()
 
 # RNG
 set(WOLFSSL_RNG_HELP_STRING "Enable compiling and using RNG (default: enabled)")
@@ -383,9 +427,24 @@ if(WOLFSSL_AESCTR AND NOT WOLFSSL_FORTRESS)
         "-DWOLFSSL_AES_DIRECT")
 endif()
 
-# TODO: - AES-CCM
-#       - AES-GCM stream
-#       - AES-OFB
+# AES-CCM
+set(WOLFSSL_AESCCM_HELP_STRING "Enable wolfSSL AES-CCM support (default: disabled)")
+add_option("WOLFSSL_AESCCM" ${WOLFSSL_AESCCM_HELP_STRING} "no" "yes;no")
+
+if(WOLFSSL_AESCCM)
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_AESCCM")
+endif()
+
+# AES-OFB
+set(WOLFSSL_AESOFB_HELP_STRING "Enable wolfSSL AES-OFB support (default: disabled)")
+add_option("WOLFSSL_AESOFB" ${WOLFSSL_AESOFB_HELP_STRING} "no" "yes;no")
+
+if(WOLFSSL_AESOFB)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_AES_OFB" "-DWOLFSSL_AES_DIRECT")
+endif()
+
+
+# TODO: - AES-GCM stream
 #       - AES-CFB
 #       - AES-ARM
 #       - Xilinx hardened crypto

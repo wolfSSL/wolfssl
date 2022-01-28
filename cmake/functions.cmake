@@ -598,10 +598,6 @@ function(generate_lib_src_list LIB_SOURCES)
          wolfcrypt/src/wc_port.c 
          wolfcrypt/src/error.c)
 
-    if(BUILD_DEBUG)
-         list(APPEND LIB_SOURCES
-              wolfcrypt/src/debug.c)
-    endif()
 
     if(NOT BUILD_FIPS_RAND)
          list(APPEND LIB_SOURCES
