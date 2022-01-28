@@ -4009,7 +4009,9 @@ static const byte extExtKeyUsageOcspSignOid[]     = {43, 6, 1, 5, 5, 7, 3, 9};
     defined(WOLFSSL_ASN_TEMPLATE)
 /* csrAttrType */
 #define CSR_ATTR_TYPE_OID_BASE(num) {42, 134, 72, 134, 247, 13, 1, 9, num}
+#if !defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN)
 static const byte attrEmailOid[] =             CSR_ATTR_TYPE_OID_BASE(1);
+#endif
 #ifdef WOLFSSL_CERT_REQ
 static const byte attrUnstructuredNameOid[] =  CSR_ATTR_TYPE_OID_BASE(2);
 static const byte attrPkcs9ContentTypeOid[] =  CSR_ATTR_TYPE_OID_BASE(3);
@@ -4056,7 +4058,9 @@ static const byte dnsSRVOid[] = {43, 6, 1, 5, 5, 7, 8, 7};
 #ifdef WOLFSSL_ASN_TEMPLATE
 static const byte uidOid[] = {9, 146, 38, 137, 147, 242, 44, 100, 1, 1}; /* user id */
 #endif
+#if !defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN)
 static const byte dcOid[] = {9, 146, 38, 137, 147, 242, 44, 100, 1, 25}; /* domain component */
+#endif
 #endif
 
 

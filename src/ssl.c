@@ -29578,59 +29578,6 @@ void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value)
 }
 
 /**
- * Allocate a new WOLFSSL_ASN1_TYPE object.
- *
- * @return New zero'ed WOLFSSL_ASN1_TYPE object
- */
-WOLFSSL_ASN1_TYPE* wolfSSL_ASN1_TYPE_new(void)
-{
-    WOLFSSL_ASN1_TYPE* ret = (WOLFSSL_ASN1_TYPE*)XMALLOC(sizeof(WOLFSSL_ASN1_TYPE),
-                                                        NULL, DYNAMIC_TYPE_OPENSSL);
-    if (!ret)
-        return NULL;
-    XMEMSET(ret, 0, sizeof(WOLFSSL_ASN1_TYPE));
-    return ret;
-}
-
-/**
- * Free WOLFSSL_ASN1_TYPE and all its members.
- *
- * @param at Object to free
- */
-void wolfSSL_ASN1_TYPE_free(WOLFSSL_ASN1_TYPE* at)
-{
-    if (at) {
-        switch (at->type) {
-            case V_ASN1_OBJECT:
-                wolfSSL_ASN1_OBJECT_free(at->value.object);
-                break;
-            case V_ASN1_UTCTIME:
-            #ifndef NO_ASN_TIME
-                wolfSSL_ASN1_TIME_free(at->value.utctime);
-            #endif
-                break;
-            case V_ASN1_GENERALIZEDTIME:
-            #ifndef NO_ASN_TIME
-                wolfSSL_ASN1_TIME_free(at->value.generalizedtime);
-            #endif
-                break;
-            case V_ASN1_UTF8STRING:
-            case V_ASN1_PRINTABLESTRING:
-            case V_ASN1_T61STRING:
-            case V_ASN1_IA5STRING:
-            case V_ASN1_UNIVERSALSTRING:
-            case V_ASN1_SEQUENCE:
-                wolfSSL_ASN1_STRING_free(at->value.asn1_string);
-                break;
-            default:
-                WOLFSSL_MSG("Unknown or unsupported ASN1_TYPE");
-                break;
-        }
-        XFREE(at, NULL, DYNAMIC_TYPE_OPENSSL);
-    }
-}
-
-/**
  * Allocate a new WOLFSSL_X509_PUBKEY object.
  *
  * @return New zero'ed WOLFSSL_X509_PUBKEY object
@@ -29836,7 +29783,67 @@ error:
     return WOLFSSL_FAILURE;
 }
 
-#endif /* OPENSSL_ALL || WOLFSSL_APACHE_HTTPD || WOLFSSL_HAPROXY*/
+#endif /* OPENSSL_ALL || WOLFSSL_APACHE_HTTPD || WOLFSSL_HAPROXY || WOLFSSL_WPAS */
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD) \
+    || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS) \
+    || defined(OPENSSL_EXTRA)
+/**
+ * Allocate a new WOLFSSL_ASN1_TYPE object.
+ *
+ * @return New zero'ed WOLFSSL_ASN1_TYPE object
+ */
+WOLFSSL_ASN1_TYPE* wolfSSL_ASN1_TYPE_new(void)
+{
+    WOLFSSL_ASN1_TYPE* ret = (WOLFSSL_ASN1_TYPE*)XMALLOC(sizeof(WOLFSSL_ASN1_TYPE),
+                                                        NULL, DYNAMIC_TYPE_OPENSSL);
+    if (!ret)
+        return NULL;
+    XMEMSET(ret, 0, sizeof(WOLFSSL_ASN1_TYPE));
+    return ret;
+}
+
+/**
+ * Free WOLFSSL_ASN1_TYPE and all its members.
+ *
+ * @param at Object to free
+ */
+void wolfSSL_ASN1_TYPE_free(WOLFSSL_ASN1_TYPE* at)
+{
+    if (at) {
+        switch (at->type) {
+            case V_ASN1_OBJECT:
+                wolfSSL_ASN1_OBJECT_free(at->value.object);
+                break;
+            case V_ASN1_UTCTIME:
+            #ifndef NO_ASN_TIME
+                wolfSSL_ASN1_TIME_free(at->value.utctime);
+            #endif
+                break;
+            case V_ASN1_GENERALIZEDTIME:
+            #ifndef NO_ASN_TIME
+                wolfSSL_ASN1_TIME_free(at->value.generalizedtime);
+            #endif
+                break;
+            case V_ASN1_UTF8STRING:
+            case V_ASN1_PRINTABLESTRING:
+            case V_ASN1_T61STRING:
+            case V_ASN1_IA5STRING:
+            case V_ASN1_UNIVERSALSTRING:
+            case V_ASN1_SEQUENCE:
+                wolfSSL_ASN1_STRING_free(at->value.asn1_string);
+                break;
+            default:
+                WOLFSSL_MSG("Unknown or unsupported ASN1_TYPE");
+                break;
+        }
+        XFREE(at, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+}
+#endif /* OPENSSL_ALL || WOLFSSL_APACHE_HTTPD || WOLFSSL_HAPROXY || WOLFSSL_WPAS
+        || OPENSSL_EXTRA */
+
+
 
 #ifndef NO_WOLFSSL_STUB
 /*** TBD ***/
@@ -56291,27 +56298,41 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
     return WOLFSSL_SUCCESS;
 }
 
-
-/* Return NID as the attr index */
-int wolfSSL_X509_REQ_get_attr_by_NID(const WOLFSSL_X509 *req,
-        int nid, int lastpos)
+WOLFSSL_X509 *wolfSSL_X509_to_X509_REQ(WOLFSSL_X509 *x,
+        WOLFSSL_EVP_PKEY *pkey, const WOLFSSL_EVP_MD *md)
 {
-    WOLFSSL_ENTER("wolfSSL_X509_REQ_get_attr_by_NID");
+    WOLFSSL_ENTER("wolfSSL_X509_to_X509_REQ");
+    (void)pkey;
+    (void)md;
+    return wolfSSL_X509_dup(x);
+}
 
-    /* Since we only support 1 attr per attr type then a lastpos of >= 0
-     * indicates that one was already returned */
-    if (!req || lastpos >= 0) {
+int wolfSSL_X509_REQ_set_subject_name(WOLFSSL_X509 *req,
+                                      WOLFSSL_X509_NAME *name)
+{
+    return wolfSSL_X509_set_subject_name(req, name);
+}
+
+int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey)
+{
+    return wolfSSL_X509_set_pubkey(req, pkey);
+}
+#endif /* OPENSSL_ALL && !NO_CERTS && WOLFSSL_CERT_GEN && WOLFSSL_CERT_REQ */
+
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ)
+
+WOLFSSL_ASN1_TYPE *wolfSSL_X509_ATTRIBUTE_get0_type(
+        WOLFSSL_X509_ATTRIBUTE *attr, int idx)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_ATTRIBUTE_get0_type");
+
+    if (!attr || idx != 0) {
         WOLFSSL_MSG("Bad parameter");
-        return WOLFSSL_FATAL_ERROR;
+        return NULL;
     }
 
-    switch (nid) {
-    case NID_pkcs9_challengePassword:
-        return req->challengePwAttr ? nid : WOLFSSL_FATAL_ERROR;
-    default:
-        WOLFSSL_MSG("Unsupported attribute");
-        return WOLFSSL_FATAL_ERROR;
-    }
+    return attr->value;
 }
 
 /**
@@ -56334,6 +56355,28 @@ WOLFSSL_X509_ATTRIBUTE *wolfSSL_X509_REQ_get_attr(
     default:
         WOLFSSL_MSG("Unsupported attribute");
         return NULL;
+    }
+}
+
+/* Return NID as the attr index */
+int wolfSSL_X509_REQ_get_attr_by_NID(const WOLFSSL_X509 *req,
+        int nid, int lastpos)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_REQ_get_attr_by_NID");
+
+    /* Since we only support 1 attr per attr type then a lastpos of >= 0
+     * indicates that one was already returned */
+    if (!req || lastpos >= 0) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    switch (nid) {
+    case NID_pkcs9_challengePassword:
+        return req->challengePwAttr ? nid : WOLFSSL_FATAL_ERROR;
+    default:
+        WOLFSSL_MSG("Unsupported attribute");
+        return WOLFSSL_FATAL_ERROR;
     }
 }
 
@@ -56376,40 +56419,7 @@ void wolfSSL_X509_ATTRIBUTE_free(WOLFSSL_X509_ATTRIBUTE* attr)
         XFREE(attr, NULL, DYNAMIC_TYPE_OPENSSL);
     }
 }
-
-WOLFSSL_ASN1_TYPE *wolfSSL_X509_ATTRIBUTE_get0_type(
-        WOLFSSL_X509_ATTRIBUTE *attr, int idx)
-{
-    WOLFSSL_ENTER("wolfSSL_X509_ATTRIBUTE_get0_type");
-
-    if (!attr || idx != 0) {
-        WOLFSSL_MSG("Bad parameter");
-        return NULL;
-    }
-
-    return attr->value;
-}
-
-WOLFSSL_X509 *wolfSSL_X509_to_X509_REQ(WOLFSSL_X509 *x,
-        WOLFSSL_EVP_PKEY *pkey, const WOLFSSL_EVP_MD *md)
-{
-    WOLFSSL_ENTER("wolfSSL_X509_to_X509_REQ");
-    (void)pkey;
-    (void)md;
-    return wolfSSL_X509_dup(x);
-}
-
-int wolfSSL_X509_REQ_set_subject_name(WOLFSSL_X509 *req,
-                                      WOLFSSL_X509_NAME *name)
-{
-    return wolfSSL_X509_set_subject_name(req, name);
-}
-
-int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey)
-{
-    return wolfSSL_X509_set_pubkey(req, pkey);
-}
-#endif /* OPENSSL_ALL && !NO_CERTS && WOLFSSL_CERT_GEN && WOLFSSL_CERT_REQ */
+#endif
 
 #ifdef WOLFSSL_STATIC_EPHEMERAL
 int wolfSSL_StaticEphemeralKeyLoad(WOLFSSL* ssl, int keyAlgo, void* keyPtr)
