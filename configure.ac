@@ -183,8 +183,35 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWC_16BIT_CPU"
 fi
 
+AC_ARG_ENABLE([64bit],
+    [AS_HELP_STRING([--enable-64bit],[Enables 64-bit support (default: enabled)])],
+    [ ENABLED_64BIT=$enableval ],
+    [ ENABLED_64BIT=yes ]
+    )
 
+AC_ARG_ENABLE([kdf],
+    [AS_HELP_STRING([--enable-kdf],[Enables kdf support (default: enabled)])],
+    [ ENABLED_KDF=$enableval ],
+    [ ENABLED_KDF=yes ]
+    )
 
+AC_ARG_ENABLE([hmac],
+    [AS_HELP_STRING([--enable-hmac],[Enables HMAC support (default: enabled)])],
+    [ ENABLED_HMAC=$enableval ],
+    [ ENABLED_HMAC=yes ]
+    )
+
+AC_ARG_ENABLE([do178],
+    [AS_HELP_STRING([--enable-do178],[Enable DO-178, Will NOT work w/o DO178 license (default: disabled)])],
+    [ENABLED_DO178=$enableval],
+    [ENABLED_DO178="no"])
+
+if test "$ENABLED_DO178" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_DO178"
+else
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_DO178"
+fi
 # Support for disabling all ASM
 AC_ARG_ENABLE([asm],
     [AS_HELP_STRING([--enable-asm],[Enables option for assembly (default: enabled)])],
@@ -2746,7 +2773,7 @@ fi
 
 # ERROR QUEUE
 AC_ARG_ENABLE([errorqueue],
-    [AS_HELP_STRING([--disable-errorqueue],[Disables adding nodes to error queue when compiled with OPENSSL_EXTRA (default: enabled)])],
+    [AS_HELP_STRING([--enable-errorqueue],[Disables adding nodes to error queue when compiled with OPENSSL_EXTRA (default: enabled)])],
     [ ENABLED_ERROR_QUEUE=$enableval ],
     [ ENABLED_ERROR_QUEUE=yes ]
     )
@@ -6435,10 +6462,7 @@ AC_ARG_ENABLE([staticmemory],
 if test "x$ENABLED_STATICMEMORY" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY"
-    if test "x$ENABLED_FASTMATH" = "xno"
-    then
-        AC_MSG_ERROR([please use --enable-fastmath if enabling staticmemory.])
-    fi
+
     if test "$ENABLED_LOWRESOURCE" = "yes" && test "$ENABLED_RSA" = "no"
     then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY_SMALL"
@@ -7485,9 +7509,12 @@ AM_CONDITIONAL([BUILD_OCTEON_SYNC],[test "x$ENABLED_OCTEON_SYNC" = "xyes"])
 AM_CONDITIONAL([BUILD_INTEL_QA],[test "x$ENABLED_INTEL_QA" = "xyes"])
 AM_CONDITIONAL([BUILD_INTEL_QA_SYNC],[test "x$ENABLED_INTEL_QA_SYNC" = "xyes"])
 AM_CONDITIONAL([BUILD_SP],[test "x$ENABLED_SP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_SP_C],[((test "$ENABLED_SP_RSA" = "yes" || test "$ENABLED_SP_DH" = "yes" \
+AM_CONDITIONAL([BUILD_SP_C32],[(((test "$ENABLED_SP_RSA" = "yes" || test "$ENABLED_SP_DH" = "yes" \
                                || test "$ENABLED_SP_ECC" = "yes") && test "x$ENABLED_SP_ASM" = "xno") \
-                             || test "x$ENABLED_USERSETTINGS" = "xyes"])
+                             || test "x$ENABLED_USERSETTINGS" = "xyes") && test "x$ENABLED_32BIT" = "xyes"])
+AM_CONDITIONAL([BUILD_SP_C64],[(((test "$ENABLED_SP_RSA" = "yes" || test "$ENABLED_SP_DH" = "yes" \
+                               || test "$ENABLED_SP_ECC" = "yes") && test "x$ENABLED_SP_ASM" = "xno") \
+                             || test "x$ENABLED_USERSETTINGS" = "xyes") && test "x$ENABLED_64BIT" = "xyes"])
 AM_CONDITIONAL([BUILD_SP_ARM64],[test "x$ENABLED_SP_ARM64_ASM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SP_ARM32],[test "x$ENABLED_SP_ARM32_ASM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SP_ARM_THUMB],[test "x$ENABLED_SP_ARM_THUMB_ASM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -7515,6 +7542,10 @@ AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM" = "xqnx"])
 AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
 AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
+AM_CONDITIONAL([BUILD_KDF],[test "x$ENABLED_KDF" = "xyes"])
+AM_CONDITIONAL([BUILD_HMAC],[test "x$ENABLED_HMAC" = "xyes"])
+AM_CONDITIONAL([BUILD_ERROR_STRINGS],[test "x$ENABLED_ERROR_STRINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_DO178],[test "x$ENABLED_DO178" = "xyes"])
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes" &&
    (test "$ax_enable_debug" = "yes" ||
@@ -7595,7 +7626,7 @@ rm -f $OPTION_FILE
 echo "/* wolfssl options.h" > $OPTION_FILE
 echo " * generated from configure options" >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
-echo " * Copyright (C) 2006-2020 wolfSSL Inc." >> $OPTION_FILE
+echo " * Copyright (C) 2006-2022 wolfSSL Inc." >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
 echo " * This file is part of wolfSSL. (formerly known as CyaSSL)" >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
