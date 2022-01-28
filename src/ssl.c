@@ -56320,7 +56320,7 @@ int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey)
 #endif /* OPENSSL_ALL && !NO_CERTS && WOLFSSL_CERT_GEN && WOLFSSL_CERT_REQ */
 
 #if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
-    defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ)
+    (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ))
 
 WOLFSSL_ASN1_TYPE *wolfSSL_X509_ATTRIBUTE_get0_type(
         WOLFSSL_X509_ATTRIBUTE *attr, int idx)
