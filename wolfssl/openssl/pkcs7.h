@@ -34,6 +34,7 @@
 
 #if defined(OPENSSL_ALL) && defined(HAVE_PKCS7)
 
+#define PKCS7_TEXT             0x1
 #define PKCS7_NOINTERN         0x0010
 #define PKCS7_NOVERIFY         0x0020
 

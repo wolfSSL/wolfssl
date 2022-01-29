@@ -62257,6 +62257,8 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
     unsigned char* mem = NULL;
     int memSz = 0;
     WOLFSSL_PKCS7* p7 = (WOLFSSL_PKCS7*)pkcs7;
+    static const char contTypeText[] = "Content-Type: text/plain\r\n\r\n";
+    int contTypeLen;
 
     WOLFSSL_ENTER("wolfSSL_PKCS7_verify");
 
@@ -62287,8 +62289,21 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
         return WOLFSSL_FAILURE;
     }
 
-    if (out != NULL)
-       wolfSSL_BIO_write(out, p7->pkcs7.content, p7->pkcs7.contentSz);
+    if (flags & PKCS7_TEXT) {
+        /* strip MIME header for text/plain, otherwise error */
+        contTypeLen = XSTR_SIZEOF(contTypeText);
+        if ((p7->pkcs7.contentSz < (word32)contTypeLen) ||
+            (XMEMCMP(p7->pkcs7.content, contTypeText, contTypeLen) != 0)) {
+            WOLFSSL_MSG("Error PKCS7 Content-Type not found with PKCS7_TEXT");
+            return WOLFSSL_FAILURE;
+        }
+        p7->pkcs7.content += contTypeLen;
+        p7->pkcs7.contentSz -= contTypeLen;
+    }
+
+    if (out != NULL) {
+        wolfSSL_BIO_write(out, p7->pkcs7.content, p7->pkcs7.contentSz);
+    }
 
     return WOLFSSL_SUCCESS;
 }
