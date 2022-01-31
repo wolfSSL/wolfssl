@@ -127,23 +127,23 @@ typedef unsigned char u8;
 /* rotation left shift 1byte */
 #define CAMELLIA_RL8(x) (((x) << 8) + ((x) >> 24))
 
-#define CAMELLIA_ROLDQ(ll, lr, rl, rr, w0, w1, bits)    \
-    do {                                                \
-        w0 = ll;                                        \
-        ll = (ll << bits) + (lr >> (32 - bits));        \
-        lr = (lr << bits) + (rl >> (32 - bits));        \
-        rl = (rl << bits) + (rr >> (32 - bits));        \
-        rr = (rr << bits) + (w0 >> (32 - bits));        \
+#define CAMELLIA_ROLDQ(ll, lr, rl, rr, w0, w1, bits)              \
+    do {                                                          \
+        (w0) = (ll);                                              \
+        (ll) = ((ll) << (bits)) + ((lr) >> (32 - (bits)));        \
+        (lr) = ((lr) << (bits)) + ((rl) >> (32 - (bits)));        \
+        (rl) = ((rl) << (bits)) + ((rr) >> (32 - (bits)));        \
+        (rr) = ((rr) << (bits)) + ((w0) >> (32 - (bits)));        \
     } while(0)
 
-#define CAMELLIA_ROLDQo32(ll, lr, rl, rr, w0, w1, bits) \
-    do {                                                \
-        w0 = ll;                                        \
-        w1 = lr;                                        \
-        ll = (lr << (bits - 32)) + (rl >> (64 - bits)); \
-        lr = (rl << (bits - 32)) + (rr >> (64 - bits)); \
-        rl = (rr << (bits - 32)) + (w0 >> (64 - bits)); \
-        rr = (w0 << (bits - 32)) + (w1 >> (64 - bits)); \
+#define CAMELLIA_ROLDQo32(ll, lr, rl, rr, w0, w1, bits)           \
+    do {                                                          \
+        (w0) = (ll);                                              \
+        (w1) = (lr);                                              \
+        (ll) = ((lr) << ((bits) - 32)) + ((rl) >> (64 - (bits))); \
+        (lr) = ((rl) << ((bits) - 32)) + ((rr) >> (64 - (bits))); \
+        (rl) = ((rr) << ((bits) - 32)) + ((w0) >> (64 - (bits))); \
+        (rr) = ((w0) << ((bits) - 32)) + ((w1) >> (64 - (bits))); \
     } while(0)
 
 #define CAMELLIA_SP1110(INDEX) (camellia_sp1110[(INDEX)])
@@ -151,23 +151,23 @@ typedef unsigned char u8;
 #define CAMELLIA_SP3033(INDEX) (camellia_sp3033[(INDEX)])
 #define CAMELLIA_SP4404(INDEX) (camellia_sp4404[(INDEX)])
 
-#define CAMELLIA_F(xl, xr, kl, kr, yl, yr, il, ir, t0, t1)      \
-    do {                                                        \
-        il = xl ^ kl;                                           \
-        ir = xr ^ kr;                                           \
-        t0 = il >> 16;                                          \
-        t1 = ir >> 16;                                          \
-        yl = CAMELLIA_SP1110(ir & 0xff)                         \
-            ^ CAMELLIA_SP0222((t1 >> 8) & 0xff)                 \
-            ^ CAMELLIA_SP3033(t1 & 0xff)                        \
-            ^ CAMELLIA_SP4404((ir >> 8) & 0xff);                \
-        yr = CAMELLIA_SP1110((t0 >> 8) & 0xff)                  \
-            ^ CAMELLIA_SP0222(t0 & 0xff)                        \
-            ^ CAMELLIA_SP3033((il >> 8) & 0xff)                 \
-            ^ CAMELLIA_SP4404(il & 0xff);                       \
-        yl ^= yr;                                               \
-        yr = CAMELLIA_RR8(yr);                                  \
-        yr ^= yl;                                               \
+#define CAMELLIA_F(xl, xr, kl, kr, yl, yr, il, ir, t0, t1)        \
+    do {                                                          \
+        (il) = (xl) ^ (kl);                                       \
+        (ir) = (xr) ^ (kr);                                       \
+        (t0) = (il) >> 16;                                        \
+        (t1) = (ir) >> 16;                                        \
+        (yl) = CAMELLIA_SP1110((ir) & 0xff)                       \
+            ^ CAMELLIA_SP0222(((t1) >> 8) & 0xff)                 \
+            ^ CAMELLIA_SP3033((t1) & 0xff)                        \
+            ^ CAMELLIA_SP4404(((ir) >> 8) & 0xff);                \
+        (yr) = CAMELLIA_SP1110(((t0) >> 8) & 0xff)                \
+            ^ CAMELLIA_SP0222((t0) & 0xff)                        \
+            ^ CAMELLIA_SP3033(((il) >> 8) & 0xff)                 \
+            ^ CAMELLIA_SP4404((il) & 0xff);                       \
+        (yl) ^= (yr);                                             \
+        (yr) = CAMELLIA_RR8(yr);                                  \
+        (yr) ^= (yl);                                             \
     } while(0)
 
 
@@ -176,39 +176,39 @@ typedef unsigned char u8;
  *
  */
 #define CAMELLIA_FLS(ll, lr, rl, rr, kll, klr, krl, krr, t0, t1, t2, t3) \
-    do {                                                                \
-        t0 = kll;                                                       \
-        t0 &= ll;                                                       \
-        lr ^= CAMELLIA_RL1(t0);                                         \
-        t1 = klr;                                                       \
-        t1 |= lr;                                                       \
-        ll ^= t1;                                                       \
-                                                                        \
-        t2 = krr;                                                       \
-        t2 |= rr;                                                       \
-        rl ^= t2;                                                       \
-        t3 = krl;                                                       \
-        t3 &= rl;                                                       \
-        rr ^= CAMELLIA_RL1(t3);                                         \
+    do {                                                                 \
+        (t0) = (kll);                                                    \
+        (t0) &= (ll);                                                    \
+        (lr) ^= CAMELLIA_RL1(t0);                                        \
+        (t1) = (klr);                                                    \
+        (t1) |= (lr);                                                    \
+        (ll) ^= (t1);                                                    \
+                                                                         \
+        (t2) = (krr);                                                    \
+        (t2) |= (rr);                                                    \
+        (rl) ^= (t2);                                                    \
+        (t3) = (krl);                                                    \
+        (t3) &= (rl);                                                    \
+        (rr) ^= CAMELLIA_RL1(t3);                                        \
     } while(0)
 
-#define CAMELLIA_ROUNDSM(xl, xr, kl, kr, yl, yr, il, ir, t0, t1)        \
-    do {                                                                \
-        ir = CAMELLIA_SP1110(xr & 0xff)                                 \
-            ^ CAMELLIA_SP0222((xr >> 24) & 0xff)                        \
-            ^ CAMELLIA_SP3033((xr >> 16) & 0xff)                        \
-            ^ CAMELLIA_SP4404((xr >> 8) & 0xff);                        \
-        il = CAMELLIA_SP1110((xl >> 24) & 0xff)                         \
-            ^ CAMELLIA_SP0222((xl >> 16) & 0xff)                        \
-            ^ CAMELLIA_SP3033((xl >> 8) & 0xff)                         \
-            ^ CAMELLIA_SP4404(xl & 0xff);                               \
-        il ^= kl;                                                       \
-        ir ^= kr;                                                       \
-        ir ^= il;                                                       \
-        il = CAMELLIA_RR8(il);                                          \
-        il ^= ir;                                                       \
-        yl ^= ir;                                                       \
-        yr ^= il;                                                       \
+#define CAMELLIA_ROUNDSM(xl, xr, kl, kr, yl, yr, il, ir, t0, t1)         \
+    do {                                                                 \
+        (ir) = CAMELLIA_SP1110((xr) & 0xff)                              \
+            ^ CAMELLIA_SP0222(((xr) >> 24) & 0xff)                       \
+            ^ CAMELLIA_SP3033(((xr) >> 16) & 0xff)                       \
+            ^ CAMELLIA_SP4404(((xr) >> 8) & 0xff);                       \
+        (il) = CAMELLIA_SP1110(((xl) >> 24) & 0xff)                      \
+            ^ CAMELLIA_SP0222(((xl) >> 16) & 0xff)                       \
+            ^ CAMELLIA_SP3033(((xl) >> 8) & 0xff)                        \
+            ^ CAMELLIA_SP4404((xl) & 0xff);                              \
+        (il) ^= (kl);                                                    \
+        (ir) ^= (kr);                                                    \
+        (ir) ^= (il);                                                    \
+        (il) = CAMELLIA_RR8(il);                                         \
+        (il) ^= (ir);                                                    \
+        (yl) ^= (ir);                                                    \
+        (yr) ^= (il);                                                    \
     } while(0)
 
 
