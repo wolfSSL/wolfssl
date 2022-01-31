@@ -544,7 +544,6 @@ then
     test "$enable_idea" = "" && enable_idea=yes
     test "$enable_cmac" = "" && enable_cmac=yes
     test "$enable_xts" = "" && enable_xts=yes
-    test "$enable_rabbit" = "" && enable_rabbit=yes
     test "$enable_ocsp" = "" && enable_ocsp=yes
     test "$enable_ocspstapling" = "" && enable_ocspstapling=yes
     test "$enable_ocspstapling2" = "" && enable_ocspstapling2=yes
@@ -715,7 +714,6 @@ then
     test "$enable_cmac" = "" && enable_cmac=yes
     test "$enable_siphash" = "" && enable_siphash=yes
     test "$enable_xts" = "" && enable_xts=yes
-    test "$enable_rabbit" = "" && enable_rabbit=yes
     test "$enable_ocsp" = "" && enable_ocsp=yes
     test "$enable_ocspstapling" = "" && enable_ocspstapling=yes
     test "$enable_ocspstapling2" = "" && enable_ocspstapling2=yes
@@ -1301,7 +1299,7 @@ AC_ARG_ENABLE([leanpsk],
 
 if test "$ENABLED_LEANPSK" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANPSK -DWOLFSSL_STATIC_PSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANPSK -DWOLFSSL_STATIC_PSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA"
     ENABLED_SLOWMATH="no"
     ENABLED_SINGLETHREADED="yes"
     enable_lowresource=yes
@@ -1317,7 +1315,7 @@ AC_ARG_ENABLE([leantls],
 
 if test "$ENABLED_LEANTLS" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANTLS -DNO_WRITEV -DHAVE_ECC -DTFM_ECC256 -DECC_USER_CURVES -DNO_WOLFSSL_SERVER -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_SHA -DNO_PSK -DNO_WOLFSSL_MEMORY -DNO_WOLFSSL_CM_VERIFY"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANTLS -DNO_WRITEV -DHAVE_ECC -DTFM_ECC256 -DECC_USER_CURVES -DNO_WOLFSSL_SERVER -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_SHA -DNO_PSK -DNO_WOLFSSL_MEMORY -DNO_WOLFSSL_CM_VERIFY"
     enable_lowresource=yes
 fi
 
@@ -3482,22 +3480,6 @@ if test "$ENABLED_WEBCLIENT" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_HTTP_CLIENT"
 fi
-
-
-# RABBIT
-AC_ARG_ENABLE([rabbit],
-    [AS_HELP_STRING([--enable-rabbit],[Enable RABBIT (default: disabled)])],
-    [ ENABLED_RABBIT=$enableval ],
-    [ ENABLED_RABBIT=no ]
-    )
-
-if test "$ENABLED_RABBIT" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_RABBIT"
-else
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_RABBIT"
-fi
-
 
 # RC2
 AC_ARG_ENABLE([rc2],
@@ -7459,7 +7441,6 @@ AM_CONDITIONAL([BUILD_IDEA],[test "x$ENABLED_IDEA" = "xyes" || test "x$ENABLED_U
 AM_CONDITIONAL([BUILD_RC4],[test "x$ENABLED_ARC4" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MD5],[test "x$ENABLED_MD5" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SHA],[test "x$ENABLED_SHA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_RABBIT],[test "x$ENABLED_RABBIT" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_FIPS],[test "x$ENABLED_FIPS" = "xyes"])
 AM_CONDITIONAL([BUILD_FIPS_V1],[test "$HAVE_FIPS_VERSION" = 1])
 AM_CONDITIONAL([BUILD_FIPS_V2],[test "$HAVE_FIPS_VERSION" = 2])
@@ -7802,7 +7783,6 @@ echo "   * certgen:                    $ENABLED_CERTGEN"
 echo "   * certreq:                    $ENABLED_CERTREQ"
 echo "   * certext:                    $ENABLED_CERTEXT"
 echo "   * certgencache:               $ENABLED_certgencache"
-echo "   * RABBIT:                     $ENABLED_RABBIT"
 echo "   * CHACHA:                     $ENABLED_CHACHA"
 echo "   * XCHACHA:                    $ENABLED_XCHACHA"
 echo "   * Hash DRBG:                  $ENABLED_HASHDRBG"

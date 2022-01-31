@@ -4291,12 +4291,6 @@ static int Decrypt(WOLFSSL* ssl, byte* output, const byte* input, word32 sz)
             break;
         #endif
 
-        #ifdef BUILD_RABBIT
-        case wolfssl_rabbit:
-            wc_RabbitProcess(ssl->decrypt.rabbit, output, input, sz);
-            break;
-        #endif
-
         #ifdef HAVE_CAMELLIA
         case wolfssl_camellia:
             wc_CamelliaCbcDecrypt(ssl->decrypt.cam, output, input, sz);

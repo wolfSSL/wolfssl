@@ -90,7 +90,6 @@
           <file file_name="../../wolfcrypt/src/pkcs7.c" />
           <file file_name="../../wolfcrypt/src/poly1305.c" />
           <file file_name="../../wolfcrypt/src/pwdbased.c" />
-          <file file_name="../../wolfcrypt/src/rabbit.c" />
           <file file_name="../../wolfcrypt/src/random.c" />
           <file file_name="../../wolfcrypt/src/ripemd.c" />
           <file file_name="../../wolfcrypt/src/rsa.c" />

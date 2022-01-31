@@ -45,7 +45,6 @@
     #define ECC_SHAMIR 
     #define WOLFSSL_BASE64_ENCODE 
     #define NO_RC4 
-    #define NO_RABBIT 
     #define HAVE_HASHDRBG 
     #define HAVE_TLS_EXTENSIONS 
     #define HAVE_SUPPORTED_CURVES 
@@ -106,7 +105,6 @@
     #define ECC_SHAMIR 
     #define WOLFSSL_BASE64_ENCODE 
     #define NO_RC4 
-    #define NO_RABBIT 
     #define HAVE_HASHDRBG 
     #define HAVE_TLS_EXTENSIONS 
     #define HAVE_SUPPORTED_CURVES 

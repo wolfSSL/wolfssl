@@ -562,11 +562,6 @@
               <FilePath>..\..\..\wolfcrypt\src\pwdbased.c</FilePath>
             </File>
             <File>
-              <FileName>rabbit.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\wolfcrypt\src\rabbit.c</FilePath>
-            </File>
-            <File>
               <FileName>random.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\wolfcrypt\src\random.c</FilePath>
@@ -1271,11 +1266,6 @@
               <FilePath>..\..\..\wolfcrypt\src\pwdbased.c</FilePath>
             </File>
             <File>
-              <FileName>rabbit.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\wolfcrypt\src\rabbit.c</FilePath>
-            </File>
-            <File>
               <FileName>random.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\wolfcrypt\src\random.c</FilePath>
@@ -1978,11 +1968,6 @@
               <FileName>pwdbased.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\wolfcrypt\src\pwdbased.c</FilePath>
-            </File>
-            <File>
-              <FileName>rabbit.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\wolfcrypt\src\rabbit.c</FilePath>
             </File>
             <File>
               <FileName>random.c</FileName>

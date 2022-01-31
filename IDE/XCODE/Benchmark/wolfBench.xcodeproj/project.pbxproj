@@ -78,7 +78,6 @@
 		A4ADF90B1FCE0C5600A06E90 /* logging.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8AF1FCE0C5100A06E90 /* logging.c */; };
 		A4ADF90C1FCE0C5600A06E90 /* ripemd.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8B01FCE0C5100A06E90 /* ripemd.c */; };
 		A4ADF90D1FCE0C5600A06E90 /* blake2b.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8B11FCE0C5100A06E90 /* blake2b.c */; };
-		A4ADF9101FCE0C5600A06E90 /* rabbit.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8B41FCE0C5200A06E90 /* rabbit.c */; };
 		A4ADF9121FCE0C5600A06E90 /* wc_port.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8B61FCE0C5200A06E90 /* wc_port.c */; };
 		A4ADF9131FCE0C5600A06E90 /* signature.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8B71FCE0C5200A06E90 /* signature.c */; };
 		A4ADF9141FCE0C5600A06E90 /* wolfmath.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8B81FCE0C5200A06E90 /* wolfmath.c */; };
@@ -180,7 +179,6 @@
 		A4ADF8AF1FCE0C5100A06E90 /* logging.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = logging.c; path = ../../../wolfcrypt/src/logging.c; sourceTree = "<group>"; };
 		A4ADF8B01FCE0C5100A06E90 /* ripemd.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ripemd.c; path = ../../../wolfcrypt/src/ripemd.c; sourceTree = "<group>"; };
 		A4ADF8B11FCE0C5100A06E90 /* blake2b.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = blake2b.c; path = ../../../wolfcrypt/src/blake2b.c; sourceTree = "<group>"; };
-		A4ADF8B41FCE0C5200A06E90 /* rabbit.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = rabbit.c; path = ../../../wolfcrypt/src/rabbit.c; sourceTree = "<group>"; };
 		A4ADF8B61FCE0C5200A06E90 /* wc_port.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = wc_port.c; path = ../../../wolfcrypt/src/wc_port.c; sourceTree = "<group>"; };
 		A4ADF8B71FCE0C5200A06E90 /* signature.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = signature.c; path = ../../../wolfcrypt/src/signature.c; sourceTree = "<group>"; };
 		A4ADF8B81FCE0C5200A06E90 /* wolfmath.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = wolfmath.c; path = ../../../wolfcrypt/src/wolfmath.c; sourceTree = "<group>"; };
@@ -323,7 +321,6 @@
 				A4ADF89E1FCE0C4F00A06E90 /* pkcs12.c */,
 				A4ADF8A41FCE0C5000A06E90 /* poly1305.c */,
 				A4ADF8C01FCE0C5300A06E90 /* pwdbased.c */,
-				A4ADF8B41FCE0C5200A06E90 /* rabbit.c */,
 				A4ADF8771FCE0C4D00A06E90 /* random.c */,
 				A4ADF8B01FCE0C5100A06E90 /* ripemd.c */,
 				A4ADF8971FCE0C4F00A06E90 /* rsa.c */,
@@ -451,7 +448,6 @@
 				A46FE18D2493E8F800A25BE7 /* fe_448.c in Sources */,
 				A4ADF8721FCE0C1C00A06E90 /* crl.c in Sources */,
 				A4ADF91B1FCE0C5600A06E90 /* srp.c in Sources */,
-				A4ADF9101FCE0C5600A06E90 /* rabbit.c in Sources */,
 				A4ADF9091FCE0C5600A06E90 /* idea.c in Sources */,
 				A46FE16F2493E8F800A25BE7 /* armv8-chacha.c in Sources */,
 				A4ADF8FE1FCE0C5600A06E90 /* integer.c in Sources */,

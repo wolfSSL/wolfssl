@@ -198,10 +198,6 @@
     #include <wolfssl/wolfcrypt/camellia.h>
 #endif
 
-#ifndef NO_RABBIT
-    #include <wolfssl/wolfcrypt/rabbit.h>
-#endif
-
 #ifndef NO_RC4
     #include <wolfssl/wolfcrypt/arc4.h>
 #endif
@@ -682,7 +678,7 @@ static void test_for_double_Free(void)
 "AES128-CBC-SHA256:PSK-AES128-CBC-SHA:PSK-AES256-CBC-SHA:DHE-PSK-AES128-CCM:DHE"
 "-PSK-AES256-CCM:PSK-AES128-CCM:PSK-AES256-CCM:PSK-AES128-CCM-8:PSK-AES256-CCM-"
 "8:DHE-PSK-NULL-SHA384:DHE-PSK-NULL-SHA256:PSK-NULL-SHA384:PSK-NULL-SHA256:PSK-"
-"NULL-SHA:RABBIT-SHA:AES128-CCM-8:AES256-CCM-8:ECDHE-ECDSA-"
+"NULL-SHA:AES128-CCM-8:AES256-CCM-8:ECDHE-ECDSA-"
 "AES128-CCM:ECDHE-ECDSA-AES128-CCM-8:ECDHE-ECDSA-AES256-CCM-8:ECDHE-RSA-AES128-"
 "SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA:ECDHE-R"
 "SA-RC4-SHA:ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-RC4-SHA:ECDHE-ECDSA-DES-CBC3-SHA"
@@ -17866,103 +17862,6 @@ static int test_wc_CamelliaCbcEncryptDecrypt (void)
     return ret;
 
 } /* END test_wc_CamelliaCbcEncryptDecrypt */
-
-/*
- * Testing wc_RabbitSetKey()
- */
-static int test_wc_RabbitSetKey (void)
-{
-    int     ret = 0;
-#ifndef NO_RABBIT
-    Rabbit  rabbit;
-    const char* key =  "\xAC\xC3\x51\xDC\xF1\x62\xFC\x3B"
-                        "\xFE\x36\x3D\x2E\x29\x13\x28\x91";
-    const char* iv =   "\x59\x7E\x26\xC1\x75\xF5\x73\xC3";
-
-    printf(testingFmt, "wc_RabbitSetKey()");
-
-    ret = wc_RabbitSetKey(&rabbit, (byte*)key, (byte*)iv);
-
-    /* Test bad args. */
-    if (ret == 0) {
-        ret = wc_RabbitSetKey(NULL, (byte*)key, (byte*)iv);
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_RabbitSetKey(&rabbit, NULL, (byte*)iv);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_RabbitSetKey(&rabbit, (byte*)key, NULL);
-        }
-    }
-
-    printf(resultFmt, ret == 0 ? passed : failed);
-
-#endif
-    return ret;
-
-} /* END test_wc_RabbitSetKey */
-
-/*
- * Test wc_RabbitProcess()
- */
-static int test_wc_RabbitProcess (void)
-{
-    int     ret = 0;
-#if !defined(NO_RABBIT) && !defined(BIG_ENDIAN_ORDER)
-    Rabbit  enc, dec;
-    byte    cipher[25];
-    byte    plain[25];
-    const char* key     =  "\xAC\xC3\x51\xDC\xF1\x62\xFC\x3B"
-                            "\xFE\x36\x3D\x2E\x29\x13\x28\x91";
-    const char* iv      =   "\x59\x7E\x26\xC1\x75\xF5\x73\xC3";
-    const char* input   =   TEST_STRING;
-    unsigned long int inlen = (unsigned long int)TEST_STRING_SZ;
-
-    /* Initialize stack variables. */
-    XMEMSET(cipher, 0, sizeof(cipher));
-    XMEMSET(plain, 0, sizeof(plain));
-
-    printf(testingFmt, "wc_RabbitProcess()");
-
-    ret = wc_RabbitSetKey(&enc, (byte*)key, (byte*)iv);
-    if (ret == 0) {
-        ret = wc_RabbitSetKey(&dec, (byte*)key, (byte*)iv);
-    }
-    if (ret == 0) {
-       ret = wc_RabbitProcess(&enc, cipher, (byte*)input, (word32)inlen);
-    }
-    if (ret == 0) {
-        ret = wc_RabbitProcess(&dec, plain, cipher, (word32)inlen);
-        if (ret != 0 || XMEMCMP(input, plain, inlen)) {
-            ret = WOLFSSL_FATAL_ERROR;
-        } else {
-            ret = 0;
-        }
-    }
-    /* Test bad args. */
-    if (ret == 0) {
-        ret = wc_RabbitProcess(NULL, plain, cipher, (word32)inlen);
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_RabbitProcess(&dec, NULL, cipher, (word32)inlen);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_RabbitProcess(&dec, plain, NULL, (word32)inlen);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            ret = 0;
-        } else {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    }
-
-    printf(resultFmt, ret == 0 ? passed : failed);
-
-#endif
-    return ret;
-
-} /* END test_wc_RabbitProcess */
-
-
-
 
 
 /*
@@ -52705,10 +52604,6 @@ void ApiTest(void)
     AssertIntEQ(test_wc_CamelliaSetIV(), 0);
     AssertIntEQ(test_wc_CamelliaEncryptDecryptDirect(), 0);
     AssertIntEQ(test_wc_CamelliaCbcEncryptDecrypt(), 0);
-
-
-    AssertIntEQ(test_wc_RabbitSetKey(), 0);
-    AssertIntEQ(test_wc_RabbitProcess(), 0);
 
     AssertIntEQ(test_wc_Arc4SetKey(), 0);
     AssertIntEQ(test_wc_Arc4Process(), 0);

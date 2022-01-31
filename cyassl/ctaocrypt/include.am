@@ -27,7 +27,6 @@ nobase_include_HEADERS+= \
                          cyassl/ctaocrypt/pkcs7.h \
                          cyassl/ctaocrypt/wc_port.h \
                          cyassl/ctaocrypt/pwdbased.h \
-                         cyassl/ctaocrypt/rabbit.h \
                          cyassl/ctaocrypt/chacha.h \
                          cyassl/ctaocrypt/random.h \
                          cyassl/ctaocrypt/ripemd.h \

@@ -73,7 +73,6 @@
 #define NO_DH
 #define NO_DSA
 #define NO_MD4
-#define NO_RABBIT
 #define NO_MD5
 #define NO_SIG_WRAPPER
 #define NO_CERT

@@ -82,7 +82,6 @@ libwolfssl_C_SRCS += \
 	../../wolfcrypt/src/chacha20_poly1305 \
 	../../wolfcrypt/src/pwdbased \
 	../../wolfcrypt/src/chacha \
-	../../wolfcrypt/src/rabbit \
 	../../wolfcrypt/src/cmac \
 	../../wolfcrypt/src/random \
 	../../wolfcrypt/src/coding \

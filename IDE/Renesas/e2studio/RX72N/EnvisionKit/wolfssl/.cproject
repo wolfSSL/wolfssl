@@ -119,7 +119,6 @@
 									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/src\pkcs7.obj&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/src\poly1305.obj&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/src\pwdbased.obj&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/src\rabbit.obj&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/src\random.obj&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/src\ripemd.obj&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/src\rsa.obj&quot;"/>

@@ -65,7 +65,6 @@
           <Path>..\..\..\..\..\..\wolfcrypt\src\pkcs7.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\poly1305.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\pwdbased.c</Path>
-          <Path>..\..\..\..\..\..\wolfcrypt\src\rabbit.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\random.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\ripemd.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\rsa.c</Path>
@@ -186,7 +185,6 @@
           <Path>Debug\pkcs7.obj</Path>
           <Path>Debug\poly1305.obj</Path>
           <Path>Debug\pwdbased.obj</Path>
-          <Path>Debug\rabbit.obj</Path>
           <Path>Debug\random.obj</Path>
           <Path>Debug\ripemd.obj</Path>
           <Path>Debug\rsa.obj</Path>

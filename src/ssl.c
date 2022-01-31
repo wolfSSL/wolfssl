@@ -1786,9 +1786,6 @@ int wolfSSL_GetObjectSize(void)
 #ifndef NO_DES3
     printf("\tsizeof des3         = %lu\n", (unsigned long)sizeof(Des3));
 #endif
-#ifndef NO_RABBIT
-    printf("\tsizeof rabbit       = %lu\n", (unsigned long)sizeof(Rabbit));
-#endif
 #ifdef HAVE_CHACHA
     printf("\tsizeof chacha       = %lu\n", (unsigned long)sizeof(ChaCha));
 #endif
@@ -25878,7 +25875,6 @@ int wolfSSL_CIPHER_get_cipher_nid(const WOLFSSL_CIPHER* cipher)
         {"CHACHA20/POLY1305(256)",  NID_chacha20_poly1305},
         {"None",                    NID_undef},
         {"IDEA",                    NID_idea_cbc},
-        {"RABBIT",                  NID_undef},
         {NULL,                      NID_undef}
     };
 
@@ -26282,11 +26278,6 @@ static WC_INLINE const char* wolfssl_cipher_to_string(int cipher, int key_size)
                 encStr = "Camellia(256)";
             else
                 encStr = "Camellia(?)";
-            break;
-#endif
-#if defined(HAVE_RABBIT) && !defined(NO_RABBIT)
-        case wolfssl_rabbit:
-            encStr = "RABBIT(128)";
             break;
 #endif
         default:

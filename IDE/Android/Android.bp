@@ -86,7 +86,6 @@ cc_library_shared {
         "./wolfcrypt/src/pkcs7.c",
         "./wolfcrypt/src/poly1305.c",
         "./wolfcrypt/src/pwdbased.c",
-        "./wolfcrypt/src/rabbit.c",
         "./wolfcrypt/src/random.c",
         "./wolfcrypt/src/rc2.c",
         "./wolfcrypt/src/ripemd.c",

@@ -599,10 +599,6 @@ if BUILD_BLAKE2S
 src_libwolfssl_la_SOURCES += wolfcrypt/src/blake2s.c
 endif
 
-if BUILD_RABBIT
-src_libwolfssl_la_SOURCES += wolfcrypt/src/rabbit.c
-endif
-
 if BUILD_CHACHA
 if BUILD_ARMASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-chacha.c

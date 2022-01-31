@@ -285,11 +285,6 @@
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/pwdbased.c</locationURI>
 		</link>
 		<link>
-			<name>wolfcrypt/src/rabbit.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/rabbit.c</locationURI>
-		</link>
-		<link>
 			<name>wolfcrypt/src/random.c</name>
 			<type>1</type>
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/random.c</locationURI>

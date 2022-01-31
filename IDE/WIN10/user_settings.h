@@ -36,7 +36,6 @@
     #define WOLFSSL_SHA512
     #define NO_PSK
     #define NO_RC4
-    #define NO_RABBIT
     #define NO_DSA
     #define NO_MD4
 

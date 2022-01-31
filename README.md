@@ -84,6 +84,7 @@ single call hash function. Instead the name `WC_SHA`, `WC_SHA256`, `WC_SHA384` a
 
 * The following algorithms have been removed:
 ** HC-128
+** Rabbit
 
 If this adversely affects you or your customers, please get in cotact with the wolfSSL team. (support@wolfssl.com)
 

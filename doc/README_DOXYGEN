@@ -126,7 +126,6 @@ are as follows but new group can be made:
     \ingroup Poly1305
     \ingroup RIPEMD
     \ingroup RSA
-    \ingroup Rabbit
     \ingroup SHA
     \ingroup SRP
     \ingroup wolfCrypt

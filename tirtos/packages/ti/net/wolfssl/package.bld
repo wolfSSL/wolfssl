@@ -32,7 +32,6 @@ var wolfSSLObjList = [
     "wolfcrypt/src/memory.c",
     "wolfcrypt/src/poly1305.c",
     "wolfcrypt/src/pwdbased.c",
-    "wolfcrypt/src/rabbit.c",
     "wolfcrypt/src/random.c",
     "wolfcrypt/src/rsa.c",
     "wolfcrypt/src/sha.c",

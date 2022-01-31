@@ -15,7 +15,6 @@
 #define TFM_TIMING_RESISTANT
 #define ECC_TIMING_RESISTANT
 #define NO_RC4
-#define NO_RABBIT
 #define NO_DSA
 #define NO_MD4
 #define HAVE_ECC

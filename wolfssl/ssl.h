@@ -3036,7 +3036,6 @@ enum BulkCipherAlgorithm {
     wolfssl_aes_ccm     = 8,
     wolfssl_chacha      = 9,
     wolfssl_camellia    = 10,
-    wolfssl_rabbit      = 12,
 #ifdef HAVE_IDEA
     wolfssl_idea        = 13
 #endif

@@ -52,7 +52,6 @@
         <li>\ref PKCS7</li>
         <li>\ref PKCS11</li>
         <li>\ref Poly1305</li>
-        <li>\ref Rabbit</li>
         <li>\ref RIPEMD</li>
         <li>\ref RSA</li>
         <li>\ref SHA</li>

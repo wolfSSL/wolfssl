@@ -418,9 +418,6 @@ extern "C" {
 #undef  NO_RC4
 #define NO_RC4
 
-#undef  NO_RABBIT
-#define NO_RABBIT
-
 #undef  NO_MD4
 #define NO_MD4
 

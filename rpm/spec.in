@@ -113,7 +113,6 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/cyassl/ctaocrypt/pkcs7.h
 %{_includedir}/cyassl/ctaocrypt/poly1305.h
 %{_includedir}/cyassl/ctaocrypt/pwdbased.h
-%{_includedir}/cyassl/ctaocrypt/rabbit.h
 %{_includedir}/cyassl/ctaocrypt/random.h
 %{_includedir}/cyassl/ctaocrypt/ripemd.h
 %{_includedir}/cyassl/ctaocrypt/rsa.h
@@ -287,7 +286,6 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/pkcs7.h
 %{_includedir}/wolfssl/wolfcrypt/poly1305.h
 %{_includedir}/wolfssl/wolfcrypt/pwdbased.h
-%{_includedir}/wolfssl/wolfcrypt/rabbit.h
 %{_includedir}/wolfssl/wolfcrypt/random.h
 %{_includedir}/wolfssl/wolfcrypt/ripemd.h
 %{_includedir}/wolfssl/wolfcrypt/rc2.h
