@@ -72,6 +72,8 @@ WOLFSSL_API int wolfSSL_DH_set_length(WOLFSSL_DH* dh, long len);
 WOLFSSL_API int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
     WOLFSSL_BIGNUM *q, WOLFSSL_BIGNUM *g);
 
+WOLFSSL_API WOLFSSL_DH* wolfSSL_DH_get_2048_256(void);
+
 #define DH_new  wolfSSL_DH_new
 #define DH_free wolfSSL_DH_free
 
@@ -108,6 +110,8 @@ WOLFSSL_API int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
 #define get_rfc3526_prime_4096     wolfSSL_DH_4096_prime
 #define get_rfc3526_prime_6144     wolfSSL_DH_6144_prime
 #define get_rfc3526_prime_8192     wolfSSL_DH_8192_prime
+
+#define DH_get_2048_256 wolfSSL_DH_get_2048_256
 
 #ifdef __cplusplus
     }  /* extern "C" */
