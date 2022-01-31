@@ -7909,7 +7909,6 @@ static int aes_xts_128_test(void)
         ERROR_OUT(-5410, out);
     if (XMEMCMP(p1, buf, AES_BLOCK_SIZE))
         ERROR_OUT(-5411, out);
-    wc_AesXtsFree(aes);
 
     /* fail case with decrypting using wrong key */
     XMEMSET(buf, 0, sizeof(buf));
@@ -7921,6 +7920,8 @@ static int aes_xts_128_test(void)
         ERROR_OUT(-5412, out);
     if (XMEMCMP(p2, buf, sizeof(p2)) == 0) /* fail case with wrong key */
         ERROR_OUT(-5413, out);
+
+    wc_AesXtsFree(aes);
 
     /* set correct key and retest */
     XMEMSET(buf, 0, sizeof(buf));
