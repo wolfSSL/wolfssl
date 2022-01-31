@@ -3999,13 +3999,15 @@ struct WOLFSSL_X509 {
 #endif
     byte             serial[EXTERNAL_SERIAL_SIZE];
     char             subjectCN[ASN_NAME_MAX];        /* common name short cut */
-#ifdef WOLFSSL_CERT_REQ
-#ifdef OPENSSL_ALL
+#if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN)
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
     WOLFSSL_X509_ATTRIBUTE* challengePwAttr;
 #endif
+    #if defined(WOLFSSL_CERT_REQ)
     char             challengePw[CTC_NAME_SIZE]; /* for REQ certs */
     char             contentType[CTC_NAME_SIZE];
-#endif /* WOLFSSL_CERT_REQ */
+    #endif
+#endif /* WOLFSSL_CERT_REQ || WOLFSSL_CERT_GEN */
     WOLFSSL_X509_NAME issuer;
     WOLFSSL_X509_NAME subject;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)

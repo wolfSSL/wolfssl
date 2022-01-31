@@ -4281,21 +4281,24 @@ WOLFSSL_API int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
                                                   int nid, int type,
                                                   const unsigned char *bytes,
                                                   int len);
-WOLFSSL_API int wolfSSL_X509_REQ_get_attr_by_NID(const WOLFSSL_X509 *req,
-        int nid, int lastpos);
 WOLFSSL_API int wolfSSL_X509_REQ_add1_attr_by_txt(WOLFSSL_X509 *req,
                               const char *attrname, int type,
                               const unsigned char *bytes, int len);
-WOLFSSL_API WOLFSSL_X509_ATTRIBUTE *wolfSSL_X509_REQ_get_attr(
-        const WOLFSSL_X509 *req, int loc);
-WOLFSSL_API WOLFSSL_X509_ATTRIBUTE* wolfSSL_X509_ATTRIBUTE_new(void);
-WOLFSSL_API void wolfSSL_X509_ATTRIBUTE_free(WOLFSSL_X509_ATTRIBUTE* attr);
-WOLFSSL_API WOLFSSL_ASN1_TYPE *wolfSSL_X509_ATTRIBUTE_get0_type(
-        WOLFSSL_X509_ATTRIBUTE *attr, int idx);
 WOLFSSL_API WOLFSSL_X509 *wolfSSL_X509_to_X509_REQ(WOLFSSL_X509 *x,
         WOLFSSL_EVP_PKEY *pkey, const WOLFSSL_EVP_MD *md);
 #endif
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) || \
+                                                       defined(WOLFSSL_CERT_REQ)
+WOLFSSL_API WOLFSSL_X509_ATTRIBUTE *wolfSSL_X509_REQ_get_attr(
+        const WOLFSSL_X509 *req, int loc);
+WOLFSSL_API int wolfSSL_X509_REQ_get_attr_by_NID(const WOLFSSL_X509 *req,
+        int nid, int lastpos);
+WOLFSSL_API WOLFSSL_X509_ATTRIBUTE* wolfSSL_X509_ATTRIBUTE_new(void);
+WOLFSSL_API void wolfSSL_X509_ATTRIBUTE_free(WOLFSSL_X509_ATTRIBUTE* attr);
+WOLFSSL_API WOLFSSL_ASN1_TYPE *wolfSSL_X509_ATTRIBUTE_get0_type(
+        WOLFSSL_X509_ATTRIBUTE *attr, int idx);
+#endif
 
 #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) \
     || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
