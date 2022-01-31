@@ -224,6 +224,20 @@ then
 fi
 AC_SUBST([ENABLED_ASM])
 
+# wolfEngine Options
+# This requires a FIPS source code bundle.
+AC_ARG_ENABLE([engine],
+    [AS_HELP_STRING([--enable-engine],[Enable wolfEngine options (default: disabled)])],
+    [ ENABLED_WOLFENGINE=$enableval ],
+    [ ENABLED_WOLFENGINE=no ]
+    )
+
+# wolfEngine for non-FIPS options
+AC_ARG_ENABLE([engine-without-fips],
+    [AS_HELP_STRING([--enable-engine-without-fips],[Enable wolfEngine without FIPS (default: disabled)])],
+    [ ENABLED_WOLFENGINEWITHOUTFIPS=$enableval ],
+    [ ENABLED_WOLFENGINEWITHOUTFIPS=no ]
+    )
 
 # FIPS 140
 AC_ARG_ENABLE([fips],
@@ -320,6 +334,14 @@ AS_CASE([$ENABLED_FIPS],
     [
         AC_MSG_ERROR([Invalid value for --enable-fips "$ENABLED_FIPS" (main options: v1, v2, v5, ready, dev, rand, no, disabled)])
     ])
+
+if test "$ENABLED_FIPS" = "no" && test "$ENABLED_WOLFENGINE" = "yes"
+then
+        # Default to cert 3389.
+        FIPS_VERSION="v2"
+        HAVE_FIPS_VERSION=2
+        ENABLED_FIPS="yes"
+fi
 
 if test -z "$HAVE_FIPS_VERSION_MINOR"
 then
@@ -1165,7 +1187,8 @@ AC_ARG_ENABLE([opensslcoexist],
     [ ENABLED_OPENSSLCOEXIST=$enableval ],
     [ ENABLED_OPENSSLCOEXIST=no ]
     )
-if test "x$ENABLED_OPENSSLCOEXIST" = "xyes"
+
+if test "x$ENABLED_OPENSSLCOEXIST" = "xyes" || test "$ENABLED_WOLFENGINE" = "yes" || test "$ENABLED_WOLFENGINEWITHOUTFIPS" = "yes"
 then
     # make sure old names are disabled
     enable_oldnames=no
@@ -1716,7 +1739,7 @@ AC_ARG_ENABLE([aesccm],
     [ ENABLED_AESCCM=no ]
     )
 
-if test "$ENABLED_AESCCM" = "yes"
+if test "$ENABLED_AESCCM" = "yes" || test "$ENABLED_WOLFENGINE" = "yes" || test "$ENABLED_WOLFENGINEWITHOUTFIPS" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"
 fi
@@ -1739,7 +1762,7 @@ AC_ARG_ENABLE([aesctr],
     [ ENABLED_AESCTR=$enableval ],
     [ ENABLED_AESCTR=no ]
     )
-if test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_AESSIV" = "yes"
+if test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_AESSIV" = "yes" || test "$ENABLED_WOLFENGINE" = "yes" || test "$ENABLED_WOLFENGINEWITHOUTFIPS" = "yes"
 then
     ENABLED_AESCTR=yes
 fi
@@ -2395,7 +2418,7 @@ AC_ARG_ENABLE([keygen],
     [ ENABLED_KEYGEN=no ]
     )
 
-if test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_OPENRESTY" = "yes" || test "$ENABLED_NGINX" = "yes"
+if test "$ENABLED_BIND" = "yes" || test "$ENABLED_NTP" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_OPENRESTY" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WOLFENGINE" = "yes" || test "$ENABLED_WOLFENGINEWITHOUTFIPS" = "yes"
 then
     ENABLED_KEYGEN=yes
 fi
@@ -2478,7 +2501,7 @@ AC_ARG_ENABLE([x963kdf],
     [ ENABLED_X963KDF=$enableval ],
     [ ENABLED_X963KDF=no ]
     )
-if test "$ENABLED_X963KDF" = "yes"
+if test "$ENABLED_X963KDF" = "yes" || test "$ENABLED_WOLFENGINE" = "yes" || test "$ENABLED_WOLFENGINEWITHOUTFIPS" = "yes"
 then
   AM_CFLAGS="$AM_CFLAGS -DHAVE_X963_KDF"
 fi
@@ -3456,7 +3479,7 @@ AC_ARG_ENABLE([des3],
     [ ENABLED_DES3=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "x$ENABLED_WPAS" != "xno"  || test "$ENABLED_NETSNMP" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_KRB" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "x$ENABLED_WPAS" != "xno"  || test "$ENABLED_NETSNMP" = "yes" || test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_KRB" = "yes" || test "$ENABLED_WOLFENGINE" = "yes" || test "$ENABLED_WOLFENGINEWITHOUTFIPS" = "yes"
 then
     ENABLED_DES3="yes"
 fi
@@ -3489,15 +3512,18 @@ AC_ARG_ENABLE([sha],
     [ ENABLED_SHA=yes ]
     )
 
-if test "$ENABLED_SHA" = "no"
+if  test "$ENABLED_WOLFENGINE" != "yes" && test "$ENABLED_WOLFENGINEWITHOUTFIPS" != "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DNO_SHA -DNO_OLD_TLS"
-else
-    # turn off SHA if leanpsk or leantls on
-    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
+    if test "$ENABLED_SHA" = "no"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_SHA -DNO_OLD_TLS"
-        ENABLED_SHA=no
+    else
+        # turn off SHA if leanpsk or leantls on
+        if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DNO_SHA -DNO_OLD_TLS"
+            ENABLED_SHA=no
+        fi
     fi
 fi
 
@@ -3520,7 +3546,7 @@ AC_ARG_ENABLE([cmac],
     [ ENABLED_CMAC=no ]
     )
 
-if test "$ENABLED_WPAS" != "no" || test "$ENABLED_NTP" = "yes" || test "$ENABLED_AESSIV" = "yes"
+if test "$ENABLED_WPAS" != "no" || test "$ENABLED_NTP" = "yes" || test "$ENABLED_AESSIV" = "yes" || test "$ENABLED_WOLFENGINE" = "yes" || test "$ENABLED_WOLFENGINEWITHOUTFIPS" = "yes"
 then
     ENABLED_CMAC=yes
 fi
@@ -7295,6 +7321,27 @@ then
     ENABLED_IOTSAFE_HWRNG=yes
 fi
 
+if test "x$ENABLED_WOLFENGINE" = "xyes" || test "x$ENABLED_WOLFENGINEWITHOUTFIPS" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_ECB"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT"
+    AM_CFLAGS="$AM_CFLAGS -DWC_RSA_NO_PADDING"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP"
+    AM_CFLAGS="$AM_CFLAGS -DECC_MIN_KEY_SZ=192"
+fi
+
+if test "x$ENABLED_WOLFENGINE" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DSha3=wc_Sha3"
+    AM_CFLAGS="$AM_CFLAGS -DNO_OLD_SHA256_NAMES"
+    AM_CFLAGS="$AM_CFLAGS -DNO_OLD_MD5_NAME"
+fi
+
+if test "x$ENABLED_WOLFENGINEWITHOUTFIPS" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PSS_LONG_SALT"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PSS_SALT_LEN_DISCOVER"
+fi
 
 AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MAX_STRENGTH"])
@@ -8026,6 +8073,8 @@ echo "   * All TLS Extensions:         $ENABLED_TLSX"
 echo "   * PKCS#7:                     $ENABLED_PKCS7"
 echo "   * S/MIME:                     $ENABLED_SMIME"
 echo "   * wolfSSH:                    $ENABLED_WOLFSSH"
+echo "   * wolfEngine:                 $ENABLED_WOLFENGINE"
+echo "   * wolfEngine without FIPS:    $ENABLED_WOLFENGINEWITHOUTFIPS"
 echo "   * wolfTPM:                    $ENABLED_WOLFTPM"
 echo "   * wolfCLU:                    $ENABLED_WOLFCLU"
 echo "   * wolfSCEP:                   $ENABLED_WOLFSCEP"
