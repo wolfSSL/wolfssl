@@ -3915,6 +3915,12 @@ void FreeX509Name(WOLFSSL_X509_NAME* name)
             }
         }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#ifdef OPENSSL_ALL
+        if (name->entries) {
+            wolfSSL_sk_X509_NAME_ENTRY_free(name->entries);
+            name->entries = NULL;
+        }
+#endif
     }
 }
 

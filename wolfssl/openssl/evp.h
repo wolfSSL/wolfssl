@@ -245,6 +245,14 @@ enum {
     NID_cmac          = 894,
     NID_dhKeyAgreement= 28,
     NID_rc4           = 5,
+    NID_bf_cbc        = 91,
+    NID_bf_ecb        = 92,
+    NID_bf_cfb64      = 93,
+    NID_bf_ofb64      = 94,
+    NID_cast5_cbc     = 108,
+    NID_cast5_ecb     = 109,
+    NID_cast5_cfb64   = 110,
+    NID_cast5_ofb64   = 111,
     EVP_PKEY_DH       = NID_dhKeyAgreement,
     EVP_PKEY_HMAC     = NID_hmac,
     EVP_PKEY_FALCON   = 300, /* Randomly picked value. */
@@ -708,6 +716,7 @@ WOLFSSL_API unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher);
 WOLFSSL_API unsigned long wolfSSL_EVP_CIPHER_flags(const WOLFSSL_EVP_CIPHER *cipher);
 WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags);
 WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_clear_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags);
+WOLFSSL_API unsigned long wolfSSL_EVP_CIPHER_CTX_flags(const WOLFSSL_EVP_CIPHER_CTX *ctx);
 WOLFSSL_API unsigned long wolfSSL_EVP_CIPHER_CTX_mode(const WOLFSSL_EVP_CIPHER_CTX *ctx);
 WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_padding(WOLFSSL_EVP_CIPHER_CTX *c, int pad);
 WOLFSSL_API int  wolfSSL_EVP_add_digest(const WOLFSSL_EVP_MD *digest);

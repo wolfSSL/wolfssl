@@ -29551,7 +29551,7 @@ static void test_wolfSSL_X509_NAME(void)
     tmp = buf;
     AssertIntGT((sz = i2d_X509_NAME((X509_NAME*)a, &tmp)), 0);
     if (sz > 0 && tmp == buf) {
-        printf("\nERROR - %s line %d failed with:", __FILE__, __LINE__);           \
+        printf("\nERROR - %s line %d failed with:", __FILE__, __LINE__);
         printf(" Expected pointer to be incremented\n");
         abort();
     }
@@ -36534,7 +36534,11 @@ static void test_wolfSSL_check_domain(void)
     FreeTcpReady(&ready);
 
     /* Should have been called once for each cert in sent chain */
+#ifdef WOLFSSL_VERIFY_CB_ALL_CERTS
     AssertIntEQ(test_wolfSSL_check_domain_verify_count, 3);
+#else
+    AssertIntEQ(test_wolfSSL_check_domain_verify_count, 1);
+#endif
 
     printf(resultFmt, passed);
 }
@@ -38063,6 +38067,9 @@ static void test_wolfSSL_X509_NAME_ENTRY(void)
     X509_NAME* nm;
     X509_NAME_ENTRY* entry;
     unsigned char cn[] = "another name to add";
+#ifdef OPENSSL_ALL
+    int i, names_len;
+#endif
 
     printf(testingFmt, "wolfSSL_X509_NAME_ENTRY()");
 
@@ -38135,6 +38142,14 @@ static void test_wolfSSL_X509_NAME_ENTRY(void)
     /* Test add entry by NID */
     AssertIntEQ(X509_NAME_add_entry_by_NID(nm, NID_commonName, MBSTRING_UTF8,
                                        cn, -1, -1, 0), SSL_SUCCESS);
+
+#ifdef OPENSSL_ALL
+    /* stack of name entry */
+    AssertIntGT((names_len = sk_X509_NAME_ENTRY_num(nm->entries)), 0);
+    for (i=0; i<names_len; i++) {
+        AssertNotNull(entry = sk_X509_NAME_ENTRY_value(nm->entries, i));
+    }
+#endif
 
 #ifndef NO_BIO
     BIO_free(bio);
@@ -40481,7 +40496,9 @@ static void test_wolfSSL_SHA(void)
 #if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST)
     printf(testingFmt, "wolfSSL_SHA()");
 
-    #if !defined(NO_SHA) && defined(NO_OLD_SHA_NAMES)
+    #if !defined(NO_SHA) && defined(NO_OLD_SHA_NAMES) && \
+        (!defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
     {
         const unsigned char in[] = "abc";
         unsigned char expected[] = "\xA9\x99\x3E\x36\x47\x06\x81\x6A\xBA\x3E"

@@ -3823,6 +3823,7 @@ typedef enum {
     STACK_TYPE_X509_OBJ           = 14,
     STACK_TYPE_DIST_POINT         = 15,
     STACK_TYPE_X509_CRL           = 16,
+    STACK_TYPE_X509_NAME_ENTRY    = 17,
 } WOLF_STACK_TYPE;
 
 struct WOLFSSL_STACK {
@@ -3837,6 +3838,7 @@ struct WOLFSSL_STACK {
     union {
         WOLFSSL_X509*          x509;
         WOLFSSL_X509_NAME*     name;
+        WOLFSSL_X509_NAME_ENTRY* name_entry;
         WOLFSSL_X509_INFO*     info;
         WOLFSSL_BIO*           bio;
         WOLFSSL_ASN1_OBJECT*   obj;
@@ -3875,6 +3877,8 @@ struct WOLFSSL_X509_NAME {
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
     byte  raw[ASN_NAME_MAX];
     int   rawLen;
+
+    WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* entries;
 #endif
     void* heap;
 };

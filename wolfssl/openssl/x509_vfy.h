@@ -32,11 +32,12 @@
 
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
     WOLFSSL_API int wolfSSL_X509_STORE_CTX_set_purpose(WOLFSSL_X509_STORE_CTX *ctx, int purpose);
+    WOLFSSL_API void wolfSSL_X509_STORE_CTX_set_flags(WOLFSSL_X509_STORE_CTX *ctx,
+        unsigned long flags);
 #endif
 
-#ifdef WOLFSSL_QT
-    #define X509_STORE_CTX_set_purpose  wolfSSL_X509_STORE_CTX_set_purpose
-#endif
+#define X509_STORE_CTX_set_purpose  wolfSSL_X509_STORE_CTX_set_purpose
+#define X509_STORE_CTX_set_flags    wolfSSL_X509_STORE_CTX_set_flags
 
 #ifdef  __cplusplus
 } /* extern "C" */

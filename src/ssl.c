@@ -21771,6 +21771,7 @@ int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
         case STACK_TYPE_X509_EXT:
         case STACK_TYPE_NULL:
         case STACK_TYPE_X509_NAME:
+        case STACK_TYPE_X509_NAME_ENTRY:
         case STACK_TYPE_CONF_VALUE:
         case STACK_TYPE_X509_INFO:
         case STACK_TYPE_BY_DIR_entry:
@@ -21831,6 +21832,7 @@ int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
         case STACK_TYPE_X509_EXT:
         case STACK_TYPE_NULL:
         case STACK_TYPE_X509_NAME:
+        case STACK_TYPE_X509_NAME_ENTRY:
         case STACK_TYPE_CONF_VALUE:
         case STACK_TYPE_X509_INFO:
         case STACK_TYPE_BY_DIR_entry:
@@ -22504,6 +22506,7 @@ void *wolfSSL_lh_retrieve(WOLFSSL_STACK *sk, void *data)
                 case STACK_TYPE_X509_EXT:
                 case STACK_TYPE_NULL:
                 case STACK_TYPE_X509_NAME:
+                case STACK_TYPE_X509_NAME_ENTRY:
                 case STACK_TYPE_CONF_VALUE:
                 case STACK_TYPE_X509_INFO:
                 case STACK_TYPE_BY_DIR_entry:
@@ -22529,6 +22532,7 @@ void *wolfSSL_lh_retrieve(WOLFSSL_STACK *sk, void *data)
                 case STACK_TYPE_X509_EXT:
                 case STACK_TYPE_NULL:
                 case STACK_TYPE_X509_NAME:
+                case STACK_TYPE_X509_NAME_ENTRY:
                 case STACK_TYPE_CONF_VALUE:
                 case STACK_TYPE_X509_INFO:
                 case STACK_TYPE_BY_DIR_entry:
@@ -31480,6 +31484,8 @@ void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i)
             return (void*)sk->data.generic;
         case STACK_TYPE_X509_NAME:
             return (void*)sk->data.name;
+        case STACK_TYPE_X509_NAME_ENTRY:
+            return (void*)sk->data.name_entry;
         case STACK_TYPE_CONF_VALUE:
             return (void*)sk->data.conf;
         case STACK_TYPE_X509_INFO:
@@ -31576,6 +31582,7 @@ WOLFSSL_STACK* wolfSSL_sk_dup(WOLFSSL_STACK* sk)
             case STACK_TYPE_X509_EXT:
             case STACK_TYPE_NULL:
             case STACK_TYPE_X509_NAME:
+            case STACK_TYPE_X509_NAME_ENTRY:
             case STACK_TYPE_CONF_VALUE:
             case STACK_TYPE_X509_INFO:
             case STACK_TYPE_BY_DIR_entry:
@@ -31690,6 +31697,12 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
             #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) \
                 && !defined(WOLFCRYPT_ONLY)
                 func = (wolfSSL_sk_freefunc)wolfSSL_X509_NAME_free;
+            #endif
+                break;
+            case STACK_TYPE_X509_NAME_ENTRY:
+            #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) \
+                && !defined(WOLFCRYPT_ONLY)
+                func = (wolfSSL_sk_freefunc)wolfSSL_X509_NAME_ENTRY_free;
             #endif
                 break;
             case STACK_TYPE_X509_EXT:
@@ -34013,7 +34026,8 @@ int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
 }
 
 
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+#if defined(OPENSSL_ALL) || \
+    defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 int wolfSSL_DH_set_length(WOLFSSL_DH *dh, long len)
 {
     WOLFSSL_ENTER("wolfSSL_DH_set_length");
@@ -34074,7 +34088,7 @@ int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
 
     return WOLFSSL_SUCCESS;
 }
-#endif /* v1.1.0 or later */
+#endif /* OPENSSL_ALL || (v1.1.0 or later) */
 #endif /* !HAVE_FIPS || (HAVE_FIPS && !WOLFSSL_DH_EXTRA) ||
         * HAVE_FIPS_VERSION > 2 */
 
@@ -36178,6 +36192,9 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
             hmac_error = wc_HmacSetKey(&ctx->hmac, ctx->type, (const byte*)key,
                                        (word32)keylen);
             if (hmac_error < 0){
+                /* in FIPS mode a key < 14 characters will fail here */
+                WOLFSSL_MSG("hmac set key error");
+                WOLFSSL_ERROR(hmac_error);
                 wc_HmacFree(&ctx->hmac);
                 return WOLFSSL_FAILURE;
             }
@@ -36202,7 +36219,9 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
                                        WC_HMAC_BLOCK_SIZE);
             if ((hmac_error = _HMAC_Init(&ctx->hmac, ctx->hmac.macType, heap))
                     !=0) {
-               return hmac_error;
+                WOLFSSL_MSG("hmac init error");
+                WOLFSSL_ERROR(hmac_error);
+                return WOLFSSL_FAILURE;
             }
         }
     }
@@ -45463,7 +45482,7 @@ err:
             WOLFSSL_X509_NAME_ENTRY* entry, int idx, int set)
     {
         WOLFSSL_X509_NAME_ENTRY* current = NULL;
-        int i;
+        int ret, i;
 
 #ifdef WOLFSSL_DEBUG_OPENSSL
         WOLFSSL_ENTER("wolfSSL_X509_NAME_add_entry()");
@@ -45498,16 +45517,33 @@ err:
             }
         }
 
-        current = &(name->entry[i]);
+        current = &name->entry[i];
         if (current->set == 0)
             name->entrySz++;
+        
         if (wolfSSL_X509_NAME_ENTRY_create_by_NID(&current,
-                                entry->nid,
-                                wolfSSL_ASN1_STRING_type(entry->value),
-                                wolfSSL_ASN1_STRING_data(entry->value),
-                                wolfSSL_ASN1_STRING_length(entry->value))
-                                == NULL) {
-            WOLFSSL_MSG("Issue adding the name entry");
+                            entry->nid,
+                            wolfSSL_ASN1_STRING_type(entry->value),
+                            wolfSSL_ASN1_STRING_data(entry->value),
+                            wolfSSL_ASN1_STRING_length(entry->value)) != NULL)
+        {
+            ret = WOLFSSL_SUCCESS;
+        #ifdef OPENSSL_ALL
+            if (name->entries == NULL) {
+                name->entries = wolfSSL_sk_X509_NAME_new(NULL);
+            }
+            if (wolfSSL_sk_X509_NAME_ENTRY_push(name->entries, current
+                                                         ) != WOLFSSL_SUCCESS) {
+                ret = WOLFSSL_FAILURE;
+            }
+        #endif
+        }
+        else {
+            ret = WOLFSSL_FAILURE;
+        }
+        
+        if (ret != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Error adding the name entry");
             if (current->set == 0)
                 name->entrySz--;
             return WOLFSSL_FAILURE;
@@ -48072,6 +48108,46 @@ int wolfSSL_sk_X509_NAME_find(const WOLF_STACK_OF(WOLFSSL_X509_NAME) *sk,
         }
     }
     return -1;
+}
+
+/* Name Entry */
+WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* wolfSSL_sk_X509_NAME_ENTRY_new(
+    wolf_sk_compare_cb cb)
+{
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_node(NULL);
+    if (sk != NULL) {
+        sk->type = STACK_TYPE_X509_NAME_ENTRY;
+    #ifdef OPENSSL_ALL
+        sk->comp = cb;
+    #else
+        (void)cb;
+    #endif
+    }
+    return sk;
+}
+
+int wolfSSL_sk_X509_NAME_ENTRY_push(WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* sk,
+    WOLFSSL_X509_NAME_ENTRY* name_entry)
+{
+    return wolfSSL_sk_push(sk, name_entry);
+}
+
+WOLFSSL_X509_NAME_ENTRY* wolfSSL_sk_X509_NAME_ENTRY_value(
+    const WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* sk, int i)
+{
+    return (WOLFSSL_X509_NAME_ENTRY*)wolfSSL_sk_value(sk, i);
+}
+
+int wolfSSL_sk_X509_NAME_ENTRY_num(const WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* sk)
+{
+    if (sk == NULL)
+        return BAD_FUNC_ARG;
+    return (int)sk->num;
+}
+
+void wolfSSL_sk_X509_NAME_ENTRY_free(WOLF_STACK_OF(WOLFSSL_X509_NAME_ENTRY)* sk)
+{
+    wolfSSL_sk_free(sk);
 }
 
 #endif /* OPENSSL_EXTRA || HAVE_STUNNEL || WOLFSSL_NGINX ||
@@ -61204,10 +61280,19 @@ int wolfSSL_X509_STORE_CTX_set_purpose(WOLFSSL_X509_STORE_CTX *ctx,
 {
     (void)ctx;
     (void)purpose;
-    WOLFSSL_STUB("wolfSSL_X509_STORE_CTX_set_purpose");
+    WOLFSSL_STUB("wolfSSL_X509_STORE_CTX_set_purpose (not implemented)");
     return 0;
 }
-#endif
+
+void wolfSSL_X509_STORE_CTX_set_flags(WOLFSSL_X509_STORE_CTX *ctx,
+        unsigned long flags)
+{
+    (void)ctx;
+    (void)flags;
+    WOLFSSL_STUB("wolfSSL_X509_STORE_CTX_set_flags (not implemented)");
+}
+#endif /* !NO_WOLFSSL_STUB */
+
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
 #endif /* OPENSSL_EXTRA */
 
