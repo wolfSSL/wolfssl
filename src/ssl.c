@@ -113,7 +113,6 @@
     #include <wolfssl/wolfcrypt/md4.h>
     #include <wolfssl/wolfcrypt/md5.h>
     #include <wolfssl/wolfcrypt/arc4.h>
-    #include <wolfssl/wolfcrypt/idea.h>
     #include <wolfssl/wolfcrypt/curve25519.h>
     #include <wolfssl/wolfcrypt/ed25519.h>
     #include <wolfssl/wolfcrypt/curve448.h>
@@ -25878,7 +25877,6 @@ int wolfSSL_CIPHER_get_cipher_nid(const WOLFSSL_CIPHER* cipher)
         {"3DES",                    NID_des_ede3_cbc},
         {"CHACHA20/POLY1305(256)",  NID_chacha20_poly1305},
         {"None",                    NID_undef},
-        {"IDEA",                    NID_idea_cbc},
         {NULL,                      NID_undef}
     };
 
@@ -26232,11 +26230,6 @@ static WC_INLINE const char* wolfssl_cipher_to_string(int cipher, int key_size)
 #ifndef NO_DES3
         case wolfssl_triple_des:
             encStr = "3DES(168)";
-            break;
-#endif
-#ifdef HAVE_IDEA
-        case wolfssl_idea:
-            encStr = "IDEA(128)";
             break;
 #endif
 #ifndef NO_AES
@@ -60791,13 +60784,6 @@ int wolfSSL_RAND_poll(void)
                 WOLFSSL_MSG("DES3 ECB");
                 break;
 #endif
-
-#ifdef HAVE_IDEA
-            case IDEA_CBC_TYPE :
-                WOLFSSL_MSG("IDEA CBC");
-                XMEMCPY(ctx->iv, &ctx->cipher.idea.reg, IDEA_BLOCK_SIZE);
-                break;
-#endif
             case ARC4_TYPE :
                 WOLFSSL_MSG("ARC4");
                 break;
@@ -60882,12 +60868,6 @@ int wolfSSL_RAND_poll(void)
                 break;
 #endif
 
-#ifdef HAVE_IDEA
-            case IDEA_CBC_TYPE :
-                WOLFSSL_MSG("IDEA CBC");
-                XMEMCPY(&ctx->cipher.idea.reg, ctx->iv, IDEA_BLOCK_SIZE);
-                break;
-#endif
             case ARC4_TYPE :
                 WOLFSSL_MSG("ARC4");
                 break;

@@ -194,7 +194,6 @@
     Derive the SSV, (wc_DeriveSakkeSSV()) on the recipient from the encapsulated SSV.
 
     \defgroup HMAC Algorithms - HMAC
-    \defgroup IDEA Algorithms - IDEA
     \defgroup MD2 Algorithms - MD2
     \defgroup MD4 Algorithms - MD4
     \defgroup MD5 Algorithms - MD5

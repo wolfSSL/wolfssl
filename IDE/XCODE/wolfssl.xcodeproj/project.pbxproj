@@ -398,9 +398,6 @@
 		A4DAE3472493F21900CEF51F /* blake2s.c in Sources */ = {isa = PBXBuildFile; fileRef = A4DAE3182493F21900CEF51F /* blake2s.c */; };
 		A4DAE3482493F21900CEF51F /* blake2s.c in Sources */ = {isa = PBXBuildFile; fileRef = A4DAE3182493F21900CEF51F /* blake2s.c */; };
 		A4DAE3492493F21900CEF51F /* blake2s.c in Sources */ = {isa = PBXBuildFile; fileRef = A4DAE3182493F21900CEF51F /* blake2s.c */; };
-		A4DAE34A2493F21900CEF51F /* idea.c in Sources */ = {isa = PBXBuildFile; fileRef = A4DAE3192493F21900CEF51F /* idea.c */; };
-		A4DAE34B2493F21900CEF51F /* idea.c in Sources */ = {isa = PBXBuildFile; fileRef = A4DAE3192493F21900CEF51F /* idea.c */; };
-		A4DAE34C2493F21900CEF51F /* idea.c in Sources */ = {isa = PBXBuildFile; fileRef = A4DAE3192493F21900CEF51F /* idea.c */; };
 		A4DAE34D2493F28B00CEF51F /* sp_arm32.c in Sources */ = {isa = PBXBuildFile; fileRef = A4E7E5912493E20500725359 /* sp_arm32.c */; };
 		A4DAE34E2493F28C00CEF51F /* sp_arm32.c in Sources */ = {isa = PBXBuildFile; fileRef = A4E7E5912493E20500725359 /* sp_arm32.c */; };
 		A4DAE3502493F29100CEF51F /* sp_arm64.c in Sources */ = {isa = PBXBuildFile; fileRef = A4E7E5902493E20500725359 /* sp_arm64.c */; };
@@ -1174,7 +1171,6 @@
 		A4DAE3162493F21900CEF51F /* wc_dsp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = wc_dsp.c; path = ../../wolfcrypt/src/wc_dsp.c; sourceTree = "<group>"; };
 		A4DAE3172493F21900CEF51F /* wc_pkcs11.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = wc_pkcs11.c; path = ../../wolfcrypt/src/wc_pkcs11.c; sourceTree = "<group>"; };
 		A4DAE3182493F21900CEF51F /* blake2s.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = blake2s.c; path = ../../wolfcrypt/src/blake2s.c; sourceTree = "<group>"; };
-		A4DAE3192493F21900CEF51F /* idea.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = idea.c; path = ../../wolfcrypt/src/idea.c; sourceTree = "<group>"; };
 		A4E7E5902493E20500725359 /* sp_arm64.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sp_arm64.c; path = ../../wolfcrypt/src/sp_arm64.c; sourceTree = "<group>"; };
 		A4E7E5912493E20500725359 /* sp_arm32.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sp_arm32.c; path = ../../wolfcrypt/src/sp_arm32.c; sourceTree = "<group>"; };
 		A4E7E5922493E20500725359 /* sp_dsp32.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sp_dsp32.c; path = ../../wolfcrypt/src/sp_dsp32.c; sourceTree = "<group>"; };
@@ -1400,7 +1396,6 @@
 				525BE5331B3869110054BBCD /* hash.c */,
 				5216461E1A8992CC0062516A /* hmac.c */,
 				6AC85128272CAF2E00F2B32A /* kdf.c */,
-				A4DAE3192493F21900CEF51F /* idea.c */,
 				5216461F1A8992CC0062516A /* integer.c */,
 				521646201A8992CC0062516A /* logging.c */,
 				521646211A8992CC0062516A /* md2.c */,
@@ -1619,7 +1614,6 @@
 				30B060671C6DDB2B00D46008 /* error.c in Sources */,
 				520775AA2239ABBE00087711 /* sp_int.c in Sources */,
 				30B060681C6DDB2B00D46008 /* hash.c in Sources */,
-				A4DAE34C2493F21900CEF51F /* idea.c in Sources */,
 				6AC8512B272CAF2E00F2B32A /* kdf.c in Sources */,
 				30B0606A1C6DDB2B00D46008 /* hmac.c in Sources */,
 				A4DAE3572493F29E00CEF51F /* sp_dsp32.c in Sources */,
@@ -1715,7 +1709,6 @@
 				520775B32239AC3200087711 /* ed25519.c in Sources */,
 				520775B12239AC2500087711 /* wolfmath.c in Sources */,
 				521646451A8992CC0062516A /* memory.c in Sources */,
-				A4DAE34A2493F21900CEF51F /* idea.c in Sources */,
 				A4DAE3382493F21900CEF51F /* pkcs12.c in Sources */,
 				5216463C1A8992CC0062516A /* ecc.c in Sources */,
 				A4DAE3292493F21900CEF51F /* compress.c in Sources */,
@@ -1788,7 +1781,6 @@
 				A4F3187A1BC58B1700FDF2BB /* keys.c in Sources */,
 				A4F318511BC58B1700FDF2BB /* logging.c in Sources */,
 				A4F318701BC58B1700FDF2BB /* md2.c in Sources */,
-				A4DAE34B2493F21900CEF51F /* idea.c in Sources */,
 				A4F318651BC58B1700FDF2BB /* md4.c in Sources */,
 				6AC8512A272CAF2E00F2B32A /* kdf.c in Sources */,
 				A4F3185E1BC58B1700FDF2BB /* md5.c in Sources */,

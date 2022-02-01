@@ -280,13 +280,6 @@
       <TreeImageGuid>941832c1-fc3b-4e1b-94e8-01ea17128b42</TreeImageGuid>
       <ParentItem>2170607d-803e-45b0-80af-6507d495a8de</ParentItem>
     </Instance>
-    <Instance Guid="74663551-9e8b-4269-9c36-d538d56a3414">
-      <Name>idea.c</Name>
-      <Type>File</Type>
-      <RelativePath>..\..\..\..\..\wolfcrypt\src\idea.c</RelativePath>
-      <TreeImageGuid>941832c1-fc3b-4e1b-94e8-01ea17128b42</TreeImageGuid>
-      <ParentItem>2170607d-803e-45b0-80af-6507d495a8de</ParentItem>
-    </Instance>
     <Instance Guid="d2806186-287c-47e3-bf79-8daa033201cb">
       <Name>integer.c</Name>
       <Type>File</Type>
@@ -630,69 +623,67 @@
       <SourceItemType33>CSource</SourceItemType33>
       <SourceItemGuid35>85c26e25-fbfe-4ece-afca-4d142c6ea135</SourceItemGuid35>
       <SourceItemType35>CSource</SourceItemType35>
-      <SourceItemGuid36>74663551-9e8b-4269-9c36-d538d56a3414</SourceItemGuid36>
-      <SourceItemType36>CSource</SourceItemType36>
-      <SourceItemGuid37>d2806186-287c-47e3-bf79-8daa033201cb</SourceItemGuid37>
-      <SourceItemType37>CSource</SourceItemType37>
-      <SourceItemGuid38>83d865e6-46a2-49da-8549-b021d2114a0e</SourceItemGuid38>
-      <SourceItemType38>CSource</SourceItemType38>
-      <SourceItemGuid39>d2f5a477-e313-47c6-acd6-094c38f1ab1a</SourceItemGuid39>
-      <SourceItemType39>CSource</SourceItemType39>
-      <SourceItemGuid40>f45859b1-b772-490f-a33a-b5b4a5a3c588</SourceItemGuid40>
-      <SourceItemType40>CSource</SourceItemType40>
-      <SourceItemGuid41>b471977c-7300-4655-bd30-3796dc3d258e</SourceItemGuid41>
-      <SourceItemType41>CSource</SourceItemType41>
-      <SourceItemGuid42>3fdef9c1-79c2-4de3-b252-9e999235ac35</SourceItemGuid42>
-      <SourceItemType42>CSource</SourceItemType42>
-      <SourceItemGuid43>209f29fe-f9fe-4822-ab88-9feaad450052</SourceItemGuid43>
-      <SourceItemType43>CSource</SourceItemType43>
-      <SourceItemGuid44>9d5b45a5-4bed-444b-915c-b002bc2a2fa6</SourceItemGuid44>
-      <SourceItemType44>CSource</SourceItemType44>
-      <SourceItemGuid45>3ede6353-7678-4ee8-9a02-eab7215dc75a</SourceItemGuid45>
-      <SourceItemType45>CSource</SourceItemType45>
-      <SourceItemGuid46>9bf244df-506e-4b4c-ad2f-e5dc9ee7dd98</SourceItemGuid46>
-      <SourceItemType46>CSource</SourceItemType46>
-      <SourceItemGuid47>91aab859-8af5-44f1-a8c9-e80cce8db8ac</SourceItemGuid47>
-      <SourceItemType47>CSource</SourceItemType47>
-      <SourceItemGuid48>344691e8-47e1-4656-8d67-554b79beeb09</SourceItemGuid48>
-      <SourceItemType48>CSource</SourceItemType48>
-      <SourceItemGuid49>c70b46e7-e59d-4f63-b374-25c07445cbd9</SourceItemGuid49>
-      <SourceItemType49>CSource</SourceItemType49>
-      <SourceItemGuid50>84abe674-65a0-4a83-9950-b3b2de5541e8</SourceItemGuid50>
-      <SourceItemType50>CSource</SourceItemType50>
-      <SourceItemGuid51>97a9f706-2d1d-423b-ae9d-67f1953b4646</SourceItemGuid51>
-      <SourceItemType51>CSource</SourceItemType51>
-      <SourceItemGuid52>43097e29-0472-439a-94e3-12705379cb30</SourceItemGuid52>
-      <SourceItemType52>CSource</SourceItemType52>
-      <SourceItemGuid53>953be9ae-7876-4d95-bccf-4d9872e5893e</SourceItemGuid53>
-      <SourceItemType53>CSource</SourceItemType53>
-      <SourceItemGuid54>811d4212-787b-4006-a87f-eb5c82ff497b</SourceItemGuid54>
-      <SourceItemType54>CSource</SourceItemType54>
-      <SourceItemGuid55>eb209abd-c2f3-40fc-b36d-3489af8c2789</SourceItemGuid55>
-      <SourceItemType55>CSource</SourceItemType55>
-      <SourceItemGuid56>27b7c24f-ed90-4cdf-9e0f-8b8c97d1ef3d</SourceItemGuid56>
-      <SourceItemType56>CSource</SourceItemType56>
-      <SourceItemGuid57>9a47b4ee-7f6b-4b54-914a-d52b6c697869</SourceItemGuid57>
-      <SourceItemType57>CSource</SourceItemType57>
-      <SourceItemGuid58>b1390d66-373b-4f43-9ec5-024078ccd77e</SourceItemGuid58>
-      <SourceItemType58>CSource</SourceItemType58>
-      <SourceItemGuid59>815a4f81-17bf-43d9-8891-bbe2d22555a9</SourceItemGuid59>
-      <SourceItemType59>CSource</SourceItemType59>
-      <SourceItemGuid60>51299014-db14-4e23-a579-ae04ec1ff314</SourceItemGuid60>
-      <SourceItemType60>CSource</SourceItemType60>
-      <SourceItemGuid61>17e90222-3ae5-41b9-a3be-70013eae67f2</SourceItemGuid61>
-      <SourceItemType61>CSource</SourceItemType61>
-      <SourceItemGuid62>75311d1a-e849-465b-bb0b-77546709e1ec</SourceItemGuid62>
-      <SourceItemType62>CSource</SourceItemType62>
-      <SourceItemGuid63>52c93bf0-a1fe-4691-afab-4b9811aade10</SourceItemGuid63>
-      <SourceItemType63>CSource</SourceItemType63>
-      <SourceItemGuid64>317a55ec-33e2-45da-be24-8bc5730885fe</SourceItemGuid64>
-      <SourceItemType64>CSource</SourceItemType64>
-      <SourceItemGuid65>221078b7-a232-4160-8909-cbc48b3f6a2a</SourceItemGuid65>
-      <SourceItemType65>CSource</SourceItemType65>
-      <SourceItemGuid66>d1a109cd-a5af-4f79-8bef-7acd6d46c8db</SourceItemGuid66>
-      <SourceItemType66>CSource</SourceItemType66>
-      <SourceItemCount>67</SourceItemCount>
+      <SourceItemGuid37>d2806186-287c-47e3-bf79-8daa033201cb</SourceItemGuid36>
+      <SourceItemType37>CSource</SourceItemType36>
+      <SourceItemGuid38>83d865e6-46a2-49da-8549-b021d2114a0e</SourceItemGuid37>
+      <SourceItemType38>CSource</SourceItemType37>
+      <SourceItemGuid39>d2f5a477-e313-47c6-acd6-094c38f1ab1a</SourceItemGuid38>
+      <SourceItemType39>CSource</SourceItemType38>
+      <SourceItemGuid40>f45859b1-b772-490f-a33a-b5b4a5a3c588</SourceItemGuid39>
+      <SourceItemType40>CSource</SourceItemType39>
+      <SourceItemGuid41>b471977c-7300-4655-bd30-3796dc3d258e</SourceItemGuid40>
+      <SourceItemType41>CSource</SourceItemType40>
+      <SourceItemGuid42>3fdef9c1-79c2-4de3-b252-9e999235ac35</SourceItemGuid41>
+      <SourceItemType42>CSource</SourceItemType41>
+      <SourceItemGuid43>209f29fe-f9fe-4822-ab88-9feaad450052</SourceItemGuid42>
+      <SourceItemType43>CSource</SourceItemType42>
+      <SourceItemGuid44>9d5b45a5-4bed-444b-915c-b002bc2a2fa6</SourceItemGuid43>
+      <SourceItemType44>CSource</SourceItemType43>
+      <SourceItemGuid45>3ede6353-7678-4ee8-9a02-eab7215dc75a</SourceItemGuid44>
+      <SourceItemType45>CSource</SourceItemType44>
+      <SourceItemGuid46>9bf244df-506e-4b4c-ad2f-e5dc9ee7dd98</SourceItemGuid45>
+      <SourceItemType46>CSource</SourceItemType45>
+      <SourceItemGuid47>91aab859-8af5-44f1-a8c9-e80cce8db8ac</SourceItemGuid46>
+      <SourceItemType47>CSource</SourceItemType46>
+      <SourceItemGuid48>344691e8-47e1-4656-8d67-554b79beeb09</SourceItemGuid47>
+      <SourceItemType48>CSource</SourceItemType47>
+      <SourceItemGuid49>c70b46e7-e59d-4f63-b374-25c07445cbd9</SourceItemGuid48>
+      <SourceItemType49>CSource</SourceItemType48>
+      <SourceItemGuid50>84abe674-65a0-4a83-9950-b3b2de5541e8</SourceItemGuid49>
+      <SourceItemType50>CSource</SourceItemType49>
+      <SourceItemGuid51>97a9f706-2d1d-423b-ae9d-67f1953b4646</SourceItemGuid50>
+      <SourceItemType51>CSource</SourceItemType50>
+      <SourceItemGuid52>43097e29-0472-439a-94e3-12705379cb30</SourceItemGuid51>
+      <SourceItemType52>CSource</SourceItemType51>
+      <SourceItemGuid53>953be9ae-7876-4d95-bccf-4d9872e5893e</SourceItemGuid52>
+      <SourceItemType53>CSource</SourceItemType52>
+      <SourceItemGuid54>811d4212-787b-4006-a87f-eb5c82ff497b</SourceItemGuid53>
+      <SourceItemType54>CSource</SourceItemType53>
+      <SourceItemGuid55>eb209abd-c2f3-40fc-b36d-3489af8c2789</SourceItemGuid54>
+      <SourceItemType55>CSource</SourceItemType54>
+      <SourceItemGuid56>27b7c24f-ed90-4cdf-9e0f-8b8c97d1ef3d</SourceItemGuid55>
+      <SourceItemType56>CSource</SourceItemType55>
+      <SourceItemGuid57>9a47b4ee-7f6b-4b54-914a-d52b6c697869</SourceItemGuid56>
+      <SourceItemType57>CSource</SourceItemType56>
+      <SourceItemGuid58>b1390d66-373b-4f43-9ec5-024078ccd77e</SourceItemGuid57>
+      <SourceItemType58>CSource</SourceItemType57>
+      <SourceItemGuid59>815a4f81-17bf-43d9-8891-bbe2d22555a9</SourceItemGuid58>
+      <SourceItemType59>CSource</SourceItemType58>
+      <SourceItemGuid60>51299014-db14-4e23-a579-ae04ec1ff314</SourceItemGuid59>
+      <SourceItemType60>CSource</SourceItemType59>
+      <SourceItemGuid61>17e90222-3ae5-41b9-a3be-70013eae67f2</SourceItemGuid60>
+      <SourceItemType61>CSource</SourceItemType60>
+      <SourceItemGuid62>75311d1a-e849-465b-bb0b-77546709e1ec</SourceItemGuid61>
+      <SourceItemType62>CSource</SourceItemType61>
+      <SourceItemGuid63>52c93bf0-a1fe-4691-afab-4b9811aade10</SourceItemGuid62>
+      <SourceItemType63>CSource</SourceItemType62>
+      <SourceItemGuid64>317a55ec-33e2-45da-be24-8bc5730885fe</SourceItemGuid63>
+      <SourceItemType64>CSource</SourceItemType63>
+      <SourceItemGuid65>221078b7-a232-4160-8909-cbc48b3f6a2a</SourceItemGuid64>
+      <SourceItemType65>CSource</SourceItemType64>
+      <SourceItemGuid66>d1a109cd-a5af-4f79-8bef-7acd6d46c8db</SourceItemGuid65>
+      <SourceItemType66>CSource</SourceItemType65>
+      <SourceItemCount>66</SourceItemCount>
       <LastDeviceChangedCounter>1</LastDeviceChangedCounter>
     </Instance>
     <Instance Guid="9e208646-ccba-4100-a676-29b1efe6545f">
@@ -1716,10 +1707,6 @@
     <Instance Guid="85c26e25-fbfe-4ece-afca-4d142c6ea135">
       <ItemAddTime>636575488940589048</ItemAddTime>
       <ItemAddTimeCount>29</ItemAddTimeCount>
-    </Instance>
-    <Instance Guid="74663551-9e8b-4269-9c36-d538d56a3414">
-      <ItemAddTime>636575488940589048</ItemAddTime>
-      <ItemAddTimeCount>30</ItemAddTimeCount>
     </Instance>
     <Instance Guid="d2806186-287c-47e3-bf79-8daa033201cb">
       <ItemAddTime>636575488940589048</ItemAddTime>

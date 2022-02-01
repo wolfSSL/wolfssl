@@ -167,9 +167,6 @@
 #ifdef WOLFSSL_RIPEMD
     #include <wolfssl/wolfcrypt/ripemd.h>
 #endif
-#ifdef HAVE_IDEA
-    #include <wolfssl/wolfcrypt/idea.h>
-#endif
 #ifndef NO_DES3
     #include <wolfssl/wolfcrypt/des3.h>
     #include <wolfssl/wolfcrypt/wc_encrypt.h>
@@ -696,7 +693,7 @@ static void test_for_double_Free(void)
 "SA-AES256-SHA384:ECDH-RSA-AES256-SHA384:ECDH-ECDSA-AES256-SHA384:ECDHE-RSA-CHA"
 "CHA20-POLY1305:ECDHE-ECDSA-CHACHA20-POLY1305:DHE-RSA-CHACHA20-POLY1305:ECDHE-R"
 "SA-CHACHA20-POLY1305-OLD:ECDHE-ECDSA-CHACHA20-POLY1305-OLD:DHE-RSA-CHACHA20-PO"
-"LY1305-OLD:IDEA-CBC-SHA:ECDHE-ECDSA-NULL-SHA:ECDHE-PSK-NULL-SHA256:ECDHE-PSK-A"
+"LY1305-OLD:ECDHE-ECDSA-NULL-SHA:ECDHE-PSK-NULL-SHA256:ECDHE-PSK-A"
 "ES128-CBC-SHA256:PSK-CHACHA20-POLY1305:ECDHE-PSK-CHACHA20-POLY1305:DHE-PSK-CHA"
 "CHA20-POLY1305:EDH-RSA-DES-CBC3-SHA:TLS13-AES128-GCM-SHA256:TLS13-AES256-GCM-S"
 "HA384:TLS13-CHACHA20-POLY1305-SHA256:TLS13-AES128-CCM-SHA256:TLS13-AES128-CCM-"
@@ -4221,10 +4218,6 @@ static void test_wolfSSL_EVP_get_cipherbynid(void)
     AssertNotNull(strcmp("EVP_DES_EDE3_ECB", wolfSSL_EVP_get_cipherbynid(33)));
 #endif
 #endif /* !NO_DES3 */
-
-#ifdef HAVE_IDEA
-    AssertNotNull(strcmp("EVP_IDEA_CBC", wolfSSL_EVP_get_cipherbynid(34)));
-#endif
 
   /* test for nid is out of range */
   AssertNull(wolfSSL_EVP_get_cipherbynid(1));
@@ -13510,232 +13503,6 @@ static int test_wc_Shake256Hash(void)
 #endif
     return ret;
 }  /* END test_wc_Shake256Hash */
-/*
- * unit test for wc_IdeaSetKey()
- */
-static int test_wc_IdeaSetKey (void)
-{
-    int ret = 0;
-#ifdef HAVE_IDEA
-
-    Idea        idea;
-    const byte  key[] =
-    {
-        0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37,
-        0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37
-    };
-    int         flag = 0;
-
-    printf(testingFmt, "wc_IdeaSetKey()");
-    /*IV can be NULL, default value is 0*/
-    ret = wc_IdeaSetKey(&idea, key, IDEA_KEY_SIZE, NULL, IDEA_ENCRYPTION);
-    if (ret == 0) {
-        ret = wc_IdeaSetKey(&idea, key, IDEA_KEY_SIZE, NULL, IDEA_DECRYPTION);
-    }
-    /* Bad args. */
-    if (ret == 0) {
-        ret = wc_IdeaSetKey(NULL, key, IDEA_KEY_SIZE, NULL, IDEA_ENCRYPTION);
-        if (ret != BAD_FUNC_ARG) {
-            flag = 1;
-        }
-        ret = wc_IdeaSetKey(&idea, NULL, IDEA_KEY_SIZE, NULL, IDEA_ENCRYPTION);
-        if (ret != BAD_FUNC_ARG) {
-            flag = 1;
-        }
-        ret = wc_IdeaSetKey(&idea, key, IDEA_KEY_SIZE - 1,
-                                    NULL, IDEA_ENCRYPTION);
-        if (ret != BAD_FUNC_ARG) {
-            flag = 1;
-        }
-        ret = wc_IdeaSetKey(&idea, key, IDEA_KEY_SIZE, NULL, -1);
-        if (ret != BAD_FUNC_ARG) {
-            flag = 1;
-        }
-        if (flag == 1) {
-            ret = WOLFSSL_FATAL_ERROR;
-        } else {
-            ret = 0;
-        }
-    } /* END Test Bad Args. */
-
-    printf(resultFmt, ret == 0 ? passed : failed);
-
-#endif
-    return ret;
-
-} /* END test_wc_IdeaSetKey */
-
-/*
- * Unit test for wc_IdeaSetIV()
- */
-static int test_wc_IdeaSetIV (void)
-{
-    int     ret = 0;
-#ifdef HAVE_IDEA
-    Idea    idea;
-
-    printf(testingFmt, "wc_IdeaSetIV()");
-
-    ret = wc_IdeaSetIV(&idea, NULL);
-    /* Test bad args. */
-    if (ret == 0) {
-        ret = wc_IdeaSetIV(NULL, NULL);
-        if (ret == BAD_FUNC_ARG) {
-            ret = 0;
-        } else {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    }
-
-    printf(resultFmt, ret == 0 ? passed : failed);
-#endif
-    return ret;
-
-} /* END test_wc_IdeaSetIV */
-
-/*
- * Unit test for wc_IdeaCipher()
- */
-static int test_wc_IdeaCipher (void)
-{
-    int     ret = 0;
-#ifdef HAVE_IDEA
-    Idea        idea;
-    const byte  key[] =
-    {
-        0x2B, 0xD6, 0x45, 0x9F, 0x82, 0xC5, 0xB3, 0x00,
-        0x95, 0x2C, 0x49, 0x10, 0x48, 0x81, 0xFF, 0x48
-    };
-    const byte  plain[] =
-    {
-        0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37
-    };
-    byte    enc[sizeof(plain)];
-    byte    dec[sizeof(enc)];
-
-    printf(testingFmt, "wc_IdeaCipher()");
-
-    ret = wc_IdeaSetKey(&idea, key, IDEA_KEY_SIZE, NULL, IDEA_ENCRYPTION);
-    if (ret == 0) {
-        ret = wc_IdeaCipher(&idea, enc, plain);
-        if (ret != 0) {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    }
-    if (ret == 0) {
-        ret = wc_IdeaSetKey(&idea, key, IDEA_KEY_SIZE, NULL, IDEA_DECRYPTION);
-        if (ret == 0) {
-            ret = wc_IdeaCipher(&idea, dec, enc);
-        }
-        if (ret == 0) {
-            ret = XMEMCMP(plain, dec, IDEA_BLOCK_SIZE);
-        }
-        if (ret != 0) {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    }
-    /* Pass Bad Args. */
-    if (ret == 0) {
-        ret = wc_IdeaCipher(NULL, enc, dec);
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_IdeaCipher(&idea, NULL, dec);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_IdeaCipher(&idea, enc, NULL);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            ret = 0;
-        } else {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    }
-
-    printf(resultFmt, ret == 0 ? passed : failed);
-
-#endif
-    return ret;
-} /* END test_wc_IdeaCipher */
-
-/*
- * Unit test for functions wc_IdeaCbcEncrypt and wc_IdeaCbcDecrypt
- */
-static int test_wc_IdeaCbcEncyptDecrypt (void)
-{
-    int         ret = 0;
-#ifdef HAVE_IDEA
-    Idea        idea;
-    const byte  key[] =
-    {
-        0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37,
-        0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37
-    };
-    const char* message = "International Data Encryption Algorithm";
-    byte        msg_enc[40];
-    byte        msg_dec[40];
-
-    printf(testingFmt, "wc_IdeaCbcEncrypt()");
-
-    ret = wc_IdeaSetKey(&idea, key, sizeof(key), NULL, IDEA_ENCRYPTION);
-    if (ret == 0) {
-        ret = wc_IdeaCbcEncrypt(&idea, msg_enc, (byte *)message,
-                                        (word32)XSTRLEN(message) + 1);
-    }
-    if (ret == 0) {
-        ret = wc_IdeaSetKey(&idea, key, sizeof(key), NULL, IDEA_DECRYPTION);
-    }
-    if (ret == 0) {
-        ret = wc_IdeaCbcDecrypt(&idea, msg_dec, msg_enc,
-                                            (word32)XSTRLEN(message) + 1);
-        if (XMEMCMP(message, msg_dec, (word32)XSTRLEN(message))) {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
-    }
-
-    /* Test bad args. Enc */
-    if (ret == 0) {
-        ret = wc_IdeaCbcEncrypt(NULL, msg_enc, (byte*)message,
-                                    (word32)XSTRLEN(message) + 1);
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_IdeaCbcEncrypt(&idea, NULL, (byte*)message,
-                                    (word32)XSTRLEN(message) + 1);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_IdeaCbcEncrypt(&idea, msg_enc, NULL,
-                                    (word32)XSTRLEN(message) + 1);
-        }
-        if (ret != BAD_FUNC_ARG) {
-            ret = WOLFSSL_FATAL_ERROR;
-        } else {
-            ret = 0;
-        }
-    } /* END test bad args ENC  */
-
-    /* Test bad args DEC */
-    if (ret == 0) {
-        ret = wc_IdeaCbcDecrypt(NULL, msg_dec, msg_enc,
-                                    (word32)XSTRLEN(message) + 1);
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_IdeaCbcDecrypt(&idea, NULL, msg_enc,
-                                    (word32)XSTRLEN(message) + 1);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_IdeaCbcDecrypt(&idea, msg_dec, NULL,
-                                    (word32)XSTRLEN(message) + 1);
-        }
-        if (ret != BAD_FUNC_ARG) {
-            ret = WOLFSSL_FATAL_ERROR;
-        } else {
-            ret = 0;
-        }
-    }
-
-    printf(resultFmt, ret == 0 ? passed : failed);
-
-#endif
-    return ret;
-
-} /* END test_wc_IdeaCbcEncryptDecrypt */
-
 
 /*
  * Test function for wc_HmacSetKey
@@ -43406,9 +43173,6 @@ static void test_wolfSSL_EVP_CIPHER_CTX_iv_length(void)
          NID_des_cbc,
          NID_des_ede3_cbc,
     #endif
-    #ifdef HAVE_IDEA
-         NID_idea_cbc,
-    #endif
     };
     int iv_lengths[] = {
 
@@ -43427,9 +43191,6 @@ static void test_wolfSSL_EVP_CIPHER_CTX_iv_length(void)
     #ifndef NO_DES3
          DES_BLOCK_SIZE,
          DES_BLOCK_SIZE,
-    #endif
-    #ifdef HAVE_IDEA
-         IDEA_BLOCK_SIZE,
     #endif
     };
 
@@ -43852,9 +43613,6 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
          NID_des_cbc,
          NID_des_ede3_cbc,
     #endif
-    #ifdef HAVE_IDEA
-         NID_idea_cbc,
-    #endif
     };
 
     int iv_lengths[] = {
@@ -43897,9 +43655,6 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
     #ifndef NO_DES3
             DES_BLOCK_SIZE,
             DES_BLOCK_SIZE,
-    #endif
-    #ifdef HAVE_IDEA
-            IDEA_BLOCK_SIZE,
     #endif
     };
 
@@ -52608,10 +52363,6 @@ void ApiTest(void)
     AssertIntEQ(test_wc_Des3_CbcEncryptDecrypt(), 0);
     AssertIntEQ(test_wc_Des3_CbcEncryptDecryptWithKey(), 0);
     AssertIntEQ(test_wc_Des3_EcbEncrypt(), 0);
-    AssertIntEQ(test_wc_IdeaSetKey(), 0);
-    AssertIntEQ(test_wc_IdeaSetIV(), 0);
-    AssertIntEQ(test_wc_IdeaCipher(), 0);
-    AssertIntEQ(test_wc_IdeaCbcEncyptDecrypt(), 0);
     AssertIntEQ(test_wc_Chacha_SetKey(), 0);
     AssertIntEQ(test_wc_Chacha_Process(), 0);
     AssertIntEQ(test_wc_ChaCha20Poly1305_aead(), 0);

@@ -55,9 +55,6 @@
 #include <wolfssl/wolfcrypt/des3.h>
 #include <wolfssl/wolfcrypt/arc4.h>
 #include <wolfssl/wolfcrypt/hmac.h>
-#ifdef HAVE_IDEA
-    #include <wolfssl/wolfcrypt/idea.h>
-#endif
 #include <wolfssl/wolfcrypt/pwdbased.h>
 
 #if defined(WOLFSSL_BASE64_ENCODE) || defined(WOLFSSL_BASE64_DECODE)
@@ -136,7 +133,6 @@ WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_ede3_ecb(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_cbc(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_ede3_cbc(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_rc4(void);
-WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_idea_cbc(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_enc_null(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_rc2_cbc(void);
 
@@ -202,9 +198,6 @@ typedef union {
     Des3 des3;
 #endif
     Arc4 arc4;
-#ifdef HAVE_IDEA
-    Idea idea;
-#endif
 #ifdef WOLFSSL_QT
     int (*ctrl) (WOLFSSL_EVP_CIPHER_CTX *, int type, int arg, void *ptr);
 #endif
@@ -230,9 +223,6 @@ enum {
     EVP_PKEY_RSA      = 16,
     EVP_PKEY_DSA      = 17,
     EVP_PKEY_EC       = 18,
-#ifdef HAVE_IDEA
-    IDEA_CBC_TYPE     = 19,
-#endif
     AES_128_GCM_TYPE  = 21,
     AES_192_GCM_TYPE  = 22,
     AES_256_GCM_TYPE  = 23,
@@ -328,7 +318,6 @@ enum {
     NID_des_ecb     =  29,
     NID_des_ede3_cbc=  44,
     NID_des_ede3_ecb=  33,
-    NID_idea_cbc    =  34,
     NID_aes_128_cfb1= 650,
     NID_aes_192_cfb1= 651,
     NID_aes_256_cfb1= 652,
@@ -390,17 +379,14 @@ struct WOLFSSL_EVP_CIPHER_CTX {
 #elif !defined(NO_DES3)
     /* working iv pointer into cipher */
     ALIGN16 unsigned char  iv[DES_BLOCK_SIZE];
-#elif defined(HAVE_IDEA)
-    /* working iv pointer into cipher */
-    ALIGN16 unsigned char  iv[IDEA_BLOCK_SIZE];
 #endif
     WOLFSSL_Cipher  cipher;
     ALIGN16 byte buf[WOLFSSL_EVP_BUF_SIZE];
     int  bufUsed;
     ALIGN16 byte lastBlock[WOLFSSL_EVP_BUF_SIZE];
     int  lastUsed;
-#if !defined(NO_AES) || !defined(NO_DES3) || defined(HAVE_IDEA) || \
-    defined(HAVE_AESGCM) || defined (WOLFSSL_AES_XTS)
+#if !defined(NO_AES) || !defined(NO_DES3) || defined(HAVE_AESGCM) || \
+    defined (WOLFSSL_AES_XTS)
 #define HAVE_WOLFSSL_EVP_CIPHER_CTX_IV
     int    ivSz;
 #ifdef HAVE_AESGCM
@@ -841,7 +827,6 @@ WOLFSSL_API void wolfSSL_EVP_MD_do_all(void (*fn) (const WOLFSSL_EVP_MD *md,
 #define EVP_des_ede3_cbc   wolfSSL_EVP_des_ede3_cbc
 #define EVP_des_ede3_ecb   wolfSSL_EVP_des_ede3_ecb
 #define EVP_rc4            wolfSSL_EVP_rc4
-#define EVP_idea_cbc       wolfSSL_EVP_idea_cbc
 #define EVP_enc_null       wolfSSL_EVP_enc_null
 
 #define EVP_MD_size             wolfSSL_EVP_MD_size

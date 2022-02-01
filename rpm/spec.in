@@ -270,7 +270,6 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/ge_operations.h
 %{_includedir}/wolfssl/wolfcrypt/hash.h
 %{_includedir}/wolfssl/wolfcrypt/hmac.h
-%{_includedir}/wolfssl/wolfcrypt/idea.h
 %{_includedir}/wolfssl/wolfcrypt/integer.h
 %{_includedir}/wolfssl/wolfcrypt/kdf.h
 %{_includedir}/wolfssl/wolfcrypt/logging.h

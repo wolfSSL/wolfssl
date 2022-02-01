@@ -2555,10 +2555,6 @@ void InitCiphers(WOLFSSL* ssl)
 #ifdef HAVE_ONE_TIME_AUTH
     ssl->auth.setup    = 0;
 #endif
-#ifdef HAVE_IDEA
-    ssl->encrypt.idea = NULL;
-    ssl->decrypt.idea = NULL;
-#endif
 }
 
 
@@ -2605,10 +2601,6 @@ void FreeCiphers(WOLFSSL* ssl)
 #endif
 #if defined(HAVE_POLY1305) && defined(HAVE_ONE_TIME_AUTH)
     XFREE(ssl->auth.poly1305, ssl->heap, DYNAMIC_TYPE_CIPHER);
-#endif
-#ifdef HAVE_IDEA
-    XFREE(ssl->encrypt.idea, ssl->heap, DYNAMIC_TYPE_CIPHER);
-    XFREE(ssl->decrypt.idea, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER)
     wc_HmacFree(ssl->encrypt.hmac);
@@ -3754,13 +3746,6 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256;
-    }
-#endif
-
-#ifdef BUILD_SSL_RSA_WITH_IDEA_CBC_SHA
-    if (haveRSA) {
-        suites->suites[idx++] = CIPHER_BYTE;
-        suites->suites[idx++] = SSL_RSA_WITH_IDEA_CBC_SHA;
     }
 #endif
 
@@ -10150,12 +10135,6 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
-    #ifdef HAVE_IDEA
-        case SSL_RSA_WITH_IDEA_CBC_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-    #endif /* HAVE_IDEA */
 #endif /* !NO_RSA */
 
 #ifndef NO_PSK
@@ -15616,12 +15595,6 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
             break;
     #endif
 
-    #ifdef HAVE_IDEA
-        case wolfssl_idea:
-            ret = wc_IdeaCbcEncrypt(ssl->encrypt.idea, out, input, sz);
-            break;
-    #endif
-
         default:
             WOLFSSL_MSG("wolfSSL Encrypt programming error");
             ret = ENCRYPT_ERROR;
@@ -15867,12 +15840,6 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
             if (input != plain) {
                 XMEMMOVE(plain, input, sz);
             }
-            break;
-    #endif
-
-    #ifdef HAVE_IDEA
-        case wolfssl_idea:
-            ret = wc_IdeaCbcDecrypt(ssl->decrypt.idea, plain, input, sz);
             break;
     #endif
 
@@ -21152,10 +21119,6 @@ static const CipherSuiteInfo cipher_names[] =
     SUITE_INFO("RENEGOTIATION-INFO","TLS_EMPTY_RENEGOTIATION_INFO_SCSV",CIPHER_BYTE,TLS_EMPTY_RENEGOTIATION_INFO_SCSV,SSLv3_MINOR,SSLv3_MAJOR),
 #endif
 
-#ifdef BUILD_SSL_RSA_WITH_IDEA_CBC_SHA
-    SUITE_INFO("IDEA-CBC-SHA","SSL_RSA_WITH_IDEA_CBC_SHA",CIPHER_BYTE,SSL_RSA_WITH_IDEA_CBC_SHA,SSLv3_MINOR,SSLv3_MAJOR),
-#endif
-
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_NULL_SHA
     SUITE_INFO("ECDHE-ECDSA-NULL-SHA","TLS_ECDHE_ECDSA_WITH_NULL_SHA",ECC_BYTE,TLS_ECDHE_ECDSA_WITH_NULL_SHA, TLSv1_MINOR, SSLv3_MAJOR),
 #endif
@@ -21404,8 +21367,6 @@ const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]) {
              (XSTRNCMP(n2,"NULL",4) == 0) ||
              ((XSTRNCMP(n0,"TLS13",5) == 0) && (XSTRNCMP(n3,"",0) == 0)))
         encStr = "None";
-    else if ((XSTRNCMP(n0,"IDEA",4) == 0))
-        encStr = "IDEA";
     else
         encStr = "unknown";
 
@@ -21488,7 +21449,6 @@ int SetCipherBits(const char* enc) {
         ((XSTRNCMP(enc,"AESGCM(128)",11) == 0) ||
          (XSTRNCMP(enc,"AES(128)",8) == 0) ||
          (XSTRNCMP(enc,"CAMELLIA(128)",13) == 0) ||
-         (XSTRNCMP(enc,"IDEA",4) == 0) ||
          (XSTRNCMP(enc,"RC4",3) == 0))
             ret = 128;
    else if

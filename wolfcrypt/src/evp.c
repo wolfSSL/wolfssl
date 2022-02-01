@@ -157,10 +157,6 @@
     static const char EVP_DES_EDE3_ECB[] = "DES-EDE3-ECB";
 #endif
 
-#ifdef HAVE_IDEA
-    static const char EVP_IDEA_CBC[] = "IDEA-CBC";
-#endif
-
 #ifndef NO_RC4
     static const char EVP_ARC4[] = "ARC4";
 #endif
@@ -3463,9 +3459,6 @@ static const struct cipher{
     {ARC4_TYPE, EVP_ARC4, NID_undef},
 #endif
 
-#ifdef HAVE_IDEA
-    {IDEA_CBC_TYPE, EVP_IDEA_CBC, NID_idea_cbc},
-#endif
     { 0, NULL, 0}
 };
 
@@ -3518,9 +3511,6 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
         {EVP_DES_EDE3_CBC, "3des"},
         {EVP_DES_EDE3_ECB, "des-ede3"},
         {EVP_DES_EDE3_ECB, "des-ede3-ecb"},
-#endif
-#ifdef HAVE_IDEA
-        {EVP_IDEA_CBC, "idea"},
 #endif
 #ifndef NO_AES
     #ifdef HAVE_AES_CBC
@@ -3678,11 +3668,6 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
             return wolfSSL_EVP_des_ede3_ecb();
 #endif
 #endif /*NO_DES3*/
-
-#ifdef HAVE_IDEA
-        case NID_idea_cbc:
-            return wolfSSL_EVP_idea_cbc();
-#endif
 
         default:
             WOLFSSL_MSG("Bad cipher id value");
@@ -4577,13 +4562,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     }
 #endif
 
-#ifdef HAVE_IDEA
-    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_idea_cbc(void)
-    {
-        WOLFSSL_ENTER("wolfSSL_EVP_idea_cbc");
-        return EVP_IDEA_CBC;
-    }
-#endif
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_enc_null(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_enc_null");
@@ -5833,30 +5811,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 wc_Arc4SetKey(&ctx->cipher.arc4, key, ctx->keyLen);
         }
 #endif /* NO_RC4 */
-#ifdef HAVE_IDEA
-        if (ctx->cipherType == IDEA_CBC_TYPE ||
-                 (type && EVP_CIPHER_TYPE_MATCHES(type, EVP_IDEA_CBC))) {
-            WOLFSSL_MSG("EVP_IDEA_CBC");
-            ctx->cipherType = IDEA_CBC_TYPE;
-            ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
-            ctx->flags     |= WOLFSSL_EVP_CIPH_CBC_MODE;
-            ctx->keyLen     = IDEA_KEY_SIZE;
-            ctx->block_size = 8;
-            ctx->ivSz       = IDEA_BLOCK_SIZE;
-            if (enc == 0 || enc == 1)
-                ctx->enc = enc ? 1 : 0;
-            if (key) {
-                ret = wc_IdeaSetKey(&ctx->cipher.idea, key, (word16)ctx->keyLen,
-                                    iv, ctx->enc ? IDEA_ENCRYPTION :
-                                                   IDEA_DECRYPTION);
-                if (ret != 0)
-                    return WOLFSSL_FAILURE;
-            }
-
-            if (iv && key == NULL)
-                wc_IdeaSetIV(&ctx->cipher.idea, iv);
-        }
-#endif /* HAVE_IDEA */
         if (ctx->cipherType == NULL_CIPHER_TYPE ||
                 (type && EVP_CIPHER_TYPE_MATCHES(type, EVP_NULL))) {
             WOLFSSL_MSG("NULL cipher");
@@ -5936,7 +5890,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     }
 #endif
 
-#if !defined(NO_AES) || !defined(NO_DES3) || defined(HAVE_IDEA)
+#if !defined(NO_AES) || !defined(NO_DES3)
     /* returns WOLFSSL_SUCCESS on success, otherwise returns WOLFSSL_FAILURE */
     int wolfSSL_EVP_CIPHER_CTX_get_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, byte* iv,
                                       int ivLen)
@@ -5960,7 +5914,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
 
         return WOLFSSL_SUCCESS;
     }
-#endif /* !NO_AES || !NO_DES3 || HAVE_IDEA */
+#endif /* !NO_AES || !NO_DES3 */
 
     /* Return length on ok */
     int wolfSSL_EVP_Cipher(WOLFSSL_EVP_CIPHER_CTX* ctx, byte* dst, byte* src,
@@ -6211,17 +6165,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 break;
 #endif
 
-#ifdef HAVE_IDEA
-            case IDEA_CBC_TYPE :
-                WOLFSSL_MSG("IDEA CBC");
-                if (ctx->enc)
-                    wc_IdeaCbcEncrypt(&ctx->cipher.idea, dst, src, len);
-                else
-                    wc_IdeaCbcDecrypt(&ctx->cipher.idea, dst, src, len);
-                if (ret == 0)
-                    ret = (len / IDEA_BLOCK_SIZE) * IDEA_BLOCK_SIZE;
-                break;
-#endif
             case NULL_CIPHER_TYPE :
                 WOLFSSL_MSG("NULL CIPHER");
                 XMEMCPY(dst, src, len);
@@ -7496,11 +7439,6 @@ int wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX* ctx)
             WOLFSSL_MSG("DES EDE3 CBC");
             return DES_BLOCK_SIZE;
 #endif
-#ifdef HAVE_IDEA
-        case IDEA_CBC_TYPE :
-            WOLFSSL_MSG("IDEA CBC");
-            return IDEA_BLOCK_SIZE;
-#endif
 #ifndef NO_RC4
         case ARC4_TYPE :
             WOLFSSL_MSG("ARC4");
@@ -7620,11 +7558,6 @@ int wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER* cipher)
            (XSTRNCMP(name, EVP_DES_EDE3_CBC, XSTRLEN(EVP_DES_EDE3_CBC)) == 0)) {
         return DES_BLOCK_SIZE;
     }
-#endif
-
-#ifdef HAVE_IDEA
-    if (XSTRNCMP(name, EVP_IDEA_CBC, XSTRLEN(EVP_IDEA_CBC)) == 0)
-        return IDEA_BLOCK_SIZE;
 #endif
 
     (void)name;

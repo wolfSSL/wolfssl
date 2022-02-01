@@ -120,7 +120,6 @@ libwolfssl_C_SRCS += \
 	../../wolfcrypt/src/wc_port \
 	../../wolfcrypt/src/hmac \
 	../../wolfcrypt/src/wolfcrypt_first \
-	../../wolfcrypt/src/idea \
 	../../wolfcrypt/src/wolfcrypt_last \
 	../../wolfcrypt/src/wolfevent \
 	../../wolfcrypt/src/logging \

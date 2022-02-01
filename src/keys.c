@@ -2009,23 +2009,6 @@ int SetCipherSpecs(WOLFSSL* ssl)
         break;
 #endif
 
-#ifdef BUILD_SSL_RSA_WITH_IDEA_CBC_SHA
-        case SSL_RSA_WITH_IDEA_CBC_SHA :
-            ssl->specs.bulk_cipher_algorithm = wolfssl_idea;
-            ssl->specs.cipher_type           = block;
-            ssl->specs.mac_algorithm         = sha_mac;
-            ssl->specs.kea                   = rsa_kea;
-            ssl->specs.sig_algo              = rsa_sa_algo;
-            ssl->specs.hash_size             = WC_SHA_DIGEST_SIZE;
-            ssl->specs.pad_size              = PAD_SHA;
-            ssl->specs.static_ecdh           = 0;
-            ssl->specs.key_size              = IDEA_KEY_SIZE;
-            ssl->specs.block_size            = IDEA_BLOCK_SIZE;
-            ssl->specs.iv_size               = IDEA_IV_SIZE;
-
-            break;
-#endif
-
 #ifdef BUILD_WDM_WITH_NULL_SHA256
         case WDM_WITH_NULL_SHA256 :
             ssl->specs.bulk_cipher_algorithm = wolfssl_cipher_null;
@@ -2669,60 +2652,6 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             dec->setup = 1;
     }
 #endif /* HAVE_CAMELLIA */
-
-#ifdef HAVE_IDEA
-    /* check that buffer sizes are sufficient */
-    #if (MAX_WRITE_IV_SZ < 8) /* IDEA_IV_SIZE */
-        #error MAX_WRITE_IV_SZ too small for IDEA
-    #endif
-
-    if (specs->bulk_cipher_algorithm == wolfssl_idea) {
-        int ideaRet;
-
-        if (enc && enc->idea == NULL)
-            enc->idea = (Idea*)XMALLOC(sizeof(Idea), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc && enc->idea == NULL)
-            return MEMORY_E;
-
-        if (dec && dec->idea == NULL)
-            dec->idea = (Idea*)XMALLOC(sizeof(Idea), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec && dec->idea == NULL)
-            return MEMORY_E;
-
-        if (side == WOLFSSL_CLIENT_END) {
-            if (enc) {
-                ideaRet = wc_IdeaSetKey(enc->idea, keys->client_write_key,
-                                        specs->key_size, keys->client_write_IV,
-                                        IDEA_ENCRYPTION);
-                if (ideaRet != 0) return ideaRet;
-            }
-            if (dec) {
-                ideaRet = wc_IdeaSetKey(dec->idea, keys->server_write_key,
-                                        specs->key_size, keys->server_write_IV,
-                                        IDEA_DECRYPTION);
-                if (ideaRet != 0) return ideaRet;
-            }
-        }
-        else {
-            if (enc) {
-                ideaRet = wc_IdeaSetKey(enc->idea, keys->server_write_key,
-                                        specs->key_size, keys->server_write_IV,
-                                        IDEA_ENCRYPTION);
-                if (ideaRet != 0) return ideaRet;
-            }
-            if (dec) {
-                ideaRet = wc_IdeaSetKey(dec->idea, keys->client_write_key,
-                                        specs->key_size, keys->client_write_IV,
-                                        IDEA_DECRYPTION);
-                if (ideaRet != 0) return ideaRet;
-            }
-        }
-        if (enc)
-            enc->setup = 1;
-        if (dec)
-            dec->setup = 1;
-    }
-#endif /* HAVE_IDEA */
 
 #ifdef HAVE_NULL_CIPHER
     if (specs->bulk_cipher_algorithm == wolfssl_cipher_null) {
