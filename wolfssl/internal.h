@@ -1567,6 +1567,10 @@ enum Misc {
     #define SESSION_TICKET_LEN 256
 #endif
 
+#ifndef PREALLOC_SESSION_TICKET_LEN
+    #define PREALLOC_SESSION_TICKET_LEN 512
+#endif
+
 #ifndef SESSION_TICKET_HINT_DEFAULT
     #define SESSION_TICKET_HINT_DEFAULT 300
 #endif
@@ -3303,22 +3307,31 @@ typedef enum WOLFSSL_SESSION_TYPE {
     WOLFSSL_SESSION_TYPE_SSL,    /* in ssl->session */
     WOLFSSL_SESSION_TYPE_CACHE,  /* pointer to internal cache */
     WOLFSSL_SESSION_TYPE_HEAP    /* allocated from heap SESSION_new */
-#ifdef ENABLE_CLIENT_SESSION_REF
-   ,WOLFSSL_SESSION_TYPE_REF     /* smaller allocation with reference to internal cache */
-#endif
 } WOLFSSL_SESSION_TYPE;
 
 /* wolfSSL session type */
 struct WOLFSSL_SESSION {
+    /* WARNING Do not add fields here. They will be ignored in
+     *         wolfSSL_DupSession. */
     WOLFSSL_SESSION_TYPE type;
+    int                cacheRow;          /* row in session cache     */
+    int                refCount;          /* reference count */
+#ifndef SINGLE_THREADED
+    wolfSSL_Mutex      refMutex;          /* ref count mutex */
+#endif
+    void*              heap;
+    /* WARNING The above fields (up to and including the heap) are not copied
+     *         in wolfSSL_DupSession. Place new fields after the heap
+     *         member */
+
     byte               side;              /* Either WOLFSSL_CLIENT_END or
                                                     WOLFSSL_SERVER_END */
 
-    int                cacheRow;          /* row in session cache     */
     word32             bornOn;            /* create time in seconds   */
     word32             timeout;           /* timeout in seconds       */
 
-    byte               sessionID[ID_LEN]; /* id for protocol          */
+    byte               sessionID[ID_LEN]; /* id for protocol or bogus
+                                           * ID for TLS 1.3           */
     byte               sessionIDSz;
 
     byte*              masterSecret;      /* stored secret            */
@@ -3364,11 +3377,6 @@ struct WOLFSSL_SESSION {
     word16             ticketLen;
     word16             ticketLenAlloc;    /* is dynamic */
 #endif
-    int                refCount;          /* reference count */
-#ifndef SINGLE_THREADED
-    wolfSSL_Mutex      refMutex;          /* ref count mutex */
-#endif
-    void*              heap;
 
 #ifdef SESSION_CERTS
     WOLFSSL_X509_CHAIN chain;             /* peer cert chain, static  */
@@ -3378,11 +3386,6 @@ struct WOLFSSL_SESSION {
 #endif
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;
-#endif
-
-#ifdef ENABLE_CLIENT_SESSION_REF
-    /* pointer to WOLFSSL_SESSION in internal cache (for WOLFSSL_SESSION_TYPE_REF) */
-    void*              refPtr;
 #endif
 
     /* Below buffers are not allocated for the WOLFSSL_SESSION_TYPE_REF, instead
@@ -3406,9 +3409,13 @@ struct WOLFSSL_SESSION {
 WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_NewSession(void* heap);
 WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSession(
     WOLFSSL* ssl, byte* masterSecret, byte restoreSessionCerts);
+WOLFSSL_LOCAL int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output);
 WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSessionRef(WOLFSSL* ssl);
 WOLFSSL_LOCAL int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session);
 WOLFSSL_LOCAL void wolfSSL_FreeSession(WOLFSSL_SESSION* session);
+WOLFSSL_LOCAL int wolfSSL_DupSession(const WOLFSSL_SESSION* input,
+        WOLFSSL_SESSION* output, int avoidSysCalls);
+
 
 typedef int (*hmacfp) (WOLFSSL*, byte*, const byte*, word32, int, int, int, int);
 

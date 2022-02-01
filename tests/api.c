@@ -39252,7 +39252,10 @@ static void test_wolfSSL_SESSION(void)
 
     AssertPtrNE((sess = wolfSSL_get1_session(ssl)), NULL); /* ref count 1 */
     AssertPtrNE((sess_copy = wolfSSL_get1_session(ssl)), NULL); /* ref count 2 */
-    AssertPtrEq(sess, sess_copy); /* they should be the same pointer */
+#ifdef HAVE_EXT_CACHE
+    AssertPtrEq(sess, sess_copy); /* they should be the same pointer but without
+                                   * HAVE_EXT_CACHE we get new objects each time */
+#endif
     wolfSSL_SESSION_free(sess_copy); sess_copy = NULL;
     wolfSSL_SESSION_free(sess);      sess = NULL; /* free session ref */
 
@@ -39272,6 +39275,9 @@ static void test_wolfSSL_SESSION(void)
     AssertIntEQ(wolfSSL_SESSION_has_ticket(sess), 0);
     #endif
 #endif /* OPENSSL_EXTRA */
+
+    /* Retain copy of the session for later testing */
+    AssertNotNull(sess = wolfSSL_get1_session(ssl));
 
     wolfSSL_shutdown(ssl);
     wolfSSL_free(ssl);

@@ -6629,6 +6629,8 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     }
 #endif /*OPENSSL_EXTRA && HAVE_SECRET_CALLBACK */
 
+    ssl->session.heap = ssl->heap;
+    ssl->session.type = WOLFSSL_SESSION_TYPE_SSL;
     ssl->session.masterSecret = ssl->session._masterSecret;
 #ifndef NO_CLIENT_CACHE
     ssl->session.serverID = ssl->session._serverID;
@@ -7229,9 +7231,6 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         ssl->session.ticketLenAlloc = 0;
         ssl->session.ticketLen = 0;
     }
-#endif
-#ifdef ENABLE_CLIENT_SESSION_REF
-    wolfSSL_SESSION_free(ssl->session.refPtr);
 #endif
 #ifdef HAVE_EXT_CACHE
     wolfSSL_SESSION_free(ssl->extSession);
@@ -29269,9 +29268,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     {
         int ret = 0;
         WOLFSSL_SESSION* session;
-    #ifdef HAVE_EXT_CACHE
-        byte gotSess = 0;
-    #endif
         (void)bogusID;
     #ifdef HAVE_SESSION_TICKET
         if (ssl->options.useTicket == 1) {
@@ -29283,9 +29279,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #endif
         {
             session = wolfSSL_GetSession(ssl, ssl->arrays->masterSecret, 1);
-        #ifdef HAVE_EXT_CACHE
-            gotSess = 1;
-        #endif
         }
         if (!session) {
             WOLFSSL_MSG("Session lookup for resume failed");
@@ -29374,12 +29367,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
             }
         }
-
-    #ifdef HAVE_EXT_CACHE
-        if (gotSess) {
-            wolfSSL_SESSION_free(session);
-        }
-    #endif
 
         return ret;
     }

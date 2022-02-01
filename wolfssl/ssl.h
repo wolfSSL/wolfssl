@@ -1501,7 +1501,7 @@ WOLFSSL_API int wolfSSL_CIPHER_get_digest_nid(const WOLFSSL_CIPHER* cipher);
 WOLFSSL_API int wolfSSL_CIPHER_get_kx_nid(const WOLFSSL_CIPHER* cipher);
 WOLFSSL_API int wolfSSL_CIPHER_is_aead(const WOLFSSL_CIPHER* cipher);
 WOLFSSL_API const WOLFSSL_CIPHER* wolfSSL_get_cipher_by_value(word16 value);
-WOLFSSL_API const char*  wolfSSL_SESSION_CIPHER_get_name(WOLFSSL_SESSION* session);
+WOLFSSL_API const char*  wolfSSL_SESSION_CIPHER_get_name(const WOLFSSL_SESSION* session);
 WOLFSSL_API const char*  wolfSSL_get_cipher(WOLFSSL* ssl);
 WOLFSSL_API void wolfSSL_sk_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl);
@@ -4436,12 +4436,13 @@ WOLFSSL_API int wolfSSL_ASN1_BIT_STRING_set_bit(
                             WOLFSSL_ASN1_BIT_STRING* str, int pos, int val);
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
+WOLFSSL_API int  wolfSSL_version(WOLFSSL* ssl);
+
 #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) \
     || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
 
 WOLFSSL_API int        wolfSSL_CTX_add_session(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session);
 
-WOLFSSL_API int  wolfSSL_version(WOLFSSL* ssl);
 
 WOLFSSL_API int wolfSSL_get_state(const WOLFSSL* ssl);
 
@@ -4471,8 +4472,8 @@ WOLFSSL_API int wolfSSL_SESSION_set_ex_data_with_cleanup(
 WOLFSSL_API int wolfSSL_SESSION_get_ex_new_index(long idx,void* data,void* cb1,void* cb2,
         CRYPTO_free_func* cb3);
 
-WOLFSSL_API const unsigned char* wolfSSL_SESSION_get_id(WOLFSSL_SESSION* sess,
-        unsigned int* idLen);
+WOLFSSL_API const unsigned char* wolfSSL_SESSION_get_id(
+        const WOLFSSL_SESSION* sess, unsigned int* idLen);
 
 WOLFSSL_API int wolfSSL_SESSION_print(WOLFSSL_BIO* bp, const WOLFSSL_SESSION* session);
 
@@ -4901,6 +4902,17 @@ WOLFSSL_API int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void
                                            WOLFSSL_CRYPTO_EX_dup* dup_func,
                                            WOLFSSL_CRYPTO_EX_free* free_func);
 #endif /* HAVE_EX_DATA || WOLFSSL_WPAS_SMALL */
+
+/*  */
+#define SSL2_VERSION                     0x0002
+#define SSL3_VERSION                     0x0300
+#define TLS1_VERSION                     0x0301
+#define TLS1_1_VERSION                   0x0302
+#define TLS1_2_VERSION                   0x0303
+#define TLS1_3_VERSION                   0x0304
+#define DTLS1_VERSION                    0xFEFF
+#define DTLS1_2_VERSION                  0xFEFD
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

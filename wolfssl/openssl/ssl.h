@@ -1269,15 +1269,6 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 
 #define SSL3_RANDOM_SIZE                32 /* same as RAN_LEN in internal.h */
 
-#define SSL2_VERSION                     0x0002
-#define SSL3_VERSION                     0x0300
-#define TLS1_VERSION                     0x0301
-#define TLS1_1_VERSION                   0x0302
-#define TLS1_2_VERSION                   0x0303
-#define TLS1_3_VERSION                   0x0304
-#define DTLS1_VERSION                    0xFEFF
-#define DTLS1_2_VERSION                  0xFEFD
-
 /* Used as message callback types */
 #define SSL3_RT_CHANGE_CIPHER_SPEC       20
 #define SSL3_RT_ALERT                    21
