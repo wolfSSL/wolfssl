@@ -28108,6 +28108,141 @@ WOLFSSL_X509_REVOKED* wolfSSL_sk_X509_REVOKED_value(
 
 #endif /* OPENSSL_EXTRA */
 
+#if defined(OPENSSL_EXTRA)
+int wolfSSL_i2d_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER* a, unsigned char** out)
+{
+    int ret = 0;
+    word32 idx = 0;
+    int len;
+    int preAlloc = 1;
+
+    WOLFSSL_ENTER("wolfSSL_i2d_ASN1_INTEGER");
+
+    if (a == NULL || a->data == NULL || a->length <= 0 || out == NULL) {
+        WOLFSSL_MSG("Bad parameter.");
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+
+    if (ret == 0 && *out == NULL) {
+        preAlloc = 0;
+        *out = (unsigned char*)XMALLOC(a->length, NULL, DYNAMIC_TYPE_ASN1);
+        if (*out == NULL) {
+            WOLFSSL_MSG("Failed to allocate output buffer.");
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    if (ret == 0) {
+        /*
+         * A WOLFSSL_ASN1_INTEGER stores the DER buffer of the integer in its
+         * "data" field, but it's only the magnitude of the number (i.e. the
+         * sign isn't encoded). The "negative" field is 1 if the value should
+         * be interpreted as negative and 0 otherwise. If the value is negative,
+         * we need to output the 2's complement of the value in the DER output.
+         */
+        XMEMCPY(*out, a->data, a->length);
+        if (a->negative) {
+            if (GetLength(a->data, &idx, &len, a->length) < 0) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+            else {
+                ++idx;
+                for (; (int)idx < a->length; ++idx) {
+                    (*out)[idx] = ~(*out)[idx];
+                }
+                do {
+                    --idx;
+                    ++(*out)[idx];
+                } while ((*out)[idx] == 0);
+            }
+        }
+    }
+    if (ret == 0) {
+        ret = a->length;
+        if (preAlloc) {
+            *out += a->length;
+        }
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_i2d_ASN1_INTEGER", ret);
+
+    return ret;
+}
+
+WOLFSSL_ASN1_INTEGER* wolfSSL_d2i_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER** a,
+                                               const unsigned char** in,
+                                               long inSz)
+{
+    WOLFSSL_ASN1_INTEGER* ret = NULL;
+    int err = 0;
+    word32 idx = 0;
+    int len;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_ASN1_INTEGER");
+
+    if (in == NULL || *in == NULL || inSz <= 0) {
+        WOLFSSL_MSG("Bad parameter");
+        err = 1;
+    }
+
+    if (err == 0 && (*in)[0] != ASN_INTEGER) {
+        WOLFSSL_MSG("Tag doesn't indicate integer type.");
+        err = 1;
+    }
+    if (err == 0) {
+        ret = wolfSSL_ASN1_INTEGER_new();
+        if (ret == NULL) {
+            err = 1;
+        }
+        else {
+            ret->type = V_ASN1_INTEGER;
+        }
+    }
+    if (err == 0 && inSz > (long)sizeof(ret->intData)) {
+        ret->data = (unsigned char*)XMALLOC(inSz, NULL, DYNAMIC_TYPE_ASN1);
+        if (ret->data == NULL) {
+            err = 1;
+        }
+        else {
+            ret->isDynamic = 1;
+            ret->dataMax = (word32)inSz;
+        }
+    }
+    if (err == 0) {
+        XMEMCPY(ret->data, *in, inSz);
+        ret->length = (word32)inSz;
+        /* Advance to the end of the length field.*/
+        if (GetLength(*in, &idx, &len, (word32)inSz) < 0) {
+            err = 1;
+        }
+        else {
+            /* See 2's complement comment in wolfSSL_d2i_ASN1_INTEGER. */
+            ret->negative = (*in)[idx+1] & 0x80;
+            if (ret->negative) {
+                ++idx;
+                for (; (int)idx < inSz; ++idx) {
+                    ret->data[idx] = ~ret->data[idx];
+                }
+                do {
+                    --idx;
+                    ++ret->data[idx];
+                } while (ret->data[idx] == 0);
+                ret->type |= V_ASN1_NEG_INTEGER;
+            }
+            if (a != NULL) {
+                *a = ret;
+            }
+        }
+    }
+    
+    if (err != 0) {
+        wolfSSL_ASN1_INTEGER_free(ret);
+        ret = NULL;
+    }
+
+    return ret;
+}
+#endif /* OPENSSL_EXTRA */
+
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 /* Used to create a new WOLFSSL_ASN1_INTEGER structure.
  * returns a pointer to new structure on success and NULL on failure
@@ -28406,16 +28541,30 @@ int wolfSSL_ASN1_TIME_to_tm(const WOLFSSL_ASN1_TIME* asnTime, struct tm* tm)
 
 #ifdef OPENSSL_EXTRA
 
-#ifndef NO_WOLFSSL_STUB
 int wolfSSL_ASN1_INTEGER_cmp(const WOLFSSL_ASN1_INTEGER* a,
-                            const WOLFSSL_ASN1_INTEGER* b)
+                             const WOLFSSL_ASN1_INTEGER* b)
 {
-    (void)a;
-    (void)b;
-    WOLFSSL_STUB("ASN1_INTEGER_cmp");
-    return 0;
+    int ret = 0;
+
+    WOLFSSL_ENTER("wolfSSL_ASN1_INTEGER_cmp");
+
+    if (a == NULL || b == NULL) {
+        WOLFSSL_MSG("Bad parameter.");
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+
+    if (ret == 0 && ((a->length != b->length) ||
+                     ((a->negative == 0) != (b->negative == 0)))) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    if (ret == 0) {
+        ret = XMEMCMP(a->data, b->data, a->length);
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_ASN1_INTEGER_cmp", ret);
+
+    return ret;
 }
-#endif
 
 long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* a)
 {

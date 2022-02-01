@@ -832,6 +832,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ASN1_INTEGER_get                wolfSSL_ASN1_INTEGER_get
 #define ASN1_INTEGER_set                wolfSSL_ASN1_INTEGER_set
 #define ASN1_INTEGER_to_BN              wolfSSL_ASN1_INTEGER_to_BN
+#define d2i_ASN1_INTEGER                wolfSSL_d2i_ASN1_INTEGER
+#define i2d_ASN1_INTEGER                wolfSSL_i2d_ASN1_INTEGER
 
 #define i2a_ASN1_OBJECT                 wolfSSL_i2a_ASN1_OBJECT
 #define i2d_ASN1_OBJECT                 wolfSSL_i2d_ASN1_OBJECT

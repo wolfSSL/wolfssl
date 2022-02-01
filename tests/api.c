@@ -48712,6 +48712,148 @@ static void test_wolfSSL_ASN1_INTEGER_get_set(void)
 #endif
 }
 
+#if defined(OPENSSL_EXTRA)
+typedef struct ASN1IntTestVector {
+    const byte* der;
+    const size_t derSz;
+    const long value;
+} ASN1IntTestVector;
+#endif
+static void test_wolfSSL_d2i_ASN1_INTEGER(void)
+{
+#if defined(OPENSSL_EXTRA)
+    size_t i;
+    WOLFSSL_ASN1_INTEGER* a = NULL;
+    WOLFSSL_ASN1_INTEGER* b = NULL;
+    WOLFSSL_ASN1_INTEGER* c = NULL;
+    const byte* p = NULL;
+    byte* reEncoded = NULL;
+    int reEncodedSz;
+
+    static const byte zeroDer[] = {
+        0x02, 0x01, 0x00
+    };
+    static const byte oneDer[] = {
+        0x02, 0x01, 0x01
+    };
+    static const byte negativeDer[] = {
+        0x02, 0x03, 0xC1, 0x16, 0x0D
+    };
+    static const byte positiveDer[] = {
+        0x02, 0x03, 0x01, 0x00, 0x01
+    };
+    static const byte primeDer[] = {
+        0x02, 0x82, 0x01, 0x01, 0x00, 0xc0, 0x95, 0x08, 0xe1, 0x57, 0x41,
+        0xf2, 0x71, 0x6d, 0xb7, 0xd2, 0x45, 0x41, 0x27, 0x01, 0x65, 0xc6,
+        0x45, 0xae, 0xf2, 0xbc, 0x24, 0x30, 0xb8, 0x95, 0xce, 0x2f, 0x4e,
+        0xd6, 0xf6, 0x1c, 0x88, 0xbc, 0x7c, 0x9f, 0xfb, 0xa8, 0x67, 0x7f,
+        0xfe, 0x5c, 0x9c, 0x51, 0x75, 0xf7, 0x8a, 0xca, 0x07, 0xe7, 0x35,
+        0x2f, 0x8f, 0xe1, 0xbd, 0x7b, 0xc0, 0x2f, 0x7c, 0xab, 0x64, 0xa8,
+        0x17, 0xfc, 0xca, 0x5d, 0x7b, 0xba, 0xe0, 0x21, 0xe5, 0x72, 0x2e,
+        0x6f, 0x2e, 0x86, 0xd8, 0x95, 0x73, 0xda, 0xac, 0x1b, 0x53, 0xb9,
+        0x5f, 0x3f, 0xd7, 0x19, 0x0d, 0x25, 0x4f, 0xe1, 0x63, 0x63, 0x51,
+        0x8b, 0x0b, 0x64, 0x3f, 0xad, 0x43, 0xb8, 0xa5, 0x1c, 0x5c, 0x34,
+        0xb3, 0xae, 0x00, 0xa0, 0x63, 0xc5, 0xf6, 0x7f, 0x0b, 0x59, 0x68,
+        0x78, 0x73, 0xa6, 0x8c, 0x18, 0xa9, 0x02, 0x6d, 0xaf, 0xc3, 0x19,
+        0x01, 0x2e, 0xb8, 0x10, 0xe3, 0xc6, 0xcc, 0x40, 0xb4, 0x69, 0xa3,
+        0x46, 0x33, 0x69, 0x87, 0x6e, 0xc4, 0xbb, 0x17, 0xa6, 0xf3, 0xe8,
+        0xdd, 0xad, 0x73, 0xbc, 0x7b, 0x2f, 0x21, 0xb5, 0xfd, 0x66, 0x51,
+        0x0c, 0xbd, 0x54, 0xb3, 0xe1, 0x6d, 0x5f, 0x1c, 0xbc, 0x23, 0x73,
+        0xd1, 0x09, 0x03, 0x89, 0x14, 0xd2, 0x10, 0xb9, 0x64, 0xc3, 0x2a,
+        0xd0, 0xa1, 0x96, 0x4a, 0xbc, 0xe1, 0xd4, 0x1a, 0x5b, 0xc7, 0xa0,
+        0xc0, 0xc1, 0x63, 0x78, 0x0f, 0x44, 0x37, 0x30, 0x32, 0x96, 0x80,
+        0x32, 0x23, 0x95, 0xa1, 0x77, 0xba, 0x13, 0xd2, 0x97, 0x73, 0xe2,
+        0x5d, 0x25, 0xc9, 0x6a, 0x0d, 0xc3, 0x39, 0x60, 0xa4, 0xb4, 0xb0,
+        0x69, 0x42, 0x42, 0x09, 0xe9, 0xd8, 0x08, 0xbc, 0x33, 0x20, 0xb3,
+        0x58, 0x22, 0xa7, 0xaa, 0xeb, 0xc4, 0xe1, 0xe6, 0x61, 0x83, 0xc5,
+        0xd2, 0x96, 0xdf, 0xd9, 0xd0, 0x4f, 0xad, 0xd7
+    };
+    static const byte garbageDer[] = {0xDE, 0xAD, 0xBE, 0xEF};
+
+    static const ASN1IntTestVector testVectors[] = {
+        {zeroDer, sizeof(zeroDer), 0},
+        {oneDer, sizeof(oneDer), 1},
+        {negativeDer, sizeof(negativeDer), -4123123},
+        {positiveDer, sizeof(positiveDer), 65537},
+        {primeDer, sizeof(primeDer), 0}
+    };
+    static const size_t NUM_TEST_VECTORS = sizeof(testVectors)/sizeof(testVectors[0]);
+
+    printf(testingFmt, "test_wolfSSL_d2i_ASN1_INTEGER");
+
+    /* Check d2i error conditions */
+    /* NULL pointer to input. */
+    AssertNull((a = wolfSSL_d2i_ASN1_INTEGER(&b, NULL, 1)));
+    AssertNull(b);
+    /* NULL input. */
+    AssertNull((a = wolfSSL_d2i_ASN1_INTEGER(&b, &p, 1)));
+    AssertNull(b);
+    /* 0 length. */
+    p = testVectors[0].der;
+    AssertNull((a = wolfSSL_d2i_ASN1_INTEGER(&b, &p, 0)));
+    AssertNull(b);
+    /* Negative length. */
+    p = testVectors[0].der;
+    AssertNull((a = wolfSSL_d2i_ASN1_INTEGER(&b, &p, -1)));
+    AssertNull(b);
+    /* Garbage DER input. */
+    p = garbageDer;
+    AssertNull((a = wolfSSL_d2i_ASN1_INTEGER(&b, &p, sizeof(garbageDer))));
+    AssertNull(b);
+
+    /* Check i2d error conditions */
+    /* NULL input. */
+    byte* p2 = NULL;
+    AssertIntLT(wolfSSL_i2d_ASN1_INTEGER(NULL, &p2), 0);
+    /* 0 length input data buffer (a->length == 0). */
+    AssertNotNull((a = wolfSSL_ASN1_INTEGER_new()));
+    AssertIntLT(wolfSSL_i2d_ASN1_INTEGER(a, &p2), 0);
+    a->data = NULL;
+    /* NULL input data buffer. */
+    AssertIntLT(wolfSSL_i2d_ASN1_INTEGER(a, &p2), 0);
+    /* Reset a->data. */
+    a->data = a->intData;
+    /* Set a to valid value. */
+    AssertIntEQ(wolfSSL_ASN1_INTEGER_set(a, 1), WOLFSSL_SUCCESS);
+    /* NULL output buffer. */
+    AssertIntLT(wolfSSL_i2d_ASN1_INTEGER(a, NULL), 0);
+    wolfSSL_ASN1_INTEGER_free(a);
+
+    for (i = 0; i < NUM_TEST_VECTORS; ++i) {
+        p = testVectors[i].der;
+        a = wolfSSL_d2i_ASN1_INTEGER(&b, &p, testVectors[i].derSz);
+        AssertIntEQ(wolfSSL_ASN1_INTEGER_cmp(a, b), 0);
+
+        if (testVectors[i].derSz <= sizeof(long)) {
+            c = wolfSSL_ASN1_INTEGER_new();
+            wolfSSL_ASN1_INTEGER_set(c, testVectors[i].value);
+            AssertIntEQ(wolfSSL_ASN1_INTEGER_cmp(a, c), 0);
+            wolfSSL_ASN1_INTEGER_free(c);
+        }
+
+        /* Convert to DER without a pre-allocated output buffer. */
+        AssertIntGT((reEncodedSz = wolfSSL_i2d_ASN1_INTEGER(a, &reEncoded)), 0);
+        AssertIntEQ(reEncodedSz, testVectors[i].derSz);
+        AssertIntEQ(XMEMCMP(reEncoded, testVectors[i].der, reEncodedSz), 0);
+
+        /* Convert to DER with a pre-allocated output buffer. In this case, the
+         * output buffer pointer should be incremented just past the end of the
+         * encoded data. */
+        p = reEncoded;
+        AssertIntGT((reEncodedSz = wolfSSL_i2d_ASN1_INTEGER(a, &reEncoded)), 0);
+        AssertIntEQ(reEncodedSz, testVectors[i].derSz);
+        AssertPtrEq(p, reEncoded - reEncodedSz);
+        AssertIntEQ(XMEMCMP(p, testVectors[i].der, reEncodedSz), 0);
+
+        XFREE(reEncoded - reEncodedSz, NULL, DYNAMIC_TYPE_ASN1);
+        reEncoded = NULL;
+        wolfSSL_ASN1_INTEGER_free(a);
+    }
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA */
+}
+
 static void test_wolfSSL_X509_STORE_get1_certs(void)
 {
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SIGNER_DER_CERT) && \
@@ -52036,6 +52178,7 @@ void ApiTest(void)
     test_wolfSSL_ASN1_STRING_print_ex();
     test_wolfSSL_ASN1_TIME_to_generalizedtime();
     test_wolfSSL_ASN1_INTEGER_get_set();
+    test_wolfSSL_d2i_ASN1_INTEGER();
     test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS();
     test_wolfSSL_i2c_ASN1_INTEGER();
     test_wolfSSL_X509_check_ca();

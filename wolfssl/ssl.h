@@ -1889,6 +1889,12 @@ WOLFSSL_API WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_new(void);
 WOLFSSL_API WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_dup(
                                               const WOLFSSL_ASN1_INTEGER* src);
 WOLFSSL_API int wolfSSL_ASN1_INTEGER_set(WOLFSSL_ASN1_INTEGER *a, long v);
+WOLFSSL_API WOLFSSL_ASN1_INTEGER* wolfSSL_d2i_ASN1_INTEGER(
+                                               WOLFSSL_ASN1_INTEGER** a,
+                                               const unsigned char** in,
+                                               long inSz);
+WOLFSSL_API int wolfSSL_i2d_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER* a,
+                                         unsigned char** out);
 
 WOLFSSL_API int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_TIME* asnTime);
 
