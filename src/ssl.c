@@ -45903,15 +45903,56 @@ err:
         return NULL;
     }
 
+    static int wolfssl_obj2txt_numeric(char *buf, int bufLen,
+                                       const WOLFSSL_ASN1_OBJECT *a)
+    {
+        int bufSz;
+        int    length;
+        word32 idx = 0;
+        byte   tag;
+
+        if (GetASNTag(a->obj, &idx, &tag, a->objSz) != 0) {
+            return WOLFSSL_FAILURE;
+        }
+
+        if (tag != ASN_OBJECT_ID) {
+            WOLFSSL_MSG("Bad ASN1 Object");
+            return WOLFSSL_FAILURE;
+        }
+
+        if (GetLength((const byte*)a->obj, &idx, &length,
+                       a->objSz) < 0 || length < 0) {
+            return ASN_PARSE_E;
+        }
+
+        if (bufLen < MAX_OID_STRING_SZ) {
+            bufSz = bufLen - 1;
+        }
+        else {
+            bufSz = MAX_OID_STRING_SZ;
+        }
+
+        if ((bufSz = DecodePolicyOID(buf, (word32)bufSz, a->obj + idx,
+                    (word32)length)) <= 0) {
+            WOLFSSL_MSG("Error decoding OID");
+            return WOLFSSL_FAILURE;
+        }
+
+        buf[bufSz] = '\0';
+
+        return bufSz;
+    }
+
     /* If no_name is one then use numerical form, otherwise short name.
      *
      * Returns the buffer size on success, WOLFSSL_FAILURE on error
      */
-    int wolfSSL_OBJ_obj2txt(char *buf, int bufLen, const WOLFSSL_ASN1_OBJECT *a, // NOLINT(misc-no-recursion) /* fixme */
+    int wolfSSL_OBJ_obj2txt(char *buf, int bufLen, const WOLFSSL_ASN1_OBJECT *a,
                             int no_name)
     {
         int bufSz;
         const char* desc;
+        const char* name;
 
         WOLFSSL_ENTER("wolfSSL_OBJ_obj2txt()");
 
@@ -45921,67 +45962,39 @@ err:
         }
 
         if (no_name == 1) {
-            int    length;
-            word32 idx = 0;
-            byte   tag;
-
-            if (GetASNTag(a->obj, &idx, &tag, a->objSz) != 0) {
-                return WOLFSSL_FAILURE;
-            }
-
-            if (tag != ASN_OBJECT_ID) {
-                WOLFSSL_MSG("Bad ASN1 Object");
-                return WOLFSSL_FAILURE;
-            }
-
-            if (GetLength((const byte*)a->obj, &idx, &length,
-                           a->objSz) < 0 || length < 0) {
-                return ASN_PARSE_E;
-            }
-
-            if (bufLen < MAX_OID_STRING_SZ) {
-                bufSz = bufLen - 1;
-            }
-            else {
-                bufSz = MAX_OID_STRING_SZ;
-            }
-
-            if ((bufSz = DecodePolicyOID(buf, (word32)bufSz, a->obj + idx,
-                        (word32)length)) <= 0) {
-                WOLFSSL_MSG("Error decoding OID");
-                return WOLFSSL_FAILURE;
-            }
-
+            return wolfssl_obj2txt_numeric(buf, bufLen, a);
         }
-        else { /* return long name unless using x509small, then return short name */
+
+        /* return long name unless using x509small, then return short name */
 #if defined(OPENSSL_EXTRA_X509_SMALL) && !defined(OPENSSL_EXTRA)
-            const char* name = a->sName;
+        name = a->sName;
 #else
-            const char* name = wolfSSL_OBJ_nid2ln(wolfSSL_OBJ_obj2nid(a));
+        name = wolfSSL_OBJ_nid2ln(wolfSSL_OBJ_obj2nid(a));
 #endif
 
-            if (name == NULL) {
-                WOLFSSL_MSG("Name not found");
-                return WOLFSSL_FAILURE;
-            }
-            if (XSTRLEN(name) + 1 < (word32)bufLen - 1) {
-                bufSz = (int)XSTRLEN(name);
-            }
-            else {
-                bufSz = bufLen - 1;
-            }
-            if (bufSz) {
-                XMEMCPY(buf, name, bufSz);
-            }
-            else if (wolfSSL_OBJ_obj2txt(buf, bufLen, a, 1)) {
-                if ((desc = oid_translate_num_to_str(buf))) {
-                    bufSz = (int)XSTRLEN(desc);
-                    XMEMCPY(buf, desc, min(bufSz, bufLen));
-                }
-            }
-            else if (a->type == GEN_DNS || a->type == GEN_EMAIL || a->type == GEN_URI) {
-                bufSz = (int)XSTRLEN((const char*)a->obj);
-                XMEMCPY(buf, a->obj, min(bufSz, bufLen));
+        if (name == NULL) {
+            WOLFSSL_MSG("Name not found");
+            bufSz = 0;
+        }
+        else if (XSTRLEN(name) + 1 < (word32)bufLen - 1) {
+            bufSz = (int)XSTRLEN(name);
+        }
+        else {
+            bufSz = bufLen - 1;
+        }
+        if (bufSz) {
+            XMEMCPY(buf, name, bufSz);
+        }
+        else if (a->type == GEN_DNS || a->type == GEN_EMAIL ||
+                 a->type == GEN_URI) {
+            bufSz = (int)XSTRLEN((const char*)a->obj);
+            XMEMCPY(buf, a->obj, min(bufSz, bufLen));
+        }
+        else if ((bufSz = wolfssl_obj2txt_numeric(buf, bufLen, a)) > 0) {
+            if ((desc = oid_translate_num_to_str(buf))) {
+                bufSz = (int)XSTRLEN(desc);
+                bufSz = min(bufSz, bufLen - 1);
+                XMEMCPY(buf, desc, bufSz);
             }
         }
 
@@ -59971,49 +59984,61 @@ int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
 
     return ret;
 }
-#endif /* OPENSSL_EXTRA && !NO_BIO */
 
 #ifndef NO_FILESYSTEM
     PRAGMA_CLANG_DIAG_POP
 #endif
 
-#undef  LINE_LEN
-#define LINE_LEN 16
-int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char *buf, int length) // NOLINT(misc-no-recursion) /* fixme */
+#undef  BIO_DUMP_LINE_LEN
+#define BIO_DUMP_LINE_LEN 16
+int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char *buf, int length)
 {
     int ret = 0;
+#ifndef NO_FILESYSTEM
+    int lineOffset = 0;
+#endif
 
     if (bio == NULL)
         return 0;
 
 #ifndef NO_FILESYSTEM
-    if (bio->type == WOLFSSL_BIO_FILE) {
+    do
+    {
         int i;
         char line[80];
+        int o;
 
         if (!buf) {
-            return XFPUTS("\tNULL", (XFILE)bio->ptr);
+            return wolfSSL_BIO_write(bio, "\tNULL", 5);
         }
 
-        XSPRINTF(line, "\t");
-        for (i = 0; i < LINE_LEN; i++) {
+        XSPRINTF(line, "%04x - ", lineOffset);
+        o = 7;
+        for (i = 0; i < BIO_DUMP_LINE_LEN; i++) {
             if (i < length)
-                XSPRINTF(line + 1 + i * 3,"%02x ", buf[i]);
+                XSPRINTF(line + o,"%02x ", (unsigned char)buf[i]);
             else
-                XSPRINTF(line + 1 + i * 3, "   ");
+                XSPRINTF(line + o, "   ");
+            if (i == 7)
+                XSPRINTF(line + o + 2, "-");
+            o += 3;
         }
-        XSPRINTF(line + 1 + LINE_LEN * 3, "| ");
-        for (i = 0; i < LINE_LEN; i++) {
-            if (i < length) {
-                XSPRINTF(line + 3 + LINE_LEN * 3 + i,
-                     "%c", 31 < buf[i] && buf[i] < 127 ? buf[i] : '.');
-            }
+        XSPRINTF(line + o, "  ");
+        o += 2;
+        for (i = 0; (i < BIO_DUMP_LINE_LEN) && (i < length); i++) {
+            XSPRINTF(line + o, "%c",
+                     ((31 < buf[i]) && (buf[i] < 127)) ? buf[i] : '.');
+            o++;
         }
-        ret += XFPUTS(line, (XFILE)bio->ptr);
 
-        if (length > LINE_LEN)
-            ret += wolfSSL_BIO_dump(bio, buf + LINE_LEN, length - LINE_LEN);
+        line[o++] = '\n';
+        ret += wolfSSL_BIO_write(bio, line, o);
+
+        buf += BIO_DUMP_LINE_LEN;
+        length -= BIO_DUMP_LINE_LEN;
+        lineOffset += BIO_DUMP_LINE_LEN;
     }
+    while (length > 0);
 #else
     (void)buf;
     (void)length;
@@ -60021,6 +60046,7 @@ int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char *buf, int length) // NOLINT(mi
 
     return ret;
 }
+#endif /* OPENSSL_EXTRA && !NO_BIO */
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY) || \
     defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL) || \

@@ -37687,6 +37687,16 @@ static void test_wolfSSL_OBJ_txt2obj(void)
         { "2.5.29.19", "basicConstraints", "X509v3 Basic Constraints"},
         { NULL, NULL, NULL }
     };
+    static const struct {
+        const char* numeric;
+        const char* name;
+    } objs_named[] = {
+        /* In dictionary but not in normal list. */
+        { "1.3.6.1.5.5.7.3.8", "Time Stamping" },
+        /* Made up OID. */
+        { "1.3.5.7",           "1.3.5.7" },
+        { NULL, NULL }
+    };
 
     printf(testingFmt, "wolfSSL_OBJ_txt2obj()");
 
@@ -37719,6 +37729,15 @@ static void test_wolfSSL_OBJ_txt2obj(void)
         AssertIntEQ(XSTRNCMP(buf, objs_list[i].oidStr, (int)XSTRLEN(buf)), 0);
         ASN1_OBJECT_free(obj);
         XMEMSET(buf, 0, sizeof(buf));
+    }
+
+    for (i = 0; objs_named[i].numeric != NULL; i++) {
+        AssertNotNull(obj = OBJ_txt2obj(objs_named[i].numeric, 1));
+        wolfSSL_OBJ_obj2txt(buf, (int)sizeof(buf), obj, 0);
+        AssertIntEQ(XSTRNCMP(buf, objs_named[i].name, (int)XSTRLEN(buf)), 0);
+        wolfSSL_OBJ_obj2txt(buf, (int)sizeof(buf), obj, 1);
+        AssertIntEQ(XSTRNCMP(buf, objs_named[i].numeric, (int)XSTRLEN(buf)), 0);
+        ASN1_OBJECT_free(obj);
     }
 
     printf(resultFmt, passed);
@@ -38243,6 +38262,70 @@ static void test_wolfSSL_BIO_puts(void)
     AssertStrEQ(output, ".....ok\n");
     AssertIntEQ(BIO_pending(bio), 0);
     AssertIntEQ(BIO_puts(bio, ""), -1);
+
+    BIO_free(bio);
+    printf(resultFmt, passed);
+    #endif
+}
+
+static void test_wolfSSL_BIO_dump(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    BIO* bio;
+    static const unsigned char data[] = {
+        0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2A, 0x86, 0x48, 0xCE,
+        0x3D, 0x02, 0x01, 0x06, 0x08, 0x2A, 0x86, 0x48, 0xCE, 0x3D,
+        0x03, 0x01, 0x07, 0x03, 0x42, 0x00, 0x04, 0x55, 0xBF, 0xF4,
+        0x0F, 0x44, 0x50, 0x9A, 0x3D, 0xCE, 0x9B, 0xB7, 0xF0, 0xC5,
+        0x4D, 0xF5, 0x70, 0x7B, 0xD4, 0xEC, 0x24, 0x8E, 0x19, 0x80,
+        0xEC, 0x5A, 0x4C, 0xA2, 0x24, 0x03, 0x62, 0x2C, 0x9B, 0xDA,
+        0xEF, 0xA2, 0x35, 0x12, 0x43, 0x84, 0x76, 0x16, 0xC6, 0x56,
+        0x95, 0x06, 0xCC, 0x01, 0xA9, 0xBD, 0xF6, 0x75, 0x1A, 0x42,
+        0xF7, 0xBD, 0xA9, 0xB2, 0x36, 0x22, 0x5F, 0xC7, 0x5D, 0x7F,
+        0xB4
+    };
+    /* Generated with OpenSSL. */
+    static const char expected[] =
+"0000 - 30 59 30 13 06 07 2a 86-48 ce 3d 02 01 06 08 2a   0Y0...*.H.=....*\n"
+"0010 - 86 48 ce 3d 03 01 07 03-42 00 04 55 bf f4 0f 44   .H.=....B..U...D\n"
+"0020 - 50 9a 3d ce 9b b7 f0 c5-4d f5 70 7b d4 ec 24 8e   P.=.....M.p{..$.\n"
+"0030 - 19 80 ec 5a 4c a2 24 03-62 2c 9b da ef a2 35 12   ...ZL.$.b,....5.\n"
+"0040 - 43 84 76 16 c6 56 95 06-cc 01 a9 bd f6 75 1a 42   C.v..V.......u.B\n"
+"0050 - f7 bd a9 b2 36 22 5f c7-5d 7f b4                  ....6\"_.]..\n";
+    static const char expectedAll[] =
+"0000 - 00 01 02 03 04 05 06 07-08 09 0a 0b 0c 0d 0e 0f   ................\n"
+"0010 - 10 11 12 13 14 15 16 17-18 19 1a 1b 1c 1d 1e 1f   ................\n"
+"0020 - 20 21 22 23 24 25 26 27-28 29 2a 2b 2c 2d 2e 2f    !\"#$%&'()*+,-./\n"
+"0030 - 30 31 32 33 34 35 36 37-38 39 3a 3b 3c 3d 3e 3f   0123456789:;<=>?\n"
+"0040 - 40 41 42 43 44 45 46 47-48 49 4a 4b 4c 4d 4e 4f   @ABCDEFGHIJKLMNO\n"
+"0050 - 50 51 52 53 54 55 56 57-58 59 5a 5b 5c 5d 5e 5f   PQRSTUVWXYZ[\\]^_\n"
+"0060 - 60 61 62 63 64 65 66 67-68 69 6a 6b 6c 6d 6e 6f   `abcdefghijklmno\n"
+"0070 - 70 71 72 73 74 75 76 77-78 79 7a 7b 7c 7d 7e 7f   pqrstuvwxyz{|}~.\n"
+"0080 - 80 81 82 83 84 85 86 87-88 89 8a 8b 8c 8d 8e 8f   ................\n"
+"0090 - 90 91 92 93 94 95 96 97-98 99 9a 9b 9c 9d 9e 9f   ................\n"
+"00a0 - a0 a1 a2 a3 a4 a5 a6 a7-a8 a9 aa ab ac ad ae af   ................\n"
+"00b0 - b0 b1 b2 b3 b4 b5 b6 b7-b8 b9 ba bb bc bd be bf   ................\n"
+"00c0 - c0 c1 c2 c3 c4 c5 c6 c7-c8 c9 ca cb cc cd ce cf   ................\n"
+"00d0 - d0 d1 d2 d3 d4 d5 d6 d7-d8 d9 da db dc dd de df   ................\n"
+"00e0 - e0 e1 e2 e3 e4 e5 e6 e7-e8 e9 ea eb ec ed ee ef   ................\n"
+"00f0 - f0 f1 f2 f3 f4 f5 f6 f7-f8 f9 fa fb fc fd fe ff   ................\n";
+    char output[16 * 80];
+    int i;
+
+    AssertNotNull(bio = BIO_new(BIO_s_mem()));
+
+    /* Example key dumped. */
+    AssertIntEQ(BIO_dump(bio, (const char*)data, (int)sizeof(data)),
+                sizeof(expected) - 1);
+    AssertIntEQ(BIO_read(bio, output, sizeof(output)), sizeof(expected) - 1);
+    AssertIntEQ(XMEMCMP(output, expected, sizeof(expected) - 1), 0);
+
+    /* Try every possible value for a character. */
+    for (i = 0; i < 256; i++)
+       output[i] = i;
+    AssertIntEQ(BIO_dump(bio, output, 256), sizeof(expectedAll) - 1);
+    AssertIntEQ(BIO_read(bio, output, sizeof(output)), sizeof(expectedAll) - 1);
+    AssertIntEQ(XMEMCMP(output, expectedAll, sizeof(expectedAll) - 1), 0);
 
     BIO_free(bio);
     printf(resultFmt, passed);
@@ -52125,6 +52208,7 @@ void ApiTest(void)
 #ifndef NO_BIO
     test_wolfSSL_BIO_gets();
     test_wolfSSL_BIO_puts();
+    test_wolfSSL_BIO_dump();
     test_wolfSSL_BIO_should_retry();
     test_wolfSSL_d2i_PUBKEY();
     test_wolfSSL_BIO_write();
