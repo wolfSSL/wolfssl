@@ -20170,7 +20170,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     switch (error) {
 
-#ifdef WOLFSSL_WPAS
+#ifdef OPENSSL_EXTRA
     case 0 :
         return "ok";
 #endif
