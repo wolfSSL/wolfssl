@@ -47,6 +47,10 @@ typedef void (CRYPTO_free_func)(void* parent, void* ptr, CRYPTO_EX_DATA* ad, int
 #include "prefix_crypto.h"
 #endif
 
+#ifdef __cplusplus
+    extern "C" {
+#endif
+
 WOLFSSL_API const char*   wolfSSLeay_version(int type);
 WOLFSSL_API unsigned long wolfSSLeay(void);
 WOLFSSL_API unsigned long wolfSSL_OpenSSL_version_num(void);
@@ -125,5 +129,9 @@ WOLFSSL_API int wolfSSL_OPENSSL_init_crypto(word64 opts, const OPENSSL_INIT_SETT
 #define CRYPTO_set_ex_data wolfSSL_CRYPTO_set_ex_data
 
 #endif /* OPENSSL_ALL || HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY || HAVE_EX_DATA */
+
+#ifdef __cplusplus
+    } /* extern "C" */
+#endif
 
 #endif /* header */
