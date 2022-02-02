@@ -18916,9 +18916,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
     const char* wolfSSLeay_version(int type)
     {
-        static const char* version = "SSLeay wolfSSL compatibility";
         (void)type;
-        return version;
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+        return wolfSSL_OpenSSL_version(type);
+#else
+        return wolfSSL_OpenSSL_version();
+#endif
     }
 
 
