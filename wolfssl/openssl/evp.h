@@ -630,6 +630,8 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx,
 WOLFSSL_API int wolfSSL_EVP_PKEY_paramgen_init(WOLFSSL_EVP_PKEY_CTX *ctx);
 WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_ec_paramgen_curve_nid(WOLFSSL_EVP_PKEY_CTX *ctx,
         int nid);
+WOLFSSL_API int wolfSSL_EVP_PKEY_paramgen(WOLFSSL_EVP_PKEY_CTX* ctx,
+                                          WOLFSSL_EVP_PKEY** pkey);
 WOLFSSL_API int EVP_PKEY_CTX_set_ec_param_enc(WOLFSSL_EVP_PKEY_CTX *ctx,
         int flag);
 WOLFSSL_API int wolfSSL_EVP_PKEY_keygen_init(WOLFSSL_EVP_PKEY_CTX *ctx);
@@ -934,6 +936,7 @@ WOLFSSL_API void wolfSSL_EVP_MD_do_all(void (*fn) (const WOLFSSL_EVP_MD *md,
 #define EVP_PKEY_sign                  wolfSSL_EVP_PKEY_sign
 #define EVP_PKEY_paramgen_init         wolfSSL_EVP_PKEY_paramgen_init
 #define EVP_PKEY_CTX_set_ec_paramgen_curve_nid wolfSSL_EVP_PKEY_CTX_set_ec_paramgen_curve_nid
+#define EVP_PKEY_paramgen              wolfSSL_EVP_PKEY_paramgen
 #define EVP_PKEY_keygen                wolfSSL_EVP_PKEY_keygen
 #define EVP_PKEY_keygen_init           wolfSSL_EVP_PKEY_keygen_init
 #define EVP_PKEY_bits                  wolfSSL_EVP_PKEY_bits
