@@ -224,21 +224,6 @@ then
 fi
 AC_SUBST([ENABLED_ASM])
 
-# wolfEngine Options
-# This requires a FIPS source code bundle.
-AC_ARG_ENABLE([engine],
-    [AS_HELP_STRING([--enable-engine],[Enable wolfEngine options (default: disabled)])],
-    [ ENABLED_WOLFENGINE=$enableval ],
-    [ ENABLED_WOLFENGINE=no ]
-    )
-
-# wolfEngine for non-FIPS options
-AC_ARG_ENABLE([engine-without-fips],
-    [AS_HELP_STRING([--enable-engine-without-fips],[Enable wolfEngine without FIPS (default: disabled)])],
-    [ ENABLED_WOLFENGINEWITHOUTFIPS=$enableval ],
-    [ ENABLED_WOLFENGINEWITHOUTFIPS=no ]
-    )
-
 # FIPS 140
 AC_ARG_ENABLE([fips],
     [AS_HELP_STRING([--enable-fips],[Enable FIPS 140-2, Will NOT work w/o FIPS license (default: disabled)])],
@@ -335,13 +320,45 @@ AS_CASE([$ENABLED_FIPS],
         AC_MSG_ERROR([Invalid value for --enable-fips "$ENABLED_FIPS" (main options: v1, v2, v5, ready, dev, rand, no, disabled)])
     ])
 
-if test "$ENABLED_FIPS" = "no" && test "$ENABLED_WOLFENGINE" = "yes"
-then
-        # Default to cert 3389.
+# wolfEngine Options
+# This requires a FIPS source code bundle.
+AC_ARG_ENABLE([engine],
+    [AS_HELP_STRING([--enable-engine],[Enable wolfEngine options (default: disabled)])],
+    [ ENABLED_WOLFENGINE=$enableval ],
+    [ ENABLED_WOLFENGINE=no ]
+    )
+
+AS_CASE([$ENABLED_WOLFENGINE],
+    [no],[
+        ENABLED_WOLFENGINE="no"
+        ENABLED_WOLFENGINEWITHOUTFIPS="no"
+    ],
+    [disabled],[
+        ENABLED_WOLFENGINE="no"
+        ENABLED_WOLFENGINEWITHOUTFIPS="no"
+    ],
+    [yes|fips-v2|cert3389],[
         FIPS_VERSION="v2"
         HAVE_FIPS_VERSION=2
         ENABLED_FIPS="yes"
-fi
+        ENABLED_WOLFENGINE="yes"
+        ENABLED_WOLFENGINEWITHOUTFIPS="no"
+    ],
+    [fips-ready],[
+        FIPS_VERSION="v5-ready"
+        HAVE_FIPS_VERSION=5
+        HAVE_FIPS_VERSION_MINOR=3
+        ENABLED_FIPS="yes"
+        ENABLED_WOLFENGINE="yes"
+        ENABLED_WOLFENGINEWITHOUTFIPS="no"
+    ],
+    [no-fips],[
+        ENABLED_WOLFENGINE="no"
+        ENABLED_WOLFENGINEWITHOUTFIPS="yes"
+    ],
+    [
+        AC_MSG_ERROR([Invalid value for --enable-engine "$ENABLED_WOLFENGINE" (options: fips-v2, fips-ready, no-fips, no, disabled)])
+    ])
 
 if test -z "$HAVE_FIPS_VERSION_MINOR"
 then
