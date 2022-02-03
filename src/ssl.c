@@ -26032,7 +26032,7 @@ int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
     const char* name;
     const char *keaStr, *authStr, *encStr, *macStr, *protocol;
     char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
-    unsigned char len = MAX_DESCRIPTION_SZ-1;
+    int len = MAX_DESCRIPTION_SZ-1;
     const CipherSuiteInfo* cipher_names;
     ProtocolVersion pv;
     WOLFSSL_ENTER("wolfSSL_sk_CIPHER_description");
@@ -26074,39 +26074,39 @@ int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
     /* Build up the string by copying onto the end. */
     XSTRNCPY(dp, name, len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (unsigned char)strLen; dp += strLen;
+    len -= strLen; dp += strLen;
 
     XSTRNCPY(dp, " ", len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (unsigned char)strLen; dp += strLen;
+    len -= strLen; dp += strLen;
     XSTRNCPY(dp, protocol, len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (unsigned char)strLen; dp += strLen;
+    len -= strLen; dp += strLen;
 
     XSTRNCPY(dp, " Kx=", len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (unsigned char)strLen; dp += strLen;
+    len -= strLen; dp += strLen;
     XSTRNCPY(dp, keaStr, len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (unsigned char)strLen; dp += strLen;
+    len -= strLen; dp += strLen;
 
     XSTRNCPY(dp, " Au=", len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (unsigned char)strLen; dp += strLen;
+    len -= strLen; dp += strLen;
     XSTRNCPY(dp, authStr, len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (unsigned char)strLen; dp += strLen;
+    len -= strLen; dp += strLen;
 
     XSTRNCPY(dp, " Enc=", len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (unsigned char)strLen; dp += strLen;
+    len -= strLen; dp += strLen;
     XSTRNCPY(dp, encStr, len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (unsigned char)strLen; dp += strLen;
+    len -= strLen; dp += strLen;
 
     XSTRNCPY(dp, " Mac=", len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (unsigned char)strLen; dp += strLen;
+    len -= strLen; dp += strLen;
     XSTRNCPY(dp, macStr, len);
     dp[len-1] = '\0';
 
@@ -26665,9 +26665,6 @@ WOLFSSL_X509_LOOKUP_METHOD* wolfSSL_X509_LOOKUP_file(void)
 /* @return WOLFSSL_SUCCESS on successful, othewise negative or zero         */
 static int x509AddCertDir(WOLFSSL_BY_DIR *ctx, const char *argc, long argl)
 {
-    WOLFSSL_ENTER("x509AddCertDir");
-
-    (void)argl;
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
     WOLFSSL_BY_DIR_entry *entry;
     size_t pathLen;
@@ -26678,6 +26675,8 @@ static int x509AddCertDir(WOLFSSL_BY_DIR *ctx, const char *argc, long argl)
 #else
     char  buf[MAX_FILENAME_SZ];
 #endif
+
+    WOLFSSL_ENTER("x509AddCertDir");
 
     pathLen = 0;
     c = argc;
@@ -26779,6 +26778,7 @@ static int x509AddCertDir(WOLFSSL_BY_DIR *ctx, const char *argc, long argl)
     (void)argc;
     return WOLFSSL_NOT_IMPLEMENTED;
 #endif
+    (void)argl;
 }
 
 /* set additional data to X509_LOOKUP                                   */
@@ -30212,8 +30212,9 @@ int wolfSSL_i2d_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT *a, unsigned char **pp)
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
 WOLFSSL_API size_t wolfSSL_get_finished(const WOLFSSL *ssl, void *buf, size_t count)
 {
-    WOLFSSL_ENTER("SSL_get_finished");
     byte len = 0;
+
+    WOLFSSL_ENTER("SSL_get_finished");
 
     if (!ssl || !buf || count < TLS_FINISHED_SZ) {
         WOLFSSL_MSG("Bad parameter");
@@ -43523,20 +43524,14 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
     static int wolfSSL_sigTypeFromPKEY(WOLFSSL_EVP_MD* md,
             WOLFSSL_EVP_PKEY* pkey)
     {
+    #if !defined(NO_PWDBASED) && defined(OPENSSL_EXTRA)
         int hashType;
         int sigType = WOLFSSL_FAILURE;
 
-    #if !defined(NO_PWDBASED) && defined(OPENSSL_EXTRA)
         /* Convert key type and hash algorithm to a signature algorithm */
         if (wolfSSL_EVP_get_hashinfo(md, &hashType, NULL) == WOLFSSL_FAILURE) {
             return WOLFSSL_FAILURE;
         }
-    #else
-        (void)md;
-        WOLFSSL_MSG("Cannot get hashinfo when NO_PWDBASED is defined");
-        return WOLFSSL_FAILURE;
-    #endif /* !defined(NO_PWDBASED) */
-
 
         if (pkey->type == EVP_PKEY_RSA) {
             switch (hashType) {
@@ -43611,6 +43606,12 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
         else
             return WOLFSSL_FAILURE;
         return sigType;
+#else
+        (void)md;
+        (void)pkey;
+        WOLFSSL_MSG("Cannot get hashinfo when NO_PWDBASED is defined");
+        return WOLFSSL_FAILURE;
+#endif /* !NO_PWDBASED && OPENSSL_EXTRA */
     }
 
 

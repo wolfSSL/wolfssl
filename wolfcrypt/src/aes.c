@@ -10970,7 +10970,7 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackCFB8(
     #ifdef BIG_ENDIAN_ORDER
         ByteReverseWords(aes->tmp, aes->tmp, AES_BLOCK_SIZE);
     #endif
-        out[0] = aes->tmp[0] ^ in[0];
+        out[0] = (byte)(aes->tmp[0] ^ in[0]);
         if (dir == AES_ENCRYPTION) {
             pt = (byte*)aes->reg;
 
