@@ -1,6 +1,5 @@
 function(override_cache VAR VAL)
-    get_property(VAR_TYPE CACHE ${VAR} PROPERTY TYPE)
-    set(${VAR} ${VAL} CACHE ${VAR_TYPE} ${${VAR}_HELP_STRING} FORCE)
+    set_property(CACHE ${VAR} PROPERTY VALUE ${VAL})
 endfunction()
 
 function(add_option NAME HELP_STRING DEFAULT VALUES)
