@@ -11499,7 +11499,7 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
     const char* post = "";
     byte*   pbuf = NULL;
     int     len, num, i, idx;
-    byte    suffix = 0;
+    int    suffix = 0;
     int retHash = NOT_COMPILED_IN;
     byte dgt[WC_MAX_DIGEST_SIZE];
 
@@ -19222,7 +19222,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
 
         if (name != NULL) {
             c16toa((word16)name->rawLen +
-                   SetSequence(name->rawLen, seq), &output[i]);
+                   (word16)SetSequence(name->rawLen, seq), &output[i]);
             i += OPAQUE16_LEN;
             i += SetSequence(name->rawLen, output + i);
             XMEMCPY(output + i, name->raw, name->rawLen);
@@ -31159,7 +31159,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
     int ret;
     TicketEncCbCtx* keyCtx = (TicketEncCbCtx*)userCtx;
     WOLFSSL_CTX* ctx = keyCtx->ctx;
-    word16 sLen = XHTONS(inLen);
+    word16 sLen = XHTONS((word16)inLen);
     byte aad[WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + sizeof(sLen)];
     int  aadSz = WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + sizeof(sLen);
     byte* p = aad;

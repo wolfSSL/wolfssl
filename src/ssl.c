@@ -10177,7 +10177,7 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int lo
             WOLFSSL_MSG("asn1_string_copy_to_buffer error");
             return WOLFSSL_FAILURE;
         }
-        x509->authKeyIdCrit = ext->crit;
+        x509->authKeyIdCrit = (byte)ext->crit;
         break;
     case NID_subject_key_identifier:
         if (asn1_string_copy_to_buffer(&ext->value, &x509->subjKeyId,
@@ -10185,7 +10185,7 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int lo
             WOLFSSL_MSG("asn1_string_copy_to_buffer error");
             return WOLFSSL_FAILURE;
         }
-        x509->subjKeyIdCrit = ext->crit;
+        x509->subjKeyIdCrit = (byte)ext->crit;
         break;
     case NID_subject_alt_name:
     {
@@ -10201,21 +10201,21 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int lo
             gns = gns->next;
         }
         x509->subjAltNameSet = 1;
-        x509->subjAltNameCrit = ext->crit;
+        x509->subjAltNameCrit = (byte)ext->crit;
         break;
     }
     case NID_key_usage:
         if (ext && ext->value.data &&
                 ext->value.length == sizeof(word16)) {
             x509->keyUsage = *(word16*)ext->value.data;
-            x509->keyUsageCrit = ext->crit;
+            x509->keyUsageCrit = (byte)ext->crit;
             x509->keyUsageSet = 1;
         }
         break;
     case NID_basic_constraints:
         if (ext->obj) {
-            x509->isCa = ext->obj->ca;
-            x509->basicConstCrit = ext->crit;
+            x509->isCa = (byte)ext->obj->ca;
+            x509->basicConstCrit = (byte)ext->crit;
             if (ext->obj->pathlen)
                 x509->pathLength = ext->obj->pathlen->length;
             x509->basicConstSet = 1;
@@ -15519,7 +15519,7 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
                                        ticLenAlloc >= ssl->session.ticketLen) {
         XMEMCPY(ticBuff, session->ticket, ssl->session.ticketLen);
         ssl->session.ticket = ticBuff;
-        ssl->session.ticketLenAlloc = ticLenAlloc;
+        ssl->session.ticketLenAlloc = (word16)ticLenAlloc;
         ticBuff = NULL; /* don't free later after unlock */
     }
     else {
@@ -21039,7 +21039,7 @@ static WOLFSSL_X509* d2i_X509orX509REQ(WOLFSSL_X509** x509,
 
         InitDecodedCert(cert, (byte*)in, len, NULL);
     #ifdef WOLFSSL_CERT_REQ
-        cert->isCSR = req;
+        cert->isCSR = (byte)req;
     #endif
         if (ParseCertRelative(cert, type, 0, NULL) == 0) {
             newX509 = wolfSSL_X509_new();
@@ -26074,39 +26074,39 @@ int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
     /* Build up the string by copying onto the end. */
     XSTRNCPY(dp, name, len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (int)strLen; dp += strLen;
+    len -= (unsigned char)strLen; dp += strLen;
 
     XSTRNCPY(dp, " ", len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (int)strLen; dp += strLen;
+    len -= (unsigned char)strLen; dp += strLen;
     XSTRNCPY(dp, protocol, len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (int)strLen; dp += strLen;
+    len -= (unsigned char)strLen; dp += strLen;
 
     XSTRNCPY(dp, " Kx=", len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (int)strLen; dp += strLen;
+    len -= (unsigned char)strLen; dp += strLen;
     XSTRNCPY(dp, keaStr, len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (int)strLen; dp += strLen;
+    len -= (unsigned char)strLen; dp += strLen;
 
     XSTRNCPY(dp, " Au=", len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (int)strLen; dp += strLen;
+    len -= (unsigned char)strLen; dp += strLen;
     XSTRNCPY(dp, authStr, len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (int)strLen; dp += strLen;
+    len -= (unsigned char)strLen; dp += strLen;
 
     XSTRNCPY(dp, " Enc=", len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (int)strLen; dp += strLen;
+    len -= (unsigned char)strLen; dp += strLen;
     XSTRNCPY(dp, encStr, len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (int)strLen; dp += strLen;
+    len -= (unsigned char)strLen; dp += strLen;
 
     XSTRNCPY(dp, " Mac=", len);
     dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
-    len -= (int)strLen; dp += strLen;
+    len -= (unsigned char)strLen; dp += strLen;
     XSTRNCPY(dp, macStr, len);
     dp[len-1] = '\0';
 
@@ -43748,7 +43748,7 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
             else {
                 i->length = cert.serialSz + 2;
                 i->data[0] = ASN_INTEGER;
-                i->data[1] = cert.serialSz;
+                i->data[1] = (unsigned char)cert.serialSz;
                 XMEMCPY(i->data + 2, cert.serial, cert.serialSz);
                 if (wolfSSL_X509_set_serialNumber(x509, i) != WOLFSSL_SUCCESS) {
                     WOLFSSL_MSG("Issue setting generated serial number");
@@ -44078,7 +44078,7 @@ static int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
             /* remove the rest of spaces */
             while (XISSPACE(*++src) && i++ < len);
         } else {
-            *dst = XTOLOWER((unsigned char)*src++);
+            *dst = (char)XTOLOWER((unsigned char)*src++);
         }
     }
     /* put actual length */
@@ -44150,7 +44150,7 @@ int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
             nameStr = (const char*)wolfSSL_ASN1_STRING_data(cano_data);
 
             ret = wc_EncodeNameCanonical(&names[i], nameStr, CTC_UTF8,
-                ConvertNIDToWolfSSL(entry->nid));
+                (byte)ConvertNIDToWolfSSL(entry->nid));
             if (ret < 0) {
             #ifdef WOLFSSL_SMALL_STACK
                 XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -44260,8 +44260,8 @@ int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* name, unsigned char** out)
                     WOLFSSL_MSG("Unknown encoding type conversion UTF8 by default");
                     type = CTC_UTF8;
             }
-            ret = wc_EncodeName(&names[i], nameStr, type,
-                ConvertNIDToWolfSSL(entry->nid));
+            ret = wc_EncodeName(&names[i], nameStr, (char)type,
+                (byte)ConvertNIDToWolfSSL(entry->nid));
             if (ret < 0) {
             #ifdef WOLFSSL_SMALL_STACK
                 XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -60333,7 +60333,7 @@ void wolfSSL_BIO_set_shutdown(WOLFSSL_BIO* bio, int shut)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_set_shutdown");
     if (bio != NULL)
-        bio->shutdown = shut;
+        bio->shutdown = (byte)shut;
 }
 
 int wolfSSL_BIO_get_shutdown(WOLFSSL_BIO* bio)
