@@ -1559,7 +1559,7 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, const byte *input, word16 length,
     extension = TLSX_Find(ssl->extensions, TLSX_APPLICATION_LAYER_PROTOCOL);
     if (extension == NULL)
         extension = TLSX_Find(ssl->ctx->extensions,
-                                               TLSX_APPLICATION_LAYER_PROTOCOL);
+                              TLSX_APPLICATION_LAYER_PROTOCOL);
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     if (ssl->alpnSelect != NULL && ssl->options.side == WOLFSSL_SERVER_END) {
@@ -1571,13 +1571,11 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, const byte *input, word16 length,
             WOLFSSL_MSG("ALPN protocol match");
             /* clears out all current ALPN extensions set */
             TLSX_Remove(&ssl->extensions, TLSX_APPLICATION_LAYER_PROTOCOL, ssl->heap);
-
+            extension = NULL;
             if (TLSX_UseALPN(&ssl->extensions, (char*)out, outLen, 0, ssl->heap)
                                                            == WOLFSSL_SUCCESS) {
-                if (extension == NULL) {
-                    extension = TLSX_Find(ssl->extensions,
-                                          TLSX_APPLICATION_LAYER_PROTOCOL);
-                }
+                extension = TLSX_Find(ssl->extensions,
+                                      TLSX_APPLICATION_LAYER_PROTOCOL);
             }
         }
     }
