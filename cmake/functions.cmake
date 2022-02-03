@@ -1,4 +1,11 @@
 function(override_cache VAR VAL)
+    get_property(VAR_STRINGS CACHE ${VAR} PROPERTY STRINGS)
+    LIST(FIND VAR_STRINGS ${VAL} CK)
+    if(-1 EQUAL ${CK})
+        message(SEND_ERROR
+            "\"${VAL}\" is not valid override value for \"${VAR}\"."
+            " Please select value from \"${VAR_STRINGS}\"\n")
+    endif()
     set_property(CACHE ${VAR} PROPERTY VALUE ${VAL})
 endfunction()
 
@@ -333,12 +340,12 @@ function(generate_lib_src_list LIB_SOURCES)
          if(BUILD_FIPS_V2)
               # FIPSv2 first file
               list(APPEND LIB_SOURCES wolfcrypt/src/wolfcrypt_first.c)
-              
+
               list(APPEND LIB_SOURCES
-                wolfcrypt/src/hmac.c 
-                wolfcrypt/src/random.c 
+                wolfcrypt/src/hmac.c
+                wolfcrypt/src/random.c
                 wolfcrypt/src/sha256.c)
-              
+
               if(BUILD_RSA)
                    list(APPEND LIB_SOURCES wolfcrypt/src/rsa.c)
               endif()
@@ -432,16 +439,16 @@ function(generate_lib_src_list LIB_SOURCES)
 
          if(BUILD_FIPS_RAND)
               list(APPEND LIB_SOURCES
-                   wolfcrypt/src/wolfcrypt_first.c 
-                   wolfcrypt/src/hmac.c 
-                   wolfcrypt/src/random.c 
-                   wolfcrypt/src/sha256.c 
-                   wolfcrypt/src/sha256_asm.S 
-                   wolfcrypt/src/fips.c 
-                   wolfcrypt/src/fips_test.c 
+                   wolfcrypt/src/wolfcrypt_first.c
+                   wolfcrypt/src/hmac.c
+                   wolfcrypt/src/random.c
+                   wolfcrypt/src/sha256.c
+                   wolfcrypt/src/sha256_asm.S
+                   wolfcrypt/src/fips.c
+                   wolfcrypt/src/fips_test.c
                    wolfcrypt/src/wolfcrypt_last.c)
          endif()
-    endif() 
+    endif()
 
     # For wolfRand, exclude everything else.
     if(NOT BUILD_FIPS_RAND)
@@ -514,7 +521,7 @@ function(generate_lib_src_list LIB_SOURCES)
               endif()
 
               if(BUILD_SP_X86_64)
-                   list(APPEND LIB_SOURCES 
+                   list(APPEND LIB_SOURCES
                         wolfcrypt/src/sp_x86_64.c
                         wolfcrypt/src/sp_x86_64_asm.S)
               endif()
@@ -526,7 +533,7 @@ function(generate_lib_src_list LIB_SOURCES)
               if(BUILD_SP_ARM_THUMB)
                    list(APPEND LIB_SOURCES wolfcrypt/src/sp_armthumb.c)
               endif()
-              
+
               if(BUILD_SP_ARM64)
                    list(APPEND LIB_SOURCES wolfcrypt/src/sp_arm64.c)
               endif()
@@ -534,7 +541,7 @@ function(generate_lib_src_list LIB_SOURCES)
               if(BUILD_SP_INT)
                    list(APPEND LIB_SOURCES wolfcrypt/src/sp_int.c)
               endif()
-              
+
               if(BUILD_SP_ARM_CORTEX)
                    list(APPEND LIB_SOURCES wolfcrypt/src/sp_cortexm.c)
               endif()
@@ -587,15 +594,15 @@ function(generate_lib_src_list LIB_SOURCES)
     endif()
 
     list(APPEND LIB_SOURCES
-         wolfcrypt/src/logging.c 
-         wolfcrypt/src/wc_port.c 
+         wolfcrypt/src/logging.c
+         wolfcrypt/src/wc_port.c
          wolfcrypt/src/error.c)
 
 
     if(NOT BUILD_FIPS_RAND)
          list(APPEND LIB_SOURCES
-              wolfcrypt/src/wc_encrypt.c 
-              wolfcrypt/src/signature.c 
+              wolfcrypt/src/wc_encrypt.c
+              wolfcrypt/src/signature.c
               wolfcrypt/src/wolfmath.c)
     endif()
 
@@ -657,7 +664,7 @@ function(generate_lib_src_list LIB_SOURCES)
                    wolfcrypt/src/aes_asm.S
                    wolfcrypt/src/aes_gcm_asm.S)
          endif()
-         
+
          if(BUILD_CAMELLIA)
               list(APPEND LIB_SOURCES wolfcrypt/src/camellia.c)
          endif()
@@ -673,7 +680,7 @@ function(generate_lib_src_list LIB_SOURCES)
          if(BUILD_BLAKE2)
               list(APPEND LIB_SOURCES wolfcrypt/src/blake2b.c)
          endif()
-         
+
          if(BUILD_BLAKE2S)
               list(APPEND LIB_SOURCES wolfcrypt/src/blake2s.c)
          endif()
@@ -795,10 +802,10 @@ function(generate_lib_src_list LIB_SOURCES)
          if(NOT BUILD_CRYPTONLY)
               # ssl files
               list(APPEND LIB_SOURCES
-                   src/internal.c 
-                   src/wolfio.c 
-                   src/keys.c 
-                   src/ssl.c 
+                   src/internal.c
+                   src/wolfio.c
+                   src/keys.c
+                   src/ssl.c
                    src/tls.c)
 
               if(BUILD_TLS13)
