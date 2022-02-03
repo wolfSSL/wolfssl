@@ -3893,10 +3893,11 @@ void FreeX509Name(WOLFSSL_X509_NAME* name)
         {
             int i;
             for (i = 0; i < MAX_NAME_ENTRIES; i++) {
-                if (name->entry[i].set) {
+                if (name->entry[i].object != NULL)
                     wolfSSL_ASN1_OBJECT_free(name->entry[i].object);
+                if (name->entry[i].value != NULL)
                     wolfSSL_ASN1_STRING_free(name->entry[i].value);
-                }
+                XMEMSET(&name->entry[i], 0, sizeof(WOLFSSL_X509_NAME_ENTRY));
             }
         }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
