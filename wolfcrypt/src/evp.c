@@ -5095,7 +5095,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
             ctx->keyLen     = 16;
             ctx->block_size = AES_BLOCK_SIZE;
             ctx->authTagSz  = AES_BLOCK_SIZE;
-            ctx->ivSz       = GCM_NONCE_MID_SZ;
+            if (ctx->ivSz == 0) {
+                ctx->ivSz = GCM_NONCE_MID_SZ;
+            }
 
 #ifndef WOLFSSL_AESGCM_STREAM
             if (key && wc_AesGcmSetKey(&ctx->cipher.aes, key, ctx->keyLen)) {
@@ -5103,7 +5105,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 return WOLFSSL_FAILURE;
             }
 #endif /* !WOLFSSL_AESGCM_STREAM */
-            if (iv && wc_AesGcmSetExtIV(&ctx->cipher.aes, iv, GCM_NONCE_MID_SZ)) {
+            if (iv && wc_AesGcmSetExtIV(&ctx->cipher.aes, iv, ctx->ivSz)) {
                 WOLFSSL_MSG("wc_AesGcmSetExtIV() failed");
                 return WOLFSSL_FAILURE;
             }
@@ -5111,7 +5113,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
             /* Initialize with key and IV if available. */
             if (wc_AesGcmInit(&ctx->cipher.aes, key,
                                     (key == NULL) ? 0 : ctx->keyLen, iv,
-                                    (iv == NULL) ? 0 : GCM_NONCE_MID_SZ) != 0) {
+                                    (iv == NULL) ? 0 : ctx->ivSz) != 0) {
                 WOLFSSL_MSG("wc_AesGcmInit() failed");
                 return WOLFSSL_FAILURE;
             }
@@ -5131,7 +5133,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
             ctx->keyLen     = 24;
             ctx->block_size = AES_BLOCK_SIZE;
             ctx->authTagSz  = AES_BLOCK_SIZE;
-            ctx->ivSz       = GCM_NONCE_MID_SZ;
+            if (ctx->ivSz == 0) {
+                ctx->ivSz = GCM_NONCE_MID_SZ;
+            }
 
 #ifndef WOLFSSL_AESGCM_STREAM
             if (key && wc_AesGcmSetKey(&ctx->cipher.aes, key, ctx->keyLen)) {
@@ -5139,7 +5143,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 return WOLFSSL_FAILURE;
             }
 #endif /* !WOLFSSL_AESGCM_STREAM */
-            if (iv && wc_AesGcmSetExtIV(&ctx->cipher.aes, iv, GCM_NONCE_MID_SZ)) {
+            if (iv && wc_AesGcmSetExtIV(&ctx->cipher.aes, iv, ctx->ivSz)) {
                 WOLFSSL_MSG("wc_AesGcmSetExtIV() failed");
                 return WOLFSSL_FAILURE;
             }
@@ -5147,7 +5151,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
             /* Initialize with key and IV if available. */
             if (wc_AesGcmInit(&ctx->cipher.aes, key,
                                     (key == NULL) ? 0 : ctx->keyLen, iv,
-                                    (iv == NULL) ? 0 : GCM_NONCE_MID_SZ) != 0) {
+                                    (iv == NULL) ? 0 : ctx->ivSz) != 0) {
                 WOLFSSL_MSG("wc_AesGcmInit() failed");
                 return WOLFSSL_FAILURE;
             }
@@ -5167,7 +5171,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
             ctx->keyLen     = 32;
             ctx->block_size = AES_BLOCK_SIZE;
             ctx->authTagSz  = AES_BLOCK_SIZE;
-            ctx->ivSz       = GCM_NONCE_MID_SZ;
+            if (ctx->ivSz == 0) {
+                ctx->ivSz = GCM_NONCE_MID_SZ;
+            }
 
 #ifndef WOLFSSL_AESGCM_STREAM
             if (key && wc_AesGcmSetKey(&ctx->cipher.aes, key, ctx->keyLen)) {
@@ -5175,7 +5181,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 return WOLFSSL_FAILURE;
             }
 #endif /* !WOLFSSL_AESGCM_STREAM */
-            if (iv && wc_AesGcmSetExtIV(&ctx->cipher.aes, iv, GCM_NONCE_MID_SZ)) {
+            if (iv && wc_AesGcmSetExtIV(&ctx->cipher.aes, iv, ctx->ivSz)) {
                 WOLFSSL_MSG("wc_AesGcmSetExtIV() failed");
                 return WOLFSSL_FAILURE;
             }
@@ -5183,7 +5189,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
             /* Initialize with key and IV if available. */
             if (wc_AesGcmInit(&ctx->cipher.aes,
                                 key, (key == NULL) ? 0 : ctx->keyLen,
-                                iv, (iv == NULL) ? 0 : GCM_NONCE_MID_SZ) != 0) {
+                                iv, (iv == NULL) ? 0 : ctx->ivSz) != 0) {
                 WOLFSSL_MSG("wc_AesGcmInit() failed");
                 return WOLFSSL_FAILURE;
             }
@@ -5874,7 +5880,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     {
         int expectedIvLen;
 
-        WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_set_iv_length");
+        WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_set_iv");
         if (!ctx || !iv || !ivLen) {
             return WOLFSSL_FAILURE;
         }
@@ -7420,6 +7426,9 @@ int wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX* ctx)
         case AES_192_GCM_TYPE :
         case AES_256_GCM_TYPE :
             WOLFSSL_MSG("AES GCM");
+            if (ctx->ivSz != 0) {
+                return ctx->ivSz;
+            }
             return GCM_NONCE_MID_SZ;
 #endif
 #endif /* (HAVE_FIPS && !HAVE_SELFTEST) || HAVE_FIPS_VERSION >= 2 */
