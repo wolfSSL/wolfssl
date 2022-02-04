@@ -6538,7 +6538,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
 
         case TLS_ASYNC_BUILD:
         {
-            int validSigAlgo = 0;
+            int validSigAlgo;
 
             /* Signature algorithm. */
             if ((args->idx - args->begin) + ENUM_LEN + ENUM_LEN > totalSz) {
@@ -6564,35 +6564,41 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             }
 
             /* Check for public key of required type. */
+            /* Assume invalid unless signature algo matches the key provided */
+            validSigAlgo = 0;
         #ifdef HAVE_ED25519
             if (args->sigAlgo == ed25519_sa_algo) {
                 WOLFSSL_MSG("Peer sent ED25519 sig");
-                validSigAlgo = ssl->peerEd25519KeyPresent;
+                validSigAlgo = (ssl->peerEd25519Key != NULL) &&
+                                                     ssl->peerEd25519KeyPresent;
             }
         #endif
         #ifdef HAVE_ED448
             if (args->sigAlgo == ed448_sa_algo) {
                 WOLFSSL_MSG("Peer sent ED448 sig");
-                validSigAlgo = ssl->peerEd448KeyPresent;
+                validSigAlgo = (ssl->peerEd448Key != NULL) &&
+                                                       ssl->peerEd448KeyPresent;
             }
         #endif
         #ifdef HAVE_ECC
             if (args->sigAlgo == ecc_dsa_sa_algo) {
                 WOLFSSL_MSG("Peer sent ECC sig");
-                validSigAlgo = ssl->peerEccDsaKeyPresent;
+                validSigAlgo = (ssl->peerEccDsaKey != NULL) &&
+                                                      ssl->peerEccDsaKeyPresent;
             }
         #endif
         #ifdef HAVE_PQC
             if (args->sigAlgo == falcon_level1_sa_algo) {
                 WOLFSSL_MSG("Peer sent Falcon Level 1 sig");
-                validSigAlgo = ssl->peerFalconKeyPresent;
+                validSigAlgo = (ssl->peerFalconKey != NULL) &&
+                                                      ssl->peerFalconKeyPresent;
             }
             if (args->sigAlgo == falcon_level5_sa_algo) {
                 WOLFSSL_MSG("Peer sent Falcon Level 5 sig");
-                validSigAlgo = ssl->peerFalconKeyPresent;
+                validSigAlgo = (ssl->peerFalconKey != NULL) &&
+                                                      ssl->peerFalconKeyPresent;
             }
         #endif
-
         #ifndef NO_RSA
             if (args->sigAlgo == rsa_sa_algo) {
                 WOLFSSL_MSG("Peer sent PKCS#1.5 algo - not valid TLS 1.3");
@@ -6606,8 +6612,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         #endif
             if (!validSigAlgo) {
                 WOLFSSL_MSG("Sig algo doesn't correspond to certficate");
-                ret = SIG_VERIFY_E;
-                goto exit_dcv;
+                ERROR_OUT(SIG_VERIFY_E, exit_dcv);
             }
 
             sig->buffer = (byte*)XMALLOC(args->sz, ssl->heap,
