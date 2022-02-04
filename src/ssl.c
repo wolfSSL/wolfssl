@@ -45381,6 +45381,7 @@ err:
 #endif /* WOLFSSL_PEM_TO_DER || WOLFSSL_DER_TO_PEM */
     }
 
+#ifndef NO_FILESYSTEM
     WOLF_STACK_OF(WOLFSSL_X509_INFO)* wolfSSL_PEM_X509_INFO_read(
             XFILE fp, WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk,
             pem_password_cb* cb, void* u)
@@ -45395,6 +45396,7 @@ err:
         }
         return ret;
     }
+#endif /* !NO_FILESYSTEM */
 
     /*
      * bio WOLFSSL_BIO to read certificates from
