@@ -93,12 +93,18 @@
         <GeneralOptions/>
         <CompileOptions>
           <Option>-isa=rxv2</Option>
-          <Option>-include="${ProjDirPath}\..\common"</Option>
-          <Option>-include="${ProjDirPath}\\..\..\..\..\..\..\"</Option>
-          <Option>-include="${ProjDirPath}\..\test\src\smc_gen\"</Option>
-          <Option>-include="${ProjDirPath}\..\test\src\smc_gen\r_bsp"</Option>
-          <Option>-include="${ProjDirPath}\..\test\src\smc_gen\r_config"</Option>
-          <Option>-include="${ProjDirPath}\..\test\src\smc_gen\r_tsip_rx"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\demos"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\freertos_kernel\include"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\freertos_kernel\portable\Renesas\RX700v3_DPFPU"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\libraries\freertos_plus\standard\freertos_plus_tcp\include"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\amazon_freertos_common"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx72n-envision-kit\aws_demos\config_files"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx72n-envision-kit\aws_demos\src\smc_gen"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx72n-envision-kit\aws_demos\src\smc_gen\r_config"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx72n-envision-kit\aws_demos\src\smc_gen\r_bsp"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx72n-envision-kit\aws_demos\src\smc_gen\r_tsip_rx"</Option>
+          <Option>-include="${ProjDirPath}\..\wolfssl_demo"</Option>
           <Option>-define=WOLFSSL_USER_SETTINGS</Option>
           <Option>-nomessage</Option>
           <Option>-debug</Option>
@@ -200,12 +206,18 @@
           <Path>Debug\wolfmath.obj</Path>
         </LinkOrder>
         <CommonOptions>
-          <IncludePathForC>"${ProjDirPath}\..\common"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\\..\..\..\..\..\..\"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\test\src\smc_gen\"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\test\src\smc_gen\r_bsp"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\test\src\smc_gen\r_config"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\test\src\smc_gen\r_tsip_rx"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\demos"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\freertos_kernel\include"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\freertos_kernel\portable\Renesas\RX700v3_DPFPU"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\libraries\freertos_plus\standard\freertos_plus_tcp\include"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\amazon_freertos_common"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx72n-envision-kit\aws_demos\config_files"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx72n-envision-kit\aws_demos\src\smc_gen"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx72n-envision-kit\aws_demos\src\smc_gen\r_config"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx72n-envision-kit\aws_demos\src\smc_gen\r_bsp"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx72n-envision-kit\aws_demos\src\smc_gen\r_tsip_rx"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\wolfssl_demo"</IncludePathForC>
           <MacroForC>WOLFSSL_USER_SETTINGS</MacroForC>
         </CommonOptions>
       </BuildMode>
