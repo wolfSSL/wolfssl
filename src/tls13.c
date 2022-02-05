@@ -6890,6 +6890,18 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     WOLFSSL_START(WC_FUNC_FINISHED_DO);
     WOLFSSL_ENTER("DoTls13Finished");
 
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+    /* verify the client sent certificate if required */
+    if (ssl->options.side == WOLFSSL_SERVER_END &&
+            (ssl->options.mutualAuth || ssl->options.failNoCert)) {
+        if (!ssl->options.havePeerVerify && !ssl->options.resuming) {
+            ret = NO_PEER_CERT;
+            DoCertFatalAlert(ssl, ret);
+            return ret;
+        }
+    }
+#endif
+
     /* check against totalSz */
     if (*inOutIdx + size + ssl->keys.padSz > totalSz)
         return BUFFER_E;
