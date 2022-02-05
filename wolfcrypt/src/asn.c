@@ -4006,10 +4006,12 @@ static const byte extExtKeyUsageTimestampOid[]    = {43, 6, 1, 5, 5, 7, 3, 8};
 static const byte extExtKeyUsageOcspSignOid[]     = {43, 6, 1, 5, 5, 7, 3, 9};
 
 #if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN) || \
-    defined(WOLFSSL_ASN_TEMPLATE)
+    defined(WOLFSSL_ASN_TEMPLATE) || defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL)
 /* csrAttrType */
 #define CSR_ATTR_TYPE_OID_BASE(num) {42, 134, 72, 134, 247, 13, 1, 9, num}
-#if !defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN)
+#if !defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN) || \
+    defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 static const byte attrEmailOid[] =             CSR_ATTR_TYPE_OID_BASE(1);
 #endif
 #ifdef WOLFSSL_CERT_REQ
@@ -4053,12 +4055,14 @@ static const byte dnsSRVOid[] = {43, 6, 1, 5, 5, 7, 8, 7};
 #endif
 
 #if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN) || \
-    defined(WOLFSSL_ASN_TEMPLATE)
+    defined(WOLFSSL_ASN_TEMPLATE) || defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL)
 /* Pilot attribute types (0.9.2342.19200300.100.1.*) */
 #ifdef WOLFSSL_ASN_TEMPLATE
 static const byte uidOid[] = {9, 146, 38, 137, 147, 242, 44, 100, 1, 1}; /* user id */
 #endif
-#if !defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN)
+#if !defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN) || \
+    defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 static const byte dcOid[] = {9, 146, 38, 137, 147, 242, 44, 100, 1, 25}; /* domain component */
 #endif
 #endif
@@ -22478,7 +22482,9 @@ int FlattenAltNames(byte* output, word32 outputSz, const DNS_entry* names)
 }
 
 #endif /* WOLFSSL_ALT_NAMES */
+#endif /* WOLFSSL_CERT_GEN */
 
+#if defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* Simple domain name OID size. */
 #define DN_OID_SZ     3
 
@@ -22723,7 +22729,9 @@ int wc_EncodeNameCanonical(EncodedName* name, const char* nameStr,
     return EncodeName(name, nameStr, (byte)nameType, type,
         ASN_UTF8STRING, NULL);
 }
+#endif /* WOLFSSL_CERT_GEN || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
+#ifdef WOLFSSL_CERT_GEN
 /* Encodes one attribute of the name (issuer/subject)
  * call we_EncodeName_ex with 0x16, IA5String for email type
  * name     structure to hold result of encoding

@@ -29377,9 +29377,8 @@ static void test_wolfSSL_X509_NAME_hash(void)
     AssertNotNull(bio = BIO_new(BIO_s_file()));
     AssertIntGT(BIO_read_filename(bio, svrCertFile), 0);
     AssertNotNull(PEM_read_bio_X509(bio, &x509, NULL, NULL));
-    AssertIntEQ(X509_NAME_hash(X509_get_subject_name(x509)), 0xF6CF410E);
-    AssertIntEQ(X509_NAME_hash(X509_get_issuer_name(x509)), 0x677DD39A);
-
+    AssertIntEQ(X509_NAME_hash(X509_get_subject_name(x509)), 0x137DC03F);
+    AssertIntEQ(X509_NAME_hash(X509_get_issuer_name(x509)), 0xFDB2DA4);
     X509_free(x509);
     BIO_free(bio);
     printf(resultFmt, passed);

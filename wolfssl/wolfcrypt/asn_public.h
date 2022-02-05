@@ -297,8 +297,7 @@ typedef struct WOLFSSL_ASN1_INTEGER {
 #endif
 #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
 
-#ifdef WOLFSSL_CERT_GEN
-
+#if defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #ifdef WOLFSSL_MULTI_ATTRIB
 #ifndef CTC_MAX_ATTRIB
     #define CTC_MAX_ATTRIB 4
@@ -312,7 +311,9 @@ typedef struct NameAttrib {
     char value[CTC_NAME_SIZE];   /* name */
 } NameAttrib;
 #endif /* WOLFSSL_MULTI_ATTRIB */
+#endif /* WOLFSSL_CERT_GEN || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
+#ifdef WOLFSSL_CERT_GEN
 #ifdef WOLFSSL_CUSTOM_OID
 typedef struct CertOidField {
     byte*  oid;
@@ -322,7 +323,9 @@ typedef struct CertOidField {
     char   enc;
 } CertOidField;
 #endif
+#endif /* WOLFSSL_CERT_GEN */
 
+#if defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 typedef struct CertName {
     char country[CTC_NAME_SIZE];
     char countryEnc;
@@ -360,7 +363,9 @@ typedef struct CertName {
     CertOidField custom;
 #endif
 } CertName;
+#endif /* WOLFSSL_CERT_GEN || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL*/
 
+#ifdef WOLFSSL_CERT_GEN
 
 /* for user to fill for certificate generation */
 typedef struct Cert {

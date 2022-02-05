@@ -778,7 +778,7 @@ decouple library dependencies with standard string, memory and so on.
             defined(OPENSSL_EXTRA)
             #define XTOUPPER(c)     toupper((c))
         #endif
-        #ifdef OPENSSL_ALL
+        #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         #define XISALNUM(c)     isalnum((c))
         #define XISASCII(c)     isascii((c))
         #define XISSPACE(c)     isspace((c))
