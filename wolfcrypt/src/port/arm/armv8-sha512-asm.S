@@ -1201,20 +1201,12 @@ Transform_Sha512_Len_crypto:
 .p2align	2
 _Transform_Sha512_Len_crypto:
 #endif /* __APPLE__ */
-	stp	x29, x30, [sp, #-208]!
+	stp	x29, x30, [sp, #-80]!
 	add	x29, sp, #0
 	stp	d8, d9, [x29, #16]
 	stp	d10, d11, [x29, #32]
 	stp	d12, d13, [x29, #48]
 	stp	d14, d15, [x29, #64]
-	stp	d16, d17, [x29, #80]
-	stp	d18, d19, [x29, #96]
-	stp	d20, d21, [x29, #112]
-	stp	d22, d23, [x29, #128]
-	stp	d24, d25, [x29, #144]
-	stp	d26, d27, [x29, #160]
-	stp	d28, d29, [x29, #176]
-	stp	d30, d31, [x29, #192]
 #ifdef __APPLE__
 .arch_extension sha3
 #endif /* __APPLE__ */
@@ -1734,15 +1726,7 @@ L_sha512_len_crypto_begin:
 	ldp	d10, d11, [x29, #32]
 	ldp	d12, d13, [x29, #48]
 	ldp	d14, d15, [x29, #64]
-	ldp	d16, d17, [x29, #80]
-	ldp	d18, d19, [x29, #96]
-	ldp	d20, d21, [x29, #112]
-	ldp	d22, d23, [x29, #128]
-	ldp	d24, d25, [x29, #144]
-	ldp	d26, d27, [x29, #160]
-	ldp	d28, d29, [x29, #176]
-	ldp	d30, d31, [x29, #192]
-	ldp	x29, x30, [sp], #0xd0
+	ldp	x29, x30, [sp], #0x50
 	ret
 #ifndef __APPLE__
 	.size	Transform_Sha512_Len_crypto,.-Transform_Sha512_Len_crypto
