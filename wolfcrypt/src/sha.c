@@ -370,6 +370,8 @@
         return ret;
     }
 
+#elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_HASH)
+/* implemented in wolfcrypt/src/port/psa/psa_hash.c */
 #else
     /* Software implementation */
     #define USE_SHA_SOFTWARE_IMPL
@@ -832,6 +834,8 @@ int wc_InitSha(wc_Sha* sha)
     return wc_InitSha_ex(sha, NULL, INVALID_DEVID);
 }
 
+#if !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)
+
 void wc_ShaFree(wc_Sha* sha)
 {
     if (sha == NULL)
@@ -859,6 +863,7 @@ void wc_ShaFree(wc_Sha* sha)
 #endif
 }
 
+#endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH) */
 #endif /* !WOLFSSL_TI_HASH */
 #endif /* HAVE_FIPS */
 
@@ -866,6 +871,8 @@ void wc_ShaFree(wc_Sha* sha)
 
 #if !defined(WOLFSSL_RENESAS_TSIP_CRYPT) || \
     defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
+
+#if !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)
 int wc_ShaGetHash(wc_Sha* sha, byte* hash)
 {
     int ret;
@@ -929,7 +936,7 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
 }
 #endif /* defined(WOLFSSL_RENESAS_TSIP_CRYPT) ... */
 #endif /* !WOLFSSL_TI_HASH && !WOLFSSL_IMXRT_DCP */
-
+#endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH) */
 
 #ifdef WOLFSSL_HASH_FLAGS
 int wc_ShaSetFlags(wc_Sha* sha, word32 flags)

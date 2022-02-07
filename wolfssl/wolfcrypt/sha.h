@@ -114,6 +114,12 @@ enum {
     #include "wolfssl/wolfcrypt/port/nxp/se050_port.h"
 #endif
 
+#if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_HASH)
+#include <psa/crypto.h>
+#undef  WOLFSSL_NO_HASH_RAW
+#define WOLFSSL_NO_HASH_RAW
+#endif
+
 /* Sha digest */
 struct wc_Sha {
 #ifdef FREESCALE_LTC_SHA
@@ -127,6 +133,8 @@ struct wc_Sha {
 #elif defined(WOLFSSL_IMXRT_DCP)
         dcp_handle_t handle;
         dcp_hash_ctx_t ctx;
+#elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_HASH)
+        psa_hash_operation_t psa_ctx;
 #else
         word32  buffLen;   /* in bytes          */
         word32  loLen;     /* length in bytes   */

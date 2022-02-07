@@ -7702,11 +7702,14 @@ static int aes_key_size_test(void)
         ERROR_OUT(-5307, out);
 /* CryptoCell handles rounds internally */
 #if !defined(HAVE_FIPS) && !defined(WOLFSSL_CRYPTOCELL)
+    /* PSA don't use aes->rounds */
+#if !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_AES)
     /* Force invalid rounds */
     aes->rounds = 16;
     ret = wc_AesGetKeySize(aes, &keySize);
     if (ret != BAD_FUNC_ARG)
         ERROR_OUT(-5308, out);
+#endif
 #endif
 
     ret = wc_AesSetKey(aes, key16, sizeof(key16), iv, AES_ENCRYPTION);
@@ -7909,7 +7912,6 @@ static int aes_xts_128_test(void)
         ERROR_OUT(-5410, out);
     if (XMEMCMP(p1, buf, AES_BLOCK_SIZE))
         ERROR_OUT(-5411, out);
-    wc_AesXtsFree(aes);
 
     /* fail case with decrypting using wrong key */
     XMEMSET(buf, 0, sizeof(buf));
@@ -7921,6 +7923,8 @@ static int aes_xts_128_test(void)
         ERROR_OUT(-5412, out);
     if (XMEMCMP(p2, buf, sizeof(p2)) == 0) /* fail case with wrong key */
         ERROR_OUT(-5413, out);
+
+    wc_AesXtsFree(aes);
 
     /* set correct key and retest */
     XMEMSET(buf, 0, sizeof(buf));

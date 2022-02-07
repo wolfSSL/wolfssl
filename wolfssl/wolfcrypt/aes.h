@@ -96,6 +96,10 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfssl/wolfcrypt/random.h>
 #endif
 
+#if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
+#include <psa/crypto.h>
+#endif
+
 #if defined(WOLFSSL_CRYPTOCELL)
     #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
 #endif
@@ -270,6 +274,12 @@ struct Aes {
 #endif
 #if defined(WOLFSSL_SILABS_SE_ACCEL)
     silabs_aes_t ctx;
+#endif
+#if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
+    psa_key_id_t key_id;
+    psa_cipher_operation_t psa_ctx;
+    int ctx_initialized;
+    int key_need_importing;
 #endif
     void*  heap; /* memory hint to use */
 #ifdef WOLFSSL_AESGCM_STREAM

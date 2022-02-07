@@ -1173,6 +1173,82 @@ AC_ARG_ENABLE([smime],
     [ ENABLED_SMIME=no ]
     )
 
+# Platform Security Architecture (PSA)
+AC_ARG_ENABLE([psa],
+[AS_HELP_STRING([--enable-psa],[use Platform Security Architecture (PSA) interface (default: disabled)])],
+[ ENABLED_PSA=$enableval ],
+[ ENABLED_PSA=no ]
+)
+
+AC_ARG_WITH([psa-include],
+    [AS_HELP_STRING([--with-psa-include=PATH],
+       [PATH to directory with PSA header files])],
+    [PSA_INCLUDE=$withval],
+    [PSA_INCLUDE=""])
+
+AC_ARG_WITH([psa-lib],
+    [AS_HELP_STRING([--with-psa-lib=PATH],[PATH to directory with the PSA library])],
+    [PSA_LIB=$withval],
+    [PSA_LIB=""])
+
+AC_ARG_WITH([psa-lib-name],
+    [AS_HELP_STRING([--with-psa-lib-name=NAME],[NAME of PSA library])],
+    [PSA_LIB_NAME=$withval],
+    [PSA_LIB_NAME=""])
+
+AC_ARG_ENABLE([psa-lib-static],
+    [AS_HELP_STRING([--enable-psa-lib-static],[Link PSA as static library (default: disable)])],
+    [ ENABLED_PSA_STATIC=$enableval ],
+    [ ENABLED_PSA_STATIC=no ]
+)
+
+if test "x$ENABLED_PSA" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_PSA"
+fi
+
+if test "x$ENABLED_PSA" != "xyes" && \
+    (test "x$PSA_LIB"! = "x" || test "x$PSA_INCLUDE" != "x" || test "x$PSA_LIB_NAME" != "x" )
+then
+    AC_MSG_ERROR([to use PSA you need to enable it with --enable-psa])
+fi
+
+if test -n "$PSA_LIB"
+then
+    AC_MSG_CHECKING([for $PSA_LIB])
+    if ! test -d "$PSA_LIB"
+    then
+        AC_MSG_ERROR([PSA lib dir $PSA_LIB not found.])
+    fi
+    AC_MSG_RESULT([yes])
+    AM_LDFLAGS="$AM_LDFLAGS -L$PSA_LIB"
+fi
+
+if test -n "$PSA_LIB_NAME"
+then
+    if test "x$ENABLED_PSA_STATIC" = "xyes"
+    then
+        LIB_STATIC_ADD="$LIB_STATIC_ADD $PSA_LIB/$PSA_LIB_NAME"
+    else
+        LIB_ADD="$LIB_ADD -l$PSA_LIB_NAME"
+    fi
+fi
+
+if test -n "$PSA_INCLUDE"
+then
+    AC_MSG_CHECKING([for $PSA_INCLUDE])
+    if ! test -d "$PSA_INCLUDE"
+    then
+        AC_MSG_ERROR([psa include dir $PSA_INCLUDE not found.])
+    fi
+    AC_MSG_RESULT([yes])
+    AM_CFLAGS="$AM_CFLAGS -I$PSA_INCLUDE"
+fi
+
+AC_SUBST([PSA_LIB])
+AC_SUBST([PSA_LIB_NAME])
+AC_SUBST([PSA_INCLUDE])
+
 # OPENSSL Compatibility ALL
 AC_ARG_ENABLE([opensslall],
 [AS_HELP_STRING([--enable-opensslall],[Enable all OpenSSL API, size++ (default: disabled)])],
@@ -7512,6 +7588,7 @@ AM_CONDITIONAL([BUILD_KDF],[test "x$ENABLED_KDF" = "xyes"])
 AM_CONDITIONAL([BUILD_HMAC],[test "x$ENABLED_HMAC" = "xyes"])
 AM_CONDITIONAL([BUILD_ERROR_STRINGS],[test "x$ENABLED_ERROR_STRINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DO178],[test "x$ENABLED_DO178" = "xyes"])
+AM_CONDITIONAL([BUILD_PSA],[test "x$ENABLED_PSA" = "xyes"])
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes" &&
    (test "$ax_enable_debug" = "yes" ||
@@ -7911,6 +7988,7 @@ echo "   * i.MX6 CAAM:                 $ENABLED_CAAM"
 echo "   * IoT-Safe:                   $ENABLED_IOTSAFE"
 echo "   * IoT-Safe HWRNG:             $ENABLED_IOTSAFE_HWRNG"
 echo "   * NXP SE050:                  $ENABLED_SE050"
+echo "   * PSA:                        $ENABLED_PSA"
 echo ""
 echo "---"
 

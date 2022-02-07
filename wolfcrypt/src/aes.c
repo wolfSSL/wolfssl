@@ -76,6 +76,10 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfssl/wolfcrypt/cmac.h>
 #endif
 
+#if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
+    #include <wolfssl/wolfcrypt/port/psa/psa.h>
+#endif
+
 /* fips wrapper calls, user can call direct */
 #if defined(HAVE_FIPS) && \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
@@ -1063,6 +1067,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         defined(WOLFSSL_AES_CFB) || defined(HAVE_AES_ECB)
         #define NEED_AES_TABLES
     #endif
+#elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
+/* implemented in wolfcrypt/src/port/psa/psa_aes.c */
 #else
 
     /* using wolfCrypt software implementation */
@@ -2905,6 +2911,11 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         if (keylen > sizeof(aes->key)) {
             return BAD_FUNC_ARG;
         }
+#if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
+        return wc_psa_aes_set_key(aes, userKey, keylen, (uint8_t*)iv,
+                                  ((psa_algorithm_t)0), dir);
+#endif
+
         rk = aes->key;
         XMEMCPY(rk, userKey, keylen);
     #if defined(LITTLE_ENDIAN_ORDER) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
@@ -3910,6 +3921,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
 
+#elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
+    /* implemented in wolfcrypt/src/port/psa/psa_aes.c */
+
 #else
 
     /* Software AES - CBC Encrypt */
@@ -4341,6 +4355,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         /* use aes ecnryption plus sw implementation */
         #define NEED_AES_CTR_SOFT
 
+    #elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
+    /* implemented in wolfcrypt/src/port/psa/psa_aes.c */
     #else
 
         /* Use software based AES counter */
@@ -10436,6 +10452,10 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
     aes->ctrSet = 0;
 #endif
 
+#if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
+    ret = wc_psa_aes_init(aes);
+#endif
+
     return ret;
 }
 
@@ -10534,6 +10554,10 @@ void wc_AesFree(Aes* aes)
     se050_aes_free(aes);
 #endif
 
+#if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
+    wc_psa_aes_free(aes);
+#endif
+
 }
 
 
@@ -10544,6 +10568,10 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
     if (aes == NULL || keySize == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
+    return wc_psa_aes_get_key_size(aes, keySize);
+#endif
 #if defined(WOLFSSL_CRYPTOCELL) && defined(WOLFSSL_CRYPTOCELL_AES)
     *keySize = aes->ctx.key.keySize;
     return ret;

@@ -112,6 +112,11 @@
     #pragma warning(disable: 4996)
 #endif
 
+#if defined(WOLFSSL_HAVE_PSA)
+    #include <wolfssl/wolfcrypt/port/psa/psa.h>
+#endif
+
+
 /* prevent multiple mutex initializations */
 static volatile int initRefCount = 0;
 
@@ -268,6 +273,11 @@ int wolfCrypt_Init(void)
             WOLFSSL_MSG("Error creating logging mutex");
             return ret;
         }
+    #endif
+
+    #if defined(WOLFSSL_HAVE_PSA)
+        if ((ret = wc_psa_init()) != 0)
+            return ret;
     #endif
 
 #ifdef HAVE_ECC
