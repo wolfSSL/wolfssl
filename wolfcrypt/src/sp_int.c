@@ -67,6 +67,9 @@ This library provides single precision (SP) integer math functions.
  *      (used with -mthumb)
  * WOLFSSL_SP_X86_64            Enable Intel x86 64-bit assembly speedups
  * WOLFSSL_SP_X86               Enable Intel x86 assembly speedups
+ * WOLFSSL_SP_ARM64             Enable Aarch64 assembly speedups
+ * WOLFSSL_SP_ARM32             Enable ARM32 assembly speedups
+ * WOLFSSL_SP_ARM32_UDIV        Enable word divide asm that uses UDIV instr
  * WOLFSSL_SP_ARM_THUMB         Enable ARM Thumb assembly speedups
  *                              (explicitly uses register 'r7')
  * WOLFSSL_SP_PPC64             Enable PPC64 assembly speedups
@@ -801,6 +804,18 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
                                           sp_int_digit d)
 {
     __asm__ __volatile__ (
+        "lsr	x3, %[d], 48\n\t"
+        "mov	x5, 16\n\t"
+        "cmp	x3, 0\n\t"
+        "mov	x4, 63\n\t"
+        "csel	x3, x5, xzr, eq\n\t"
+        "sub	x4, x4, x3\n\t"
+        "lsl	%[d], %[d], x3\n\t"
+        "lsl	%[hi], %[hi], x3\n\t"
+        "lsr	x5, %[lo], x4\n\t"
+        "lsl	%[lo], %[lo], x3\n\t"
+        "orr	%[hi], %[hi], x5, lsr 1\n\t"
+
         "lsr	x5, %[d], 32\n\t"
         "add	x5, x5, 1\n\t"
 
@@ -840,8 +855,8 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "udiv	x3, %[lo], %[d]\n\t"
         "add	%[hi], x6, x3\n\t"
 
-        : [hi] "+r" (hi), [lo] "+r" (lo)
-        : [d] "r" (d)
+        : [hi] "+r" (hi), [lo] "+r" (lo), [d] "+r" (d)
+        :
         : "x3", "x4", "x5", "x6"
     );
 
@@ -1002,6 +1017,18 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     sp_int_digit r = 0;
 
     __asm__ __volatile__ (
+        "lsrs	r5, %[d], 24\n\t"
+	"it	eq\n\t"
+        "moveq	r5, 8\n\t"
+	"it	ne\n\t"
+        "movne	r5, 0\n\t"
+        "rsb	r6, r5, 31\n\t"
+        "lsl	%[d], %[d], r5\n\t"
+        "lsl	%[hi], %[hi], r5\n\t"
+        "lsr	r7, %[lo], r6\n\t"
+        "lsl	%[lo], %[lo], r5\n\t"
+        "orr	%[hi], %[hi], r7, lsr 1\n\t"
+
         "lsr	r5, %[d], #1\n\t"
         "add	r5, r5, #1\n\t"
         "mov	r6, %[lo]\n\t"
@@ -1043,8 +1070,8 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "subs	r8, %[d], r4\n\t"
         "sbc	r8, r8, r8\n\t"
         "sub	%[r], %[r], r8\n\t"
-        : [r] "+r" (r)
-        : [hi] "r" (hi), [lo] "r" (lo), [d] "r" (d)
+        : [r] "+r" (r), [hi] "+r" (hi), [lo] "+r" (lo), [d] "+r" (d)
+        :
         : "r4", "r5", "r6", "r7", "r8"
     );
 
@@ -1065,6 +1092,18 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
                                           sp_int_digit d)
 {
     __asm__ __volatile__ (
+        "lsrs	r3, %[d], 24\n\t"
+	"it	eq\n\t"
+        "moveq	r3, 8\n\t"
+	"it	ne\n\t"
+        "movne	r3, 0\n\t"
+        "rsb	r4, r3, 31\n\t"
+        "lsl	%[d], %[d], r3\n\t"
+        "lsl	%[hi], %[hi], r3\n\t"
+        "lsr	r5, %[lo], r4\n\t"
+        "lsl	%[lo], %[lo], r3\n\t"
+        "orr	%[hi], %[hi], r5, lsr 1\n\t"
+
         "lsr	r5, %[d], 16\n\t"
         "add	r5, r5, 1\n\t"
 
@@ -1101,8 +1140,8 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "udiv	r3, %[lo], %[d]\n\t"
         "add	%[hi], r6, r3\n\t"
 
-        : [hi] "+r" (hi), [lo] "+r" (lo)
-        : [d] "r" (d)
+        : [hi] "+r" (hi), [lo] "+r" (lo), [d] "+r" (d)
+        :
         : "r3", "r4", "r5", "r6"
     );
 
