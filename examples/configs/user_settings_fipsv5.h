@@ -69,10 +69,17 @@ extern "C" {
 #define HAVE_TLS_EXTENSIONS
 #define HAVE_SUPPORTED_CURVES
 #define HAVE_EXTENDED_MASTER
-//#define HAVE_SERVER_RENEGOTIATION_INFO
+#define HAVE_CRL
 
-#undef  WOLFSSL_WOLFSSH
+#if 0
+    #define HAVE_SECURE_RENEGOTIATION
+    #define HAVE_SERVER_RENEGOTIATION_INFO
+#endif
+
+#ifndef WOLFSSL_WOLFSSH  /* ifndef check required due to configure already generating flag */
 #define WOLFSSL_WOLFSSH
+#endif
+
 
 /* DH */
 #undef  NO_DH
@@ -135,7 +142,6 @@ extern "C" {
 #define NO_DES3
 #define NO_PSK
 #define NO_DSA
-#define NO_PWDBASED
 #define WOLFSSL_NO_SHAKE256
 #define NO_RABBIT
 #define NO_HC128
