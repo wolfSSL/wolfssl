@@ -89,6 +89,7 @@
     #include <wolfssl/openssl/buffer.h>
     #include <wolfssl/openssl/dh.h>
     #include <wolfssl/openssl/rsa.h>
+    #include <wolfssl/openssl/fips_rand.h>
 #ifndef WOLFCRYPT_ONLY
     #include <wolfssl/openssl/pem.h>
 #endif
@@ -5308,14 +5309,18 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 
 #endif /* !NO_SESSION_CACHE */
 
-#if defined(OPENSSL_EXTRA) || \
-    (defined(OPENSSL_EXTRA_X509_SMALL) && !defined(NO_RSA))
+#if !defined(WC_NO_RNG) && (defined(OPENSSL_EXTRA) || \
+    (defined(OPENSSL_EXTRA_X509_SMALL) && !defined(NO_RSA)))
 
     #define HAVE_GLOBAL_RNG /* consolidate flags for using globalRNG */
     static WC_RNG globalRNG;
     static int initGlobalRNG = 0;
     static wolfSSL_Mutex globalRNGMutex;
     static int globalRNGMutex_valid = 0;
+
+    #if defined(OPENSSL_EXTRA) && defined(HAVE_HASHDRBG)
+    static WOLFSSL_DRBG_CTX* gDrbgDefCtx = NULL;
+    #endif
 #endif
 
 #if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_NO_OPENSSL_RAND_CB)
@@ -15082,7 +15087,13 @@ int wolfSSL_Cleanup(void)
             ret = BAD_MUTEX_E;
     }
     globalRNGMutex_valid = 0;
+
+    #if defined(OPENSSL_EXTRA) && defined(HAVE_HASHDRBG)
+    wolfSSL_FIPS_drbg_free(gDrbgDefCtx);
+    gDrbgDefCtx = NULL;
+    #endif
 #endif
+
     return ret;
 }
 
@@ -63991,6 +64002,187 @@ int wolfSSL_PKCS12_verify_mac(WC_PKCS12 *pkcs12, const char *psw,
  ******************************************************************************/
 
 #endif /* !NO_CERTS */
+
+
+/*******************************************************************************
+ * BEGIN OPENSSL FIPS DRBG APIs
+ ******************************************************************************/
+#if defined(OPENSSL_EXTRA) && !defined(WC_NO_RNG) && defined(HAVE_HASHDRBG)
+int wolfSSL_FIPS_drbg_init(WOLFSSL_DRBG_CTX *ctx, int type, unsigned int flags)
+{
+    int ret = WOLFSSL_FAILURE;
+    if (ctx != NULL) {
+        XMEMSET(ctx, 0, sizeof(WOLFSSL_DRBG_CTX));
+        ctx->type = type;
+        ctx->xflags = flags;
+        ctx->status = DRBG_STATUS_UNINITIALISED;
+        ret = WOLFSSL_SUCCESS;
+    }
+    return ret;
+}
+WOLFSSL_DRBG_CTX* wolfSSL_FIPS_drbg_new(int type, unsigned int flags)
+{
+    int ret = WOLFSSL_FAILURE;
+    WOLFSSL_DRBG_CTX* ctx = (WOLFSSL_DRBG_CTX*)XMALLOC(sizeof(WOLFSSL_DRBG_CTX),
+        NULL, DYNAMIC_TYPE_OPENSSL);
+    ret = wolfSSL_FIPS_drbg_init(ctx, type, flags);
+    if (ret == WOLFSSL_SUCCESS && type != 0) {
+        ret = wolfSSL_FIPS_drbg_instantiate(ctx, NULL, 0);
+    }
+    if (ret != WOLFSSL_SUCCESS) {
+        WOLFSSL_ERROR(ret);
+        wolfSSL_FIPS_drbg_free(ctx);
+        ctx = NULL;
+    }
+    return ctx;
+}
+int wolfSSL_FIPS_drbg_instantiate(WOLFSSL_DRBG_CTX* ctx,
+    const unsigned char* pers, size_t perslen)
+{
+    int ret = WOLFSSL_FAILURE;
+    if (ctx != NULL && ctx->rng == NULL) {
+    #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS) && FIPS_VERSION_GE(5,0)))
+        ctx->rng = wc_rng_new((byte*)pers, (word32)perslen, NULL);
+    #else
+        ctx->rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+        if (ctx->rng != NULL) {
+        #if defined(HAVE_FIPS) && FIPS_VERSION_GE(2,0)
+            ret = wc_InitRngNonce(ctx->rng, (byte*)pers, (word32)perslen);
+        #else
+            ret = wc_InitRng(ctx->rng);
+            (void)pers;
+            (void)perslen;
+        #endif
+            if (ret != 0) {
+                WOLFSSL_ERROR(ret);
+                XFREE(ctx->rng, NULL, DYNAMIC_TYPE_RNG);
+                ctx->rng = NULL;
+            }
+        }
+    #endif
+    }
+    if (ctx != NULL && ctx->rng != NULL) {
+        ctx->status = DRBG_STATUS_READY;
+        ret = WOLFSSL_SUCCESS;
+    }
+    return ret;
+}
+int wolfSSL_FIPS_drbg_set_callbacks(WOLFSSL_DRBG_CTX* ctx,
+    drbg_entropy_get entropy_get, drbg_entropy_clean entropy_clean,
+    size_t entropy_blocklen,
+    drbg_nonce_get none_get, drbg_nonce_clean nonce_clean)
+{
+    int ret = WOLFSSL_FAILURE;
+    if (ctx != NULL) {
+        ctx->entropy_get = entropy_get;
+        ctx->entropy_clean = entropy_clean;
+        ctx->entropy_blocklen = entropy_blocklen;
+        ctx->none_get = none_get;
+        ctx->nonce_clean = nonce_clean;
+        ret = WOLFSSL_SUCCESS;
+    }
+    return ret;
+}
+void wolfSSL_FIPS_rand_add(const void* buf, int num, double entropy)
+{
+    /* not implemented */
+    (void)buf;
+    (void)num;
+    (void)entropy;
+}
+int wolfSSL_FIPS_drbg_reseed(WOLFSSL_DRBG_CTX* ctx, const unsigned char* adin,
+    size_t adinlen)
+{
+    int ret = WOLFSSL_FAILURE;
+    if (ctx != NULL && ctx->rng != NULL) {
+    #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS) && FIPS_VERSION_GE(2,0)))
+        if (wc_RNG_DRBG_Reseed(ctx->rng, adin, (word32)adinlen) == 0) {
+            ret = WOLFSSL_SUCCESS;
+        }
+    #else
+        ret = WOLFSSL_SUCCESS;
+        (void)adin;
+        (void)adinlen;
+    #endif
+    }
+    return ret;
+}
+int wolfSSL_FIPS_drbg_generate(WOLFSSL_DRBG_CTX* ctx, unsigned char* out,
+    size_t outlen, int prediction_resistance, const unsigned char* adin,
+    size_t adinlen)
+{
+    int ret = WOLFSSL_FAILURE;
+    if (ctx != NULL && ctx->rng != NULL) {
+        ret = wc_RNG_GenerateBlock(ctx->rng, out, (word32)outlen);
+        if (ret == 0) {
+            ret = WOLFSSL_SUCCESS;
+        }
+    }
+    (void)prediction_resistance;
+    (void)adin;
+    (void)adinlen;
+    return ret;
+}
+int wolfSSL_FIPS_drbg_uninstantiate(WOLFSSL_DRBG_CTX *ctx)
+{
+    if (ctx != NULL && ctx->rng != NULL) {
+    #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS) && FIPS_VERSION_GE(5,0)))
+        wc_rng_free(ctx->rng);
+    #else
+        wc_FreeRng(ctx->rng);
+        XFREE(ctx->rng, NULL, DYNAMIC_TYPE_RNG);
+    #endif
+        ctx->rng = NULL;
+        ctx->status = DRBG_STATUS_UNINITIALISED;
+    }
+    return WOLFSSL_SUCCESS;
+}
+void wolfSSL_FIPS_drbg_free(WOLFSSL_DRBG_CTX *ctx)
+{
+    if (ctx != NULL) {
+        /* As saftey check if free'ing the default drbg, then mark global NULL.
+         * Technically the user should not call free on the default drbg. */
+        if (ctx == gDrbgDefCtx) {
+            gDrbgDefCtx = NULL;
+        }
+        wolfSSL_FIPS_drbg_uninstantiate(ctx);
+        XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+}
+WOLFSSL_DRBG_CTX* wolfSSL_FIPS_get_default_drbg(void)
+{
+    if (gDrbgDefCtx == NULL) {
+        gDrbgDefCtx = wolfSSL_FIPS_drbg_new(0, 0);
+    }
+    return gDrbgDefCtx;
+}
+void wolfSSL_FIPS_get_timevec(unsigned char* buf, unsigned long* pctr)
+{
+    /* not implemented */
+    (void)buf;
+    (void)pctr;
+}
+void* wolfSSL_FIPS_drbg_get_app_data(WOLFSSL_DRBG_CTX *ctx)
+{
+    if (ctx != NULL) {
+        return ctx->app_data;
+    }
+    return NULL;
+}
+void wolfSSL_FIPS_drbg_set_app_data(WOLFSSL_DRBG_CTX *ctx, void *app_data)
+{
+    if (ctx != NULL) {
+        ctx->app_data = app_data;
+    }
+}
+#endif
+/*******************************************************************************
+ * END OF OPENSSL FIPS DRBG APIs
+ ******************************************************************************/
+
 
 #endif /* !WOLFCRYPT_ONLY */
 

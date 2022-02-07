@@ -303,6 +303,7 @@
     #include <wolfssl/openssl/objects.h>
     #include <wolfssl/openssl/rand.h>
     #include <wolfssl/openssl/modes.h>
+    #include <wolfssl/openssl/fips_rand.h>
 #ifdef OPENSSL_ALL
     #include <wolfssl/openssl/txt_db.h>
     #include <wolfssl/openssl/lhash.h>
@@ -52031,6 +52032,45 @@ static void test_wolfSSL_CTX_StaticMemory(void)
 #endif
 }
 
+static void test_openssl_FIPS_drbg(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(WC_NO_RNG) && defined(HAVE_HASHDRBG)
+    DRBG_CTX* dctx;
+    byte data1[32], data2[32], zeroData[32];
+    byte testSeed[16];
+    size_t dlen = sizeof(data1);
+    int i;
+
+    XMEMSET(data1, 0, dlen);
+    XMEMSET(data2, 0, dlen);
+    XMEMSET(zeroData, 0, sizeof(zeroData));
+    for (i=0; i<(int)sizeof(testSeed); i++) {
+        testSeed[i] = (byte)i;
+    }
+
+    printf(testingFmt, "test_openssl_FIPS_drbg()");
+
+    AssertNotNull(dctx = FIPS_get_default_drbg());
+    AssertIntEQ(FIPS_drbg_init(dctx, 0, 0), WOLFSSL_SUCCESS);
+    AssertIntEQ(FIPS_drbg_set_callbacks(dctx, NULL, NULL, 20, NULL, NULL),
+        WOLFSSL_SUCCESS);
+    AssertIntEQ(FIPS_drbg_instantiate(dctx, NULL, 0), WOLFSSL_SUCCESS);
+    
+    AssertIntEQ(FIPS_drbg_generate(dctx, data1, dlen, 0, NULL, 0),
+        WOLFSSL_SUCCESS);
+    AssertIntNE(XMEMCMP(data1, zeroData, dlen), 0);
+    AssertIntEQ(FIPS_drbg_reseed(dctx, testSeed, sizeof(testSeed)),
+        WOLFSSL_SUCCESS);
+    AssertIntEQ(FIPS_drbg_generate(dctx, data2, dlen, 0, NULL, 0),
+        WOLFSSL_SUCCESS);
+    AssertIntNE(XMEMCMP(data1, zeroData, dlen), 0);
+    AssertIntNE(XMEMCMP(data1, data2, dlen), 0);
+    AssertIntEQ(FIPS_drbg_uninstantiate(dctx), WOLFSSL_SUCCESS);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 
 
 /*----------------------------------------------------------------------------*
@@ -52888,11 +52928,9 @@ void ApiTest(void)
     test_wc_PKCS7_SetOriEncryptCtx();
     test_wc_PKCS7_SetOriDecryptCtx();
     test_wc_PKCS7_DecodeCompressedData();
-
     test_wc_i2d_PKCS12();
-
     test_wolfSSL_CTX_LoadCRL();
-
+    test_openssl_FIPS_drbg();
     test_wc_CryptoCb();
     test_wolfSSL_CTX_StaticMemory();
 
