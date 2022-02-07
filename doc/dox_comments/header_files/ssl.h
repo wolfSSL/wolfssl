@@ -11166,7 +11166,7 @@ WOLFSSL_API int wolfSSL_CTX_UseSessionTicket(WOLFSSL_CTX* ctx);
     if(wolfSSL_get_SessionTicket(ssl, buf, bufSz) <= 0){
 	    // Nothing was written to the buffer
     } else {
-	    // the buffer holds the content from ssl->session.ticket
+	    // the buffer holds the content from ssl->session->ticket
     }
     \endcode
 

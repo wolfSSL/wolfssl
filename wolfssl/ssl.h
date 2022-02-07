@@ -1484,6 +1484,8 @@ WOLFSSL_API WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_SESSION_new(void);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_SESSION_new_ex(void* heap);
 WOLFSSL_API void wolfSSL_SESSION_free(WOLFSSL_SESSION* session);
+WOLFSSL_API int wolfSSL_CTX_add_session(WOLFSSL_CTX* ctx,
+                                        WOLFSSL_SESSION* session);
 WOLFSSL_API int wolfSSL_SESSION_set_cipher(WOLFSSL_SESSION* session,
                                         const WOLFSSL_CIPHER* cipher);
 WOLFSSL_API int  wolfSSL_is_init_finished(WOLFSSL* ssl);
@@ -4440,9 +4442,6 @@ WOLFSSL_API int  wolfSSL_version(WOLFSSL* ssl);
 
 #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) \
     || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
-
-WOLFSSL_API int        wolfSSL_CTX_add_session(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session);
-
 
 WOLFSSL_API int wolfSSL_get_state(const WOLFSSL* ssl);
 

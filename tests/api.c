@@ -6257,13 +6257,14 @@ static void test_wolfSSL_CTX_add_session_on_result(WOLFSSL* ssl)
     }
 #ifdef SESSION_CERTS
 #ifndef WOLFSSL_TICKET_HAVE_ID
-    if (wolfSSL_version(ssl) != TLS1_3_VERSION)
+    if (wolfSSL_version(ssl) != TLS1_3_VERSION &&
+            wolfSSL_session_reused(ssl))
 #endif
     {
         /* With WOLFSSL_TICKET_HAVE_ID the peer certs should be available
          * for all connections. TLS 1.3 only has tickets so if we don't
          * include the session id in the ticket then the certificates
-         * will not be available. */
+         * will not be available on resumption. */
         WOLFSSL_X509* peer = wolfSSL_get_peer_certificate(ssl);
         AssertNotNull(peer);
         wolfSSL_X509_free(peer);

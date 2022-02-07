@@ -807,7 +807,7 @@ int DeriveResumptionSecret(WOLFSSL* ssl, byte* key)
         masterSecret = ssl->arrays->masterSecret;
     }
     else {
-        masterSecret = ssl->session.masterSecret;
+        masterSecret = ssl->session->masterSecret;
     }
     return DeriveKey(ssl, key, -1, masterSecret, resumeMasterLabel,
                      RESUME_MASTER_LABEL_SZ, ssl->specs.mac_algorithm, 1);
@@ -1014,7 +1014,7 @@ int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen, byte* secret)
 
     PRIVATE_KEY_UNLOCK();
     ret = wc_Tls13_HKDF_Expand_Label(secret, ssl->specs.hash_size,
-                             ssl->session.masterSecret, ssl->specs.hash_size,
+                             ssl->session->masterSecret, ssl->specs.hash_size,
                              protocol, protocolLen, resumptionLabel,
                              RESUMPTION_LABEL_SZ, nonce, nonceLen, digestAlg);
     PRIVATE_KEY_LOCK();
@@ -2772,13 +2772,13 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
         }
 
     #ifdef WOLFSSL_EARLY_DATA
-        if (ssl->session.maxEarlyDataSz == 0)
+        if (ssl->session->maxEarlyDataSz == 0)
             ssl->earlyData = no_early_data;
     #endif
         /* Resumption PSK is master secret. */
         ssl->arrays->psk_keySz = ssl->specs.hash_size;
-        if ((ret = DeriveResumptionPSK(ssl, ssl->session.ticketNonce.data,
-                    ssl->session.ticketNonce.len, ssl->arrays->psk_key)) != 0) {
+        if ((ret = DeriveResumptionPSK(ssl, ssl->session->ticketNonce.data,
+                    ssl->session->ticketNonce.len, ssl->arrays->psk_key)) != 0) {
             return ret;
         }
     }
@@ -3049,15 +3049,15 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
 #ifdef HAVE_SESSION_TICKET
     if (ssl->options.resuming &&
-            (ssl->session.version.major != ssl->version.major ||
-             ssl->session.version.minor != ssl->version.minor)) {
+            (ssl->session->version.major != ssl->version.major ||
+             ssl->session->version.minor != ssl->version.minor)) {
     #ifndef WOLFSSL_NO_TLS12
-        if (ssl->session.version.major == ssl->version.major &&
-            ssl->session.version.minor < ssl->version.minor) {
+        if (ssl->session->version.major == ssl->version.major &&
+            ssl->session->version.minor < ssl->version.minor) {
             /* Cannot resume with a different protocol version. */
             ssl->options.resuming = 0;
-            ssl->version.major = ssl->session.version.major;
-            ssl->version.minor = ssl->session.version.minor;
+            ssl->version.major = ssl->session->version.major;
+            ssl->version.minor = ssl->session->version.minor;
             return SendClientHello(ssl);
         }
         else
@@ -3097,8 +3097,8 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 #if defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
     args->length += ID_LEN;
 #else
-    if (ssl->session.sessionIDSz > 0)
-        args->length += ssl->session.sessionIDSz;
+    if (ssl->session->sessionIDSz > 0)
+        args->length += ssl->session->sessionIDSz;
 #endif
 
     /* Advance state and proceed */
@@ -3179,11 +3179,11 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         XMEMCPY(args->output + args->idx, ssl->arrays->clientRandom, RAN_LEN);
     args->idx += RAN_LEN;
 
-    if (ssl->session.sessionIDSz > 0) {
+    if (ssl->session->sessionIDSz > 0) {
         /* Session resumption for old versions of protocol. */
         args->output[args->idx++] = ID_LEN;
-        XMEMCPY(args->output + args->idx, ssl->session.sessionID,
-            ssl->session.sessionIDSz);
+        XMEMCPY(args->output + args->idx, ssl->session->sessionID,
+            ssl->session->sessionIDSz);
         args->idx += ID_LEN;
     }
     else {
@@ -3514,7 +3514,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef HAVE_SECRET_CALLBACK
     if (ssl->sessionSecretCb != NULL) {
         int secretSz = SECRET_LEN;
-        ret = ssl->sessionSecretCb(ssl, ssl->session.masterSecret,
+        ret = ssl->sessionSecretCb(ssl, ssl->session->masterSecret,
                                    &secretSz, ssl->sessionSecretCtx);
         if (ret != 0 || secretSz != SECRET_LEN) {
             return SESSION_SECRET_CB_E;
@@ -3566,9 +3566,9 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         WOLFSSL_MSG("args->sessIdSz == 0");
         return INVALID_PARAMETER;
     }
-    if (ssl->session.sessionIDSz != 0) {
-        if (ssl->session.sessionIDSz != args->sessIdSz ||
-            XMEMCMP(ssl->session.sessionID, args->sessId,
+    if (ssl->session->sessionIDSz != 0) {
+        if (ssl->session->sessionIDSz != args->sessIdSz ||
+            XMEMCMP(ssl->session->sessionID, args->sessId,
                 args->sessIdSz) != 0) {
             WOLFSSL_MSG("session id doesn't match");
             return INVALID_PARAMETER;
@@ -3580,8 +3580,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return INVALID_PARAMETER;
     }
 #else
-    if (args->sessIdSz != ssl->session.sessionIDSz || (args->sessIdSz > 0 &&
-        XMEMCMP(ssl->session.sessionID, args->sessId, args->sessIdSz) != 0))
+    if (args->sessIdSz != ssl->session->sessionIDSz || (args->sessIdSz > 0 &&
+        XMEMCMP(ssl->session->sessionID, args->sessId, args->sessIdSz) != 0))
     {
         WOLFSSL_MSG("Server sent different session id");
         return INVALID_PARAMETER;
@@ -3944,7 +3944,7 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, byte* suite, int* err)
             ssl->options.verifyPeer = 0;
 
             /* PSK age is always zero. */
-            if (psk->ticketAge != ssl->session.ticketAdd) {
+            if (psk->ticketAge != ssl->session->ticketAdd) {
                 ret = PSK_KEY_ERROR;
             }
         }
@@ -4016,7 +4016,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, byte* suite, int* usingPSK, int* first)
             /* Difference between now and time ticket constructed
              * (from decrypted ticket). */
             diff = now;
-            diff -= ssl->session.ticketSeen;
+            diff -= ssl->session->ticketSeen;
             if (diff > (sword64)ssl->timeout * 1000 ||
                 diff > (sword64)TLS13_MAX_TICKET_AGE * 1000) {
                 current = current->next;
@@ -4024,7 +4024,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, byte* suite, int* usingPSK, int* first)
             }
             /* Subtract client's ticket age and unobfuscate. */
             diff -= current->ticketAge;
-            diff += ssl->session.ticketAdd;
+            diff += ssl->session->ticketAdd;
             /* Check session and ticket age timeout.
              * Allow +/- 1000 milliseconds on ticket age.
              */
@@ -4037,14 +4037,14 @@ static int DoPreSharedKeys(WOLFSSL* ssl, byte* suite, int* usingPSK, int* first)
             /* Check whether resumption is possible based on suites in SSL and
              * ciphersuite in ticket.
              */
-            if ((suite[0] != ssl->session.cipherSuite0) ||
-                                       (suite[1] != ssl->session.cipherSuite)) {
+            if ((suite[0] != ssl->session->cipherSuite0) ||
+                                       (suite[1] != ssl->session->cipherSuite)) {
                 current = current->next;
                 continue;
             }
         #else
-            suite[0] = ssl->session.cipherSuite0;
-            suite[1] = ssl->session.cipherSuite;
+            suite[0] = ssl->session->cipherSuite0;
+            suite[1] = ssl->session->cipherSuite;
             if (!FindSuiteSSL(ssl, suite)) {
                 current = current->next;
                 continue;
@@ -4052,19 +4052,19 @@ static int DoPreSharedKeys(WOLFSSL* ssl, byte* suite, int* usingPSK, int* first)
         #endif
 
         #ifdef WOLFSSL_EARLY_DATA
-            ssl->options.maxEarlyDataSz = ssl->session.maxEarlyDataSz;
+            ssl->options.maxEarlyDataSz = ssl->session->maxEarlyDataSz;
         #endif
             /* Use the same cipher suite as before and set up for use. */
-            ssl->options.cipherSuite0   = ssl->session.cipherSuite0;
-            ssl->options.cipherSuite    = ssl->session.cipherSuite;
+            ssl->options.cipherSuite0   = ssl->session->cipherSuite0;
+            ssl->options.cipherSuite    = ssl->session->cipherSuite;
             ret = SetCipherSpecs(ssl);
             if (ret != 0)
                 return ret;
 
             /* Resumption PSK is resumption master secret. */
             ssl->arrays->psk_keySz = ssl->specs.hash_size;
-            if ((ret = DeriveResumptionPSK(ssl, ssl->session.ticketNonce.data,
-                    ssl->session.ticketNonce.len, ssl->arrays->psk_key)) != 0) {
+            if ((ret = DeriveResumptionPSK(ssl, ssl->session->ticketNonce.data,
+                    ssl->session->ticketNonce.len, ssl->arrays->psk_key)) != 0) {
                 return ret;
             }
 
@@ -4273,7 +4273,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         if ((modes & (1 << PSK_DHE_KE)) != 0 && !ssl->options.noPskDheKe &&
                                                                   ext != NULL) {
             /* Only use named group used in last session. */
-            ssl->namedGroup = ssl->session.namedGroup;
+            ssl->namedGroup = ssl->session->namedGroup;
 
             *usingPSK = 2; /* generate new ephemeral key */
         }
@@ -4404,7 +4404,7 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
         return ret;
 
     /* Reconstruct the HelloRetryMessage for handshake hash. */
-    length = HRR_BODY_SZ - ID_LEN + ssl->session.sessionIDSz +
+    length = HRR_BODY_SZ - ID_LEN + ssl->session->sessionIDSz +
              HRR_COOKIE_HDR_SZ + cookie->len;
     length += HRR_VERSIONS_SZ;
     if (cookieDataSz > hashSz + OPAQUE16_LEN) {
@@ -4425,10 +4425,10 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
     XMEMCPY(hrr + hrrIdx, helloRetryRequestRandom, RAN_LEN);
     hrrIdx += RAN_LEN;
 
-    hrr[hrrIdx++] = ssl->session.sessionIDSz;
-    if (ssl->session.sessionIDSz > 0) {
-        XMEMCPY(hrr + hrrIdx, ssl->session.sessionID, ssl->session.sessionIDSz);
-        hrrIdx += ssl->session.sessionIDSz;
+    hrr[hrrIdx++] = ssl->session->sessionIDSz;
+    if (ssl->session->sessionIDSz > 0) {
+        XMEMCPY(hrr + hrrIdx, ssl->session->sessionID, ssl->session->sessionIDSz);
+        hrrIdx += ssl->session->sessionIDSz;
     }
 
     /* Cipher Suite */
@@ -4439,7 +4439,7 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
     hrr[hrrIdx++] = 0;
 
     /* Extensions' length */
-    length -= HRR_BODY_SZ - ID_LEN + ssl->session.sessionIDSz;
+    length -= HRR_BODY_SZ - ID_LEN + ssl->session->sessionIDSz;
     c16toa(length, hrr + hrrIdx);
     hrrIdx += 2;
 
@@ -4717,9 +4717,9 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ERROR_OUT(BUFFER_ERROR, exit_dch);
     }
 
-    ssl->session.sessionIDSz = sessIdSz;
+    ssl->session->sessionIDSz = sessIdSz;
     if (sessIdSz == ID_LEN) {
-        XMEMCPY(ssl->session.sessionID, input + args->idx, sessIdSz);
+        XMEMCPY(ssl->session->sessionID, input + args->idx, sessIdSz);
         args->idx += ID_LEN;
     }
 
@@ -4973,7 +4973,7 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     /* Protocol version, server random, session id, cipher suite, compression
      * and extensions.
      */
-    length = VERSION_SZ + RAN_LEN + ENUM_LEN + ssl->session.sessionIDSz +
+    length = VERSION_SZ + RAN_LEN + ENUM_LEN + ssl->session->sessionIDSz +
              SUITE_LEN + COMP_LEN;
     ret = TLSX_GetResponseSize(ssl, extMsgType, &length);
     if (ret != 0)
@@ -5014,10 +5014,10 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     WOLFSSL_BUFFER(ssl->arrays->serverRandom, RAN_LEN);
 #endif
 
-    output[idx++] = ssl->session.sessionIDSz;
-    if (ssl->session.sessionIDSz > 0) {
-        XMEMCPY(output + idx, ssl->session.sessionID, ssl->session.sessionIDSz);
-        idx += ssl->session.sessionIDSz;
+    output[idx++] = ssl->session->sessionIDSz;
+    if (ssl->session->sessionIDSz > 0) {
+        XMEMCPY(output + idx, ssl->session->sessionID, ssl->session->sessionIDSz);
+        idx += ssl->session->sessionIDSz;
     }
 
     /* Chosen cipher suite */
@@ -7144,7 +7144,7 @@ static int SendTls13Finished(WOLFSSL* ssl)
             return ret;
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-        ret = DeriveResumptionSecret(ssl, ssl->session.masterSecret);
+        ret = DeriveResumptionSecret(ssl, ssl->session->masterSecret);
         if (ret != 0)
             return ret;
 #endif
@@ -7476,18 +7476,18 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
         return now;
     /* Copy in ticket data (server identity). */
     ssl->timeout                = lifetime;
-    ssl->session.timeout        = lifetime;
-    ssl->session.cipherSuite0   = ssl->options.cipherSuite0;
-    ssl->session.cipherSuite    = ssl->options.cipherSuite;
-    ssl->session.ticketSeen     = now;
-    ssl->session.ticketAdd      = ageAdd;
+    ssl->session->timeout        = lifetime;
+    ssl->session->cipherSuite0   = ssl->options.cipherSuite0;
+    ssl->session->cipherSuite    = ssl->options.cipherSuite;
+    ssl->session->ticketSeen     = now;
+    ssl->session->ticketAdd      = ageAdd;
     #ifdef WOLFSSL_EARLY_DATA
-    ssl->session.maxEarlyDataSz = ssl->options.maxEarlyDataSz;
+    ssl->session->maxEarlyDataSz = ssl->options.maxEarlyDataSz;
     #endif
-    ssl->session.ticketNonce.len = nonceLength;
+    ssl->session->ticketNonce.len = nonceLength;
     if (nonceLength > 0)
-        XMEMCPY(&ssl->session.ticketNonce.data, nonce, nonceLength);
-    ssl->session.namedGroup     = ssl->namedGroup;
+        XMEMCPY(&ssl->session->ticketNonce.data, nonce, nonceLength);
+    ssl->session->namedGroup     = ssl->namedGroup;
 
     if ((*inOutIdx - begin) + EXTS_SZ > size)
         return BUFFER_ERROR;
@@ -7592,7 +7592,7 @@ static int ExpectedResumptionSecret(WOLFSSL* ssl)
     if ((ret = HashRaw(ssl, mac, finishedSz)) != 0)
         return ret;
 
-    if ((ret = DeriveResumptionSecret(ssl, ssl->session.masterSecret)) != 0)
+    if ((ret = DeriveResumptionSecret(ssl, ssl->session->masterSecret)) != 0)
         return ret;
 
     /* Restore the hash inline with currently seen messages. */
@@ -7656,12 +7656,12 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
 #endif
 
     /* Start ticket nonce at 0 and go up to 255. */
-    if (ssl->session.ticketNonce.len == 0) {
-        ssl->session.ticketNonce.len = DEF_TICKET_NONCE_SZ;
-        ssl->session.ticketNonce.data[0] = 0;
+    if (ssl->session->ticketNonce.len == 0) {
+        ssl->session->ticketNonce.len = DEF_TICKET_NONCE_SZ;
+        ssl->session->ticketNonce.data[0] = 0;
     }
     else
-        ssl->session.ticketNonce.data[0]++;
+        ssl->session->ticketNonce.data[0]++;
 
     if (!ssl->options.noTicketTls13) {
         if ((ret = CreateTicket(ssl)) != 0)
@@ -7669,9 +7669,9 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     }
 
 #ifdef WOLFSSL_EARLY_DATA
-    ssl->session.maxEarlyDataSz = ssl->options.maxEarlyDataSz;
-    if (ssl->session.maxEarlyDataSz > 0)
-        TLSX_EarlyData_Use(ssl, ssl->session.maxEarlyDataSz);
+    ssl->session->maxEarlyDataSz = ssl->options.maxEarlyDataSz;
+    if (ssl->session->maxEarlyDataSz > 0)
+        TLSX_EarlyData_Use(ssl, ssl->session->maxEarlyDataSz);
     extSz = 0;
     ret = TLSX_GetResponseSize(ssl, session_ticket, &extSz);
     if (ret != 0)
@@ -7682,7 +7682,7 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
 
     /* Lifetime | Age Add | Ticket | Extensions */
     length = SESSION_HINT_SZ + SESSION_ADD_SZ + LENGTH_SZ +
-             ssl->session.ticketLen + extSz;
+             ssl->session->ticketLen + extSz;
     /* Nonce */
     length += TICKET_NONCE_LEN_SZ + DEF_TICKET_NONCE_SZ;
     sendSz = idx + length + MAX_MSG_EXTRA;
@@ -7702,18 +7702,18 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     c32toa(ssl->ctx->ticketHint, output + idx);
     idx += SESSION_HINT_SZ;
     /* Age add - obfuscator */
-    c32toa(ssl->session.ticketAdd, output + idx);
+    c32toa(ssl->session->ticketAdd, output + idx);
     idx += SESSION_ADD_SZ;
 
-    output[idx++] = ssl->session.ticketNonce.len;
-    output[idx++] = ssl->session.ticketNonce.data[0];
+    output[idx++] = ssl->session->ticketNonce.len;
+    output[idx++] = ssl->session->ticketNonce.data[0];
 
     /* length */
-    c16toa(ssl->session.ticketLen, output + idx);
+    c16toa(ssl->session->ticketLen, output + idx);
     idx += LENGTH_SZ;
     /* ticket */
-    XMEMCPY(output + idx, ssl->session.ticket, ssl->session.ticketLen);
-    idx += ssl->session.ticketLen;
+    XMEMCPY(output + idx, ssl->session->ticket, ssl->session->ticketLen);
+    idx += ssl->session->ticketLen;
 
 #ifdef WOLFSSL_EARLY_DATA
     extSz = 0;
@@ -8409,7 +8409,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #ifndef NO_WOLFSSL_SERVER
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
         if (ssl->options.side == WOLFSSL_SERVER_END && type == finished) {
-            ret = DeriveResumptionSecret(ssl, ssl->session.masterSecret);
+            ret = DeriveResumptionSecret(ssl, ssl->session->masterSecret);
             if (ret != 0)
                 return ret;
         }
@@ -9933,8 +9933,8 @@ int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
     if (ssl->options.handShakeState == CLIENT_HELLO_COMPLETE) {
 #ifdef OPENSSL_EXTRA
         /* when processed early data exceeds max size */
-        if (ssl->session.maxEarlyDataSz > 0 &&
-            (ssl->earlyDataSz + sz > ssl->session.maxEarlyDataSz)) {
+        if (ssl->session->maxEarlyDataSz > 0 &&
+            (ssl->earlyDataSz + sz > ssl->session->maxEarlyDataSz)) {
             ssl->error = TOO_MUCH_EARLY_DATA;
             return WOLFSSL_FATAL_ERROR;
         }

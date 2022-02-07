@@ -7698,7 +7698,7 @@ static int TLSX_KeyShare_Process(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     int ret;
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-    ssl->session.namedGroup = (byte)keyShareEntry->group;
+    ssl->session->namedGroup = (byte)keyShareEntry->group;
 #endif
     /* reset the pre master secret size */
     if (ssl->arrays->preMasterSz == 0)
@@ -7943,7 +7943,7 @@ static int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         /* Process the entry to calculate the secret. */
         ret = TLSX_KeyShare_Process(ssl, keyShareEntry);
         if (ret == 0)
-            ssl->session.namedGroup = ssl->namedGroup = group;
+            ssl->session->namedGroup = ssl->namedGroup = group;
     }
     else if (msgType == hello_retry_request) {
         if (length != OPAQUE16_LEN)
@@ -9122,10 +9122,10 @@ static int TLSX_PreSharedKey_Parse(WOLFSSL* ssl, const byte* input,
     #ifdef HAVE_SESSION_TICKET
         if (list->resumption) {
            /* Check that the session's details are the same as the server's. */
-           if (ssl->options.cipherSuite0  != ssl->session.cipherSuite0       ||
-               ssl->options.cipherSuite   != ssl->session.cipherSuite        ||
-               ssl->session.version.major != ssl->ctx->method->version.major ||
-               ssl->session.version.minor != ssl->ctx->method->version.minor) {
+           if (ssl->options.cipherSuite0  != ssl->session->cipherSuite0       ||
+               ssl->options.cipherSuite   != ssl->session->cipherSuite        ||
+               ssl->session->version.major != ssl->ctx->method->version.major ||
+               ssl->session->version.minor != ssl->ctx->method->version.minor) {
                return PSK_KEY_ERROR;
            }
         }
@@ -9636,7 +9636,7 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             return BUFFER_E;
         ato32(input, &maxSz);
 
-        ssl->session.maxEarlyDataSz = maxSz;
+        ssl->session->maxEarlyDataSz = maxSz;
         return 0;
     }
 
@@ -10195,8 +10195,8 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
     int ret = WOLFSSL_SUCCESS;
 #ifdef WOLFSSL_TLS13
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-    if (ssl->options.resuming && ssl->session.namedGroup != 0) {
-        return TLSX_UseSupportedCurve(extensions, ssl->session.namedGroup,
+    if (ssl->options.resuming && ssl->session->namedGroup != 0) {
+        return TLSX_UseSupportedCurve(extensions, ssl->session->namedGroup,
                                                                      ssl->heap);
     }
 #endif
@@ -10600,8 +10600,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             extension = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
             if (extension == NULL) {
             #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-                if (ssl->options.resuming && ssl->session.namedGroup != 0)
-                    namedGroup = ssl->session.namedGroup;
+                if (ssl->options.resuming && ssl->session->namedGroup != 0)
+                    namedGroup = ssl->session->namedGroup;
                 else
             #endif
                 if (ssl->numGroups > 0) {
@@ -10647,8 +10647,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             TLSX_Remove(&ssl->extensions, TLSX_PRE_SHARED_KEY, ssl->heap);
         #endif
         #if defined(HAVE_SESSION_TICKET)
-            if (ssl->options.resuming && ssl->session.ticketLen > 0) {
-                WOLFSSL_SESSION* sess = &ssl->session;
+            if (ssl->options.resuming && ssl->session->ticketLen > 0) {
+                WOLFSSL_SESSION* sess = ssl->session;
                 word32           now, milli;
 
                 if (sess->ticketLen > MAX_PSK_ID_LEN) {

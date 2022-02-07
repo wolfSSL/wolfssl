@@ -3319,6 +3319,8 @@ struct WOLFSSL_SESSION {
 #ifndef SINGLE_THREADED
     wolfSSL_Mutex      refMutex;          /* ref count mutex */
 #endif
+    byte               altSessionID[ID_LEN];
+    byte               haveAltSessionID:1;
     void*              heap;
     /* WARNING The above fields (up to and including the heap) are not copied
      *         in wolfSSL_DupSession. Place new fields after the heap
@@ -3710,9 +3712,6 @@ typedef struct Options {
     word16            encThenMac:1;           /* Doing Encrypt-Then-MAC */
     word16            startedETMRead:1;       /* Doing Encrypt-Then-MAC read */
     word16            startedETMWrite:1;      /* Doing Encrypt-Then-MAC write */
-#endif
-#ifdef WOLFSSL_TICKET_HAVE_ID
-    word16          haveTicketSessionID:1;
 #endif
 
     /* need full byte values for this section */
@@ -4242,13 +4241,7 @@ struct WOLFSSL {
     Ciphers         encrypt;
     Ciphers         decrypt;
     Buffers         buffers;
-    WOLFSSL_SESSION session;
-#ifdef HAVE_EXT_CACHE
-    WOLFSSL_SESSION* extSession;
-#endif
-#ifdef WOLFSSL_TICKET_HAVE_ID
-    byte            ticketSessionID[ID_LEN];
-#endif
+    WOLFSSL_SESSION* session;
     WOLFSSL_ALERT_HISTORY alert_history;
     int             error;
     int             rfd;                /* read  file descriptor */
@@ -4773,6 +4766,10 @@ WOLFSSL_LOCAL int SetCipherSpecs(WOLFSSL* ssl);
 WOLFSSL_LOCAL int MakeMasterSecret(WOLFSSL* ssl);
 
 WOLFSSL_LOCAL int AddSession(WOLFSSL* ssl);
+WOLFSSL_LOCAL int AddSessionToCache(WOLFSSL_SESSION* addSession, const byte* id,
+                                int* sessionIndex, int side, word16 useTicket);
+WOLFSSL_LOCAL int AddSessionToClientCache(int side, int row, int idx,
+                                byte* serverID, word16 idLen, word16 useTicket);
 WOLFSSL_LOCAL int DeriveKeys(WOLFSSL* ssl);
 WOLFSSL_LOCAL int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side);
 
