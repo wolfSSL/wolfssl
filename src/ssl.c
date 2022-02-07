@@ -20851,11 +20851,15 @@ char* wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
     return in;
 }
 
+#ifdef OPENSSL_EXTRA
 unsigned long wolfSSL_X509_NAME_hash(WOLFSSL_X509_NAME* name)
 {
 #ifndef NO_SHA
     byte digest[WC_SHA_DIGEST_SIZE];
     unsigned long ret = 0;
+    unsigned char* canon_name = NULL;
+    int size = 0;
+
     WOLFSSL_ENTER("wolfSSL_X509_NAME_hash");
     if (name == NULL) {
         WOLFSSL_MSG("WOLFSSL_X509_NAME pointer was NULL");
@@ -20865,10 +20869,21 @@ unsigned long wolfSSL_X509_NAME_hash(WOLFSSL_X509_NAME* name)
         WOLFSSL_MSG("nothing to hash in WOLFSSL_X509_NAME");
         return 0;
     }
-    if (wc_ShaHash((byte*)name->name, name->sz, digest) != 0) {
+  
+    size = wolfSSL_i2d_X509_NAME_canon(name, &canon_name);
+    
+    if (size <= 0){
+        WOLFSSL_MSG("wolfSSL_i2d_X509_NAME_canon error");
+        return 0;
+    } 
+
+    if (wc_ShaHash((byte*)canon_name, size, digest) != 0) {
         WOLFSSL_MSG("wc_ShaHash error");
         return 0;
     }
+
+    XFREE(canon_name, NULL, DYNAMIC_TYPE_OPENSSL);
+    
     ret  =  (unsigned long) digest[0];
     ret |= ((unsigned long) digest[1]) << 8;
     ret |= ((unsigned long) digest[2]) << 16;
@@ -20880,6 +20895,7 @@ unsigned long wolfSSL_X509_NAME_hash(WOLFSSL_X509_NAME* name)
     return 0;
 #endif
 }
+#endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) && defined(XSNPRINTF)
 /* Copies X509 subject name into a buffer, with comma-separated name entries
@@ -23321,7 +23337,7 @@ void wolfSSL_sk_ASN1_OBJECT_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 #endif /* !NO_ASN */
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #ifndef NO_ASN
 
 int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, WOLFSSL_ASN1_STRING *in)
@@ -23353,6 +23369,11 @@ int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, WOLFSSL_ASN1_STRING *in)
     *out = buf;
     return inLen;
 }
+#endif /* !NO_ASN */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
+#if defined(OPENSSL_EXTRA)
+#ifndef NO_ASN
 
 int wolfSSL_ASN1_UNIVERSALSTRING_to_string(WOLFSSL_ASN1_STRING *s)
 {
@@ -24933,7 +24954,6 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
             return NULL;
         }
     }
-
     unsigned char* wolfSSL_ASN1_STRING_data(WOLFSSL_ASN1_STRING* asn)
     {
 #ifdef WOLFSSL_DEBUG_OPENSSL
@@ -36812,7 +36832,9 @@ int wolfSSL_CMAC_Final(WOLFSSL_CMAC_CTX* ctx, unsigned char* out,
     return ret;
 }
 #endif /* WOLFSSL_CMAC && OPENSSL_EXTRA && WOLFSSL_AES_DIRECT */
+#endif /* OPENSSL_EXTRA */
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* Free the dynamically allocated data.
  *
  * p  Pointer to dynamically allocated memory.
@@ -36823,6 +36845,9 @@ void wolfSSL_OPENSSL_free(void* p)
 
     XFREE(p, NULL, DYNAMIC_TYPE_OPENSSL);
 }
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
+#ifdef OPENSSL_EXTRA
 
 void *wolfSSL_OPENSSL_malloc(size_t a)
 {
@@ -43974,18 +43999,10 @@ cleanup:
         return wolfSSL_X509_sign(x509, ctx->pctx->pkey, wolfSSL_EVP_MD_CTX_md(ctx));
     }
 #endif /* OPENSSL_EXTRA */
+#endif /* WOLFSSL_CERT_GEN */
 
-/* Guarded by either
- * A) WOLFSSL_WPAS_SMALL is on or
- * B) (OPENSSL_EXTRA or OPENSSL_EXTRA_X509_SMALL) + WOLFSSL_CERT_GEN +
- *    (WOLFSSL_CERT_REQ or WOLFSSL_CERT_EXT or OPENSSL_EXTRA) has been
- *    defined
- */
-#if defined(WOLFSSL_WPAS_SMALL) || \
-    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
-    defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT) || \
-     defined(OPENSSL_EXTRA))
+
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* Converts from NID_* value to wolfSSL value if needed.
  *
  * @param [in] nid  Numeric Id of a domain name component.
@@ -44014,7 +44031,6 @@ static int ConvertNIDToWolfSSL(int nid)
     }
 }
 
-#if defined(OPENSSL_ALL)
 /* Convert ASN1 input string into canonical ASN1 string                     */
 /*  , which has the following rules:                                        */
 /*   convert to UTF8                                                        */
@@ -44198,7 +44214,20 @@ int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
     }
     return totalBytes;
 }
-#endif /* OPENSSL_ALL */
+#endif /* OPENSSL_ALL || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL*/
+
+#ifdef WOLFSSL_CERT_GEN
+/* Guarded by either
+ * A) WOLFSSL_WPAS_SMALL is on or
+ * B) (OPENSSL_EXTRA or OPENSSL_EXTRA_X509_SMALL) + WOLFSSL_CERT_GEN +
+ *    (WOLFSSL_CERT_REQ or WOLFSSL_CERT_EXT or OPENSSL_EXTRA) has been
+ *    defined
+ */
+#if defined(WOLFSSL_WPAS_SMALL) || \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT) || \
+     defined(OPENSSL_EXTRA))
 
 /* Converts the x509 name structure into DER format.
  *
