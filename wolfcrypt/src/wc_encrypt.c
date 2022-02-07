@@ -474,24 +474,30 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
         return MEMORY_E;
 #endif
 
-    if (version == PKCS5v2)
+    switch (version) {
+#ifndef NO_HMAC
+    case PKCS5v2:
         ret = wc_PBKDF2(key, (byte*)password, passwordSz,
                         salt, saltSz, iterations, derivedLen, typeH);
+        break;
+#endif
 #ifndef NO_SHA
-    else if (version == PKCS5)
+    case PKCS5:
         ret = wc_PBKDF1(key, (byte*)password, passwordSz,
                         salt, saltSz, iterations, derivedLen, typeH);
+        break;
 #endif
 #ifdef HAVE_PKCS12
-    else if (version == PKCS12v1) {
+    case PKCS12v1:
+    {
         int  i, idx = 0;
         byte unicodePasswd[MAX_UNICODE_SZ];
 
         if ( (passwordSz * 2 + 2) > (int)sizeof(unicodePasswd)) {
             ForceZero(key, MAX_KEY_SIZE);
-#ifdef WOLFSSL_SMALL_STACK
+        #ifdef WOLFSSL_SMALL_STACK
             XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        #endif
             return UNICODE_SIZE_E;
         }
 
@@ -505,19 +511,21 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
 
         ret =  wc_PKCS12_PBKDF(key, unicodePasswd, idx, salt, saltSz,
                             iterations, derivedLen, typeH, 1);
-        if (id != PBE_SHA1_RC4_128)
+        if (id != PBE_SHA1_RC4_128) {
             ret += wc_PKCS12_PBKDF(cbcIv, unicodePasswd, idx, salt, saltSz,
                                 iterations, 8, typeH, 2);
+        }
+        break;
     }
 #endif /* HAVE_PKCS12 */
-    else {
+    default:
         ForceZero(key, MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         WOLFSSL_MSG("Unknown/Unsupported PKCS version");
         return ALGO_ID_E;
-    }
+    } /* switch (version) */
 
     if (ret != 0) {
         ForceZero(key, MAX_KEY_SIZE);
@@ -713,4 +721,4 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
 }
 
 #endif /* HAVE_PKCS8 || HAVE_PKCS12 */
-#endif /* !NO_PWDBASED */
+#endif /* !NO_PWDBASED && !NO_ASN */

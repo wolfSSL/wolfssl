@@ -23,12 +23,12 @@
     \file wolfssl/wolfcrypt/hmac.h
 */
 
-#ifndef NO_HMAC
-
 #ifndef WOLF_CRYPT_HMAC_H
 #define WOLF_CRYPT_HMAC_H
 
 #include <wolfssl/wolfcrypt/hash.h>
+
+#ifndef NO_HMAC
 
 #if defined(HAVE_FIPS) && \
         (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
@@ -223,7 +223,5 @@ WOLFSSL_API int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
     } /* extern "C" */
 #endif
 
-#endif /* WOLF_CRYPT_HMAC_H */
-
 #endif /* NO_HMAC */
-
+#endif /* WOLF_CRYPT_HMAC_H */

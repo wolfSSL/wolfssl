@@ -402,8 +402,9 @@ WOLFSSL_TEST_SUBROUTINE int  hmac_sha256_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha384_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha512_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha3_test(void);
-#ifdef HAVE_HKDF
-/* WOLFSSL_TEST_SUBROUTINE */ static int  hkdf_test(void);
+#if defined(HAVE_HKDF) && !defined(NO_HMAC)
+/* hkdf_test has issue with WOLFSSL_TEST_SUBROUTINE set on Xilinx with afalg */
+static int  hkdf_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE int  sshkdf_test(void);
 WOLFSSL_TEST_SUBROUTINE int  x963kdf_test(void);
@@ -987,7 +988,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
             TEST_PASS("HMAC-SHA3   test passed!\n");
     #endif
 
-    #ifdef HAVE_HKDF
+    #if defined(HAVE_HKDF) && !defined(NO_HMAC)
         PRIVATE_KEY_UNLOCK();
         if ( (ret = hkdf_test()) != 0)
             return err_sys("HMAC-KDF    test failed!\n", ret);
@@ -19885,7 +19886,7 @@ WOLFSSL_TEST_SUBROUTINE int pkcs12_test(void)
 }
 #endif /* HAVE_PKCS12 */
 
-#if defined(HAVE_PBKDF2) && !defined(NO_SHA256)
+#if defined(HAVE_PBKDF2) && !defined(NO_SHA256) && !defined(NO_HMAC)
 WOLFSSL_TEST_SUBROUTINE int pbkdf2_test(void)
 {
     char passwd[] = "passwordpassword";
@@ -19910,7 +19911,7 @@ WOLFSSL_TEST_SUBROUTINE int pbkdf2_test(void)
     return 0;
 
 }
-#endif /* HAVE_PBKDF2 && !NO_SHA256 */
+#endif /* HAVE_PBKDF2 && !NO_SHA256 && !NO_HMAC */
 
 #if defined(HAVE_PBKDF1) && !defined(NO_SHA)
 WOLFSSL_TEST_SUBROUTINE int pbkdf1_test(void)
@@ -19948,7 +19949,7 @@ WOLFSSL_TEST_SUBROUTINE int pwdbased_test(void)
    if (ret != 0)
       return ret;
 #endif
-#if defined(HAVE_PBKDF2) && !defined(NO_SHA256)
+#if defined(HAVE_PBKDF2) && !defined(NO_SHA256) && !defined(NO_HMAC)
    ret = pbkdf2_test();
    if (ret != 0)
       return ret;
@@ -19970,12 +19971,13 @@ WOLFSSL_TEST_SUBROUTINE int pwdbased_test(void)
 
 #if defined(HAVE_HKDF) && !defined(NO_HMAC)
 
-/* WOLFSSL_TEST_SUBROUTINE */ static int hkdf_test(void)
+/* hkdf_test has issue with WOLFSSL_TEST_SUBROUTINE set on Xilinx with afalg */
+static int hkdf_test(void)
 {
     int ret = 0;
 
 #if !defined(NO_SHA) || !defined(NO_SHA256)
-    int L = 42;
+    int L;
     byte okm1[42];
     byte ikm1[22] = { 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                       0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
@@ -20019,8 +20021,12 @@ WOLFSSL_TEST_SUBROUTINE int pwdbased_test(void)
 #endif
 #endif /* !NO_SHA256 */
 
+    XMEMSET(okm1, 0, sizeof(okm1));
+    L = (int)sizeof(okm1);
+
 #ifndef NO_SHA
-    ret = wc_HKDF(WC_SHA, ikm1, 22, NULL, 0, NULL, 0, okm1, L);
+    ret = wc_HKDF(WC_SHA, ikm1, (word32)sizeof(ikm1), NULL, 0, NULL, 0,
+        okm1, L);
     if (ret != 0)
         return -9700;
 
@@ -20029,7 +20035,9 @@ WOLFSSL_TEST_SUBROUTINE int pwdbased_test(void)
 
 #ifndef HAVE_FIPS
     /* fips can't have key size under 14 bytes, salt is key too */
-    ret = wc_HKDF(WC_SHA, ikm1, 11, salt1, 13, info1, 10, okm1, L);
+    L = (int)sizeof(okm1);
+    ret = wc_HKDF(WC_SHA, ikm1, 11, salt1, (word32)sizeof(salt1),
+        info1, (word32)sizeof(info1), okm1, L);
     if (ret != 0)
         return -9702;
 
@@ -20039,7 +20047,8 @@ WOLFSSL_TEST_SUBROUTINE int pwdbased_test(void)
 #endif /* !NO_SHA */
 
 #ifndef NO_SHA256
-    ret = wc_HKDF(WC_SHA256, ikm1, 22, NULL, 0, NULL, 0, okm1, L);
+    ret = wc_HKDF(WC_SHA256, ikm1, (word32)sizeof(ikm1), NULL, 0, NULL, 0,
+        okm1, L);
     if (ret != 0)
         return -9704;
 
@@ -20048,7 +20057,8 @@ WOLFSSL_TEST_SUBROUTINE int pwdbased_test(void)
 
 #ifndef HAVE_FIPS
     /* fips can't have key size under 14 bytes, salt is key too */
-    ret = wc_HKDF(WC_SHA256, ikm1, 22, salt1, 13, info1, 10, okm1, L);
+    ret = wc_HKDF(WC_SHA256, ikm1, (word32)sizeof(ikm1),
+        salt1, (word32)sizeof(salt1), info1, (word32)sizeof(info1), okm1, L);
     if (ret != 0)
         return -9706;
 
