@@ -31419,7 +31419,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
             }
 
         } else if (testVectors[i].password != NULL) {
-        #ifndef NO_PWDBASED
+        #if !defined(NO_PWDBASED) && !defined(NO_SHA)
             /* PWRI recipient type */
 
             ret = wc_PKCS7_Init(pkcs7, pkcs7->heap, pkcs7->devId);
@@ -31454,7 +31454,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
                 wc_PKCS7_Free(pkcs7);
                 ERROR_OUT(-12178, out);
             }
-        #endif /* NO_PWDBASED */
+        #endif /* ! NO_PWDBASED && ! NO_SHA */
 
         } else if (testVectors[i].isOri == 1) {
             /* ORI recipient type */
@@ -32113,7 +32113,7 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
             }
 
         } else if (testVectors[i].password != NULL) {
-        #ifndef NO_PWDBASED
+        #if !defined(NO_PWDBASED) && !defined(NO_SHA)
             /* PWRI recipient type */
 
             ret = wc_PKCS7_Init(pkcs7, pkcs7->heap, pkcs7->devId);
@@ -32153,7 +32153,7 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
                 ERROR_OUT(-12219, out);
             }
 
-        #endif /* NO_PWDBASED */
+        #endif /* ! NO_PWDBASED && ! NO_SHA */
         } else if (testVectors[i].isOri == 1) {
             /* ORI recipient type */
 
