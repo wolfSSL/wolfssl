@@ -3013,6 +3013,10 @@ WOLFSSL_API int                  wolfSSL_GetCipherBlockSize(WOLFSSL* ssl);
 WOLFSSL_API int                  wolfSSL_GetAeadMacSize(WOLFSSL* ssl);
 WOLFSSL_API int                  wolfSSL_GetHmacSize(WOLFSSL* ssl);
 WOLFSSL_API int                  wolfSSL_GetHmacType(WOLFSSL* ssl);
+#ifdef WORD64_AVAILABLE
+WOLFSSL_API int                  wolfSSL_GetPeerSequenceNumber(WOLFSSL* ssl, word64* seq);
+WOLFSSL_API int                  wolfSSL_GetSequenceNumber(WOLFSSL* ssl, word64* seq);
+#endif
 WOLFSSL_API int                  wolfSSL_GetCipherType(WOLFSSL* ssl);
 WOLFSSL_API int                  wolfSSL_SetTlsHmacInner(WOLFSSL* ssl,
                                byte* inner, word32 sz, int content, int verify);
