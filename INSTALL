@@ -23,8 +23,7 @@
 
 4. Building on Windows
 
-    Use the 32bit Visual Studio Solution wolfssl.sln
-    For a 64bit solution please use wolfssl64.sln
+    Use the Visual Studio Solution wolfssl64.sln
 
 5. Building with IAR
 
