@@ -35,6 +35,7 @@ extern "C" {
 
 
 #if defined(TLS_CLIENT) || defined(TLS_SERVER)
+    #include "r_tsip_rx_if.h"
     #include "r_t4_itcpip.h"
     #include "r_sys_time_rx_if.h"
     #include "Pin.h"
@@ -139,6 +140,9 @@ int Open_tcp( )
     sys_time_err_t sys_ercd;
     char ver[128];
 
+    /* initialize TSIP since t4 seems to call R_TSIP_RandomNumber */
+    R_TSIP_Open(NULL,NULL);
+
     /* cast from uint8_t to char* */
     strcpy(ver, (char*)R_t4_version.library);
 
@@ -171,6 +175,7 @@ void Close_tcp()
     tcpudp_close();
     lan_close();
     R_SYS_TIME_Close();
+    R_TSIP_Close();
 }
 #endif
 

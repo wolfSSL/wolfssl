@@ -484,42 +484,18 @@
     </tool>
     <tool id="Pins" version="1.0.1.0">
         <pinItem allocation="11" comments="" direction="None" id="XTAL" isUsedBySoftware="true" locked="false" status="0"/>
-        <pinItem allocation="59" comments="" direction="None" id="RMII0_RXD0" isUsedBySoftware="true" locked="false" status="0"/>
-        <pinItem allocation="61" comments="" direction="None" id="RMII0_RXD1" isUsedBySoftware="true" locked="false" status="0"/>
+        <pinItem allocation="56" comments="" direction="None" id="RMII0_TXD_EN" isUsedBySoftware="true" locked="false" status="0"/>
+        <pinItem allocation="65" comments="" direction="None" id="ET0_LINKSTA" isUsedBySoftware="true" locked="false" status="0"/>
         <pinItem allocation="54" comments="" direction="None" id="RMII0_TXD1" isUsedBySoftware="true" locked="false" status="0"/>
+        <pinItem allocation="67" comments="" direction="None" id="ET0_MDIO" isUsedBySoftware="true" locked="false" status="0"/>
         <pinItem allocation="55" comments="" direction="None" id="RMII0_TXD0" isUsedBySoftware="true" locked="false" status="0"/>
         <pinItem allocation="58" comments="" direction="None" id="REF50CK0" isUsedBySoftware="true" locked="false" status="0"/>
-        <pinItem allocation="66" comments="" direction="None" id="ET0_MDC" isUsedBySoftware="true" locked="false" status="0"/>
         <pinItem allocation="13" comments="" direction="None" id="EXTAL" isUsedBySoftware="true" locked="false" status="0"/>
-        <pinItem allocation="65" comments="" direction="None" id="ET0_LINKSTA" isUsedBySoftware="true" locked="false" status="0"/>
         <pinItem allocation="57" comments="" direction="None" id="RMII0_RX_ER" isUsedBySoftware="true" locked="false" status="0"/>
-        <pinItem allocation="56" comments="" direction="None" id="RMII0_TXD_EN" isUsedBySoftware="true" locked="false" status="0"/>
-        <pinItem allocation="67" comments="" direction="None" id="ET0_MDIO" isUsedBySoftware="true" locked="false" status="0"/>
         <pinItem allocation="53" comments="" direction="None" id="RMII0_CRS_DV" isUsedBySoftware="true" locked="false" status="0"/>
-        <pinnumItem comment="SW2 Reset Switch" id="10"/>
-        <pinnumItem comment="CN10 Serial Servo" id="16"/>
-        <pinnumItem comment="CN10 Serial Servo" id="17"/>
-        <pinnumItem comment="CN10 Serial Servo" id="18"/>
-        <pinnumItem comment="U5 WiFi Module" id="19"/>
-        <pinnumItem comment="N.C." id="4"/>
-        <pinnumItem comment="SW1 Operation Mode Switch" id="7"/>
-        <pinnumItem comment="CN4 PMOD" id="20"/>
-        <pinnumItem comment="U5 WiFi Module" id="21"/>
-        <pinnumItem comment="CN4 PMOD" id="22"/>
-        <pinnumItem comment="U5 WiFi Module" id="23"/>
-        <pinnumItem comment="U5 WiFi Module" id="24"/>
-        <pinnumItem comment="U5 WiFi Module" id="25"/>
-        <pinnumItem comment="CN7 Serial Servo" id="26"/>
-        <pinnumItem comment="CN7 Serial Servo" id="27"/>
-        <pinnumItem comment="CN7 Serial Servo" id="28"/>
-        <pinnumItem comment="U5 WiFi Module" id="29"/>
-        <pinnumItem comment="CN5 USB" id="30"/>
-        <pinnumItem comment="CN8 Serial Servo" id="32"/>
-        <pinnumItem comment="CN8 Serial Servo" id="33"/>
-        <pinnumItem comment="CN8 Serial Servo" id="34"/>
-        <pinnumItem comment="CN5 USB" id="36"/>
-        <pinnumItem comment="CN5 USB" id="37"/>
-        <pinnumItem comment="CN4 PMOD" id="42"/>
+        <pinItem allocation="66" comments="" direction="None" id="ET0_MDC" isUsedBySoftware="true" locked="false" status="0"/>
+        <pinItem allocation="59" comments="" direction="None" id="RMII0_RXD0" isUsedBySoftware="true" locked="false" status="0"/>
+        <pinItem allocation="61" comments="" direction="None" id="RMII0_RXD1" isUsedBySoftware="true" locked="false" status="0"/>
         <pinnumItem comment="CN4 PMOD" id="44"/>
         <pinnumItem comment="CN11 Serial Servo I/F" id="45"/>
         <pinnumItem comment="CN11 Serial Servo I/F" id="46"/>
@@ -528,41 +504,60 @@
         <pinnumItem comment="CN9 Serial Servo" id="49"/>
         <pinnumItem comment="CN9 Serial Servo" id="50"/>
         <pinnumItem comment="CN6 Ether" id="53"/>
+        <pinnumItem comment="SW2 Reset Switch" id="10"/>
         <pinnumItem comment="CN6 Ether" id="54"/>
         <pinnumItem comment="CN6 Ether" id="55"/>
         <pinnumItem comment="CN6 Ether" id="56"/>
         <pinnumItem comment="CN6 Ether" id="57"/>
         <pinnumItem comment="CN6 Ether" id="58"/>
         <pinnumItem comment="CN6 Ether" id="59"/>
+        <pinnumItem comment="CN10 Serial Servo" id="16"/>
+        <pinnumItem comment="CN10 Serial Servo" id="17"/>
+        <pinnumItem comment="CN10 Serial Servo" id="18"/>
+        <pinnumItem comment="U5 WiFi Module" id="19"/>
+        <pinnumItem comment="N.C." id="4"/>
+        <pinnumItem comment="SW1 Operation Mode Switch" id="7"/>
         <pinnumItem comment="CN6 Ether" id="61"/>
+        <pinnumItem comment="CN4 PMOD" id="20"/>
         <pinnumItem comment="CN6 Ether" id="64"/>
+        <pinnumItem comment="U5 WiFi Module" id="21"/>
         <pinnumItem comment="CN6 Ether" id="65"/>
+        <pinnumItem comment="CN4 PMOD" id="22"/>
         <pinnumItem comment="CN6 Ether" id="66"/>
+        <pinnumItem comment="U5 WiFi Module" id="23"/>
         <pinnumItem comment="CN6 Ether" id="67"/>
+        <pinnumItem comment="U5 WiFi Module" id="24"/>
+        <pinnumItem comment="U5 WiFi Module" id="25"/>
         <pinnumItem comment="LED2" id="69"/>
+        <pinnumItem comment="CN7 Serial Servo" id="26"/>
+        <pinnumItem comment="CN7 Serial Servo" id="27"/>
+        <pinnumItem comment="CN7 Serial Servo" id="28"/>
+        <pinnumItem comment="U5 WiFi Module" id="29"/>
         <pinnumItem comment="LED1" id="70"/>
         <pinnumItem comment="CN4 PMOD" id="71"/>
         <pinnumItem comment="CN4 PMOD" id="72"/>
         <pinnumItem comment="CN4 PMOD" id="73"/>
+        <pinnumItem comment="CN5 USB" id="30"/>
         <pinnumItem comment="CN4 PMOD" id="74"/>
+        <pinnumItem comment="CN8 Serial Servo" id="32"/>
+        <pinnumItem comment="CN8 Serial Servo" id="33"/>
+        <pinnumItem comment="CN8 Serial Servo" id="34"/>
         <pinnumItem comment="CN12C ADC" id="79"/>
+        <pinnumItem comment="CN5 USB" id="36"/>
+        <pinnumItem comment="CN5 USB" id="37"/>
         <pinnumItem comment="CN13 DAC" id="100"/>
         <pinnumItem comment="CN12C ADC" id="80"/>
         <pinnumItem comment="CN12C ADC" id="81"/>
         <pinnumItem comment="CN12C ADC" id="82"/>
         <pinnumItem comment="CN12C ADC" id="83"/>
         <pinnumItem comment="CN12C ADC" id="84"/>
+        <pinnumItem comment="CN4 PMOD" id="42"/>
     </tool>
     <tool id="Summary" version="1.0.0.0">
         <option id="com.renesas.smc.code.path" value="src\smc_gen"/>
         <option id="com.renesas.smc.code.type" value="Normal Folder"/>
     </tool>
     <tool id="SWComponent" version="1.0.0.0">
-        <configuration inuse="true" name="r_sys_time_rx">
-            <component description="依存モジュール: r_bsp バージョン 5.20&#10;依存モジュール: r_cmt_rx バージョン 4.00&#10;Generic system timer for RX MCUs using CMT module." detailDescription="Generic system timer for RX MCUs using CMT module." display="r_sys_time_rx" id="r_sys_time_rx1.01" version="1.01"/>
-            <source description="Components supporting Firmware Integration Technology" display="Firmware Integration Technology" id="com.renesas.smc.tools.swcomponent.fit.source"/>
-            <source description="Components supporting Firmware Integration Technology" display="Firmware Integration Technology" id="com.renesas.smc.tools.swcomponent.fit.source"/>
-        </configuration>
         <configuration inuse="true" name="r_bsp">
             <component description="依存モジュール: なし&#10;The r_bsp package provides a foundation for code to be built on top of. It provides startup code, iodefines, and MCU information for different boards. There are 2 folders that make up the r_bsp package. The 'mcu' folder contains files that are common to a MCU group. These files provide functionality such as easy register access, CPU functions, and a file named 'mcu_info.h' for each MCU group. The 'mcu_info.h' file has information about the MCU on the board and is configured based on the information given in r_bsp_config.h. The information in 'mcu_info.h' is used to help configure Renesas middleware that uses the r_bsp package. The 'board' folder has a folder with startup code for each supported board.  Which MCU and board is chosen is decided by the settings in 'platform.h'. The user can choose which board they are using by uncommenting the include path that applies to their board. For example, if you are using the RSK+RX64M then you would uncomment the #include &quot;./board/generic_rx64m/r_bsp.h&quot; include path. Users are encouraged to add their own boards to the 'board' directory. BSPs are configured by using the r_bsp_config.h file. Each board will have a reference configuration file named r_bsp_config_reference.h. The user should copy this file to their project, rename it to r_bsp_config.h, and use the options inside the file to configure the BSP for their project." detailDescription="Board Support Packages." display="r_bsp" id="r_bsp6.21" version="6.21">
                 <gridItem id="BSP_CFG_USER_STACK_ENABLE" selectedIndex="1"/>
@@ -610,6 +605,13 @@
                 <gridItem id="BSP_CFG_SCI_UART_TERMINAL_CHANNEL" selectedIndex="8"/>
                 <gridItem id="BSP_CFG_SCI_UART_TERMINAL_BITRATE" selectedIndex="115200"/>
                 <gridItem id="BSP_CFG_SCI_UART_TERMINAL_INTERRUPT_PRIORITY" selectedIndex="15"/>
+            </component>
+            <source description="Components supporting Firmware Integration Technology" display="Firmware Integration Technology" id="com.renesas.smc.tools.swcomponent.fit.source"/>
+            <source description="Components supporting Firmware Integration Technology" display="Firmware Integration Technology" id="com.renesas.smc.tools.swcomponent.fit.source"/>
+        </configuration>
+        <configuration inuse="true" name="r_cmt_rx">
+            <component description="依存モジュール: r_bsp バージョン 6.20&#10;This module creates a timer tick using a CMT channel based on a frequency input by the user." detailDescription="CMT driver" display="r_cmt_rx" id="r_cmt_rx4.90" version="4.90">
+                <gridItem id="CMT_RX_CFG_IPR" selectedIndex="5"/>
             </component>
             <source description="Components supporting Firmware Integration Technology" display="Firmware Integration Technology" id="com.renesas.smc.tools.swcomponent.fit.source"/>
             <source description="Components supporting Firmware Integration Technology" display="Firmware Integration Technology" id="com.renesas.smc.tools.swcomponent.fit.source"/>
@@ -724,10 +726,8 @@
             <source description="Components supporting Firmware Integration Technology" display="Firmware Integration Technology" id="com.renesas.smc.tools.swcomponent.fit.source"/>
             <source description="Components supporting Firmware Integration Technology" display="Firmware Integration Technology" id="com.renesas.smc.tools.swcomponent.fit.source"/>
         </configuration>
-        <configuration inuse="true" name="r_cmt_rx">
-            <component description="依存モジュール: r_bsp バージョン 6.20&#10;This module creates a timer tick using a CMT channel based on a frequency input by the user." detailDescription="CMT driver" display="r_cmt_rx" id="r_cmt_rx4.90" version="4.90">
-                <gridItem id="CMT_RX_CFG_IPR" selectedIndex="5"/>
-            </component>
+        <configuration inuse="true" name="r_sys_time_rx">
+            <component description="依存モジュール: r_bsp バージョン 5.20&#10;依存モジュール: r_cmt_rx バージョン 4.00&#10;Generic system timer for RX MCUs using CMT module." detailDescription="Generic system timer for RX MCUs using CMT module." display="r_sys_time_rx" id="r_sys_time_rx1.01" version="1.01"/>
             <source description="Components supporting Firmware Integration Technology" display="Firmware Integration Technology" id="com.renesas.smc.tools.swcomponent.fit.source"/>
             <source description="Components supporting Firmware Integration Technology" display="Firmware Integration Technology" id="com.renesas.smc.tools.swcomponent.fit.source"/>
         </configuration>
@@ -826,6 +826,142 @@
             <component description="依存モジュール: r_bsp バージョン 6.11&#10;Support functions: AES, GCM, CCM, CMAC, SHA, MD5, Triple-DES, ARC4, RSA, ECC, Random number generate, Key management, secure boot/secure firmware update.&#10;The &quot;.l&quot; in version number means library version." detailDescription="TSIP(Trusted Secure IP) driver." display="r_tsip_rx" id="r_tsip_rx1.14.l" version="1.14.l"/>
             <source description="Components supporting Firmware Integration Technology" display="Firmware Integration Technology" id="com.renesas.smc.tools.swcomponent.fit.source"/>
             <source description="Components supporting Firmware Integration Technology" display="Firmware Integration Technology" id="com.renesas.smc.tools.swcomponent.fit.source"/>
+        </configuration>
+        <configuration id="60957c51-a5e9-46fc-b2c8-a6141e24332c" inuse="true" name="Config_TMR0">
+            <allocatable id="TMR0">
+                <isocket id="CountingClock" selection="Clock.tool_clock_pclkb" value="6.0E7"/>
+                <option enabled="true" id="CountMode" selection="8bitMode">
+                    <item id="8bitMode" input="" vlaue="0"/>
+                    <item id="16bitMode" input="" vlaue="0"/>
+                </option>
+                <option enabled="true" id="ClockSourceOption" selection="PCLK">
+                    <item id="PCLK" input="" vlaue="0"/>
+                    <item id="PCLK2" input="" vlaue="0"/>
+                    <item id="PCLK8" input="" vlaue="0"/>
+                    <item id="PCLK32" input="" vlaue="0"/>
+                    <item id="PCLK64" input="" vlaue="0"/>
+                    <item id="PCLK1024" input="" vlaue="0"/>
+                    <item id="PCLK8192" input="" vlaue="0"/>
+                    <item id="ExternalClockRising" input="" vlaue="0"/>
+                    <item id="ExternalClockFalling" input="" vlaue="0"/>
+                    <item id="ExternalClockBoth" input="" vlaue="0"/>
+                </option>
+                <option enabled="true" id="CounterClearOption" selection="Disabled">
+                    <item id="Disabled" input="" vlaue="0"/>
+                    <item id="ClearedMatchA" input="" vlaue="0"/>
+                    <item id="ClearedMatchB" input="" vlaue="0"/>
+                    <item id="ClearedRisingReset" input="" vlaue="0"/>
+                    <item id="ClearedResetHigh" input="" vlaue="0"/>
+                </option>
+                <option enabled="true" id="CompareMatchAValue" selection="CompareMatchAValue">
+                    <item id="CompareMatchAValue" input="2" vlaue="119"/>
+                </option>
+                <option enabled="true" id="MatchValueOptionA" selection="us">
+                    <item id="ms" input="" vlaue="0"/>
+                    <item id="us" input="" vlaue="0"/>
+                    <item id="ns" input="" vlaue="0"/>
+                    <item id="count" input="" vlaue="0"/>
+                </option>
+                <option enabled="true" id="S12ADEnable" selection="Disable">
+                    <item id="Disable" input="" vlaue="0"/>
+                    <item id="Enable" input="" vlaue="0"/>
+                </option>
+                <option enabled="true" id="CompareMatchBValue" selection="CompareMatchBValue">
+                    <item id="CompareMatchBValue" input="2" vlaue="119"/>
+                </option>
+                <option enabled="true" id="TMO0OutputEnable" selection="Disable">
+                    <item id="Disable" input="" vlaue="0"/>
+                    <item id="Enable" input="" vlaue="0"/>
+                </option>
+                <option enabled="true" id="OutputMatchA" selection="Nochange">
+                    <item id="Nochange" input="" vlaue="0"/>
+                    <item id="Output0" input="" vlaue="0"/>
+                    <item id="Output1" input="" vlaue="0"/>
+                    <item id="ToggleOutput" input="" vlaue="0"/>
+                </option>
+                <option enabled="true" id="OutputMatchB" selection="Nochange">
+                    <item id="Nochange" input="" vlaue="0"/>
+                    <item id="Output0" input="" vlaue="0"/>
+                    <item id="Output1" input="" vlaue="0"/>
+                    <item id="ToggleOutput" input="" vlaue="0"/>
+                </option>
+                <option enabled="true" id="TCORAEnable" selection="Disable">
+                    <item id="Disable" input="" vlaue="0"/>
+                    <item id="Enable" input="" vlaue="0"/>
+                </option>
+                <option enabled="true" id="TCORAOption" selection="Level15">
+                    <item id="Level0" input="" vlaue="0"/>
+                    <item id="Level1" input="" vlaue="0"/>
+                    <item id="Level2" input="" vlaue="0"/>
+                    <item id="Level3" input="" vlaue="0"/>
+                    <item id="Level4" input="" vlaue="0"/>
+                    <item id="Level5" input="" vlaue="0"/>
+                    <item id="Level6" input="" vlaue="0"/>
+                    <item id="Level7" input="" vlaue="0"/>
+                    <item id="Level8" input="" vlaue="0"/>
+                    <item id="Level9" input="" vlaue="0"/>
+                    <item id="Level10" input="" vlaue="0"/>
+                    <item id="Level11" input="" vlaue="0"/>
+                    <item id="Level12" input="" vlaue="0"/>
+                    <item id="Level13" input="" vlaue="0"/>
+                    <item id="Level14" input="" vlaue="0"/>
+                    <item id="Level15" input="" vlaue="0"/>
+                </option>
+                <option enabled="true" id="TCORBEnable" selection="Disable">
+                    <item id="Disable" input="" vlaue="0"/>
+                    <item id="Enable" input="" vlaue="0"/>
+                </option>
+                <option enabled="true" id="TCORBOption" selection="Level15">
+                    <item id="Level0" input="" vlaue="0"/>
+                    <item id="Level1" input="" vlaue="0"/>
+                    <item id="Level2" input="" vlaue="0"/>
+                    <item id="Level3" input="" vlaue="0"/>
+                    <item id="Level4" input="" vlaue="0"/>
+                    <item id="Level5" input="" vlaue="0"/>
+                    <item id="Level6" input="" vlaue="0"/>
+                    <item id="Level7" input="" vlaue="0"/>
+                    <item id="Level8" input="" vlaue="0"/>
+                    <item id="Level9" input="" vlaue="0"/>
+                    <item id="Level10" input="" vlaue="0"/>
+                    <item id="Level11" input="" vlaue="0"/>
+                    <item id="Level12" input="" vlaue="0"/>
+                    <item id="Level13" input="" vlaue="0"/>
+                    <item id="Level14" input="" vlaue="0"/>
+                    <item id="Level15" input="" vlaue="0"/>
+                </option>
+                <option enabled="true" id="TCNTEnable" selection="Disable">
+                    <item id="Disable" input="" vlaue="0"/>
+                    <item id="Enable" input="" vlaue="0"/>
+                </option>
+                <option enabled="true" id="TCNTOption" selection="Level15">
+                    <item id="Level0" input="" vlaue="0"/>
+                    <item id="Level1" input="" vlaue="0"/>
+                    <item id="Level2" input="" vlaue="0"/>
+                    <item id="Level3" input="" vlaue="0"/>
+                    <item id="Level4" input="" vlaue="0"/>
+                    <item id="Level5" input="" vlaue="0"/>
+                    <item id="Level6" input="" vlaue="0"/>
+                    <item id="Level7" input="" vlaue="0"/>
+                    <item id="Level8" input="" vlaue="0"/>
+                    <item id="Level9" input="" vlaue="0"/>
+                    <item id="Level10" input="" vlaue="0"/>
+                    <item id="Level11" input="" vlaue="0"/>
+                    <item id="Level12" input="" vlaue="0"/>
+                    <item id="Level13" input="" vlaue="0"/>
+                    <item id="Level14" input="" vlaue="0"/>
+                    <item id="Level15" input="" vlaue="0"/>
+                </option>
+            </allocatable>
+            <component description="本MCU は、8 ビットのカウンタをベースにした2 チャネルの8 ビットタイマ（TMR）を2 ユニット（ユニット0、ユニット1）、合計4 チャネル内蔵しています。" detailDescription="" display="8 ビットタイマ" id="com.renesas.smc.tools.swcomponent.codegenerator.tmr" version="1.9.0"/>
+            <allocator channelLevel0="0" channelLevel1="" channelLevel2="" channelLevel3="" channelLevel4="" channelLevel5="" description="8 ビットタイマ0" display="TMR0" id="com.renesas.smc.tools.swcomponent.codegenerator.tmr.rx651.tmr0" type="">
+                <context>
+                    <option enabled="true" id="CountMode" selection="8bitMode">
+                        <item enabled="true" id="8bitMode"/>
+                        <item enabled="true" id="16bitMode"/>
+                    </option>
+                </context>
+            </allocator>
+            <source description="コード生成に対応したコンポーネントは、設定に応じた周辺ドライバのコードを小さなコードサイズで出力します。" display="コード生成" id="com.renesas.smc.tools.swcomponent.codegenerator.source"/>
         </configuration>
     </tool>
     <tool id="System">

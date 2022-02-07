@@ -19,9 +19,15 @@
         <Path>src\wolfssl_demo.h</Path>
         <Path>..\common\wolfssl_dummy.c</Path>
         <Category Name="smc_gen">
+          <Category Name="Config_TMR0">
+            <Path>src\smc_gen\Config_TMR0\Config_TMR0.c</Path>
+            <Path>src\smc_gen\Config_TMR0\Config_TMR0.h</Path>
+            <Path>src\smc_gen\Config_TMR0\Config_TMR0_user.c</Path>
+          </Category>
           <Category Name="general">
             <Path>src\smc_gen\general\r_cg_hardware_setup.c</Path>
             <Path>src\smc_gen\general\r_cg_macrodriver.h</Path>
+            <Path>src\smc_gen\general\r_cg_tmr.h</Path>
             <Path>src\smc_gen\general\r_cg_userdefine.h</Path>
             <Path>src\smc_gen\general\r_smc_cgc.c</Path>
             <Path>src\smc_gen\general\r_smc_cgc.h</Path>
@@ -259,21 +265,22 @@
           <Option>-fpu</Option>
           <Option>-include="${ProjDirPath}\..\common"</Option>
           <Option>-include="${ProjDirPath}\..\..\..\..\..\..\"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_bsp"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_config"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_tsip_rx"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_tsip_rx\src\targets\rx65n"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_cmt_rx"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_cmt_rx\src"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_t4_driver_rx"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_t4_driver_rx\src"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_t4_rx"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_t4_rx\lib"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_ether_rx"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_sys_time_rx"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_sys_time_rx\src"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\general"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_pincfg"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_bsp"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_config"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_tsip_rx"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_tsip_rx\src\targets\rx65n"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_cmt_rx"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_cmt_rx\src"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_t4_driver_rx"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_t4_driver_rx\src"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_t4_rx"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_t4_rx\lib"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_ether_rx"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_sys_time_rx"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_sys_time_rx\src"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\general"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_pincfg"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\Config_TMR0"</Option>
           <Option>-define=DEBUG_CONSOLE,WOLFSSL_USER_SETTINGS</Option>
           <Option>-utf8</Option>
           <Option>-nomessage</Option>
@@ -289,8 +296,8 @@
         <AssembleOptions>
           <Option>-isa=rxv2</Option>
           <Option>-fpu</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\general"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_pincfg"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\general"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_pincfg"</Option>
           <Option>-utf8</Option>
           <Option>-debug</Option>
           <Option>-nologo</Option>
@@ -306,8 +313,8 @@
           <Option>-rom=D=R,D_1=R_1,D_2=R_2</Option>
           <Option>-cpu=RAM=00000000-0003ffff,FIX=00080000-00083fff,FIX=00086000-00087fff,FIX=00088000-0009ffff,FIX=000a0000-000a3fff,RAM=000a4000-000a5fff,FIX=000a6000-000bffff,FIX=000c0000-000dffff,FIX=000e0000-000fffff,ROM=00100000-00107fff,FIX=007fc000-007fcfff,FIX=007fe000-007fffff,RAM=00800000-0085ffff,RAM=fe7f5d00-fe7f5d7f,RAM=fe7f7d70-fe7f7d9f,ROM=ffe00000-ffffffff</Option>
           <Option>-nologo</Option>
-          <Option>-library="${ProjDirPath}/../${ProjName}/src/smc_gen/r_t4_rx/lib/ccrx/T4_Library_ether_ccrx_rxv1_little_debug.lib"</Option>
-          <Option>-library="${ProjDirPath}/../${ProjName}/src/smc_gen/r_tsip_rx/lib/ccrx/r_tsip_rx65n_little.lib"</Option>
+          <Option>-library="${ProjDirPath}/../../../../../../../${ProjName}/src/smc_gen/r_t4_rx/lib/ccrx/T4_Library_ether_ccrx_rxv1_little_debug.lib"</Option>
+          <Option>-library="${ProjDirPath}/../../../../../../../${ProjName}/src/smc_gen/r_tsip_rx/lib/ccrx/r_tsip_rx65n_little.lib"</Option>
           <Option>-library="${ProjDirPath}/../wolfssl/Debug/wolfssl.lib"</Option>
           <Option>-start=SU,SI,B_1,R_1,B_2,R_2,B,R/04,B_ETHERNET_BUFFERS_1,B_RX_DESC_1,B_TX_DESC_1/020000,C_1,C_2,C,C$*,D*,W*,L,P*/0FFE00000,EXCEPTVECT/0FFFFFF80,RESETVECT/0FFFFFFFC</Option>
           <PreLinker>Auto</PreLinker>
@@ -324,6 +331,8 @@
         <LinkOrder>
           <Path>HardwareDebug\benchmark.obj</Path>
           <Path>HardwareDebug\key_data.obj</Path>
+          <Path>HardwareDebug\Config_TMR0.obj</Path>
+          <Path>HardwareDebug\Config_TMR0_user.obj</Path>
           <Path>HardwareDebug\r_cg_hardware_setup.obj</Path>
           <Path>HardwareDebug\r_smc_cgc.obj</Path>
           <Path>HardwareDebug\r_smc_cgc_user.obj</Path>
@@ -368,23 +377,24 @@
         <CommonOptions>
           <IncludePathForC>"${ProjDirPath}\..\common"</IncludePathForC>
           <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_bsp"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_config"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_tsip_rx"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_tsip_rx\src\targets\rx65n"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_cmt_rx"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_cmt_rx\src"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_t4_driver_rx"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_t4_driver_rx\src"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_t4_rx"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_t4_rx\lib"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_ether_rx"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_sys_time_rx"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_sys_time_rx\src"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\general"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_pincfg"</IncludePathForC>
-          <IncludePathForAsm>"${ProjDirPath}\..\${ProjName}\src\smc_gen\general"</IncludePathForAsm>
-          <IncludePathForAsm>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_pincfg"</IncludePathForAsm>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_bsp"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_config"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_tsip_rx"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_tsip_rx\src\targets\rx65n"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_cmt_rx"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_cmt_rx\src"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_t4_driver_rx"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_t4_driver_rx\src"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_t4_rx"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_t4_rx\lib"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_ether_rx"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_sys_time_rx"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_sys_time_rx\src"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\general"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_pincfg"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\Config_TMR0"</IncludePathForC>
+          <IncludePathForAsm>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\general"</IncludePathForAsm>
+          <IncludePathForAsm>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_pincfg"</IncludePathForAsm>
           <MacroForC>DEBUG_CONSOLE</MacroForC>
           <MacroForC>WOLFSSL_USER_SETTINGS</MacroForC>
         </CommonOptions>
@@ -394,23 +404,23 @@
         <CompileOptions>
           <Option>-isa=rxv2</Option>
           <Option>-fpu</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_bsp"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_config"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_tsip_rx"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_tsip_rx\src\targets\rx231"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_tsip_rx\src\targets\rx66t"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_tsip_rx\src\targets\rx65n"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_cmt_rx"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_cmt_rx\src"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_t4_driver_rx"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_t4_driver_rx\src"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_t4_rx"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_t4_rx\lib"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_ether_rx"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_sys_time_rx"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_sys_time_rx\src"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\general"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_pincfg"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_bsp"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_config"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_tsip_rx"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_tsip_rx\src\targets\rx231"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_tsip_rx\src\targets\rx66t"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_tsip_rx\src\targets\rx65n"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_cmt_rx"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_cmt_rx\src"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_t4_driver_rx"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_t4_driver_rx\src"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_t4_rx"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_t4_rx\lib"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_ether_rx"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_sys_time_rx"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_sys_time_rx\src"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\general"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_pincfg"</Option>
           <Option>-define=DEBUG_CONSOLE</Option>
           <Option>-utf8</Option>
           <Option>-nomessage</Option>
@@ -425,8 +435,8 @@
         <AssembleOptions>
           <Option>-isa=rxv2</Option>
           <Option>-fpu</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\general"</Option>
-          <Option>-include="${ProjDirPath}\..\${ProjName}\src\smc_gen\r_pincfg"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\general"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_pincfg"</Option>
           <Option>-utf8</Option>
           <Option>-debug</Option>
           <Option>-nologo</Option>
@@ -442,7 +452,7 @@
           <Option>-rom=D=R,D_1=R_1,D_2=R_2</Option>
           <Option>-cpu=RAM=00000000-0003ffff,FIX=00080000-00083fff,FIX=00086000-00087fff,FIX=00088000-0009ffff,FIX=000a0000-000a3fff,RAM=000a4000-000a5fff,FIX=000a6000-000bffff,FIX=000c0000-000dffff,FIX=000e0000-000fffff,ROM=00100000-00107fff,FIX=007fc000-007fcfff,FIX=007fe000-007fffff,RAM=00800000-0085ffff,RAM=fe7f5d00-fe7f5d7f,RAM=fe7f7d70-fe7f7d9f,ROM=ffe00000-ffffffff</Option>
           <Option>-nologo</Option>
-          <Option>-library="${ProjDirPath}/../${ProjName}/src/smc_gen/r_t4_rx/lib/T4_Library_rxv1_ether_little.lib"</Option>
+          <Option>-library="${ProjDirPath}/../../../../../../../${ProjName}/src/smc_gen/r_t4_rx/lib/T4_Library_rxv1_ether_little.lib"</Option>
           <Option>-start=SU,SI,B_1,R_1,B_2,R_2,B,R/04,C_1,C_2,C,C$*,D*,W*,L,P*/0FFE00000,EXCEPTVECT/0FFFFFF80,RESETVECT/0FFFFFFFC,B_ETHERNET_BUFFERS_1,B_RX_DESC_1,B_TX_DESC_1/00010000</Option>
           <PreLinker>Auto</PreLinker>
         </LinkOptions>
@@ -458,6 +468,8 @@
         <LinkOrder>
           <Path>Debug\benchmark.obj</Path>
           <Path>Debug\key_data.obj</Path>
+          <Path>Debug\Config_TMR0.obj</Path>
+          <Path>Debug\Config_TMR0_user.obj</Path>
           <Path>Debug\r_cg_hardware_setup.obj</Path>
           <Path>Debug\r_smc_cgc.obj</Path>
           <Path>Debug\r_smc_cgc_user.obj</Path>
@@ -500,25 +512,25 @@
           <Path>Debug\test.lib</Path>
         </LinkOrder>
         <CommonOptions>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_bsp"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_config"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_tsip_rx"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_tsip_rx\src\targets\rx231"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_tsip_rx\src\targets\rx66t"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_tsip_rx\src\targets\rx65n"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_cmt_rx"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_cmt_rx\src"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_t4_driver_rx"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_t4_driver_rx\src"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_t4_rx"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_t4_rx\lib"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_ether_rx"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_sys_time_rx"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_sys_time_rx\src"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\general"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_pincfg"</IncludePathForC>
-          <IncludePathForAsm>"${ProjDirPath}\..\${ProjName}\src\smc_gen\general"</IncludePathForAsm>
-          <IncludePathForAsm>"${ProjDirPath}\..\${ProjName}\src\smc_gen\r_pincfg"</IncludePathForAsm>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_bsp"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_config"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_tsip_rx"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_tsip_rx\src\targets\rx231"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_tsip_rx\src\targets\rx66t"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_tsip_rx\src\targets\rx65n"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_cmt_rx"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_cmt_rx\src"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_t4_driver_rx"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_t4_driver_rx\src"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_t4_rx"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_t4_rx\lib"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_ether_rx"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_sys_time_rx"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_sys_time_rx\src"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\general"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_pincfg"</IncludePathForC>
+          <IncludePathForAsm>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\general"</IncludePathForAsm>
+          <IncludePathForAsm>"${ProjDirPath}\..\..\..\..\..\..\..\${ProjName}\src\smc_gen\r_pincfg"</IncludePathForAsm>
           <MacroForC>DEBUG_CONSOLE</MacroForC>
         </CommonOptions>
       </BuildMode>
