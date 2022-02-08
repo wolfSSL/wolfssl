@@ -970,6 +970,8 @@ WOLFSSL_ABI WOLFSSL_API int wolfSSL_CTX_load_verify_locations(
 #ifdef WOLFSSL_TRUST_PEER_CERT
 WOLFSSL_API int wolfSSL_CTX_trust_peer_cert(
     WOLFSSL_CTX* ctx, const char* file, int type);
+WOLFSSL_API int wolfSSL_trust_peer_cert(
+    WOLFSSL* ssl, const char* file, int type);
 #endif
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_CTX_use_certificate_chain_file(
     WOLFSSL_CTX* ctx, const char* file);
@@ -1193,7 +1195,7 @@ WOLFSSL_API int wolfSSL_set_post_handshake_auth(WOLFSSL* ssl, int val);
 
 WOLFSSL_API void wolfSSL_SetCertCbCtx(WOLFSSL* ssl, void* ctx);
 
-WOLFSSL_ABI WOLFSSL_API int  wolfSSL_pending(const WOLFSSL* ssl);
+WOLFSSL_ABI WOLFSSL_API int  wolfSSL_pending(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_has_pending(const WOLFSSL* ssl);
 
 WOLFSSL_API void wolfSSL_load_error_strings(void);
@@ -1509,6 +1511,7 @@ WOLFSSL_API void wolfSSL_sk_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl);
 
 WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_new(void);
+WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_dup(WOLFSSL_X509* x);
 #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
 WOLFSSL_API int wolfSSL_RSA_up_ref(WOLFSSL_RSA* rsa);
 WOLFSSL_API int wolfSSL_X509_up_ref(WOLFSSL_X509* x509);
@@ -2837,6 +2840,9 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
     WOLFSSL_API int wolfSSL_CTX_UnloadCAs(WOLFSSL_CTX* ctx);
 #ifdef WOLFSSL_TRUST_PEER_CERT
     WOLFSSL_API int wolfSSL_CTX_Unload_trust_peers(WOLFSSL_CTX* ctx);
+#ifdef WOLFSSL_LOCAL_X509_STORE
+    WOLFSSL_API int wolfSSL_Unload_trust_peers(WOLFSSL* ssl);
+#endif
     WOLFSSL_API int wolfSSL_CTX_trust_peer_buffer(WOLFSSL_CTX* ctx,
                                                const unsigned char*, long, int);
 #endif
@@ -4011,7 +4017,6 @@ WOLFSSL_API WOLFSSL_X509_NAME_ENTRY *wolfSSL_X509_NAME_delete_entry(
 WOLFSSL_API int wolfSSL_X509_NAME_cmp(const WOLFSSL_X509_NAME* x,
             const WOLFSSL_X509_NAME* y);
 WOLFSSL_API WOLFSSL_X509_NAME* wolfSSL_X509_NAME_new(void);
-WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_dup(WOLFSSL_X509* x);
 WOLFSSL_API WOLFSSL_X509_NAME* wolfSSL_X509_NAME_dup(WOLFSSL_X509_NAME* name);
 WOLFSSL_API int wolfSSL_X509_NAME_copy(WOLFSSL_X509_NAME* from, WOLFSSL_X509_NAME* to);
 WOLFSSL_API int wolfSSL_check_private_key(const WOLFSSL* ssl);

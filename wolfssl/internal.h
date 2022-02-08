@@ -3314,7 +3314,9 @@ struct WOLFSSL_SESSION {
     /* WARNING Do not add fields here. They will be ignored in
      *         wolfSSL_DupSession. */
     WOLFSSL_SESSION_TYPE type;
+#ifndef NO_SESSION_CACHE
     int                cacheRow;          /* row in session cache     */
+#endif
     int                refCount;          /* reference count */
 #ifndef SINGLE_THREADED
     wolfSSL_Mutex      refMutex;          /* ref count mutex */
@@ -4767,7 +4769,7 @@ WOLFSSL_LOCAL int MakeMasterSecret(WOLFSSL* ssl);
 
 WOLFSSL_LOCAL int AddSession(WOLFSSL* ssl);
 WOLFSSL_LOCAL int AddSessionToCache(WOLFSSL_SESSION* addSession, const byte* id,
-                                int* sessionIndex, int side, word16 useTicket);
+                      byte idSz, int* sessionIndex, int side, word16 useTicket);
 WOLFSSL_LOCAL int AddSessionToClientCache(int side, int row, int idx,
                                 byte* serverID, word16 idLen, word16 useTicket);
 WOLFSSL_LOCAL int DeriveKeys(WOLFSSL* ssl);

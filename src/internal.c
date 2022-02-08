@@ -8974,7 +8974,8 @@ retry:
                 return -1;
 
             case WOLFSSL_CBIO_ERR_WANT_READ:      /* want read, would block */
-                if (ssl->ctx->autoRetry && !ssl->options.handShakeDone)
+                if (ssl->ctx->autoRetry && !ssl->options.handShakeDone &&
+                        !ssl->options.dtls)
                     goto retry;
                 return WANT_READ;
 
@@ -12498,13 +12499,18 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     WOLFSSL_MSG("Failed to verify Peer's cert");
                     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     if (ssl->peerVerifyRet == 0) { /* Return first cert error here */
-                        if (ret == ASN_BEFORE_DATE_E)
-                            ssl->peerVerifyRet = X509_V_ERR_CERT_NOT_YET_VALID;
-                        else if (ret == ASN_AFTER_DATE_E)
-                            ssl->peerVerifyRet = X509_V_ERR_CERT_HAS_EXPIRED;
+                        if (ret == ASN_BEFORE_DATE_E) {
+                            ssl->peerVerifyRet =
+                                   (unsigned long)X509_V_ERR_CERT_NOT_YET_VALID;
+                        }
+                        else if (ret == ASN_AFTER_DATE_E) {
+                            ssl->peerVerifyRet =
+                                   (unsigned long)X509_V_ERR_CERT_HAS_EXPIRED;
+                        }
                         else {
                             ssl->peerVerifyRet =
-                                    X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE;
+                                   (unsigned long)
+                                   X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE;
                         }
                     }
                     #endif
@@ -29188,7 +29194,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                                   ssl->arrays->masterSecret, 1);
             #ifdef HAVE_SESSION_TICKET
                 if (ssl->options.useTicket == 1) {
-                    session = &ssl->session;
+                    session = ssl->session;
                 }
             #endif
 
@@ -30605,24 +30611,44 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_TICKET_HAVE_ID
         {
             const byte* id = NULL;
-            if (ssl->session->haveAltSessionID)
+            byte idSz = 0;
+            if (ssl->session->haveAltSessionID) {
                 id = ssl->session->altSessionID;
-            else if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL)
+                idSz = ID_LEN;
+            }
+            else if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL) {
                 id = ssl->arrays->sessionID;
-            else
+                idSz = ssl->arrays->sessionIDSz;
+            }
+            else {
                 id = ssl->session->sessionID;
+                idSz = ssl->session->sessionIDSz;
+            }
+            if (idSz == 0) {
+                ret = wc_RNG_GenerateBlock(ssl->rng, ssl->session->altSessionID,
+                                           ID_LEN);
+                if (ret != 0)
+                    return ret;
+                ssl->session->haveAltSessionID = 1;
+                id = ssl->session->altSessionID;
+                idSz = ID_LEN;
+            }
             XMEMCPY(it.id, id, ID_LEN);
         }
 #endif
 
         /* encrypt */
         encLen = WOLFSSL_TICKET_ENC_SZ;  /* max size user can use */
-        if (ssl->ctx->ticketEncCb == NULL ||
+        if (ssl->ctx->ticketEncCb == NULL
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
+                ||
                 /* SSL_OP_NO_TICKET turns off tickets in < 1.2. Forces
                  * "stateful" tickets for 1.3 so just use the regular
                  * stateless ones. */
                 (!IsAtLeastTLSv1_3(ssl->version) &&
-                        (ssl->options.mask & SSL_OP_NO_TICKET) != 0)) {
+                        (ssl->options.mask & SSL_OP_NO_TICKET) != 0)
+#endif
+                        ) {
             ret = WOLFSSL_TICKET_RET_FATAL;
         }
         else {
@@ -30717,12 +30743,16 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
         outLen = inLen;   /* may be reduced by user padding */
 
-        if (ssl->ctx->ticketEncCb == NULL ||
+        if (ssl->ctx->ticketEncCb == NULL
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
+                ||
                 /* SSL_OP_NO_TICKET turns off tickets in < 1.2. Forces
                  * "stateful" tickets for 1.3 so just use the regular
                  * stateless ones. */
                 (!IsAtLeastTLSv1_3(ssl->version) &&
-                        (ssl->options.mask & SSL_OP_NO_TICKET) != 0)) {
+                        (ssl->options.mask & SSL_OP_NO_TICKET) != 0)
+#endif
+                        ) {
             ret = WOLFSSL_TICKET_RET_FATAL;
         }
         else {
