@@ -71,6 +71,8 @@
  *    You cannot use wc_psk_client_cs_callback type callback on client.
  * WOLFSSL_CHECK_ALERT_ON_ERR
  *    Check for alerts during the handshake in the event of an error.
+ * WOLFSSL_NO_CLIENT_CERT_ERROR
+ *    Requires client to set a client certificate
  */
 
 #ifdef HAVE_CONFIG_H
@@ -6892,10 +6894,11 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
     /* verify the client sent certificate if required */
-    if (ssl->options.side == WOLFSSL_SERVER_END &&
+    if (ssl->options.side == WOLFSSL_SERVER_END && !ssl->options.resuming &&
             (ssl->options.mutualAuth || ssl->options.failNoCert)) {
-        if (!ssl->options.havePeerVerify && !ssl->options.resuming) {
-            ret = NO_PEER_CERT;
+        if (!ssl->options.havePeerCert || !ssl->options.havePeerVerify) {
+            ret = NO_PEER_CERT; /* NO_PEER_VERIFY */
+            WOLFSSL_MSG("TLS v1.3 client did not present peer cert");
             DoCertFatalAlert(ssl, ret);
             return ret;
         }
