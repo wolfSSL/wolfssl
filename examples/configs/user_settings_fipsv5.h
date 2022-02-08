@@ -48,6 +48,7 @@ extern "C" {
 #define USE_FAST_MATH
 #define FP_MAX_BITS 16384
 #define SP_INT_BITS 8192
+#define WOLFSSL_PUBLIC_MP /* expose the mp_ math API's */
 
 /* Timing Resistance */
 #define TFM_TIMING_RESISTANT
@@ -64,12 +65,16 @@ extern "C" {
 #define WOLFSSL_TLS13
 #define WOLFSSL_BASE64_ENCODE
 #define WOLFSSL_USE_ALIGN
-#define WOLFSSL_PUBLIC_MP
 #define HAVE_ENCRYPT_THEN_MAC
 #define HAVE_TLS_EXTENSIONS
 #define HAVE_SUPPORTED_CURVES
 #define HAVE_EXTENDED_MASTER
+#define HAVE_ONE_TIME_AUTH /* TLS extension used with Poly1305 */
 #define HAVE_CRL
+#define HAVE_EXT_CACHE
+#define WOLFSSL_VERIFY_CB_ALL_CERTS
+#define WOLFSSL_ALWAYS_VERIFY_CB
+#define WOLFSSL_DH_EXTRA /* DHE ASN.1 key import/export support */
 
 #if 0
     #define HAVE_SECURE_RENEGOTIATION
@@ -80,6 +85,10 @@ extern "C" {
 #define WOLFSSL_WOLFSSH
 #endif
 
+/* Compatibility Layer */
+#if 0
+    #define OPENSSL_ALL
+#endif
 
 /* DH */
 #undef  NO_DH
@@ -122,6 +131,10 @@ extern "C" {
 #define GCM_TABLE_4BIT
 #define WOLFSSL_CMAC
 
+/* ChaCha/Poly */
+#define HAVE_CHACHA
+#define HAVE_POLY1305
+
 /* Hashing */
 #undef  NO_SHA
 #undef  NO_SHA256
@@ -145,6 +158,7 @@ extern "C" {
 #define WOLFSSL_NO_SHAKE256
 #define NO_RABBIT
 #define NO_HC128
+
 
 #ifdef __cplusplus
 }
