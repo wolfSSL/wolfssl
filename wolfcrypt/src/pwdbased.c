@@ -171,7 +171,7 @@ int wc_PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
 
 #endif /* HAVE_PKCS5 */
 
-#ifdef HAVE_PBKDF2
+#if defined(HAVE_PBKDF2) && !defined(NO_HMAC)
 
 int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
            int sLen, int iterations, int kLen, int hashType, void* heap, int devId)
@@ -279,7 +279,7 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
         hashType, NULL, INVALID_DEVID);
 }
 
-#endif /* HAVE_PBKDF2 */
+#endif /* HAVE_PBKDF2 && !NO_HMAC */
 
 #ifdef HAVE_PKCS12
 

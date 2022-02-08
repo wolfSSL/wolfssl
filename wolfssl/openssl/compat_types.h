@@ -30,12 +30,14 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/hmac.h>
 
+#ifndef NO_HMAC
 typedef struct WOLFSSL_HMAC_CTX {
     Hmac hmac;
     int  type;
     word32  save_ipad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];  /* same block size all*/
     word32  save_opad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];
 } WOLFSSL_HMAC_CTX;
+#endif
 
 typedef char   WOLFSSL_EVP_MD;
 typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_EVP_PKEY;

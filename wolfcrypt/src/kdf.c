@@ -344,7 +344,7 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 #endif /* WOLFSSL_HAVE_PRF */
 
 
-#if defined(HAVE_HKDF)
+#if defined(HAVE_HKDF) && !defined(NO_HMAC)
 
     /* Extract data using HMAC, salt and input.
      * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF)
@@ -470,7 +470,7 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         return ret;
     }
 
-#endif /* HAVE_HKDF */
+#endif /* HAVE_HKDF && !NO_HMAC */
 
 
 #ifdef WOLFSSL_WOLFSSH

@@ -28281,7 +28281,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_d2i_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER** a,
             }
         }
     }
-    
+
     if (err != 0) {
         wolfSSL_ASN1_INTEGER_free(ret);
         ret = NULL;
@@ -34406,7 +34406,7 @@ WOLFSSL_DH* wolfSSL_DH_get_2048_256(void)
             WOLFSSL_MSG("Error converting q hex to WOLFSSL_BIGNUM.");
             err = 1;
         }
-    }   
+    }
     if (err == 0) {
     #if defined(OPENSSL_ALL) || \
         defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
@@ -45840,7 +45840,7 @@ err:
         current = &name->entry[i];
         if (current->set == 0)
             name->entrySz++;
-        
+
         if (wolfSSL_X509_NAME_ENTRY_create_by_NID(&current,
                             entry->nid,
                             wolfSSL_ASN1_STRING_type(entry->value),
@@ -45861,7 +45861,7 @@ err:
         else {
             ret = WOLFSSL_FAILURE;
         }
-        
+
         if (ret != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Error adding the name entry");
             if (current->set == 0)

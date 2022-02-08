@@ -21,7 +21,7 @@
 
 
 
-/*  hmac.h defines mini hamc openssl compatibility layer
+/*  hmac.h defines mini hmac openssl compatibility layer
  *
  */
 
