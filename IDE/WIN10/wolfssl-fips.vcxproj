@@ -302,7 +302,11 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="resource.h" />
     <ClInclude Include="user_settings.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="wolfssl-fips.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
