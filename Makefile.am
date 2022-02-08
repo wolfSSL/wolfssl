@@ -138,7 +138,6 @@ EXTRA_DIST+= lib/dummy
 
 EXTRA_DIST+= wolfssl.vcproj
 EXTRA_DIST+= wolfssl.vcxproj
-EXTRA_DIST+= wolfssl.sln
 EXTRA_DIST+= wolfssl64.sln
 EXTRA_DIST+= valgrind-error.sh
 EXTRA_DIST+= valgrind-bash.supp
