@@ -23,8 +23,7 @@
  *
  *
  *----------------------------------------------------------------------------*/
-#define WOLFSSL_RENESAS_RX65N
-
+  #define WOLFSSL_RENESAS_RX65N
 
 
 /*-- Renesas TSIP usage and its version ---------------------------------------
@@ -57,8 +56,11 @@
  *  Otherwise, define "SINGLE_THREADED". They are exclusive each other.
  *   
  *----------------------------------------------------------------------------*/
-  #define SINGLE_THREADED 
-/*#define FREERTOS*/
+
+#define FREERTOS
+#define FREERTOS_TCP
+
+
 
 
 /*-- Cipher related definitions  -----------------------------------------------
@@ -79,7 +81,7 @@
   #define HAVE_ECC
   #define HAVE_CURVE25519
   #define CURVE25519_SMALL
-  #define HAVE_ED25519
+
 
   #define WOLFSSL_STATIC_RSA
 
@@ -123,9 +125,6 @@
  *----------------------------------------------------------------------------*/
   #define SIZEOF_LONG_LONG 8
 
-#if !defined(min)
-  #define min(data1, data2)                _builtin_min(data1, data2)
-#endif
 
  /* 
   * -- "NO_ASN_TIME" macro is to avoid certificate expiration validation --
@@ -146,19 +145,21 @@
   #define WOLFSSL_HAVE_MAX
   #define WOLFSSL_SMALL_STACK
   #define NO_WRITEV
-  #define WOLFSSL_USER_IO
+  
 
   #define WOLFSSL_USER_CURRTIME /* for benchmark */
   #define USER_TIME
-  #define XTIME time
+  #define XTIME    time
   #define USE_WOLF_SUSECONDS_T
   #define USE_WOLF_TIMEVAL_T
 
-  
+  #define  XSTRNCASECMP(s1,s2,n)  strncmp(s1,s2,n)
+
   #define WC_RSA_BLINDING
   #define TFM_TIMING_RESISTANT
   #define ECC_TIMING_RESISTANT
 
+  #define USE_FAST_MATH
 
 /*-- Debugging options  ------------------------------------------------------
  *

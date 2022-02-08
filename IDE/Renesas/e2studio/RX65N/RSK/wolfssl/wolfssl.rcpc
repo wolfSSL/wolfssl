@@ -87,19 +87,25 @@
         </Category>
       </Category>
     </Files>
-    <Device Category="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.cpu.rx600" Series="RX">R5F565NEHxFC</Device>
+    <Device Category="com.renesas.cdt.managedbuild.renesas.ccrx.common.option.cpu.rx600" Series="RX">R5F565NEDxFC</Device>
     <BuildOptions Name="CC-RX" Version="v3.03.00">
       <BuildMode Active="True" Name="Debug">
         <GeneralOptions/>
         <CompileOptions>
           <Option>-isa=rxv2</Option>
           <Option>-fpu</Option>
-          <Option>-include="${ProjDirPath}\..\common"</Option>
-          <Option>-include="${ProjDirPath}\\..\..\..\..\..\..\"</Option>
-          <Option>-include="${ProjDirPath}\..\test\src\smc_gen\"</Option>
-          <Option>-include="${ProjDirPath}\..\test\src\smc_gen\r_bsp"</Option>
-          <Option>-include="${ProjDirPath}\..\test\src\smc_gen\r_config"</Option>
-          <Option>-include="${ProjDirPath}\..\test\src\smc_gen\r_tsip_rx"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\"</Option>
+          <Option>-include="${ProjDirPath}\..\wolfssl_demo"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\demos"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\freertos_kernel\include"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\freertos_kernel\portable\Renesas\RX600v2"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\libraries\freertos_plus\standard\freertos_plus_tcp\include"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\amazon_freertos_common"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx65n-rsk\aws_demos\config_files"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx65n-rsk\aws_demos\src\smc_gen"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx65n-rsk\aws_demos\src\smc_gen\r_config"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx65n-rsk\aws_demos\src\smc_gen\r_bsp"</Option>
+          <Option>-include="${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx65n-rsk\aws_demos\src\smc_gen\r_tsip_rx"</Option>
           <Option>-define=WOLFSSL_USER_SETTINGS</Option>
           <Option>-utf8</Option>
           <Option>-nomessage</Option>
@@ -205,12 +211,18 @@
           <Path>Debug\wolfmath.obj</Path>
         </LinkOrder>
         <CommonOptions>
-          <IncludePathForC>"${ProjDirPath}\..\common"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\\..\..\..\..\..\..\"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\test\src\smc_gen\"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\test\src\smc_gen\r_bsp"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\test\src\smc_gen\r_config"</IncludePathForC>
-          <IncludePathForC>"${ProjDirPath}\..\test\src\smc_gen\r_tsip_rx"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\wolfssl_demo"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\demos"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\freertos_kernel\include"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\freertos_kernel\portable\Renesas\RX600v2"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\libraries\freertos_plus\standard\freertos_plus_tcp\include"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\amazon_freertos_common"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx65n-rsk\aws_demos\config_files"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx65n-rsk\aws_demos\src\smc_gen"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx65n-rsk\aws_demos\src\smc_gen\r_config"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx65n-rsk\aws_demos\src\smc_gen\r_bsp"</IncludePathForC>
+          <IncludePathForC>"${ProjDirPath}\..\..\..\..\..\..\..\vendors\renesas\boards\rx65n-rsk\aws_demos\src\smc_gen\r_tsip_rx"</IncludePathForC>
           <MacroForC>WOLFSSL_USER_SETTINGS</MacroForC>
         </CommonOptions>
       </BuildMode>
