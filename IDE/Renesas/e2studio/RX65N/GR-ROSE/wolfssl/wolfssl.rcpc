@@ -20,7 +20,7 @@
       </Category>
       <Category Name="wolfcrypt">
         <Category Name="port">
-          <Path>..\..\..\..\..\..\wolfcrypt\src\port\Renesas\renesas_common.c</Path>
+          <Path>..\..\..\..\..\..\..\..\tsip113_integrate\wolfssl\wolfcrypt\src\port\Renesas\renesas_common.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\port\Renesas\renesas_tsip_aes.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\port\Renesas\renesas_tsip_sha.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\port\Renesas\renesas_tsip_util.c</Path>
