@@ -128,6 +128,9 @@ struct wc_Sha3 {
 typedef wc_Sha3 wc_Shake;
 #endif
 
+#ifdef WOLFSSL_ARMASM
+WOLFSSL_LOCAL void BlockSha3(word64 *s);
+#endif
 
 WOLFSSL_API int wc_InitSha3_224(wc_Sha3* sha3, void* heap, int devId);
 WOLFSSL_API int wc_Sha3_224_Update(wc_Sha3* sha3, const byte* data, word32 len);

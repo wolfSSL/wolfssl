@@ -51,6 +51,7 @@
 #endif
 
 
+#ifndef WOLFSSL_ARMASM
 #ifdef WOLFSSL_SHA3_SMALL
 /* Rotate a 64-bit value left.
  *
@@ -137,8 +138,7 @@ static const word64 hash_keccak_r[24] =
  * i   The index of the loop.
  */
 #define SWAP_ROTL(s, t1, t2, i)                                         \
-do                                                                      \
-{                                                                       \
+do {                                                                    \
     t2 = s[K_I_##i]; s[K_I_##i] = ROTL64(t1, K_R_##i);                  \
 }                                                                       \
 while (0)
@@ -151,12 +151,10 @@ while (0)
  * t  Temporary variable.
  */
 #define COL_MIX(s, b, x, t)                                             \
-do                                                                      \
-{                                                                       \
+do {                                                                    \
     for (x = 0; x < 5; x++)                                             \
         b[x] = s[x + 0] ^ s[x + 5] ^ s[x + 10] ^ s[x + 15] ^ s[x + 20]; \
-    for (x = 0; x < 5; x++)                                             \
-    {                                                                   \
+    for (x = 0; x < 5; x++) {                                           \
         t = b[(x + 4) % 5] ^ ROTL64(b[(x + 1) % 5], 1);                 \
         s[x +  0] ^= t;                                                 \
         s[x +  5] ^= t;                                                 \
@@ -179,14 +177,12 @@ while (0)
  * t1  Temporary variable.
  */
 #define ROW_MIX(s, b, y, x, t0, t1)                                     \
-do                                                                      \
-{                                                                       \
-    for (y = 0; y < 5; y++)                                             \
-    {                                                                   \
+do {                                                                    \
+    for (y = 0; y < 5; y++) {                                           \
         for (x = 0; x < 5; x++)                                         \
             b[x] = s[y * 5 + x];                                        \
         for (x = 0; x < 5; x++)                                         \
-           s[y * 5 + x] = b[x] ^ (~b[(x + 1) % 5] & b[(x + 2) % 5]);    \
+            s[y * 5 + x] = b[x] ^ (~b[(x + 1) % 5] & b[(x + 2) % 5]);   \
     }                                                                   \
 }                                                                       \
 while (0)
@@ -202,10 +198,8 @@ while (0)
  * t1  Temporary variable.
  */
 #define ROW_MIX(s, b, y, x, t12, t34)                                   \
-do                                                                      \
-{                                                                       \
-    for (y = 0; y < 5; y++)                                             \
-    {                                                                   \
+do {                                                                    \
+    for (y = 0; y < 5; y++) {                                           \
         for (x = 0; x < 5; x++)                                         \
             b[x] = s[y * 5 + x];                                        \
         t12 = (b[1] ^ b[2]); t34 = (b[3] ^ b[4]);                       \
@@ -351,8 +345,7 @@ static const word64 hash_keccak_r[24] =
  * t  Temporary variable.
  */
 #define COL_MIX(s, b, x, t)                                                         \
-do                                                                                  \
-{                                                                                   \
+do {                                                                                \
     (b)[0] = (s)[0] ^ (s)[5] ^ (s)[10] ^ (s)[15] ^ (s)[20];                         \
     (b)[1] = (s)[1] ^ (s)[6] ^ (s)[11] ^ (s)[16] ^ (s)[21];                         \
     (b)[2] = (s)[2] ^ (s)[7] ^ (s)[12] ^ (s)[17] ^ (s)[22];                         \
@@ -384,8 +377,7 @@ while (0)
  * t1  Temporary variable. (Unused)
  */
 #define ROW_MIX(s2, s1, b, t0, t1)                    \
-do                                                    \
-{                                                     \
+do {                                                  \
     (b)[0] = (s1)[0];                                 \
     (b)[1] = S((s1), 0);                              \
     (b)[2] = S((s1), 1);                              \
@@ -449,8 +441,7 @@ while (0)
  * t34 Temporary variable.
  */
 #define ROW_MIX(s2, s1, b, t12, t34)                      \
-do                                                        \
-{                                                         \
+do {                                                      \
     (b)[0] = (s1)[0];                                     \
     (b)[1] = S((s1), 0);                                  \
     (b)[2] = S((s1), 1);                                  \
@@ -536,6 +527,7 @@ static void BlockSha3(word64 *s)
     }
 }
 #endif /* WOLFSSL_SHA3_SMALL */
+#endif /* !WOLFSSL_ARMASM */
 
 static WC_INLINE word64 Load64Unaligned(const unsigned char *a)
 {
@@ -618,8 +610,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
     byte l;
     byte *t;
 
-    if (sha3->i > 0)
-    {
+    if (sha3->i > 0) {
         l = p * 8 - sha3->i;
         if (l > len) {
             l = (byte)len;
@@ -632,16 +623,14 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         len -= i;
         sha3->i += i;
 
-        if (sha3->i == p * 8)
-        {
+        if (sha3->i == p * 8) {
             for (i = 0; i < p; i++)
                 sha3->s[i] ^= Load64BitBigEndian(sha3->t + 8 * i);
             BlockSha3(sha3->s);
             sha3->i = 0;
         }
     }
-    while (len >= ((word32)(p * 8)))
-    {
+    while (len >= ((word32)(p * 8))) {
         for (i = 0; i < p; i++)
             sha3->s[i] ^= Load64Unaligned(data + 8 * i);
         BlockSha3(sha3->s);

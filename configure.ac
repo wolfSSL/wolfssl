@@ -1763,31 +1763,38 @@ then
 fi
 
 
+ENABLED_ARMASM_INLINE="no"
+ENABLED_ARMASM_SHA3="no"
 # ARM Assembly
+# Both SHA3 and SHA512 instructions available with ARMV8.2-a
 AC_ARG_ENABLE([armasm],
-    [AS_HELP_STRING([--enable-armasm],[Enable wolfSSL ARMv8 ASM support (default: disabled). Set to sha512-crypto to use SHA512 instructions with Aarch64 CPU.])],
+    [AS_HELP_STRING([--enable-armasm],[Enable wolfSSL ARMv8 ASM support (default: disabled). Set to sha512-crypto or sha3-crypto to use SHA512 and SHA3 instructions with Aarch64 CPU.])],
     [ ENABLED_ARMASM=$enableval ],
     [ ENABLED_ARMASM=no ]
     )
 if test "$ENABLED_ARMASM" != "no" && test "$ENABLED_ASM" = "yes"
 then
+
     for v in `echo $ENABLED_ARMASM | tr "," " "`
     do
         case $v in
         yes)
             ;;
-        sha512-crypto)
+        inline)
+            ENABLED_ARMASM_INLINE=yes
+            ;;
+        sha512-crypto | sha3-crypto)
             case $host_cpu in
             *aarch64*)
                 ;;
             *)
-                AC_MSG_ERROR([SHA512 instructions only available on Aarch64 CPU.])
+                AC_MSG_ERROR([SHA512/SHA3 instructions only available on Aarch64 CPU.])
                 break;;
             esac
-            ENABLED_ARMASM_SHA512=yes
+            ENABLED_ARMASM_SHA3=yes
             ;;
         *)
-            AC_MSG_ERROR([Invalid choice of ARM asm inclusions (yes, sha512-crypto): $ENABLED_ARMASM.])
+            AC_MSG_ERROR([Invalid choice of ARM asm inclusions (yes, sha512-crypto, sha3-crypto): $ENABLED_ARMASM.])
             break;;
         esac
     done
@@ -1805,11 +1812,15 @@ then
             case $host_os in
             *darwin*)
                 # All known Aarch64 Mac computers support SHA-512 instructions
-                ENABLED_ARMASM_SHA512=yes
+                ENABLED_ARMASM_SHA3=yes
                 ;;
             *)
                 # +crypto needed for hardware acceleration
-                AM_CPPFLAGS="$AM_CPPFLAGS -mcpu=generic+crypto"
+                if test "$ENABLED_ARMASM_SHA3" = "yes"; then
+                    AM_CPPFLAGS="$AM_CPPFLAGS -march=armv8.2-a+crypto+sha3"
+                else
+                    AM_CPPFLAGS="$AM_CPPFLAGS -mcpu=generic+crypto"
+                fi
                 ;;
             esac
             # Include options.h
@@ -1840,9 +1851,9 @@ then
     esac
 fi
 
-if test "$ENABLED_ARMASM_SHA512" = "yes"; then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512"
+if test "$ENABLED_ARMASM_SHA3" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512 -DWOLFSSL_ARMASM_CRYPTO_SHA3"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512 -DWOLFSSL_ARMASM_CRYPTO_SHA3"
 fi
 
 # Xilinx hardened crypto
@@ -7465,6 +7476,7 @@ AM_CONDITIONAL([BUILD_SNIFFTEST],[ test "x$ENABLED_SNIFFTEST" = "xyes"])
 AM_CONDITIONAL([BUILD_AESGCM],[test "x$ENABLED_AESGCM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_AESCCM],[test "x$ENABLED_AESCCM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM],[test "x$ENABLED_ARMASM" = "xyes"])
+AM_CONDITIONAL([BUILD_ARMASM_INLINE],[test "x$ENABLED_ARMASM_INLINE" = "xyes"])
 AM_CONDITIONAL([BUILD_XILINX],[test "x$ENABLED_XILINX" = "xyes"])
 AM_CONDITIONAL([BUILD_AESNI],[test "x$ENABLED_AESNI" = "xyes"])
 AM_CONDITIONAL([BUILD_INTELASM],[test "x$ENABLED_INTELASM" = "xyes"])
@@ -7974,8 +7986,12 @@ echo "   * PKCS#12:                    $ENABLED_PKCS12"
 echo "   * Cavium Nitrox:              $ENABLED_CAVIUM"
 echo "   * Cavium Octeon (Sync):       $ENABLED_OCTEON_SYNC"
 echo "   * Intel Quick Assist:         $ENABLED_INTEL_QA"
+if test "$ENABLED_ARMASM_INLINE" = "yes"
+then
+    ENABLED_ARMASM="inline C"
+fi
 echo "   * ARM ASM:                    $ENABLED_ARMASM"
-echo "   * ARM ASM SHA512 Crypto       $ENABLED_ARMASM_SHA512"
+echo "   * ARM ASM SHA512/SHA3 Crypto  $ENABLED_ARMASM_SHA3"
 echo "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"
 echo "   * Write duplicate:            $ENABLED_WRITEDUP"
 echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
