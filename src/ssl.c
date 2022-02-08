@@ -20902,13 +20902,13 @@ unsigned long wolfSSL_X509_NAME_hash(WOLFSSL_X509_NAME* name)
         WOLFSSL_MSG("nothing to hash in WOLFSSL_X509_NAME");
         return 0;
     }
-  
+
     size = wolfSSL_i2d_X509_NAME_canon(name, &canon_name);
-    
+
     if (size <= 0){
         WOLFSSL_MSG("wolfSSL_i2d_X509_NAME_canon error");
         return 0;
-    } 
+    }
 
     if (wc_ShaHash((byte*)canon_name, size, digest) != 0) {
         WOLFSSL_MSG("wc_ShaHash error");
@@ -20916,7 +20916,7 @@ unsigned long wolfSSL_X509_NAME_hash(WOLFSSL_X509_NAME* name)
     }
 
     XFREE(canon_name, NULL, DYNAMIC_TYPE_OPENSSL);
-    
+
     ret  =  (unsigned long) digest[0];
     ret |= ((unsigned long) digest[1]) << 8;
     ret |= ((unsigned long) digest[2]) << 16;
@@ -21783,6 +21783,25 @@ int wolfSSL_sk_push_node(WOLFSSL_STACK** stack, WOLFSSL_STACK* in)
     return WOLFSSL_SUCCESS;
 }
 
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+static WC_INLINE int compare_WOLFSSL_CIPHER(
+    WOLFSSL_CIPHER *a,
+    WOLFSSL_CIPHER *b)
+{
+    if ((a->cipherSuite0 == b->cipherSuite0) &&
+        (a->cipherSuite == b->cipherSuite) &&
+        (a->ssl == b->ssl) &&
+        (XMEMCMP(a->description, b->description, sizeof a->description) == 0) &&
+        (a->offset == b->offset) &&
+        (a->in_stack == b->in_stack) &&
+        (a->bits == b->bits))
+        return 0;
+    else
+        return -1;
+}
+#endif /* OPENSSL_ALL || WOLFSSL_QT */
+
+
 /* return 1 on success 0 on fail */
 int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
 {
@@ -21802,8 +21821,7 @@ int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
             /* check if entire struct is zero */
             XMEMSET(&ciph, 0, sizeof(WOLFSSL_CIPHER));
-            if (XMEMCMP(&sk->data.cipher, &ciph,
-                    sizeof(WOLFSSL_CIPHER)) == 0) {
+            if (compare_WOLFSSL_CIPHER(&sk->data.cipher, &ciph) == 0) {
                 sk->data.cipher = *(WOLFSSL_CIPHER*)data;
                 sk->num = 1;
                 if (sk->hash_fn) {

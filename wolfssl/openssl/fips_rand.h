@@ -54,11 +54,11 @@ typedef struct WOLFSSL_DRBG_CTX {
     void* app_data;
 } WOLFSSL_DRBG_CTX;
 
-#define	DRBG_FLAG_CTR_USE_DF 0x1
-#define	DRBG_FLAG_TEST       0x2
+#define DRBG_FLAG_CTR_USE_DF 0x1
+#define DRBG_FLAG_TEST       0x2
 
-#define	DRBG_FLAG_NOERR      0x1
-#define	DRBG_CUSTOM_RESEED   0x2
+#define DRBG_FLAG_NOERR      0x1
+#define DRBG_CUSTOM_RESEED   0x2
 
 #define DRBG_STATUS_UNINITIALISED 0
 #define DRBG_STATUS_READY         1

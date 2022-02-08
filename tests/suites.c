@@ -321,7 +321,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     size_t      added;
     static      int tests = 1;
 #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS)
-    char        portNumber[8];
+    static char portNumber[8];
 #endif
     int         cliTestShouldFail = 0, svrTestShouldFail = 0;
 #ifdef WOLFSSL_NO_CLIENT_AUTH
