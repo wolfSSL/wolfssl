@@ -4057,14 +4057,22 @@ int wolfSSL_GetHmacSize(WOLFSSL* ssl)
 #ifdef WORD64_AVAILABLE
 int wolfSSL_GetPeerSequenceNumber(WOLFSSL* ssl, word64 *seq)
 {
-    return ssl ? !(*seq = (word64)ssl->keys.peer_sequence_number_hi << 32 |
-                ssl->keys.peer_sequence_number_lo) : BAD_FUNC_ARG;
+    if ((ssl == NULL) || (seq == NULL))
+        return BAD_FUNC_ARG;
+
+    *seq = ((word64)ssl->keys.peer_sequence_number_hi << 32) |
+                    ssl->keys.peer_sequence_number_lo;
+    return !(*seq);
 }
 
 int wolfSSL_GetSequenceNumber(WOLFSSL* ssl, word64 *seq)
 {
-    return ssl ? !(*seq = (word64)ssl->keys.sequence_number_hi << 32 |
-            ssl->keys.sequence_number_lo) : BAD_FUNC_ARG;
+    if ((ssl == NULL) || (seq == NULL))
+        return BAD_FUNC_ARG;
+
+    *seq = ((word64)ssl->keys.sequence_number_hi << 32) |
+                    ssl->keys.sequence_number_lo;
+    return !(*seq);
 }
 #endif
 
