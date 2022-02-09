@@ -30516,6 +30516,33 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
     } InternalTicket;
 
+    static WC_INLINE int compare_InternalTickets(
+        InternalTicket *a,
+        InternalTicket *b)
+    {
+        if ((a->pv.major == b->pv.major) &&
+            (a->pv.minor == b->pv.minor) &&
+            (XMEMCMP(a->suite,b->suite,sizeof a->suite) == 0) &&
+            (XMEMCMP(a->msecret,b->msecret,sizeof a->msecret) == 0) &&
+            (a->timestamp == b->timestamp) &&
+            (a->haveEMS == b->haveEMS)
+#ifdef WOLFSSL_TLS13
+            &&
+            (a->ageAdd == b->ageAdd) &&
+            (a->namedGroup == b->namedGroup) &&
+            (a->ticketNonce.len == b->ticketNonce.len) &&
+            (XMEMCMP(a->ticketNonce.data, b->ticketNonce.data,
+                     a->ticketNonce.len) == 0)
+#ifdef WOLFSSL_EARLY_DATA
+            && (a->maxEarlyDataSz == b->maxEarlyDataSz)
+#endif
+#endif
+            )
+            return 0;
+        else
+            return -1;
+    }
+
     /* RFC 5077 defines this for session tickets */
     /* fit within SESSION_TICKET_LEN */
     typedef struct ExternalTicket {
@@ -30601,7 +30628,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             /* sanity checks on encrypt callback */
 
             /* internal ticket can't be the same if encrypted */
-            if (XMEMCMP(et->enc_ticket, &it, sizeof(InternalTicket)) == 0) {
+            if (compare_InternalTickets((InternalTicket *)et->enc_ticket, &it)
+                == 0)
+            {
                 ForceZero(&it, sizeof(it));
                 ForceZero(et->enc_ticket, sizeof(it));
                 WOLFSSL_MSG("User ticket encrypt didn't encrypt");

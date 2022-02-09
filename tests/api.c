@@ -25347,7 +25347,8 @@ static int test_wc_ecc_pointFns (void)
     if (ret == 0) {
         ret = wc_ecc_import_point_der(der, derSz, idx, point);
         /* Condition double checks wc_ecc_cmp_point().  */
-        if (ret == 0 && XMEMCMP(&key.pubkey, point, sizeof(key.pubkey))) {
+        if (ret == 0 &&
+            XMEMCMP((void *)&key.pubkey, (void *)point, sizeof(key.pubkey))) {
             ret = wc_ecc_cmp_point(&key.pubkey, point);
         }
     }
@@ -52055,7 +52056,6 @@ static void test_openssl_FIPS_drbg(void)
     AssertIntEQ(FIPS_drbg_set_callbacks(dctx, NULL, NULL, 20, NULL, NULL),
         WOLFSSL_SUCCESS);
     AssertIntEQ(FIPS_drbg_instantiate(dctx, NULL, 0), WOLFSSL_SUCCESS);
-    
     AssertIntEQ(FIPS_drbg_generate(dctx, data1, dlen, 0, NULL, 0),
         WOLFSSL_SUCCESS);
     AssertIntNE(XMEMCMP(data1, zeroData, dlen), 0);
