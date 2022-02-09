@@ -128,7 +128,7 @@ struct wc_Sha3 {
 typedef wc_Sha3 wc_Shake;
 #endif
 
-#ifdef WOLFSSL_ARMASM
+#if defined(WOLFSSL_ARMASM) && defined(WOLFSSL_ARMASM_CRYPTO_SHA3)
 WOLFSSL_LOCAL void BlockSha3(word64 *s);
 #endif
 

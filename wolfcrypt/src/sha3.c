@@ -51,7 +51,7 @@
 #endif
 
 
-#ifndef WOLFSSL_ARMASM
+#if !defined(WOLFSSL_ARMASM) || !defined(WOLFSSL_ARMASM_CRYPTO_SHA3)
 #ifdef WOLFSSL_SHA3_SMALL
 /* Rotate a 64-bit value left.
  *
