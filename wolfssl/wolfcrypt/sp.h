@@ -49,7 +49,7 @@
     #define SP_NOINLINE __declspec(noinline)
 #elif defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
     #define SP_NOINLINE _Pragma("inline = never")
-#elif defined(__GNUC__) || defined(__KEIL__)
+#elif defined(__GNUC__) || defined(__KEIL__) || defined(__DCC__)
     #define SP_NOINLINE __attribute__((noinline))
 #else
     #define SP_NOINLINE
