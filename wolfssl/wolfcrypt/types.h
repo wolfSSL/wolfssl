@@ -259,6 +259,12 @@ decouple library dependencies with standard string, memory and so on.
             #endif
         #elif defined(__CCRX__)
             #define WC_INLINE inline
+        #elif defined(__DCC__)
+            #ifndef __cplusplus
+                #define WC_INLINE __inline__
+            #else
+                #define WC_INLINE inline
+            #endif
         #else
             #define WC_INLINE
         #endif
