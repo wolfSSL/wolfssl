@@ -184,9 +184,9 @@ then
 fi
 
 AC_ARG_ENABLE([64bit],
-    [AS_HELP_STRING([--enable-64bit],[Enables 64-bit support (default: enabled)])],
+    [AS_HELP_STRING([--enable-64bit],[Enables 64-bit support (default: disabled)])],
     [ ENABLED_64BIT=$enableval ],
-    [ ENABLED_64BIT=yes ]
+    [ ENABLED_64BIT=no ]
     )
 
 AC_ARG_ENABLE([kdf],
@@ -5924,6 +5924,9 @@ AS_IF([test "x$ENABLED_INTEL_QA" = "xyes" || test "x$ENABLED_INTEL_QA_SYNC" = "x
      CPPFLAGS="$OLD_CPPFLAGS"
 ])
 
+################################################################################
+# Single Precision option handling                                             #
+################################################################################
 
 ENABLED_SP_RSA=no
 ENABLED_SP_DH=no
@@ -6170,7 +6173,7 @@ fi
 
 if test "$ENABLED_SP_MATH" = "yes"; then
     if test "$ENABLED_SP" = "no"; then
-        AC_MSG_ERROR([Must have SP enabled: --enable-sp])
+        AC_MSG_ERROR([Must have SP enabled with SP math: --enable-sp])
     fi
     if test "$ENABLED_ECCCUSTCURVES" = "yes"; then
         AC_MSG_ERROR([Cannot use single precision math and custom curves])
@@ -6233,8 +6236,6 @@ if test "$ENABLED_SP_MATH_ALL" = "yes"; then
 
   ENABLED_FASTMATH="no"
   ENABLED_SLOWMATH="no"
-  ENABLED_SP="yes"
-  #ENABLED_SP_MATH="yes"
 
   AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_MATH_ALL"
 
@@ -6284,10 +6285,7 @@ if test "$ENABLED_SP_MATH_ALL" = "yes"; then
 fi
 
 
-if test "$ENABLED_SP_ASM" = "yes"; then
-  if test "$ENABLED_SP" = "no"; then
-    AC_MSG_ERROR([Must have SP enabled: --enable-sp])
-  fi
+if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_SP" = "yes"; then
   if test "$ENABLED_SP_NONBLOCK" = "yes"; then
     AC_MSG_ERROR([SP non-blocking not supported with sp-asm])
   fi
@@ -6341,6 +6339,9 @@ if test "$ENABLED_SP_MATH" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_MATH"
 fi
 
+################################################################################
+# End - Single Precision option handling                                       #
+################################################################################
 
 # Fast RSA using Intel IPP
 ippdir="${srcdir}/IPP"
@@ -7049,6 +7050,22 @@ AS_IF([test "x$ENABLED_ED25519_STREAM" = "xyes" && \
        test "x$ENABLED_ED25519" = "xno"],
       [AC_MSG_ERROR([ED25519 verify streaming enabled but ED25519 is disabled])])
 
+# Ensure only one size is enabled
+AS_IF([test "x$ENABLED_64BIT" = "xyes" && \
+       test "x$ENABLED_32BIT" = "xyes"],
+      [AC_MSG_ERROR([cannot specify 64-bit build and 32-bit build.])])
+AS_IF([test "x$ENABLED_64BIT" = "xyes" && \
+       test "x$ENABLED_16BIT" = "xyes"],
+      [AC_MSG_ERROR([cannot specify 64-bit build and 16-bit build.])])
+AS_IF([test "x$ENABLED_32BIT" = "xyes" && \
+       test "x$ENABLED_16BIT" = "xyes"],
+      [AC_MSG_ERROR([cannot specify 32-bit build and 16-bit build.])])
+
+# 16-bit build not supported with SP
+AS_IF([test "x$ENABLED_16BIT" = "xyes" && \
+       test "x$ENABLED_SP" = "xyes"],
+      [AC_MSG_ERROR([16-bit build not available with SP.])])
+
 ################################################################################
 # Update CFLAGS based on options                                               #
 ################################################################################
@@ -7565,10 +7582,10 @@ AM_CONDITIONAL([BUILD_INTEL_QA_SYNC],[test "x$ENABLED_INTEL_QA_SYNC" = "xyes"])
 AM_CONDITIONAL([BUILD_SP],[test "x$ENABLED_SP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SP_C32],[(((test "$ENABLED_SP_RSA" = "yes" || test "$ENABLED_SP_DH" = "yes" \
                                || test "$ENABLED_SP_ECC" = "yes") && test "x$ENABLED_SP_ASM" = "xno") \
-                             || test "x$ENABLED_USERSETTINGS" = "xyes") && test "x$ENABLED_32BIT" = "xyes"])
+                             || test "x$ENABLED_USERSETTINGS" = "xyes") && test "x$ENABLED_64BIT" != "xyes"])
 AM_CONDITIONAL([BUILD_SP_C64],[(((test "$ENABLED_SP_RSA" = "yes" || test "$ENABLED_SP_DH" = "yes" \
                                || test "$ENABLED_SP_ECC" = "yes") && test "x$ENABLED_SP_ASM" = "xno") \
-                             || test "x$ENABLED_USERSETTINGS" = "xyes") && test "x$ENABLED_64BIT" = "xyes"])
+                             || test "x$ENABLED_USERSETTINGS" = "xyes") && test "x$ENABLED_32BIT" != "xyes"])
 AM_CONDITIONAL([BUILD_SP_ARM64],[test "x$ENABLED_SP_ARM64_ASM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SP_ARM32],[test "x$ENABLED_SP_ARM32_ASM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SP_ARM_THUMB],[test "x$ENABLED_SP_ARM_THUMB_ASM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])

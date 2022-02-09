@@ -447,13 +447,13 @@ if BUILD_SP_ARM64
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_arm64.c
 endif
 endif
-if BUILD_SP_INT
-src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_int.c
-endif
 if BUILD_SP_ARM_CORTEX
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_cortexm.c
 endif
 endif BUILD_SP
+if BUILD_SP_INT
+src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_int.c
+endif
 
 if !BUILD_FIPS_CURRENT
 if BUILD_AES
