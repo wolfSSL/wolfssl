@@ -1,13 +1,14 @@
 # vim:ft=automake
 # All paths should be given relative to the root
 
-BUILT_SOURCES+= wolfcrypt/src/port/cavium/cavium_nitrox.c
-BUILT_SOURCES+= wolfcrypt/src/port/intel/quickassist.c
-BUILT_SOURCES+= wolfcrypt/src/port/intel/quickassist_mem.c
+ASYNC_FILES =						\
+	wolfcrypt/src/port/cavium/cavium_nitrox.c	\
+	wolfcrypt/src/port/intel/quickassist.c		\
+	wolfcrypt/src/port/intel/quickassist_mem.c
 
-MAINTAINERCLEANFILES+= wolfcrypt/src/port/cavium/cavium_nitrox.c
-MAINTAINERCLEANFILES+= wolfcrypt/src/port/intel/quickassist.c
-MAINTAINERCLEANFILES+= wolfcrypt/src/port/intel/quickassist_mem.c
+BUILT_SOURCES+= $(ASYNC_FILES)
+
+MAINTAINERCLEANFILES+= $(ASYNC_FILES)
 
 EXTRA_DIST += src/bio.c
 EXTRA_DIST += wolfcrypt/src/misc.c
@@ -118,14 +119,8 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/Renesas/README.md \
               wolfcrypt/src/port/cypress/psoc6_crypto.c
 
-wolfcrypt/src/port/cavium/cavium_nitrox.c: Makefile
-	@test -e $(srcdir)/$@ || touch $(srcdir)/$@
-
-wolfcrypt/src/port/intel/quickassist.c: Makefile
-	@test -e $(srcdir)/$@ || touch $(srcdir)/$@
-
-wolfcrypt/src/port/intel/quickassist_mem.c: Makefile
-	@test -e $(srcdir)/$@ || touch $(srcdir)/$@
+$(ASYNC_FILES):
+	$(AM_V_at)touch $(srcdir)/$@
 
 if BUILD_CRYPTOCB
 src_libwolfssl_la_SOURCES += wolfcrypt/src/cryptocb.c
