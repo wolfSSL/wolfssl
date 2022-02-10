@@ -93,7 +93,7 @@ This library provides single precision (SP) integer math functions.
  * WOLFSSL_SP_FAST_MODEXP       Allow fast mod_exp with small C code
  */
 
-/* WOLFSSL_SP_SMALL is incompatibile with clang-12+ -Os. */
+/* TODO: WOLFSSL_SP_SMALL is incompatible with clang-12+ -Os. */
 #if defined(__clang__) && defined(__clang_major__) && \
     (__clang_major__ >= 12) && defined(WOLFSSL_SP_SMALL)
     #undef WOLFSSL_SP_SMALL
