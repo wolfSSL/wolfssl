@@ -820,7 +820,9 @@ int wc_ecc_get_oid(word32 oidSum, const byte** oid, word32* oidSz);
 
 enum ecEncAlgo {
     ecAES_128_CBC = 1,  /* default */
-    ecAES_256_CBC = 2
+    ecAES_256_CBC = 2,
+    ecAES_128_CTR = 3,
+    ecAES_256_CTR = 4
 };
 
 enum ecKdfAlgo {
@@ -860,6 +862,9 @@ void wc_ecc_ctx_free(ecEncCtx* ctx);
 WOLFSSL_API
 int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng);  /* reset for use again w/o alloc/free */
 
+WOLFSSL_API
+int wc_ecc_ctx_set_algo(ecEncCtx* ctx, byte encAlgo, byte kdfAlgo,
+    byte macAlgo);
 WOLFSSL_API
 const byte* wc_ecc_ctx_get_own_salt(ecEncCtx* ctx);
 WOLFSSL_API

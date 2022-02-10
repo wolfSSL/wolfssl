@@ -1992,8 +1992,9 @@ extern void uITRON4_free(void *p) ;
         #undef  WOLFSSL_AES_256
         #define WOLFSSL_AES_256
     #endif
-    #if !defined(WOLFSSL_AES_128) && defined(HAVE_ECC_ENCRYPT)
-        #warning HAVE_ECC_ENCRYPT uses AES 128 bit keys
+    #if !defined(WOLFSSL_AES_128) && !defined(WOLFSSL_AES_256) && \
+        defined(HAVE_ECC_ENCRYPT)
+        #warning HAVE_ECC_ENCRYPT uses AES 128/256 bit keys
      #endif
 
     #ifndef NO_AES_DECRYPT

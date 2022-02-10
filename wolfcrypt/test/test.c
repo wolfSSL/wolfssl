@@ -461,7 +461,7 @@ WOLFSSL_TEST_SUBROUTINE int scrypt_test(void);
 #ifdef HAVE_ECC
     WOLFSSL_TEST_SUBROUTINE int  ecc_test(void);
     #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_AES_CBC) && \
-        defined(WOLFSSL_AES_128)
+        (defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_256))
         WOLFSSL_TEST_SUBROUTINE int  ecc_encrypt_test(void);
     #endif
     #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
@@ -1233,7 +1233,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("ECC      test passed!\n");
     PRIVATE_KEY_LOCK();
     #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_AES_CBC) && \
-        defined(WOLFSSL_AES_128)
+        (defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_256))
         if ( (ret = ecc_encrypt_test()) != 0)
             return err_sys("ECC Enc  test failed!\n", ret);
         else
@@ -9330,6 +9330,7 @@ WOLFSSL_TEST_SUBROUTINE int aes256_test(void)
 
 #ifdef HAVE_AESGCM
 
+#ifdef WOLFSSL_AES_128
 static int aesgcm_default_test_helper(byte* key, int keySz, byte* iv, int ivSz,
                 byte* plain, int plainSz, byte* cipher, int cipherSz,
                 byte* aad, int aadSz, byte* tag, int tagSz)
@@ -9426,6 +9427,7 @@ static int aesgcm_default_test_helper(byte* key, int keySz, byte* iv, int ivSz,
 
     return ret;
 }
+#endif
 
 
 /* tests that only use 12 byte IV and 16 or less byte AAD
@@ -9433,6 +9435,7 @@ static int aesgcm_default_test_helper(byte* key, int keySz, byte* iv, int ivSz,
  * https://csrc.nist.gov/Projects/Cryptographic-Algorithm-Validation-Program/CAVP-TESTING-BLOCK-CIPHER-MODES*/
 WOLFSSL_TEST_SUBROUTINE int aesgcm_default_test(void)
 {
+#ifdef WOLFSSL_AES_128
     byte key1[] = {
         0x29, 0x8e, 0xfa, 0x1c, 0xcf, 0x29, 0xcf, 0x62,
         0xae, 0x68, 0x24, 0xbf, 0xc1, 0x95, 0x57, 0xfc
@@ -9526,6 +9529,7 @@ WOLFSSL_TEST_SUBROUTINE int aesgcm_default_test(void)
     if (ret != 0) {
         return ret;
     }
+#endif
 
     return 0;
 }
@@ -9557,7 +9561,7 @@ WOLFSSL_TEST_SUBROUTINE int aesgcm_test(void)
         0xba, 0x63, 0x7b, 0x39
     };
 
-#if defined(WOLFSSL_AES_256)
+#if defined(WOLFSSL_AES_256) || defined(WOLFSSL_AES_192)
     WOLFSSL_SMALL_STACK_STATIC const byte a[] =
     {
         0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
@@ -9580,7 +9584,9 @@ WOLFSSL_TEST_SUBROUTINE int aesgcm_test(void)
         0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad,
         0xde, 0xca, 0xf8, 0x88
     };
+#endif /* WOLFSSL_AES_256 */
 
+#if defined(WOLFSSL_AES_256) || defined(WOLFSSL_AES_192)
     WOLFSSL_SMALL_STACK_STATIC const byte c1[] =
     {
         0x52, 0x2d, 0xc1, 0xf0, 0x99, 0x56, 0x7d, 0x07,
@@ -9592,7 +9598,7 @@ WOLFSSL_TEST_SUBROUTINE int aesgcm_test(void)
         0xc5, 0xf6, 0x1e, 0x63, 0x93, 0xba, 0x7a, 0x0a,
         0xbc, 0xc9, 0xf6, 0x62
     };
-#endif /* WOLFSSL_AES_256 */
+#endif /* WOLFSSL_AES_256 || WOLFSSL_AES_192 */
 
     WOLFSSL_SMALL_STACK_STATIC const byte t1[] =
     {
@@ -23863,9 +23869,10 @@ done:
 }
 
 #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_AES_CBC) && \
-    defined(WOLFSSL_AES_128)
+    (defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_256))
 
-#if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+#if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && \
+    ECC_MIN_KEY_SZ <= 256 && defined(WOLFSSL_AES_128)
 static int ecc_encrypt_kat(WC_RNG *rng)
 {
     int ret = 0;
@@ -24071,17 +24078,10 @@ static int ecc_encrypt_kat(WC_RNG *rng)
 }
 #endif
 
-WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
+static int ecc_encrypt_e2e_test(WC_RNG* rng, ecc_key* userA, ecc_key* userB,
+    byte encAlgo, byte kdfAlgo, byte macAlgo)
 {
-    WC_RNG  rng;
     int     ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    ecc_key *userA = (ecc_key *)XMALLOC(sizeof *userA, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER),
-        *userB = (ecc_key *)XMALLOC(sizeof *userB, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER),
-        *tmpKey = (ecc_key *)XMALLOC(sizeof *userB, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#else
-    ecc_key userA[1], userB[1], tmpKey[1];
-#endif
     byte    msg[48];
     byte    plain[48];
 #ifdef WOLFSSL_ECIES_OLD
@@ -24106,66 +24106,25 @@ WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
 #endif
     word32  outSz2   = sizeof(out2);
     word32  plainSz2 = sizeof(plain2);
-
-#ifndef HAVE_FIPS
-    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#ifdef WOLFSSL_SMALL_STACK
+    ecc_key *tmpKey = (ecc_key *)XMALLOC(sizeof(ecc_key), HEAP_HINT,
+                                         DYNAMIC_TYPE_TMP_BUFFER);
 #else
-    ret = wc_InitRng(&rng);
+    ecc_key tmpKey[1];
 #endif
-    if (ret != 0)
-        return -10400;
 
 #ifdef WOLFSSL_SMALL_STACK
-    if ((userA == NULL) ||
-        (userB == NULL))
+    if (tmpKey == NULL) {
         ERROR_OUT(MEMORY_E, done);
+    }
 #endif
-
-    XMEMSET(userA, 0, sizeof *userA);
-    XMEMSET(userB, 0, sizeof *userB);
-
-    ret = wc_ecc_init_ex(userA, HEAP_HINT, devId);
-    if (ret != 0)
-        goto done;
-    ret = wc_ecc_init_ex(userB, HEAP_HINT, devId);
-    if (ret != 0)
-        goto done;
     ret = wc_ecc_init_ex(tmpKey, HEAP_HINT, devId);
     if (ret != 0)
         goto done;
 
-    ret  = wc_ecc_make_key(&rng, ECC_KEYGEN_SIZE, userA);
-#if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_NONE);
-#endif
-    if (ret != 0){
-        ret = -10401; goto done;
-    }
-
-    ret = wc_ecc_make_key(&rng, ECC_KEYGEN_SIZE, userB);
-#if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &userB->asyncDev, WC_ASYNC_FLAG_NONE);
-#endif
-    if (ret != 0){
-        ret = -10402; goto done;
-    }
-
     /* set message to incrementing 0,1,2,etc... */
     for (i = 0; i < (int)sizeof(msg); i++)
         msg[i] = i;
-
-#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
-    !defined(HAVE_SELFTEST)
-    ret = wc_ecc_set_rng(userA, &rng);
-    if (ret != 0) {
-        ret = -10403; goto done;
-    }
-    ret = wc_ecc_set_rng(userB, &rng);
-    if (ret != 0) {
-        ret = -10404; goto done;
-    }
-#endif
 
     /* encrypt msg to B */
     ret = wc_ecc_encrypt(userA, userB, msg, sizeof(msg), out, &outSz, NULL);
@@ -24203,11 +24162,18 @@ WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
 #endif
 
     /* let's verify message exchange works, A is client, B is server */
-    cliCtx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng);
-    srvCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, &rng);
+    cliCtx = wc_ecc_ctx_new(REQ_RESP_CLIENT, rng);
+    srvCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, rng);
     if (cliCtx == NULL || srvCtx == NULL) {
         ret = -10408; goto done;
     }
+
+    ret = wc_ecc_ctx_set_algo(cliCtx, encAlgo, kdfAlgo, macAlgo);
+    if (ret != 0)
+        goto done;
+    ret = wc_ecc_ctx_set_algo(srvCtx, encAlgo, kdfAlgo, macAlgo);
+    if (ret != 0)
+        goto done;
 
     /* get salt to send to peer */
     tmpSalt = wc_ecc_ctx_get_own_salt(cliCtx);
@@ -24292,11 +24258,18 @@ WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
     wc_ecc_ctx_free(srvCtx);
     wc_ecc_ctx_free(cliCtx);
     /* let's verify message exchange works, A is client, B is server */
-    cliCtx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng);
-    srvCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, &rng);
+    cliCtx = wc_ecc_ctx_new(REQ_RESP_CLIENT, rng);
+    srvCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, rng);
     if (cliCtx == NULL || srvCtx == NULL) {
         ret = -10416; goto done;
     }
+
+    ret = wc_ecc_ctx_set_algo(cliCtx, encAlgo, kdfAlgo, macAlgo);
+    if (ret != 0)
+        goto done;
+    ret = wc_ecc_ctx_set_algo(srvCtx, encAlgo, kdfAlgo, macAlgo);
+    if (ret != 0)
+        goto done;
 
     /* get salt to send to peer */
     tmpSalt = wc_ecc_ctx_get_own_salt(cliCtx);
@@ -24319,10 +24292,10 @@ WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
     if (ret != 0)
         goto done;
 
-    ret = wc_ecc_ctx_set_info(cliCtx, (byte*)"wolfSSL MSGE", 11);
+    ret = wc_ecc_ctx_set_info(cliCtx, (byte*)"wolfSSL MSGE", 12);
     if (ret != 0)
         goto done;
-    ret = wc_ecc_ctx_set_info(srvCtx, (byte*)"wolfSSL MSGE", 11);
+    ret = wc_ecc_ctx_set_info(srvCtx, (byte*)"wolfSSL MSGE", 12);
     if (ret != 0)
         goto done;
 
@@ -24347,8 +24320,9 @@ WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
     }
 #endif /* HAVE_COMP_KEY && (!FIPS || FIPS>=5.3) */
 
-#if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
-    ret = ecc_encrypt_kat(&rng);
+#if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && \
+    (ECC_MIN_KEY_SZ <= 256) && defined(WOLFSSL_AES_128)
+    ret = ecc_encrypt_kat(rng);
 #endif
 
 done:
@@ -24358,6 +24332,129 @@ done:
     wc_ecc_ctx_free(cliCtx);
 
 #ifdef WOLFSSL_SMALL_STACK
+    if (tmpKey != NULL) {
+        wc_ecc_free(tmpKey);
+        XFREE(tmpKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#else
+    wc_ecc_free(tmpKey);
+#endif
+
+    return ret;
+}
+
+WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
+{
+    WC_RNG  rng;
+    int     ret;
+#ifdef WOLFSSL_SMALL_STACK
+    ecc_key *userA;
+    ecc_key *userB;
+#else
+    ecc_key userA[1];
+    ecc_key userB[1];
+#endif
+
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
+    ret = wc_InitRng(&rng);
+#endif
+    if (ret != 0)
+        return -10400;
+
+#ifdef WOLFSSL_SMALL_STACK
+    userA = (ecc_key *)XMALLOC(sizeof *userA, HEAP_HINT,
+                               DYNAMIC_TYPE_TMP_BUFFER);
+    userB = (ecc_key *)XMALLOC(sizeof *userB, HEAP_HINT,
+                               DYNAMIC_TYPE_TMP_BUFFER);
+    if ((userA == NULL) || (userB == NULL)) {
+        ERROR_OUT(MEMORY_E, done);
+    }
+#endif
+
+    XMEMSET(userA, 0, sizeof *userA);
+    XMEMSET(userB, 0, sizeof *userB);
+
+    ret = wc_ecc_init_ex(userA, HEAP_HINT, devId);
+    if (ret != 0)
+        goto done;
+    ret = wc_ecc_init_ex(userB, HEAP_HINT, devId);
+    if (ret != 0)
+        goto done;
+
+    ret  = wc_ecc_make_key(&rng, ECC_KEYGEN_SIZE, userA);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0){
+        ret = -10401; goto done;
+    }
+
+    ret = wc_ecc_make_key(&rng, ECC_KEYGEN_SIZE, userB);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &userB->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0){
+        ret = -10402; goto done;
+    }
+
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
+    !defined(HAVE_SELFTEST)
+    ret = wc_ecc_set_rng(userA, &rng);
+    if (ret != 0) {
+        ret = -10403; goto done;
+    }
+    ret = wc_ecc_set_rng(userB, &rng);
+    if (ret != 0) {
+        ret = -10404; goto done;
+    }
+#endif
+
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
+#ifdef WOLFSSL_AES_128
+    if (ret == 0) {
+        ret = ecc_encrypt_e2e_test(&rng, userA, userB, ecAES_128_CBC,
+            ecHKDF_SHA256, ecHMAC_SHA256);
+        if (ret != 0) {
+            printf("ECIES: AES_128_CBC, HKDF_SHA256, HMAC_SHA256\n");
+        }
+    }
+#endif
+#ifdef WOLFSSL_AES_256
+    if (ret == 0) {
+        ret = ecc_encrypt_e2e_test(&rng, userA, userB, ecAES_256_CBC,
+            ecHKDF_SHA256, ecHMAC_SHA256);
+        if (ret != 0) {
+            printf("ECIES: AES_256_CBC, HKDF_SHA256, HMAC_SHA256\n");
+        }
+    }
+#endif
+#endif
+#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER)
+#ifdef WOLFSSL_AES_128
+    if (ret == 0) {
+        ret = ecc_encrypt_e2e_test(&rng, userA, userB, ecAES_128_CTR,
+            ecHKDF_SHA256, ecHMAC_SHA256);
+        if (ret != 0) {
+            printf("ECIES: AES_128_CTR, HKDF_SHA256, HMAC_SHA256\n");
+        }
+    }
+#endif
+#ifdef WOLFSSL_AES_256
+    if (ret == 0) {
+        ret = ecc_encrypt_e2e_test(&rng, userA, userB, ecAES_256_CTR,
+            ecHKDF_SHA256, ecHMAC_SHA256);
+        if (ret != 0) {
+            printf("ECIES: AES_256_CTR, HKDF_SHA256, HMAC_SHA256\n");
+        }
+    }
+#endif
+#endif
+
+done:
+#ifdef WOLFSSL_SMALL_STACK
     if (userA != NULL) {
         wc_ecc_free(userA);
         XFREE(userA, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -24366,12 +24463,7 @@ done:
         wc_ecc_free(userB);
         XFREE(userB, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
-    if (tmpKey != NULL) {
-        wc_ecc_free(tmpKey);
-        XFREE(tmpKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    }
 #else
-    wc_ecc_free(tmpKey);
     wc_ecc_free(userB);
     wc_ecc_free(userA);
 #endif
