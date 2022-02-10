@@ -184,6 +184,7 @@ linuxv2)
   FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
   FIPS_INCS=( fips.h )
   FIPS_OPTION=v2
+  COPY_DIRECT=( wolfcrypt/src/aes_asm.S wolfcrypt/src/aes_asm.asm )
   ;;
 netbsd-selftest)
   FIPS_VERSION=$NETBSD_FIPS_VERSION
@@ -234,6 +235,7 @@ linuxv5)
   FIPS_INCS=( fips.h )
   FIPS_OPTION="v5-RC12"
   COPY_DIRECT=( wolfcrypt/src/aes_asm.S wolfcrypt/src/aes_asm.asm
+                wolfcrypt/src/aes_gcm_asm.S
                 wolfcrypt/src/sha256_asm.S wolfcrypt/src/sha512_asm.S )
   ;;
 linuxv5-ready|fips-ready|fips-v5-ready)
@@ -372,17 +374,17 @@ esac
 # clone the FIPS repository
 case "$FIPS_OPTION" in
     *dev)
-	if ! $GIT clone --depth 1 "$FIPS_REPO" fips; then
+        if ! $GIT clone --depth 1 "$FIPS_REPO" fips; then
             echo "fips-check: Couldn't check out the FIPS repository for fips-dev."
             exit 1
-	fi
-	;;
+        fi
+        ;;
     *)
-	if ! $GIT clone --depth 1 -b "$FIPS_VERSION" "$FIPS_REPO" fips; then
+        if ! $GIT clone --depth 1 -b "$FIPS_VERSION" "$FIPS_REPO" fips; then
             echo "fips-check: Couldn't check out ${FIPS_VERSION} from repository ${FIPS_REPO}."
             exit 1
-	fi
-	;;
+        fi
+        ;;
 esac
 
 for SRC in "${FIPS_SRCS[@]}"
