@@ -104,18 +104,33 @@ int testsuite_test(int argc, char** argv)
     THREAD_TYPE serverThread;
 
 #ifndef USE_WINDOWS_API
-    char tempName[] = "/tmp/output-XXXXXX";
-    int len = 18;
-    int num = 6;
+    const char *tempDir = NULL;
+    char tempName[128];
+    int tempName_len;
+    int tempName_Xnum;
 #else
     char tempName[] = "fnXXXXXX";
-    int len = 8;
-    int num = 6;
+    const int tempName_len = 8;
+    const int tempName_Xnum = 6;
 #endif
 #ifdef HAVE_STACK_SIZE
     void *serverThreadStackContext = NULL;
 #endif
     int ret;
+
+#ifndef USE_WINDOWS_API
+#ifdef XGETENV
+    tempDir = XGETENV("TMPDIR");
+    if (tempDir == NULL)
+#endif
+    {
+        tempDir = "/tmp";
+    }
+    XSTRLCPY(tempName, tempDir, sizeof(tempName));
+    XSTRLCAT(tempName, "/testsuite-output-XXXXXX", sizeof(tempName));
+    tempName_len = (int)XSTRLEN(tempName);
+    tempName_Xnum = 6;
+#endif /* !USE_WINDOWS_API */
 
 #ifdef HAVE_WNR
     if (wc_InitNetRandom(wnrConfig, NULL, 5000) != 0) {
@@ -172,7 +187,7 @@ int testsuite_test(int argc, char** argv)
     #endif
 
     /* Create unique file name */
-    outputName = mymktemp(tempName, len, num);
+    outputName = mymktemp(tempName, tempName_len, tempName_Xnum);
     if (outputName == NULL) {
         printf("Could not create unique file name");
         return EXIT_FAILURE;
@@ -241,7 +256,7 @@ static int test_tls(func_args* server_args)
 {
     func_args echo_args;
     char* myArgv[NUMARGS];
-    char arg[3][32];
+    char arg[3][128];
 
     /* Set up command line arguments for echoclient to send input file
      * and write echoed data to temporary output file. */
