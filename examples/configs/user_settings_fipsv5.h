@@ -63,29 +63,32 @@ extern "C" {
 
 /* TLS Features */
 #define WOLFSSL_TLS13
-#define WOLFSSL_BASE64_ENCODE
-#define WOLFSSL_USE_ALIGN
-#define HAVE_ENCRYPT_THEN_MAC
 #define HAVE_TLS_EXTENSIONS
+#define HAVE_ENCRYPT_THEN_MAC
 #define HAVE_SUPPORTED_CURVES
 #define HAVE_EXTENDED_MASTER
 #define HAVE_ONE_TIME_AUTH /* TLS extension used with Poly1305 */
-#define HAVE_CRL
+
+/* TLS Resumption */
+#define HAVE_SECURE_RENEGOTIATION
+#define HAVE_SERVER_RENEGOTIATION_INFO
+#define HAVE_SESSION_TICKET
+
+/* Other Features */
+#define WOLFSSL_USE_ALIGN
+#define WOLFSSL_BASE64_ENCODE
+//#define HAVE_CRL
 #define HAVE_EXT_CACHE
 #define WOLFSSL_VERIFY_CB_ALL_CERTS
 #define WOLFSSL_ALWAYS_VERIFY_CB
 #define WOLFSSL_DH_EXTRA /* DHE ASN.1 key import/export support */
 
-#if 0
-    #define HAVE_SECURE_RENEGOTIATION
-    #define HAVE_SERVER_RENEGOTIATION_INFO
-#endif
-
-#ifndef WOLFSSL_WOLFSSH  /* ifndef check required due to configure already generating flag */
+#ifndef WOLFSSL_WOLFSSH /* ifndef check required due to configure already generating flag */
 #define WOLFSSL_WOLFSSH
 #endif
 
 /* Compatibility Layer */
+#define OPENSSL_EXTRA
 #if 0
     #define OPENSSL_ALL
 #endif
@@ -147,18 +150,23 @@ extern "C" {
 #define WOLFSSL_SHA3
 #define HAVE_HKDF
 
-/* Disabled Algorithms */
+/* Disabled Features */
 #define NO_OLD_TLS
+#define NO_PSK
+
+/* Disabled Algorithms */
 #define NO_RC4
 #define NO_MD4
 #define NO_MD5
 #define NO_DES3
-#define NO_PSK
 #define NO_DSA
-#define WOLFSSL_NO_SHAKE256
 #define NO_RABBIT
 #define NO_HC128
+#define WOLFSSL_NO_SHAKE256
 
+#if 0
+    #define DEBUG_WOLFSSL
+#endif
 
 #ifdef __cplusplus
 }
