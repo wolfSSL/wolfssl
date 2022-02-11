@@ -23871,6 +23871,12 @@ done:
 #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_AES_CBC) && \
     (defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_256))
 
+/* ecc_encrypt_e2e_test() uses wc_ecc_ctx_set_algo(), which was added in
+ * wolfFIPS 5.3.
+ * ecc_encrypt_kat() is used only by ecc_encrypt_e2e_test().
+ */
+#if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+
 #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && \
     ECC_MIN_KEY_SZ <= 256 && defined(WOLFSSL_AES_128)
 static int ecc_encrypt_kat(WC_RNG *rng)
@@ -24343,6 +24349,8 @@ done:
     return ret;
 }
 
+#endif /* !HAVE_FIPS || FIPS_VERSION_GE(5,3) */
+
 WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
 {
     WC_RNG  rng;
@@ -24412,6 +24420,8 @@ WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
     }
 #endif
 
+#if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+
 #if !defined(NO_AES) && defined(HAVE_AES_CBC)
 #ifdef WOLFSSL_AES_128
     if (ret == 0) {
@@ -24452,6 +24462,8 @@ WOLFSSL_TEST_SUBROUTINE int ecc_encrypt_test(void)
     }
 #endif
 #endif
+
+#endif /* !HAVE_FIPS || FIPS_VERSION_GE(5,3) */
 
 done:
 #ifdef WOLFSSL_SMALL_STACK

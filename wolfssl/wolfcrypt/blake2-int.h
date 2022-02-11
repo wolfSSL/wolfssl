@@ -73,7 +73,7 @@
     byte  node_depth;    /* 15 */
     byte  inner_length;  /* 16 */
     /* byte  reserved[0]; */
-    byte  salt[BLAKE2B_SALTBYTES]; /* 24 */
+    byte  salt[BLAKE2S_SALTBYTES]; /* 24 */
     byte  personal[BLAKE2S_PERSONALBYTES];  /* 32 */
   } blake2s_param;
 

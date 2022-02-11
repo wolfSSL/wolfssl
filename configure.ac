@@ -7354,7 +7354,7 @@ then
                 AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_HUGE_CFLAGS"
             fi
         else
-            if test "$ENABLED_SP" = "yes" && test "$ENABLED_SP_SMALL" = "no"
+            if (test "$ENABLED_SP" = "yes" || test "$ENABLED_SP_MATH_ALL" = "yes") && test "$ENABLED_SP_SMALL" = "no"
             then
                 AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_FAST_CFLAGS"
                 if test "$ENABLED_FASTHUGEMATH" = "yes"

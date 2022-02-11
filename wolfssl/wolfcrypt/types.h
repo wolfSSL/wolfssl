@@ -761,13 +761,12 @@ decouple library dependencies with standard string, memory and so on.
         #define XSTRLCAT(s1,s2,n) wc_strlcat((s1),(s2),(n))
     #endif
 
-    #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
-        !defined(NO_STDIO_FILESYSTEM)
+    #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
         #ifndef XGETENV
             #include <stdlib.h>
             #define XGETENV getenv
         #endif
-    #endif /* OPENSSL_EXTRA */
+    #endif /* !NO_FILESYSTEM && !NO_STDIO_FILESYSTEM */
 
         #ifndef CTYPE_USER
             #ifndef WOLFSSL_LINUXKM
