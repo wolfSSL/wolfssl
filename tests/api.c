@@ -52071,7 +52071,24 @@ static void test_openssl_FIPS_drbg(void)
 #endif
 }
 
+static void test_wolfSSL_FIPS_mode(void)
+{
+#if defined(OPENSSL_ALL)
+    printf(testingFmt, "test_wolfSSL_FIPS_mode()");
 
+#ifdef HAVE_FIPS
+    AssertIntEQ(wolfSSL_FIPS_mode(), 1);
+    AssertIntEQ(wolfSSL_FIPS_mode_set(0), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_FIPS_mode_set(1), WOLFSSL_SUCCESS);
+#else
+    AssertIntEQ(wolfSSL_FIPS_mode(), 0);
+    AssertIntEQ(wolfSSL_FIPS_mode_set(0), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_FIPS_mode_set(1), WOLFSSL_FAILURE);
+#endif
+
+    printf(resultFmt, passed);
+#endif
+}
 
 /*----------------------------------------------------------------------------*
  | Main
@@ -52933,6 +52950,7 @@ void ApiTest(void)
     test_openssl_FIPS_drbg();
     test_wc_CryptoCb();
     test_wolfSSL_CTX_StaticMemory();
+    test_wolfSSL_FIPS_mode();
 
     AssertIntEQ(test_ForceZero(), 0);
 

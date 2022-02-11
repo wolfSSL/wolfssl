@@ -48636,26 +48636,31 @@ void wolfSSL_ERR_load_crypto_strings(void)
     return;
 }
 
-#ifndef NO_WOLFSSL_STUB
 int wolfSSL_FIPS_mode(void)
 {
-    WOLFSSL_ENTER("wolfSSL_FIPS_mode");
-    WOLFSSL_STUB("FIPS_mode");
-
-    return WOLFSSL_FAILURE;
-}
+#ifdef HAVE_FIPS
+    return 1;
+#else
+    return 0;
 #endif
+}
 
-#ifndef NO_WOLFSSL_STUB
 int wolfSSL_FIPS_mode_set(int r)
 {
-    (void)r;
-    WOLFSSL_ENTER("wolfSSL_FIPS_mode_set");
-    WOLFSSL_STUB("FIPS_mode_set");
-
+#ifdef HAVE_FIPS
+    if (r == 0) {
+        WOLFSSL_MSG("Cannot disable FIPS at runtime.");
+        return WOLFSSL_FAILURE;
+    }
+    return WOLFSSL_SUCCESS;
+#else
+    if (r == 0) {
+        return WOLFSSL_SUCCESS;
+    }
+    WOLFSSL_MSG("Cannot enable FIPS. This isn't the wolfSSL FIPS code.");
     return WOLFSSL_FAILURE;
-}
 #endif
+}
 
 int wolfSSL_CIPHER_get_bits(const WOLFSSL_CIPHER *c, int *alg_bits)
 {
