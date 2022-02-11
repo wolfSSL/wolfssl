@@ -1682,6 +1682,8 @@ typedef WOLFSSL_BUFFER_INFO buffer;
 
 typedef struct Suites Suites;
 
+/* Declare opaque struct for API to use */
+typedef struct ClientSession ClientSession;
 
 /* defaults to client */
 WOLFSSL_LOCAL void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv);
@@ -3296,12 +3298,6 @@ struct WOLFSSL_X509_CHAIN {
     x509_buffer certs[MAX_CHAIN_DEPTH];   /* only allow max depth 4 for now */
 };
 
-#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_SESSION_CACHE_REF)
-    /* enable allocation of a smaller reference for the internal cache,
-     * to prevent client from using internal cache reference. */
-    #define ENABLE_CLIENT_SESSION_REF
-#endif
-
 typedef enum WOLFSSL_SESSION_TYPE {
     WOLFSSL_SESSION_TYPE_UNKNOWN,
     WOLFSSL_SESSION_TYPE_SSL,    /* in ssl->session */
@@ -3409,12 +3405,23 @@ struct WOLFSSL_SESSION {
 #endif
 };
 
+WOLFSSL_LOCAL int wolfSSL_RAND_Init(void);
 
 WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_NewSession(void* heap);
 WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSession(
     WOLFSSL* ssl, byte* masterSecret, byte restoreSessionCerts);
+WOLFSSL_LOCAL void AddSession(WOLFSSL* ssl);
+WOLFSSL_LOCAL int AddSessionToCache(WOLFSSL_SESSION* addSession, const byte* id,
+                      byte idSz, int* sessionIndex, int side, word16 useTicket,
+                      ClientSession** clientCacheEntry);
+#ifndef NO_CLIENT_CACHE
+WOLFSSL_LOCAL ClientSession* AddSessionToClientCache(int side, int row, int idx,
+                      byte* serverID, word16 idLen, const byte* sessionID,
+                      word16 useTicket);
+#endif
+WOLFSSL_LOCAL
+WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session);
 WOLFSSL_LOCAL int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output);
-WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSessionRef(WOLFSSL* ssl);
 WOLFSSL_LOCAL int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session);
 WOLFSSL_LOCAL void wolfSSL_FreeSession(WOLFSSL_SESSION* session);
 WOLFSSL_LOCAL int wolfSSL_DupSession(const WOLFSSL_SESSION* input,
@@ -4244,6 +4251,9 @@ struct WOLFSSL {
     Ciphers         decrypt;
     Buffers         buffers;
     WOLFSSL_SESSION* session;
+#ifndef NO_CLIENT_CACHE
+    ClientSession*  clientSession;
+#endif
     WOLFSSL_ALERT_HISTORY alert_history;
     int             error;
     int             rfd;                /* read  file descriptor */
@@ -4767,11 +4777,6 @@ WOLFSSL_LOCAL const char* AlertTypeToString(int type);
 WOLFSSL_LOCAL int SetCipherSpecs(WOLFSSL* ssl);
 WOLFSSL_LOCAL int MakeMasterSecret(WOLFSSL* ssl);
 
-WOLFSSL_LOCAL int AddSession(WOLFSSL* ssl);
-WOLFSSL_LOCAL int AddSessionToCache(WOLFSSL_SESSION* addSession, const byte* id,
-                      byte idSz, int* sessionIndex, int side, word16 useTicket);
-WOLFSSL_LOCAL int AddSessionToClientCache(int side, int row, int idx,
-                                byte* serverID, word16 idLen, word16 useTicket);
 WOLFSSL_LOCAL int DeriveKeys(WOLFSSL* ssl);
 WOLFSSL_LOCAL int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side);
 

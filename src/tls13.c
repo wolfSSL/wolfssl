@@ -3255,7 +3255,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 #endif
         ret = SendBuffered(ssl);
 
-        break;
+    break;
     }
     default:
         ret = INPUT_CASE_ERROR;

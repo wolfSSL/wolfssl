@@ -6255,7 +6255,17 @@ static void test_wolfSSL_CTX_add_session_on_result(WOLFSSL* ssl)
     else
         sess = &test_wolfSSL_CTX_add_session_client_sess;
     if (*sess == NULL) {
+#ifdef NO_SESSION_CACHE_REF
         AssertNotNull(*sess = wolfSSL_get1_session(ssl));
+#else
+        /* Test for backwards compatibility */
+        if (wolfSSL_is_server(ssl)) {
+            AssertNotNull(*sess = wolfSSL_get1_session(ssl));
+        }
+        else {
+            AssertNotNull(*sess = wolfSSL_get_session(ssl));
+        }
+#endif
         /* Now save the session in the internal store to make it available
          * for lookup. For TLS 1.3, we can't save the session without
          * WOLFSSL_TICKET_HAVE_ID because there is no way to retrieve the
@@ -6294,6 +6304,8 @@ static void test_wolfSSL_CTX_add_session_on_result(WOLFSSL* ssl)
         WOLFSSL_X509* peer = wolfSSL_get_peer_certificate(ssl);
         AssertNotNull(peer);
         wolfSSL_X509_free(peer);
+        AssertNotNull(wolfSSL_SESSION_get_peer_chain(*sess));
+        AssertNotNull(wolfSSL_SESSION_get0_peer(*sess));
     }
 #endif
 }
