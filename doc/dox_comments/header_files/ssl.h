@@ -2190,9 +2190,15 @@ WOLFSSL_API int  wolfSSL_recv(WOLFSSL*, void*, int sz, int flags);
     human-readable error string.  See wolfSSL_ERR_error_string() for more
     information.
 
-    \return code On successful completion, this function will return the
+    \return On successful completion, this function will return the
     unique error code describing why the previous API function failed.
-    \return SSL_ERROR_NONE will be returned if ret > 0.
+    \return SSL_ERROR_NONE will be returned if ret > 0. For ret <= 0, there are
+    some cases when this value can also be returned when a previous API appeared
+    to return an error code but no error actually occurred. An example is
+    calling wolfSSL_read() with a zero sz parameter. A 0 return from
+    wolfSSL_read() usually indicates an error but in this case no error
+    occurred. If wolfSSL_get_error() is called afterwards, SSL_ERROR_NONE will
+    be returned.
 
     \param ssl pointer to the SSL object, created with wolfSSL_new().
     \param ret return value of the previous function that resulted in an error
