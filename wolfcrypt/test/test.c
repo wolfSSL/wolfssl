@@ -20873,6 +20873,77 @@ done:
     wc_ecc_free(&key);
     return ret;
 }
+
+/* KAT from RFC6979 */
+static int ecc384_test_deterministic_k(WC_RNG* rng)
+{
+    int ret;
+    ecc_key key;
+    byte sig[72];
+    word32 sigSz;
+    unsigned char msg[] = "sample";
+    unsigned char hash[32];
+    const char* dIUT =
+        "6B9D3DAD2E1B8C1C05B19875B6659F4DE23C3B667BF297BA9AA47740787137D8"
+        "96D5724E4C70A825F872C9EA60D2EDF5";
+    const char* QIUTx =
+        "EC3A4E415B4E19A4568618029F427FA5DA9A8BC4AE92E02E06AAE5286B300C64"
+        "DEF8F0EA9055866064A254515480BC13";
+    const char* QIUTy =
+        "8015D9B72D7D57244EA8EF9AC0C621896708A59367F9DFB9F54CA84B3F1C9DB1"
+        "288B231C3AE0D4FE7344FD2533264720";
+    const char* expRstr =
+       "21B13D1E013C7FA1392D03C5F99AF8B30C570C6F98D4EA8E354B63A21D3DAA33"
+       "BDE1E888E63355D92FA2B3C36D8FB2CD";
+    const char* expSstr =
+       "F3AA443FB107745BF4BD77CB3891674632068A10CA67E3D45DB2266FA7D1FEEB"
+       "EFDC63ECCD1AC42EC0CB8668A4FA0AB0";
+    mp_int r,s, expR, expS;
+
+    mp_init_multi(&r, &s, &expR, &expS, NULL, NULL);
+    ret = wc_ecc_init_ex(&key, HEAP_HINT, devId);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = wc_ecc_import_raw(&key, QIUTx, QIUTy, dIUT, "SECP384R1");
+    if (ret != 0) {
+        goto done;
+    }
+
+    ret = wc_Hash(WC_HASH_TYPE_SHA256, msg,
+            (word32)XSTRLEN((const char*)msg), hash, sizeof(hash));
+    if (ret != 0) {
+        goto done;
+    }
+
+    ret = wc_ecc_set_deterministic(&key, 1);
+    if (ret != 0) {
+        goto done;
+    }
+
+    sigSz = sizeof(sig);
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret == 0)
+            ret = wc_ecc_sign_hash_ex(hash, sizeof(hash), rng, &key, &r, &s);
+    } while (ret == WC_PENDING_E);
+    if (ret != 0) {
+        goto done;
+    }
+    TEST_SLEEP();
+
+    mp_read_radix(&expR, expRstr, MP_RADIX_HEX);
+    mp_read_radix(&expS, expSstr, MP_RADIX_HEX);
+    if (mp_cmp(&r, &expR) != MP_EQ) {
+        ret = -1;
+    }
+
+done:
+    wc_ecc_free(&key);
+    return ret;
+}
 #endif
 
 
@@ -23810,6 +23881,11 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test(void)
     ret = ecc_test_deterministic_k(&rng);
     if (ret != 0) {
         printf("ecc_test_deterministic_k failed! %d\n", ret);
+        goto done;
+    }
+    ret = ecc384_test_deterministic_k(&rng);
+    if (ret != 0) {
+        printf("ecc384_test_deterministic_k failed! %d\n", ret);
         goto done;
     }
 #endif
