@@ -20206,12 +20206,8 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case SIDE_ERROR :
         return "wrong client/server type";
 
-    case NO_PEER_CERT :
-#ifndef OPENSSL_EXTRA
-        return "peer didn't send cert";
-#else
+    case NO_PEER_CERT : /* OpenSSL compatibility expects this exact text */
         return "peer did not return a certificate";
-#endif
 
     case UNKNOWN_HANDSHAKE_TYPE :
         return "weird handshake type";
@@ -20525,12 +20521,8 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case MISSING_HANDSHAKE_DATA:
         return "The handshake message is missing required data";
 
-    case BAD_BINDER:
-#ifndef OPENSSL_EXTRA
-        return "Binder value does not match value server calculated";
-#else
+    case BAD_BINDER: /* OpenSSL compatibility expects this exact text */
         return "binder does not verify";
-#endif
 
     case EXT_NOT_ALLOWED:
         return "Extension type not allowed in handshake message type";
@@ -29955,15 +29947,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #endif
 #endif
 
-        ret = MatchSuite(ssl, &clSuites);
 #ifdef OPENSSL_EXTRA
         /* Give user last chance to provide a cert for cipher selection */
-        if (ret == 0)
-            ret = CertSetupCbWrapper(ssl);
-        /* Call again in case user changes affect cipher selection */
         if (ret == 0 && ssl->ctx->certSetupCb != NULL)
-            ret = MatchSuite(ssl, &clSuites);
+            ret = CertSetupCbWrapper(ssl);
 #endif
+        if (ret == 0)
+            ret = MatchSuite(ssl, &clSuites);
 
 #ifdef WOLFSSL_EXTRA_ALERTS
         if (ret == BUFFER_ERROR)
@@ -30504,19 +30494,21 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 WOLFSSL_TICKET_IV_SZ + WOLFSSL_TICKET_MAC_SZ + LENGTH_SZ)
 #define WOLFSSL_TICKET_ENC_SZ (SESSION_TICKET_LEN - WOLFSSL_TICKET_FIXED_SZ)
 
-    /* our ticket format */
+    /* Our ticket format. All members need to be a byte or array of byte to
+     * avoid alignment issues */
     typedef struct InternalTicket {
         ProtocolVersion pv;                    /* version when ticket created */
         byte            suite[SUITE_LEN];      /* cipher suite when created */
         byte            msecret[SECRET_LEN];   /* master secret */
-        word32          timestamp;             /* born on */
-        word16          haveEMS;               /* have extended master secret */
+        byte            timestamp[TIMESTAMP_LEN];          /* born on */
+        byte            haveEMS;               /* have extended master secret */
 #ifdef WOLFSSL_TLS13
-        word32          ageAdd;                /* Obfuscation of age */
-        word16          namedGroup;            /* Named group used */
+        byte            ageAdd[AGEADD_LEN];    /* Obfuscation of age */
+        byte            namedGroup[NAMEDGREOUP_LEN]; /* Named group used */
         TicketNonce     ticketNonce;           /* Ticket nonce */
     #ifdef WOLFSSL_EARLY_DATA
-        word32          maxEarlyDataSz;        /* Max size of early data */
+        byte            maxEarlyDataSz[MAXEARLYDATASZ_LEN]; /* Max size of
+                                                             * early data */
     #endif
 #endif
 #ifdef WOLFSSL_TICKET_HAVE_ID
@@ -30581,7 +30573,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         it.suite[1] = ssl->options.cipherSuite;
 
     #ifdef WOLFSSL_EARLY_DATA
-        it.maxEarlyDataSz = ssl->options.maxEarlyDataSz;
+        c32toa(ssl->options.maxEarlyDataSz, it.maxEarlyDataSz);
     #endif
 
         if (!ssl->options.tls1_3) {
@@ -30598,9 +30590,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                                              sizeof(it.ageAdd));
             if (ret != 0)
                 return BAD_TICKET_ENCRYPT;
-            ssl->session->ticketAdd = it.ageAdd;
-            it.namedGroup = ssl->session->namedGroup;
-            it.timestamp = TimeNowInMilliseconds();
+            ato32(it.ageAdd, &ssl->session->ticketAdd);
+            c16toa(ssl->session->namedGroup, it.namedGroup);
+            c32toa(TimeNowInMilliseconds(), it.timestamp);
             /* Resumption master secret. */
             XMEMCPY(it.msecret, ssl->session->masterSecret, SECRET_LEN);
             XMEMCPY(&it.ticketNonce, &ssl->session->ticketNonce,
@@ -30721,7 +30713,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len)
     {
         ExternalTicket* et;
-        InternalTicket  it;
+        InternalTicket* it;
         int             ret;
         int             outLen;
         word16          inLen;
@@ -30767,19 +30759,17 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return BAD_TICKET_KEY_CB_SZ;
         }
 
-        /* copy the decrypted ticket to avoid alignment issues */
-        XMEMCPY(&it, et->enc_ticket, sizeof(InternalTicket));
-        ForceZero(et->enc_ticket, sizeof(it));
+        it = (InternalTicket*)et->enc_ticket;
 
         /* get master secret */
         if (ret == WOLFSSL_TICKET_RET_OK || ret == WOLFSSL_TICKET_RET_CREATE) {
-            if (ssl->version.minor < it.pv.minor) {
+            if (ssl->version.minor < it->pv.minor) {
                 ForceZero(&it, sizeof(it));
                 WOLFSSL_MSG("Ticket has greater version");
                 return VERSION_ERROR;
             }
-            else if (ssl->version.minor > it.pv.minor) {
-                if (IsAtLeastTLSv1_3(it.pv) != IsAtLeastTLSv1_3(ssl->version)) {
+            else if (ssl->version.minor > it->pv.minor) {
+                if (IsAtLeastTLSv1_3(it->pv) != IsAtLeastTLSv1_3(ssl->version)) {
                     ForceZero(&it, sizeof(it));
                     WOLFSSL_MSG("Tickets cannot be shared between "
                                                "TLS 1.3 and TLS 1.2 and lower");
@@ -30794,17 +30784,17 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                 WOLFSSL_MSG("Downgrading protocol due to ticket");
 
-                if (it.pv.minor < ssl->options.minDowngrade) {
+                if (it->pv.minor < ssl->options.minDowngrade) {
                     ForceZero(&it, sizeof(it));
                     return VERSION_ERROR;
                 }
-                ssl->version.minor = it.pv.minor;
+                ssl->version.minor = it->pv.minor;
             }
 
 #ifdef WOLFSSL_TICKET_HAVE_ID
             {
                 ssl->session->haveAltSessionID = 1;
-                XMEMCPY(ssl->session->altSessionID, it.id, ID_LEN);
+                XMEMCPY(ssl->session->altSessionID, it->id, ID_LEN);
                 if (wolfSSL_GetSession(ssl, NULL, 1) != NULL) {
                     WOLFSSL_MSG("Found session matching the session id"
                                 " found in the ticket");
@@ -30817,31 +30807,31 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
             if (!IsAtLeastTLSv1_3(ssl->version)) {
-                XMEMCPY(ssl->arrays->masterSecret, it.msecret, SECRET_LEN);
+                XMEMCPY(ssl->arrays->masterSecret, it->msecret, SECRET_LEN);
                 /* Copy the haveExtendedMasterSecret property from the ticket to
                  * the saved session, so the property may be checked later. */
-                ssl->session->haveEMS = it.haveEMS;
-                ato32((const byte*)&it.timestamp, &ssl->session->bornOn);
+                ssl->session->haveEMS = it->haveEMS;
+                ato32((const byte*)&it->timestamp, &ssl->session->bornOn);
             #ifndef NO_RESUME_SUITE_CHECK
-                ssl->session->cipherSuite0 = it.suite[0];
-                ssl->session->cipherSuite = it.suite[1];
+                ssl->session->cipherSuite0 = it->suite[0];
+                ssl->session->cipherSuite = it->suite[1];
             #endif
             }
             else {
 #ifdef WOLFSSL_TLS13
                 /* Restore information to renegotiate. */
-                ssl->session->ticketSeen = it.timestamp;
-                ssl->session->ticketAdd = it.ageAdd;
-                ssl->session->cipherSuite0 = it.suite[0];
-                ssl->session->cipherSuite = it.suite[1];
+                ato32(it->timestamp, &ssl->session->ticketSeen);
+                ato32(it->ageAdd, &ssl->session->ticketAdd);
+                ssl->session->cipherSuite0 = it->suite[0];
+                ssl->session->cipherSuite = it->suite[1];
     #ifdef WOLFSSL_EARLY_DATA
-                ssl->session->maxEarlyDataSz = it.maxEarlyDataSz;
+                ato32(it->maxEarlyDataSz, &ssl->session->maxEarlyDataSz);
     #endif
                 /* Resumption master secret. */
-                XMEMCPY(ssl->session->masterSecret, it.msecret, SECRET_LEN);
-                XMEMCPY(&ssl->session->ticketNonce, &it.ticketNonce,
+                XMEMCPY(ssl->session->masterSecret, it->msecret, SECRET_LEN);
+                XMEMCPY(&ssl->session->ticketNonce, &it->ticketNonce,
                                                            sizeof(TicketNonce));
-                ssl->session->namedGroup = it.namedGroup;
+                ato16(it->namedGroup, &ssl->session->namedGroup);
 #endif
             }
         }

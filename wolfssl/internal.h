@@ -1185,6 +1185,14 @@ enum Misc {
     HELLO_EXT_EXTMS = 0x0017,   /* ID for the extended master secret ext */
     SECRET_LEN      = WOLFSSL_MAX_MASTER_KEY_LENGTH,
                                 /* pre RSA and all master */
+    TIMESTAMP_LEN   = 4,        /* timestamp size in ticket */
+#ifdef WOLFSSL_TLS13
+    AGEADD_LEN      = 4,        /* ageAdd size in ticket */
+    NAMEDGREOUP_LEN = 2,        /* namedGroup size in ticket */
+#ifdef WOLFSSL_EARLY_DATA
+    MAXEARLYDATASZ_LEN = 4,     /* maxEarlyDataSz size in ticket */
+#endif
+#endif
 #ifdef HAVE_PQC
     ENCRYPT_LEN     = 1500,     /* allow 1500 bit static buffer for falcon */
 #else

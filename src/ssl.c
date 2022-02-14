@@ -15980,6 +15980,8 @@ int AddSessionToCache(WOLFSSL_SESSION* addSession, const byte* id, byte idSz,
     WOLFSSL_X509* peer = NULL;
 #endif
 #ifdef HAVE_SESSION_TICKET
+    byte*  cacheTicBuff = NULL;
+    byte   ticBuffUsed = 0;
     byte*  ticBuff = NULL;
     int    ticLen  = 0;
 #endif
@@ -16004,7 +16006,7 @@ int AddSessionToCache(WOLFSSL_SESSION* addSession, const byte* id, byte idSz,
     ticLen = addSession->ticketLen;
     /* Alloc Memory here to avoid syscalls during lock */
     if (ticLen > SESSION_TICKET_LEN) {
-        ticBuff = (byte*)XMALLOC(ticLen, addSession->heap,
+        ticBuff = (byte*)XMALLOC(ticLen, NULL,
                 DYNAMIC_TYPE_SESSION_TICK);
         if (ticBuff == NULL) {
             return MEMORY_E;
@@ -16016,7 +16018,7 @@ int AddSessionToCache(WOLFSSL_SESSION* addSession, const byte* id, byte idSz,
     if (ret != 0) {
         WOLFSSL_MSG("Hash session failed");
     #ifdef HAVE_SESSION_TICKET
-        XFREE(ticBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        XFREE(ticBuff, NULL, DYNAMIC_TYPE_SESSION_TICK);
     #endif
         return ret;
     }
@@ -16024,7 +16026,7 @@ int AddSessionToCache(WOLFSSL_SESSION* addSession, const byte* id, byte idSz,
     sessRow = &SessionCache[row];
     if (SESSION_ROW_LOCK(sessRow) != 0) {
     #ifdef HAVE_SESSION_TICKET
-        XFREE(ticBuff, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
+        XFREE(ticBuff, NULL, DYNAMIC_TYPE_SESSION_TICK);
     #endif
         WOLFSSL_MSG("Session row lock failed");
         return BAD_MUTEX_E;
@@ -16058,7 +16060,12 @@ int AddSessionToCache(WOLFSSL_SESSION* addSession, const byte* id, byte idSz,
     cacheSession->peer = NULL;
 #endif
 #ifdef HAVE_SESSION_TICKET
-    if (ticBuff != NULL) {
+    /* If we can re-use the existing buffer in cacheSession then we won't touch
+     * ticBuff at all making it a very cheap malloc/free. The page on a modern
+     * OS will most likely not even be allocated to the process. */
+    if (ticBuff != NULL && cacheSession->ticketLenAlloc < ticLen) {
+        cacheTicBuff = cacheSession->ticket;
+        ticBuffUsed = 1;
         cacheSession->ticket = ticBuff;
         cacheSession->ticketLenAlloc = ticLen;
     }
@@ -16073,6 +16080,7 @@ int AddSessionToCache(WOLFSSL_SESSION* addSession, const byte* id, byte idSz,
                 sizeof(x509_buffer) * cacheSession->chain.count);
     }
 #endif /* SESSION_CERTS */
+    cacheSession->heap = NULL;
     /* Copy data into the cache object */
     ret = wolfSSL_DupSession(addSession, cacheSession, 1) == WOLFSSL_FAILURE;
 
@@ -16089,7 +16097,7 @@ int AddSessionToCache(WOLFSSL_SESSION* addSession, const byte* id, byte idSz,
         }
     }
 #ifdef HAVE_SESSION_TICKET
-    else if (ticBuff != NULL) {
+    else if (ticBuffUsed) {
         /* Error occured. Need to clean up the ticket buffer. */
         cacheSession->ticket = cacheSession->_staticTicket;
         cacheSession->ticketLenAlloc = 0;
@@ -16107,6 +16115,13 @@ int AddSessionToCache(WOLFSSL_SESSION* addSession, const byte* id, byte idSz,
         if (clientCache != NULL && clientCacheEntry != NULL)
             *clientCacheEntry = clientCache;
     }
+#endif
+
+#ifdef HAVE_SESSION_TICKET
+    if (ticBuff != NULL && !ticBuffUsed)
+        XFREE(ticBuff, NULL, DYNAMIC_TYPE_SESSION_TICK);
+    if (cacheTicBuff != NULL)
+        XFREE(cacheTicBuff, NULL, DYNAMIC_TYPE_SESSION_TICK);
 #endif
 
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
@@ -16203,7 +16218,7 @@ void AddSession(WOLFSSL* ssl)
         WC_RNG* rng = NULL;
         if (ssl->rng != NULL)
             rng = ssl->rng;
-#ifdef HAVE_GLOBAL_RNG
+#if defined(HAVE_GLOBAL_RNG) && defined(OPENSSL_EXTRA)
         else if (initGlobalRNG == 1 || wolfSSL_RAND_Init() == WOLFSSL_SUCCESS) {
             rng = &globalRNG;
         }
