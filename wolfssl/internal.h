@@ -1571,7 +1571,7 @@ enum Misc {
     #define SESSION_TICKET_HINT_DEFAULT 300
 #endif
 
-#if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(WOLFSSL_NO_SERVER)
+#if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_WOLFSSL_SERVER)
     /* Check chosen encryption is available. */
     #if !(defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) && \
         defined(WOLFSSL_TICKET_ENC_CHACHA20_POLY1305)
@@ -2522,7 +2522,7 @@ typedef struct SessionTicket {
     word16 size;
 } SessionTicket;
 
-#if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(WOLFSSL_NO_SERVER)
+#if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_WOLFSSL_SERVER)
 
 /* Data passed to default SessionTicket enc/dec callback. */
 typedef struct TicketEncCbCtx {
@@ -2542,7 +2542,7 @@ typedef struct TicketEncCbCtx {
     WOLFSSL_CTX* ctx;
 } TicketEncCbCtx;
 
-#endif /* !WOLFSSL_NO_DEF_TICKET_ENC_CB && !WOLFSSL_NO_SERVER */
+#endif /* !WOLFSSL_NO_DEF_TICKET_ENC_CB && !NO_WOLFSSL_SERVER */
 
 WOLFSSL_LOCAL int  TLSX_UseSessionTicket(TLSX** extensions,
                                              SessionTicket* ticket, void* heap);
@@ -4717,7 +4717,7 @@ WOLFSSL_LOCAL int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
                        buffer* response);
 #endif
 #if defined(HAVE_SECURE_RENEGOTIATION) && \
-    !defined(WOLFSSL_NO_SERVER)
+    !defined(NO_WOLFSSL_SERVER)
 WOLFSSL_LOCAL int SendHelloRequest(WOLFSSL* ssl);
 #endif
 WOLFSSL_LOCAL int SendCertificateStatus(WOLFSSL* ssl);
