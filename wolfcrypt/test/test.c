@@ -20874,6 +20874,7 @@ done:
     return ret;
 }
 
+#ifdef WOLFSSL_PUBLIC_MP
 /* KAT from RFC6979 */
 static int ecc384_test_deterministic_k(WC_RNG* rng)
 {
@@ -20944,6 +20945,7 @@ done:
     wc_ecc_free(&key);
     return ret;
 }
+#endif /* WOLFSSL_PUBLIC_MP */
 #endif
 
 
@@ -23883,11 +23885,13 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test(void)
         printf("ecc_test_deterministic_k failed! %d\n", ret);
         goto done;
     }
+    #ifdef WOLFSSL_PUBLIC_MP
     ret = ecc384_test_deterministic_k(&rng);
     if (ret != 0) {
         printf("ecc384_test_deterministic_k failed! %d\n", ret);
         goto done;
     }
+    #endif
 #endif
 
 #if defined(HAVE_ECC_SIGN) && defined(WOLFSSL_ECDSA_SET_K)
