@@ -3663,6 +3663,10 @@ typedef struct Options {
     word16            keepResources:1;    /* Keep resources after handshake */
     word16            useClientOrder:1;   /* Use client's cipher order */
     word16            mutualAuth:1;       /* Mutual authentication is required */
+    word16            peerAuthGood:1;     /* Any required peer auth done */
+#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
+    word16            pskNegotiated:1;    /* Session Ticket/PSK negotiated. */
+#endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     word16            postHandshakeAuth:1;/* Client send post_handshake_auth
                                            * extension */
@@ -4064,7 +4068,7 @@ typedef struct DtlsMsg {
 typedef struct MsgsReceived {
     word16 got_hello_request:1;
     word16 got_client_hello:2;
-    word16 got_server_hello:2;
+    word16 got_server_hello:1;
     word16 got_hello_verify_request:1;
     word16 got_session_ticket:1;
     word16 got_end_of_early_data:1;

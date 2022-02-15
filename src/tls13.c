@@ -3370,15 +3370,20 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     /* Check if hello retry request */
     if (XMEMCMP(input + args->idx, helloRetryRequestRandom, RAN_LEN) == 0) {
+        WOLFSSL_MSG("HelloRetryRequest format");
         *extMsgType = hello_retry_request;
 
         /* A HelloRetryRequest comes in as an ServerHello for MiddleBox compat.
          * Found message to be a HelloRetryRequest.
          * Don't allow more than one HelloRetryRequest or ServerHello.
          */
-        if (ssl->msgsReceived.got_hello_retry_request == 1) {
+        if (ssl->msgsReceived.got_hello_retry_request) {
             return DUPLICATE_MSG_E;
         }
+
+        /* Update counts to reflect change of message type. */
+        ssl->msgsReceived.got_hello_retry_request = 1;
+        ssl->msgsReceived.got_server_hello--;
     }
     args->extMsgType = *extMsgType;
 
@@ -3499,11 +3504,6 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         args->idx += args->totalExtSz;
     }
 
-    if (*extMsgType == hello_retry_request) {
-        /* Update counts to reflect change of message type. */
-        ssl->msgsReceived.got_hello_retry_request = 1;
-        ssl->msgsReceived.got_server_hello--;
-    }
     *inOutIdx = args->idx;
 
     ssl->options.serverState = SERVER_HELLO_COMPLETE;
@@ -3618,8 +3618,12 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ssl->arrays->psk_keySz = 0;
             XMEMSET(ssl->arrays->psk_key, 0, MAX_PSK_KEY_LEN);
         }
-        else if ((ret = SetupPskKey(ssl, psk, 0)) != 0)
-            return ret;
+        else {
+            if ((ret = SetupPskKey(ssl, psk, 0)) != 0)
+                return ret;
+            ssl->options.pskNegotiated = 1;
+            ssl->options.peerAuthGood = 1;
+        }
 #endif
 
         ssl->keys.encryptionOn = 1;
@@ -4877,6 +4881,10 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     {
     *inOutIdx = args->idx;
     ssl->options.clientState = CLIENT_HELLO_COMPLETE;
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+    ssl->options.pskNegotiated = (args->usingPSK != 0);
+    ssl->options.peerAuthGood = ssl->options.pskNegotiated;
+#endif
 
     if (!args->usingPSK) {
 #ifndef NO_CERTS
@@ -5832,7 +5840,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         word32 i = RECORD_HEADER_SZ;
         int    sendSz = RECORD_HEADER_SZ;
 
-        if (ssl->fragOffset == 0)  {
+        if (ssl->fragOffset == 0) {
             if (headerSz + certSz + extSz + certChainSz <=
                                             maxFragment - HANDSHAKE_HEADER_SZ) {
                 fragSz = headerSz + certSz + extSz + certChainSz;
@@ -6816,6 +6824,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         case TLS_ASYNC_FINALIZE:
         {
             ssl->options.havePeerVerify = 1;
+            ssl->options.peerAuthGood = 1;
 
             /* Set final index */
             args->idx += args->sz;
@@ -7752,17 +7761,28 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
 #ifndef NO_WOLFSSL_SERVER
         case client_hello:
         #ifndef NO_WOLFSSL_CLIENT
+            /* Only valid when received on SERVER side. */
             if (ssl->options.side == WOLFSSL_CLIENT_END) {
                 WOLFSSL_MSG("ClientHello received by client");
                 return SIDE_ERROR;
             }
         #endif
+            /* Check state. */
             if (ssl->options.clientState >= CLIENT_HELLO_COMPLETE) {
                 WOLFSSL_MSG("ClientHello received out of order");
                 return OUT_OF_ORDER_E;
             }
+            /* Check previously seen. */
+            /* Initial and after HelloRetryRequest - no more than 2. */
             if (ssl->msgsReceived.got_client_hello == 2) {
                 WOLFSSL_MSG("Too many ClientHello received");
+                return DUPLICATE_MSG_E;
+            }
+            /* Second only after HelloRetryRequest seen. */
+            if (ssl->msgsReceived.got_client_hello == 1 &&
+                ssl->options.serverState !=
+                                          SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
+                WOLFSSL_MSG("Duplicate ClientHello received");
                 return DUPLICATE_MSG_E;
             }
             ssl->msgsReceived.got_client_hello++;
@@ -7773,16 +7793,27 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
 #ifndef NO_WOLFSSL_CLIENT
         case server_hello:
         #ifndef NO_WOLFSSL_SERVER
+            /* Only valid when received on CLIENT side. */
             if (ssl->options.side == WOLFSSL_SERVER_END) {
                 WOLFSSL_MSG("ServerHello received by server");
                 return SIDE_ERROR;
             }
         #endif
-            if (ssl->msgsReceived.got_server_hello == 1) {
+            /* Check state. */
+            if (ssl->options.serverState >= SERVER_HELLO_COMPLETE) {
+                WOLFSSL_MSG("ServerHello received out of order");
+                return OUT_OF_ORDER_E;
+            }
+            /* Check previously seen. */
+            /* Only once after ClientHello.
+             * HelloRetryRequest has ServerHello type but count fixed up later
+             * - see DoTls13ServerHello().
+             */
+            if (ssl->msgsReceived.got_server_hello) {
                 WOLFSSL_MSG("Duplicate ServerHello received");
                 return DUPLICATE_MSG_E;
             }
-            ssl->msgsReceived.got_server_hello++;
+            ssl->msgsReceived.got_server_hello = 1;
 
             break;
 #endif
@@ -7790,15 +7821,27 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
 #ifndef NO_WOLFSSL_CLIENT
         case session_ticket:
         #ifndef NO_WOLFSSL_SERVER
+            /* Only valid when received on CLIENT side. */
             if (ssl->options.side == WOLFSSL_SERVER_END) {
                 WOLFSSL_MSG("NewSessionTicket received by server");
                 return SIDE_ERROR;
             }
         #endif
+            /* Check state. */
+        #ifdef WOLFSSL_TLS13_TICKET_BEFORE_FINISHED
+            /* Only allowed after server's Finished message. */
+            if (ssl->options.serverState < SERVER_FINISHED_COMPLETE) {
+                WOLFSSL_MSG("NewSessionTicket received out of order");
+                return OUT_OF_ORDER_E;
+            }
+        #else
+            /* Only allowed after client's Finished message. */
             if (ssl->options.clientState < CLIENT_FINISHED_COMPLETE) {
                 WOLFSSL_MSG("NewSessionTicket received out of order");
                 return OUT_OF_ORDER_E;
             }
+        #endif
+            /* Many SessionTickets can be sent. */
             ssl->msgsReceived.got_session_ticket = 1;
 
             break;
@@ -7808,11 +7851,14 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
     #ifdef WOLFSSL_EARLY_DATA
         case end_of_early_data:
         #ifndef NO_WOLFSSL_CLIENT
+            /* Only valid when received on SERVER side. */
             if (ssl->options.side == WOLFSSL_CLIENT_END) {
                 WOLFSSL_MSG("EndOfEarlyData received by client");
                 return SIDE_ERROR;
             }
         #endif
+            /* Check state. */
+            /* Only after server's Finished and before client's Finished. */
             if (ssl->options.serverState < SERVER_FINISHED_COMPLETE) {
                 WOLFSSL_MSG("EndOfEarlyData received out of order");
                 return OUT_OF_ORDER_E;
@@ -7821,11 +7867,12 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_MSG("EndOfEarlyData received out of order");
                 return OUT_OF_ORDER_E;
             }
-            if (ssl->msgsReceived.got_end_of_early_data == 1) {
+            /* Check previously seen. */
+            if (ssl->msgsReceived.got_end_of_early_data) {
                 WOLFSSL_MSG("Too many EndOfEarlyData received");
                 return DUPLICATE_MSG_E;
             }
-            ssl->msgsReceived.got_end_of_early_data++;
+            ssl->msgsReceived.got_end_of_early_data = 1;
 
             break;
     #endif
@@ -7834,15 +7881,22 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
 #ifndef NO_WOLFSSL_CLIENT
         case encrypted_extensions:
         #ifndef NO_WOLFSSL_SERVER
+            /* Only valid when received on CLIENT side. */
             if (ssl->options.side == WOLFSSL_SERVER_END) {
                 WOLFSSL_MSG("EncryptedExtensions received by server");
                 return SIDE_ERROR;
             }
         #endif
+            /* Check state. */
+            /* Must be received directly after ServerHello.
+             * DoTls13EncryptedExtensions() changes state to:
+             *   SERVER_ENCRYPTED_EXTENSIONS_COMPLETE.
+             */
             if (ssl->options.serverState != SERVER_HELLO_COMPLETE) {
                 WOLFSSL_MSG("EncryptedExtensions received out of order");
                 return OUT_OF_ORDER_E;
             }
+            /* Check previously seen. */
             if (ssl->msgsReceived.got_encrypted_extensions) {
                 WOLFSSL_MSG("Duplicate EncryptedExtensions received");
                 return DUPLICATE_MSG_E;
@@ -7853,7 +7907,13 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
 #endif
 
         case certificate:
+            /* Valid on both sides. */
     #ifndef NO_WOLFSSL_CLIENT
+            /* Check state. */
+            /* On client, seen after EncryptedExtension and CertificateRequest
+             * (if sent) and before CertificateVerify and Finished.
+             * DoTls13Certificate() sets serverState to SERVER_CERT_COMPLETE.
+             */
             if (ssl->options.side == WOLFSSL_CLIENT_END &&
                 ssl->options.serverState !=
                                          SERVER_ENCRYPTED_EXTENSIONS_COMPLETE) {
@@ -7864,42 +7924,58 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
             /* Server's authenticating with PSK must not send this. */
             if (ssl->options.side == WOLFSSL_CLIENT_END &&
                              ssl->options.serverState == SERVER_CERT_COMPLETE &&
-                             ssl->arrays->psk_keySz != 0) {
+                             ssl->options.pskNegotiated) {
                 WOLFSSL_MSG("Certificate received while using PSK");
                 return SANITY_MSG_E;
             }
         #endif
     #endif
     #ifndef NO_WOLFSSL_SERVER
+            /* Check state. */
+            /* On Server, valid after ClientHello received and ServerFinished
+             * sent. */
             if (ssl->options.side == WOLFSSL_SERVER_END &&
+                ssl->options.clientState != CLIENT_HELLO_COMPLETE &&
                 ssl->options.serverState < SERVER_FINISHED_COMPLETE) {
                 WOLFSSL_MSG("Certificate received out of order - Server");
                 return OUT_OF_ORDER_E;
             }
     #endif
+            /* Check previously seen. */
             if (ssl->msgsReceived.got_certificate) {
                 WOLFSSL_MSG("Duplicate Certificate received");
                 return DUPLICATE_MSG_E;
             }
             ssl->msgsReceived.got_certificate = 1;
+            if (ssl->options.side == WOLFSSL_SERVER_END &&
+                (!ssl->options.verifyPeer || !ssl->options.failNoCert)) {
+                ssl->options.peerAuthGood = 1;
+            }
 
             break;
 
 #ifndef NO_WOLFSSL_CLIENT
         case certificate_request:
         #ifndef NO_WOLFSSL_SERVER
+            /* Only valid when received on CLIENT side. */
             if (ssl->options.side == WOLFSSL_SERVER_END) {
                 WOLFSSL_MSG("CertificateRequest received by server");
                 return SIDE_ERROR;
             }
         #endif
+            /* Check state. */
         #ifndef WOLFSSL_POST_HANDSHAKE_AUTH
+            /* Only valid when sent after EncryptedExtensions and before
+             * Certificate. */
             if (ssl->options.serverState !=
                                          SERVER_ENCRYPTED_EXTENSIONS_COMPLETE) {
                 WOLFSSL_MSG("CertificateRequest received out of order");
                 return OUT_OF_ORDER_E;
             }
         #else
+            /* Valid when sent after EncryptedExtensions and before Certificate
+             * and after both client and server have sent Finished (Post
+             * Handshake Authentication). */
             if (ssl->options.serverState !=
                                          SERVER_ENCRYPTED_EXTENSIONS_COMPLETE &&
                        (ssl->options.serverState != SERVER_FINISHED_COMPLETE ||
@@ -7910,16 +7986,22 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
         #endif
         #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
             /* Server's authenticating with PSK must not send this. */
-            if (ssl->options.serverState ==
-                                         SERVER_ENCRYPTED_EXTENSIONS_COMPLETE &&
-                                                  ssl->arrays != NULL &&
-                                                  ssl->arrays->psk_keySz != 0) {
+            if (ssl->options.pskNegotiated) {
                 WOLFSSL_MSG("CertificateRequest received while using PSK");
                 return SANITY_MSG_E;
             }
         #endif
+            /* Check previously seen. */
         #ifndef WOLFSSL_POST_HANDSHAKE_AUTH
+            /* Only once during handshake. */
             if (ssl->msgsReceived.got_certificate_request) {
+                WOLFSSL_MSG("Duplicate CertificateRequest received");
+                return DUPLICATE_MSG_E;
+            }
+        #else
+            /* Only once during handshake. */
+            if (ssl->msgsReceived.got_certificate_request &&
+                ssl->options.clientState != CLIENT_FINISHED_COMPLETE) {
                 WOLFSSL_MSG("Duplicate CertificateRequest received");
                 return DUPLICATE_MSG_E;
             }
@@ -7930,7 +8012,10 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
 #endif
 
         case certificate_verify:
+            /* Valid on both sides. */
     #ifndef NO_WOLFSSL_CLIENT
+            /* Check state on client.
+             * Valid only directly after a Certificate message. */
             if (ssl->options.side == WOLFSSL_CLIENT_END) {
                 if (ssl->options.serverState != SERVER_CERT_COMPLETE) {
                     WOLFSSL_MSG("No Cert before CertVerify");
@@ -7938,9 +8023,7 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                 }
             #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
                 /* Server's authenticating with PSK must not send this. */
-                if (ssl->options.serverState == SERVER_CERT_COMPLETE &&
-                                                  ssl->arrays != NULL &&
-                                                  ssl->arrays->psk_keySz != 0) {
+                if (ssl->options.pskNegotiated) {
                     WOLFSSL_MSG("CertificateVerify received while using PSK");
                     return SANITY_MSG_E;
                 }
@@ -7948,11 +8031,14 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
             }
     #endif
     #ifndef NO_WOLFSSL_SERVER
+            /* Check state on server. */
             if (ssl->options.side == WOLFSSL_SERVER_END) {
+                /* Server must have sent Finished message. */
                 if (ssl->options.serverState < SERVER_FINISHED_COMPLETE) {
                     WOLFSSL_MSG("CertificateVerify received out of order");
                     return OUT_OF_ORDER_E;
                 }
+                /* Valid only directly after a Certificate message. */
                 if (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
                     WOLFSSL_MSG("CertificateVerify before ClientHello done");
                     return OUT_OF_ORDER_E;
@@ -7963,6 +8049,7 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                 }
             }
     #endif
+            /* Check previously seen. */
             if (ssl->msgsReceived.got_certificate_verify) {
                 WOLFSSL_MSG("Duplicate CertificateVerify received");
                 return DUPLICATE_MSG_E;
@@ -7972,38 +8059,42 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
             break;
 
         case finished:
+            /* Valid on both sides. */
         #ifndef NO_WOLFSSL_CLIENT
+            /* Check state on client. */
             if (ssl->options.side == WOLFSSL_CLIENT_END) {
+                /* After sending ClientHello */
                 if (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
-                    WOLFSSL_MSG("Finished received out of order");
+                    WOLFSSL_MSG("Finished received out of order - clientState");
                     return OUT_OF_ORDER_E;
                 }
                 /* Must have seen certificate and verify from server except when
                  * using PSK. */
             #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-                if (ssl->arrays != NULL && ssl->arrays->psk_keySz != 0) {
+                if (ssl->options.pskNegotiated) {
                     if (ssl->options.serverState !=
                                          SERVER_ENCRYPTED_EXTENSIONS_COMPLETE) {
-                        WOLFSSL_MSG("Finished received out of order");
+                        WOLFSSL_MSG("Finished received out of order - PSK");
                         return OUT_OF_ORDER_E;
                     }
                 }
                 else
             #endif
                 if (ssl->options.serverState != SERVER_CERT_VERIFY_COMPLETE) {
-                    WOLFSSL_MSG("Finished received out of order");
+                    WOLFSSL_MSG("Finished received out of order - serverState");
                     return OUT_OF_ORDER_E;
                 }
             }
         #endif
         #ifndef NO_WOLFSSL_SERVER
+            /* Check state on server. */
             if (ssl->options.side == WOLFSSL_SERVER_END) {
                 if (ssl->options.serverState != SERVER_FINISHED_COMPLETE) {
-                    WOLFSSL_MSG("Finished received out of order");
+                    WOLFSSL_MSG("Finished received out of order - serverState");
                     return OUT_OF_ORDER_E;
                 }
                 if (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
-                    WOLFSSL_MSG("Finished received out of order");
+                    WOLFSSL_MSG("Finished received out of order - clientState");
                     return OUT_OF_ORDER_E;
                 }
             #ifdef WOLFSSL_EARLY_DATA
@@ -8013,6 +8104,42 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
             #endif
             }
         #endif
+        #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+            if (!ssl->options.pskNegotiated)
+        #endif
+            {
+                /* Must have received a Certificate message from client if
+                 * verifying the peer. Empty certificate message indicates
+                 * no certificate available.
+                 */
+                if (ssl->options.verifyPeer &&
+                                           !ssl->msgsReceived.got_certificate) {
+                    WOLFSSL_MSG("Finished received out of order - "
+                                "missing Certificate message");
+                    return OUT_OF_ORDER_E;
+                }
+                /* Mutual authentication on server requires a certificate from
+                 * peer. Verify peer set on client side requires a certificate
+                 * from peer as not doing PSK.
+                 */
+                if ((ssl->options.mutualAuth ||
+                    (ssl->options.side == WOLFSSL_CLIENT_END &&
+                     ssl->options.verifyPeer)) && !ssl->options.havePeerCert) {
+                    WOLFSSL_MSG("Finished received out of order - "
+                                "no valid certificate");
+                    return OUT_OF_ORDER_E;
+                }
+                /* Must have received a valid CertificateVerify if verifying
+                 * peer and got a peer certificate.
+                 */
+                if ((ssl->options.mutualAuth || ssl->options.verifyPeer) &&
+                    ssl->options.havePeerCert && !ssl->options.havePeerVerify) {
+                    WOLFSSL_MSG("Finished received out of order - "
+                                "Certificate message but no CertificateVerify");
+                    return OUT_OF_ORDER_E;
+                }
+            }
+            /* Check previously seen. */
             if (ssl->msgsReceived.got_finished) {
                 WOLFSSL_MSG("Duplicate Finished received");
                 return DUPLICATE_MSG_E;
@@ -8022,10 +8149,16 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
             break;
 
         case key_update:
+            /* Valid on both sides. */
+            /* Check state.
+             * Client and server must have received finished message from other
+             * side.
+             */
             if (!ssl->msgsReceived.got_finished) {
                 WOLFSSL_MSG("No KeyUpdate before Finished");
                 return OUT_OF_ORDER_E;
             }
+            /* Multiple KeyUpdates can be sent. */
             break;
 
         default:
@@ -8581,6 +8714,10 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case FIRST_REPLY_SECOND:
+            if (!ssl->options.peerAuthGood) {
+                WOLFSSL_MSG("Server authentication did not happen");
+                return WOLFSSL_FATAL_ERROR;
+            }
         #ifndef NO_CERTS
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 ssl->error = SendTls13Certificate(ssl);
@@ -9527,6 +9664,9 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                         return WOLFSSL_FATAL_ERROR;
                     }
                 }
+                else {
+                    ssl->options.peerAuthGood = 1;
+                }
             }
 #endif
             ssl->options.acceptState = TLS13_CERT_REQ_SENT;
@@ -9605,6 +9745,10 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case TLS13_ACCEPT_FINISHED_DONE :
+            if (!ssl->options.peerAuthGood) {
+                WOLFSSL_MSG("Client authentication did not happen");
+                return WOLFSSL_FATAL_ERROR;
+            }
 #ifdef HAVE_SESSION_TICKET
             while (ssl->options.ticketsSent < ssl->options.maxTicketTls13) {
                 if (!ssl->options.noTicketTls13 && ssl->ctx->ticketEncCb
