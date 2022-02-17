@@ -4137,7 +4137,9 @@ typedef struct BuildMsgArgs {
         WC_ASYNC_DEV* dev;
         FreeArgsCb    freeArgs; /* function pointer to cleanup args */
         word32        args[MAX_ASYNC_ARGS]; /* holder for current args */
+#ifndef WOLFSSL_NO_TLS12
         BuildMsgArgs  buildArgs; /* holder for current BuildMessage args */
+#endif
     };
 #endif
 

@@ -6978,7 +6978,9 @@ void FreeKeyExchange(WOLFSSL* ssl)
         ssl->async.freeArgs(ssl, ssl->async.args);
         ssl->async.freeArgs = NULL;
     }
+#ifndef WOLFSSL_NO_TLS12
     FreeBuildMsgArgs(ssl, &ssl->async.buildArgs);
+#endif
 #endif
 }
 
