@@ -4997,7 +4997,7 @@ int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap)
 #define SCR_WRITE(a, b, c)    0
 #define SCR_PARSE(a, b, c, d) 0
 
-#endif /* HAVE_SECURE_RENEGOTIATION */
+#endif /* HAVE_SECURE_RENEGOTIATION || HAVE_SERVER_RENEGOTIATION_INFO */
 
 /******************************************************************************/
 /* Session Tickets                                                            */
@@ -11107,7 +11107,7 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
         #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST_V2));
         #endif
-        #if defined(HAVE_SECURE_RENEGOTIATION)
+        #if defined(HAVE_SERVER_RENEGOTIATION_INFO)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_RENEGOTIATION_INFO));
         #endif
             break;
@@ -11233,7 +11233,7 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
         #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST_V2));
         #endif
-        #if defined(HAVE_SECURE_RENEGOTIATION)
+        #if defined(HAVE_SERVER_RENEGOTIATION_INFO)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_RENEGOTIATION_INFO));
         #endif
                 break;
@@ -11561,7 +11561,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 WOLFSSL_BUFFER(input + offset, size);
             #endif
 
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SECURE_RENEGOTIATION)
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SERVER_RENEGOTIATION_INFO)
                 if (IsAtLeastTLSv1_3(ssl->version))
                     break;
 #endif

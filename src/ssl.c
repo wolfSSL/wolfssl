@@ -3125,7 +3125,7 @@ static int _Rehandshake(WOLFSSL* ssl)
                 return WOLFSSL_FATAL_ERROR;
             }
         }
-#endif /* NO_WOLFSSL_SERVER && HAVE_SERVER_RENEGOTIATION_INFO */
+#endif /* !NO_WOLFSSL_SERVER && HAVE_SECURE_RENEGOTIATION */
 
         ret = InitHandshakeHashes(ssl);
         if (ret != 0) {

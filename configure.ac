@@ -4257,8 +4257,10 @@ then
 fi
 
 # Renegotiation Indication - (FAKE Secure Renegotiation)
+# Client will send TLS_EMPTY_RENEGOTIATION_INFO_SCSV, not supported
+# with enabling secure renegotiation
 AC_ARG_ENABLE([renegotiation-indication],
-    [AS_HELP_STRING([--enable-renegotiation-indication],[Enable Renegotiation Indication (default: disabled)])],
+    [AS_HELP_STRING([--enable-renegotiation-indication],[Enable Renegotiation Indication for client via empty cipher  (default: disabled)])],
     [ ENABLED_RENEGOTIATION_INDICATION=$enableval ],
     [ ENABLED_RENEGOTIATION_INDICATION=no ]
     )
