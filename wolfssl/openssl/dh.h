@@ -60,6 +60,7 @@ WOLFSSL_API WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh,
                                          const unsigned char **pp, long length);
 WOLFSSL_API int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out);
 WOLFSSL_API WOLFSSL_DH* wolfSSL_DH_new(void);
+WOLFSSL_API WOLFSSL_DH* wolSSL_DH_new_by_nid(int nid);
 WOLFSSL_API void        wolfSSL_DH_free(WOLFSSL_DH* dh);
 WOLFSSL_API WOLFSSL_DH* wolfSSL_DH_dup(WOLFSSL_DH* dh);
 WOLFSSL_API int         wolfSSL_DH_up_ref(WOLFSSL_DH* dh);
@@ -81,9 +82,10 @@ WOLFSSL_API WOLFSSL_DH* wolfSSL_DH_get_2048_256(void);
 
 typedef WOLFSSL_DH                   DH;
 
-#define DH_new    wolfSSL_DH_new
-#define DH_free   wolfSSL_DH_free
-#define DH_up_ref wolfSSL_DH_up_ref
+#define DH_new        wolfSSL_DH_new
+#define DH_free       wolfSSL_DH_free
+#define DH_up_ref     wolfSSL_DH_up_ref
+#define DH_new_by_nid wolSSL_DH_new_by_nid
 
 #define d2i_DHparams    wolfSSL_d2i_DHparams
 #define i2d_DHparams    wolfSSL_i2d_DHparams
@@ -125,6 +127,9 @@ typedef WOLFSSL_DH                   DH;
 #define DH_generate_parameters    wolfSSL_DH_generate_parameters
 #define DH_generate_parameters_ex wolfSSL_DH_generate_parameters_ex
 #endif /* OPENSSL_ALL || HAVE_STUNNEL */
+
+#define DH_GENERATOR_2 2
+#define DH_GENERATOR_5 5
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 

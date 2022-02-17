@@ -354,7 +354,11 @@ typedef WOLFSSL_EC_BUILTIN_CURVE      EC_builtin_curve;
 #define EC_POINT_free                   wolfSSL_EC_POINT_free
 #define EC_POINT_get_affine_coordinates_GFp \
                                      wolfSSL_EC_POINT_get_affine_coordinates_GFp
+#define EC_POINT_get_affine_coordinates \
+                                     wolfSSL_EC_POINT_get_affine_coordinates_GFp
 #define EC_POINT_set_affine_coordinates_GFp \
+                                     wolfSSL_EC_POINT_set_affine_coordinates_GFp
+#define EC_POINT_set_affine_coordinates \
                                      wolfSSL_EC_POINT_set_affine_coordinates_GFp
 #define EC_POINT_add                    wolfSSL_EC_POINT_add
 #define EC_POINT_mul                    wolfSSL_EC_POINT_mul
