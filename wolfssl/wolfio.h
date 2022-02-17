@@ -373,8 +373,7 @@
         typedef struct hostent          HOSTENT;
     #endif /* HAVE_SOCKADDR */
 
-    /* use gethostbyname for c99 */
-    #if defined(HAVE_GETADDRINFO) && !defined(WOLF_C99)
+    #if defined(HAVE_GETADDRINFO)
         typedef struct addrinfo         ADDRINFO;
     #endif
 #endif /* WOLFSSL_NO_SOCK */

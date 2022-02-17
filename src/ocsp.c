@@ -279,7 +279,7 @@ static int GetOcspStatus(WOLFSSL_OCSP* ocsp, OcspRequest* request,
  * entry          The OCSP entry for this certificate.
  * returns OCSP_LOOKUP_FAIL when the response is bad and 0 otherwise.
  */
-WOLFSSL_LOCAL int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
+int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
                                     WOLFSSL_BUFFER_INFO *responseBuffer, CertStatus *status,
                                     OcspEntry *entry, OcspRequest *ocspRequest)
 {
@@ -406,13 +406,17 @@ end:
 }
 
 /* 0 on success */
+/* allow customer to override the maximum request size at build-time */
+#ifndef OCSP_MAX_REQUEST_SZ
+#define OCSP_MAX_REQUEST_SZ 2048
+#endif
 int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
                                                       buffer* responseBuffer)
 {
     OcspEntry*  entry          = NULL;
     CertStatus* status         = NULL;
     byte*       request        = NULL;
-    int         requestSz      = 2048;
+    int         requestSz      = OCSP_MAX_REQUEST_SZ;
     int         responseSz     = 0;
     byte*       response       = NULL;
     const char* url            = NULL;
@@ -1113,7 +1117,7 @@ WOLFSSL_OCSP_SINGLERESP* wolfSSL_OCSP_resp_get0(WOLFSSL_OCSP_BASICRESP *bs, int 
     return single;
 }
 
-#endif /* OPENSSL_ALL || APACHE_HTTPD */
+#endif /* OPENSSL_ALL || APACHE_HTTPD || WOLFSSL_HAPROXY */
 
 #ifdef OPENSSL_EXTRA
 #ifndef NO_WOLFSSL_STUB
