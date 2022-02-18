@@ -34947,6 +34947,12 @@ int wolfSSL_DSA_generate_key(WOLFSSL_DSA* dsa)
         }
 
         if (rng) {
+            /* These were allocated above by SetDsaInternal(). They should
+             * be cleared before wc_MakeDsaKey() which reinitializes
+             * x and y. */
+            mp_clear(&((DsaKey*)dsa->internal)->x);
+            mp_clear(&((DsaKey*)dsa->internal)->y);
+
             if (wc_MakeDsaKey(rng, (DsaKey*)dsa->internal) != MP_OKAY)
                 WOLFSSL_MSG("wc_MakeDsaKey failed");
             else if (SetDsaExternal(dsa) != WOLFSSL_SUCCESS)
