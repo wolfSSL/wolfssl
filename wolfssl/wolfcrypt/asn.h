@@ -513,7 +513,7 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
  */
 #define SetASN_Buffer(dataASN, d, l)                                   \
     do {                                                               \
-        (dataASN)->data.buffer.data   = d;                             \
+        (dataASN)->data.buffer.data   = (const byte *) d;              \
         (dataASN)->data.buffer.length = l;                             \
     } while (0)
 
@@ -1459,6 +1459,11 @@ typedef struct TrustedPeerCert TrustedPeerCert;
 typedef struct SignatureCtx SignatureCtx;
 typedef struct CertSignCtx  CertSignCtx;
 
+#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
+    && defined(HAVE_OID_DECODING)
+typedef int (*wc_UnknownExtCallback)(const word16* oid, word32 oidSz, int crit,
+                                     const unsigned char* der, word32 derSz);
+#endif
 
 struct DecodedCert {
     const byte* publicKey;
@@ -1689,6 +1694,10 @@ struct DecodedCert {
 #ifdef WOLFSSL_CERT_REQ
     byte isCSR : 1;                /* Do we intend on parsing a CSR? */
 #endif
+#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
+    && defined(HAVE_OID_DECODING)
+    wc_UnknownExtCallback unknownExtCallback;
+#endif
 };
 
 #ifdef NO_SHA
@@ -1815,6 +1824,12 @@ WOLFSSL_ASN_API void InitDecodedCert(DecodedCert* cert, const byte* source,
 WOLFSSL_ASN_API void FreeDecodedCert(DecodedCert* cert);
 WOLFSSL_ASN_API int  ParseCert(DecodedCert* cert, int type, int verify,
                                void* cm);
+
+#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
+    && defined(HAVE_OID_DECODING)
+WOLFSSL_ASN_API void SetUnknownExtCallback(DecodedCert* cert,
+                                           wc_UnknownExtCallback cb);
+#endif
 
 WOLFSSL_LOCAL int DecodePolicyOID(char *out, word32 outSz, const byte *in,
                                   word32 inSz);
