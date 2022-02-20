@@ -1,3 +1,114 @@
+# wolfSSL Release 5.2.0 (Feb 21, 2022)
+
+## Vulnerabilities
+
+* \[High\] A TLS v1.3 server who requires mutual authentication can be
+  bypassed. If a malicious client does not send the certificate_verify
+  message a client can connect without presenting a certificate even
+  if the server requires one. Thank you to Aina Toky Rasoamanana and
+  Olivier Levillain of Télécom SudParis.
+* \[High\] A TLS v1.3 client attempting to authenticate a TLS v1.3
+  server can have its certificate check bypassed. If the sig_algo in
+  the certificate_verify message is different than the certificate
+  message checking may be bypassed. Thank you to Aina Toky Rasoamanana and
+  Olivier Levillain of Télécom SudParis.
+
+## New Feature Additions
+
+* Example applications for Renesas RX72N with FreeRTOS+IoT
+* Renesas FSP 3.5.0 support for RA6M3
+* For TLS 1.3, improved checks on order of received messages.
+* Support for use of SHA-3 cryptography instructions available in
+  ARMv8.2-A architecture extensions. (For Apple M1)
+* Support for use of SHA-512 cryptography instructions available in
+  ARMv8.2-A architecture extensions.  (For Apple M1)
+* Fixes for clang -Os on clang >= 12.0.0
+* Expose Sequence Numbers so that Linux TLS (kTLS) can be configured
+* Fix bug in TLSX_ALPN_ParseAndSet when using ALPN select callback.
+* Allow DES3 with FIPS v5-dev.
+* Include HMAC for deterministic ECC sign build
+* Add --enable-chrony configure option. This sets build options needed
+  to build the Chrony NTP (Network Time Protocol) service.
+* Add support for STM32U575xx boards.
+* Fixes for NXP’s SE050 Ed25519/Curve25519.
+* TLS: Secure renegotiation info on by default for compatibility.
+* Inline C code version of ARM32 assembly for cryptographic algorithms
+  available and compiling for improved performance on ARM platforms
+* Configure HMAC: define NO_HMAC to disable HMAC (default: enabled)
+* ISO-TP transport layer support added to wolfio for TLS over CAN Bus
+* Fix initialization bug in SiLabs AES support
+* Domain and IP check is only performed on leaf certificates
+
+## ARM PSA Support (Platform Security Architecture) API
+
+* Initial support added for ARM’s Platform Security Architecture (PSA)
+  API in wolfCrypt which allows support of ARM PSA enabled devices by
+  wolfSSL, wolfSSH, and wolfBoot and wolfCrypt FIPS.
+* Included algorithms: ECDSA, ECDH, HKDF, AES, SHA1, SHA256, SHA224, RNG
+
+## ECICE Updates
+
+* Support for more encryption algorithms: AES-256-CBC, AES-128-CTR,
+  AES-256-CTR
+* Support for compressed public keys in messages.
+
+## Math Improvements
+
+* Improved performance of X448 and Ed448 through inlining Karatsuba in
+  square and multiplication operations for 128-bit implementation
+  (64-bit platforms with 128-bit type support).
+* SP Math C implementation: fix for corner case in curve specific
+  implementations of Montgomery Reduction (P-256, P-384).
+* SP math all: assembly snippets added for ARM Thumb. Performance
+  improvement on platform.
+* SP math all: ARM64/32 sp_div_word assembly snippets added to remove
+  dependency on __udiv3.
+* SP C implementation: multiplication of two signed types with overflow
+  is undefined in C. Now cast to unsigned type before multiplication is
+  performed.
+* SP C implementation correctly builds when using CFLAG: -m32
+
+## OpenSSL Compatibility Layer
+
+* Added DH_get_2048_256 to compatibility layer.
+* wolfSSLeay_version now returns the version of wolfSSL
+* Added C++ exports for API’s in wolfssl/openssl/crypto.h. This allows
+  better compatibility when building with a C++ compiler.
+* Fix for OpenSSL x509_NAME_hash mismatch
+* Implement FIPS_mode and FIPS_mode_set in the compat layer.
+* Fix for certreq and certgen options with openssl compatibility
+* wolfSSL_BIO_dump() and wolfSSL_OBJ_obj2txt() rework
+* Fix IV length bug in EVP AES-GCM code.
+* Add new ASN1_INTEGER compatibility functions.
+* Fix wolfSSL_PEM_X509_INFO_read with NO_FILESYSTEM
+
+## CMake Updates
+
+* Check for valid override values.
+* Add `KEYGEN` option.
+* Cleanup help messages.
+* Add options to support wolfTPM.
+
+## VisualStudio Updates
+
+* Remove deprecated VS solution
+* Fix VS unreachable code warning
+
+## New Algorithms and Protocols
+
+* AES-SIV (RFC 5297)
+* DTLS SRTP (RFC 5764), used with WebRTC to agree on profile for new
+  real-time session keys
+* SipHash MAC/PRF for hash tables. Includes inline assembly for
+  x86_64 and Aarch64.
+
+## Remove Obsolete Algorithms
+
+* IDEA
+* Rabbit
+* HC-128
+
+
 # wolfSSL Release 5.1.1 (Jan 3rd, 2022)
 Release 5.1.1 of wolfSSL embedded TLS has a high vulnerability fix:
 
