@@ -12342,6 +12342,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             }
 
                             ret = 0; /* clear errors and continue */
+                    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                            ssl->peerVerifyRet = 0;
+                    #endif
                             args->verifyErr = 0;
                         }
 
