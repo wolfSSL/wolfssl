@@ -105,6 +105,9 @@ emailAddress                    = Email Address
 emailAddress_default            = info@wolfssl.com
 emailAddress_max                = 64
 
+userId                          = User ID
+userId_default                  = wolfSSL
+
 #default req_attr
 [ req_attributes ]
 challengePassword               = A challenge password

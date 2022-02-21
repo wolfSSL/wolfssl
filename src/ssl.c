@@ -32736,6 +32736,7 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
     { NID_jurisdictionStateOrProvinceName, NID_jurisdictionStateOrProvinceName,
             oidCertNameType, "jurisdictionST", "jurisdictionStateOrProvinceName"},
     { NID_postalCode, NID_postalCode, oidCertNameType, "postalCode", "postalCode"},
+    { NID_userId, NID_userId, oidCertNameType, "UID", "userId"},
 
 #ifdef WOLFSSL_CERT_REQ
     { NID_pkcs9_challengePassword, CHALLENGE_PASSWORD_OID,
