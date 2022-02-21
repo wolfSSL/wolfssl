@@ -3668,13 +3668,16 @@ static WC_INLINE void FreeAtomicUser(WOLFSSL* ssl)
 
     /* Encrypt-Then-MAC callbacks use same contexts. */
 
-    if (encCtx->keySetup  == 1)
-        wc_AesFree(&encCtx->aes);
-    if (decCtx->keySetup  == 1)
-        wc_AesFree(&decCtx->aes);
-
+    if (encCtx != NULL) {
+        if (encCtx->keySetup  == 1)
+            wc_AesFree(&encCtx->aes);
+        free(encCtx);
+    }
+    if (decCtx != NULL) {
+        if (decCtx->keySetup  == 1)
+            wc_AesFree(&decCtx->aes);
     free(decCtx);
-    free(encCtx);
+    }
 }
 
 #endif /* ATOMIC_USER */

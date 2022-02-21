@@ -73,8 +73,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/wolfssl/README.txt
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
-%{_libdir}/libwolfssl.so.30
-%{_libdir}/libwolfssl.so.30.1.2
+%{_libdir}/libwolfssl.so.32
+%{_libdir}/libwolfssl.so.32.0.0
 
 %files devel
 %defattr(-,root,root,-)
@@ -201,6 +201,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/openssl/engine.h
 %{_includedir}/wolfssl/openssl/err.h
 %{_includedir}/wolfssl/openssl/evp.h
+%{_includedir}/wolfssl/openssl/fips_rand.h
 %{_includedir}/wolfssl/openssl/hmac.h
 %{_includedir}/wolfssl/openssl/lhash.h
 %{_includedir}/wolfssl/openssl/md4.h
@@ -295,6 +296,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/sha256.h
 %{_includedir}/wolfssl/wolfcrypt/sha3.h
 %{_includedir}/wolfssl/wolfcrypt/sha512.h
+%{_includedir}/wolfssl/wolfcrypt/siphash.h
 %{_includedir}/wolfssl/wolfcrypt/signature.h
 %{_includedir}/wolfssl/wolfcrypt/srp.h
 %{_includedir}/wolfssl/wolfcrypt/tfm.h
@@ -308,6 +310,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Wed Feb 16 2022 John Safranek <john@wolfssl.com>
+- Update for new release.
 * Mon Dec 27 2021 Jacob Barthelmeh <jacob@wolfssl.com>
 - Add a missing headers camellia.h, modes.h from compat layer.
 - Add a missing header falcon.h.
