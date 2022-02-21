@@ -3315,7 +3315,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ret < 0) {
             if (ret == WC_PENDING_E) {
                 /* Mark message as not received so it can process again */
-                ssl->msgsReceived.got_server_hello--;
+                ssl->msgsReceived.got_server_hello = 0;
             }
             return ret;
         }
@@ -3380,10 +3380,6 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ssl->msgsReceived.got_hello_retry_request) {
             return DUPLICATE_MSG_E;
         }
-
-        /* Update counts to reflect change of message type. */
-        ssl->msgsReceived.got_hello_retry_request = 1;
-        ssl->msgsReceived.got_server_hello--;
     }
     args->extMsgType = *extMsgType;
 
@@ -3496,11 +3492,18 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             /* Handle async operation */
             if (ret == WC_PENDING_E) {
                 /* Mark message as not received so it can process again */
-                ssl->msgsReceived.got_server_hello--;
+                ssl->msgsReceived.got_server_hello = 0;
             }
         #endif
             return ret;
         }
+
+        if (*extMsgType == hello_retry_request) {
+            /* Update counts to reflect change of message type. */
+            ssl->msgsReceived.got_hello_retry_request = 1;
+            ssl->msgsReceived.got_server_hello = 0;
+        }
+
         args->idx += args->totalExtSz;
     }
 
