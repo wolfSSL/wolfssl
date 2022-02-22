@@ -25274,7 +25274,7 @@ int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-            sp_256_map_avx2_4(point, point, tmp);
+            sp_256_map_avx2_4(p, p, tmp);
         else
 #endif
             sp_256_map_4(p, p, tmp);
@@ -49875,7 +49875,7 @@ int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-            sp_384_map_avx2_6(point, point, tmp);
+            sp_384_map_avx2_6(p, p, tmp);
         else
 #endif
             sp_384_map_6(p, p, tmp);
