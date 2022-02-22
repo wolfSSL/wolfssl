@@ -1208,6 +1208,10 @@ static int GeneratePrivateDh(DhKey* key, WC_RNG* rng, byte* priv,
     int ret = 0;
     word32 sz = 0;
 
+    if (mp_iseven(&key->p) == MP_YES) {
+        ret = MP_VAL;
+    }
+    else
 #ifndef WOLFSSL_NO_DH186
     if (mp_iszero(&key->q) == MP_NO) {
 
@@ -1215,7 +1219,8 @@ static int GeneratePrivateDh(DhKey* key, WC_RNG* rng, byte* priv,
          * Generation Using Extra Random Bits" */
         ret = GeneratePrivateDh186(key, rng, priv, privSz);
 
-    } else
+    }
+    else
 #endif
     {
 
@@ -1793,6 +1798,8 @@ static int _ffc_pairwise_consistency_test(DhKey* key,
 
     if (key == NULL || pub == NULL || priv == NULL)
         return BAD_FUNC_ARG;
+    if (mp_iseven(&key->p) == MP_YES)
+        return MP_VAL;
 
 #ifdef WOLFSSL_SMALL_STACK
     publicKey = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_DH);
@@ -1957,6 +1964,9 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 #endif
 #endif
 
+    if (mp_iseven(&key->p) == MP_YES) {
+        return MP_VAL;
+    }
 #ifdef WOLFSSL_VALIDATE_FFC_IMPORT
     if (wc_DhCheckPrivKey(key, priv, privSz) != 0) {
         WOLFSSL_MSG("wc_DhAgree wc_DhCheckPrivKey failed");

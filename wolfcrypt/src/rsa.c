@@ -2258,6 +2258,9 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     word32 keyLen = 0;
 #endif
 
+    if (mp_iseven(&key->n)) {
+        return MP_VAL;
+    }
 #ifdef WOLFSSL_HAVE_SP_RSA
 #ifndef WOLFSSL_SP_NO_2048
     if (mp_count_bits(&key->n) == 2048) {
