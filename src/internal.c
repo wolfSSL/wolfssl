@@ -16557,20 +16557,19 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
                           READ_PROTO, ssl->heap);
     #endif
 
-#ifndef WOLFSSL_AEAD_ONLY
-    if (ssl->specs.cipher_type == block) {
-        if (ssl->options.tls1_1)
-            ivExtra = ssl->specs.block_size;
-    }
-    else
-#endif
-    if (ssl->specs.cipher_type == aead) {
-        if (CipherHasExpIV(ssl))
-            ivExtra = AESGCM_EXP_IV_SZ;
-    }
-    dataSz -= ivExtra;
-
     if (IsEncryptionOn(ssl, 0)) {
+#ifndef WOLFSSL_AEAD_ONLY
+        if (ssl->specs.cipher_type == block) {
+            if (ssl->options.tls1_1)
+                ivExtra = ssl->specs.block_size;
+        }
+        else
+#endif
+        if (ssl->specs.cipher_type == aead) {
+            if (CipherHasExpIV(ssl))
+                ivExtra = AESGCM_EXP_IV_SZ;
+        }
+        dataSz -= ivExtra;
         dataSz -= ssl->keys.padSz;
     #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
         if (ssl->options.startedETMRead)
