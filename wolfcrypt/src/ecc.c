@@ -3346,6 +3346,11 @@ exit:
    if (mp_count_bits(k) > mp_count_bits(modulus) + 1) {
        return ECC_OUT_OF_RANGE_E;
    }
+   if (mp_count_bits(G->x) > mp_count_bits(modulus) ||
+       mp_count_bits(G->y) > mp_count_bits(modulus) ||
+       mp_count_bits(G->z) > mp_count_bits(modulus)) {
+       return IS_POINT_E;
+   }
 
 #ifdef WOLFSSL_HAVE_SP_ECC
 #ifndef WOLFSSL_SP_NO_256
@@ -3511,6 +3516,11 @@ exit:
 {
    if (k == NULL || G == NULL || R == NULL || modulus == NULL) {
        return ECC_BAD_ARG_E;
+   }
+   if (mp_count_bits(G->x) > mp_count_bits(modulus) ||
+       mp_count_bits(G->y) > mp_count_bits(modulus) ||
+       mp_count_bits(G->z) > mp_count_bits(modulus)) {
+       return IS_POINT_E;
    }
 
    (void)a;
@@ -8639,6 +8649,11 @@ static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
 
     if (key == NULL)
         return BAD_FUNC_ARG;
+   if (mp_count_bits(pubkey->x) > mp_count_bits(prime) ||
+       mp_count_bits(pubkey->y) > mp_count_bits(prime) ||
+       mp_count_bits(pubkey->z) > mp_count_bits(prime)) {
+       return IS_POINT_E;
+   }
 
 #ifdef WOLFSSL_NO_MALLOC
     inf = &lcl_inf;
@@ -11412,6 +11427,11 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     if (k == NULL || G == NULL || R == NULL || a == NULL || modulus == NULL) {
         return ECC_BAD_ARG_E;
     }
+    if (mp_count_bits(G->x) > mp_count_bits(modulus) ||
+        mp_count_bits(G->y) > mp_count_bits(modulus) ||
+        mp_count_bits(G->z) > mp_count_bits(modulus)) {
+        return IS_POINT_E;
+    }
 
 #ifndef WOLFSSL_SP_NO_256
     if (mp_count_bits(modulus) == 256) {
@@ -11563,9 +11583,14 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 
     (void)rng;
 
-   if (k == NULL || G == NULL || R == NULL || a == NULL || modulus == NULL ||
+    if (k == NULL || G == NULL || R == NULL || a == NULL || modulus == NULL ||
                                                                 order == NULL) {
         return ECC_BAD_ARG_E;
+    }
+    if (mp_count_bits(G->x) > mp_count_bits(modulus) ||
+        mp_count_bits(G->y) > mp_count_bits(modulus) ||
+        mp_count_bits(G->z) > mp_count_bits(modulus)) {
+        return IS_POINT_E;
     }
 
 #ifndef WOLFSSL_SP_NO_256
