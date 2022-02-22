@@ -77,7 +77,9 @@ extern "C" {
 /* Other Features */
 #define WOLFSSL_USE_ALIGN
 #define WOLFSSL_BASE64_ENCODE
-//#define HAVE_CRL
+#if 0 /* optionally enable CRL (Certificate Revocation List) */
+    #define HAVE_CRL
+#endif
 #define HAVE_EXT_CACHE
 #define WOLFSSL_VERIFY_CB_ALL_CERTS
 #define WOLFSSL_ALWAYS_VERIFY_CB
@@ -89,7 +91,7 @@ extern "C" {
 
 /* Compatibility Layer */
 #define OPENSSL_EXTRA
-#if 0
+#if 0 /* if full suite of compatibility API's are needed */
     #define OPENSSL_ALL
 #endif
 
@@ -124,6 +126,7 @@ extern "C" {
 #define WC_RSA_NO_PADDING
 
 /* AES */
+#undef  NO_AES
 #define WOLFSSL_AES_COUNTER
 #define HAVE_AESCCM
 #define HAVE_AES_ECB
@@ -164,8 +167,11 @@ extern "C" {
 #define NO_HC128
 #define WOLFSSL_NO_SHAKE256
 
+/* Debugging */
 #if 0
     #define DEBUG_WOLFSSL
+#else
+    /* #define NO_ERROR_STRINGS */
 #endif
 
 #ifdef __cplusplus
