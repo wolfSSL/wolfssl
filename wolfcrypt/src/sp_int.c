@@ -14201,7 +14201,7 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
     }
 #ifndef WOLFSSL_HAVE_SP_ECC
 #if SP_WORD_SIZE == 64
-    else if (m->used == 4) {
+    else if ((m->used == 4) && (mask == 0)) {
         sp_int_digit l;
         sp_int_digit h;
         sp_int_digit o2;
@@ -14211,41 +14211,45 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
         o = 0;
         o2 = 0;
         for (i = 0; i < 4; i++) {
-            mu = mp * a->dp[i];
-            if ((i == 3) && (mask != 0)) {
-                mu &= mask;
-            }
-            l = a->dp[i];
+            mu = mp * a->dp[0];
+            l = a->dp[0];
             SP_ASM_MUL_ADD_NO(l, h, mu, m->dp[0]);
-            a->dp[i] = l;
             l = h;
             h = 0;
-            SP_ASM_ADDC(l, h, a->dp[i + 1]);
+            SP_ASM_ADDC(l, h, a->dp[1]);
             SP_ASM_MUL_ADD_NO(l, h, mu, m->dp[1]);
-            a->dp[i + 1] = l;
+            a->dp[0] = l;
             l = h;
             h = 0;
-            SP_ASM_ADDC(l, h, a->dp[i + 2]);
+            SP_ASM_ADDC(l, h, a->dp[2]);
             SP_ASM_MUL_ADD_NO(l, h, mu, m->dp[2]);
-            a->dp[i + 2] = l;
+            a->dp[1] = l;
             l = h;
             h = o2;
             o2 = 0;
             SP_ASM_ADDC_REG(l, h, o);
             SP_ASM_ADDC(l, h, a->dp[i + 3]);
             SP_ASM_MUL_ADD(l, h, o2, mu, m->dp[3]);
-            a->dp[i + 3] = l;
+            a->dp[2] = l;
             o = h;
             l = h;
             h = 0;
         }
         h = o2;
         SP_ASM_ADDC(l, h, a->dp[7]);
-        a->dp[7] = l;
-        a->dp[8] = h;
-        a->used = 9;
+        a->dp[3] = l;
+        a->dp[4] = h;
+        a->used = 5;
+
+        sp_clamp(a);
+
+        if (_sp_cmp_abs(a, m) != MP_LT) {
+            sp_sub(a, m, a);
+        }
+
+        return MP_OKAY;
     }
-    else if (m->used == 6) {
+    else if ((m->used == 6) && (mask == 0)) {
         sp_int_digit l;
         sp_int_digit h;
         sp_int_digit o2;
@@ -14255,51 +14259,113 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
         o = 0;
         o2 = 0;
         for (i = 0; i < 6; i++) {
-            mu = mp * a->dp[i];
-            if ((i == 5) && (mask != 0)) {
-                mu &= mask;
-            }
-            l = a->dp[i];
+            mu = mp * a->dp[0];
+            l = a->dp[0];
             SP_ASM_MUL_ADD_NO(l, h, mu, m->dp[0]);
-            a->dp[i] = l;
             l = h;
             h = 0;
-            SP_ASM_ADDC(l, h, a->dp[i + 1]);
+            SP_ASM_ADDC(l, h, a->dp[1]);
             SP_ASM_MUL_ADD_NO(l, h, mu, m->dp[1]);
-            a->dp[i + 1] = l;
+            a->dp[0] = l;
             l = h;
             h = 0;
-            SP_ASM_ADDC(l, h, a->dp[i + 2]);
+            SP_ASM_ADDC(l, h, a->dp[2]);
             SP_ASM_MUL_ADD_NO(l, h, mu, m->dp[2]);
-            a->dp[i + 2] = l;
+            a->dp[1] = l;
             l = h;
             h = 0;
-            SP_ASM_ADDC(l, h, a->dp[i + 3]);
+            SP_ASM_ADDC(l, h, a->dp[3]);
             SP_ASM_MUL_ADD_NO(l, h, mu, m->dp[3]);
-            a->dp[i + 3] = l;
+            a->dp[2] = l;
             l = h;
             h = 0;
-            SP_ASM_ADDC(l, h, a->dp[i + 4]);
+            SP_ASM_ADDC(l, h, a->dp[4]);
             SP_ASM_MUL_ADD_NO(l, h, mu, m->dp[4]);
-            a->dp[i + 4] = l;
+            a->dp[3] = l;
             l = h;
             h = o2;
             o2 = 0;
             SP_ASM_ADDC_REG(l, h, o);
             SP_ASM_ADDC(l, h, a->dp[i + 5]);
             SP_ASM_MUL_ADD(l, h, o2, mu, m->dp[5]);
-            a->dp[i + 5] = l;
+            a->dp[4] = l;
             o = h;
             l = h;
             h = 0;
         }
         h = o2;
         SP_ASM_ADDC(l, h, a->dp[11]);
-        a->dp[11] = l;
-        a->dp[12] = h;
-        a->used = 13;
+        a->dp[5] = l;
+        a->dp[6] = h;
+        a->used = 7;
+
+        sp_clamp(a);
+
+        if (_sp_cmp_abs(a, m) != MP_LT) {
+            sp_sub(a, m, a);
+        }
+
+        return MP_OKAY;
     }
-#endif /* SP_WORD_SIZE == 64 */
+#elif SP_WORD_SIZE == 32
+    else if ((m->used <= 12) && (mask == 0)) {
+        sp_int_digit l;
+        sp_int_digit h;
+        sp_int_digit o2;
+        sp_int_digit* ad;
+        sp_int_digit* md;
+
+        o = 0;
+        o2 = 0;
+        ad = a->dp;
+        for (i = 0; i < m->used; i++) {
+            md = m->dp;
+            mu = mp * ad[0];
+            l = ad[0];
+            h = 0;
+            SP_ASM_MUL_ADD_NO(l, h, mu, *(md++));
+            l = h;
+            for (j = 1; j + 1 < m->used - 1; j += 2) {
+                h = 0;
+                SP_ASM_ADDC(l, h, ad[j]);
+                SP_ASM_MUL_ADD_NO(l, h, mu, *(md++));
+                ad[j - 1] = l;
+                l = 0;
+                SP_ASM_ADDC(h, l, ad[j + 1]);
+                SP_ASM_MUL_ADD_NO(h, l, mu, *(md++));
+                ad[j] = h;
+            }
+            for (; j < m->used - 1; j++) {
+                h = 0;
+                SP_ASM_ADDC(l, h, ad[j]);
+                SP_ASM_MUL_ADD_NO(l, h, mu, *(md++));
+                ad[j - 1] = l;
+                l = h;
+            }
+            h = o2;
+            o2 = 0;
+            SP_ASM_ADDC_REG(l, h, o);
+            SP_ASM_ADDC(l, h, ad[i + j]);
+            SP_ASM_MUL_ADD(l, h, o2, mu, *md);
+            ad[j - 1] = l;
+            o = h;
+        }
+        l = o;
+        h = o2;
+        SP_ASM_ADDC(l, h, a->dp[m->used * 2 - 1]);
+        a->dp[m->used  - 1] = l;
+        a->dp[m->used] = h;
+        a->used = m->used + 1;
+
+        sp_clamp(a);
+
+        if (_sp_cmp_abs(a, m) != MP_LT) {
+            sp_sub(a, m, a);
+        }
+
+        return MP_OKAY;
+    }
+#endif /* SP_WORD_SIZE == 64 | 32 */
 #endif /* WOLFSSL_HAVE_SP_ECC */
     else {
         sp_int_digit l;
