@@ -56,19 +56,22 @@
 #define SP_PRINT_NUM(var, name, total, words, bits)   \
     do {                                              \
         int ii;                                       \
-        byte n[bits / 8];                             \
+        byte nb[(bits + 7) / 8];                      \
         sp_digit s[words];                            \
         XMEMCPY(s, var, sizeof(s));                   \
         sp_##total##_norm_##words(s);                 \
-        sp_##total##_to_bin_##words(s, n);            \
+        sp_##total##_to_bin_##words(s, nb);           \
         fprintf(stderr, name "=0x");                  \
-        for (ii=0; ii<bits/8; ii++)                   \
-            fprintf(stderr, "%02x", n[ii]);           \
+        for (ii=0; ii<(bits + 7) / 8; ii++)           \
+            fprintf(stderr, "%02x", nb[ii]);          \
         fprintf(stderr, "\n");                       \
     } while (0)
 
-#define SP_PRINT_VAL(var, name) \
+#define SP_PRINT_VAL(var, name)                       \
     fprintf(stderr, name "=0x" SP_PRINT_FMT "\n", var)
+
+#define SP_PRINT_INT(var, name)                       \
+    fprintf(stderr, name "=%d\n", var)
 
 #if (((!defined(WC_NO_CACHE_RESISTANT) && \
       (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH))) || \
@@ -223,7 +226,7 @@ static void sp_2048_to_bin_34(sp_digit* r, byte* a)
         r[i+1] += r[i] >> 61;
         r[i] &= 0x1fffffffffffffffL;
     }
-    j = 2048 / 8 - 1;
+    j = 2055 / 8 - 1;
     a[j] = 0;
     for (i=0; i<34 && j>=0; i++) {
         b = 0;
@@ -3875,7 +3878,7 @@ static void sp_2048_to_bin_36(sp_digit* r, byte* a)
         r[i+1] += r[i] >> 57;
         r[i] &= 0x1ffffffffffffffL;
     }
-    j = 2048 / 8 - 1;
+    j = 2055 / 8 - 1;
     a[j] = 0;
     for (i=0; i<36 && j>=0; i++) {
         b = 0;
@@ -7577,7 +7580,7 @@ static void sp_3072_to_bin_52(sp_digit* r, byte* a)
         r[i+1] += r[i] >> 60;
         r[i] &= 0xfffffffffffffffL;
     }
-    j = 3072 / 8 - 1;
+    j = 3079 / 8 - 1;
     a[j] = 0;
     for (i=0; i<52 && j>=0; i++) {
         b = 0;
@@ -10984,7 +10987,7 @@ static void sp_3072_to_bin_54(sp_digit* r, byte* a)
         r[i+1] += r[i] >> 57;
         r[i] &= 0x1ffffffffffffffL;
     }
-    j = 3072 / 8 - 1;
+    j = 3079 / 8 - 1;
     a[j] = 0;
     for (i=0; i<54 && j>=0; i++) {
         b = 0;
@@ -14871,7 +14874,7 @@ static void sp_4096_to_bin_70(sp_digit* r, byte* a)
         r[i+1] += r[i] >> 59;
         r[i] &= 0x7ffffffffffffffL;
     }
-    j = 4096 / 8 - 1;
+    j = 4103 / 8 - 1;
     a[j] = 0;
     for (i=0; i<70 && j>=0; i++) {
         b = 0;
@@ -18057,7 +18060,7 @@ static void sp_4096_to_bin_78(sp_digit* r, byte* a)
         r[i+1] += r[i] >> 53;
         r[i] &= 0x1fffffffffffffL;
     }
-    j = 4096 / 8 - 1;
+    j = 4103 / 8 - 1;
     a[j] = 0;
     for (i=0; i<78 && j>=0; i++) {
         b = 0;
@@ -26587,7 +26590,7 @@ static void sp_256_to_bin_5(sp_digit* r, byte* a)
         r[i+1] += r[i] >> 52;
         r[i] &= 0xfffffffffffffL;
     }
-    j = 256 / 8 - 1;
+    j = 263 / 8 - 1;
     a[j] = 0;
     for (i=0; i<5 && j>=0; i++) {
         b = 0;
@@ -27904,8 +27907,8 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
 
     if (err == MP_OKAY) {
         /* u1 = r.z'.z' mod prime */
-        sp_256_mont_sqr_5(p1->z, p1->z, p256_mod, p256_mp_mod);
-        sp_256_mont_mul_5(u1, u2, p1->z, p256_mod, p256_mp_mod);
+            sp_256_mont_sqr_5(p1->z, p1->z, p256_mod, p256_mp_mod);
+            sp_256_mont_mul_5(u1, u2, p1->z, p256_mod, p256_mp_mod);
         *res = (int)(sp_256_cmp_5(p1->x, u1) == 0);
         if (*res == 0) {
             /* Reload r and add order. */
@@ -27924,8 +27927,9 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
             err = sp_256_mod_mul_norm_5(u2, u2, p256_mod);
             if (err == MP_OKAY) {
                 /* u1 = (r + 1*order).z'.z' mod prime */
-                sp_256_mont_mul_5(u1, u2, p1->z, p256_mod,
-                    p256_mp_mod);
+                {
+                    sp_256_mont_mul_5(u1, u2, p1->z, p256_mod, p256_mp_mod);
+                }
                 *res = (sp_256_cmp_5(p1->x, u1) == 0);
             }
         }
@@ -33896,7 +33900,7 @@ static void sp_384_to_bin_7(sp_digit* r, byte* a)
         r[i+1] += r[i] >> 55;
         r[i] &= 0x7fffffffffffffL;
     }
-    j = 384 / 8 - 1;
+    j = 391 / 8 - 1;
     a[j] = 0;
     for (i=0; i<7 && j>=0; i++) {
         b = 0;
@@ -35194,8 +35198,8 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
 
     if (err == MP_OKAY) {
         /* u1 = r.z'.z' mod prime */
-        sp_384_mont_sqr_7(p1->z, p1->z, p384_mod, p384_mp_mod);
-        sp_384_mont_mul_7(u1, u2, p1->z, p384_mod, p384_mp_mod);
+            sp_384_mont_sqr_7(p1->z, p1->z, p384_mod, p384_mp_mod);
+            sp_384_mont_mul_7(u1, u2, p1->z, p384_mod, p384_mp_mod);
         *res = (int)(sp_384_cmp_7(p1->x, u1) == 0);
         if (*res == 0) {
             /* Reload r and add order. */
@@ -35214,8 +35218,9 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
             err = sp_384_mod_mul_norm_7(u2, u2, p384_mod);
             if (err == MP_OKAY) {
                 /* u1 = (r + 1*order).z'.z' mod prime */
-                sp_384_mont_mul_7(u1, u2, p1->z, p384_mod,
-                    p384_mp_mod);
+                {
+                    sp_384_mont_mul_7(u1, u2, p1->z, p384_mod, p384_mp_mod);
+                }
                 *res = (sp_384_cmp_7(p1->x, u1) == 0);
             }
         }
@@ -35816,6 +35821,7295 @@ int sp_ecc_uncompress_384(mp_int* xm, int odd, mp_int* ym)
 }
 #endif
 #endif /* WOLFSSL_SP_384 */
+#ifdef WOLFSSL_SP_521
+
+/* Point structure to use. */
+typedef struct sp_point_521 {
+    /* X ordinate of point. */
+    sp_digit x[2 * 9];
+    /* Y ordinate of point. */
+    sp_digit y[2 * 9];
+    /* Z ordinate of point. */
+    sp_digit z[2 * 9];
+    /* Indicates point is at infinity. */
+    int infinity;
+} sp_point_521;
+
+/* The modulus (prime) of the curve P521. */
+static const sp_digit p521_mod[9] = {
+    0x3ffffffffffffffL,0x3ffffffffffffffL,0x3ffffffffffffffL,0x3ffffffffffffffL,
+    0x3ffffffffffffffL,0x3ffffffffffffffL,0x3ffffffffffffffL,0x3ffffffffffffffL,
+    0x1ffffffffffffffL
+};
+/* The Montgomery normalizer for modulus of the curve P521. */
+static const sp_digit p521_norm_mod[9] = {
+    0x000000000000001L,0x000000000000000L,0x000000000000000L,0x000000000000000L,
+    0x000000000000000L,0x000000000000000L,0x000000000000000L,0x000000000000000L,
+    0x000000000000000L
+};
+/* The Montgomery multiplier for modulus of the curve P521. */
+static sp_digit p521_mp_mod = 0x00000000000001;
+#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
+                                            defined(HAVE_ECC_VERIFY)
+/* The order of the curve P521. */
+static const sp_digit p521_order[9] = {
+    0x36fb71e91386409L,0x1726e226711ebaeL,0x0148f709a5d03bbL,0x20efcbe59adff30L,
+    0x3fffffffa518687L,0x3ffffffffffffffL,0x3ffffffffffffffL,0x3ffffffffffffffL,
+    0x1ffffffffffffffL
+};
+#endif
+/* The order of the curve P521 minus 2. */
+static const sp_digit p521_order2[9] = {
+    0x36fb71e91386407L,0x1726e226711ebaeL,0x0148f709a5d03bbL,0x20efcbe59adff30L,
+    0x3fffffffa518687L,0x3ffffffffffffffL,0x3ffffffffffffffL,0x3ffffffffffffffL,
+    0x1ffffffffffffffL
+};
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* The Montgomery normalizer for order of the curve P521. */
+static const sp_digit p521_norm_order[9] = {
+    0x09048e16ec79bf7L,0x28d91dd98ee1451L,0x3eb708f65a2fc44L,0x1f10341a65200cfL,
+    0x000000005ae7978L,0x000000000000000L,0x000000000000000L,0x000000000000000L,
+    0x000000000000000L
+};
+#endif
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* The Montgomery multiplier for order of the curve P521. */
+static sp_digit p521_mp_order = 0x12f5ccd79a995c7L;
+#endif
+/* The base point of curve P521. */
+static const sp_point_521 p521_base = {
+    /* X ordinate */
+    {
+        0x17e7e31c2e5bd66L,0x22cf0615a90a6feL,0x0127a2ffa8de334L,
+        0x1dfbf9d64a3f877L,0x06b4d3dbaa14b5eL,0x14fed487e0a2bd8L,
+        0x15b4429c6481390L,0x3a73678fb2d988eL,0x0c6858e06b70404L,
+        (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0,
+        (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0
+    },
+    /* Y ordinate */
+    {
+        0x0be94769fd16650L,0x31c21a89cb09022L,0x39013fad0761353L,
+        0x2657bd099031542L,0x3273e662c97ee72L,0x1e6d11a05ebef45L,
+        0x3d1bd998f544495L,0x3001172297ed0b1L,0x11839296a789a3bL,
+        (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0,
+        (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0
+    },
+    /* Z ordinate */
+    {
+        0x000000000000001L,0x000000000000000L,0x000000000000000L,
+        0x000000000000000L,0x000000000000000L,0x000000000000000L,
+        0x000000000000000L,0x000000000000000L,0x000000000000000L,
+        (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0,
+        (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0
+    },
+    /* infinity */
+    0
+};
+#if defined(HAVE_ECC_CHECK_KEY) || defined(HAVE_COMP_KEY)
+static const sp_digit p521_b[9] = {
+    0x3451fd46b503f00L,0x0f7e20f4b0d3c7bL,0x00bd3bb1bf07357L,0x147b1fa4dec594bL,
+    0x18ef109e1561939L,0x26cc57cee2d2264L,0x0540eea2da725b9L,0x2687e4a688682daL,
+    0x051953eb9618e1cL
+};
+#endif
+
+#ifdef WOLFSSL_SP_SMALL
+/* Multiply a and b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static void sp_521_mul_9(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
+{
+    int i;
+    int imax;
+    int k;
+    sp_uint128 c;
+    sp_uint128 lo;
+
+    c = ((sp_uint128)a[8]) * b[8];
+    r[17] = (sp_digit)(c >> 58);
+    c &= 0x3ffffffffffffffL;
+    for (k = 15; k >= 0; k--) {
+        if (k >= 9) {
+            i = k - 8;
+            imax = 8;
+        }
+        else {
+            i = 0;
+            imax = k;
+        }
+        lo = 0;
+        for (; i <= imax; i++) {
+            lo += ((sp_uint128)a[i]) * b[k - i];
+        }
+        c += lo >> 58;
+        r[k + 2] += (sp_digit)(c >> 58);
+        r[k + 1]  = (sp_digit)(c & 0x3ffffffffffffffL);
+        c = lo & 0x3ffffffffffffffL;
+    }
+    r[0] = (sp_digit)c;
+}
+
+#else
+/* Multiply a and b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static void sp_521_mul_9(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
+{
+    sp_int128 t0   = ((sp_int128)a[ 0]) * b[ 0];
+    sp_int128 t1   = ((sp_int128)a[ 0]) * b[ 1]
+                 + ((sp_int128)a[ 1]) * b[ 0];
+    sp_int128 t2   = ((sp_int128)a[ 0]) * b[ 2]
+                 + ((sp_int128)a[ 1]) * b[ 1]
+                 + ((sp_int128)a[ 2]) * b[ 0];
+    sp_int128 t3   = ((sp_int128)a[ 0]) * b[ 3]
+                 + ((sp_int128)a[ 1]) * b[ 2]
+                 + ((sp_int128)a[ 2]) * b[ 1]
+                 + ((sp_int128)a[ 3]) * b[ 0];
+    sp_int128 t4   = ((sp_int128)a[ 0]) * b[ 4]
+                 + ((sp_int128)a[ 1]) * b[ 3]
+                 + ((sp_int128)a[ 2]) * b[ 2]
+                 + ((sp_int128)a[ 3]) * b[ 1]
+                 + ((sp_int128)a[ 4]) * b[ 0];
+    sp_int128 t5   = ((sp_int128)a[ 0]) * b[ 5]
+                 + ((sp_int128)a[ 1]) * b[ 4]
+                 + ((sp_int128)a[ 2]) * b[ 3]
+                 + ((sp_int128)a[ 3]) * b[ 2]
+                 + ((sp_int128)a[ 4]) * b[ 1]
+                 + ((sp_int128)a[ 5]) * b[ 0];
+    sp_int128 t6   = ((sp_int128)a[ 0]) * b[ 6]
+                 + ((sp_int128)a[ 1]) * b[ 5]
+                 + ((sp_int128)a[ 2]) * b[ 4]
+                 + ((sp_int128)a[ 3]) * b[ 3]
+                 + ((sp_int128)a[ 4]) * b[ 2]
+                 + ((sp_int128)a[ 5]) * b[ 1]
+                 + ((sp_int128)a[ 6]) * b[ 0];
+    sp_int128 t7   = ((sp_int128)a[ 0]) * b[ 7]
+                 + ((sp_int128)a[ 1]) * b[ 6]
+                 + ((sp_int128)a[ 2]) * b[ 5]
+                 + ((sp_int128)a[ 3]) * b[ 4]
+                 + ((sp_int128)a[ 4]) * b[ 3]
+                 + ((sp_int128)a[ 5]) * b[ 2]
+                 + ((sp_int128)a[ 6]) * b[ 1]
+                 + ((sp_int128)a[ 7]) * b[ 0];
+    sp_int128 t8   = ((sp_int128)a[ 0]) * b[ 8]
+                 + ((sp_int128)a[ 1]) * b[ 7]
+                 + ((sp_int128)a[ 2]) * b[ 6]
+                 + ((sp_int128)a[ 3]) * b[ 5]
+                 + ((sp_int128)a[ 4]) * b[ 4]
+                 + ((sp_int128)a[ 5]) * b[ 3]
+                 + ((sp_int128)a[ 6]) * b[ 2]
+                 + ((sp_int128)a[ 7]) * b[ 1]
+                 + ((sp_int128)a[ 8]) * b[ 0];
+    sp_int128 t9   = ((sp_int128)a[ 1]) * b[ 8]
+                 + ((sp_int128)a[ 2]) * b[ 7]
+                 + ((sp_int128)a[ 3]) * b[ 6]
+                 + ((sp_int128)a[ 4]) * b[ 5]
+                 + ((sp_int128)a[ 5]) * b[ 4]
+                 + ((sp_int128)a[ 6]) * b[ 3]
+                 + ((sp_int128)a[ 7]) * b[ 2]
+                 + ((sp_int128)a[ 8]) * b[ 1];
+    sp_int128 t10  = ((sp_int128)a[ 2]) * b[ 8]
+                 + ((sp_int128)a[ 3]) * b[ 7]
+                 + ((sp_int128)a[ 4]) * b[ 6]
+                 + ((sp_int128)a[ 5]) * b[ 5]
+                 + ((sp_int128)a[ 6]) * b[ 4]
+                 + ((sp_int128)a[ 7]) * b[ 3]
+                 + ((sp_int128)a[ 8]) * b[ 2];
+    sp_int128 t11  = ((sp_int128)a[ 3]) * b[ 8]
+                 + ((sp_int128)a[ 4]) * b[ 7]
+                 + ((sp_int128)a[ 5]) * b[ 6]
+                 + ((sp_int128)a[ 6]) * b[ 5]
+                 + ((sp_int128)a[ 7]) * b[ 4]
+                 + ((sp_int128)a[ 8]) * b[ 3];
+    sp_int128 t12  = ((sp_int128)a[ 4]) * b[ 8]
+                 + ((sp_int128)a[ 5]) * b[ 7]
+                 + ((sp_int128)a[ 6]) * b[ 6]
+                 + ((sp_int128)a[ 7]) * b[ 5]
+                 + ((sp_int128)a[ 8]) * b[ 4];
+    sp_int128 t13  = ((sp_int128)a[ 5]) * b[ 8]
+                 + ((sp_int128)a[ 6]) * b[ 7]
+                 + ((sp_int128)a[ 7]) * b[ 6]
+                 + ((sp_int128)a[ 8]) * b[ 5];
+    sp_int128 t14  = ((sp_int128)a[ 6]) * b[ 8]
+                 + ((sp_int128)a[ 7]) * b[ 7]
+                 + ((sp_int128)a[ 8]) * b[ 6];
+    sp_int128 t15  = ((sp_int128)a[ 7]) * b[ 8]
+                 + ((sp_int128)a[ 8]) * b[ 7];
+    sp_int128 t16  = ((sp_int128)a[ 8]) * b[ 8];
+
+    t1   += t0  >> 58; r[ 0] = t0  & 0x3ffffffffffffffL;
+    t2   += t1  >> 58; r[ 1] = t1  & 0x3ffffffffffffffL;
+    t3   += t2  >> 58; r[ 2] = t2  & 0x3ffffffffffffffL;
+    t4   += t3  >> 58; r[ 3] = t3  & 0x3ffffffffffffffL;
+    t5   += t4  >> 58; r[ 4] = t4  & 0x3ffffffffffffffL;
+    t6   += t5  >> 58; r[ 5] = t5  & 0x3ffffffffffffffL;
+    t7   += t6  >> 58; r[ 6] = t6  & 0x3ffffffffffffffL;
+    t8   += t7  >> 58; r[ 7] = t7  & 0x3ffffffffffffffL;
+    t9   += t8  >> 58; r[ 8] = t8  & 0x3ffffffffffffffL;
+    t10  += t9  >> 58; r[ 9] = t9  & 0x3ffffffffffffffL;
+    t11  += t10 >> 58; r[10] = t10 & 0x3ffffffffffffffL;
+    t12  += t11 >> 58; r[11] = t11 & 0x3ffffffffffffffL;
+    t13  += t12 >> 58; r[12] = t12 & 0x3ffffffffffffffL;
+    t14  += t13 >> 58; r[13] = t13 & 0x3ffffffffffffffL;
+    t15  += t14 >> 58; r[14] = t14 & 0x3ffffffffffffffL;
+    t16  += t15 >> 58; r[15] = t15 & 0x3ffffffffffffffL;
+    r[17] = (sp_digit)(t16 >> 58);
+                       r[16] = t16 & 0x3ffffffffffffffL;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
+#ifdef WOLFSSL_SP_SMALL
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_521_sqr_9(sp_digit* r, const sp_digit* a)
+{
+    int i;
+    int imax;
+    int k;
+    sp_uint128 c;
+    sp_uint128 t;
+
+    c = ((sp_uint128)a[8]) * a[8];
+    r[17] = (sp_digit)(c >> 58);
+    c = (c & 0x3ffffffffffffffL) << 58;
+    for (k = 15; k >= 0; k--) {
+        i = (k + 1) / 2;
+        if ((k & 1) == 0) {
+           c += ((sp_uint128)a[i]) * a[i];
+           i++;
+        }
+        if (k < 8) {
+            imax = k;
+        }
+        else {
+            imax = 8;
+        }
+        t = 0;
+        for (; i <= imax; i++) {
+            t += ((sp_uint128)a[i]) * a[k - i];
+        }
+        c += t * 2;
+
+        r[k + 2] += (sp_digit) (c >> 116);
+        r[k + 1]  = (sp_digit)((c >> 58) & 0x3ffffffffffffffL);
+        c = (c & 0x3ffffffffffffffL) << 58;
+    }
+    r[0] = (sp_digit)(c >> 58);
+}
+
+#else
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_521_sqr_9(sp_digit* r, const sp_digit* a)
+{
+    sp_int128 t0   =  ((sp_int128)a[ 0]) * a[ 0];
+    sp_int128 t1   = (((sp_int128)a[ 0]) * a[ 1]) * 2;
+    sp_int128 t2   = (((sp_int128)a[ 0]) * a[ 2]) * 2
+                 +  ((sp_int128)a[ 1]) * a[ 1];
+    sp_int128 t3   = (((sp_int128)a[ 0]) * a[ 3]
+                 +  ((sp_int128)a[ 1]) * a[ 2]) * 2;
+    sp_int128 t4   = (((sp_int128)a[ 0]) * a[ 4]
+                 +  ((sp_int128)a[ 1]) * a[ 3]) * 2
+                 +  ((sp_int128)a[ 2]) * a[ 2];
+    sp_int128 t5   = (((sp_int128)a[ 0]) * a[ 5]
+                 +  ((sp_int128)a[ 1]) * a[ 4]
+                 +  ((sp_int128)a[ 2]) * a[ 3]) * 2;
+    sp_int128 t6   = (((sp_int128)a[ 0]) * a[ 6]
+                 +  ((sp_int128)a[ 1]) * a[ 5]
+                 +  ((sp_int128)a[ 2]) * a[ 4]) * 2
+                 +  ((sp_int128)a[ 3]) * a[ 3];
+    sp_int128 t7   = (((sp_int128)a[ 0]) * a[ 7]
+                 +  ((sp_int128)a[ 1]) * a[ 6]
+                 +  ((sp_int128)a[ 2]) * a[ 5]
+                 +  ((sp_int128)a[ 3]) * a[ 4]) * 2;
+    sp_int128 t8   = (((sp_int128)a[ 0]) * a[ 8]
+                 +  ((sp_int128)a[ 1]) * a[ 7]
+                 +  ((sp_int128)a[ 2]) * a[ 6]
+                 +  ((sp_int128)a[ 3]) * a[ 5]) * 2
+                 +  ((sp_int128)a[ 4]) * a[ 4];
+    sp_int128 t9   = (((sp_int128)a[ 1]) * a[ 8]
+                 +  ((sp_int128)a[ 2]) * a[ 7]
+                 +  ((sp_int128)a[ 3]) * a[ 6]
+                 +  ((sp_int128)a[ 4]) * a[ 5]) * 2;
+    sp_int128 t10  = (((sp_int128)a[ 2]) * a[ 8]
+                 +  ((sp_int128)a[ 3]) * a[ 7]
+                 +  ((sp_int128)a[ 4]) * a[ 6]) * 2
+                 +  ((sp_int128)a[ 5]) * a[ 5];
+    sp_int128 t11  = (((sp_int128)a[ 3]) * a[ 8]
+                 +  ((sp_int128)a[ 4]) * a[ 7]
+                 +  ((sp_int128)a[ 5]) * a[ 6]) * 2;
+    sp_int128 t12  = (((sp_int128)a[ 4]) * a[ 8]
+                 +  ((sp_int128)a[ 5]) * a[ 7]) * 2
+                 +  ((sp_int128)a[ 6]) * a[ 6];
+    sp_int128 t13  = (((sp_int128)a[ 5]) * a[ 8]
+                 +  ((sp_int128)a[ 6]) * a[ 7]) * 2;
+    sp_int128 t14  = (((sp_int128)a[ 6]) * a[ 8]) * 2
+                 +  ((sp_int128)a[ 7]) * a[ 7];
+    sp_int128 t15  = (((sp_int128)a[ 7]) * a[ 8]) * 2;
+    sp_int128 t16  =  ((sp_int128)a[ 8]) * a[ 8];
+
+    t1   += t0  >> 58; r[ 0] = t0  & 0x3ffffffffffffffL;
+    t2   += t1  >> 58; r[ 1] = t1  & 0x3ffffffffffffffL;
+    t3   += t2  >> 58; r[ 2] = t2  & 0x3ffffffffffffffL;
+    t4   += t3  >> 58; r[ 3] = t3  & 0x3ffffffffffffffL;
+    t5   += t4  >> 58; r[ 4] = t4  & 0x3ffffffffffffffL;
+    t6   += t5  >> 58; r[ 5] = t5  & 0x3ffffffffffffffL;
+    t7   += t6  >> 58; r[ 6] = t6  & 0x3ffffffffffffffL;
+    t8   += t7  >> 58; r[ 7] = t7  & 0x3ffffffffffffffL;
+    t9   += t8  >> 58; r[ 8] = t8  & 0x3ffffffffffffffL;
+    t10  += t9  >> 58; r[ 9] = t9  & 0x3ffffffffffffffL;
+    t11  += t10 >> 58; r[10] = t10 & 0x3ffffffffffffffL;
+    t12  += t11 >> 58; r[11] = t11 & 0x3ffffffffffffffL;
+    t13  += t12 >> 58; r[12] = t12 & 0x3ffffffffffffffL;
+    t14  += t13 >> 58; r[13] = t13 & 0x3ffffffffffffffL;
+    t15  += t14 >> 58; r[14] = t14 & 0x3ffffffffffffffL;
+    t16  += t15 >> 58; r[15] = t15 & 0x3ffffffffffffffL;
+    r[17] = (sp_digit)(t16 >> 58);
+                       r[16] = t16 & 0x3ffffffffffffffL;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
+#ifdef WOLFSSL_SP_SMALL
+/* Add b to a into r. (r = a + b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static int sp_521_add_9(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    int i;
+
+    for (i = 0; i < 9; i++) {
+        r[i] = a[i] + b[i];
+    }
+
+    return 0;
+}
+#else
+/* Add b to a into r. (r = a + b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static int sp_521_add_9(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    r[ 0] = a[ 0] + b[ 0];
+    r[ 1] = a[ 1] + b[ 1];
+    r[ 2] = a[ 2] + b[ 2];
+    r[ 3] = a[ 3] + b[ 3];
+    r[ 4] = a[ 4] + b[ 4];
+    r[ 5] = a[ 5] + b[ 5];
+    r[ 6] = a[ 6] + b[ 6];
+    r[ 7] = a[ 7] + b[ 7];
+    r[ 8] = a[ 8] + b[ 8];
+
+    return 0;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
+#ifdef WOLFSSL_SP_SMALL
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static int sp_521_sub_9(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    int i;
+
+    for (i = 0; i < 9; i++) {
+        r[i] = a[i] - b[i];
+    }
+
+    return 0;
+}
+
+#else
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static int sp_521_sub_9(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    r[ 0] = a[ 0] - b[ 0];
+    r[ 1] = a[ 1] - b[ 1];
+    r[ 2] = a[ 2] - b[ 2];
+    r[ 3] = a[ 3] - b[ 3];
+    r[ 4] = a[ 4] - b[ 4];
+    r[ 5] = a[ 5] - b[ 5];
+    r[ 6] = a[ 6] - b[ 6];
+    r[ 7] = a[ 7] - b[ 7];
+    r[ 8] = a[ 8] - b[ 8];
+
+    return 0;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
+/* Convert an mp_int to an array of sp_digit.
+ *
+ * r  A single precision integer.
+ * size  Maximum number of bytes to convert
+ * a  A multi-precision integer.
+ */
+static void sp_521_from_mp(sp_digit* r, int size, const mp_int* a)
+{
+#if DIGIT_BIT == 58
+    int j;
+
+    XMEMCPY(r, a->dp, sizeof(sp_digit) * a->used);
+
+    for (j = a->used; j < size; j++) {
+        r[j] = 0;
+    }
+#elif DIGIT_BIT > 58
+    int i;
+    int j = 0;
+    word32 s = 0;
+
+    r[0] = 0;
+    for (i = 0; i < a->used && j < size; i++) {
+        r[j] |= ((sp_digit)a->dp[i] << s);
+        r[j] &= 0x3ffffffffffffffL;
+        s = 58U - s;
+        if (j + 1 >= size) {
+            break;
+        }
+        /* lint allow cast of mismatch word32 and mp_digit */
+        r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+        while ((s + 58U) <= (word32)DIGIT_BIT) {
+            s += 58U;
+            r[j] &= 0x3ffffffffffffffL;
+            if (j + 1 >= size) {
+                break;
+            }
+            if (s < (word32)DIGIT_BIT) {
+                /* lint allow cast of mismatch word32 and mp_digit */
+                r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+            }
+            else {
+                r[++j] = (sp_digit)0;
+            }
+        }
+        s = (word32)DIGIT_BIT - s;
+    }
+
+    for (j++; j < size; j++) {
+        r[j] = 0;
+    }
+#else
+    int i;
+    int j = 0;
+    int s = 0;
+
+    r[0] = 0;
+    for (i = 0; i < a->used && j < size; i++) {
+        r[j] |= ((sp_digit)a->dp[i]) << s;
+        if (s + DIGIT_BIT >= 58) {
+            r[j] &= 0x3ffffffffffffffL;
+            if (j + 1 >= size) {
+                break;
+            }
+            s = 58 - s;
+            if (s == DIGIT_BIT) {
+                r[++j] = 0;
+                s = 0;
+            }
+            else {
+                r[++j] = a->dp[i] >> s;
+                s = DIGIT_BIT - s;
+            }
+        }
+        else {
+            s += DIGIT_BIT;
+        }
+    }
+
+    for (j++; j < size; j++) {
+        r[j] = 0;
+    }
+#endif
+}
+
+/* Convert a point of type ecc_point to type sp_point_521.
+ *
+ * p   Point of type sp_point_521 (result).
+ * pm  Point of type ecc_point.
+ */
+static void sp_521_point_from_ecc_point_9(sp_point_521* p,
+        const ecc_point* pm)
+{
+    XMEMSET(p->x, 0, sizeof(p->x));
+    XMEMSET(p->y, 0, sizeof(p->y));
+    XMEMSET(p->z, 0, sizeof(p->z));
+    sp_521_from_mp(p->x, 9, pm->x);
+    sp_521_from_mp(p->y, 9, pm->y);
+    sp_521_from_mp(p->z, 9, pm->z);
+    p->infinity = 0;
+}
+
+/* Convert an array of sp_digit to an mp_int.
+ *
+ * a  A single precision integer.
+ * r  A multi-precision integer.
+ */
+static int sp_521_to_mp(const sp_digit* a, mp_int* r)
+{
+    int err;
+
+    err = mp_grow(r, (521 + DIGIT_BIT - 1) / DIGIT_BIT);
+    if (err == MP_OKAY) { /*lint !e774 case where err is always MP_OKAY*/
+#if DIGIT_BIT == 58
+        XMEMCPY(r->dp, a, sizeof(sp_digit) * 9);
+        r->used = 9;
+        mp_clamp(r);
+#elif DIGIT_BIT < 58
+        int i;
+        int j = 0;
+        int s = 0;
+
+        r->dp[0] = 0;
+        for (i = 0; i < 9; i++) {
+            r->dp[j] |= (mp_digit)(a[i] << s);
+            r->dp[j] &= ((sp_digit)1 << DIGIT_BIT) - 1;
+            s = DIGIT_BIT - s;
+            r->dp[++j] = (mp_digit)(a[i] >> s);
+            while (s + DIGIT_BIT <= 58) {
+                s += DIGIT_BIT;
+                r->dp[j++] &= ((sp_digit)1 << DIGIT_BIT) - 1;
+                if (s == SP_WORD_SIZE) {
+                    r->dp[j] = 0;
+                }
+                else {
+                    r->dp[j] = (mp_digit)(a[i] >> s);
+                }
+            }
+            s = 58 - s;
+        }
+        r->used = (521 + DIGIT_BIT - 1) / DIGIT_BIT;
+        mp_clamp(r);
+#else
+        int i;
+        int j = 0;
+        int s = 0;
+
+        r->dp[0] = 0;
+        for (i = 0; i < 9; i++) {
+            r->dp[j] |= ((mp_digit)a[i]) << s;
+            if (s + 58 >= DIGIT_BIT) {
+    #if DIGIT_BIT != 32 && DIGIT_BIT != 64
+                r->dp[j] &= ((sp_digit)1 << DIGIT_BIT) - 1;
+    #endif
+                s = DIGIT_BIT - s;
+                r->dp[++j] = a[i] >> s;
+                s = 58 - s;
+            }
+            else {
+                s += 58;
+            }
+        }
+        r->used = (521 + DIGIT_BIT - 1) / DIGIT_BIT;
+        mp_clamp(r);
+#endif
+    }
+
+    return err;
+}
+
+/* Convert a point of type sp_point_521 to type ecc_point.
+ *
+ * p   Point of type sp_point_521.
+ * pm  Point of type ecc_point (result).
+ * returns MEMORY_E when allocation of memory in ecc_point fails otherwise
+ * MP_OKAY.
+ */
+static int sp_521_point_to_ecc_point_9(const sp_point_521* p, ecc_point* pm)
+{
+    int err;
+
+    err = sp_521_to_mp(p->x, pm->x);
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->y, pm->y);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->z, pm->z);
+    }
+
+    return err;
+}
+
+/* Normalize the values in each word to 58 bits.
+ *
+ * a  Array of sp_digit to normalize.
+ */
+static void sp_521_norm_9(sp_digit* a)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int i;
+    for (i = 0; i < 8; i++) {
+        a[i+1] += a[i] >> 58;
+        a[i] &= 0x3ffffffffffffffL;
+    }
+#else
+    a[1] += a[0] >> 58; a[0] &= 0x3ffffffffffffffL;
+    a[2] += a[1] >> 58; a[1] &= 0x3ffffffffffffffL;
+    a[3] += a[2] >> 58; a[2] &= 0x3ffffffffffffffL;
+    a[4] += a[3] >> 58; a[3] &= 0x3ffffffffffffffL;
+    a[5] += a[4] >> 58; a[4] &= 0x3ffffffffffffffL;
+    a[6] += a[5] >> 58; a[5] &= 0x3ffffffffffffffL;
+    a[7] += a[6] >> 58; a[6] &= 0x3ffffffffffffffL;
+    a[8] += a[7] >> 58; a[7] &= 0x3ffffffffffffffL;
+#endif /* WOLFSSL_SP_SMALL */
+}
+
+/* Reduce the number back to 521 bits using Montgomery reduction.
+ *
+ * a   A single precision number to reduce in place.
+ * m   The single precision number representing the modulus.
+ * mp  The digit representing the negative inverse of m mod 2^n.
+ */
+static void sp_521_mont_reduce_9(sp_digit* a, const sp_digit* m, sp_digit mp)
+{
+    int i;
+
+    (void)m;
+    (void)mp;
+
+    for (i = 0; i < 8; i++) {
+        a[i] += ((a[8 + i] >> 57) + (a[8 + i + 1] << 1)) & 0x3ffffffffffffffL;
+    }
+    a[8] &= 0x1ffffffffffffff;
+    a[8] += ((a[16] >> 57) + (a[17] << 1)) & 0x3ffffffffffffffL;
+
+    sp_521_norm_9(a);
+
+    a[0] += a[8] >> 57;
+    a[8] &= 0x1ffffffffffffff;
+}
+
+/* Compare a with b in constant time.
+ *
+ * a  A single precision integer.
+ * b  A single precision integer.
+ * return -ve, 0 or +ve if a is less than, equal to or greater than b
+ * respectively.
+ */
+static sp_digit sp_521_cmp_9(const sp_digit* a, const sp_digit* b)
+{
+    sp_digit r = 0;
+#ifdef WOLFSSL_SP_SMALL
+    int i;
+
+    for (i=8; i>=0; i--) {
+        r |= (a[i] - b[i]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
+    }
+#else
+    r |= (a[ 8] - b[ 8]) & (0 - (sp_digit)1);
+    r |= (a[ 7] - b[ 7]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
+    r |= (a[ 6] - b[ 6]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
+    r |= (a[ 5] - b[ 5]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
+    r |= (a[ 4] - b[ 4]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
+    r |= (a[ 3] - b[ 3]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
+    r |= (a[ 2] - b[ 2]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
+    r |= (a[ 1] - b[ 1]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
+    r |= (a[ 0] - b[ 0]) & (0 - (sp_digit)((r == 0) ? 1 : 0));
+#endif /* WOLFSSL_SP_SMALL */
+
+    return r;
+}
+
+/* Conditionally subtract b from a using the mask m.
+ * m is -1 to subtract and 0 when not.
+ *
+ * r  A single precision number representing condition subtract result.
+ * a  A single precision number to subtract from.
+ * b  A single precision number to subtract.
+ * m  Mask value to apply.
+ */
+static void sp_521_cond_sub_9(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, const sp_digit m)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int i;
+
+    for (i = 0; i < 9; i++) {
+        r[i] = a[i] - (b[i] & m);
+    }
+#else
+    r[ 0] = a[ 0] - (b[ 0] & m);
+    r[ 1] = a[ 1] - (b[ 1] & m);
+    r[ 2] = a[ 2] - (b[ 2] & m);
+    r[ 3] = a[ 3] - (b[ 3] & m);
+    r[ 4] = a[ 4] - (b[ 4] & m);
+    r[ 5] = a[ 5] - (b[ 5] & m);
+    r[ 6] = a[ 6] - (b[ 6] & m);
+    r[ 7] = a[ 7] - (b[ 7] & m);
+    r[ 8] = a[ 8] - (b[ 8] & m);
+#endif /* WOLFSSL_SP_SMALL */
+}
+
+/* Mul a by scalar b and add into r. (r += a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A scalar.
+ */
+SP_NOINLINE static void sp_521_mul_add_9(sp_digit* r, const sp_digit* a,
+        const sp_digit b)
+{
+#ifdef WOLFSSL_SP_SMALL
+    sp_int128 tb = b;
+    sp_int128 t[4];
+    int i;
+
+    t[0] = 0;
+    for (i = 0; i < 8; i += 4) {
+        t[0] += (tb * a[i+0]) + r[i+0];
+        t[1]  = (tb * a[i+1]) + r[i+1];
+        t[2]  = (tb * a[i+2]) + r[i+2];
+        t[3]  = (tb * a[i+3]) + r[i+3];
+        r[i+0] = t[0] & 0x3ffffffffffffffL;
+        t[1] += t[0] >> 58;
+        r[i+1] = t[1] & 0x3ffffffffffffffL;
+        t[2] += t[1] >> 58;
+        r[i+2] = t[2] & 0x3ffffffffffffffL;
+        t[3] += t[2] >> 58;
+        r[i+3] = t[3] & 0x3ffffffffffffffL;
+        t[0]  = t[3] >> 58;
+    }
+    t[0] += (tb * a[8]) + r[8];
+    r[8] = t[0] & 0x3ffffffffffffffL;
+    r[9] +=  (sp_digit)(t[0] >> 58);
+#else
+    sp_int128 tb = b;
+    sp_int128 t[9];
+
+    t[ 0] = tb * a[ 0];
+    t[ 1] = tb * a[ 1];
+    t[ 2] = tb * a[ 2];
+    t[ 3] = tb * a[ 3];
+    t[ 4] = tb * a[ 4];
+    t[ 5] = tb * a[ 5];
+    t[ 6] = tb * a[ 6];
+    t[ 7] = tb * a[ 7];
+    t[ 8] = tb * a[ 8];
+    r[ 0] += (sp_digit)                 (t[ 0] & 0x3ffffffffffffffL);
+    r[ 1] += (sp_digit)((t[ 0] >> 58) + (t[ 1] & 0x3ffffffffffffffL));
+    r[ 2] += (sp_digit)((t[ 1] >> 58) + (t[ 2] & 0x3ffffffffffffffL));
+    r[ 3] += (sp_digit)((t[ 2] >> 58) + (t[ 3] & 0x3ffffffffffffffL));
+    r[ 4] += (sp_digit)((t[ 3] >> 58) + (t[ 4] & 0x3ffffffffffffffL));
+    r[ 5] += (sp_digit)((t[ 4] >> 58) + (t[ 5] & 0x3ffffffffffffffL));
+    r[ 6] += (sp_digit)((t[ 5] >> 58) + (t[ 6] & 0x3ffffffffffffffL));
+    r[ 7] += (sp_digit)((t[ 6] >> 58) + (t[ 7] & 0x3ffffffffffffffL));
+    r[ 8] += (sp_digit)((t[ 7] >> 58) + (t[ 8] & 0x3ffffffffffffffL));
+    r[ 9] += (sp_digit) (t[ 8] >> 58);
+#endif /* WOLFSSL_SP_SMALL */
+}
+
+/* Shift the result in the high 521 bits down to the bottom.
+ *
+ * r  A single precision number.
+ * a  A single precision number.
+ */
+static void sp_521_mont_shift_9(sp_digit* r, const sp_digit* a)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int i;
+    sp_uint64 n;
+
+    n = a[8] >> 57;
+    for (i = 0; i < 8; i++) {
+        n += (sp_uint64)a[9 + i] << 1;
+        r[i] = n & 0x3ffffffffffffffL;
+        n >>= 58;
+    }
+    n += (sp_uint64)a[17] << 1;
+    r[8] = n;
+#else
+    sp_uint64 n;
+
+    n  = a[8] >> 57;
+    n += (sp_uint64)a[ 9] << 1U; r[ 0] = n & 0x3ffffffffffffffUL; n >>= 58U;
+    n += (sp_uint64)a[10] << 1U; r[ 1] = n & 0x3ffffffffffffffUL; n >>= 58U;
+    n += (sp_uint64)a[11] << 1U; r[ 2] = n & 0x3ffffffffffffffUL; n >>= 58U;
+    n += (sp_uint64)a[12] << 1U; r[ 3] = n & 0x3ffffffffffffffUL; n >>= 58U;
+    n += (sp_uint64)a[13] << 1U; r[ 4] = n & 0x3ffffffffffffffUL; n >>= 58U;
+    n += (sp_uint64)a[14] << 1U; r[ 5] = n & 0x3ffffffffffffffUL; n >>= 58U;
+    n += (sp_uint64)a[15] << 1U; r[ 6] = n & 0x3ffffffffffffffUL; n >>= 58U;
+    n += (sp_uint64)a[16] << 1U; r[ 7] = n & 0x3ffffffffffffffUL; n >>= 58U;
+    n += (sp_uint64)a[17] << 1U; r[ 8] = n;
+#endif /* WOLFSSL_SP_SMALL */
+    XMEMSET(&r[9], 0, sizeof(*r) * 9U);
+}
+
+/* Reduce the number back to 521 bits using Montgomery reduction.
+ *
+ * a   A single precision number to reduce in place.
+ * m   The single precision number representing the modulus.
+ * mp  The digit representing the negative inverse of m mod 2^n.
+ */
+static void sp_521_mont_reduce_order_9(sp_digit* a, const sp_digit* m, sp_digit mp)
+{
+    int i;
+    sp_digit mu;
+
+    sp_521_norm_9(a + 9);
+
+    for (i=0; i<8; i++) {
+        mu = ((sp_uint64)a[i] * (sp_uint64)mp) & 0x3ffffffffffffffL;
+        sp_521_mul_add_9(a+i, m, mu);
+        a[i+1] += a[i] >> 58;
+    }
+    mu = ((sp_uint64)a[i] * (sp_uint64)mp) & 0x1ffffffffffffffL;
+    sp_521_mul_add_9(a+i, m, mu);
+    a[i+1] += a[i] >> 58;
+    a[i] &= 0x3ffffffffffffffL;
+    sp_521_mont_shift_9(a, a);
+    sp_521_cond_sub_9(a, a, m, 0 - (((a[8] >> 57) > 0) ?
+            (sp_digit)1 : (sp_digit)0));
+    sp_521_norm_9(a);
+}
+
+/* Multiply two Montgomery form numbers mod the modulus (prime).
+ * (r = a * b mod m)
+ *
+ * r   Result of multiplication.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
+ * m   Modulus (prime).
+ * mp  Montgomery mulitplier.
+ */
+static void sp_521_mont_mul_9(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, const sp_digit* m, sp_digit mp)
+{
+    sp_521_mul_9(r, a, b);
+    sp_521_mont_reduce_9(r, m, mp);
+}
+
+/* Square the Montgomery form number. (r = a * a mod m)
+ *
+ * r   Result of squaring.
+ * a   Number to square in Montgomery form.
+ * m   Modulus (prime).
+ * mp  Montgomery mulitplier.
+ */
+static void sp_521_mont_sqr_9(sp_digit* r, const sp_digit* a,
+        const sp_digit* m, sp_digit mp)
+{
+    sp_521_sqr_9(r, a);
+    sp_521_mont_reduce_9(r, m, mp);
+}
+
+#if !defined(WOLFSSL_SP_SMALL) || defined(HAVE_COMP_KEY)
+/* Square the Montgomery form number a number of times. (r = a ^ n mod m)
+ *
+ * r   Result of squaring.
+ * a   Number to square in Montgomery form.
+ * n   Number of times to square.
+ * m   Modulus (prime).
+ * mp  Montgomery mulitplier.
+ */
+static void sp_521_mont_sqr_n_9(sp_digit* r, const sp_digit* a, int n,
+        const sp_digit* m, sp_digit mp)
+{
+    sp_521_mont_sqr_9(r, a, m, mp);
+    for (; n > 1; n--) {
+        sp_521_mont_sqr_9(r, r, m, mp);
+    }
+}
+
+#endif /* !WOLFSSL_SP_SMALL | HAVE_COMP_KEY */
+#ifdef WOLFSSL_SP_SMALL
+/* Mod-2 for the P521 curve. */
+static const uint64_t p521_mod_minus_2[9] = {
+    0xfffffffffffffffdU,0xffffffffffffffffU,0xffffffffffffffffU,
+    0xffffffffffffffffU,0xffffffffffffffffU,0xffffffffffffffffU,
+    0xffffffffffffffffU,0xffffffffffffffffU,0x00000000000001ffU
+};
+#endif /* !WOLFSSL_SP_SMALL */
+
+/* Invert the number, in Montgomery form, modulo the modulus (prime) of the
+ * P521 curve. (r = 1 / a mod m)
+ *
+ * r   Inverse result.
+ * a   Number to invert.
+ * td  Temporary data.
+ */
+static void sp_521_mont_inv_9(sp_digit* r, const sp_digit* a, sp_digit* td)
+{
+#ifdef WOLFSSL_SP_SMALL
+    sp_digit* t = td;
+    int i;
+
+    XMEMCPY(t, a, sizeof(sp_digit) * 9);
+    for (i=519; i>=0; i--) {
+        sp_521_mont_sqr_9(t, t, p521_mod, p521_mp_mod);
+        if (p521_mod_minus_2[i / 64] & ((sp_digit)1 << (i % 64)))
+            sp_521_mont_mul_9(t, t, a, p521_mod, p521_mp_mod);
+    }
+    XMEMCPY(r, t, sizeof(sp_digit) * 9);
+#else
+    sp_digit* t1 = td;
+    sp_digit* t2 = td + 2 * 9;
+    sp_digit* t3 = td + 4 * 9;
+
+    /* 0x2 */
+    sp_521_mont_sqr_9(t1, a, p521_mod, p521_mp_mod);
+    /* 0x3 */
+    sp_521_mont_mul_9(t2, t1, a, p521_mod, p521_mp_mod);
+    /* 0x6 */
+    sp_521_mont_sqr_9(t1, t2, p521_mod, p521_mp_mod);
+    /* 0x7 */
+    sp_521_mont_mul_9(t3, t1, a, p521_mod, p521_mp_mod);
+    /* 0xc */
+    sp_521_mont_sqr_n_9(t1, t2, 2, p521_mod, p521_mp_mod);
+    /* 0xf */
+    sp_521_mont_mul_9(t2, t2, t1, p521_mod, p521_mp_mod);
+    /* 0x78 */
+    sp_521_mont_sqr_n_9(t1, t2, 3, p521_mod, p521_mp_mod);
+    /* 0x7f */
+    sp_521_mont_mul_9(t3, t3, t1, p521_mod, p521_mp_mod);
+    /* 0xf0 */
+    sp_521_mont_sqr_n_9(t1, t2, 4, p521_mod, p521_mp_mod);
+    /* 0xff */
+    sp_521_mont_mul_9(t2, t2, t1, p521_mod, p521_mp_mod);
+    /* 0xff00 */
+    sp_521_mont_sqr_n_9(t1, t2, 8, p521_mod, p521_mp_mod);
+    /* 0xffff */
+    sp_521_mont_mul_9(t2, t2, t1, p521_mod, p521_mp_mod);
+    /* 0xffff0000 */
+    sp_521_mont_sqr_n_9(t1, t2, 16, p521_mod, p521_mp_mod);
+    /* 0xffffffff */
+    sp_521_mont_mul_9(t2, t2, t1, p521_mod, p521_mp_mod);
+    /* 0xffffffff00000000 */
+    sp_521_mont_sqr_n_9(t1, t2, 32, p521_mod, p521_mp_mod);
+    /* 0xffffffffffffffff */
+    sp_521_mont_mul_9(t2, t2, t1, p521_mod, p521_mp_mod);
+    /* 0xffffffffffffffff0000000000000000 */
+    sp_521_mont_sqr_n_9(t1, t2, 64, p521_mod, p521_mp_mod);
+    /* 0xffffffffffffffffffffffffffffffff */
+    sp_521_mont_mul_9(t2, t2, t1, p521_mod, p521_mp_mod);
+    /* 0xffffffffffffffffffffffffffffffff00000000000000000000000000000000 */
+    sp_521_mont_sqr_n_9(t1, t2, 128, p521_mod, p521_mp_mod);
+    /* 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff */
+    sp_521_mont_mul_9(t2, t2, t1, p521_mod, p521_mp_mod);
+    /* 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000000000000000000000000000000000000000000000000000 */
+    sp_521_mont_sqr_n_9(t1, t2, 256, p521_mod, p521_mp_mod);
+    /* 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff */
+    sp_521_mont_mul_9(t2, t2, t1, p521_mod, p521_mp_mod);
+    /* 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff80 */
+    sp_521_mont_sqr_n_9(t1, t2, 7, p521_mod, p521_mp_mod);
+    /* 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff */
+    sp_521_mont_mul_9(t2, t3, t1, p521_mod, p521_mp_mod);
+    /* 0x1fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc */
+    sp_521_mont_sqr_n_9(t1, t2, 2, p521_mod, p521_mp_mod);
+    /* 0x1fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd */
+    sp_521_mont_mul_9(r, t1, a, p521_mod, p521_mp_mod);
+
+#endif /* WOLFSSL_SP_SMALL */
+}
+
+/* Map the Montgomery form projective coordinate point to an affine point.
+ *
+ * r  Resulting affine coordinate point.
+ * p  Montgomery form projective coordinate point.
+ * t  Temporary ordinate data.
+ */
+static void sp_521_map_9(sp_point_521* r, const sp_point_521* p,
+    sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2*9;
+    sp_int64 n;
+
+    sp_521_mont_inv_9(t1, p->z, t + 2*9);
+
+    sp_521_mont_sqr_9(t2, t1, p521_mod, p521_mp_mod);
+    sp_521_mont_mul_9(t1, t2, t1, p521_mod, p521_mp_mod);
+
+    /* x /= z^2 */
+    sp_521_mont_mul_9(r->x, p->x, t2, p521_mod, p521_mp_mod);
+    XMEMSET(r->x + 9, 0, sizeof(r->x) / 2U);
+    sp_521_mont_reduce_9(r->x, p521_mod, p521_mp_mod);
+    /* Reduce x to less than modulus */
+    n = sp_521_cmp_9(r->x, p521_mod);
+    sp_521_cond_sub_9(r->x, r->x, p521_mod, 0 - ((n >= 0) ?
+                (sp_digit)1 : (sp_digit)0));
+    sp_521_norm_9(r->x);
+
+    /* y /= z^3 */
+    sp_521_mont_mul_9(r->y, p->y, t1, p521_mod, p521_mp_mod);
+    XMEMSET(r->y + 9, 0, sizeof(r->y) / 2U);
+    sp_521_mont_reduce_9(r->y, p521_mod, p521_mp_mod);
+    /* Reduce y to less than modulus */
+    n = sp_521_cmp_9(r->y, p521_mod);
+    sp_521_cond_sub_9(r->y, r->y, p521_mod, 0 - ((n >= 0) ?
+                (sp_digit)1 : (sp_digit)0));
+    sp_521_norm_9(r->y);
+
+    XMEMSET(r->z, 0, sizeof(r->z));
+    r->z[0] = 1;
+
+}
+
+/* Add two Montgomery form numbers (r = a + b % m).
+ *
+ * r   Result of addition.
+ * a   First number to add in Montgomery form.
+ * b   Second number to add in Montgomery form.
+ * m   Modulus (prime).
+ */
+static void sp_521_mont_add_9(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        const sp_digit* m)
+{
+    (void)sp_521_add_9(r, a, b);
+    sp_521_norm_9(r);
+    sp_521_cond_sub_9(r, r, m, 0 - (((r[8] >> 57) > 0) ?
+                (sp_digit)1 : (sp_digit)0));
+    sp_521_norm_9(r);
+}
+
+/* Double a Montgomery form number (r = a + a % m).
+ *
+ * r   Result of doubling.
+ * a   Number to double in Montgomery form.
+ * m   Modulus (prime).
+ */
+static void sp_521_mont_dbl_9(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    (void)sp_521_add_9(r, a, a);
+    sp_521_norm_9(r);
+    sp_521_cond_sub_9(r, r, m, 0 - (((r[8] >> 57) > 0) ?
+                (sp_digit)1 : (sp_digit)0));
+    sp_521_norm_9(r);
+}
+
+/* Triple a Montgomery form number (r = a + a + a % m).
+ *
+ * r   Result of Tripling.
+ * a   Number to triple in Montgomery form.
+ * m   Modulus (prime).
+ */
+static void sp_521_mont_tpl_9(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    (void)sp_521_add_9(r, a, a);
+    sp_521_norm_9(r);
+    sp_521_cond_sub_9(r, r, m, 0 - (((r[8] >> 57) > 0) ?
+                (sp_digit)1 : (sp_digit)0));
+    sp_521_norm_9(r);
+    (void)sp_521_add_9(r, r, a);
+    sp_521_norm_9(r);
+    sp_521_cond_sub_9(r, r, m, 0 - (((r[8] >> 57) > 0) ?
+                (sp_digit)1 : (sp_digit)0));
+    sp_521_norm_9(r);
+}
+
+/* Conditionally add a and b using the mask m.
+ * m is -1 to add and 0 when not.
+ *
+ * r  A single precision number representing conditional add result.
+ * a  A single precision number to add with.
+ * b  A single precision number to add.
+ * m  Mask value to apply.
+ */
+static void sp_521_cond_add_9(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, const sp_digit m)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int i;
+
+    for (i = 0; i < 9; i++) {
+        r[i] = a[i] + (b[i] & m);
+    }
+#else
+    r[ 0] = a[ 0] + (b[ 0] & m);
+    r[ 1] = a[ 1] + (b[ 1] & m);
+    r[ 2] = a[ 2] + (b[ 2] & m);
+    r[ 3] = a[ 3] + (b[ 3] & m);
+    r[ 4] = a[ 4] + (b[ 4] & m);
+    r[ 5] = a[ 5] + (b[ 5] & m);
+    r[ 6] = a[ 6] + (b[ 6] & m);
+    r[ 7] = a[ 7] + (b[ 7] & m);
+    r[ 8] = a[ 8] + (b[ 8] & m);
+#endif /* WOLFSSL_SP_SMALL */
+}
+
+/* Subtract two Montgomery form numbers (r = a - b % m).
+ *
+ * r   Result of subtration.
+ * a   Number to subtract from in Montgomery form.
+ * b   Number to subtract with in Montgomery form.
+ * m   Modulus (prime).
+ */
+static void sp_521_mont_sub_9(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        const sp_digit* m)
+{
+    (void)sp_521_sub_9(r, a, b);
+    sp_521_norm_9(r);
+    sp_521_cond_add_9(r, r, m, r[8] >> 57);
+    sp_521_norm_9(r);
+}
+
+/* Shift number left one bit.
+ * Bottom bit is lost.
+ *
+ * r  Result of shift.
+ * a  Number to shift.
+ */
+SP_NOINLINE static void sp_521_rshift1_9(sp_digit* r, const sp_digit* a)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int i;
+
+    for (i=0; i<8; i++) {
+        r[i] = (a[i] >> 1) + ((a[i + 1] << 57) & 0x3ffffffffffffffL);
+    }
+#else
+    r[0] = (a[0] >> 1) + ((a[1] << 57) & 0x3ffffffffffffffL);
+    r[1] = (a[1] >> 1) + ((a[2] << 57) & 0x3ffffffffffffffL);
+    r[2] = (a[2] >> 1) + ((a[3] << 57) & 0x3ffffffffffffffL);
+    r[3] = (a[3] >> 1) + ((a[4] << 57) & 0x3ffffffffffffffL);
+    r[4] = (a[4] >> 1) + ((a[5] << 57) & 0x3ffffffffffffffL);
+    r[5] = (a[5] >> 1) + ((a[6] << 57) & 0x3ffffffffffffffL);
+    r[6] = (a[6] >> 1) + ((a[7] << 57) & 0x3ffffffffffffffL);
+    r[7] = (a[7] >> 1) + ((a[8] << 57) & 0x3ffffffffffffffL);
+#endif
+    r[8] = a[8] >> 1;
+}
+
+/* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
+ *
+ * r  Result of division by 2.
+ * a  Number to divide.
+ * m  Modulus (prime).
+ */
+static void sp_521_div2_9(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    sp_521_cond_add_9(r, a, m, 0 - (a[0] & 1));
+    sp_521_norm_9(r);
+    sp_521_rshift1_9(r, r);
+}
+
+/* Double the Montgomery form projective point p.
+ *
+ * r  Result of doubling point.
+ * p  Point to double.
+ * t  Temporary ordinate data.
+ */
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_521_proj_point_dbl_9_ctx {
+    int state;
+    sp_digit* t1;
+    sp_digit* t2;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+} sp_521_proj_point_dbl_9_ctx;
+
+static int sp_521_proj_point_dbl_9_nb(sp_ecc_ctx_t* sp_ctx, sp_point_521* r, const sp_point_521* p, sp_digit* t)
+{
+    int err = FP_WOULDBLOCK;
+    sp_521_proj_point_dbl_9_ctx* ctx = (sp_521_proj_point_dbl_9_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_521_proj_point_dbl_9_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0:
+        ctx->t1 = t;
+        ctx->t2 = t + 2*9;
+        ctx->x = r->x;
+        ctx->y = r->y;
+        ctx->z = r->z;
+
+        /* Put infinity into result. */
+        if (r != p) {
+            r->infinity = p->infinity;
+        }
+        ctx->state = 1;
+        break;
+    case 1:
+        /* T1 = Z * Z */
+        sp_521_mont_sqr_9(ctx->t1, p->z, p521_mod, p521_mp_mod);
+        ctx->state = 2;
+        break;
+    case 2:
+        /* Z = Y * Z */
+        sp_521_mont_mul_9(ctx->z, p->y, p->z, p521_mod, p521_mp_mod);
+        ctx->state = 3;
+        break;
+    case 3:
+        /* Z = 2Z */
+        sp_521_mont_dbl_9(ctx->z, ctx->z, p521_mod);
+        ctx->state = 4;
+        break;
+    case 4:
+        /* T2 = X - T1 */
+        sp_521_mont_sub_9(ctx->t2, p->x, ctx->t1, p521_mod);
+        ctx->state = 5;
+        break;
+    case 5:
+        /* T1 = X + T1 */
+        sp_521_mont_add_9(ctx->t1, p->x, ctx->t1, p521_mod);
+        ctx->state = 6;
+        break;
+    case 6:
+        /* T2 = T1 * T2 */
+        sp_521_mont_mul_9(ctx->t2, ctx->t1, ctx->t2, p521_mod, p521_mp_mod);
+        ctx->state = 7;
+        break;
+    case 7:
+        /* T1 = 3T2 */
+        sp_521_mont_tpl_9(ctx->t1, ctx->t2, p521_mod);
+        ctx->state = 8;
+        break;
+    case 8:
+        /* Y = 2Y */
+        sp_521_mont_dbl_9(ctx->y, p->y, p521_mod);
+        ctx->state = 9;
+        break;
+    case 9:
+        /* Y = Y * Y */
+        sp_521_mont_sqr_9(ctx->y, ctx->y, p521_mod, p521_mp_mod);
+        ctx->state = 10;
+        break;
+    case 10:
+        /* T2 = Y * Y */
+        sp_521_mont_sqr_9(ctx->t2, ctx->y, p521_mod, p521_mp_mod);
+        ctx->state = 11;
+        break;
+    case 11:
+        /* T2 = T2/2 */
+        sp_521_div2_9(ctx->t2, ctx->t2, p521_mod);
+        ctx->state = 12;
+        break;
+    case 12:
+        /* Y = Y * X */
+        sp_521_mont_mul_9(ctx->y, ctx->y, p->x, p521_mod, p521_mp_mod);
+        ctx->state = 13;
+        break;
+    case 13:
+        /* X = T1 * T1 */
+        sp_521_mont_sqr_9(ctx->x, ctx->t1, p521_mod, p521_mp_mod);
+        ctx->state = 14;
+        break;
+    case 14:
+        /* X = X - Y */
+        sp_521_mont_sub_9(ctx->x, ctx->x, ctx->y, p521_mod);
+        ctx->state = 15;
+        break;
+    case 15:
+        /* X = X - Y */
+        sp_521_mont_sub_9(ctx->x, ctx->x, ctx->y, p521_mod);
+        ctx->state = 16;
+        break;
+    case 16:
+        /* Y = Y - X */
+        sp_521_mont_sub_9(ctx->y, ctx->y, ctx->x, p521_mod);
+        ctx->state = 17;
+        break;
+    case 17:
+        /* Y = Y * T1 */
+        sp_521_mont_mul_9(ctx->y, ctx->y, ctx->t1, p521_mod, p521_mp_mod);
+        ctx->state = 18;
+        break;
+    case 18:
+        /* Y = Y - T2 */
+        sp_521_mont_sub_9(ctx->y, ctx->y, ctx->t2, p521_mod);
+        ctx->state = 19;
+        /* fall-through */
+    case 19:
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 19) {
+        err = FP_WOULDBLOCK;
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+static void sp_521_proj_point_dbl_9(sp_point_521* r, const sp_point_521* p, sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2*9;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+
+    x = r->x;
+    y = r->y;
+    z = r->z;
+    /* Put infinity into result. */
+    if (r != p) {
+        r->infinity = p->infinity;
+    }
+
+    /* T1 = Z * Z */
+    sp_521_mont_sqr_9(t1, p->z, p521_mod, p521_mp_mod);
+    /* Z = Y * Z */
+    sp_521_mont_mul_9(z, p->y, p->z, p521_mod, p521_mp_mod);
+    /* Z = 2Z */
+    sp_521_mont_dbl_9(z, z, p521_mod);
+    /* T2 = X - T1 */
+    sp_521_mont_sub_9(t2, p->x, t1, p521_mod);
+    /* T1 = X + T1 */
+    sp_521_mont_add_9(t1, p->x, t1, p521_mod);
+    /* T2 = T1 * T2 */
+    sp_521_mont_mul_9(t2, t1, t2, p521_mod, p521_mp_mod);
+    /* T1 = 3T2 */
+    sp_521_mont_tpl_9(t1, t2, p521_mod);
+    /* Y = 2Y */
+    sp_521_mont_dbl_9(y, p->y, p521_mod);
+    /* Y = Y * Y */
+    sp_521_mont_sqr_9(y, y, p521_mod, p521_mp_mod);
+    /* T2 = Y * Y */
+    sp_521_mont_sqr_9(t2, y, p521_mod, p521_mp_mod);
+    /* T2 = T2/2 */
+    sp_521_div2_9(t2, t2, p521_mod);
+    /* Y = Y * X */
+    sp_521_mont_mul_9(y, y, p->x, p521_mod, p521_mp_mod);
+    /* X = T1 * T1 */
+    sp_521_mont_sqr_9(x, t1, p521_mod, p521_mp_mod);
+    /* X = X - Y */
+    sp_521_mont_sub_9(x, x, y, p521_mod);
+    /* X = X - Y */
+    sp_521_mont_sub_9(x, x, y, p521_mod);
+    /* Y = Y - X */
+    sp_521_mont_sub_9(y, y, x, p521_mod);
+    /* Y = Y * T1 */
+    sp_521_mont_mul_9(y, y, t1, p521_mod, p521_mp_mod);
+    /* Y = Y - T2 */
+    sp_521_mont_sub_9(y, y, t2, p521_mod);
+}
+
+/* Compare two numbers to determine if they are equal.
+ * Constant time implementation.
+ *
+ * a  First number to compare.
+ * b  Second number to compare.
+ * returns 1 when equal and 0 otherwise.
+ */
+static int sp_521_cmp_equal_9(const sp_digit* a, const sp_digit* b)
+{
+    return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | (a[2] ^ b[2]) |
+            (a[3] ^ b[3]) | (a[4] ^ b[4]) | (a[5] ^ b[5]) |
+            (a[6] ^ b[6]) | (a[7] ^ b[7]) | (a[8] ^ b[8])) == 0;
+}
+
+/* Add two Montgomery form projective points.
+ *
+ * r  Result of addition.
+ * p  First point to add.
+ * q  Second point to add.
+ * t  Temporary ordinate data.
+ */
+
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_521_proj_point_add_9_ctx {
+    int state;
+    sp_521_proj_point_dbl_9_ctx dbl_ctx;
+    const sp_point_521* ap[2];
+    sp_point_521* rp[2];
+    sp_digit* t1;
+    sp_digit* t2;
+    sp_digit* t3;
+    sp_digit* t4;
+    sp_digit* t5;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+} sp_521_proj_point_add_9_ctx;
+
+static int sp_521_proj_point_add_9_nb(sp_ecc_ctx_t* sp_ctx, sp_point_521* r,
+    const sp_point_521* p, const sp_point_521* q, sp_digit* t)
+{
+    int err = FP_WOULDBLOCK;
+    sp_521_proj_point_add_9_ctx* ctx = (sp_521_proj_point_add_9_ctx*)sp_ctx->data;
+
+    /* Ensure only the first point is the same as the result. */
+    if (q == r) {
+        const sp_point_521* a = p;
+        p = q;
+        q = a;
+    }
+
+    typedef char ctx_size_test[sizeof(sp_521_proj_point_add_9_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        ctx->t1 = t;
+        ctx->t2 = t + 2*9;
+        ctx->t3 = t + 4*9;
+        ctx->t4 = t + 6*9;
+        ctx->t5 = t + 8*9;
+
+        ctx->state = 1;
+        break;
+    case 1:
+        /* Check double */
+        (void)sp_521_sub_9(ctx->t1, p521_mod, q->y);
+        sp_521_norm_9(ctx->t1);
+        if ((sp_521_cmp_equal_9(p->x, q->x) & sp_521_cmp_equal_9(p->z, q->z) &
+            (sp_521_cmp_equal_9(p->y, q->y) | sp_521_cmp_equal_9(p->y, ctx->t1))) != 0)
+        {
+            XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
+            ctx->state = 2;
+        }
+        else {
+            ctx->state = 3;
+        }
+        break;
+    case 2:
+        err = sp_521_proj_point_dbl_9_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, r, p, t);
+        if (err == MP_OKAY)
+            ctx->state = 27; /* done */
+        break;
+    case 3:
+    {
+        int i;
+        ctx->rp[0] = r;
+
+        /*lint allow cast to different type of pointer*/
+        ctx->rp[1] = (sp_point_521*)t; /*lint !e9087 !e740*/
+        XMEMSET(ctx->rp[1], 0, sizeof(sp_point_521));
+        ctx->x = ctx->rp[p->infinity | q->infinity]->x;
+        ctx->y = ctx->rp[p->infinity | q->infinity]->y;
+        ctx->z = ctx->rp[p->infinity | q->infinity]->z;
+
+        ctx->ap[0] = p;
+        ctx->ap[1] = q;
+        for (i=0; i<9; i++) {
+            r->x[i] = ctx->ap[p->infinity]->x[i];
+        }
+        for (i=0; i<9; i++) {
+            r->y[i] = ctx->ap[p->infinity]->y[i];
+        }
+        for (i=0; i<9; i++) {
+            r->z[i] = ctx->ap[p->infinity]->z[i];
+        }
+        r->infinity = ctx->ap[p->infinity]->infinity;
+
+        ctx->state = 4;
+        break;
+    }
+    case 4:
+        /* U1 = X1*Z2^2 */
+        sp_521_mont_sqr_9(ctx->t1, q->z, p521_mod, p521_mp_mod);
+        ctx->state = 5;
+        break;
+    case 5:
+        sp_521_mont_mul_9(ctx->t3, ctx->t1, q->z, p521_mod, p521_mp_mod);
+        ctx->state = 6;
+        break;
+    case 6:
+        sp_521_mont_mul_9(ctx->t1, ctx->t1, ctx->x, p521_mod, p521_mp_mod);
+        ctx->state = 7;
+        break;
+    case 7:
+        /* U2 = X2*Z1^2 */
+        sp_521_mont_sqr_9(ctx->t2, ctx->z, p521_mod, p521_mp_mod);
+        ctx->state = 8;
+        break;
+    case 8:
+        sp_521_mont_mul_9(ctx->t4, ctx->t2, ctx->z, p521_mod, p521_mp_mod);
+        ctx->state = 9;
+        break;
+    case 9:
+        sp_521_mont_mul_9(ctx->t2, ctx->t2, q->x, p521_mod, p521_mp_mod);
+        ctx->state = 10;
+        break;
+    case 10:
+        /* S1 = Y1*Z2^3 */
+        sp_521_mont_mul_9(ctx->t3, ctx->t3, ctx->y, p521_mod, p521_mp_mod);
+        ctx->state = 11;
+        break;
+    case 11:
+        /* S2 = Y2*Z1^3 */
+        sp_521_mont_mul_9(ctx->t4, ctx->t4, q->y, p521_mod, p521_mp_mod);
+        ctx->state = 12;
+        break;
+    case 12:
+        /* H = U2 - U1 */
+        sp_521_mont_sub_9(ctx->t2, ctx->t2, ctx->t1, p521_mod);
+        ctx->state = 13;
+        break;
+    case 13:
+        /* R = S2 - S1 */
+        sp_521_mont_sub_9(ctx->t4, ctx->t4, ctx->t3, p521_mod);
+        ctx->state = 14;
+        break;
+    case 14:
+        /* Z3 = H*Z1*Z2 */
+        sp_521_mont_mul_9(ctx->z, ctx->z, q->z, p521_mod, p521_mp_mod);
+        ctx->state = 15;
+        break;
+    case 15:
+        sp_521_mont_mul_9(ctx->z, ctx->z, ctx->t2, p521_mod, p521_mp_mod);
+        ctx->state = 16;
+        break;
+    case 16:
+        /* X3 = R^2 - H^3 - 2*U1*H^2 */
+        sp_521_mont_sqr_9(ctx->x, ctx->t4, p521_mod, p521_mp_mod);
+        ctx->state = 17;
+        break;
+    case 17:
+        sp_521_mont_sqr_9(ctx->t5, ctx->t2, p521_mod, p521_mp_mod);
+        ctx->state = 18;
+        break;
+    case 18:
+        sp_521_mont_mul_9(ctx->y, ctx->t1, ctx->t5, p521_mod, p521_mp_mod);
+        ctx->state = 19;
+        break;
+    case 19:
+        sp_521_mont_mul_9(ctx->t5, ctx->t5, ctx->t2, p521_mod, p521_mp_mod);
+        ctx->state = 20;
+        break;
+    case 20:
+        sp_521_mont_sub_9(ctx->x, ctx->x, ctx->t5, p521_mod);
+        ctx->state = 21;
+        break;
+    case 21:
+        sp_521_mont_dbl_9(ctx->t1, ctx->y, p521_mod);
+        ctx->state = 22;
+        break;
+    case 22:
+        sp_521_mont_sub_9(ctx->x, ctx->x, ctx->t1, p521_mod);
+        ctx->state = 23;
+        break;
+    case 23:
+        /* Y3 = R*(U1*H^2 - X3) - S1*H^3 */
+        sp_521_mont_sub_9(ctx->y, ctx->y, ctx->x, p521_mod);
+        ctx->state = 24;
+        break;
+    case 24:
+        sp_521_mont_mul_9(ctx->y, ctx->y, ctx->t4, p521_mod, p521_mp_mod);
+        ctx->state = 25;
+        break;
+    case 25:
+        sp_521_mont_mul_9(ctx->t5, ctx->t5, ctx->t3, p521_mod, p521_mp_mod);
+        ctx->state = 26;
+        break;
+    case 26:
+        sp_521_mont_sub_9(ctx->y, ctx->y, ctx->t5, p521_mod);
+        ctx->state = 27;
+        /* fall-through */
+    case 27:
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 27) {
+        err = FP_WOULDBLOCK;
+    }
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+static void sp_521_proj_point_add_9(sp_point_521* r,
+        const sp_point_521* p, const sp_point_521* q, sp_digit* t)
+{
+    const sp_point_521* ap[2];
+    sp_point_521* rp[2];
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2*9;
+    sp_digit* t3 = t + 4*9;
+    sp_digit* t4 = t + 6*9;
+    sp_digit* t5 = t + 8*9;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+    int i;
+
+    /* Ensure only the first point is the same as the result. */
+    if (q == r) {
+        const sp_point_521* a = p;
+        p = q;
+        q = a;
+    }
+
+    /* Check double */
+    (void)sp_521_sub_9(t1, p521_mod, q->y);
+    sp_521_norm_9(t1);
+    if ((sp_521_cmp_equal_9(p->x, q->x) & sp_521_cmp_equal_9(p->z, q->z) &
+        (sp_521_cmp_equal_9(p->y, q->y) | sp_521_cmp_equal_9(p->y, t1))) != 0) {
+        sp_521_proj_point_dbl_9(r, p, t);
+    }
+    else {
+        rp[0] = r;
+
+        /*lint allow cast to different type of pointer*/
+        rp[1] = (sp_point_521*)t; /*lint !e9087 !e740*/
+        XMEMSET(rp[1], 0, sizeof(sp_point_521));
+        x = rp[p->infinity | q->infinity]->x;
+        y = rp[p->infinity | q->infinity]->y;
+        z = rp[p->infinity | q->infinity]->z;
+
+        ap[0] = p;
+        ap[1] = q;
+        for (i=0; i<9; i++) {
+            r->x[i] = ap[p->infinity]->x[i];
+        }
+        for (i=0; i<9; i++) {
+            r->y[i] = ap[p->infinity]->y[i];
+        }
+        for (i=0; i<9; i++) {
+            r->z[i] = ap[p->infinity]->z[i];
+        }
+        r->infinity = ap[p->infinity]->infinity;
+
+        /* U1 = X1*Z2^2 */
+        sp_521_mont_sqr_9(t1, q->z, p521_mod, p521_mp_mod);
+        sp_521_mont_mul_9(t3, t1, q->z, p521_mod, p521_mp_mod);
+        sp_521_mont_mul_9(t1, t1, x, p521_mod, p521_mp_mod);
+        /* U2 = X2*Z1^2 */
+        sp_521_mont_sqr_9(t2, z, p521_mod, p521_mp_mod);
+        sp_521_mont_mul_9(t4, t2, z, p521_mod, p521_mp_mod);
+        sp_521_mont_mul_9(t2, t2, q->x, p521_mod, p521_mp_mod);
+        /* S1 = Y1*Z2^3 */
+        sp_521_mont_mul_9(t3, t3, y, p521_mod, p521_mp_mod);
+        /* S2 = Y2*Z1^3 */
+        sp_521_mont_mul_9(t4, t4, q->y, p521_mod, p521_mp_mod);
+        /* H = U2 - U1 */
+        sp_521_mont_sub_9(t2, t2, t1, p521_mod);
+        /* R = S2 - S1 */
+        sp_521_mont_sub_9(t4, t4, t3, p521_mod);
+        /* Z3 = H*Z1*Z2 */
+        sp_521_mont_mul_9(z, z, q->z, p521_mod, p521_mp_mod);
+        sp_521_mont_mul_9(z, z, t2, p521_mod, p521_mp_mod);
+        /* X3 = R^2 - H^3 - 2*U1*H^2 */
+        sp_521_mont_sqr_9(x, t4, p521_mod, p521_mp_mod);
+        sp_521_mont_sqr_9(t5, t2, p521_mod, p521_mp_mod);
+        sp_521_mont_mul_9(y, t1, t5, p521_mod, p521_mp_mod);
+        sp_521_mont_mul_9(t5, t5, t2, p521_mod, p521_mp_mod);
+        sp_521_mont_sub_9(x, x, t5, p521_mod);
+        sp_521_mont_dbl_9(t1, y, p521_mod);
+        sp_521_mont_sub_9(x, x, t1, p521_mod);
+        /* Y3 = R*(U1*H^2 - X3) - S1*H^3 */
+        sp_521_mont_sub_9(y, y, x, p521_mod);
+        sp_521_mont_mul_9(y, y, t4, p521_mod, p521_mp_mod);
+        sp_521_mont_mul_9(t5, t5, t3, p521_mod, p521_mp_mod);
+        sp_521_mont_sub_9(y, y, t5, p521_mod);
+    }
+}
+
+/* Multiply a number by Montgomery normalizer mod modulus (prime).
+ *
+ * r  The resulting Montgomery form number.
+ * a  The number to convert.
+ * m  The modulus (prime).
+ * returns MEMORY_E when memory allocation fails and MP_OKAY otherwise.
+ */
+static int sp_521_mod_mul_norm_9(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    (void)m;
+
+    if (r != a) {
+        XMEMCPY(r, a, 9 * sizeof(sp_digit));
+    }
+
+    return MP_OKAY;
+}
+
+#ifdef WOLFSSL_SP_SMALL
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Small implementation using add and double that is cache attack resistant but
+ * allocates memory rather than use large stacks.
+ * 521 adds and doubles.
+ *
+ * r     Resulting point.
+ * g     Point to multiply.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_521_ecc_mulmod_9_ctx {
+    int state;
+    union {
+        sp_521_proj_point_dbl_9_ctx dbl_ctx;
+        sp_521_proj_point_add_9_ctx add_ctx;
+    };
+    sp_point_521 t[3];
+    sp_digit tmp[2 * 9 * 5];
+    sp_digit n;
+    int i;
+    int c;
+    int y;
+} sp_521_ecc_mulmod_9_ctx;
+
+static int sp_521_ecc_mulmod_9_nb(sp_ecc_ctx_t* sp_ctx, sp_point_521* r,
+    const sp_point_521* g, const sp_digit* k, int map, int ct, void* heap)
+{
+    int err = FP_WOULDBLOCK;
+    sp_521_ecc_mulmod_9_ctx* ctx = (sp_521_ecc_mulmod_9_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_521_ecc_mulmod_9_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    /* Implementation is constant time. */
+    (void)ct;
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        XMEMSET(ctx->t, 0, sizeof(sp_point_521) * 3);
+        ctx->i = 8;
+        ctx->c = 57;
+        ctx->n = k[ctx->i--] << (58 - ctx->c);
+
+        /* t[0] = {0, 0, 1} * norm */
+        ctx->t[0].infinity = 1;
+        ctx->state = 1;
+        break;
+    case 1: /* T1X */
+        /* t[1] = {g->x, g->y, g->z} * norm */
+        err = sp_521_mod_mul_norm_9(ctx->t[1].x, g->x, p521_mod);
+        ctx->state = 2;
+        break;
+    case 2: /* T1Y */
+        err = sp_521_mod_mul_norm_9(ctx->t[1].y, g->y, p521_mod);
+        ctx->state = 3;
+        break;
+    case 3: /* T1Z */
+        err = sp_521_mod_mul_norm_9(ctx->t[1].z, g->z, p521_mod);
+        ctx->state = 4;
+        break;
+    case 4: /* ADDPREP */
+        if (ctx->c == 0) {
+            if (ctx->i == -1) {
+                ctx->state = 7;
+                break;
+            }
+
+            ctx->n = k[ctx->i--];
+            ctx->c = 58;
+        }
+        ctx->y = (ctx->n >> 57) & 1;
+        ctx->n <<= 1;
+        XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
+        ctx->state = 5;
+        break;
+    case 5: /* ADD */
+        err = sp_521_proj_point_add_9_nb((sp_ecc_ctx_t*)&ctx->add_ctx,
+            &ctx->t[ctx->y^1], &ctx->t[0], &ctx->t[1], ctx->tmp);
+        if (err == MP_OKAY) {
+            XMEMCPY(&ctx->t[2], (void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
+                                        ((size_t)&ctx->t[1] & addr_mask[ctx->y])),
+                    sizeof(sp_point_521));
+            XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
+            ctx->state = 6;
+        }
+        break;
+    case 6: /* DBL */
+        err = sp_521_proj_point_dbl_9_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->t[2],
+            &ctx->t[2], ctx->tmp);
+        if (err == MP_OKAY) {
+            XMEMCPY((void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
+                            ((size_t)&ctx->t[1] & addr_mask[ctx->y])), &ctx->t[2],
+                    sizeof(sp_point_521));
+            ctx->state = 4;
+            ctx->c--;
+        }
+        break;
+    case 7: /* MAP */
+        if (map != 0) {
+            sp_521_map_9(r, &ctx->t[0], ctx->tmp);
+        }
+        else {
+            XMEMCPY(r, &ctx->t[0], sizeof(sp_point_521));
+        }
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 7) {
+        err = FP_WOULDBLOCK;
+    }
+    if (err != FP_WOULDBLOCK) {
+        ForceZero(ctx->tmp, sizeof(ctx->tmp));
+        ForceZero(ctx->t, sizeof(ctx->t));
+    }
+
+    (void)heap;
+
+    return err;
+}
+
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+static int sp_521_ecc_mulmod_9(sp_point_521* r, const sp_point_521* g,
+        const sp_digit* k, int map, int ct, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_521* t = NULL;
+    sp_digit* tmp = NULL;
+#else
+    sp_point_521 t[3];
+    sp_digit tmp[2 * 9 * 5];
+#endif
+    sp_digit n;
+    int i;
+    int c;
+    int y;
+    int err = MP_OKAY;
+
+    /* Implementation is constant time. */
+    (void)ct;
+    (void)heap;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_point_521*)XMALLOC(sizeof(sp_point_521) * 3, heap,
+                                     DYNAMIC_TYPE_ECC);
+    if (t == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 9 * 5, heap,
+                                 DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        XMEMSET(t, 0, sizeof(sp_point_521) * 3);
+
+        /* t[0] = {0, 0, 1} * norm */
+        t[0].infinity = 1;
+        /* t[1] = {g->x, g->y, g->z} * norm */
+        err = sp_521_mod_mul_norm_9(t[1].x, g->x, p521_mod);
+    }
+    if (err == MP_OKAY)
+        err = sp_521_mod_mul_norm_9(t[1].y, g->y, p521_mod);
+    if (err == MP_OKAY)
+        err = sp_521_mod_mul_norm_9(t[1].z, g->z, p521_mod);
+
+    if (err == MP_OKAY) {
+        i = 8;
+        c = 57;
+        n = k[i--] << (58 - c);
+        for (; ; c--) {
+            if (c == 0) {
+                if (i == -1)
+                    break;
+
+                n = k[i--];
+                c = 58;
+            }
+
+            y = (n >> 57) & 1;
+            n <<= 1;
+
+            sp_521_proj_point_add_9(&t[y^1], &t[0], &t[1], tmp);
+
+            XMEMCPY(&t[2], (void*)(((size_t)&t[0] & addr_mask[y^1]) +
+                                   ((size_t)&t[1] & addr_mask[y])),
+                    sizeof(sp_point_521));
+            sp_521_proj_point_dbl_9(&t[2], &t[2], tmp);
+            XMEMCPY((void*)(((size_t)&t[0] & addr_mask[y^1]) +
+                            ((size_t)&t[1] & addr_mask[y])), &t[2],
+                    sizeof(sp_point_521));
+        }
+
+        if (map != 0) {
+            sp_521_map_9(r, &t[0], tmp);
+        }
+        else {
+            XMEMCPY(r, &t[0], sizeof(sp_point_521));
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
+#endif
+    {
+        ForceZero(tmp, sizeof(sp_digit) * 2 * 9 * 5);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(tmp, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+#endif
+    {
+        ForceZero(t, sizeof(sp_point_521) * 3);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
+
+    return err;
+}
+
+#else
+/* A table entry for pre-computed points. */
+typedef struct sp_table_entry_521 {
+    sp_digit x[9];
+    sp_digit y[9];
+} sp_table_entry_521;
+
+/* Conditionally copy a into r using the mask m.
+ * m is -1 to copy and 0 when not.
+ *
+ * r  A single precision number to copy over.
+ * a  A single precision number to copy.
+ * m  Mask value to apply.
+ */
+static void sp_521_cond_copy_9(sp_digit* r, const sp_digit* a, const sp_digit m)
+{
+    sp_digit t[9];
+#ifdef WOLFSSL_SP_SMALL
+    int i;
+
+    for (i = 0; i < 9; i++) {
+        t[i] = r[i] ^ a[i];
+    }
+    for (i = 0; i < 9; i++) {
+        r[i] ^= t[i] & m;
+    }
+#else
+    t[ 0] = r[ 0] ^ a[ 0];
+    t[ 1] = r[ 1] ^ a[ 1];
+    t[ 2] = r[ 2] ^ a[ 2];
+    t[ 3] = r[ 3] ^ a[ 3];
+    t[ 4] = r[ 4] ^ a[ 4];
+    t[ 5] = r[ 5] ^ a[ 5];
+    t[ 6] = r[ 6] ^ a[ 6];
+    t[ 7] = r[ 7] ^ a[ 7];
+    t[ 8] = r[ 8] ^ a[ 8];
+    r[ 0] ^= t[ 0] & m;
+    r[ 1] ^= t[ 1] & m;
+    r[ 2] ^= t[ 2] & m;
+    r[ 3] ^= t[ 3] & m;
+    r[ 4] ^= t[ 4] & m;
+    r[ 5] ^= t[ 5] & m;
+    r[ 6] ^= t[ 6] & m;
+    r[ 7] ^= t[ 7] & m;
+    r[ 8] ^= t[ 8] & m;
+#endif /* WOLFSSL_SP_SMALL */
+}
+
+/* Double the Montgomery form projective point p a number of times.
+ *
+ * r  Result of repeated doubling of point.
+ * p  Point to double.
+ * n  Number of times to double
+ * t  Temporary ordinate data.
+ */
+static void sp_521_proj_point_dbl_n_9(sp_point_521* p, int n,
+    sp_digit* t)
+{
+    sp_digit* w = t;
+    sp_digit* a = t + 2*9;
+    sp_digit* b = t + 4*9;
+    sp_digit* t1 = t + 6*9;
+    sp_digit* t2 = t + 8*9;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+
+    x = p->x;
+    y = p->y;
+    z = p->z;
+
+    /* Y = 2*Y */
+    sp_521_mont_dbl_9(y, y, p521_mod);
+    /* W = Z^4 */
+    sp_521_mont_sqr_9(w, z, p521_mod, p521_mp_mod);
+    sp_521_mont_sqr_9(w, w, p521_mod, p521_mp_mod);
+
+#ifndef WOLFSSL_SP_SMALL
+    while (--n > 0)
+#else
+    while (--n >= 0)
+#endif
+    {
+        /* A = 3*(X^2 - W) */
+        sp_521_mont_sqr_9(t1, x, p521_mod, p521_mp_mod);
+        sp_521_mont_sub_9(t1, t1, w, p521_mod);
+        sp_521_mont_tpl_9(a, t1, p521_mod);
+        /* B = X*Y^2 */
+        sp_521_mont_sqr_9(t1, y, p521_mod, p521_mp_mod);
+        sp_521_mont_mul_9(b, t1, x, p521_mod, p521_mp_mod);
+        /* X = A^2 - 2B */
+        sp_521_mont_sqr_9(x, a, p521_mod, p521_mp_mod);
+        sp_521_mont_dbl_9(t2, b, p521_mod);
+        sp_521_mont_sub_9(x, x, t2, p521_mod);
+        /* Z = Z*Y */
+        sp_521_mont_mul_9(z, z, y, p521_mod, p521_mp_mod);
+        /* t2 = Y^4 */
+        sp_521_mont_sqr_9(t1, t1, p521_mod, p521_mp_mod);
+#ifdef WOLFSSL_SP_SMALL
+        if (n != 0)
+#endif
+        {
+            /* W = W*Y^4 */
+            sp_521_mont_mul_9(w, w, t1, p521_mod, p521_mp_mod);
+        }
+        /* y = 2*A*(B - X) - Y^4 */
+        sp_521_mont_sub_9(y, b, x, p521_mod);
+        sp_521_mont_mul_9(y, y, a, p521_mod, p521_mp_mod);
+        sp_521_mont_dbl_9(y, y, p521_mod);
+        sp_521_mont_sub_9(y, y, t1, p521_mod);
+    }
+#ifndef WOLFSSL_SP_SMALL
+    /* A = 3*(X^2 - W) */
+    sp_521_mont_sqr_9(t1, x, p521_mod, p521_mp_mod);
+    sp_521_mont_sub_9(t1, t1, w, p521_mod);
+    sp_521_mont_tpl_9(a, t1, p521_mod);
+    /* B = X*Y^2 */
+    sp_521_mont_sqr_9(t1, y, p521_mod, p521_mp_mod);
+    sp_521_mont_mul_9(b, t1, x, p521_mod, p521_mp_mod);
+    /* X = A^2 - 2B */
+    sp_521_mont_sqr_9(x, a, p521_mod, p521_mp_mod);
+    sp_521_mont_dbl_9(t2, b, p521_mod);
+    sp_521_mont_sub_9(x, x, t2, p521_mod);
+    /* Z = Z*Y */
+    sp_521_mont_mul_9(z, z, y, p521_mod, p521_mp_mod);
+    /* t2 = Y^4 */
+    sp_521_mont_sqr_9(t1, t1, p521_mod, p521_mp_mod);
+    /* y = 2*A*(B - X) - Y^4 */
+    sp_521_mont_sub_9(y, b, x, p521_mod);
+    sp_521_mont_mul_9(y, y, a, p521_mod, p521_mp_mod);
+    sp_521_mont_dbl_9(y, y, p521_mod);
+    sp_521_mont_sub_9(y, y, t1, p521_mod);
+#endif
+    /* Y = Y/2 */
+    sp_521_div2_9(y, y, p521_mod);
+}
+
+/* Double the Montgomery form projective point p a number of times.
+ *
+ * r  Result of repeated doubling of point.
+ * p  Point to double.
+ * n  Number of times to double
+ * t  Temporary ordinate data.
+ */
+static void sp_521_proj_point_dbl_n_store_9(sp_point_521* r,
+        const sp_point_521* p, int n, int m, sp_digit* t)
+{
+    sp_digit* w = t;
+    sp_digit* a = t + 2*9;
+    sp_digit* b = t + 4*9;
+    sp_digit* t1 = t + 6*9;
+    sp_digit* t2 = t + 8*9;
+    sp_digit* x = r[2*m].x;
+    sp_digit* y = r[(1<<n)*m].y;
+    sp_digit* z = r[2*m].z;
+    int i;
+    int j;
+
+    for (i=0; i<9; i++) {
+        x[i] = p->x[i];
+    }
+    for (i=0; i<9; i++) {
+        y[i] = p->y[i];
+    }
+    for (i=0; i<9; i++) {
+        z[i] = p->z[i];
+    }
+
+    /* Y = 2*Y */
+    sp_521_mont_dbl_9(y, y, p521_mod);
+    /* W = Z^4 */
+    sp_521_mont_sqr_9(w, z, p521_mod, p521_mp_mod);
+    sp_521_mont_sqr_9(w, w, p521_mod, p521_mp_mod);
+    j = m;
+    for (i=1; i<=n; i++) {
+        j *= 2;
+
+        /* A = 3*(X^2 - W) */
+        sp_521_mont_sqr_9(t1, x, p521_mod, p521_mp_mod);
+        sp_521_mont_sub_9(t1, t1, w, p521_mod);
+        sp_521_mont_tpl_9(a, t1, p521_mod);
+        /* B = X*Y^2 */
+        sp_521_mont_sqr_9(t2, y, p521_mod, p521_mp_mod);
+        sp_521_mont_mul_9(b, t2, x, p521_mod, p521_mp_mod);
+        x = r[j].x;
+        /* X = A^2 - 2B */
+        sp_521_mont_sqr_9(x, a, p521_mod, p521_mp_mod);
+        sp_521_mont_dbl_9(t1, b, p521_mod);
+        sp_521_mont_sub_9(x, x, t1, p521_mod);
+        /* Z = Z*Y */
+        sp_521_mont_mul_9(r[j].z, z, y, p521_mod, p521_mp_mod);
+        z = r[j].z;
+        /* t2 = Y^4 */
+        sp_521_mont_sqr_9(t2, t2, p521_mod, p521_mp_mod);
+        if (i != n) {
+            /* W = W*Y^4 */
+            sp_521_mont_mul_9(w, w, t2, p521_mod, p521_mp_mod);
+        }
+        /* y = 2*A*(B - X) - Y^4 */
+        sp_521_mont_sub_9(y, b, x, p521_mod);
+        sp_521_mont_mul_9(y, y, a, p521_mod, p521_mp_mod);
+        sp_521_mont_dbl_9(y, y, p521_mod);
+        sp_521_mont_sub_9(y, y, t2, p521_mod);
+
+        /* Y = Y/2 */
+        sp_521_div2_9(r[j].y, y, p521_mod);
+        r[j].infinity = 0;
+    }
+}
+
+/* Add two Montgomery form projective points.
+ *
+ * ra  Result of addition.
+ * rs  Result of subtraction.
+ * p   First point to add.
+ * q   Second point to add.
+ * t   Temporary ordinate data.
+ */
+static void sp_521_proj_point_add_sub_9(sp_point_521* ra,
+        sp_point_521* rs, const sp_point_521* p, const sp_point_521* q,
+        sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2*9;
+    sp_digit* t3 = t + 4*9;
+    sp_digit* t4 = t + 6*9;
+    sp_digit* t5 = t + 8*9;
+    sp_digit* t6 = t + 10*9;
+    sp_digit* x = ra->x;
+    sp_digit* y = ra->y;
+    sp_digit* z = ra->z;
+    sp_digit* xs = rs->x;
+    sp_digit* ys = rs->y;
+    sp_digit* zs = rs->z;
+
+
+    XMEMCPY(x, p->x, sizeof(p->x) / 2);
+    XMEMCPY(y, p->y, sizeof(p->y) / 2);
+    XMEMCPY(z, p->z, sizeof(p->z) / 2);
+    ra->infinity = 0;
+    rs->infinity = 0;
+
+    /* U1 = X1*Z2^2 */
+    sp_521_mont_sqr_9(t1, q->z, p521_mod, p521_mp_mod);
+    sp_521_mont_mul_9(t3, t1, q->z, p521_mod, p521_mp_mod);
+    sp_521_mont_mul_9(t1, t1, x, p521_mod, p521_mp_mod);
+    /* U2 = X2*Z1^2 */
+    sp_521_mont_sqr_9(t2, z, p521_mod, p521_mp_mod);
+    sp_521_mont_mul_9(t4, t2, z, p521_mod, p521_mp_mod);
+    sp_521_mont_mul_9(t2, t2, q->x, p521_mod, p521_mp_mod);
+    /* S1 = Y1*Z2^3 */
+    sp_521_mont_mul_9(t3, t3, y, p521_mod, p521_mp_mod);
+    /* S2 = Y2*Z1^3 */
+    sp_521_mont_mul_9(t4, t4, q->y, p521_mod, p521_mp_mod);
+    /* H = U2 - U1 */
+    sp_521_mont_sub_9(t2, t2, t1, p521_mod);
+    /* RS = S2 + S1 */
+    sp_521_mont_add_9(t6, t4, t3, p521_mod);
+    /* R = S2 - S1 */
+    sp_521_mont_sub_9(t4, t4, t3, p521_mod);
+    /* Z3 = H*Z1*Z2 */
+    /* ZS = H*Z1*Z2 */
+    sp_521_mont_mul_9(z, z, q->z, p521_mod, p521_mp_mod);
+    sp_521_mont_mul_9(z, z, t2, p521_mod, p521_mp_mod);
+    XMEMCPY(zs, z, sizeof(p->z)/2);
+    /* X3 = R^2 - H^3 - 2*U1*H^2 */
+    /* XS = RS^2 - H^3 - 2*U1*H^2 */
+    sp_521_mont_sqr_9(x, t4, p521_mod, p521_mp_mod);
+    sp_521_mont_sqr_9(xs, t6, p521_mod, p521_mp_mod);
+    sp_521_mont_sqr_9(t5, t2, p521_mod, p521_mp_mod);
+    sp_521_mont_mul_9(y, t1, t5, p521_mod, p521_mp_mod);
+    sp_521_mont_mul_9(t5, t5, t2, p521_mod, p521_mp_mod);
+    sp_521_mont_sub_9(x, x, t5, p521_mod);
+    sp_521_mont_sub_9(xs, xs, t5, p521_mod);
+    sp_521_mont_dbl_9(t1, y, p521_mod);
+    sp_521_mont_sub_9(x, x, t1, p521_mod);
+    sp_521_mont_sub_9(xs, xs, t1, p521_mod);
+    /* Y3 = R*(U1*H^2 - X3) - S1*H^3 */
+    /* YS = -RS*(U1*H^2 - XS) - S1*H^3 */
+    sp_521_mont_sub_9(ys, y, xs, p521_mod);
+    sp_521_mont_sub_9(y, y, x, p521_mod);
+    sp_521_mont_mul_9(y, y, t4, p521_mod, p521_mp_mod);
+    sp_521_sub_9(t6, p521_mod, t6);
+    sp_521_mont_mul_9(ys, ys, t6, p521_mod, p521_mp_mod);
+    sp_521_mont_mul_9(t5, t5, t3, p521_mod, p521_mp_mod);
+    sp_521_mont_sub_9(y, y, t5, p521_mod);
+    sp_521_mont_sub_9(ys, ys, t5, p521_mod);
+}
+
+/* Structure used to describe recoding of scalar multiplication. */
+typedef struct ecc_recode_521 {
+    /* Index into pre-computation table. */
+    uint8_t i;
+    /* Use the negative of the point. */
+    uint8_t neg;
+} ecc_recode_521;
+
+/* The index into pre-computation table to use. */
+static const uint8_t recode_index_9_6[66] = {
+     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+    32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+    16, 15, 14, 13, 12, 11, 10,  9,  8,  7,  6,  5,  4,  3,  2,  1,
+     0,  1,
+};
+
+/* Whether to negate y-ordinate. */
+static const uint8_t recode_neg_9_6[66] = {
+     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+     1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+     1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+     0,  0,
+};
+
+/* Recode the scalar for multiplication using pre-computed values and
+ * subtraction.
+ *
+ * k  Scalar to multiply by.
+ * v  Vector of operations to perform.
+ */
+static void sp_521_ecc_recode_6_9(const sp_digit* k, ecc_recode_521* v)
+{
+    int i;
+    int j;
+    uint8_t y;
+    int carry = 0;
+    int o;
+    sp_digit n;
+
+    j = 0;
+    n = k[j];
+    o = 0;
+    for (i=0; i<87; i++) {
+        y = (int8_t)n;
+        if (o + 6 < 58) {
+            y &= 0x3f;
+            n >>= 6;
+            o += 6;
+        }
+        else if (o + 6 == 58) {
+            n >>= 6;
+            if (++j < 9)
+                n = k[j];
+            o = 0;
+        }
+        else if (++j < 9) {
+            n = k[j];
+            y |= (uint8_t)((n << (58 - o)) & 0x3f);
+            o -= 52;
+            n >>= o;
+        }
+
+        y += (uint8_t)carry;
+        v[i].i = recode_index_9_6[y];
+        v[i].neg = recode_neg_9_6[y];
+        carry = (y >> 6) + v[i].neg;
+    }
+}
+
+#ifndef WC_NO_CACHE_RESISTANT
+/* Touch each possible point that could be being copied.
+ *
+ * r      Point to copy into.
+ * table  Table - start of the entires to access
+ * idx    Index of entry to retrieve.
+ */
+static void sp_521_get_point_33_9(sp_point_521* r, const sp_point_521* table,
+    int idx)
+{
+    int i;
+    sp_digit mask;
+
+    r->x[0] = 0;
+    r->x[1] = 0;
+    r->x[2] = 0;
+    r->x[3] = 0;
+    r->x[4] = 0;
+    r->x[5] = 0;
+    r->x[6] = 0;
+    r->x[7] = 0;
+    r->x[8] = 0;
+    r->y[0] = 0;
+    r->y[1] = 0;
+    r->y[2] = 0;
+    r->y[3] = 0;
+    r->y[4] = 0;
+    r->y[5] = 0;
+    r->y[6] = 0;
+    r->y[7] = 0;
+    r->y[8] = 0;
+    r->z[0] = 0;
+    r->z[1] = 0;
+    r->z[2] = 0;
+    r->z[3] = 0;
+    r->z[4] = 0;
+    r->z[5] = 0;
+    r->z[6] = 0;
+    r->z[7] = 0;
+    r->z[8] = 0;
+    for (i = 1; i < 33; i++) {
+        mask = 0 - (i == idx);
+        r->x[0] |= mask & table[i].x[0];
+        r->x[1] |= mask & table[i].x[1];
+        r->x[2] |= mask & table[i].x[2];
+        r->x[3] |= mask & table[i].x[3];
+        r->x[4] |= mask & table[i].x[4];
+        r->x[5] |= mask & table[i].x[5];
+        r->x[6] |= mask & table[i].x[6];
+        r->x[7] |= mask & table[i].x[7];
+        r->x[8] |= mask & table[i].x[8];
+        r->y[0] |= mask & table[i].y[0];
+        r->y[1] |= mask & table[i].y[1];
+        r->y[2] |= mask & table[i].y[2];
+        r->y[3] |= mask & table[i].y[3];
+        r->y[4] |= mask & table[i].y[4];
+        r->y[5] |= mask & table[i].y[5];
+        r->y[6] |= mask & table[i].y[6];
+        r->y[7] |= mask & table[i].y[7];
+        r->y[8] |= mask & table[i].y[8];
+        r->z[0] |= mask & table[i].z[0];
+        r->z[1] |= mask & table[i].z[1];
+        r->z[2] |= mask & table[i].z[2];
+        r->z[3] |= mask & table[i].z[3];
+        r->z[4] |= mask & table[i].z[4];
+        r->z[5] |= mask & table[i].z[5];
+        r->z[6] |= mask & table[i].z[6];
+        r->z[7] |= mask & table[i].z[7];
+        r->z[8] |= mask & table[i].z[8];
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Window technique of 6 bits. (Add-Sub variation.)
+ * Calculate 0..32 times the point. Use function that adds and
+ * subtracts the same two points.
+ * Recode to add or subtract one of the computed points.
+ * Double to push up.
+ * NOT a sliding window.
+ *
+ * r     Resulting point.
+ * g     Point to multiply.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_521_ecc_mulmod_win_add_sub_9(sp_point_521* r, const sp_point_521* g,
+        const sp_digit* k, int map, int ct, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_521* t = NULL;
+    sp_digit* tmp = NULL;
+#else
+    sp_point_521 t[33+2];
+    sp_digit tmp[2 * 9 * 6];
+#endif
+    sp_point_521* rt = NULL;
+    sp_point_521* p = NULL;
+    sp_digit* negy;
+    int i;
+    ecc_recode_521 v[87];
+    int err = MP_OKAY;
+
+    /* Constant time used for cache attack resistance implementation. */
+    (void)ct;
+    (void)heap;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_point_521*)XMALLOC(sizeof(sp_point_521) * 
+        (33+2), heap, DYNAMIC_TYPE_ECC);
+    if (t == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 9 * 6,
+                                 heap, DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        rt = t + 33;
+        p  = t + 33+1;
+
+        /* t[0] = {0, 0, 1} * norm */
+        XMEMSET(&t[0], 0, sizeof(t[0]));
+        t[0].infinity = 1;
+        /* t[1] = {g->x, g->y, g->z} * norm */
+        err = sp_521_mod_mul_norm_9(t[1].x, g->x, p521_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_mod_mul_norm_9(t[1].y, g->y, p521_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_mod_mul_norm_9(t[1].z, g->z, p521_mod);
+    }
+
+    if (err == MP_OKAY) {
+        t[1].infinity = 0;
+        /* t[2] ... t[32]  */
+        sp_521_proj_point_dbl_n_store_9(t, &t[ 1], 5, 1, tmp);
+        sp_521_proj_point_add_9(&t[ 3], &t[ 2], &t[ 1], tmp);
+        sp_521_proj_point_dbl_9(&t[ 6], &t[ 3], tmp);
+        sp_521_proj_point_add_sub_9(&t[ 7], &t[ 5], &t[ 6], &t[ 1], tmp);
+        sp_521_proj_point_dbl_9(&t[10], &t[ 5], tmp);
+        sp_521_proj_point_add_sub_9(&t[11], &t[ 9], &t[10], &t[ 1], tmp);
+        sp_521_proj_point_dbl_9(&t[12], &t[ 6], tmp);
+        sp_521_proj_point_dbl_9(&t[14], &t[ 7], tmp);
+        sp_521_proj_point_add_sub_9(&t[15], &t[13], &t[14], &t[ 1], tmp);
+        sp_521_proj_point_dbl_9(&t[18], &t[ 9], tmp);
+        sp_521_proj_point_add_sub_9(&t[19], &t[17], &t[18], &t[ 1], tmp);
+        sp_521_proj_point_dbl_9(&t[20], &t[10], tmp);
+        sp_521_proj_point_dbl_9(&t[22], &t[11], tmp);
+        sp_521_proj_point_add_sub_9(&t[23], &t[21], &t[22], &t[ 1], tmp);
+        sp_521_proj_point_dbl_9(&t[24], &t[12], tmp);
+        sp_521_proj_point_dbl_9(&t[26], &t[13], tmp);
+        sp_521_proj_point_add_sub_9(&t[27], &t[25], &t[26], &t[ 1], tmp);
+        sp_521_proj_point_dbl_9(&t[28], &t[14], tmp);
+        sp_521_proj_point_dbl_9(&t[30], &t[15], tmp);
+        sp_521_proj_point_add_sub_9(&t[31], &t[29], &t[30], &t[ 1], tmp);
+
+        negy = t[0].y;
+
+        sp_521_ecc_recode_6_9(k, v);
+
+        i = 86;
+    #ifndef WC_NO_CACHE_RESISTANT
+        if (ct) {
+            sp_521_get_point_33_9(rt, t, v[i].i);
+            rt->infinity = !v[i].i;
+        }
+        else
+    #endif
+        {
+            XMEMCPY(rt, &t[v[i].i], sizeof(sp_point_521));
+        }
+        for (--i; i>=0; i--) {
+            sp_521_proj_point_dbl_n_9(rt, 6, tmp);
+
+        #ifndef WC_NO_CACHE_RESISTANT
+            if (ct) {
+                sp_521_get_point_33_9(p, t, v[i].i);
+                p->infinity = !v[i].i;
+            }
+            else
+        #endif
+            {
+                XMEMCPY(p, &t[v[i].i], sizeof(sp_point_521));
+            }
+            sp_521_sub_9(negy, p521_mod, p->y);
+            sp_521_norm_9(negy);
+            sp_521_cond_copy_9(p->y, negy, (sp_digit)0 - v[i].neg);
+            sp_521_proj_point_add_9(rt, rt, p, tmp);
+        }
+
+        if (map != 0) {
+            sp_521_map_9(r, rt, tmp);
+        }
+        else {
+            XMEMCPY(r, rt, sizeof(sp_point_521));
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+    if (tmp != NULL)
+        XFREE(tmp, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+#ifdef FP_ECC
+#endif /* FP_ECC */
+/* Add two Montgomery form projective points. The second point has a q value of
+ * one.
+ * Only the first point can be the same pointer as the result point.
+ *
+ * r  Result of addition.
+ * p  First point to add.
+ * q  Second point to add.
+ * t  Temporary ordinate data.
+ */
+static void sp_521_proj_point_add_qz1_9(sp_point_521* r, const sp_point_521* p,
+        const sp_point_521* q, sp_digit* t)
+{
+    const sp_point_521* ap[2];
+    sp_point_521* rp[2];
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2*9;
+    sp_digit* t3 = t + 4*9;
+    sp_digit* t4 = t + 6*9;
+    sp_digit* t5 = t + 8*9;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+    int i;
+
+    /* Check double */
+    (void)sp_521_sub_9(t1, p521_mod, q->y);
+    sp_521_norm_9(t1);
+    if ((sp_521_cmp_equal_9(p->x, q->x) & sp_521_cmp_equal_9(p->z, q->z) &
+        (sp_521_cmp_equal_9(p->y, q->y) | sp_521_cmp_equal_9(p->y, t1))) != 0) {
+        sp_521_proj_point_dbl_9(r, p, t);
+    }
+    else {
+        rp[0] = r;
+
+        /*lint allow cast to different type of pointer*/
+        rp[1] = (sp_point_521*)t; /*lint !e9087 !e740*/
+        XMEMSET(rp[1], 0, sizeof(sp_point_521));
+        x = rp[p->infinity | q->infinity]->x;
+        y = rp[p->infinity | q->infinity]->y;
+        z = rp[p->infinity | q->infinity]->z;
+
+        ap[0] = p;
+        ap[1] = q;
+        for (i=0; i<9; i++) {
+            r->x[i] = ap[p->infinity]->x[i];
+        }
+        for (i=0; i<9; i++) {
+            r->y[i] = ap[p->infinity]->y[i];
+        }
+        for (i=0; i<9; i++) {
+            r->z[i] = ap[p->infinity]->z[i];
+        }
+        r->infinity = ap[p->infinity]->infinity;
+
+        /* U2 = X2*Z1^2 */
+        sp_521_mont_sqr_9(t2, z, p521_mod, p521_mp_mod);
+        sp_521_mont_mul_9(t4, t2, z, p521_mod, p521_mp_mod);
+        sp_521_mont_mul_9(t2, t2, q->x, p521_mod, p521_mp_mod);
+        /* S2 = Y2*Z1^3 */
+        sp_521_mont_mul_9(t4, t4, q->y, p521_mod, p521_mp_mod);
+        /* H = U2 - X1 */
+        sp_521_mont_sub_9(t2, t2, x, p521_mod);
+        /* R = S2 - Y1 */
+        sp_521_mont_sub_9(t4, t4, y, p521_mod);
+        /* Z3 = H*Z1 */
+        sp_521_mont_mul_9(z, z, t2, p521_mod, p521_mp_mod);
+        /* X3 = R^2 - H^3 - 2*X1*H^2 */
+        sp_521_mont_sqr_9(t1, t4, p521_mod, p521_mp_mod);
+        sp_521_mont_sqr_9(t5, t2, p521_mod, p521_mp_mod);
+        sp_521_mont_mul_9(t3, x, t5, p521_mod, p521_mp_mod);
+        sp_521_mont_mul_9(t5, t5, t2, p521_mod, p521_mp_mod);
+        sp_521_mont_sub_9(x, t1, t5, p521_mod);
+        sp_521_mont_dbl_9(t1, t3, p521_mod);
+        sp_521_mont_sub_9(x, x, t1, p521_mod);
+        /* Y3 = R*(X1*H^2 - X3) - Y1*H^3 */
+        sp_521_mont_sub_9(t3, t3, x, p521_mod);
+        sp_521_mont_mul_9(t3, t3, t4, p521_mod, p521_mp_mod);
+        sp_521_mont_mul_9(t5, t5, y, p521_mod, p521_mp_mod);
+        sp_521_mont_sub_9(y, t3, t5, p521_mod);
+    }
+}
+
+#ifdef FP_ECC
+/* Convert the projective point to affine.
+ * Ordinates are in Montgomery form.
+ *
+ * a  Point to convert.
+ * t  Temporary data.
+ */
+static void sp_521_proj_to_affine_9(sp_point_521* a, sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2 * 9;
+    sp_digit* tmp = t + 4 * 9;
+
+    sp_521_mont_inv_9(t1, a->z, tmp);
+
+    sp_521_mont_sqr_9(t2, t1, p521_mod, p521_mp_mod);
+    sp_521_mont_mul_9(t1, t2, t1, p521_mod, p521_mp_mod);
+
+    sp_521_mont_mul_9(a->x, a->x, t2, p521_mod, p521_mp_mod);
+    sp_521_mont_mul_9(a->y, a->y, t1, p521_mod, p521_mp_mod);
+    XMEMCPY(a->z, p521_norm_mod, sizeof(p521_norm_mod));
+}
+
+/* Generate the pre-computed table of points for the base point.
+ *
+ * width = 8
+ * 256 entries
+ * 65 bits between
+ *
+ * a      The base point.
+ * table  Place to store generated point data.
+ * tmp    Temporary data.
+ * heap  Heap to use for allocation.
+ */
+static int sp_521_gen_stripe_table_9(const sp_point_521* a,
+        sp_table_entry_521* table, sp_digit* tmp, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_521* t = NULL;
+#else
+    sp_point_521 t[3];
+#endif
+    sp_point_521* s1 = NULL;
+    sp_point_521* s2 = NULL;
+    int i;
+    int j;
+    int err = MP_OKAY;
+
+    (void)heap;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_point_521*)XMALLOC(sizeof(sp_point_521) * 3, heap,
+                                     DYNAMIC_TYPE_ECC);
+    if (t == NULL)
+        err = MEMORY_E;
+#endif
+
+    if (err == MP_OKAY) {
+        s1 = t + 1;
+        s2 = t + 2;
+
+        err = sp_521_mod_mul_norm_9(t->x, a->x, p521_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_mod_mul_norm_9(t->y, a->y, p521_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_mod_mul_norm_9(t->z, a->z, p521_mod);
+    }
+    if (err == MP_OKAY) {
+        t->infinity = 0;
+        sp_521_proj_to_affine_9(t, tmp);
+
+        XMEMCPY(s1->z, p521_norm_mod, sizeof(p521_norm_mod));
+        s1->infinity = 0;
+        XMEMCPY(s2->z, p521_norm_mod, sizeof(p521_norm_mod));
+        s2->infinity = 0;
+
+        /* table[0] = {0, 0, infinity} */
+        XMEMSET(&table[0], 0, sizeof(sp_table_entry_521));
+        /* table[1] = Affine version of 'a' in Montgomery form */
+        XMEMCPY(table[1].x, t->x, sizeof(table->x));
+        XMEMCPY(table[1].y, t->y, sizeof(table->y));
+
+        for (i=1; i<8; i++) {
+            sp_521_proj_point_dbl_n_9(t, 66, tmp);
+            sp_521_proj_to_affine_9(t, tmp);
+            XMEMCPY(table[1<<i].x, t->x, sizeof(table->x));
+            XMEMCPY(table[1<<i].y, t->y, sizeof(table->y));
+        }
+
+        for (i=1; i<8; i++) {
+            XMEMCPY(s1->x, table[1<<i].x, sizeof(table->x));
+            XMEMCPY(s1->y, table[1<<i].y, sizeof(table->y));
+            for (j=(1<<i)+1; j<(1<<(i+1)); j++) {
+                XMEMCPY(s2->x, table[j-(1<<i)].x, sizeof(table->x));
+                XMEMCPY(s2->y, table[j-(1<<i)].y, sizeof(table->y));
+                sp_521_proj_point_add_qz1_9(t, s1, s2, tmp);
+                sp_521_proj_to_affine_9(t, tmp);
+                XMEMCPY(table[j].x, t->x, sizeof(table->x));
+                XMEMCPY(table[j].y, t->y, sizeof(table->y));
+            }
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+#endif /* FP_ECC */
+#ifndef WC_NO_CACHE_RESISTANT
+/* Touch each possible entry that could be being copied.
+ *
+ * r      Point to copy into.
+ * table  Table - start of the entires to access
+ * idx    Index of entry to retrieve.
+ */
+static void sp_521_get_entry_256_9(sp_point_521* r,
+    const sp_table_entry_521* table, int idx)
+{
+    int i;
+    sp_digit mask;
+
+    r->x[0] = 0;
+    r->x[1] = 0;
+    r->x[2] = 0;
+    r->x[3] = 0;
+    r->x[4] = 0;
+    r->x[5] = 0;
+    r->x[6] = 0;
+    r->x[7] = 0;
+    r->x[8] = 0;
+    r->y[0] = 0;
+    r->y[1] = 0;
+    r->y[2] = 0;
+    r->y[3] = 0;
+    r->y[4] = 0;
+    r->y[5] = 0;
+    r->y[6] = 0;
+    r->y[7] = 0;
+    r->y[8] = 0;
+    for (i = 1; i < 256; i++) {
+        mask = 0 - (i == idx);
+        r->x[0] |= mask & table[i].x[0];
+        r->x[1] |= mask & table[i].x[1];
+        r->x[2] |= mask & table[i].x[2];
+        r->x[3] |= mask & table[i].x[3];
+        r->x[4] |= mask & table[i].x[4];
+        r->x[5] |= mask & table[i].x[5];
+        r->x[6] |= mask & table[i].x[6];
+        r->x[7] |= mask & table[i].x[7];
+        r->x[8] |= mask & table[i].x[8];
+        r->y[0] |= mask & table[i].y[0];
+        r->y[1] |= mask & table[i].y[1];
+        r->y[2] |= mask & table[i].y[2];
+        r->y[3] |= mask & table[i].y[3];
+        r->y[4] |= mask & table[i].y[4];
+        r->y[5] |= mask & table[i].y[5];
+        r->y[6] |= mask & table[i].y[6];
+        r->y[7] |= mask & table[i].y[7];
+        r->y[8] |= mask & table[i].y[8];
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^65, ...
+ * Pre-generated: products of all combinations of above.
+ * 8 doubles and adds (with qz=1)
+ *
+ * r      Resulting point.
+ * k      Scalar to multiply by.
+ * table  Pre-computed table.
+ * map    Indicates whether to convert result to affine.
+ * ct     Constant time required.
+ * heap   Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_521_ecc_mulmod_stripe_9(sp_point_521* r, const sp_point_521* g,
+        const sp_table_entry_521* table, const sp_digit* k, int map,
+        int ct, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_521* rt = NULL;
+    sp_digit* t = NULL;
+#else
+    sp_point_521 rt[2];
+    sp_digit t[2 * 9 * 5];
+#endif
+    sp_point_521* p = NULL;
+    int i;
+    int j;
+    int y;
+    int x;
+    int err = MP_OKAY;
+
+    (void)g;
+    /* Constant time used for cache attack resistance implementation. */
+    (void)ct;
+    (void)heap;
+
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    rt = (sp_point_521*)XMALLOC(sizeof(sp_point_521) * 2, heap,
+                                      DYNAMIC_TYPE_ECC);
+    if (rt == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 9 * 5, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (t == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        p = rt + 1;
+
+        XMEMCPY(p->z, p521_norm_mod, sizeof(p521_norm_mod));
+        XMEMCPY(rt->z, p521_norm_mod, sizeof(p521_norm_mod));
+
+        y = 0;
+        x = 65;
+        for (j=0; j<8 && x<521; j++) {
+            y |= (int)(((k[x / 58] >> (x % 58)) & 1) << j);
+            x += 66;
+        }
+    #ifndef WC_NO_CACHE_RESISTANT
+        if (ct) {
+            sp_521_get_entry_256_9(rt, table, y);
+        } else
+    #endif
+        {
+            XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
+            XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+        }
+        rt->infinity = !y;
+        for (i=64; i>=0; i--) {
+            y = 0;
+            x = i;
+            for (j=0; j<8 && x<521; j++) {
+                y |= (int)(((k[x / 58] >> (x % 58)) & 1) << j);
+                x += 66;
+            }
+
+            sp_521_proj_point_dbl_9(rt, rt, t);
+        #ifndef WC_NO_CACHE_RESISTANT
+            if (ct) {
+                sp_521_get_entry_256_9(p, table, y);
+            }
+            else
+        #endif
+            {
+                XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
+                XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+            }
+            p->infinity = !y;
+            sp_521_proj_point_add_qz1_9(rt, rt, p, t);
+        }
+
+        if (map != 0) {
+            sp_521_map_9(r, rt, t);
+        }
+        else {
+            XMEMCPY(r, rt, sizeof(sp_point_521));
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+    if (rt != NULL)
+        XFREE(rt, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+#ifdef FP_ECC
+#ifndef FP_ENTRIES
+    #define FP_ENTRIES 16
+#endif
+
+/* Cache entry - holds precomputation tables for a point. */
+typedef struct sp_cache_521_t {
+    /* X ordinate of point that table was generated from. */
+    sp_digit x[9];
+    /* Y ordinate of point that table was generated from. */
+    sp_digit y[9];
+    /* Precomputation table for point. */
+    sp_table_entry_521 table[256];
+    /* Count of entries in table. */
+    uint32_t cnt;
+    /* Point and table set in entry. */
+    int set;
+} sp_cache_521_t;
+
+/* Cache of tables. */
+static THREAD_LS_T sp_cache_521_t sp_cache_521[FP_ENTRIES];
+/* Index of last entry in cache. */
+static THREAD_LS_T int sp_cache_521_last = -1;
+/* Cache has been initialized. */
+static THREAD_LS_T int sp_cache_521_inited = 0;
+
+#ifndef HAVE_THREAD_LS
+    static volatile int initCacheMutex_521 = 0;
+    static wolfSSL_Mutex sp_cache_521_lock;
+#endif
+
+/* Get the cache entry for the point.
+ *
+ * g      [in]   Point scalar multipling.
+ * cache  [out]  Cache table to use.
+ */
+static void sp_ecc_get_cache_521(const sp_point_521* g, sp_cache_521_t** cache)
+{
+    int i;
+    int j;
+    uint32_t least;
+
+    if (sp_cache_521_inited == 0) {
+        for (i=0; i<FP_ENTRIES; i++) {
+            sp_cache_521[i].set = 0;
+        }
+        sp_cache_521_inited = 1;
+    }
+
+    /* Compare point with those in cache. */
+    for (i=0; i<FP_ENTRIES; i++) {
+        if (!sp_cache_521[i].set)
+            continue;
+
+        if (sp_521_cmp_equal_9(g->x, sp_cache_521[i].x) &
+                           sp_521_cmp_equal_9(g->y, sp_cache_521[i].y)) {
+            sp_cache_521[i].cnt++;
+            break;
+        }
+    }
+
+    /* No match. */
+    if (i == FP_ENTRIES) {
+        /* Find empty entry. */
+        i = (sp_cache_521_last + 1) % FP_ENTRIES;
+        for (; i != sp_cache_521_last; i=(i+1)%FP_ENTRIES) {
+            if (!sp_cache_521[i].set) {
+                break;
+            }
+        }
+
+        /* Evict least used. */
+        if (i == sp_cache_521_last) {
+            least = sp_cache_521[0].cnt;
+            for (j=1; j<FP_ENTRIES; j++) {
+                if (sp_cache_521[j].cnt < least) {
+                    i = j;
+                    least = sp_cache_521[i].cnt;
+                }
+            }
+        }
+
+        XMEMCPY(sp_cache_521[i].x, g->x, sizeof(sp_cache_521[i].x));
+        XMEMCPY(sp_cache_521[i].y, g->y, sizeof(sp_cache_521[i].y));
+        sp_cache_521[i].set = 1;
+        sp_cache_521[i].cnt = 1;
+    }
+
+    *cache = &sp_cache_521[i];
+    sp_cache_521_last = i;
+}
+#endif /* FP_ECC */
+
+/* Multiply the base point of P521 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * r     Resulting point.
+ * g     Point to multiply.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_521_ecc_mulmod_9(sp_point_521* r, const sp_point_521* g, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+#ifndef FP_ECC
+    return sp_521_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
+#else
+    sp_digit tmp[2 * 9 * 6];
+    sp_cache_521_t* cache;
+    int err = MP_OKAY;
+
+#ifndef HAVE_THREAD_LS
+    if (initCacheMutex_521 == 0) {
+         wc_InitMutex(&sp_cache_521_lock);
+         initCacheMutex_521 = 1;
+    }
+    if (wc_LockMutex(&sp_cache_521_lock) != 0)
+       err = BAD_MUTEX_E;
+#endif /* HAVE_THREAD_LS */
+
+    if (err == MP_OKAY) {
+        sp_ecc_get_cache_521(g, &cache);
+        if (cache->cnt == 2)
+            sp_521_gen_stripe_table_9(g, cache->table, tmp, heap);
+
+#ifndef HAVE_THREAD_LS
+        wc_UnLockMutex(&sp_cache_521_lock);
+#endif /* HAVE_THREAD_LS */
+
+        if (cache->cnt < 2) {
+            err = sp_521_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
+        }
+        else {
+            err = sp_521_ecc_mulmod_stripe_9(r, g, cache->table, k,
+                    map, ct, heap);
+        }
+    }
+
+    return err;
+#endif
+}
+
+#endif
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * km    Scalar to multiply by.
+ * p     Point to multiply.
+ * r     Resulting point.
+ * map   Indicates whether to convert result to affine.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_mulmod_521(const mp_int* km, const ecc_point* gm, ecc_point* r,
+        int map, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_521* point = NULL;
+    sp_digit* k = NULL;
+#else
+    sp_point_521 point[1];
+    sp_digit k[9];
+#endif
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_521*)XMALLOC(sizeof(sp_point_521), heap,
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 9, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (k == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        sp_521_from_mp(k, 9, km);
+        sp_521_point_from_ecc_point_9(point, gm);
+
+            err = sp_521_ecc_mulmod_9(point, point, k, map, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_point_to_ecc_point_9(point, r);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Multiply the point by the scalar, add point a and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * km      Scalar to multiply by.
+ * p       Point to multiply.
+ * am      Point to add to scalar mulitply result.
+ * inMont  Point to add is in montgomery form.
+ * r       Resulting point.
+ * map     Indicates whether to convert result to affine.
+ * heap    Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_mulmod_add_521(const mp_int* km, const ecc_point* gm,
+    const ecc_point* am, int inMont, ecc_point* r, int map, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_521* point = NULL;    
+    sp_digit* k = NULL;
+#else
+    sp_point_521 point[2];
+    sp_digit k[9 + 9 * 2 * 5];
+#endif
+    sp_point_521* addP = NULL;
+    sp_digit* tmp = NULL;
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_521*)XMALLOC(sizeof(sp_point_521) * 2, heap,
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(
+            sizeof(sp_digit) * (9 + 9 * 2 * 5), heap,
+            DYNAMIC_TYPE_ECC);
+        if (k == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        addP = point + 1;
+        tmp = k + 9;
+
+        sp_521_from_mp(k, 9, km);
+        sp_521_point_from_ecc_point_9(point, gm);
+        sp_521_point_from_ecc_point_9(addP, am);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_521_mod_mul_norm_9(addP->x, addP->x, p521_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_521_mod_mul_norm_9(addP->y, addP->y, p521_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_521_mod_mul_norm_9(addP->z, addP->z, p521_mod);
+    }
+    if (err == MP_OKAY) {
+            err = sp_521_ecc_mulmod_9(point, point, k, 0, 0, heap);
+    }
+    if (err == MP_OKAY) {
+            sp_521_proj_point_add_9(point, point, addP, tmp);
+
+        if (map) {
+                sp_521_map_9(point, point, tmp);
+        }
+
+        err = sp_521_point_to_ecc_point_9(point, r);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+#ifdef WOLFSSL_SP_SMALL
+/* Multiply the base point of P521 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * r     Resulting point.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_521_ecc_mulmod_base_9(sp_point_521* r, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+    /* No pre-computed values. */
+    return sp_521_ecc_mulmod_9(r, &p521_base, k, map, ct, heap);
+}
+
+#else
+/* Striping precomputation table.
+ * 8 points combined into a table of 256 points.
+ * Distance of 66 between points.
+ */
+static const sp_table_entry_521 p521_table[256] = {
+    /* 0 */
+    { { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } },
+    /* 1 */
+    { { 0x17e7e31c2e5bd66L,0x22cf0615a90a6feL,0x0127a2ffa8de334L,
+        0x1dfbf9d64a3f877L,0x06b4d3dbaa14b5eL,0x14fed487e0a2bd8L,
+        0x15b4429c6481390L,0x3a73678fb2d988eL,0x0c6858e06b70404L },
+      { 0x0be94769fd16650L,0x31c21a89cb09022L,0x39013fad0761353L,
+        0x2657bd099031542L,0x3273e662c97ee72L,0x1e6d11a05ebef45L,
+        0x3d1bd998f544495L,0x3001172297ed0b1L,0x11839296a789a3bL } },
+    /* 2 */
+    { { 0x03986670f0ccb51L,0x387404d9525d2a0L,0x0f21b2b29ed9b87L,
+        0x2aa8eb74cddfd63L,0x0e9d08ffb06c0e9L,0x19d8589fc4ecd74L,
+        0x0a3ef4dd8bf44c9L,0x0eb6e92863051d6L,0x13e96a576dda004L },
+      { 0x3de24f8632d95a3L,0x057bc5314920a4aL,0x063e9bdaba1979fL,
+        0x3d2a58adc1eab76L,0x214258d98dde053L,0x18708d7316628b7L,
+        0x3fd32c9fa5a19d0L,0x33ab03b519443a3L,0x1852aea9dd1ef78L } },
+    /* 3 */
+    { { 0x0a91dd8eaaf1fe3L,0x0e19891002d4af4L,0x06a921abf0d20dbL,
+        0x26a9da32503fda8L,0x09a1eec37941287L,0x1ce0d0f3cde46afL,
+        0x22abc1c913fbe62L,0x3cc4dca2d0aaf88L,0x157874c0a862b9eL },
+      { 0x2c8f184e6f03d49L,0x0d5f907922f80c2L,0x1ef3815cbdefa9cL,
+        0x2ad7f6370f00b39L,0x1faeb109d7a41c7L,0x213d34e12fbd9f2L,
+        0x2f0aae2f98cca1aL,0x25a2df80f51f59cL,0x00724b1ab581d58L } },
+    /* 4 */
+    { { 0x04f2d4bdf9314e0L,0x3a14379e802ab24L,0x1083582efb03daaL,
+        0x20fb1ff9b49e48cL,0x2199d74a880f1c2L,0x25401f9cb56ce65L,
+        0x33f03e5f120b9b3L,0x2da18c348ddcd1dL,0x121f4c192733b78L },
+      { 0x103ff6dfa8b51f0L,0x2bed45038af7c3cL,0x380e83254171ae7L,
+        0x2e33684365444c0L,0x24f3a8c01e83501L,0x3201c1a4415ddc7L,
+        0x2238218f52196aaL,0x29fc4d826c2aa95L,0x1db8c25790694a0L } },
+    /* 5 */
+    { { 0x00370ccb2c0958dL,0x3bc599a69ece1ccL,0x33cf480c9b3889aL,
+        0x3cbeacf85249e4bL,0x2507489670b2984L,0x34cf6caa5d4790dL,
+        0x0a4daa9cab99d5aL,0x1cc95365174cad1L,0x00aa26cca5216c7L },
+      { 0x1be1d41f9e66d18L,0x3bbe5aa845f9eb3L,0x14a2ddb0d24b80aL,
+        0x09d7262defc14c8L,0x2dfd3c8486dcfb2L,0x329354b184f9d0dL,
+        0x151e646e703fa13L,0x149f43238a5dc61L,0x1c6f5e90eacbfa8L } },
+    /* 6 */
+    { { 0x2c2f1e74ab2d58fL,0x2fe0b0a825e00a8L,0x2b24770bb76ac1bL,
+        0x3b5599fdef5960fL,0x2fd96897e8e4ed9L,0x3ef83c576300761L,
+        0x1cdcb166395a133L,0x3ac954793ce7766L,0x082de08424a720dL },
+      { 0x3aa53b260ea91afL,0x212bdde8c77f765L,0x32395cd09bbea43L,
+        0x36bcc016387360bL,0x2e5c78e97997c19L,0x1d6c611510ed831L,
+        0x02ce16faae9b5f5L,0x3ea1973a1bccc23L,0x073983ce58f4f63L } },
+    /* 7 */
+    { { 0x2e931318217609dL,0x2a7750904bf002bL,0x264c286c63297f8L,
+        0x359efc7197b845fL,0x38d03eee5cc3782L,0x2ae4de67a305136L,
+        0x3784c701acacb29L,0x3361c857ac6d6c1L,0x0f82c409fa81affL },
+      { 0x07d3766378139a4L,0x25a7aed56faa4c0L,0x0d6f68c8bc9dc6dL,
+        0x1857e4fc90b1f18L,0x2741717d9844e84L,0x02fc483a118728aL,
+        0x1699d78e930e79fL,0x2db7b85552809adL,0x07de69c77026a4fL } },
+    /* 8 */
+    { { 0x1b51bb04bee80d7L,0x3da87dda4b79a58L,0x246ca0ebc3bd0e1L,
+        0x29e4c1913c20de7L,0x3390db0771c0bffL,0x2b6873a65f19ee1L,
+        0x14b512095c33e1fL,0x21958f1402b76b1L,0x0b0c231d360d311L },
+      { 0x228929839bcab2fL,0x019e01937488281L,0x2084763dc2a0c0cL,
+        0x1cc64e30f8c18bdL,0x152e46eb988e9daL,0x297783f5a6fa3cbL,
+        0x2c0e26e55c8d2d6L,0x3fd5fce8ff58f6cL,0x14a899c6d9f1e4bL } },
+    /* 9 */
+    { { 0x3f6e3a1ec05ce88L,0x30925adabf480a7L,0x20776fbeb007f8fL,
+        0x2f7baf7b5002e74L,0x2693700f7b50ec0L,0x3dec0c3abbe5dd0L,
+        0x101f77806e37a13L,0x2b83d73c5f45c6eL,0x1599036e5dfca95L },
+      { 0x0af64b5000e8e0cL,0x0ab8101bed37e40L,0x1a67449f23bad3fL,
+        0x108956c96a57d87L,0x28e33c6500ca918L,0x0b009f07e9abcf9L,
+        0x2840a514373c00cL,0x1090267cf36865cL,0x0e798c62b79d0e8L } },
+    /* 10 */
+    { { 0x0c7c4a8ae4d0f28L,0x2957bd59b401bbaL,0x1f65066e40233a8L,
+        0x2d574c86dd8de61L,0x2b8351b078deccaL,0x1f5522ace2e59b5L,
+        0x31ab0b2e889e535L,0x14dedea7a38bf98L,0x05945c60f95e75cL },
+      { 0x0a27d347867d79cL,0x182c5607206602fL,0x19ab976b8c517f4L,
+        0x21986e47b65fb0bL,0x1d9c1d15ffcd044L,0x253276e5cc29e89L,
+        0x2c5a3b8a2cf259fL,0x0c7ba39e12e1d77L,0x004062526073e51L } },
+    /* 11 */
+    { { 0x2e04e5cf1631bbaL,0x1b077c55bd14937L,0x3f30e4c3099040eL,
+        0x10dadaafb1c1980L,0x0f6b94f6edb649aL,0x1adf82d4d53d427L,
+        0x1e6dd27fecf4693L,0x1432a9e9c41fae8L,0x022889edac56894L },
+      { 0x012916ed05596f2L,0x0076b2c08f2e2e4L,0x13ece7d4abe1e39L,
+        0x102a7240c4c9407L,0x1c6d146d0b28150L,0x13b8625a76f34fcL,
+        0x1226fb6fa1d5b17L,0x0261126ba8586a4L,0x154754ceedfb8a8L } },
+    /* 12 */
+    { { 0x24e27b04270b2f0L,0x0d3922fd35d35edL,0x3e8b0c2722ba84bL,
+        0x2767fe6dc72c61aL,0x334fd6bc4f54a58L,0x104bd276621f937L,
+        0x389d16b7c669fd7L,0x381d1002366eddfL,0x1cfafb9426bc902L },
+      { 0x0a4f2d1662935caL,0x1f1c0e65f7311b3L,0x29e5353c79f8284L,
+        0x2254857c3d30227L,0x080911b9d9ed8d9L,0x3789ea8d673c22fL,
+        0x1e320d4b03540e6L,0x064ed4bd358fbdaL,0x0e6a0217fd694efL } },
+    /* 13 */
+    { { 0x37de62774214780L,0x19a05c81d167aadL,0x39b7e9c7fb01ca0L,
+        0x3075b52df1fde15L,0x0a66caa39e55548L,0x2141693d15d5864L,
+        0x0864ebf8141b039L,0x274fe972835f132L,0x053bf8af9509e12L },
+      { 0x09b29d885285092L,0x0c76aa3bb5797efL,0x290ef618aab982fL,
+        0x3d34989bb4670cdL,0x307ed8e090eee14L,0x1cdb410108a55c2L,
+        0x27d01d1977920e8L,0x2dced1fb897ffb7L,0x1b93c921c3abc7aL } },
+    /* 14 */
+    { { 0x36a07cca08b2b14L,0x1e37aefc5d31fc2L,0x3828c40cb2a4aa9L,
+        0x1ca42b720e0a472L,0x28c1edde695c782L,0x03ef4880236a2caL,
+        0x2db94e741ceb2f9L,0x152397e272794c8L,0x07d18266085b73cL },
+      { 0x1ebf82a2defd012L,0x32c2516854dfbdaL,0x35353ef0811d01eL,
+        0x29ecaf537a8f155L,0x27bf969c859c882L,0x2c96b46c0287e5cL,
+        0x136005063adf5e0L,0x3f861307fcc1bc9L,0x1178e515bec4112L } },
+    /* 15 */
+    { { 0x314787fefe3d3d5L,0x1dbd967625c89e4L,0x3ed1e0b6acf529eL,
+        0x080717a3764571dL,0x15f5667af9c2b7bL,0x0d5dbbd1e200e3cL,
+        0x00154af38c766ffL,0x0ed4e7c188f2001L,0x09647d3c44bde88L },
+      { 0x2075638de1b21a4L,0x0e67055c420704cL,0x206775c03599bb6L,
+        0x1feb79833d4c8b9L,0x0efc190595c7fdeL,0x35ece5806c65510L,
+        0x2fa73e7e70ac8cdL,0x01d912a96a0f5a9L,0x04234f8cfac6308L } },
+    /* 16 */
+    { { 0x231e71a286492adL,0x0f791197e1ab13bL,0x00d4da713cb408fL,
+        0x3a6a1adc413a25cL,0x32572c1617ad0f5L,0x173072676698b93L,
+        0x162e0c77d223ef2L,0x2c817b7fda584eeL,0x08e818d28f381d8L },
+      { 0x21231cf8cdf1f60L,0x103cad9c5dd83dcL,0x2f8ce045a4038b6L,
+        0x3700dc1a27ef9c9L,0x372ea0dcb422285L,0x2021988dc65afe3L,
+        0x26fe48a16f7855cL,0x2fd1353867f1f0cL,0x13efdbc856e8f68L } },
+    /* 17 */
+    { { 0x234d04fe6a3ace5L,0x2d80fa258647077L,0x0007f75ed0f40dbL,
+        0x2f256c966d6d370L,0x22615f02015e0e6L,0x0c7a8fe37ef2e99L,
+        0x3ff824b2ec5433dL,0x0ccb90ac2c39040L,0x11119315060c480L },
+      { 0x197ea28045452f1L,0x19e33dc7cfdcee6L,0x3ddc41e9328e80bL,
+        0x1bb9abc708d294aL,0x1b44215e7b7f265L,0x02900a2f10e016eL,
+        0x2476e23aa734f2fL,0x033df8f1c91e508L,0x1f16dc2e8b068c6L } },
+    /* 18 */
+    { { 0x0dfae6ffffc0de5L,0x06053ead297c92fL,0x3658ea2aa8dda80L,
+        0x3d7693c11046404L,0x334100611f3b1caL,0x1b833e23c92e736L,
+        0x055c8248c324ed9L,0x0b8a52dfa8cd08cL,0x1d36e835b648909L },
+      { 0x2b77ae707372f27L,0x26d3ea0eeb8669fL,0x1ae165429ebb477L,
+        0x19bf00fbcfe85d7L,0x16991c7c4942ec2L,0x1894f4f0397f1aaL,
+        0x34e738a0f61e4f5L,0x3a465e847fd6379L,0x00260524cd4624dL } },
+    /* 19 */
+    { { 0x1b5d0ca01342e08L,0x3b53c2dd27c2bd1L,0x02d96529d804509L,
+        0x36db600d673ad54L,0x34c3848005eb087L,0x1d6a1e13aa99aa1L,
+        0x34317ee972c7a0cL,0x3efd2305a7885a1L,0x14f81c556e0e5c9L },
+      { 0x2b0b12be120674dL,0x3c26e4867c02b09L,0x332dd658caa6c6bL,
+        0x2be0a4b66787879L,0x125fdbf80c771c5L,0x199b0df57604d4aL,
+        0x0df680e61bd7983L,0x0260e36b251a874L,0x09f58dcf684c39fL } },
+    /* 20 */
+    { { 0x01691027b7dc837L,0x065d52d43ac7105L,0x092ad7e6741b2d7L,
+        0x076f20928e013d0L,0x2c8e20bcf1d0a7fL,0x286076c15c2c815L,
+        0x3b508a6732e3b9dL,0x01249e2018db829L,0x04511af502cc9f7L },
+      { 0x3820d94c56f4ffaL,0x08168b13c303e82L,0x3d4ea1a0606a1c6L,
+        0x199e6cc5bee67ccL,0x2e4f240fc1bab64L,0x0b5f710c16a8214L,
+        0x23c07322539b789L,0x198cc0d95fc481bL,0x05928405280cedbL } },
+    /* 21 */
+    { { 0x0d087114397760cL,0x082dd8727f341a4L,0x07fa987e24f7b90L,
+        0x281488cd6831ffbL,0x1ae21ca100e33b8L,0x2c0c8881cf6fabfL,
+        0x145da6458c060a3L,0x18bbe6e71cee3b8L,0x0aa31c661e527ffL },
+      { 0x3518eb081430b5eL,0x3e73a943b835a6bL,0x30b5aa6ebe8bb32L,
+        0x3ca7f875a243b36L,0x31a59cc9a1f15f7L,0x22aca98f3975a3cL,
+        0x07ce54f4d679940L,0x01ddba16c73bd0dL,0x1768ff423c0286dL } },
+    /* 22 */
+    { { 0x164104c33dcec23L,0x03586f3741d4661L,0x2f514c4f309abafL,
+        0x3d779221c5521b6L,0x1d3539ba3f01bc8L,0x28efa3b3775aebcL,
+        0x1d865fbb7e665d3L,0x12683e4676b0f2dL,0x173fe203da3f121L },
+      { 0x03ae9a178d4a3d1L,0x173d62194c5b601L,0x26c041176463a4dL,
+        0x23fe12be913abc0L,0x3ffea422d316c63L,0x188ad84d44bc8e5L,
+        0x27068d691eaa046L,0x2ccf12215ba8e5fL,0x1b542d1b2e3f4a1L } },
+    /* 23 */
+    { { 0x11b2d5e1f487402L,0x005b99eabc7757dL,0x31f56da9c20ae36L,
+        0x187b3916ff47acfL,0x3027a9e1825b7d3L,0x210459250b6c18cL,
+        0x0773d0bf228777eL,0x297c3d7f3831116L,0x01fb2b3151d2dd7L },
+      { 0x02773e8fbaa096aL,0x1c9baf824ea1e04L,0x0d072c7f1781152L,
+        0x342ad7729d9714fL,0x187ef2d4a38d3dfL,0x1fac470aed29f61L,
+        0x2da22f5c9c2013bL,0x3b2b578d4f0d02dL,0x039846d50a5a325L } },
+    /* 24 */
+    { { 0x2da77361677df58L,0x2f559c72d435b1dL,0x07d70a080ff2364L,
+        0x0a6194c90c0110fL,0x2c35101e7a0a854L,0x231735da0800b74L,
+        0x2cf13fbebc61434L,0x23703fc5646bb29L,0x0fb91c7c2e698bfL },
+      { 0x27c5cad12de14d5L,0x12317d95872089aL,0x24307cdbb3dabc4L,
+        0x0471da0475e7e37L,0x2754620499c58f0L,0x269d39247a2601bL,
+        0x3e37c3e52ad0a2cL,0x31cb480d1a172caL,0x0ec7a8632450a0bL } },
+    /* 25 */
+    { { 0x3818c218a86786eL,0x0dfdd084df8b20cL,0x10d1a7e6eb20ed5L,
+        0x1c17371200d765aL,0x024f7bd759790ecL,0x387c3c511a458b2L,
+        0x1915ca09e7ef9d4L,0x089bf4c304a2f3aL,0x02d810145f66c71L },
+      { 0x12749f5b71d87e5L,0x0ec505ec0b3b68cL,0x2d2ee0baff1625fL,
+        0x2a7f2b9989c0915L,0x337bd985f97f7b3L,0x3e9b430435bafe3L,
+        0x32f13720aa81b97L,0x376c6ca7c680487L,0x03de326a2f85cc0L } },
+    /* 26 */
+    { { 0x2f3398b38c2ee78L,0x0f44069d682fb89L,0x1706565a7f8e40cL,
+        0x38c10067974d68cL,0x2b8174b6ed12985L,0x3e0294a8878a990L,
+        0x18d80e25a15ee8aL,0x3aa6974783f9a14L,0x0848cbbc13804f6L },
+      { 0x2828690dfd45169L,0x1f8261674fa341dL,0x0811cdb8bfc238dL,
+        0x1e858b3d9208dd6L,0x3b4d15b8c849954L,0x18126699252eaceL,
+        0x21cfed822cbc57cL,0x1662eb10c893aa2L,0x0d94356346957c6L } },
+    /* 27 */
+    { { 0x306925368271323L,0x2782a12734135caL,0x1fbf2b31cc7d24dL,
+        0x13d5e8f8d86ab8dL,0x20294e85644f64bL,0x0f3b52b852411a1L,
+        0x2cda47ddc82ee74L,0x3e5a32e4a9a95f8L,0x13f989c42efbfc1L },
+      { 0x2d98bdfb8651600L,0x18d0d1e8f3ebbafL,0x254335b1a2268c3L,
+        0x3775609541e4e84L,0x3852eb1e9558da7L,0x0a57d516945cec8L,
+        0x06d101df5ae5852L,0x3e18b951b8bbd99L,0x1faf7e16a2c5d89L } },
+    /* 28 */
+    { { 0x1746c8ec7ec136dL,0x07609f3444d46c3L,0x3ad3f187a116f8eL,
+        0x23c4dba1195d928L,0x0850983c22f1b96L,0x39c5c967506a8a5L,
+        0x3c149c2123ecc4bL,0x2e0b77372ad49d8L,0x16da7f50b181022L },
+      { 0x19e532d0ca5e258L,0x22b45e5ed8a9efeL,0x242ec77fddefa14L,
+        0x335d3e6db123428L,0x07fd122d458518bL,0x2d42cb5f14ecc2eL,
+        0x01aae9bb8cd193fL,0x1b824685a6bbaf0L,0x1c57e49b10a1de2L } },
+    /* 29 */
+    { { 0x0abe67521210716L,0x0a5a8c1f809000bL,0x011d8c83795b81aL,
+        0x0d3767be9aa52bfL,0x3677d686f68f203L,0x3d7389d56f8be7aL,
+        0x357c5c6a13f277bL,0x12e33df648906e5L,0x13270c3d2f4c74fL },
+      { 0x1c8609c8d209aa4L,0x104e8b6cad50dbeL,0x2d1a2992345d46fL,
+        0x3ae521f0d3e5adcL,0x2b440a375186f2aL,0x3694d6393e9c85dL,
+        0x25b3103a4209367L,0x182e3c47ab78ffcL,0x1a99a570153505dL } },
+    /* 30 */
+    { { 0x21513936e7495bbL,0x0bf4a12421e746bL,0x2b0b29fd76fcebdL,
+        0x26f1839c872708cL,0x3517a09e2a1a0d4L,0x362eb7e27d60ae0L,
+        0x148bb4ac37809e9L,0x3121d2a937a782bL,0x027fd041312cb6cL },
+      { 0x05502eeead4fb6dL,0x3097b42980b2fb0L,0x2841bd7f4a07760L,
+        0x0c953b7385162e9L,0x10397614cc28b60L,0x207bb64ee75078eL,
+        0x2d4b0b4221b71d1L,0x3906740438f08ccL,0x096dfe58a27dab0L } },
+    /* 31 */
+    { { 0x0d6fcd67debd24eL,0x3f29826b8ac1d53L,0x022ef217c26cbe3L,
+        0x382e58838fe9f63L,0x2c7f9f87dd42d03L,0x25cbffb98d2fc85L,
+        0x0d3e7722b1ec538L,0x14dfa0ea55f0758L,0x162edfe5f860f6aL },
+      { 0x0a05400f0ea20b8L,0x0ab1f875e5a4010L,0x25c90edb0cac287L,
+        0x0c2d8a4e69ddd96L,0x2af2cb7089df5b9L,0x0bfaf04bde299dbL,
+        0x190ad3030732bf5L,0x38d04e999037ae8L,0x0d536eae15f93e7L } },
+    /* 32 */
+    { { 0x06119f6a1c88f3cL,0x397fb0bb1a5129bL,0x2c605742ff2a924L,
+        0x07b76c8b1f1322aL,0x0fa5d25bb60addeL,0x3045f7825ca24e3L,
+        0x2929c1fa5ac4f7eL,0x257d507cd6add20L,0x180d1c4e8f90afdL },
+      { 0x3c4e73da7cd8358L,0x18695fca872480bL,0x3130ad94d288393L,
+        0x198ada9e38bdbcbL,0x379c262cde37e24L,0x06d65ee42eaffe2L,
+        0x0d4e646cae01ef6L,0x3e1167078cfc298L,0x00e52a42280dd01L } },
+    /* 33 */
+    { { 0x2d640a40f013755L,0x3739dfee0e03a5cL,0x0e797eb64b310b6L,
+        0x02e4f2968d89e27L,0x358bdffc98e704bL,0x08c30dc8630d83fL,
+        0x3385d153b1f323bL,0x0efdf5ace422169L,0x04a071130f556b9L },
+      { 0x1a2096bfeef3f88L,0x2ea1a6e0ace514aL,0x184a872664a722eL,
+        0x286163fe509ff88L,0x17490c9daa0dc0bL,0x056233a0cde67adL,
+        0x32cee21d356f628L,0x2bba5f766f1fe9eL,0x0d21e61a4e8a3cfL } },
+    /* 34 */
+    { { 0x05db629e9068656L,0x2f5c327fb7937fbL,0x15bdfcd45546623L,
+        0x3498a469d071e2bL,0x2761e688ef7981dL,0x16e49cbceb14f64L,
+        0x146fec6a96892a5L,0x0bd59085f9ee019L,0x15e793c03cbab9eL },
+      { 0x0fd95436eff39beL,0x2bc1fb6ffd3da02L,0x3abdb02416165a1L,
+        0x3f751e600a60f51L,0x060b2e6fb37c5d2L,0x3a36e662761b65eL,
+        0x28b9bbe3e3284ecL,0x062ce7c127ad761L,0x18e3b3e8a789dadL } },
+    /* 35 */
+    { { 0x3026c56e51e61f0L,0x2f2a8cc1fc9d5d5L,0x26ebb1aeaf41dddL,
+        0x1f38b5fd6ea4a80L,0x2bc5ead91a33e93L,0x391a01f47df3007L,
+        0x01951990ab665d2L,0x101270a913d554dL,0x0aa099c1ca67966L },
+      { 0x161a9098f97e387L,0x145de1178775a6dL,0x112b7ff1d6abf60L,
+        0x293426a72247fe9L,0x1d2282e2b42da55L,0x1d0616b57969f1cL,
+        0x0baeffdfa5a203eL,0x0285866c4da77a8L,0x1a3a5eef9141eccL } },
+    /* 36 */
+    { { 0x2f20d0a7a573b81L,0x3072a1986533bcaL,0x2d8d0b711c347eaL,
+        0x1b2e826750bbc34L,0x05067a8ca6aea01L,0x284d47be998274aL,
+        0x1c26346a52c6007L,0x00cf36ae16062c4L,0x121f17fa45dbb1cL },
+      { 0x3b8b87afc3279d6L,0x39daaf0807c7867L,0x2a83806c21dde30L,
+        0x0af18fe093c0abdL,0x246bd1a53eafd7eL,0x084e4591ec1d389L,
+        0x32d9bfcd6f4931aL,0x273c6acb3f4e705L,0x10a62f3eb4b4db5L } },
+    /* 37 */
+    { { 0x002de36e0689a1bL,0x3327f5f72bf9cb9L,0x2d7e255d0bfb9dcL,
+        0x3b92b681367937aL,0x2bfd2e774d7ee87L,0x1c2cae6d6a140e7L,
+        0x103bba282c66577L,0x141c69eb2a09ae8L,0x11aac7028bac7cdL },
+      { 0x261d39c680c8f04L,0x271332d22ced78bL,0x09bd95744f3c2f0L,
+        0x2d2ab32d64c4c58L,0x25adfb2096d72e4L,0x3f4fb33f6dc1832L,
+        0x352a73c67d9e431L,0x215f0521e89bf85L,0x1e33d95366364d0L } },
+    /* 38 */
+    { { 0x264506b4cec9e7fL,0x1592d0c2aae63f9L,0x101f173fa284a44L,
+        0x1f85725d1c9786dL,0x082dec033e7b7bdL,0x298edd8b5b319eaL,
+        0x0e2fcd1fe2e9340L,0x39d48e821386cfeL,0x0fdccce4da89ae6L },
+      { 0x397f8eec12fd820L,0x3e24aa5b691ccc1L,0x241d55997bf4325L,
+        0x2b00add4f3d65f4L,0x1f677ceba3aef35L,0x06eeb1b229cfe57L,
+        0x1278b05b2892b7dL,0x117da41d4560f31L,0x01c2f5ed53fa47fL } },
+    /* 39 */
+    { { 0x114165eab40b79cL,0x1bbb6096d226a0eL,0x2b7d8a6c107fbfbL,
+        0x22e3807ca2f684dL,0x1a4d79907d431dbL,0x11c79a161397437L,
+        0x376ff869a91472aL,0x047f56341a5a660L,0x006ce369b74c463L },
+      { 0x00773d11add1452L,0x3a7257b63a68a9bL,0x0e32ca15a40c2e4L,
+        0x0dabd8bc63fa3feL,0x2eec9484b3fcb7dL,0x2c81016cb28cdbbL,
+        0x2d8352a4d6e7a93L,0x00f9db64340c655L,0x0e5dd375603d9caL } },
+    /* 40 */
+    { { 0x05f297d8b481bf7L,0x0a8f90a84ce0f33L,0x128cdc40b96c06aL,
+        0x17c462768f27851L,0x16cd57fa79a2bf3L,0x0d5f4caee2b6e62L,
+        0x176fadc1a4935c9L,0x0f78547ec96030bL,0x1ba98721eb424f2L },
+      { 0x002daaf52a4b397L,0x17d330342d39523L,0x0db37b7e79cdc3cL,
+        0x3b2cce5c2d8a6f9L,0x092808c7ff34336L,0x08a236c7b4f72dfL,
+        0x2ed59aec290eff0L,0x3e97ca91e7547a5L,0x0929d7ed87076d8L } },
+    /* 41 */
+    { { 0x0edaf0be660043cL,0x28b32c05b81d376L,0x28e7e2cc3b3d84aL,
+        0x0c1709a7f12748dL,0x13de33e3647b501L,0x2272941340653b8L,
+        0x0db11ddb3361b97L,0x24bc2335460ce61L,0x0c6d5b801ecc8ecL },
+      { 0x3f91c1547ab9887L,0x2178a9ad6ac044cL,0x0e5a133fc8182f2L,
+        0x1d0e361a4b26dcdL,0x043282e815c435aL,0x31ef36a8f24ad1fL,
+        0x158c86191231f59L,0x0f328eb90970d34L,0x0117f568febc5a2L } },
+    /* 42 */
+    { { 0x0cbd9d5bf5caa87L,0x3f183da37632763L,0x0dbbc7d4dede17bL,
+        0x11609c2d6fd8fadL,0x1cc098fe7bf6e59L,0x175ee3d621c4de9L,
+        0x25a533ca5eb6870L,0x029b12df7bbb92cL,0x0ef8e045c324a70L },
+      { 0x20c1c9270cf52bcL,0x0fd8ea43318a605L,0x021cbf3028fb4bfL,
+        0x35d48efbfc57ffdL,0x38b9ce1050a8102L,0x19886c7bfccc268L,
+        0x0a78078e9da4d00L,0x2184a5dd7e27f30L,0x0eb590448650017L } },
+    /* 43 */
+    { { 0x26664fdebbd33ecL,0x269983396b55e62L,0x2c0550fb56ed0cfL,
+        0x2b4756aa9bbb341L,0x3948a7f07b4ca5fL,0x3f870468db6bb96L,
+        0x12544bd2e37887eL,0x363a907d86b1247L,0x0be49df70712bffL },
+      { 0x0e2f1f565acdb56L,0x04f21179796f798L,0x1354e17a0412f2fL,
+        0x33f6724efbee5ffL,0x325a957e48a2867L,0x28618d7e72a745aL,
+        0x26ae711f55c19b4L,0x150766ce1a3d634L,0x000ac4480414c94L } },
+    /* 44 */
+    { { 0x01bcf89d4ad38dbL,0x03ce04f5c51445bL,0x2759cb70243a118L,
+        0x18c58e9c5b16d30L,0x213648bdb5dd64dL,0x137a65a6ef4bbfaL,
+        0x1e8c45a47187f9eL,0x3429d9779a44b8bL,0x048e075f29c4bdaL },
+      { 0x03354745e4dd88dL,0x20d8e2015debf00L,0x1c01227288f7182L,
+        0x2479a26277b92cdL,0x1cd3f71bad008fdL,0x3936878908508c5L,
+        0x262bb15cb023ff3L,0x13f95f9ae70d6d5L,0x072143f41657fb0L } },
+    /* 45 */
+    { { 0x06b046c26f40f2cL,0x3491b1b35f0c76cL,0x22701953a9b7bd5L,
+        0x2e23c010dbeaa95L,0x021d0660d5ac929L,0x2f5b6f9864dce4bL,
+        0x3c43f9d279ed159L,0x34094ddf1356b45L,0x179800eda50b8fcL },
+      { 0x08ddc0b36132f31L,0x3d3c04ab79ce8eeL,0x1ec3203de2b96f8L,
+        0x0508c6d94cce216L,0x0a14093caedb038L,0x30af8be6b423348L,
+        0x2bc09fb9f86d445L,0x11e37f4f654cbdbL,0x13d757b58991aefL } },
+    /* 46 */
+    { { 0x19ad100580f894bL,0x09222b649791bdfL,0x3e142e5a6865b61L,
+        0x14c5fe6a04d1525L,0x2f8a33541c86e10L,0x299b55e362aa082L,
+        0x358e23a67906607L,0x2ad711f7d82b97dL,0x107cadd4c90a7f8L },
+      { 0x16b044f6764ad0eL,0x3f8384940626ccdL,0x0a625f14db6af69L,
+        0x27c6f5df550b7abL,0x25cfa895ce9f277L,0x1bc66b0e5e6447cL,
+        0x2f44b1d4e94cedbL,0x09fd70d4cd05c06L,0x03bcac43fff50c7L } },
+    /* 47 */
+    { { 0x342951c83c1d4cfL,0x1e4742c9170d3c5L,0x0ef69c2dcc71e03L,
+        0x0a4a8c41d9faa3eL,0x3b12948bd2ea57aL,0x3fabae0c956d1aeL,
+        0x1abf592adc1e090L,0x29a26834b463112L,0x0199e8c9ff5c4a8L },
+      { 0x1f7b9cdeb28171aL,0x1e100f55da61ef2L,0x33bf22ff824cefdL,
+        0x24efcccf31562d3L,0x2b01ceb72ee09b3L,0x080a6737affe0e8L,
+        0x2bf7515bb34c452L,0x173ce8f0fa2819bL,0x1a65dee07bb49d0L } },
+    /* 48 */
+    { { 0x1a958d6b114257bL,0x2bf507525d78c02L,0x39b53aae7b11729L,
+        0x24fb746b20c1ca1L,0x11eb679750791b0L,0x099d6d2b3fbf1f4L,
+        0x29517f0e54bd37eL,0x0268e2698b5fa35L,0x06b96f805d82021L },
+      { 0x015d51757b5f9f4L,0x2790d9016d13452L,0x1de0e4870160e5cL,
+        0x2547bdacfe0d10bL,0x1f7497faf953fefL,0x05bbc2de467933dL,
+        0x12eeed24e3cc4d0L,0x05c0ff172aa1c94L,0x1b6f1ba4029a3bdL } },
+    /* 49 */
+    { { 0x2668435529252acL,0x189b01d39ec360aL,0x0cc1e0be86ab3daL,
+        0x3dd3b57714d5420L,0x00cd41fd0534a53L,0x19d22472a7bfc50L,
+        0x13b5ad0e7c945c5L,0x026237a92e257b1L,0x1ffefc67bef1515L },
+      { 0x08dc109306033fdL,0x21e5e7cda1d7666L,0x2f26e3c335c51b2L,
+        0x3f44938a75934e6L,0x0c41dbdfca47259L,0x33036255758315cL,
+        0x28ff8606224b610L,0x21c1e81075397baL,0x1fd2920e15cae4dL } },
+    /* 50 */
+    { { 0x2d15f0ccd67da85L,0x22dbd16b1528559L,0x2021f1ac71c3ae9L,
+        0x0991d564890bc17L,0x166e856dc1feb22L,0x3ed2e91ca8bc558L,
+        0x1d920b65eb14566L,0x32e6cd1a22f4a8aL,0x061943ce86ef9d4L },
+      { 0x0696218aac91174L,0x1467b1077648d2dL,0x2df29f0763a485bL,
+        0x09dc4b22ccedfbeL,0x3b053863098517fL,0x3fcf8f9280b9fb0L,
+        0x09648646bc45bb1L,0x2e4fd1aba25bca5L,0x1462aeb1649ebd2L } },
+    /* 51 */
+    { { 0x334f41fe8e4d3c3L,0x361ffd6edfa76c7L,0x2c0ad910b579c80L,
+        0x186e1cd26bbc085L,0x02b0a6cc02a24b7L,0x3cb4655c152f14aL,
+        0x3e6cdd3b4c7029aL,0x028d0392e438ab6L,0x0cf8e774f812606L },
+      { 0x07f9dbc2e229950L,0x07e11b67e0adc0fL,0x19a3f10c05f3ab1L,
+        0x13c3c608328adebL,0x0ccbfb332203eadL,0x199c1bc5476f2f2L,
+        0x059d5e3bd9caf00L,0x3993968e6f89418L,0x14c984387c8dcafL } },
+    /* 52 */
+    { { 0x08a757f8e011531L,0x16c5cb0f7355f1cL,0x09fdc2d99e297f4L,
+        0x07ee4ed9056a3abL,0x0a5488e869d4ee8L,0x2edeadc2960ced5L,
+        0x3df3a9ddd561c30L,0x0ccaed6f68e12ceL,0x124f909f8e01ddfL },
+      { 0x1b8aa84ab41e782L,0x08049a14776e1f1L,0x2a7d99482bd21deL,
+        0x3afd2d904efd26eL,0x37cd1e22405963dL,0x2eb583bbb4da7eeL,
+        0x2e30eddcf495dd1L,0x084b7ad1d5a4e24L,0x10baaf11bd8af0aL } },
+    /* 53 */
+    { { 0x146017416ec64e2L,0x052b3df5f1baf9cL,0x04a3668b7176bfdL,
+        0x3cdd06c107078d4L,0x22d3b67b072e3f3L,0x15f64a35947e952L,
+        0x08f419623edca3eL,0x2ebbca6dd3a2dcbL,0x0383d99cb47327aL },
+      { 0x08dd0b3da342a3fL,0x00918b7bd2a5520L,0x242eeab5a860120L,
+        0x0141b952db46c71L,0x310c6cf1a5e1e2aL,0x3e40f3426e85c43L,
+        0x0166f5334fc3660L,0x10d4e5a7800044dL,0x0fafaa26074155cL } },
+    /* 54 */
+    { { 0x05cd0e6712de285L,0x3fe2c21a7d77172L,0x2b92df4ed389cd2L,
+        0x0c156e67210dca8L,0x2e07a003363524dL,0x1b82524d1bfbd68L,
+        0x28952b0a2c82dadL,0x1fadacd899885caL,0x02c9afcb188af21L },
+      { 0x3b9d4769a64c5b5L,0x23577913133f874L,0x18ef11c6dbffa0dL,
+        0x23d07052bb55821L,0x235efe854ce1d97L,0x11d15d74947e79cL,
+        0x289c03f9d0c14c0L,0x2770034b20e3af6L,0x16fa25f040b36ccL } },
+    /* 55 */
+    { { 0x23d9dea9cad682dL,0x32c6cd18da4e46cL,0x19885c0f24d787aL,
+        0x31f50620f3a7d70L,0x353555e46dff62fL,0x2473681746aca77L,
+        0x0633ed569b1cb28L,0x150a36c536f114bL,0x1941acbb86c2a34L },
+      { 0x06a70c824db8127L,0x1958fd06df3d6f6L,0x1abeb908d9b484aL,
+        0x18e2670982a3613L,0x344436957aaeaaeL,0x02a4b2344fb5acaL,
+        0x0bcb973bc94f99dL,0x1597e5e3cb8af41L,0x07456a388ef716aL } },
+    /* 56 */
+    { { 0x082dfe496fc1f77L,0x310d7c4d1eb5a98L,0x14dc25ebe457b04L,
+        0x1a6dbdd92abd09aL,0x104d83da164a170L,0x03208cc380e1cf5L,
+        0x239b3eb0b9db52eL,0x0536a621acd3b50L,0x16a76587f2a5988L },
+      { 0x118f8e8ebc71a5dL,0x10690a150148cdaL,0x09ccc182cbcc491L,
+        0x34f82415e9f58fcL,0x1e239d8eb4afe59L,0x365252cb98cf6c3L,
+        0x04fd61bac8582dfL,0x3bf662e4569051cL,0x10ee0866a9dfceaL } },
+    /* 57 */
+    { { 0x350c47052e07a4dL,0x34e2e3975d1740aL,0x047ce1af12267f6L,
+        0x12ce71417ded053L,0x186f739be03e4b4L,0x1f0bc6f167cf5e5L,
+        0x23fad4ca19bca7eL,0x22bec7147007b01L,0x080da3937a57f42L },
+      { 0x1d8ca9d102369faL,0x26ffedc1b038d7aL,0x19a796b55d80e00L,
+        0x37ab0342530b828L,0x1787c187ada0e42L,0x33e812d9b06f8b1L,
+        0x1773406d4ae2cc9L,0x18a156c33a981d9L,0x0d82d525245c7c9L } },
+    /* 58 */
+    { { 0x1cb238cae93de69L,0x0f20cceff6ba6dbL,0x1f4de8b79836496L,
+        0x112ba2fe2b8cf20L,0x24c3ebacce13a22L,0x15696b582f1b9e1L,
+        0x3e9459a837a53c5L,0x1bf361d7634d6f1L,0x01fb3705534f9f4L },
+      { 0x0e9270c7fb974a1L,0x123e83a7b49205eL,0x2c3d64bffbd4234L,
+        0x10f5e7d2cf05059L,0x13b9f32a0a05aa4L,0x32408d7b615693cL,
+        0x352b484bebcf8daL,0x027459612661e36L,0x183aa4d59f1e48dL } },
+    /* 59 */
+    { { 0x2585d75dbffad9fL,0x3d85d3d06763f3bL,0x3f59e6c6934564dL,
+        0x3460f566c31bdceL,0x3929c8950b80793L,0x2658aeadaebd3f0L,
+        0x291273bd445a952L,0x1e16d4ad86517aaL,0x1be4fccdfff3d1cL },
+      { 0x1c384d97cb2857fL,0x20c1601adeafd01L,0x1d1743ace6b24cfL,
+        0x28af10f5adbd4a3L,0x314e564b92c7b8fL,0x0ae7c06a3c38a2fL,
+        0x1383e61b69bc73dL,0x251aeae2fad00f7L,0x0aeaccea0c59791L } },
+    /* 60 */
+    { { 0x268baee0163c2deL,0x342cafac9da2926L,0x3124ffdae767c42L,
+        0x3542ab2a50d5a1bL,0x2e01091cf926da5L,0x0c92fb35a670d33L,
+        0x13a0a93d2545405L,0x332746dad63c506L,0x14ff144925ed611L },
+      { 0x361a60cc1ed9259L,0x0dea8cbc7569fdfL,0x313d07aef4311beL,
+        0x12539be9ee80e11L,0x28bd3730c99f33dL,0x2e555f710e4a305L,
+        0x22bee573cf8ccf5L,0x158402f1b518346L,0x14527cd194383b1L } },
+    /* 61 */
+    { { 0x3e651353427af4eL,0x302ec4c4364df52L,0x276acaa671c32e6L,
+        0x3534ea70ddaf63aL,0x3471709aa9d7b3fL,0x060147004933a18L,
+        0x28ee1c225ce41d0L,0x13b215224a13fe7L,0x13d22d829c9535cL },
+      { 0x301ed9da1b15e02L,0x24aeb0c07961a1aL,0x21835764135b1d0L,
+        0x2ddbdc56692fe9eL,0x118090d0dc0ee59L,0x2014865a45c6814L,
+        0x1279045c1531bbbL,0x1da15d024c3f082L,0x008963b48cc7633L } },
+    /* 62 */
+    { { 0x3e8b620f4aaaed5L,0x2379f7fa1c7ba03L,0x030ffebfcb4b106L,
+        0x39f0e88556cac88L,0x02769b805d4dfbeL,0x34e7abc29e89aa3L,
+        0x15f032377de7706L,0x2dcc7c6a4911fd8L,0x12aa1b81a8442d9L },
+      { 0x19e67d0b1152e8fL,0x1cf65e4ad78530aL,0x1073f1cb57a22e7L,
+        0x272fc76928b8360L,0x2c22b449a03af0aL,0x34b5f4745a6c583L,
+        0x098ee4b82c1ac8dL,0x3a855d422b29affL,0x15054992440e3cbL } },
+    /* 63 */
+    { { 0x0004a0aa13a4602L,0x31c68f434b1839cL,0x2463a6d79bc5505L,
+        0x0eb553677d293f8L,0x373d3c7b8e878ebL,0x113b3e95fb32a41L,
+        0x24d1795b3bb2782L,0x0abc228c3d87ec4L,0x1155b7e50014f63L },
+      { 0x2c42ecc9ef0021aL,0x05ff5fe15b27518L,0x03b82e6478bc580L,
+        0x1a45416936c4389L,0x04cd7eea5af0746L,0x14abb42b66ec287L,
+        0x09f09de8ba39a2dL,0x3e9901d1d126ad5L,0x13fd5c8f7bd9e57L } },
+    /* 64 */
+    { { 0x3d8ce7b5a53c22bL,0x0cff35f2ad11a86L,0x24e248acb394787L,
+        0x07a8e31e43f1132L,0x315c34237a9888bL,0x2dc0818cdabedbaL,
+        0x3508fab913b8a8fL,0x1ccacd2ddf31645L,0x050a931d7a7f9e4L },
+      { 0x10a429056d21d18L,0x198c1d56d04286aL,0x0a8b894a6b05826L,
+        0x18e0a33dd72d1a1L,0x2127702a38a1adeL,0x37dedc253ecbe16L,
+        0x0d1db683ff7d05aL,0x3357074fd6a4a9aL,0x0f5243ce1dbc093L } },
+    /* 65 */
+    { { 0x3c183c3d37d7891L,0x140527f6197b2a3L,0x03d68f21844117bL,
+        0x095681fd9603db9L,0x3ad303202af51ecL,0x019dbbd63f969b2L,
+        0x0e000c95de68f31L,0x14951d4238c7f29L,0x159783e5a957773L },
+      { 0x01db5712e537ad9L,0x1c44b4d6fa73defL,0x2b48d57f9bcb5e8L,
+        0x242a2cf2f1eed48L,0x1e5ecdb5c1eff78L,0x0e1f9fb53cc1b84L,
+        0x321e3d30da83923L,0x299f13647f3d1c8L,0x09f8487bb62e412L } },
+    /* 66 */
+    { { 0x2f5f80f8cb8e08eL,0x34b104925bfb5a1L,0x374360b7dcdf7cfL,
+        0x37d5fd3417c0186L,0x2458061f24dbaffL,0x37a65312c664f0aL,
+        0x07e0626c6ca8d09L,0x172f3bdc349349dL,0x0ffd4e5d4e3b999L },
+      { 0x171e245c6f40077L,0x0b81141c8f9418cL,0x2f7e6a6bfd88159L,
+        0x345b6767380d721L,0x03eb5770cba0959L,0x10358f74b9fe3faL,
+        0x1e441958eb0881cL,0x07d3558ccef6baeL,0x034fb0397df3afdL } },
+    /* 67 */
+    { { 0x384e05eb358815cL,0x32cb5390421f65eL,0x188907f05d7a3abL,
+        0x355ea7520721e9dL,0x042d64cbd350778L,0x33ca27fa74d33feL,
+        0x2b2c6e0859cd5acL,0x02d8a0dcb564774L,0x06bc06d482e18b4L },
+      { 0x10695a0da4ed375L,0x2bd620a636abab4L,0x21b4f4b7092c51bL,
+        0x2b9e8cd6cd6c0a2L,0x20567efd88ab87dL,0x0c830dd29cd64d8L,
+        0x158b307a49fc103L,0x33a6dcdeb2b128dL,0x01ed30696a34c0fL } },
+    /* 68 */
+    { { 0x1550ab0bd3902feL,0x292d2e1aa74ecf6L,0x20a9975cac379bbL,
+        0x0c4ccd81770e967L,0x21afc2c58045e87L,0x3be72fc7cb16630L,
+        0x383c4281ff8d6feL,0x0c7560afb57426fL,0x1579d1d9d5b5281L },
+      { 0x07da3055519258eL,0x14e7e409f78aa1aL,0x1747d6a230d673fL,
+        0x08d7d745a11a7eaL,0x35f7e41f5ab1aebL,0x1a9ffacd6effa51L,
+        0x2d5187bd546abb1L,0x14f74abef53a385L,0x1607437be13bcc9L } },
+    /* 69 */
+    { { 0x1f165a9ee9755a3L,0x35686ae0b26ac55L,0x245aab6b97e60c8L,
+        0x2c2ac1789c59687L,0x26db0830f3004cdL,0x16b2f7ae7830ed4L,
+        0x1e8498aae1ec1a7L,0x318b904f51211d8L,0x1e9589e09bbb1b9L },
+      { 0x35120819c72258dL,0x335cd170564f519L,0x3a7b91c11fdb61dL,
+        0x2fe215e4239b189L,0x2530bc68ed1d3e9L,0x2d6d13fe6ab01bfL,
+        0x10edd5125c16bb6L,0x36d70e2182edb6eL,0x1aa96fe8b08fbbeL } },
+    /* 70 */
+    { { 0x23a5dd8f257c0f8L,0x13724b74e84364cL,0x39cebbb8ce03488L,
+        0x14e91c98aa40fcdL,0x352e06c6d6217adL,0x0c90a336877c805L,
+        0x30c62cf5b723e0cL,0x20b307974e224b0L,0x1fdd9a90f1f477fL },
+      { 0x30d27ba1763ab59L,0x1f64f9c8de0fa60L,0x0264945968aacf2L,
+        0x0c85c0357560556L,0x303146d9f63251aL,0x196fc3cb3daef9cL,
+        0x2323fb6cdcf455eL,0x11d1202a803398cL,0x1496e49e62cd96aL } },
+    /* 71 */
+    { { 0x2ff0b7e40574c09L,0x3c990cffa03a5afL,0x1352eb237d91b76L,
+        0x2ddfb70c4082cefL,0x3424a36dc3c0c62L,0x31b10d7be624e52L,
+        0x08d076e9ea64c27L,0x2792cb7f087138eL,0x139cc3852f6a4e6L },
+      { 0x238a3ffbb096b91L,0x0b2795cf6350f94L,0x1b118c577558ee7L,
+        0x34b711f52d3045bL,0x142e1955f54ec89L,0x10dd1d70801b74dL,
+        0x2e9041004aed6a7L,0x0cb2707770ca8afL,0x1fb597417a2ed93L } },
+    /* 72 */
+    { { 0x00f1981859bae66L,0x23a6c61175f06cfL,0x1c03452a3c1eab4L,
+        0x033fe040ce71b3aL,0x15f98d6fe2384a0L,0x2283756f35fb784L,
+        0x3e1c06f7a00e3d3L,0x2987d5b765228f1L,0x0d09d21a7d18e53L },
+      { 0x1cfdbaf880eb3fbL,0x3f4a5d7a0fdf27eL,0x3d6fa28a74b464cL,
+        0x17f7ec4f80d86e9L,0x3232a6128b8200dL,0x06a361b80ef23d2L,
+        0x2d6ea7d1fb92c28L,0x06309a19d7eb9c1L,0x11d9b08608aefabL } },
+    /* 73 */
+    { { 0x3cf6146bbd2f539L,0x14bf01db89ae885L,0x1d18d4be4a67960L,
+        0x08a7cfce6a0da08L,0x1433f873a8f8234L,0x05bd15a1a2e11aeL,
+        0x1477507a1d3f367L,0x3889b7d80f8a0bfL,0x00377cb02c56975L },
+      { 0x275add38c01dd59L,0x04ea7ae7068debcL,0x11044dfc54039c2L,
+        0x0181fb83619a42bL,0x1661fc40e202ee2L,0x02c0bd5a25bb7a5L,
+        0x2f1a246b4d7398dL,0x1c49732e5a64796L,0x09fd5c281afc13fL } },
+    /* 74 */
+    { { 0x058c54bd7073a5aL,0x206972187ab1f72L,0x0a39e720201a87cL,
+        0x23903800f3947e1L,0x358f199de952a9fL,0x15b300addaf712aL,
+        0x3162f31cf12322dL,0x27846d98d398e0fL,0x16984c017ee8f96L },
+      { 0x1f433625c89f1faL,0x0a98c2da5ec1e3cL,0x1e5c4b05b7f44a0L,
+        0x1453fb79330ccc4L,0x04b025aa4a7ccaeL,0x2136deb4349ba1dL,
+        0x31c1fe7d5b77bbfL,0x33480e7bc6aa3d5L,0x18d65eba928418cL } },
+    /* 75 */
+    { { 0x37866ab8abb2537L,0x3132ed96cc25be8L,0x27ed2a428ad314aL,
+        0x18843a7865a09feL,0x089801b4e95d19fL,0x2ba2e08cc7ae5e8L,
+        0x1c9642aae77a62aL,0x22e125a4f58a97dL,0x0adff5bfe973e36L },
+      { 0x3efae21492b0deeL,0x0fa7ba580b0b3a8L,0x3c996f3b99e5214L,
+        0x2c3a4ee3d6484d9L,0x01064c13edd78b2L,0x15ce39ea355070eL,
+        0x33b1a4e6b970dafL,0x0823ebdbb305a0dL,0x180dbfa3f4f74aeL } },
+    /* 76 */
+    { { 0x024621a907a6aa0L,0x1b2da101e1e7dacL,0x0b688168a934ef5L,
+        0x34e6e6a4121130eL,0x082541f2070d638L,0x3f222d41a5a32a8L,
+        0x2357840c5970531L,0x2533d55937b56bdL,0x097e7e898c7c4d4L },
+      { 0x1dc98d96b6ebb2fL,0x285ff1eaa7849b8L,0x0fdbfa2a2c68292L,
+        0x032cb86146ed83cL,0x181ca4cfe9c6327L,0x046567562636c99L,
+        0x0b8d1994082638bL,0x0c253913cc23a95L,0x0d696399eb844e6L } },
+    /* 77 */
+    { { 0x200f362b83769eeL,0x0102b0fbf132cfeL,0x388957abd68772dL,
+        0x0965029c4a30e4cL,0x3ec242a31622644L,0x168695464271323L,
+        0x1c2172d1e48f1e6L,0x1ff51a2f5c3c412L,0x041c8692d2b709bL },
+      { 0x2388aa1df816784L,0x23229406f9d7393L,0x1ffb02a678124a5L,
+        0x383b69c87826d27L,0x1e67a65eca73299L,0x15b1c6da282f47dL,
+        0x05aa30d81e91e88L,0x2efc8debb8bd300L,0x073d94007500595L } },
+    /* 78 */
+    { { 0x112ac4a010c0ef3L,0x152f613a06c682aL,0x23dc4f3535090e6L,
+        0x3ced1f4626a3c15L,0x2f238c09c10dc41L,0x106b3d9c48bb741L,
+        0x358520224c16afcL,0x2b9bc732e4cd20dL,0x1271a4b5f292275L },
+      { 0x12fd4733ce688b5L,0x19b4df72a71a2deL,0x326e541711d0145L,
+        0x3b8f30d06a3f3a4L,0x02122c11fe3ba14L,0x174de6d5ae2ad33L,
+        0x122f91c0fa763bfL,0x25696578b4abbc5L,0x0acd4e21b3d31cfL } },
+    /* 79 */
+    { { 0x013a7791d8e061aL,0x01f9c2b32128c10L,0x0266eb2f636a627L,
+        0x085dec97275ab02L,0x170ff35cfe917eaL,0x106262fb76de2efL,
+        0x0ae4455008db2b0L,0x3439c3d6293f338L,0x043ed0923972257L },
+      { 0x0ad77b3e2e129e6L,0x312a1c3c6f935cbL,0x0dff20056333fb8L,
+        0x304a9a4550ebb94L,0x2b8fe2640bc2658L,0x259682be5770332L,
+        0x11d99e694eb5841L,0x3721df4eea94fb7L,0x0832df13b208a1eL } },
+    /* 80 */
+    { { 0x2ad2247d181c3f2L,0x34d6fbccdec8fffL,0x3cba74890672915L,
+        0x23ff69e8e876d33L,0x179275686e4f70dL,0x3fc7de7889ad906L,
+        0x1fa4e8e80408636L,0x27d8263a12ce73dL,0x0da57aa0be9d8a0L },
+      { 0x00cecf54efcea66L,0x3cabb2bf1dbebb5L,0x1a48c91585a898dL,
+        0x29c4fc02a958fc6L,0x344b5cb9fb111bdL,0x149883459a1ebeaL,
+        0x0b35abc6d5fb126L,0x3134abe54fc6eebL,0x0ed99709370ff94L } },
+    /* 81 */
+    { { 0x09f56e068b54c89L,0x3305f739cdf08abL,0x283fab089b5308eL,
+        0x0a550fef46c823bL,0x0844dd706b0f3a1L,0x3b0b90346c8133eL,
+        0x19914a80975c89dL,0x137dc22c046ba4eL,0x0176b4ba1707467L },
+      { 0x1216ea98fdfc175L,0x1ff18df83d6c31cL,0x285fceb33a3477bL,
+        0x13c088faade2340L,0x351c6d922b67981L,0x304fd47641e1c82L,
+        0x2d60b55859d5a49L,0x32acb9a7e142febL,0x05c2499a8446d0cL } },
+    /* 82 */
+    { { 0x1d581fb73e7bcf1L,0x37987374f05ef90L,0x17ecfa199fd916dL,
+        0x1cf05676e5f18a6L,0x2641328301a7588L,0x250aa4613b5de25L,
+        0x2ba4bb9672ce892L,0x375ffcfb9161e05L,0x1234fb7a148ce54L },
+      { 0x05d80aff009be8cL,0x24e35de37c6e87cL,0x2e84312de62062eL,
+        0x1fd81c312e69f88L,0x3a1b5da3748d29eL,0x11c5d14d73670faL,
+        0x2b9e671e51bd2faL,0x31a8650262ac15aL,0x049bb584abc49f7L } },
+    /* 83 */
+    { { 0x1f255301ea470f7L,0x2fe023a49538c2aL,0x29ea71a0038da01L,
+        0x385644f2a1c2615L,0x3b8281fdb0d2b2eL,0x063970aab85c012L,
+        0x2943abdb5c6eb01L,0x3540695ab19307eL,0x0531aaf64771a92L },
+      { 0x279ef4906345730L,0x2aa93a11bcdf0a5L,0x26b01a7c3aab946L,
+        0x28a059b7d3be05cL,0x24e04dc3ecb808dL,0x1bb066d3a7ecff0L,
+        0x16d13e9e0b61db7L,0x14e11b9fd997bbbL,0x0e570ed8c0786a7L } },
+    /* 84 */
+    { { 0x2456e58108ce13fL,0x3f163438e5e04d9L,0x284bea3949e9b5bL,
+        0x2f1d6bd99f412daL,0x0a891566bea9b66L,0x3d856569f2d35b7L,
+        0x2e25201b3cecf0bL,0x297e90c4b1cf400L,0x14b81d768986135L },
+      { 0x047bc25841078ecL,0x2a72585e7115350L,0x06094851f8fc75aL,
+        0x0fb38d0247da858L,0x088e54102998d4eL,0x36a2b17a6a7d9c1L,
+        0x2c230cbf280f885L,0x2ddd71932b2823fL,0x02b0ac864b05094L } },
+    /* 85 */
+    { { 0x3606e398f5daf7fL,0x2152244249d419aL,0x1c5c08c58a72483L,
+        0x343243cfb8e8895L,0x008795f022f362fL,0x1097d6ab258cebdL,
+        0x06dbfb71710bd10L,0x2ef370805f817b0L,0x1c8d9c7dc82c1b8L },
+      { 0x1b41fdf18b8bed9L,0x20cc238e88c495fL,0x1de77291c4bbe94L,
+        0x0ad05122abef3e4L,0x3c44da4629b0b97L,0x06fd428a577f18cL,
+        0x1e313190b9c4630L,0x2ab6462d9bdde1aL,0x0f5a8a4e2fa121bL } },
+    /* 86 */
+    { { 0x0a55109ca0251eaL,0x3bb62c9e9b26c23L,0x0beb5620f528f2aL,
+        0x3a2b84ff15a406aL,0x085993c079a8421L,0x346ac35c4d27c71L,
+        0x35d90929e083590L,0x299be5b8a4a6ebaL,0x0ce96c2f1f8f599L },
+      { 0x0bc4b5112be8bd7L,0x11a83cf19fa66f9L,0x07d34d3a3864f48L,
+        0x049cfd0e6076273L,0x026dce5671f6471L,0x00ac25af0caf0c9L,
+        0x0682b7f7134ebffL,0x22d655813c02c34L,0x11cfd23d7eae3ceL } },
+    /* 87 */
+    { { 0x09646cca27689a6L,0x1f710d55905cafeL,0x248eb57cbfccd6aL,
+        0x3ed6c6b7f94c2f6L,0x3711d8bf49b11ffL,0x1c39696e7cb6036L,
+        0x118a1de879fdf0bL,0x354125d4d060dafL,0x114c8c526bd8cbfL },
+      { 0x1fe725bef7388bdL,0x0f6f7f9ffeba9f5L,0x1b897e6de2acf1cL,
+        0x26a7afc6fede0e5L,0x36978514681a72cL,0x1499c2bd94995c1L,
+        0x157d483925ecd9fL,0x32c090def374a0fL,0x1ceb5d732a7c80eL } },
+    /* 88 */
+    { { 0x3f9fccecfd376d7L,0x3aacfa99ac21369L,0x0d08d5b91bd86b4L,
+        0x1fa2a8c1361ab24L,0x37f866a4faa3d5bL,0x2e04eb849fcf50aL,
+        0x0a920695d19fa8bL,0x073774e1e635f8dL,0x073df7c0a69a32cL },
+      { 0x22c01bb38315b16L,0x29f226786323e6fL,0x3fb408b6b8531daL,
+        0x231a024aa068f50L,0x2836faad4b159e4L,0x11a65cc1dfa4f67L,
+        0x17e476d4ed6361aL,0x07e995a72cfd98aL,0x185b69d8183e781L } },
+    /* 89 */
+    { { 0x0f27eb3ab9cb764L,0x3bf0863af075b46L,0x0ddb0479aa79bbbL,
+        0x09027950bd51dd8L,0x1bc699b96b4d16dL,0x3236322b8d70e34L,
+        0x23a45d13b2ae258L,0x1301215e705499eL,0x0d9773b73576c55L },
+      { 0x220a4730218c299L,0x38a6ce67de28ce5L,0x2009484f414f69bL,
+        0x0de68b293511a12L,0x268db7ab3b2c749L,0x0d70d5fc2701dcfL,
+        0x3de3f26181f0599L,0x1b82024c4c0f62dL,0x060f3effcd0e0fbL } },
+    /* 90 */
+    { { 0x23c14beb25d6530L,0x056ce66a5f503dcL,0x3c4bfbf7f6225e0L,
+        0x27052d3c3c48270L,0x23f7e8ecf83d8c5L,0x3ac7bc3f3c00bf7L,
+        0x1f0c6035d353c91L,0x3b8d0e5310a9480L,0x1b5787128ab7be8L },
+      { 0x0937d3ab70110cdL,0x293bf11de446d68L,0x2f5bc53a4c19e0fL,
+        0x3cce35427cb1ab2L,0x3e54ac1c6bd3010L,0x13ca8efcfb8aa0aL,
+        0x09c7b931ea67c3eL,0x0d8bde93299bbc2L,0x0b05bda2c4f34a2L } },
+    /* 91 */
+    { { 0x024a071d1f575cdL,0x24ec06948dc60adL,0x36029a2c9d40156L,
+        0x22e72452980504cL,0x1095b31c150c434L,0x0bf5258a40915cfL,
+        0x10b2776f975fd22L,0x24dee85c1221b88L,0x1f6ac29b8136dbaL },
+      { 0x1edef55775da491L,0x14fe78adaab6082L,0x21061bb40d5b259L,
+        0x04535449f619a5aL,0x181ead062cfc453L,0x3cedc48cbc8772aL,
+        0x06f20d3f3e4f07aL,0x3d6ec4b341ae259L,0x15e241363696910L } },
+    /* 92 */
+    { { 0x0844fd03ecfc44eL,0x17cb21410ecf543L,0x27dbc9bd059a409L,
+        0x3ebd96fb37e697fL,0x1a67961cd239328L,0x2ed77f778c4091cL,
+        0x3dc5baea9e39bfbL,0x30de6008adb404cL,0x141bed7aa9b5f12L },
+      { 0x16f0059fd94d941L,0x3a7c01f53fc0602L,0x3598779f05e3fc6L,
+        0x2cc0120f26798ebL,0x372a198704c40f0L,0x192929c4134bfbbL,
+        0x367f1edb773b5b4L,0x2f4a802d9dc3d24L,0x1694f7e03012a9fL } },
+    /* 93 */
+    { { 0x1f5dd738a9095fdL,0x1e80874f3a15e83L,0x396be5edc767c4bL,
+        0x3fc6028202242a9L,0x366f10aab56497eL,0x261e5d9ae615b87L,
+        0x280601312988243L,0x2a4a585d233dceeL,0x01207d9076c555dL },
+      { 0x3049a011c44394dL,0x097bdc339279142L,0x09f0b1694265f5fL,
+        0x3f8426ccfe078e8L,0x3a30932e42c5bd9L,0x1b3e2bc81fca90fL,
+        0x366722736abfcacL,0x09ac2b7dfe813ccL,0x0e02f1e92fbfa9dL } },
+    /* 94 */
+    { { 0x124e4a663be4d4aL,0x15efb59bcf32465L,0x13fa7e7a7ccd1faL,
+        0x1aa2317474f75f2L,0x23f251f1e70e8cfL,0x0d5533d6c95e65eL,
+        0x1a71090a5ec58eeL,0x227a9a349a35c19L,0x04c7c23d4d20850L },
+      { 0x3ae575bbd52d132L,0x236a9ce32073158L,0x2e51e4e63b990fbL,
+        0x19ac8e74e1c25a9L,0x0a5d49fed51d6b3L,0x0ea301ebb57e21dL,
+        0x286ae2025091d94L,0x3bd68403e116b91L,0x1c21af59d747eb4L } },
+    /* 95 */
+    { { 0x37bc01edd441308L,0x0d251218c222417L,0x0a74759611cd0dcL,
+        0x185308f3998abceL,0x1f8bafed211a712L,0x324f81e4dfcc5edL,
+        0x0c52cf4efbb9ff4L,0x360aa203c3b763bL,0x028480cdd2cddc9L },
+      { 0x0f1ca0dc3f807acL,0x393f0af41c1527aL,0x0a1491f8bb6c6a3L,
+        0x3f4f5b7eb36b4f4L,0x15fb46ffbe3ee1cL,0x37573ef3b91ac6eL,
+        0x38e8b75207b3ac7L,0x3446b56030366c6L,0x08452c669f4c7bdL } },
+    /* 96 */
+    { { 0x02b4747c0ace6d5L,0x32d92ef9ca1eb69L,0x089989bc2614d5aL,
+        0x0dbfc171c7bccc1L,0x2d35ac450817fe8L,0x1d6a70f1dcbac91L,
+        0x00d6fd7f5fc2163L,0x25ccfedbe786b2fL,0x09a7643c315720eL },
+      { 0x32216b4f3845ccfL,0x1d3a0242f016f52L,0x0c74d60490379c1L,
+        0x2858d632019e954L,0x1aa677b6dbd7220L,0x1b8b823a0e3e710L,
+        0x2f6da537332c196L,0x18c36c0ca1d7925L,0x00c52b274cf9c30L } },
+    /* 97 */
+    { { 0x2c2e7828ea58bebL,0x013074d997e921bL,0x1fad20b40ff02b4L,
+        0x2d8a74f9a9551b5L,0x166c81991fb5df7L,0x38b3f8fbc61a11bL,
+        0x10d16bbe690bde6L,0x23a4a5ebae68050L,0x0cb59d81548baccL },
+      { 0x105d3adbaf66a23L,0x0dce1d037ec2076L,0x35de4b00f432c33L,
+        0x3a01f4e80f9b554L,0x3066bca80e17fe8L,0x2b7fe954a5513fdL,
+        0x226ea460c2b96cbL,0x13ff27c06365116L,0x11ed543816724a3L } },
+    /* 98 */
+    { { 0x2a873fbbd7f8a61L,0x2335c6ef9602ed8L,0x1eb3667f69805e1L,
+        0x1855c74f703f572L,0x1783f9bc8ab8d4fL,0x10e62c538b91485L,
+        0x1811b536c3774b2L,0x38f0cb6d28d8dd3L,0x1389f7f12972debL },
+      { 0x397f21c798fefb2L,0x1bf2d441eea9caeL,0x3760fadbb5689c7L,
+        0x39f4cfa9b144befL,0x3236134a51a648bL,0x261624ed04a8a64L,
+        0x26ada44a3d81698L,0x2d15d8512563cf9L,0x140b4dfc79b7687L } },
+    /* 99 */
+    { { 0x3b145707abe5bb9L,0x32ff63947606fa0L,0x1f49c9827affae0L,
+        0x1229a1ed550836bL,0x3eeb41733c3a725L,0x0e09f18c20098feL,
+        0x23b70e7014fdc3dL,0x1c5a1f4063e12d7L,0x0151d483e00fbcfL },
+      { 0x14e3c7c6b578aa3L,0x33a6d74c10f6b85L,0x1e9bb6008101511L,
+        0x04bd016b1bd57e2L,0x02008ac7b4ec311L,0x1714be99f99a936L,
+        0x0ac2eb73c00d392L,0x1d14fb86e66622bL,0x08fdfa31d9560b5L } },
+    /* 100 */
+    { { 0x074a0e0251cf8d8L,0x225274107caf4b3L,0x0a4933ebce52d4dL,
+        0x145716f36b82dcdL,0x016200b93e1ac5fL,0x1e4dcdbb4fb37f3L,
+        0x2e69402506a266aL,0x3e4d56168722fa9L,0x00e081cdd539190L },
+      { 0x15f995653e28412L,0x149bcb6c9c592c1L,0x25eb1df3adc70d1L,
+        0x32b74d77b773558L,0x1a838ffe2d2c453L,0x30339627b510a12L,
+        0x19b609ad20c1375L,0x3ec1cb57eea06f6L,0x1ad5be41dcc622eL } },
+    /* 101 */
+    { { 0x23af6678f850756L,0x0deab94bced65d5L,0x0a53796842f586dL,
+        0x27fdd0fe65c434eL,0x193f1a8bacdaaf9L,0x027df364be9d579L,
+        0x10650b1af04e154L,0x3f6698efe682b5bL,0x00e67b1cead55abL },
+      { 0x260a8e0b5f43178L,0x3504b6730d6cccdL,0x3a63880f680856bL,
+        0x198b988b1c4f5efL,0x36ff824457f372dL,0x36c13946b5edef9L,
+        0x115c8d0f2bde808L,0x00bcb879e07f92fL,0x1941f475bfbb8e5L } },
+    /* 102 */
+    { { 0x1482bf9d63543ecL,0x32d9f2845fbcf9eL,0x0638160ccc63985L,
+        0x355ca6f707a2b14L,0x1a22686df556cbeL,0x207addf358bb65fL,
+        0x3a2ed9b124cb5fcL,0x16e5935ed3d99cbL,0x17260b29aa77833L },
+      { 0x1bfc7b6a43df7c6L,0x32b08ef081c1b08L,0x37bc345d958085aL,
+        0x34a8ca822f3adbcL,0x2d1953c5e9d8f20L,0x13da0343c22493dL,
+        0x29912c7d25d7c6cL,0x19131939a88dcb7L,0x0ebda1c06c452ceL } },
+    /* 103 */
+    { { 0x2677c5c411dd110L,0x1e1ea8b26471289L,0x2a41a45666d60d6L,
+        0x2ab057e7c554ef9L,0x30e0cc7b273e716L,0x29892ac2a4ee18fL,
+        0x39c260a40571172L,0x3c4c3979d95b868L,0x046af8d78b52ef6L },
+      { 0x16214b170f38dffL,0x1760a048e84415eL,0x04d4957ed8123e3L,
+        0x2e83698058411a9L,0x154f84413618fa9L,0x27aa56af9f374a9L,
+        0x2a30b4f1c2563e1L,0x26aa7111678532cL,0x183c748add661ffL } },
+    /* 104 */
+    { { 0x2981f399de58cafL,0x2e03f61d4fa990cL,0x1f242d11948605bL,
+        0x0180fbac02b20feL,0x17c73d79cf490cfL,0x0935186d00dfc94L,
+        0x2420cf844209fd7L,0x23e89ac0fdb489cL,0x1526f4bd29eb343L },
+      { 0x24d034ac389e51cL,0x2957a5b6df663a5L,0x17dee913c583acdL,
+        0x1effac0d102cabaL,0x09d461e29079307L,0x10efe2faa85b8deL,
+        0x3d8c3fb0a675330L,0x0977275d2690ae9L,0x0ec7c41e6d66bb9L } },
+    /* 105 */
+    { { 0x29b345dc5da8398L,0x1a107eece310c0bL,0x05627c3bb47abc6L,
+        0x0adce34b37738ebL,0x3687311858fbeb1L,0x2f53d3d352f0ab5L,
+        0x0e1b0e9521db1cbL,0x2f8f8a9a432bbf9L,0x194375215eb7bfeL },
+      { 0x0b234f12edfd661L,0x26613bb54b07d13L,0x3260d8f8f98c014L,
+        0x391ef8e1640cb49L,0x195e8b672fe76e4L,0x0ac03a0950d61cfL,
+        0x161eb8916c397ffL,0x06ef8ee6fdc16ebL,0x0007ee90182ae13L } },
+    /* 106 */
+    { { 0x36fea9e93fbcb5cL,0x2f960e7ea14a6f4L,0x3125fd611ba0382L,
+        0x1ff362898dc2c90L,0x23d8d4704a59ae3L,0x13106de6ade3183L,
+        0x249cc51bac243d4L,0x1fa7f10007fabb6L,0x0f6988ea44a83dcL },
+      { 0x190caa4f077f79eL,0x05d807678964353L,0x3bb3d21b4b77f4dL,
+        0x18240df86d8477aL,0x2135becf0031b3fL,0x0a40f76bc44fb60L,
+        0x319296f6c01379fL,0x2b614daf79f2a9bL,0x06c57d3b6849dbbL } },
+    /* 107 */
+    { { 0x23fee389abfccb0L,0x38a892e59db98e5L,0x0f0284ba6d276c6L,
+        0x2e919614f47e1daL,0x11b8ab9b6c38ba3L,0x1e81ccc5b8eacdbL,
+        0x233f3201fc97424L,0x379ebf7505c6094L,0x0214dacfa81ac61L },
+      { 0x25a9f37eaa3198cL,0x228d17f22e6754dL,0x312ad4f5ecbccbeL,
+        0x180308dd452909fL,0x228a27b05e841ffL,0x0a167fcd767a316L,
+        0x0bde372d3774446L,0x16fe0701183ffaaL,0x1810a0e49a129cfL } },
+    /* 108 */
+    { { 0x08203af45843c3eL,0x078c0eaafaeb9daL,0x08f3624df62b460L,
+        0x22b48796aa0e5ecL,0x39a242b0e568734L,0x0a9db1b4b3c4b1cL,
+        0x2751a2c848ed013L,0x0b416dcaa870bd4L,0x0f3b63296c392c0L },
+      { 0x24b42adc6f3d1f0L,0x37314cbd4cae533L,0x333583443d9c2f0L,
+        0x3bb7237672d5e04L,0x1ee87192fb50118L,0x15d06708c0e7869L,
+        0x396b0c9977267d5L,0x30d6918bbe930c3L,0x1f7454fb7963cd3L } },
+    /* 109 */
+    { { 0x0f281949d153926L,0x0a32460ad5d5204L,0x3b30509e94c942eL,
+        0x0ab7a75ad5d2d08L,0x18b3ca314c5acc5L,0x18f56f16a9d1b0eL,
+        0x0cc9890f4ea307cL,0x2465109554e8b87L,0x08e271198bff76dL },
+      { 0x3900e463c8e672bL,0x19d734fcb7f09f1L,0x11f7af2163c9703L,
+        0x021eb3aaac1c125L,0x17e8d236974d699L,0x04f7045520bc86aL,
+        0x36cd13dcfbc1dc8L,0x2bfc8338af20013L,0x03f2a54662c82bfL } },
+    /* 110 */
+    { { 0x1cf41e61588a8bcL,0x23343884314b2c3L,0x22bd758e7a456f4L,
+        0x12d22e6e55cce15L,0x3a6b89b9e1600d5L,0x263320bd1877e02L,
+        0x177147f7fd4f170L,0x317e459fc073452L,0x048b13385116116L },
+      { 0x2b763335d2617f0L,0x295dc9bb2e181b7L,0x032d1b91fce93f9L,
+        0x22db212e65ea4f0L,0x1823ca5bef7a438L,0x168cbdaeffa0089L,
+        0x0b5c586f19c0283L,0x07767c9b356b78fL,0x1e77f5ddc776d0cL } },
+    /* 111 */
+    { { 0x09feec86ee764c9L,0x3b20dac1f20b30fL,0x32e6a005b142d1bL,
+        0x28ca7a297a9afc6L,0x23ffe241c70ef51L,0x0a59b0a145f4a63L,
+        0x3acc76bb389e287L,0x086d4e8b6a2a4b1L,0x04a902c9126732aL },
+      { 0x2c51b9c8f7ce110L,0x0cea1ebac0dbc65L,0x10980a6a59e2dccL,
+        0x29f9e36d40209a5L,0x0c95bb030ceaf26L,0x1310bd0a0bcf0e1L,
+        0x2c4a0a6dd6e9f72L,0x0bbf1da3778a5c2L,0x16f4aedce4b03d2L } },
+    /* 112 */
+    { { 0x37f032aeded03c0L,0x128149623775341L,0x3c4f9a85be0f268L,
+        0x1ff82e6daedb426L,0x2f2fb5887bdda0cL,0x30f339f865a271fL,
+        0x0d2ae5f8a96960eL,0x0866ac10f6755daL,0x06829c8081bdb21L },
+      { 0x3f872fade59f006L,0x27ff1b2e5fbd69aL,0x15db58ae7ef8c2bL,
+        0x287d332a87cdc64L,0x289c27cc4c2e23cL,0x21af73186be3183L,
+        0x18de43eee5d7e7cL,0x3c22e4896d1fe6fL,0x0b453e7f4634b24L } },
+    /* 113 */
+    { { 0x0c496d0e3048bdaL,0x19d2650f0f79395L,0x09f74c2d509ee2bL,
+        0x07950f14226b081L,0x3105a365bb01f69L,0x22c5c1273665828L,
+        0x2c946734d93ffe7L,0x29d540a7e66cfe0L,0x091785c5ea20161L },
+      { 0x055f978953dbdb6L,0x3a13665fb2867edL,0x102936d4d75aea9L,
+        0x2a30549dbe91cefL,0x347c76356a9c17cL,0x0e5ce34a73d984cL,
+        0x3336094a68360b0L,0x1fc874f90c2a1a5L,0x1b40ae532dee2b2L } },
+    /* 114 */
+    { { 0x0110e825164cb8bL,0x26bd3c954a99f5aL,0x2d0e8d185527697L,
+        0x21fed93ab138435L,0x3ac424592cf6c57L,0x33836042102058eL,
+        0x04c15c5d8fff37fL,0x0fb262ca139276aL,0x010ed8055673266L },
+      { 0x06f403051f3ee9eL,0x38fba6ce2b7c784L,0x3a6ea13d64492e8L,
+        0x1160386aec74f21L,0x10bfd729827b49fL,0x3f1e8d7f0a0f45eL,
+        0x23ad4f8fe50fa5aL,0x077c9dcf69516b7L,0x1f878bfaae4d9a2L } },
+    /* 115 */
+    { { 0x260d8e8abad5678L,0x29cb3b9803096ebL,0x20b44c288e210afL,
+        0x1db49533e7ee753L,0x0959e2ba564447fL,0x25844cb07ecdaf1L,
+        0x140f19393c44d72L,0x199235ea2207ff0L,0x09127a861288d09L },
+      { 0x136c0218a9e690cL,0x331487aad3e856dL,0x0423b00ee54c85dL,
+        0x096bcea392026bdL,0x0b7731d85b37935L,0x1073ed5787cd8c2L,
+        0x3c4529b5361d781L,0x098d3a907ca7bbfL,0x0e8cf5755b19f7dL } },
+    /* 116 */
+    { { 0x1edb80dd212b398L,0x25860754f74dcc0L,0x20478a52fa95d03L,
+        0x0ca9e0979b43821L,0x1330ece4fad1e64L,0x01e24dbf80616f1L,
+        0x3f6ea3508f7313bL,0x1ad8077260bf679L,0x0e8dbf3a602d555L },
+      { 0x3763234279e05bcL,0x3d03b3d1114f4f0L,0x1f4d7fa307937f5L,
+        0x0d84235f888c431L,0x3c2a98bbc5cffadL,0x1f51fe03cbc07bcL,
+        0x322e1c30ab1719dL,0x37e51ef27e462a6L,0x1f9f53dc52ae834L } },
+    /* 117 */
+    { { 0x266b49ec183f89bL,0x2d7c097d601b53cL,0x02b594ec3080d3fL,
+        0x100dc73645f4c29L,0x3b7f7e26d4b6b19L,0x356ded93dd506aaL,
+        0x0036c5e55269eb2L,0x099d4386a1705feL,0x1cea0ff0f22da5fL },
+      { 0x02bd56a3a8e11f8L,0x190087d7e6ad518L,0x2c5a0ccc92d7298L,
+        0x39948fd942f19d0L,0x3f7fabfb4d64569L,0x0f279b2f2391a06L,
+        0x35ff20b4275947cL,0x2ba88ace54b54e3L,0x1b0818f8e381f04L } },
+    /* 118 */
+    { { 0x3e5bffae50d90f0L,0x0ec46fd4047370eL,0x2711a691dfac4cbL,
+        0x0753a869dcf8432L,0x3e586eeb662ec21L,0x030bc7f56a5e7aeL,
+        0x3bbfea4df16ab1aL,0x09bdbfa78fdfb15L,0x15e1b05960e5ae5L },
+      { 0x08e04a58630e62eL,0x00c439911f86dc7L,0x2b6143b4447a3d0L,
+        0x145d18b9e8f3c79L,0x00002724d92abb8L,0x114a5b7e0c27a82L,
+        0x0ed8121d805d70eL,0x351383ce126ccf5L,0x0962d6bffbc6834L } },
+    /* 119 */
+    { { 0x13fe58d48e07711L,0x20d92349c28ecb4L,0x092d8cdff04c70fL,
+        0x1e145047c50545eL,0x03e4f8a5515bb65L,0x104cd8bdb0c7364L,
+        0x206d4d73f871520L,0x0c5fcbf8097bbb2L,0x0ad32a6e417954eL },
+      { 0x238c63f69d147dfL,0x2ec1b9c42fcdedfL,0x2bef28d514deb69L,
+        0x3ee34470f66e537L,0x10385c6044b2307L,0x1e003a0cecda77eL,
+        0x101c1c68ea2f49eL,0x1e063c0a2c961f5L,0x055970782215cefL } },
+    /* 120 */
+    { { 0x0c351db54c1d751L,0x114c06e83e54484L,0x334fbfdc8bed814L,
+        0x0e33c8da02a9dfaL,0x0e04f2860498d81L,0x1a96db6a4a30529L,
+        0x1a910396192dba1L,0x10409277aa56d7eL,0x08580dd45780172L },
+      { 0x10725000e09221cL,0x016c87c877815baL,0x2fa1e0e6095062eL,
+        0x1edbddd44a51232L,0x1f1f34aca657fb9L,0x27fc575974a646fL,
+        0x09ec79a66cd5ac4L,0x2baa37075a25f41L,0x067388fca84e72bL } },
+    /* 121 */
+    { { 0x120b49da6ef1dd3L,0x281178ee9b35d99L,0x180af33d5f48391L,
+        0x2cbbc1d1d2a7212L,0x278bfb1eae53cf5L,0x36a41bea8d6cba6L,
+        0x1f2cf4eca97fd6eL,0x21627c6a4de246eL,0x10d667533693ab2L },
+      { 0x351049673691fafL,0x0f4ea755fb18616L,0x21bb930a8525dc7L,
+        0x07902c16da5f8a4L,0x3413bedca094f57L,0x3469ae617a5a805L,
+        0x2de8b79e7d4f728L,0x115355450ff68faL,0x0fb859b8444d16eL } },
+    /* 122 */
+    { { 0x022083e7c667aafL,0x1172e52a4732e9fL,0x19318ca0e94a335L,
+        0x08f93aa831f287aL,0x242f56844c3afffL,0x0354b42e886b10dL,
+        0x1301d4fcc68a8b6L,0x2f3850069616daaL,0x0a3547f762c907aL },
+      { 0x3dd3ed3fbe260ceL,0x1dd4b6037007e98L,0x375d6f1da3e4271L,
+        0x1294987c43b57eaL,0x3d20cd6bb5f1686L,0x086b195af9ec7d8L,
+        0x3b918e9d638c102L,0x0bee0c4dee3d99cL,0x17423eb44384adaL } },
+    /* 123 */
+    { { 0x14e27c42a1fbcf4L,0x34a16d7eb357b86L,0x2bdd915e66074c0L,
+        0x043bc29aa69d70bL,0x1067cf4581e6965L,0x2fb87ee84f16be8L,
+        0x1279e72be013c17L,0x33d6616901b5b6bL,0x0310042951d5142L },
+      { 0x2735ec1a22bbc45L,0x14e469fd5bd361aL,0x39d0236001de4eeL,
+        0x146a8be3494c16bL,0x0187db78aa8b218L,0x06a2230c38b0db6L,
+        0x3e7d5bcfcc083faL,0x3408ee476adfef4L,0x0f462d85460f4fdL } },
+    /* 124 */
+    { { 0x168ba024972d703L,0x132874e426280fdL,0x2542ae28c855fc4L,
+        0x1816c6d14dba6e3L,0x34c7f7e484fd4f3L,0x08c208f4b822c1eL,
+        0x09fd13042f3b982L,0x20d6727ff4c4c62L,0x1bb56af0652c6c6L },
+      { 0x1bf05e206e0f16aL,0x2b0beb5d191297bL,0x0a980f92c71afc1L,
+        0x35cdb2002879668L,0x2236178dc13ae37L,0x2d1bbc417c83bf1L,
+        0x2509e4443a58b82L,0x366c32545f73d10L,0x1667d0bb415640eL } },
+    /* 125 */
+    { { 0x2a30a613d22842dL,0x3803d6cf13b380eL,0x0f876df82b798c6L,
+        0x1b5e34823161d93L,0x1e788854ada92d8L,0x166c2650294b4e4L,
+        0x05fc9a499b26fbaL,0x3c4d17704ceb413L,0x1dda5c0926934e3L },
+      { 0x30dcac2fad6d673L,0x3f7c1403cecff9bL,0x1941631756e96d8L,
+        0x24c2936038fb39cL,0x231d130013990f4L,0x156058e3cab2a4dL,
+        0x1d5679ee91966c7L,0x07369b7c3d5d39bL,0x111be124868ccd7L } },
+    /* 126 */
+    { { 0x244c726475cc1b4L,0x3f0be4adce5e33dL,0x26d10e3d7eb7915L,
+        0x06bd030e381969fL,0x1e1ad24fcbb44e2L,0x0d581b9662198aeL,
+        0x0f93f7270ba4ddcL,0x2935f0e0d28b069L,0x02193d0c9a23362L },
+      { 0x2cb7b8cf769fd7fL,0x176a5e26884ee78L,0x0c566b910fef181L,
+        0x0249a4c50e1ed3eL,0x1925b37c02088b3L,0x1a9903951dedc6fL,
+        0x21c6efa049a9212L,0x15acb4f77c6f7f4L,0x0649b5f9d7d232aL } },
+    /* 127 */
+    { { 0x240adf8679a9c35L,0x36638f2dd35e5b5L,0x0ebb5f8e9dafcdaL,
+        0x13ab5281cf1192eL,0x22edde557473861L,0x1db382e6f61b03bL,
+        0x15fb96773317385L,0x2bab66d74cc9d02L,0x13672f0aeb3ee09L },
+      { 0x388c76d64e54ba5L,0x39ebc7711d34868L,0x29d1b2a7708163fL,
+        0x27b784902b5fe8fL,0x2c720303a0447b4L,0x1af4084f67d92d9L,
+        0x203ea5b1c78029eL,0x174ac72bc71c02aL,0x103179180eb3bb8L } },
+    /* 128 */
+    { { 0x1bf4f9faf2ed12fL,0x346793ce03f62abL,0x3db5a39e81aece1L,
+        0x08589bbdaf0255eL,0x20cf5b28df98333L,0x00e4b350442b97aL,
+        0x067855ab1594502L,0x187199f12621dafL,0x04ace7e5938a3fdL },
+      { 0x1c5b9ef28c7dea9L,0x3e56e829a9c6116L,0x02578202769cd02L,
+        0x0225375a2580d37L,0x3b5dea95a213b0bL,0x05f2a2240dcc2dfL,
+        0x1ba052fe243ed06L,0x25b685b3d345fecL,0x1c0d8691d6b226fL } },
+    /* 129 */
+    { { 0x22edf3fbf8015c2L,0x208db712540b62aL,0x36e0a6a43157e7fL,
+        0x0968b412c33a243L,0x1a809dbab318ef3L,0x299f288673019a3L,
+        0x3ebc49dd26937adL,0x261123c9f04b20fL,0x02987b3db2f3c9bL },
+      { 0x3e7aed0fd2e3dc7L,0x3a2f6dd057f554dL,0x2c9a58a45f25498L,
+        0x2e882721743f035L,0x2d579e1ee83d5baL,0x140affb4c7b2371L,
+        0x01bef11f4cad0baL,0x3299710cb9b387dL,0x1913b10afaabbffL } },
+    /* 130 */
+    { { 0x19f7df053053af7L,0x011d96ca2873d2fL,0x38fc7ce90438603L,
+        0x1bab2317775105dL,0x3fb59ec618fbed3L,0x06c6fb3c9ec4c4eL,
+        0x1973a99d2656ffaL,0x2d654cd384d1651L,0x18c3261888cc362L },
+      { 0x013a414aa7f6ff8L,0x2bae20feadf1ebdL,0x086b7cc307ba092L,
+        0x0948d18403be876L,0x302140c93dc81c1L,0x184120d64f5349cL,
+        0x1795f3a1ed7e3ceL,0x3505b8ae47b3f7cL,0x191160dc11a369eL } },
+    /* 131 */
+    { { 0x272f46e8b57d7ccL,0x02c3952fc08e1a6L,0x396e05b3a91d314L,
+        0x2a693b09b8221b0L,0x3c50f58e91b9ab3L,0x1789abc1d0bfabaL,
+        0x1cd9f71592c6085L,0x0b22650f351daecL,0x17c3ed97fd4c7f0L },
+      { 0x3b02503e6d54964L,0x34458b1a8c63014L,0x2cf49cc28c22d9bL,
+        0x1000d4d190063fdL,0x2b4cc0668a45c78L,0x10b6f80e3a8ccd7L,
+        0x36c3cd7ad727f8fL,0x0b5dac55fa447f7L,0x1b3a7f894c9ec99L } },
+    /* 132 */
+    { { 0x1e6e397af09ea77L,0x1d82e5d77097164L,0x0c08b94a197b26aL,
+        0x2a2da3398663010L,0x15bd23564041bacL,0x25deccfe8668345L,
+        0x3bd02986ca5b94dL,0x07e67cc7e1fe397L,0x0b8f76c55a6b190L },
+      { 0x35bf8c33846ec9fL,0x08817277ab29185L,0x1ec0a3108df0f46L,
+        0x20f3ebb64a24b2dL,0x065049fb2879db2L,0x1bb940c51df7001L,
+        0x2dce4548d24bac9L,0x1a13e9f6dac595aL,0x0fc0110cdabab1cL } },
+    /* 133 */
+    { { 0x11b66d84d308bf2L,0x04f27f598e00105L,0x1f92fd383bf9990L,
+        0x210fff23bf1a24bL,0x0313ea287a10efdL,0x2837dd0149f8c5bL,
+        0x2bd2a18ef6e3cd3L,0x3933b2e5b90c3dbL,0x18cc1ebecf2a70eL },
+      { 0x0d14ad71a70404cL,0x087743e738a8c20L,0x3cde3aa3e0726adL,
+        0x0458d8e9a42e532L,0x1c6b1e2b40ab596L,0x1b3bb16f9c2ffd1L,
+        0x3757c01296dd0b6L,0x247a3532ca9d1d1L,0x0aa08988ca63d7dL } },
+    /* 134 */
+    { { 0x22dcfcaf8db0396L,0x3a3cded08b69daaL,0x034996485724e8aL,
+        0x311efc524fd94beL,0x2b0247a4ef647c3L,0x2baf6a3a2d802d1L,
+        0x158df0abf3e4397L,0x2eac8b8748c7e9eL,0x0ef38e692b1f881L },
+      { 0x33c168926cf3047L,0x053e51654e61607L,0x1d1c293f20b6dadL,
+        0x1bbd5eaec5ff7a1L,0x01794de382ea543L,0x2ffb34bc346a3ffL,
+        0x3860429ba508e22L,0x0c7e0443c29ff6dL,0x1962ade6f647cdeL } },
+    /* 135 */
+    { { 0x196a537fec78898L,0x2779cb783e9dff2L,0x36acd34cb08f0b3L,
+        0x20b69e34d4fdb41L,0x3a0392cc1acd8bbL,0x160552757fa0134L,
+        0x27c6d9ab7adedeeL,0x0fcde20e4068301L,0x1915855ffa24ed9L },
+      { 0x1570e36bf9ebef3L,0x011a977d2cc5dcaL,0x1a95a6816b5ce21L,
+        0x204a2343847e6e2L,0x13979159aadf392L,0x323eaecb5aeaaf9L,
+        0x07af10411afee05L,0x38defc64b0ebf97L,0x0f7aa72e81cd7dcL } },
+    /* 136 */
+    { { 0x0fa3c0f16c386eeL,0x2c11a7530260e48L,0x1722876a3136b33L,
+        0x248f101b019e783L,0x24debe27d343c0aL,0x25bc03abbc8838fL,
+        0x29dcff09d7b1e11L,0x34215283d776092L,0x1e253582ec599c1L },
+      { 0x08ef2625138c7edL,0x10c651951fe2373L,0x13addd0a9488decL,
+        0x3ea095faf70adb9L,0x31f08c989eb9f1eL,0x0058dda3160f1baL,
+        0x020e3df17369114L,0x145398a0bfe2f6fL,0x0d526b810059cbdL } },
+    /* 137 */
+    { { 0x049522fa0025949L,0x36223c2ef625149L,0x2f5fe637216fb26L,
+        0x1911ca09fd8cd10L,0x399fc2681d8ec3bL,0x231dc4364762868L,
+        0x1b27626d232ead6L,0x27e9e396ff8bf94L,0x0040f9f4fedfd10L },
+      { 0x152ea516b4a05e0L,0x3523bbc871e3ac6L,0x26191997dfdbcb0L,
+        0x0122d3087f5934dL,0x2be92303a0d11b2L,0x2317a0269bd5a6dL,
+        0x005d8e2b8f60967L,0x27289c89ad6acdaL,0x1bdd6cff180db34L } },
+    /* 138 */
+    { { 0x09f8576943cc612L,0x10c67a0cacc71e9L,0x2297cccadebdc91L,
+        0x10ac18660864897L,0x025b1cc7c4918fbL,0x191b97c2b32cc21L,
+        0x0e3e22751d3347aL,0x00023abed2ab964L,0x151821460382c4aL },
+      { 0x02481dbbf96a461L,0x048ba6d4a8ee90fL,0x058e464db08b51cL,
+        0x1e1b5a82074870aL,0x0f533cef7b1014bL,0x05517df059f4fb5L,
+        0x1b7b9f6cfb32948L,0x30a67a91b4c7112L,0x081cfad76139621L } },
+    /* 139 */
+    { { 0x3796327478a7f0eL,0x060f8b785dc177bL,0x26df572117e8914L,
+        0x026df354b3f4928L,0x3ad83c1603cdb1bL,0x027be326790ae7eL,
+        0x254ccd6971d2ea7L,0x083f06253f16e3bL,0x0fcf757b4e534a5L },
+      { 0x25518cc86b62347L,0x072749ef0aa4a16L,0x2b052966727fec5L,
+        0x0e82b90f9bcbba8L,0x205ca066bbc8a8eL,0x20ce61b6014d6d7L,
+        0x374cdd91ffcdb18L,0x0890cbd296ee8c8L,0x12408763a490d20L } },
+    /* 140 */
+    { { 0x098b9724efac14dL,0x12fe369e6a74f39L,0x0dbdd6e07c29b6fL,
+        0x3f5c5dc54e03c7aL,0x271b03263fac30cL,0x26d157d53247b48L,
+        0x3092bfbf9383351L,0x0ef65da979e2449L,0x128a97674e1b481L },
+      { 0x1b63c41583e5924L,0x26bfc63c5c7418aL,0x33cdab227a2861fL,
+        0x36a2846adc0ad16L,0x0e8db6971939d5dL,0x3b042014afed1ecL,
+        0x0e1801562379df0L,0x12aeabd69920493L,0x1508d98c43434f9L } },
+    /* 141 */
+    { { 0x2a9fe73cfffc80fL,0x38ba6f50d1cfdb7L,0x3ed3c9d37ba7e23L,
+        0x349e8ff0d5c9fecL,0x38e04a03d733766L,0x2ef83d0f436d33cL,
+        0x186f4f8ce017522L,0x2c0df61fadc676aL,0x1536d1b50ae2fe6L },
+      { 0x31f5defda40bab1L,0x1aa2be6caf698cdL,0x1c890d4aca8707dL,
+        0x3fd90ffe2ad7a29L,0x14bf8ec2f4d72f0L,0x3ae4f88a7130436L,
+        0x2dfd0136b0eaba0L,0x2820af12c3a3c74L,0x1429f252e5a9d34L } },
+    /* 142 */
+    { { 0x2ffd4c17d0e7020L,0x1a6aaad52085a12L,0x1708588f348f9b1L,
+        0x3fe21661aef6f80L,0x115f9c381daebf6L,0x12a529eecce61fdL,
+        0x2d68497e455f2c0L,0x1e630e690510a83L,0x1541c1ad4a61ef7L },
+      { 0x247b628072709c4L,0x035a2e204397f9dL,0x0874e92e0f63b33L,
+        0x2e7e2faa6eb46f6L,0x08318981a144e4fL,0x1a31a81f056bf06L,
+        0x200b66e19c5c82bL,0x1ebb216315e88dbL,0x0119b25511007cbL } },
+    /* 143 */
+    { { 0x21ced27c887027dL,0x03ccd4afeaca184L,0x3c1c19d511e2605L,
+        0x2a5fd31a7d5b8dcL,0x325226bb402d4c3L,0x0f9eb0c39bcd5abL,
+        0x18fdfb3b9011c38L,0x28d8d0ec308f4cfL,0x00ba8c390f7af2eL },
+      { 0x030c3d67e851bacL,0x070e2697d513f31L,0x3c6467fba061899L,
+        0x13a5f2f6fd001aeL,0x17734adadd49d02L,0x232db4a914e6df7L,
+        0x24b3ad90ba8f9f2L,0x1a4a1ea4860c137L,0x06ab28732efa7b9L } },
+    /* 144 */
+    { { 0x1dab52d22ed5986L,0x3989e9614cf819cL,0x237acf155fe3deeL,
+        0x035eba2c4cba3fbL,0x134a08b94cd6149L,0x270570c09c1b861L,
+        0x25ad46a85ffd52fL,0x002ef568893cd46L,0x1e644d1b6d554d7L },
+      { 0x2830686862e4e9cL,0x335db121d8ff925L,0x1679c0839caafe5L,
+        0x3ae360f58b580c2L,0x211bc4ae2c0e4cbL,0x13f2818a4478953L,
+        0x22704596a0d7c86L,0x104b3d5e17757a6L,0x1be2f4677d0f3e0L } },
+    /* 145 */
+    { { 0x00012ddab01a6dcL,0x2f5b06b86b6da53L,0x1aecb9b05079391L,
+        0x2798a84187ceb9fL,0x3a96536b7c2714fL,0x385d952dc65e3b9L,
+        0x2b3dd4eec11bd05L,0x2fd871c459b83beL,0x1d70f7aa57287edL },
+      { 0x2ea6f7d51eb5932L,0x3a82a97e20b2909L,0x20977739f7dc354L,
+        0x0aa6f95e4d05d6dL,0x378545eccd33519L,0x2d90f2766007d08L,
+        0x23abec32b8e2567L,0x19426e504775c8fL,0x0ee656dea68cf1cL } },
+    /* 146 */
+    { { 0x138e140a0890debL,0x2f61f6f3ae12f53L,0x3f72ba041decbf7L,
+        0x02a9a082fa547c3L,0x38c486298afeec7L,0x1c043b11d546428L,
+        0x3879b1ecdba558eL,0x085733b6476e231L,0x14c08de3e4cef5eL },
+      { 0x01534ed16266da2L,0x0c8baded3240267L,0x0aef699276889ceL,
+        0x1fc170a1134df7bL,0x31ac519ab652509L,0x168f321b48edf84L,
+        0x0c4575682ebb726L,0x14dcc314c76e58aL,0x0be2e00e8b87380L } },
+    /* 147 */
+    { { 0x007c80057ed32e9L,0x39033df009265ceL,0x2abbabb54830427L,
+        0x1bf3a082fd16141L,0x3b2c43e81564977L,0x3fbd9922d4d4ca4L,
+        0x3bdca5671e8353cL,0x3f5e49c85f4fe40L,0x1dc40a9c109a813L },
+      { 0x3eaa6c33db21a38L,0x088b875cfbdf91aL,0x04e7bd1d507fcaeL,
+        0x19161e9deac7fdaL,0x20c64a4d6f5bac6L,0x29f0de29631d3d8L,
+        0x02e4094ca837d96L,0x3853fd0f7d4c4f9L,0x13f8a9a4347fb49L } },
+    /* 148 */
+    { { 0x1ab4edf992f8923L,0x2a9781bf4827ce1L,0x1b871b1340eee24L,
+        0x07e4782ed009efaL,0x2f3d4c62c2957d1L,0x1ffdeabd096beb4L,
+        0x14cbe92d231286cL,0x0d4a65904acac04L,0x19f6706a231c3e2L },
+      { 0x2b3bbd2225c02afL,0x2f0598fe8fa6341L,0x2b75b84f482e53eL,
+        0x084aff1577e9b7cL,0x0512a73da912b45L,0x354faa90c2f6f50L,
+        0x27fd53ac0f43d93L,0x092d3f0d63f9030L,0x0a32cb183be9194L } },
+    /* 149 */
+    { { 0x39b0c2d3fa6a746L,0x29e488756892a38L,0x091478cdf2b5e84L,
+        0x1f4c199b2cdc296L,0x2f6d71d068a8806L,0x01974612c269c27L,
+        0x1c944850007a3e0L,0x24eb1c11abd2ee3L,0x1fd2b6a3129c654L },
+      { 0x3d5d5bde45f2771L,0x0ac22bd0cbb6574L,0x00fbf232a6bb854L,
+        0x10fa2fb32c8bb35L,0x2bf8e247f0fcb61L,0x368c0e6f3b3144eL,
+        0x02a0df955d56f78L,0x3f8aa455f18655bL,0x18ca6d35cbf3031L } },
+    /* 150 */
+    { { 0x1800b1bbe0c4923L,0x2b9d01a40a41ef7L,0x337f957bd0c7046L,
+        0x2765957e2e08e62L,0x2500f4150aa8e1aL,0x00b9ebbb34a49feL,
+        0x29692e826a9c6d2L,0x15df2d33d62ce7cL,0x11f3093868cbf41L },
+      { 0x1cb5e7a333ed442L,0x3238be41bfbdeebL,0x01233d98f228ae5L,
+        0x369fff84970b66cL,0x1ba2318354632f2L,0x0b4b14496521dccL,
+        0x17d9c4a0caae5b1L,0x003dafc03996261L,0x172c5d1008654f2L } },
+    /* 151 */
+    { { 0x09540462fc283e0L,0x0ce611fb8220396L,0x340eb7fd1622f76L,
+        0x07bd66317b7ebc6L,0x37e00d9bbecf515L,0x2310ff51ad364bdL,
+        0x11d1d27543e3b3aL,0x2db4ce65384b194L,0x0c6dd841a1daf05L },
+      { 0x3da17e023b991adL,0x0ac84dc7ee94508L,0x2c5a0ddc1879aabL,
+        0x2b57d8eb372d05fL,0x01e2a7d50173bc8L,0x041b4020bf3d484L,
+        0x3012cf63373fd06L,0x117bc7a084779f6L,0x18ca07766d95765L } },
+    /* 152 */
+    { { 0x24347b9af80dfafL,0x2d8c7e71199fce3L,0x1b266ddbc238a80L,
+        0x196aa1c6281bfc7L,0x0af31c35f6161e3L,0x31a11ba39fdeb24L,
+        0x0175b4c03831d1fL,0x1cc68799a7441a1L,0x0c76da9d620934bL },
+      { 0x01f597ba3e4e78bL,0x137b7154267e6a6L,0x399593088c612c1L,
+        0x01e6c81d162fcdcL,0x3a22769007c5683L,0x1f9b6bcf1110311L,
+        0x129103b6df23c8fL,0x1e58d3d98b0950aL,0x0f9f4ea6db18b3bL } },
+    /* 153 */
+    { { 0x269eb88ced36049L,0x13ff87d06e67e31L,0x35636a72e10887aL,
+        0x2319682ee29a42dL,0x096e4295567dd6aL,0x2aaffeb50b3e316L,
+        0x2f26a45286b5f31L,0x3940c7df7ebca3dL,0x120c5d9e0ac0e1aL },
+      { 0x3bee3ffacc10da7L,0x0b57e651251b96bL,0x3e863c4220ff67eL,
+        0x052f5bd8cba3b05L,0x3c3fc9ef4fe6f74L,0x0efee1c12a78f03L,
+        0x03342d25ff3cba0L,0x334b863f4d802ecL,0x1ac1e63e7530050L } },
+    /* 154 */
+    { { 0x183d07c8f3d6a02L,0x3050f1fbd343477L,0x0bf0d4c7af6171fL,
+        0x26209f173c32a65L,0x32b697882c8a93eL,0x2957a2e92840b1eL,
+        0x2d64f0633c87d58L,0x007f06ba208bf30L,0x1c12ce9b53f986dL },
+      { 0x19639fd95dc1b79L,0x23dd50fd3985aa1L,0x3c4cede2fb9f272L,
+        0x203543eba79b9c0L,0x3c2d530ed042f76L,0x375662b0151af0eL,
+        0x29491000a4006bcL,0x258a4fcca1b2784L,0x14677782255b6bfL } },
+    /* 155 */
+    { { 0x381421ee30c98feL,0x03fac3f0b35c16bL,0x0ca614df6ad2debL,
+        0x37a6e8c53a26cb1L,0x04f04b16dd38134L,0x01fe32a2910f7aeL,
+        0x0f3917fc556ee0fL,0x33504f0720eece9L,0x1998397dd24b1adL },
+      { 0x201e17edf4781e6L,0x1f0c651bc7e4072L,0x2613b53090da32dL,
+        0x3729f23181e889eL,0x2ddc697092495b1L,0x1582026073cbefbL,
+        0x1134d71d3d82bb4L,0x231073f37768c21L,0x0d23dd171b59679L } },
+    /* 156 */
+    { { 0x3a40f84d4dd7e96L,0x1323aa1027f0325L,0x29e6a9d11393711L,
+        0x0863f631b5b15bcL,0x200269e7c3b6066L,0x164a757eb4eeaa1L,
+        0x2e365b1413c6b00L,0x2abb306b5f90088L,0x1d36a82621a4798L },
+      { 0x2ac45c4c1003c81L,0x27bd6bd0f6180abL,0x1f5e60f774699efL,
+        0x2aefd74a160da99L,0x1c84acef1f312e7L,0x34922d48bd4fb20L,
+        0x265c6063e32ca29L,0x065cffa6a9f1607L,0x017e3686c9a5284L } },
+    /* 157 */
+    { { 0x32efe659e90de99L,0x1216f2b416ad8c2L,0x2a52e14e4892be4L,
+        0x0c0898a1a1f1229L,0x15eb3db542ad854L,0x11796104987c3a5L,
+        0x17573948e81863dL,0x2b7933f87383e3bL,0x03fbd6f1ff57d84L },
+      { 0x03711ddd1bf968cL,0x235f35237e91cb5L,0x1223e425a566d55L,
+        0x0e1709b410527c2L,0x17c2c17430cf833L,0x050f6766f9ee07cL,
+        0x3d3faee3bdc33e5L,0x2046bce16b0d653L,0x1137551cf429fd1L } },
+    /* 158 */
+    { { 0x128f55b20193bb2L,0x15e741cc42e1c92L,0x2309d345d27696eL,
+        0x0caa1c61a297b81L,0x1110386839a43e4L,0x0ccbc420a3044f8L,
+        0x05cbb48286ecf3aL,0x236bccd22a8dc0eL,0x0c6698ffcaaef15L },
+      { 0x044c54af6908745L,0x0cdb91a8cd4fee8L,0x2852d561e821a6bL,
+        0x1c0d8d245fda530L,0x181f613151b2979L,0x3d1a97bdb8408eeL,
+        0x114f7f6817dc2beL,0x316fe4f7a82be38L,0x136c3cf3cd5ed72L } },
+    /* 159 */
+    { { 0x38799ab7b080de4L,0x3de0775a760e5aeL,0x2aaa986f8f633b8L,
+        0x0e2952f1729dad0L,0x1a9c2fbb95d74c0L,0x005e24c1dbf2d81L,
+        0x286f0d8451b4408L,0x0c98d03c030e274L,0x14c3038e9520c54L },
+      { 0x14bc3816977aad9L,0x3f420b5c21ef8f2L,0x020c875fed08adbL,
+        0x350d1595bf01b42L,0x00fd6dd4ee1ce84L,0x297ead01c713638L,
+        0x2eeb6f23338b226L,0x309b351dfab042eL,0x078e4db08bb5f80L } },
+    /* 160 */
+    { { 0x111d12a1078342aL,0x11c979566841900L,0x1d590fd3ffdd053L,
+        0x27c1bc2b07fa916L,0x33e19bc69cf694aL,0x27773403db492b6L,
+        0x32dd4e3ce38f5ebL,0x07154e1003d9ad8L,0x085cab8fdfbe15eL },
+      { 0x2943f6b8d09422fL,0x0a5d583e6230ec2L,0x01fa2ef2e4d917dL,
+        0x0ecd7df04fd5691L,0x3edaad3ff674352L,0x0d1c90b49d34d01L,
+        0x38615d594114359L,0x2533472c9cc04eeL,0x07da0437004bd77L } },
+    /* 161 */
+    { { 0x24b99a62d712c44L,0x0da3e29a5895de0L,0x0432d65e2287148L,
+        0x019bd6f17e23b5aL,0x14ec3479d140283L,0x0c9b6dc39b3cc48L,
+        0x32936b96db6f449L,0x086bf296b026328L,0x04d69e248c72feaL },
+      { 0x2a89092a71269fbL,0x2f6ea061942d802L,0x02a39fb55db22f6L,
+        0x37d8c47a7407673L,0x090ac2c1d0fceb0L,0x2c7cdca9bebade7L,
+        0x0c41932393b222cL,0x399d18a9bcf7ef2L,0x0019dea30b22fe8L } },
+    /* 162 */
+    { { 0x1f689ac12b3118bL,0x3b8e75b2dba959fL,0x22c2187cd978d06L,
+        0x206354df61f3f30L,0x2e9f56db2b985b6L,0x38263055d611454L,
+        0x212cd20f8398715L,0x0711efa5a9720ecL,0x1fb3dda0338d9acL },
+      { 0x06b7fe0cfa0a9b8L,0x22eb1f88b73dd7cL,0x1e04136887c8947L,
+        0x37a453152f3ce05L,0x00f51ea64ed811dL,0x321c15df2309058L,
+        0x2bbcb463914d834L,0x3d4bbb493954aa2L,0x0019e5eb9e82644L } },
+    /* 163 */
+    { { 0x365a04e66d52313L,0x25151534fdcaf47L,0x1dafa6b7ae11fd6L,
+        0x3615c6ac91caf03L,0x2ae5a8d68921f79L,0x3b17384f5317e59L,
+        0x24bd39fde17716aL,0x19e0dc39bb692ddL,0x1efffe94085990dL },
+      { 0x3fa0e27d88f92e8L,0x3bc3f671dc48f3cL,0x174c89274dbaa21L,
+        0x296e6e89d898966L,0x246ebcaf6d4cfa4L,0x3e38a1c04324274L,
+        0x3aeea20317a10d8L,0x2c28ec1dc778514L,0x0eadf0c479168c6L } },
+    /* 164 */
+    { { 0x1bc1e484c854477L,0x3096d218e391f04L,0x202b869c54d92beL,
+        0x0caf879fb490f53L,0x06b460c4ae318deL,0x2909abfbd51c7acL,
+        0x052dc138ae7bf3aL,0x37a748eb89b7761L,0x1649d3fc1d55782L },
+      { 0x07cae310ade1979L,0x1c1074ed2f1ca36L,0x3c4056c3c9bea84L,
+        0x0ab5d2b919ce248L,0x0ecbe49ae36fe18L,0x3107e7d64affdbdL,
+        0x2307156680db80dL,0x1cc1cd6eb01bf91L,0x0c06d68b4c7d6d0L } },
+    /* 165 */
+    { { 0x3e22be7854dfcf2L,0x069f7e9ab8ef436L,0x3ad1a521ec46ee2L,
+        0x1e906a52133d18cL,0x32aa123f3ee9452L,0x2b8f2a484517ae6L,
+        0x05d9255634a82acL,0x0b63385dab283f2L,0x078504cf7fc1908L },
+      { 0x34ce7c43799793cL,0x375862d5467ed75L,0x1f9395ff980874dL,
+        0x346e2fd8798b3dbL,0x3dcfcf54f00ea45L,0x0c00d6c09a18d84L,
+        0x28a9cb67423b760L,0x01dfa7ef1d4d100L,0x0f47b52ce37051aL } },
+    /* 166 */
+    { { 0x3f7d8ad96bec962L,0x3207d85f8041ebaL,0x0509214e1058d1cL,
+        0x10d08e5327d9311L,0x11a6605136c298cL,0x037e090f644014bL,
+        0x1cdea4c36437549L,0x2dec48c4ef87bf9L,0x076249a60f7d27fL },
+      { 0x09758381cf593a0L,0x33bbee0d931679dL,0x1333e05c99910c9L,
+        0x07d0860238cbd68L,0x34f5e8f4f30ea5eL,0x1b032d1d5bece93L,
+        0x3dcc6a2cae6e2ebL,0x3045d82cc1ff422L,0x01aee17901c0ff8L } },
+    /* 167 */
+    { { 0x048336b89aa9e14L,0x0d09c7d9d9c03f0L,0x0433906b6980666L,
+        0x387aedeac8d36a8L,0x3eb59a05330247eL,0x0003d3565a6d2a9L,
+        0x026b5bd78ef8258L,0x15b13976ce3ad18L,0x03b06a43e5d7d68L },
+      { 0x20ae838ed2a0ee7L,0x2f94a3c5ba204eaL,0x1f5c4ea6413704bL,
+        0x2d81b8a619e2adbL,0x2f459ed2b5be80cL,0x1d85486bc66c6dcL,
+        0x116f3b7a9cce4d1L,0x1a494e6bfe652a9L,0x00797d92e86b341L } },
+    /* 168 */
+    { { 0x1aeede15af3a8caL,0x091e0a970d47b09L,0x23fbf93ec080339L,
+        0x3139bd096d1079eL,0x081e76009b04f93L,0x0603ff1b93b04bbL,
+        0x0aef3a797366d45L,0x076474a4f2ed438L,0x061a149694468d7L },
+      { 0x12c541c675a67a1L,0x0e34c23d7fa41bdL,0x3cccf6be988e67dL,
+        0x2f861626218a9c2L,0x27067045bae03ecL,0x032a365bb340985L,
+        0x00735d1facdd991L,0x3c871ea842a08c3L,0x0152a27e5543328L } },
+    /* 169 */
+    { { 0x1d609e0e6057e27L,0x22da9f1e915368fL,0x11451f32dd5b87eL,
+        0x22343bd478bfd66L,0x125567546ea397aL,0x08a2d20312619a8L,
+        0x01997aea45c8b13L,0x19f48f6f839df74L,0x1f80e2ea28fc518L },
+      { 0x295412d69d0820bL,0x1cc49c7a9968618L,0x0221eb06380d031L,
+        0x3f1d7fa5c1b09f2L,0x35a71d2507ffd4eL,0x1f2dd50dece5a95L,
+        0x0dbee361c80051cL,0x0b51781f6d35eb5L,0x1431c7481f49b19L } },
+    /* 170 */
+    { { 0x2ab2d0408e1cc4dL,0x1d634eb4b707b97L,0x3dfe5c9c7393e93L,
+        0x2a74cde5a0c33adL,0x2e24f86d7530d86L,0x02c6ec2fbd4a0f2L,
+        0x1b4e3cab5d1a64fL,0x031665aaaf07d53L,0x1443e3d87cc3bc0L },
+      { 0x10a82131d60e7b0L,0x2d8a6d74cf40639L,0x2e42fd05338dfc9L,
+        0x303a0871bab152bL,0x306ac09cb0678f2L,0x0c0637db97275d7L,
+        0x38c667833575135L,0x38b760729beb02fL,0x0e17fc8020e9d0aL } },
+    /* 171 */
+    { { 0x2dd47411baaa5ebL,0x2edd65e6f600da2L,0x0c40cdffed2202cL,
+        0x3c13824450761a0L,0x120748b871c23a8L,0x167a4a25974507bL,
+        0x06dbfe586a15756L,0x269d1f1a35f3540L,0x148da0ad0df2256L },
+      { 0x0fcc5db7f9069d7L,0x1f49157014c6932L,0x0899e9a2db3a248L,
+        0x0e2d3fa5c8316adL,0x0d27f35e452bfd5L,0x38b6b24dce81329L,
+        0x3ee7e27cbbc549eL,0x24d800a1c8a77fcL,0x0d03179878d28daL } },
+    /* 172 */
+    { { 0x1b7e9bb3b66c047L,0x1961a580a8f8762L,0x2297c8db9c0022eL,
+        0x28f4229d28d13e0L,0x1fcd398de0e76acL,0x0c8399abefc69c7L,
+        0x1c9fc52fbb6eaa8L,0x2cad2a0b43af05eL,0x00f4e00cf6f4e7aL },
+      { 0x24c0e9a4890c439L,0x1928aef0d69ac90L,0x079dd9b7497d375L,
+        0x03584b7a50a5691L,0x0e60d0033a1ff3fL,0x08905f68d6189ffL,
+        0x2b8385815da8c05L,0x25aa941841353bdL,0x120800728d2f16eL } },
+    /* 173 */
+    { { 0x36f2372ab039042L,0x1a5e327e8213b65L,0x1d2f58bec14310eL,
+        0x007f881170f40ffL,0x2b0a5a9283200c1L,0x187ebfe39a1a3deL,
+        0x31226526c95d1deL,0x3b45e8788049edeL,0x0898e63dd78c2a5L },
+      { 0x36533da22bba4eeL,0x3d8e5fd25a95d2eL,0x29f714f2a6b93efL,
+        0x2f477f75cfd024cL,0x269bca1b1a08248L,0x28b80c9d8bccfcbL,
+        0x1df7419a177e64bL,0x2f472f143a64dd7L,0x095b87a979f4a56L } },
+    /* 174 */
+    { { 0x03736a967c1f177L,0x34d4218004cf27aL,0x3b926eac9a5b1b6L,
+        0x29b09fbcc725092L,0x1122b48707a9c01L,0x346b2616b64eee9L,
+        0x3f175b9eb94e2a9L,0x364514470081b54L,0x0b1d13eb2525102L },
+      { 0x3e7dbeb675a1171L,0x20a5705b034ac73L,0x1b5a057c88cab22L,
+        0x25b4c03a73e36c9L,0x3269552eb73ea9eL,0x383e637ec3800dfL,
+        0x10480fea9d035c9L,0x2cc66183926e34aL,0x037a35e9512c036L } },
+    /* 175 */
+    { { 0x16729ee8f00df48L,0x329ed846b20c131L,0x17f98b3a8123b89L,
+        0x06708728fa925e9L,0x3e2bb3ce7e0431bL,0x371de065169cf7aL,
+        0x2b3df12f86cc2baL,0x373c17fc0179397L,0x05ef955dd7add27L },
+      { 0x0c22ffa00ee402fL,0x0d78a8ecc2ed338L,0x11d0643cb1015b3L,
+        0x114f3465a215095L,0x2f0be54b4c6183fL,0x3083379319993c8L,
+        0x24c475a5f4cfee4L,0x07b6772aa5cbe02L,0x19cde4af2005911L } },
+    /* 176 */
+    { { 0x29d0bc8d771f428L,0x07b36790f28e0a7L,0x2480eb93acf03acL,
+        0x2041968a8fe357bL,0x22f0b8a7316232fL,0x0951d2887f013eaL,
+        0x315f6f4a8df7e70L,0x0394946b13fc8eeL,0x06b66e21b73e095L },
+      { 0x1c9848067a41deeL,0x2a56b9ecf8acfd6L,0x0386891454e12cfL,
+        0x37fbbf29a915366L,0x011e9cb75f0dddbL,0x3bc8230d7da46c9L,
+        0x333cf6a9b9e766fL,0x1d2a7a37c400062L,0x1c4b8a55ac9d1c1L } },
+    /* 177 */
+    { { 0x19f58625c4cccb8L,0x3d4824bbd34fbeaL,0x257689efc87870bL,
+        0x25b685081b8a3d3L,0x07c52107da2366fL,0x1283c3c240cc680L,
+        0x2a47b0478d4ceadL,0x1d526ca267b891cL,0x110ae96534e6420L },
+      { 0x0c1d655cced05b0L,0x30fc2405d6550cbL,0x30a48e577cd7abaL,
+        0x24d03a635b6ebadL,0x3603d24f184b008L,0x15c85cf49a60d94L,
+        0x1141de6e1458832L,0x1fcd074d22c9984L,0x06be52257dcefa2L } },
+    /* 178 */
+    { { 0x2678f33c947e655L,0x3edda82248de564L,0x2745790239d1ff0L,
+        0x248f36edf3acb7fL,0x105f6d41cea0874L,0x2771562084c9b6eL,
+        0x0317025b1ae9ae7L,0x22a738514d033a7L,0x0c307502c29a2c3L },
+      { 0x0124f11c156ace2L,0x1c3f9de7fc94a43L,0x1a816e1171b22c1L,
+        0x20d57789e5d837eL,0x27c6cc79da19bcaL,0x3587ddc06b649faL,
+        0x1c06bb285901121L,0x10aeffa03209898L,0x15e4050d338aa26L } },
+    /* 179 */
+    { { 0x1397829eaad87bcL,0x324d9e07a132f72L,0x024d6ade4fdee0aL,
+        0x295a435fd5ad5e7L,0x3d14fb0b950b9abL,0x16839edbc26ca74L,
+        0x2f4ff3d0684f232L,0x1ccec1453a74d81L,0x077e63bdd26e8adL },
+      { 0x2fd06ece0d25c6dL,0x00086802e8b73c2L,0x17708c5bb398dd9L,
+        0x360663fe3f06c09L,0x1b7e2cd68077f06L,0x18e8d5ca1f543fcL,
+        0x125a9aef75e0572L,0x03a56fc95e24beaL,0x111847d3df0739dL } },
+    /* 180 */
+    { { 0x2ab9cc7fec82924L,0x1b75a69c8835a54L,0x27dea06ef0e21c7L,
+        0x3089c60e41298d4L,0x2716807c8ab3e51L,0x123c491bd36cd7aL,
+        0x1560958f3ede0a7L,0x0e37bc524d91104L,0x0f75f6583d1874bL },
+      { 0x39189e10b927eb7L,0x318d670b8bc49e8L,0x02337fe966f4a87L,
+        0x208417956142dcbL,0x2e58c39f9102b83L,0x246d4ca58ffb801L,
+        0x2ff97b3f052ee39L,0x14181fd6e15332eL,0x16a935e5f6c5f80L } },
+    /* 181 */
+    { { 0x19a0355dfd88d38L,0x33638f15277d03cL,0x29e304d006e1555L,
+        0x1b3f42c3398c89cL,0x135f2ad31f16b70L,0x1e8f7e7fc55b702L,
+        0x1e5fb5b30c5213fL,0x2368a7ca7324a95L,0x144a0ecfdd42b85L },
+      { 0x1c115df52658a92L,0x0fb45f10a0585adL,0x1f707fd92a91bceL,
+        0x3f67357625a9565L,0x35a9472b1663c8bL,0x00cf86f41dd8d0fL,
+        0x1c02fb14e44ca8bL,0x3ecc89e87261879L,0x1b5ece0f2c4cc4fL } },
+    /* 182 */
+    { { 0x3127bab31211943L,0x232b195a10c9705L,0x0b88d855fc3e44aL,
+        0x0333a47ba974bf8L,0x078ec7d1247ababL,0x3367fbe9748f771L,
+        0x255766a3986de70L,0x31fe8cb1ee19e09L,0x0873e54018beeaeL },
+      { 0x16e86f2b38d17c1L,0x3ef431c7e810372L,0x2b79f88499cb9cbL,
+        0x33bdc7b202f8446L,0x146c896921d47c5L,0x34c58cc6b2a8ef0L,
+        0x28765b5f921c0e3L,0x3c9c0c7e8207b9dL,0x0fed5dafd5f41efL } },
+    /* 183 */
+    { { 0x2f10b9d4cda1348L,0x1a7f48970c04ea2L,0x25b18957c22bb07L,
+        0x31fd6b3c711142aL,0x09fef80295cafd6L,0x38227d773dc6850L,
+        0x3d2ba8e12029f5eL,0x32d625d4aa3ec3eL,0x09061e2275f6f70L },
+      { 0x30a4ac51fbda16aL,0x0439e7c77e8a8adL,0x2132d9945f6f799L,
+        0x2bbad2e93bee8b3L,0x34bf2d53d450d59L,0x18831ea1aa3826cL,
+        0x13c6f476010204eL,0x3d5a98fe250f429L,0x13214c91d1987eaL } },
+    /* 184 */
+    { { 0x14fb120490d66c3L,0x35cca2837208139L,0x0c3804b4294deaeL,
+        0x2acc777119ee805L,0x28342ed113f2fa2L,0x0c0d3839c3fd57aL,
+        0x0ae3c1b18da72f2L,0x1680ab70c36faf6L,0x09c179bdf6f3e94L },
+      { 0x2c928ef7484c26fL,0x2df6c7bcab6ec51L,0x35483f58dda7206L,
+        0x0312f1fb6d8221fL,0x1975cafdcfde4e2L,0x1afbb0812134487L,
+        0x16db67c5b596708L,0x1d222d5e6aa229bL,0x01522c6d87e4118L } },
+    /* 185 */
+    { { 0x2890757c471d4aeL,0x12c6950e8769d82L,0x31826aa701a1fefL,
+        0x14967197e4ee24aL,0x1d789df35bf4d4eL,0x2de70fca48ebe4aL,
+        0x0cf1303ccb46c60L,0x03b125560b39f3dL,0x11c7da081b4257fL },
+      { 0x12c6ae59aeef274L,0x16fd3c50df020feL,0x3023e13c86afe6cL,
+        0x398a8894d82a9d2L,0x022589fa5d21dacL,0x3e9d2c3ecf55caeL,
+        0x2891a93d4a3916dL,0x33ef79db36372c4L,0x19aa0391a3f59f4L } },
+    /* 186 */
+    { { 0x14ba69e203fc3f1L,0x1a332d8841a8a41L,0x0540aad5fa9f091L,
+        0x03affdfb5bec206L,0x0bef94afdecb8f2L,0x02af476cb202986L,
+        0x0e0a7ce25d8ca0bL,0x16e69d799e9040aL,0x1b2dd7662ddd6e9L },
+      { 0x3dff279f289d7eeL,0x157567ba8881721L,0x3d54c18adac64d7L,
+        0x33dfb004066bac3L,0x2b48d70a43a8c46L,0x02ce7be1bf2439fL,
+        0x145a20965c53c11L,0x008f9155ddf30e1L,0x16ea33430f757ddL } },
+    /* 187 */
+    { { 0x29f39490ff53d2cL,0x24565ac00d26e7eL,0x1014d59979678dcL,
+        0x2aea29ade2bc429L,0x08b517b104dd72dL,0x1b4e6f83bd77950L,
+        0x217f70142b90bcaL,0x044632baa8fa7b6L,0x16da01689d606b3L },
+      { 0x26ca563f46afff7L,0x171ee8d29797cfaL,0x24c8aa998fd8394L,
+        0x11ad8fd4d7b07ffL,0x0d1f509e542a601L,0x3e33436d4205a22L,
+        0x236772d1918daa9L,0x3719994179aede2L,0x1ef4ab03a819cc6L } },
+    /* 188 */
+    { { 0x2089d14d376d986L,0x1381de8b70d6c01L,0x309a53ff2c86d0fL,
+        0x11448f0ff207045L,0x31b656fc2fef4baL,0x3fbea2ee14b3569L,
+        0x110b77b57c74891L,0x284a63c14e0f920L,0x04c4b55d3ad52c5L },
+      { 0x110cff3f3827633L,0x1e1357802bfa594L,0x38823ead32fa086L,
+        0x058ae47361b2ce1L,0x0e6f3638a3dcf4dL,0x22dff5081e2da96L,
+        0x1683e733792112eL,0x210cda5901137b9L,0x1223b84210f28e2L } },
+    /* 189 */
+    { { 0x028a9a9c3ebeb27L,0x3372d4fbd643e1bL,0x2e114dae7f37d7bL,
+        0x391c9ba9f27a228L,0x28c141388033522L,0x058855d667540e1L,
+        0x0564d859b1aeca6L,0x238d9c67f3faff3L,0x0433a577af11aebL },
+      { 0x3f26ce06feba922L,0x320fb91d695a4f0L,0x274028bf378e5f6L,
+        0x1a2f70fdbc5fde5L,0x2a6ed90aed2a5e3L,0x291f2f54f40d282L,
+        0x0e2bc83b1c3a4c4L,0x003ae93c2a9b937L,0x1c097c7af4374caL } },
+    /* 190 */
+    { { 0x037717879c28de7L,0x2a8aaaae70cc300L,0x182666bc61eb617L,
+        0x33d35e2d4110c20L,0x19870fc72e0b5b5L,0x102def175da9d4bL,
+        0x32d03a3b4689f5dL,0x182a6a5ff619e1fL,0x1c06ab7b5eefd60L },
+      { 0x19eadb1ffb71704L,0x3962ece43f8ec7aL,0x382cab4f19aa436L,
+        0x3eb83cf6773bb2aL,0x16e20ad12da492dL,0x36ef4988a83d52fL,
+        0x12eb54af89fa0f7L,0x01d637314286ba3L,0x0b79799f816ef7dL } },
+    /* 191 */
+    { { 0x2c46462104f98ccL,0x056489cabb7aba7L,0x3dd07e62186f451L,
+        0x09a35b5a6d9eba4L,0x0fd43a8f3d17ce0L,0x302ade5ed4d1d82L,
+        0x1f991de87f1c137L,0x38358efd65ea04eL,0x08de293a85be547L },
+      { 0x182add38ef668b1L,0x39acb584725d902L,0x2b121c1d4263c54L,
+        0x23bbfd939ccf39dL,0x02871612a3134b2L,0x2824d652bdc6a6bL,
+        0x1108e831c88af2bL,0x0df682d92444aeaL,0x1138febc5c55cf4L } },
+    /* 192 */
+    { { 0x29ca589c4a2daa2L,0x29c0f1003d8231fL,0x1058d517510318eL,
+        0x1c92aedbca5be33L,0x194296ab4264934L,0x314595f42f954f8L,
+        0x080ea89af9398faL,0x386c788cb7bb13eL,0x1372f81761e67b1L },
+      { 0x1014bc73a20f662L,0x1f9df127b654094L,0x096fb62b96521fbL,
+        0x19e8ba34dfa27d4L,0x25804170e3a659cL,0x3b5428d03caca89L,
+        0x03c00f1674fce69L,0x2764eaa914dfbf7L,0x198f3c3bfda4ce9L } },
+    /* 193 */
+    { { 0x2b1f5cd81614189L,0x15b11492c967deeL,0x24b245fb415ec7dL,
+        0x371ebdafbe71eeaL,0x074b48e82302bc8L,0x2db46c7e46ddc38L,
+        0x280c974a1336e09L,0x2d894a1704d5f99L,0x12d59bcb813c7ccL },
+      { 0x1ad83b47c019927L,0x3c999d8c37f56f7L,0x2c5a31e05d23e10L,
+        0x3e915ab1180576fL,0x1243cac822aa6e5L,0x372327a51a5594aL,
+        0x0a4065c69c9c7f4L,0x0c06eb6c9f82789L,0x1ccdfa7a34eae41L } },
+    /* 194 */
+    { { 0x36a864d59cb1a7dL,0x19328dabbee3b85L,0x3acb1c22b0d84d8L,
+        0x3af66037c743ba0L,0x07f94ced97e80a6L,0x29cb0457d60ab31L,
+        0x107bb7a29cd1233L,0x028c3384a8aa31cL,0x1500229ca564ed8L },
+      { 0x374bad52f1c180bL,0x2fa6635d26a8425L,0x08ab56dbd1bad08L,
+        0x3902befaa6a5e31L,0x3153dc5fc6ed3e3L,0x2fa4fb422a2fa5eL,
+        0x2e23bdadc7f0959L,0x0a77a3490a420b3L,0x016417523c6dc27L } },
+    /* 195 */
+    { { 0x0eeccf16c14a31eL,0x3894d2cb78f0b5dL,0x35997cec43c3488L,
+        0x27645ab24dbe6ecL,0x29f7e4400421045L,0x1154d60dc745700L,
+        0x14a4678c9c7c124L,0x2eb67325d5237b2L,0x14e4ca678183167L },
+      { 0x33af0558d0312bfL,0x2fd3d5505879980L,0x05a7fa41781dbd1L,
+        0x2a003bbc7549665L,0x079c3b8d033494dL,0x327db9a5b1417b0L,
+        0x030aaa70ae1ade1L,0x018300a23c305daL,0x00c7f4cfe3ba62aL } },
+    /* 196 */
+    { { 0x18b447d057d6006L,0x25db9bf5c722c03L,0x2029abcf40f538bL,
+        0x21bc40e9e0d79dfL,0x05e472c4b13bee3L,0x07f2c650829ab08L,
+        0x0abf4943b045f63L,0x1ade79770767f00L,0x1b528c0bc70a555L },
+      { 0x29d07ee8a8640b8L,0x04408f438d004aeL,0x255bbe24ae89256L,
+        0x093e95e77371f39L,0x1377bbfe5e358e5L,0x30251f915f389c5L,
+        0x29782664651c6c3L,0x305697ef63543d2L,0x08d6fcdd28fe2e1L } },
+    /* 197 */
+    { { 0x164a2f65c7202c8L,0x0d01496952c362dL,0x16721434fbf57d6L,
+        0x1787660c28e1053L,0x15ef0fbe1811421L,0x1bd5fe7f1e9d635L,
+        0x2269d35705dcf8eL,0x27e5d7752695b64L,0x0f18f015d7abdb4L },
+      { 0x3131110b4799ce6L,0x2fee64b2f2df6c1L,0x0c9ff7ba21e235bL,
+        0x04ec63d27fb07c0L,0x1abcf959b009d69L,0x350851ba3698654L,
+        0x1f23f10e6872130L,0x0e1ad560ca05eb9L,0x143c9b5bb689ae7L } },
+    /* 198 */
+    { { 0x23328db48c74424L,0x05b8474672cbad0L,0x192a40d6e217326L,
+        0x13032f71d4b94d0L,0x0d733bb01dd83a9L,0x2de914817188c14L,
+        0x0011c8cd0d631a5L,0x1f3573370289669L,0x1e622f112cc646eL },
+      { 0x3d6e29a3e1e4c4bL,0x2094e27ec552291L,0x05b54fd3e319d5fL,
+        0x2682822e599f8dcL,0x3d8cbe8db8c4ce5L,0x3bb0f5d6f29d279L,
+        0x1a313dcc4496eaaL,0x24d805f71c8ea28L,0x1a5250ff77a8cebL } },
+    /* 199 */
+    { { 0x15a0726fe29bd79L,0x12a0413e642cd29L,0x146daad56983657L,
+        0x2e543507fbda41aL,0x06e6f7f450e580aL,0x03cdc62af1d6d45L,
+        0x234087508cc97bfL,0x2244146e8b29295L,0x17275c39077e64dL },
+      { 0x37cccaff77ca6bdL,0x037d06f6c637d7cL,0x0ff8019e01f7e0aL,
+        0x112a9975cae7d1bL,0x06e3663e9be4f3dL,0x3be76db5e08b62bL,
+        0x24a9aa5f37f9223L,0x322e9fc2b4e76afL,0x098a0a57c70f69cL } },
+    /* 200 */
+    { { 0x1c50cf400fd5286L,0x16e755ca92c0f36L,0x0f9e051ae73e1eaL,
+        0x10a546ce093d798L,0x09fb4d667fe9b51L,0x3714215ac0d2cb4L,
+        0x30022e4b537a80eL,0x22bb9a7b8404a32L,0x0ed7c8b9e5c6a54L },
+      { 0x06007bcd933619bL,0x1d9a38ae77f865dL,0x15d3cc6e2a2e0ceL,
+        0x17dfbafccbea7bbL,0x167cc4f6435a14fL,0x214305b1d72e263L,
+        0x379c96cb2185fc7L,0x11d10261d29d917L,0x1397468f8ae27dbL } },
+    /* 201 */
+    { { 0x1de68adc88684f6L,0x3b6aad8669f6ff1L,0x1735b27a18f57c1L,
+        0x1963b3627ac9634L,0x2d879f7eab27e7bL,0x1f56fbecf622271L,
+        0x3ad73ca8fdc96d6L,0x15b5f21361ab8deL,0x1a4c7e91976ce8eL },
+      { 0x001a5406319ffa6L,0x3993b04d3b01314L,0x296cd541242c0caL,
+        0x3bafcb2bbb87da6L,0x028bee8059da259L,0x23a24392239e5e3L,
+        0x227fd9e9484bebbL,0x18c6039491b43ecL,0x1b78be2a54a625dL } },
+    /* 202 */
+    { { 0x223554af472f13aL,0x264edd5ccfa4728L,0x29f096c168a2facL,
+        0x0752c49d4d49abfL,0x3e77070ca7cfe76L,0x1f9f37da10c061cL,
+        0x162ed466b6aaadcL,0x3e36368b757aa85L,0x016a81a2e0039faL },
+      { 0x080759c4e3de3bfL,0x38b8454bcc222aaL,0x2d9aaa7eba5b0c1L,
+        0x14e7e70472b2cb7L,0x3b0dc5c194c65d5L,0x28fd2d842ae6f61L,
+        0x0b5f9fd32f8c96cL,0x0877d2610bf30a3L,0x0f431ae27ccb90eL } },
+    /* 203 */
+    { { 0x32a0a0d6a0ccd0aL,0x3bb209664ed554eL,0x06fd9de672a6a3eL,
+        0x1203681773ec4d2L,0x16739874d8d9c51L,0x0a68d72712a9113L,
+        0x177eadd9cf35b2eL,0x1c2875af66d7e24L,0x1d69af0f59d2a04L },
+      { 0x2f844c7ba7535fdL,0x3530f6a10bfce6cL,0x09ede951974b45bL,
+        0x25ff5114fb17f85L,0x1e6c37c0e6982e9L,0x0b0fbdaa98fdc17L,
+        0x36a8d609b0f6a9dL,0x06de2fb74d6185dL,0x1764048a46aede1L } },
+    /* 204 */
+    { { 0x07c6ee551a251d1L,0x12fc48349e77f69L,0x138cec518a28befL,
+        0x21ce202f9b930b5L,0x21be9b20b1b2b78L,0x1e5a867b1a733e3L,
+        0x10bdeae41dfeae3L,0x20300959dbf27edL,0x16a8b815a0503e1L },
+      { 0x0a085f653f5ef65L,0x3eefe5dec94414bL,0x07e3a3346fe661dL,
+        0x3b86e57dfbe23aaL,0x15b65eaec25ddfdL,0x30b808ec881d39aL,
+        0x283bb511869a154L,0x1f9f61806d5dd0bL,0x0151464652cfa87L } },
+    /* 205 */
+    { { 0x10853c857fa58f1L,0x2939a1329319c09L,0x2d0a1b81f40db58L,
+        0x041563a32f41ee5L,0x242e388cfa4651eL,0x110d8220699011bL,
+        0x2b8fd051b0d5394L,0x33f3b0afcd6cf89L,0x0fd4ae787095702L },
+      { 0x079bc29df53d498L,0x0c713844dfd890fL,0x056c17a3cedf4cfL,
+        0x071b36445764edaL,0x39228cddb246113L,0x3480afc6acc2914L,
+        0x108612e97757b68L,0x09ad2999b79f398L,0x051c200fe654f60L } },
+    /* 206 */
+    { { 0x296103cb1a2b4b5L,0x332ffa10f025a3aL,0x072d986ffb5b98dL,
+        0x3c85a74eb09a8dcL,0x2771371f12fa07aL,0x1f0a67be2ee16e6L,
+        0x372efceae10d34eL,0x15bc4f52f71a788L,0x039378df75d8dd8L },
+      { 0x1e902ffde7ff5d9L,0x2a1748c9682728cL,0x13a6f4192fcd0e9L,
+        0x0dc56c1dacf5c6eL,0x26e711d1cf52a57L,0x30a4a0675c9aaa1L,
+        0x015de60b61b1df2L,0x2791c89395d7320L,0x1dc68e893e118b7L } },
+    /* 207 */
+    { { 0x3924ff96ffeda73L,0x27d01a83688062dL,0x20eaf89584dfe70L,
+        0x0ba0d568100da38L,0x0fd777d7c009511L,0x2fe3cb20967514aL,
+        0x05311bb0c495652L,0x36755fd8c64a113L,0x0d5698d0e4f8466L },
+      { 0x10d64fa015d204dL,0x09afe9b744314f8L,0x0e63a7698c947b6L,
+        0x11c14cde95821feL,0x0df5c782f525a65L,0x157eebfd5638891L,
+        0x2e383048aa1e418L,0x18f4d23c886391fL,0x04df25239591384L } },
+    /* 208 */
+    { { 0x2f4fd69d8695310L,0x3ac27dfa1da3a9dL,0x1812e0d532a8e28L,
+        0x11315cab1e40e70L,0x0785d6293dda677L,0x369daec87e60038L,
+        0x3c72172bfe2a5a3L,0x22a39bb456e428aL,0x04cd80e61bfd178L },
+      { 0x1f4037016730056L,0x117fbf73b4f50eeL,0x363c1aa5074246fL,
+        0x14bfe4ab9cc2bf5L,0x11bb2063f21e5c6L,0x0b489501bbc20c3L,
+        0x15001c18306ecc1L,0x150913b766ce87cL,0x1f4e4eb25b8c0ccL } },
+    /* 209 */
+    { { 0x161a714a1db5c18L,0x139879d9dc1d33bL,0x3be57bf685de945L,
+        0x14f48516f97a5c3L,0x3ee49a5f2221b0cL,0x12c4740ee4c6206L,
+        0x02213700b91afa1L,0x002bf1abbf924fbL,0x13c50554e945262L },
+      { 0x02c45e77364c92eL,0x000995cd4863a35L,0x1a0284d3f3c5e05L,
+        0x0936fdd91af4a07L,0x2485f304f312f84L,0x049e944f86a23caL,
+        0x20e0bc583f56311L,0x1c293b5e5431c69L,0x0c692855e104b7bL } },
+    /* 210 */
+    { { 0x106185c644614e7L,0x01b2b91d2690923L,0x12ea2587e5282e9L,
+        0x02b44a15f356150L,0x0ba5593b5376399L,0x3574a919dc31fdcL,
+        0x29a1bac2cf6dc4dL,0x2576959369158edL,0x1c8639f7e141878L },
+      { 0x1c96b02f8589620L,0x11a28d079101501L,0x1a11096ad09c2feL,
+        0x2627194abbafc8bL,0x3547e1b8fbc73c2L,0x1df6fdcf37be7e2L,
+        0x13552d7073785a9L,0x0f4fc2a4a86a9f8L,0x15b227611403a39L } },
+    /* 211 */
+    { { 0x1a5a7b01fbfaf32L,0x298b42f99874862L,0x0f5ef5e3b44d5c5L,
+        0x3b7d0eefd891e5cL,0x1260ae5a03ea001L,0x1a5f18b2a39d0a1L,
+        0x1a7643eb899ebd2L,0x09698da800f99d4L,0x0eaef178c51ba07L },
+      { 0x2cf8e9f9bd51f28L,0x3aef6ea1c48112aL,0x2d3a5bfc836539fL,
+        0x334439bc23e1e02L,0x08241ab0e408a34L,0x22998a860413284L,
+        0x2048d6843e71ce9L,0x3461e773a14508cL,0x1fa5cba23be1cf3L } },
+    /* 212 */
+    { { 0x3e8c9d22973a15cL,0x3b237750a5e7ccbL,0x0a390b6afb3e66fL,
+        0x0daad97bc88e6bdL,0x266c5fcdb0bb1e4L,0x2bd21c2e3c98807L,
+        0x344e243cffe8a35L,0x05c8996b8a1bcaeL,0x114da2e283a51ddL },
+      { 0x29c9a56c1e3d708L,0x18b4fc72c3be992L,0x298497e875404feL,
+        0x1acf3a91bebc1c0L,0x283886263138b7dL,0x070c24241e018d3L,
+        0x03864727e842807L,0x2899fc2bde75f96L,0x104c1b86582b236L } },
+    /* 213 */
+    { { 0x2ff09eda526c894L,0x2fc48052b1f48ccL,0x0dcd3cd9293495aL,
+        0x04a4b9ad55adbe5L,0x21036c31bffaaebL,0x01ffccb864de5baL,
+        0x1d67b8a9d237e77L,0x0922f59696c360aL,0x1b348edb556db29L },
+      { 0x2e9f9b2ded46575L,0x32822bfe9a6b3dbL,0x33a1f16d37d1496L,
+        0x2c5e279740756baL,0x1c827cc454a507dL,0x259399dc178b38aL,
+        0x0e46f229b6e4a52L,0x19214158ec2e930L,0x0a3e75c24484bc4L } },
+    /* 214 */
+    { { 0x3cb476fd2f6615dL,0x3e6de36636a6a43L,0x1f1cd2bdf1074b7L,
+        0x21a6e55bcc78bf7L,0x3b596eadf2bda30L,0x156c94e3cf328bdL,
+        0x0846db91c09f8b3L,0x190b91bcfdbcf1bL,0x1ff9bb9398e2a14L },
+      { 0x118d4f5a17bd645L,0x0cfaaf6f5b55494L,0x06fc734d0957570L,
+        0x17d7d4f10d401faL,0x3fd27dd1998ca06L,0x254b472a652766fL,
+        0x2c101cddc4e3046L,0x2c01e132ad3ee06L,0x00346d079f94a56L } },
+    /* 215 */
+    { { 0x1eb8e4fa6bfdeddL,0x28a179e9d31be65L,0x14d13d09a252993L,
+        0x3986697dd9e2f57L,0x20cebb340eaa10bL,0x36fdea0f4f6c20fL,
+        0x0f23e1c633a78b1L,0x20de49992f0fb0cL,0x1c96630f8f107a0L },
+      { 0x3f4cb4bdef86a80L,0x13b1e0fe0966aeeL,0x3604609532c81faL,
+        0x3322e427a4a92fdL,0x31788416071bb7aL,0x286ae4a32875cc5L,
+        0x0455a57f7f14becL,0x3a266ffa805b97eL,0x02d7b8c76b9bf21L } },
+    /* 216 */
+    { { 0x28605634b9f8e7dL,0x05dadd8ff162a11L,0x1a7e2feed68a201L,
+        0x0f99460c6439e97L,0x2e9377ad6cc6776L,0x1c0c8c85f5f4040L,
+        0x0bb505ccfc47207L,0x09da55cfb80c54dL,0x0f31bf1ef8c0f1aL },
+      { 0x35f5c4b0c935667L,0x14b0e41834ae2d8L,0x2c2e37c3a574741L,
+        0x1302dcb8337bfeaL,0x1f4f60247fd5fccL,0x2785bccedd0fe6eL,
+        0x34ef9c05c2e3547L,0x2b38e888d311cc1L,0x1244092f279495aL } },
+    /* 217 */
+    { { 0x3fd7851b30f9170L,0x2a87a4dff396c56L,0x15e0928437b9715L,
+        0x1670cbc49cf3ff5L,0x248be1e3488acd2L,0x296f18ad685173cL,
+        0x156f463a3408607L,0x3870d8a5bac5460L,0x1e7397fad192774L },
+      { 0x22f99f49c8225b5L,0x3f39251addf134dL,0x35308541e91b33eL,
+        0x0d0e3cf5a4d1477L,0x2e727b54e0bd2d9L,0x188b65002d778b5L,
+        0x36a94b42d929c27L,0x3c814dab39c8d5bL,0x04464a18cd5fccaL } },
+    /* 218 */
+    { { 0x1be0aababa95d63L,0x203185ed2cd1b63L,0x38630e0d8142927L,
+        0x0aad5bbc13190c3L,0x1785e3633875be0L,0x04b24f930a3fae5L,
+        0x2f82a3d5401795cL,0x2bf5a27fd47078dL,0x16b3c48c89510eeL },
+      { 0x1287ebad4f064beL,0x1f555553af6a65eL,0x1ef2623727ea1a7L,
+        0x24627cd9b1919d1L,0x1c59d6ebda911f5L,0x1493484df950d73L,
+        0x15b38d3a84daea7L,0x0f1271ec774710eL,0x01cca13e7041a82L } },
+    /* 219 */
+    { { 0x399860c874d64b0L,0x16c248594f38318L,0x0000eaa11986337L,
+        0x0258873457459c0L,0x277d70dcd62c679L,0x016f5336f875f75L,
+        0x2f8f30eff0f2703L,0x16de01dbb1884d8L,0x1d8812048167e44L },
+      { 0x1749a0e161f9758L,0x2457fa8f13f38a0L,0x0e41911dd8afe60L,
+        0x2b1e6946827d4dfL,0x02ca5cf8efe36a8L,0x12415fd59fed52dL,
+        0x244b641bdcae07eL,0x1960edc7fc31690L,0x1064815a5364b60L } },
+    /* 220 */
+    { { 0x0c69c3eef39cc39L,0x011593e98d5b45eL,0x3542412fb990983L,
+        0x34de76eca96f4f0L,0x0e7e75e3da1d531L,0x2c051ec52197c62L,
+        0x129ab02dac4e220L,0x1d3bfd6794728cfL,0x0f1c964f7fe37b0L },
+      { 0x080c0a60e301262L,0x1601814e4288b5cL,0x3f9acc8a90299a4L,
+        0x15c5303c70b699dL,0x26e66d9f7dfae90L,0x1e11a490d997fc5L,
+        0x0c307cc866dd8c4L,0x1439316bfa63f13L,0x03960e3ba63e0bfL } },
+    /* 221 */
+    { { 0x2785136959ecdb3L,0x2bd85fe7a566f86L,0x32b8cde0dc88289L,
+        0x2c1f01e78554516L,0x350e22415fe9070L,0x1635b50bddfc134L,
+        0x3b629ab3ab73723L,0x3f49453f506e6e9L,0x1937b32d80e7400L },
+      { 0x1d80d4d7147886fL,0x33b5855db2072b9L,0x0692642717bbe08L,
+        0x262aed2f487853aL,0x26530308b9dcdf1L,0x2674671d962f991L,
+        0x0ab126fbf192dadL,0x378c5568f46ccc1L,0x00e943f4be5fa24L } },
+    /* 222 */
+    { { 0x14240587fe9ea48L,0x13e09586d5d21b1L,0x013c78719740af2L,
+        0x1e5c3ae1d3674b1L,0x0b62ba3aa27a9beL,0x306fc2b10ffbe38L,
+        0x3130e10a23f2862L,0x33afd4709dbcd2bL,0x185f6cd1e9aae55L },
+      { 0x0defa7f40369093L,0x076759616078289L,0x3f33e512ed9e11fL,
+        0x167b448225a6402L,0x28b73c399bf8a84L,0x3dbd53fa0c91557L,
+        0x25235554a305698L,0x0ecc4aa75b694f0L,0x16ae6a6f9042a09L } },
+    /* 223 */
+    { { 0x2e123c9152cdd35L,0x390ea21900bbc6cL,0x30dfb9ce5bd5ae6L,
+        0x129d601245224afL,0x3f502eec2b4acb8L,0x28cfbd3a31fd57fL,
+        0x1d20019c8a7b93aL,0x2f3ac1ac40d5ff6L,0x0273e319ff00ba3L },
+      { 0x02c2f77abe360a3L,0x3d7212b7fbf2986L,0x0ca6650b6fcc57eL,
+        0x15aabc2c80a693cL,0x0a24ef1563f4f8eL,0x3a917c4d7214228L,
+        0x036dbed8f62fd91L,0x040efcb248e80a0L,0x18a4a9ca4c01a4dL } },
+    /* 224 */
+    { { 0x23fb7985448e339L,0x1dc33c628e65d8aL,0x174d7a69170cde8L,
+        0x164ad819eb04581L,0x0848138ab4bb05cL,0x24279e537834b6cL,
+        0x0315f7149dab924L,0x289620e8cdad9e4L,0x13ccd9074d9a335L },
+      { 0x039c5e0ac1b784dL,0x17231bb949eb87aL,0x2146a1c88ec0ab6L,
+        0x2411b06fd634f21L,0x33fda502a2201f7L,0x096e4195c73b189L,
+        0x16dfcdff3f88eb2L,0x29731b07c326315L,0x0acaa3222aa484fL } },
+    /* 225 */
+    { { 0x3e74bc3c9b4dfd6L,0x2a014fe39d8a4c5L,0x1c059d8c352025bL,
+        0x332e16882d00c1fL,0x2238713591c9036L,0x2a57ed3bcb18fc2L,
+        0x10c6c61a99d9d8cL,0x259a0f5f13ce661L,0x169162969c96829L },
+      { 0x113c267cb63ee53L,0x04b985d7ab0d4dfL,0x1a11191abfca67bL,
+        0x277b86bda7eccdaL,0x011dc11e75ad064L,0x2e7e5d9535e9bc0L,
+        0x2b133280f030b8dL,0x3318a8800068fc2L,0x194e17c98d239d8L } },
+    /* 226 */
+    { { 0x20d80b41d8fe898L,0x28a2dcc86114d1cL,0x038504f217408d7L,
+        0x35459aa9abfc7cfL,0x0cc560e355d381cL,0x39878b367379821L,
+        0x34951acb041f0a5L,0x2b0b188445bd766L,0x0c4509e16d37ee2L },
+      { 0x02a20c42c6fd79eL,0x1fb938ebde2c3aeL,0x23c1bad819ca95bL,
+        0x37a615495a4f66dL,0x2f9c19d0f10d674L,0x1f179aa45f7992cL,
+        0x22db6fa03fabaf4L,0x3463a162f12b4b3L,0x0c976c2380a1fc9L } },
+    /* 227 */
+    { { 0x1171ef8b064f114L,0x2c55953cbc3d324L,0x185457b262b783cL,
+        0x0043cd24db0c149L,0x299a41fed468c67L,0x1fdfdaa7bc9b4bfL,
+        0x1bfc1bf6da2267aL,0x3b500958ee36e80L,0x00e14b36c85c340L },
+      { 0x257e26425db67e6L,0x3d3a25fcba417d7L,0x2514026c426885dL,
+        0x188fa1d424de0cbL,0x03c538691312be2L,0x15cd3e7615ad6f6L,
+        0x2a48615b1cae559L,0x2ed61681eff8b56L,0x1d07a4c96f0ce8aL } },
+    /* 228 */
+    { { 0x3f54d05523aa2e9L,0x107833b4f42181eL,0x36e27f9bfb69c88L,
+        0x11058af7e155a0fL,0x107b0dcc9dcb07fL,0x15e94db98b45e0eL,
+        0x347d3ca2cbb8ab6L,0x18dc262e68349f3L,0x1f2ff154d685eeaL },
+      { 0x28b768a56b232acL,0x35b8d8fca94aad5L,0x3a168837fc604e8L,
+        0x20f4429da46eba1L,0x0f9455fbeebc58aL,0x359538bab5792bcL,
+        0x3c82551a20d6c37L,0x2e4c63103f2e769L,0x0b26d7b3cd760d9L } },
+    /* 229 */
+    { { 0x3090c3ebb2eaf45L,0x1364718bfee4bdeL,0x3ea4a736f23ded2L,
+        0x2f5bfc3f78efca8L,0x1ca1102f5b5b99eL,0x1f80caa2f28ad57L,
+        0x3f17a8f6203cd80L,0x156c55042d122a2L,0x109b86660a7e1dcL },
+      { 0x148b1da02a2fbd8L,0x217a2cec8ba296cL,0x20e48712b509fedL,
+        0x1231a8f94584de2L,0x01633b503685601L,0x15449c45c402487L,
+        0x131047939251432L,0x382eded24c7481fL,0x0ea623e722b8542L } },
+    /* 230 */
+    { { 0x04823d324972688L,0x20f04800fd5d882L,0x26906d0d452858bL,
+        0x210b1bdd1f86535L,0x10146d89a842195L,0x1146ef0b23e28baL,
+        0x3284fa29ec1de77L,0x3913fd88adae3dfL,0x06083f1dbe97b71L },
+      { 0x1649333999dd56bL,0x2b02ea5e91f7a66L,0x18aebbe8fb202cfL,
+        0x363d875ef299983L,0x185adc14d47c29dL,0x3e7f5071bd7ed47L,
+        0x113e6ce65ac7884L,0x274f8739a7753fdL,0x0231ace591effe5L } },
+    /* 231 */
+    { { 0x267a438a9fda771L,0x3d94b2198c4038bL,0x1e48e133f23b626L,
+        0x3c80d74b47f7ec6L,0x28d13e878599f88L,0x2d47381c5c8e844L,
+        0x19ba82890aa292fL,0x052d397ce9c3aefL,0x155dde826733745L },
+      { 0x0b2b77ed6f59a95L,0x214f8c080810802L,0x2ac1ebac779793fL,
+        0x266d5ad99d94894L,0x19722a5006ecdcbL,0x138aeb412af6e7eL,
+        0x34dd4d26210f3f0L,0x2e034329683fcc0L,0x041333d8080dac0L } },
+    /* 232 */
+    { { 0x051070935a85a06L,0x19b9d90bbc6d13aL,0x0b71a07b3a6d4e1L,
+        0x000c0ca79aa12a4L,0x13d555259d6dd6cL,0x3e2b41788312e99L,
+        0x34cccdee3b26af6L,0x19090838f5504aaL,0x1bd79798934a940L },
+      { 0x2a1d1848e0c7ff0L,0x217bf2550ecd03cL,0x31aef51d318bbaeL,
+        0x139d61e3e9ba590L,0x3c2895f52e5d3edL,0x3c4419f134a8a76L,
+        0x3f4ee53af278771L,0x1d369b337a59279L,0x19235188da1a56dL } },
+    /* 233 */
+    { { 0x083212003d310edL,0x3ba33261ec0c46cL,0x1d2684c558a8d20L,
+        0x33adc59fb227952L,0x04bf55bb55e25f3L,0x1872405eb3c453dL,
+        0x3343c0819edc770L,0x2d7b5d669139b7aL,0x07858df9f7e04c9L },
+      { 0x3a47ebb3bf13222L,0x147737a81f68453L,0x3ac3c0d8242f1e4L,
+        0x134dbae1c786fa7L,0x2bea3190d93257dL,0x3af8accfd279dd6L,
+        0x110096406d191f4L,0x2b1e19eab14f030L,0x1f45215cf8bd381L } },
+    /* 234 */
+    { { 0x07e8a8efa493b79L,0x389c2d3ac70ab0eL,0x3fa09ff22320b20L,
+        0x2baa470e4f67ce4L,0x2138a8d965ee1baL,0x1ef543937b6a586L,
+        0x23c8e069ab238c9L,0x1305bfda352288dL,0x158af8e00e5ce4cL },
+      { 0x0cdcf06cfc509a1L,0x1047bf09b301d5bL,0x1fd64d9c57f060fL,
+        0x14ccba672b1b433L,0x18b8e9510a95148L,0x04370ff563e6acfL,
+        0x2f3509a7e98709bL,0x04b1e0e4210f5d7L,0x1b628ccc9d05a93L } },
+    /* 235 */
+    { { 0x1934f00e341463fL,0x229b3854369e807L,0x20fc4109553f14cL,
+        0x16aa4fd2a476d21L,0x32cd58067c23bdeL,0x10cf72027d1f1e1L,
+        0x232a7d1d3300548L,0x176a4302f9fe5d6L,0x12e08b777d588c7L },
+      { 0x3c1281761a10d37L,0x2d86057143d6977L,0x15db79477c60ed7L,
+        0x1dccf14c42ca2beL,0x053118267a0aa2bL,0x2d06567e417eaaeL,
+        0x337784f40e98166L,0x1ab32732d09485aL,0x0c56835d77c6986L } },
+    /* 236 */
+    { { 0x1d714cb2b450a66L,0x222171f6ff7053aL,0x0d85b466a0c0131L,
+        0x2656f7f0699956aL,0x0e67792d102a21eL,0x15429e5de835f26L,
+        0x34d3372a01bb57bL,0x352550b1188cd75L,0x08b7be4e1c088daL },
+      { 0x073b03f95812273L,0x1bb4cbb8fdd5fc6L,0x0eae6da6217a2e2L,
+        0x1d098767d3cb1c4L,0x1b7c1da2d9b50b5L,0x12a1779d0e5c7eaL,
+        0x22137b22c4fb87cL,0x0649bdcb0d147b0L,0x1731345668c77baL } },
+    /* 237 */
+    { { 0x23e8c7a8a3ba183L,0x33aeeff8e27e9cfL,0x06870f9ba60f4e8L,
+        0x0d72d806a0e3a91L,0x212e52db455176eL,0x3dc4afc7e42f709L,
+        0x2054cd95f9e4598L,0x3502e6f4c803efaL,0x17a2cf19bf6dd5fL },
+      { 0x1cf6ca266736febL,0x21bd2779f3f8bdcL,0x3ce8fc290563bdeL,
+        0x339c9adb93f182aL,0x13f29235baae8a3L,0x143fe97b48e0911L,
+        0x3ef744a4b557f56L,0x1b74a8514f95044L,0x1b07c676a533e42L } },
+    /* 238 */
+    { { 0x1e603f235d96872L,0x288f30fe96e32bdL,0x071be988dc5fab1L,
+        0x22750c302f55166L,0x0764d9cc3e32e84L,0x0b031035fb09a78L,
+        0x3b83b4f7238212fL,0x29044b651860e21L,0x010281fa6712f18L },
+      { 0x028048f64858b37L,0x0526bcd5f797660L,0x0791619ebb18e0eL,
+        0x2ce7cac2e82c886L,0x21039cbae210200L,0x255e74756a1fab9L,
+        0x08515e4efdcddb3L,0x1e2a86ce23aa89eL,0x02c1a552c3cc818L } },
+    /* 239 */
+    { { 0x2c7f5000ea723dcL,0x3c13d10ac548c5eL,0x1445be885c860a5L,
+        0x0fffc465c098f52L,0x0c4c58cea61f999L,0x273580db0fee917L,
+        0x3923bbe6d151e6bL,0x3f519d68eac555eL,0x1474ec07c52ceb2L },
+      { 0x06a3d32ed88239dL,0x2e2b9a0d6b9a531L,0x23259feeb2e70d1L,
+        0x0710ef02ed7d3f7L,0x38f62a705223bf7L,0x3f9e6694f34882dL,
+        0x2b7f932224860e9L,0x2562f61561c0c92L,0x10f8e0f7330b594L } },
+    /* 240 */
+    { { 0x335c7bb3c67d520L,0x12562c8ff2a7b2bL,0x31948bbaa808d8fL,
+        0x33884d7a2b81de3L,0x1c888eff7418c30L,0x1cc512af376366aL,
+        0x06a53472075df0fL,0x1ff16d527225514L,0x11c4ef389795fbbL },
+      { 0x3e2c9ac43f5e698L,0x1ff2f38e2978e8fL,0x090e3089c2e1ce7L,
+        0x3feb0756005b417L,0x0381b9d2a5a74f3L,0x17ce582ebbb6888L,
+        0x37abbed958b143fL,0x2dc6197ff414436L,0x0ce8e97e6807a05L } },
+    /* 241 */
+    { { 0x251e61b8ce86a83L,0x10567efdf9c5808L,0x3dd748f03377860L,
+        0x0dd1414890bf049L,0x0934ea09b87cb2cL,0x119e5106f52543dL,
+        0x3a416a5146c403cL,0x23ac7a2b51c408eL,0x1b389b81a60af63L },
+      { 0x299934ee8150c69L,0x1d642389f052f39L,0x28916a0194ff74fL,
+        0x0c86f546dd97702L,0x21877963038f49dL,0x34ed29a1af0cc17L,
+        0x0af189fe2f3fbffL,0x0426c5026cddf5fL,0x1b3029ea13b9b8fL } },
+    /* 242 */
+    { { 0x37938d225a2fd88L,0x3cbdf33ae8180fbL,0x1c80d7a6dff4890L,
+        0x0d8a20fe61930f8L,0x2998e530500c78fL,0x097771cfb64ad64L,
+        0x13708a018a8f1b3L,0x0a2edb7ff661f57L,0x059dcd3554f0d1fL },
+      { 0x3c6e41d23a74e7dL,0x187af976ccb7d85L,0x3fa79e7ffa0b94bL,
+        0x2dcbaede834f0bfL,0x201adf9c3473662L,0x119e4992a19057bL,
+        0x209c571502c3265L,0x242185a444d24beL,0x195897f34aa2474L } },
+    /* 243 */
+    { { 0x045d359abadc253L,0x12e4b31e5f25792L,0x35bd9a218212e05L,
+        0x17a94ae209c8aa6L,0x22e61c6769bb80aL,0x22c3e2cfa8e39e3L,
+        0x1d854cfb274b1a0L,0x0b5cedaa90b8f6eL,0x1638ba225235601L },
+      { 0x0ec0e6f75c8c576L,0x0839f392f1f749fL,0x20c869d80726abbL,
+        0x1aa2808fadc2562L,0x276110b15a908c6L,0x21bd869b2a7d43aL,
+        0x0a69d8668c99941L,0x2843e777c8bb4a8L,0x1e0bfee1897bbf8L } },
+    /* 244 */
+    { { 0x2d8681848319e4fL,0x1bdad56961be809L,0x1886267132656beL,
+        0x316614a73eafbd7L,0x162b29cfbac252aL,0x0a98d6379f3117cL,
+        0x00ac70ee050609aL,0x2c7c3df2e7290a5L,0x1adfb44aaeca885L },
+      { 0x2b7a936e798678eL,0x07840e655010e19L,0x1e37816860b7ca0L,
+        0x20edd17615fc924L,0x0a4705ed6eeffd4L,0x0a9743dd76ecd8aL,
+        0x09fee357d68d49bL,0x35a1b46a14a688eL,0x1addbbc25491a7fL } },
+    /* 245 */
+    { { 0x10cba20969686a3L,0x2c71578f014fd78L,0x313426f47102308L,
+        0x2c5240cc0e05c4aL,0x32d01527b1f9165L,0x2a68d38916dc805L,
+        0x3e35c86fcf6647aL,0x38e0947d52e52c2L,0x0e3fccb22a55a15L },
+      { 0x271e4ec5b4dc0beL,0x0d89236c735712aL,0x3f43046e1007bb1L,
+        0x35f6a72668fcdafL,0x28349bc505a6806L,0x04f8214272ff1bbL,
+        0x3448c126871e73eL,0x2ebe579aa889d9fL,0x1b9ba77787c2da7L } },
+    /* 246 */
+    { { 0x2be58eec5a73375L,0x37da75ea2b10e06L,0x150aceca835a175L,
+        0x027d41f4c3cb3ccL,0x3c60b0424b87b06L,0x043e43b26b94e8aL,
+        0x1689bb4931e1824L,0x06a3914b1f43eb7L,0x013ab4534914763L },
+      { 0x32dd8568c84f3afL,0x3702486eab8cfabL,0x2a858b96b070829L,
+        0x103a2a094591950L,0x05c35322b42260dL,0x27b6834ae797b6bL,
+        0x22b90abca795603L,0x14c0a1af41f1ae5L,0x10a2e22dac7b1ecL } },
+    /* 247 */
+    { { 0x25fc09d239d8f0aL,0x0b80f2ae2840859L,0x17680173477b92bL,
+        0x27e38d8581390daL,0x19eb061beab38edL,0x3a1159c1e6c0247L,
+        0x21a2e0cd4226543L,0x00c3e83ddfb1cbfL,0x0931d242162760aL },
+      { 0x29f834cf8646bc3L,0x25294902ba5be7eL,0x3890379177d17dfL,
+        0x113ffad9b364070L,0x077b924659dfd06L,0x3660753e06bb0bbL,
+        0x37b0932df3b7f2cL,0x2762f26f0fda7cdL,0x125daef34f3dd85L } },
+    /* 248 */
+    { { 0x008451ba2c123bcL,0x20e9a02063e952bL,0x170298957b8ad1eL,
+        0x0d3c3c4bc595b75L,0x30a9fa14dcc7f2eL,0x0bf9e0b07daa70cL,
+        0x1f54ddefc9a2bbbL,0x0294f4c671a5dc2L,0x1dc0b8238cbd646L },
+      { 0x249290144dfb6f6L,0x35f2d1b900749bdL,0x240e48537ad8270L,
+        0x2d5c3636f6469c2L,0x2f170d58b84d661L,0x0d13874b289c88eL,
+        0x1de1faeeb4cf146L,0x17a9c8957f256aeL,0x1f8cd6e110adbdcL } },
+    /* 249 */
+    { { 0x257c6b978b8a0a7L,0x12badba0cfb7a8aL,0x17c14bd13fe724bL,
+        0x223f0ba3b927918L,0x1fb147eefc41868L,0x3998b3ee34e6292L,
+        0x0ba2ece9f191f12L,0x35435861c8a2656L,0x02dbd6d0f1b00b8L },
+      { 0x15cfdfe24c93cc9L,0x35de02e79c639e2L,0x3a5838baf7eb29eL,
+        0x1f93772fda40722L,0x3a180d6bb022538L,0x251f1f0992c942fL,
+        0x23f3cd6d68e548cL,0x0f34a0a9ed8ca64L,0x00fb8f036132d10L } },
+    /* 250 */
+    { { 0x198b3f08cd9d494L,0x0196e653d3e7ce0L,0x22203c738fa99b2L,
+        0x0536348a72dd992L,0x0c51c54b3199f4cL,0x084e8ccb76b5d71L,
+        0x0c7b2f9a32ce0bdL,0x3c82bce88421622L,0x0d16defa3625b1fL },
+      { 0x0e0054819a296ebL,0x13fc5746a44c4d1L,0x2d2bfeaa454f1d9L,
+        0x00d3502f5ff5f7aL,0x21801a4afae65a8L,0x178379dd813c51fL,
+        0x172ca0983048f9aL,0x3445e8ec67297fdL,0x0e0a237dba71821L } },
+    /* 251 */
+    { { 0x1babf8491630ee8L,0x16270817ad4c07bL,0x2b2da051f47bde6L,
+        0x25884aefa067df4L,0x294292124aeaa9fL,0x110d796f73b4f57L,
+        0x11f66f691f5b89fL,0x3c368658130ce50L,0x0e6b7fc09ca4356L },
+      { 0x294e413f74f811cL,0x0b60c77e36376c4L,0x3217963418c91a4L,
+        0x06223af37b09fd5L,0x2ea305bc95fde52L,0x319a2d87f75781bL,
+        0x011861ed1e6088aL,0x33af0ccebc05baeL,0x1c95ecb192d15ddL } },
+    /* 252 */
+    { { 0x27b37a3e0bde442L,0x10ffa19bde9cfa4L,0x1d208ed10c2ee05L,
+        0x1069985e8cb4c36L,0x0d1d5cf8baf79c3L,0x0eaf3e2f9cd9e1cL,
+        0x2b5e7b02d0dce9eL,0x1c317f88f4b75dcL,0x10b29fceea01ffcL },
+      { 0x1bcae4d62d803ffL,0x3a44ff6f0c1aa4cL,0x27abd8c1066293eL,
+        0x0ab9e9b5962bc77L,0x2102f4e06d48578L,0x0dbebf9a449964bL,
+        0x37121391a3127f1L,0x058d11ae4d10220L,0x0ba53bb4380a31eL } },
+    /* 253 */
+    { { 0x2e517fcca5636b0L,0x1b8085aae8571d8L,0x3d7c212e7b2d429L,
+        0x1b55c5eb6116aa3L,0x398b2f3579517ceL,0x3d66c1f39d8ae16L,
+        0x3ef6f042f996b5dL,0x2d227cdccaaefcdL,0x15da5d145ea4542L },
+      { 0x277c55eaa7f6e3fL,0x36669ea92816f07L,0x3d77458282273f4L,
+        0x3eddedd23ee95b5L,0x20629f5d1db0895L,0x16600fec7121333L,
+        0x20b8d0f5b1c90a3L,0x04fc90eb13ca45cL,0x0e98c10bfe872acL } },
+    /* 254 */
+    { { 0x11c4785c06c4fd6L,0x2e40974970ae767L,0x1eb1d4982f24bf4L,
+        0x30ae93fbcac104dL,0x398de07ab3ab3edL,0x25bd2df556948e7L,
+        0x04c815d5fc49ab0L,0x1acaf1428a580e1L,0x047db1148d01567L },
+      { 0x09f9cc510f3bad9L,0x2223f008a407531L,0x15ebc47b44df490L,
+        0x31bce7cada245e9L,0x304e9962a20b2ebL,0x1cf756dc31638ebL,
+        0x29f76c52ab7c1b5L,0x328ecad52b75a8cL,0x10859dad1eb82f4L } },
+    /* 255 */
+    { { 0x22c4128a182d1adL,0x05e5b88245b1159L,0x0272ba681647775L,
+        0x3eae4b217069dc1L,0x3aefb2e07fac8b0L,0x2186ccb481eacb7L,
+        0x2ed145c73530a07L,0x292758f6fb59622L,0x0bd547bcdca0a53L },
+      { 0x3c1382f87056b51L,0x247b6c4c3e644a9L,0x1e46d3805b42c3dL,
+        0x3aff4c6a657df1fL,0x0cd3fb8aa456101L,0x3ac5ef387bf48adL,
+        0x2c0c32fe391df79L,0x3bbd2d353031985L,0x11219f023be711bL } },
+};
+
+/* Multiply the base point of P521 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^65, ...
+ * Pre-generated: products of all combinations of above.
+ * 8 doubles and adds (with qz=1)
+ *
+ * r     Resulting point.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_521_ecc_mulmod_base_9(sp_point_521* r, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+    return sp_521_ecc_mulmod_stripe_9(r, &p521_base, p521_table,
+                                      k, map, ct, heap);
+}
+
+#endif
+
+/* Multiply the base point of P521 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * km    Scalar to multiply by.
+ * r     Resulting point.
+ * map   Indicates whether to convert result to affine.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_mulmod_base_521(const mp_int* km, ecc_point* r, int map, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_521* point = NULL;
+    sp_digit* k = NULL;
+#else
+    sp_point_521  point[1];
+    sp_digit k[9];
+#endif
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_521*)XMALLOC(sizeof(sp_point_521), heap,
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 9, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (k == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        sp_521_from_mp(k, 9, km);
+
+            err = sp_521_ecc_mulmod_base_9(point, k, map, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_point_to_ecc_point_9(point, r);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Multiply the base point of P521 by the scalar, add point a and return
+ * the result. If map is true then convert result to affine coordinates.
+ *
+ * km      Scalar to multiply by.
+ * am      Point to add to scalar mulitply result.
+ * inMont  Point to add is in montgomery form.
+ * r       Resulting point.
+ * map     Indicates whether to convert result to affine.
+ * heap    Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_mulmod_base_add_521(const mp_int* km, const ecc_point* am,
+        int inMont, ecc_point* r, int map, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_521* point = NULL;
+    sp_digit* k = NULL;
+#else
+    sp_point_521 point[2];
+    sp_digit k[9 + 9 * 2 * 5];
+#endif
+    sp_point_521* addP = NULL;
+    sp_digit* tmp = NULL;
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_521*)XMALLOC(sizeof(sp_point_521) * 2, heap, 
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(
+            sizeof(sp_digit) * (9 + 9 * 2 * 5),
+            heap, DYNAMIC_TYPE_ECC);
+        if (k == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        addP = point + 1;
+        tmp = k + 9;
+
+        sp_521_from_mp(k, 9, km);
+        sp_521_point_from_ecc_point_9(addP, am);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_521_mod_mul_norm_9(addP->x, addP->x, p521_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_521_mod_mul_norm_9(addP->y, addP->y, p521_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_521_mod_mul_norm_9(addP->z, addP->z, p521_mod);
+    }
+    if (err == MP_OKAY) {
+            err = sp_521_ecc_mulmod_base_9(point, k, 0, 0, heap);
+    }
+    if (err == MP_OKAY) {
+            sp_521_proj_point_add_9(point, point, addP, tmp);
+
+        if (map) {
+                sp_521_map_9(point, point, tmp);
+        }
+
+        err = sp_521_point_to_ecc_point_9(point, r);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    if (point)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
+                                                        defined(HAVE_ECC_VERIFY)
+/* Returns 1 if the number of zero.
+ * Implementation is constant time.
+ *
+ * a  Number to check.
+ * returns 1 if the number is zero and 0 otherwise.
+ */
+static int sp_521_iszero_9(const sp_digit* a)
+{
+    return (a[0] | a[1] | a[2] | a[3] | a[4] | a[5] | a[6] | a[7] |
+            a[8]) == 0;
+}
+
+#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN | HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
+/* Add 1 to a. (a = a + 1)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_521_add_one_9(sp_digit* a)
+{
+    a[0]++;
+    sp_521_norm_9(a);
+}
+
+/* Read big endian unsigned byte array into r.
+ *
+ * r  A single precision integer.
+ * size  Maximum number of bytes to convert
+ * a  Byte array.
+ * n  Number of bytes in array to read.
+ */
+static void sp_521_from_bin(sp_digit* r, int size, const byte* a, int n)
+{
+    int i;
+    int j = 0;
+    word32 s = 0;
+
+    r[0] = 0;
+    for (i = n-1; i >= 0; i--) {
+        r[j] |= (((sp_digit)a[i]) << s);
+        if (s >= 50U) {
+            r[j] &= 0x3ffffffffffffffL;
+            s = 58U - s;
+            if (j + 1 >= size) {
+                break;
+            }
+            r[++j] = (sp_digit)a[i] >> s;
+            s = 8U - s;
+        }
+        else {
+            s += 8U;
+        }
+    }
+
+    for (j++; j < size; j++) {
+        r[j] = 0;
+    }
+}
+
+/* Generates a scalar that is in the range 1..order-1.
+ *
+ * rng  Random number generator.
+ * k    Scalar value.
+ * returns RNG failures, MEMORY_E when memory allocation fails and
+ * MP_OKAY on success.
+ */
+static int sp_521_ecc_gen_k_9(WC_RNG* rng, sp_digit* k)
+{
+    int err;
+    byte buf[66];
+
+    do {
+        err = wc_RNG_GenerateBlock(rng, buf, sizeof(buf));
+        if (err == 0) {
+            buf[0] &= 0x1;
+            sp_521_from_bin(k, 9, buf, (int)sizeof(buf));
+            if (sp_521_cmp_9(k, p521_order2) <= 0) {
+                sp_521_add_one_9(k);
+                break;
+            }
+        }
+    }
+    while (err == 0);
+
+    return err;
+}
+
+/* Makes a random EC key pair.
+ *
+ * rng   Random number generator.
+ * priv  Generated private value.
+ * pub   Generated public point.
+ * heap  Heap to use for allocation.
+ * returns ECC_INF_E when the point does not have the correct order, RNG
+ * failures, MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_521* point = NULL;
+    sp_digit* k = NULL;
+#else
+    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    sp_point_521 point[2];
+    #else
+    sp_point_521 point[1];
+    #endif
+    sp_digit k[9];
+#endif
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    sp_point_521* infinity = NULL;
+#endif
+    int err = MP_OKAY;
+    
+
+    (void)heap;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    point = (sp_point_521*)XMALLOC(sizeof(sp_point_521) * 2, heap, DYNAMIC_TYPE_ECC);
+    #else
+    point = (sp_point_521*)XMALLOC(sizeof(sp_point_521), heap, DYNAMIC_TYPE_ECC);    
+    #endif
+    if (point == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 9, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (k == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+        infinity = point + 1;
+    #endif
+
+        err = sp_521_ecc_gen_k_9(rng, k);
+    }
+    if (err == MP_OKAY) {
+            err = sp_521_ecc_mulmod_base_9(point, k, 1, 1, NULL);
+    }
+
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    if (err == MP_OKAY) {
+            err = sp_521_ecc_mulmod_9(infinity, point, p521_order, 1, 1, NULL);
+    }
+    if (err == MP_OKAY) {
+        if (sp_521_iszero_9(point->x) || sp_521_iszero_9(point->y)) {
+            err = ECC_INF_E;
+        }
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(k, priv);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_point_to_ecc_point_9(point, pub);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    if (point != NULL) {
+        /* point is not sensitive, so no need to zeroize */
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+    }
+#endif
+
+    return err;
+}
+
+#ifdef HAVE_ECC_DHE
+/* Write r as big endian to byte array.
+ * Fixed length number of bytes written: 66
+ *
+ * r  A single precision integer.
+ * a  Byte array.
+ */
+static void sp_521_to_bin_9(sp_digit* r, byte* a)
+{
+    int i;
+    int j;
+    int s = 0;
+    int b;
+
+    for (i=0; i<8; i++) {
+        r[i+1] += r[i] >> 58;
+        r[i] &= 0x3ffffffffffffffL;
+    }
+    j = 528 / 8 - 1;
+    a[j] = 0;
+    for (i=0; i<9 && j>=0; i++) {
+        b = 0;
+        /* lint allow cast of mismatch sp_digit and int */
+        a[j--] |= (byte)(r[i] << s); /*lint !e9033*/
+        b += 8 - s;
+        if (j < 0) {
+            break;
+        }
+        while (b < 58) {
+            a[j--] = (byte)(r[i] >> b);
+            b += 8;
+            if (j < 0) {
+                break;
+            }
+        }
+        s = 8 - (b - 58);
+        if (j >= 0) {
+            a[j] = 0;
+        }
+        if (s != 0) {
+            j++;
+        }
+    }
+}
+
+/* Multiply the point by the scalar and serialize the X ordinate.
+ * The number is 0 padded to maximum size on output.
+ *
+ * priv    Scalar to multiply the point by.
+ * pub     Point to multiply.
+ * out     Buffer to hold X ordinate.
+ * outLen  On entry, size of the buffer in bytes.
+ *         On exit, length of data in buffer in bytes.
+ * heap    Heap to use for allocation.
+ * returns BUFFER_E if the buffer is to small for output size,
+ * MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_secret_gen_521(const mp_int* priv, const ecc_point* pub, byte* out,
+                          word32* outLen, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_521* point = NULL;
+    sp_digit* k = NULL;
+#else
+    sp_point_521 point[1];
+    sp_digit k[9];
+#endif
+    int err = MP_OKAY;
+
+    if (*outLen < 65U) {
+        err = BUFFER_E;
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        point = (sp_point_521*)XMALLOC(sizeof(sp_point_521), heap,
+                                         DYNAMIC_TYPE_ECC);
+        if (point == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 9, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (k == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        sp_521_from_mp(k, 9, priv);
+        sp_521_point_from_ecc_point_9(point, pub);
+            err = sp_521_ecc_mulmod_9(point, point, k, 1, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        sp_521_to_bin_9(point->x, out);
+        *outLen = 66;
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+#endif /* HAVE_ECC_DHE */
+
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+#endif
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* Multiply a by scalar b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A scalar.
+ */
+SP_NOINLINE static void sp_521_mul_d_9(sp_digit* r, const sp_digit* a,
+    sp_digit b)
+{
+#ifdef WOLFSSL_SP_SMALL
+    sp_int128 tb = b;
+    sp_int128 t = 0;
+    int i;
+
+    for (i = 0; i < 9; i++) {
+        t += tb * a[i];
+        r[i] = (sp_digit)(t & 0x3ffffffffffffffL);
+        t >>= 58;
+    }
+    r[9] = (sp_digit)t;
+#else
+    sp_int128 tb = b;
+    sp_int128 t[9];
+
+    t[ 0] = tb * a[ 0];
+    t[ 1] = tb * a[ 1];
+    t[ 2] = tb * a[ 2];
+    t[ 3] = tb * a[ 3];
+    t[ 4] = tb * a[ 4];
+    t[ 5] = tb * a[ 5];
+    t[ 6] = tb * a[ 6];
+    t[ 7] = tb * a[ 7];
+    t[ 8] = tb * a[ 8];
+    r[ 0] = (sp_digit)                 (t[ 0] & 0x3ffffffffffffffL);
+    r[ 1] = (sp_digit)((t[ 0] >> 58) + (t[ 1] & 0x3ffffffffffffffL));
+    r[ 2] = (sp_digit)((t[ 1] >> 58) + (t[ 2] & 0x3ffffffffffffffL));
+    r[ 3] = (sp_digit)((t[ 2] >> 58) + (t[ 3] & 0x3ffffffffffffffL));
+    r[ 4] = (sp_digit)((t[ 3] >> 58) + (t[ 4] & 0x3ffffffffffffffL));
+    r[ 5] = (sp_digit)((t[ 4] >> 58) + (t[ 5] & 0x3ffffffffffffffL));
+    r[ 6] = (sp_digit)((t[ 5] >> 58) + (t[ 6] & 0x3ffffffffffffffL));
+    r[ 7] = (sp_digit)((t[ 6] >> 58) + (t[ 7] & 0x3ffffffffffffffL));
+    r[ 8] = (sp_digit)((t[ 7] >> 58) + (t[ 8] & 0x3ffffffffffffffL));
+    r[ 9] = (sp_digit) (t[ 8] >> 58);
+#endif /* WOLFSSL_SP_SMALL */
+}
+
+#ifdef WOLFSSL_SP_DIV_64
+static WC_INLINE sp_digit sp_521_div_word_9(sp_digit d1, sp_digit d0,
+    sp_digit dv)
+{
+    sp_digit d;
+    sp_digit r;
+    sp_digit t;
+
+    /* All 58 bits from d1 and top 5 bits from d0. */
+    d = (d1 << 5) + (d0 >> 53);
+    r = d / dv;
+    d -= r * dv;
+    /* Up to 6 bits in r */
+    /* Next 5 bits from d0. */
+    r <<= 5;
+    d <<= 5;
+    d += (d0 >> 48) & ((1 << 5) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 11 bits in r */
+    /* Next 5 bits from d0. */
+    r <<= 5;
+    d <<= 5;
+    d += (d0 >> 43) & ((1 << 5) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 16 bits in r */
+    /* Next 5 bits from d0. */
+    r <<= 5;
+    d <<= 5;
+    d += (d0 >> 38) & ((1 << 5) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 21 bits in r */
+    /* Next 5 bits from d0. */
+    r <<= 5;
+    d <<= 5;
+    d += (d0 >> 33) & ((1 << 5) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 26 bits in r */
+    /* Next 5 bits from d0. */
+    r <<= 5;
+    d <<= 5;
+    d += (d0 >> 28) & ((1 << 5) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 31 bits in r */
+    /* Next 5 bits from d0. */
+    r <<= 5;
+    d <<= 5;
+    d += (d0 >> 23) & ((1 << 5) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 36 bits in r */
+    /* Next 5 bits from d0. */
+    r <<= 5;
+    d <<= 5;
+    d += (d0 >> 18) & ((1 << 5) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 41 bits in r */
+    /* Next 5 bits from d0. */
+    r <<= 5;
+    d <<= 5;
+    d += (d0 >> 13) & ((1 << 5) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 46 bits in r */
+    /* Next 5 bits from d0. */
+    r <<= 5;
+    d <<= 5;
+    d += (d0 >> 8) & ((1 << 5) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 51 bits in r */
+    /* Next 5 bits from d0. */
+    r <<= 5;
+    d <<= 5;
+    d += (d0 >> 3) & ((1 << 5) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 56 bits in r */
+    /* Remaining 3 bits from d0. */
+    r <<= 3;
+    d <<= 3;
+    d += d0 & ((1 << 3) - 1);
+    t = d / dv;
+    r += t;
+
+    /* All 58 bits from d1 and top 5 bits from d0. */
+    return r;
+}
+#endif /* WOLFSSL_SP_DIV_64 */
+
+/* Divide d in a and put remainder into r (m*d + r = a)
+ * m is not calculated as it is not needed at this time.
+ *
+ * Large number of bits in last word.
+ *
+ * a  Number to be divided.
+ * d  Number to divide with.
+ * m  Multiplier result.
+ * r  Remainder from the division.
+ * returns MEMORY_E when unable to allocate memory and MP_OKAY otherwise.
+ */
+static int sp_521_div_9(const sp_digit* a, const sp_digit* d, 
+        const sp_digit* m, sp_digit* r)
+{
+    int i;
+#ifndef WOLFSSL_SP_DIV_64
+    sp_int128 d1;
+#endif
+    sp_digit dv;
+    sp_digit r1;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* t1 = NULL;
+#else
+    sp_digit t1[3 * 9 + 1];
+#endif
+    sp_digit* t2 = NULL;
+    int err = MP_OKAY;
+
+    (void)m;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t1 = (sp_digit*)XMALLOC(sizeof(sp_digit) * (3 * 9 + 1), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (t1 == NULL)
+        err = MEMORY_E;
+#endif
+
+    if (err == MP_OKAY) {
+        t2 = t1 + 2 * 9;
+
+        dv = d[8];
+        XMEMCPY(t1, a, sizeof(*t1) * 2U * 9U);
+        for (i=8; i>=0; i--) {
+            t1[9 + i] += t1[9 + i - 1] >> 58;
+            t1[9 + i - 1] &= 0x3ffffffffffffffL;
+#ifndef WOLFSSL_SP_DIV_64
+            d1 = t1[9 + i];
+            d1 <<= 58;
+            d1 += t1[9 + i - 1];
+            r1 = (sp_digit)(d1 / dv);
+#else
+            r1 = sp_521_div_word_9(t1[9 + i], t1[9 + i - 1], dv);
+#endif
+
+            sp_521_mul_d_9(t2, d, r1);
+            (void)sp_521_sub_9(&t1[i], &t1[i], t2);
+            sp_521_norm_9(&t1[i]);
+            t1[9 + i] -= t2[9];
+            t1[9 + i] += t1[9 + i - 1] >> 58;
+            t1[9 + i - 1] &= 0x3ffffffffffffffL;
+#ifndef WOLFSSL_SP_DIV_64
+            d1 = -t1[9 + i];
+            d1 <<= 58;
+            d1 -= t1[9 + i - 1];
+            r1 = (sp_digit)(d1 / dv);
+#else
+            r1 = sp_521_div_word_9(-t1[9 + i], -t1[9 + i - 1], dv);
+#endif
+            r1++;
+            sp_521_mul_d_9(t2, d, r1);
+            (void)sp_521_add_9(&t1[i], &t1[i], t2);
+            t1[9 + i] += t1[9 + i - 1] >> 58;
+            t1[9 + i - 1] &= 0x3ffffffffffffffL;
+        }
+        t1[9 - 1] += t1[9 - 2] >> 58;
+        t1[9 - 2] &= 0x3ffffffffffffffL;
+        r1 = t1[9 - 1] / dv;
+
+        sp_521_mul_d_9(t2, d, r1);
+        (void)sp_521_sub_9(t1, t1, t2);
+        XMEMCPY(r, t1, sizeof(*r) * 18U);
+        for (i=0; i<8; i++) {
+            r[i+1] += r[i] >> 58;
+            r[i] &= 0x3ffffffffffffffL;
+        }
+        sp_521_cond_add_9(r, r, d, 0 - ((r[8] < 0) ?
+                    (sp_digit)1 : (sp_digit)0));
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t1 != NULL)
+        XFREE(t1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return err;
+}
+
+/* Reduce a modulo m into r. (r = a mod m)
+ *
+ * r  A single precision number that is the reduced result.
+ * a  A single precision number that is to be reduced.
+ * m  A single precision number that is the modulus to reduce with.
+ * returns MEMORY_E when unable to allocate memory and MP_OKAY otherwise.
+ */
+static int sp_521_mod_9(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    return sp_521_div_9(a, m, NULL, r);
+}
+
+#endif
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* Multiply two number mod the order of P521 curve. (r = a * b mod order)
+ *
+ * r  Result of the multiplication.
+ * a  First operand of the multiplication.
+ * b  Second operand of the multiplication.
+ */
+static void sp_521_mont_mul_order_9(sp_digit* r, const sp_digit* a, const sp_digit* b)
+{
+    sp_521_mul_9(r, a, b);
+    sp_521_mont_reduce_order_9(r, p521_order, p521_mp_order);
+}
+
+#if defined(HAVE_ECC_SIGN) || (defined(HAVE_ECC_VERIFY) && defined(WOLFSSL_SP_SMALL))
+#ifdef WOLFSSL_SP_SMALL
+/* Order-2 for the P521 curve. */
+static const uint64_t p521_order_minus_2[9] = {
+    0xbb6fb71e91386407U,0x3bb5c9b8899c47aeU,0x7fcc0148f709a5d0U,
+    0x51868783bf2f966bU,0xfffffffffffffffaU,0xffffffffffffffffU,
+    0xffffffffffffffffU,0xffffffffffffffffU,0x00000000000001ffU
+};
+#else
+/* The low half of the order-2 of the P521 curve. */
+static const uint64_t p521_order_low[5] = {
+    0xbb6fb71e91386407U,0x3bb5c9b8899c47aeU,0x7fcc0148f709a5d0U,
+    0x51868783bf2f966bU,0xfffffffffffffffaU
+};
+#endif /* WOLFSSL_SP_SMALL */
+
+/* Square number mod the order of P521 curve. (r = a * a mod order)
+ *
+ * r  Result of the squaring.
+ * a  Number to square.
+ */
+static void sp_521_mont_sqr_order_9(sp_digit* r, const sp_digit* a)
+{
+    sp_521_sqr_9(r, a);
+    sp_521_mont_reduce_order_9(r, p521_order, p521_mp_order);
+}
+
+#ifndef WOLFSSL_SP_SMALL
+/* Square number mod the order of P521 curve a number of times.
+ * (r = a ^ n mod order)
+ *
+ * r  Result of the squaring.
+ * a  Number to square.
+ */
+static void sp_521_mont_sqr_n_order_9(sp_digit* r, const sp_digit* a, int n)
+{
+    int i;
+
+    sp_521_mont_sqr_order_9(r, a);
+    for (i=1; i<n; i++) {
+        sp_521_mont_sqr_order_9(r, r);
+    }
+}
+#endif /* !WOLFSSL_SP_SMALL */
+
+/* Invert the number, in Montgomery form, modulo the order of the P521 curve.
+ * (r = 1 / a mod order)
+ *
+ * r   Inverse result.
+ * a   Number to invert.
+ * td  Temporary data.
+ */
+
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_521_mont_inv_order_9_ctx {
+    int state;
+    int i;
+} sp_521_mont_inv_order_9_ctx;
+static int sp_521_mont_inv_order_9_nb(sp_ecc_ctx_t* sp_ctx, sp_digit* r, const sp_digit* a,
+        sp_digit* t)
+{
+    int err = FP_WOULDBLOCK;
+    sp_521_mont_inv_order_9_ctx* ctx = (sp_521_mont_inv_order_9_ctx*)sp_ctx;
+
+    typedef char ctx_size_test[sizeof(sp_521_mont_inv_order_9_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0:
+        XMEMCPY(t, a, sizeof(sp_digit) * 9);
+        ctx->i = 519;
+        ctx->state = 1;
+        break;
+    case 1:
+        sp_521_mont_sqr_order_9(t, t);
+        ctx->state = 2;
+        break;
+    case 2:
+        if ((p521_order_minus_2[ctx->i / 64] & ((sp_int_digit)1 << (ctx->i % 64))) != 0) {
+            sp_521_mont_mul_order_9(t, t, a);
+        }
+        ctx->i--;
+        ctx->state = (ctx->i == 0) ? 3 : 1;
+        break;
+    case 3:
+        XMEMCPY(r, t, sizeof(sp_digit) * 9U);
+        err = MP_OKAY;
+        break;
+    }
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+static void sp_521_mont_inv_order_9(sp_digit* r, const sp_digit* a,
+        sp_digit* td)
+{
+#ifdef WOLFSSL_SP_SMALL
+    sp_digit* t = td;
+    int i;
+
+    XMEMCPY(t, a, sizeof(sp_digit) * 9);
+    for (i=519; i>=0; i--) {
+        sp_521_mont_sqr_order_9(t, t);
+        if ((p521_order_minus_2[i / 64] & ((sp_int_digit)1 << (i % 64))) != 0) {
+            sp_521_mont_mul_order_9(t, t, a);
+        }
+    }
+    XMEMCPY(r, t, sizeof(sp_digit) * 9U);
+#else
+    sp_digit* t = td;
+    sp_digit* t2 = td + 2 * 9;
+    sp_digit* t3 = td + 4 * 9;
+    int i;
+
+    /* t = a^2 */
+    sp_521_mont_sqr_order_9(t, a);
+    /* t = a^3 = t * a */
+    sp_521_mont_mul_order_9(t, t, a);
+    /* t= a^c = t ^ 2 ^ 2 */
+    sp_521_mont_sqr_n_order_9(t2, t, 2);
+    /* t = a^f = t2 * t */
+    sp_521_mont_mul_order_9(t, t2, t);
+
+    /* t3 = a^1e */
+    sp_521_mont_sqr_order_9(t3, t);
+    /* t3 = a^1f = t3 * a */
+    sp_521_mont_mul_order_9(t3, t3, a);
+
+    /* t2= a^f0 = t ^ 2 ^ 4 */
+    sp_521_mont_sqr_n_order_9(t2, t, 4);
+    /* t = a^ff = t2 * t */
+    sp_521_mont_mul_order_9(t, t2, t);
+    /* t2= a^ff00 = t ^ 2 ^ 8 */
+    sp_521_mont_sqr_n_order_9(t2, t, 8);
+    /* t3= a^ffff = t2 * t */
+    sp_521_mont_mul_order_9(t, t2, t);
+    /* t2= a^ffff0000 = t ^ 2 ^ 16 */
+    sp_521_mont_sqr_n_order_9(t2, t, 16);
+    /* t = a^ffffffff = t2 * t */
+    sp_521_mont_mul_order_9(t, t2, t);
+
+    /* t2= a^ffffffff00000000 = t ^ 2 ^ 32 */
+    sp_521_mont_sqr_n_order_9(t2, t, 32);
+    /* t = a^ffffffffffffffff = t2 * t */
+    sp_521_mont_mul_order_9(t, t2, t);
+    /* t2= a^ffffffffffffffff0000000000000000 = t ^ 2 ^ 64 */
+    sp_521_mont_sqr_n_order_9(t2, t, 64);
+    /* t = a^ffffffffffffffffffffffffffffffff = t2 * t */
+    sp_521_mont_mul_order_9(t, t2, t);
+    /* t2= a^ffffffffffffffffffffffffffffffff00000000000000000000000000000000 = t ^ 2 ^ 128 */
+    sp_521_mont_sqr_n_order_9(t2, t, 128);
+    /* t = a^ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff = t2 * t */
+    sp_521_mont_mul_order_9(t, t2, t);
+
+    /* t2 = a^1fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0 */
+    sp_521_mont_sqr_n_order_9(t2, t, 5);
+    /* t2 = a^1fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff = t * t3 */
+    sp_521_mont_mul_order_9(t2, t2, t3);
+
+    for (i=259; i>=1; i--) {
+        sp_521_mont_sqr_order_9(t2, t2);
+        if ((p521_order_low[i / 64] & ((sp_int_digit)1 << (i % 64))) != 0) {
+            sp_521_mont_mul_order_9(t2, t2, a);
+        }
+    }
+    sp_521_mont_sqr_order_9(t2, t2);
+    sp_521_mont_mul_order_9(r, t2, a);
+#endif /* WOLFSSL_SP_SMALL */
+}
+
+#endif /* HAVE_ECC_SIGN || (HAVE_ECC_VERIFY && WOLFSSL_SP_SMALL) */
+#endif /* HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
+#ifdef HAVE_ECC_SIGN
+#ifndef SP_ECC_MAX_SIG_GEN
+#define SP_ECC_MAX_SIG_GEN  64
+#endif
+
+/* Calculate second signature value S from R, k and private value.
+ *
+ * s = (r * x + e) / k
+ *
+ * s    Signature value.
+ * r    First signature value.
+ * k    Ephemeral private key.
+ * x    Private key as a number.
+ * e    Hash of message as a number.
+ * tmp  Temporary storage for intermediate numbers.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_521_calc_s_9(sp_digit* s, const sp_digit* r, sp_digit* k,
+    sp_digit* x, const sp_digit* e, sp_digit* tmp)
+{
+    int err;
+    sp_digit carry;
+    sp_int64 c;
+    sp_digit* kInv = k;
+
+    /* Conv k to Montgomery form (mod order) */
+        sp_521_mul_9(k, k, p521_norm_order);
+    err = sp_521_mod_9(k, k, p521_order);
+    if (err == MP_OKAY) {
+        sp_521_norm_9(k);
+
+        /* kInv = 1/k mod order */
+            sp_521_mont_inv_order_9(kInv, k, tmp);
+        sp_521_norm_9(kInv);
+
+        /* s = r * x + e */
+            sp_521_mul_9(x, x, r);
+        err = sp_521_mod_9(x, x, p521_order);
+    }
+    if (err == MP_OKAY) {
+        sp_521_norm_9(x);
+        carry = sp_521_add_9(s, e, x);
+        sp_521_cond_sub_9(s, s, p521_order, 0 - carry);
+        sp_521_norm_9(s);
+        c = sp_521_cmp_9(s, p521_order);
+        sp_521_cond_sub_9(s, s, p521_order,
+            (sp_digit)0 - (sp_digit)(c >= 0));
+        sp_521_norm_9(s);
+
+        /* s = s * k^-1 mod order */
+            sp_521_mont_mul_order_9(s, s, kInv);
+        sp_521_norm_9(s);
+    }
+
+    return err;
+}
+
+/* Sign the hash using the private key.
+ *   e = [hash, 521 bits] from binary
+ *   r = (k.G)->x mod order
+ *   s = (r * x + e) / k mod order
+ * The hash is truncated to the first 521 bits.
+ *
+ * hash     Hash to sign.
+ * hashLen  Length of the hash data.
+ * rng      Random number generator.
+ * priv     Private part of key - scalar.
+ * rm       First part of result as an mp_int.
+ * sm       Sirst part of result as an mp_int.
+ * heap     Heap to use for allocation.
+ * returns RNG failures, MEMORY_E when memory allocation fails and
+ * MP_OKAY on success.
+ */
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_ecc_sign_521_ctx {
+    int state;
+    union {
+        sp_521_ecc_mulmod_9_ctx mulmod_ctx;
+        sp_521_mont_inv_order_9_ctx mont_inv_order_ctx;
+    };
+    sp_digit e[2*9];
+    sp_digit x[2*9];
+    sp_digit k[2*9];
+    sp_digit r[2*9];
+    sp_digit tmp[3 * 2*9];
+    sp_point_521 point;
+    sp_digit* s;
+    sp_digit* kInv;
+    int i;
+} sp_ecc_sign_521_ctx;
+
+int sp_ecc_sign_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, WC_RNG* rng,
+    mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap)
+{
+    int err = FP_WOULDBLOCK;
+    sp_ecc_sign_521_ctx* ctx = (sp_ecc_sign_521_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_ecc_sign_521_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    (void)heap;
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        ctx->s = ctx->e;
+        ctx->kInv = ctx->k;
+        if (hashLen > 65U) {
+            hashLen = 65U;
+        }
+
+        ctx->i = SP_ECC_MAX_SIG_GEN;
+        ctx->state = 1;
+        break;
+    case 1: /* GEN */
+        /* New random point. */
+        if (km == NULL || mp_iszero(km)) {
+            err = sp_521_ecc_gen_k_9(rng, ctx->k);
+        }
+        else {
+            sp_521_from_mp(ctx->k, 9, km);
+            mp_zero(km);
+        }
+        XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
+        ctx->state = 2;
+        break;
+    case 2: /* MULMOD */
+        err = sp_521_ecc_mulmod_9_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx,
+            &ctx->point, &p521_base, ctx->k, 1, 1, heap);
+        if (err == MP_OKAY) {
+            ctx->state = 3;
+        }
+        break;
+    case 3: /* MODORDER */
+    {
+        sp_int64 c;
+        /* r = point->x mod order */
+        XMEMCPY(ctx->r, ctx->point.x, sizeof(sp_digit) * 9U);
+        sp_521_norm_9(ctx->r);
+        c = sp_521_cmp_9(ctx->r, p521_order);
+        sp_521_cond_sub_9(ctx->r, ctx->r, p521_order,
+            (sp_digit)0 - (sp_digit)(c >= 0));
+        sp_521_norm_9(ctx->r);
+
+        sp_521_from_mp(ctx->x, 9, priv);
+        sp_521_from_bin(ctx->e, 9, hash, (int)hashLen);
+        ctx->state = 4;
+        break;
+    }
+    case 4: /* KMODORDER */
+        /* Conv k to Montgomery form (mod order) */
+        sp_521_mul_9(ctx->k, ctx->k, p521_norm_order);
+        err = sp_521_mod_9(ctx->k, ctx->k, p521_order);
+        if (err == MP_OKAY) {
+            sp_521_norm_9(ctx->k);
+            XMEMSET(&ctx->mont_inv_order_ctx, 0, sizeof(ctx->mont_inv_order_ctx));
+            ctx->state = 5;
+        }
+        break;
+    case 5: /* KINV */
+        /* kInv = 1/k mod order */
+        err = sp_521_mont_inv_order_9_nb((sp_ecc_ctx_t*)&ctx->mont_inv_order_ctx, ctx->kInv, ctx->k, ctx->tmp);
+        if (err == MP_OKAY) {
+            XMEMSET(&ctx->mont_inv_order_ctx, 0, sizeof(ctx->mont_inv_order_ctx));
+            ctx->state = 6;
+        }
+        break;
+    case 6: /* KINVNORM */
+        sp_521_norm_9(ctx->kInv);
+        ctx->state = 7;
+        break;
+    case 7: /* R */
+        /* s = r * x + e */
+        sp_521_mul_9(ctx->x, ctx->x, ctx->r);
+        ctx->state = 8;
+        break;
+    case 8: /* S1 */
+        err = sp_521_mod_9(ctx->x, ctx->x, p521_order);
+        if (err == MP_OKAY)
+            ctx->state = 9;
+        break;
+    case 9: /* S2 */
+    {
+        sp_digit carry;
+        sp_int64 c;
+        sp_521_norm_9(ctx->x);
+        carry = sp_521_add_9(ctx->s, ctx->e, ctx->x);
+        sp_521_cond_sub_9(ctx->s, ctx->s,
+            p521_order, 0 - carry);
+        sp_521_norm_9(ctx->s);
+        c = sp_521_cmp_9(ctx->s, p521_order);
+        sp_521_cond_sub_9(ctx->s, ctx->s, p521_order,
+            (sp_digit)0 - (sp_digit)(c >= 0));
+        sp_521_norm_9(ctx->s);
+
+        /* s = s * k^-1 mod order */
+        sp_521_mont_mul_order_9(ctx->s, ctx->s, ctx->kInv);
+        sp_521_norm_9(ctx->s);
+
+        /* Check that signature is usable. */
+        if (sp_521_iszero_9(ctx->s) == 0) {
+            ctx->state = 10;
+            break;
+        }
+    #ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
+        ctx->i = 1;
+    #endif
+
+        /* not usable gen, try again */
+        ctx->i--;
+        if (ctx->i == 0) {
+            err = RNG_FAILURE_E;
+        }
+        ctx->state = 1;
+        break;
+    }
+    case 10: /* RES */
+        err = sp_521_to_mp(ctx->r, rm);
+        if (err == MP_OKAY) {
+            err = sp_521_to_mp(ctx->s, sm);
+        }
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 10) {
+        err = FP_WOULDBLOCK;
+    }
+    if (err != FP_WOULDBLOCK) {
+        XMEMSET(ctx->e, 0, sizeof(sp_digit) * 2U * 9U);
+        XMEMSET(ctx->x, 0, sizeof(sp_digit) * 2U * 9U);
+        XMEMSET(ctx->k, 0, sizeof(sp_digit) * 2U * 9U);
+        XMEMSET(ctx->r, 0, sizeof(sp_digit) * 2U * 9U);
+        XMEMSET(ctx->tmp, 0, sizeof(sp_digit) * 3U * 2U * 9U);
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+int sp_ecc_sign_521(const byte* hash, word32 hashLen, WC_RNG* rng,
+    const mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* e = NULL;
+    sp_point_521* point = NULL;
+#else
+    sp_digit e[7 * 2 * 9];
+    sp_point_521 point[1];
+#endif
+    sp_digit* x = NULL;
+    sp_digit* k = NULL;
+    sp_digit* r = NULL;
+    sp_digit* tmp = NULL;
+    sp_digit* s = NULL;
+    sp_int64 c;
+    int err = MP_OKAY;
+    int i;
+
+    (void)heap;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        point = (sp_point_521*)XMALLOC(sizeof(sp_point_521), heap,
+                                             DYNAMIC_TYPE_ECC);
+        if (point == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        e = (sp_digit*)XMALLOC(sizeof(sp_digit) * 7 * 2 * 9, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (e == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        x = e + 2 * 9;
+        k = e + 4 * 9;
+        r = e + 6 * 9;
+        tmp = e + 8 * 9;
+        s = e;
+
+        if (hashLen > 65U) {
+            hashLen = 65U;
+        }
+    }
+
+    for (i = SP_ECC_MAX_SIG_GEN; err == MP_OKAY && i > 0; i--) {
+        /* New random point. */
+        if (km == NULL || mp_iszero(km)) {
+            err = sp_521_ecc_gen_k_9(rng, k);
+        }
+        else {
+            sp_521_from_mp(k, 9, km);
+            mp_zero(km);
+        }
+        if (err == MP_OKAY) {
+                err = sp_521_ecc_mulmod_base_9(point, k, 1, 1, heap);
+        }
+
+        if (err == MP_OKAY) {
+            /* r = point->x mod order */
+            XMEMCPY(r, point->x, sizeof(sp_digit) * 9U);
+            sp_521_norm_9(r);
+            c = sp_521_cmp_9(r, p521_order);
+            sp_521_cond_sub_9(r, r, p521_order,
+                (sp_digit)0 - (sp_digit)(c >= 0));
+            sp_521_norm_9(r);
+
+            sp_521_from_mp(x, 9, priv);
+            sp_521_from_bin(e, 9, hash, (int)hashLen);
+
+            err = sp_521_calc_s_9(s, r, k, x, e, tmp);
+        }
+
+        /* Check that signature is usable. */
+        if ((err == MP_OKAY) && (sp_521_iszero_9(s) == 0)) {
+            break;
+        }
+#ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
+        i = 1;
+#endif
+    }
+
+    if (i == 0) {
+        err = RNG_FAILURE_E;
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(r, rm);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(s, sm);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (e != NULL)
+#endif
+    {
+        ForceZero(e, sizeof(sp_digit) * 7 * 2 * 9);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(e, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (point != NULL)
+#endif
+    {
+        ForceZero(point, sizeof(sp_point_521));
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
+
+    return err;
+}
+#endif /* HAVE_ECC_SIGN */
+
+#ifndef WOLFSSL_SP_SMALL
+static const char sp_521_tab64_9[64] = {
+    64,  1, 59,  2, 60, 48, 54,  3,
+    61, 40, 49, 28, 55, 34, 43,  4,
+    62, 52, 38, 41, 50, 19, 29, 21,
+    56, 31, 35, 12, 44, 15, 23,  5,
+    63, 58, 47, 53, 39, 27, 33, 42,
+    51, 37, 18, 20, 30, 11, 14, 22,
+    57, 46, 26, 32, 36, 17, 10, 13,
+    45, 25, 16,  9, 24,  8,  7,  6};
+
+static int sp_521_num_bits_58_9(sp_digit v)
+{
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    v |= v >> 32;
+    return sp_521_tab64_9[((uint64_t)((v - (v >> 1))*0x07EDD5E59A4E28C2)) >> 58];
+}
+
+static int sp_521_num_bits_9(const sp_digit* a)
+{
+    int i;
+    int r = 0;
+
+    for (i = 8; i >= 0; i--) {
+        if (a[i] != 0) {
+            r = sp_521_num_bits_58_9(a[i]);
+            r += i * 58;
+            break;
+        }
+    }
+
+    return r;
+}
+
+/* Non-constant time modular inversion.
+ *
+ * @param  [out]  r   Resulting number.
+ * @param  [in]   a   Number to invert.
+ * @param  [in]   m   Modulus.
+ * @return  MP_OKAY on success.
+ * @return  MEMEORY_E when dynamic memory allocation fails.
+ */
+static int sp_521_mod_inv_9(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    int err = MP_OKAY;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* u = NULL;
+#else
+    sp_digit u[9 * 4];
+#endif
+    sp_digit* v = NULL;
+    sp_digit* b = NULL;
+    sp_digit* d = NULL;
+    int ut;
+    int vt;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    u = (sp_digit*)XMALLOC(sizeof(sp_digit) * 9 * 4, NULL,
+                                                              DYNAMIC_TYPE_ECC);
+    if (u == NULL)
+        err = MEMORY_E;
+#endif
+
+    if (err == MP_OKAY) {
+        v = u + 9;
+        b = u + 2 * 9;
+        d = u + 3 * 9;
+
+        XMEMCPY(u, m, sizeof(sp_digit) * 9);
+        XMEMCPY(v, a, sizeof(sp_digit) * 9);
+
+        ut = sp_521_num_bits_9(u);
+        vt = sp_521_num_bits_9(v);
+
+        XMEMSET(b, 0, sizeof(sp_digit) * 9);
+        if ((v[0] & 1) == 0) {
+            sp_521_rshift1_9(v, v);
+            XMEMCPY(d, m, sizeof(sp_digit) * 9);
+            d[0]++;
+            sp_521_rshift1_9(d, d);
+            vt--;
+
+            while ((v[0] & 1) == 0) {
+                sp_521_rshift1_9(v, v);
+                if (d[0] & 1)
+                    sp_521_add_9(d, d, m);
+                sp_521_rshift1_9(d, d);
+                vt--;
+            }
+        }
+        else {
+            XMEMSET(d+1, 0, sizeof(sp_digit) * (9 - 1));
+            d[0] = 1;
+        }
+
+        while (ut > 1 && vt > 1) {
+            if (ut > vt || (ut == vt &&
+                                       sp_521_cmp_9(u, v) >= 0)) {
+                sp_521_sub_9(u, u, v);
+                sp_521_norm_9(u);
+
+                sp_521_sub_9(b, b, d);
+                sp_521_norm_9(b);
+                if (b[8] < 0)
+                    sp_521_add_9(b, b, m);
+                sp_521_norm_9(b);
+                ut = sp_521_num_bits_9(u);
+
+                do {
+                    sp_521_rshift1_9(u, u);
+                    if (b[0] & 1)
+                        sp_521_add_9(b, b, m);
+                    sp_521_rshift1_9(b, b);
+                    ut--;
+                }
+                while (ut > 0 && (u[0] & 1) == 0);
+            }
+            else {
+                sp_521_sub_9(v, v, u);
+                sp_521_norm_9(v);
+
+                sp_521_sub_9(d, d, b);
+                sp_521_norm_9(d);
+                if (d[8] < 0)
+                    sp_521_add_9(d, d, m);
+                sp_521_norm_9(d);
+                vt = sp_521_num_bits_9(v);
+
+                do {
+                    sp_521_rshift1_9(v, v);
+                    if (d[0] & 1)
+                        sp_521_add_9(d, d, m);
+                    sp_521_rshift1_9(d, d);
+                    vt--;
+                }
+                while (vt > 0 && (v[0] & 1) == 0);
+            }
+        }
+
+        if (ut == 1)
+            XMEMCPY(r, b, sizeof(sp_digit) * 9);
+        else
+            XMEMCPY(r, d, sizeof(sp_digit) * 9);
+    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (u != NULL)
+        XFREE(u, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
+
+/* Add point p1 into point p2. Handles p1 == p2 and result at infinity.
+ *
+ * p1   First point to add and holds result.
+ * p2   Second point to add.
+ * tmp  Temporary storage for intermediate numbers.
+ */
+static void sp_521_add_points_9(sp_point_521* p1, const sp_point_521* p2,
+    sp_digit* tmp)
+{
+
+        sp_521_proj_point_add_9(p1, p1, p2, tmp);
+    if (sp_521_iszero_9(p1->z)) {
+        if (sp_521_iszero_9(p1->x) && sp_521_iszero_9(p1->y)) {
+                sp_521_proj_point_dbl_9(p1, p2, tmp);
+        }
+        else {
+            /* Y ordinate is not used from here - don't set. */
+            p1->x[0] = 0;
+            p1->x[1] = 0;
+            p1->x[2] = 0;
+            p1->x[3] = 0;
+            p1->x[4] = 0;
+            p1->x[5] = 0;
+            p1->x[6] = 0;
+            p1->x[7] = 0;
+            p1->x[8] = 0;
+            XMEMCPY(p1->z, p521_norm_mod, sizeof(p521_norm_mod));
+        }
+    }
+}
+
+/* Calculate the verification point: [e/s]G + [r/s]Q
+ *
+ * p1    Calculated point.
+ * p2    Public point and temporary.
+ * s     Second part of signature as a number.
+ * u1    Temporary number.
+ * u2    Temproray number.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_521_calc_vfy_point_9(sp_point_521* p1, sp_point_521* p2,
+    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
+{
+    int err;
+
+#ifndef WOLFSSL_SP_SMALL
+    err = sp_521_mod_inv_9(s, s, p521_order);
+    if (err == MP_OKAY)
+#endif /* !WOLFSSL_SP_SMALL */
+    {
+        sp_521_mul_9(s, s, p521_norm_order);
+        err = sp_521_mod_9(s, s, p521_order);
+    }
+    if (err == MP_OKAY) {
+        sp_521_norm_9(s);
+#ifdef WOLFSSL_SP_SMALL
+        {
+            sp_521_mont_inv_order_9(s, s, tmp);
+            sp_521_mont_mul_order_9(u1, u1, s);
+            sp_521_mont_mul_order_9(u2, u2, s);
+        }
+#else
+        {
+            sp_521_mont_mul_order_9(u1, u1, s);
+            sp_521_mont_mul_order_9(u2, u2, s);
+        }
+#endif /* WOLFSSL_SP_SMALL */
+        {
+            err = sp_521_ecc_mulmod_base_9(p1, u1, 0, 0, heap);
+        }
+    }
+    if ((err == MP_OKAY) && sp_521_iszero_9(p1->z)) {
+        p1->infinity = 1;
+    }
+    if (err == MP_OKAY) {
+            err = sp_521_ecc_mulmod_9(p2, p2, u2, 0, 0, heap);
+    }
+    if ((err == MP_OKAY) && sp_521_iszero_9(p2->z)) {
+        p2->infinity = 1;
+    }
+
+    if (err == MP_OKAY) {
+        sp_521_add_points_9(p1, p2, tmp);
+    }
+
+    return err;
+}
+
+#ifdef HAVE_ECC_VERIFY
+/* Verify the signature values with the hash and public key.
+ *   e = Truncate(hash, 521)
+ *   u1 = e/s mod order
+ *   u2 = r/s mod order
+ *   r == (u1.G + u2.Q)->x mod order
+ * Optimization: Leave point in projective form.
+ *   (x, y, 1) == (x' / z'*z', y' / z'*z'*z', z' / z')
+ *   (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x'
+ * The hash is truncated to the first 521 bits.
+ *
+ * hash     Hash to sign.
+ * hashLen  Length of the hash data.
+ * rng      Random number generator.
+ * priv     Private part of key - scalar.
+ * rm       First part of result as an mp_int.
+ * sm       Sirst part of result as an mp_int.
+ * heap     Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_ecc_verify_521_ctx {
+    int state;
+    union {
+        sp_521_ecc_mulmod_9_ctx mulmod_ctx;
+        sp_521_mont_inv_order_9_ctx mont_inv_order_ctx;
+        sp_521_proj_point_dbl_9_ctx dbl_ctx;
+        sp_521_proj_point_add_9_ctx add_ctx;
+    };
+    sp_digit u1[2*9];
+    sp_digit u2[2*9];
+    sp_digit s[2*9];
+    sp_digit tmp[2*9 * 5];
+    sp_point_521 p1;
+    sp_point_521 p2;
+} sp_ecc_verify_521_ctx;
+
+int sp_ecc_verify_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
+    word32 hashLen, const mp_int* pX, const mp_int* pY, const mp_int* pZ,
+    const mp_int* rm, const mp_int* sm, int* res, void* heap)
+{
+    int err = FP_WOULDBLOCK;
+    sp_ecc_verify_521_ctx* ctx = (sp_ecc_verify_521_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_ecc_verify_521_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        if (hashLen > 65U) {
+            hashLen = 65U;
+        }
+
+        sp_521_from_bin(ctx->u1, 9, hash, (int)hashLen);
+        sp_521_from_mp(ctx->u2, 9, rm);
+        sp_521_from_mp(ctx->s, 9, sm);
+        sp_521_from_mp(ctx->p2.x, 9, pX);
+        sp_521_from_mp(ctx->p2.y, 9, pY);
+        sp_521_from_mp(ctx->p2.z, 9, pZ);
+        ctx->state = 1;
+        break;
+    case 1: /* NORMS0 */
+        sp_521_mul_9(ctx->s, ctx->s, p521_norm_order);
+        err = sp_521_mod_9(ctx->s, ctx->s, p521_order);
+        if (err == MP_OKAY)
+            ctx->state = 2;
+        break;
+    case 2: /* NORMS1 */
+        sp_521_norm_9(ctx->s);
+        XMEMSET(&ctx->mont_inv_order_ctx, 0, sizeof(ctx->mont_inv_order_ctx));
+        ctx->state = 3;
+        break;
+    case 3: /* NORMS2 */
+        err = sp_521_mont_inv_order_9_nb((sp_ecc_ctx_t*)&ctx->mont_inv_order_ctx, ctx->s, ctx->s, ctx->tmp);
+        if (err == MP_OKAY) {
+            ctx->state = 4;
+        }
+        break;
+    case 4: /* NORMS3 */
+        sp_521_mont_mul_order_9(ctx->u1, ctx->u1, ctx->s);
+        ctx->state = 5;
+        break;
+    case 5: /* NORMS4 */
+        sp_521_mont_mul_order_9(ctx->u2, ctx->u2, ctx->s);
+        XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
+        ctx->state = 6;
+        break;
+    case 6: /* MULBASE */
+        err = sp_521_ecc_mulmod_9_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p1, &p521_base, ctx->u1, 0, 0, heap);
+        if (err == MP_OKAY) {
+            if (sp_521_iszero_9(ctx->p1.z)) {
+                ctx->p1.infinity = 1;
+            }
+            XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
+            ctx->state = 7;
+        }
+        break;
+    case 7: /* MULMOD */
+        err = sp_521_ecc_mulmod_9_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p2, &ctx->p2, ctx->u2, 0, 0, heap);
+        if (err == MP_OKAY) {
+            if (sp_521_iszero_9(ctx->p2.z)) {
+                ctx->p2.infinity = 1;
+            }
+            XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
+            ctx->state = 8;
+        }
+        break;
+    case 8: /* ADD */
+        err = sp_521_proj_point_add_9_nb((sp_ecc_ctx_t*)&ctx->add_ctx, &ctx->p1, &ctx->p1, &ctx->p2, ctx->tmp);
+        if (err == MP_OKAY)
+            ctx->state = 9;
+        break;
+    case 9: /* MONT */
+        /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
+        /* Reload r and convert to Montgomery form. */
+        sp_521_from_mp(ctx->u2, 9, rm);
+        err = sp_521_mod_mul_norm_9(ctx->u2, ctx->u2, p521_mod);
+        if (err == MP_OKAY)
+            ctx->state = 10;
+        break;
+    case 10: /* SQR */
+        /* u1 = r.z'.z' mod prime */
+        sp_521_mont_sqr_9(ctx->p1.z, ctx->p1.z, p521_mod, p521_mp_mod);
+        ctx->state = 11;
+        break;
+    case 11: /* MUL */
+        sp_521_mont_mul_9(ctx->u1, ctx->u2, ctx->p1.z, p521_mod, p521_mp_mod);
+        ctx->state = 12;
+        break;
+    case 12: /* RES */
+    {
+        sp_int64 c = 0;
+        err = MP_OKAY; /* math okay, now check result */
+        *res = (int)(sp_521_cmp_9(ctx->p1.x, ctx->u1) == 0);
+        if (*res == 0) {
+            sp_digit carry;
+
+            /* Reload r and add order. */
+            sp_521_from_mp(ctx->u2, 9, rm);
+            carry = sp_521_add_9(ctx->u2, ctx->u2, p521_order);
+            /* Carry means result is greater than mod and is not valid. */
+            if (carry == 0) {
+                sp_521_norm_9(ctx->u2);
+
+                /* Compare with mod and if greater or equal then not valid. */
+                c = sp_521_cmp_9(ctx->u2, p521_mod);
+            }
+        }
+        if ((*res == 0) && (c < 0)) {
+            /* Convert to Montogomery form */
+            err = sp_521_mod_mul_norm_9(ctx->u2, ctx->u2, p521_mod);
+            if (err == MP_OKAY) {
+                /* u1 = (r + 1*order).z'.z' mod prime */
+                sp_521_mont_mul_9(ctx->u1, ctx->u2, ctx->p1.z, p521_mod,
+                                                            p521_mp_mod);
+                *res = (int)(sp_521_cmp_9(ctx->p1.x, ctx->u1) == 0);
+            }
+        }
+        break;
+    }
+    } /* switch */
+
+    if (err == MP_OKAY && ctx->state != 12) {
+        err = FP_WOULDBLOCK;
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* u1 = NULL;
+    sp_point_521* p1 = NULL;
+#else
+    sp_digit  u1[16 * 9];
+    sp_point_521 p1[2];
+#endif
+    sp_digit* u2 = NULL;
+    sp_digit* s = NULL;
+    sp_digit* tmp = NULL;
+    sp_point_521* p2 = NULL;
+    sp_digit carry;
+    sp_int64 c = 0;
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        p1 = (sp_point_521*)XMALLOC(sizeof(sp_point_521) * 2, heap,
+                                             DYNAMIC_TYPE_ECC);
+        if (p1 == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        u1 = (sp_digit*)XMALLOC(sizeof(sp_digit) * 16 * 9, heap,
+                                                              DYNAMIC_TYPE_ECC);
+        if (u1 == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        u2  = u1 + 2 * 9;
+        s   = u1 + 4 * 9;
+        tmp = u1 + 6 * 9;
+        p2 = p1 + 1;
+
+        if (hashLen > 65U) {
+            hashLen = 65U;
+        }
+
+        sp_521_from_bin(u1, 9, hash, (int)hashLen);
+        sp_521_from_mp(u2, 9, rm);
+        sp_521_from_mp(s, 9, sm);
+        sp_521_from_mp(p2->x, 9, pX);
+        sp_521_from_mp(p2->y, 9, pY);
+        sp_521_from_mp(p2->z, 9, pZ);
+
+        err = sp_521_calc_vfy_point_9(p1, p2, s, u1, u2, tmp, heap);
+    }
+    if (err == MP_OKAY) {
+        /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
+        /* Reload r and convert to Montgomery form. */
+        sp_521_from_mp(u2, 9, rm);
+        err = sp_521_mod_mul_norm_9(u2, u2, p521_mod);
+    }
+
+    if (err == MP_OKAY) {
+        /* u1 = r.z'.z' mod prime */
+            sp_521_mont_sqr_9(p1->z, p1->z, p521_mod, p521_mp_mod);
+            sp_521_mont_mul_9(u1, u2, p1->z, p521_mod, p521_mp_mod);
+        *res = (int)(sp_521_cmp_9(p1->x, u1) == 0);
+        if (*res == 0) {
+            /* Reload r and add order. */
+            sp_521_from_mp(u2, 9, rm);
+            carry = sp_521_add_9(u2, u2, p521_order);
+            /* Carry means result is greater than mod and is not valid. */
+            if (carry == 0) {
+                sp_521_norm_9(u2);
+
+                /* Compare with mod and if greater or equal then not valid. */
+                c = sp_521_cmp_9(u2, p521_mod);
+            }
+        }
+        if ((*res == 0) && (c < 0)) {
+            /* Convert to Montogomery form */
+            err = sp_521_mod_mul_norm_9(u2, u2, p521_mod);
+            if (err == MP_OKAY) {
+                /* u1 = (r + 1*order).z'.z' mod prime */
+                {
+                    sp_521_mont_mul_9(u1, u2, p1->z, p521_mod, p521_mp_mod);
+                }
+                *res = (sp_521_cmp_9(p1->x, u1) == 0);
+            }
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (u1 != NULL)
+        XFREE(u1, heap, DYNAMIC_TYPE_ECC);
+    if (p1 != NULL)
+        XFREE(p1, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+#endif /* HAVE_ECC_VERIFY */
+
+#ifdef HAVE_ECC_CHECK_KEY
+/* Check that the x and y oridinates are a valid point on the curve.
+ *
+ * point  EC point.
+ * heap   Heap to use if dynamically allocating.
+ * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
+ * not on the curve and MP_OKAY otherwise.
+ */
+static int sp_521_ecc_is_point_9(const sp_point_521* point,
+    void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* t1 = NULL;
+#else
+    sp_digit t1[9 * 4];
+#endif
+    sp_digit* t2 = NULL;
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t1 = (sp_digit*)XMALLOC(sizeof(sp_digit) * 9 * 4, heap, DYNAMIC_TYPE_ECC);
+    if (t1 == NULL)
+        err = MEMORY_E;
+#endif
+    (void)heap;
+
+    if (err == MP_OKAY) {
+        t2 = t1 + 2 * 9;
+
+        sp_521_sqr_9(t1, point->y);
+        (void)sp_521_mod_9(t1, t1, p521_mod);
+        sp_521_sqr_9(t2, point->x);
+        (void)sp_521_mod_9(t2, t2, p521_mod);
+        sp_521_mul_9(t2, t2, point->x);
+        (void)sp_521_mod_9(t2, t2, p521_mod);
+        (void)sp_521_sub_9(t2, p521_mod, t2);
+        sp_521_mont_add_9(t1, t1, t2, p521_mod);
+
+        sp_521_mont_add_9(t1, t1, point->x, p521_mod);
+        sp_521_mont_add_9(t1, t1, point->x, p521_mod);
+        sp_521_mont_add_9(t1, t1, point->x, p521_mod);
+
+        if (sp_521_cmp_9(t1, p521_b) != 0) {
+            err = MP_VAL;
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t1 != NULL)
+        XFREE(t1, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Check that the x and y oridinates are a valid point on the curve.
+ *
+ * pX  X ordinate of EC point.
+ * pY  Y ordinate of EC point.
+ * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
+ * not on the curve and MP_OKAY otherwise.
+ */
+int sp_ecc_is_point_521(const mp_int* pX, const mp_int* pY)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_521* pub = NULL;
+#else
+    sp_point_521 pub[1];
+#endif
+    const byte one[1] = { 1 };
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    pub = (sp_point_521*)XMALLOC(sizeof(sp_point_521), NULL,
+                                       DYNAMIC_TYPE_ECC);
+    if (pub == NULL)
+        err = MEMORY_E;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_521_from_mp(pub->x, 9, pX);
+        sp_521_from_mp(pub->y, 9, pY);
+        sp_521_from_bin(pub->z, 9, one, (int)sizeof(one));
+
+        err = sp_521_ecc_is_point_9(pub, NULL);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (pub != NULL)
+        XFREE(pub, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Check that the private scalar generates the EC point (px, py), the point is
+ * on the curve and the point has the correct order.
+ *
+ * pX     X ordinate of EC point.
+ * pY     Y ordinate of EC point.
+ * privm  Private scalar that generates EC point.
+ * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
+ * not on the curve, ECC_INF_E if the point does not have the correct order,
+ * ECC_PRIV_KEY_E when the private scalar doesn't generate the EC point and
+ * MP_OKAY otherwise.
+ */
+int sp_ecc_check_key_521(const mp_int* pX, const mp_int* pY,
+    const mp_int* privm, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* priv = NULL;
+    sp_point_521* pub = NULL;
+#else
+    sp_digit priv[9];
+    sp_point_521 pub[2];
+#endif
+    sp_point_521* p = NULL;
+    const byte one[1] = { 1 };
+    int err = MP_OKAY;
+
+
+    /* Quick check the lengs of public key ordinates and private key are in
+     * range. Proper check later.
+     */
+    if (((mp_count_bits(pX) > 521) ||
+        (mp_count_bits(pY) > 521) ||
+        ((privm != NULL) && (mp_count_bits(privm) > 521)))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        pub = (sp_point_521*)XMALLOC(sizeof(sp_point_521) * 2, heap,
+                                           DYNAMIC_TYPE_ECC);
+        if (pub == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY && privm) {
+        priv = (sp_digit*)XMALLOC(sizeof(sp_digit) * 9, heap,
+                                  DYNAMIC_TYPE_ECC);
+        if (priv == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        p = pub + 1;
+
+        sp_521_from_mp(pub->x, 9, pX);
+        sp_521_from_mp(pub->y, 9, pY);
+        sp_521_from_bin(pub->z, 9, one, (int)sizeof(one));
+        if (privm)
+            sp_521_from_mp(priv, 9, privm);
+
+        /* Check point at infinitiy. */
+        if ((sp_521_iszero_9(pub->x) != 0) &&
+            (sp_521_iszero_9(pub->y) != 0)) {
+            err = ECC_INF_E;
+        }
+    }
+
+    /* Check range of X and Y */
+    if ((err == MP_OKAY) &&
+            ((sp_521_cmp_9(pub->x, p521_mod) >= 0) ||
+             (sp_521_cmp_9(pub->y, p521_mod) >= 0))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
+    if (err == MP_OKAY) {
+        /* Check point is on curve */
+        err = sp_521_ecc_is_point_9(pub, heap);
+    }
+
+    if (err == MP_OKAY) {
+        /* Point * order = infinity */
+            err = sp_521_ecc_mulmod_9(p, pub, p521_order, 1, 1, heap);
+    }
+    /* Check result is infinity */
+    if ((err == MP_OKAY) && ((sp_521_iszero_9(p->x) == 0) ||
+                             (sp_521_iszero_9(p->y) == 0))) {
+        err = ECC_INF_E;
+    }
+
+    if (privm) {
+        if (err == MP_OKAY) {
+            /* Base * private = point */
+                err = sp_521_ecc_mulmod_base_9(p, priv, 1, 1, heap);
+        }
+        /* Check result is public key */
+        if ((err == MP_OKAY) &&
+                ((sp_521_cmp_9(p->x, pub->x) != 0) ||
+                 (sp_521_cmp_9(p->y, pub->y) != 0))) {
+            err = ECC_PRIV_KEY_E;
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (pub != NULL)
+        XFREE(pub, heap, DYNAMIC_TYPE_ECC);
+    if (priv != NULL)
+        XFREE(priv, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+#endif
+#ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
+/* Add two projective EC points together.
+ * (pX, pY, pZ) + (qX, qY, qZ) = (rX, rY, rZ)
+ *
+ * pX   First EC point's X ordinate.
+ * pY   First EC point's Y ordinate.
+ * pZ   First EC point's Z ordinate.
+ * qX   Second EC point's X ordinate.
+ * qY   Second EC point's Y ordinate.
+ * qZ   Second EC point's Z ordinate.
+ * rX   Resultant EC point's X ordinate.
+ * rY   Resultant EC point's Y ordinate.
+ * rZ   Resultant EC point's Z ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_proj_add_point_521(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* qX, mp_int* qY, mp_int* qZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* tmp = NULL;
+    sp_point_521* p = NULL;
+#else
+    sp_digit tmp[2 * 9 * 5];
+    sp_point_521 p[2];
+#endif
+    sp_point_521* q = NULL;
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        p = (sp_point_521*)XMALLOC(sizeof(sp_point_521) * 2, NULL,
+                                         DYNAMIC_TYPE_ECC);
+        if (p == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 9 * 5, NULL,
+                                 DYNAMIC_TYPE_ECC);
+        if (tmp == NULL) {
+            err = MEMORY_E;
+        }
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        q = p + 1;
+
+        sp_521_from_mp(p->x, 9, pX);
+        sp_521_from_mp(p->y, 9, pY);
+        sp_521_from_mp(p->z, 9, pZ);
+        sp_521_from_mp(q->x, 9, qX);
+        sp_521_from_mp(q->y, 9, qY);
+        sp_521_from_mp(q->z, 9, qZ);
+        p->infinity = sp_521_iszero_9(p->x) &
+                      sp_521_iszero_9(p->y);
+        q->infinity = sp_521_iszero_9(q->x) &
+                      sp_521_iszero_9(q->y);
+
+            sp_521_proj_point_add_9(p, p, q, tmp);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->x, rX);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->y, rY);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->z, rZ);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
+    if (p != NULL)
+        XFREE(p, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Double a projective EC point.
+ * (pX, pY, pZ) + (pX, pY, pZ) = (rX, rY, rZ)
+ *
+ * pX   EC point's X ordinate.
+ * pY   EC point's Y ordinate.
+ * pZ   EC point's Z ordinate.
+ * rX   Resultant EC point's X ordinate.
+ * rY   Resultant EC point's Y ordinate.
+ * rZ   Resultant EC point's Z ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_proj_dbl_point_521(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* tmp = NULL;
+    sp_point_521* p = NULL;
+#else
+    sp_digit tmp[2 * 9 * 2];
+    sp_point_521 p[1];
+#endif
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        p = (sp_point_521*)XMALLOC(sizeof(sp_point_521), NULL,
+                                         DYNAMIC_TYPE_ECC);
+        if (p == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 9 * 2, NULL,
+                                 DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        sp_521_from_mp(p->x, 9, pX);
+        sp_521_from_mp(p->y, 9, pY);
+        sp_521_from_mp(p->z, 9, pZ);
+        p->infinity = sp_521_iszero_9(p->x) &
+                      sp_521_iszero_9(p->y);
+
+            sp_521_proj_point_dbl_9(p, p, tmp);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->x, rX);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->y, rY);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->z, rZ);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
+    if (p != NULL)
+        XFREE(p, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Map a projective EC point to affine in place.
+ * pZ will be one.
+ *
+ * pX   EC point's X ordinate.
+ * pY   EC point's Y ordinate.
+ * pZ   EC point's Z ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_map_521(mp_int* pX, mp_int* pY, mp_int* pZ)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* tmp = NULL;
+    sp_point_521* p = NULL;
+#else
+    sp_digit tmp[2 * 9 * 5];
+    sp_point_521 p[1];
+#endif
+    int err = MP_OKAY;
+
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        p = (sp_point_521*)XMALLOC(sizeof(sp_point_521), NULL,
+                                         DYNAMIC_TYPE_ECC);
+        if (p == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 9 * 5, NULL,
+                                 DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#endif
+    if (err == MP_OKAY) {
+        sp_521_from_mp(p->x, 9, pX);
+        sp_521_from_mp(p->y, 9, pY);
+        sp_521_from_mp(p->z, 9, pZ);
+        p->infinity = sp_521_iszero_9(p->x) &
+                      sp_521_iszero_9(p->y);
+
+            sp_521_map_9(p, p, tmp);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->x, pX);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->y, pY);
+    }
+    if (err == MP_OKAY) {
+        err = sp_521_to_mp(p->z, pZ);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
+    if (p != NULL)
+        XFREE(p, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+#endif /* WOLFSSL_PUBLIC_ECC_ADD_DBL */
+#ifdef HAVE_COMP_KEY
+/* Square root power for the P521 curve. */
+static const uint64_t p521_sqrt_power[9] = {
+    0x0000000000000000,0x0000000000000000,0x0000000000000000,
+    0x0000000000000000,0x0000000000000000,0x0000000000000000,0x0000000000000000,0x0000000000000000,
+    0x0000000000000080
+};
+
+/* Find the square root of a number mod the prime of the curve.
+ *
+ * y  The number to operate on and the result.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+static int sp_521_mont_sqrt_9(sp_digit* y)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* t = NULL;
+#else
+    sp_digit t[2 * 9];
+#endif
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 9, NULL, DYNAMIC_TYPE_ECC);
+    if (t == NULL)
+        err = MEMORY_E;
+#endif
+
+    if (err == MP_OKAY) {
+
+        {
+            int i;
+
+            XMEMCPY(t, y, sizeof(sp_digit) * 9);
+            for (i=518; i>=0; i--) {
+                sp_521_mont_sqr_9(t, t, p521_mod, p521_mp_mod);
+                if (p521_sqrt_power[i / 64] & ((sp_digit)1 << (i % 64)))
+                    sp_521_mont_mul_9(t, t, y, p521_mod, p521_mp_mod);
+            }
+            XMEMCPY(y, t, sizeof(sp_digit) * 9);
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+
+/* Uncompress the point given the X ordinate.
+ *
+ * xm    X ordinate.
+ * odd   Whether the Y ordinate is odd.
+ * ym    Calculated Y ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_uncompress_521(mp_int* xm, int odd, mp_int* ym)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* x = NULL;
+#else
+    sp_digit x[4 * 9];
+#endif
+    sp_digit* y = NULL;
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    x = (sp_digit*)XMALLOC(sizeof(sp_digit) * 4 * 9, NULL, DYNAMIC_TYPE_ECC);
+    if (x == NULL)
+        err = MEMORY_E;
+#endif
+
+    if (err == MP_OKAY) {
+        y = x + 2 * 9;
+
+        sp_521_from_mp(x, 9, xm);
+        err = sp_521_mod_mul_norm_9(x, x, p521_mod);
+    }
+    if (err == MP_OKAY) {
+        /* y = x^3 */
+        {
+            sp_521_mont_sqr_9(y, x, p521_mod, p521_mp_mod);
+            sp_521_mont_mul_9(y, y, x, p521_mod, p521_mp_mod);
+        }
+        /* y = x^3 - 3x */
+        sp_521_mont_sub_9(y, y, x, p521_mod);
+        sp_521_mont_sub_9(y, y, x, p521_mod);
+        sp_521_mont_sub_9(y, y, x, p521_mod);
+        /* y = x^3 - 3x + b */
+        err = sp_521_mod_mul_norm_9(x, p521_b, p521_mod);
+    }
+    if (err == MP_OKAY) {
+        sp_521_mont_add_9(y, y, x, p521_mod);
+        /* y = sqrt(x^3 - 3x + b) */
+        err = sp_521_mont_sqrt_9(y);
+    }
+    if (err == MP_OKAY) {
+        XMEMSET(y + 9, 0, 9U * sizeof(sp_digit));
+        sp_521_mont_reduce_9(y, p521_mod, p521_mp_mod);
+        if ((((word32)y[0] ^ (word32)odd) & 1U) != 0U) {
+            sp_521_mont_sub_9(y, p521_mod, y, p521_mod);
+        }
+
+        err = sp_521_to_mp(y, ym);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (x != NULL)
+        XFREE(x, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+#endif
+#endif /* WOLFSSL_SP_521 */
 #ifdef WOLFSSL_SP_1024
 
 /* Point structure to use. */
@@ -37193,14 +44487,13 @@ static void sp_1024_mont_reduce_18(sp_digit* a, const sp_digit* m, sp_digit mp)
 
     sp_1024_norm_18(a + 18);
 
-#ifdef WOLFSSL_SP_DH
     if (mp != 1) {
         for (i=0; i<17; i++) {
-            mu = ((sp_uint64)a[i] * (sp_uint64)mp) & 0x1ffffffffffffffL;
+            mu = (a[i] * mp) & 0x1ffffffffffffffL;
             sp_1024_mul_add_18(a+i, m, mu);
             a[i+1] += a[i] >> 57;
         }
-        mu = ((sp_uint64)a[i] * (sp_uint64)mp) & 0x7fffffffffffffL;
+        mu = (a[i] * mp) & 0x7fffffffffffffL;
         sp_1024_mul_add_18(a+i, m, mu);
         a[i+1] += a[i] >> 57;
         a[i] &= 0x1ffffffffffffffL;
@@ -37216,17 +44509,6 @@ static void sp_1024_mont_reduce_18(sp_digit* a, const sp_digit* m, sp_digit mp)
         a[i+1] += a[i] >> 57;
         a[i] &= 0x1ffffffffffffffL;
     }
-#else
-    for (i=0; i<17; i++) {
-        mu = ((sp_uint64)a[i] * (sp_uint64)mp) & 0x1ffffffffffffffL;
-        sp_1024_mul_add_18(a+i, m, mu);
-        a[i+1] += a[i] >> 57;
-    }
-    mu = ((sp_uint64)a[i] * (sp_uint64)mp) & 0x7fffffffffffffL;
-    sp_1024_mul_add_18(a+i, m, mu);
-    a[i+1] += a[i] >> 57;
-    a[i] &= 0x1ffffffffffffffL;
-#endif
     sp_1024_mont_shift_18(a, a);
     sp_1024_cond_sub_18(a, a, m, 0 - (((a[17] - m[17]) > 0) ?
             (sp_digit)1 : (sp_digit)0));

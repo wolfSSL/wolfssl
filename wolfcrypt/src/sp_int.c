@@ -58,6 +58,7 @@ This library provides single precision (SP) integer math functions.
  * WOLFSSL_SP_4096:             Enable RSA/RH 4096-bit support
  * WOLFSSL_SP_NO_256            Disable ECC 256-bit SECP256R1 support
  * WOLFSSL_SP_384               Enable ECC 384-bit SECP384R1 support
+ * WOLFSSL_SP_521               Enable ECC 521-bit SECP521R1 support
  * WOLFSSL_SP_ASM               Enable assembly speedups (detect platform)
  * WOLFSSL_SP_X86_64_ASM        Enable Intel x64 assembly implementation
  * WOLFSSL_SP_ARM32_ASM         Enable Aarch32 assembly implementation

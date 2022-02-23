@@ -3080,7 +3080,7 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
     int            ret;
     void*          status;
     unsigned char* myStack = NULL;
-    size_t         stackSize = 1024*1024;
+    size_t         stackSize = 1024*1024*2;
     pthread_attr_t myAttr;
     pthread_t      threadId;
 #ifdef HAVE_STACK_SIZE_VERBOSE
@@ -3120,6 +3120,7 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
     ret = pthread_create(&threadId, &myAttr, tf, args);
 #endif
     if (ret != 0) {
+        printf("ret = %d\n", ret);
         perror("pthread_create failed");
         exit(EXIT_FAILURE);
     }
@@ -3153,7 +3154,7 @@ static WC_INLINE int StackSizeCheck_launch(func_args* args, thread_func tf, pthr
 {
     int ret;
     unsigned char* myStack = NULL;
-    size_t stackSize = 1024*1024;
+    size_t stackSize = 1024*1024*2;
     pthread_attr_t myAttr;
 
 #ifdef PTHREAD_STACK_MIN
