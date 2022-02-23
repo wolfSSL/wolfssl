@@ -914,47 +914,66 @@ static void test_wolfSSL_CTX_trust_peer_cert(void)
 #if !defined(NO_CERTS) && defined(WOLFSSL_TRUST_PEER_CERT) && \
     !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX *ctx;
+    WOLFSSL* ssl;
 
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    AssertNotNull(ssl = wolfSSL_new(ctx));
 
 #if !defined(NO_FILESYSTEM)
     /* invalid file */
-    assert(wolfSSL_CTX_trust_peer_cert(ctx, NULL,
-                                              WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS);
-    assert(wolfSSL_CTX_trust_peer_cert(ctx, bogusFile,
-                                              WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS);
-    assert(wolfSSL_CTX_trust_peer_cert(ctx, cliCertFile,
-                                             WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS);
+    AssertIntNE(wolfSSL_CTX_trust_peer_cert(ctx, NULL,
+                                     WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    AssertIntNE(wolfSSL_CTX_trust_peer_cert(ctx, bogusFile,
+                                     WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    AssertIntNE(wolfSSL_CTX_trust_peer_cert(ctx, cliCertFile,
+                                     WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 
     /* success */
-    assert(wolfSSL_CTX_trust_peer_cert(ctx, cliCertFile, WOLFSSL_FILETYPE_PEM)
-                                                                == WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_trust_peer_cert(ctx, cliCertFile,
+                                     WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
     /* unload cert */
-    assert(wolfSSL_CTX_Unload_trust_peers(NULL) != WOLFSSL_SUCCESS);
-    assert(wolfSSL_CTX_Unload_trust_peers(ctx) == WOLFSSL_SUCCESS);
+    AssertIntNE(wolfSSL_CTX_Unload_trust_peers(NULL), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_Unload_trust_peers(ctx), WOLFSSL_SUCCESS);
+
+    /* invalid file */
+    AssertIntNE(wolfSSL_trust_peer_cert(ssl, NULL,
+                                     WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    AssertIntNE(wolfSSL_trust_peer_cert(ssl, bogusFile,
+                                     WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    AssertIntNE(wolfSSL_trust_peer_cert(ssl, cliCertFile,
+                                     WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    /* success */
+    AssertIntEQ(wolfSSL_trust_peer_cert(ssl, cliCertFile,
+                                     WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    /* unload cert */
+    AssertIntNE(wolfSSL_Unload_trust_peers(NULL), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_Unload_trust_peers(ssl), WOLFSSL_SUCCESS);
 #endif
 
     /* Test of loading certs from buffers */
 
     /* invalid buffer */
-    assert(wolfSSL_CTX_trust_peer_buffer(ctx, NULL, -1,
-                                             WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS);
+    AssertIntNE(wolfSSL_CTX_trust_peer_buffer(ctx, NULL, -1,
+                                     WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 
     /* success */
 #ifdef USE_CERT_BUFFERS_1024
-    assert(wolfSSL_CTX_trust_peer_buffer(ctx, client_cert_der_1024,
-                sizeof_client_cert_der_1024, WOLFSSL_FILETYPE_ASN1) == WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_trust_peer_buffer(ctx, client_cert_der_1024,
+          sizeof_client_cert_der_1024, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 #endif
 #ifdef USE_CERT_BUFFERS_2048
-    assert(wolfSSL_CTX_trust_peer_buffer(ctx, client_cert_der_2048,
-                sizeof_client_cert_der_2048, WOLFSSL_FILETYPE_ASN1) == WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_trust_peer_buffer(ctx, client_cert_der_2048,
+          sizeof_client_cert_der_2048, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 #endif
 
     /* unload cert */
-    assert(wolfSSL_CTX_Unload_trust_peers(NULL) != WOLFSSL_SUCCESS);
-    assert(wolfSSL_CTX_Unload_trust_peers(ctx) == WOLFSSL_SUCCESS);
+    AssertIntNE(wolfSSL_CTX_Unload_trust_peers(NULL), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_Unload_trust_peers(ctx), WOLFSSL_SUCCESS);
 
+    wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 #endif
 }
@@ -2423,6 +2442,7 @@ static int test_wolfSSL_CTX_use_certificate_chain_file_format(void)
     int ret = 0;
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA)
     const char* server_chain_der = "./certs/server-cert-chain.der";
+    const char* client_single_pem = "./certs/client-cert.pem";
     WOLFSSL_CTX* ctx;
 
   #ifndef NO_WOLFSSL_CLIENT
@@ -2435,6 +2455,8 @@ static int test_wolfSSL_CTX_use_certificate_chain_file_format(void)
 
     AssertIntEQ(wolfSSL_CTX_use_certificate_chain_file_format(ctx,
         server_chain_der, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_use_certificate_chain_file_format(ctx,
+        client_single_pem, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
     wolfSSL_CTX_free(ctx);
 #endif
@@ -4446,6 +4468,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     callback_functions* cbf;
     WOLFSSL_CTX* ctx = 0;
     WOLFSSL* ssl = 0;
+    func_args* opts = (func_args*)args;
 
     char msg[] = "I hear you fa shizzle!";
     char input[1024];
@@ -4460,8 +4483,8 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     fdOpenSession(Task_self());
 #endif
 
-    ((func_args*)args)->return_code = TEST_FAIL;
-    cbf = ((func_args*)args)->callbacks;
+    opts->return_code = TEST_FAIL;
+    cbf = opts->callbacks;
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
     if (cbf != NULL && cbf->ctx) {
@@ -4484,19 +4507,21 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         goto done;
     }
 
+    if (cbf == NULL || !cbf->ticNoInit) {
 #if defined(HAVE_SESSION_TICKET) && \
     ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM))
 #if defined(OPENSSL_EXTRA) && defined(HAVE_AES_CBC)
-    OpenSSLTicketInit();
-    wolfSSL_CTX_set_tlsext_ticket_key_cb(ctx, myTicketEncCbOpenSSL);
+        OpenSSLTicketInit();
+        wolfSSL_CTX_set_tlsext_ticket_key_cb(ctx, myTicketEncCbOpenSSL);
 #elif defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
-    TicketInit();
-    wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCb);
+        TicketInit();
+        wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCb);
 #endif
 #endif
+    }
 
 #if defined(USE_WINDOWS_API)
-    port = ((func_args*)args)->signal->port;
+    port = opts->signal->port;
 #elif defined(NO_MAIN_DRIVER) && !defined(WOLFSSL_SNIFFER) && \
      !defined(WOLFSSL_MDK_SHELL) && !defined(WOLFSSL_TIRTOS)
     /* Let tcp_listen assign port */
@@ -4507,7 +4532,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 #endif
 
     /* do it here to detect failure */
-    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0, 0, 1, 0, 0);
+    tcp_accept(&sockfd, &clientfd, opts, port, 0, 0, 0, 0, 1, 0, 0);
     CloseSocket(sockfd);
 
     wolfSSL_CTX_set_verify(ctx,
@@ -4557,7 +4582,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 
 #ifdef WOLFSSL_SESSION_EXPORT
     /* only add in more complex nonblocking case with session export tests */
-    if (args && ((func_args*)args)->argc > 0) {
+    if (args && opts->argc > 0) {
         /* set as nonblock and time out for waiting on read/write */
         tcp_set_nonblocking(&clientfd);
         wolfSSL_dtls_set_using_nonblock(ssl, 1);
@@ -4604,10 +4629,10 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 
 #ifdef WOLFSSL_SESSION_EXPORT
     /* only add in more complex nonblocking case with session export tests */
-    if (((func_args*)args)->argc > 0) {
+    if (opts->argc > 0) {
         ret = nonblocking_accept_read(args, ssl, &clientfd);
         if (ret >= 0) {
-            ((func_args*)args)->return_code = TEST_SUCCESS;
+            opts->return_code = TEST_SUCCESS;
         }
     #ifdef WOLFSSL_TIRTOS
         Task_yield();
@@ -4668,7 +4693,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     Task_yield();
 #endif
 
-    ((func_args*)args)->return_code = TEST_SUCCESS;
+    opts->return_code = TEST_SUCCESS;
 
 done:
     wolfSSL_shutdown(ssl);
@@ -4687,14 +4712,16 @@ done:
     wc_ecc_fp_free();  /* free per thread cache */
 #endif
 
+    if (cbf == NULL || !cbf->ticNoInit) {
 #if defined(HAVE_SESSION_TICKET) && \
     ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM))
 #if defined(OPENSSL_EXTRA) && defined(HAVE_AES_CBC)
-    OpenSSLTicketCleanup();
+        OpenSSLTicketCleanup();
 #elif defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
-    TicketCleanup();
+        TicketCleanup();
 #endif
 #endif
+    }
 
 #ifndef WOLFSSL_TIRTOS
     return 0;
@@ -5071,6 +5098,9 @@ static void test_client_nofail(void* args, cbType cb)
         reply[input] = '\0';
         printf("Server response: %s\n", reply);
     }
+
+    if (cbf != NULL && cbf->on_result != NULL)
+        cbf->on_result(ssl);
 
     ((func_args*)args)->return_code = TEST_SUCCESS;
 
@@ -6196,6 +6226,191 @@ static void test_wolfSSL_get_finished(void)
     FreeTcpReady(&ready);
 #else
     (void)test_client_get_finished;
+#endif
+}
+
+#if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_EXT_CACHE) && \
+    !defined(SINGLE_THREADED) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_SESSION_CACHE)
+
+/* Sessions to restore/store */
+static WOLFSSL_SESSION* test_wolfSSL_CTX_add_session_client_sess;
+static WOLFSSL_SESSION* test_wolfSSL_CTX_add_session_server_sess;
+static WOLFSSL_CTX*     test_wolfSSL_CTX_add_session_server_ctx;
+
+static void test_wolfSSL_CTX_add_session_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    /* Don't store sessions. Lookup is still enabled. */
+    AssertIntEQ(wolfSSL_CTX_set_session_cache_mode(ctx,
+            WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE), WOLFSSL_SUCCESS);
+    /* Require both peers to provide certs */
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+}
+
+static void test_wolfSSL_CTX_add_session_on_result(WOLFSSL* ssl)
+{
+    WOLFSSL_SESSION** sess;
+    if (wolfSSL_is_server(ssl))
+        sess = &test_wolfSSL_CTX_add_session_server_sess;
+    else
+        sess = &test_wolfSSL_CTX_add_session_client_sess;
+    if (*sess == NULL) {
+#ifdef NO_SESSION_CACHE_REF
+        AssertNotNull(*sess = wolfSSL_get1_session(ssl));
+#else
+        /* Test for backwards compatibility */
+        if (wolfSSL_is_server(ssl)) {
+            AssertNotNull(*sess = wolfSSL_get1_session(ssl));
+        }
+        else {
+            AssertNotNull(*sess = wolfSSL_get_session(ssl));
+        }
+#endif
+        /* Now save the session in the internal store to make it available
+         * for lookup. For TLS 1.3, we can't save the session without
+         * WOLFSSL_TICKET_HAVE_ID because there is no way to retrieve the
+         * session from cache. */
+        if (wolfSSL_is_server(ssl)
+#ifndef WOLFSSL_TICKET_HAVE_ID
+                && wolfSSL_version(ssl) != TLS1_3_VERSION
+#endif
+                )
+            AssertIntEQ(wolfSSL_CTX_add_session(wolfSSL_get_SSL_CTX(ssl),
+                    *sess), WOLFSSL_SUCCESS);
+    }
+    else {
+        /* If we have a session retrieved then remaining connections should be
+         * resuming on that session */
+        AssertIntEQ(wolfSSL_session_reused(ssl), 1);
+    }
+    /* Save CTX to be able to decrypt tickets */
+    if (wolfSSL_is_server(ssl) &&
+            test_wolfSSL_CTX_add_session_server_ctx == NULL) {
+        AssertNotNull(test_wolfSSL_CTX_add_session_server_ctx
+                = wolfSSL_get_SSL_CTX(ssl));
+        AssertIntEQ(wolfSSL_CTX_up_ref(wolfSSL_get_SSL_CTX(ssl)),
+                WOLFSSL_SUCCESS);
+    }
+#ifdef SESSION_CERTS
+#ifndef WOLFSSL_TICKET_HAVE_ID
+    if (wolfSSL_version(ssl) != TLS1_3_VERSION &&
+            wolfSSL_session_reused(ssl))
+#endif
+    {
+        /* With WOLFSSL_TICKET_HAVE_ID the peer certs should be available
+         * for all connections. TLS 1.3 only has tickets so if we don't
+         * include the session id in the ticket then the certificates
+         * will not be available on resumption. */
+        WOLFSSL_X509* peer = wolfSSL_get_peer_certificate(ssl);
+        AssertNotNull(peer);
+        wolfSSL_X509_free(peer);
+        AssertNotNull(wolfSSL_SESSION_get_peer_chain(*sess));
+        AssertNotNull(wolfSSL_SESSION_get0_peer(*sess));
+    }
+#endif
+}
+
+static void test_wolfSSL_CTX_add_session_ssl_ready(WOLFSSL* ssl)
+{
+    /* Set the session to reuse for the client */
+    AssertIntEQ(wolfSSL_set_session(ssl,
+            test_wolfSSL_CTX_add_session_client_sess), WOLFSSL_SUCCESS);
+}
+#endif
+
+static void test_wolfSSL_CTX_add_session(void)
+{
+#if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_EXT_CACHE) && \
+    !defined(SINGLE_THREADED) && defined(WOLFSSL_TLS13) && \
+    !defined(NO_SESSION_CACHE)
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+    callback_functions client_cb;
+    callback_functions server_cb;
+    method_provider methods[][2] = {
+#if !defined(NO_OLD_TLS) && ((!defined(NO_AES) && !defined(NO_AES_CBC)) || \
+        !defined(NO_DES3))
+        /* Without AES there are almost no ciphersuites available. This leads
+         * to no ciphersuites being available and an error. */
+        { wolfTLSv1_1_client_method, wolfTLSv1_1_server_method },
+#endif
+#ifndef WOLFSSL_NO_TLS12
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method },
+#endif
+        /* Needs the default ticket callback since it is tied to the
+         * connection context and this makes it easy to carry over the ticket
+         * crypto context between connections */
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    defined(HAVE_SESSION_TICKET)
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method },
+#endif
+    };
+    const size_t methodsLen = sizeof(methods)/sizeof(*methods);
+    size_t i, j;
+
+    printf(testingFmt, "wolfSSL_CTX_add_session()");
+
+    for (i = 0; i < methodsLen; i++) {
+        /* First run creates a connection while the second+ run will attempt
+         * to resume the connection. The trick is that the internal cache
+         * is turned off. wolfSSL_CTX_add_session should put the session in
+         * the cache anyway. */
+        test_wolfSSL_CTX_add_session_client_sess = NULL;
+        test_wolfSSL_CTX_add_session_server_sess = NULL;
+        test_wolfSSL_CTX_add_session_server_ctx = NULL;
+
+        for (j = 0; j < 5; j++) {
+#ifdef WOLFSSL_TIRTOS
+            fdOpenSession(Task_self());
+#endif
+
+            StartTCP();
+            InitTcpReady(&ready);
+
+            XMEMSET(&client_args, 0, sizeof(func_args));
+            XMEMSET(&server_args, 0, sizeof(func_args));
+
+            XMEMSET(&client_cb, 0, sizeof(callback_functions));
+            XMEMSET(&server_cb, 0, sizeof(callback_functions));
+            client_cb.method  = methods[i][0];
+            server_cb.method  = methods[i][1];
+
+            server_args.signal    = &ready;
+            server_args.callbacks = &server_cb;
+            client_args.signal    = &ready;
+            client_args.callbacks = &client_cb;
+
+            if (test_wolfSSL_CTX_add_session_server_ctx != NULL) {
+                server_cb.ctx = test_wolfSSL_CTX_add_session_server_ctx;
+                server_cb.isSharedCtx = 1;
+            }
+            server_cb.ctx_ready = test_wolfSSL_CTX_add_session_ctx_ready;
+            client_cb.ctx_ready = test_wolfSSL_CTX_add_session_ctx_ready;
+            if (j != 0)
+                client_cb.ssl_ready = test_wolfSSL_CTX_add_session_ssl_ready;
+            server_cb.on_result = test_wolfSSL_CTX_add_session_on_result;
+            client_cb.on_result = test_wolfSSL_CTX_add_session_on_result;
+            server_cb.ticNoInit = 1; /* Use default builtin */
+
+            start_thread(test_server_nofail, &server_args, &serverThread);
+            wait_tcp_ready(&server_args);
+            test_client_nofail(&client_args, NULL);
+            join_thread(serverThread);
+
+            AssertTrue(client_args.return_code);
+            AssertTrue(server_args.return_code);
+
+            FreeTcpReady(&ready);
+        }
+        wolfSSL_SESSION_free(test_wolfSSL_CTX_add_session_client_sess);
+        wolfSSL_SESSION_free(test_wolfSSL_CTX_add_session_server_sess);
+        wolfSSL_CTX_free(test_wolfSSL_CTX_add_session_server_ctx);
+    }
+
+    printf(resultFmt, passed);
+
 #endif
 }
 
@@ -7961,6 +8176,7 @@ static void test_wolfSSL_PKCS12(void)
     AssertNotNull(pkcs12);
     PKCS12_free(pkcs12);
 
+    AssertIntEQ(BIO_write(bio, buf, bytes), bytes); /* d2i consumes BIO */
     d2i_PKCS12_bio(bio, &pkcs12);
     AssertNotNull(pkcs12);
     BIO_free(bio);
@@ -33656,10 +33872,12 @@ static void post_auth_version_cb(WOLFSSL* ssl)
 
 static void post_auth_cb(WOLFSSL* ssl)
 {
+    WOLFSSL_X509* x509;
     /* do handshake and then test version error */
     AssertIntEQ(wolfSSL_accept(ssl), WOLFSSL_SUCCESS);
     AssertStrEQ("TLSv1.3", wolfSSL_get_version(ssl));
-    AssertNull(wolfSSL_get_peer_certificate(ssl));
+    AssertNull(x509 = wolfSSL_get_peer_certificate(ssl));
+    wolfSSL_X509_free(x509);
     AssertIntEQ(wolfSSL_verify_client_post_handshake(ssl), WOLFSSL_SUCCESS);
 }
 
@@ -39080,7 +39298,10 @@ static void test_wolfSSL_SESSION(void)
 
     AssertPtrNE((sess = wolfSSL_get1_session(ssl)), NULL); /* ref count 1 */
     AssertPtrNE((sess_copy = wolfSSL_get1_session(ssl)), NULL); /* ref count 2 */
-    AssertPtrEq(sess, sess_copy); /* they should be the same pointer */
+#ifdef HAVE_EXT_CACHE
+    AssertPtrEq(sess, sess_copy); /* they should be the same pointer but without
+                                   * HAVE_EXT_CACHE we get new objects each time */
+#endif
     wolfSSL_SESSION_free(sess_copy); sess_copy = NULL;
     wolfSSL_SESSION_free(sess);      sess = NULL; /* free session ref */
 
@@ -39100,6 +39321,9 @@ static void test_wolfSSL_SESSION(void)
     AssertIntEQ(wolfSSL_SESSION_has_ticket(sess), 0);
     #endif
 #endif /* OPENSSL_EXTRA */
+
+    /* Retain copy of the session for later testing */
+    AssertNotNull(sess = wolfSSL_get1_session(ssl));
 
     wolfSSL_shutdown(ssl);
     wolfSSL_free(ssl);
@@ -49804,11 +50028,15 @@ static void test_wolfSSL_CTX_LoadCRL(void)
 {
 #ifdef HAVE_CRL
     WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
     const char* badPath = "dummypath";
     const char* validPath = "./certs/crl";
+    const char* validFilePath = "./certs/crl/cliCrl.pem";
+    const char* issuerCert = "./certs/client-cert.pem";
     int derType = WOLFSSL_FILETYPE_ASN1;
     int pemType = WOLFSSL_FILETYPE_PEM;
     int monitor = WOLFSSL_CRL_MONITOR;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
 
     #define FAIL_T1(x, y, z, p, d) AssertIntEQ((int) x(y, z, p, d), \
                                                 BAD_FUNC_ARG)
@@ -49817,20 +50045,52 @@ static void test_wolfSSL_CTX_LoadCRL(void)
 
     FAIL_T1(wolfSSL_CTX_LoadCRL, ctx, validPath, pemType, monitor);
 
-  #ifndef NO_WOLFSSL_CLIENT
+#ifndef NO_WOLFSSL_CLIENT
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-  #elif !defined(NO_WOLFSSL_SERVER)
+#elif !defined(NO_WOLFSSL_SERVER)
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
-  #else
+#else
     return;
-  #endif
+#endif
 
     SUCC_T (wolfSSL_CTX_LoadCRL, ctx, validPath, pemType, monitor);
     SUCC_T (wolfSSL_CTX_LoadCRL, ctx, badPath, pemType, monitor);
     SUCC_T (wolfSSL_CTX_LoadCRL, ctx, badPath, derType, monitor);
 
     wolfSSL_CTX_free(ctx);
-    ctx = NULL;
+
+#ifndef NO_WOLFSSL_CLIENT
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#elif !defined(NO_WOLFSSL_SERVER)
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#else
+    return;
+#endif
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, issuerCert, NULL),
+            WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_LoadCRLFile(ctx, validFilePath, pemType), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_free(ctx);
+
+#ifndef NO_WOLFSSL_CLIENT
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#elif !defined(NO_WOLFSSL_SERVER)
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#else
+    return;
+#endif
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, issuerCert, NULL),
+            WOLFSSL_SUCCESS);
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+    AssertIntEQ(wolfSSL_LoadCRLFile(ssl, validFilePath, pemType), WOLFSSL_SUCCESS);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+
+    AssertNotNull(cm = wolfSSL_CertManagerNew());
+    AssertIntEQ(wolfSSL_CertManagerLoadCA(cm, issuerCert, NULL),
+            WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CertManagerLoadCRLFile(cm, validFilePath, pemType), WOLFSSL_SUCCESS);
+    wolfSSL_CertManagerFree(cm);
+
 #endif
 }
 
@@ -50924,9 +51184,7 @@ static void test_wolfSSL_CRYPTO_get_ex_new_index(void)
 
     printf(testingFmt, "test_wolfSSL_CRYPTO_get_ex_new_index()");
 
-    /* test for unsupported flass index */
-    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_SSL_SESSION,
-                                         0,NULL, NULL, NULL, NULL ), -1);
+    /* test for unsupported class index */
     AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_X509_STORE,
                                          0,NULL, NULL, NULL, NULL ), -1);
     AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_X509_STORE_CTX,
@@ -50973,6 +51231,15 @@ static void test_wolfSSL_CRYPTO_get_ex_new_index(void)
     idx1 = wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_X509,
                                          0,NULL, NULL, NULL, NULL );
     idx2 = wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_X509,
+                                         0,NULL, NULL, NULL, NULL );
+    AssertIntNE(idx1, -1);
+    AssertIntNE(idx2, -1);
+    AssertIntNE(idx1, idx2);
+
+
+    idx1 = wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_SSL_SESSION,
+                                         0,NULL, NULL, NULL, NULL );
+    idx2 = wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_SSL_SESSION,
                                          0,NULL, NULL, NULL, NULL );
     AssertIntNE(idx1, -1);
     AssertIntNE(idx2, -1);
@@ -52116,6 +52383,7 @@ void ApiTest(void)
 #endif
 #ifdef HAVE_IO_TESTS_DEPENDENCIES
     test_wolfSSL_get_finished();
+    test_wolfSSL_CTX_add_session();
 #endif
     test_SSL_CIPHER_get_xxx();
     test_wolfSSL_ERR_strings();

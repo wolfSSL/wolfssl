@@ -3044,9 +3044,9 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
         *sslBytes -= OPAQUE8_LEN;
     #ifdef HAVE_SESSION_TICKET
         /* store nonce in server for DeriveResumptionPSK */
-        session->sslServer->session.ticketNonce.len = len;
+        session->sslServer->session->ticketNonce.len = len;
         if (len > 0)
-            XMEMCPY(&session->sslServer->session.ticketNonce.data, input, len);
+            XMEMCPY(&session->sslServer->session->ticketNonce.data, input, len);
     #endif
         input += len;
         *sslBytes -= len;
@@ -3123,7 +3123,7 @@ static int DoResume(SnifferSession* session, char* error)
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(session->sslServer->version)) {
         resume = wolfSSL_GetSession(session->sslServer,
-                                    session->sslServer->session.masterSecret, 0);
+                                    session->sslServer->session->masterSecret, 0);
         if (resume == NULL) {
             /* TLS v1.3 with hello_retry uses session_id even for new session,
                 so ignore error here */
@@ -3147,8 +3147,8 @@ static int DoResume(SnifferSession* session, char* error)
     /* make sure client has master secret too */
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(session->sslServer->version)) {
-        XMEMCPY(session->sslClient->session.masterSecret,
-                session->sslServer->session.masterSecret, SECRET_LEN);
+        XMEMCPY(session->sslClient->session->masterSecret,
+                session->sslServer->session->masterSecret, SECRET_LEN);
     }
     else
 #endif
@@ -3179,8 +3179,8 @@ static int DoResume(SnifferSession* session, char* error)
         session->sslServer->arrays->psk_keySz = session->sslServer->specs.hash_size;
         session->sslClient->arrays->psk_keySz = session->sslClient->specs.hash_size;
         ret  = DeriveResumptionPSK(session->sslServer,
-            session->sslServer->session.ticketNonce.data,
-            session->sslServer->session.ticketNonce.len,
+            session->sslServer->session->ticketNonce.data,
+            session->sslServer->session->ticketNonce.len,
             session->sslServer->arrays->psk_key);
         /* Copy resumption PSK to client */
         XMEMCPY(session->sslClient->arrays->psk_key,
@@ -3266,7 +3266,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
     }
     if (b) {
     #ifdef WOLFSSL_TLS13
-        XMEMCPY(session->sslServer->session.sessionID, input, ID_LEN);
+        XMEMCPY(session->sslServer->session->sessionID, input, ID_LEN);
     #endif
         XMEMCPY(session->sslServer->arrays->sessionID, input, ID_LEN);
         session->sslServer->options.haveSessionId = 1;
@@ -3370,10 +3370,10 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                 session->sslClient->options.resuming = 1;
             #ifdef WOLFSSL_TLS13
                 /* default nonce to len = 1, data = 0 */
-                session->sslServer->session.ticketNonce.len = 1;
-                session->sslServer->session.ticketNonce.data[0] = 0;
-                session->sslClient->session.ticketNonce.len = 1;
-                session->sslClient->session.ticketNonce.data[0] = 0;
+                session->sslServer->session->ticketNonce.len = 1;
+                session->sslServer->session->ticketNonce.data[0] = 0;
+                session->sslClient->session->ticketNonce.len = 1;
+                session->sslClient->session->ticketNonce.data[0] = 0;
             #endif
                 break;
         #endif
@@ -3595,7 +3595,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
         }
         Trace(CLIENT_RESUME_TRY_STR);
 #ifdef WOLFSSL_TLS13
-        XMEMCPY(session->sslClient->session.sessionID, input, ID_LEN);
+        XMEMCPY(session->sslClient->session->sessionID, input, ID_LEN);
 #endif
         if (session->sslClient->arrays)
             XMEMCPY(session->sslClient->arrays->sessionID, input, ID_LEN);
@@ -4014,14 +4014,14 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
         #ifdef HAVE_SESSION_TICKET
             /* derive resumption secret for next session - on finished (from client) */
             ret += DeriveResumptionSecret(session->sslClient,
-                session->sslClient->session.masterSecret);
+                session->sslClient->session->masterSecret);
 
             /* copy resumption secret to server */
-            XMEMCPY(session->sslServer->session.masterSecret,
-                    session->sslClient->session.masterSecret, SECRET_LEN);
+            XMEMCPY(session->sslServer->session->masterSecret,
+                    session->sslClient->session->masterSecret, SECRET_LEN);
             #ifdef SHOW_SECRETS
             PrintSecret("resumption secret",
-                session->sslClient->session.masterSecret, SECRET_LEN);
+                session->sslClient->session->masterSecret, SECRET_LEN);
             #endif
         #endif
         }

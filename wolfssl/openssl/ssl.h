@@ -319,6 +319,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_set_post_handshake_auth     wolfSSL_set_post_handshake_auth
 #define SSL_CTX_set_post_handshake_auth wolfSSL_CTX_set_post_handshake_auth
 #define SSL_pending                     wolfSSL_pending
+#define SSL_has_pending                 wolfSSL_has_pending
 #define SSL_load_error_strings          wolfSSL_load_error_strings
 #define SSL_library_init                wolfSSL_library_init
 #define OPENSSL_cleanup                 (void)wolfSSL_Cleanup
@@ -1267,15 +1268,6 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_CTX_callback_ctrl           wolfSSL_CTX_callback_ctrl
 
 #define SSL3_RANDOM_SIZE                32 /* same as RAN_LEN in internal.h */
-
-#define SSL2_VERSION                     0x0002
-#define SSL3_VERSION                     0x0300
-#define TLS1_VERSION                     0x0301
-#define TLS1_1_VERSION                   0x0302
-#define TLS1_2_VERSION                   0x0303
-#define TLS1_3_VERSION                   0x0304
-#define DTLS1_VERSION                    0xFEFF
-#define DTLS1_2_VERSION                  0xFEFD
 
 /* Used as message callback types */
 #define SSL3_RT_CHANGE_CIPHER_SPEC       20
