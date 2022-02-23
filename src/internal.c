@@ -8949,6 +8949,7 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
 static int wolfSSLReceive(WOLFSSL* ssl, byte* buf, word32 sz)
 {
     int recvd;
+    int retryLimit = WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS;
 
     if (ssl->CBIORecv == NULL) {
         WOLFSSL_MSG("Your IO Recv callback is null, please set");
@@ -8974,9 +8975,11 @@ retry:
                 return -1;
 
             case WOLFSSL_CBIO_ERR_WANT_READ:      /* want read, would block */
-                if (ssl->ctx->autoRetry && !ssl->options.handShakeDone &&
-                        !ssl->options.dtls)
+                if (retryLimit > 0 && ssl->ctx->autoRetry &&
+                        !ssl->options.handShakeDone && !ssl->options.dtls) {
+                    retryLimit--;
                     goto retry;
+                }
                 return WANT_READ;
 
             case WOLFSSL_CBIO_ERR_CONN_RST:       /* connection reset */

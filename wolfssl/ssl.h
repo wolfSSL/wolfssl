@@ -810,6 +810,9 @@ enum Tls13Secret {
 };
 #endif
 
+#ifndef WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS
+#define WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS 10
+#endif
 
 typedef WOLFSSL_METHOD* (*wolfSSL_method_func)(void* heap);
 
@@ -2196,7 +2199,10 @@ enum {
     SSL_MODE_ENABLE_PARTIAL_WRITE = 2,
     SSL_MODE_AUTO_RETRY = 3, /* wolfSSL default is to return WANT_{READ|WRITE}
                               * to the user. This is set by default with
-                              * OPENSSL_COMPATIBLE_DEFAULTS. */
+                              * OPENSSL_COMPATIBLE_DEFAULTS. The macro
+                              * WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS is used to
+                              * limit the possibility of an infinite retry loop
+                              */
     SSL_MODE_RELEASE_BUFFERS = -1, /* For libwebsockets build. No current use. */
 
     BIO_CLOSE   = 1,
