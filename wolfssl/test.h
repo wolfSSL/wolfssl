@@ -1312,7 +1312,7 @@ static WC_INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
         addr->sin6_addr = in6addr_any;
     }
     else {
-        #if defined(HAVE_GETADDRINFO) || defined(WOLF_C99)
+        #if defined(HAVE_GETADDRINFO)
             struct addrinfo  hints;
             struct addrinfo* answer = NULL;
             int    ret;
