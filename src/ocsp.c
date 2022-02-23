@@ -280,8 +280,8 @@ static int GetOcspStatus(WOLFSSL_OCSP* ocsp, OcspRequest* request,
  * returns OCSP_LOOKUP_FAIL when the response is bad and 0 otherwise.
  */
 int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
-                                    WOLFSSL_BUFFER_INFO *responseBuffer, CertStatus *status,
-                                    OcspEntry *entry, OcspRequest *ocspRequest)
+                      WOLFSSL_BUFFER_INFO *responseBuffer, CertStatus *status,
+                      OcspEntry *entry, OcspRequest *ocspRequest)
 {
 #ifdef WOLFSSL_SMALL_STACK
     CertStatus*   newStatus;
@@ -406,7 +406,7 @@ end:
 }
 
 /* 0 on success */
-/* allow customer to override the maximum request size at build-time */
+/* allow user to override the maximum request size at build-time */
 #ifndef OCSP_MAX_REQUEST_SZ
 #define OCSP_MAX_REQUEST_SZ 2048
 #endif
