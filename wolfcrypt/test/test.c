@@ -12012,7 +12012,7 @@ static int cert_asn1_test(void)
     int ret;
     int len[3];
     DecodedCert cert;
-    byte certData[106];
+    byte certData[114];
     byte* badCert = NULL;
 
     len[2] = add_data(certData, 0, minSerial, (byte)sizeof(minSerial));
@@ -12038,7 +12038,12 @@ static int cert_asn1_test(void)
     len[2] = add_data(certData, 0, minSerial, (byte)sizeof(minSerial));
     len[2] = add_data(certData, len[2], minSigAlg, (byte)sizeof(minSigAlg));
     len[2] = add_data(certData, len[2], nameBad, (byte)sizeof(nameBad));
+    len[2] = add_data(certData, len[2], minDates, (byte)sizeof(minDates));
+    len[2] = add_data(certData, len[2], minName, (byte)sizeof(minName));
+    len[2] = add_data(certData, len[2], minPubKey, (byte)sizeof(minPubKey));
     len[1] = add_seq(certData, 0, certData, len[2]);
+    len[1] = add_data(certData, len[1], minSigAlg, (byte)sizeof(minSigAlg));
+    len[1] = add_data(certData, len[1], minSig, (byte)sizeof(minSig));
     len[0] = add_seq(certData, 0, certData, len[1]);
     /* Put data into allocated buffer to allow access error checking. */
     badCert = (byte*)XMALLOC(len[0], HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
