@@ -11904,6 +11904,8 @@ static void initDefaultName(void)
     certDefaultName.joiCEnc = CTC_PRINTABLE;
 #endif
     XMEMCPY(certDefaultName.email, "info@wolfssl.com", sizeof("info@wolfssl.com"));
+    XMEMCPY(certDefaultName.userId, "TestUserID", sizeof("TestUserID"));
+    certDefaultName.userIdEnc = CTC_PRINTABLE;
 
 #if defined(WOLFSSL_MULTI_ATTRIB) && defined(WOLFSSL_TEST_CERT)
     /* test having additional OUs and setting DC */

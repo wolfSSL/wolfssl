@@ -4061,12 +4061,9 @@ static const byte dnsSRVOid[] = {43, 6, 1, 5, 5, 7, 8, 7};
 #endif
 
 #if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN) || \
-    defined(WOLFSSL_ASN_TEMPLATE) || defined(OPENSSL_EXTRA) || \
-    defined(OPENSSL_EXTRA_X509_SMALL)
+    defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* Pilot attribute types (0.9.2342.19200300.100.1.*) */
-#ifdef WOLFSSL_ASN_TEMPLATE
 static const byte uidOid[] = {9, 146, 38, 137, 147, 242, 44, 100, 1, 1}; /* user id */
-#endif
 #if !defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_GEN) || \
     defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 static const byte dcOid[] = {9, 146, 38, 137, 147, 242, 44, 100, 1, 25}; /* domain component */
@@ -4858,6 +4855,10 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                 case SERIAL_NUMBER_OID:
                     oid = attrSerialNumberOid;
                     *oidSz = sizeof(attrSerialNumberOid);
+                    break;
+                case USER_ID_OID:
+                    oid = uidOid;
+                    *oidSz = sizeof(uidOid);
                     break;
                 case EXTENSION_REQUEST_OID:
                     oid = attrExtensionRequestOid;
@@ -10529,8 +10530,6 @@ static int GetHashId(const byte* id, int length, byte* hash)
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* Id for email address. */
 #define ASN_EMAIL     0x100
-/* Id for user id. */
-#define ASN_UID       0x101
 /* Id for domain component. */
 #define ASN_DC        0x102
 /* Id for jurisdiction country. */
@@ -10776,6 +10775,19 @@ static const CertNameData certNameSubject[] = {
         NID_postalCode
 #endif
     },
+    /* User Id */
+    {
+        "/userid=", 8,
+#ifdef WOLFSSL_CERT_GEN
+        OFFSETOF(DecodedCert, subjectUID),
+        OFFSETOF(DecodedCert, subjectUIDLen),
+        OFFSETOF(DecodedCert, subjectUIDEnc),
+#endif
+#ifdef WOLFSSL_X509_NAME_AVAILABLE
+        NID_userId
+
+#endif
+    },
 };
 
 static const int certNameSubjectSz =
@@ -10970,7 +10982,7 @@ static int SetSubject(DecodedCert* cert, int id, byte* str, word32 strLen,
         cert->subjectCNEnc = tag;
     }
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-    else if (id > ASN_COMMON_NAME && id <= ASN_BUS_CAT) {
+    else if (id > ASN_COMMON_NAME && id <= ASN_USER_ID) {
         /* Use table and offsets to put data into appropriate fields. */
         SetCertNameSubject(cert, id, (char*)str);
         SetCertNameSubjectLen(cert, id, strLen);
@@ -11053,7 +11065,7 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
     }
     else if (oidSz == sizeof(uidOid) && XMEMCMP(oid, uidOid, oidSz) == 0) {
         /* Set the user id, type string, length and NID. */
-        id = ASN_UID;
+        id = ASN_USER_ID;
         typeStr = WOLFSSL_USER_ID;
         typeStrLen = sizeof(WOLFSSL_USER_ID) - 1;
     #ifdef WOLFSSL_X509_NAME_AVAILABLE
@@ -11391,6 +11403,22 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                     nid = NID_serialNumber;
                 #endif /* OPENSSL_EXTRA */
             }
+            else if (id == ASN_USER_ID) {
+                copy = WOLFSSL_USER_ID;
+                copyLen = sizeof(WOLFSSL_USER_ID) - 1;
+                #ifdef WOLFSSL_CERT_GEN
+                    if (nameType == SUBJECT) {
+                        cert->subjectUID = (char*)&input[srcIdx];
+                        cert->subjectUIDLen = strLen;
+                        cert->subjectUIDEnc = b;
+                    }
+                #endif /* WOLFSSL_CERT_GEN */
+                #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
+                    nid = NID_userId;
+                #endif /* OPENSSL_EXTRA */
+            }
         #ifdef WOLFSSL_CERT_EXT
             else if (id == ASN_STREET_ADDR) {
                 copy = WOLFSSL_STREET_ADDR_NAME;
@@ -11508,14 +11536,16 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             byte email = FALSE;
             byte pilot = FALSE;
 
-            if (joint[0] == 0x2a && joint[1] == 0x86) {  /* email id hdr */
+            if (joint[0] == 0x2a && joint[1] == 0x86) {  /* email id hdr 42.134.* */
                 id = ASN_EMAIL_NAME;
                 email = TRUE;
             }
 
-            if (joint[0] == 0x9  && joint[1] == 0x92) { /* uid id hdr */
+            if (joint[0] == 0x9  && joint[1] == 0x92) { /* uid id hdr 9.146.* */
                 /* last value of OID is the type of pilot attribute */
                 id    = input[srcIdx + oidSz - 1];
+                if (id == 0x01)
+                    id = ASN_USER_ID;
                 pilot = TRUE;
             }
 
@@ -21681,6 +21711,8 @@ const char* GetOneCertName(CertName* name, int idx)
        return name->commonName;
     case ASN_SERIAL_NUMBER:
        return name->serialDev;
+    case ASN_USER_ID:
+       return name->userId;
     case ASN_POSTAL_CODE:
        return name->postalCode;
     case ASN_EMAIL_NAME:
@@ -21722,6 +21754,8 @@ static char GetNameType(CertName* name, int idx)
        return name->commonNameEnc;
     case ASN_SERIAL_NUMBER:
        return name->serialDevEnc;
+    case ASN_USER_ID:
+       return name->userIdEnc;
     case ASN_POSTAL_CODE:
        return name->postalCodeEnc;
     case ASN_EMAIL_NAME:
@@ -22097,7 +22131,7 @@ static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
     int cnt = 1 + EKU_OID_HI;
     int i;
     int ret = 0;
-    int sz = 0;
+    int sz;
 
 #ifdef WOLFSSL_EKU_OID
     cnt += CTC_MAX_EKU_NB;
@@ -22152,7 +22186,7 @@ static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
             if (input & EXTKEYUSE_USER) {
                 /* Iterate through OID values */
                 for (i = 0; i < CTC_MAX_EKU_NB; i++) {
-                    int sz = cert->extKeyUsageOIDSz[i];
+                    sz = cert->extKeyUsageOIDSz[i];
                     if (sz > 0) {
                         /* Set template item. */
                         XMEMCPY(&extKuASN[asnIdx], &ekuASN[EKUASN_IDX_OID],
@@ -22169,6 +22203,7 @@ static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
         }
 
         /* Calculate size of encoding. */
+        sz = 0;
         ret = SizeASN_Items(extKuASN, dataASN, asnIdx, &sz);
     }
     /* When buffer to write to, ensure it's big enough. */
@@ -22558,6 +22593,10 @@ static int EncodeName(EncodedName* name, const char* nameStr,
             thisLen += (int)sizeof(dcOid);
             firstSz  = (int)sizeof(dcOid);
             break;
+        case ASN_USER_ID:
+            thisLen += (int)sizeof(uidOid);
+            firstSz  = (int)sizeof(uidOid);
+            break;
     #ifdef WOLFSSL_CUSTOM_OID
         case ASN_CUSTOM_NAME:
             thisLen += cname->custom.oidSz;
@@ -22604,6 +22643,12 @@ static int EncodeName(EncodedName* name, const char* nameStr,
             idx += (int)sizeof(dcOid)-1;
             /* id type */
             name->encoded[idx++] = type;
+            /* str type */
+            name->encoded[idx++] = nameTag;
+            break;
+        case ASN_USER_ID:
+            XMEMCPY(name->encoded + idx, uidOid, sizeof(uidOid));
+            idx += (int)sizeof(uidOid);
             /* str type */
             name->encoded[idx++] = nameTag;
             break;
@@ -22671,6 +22716,11 @@ static int EncodeName(EncodedName* name, const char* nameStr,
                 /* Domain component OID different to standard types. */
                 oid = dcOid;
                 oidSz = sizeof(dcOid);
+                break;
+            case ASN_USER_ID:
+                /* Domain component OID different to standard types. */
+                oid = uidOid;
+                oidSz = sizeof(uidOid);
                 break;
         #ifdef WOLFSSL_CUSTOM_OID
             case ASN_CUSTOM_NAME:
@@ -22848,6 +22898,12 @@ static int SetNameRdnItems(ASNSetData* dataASN, ASNItem* namesASN,
                     /* Copy email data into dynamic vars. */
                     SetRdnItems(namesASN + idx, dataASN + idx, attrEmailOid,
                         sizeof(attrEmailOid), ASN_IA5_STRING,
+                        (const byte*)GetOneCertName(name, i), nameLen[i]);
+                }
+                else if (type == ASN_USER_ID) {
+                    /* Copy userID data into dynamic vars. */
+                    SetRdnItems(namesASN + idx, dataASN + idx, uidOid,
+                        sizeof(uidOid), GetNameType(name, i),
                         (const byte*)GetOneCertName(name, i), nameLen[i]);
                 }
                 else if (type == ASN_CUSTOM_NAME) {
@@ -26234,6 +26290,13 @@ static void SetNameFromDcert(CertName* cn, DecodedCert* decoded)
         XSTRNCPY(cn->serialDev, decoded->subjectSND, sz);
         cn->serialDev[sz] = '\0';
         cn->serialDevEnc = decoded->subjectSNDEnc;
+    }
+    if (decoded->subjectUID) {
+        sz = (decoded->subjectUIDLen < CTC_NAME_SIZE) ? decoded->subjectUIDLen
+                                                     : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->userId, decoded->subjectUID, sz);
+        cn->userId[sz] = '\0';
+        cn->userIdEnc = decoded->subjectUIDEnc;
     }
 #ifdef WOLFSSL_CERT_EXT
     if (decoded->subjectBC) {

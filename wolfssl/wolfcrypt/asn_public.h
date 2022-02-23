@@ -345,6 +345,8 @@ typedef struct CertName {
     char commonNameEnc;
     char serialDev[CTC_NAME_SIZE];
     char serialDevEnc;
+    char userId[CTC_NAME_SIZE];
+    char userIdEnc;
     char postalCode[CTC_NAME_SIZE];
     char postalCodeEnc;
 #ifdef WOLFSSL_CERT_EXT

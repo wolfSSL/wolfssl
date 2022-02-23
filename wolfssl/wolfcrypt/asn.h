@@ -668,12 +668,13 @@ enum DN_Tags {
     ASN_ORGUNIT_NAME  = 0x0b,   /* OU */
     ASN_BUS_CAT       = 0x0f,   /* businessCategory */
     ASN_POSTAL_CODE   = 0x11,   /* postalCode */
+    ASN_USER_ID       = 0x12,   /* UserID */
+
     ASN_EMAIL_NAME    = 0x98,   /* not actual OID (see attrEmailOid) */
     ASN_CUSTOM_NAME   = 0x99,   /* not actual OID (see CertOidField) */
 
     /* pilot attribute types
      * OID values of 0.9.2342.19200300.100.1.* */
-    ASN_USER_ID          = 0x01, /* UID */
     ASN_FAVOURITE_DRINK  = 0x05, /* favouriteDrink */
     ASN_DOMAIN_COMPONENT = 0x19  /* DC */
 };
@@ -839,7 +840,7 @@ enum ECC_TYPES
 #define ASN_JOI_ST              0x2
 
 #ifndef WC_ASN_NAME_MAX
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         #define WC_ASN_NAME_MAX 330
     #else
         #define WC_ASN_NAME_MAX 256
@@ -973,9 +974,9 @@ enum Misc_ASN {
 #ifndef WC_MAX_NAME_ENTRIES
     /* entries added to x509 name struct */
     #ifdef OPENSSL_EXTRA
-    #define WC_MAX_NAME_ENTRIES 15
+    #define WC_MAX_NAME_ENTRIES 16
     #else
-    #define WC_MAX_NAME_ENTRIES 13
+    #define WC_MAX_NAME_ENTRIES 14
     #endif
 #endif
 #define MAX_NAME_ENTRIES WC_MAX_NAME_ENTRIES
@@ -1188,6 +1189,7 @@ enum CsrAttrType {
     CHALLENGE_PASSWORD_OID = 659,
     SERIAL_NUMBER_OID = 94,
     EXTENSION_REQUEST_OID = 666,
+    USER_ID_OID = 865,
 };
 #endif
 
@@ -1575,6 +1577,9 @@ struct DecodedCert {
     char*   subjectSND;
     int     subjectSNDLen;
     char    subjectSNDEnc;
+    char*   subjectUID;
+    int     subjectUIDLen;
+    char    subjectUIDEnc;
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
     char*   subjectStreet;
     int     subjectStreetLen;
