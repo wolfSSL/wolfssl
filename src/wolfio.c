@@ -169,15 +169,17 @@ int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 
     recvd = wolfSSL_BIO_read(ssl->biord, buf, sz);
     if (recvd <= 0) {
-        if (wolfSSL_BIO_supports_pending(ssl->biord) &&
+        if (/* ssl->biowr->wrIdx is checked for Bind9 */
+            ssl->biowr != NULL && ssl->biowr->type == WOLFSSL_BIO_BIO &&
+            ssl->biowr->wrIdx != 0 &&
+            /* Not sure this pending check is necessary but let's double
+             * check that the read BIO is empty before we signal a write
+             * need */
+            wolfSSL_BIO_supports_pending(ssl->biord) &&
             wolfSSL_BIO_ctrl_pending(ssl->biord) == 0) {
-            if (ssl->biowr->type == WOLFSSL_BIO_BIO &&
-                    ssl->biowr->wrIdx != 0) {
-                /* Let's signal to the app layer that we have
-                 * data pending that needs to be sent. */
-                return WOLFSSL_CBIO_ERR_WANT_WRITE;
-            }
-            return WOLFSSL_CBIO_ERR_WANT_READ;
+            /* Let's signal to the app layer that we have
+             * data pending that needs to be sent. */
+            return WOLFSSL_CBIO_ERR_WANT_WRITE;
         }
         else if (ssl->biord->type == WOLFSSL_BIO_SOCKET) {
             if (recvd == 0) {
