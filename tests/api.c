@@ -7914,7 +7914,7 @@ static void test_wolfSSL_PKCS12(void)
                    */
 #if defined(OPENSSL_EXTRA) && !defined(NO_DES3) && !defined(NO_FILESYSTEM) && \
     !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA) && \
-    !defined(NO_SHA) && defined(HAVE_PKCS12)
+    !defined(NO_SHA) && defined(HAVE_PKCS12) && !defined(NO_BIO)
     byte buf[6000];
     char file[] = "./certs/test-servercert.p12";
     char order[] = "./certs/ecc-rsa-server.p12";
@@ -30292,7 +30292,8 @@ static void test_wolfSSL_ASN1_TIME_print(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA) \
         && (defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || \
-            defined(WOLFSSL_HAPROXY)) && defined(USE_CERT_BUFFERS_2048)
+            defined(WOLFSSL_HAPROXY)) && defined(USE_CERT_BUFFERS_2048) && \
+        !defined(NO_BIO)
     BIO*  bio;
     X509*  x509;
     const unsigned char* der = client_cert_der_2048;
@@ -30855,7 +30856,8 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     }
 #endif
 
-#if !defined(NO_RSA) && (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN))
+#if !defined(NO_BIO) && !defined(NO_RSA) && (defined(WOLFSSL_KEY_GEN) || \
+    defined(WOLFSSL_CERT_GEN))
     {
         #define BIO_PEM_TEST_CHAR 'a'
         EVP_PKEY* pkey2 = NULL;
@@ -30927,8 +30929,9 @@ static void test_wolfSSL_PEM_PrivateKey(void)
 
     /* key is DES encrypted */
     #if !defined(NO_DES3) && defined(WOLFSSL_ENCRYPTED_KEYS) && \
-    !defined(NO_RSA) && !defined(NO_FILESYSTEM) && !defined(NO_MD5) && \
-    defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA) && !defined(NO_RSA)
+        !defined(NO_RSA) && !defined(NO_BIO) && !defined(NO_FILESYSTEM) && \
+        !defined(NO_MD5) && defined(WOLFSSL_KEY_GEN) && \
+        !defined(HAVE_USER_RSA) && !defined(NO_RSA)
     {
         XFILE f;
         wc_pem_password_cb* passwd_cb;
@@ -32663,7 +32666,7 @@ static void test_wolfSSL_X509_STORE_CTX_get0_current_issuer(void)
 
 static void test_wolfSSL_PKCS7_certs(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && !defined(NO_BIO) && \
    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && defined(HAVE_PKCS7)
     STACK_OF(X509)* sk = NULL;
     STACK_OF(X509_INFO)* info_sk = NULL;
@@ -34333,7 +34336,7 @@ static int msgCb(SSL_CTX *ctx, SSL *ssl)
 {
     (void) ctx;
     (void) ssl;
-    #if defined(OPENSSL_ALL) && defined(SESSION_CERTS)
+    #if defined(OPENSSL_ALL) && defined(SESSION_CERTS) && !defined(NO_BIO)
         STACK_OF(X509)* sk;
         X509* x509;
         int i, num;
@@ -34346,7 +34349,7 @@ static int msgCb(SSL_CTX *ctx, SSL *ssl)
     AssertNotNull(SSL_get0_verified_chain(ssl));
     #endif
 
-    #if defined(OPENSSL_ALL) && defined(SESSION_CERTS)
+    #if defined(OPENSSL_ALL) && defined(SESSION_CERTS) && !defined(NO_BIO)
     bio = BIO_new(BIO_s_file());
     BIO_set_fp(bio, stdout, BIO_NOCLOSE);
     sk = SSL_get_peer_cert_chain(ssl);
@@ -37460,7 +37463,7 @@ static void test_wolfSSL_OBJ(void)
  */
 #if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && !defined(NO_ASN) && \
     !defined(HAVE_FIPS) && !defined(NO_SHA) && defined(WOLFSSL_CERT_EXT) && \
-    defined(WOLFSSL_CERT_GEN)
+    defined(WOLFSSL_CERT_GEN) && !defined(NO_BIO)
     ASN1_OBJECT *obj = NULL;
     ASN1_OBJECT *obj2 = NULL;
     char buf[50];
@@ -37776,7 +37779,8 @@ static void test_wolfSSL_i2t_ASN1_OBJECT(void)
 static void test_wolfSSL_PEM_write_bio_X509(void)
 {
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_AKID_NAME) && \
-    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN) && \
+    !defined(NO_BIO)
     /* This test contains the hard coded expected
      * lengths. Update if necessary */
 
@@ -46477,7 +46481,7 @@ static void test_X509_REQ(void)
 
 static void test_wolfssl_PKCS7(void)
 {
-#if defined(OPENSSL_ALL) && defined(HAVE_PKCS7)
+#if defined(OPENSSL_ALL) && defined(HAVE_PKCS7) && !defined(NO_BIO)
     PKCS7* pkcs7;
     byte   data[FOURK_BUF];
     word32 len = sizeof(data);

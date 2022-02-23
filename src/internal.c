@@ -11606,22 +11606,20 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
                        break;
                     }
                 }
-#if defined(HAVE_CRL) && !defined(NO_BIO)
                 else if (type == X509_LU_CRL) {
+#if defined(HAVE_CRL)
                     ret = wolfSSL_X509_load_crl_file(&store->lookup, filename,
                                                     WOLFSSL_FILETYPE_PEM);
                     if (ret != WOLFSSL_SUCCESS) {
                         WOLFSSL_MSG("failed to load CRL");
                         break;
                     }
-                }
 #else
-                else if (type == X509_LU_CRL) {
                     WOLFSSL_MSG("CRL is not supported");
                     ret = WOLFSSL_FAILURE;
                     break;
+#endif /* HAVE_CRL  */
                 }
-#endif /* HAVE_CRL && !NO_BIO */
             } else
                 break;
         }
