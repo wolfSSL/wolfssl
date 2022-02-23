@@ -547,14 +547,12 @@ WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD* method)
 #endif
 }
 
-#ifdef OPENSSL_EXTRA
 /* increases CTX reference count to track proper time to "free" */
 int wolfSSL_CTX_up_ref(WOLFSSL_CTX* ctx)
 {
     int refCount = SSL_CTX_RefCount(ctx, 1);
     return ((refCount > 1) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE);
 }
-#endif
 
 WOLFSSL_ABI
 void wolfSSL_CTX_free(WOLFSSL_CTX* ctx)
