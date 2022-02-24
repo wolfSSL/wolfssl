@@ -1,0 +1,16 @@
+Building WolfSSL
+
+
+TO build wolfSSL, you will need to first run
+./autogen.sh
+
+Then run one of these configure commands (probably the last one if you are trying to debug)
+#CFLAGS='-DDEBUG_IOTSAFE' ./configure --enable-debug --enable-iotsafe --disable-tls13 --enable-wpas --enable-pkcallbacks
+#CFLAGS='-DDEBUG_IOTSAFE -DSHOW_SECRETS -DWOLFSSL_SSLKEYLOGFILE' ./configure --enable-debug --enable-iotsafe --disable-tls13 --enable-wpas --enable-pkcallbacks
+#CFLAGS='-Wno-error=cpp -DDEBUG_IOTSAFE -DSHOW_SECRETS -DWOLFSSL_SSLKEYLOGFILE' ./configure --enable-debug --enable-iotsafe --disable-tls13 --enable-wpas --enable-pkcallbacks
+#CFLAGS='-DDEBUG_IOTSAFE -DSHOW_SECRETS -DWOLFSSL_SSLKEYLOGFILE' ./configure --enable-debug --enable-iotsafe --disable-tls13 --enable-wpas --enable-pkcallbacks
+CFLAGS='-Wno-error=cpp -DDEBUG_IOTSAFE -DSHOW_SECRETS -DWOLFSSL_SSLKEYLOGFILE' ./configure --enable-debug --enable-iotsafe --disable-tls13 --enable-wpas --enable-pkcallbacks
+
+
+Then run 
+make
