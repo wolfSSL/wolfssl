@@ -30626,7 +30626,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 id = ssl->session->altSessionID;
                 idSz = ID_LEN;
             }
-            XMEMCPY(it.id, id, ID_LEN);
+            XMEMCPY(it.id, id, idSz);
         }
 #endif
 
@@ -30765,20 +30765,20 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* get master secret */
         if (ret == WOLFSSL_TICKET_RET_OK || ret == WOLFSSL_TICKET_RET_CREATE) {
             if (ssl->version.minor < it->pv.minor) {
-                ForceZero(&it, sizeof(it));
+                ForceZero(it, sizeof(*it));
                 WOLFSSL_MSG("Ticket has greater version");
                 return VERSION_ERROR;
             }
             else if (ssl->version.minor > it->pv.minor) {
                 if (IsAtLeastTLSv1_3(it->pv) != IsAtLeastTLSv1_3(ssl->version)) {
-                    ForceZero(&it, sizeof(it));
+                    ForceZero(it, sizeof(*it));
                     WOLFSSL_MSG("Tickets cannot be shared between "
                                                "TLS 1.3 and TLS 1.2 and lower");
                     return VERSION_ERROR;
                 }
 
                 if (!ssl->options.downgrade) {
-                    ForceZero(&it, sizeof(it));
+                    ForceZero(it, sizeof(*it));
                     WOLFSSL_MSG("Ticket has lesser version");
                     return VERSION_ERROR;
                 }
@@ -30786,7 +30786,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 WOLFSSL_MSG("Downgrading protocol due to ticket");
 
                 if (it->pv.minor < ssl->options.minDowngrade) {
-                    ForceZero(&it, sizeof(it));
+                    ForceZero(it, sizeof(*it));
                     return VERSION_ERROR;
                 }
                 ssl->version.minor = it->pv.minor;
@@ -30837,7 +30837,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
         }
 
-        ForceZero(&it, sizeof(it));
+        ForceZero(it, sizeof(*it));
 
         WOLFSSL_LEAVE("DoClientTicket", ret);
         WOLFSSL_END(WC_FUNC_TICKET_DO);
