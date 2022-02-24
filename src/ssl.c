@@ -24095,10 +24095,10 @@ int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
             }
             else {
                 tmp = (byte*)XREALLOC(ticBuff, input->ticketLen,
-                        output->heap, DYNAMIC_TYPE_SESSION_TICK);
+                        input->heap, DYNAMIC_TYPE_SESSION_TICK);
                 if (tmp == NULL) {
                     WOLFSSL_MSG("Failed to allocate memory for ticket");
-                    XFREE(ticBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+                    XFREE(ticBuff, input->heap, DYNAMIC_TYPE_SESSION_TICK);
                     output->ticket = NULL;
                     output->ticketLen = 0;
                     output->ticketLenAlloc = 0;
