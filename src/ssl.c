@@ -63341,6 +63341,35 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                 }
                 (*pkey)->type = EVP_PKEY_EC;
                 (*pkey)->pkey_curve = key->dp->oidSum;
+                (*pkey)->ecc  = wolfSSL_EC_KEY_new();
+                (*pkey)->ownEcc = 1; /* we own ECC */
+                if ((*pkey)->ecc == NULL) {
+                   WOLFSSL_MSG("issue creating EVP ECC key");
+                   wolfSSL_X509_free(*cert); *cert = NULL;
+                   if (ca != NULL) {
+                         wolfSSL_sk_X509_pop_free(*ca, NULL); *ca = NULL;
+                   }
+                   wolfSSL_EVP_PKEY_free(*pkey); *pkey = NULL;
+                   XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
+                #ifdef WOLFSSL_SMALL_STACK
+                   XFREE(key, NULL, DYNAMIC_TYPE_RSA);
+                #endif
+                   return WOLFSSL_FAILURE;
+                }
+                if (wolfSSL_EC_KEY_LoadDer_ex((*pkey)->ecc, pk, pkSz,
+                                  WOLFSSL_RSA_LOAD_PRIVATE) != SSL_SUCCESS) {
+                   WOLFSSL_MSG("issue loading ECC key");
+                   wolfSSL_X509_free(*cert); *cert = NULL;
+                   if (ca != NULL) {
+                         wolfSSL_sk_X509_pop_free(*ca, NULL); *ca = NULL;
+                   }
+                   wolfSSL_EVP_PKEY_free(*pkey); *pkey = NULL;
+                   XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
+                #ifdef WOLFSSL_SMALL_STACK
+                   XFREE(key, NULL, DYNAMIC_TYPE_RSA);
+                #endif
+                   return WOLFSSL_FAILURE;
+                }                
                 wc_ecc_free(key);
                 WOLFSSL_MSG("Found PKCS12 ECC key");
             }
