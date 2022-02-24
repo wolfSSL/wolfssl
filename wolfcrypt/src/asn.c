@@ -11127,7 +11127,7 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
         if (ret == 0) {
             /* Check there is space for this in the full name string and
              * terminating NUL character. */
-            if ((typeStrLen + strLen) < (word32)(ASN_NAME_MAX - *idx))
+            if ((typeStrLen + strLen) < (word32)(WC_ASN_NAME_MAX - *idx))
             {
                 /* Add RDN to full string. */
                 XMEMCPY(&full[*idx], typeStr, typeStrLen);
@@ -11525,7 +11525,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #endif /* OPENSSL_EXTRA */
             }
 
-            if ((strLen + copyLen) > (int)(ASN_NAME_MAX - idx)) {
+            if ((strLen + copyLen) > (int)(WC_ASN_NAME_MAX - idx)) {
                 WOLFSSL_MSG("ASN Name too big, skipping");
                 tooBig = TRUE;
             }
@@ -11559,14 +11559,14 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 return ASN_PARSE_E;
             }
 
-            if (strLen > (int)(ASN_NAME_MAX - idx)) {
+            if (strLen > (int)(WC_ASN_NAME_MAX - idx)) {
                 WOLFSSL_MSG("ASN name too big, skipping");
                 tooBig = TRUE;
             }
 
             if (email) {
                 copyLen = sizeof(WOLFSSL_EMAIL_ADDR) - 1;
-                if ((copyLen + strLen) > (int)(ASN_NAME_MAX - idx)) {
+                if ((copyLen + strLen) > (int)(WC_ASN_NAME_MAX - idx)) {
                     WOLFSSL_MSG("ASN name too big, skipping");
                     tooBig = TRUE;
                 }
@@ -11664,7 +11664,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 }
             }
         }
-        if ((copyLen + strLen) > (int)(ASN_NAME_MAX - idx))
+        if ((copyLen + strLen) > (int)(WC_ASN_NAME_MAX - idx))
         {
             WOLFSSL_MSG("ASN Name too big, skipping");
             tooBig = TRUE;
@@ -11707,14 +11707,14 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
     if (nameType == ISSUER) {
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) && \
     (defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT))
-        dName->rawLen = min(cert->issuerRawLen, ASN_NAME_MAX);
+        dName->rawLen = min(cert->issuerRawLen, WC_ASN_NAME_MAX);
         XMEMCPY(dName->raw, cert->issuerRaw, dName->rawLen);
 #endif
         cert->issuerName = dName;
     }
     else {
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
-        dName->rawLen = min(cert->subjectRawLen, ASN_NAME_MAX);
+        dName->rawLen = min(cert->subjectRawLen, WC_ASN_NAME_MAX);
         XMEMCPY(dName->raw, cert->subjectRaw, dName->rawLen);
 #endif
         cert->subjectName = dName;
@@ -11838,14 +11838,14 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
         #if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
              defined(HAVE_LIGHTY)) && \
             (defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT))
-            dName->rawLen = min(cert->issuerRawLen, ASN_NAME_MAX);
+            dName->rawLen = min(cert->issuerRawLen, WC_ASN_NAME_MAX);
             XMEMCPY(dName->raw, cert->issuerRaw, dName->rawLen);
         #endif
             cert->issuerName = dName;
         }
         else {
         #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
-            dName->rawLen = min(cert->subjectRawLen, ASN_NAME_MAX);
+            dName->rawLen = min(cert->subjectRawLen, WC_ASN_NAME_MAX);
             XMEMCPY(dName->raw, cert->subjectRaw, dName->rawLen);
         #endif
             cert->subjectName = dName;
@@ -20880,8 +20880,8 @@ typedef struct DerCert {
     byte version[MAX_VERSION_SZ];      /* version encoded */
     byte serial[(int)CTC_SERIAL_SIZE + (int)MAX_LENGTH_SZ]; /* serial number encoded */
     byte sigAlgo[MAX_ALGO_SZ];         /* signature algo encoded */
-    byte issuer[ASN_NAME_MAX];         /* issuer  encoded */
-    byte subject[ASN_NAME_MAX];        /* subject encoded */
+    byte issuer[WC_ASN_NAME_MAX];         /* issuer  encoded */
+    byte subject[WC_ASN_NAME_MAX];        /* subject encoded */
     byte validity[MAX_DATE_SIZE*2 + MAX_SEQ_SZ*2];  /* before and after dates */
     byte publicKey[MAX_PUBLIC_KEY_SZ]; /* rsa public key encoded */
     byte ca[MAX_CA_SZ];                /* basic constraint CA true size */
@@ -23017,11 +23017,11 @@ int SetNameEx(byte* output, word32 outputSz, CertName* name, void* heap)
     /* header */
     idx = SetSequence(totalBytes, output);
     totalBytes += idx;
-    if (totalBytes > ASN_NAME_MAX) {
+    if (totalBytes > WC_ASN_NAME_MAX) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-        WOLFSSL_MSG("Total Bytes is greater than ASN_NAME_MAX");
+        WOLFSSL_MSG("Total Bytes is greater than WC_ASN_NAME_MAX");
         return BUFFER_E;
     }
 
@@ -24549,7 +24549,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
     #endif
         {
             /* Calcuate issuer name encoding size. */
-            issuerSz = SetNameEx(NULL, ASN_NAME_MAX, &cert->issuer, cert->heap);
+            issuerSz = SetNameEx(NULL, WC_ASN_NAME_MAX, &cert->issuer, cert->heap);
             ret = issuerSz;
         }
     }
@@ -24565,7 +24565,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
     #endif
         {
             /* Calcuate subject name encoding size. */
-            subjectSz = SetNameEx(NULL, ASN_NAME_MAX, &cert->subject, cert->heap);
+            subjectSz = SetNameEx(NULL, WC_ASN_NAME_MAX, &cert->subject, cert->heap);
             ret = subjectSz;
         }
     }
@@ -25385,7 +25385,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
         else
     #endif
         {
-            subjectSz = SetNameEx(NULL, ASN_NAME_MAX, &cert->subject, cert->heap);
+            subjectSz = SetNameEx(NULL, WC_ASN_NAME_MAX, &cert->subject, cert->heap);
             ret = subjectSz;
         }
     }

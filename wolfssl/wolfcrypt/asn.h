@@ -840,13 +840,13 @@ enum ECC_TYPES
 #define ASN_JOI_ST              0x2
 
 #ifndef WC_ASN_NAME_MAX
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+        defined(WOLFSSL_CERT_EXT)
         #define WC_ASN_NAME_MAX 330
     #else
         #define WC_ASN_NAME_MAX 256
     #endif
 #endif
-#define ASN_NAME_MAX WC_ASN_NAME_MAX
 
 enum Misc_ASN {
     MAX_SALT_SIZE       =  64,     /* MAX PKCS Salt length */
@@ -1487,8 +1487,8 @@ struct DecodedCert {
     char*   subjectCN;               /* CommonName                       */
     int     subjectCNLen;            /* CommonName Length                */
     char    subjectCNEnc;            /* CommonName Encoding              */
-    char    issuer[ASN_NAME_MAX];    /* full name including common name  */
-    char    subject[ASN_NAME_MAX];   /* full name including common name  */
+    char    issuer[WC_ASN_NAME_MAX]; /* full name including common name  */
+    char    subject[WC_ASN_NAME_MAX];/* full name including common name  */
     int     verify;                  /* Default to yes, but could be off */
     const byte* source;              /* byte buffer holder cert, NOT owner */
     word32  srcIdx;                  /* current offset into buffer       */

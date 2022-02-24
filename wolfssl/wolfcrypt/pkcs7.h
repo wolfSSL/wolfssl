@@ -156,7 +156,7 @@ enum Pkcs7_Misc {
     MAX_CONTENT_BLOCK_LEN = DES_BLOCK_SIZE,
 #endif
     MAX_RECIP_SZ          = MAX_VERSION_SZ +
-                            MAX_SEQ_SZ + ASN_NAME_MAX + MAX_SN_SZ +
+                            MAX_SEQ_SZ + WC_ASN_NAME_MAX + MAX_SN_SZ +
                             MAX_SEQ_SZ + MAX_ALGO_SZ + 1 + MAX_ENCRYPTED_KEY_SZ,
 };
 
