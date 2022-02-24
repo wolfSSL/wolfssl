@@ -1506,6 +1506,12 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
             idx++;
             len--;
         }
+        else if ((asn[i].tag == ASN_OBJECT_ID) && (len < 3)) {
+        #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+            WOLFSSL_MSG_VSNPRINTF("OID length must be 3 or more: %d", len);
+        #endif
+            return ASN_PARSE_E;
+        }
 
         /* Don't parse data if only header required. */
         if (asn[i].headerOnly) {
