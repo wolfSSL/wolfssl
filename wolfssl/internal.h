@@ -1691,7 +1691,10 @@ typedef WOLFSSL_BUFFER_INFO buffer;
 typedef struct Suites Suites;
 
 /* Declare opaque struct for API to use */
-typedef struct ClientSession ClientSession;
+#ifndef WOLFSSL_CLIENT_SESSION_DEFINED
+    typedef struct ClientSession ClientSession;
+    #define WOLFSSL_CLIENT_SESSION_DEFINED
+#endif
 
 /* defaults to client */
 WOLFSSL_LOCAL void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv);

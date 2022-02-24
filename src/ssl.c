@@ -5330,11 +5330,15 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         #error CLIENT_SESSION_ROWS too big
         #endif
 
-        typedef struct ClientSession {
+        struct ClientSession {
             word16 serverRow;            /* SessionCache Row id */
             word16 serverIdx;            /* SessionCache Idx (column) */
             word32 sessionIDHash;
-        } ClientSession;
+        };
+    #ifndef WOLFSSL_CLIENT_SESSION_DEFINED
+        typedef struct ClientSession ClientSession;
+        #define WOLFSSL_CLIENT_SESSION_DEFINED
+    #endif
 
         typedef struct ClientRow {
             int nextIdx;                /* where to place next one   */
