@@ -38,11 +38,14 @@ typedef WOLFSSL_CMAC_CTX CMAC_CTX;
 WOLFSSL_API WOLFSSL_CMAC_CTX* wolfSSL_CMAC_CTX_new(void);
 WOLFSSL_API void wolfSSL_CMAC_CTX_free(WOLFSSL_CMAC_CTX *ctx);
 WOLFSSL_API WOLFSSL_EVP_CIPHER_CTX* wolfSSL_CMAC_CTX_get0_cipher_ctx(
-    WOLFSSL_CMAC_CTX*);
-WOLFSSL_API int wolfSSL_CMAC_Init(WOLFSSL_CMAC_CTX*, const void*, size_t ,
-    const WOLFSSL_EVP_CIPHER*, WOLFSSL_ENGINE*);
-WOLFSSL_API int wolfSSL_CMAC_Update(WOLFSSL_CMAC_CTX*, const void*, size_t);
-WOLFSSL_API int wolfSSL_CMAC_Final(WOLFSSL_CMAC_CTX*, unsigned char*, size_t*);
+    WOLFSSL_CMAC_CTX* ctx);
+WOLFSSL_API int wolfSSL_CMAC_Init(
+    WOLFSSL_CMAC_CTX* ctx, const void *key, size_t keyLen,
+    const WOLFSSL_EVP_CIPHER* cipher, WOLFSSL_ENGINE* engine);
+WOLFSSL_API int wolfSSL_CMAC_Update(
+    WOLFSSL_CMAC_CTX* ctx, const void* data, size_t len);
+WOLFSSL_API int wolfSSL_CMAC_Final(
+    WOLFSSL_CMAC_CTX* ctx, unsigned char* out, size_t* len);
 
 #define CMAC_CTX_new              wolfSSL_CMAC_CTX_new
 #define CMAC_CTX_free             wolfSSL_CMAC_CTX_free

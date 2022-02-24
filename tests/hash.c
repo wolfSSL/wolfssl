@@ -130,7 +130,8 @@ int HashTest(void)
 #endif
 
 #ifndef NO_HMAC
-    #ifndef NO_MD5
+    #if !defined(NO_MD5) && !(defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) \
+                              && (HAVE_FIPS_VERSION >= 5))
         if ( (ret = hmac_md5_test()) ) {
             printf( "   HMAC-MD5 test failed!\n");
             return ret;

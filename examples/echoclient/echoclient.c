@@ -318,10 +318,6 @@ void echoclient_test(void* args)
                 printf("SSL_read msg error %d, %s\n", err,
                     ERR_error_string(err, buffer));
                 err_sys("SSL_read failed");
-
-            #ifndef WOLFSSL_MDK_SHELL
-                break;
-            #endif
             }
         }
     }

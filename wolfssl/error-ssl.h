@@ -75,10 +75,6 @@ enum wolfSSL_ErrorCodes {
     ZERO_RETURN                  = -343,   /* peer sent close notify */
     SIDE_ERROR                   = -344,   /* wrong client/server type */
     NO_PEER_CERT                 = -345,   /* peer didn't send key */
-    NTRU_KEY_ERROR               = -346,   /* NTRU key error  */
-    NTRU_DRBG_ERROR              = -347,   /* NTRU drbg error  */
-    NTRU_ENCRYPT_ERROR           = -348,   /* NTRU encrypt error  */
-    NTRU_DECRYPT_ERROR           = -349,   /* NTRU decrypt error  */
     ECC_CURVETYPE_ERROR          = -350,   /* Bad ECC Curve Type */
     ECC_CURVE_ERROR              = -351,   /* Bad ECC Curve */
     ECC_PEERKEY_ERROR            = -352,   /* Bad Peer ECC Key */
@@ -178,6 +174,8 @@ enum wolfSSL_ErrorCodes {
     HTTP_STATUS_ERR              = -447,   /* HTTP Status error */
     HTTP_VERSION_ERR             = -448,   /* HTTP Version error */
     HTTP_APPSTR_ERR              = -449,   /* HTTP Application string error */
+    UNSUPPORTED_PROTO_VERSION    = -450,   /* bad/unsupported protocol version*/
+    FALCON_KEY_SIZE_E            = -451,   /* Wrong key size for Falcon. */
 
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 

@@ -11,7 +11,6 @@ examples_echoclient_echoclient_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD
 examples_echoclient_echoclient_DEPENDENCIES = src/libwolfssl.la
 endif
 EXTRA_DIST += examples/echoclient/echoclient.sln
-EXTRA_DIST += examples/echoclient/echoclient-ntru.vcproj
 EXTRA_DIST += examples/echoclient/echoclient.vcproj
 EXTRA_DIST += examples/echoclient/echoclient.vcxproj
 

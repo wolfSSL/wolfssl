@@ -23,8 +23,47 @@
 
 #ifndef IOTSAFE_EXAMPLE_USER_SETTINGS_H
 #define IOTSAFE_EXAMPLE_USER_SETTINGS_H
-
 #include <stdint.h>
+
+/* Uncomment next line to enable 2-bytes ID demo */
+/* #define TWO_BYTES_ID_DEMO */
+
+
+/* IOT-Safe slot configurations for this example:
+ *   - TWO_BYTES_ID_DEMO: two-bytes ID sim, with hardcoded CA
+ *   - Default: one-byte ID sim, with hardcoded server certificate
+ */
+
+#ifdef TWO_BYTES_ID_DEMO
+    #define IOTSAFE_ID_SIZE 2
+    #define CRT_CLIENT_FILE_ID  0x3430     /* pre-provisioned */
+    #define CRT_SERVER_FILE_ID  0x3330
+    #define PRIVKEY_ID          0x3230     /* pre-provisioned */
+    #define ECDH_KEYPAIR_ID     0x3330
+    #define PEER_PUBKEY_ID      0x3730
+    #define PEER_CERT_ID        0x3430
+
+    /* In this version of the demo, the server certificate is
+     * stored in a buffer, while the CA is read from a file slot in IoT-SAFE
+     */
+    #define SOFT_SERVER_CERT
+#else
+    #define IOTSAFE_ID_SIZE     1
+    #define CRT_CLIENT_FILE_ID  0x03     /* pre-provisioned */
+    #define CRT_SERVER_FILE_ID  0x04
+    #define PRIVKEY_ID          0x02 /* pre-provisioned */
+    #define ECDH_KEYPAIR_ID     0x03
+    #define PEER_PUBKEY_ID      0x04
+    #define PEER_CERT_ID        0x05
+
+    /* In this version of the demo, the server certificate is
+     * read from a file slot in IoT-SAFE, while the CA is stored in buffer in memory
+     */
+    #define SOFT_SERVER_CA
+#endif
+
+
+
 
 /* Platform */
 #define WOLFSSL_IOTSAFE
@@ -33,8 +72,11 @@
 #define SINGLE_THREADED
 #define WOLFSSL_USER_IO
 
+
 /* Debugging */
 #define WOLFSSL_LOG_PRINTF
+
+/* Change to "if 1" to enable debug */
 #if 0
     #define DEBUG_WOLFSSL
     #define WOLFSSL_DEBUG_TLS
@@ -50,6 +92,8 @@
 #define HAVE_IOTSAFE_HWRNG
 #define HAVE_HASHDRBG
 #define NO_OLD_RNGNAME
+
+//#define USE_GENSEED_FORTEST
 
 /* Time porting */
 #define TIME_OVERRIDES
@@ -120,8 +164,6 @@ static inline long XTIME(long *x) { return jiffies;}
 #define NO_MD4
 #define NO_MD5
 #define NO_SHA
-#define NO_HC128
-#define NO_RABBIT
 #define NO_PKCS12
 
 /* helpers */

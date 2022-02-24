@@ -158,7 +158,7 @@ WOLFSSL_API int  wc_MakeCertReq(Cert*, byte* derBuffer, word32 derSz,
     word32 certSz;
     certSz = wc_SignCert(myCert.bodySz, myCert.sigType,derCert,FOURK_BUF,
     &key, NULL,
-&rng);
+    &rng);
     \endcode
 
     \sa wc_InitCert
@@ -237,8 +237,6 @@ WOLFSSL_API int  wc_MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
     expiration date
     \return ASN_BITSTR_E Returned if there is an error parsing a bit string
     from the certificate
-    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU key
-    from the certificate
     \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC key
     from the certificate
     \return ASN_UNKNOWN_OID_E Returned if the certificate is using an unknown
@@ -296,8 +294,6 @@ WOLFSSL_API int  wc_SetIssuer(Cert*, const char*);
     \return ASN_AFTER_DATE_E Returned if the date is after the certificate
     expiration date
     \return ASN_BITSTR_E Returned if there is an error parsing a bit string
-    from the certificate
-    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU key
     from the certificate
     \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC key
     from the certificate
@@ -357,8 +353,6 @@ WOLFSSL_API int  wc_SetSubject(Cert*, const char*);
     \return ASN_AFTER_DATE_E Returned if the date is after the certificate
     expiration date
     \return ASN_BITSTR_E Returned if there is an error parsing a bit string
-    from the certificate
-    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU key
     from the certificate
     \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC key
     from the certificate
@@ -453,8 +447,6 @@ WOLFSSL_API int  wc_GetSubjectRaw(byte **subjectRaw, Cert *cert);
     expiration date
     \return ASN_BITSTR_E Returned if there is an error parsing a bit string
     from the certificate
-    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU key
-    from the certificate
     \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC key
     from the certificate
     \return ASN_UNKNOWN_OID_E Returned if the certificate is using an unknown
@@ -513,8 +505,6 @@ WOLFSSL_API int  wc_SetAltNames(Cert*, const char*);
     expiration date
     \return ASN_BITSTR_E Returned if there is an error parsing a bit string
     from the certificate
-    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU
-    key from the certificate
     \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC
     key from the certificate
     \return ASN_UNKNOWN_OID_E Returned if the certificate is using an unknown
@@ -579,8 +569,6 @@ WOLFSSL_API int  wc_SetIssuerBuffer(Cert*, const byte*, int);
     expiration date
     \return ASN_BITSTR_E Returned if there is an error parsing a bit string
     from the certificate
-    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU key
-    from the certificate
     \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC key
     from the certificate
     \return ASN_UNKNOWN_OID_E Returned if the certificate is using an unknown
@@ -643,8 +631,6 @@ WOLFSSL_API int  wc_SetIssuerRaw(Cert* cert, const byte* der, int derSz);
     \return ASN_AFTER_DATE_E Returned if the date is after the certificate
     expiration date
     \return ASN_BITSTR_E Returned if there is an error parsing a bit string
-    from the certificate
-    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU key
     from the certificate
     \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC key
     from the certificate
@@ -712,8 +698,6 @@ WOLFSSL_API int  wc_SetSubjectBuffer(Cert*, const byte*, int);
     expiration date
     \return ASN_BITSTR_E Returned if there is an error parsing a bit string
     from the certificate
-    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU key
-    from the certificate
     \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC key
     from the certificate
     \return ASN_UNKNOWN_OID_E Returned if the certificate is using an unknown
@@ -777,8 +761,6 @@ WOLFSSL_API int  wc_SetAltNamesBuffer(Cert*, const byte*, int);
     \return ASN_AFTER_DATE_E Returned if the date is after the certificate
     expiration date
     \return ASN_BITSTR_E Returned if there is an error parsing a bit string
-    from the certificate
-    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU key
     from the certificate
     \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC key
     from the certificate
@@ -943,7 +925,6 @@ WOLFSSL_API int wc_SetAuthKeyId(Cert *cert, const char* file);
     \endcode
 
     \sa wc_SetSubjectKeyId
-    \sa wc_SetSubjectKeyIdFromNtruPublicKey
 */
 WOLFSSL_API int wc_SetSubjectKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
                                                 ecc_key *eckey);
@@ -974,43 +955,9 @@ WOLFSSL_API int wc_SetSubjectKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
     }
     \endcode
 
-    \sa wc_SetSubjectKeyIdFromNtruPublicKey
     \sa wc_SetSubjectKeyIdFromPublicKey
 */
 WOLFSSL_API int wc_SetSubjectKeyId(Cert *cert, const char* file);
-
-/*!
-    \ingroup ASN
-
-    \brief Set SKID from NTRU public key.
-
-    \return 0 Success
-    \return BAD_FUNC_ARG Returned if cert or ntruKey is null.
-    \return MEMORY_E Returned if there is an error allocating memory.
-    \return PUBLIC_KEY_E Returned if there is an error getting the public key.
-
-    \param cert Pointer to a Cert structure to be used.
-    \param ntruKey Pointer to the NTRU public key in a byte array.
-    \param ntruKeySz Size of the NTRU byte array.
-
-    _Example_
-    \code
-    Cert some_cert;
-    wc_InitCert(&some_cert);
-    byte some_ntru_key[] = { // Load an NTRU key  };
-    word32 ntru_size = sizeof(some_ntru_key);
-
-    if(wc_SetSubjectKeyIdFromNtruPublicKey(&some_cert,
-    some_ntru_key, ntru_size) != 0)
-    {
-        // Handle error
-    }
-    \endcode
-
-    \sa SetKeyIdFromPublicKey
-*/
-WOLFSSL_API int wc_SetSubjectKeyIdFromNtruPublicKey(Cert *cert, byte *ntruKey,
-                                                    word16 ntruKeySz);
 
 /*!
     \ingroup RSA
@@ -1045,57 +992,6 @@ WOLFSSL_API int wc_SetSubjectKeyIdFromNtruPublicKey(Cert *cert, byte *ntruKey,
     \sa wc_MakeRsaKey
 */
 WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
-
-/*!
-    \ingroup ASN
-
-    \brief Used to make CA signed certs.  Called after the subject information
-    has been entered. This function makes an NTRU Certificate from a cert
-    input. It then writes this cert to derBuffer. It takes in an ntruKey and
-    a rng to generate the certificate.  The certificate must be initialized
-    with wc_InitCert before this method is called.
-
-    \return Success On successfully making a NTRU certificate from the
-    specified input cert, returns the size of the cert generated.
-    \return MEMORY_E Returned if there is an error allocating memory
-    with XMALLOC
-    \return BUFFER_E Returned if the provided derBuffer is too small to
-    store the generated certificate
-    \return Other Additional error messages may be returned if the cert
-    generation is not successful.
-
-    \param cert pointer to an initialized cert structure
-    \param derBuffer pointer to the buffer in which to store
-    the generated certificate
-    \param derSz size of the buffer in which to store the generated
-    certificate
-    \param ntruKey pointer to the key to be used to generate the NTRU
-    certificate
-    \param keySz size of the key used to generate the NTRU certificate
-    \param rng pointer to the random number generator used to generate
-    the NTRU certificate
-
-    _Example_
-    \code
-    Cert myCert;
-    // initialize myCert
-    WC_RNG rng;
-    //initialize rng;
-    byte ntruPublicKey[NTRU_KEY_SIZE];
-    //initialize ntruPublicKey;
-    byte * derCert = malloc(FOURK_BUF);
-
-    word32 certSz;
-    certSz = wc_MakeNtruCert(&myCert, derCert, FOURK_BUF, &ntruPublicKey,
-    NTRU_KEY_SIZE, &rng);
-    \endcode
-
-    \sa wc_InitCert
-    \sa wc_MakeCert
-*/
-WOLFSSL_API int  wc_MakeNtruCert(Cert*, byte* derBuffer, word32 derSz,
-                             const byte* ntruKey, word16 keySz,
-                             WC_RNG*);
 
 /*!
     \ingroup ASN
@@ -1182,10 +1078,10 @@ WOLFSSL_API int wc_PubKeyPemToDer(const unsigned char*, int,
     \code
     char * file = “./certs/client-cert.pem”;
     int derSz;
-    byte * der = (byte*)XMALLOC(EIGHTK_BUF, NULL, DYNAMIC_TYPE_CERT);
+    byte* der = (byte*)XMALLOC((8*1024), NULL, DYNAMIC_TYPE_CERT);
 
-    derSz = wc_PemCertToDer(file, der, EIGHTK_BUF);
-    if(derSz <= 0) {
+    derSz = wc_PemCertToDer(file, der, (8*1024));
+    if (derSz <= 0) {
         //PemCertToDer error
     }
     \endcode
@@ -1352,6 +1248,29 @@ WOLFSSL_API int wc_KeyPemToDer(const unsigned char*, int,
 */
 WOLFSSL_API int wc_CertPemToDer(const unsigned char*, int,
                                      unsigned char*, int, int);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief This function gets the public key in DER format from a populated
+    DecodedCert struct. Users must call wc_InitDecodedCert() and wc_ParseCert()
+    before calling this API. wc_InitDecodedCert() accepts a DER/ASN.1 encoded
+    certificate. To convert a PEM cert to DER, first use wc_CertPemToDer()
+    before calling wc_InitDecodedCert().
+
+    \return 0 on success, negative on error. LENGTH_ONLY_E if derKey is NULL
+    and returning length only.
+
+    \param cert populated DecodedCert struct holding X.509 certificate
+    \param derKey output buffer to place DER encoded public key
+    \param derKeySz [IN/OUT] size of derKey buffer on input, size of public key
+    on return. If derKey is passed in as NULL, derKeySz will be set to required
+    buffer size for public key and LENGTH_ONLY_E will be returned from function.
+
+    \sa wc_GetPubKeyDerFromCert
+*/
+WOLFSSL_API int wc_GetPubKeyDerFromCert(struct DecodedCert* cert,
+                                        byte* derKey, word32* derKeySz);
 
 /*!
     \ingroup ASN
@@ -1871,3 +1790,150 @@ WOLFSSL_API int wc_CreateEncryptedPKCS8Key(byte* key, word32 keySz, byte* out,
         word32* outSz, const char* password, int passwordSz, int vPKCS,
         int pbeOid, int encAlgId, byte* salt, word32 saltSz, int itt,
         WC_RNG* rng, void* heap);
+
+/*!
+    \ingroup ASN
+
+    \brief This function initializes the DecodedCert pointed to by the "cert"
+     parameter. It saves the "source" pointer to a DER-encoded certificate of
+     length "inSz." This certificate can be parsed by a subsequent call to
+     wc_ParseCert.
+
+    \param cert Pointer to an allocated DecodedCert object.
+    \param source Pointer to a DER-encoded certificate.
+    \param inSz Length of the DER-encoded certificate in bytes.
+    \param heap A pointer to the heap used for dynamic allocation. Can be NULL.
+
+    _Example_
+    \code
+    DecodedCert decodedCert; // Decoded certificate object.
+    byte* certBuf;           // DER-encoded certificate buffer.
+    word32 certBufSz;        // Size of certBuf in bytes.
+
+    wc_InitDecodedCert(&decodedCert, certBuf, certBufSz, NULL);
+    \endcode
+
+    \sa wc_ParseCert
+    \sa wc_FreeDecodedCert
+*/
+WOLFSSL_API void wc_InitDecodedCert(struct DecodedCert* cert,
+    const byte* source, word32 inSz, void* heap);
+
+/*!
+    \ingroup ASN
+
+    \brief This function parses the DER-encoded certificate saved in the
+    DecodedCert object and populates the fields of that object. The DecodedCert
+    must have been initialized with a prior call to wc_InitDecodedCert. This
+    function takes an optional pointer to a CertificateManager object, which
+    is used to populate the certificate authority information of the
+    DecodedCert, if the CA is found in the CertificateManager.
+
+    \return 0 on success.
+    \return Other negative values on failure.
+
+    \param cert Pointer to an initialized DecodedCert object.
+    \param type Type of certificate. See the CertType enum in asn_public.h.
+    \param verify Flag that, if set, indicates the user wants to verify the
+    validity of the certificate.
+    \param cm An optional pointer to a CertificateManager. Can be NULL.
+
+    _Example_
+    \code
+    int ret;
+    DecodedCert decodedCert; // Decoded certificate object.
+    byte* certBuf;           // DER-encoded certificate buffer.
+    word32 certBufSz;        // Size of certBuf in bytes.
+
+    wc_InitDecodedCert(&decodedCert, certBuf, certBufSz, NULL);
+    ret = wc_ParseCert(&decodedCert, CERT_TYPE, NO_VERIFY, NULL);
+    if (ret != 0) {
+        fprintf(stderr, "wc_ParseCert failed.\n");
+    }
+    \endcode
+
+    \sa wc_InitDecodedCert
+    \sa wc_FreeDecodedCert
+*/
+WOLFSSL_API int wc_ParseCert(DecodedCert* cert, int type, int verify, void* cm);
+
+/*!
+    \ingroup ASN
+
+    \brief This function frees a DecodedCert that was previously initialized
+    with wc_InitDecodedCert.
+
+    \param cert Pointer to an initialized DecodedCert object.
+
+    _Example_
+    \code
+    int ret;
+    DecodedCert decodedCert; // Decoded certificate object.
+    byte* certBuf;           // DER-encoded certificate buffer.
+    word32 certBufSz;        // Size of certBuf in bytes.
+
+    wc_InitDecodedCert(&decodedCert, certBuf, certBufSz, NULL);
+    ret = wc_ParseCert(&decodedCert, CERT_TYPE, NO_VERIFY, NULL);
+    if (ret != 0) {
+        fprintf(stderr, "wc_ParseCert failed.\n");
+    }
+    wc_FreeDecodedCert(&decodedCert);
+    \endcode
+
+    \sa wc_InitDecodedCert
+    \sa wc_ParseCert
+*/
+WOLFSSL_API void wc_FreeDecodedCert(struct DecodedCert* cert);
+
+/*!
+    \ingroup ASN
+
+    \brief This function registers a time callback that will be used anytime
+    wolfSSL needs to get the current time. The prototype of the callback should
+    be the same as the "time" function from the C standard library.
+
+    \return 0 Returned on success.
+
+    \param f function to register as the time callback.
+
+    _Example_
+    \code
+    int ret = 0;
+    // Time callback prototype
+    time_t my_time_cb(time_t* t);
+    // Register it
+    ret = wc_SetTimeCb(my_time_cb);
+    if (ret != 0) {
+        // failed to set time callback
+    }
+    time_t my_time_cb(time_t* t)
+    {
+        // custom time function
+    }
+    \endcode
+
+    \sa wc_Time
+*/
+WOLFSSL_API int wc_SetTimeCb(wc_time_cb f);
+
+/*!
+    \ingroup ASN
+
+    \brief This function gets the current time. By default, it uses the XTIME
+    macro, which varies between platforms. The user can use a function of their
+    choosing instead via the wc_SetTimeCb function.
+
+    \return Time Current time returned on success.
+
+    \param t Optional time_t pointer to populate with current time.
+
+    _Example_
+    \code
+    time_t currentTime = 0;
+    currentTime = wc_Time(NULL);
+    wc_Time(&currentTime);
+    \endcode
+
+    \sa wc_SetTimeCb
+*/
+WOLFSSL_API time_t wc_Time(time_t* t);

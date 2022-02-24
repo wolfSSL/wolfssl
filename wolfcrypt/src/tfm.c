@@ -96,26 +96,6 @@ word32 CheckRunTimeFastMath(void)
 
 /* Functions */
 
-static fp_digit fp_cmp_mag_ct(fp_int *a, fp_int *b, int len)
-{
-  int i;
-  fp_digit r = FP_EQ;
-  fp_digit mask = (fp_digit)-1;
-
-  for (i = len - 1; i >= 0; i--) {
-    /* 0 is placed into unused digits. */
-    fp_digit ad = a->dp[i];
-    fp_digit bd = b->dp[i];
-
-    r |= mask & (ad > bd);
-    mask &= (ad > bd) - 1;
-    r |= mask & (-(ad < bd));
-    mask &= (ad < bd) - 1;
-  }
-
-  return r;
-}
-
 int fp_add(fp_int *a, fp_int *b, fp_int *c)
 {
   int sa, sb;
@@ -517,7 +497,8 @@ WC_INLINE static int fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
 #else
    fp_int    *tmp;
 #endif
- 
+   fp_digit  carry;
+
    /* Variables used but not seen by cppcheck. */
    (void)ix; (void)iy; (void)iz;
 
@@ -540,7 +521,7 @@ WC_INLINE static int fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
       dst = tmp;
    }
 
-   TFM_INTEL_MUL_COMBA(A, B, dst) ;
+   TFM_INTEL_MUL_COMBA(A, B, carry, dst) ;
 
   dst->used = pa;
   dst->sign = A->sign ^ B->sign;
@@ -624,7 +605,7 @@ int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
   dst->sign = A->sign ^ B->sign;
   fp_clamp(dst);
   fp_copy(dst, C);
-  
+
   /* Variables used but not seen by cppcheck. */
   (void)c0; (void)c1; (void)c2;
 
@@ -1440,7 +1421,7 @@ top:
 /* modulus (b) must be greater than 2 and a prime */
 int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp)
 {
-  int i, j;
+  int i, j, err = FP_OKAY;
 #ifndef WOLFSSL_SMALL_STACK
   fp_int t[1], e[1];
   fp_int pre[CT_INV_MOD_PRE_CNT];
@@ -1450,7 +1431,7 @@ int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp)
   fp_int* pre;
 #endif
 
-  if ((a->used * 2 > FP_MAX_BITS) || (b->used * 2 > FP_MAX_BITS)) {
+  if ((a->used * 2 > FP_SIZE) || (b->used * 2 > FP_SIZE)) {
     return FP_VAL;
   }
 
@@ -1470,10 +1451,10 @@ int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp)
   fp_copy(a, &pre[0]);
   for (i = 1; i < CT_INV_MOD_PRE_CNT; i++) {
     fp_init(&pre[i]);
-    fp_sqr(&pre[i-1], &pre[i]);
-    fp_montgomery_reduce(&pre[i], b, mp);
-    fp_mul(&pre[i], a, &pre[i]);
-    fp_montgomery_reduce(&pre[i], b, mp);
+    err |= fp_sqr(&pre[i-1], &pre[i]);
+    err |= fp_montgomery_reduce(&pre[i], b, mp);
+    err |= fp_mul(&pre[i], a, &pre[i]);
+    err |= fp_montgomery_reduce(&pre[i], b, mp);
   }
 
   fp_sub_d(b, 2, e);
@@ -1490,25 +1471,26 @@ int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp)
     int set = fp_is_bit_set(e, i);
 
     if ((j == CT_INV_MOD_PRE_CNT) || (!set && j > 0)) {
-      fp_mul(t, &pre[j-1], t);
-      fp_montgomery_reduce(t, b, mp);
+      err |= fp_mul(t, &pre[j-1], t);
+      err |= fp_montgomery_reduce(t, b, mp);
       j = 0;
     }
-    fp_sqr(t, t);
-    fp_montgomery_reduce(t, b, mp);
+    err |= fp_sqr(t, t);
+    err |= fp_montgomery_reduce(t, b, mp);
     j += set;
   }
   if (j > 0) {
-    fp_mul(t, &pre[j-1], c);
-    fp_montgomery_reduce(c, b, mp);
+    err |= fp_mul(t, &pre[j-1], c);
+    err |= fp_montgomery_reduce(c, b, mp);
   }
-  else 
+  else
     fp_copy(t, c);
 
 #ifdef WOLFSSL_SMALL_STACK
   XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
-  return FP_OKAY;
+
+  return err;
 }
 
 /* d = a * b (mod c) */
@@ -1619,49 +1601,95 @@ int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   return err;
 }
 
-/* d = a - b (mod c) - constant time (a < c and b < c and positive) */
+/* d = a - b (mod c) - constant time (a < c and b < c and all positive)
+ * c and d must not be the same pointers.
+ */
 int fp_submod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 {
-  fp_word  w = 0;
+  fp_sword w;
   fp_digit mask;
   int i;
 
-  mask = 0 - (fp_cmp_mag_ct(a, b, c->used + 1) == (fp_digit)FP_LT);
-  for (i = 0; i < c->used + 1; i++) {
-      fp_digit mask_a = 0 - (i < a->used);
-
-      w         += c->dp[i] & mask;
-      w         += a->dp[i] & mask_a;
-      d->dp[i]   = (fp_digit)w;
-      w        >>= DIGIT_BIT;
+  if (c->used + 1 > FP_SIZE) {
+    return FP_VAL;
   }
-  d->dp[i] = (fp_digit)w;
-  d->used = i + 1;
+  if (c == d) {
+    return FP_VAL;
+  }
+
+  /* In constant time, subtract b from a putting result in d. */
+  w = 0;
+  for (i = 0; i < c->used; i++) {
+    w         += a->dp[i];
+    w         -= b->dp[i];
+    d->dp[i]   = (fp_digit)w;
+    w        >>= DIGIT_BIT;
+  }
+  w  += a->dp[i];
+  w  -= b->dp[i];
+  w >>= DIGIT_BIT;
+  /* When w is negative then we need to add modulus to make result positive. */
+  mask = (fp_digit)0 - (w < 0);
+  /* Constant time, conditionally, add modulus to difference. */
+  w = 0;
+  for (i = 0; i < c->used; i++) {
+    w         += d->dp[i];
+    w         += c->dp[i] & mask;
+    d->dp[i]   = (fp_digit)w;
+    w        >>= DIGIT_BIT;
+  }
+  /* Result will always have digits equal to or less than those in modulus. */
+  d->used = i;
   d->sign = FP_ZPOS;
   fp_clamp(d);
-  s_fp_sub(d, b, d);
 
   return FP_OKAY;
 }
 
-/* d = a + b (mod c) - constant time (|a| < c and |b| < c and positive) */
+/* d = a + b (mod c) - constant time (a < c and b < c and all positive)
+ * c and d must not be the same pointers.
+ */
 int fp_addmod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 {
-  fp_word  w = 0;
+  fp_word  w;
+  fp_sword s;
   fp_digit mask;
   int i;
 
-  s_fp_add(a, b, d);
-  mask = 0 - (fp_cmp_mag_ct(d, c, c->used + 1) != (fp_digit)FP_LT);
-  for (i = 0; i < c->used; i++) {
-      w        += c->dp[i] & mask;
-      w         = d->dp[i] - w;
-      d->dp[i]  = (fp_digit)w;
-      w         = (w >> DIGIT_BIT)&1;
+  if (c == d) {
+    return FP_VAL;
   }
-  d->dp[i] = 0;
+
+  /* Add a to b into d. Do the subtract of modulus but don't store result.
+   * When subtract result is negative, the overflow will be negative.
+   * Only need to subtract mod when result is positive - overflow is positive.
+   */
+  w = 0;
+  s = 0;
+  for (i = 0; i < c->used; i++) {
+    w         += a->dp[i];
+    w         += b->dp[i];
+    d->dp[i]   = (fp_digit)w;
+    s         += (fp_digit)w;
+    s         -= c->dp[i];
+    w        >>= DIGIT_BIT;
+    s        >>= DIGIT_BIT;
+  }
+  s += (fp_digit)w;
+  /* s will be positive when subtracting modulus is needed. */
+  mask = (fp_digit)0 - (s >= 0);
+
+  /* Constant time, conditionally, subtract modulus from sum. */
+  w = 0;
+  for (i = 0; i < c->used; i++) {
+    w        += c->dp[i] & mask;
+    w         = d->dp[i] - w;
+    d->dp[i]  = (fp_digit)w;
+    w         = (w >> DIGIT_BIT)&1;
+  }
+  /* Result will always have digits equal to or less than those in modulus. */
   d->used = i;
-  d->sign = a->sign;
+  d->sign = FP_ZPOS;
   fp_clamp(d);
 
   return FP_OKAY;
@@ -1850,7 +1878,11 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
     break;
 
   case TFM_EXPTMOD_NB_MUL_RED:
-    fp_montgomery_reduce(&nb->R[nb->y^1], P, nb->mp);
+    err = fp_montgomery_reduce(&nb->R[nb->y^1], P, nb->mp);
+    if (err != FP_OKAY) {
+      nb->state = TFM_EXPTMOD_NB_INIT;
+      return err;
+    }
     nb->state = TFM_EXPTMOD_NB_SQR;
     break;
 
@@ -1873,20 +1905,28 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
 
   case TFM_EXPTMOD_NB_SQR_RED:
   #ifdef WC_NO_CACHE_RESISTANT
-    fp_montgomery_reduce(&nb->R[nb->y], P, nb->mp);
+    err = fp_montgomery_reduce(&nb->R[nb->y], P, nb->mp);
   #else
-    fp_montgomery_reduce(&nb->R[2], P, nb->mp);
+    err = fp_montgomery_reduce(&nb->R[2], P, nb->mp);
     fp_copy(&nb->R[2],
             (fp_int*) ( ((wc_ptr_t)&nb->R[0] & wc_off_on_addr[nb->y^1]) +
                         ((wc_ptr_t)&nb->R[1] & wc_off_on_addr[nb->y]) ) );
   #endif /* WC_NO_CACHE_RESISTANT */
+    if (err != FP_OKAY) {
+      nb->state = TFM_EXPTMOD_NB_INIT;
+      return err;
+    }
 
     nb->state = TFM_EXPTMOD_NB_NEXT;
     break;
 
   case TFM_EXPTMOD_NB_RED:
     /* final reduce */
-    fp_montgomery_reduce(&nb->R[0], P, nb->mp);
+    err = fp_montgomery_reduce(&nb->R[0], P, nb->mp);
+    if (err != FP_OKAY) {
+      nb->state = TFM_EXPTMOD_NB_INIT;
+      return err;
+    }
     fp_copy(&nb->R[0], Y);
 
     nb->state = TFM_EXPTMOD_NB_INIT;
@@ -2246,7 +2286,7 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 #endif
         return err;
       }
-      fp_montgomery_reduce_ex(res, P, mp, 0);
+      err = fp_montgomery_reduce_ex(res, P, mp, 0);
       if (err != FP_OKAY) {
 #ifndef WOLFSSL_NO_MALLOC
         XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
@@ -3102,7 +3142,7 @@ int fp_sqr_comba(fp_int *A, fp_int *B)
   int       pa, ix, iz;
   fp_digit  c0, c1, c2;
 #ifdef TFM_ISO
-  fp_word   tt;
+  fp_word   tt = 0;
 #endif
    fp_int    *dst;
 #ifndef WOLFSSL_SMALL_STACK
@@ -3191,7 +3231,7 @@ int fp_sqr_comba(fp_int *A, fp_int *B)
 #ifdef TFM_ISO
   (void)tt;
 #endif
-   
+
 #ifdef WOLFSSL_SMALL_STACK
   XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
@@ -3356,7 +3396,7 @@ static int fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp, int ct)
    /* bail if too large */
    if (m->used > (FP_SIZE/2)) {
       (void)mu;                     /* shut up compiler */
-      return FP_OKAY;
+      return FP_VAL;
    }
 
 #ifdef TFM_SMALL_MONT_SET
@@ -3378,7 +3418,16 @@ static int fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp, int ct)
    pa = m->used;
 
    /* copy the input */
+#ifdef TFM_TIMING_RESISTANT
+   if (a->used <= m->used) {
+      oldused = m->used;
+   }
+   else {
+      oldused = m->used * 2;
+   }
+#else
    oldused = a->used;
+#endif
    for (x = 0; x < oldused; x++) {
        c[x] = a->dp[x];
    }
@@ -3424,7 +3473,7 @@ static int fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp, int ct)
   a->used = pa+1;
   fp_clamp(a);
 
-#ifdef WOLFSSL_MONT_RED_NCT
+#ifndef WOLFSSL_MONT_RED_CT
   /* if A >= m then A = A - m */
   if (fp_cmp_mag (a, m) != FP_LT) {
     s_fp_sub (a, m, a);
@@ -3519,7 +3568,7 @@ int fp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct)
           ++_c;
        }
        LOOP_END;
-       while (cy) {
+       while (cy) { // NOLINT(bugprone-infinite-loop) /* PROPCARRY is an asm macro */
            PROPCARRY;
            ++_c;
        }
@@ -4519,7 +4568,7 @@ int mp_montgomery_calc_normalization(mp_int *a, mp_int *b)
     return fp_montgomery_calc_normalization(a, b);
 }
 
-#endif /* WOLFSSL_KEYGEN || HAVE_ECC */
+#endif /* WOLFSSL_KEY_GEN || HAVE_ECC */
 
 static int fp_cond_swap_ct (mp_int * a, mp_int * b, int c, int m)
 {
@@ -4698,7 +4747,7 @@ static int fp_div_d(fp_int *a, fp_digit b, fp_int *c, fp_digit *d)
      if (w >= b) {
 #ifdef WOLFSSL_LINUXKM
         t = (fp_digit)w;
-	/* Linux kernel macro for in-place 64 bit integer division. */
+        /* Linux kernel macro for in-place 64 bit integer division. */
         do_div(t, b);
 #else
         t = (fp_digit)(w / b);

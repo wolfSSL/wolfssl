@@ -37,9 +37,9 @@
 #endif
 
 enum {
-	ARC4_ENC_TYPE   = 4,    /* cipher unique type */
+    ARC4_ENC_TYPE   = 4,    /* cipher unique type */
     ARC4_STATE_SIZE = 256,
-    RC4_KEY_SIZE    = 16,   /* always 128bit           */
+    RC4_KEY_SIZE    = 16,   /* always 128bit */
 };
 
 /* ARC4 encryption and decryption */
@@ -53,11 +53,12 @@ typedef struct Arc4 {
     void* heap;
 } Arc4;
 
-WOLFSSL_API int wc_Arc4Process(Arc4*, byte*, const byte*, word32);
-WOLFSSL_API int wc_Arc4SetKey(Arc4*, const byte*, word32);
+WOLFSSL_API int wc_Arc4Process(Arc4* arc4, byte* out, const byte* in,
+                               word32 length);
+WOLFSSL_API int wc_Arc4SetKey(Arc4* arc4, const byte* key, word32 length);
 
-WOLFSSL_API int  wc_Arc4Init(Arc4*, void*, int);
-WOLFSSL_API void wc_Arc4Free(Arc4*);
+WOLFSSL_API int  wc_Arc4Init(Arc4* arc4, void* heap, int devId);
+WOLFSSL_API void wc_Arc4Free(Arc4* arc4);
 
 #ifdef __cplusplus
     } /* extern "C" */

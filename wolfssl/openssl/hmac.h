@@ -21,7 +21,7 @@
 
 
 
-/*  hmac.h defines mini hamc openssl compatibility layer
+/*  hmac.h defines mini hmac openssl compatibility layer
  *
  */
 
@@ -36,7 +36,6 @@
 #endif
 
 #include <wolfssl/openssl/compat_types.h>
-#include <wolfssl/openssl/evp.h>
 #include <wolfssl/openssl/opensslv.h>
 
 #ifdef __cplusplus

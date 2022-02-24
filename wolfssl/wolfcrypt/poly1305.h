@@ -84,8 +84,8 @@ typedef struct Poly1305 {
 #else
 #if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
     ALIGN128 word32 r[5];
-    ALIGN128 word32 r_2[5]; // r^2
-    ALIGN128 word32 r_4[5]; // r^4
+    ALIGN128 word32 r_2[5]; /* r^2 */
+    ALIGN128 word32 r_4[5]; /* r^4 */
     ALIGN128 word32 h[5];
     word32 pad[4];
     word64 leftover;
@@ -110,7 +110,7 @@ typedef struct Poly1305 {
 
 WOLFSSL_API int wc_Poly1305SetKey(Poly1305* poly1305, const byte* key,
     word32 kySz);
-WOLFSSL_API int wc_Poly1305Update(Poly1305* poly1305, const byte*, word32);
+WOLFSSL_API int wc_Poly1305Update(Poly1305* poly1305, const byte* m, word32 bytes);
 WOLFSSL_API int wc_Poly1305Final(Poly1305* poly1305, byte* tag);
 
 /* AEAD Functions */

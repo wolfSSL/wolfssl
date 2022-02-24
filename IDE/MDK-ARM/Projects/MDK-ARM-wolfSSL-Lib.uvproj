@@ -512,11 +512,6 @@
               <FilePath>..\..\..\wolfcrypt\src\ge_operations.c</FilePath>
             </File>
             <File>
-              <FileName>hc128.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\wolfcrypt\src\hc128.c</FilePath>
-            </File>
-            <File>
               <FileName>hmac.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\wolfcrypt\src\hmac.c</FilePath>
@@ -565,11 +560,6 @@
               <FileName>pwdbased.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\wolfcrypt\src\pwdbased.c</FilePath>
-            </File>
-            <File>
-              <FileName>rabbit.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\wolfcrypt\src\rabbit.c</FilePath>
             </File>
             <File>
               <FileName>random.c</FileName>
@@ -625,6 +615,11 @@
               <FileName>hash.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\wolfcrypt\src\hash.c</FilePath>
+            </File>
+            <File>
+              <FileName>kdf.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\wolfcrypt\src\kdf.c</FilePath>
             </File>
             <File>
               <FileName>misc.c</FileName>
@@ -1221,11 +1216,6 @@
               <FilePath>..\..\..\wolfcrypt\src\ge_operations.c</FilePath>
             </File>
             <File>
-              <FileName>hc128.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\wolfcrypt\src\hc128.c</FilePath>
-            </File>
-            <File>
               <FileName>hmac.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\wolfcrypt\src\hmac.c</FilePath>
@@ -1274,11 +1264,6 @@
               <FileName>pwdbased.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\wolfcrypt\src\pwdbased.c</FilePath>
-            </File>
-            <File>
-              <FileName>rabbit.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\wolfcrypt\src\rabbit.c</FilePath>
             </File>
             <File>
               <FileName>random.c</FileName>
@@ -1334,6 +1319,11 @@
               <FileName>hash.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\wolfcrypt\src\hash.c</FilePath>
+            </File>
+            <File>
+              <FileName>kdf.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\wolfcrypt\src\kdf.c</FilePath>
             </File>
             <File>
               <FileName>misc.c</FileName>
@@ -1930,11 +1920,6 @@
               <FilePath>..\..\..\wolfcrypt\src\ge_operations.c</FilePath>
             </File>
             <File>
-              <FileName>hc128.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\wolfcrypt\src\hc128.c</FilePath>
-            </File>
-            <File>
               <FileName>hmac.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\wolfcrypt\src\hmac.c</FilePath>
@@ -1983,11 +1968,6 @@
               <FileName>pwdbased.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\wolfcrypt\src\pwdbased.c</FilePath>
-            </File>
-            <File>
-              <FileName>rabbit.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\wolfcrypt\src\rabbit.c</FilePath>
             </File>
             <File>
               <FileName>random.c</FileName>
@@ -2043,6 +2023,11 @@
               <FileName>hash.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\wolfcrypt\src\hash.c</FilePath>
+            </File>
+            <File>
+              <FileName>kdf.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\wolfcrypt\src\kdf.c</FilePath>
             </File>
             <File>
               <FileName>misc.c</FileName>

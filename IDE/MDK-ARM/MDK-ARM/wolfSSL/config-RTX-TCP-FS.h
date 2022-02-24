@@ -197,19 +197,6 @@
 #define NO_HMAC
 #endif
 //  </e>
-//      <e>HC128
-#define MDK_CONF_HC128 0
-#if MDK_CONF_HC128 == 1
-#define HAVE_HC128
-#endif
-//  </e>
-//  <e>RABBIT
-#define MDK_CONF_RABBIT 1
-#if MDK_CONF_RABBI == 0
-#define NO_RABBIT
-#endif
-//  </e>
-
 //      <e>AEAD
 #define MDK_CONF_AEAD 0
 #if MDK_CONF_AEAD == 1
@@ -272,12 +259,6 @@
 #if MDK_CONF_AESGCM == 1
 #define HAVE_AESGCM
 #define BUILD_AESGCM
-#endif
-//  </e>
-//      <e>NTRU (need License, "crypto_ntru.h")
-#define MDK_CONF_NTRU 0
-#if MDK_CONF_NTRU == 1
-#define HAVE_NTRU
 #endif
 //  </e>
 //  </h>

@@ -183,7 +183,13 @@ void mp_clear (mp_int * a)
       return;
 
   /* only do anything if a hasn't been freed previously */
-  if (a->dp != NULL) {
+#ifndef HAVE_WOLF_BIGINT
+  /* When HAVE_WOLF_BIGINT then mp_free -> wc_bigint_free needs to be called
+   * because a->raw->buf may be allocated even when a->dp == NULL. This is the
+   * case for when a zero is loaded into the mp_int. */
+  if (a->dp != NULL)
+#endif
+  {
     /* first zero the digits */
     for (i = 0; i < a->used; i++) {
         a->dp[i] = 0;
@@ -537,13 +543,14 @@ void mp_clamp (mp_int * a)
 /* swap the elements of two integers, for cases where you can't simply swap the
  * mp_int pointers around
  */
-void mp_exch (mp_int * a, mp_int * b)
+int mp_exch (mp_int * a, mp_int * b)
 {
   mp_int  t;
 
   t  = *a;
   *a = *b;
   *b = t;
+  return MP_OKAY;
 }
 
 int mp_cond_swap_ct (mp_int * a, mp_int * b, int c, int m)
@@ -690,7 +697,9 @@ int mp_mod_2d (mp_int * a, int b, mp_int * c)
      mp_digit carry = 0;
 
      /* grow result to size of modulus */
-     mp_grow(c, bmax);
+     if ((res = mp_grow(c, bmax)) != MP_OKAY) {
+         return res;
+     }
      /* negate value */
      for (x = 0; x < c->used; x++) {
          mp_digit next = c->dp[x] > 0;
@@ -880,7 +889,7 @@ int mp_lshd (mp_int * a, int b)
 #if defined(FREESCALE_LTC_TFM)
 int wolfcrypt_mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
 #else
-int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
+    int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y) // NOLINT(misc-no-recursion)
 #endif
 {
   int dr;
@@ -1745,7 +1754,7 @@ int s_mp_add (mp_int * a, mp_int * b, mp_int * c)
     if (min_ab != max_ab) {
       for (; i < max_ab; i++) {
         /* T[i] = X[i] + U */
-        *tmpc = x->dp[i] + u;
+          *tmpc = x->dp[i] + u; // NOLINT(clang-analyzer-core.NullDereference) /* clang-tidy 13 false positive */
 
         /* U = carry bit of T[i] */
         u = *tmpc >> ((mp_digit)DIGIT_BIT);
@@ -1984,7 +1993,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
    * one of many reduction algorithms without modding the guts of
    * the code with if statements everywhere.
    */
-  int     (*redux)(mp_int*,mp_int*,mp_digit) = NULL;
+  int     (*redux)(mp_int*,mp_int*,mp_digit) = NULL; // cppcheck-suppress nullPointerRedundantCheck // cppcheck 2.6.3 false positive
 
 #ifdef WOLFSSL_SMALL_STACK
   M = (mp_int*) XMALLOC(sizeof(mp_int) * TAB_SIZE, NULL,
@@ -4321,7 +4330,7 @@ int mp_sqrmod (mp_int * a, mp_int * b, mp_int * c)
     (!defined(NO_RSA) && !defined(NO_RSA_BOUNDS_CHECK))
 
 /* single digit addition */
-int mp_add_d (mp_int* a, mp_digit b, mp_int* c)
+int mp_add_d (mp_int* a, mp_digit b, mp_int* c) // NOLINT(misc-no-recursion)
 {
   int     res, ix, oldused;
   mp_digit *tmpa, *tmpc, mu;
@@ -4415,7 +4424,7 @@ int mp_add_d (mp_int* a, mp_digit b, mp_int* c)
 
 
 /* single digit subtraction */
-int mp_sub_d (mp_int * a, mp_digit b, mp_int * c)
+int mp_sub_d (mp_int * a, mp_digit b, mp_int * c) // NOLINT(misc-no-recursion)
 {
   mp_digit *tmpa, *tmpc, mu;
   int       res, ix, oldused;
@@ -4491,7 +4500,7 @@ int mp_sub_d (mp_int * a, mp_digit b, mp_int * c)
 
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(HAVE_ECC) || \
     defined(DEBUG_WOLFSSL) || !defined(NO_RSA) || !defined(NO_DSA) || \
-    !defined(NO_DH)
+    !defined(NO_DH) || defined(WC_MP_TO_RADIX)
 
 static const int lnz[16] = {
    4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0
@@ -4611,7 +4620,7 @@ static int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
      if (w >= b) {
 #ifdef WOLFSSL_LINUXKM
         t = (mp_digit)w;
-	/* Linux kernel macro for in-place 64 bit integer division. */
+        /* Linux kernel macro for in-place 64 bit integer division. */
         do_div(t, b);
 #else
         t = (mp_digit)(w / b);
@@ -5199,7 +5208,7 @@ LBL_U:mp_clear (&u);
 
 #if !defined(NO_DSA) || defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN) || \
     defined(HAVE_COMP_KEY) || defined(WOLFSSL_DEBUG_MATH) || \
-    defined(DEBUG_WOLFSSL) || defined(OPENSSL_EXTRA)
+    defined(DEBUG_WOLFSSL) || defined(OPENSSL_EXTRA) || defined(WC_MP_TO_RADIX)
 
 /* chars used in radix conversions */
 const char *mp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"

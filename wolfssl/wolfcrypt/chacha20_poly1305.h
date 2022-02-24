@@ -90,8 +90,8 @@ WOLFSSL_API
 int wc_ChaCha20Poly1305_Encrypt(
                 const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
                 const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE],
-                const byte* inAAD, const word32 inAADLen,
-                const byte* inPlaintext, const word32 inPlaintextLen,
+                const byte* inAAD, word32 inAADLen,
+                const byte* inPlaintext, word32 inPlaintextLen,
                 byte* outCiphertext,
                 byte outAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE]);
 
@@ -99,8 +99,8 @@ WOLFSSL_API
 int wc_ChaCha20Poly1305_Decrypt(
                 const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
                 const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE],
-                const byte* inAAD, const word32 inAADLen,
-                const byte* inCiphertext, const word32 inCiphertextLen,
+                const byte* inAAD, word32 inAADLen,
+                const byte* inCiphertext, word32 inCiphertextLen,
                 const byte inAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE],
                 byte* outPlaintext);
 
@@ -134,18 +134,18 @@ WOLFSSL_API int wc_XChaCha20Poly1305_Init(
     int isEncrypt);
 
 WOLFSSL_API int wc_XChaCha20Poly1305_Encrypt(
-    byte *dst, const size_t dst_space,
-    const byte *src, const size_t src_len,
-    const byte *ad, const size_t ad_len,
-    const byte *nonce, const size_t nonce_len,
-    const byte *key, const size_t key_len);
+    byte *dst, size_t dst_space,
+    const byte *src, size_t src_len,
+    const byte *ad, size_t ad_len,
+    const byte *nonce, size_t nonce_len,
+    const byte *key, size_t key_len);
 
 WOLFSSL_API int wc_XChaCha20Poly1305_Decrypt(
-    byte *dst, const size_t dst_space,
-    const byte *src, const size_t src_len,
-    const byte *ad, const size_t ad_len,
-    const byte *nonce, const size_t nonce_len,
-    const byte *key, const size_t key_len);
+    byte *dst, size_t dst_space,
+    const byte *src, size_t src_len,
+    const byte *ad, size_t ad_len,
+    const byte *nonce, size_t nonce_len,
+    const byte *key, size_t key_len);
 
 #endif /* HAVE_XCHACHA */
 

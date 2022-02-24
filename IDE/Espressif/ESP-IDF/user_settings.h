@@ -18,6 +18,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+#undef WOLFSSL_ESPIDF
+#define WOLFSSL_ESPIDF
+#define WOLFSSL_ESPWROOM32
+/* Uncomment next line if using Espressif ESP32-WROOM-32SE */
+/* comment the above line #define WOLFSSL_ESPWROOM32 */
+/* #define WOLFSSL_ESPWROOM32SE */
 
 #define BENCH_EMBEDDED
 #define USE_CERT_BUFFERS_2048

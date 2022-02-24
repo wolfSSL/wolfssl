@@ -1,6 +1,6 @@
 /* fe_448.c
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -341,7 +341,7 @@ void fe448_invert(word8* r, const word8* a)
 }
 
 /* Scalar multiply the point by a number. r = n.a
- * Uses Montogmery ladder and only requires the x-ordinate.
+ * Uses Montgomery ladder and only requires the x-ordinate.
  *
  * r  [in]  Field element to hold result.
  * n  [in]  Scalar as an array of bytes.
@@ -599,15 +599,15 @@ void fe448_to_bytes(unsigned char* b, const sword64* a)
     in0 += o;
     in4 += o;
     in7 -= o << 56;
-    o = (in0  >> 56); in1  += o; t = o << 56; in0  -= t;
-    o = (in1  >> 56); in2  += o; t = o << 56; in1  -= t;
-    o = (in2  >> 56); in3  += o; t = o << 56; in2  -= t;
-    o = (in3  >> 56); in4  += o; t = o << 56; in3  -= t;
-    o = (in4  >> 56); in5  += o; t = o << 56; in4  -= t;
-    o = (in5  >> 56); in6  += o; t = o << 56; in5  -= t;
-    o = (in6  >> 56); in7  += o; t = o << 56; in6  -= t;
+    o = (in0  >> 56); in1  += o; t = o << 56; in0  -= (sword64)t;
+    o = (in1  >> 56); in2  += o; t = o << 56; in1  -= (sword64)t;
+    o = (in2  >> 56); in3  += o; t = o << 56; in2  -= (sword64)t;
+    o = (in3  >> 56); in4  += o; t = o << 56; in3  -= (sword64)t;
+    o = (in4  >> 56); in5  += o; t = o << 56; in4  -= (sword64)t;
+    o = (in5  >> 56); in6  += o; t = o << 56; in5  -= (sword64)t;
+    o = (in6  >> 56); in7  += o; t = o << 56; in6  -= (sword64)t;
     o = (in7  >> 56); in0  += o;
-                    in4  += o; t = o << 56; in7  -= t;
+                    in4  += o; t = o << 56; in7  -= (sword64)t;
 
     /* Output as bytes */
     b[ 0] = (in0  >>  0);
@@ -835,110 +835,76 @@ void fe448_mul39081(sword64* r, const sword64* a)
  */
 void fe448_mul(sword64* r, const sword64* a, const sword64* b)
 {
-    sword128 t;
     sword64 o;
-    sword128 t0   = (sword128)a[ 0] * b[ 0];
-    sword128 t1   = (sword128)a[ 0] * b[ 1];
-    sword128 t101 = (sword128)a[ 1] * b[ 0];
-    sword128 t2   = (sword128)a[ 0] * b[ 2];
-    sword128 t102 = (sword128)a[ 1] * b[ 1];
-    sword128 t202 = (sword128)a[ 2] * b[ 0];
-    sword128 t3   = (sword128)a[ 0] * b[ 3];
-    sword128 t103 = (sword128)a[ 1] * b[ 2];
-    sword128 t203 = (sword128)a[ 2] * b[ 1];
-    sword128 t303 = (sword128)a[ 3] * b[ 0];
-    sword128 t4   = (sword128)a[ 0] * b[ 4];
-    sword128 t104 = (sword128)a[ 1] * b[ 3];
-    sword128 t204 = (sword128)a[ 2] * b[ 2];
-    sword128 t304 = (sword128)a[ 3] * b[ 1];
-    sword128 t404 = (sword128)a[ 4] * b[ 0];
-    sword128 t5   = (sword128)a[ 0] * b[ 5];
-    sword128 t105 = (sword128)a[ 1] * b[ 4];
-    sword128 t205 = (sword128)a[ 2] * b[ 3];
-    sword128 t305 = (sword128)a[ 3] * b[ 2];
-    sword128 t405 = (sword128)a[ 4] * b[ 1];
-    sword128 t505 = (sword128)a[ 5] * b[ 0];
-    sword128 t6   = (sword128)a[ 0] * b[ 6];
-    sword128 t106 = (sword128)a[ 1] * b[ 5];
-    sword128 t206 = (sword128)a[ 2] * b[ 4];
-    sword128 t306 = (sword128)a[ 3] * b[ 3];
-    sword128 t406 = (sword128)a[ 4] * b[ 2];
-    sword128 t506 = (sword128)a[ 5] * b[ 1];
-    sword128 t606 = (sword128)a[ 6] * b[ 0];
-    sword128 t7   = (sword128)a[ 0] * b[ 7];
-    sword128 t107 = (sword128)a[ 1] * b[ 6];
-    sword128 t207 = (sword128)a[ 2] * b[ 5];
-    sword128 t307 = (sword128)a[ 3] * b[ 4];
-    sword128 t407 = (sword128)a[ 4] * b[ 3];
-    sword128 t507 = (sword128)a[ 5] * b[ 2];
-    sword128 t607 = (sword128)a[ 6] * b[ 1];
-    sword128 t707 = (sword128)a[ 7] * b[ 0];
-    sword128 t8   = (sword128)a[ 1] * b[ 7];
-    sword128 t108 = (sword128)a[ 2] * b[ 6];
-    sword128 t208 = (sword128)a[ 3] * b[ 5];
-    sword128 t308 = (sword128)a[ 4] * b[ 4];
-    sword128 t408 = (sword128)a[ 5] * b[ 3];
-    sword128 t508 = (sword128)a[ 6] * b[ 2];
-    sword128 t608 = (sword128)a[ 7] * b[ 1];
-    sword128 t9   = (sword128)a[ 2] * b[ 7];
-    sword128 t109 = (sword128)a[ 3] * b[ 6];
-    sword128 t209 = (sword128)a[ 4] * b[ 5];
-    sword128 t309 = (sword128)a[ 5] * b[ 4];
-    sword128 t409 = (sword128)a[ 6] * b[ 3];
-    sword128 t509 = (sword128)a[ 7] * b[ 2];
-    sword128 t10  = (sword128)a[ 3] * b[ 7];
-    sword128 t110 = (sword128)a[ 4] * b[ 6];
-    sword128 t210 = (sword128)a[ 5] * b[ 5];
-    sword128 t310 = (sword128)a[ 6] * b[ 4];
-    sword128 t410 = (sword128)a[ 7] * b[ 3];
-    sword128 t11  = (sword128)a[ 4] * b[ 7];
-    sword128 t111 = (sword128)a[ 5] * b[ 6];
-    sword128 t211 = (sword128)a[ 6] * b[ 5];
-    sword128 t311 = (sword128)a[ 7] * b[ 4];
-    sword128 t12  = (sword128)a[ 5] * b[ 7];
-    sword128 t112 = (sword128)a[ 6] * b[ 6];
-    sword128 t212 = (sword128)a[ 7] * b[ 5];
-    sword128 t13  = (sword128)a[ 6] * b[ 7];
-    sword128 t113 = (sword128)a[ 7] * b[ 6];
-    sword128 t14  = (sword128)a[ 7] * b[ 7];
-    t1  += t101;
-    t2  += t102; t2  += t202;
-    t3  += t103; t3  += t203; t3  += t303;
-    t4  += t104; t4  += t204; t4  += t304; t4  += t404;
-    t5  += t105; t5  += t205; t5  += t305; t5  += t405; t5  += t505;
-    t6  += t106; t6  += t206; t6  += t306; t6  += t406; t6  += t506;
-    t6  += t606;
-    t7  += t107; t7  += t207; t7  += t307; t7  += t407; t7  += t507;
-    t7  += t607;
-    t7  += t707;
-    t8  += t108; t8  += t208; t8  += t308; t8  += t408; t8  += t508;
-    t8  += t608;
-    t9  += t109; t9  += t209; t9  += t309; t9  += t409; t9  += t509;
-    t10 += t110; t10 += t210; t10 += t310; t10 += t410;
-    t11 += t111; t11 += t211; t11 += t311;
-    t12 += t112; t12 += t212;
-    t13 += t113;
+    sword64 a1[4];
+    sword64 b1[4];
+    sword128 t0;
+    sword128 t1;
+    sword128 t2;
+    sword128 t3;
+    sword128 t4;
+    sword128 t5;
+    sword128 t6;
+    sword128 t7;
+    sword128 t03;
+    sword128 t04;
+    sword128 t13;
+    sword128 t14;
 
-    /* Reduce */
-    t0  += t8  + t12;
-    t1  += t9  + t13;
-    t2  += t10 + t14;
-    t3  += t11;
-    t4  += t12 + t8  + t12;
-    t5  += t13 + t9  + t13;
-    t6  += t14 + t10 + t14;
-    t7  +=       t11;
-    o = t7  >> 56; t0  += o;
-                   t4  += o; t = (sword128)o << 56; t7  -= t;
-    o = (sword64)(t0  >> 56); t1  += o; t = (sword128)o << 56; t0  -= t;
-    o = (sword64)(t1  >> 56); t2  += o; t = (sword128)o << 56; t1  -= t;
-    o = (sword64)(t2  >> 56); t3  += o; t = (sword128)o << 56; t2  -= t;
-    o = (sword64)(t3  >> 56); t4  += o; t = (sword128)o << 56; t3  -= t;
-    o = (sword64)(t4  >> 56); t5  += o; t = (sword128)o << 56; t4  -= t;
-    o = (sword64)(t5  >> 56); t6  += o; t = (sword128)o << 56; t5  -= t;
-    o = (sword64)(t6  >> 56); t7  += o; t = (sword128)o << 56; t6  -= t;
-    o = (sword64)(t7  >> 56); t0  += o;
-                   t4  += o; t = (sword128)o << 56; t7  -= t;
+    a1[0] = a[0] + a[4];
+    a1[1] = a[1] + a[5];
+    a1[2] = a[2] + a[6];
+    a1[3] = a[3] + a[7];
+    b1[0] = b[0] + b[4];
+    b1[1] = b[1] + b[5];
+    b1[2] = b[2] + b[6];
+    b1[3] = b[3] + b[7];
+
+    t03 = ((sword128)a[0] * b[3]) + ((sword128)a[1] * b[2])
+       + ((sword128)a[2] * b[1]) + ((sword128)a[3] * b[0]);
+    t04 = ((sword128)a[1] * b[3]) + ((sword128)a[2] * b[2])
+       + ((sword128)a[3] * b[1]);
+    t04 += t03 >> 56;
+    t03 &= 0xffffffffffffffL;
+    t13 = ((sword128)a1[0] * b1[3]) + ((sword128)a1[1] * b1[2])
+       + ((sword128)a1[2] * b1[1]) + ((sword128)a1[3] * b1[0]);
+    t14 = ((sword128)a1[1] * b1[3]) + ((sword128)a1[2] * b1[2])
+       + ((sword128)a1[3] * b1[1]);
+    t14 += t13 >> 56;
+    t13 &= 0xffffffffffffffL;
+
+    t0 = ((sword128)a[0] * b[0]) + ((sword128)a[4] * b[4]) + t14 + -t04;
+    t1 = ((sword128)a[0] * b[1]) + ((sword128)a[1] * b[0])
+       + ((sword128)a[4] * b[5]) + ((sword128)a[5] * b[4])
+       + ((sword128)a1[2] * b1[3]) + ((sword128)a1[3] * b1[2])
+       - ((sword128)a[2] * b[3]) - ((sword128)a[3] * b[2]);
+    o = (sword64)(t0  >> 56); t1 += o; t0 &= 0xffffffffffffffL;
+    t2 = ((sword128)a[0] * b[2]) + ((sword128)a[1] * b[1])
+       + ((sword128)a[2] * b[0]) + ((sword128)a[4] * b[6])
+       + ((sword128)a[5] * b[5]) + ((sword128)a[6] * b[4])
+       + ((sword128)a1[3] * b1[3]) - ((sword128)a[3] * b[3]);
+    o = (sword64)(t1  >> 56); t2 += o; t1 &= 0xffffffffffffffL;
+    t3 = t03 + ((sword128)a[4] * b[7]) + ((sword128)a[5] * b[6])
+       + ((sword128)a[6] * b[5]) + ((sword128)a[7] * b[4]);
+    o = (sword64)(t2  >> 56); t3 += o; t2 &= 0xffffffffffffffL;
+    t4 = ((sword128)a[5] * b[7]) + ((sword128)a[6] * b[6])
+       + ((sword128)a[7] * b[5]) + ((sword128)a1[0] * b1[0])
+       - ((sword128)a[0] * b[0]) + t14;
+    o = (sword64)(t3  >> 56); t4 += o; t3 &= 0xffffffffffffffL;
+    t5 = ((sword128)a[6] * b[7]) + ((sword128)a[7] * b[6])
+       + ((sword128)a1[0] * b1[1]) + ((sword128)a1[1] * b1[0])
+       - ((sword128)a[0] * b[1]) - ((sword128)a[1] * b[0])
+       + ((sword128)a1[2] * b1[3]) + ((sword128)a1[3] * b1[2]);
+    o = (sword64)(t4  >> 56); t5 += o; t4 &= 0xffffffffffffffL;
+    t6 = ((sword128)a[7] * b[7]) + ((sword128)a1[0] * b1[2])
+       + ((sword128)a1[1] * b1[1]) + ((sword128)a1[2] * b1[0])
+       - ((sword128)a[0] * b[2]) - ((sword128)a[1] * b[1])
+       - ((sword128)a[2] * b[0]) + ((sword128)a1[3] * b1[3]);
+    o = (sword64)(t5  >> 56); t6 += o; t5 &= 0xffffffffffffffL;
+    t7 = t13 + -t03;
+    o = (sword64)(t6  >> 56); t7 += o; t6 &= 0xffffffffffffffL;
+    o = (sword64)(t7 >> 56); t0  += o;
+                   t4  += o; t7 &= 0xffffffffffffffL;
 
     /* Store */
     r[0] = (sword64)t0;
@@ -958,76 +924,59 @@ void fe448_mul(sword64* r, const sword64* a, const sword64* b)
  */
 void fe448_sqr(sword64* r, const sword64* a)
 {
-    sword128 t;
     sword64 o;
-    sword128 t0   =     (sword128)a[ 0] * a[ 0];
-    sword128 t1   = 2 * (sword128)a[ 0] * a[ 1];
-    sword128 t2   = 2 * (sword128)a[ 0] * a[ 2];
-    sword128 t102 =     (sword128)a[ 1] * a[ 1];
-    sword128 t3   = 2 * (sword128)a[ 0] * a[ 3];
-    sword128 t103 = 2 * (sword128)a[ 1] * a[ 2];
-    sword128 t4   = 2 * (sword128)a[ 0] * a[ 4];
-    sword128 t104 = 2 * (sword128)a[ 1] * a[ 3];
-    sword128 t204 =     (sword128)a[ 2] * a[ 2];
-    sword128 t5   = 2 * (sword128)a[ 0] * a[ 5];
-    sword128 t105 = 2 * (sword128)a[ 1] * a[ 4];
-    sword128 t205 = 2 * (sword128)a[ 2] * a[ 3];
-    sword128 t6   = 2 * (sword128)a[ 0] * a[ 6];
-    sword128 t106 = 2 * (sword128)a[ 1] * a[ 5];
-    sword128 t206 = 2 * (sword128)a[ 2] * a[ 4];
-    sword128 t306 =     (sword128)a[ 3] * a[ 3];
-    sword128 t7   = 2 * (sword128)a[ 0] * a[ 7];
-    sword128 t107 = 2 * (sword128)a[ 1] * a[ 6];
-    sword128 t207 = 2 * (sword128)a[ 2] * a[ 5];
-    sword128 t307 = 2 * (sword128)a[ 3] * a[ 4];
-    sword128 t8   = 2 * (sword128)a[ 1] * a[ 7];
-    sword128 t108 = 2 * (sword128)a[ 2] * a[ 6];
-    sword128 t208 = 2 * (sword128)a[ 3] * a[ 5];
-    sword128 t308 =     (sword128)a[ 4] * a[ 4];
-    sword128 t9   = 2 * (sword128)a[ 2] * a[ 7];
-    sword128 t109 = 2 * (sword128)a[ 3] * a[ 6];
-    sword128 t209 = 2 * (sword128)a[ 4] * a[ 5];
-    sword128 t10  = 2 * (sword128)a[ 3] * a[ 7];
-    sword128 t110 = 2 * (sword128)a[ 4] * a[ 6];
-    sword128 t210 =     (sword128)a[ 5] * a[ 5];
-    sword128 t11  = 2 * (sword128)a[ 4] * a[ 7];
-    sword128 t111 = 2 * (sword128)a[ 5] * a[ 6];
-    sword128 t12  = 2 * (sword128)a[ 5] * a[ 7];
-    sword128 t112 =     (sword128)a[ 6] * a[ 6];
-    sword128 t13  = 2 * (sword128)a[ 6] * a[ 7];
-    sword128 t14  =     (sword128)a[ 7] * a[ 7];
-    t2  += t102;
-    t3  += t103;
-    t4  += t104; t4  += t204;
-    t5  += t105; t5  += t205;
-    t6  += t106; t6  += t206; t6  += t306;
-    t7  += t107; t7  += t207; t7  += t307;
-    t8  += t108; t8  += t208; t8  += t308;
-    t9  += t109; t9  += t209;
-    t10 += t110; t10 += t210;
-    t11 += t111;
-    t12 += t112;
+    sword64 a1[4];
+    sword128 t0;
+    sword128 t1;
+    sword128 t2;
+    sword128 t3;
+    sword128 t4;
+    sword128 t5;
+    sword128 t6;
+    sword128 t7;
+    sword128 t03;
+    sword128 t04;
+    sword128 t13;
+    sword128 t14;
 
-    /* Reduce */
-    t0  += t8  + t12;
-    t1  += t9  + t13;
-    t2  += t10 + t14;
-    t3  += t11;
-    t4  += t12 + t8  + t12;
-    t5  += t13 + t9  + t13;
-    t6  += t14 + t10 + t14;
-    t7  +=       t11;
-    o = t7  >> 56; t0  += o;
-                   t4  += o; t = (sword128)o << 56; t7  -= t;
-    o = (sword64)(t0  >> 56); t1  += o; t = (sword128)o << 56; t0  -= t;
-    o = (sword64)(t1  >> 56); t2  += o; t = (sword128)o << 56; t1  -= t;
-    o = (sword64)(t2  >> 56); t3  += o; t = (sword128)o << 56; t2  -= t;
-    o = (sword64)(t3  >> 56); t4  += o; t = (sword128)o << 56; t3  -= t;
-    o = (sword64)(t4  >> 56); t5  += o; t = (sword128)o << 56; t4  -= t;
-    o = (sword64)(t5  >> 56); t6  += o; t = (sword128)o << 56; t5  -= t;
-    o = (sword64)(t6  >> 56); t7  += o; t = (sword128)o << 56; t6  -= t;
-    o = (sword64)(t7  >> 56); t0  += o;
-                   t4  += o; t = (sword128)o << 56; t7  -= t;
+    a1[0] = a[0] + a[4];
+    a1[1] = a[1] + a[5];
+    a1[2] = a[2] + a[6];
+    a1[3] = a[3] + a[7];
+
+    t03 = ((sword128)a[0] * (2 * a[3])) + ((sword128)a[1] * (2 * a[2]));
+    t04 = ((sword128)a[1] * (2 * a[3])) + ((sword128)a[2] * a[2]);
+    t04 += t03 >> 56;
+    t03 &= 0xffffffffffffffL;
+    t13 = ((sword128)a1[0] * (2 * a1[3])) + ((sword128)a1[1] * (2 * a1[2]));
+    t14 = ((sword128)a1[1] * (2 * a1[3])) + ((sword128)a1[2] * a1[2]);
+    t14 += t13 >> 56;
+    t13 &= 0xffffffffffffffL;
+
+    t0 = ((sword128)a[0] * a[0]) + ((sword128)a[4] * a[4]) + t14 + -t04;
+    t1 = ((sword128)a[0] * (2 * a[1])) + ((sword128)a[4] * (2 * a[5]))
+       + ((sword128)a1[2] * (2 * a1[3])) - ((sword128)a[2] * (2 * a[3]));
+    o = (sword64)(t0  >> 56); t1 += o; t0 &= 0xffffffffffffffL;
+    t2 = ((sword128)a[0] * (2 * a[2])) + ((sword128)a[1] * a[1])
+       + ((sword128)a[4] * (2 * a[6])) + ((sword128)a[5] * a[5])
+       + ((sword128)a1[3] * a1[3]) - ((sword128)a[3] * a[3]);
+    o = (sword64)(t1  >> 56); t2 += o; t1 &= 0xffffffffffffffL;
+    t3 = t03 + ((sword128)a[4] * (2 * a[7])) + ((sword128)a[5] * (2 * a[6]));
+    o = (sword64)(t2  >> 56); t3 += o; t2 &= 0xffffffffffffffL;
+    t4 = ((sword128)a[5] * (2 * a[7])) + ((sword128)a[6] * a[6])
+       + ((sword128)a1[0] * a1[0]) - ((sword128)a[0] * a[0]) + t14;
+    o = (sword64)(t3  >> 56); t4 += o; t3 &= 0xffffffffffffffL;
+    t5 = ((sword128)a[6] * (2 * a[7])) + ((sword128)a1[0] * (2 * a1[1]))
+       - ((sword128)a[0] * (2 * a[1])) + ((sword128)a1[2] * (2 * a1[3]));
+    o = (sword64)(t4  >> 56); t5 += o; t4 &= 0xffffffffffffffL;
+    t6 = ((sword128)a[7] * a[7]) + ((sword128)a1[0] * (2 * a1[2]))
+       + ((sword128)a1[1] * a1[1]) - ((sword128)a[0] * (2 * a[2]))
+       - ((sword128)a[1] * a[1]) + ((sword128)a1[3] * a1[3]);
+    o = (sword64)(t5  >> 56); t6 += o; t5 &= 0xffffffffffffffL;
+    t7 = t13 + -t03;
+    o = (sword64)(t6  >> 56); t7 += o; t6 &= 0xffffffffffffffL;
+    o = (sword64)(t7 >> 56); t0  += o;
+                   t4  += o; t7 &= 0xffffffffffffffL;
 
     /* Store */
     r[0] = (sword64)t0;
@@ -1111,7 +1060,7 @@ void fe448_invert(sword64* r, const sword64* a)
 }
 
 /* Scalar multiply the point by a number. r = n.a
- * Uses Montogmery ladder and only requires the x-ordinate.
+ * Uses Montgomery ladder and only requires the x-ordinate.
  *
  * r  [in]  Field element to hold result.
  * n  [in]  Scalar as an array of bytes.
@@ -1468,23 +1417,23 @@ void fe448_to_bytes(unsigned char* b, const sword32* a)
     in0 += o;
     in8 += o;
     in15 -= o << 28;
-    o = (in0  >> 28); in1  += o; t = o << 28; in0  -= t;
-    o = (in1  >> 28); in2  += o; t = o << 28; in1  -= t;
-    o = (in2  >> 28); in3  += o; t = o << 28; in2  -= t;
-    o = (in3  >> 28); in4  += o; t = o << 28; in3  -= t;
-    o = (in4  >> 28); in5  += o; t = o << 28; in4  -= t;
-    o = (in5  >> 28); in6  += o; t = o << 28; in5  -= t;
-    o = (in6  >> 28); in7  += o; t = o << 28; in6  -= t;
-    o = (in7  >> 28); in8  += o; t = o << 28; in7  -= t;
-    o = (in8  >> 28); in9  += o; t = o << 28; in8  -= t;
-    o = (in9  >> 28); in10 += o; t = o << 28; in9  -= t;
-    o = (in10 >> 28); in11 += o; t = o << 28; in10 -= t;
-    o = (in11 >> 28); in12 += o; t = o << 28; in11 -= t;
-    o = (in12 >> 28); in13 += o; t = o << 28; in12 -= t;
-    o = (in13 >> 28); in14 += o; t = o << 28; in13 -= t;
-    o = (in14 >> 28); in15 += o; t = o << 28; in14 -= t;
+    o = (in0  >> 28); in1  += o; t = o << 28; in0  -= (sword32)t;
+    o = (in1  >> 28); in2  += o; t = o << 28; in1  -= (sword32)t;
+    o = (in2  >> 28); in3  += o; t = o << 28; in2  -= (sword32)t;
+    o = (in3  >> 28); in4  += o; t = o << 28; in3  -= (sword32)t;
+    o = (in4  >> 28); in5  += o; t = o << 28; in4  -= (sword32)t;
+    o = (in5  >> 28); in6  += o; t = o << 28; in5  -= (sword32)t;
+    o = (in6  >> 28); in7  += o; t = o << 28; in6  -= (sword32)t;
+    o = (in7  >> 28); in8  += o; t = o << 28; in7  -= (sword32)t;
+    o = (in8  >> 28); in9  += o; t = o << 28; in8  -= (sword32)t;
+    o = (in9  >> 28); in10 += o; t = o << 28; in9  -= (sword32)t;
+    o = (in10 >> 28); in11 += o; t = o << 28; in10 -= (sword32)t;
+    o = (in11 >> 28); in12 += o; t = o << 28; in11 -= (sword32)t;
+    o = (in12 >> 28); in13 += o; t = o << 28; in12 -= (sword32)t;
+    o = (in13 >> 28); in14 += o; t = o << 28; in13 -= (sword32)t;
+    o = (in14 >> 28); in15 += o; t = o << 28; in14 -= (sword32)t;
     o = (in15 >> 28); in0  += o;
-                    in8  += o; t = o << 28; in15 -= t;
+                    in8  += o; t = o << 28; in15 -= (sword32)t;
 
     /* Output as bytes */
     b[ 0] = (in0  >>  0);
@@ -1734,23 +1683,23 @@ void fe448_reduce(sword32* a)
 {
     sword64 o;
 
-    o = a[0 ] >> 28; a[1 ] += o; a[0 ] -= o << 28;
-    o = a[1 ] >> 28; a[2 ] += o; a[1 ] -= o << 28;
-    o = a[2 ] >> 28; a[3 ] += o; a[2 ] -= o << 28;
-    o = a[3 ] >> 28; a[4 ] += o; a[3 ] -= o << 28;
-    o = a[4 ] >> 28; a[5 ] += o; a[4 ] -= o << 28;
-    o = a[5 ] >> 28; a[6 ] += o; a[5 ] -= o << 28;
-    o = a[6 ] >> 28; a[7 ] += o; a[6 ] -= o << 28;
-    o = a[7 ] >> 28; a[8 ] += o; a[7 ] -= o << 28;
-    o = a[8 ] >> 28; a[9 ] += o; a[8 ] -= o << 28;
-    o = a[9 ] >> 28; a[10] += o; a[9 ] -= o << 28;
-    o = a[10] >> 28; a[11] += o; a[10] -= o << 28;
-    o = a[11] >> 28; a[12] += o; a[11] -= o << 28;
-    o = a[12] >> 28; a[13] += o; a[12] -= o << 28;
-    o = a[13] >> 28; a[14] += o; a[13] -= o << 28;
-    o = a[14] >> 28; a[15] += o; a[14] -= o << 28;
-    o = a[15] >> 28; a[0]  += o;
-                     a[8]  += o; a[15] -= o << 28;
+    o = a[0 ] >> 28; a[1 ] += (sword32)o; a[0 ] -= (sword32)(o << 28);
+    o = a[1 ] >> 28; a[2 ] += (sword32)o; a[1 ] -= (sword32)(o << 28);
+    o = a[2 ] >> 28; a[3 ] += (sword32)o; a[2 ] -= (sword32)(o << 28);
+    o = a[3 ] >> 28; a[4 ] += (sword32)o; a[3 ] -= (sword32)(o << 28);
+    o = a[4 ] >> 28; a[5 ] += (sword32)o; a[4 ] -= (sword32)(o << 28);
+    o = a[5 ] >> 28; a[6 ] += (sword32)o; a[5 ] -= (sword32)(o << 28);
+    o = a[6 ] >> 28; a[7 ] += (sword32)o; a[6 ] -= (sword32)(o << 28);
+    o = a[7 ] >> 28; a[8 ] += (sword32)o; a[7 ] -= (sword32)(o << 28);
+    o = a[8 ] >> 28; a[9 ] += (sword32)o; a[8 ] -= (sword32)(o << 28);
+    o = a[9 ] >> 28; a[10] += (sword32)o; a[9 ] -= (sword32)(o << 28);
+    o = a[10] >> 28; a[11] += (sword32)o; a[10] -= (sword32)(o << 28);
+    o = a[11] >> 28; a[12] += (sword32)o; a[11] -= (sword32)(o << 28);
+    o = a[12] >> 28; a[13] += (sword32)o; a[12] -= (sword32)(o << 28);
+    o = a[13] >> 28; a[14] += (sword32)o; a[13] -= (sword32)(o << 28);
+    o = a[14] >> 28; a[15] += (sword32)o; a[14] -= (sword32)(o << 28);
+    o = a[15] >> 28; a[0]  += (sword32)o;
+                     a[8]  += (sword32)o; a[15] -= (sword32)(o << 28);
 }
 /* Mulitply a field element by 39081. r = (39081 * a) mod (2^448 - 2^224 - 1)
  *
@@ -2001,6 +1950,8 @@ void fe448_mul(sword32* r, const sword32* a, const sword32* b)
  */
 static WC_INLINE void fe448_sqr_8(sword32* r, const sword32* a)
 {
+    sword64 o;
+    sword64 t15;
     sword64 t;
     sword64 t0   =     (sword64)a[ 0] * a[ 0];
     sword64 t1   = 2 * (sword64)a[ 0] * a[ 1];
@@ -2049,8 +2000,8 @@ static WC_INLINE void fe448_sqr_8(sword32* r, const sword32* a)
     t10 += t110; t10 += t210;
     t11 += t111;
     t12 += t112;
-    sword64 o = t14 >> 28;
-    sword64 t15 = o;
+    o = t14 >> 28;
+    t15 = o;
     t14 -= o << 28;
     o = (t0  >> 28); t1  += o; t = o << 28; t0  -= t;
     o = (t1  >> 28); t2  += o; t = o << 28; t1  -= t;
@@ -2200,7 +2151,7 @@ void fe448_invert(sword32* r, const sword32* a)
 }
 
 /* Scalar multiply the point by a number. r = n.a
- * Uses Montogmery ladder and only requires the x-ordinate.
+ * Uses Montgomery ladder and only requires the x-ordinate.
  *
  * r  [in]  Field element to hold result.
  * n  [in]  Scalar as an array of bytes.

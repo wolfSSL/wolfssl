@@ -205,7 +205,7 @@ WOLFSSL_API int  wolfSSL_EVP_EncryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
     EVP_aes_128_    cbc(), e, key, iv, 1));
     printf("cipher init ex success ret = %d\n", wolfSSL_EVP_DecryptInit_ex(ctx,
     EVP_aes_128_c    bc(), e, key, iv, 1));
-// free resources
+    // free resources
     \endcode
 
     \sa wolfSSL_EVP_CIPHER_CTX_new
@@ -371,6 +371,7 @@ WOLFSSL_API int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher);
     \endcode
 
     \sa wolfSSL_EVP_CIPHER_flags
+    \sa wolfSSL_EVP_CIPHER_CTX_flags
 */
 WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags);
 
@@ -393,6 +394,7 @@ WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, i
     \endcode
 
     \sa wolfSSL_EVP_CIPHER_flags
+    \sa wolfSSL_EVP_CIPHER_CTX_flags
 */
 WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_clear_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags);
 
@@ -414,6 +416,29 @@ WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_clear_flags(WOLFSSL_EVP_CIPHER_CTX *ctx,
     wolfSSL_EVP_CIPHER_CTX_set_padding(ctx, 1);
     \endcode
 
-    \sa wolfSSL_EVP_CIPHER_flags
+    \sa wolfSSL_EVP_CIPHER_CTX_new
 */
 WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_padding(WOLFSSL_EVP_CIPHER_CTX *c, int pad);
+
+
+/*!
+    \ingroup openSSL
+
+    \brief Getter function for WOLFSSL_EVP_CIPHER_CTX structure. Deprecated v1.1.0
+
+    \return unsigned long of flags/mode.
+
+    \param ctx structure to get flag.
+
+    _Example_
+    \code
+    WOLFSSL_EVP_CIPHER_CTX* ctx;
+    unsigned long flags;
+    ctx = wolfSSL_EVP_CIPHER_CTX_new()
+    flags = wolfSSL_EVP_CIPHER_CTX_flags(ctx);
+    \endcode
+
+    \sa wolfSSL_EVP_CIPHER_CTX_new
+    \sa wolfSSL_EVP_CIPHER_flags
+*/
+WOLFSSL_API unsigned long wolfSSL_EVP_CIPHER_CTX_flags(const WOLFSSL_EVP_CIPHER_CTX *ctx);

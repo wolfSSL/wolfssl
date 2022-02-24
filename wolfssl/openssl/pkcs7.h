@@ -56,6 +56,7 @@ WOLFSSL_LOCAL PKCS7* wolfSSL_d2i_PKCS7_ex(PKCS7** p7, const unsigned char** in,
     int len, byte* content, word32 contentSz);
 WOLFSSL_API PKCS7* wolfSSL_d2i_PKCS7_bio(WOLFSSL_BIO* bio, PKCS7** p7);
 WOLFSSL_API int wolfSSL_i2d_PKCS7_bio(WOLFSSL_BIO *bio, PKCS7 *p7);
+WOLFSSL_API int wolfSSL_i2d_PKCS7(PKCS7 *p7, unsigned char **out);
 WOLFSSL_API int wolfSSL_PKCS7_verify(PKCS7* p7, WOLFSSL_STACK* certs,
     WOLFSSL_X509_STORE* store, WOLFSSL_BIO* in, WOLFSSL_BIO* out, int flags);
 WOLFSSL_API int wolfSSL_PKCS7_encode_certs(PKCS7* p7, WOLFSSL_STACK* certs,
@@ -76,6 +77,7 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in, WOLFSSL_BIO** bcont
 #define d2i_PKCS7                      wolfSSL_d2i_PKCS7
 #define d2i_PKCS7_bio                  wolfSSL_d2i_PKCS7_bio
 #define i2d_PKCS7_bio                  wolfSSL_i2d_PKCS7_bio
+#define i2d_PKCS7                      wolfSSL_i2d_PKCS7
 #define PKCS7_verify                   wolfSSL_PKCS7_verify
 #define PKCS7_get0_signers             wolfSSL_PKCS7_get0_signers
 #define PEM_write_bio_PKCS7            wolfSSL_PEM_write_bio_PKCS7

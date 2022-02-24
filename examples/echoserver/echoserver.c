@@ -147,8 +147,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #if defined(CYASSL_DTLS)
     method  = CyaDTLSv1_2_server_method();
 #elif !defined(NO_TLS)
-    #if (defined(WOLFSSL_TLS13) && defined(WOLFSSL_SNIFFER)) || \
-        defined(HAVE_NTRU)
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SNIFFER)
     method = CyaTLSv1_2_server_method();
     #else
     method = CyaSSLv23_server_method();
@@ -174,18 +173,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
 #ifndef NO_FILESYSTEM
     if (doPSK == 0) {
-    #if defined(HAVE_NTRU) && defined(WOLFSSL_STATIC_RSA)
-        /* ntru */
-        if (CyaSSL_CTX_use_certificate_file(ctx, ntruCertFile, WOLFSSL_FILETYPE_PEM)
-                != WOLFSSL_SUCCESS)
-            err_sys("can't load ntru cert file, "
-                    "Please run from wolfSSL home dir");
-
-        if (CyaSSL_CTX_use_NTRUPrivateKey_file(ctx, ntruKeyFile)
-                != WOLFSSL_SUCCESS)
-            err_sys("can't load ntru key file, "
-                    "Please run from wolfSSL home dir");
-    #elif defined(HAVE_ECC) && !defined(CYASSL_SNIFFER)
+    #if defined(HAVE_ECC) && !defined(CYASSL_SNIFFER)
         /* ecc */
         if (CyaSSL_CTX_use_certificate_file(ctx, eccCertFile, WOLFSSL_FILETYPE_PEM)
                 != WOLFSSL_SUCCESS)

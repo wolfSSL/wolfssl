@@ -29,7 +29,6 @@
         <itemPath>../../wolfcrypt/src/ecc.c</itemPath>
         <itemPath>../../wolfcrypt/src/ecc_fp.c</itemPath>
         <itemPath>../../wolfcrypt/src/error.c</itemPath>
-        <itemPath>../../wolfcrypt/src/hc128.c</itemPath>
         <itemPath>../../wolfcrypt/src/hmac.c</itemPath>
         <itemPath>../../wolfcrypt/src/integer.c</itemPath>
         <itemPath>../../wolfcrypt/src/logging.c</itemPath>
@@ -41,7 +40,6 @@
         <itemPath>../../wolfcrypt/src/pkcs7.c</itemPath>
         <itemPath>../../wolfcrypt/src/poly1305.c</itemPath>
         <itemPath>../../wolfcrypt/src/pwdbased.c</itemPath>
-        <itemPath>../../wolfcrypt/src/rabbit.c</itemPath>
         <itemPath>../../wolfcrypt/src/random.c</itemPath>
         <itemPath>../../wolfcrypt/src/ripemd.c</itemPath>
         <itemPath>../../wolfcrypt/src/rsa.c</itemPath>

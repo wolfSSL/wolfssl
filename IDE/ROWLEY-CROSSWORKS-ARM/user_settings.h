@@ -407,12 +407,6 @@ extern unsigned int custom_rand_generate(void);
 #undef  NO_OLD_TLS
 #define NO_OLD_TLS
 
-#undef  NO_HC128
-#define NO_HC128
-
-#undef  NO_RABBIT
-#define NO_RABBIT
-
 #undef  NO_PSK
 #define NO_PSK
 

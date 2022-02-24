@@ -100,30 +100,30 @@ typedef struct wc_Md5 {
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif
 } wc_Md5;
 
 #endif /* WOLFSSL_TI_HASH */
 
-WOLFSSL_API int wc_InitMd5(wc_Md5*);
-WOLFSSL_API int wc_InitMd5_ex(wc_Md5*, void*, int);
-WOLFSSL_API int wc_Md5Update(wc_Md5*, const byte*, word32);
-WOLFSSL_API int wc_Md5Final(wc_Md5*, byte*);
-WOLFSSL_API void wc_Md5Free(wc_Md5*);
+WOLFSSL_API int wc_InitMd5(wc_Md5* md5);
+WOLFSSL_API int wc_InitMd5_ex(wc_Md5* md5, void* heap, int devId);
+WOLFSSL_API int wc_Md5Update(wc_Md5* md5, const byte* data, word32 len);
+WOLFSSL_API int wc_Md5Final(wc_Md5* md5, byte* hash);
+WOLFSSL_API void wc_Md5Free(wc_Md5* md5);
 #ifdef OPENSSL_EXTRA
-WOLFSSL_API int wc_Md5Transform(wc_Md5*, const byte*);
+WOLFSSL_API int wc_Md5Transform(wc_Md5* md5, const byte* data);
 #endif
 
-WOLFSSL_API int  wc_Md5GetHash(wc_Md5*, byte*);
-WOLFSSL_API int  wc_Md5Copy(wc_Md5*, wc_Md5*);
+WOLFSSL_API int  wc_Md5GetHash(wc_Md5* md5, byte* hash);
+WOLFSSL_API int  wc_Md5Copy(wc_Md5* src, wc_Md5* dst);
 
 #ifdef WOLFSSL_PIC32MZ_HASH
 WOLFSSL_API void wc_Md5SizeSet(wc_Md5* md5, word32 len);
 #endif
 
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     WOLFSSL_API int wc_Md5SetFlags(wc_Md5* md5, word32 flags);
     WOLFSSL_API int wc_Md5GetFlags(wc_Md5* md5, word32* flags);
 #endif

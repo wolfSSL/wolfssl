@@ -28,7 +28,6 @@ LDFLAGS+=-mcpu=cortex-m3
 LDFLAGS+=-lc -lg -lm
 LDFLAGS+=--specs=nosys.specs
 
-
 OBJS:=main.o startup.o devices.o memory-tls.o
 
 WOLFSSL_OBJS += 	\
@@ -63,6 +62,7 @@ WOLFSSL_OBJS += 	\
 	$(WOLFSSL_BUILD)/wolfcrypt/poly1305.o  \
 	$(WOLFSSL_BUILD)/wolfcrypt/pwdbased.o  \
 	$(WOLFSSL_BUILD)/wolfcrypt/random.o  \
+	$(WOLFSSL_BUILD)/wolfcrypt/kdf.o  \
 	$(WOLFSSL_BUILD)/wolfcrypt/sha.o  \
 	$(WOLFSSL_BUILD)/wolfcrypt/sha256.o  \
 	$(WOLFSSL_BUILD)/wolfcrypt/sha512.o  \
@@ -80,8 +80,8 @@ OBJS+=$(WOLFSSL_OBJS) $(OBJS_SPMATH)
 vpath %.c $(dir $(WOLFSSL_ROOT)/src)
 vpath %.c $(dir $(WOLFSSL_ROOT)/wolfcrypt/src)
 
-CFLAGS+=-g -ggdb3
-#CFLAGS+=-O2
+#CFLAGS+=-g -ggdb3
+CFLAGS+=-Os
 
 #all: image.bin
 

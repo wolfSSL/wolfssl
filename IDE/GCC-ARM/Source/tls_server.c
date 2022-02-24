@@ -99,7 +99,7 @@ static int tls_server(void)
     /*---------------------*/
     /* for no peer auth:   */
     /*---------------------*/
-    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, 0);
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
     /*---------------------*/
     /* end peer auth option*/
     /*---------------------*/

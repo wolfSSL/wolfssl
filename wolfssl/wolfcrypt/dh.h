@@ -38,6 +38,10 @@
 #include <wolfssl/wolfcrypt/integer.h>
 #include <wolfssl/wolfcrypt/random.h>
 
+#ifdef WOLFSSL_KCAPI_DH
+    #include <wolfssl/wolfcrypt/port/kcapi/kcapi_dh.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -68,6 +72,10 @@ struct DhKey {
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif
+    int trustedGroup;
+#ifdef WOLFSSL_KCAPI_DH
+    struct kcapi_handle* handle;
+#endif
 };
 
 #ifndef WC_DH_TYPE_DEFINED
@@ -75,6 +83,15 @@ struct DhKey {
     #define WC_DH_TYPE_DEFINED
 #endif
 
+enum {
+    WC_FFDHE_2048 = 256,
+    WC_FFDHE_3072 = 257,
+    WC_FFDHE_4096 = 258,
+    WC_FFDHE_6144 = 259,
+    WC_FFDHE_8192 = 260,
+};
+
+#ifdef HAVE_PUBLIC_FFDHE
 #ifdef HAVE_FFDHE_2048
 WOLFSSL_API const DhParams* wc_Dh_ffdhe2048_Get(void);
 #endif
@@ -90,6 +107,7 @@ WOLFSSL_API const DhParams* wc_Dh_ffdhe6144_Get(void);
 #ifdef HAVE_FFDHE_8192
 WOLFSSL_API const DhParams* wc_Dh_ffdhe8192_Get(void);
 #endif
+#endif
 
 WOLFSSL_API int wc_InitDhKey(DhKey* key);
 WOLFSSL_API int wc_InitDhKey_ex(DhKey* key, void* heap, int devId);
@@ -102,19 +120,27 @@ WOLFSSL_API int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz,
                        word32 pubSz);
 
 WOLFSSL_API int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key,
-                           word32); /* wc_DhKeyDecode is in asn.c */
+                           word32 inSz); /* wc_DhKeyDecode is in asn.c */
 
 WOLFSSL_API int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
                         word32 gSz);
 WOLFSSL_API int wc_DhSetKey_ex(DhKey* key, const byte* p, word32 pSz,
                         const byte* g, word32 gSz, const byte* q, word32 qSz);
+WOLFSSL_API int wc_DhSetNamedKey(DhKey* key, int name);
+WOLFSSL_API int wc_DhGetNamedKeyParamSize(int name,
+        word32* p, word32* g, word32* q);
+WOLFSSL_API word32 wc_DhGetNamedKeyMinSize(int name);
+WOLFSSL_API int wc_DhCmpNamedKey(int name, int noQ,
+        const byte* p, word32 pSz,
+        const byte* g, word32 gSz,
+        const byte* q, word32 qSz);
+WOLFSSL_API int wc_DhCopyNamedKey(int name,
+        byte* p, word32* pSz, byte* g, word32* gSz, byte* q, word32* qSz);
 
 #ifdef WOLFSSL_DH_EXTRA
-WOLFSSL_API int wc_DhPublicKeyDecode(const byte* input, word32* inOutIdx,
-                        DhKey* key, word32 inSz);
 WOLFSSL_API int wc_DhImportKeyPair(DhKey* key, const byte* priv, word32 privSz,
                                    const byte* pub, word32 pubSz);
-WOLFSSL_API int wc_DhExportKeyPair(DhKey* key, byte* priv, word32* pPrivSz, 
+WOLFSSL_API int wc_DhExportKeyPair(DhKey* key, byte* priv, word32* pPrivSz,
                                    byte* pub, word32* pPubSz);
 WOLFSSL_LOCAL int wc_DhKeyCopy(DhKey* src, DhKey* dst);
 #endif

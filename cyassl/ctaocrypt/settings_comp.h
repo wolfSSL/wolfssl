@@ -36,9 +36,6 @@
 #endif /* have rsa and HAVE_FIPS */
 
 /* Macro redefinitions for compatibility */
-#ifdef HAVE_NTRU
-    #define MakeNtruCert wc_MakeNtruCert
-#endif
 #if defined(WOLFSSL_SHA512) && !defined(CYASSL_SHA512)
     #define CYASSL_SHA512
 #endif

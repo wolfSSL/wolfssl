@@ -177,6 +177,10 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #include <wolfssl/wolfcrypt/port/iotsafe/iotsafe.h>
 #endif
 
+#if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_RNG)
+#include <wolfssl/wolfcrypt/port/psa/psa.h>
+#endif
+
 #if defined(HAVE_INTEL_RDRAND) || defined(HAVE_INTEL_RDSEED)
     static word32 intel_flags = 0;
     static void wc_InitRng_IntelRD(void)
@@ -289,11 +293,25 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #define MAX_SEED_SZ    (SEED_SZ + SEED_SZ/2 + SEED_BLOCK_SZ)
 
 
+#ifdef WC_RNG_SEED_CB
+
+static wc_RngSeed_Cb seedCb = NULL;
+
+int wc_SetSeed_Cb(wc_RngSeed_Cb cb)
+{
+    seedCb = cb;
+    return 0;
+}
+
+#endif
+
+
 /* Internal return codes */
 #define DRBG_SUCCESS      0
 #define DRBG_FAILURE      1
 #define DRBG_NEED_RESEED  2
 #define DRBG_CONT_FAILURE 3
+#define DRBG_NO_SEED_CB   4
 
 /* RNG health states */
 #define DRBG_NOT_INIT     0
@@ -337,7 +355,7 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
     wc_Sha256 sha[1];
 #endif
 #ifdef WC_ASYNC_ENABLE_SHA256
-    DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
+    WC_DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
     if (digest == NULL)
         return MEMORY_E;
 #else
@@ -405,7 +423,7 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
     ForceZero(digest, WC_SHA256_DIGEST_SIZE);
 
 #ifdef WC_ASYNC_ENABLE_SHA256
-    FREE_VAR(digest, drbg->heap);
+    WC_FREE_VAR(digest, drbg->heap);
 #endif
 
     return (ret == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
@@ -415,6 +433,10 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
 static int Hash_DRBG_Reseed(DRBG_internal* drbg, const byte* seed, word32 seedSz)
 {
     byte newV[DRBG_SEED_LEN];
+
+    if (drbg == NULL) {
+        return DRBG_FAILURE;
+    }
 
     XMEMSET(newV, 0, DRBG_SEED_LEN);
 
@@ -442,6 +464,16 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
 {
     if (rng == NULL || seed == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    if (rng->drbg == NULL) {
+    #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
+        if (IS_INTEL_RDRAND(intel_flags)) {
+            /* using RDRAND not DRBG, so return success */
+            return 0;
+        }
+        return BAD_FUNC_ARG;
+    #endif
     }
 
     return Hash_DRBG_Reseed((DRBG_internal *)rng->drbg, seed, seedSz);
@@ -472,7 +504,7 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
     wc_Sha256 sha[1];
 #endif
 #ifdef WC_ASYNC_ENABLE_SHA256
-    DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
+    WC_DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
     if (digest == NULL)
         return MEMORY_E;
 #else
@@ -542,7 +574,7 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
     ForceZero(data, sizeof(data));
 
 #ifdef WC_ASYNC_ENABLE_SHA256
-    FREE_VAR(digest, drbg->heap);
+    WC_FREE_VAR(digest, drbg->heap);
 #endif
 
     return (ret == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
@@ -583,11 +615,15 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
     byte type;
     word32 reseedCtr;
 
+    if (drbg == NULL) {
+        return DRBG_FAILURE;
+    }
+
     if (drbg->reseedCtr == RESEED_INTERVAL) {
         return DRBG_NEED_RESEED;
     } else {
     #ifdef WC_ASYNC_ENABLE_SHA256
-        DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
+        WC_DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
         if (digest == NULL)
             return MEMORY_E;
     #else
@@ -630,7 +666,7 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
         }
         ForceZero(digest, WC_SHA256_DIGEST_SIZE);
     #ifdef WC_ASYNC_ENABLE_SHA256
-        FREE_VAR(digest, drbg->heap);
+        WC_FREE_VAR(digest, drbg->heap);
     #endif
     }
 
@@ -787,7 +823,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 
     if (wc_RNG_HealthTestLocal(0) == 0) {
     #ifdef WC_ASYNC_ENABLE_SHA256
-        DECLARE_VAR(seed, byte, MAX_SEED_SZ, rng->heap);
+        WC_DECLARE_VAR(seed, byte, MAX_SEED_SZ, rng->heap);
         if (seed == NULL)
             return MEMORY_E;
     #else
@@ -806,7 +842,19 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         rng->drbg = (struct DRBG*)&rng->drbg_data;
 #endif
         if (ret == 0) {
+#ifdef WC_RNG_SEED_CB
+            if (seedCb == NULL) {
+                ret = DRBG_NO_SEED_CB;
+            }
+            else {
+                ret = seedCb(&rng->seed, seed, seedSz);
+                if (ret != 0) {
+                    ret = DRBG_FAILURE;
+                }
+            }
+#else
             ret = wc_GenerateSeed(&rng->seed, seed, seedSz);
+#endif
             if (ret == 0)
                 ret = wc_RNG_TestSeed(seed, seedSz);
             else {
@@ -829,7 +877,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 
         ForceZero(seed, seedSz);
     #ifdef WC_ASYNC_ENABLE_SHA256
-        FREE_VAR(seed, rng->heap);
+        WC_FREE_VAR(seed, rng->heap);
     #endif
     }
     else
@@ -982,10 +1030,10 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
                 ret = wc_RNG_TestSeed(newSeed, SEED_SZ + SEED_BLOCK_SZ);
 
             if (ret == DRBG_SUCCESS)
-	      ret = Hash_DRBG_Reseed((DRBG_internal *)rng->drbg, newSeed + SEED_BLOCK_SZ,
-                                       SEED_SZ);
+                ret = Hash_DRBG_Reseed((DRBG_internal *)rng->drbg,
+                                       newSeed + SEED_BLOCK_SZ, SEED_SZ);
             if (ret == DRBG_SUCCESS)
-	      ret = Hash_DRBG_Generate((DRBG_internal *)rng->drbg, output, sz);
+                ret = Hash_DRBG_Generate((DRBG_internal *)rng->drbg, output, sz);
 
             ForceZero(newSeed, sizeof(newSeed));
         }
@@ -1631,14 +1679,14 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
 int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
     int ret = !SGX_SUCCESS;
-	int i, read_max = 10;
+    int i, read_max = 10;
 
-	for (i = 0; i < read_max && ret != SGX_SUCCESS; i++) {
-		ret = sgx_read_rand(output, sz);
-	}
+    for (i = 0; i < read_max && ret != SGX_SUCCESS; i++) {
+        ret = sgx_read_rand(output, sz);
+    }
 
-	(void)os;
-	return (ret == SGX_SUCCESS) ? 0 : 1;
+    (void)os;
+    return (ret == SGX_SUCCESS) ? 0 : 1;
 }
 
 #elif defined(USE_WINDOWS_API)
@@ -1751,7 +1799,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             RNGPOLY2 = _CP0_GET_COUNT();
             RNGNUMGEN2 = _CP0_GET_COUNT();
 #else
-            // All others can be seeded from the TRNG
+            /* All others can be seeded from the TRNG */
             RNGCONbits.TRNGMODE = 1;
             RNGCONbits.TRNGEN = 1;
             while (RNGCNT < 64);
@@ -1886,14 +1934,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         status_t status;
         status = TRNG_GetRandomData(TRNG0, output, sz);
+        (void)os;
         if (status == kStatus_Success)
         {
             return(0);
         }
-        else
-        {
-            return RAN_BLOCK_E;
-        }
+        return RAN_BLOCK_E;
     }
 
 #elif defined(FREESCALE_KSDK_2_0_RNGA)
@@ -1902,14 +1948,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         status_t status;
         status = RNGA_GetRandomData(RNG, output, sz);
+        (void)os;
         if (status == kStatus_Success)
         {
             return(0);
         }
-        else
-        {
-            return RAN_BLOCK_E;
-        }
+        return RAN_BLOCK_E;
     }
 
 
@@ -1917,8 +1961,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        RNGA_DRV_GetRandomData(RNGA_INSTANCE, output, sz);
-        return 0;
+        status_t status;
+        status = RNGA_GetRandomData(RNG, output, sz);
+        (void)os;
+        if (status == kStatus_Success)
+        {
+            return(0);
+        }
+        return RAN_BLOCK_E;
     }
 
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX) || \
@@ -2230,7 +2280,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
 
         if (wc_LockMutex(&wnr_mutex) != 0) {
-            WOLFSSL_MSG("Bad Lock Mutex wnr_mutex\n");
+            WOLFSSL_MSG("Bad Lock Mutex wnr_mutex");
             return BAD_MUTEX_E;
         }
 
@@ -2440,7 +2490,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        int ret;
+        int ret = 0;
         word32 buffer[4];
 
         while (sz > 0) {
@@ -2452,6 +2502,31 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             /* return 4 words random number*/
             ret = R_TSIP_GenerateRandomNumber(buffer);
             if(ret == TSIP_SUCCESS) {
+                XMEMCPY(output, &buffer, len);
+                output += len;
+                sz -= len;
+            } else
+                return ret;
+        }
+        return ret;
+    }
+#elif defined(WOLFSSL_RENESAS_SCEPROTECT)
+    #include "r_sce.h"
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int ret = 0;
+        word32 buffer[4];
+
+        while (sz > 0) {
+            word32 len = sizeof(buffer);
+
+            if (sz < len) {
+                len = sz;
+            }
+            /* return 4 words random number*/
+            ret = R_SCE_RandomNumberGenerate(buffer);
+            if(ret == FSP_SUCCESS) {
                 XMEMCPY(output, &buffer, len);
                 output += len;
                 sz -= len;
@@ -2498,7 +2573,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 return -1;
             }
             ret = WOLFSSL_SCE_TRNG_HANDLE.p_api->read(WOLFSSL_SCE_TRNG_HANDLE.p_ctrl,
-                                                      (word32*)tmp, 1);
+                                                      (word32*)&tmp, 1);
             if (ret != SSP_SUCCESS) {
                 return -1;
             }
@@ -2520,7 +2595,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(WOLFSSL_SAFERTOS) || defined(WOLFSSL_LEANPSK) || \
       defined(WOLFSSL_IAR_ARM)  || defined(WOLFSSL_MDK_ARM) || \
       defined(WOLFSSL_uITRON4)  || defined(WOLFSSL_uTKERNEL2) || \
-      defined(WOLFSSL_LPC43xx)  || defined(WOLFSSL_STM32F2xx) || \
+      defined(WOLFSSL_LPC43xx)  || defined(NO_STM32_RNG) || \
       defined(MBED)             || defined(WOLFSSL_EMBOS) || \
       defined(WOLFSSL_GENSEED_FORTEST) || defined(WOLFSSL_CHIBIOS) || \
       defined(WOLFSSL_CONTIKI)  || defined(WOLFSSL_AZSPHERE)
@@ -2572,6 +2647,24 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             }
             return 0;
         }
+#elif defined(WOLFSSL_SE050)
+     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz){
+        int ret = 0;
+
+        (void)os;
+
+        if (output == NULL) {
+            return BUFFER_E;
+        }
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret == 0) {
+            ret = se050_get_random_number(sz, output);
+            wolfSSL_CryptHwMutexUnLock();
+        }
+        return ret;
+    }
 
 #elif defined(DOLPHIN_EMULATOR)
 

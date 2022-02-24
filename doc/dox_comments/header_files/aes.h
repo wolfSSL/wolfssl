@@ -11,7 +11,8 @@
     \param len length of the key passed in
     \param iv pointer to the initialization vector used to initialize the key
     \param dir Cipher direction. Set AES_ENCRYPTION to encrypt,  or
-    AES_DECRYPTION to decrypt.
+    AES_DECRYPTION to decrypt. Direction for some modes (CFB and CTR) is
+    always AES_ENCRYPTION.
 
     _Example_
     \code
@@ -213,6 +214,9 @@ WOLFSSL_API int wc_AesCtrEncrypt(Aes* aes, byte* out,
     use cases ECB mode is considered to be less secure. Please avoid using ECB
     API’s directly whenever possible
 
+    \return int integer values corresponding to wolfSSL error or success
+    status
+
     \param aes pointer to the AES object used to encrypt data
     \param out pointer to the output buffer in which to store the cipher
     text of the encrypted message
@@ -231,7 +235,7 @@ WOLFSSL_API int wc_AesCtrEncrypt(Aes* aes, byte* out,
     \sa wc_AesDecryptDirect
     \sa wc_AesSetKeyDirect
 */
-WOLFSSL_API void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
+WOLFSSL_API int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
 
 /*!
     \ingroup AES
@@ -244,7 +248,8 @@ WOLFSSL_API void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
     ECB mode is considered to be less secure. Please avoid using ECB API’s
     directly whenever possible
 
-    \return none
+    \return int integer values corresponding to wolfSSL error or success
+    status
 
     \param aes pointer to the AES object used to encrypt data
     \param out pointer to the output buffer in which to store the plain
@@ -265,7 +270,7 @@ WOLFSSL_API void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
     \sa wc_AesEncryptDirect
     \sa wc_AesSetKeyDirect
  */
-WOLFSSL_API void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
+WOLFSSL_API int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
 
 /*!
     \ingroup AES
@@ -870,3 +875,160 @@ WOLFSSL_API int wc_AesXtsFree(XtsAes* aes);
 */
 WOLFSSL_API int  wc_AesInit(Aes*, void*, int);
 
+/*!
+    \ingroup AES
+
+    \brief AES with CFB mode.
+
+    \return 0 Success and negative error values on failure
+
+    \param aes   AES keys to use for block encrypt/decrypt
+    \param out   output buffer to hold cipher text must be at least as large
+    as inputbuffer)
+    \param in    input plain text buffer to encrypt
+    \param sz    size of input buffer
+
+    _Example_
+    \code
+    Aes aes;
+    unsigned char plain[SIZE];
+    unsigned char cipher[SIZE];
+
+    //set up key with AES_ENCRYPTION as dir for both encrypt and decrypt
+
+    if(wc_AesCfbEncrypt(&aes, cipher, plain, SIZE) != 0)
+    {
+        // Handle error
+    }
+    \endcode
+
+    \sa wc_AesCfbDecrypt
+    \sa wc_AesSetKey
+*/
+WOLFSSL_API int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
+
+/*!
+    \ingroup AES
+
+    \brief AES with CFB mode.
+
+    \return 0 Success and negative error values on failure
+
+    \param aes   AES keys to use for block encrypt/decrypt
+    \param out   output buffer to hold decrypted text must be at least as large
+    as inputbuffer)
+    \param in    input buffer to decrypt
+    \param sz    size of input buffer
+
+    _Example_
+    \code
+    Aes aes;
+    unsigned char plain[SIZE];
+    unsigned char cipher[SIZE];
+
+    //set up key with AES_ENCRYPTION as dir for both encrypt and decrypt
+
+    if(wc_AesCfbDecrypt(&aes, plain, cipher, SIZE) != 0)
+    {
+        // Handle error
+    }
+    \endcode
+
+    \sa wc_AesCfbEncrypt
+    \sa wc_AesSetKey
+*/
+WOLFSSL_API int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz);
+
+/*!
+    \ingroup AES
+
+    \brief This function performs SIV (synthetic initialization vector)
+    encryption as described in RFC 5297.
+
+    \return 0 On successful encryption.
+    \return BAD_FUNC_ARG If key, SIV, or output buffer are NULL. Also returned
+    if the key size isn't 32, 48, or 64 bytes.
+    \return Other Other negative error values returned if AES or CMAC operations
+    fail.
+
+    \param key Byte buffer containing the key to use.
+    \param keySz Length of the key buffer in bytes.
+    \param assoc Additional, authenticated associated data (AD).
+    \param assocSz Length of AD buffer in bytes.
+    \param nonce A number used once. Used by the algorithm in the same manner as
+    the AD.
+    \param nonceSz Length of nonce buffer in bytes.
+    \param in Plaintext buffer to encrypt.
+    \param inSz Length of plaintext buffer.
+    \param siv The SIV output by S2V (see RFC 5297 2.4).
+    \param out Buffer to hold the ciphertext. Should be the same length as the
+    plaintext buffer.
+
+    _Example_
+    \code
+    byte key[] = { some 32, 48, or 64 byte key };
+    byte assoc[] = {0x01, 0x2, 0x3};
+    byte nonce[] = {0x04, 0x5, 0x6};
+    byte plainText[] = {0xDE, 0xAD, 0xBE, 0xEF};
+    byte siv[AES_BLOCK_SIZE];
+    byte cipherText[sizeof(plainText)];
+    if (wc_AesSivEncrypt(key, sizeof(key), assoc, sizeof(assoc), nonce,
+        sizeof(nonce), plainText, sizeof(plainText), siv, cipherText) != 0) {
+        // failed to encrypt
+    }
+    \endcode
+
+    \sa wc_AesSivDecrypt
+*/
+
+WOLFSSL_API
+int wc_AesSivEncrypt(const byte* key, word32 keySz, const byte* assoc,
+                     word32 assocSz, const byte* nonce, word32 nonceSz,
+                     const byte* in, word32 inSz, byte* siv, byte* out);
+
+/*!
+    \ingroup AES
+    \brief This function performs SIV (synthetic initialization vector)
+    decryption as described in RFC 5297.
+
+    \return 0 On successful decryption.
+    \return BAD_FUNC_ARG If key, SIV, or output buffer are NULL. Also returned
+    if the key size isn't 32, 48, or 64 bytes.
+    \return AES_SIV_AUTH_E If the SIV derived by S2V doesn't match the input
+    SIV (see RFC 5297 2.7). 
+    \return Other Other negative error values returned if AES or CMAC operations
+    fail.
+
+    \param key Byte buffer containing the key to use.
+    \param keySz Length of the key buffer in bytes.
+    \param assoc Additional, authenticated associated data (AD).
+    \param assocSz Length of AD buffer in bytes.
+    \param nonce A number used once. Used by the underlying algorithm in the
+    same manner as the AD.
+    \param nonceSz Length of nonce buffer in bytes.
+    \param in Ciphertext buffer to decrypt.
+    \param inSz Length of ciphertext buffer.
+    \param siv The SIV that accompanies the ciphertext (see RFC 5297 2.4).
+    \param out Buffer to hold the decrypted plaintext. Should be the same length
+    as the ciphertext buffer.
+
+    _Example_
+    \code
+    byte key[] = { some 32, 48, or 64 byte key };
+    byte assoc[] = {0x01, 0x2, 0x3};
+    byte nonce[] = {0x04, 0x5, 0x6};
+    byte cipherText[] = {0xDE, 0xAD, 0xBE, 0xEF};
+    byte siv[AES_BLOCK_SIZE] = { the SIV that came with the ciphertext };
+    byte plainText[sizeof(cipherText)];
+    if (wc_AesSivDecrypt(key, sizeof(key), assoc, sizeof(assoc), nonce,
+        sizeof(nonce), cipherText, sizeof(cipherText), siv, plainText) != 0) {
+        // failed to decrypt
+    }
+    \endcode
+
+    \sa wc_AesSivEncrypt
+*/
+WOLFSSL_API
+int wc_AesSivDecrypt(const byte* key, word32 keySz, const byte* assoc,
+                     word32 assocSz, const byte* nonce, word32 nonceSz,
+                     const byte* in, word32 inSz, byte* siv, byte* out);

@@ -218,7 +218,7 @@ word32 wc_caamReadRegister(word32 reg)
     }
 
     if (ReadIODeviceRegister(caam, reg, &out) != Success) {
-         WOLFSSL_MSG("Error reading register\n");
+         WOLFSSL_MSG("Error reading register");
     }
 
     return (word32)out;
@@ -234,7 +234,7 @@ int wc_caamWriteRegister(word32 reg, word32 value)
     }
 
     if (WriteIODeviceRegister(caam, reg, value) != Success) {
-         WOLFSSL_MSG("Error writing to register\n");
+         WOLFSSL_MSG("Error writing to register");
     }
     return 0;
 }

@@ -129,8 +129,6 @@ update_user_settings(){
         printf '%s\n' "#define NO_RC4";
         printf '%s\n' "#define NO_MD4";
         printf '%s\n' "#define NO_PSK";
-        printf '%s\n' "#define NO_HC128";
-        printf '%s\n' "#define NO_RABBIT";
         printf '%s\n' "#define GCM_SMALL";
         printf '%s\n' "#define TFM_ECC256";
         printf '%s\n' "#define ECC_SHAMIR";

@@ -23,7 +23,7 @@ benchmark
             Measure RSA <key size> performance.
 -<alg>      Algorithm to benchmark. Available algorithms include:
               cipher aes-cbc aes-gcm aes-ecb aes-xts aes-cfb aes-ctr aes-ccm
-              camellia arc4 hc128 rabbit chacha20 chacha20-poly1305 des idea
+              camellia arc4 chacha20 chacha20-poly1305 des
               digest md5 poly1305 sha sha2 sha224 sha256 sha384 sha512 sha3
               sha3-224 sha3-256 sha3-384 sha3-512 ripemd
               mac cmac hmac hmac-md5 hmac-sha hmac-sha224 hmac-sha256

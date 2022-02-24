@@ -35,7 +35,7 @@ the error status.
 
 #if defined(HAVE_FIPS) && \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-	#include <cyassl/ctaocrypt/error-crypt.h>
+    #include <cyassl/ctaocrypt/error-crypt.h>
 #endif /* HAVE_FIPS V1 */
 
 #ifdef __cplusplus
@@ -103,7 +103,6 @@ enum {
     ASN_SIG_HASH_E     = -156,  /* ASN sig error, unsupported hash type */
     ASN_SIG_KEY_E      = -157,  /* ASN sig error, unsupported key type */
     ASN_DH_KEY_E       = -158,  /* ASN key init error, invalid input */
-    ASN_NTRU_KEY_E     = -159,  /* ASN ntru key decode error, invalid input */
     ASN_CRIT_EXT_E     = -160,  /* ASN unsupported critical extension */
     ASN_ALT_NAME_E     = -161,  /* ASN alternate name error */
     ASN_NO_PEM_HEADER  = -162,  /* ASN no PEM header found */
@@ -239,8 +238,18 @@ enum {
     MISSING_IV          = -277,  /* IV was not set */
     MISSING_KEY         = -278,  /* Key was not set */
     BAD_LENGTH_E        = -279,  /* Value of length parameter is invalid. */
+    ECDSA_KAT_FIPS_E    = -280,  /* ECDSA KAT failure */
+    RSA_PAT_FIPS_E      = -281,  /* RSA Pairwise failure */
+    KDF_TLS12_KAT_FIPS_E = -282,  /* TLS12 KDF KAT failure */
+    KDF_TLS13_KAT_FIPS_E = -283,  /* TLS13 KDF KAT failure */
+    KDF_SSH_KAT_FIPS_E  = -284,  /* SSH KDF KAT failure */
+    DHE_PCT_E           = -285,  /* DHE Pairwise Consistency Test failure */
+    ECC_PCT_E           = -286,  /* ECDHE Pairwise Consistency Test failure */
+    FIPS_PRIVATE_KEY_LOCKED_E = -287, /* Cannot export private key. */
+    PROTOCOLCB_UNAVAILABLE  = -288, /* Protocol callback unavailable */
+    AES_SIV_AUTH_E = -289, /* AES-SIV authentication failed */
 
-    WC_LAST_E           = -279,  /* Update this to indicate last error */
+    WC_LAST_E           = -289,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

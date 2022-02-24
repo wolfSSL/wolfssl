@@ -17,9 +17,7 @@
     #define WOLFSSL_SHA384
     #define WOLFSSL_SHA512
     #define NO_PSK
-    #define NO_HC128
     #define NO_RC4
-    #define NO_RABBIT
     #define NO_DSA
     #define NO_MD4
 

@@ -49,12 +49,14 @@ typedef struct WOLFSSL_MD5_CTX {
 #endif
 } WOLFSSL_MD5_CTX;
 
-WOLFSSL_API int wolfSSL_MD5_Init(WOLFSSL_MD5_CTX*);
-WOLFSSL_API int wolfSSL_MD5_Update(WOLFSSL_MD5_CTX*, const void*, unsigned long);
-WOLFSSL_API int wolfSSL_MD5_Final(unsigned char*, WOLFSSL_MD5_CTX*);
-WOLFSSL_API int wolfSSL_MD5_Transform(WOLFSSL_MD5_CTX*, const unsigned char*);
+WOLFSSL_API int wolfSSL_MD5_Init(WOLFSSL_MD5_CTX* md5);
+WOLFSSL_API int wolfSSL_MD5_Update(WOLFSSL_MD5_CTX* md5, const void* input,
+                           unsigned long sz);
+WOLFSSL_API int wolfSSL_MD5_Final(unsigned char* output, WOLFSSL_MD5_CTX* md5);
+WOLFSSL_API int wolfSSL_MD5_Transform(WOLFSSL_MD5_CTX* md5, const unsigned char* data);
 
-WOLFSSL_API unsigned char *wolfSSL_MD5(const unsigned char*, size_t, unsigned char*);
+WOLFSSL_API unsigned char *wolfSSL_MD5(const unsigned char* data, size_t len,
+            unsigned char* hash);
 
 typedef WOLFSSL_MD5_CTX MD5_CTX;
 
@@ -69,15 +71,29 @@ typedef WOLFSSL_MD5_CTX MD5_CTX;
     #define MD5Final wolfSSL_MD5_Final
 #endif
 
-#if (!defined(HAVE_FIPS) || \
-        (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2)) && \
-         defined(OPENSSL_EXTRA)
-/* For fips v1 defined in wolfssl/wolfcrypt/md5.h as
- * WC_MD5 for compatibility */
-#define MD5               wolfSSL_MD5
+/* "MD5" has some conflicts
+ * If not FIPS and NO_OLD_SHA_NAMES defined
+ * If FIPS V2 or higher and NO_OLD_MD5_NAME defined
+ * If FIPS V2 and NO_OLD_WC_NAMES defined
+ * If FIPS v1 not allowed
+ */
+#if (defined(NO_OLD_MD5_NAME) && !defined(HAVE_FIPS)) || \
+    (defined(NO_OLD_MD5_NAME)    && defined(HAVE_FIPS) && \
+        defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2) || \
+    (defined(NO_OLD_WC_NAMES) && defined(HAVE_FIPS) && \
+        defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2)
+
+    #define MD5               wolfSSL_MD5
 #endif
 
-#define MD5_DIGEST_LENGTH MD5_DIGEST_SIZE
+/* FIPS v1 uses old MD5_DIGEST_SIZE naming */
+#if (!defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2)) && \
+         defined(OPENSSL_EXTRA)
+    #define MD5_DIGEST_LENGTH WC_MD5_DIGEST_SIZE
+#else
+    #define MD5_DIGEST_LENGTH MD5_DIGEST_SIZE
+#endif
 
 #ifdef __cplusplus
     }  /* extern "C" */

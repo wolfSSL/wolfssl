@@ -59,18 +59,15 @@ typedef struct {
 } ge448_p2;
 
 
-WOLFSSL_LOCAL int  ge448_compress_key(byte*, const byte*, const byte*);
-WOLFSSL_LOCAL int  ge448_from_bytes_negate_vartime(ge448_p2 *,
-                                                   const unsigned char *);
+WOLFSSL_LOCAL int  ge448_compress_key(byte* out, const byte* xIn, const byte* yIn);
+WOLFSSL_LOCAL int  ge448_from_bytes_negate_vartime(ge448_p2 *r, const byte *b);
 
-WOLFSSL_LOCAL int  ge448_double_scalarmult_vartime(ge448_p2 *,
-                                                   const unsigned char *,
-                                                   const ge448_p2 *,
-                                                   const unsigned char *);
-WOLFSSL_LOCAL void ge448_scalarmult_base(ge448_p2 *, const unsigned char *);
-WOLFSSL_LOCAL void sc448_reduce(byte*);
-WOLFSSL_LOCAL void sc448_muladd(byte*, const byte*, const byte*, const byte*);
-WOLFSSL_LOCAL void ge448_to_bytes(unsigned char *, const ge448_p2 *);
+WOLFSSL_LOCAL int  ge448_double_scalarmult_vartime(ge448_p2 *r, const byte *a,
+                                    const ge448_p2 *A, const byte *b);
+WOLFSSL_LOCAL void ge448_scalarmult_base(ge448_p2* h, const byte* a);
+WOLFSSL_LOCAL void sc448_reduce(byte* b);
+WOLFSSL_LOCAL void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d);
+WOLFSSL_LOCAL void ge448_to_bytes(byte *s, const ge448_p2 *h);
 
 
 #ifndef ED448_SMALL

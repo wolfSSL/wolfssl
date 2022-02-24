@@ -116,9 +116,7 @@ are as follows but new group can be made:
     \ingroup Diffie-Hellman
     \ingroup ECC
     \ingroup ED25519
-    \ingroup HC128
     \ingroup HMAC
-    \ingroup IDEA
     \ingroup MD2
     \ingroup MD4
     \ingroup MD5
@@ -127,7 +125,6 @@ are as follows but new group can be made:
     \ingroup Poly1305
     \ingroup RIPEMD
     \ingroup RSA
-    \ingroup Rabbit
     \ingroup SHA
     \ingroup SRP
     \ingroup wolfCrypt

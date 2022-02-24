@@ -31,11 +31,34 @@
     extern "C" {
 #endif
 
+#define EXFLAG_KUSAGE  0x2
+#define EXFLAG_XKUSAGE 0x4
+
+#define KU_DIGITAL_SIGNATURE    KEYUSE_DIGITAL_SIG
+#define KU_NON_REPUDIATION      KEYUSE_CONTENT_COMMIT
+#define KU_KEY_ENCIPHERMENT     KEYUSE_KEY_ENCIPHER
+#define KU_DATA_ENCIPHERMENT    KEYUSE_DATA_ENCIPHER
+#define KU_KEY_AGREEMENT        KEYUSE_KEY_AGREE
+#define KU_KEY_CERT_SIGN        KEYUSE_KEY_CERT_SIGN
+#define KU_CRL_SIGN             KEYUSE_CRL_SIGN
+#define KU_ENCIPHER_ONLY        KEYUSE_ENCIPHER_ONLY
+#define KU_DECIPHER_ONLY        KEYUSE_DECIPHER_ONLY
+
+#define XKU_SSL_SERVER 0x1
+#define XKU_SSL_CLIENT 0x2
+#define XKU_SMIME      0x4
+#define XKU_CODE_SIGN  0x8
+#define XKU_SGC        0x10
+#define XKU_OCSP_SIGN  0x20
+#define XKU_TIMESTAMP  0x40
+#define XKU_DVCS       0x80
+#define XKU_ANYEKU     0x100
+
 #define X509_PURPOSE_SSL_CLIENT       0
 #define X509_PURPOSE_SSL_SERVER       1
 
-#define NS_SSL_CLIENT                 0
-#define NS_SSL_SERVER                 1
+#define NS_SSL_CLIENT                 WC_NS_SSL_CLIENT
+#define NS_SSL_SERVER                 WC_NS_SSL_SERVER
 
 /* Forward reference */
 
@@ -103,6 +126,7 @@ WOLFSSL_API int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out,
         WOLFSSL_X509_EXTENSION *ext, unsigned long flag, int indent);
 WOLFSSL_API int wolfSSL_X509V3_EXT_add_nconf(WOLFSSL_CONF *conf, WOLFSSL_X509V3_CTX *ctx,
         const char *section, WOLFSSL_X509 *cert);
+WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_a2i_IPADDRESS(const char* ipa);
 
 #define BASIC_CONSTRAINTS_free    wolfSSL_BASIC_CONSTRAINTS_free
 #define AUTHORITY_KEYID_free      wolfSSL_AUTHORITY_KEYID_free
@@ -116,6 +140,7 @@ WOLFSSL_API int wolfSSL_X509V3_EXT_add_nconf(WOLFSSL_CONF *conf, WOLFSSL_X509V3_
 #define X509V3_parse_list(...)    NULL
 #endif
 #define i2s_ASN1_OCTET_STRING     wolfSSL_i2s_ASN1_STRING
+#define a2i_IPADDRESS             wolfSSL_a2i_IPADDRESS
 #define X509V3_EXT_print          wolfSSL_X509V3_EXT_print
 #define X509V3_EXT_conf_nid       wolfSSL_X509V3_EXT_conf_nid
 #define X509V3_set_ctx            wolfSSL_X509V3_set_ctx

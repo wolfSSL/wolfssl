@@ -396,7 +396,7 @@ int wc_CryptoCb_Curve25519(curve25519_key* private_key,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return wc_CryptoCb_TranslateErrorCode(ret);   
+    return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* HAVE_CURVE25519 */
 
@@ -577,6 +577,90 @@ int wc_CryptoCb_AesGcmDecrypt(Aes* aes, byte* out,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* HAVE_AESGCM */
+
+#ifdef HAVE_AESCCM
+int wc_CryptoCb_AesCcmEncrypt(Aes* aes, byte* out,
+                               const byte* in, word32 sz,
+                               const byte* nonce, word32 nonceSz,
+                               byte* authTag, word32 authTagSz,
+                               const byte* authIn, word32 authInSz)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    if (aes) {
+        dev = wc_CryptoCb_FindDevice(aes->devId);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
+        cryptoInfo.cipher.type = WC_CIPHER_AES_CCM;
+        cryptoInfo.cipher.enc = 1;
+        cryptoInfo.cipher.aesccm_enc.aes       = aes;
+        cryptoInfo.cipher.aesccm_enc.out       = out;
+        cryptoInfo.cipher.aesccm_enc.in        = in;
+        cryptoInfo.cipher.aesccm_enc.sz        = sz;
+        cryptoInfo.cipher.aesccm_enc.nonce     = nonce;
+        cryptoInfo.cipher.aesccm_enc.nonceSz   = nonceSz;
+        cryptoInfo.cipher.aesccm_enc.authTag   = authTag;
+        cryptoInfo.cipher.aesccm_enc.authTagSz = authTagSz;
+        cryptoInfo.cipher.aesccm_enc.authIn    = authIn;
+        cryptoInfo.cipher.aesccm_enc.authInSz  = authInSz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_AesCcmDecrypt(Aes* aes, byte* out,
+                               const byte* in, word32 sz,
+                               const byte* nonce, word32 nonceSz,
+                               const byte* authTag, word32 authTagSz,
+                               const byte* authIn, word32 authInSz)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    if (aes) {
+        dev = wc_CryptoCb_FindDevice(aes->devId);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
+        cryptoInfo.cipher.type = WC_CIPHER_AES_CCM;
+        cryptoInfo.cipher.enc = 0;
+        cryptoInfo.cipher.aesccm_dec.aes       = aes;
+        cryptoInfo.cipher.aesccm_dec.out       = out;
+        cryptoInfo.cipher.aesccm_dec.in        = in;
+        cryptoInfo.cipher.aesccm_dec.sz        = sz;
+        cryptoInfo.cipher.aesccm_enc.nonce     = nonce;
+        cryptoInfo.cipher.aesccm_enc.nonceSz   = nonceSz;
+        cryptoInfo.cipher.aesccm_dec.authTag   = authTag;
+        cryptoInfo.cipher.aesccm_dec.authTagSz = authTagSz;
+        cryptoInfo.cipher.aesccm_dec.authIn    = authIn;
+        cryptoInfo.cipher.aesccm_dec.authInSz  = authInSz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* HAVE_AESCCM */
 
 #ifdef HAVE_AES_CBC
 int wc_CryptoCb_AesCbcEncrypt(Aes* aes, byte* out,
@@ -785,10 +869,13 @@ int wc_CryptoCb_Sha384Hash(wc_Sha384* sha384, const byte* in,
     CryptoCb* dev;
 
     /* locate registered callback */
+    #ifndef NO_SHA2_CRYPTO_CB
     if (sha384) {
         dev = wc_CryptoCb_FindDevice(sha384->devId);
     }
-    else {
+    else
+    #endif
+    {
         /* locate first callback and try using it */
         dev = wc_CryptoCb_FindDeviceByIndex(0);
     }
@@ -818,10 +905,13 @@ int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
     CryptoCb* dev;
 
     /* locate registered callback */
+    #ifndef NO_SHA2_CRYPTO_CB
     if (sha512) {
         dev = wc_CryptoCb_FindDevice(sha512->devId);
     }
-    else {
+    else
+    #endif
+    {
         /* locate first callback and try using it */
         dev = wc_CryptoCb_FindDeviceByIndex(0);
     }

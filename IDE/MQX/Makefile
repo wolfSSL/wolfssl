@@ -98,9 +98,7 @@ $(WOLF_ROOT)/wolfcrypt/src/fe_operations.o\
 $(WOLF_ROOT)/wolfcrypt/src/ge_low_mem.o\
 $(WOLF_ROOT)/wolfcrypt/src/ge_operations.o\
 $(WOLF_ROOT)/wolfcrypt/src/hash.o\
-$(WOLF_ROOT)/wolfcrypt/src/hc128.o\
 $(WOLF_ROOT)/wolfcrypt/src/hmac.o\
-$(WOLF_ROOT)/wolfcrypt/src/idea.o\
 $(WOLF_ROOT)/wolfcrypt/src/integer.o\
 $(WOLF_ROOT)/wolfcrypt/src/logging.o\
 $(WOLF_ROOT)/wolfcrypt/src/md2.o\
@@ -111,7 +109,6 @@ $(WOLF_ROOT)/wolfcrypt/src/pkcs12.o\
 $(WOLF_ROOT)/wolfcrypt/src/pkcs7.o\
 $(WOLF_ROOT)/wolfcrypt/src/poly1305.o\
 $(WOLF_ROOT)/wolfcrypt/src/pwdbased.o\
-$(WOLF_ROOT)/wolfcrypt/src/rabbit.o\
 $(WOLF_ROOT)/wolfcrypt/src/random.o\
 $(WOLF_ROOT)/wolfcrypt/src/ripemd.o\
 $(WOLF_ROOT)/wolfcrypt/src/rsa.o\

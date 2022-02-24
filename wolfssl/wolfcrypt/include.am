@@ -21,6 +21,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/ge_operations.h \
                          wolfssl/wolfcrypt/curve448.h \
                          wolfssl/wolfcrypt/ed448.h \
+                         wolfssl/wolfcrypt/falcon.h \
                          wolfssl/wolfcrypt/fe_448.h \
                          wolfssl/wolfcrypt/ge_448.h \
                          wolfssl/wolfcrypt/eccsi.h \
@@ -28,8 +29,8 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/error-crypt.h \
                          wolfssl/wolfcrypt/fips_test.h \
                          wolfssl/wolfcrypt/hash.h \
-                         wolfssl/wolfcrypt/hc128.h \
                          wolfssl/wolfcrypt/hmac.h \
+                         wolfssl/wolfcrypt/kdf.h \
                          wolfssl/wolfcrypt/integer.h \
                          wolfssl/wolfcrypt/md2.h \
                          wolfssl/wolfcrypt/md4.h \
@@ -39,7 +40,6 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/wc_encrypt.h \
                          wolfssl/wolfcrypt/wc_port.h \
                          wolfssl/wolfcrypt/pwdbased.h \
-                         wolfssl/wolfcrypt/rabbit.h \
                          wolfssl/wolfcrypt/chacha.h \
                          wolfssl/wolfcrypt/chacha20_poly1305.h \
                          wolfssl/wolfcrypt/random.h \
@@ -56,7 +56,6 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/blake2-impl.h \
                          wolfssl/wolfcrypt/tfm.h \
                          wolfssl/wolfcrypt/srp.h \
-                         wolfssl/wolfcrypt/idea.h \
                          wolfssl/wolfcrypt/types.h \
                          wolfssl/wolfcrypt/visibility.h \
                          wolfssl/wolfcrypt/logging.h \
@@ -68,6 +67,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/pkcs12.h \
                          wolfssl/wolfcrypt/wolfmath.h \
                          wolfssl/wolfcrypt/sha3.h \
+                         wolfssl/wolfcrypt/siphash.h \
                          wolfssl/wolfcrypt/cpuid.h \
                          wolfssl/wolfcrypt/cryptocb.h
 
@@ -78,6 +78,7 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/nrf51.h \
                          wolfssl/wolfcrypt/port/nxp/ksdk_port.h \
                          wolfssl/wolfcrypt/port/nxp/dcp_port.h \
+                         wolfssl/wolfcrypt/port/nxp/se050_port.h \
                          wolfssl/wolfcrypt/port/xilinx/xil-sha3.h \
                          wolfssl/wolfcrypt/port/caam/caam_driver.h \
                          wolfssl/wolfcrypt/port/caam/caam_error.h \
@@ -91,6 +92,9 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h \
                          wolfssl/wolfcrypt/port/arm/cryptoCell.h \
                          wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h \
+                         wolfssl/wolfcrypt/port/Renesas/renesas-sce-crypt.h \
+                         wolfssl/wolfcrypt/port/Renesas/renesas_sync.h \
+                         wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h \
                          wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h
 
 if BUILD_CRYPTOAUTHLIB
@@ -100,6 +104,15 @@ endif
 if BUILD_AFALG
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/af_alg/afalg_hash.h
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/af_alg/wc_afalg.h
+endif
+
+if BUILD_KCAPI
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/kcapi/wc_kcapi.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/kcapi/kcapi_hash.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/kcapi/kcapi_hmac.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/kcapi/kcapi_ecc.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/kcapi/kcapi_rsa.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/kcapi/kcapi_dh.h
 endif
 
 if BUILD_DEVCRYPTO
@@ -141,12 +154,10 @@ if BUILD_SELFTEST
 nobase_include_HEADERS+= wolfssl/wolfcrypt/selftest.h
 endif
 
-if BUILD_FIPS_V2
+if BUILD_FIPS
+if !BUILD_FIPS_V1
 nobase_include_HEADERS+= wolfssl/wolfcrypt/fips.h
 endif
-
-if BUILD_FIPS_RAND
-nobase_include_HEADERS+= wolfssl/wolfcrypt/fips.h
 endif
 
 if BUILD_QNXCAAM
@@ -159,4 +170,8 @@ endif
 
 if BUILD_IOTSAFE
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/iotsafe/iotsafe.h
+endif
+
+if BUILD_PSA
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/psa/psa.h
 endif

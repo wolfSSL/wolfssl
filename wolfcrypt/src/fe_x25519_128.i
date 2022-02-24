@@ -1,6 +1,6 @@
 /* fe_x25519_128.i
  *
- * Copyright (C) 2006-2021 wolfSSL Inc.
+ * Copyright (C) 2006-2022 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -17,6 +17,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+ */
+
+/* Generated using (from wolfssl):
+ *   cd ../scripts
+ *   ruby ./x25519/fe_x25519_128_gen.rb > ../wolfssl/wolfcrypt/src/fe_x25519_128.i
  */
 
 void fe_init(void)
@@ -189,34 +194,34 @@ void fe_copy(fe r, const fe a)
 
 /* Constant time, conditional swap of field elements a and b.
  *
- * a  A field element.
- * b  A field element.
- * c  If 1 then swap and if 0 then don't swap.
+ * f  A field element.
+ * g  A field element.
+ * b  If 1 then swap and if 0 then don't swap.
  */
-void fe_cswap(fe a, fe b, int c)
+void fe_cswap(fe f, fe g, int b)
 {
-    sword64 m = c;
+    sword64 m = b;
     sword64 t0, t1, t2, t3, t4;
 
     /* Convert conditional into mask. */
     m = -m;
-    t0 = m & (a[0] ^ b[0]);
-    t1 = m & (a[1] ^ b[1]);
-    t2 = m & (a[2] ^ b[2]);
-    t3 = m & (a[3] ^ b[3]);
-    t4 = m & (a[4] ^ b[4]);
+    t0 = m & (f[0] ^ g[0]);
+    t1 = m & (f[1] ^ g[1]);
+    t2 = m & (f[2] ^ g[2]);
+    t3 = m & (f[3] ^ g[3]);
+    t4 = m & (f[4] ^ g[4]);
 
-    a[0] ^= t0;
-    a[1] ^= t1;
-    a[2] ^= t2;
-    a[3] ^= t3;
-    a[4] ^= t4;
+    f[0] ^= t0;
+    f[1] ^= t1;
+    f[2] ^= t2;
+    f[3] ^= t3;
+    f[4] ^= t4;
 
-    b[0] ^= t0;
-    b[1] ^= t1;
-    b[2] ^= t2;
-    b[3] ^= t3;
-    b[4] ^= t4;
+    g[0] ^= t0;
+    g[1] ^= t1;
+    g[2] ^= t2;
+    g[3] ^= t3;
+    g[4] ^= t4;
 }
 
 /* Subtract b from a into r. (r = a - b)
@@ -501,28 +506,28 @@ void fe_neg(fe r, const fe a)
 /* Constant time, conditional move of b into a.
  * a is not changed if the condition is 0.
  *
- * a  A field element.
- * b  A field element.
- * c  If 1 then copy and if 0 then don't copy.
+ * f  A field element.
+ * g  A field element.
+ * b  If 1 then copy and if 0 then don't copy.
  */
-void fe_cmov(fe a, const fe b, int c)
+void fe_cmov(fe f, const fe g, int b)
 {
-    sword64 m = c;
+    sword64 m = b;
     sword64 t0, t1, t2, t3, t4;
 
     /* Convert conditional into mask. */
     m = -m;
-    t0 = m & (a[0] ^ b[0]);
-    t1 = m & (a[1] ^ b[1]);
-    t2 = m & (a[2] ^ b[2]);
-    t3 = m & (a[3] ^ b[3]);
-    t4 = m & (a[4] ^ b[4]);
+    t0 = m & (f[0] ^ g[0]);
+    t1 = m & (f[1] ^ g[1]);
+    t2 = m & (f[2] ^ g[2]);
+    t3 = m & (f[3] ^ g[3]);
+    t4 = m & (f[4] ^ g[4]);
 
-    a[0] ^= t0;
-    a[1] ^= t1;
-    a[2] ^= t2;
-    a[3] ^= t3;
-    a[4] ^= t4;
+    f[0] ^= t0;
+    f[1] ^= t1;
+    f[2] ^= t2;
+    f[3] ^= t3;
+    f[4] ^= t4;
 }
 
 void fe_pow22523(fe r, const fe a)

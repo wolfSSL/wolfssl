@@ -73,16 +73,16 @@ typedef struct {
 
 WOLFSSL_LOCAL int  ge_compress_key(byte* out, const byte* xIn, const byte* yIn,
                                                                 word32 keySz);
-WOLFSSL_LOCAL int  ge_frombytes_negate_vartime(ge_p3 *,const unsigned char *);
+WOLFSSL_LOCAL int  ge_frombytes_negate_vartime(ge_p3 *h,const unsigned char *s);
 
-WOLFSSL_LOCAL int  ge_double_scalarmult_vartime(ge_p2 *,const unsigned char *,
-                                         const ge_p3 *,const unsigned char *);
-WOLFSSL_LOCAL void ge_scalarmult_base(ge_p3 *,const unsigned char *);
+WOLFSSL_LOCAL int  ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
+                                 const ge_p3 *A, const unsigned char *b);
+WOLFSSL_LOCAL void ge_scalarmult_base(ge_p3 *h,const unsigned char *a);
 WOLFSSL_LOCAL void sc_reduce(byte* s);
 WOLFSSL_LOCAL void sc_muladd(byte* s, const byte* a, const byte* b,
                              const byte* c);
-WOLFSSL_LOCAL void ge_tobytes(unsigned char *,const ge_p2 *);
-WOLFSSL_LOCAL void ge_p3_tobytes(unsigned char *,const ge_p3 *);
+WOLFSSL_LOCAL void ge_tobytes(unsigned char *s,const ge_p2 *h);
+WOLFSSL_LOCAL void ge_p3_tobytes(unsigned char *s,const ge_p3 *h);
 
 
 #ifndef ED25519_SMALL

@@ -119,7 +119,11 @@ int blake2s_init_param( blake2s_state *S, const blake2s_param *P )
 
 int blake2s_init( blake2s_state *S, const byte outlen )
 {
+#ifdef WOLFSSL_BLAKE2S_INIT_EACH_FIELD
   blake2s_param P[1];
+#else
+  volatile blake2s_param P[1];
+#endif
 
   if ( ( !outlen ) || ( outlen > BLAKE2S_OUTBYTES ) ) return BAD_FUNC_ARG;
 
@@ -132,16 +136,15 @@ int blake2s_init( blake2s_state *S, const byte outlen )
   store32( &P->node_offset, 0 );
   P->node_depth    = 0;
   P->inner_length  = 0;
-  XMEMSET( P->reserved, 0, sizeof( P->reserved ) );
   XMEMSET( P->salt,     0, sizeof( P->salt ) );
   XMEMSET( P->personal, 0, sizeof( P->personal ) );
 #else
-  XMEMSET( P, 0, sizeof( *P ) );
+  XMEMSET( (blake2s_param *)P, 0, sizeof( *P ) );
   P->digest_length = outlen;
   P->fanout        = 1;
   P->depth         = 1;
 #endif
-  return blake2s_init_param( S, P );
+  return blake2s_init_param( S, (blake2s_param *)P );
 }
 
 
@@ -149,7 +152,11 @@ int blake2s_init_key( blake2s_state *S, const byte outlen, const void *key,
                       const byte keylen )
 {
   int ret = 0;
+#ifdef WOLFSSL_BLAKE2S_INIT_EACH_FIELD
   blake2s_param P[1];
+#else
+  volatile blake2s_param P[1];
+#endif
 
   if ( ( !outlen ) || ( outlen > BLAKE2S_OUTBYTES ) ) return BAD_FUNC_ARG;
 
@@ -164,18 +171,17 @@ int blake2s_init_key( blake2s_state *S, const byte outlen, const void *key,
   store64( &P->node_offset, 0 );
   P->node_depth    = 0;
   P->inner_length  = 0;
-  XMEMSET( P->reserved, 0, sizeof( P->reserved ) );
   XMEMSET( P->salt,     0, sizeof( P->salt ) );
   XMEMSET( P->personal, 0, sizeof( P->personal ) );
 #else
-  XMEMSET( P, 0, sizeof( *P ) );
+  XMEMSET( (blake2s_param *)P, 0, sizeof( *P ) );
   P->digest_length = outlen;
   P->key_length    = keylen;
   P->fanout        = 1;
   P->depth         = 1;
 #endif
 
-  ret = blake2s_init_param( S, P );
+  ret = blake2s_init_param( S, (blake2s_param *)P );
   if (ret < 0)
       return ret;
 
@@ -227,14 +233,14 @@ static WC_INLINE int blake2s_compress(
   v[15] = S->f[1] ^ blake2s_IV[7];
 #define G(r,i,a,b,c,d) \
   do { \
-    a = a + b + m[blake2s_sigma[r][2*i+0]]; \
-    d = rotr32(d ^ a, 16); \
-    c = c + d; \
-    b = rotr32(b ^ c, 12); \
-    a = a + b + m[blake2s_sigma[r][2*i+1]]; \
-    d = rotr32(d ^ a, 8); \
-    c = c + d; \
-    b = rotr32(b ^ c, 7); \
+      (a) = (a) + (b) + m[blake2s_sigma[r][2*(i)+0]];   \
+      (d) = rotr32((d) ^ (a), 16);                      \
+      (c) = (c) + (d);                                  \
+      (b) = rotr32((b) ^ (c), 12);                      \
+      (a) = (a) + (b) + m[blake2s_sigma[r][2*(i)+1]];   \
+      (d) = rotr32((d) ^ (a), 8);                       \
+      (c) = (c) + (d);                                  \
+      (b) = rotr32((b) ^ (c), 7);                       \
   } while(0)
 #define ROUND(r)  \
   do { \

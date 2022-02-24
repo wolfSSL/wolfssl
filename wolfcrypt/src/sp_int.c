@@ -58,6 +58,7 @@ This library provides single precision (SP) integer math functions.
  * WOLFSSL_SP_4096:             Enable RSA/RH 4096-bit support
  * WOLFSSL_SP_NO_256            Disable ECC 256-bit SECP256R1 support
  * WOLFSSL_SP_384               Enable ECC 384-bit SECP384R1 support
+ * WOLFSSL_SP_521               Enable ECC 521-bit SECP521R1 support
  * WOLFSSL_SP_ASM               Enable assembly speedups (detect platform)
  * WOLFSSL_SP_X86_64_ASM        Enable Intel x64 assembly implementation
  * WOLFSSL_SP_ARM32_ASM         Enable Aarch32 assembly implementation
@@ -67,6 +68,11 @@ This library provides single precision (SP) integer math functions.
  *      (used with -mthumb)
  * WOLFSSL_SP_X86_64            Enable Intel x86 64-bit assembly speedups
  * WOLFSSL_SP_X86               Enable Intel x86 assembly speedups
+ * WOLFSSL_SP_ARM64             Enable Aarch64 assembly speedups
+ * WOLFSSL_SP_ARM32             Enable ARM32 assembly speedups
+ * WOLFSSL_SP_ARM32_UDIV        Enable word divide asm that uses UDIV instr
+ * WOLFSSL_SP_ARM_THUMB         Enable ARM Thumb assembly speedups
+ *                              (explicitly uses register 'r7')
  * WOLFSSL_SP_PPC64             Enable PPC64 assembly speedups
  * WOLFSSL_SP_PPC               Enable PPC assembly speedups
  * WOLFSSL_SP_MIPS64            Enable MIPS64 assembly speedups
@@ -87,6 +93,12 @@ This library provides single precision (SP) integer math functions.
  *                              Used with small code size and not small stack.
  * WOLFSSL_SP_FAST_MODEXP       Allow fast mod_exp with small C code
  */
+
+/* TODO: WOLFSSL_SP_SMALL is incompatible with clang-12+ -Os. */
+#if defined(__clang__) && defined(__clang_major__) && \
+    (__clang_major__ >= 12) && defined(WOLFSSL_SP_SMALL)
+    #undef WOLFSSL_SP_SMALL
+#endif
 
 #include <wolfssl/wolfcrypt/sp_int.h>
 
@@ -116,10 +128,10 @@ This library provides single precision (SP) integer math functions.
     /* Dynamically allocate just enough data to support size. */
     #define ALLOC_SP_INT(n, s, err, h)                                         \
     do {                                                                       \
-        if (err == MP_OKAY) {                                                  \
-            n = (sp_int*)XMALLOC(MP_INT_SIZEOF(s), h, DYNAMIC_TYPE_BIGINT);    \
-            if (n == NULL) {                                                   \
-                err = MP_MEM;                                                  \
+        if ((err) == MP_OKAY) {                                                \
+            (n) = (sp_int*)XMALLOC(MP_INT_SIZEOF(s), (h), DYNAMIC_TYPE_BIGINT); \
+            if ((n) == NULL) {                                                 \
+                (err) = MP_MEM;                                                \
             }                                                                  \
         }                                                                      \
     }                                                                          \
@@ -129,8 +141,8 @@ This library provides single precision (SP) integer math functions.
     #define ALLOC_SP_INT_SIZE(n, s, err, h)                                    \
     do {                                                                       \
         ALLOC_SP_INT(n, s, err, h);                                            \
-        if (err == MP_OKAY) {                                                  \
-            n->size = s;                                                       \
+        if ((err) == MP_OKAY) {                                                \
+            (n)->size = (s);                                                   \
         }                                                                      \
     }                                                                          \
     while (0)
@@ -148,7 +160,7 @@ This library provides single precision (SP) integer math functions.
     /* Free dynamically allocated data. */
     #define FREE_SP_INT(n, h)                   \
     do {                                        \
-        if (n != NULL) {                        \
+        if ((n) != NULL) {                      \
             XFREE(n, h, DYNAMIC_TYPE_BIGINT);   \
         }                                       \
     }                                           \
@@ -165,19 +177,19 @@ This library provides single precision (SP) integer math functions.
     /* Declare a variable that will be assigned a value on XMALLOC. */
     #define DECL_SP_INT_ARRAY(n, s, c)  \
         sp_int* n##d = NULL;            \
-        sp_int* n[c] = { NULL, }
+        sp_int* (n)[c] = { NULL, }
 #else
     #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
         defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
         /* Declare a variable on the stack with the required data size. */
         #define DECL_SP_INT_ARRAY(n, s, c)          \
             byte    n##d[MP_INT_SIZEOF(s) * (c)];   \
-            sp_int* n[c]
+            sp_int* (n)[c]
     #else
         /* Declare a variable on the stack. */
         #define DECL_SP_INT_ARRAY(n, s, c)      \
             sp_int n##d[c];                     \
-            sp_int* n[c]
+            sp_int* (n)[c]
     #endif
 #endif
 
@@ -189,19 +201,19 @@ This library provides single precision (SP) integer math functions.
      */
     #define ALLOC_SP_INT_ARRAY(n, s, c, err, h)                                \
     do {                                                                       \
-        if (err == MP_OKAY) {                                                  \
-            n##d = (sp_int*)XMALLOC(MP_INT_SIZEOF(s) * (c), h,                 \
+        if ((err) == MP_OKAY) {                                                \
+            n##d = (sp_int*)XMALLOC(MP_INT_SIZEOF(s) * (c), (h),               \
                                                          DYNAMIC_TYPE_BIGINT); \
             if (n##d == NULL) {                                                \
-                err = MP_MEM;                                                  \
+                (err) = MP_MEM;                                                \
             }                                                                  \
             else {                                                             \
                 int n##ii;                                                     \
-                n[0] = n##d;                                                   \
-                n[0]->size = s;                                                \
+                (n)[0] = n##d;                                                 \
+                (n)[0]->size = (s);                                            \
                 for (n##ii = 1; n##ii < (c); n##ii++) {                        \
-                    n[n##ii] = MP_INT_NEXT(n[n##ii-1], s);                     \
-                    n[n##ii]->size = s;                                        \
+                    (n)[n##ii] = MP_INT_NEXT((n)[n##ii-1], s);                 \
+                    (n)[n##ii]->size = (s);                                    \
                 }                                                              \
             }                                                                  \
         }                                                                      \
@@ -215,13 +227,13 @@ This library provides single precision (SP) integer math functions.
          */
         #define ALLOC_SP_INT_ARRAY(n, s, c, err, h)                            \
         do {                                                                   \
-            if (err == MP_OKAY) {                                              \
+            if ((err) == MP_OKAY) {                                            \
                 int n##ii;                                                     \
-                n[0] = (sp_int*)n##d;                                          \
-                n[0]->size = s;                                                \
+                (n)[0] = (sp_int*)n##d;                                        \
+                (n)[0]->size = (s);                                            \
                 for (n##ii = 1; n##ii < (c); n##ii++) {                        \
-                    n[n##ii] = MP_INT_NEXT(n[n##ii-1], s);                     \
-                    n[n##ii]->size = s;                                        \
+                    (n)[n##ii] = MP_INT_NEXT((n)[n##ii-1], s);                 \
+                    (n)[n##ii]->size = (s);                                    \
                 }                                                              \
             }                                                                  \
         }                                                                      \
@@ -232,11 +244,11 @@ This library provides single precision (SP) integer math functions.
          */
         #define ALLOC_SP_INT_ARRAY(n, s, c, err, h)                            \
         do {                                                                   \
-            if (err == MP_OKAY) {                                              \
+            if ((err) == MP_OKAY) {                                            \
                 int n##ii;                                                     \
                 for (n##ii = 0; n##ii < (c); n##ii++) {                        \
-                    n[n##ii] = &n##d[n##ii];                                   \
-                    n[n##ii]->size = s;                                        \
+                    (n)[n##ii] = &n##d[n##ii];                                 \
+                    (n)[n##ii]->size = (s);                                    \
                 }                                                              \
             }                                                                  \
         }                                                                      \
@@ -262,7 +274,19 @@ This library provides single precision (SP) integer math functions.
 
 
 #ifndef WOLFSSL_NO_ASM
+    #ifdef __IAR_SYSTEMS_ICC__
+        #define __asm__        asm
+        #define __volatile__   volatile
+    #endif /* __IAR_SYSTEMS_ICC__ */
+    #ifdef __KEIL__
+        #define __asm__        __asm
+        #define __volatile__   volatile
+    #endif
+
     #if defined(WOLFSSL_SP_X86_64) && SP_WORD_SIZE == 64
+/*
+ * CPU: x86_64
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -424,7 +448,7 @@ This library provides single precision (SP) integer math functions.
  * @param  [in]  hi  SP integer digit. High digit of the dividend.
  * @param  [in]  lo  SP integer digit. Lower digit of the dividend.
  * @param  [in]  d   SP integer digit. Number to divide by.
- * @reutrn  The division result.
+ * @return  The division result.
  */
 static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
                                           sp_int_digit d)
@@ -445,6 +469,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     #endif /* WOLFSSL_SP_X86_64 && SP_WORD_SIZE == 64 */
 
     #if defined(WOLFSSL_SP_X86) && SP_WORD_SIZE == 32
+/*
+ * CPU: x86
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -606,7 +633,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
  * @param  [in]  hi  SP integer digit. High digit of the dividend.
  * @param  [in]  lo  SP integer digit. Lower digit of the dividend.
  * @param  [in]  d   SP integer digit. Number to divide by.
- * @reutrn  The division result.
+ * @return  The division result.
  */
 static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
                                           sp_int_digit d)
@@ -627,6 +654,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     #endif /* WOLFSSL_SP_X86 && SP_WORD_SIZE == 32 */
 
     #if defined(WOLFSSL_SP_ARM64) && SP_WORD_SIZE == 64
+/*
+ * CPU: Aarch64
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -766,12 +796,91 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         : "cc"                                           \
     )
 
+#ifndef WOLFSSL_SP_DIV_WORD_HALF
+/* Divide a two digit number by a digit number and return. (hi | lo) / d
+ *
+ * Using udiv instruction on Aarch64.
+ * Constant time.
+ *
+ * @param  [in]  hi  SP integer digit. High digit of the dividend.
+ * @param  [in]  lo  SP integer digit. Lower digit of the dividend.
+ * @param  [in]  d   SP integer digit. Number to divide by.
+ * @return  The division result.
+ */
+static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
+                                          sp_int_digit d)
+{
+    __asm__ __volatile__ (
+        "lsr	x3, %[d], 48\n\t"
+        "mov	x5, 16\n\t"
+        "cmp	x3, 0\n\t"
+        "mov	x4, 63\n\t"
+        "csel	x3, x5, xzr, eq\n\t"
+        "sub	x4, x4, x3\n\t"
+        "lsl	%[d], %[d], x3\n\t"
+        "lsl	%[hi], %[hi], x3\n\t"
+        "lsr	x5, %[lo], x4\n\t"
+        "lsl	%[lo], %[lo], x3\n\t"
+        "orr	%[hi], %[hi], x5, lsr 1\n\t"
+
+        "lsr	x5, %[d], 32\n\t"
+        "add	x5, x5, 1\n\t"
+
+        "udiv	x3, %[hi], x5\n\t"
+        "lsl	x6, x3, 32\n\t"
+        "mul	x4, %[d], x6\n\t"
+        "umulh	x3, %[d], x6\n\t"
+        "subs	%[lo], %[lo], x4\n\t"
+        "sbc	%[hi], %[hi], x3\n\t"
+
+        "udiv	x3, %[hi], x5\n\t"
+        "lsl	x3, x3, 32\n\t"
+        "add	x6, x6, x3\n\t"
+        "mul	x4, %[d], x3\n\t"
+        "umulh	x3, %[d], x3\n\t"
+        "subs	%[lo], %[lo], x4\n\t"
+        "sbc	%[hi], %[hi], x3\n\t"
+
+        "lsr	x3, %[lo], 32\n\t"
+        "orr	x3, x3, %[hi], lsl 32\n\t"
+
+        "udiv	x3, x3, x5\n\t"
+        "add	x6, x6, x3\n\t"
+        "mul	x4, %[d], x3\n\t"
+        "umulh	x3, %[d], x3\n\t"
+        "subs	%[lo], %[lo], x4\n\t"
+        "sbc	%[hi], %[hi], x3\n\t"
+
+        "lsr	x3, %[lo], 32\n\t"
+        "orr	x3, x3, %[hi], lsl 32\n\t"
+
+        "udiv	x3, x3, x5\n\t"
+        "add	x6, x6, x3\n\t"
+        "mul	x4, %[d], x3\n\t"
+        "sub	%[lo], %[lo], x4\n\t"
+
+        "udiv	x3, %[lo], %[d]\n\t"
+        "add	%[hi], x6, x3\n\t"
+
+        : [hi] "+r" (hi), [lo] "+r" (lo), [d] "+r" (d)
+        :
+        : "x3", "x4", "x5", "x6"
+    );
+
+    return hi;
+}
+#define SP_ASM_DIV_WORD
+#endif
+
 #define SP_INT_ASM_AVAILABLE
 
     #endif /* WOLFSSL_SP_ARM64 && SP_WORD_SIZE == 64 */
 
     #if (defined(WOLFSSL_SP_ARM32) || defined(WOLFSSL_SP_ARM_CORTEX_M)) && \
         SP_WORD_SIZE == 32
+/*
+ * CPU: ARM32 or Cortex-M4 and similar
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -897,11 +1006,2025 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         : "cc"                                           \
     )
 
+#ifndef WOLFSSL_SP_DIV_WORD_HALF
+#ifndef WOLFSSL_SP_ARM32_UDIV
+/* Divide a two digit number by a digit number and return. (hi | lo) / d
+ *
+ * No division instruction used - does operation bit by bit.
+ * Constant time.
+ *
+ * @param  [in]  hi  SP integer digit. High digit of the dividend.
+ * @param  [in]  lo  SP integer digit. Lower digit of the dividend.
+ * @param  [in]  d   SP integer digit. Number to divide by.
+ * @return  The division result.
+ */
+static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
+                                          sp_int_digit d)
+{
+    sp_int_digit r = 0;
+
+    __asm__ __volatile__ (
+        "lsrs	r5, %[d], #24\n\t"
+	"it	eq\n\t"
+        "moveq	r5, #8\n\t"
+	"it	ne\n\t"
+        "movne	r5, #0\n\t"
+        "rsb	r6, r5, #31\n\t"
+        "lsl	%[d], %[d], r5\n\t"
+        "lsl	%[hi], %[hi], r5\n\t"
+        "lsr	r7, %[lo], r6\n\t"
+        "lsl	%[lo], %[lo], r5\n\t"
+        "orr	%[hi], %[hi], r7, lsr #1\n\t"
+
+        "lsr	r5, %[d], #1\n\t"
+        "add	r5, r5, #1\n\t"
+        "mov	r6, %[lo]\n\t"
+        "mov	r7, %[hi]\n\t"
+        "# Do top 32\n\t"
+        "subs	r8, r5, r7\n\t"
+        "sbc	r8, r8, r8\n\t"
+        "add	%[r], %[r], %[r]\n\t"
+        "sub	%[r], %[r], r8\n\t"
+        "and	r8, r8, r5\n\t"
+        "subs	r7, r7, r8\n\t"
+        "# Next 30 bits\n\t"
+        "mov	r4, #29\n\t"
+        "1:\n\t"
+        "movs	r6, r6, lsl #1\n\t"
+        "adc	r7, r7, r7\n\t"
+        "subs	r8, r5, r7\n\t"
+        "sbc	r8, r8, r8\n\t"
+        "add	%[r], %[r], %[r]\n\t"
+        "sub	%[r], %[r], r8\n\t"
+        "and	r8, r8, r5\n\t"
+        "subs	r7, r7, r8\n\t"
+        "subs	r4, r4, #1\n\t"
+        "bpl	1b\n\t"
+        "add	%[r], %[r], %[r]\n\t"
+        "add	%[r], %[r], #1\n\t"
+        "umull	r4, r5, %[r], %[d]\n\t"
+        "subs	r4, %[lo], r4\n\t"
+        "sbc	r5, %[hi], r5\n\t"
+        "add	%[r], %[r], r5\n\t"
+        "umull	r4, r5, %[r], %[d]\n\t"
+        "subs	r4, %[lo], r4\n\t"
+        "sbc	r5, %[hi], r5\n\t"
+        "add	%[r], %[r], r5\n\t"
+        "umull	r4, r5, %[r], %[d]\n\t"
+        "subs	r4, %[lo], r4\n\t"
+        "sbc	r5, %[hi], r5\n\t"
+        "add	%[r], %[r], r5\n\t"
+        "subs	r8, %[d], r4\n\t"
+        "sbc	r8, r8, r8\n\t"
+        "sub	%[r], %[r], r8\n\t"
+        : [r] "+r" (r), [hi] "+r" (hi), [lo] "+r" (lo), [d] "+r" (d)
+        :
+        : "r4", "r5", "r6", "r7", "r8"
+    );
+
+    return r;
+}
+#else
+/* Divide a two digit number by a digit number and return. (hi | lo) / d
+ *
+ * Using udiv instruction on arm32
+ * Constant time.
+ *
+ * @param  [in]  hi  SP integer digit. High digit of the dividend.
+ * @param  [in]  lo  SP integer digit. Lower digit of the dividend.
+ * @param  [in]  d   SP integer digit. Number to divide by.
+ * @return  The division result.
+ */
+static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
+                                          sp_int_digit d)
+{
+    __asm__ __volatile__ (
+        "lsrs	r3, %[d], #24\n\t"
+	"it	eq\n\t"
+        "moveq	r3, #8\n\t"
+	"it	ne\n\t"
+        "movne	r3, #0\n\t"
+        "rsb	r4, r3, #31\n\t"
+        "lsl	%[d], %[d], r3\n\t"
+        "lsl	%[hi], %[hi], r3\n\t"
+        "lsr	r5, %[lo], r4\n\t"
+        "lsl	%[lo], %[lo], r3\n\t"
+        "orr	%[hi], %[hi], r5, lsr #1\n\t"
+
+        "lsr	r5, %[d], 16\n\t"
+        "add	r5, r5, 1\n\t"
+
+        "udiv	r3, %[hi], r5\n\t"
+        "lsl	r6, r3, 16\n\t"
+        "umull	r4, r3, %[d], r6\n\t"
+        "subs	%[lo], %[lo], r4\n\t"
+        "sbc	%[hi], %[hi], r3\n\t"
+
+        "udiv	r3, %[hi], r5\n\t"
+        "lsl	r3, r3, 16\n\t"
+        "add	r6, r6, r3\n\t"
+        "umull	r4, r3, %[d], r3\n\t"
+        "subs	%[lo], %[lo], r4\n\t"
+        "sbc	%[hi], %[hi], r3\n\t"
+
+        "lsr	r3, %[lo], 16\n\t"
+        "orr	r3, r3, %[hi], lsl 16\n\t"
+
+        "udiv	r3, r3, r5\n\t"
+        "add	r6, r6, r3\n\t"
+        "umull	r4, r3, %[d], r3\n\t"
+        "subs	%[lo], %[lo], r4\n\t"
+        "sbc	%[hi], %[hi], r3\n\t"
+
+        "lsr	r3, %[lo], 16\n\t"
+        "orr	r3, r3, %[hi], lsl 16\n\t"
+
+        "udiv	r3, r3, r5\n\t"
+        "add	r6, r6, r3\n\t"
+        "mul	r4, %[d], r3\n\t"
+        "sub	%[lo], %[lo], r4\n\t"
+
+        "udiv	r3, %[lo], %[d]\n\t"
+        "add	%[hi], r6, r3\n\t"
+
+        : [hi] "+r" (hi), [lo] "+r" (lo), [d] "+r" (d)
+        :
+        : "r3", "r4", "r5", "r6"
+    );
+
+    return hi;
+}
+#endif
+
+#define SP_ASM_DIV_WORD
+#endif
+
 #define SP_INT_ASM_AVAILABLE
 
     #endif /* (WOLFSSL_SP_ARM32 || ARM_CORTEX_M) && SP_WORD_SIZE == 32 */
 
+    #if defined(WOLFSSL_SP_ARM_THUMB) && SP_WORD_SIZE == 32
+/*
+ * CPU: ARM Thumb (like Cortex-M0)
+ */
+
+/* Compile with -fomit-frame-pointer, or similar, if compiler complains about
+ * usage of register 'r7'.
+ */
+
+#if defined(__clang__)
+
+/* Multiply va by vb and store double size result in: vh | vl */
+#define SP_ASM_MUL(vl, vh, va, vb)                       \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	%[l], %[b]		\n\t"            \
+        "muls	%[l], r6		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r4, %[b], #16		\n\t"            \
+        "muls	r6, r4			\n\t"            \
+        "lsrs	%[h], r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "muls	r4, r6			\n\t"            \
+        "adds	%[h], %[h], r4		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r4, %[b]		\n\t"            \
+        "muls	r6, r4			\n\t"            \
+        "lsrs	r4, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r4		\n\t"            \
+        : [h] "+l" (vh), [l] "+l" (vl)                   \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r4", "r5", "r6", "cc"                         \
+    )
+/* Multiply va by vb and store double size result in: vo | vh | vl */
+#define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	%[l], %[b]		\n\t"            \
+        "muls	%[l], r6		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	%[h], r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "movs	%[o], #0		\n\t"            \
+        "adcs	%[h], %[o]		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "muls	r7, r6			\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r6", "r7", "cc"                               \
+    )
+#ifndef WOLFSSL_SP_SMALL
+/* Multiply va by vb and add double size result into: vo | vh | vl */
+#define SP_ASM_MUL_ADD(vl, vh, vo, va, vb)               \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r7, r6			\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r7, r6			\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+#else
+/* Multiply va by vb and add double size result into: vo | vh | vl */
+#define SP_ASM_MUL_ADD(vl, vh, vo, va, vb)               \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r5, %[b]		\n\t"            \
+        "muls	r5, r6			\n\t"            \
+        "adds	%[l], %[l], r5		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r5, %[b], #16		\n\t"            \
+        "muls	r6, r5			\n\t"            \
+        "lsrs	r5, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r5, %[b], #16		\n\t"            \
+        "muls	r5, r6			\n\t"            \
+        "adds	%[h], %[h], r5		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r5, %[b]		\n\t"            \
+        "muls	r6, r5			\n\t"            \
+        "lsrs	r5, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "cc"                               \
+    )
+#endif
+/* Multiply va by vb and add double size result into: vh | vl */
+#define SP_ASM_MUL_ADD_NO(vl, vh, va, vb)                \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r4, %[b]		\n\t"            \
+        "muls	r4, r6			\n\t"            \
+        "adds	%[l], %[l], r4		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r4, %[b], #16		\n\t"            \
+        "muls	r6, r4			\n\t"            \
+        "lsrs	r4, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r4		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r4, %[b], #16		\n\t"            \
+        "muls	r4, r6			\n\t"            \
+        "adds	%[h], %[h], r4		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r4, %[b]		\n\t"            \
+        "muls	r6, r4			\n\t"            \
+        "lsrs	r4, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r4		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r4", "r5", "r6", "cc"                         \
+    )
+#ifndef WOLFSSL_SP_SMALL
+/* Multiply va by vb and add double size result twice into: vo | vh | vl */
+#define SP_ASM_MUL_ADD2(vl, vh, vo, va, vb)              \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r7, r6			\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r7, r6			\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+#else
+/* Multiply va by vb and add double size result twice into: vo | vh | vl */
+#define SP_ASM_MUL_ADD2(vl, vh, vo, va, vb)              \
+    __asm__ __volatile__ (                               \
+        "movs	r8, %[a]		\n\t"            \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r5, %[b]		\n\t"            \
+        "muls	r5, r6			\n\t"            \
+        "adds	%[l], %[l], r5		\n\t"            \
+        "movs	%[a], #0		\n\t"            \
+        "adcs	%[h], %[a]		\n\t"            \
+        "adcs	%[o], %[a]		\n\t"            \
+        "adds	%[l], %[l], r5		\n\t"            \
+        "adcs	%[h], %[a]		\n\t"            \
+        "adcs	%[o], %[a]		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r5, %[b], #16		\n\t"            \
+        "muls	r6, r5			\n\t"            \
+        "lsrs	r5, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        "adcs	%[o], %[a]		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        "adcs	%[o], %[a]		\n\t"            \
+        /* ah * bh */                                    \
+        "movs	%[a], r8		\n\t"            \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r5, %[b], #16		\n\t"            \
+        "muls	r5, r6			\n\t"            \
+        "adds	%[h], %[h], r5		\n\t"            \
+        "movs	%[a], #0		\n\t"            \
+        "adcs	%[o], %[a]		\n\t"            \
+        "adds	%[h], %[h], r5		\n\t"            \
+        "adcs	%[o], %[a]		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r5, %[b]		\n\t"            \
+        "muls	r6, r5			\n\t"            \
+        "lsrs	r5, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        "adcs	%[o], %[a]		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        "adcs	%[o], %[a]		\n\t"            \
+        "movs	%[a], r8		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r8", "cc"                         \
+    )
+#endif
+/* Multiply va by vb and add double size result twice into: vo | vh | vl
+ * Assumes first add will not overflow vh | vl
+ */
+#define SP_ASM_MUL_ADD2_NO(vl, vh, vo, va, vb)           \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r7, r6			\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r7, r6			\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Square va and store double size result in: vh | vl */
+#define SP_ASM_SQR(vl, vh, va)                           \
+    __asm__ __volatile__ (                               \
+        "lsrs	r5, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        "mov	%[l], r6		\n\t"            \
+        "mov	%[h], r5		\n\t"            \
+        /* al * al */                                    \
+        "muls	%[l], %[l]		\n\t"            \
+        /* ah * ah */                                    \
+        "muls	%[h], %[h]		\n\t"            \
+        /* 2 * al * ah */                                \
+        "muls	r6, r5			\n\t"            \
+        "lsrs	r5, r6, #15		\n\t"            \
+        "lsls	r6, r6, #17		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        : [h] "+l" (vh), [l] "+l" (vl)                   \
+        : [a] "l" (va)                                   \
+        : "r5", "r6", "cc"                               \
+    )
+/* Square va and add double size result into: vo | vh | vl */
+#define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
+    __asm__ __volatile__ (                               \
+        "lsrs	r4, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* al * al */                                    \
+        "muls	r6, r6			\n\t"            \
+        /* ah * ah */                                    \
+        "muls	r4, r4			\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r4		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        "lsrs	r4, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* 2 * al * ah */                                \
+        "muls	r6, r4			\n\t"            \
+        "lsrs	r4, r6, #15		\n\t"            \
+        "lsls	r6, r6, #17		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r4		\n\t"            \
+        "adcs	%[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va)                                   \
+        : "r4", "r5", "r6", "cc"                         \
+    )
+/* Square va and add double size result into: vh | vl */
+#define SP_ASM_SQR_ADD_NO(vl, vh, va)                    \
+    __asm__ __volatile__ (                               \
+        "lsrs	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* al * al */                                    \
+        "muls	r6, r6			\n\t"            \
+        /* ah * ah */                                    \
+        "muls	r7, r7			\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        "lsrs	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* 2 * al * ah */                                \
+        "muls	r6, r7			\n\t"            \
+        "lsrs	r7, r6, #15		\n\t"            \
+        "lsls	r6, r6, #17		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], r7		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va)                                   \
+        : "r6", "r7", "cc"                               \
+    )
+/* Add va into: vh | vl */
+#define SP_ASM_ADDC(vl, vh, va)                          \
+    __asm__ __volatile__ (                               \
+        "adds	%[l], %[l], %[a]	\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va)                                   \
+        : "r5", "cc"                                     \
+    )
+/* Sub va from: vh | vl */
+#define SP_ASM_SUBC(vl, vh, va)                          \
+    __asm__ __volatile__ (                               \
+        "subs	%[l], %[l], %[a]	\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "sbcs	%[h], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va)                                   \
+        : "r5", "cc"                                     \
+    )
+/* Add two times vc | vb | va into vo | vh | vl */
+#define SP_ASM_ADD_DBL_3(vl, vh, vo, va, vb, vc)         \
+    __asm__ __volatile__ (                               \
+        "adds	%[l], %[l], %[a]	\n\t"            \
+        "adcs	%[h], %[b]		\n\t"            \
+        "adcs	%[o], %[c]		\n\t"            \
+        "adds	%[l], %[l], %[a]	\n\t"            \
+        "adcs	%[h], %[b]		\n\t"            \
+        "adcs	%[o], %[c]		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb), [c] "l" (vc)       \
+        : "cc"                                           \
+    )
+
+#elif defined(WOLFSSL_KEIL)
+
+/* Multiply va by vb and store double size result in: vh | vl */
+#define SP_ASM_MUL(vl, vh, va, vb)                       \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	%[l], %[b]		\n\t"            \
+        "muls	%[l], r6, %[l]		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r4, %[b], #16		\n\t"            \
+        "muls	r6, r4, r6		\n\t"            \
+        "lsrs	%[h], r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "muls	r4, r6, r4		\n\t"            \
+        "adds	%[h], %[h], r4		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r4, %[b]		\n\t"            \
+        "muls	r6, r4, r6		\n\t"            \
+        "lsrs	r4, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r4		\n\t"            \
+        : [h] "+l" (vh), [l] "+l" (vl)                   \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r4", "r5", "r6", "cc"                         \
+    )
+/* Multiply va by vb and store double size result in: vo | vh | vl */
+#define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	%[l], %[b]		\n\t"            \
+        "muls	%[l], r6, %[l]		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	%[h], r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "movs	%[o], #0		\n\t"            \
+        "adcs	%[h], %[h], %[o]	\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "muls	r7, r6, r7		\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r6", "r7", "cc"                               \
+    )
+#ifndef WOLFSSL_SP_SMALL
+/* Multiply va by vb and add double size result into: vo | vh | vl */
+#define SP_ASM_MUL_ADD(vl, vh, vo, va, vb)               \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r7, r6, r7		\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r7, r6, r7		\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+#else
+#define SP_ASM_MUL_ADD(vl, vh, vo, va, vb)               \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth   r6, %[a]                \n\t"            \
+        "uxth   r5, %[b]                \n\t"            \
+        "muls   r5, r6, r5              \n\t"            \
+        "adds   %[l], %[l], r5          \n\t"            \
+        "movs   r5, #0                  \n\t"            \
+        "adcs   %[h], %[h], r5          \n\t"            \
+        "adcs   %[o], %[o], r5          \n\t"            \
+        /* al * bh */                                    \
+        "lsrs   r5, %[b], #16           \n\t"            \
+        "muls   r6, r5, r6              \n\t"            \
+        "lsrs   r5, r6, #16             \n\t"            \
+        "lsls   r6, r6, #16             \n\t"            \
+        "adds   %[l], %[l], r6          \n\t"            \
+        "adcs   %[h], %[h], r5          \n\t"            \
+        "movs   r5, #0                  \n\t"            \
+        "adcs   %[o], %[o], r5          \n\t"            \
+        /* ah * bh */                                    \
+        "lsrs   r6, %[a], #16           \n\t"            \
+        "lsrs   r5, %[b], #16           \n\t"            \
+        "muls   r5, r6, r5              \n\t"            \
+        "adds   %[h], %[h], r5          \n\t"            \
+        "movs   r5, #0                  \n\t"            \
+        "adcs   %[o], %[o], r5          \n\t"            \
+        /* ah * bl */                                    \
+        "uxth   r5, %[b]                \n\t"            \
+        "muls   r6, r5, r6              \n\t"            \
+        "lsrs   r5, r6, #16             \n\t"            \
+        "lsls   r6, r6, #16             \n\t"            \
+        "adds   %[l], %[l], r6          \n\t"            \
+        "adcs   %[h], %[h], r5          \n\t"            \
+        "movs   r5, #0                  \n\t"            \
+        "adcs   %[o], %[o], r5          \n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "cc"                               \
+    )
+#endif
+/* Multiply va by vb and add double size result into: vh | vl */
+#define SP_ASM_MUL_ADD_NO(vl, vh, va, vb)                \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r4, %[b]		\n\t"            \
+        "muls	r4, r6, r4		\n\t"            \
+        "adds	%[l], %[l], r4		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r4, %[b], #16		\n\t"            \
+        "muls	r6, r4, r6		\n\t"            \
+        "lsrs	r4, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r4		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r4, %[b], #16		\n\t"            \
+        "muls	r4, r6, r4		\n\t"            \
+        "adds	%[h], %[h], r4		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r4, %[b]		\n\t"            \
+        "muls	r6, r4, r6		\n\t"            \
+        "lsrs	r4, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r4		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r4", "r5", "r6", "cc"                         \
+    )
+#ifndef WOLFSSL_SP_SMALL
+/* Multiply va by vb and add double size result twice into: vo | vh | vl */
+#define SP_ASM_MUL_ADD2(vl, vh, vo, va, vb)              \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r7, r6, r7		\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r7, r6, r7		\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+#else
+/* Multiply va by vb and add double size result twice into: vo | vh | vl */
+#define SP_ASM_MUL_ADD2(vl, vh, vo, va, vb)              \
+    __asm__ __volatile__ (                               \
+        "movs	r8, %[a]		\n\t"            \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r5, %[b]		\n\t"            \
+        "muls	r5, r6, r5		\n\t"            \
+        "adds	%[l], %[l], r5		\n\t"            \
+        "movs	%[a], #0		\n\t"            \
+        "adcs	%[h], %[h], %[a]	\n\t"            \
+        "adcs	%[o], %[o], %[a]	\n\t"            \
+        "adds	%[l], %[l], r5		\n\t"            \
+        "adcs	%[h], %[h], %[a]	\n\t"            \
+        "adcs	%[o], %[o], %[a]	\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r5, %[b], #16		\n\t"            \
+        "muls	r6, r5, r6		\n\t"            \
+        "lsrs	r5, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        "adcs	%[o], %[o], %[a]	\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        "adcs	%[o], %[o], %[a]	\n\t"            \
+        /* ah * bh */                                    \
+        "movs	%[a], r8		\n\t"            \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r5, %[b], #16		\n\t"            \
+        "muls	r5, r6, r5		\n\t"            \
+        "adds	%[h], %[h], r5		\n\t"            \
+        "movs	%[a], #0		\n\t"            \
+        "adcs	%[o], %[o], %[a]	\n\t"            \
+        "adds	%[h], %[h], r5		\n\t"            \
+        "adcs	%[o], %[o], %[a]	\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r5, %[b]		\n\t"            \
+        "muls	r6, r5, r6		\n\t"            \
+        "lsrs	r5, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        "adcs	%[o], %[o], %[a]	\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        "adcs	%[o], %[o], %[a]	\n\t"            \
+        "movs	%[a], r8		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r8", "cc"                         \
+    )
+#endif
+/* Multiply va by vb and add double size result twice into: vo | vh | vl
+ * Assumes first add will not overflow vh | vl
+ */
+#define SP_ASM_MUL_ADD2_NO(vl, vh, vo, va, vb)           \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r7, r6, r7		\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        "adds	%[l], %[l], r7		\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsrs	r6, %[a], #16		\n\t"            \
+        "lsrs	r7, %[b], #16		\n\t"            \
+        "muls	r7, r6, r7		\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        "adds	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #16		\n\t"            \
+        "lsls	r6, r6, #16		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Square va and store double size result in: vh | vl */
+#define SP_ASM_SQR(vl, vh, va)                           \
+    __asm__ __volatile__ (                               \
+        "lsrs	r5, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        "mov	%[l], r6		\n\t"            \
+        "mov	%[h], r5		\n\t"            \
+        /* al * al */                                    \
+        "muls	%[l], %[l], %[l]	\n\t"            \
+        /* ah * ah */                                    \
+        "muls	%[h], %[h], %[h]	\n\t"            \
+        /* 2 * al * ah */                                \
+        "muls	r6, r5, r6		\n\t"            \
+        "lsrs	r5, r6, #15		\n\t"            \
+        "lsls	r6, r6, #17		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        : [h] "+l" (vh), [l] "+l" (vl)                   \
+        : [a] "l" (va)                                   \
+        : "r5", "r6", "cc"                               \
+    )
+/* Square va and add double size result into: vo | vh | vl */
+#define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
+    __asm__ __volatile__ (                               \
+        "lsrs	r4, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* al * al */                                    \
+        "muls	r6, r6, r6		\n\t"            \
+        /* ah * ah */                                    \
+        "muls	r4, r4, r4		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r4		\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        "lsrs	r4, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* 2 * al * ah */                                \
+        "muls	r6, r4, r6		\n\t"            \
+        "lsrs	r4, r6, #15		\n\t"            \
+        "lsls	r6, r6, #17		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r4		\n\t"            \
+        "adcs	%[o], %[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va)                                   \
+        : "r4", "r5", "r6", "cc"                         \
+    )
+/* Square va and add double size result into: vh | vl */
+#define SP_ASM_SQR_ADD_NO(vl, vh, va)                    \
+    __asm__ __volatile__ (                               \
+        "lsrs	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* al * al */                                    \
+        "muls	r6, r6, r6		\n\t"            \
+        /* ah * ah */                                    \
+        "muls	r7, r7, r7		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        "lsrs	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* 2 * al * ah */                                \
+        "muls	r6, r7, r6		\n\t"            \
+        "lsrs	r7, r6, #15		\n\t"            \
+        "lsls	r6, r6, #17		\n\t"            \
+        "adds	%[l], %[l], r6		\n\t"            \
+        "adcs	%[h], %[h], r7		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va)                                   \
+        : "r6", "r7", "cc"                               \
+    )
+/* Add va into: vh | vl */
+#define SP_ASM_ADDC(vl, vh, va)                          \
+    __asm__ __volatile__ (                               \
+        "adds	%[l], %[l], %[a]	\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "adcs	%[h], %[h], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va)                                   \
+        : "r5", "cc"                                     \
+    )
+/* Sub va from: vh | vl */
+#define SP_ASM_SUBC(vl, vh, va)                          \
+    __asm__ __volatile__ (                               \
+        "subs	%[l], %[l], %[a]	\n\t"            \
+        "movs	r5, #0			\n\t"            \
+        "sbcs	%[h], %[h], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va)                                   \
+        : "r5", "cc"                                     \
+    )
+/* Add two times vc | vb | va into vo | vh | vl */
+#define SP_ASM_ADD_DBL_3(vl, vh, vo, va, vb, vc)         \
+    __asm__ __volatile__ (                               \
+        "adds	%[l], %[l], %[a]	\n\t"            \
+        "adcs	%[h], %[h], %[b]	\n\t"            \
+        "adcs	%[o], %[o], %[c]	\n\t"            \
+        "adds	%[l], %[l], %[a]	\n\t"            \
+        "adcs	%[h], %[h], %[b]	\n\t"            \
+        "adcs	%[o], %[o], %[c]	\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb), [c] "l" (vc)       \
+        : "cc"                                           \
+    )
+
+#elif defined(__GNUC__)
+
+/* Multiply va by vb and store double size result in: vh | vl */
+#define SP_ASM_MUL(vl, vh, va, vb)                       \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	%[l], %[b]		\n\t"            \
+        "mul	%[l], r6		\n\t"            \
+        /* al * bh */                                    \
+        "lsr	r4, %[b], #16		\n\t"            \
+        "mul	r6, r4			\n\t"            \
+        "lsr	%[h], r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "mov	r5, #0			\n\t"            \
+        "adc	%[h], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsr	r6, %[a], #16		\n\t"            \
+        "mul	r4, r6			\n\t"            \
+        "add	%[h], %[h], r4		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r4, %[b]		\n\t"            \
+        "mul	r6, r4			\n\t"            \
+        "lsr	r4, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r4		\n\t"            \
+        : [h] "+l" (vh), [l] "+l" (vl)                   \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r4", "r5", "r6", "cc"                         \
+    )
+/* Multiply va by vb and store double size result in: vo | vh | vl */
+#define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	%[l], %[b]		\n\t"            \
+        "mul	%[l], r6		\n\t"            \
+        /* al * bh */                                    \
+        "lsr	r7, %[b], #16		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	%[h], r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "mov	%[o], #0		\n\t"            \
+        "adc	%[h], %[o]		\n\t"            \
+        /* ah * bh */                                    \
+        "lsr	r6, %[a], #16		\n\t"            \
+        "mul	r7, r6			\n\t"            \
+        "add	%[h], %[h], r7		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r6", "r7", "cc"                               \
+    )
+#ifndef WOLFSSL_SP_SMALL
+/* Multiply va by vb and add double size result into: vo | vh | vl */
+#define SP_ASM_MUL_ADD(vl, vh, vo, va, vb)               \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "mul	r7, r6			\n\t"            \
+        "add	%[l], %[l], r7		\n\t"            \
+        "mov	r5, #0			\n\t"            \
+        "adc	%[h], r5		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsr	r7, %[b], #16		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsr	r6, %[a], #16		\n\t"            \
+        "lsr	r7, %[b], #16		\n\t"            \
+        "mul	r7, r6			\n\t"            \
+        "add	%[h], %[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+#else
+/* Multiply va by vb and add double size result into: vo | vh | vl */
+#define SP_ASM_MUL_ADD(vl, vh, vo, va, vb)               \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth   r6, %[a]                \n\t"            \
+        "uxth   r5, %[b]                \n\t"            \
+        "mul    r5, r6                  \n\t"            \
+        "add    %[l], %[l], r5          \n\t"            \
+        "mov    r5, #0                  \n\t"            \
+        "adc    %[h], r5                \n\t"            \
+        "adc    %[o], r5                \n\t"            \
+        /* al * bh */                                    \
+        "lsr    r5, %[b], #16           \n\t"            \
+        "mul    r6, r5                  \n\t"            \
+        "lsr    r5, r6, #16             \n\t"            \
+        "lsl    r6, r6, #16             \n\t"            \
+        "add    %[l], %[l], r6          \n\t"            \
+        "adc    %[h], r5                \n\t"            \
+        "mov    r5, #0                  \n\t"            \
+        "adc    %[o], r5                \n\t"            \
+        /* ah * bh */                                    \
+        "lsr    r6, %[a], #16           \n\t"            \
+        "lsr    r5, %[b], #16           \n\t"            \
+        "mul    r5, r6                  \n\t"            \
+        "add    %[h], %[h], r5          \n\t"            \
+        "mov    r5, #0                  \n\t"            \
+        "adc    %[o], r5                \n\t"            \
+        /* ah * bl */                                    \
+        "uxth   r5, %[b]                \n\t"            \
+        "mul    r6, r5                  \n\t"            \
+        "lsr    r5, r6, #16             \n\t"            \
+        "lsl    r6, r6, #16             \n\t"            \
+        "add    %[l], %[l], r6          \n\t"            \
+        "adc    %[h], r5                \n\t"            \
+        "mov    r5, #0                  \n\t"            \
+        "adc    %[o], r5                \n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "cc"                               \
+    )
+#endif
+/* Multiply va by vb and add double size result into: vh | vl */
+#define SP_ASM_MUL_ADD_NO(vl, vh, va, vb)                \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r4, %[b]		\n\t"            \
+        "mul	r4, r6			\n\t"            \
+        "add	%[l], %[l], r4		\n\t"            \
+        "mov	r5, #0			\n\t"            \
+        "adc	%[h], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsr	r4, %[b], #16		\n\t"            \
+        "mul	r6, r4			\n\t"            \
+        "lsr	r4, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r4		\n\t"            \
+        /* ah * bh */                                    \
+        "lsr	r6, %[a], #16		\n\t"            \
+        "lsr	r4, %[b], #16		\n\t"            \
+        "mul	r4, r6			\n\t"            \
+        "add	%[h], %[h], r4		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r4, %[b]		\n\t"            \
+        "mul	r6, r4			\n\t"            \
+        "lsr	r4, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r4		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r4", "r5", "r6", "cc"                         \
+    )
+#ifndef WOLFSSL_SP_SMALL
+/* Multiply va by vb and add double size result twice into: vo | vh | vl */
+#define SP_ASM_MUL_ADD2(vl, vh, vo, va, vb)              \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "mul	r7, r6			\n\t"            \
+        "add	%[l], %[l], r7		\n\t"            \
+        "mov	r5, #0			\n\t"            \
+        "adc	%[h], r5		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        "add	%[l], %[l], r7		\n\t"            \
+        "adc	%[h], r5		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsr	r7, %[b], #16		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsr	r6, %[a], #16		\n\t"            \
+        "lsr	r7, %[b], #16		\n\t"            \
+        "mul	r7, r6			\n\t"            \
+        "add	%[h], %[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        "add	%[h], %[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+#else
+/* Multiply va by vb and add double size result twice into: vo | vh | vl */
+#define SP_ASM_MUL_ADD2(vl, vh, vo, va, vb)              \
+    __asm__ __volatile__ (                               \
+        "mov    r8, %[a]                \n\t"            \
+        /* al * bl */                                    \
+        "uxth   r6, %[a]                \n\t"            \
+        "uxth   r5, %[b]                \n\t"            \
+        "mul    r5, r6                  \n\t"            \
+        "add    %[l], %[l], r5          \n\t"            \
+        "mov    %[a], #0                \n\t"            \
+        "adc    %[h], %[a]              \n\t"            \
+        "adc    %[o], %[a]              \n\t"            \
+        "add    %[l], %[l], r5          \n\t"            \
+        "adc    %[h], %[a]              \n\t"            \
+        "adc    %[o], %[a]              \n\t"            \
+        /* al * bh */                                    \
+        "lsr    r5, %[b], #16           \n\t"            \
+        "mul    r6, r5                  \n\t"            \
+        "lsr    r5, r6, #16             \n\t"            \
+        "lsl    r6, r6, #16             \n\t"            \
+        "add    %[l], %[l], r6          \n\t"            \
+        "adc    %[h], r5                \n\t"            \
+        "adc    %[o], %[a]              \n\t"            \
+        "add    %[l], %[l], r6          \n\t"            \
+        "adc    %[h], r5                \n\t"            \
+        "adc    %[o], %[a]              \n\t"            \
+        /* ah * bh */                                    \
+        "mov    %[a], r8                \n\t"            \
+        "lsr    r6, %[a], #16           \n\t"            \
+        "lsr    r5, %[b], #16           \n\t"            \
+        "mul    r5, r6                  \n\t"            \
+        "add    %[h], %[h], r5          \n\t"            \
+        "mov    %[a], #0                \n\t"            \
+        "adc    %[o], %[a]              \n\t"            \
+        "add    %[h], %[h], r5          \n\t"            \
+        "adc    %[o], %[a]              \n\t"            \
+        /* ah * bl */                                    \
+        "uxth   r5, %[b]                \n\t"            \
+        "mul    r6, r5                  \n\t"            \
+        "lsr    r5, r6, #16             \n\t"            \
+        "lsl    r6, r6, #16             \n\t"            \
+        "add    %[l], %[l], r6          \n\t"            \
+        "adc    %[h], r5                \n\t"            \
+        "adc    %[o], %[a]              \n\t"            \
+        "add    %[l], %[l], r6          \n\t"            \
+        "adc    %[h], r5                \n\t"            \
+        "adc    %[o], %[a]              \n\t"            \
+        "mov    %[a], r8                \n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r8", "cc"                         \
+    )
+#endif
+/* Multiply va by vb and add double size result twice into: vo | vh | vl
+ * Assumes first add will not overflow vh | vl
+ */
+#define SP_ASM_MUL_ADD2_NO(vl, vh, vo, va, vb)           \
+    __asm__ __volatile__ (                               \
+        /* al * bl */                                    \
+        "uxth	r6, %[a]		\n\t"            \
+        "uxth	r7, %[b]		\n\t"            \
+        "mul	r7, r6			\n\t"            \
+        "add	%[l], %[l], r7		\n\t"            \
+        "mov	r5, #0			\n\t"            \
+        "adc	%[h], r5		\n\t"            \
+        "add	%[l], %[l], r7		\n\t"            \
+        "adc	%[h], r5		\n\t"            \
+        /* al * bh */                                    \
+        "lsr	r7, %[b], #16		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        /* ah * bh */                                    \
+        "lsr	r6, %[a], #16		\n\t"            \
+        "lsr	r7, %[b], #16		\n\t"            \
+        "mul	r7, r6			\n\t"            \
+        "add	%[h], %[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        "add	%[h], %[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        /* ah * bl */                                    \
+        "uxth	r7, %[b]		\n\t"            \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #16		\n\t"            \
+        "lsl	r6, r6, #16		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb)                     \
+        : "r5", "r6", "r7", "cc"                         \
+    )
+/* Square va and store double size result in: vh | vl */
+#define SP_ASM_SQR(vl, vh, va)                           \
+    __asm__ __volatile__ (                               \
+        "lsr	r5, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        "mov	%[l], r6		\n\t"            \
+        "mov	%[h], r5		\n\t"            \
+        /* al * al */                                    \
+        "mul	%[l], %[l]		\n\t"            \
+        /* ah * ah */                                    \
+        "mul	%[h], %[h]		\n\t"            \
+        /* 2 * al * ah */                                \
+        "mul	r6, r5			\n\t"            \
+        "lsr	r5, r6, #15		\n\t"            \
+        "lsl	r6, r6, #17		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r5		\n\t"            \
+        : [h] "+l" (vh), [l] "+l" (vl)                   \
+        : [a] "l" (va)                                   \
+        : "r5", "r6", "cc"                               \
+    )
+/* Square va and add double size result into: vo | vh | vl */
+#define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
+    __asm__ __volatile__ (                               \
+        "lsr	r4, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* al * al */                                    \
+        "mul	r6, r6			\n\t"            \
+        /* ah * ah */                                    \
+        "mul	r4, r4			\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r4		\n\t"            \
+        "mov	r5, #0			\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        "lsr	r4, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* 2 * al * ah */                                \
+        "mul	r6, r4			\n\t"            \
+        "lsr	r4, r6, #15		\n\t"            \
+        "lsl	r6, r6, #17		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r4		\n\t"            \
+        "adc	%[o], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va)                                   \
+        : "r4", "r5", "r6", "cc"                         \
+    )
+/* Square va and add double size result into: vh | vl */
+#define SP_ASM_SQR_ADD_NO(vl, vh, va)                    \
+    __asm__ __volatile__ (                               \
+        "lsr	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* al * al */                                    \
+        "mul	r6, r6			\n\t"            \
+        /* ah * ah */                                    \
+        "mul	r7, r7			\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        "lsr	r7, %[a], #16		\n\t"            \
+        "uxth	r6, %[a]		\n\t"            \
+        /* 2 * al * ah */                                \
+        "mul	r6, r7			\n\t"            \
+        "lsr	r7, r6, #15		\n\t"            \
+        "lsl	r6, r6, #17		\n\t"            \
+        "add	%[l], %[l], r6		\n\t"            \
+        "adc	%[h], r7		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va)                                   \
+        : "r6", "r7", "cc"                               \
+    )
+/* Add va into: vh | vl */
+#define SP_ASM_ADDC(vl, vh, va)                          \
+    __asm__ __volatile__ (                               \
+        "add	%[l], %[l], %[a]	\n\t"            \
+        "mov	r5, #0			\n\t"            \
+        "adc	%[h], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va)                                   \
+        : "r5", "cc"                                     \
+    )
+/* Sub va from: vh | vl */
+#define SP_ASM_SUBC(vl, vh, va)                          \
+    __asm__ __volatile__ (                               \
+        "sub	%[l], %[l], %[a]	\n\t"            \
+        "mov	r5, #0			\n\t"            \
+        "sbc	%[h], r5		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh)                   \
+        : [a] "l" (va)                                   \
+        : "r5", "cc"                                     \
+    )
+/* Add two times vc | vb | va into vo | vh | vl */
+#define SP_ASM_ADD_DBL_3(vl, vh, vo, va, vb, vc)         \
+    __asm__ __volatile__ (                               \
+        "add	%[l], %[l], %[a]	\n\t"            \
+        "adc	%[h], %[b]		\n\t"            \
+        "adc	%[o], %[c]		\n\t"            \
+        "add	%[l], %[l], %[a]	\n\t"            \
+        "adc	%[h], %[b]		\n\t"            \
+        "adc	%[o], %[c]		\n\t"            \
+        : [l] "+l" (vl), [h] "+l" (vh), [o] "+l" (vo)    \
+        : [a] "l" (va), [b] "l" (vb), [c] "l" (vc)       \
+        : "cc"                                           \
+    )
+
+#endif
+
+#ifdef WOLFSSL_SP_DIV_WORD_HALF
+/* Divide a two digit number by a digit number and return. (hi | lo) / d
+ *
+ * No division instruction used - does operation bit by bit.
+ * Constant time.
+ *
+ * @param  [in]  hi  SP integer digit. High digit of the dividend.
+ * @param  [in]  lo  SP integer digit. Lower digit of the dividend.
+ * @param  [in]  d   SP integer digit. Number to divide by.
+ * @return  The division result.
+ */
+static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
+                                          sp_int_digit d)
+{
+    __asm__ __volatile__ (
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs	r3, %[d], #24\n\t"
+#else
+        "lsr	r3, %[d], #24\n\t"
+#endif
+        "beq	2%=f\n\t"
+	"1%=:\n\t"
+        "movs	r3, #0\n\t"
+        "b	3%=f\n\t"
+	"2%=:\n\t"
+        "mov	r3, #8\n\t"
+	"3%=:\n\t"
+        "movs	r4, #31\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs	r4, r4, r3\n\t"
+#else
+        "sub	r4, r4, r3\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsls	%[d], %[d], r3\n\t"
+#else
+        "lsl	%[d], %[d], r3\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsls	%[hi], %[hi], r3\n\t"
+#else
+        "lsl	%[hi], %[hi], r3\n\t"
+#endif
+        "mov	r5, %[lo]\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs	r5, r5, r4\n\t"
+#else
+        "lsr	r5, r5, r4\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsls	%[lo], %[lo], r3\n\t"
+#else
+        "lsl	%[lo], %[lo], r3\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs	r5, r5, #1\n\t"
+#else
+        "lsr	r5, r5, #1\n\t"
+#endif
+#if defined(WOLFSSL_KEIL)
+        "orrs	%[hi], %[hi], r5\n\t"
+#elif defined(__clang__)
+        "orrs	%[hi], r5\n\t"
+#else
+        "orr	%[hi], r5\n\t"
+#endif
+
+        "movs   r3, #0\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r5, %[d], #1\n\t"
+#else
+        "lsr    r5, %[d], #1\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r5, r5, #1\n\t"
+#else
+        "add    r5, r5, #1\n\t"
+#endif
+        "mov    r8, %[lo]\n\t"
+        "mov    r9, %[hi]\n\t"
+        "# Do top 32\n\t"
+        "movs   r6, r5\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   r6, r6, %[hi]\n\t"
+#else
+        "sub    r6, r6, %[hi]\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "sbcs   r6, r6, r6\n\t"
+#elif defined(__clang__)
+        "sbcs   r6, r6\n\t"
+#else
+        "sbc    r6, r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r3, r3, r3\n\t"
+#else
+        "add    r3, r3, r3\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   r3, r3, r6\n\t"
+#else
+        "sub    r3, r3, r6\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "ands   r6, r6, r5\n\t"
+#elif defined(__clang__)
+        "ands   r6, r5\n\t"
+#else
+        "and    r6, r5\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   %[hi], %[hi], r6\n\t"
+#else
+        "sub    %[hi], %[hi], r6\n\t"
+#endif
+        "movs   r4, #29\n\t"
+        "\n"
+    "L_sp_div_word_loop%=:\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsls   %[lo], %[lo], #1\n\t"
+#else
+        "lsl    %[lo], %[lo], #1\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "adcs   %[hi], %[hi], %[hi]\n\t"
+#elif defined(__clang__)
+        "adcs   %[hi], %[hi]\n\t"
+#else
+        "adc    %[hi], %[hi]\n\t"
+#endif
+        "movs   r6, r5\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   r6, r6, %[hi]\n\t"
+#else
+        "sub    r6, r6, %[hi]\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "sbcs   r6, r6, r6\n\t"
+#elif defined(__clang__)
+        "sbcs   r6, r6\n\t"
+#else
+        "sbc    r6, r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r3, r3, r3\n\t"
+#else
+        "add    r3, r3, r3\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   r3, r3, r6\n\t"
+#else
+        "sub    r3, r3, r6\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "ands   r6, r6, r5\n\t"
+#elif defined(__clang__)
+        "ands   r6, r5\n\t"
+#else
+        "and    r6, r5\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   %[hi], %[hi], r6\n\t"
+#else
+        "sub    %[hi], %[hi], r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   r4, r4, #1\n\t"
+#else
+        "sub    r4, r4, #1\n\t"
+#endif
+        "bpl    L_sp_div_word_loop%=\n\t"
+        "movs   r7, #0\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r3, r3, r3\n\t"
+#else
+        "add    r3, r3, r3\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r3, r3, #1\n\t"
+#else
+        "add    r3, r3, #1\n\t"
+#endif
+        "# r * d - Start\n\t"
+        "uxth   %[hi], r3\n\t"
+        "uxth   r4, %[d]\n\t"
+#ifdef WOLFSSL_KEIL
+        "muls   r4, %[hi], r4\n\t"
+#elif defined(__clang__)
+        "muls   r4, %[hi]\n\t"
+#else
+        "mul    r4, %[hi]\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r6, %[d], #16\n\t"
+#else
+        "lsr    r6, %[d], #16\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "muls   %[hi], r6, %[hi]\n\t"
+#elif defined(__clang__)
+        "muls   %[hi], r6\n\t"
+#else
+        "mul    %[hi], r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r5, %[hi], #16\n\t"
+#else
+        "lsr    r5, %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsls   %[hi], %[hi], #16\n\t"
+#else
+        "lsl    %[hi], %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r4, r4, %[hi]\n\t"
+#else
+        "add    r4, r4, %[hi]\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "adcs   r5, r5, r7\n\t"
+#elif defined(__clang__)
+        "adcs   r5, r7\n\t"
+#else
+        "adc    r5, r7\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   %[hi], r3, #16\n\t"
+#else
+        "lsr    %[hi], r3, #16\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "muls   r6, %[hi], r6\n\t"
+#elif defined(__clang__)
+        "muls   r6, %[hi]\n\t"
+#else
+        "mul    r6, %[hi]\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r5, r5, r6\n\t"
+#else
+        "add    r5, r5, r6\n\t"
+#endif
+        "uxth   r6, %[d]\n\t"
+#ifdef WOLFSSL_KEIL
+        "muls   %[hi], r6, %[hi]\n\t"
+#elif defined(__clang__)
+        "muls   %[hi], r6\n\t"
+#else
+        "mul    %[hi], r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r6, %[hi], #16\n\t"
+#else
+        "lsr    r6, %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsls   %[hi], %[hi], #16\n\t"
+#else
+        "lsl    %[hi], %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r4, r4, %[hi]\n\t"
+#else
+        "add    r4, r4, %[hi]\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "adcs   r5, r5, r6\n\t"
+#elif defined(__clang__)
+        "adcs   r5, r6\n\t"
+#else
+        "adc    r5, r6\n\t"
+#endif
+        "# r * d - Done\n\t"
+        "mov    %[hi], r8\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   %[hi], %[hi], r4\n\t"
+#else
+        "sub    %[hi], %[hi], r4\n\t"
+#endif
+        "movs   r4, %[hi]\n\t"
+        "mov    %[hi], r9\n\t"
+#ifdef WOLFSSL_KEIL
+        "sbcs   %[hi], %[hi], r5\n\t"
+#elif defined(__clang__)
+        "sbcs   %[hi], r5\n\t"
+#else
+        "sbc    %[hi], r5\n\t"
+#endif
+        "movs   r5, %[hi]\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r3, r3, r5\n\t"
+#else
+        "add    r3, r3, r5\n\t"
+#endif
+        "# r * d - Start\n\t"
+        "uxth   %[hi], r3\n\t"
+        "uxth   r4, %[d]\n\t"
+#ifdef WOLFSSL_KEIL
+        "muls   r4, %[hi], r4\n\t"
+#elif defined(__clang__)
+        "muls   r4, %[hi]\n\t"
+#else
+        "mul    r4, %[hi]\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r6, %[d], #16\n\t"
+#else
+        "lsr    r6, %[d], #16\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "muls   %[hi], r6, %[hi]\n\t"
+#elif defined(__clang__)
+        "muls   %[hi], r6\n\t"
+#else
+        "mul    %[hi], r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r5, %[hi], #16\n\t"
+#else
+        "lsr    r5, %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsls   %[hi], %[hi], #16\n\t"
+#else
+        "lsl    %[hi], %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r4, r4, %[hi]\n\t"
+#else
+        "add    r4, r4, %[hi]\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "adcs   r5, r5, r7\n\t"
+#elif defined(__clang__)
+        "adcs   r5, r7\n\t"
+#else
+        "adc    r5, r7\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   %[hi], r3, #16\n\t"
+#else
+        "lsr    %[hi], r3, #16\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "muls   r6, %[hi], r6\n\t"
+#elif defined(__clang__)
+        "muls   r6, %[hi]\n\t"
+#else
+        "mul    r6, %[hi]\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r5, r5, r6\n\t"
+#else
+        "add    r5, r5, r6\n\t"
+#endif
+        "uxth   r6, %[d]\n\t"
+#ifdef WOLFSSL_KEIL
+        "muls   %[hi], r6, %[hi]\n\t"
+#elif defined(__clang__)
+        "muls   %[hi], r6\n\t"
+#else
+        "mul    %[hi], r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r6, %[hi], #16\n\t"
+#else
+        "lsr    r6, %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsls   %[hi], %[hi], #16\n\t"
+#else
+        "lsl    %[hi], %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r4, r4, %[hi]\n\t"
+#else
+        "add    r4, r4, %[hi]\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "adcs   r5, r5, r6\n\t"
+#elif defined(__clang__)
+        "adcs   r5, r6\n\t"
+#else
+        "adc    r5, r6\n\t"
+#endif
+        "# r * d - Done\n\t"
+        "mov    %[hi], r8\n\t"
+        "mov    r6, r9\n\t"
+#ifdef WOLFSSL_KEIL
+        "subs   r4, %[hi], r4\n\t"
+#else
+#ifdef __clang__
+        "subs   r4, %[hi], r4\n\t"
+#else
+        "sub    r4, %[hi], r4\n\t"
+#endif
+#endif
+#ifdef WOLFSSL_KEIL
+        "sbcs   r6, r6, r5\n\t"
+#elif defined(__clang__)
+        "sbcs   r6, r5\n\t"
+#else
+        "sbc    r6, r5\n\t"
+#endif
+        "movs   r5, r6\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r3, r3, r5\n\t"
+#else
+        "add    r3, r3, r5\n\t"
+#endif
+        "# r * d - Start\n\t"
+        "uxth   %[hi], r3\n\t"
+        "uxth   r4, %[d]\n\t"
+#ifdef WOLFSSL_KEIL
+        "muls   r4, %[hi], r4\n\t"
+#elif defined(__clang__)
+        "muls   r4, %[hi]\n\t"
+#else
+        "mul    r4, %[hi]\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r6, %[d], #16\n\t"
+#else
+        "lsr    r6, %[d], #16\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "muls   %[hi], r6, %[hi]\n\t"
+#elif defined(__clang__)
+        "muls   %[hi], r6\n\t"
+#else
+        "mul    %[hi], r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r5, %[hi], #16\n\t"
+#else
+        "lsr    r5, %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsls   %[hi], %[hi], #16\n\t"
+#else
+        "lsl    %[hi], %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r4, r4, %[hi]\n\t"
+#else
+        "add    r4, r4, %[hi]\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "adcs   r5, r5, r7\n\t"
+#elif defined(__clang__)
+        "adcs   r5, r7\n\t"
+#else
+        "adc    r5, r7\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   %[hi], r3, #16\n\t"
+#else
+        "lsr    %[hi], r3, #16\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "muls   r6, %[hi], r6\n\t"
+#elif defined(__clang__)
+        "muls   r6, %[hi]\n\t"
+#else
+        "mul    r6, %[hi]\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r5, r5, r6\n\t"
+#else
+        "add    r5, r5, r6\n\t"
+#endif
+        "uxth   r6, %[d]\n\t"
+#ifdef WOLFSSL_KEIL
+        "muls   %[hi], r6, %[hi]\n\t"
+#elif defined(__clang__)
+        "muls   %[hi], r6\n\t"
+#else
+        "mul    %[hi], r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsrs   r6, %[hi], #16\n\t"
+#else
+        "lsr    r6, %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "lsls   %[hi], %[hi], #16\n\t"
+#else
+        "lsl    %[hi], %[hi], #16\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r4, r4, %[hi]\n\t"
+#else
+        "add    r4, r4, %[hi]\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "adcs   r5, r5, r6\n\t"
+#elif defined(__clang__)
+        "adcs   r5, r6\n\t"
+#else
+        "adc    r5, r6\n\t"
+#endif
+        "# r * d - Done\n\t"
+        "mov    %[hi], r8\n\t"
+        "mov    r6, r9\n\t"
+#ifdef WOLFSSL_KEIL
+        "subs   r4, %[hi], r4\n\t"
+#else
+#ifdef __clang__
+        "subs   r4, %[hi], r4\n\t"
+#else
+        "sub    r4, %[hi], r4\n\t"
+#endif
+#endif
+#ifdef WOLFSSL_KEIL
+        "sbcs   r6, r6, r5\n\t"
+#elif defined(__clang__)
+        "sbcs   r6, r5\n\t"
+#else
+        "sbc    r6, r5\n\t"
+#endif
+        "movs   r5, r6\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "adds   r3, r3, r5\n\t"
+#else
+        "add    r3, r3, r5\n\t"
+#endif
+        "movs   r6, %[d]\n\t"
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   r6, r6, r4\n\t"
+#else
+        "sub    r6, r6, r4\n\t"
+#endif
+#ifdef WOLFSSL_KEIL
+        "sbcs   r6, r6, r6\n\t"
+#elif defined(__clang__)
+        "sbcs   r6, r6\n\t"
+#else
+        "sbc    r6, r6\n\t"
+#endif
+#if defined(__clang__) || defined(WOLFSSL_KEIL)
+        "subs   r3, r3, r6\n\t"
+#else
+        "sub    r3, r3, r6\n\t"
+#endif
+        "movs   %[hi], r3\n\t"
+        : [hi] "+l" (hi), [lo] "+l" (lo), [d] "+l" (d)
+        :
+        : "r3", "r4", "r5", "r6", "r7", "r8", "r9"
+    );
+    return (uint32_t)(size_t)hi;
+}
+
+#define SP_ASM_DIV_WORD
+#endif /* !WOLFSSL_SP_DIV_WORD_HALF */
+
+#define SP_INT_ASM_AVAILABLE
+
+    #endif /* WOLFSSL_SP_ARM_THUMB && SP_WORD_SIZE == 32 */
+
     #if defined(WOLFSSL_SP_PPC64) && SP_WORD_SIZE == 64
+/*
+ * CPU: PPC64
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -1046,6 +3169,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     #endif /* WOLFSSL_SP_PPC64 && SP_WORD_SIZE == 64 */
 
     #if defined(WOLFSSL_SP_PPC) && SP_WORD_SIZE == 32
+/*
+ * CPU: PPC 32-bit
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -1190,6 +3316,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     #endif /* WOLFSSL_SP_PPC && SP_WORD_SIZE == 64 */
 
     #if defined(WOLFSSL_SP_MIPS64) && SP_WORD_SIZE == 64
+/*
+ * CPU: MIPS 64-bit
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -1388,6 +3517,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     #endif /* WOLFSSL_SP_MIPS64 && SP_WORD_SIZE == 64 */
 
     #if defined(WOLFSSL_SP_MIPS) && SP_WORD_SIZE == 32
+/*
+ * CPU: MIPS 32-bit
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -1397,7 +3529,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mfhi	%[h]			\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "memory", "$lo", "$hi"                         \
+        : "memory", "%lo", "%hi"                         \
     )
 /* Multiply va by vb and store double size result in: vo | vh | vl */
 #define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
@@ -1408,7 +3540,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "move	%[o], $0		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "=r" (vo)    \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "$lo", "$hi"                                   \
+        : "%lo", "%hi"                                   \
     )
 /* Multiply va by vb and add double size result into: vo | vh | vl */
 #define SP_ASM_MUL_ADD(vl, vh, vo, va, vb)               \
@@ -1426,7 +3558,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addu	%[o], %[o], $12		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "$10", "$11", "$12", "$lo", "$hi"              \
+        : "$10", "$11", "$12", "%lo", "%hi"              \
     )
 /* Multiply va by vb and add double size result into: vh | vl */
 #define SP_ASM_MUL_ADD_NO(vl, vh, va, vb)                \
@@ -1440,7 +3572,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addu	%[h], %[h], $12		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "$10", "$11", "$12", "$lo", "$hi"              \
+        : "$10", "$11", "$12", "%lo", "%hi"              \
     )
 /* Multiply va by vb and add double size result twice into: vo | vh | vl */
 #define SP_ASM_MUL_ADD2(vl, vh, vo, va, vb)              \
@@ -1466,7 +3598,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addu	%[o], %[o], $12		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "$10", "$11", "$12", "$lo", "$hi"              \
+        : "$10", "$11", "$12", "%lo", "%hi"              \
     )
 /* Multiply va by vb and add double size result twice into: vo | vh | vl
  * Assumes first add will not overflow vh | vl
@@ -1490,7 +3622,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addu	%[o], %[o], $12		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "$10", "$11", "$12", "$lo", "$hi"              \
+        : "$10", "$11", "$12", "%lo", "%hi"              \
     )
 /* Square va and store double size result in: vh | vl */
 #define SP_ASM_SQR(vl, vh, va)                           \
@@ -1500,7 +3632,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mfhi	%[h]			\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va)                                   \
-        : "memory", "$lo", "$hi"                         \
+        : "memory", "%lo", "%hi"                         \
     )
 /* Square va and add double size result into: vo | vh | vl */
 #define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
@@ -1518,7 +3650,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addu	%[o], %[o], $12		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
         : [a] "r" (va)                                   \
-        : "$10", "$11", "$12", "$lo", "$hi"              \
+        : "$10", "$11", "$12", "%lo", "%hi"              \
     )
 /* Square va and add double size result into: vh | vl */
 #define SP_ASM_SQR_ADD_NO(vl, vh, va)                    \
@@ -1532,7 +3664,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addu	%[h], %[h], $12		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
         : [a] "r" (va)                                   \
-        : "$10", "$11", "$12", "$lo", "$hi"              \
+        : "$10", "$11", "$12", "%lo", "%hi"              \
     )
 /* Add va into: vh | vl */
 #define SP_ASM_ADDC(vl, vh, va)                          \
@@ -1586,6 +3718,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     #endif /* WOLFSSL_SP_MIPS && SP_WORD_SIZE == 32 */
 
     #if defined(WOLFSSL_SP_RISCV64) && SP_WORD_SIZE == 64
+/*
+ * CPU: RISCV 64-bit
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -1775,6 +3910,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     #endif /* WOLFSSL_SP_RISCV64 && SP_WORD_SIZE == 64 */
 
     #if defined(WOLFSSL_SP_RISCV32) && SP_WORD_SIZE == 32
+/*
+ * CPU: RISCV 32-bit
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -1964,6 +4102,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     #endif /* WOLFSSL_SP_RISCV32 && SP_WORD_SIZE == 32 */
 
     #if defined(WOLFSSL_SP_S390X) && SP_WORD_SIZE == 64
+/*
+ * CPU: Intel s390x
+ */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -2129,6 +4270,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 
 #endif /* !WOLFSSL_NO_ASM */
 
+
 #if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
     !defined(NO_DSA) || !defined(NO_DH) || \
     (defined(HAVE_ECC) && defined(HAVE_COMP_KEY)) || defined(OPENSSL_EXTRA) || \
@@ -2142,6 +4284,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     };
 #endif
 #endif
+
 
 #if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
 
@@ -2165,7 +4308,8 @@ WOLFSSL_LOCAL int sp_ModExp_4096(sp_int* base, sp_int* exp, sp_int* mod,
 } /* extern "C" */
 #endif
 
-#endif
+#endif /* WOLFSSL_HAVE_SP_DH || WOLFSSL_HAVE_SP_RSA */
+
 
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH)
 static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp);
@@ -2588,7 +4732,7 @@ int sp_cmp_mag(sp_int* a, sp_int* b)
 #endif
 
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(HAVE_ECC) || !defined(NO_DSA) || \
-    defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA) || !defined(NO_DH) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
 /* Compare two multi-precision numbers.
  *
@@ -2629,7 +4773,9 @@ static int _sp_cmp(sp_int* a, sp_int* b)
 }
 #endif
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(HAVE_ECC)
+#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    !defined(NO_DSA) || defined(HAVE_ECC) || !defined(NO_DH) || \
+    defined(WOLFSSL_SP_MATH_ALL)
 /* Compare two multi-precision numbers.
  *
  * Pointers are compared such that NULL is less than not NULL.
@@ -2855,7 +5001,7 @@ int sp_set_bit(sp_int* a, int i)
         * WOLFSSL_KEY_GEN || OPENSSL_EXTRA || !NO_RSA */
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(WOLFSSL_KEY_GEN)
+    defined(WOLFSSL_KEY_GEN) || !defined(NO_DH)
 /* Exponentiate 2 to the power of e: a = 2^e
  * This is done by setting the 'e'th bit.
  *
@@ -2880,7 +5026,7 @@ int sp_2expt(sp_int* a, int e)
     return err;
 }
 #endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) ||
-        * WOLFSSL_KEY_GEN */
+        * WOLFSSL_KEY_GEN || !NO_DH */
 
 /**********************
  * Digit/Long functions
@@ -2902,11 +5048,18 @@ int sp_set(sp_int* a, sp_int_digit d)
         err = MP_VAL;
     }
     if (err == MP_OKAY) {
+        /* gcc-11 reports out-of-bounds array access if the byte array backing
+         * the sp_int* is smaller than sizeof(sp_int), as occurs when
+         * WOLFSSL_SP_SMALL.
+         */
+        PRAGMA_GCC_DIAG_PUSH;
+        PRAGMA_GCC("GCC diagnostic ignored \"-Warray-bounds\"");
         a->dp[0] = d;
         a->used = d > 0;
     #ifdef WOLFSSL_SP_INT_NEGATIVE
         a->sign = MP_ZPOS;
     #endif
+        PRAGMA_GCC_DIAG_POP;
     }
 
     return err;
@@ -3037,7 +5190,7 @@ int sp_cmp_d(sp_int* a, sp_int_digit d)
 #endif
 
 #if defined(WOLFSSL_SP_ADD_D) || (defined(WOLFSSL_SP_INT_NEGATIVE) && \
-    defined(WOFLSSL_SP_SUB_D)) || defined(WOLFSSL_SP_READ_RADIX_10)
+    defined(WOLFSSL_SP_SUB_D)) || defined(WOLFSSL_SP_READ_RADIX_10)
 /* Add a one digit number to the multi-precision number.
  *
  * @param  [in]   a  SP integer be added to.
@@ -3084,7 +5237,7 @@ static int _sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
 
     return err;
 }
-#endif /* WOLFSSL_SP_ADD_D || (WOLFSSL_SP_INT_NEGATIVE && WOFLSSL_SP_SUB_D) ||
+#endif /* WOLFSSL_SP_ADD_D || (WOLFSSL_SP_INT_NEGATIVE && WOLFSSL_SP_SUB_D) ||
         * defined(WOLFSSL_SP_READ_RADIX_10) */
 
 #if (defined(WOLFSSL_SP_INT_NEGATIVE) && defined(WOLFSSL_SP_ADD_D)) || \
@@ -3341,7 +5494,7 @@ int sp_mul_d(sp_int* a, sp_int_digit d, sp_int* r)
  * @param  [in]  hi  SP integer digit. High digit of the dividend.
  * @param  [in]  lo  SP integer digit. Lower digit of the dividend.
  * @param  [in]  d   SP integer digit. Number to divide by.
- * @reutrn  The division result.
+ * @return  The division result.
  */
 static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
                                           sp_int_digit d)
@@ -3411,8 +5564,8 @@ static void _sp_div_3(sp_int* a, sp_int* r, sp_int_digit* rem)
     sp_int_word t;
     sp_int_digit tr = 0;
     sp_int_digit tt;
-    static const char sp_r6[6] = { 0, 0, 0, 1, 1, 1 };
-    static const char sp_rem6[6] = { 0, 1, 2, 0, 1, 2 };
+    static const unsigned char sp_r6[6] = { 0, 0, 0, 1, 1, 1 };
+    static const unsigned char sp_rem6[6] = { 0, 1, 2, 0, 1, 2 };
 
     if (r == NULL) {
         for (i = a->used - 1; i >= 0; i--) {
@@ -3649,10 +5802,10 @@ int sp_mod_d(sp_int* a, const sp_int_digit d, sp_int_digit* r)
         err = MP_VAL;
     }
 
-    if (0) {
-        sp_print(a, "a");
-        sp_print_digit(d, "m");
-    }
+#if 0
+    sp_print(a, "a");
+    sp_print_digit(d, "m");
+#endif
 
     if (err == MP_OKAY) {
         /* Check whether d is a power of 2. */
@@ -3696,9 +5849,9 @@ int sp_mod_d(sp_int* a, const sp_int_digit d, sp_int_digit* r)
     #endif
     }
 
-    if (0) {
-        sp_print_digit(*r, "rmod");
-    }
+#if 0
+    sp_print_digit(*r, "rmod");
+#endif
 
     return err;
 }
@@ -3732,10 +5885,10 @@ int sp_div_2_mod_ct(sp_int* a, sp_int* m, sp_int* r)
         sp_int_digit mask;
         int i;
 
-        if (0) {
-            sp_print(a, "a");
-            sp_print(m, "m");
-        }
+    #if 0
+        sp_print(a, "a");
+        sp_print(m, "m");
+    #endif
 
         mask = 0 - (a->dp[0] & 1);
         for (i = 0; i < m->used; i++) {
@@ -3754,9 +5907,9 @@ int sp_div_2_mod_ct(sp_int* a, sp_int* m, sp_int* r)
         sp_clamp(r);
         sp_div_2(r, r);
 
-        if (0) {
-            sp_print(r, "rd2");
-        }
+    #if 0
+        sp_print(r, "rd2");
+    #endif
     }
 
     return err;
@@ -3828,10 +5981,10 @@ static int _sp_add_off(sp_int* a, sp_int* b, sp_int* r, int o)
     int j;
     sp_int_word t = 0;
 
-    if (0) {
-        sp_print(a, "a");
-        sp_print(b, "b");
-    }
+#if 0
+    sp_print(a, "a");
+    sp_print(b, "b");
+#endif
 
 #ifdef SP_MATH_NEED_ADD_OFF
     for (i = 0; (i < o) && (i < a->used); i++) {
@@ -3869,9 +6022,9 @@ static int _sp_add_off(sp_int* a, sp_int* b, sp_int* r, int o)
 
     sp_clamp(r);
 
-    if (0) {
-        sp_print(r, "radd");
-    }
+#if 0
+    sp_print(r, "radd");
+#endif
 
     return MP_OKAY;
 }
@@ -4055,11 +6208,13 @@ int sp_addmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
     }
 
     ALLOC_SP_INT_SIZE(t, used, err, NULL);
-    if (0 && (err == MP_OKAY)) {
+#if 0
+    if (err == MP_OKAY) {
         sp_print(a, "a");
         sp_print(b, "b");
         sp_print(m, "m");
     }
+#endif
 
     if (err == MP_OKAY) {
         err = sp_add(a, b, t);
@@ -4068,9 +6223,11 @@ int sp_addmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
         err = sp_mod(t, m, r);
     }
 
-    if (0 && (err == MP_OKAY)) {
+#if 0
+    if (err == MP_OKAY) {
         sp_print(r, "rma");
     }
+#endif
 
     FREE_SP_INT(t, NULL);
     return err;
@@ -4105,11 +6262,13 @@ int sp_submod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
         err = MP_VAL;
     }
 
-    if (0 && (err == MP_OKAY)) {
+#if 0
+    if (err == MP_OKAY) {
         sp_print(a, "a");
         sp_print(b, "b");
         sp_print(m, "m");
     }
+#endif
 
     ALLOC_SP_INT_ARRAY(t, used, 2, err, NULL);
     if (err == MP_OKAY) {
@@ -4136,9 +6295,11 @@ int sp_submod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
         }
     }
 
-    if (0 && (err == MP_OKAY)) {
+#if 0
+    if (err == MP_OKAY) {
         sp_print(r, "rms");
     }
+#endif
 
     FREE_SP_INT_ARRAY(t, NULL);
     return err;
@@ -4154,11 +6315,13 @@ int sp_submod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
         err = MP_VAL;
     }
 
-    if (0 && (err == MP_OKAY)) {
+#if 0
+    if (err == MP_OKAY) {
         sp_print(a, "a");
         sp_print(b, "b");
         sp_print(m, "m");
     }
+#endif
 
     ALLOC_SP_INT_SIZE(t, used, err, NULL);
     if (err == MP_OKAY) {
@@ -4168,9 +6331,11 @@ int sp_submod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
         err = sp_mod(t, m, r);
     }
 
-    if (0 && (err == MP_OKAY)) {
+#if 0
+    if (err == MP_OKAY) {
         sp_print(r, "rms");
     }
+#endif
 
     FREE_SP_INT(t, NULL);
     return err;
@@ -4179,46 +6344,12 @@ int sp_submod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
 #endif /* WOLFSSL_SP_MATH_ALL */
 
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
-/* Compare two multi-precision numbers.
- *
- * Constant time implementation.
- *
- * @param  [in]  a    SP integer to compare.
- * @param  [in]  b    SP integer to compare.
- * @param  [in]  len  Number of digits to compare.
- *
- * @return  MP_GT when a is greater than b.
- * @return  MP_LT when a is less than b.
- * @return  MP_EQ when a is equals b.
- */
-static int sp_cmp_mag_ct(sp_int* a, sp_int* b, int len)
-{
-    int i;
-    sp_sint_digit r = MP_EQ;
-    sp_int_digit mask = SP_MASK;
-
-    for (i = len - 1; i >= 0; i--) {
-        sp_int_digit am = 0 - (i < a->used);
-        sp_int_digit bm = 0 - (i < b->used);
-        sp_int_digit ad = a->dp[i] & am;
-        sp_int_digit bd = b->dp[i] & bm;
-
-        r |= mask & (ad > bd);
-        mask &= (ad > bd) - 1;
-        r |= mask & (-(ad < bd));
-        mask &= (ad < bd) - 1;
-    }
-
-    return (int)r;
-}
-#endif /* WOLFSSL_SP_MATH_ALL && HAVE_ECC */
-
-#if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
 /* Add two value and reduce: r = (a + b) % m
  *
  * r = a + b (mod m) - constant time (a < m and b < m, a, b and m are positive)
  *
  * Assumes a, b, m and r are not NULL.
+ * m and r must not be the same pointer.
  *
  * @param  [in]   a  SP integer to add.
  * @param  [in]   b  SP integer to add with.
@@ -4230,11 +6361,15 @@ static int sp_cmp_mag_ct(sp_int* a, sp_int* b, int len)
 int sp_addmod_ct(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
-    sp_int_word  w = 0;
+    sp_int_sword w;
+    sp_int_sword s;
     sp_int_digit mask;
     int i;
 
-    if ((r->size < m->used + 1) || (m->used == m->size)) {
+    if (r->size < m->used) {
+        err = MP_VAL;
+    }
+    if ((err == MP_OKAY) && (r == m)) {
         err = MP_VAL;
     }
 
@@ -4245,19 +6380,43 @@ int sp_addmod_ct(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
             sp_print(m, "m");
         }
 
-        _sp_add_off(a, b, r, 0);
-        mask = 0 - (sp_cmp_mag_ct(r, m, m->used + 1) != MP_LT);
+        /* Add a to b into r. Do the subtract of modulus but don't store result.
+         * When subtract result is negative, the overflow will be negative.
+         * Only need to subtract mod when result is positive - overflow is
+         * positive.
+         */
+        w = 0;
+        s = 0;
         for (i = 0; i < m->used; i++) {
-            sp_int_digit mask_r = 0 - (i < r->used);
-            w        += m->dp[i] & mask;
-            w         = (r->dp[i] & mask_r) - w;
-            r->dp[i]  = (sp_int_digit)w;
-            w         = (w >> DIGIT_BIT) & 1;
+            /* Values past 'used' are not initialized. */
+            sp_int_digit mask_a = (sp_int_digit)0 - (i < a->used);
+            sp_int_digit mask_b = (sp_int_digit)0 - (i < b->used);
+
+            w         += a->dp[i] & mask_a;
+            w         += b->dp[i] & mask_b;
+            r->dp[i]   = (sp_int_digit)w;
+            s         += (sp_int_digit)w;
+            s         -= m->dp[i];
+            s        >>= DIGIT_BIT;
+            w        >>= DIGIT_BIT;
         }
-        r->dp[i] = 0;
+        s += (sp_int_digit)w;
+        /* s will be positive when subtracting modulus is needed. */
+        mask = (sp_int_digit)0 - (s >= 0);
+
+        /* Constant time, conditionally, subtract modulus from sum. */
+        w = 0;
+        for (i = 0; i < m->used; i++) {
+            w         += r->dp[i];
+            w         -= m->dp[i] & mask;
+            r->dp[i]   = (sp_int_digit)w;
+            w        >>= DIGIT_BIT;
+        }
+        /* Result will always have digits equal to or less than those in
+         * modulus. */
         r->used = i;
     #ifdef WOLFSSL_SP_INT_NEGATIVE
-        r->sign = a->sign;
+        r->sign = MP_ZPOS;
     #endif /* WOLFSSL_SP_INT_NEGATIVE */
         sp_clamp(r);
 
@@ -4277,6 +6436,7 @@ int sp_addmod_ct(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
  * r = a - b (mod m) - constant time (a < m and b < m, a, b and m are positive)
  *
  * Assumes a, b, m and r are not NULL.
+ * m and r must not be the same pointer.
  *
  * @param  [in]   a  SP integer to subtract from
  * @param  [in]   b  SP integer to subtract.
@@ -4288,11 +6448,14 @@ int sp_addmod_ct(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
 int sp_submod_ct(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
-    sp_int_word  w = 0;
+    sp_int_sword w;
     sp_int_digit mask;
     int i;
 
     if (r->size < m->used + 1) {
+        err = MP_VAL;
+    }
+    if ((err == MP_OKAY) && (r == m)) {
         err = MP_VAL;
     }
 
@@ -4303,23 +6466,34 @@ int sp_submod_ct(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
             sp_print(m, "m");
         }
 
-        mask = 0 - (sp_cmp_mag_ct(a, b, m->used) == MP_LT);
+        /* In constant time, subtract b from a putting result in r. */
+        w = 0;
         for (i = 0; i < m->used; i++) {
-            sp_int_digit mask_a = 0 - (i < a->used);
-            sp_int_digit mask_m = 0 - (i < m->used);
+            /* Values past 'used' are not initialized. */
+            sp_int_digit mask_a = (sp_int_digit)0 - (i < a->used);
+            sp_int_digit mask_b = (sp_int_digit)0 - (i < b->used);
 
-            w         += m->dp[i] & mask_m & mask;
             w         += a->dp[i] & mask_a;
+            w         -= b->dp[i] & mask_b;
             r->dp[i]   = (sp_int_digit)w;
             w        >>= DIGIT_BIT;
         }
-        r->dp[i] = (sp_int_digit)w;
-        r->used = i + 1;
+        /* When w is negative then we need to add modulus to make result
+         * positive. */
+        mask = (sp_int_digit)0 - (w < 0);
+        /* Constant time, conditionally, add modulus to difference. */
+        w = 0;
+        for (i = 0; i < m->used; i++) {
+            w         += r->dp[i];
+            w         += m->dp[i] & mask;
+            r->dp[i]   = (sp_int_digit)w;
+            w        >>= DIGIT_BIT;
+        }
+        r->used = i;
     #ifdef WOLFSSL_SP_INT_NEGATIVE
         r->sign = MP_ZPOS;
     #endif /* WOLFSSL_SP_INT_NEGATIVE */
         sp_clamp(r);
-        _sp_sub_off(r, b, r, 0);
 
         if (0) {
             sp_print(r, "rms");
@@ -4541,11 +6715,17 @@ int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
     if ((err == MP_OKAY) && (rem != NULL) && (rem->size < a->used + 1)) {
         err = MP_VAL;
     }
+    /* May need to shift number being divided left into a new word. */
+    if ((err == MP_OKAY) && (a->used == SP_INT_DIGITS)) {
+        err = MP_VAL;
+    }
 
-    if (0 && (err == MP_OKAY)) {
+#if 0
+    if (err == MP_OKAY) {
         sp_print(a, "a");
         sp_print(d, "b");
     }
+#endif
 
     if (err == MP_OKAY) {
     #ifdef WOLFSSL_SP_INT_NEGATIVE
@@ -4747,7 +6927,8 @@ int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
         }
     }
 
-    if (0 && (err == MP_OKAY)) {
+#if 0
+    if (err == MP_OKAY) {
         if (rem != NULL) {
             sp_print(rem, "rdr");
         }
@@ -4755,6 +6936,7 @@ int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
             sp_print(r, "rdw");
         }
     }
+#endif
 
     FREE_SP_INT_ARRAY(td, NULL);
     return err;
@@ -4828,698 +7010,982 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
  */
 
 #ifdef SQR_MUL_ASM
-    /* Multiply a by b into r where a and b have same no. digits. r = a * b
-     *
-     * Optimised code for when number of digits in a and b are the same.
-     *
-     * @param  [in]   a    SP integer to mulitply.
-     * @param  [in]   b    SP integer to mulitply by.
-     * @param  [out]  r    SP integer to hod reult.
-     *
-     * @return  MP_OKAY otherwise.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_nxn(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        int j;
-        int k;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_digit* t = NULL;
-    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
-        defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
-        sp_int_digit t[a->used * 2];
-    #else
-        sp_int_digit t[SP_INT_DIGITS];
-    #endif
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used * 2), NULL,
-                                    DYNAMIC_TYPE_BIGINT);
-         if (t == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-        if (err == MP_OKAY) {
-            sp_int_digit l, h, o;
-            sp_int_digit* dp;
-
-            h = 0;
-            l = 0;
-            SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
-            t[0] = h;
-            h = 0;
-            o = 0;
-            for (k = 1; k <= a->used - 1; k++) {
-                j = k;
-                dp = a->dp;
-                for (; j >= 0; dp++, j--) {
-                    SP_ASM_MUL_ADD(l, h, o, dp[0], b->dp[j]);
-                }
-                t[k] = l;
-                l = h;
-                h = o;
-                o = 0;
-            }
-            for (; k <= (a->used - 1) * 2; k++) {
-                i = k - (b->used - 1);
-                dp = &b->dp[b->used - 1];
-                for (; i < a->used; i++, dp--) {
-                    SP_ASM_MUL_ADD(l, h, o, a->dp[i], dp[0]);
-                }
-                t[k] = l;
-                l = h;
-                h = o;
-                o = 0;
-            }
-            t[k] = l;
-            r->used = k + 1;
-            XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
-            sp_clamp(r);
-        }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (t != NULL) {
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
-    }
-
-    /* Multiply a by b into r. r = a * b
-     *
-     * @param  [in]   a    SP integer to mulitply.
-     * @param  [in]   b    SP integer to mulitply by.
-     * @param  [out]  r    SP integer to hod reult.
-     *
-     * @return  MP_OKAY otherwise.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        int j;
-        int k;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_digit* t = NULL;
-    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
-        defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
-        sp_int_digit t[a->used + b->used];
-    #else
-        sp_int_digit t[SP_INT_DIGITS];
-    #endif
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used + b->used),
-                                    NULL, DYNAMIC_TYPE_BIGINT);
-         if (t == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-        if (err == MP_OKAY) {
-            sp_int_digit l;
-            sp_int_digit h;
-            sp_int_digit o;
-
-            h = 0;
-            l = 0;
-            SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
-            t[0] = h;
-            h = 0;
-            o = 0;
-            for (k = 1; k <= b->used - 1; k++) {
-                i = 0;
-                j = k;
-                for (; (i < a->used) && (j >= 0); i++, j--) {
-                    SP_ASM_MUL_ADD(l, h, o, a->dp[i], b->dp[j]);
-                }
-                t[k] = l;
-                l = h;
-                h = o;
-                o = 0;
-            }
-            for (; k <= (a->used - 1) + (b->used - 1); k++) {
-                j = b->used - 1;
-                i = k - j;
-                for (; (i < a->used) && (j >= 0); i++, j--) {
-                    SP_ASM_MUL_ADD(l, h, o, a->dp[i], b->dp[j]);
-                }
-                t[k] = l;
-                l = h;
-                h = o;
-                o = 0;
-            }
-            t[k] = l;
-            r->used = k + 1;
-            XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
-            sp_clamp(r);
-        }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (t != NULL) {
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
-    }
+/* Multiply a by b into r where a and b have same no. digits. r = a * b
+ *
+ * Optimised code for when number of digits in a and b are the same.
+ *
+ * @param  [in]   a    SP integer to mulitply.
+ * @param  [in]   b    SP integer to mulitply by.
+ * @param  [out]  r    SP integer to hod reult.
+ *
+ * @return  MP_OKAY otherwise.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_nxn(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    int j;
+    int k;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_digit* t = NULL;
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
+    defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
+    sp_int_digit t[a->used * 2];
 #else
-    /* Multiply a by b into r. r = a * b
-     *
-     * @param  [in]   a    SP integer to mulitply.
-     * @param  [in]   b    SP integer to mulitply by.
-     * @param  [out]  r    SP integer to hod reult.
-     *
-     * @return  MP_OKAY otherwise.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        int j;
-        int k;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_digit* t = NULL;
-    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
-        defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
-        sp_int_digit t[a->used + b->used];
-    #else
-        sp_int_digit t[SP_INT_DIGITS];
-    #endif
+    sp_int_digit t[SP_INT_DIGITS];
+#endif
 
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used + b->used),
-                                    NULL, DYNAMIC_TYPE_BIGINT);
-         if (t == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-        if (err == MP_OKAY) {
-            sp_int_word w;
-            sp_int_word l;
-            sp_int_word h;
-        #ifdef SP_WORD_OVERFLOW
-            sp_int_word o;
-        #endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used * 2), NULL,
+        DYNAMIC_TYPE_BIGINT);
+    if (t == NULL) {
+        err = MP_MEM;
+    }
+#endif
+    if (err == MP_OKAY) {
+        sp_int_digit l, h, o;
+        sp_int_digit* dp;
 
-            w = (sp_int_word)a->dp[0] * b->dp[0];
-            t[0] = (sp_int_digit)w;
-            l = (sp_int_digit)(w >> SP_WORD_SIZE);
-            h = 0;
-        #ifdef SP_WORD_OVERFLOW
+        h = 0;
+        l = 0;
+        SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
+        t[0] = h;
+        h = 0;
+        o = 0;
+        for (k = 1; k <= a->used - 1; k++) {
+            j = k;
+            dp = a->dp;
+            for (; j >= 0; dp++, j--) {
+                SP_ASM_MUL_ADD(l, h, o, dp[0], b->dp[j]);
+            }
+            t[k] = l;
+            l = h;
+            h = o;
             o = 0;
-        #endif
-            for (k = 1; k <= (a->used - 1) + (b->used - 1); k++) {
-                i = k - (b->used - 1);
-                i &= ~(i >> (sizeof(i) * 8 - 1));
-                j = k - i;
-                for (; (i < a->used) && (j >= 0); i++, j--) {
-                    w = (sp_int_word)a->dp[i] * b->dp[j];
-                    l += (sp_int_digit)w;
-                    h += (sp_int_digit)(w >> SP_WORD_SIZE);
-                #ifdef SP_WORD_OVERFLOW
-                    h += (sp_int_digit)(l >> SP_WORD_SIZE);
-                    l &= SP_MASK;
-                    o += (sp_int_digit)(h >> SP_WORD_SIZE);
-                    h &= SP_MASK;
-                #endif
-                }
-                t[k] = (sp_int_digit)l;
-                l >>= SP_WORD_SIZE;
-                l += (sp_int_digit)h;
-                h >>= SP_WORD_SIZE;
+        }
+        for (; k <= (a->used - 1) * 2; k++) {
+            i = k - (b->used - 1);
+            dp = &b->dp[b->used - 1];
+            for (; i < a->used; i++, dp--) {
+                SP_ASM_MUL_ADD(l, h, o, a->dp[i], dp[0]);
+            }
+            t[k] = l;
+            l = h;
+            h = o;
+            o = 0;
+        }
+        t[k] = l;
+        r->used = k + 1;
+        XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
+        sp_clamp(r);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+#endif
+    return err;
+}
+
+/* Multiply a by b into r. r = a * b
+ *
+ * @param  [in]   a    SP integer to mulitply.
+ * @param  [in]   b    SP integer to mulitply by.
+ * @param  [out]  r    SP integer to hod reult.
+ *
+ * @return  MP_OKAY otherwise.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    int j;
+    int k;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_digit* t = NULL;
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
+    defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
+    sp_int_digit t[a->used + b->used];
+#else
+    sp_int_digit t[SP_INT_DIGITS];
+#endif
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used + b->used), NULL,
+        DYNAMIC_TYPE_BIGINT);
+    if (t == NULL) {
+        err = MP_MEM;
+    }
+#endif
+    if (err == MP_OKAY) {
+        sp_int_digit l;
+        sp_int_digit h;
+        sp_int_digit o;
+
+        h = 0;
+        l = 0;
+        SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
+        t[0] = h;
+        h = 0;
+        o = 0;
+        for (k = 1; k <= b->used - 1; k++) {
+            i = 0;
+            j = k;
+            for (; (i < a->used) && (j >= 0); i++, j--) {
+                SP_ASM_MUL_ADD(l, h, o, a->dp[i], b->dp[j]);
+            }
+            t[k] = l;
+            l = h;
+            h = o;
+            o = 0;
+        }
+        for (; k <= (a->used - 1) + (b->used - 1); k++) {
+            j = b->used - 1;
+            i = k - j;
+            for (; (i < a->used) && (j >= 0); i++, j--) {
+                SP_ASM_MUL_ADD(l, h, o, a->dp[i], b->dp[j]);
+            }
+            t[k] = l;
+            l = h;
+            h = o;
+            o = 0;
+        }
+        t[k] = l;
+        r->used = k + 1;
+        XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
+        sp_clamp(r);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+#endif
+    return err;
+}
+#else
+/* Multiply a by b into r. r = a * b
+ *
+ * @param  [in]   a    SP integer to mulitply.
+ * @param  [in]   b    SP integer to mulitply by.
+ * @param  [out]  r    SP integer to hod reult.
+ *
+ * @return  MP_OKAY otherwise.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    int j;
+    int k;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_digit* t = NULL;
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
+    defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
+    sp_int_digit t[a->used + b->used];
+#else
+    sp_int_digit t[SP_INT_DIGITS];
+#endif
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used + b->used), NULL,
+        DYNAMIC_TYPE_BIGINT);
+    if (t == NULL) {
+        err = MP_MEM;
+    }
+#endif
+    if (err == MP_OKAY) {
+        sp_int_word w;
+        sp_int_word l;
+        sp_int_word h;
+    #ifdef SP_WORD_OVERFLOW
+        sp_int_word o;
+    #endif
+
+        w = (sp_int_word)a->dp[0] * b->dp[0];
+        t[0] = (sp_int_digit)w;
+        l = (sp_int_digit)(w >> SP_WORD_SIZE);
+        h = 0;
+    #ifdef SP_WORD_OVERFLOW
+        o = 0;
+    #endif
+        for (k = 1; k <= (a->used - 1) + (b->used - 1); k++) {
+            i = k - (b->used - 1);
+            i &= ~(i >> (sizeof(i) * 8 - 1));
+            j = k - i;
+            for (; (i < a->used) && (j >= 0); i++, j--) {
+                w = (sp_int_word)a->dp[i] * b->dp[j];
+                l += (sp_int_digit)w;
+                h += (sp_int_digit)(w >> SP_WORD_SIZE);
             #ifdef SP_WORD_OVERFLOW
-                h += o & SP_MASK;
-                o >>= SP_WORD_SIZE;
+                h += (sp_int_digit)(l >> SP_WORD_SIZE);
+                l &= SP_MASK;
+                o += (sp_int_digit)(h >> SP_WORD_SIZE);
+                h &= SP_MASK;
             #endif
             }
             t[k] = (sp_int_digit)l;
-            r->used = k + 1;
-            XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
-            sp_clamp(r);
+            l >>= SP_WORD_SIZE;
+            l += (sp_int_digit)h;
+            h >>= SP_WORD_SIZE;
+        #ifdef SP_WORD_OVERFLOW
+            h += o & SP_MASK;
+            o >>= SP_WORD_SIZE;
+        #endif
         }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (t != NULL) {
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
+        t[k] = (sp_int_digit)l;
+        r->used = k + 1;
+        XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
+        sp_clamp(r);
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+#endif
+    return err;
+}
 #endif
 
 #ifndef WOLFSSL_SP_SMALL
 #if !defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC)
 #if SP_WORD_SIZE == 64
 #ifndef SQR_MUL_ASM
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_4(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_word* w = NULL;
-    #else
-        sp_int_word w[16];
-    #endif
-        sp_int_digit* da = a->dp;
-        sp_int_digit* db = b->dp;
+/* Multiply a by b and store in r: r = a * b
+ *
+ * Long-hand implementation.
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_4(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_word* w = NULL;
+#else
+    sp_int_word w[16];
+#endif
+    sp_int_digit* da = a->dp;
+    sp_int_digit* db = b->dp;
 
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         w = (sp_int_word*)XMALLOC(sizeof(sp_int_word) * 16, NULL,
-                                   DYNAMIC_TYPE_BIGINT);
-         if (w == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-
-        if (err == MP_OKAY) {
-            w[0] = (sp_int_word)da[0] * db[0];
-            w[1] = (sp_int_word)da[0] * db[1];
-            w[2] = (sp_int_word)da[1] * db[0];
-            w[3] = (sp_int_word)da[0] * db[2];
-            w[4] = (sp_int_word)da[1] * db[1];
-            w[5] = (sp_int_word)da[2] * db[0];
-            w[6] = (sp_int_word)da[0] * db[3];
-            w[7] = (sp_int_word)da[1] * db[2];
-            w[8] = (sp_int_word)da[2] * db[1];
-            w[9] = (sp_int_word)da[3] * db[0];
-            w[10] = (sp_int_word)da[1] * db[3];
-            w[11] = (sp_int_word)da[2] * db[2];
-            w[12] = (sp_int_word)da[3] * db[1];
-            w[13] = (sp_int_word)da[2] * db[3];
-            w[14] = (sp_int_word)da[3] * db[2];
-            w[15] = (sp_int_word)da[3] * db[3];
-
-            r->dp[0] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[1];
-            w[0] += (sp_int_digit)w[2];
-            r->dp[1] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[1] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[1];
-            w[2] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[2];
-            w[0] += (sp_int_digit)w[3];
-            w[0] += (sp_int_digit)w[4];
-            w[0] += (sp_int_digit)w[5];
-            r->dp[2] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[3] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[3];
-            w[4] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[4];
-            w[5] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[5];
-            w[0] += (sp_int_digit)w[6];
-            w[0] += (sp_int_digit)w[7];
-            w[0] += (sp_int_digit)w[8];
-            w[0] += (sp_int_digit)w[9];
-            r->dp[3] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[6] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[6];
-            w[7] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[7];
-            w[8] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[8];
-            w[9] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[9];
-            w[0] += (sp_int_digit)w[10];
-            w[0] += (sp_int_digit)w[11];
-            w[0] += (sp_int_digit)w[12];
-            r->dp[4] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[10] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[10];
-            w[11] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[11];
-            w[12] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[12];
-            w[0] += (sp_int_digit)w[13];
-            w[0] += (sp_int_digit)w[14];
-            r->dp[5] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[13] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[13];
-            w[14] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[14];
-            w[0] += (sp_int_digit)w[15];
-            r->dp[6] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[15] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[15];
-            r->dp[7] = w[0];
-
-            r->used = 8;
-            sp_clamp(r);
-        }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (w != NULL) {
-            XFREE(w, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    w = (sp_int_word*)XMALLOC(sizeof(sp_int_word) * 16, NULL,
+        DYNAMIC_TYPE_BIGINT);
+    if (w == NULL) {
+        err = MP_MEM;
     }
-#else /* SQR_MUL_ASM */
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_4(sp_int* a, sp_int* b, sp_int* r)
-    {
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit t[4];
+#endif
 
-        SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
-        t[0] = h;
-        h = 0;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
-        t[1] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
-        t[2] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
-        t[3] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
-        r->dp[4] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
-        r->dp[5] = l;
-        l = h;
-        h = o;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[3], b->dp[3]);
-        r->dp[6] = l;
-        r->dp[7] = h;
-        XMEMCPY(r->dp, t, 4 * sizeof(sp_int_digit));
+    if (err == MP_OKAY) {
+        w[0] = (sp_int_word)da[0] * db[0];
+        w[1] = (sp_int_word)da[0] * db[1];
+        w[2] = (sp_int_word)da[1] * db[0];
+        w[3] = (sp_int_word)da[0] * db[2];
+        w[4] = (sp_int_word)da[1] * db[1];
+        w[5] = (sp_int_word)da[2] * db[0];
+        w[6] = (sp_int_word)da[0] * db[3];
+        w[7] = (sp_int_word)da[1] * db[2];
+        w[8] = (sp_int_word)da[2] * db[1];
+        w[9] = (sp_int_word)da[3] * db[0];
+        w[10] = (sp_int_word)da[1] * db[3];
+        w[11] = (sp_int_word)da[2] * db[2];
+        w[12] = (sp_int_word)da[3] * db[1];
+        w[13] = (sp_int_word)da[2] * db[3];
+        w[14] = (sp_int_word)da[3] * db[2];
+        w[15] = (sp_int_word)da[3] * db[3];
+
+        r->dp[0] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[1];
+        w[0] += (sp_int_digit)w[2];
+        r->dp[1] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[1] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[1];
+        w[2] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[2];
+        w[0] += (sp_int_digit)w[3];
+        w[0] += (sp_int_digit)w[4];
+        w[0] += (sp_int_digit)w[5];
+        r->dp[2] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[3] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[3];
+        w[4] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[4];
+        w[5] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[5];
+        w[0] += (sp_int_digit)w[6];
+        w[0] += (sp_int_digit)w[7];
+        w[0] += (sp_int_digit)w[8];
+        w[0] += (sp_int_digit)w[9];
+        r->dp[3] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[6] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[6];
+        w[7] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[7];
+        w[8] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[8];
+        w[9] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[9];
+        w[0] += (sp_int_digit)w[10];
+        w[0] += (sp_int_digit)w[11];
+        w[0] += (sp_int_digit)w[12];
+        r->dp[4] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[10] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[10];
+        w[11] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[11];
+        w[12] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[12];
+        w[0] += (sp_int_digit)w[13];
+        w[0] += (sp_int_digit)w[14];
+        r->dp[5] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[13] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[13];
+        w[14] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[14];
+        w[0] += (sp_int_digit)w[15];
+        r->dp[6] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[15] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[15];
+        r->dp[7] = w[0];
+
         r->used = 8;
         sp_clamp(r);
-
-        return MP_OKAY;
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (w != NULL) {
+        XFREE(w, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+#endif
+    return err;
+}
+#else /* SQR_MUL_ASM */
+/* Multiply a by b and store in r: r = a * b
+ *
+ * Comba implementation.
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_4(sp_int* a, sp_int* b, sp_int* r)
+{
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit t[4];
+
+    SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
+    t[0] = h;
+    h = 0;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
+    t[1] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
+    t[2] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
+    t[3] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
+    r->dp[4] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
+    r->dp[5] = l;
+    l = h;
+    h = o;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[3], b->dp[3]);
+    r->dp[6] = l;
+    r->dp[7] = h;
+    XMEMCPY(r->dp, t, 4 * sizeof(sp_int_digit));
+    r->used = 8;
+    sp_clamp(r);
+
+    return MP_OKAY;
+}
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 64 */
 #if SP_WORD_SIZE == 64
 #ifdef SQR_MUL_ASM
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_6(sp_int* a, sp_int* b, sp_int* r)
-    {
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit t[6];
+/* Multiply a by b and store in r: r = a * b
+ *
+ * Comba implementation.
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_6(sp_int* a, sp_int* b, sp_int* r)
+{
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit t[6];
 
-        SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
-        t[0] = h;
-        h = 0;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
-        t[1] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
-        t[2] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
-        t[3] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[0]);
-        t[4] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[0]);
-        t[5] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[1]);
-        r->dp[6] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[2]);
-        r->dp[7] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[3]);
-        r->dp[8] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[4]);
-        r->dp[9] = l;
-        l = h;
-        h = o;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[5], b->dp[5]);
-        r->dp[10] = l;
-        r->dp[11] = h;
-        XMEMCPY(r->dp, t, 6 * sizeof(sp_int_digit));
-        r->used = 12;
-        sp_clamp(r);
+    SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
+    t[0] = h;
+    h = 0;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
+    t[1] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
+    t[2] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
+    t[3] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[0]);
+    t[4] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[0]);
+    t[5] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[1]);
+    r->dp[6] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[2]);
+    r->dp[7] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[3]);
+    r->dp[8] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[4]);
+    r->dp[9] = l;
+    l = h;
+    h = o;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[5], b->dp[5]);
+    r->dp[10] = l;
+    r->dp[11] = h;
+    XMEMCPY(r->dp, t, 6 * sizeof(sp_int_digit));
+    r->used = 12;
+    sp_clamp(r);
 
-        return MP_OKAY;
-    }
+    return MP_OKAY;
+}
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 64 */
 #if SP_WORD_SIZE == 32
 #ifdef SQR_MUL_ASM
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_8(sp_int* a, sp_int* b, sp_int* r)
-    {
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit t[8];
+/* Multiply a by b and store in r: r = a * b
+ *
+ * Comba implementation.
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_8(sp_int* a, sp_int* b, sp_int* r)
+{
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit t[8];
 
-        SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
-        t[0] = h;
-        h = 0;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
-        t[1] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
-        t[2] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
-        t[3] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[0]);
-        t[4] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[0]);
-        t[5] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[6]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[0]);
-        t[6] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[7]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[6]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[1]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[0]);
-        t[7] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[7]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[6]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[2]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[1]);
-        r->dp[8] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[7]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[6]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[3]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[2]);
-        r->dp[9] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[7]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[6]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[4]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[3]);
-        r->dp[10] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[7]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[6]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[5]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[4]);
-        r->dp[11] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[7]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[6]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[5]);
-        r->dp[12] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[7]);
-        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[6]);
-        r->dp[13] = l;
-        l = h;
-        h = o;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[7], b->dp[7]);
-        r->dp[14] = l;
-        r->dp[15] = h;
-        XMEMCPY(r->dp, t, 8 * sizeof(sp_int_digit));
-        r->used = 16;
-        sp_clamp(r);
+    SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
+    t[0] = h;
+    h = 0;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
+    t[1] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
+    t[2] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
+    t[3] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[0]);
+    t[4] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[0]);
+    t[5] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[0]);
+    t[6] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[0]);
+    t[7] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[1]);
+    r->dp[8] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[2]);
+    r->dp[9] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[3]);
+    r->dp[10] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[4]);
+    r->dp[11] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[5]);
+    r->dp[12] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[6]);
+    r->dp[13] = l;
+    l = h;
+    h = o;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[7], b->dp[7]);
+    r->dp[14] = l;
+    r->dp[15] = h;
+    XMEMCPY(r->dp, t, 8 * sizeof(sp_int_digit));
+    r->used = 16;
+    sp_clamp(r);
 
-        return MP_OKAY;
-    }
+    return MP_OKAY;
+}
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 32 */
 #if SP_WORD_SIZE == 32
 #ifdef SQR_MUL_ASM
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_12(sp_int* a, sp_int* b, sp_int* r)
-    {
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit t[12];
+/* Multiply a by b and store in r: r = a * b
+ *
+ * Comba implementation.
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_12(sp_int* a, sp_int* b, sp_int* r)
+{
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit t[12];
 
+    SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
+    t[0] = h;
+    h = 0;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
+    t[1] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
+    t[2] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
+    t[3] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[0]);
+    t[4] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[0]);
+    t[5] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[0]);
+    t[6] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[0]);
+    t[7] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[0]);
+    t[8] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[0]);
+    t[9] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[0]);
+    t[10] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[1]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[0]);
+    t[11] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[2]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[1]);
+    r->dp[12] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[3]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[2]);
+    r->dp[13] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[4]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[3]);
+    r->dp[14] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[5]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[4]);
+    r->dp[15] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[6]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[5]);
+    r->dp[16] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[7]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[6]);
+    r->dp[17] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[8]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[7]);
+    r->dp[18] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[9]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[8]);
+    r->dp[19] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[10]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[9]);
+    r->dp[20] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[11]);
+    SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[10]);
+    r->dp[21] = l;
+    l = h;
+    h = o;
+    SP_ASM_MUL_ADD_NO(l, h, a->dp[11], b->dp[11]);
+    r->dp[22] = l;
+    r->dp[23] = h;
+    XMEMCPY(r->dp, t, 12 * sizeof(sp_int_digit));
+    r->used = 24;
+    sp_clamp(r);
+
+    return MP_OKAY;
+}
+#endif /* SQR_MUL_ASM */
+#endif /* SP_WORD_SIZE == 32 */
+#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
+
+#if defined(SQR_MUL_ASM) && defined(WOLFSSL_SP_INT_LARGE_COMBA)
+    #if SP_INT_DIGITS >= 32
+/* Multiply a by b and store in r: r = a * b
+ *
+ * Comba implementation.
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_16(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_digit* t = NULL;
+#else
+    sp_int_digit t[16];
+#endif
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+     t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * 16, NULL,
+         DYNAMIC_TYPE_BIGINT);
+     if (t == NULL) {
+         err = MP_MEM;
+     }
+#endif
+    if (err == MP_OKAY) {
         SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
         t[0] = h;
         h = 0;
@@ -5644,6 +8110,7 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[10]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[9]);
@@ -5655,10 +8122,13 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
         SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[3]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[2]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[1]);
-        r->dp[12] = l;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[0]);
+        t[12] = l;
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[10]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[9]);
@@ -5669,10 +8139,15 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
         SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[4]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[3]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[2]);
-        r->dp[13] = l;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[0]);
+        t[13] = l;
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[10]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[9]);
@@ -5682,10 +8157,17 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
         SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[5]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[4]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[3]);
-        r->dp[14] = l;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[0]);
+        t[14] = l;
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[10]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[9]);
@@ -5694,10 +8176,18 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
         SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[6]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[5]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[4]);
-        r->dp[15] = l;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[0]);
+        t[15] = l;
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[10]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[9]);
@@ -5705,1939 +8195,1653 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
         SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[7]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[6]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[1]);
         r->dp[16] = l;
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[10]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[9]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[8]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[7]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[2]);
         r->dp[17] = l;
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[10]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[9]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[8]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[3]);
         r->dp[18] = l;
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[10]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[9]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[4]);
         r->dp[19] = l;
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[10]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[5]);
         r->dp[20] = l;
         l = h;
         h = o;
         o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[12]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[11]);
         SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[6]);
         r->dp[21] = l;
         l = h;
         h = o;
-        SP_ASM_MUL_ADD_NO(l, h, a->dp[11], b->dp[11]);
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[7]);
         r->dp[22] = l;
-        r->dp[23] = h;
-        XMEMCPY(r->dp, t, 12 * sizeof(sp_int_digit));
-        r->used = 24;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[8]);
+        r->dp[23] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[9]);
+        r->dp[24] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[10]);
+        r->dp[25] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[11]);
+        r->dp[26] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[12]);
+        r->dp[27] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[13]);
+        r->dp[28] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[14]);
+        r->dp[29] = l;
+        l = h;
+        h = o;
+        SP_ASM_MUL_ADD_NO(l, h, a->dp[15], b->dp[15]);
+        r->dp[30] = l;
+        r->dp[31] = h;
+        XMEMCPY(r->dp, t, 16 * sizeof(sp_int_digit));
+        r->used = 32;
         sp_clamp(r);
-
-        return MP_OKAY;
     }
-#endif /* SQR_MUL_ASM */
-#endif /* SP_WORD_SIZE == 32 */
-#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
 
-#if defined(SQR_MUL_ASM) && defined(WOLFSSL_SP_INT_LARGE_COMBA)
-    #if SP_INT_DIGITS >= 32
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_16(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_digit* t = NULL;
-    #else
-        sp_int_digit t[16];
-    #endif
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * 16, NULL,
-                                    DYNAMIC_TYPE_BIGINT);
-         if (t == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-        if (err == MP_OKAY) {
-            SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
-            t[0] = h;
-            h = 0;
-            SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
-            t[1] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
-            t[2] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
-            t[3] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[0]);
-            t[4] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[0]);
-            t[5] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[0]);
-            t[6] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[0]);
-            t[7] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[0]);
-            t[8] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[0]);
-            t[9] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[0]);
-            t[10] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[0]);
-            t[11] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[0]);
-            t[12] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[0]);
-            t[13] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[0]);
-            t[14] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[0]);
-            t[15] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[1]);
-            r->dp[16] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[2]);
-            r->dp[17] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[3]);
-            r->dp[18] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[4]);
-            r->dp[19] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[5]);
-            r->dp[20] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[6]);
-            r->dp[21] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[7]);
-            r->dp[22] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[8]);
-            r->dp[23] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[9]);
-            r->dp[24] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[10]);
-            r->dp[25] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[11]);
-            r->dp[26] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[12]);
-            r->dp[27] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[13]);
-            r->dp[28] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[14]);
-            r->dp[29] = l;
-            l = h;
-            h = o;
-            SP_ASM_MUL_ADD_NO(l, h, a->dp[15], b->dp[15]);
-            r->dp[30] = l;
-            r->dp[31] = h;
-            XMEMCPY(r->dp, t, 16 * sizeof(sp_int_digit));
-            r->used = 32;
-            sp_clamp(r);
-        }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (t != NULL) {
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
     }
+#endif
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 32 */
 
     #if SP_INT_DIGITS >= 48
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_24(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_digit* t = NULL;
-    #else
-        sp_int_digit t[24];
-    #endif
+/* Multiply a by b and store in r: r = a * b
+ *
+ * Comba implementation.
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_24(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_digit* t = NULL;
+#else
+    sp_int_digit t[24];
+#endif
 
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * 24, NULL,
-                                    DYNAMIC_TYPE_BIGINT);
-         if (t == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-        if (err == MP_OKAY) {
-            SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
-            t[0] = h;
-            h = 0;
-            SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
-            t[1] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
-            t[2] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
-            t[3] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[0]);
-            t[4] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[0]);
-            t[5] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[0]);
-            t[6] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[0]);
-            t[7] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[0]);
-            t[8] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[0]);
-            t[9] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[0]);
-            t[10] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[0]);
-            t[11] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[0]);
-            t[12] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[0]);
-            t[13] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[0]);
-            t[14] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[0]);
-            t[15] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[0]);
-            t[16] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[0]);
-            t[17] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[0]);
-            t[18] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[0]);
-            t[19] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[0]);
-            t[20] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[0]);
-            t[21] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[0]);
-            t[22] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[1]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[0]);
-            t[23] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[2]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[1]);
-            r->dp[24] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[3]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[2]);
-            r->dp[25] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[4]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[3]);
-            r->dp[26] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[5]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[4]);
-            r->dp[27] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[6]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[5]);
-            r->dp[28] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[7]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[6]);
-            r->dp[29] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[8]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[7]);
-            r->dp[30] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[9]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[8]);
-            r->dp[31] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[10]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[9]);
-            r->dp[32] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[11]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[10]);
-            r->dp[33] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[12]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[11]);
-            r->dp[34] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[13]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[12]);
-            r->dp[35] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[14]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[13]);
-            r->dp[36] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[15]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[14]);
-            r->dp[37] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[16]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[15]);
-            r->dp[38] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[17]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[16]);
-            r->dp[39] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[18]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[17]);
-            r->dp[40] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[19]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[18]);
-            r->dp[41] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[20]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[19]);
-            r->dp[42] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[21]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[20]);
-            r->dp[43] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[22]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[21]);
-            r->dp[44] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[23]);
-            SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[22]);
-            r->dp[45] = l;
-            l = h;
-            h = o;
-            SP_ASM_MUL_ADD_NO(l, h, a->dp[23], b->dp[23]);
-            r->dp[46] = l;
-            r->dp[47] = h;
-            XMEMCPY(r->dp, t, 24 * sizeof(sp_int_digit));
-            r->used = 48;
-            sp_clamp(r);
-        }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (t != NULL) {
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+     t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * 24, NULL,
+         DYNAMIC_TYPE_BIGINT);
+     if (t == NULL) {
+         err = MP_MEM;
+     }
+#endif
+    if (err == MP_OKAY) {
+        SP_ASM_MUL(h, l, a->dp[0], b->dp[0]);
+        t[0] = h;
+        h = 0;
+        SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[0]);
+        t[1] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD_NO(l, h, a->dp[0], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[0]);
+        t[2] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[0]);
+        t[3] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[0]);
+        t[4] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[0]);
+        t[5] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[0]);
+        t[6] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[0]);
+        t[7] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[0]);
+        t[8] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[0]);
+        t[9] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[0]);
+        t[10] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[0]);
+        t[11] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[0]);
+        t[12] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[0]);
+        t[13] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[0]);
+        t[14] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[0]);
+        t[15] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[0]);
+        t[16] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[0]);
+        t[17] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[0]);
+        t[18] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[0]);
+        t[19] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[0]);
+        t[20] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[0]);
+        t[21] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[0]);
+        t[22] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[0], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[1]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[0]);
+        t[23] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[1], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[2]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[1]);
+        r->dp[24] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[2], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[3]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[2]);
+        r->dp[25] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[3], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[4]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[3]);
+        r->dp[26] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[4], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[5]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[4]);
+        r->dp[27] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[5], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[6]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[5]);
+        r->dp[28] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[6], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[7]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[6]);
+        r->dp[29] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[7], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[8]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[7]);
+        r->dp[30] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[8], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[9]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[8]);
+        r->dp[31] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[9], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[10]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[9]);
+        r->dp[32] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[10], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[11]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[10]);
+        r->dp[33] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[11], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[12]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[11]);
+        r->dp[34] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[12], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[13]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[12]);
+        r->dp[35] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[13], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[14]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[13]);
+        r->dp[36] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[14], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[15]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[14]);
+        r->dp[37] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[15], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[16]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[15]);
+        r->dp[38] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[16], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[17]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[16]);
+        r->dp[39] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[17], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[18]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[17]);
+        r->dp[40] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[18], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[19]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[18]);
+        r->dp[41] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[19], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[20]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[19]);
+        r->dp[42] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[20], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[21]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[20]);
+        r->dp[43] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[21], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[22]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[21]);
+        r->dp[44] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD(l, h, o, a->dp[22], b->dp[23]);
+        SP_ASM_MUL_ADD(l, h, o, a->dp[23], b->dp[22]);
+        r->dp[45] = l;
+        l = h;
+        h = o;
+        SP_ASM_MUL_ADD_NO(l, h, a->dp[23], b->dp[23]);
+        r->dp[46] = l;
+        r->dp[47] = h;
+        XMEMCPY(r->dp, t, 24 * sizeof(sp_int_digit));
+        r->used = 48;
+        sp_clamp(r);
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+#endif
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 48 */
 
     #if SP_INT_DIGITS >= 64
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_32(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        sp_int_digit l;
-        sp_int_digit h;
-        sp_int* a1;
-        sp_int* b1;
-        sp_int* z0;
-        sp_int* z1;
-        sp_int* z2;
-        sp_int_digit ca;
-        sp_int_digit cb;
-        DECL_SP_INT_ARRAY(t, 16, 2);
-        DECL_SP_INT_ARRAY(z, 33, 2);
+/* Multiply a by b and store in r: r = a * b
+ *
+ * Karatsuba implementaiton.
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_32(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    sp_int_digit l;
+    sp_int_digit h;
+    sp_int* a1;
+    sp_int* b1;
+    sp_int* z0;
+    sp_int* z1;
+    sp_int* z2;
+    sp_int_digit ca;
+    sp_int_digit cb;
+    DECL_SP_INT_ARRAY(t, 16, 2);
+    DECL_SP_INT_ARRAY(z, 33, 2);
 
-        ALLOC_SP_INT_ARRAY(t, 16, 2, err, NULL);
-        ALLOC_SP_INT_ARRAY(z, 33, 2, err, NULL);
-        if (err == MP_OKAY) {
-            a1 = t[0];
-            b1 = t[1];
-            z1 = z[0];
-            z2 = z[1];
-            z0 = r;
+    ALLOC_SP_INT_ARRAY(t, 16, 2, err, NULL);
+    ALLOC_SP_INT_ARRAY(z, 33, 2, err, NULL);
+    if (err == MP_OKAY) {
+        a1 = t[0];
+        b1 = t[1];
+        z1 = z[0];
+        z2 = z[1];
+        z0 = r;
 
-            XMEMCPY(a1->dp, &a->dp[16], sizeof(sp_int_digit) * 16);
-            a1->used = 16;
-            XMEMCPY(b1->dp, &b->dp[16], sizeof(sp_int_digit) * 16);
-            b1->used = 16;
+        XMEMCPY(a1->dp, &a->dp[16], sizeof(sp_int_digit) * 16);
+        a1->used = 16;
+        XMEMCPY(b1->dp, &b->dp[16], sizeof(sp_int_digit) * 16);
+        b1->used = 16;
 
-            /* z2 = a1 * b1 */
-            err = _sp_mul_16(a1, b1, z2);
-        }
-        if (err == MP_OKAY) {
-            l = a1->dp[0];
-            h = 0;
-            SP_ASM_ADDC(l, h, a->dp[0]);
-            a1->dp[0] = l;
+        /* z2 = a1 * b1 */
+        err = _sp_mul_16(a1, b1, z2);
+    }
+    if (err == MP_OKAY) {
+        l = a1->dp[0];
+        h = 0;
+        SP_ASM_ADDC(l, h, a->dp[0]);
+        a1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 16; i++) {
+            SP_ASM_ADDC(l, h, a1->dp[i]);
+            SP_ASM_ADDC(l, h, a->dp[i]);
+            a1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 16; i++) {
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a->dp[i]);
-                a1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            ca = l;
-            /* b01 = b0 + b1 */
-            l = b1->dp[0];
-            h = 0;
-            SP_ASM_ADDC(l, h, b->dp[0]);
-            b1->dp[0] = l;
+        }
+        ca = l;
+        /* b01 = b0 + b1 */
+        l = b1->dp[0];
+        h = 0;
+        SP_ASM_ADDC(l, h, b->dp[0]);
+        b1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 16; i++) {
+            SP_ASM_ADDC(l, h, b1->dp[i]);
+            SP_ASM_ADDC(l, h, b->dp[i]);
+            b1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 16; i++) {
-                SP_ASM_ADDC(l, h, b1->dp[i]);
-                SP_ASM_ADDC(l, h, b->dp[i]);
-                b1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            cb = l;
+        }
+        cb = l;
 
-            /* z0 = a0 * b0 */
-            err = _sp_mul_16(a, b, z0);
-        }
-        if (err == MP_OKAY) {
-            /* z1 = (a0 + a1) * (b0 + b1) */
-            err = _sp_mul_16(a1, b1, z1);
-        }
-        if (err == MP_OKAY) {
-            /* r = (z2 << 32) + (z1 - z0 - z2) << 16) + z0 */
-            /* r = z0 */
-            /* r += (z1 - z0 - z2) << 16 */
-            z1->dp[32] = ca & cb;
-            l = 0;
-            if (ca) {
-                h = 0;
-                for (i = 0; i < 16; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 16]);
-                    SP_ASM_ADDC(l, h, b1->dp[i]);
-                    z1->dp[i + 16] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[32] += l;
-            l = 0;
-            if (cb) {
-                h = 0;
-                for (i = 0; i < 16; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 16]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    z1->dp[i + 16] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[32] += l;
-            /* z1 = z1 - z0 - z1 */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 32; i++) {
-                l += z1->dp[i];
-                SP_ASM_SUBC(l, h, z0->dp[i]);
-                SP_ASM_SUBC(l, h, z2->dp[i]);
-                z1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            z1->dp[i] += l;
-            /* r += z1 << 16 */
-            l = 0;
+        /* z0 = a0 * b0 */
+        err = _sp_mul_16(a, b, z0);
+    }
+    if (err == MP_OKAY) {
+        /* z1 = (a0 + a1) * (b0 + b1) */
+        err = _sp_mul_16(a1, b1, z1);
+    }
+    if (err == MP_OKAY) {
+        /* r = (z2 << 32) + (z1 - z0 - z2) << 16) + z0 */
+        /* r = z0 */
+        /* r += (z1 - z0 - z2) << 16 */
+        z1->dp[32] = ca & cb;
+        l = 0;
+        if (ca) {
             h = 0;
             for (i = 0; i < 16; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 16]);
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 16] = l;
+                SP_ASM_ADDC(l, h, z1->dp[i + 16]);
+                SP_ASM_ADDC(l, h, b1->dp[i]);
+                z1->dp[i + 16] = l;
                 l = h;
                 h = 0;
             }
-            for (; i < 33; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 16] = l;
-                l = h;
-                h = 0;
-            }
-            /* r += z2 << 32  */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 17; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 32]);
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 32] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 32; i++) {
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 32] = l;
-                l = h;
-                h = 0;
-            }
-            r->used = 64;
-            sp_clamp(r);
         }
-
-        FREE_SP_INT_ARRAY(z, NULL);
-        FREE_SP_INT_ARRAY(t, NULL);
-        return err;
+        z1->dp[32] += l;
+        l = 0;
+        if (cb) {
+            h = 0;
+            for (i = 0; i < 16; i++) {
+                SP_ASM_ADDC(l, h, z1->dp[i + 16]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                z1->dp[i + 16] = l;
+                l = h;
+                h = 0;
+            }
+        }
+        z1->dp[32] += l;
+        /* z1 = z1 - z0 - z1 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 32; i++) {
+            l += z1->dp[i];
+            SP_ASM_SUBC(l, h, z0->dp[i]);
+            SP_ASM_SUBC(l, h, z2->dp[i]);
+            z1->dp[i] = l;
+            l = h;
+            h = 0;
+        }
+        z1->dp[i] += l;
+        /* r += z1 << 16 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 16; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 16]);
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 16] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 33; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 16] = l;
+            l = h;
+            h = 0;
+        }
+        /* r += z2 << 32  */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 17; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 32]);
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 32] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 32; i++) {
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 32] = l;
+            l = h;
+            h = 0;
+        }
+        r->used = 64;
+        sp_clamp(r);
     }
+
+    FREE_SP_INT_ARRAY(z, NULL);
+    FREE_SP_INT_ARRAY(t, NULL);
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 64 */
 
     #if SP_INT_DIGITS >= 96
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_48(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        sp_int_digit l;
-        sp_int_digit h;
-        sp_int* a1;
-        sp_int* b1;
-        sp_int* z0;
-        sp_int* z1;
-        sp_int* z2;
-        sp_int_digit ca;
-        sp_int_digit cb;
-        DECL_SP_INT_ARRAY(t, 24, 2);
-        DECL_SP_INT_ARRAY(z, 49, 2);
+/* Multiply a by b and store in r: r = a * b
+ *
+ * Karatsuba implementaiton.
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_48(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    sp_int_digit l;
+    sp_int_digit h;
+    sp_int* a1;
+    sp_int* b1;
+    sp_int* z0;
+    sp_int* z1;
+    sp_int* z2;
+    sp_int_digit ca;
+    sp_int_digit cb;
+    DECL_SP_INT_ARRAY(t, 24, 2);
+    DECL_SP_INT_ARRAY(z, 49, 2);
 
-        ALLOC_SP_INT_ARRAY(t, 24, 2, err, NULL);
-        ALLOC_SP_INT_ARRAY(z, 49, 2, err, NULL);
-        if (err == MP_OKAY) {
-            a1 = t[0];
-            b1 = t[1];
-            z1 = z[0];
-            z2 = z[1];
-            z0 = r;
+    ALLOC_SP_INT_ARRAY(t, 24, 2, err, NULL);
+    ALLOC_SP_INT_ARRAY(z, 49, 2, err, NULL);
+    if (err == MP_OKAY) {
+        a1 = t[0];
+        b1 = t[1];
+        z1 = z[0];
+        z2 = z[1];
+        z0 = r;
 
-            XMEMCPY(a1->dp, &a->dp[24], sizeof(sp_int_digit) * 24);
-            a1->used = 24;
-            XMEMCPY(b1->dp, &b->dp[24], sizeof(sp_int_digit) * 24);
-            b1->used = 24;
+        XMEMCPY(a1->dp, &a->dp[24], sizeof(sp_int_digit) * 24);
+        a1->used = 24;
+        XMEMCPY(b1->dp, &b->dp[24], sizeof(sp_int_digit) * 24);
+        b1->used = 24;
 
-            /* z2 = a1 * b1 */
-            err = _sp_mul_24(a1, b1, z2);
-        }
-        if (err == MP_OKAY) {
-            l = a1->dp[0];
-            h = 0;
-            SP_ASM_ADDC(l, h, a->dp[0]);
-            a1->dp[0] = l;
+        /* z2 = a1 * b1 */
+        err = _sp_mul_24(a1, b1, z2);
+    }
+    if (err == MP_OKAY) {
+        l = a1->dp[0];
+        h = 0;
+        SP_ASM_ADDC(l, h, a->dp[0]);
+        a1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 24; i++) {
+            SP_ASM_ADDC(l, h, a1->dp[i]);
+            SP_ASM_ADDC(l, h, a->dp[i]);
+            a1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 24; i++) {
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a->dp[i]);
-                a1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            ca = l;
-            /* b01 = b0 + b1 */
-            l = b1->dp[0];
-            h = 0;
-            SP_ASM_ADDC(l, h, b->dp[0]);
-            b1->dp[0] = l;
+        }
+        ca = l;
+        /* b01 = b0 + b1 */
+        l = b1->dp[0];
+        h = 0;
+        SP_ASM_ADDC(l, h, b->dp[0]);
+        b1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 24; i++) {
+            SP_ASM_ADDC(l, h, b1->dp[i]);
+            SP_ASM_ADDC(l, h, b->dp[i]);
+            b1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 24; i++) {
-                SP_ASM_ADDC(l, h, b1->dp[i]);
-                SP_ASM_ADDC(l, h, b->dp[i]);
-                b1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            cb = l;
+        }
+        cb = l;
 
-            /* z0 = a0 * b0 */
-            err = _sp_mul_24(a, b, z0);
-        }
-        if (err == MP_OKAY) {
-            /* z1 = (a0 + a1) * (b0 + b1) */
-            err = _sp_mul_24(a1, b1, z1);
-        }
-        if (err == MP_OKAY) {
-            /* r = (z2 << 48) + (z1 - z0 - z2) << 24) + z0 */
-            /* r = z0 */
-            /* r += (z1 - z0 - z2) << 24 */
-            z1->dp[48] = ca & cb;
-            l = 0;
-            if (ca) {
-                h = 0;
-                for (i = 0; i < 24; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 24]);
-                    SP_ASM_ADDC(l, h, b1->dp[i]);
-                    z1->dp[i + 24] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[48] += l;
-            l = 0;
-            if (cb) {
-                h = 0;
-                for (i = 0; i < 24; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 24]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    z1->dp[i + 24] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[48] += l;
-            /* z1 = z1 - z0 - z1 */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 48; i++) {
-                l += z1->dp[i];
-                SP_ASM_SUBC(l, h, z0->dp[i]);
-                SP_ASM_SUBC(l, h, z2->dp[i]);
-                z1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            z1->dp[i] += l;
-            /* r += z1 << 16 */
-            l = 0;
+        /* z0 = a0 * b0 */
+        err = _sp_mul_24(a, b, z0);
+    }
+    if (err == MP_OKAY) {
+        /* z1 = (a0 + a1) * (b0 + b1) */
+        err = _sp_mul_24(a1, b1, z1);
+    }
+    if (err == MP_OKAY) {
+        /* r = (z2 << 48) + (z1 - z0 - z2) << 24) + z0 */
+        /* r = z0 */
+        /* r += (z1 - z0 - z2) << 24 */
+        z1->dp[48] = ca & cb;
+        l = 0;
+        if (ca) {
             h = 0;
             for (i = 0; i < 24; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 24]);
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 24] = l;
+                SP_ASM_ADDC(l, h, z1->dp[i + 24]);
+                SP_ASM_ADDC(l, h, b1->dp[i]);
+                z1->dp[i + 24] = l;
                 l = h;
                 h = 0;
             }
-            for (; i < 49; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 24] = l;
-                l = h;
-                h = 0;
-            }
-            /* r += z2 << 48  */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 25; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 48]);
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 48] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 48; i++) {
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 48] = l;
-                l = h;
-                h = 0;
-            }
-            r->used = 96;
-            sp_clamp(r);
         }
-
-        FREE_SP_INT_ARRAY(z, NULL);
-        FREE_SP_INT_ARRAY(t, NULL);
-        return err;
+        z1->dp[48] += l;
+        l = 0;
+        if (cb) {
+            h = 0;
+            for (i = 0; i < 24; i++) {
+                SP_ASM_ADDC(l, h, z1->dp[i + 24]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                z1->dp[i + 24] = l;
+                l = h;
+                h = 0;
+            }
+        }
+        z1->dp[48] += l;
+        /* z1 = z1 - z0 - z1 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 48; i++) {
+            l += z1->dp[i];
+            SP_ASM_SUBC(l, h, z0->dp[i]);
+            SP_ASM_SUBC(l, h, z2->dp[i]);
+            z1->dp[i] = l;
+            l = h;
+            h = 0;
+        }
+        z1->dp[i] += l;
+        /* r += z1 << 16 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 24; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 24]);
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 24] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 49; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 24] = l;
+            l = h;
+            h = 0;
+        }
+        /* r += z2 << 48  */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 25; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 48]);
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 48] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 48; i++) {
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 48] = l;
+            l = h;
+            h = 0;
+        }
+        r->used = 96;
+        sp_clamp(r);
     }
+
+    FREE_SP_INT_ARRAY(z, NULL);
+    FREE_SP_INT_ARRAY(t, NULL);
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 96 */
 
     #if SP_INT_DIGITS >= 128
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_64(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        sp_int_digit l;
-        sp_int_digit h;
-        sp_int* a1;
-        sp_int* b1;
-        sp_int* z0;
-        sp_int* z1;
-        sp_int* z2;
-        sp_int_digit ca;
-        sp_int_digit cb;
-        DECL_SP_INT_ARRAY(t, 32, 2);
-        DECL_SP_INT_ARRAY(z, 65, 2);
+/* Multiply a by b and store in r: r = a * b
+ *
+ * Karatsuba implementaiton.
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_64(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    sp_int_digit l;
+    sp_int_digit h;
+    sp_int* a1;
+    sp_int* b1;
+    sp_int* z0;
+    sp_int* z1;
+    sp_int* z2;
+    sp_int_digit ca;
+    sp_int_digit cb;
+    DECL_SP_INT_ARRAY(t, 32, 2);
+    DECL_SP_INT_ARRAY(z, 65, 2);
 
-        ALLOC_SP_INT_ARRAY(t, 32, 2, err, NULL);
-        ALLOC_SP_INT_ARRAY(z, 65, 2, err, NULL);
-        if (err == MP_OKAY) {
-            a1 = t[0];
-            b1 = t[1];
-            z1 = z[0];
-            z2 = z[1];
-            z0 = r;
+    ALLOC_SP_INT_ARRAY(t, 32, 2, err, NULL);
+    ALLOC_SP_INT_ARRAY(z, 65, 2, err, NULL);
+    if (err == MP_OKAY) {
+        a1 = t[0];
+        b1 = t[1];
+        z1 = z[0];
+        z2 = z[1];
+        z0 = r;
 
-            XMEMCPY(a1->dp, &a->dp[32], sizeof(sp_int_digit) * 32);
-            a1->used = 32;
-            XMEMCPY(b1->dp, &b->dp[32], sizeof(sp_int_digit) * 32);
-            b1->used = 32;
+        XMEMCPY(a1->dp, &a->dp[32], sizeof(sp_int_digit) * 32);
+        a1->used = 32;
+        XMEMCPY(b1->dp, &b->dp[32], sizeof(sp_int_digit) * 32);
+        b1->used = 32;
 
-            /* z2 = a1 * b1 */
-            err = _sp_mul_32(a1, b1, z2);
-        }
-        if (err == MP_OKAY) {
-            l = a1->dp[0];
-            h = 0;
-            SP_ASM_ADDC(l, h, a->dp[0]);
-            a1->dp[0] = l;
+        /* z2 = a1 * b1 */
+        err = _sp_mul_32(a1, b1, z2);
+    }
+    if (err == MP_OKAY) {
+        l = a1->dp[0];
+        h = 0;
+        SP_ASM_ADDC(l, h, a->dp[0]);
+        a1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 32; i++) {
+            SP_ASM_ADDC(l, h, a1->dp[i]);
+            SP_ASM_ADDC(l, h, a->dp[i]);
+            a1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 32; i++) {
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a->dp[i]);
-                a1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            ca = l;
-            /* b01 = b0 + b1 */
-            l = b1->dp[0];
-            h = 0;
-            SP_ASM_ADDC(l, h, b->dp[0]);
-            b1->dp[0] = l;
+        }
+        ca = l;
+        /* b01 = b0 + b1 */
+        l = b1->dp[0];
+        h = 0;
+        SP_ASM_ADDC(l, h, b->dp[0]);
+        b1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 32; i++) {
+            SP_ASM_ADDC(l, h, b1->dp[i]);
+            SP_ASM_ADDC(l, h, b->dp[i]);
+            b1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 32; i++) {
-                SP_ASM_ADDC(l, h, b1->dp[i]);
-                SP_ASM_ADDC(l, h, b->dp[i]);
-                b1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            cb = l;
+        }
+        cb = l;
 
-            /* z0 = a0 * b0 */
-            err = _sp_mul_32(a, b, z0);
-        }
-        if (err == MP_OKAY) {
-            /* z1 = (a0 + a1) * (b0 + b1) */
-            err = _sp_mul_32(a1, b1, z1);
-        }
-        if (err == MP_OKAY) {
-            /* r = (z2 << 64) + (z1 - z0 - z2) << 32) + z0 */
-            /* r = z0 */
-            /* r += (z1 - z0 - z2) << 32 */
-            z1->dp[64] = ca & cb;
-            l = 0;
-            if (ca) {
-                h = 0;
-                for (i = 0; i < 32; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 32]);
-                    SP_ASM_ADDC(l, h, b1->dp[i]);
-                    z1->dp[i + 32] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[64] += l;
-            l = 0;
-            if (cb) {
-                h = 0;
-                for (i = 0; i < 32; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 32]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    z1->dp[i + 32] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[64] += l;
-            /* z1 = z1 - z0 - z1 */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 64; i++) {
-                l += z1->dp[i];
-                SP_ASM_SUBC(l, h, z0->dp[i]);
-                SP_ASM_SUBC(l, h, z2->dp[i]);
-                z1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            z1->dp[i] += l;
-            /* r += z1 << 16 */
-            l = 0;
+        /* z0 = a0 * b0 */
+        err = _sp_mul_32(a, b, z0);
+    }
+    if (err == MP_OKAY) {
+        /* z1 = (a0 + a1) * (b0 + b1) */
+        err = _sp_mul_32(a1, b1, z1);
+    }
+    if (err == MP_OKAY) {
+        /* r = (z2 << 64) + (z1 - z0 - z2) << 32) + z0 */
+        /* r = z0 */
+        /* r += (z1 - z0 - z2) << 32 */
+        z1->dp[64] = ca & cb;
+        l = 0;
+        if (ca) {
             h = 0;
             for (i = 0; i < 32; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 32]);
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 32] = l;
+                SP_ASM_ADDC(l, h, z1->dp[i + 32]);
+                SP_ASM_ADDC(l, h, b1->dp[i]);
+                z1->dp[i + 32] = l;
                 l = h;
                 h = 0;
             }
-            for (; i < 65; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 32] = l;
-                l = h;
-                h = 0;
-            }
-            /* r += z2 << 64  */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 33; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 64]);
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 64] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 64; i++) {
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 64] = l;
-                l = h;
-                h = 0;
-            }
-            r->used = 128;
-            sp_clamp(r);
         }
-
-        FREE_SP_INT_ARRAY(z, NULL);
-        FREE_SP_INT_ARRAY(t, NULL);
-        return err;
+        z1->dp[64] += l;
+        l = 0;
+        if (cb) {
+            h = 0;
+            for (i = 0; i < 32; i++) {
+                SP_ASM_ADDC(l, h, z1->dp[i + 32]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                z1->dp[i + 32] = l;
+                l = h;
+                h = 0;
+            }
+        }
+        z1->dp[64] += l;
+        /* z1 = z1 - z0 - z1 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 64; i++) {
+            l += z1->dp[i];
+            SP_ASM_SUBC(l, h, z0->dp[i]);
+            SP_ASM_SUBC(l, h, z2->dp[i]);
+            z1->dp[i] = l;
+            l = h;
+            h = 0;
+        }
+        z1->dp[i] += l;
+        /* r += z1 << 16 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 32; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 32]);
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 32] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 65; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 32] = l;
+            l = h;
+            h = 0;
+        }
+        /* r += z2 << 64  */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 33; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 64]);
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 64] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 64; i++) {
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 64] = l;
+            l = h;
+            h = 0;
+        }
+        r->used = 128;
+        sp_clamp(r);
     }
+
+    FREE_SP_INT_ARRAY(z, NULL);
+    FREE_SP_INT_ARRAY(t, NULL);
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 128 */
 
     #if SP_INT_DIGITS >= 192
-    /* Multiply a by b and store in r: r = a * b
-     *
-     * @param  [in]   a  SP integer to multiply.
-     * @param  [in]   b  SP integer to multiply.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_mul_96(sp_int* a, sp_int* b, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        sp_int_digit l;
-        sp_int_digit h;
-        sp_int* a1;
-        sp_int* b1;
-        sp_int* z0;
-        sp_int* z1;
-        sp_int* z2;
-        sp_int_digit ca;
-        sp_int_digit cb;
-        DECL_SP_INT_ARRAY(t, 48, 2);
-        DECL_SP_INT_ARRAY(z, 97, 2);
+/* Multiply a by b and store in r: r = a * b
+ *
+ * Karatsuba implementaiton.
+ *
+ * @param  [in]   a  SP integer to multiply.
+ * @param  [in]   b  SP integer to multiply.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_mul_96(sp_int* a, sp_int* b, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    sp_int_digit l;
+    sp_int_digit h;
+    sp_int* a1;
+    sp_int* b1;
+    sp_int* z0;
+    sp_int* z1;
+    sp_int* z2;
+    sp_int_digit ca;
+    sp_int_digit cb;
+    DECL_SP_INT_ARRAY(t, 48, 2);
+    DECL_SP_INT_ARRAY(z, 97, 2);
 
-        ALLOC_SP_INT_ARRAY(t, 48, 2, err, NULL);
-        ALLOC_SP_INT_ARRAY(z, 97, 2, err, NULL);
-        if (err == MP_OKAY) {
-            a1 = t[0];
-            b1 = t[1];
-            z1 = z[0];
-            z2 = z[1];
-            z0 = r;
+    ALLOC_SP_INT_ARRAY(t, 48, 2, err, NULL);
+    ALLOC_SP_INT_ARRAY(z, 97, 2, err, NULL);
+    if (err == MP_OKAY) {
+        a1 = t[0];
+        b1 = t[1];
+        z1 = z[0];
+        z2 = z[1];
+        z0 = r;
 
-            XMEMCPY(a1->dp, &a->dp[48], sizeof(sp_int_digit) * 48);
-            a1->used = 48;
-            XMEMCPY(b1->dp, &b->dp[48], sizeof(sp_int_digit) * 48);
-            b1->used = 48;
+        XMEMCPY(a1->dp, &a->dp[48], sizeof(sp_int_digit) * 48);
+        a1->used = 48;
+        XMEMCPY(b1->dp, &b->dp[48], sizeof(sp_int_digit) * 48);
+        b1->used = 48;
 
-            /* z2 = a1 * b1 */
-            err = _sp_mul_48(a1, b1, z2);
-        }
-        if (err == MP_OKAY) {
-            l = a1->dp[0];
-            h = 0;
-            SP_ASM_ADDC(l, h, a->dp[0]);
-            a1->dp[0] = l;
+        /* z2 = a1 * b1 */
+        err = _sp_mul_48(a1, b1, z2);
+    }
+    if (err == MP_OKAY) {
+        l = a1->dp[0];
+        h = 0;
+        SP_ASM_ADDC(l, h, a->dp[0]);
+        a1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 48; i++) {
+            SP_ASM_ADDC(l, h, a1->dp[i]);
+            SP_ASM_ADDC(l, h, a->dp[i]);
+            a1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 48; i++) {
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a->dp[i]);
-                a1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            ca = l;
-            /* b01 = b0 + b1 */
-            l = b1->dp[0];
-            h = 0;
-            SP_ASM_ADDC(l, h, b->dp[0]);
-            b1->dp[0] = l;
+        }
+        ca = l;
+        /* b01 = b0 + b1 */
+        l = b1->dp[0];
+        h = 0;
+        SP_ASM_ADDC(l, h, b->dp[0]);
+        b1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 48; i++) {
+            SP_ASM_ADDC(l, h, b1->dp[i]);
+            SP_ASM_ADDC(l, h, b->dp[i]);
+            b1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 48; i++) {
-                SP_ASM_ADDC(l, h, b1->dp[i]);
-                SP_ASM_ADDC(l, h, b->dp[i]);
-                b1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            cb = l;
+        }
+        cb = l;
 
-            /* z0 = a0 * b0 */
-            err = _sp_mul_48(a, b, z0);
-        }
-        if (err == MP_OKAY) {
-            /* z1 = (a0 + a1) * (b0 + b1) */
-            err = _sp_mul_48(a1, b1, z1);
-        }
-        if (err == MP_OKAY) {
-            /* r = (z2 << 96) + (z1 - z0 - z2) << 48) + z0 */
-            /* r = z0 */
-            /* r += (z1 - z0 - z2) << 48 */
-            z1->dp[96] = ca & cb;
-            l = 0;
-            if (ca) {
-                h = 0;
-                for (i = 0; i < 48; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 48]);
-                    SP_ASM_ADDC(l, h, b1->dp[i]);
-                    z1->dp[i + 48] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[96] += l;
-            l = 0;
-            if (cb) {
-                h = 0;
-                for (i = 0; i < 48; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 48]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    z1->dp[i + 48] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[96] += l;
-            /* z1 = z1 - z0 - z1 */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 96; i++) {
-                l += z1->dp[i];
-                SP_ASM_SUBC(l, h, z0->dp[i]);
-                SP_ASM_SUBC(l, h, z2->dp[i]);
-                z1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            z1->dp[i] += l;
-            /* r += z1 << 16 */
-            l = 0;
+        /* z0 = a0 * b0 */
+        err = _sp_mul_48(a, b, z0);
+    }
+    if (err == MP_OKAY) {
+        /* z1 = (a0 + a1) * (b0 + b1) */
+        err = _sp_mul_48(a1, b1, z1);
+    }
+    if (err == MP_OKAY) {
+        /* r = (z2 << 96) + (z1 - z0 - z2) << 48) + z0 */
+        /* r = z0 */
+        /* r += (z1 - z0 - z2) << 48 */
+        z1->dp[96] = ca & cb;
+        l = 0;
+        if (ca) {
             h = 0;
             for (i = 0; i < 48; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 48]);
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 48] = l;
+                SP_ASM_ADDC(l, h, z1->dp[i + 48]);
+                SP_ASM_ADDC(l, h, b1->dp[i]);
+                z1->dp[i + 48] = l;
                 l = h;
                 h = 0;
             }
-            for (; i < 97; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 48] = l;
-                l = h;
-                h = 0;
-            }
-            /* r += z2 << 96  */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 49; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 96]);
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 96] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 96; i++) {
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 96] = l;
-                l = h;
-                h = 0;
-            }
-            r->used = 192;
-            sp_clamp(r);
         }
-
-        FREE_SP_INT_ARRAY(z, NULL);
-        FREE_SP_INT_ARRAY(t, NULL);
-        return err;
+        z1->dp[96] += l;
+        l = 0;
+        if (cb) {
+            h = 0;
+            for (i = 0; i < 48; i++) {
+                SP_ASM_ADDC(l, h, z1->dp[i + 48]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                z1->dp[i + 48] = l;
+                l = h;
+                h = 0;
+            }
+        }
+        z1->dp[96] += l;
+        /* z1 = z1 - z0 - z1 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 96; i++) {
+            l += z1->dp[i];
+            SP_ASM_SUBC(l, h, z0->dp[i]);
+            SP_ASM_SUBC(l, h, z2->dp[i]);
+            z1->dp[i] = l;
+            l = h;
+            h = 0;
+        }
+        z1->dp[i] += l;
+        /* r += z1 << 16 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 48; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 48]);
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 48] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 97; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 48] = l;
+            l = h;
+            h = 0;
+        }
+        /* r += z2 << 96  */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 49; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 96]);
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 96] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 96; i++) {
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 96] = l;
+            l = h;
+            h = 0;
+        }
+        r->used = 192;
+        sp_clamp(r);
     }
+
+    FREE_SP_INT_ARRAY(z, NULL);
+    FREE_SP_INT_ARRAY(t, NULL);
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 192 */
 
 #endif /* SQR_MUL_ASM && WOLFSSL_SP_INT_LARGE_COMBA */
@@ -7670,10 +9874,12 @@ int sp_mul(sp_int* a, sp_int* b, sp_int* r)
         err = MP_VAL;
     }
 
-    if (0 && (err == MP_OKAY)) {
+#if 0
+    if (err == MP_OKAY) {
         sp_print(a, "a");
         sp_print(b, "b");
     }
+#endif
 
     if (err == MP_OKAY) {
     #ifdef WOLFSSL_SP_INT_NEGATIVE
@@ -7774,9 +9980,11 @@ int sp_mul(sp_int* a, sp_int* b, sp_int* r)
     }
 #endif
 
-    if (0 && (err == MP_OKAY)) {
+#if 0
+    if (err == MP_OKAY) {
         sp_print(r, "rmul");
     }
+#endif
 
     return err;
 }
@@ -7830,7 +10038,7 @@ int sp_mulmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
  *
  * @param  [in]   a  SP integer to find inverse of.
  * @param  [in]   m  SP integer this is the modulus.
- * @param  [out]  r  SP integer to hold result.
+ * @param  [out]  r  SP integer to hold result. r cannot be m.
  *
  * @return  MP_OKAY on success.
  * @return  MP_VAL when a, m or r is NULL; a or m is zero; a and m are even or
@@ -7840,15 +10048,18 @@ int sp_mulmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
 int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
-    sp_int* u;
-    sp_int* v;
-    sp_int* b;
-    sp_int* c;
-    int used = ((m == NULL) || (a == NULL)) ? 1 :
-                   ((m->used >= a->used) ? m->used + 1 : a->used + 1);
-    DECL_SP_INT_ARRAY(t, used, 4);
+    sp_int* u = NULL;
+    sp_int* v = NULL;
+    sp_int* b = NULL;
+    sp_int* mm;
+    int evenMod = 0;
+    DECL_SP_INT_ARRAY(t, (m == NULL) ? 1 : (m->used + 1), 3);
+    DECL_SP_INT(c, (m == NULL) ? 1 : (2 * m->used + 1));
 
-    if ((a == NULL) || (m == NULL) || (r == NULL)) {
+    if ((a == NULL) || (m == NULL) || (r == NULL) || (r == m)) {
+        err = MP_VAL;
+    }
+    if ((err == MP_OKAY) && (m->used * 2 > r->size)) {
         err = MP_VAL;
     }
 
@@ -7858,25 +10069,25 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
     }
 #endif
 
-    ALLOC_SP_INT_ARRAY(t, (m == NULL) ? 0 : m->used + 1, 4, err, NULL);
+    ALLOC_SP_INT_ARRAY(t, m->used + 1, 3, err, NULL);
+    ALLOC_SP_INT(c, 2 * m->used + 1, err, NULL);
     if (err == MP_OKAY) {
         u = t[0];
         v = t[1];
         b = t[2];
-        c = t[3];
-        sp_init_size(v, used + 1);
+        /* c allocated separately and larger for even mod case. */
 
         if (_sp_cmp_abs(a, m) != MP_LT) {
-            err = sp_mod(a, m, v);
-            a = v;
+            err = sp_mod(a, m, r);
+            a = r;
         }
     }
 
 #ifdef WOLFSSL_SP_INT_NEGATIVE
     if ((err == MP_OKAY) && (a->sign == MP_NEG)) {
         /* Make 'a' positive */
-        err = sp_add(m, a, v);
-        a = v;
+        err = sp_add(m, a, r);
+        a = r;
     }
 #endif
 
@@ -7895,29 +10106,29 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
     }
     else if (err != MP_OKAY) {
     }
-    else if (sp_iseven(m)) {
-        /* a^-1 mod m = m + (1 - m*(m^-1 % a)) / a
-         *            = m - (m*(m^-1 % a) - 1) / a
-         */
-        err = sp_invmod(m, a, r);
-        if (err == MP_OKAY) {
-            err = sp_mul(r, m, r);
-        }
-        if (err == MP_OKAY) {
-            _sp_sub_d(r, 1, r);
-            err = sp_div(r, a, r, NULL);
-            if (err == MP_OKAY) {
-                sp_sub(m, r, r);
-            }
-        }
-    }
     else {
         sp_init_size(u, m->used + 1);
+        sp_init_size(v, m->used + 1);
         sp_init_size(b, m->used + 1);
-        sp_init_size(c, m->used + 1);
+        sp_init_size(c, 2 * m->used + 1);
 
-        sp_copy(m, u);
-        sp_copy(a, v);
+        if (sp_iseven(m)) {
+            /* a^-1 mod m = m + ((1 - m*(m^-1 % a)) / a) */
+            mm = a;
+            sp_copy(a, u);
+            sp_mod(m, a, v);
+            /* v == 0 when a divides m evenly - no inverse.  */
+            if (sp_iszero(v)) {
+                /* Force u to no inverse answer. */
+                sp_set(u, 0);
+            }
+            evenMod = 1;
+        }
+        else {
+            mm = m;
+            sp_copy(m, u);
+            sp_copy(a, v);
+        }
         _sp_zero(b);
         sp_set(c, 1);
 
@@ -7925,40 +10136,55 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
             if (sp_iseven(u)) {
                 sp_div_2(u, u);
                 if (sp_isodd(b)) {
-                    sp_add(b, m, b);
+                    _sp_add_off(b, mm, b, 0);
                 }
                 sp_div_2(b, b);
             }
             else if (sp_iseven(v)) {
                 sp_div_2(v, v);
                 if (sp_isodd(c)) {
-                    sp_add(c, m, c);
+                    _sp_add_off(c, mm, c, 0);
                 }
                 sp_div_2(c, c);
             }
             else if (_sp_cmp(u, v) != MP_LT) {
-                sp_sub(u, v, u);
+                _sp_sub_off(u, v, u, 0);
                 if (_sp_cmp(b, c) == MP_LT) {
-                    sp_add(b, m, b);
+                    _sp_add_off(b, mm, b, 0);
                 }
-                sp_sub(b, c, b);
+                _sp_sub_off(b, c, b, 0);
             }
             else {
-                sp_sub(v, u, v);
+                _sp_sub_off(v, u, v, 0);
                 if (_sp_cmp(c, b) == MP_LT) {
-                    sp_add(c, m, c);
+                    _sp_add_off(c, mm, c, 0);
                 }
-                sp_sub(c, b, c);
+                _sp_sub_off(c, b, c, 0);
             }
         }
         if (sp_iszero(u)) {
             err = MP_VAL;
+        }
+        else if (evenMod) {
+            /* Finish operation.
+             *    a^-1 mod m = m + ((1 - m*c) / a)
+             * => a^-1 mod m = m - ((m*c - 1) / a)
+             */
+            err = sp_mul(c, m, c);
+            if (err == MP_OKAY) {
+                _sp_sub_d(c, 1, c);
+                err = sp_div(c, a, c, NULL);
+            }
+            if (err == MP_OKAY) {
+                sp_sub(m, c, r);
+            }
         }
         else {
             err = sp_copy(c, r);
         }
     }
 
+    FREE_SP_INT(c, NULL);
     FREE_SP_INT_ARRAY(t, NULL);
     return err;
 }
@@ -7972,7 +10198,7 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
  *
  * Modulus (m) must be a prime and greater than 2.
  *
- * @param  [in]   a   SP integer, Montogmery form, to find inverse of.
+ * @param  [in]   a   SP integer, Montgomery form, to find inverse of.
  * @param  [in]   m   SP integer this is the modulus.
  * @param  [out]  r   SP integer to hold result.
  * @param  [in]   mp  SP integer digit that is the bottom digit of inv(-m).
@@ -7985,9 +10211,9 @@ int sp_invmod_mont_ct(sp_int* a, sp_int* m, sp_int* r, sp_int_digit mp)
 {
     int err = MP_OKAY;
     int i;
-    int j;
-    sp_int* t;
-    sp_int* e;
+    int j = 0;
+    sp_int* t = NULL;
+    sp_int* e = NULL;
     DECL_SP_INT_ARRAY(pre, (m == NULL) ? 1 : m->used * 2 + 1,
                                                         CT_INV_MOD_PRE_CNT + 2);
 
@@ -8486,14 +10712,14 @@ static int _sp_exptmod_mont_ex(sp_int* b, sp_int* e, int bits, sp_int* m,
  */
 static int _sp_exptmod_base_2(sp_int* e, int digits, sp_int* m, sp_int* r)
 {
-    int i;
+    int i = 0;
     int j;
-    int c;
+    int c = 0;
     int y;
     int err = MP_OKAY;
     sp_int* t = NULL;
     sp_int* tr = NULL;
-    sp_int_digit mp = 0, n;
+    sp_int_digit mp = 0, n = 0;
     DECL_SP_INT_ARRAY(d, m->used * 2 + 1, 2);
 
     if (0) {
@@ -8656,11 +10882,13 @@ int sp_exptmod_ex(sp_int* b, sp_int* e, int digits, sp_int* m, sp_int* r)
         err = MP_VAL;
     }
 
-    if (0 && (err == MP_OKAY)) {
+#if 0
+    if (err == MP_OKAY) {
         sp_print(b, "a");
         sp_print(e, "b");
         sp_print(m, "m");
     }
+#endif
 
     if (err != MP_OKAY) {
     }
@@ -8733,13 +10961,18 @@ int sp_exptmod_ex(sp_int* b, sp_int* e, int digits, sp_int* m, sp_int* r)
         }
     }
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH)
-#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-    if ((!done) && (err == MP_OKAY) && (b->used == 1) && (b->dp[0] == 2)) {
+#if defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    if ((!done) && (err == MP_OKAY))
+        err = sp_exptmod_nct(b, e, m, r);
+    }
+#else
+#if defined(WOLFSSL_SP_MATH_ALL)
+    if ((!done) && (err == MP_OKAY) && (b->used == 1) && (b->dp[0] == 2) &&
+         mp_isodd(m)) {
         /* Use the generic base 2 implementation. */
         err = _sp_exptmod_base_2(e, digits, m, r);
     }
-    else if ((!done) && (err == MP_OKAY) && (m->used > 1)) {
+    else if ((!done) && (err == MP_OKAY) && ((m->used > 1) && mp_isodd(m))) {
     #ifndef WC_NO_HARDEN
         err = _sp_exptmod_mont_ex(b, e, digits * SP_WORD_SIZE, m, r);
     #else
@@ -8747,30 +10980,28 @@ int sp_exptmod_ex(sp_int* b, sp_int* e, int digits, sp_int* m, sp_int* r)
     #endif
     }
     else
-#elif defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_RSA_PUBLIC_ONLY)
-    err = sp_exptmod_nct(b, e, m, r);
-#endif
-#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-    !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
+#endif /* WOLFSSL_SP_MATH_ALL */
     if ((!done) && (err == MP_OKAY)) {
         /* Otherwise use the generic implementation. */
         err = _sp_exptmod_ex(b, e, digits * SP_WORD_SIZE, m, r);
     }
-#endif
+#endif /* WOLFSSL_RSA_VERIFY_ONLY || WOLFSSL_RSA_PUBLIC_ONLY */
 #else
     if ((!done) && (err == MP_OKAY)) {
         err = MP_VAL;
     }
-#endif
+#endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_HAVE_SP_DH */
 
     (void)mBits;
     (void)bBits;
     (void)eBits;
     (void)digits;
 
-    if (0 && (err == MP_OKAY)) {
+#if 0
+    if (err == MP_OKAY) {
         sp_print(r, "rme");
     }
+#endif
     return err;
 }
 #endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_HAVE_SP_DH */
@@ -8796,9 +11027,11 @@ int sp_exptmod(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
     if ((b == NULL) || (e == NULL) || (m == NULL) || (r == NULL)) {
         err = MP_VAL;
     }
+    SAVE_VECTOR_REGISTERS(err = _svr_ret;);
     if (err == MP_OKAY) {
         err = sp_exptmod_ex(b, e, e->used, m, r);
     }
+    RESTORE_VECTOR_REGISTERS();
     return err;
 }
 #endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) ||
@@ -8826,10 +11059,10 @@ int sp_exptmod(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
  */
 static int _sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
 {
-    int i;
-    int j;
-    int c;
-    int y;
+    int i = 0;
+    int j = 0;
+    int c = 0;
+    int y = 0;
     int bits;
     int winBits;
     int preCnt;
@@ -9076,7 +11309,7 @@ static int _sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
     int i;
     int err = MP_OKAY;
     int done = 0;
-    int y;
+    int y = 0;
     int bits = sp_count_bits(e);
     sp_int_digit mp;
     DECL_SP_INT_ARRAY(t, m->used * 2 + 1, 2);
@@ -9163,11 +11396,13 @@ int sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
         err = MP_VAL;
     }
 
-    if (0 && (err == MP_OKAY)) {
+#if 0
+    if (err == MP_OKAY) {
         sp_print(b, "a");
         sp_print(e, "b");
         sp_print(m, "m");
     }
+#endif
 
     if (err != MP_OKAY) {
     }
@@ -9193,13 +11428,20 @@ int sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
     else if (m->used * 2 >= r->size) {
         err = MP_VAL;
     }
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    else if (mp_iseven(m)) {
+        err = _sp_exptmod_ex(b, e, e->used * SP_WORD_SIZE, m, r);
+    }
+#endif
     else {
         err = _sp_exptmod_nct(b, e, m, r);
     }
 
-    if (0 && (err == MP_OKAY)) {
+#if 0
+    if (err == MP_OKAY) {
         sp_print(r, "rme");
     }
+#endif
 
     return err;
 }
@@ -9382,215 +11624,215 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
 
 #if !defined(WOLFSSL_SP_MATH) || !defined(WOLFSSL_SP_SMALL)
 #ifdef SQR_MUL_ASM
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr(sp_int* a, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        int j;
-        int k;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_digit* t = NULL;
-    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
-        defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
-        sp_int_digit t[a->used * 2];
-    #else
-        sp_int_digit t[SP_INT_DIGITS];
-    #endif
+/* Square a and store in r. r = a * a
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr(sp_int* a, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    int j;
+    int k;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_digit* t = NULL;
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
+    defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
+    sp_int_digit t[a->used * 2];
+#else
+    sp_int_digit t[SP_INT_DIGITS];
+#endif
 
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used * 2), NULL,
-                                    DYNAMIC_TYPE_BIGINT);
-         if (t == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-        if ((err == MP_OKAY) && (a->used <= 1)) {
-            sp_int_digit l, h;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used * 2), NULL,
+        DYNAMIC_TYPE_BIGINT);
+    if (t == NULL) {
+        err = MP_MEM;
+    }
+#endif
+    if ((err == MP_OKAY) && (a->used <= 1)) {
+        sp_int_digit l, h;
 
-            h = 0;
-            l = 0;
-            SP_ASM_SQR(h, l, a->dp[0]);
-            t[0] = h;
-            t[1] = l;
-        }
-        else if (err == MP_OKAY) {
-            sp_int_digit l, h, o;
+        h = 0;
+        l = 0;
+        SP_ASM_SQR(h, l, a->dp[0]);
+        t[0] = h;
+        t[1] = l;
+    }
+    else if (err == MP_OKAY) {
+        sp_int_digit l, h, o;
 
-            h = 0;
-            l = 0;
-            SP_ASM_SQR(h, l, a->dp[0]);
-            t[0] = h;
-            h = 0;
-            o = 0;
-            for (k = 1; k < (a->used + 1) / 2; k++) {
-                i = k;
-                j = k - 1;
-                for (; (j >= 0); i++, j--) {
-                    SP_ASM_MUL_ADD2(l, h, o, a->dp[i], a->dp[j]);
-                }
-                t[k * 2 - 1] = l;
-                l = h;
-                h = o;
-                o = 0;
-
-                SP_ASM_SQR_ADD(l, h, o, a->dp[k]);
-                i = k + 1;
-                j = k - 1;
-                for (; (j >= 0); i++, j--) {
-                    SP_ASM_MUL_ADD2(l, h, o, a->dp[i], a->dp[j]);
-                }
-                t[k * 2] = l;
-                l = h;
-                h = o;
-                o = 0;
-            }
-            for (; k < a->used; k++) {
-                i = k;
-                j = k - 1;
-                for (; (i < a->used); i++, j--) {
-                    SP_ASM_MUL_ADD2(l, h, o, a->dp[i], a->dp[j]);
-                }
-                t[k * 2 - 1] = l;
-                l = h;
-                h = o;
-                o = 0;
-
-                SP_ASM_SQR_ADD(l, h, o, a->dp[k]);
-                i = k + 1;
-                j = k - 1;
-                for (; (i < a->used); i++, j--) {
-                    SP_ASM_MUL_ADD2(l, h, o, a->dp[i], a->dp[j]);
-                }
-                t[k * 2] = l;
-                l = h;
-                h = o;
-                o = 0;
+        h = 0;
+        l = 0;
+        SP_ASM_SQR(h, l, a->dp[0]);
+        t[0] = h;
+        h = 0;
+        o = 0;
+        for (k = 1; k < (a->used + 1) / 2; k++) {
+            i = k;
+            j = k - 1;
+            for (; (j >= 0); i++, j--) {
+                SP_ASM_MUL_ADD2(l, h, o, a->dp[i], a->dp[j]);
             }
             t[k * 2 - 1] = l;
-        }
-
-        if (err == MP_OKAY) {
-            r->used = a->used * 2;
-            XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
-            sp_clamp(r);
-        }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (t != NULL) {
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
-    }
-#else /* !SQR_MUL_ASM */
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr(sp_int* a, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        int j;
-        int k;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_digit* t = NULL;
-    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
-        defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
-        sp_int_digit t[a->used * 2];
-    #else
-        sp_int_digit t[SP_INT_DIGITS];
-    #endif
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used * 2), NULL,
-                                    DYNAMIC_TYPE_BIGINT);
-         if (t == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-        if (err == MP_OKAY) {
-            sp_int_word w;
-            sp_int_word l;
-            sp_int_word h;
-        #ifdef SP_WORD_OVERFLOW
-            sp_int_word o;
-        #endif
-
-            w = (sp_int_word)a->dp[0] * a->dp[0];
-            t[0] = (sp_int_digit)w;
-            l = (sp_int_digit)(w >> SP_WORD_SIZE);
-            h = 0;
-        #ifdef SP_WORD_OVERFLOW
+            l = h;
+            h = o;
             o = 0;
-        #endif
-            for (k = 1; k <= (a->used - 1) * 2; k++) {
-                i = k / 2;
-                j = k - i;
-                if (i == j) {
-                    w = (sp_int_word)a->dp[i] * a->dp[j];
-                    l += (sp_int_digit)w;
-                    h += (sp_int_digit)(w >> SP_WORD_SIZE);
-                #ifdef SP_WORD_OVERFLOW
-                    h += (sp_int_digit)(l >> SP_WORD_SIZE);
-                    l &= SP_MASK;
-                    o += (sp_int_digit)(h >> SP_WORD_SIZE);
-                    h &= SP_MASK;
-                #endif
-                }
-                for (++i, --j; (i < a->used) && (j >= 0); i++, j--) {
-                    w = (sp_int_word)a->dp[i] * a->dp[j];
-                    l += (sp_int_digit)w;
-                    h += (sp_int_digit)(w >> SP_WORD_SIZE);
-                #ifdef SP_WORD_OVERFLOW
-                    h += (sp_int_digit)(l >> SP_WORD_SIZE);
-                    l &= SP_MASK;
-                    o += (sp_int_digit)(h >> SP_WORD_SIZE);
-                    h &= SP_MASK;
-                #endif
-                    l += (sp_int_digit)w;
-                    h += (sp_int_digit)(w >> SP_WORD_SIZE);
-                #ifdef SP_WORD_OVERFLOW
-                    h += (sp_int_digit)(l >> SP_WORD_SIZE);
-                    l &= SP_MASK;
-                    o += (sp_int_digit)(h >> SP_WORD_SIZE);
-                    h &= SP_MASK;
-                #endif
-                }
-                t[k] = (sp_int_digit)l;
-                l >>= SP_WORD_SIZE;
-                l += (sp_int_digit)h;
-                h >>= SP_WORD_SIZE;
+
+            SP_ASM_SQR_ADD(l, h, o, a->dp[k]);
+            i = k + 1;
+            j = k - 1;
+            for (; (j >= 0); i++, j--) {
+                SP_ASM_MUL_ADD2(l, h, o, a->dp[i], a->dp[j]);
+            }
+            t[k * 2] = l;
+            l = h;
+            h = o;
+            o = 0;
+        }
+        for (; k < a->used; k++) {
+            i = k;
+            j = k - 1;
+            for (; (i < a->used); i++, j--) {
+                SP_ASM_MUL_ADD2(l, h, o, a->dp[i], a->dp[j]);
+            }
+            t[k * 2 - 1] = l;
+            l = h;
+            h = o;
+            o = 0;
+
+            SP_ASM_SQR_ADD(l, h, o, a->dp[k]);
+            i = k + 1;
+            j = k - 1;
+            for (; (i < a->used); i++, j--) {
+                SP_ASM_MUL_ADD2(l, h, o, a->dp[i], a->dp[j]);
+            }
+            t[k * 2] = l;
+            l = h;
+            h = o;
+            o = 0;
+        }
+        t[k * 2 - 1] = l;
+    }
+
+    if (err == MP_OKAY) {
+        r->used = a->used * 2;
+        XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
+        sp_clamp(r);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+#endif
+    return err;
+}
+#else /* !SQR_MUL_ASM */
+/* Square a and store in r. r = a * a
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr(sp_int* a, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    int j;
+    int k;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_digit* t = NULL;
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
+    defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
+    sp_int_digit t[a->used * 2];
+#else
+    sp_int_digit t[SP_INT_DIGITS];
+#endif
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used * 2), NULL,
+        DYNAMIC_TYPE_BIGINT);
+    if (t == NULL) {
+        err = MP_MEM;
+    }
+#endif
+    if (err == MP_OKAY) {
+        sp_int_word w;
+        sp_int_word l;
+        sp_int_word h;
+    #ifdef SP_WORD_OVERFLOW
+        sp_int_word o;
+    #endif
+
+        w = (sp_int_word)a->dp[0] * a->dp[0];
+        t[0] = (sp_int_digit)w;
+        l = (sp_int_digit)(w >> SP_WORD_SIZE);
+        h = 0;
+    #ifdef SP_WORD_OVERFLOW
+        o = 0;
+    #endif
+        for (k = 1; k <= (a->used - 1) * 2; k++) {
+            i = k / 2;
+            j = k - i;
+            if (i == j) {
+                w = (sp_int_word)a->dp[i] * a->dp[j];
+                l += (sp_int_digit)w;
+                h += (sp_int_digit)(w >> SP_WORD_SIZE);
             #ifdef SP_WORD_OVERFLOW
-                h += o & SP_MASK;
-                o >>= SP_WORD_SIZE;
+                h += (sp_int_digit)(l >> SP_WORD_SIZE);
+                l &= SP_MASK;
+                o += (sp_int_digit)(h >> SP_WORD_SIZE);
+                h &= SP_MASK;
+            #endif
+            }
+            for (++i, --j; (i < a->used) && (j >= 0); i++, j--) {
+                w = (sp_int_word)a->dp[i] * a->dp[j];
+                l += (sp_int_digit)w;
+                h += (sp_int_digit)(w >> SP_WORD_SIZE);
+            #ifdef SP_WORD_OVERFLOW
+                h += (sp_int_digit)(l >> SP_WORD_SIZE);
+                l &= SP_MASK;
+                o += (sp_int_digit)(h >> SP_WORD_SIZE);
+                h &= SP_MASK;
+            #endif
+                l += (sp_int_digit)w;
+                h += (sp_int_digit)(w >> SP_WORD_SIZE);
+            #ifdef SP_WORD_OVERFLOW
+                h += (sp_int_digit)(l >> SP_WORD_SIZE);
+                l &= SP_MASK;
+                o += (sp_int_digit)(h >> SP_WORD_SIZE);
+                h &= SP_MASK;
             #endif
             }
             t[k] = (sp_int_digit)l;
-            r->used = k + 1;
-            XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
-            sp_clamp(r);
+            l >>= SP_WORD_SIZE;
+            l += (sp_int_digit)h;
+            h >>= SP_WORD_SIZE;
+        #ifdef SP_WORD_OVERFLOW
+            h += o & SP_MASK;
+            o >>= SP_WORD_SIZE;
+        #endif
         }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (t != NULL) {
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
+        t[k] = (sp_int_digit)l;
+        r->used = k + 1;
+        XMEMCPY(r->dp, t, r->used * sizeof(sp_int_digit));
+        sp_clamp(r);
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+#endif
+    return err;
+}
 #endif /* SQR_MUL_ASM */
 #endif /* !WOLFSSL_SP_MATH || !WOLFSSL_SP_SMALL */
 
@@ -9598,401 +11840,650 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
 #if !defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC)
 #if SP_WORD_SIZE == 64
 #ifndef SQR_MUL_ASM
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_4(sp_int* a, sp_int* r)
-    {
-        int err = MP_OKAY;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_word* w = NULL;
-    #else
-        sp_int_word w[10];
-    #endif
-        sp_int_digit* da = a->dp;
+/* Square a and store in r. r = a * a
+ *
+ * Long-hand implementation.
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_4(sp_int* a, sp_int* r)
+{
+    int err = MP_OKAY;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_word* w = NULL;
+#else
+    sp_int_word w[10];
+#endif
+    sp_int_digit* da = a->dp;
 
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         w = (sp_int_word*)XMALLOC(sizeof(sp_int_word) * 10, NULL,
-                                   DYNAMIC_TYPE_BIGINT);
-         if (w == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-
-
-        if (err == MP_OKAY) {
-            w[0] = (sp_int_word)da[0] * da[0];
-            w[1] = (sp_int_word)da[0] * da[1];
-            w[2] = (sp_int_word)da[0] * da[2];
-            w[3] = (sp_int_word)da[1] * da[1];
-            w[4] = (sp_int_word)da[0] * da[3];
-            w[5] = (sp_int_word)da[1] * da[2];
-            w[6] = (sp_int_word)da[1] * da[3];
-            w[7] = (sp_int_word)da[2] * da[2];
-            w[8] = (sp_int_word)da[2] * da[3];
-            w[9] = (sp_int_word)da[3] * da[3];
-
-            r->dp[0] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[1];
-            w[0] += (sp_int_digit)w[1];
-            r->dp[1] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[1] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[1];
-            w[0] += (sp_int_digit)w[1];
-            w[0] += (sp_int_digit)w[2];
-            w[0] += (sp_int_digit)w[2];
-            w[0] += (sp_int_digit)w[3];
-            r->dp[2] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[2] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[2];
-            w[0] += (sp_int_digit)w[2];
-            w[3] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[3];
-            w[0] += (sp_int_digit)w[4];
-            w[0] += (sp_int_digit)w[4];
-            w[0] += (sp_int_digit)w[5];
-            w[0] += (sp_int_digit)w[5];
-            r->dp[3] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[4] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[4];
-            w[0] += (sp_int_digit)w[4];
-            w[5] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[5];
-            w[0] += (sp_int_digit)w[5];
-            w[0] += (sp_int_digit)w[6];
-            w[0] += (sp_int_digit)w[6];
-            w[0] += (sp_int_digit)w[7];
-            r->dp[4] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[6] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[6];
-            w[0] += (sp_int_digit)w[6];
-            w[7] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[7];
-            w[0] += (sp_int_digit)w[8];
-            w[0] += (sp_int_digit)w[8];
-            r->dp[5] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[8] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[8];
-            w[0] += (sp_int_digit)w[8];
-            w[0] += (sp_int_digit)w[9];
-            r->dp[6] = w[0];
-            w[0] >>= SP_WORD_SIZE;
-            w[9] >>= SP_WORD_SIZE;
-            w[0] += (sp_int_digit)w[9];
-            r->dp[7] = w[0];
-
-            r->used = 8;
-            sp_clamp(r);
-        }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (w != NULL) {
-            XFREE(w, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    w = (sp_int_word*)XMALLOC(sizeof(sp_int_word) * 10, NULL,
+        DYNAMIC_TYPE_BIGINT);
+    if (w == NULL) {
+        err = MP_MEM;
     }
-#else /* SQR_MUL_ASM */
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_4(sp_int* a, sp_int* r)
-    {
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit t[4];
+#endif
 
-        SP_ASM_SQR(h, l, a->dp[0]);
-        t[0] = h;
-        h = 0;
-        SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
-        t[1] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
-        t[2] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
-        t[3] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
-        r->dp[4] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[2], a->dp[3]);
-        r->dp[5] = l;
-        l = h;
-        h = o;
-        SP_ASM_SQR_ADD_NO(l, h, a->dp[3]);
-        r->dp[6] = l;
-        r->dp[7] = h;
-        XMEMCPY(r->dp, t, 4 * sizeof(sp_int_digit));
+
+    if (err == MP_OKAY) {
+        w[0] = (sp_int_word)da[0] * da[0];
+        w[1] = (sp_int_word)da[0] * da[1];
+        w[2] = (sp_int_word)da[0] * da[2];
+        w[3] = (sp_int_word)da[1] * da[1];
+        w[4] = (sp_int_word)da[0] * da[3];
+        w[5] = (sp_int_word)da[1] * da[2];
+        w[6] = (sp_int_word)da[1] * da[3];
+        w[7] = (sp_int_word)da[2] * da[2];
+        w[8] = (sp_int_word)da[2] * da[3];
+        w[9] = (sp_int_word)da[3] * da[3];
+
+        r->dp[0] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[1];
+        w[0] += (sp_int_digit)w[1];
+        r->dp[1] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[1] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[1];
+        w[0] += (sp_int_digit)w[1];
+        w[0] += (sp_int_digit)w[2];
+        w[0] += (sp_int_digit)w[2];
+        w[0] += (sp_int_digit)w[3];
+        r->dp[2] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[2] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[2];
+        w[0] += (sp_int_digit)w[2];
+        w[3] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[3];
+        w[0] += (sp_int_digit)w[4];
+        w[0] += (sp_int_digit)w[4];
+        w[0] += (sp_int_digit)w[5];
+        w[0] += (sp_int_digit)w[5];
+        r->dp[3] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[4] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[4];
+        w[0] += (sp_int_digit)w[4];
+        w[5] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[5];
+        w[0] += (sp_int_digit)w[5];
+        w[0] += (sp_int_digit)w[6];
+        w[0] += (sp_int_digit)w[6];
+        w[0] += (sp_int_digit)w[7];
+        r->dp[4] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[6] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[6];
+        w[0] += (sp_int_digit)w[6];
+        w[7] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[7];
+        w[0] += (sp_int_digit)w[8];
+        w[0] += (sp_int_digit)w[8];
+        r->dp[5] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[8] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[8];
+        w[0] += (sp_int_digit)w[8];
+        w[0] += (sp_int_digit)w[9];
+        r->dp[6] = w[0];
+        w[0] >>= SP_WORD_SIZE;
+        w[9] >>= SP_WORD_SIZE;
+        w[0] += (sp_int_digit)w[9];
+        r->dp[7] = w[0];
+
         r->used = 8;
         sp_clamp(r);
-
-        return MP_OKAY;
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (w != NULL) {
+        XFREE(w, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+#endif
+    return err;
+}
+#else /* SQR_MUL_ASM */
+/* Square a and store in r. r = a * a
+ *
+ * Comba implementation.
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_4(sp_int* a, sp_int* r)
+{
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit t[4];
+
+    SP_ASM_SQR(h, l, a->dp[0]);
+    t[0] = h;
+    h = 0;
+    SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
+    t[1] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
+    t[2] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
+    t[3] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
+    r->dp[4] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[2], a->dp[3]);
+    r->dp[5] = l;
+    l = h;
+    h = o;
+    SP_ASM_SQR_ADD_NO(l, h, a->dp[3]);
+    r->dp[6] = l;
+    r->dp[7] = h;
+    XMEMCPY(r->dp, t, 4 * sizeof(sp_int_digit));
+    r->used = 8;
+    sp_clamp(r);
+
+    return MP_OKAY;
+}
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 64 */
 #if SP_WORD_SIZE == 64
 #ifdef SQR_MUL_ASM
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_6(sp_int* a, sp_int* r)
-    {
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit tl = 0;
-        sp_int_digit th = 0;
-        sp_int_digit to;
-        sp_int_digit t[6];
+/* Square a and store in r. r = a * a
+ *
+ * Comba implementation.
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_6(sp_int* a, sp_int* r)
+{
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit tl = 0;
+    sp_int_digit th = 0;
+    sp_int_digit to;
+    sp_int_digit t[6];
 
-        SP_ASM_SQR(h, l, a->dp[0]);
-        t[0] = h;
-        h = 0;
-        SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
-        t[1] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
-        t[2] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
-        t[3] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[4]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
-        t[4] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[5]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[4]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[3]);
-        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        t[5] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[5]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[2], a->dp[4]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[3]);
-        r->dp[6] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[2], a->dp[5]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[3], a->dp[4]);
-        r->dp[7] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[3], a->dp[5]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[4]);
-        r->dp[8] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[4], a->dp[5]);
-        r->dp[9] = l;
-        l = h;
-        h = o;
-        SP_ASM_SQR_ADD_NO(l, h, a->dp[5]);
-        r->dp[10] = l;
-        r->dp[11] = h;
-        XMEMCPY(r->dp, t, 6 * sizeof(sp_int_digit));
-        r->used = 12;
-        sp_clamp(r);
+#if defined(WOLFSSL_SP_ARM_THUMB) && SP_WORD_SIZE == 32
+    to = 0;
+#endif
 
-        return MP_OKAY;
-    }
+    SP_ASM_SQR(h, l, a->dp[0]);
+    t[0] = h;
+    h = 0;
+    SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
+    t[1] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
+    t[2] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
+    t[3] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[4]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
+    t[4] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[5]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[4]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[3]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[5] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[5]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[2], a->dp[4]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[3]);
+    r->dp[6] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[2], a->dp[5]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[3], a->dp[4]);
+    r->dp[7] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[3], a->dp[5]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[4]);
+    r->dp[8] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[4], a->dp[5]);
+    r->dp[9] = l;
+    l = h;
+    h = o;
+    SP_ASM_SQR_ADD_NO(l, h, a->dp[5]);
+    r->dp[10] = l;
+    r->dp[11] = h;
+    XMEMCPY(r->dp, t, 6 * sizeof(sp_int_digit));
+    r->used = 12;
+    sp_clamp(r);
+
+    return MP_OKAY;
+}
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 64 */
 #if SP_WORD_SIZE == 32
 #ifdef SQR_MUL_ASM
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_8(sp_int* a, sp_int* r)
-    {
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit tl = 0;
-        sp_int_digit th = 0;
-        sp_int_digit to;
-        sp_int_digit t[8];
+/* Square a and store in r. r = a * a
+ *
+ * Comba implementation.
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_8(sp_int* a, sp_int* r)
+{
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit tl = 0;
+    sp_int_digit th = 0;
+    sp_int_digit to;
+    sp_int_digit t[8];
 
-        SP_ASM_SQR(h, l, a->dp[0]);
-        t[0] = h;
-        h = 0;
-        SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
-        t[1] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
-        t[2] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
-        t[3] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[4]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
-        t[4] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[5]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[4]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[3]);
-        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        t[5] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[6]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[5]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[4]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[3]);
-        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        t[6] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[7]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[6]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[5]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[4]);
-        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        t[7] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[1], a->dp[7]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[6]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[5]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[4]);
-        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        r->dp[8] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[2], a->dp[7]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[6]);
-        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[5]);
-        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        r->dp[9] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[3], a->dp[7]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[4], a->dp[6]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[5]);
-        r->dp[10] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[4], a->dp[7]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[5], a->dp[6]);
-        r->dp[11] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[5], a->dp[7]);
-        SP_ASM_SQR_ADD(l, h, o, a->dp[6]);
-        r->dp[12] = l;
-        l = h;
-        h = o;
-        o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[6], a->dp[7]);
-        r->dp[13] = l;
-        l = h;
-        h = o;
-        SP_ASM_SQR_ADD_NO(l, h, a->dp[7]);
-        r->dp[14] = l;
-        r->dp[15] = h;
-        XMEMCPY(r->dp, t, 8 * sizeof(sp_int_digit));
-        r->used = 16;
-        sp_clamp(r);
+#if defined(WOLFSSL_SP_ARM_THUMB) && SP_WORD_SIZE == 32
+    to = 0;
+#endif
 
-        return MP_OKAY;
-    }
+    SP_ASM_SQR(h, l, a->dp[0]);
+    t[0] = h;
+    h = 0;
+    SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
+    t[1] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
+    t[2] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
+    t[3] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[4]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
+    t[4] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[5]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[4]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[3]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[5] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[6]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[5]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[4]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[3]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[6] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[7]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[6]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[5]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[4]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[7] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[1], a->dp[7]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[6]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[5]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[4]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    r->dp[8] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[2], a->dp[7]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[6]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[5]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    r->dp[9] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[3], a->dp[7]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[4], a->dp[6]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[5]);
+    r->dp[10] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[4], a->dp[7]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[5], a->dp[6]);
+    r->dp[11] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[5], a->dp[7]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[6]);
+    r->dp[12] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[6], a->dp[7]);
+    r->dp[13] = l;
+    l = h;
+    h = o;
+    SP_ASM_SQR_ADD_NO(l, h, a->dp[7]);
+    r->dp[14] = l;
+    r->dp[15] = h;
+    XMEMCPY(r->dp, t, 8 * sizeof(sp_int_digit));
+    r->used = 16;
+    sp_clamp(r);
+
+    return MP_OKAY;
+}
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 32 */
 #if SP_WORD_SIZE == 32
 #ifdef SQR_MUL_ASM
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_12(sp_int* a, sp_int* r)
-    {
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit tl = 0;
-        sp_int_digit th = 0;
-        sp_int_digit to;
-        sp_int_digit t[12];
+/* Square a and store in r. r = a * a
+ *
+ * Comba implementation.
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_12(sp_int* a, sp_int* r)
+{
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit tl = 0;
+    sp_int_digit th = 0;
+    sp_int_digit to;
+    sp_int_digit t[12];
 
+#if defined(WOLFSSL_SP_ARM_THUMB) && SP_WORD_SIZE == 32
+    to = 0;
+#endif
+
+    SP_ASM_SQR(h, l, a->dp[0]);
+    t[0] = h;
+    h = 0;
+    SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
+    t[1] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
+    t[2] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
+    t[3] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[4]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
+    t[4] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[5]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[4]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[3]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[5] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[6]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[5]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[4]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[3]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[6] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[7]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[6]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[5]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[4]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[7] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[8]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[7]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[6]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[5]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[4]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[8] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[9]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[8]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[7]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[6]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[5]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[9] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[10]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[9]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[8]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[7]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[6]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[5]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[10] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[11]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[10]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[9]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[8]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[7]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[6]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    t[11] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[1], a->dp[11]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[10]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[9]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[8]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[7]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[6]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    r->dp[12] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[2], a->dp[11]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[10]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[9]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[8]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[7]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    r->dp[13] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[3], a->dp[11]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[10]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[9]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[8]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[7]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    r->dp[14] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[4], a->dp[11]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[10]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[9]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[8]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    r->dp[15] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[5], a->dp[11]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[10]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[9]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[8]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    r->dp[16] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_SET(tl, th, to, a->dp[6], a->dp[11]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[10]);
+    SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[9]);
+    SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+    r->dp[17] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[7], a->dp[11]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[8], a->dp[10]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[9]);
+    r->dp[18] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[8], a->dp[11]);
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[9], a->dp[10]);
+    r->dp[19] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[9], a->dp[11]);
+    SP_ASM_SQR_ADD(l, h, o, a->dp[10]);
+    r->dp[20] = l;
+    l = h;
+    h = o;
+    o = 0;
+    SP_ASM_MUL_ADD2(l, h, o, a->dp[10], a->dp[11]);
+    r->dp[21] = l;
+    l = h;
+    h = o;
+    SP_ASM_SQR_ADD_NO(l, h, a->dp[11]);
+    r->dp[22] = l;
+    r->dp[23] = h;
+    XMEMCPY(r->dp, t, 12 * sizeof(sp_int_digit));
+    r->used = 24;
+    sp_clamp(r);
+
+    return MP_OKAY;
+}
+#endif /* SQR_MUL_ASM */
+#endif /* SP_WORD_SIZE == 32 */
+#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
+
+#if defined(SQR_MUL_ASM) && defined(WOLFSSL_SP_INT_LARGE_COMBA)
+    #if SP_INT_DIGITS >= 32
+/* Square a and store in r. r = a * a
+ *
+ * Comba implementation.
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_16(sp_int* a, sp_int* r)
+{
+    int err = MP_OKAY;
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit tl = 0;
+    sp_int_digit th = 0;
+    sp_int_digit to;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_digit* t = NULL;
+#else
+    sp_int_digit t[16];
+#endif
+
+#if defined(WOLFSSL_SP_ARM_THUMB) && SP_WORD_SIZE == 32
+    to = 0;
+#endif
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+     t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * 16, NULL,
+         DYNAMIC_TYPE_BIGINT);
+     if (t == NULL) {
+         err = MP_MEM;
+     }
+#endif
+    if (err == MP_OKAY) {
         SP_ASM_SQR(h, l, a->dp[0]);
         t[0] = h;
         h = 0;
@@ -10088,47 +12579,61 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[1], a->dp[11]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[11]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[10]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[9]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[8]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[7]);
         SP_ASM_SQR_ADD(l, h, o, a->dp[6]);
         SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        r->dp[12] = l;
+        t[12] = l;
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[2], a->dp[11]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[11]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[10]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[9]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[8]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[7]);
         SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        r->dp[13] = l;
+        t[13] = l;
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[3], a->dp[11]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[11]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[10]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[9]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[8]);
         SP_ASM_SQR_ADD(l, h, o, a->dp[7]);
         SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        r->dp[14] = l;
+        t[14] = l;
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[4], a->dp[11]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[11]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[10]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[9]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[8]);
         SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-        r->dp[15] = l;
+        t[15] = l;
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[5], a->dp[11]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[1], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[11]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[10]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[9]);
         SP_ASM_SQR_ADD(l, h, o, a->dp[8]);
@@ -10137,7 +12642,11 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_SET(tl, th, to, a->dp[6], a->dp[11]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[2], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[11]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[10]);
         SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[9]);
         SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
@@ -10145,1477 +12654,1252 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[7], a->dp[11]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[8], a->dp[10]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[3], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[10]);
         SP_ASM_SQR_ADD(l, h, o, a->dp[9]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
         r->dp[18] = l;
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[8], a->dp[11]);
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[9], a->dp[10]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[4], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[10]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
         r->dp[19] = l;
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[9], a->dp[11]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[5], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[11]);
         SP_ASM_SQR_ADD(l, h, o, a->dp[10]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
         r->dp[20] = l;
         l = h;
         h = o;
         o = 0;
-        SP_ASM_MUL_ADD2(l, h, o, a->dp[10], a->dp[11]);
+        SP_ASM_MUL_SET(tl, th, to, a->dp[6], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[11]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
         r->dp[21] = l;
         l = h;
         h = o;
-        SP_ASM_SQR_ADD_NO(l, h, a->dp[11]);
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[7], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[12]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[11]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
         r->dp[22] = l;
-        r->dp[23] = h;
-        XMEMCPY(r->dp, t, 12 * sizeof(sp_int_digit));
-        r->used = 24;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[8], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[12]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[23] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[9], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[13]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[12]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[24] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[10], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[13]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[25] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[11], a->dp[15]);
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[12], a->dp[14]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[13]);
+        r->dp[26] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[12], a->dp[15]);
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[13], a->dp[14]);
+        r->dp[27] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[13], a->dp[15]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[14]);
+        r->dp[28] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[14], a->dp[15]);
+        r->dp[29] = l;
+        l = h;
+        h = o;
+        SP_ASM_SQR_ADD_NO(l, h, a->dp[15]);
+        r->dp[30] = l;
+        r->dp[31] = h;
+        XMEMCPY(r->dp, t, 16 * sizeof(sp_int_digit));
+        r->used = 32;
         sp_clamp(r);
-
-        return MP_OKAY;
     }
-#endif /* SQR_MUL_ASM */
-#endif /* SP_WORD_SIZE == 32 */
-#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
 
-#if defined(SQR_MUL_ASM) && defined(WOLFSSL_SP_INT_LARGE_COMBA)
-    #if SP_INT_DIGITS >= 32
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_16(sp_int* a, sp_int* r)
-    {
-        int err = MP_OKAY;
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit tl = 0;
-        sp_int_digit th = 0;
-        sp_int_digit to;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_digit* t = NULL;
-    #else
-        sp_int_digit t[16];
-    #endif
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * 16, NULL,
-                                    DYNAMIC_TYPE_BIGINT);
-         if (t == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-        if (err == MP_OKAY) {
-            SP_ASM_SQR(h, l, a->dp[0]);
-            t[0] = h;
-            h = 0;
-            SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
-            t[1] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
-            t[2] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
-            t[3] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[4]);
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
-            t[4] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[5]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[4]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[3]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[5] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[6]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[5]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[4]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[3]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[6] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[6]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[5]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[4]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[7] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[6]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[5]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[4]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[8] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[6]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[5]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[9] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[6]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[5]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[10] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[6]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[11] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[7]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[6]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[12] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[7]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[13] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[8]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[7]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[14] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[8]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[15] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[1], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[9]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[8]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[16] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[2], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[9]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[17] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[3], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[10]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[9]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[18] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[4], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[10]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[19] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[5], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[11]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[10]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[20] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[6], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[11]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[21] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[7], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[12]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[11]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[22] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[8], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[12]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[23] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[9], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[13]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[12]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[24] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[10], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[13]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[25] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[11], a->dp[15]);
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[12], a->dp[14]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[13]);
-            r->dp[26] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[12], a->dp[15]);
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[13], a->dp[14]);
-            r->dp[27] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[13], a->dp[15]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[14]);
-            r->dp[28] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[14], a->dp[15]);
-            r->dp[29] = l;
-            l = h;
-            h = o;
-            SP_ASM_SQR_ADD_NO(l, h, a->dp[15]);
-            r->dp[30] = l;
-            r->dp[31] = h;
-            XMEMCPY(r->dp, t, 16 * sizeof(sp_int_digit));
-            r->used = 32;
-            sp_clamp(r);
-        }
-
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (t != NULL) {
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
     }
+#endif
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 32 */
 
     #if SP_INT_DIGITS >= 48
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_24(sp_int* a, sp_int* r)
-    {
-        int err = MP_OKAY;
-        sp_int_digit l = 0;
-        sp_int_digit h = 0;
-        sp_int_digit o = 0;
-        sp_int_digit tl = 0;
-        sp_int_digit th = 0;
-        sp_int_digit to;
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        sp_int_digit* t = NULL;
-    #else
-        sp_int_digit t[24];
-    #endif
+/* Square a and store in r. r = a * a
+ *
+ * Comba implementation.
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_24(sp_int* a, sp_int* r)
+{
+    int err = MP_OKAY;
+    sp_int_digit l = 0;
+    sp_int_digit h = 0;
+    sp_int_digit o = 0;
+    sp_int_digit tl = 0;
+    sp_int_digit th = 0;
+    sp_int_digit to;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_int_digit* t = NULL;
+#else
+    sp_int_digit t[24];
+#endif
 
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-         t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * 24, NULL,
-                                    DYNAMIC_TYPE_BIGINT);
-         if (t == NULL) {
-             err = MP_MEM;
-         }
-    #endif
-        if (err == MP_OKAY) {
-            SP_ASM_SQR(h, l, a->dp[0]);
-            t[0] = h;
-            h = 0;
-            SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
-            t[1] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
-            t[2] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
-            t[3] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[4]);
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
-            t[4] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[5]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[4]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[3]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[5] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[6]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[5]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[4]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[3]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[6] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[6]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[5]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[4]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[7] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[6]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[5]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[4]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[8] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[6]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[5]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[9] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[6]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[5]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[10] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[7]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[6]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[11] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[7]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[6]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[12] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[8]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[7]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[13] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[8]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[7]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[14] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[9]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[8]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[15] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[9]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[8]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[16] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[10]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[9]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[17] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[10]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[9]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[18] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[11]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[10]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[19] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[11]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[10]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[20] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[12]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[11]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[21] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[12]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[11]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[22] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[13]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[12]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            t[23] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[1], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[13]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[12]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[24] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[2], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[14]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[13]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[25] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[3], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[14]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[13]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[26] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[4], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[15]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[14]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[27] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[5], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[15]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[14]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[28] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[6], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[16]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[15]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[29] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[7], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[16]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[15]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[30] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[8], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[17]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[16]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[31] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[9], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[17]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[16]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[32] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[10], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[18]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[17]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[33] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[11], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[18]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[17]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[34] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[12], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[19]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[18]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[35] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[13], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[19]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[18]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[36] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[14], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[20]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[18], a->dp[19]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[37] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[15], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[18], a->dp[20]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[19]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[38] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[16], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[18], a->dp[21]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[19], a->dp[20]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[39] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[17], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[18], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[19], a->dp[21]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[20]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[40] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_SET(tl, th, to, a->dp[18], a->dp[23]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[19], a->dp[22]);
-            SP_ASM_MUL_ADD(tl, th, to, a->dp[20], a->dp[21]);
-            SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
-            r->dp[41] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[19], a->dp[23]);
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[20], a->dp[22]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[21]);
-            r->dp[42] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[20], a->dp[23]);
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[21], a->dp[22]);
-            r->dp[43] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[21], a->dp[23]);
-            SP_ASM_SQR_ADD(l, h, o, a->dp[22]);
-            r->dp[44] = l;
-            l = h;
-            h = o;
-            o = 0;
-            SP_ASM_MUL_ADD2(l, h, o, a->dp[22], a->dp[23]);
-            r->dp[45] = l;
-            l = h;
-            h = o;
-            SP_ASM_SQR_ADD_NO(l, h, a->dp[23]);
-            r->dp[46] = l;
-            r->dp[47] = h;
-            XMEMCPY(r->dp, t, 24 * sizeof(sp_int_digit));
-            r->used = 48;
-            sp_clamp(r);
-        }
+#if defined(WOLFSSL_SP_ARM_THUMB) && SP_WORD_SIZE == 32
+    to = 0;
+#endif
 
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-        if (t != NULL) {
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-    #endif
-        return err;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+     t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * 24, NULL,
+         DYNAMIC_TYPE_BIGINT);
+     if (t == NULL) {
+         err = MP_MEM;
+     }
+#endif
+    if (err == MP_OKAY) {
+        SP_ASM_SQR(h, l, a->dp[0]);
+        t[0] = h;
+        h = 0;
+        SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[1]);
+        t[1] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2_NO(l, h, o, a->dp[0], a->dp[2]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[1]);
+        t[2] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[3]);
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[2]);
+        t[3] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[0], a->dp[4]);
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[1], a->dp[3]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[2]);
+        t[4] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[5]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[4]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[3]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[5] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[6]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[5]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[4]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[3]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[6] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[7]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[6]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[5]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[4]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[7] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[8]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[7]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[6]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[5]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[4]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[8] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[9]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[8]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[7]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[6]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[5]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[9] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[10]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[9]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[8]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[7]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[6]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[5]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[10] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[10]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[9]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[8]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[7]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[6]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[11] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[10]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[9]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[8]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[7]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[6]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[12] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[10]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[9]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[8]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[7]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[13] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[10]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[9]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[8]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[7]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[14] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[10]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[9]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[8]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[15] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[10]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[9]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[8]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[16] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[10]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[9]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[17] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[10]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[9]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[18] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[11]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[10]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[19] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[11]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[10]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[20] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[12]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[11]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[21] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[12]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[11]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[22] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[0], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[1], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[13]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[12]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        t[23] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[1], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[2], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[13]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[12]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[24] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[2], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[3], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[14]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[13]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[25] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[3], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[4], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[14]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[13]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[26] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[4], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[5], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[15]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[14]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[27] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[5], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[6], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[15]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[14]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[28] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[6], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[7], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[16]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[15]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[29] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[7], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[8], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[16]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[15]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[30] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[8], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[9], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[17]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[16]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[31] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[9], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[10], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[17]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[16]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[32] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[10], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[11], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[18]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[17]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[33] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[11], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[12], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[18]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[17]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[34] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[12], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[13], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[19]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[18]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[35] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[13], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[14], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[19]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[18]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[36] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[14], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[15], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[20]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[18], a->dp[19]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[37] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[15], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[16], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[18], a->dp[20]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[19]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[38] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[16], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[17], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[18], a->dp[21]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[19], a->dp[20]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[39] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[17], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[18], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[19], a->dp[21]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[20]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[40] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_SET(tl, th, to, a->dp[18], a->dp[23]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[19], a->dp[22]);
+        SP_ASM_MUL_ADD(tl, th, to, a->dp[20], a->dp[21]);
+        SP_ASM_ADD_DBL_3(l, h, o, tl, th, to);
+        r->dp[41] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[19], a->dp[23]);
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[20], a->dp[22]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[21]);
+        r->dp[42] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[20], a->dp[23]);
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[21], a->dp[22]);
+        r->dp[43] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[21], a->dp[23]);
+        SP_ASM_SQR_ADD(l, h, o, a->dp[22]);
+        r->dp[44] = l;
+        l = h;
+        h = o;
+        o = 0;
+        SP_ASM_MUL_ADD2(l, h, o, a->dp[22], a->dp[23]);
+        r->dp[45] = l;
+        l = h;
+        h = o;
+        SP_ASM_SQR_ADD_NO(l, h, a->dp[23]);
+        r->dp[46] = l;
+        r->dp[47] = h;
+        XMEMCPY(r->dp, t, 24 * sizeof(sp_int_digit));
+        r->used = 48;
+        sp_clamp(r);
     }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
+    }
+#endif
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 48 */
 
     #if SP_INT_DIGITS >= 64
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_32(sp_int* a, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        sp_int_digit l;
-        sp_int_digit h;
-        sp_int* z0;
-        sp_int* z1;
-        sp_int* z2;
-        sp_int_digit ca;
-        DECL_SP_INT(a1, 16);
-        DECL_SP_INT_ARRAY(z, 33, 2);
+/* Square a and store in r. r = a * a
+ *
+ * Karatsuba implementation.
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_32(sp_int* a, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    sp_int_digit l;
+    sp_int_digit h;
+    sp_int* z0;
+    sp_int* z1;
+    sp_int* z2;
+    sp_int_digit ca;
+    DECL_SP_INT(a1, 16);
+    DECL_SP_INT_ARRAY(z, 33, 2);
 
-        ALLOC_SP_INT(a1, 16, err, NULL);
-        ALLOC_SP_INT_ARRAY(z, 33, 2, err, NULL);
-        if (err == MP_OKAY) {
-            z1 = z[0];
-            z2 = z[1];
-            z0 = r;
+    ALLOC_SP_INT(a1, 16, err, NULL);
+    ALLOC_SP_INT_ARRAY(z, 33, 2, err, NULL);
+    if (err == MP_OKAY) {
+        z1 = z[0];
+        z2 = z[1];
+        z0 = r;
 
-            XMEMCPY(a1->dp, &a->dp[16], sizeof(sp_int_digit) * 16);
-            a1->used = 16;
+        XMEMCPY(a1->dp, &a->dp[16], sizeof(sp_int_digit) * 16);
+        a1->used = 16;
 
-            /* z2 = a1 ^ 2 */
-            err = _sp_sqr_16(a1, z2);
-        }
-        if (err == MP_OKAY) {
-            l = 0;
-            h = 0;
-            for (i = 0; i < 16; i++) {
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a->dp[i]);
-                a1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            ca = l;
-
-            /* z0 = a0 ^ 2 */
-            err = _sp_sqr_16(a, z0);
-        }
-        if (err == MP_OKAY) {
-            /* z1 = (a0 + a1) ^ 2 */
-            err = _sp_sqr_16(a1, z1);
-        }
-        if (err == MP_OKAY) {
-            /* r = (z2 << 32) + (z1 - z0 - z2) << 16) + z0 */
-            /* r = z0 */
-            /* r += (z1 - z0 - z2) << 16 */
-            z1->dp[32] = ca;
-            l = 0;
-            if (ca) {
-                l = z1->dp[0 + 16];
-                h = 0;
-                SP_ASM_ADDC(l, h, a1->dp[0]);
-                SP_ASM_ADDC(l, h, a1->dp[0]);
-                z1->dp[0 + 16] = l;
-                l = h;
-                h = 0;
-                for (i = 1; i < 16; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 16]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    z1->dp[i + 16] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[32] += l;
-            /* z1 = z1 - z0 - z1 */
-            l = z1->dp[0];
-            h = 0;
-            SP_ASM_SUBC(l, h, z0->dp[0]);
-            SP_ASM_SUBC(l, h, z2->dp[0]);
-            z1->dp[0] = l;
+        /* z2 = a1 ^ 2 */
+        err = _sp_sqr_16(a1, z2);
+    }
+    if (err == MP_OKAY) {
+        l = 0;
+        h = 0;
+        for (i = 0; i < 16; i++) {
+            SP_ASM_ADDC(l, h, a1->dp[i]);
+            SP_ASM_ADDC(l, h, a->dp[i]);
+            a1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 32; i++) {
-                l += z1->dp[i];
-                SP_ASM_SUBC(l, h, z0->dp[i]);
-                SP_ASM_SUBC(l, h, z2->dp[i]);
-                z1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            z1->dp[i] += l;
-            /* r += z1 << 16 */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 16; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 16]);
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 16] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 33; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 16] = l;
-                l = h;
-                h = 0;
-            }
-            /* r += z2 << 32  */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 17; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 32]);
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 32] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 32; i++) {
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 32] = l;
-                l = h;
-                h = 0;
-            }
-            r->used = 64;
-            sp_clamp(r);
         }
+        ca = l;
 
-        FREE_SP_INT_ARRAY(z, NULL);
-        FREE_SP_INT(a1, NULL);
-        return err;
+        /* z0 = a0 ^ 2 */
+        err = _sp_sqr_16(a, z0);
     }
+    if (err == MP_OKAY) {
+        /* z1 = (a0 + a1) ^ 2 */
+        err = _sp_sqr_16(a1, z1);
+    }
+    if (err == MP_OKAY) {
+        /* r = (z2 << 32) + (z1 - z0 - z2) << 16) + z0 */
+        /* r = z0 */
+        /* r += (z1 - z0 - z2) << 16 */
+        z1->dp[32] = ca;
+        l = 0;
+        if (ca) {
+            l = z1->dp[0 + 16];
+            h = 0;
+            SP_ASM_ADDC(l, h, a1->dp[0]);
+            SP_ASM_ADDC(l, h, a1->dp[0]);
+            z1->dp[0 + 16] = l;
+            l = h;
+            h = 0;
+            for (i = 1; i < 16; i++) {
+                SP_ASM_ADDC(l, h, z1->dp[i + 16]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                z1->dp[i + 16] = l;
+                l = h;
+                h = 0;
+            }
+        }
+        z1->dp[32] += l;
+        /* z1 = z1 - z0 - z1 */
+        l = z1->dp[0];
+        h = 0;
+        SP_ASM_SUBC(l, h, z0->dp[0]);
+        SP_ASM_SUBC(l, h, z2->dp[0]);
+        z1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 32; i++) {
+            l += z1->dp[i];
+            SP_ASM_SUBC(l, h, z0->dp[i]);
+            SP_ASM_SUBC(l, h, z2->dp[i]);
+            z1->dp[i] = l;
+            l = h;
+            h = 0;
+        }
+        z1->dp[i] += l;
+        /* r += z1 << 16 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 16; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 16]);
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 16] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 33; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 16] = l;
+            l = h;
+            h = 0;
+        }
+        /* r += z2 << 32  */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 17; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 32]);
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 32] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 32; i++) {
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 32] = l;
+            l = h;
+            h = 0;
+        }
+        r->used = 64;
+        sp_clamp(r);
+    }
+
+    FREE_SP_INT_ARRAY(z, NULL);
+    FREE_SP_INT(a1, NULL);
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 64 */
 
     #if SP_INT_DIGITS >= 96
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_48(sp_int* a, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        sp_int_digit l;
-        sp_int_digit h;
-        sp_int* z0;
-        sp_int* z1;
-        sp_int* z2;
-        sp_int_digit ca;
-        DECL_SP_INT(a1, 24);
-        DECL_SP_INT_ARRAY(z, 49, 2);
+/* Square a and store in r. r = a * a
+ *
+ * Karatsuba implementation.
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_48(sp_int* a, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    sp_int_digit l;
+    sp_int_digit h;
+    sp_int* z0;
+    sp_int* z1;
+    sp_int* z2;
+    sp_int_digit ca;
+    DECL_SP_INT(a1, 24);
+    DECL_SP_INT_ARRAY(z, 49, 2);
 
-        ALLOC_SP_INT(a1, 24, err, NULL);
-        ALLOC_SP_INT_ARRAY(z, 49, 2, err, NULL);
-        if (err == MP_OKAY) {
-            z1 = z[0];
-            z2 = z[1];
-            z0 = r;
+    ALLOC_SP_INT(a1, 24, err, NULL);
+    ALLOC_SP_INT_ARRAY(z, 49, 2, err, NULL);
+    if (err == MP_OKAY) {
+        z1 = z[0];
+        z2 = z[1];
+        z0 = r;
 
-            XMEMCPY(a1->dp, &a->dp[24], sizeof(sp_int_digit) * 24);
-            a1->used = 24;
+        XMEMCPY(a1->dp, &a->dp[24], sizeof(sp_int_digit) * 24);
+        a1->used = 24;
 
-            /* z2 = a1 ^ 2 */
-            err = _sp_sqr_24(a1, z2);
-        }
-        if (err == MP_OKAY) {
-            l = 0;
-            h = 0;
-            for (i = 0; i < 24; i++) {
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a->dp[i]);
-                a1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            ca = l;
-
-            /* z0 = a0 ^ 2 */
-            err = _sp_sqr_24(a, z0);
-        }
-        if (err == MP_OKAY) {
-            /* z1 = (a0 + a1) ^ 2 */
-            err = _sp_sqr_24(a1, z1);
-        }
-        if (err == MP_OKAY) {
-            /* r = (z2 << 48) + (z1 - z0 - z2) << 24) + z0 */
-            /* r = z0 */
-            /* r += (z1 - z0 - z2) << 24 */
-            z1->dp[48] = ca;
-            l = 0;
-            if (ca) {
-                l = z1->dp[0 + 24];
-                h = 0;
-                SP_ASM_ADDC(l, h, a1->dp[0]);
-                SP_ASM_ADDC(l, h, a1->dp[0]);
-                z1->dp[0 + 24] = l;
-                l = h;
-                h = 0;
-                for (i = 1; i < 24; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 24]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    z1->dp[i + 24] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[48] += l;
-            /* z1 = z1 - z0 - z1 */
-            l = z1->dp[0];
-            h = 0;
-            SP_ASM_SUBC(l, h, z0->dp[0]);
-            SP_ASM_SUBC(l, h, z2->dp[0]);
-            z1->dp[0] = l;
+        /* z2 = a1 ^ 2 */
+        err = _sp_sqr_24(a1, z2);
+    }
+    if (err == MP_OKAY) {
+        l = 0;
+        h = 0;
+        for (i = 0; i < 24; i++) {
+            SP_ASM_ADDC(l, h, a1->dp[i]);
+            SP_ASM_ADDC(l, h, a->dp[i]);
+            a1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 48; i++) {
-                l += z1->dp[i];
-                SP_ASM_SUBC(l, h, z0->dp[i]);
-                SP_ASM_SUBC(l, h, z2->dp[i]);
-                z1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            z1->dp[i] += l;
-            /* r += z1 << 16 */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 24; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 24]);
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 24] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 49; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 24] = l;
-                l = h;
-                h = 0;
-            }
-            /* r += z2 << 48  */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 25; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 48]);
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 48] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 48; i++) {
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 48] = l;
-                l = h;
-                h = 0;
-            }
-            r->used = 96;
-            sp_clamp(r);
         }
+        ca = l;
 
-        FREE_SP_INT_ARRAY(z, NULL);
-        FREE_SP_INT(a1, NULL);
-        return err;
+        /* z0 = a0 ^ 2 */
+        err = _sp_sqr_24(a, z0);
     }
+    if (err == MP_OKAY) {
+        /* z1 = (a0 + a1) ^ 2 */
+        err = _sp_sqr_24(a1, z1);
+    }
+    if (err == MP_OKAY) {
+        /* r = (z2 << 48) + (z1 - z0 - z2) << 24) + z0 */
+        /* r = z0 */
+        /* r += (z1 - z0 - z2) << 24 */
+        z1->dp[48] = ca;
+        l = 0;
+        if (ca) {
+            l = z1->dp[0 + 24];
+            h = 0;
+            SP_ASM_ADDC(l, h, a1->dp[0]);
+            SP_ASM_ADDC(l, h, a1->dp[0]);
+            z1->dp[0 + 24] = l;
+            l = h;
+            h = 0;
+            for (i = 1; i < 24; i++) {
+                SP_ASM_ADDC(l, h, z1->dp[i + 24]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                z1->dp[i + 24] = l;
+                l = h;
+                h = 0;
+            }
+        }
+        z1->dp[48] += l;
+        /* z1 = z1 - z0 - z1 */
+        l = z1->dp[0];
+        h = 0;
+        SP_ASM_SUBC(l, h, z0->dp[0]);
+        SP_ASM_SUBC(l, h, z2->dp[0]);
+        z1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 48; i++) {
+            l += z1->dp[i];
+            SP_ASM_SUBC(l, h, z0->dp[i]);
+            SP_ASM_SUBC(l, h, z2->dp[i]);
+            z1->dp[i] = l;
+            l = h;
+            h = 0;
+        }
+        z1->dp[i] += l;
+        /* r += z1 << 16 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 24; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 24]);
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 24] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 49; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 24] = l;
+            l = h;
+            h = 0;
+        }
+        /* r += z2 << 48  */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 25; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 48]);
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 48] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 48; i++) {
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 48] = l;
+            l = h;
+            h = 0;
+        }
+        r->used = 96;
+        sp_clamp(r);
+    }
+
+    FREE_SP_INT_ARRAY(z, NULL);
+    FREE_SP_INT(a1, NULL);
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 96 */
 
     #if SP_INT_DIGITS >= 128
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_64(sp_int* a, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        sp_int_digit l;
-        sp_int_digit h;
-        sp_int* z0;
-        sp_int* z1;
-        sp_int* z2;
-        sp_int_digit ca;
-        DECL_SP_INT(a1, 32);
-        DECL_SP_INT_ARRAY(z, 65, 2);
+/* Square a and store in r. r = a * a
+ *
+ * Karatsuba implementation.
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_64(sp_int* a, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    sp_int_digit l;
+    sp_int_digit h;
+    sp_int* z0;
+    sp_int* z1;
+    sp_int* z2;
+    sp_int_digit ca;
+    DECL_SP_INT(a1, 32);
+    DECL_SP_INT_ARRAY(z, 65, 2);
 
-        ALLOC_SP_INT(a1, 32, err, NULL);
-        ALLOC_SP_INT_ARRAY(z, 65, 2, err, NULL);
-        if (err == MP_OKAY) {
-            z1 = z[0];
-            z2 = z[1];
-            z0 = r;
+    ALLOC_SP_INT(a1, 32, err, NULL);
+    ALLOC_SP_INT_ARRAY(z, 65, 2, err, NULL);
+    if (err == MP_OKAY) {
+        z1 = z[0];
+        z2 = z[1];
+        z0 = r;
 
-            XMEMCPY(a1->dp, &a->dp[32], sizeof(sp_int_digit) * 32);
-            a1->used = 32;
+        XMEMCPY(a1->dp, &a->dp[32], sizeof(sp_int_digit) * 32);
+        a1->used = 32;
 
-            /* z2 = a1 ^ 2 */
-            err = _sp_sqr_32(a1, z2);
-        }
-        if (err == MP_OKAY) {
-            l = 0;
-            h = 0;
-            for (i = 0; i < 32; i++) {
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a->dp[i]);
-                a1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            ca = l;
-
-            /* z0 = a0 ^ 2 */
-            err = _sp_sqr_32(a, z0);
-        }
-        if (err == MP_OKAY) {
-            /* z1 = (a0 + a1) ^ 2 */
-            err = _sp_sqr_32(a1, z1);
-        }
-        if (err == MP_OKAY) {
-            /* r = (z2 << 64) + (z1 - z0 - z2) << 32) + z0 */
-            /* r = z0 */
-            /* r += (z1 - z0 - z2) << 32 */
-            z1->dp[64] = ca;
-            l = 0;
-            if (ca) {
-                l = z1->dp[0 + 32];
-                h = 0;
-                SP_ASM_ADDC(l, h, a1->dp[0]);
-                SP_ASM_ADDC(l, h, a1->dp[0]);
-                z1->dp[0 + 32] = l;
-                l = h;
-                h = 0;
-                for (i = 1; i < 32; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 32]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    z1->dp[i + 32] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[64] += l;
-            /* z1 = z1 - z0 - z1 */
-            l = z1->dp[0];
-            h = 0;
-            SP_ASM_SUBC(l, h, z0->dp[0]);
-            SP_ASM_SUBC(l, h, z2->dp[0]);
-            z1->dp[0] = l;
+        /* z2 = a1 ^ 2 */
+        err = _sp_sqr_32(a1, z2);
+    }
+    if (err == MP_OKAY) {
+        l = 0;
+        h = 0;
+        for (i = 0; i < 32; i++) {
+            SP_ASM_ADDC(l, h, a1->dp[i]);
+            SP_ASM_ADDC(l, h, a->dp[i]);
+            a1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 64; i++) {
-                l += z1->dp[i];
-                SP_ASM_SUBC(l, h, z0->dp[i]);
-                SP_ASM_SUBC(l, h, z2->dp[i]);
-                z1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            z1->dp[i] += l;
-            /* r += z1 << 16 */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 32; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 32]);
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 32] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 65; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 32] = l;
-                l = h;
-                h = 0;
-            }
-            /* r += z2 << 64  */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 33; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 64]);
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 64] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 64; i++) {
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 64] = l;
-                l = h;
-                h = 0;
-            }
-            r->used = 128;
-            sp_clamp(r);
         }
+        ca = l;
 
-        FREE_SP_INT_ARRAY(z, NULL);
-        FREE_SP_INT(a1, NULL);
-        return err;
+        /* z0 = a0 ^ 2 */
+        err = _sp_sqr_32(a, z0);
     }
+    if (err == MP_OKAY) {
+        /* z1 = (a0 + a1) ^ 2 */
+        err = _sp_sqr_32(a1, z1);
+    }
+    if (err == MP_OKAY) {
+        /* r = (z2 << 64) + (z1 - z0 - z2) << 32) + z0 */
+        /* r = z0 */
+        /* r += (z1 - z0 - z2) << 32 */
+        z1->dp[64] = ca;
+        l = 0;
+        if (ca) {
+            l = z1->dp[0 + 32];
+            h = 0;
+            SP_ASM_ADDC(l, h, a1->dp[0]);
+            SP_ASM_ADDC(l, h, a1->dp[0]);
+            z1->dp[0 + 32] = l;
+            l = h;
+            h = 0;
+            for (i = 1; i < 32; i++) {
+                SP_ASM_ADDC(l, h, z1->dp[i + 32]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                z1->dp[i + 32] = l;
+                l = h;
+                h = 0;
+            }
+        }
+        z1->dp[64] += l;
+        /* z1 = z1 - z0 - z1 */
+        l = z1->dp[0];
+        h = 0;
+        SP_ASM_SUBC(l, h, z0->dp[0]);
+        SP_ASM_SUBC(l, h, z2->dp[0]);
+        z1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 64; i++) {
+            l += z1->dp[i];
+            SP_ASM_SUBC(l, h, z0->dp[i]);
+            SP_ASM_SUBC(l, h, z2->dp[i]);
+            z1->dp[i] = l;
+            l = h;
+            h = 0;
+        }
+        z1->dp[i] += l;
+        /* r += z1 << 16 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 32; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 32]);
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 32] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 65; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 32] = l;
+            l = h;
+            h = 0;
+        }
+        /* r += z2 << 64  */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 33; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 64]);
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 64] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 64; i++) {
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 64] = l;
+            l = h;
+            h = 0;
+        }
+        r->used = 128;
+        sp_clamp(r);
+    }
+
+    FREE_SP_INT_ARRAY(z, NULL);
+    FREE_SP_INT(a1, NULL);
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 128 */
 
     #if SP_INT_DIGITS >= 192
-    /* Square a and store in r. r = a * a
-     *
-     * @param  [in]   a  SP integer to square.
-     * @param  [out]  r  SP integer result.
-     *
-     * @return  MP_OKAY on success.
-     * @return  MP_MEM when dynamic memory allocation fails.
-     */
-    static int _sp_sqr_96(sp_int* a, sp_int* r)
-    {
-        int err = MP_OKAY;
-        int i;
-        sp_int_digit l;
-        sp_int_digit h;
-        sp_int* z0;
-        sp_int* z1;
-        sp_int* z2;
-        sp_int_digit ca;
-        DECL_SP_INT(a1, 48);
-        DECL_SP_INT_ARRAY(z, 97, 2);
+/* Square a and store in r. r = a * a
+ *
+ * Karatsuba implementation.
+ *
+ * @param  [in]   a  SP integer to square.
+ * @param  [out]  r  SP integer result.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_MEM when dynamic memory allocation fails.
+ */
+static int _sp_sqr_96(sp_int* a, sp_int* r)
+{
+    int err = MP_OKAY;
+    int i;
+    sp_int_digit l;
+    sp_int_digit h;
+    sp_int* z0;
+    sp_int* z1;
+    sp_int* z2;
+    sp_int_digit ca;
+    DECL_SP_INT(a1, 48);
+    DECL_SP_INT_ARRAY(z, 97, 2);
 
-        ALLOC_SP_INT(a1, 48, err, NULL);
-        ALLOC_SP_INT_ARRAY(z, 97, 2, err, NULL);
-        if (err == MP_OKAY) {
-            z1 = z[0];
-            z2 = z[1];
-            z0 = r;
+    ALLOC_SP_INT(a1, 48, err, NULL);
+    ALLOC_SP_INT_ARRAY(z, 97, 2, err, NULL);
+    if (err == MP_OKAY) {
+        z1 = z[0];
+        z2 = z[1];
+        z0 = r;
 
-            XMEMCPY(a1->dp, &a->dp[48], sizeof(sp_int_digit) * 48);
-            a1->used = 48;
+        XMEMCPY(a1->dp, &a->dp[48], sizeof(sp_int_digit) * 48);
+        a1->used = 48;
 
-            /* z2 = a1 ^ 2 */
-            err = _sp_sqr_48(a1, z2);
-        }
-        if (err == MP_OKAY) {
-            l = 0;
-            h = 0;
-            for (i = 0; i < 48; i++) {
-                SP_ASM_ADDC(l, h, a1->dp[i]);
-                SP_ASM_ADDC(l, h, a->dp[i]);
-                a1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            ca = l;
-
-            /* z0 = a0 ^ 2 */
-            err = _sp_sqr_48(a, z0);
-        }
-        if (err == MP_OKAY) {
-            /* z1 = (a0 + a1) ^ 2 */
-            err = _sp_sqr_48(a1, z1);
-        }
-        if (err == MP_OKAY) {
-            /* r = (z2 << 96) + (z1 - z0 - z2) << 48) + z0 */
-            /* r = z0 */
-            /* r += (z1 - z0 - z2) << 48 */
-            z1->dp[96] = ca;
-            l = 0;
-            if (ca) {
-                l = z1->dp[0 + 48];
-                h = 0;
-                SP_ASM_ADDC(l, h, a1->dp[0]);
-                SP_ASM_ADDC(l, h, a1->dp[0]);
-                z1->dp[0 + 48] = l;
-                l = h;
-                h = 0;
-                for (i = 1; i < 48; i++) {
-                    SP_ASM_ADDC(l, h, z1->dp[i + 48]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    SP_ASM_ADDC(l, h, a1->dp[i]);
-                    z1->dp[i + 48] = l;
-                    l = h;
-                    h = 0;
-                }
-            }
-            z1->dp[96] += l;
-            /* z1 = z1 - z0 - z1 */
-            l = z1->dp[0];
-            h = 0;
-            SP_ASM_SUBC(l, h, z0->dp[0]);
-            SP_ASM_SUBC(l, h, z2->dp[0]);
-            z1->dp[0] = l;
+        /* z2 = a1 ^ 2 */
+        err = _sp_sqr_48(a1, z2);
+    }
+    if (err == MP_OKAY) {
+        l = 0;
+        h = 0;
+        for (i = 0; i < 48; i++) {
+            SP_ASM_ADDC(l, h, a1->dp[i]);
+            SP_ASM_ADDC(l, h, a->dp[i]);
+            a1->dp[i] = l;
             l = h;
             h = 0;
-            for (i = 1; i < 96; i++) {
-                l += z1->dp[i];
-                SP_ASM_SUBC(l, h, z0->dp[i]);
-                SP_ASM_SUBC(l, h, z2->dp[i]);
-                z1->dp[i] = l;
-                l = h;
-                h = 0;
-            }
-            z1->dp[i] += l;
-            /* r += z1 << 16 */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 48; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 48]);
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 48] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 97; i++) {
-                SP_ASM_ADDC(l, h, z1->dp[i]);
-                r->dp[i + 48] = l;
-                l = h;
-                h = 0;
-            }
-            /* r += z2 << 96  */
-            l = 0;
-            h = 0;
-            for (i = 0; i < 49; i++) {
-                SP_ASM_ADDC(l, h, r->dp[i + 96]);
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 96] = l;
-                l = h;
-                h = 0;
-            }
-            for (; i < 96; i++) {
-                SP_ASM_ADDC(l, h, z2->dp[i]);
-                r->dp[i + 96] = l;
-                l = h;
-                h = 0;
-            }
-            r->used = 192;
-            sp_clamp(r);
         }
+        ca = l;
 
-        FREE_SP_INT_ARRAY(z, NULL);
-        FREE_SP_INT(a1, NULL);
-        return err;
+        /* z0 = a0 ^ 2 */
+        err = _sp_sqr_48(a, z0);
     }
+    if (err == MP_OKAY) {
+        /* z1 = (a0 + a1) ^ 2 */
+        err = _sp_sqr_48(a1, z1);
+    }
+    if (err == MP_OKAY) {
+        /* r = (z2 << 96) + (z1 - z0 - z2) << 48) + z0 */
+        /* r = z0 */
+        /* r += (z1 - z0 - z2) << 48 */
+        z1->dp[96] = ca;
+        l = 0;
+        if (ca) {
+            l = z1->dp[0 + 48];
+            h = 0;
+            SP_ASM_ADDC(l, h, a1->dp[0]);
+            SP_ASM_ADDC(l, h, a1->dp[0]);
+            z1->dp[0 + 48] = l;
+            l = h;
+            h = 0;
+            for (i = 1; i < 48; i++) {
+                SP_ASM_ADDC(l, h, z1->dp[i + 48]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                SP_ASM_ADDC(l, h, a1->dp[i]);
+                z1->dp[i + 48] = l;
+                l = h;
+                h = 0;
+            }
+        }
+        z1->dp[96] += l;
+        /* z1 = z1 - z0 - z1 */
+        l = z1->dp[0];
+        h = 0;
+        SP_ASM_SUBC(l, h, z0->dp[0]);
+        SP_ASM_SUBC(l, h, z2->dp[0]);
+        z1->dp[0] = l;
+        l = h;
+        h = 0;
+        for (i = 1; i < 96; i++) {
+            l += z1->dp[i];
+            SP_ASM_SUBC(l, h, z0->dp[i]);
+            SP_ASM_SUBC(l, h, z2->dp[i]);
+            z1->dp[i] = l;
+            l = h;
+            h = 0;
+        }
+        z1->dp[i] += l;
+        /* r += z1 << 16 */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 48; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 48]);
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 48] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 97; i++) {
+            SP_ASM_ADDC(l, h, z1->dp[i]);
+            r->dp[i + 48] = l;
+            l = h;
+            h = 0;
+        }
+        /* r += z2 << 96  */
+        l = 0;
+        h = 0;
+        for (i = 0; i < 49; i++) {
+            SP_ASM_ADDC(l, h, r->dp[i + 96]);
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 96] = l;
+            l = h;
+            h = 0;
+        }
+        for (; i < 96; i++) {
+            SP_ASM_ADDC(l, h, z2->dp[i]);
+            r->dp[i + 96] = l;
+            l = h;
+            h = 0;
+        }
+        r->used = 192;
+        sp_clamp(r);
+    }
+
+    FREE_SP_INT_ARRAY(z, NULL);
+    FREE_SP_INT(a1, NULL);
+    return err;
+}
     #endif /* SP_INT_DIGITS >= 192 */
 
 #endif /* SQR_MUL_ASM && WOLFSSL_SP_INT_LARGE_COMBA */
@@ -11646,9 +13930,11 @@ int sp_sqr(sp_int* a, sp_int* r)
         err = MP_VAL;
     }
 
-    if (0 && (err == MP_OKAY)) {
+#if 0
+    if (err == MP_OKAY) {
         sp_print(a, "a");
     }
+#endif
 
     if (err == MP_OKAY) {
         if (a->used == 0) {
@@ -11738,9 +14024,11 @@ int sp_sqr(sp_int* a, sp_int* r)
     }
 #endif
 
-    if (0 && (err == MP_OKAY)) {
+#if 0
+    if (err == MP_OKAY) {
         sp_print(r, "rsqr");
     }
+#endif
 
     return err;
 #endif /* WOLFSSL_SP_MATH && WOLFSSL_SP_SMALL */
@@ -11785,7 +14073,7 @@ int sp_sqrmod(sp_int* a, sp_int* m, sp_int* r)
 #endif /* !WOLFSSL_RSA_VERIFY_ONLY */
 
 /**********************
- * Montogmery functions
+ * Montgomery functions
  **********************/
 
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
@@ -11872,7 +14160,7 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
     sp_clamp(a);
     sp_rshb(a, bits, a);
 
-    if (_sp_cmp(a, m) != MP_LT) {
+    if (_sp_cmp_abs(a, m) != MP_LT) {
         _sp_sub_off(a, m, a, 0);
     }
 
@@ -11890,7 +14178,7 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
     sp_int_digit mask;
 
     bits = sp_count_bits(m);
-    mask = (1UL << (bits & (SP_WORD_SIZE - 1))) - 1;
+    mask = ((sp_int_digit)1 << (bits & (SP_WORD_SIZE - 1))) - 1;
 
     for (i = a->used; i < m->used * 2; i++) {
         a->dp[i] = 0;
@@ -11902,19 +14190,19 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
         mu = mp * a->dp[0];
         w = a->dp[0];
         w += (sp_int_word)mu * m->dp[0];
-        a->dp[0] = w;
+        a->dp[0] = (sp_int_digit)w;
         w >>= SP_WORD_SIZE;
         w += a->dp[1];
-        a->dp[1] = w;
+        a->dp[1] = (sp_int_digit)w;
         w >>= SP_WORD_SIZE;
-        a->dp[2] = w;
+        a->dp[2] = (sp_int_digit)w;
         a->used = m->used * 2 + 1;
         /* mp is SP_WORD_SIZE */
         bits = SP_WORD_SIZE;
     }
 #ifndef WOLFSSL_HAVE_SP_ECC
 #if SP_WORD_SIZE == 64
-    else if (m->used == 4) {
+    else if ((m->used == 4) && (mask == 0)) {
         sp_int_digit l;
         sp_int_digit h;
         sp_int_digit o2;
@@ -11924,41 +14212,45 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
         o = 0;
         o2 = 0;
         for (i = 0; i < 4; i++) {
-            mu = mp * a->dp[i];
-            if ((i == 3) && (mask != 0)) {
-                mu &= mask;
-            }
-            l = a->dp[i];
+            mu = mp * a->dp[0];
+            l = a->dp[0];
             SP_ASM_MUL_ADD_NO(l, h, mu, m->dp[0]);
-            a->dp[i] = l;
             l = h;
             h = 0;
-            SP_ASM_ADDC(l, h, a->dp[i + 1]);
+            SP_ASM_ADDC(l, h, a->dp[1]);
             SP_ASM_MUL_ADD_NO(l, h, mu, m->dp[1]);
-            a->dp[i + 1] = l;
+            a->dp[0] = l;
             l = h;
             h = 0;
-            SP_ASM_ADDC(l, h, a->dp[i + 2]);
+            SP_ASM_ADDC(l, h, a->dp[2]);
             SP_ASM_MUL_ADD_NO(l, h, mu, m->dp[2]);
-            a->dp[i + 2] = l;
+            a->dp[1] = l;
             l = h;
             h = o2;
             o2 = 0;
             SP_ASM_ADDC_REG(l, h, o);
             SP_ASM_ADDC(l, h, a->dp[i + 3]);
             SP_ASM_MUL_ADD(l, h, o2, mu, m->dp[3]);
-            a->dp[i + 3] = l;
+            a->dp[2] = l;
             o = h;
             l = h;
             h = 0;
         }
         h = o2;
         SP_ASM_ADDC(l, h, a->dp[7]);
-        a->dp[7] = l;
-        a->dp[8] = h;
-        a->used = 9;
+        a->dp[3] = l;
+        a->dp[4] = h;
+        a->used = 5;
+
+        sp_clamp(a);
+
+        if (_sp_cmp_abs(a, m) != MP_LT) {
+            sp_sub(a, m, a);
+        }
+
+        return MP_OKAY;
     }
-    else if (m->used == 6) {
+    else if ((m->used == 6) && (mask == 0)) {
         sp_int_digit l;
         sp_int_digit h;
         sp_int_digit o2;
@@ -11968,51 +14260,113 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
         o = 0;
         o2 = 0;
         for (i = 0; i < 6; i++) {
-            mu = mp * a->dp[i];
-            if ((i == 5) && (mask != 0)) {
-                mu &= mask;
-            }
-            l = a->dp[i];
+            mu = mp * a->dp[0];
+            l = a->dp[0];
             SP_ASM_MUL_ADD_NO(l, h, mu, m->dp[0]);
-            a->dp[i] = l;
             l = h;
             h = 0;
-            SP_ASM_ADDC(l, h, a->dp[i + 1]);
+            SP_ASM_ADDC(l, h, a->dp[1]);
             SP_ASM_MUL_ADD_NO(l, h, mu, m->dp[1]);
-            a->dp[i + 1] = l;
+            a->dp[0] = l;
             l = h;
             h = 0;
-            SP_ASM_ADDC(l, h, a->dp[i + 2]);
+            SP_ASM_ADDC(l, h, a->dp[2]);
             SP_ASM_MUL_ADD_NO(l, h, mu, m->dp[2]);
-            a->dp[i + 2] = l;
+            a->dp[1] = l;
             l = h;
             h = 0;
-            SP_ASM_ADDC(l, h, a->dp[i + 3]);
+            SP_ASM_ADDC(l, h, a->dp[3]);
             SP_ASM_MUL_ADD_NO(l, h, mu, m->dp[3]);
-            a->dp[i + 3] = l;
+            a->dp[2] = l;
             l = h;
             h = 0;
-            SP_ASM_ADDC(l, h, a->dp[i + 4]);
+            SP_ASM_ADDC(l, h, a->dp[4]);
             SP_ASM_MUL_ADD_NO(l, h, mu, m->dp[4]);
-            a->dp[i + 4] = l;
+            a->dp[3] = l;
             l = h;
             h = o2;
             o2 = 0;
             SP_ASM_ADDC_REG(l, h, o);
             SP_ASM_ADDC(l, h, a->dp[i + 5]);
             SP_ASM_MUL_ADD(l, h, o2, mu, m->dp[5]);
-            a->dp[i + 5] = l;
+            a->dp[4] = l;
             o = h;
             l = h;
             h = 0;
         }
         h = o2;
         SP_ASM_ADDC(l, h, a->dp[11]);
-        a->dp[11] = l;
-        a->dp[12] = h;
-        a->used = 13;
+        a->dp[5] = l;
+        a->dp[6] = h;
+        a->used = 7;
+
+        sp_clamp(a);
+
+        if (_sp_cmp_abs(a, m) != MP_LT) {
+            sp_sub(a, m, a);
+        }
+
+        return MP_OKAY;
     }
-#endif /* SP_WORD_SIZE == 64 */
+#elif SP_WORD_SIZE == 32
+    else if ((m->used <= 12) && (mask == 0)) {
+        sp_int_digit l;
+        sp_int_digit h;
+        sp_int_digit o2;
+        sp_int_digit* ad;
+        sp_int_digit* md;
+
+        o = 0;
+        o2 = 0;
+        ad = a->dp;
+        for (i = 0; i < m->used; i++) {
+            md = m->dp;
+            mu = mp * ad[0];
+            l = ad[0];
+            h = 0;
+            SP_ASM_MUL_ADD_NO(l, h, mu, *(md++));
+            l = h;
+            for (j = 1; j + 1 < m->used - 1; j += 2) {
+                h = 0;
+                SP_ASM_ADDC(l, h, ad[j]);
+                SP_ASM_MUL_ADD_NO(l, h, mu, *(md++));
+                ad[j - 1] = l;
+                l = 0;
+                SP_ASM_ADDC(h, l, ad[j + 1]);
+                SP_ASM_MUL_ADD_NO(h, l, mu, *(md++));
+                ad[j] = h;
+            }
+            for (; j < m->used - 1; j++) {
+                h = 0;
+                SP_ASM_ADDC(l, h, ad[j]);
+                SP_ASM_MUL_ADD_NO(l, h, mu, *(md++));
+                ad[j - 1] = l;
+                l = h;
+            }
+            h = o2;
+            o2 = 0;
+            SP_ASM_ADDC_REG(l, h, o);
+            SP_ASM_ADDC(l, h, ad[i + j]);
+            SP_ASM_MUL_ADD(l, h, o2, mu, *md);
+            ad[j - 1] = l;
+            o = h;
+        }
+        l = o;
+        h = o2;
+        SP_ASM_ADDC(l, h, a->dp[m->used * 2 - 1]);
+        a->dp[m->used  - 1] = l;
+        a->dp[m->used] = h;
+        a->used = m->used + 1;
+
+        sp_clamp(a);
+
+        if (_sp_cmp_abs(a, m) != MP_LT) {
+            sp_sub(a, m, a);
+        }
+
+        return MP_OKAY;
+    }
+#endif /* SP_WORD_SIZE == 64 | 32 */
 #endif /* WOLFSSL_HAVE_SP_ECC */
     else {
         sp_int_digit l;
@@ -12071,7 +14425,7 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
     sp_clamp(a);
     sp_rshb(a, bits, a);
 
-    if (_sp_cmp(a, m) != MP_LT) {
+    if (_sp_cmp_abs(a, m) != MP_LT) {
         sp_sub(a, m, a);
     }
 
@@ -12331,9 +14685,6 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
     return err;
 }
 
-#if (!defined(NO_DH) || defined(HAVE_ECC) || defined(WC_RSA_BLINDING) || \
-    defined(WOLFSSL_RSA_PUBLIC_ONLY)) && (!defined(WOLFSSL_RSA_VERIFY_ONLY) || \
-    defined(HAVE_ECC_KEY_EXPORT))
 /* Convert the multi-precision number to an array of bytes in big-endian format.
  *
  * The array must be large enough for encoded number - use mp_unsigned_bin_size
@@ -12349,8 +14700,6 @@ int sp_to_unsigned_bin(sp_int* a, byte* out)
 {
     return sp_to_unsigned_bin_len(a, out, sp_unsigned_bin_size(a));
 }
-#endif /* (!NO_DH || HAVE_ECC || WC_RSA_BLINDING || WOLFSSL_RSA_PUBLIC_ONLY) 
-            && !WOLFSSL_RSA_VERIFY_ONLY */
 
 /* Convert the multi-precision number to an array of bytes in big-endian format.
  *
@@ -12728,7 +15077,7 @@ int sp_todecimal(sp_int* a, char* str)
             str[i] = '\0';
 
             for (j = 0; j <= (i - 1) / 2; j++) {
-                int c = str[j];
+                int c = (unsigned char)str[j];
                 str[j] = str[i - 1 - j];
                 str[i - 1 - j] = c;
             }
@@ -12952,6 +15301,15 @@ int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
             err = MP_VAL;
             break;
         }
+
+        /* munge bits */
+#ifndef LITTLE_ENDIAN_ORDER
+        ((byte*)(r->dp + r->used - 1))[0] |= 0x80 | 0x40;
+#else
+        ((byte*)r->dp)[len-1] |= 0x80 | 0x40;
+#endif /* LITTLE_ENDIAN_ORDER */
+        r->dp[0]              |= 0x01 | ((type & USE_BBS) ? 0x02 : 0x00);
+
 #ifndef LITTLE_ENDIAN_ORDER
         if (((len * 8) & SP_WORD_MASK) != 0) {
             r->dp[r->used-1] >>= SP_WORD_SIZE - ((len * 8) & SP_WORD_MASK);
@@ -12962,14 +15320,6 @@ int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
             r->dp[r->used - 1] &= ((sp_digit)1 << bits) - 1;
         }
 #endif /* WOLFSSL_SP_MATH_ALL */
-
-        /* munge bits */
-#ifndef LITTLE_ENDIAN_ORDER
-        ((byte*)(r->dp + r->used - 1))[0] |= 0x80 | 0x40;
-#else
-        ((byte*)r->dp)[len-1] |= 0x80 | 0x40;
-#endif /* LITTLE_ENDIAN_ORDER */
-        r->dp[0]              |= 0x01 | ((type & USE_BBS) ? 0x02 : 0x00);
 
         /* test */
         /* Running Miller-Rabin up to 3 times gives us a 2^{-80} chance
@@ -13204,6 +15554,8 @@ int sp_prime_is_prime(sp_int* a, int t, int* result)
         haveRes = 1;
     }
 
+    SAVE_VECTOR_REGISTERS(err = _svr_ret;);
+
     if ((err == MP_OKAY) && (!haveRes) && (a->used == 1)) {
         /* check against primes table */
         for (i = 0; i < SP_PRIME_SIZE; i++) {
@@ -13241,6 +15593,8 @@ int sp_prime_is_prime(sp_int* a, int t, int* result)
             }
         }
      }
+
+     RESTORE_VECTOR_REGISTERS();
 
      FREE_SP_INT(b, NULL);
      return err;
@@ -13282,6 +15636,8 @@ int sp_prime_is_prime_ex(sp_int* a, int t, int* result, WC_RNG* rng)
         ret = MP_NO;
         haveRes = 1;
     }
+
+    SAVE_VECTOR_REGISTERS(err = _svr_ret;);
 
     if ((err == MP_OKAY) && (!haveRes) && (a->used == 1)) {
         /* check against primes table */
@@ -13374,6 +15730,9 @@ int sp_prime_is_prime_ex(sp_int* a, int t, int* result, WC_RNG* rng)
     if (result != NULL) {
         *result = ret;
     }
+
+    RESTORE_VECTOR_REGISTERS();
+
     return err;
 }
 #endif /* WOLFSSL_SP_PRIME_GEN */
@@ -13389,7 +15748,7 @@ int sp_prime_is_prime_ex(sp_int* a, int t, int* result, WC_RNG* rng)
  * @param  [out]  r  SP integer to hold result.
  *
  * @return  MP_OKAY on success.
- * @return  MP_VAL when a, b or r is NULL.
+ * @return  MP_VAL when a, b or r is NULL or too large.
  * @return  MP_MEM when dynamic memory allocation fails.
  */
 int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
@@ -13397,6 +15756,9 @@ int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
     int err = MP_OKAY;
 
     if ((a == NULL) || (b == NULL) || (r == NULL)) {
+        err = MP_VAL;
+    }
+    else if (a->used >= SP_INT_DIGITS || b->used >= SP_INT_DIGITS) {
         err = MP_VAL;
     }
     else if (sp_iszero(a)) {
@@ -13418,7 +15780,10 @@ int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
         int used = (a->used >= b->used) ? a->used + 1 : b->used + 1;
         DECL_SP_INT_ARRAY(d, used, 3);
 
+        SAVE_VECTOR_REGISTERS(err = _svr_ret;);
+
         ALLOC_SP_INT_ARRAY(d, used, 3, err, NULL);
+
         if (err == MP_OKAY) {
             u = d[0];
             v = d[1];
@@ -13482,6 +15847,8 @@ int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
         }
 
         FREE_SP_INT_ARRAY(d, NULL);
+
+        RESTORE_VECTOR_REGISTERS();
     }
 
     return err;
@@ -13527,7 +15894,11 @@ int sp_lcm(sp_int* a, sp_int* b, sp_int* r)
         sp_init_size(t[0], used);
         sp_init_size(t[1], used);
 
-        err = sp_gcd(a, b, t[0]);
+        SAVE_VECTOR_REGISTERS(err = _svr_ret;);
+
+        if (err == MP_OKAY)
+            err = sp_gcd(a, b, t[0]);
+
         if (err == MP_OKAY) {
             if (_sp_cmp_abs(a, b) == MP_GT) {
                 err = sp_div(a, t[0], t[1], NULL);
@@ -13542,6 +15913,8 @@ int sp_lcm(sp_int* a, sp_int* b, sp_int* r)
                 }
             }
         }
+
+        RESTORE_VECTOR_REGISTERS();
     }
 
     FREE_SP_INT_ARRAY(t, NULL);

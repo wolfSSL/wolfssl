@@ -186,13 +186,13 @@ static int Transform_Len(wc_Md5* md5, const byte* data, word32 len)
 
 #define XTRANSFORM(S,B)  Transform((S),(B))
 
-#define F1(x, y, z) (z ^ (x & (y ^ z)))
+#define F1(x, y, z) ((z) ^ ((x) & ((y) ^ (z))))
 #define F2(x, y, z) F1(z, x, y)
-#define F3(x, y, z) (x ^ y ^ z)
-#define F4(x, y, z) (y ^ (x | ~z))
+#define F3(x, y, z) ((x) ^ (y) ^ (z))
+#define F4(x, y, z) ((y) ^ ((x) | ~(z)))
 
 #define MD5STEP(f, w, x, y, z, data, s) \
-        w = rotlFixed(w + f(x, y, z) + data, s) + x
+    (w) = (rotlFixed((w) + f(x, y, z) + (data), s) + (x))
 
 static int Transform(wc_Md5* md5, const byte* data)
 {
@@ -303,7 +303,7 @@ static int _InitMd5(wc_Md5* md5)
     md5->buffLen = 0;
     md5->loLen   = 0;
     md5->hiLen   = 0;
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     md5->flags = 0;
 #endif
 
@@ -545,7 +545,7 @@ int wc_Md5Copy(wc_Md5* src, wc_Md5* dst)
 #ifdef WOLFSSL_PIC32MZ_HASH
     ret = wc_Pic32HashCopy(&src->cache, &dst->cache);
 #endif
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
     dst->flags |= WC_HASH_FLAG_ISCOPY;
 #endif
 
@@ -565,7 +565,7 @@ int wc_Md5Transform(wc_Md5* md5, const byte* data)
     return Transform(md5, data);
 }
 #endif
-#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+#ifdef WOLFSSL_HASH_FLAGS
 int wc_Md5SetFlags(wc_Md5* md5, word32 flags)
 {
     if (md5) {

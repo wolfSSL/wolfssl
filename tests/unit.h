@@ -60,8 +60,8 @@
 } while(0)
 
 #define AssertInt(x, y, op, er) do {                                           \
-    int _x = (int)x;                                                                \
-    int _y = (int)y;                                                                \
+    int _x = (int)(x);                                                         \
+    int _y = (int)(y);                                                         \
                                                                                \
     Assert(_x op _y, ("%s " #op " %s", #x, #y), ("%d " #er " %d", _x, _y));    \
 } while(0)
@@ -90,8 +90,8 @@
 #define AssertStrLE(x, y) AssertStr(x, y, <=,  >)
 
 #define AssertPtr(x, y, op, er) do {                                           \
-    void* _x = (void*)x;                                                       \
-    void* _y = (void*)y;                                                       \
+    void* _x = (void*)(x);                                                     \
+    void* _y = (void*)(y);                                                     \
     Assert(_x op _y, ("%s " #op " %s", #x, #y), ("%p " #er " %p", _x, _y));    \
 } while(0)
 

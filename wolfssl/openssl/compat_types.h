@@ -30,11 +30,34 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/hmac.h>
 
+#ifndef NO_HMAC
 typedef struct WOLFSSL_HMAC_CTX {
     Hmac hmac;
     int  type;
     word32  save_ipad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];  /* same block size all*/
     word32  save_opad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];
 } WOLFSSL_HMAC_CTX;
+#endif
+
+typedef char   WOLFSSL_EVP_MD;
+typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_EVP_PKEY;
+typedef struct WOLFSSL_EVP_MD_CTX   WOLFSSL_EVP_MD_CTX;
+typedef struct WOLFSSL_EVP_PKEY WOLFSSL_PKCS8_PRIV_KEY_INFO;
+typedef char WOLFSSL_EVP_CIPHER;
+typedef struct WOLFSSL_EVP_PKEY_CTX WOLFSSL_EVP_PKEY_CTX;
+typedef struct WOLFSSL_EVP_CIPHER_CTX WOLFSSL_EVP_CIPHER_CTX;
+typedef struct WOLFSSL_ASN1_PCTX WOLFSSL_ASN1_PCTX;
+
+typedef WOLFSSL_EVP_MD         EVP_MD;
+typedef WOLFSSL_EVP_MD_CTX     EVP_MD_CTX;
+typedef WOLFSSL_EVP_CIPHER     EVP_CIPHER;
+typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
+typedef WOLFSSL_ASN1_PCTX      ASN1_PCTX;
+typedef WOLFSSL_EVP_PKEY       EVP_PKEY;
+typedef WOLFSSL_EVP_PKEY       PKCS8_PRIV_KEY_INFO;
+
+typedef int WOLFSSL_ENGINE;
+typedef WOLFSSL_ENGINE ENGINE;
+typedef WOLFSSL_EVP_PKEY_CTX EVP_PKEY_CTX;
 
 #endif /* WOLFSSL_OPENSSL_COMPAT_TYPES_H_ */

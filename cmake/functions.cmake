@@ -1,25 +1,38 @@
-function(add_option NAME HELP_STRING DEFAULT VALUES)
-    list(FIND VALUES ${DEFAULT} IDX)
-    if (${IDX} EQUAL -1)
-        message(FATAL_ERROR "Failed to add option ${NAME}. Default value "
-            "${DEFAULT} is not in list of possible values: ${VALUES}.")
+function(override_cache VAR VAL)
+    get_property(VAR_STRINGS CACHE ${VAR} PROPERTY STRINGS)
+    LIST(FIND VAR_STRINGS ${VAL} CK)
+    if(-1 EQUAL ${CK})
+        message(SEND_ERROR
+            "\"${VAL}\" is not valid override value for \"${VAR}\"."
+            " Please select value from \"${VAR_STRINGS}\"\n")
     endif()
+    set_property(CACHE ${VAR} PROPERTY VALUE ${VAL})
+endfunction()
+
+function(add_option NAME HELP_STRING DEFAULT VALUES)
+    # Set the default value for the option.
+    set(${NAME} ${DEFAULT} CACHE STRING ${HELP_STRING})
+    # Set the list of allowed values for the option.
+    set_property(CACHE ${NAME} PROPERTY STRINGS ${VALUES})
 
     if(DEFINED ${NAME})
         list(FIND VALUES ${${NAME}} IDX)
+        #
+        # If the given value isn't in the list of allowed values for the option,
+        # reduce it to yes/no according to CMake's "if" logic:
+        # https://cmake.org/cmake/help/latest/command/if.html#basic-expressions
+        #
+        # This has no functional impact; it just makes the settings in
+        # CMakeCache.txt and cmake-gui easier to read.
+        #
         if (${IDX} EQUAL -1)
-            message(FATAL_ERROR "Failed to set option ${NAME}. Value "
-                "${${NAME}} is not in list of possible values: ${VALUES}.")
+            if(${${NAME}})
+                override_cache(${NAME} "yes")
+            else()
+                override_cache(${NAME} "no")
+            endif()
         endif()
     endif()
-
-    set(${NAME} ${DEFAULT} CACHE STRING ${HELP_STRING})
-    set_property(CACHE ${NAME} PROPERTY STRINGS ${VALUES})
-endfunction()
-
-function(override_cache VAR VAL)
-    get_property(VAR_TYPE CACHE ${VAR} PROPERTY TYPE)
-    set(${VAR} ${VAL} CACHE ${VAR_TYPE} ${${VAR}_HELP_STRING} FORCE)
 endfunction()
 
 function(generate_build_flags)
@@ -84,9 +97,7 @@ function(generate_build_flags)
     if(WOLFSSL_ED25519 OR WOLFSSL_USER_SETTINGS)
         set(BUILD_ED25519 "yes" PARENT_SCOPE)
     endif()
-    if(WOLFSSL_ED25519_SMALL OR WOLFSSL_USER_SETTINGS)
-        set(BUILD_ED25519_SMALL "yes" PARENT_SCOPE)
-    endif()
+    set(BUILD_ED25519_SMALL ${WOLFSSL_ED25519_SMALL} PARENT_SCOPE)
     if(WOLFSSL_FEMATH OR WOLFSSL_USER_SETTINGS)
         set(BUILD_FEMATH "yes" PARENT_SCOPE)
     endif()
@@ -96,9 +107,7 @@ function(generate_build_flags)
     if(WOLFSSL_CURVE25519 OR WOLFSSL_USER_SETTINGS)
         set(BUILD_CURVE25519 "yes" PARENT_SCOPE)
     endif()
-    if(WOLFSSL_CURVE25519_SMALL OR WOLFSSL_USER_SETTINGS)
-        set(BUILD_CURVE25519_SMALL "yes" PARENT_SCOPE)
-    endif()
+    set(BUILD_CURVE25519_SMALL ${WOLFSSL_CURVE25519_SMALL} PARENT_SCOPE)
     if(WOLFSSL_ED448 OR WOLFSSL_USER_SETTINGS)
         set(BUILD_ED448 "yes" PARENT_SCOPE)
     endif()
@@ -133,9 +142,6 @@ function(generate_build_flags)
     if(WOLFSSL_CODING OR WOLFSSL_USER_SETTINGS)
         set(BUILD_CODING "yes" PARENT_SCOPE)
     endif()
-    if(WOLFSSL_IDEA OR WOLFSSL_USER_SETTINGS)
-        set(BUILD_IDEA "yes" PARENT_SCOPE)
-    endif()
     if(WOLFSSL_ARC4 OR WOLFSSL_USER_SETTINGS)
         set(BUILD_RC4 "yes" PARENT_SCOPE)
     endif()
@@ -144,12 +150,6 @@ function(generate_build_flags)
     endif()
     if(WOLFSSL_SHA OR WOLFSSL_USER_SETTINGS)
         set(BUILD_SHA "yes" PARENT_SCOPE)
-    endif()
-    if(WOLFSSL_HC128 OR WOLFSSL_USER_SETTINGS)
-        set(BUILD_HC128 "yes" PARENT_SCOPE)
-    endif()
-    if(WOLFSSL_RABBIT OR WOLFSSL_USER_SETTINGS)
-        set(BUILD_RABBIT "yes" PARENT_SCOPE)
     endif()
     set(BUILD_FIPS ${WOLFSSL_FIPS} PARENT_SCOPE)
     if("${FIPS_VERSION}" STREQUAL "v1")
@@ -160,6 +160,9 @@ function(generate_build_flags)
     endif()
     if("${FIPS_VERSION}" STREQUAL "rand")
         set(BUILD_FIPS_RAND "yes" PARENT_SCOPE)
+    endif()
+    if("${FIPS_VERSION}" STREQUAL "v5")
+        set(BUILD_FIPS_V5 "yes" PARENT_SCOPE)
     endif()
     set(BUILD_FIPS_READY ${FIPS_READY} PARENT_SCOPE)
     if(WOLFSSL_CMAC OR WOLFSSL_USER_SETTINGS)
@@ -195,7 +198,6 @@ function(generate_build_flags)
     endif()
     set(BUILD_USER_RSA ${WOLFSSL_USER_RSA} PARENT_SCOPE)
     set(BUILD_USER_CRYPTO ${WOLFSSL_USER_CRYPTO} PARENT_SCOPE)
-    set(BUILD_NTRU ${WOLFSSL_NTRU} PARENT_SCOPE)
     set(BUILD_WNR ${WOLFSSL_WNR} PARENT_SCOPE)
     if(WOLFSSL_SRP OR WOLFSSL_USER_SETTINGS)
         set(BUILD_SRP "yes" PARENT_SCOPE)
@@ -301,10 +303,10 @@ function(generate_lib_src_list LIB_SOURCES)
          if(BUILD_FIPS_V1)
               # fips first  file
               list(APPEND LIB_SOURCES ctaocrypt/src/wolfcrypt_first.c)
-              
+
               list(APPEND LIB_SOURCES
                    ctaocrypt/src/hmac.c
-                   ctaocrypt/src/random.c 
+                   ctaocrypt/src/random.c
                    ctaocrypt/src/sha256.c)
 
               if(BUILD_RSA)
@@ -338,12 +340,12 @@ function(generate_lib_src_list LIB_SOURCES)
          if(BUILD_FIPS_V2)
               # FIPSv2 first file
               list(APPEND LIB_SOURCES wolfcrypt/src/wolfcrypt_first.c)
-              
+
               list(APPEND LIB_SOURCES
-                wolfcrypt/src/hmac.c 
-                wolfcrypt/src/random.c 
+                wolfcrypt/src/hmac.c
+                wolfcrypt/src/random.c
                 wolfcrypt/src/sha256.c)
-              
+
               if(BUILD_RSA)
                    list(APPEND LIB_SOURCES wolfcrypt/src/rsa.c)
               endif()
@@ -419,18 +421,34 @@ function(generate_lib_src_list LIB_SOURCES)
               list(APPEND LIB_SOURCES wolfcrypt/src/wolfcrypt_last.c)
          endif()
 
+         if(BUILD_FIPS_V5)
+              list(APPEND LIB_SOURCES wolfcrypt/src/wolfcrypt_first.c)
+
+              list(APPEND LIB_SOURCES
+                wolfcrypt/src/hmac.c
+                wolfcrypt/src/random.c
+                wolfcrypt/src/sha256.c)
+
+              list(APPEND LIB_SOURCES
+                wolfcrypt/src/kdf.c)
+
+              if(BUILD_RSA)
+                   list(APPEND LIB_SOURCES wolfcrypt/src/rsa.c)
+              endif()
+         endif()
+
          if(BUILD_FIPS_RAND)
               list(APPEND LIB_SOURCES
-                   wolfcrypt/src/wolfcrypt_first.c 
-                   wolfcrypt/src/hmac.c 
-                   wolfcrypt/src/random.c 
-                   wolfcrypt/src/sha256.c 
-                   wolfcrypt/src/sha256_asm.S 
-                   wolfcrypt/src/fips.c 
-                   wolfcrypt/src/fips_test.c 
+                   wolfcrypt/src/wolfcrypt_first.c
+                   wolfcrypt/src/hmac.c
+                   wolfcrypt/src/random.c
+                   wolfcrypt/src/sha256.c
+                   wolfcrypt/src/sha256_asm.S
+                   wolfcrypt/src/fips.c
+                   wolfcrypt/src/fips_test.c
                    wolfcrypt/src/wolfcrypt_last.c)
          endif()
-    endif() 
+    endif()
 
     # For wolfRand, exclude everything else.
     if(NOT BUILD_FIPS_RAND)
@@ -449,10 +467,14 @@ function(generate_lib_src_list LIB_SOURCES)
     endif()
 
     list(APPEND LIB_SOURCES
-         wolfcrypt/src/hash.c 
+         wolfcrypt/src/hash.c
          wolfcrypt/src/cpuid.c)
 
     if(NOT BUILD_FIPS_RAND)
+         if(NOT BUILD_FIPS_V5)
+              list(APPEND LIB_SOURCES wolfcrypt/src/kdf.c)
+         endif()
+
          if(NOT BUILD_FIPS_V2 AND BUILD_RNG)
               list(APPEND LIB_SOURCES wolfcrypt/src/random.c)
          endif()
@@ -499,7 +521,7 @@ function(generate_lib_src_list LIB_SOURCES)
               endif()
 
               if(BUILD_SP_X86_64)
-                   list(APPEND LIB_SOURCES 
+                   list(APPEND LIB_SOURCES
                         wolfcrypt/src/sp_x86_64.c
                         wolfcrypt/src/sp_x86_64_asm.S)
               endif()
@@ -511,7 +533,7 @@ function(generate_lib_src_list LIB_SOURCES)
               if(BUILD_SP_ARM_THUMB)
                    list(APPEND LIB_SOURCES wolfcrypt/src/sp_armthumb.c)
               endif()
-              
+
               if(BUILD_SP_ARM64)
                    list(APPEND LIB_SOURCES wolfcrypt/src/sp_arm64.c)
               endif()
@@ -519,7 +541,7 @@ function(generate_lib_src_list LIB_SOURCES)
               if(BUILD_SP_INT)
                    list(APPEND LIB_SOURCES wolfcrypt/src/sp_int.c)
               endif()
-              
+
               if(BUILD_SP_ARM_CORTEX)
                    list(APPEND LIB_SOURCES wolfcrypt/src/sp_cortexm.c)
               endif()
@@ -572,19 +594,15 @@ function(generate_lib_src_list LIB_SOURCES)
     endif()
 
     list(APPEND LIB_SOURCES
-         wolfcrypt/src/logging.c 
-         wolfcrypt/src/wc_port.c 
+         wolfcrypt/src/logging.c
+         wolfcrypt/src/wc_port.c
          wolfcrypt/src/error.c)
 
-    if(BUILD_DEBUG)
-         list(APPEND LIB_SOURCES
-              wolfcrypt/src/debug.c)
-    endif()
 
     if(NOT BUILD_FIPS_RAND)
          list(APPEND LIB_SOURCES
-              wolfcrypt/src/wc_encrypt.c 
-              wolfcrypt/src/signature.c 
+              wolfcrypt/src/wc_encrypt.c
+              wolfcrypt/src/signature.c
               wolfcrypt/src/wolfmath.c)
     endif()
 
@@ -646,7 +664,7 @@ function(generate_lib_src_list LIB_SOURCES)
                    wolfcrypt/src/aes_asm.S
                    wolfcrypt/src/aes_gcm_asm.S)
          endif()
-         
+
          if(BUILD_CAMELLIA)
               list(APPEND LIB_SOURCES wolfcrypt/src/camellia.c)
          endif()
@@ -662,17 +680,9 @@ function(generate_lib_src_list LIB_SOURCES)
          if(BUILD_BLAKE2)
               list(APPEND LIB_SOURCES wolfcrypt/src/blake2b.c)
          endif()
-         
+
          if(BUILD_BLAKE2S)
               list(APPEND LIB_SOURCES wolfcrypt/src/blake2s.c)
-         endif()
-
-         if(BUILD_HC128)
-              list(APPEND LIB_SOURCES wolfcrypt/src/hc128.c)
-         endif()
-
-         if(BUILD_RABBIT)
-              list(APPEND LIB_SOURCES wolfcrypt/src/rabbit.c)
          endif()
 
          if(BUILD_CHACHA)
@@ -785,10 +795,6 @@ function(generate_lib_src_list LIB_SOURCES)
               list(APPEND LIB_SOURCES wolfcrypt/src/srp.c)
          endif()
 
-         if(BUILD_IDEA)
-              list(APPEND LIB_SOURCES wolfcrypt/src/idea.c)
-         endif()
-
          if(BUILD_AFALG)
               list(APPEND LIB_SOURCES wolfcrypt/src/port/af_alg/wc_afalg.c)
          endif()
@@ -796,10 +802,10 @@ function(generate_lib_src_list LIB_SOURCES)
          if(NOT BUILD_CRYPTONLY)
               # ssl files
               list(APPEND LIB_SOURCES
-                   src/internal.c 
-                   src/wolfio.c 
-                   src/keys.c 
-                   src/ssl.c 
+                   src/internal.c
+                   src/wolfio.c
+                   src/keys.c
+                   src/ssl.c
                    src/tls.c)
 
               if(BUILD_TLS13)
@@ -859,4 +865,35 @@ function(generate_lib_src_list LIB_SOURCES)
     endif()
 
     set(LIB_SOURCES ${LIB_SOURCES} PARENT_SCOPE)
+endfunction()
+
+function(add_to_options_file DEFINITIONS OPTION_FILE)
+    list(REMOVE_DUPLICATES DEFINITIONS)
+    foreach(DEF IN LISTS DEFINITIONS)
+        if(DEF MATCHES "^-D")
+            if(DEF MATCHES "^-D(N)?DEBUG(=.+)?")
+                message("not outputting (N)DEBUG to ${OPTION_FILE}")
+            endif()
+
+            # allow user to ignore system options
+            if(DEF MATCHES "^-D_.*")
+                file(APPEND ${OPTION_FILE} "#ifndef WOLFSSL_OPTIONS_IGNORE_SYS\n")
+            endif()
+
+            string(REGEX REPLACE "^-D" "" DEF_NO_PREFIX ${DEF})
+            string(REGEX REPLACE "=.*$" "" DEF_NO_EQUAL_NO_VAL ${DEF_NO_PREFIX})
+            string(REPLACE "=" " " DEF_NO_EQUAL ${DEF_NO_PREFIX})
+
+            file(APPEND ${OPTION_FILE} "#undef  ${DEF_NO_EQUAL_NO_VAL}\n")
+            file(APPEND ${OPTION_FILE} "#define ${DEF_NO_EQUAL}\n")
+
+            if(DEF MATCHES "^-D_.*")
+                file(APPEND ${OPTION_FILE} "#endif\n")
+            endif()
+
+            file(APPEND ${OPTION_FILE} "\n")
+        else()
+            message("option w/o begin -D is ${DEF}, not saving to ${OPTION_FILE}")
+        endif()
+    endforeach()
 endfunction()

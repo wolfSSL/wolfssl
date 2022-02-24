@@ -62,7 +62,7 @@ static void Transform(Md4* md4)
     word32 C = md4->digest[2];
     word32 D = md4->digest[3];
 
-#define function(a,b,c,d,k,s) a=rotlFixed(a+F(b,c,d)+md4->buffer[k],s);
+#define function(a,b,c,d,k,s) (a)=rotlFixed((a)+F(b,c,d)+md4->buffer[k],s);
     function(A,B,C,D, 0, 3);
     function(D,A,B,C, 1, 7);
     function(C,D,A,B, 2,11);
@@ -82,7 +82,7 @@ static void Transform(Md4* md4)
 
 #undef function
 #define function(a,b,c,d,k,s) \
-    a=rotlFixed(a+G(b,c,d)+md4->buffer[k]+0x5a827999,s);
+    (a)=rotlFixed((a)+G(b,c,d)+md4->buffer[k]+0x5a827999,s);
 
     function(A,B,C,D, 0, 3);
     function(D,A,B,C, 4, 5);
@@ -103,7 +103,7 @@ static void Transform(Md4* md4)
 
 #undef function
 #define function(a,b,c,d,k,s) \
-    a=rotlFixed(a+H(b,c,d)+md4->buffer[k]+0x6ed9eba1,s);
+    (a)=rotlFixed((a)+H(b,c,d)+md4->buffer[k]+0x6ed9eba1,s);
 
     function(A,B,C,D, 0, 3);
     function(D,A,B,C, 8, 9);

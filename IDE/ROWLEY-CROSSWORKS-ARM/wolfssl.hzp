@@ -71,9 +71,8 @@
           <file file_name="../../wolfcrypt/src/ge_low_mem.c" />
           <file file_name="../../wolfcrypt/src/ge_operations.c" />
           <file file_name="../../wolfcrypt/src/hash.c" />
-          <file file_name="../../wolfcrypt/src/hc128.c" />
+          <file file_name="../../wolfcrypt/src/kdf.c" />
           <file file_name="../../wolfcrypt/src/hmac.c" />
-          <file file_name="../../wolfcrypt/src/idea.c" />
           <file file_name="../../wolfcrypt/src/include.am" />
           <file file_name="../../wolfcrypt/src/integer.c" />
           <file file_name="../../wolfcrypt/src/logging.c" />
@@ -90,7 +89,6 @@
           <file file_name="../../wolfcrypt/src/pkcs7.c" />
           <file file_name="../../wolfcrypt/src/poly1305.c" />
           <file file_name="../../wolfcrypt/src/pwdbased.c" />
-          <file file_name="../../wolfcrypt/src/rabbit.c" />
           <file file_name="../../wolfcrypt/src/random.c" />
           <file file_name="../../wolfcrypt/src/ripemd.c" />
           <file file_name="../../wolfcrypt/src/rsa.c" />

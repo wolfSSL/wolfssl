@@ -120,10 +120,13 @@ int blake2b_init_param( blake2b_state *S, const blake2b_param *P )
 }
 
 
-
 int blake2b_init( blake2b_state *S, const byte outlen )
 {
+#ifdef WOLFSSL_BLAKE2B_INIT_EACH_FIELD
   blake2b_param P[1];
+#else
+  volatile blake2b_param P[1];
+#endif
 
   if ( ( !outlen ) || ( outlen > BLAKE2B_OUTBYTES ) ) return BAD_FUNC_ARG;
 
@@ -140,12 +143,12 @@ int blake2b_init( blake2b_state *S, const byte outlen )
   XMEMSET( P->salt,     0, sizeof( P->salt ) );
   XMEMSET( P->personal, 0, sizeof( P->personal ) );
 #else
-  XMEMSET( P, 0, sizeof( *P ) );
+  XMEMSET( (blake2b_param *)P, 0, sizeof( *P ) );
   P->digest_length = outlen;
   P->fanout        = 1;
   P->depth         = 1;
 #endif
-  return blake2b_init_param( S, P );
+  return blake2b_init_param( S, (blake2b_param *)P );
 }
 
 
@@ -153,7 +156,11 @@ int blake2b_init_key( blake2b_state *S, const byte outlen, const void *key,
                       const byte keylen )
 {
   int ret = 0;
+#ifdef WOLFSSL_BLAKE2B_INIT_EACH_FIELD
   blake2b_param P[1];
+#else
+  volatile blake2b_param P[1];
+#endif
 
   if ( ( !outlen ) || ( outlen > BLAKE2B_OUTBYTES ) ) return BAD_FUNC_ARG;
 
@@ -172,14 +179,14 @@ int blake2b_init_key( blake2b_state *S, const byte outlen, const void *key,
   XMEMSET( P->salt,     0, sizeof( P->salt ) );
   XMEMSET( P->personal, 0, sizeof( P->personal ) );
 #else
-  XMEMSET( P, 0, sizeof( *P ) );
+  XMEMSET( (blake2b_param *)P, 0, sizeof( *P ) );
   P->digest_length = outlen;
   P->key_length    = keylen;
   P->fanout        = 1;
   P->depth         = 1;
 #endif
 
-  ret = blake2b_init_param( S, P );
+  ret = blake2b_init_param( S, (blake2b_param *)P );
   if ( ret < 0 ) return ret;
 
   {
@@ -230,14 +237,14 @@ static WC_INLINE int blake2b_compress(
   v[15] = S->f[1] ^ blake2b_IV[7];
 #define G(r,i,a,b,c,d) \
   do { \
-    a = a + b + m[blake2b_sigma[r][2*i+0]]; \
-    d = rotr64(d ^ a, 32); \
-    c = c + d; \
-    b = rotr64(b ^ c, 24); \
-    a = a + b + m[blake2b_sigma[r][2*i+1]]; \
-    d = rotr64(d ^ a, 16); \
-    c = c + d; \
-    b = rotr64(b ^ c, 63); \
+      (a) = (a) + (b) + m[blake2b_sigma[r][2*(i)+0]];   \
+      (d) = rotr64((d) ^ (a), 32);                      \
+      (c) = (c) + (d);                                  \
+      (b) = rotr64((b) ^ (c), 24);                      \
+      (a) = (a) + (b) + m[blake2b_sigma[r][2*(i)+1]];   \
+      (d) = rotr64((d) ^ (a), 16);                      \
+      (c) = (c) + (d);                                  \
+      (b) = rotr64((b) ^ (c), 63);                      \
   } while(0)
 #define ROUND(r)  \
   do { \
@@ -302,8 +309,8 @@ int blake2b_update( blake2b_state *S, const byte *in, word64 inlen )
       blake2b_increment_counter( S, BLAKE2B_BLOCKBYTES );
 
       {
-	ret = blake2b_compress( S, S->buf, m, v );
-	if (ret < 0) break;
+          ret = blake2b_compress( S, S->buf, m, v );
+          if (ret < 0) break;
       }
 
       XMEMCPY( S->buf, S->buf + BLAKE2B_BLOCKBYTES, BLAKE2B_BLOCKBYTES );

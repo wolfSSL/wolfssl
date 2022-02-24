@@ -537,3 +537,41 @@ WOLFSSL_API void  wolfSSL_CTX_SetGenCookie(WOLFSSL_CTX*, CallbackGenCookie);
     \sa wolfSSL_CTX_SetGenCookie
 */
 WOLFSSL_API void* wolfSSL_GetCookieCtx(WOLFSSL* ssl);
+
+
+/*!
+    \ingroup Setup
+
+    \brief This function sets up the ISO-TP context if wolfSSL, for use when
+    wolfSSL is compiled with WOLFSSL_ISOTP
+
+    \return 0 on success, WOLFSSL_CBIO_ERR_GENERAL on failure
+
+    \param ssl the wolfSSL context
+    \param ctx a user created ISOTP context which this function initializes
+    \param recv_fn a user CAN bus receive callback
+    \param send_fn a user CAN bus send callback
+    \param delay_fn a user microsecond granularity delay function
+    \param receive_delay a set amount of microseconds to delay each CAN bus
+    packet
+    \param receive_buffer a user supplied buffer to receive data, recommended
+    that is allocated to ISOTP_DEFAULT_BUFFER_SIZE bytes
+    \param receive_buffer_size - The size of receive_buffer
+    \param arg an arbitrary pointer sent to recv_fn and send_fn
+
+    _Example_
+    \code
+    struct can_info can_con_info;
+    isotp_wolfssl_ctx isotp_ctx;
+    char *receive_buffer = malloc(ISOTP_DEFAULT_BUFFER_SIZE);
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    ...
+    wolfSSL_SetIO_ISOTP(ssl, &isotp_ctx, can_receive, can_send, can_delay, 0,
+            receive_buffer, ISOTP_DEFAULT_BUFFER_SIZE, &can_con_info);
+    \endcode
+ */
+WOLFSSL_API int wolfSSL_SetIO_ISOTP(WOLFSSL *ssl, isotp_wolfssl_ctx *ctx,
+        can_recv_fn recv_fn, can_send_fn send_fn, can_delay_fn delay_fn,
+        word32 receive_delay, char *receive_buffer, int receive_buffer_size,
+        void *arg);

@@ -46,10 +46,10 @@ struct WOLFSSL_ECDSA_SIG {
 
 WOLFSSL_API void wolfSSL_ECDSA_SIG_free(WOLFSSL_ECDSA_SIG *sig);
 WOLFSSL_API WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_SIG_new(void);
-WOLFSSL_API void wolfSSL_ECDSA_SIG_get0(const WOLFSSL_ECDSA_SIG*,
-     const WOLFSSL_BIGNUM**, const WOLFSSL_BIGNUM**);
-WOLFSSL_API int wolfSSL_ECDSA_SIG_set0(WOLFSSL_ECDSA_SIG*, WOLFSSL_BIGNUM*,
-    WOLFSSL_BIGNUM*);
+WOLFSSL_API void wolfSSL_ECDSA_SIG_get0(const WOLFSSL_ECDSA_SIG* sig,
+    const WOLFSSL_BIGNUM** r, const WOLFSSL_BIGNUM** s);
+WOLFSSL_API int wolfSSL_ECDSA_SIG_set0(WOLFSSL_ECDSA_SIG* sig, WOLFSSL_BIGNUM* r,
+    WOLFSSL_BIGNUM* s);
 WOLFSSL_API WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_do_sign(const unsigned char *dgst,
                                                      int dgst_len,
                                                      WOLFSSL_EC_KEY *eckey);

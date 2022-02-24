@@ -36,15 +36,16 @@ wolfssl (latest version)
  #     asn.c                   misc.c          #
  #     chacha.c                poly1305.c      #
  #     chacha20_poly1305.c     pwdbased.c      #
- #     coding.c                rabbit.c        #
- #     des3.c                  random.c        #
- #     dh.c                    rsa.c           #
- #     dsa.c                   sha.c           #
- #     ecc.c                   sha256.c        #
- #     hash.c                  sha512.c        #
- #     hmac.c                  tfm.c           #
- #     md4.c                   wc_encrypt.c    #
- #     md5.c                   wc_port.c       #
+ #     coding.c                random.c        #
+ #     des3.c                  rsa.c           #
+ #     dh.c                    sha.c           #
+ #     dsa.c                   sha256.c        #
+ #     ecc.c                   sha512.c        #
+ #     hash.c                  tfm.c           #
+ #     hmac.c                  wc_encrypt.c    #
+ #     md4.c                   wc_port.c       #
+ #     md5.c                                   #
+ #     kdf.c                                   #
  #---------------------------------------------#
 
 5. Once those are all added go to
@@ -172,8 +173,6 @@ HMAC-SHA256 test passed!
 HMAC-SHA384 test passed!
 HMAC-SHA512 test passed!
 GMAC     test passed!
-HC-128   test passed!
-Rabbit   test passed!
 Chacha   test passed!
 POLY1305 test passed!
 ChaCha20-Poly1305 AEAD test passed!

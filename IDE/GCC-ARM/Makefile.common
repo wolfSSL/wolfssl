@@ -6,37 +6,39 @@ BUILD_DIR = ./Build
 
 # Toolchain location and prefix
 #TOOLCHAIN = 
-TOOLCHAIN = /opt/gcc-arm-none-eabi/bin/arm-none-eabi-
+TOOLCHAIN ?= /opt/gcc-arm-none-eabi/bin/arm-none-eabi-
 
 # Tools selection
 CC = $(TOOLCHAIN)gcc
-AS = $(TOOLCHAIN)gcc
-LD = $(TOOLCHAIN)gcc
+AS = $(CC)
+LD = $(CC)
 AR = $(TOOLCHAIN)ar
 NM = $(TOOLCHAIN)nm
-OBJCOPY = $(TOOLCHAIN)objcopy
-OBJDUMP = $(TOOLCHAIN)objdump
-SIZE = $(TOOLCHAIN)size
+OBJCOPY ?= $(TOOLCHAIN)objcopy
+OBJDUMP ?= $(TOOLCHAIN)objdump
+SIZE ?= $(TOOLCHAIN)size
 
 # Includes
-INC = -I./Header \
-	  -I./Source \
-	  -I../..
+USER_SETTINGS_DIR ?= ./Header
+INC = -I$(USER_SETTINGS_DIR) \
+      -I../..
 
 # Defines
 DEF = -DWOLFSSL_USER_SETTINGS
 
 # Architecture
-ARCHFLAGS = -mcpu=cortex-m4 -mthumb -mabi=aapcs -DUSE_WOLF_ARM_STARTUP
+ARCHFLAGS ?= -mcpu=cortex-m4 -mthumb -mabi=aapcs -DUSE_WOLF_ARM_STARTUP
 #ARCHFLAGS = -mcpu=cortex-m0 -mthumb -mabi=aapcs -DUSE_WOLF_ARM_STARTUP
 #ARCHFLAGS = -mcpu=cortex-r5 -mthumb -mabi=aapcs
 #ARCHFLAGS = -mcpu=cortex-a53 -mthumb -mabi=aapcs
 
 # Compiler and linker flags
-ASFLAGS = $(ARCHFLAGS)
-CFLAGS = $(ARCHFLAGS) -std=gnu99 -Wall -Wno-cpp
-LDFLAGS = $(ARCHFLAGS)
+ASFLAGS ?= $(ARCHFLAGS)
+CFLAGS_EXTRA ?= -Wno-cpp
+CFLAGS ?= $(ARCHFLAGS) -std=gnu99 -Wall $(CFLAGS_EXTRA)
+LDFLAGS ?= $(ARCHFLAGS)
 
+FIPS?=1
 # LD: Link with nosys
 LDFLAGS += --specs=nosys.specs
 
@@ -70,12 +72,15 @@ LDFLAGS += $(DBGFLAGS)
 # FILES
 
 # Port and Test/Benchmark
+ifndef NO_EXAMPLES
 SRC_C += ./Source/wolf_main.c
 SRC_C += ./Source/armtarget.c
 SRC_C += ../../wolfcrypt/test/test.c
 SRC_C += ../../wolfcrypt/benchmark/benchmark.c
+endif
 
 # WOLFSSL TLS FILES
+SRC_C += ../../src/bio.c
 SRC_C += ../../src/crl.c
 SRC_C += ../../src/internal.c
 SRC_C += ../../src/keys.c
@@ -87,7 +92,9 @@ SRC_C += ../../src/tls13.c
 SRC_C += ../../src/wolfio.c
 
 # wolfCrypt Core (FIPS)
+ifeq "$(FIPS)" "1"
 SRC_C += ../../wolfcrypt/src/wolfcrypt_first.c
+endif
 SRC_C += ../../wolfcrypt/src/aes.c
 SRC_C += ../../wolfcrypt/src/cmac.c
 SRC_C += ../../wolfcrypt/src/des3.c
@@ -100,26 +107,38 @@ SRC_C += ../../wolfcrypt/src/sha.c
 SRC_C += ../../wolfcrypt/src/sha256.c
 SRC_C += ../../wolfcrypt/src/sha512.c
 SRC_C += ../../wolfcrypt/src/sha3.c
+ifeq "$(FIPS)" "1"
 SRC_C += ../../wolfcrypt/src/fips.c
 SRC_C += ../../wolfcrypt/src/fips_test.c
 SRC_C += ../../wolfcrypt/src/wolfcrypt_last.c
+endif
 
 # wolfCrypt Additional
+SRC_C += ../../wolfcrypt/src/asm.c
 SRC_C += ../../wolfcrypt/src/asn.c
+SRC_C += ../../wolfcrypt/src/blake2s.c
 SRC_C += ../../wolfcrypt/src/chacha.c
-SRC_C += ../../wolfcrypt/src/cmac.c
+SRC_C += ../../wolfcrypt/src/chacha20_poly1305.c
 SRC_C += ../../wolfcrypt/src/coding.c
 SRC_C += ../../wolfcrypt/src/compress.c
 SRC_C += ../../wolfcrypt/src/cpuid.c
 SRC_C += ../../wolfcrypt/src/cryptocb.c
 SRC_C += ../../wolfcrypt/src/curve25519.c
+SRC_C += ../../wolfcrypt/src/curve448.c
+SRC_C += ../../wolfcrypt/src/ecc_fp.c
+SRC_C += ../../wolfcrypt/src/eccsi.c
 SRC_C += ../../wolfcrypt/src/ed25519.c
+SRC_C += ../../wolfcrypt/src/ed448.c
 SRC_C += ../../wolfcrypt/src/error.c
+SRC_C += ../../wolfcrypt/src/evp.c
+SRC_C += ../../wolfcrypt/src/fe_448.c
 SRC_C += ../../wolfcrypt/src/fe_low_mem.c
 SRC_C += ../../wolfcrypt/src/fe_operations.c
+SRC_C += ../../wolfcrypt/src/ge_448.c
 SRC_C += ../../wolfcrypt/src/ge_low_mem.c
 SRC_C += ../../wolfcrypt/src/ge_operations.c
 SRC_C += ../../wolfcrypt/src/hash.c
+SRC_C += ../../wolfcrypt/src/kdf.c
 SRC_C += ../../wolfcrypt/src/integer.c
 SRC_C += ../../wolfcrypt/src/logging.c
 SRC_C += ../../wolfcrypt/src/md5.c
@@ -129,6 +148,8 @@ SRC_C += ../../wolfcrypt/src/pkcs12.c
 SRC_C += ../../wolfcrypt/src/pkcs7.c
 SRC_C += ../../wolfcrypt/src/poly1305.c
 SRC_C += ../../wolfcrypt/src/pwdbased.c
+SRC_C += ../../wolfcrypt/src/rc2.c
+SRC_C += ../../wolfcrypt/src/sakke.c
 SRC_C += ../../wolfcrypt/src/signature.c
 SRC_C += ../../wolfcrypt/src/srp.c
 SRC_C += ../../wolfcrypt/src/sp_arm32.c
@@ -137,23 +158,32 @@ SRC_C += ../../wolfcrypt/src/sp_armthumb.c
 SRC_C += ../../wolfcrypt/src/sp_c32.c
 SRC_C += ../../wolfcrypt/src/sp_c64.c
 SRC_C += ../../wolfcrypt/src/sp_cortexm.c
+SRC_C += ../../wolfcrypt/src/sp_dsp32.c
 SRC_C += ../../wolfcrypt/src/sp_int.c
+SRC_C += ../../wolfcrypt/src/sp_x86_64.c
 SRC_C += ../../wolfcrypt/src/tfm.c
+SRC_C += ../../wolfcrypt/src/wc_dsp.c
 SRC_C += ../../wolfcrypt/src/wc_encrypt.c
+SRC_C += ../../wolfcrypt/src/wc_pkcs11.c
 SRC_C += ../../wolfcrypt/src/wc_port.c
 SRC_C += ../../wolfcrypt/src/wolfevent.c
 SRC_C += ../../wolfcrypt/src/wolfmath.c
+
+ifeq "$(ASYNC)" "1"
+SRC_C += ../../wolfcrypt/src/async.c
+endif
+
+ifeq "$(SELFTEST)" "1"
+SRC_C += ../../wolfcrypt/src/selftest.c
+endif
 
 # wolfCrypt non-standard algorithms (disabled by default)
 SRC_C += ../../wolfcrypt/src/arc4.c
 SRC_C += ../../wolfcrypt/src/blake2b.c
 SRC_C += ../../wolfcrypt/src/camellia.c
 SRC_C += ../../wolfcrypt/src/dsa.c
-SRC_C += ../../wolfcrypt/src/hc128.c
-SRC_C += ../../wolfcrypt/src/idea.c
 SRC_C += ../../wolfcrypt/src/md2.c
 SRC_C += ../../wolfcrypt/src/md4.c
-SRC_C += ../../wolfcrypt/src/rabbit.c
 SRC_C += ../../wolfcrypt/src/ripemd.c
 
 
@@ -165,11 +195,11 @@ vpath %.c $(dir $(SRC_C))
 
 build_hex: $(BUILD_DIR) $(BUILD_DIR)/$(BIN).hex
 	@echo ""
-	$(CMD_ECHO) @$(SIZE) $(BUILD_DIR)/$(BIN).elf
+	$(CMD_ECHO) $(SIZE) $(BUILD_DIR)/$(BIN).elf
 
 build_static: $(BUILD_DIR) $(BUILD_DIR)/$(BIN).a
 	@echo ""
-	$(CMD_ECHO) @$(SIZE) $(BUILD_DIR)/$(BIN).a
+	$(CMD_ECHO) $(SIZE) $(BUILD_DIR)/$(BIN).a
 
 $(BUILD_DIR):
 	$(CMD_ECHO) mkdir -p $(BUILD_DIR)

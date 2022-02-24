@@ -225,6 +225,32 @@ typedef struct wc_CryptoInfo {
                 word32      authInSz;
             } aesgcm_dec;
         #endif /* HAVE_AESGCM */
+        #ifdef HAVE_AESCCM
+            struct {
+                Aes*        aes;
+                byte*       out;
+                const byte* in;
+                word32      sz;
+                const byte* nonce;
+                word32      nonceSz;
+                byte*       authTag;
+                word32      authTagSz;
+                const byte* authIn;
+                word32      authInSz;
+            } aesccm_enc;
+            struct {
+                Aes*        aes;
+                byte*       out;
+                const byte* in;
+                word32      sz;
+                const byte* nonce;
+                word32      nonceSz;
+                const byte* authTag;
+                word32      authTagSz;
+                const byte* authIn;
+                word32      authInSz;
+            } aesccm_dec;
+        #endif /* HAVE_AESCCM */
         #ifdef HAVE_AES_CBC
             struct {
                 Aes*        aes;
@@ -385,6 +411,19 @@ WOLFSSL_LOCAL int wc_CryptoCb_AesGcmDecrypt(Aes* aes, byte* out,
      const byte* authTag, word32 authTagSz,
      const byte* authIn, word32 authInSz);
 #endif /* HAVE_AESGCM */
+#ifdef HAVE_AESCCM
+WOLFSSL_LOCAL int wc_CryptoCb_AesCcmEncrypt(Aes* aes, byte* out,
+    const byte* in, word32 sz,
+    const byte* nonce, word32 nonceSz,
+    byte* authTag, word32 authTagSz,
+    const byte* authIn, word32 authInSz);
+
+WOLFSSL_LOCAL int wc_CryptoCb_AesCcmDecrypt(Aes* aes, byte* out,
+    const byte* in, word32 sz,
+    const byte* nonce, word32 nonceSz,
+    const byte* authTag, word32 authTagSz,
+    const byte* authIn, word32 authInSz);
+#endif /* HAVE_AESCCM */
 #ifdef HAVE_AES_CBC
 WOLFSSL_LOCAL int wc_CryptoCb_AesCbcEncrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz);

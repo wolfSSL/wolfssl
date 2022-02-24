@@ -166,12 +166,13 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz
 }
 
 #ifdef WOLFSSL_AES_COUNTER
-WOLFSSL_API void wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+WOLFSSL_API int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
             char out_block[AES_BLOCK_SIZE] ;
             int odd ;
             int even ;
             char *tmp ; /* (char *)aes->tmp, for short */
+            int ret;
 
             tmp = (char *)aes->tmp ;
             if(aes->left) {
@@ -182,8 +183,10 @@ WOLFSSL_API void wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz
                 }
                 XMEMCPY(tmp+aes->left, in, odd) ;
                 if((odd+aes->left) == AES_BLOCK_SIZE){
-                    AesProcess(aes, (byte *)out_block, (byte const *)tmp, AES_BLOCK_SIZE,
+                    ret = AesProcess(aes, (byte *)out_block, (byte const *)tmp, AES_BLOCK_SIZE,
                              AES_CFG_DIR_ENCRYPT, AES_CFG_MODE_CTR) ;
+                    if (ret != 0)
+                        return ret;
                     XMEMCPY(out, out_block+aes->left, odd) ;
                     aes->left = 0 ;
                     XMEMSET(tmp, 0x0, AES_BLOCK_SIZE) ;
@@ -195,37 +198,42 @@ WOLFSSL_API void wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz
             odd = sz % AES_BLOCK_SIZE ;  /* if there is tail flagment */
             if(sz / AES_BLOCK_SIZE) {
                 even = (sz/AES_BLOCK_SIZE)*AES_BLOCK_SIZE ;
-                AesProcess(aes, out, in, even, AES_CFG_DIR_ENCRYPT, AES_CFG_MODE_CTR);
+                ret = AesProcess(aes, out, in, even, AES_CFG_DIR_ENCRYPT, AES_CFG_MODE_CTR);
+                if (ret != 0)
+                    return ret;
                 out += even ;
                 in  += even ;
             }
             if(odd) {
                 XMEMSET(tmp+aes->left, 0x0, AES_BLOCK_SIZE - aes->left) ;
                 XMEMCPY(tmp+aes->left, in, odd) ;
-                AesProcess(aes, (byte *)out_block, (byte const *)tmp, AES_BLOCK_SIZE,
+                ret = AesProcess(aes, (byte *)out_block, (byte const *)tmp, AES_BLOCK_SIZE,
                            AES_CFG_DIR_ENCRYPT,
                            AES_CFG_MODE_CTR_NOCTR /* Counter mode without counting IV */
                            );
+                if (ret != 0)
+                    return ret;
                 XMEMCPY(out, out_block+aes->left,odd) ;
                 aes->left += odd ;
             }
+            return 0;
 }
 #endif
 
 /* AES-DIRECT */
 #if defined(WOLFSSL_AES_DIRECT)
-WOLFSSL_API void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
+WOLFSSL_API int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
 {
-    AesProcess(aes, out, in, AES_BLOCK_SIZE, AES_CFG_DIR_ENCRYPT, AES_CFG_MODE_CBC) ;
+    return AesProcess(aes, out, in, AES_BLOCK_SIZE, AES_CFG_DIR_ENCRYPT, AES_CFG_MODE_CBC) ;
 }
-WOLFSSL_API void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
+WOLFSSL_API int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
 {
-    AesProcess(aes, out, in, AES_BLOCK_SIZE, AES_CFG_DIR_DECRYPT, AES_CFG_MODE_CBC) ;
+    return AesProcess(aes, out, in, AES_BLOCK_SIZE, AES_CFG_DIR_DECRYPT, AES_CFG_MODE_CBC) ;
 }
 WOLFSSL_API int wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
                                      const byte* iv, int dir)
 {
-     return(wc_AesSetKey(aes, key, len, iv, dir)) ;
+    return(wc_AesSetKey(aes, key, len, iv, dir)) ;
 }
 #endif
 

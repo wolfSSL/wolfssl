@@ -111,8 +111,6 @@ extern unsigned char my_rng_seed_gen(void);
 #define NO_MD4
 #define NO_MD5
 #define NO_SHA
-#define NO_HC128
-#define NO_RABBIT
 #define NO_PSK
 #define NO_DES3
 

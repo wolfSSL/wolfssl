@@ -10,7 +10,6 @@ examples_client_client_DEPENDENCIES = src/libwolfssl.la
 examples_client_client_CFLAGS = $(WOLFSENTRY_INCLUDE) $(AM_CFLAGS)
 endif
 EXTRA_DIST += examples/client/client.sln
-EXTRA_DIST += examples/client/client-ntru.vcproj
 EXTRA_DIST += examples/client/client.vcproj
 EXTRA_DIST += examples/client/client.vcxproj
 

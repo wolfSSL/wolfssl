@@ -91,8 +91,6 @@ When using the FIPS version the following preprocessors need to be defined:
 * `WOLFSSL_SHA512`
 * `WOLFSSL_SHA384`
 * `NO_MD4`
-* `NO_HC128`
-* `NO_RABBIT`
 * `NO_DSA`
 * `NO_PWDBASED`
 

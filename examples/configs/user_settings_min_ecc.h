@@ -70,7 +70,7 @@ extern "C" {
 
 /* Optional Feature Disables */
 #define NO_SIG_WRAPPER
-//#define NO_ECC_KEY_EXPORT 
+//#define NO_ECC_KEY_EXPORT
 //#define NO_ECC_DHE
 //#define NO_ECC_SIGN
 //#define NO_ECC_VERIFY
@@ -86,8 +86,6 @@ extern "C" {
 #define NO_MD4
 #define NO_MD5
 #define NO_SHA
-#define NO_HC128
-#define NO_RABBIT
 #define NO_PWDBASED
 #define NO_PKCS12
 #define NO_PKCS8

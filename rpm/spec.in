@@ -73,8 +73,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/wolfssl/README.txt
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
-%{_libdir}/libwolfssl.so.24
-%{_libdir}/libwolfssl.so.24.5.0
+%{_libdir}/libwolfssl.so.32
+%{_libdir}/libwolfssl.so.32.0.0
 
 %files devel
 %defattr(-,root,root,-)
@@ -100,7 +100,6 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/cyassl/ctaocrypt/ecc.h
 %{_includedir}/cyassl/ctaocrypt/error-crypt.h
 %{_includedir}/cyassl/ctaocrypt/fips_test.h
-%{_includedir}/cyassl/ctaocrypt/hc128.h
 %{_includedir}/cyassl/ctaocrypt/hmac.h
 %{_includedir}/cyassl/ctaocrypt/integer.h
 %{_includedir}/cyassl/ctaocrypt/logging.h
@@ -114,7 +113,6 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/cyassl/ctaocrypt/pkcs7.h
 %{_includedir}/cyassl/ctaocrypt/poly1305.h
 %{_includedir}/cyassl/ctaocrypt/pwdbased.h
-%{_includedir}/cyassl/ctaocrypt/rabbit.h
 %{_includedir}/cyassl/ctaocrypt/random.h
 %{_includedir}/cyassl/ctaocrypt/ripemd.h
 %{_includedir}/cyassl/ctaocrypt/rsa.h
@@ -185,6 +183,9 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/openssl/bn.h
 %{_includedir}/wolfssl/openssl/cms.h
 %{_includedir}/wolfssl/openssl/buffer.h
+%{_includedir}/wolfssl/openssl/camellia.h
+%{_includedir}/wolfssl/openssl/cmac.h
+%{_includedir}/wolfssl/openssl/compat_types.h
 %{_includedir}/wolfssl/openssl/conf.h
 %{_includedir}/wolfssl/openssl/crypto.h
 %{_includedir}/wolfssl/openssl/des.h
@@ -200,10 +201,12 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/openssl/engine.h
 %{_includedir}/wolfssl/openssl/err.h
 %{_includedir}/wolfssl/openssl/evp.h
+%{_includedir}/wolfssl/openssl/fips_rand.h
 %{_includedir}/wolfssl/openssl/hmac.h
 %{_includedir}/wolfssl/openssl/lhash.h
 %{_includedir}/wolfssl/openssl/md4.h
 %{_includedir}/wolfssl/openssl/md5.h
+%{_includedir}/wolfssl/openssl/modes.h
 %{_includedir}/wolfssl/openssl/obj_mac.h
 %{_includedir}/wolfssl/openssl/objects.h
 %{_includedir}/wolfssl/openssl/ocsp.h
@@ -260,16 +263,16 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/ed25519.h
 %{_includedir}/wolfssl/wolfcrypt/ed448.h
 %{_includedir}/wolfssl/wolfcrypt/error-crypt.h
+%{_includedir}/wolfssl/wolfcrypt/falcon.h
 %{_includedir}/wolfssl/wolfcrypt/fe_448.h
 %{_includedir}/wolfssl/wolfcrypt/fe_operations.h
 %{_includedir}/wolfssl/wolfcrypt/fips_test.h
 %{_includedir}/wolfssl/wolfcrypt/ge_448.h
 %{_includedir}/wolfssl/wolfcrypt/ge_operations.h
 %{_includedir}/wolfssl/wolfcrypt/hash.h
-%{_includedir}/wolfssl/wolfcrypt/hc128.h
 %{_includedir}/wolfssl/wolfcrypt/hmac.h
-%{_includedir}/wolfssl/wolfcrypt/idea.h
 %{_includedir}/wolfssl/wolfcrypt/integer.h
+%{_includedir}/wolfssl/wolfcrypt/kdf.h
 %{_includedir}/wolfssl/wolfcrypt/logging.h
 %{_includedir}/wolfssl/wolfcrypt/md2.h
 %{_includedir}/wolfssl/wolfcrypt/md4.h
@@ -283,7 +286,6 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/pkcs7.h
 %{_includedir}/wolfssl/wolfcrypt/poly1305.h
 %{_includedir}/wolfssl/wolfcrypt/pwdbased.h
-%{_includedir}/wolfssl/wolfcrypt/rabbit.h
 %{_includedir}/wolfssl/wolfcrypt/random.h
 %{_includedir}/wolfssl/wolfcrypt/ripemd.h
 %{_includedir}/wolfssl/wolfcrypt/rc2.h
@@ -294,6 +296,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/sha256.h
 %{_includedir}/wolfssl/wolfcrypt/sha3.h
 %{_includedir}/wolfssl/wolfcrypt/sha512.h
+%{_includedir}/wolfssl/wolfcrypt/siphash.h
 %{_includedir}/wolfssl/wolfcrypt/signature.h
 %{_includedir}/wolfssl/wolfcrypt/srp.h
 %{_includedir}/wolfssl/wolfcrypt/tfm.h
@@ -307,8 +310,17 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Wed Feb 16 2022 John Safranek <john@wolfssl.com>
+- Update for new release.
+* Mon Dec 27 2021 Jacob Barthelmeh <jacob@wolfssl.com>
+- Add a missing headers camellia.h, modes.h from compat layer.
+- Add a missing header falcon.h.
+* Mon Nov 01 2021 Jacob Barthelmeh <jacob@wolfssl.com>
+- Add a missing headers cmac.h, compat_types.h from compat layer.
 * Thu Jul 08 2021 Jacob Barthelmeh <jacob@wolfssl.com>
 - Add a missing header eccsi, sakke.
+* Thu Mar 25 2021 John Safranek <john@wolfssl.com>
+- Add new header kdf.h
 * Mon Aug 17 2020 John Safranek <john@wolfssl.com>
 - Add a missing header.
 - Update for release.

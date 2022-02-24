@@ -54,9 +54,7 @@ The default build options should be the proper default set of options:
  * HAVE_HASHDRBG
  * WOLFSSL_SHA384
  * WOLFSSL_SHA512
- * NO_HC128
  * NO_RC4
- * NO_RABBIT
  * NO_DSA
  * NO_MD4
 

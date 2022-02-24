@@ -139,7 +139,7 @@ WC_STATIC WC_INLINE word16 rotrFixed16(word16 x, word16 y)
 #endif /* WC_RC2 */
 
 /* This routine performs a byte swap of 32-bit word value. */
-#if defined(__CCRX__) && !defined(NO_INLINE) // shortest version for CC-RX
+#if defined(__CCRX__) && !defined(NO_INLINE) /* shortest version for CC-RX */
     #define ByteReverseWord32(value) _builtin_revl(value)
 #else
 WC_STATIC WC_INLINE word32 ByteReverseWord32(word32 value)
@@ -214,14 +214,14 @@ WC_STATIC WC_INLINE word64 ByteReverseWord64(word64 value)
 #if defined(WOLF_ALLOW_BUILTIN) && defined(__GNUC_PREREQ) && __GNUC_PREREQ(4, 3)
     return (word64)__builtin_bswap64(value);
 #elif defined(WOLFCRYPT_SLOW_WORD64)
-	return (word64)((word64)ByteReverseWord32((word32) value)) << 32 |
-                    (word64)ByteReverseWord32((word32)(value   >> 32));
+    return (word64)((word64)ByteReverseWord32((word32) value)) << 32 |
+        (word64)ByteReverseWord32((word32)(value   >> 32));
 #else
-	value = ((value & W64LIT(0xFF00FF00FF00FF00)) >> 8) |
-            ((value & W64LIT(0x00FF00FF00FF00FF)) << 8);
-	value = ((value & W64LIT(0xFFFF0000FFFF0000)) >> 16) |
-            ((value & W64LIT(0x0000FFFF0000FFFF)) << 16);
-	return rotlFixed64(value, 32U);
+    value = ((value & W64LIT(0xFF00FF00FF00FF00)) >> 8) |
+        ((value & W64LIT(0x00FF00FF00FF00FF)) << 8);
+    value = ((value & W64LIT(0xFFFF0000FFFF0000)) >> 16) |
+        ((value & W64LIT(0x0000FFFF0000FFFF)) << 16);
+    return rotlFixed64(value, 32U);
 #endif
 }
 
@@ -299,7 +299,7 @@ WC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
 #ifndef WOLFSSL_NO_FORCE_ZERO
 /* This routine fills the first len bytes of the memory area pointed by mem
    with zeros. It ensures compiler optimizations doesn't skip it  */
-WC_STATIC WC_INLINE void ForceZero(const void* mem, word32 len)
+WC_STATIC WC_INLINE void ForceZero(void* mem, word32 len)
 {
     volatile byte* z = (volatile byte*)mem;
 
@@ -422,17 +422,18 @@ WC_STATIC WC_INLINE word32 btoi(byte b)
 }
 #endif
 
-WC_STATIC WC_INLINE char HexCharToByte(char ch)
+WC_STATIC WC_INLINE signed char HexCharToByte(char ch)
 {
-    if (ch >= '0' && ch <= '9')
-        ch -= '0';
-    else if (ch >= 'A' && ch <= 'F')
-        ch -= 'A' - 10;
-    else if (ch >= 'a' && ch <= 'f')
-        ch -= 'a' - 10;
+    signed char ret = (signed char)ch;
+    if (ret >= '0' && ret <= '9')
+        ret -= '0';
+    else if (ret >= 'A' && ret <= 'F')
+        ret -= 'A' - 10;
+    else if (ret >= 'a' && ret <= 'f')
+        ret -= 'a' - 10;
     else
-        ch = -1; /* error case - return code must be signed */
-    return ch;
+        ret = -1; /* error case - return code must be signed */
+    return ret;
 }
 
 WC_STATIC WC_INLINE char ByteToHex(byte in)

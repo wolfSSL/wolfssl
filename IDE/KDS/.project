@@ -166,19 +166,14 @@
 			<locationURI>PARENT-2-PROJECT_LOC/wolfcrypt/src/hash.c</locationURI>
 		</link>
 		<link>
-			<name>src/wolfcrypt-src/hc128.c</name>
+			<name>src/wolfcrypt-src/kdf.c</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/wolfcrypt/src/hc128.c</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/wolfcrypt/src/kdf.c</locationURI>
 		</link>
 		<link>
 			<name>src/wolfcrypt-src/hmac.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/wolfcrypt/src/hmac.c</locationURI>
-		</link>
-		<link>
-			<name>src/wolfcrypt-src/idea.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/wolfcrypt/src/idea.c</locationURI>
 		</link>
 		<link>
 			<name>src/wolfcrypt-src/integer.c</name>
@@ -229,11 +224,6 @@
 			<name>src/wolfcrypt-src/pwdbased.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/wolfcrypt/src/pwdbased.c</locationURI>
-		</link>
-		<link>
-			<name>src/wolfcrypt-src/rabbit.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/wolfcrypt/src/rabbit.c</locationURI>
 		</link>
 		<link>
 			<name>src/wolfcrypt-src/random.c</name>

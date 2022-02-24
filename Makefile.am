@@ -24,9 +24,13 @@ noinst_DATA =
 SUBDIRS_OPT =
 DIST_SUBDIRS_OPT =
 
+# allow supplementary or override flags to be passed at make time:
+AM_CFLAGS += $(EXTRA_CFLAGS)
+
 #includes additional rules from aminclude.am
 @INC_AMINCLUDE@
-DISTCLEANFILES+= aminclude.am
+DISTCLEANFILES+= aminclude.am \
+             .build_params
 
 CLEANFILES+= ecc-key.der \
              ecc-public-key.der \
@@ -38,10 +42,7 @@ CLEANFILES+= ecc-key.der \
              certreq.pem \
              key.der \
              key.pem \
-             ntru-cert.der \
              ecc-key-pkcs8.der \
-             ntru-cert.pem \
-             ntru-key.raw \
              othercert.der \
              othercert.pem \
              pkcs7cert.der \
@@ -135,11 +136,8 @@ ACLOCAL_AMFLAGS= -I m4
 
 EXTRA_DIST+= lib/dummy
 
-EXTRA_DIST+= wolfssl-ntru.vcproj
 EXTRA_DIST+= wolfssl.vcproj
 EXTRA_DIST+= wolfssl.vcxproj
-EXTRA_DIST+= wolfssl-ntru.sln
-EXTRA_DIST+= wolfssl.sln
 EXTRA_DIST+= wolfssl64.sln
 EXTRA_DIST+= valgrind-error.sh
 EXTRA_DIST+= valgrind-bash.supp
@@ -162,7 +160,6 @@ include cyassl/include.am
 include wolfssl/include.am
 include certs/include.am
 include doc/include.am
-include swig/include.am
 
 include src/include.am
 include support/include.am
@@ -206,7 +203,8 @@ if BUILD_LINUXKM
     SUBDIRS_OPT += linuxkm
     DIST_SUBDIRS_OPT += linuxkm
 
-    export KERNEL_ROOT KERNEL_ARCH KERNEL_EXTRA_CFLAGS AM_CFLAGS CFLAGS AM_CCASFLAGS CCASFLAGS \
+    export KERNEL_ROOT KERNEL_ARCH KERNEL_EXTRA_CFLAGS AM_CPPFLAGS CPPFLAGS \
+        AM_CFLAGS CFLAGS AM_CCASFLAGS CCASFLAGS \
         src_libwolfssl_la_OBJECTS ENABLED_CRYPT_TESTS ENABLED_LINUXKM_PIE ENABLED_ASM \
         CFLAGS_FPU_DISABLE CFLAGS_FPU_ENABLE CFLAGS_SIMD_DISABLE CFLAGS_SIMD_ENABLE \
         CFLAGS_AUTO_VECTORIZE_DISABLE CFLAGS_AUTO_VECTORIZE_ENABLE \

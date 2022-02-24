@@ -31,8 +31,8 @@
 
 #ifndef NO_DES3
 
-#if defined(HAVE_FIPS) && \
-	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+    (HAVE_FIPS_VERSION == 2 || HAVE_FIPS_VERSION == 3)
 
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
@@ -512,7 +512,7 @@
     {
         #ifdef DEBUG_WOLFSSL
         int ret;  int stat1,stat2;
-    	  #endif
+        #endif
         int size;
         volatile int v;
 
@@ -604,14 +604,14 @@
     int wc_Des3_CbcEncrypt(Des3* des3, byte* out, const byte* in, word32 sz)
     {
         wc_Des_Cbc(out, in, sz,  (byte *)des3->key,  (byte *)des3->reg, SEC_DESC_DES3_CBC_ENCRYPT);
-    	  return 0;
+        return 0;
     }
 
 
     int wc_Des3_CbcDecrypt(Des3* des3, byte* out, const byte* in, word32 sz)
     {
         wc_Des_Cbc(out, in, sz,   (byte *)des3->key,  (byte *)des3->reg, SEC_DESC_DES3_CBC_DECRYPT);
-    	  return 0;
+        return 0;
     }
 
     static void setParity(byte *buf, int len)
@@ -637,7 +637,7 @@
     {
         if(desBuffIn == NULL) {
         #if defined (HAVE_THREADX)
-    			  int s1, s2, s3, s4, s5;
+            int s1, s2, s3, s4, s5;
             s5 = tx_byte_allocate(&mp_ncached,(void *)&secDesc,
                                                          sizeof(SECdescriptorType), TX_NO_WAIT);
             s1 = tx_byte_allocate(&mp_ncached,(void *)&desBuffIn,  DES_BUFFER_SIZE, TX_NO_WAIT);
@@ -660,7 +660,7 @@
         }   else {
             XMEMSET(des->reg, 0x0, DES_IVLEN);
         }
-    		return 0;
+        return 0;
     }
 
     int wc_Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
@@ -1422,7 +1422,7 @@
             byte* const  pc1m = buffer;            /* place to modify pc1 into */
             byte* const  pcr  = pc1m + 56;         /* place to rotate pc1 into */
             byte* const  ks   = pcr  + 56;
-            register int i, j, l;
+            int i, j, l;
             int          m;
 
             for (j = 0; j < 56; j++) {             /* convert pc1 to bits of key  */
@@ -1495,6 +1495,10 @@
         if (des == NULL || key == NULL || dir < 0) {
             return BAD_FUNC_ARG;
         }
+
+        XMEMSET(des->key, 0, sizeof(*(des->key)));
+        XMEMSET(des->reg, 0, sizeof(*(des->reg)));
+        XMEMSET(des->tmp, 0, sizeof(*(des->tmp)));
 
     #if defined(WOLF_CRYPTO_CB) || \
         (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES))

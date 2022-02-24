@@ -27,7 +27,8 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12)
+#if defined(HAVE_PKCS12) && \
+    !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_HMAC)
 
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
@@ -170,7 +171,7 @@ void wc_PKCS12_free(WC_PKCS12* pkcs12)
 
     heap = pkcs12->heap;
     if (pkcs12->safe != NULL) {
-    	freeSafe(pkcs12->safe, heap);
+        freeSafe(pkcs12->safe, heap);
     }
 
     /* free mac data */
@@ -188,7 +189,6 @@ void wc_PKCS12_free(WC_PKCS12* pkcs12)
     }
 
     XFREE(pkcs12, NULL, DYNAMIC_TYPE_PKCS);
-    pkcs12 = NULL;
 }
 
 
@@ -236,7 +236,7 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
 
     switch (oid) {
         case WC_PKCS12_ENCRYPTED_DATA:
-            WOLFSSL_MSG("Found PKCS12 OBJECT: ENCRYPTED DATA\n");
+            WOLFSSL_MSG("Found PKCS12 OBJECT: ENCRYPTED DATA");
             break;
 
         case WC_PKCS12_DATA:
@@ -706,6 +706,68 @@ int wc_d2i_PKCS12(const byte* der, word32 derSz, WC_PKCS12* pkcs12)
 
     return ret;
 }
+
+#ifndef NO_FILESYSTEM
+/* Parse the DER-encoded PKCS #12 object in the provided file. Populate the
+ * WC_PKCS12 object pointed to by the passed in pointer, allocating the object
+ * if necessary.
+ *
+ * file  : path to PKCS #12 file.
+ * pkcs12: pointer to a pointer to a WC_PKCS12 object to populate. If *pkcs12 is
+ *         NULL, this function will allocate a new WC_PKCS12.
+ * return 0 on success and negative on failure.
+ */
+int wc_d2i_PKCS12_fp(const char* file, WC_PKCS12** pkcs12)
+{
+    int ret = 0;
+    byte* buf = NULL;
+    size_t bufSz = 0;
+    WC_PKCS12* tmpPkcs12 = NULL;
+    int callerAlloc = 1;
+
+    WOLFSSL_ENTER("wc_d2i_PKCS12_fp");
+
+    if (pkcs12 == NULL) {
+        WOLFSSL_MSG("pkcs12 parameter NULL.");
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0)
+        ret = wc_FileLoad(file, &buf, &bufSz, NULL);
+
+    if (ret == 0) {
+        if (*pkcs12 == NULL) {
+            tmpPkcs12 = wc_PKCS12_new();
+            if (tmpPkcs12 == NULL) {
+                WOLFSSL_MSG("Failed to allocate PKCS12 object.");
+                ret = MEMORY_E;
+            }
+            else {
+                *pkcs12 = tmpPkcs12;
+                callerAlloc = 0;
+            }
+        }
+    }
+    if (ret == 0) {
+        ret = wc_d2i_PKCS12(buf, (word32)bufSz, *pkcs12);
+        if (ret != 0) {
+            WOLFSSL_MSG("wc_d2i_PKCS12 failed.");
+        }
+    }
+
+    if (ret != 0 && callerAlloc == 0 && *pkcs12 != NULL) {
+        wc_PKCS12_free(*pkcs12);
+        *pkcs12 = NULL;
+    }
+    if (buf != NULL) {
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    WOLFSSL_LEAVE("wc_d2i_PKCS12_fp", ret);
+
+    return ret;
+}
+#endif /* NO_FILESYSTEM */
 
 /* Convert WC_PKCS12 struct to allocated DER buffer.
  * pkcs12 : non-null pkcs12 pointer
@@ -2430,4 +2492,4 @@ void* wc_PKCS12_GetHeap(WC_PKCS12* pkcs12)
 
 #undef ERROR_OUT
 
-#endif /* !NO_ASN && !NO_PWDBASED && HAVE_PKCS12 */
+#endif /* HAVE_PKCS12 && !NO_ASN && !NO_PWDBASED && !NO_HMAC */

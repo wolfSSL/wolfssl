@@ -73,12 +73,10 @@
 #define NO_DH
 #define NO_DSA
 #define NO_MD4
-#define NO_RABBIT
 #define NO_MD5
 #define NO_SIG_WRAPPER
 #define NO_CERT
 #define NO_SESSION_CACHE
-#define NO_HC128
 #define NO_DES3
 #define NO_PWDBASED
 #define NO_WRITEV

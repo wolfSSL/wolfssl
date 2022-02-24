@@ -143,7 +143,7 @@ void* wolfSSL_Malloc(size_t size)
             return NULL;
         }
         #endif
-    
+
         res = malloc(size);
     #else
         WOLFSSL_MSG("No malloc available");
@@ -152,7 +152,7 @@ void* wolfSSL_Malloc(size_t size)
 
 #ifdef WOLFSSL_DEBUG_MEMORY
 #if defined(WOLFSSL_DEBUG_MEMORY_PRINT) && !defined(WOLFSSL_TRACK_MEMORY)
-    printf("Alloc: %p -> %u at %s:%d\n", res, (word32)size, func, line);
+    printf("Alloc: %p -> %u at %s:%u\n", res, (word32)size, func, line);
 #else
     (void)func;
     (void)line;
@@ -193,7 +193,7 @@ void wolfSSL_Free(void *ptr)
 {
 #ifdef WOLFSSL_DEBUG_MEMORY
 #if defined(WOLFSSL_DEBUG_MEMORY_PRINT) && !defined(WOLFSSL_TRACK_MEMORY)
-    printf("Free: %p at %s:%d\n", ptr, func, line);
+    printf("Free: %p at %s:%u\n", ptr, func, line);
 #else
     (void)func;
     (void)line;
@@ -614,11 +614,11 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             /* allow using malloc for creating ctx and method */
             if (type == DYNAMIC_TYPE_CTX || type == DYNAMIC_TYPE_METHOD ||
                                             type == DYNAMIC_TYPE_CERT_MANAGER) {
-                WOLFSSL_MSG("ERROR allowing null heap hint for ctx/method\n");
+                WOLFSSL_MSG("ERROR allowing null heap hint for ctx/method");
                 res = malloc(size);
             }
             else {
-                WOLFSSL_MSG("ERROR null heap hint passed into XMALLOC\n");
+                WOLFSSL_MSG("ERROR null heap hint passed into XMALLOC");
                 res = NULL;
             }
         #else
@@ -627,6 +627,10 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
                 res = pvPortMalloc(size);
             #else
                 res = malloc(size);
+            #endif
+
+            #ifdef WOLFSSL_DEBUG_MEMORY
+                printf("Alloc: %p -> %u at %s:%d\n", res, (word32)size, func, line);
             #endif
         #else
             WOLFSSL_MSG("No heap hint found to use and no malloc");
@@ -751,6 +755,9 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
         /* check for testing heap hint was set */
     #ifdef WOLFSSL_HEAP_TEST
         if (heap == (void*)WOLFSSL_HEAP_TEST) {
+        #ifdef WOLFSSL_DEBUG_MEMORY
+            printf("Free: %p at %s:%d\n", pt, func, line);
+        #endif
             return free(ptr);
         }
     #endif
@@ -760,10 +767,10 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
             /* allow using malloc for creating ctx and method */
             if (type == DYNAMIC_TYPE_CTX || type == DYNAMIC_TYPE_METHOD ||
                                             type == DYNAMIC_TYPE_CERT_MANAGER) {
-                WOLFSSL_MSG("ERROR allowing null heap hint for ctx/method\n");
+                WOLFSSL_MSG("ERROR allowing null heap hint for ctx/method");
             }
             else {
-                WOLFSSL_MSG("ERROR null heap hint passed into XFREE\n");
+                WOLFSSL_MSG("ERROR null heap hint passed into XFREE");
             }
         #endif
         #ifndef WOLFSSL_NO_MALLOC
@@ -864,7 +871,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
 
     if (heap == NULL) {
         #ifdef WOLFSSL_HEAP_TEST
-            WOLFSSL_MSG("ERROR null heap hint passed in to XREALLOC\n");
+            WOLFSSL_MSG("ERROR null heap hint passed in to XREALLOC");
         #endif
         #ifndef WOLFSSL_NO_MALLOC
             res = realloc(ptr, size);
@@ -1133,3 +1140,6 @@ void __attribute__((no_instrument_function))
 }
 #endif
 
+#ifdef WOLFSSL_LINUXKM
+    #include "../../linuxkm/linuxkm_memory.c"
+#endif

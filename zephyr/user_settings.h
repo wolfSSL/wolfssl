@@ -74,12 +74,6 @@ extern "C" {
 #undef  NO_RC4
 #define NO_RC4
 
-#undef  NO_HC128
-#define NO_HC128
-
-#undef  NO_RABBIT
-#define NO_RABBIT
-
 #undef  WOLFSSL_SHA224
 #define WOLFSSL_SHA224
 
@@ -133,11 +127,6 @@ extern "C" {
 
 #undef  NO_DES3
 #define NO_DES3
-
-#if 1
-#undef  NO_ASN_TIME
-#define NO_ASN_TIME
-#endif
 
 #undef  WOLFSSL_STATIC_MEMORY
 #define WOLFSSL_STATIC_MEMORY

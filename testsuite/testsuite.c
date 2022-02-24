@@ -46,15 +46,15 @@
 
 
 #ifndef NO_SHA256
-void file_test(const char* file, byte* hash);
+void file_test(const char* file, byte* check);
 #endif
 
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
 
 #ifdef HAVE_STACK_SIZE
-static THREAD_RETURN simple_test(func_args*);
+static THREAD_RETURN simple_test(func_args *args);
 #else
-static void simple_test(func_args*);
+static void simple_test(func_args *args);
 #endif
 static int test_tls(func_args* server_args);
 static void show_ciphers(void);
@@ -104,18 +104,33 @@ int testsuite_test(int argc, char** argv)
     THREAD_TYPE serverThread;
 
 #ifndef USE_WINDOWS_API
-    char tempName[] = "/tmp/output-XXXXXX";
-    int len = 18;
-    int num = 6;
+    const char *tempDir = NULL;
+    char tempName[128];
+    int tempName_len;
+    int tempName_Xnum;
 #else
     char tempName[] = "fnXXXXXX";
-    int len = 8;
-    int num = 6;
+    const int tempName_len = 8;
+    const int tempName_Xnum = 6;
 #endif
 #ifdef HAVE_STACK_SIZE
     void *serverThreadStackContext = NULL;
 #endif
     int ret;
+
+#ifndef USE_WINDOWS_API
+#ifdef XGETENV
+    tempDir = XGETENV("TMPDIR");
+    if (tempDir == NULL)
+#endif
+    {
+        tempDir = "/tmp";
+    }
+    XSTRLCPY(tempName, tempDir, sizeof(tempName));
+    XSTRLCAT(tempName, "/testsuite-output-XXXXXX", sizeof(tempName));
+    tempName_len = (int)XSTRLEN(tempName);
+    tempName_Xnum = 6;
+#endif /* !USE_WINDOWS_API */
 
 #ifdef HAVE_WNR
     if (wc_InitNetRandom(wnrConfig, NULL, 5000) != 0) {
@@ -150,7 +165,7 @@ int testsuite_test(int argc, char** argv)
     #ifdef HAVE_STACK_SIZE
         StackSizeCheck(&server_args, wolfcrypt_test);
     #else
-	wolfcrypt_test(&server_args);
+        wolfcrypt_test(&server_args);
     #endif
     if (server_args.return_code != 0) return server_args.return_code;
 #endif
@@ -162,6 +177,7 @@ int testsuite_test(int argc, char** argv)
         simple_test(&server_args);
     #endif
     if (server_args.return_code != 0) return server_args.return_code;
+#if !defined(NETOS)
     /* Echo input wolfSSL client server test */
     #ifdef HAVE_STACK_SIZE
         StackSizeCheck_launch(&server_args, echoserver_test, &serverThread,
@@ -171,7 +187,7 @@ int testsuite_test(int argc, char** argv)
     #endif
 
     /* Create unique file name */
-    outputName = mymktemp(tempName, len, num);
+    outputName = mymktemp(tempName, tempName_len, tempName_Xnum);
     if (outputName == NULL) {
         printf("Could not create unique file name");
         return EXIT_FAILURE;
@@ -194,12 +210,15 @@ int testsuite_test(int argc, char** argv)
         cleanup_output();
         return server_args.return_code;
     }
+#endif /* !NETOS */
 
     show_ciphers();
 
+#if !defined(NETOS)
     ret = validate_cleanup_output();
     if (ret != 0)
         return EXIT_FAILURE;
+#endif
 
     wolfSSL_Cleanup();
     FreeTcpReady(&ready);
@@ -237,7 +256,7 @@ static int test_tls(func_args* server_args)
 {
     func_args echo_args;
     char* myArgv[NUMARGS];
-    char arg[3][32];
+    char arg[3][128];
 
     /* Set up command line arguments for echoclient to send input file
      * and write echoed data to temporary output file. */
@@ -248,9 +267,9 @@ static int test_tls(func_args* server_args)
     echo_args.argc = 3;
     echo_args.argv = myArgv;
 
-    strcpy(arg[0], "testsuite");
-    strcpy(arg[1], "input");
-    strcpy(arg[2], outputName);
+    XSTRLCPY(arg[0], "testsuite", sizeof(arg[0]));
+    XSTRLCPY(arg[1], "input", sizeof(arg[1]));
+    XSTRLCPY(arg[2], outputName, sizeof(arg[2]));
 
     /* Share the signal, it has the new port number in it. */
     echo_args.signal = server_args->signal;
@@ -275,7 +294,7 @@ static int test_tls(func_args* server_args)
 
     /* Next client connection - send quit to shutdown server. */
     echo_args.argc = 2;
-    strcpy(echo_args.argv[1], "quit");
+    XSTRLCPY(arg[1], "quit", sizeof(arg[1]));
 
     /* Do a client TLS connection. */
 #ifdef HAVE_STACK_SIZE
@@ -355,14 +374,14 @@ static void simple_test(func_args* args)
     for (i = 0; i < 3; i++)
         cliArgv[i] = argvc[i];
 
-    strcpy(argvs[0], "SimpleServer");
+    XSTRLCPY(argvs[0], "SimpleServer", sizeof(argvs[0]));
     svrArgs.argc = 1;
     svrArgs.argv = svrArgv;
     svrArgs.return_code = 0;
     #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_SNIFFER)  && \
                                      !defined(WOLFSSL_TIRTOS)
-        strcpy(argvs[svrArgs.argc++], "-p");
-        strcpy(argvs[svrArgs.argc++], "0");
+        XSTRLCPY(argvs[svrArgs.argc++], "-p", sizeof(argvs[svrArgs.argc]));
+        XSTRLCPY(argvs[svrArgs.argc++], "0", sizeof(argvs[svrArgs.argc]));
     #endif
     /* Set the last arg later, when it is known. */
 
@@ -372,13 +391,13 @@ static void simple_test(func_args* args)
     wait_tcp_ready(&svrArgs);
 
     /* Setting the actual port number. */
-    strcpy(argvc[0], "SimpleClient");
+    XSTRLCPY(argvc[0], "SimpleClient", sizeof(argvc[0]));
     cliArgs.argv = cliArgv;
     cliArgs.return_code = 0;
 #ifndef USE_WINDOWS_API
     cliArgs.argc = NUMARGS;
-    strcpy(argvc[1], "-p");
-    snprintf(argvc[2], sizeof(argvc[2]), "%d", svrArgs.signal->port);
+    XSTRLCPY(argvc[1], "-p", sizeof(argvc[1]));
+    snprintf(argvc[2], sizeof(argvc[2]), "%d", (int)svrArgs.signal->port);
 #else
     cliArgs.argc = 1;
 #endif
@@ -415,6 +434,16 @@ void wait_tcp_ready(func_args* args)
     args->signal->ready = 0; /* reset */
 
     pthread_mutex_unlock(&args->signal->mutex);
+#elif defined(NETOS)
+    (void)tx_mutex_get(&args->signal->mutex, TX_WAIT_FOREVER);
+
+    /* TODO:
+     * if (!args->signal->ready)
+     *    pthread_cond_wait(&args->signal->cond, &args->signal->mutex);
+     * args->signal->ready = 0; */
+
+    (void)tx_mutex_put(&args->signal->mutex);
+
 #else
     (void)args;
 #endif
@@ -443,6 +472,49 @@ void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
         printf("Failed to create new Task\n");
     }
     Task_yield();
+#elif defined(NETOS)
+    /* This can be adjusted by defining in user_settings.h, will default to 65k
+     * in the event it is undefined */
+    #ifndef TESTSUITE_THREAD_STACK_SZ
+        #define TESTSUITE_THREAD_STACK_SZ 65535
+    #endif
+    int result;
+    static void * TestSuiteThreadStack = NULL;
+
+    /* Assume only one additional thread is created concurrently. */
+    if (TestSuiteThreadStack == NULL)
+    {
+        TestSuiteThreadStack = (void *)malloc(TESTSUITE_THREAD_STACK_SZ);
+        if (TestSuiteThreadStack == NULL)
+        {
+            printf ("Stack allocation failure.\n");
+            return;
+        }
+    }
+
+    memset (thread, 0, sizeof *thread);
+
+    /* first create the idle thread:
+     * ARGS:
+     * Param1: pointer to thread
+     * Param2: name
+     * Param3 and 4: entry function and input
+     * Param5: pointer to thread stack
+     * Param6: stack size
+     * Param7 and 8: priority level and preempt threshold
+     * Param9 and 10: time slice and auto-start indicator */
+    result = tx_thread_create(thread,
+                       "WolfSSL TestSuiteThread",
+                       (entry_functionType)fun, (ULONG)args,
+                       TestSuiteThreadStack,
+                       TESTSUITE_THREAD_STACK_SZ,
+                       2, 2,
+                       1, TX_AUTO_START);
+    if (result != TX_SUCCESS)
+    {
+        printf("Ethernet Bypass Application: failed to create idle thread!\n");
+    }
+
 #else
     *thread = (THREAD_TYPE)_beginthreadex(0, 0, fun, args, 0, 0);
 #endif
@@ -465,6 +537,8 @@ void join_thread(THREAD_TYPE thread)
         }
         Task_yield();
     }
+#elif defined(NETOS)
+    /* TODO: */
 #else
     int res = WaitForSingleObject((HANDLE)thread, INFINITE);
     assert(res == WAIT_OBJECT_0);

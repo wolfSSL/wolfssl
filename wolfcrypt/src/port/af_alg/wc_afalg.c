@@ -36,11 +36,20 @@
 /* Sets the type of socket address to use */
 void wc_Afalg_SockAddr(struct sockaddr_alg* in, const char* type, const char* name)
 {
+    int typeSz = (int)XSTRLEN(type) + 1; /* +1 for null terminator */
+    int nameSz = (int)XSTRLEN(name) + 1; /* +1 for null terminator */
+
+    if (typeSz > (int)sizeof(in->salg_type) ||
+		    nameSz > (int)sizeof(in->salg_name)) {
+        WOLFSSL_MSG("type or name was too large");
+        return;
+    }
+
     in->salg_family = AF_ALG;
-    XSTRNCPY((char*)in->salg_type, type, XSTRLEN(type));
-    in->salg_type[XSTRLEN(type)] = '\0';
-    XSTRNCPY((char*)in->salg_name, name, XSTRLEN(name));
-    in->salg_name[XSTRLEN(name)] = '\0';
+    XSTRNCPY((char*)in->salg_type, type, typeSz);
+    in->salg_type[typeSz - 1] = '\0';
+    XSTRNCPY((char*)in->salg_name, name, nameSz);
+    in->salg_name[nameSz - 1] = '\0';
 }
 
 

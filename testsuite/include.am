@@ -18,7 +18,6 @@ testsuite_testsuite_test_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD) $(WO
 testsuite_testsuite_test_DEPENDENCIES = src/libwolfssl.la
 endif
 EXTRA_DIST += testsuite/testsuite.sln
-EXTRA_DIST += testsuite/testsuite-ntru.vcproj
 EXTRA_DIST += testsuite/testsuite.vcproj
 EXTRA_DIST += testsuite/testsuite.vcxproj
 EXTRA_DIST += input

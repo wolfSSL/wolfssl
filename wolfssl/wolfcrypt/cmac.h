@@ -103,6 +103,9 @@ int wc_AesCmacVerify(const byte* check, word32 checkSz,
                      const byte* in, word32 inSz,
                      const byte* key, word32 keySz);
 
+WOLFSSL_LOCAL
+void ShiftAndXorRb(byte* out, byte* in);
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

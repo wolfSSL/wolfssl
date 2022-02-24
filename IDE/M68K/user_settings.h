@@ -48,8 +48,6 @@
 
 #define NO_ASN_TIME
 #define NO_PWDBASED
-#define NO_HC128
-#define NO_RABBIT
 #define NO_RC4
 #define NO_DSA
 #define NO_DES3

@@ -60,11 +60,11 @@ int wc_InitRipeMd(RipeMd* ripemd)
 
 
 /* for all */
-#define F(x, y, z)    (x ^ y ^ z)
-#define G(x, y, z)    (z ^ (x & (y^z)))
-#define H(x, y, z)    (z ^ (x | ~y))
-#define I(x, y, z)    (y ^ (z & (x^y)))
-#define J(x, y, z)    (x ^ (y | ~z))
+#define F(x, y, z)    ((x) ^ (y) ^ (z))
+#define G(x, y, z)    ((z) ^ ((x) & ((y)^(z))))
+#define H(x, y, z)    ((z) ^ ((x) | ~(y)))
+#define I(x, y, z)    ((y) ^ ((z) & ((x)^(y))))
+#define J(x, y, z)    ((x) ^ ((y) | ~(z)))
 
 #define k0 0
 #define k1 0x5a827999
@@ -79,9 +79,9 @@ int wc_InitRipeMd(RipeMd* ripemd)
 
 /* for 160 and 320 */
 #define Subround(f, a, b, c, d, e, x, s, k) \
-    a += f(b, c, d) + x + k;\
-    a = rotlFixed((word32)a, s) + e;\
-    c = rotlFixed((word32)c, 10U)
+    a += f(b, c, d) + (x) + (k);            \
+    (a) = rotlFixed((word32)(a), s) + (e);  \
+    (c) = rotlFixed((word32)(c), 10U)
 
 static void Transform(RipeMd* ripemd)
 {

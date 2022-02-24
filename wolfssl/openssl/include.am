@@ -8,6 +8,7 @@ nobase_include_HEADERS+= \
                          wolfssl/openssl/bio.h \
                          wolfssl/openssl/bn.h \
                          wolfssl/openssl/buffer.h \
+                         wolfssl/openssl/camellia.h \
                          wolfssl/openssl/cmac.h \
                          wolfssl/openssl/cms.h \
                          wolfssl/openssl/compat_types.h \
@@ -26,10 +27,12 @@ nobase_include_HEADERS+= \
                          wolfssl/openssl/engine.h \
                          wolfssl/openssl/err.h \
                          wolfssl/openssl/evp.h \
+                         wolfssl/openssl/fips_rand.h \
                          wolfssl/openssl/hmac.h \
                          wolfssl/openssl/lhash.h \
                          wolfssl/openssl/md4.h \
                          wolfssl/openssl/md5.h \
+                         wolfssl/openssl/modes.h \
                          wolfssl/openssl/ripemd.h \
                          wolfssl/openssl/obj_mac.h \
                          wolfssl/openssl/objects.h \

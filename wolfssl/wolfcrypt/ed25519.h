@@ -77,6 +77,12 @@ enum {
     #define WC_ED25519KEY_TYPE_DEFINED
 #endif
 
+/* ED25519 Flags */
+enum {
+    WC_ED25519_FLAG_NONE     = 0x00,
+    WC_ED25519_FLAG_DEC_SIGN = 0x01,
+};
+
 /* An ED25519 Key */
 struct ed25519_key {
     byte    p[ED25519_PUB_KEY_SIZE]; /* compressed public key */
@@ -85,6 +91,10 @@ struct ed25519_key {
     /* uncompressed point coordinates */
     byte pointX[ED25519_KEY_SIZE]; /* recovered X coordinate */
     byte pointY[ED25519_KEY_SIZE]; /* Y coordinate is the public key with The most significant bit of the final octet always zero. */
+#endif
+#ifdef WOLFSSL_SE050
+    int keyId;
+    word32 flags;
 #endif
     word16 pubKeySet:1;
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -130,18 +140,18 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 #ifdef HAVE_ED25519_VERIFY
 WOLFSSL_API
 int wc_ed25519_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
-                          word32 msgLen, int* stat, ed25519_key* key);
+                          word32 msgLen, int* res, ed25519_key* key);
 WOLFSSL_API
 int wc_ed25519ctx_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
-                             word32 msgLen, int* stat, ed25519_key* key,
+                             word32 msgLen, int* res, ed25519_key* key,
                              const byte* context, byte contextLen);
 WOLFSSL_API
 int wc_ed25519ph_verify_hash(const byte* sig, word32 sigLen, const byte* hash,
-                             word32 hashLen, int* stat, ed25519_key* key,
+                             word32 hashLen, int* res, ed25519_key* key,
                              const byte* context, byte contextLen);
 WOLFSSL_API
 int wc_ed25519ph_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
-                            word32 msgLen, int* stat, ed25519_key* key,
+                            word32 msgLen, int* res, ed25519_key* key,
                             const byte* context, byte contextLen);
 WOLFSSL_API
 int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
@@ -180,7 +190,7 @@ int wc_ed25519_import_private_key(const byte* priv, word32 privSz,
 
 #ifdef HAVE_ED25519_KEY_EXPORT
 WOLFSSL_API
-int wc_ed25519_export_public(ed25519_key*, byte* out, word32* outLen);
+int wc_ed25519_export_public(ed25519_key* key, byte* out, word32* outLen);
 WOLFSSL_API
 int wc_ed25519_export_private_only(ed25519_key* key, byte* out, word32* outLen);
 WOLFSSL_API

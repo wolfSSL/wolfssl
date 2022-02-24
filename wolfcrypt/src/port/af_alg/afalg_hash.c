@@ -113,7 +113,7 @@ static int AfalgHashUpdate(wolfssl_AFALG_Hash* hash, const byte* in, word32 sz)
                     DYNAMIC_TYPE_TMP_BUFFER);
             if (pt == NULL) {
                 return MEMORY_E;
-	    }
+            }
             hash->msg = pt;
         }
         if (hash->msg == NULL) {

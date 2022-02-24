@@ -93,8 +93,6 @@ HMAC-SHA test passed!
 HAC-SHA256 test passed!
 HMAC-SHA512 test passed!
 GMC     test passed!
-HC-128   test passed!
-Rabbit   test passed!
 DS      test passed!
 DS3     test passed!
 AES      test passed!

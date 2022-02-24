@@ -152,14 +152,6 @@ extern void hmac_sha384_test(void *arg) ;
 extern void arc4_test(void *arg) ;
 #endif
 
-#ifndef NO_HC128
-extern void hc128_test(void *arg) ;
-#endif
-
-#ifndef NO_RABBIT
-extern void rabbit_test(void *arg) ;
-#endif
-
 #ifndef NO_DES3
 extern void des_test(void *arg) ;
 extern void des3_test(void *arg) ;
@@ -273,12 +265,6 @@ static struct {
 #endif
 #ifndef NO_RC4
     "arc4",  arc4_test,
-#endif
-#ifndef NO_HC128
-  "hc128",  hc128_test,
-#endif
-#ifndef NO_RABBIT
-  "rabbit",  rabbit_test,
 #endif
 #ifndef NO_DES3
   "des",  des_test,

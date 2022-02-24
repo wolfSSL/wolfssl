@@ -345,6 +345,13 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 
     WOLFSSL_ENTER("CheckCertCRL");
 
+#ifdef WOLFSSL_CRL_ALLOW_MISSING_CDP
+    /* Skip CRL verification in case no CDP in peer cert */
+    if (!cert->extCrlInfo) {
+        return ret;
+    }
+#endif
+
     ret = CheckCertCRLList(crl, cert, &foundEntry);
 
 #ifdef HAVE_CRL_IO
@@ -374,7 +381,7 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
     /* When not set the folder or not use hash_dir, do nothing.             */
     if ((foundEntry == 0) && (ret != OCSP_WANT_READ)) {
         if (crl->cm->x509_store_p != NULL) {
-            ret = LoadCertByIssuer(crl->cm->x509_store_p, 
+            ret = LoadCertByIssuer(crl->cm->x509_store_p,
                           (WOLFSSL_X509_NAME*)cert->issuerName, X509_LU_CRL);
             if (ret == WOLFSSL_SUCCESS) {
                 /* try again */
@@ -1343,10 +1350,10 @@ int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
 #else
 int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
 {
-	(void)crl;
-	(void)path;
-	(void)type;
-	(void)monitor;
+    (void)crl;
+    (void)path;
+    (void)type;
+    (void)monitor;
 
     /* stub for scenario where file system is not supported */
     return NOT_COMPILED_IN;

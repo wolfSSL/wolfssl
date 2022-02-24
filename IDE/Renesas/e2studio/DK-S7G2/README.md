@@ -1,3 +1,10 @@
+## Project Summary
+|Item|Name/Version|
+|:--|:--|
+|Board|DK-S7G2|
+|Toolchain|GCC ARM Embedded|
+|SSP Version|1.7.0|
+
 
 ## Building wolfSSL For DK-S7G2
 

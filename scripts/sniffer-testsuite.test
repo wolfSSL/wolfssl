@@ -39,6 +39,16 @@ then
     [ $RESULT -ne 0 ] && echo -e "\nsnifftest TLS v1.3 DH\n" && exit 1
 fi
 
+# TLS v1.3 sniffer test X25519 (and resumption)
+if test $# -ne 0
+then
+    ./sslSniffer/sslSnifferTest/snifftest ./scripts/sniffer-tls13-x25519.pcap ./certs/statickeys/x25519.pem 127.0.0.1 11111
+
+    RESULT=$?
+    [ $RESULT -ne 0 ] && echo -e "\nsnifftest TLS v1.3 X25519\n" && exit 1
+fi
+
+
 # TLS v1.3 sniffer test hello_retry_request (HRR) with ECDHE
 if test $# -ne 0
 then

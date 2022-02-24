@@ -97,20 +97,27 @@ enum {
     #define STORE_DATA_BLOCK_SZ 1024
 #endif
 
+#if defined(HAVE_ECC) && !defined(NO_ECC_SECP) && (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
+    #define DEFAULT_SERVER_EPH_KEY_ECC "../../certs/statickeys/ecc-secp256r1.pem"
+#else
+    #define DEFAULT_SERVER_EPH_KEY_ECC ""
+#endif
+#ifndef NO_DH
+    #define DEFAULT_SERVER_EPH_KEY_DH "../../certs/statickeys/dh-ffdhe2048.pem"
+#else
+    #define DEFAULT_SERVER_EPH_KEY_DH ""
+#endif
+#ifdef HAVE_CURVE25519
+    #define DEFAULT_SERVER_EPH_KEY_X25519 "../../certs/statickeys/x25519.pem"
+#else
+    #define DEFAULT_SERVER_EPH_KEY_X25519 ""
+#endif
 
-#define DEFAULT_SERVER_EPH_KEY_ECC "../../certs/statickeys/ecc-secp256r1.pem"
-#define DEFAULT_SERVER_EPH_KEY_DH  "../../certs/statickeys/dh-ffdhe2048.pem"
 #ifndef DEFAULT_SERVER_EPH_KEY
-    #if defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
-        (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
-        #if !defined(NO_DH)
-            #define DEFAULT_SERVER_EPH_KEY DEFAULT_SERVER_EPH_KEY_ECC "," DEFAULT_SERVER_EPH_KEY_DH
-        #else
-            #define DEFAULT_SERVER_EPH_KEY DEFAULT_SERVER_EPH_KEY_ECC
-        #endif
-    #elif !defined(NO_DH)
-        #define DEFAULT_SERVER_EPH_KEY DEFAULT_SERVER_EPH_KEY_DH
-    #endif
+    #define DEFAULT_SERVER_EPH_KEY \
+                DEFAULT_SERVER_EPH_KEY_ECC "," \
+                DEFAULT_SERVER_EPH_KEY_DH "," \
+                DEFAULT_SERVER_EPH_KEY_X25519
 #endif
 
 #define DEFAULT_SERVER_KEY_RSA "../../certs/server-key.pem"
@@ -122,20 +129,20 @@ enum {
         #define DEFAULT_SERVER_KEY DEFAULT_SERVER_KEY_ECC
     #endif
 #endif
-     
+
 
 #ifdef WOLFSSL_SNIFFER_WATCH
 static const byte rsaHash[] = {
-    0x4e, 0xa8, 0x55, 0x02, 0xe1, 0x84, 0x7e, 0xe1, 
-    0xb5, 0x97, 0xd2, 0xf0, 0x92, 0x3a, 0xfd, 0x0d, 
-    0x98, 0x26, 0x06, 0x85, 0x8d, 0xa4, 0xc7, 0x35, 
-    0xd4, 0x74, 0x8f, 0xd0, 0xe7, 0xa8, 0x27, 0xaa
+    0x3d, 0x4a, 0x60, 0xfc, 0xbf, 0xe5, 0x4d, 0x3e,
+    0x85, 0x62, 0xf2, 0xfc, 0xdb, 0x0d, 0x51, 0xdd,
+    0xcd, 0xc2, 0x53, 0x81, 0x1a, 0x67, 0x31, 0xa0,
+    0x7f, 0xd2, 0x11, 0x74, 0xbf, 0xea, 0xc9, 0xc5
 };
 static const byte eccHash[] = {
-    0x80, 0x3d, 0xff, 0xca, 0x2e, 0x20, 0xd9, 0xdf, 
-    0xfe, 0x64, 0x4e, 0x25, 0x6a, 0xee, 0xee, 0x60, 
-    0xc1, 0x48, 0x7b, 0xff, 0xa0, 0xfb, 0xeb, 0xac, 
-    0xe2, 0xa4, 0xdd, 0xb5, 0x18, 0x38, 0x78, 0x38
+    0x9e, 0x45, 0xb6, 0xf8, 0xc6, 0x5d, 0x60, 0x90,
+    0x40, 0x8f, 0xd2, 0x0e, 0xb1, 0x59, 0xe7, 0xbd,
+    0xb0, 0x9b, 0x3c, 0x7a, 0x3a, 0xbe, 0x13, 0x52,
+    0x07, 0x4f, 0x1a, 0x64, 0x45, 0xe0, 0x13, 0x34
 };
 #endif
 
@@ -320,7 +327,7 @@ static int myStoreDataCb(const unsigned char* decryptBuf,
 /* try and load as both static ephemeral and private key */
 /* only fail if no key is loaded */
 /* Allow comma seperated list of files */
-static int load_key(const char* name, const char* server, int port, 
+static int load_key(const char* name, const char* server, int port,
     const char* keyFiles, const char* passwd, char* err)
 {
     int ret = -1;
@@ -349,7 +356,7 @@ static int load_key(const char* name, const char* server, int port,
     #endif
         if (ret == 0)
             loadCount++;
-        
+
         if (loadCount == 0) {
             printf("Failed loading private key %s: ret %d\n", keyFile, ret);
             printf("Please run directly from sslSniffer/sslSnifferTest dir\n");
@@ -403,9 +410,6 @@ int main(int argc, char** argv)
 
 #ifndef _WIN32
     ssl_InitSniffer();   /* dll load on Windows */
-#endif
-#ifdef DEBUG_WOLFSSL
-    //wolfSSL_Debugging_ON();
 #endif
     ssl_Trace("./tracefile.txt", err);
     ssl_EnableRecovery(1, -1, err);

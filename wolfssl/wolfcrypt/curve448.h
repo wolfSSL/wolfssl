@@ -43,16 +43,24 @@
 #define CURVE448_KEY_SIZE        56
 #define CURVE448_PUB_KEY_SIZE    56
 
+#ifndef WC_CURVE448KEY_TYPE_DEFINED
+    typedef struct curve448_key curve448_key;
+    #define WC_CURVE448KEY_TYPE_DEFINED
+#endif
 
 /* A CURVE448 Key */
-typedef struct curve448_key {
+struct curve448_key {
     byte p[CURVE448_PUB_KEY_SIZE];  /* public key  */
     byte k[CURVE448_KEY_SIZE];      /* private key */
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif
-} curve448_key;
+
+    /* bit fields */
+    byte pubSet:1;
+    byte privSet:1;
+};
 
 enum {
     EC448_LITTLE_ENDIAN = 0,
@@ -61,6 +69,10 @@ enum {
 
 WOLFSSL_API
 int wc_curve448_make_key(WC_RNG* rng, int keysize, curve448_key* key);
+
+WOLFSSL_API
+int wc_curve448_make_pub(int public_size, byte* pub, int private_size,
+                           const byte* priv);
 
 WOLFSSL_API
 int wc_curve448_shared_secret(curve448_key* private_key,

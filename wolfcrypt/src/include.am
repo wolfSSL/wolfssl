@@ -62,12 +62,10 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/arm/armv8-aes.c \
               wolfcrypt/src/port/arm/armv8-sha256.c \
               wolfcrypt/src/port/arm/armv8-chacha.c \
-              wolfcrypt/src/port/arm/armv8-curve25519.c \
-              wolfcrypt/src/port/arm/armv8-32-curve25519.c \
-              wolfcrypt/src/port/arm/armv8-sha512-asm.c \
-              wolfcrypt/src/port/arm/armv8-32-sha512-asm.c \
               wolfcrypt/src/port/nxp/ksdk_port.c \
               wolfcrypt/src/port/nxp/dcp_port.c \
+              wolfcrypt/src/port/nxp/se050_port.c \
+              wolfcrypt/src/port/nxp/README.md \
               wolfcrypt/src/port/atmel/README.md \
               wolfcrypt/src/port/xilinx/xil-sha3.c \
               wolfcrypt/src/port/xilinx/xil-aesgcm.c \
@@ -92,6 +90,13 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/st/README.md \
               wolfcrypt/src/port/af_alg/afalg_aes.c \
               wolfcrypt/src/port/af_alg/afalg_hash.c \
+              wolfcrypt/src/port/kcapi/kcapi_aes.c \
+              wolfcrypt/src/port/kcapi/kcapi_hash.c \
+              wolfcrypt/src/port/kcapi/kcapi_hmac.c \
+              wolfcrypt/src/port/kcapi/kcapi_ecc.c \
+              wolfcrypt/src/port/kcapi/kcapi_rsa.c \
+              wolfcrypt/src/port/kcapi/kcapi_dh.c \
+              wolfcrypt/src/port/kcapi/README.md \
               wolfcrypt/src/port/devcrypto/devcrypto_hash.c \
               wolfcrypt/src/port/devcrypto/wc_devcrypto.c \
               wolfcrypt/src/port/devcrypto/README.md \
@@ -106,17 +111,21 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/Renesas/renesas_tsip_aes.c \
               wolfcrypt/src/port/Renesas/renesas_tsip_sha.c \
               wolfcrypt/src/port/Renesas/renesas_tsip_util.c \
+              wolfcrypt/src/port/Renesas/renesas_sce_util.c \
+              wolfcrypt/src/port/Renesas/renesas_sce_aes.c \
+              wolfcrypt/src/port/Renesas/renesas_sce_sha.c \
+              wolfcrypt/src/port/Renesas/renesas_common.c \
               wolfcrypt/src/port/Renesas/README.md \
               wolfcrypt/src/port/cypress/psoc6_crypto.c
 
 wolfcrypt/src/port/cavium/cavium_nitrox.c: Makefile
-	touch $(srcdir)/$@
+	@test -e $(srcdir)/$@ || touch $(srcdir)/$@
 
 wolfcrypt/src/port/intel/quickassist.c: Makefile
-	touch $(srcdir)/$@
+	@test -e $(srcdir)/$@ || touch $(srcdir)/$@
 
 wolfcrypt/src/port/intel/quickassist_mem.c: Makefile
-	touch $(srcdir)/$@
+	@test -e $(srcdir)/$@ || touch $(srcdir)/$@
 
 if BUILD_CRYPTOCB
 src_libwolfssl_la_SOURCES += wolfcrypt/src/cryptocb.c
@@ -167,3 +176,15 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_qnx.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_ecdsa.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_cmac.c
 endif
+
+if BUILD_SE050
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/nxp/se050_port.c
+endif
+
+if BUILD_PSA
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/psa/psa.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/psa/psa_hash.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/psa/psa_aes.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/psa/psa_pkcbs.c
+endif
+EXTRA_DIST += wolfcrypt/src/port/psa/README.md

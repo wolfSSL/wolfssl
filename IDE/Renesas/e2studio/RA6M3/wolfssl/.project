@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>wolfSSL_RA6M3G</name>
+	<name>wolfSSL_RA6M3</name>
 	<comment></comment>
 	<projects>
 	</projects>
@@ -216,19 +216,9 @@
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/hash.c</locationURI>
 		</link>
 		<link>
-			<name>wolfcrypt/hc128.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/hc128.c</locationURI>
-		</link>
-		<link>
 			<name>wolfcrypt/hmac.c</name>
 			<type>1</type>
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/hmac.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/idea.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/idea.c</locationURI>
 		</link>
 		<link>
 			<name>wolfcrypt/include.am</name>
@@ -239,6 +229,11 @@
 			<name>wolfcrypt/integer.c</name>
 			<type>1</type>
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/integer.c</locationURI>
+		</link>
+		<link>
+			<name>wolfcrypt/kdf.c</name>
+			<type>1</type>
+			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/kdf.c</locationURI>
 		</link>
 		<link>
 			<name>wolfcrypt/logging.c</name>
@@ -281,19 +276,9 @@
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/poly1305.c</locationURI>
 		</link>
 		<link>
-			<name>wolfcrypt/port</name>
-			<type>2</type>
-			<locationURI>virtual:/virtual</locationURI>
-		</link>
-		<link>
 			<name>wolfcrypt/pwdbased.c</name>
 			<type>1</type>
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/pwdbased.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/rabbit.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/rabbit.c</locationURI>
 		</link>
 		<link>
 			<name>wolfcrypt/random.c</name>
@@ -409,131 +394,6 @@
 			<name>wolfcrypt/wolfmath.c</name>
 			<type>1</type>
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/wolfmath.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/Renesas</name>
-			<type>2</type>
-			<locationURI>virtual:/virtual</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/af_alg</name>
-			<type>2</type>
-			<locationURI>virtual:/virtual</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/arm</name>
-			<type>2</type>
-			<locationURI>virtual:/virtual</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/Renesas/README.md</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/Renesas/README.md</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/Renesas/renesas_tsip_aes.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_tsip_aes.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/Renesas/renesas_tsip_sha.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_tsip_sha.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/Renesas/renesas_tsip_util.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/Renesas/renesas_tsip_util.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/af_alg/afalg_aes.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/af_alg/afalg_aes.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/af_alg/afalg_hash.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/af_alg/afalg_hash.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/af_alg/wc_afalg.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/af_alg/wc_afalg.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/arm/armv8-32-curve25519.S</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/arm/armv8-32-curve25519.S</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/arm/armv8-32-curve25519.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/arm/armv8-32-curve25519.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/arm/armv8-32-sha512-asm.S</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/arm/armv8-32-sha512-asm.S</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/arm/armv8-32-sha512-asm.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/arm/armv8-32-sha512-asm.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/arm/armv8-aes.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/arm/armv8-aes.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/arm/armv8-chacha.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/arm/armv8-chacha.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/arm/armv8-curve25519.S</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/arm/armv8-curve25519.S</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/arm/armv8-curve25519.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/arm/armv8-curve25519.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/arm/armv8-poly1305.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/arm/armv8-poly1305.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/arm/armv8-sha256.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/arm/armv8-sha256.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/arm/armv8-sha512-asm.S</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/arm/armv8-sha512-asm.S</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/arm/armv8-sha512-asm.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/arm/armv8-sha512-asm.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/arm/armv8-sha512.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/arm/armv8-sha512.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/arm/cryptoCell.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/arm/cryptoCell.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/port/arm/cryptoCellHash.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/port/arm/cryptoCellHash.c</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>

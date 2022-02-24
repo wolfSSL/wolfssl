@@ -64,7 +64,7 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #else
 
 #if defined(HAVE_FIPS) && \
-	(!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
 /* for fips @wc_fips */
 #include <cyassl/ctaocrypt/rsa.h>
 #if defined(CYASSL_KEY_GEN) && !defined(WOLFSSL_KEY_GEN)
@@ -75,7 +75,7 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
     #include <wolfssl/wolfcrypt/random.h>
 #endif /* HAVE_FIPS && HAVE_FIPS_VERION 1 */
 #if defined(HAVE_FIPS) && \
-	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+        defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
 #include <wolfssl/wolfcrypt/fips.h>
 #endif
 
@@ -88,6 +88,10 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 
 #if defined(WOLFSSL_CRYPTOCELL)
     #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
+#endif
+
+#if defined(WOLFSSL_KCAPI_RSA)
+    #include <wolfssl/wolfcrypt/port/kcapi/kcapi_rsa.h>
 #endif
 
 #ifdef __cplusplus
@@ -188,6 +192,9 @@ struct RsaKey {
     byte*  mod;
     XSecure_Rsa xRsa;
 #endif
+#if defined(WOLFSSL_KCAPI_RSA)
+    struct kcapi_handle* handle;
+#endif
 #ifdef WOLF_CRYPTO_CB
     byte id[RSA_MAX_ID_LEN];
     int  idLen;
@@ -276,6 +283,10 @@ WOLFSSL_API int  wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inLen,
                                            byte* sig, word32 sigSz,
                                            enum wc_HashType hashType,
                                            int saltLen, int bits);
+WOLFSSL_API int  wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inLen,
+                                           byte* sig, word32 sigSz,
+                                           enum wc_HashType hashType,
+                                           int saltLen, int bits, void* heap);
 WOLFSSL_API int  wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
                                const byte* digest, word32 digentLen,
                                enum wc_HashType hash, int mgf,
@@ -289,16 +300,17 @@ WOLFSSL_API int  wc_RsaPSS_VerifyCheck(byte* in, word32 inLen,
 WOLFSSL_API int  wc_RsaEncryptSize(const RsaKey* key);
 
 #if !defined(HAVE_FIPS) || \
-	(defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 /* to avoid asn duplicate symbols @wc_fips */
 WOLFSSL_API int  wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
-                                                               RsaKey*, word32);
+                                        RsaKey* key, word32 inSz);
 WOLFSSL_API int  wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx,
-                                                               RsaKey*, word32);
+                                       RsaKey* key, word32 inSz);
 WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
                                         const byte* e, word32 eSz, RsaKey* key);
-#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)
-    WOLFSSL_API int wc_RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || \
+        defined(WOLFSSL_KCAPI_RSA)
+    WOLFSSL_API int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen);
 #endif
 
 #ifdef WC_RSA_BLINDING
@@ -346,8 +358,8 @@ WOLFSSL_API int wc_RsaDirect(byte* in, word32 inLen, byte* out, word32* outSz,
 
 #endif /* HAVE_FIPS */
 
-WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
-                                                                       word32*);
+WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey* key, byte* e, word32* eSz,
+                                        byte* n, word32* nSz);
 WOLFSSL_API int wc_RsaExportKey(RsaKey* key,
                                 byte* e, word32* eSz,
                                 byte* n, word32* nSz,

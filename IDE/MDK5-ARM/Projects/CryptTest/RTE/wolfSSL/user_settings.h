@@ -245,20 +245,6 @@
 #endif
 //  </e>
 
-//      <e>HC128
-#define MDK_CONF_HC128 1
-#if MDK_CONF_HC128 == 0
-#define NO_HC128
-#endif
-//  </e>
-
-//      <e>RABBIT
-#define MDK_CONF_RABBIT 1
-#if MDK_CONF_RABBIT == 0
-#define NO_RABBIT
-#endif
-//  </e>
-
 //      <e>CHACHA
 #define MDK_CONF_CHACHA 1
 #if MDK_CONF_CHACHA == 1
@@ -358,13 +344,6 @@
 #define MDK_CONF_PKCS7 0
 #if MDK_CONF_PKCS7 == 1
 #define HAVE_PKCS7
-#endif
-//  </e>
-
-//      <e>NTRU (need License, "crypto_ntru.h")
-#define MDK_CONF_NTRU 0
-#if MDK_CONF_NTRU == 1
-#define HAVE_NTRU
 #endif
 //  </e>
 //  </h>

@@ -181,10 +181,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\include\hc128.h"
-				>
-			</File>
-			<File
 				RelativePath=".\include\hmac.h"
 				>
 			</File>
@@ -210,10 +206,6 @@
 			</File>
 			<File
 				RelativePath=".\include\mpi_superclass.h"
-				>
-			</File>
-			<File
-				RelativePath=".\include\rabbit.h"
 				>
 			</File>
 			<File
@@ -281,10 +273,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\src\hc128.c"
-				>
-			</File>
-			<File
 				RelativePath=".\src\hmac.c"
 				>
 			</File>
@@ -302,10 +290,6 @@
 			</File>
 			<File
 				RelativePath=".\src\wc_port.c"
-				>
-			</File>
-			<File
-				RelativePath=".\src\rabbit.c"
 				>
 			</File>
 			<File

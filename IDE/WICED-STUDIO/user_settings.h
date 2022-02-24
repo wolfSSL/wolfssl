@@ -667,12 +667,6 @@ extern unsigned int my_rng_seed_gen(void);
 #undef  NO_OLD_TLS
 //#define NO_OLD_TLS
 
-#undef  NO_HC128
-//#define NO_HC128
-
-#undef  NO_RABBIT
-//#define NO_RABBIT
-
 #undef  NO_PSK
 //#define NO_PSK
 

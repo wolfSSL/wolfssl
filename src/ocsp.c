@@ -279,9 +279,9 @@ static int GetOcspStatus(WOLFSSL_OCSP* ocsp, OcspRequest* request,
  * entry          The OCSP entry for this certificate.
  * returns OCSP_LOOKUP_FAIL when the response is bad and 0 otherwise.
  */
-WOLFSSL_LOCAL int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
-                                    WOLFSSL_BUFFER_INFO *responseBuffer, CertStatus *status,
-                                    OcspEntry *entry, OcspRequest *ocspRequest)
+int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
+                      WOLFSSL_BUFFER_INFO *responseBuffer, CertStatus *status,
+                      OcspEntry *entry, OcspRequest *ocspRequest)
 {
 #ifdef WOLFSSL_SMALL_STACK
     CertStatus*   newStatus;
@@ -406,13 +406,17 @@ end:
 }
 
 /* 0 on success */
+/* allow user to override the maximum request size at build-time */
+#ifndef OCSP_MAX_REQUEST_SZ
+#define OCSP_MAX_REQUEST_SZ 2048
+#endif
 int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
                                                       buffer* responseBuffer)
 {
     OcspEntry*  entry          = NULL;
     CertStatus* status         = NULL;
     byte*       request        = NULL;
-    int         requestSz      = 2048;
+    int         requestSz      = OCSP_MAX_REQUEST_SZ;
     int         responseSz     = 0;
     byte*       response       = NULL;
     const char* url            = NULL;
@@ -858,7 +862,7 @@ const char *wolfSSL_OCSP_response_status_str(long s)
             return "trylater";
         case OCSP_SIG_REQUIRED:
             return "sigrequired";
-        case OCSP_UNAUTHROIZED:
+        case OCSP_UNAUTHORIZED:
             return "unauthorized";
         default:
             return "(UNKNOWN)";
@@ -1113,7 +1117,7 @@ WOLFSSL_OCSP_SINGLERESP* wolfSSL_OCSP_resp_get0(WOLFSSL_OCSP_BASICRESP *bs, int 
     return single;
 }
 
-#endif /* OPENSSL_ALL || APACHE_HTTPD */
+#endif /* OPENSSL_ALL || APACHE_HTTPD || WOLFSSL_HAPROXY */
 
 #ifdef OPENSSL_EXTRA
 #ifndef NO_WOLFSSL_STUB
@@ -1217,17 +1221,46 @@ int wolfSSL_OCSP_id_get0_info(WOLFSSL_ASN1_STRING **name,
     return 1;
 }
 
-#ifndef NO_WOLFSSL_STUB
 int wolfSSL_OCSP_request_add1_nonce(OcspRequest* req, unsigned char* val,
         int sz)
 {
-    WOLFSSL_STUB("wolfSSL_OCSP_request_add1_nonce");
-    (void)req;
-    (void)val;
-    (void)sz;
-    return WOLFSSL_FATAL_ERROR;
-}
+    WC_RNG rng;
+
+    WOLFSSL_ENTER("wolfSSL_OCSP_request_add1_nonce");
+
+    if (req == NULL || sz > MAX_OCSP_NONCE_SZ) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (sz <= 0)
+        sz = MAX_OCSP_NONCE_SZ;
+
+    if (val != NULL) {
+        XMEMCPY(req->nonce, val, sz);
+    }
+    else {
+        if (
+#ifndef HAVE_FIPS
+            wc_InitRng_ex(&rng, req->heap, INVALID_DEVID)
+#else
+            wc_InitRng(&rng)
 #endif
+            != 0) {
+            WOLFSSL_MSG("RNG init failed");
+            return WOLFSSL_FAILURE;
+        }
+        if (wc_RNG_GenerateBlock(&rng, req->nonce, sz) != 0) {
+            WOLFSSL_MSG("wc_RNG_GenerateBlock failed");
+            wc_FreeRng(&rng);
+            return WOLFSSL_FAILURE;
+        }
+        wc_FreeRng(&rng);
+    }
+    req->nonceSz = sz;
+
+    return WOLFSSL_SUCCESS;
+}
 
 /* Returns result of OCSP nonce comparison. Return values:
  *  1 - nonces are both present and equal

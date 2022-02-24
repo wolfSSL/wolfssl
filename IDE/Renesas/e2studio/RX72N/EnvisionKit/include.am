@@ -1,0 +1,17 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/README_EN.md
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/README_JP.md
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/InstructionManualForExample_RX72N_EnvisonKit_EN.pdf
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/InstructionManualForExample_RX72N_EnvisonKit_JP.pdf
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/resource/section.esi
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/wolfssl/.cproject
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/wolfssl/.project
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/wolfssl/wolfssl.rcpc
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/wolfssl_demo/key_data.c
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/wolfssl_demo/key_data.h
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/wolfssl_demo/wolfssl_demo.c
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/wolfssl_demo/wolfssl_demo.h
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/wolfssl_demo/user_settings.h

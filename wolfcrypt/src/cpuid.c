@@ -28,9 +28,7 @@
 
 #include <wolfssl/wolfcrypt/cpuid.h>
 
-#if (defined(WOLFSSL_X86_64_BUILD) || defined(USE_INTEL_SPEEDUP) || \
-    defined(WOLFSSL_AESNI) || defined(WOLFSSL_SP_X86_64_ASM)) && \
-    !defined(WOLFSSL_NO_ASM)
+#ifdef HAVE_CPUID_INTEL
     /* Each platform needs to query info type 1 from cpuid to see if aesni is
      * supported. Also, let's setup a macro for proper linkage w/o ABI conflicts
      */
@@ -38,7 +36,7 @@
     #ifndef _MSC_VER
         #define cpuid(reg, leaf, sub)\
             __asm__ __volatile__ ("cpuid":\
-                "=a" (reg[0]), "=b" (reg[1]), "=c" (reg[2]), "=d" (reg[3]) :\
+                "=a" ((reg)[0]), "=b" ((reg)[1]), "=c" ((reg)[2]), "=d" ((reg)[3]) :\
                 "a" (leaf), "c"(sub));
 
         #define XASM_LINK(f) asm(f)
@@ -102,6 +100,9 @@
             cpuid_check = 1;
         }
     }
+#endif
+
+#ifdef HAVE_CPUID
 
     word32 cpuid_get_flags(void)
     {
@@ -124,4 +125,5 @@
     {
         cpuid_flags &= ~flag;
     }
-#endif
+
+#endif /* HAVE_CPUID */

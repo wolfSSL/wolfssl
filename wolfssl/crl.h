@@ -34,12 +34,14 @@
     extern "C" {
 #endif
 
-WOLFSSL_LOCAL int  InitCRL(WOLFSSL_CRL*, WOLFSSL_CERT_MANAGER*);
-WOLFSSL_LOCAL void FreeCRL(WOLFSSL_CRL*, int dynamic);
+WOLFSSL_LOCAL int  InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm);
+WOLFSSL_LOCAL void FreeCRL(WOLFSSL_CRL* crl, int dynamic);
 
-WOLFSSL_LOCAL int  LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int mon);
-WOLFSSL_LOCAL int  BufferLoadCRL(WOLFSSL_CRL*, const byte*, long, int, int);
-WOLFSSL_LOCAL int  CheckCertCRL(WOLFSSL_CRL*, DecodedCert*);
+WOLFSSL_LOCAL int  LoadCRL(WOLFSSL_CRL* crl, const char* path, int type,
+                           int monitor);
+WOLFSSL_LOCAL int  BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz,
+                                 int type, int verify);
+WOLFSSL_LOCAL int  CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert);
 
 
 #ifdef __cplusplus

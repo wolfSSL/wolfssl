@@ -48,11 +48,11 @@
 /* Signature wrapper disabled check */
 #ifndef NO_SIG_WRAPPER
 
-#ifdef WOLFSSL_CRYPTOCELL
-extern int cc310_RsaSSL_Verify(const byte* in, word32 inLen, byte* sig,
-                            RsaKey* key, CRYS_RSA_HASH_OpMode_t mode);
-extern int cc310_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
-                word32 outLen, RsaKey* key, CRYS_RSA_HASH_OpMode_t mode);
+#if !defined(NO_RSA) && defined(WOLFSSL_CRYPTOCELL)
+    extern int cc310_RsaSSL_Verify(const byte* in, word32 inLen, byte* sig,
+                                RsaKey* key, CRYS_RSA_HASH_OpMode_t mode);
+    extern int cc310_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
+                    word32 outLen, RsaKey* key, CRYS_RSA_HASH_OpMode_t mode);
 #endif
 
 #if !defined(NO_RSA) && !defined(NO_ASN)
@@ -212,9 +212,9 @@ int wc_SignatureVerifyHash(
             if (plain_len <= sizeof(plain_data))
         #endif
             {
-            	byte* plain_ptr = NULL;
-            	XMEMSET(plain_data, 0, plain_len);
-            	XMEMCPY(plain_data, sig, sig_len);
+                byte* plain_ptr = NULL;
+                XMEMSET(plain_data, 0, plain_len);
+                XMEMCPY(plain_data, sig, sig_len);
                 /* Perform verification of signature using provided RSA key */
                 do {
                 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -222,7 +222,7 @@ int wc_SignatureVerifyHash(
                         WC_ASYNC_FLAG_CALL_AGAIN);
                 #endif
                 if (ret >= 0)
-                	ret = wc_RsaSSL_VerifyInline(plain_data, sig_len, &plain_ptr, (RsaKey*)key);
+                        ret = wc_RsaSSL_VerifyInline(plain_data, sig_len, &plain_ptr, (RsaKey*)key);
                 } while (ret == WC_PENDING_E);
                 if (ret >= 0 && plain_ptr) {
                     if ((word32)ret == hash_len &&

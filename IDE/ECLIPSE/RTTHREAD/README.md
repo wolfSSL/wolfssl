@@ -93,8 +93,6 @@ HMAC-SHA512 test passed!
 X963-KDF    test passed!
 GMAC     test passed!
 ARC4     test passed!
-HC-128   test passed!
-Rabbit   test passed!
 DES      test passed!
 DES3     test passed!
 AES      test passed!
