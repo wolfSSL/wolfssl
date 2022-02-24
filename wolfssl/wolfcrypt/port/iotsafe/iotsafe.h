@@ -46,7 +46,8 @@ WOLFSSL_API void wolfIoTSafe_SetCSIM_write_cb(wolfSSL_IOTSafe_CSIM_write_cb wf);
 
 WOLFSSL_API int wolfIoTSafe_GetRandom(unsigned char* out, word32 sz);
 WOLFSSL_API int wolfIoTSafe_GetCert(uint8_t id, unsigned char *output, unsigned long sz);
-WOLFSSL_API int wolfIoTSafe_GetCert_ex(uint8_t *id, uint16_t id_sz, unsigned char *output, unsigned long sz);
+int wolfIoTSafe_GetCert_ex(uint8_t *id, uint16_t id_sz, unsigned char *output,
+unsigned long sz);
 
 #ifdef HAVE_ECC
 #include <wolfssl/wolfcrypt/ecc.h>
@@ -116,7 +117,6 @@ typedef struct wc_IOTSAFE IOTSAFE;
 #define IOTSAFE_INS_GETRESPONSE   0xC0
 #define IOTSAFE_INS_GETDATA       0xCB
 #define IOTSAFE_INS_READ_KEY      0xCD
-#define IOTSAFE_INS_HKDF_EXTRACT 0x4A
 
 /* Tags */
 #define IOTSAFE_TAG_ECC_KEY_FIELD       0x34
@@ -135,8 +135,6 @@ typedef struct wc_IOTSAFE IOTSAFE;
 #define IOTSAFE_TAG_HASH_ALGO           0x91
 #define IOTSAFE_TAG_SIGN_ALGO           0x92
 #define IOTSAFE_TAG_MODE_OF_OPERATION   0xA1
-#define IOTSAFE_TAG_SECRET              0xD1
-#define IOTSAFE_TAG_SALT                0xD5
 
 /* Flags - data */
 #define IOTSAFE_GETDATA_FILE      0xC3
