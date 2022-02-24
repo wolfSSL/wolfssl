@@ -1040,16 +1040,16 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "add	r5, r5, #1\n\t"
         "mov	r6, %[lo]\n\t"
         "mov	r7, %[hi]\n\t"
-        "# Do top 32\n\t"
+        /* Do top 32 */
         "subs	r8, r5, r7\n\t"
         "sbc	r8, r8, r8\n\t"
         "add	%[r], %[r], %[r]\n\t"
         "sub	%[r], %[r], r8\n\t"
         "and	r8, r8, r5\n\t"
         "subs	r7, r7, r8\n\t"
-        "# Next 30 bits\n\t"
+        /* Next 30 bits */
         "mov	r4, #29\n\t"
-        "1:\n\t"
+        "\n1:\n\t"
         "movs	r6, r6, lsl #1\n\t"
         "adc	r7, r7, r7\n\t"
         "subs	r8, r5, r7\n\t"
@@ -2481,12 +2481,12 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "lsr	r3, %[d], #24\n\t"
 #endif
         "beq	2%=f\n\t"
-	"1%=:\n\t"
+	"\n1%=:\n\t"
         "movs	r3, #0\n\t"
         "b	3%=f\n\t"
-	"2%=:\n\t"
+	"\n2%=:\n\t"
         "mov	r3, #8\n\t"
-	"3%=:\n\t"
+	"\n3%=:\n\t"
         "movs	r4, #31\n\t"
 #if defined(__clang__) || defined(WOLFSSL_KEIL)
         "subs	r4, r4, r3\n\t"
@@ -2540,7 +2540,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 #endif
         "mov    r8, %[lo]\n\t"
         "mov    r9, %[hi]\n\t"
-        "# Do top 32\n\t"
+        /* Do top 32 */
         "movs   r6, r5\n\t"
 #if defined(__clang__) || defined(WOLFSSL_KEIL)
         "subs   r6, r6, %[hi]\n\t"
@@ -2643,7 +2643,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 #else
         "add    r3, r3, #1\n\t"
 #endif
-        "# r * d - Start\n\t"
+        /* r * d - Start */
         "uxth   %[hi], r3\n\t"
         "uxth   r4, %[d]\n\t"
 #ifdef WOLFSSL_KEIL
@@ -2734,7 +2734,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 #else
         "adc    r5, r6\n\t"
 #endif
-        "# r * d - Done\n\t"
+        /* r * d - Done */
         "mov    %[hi], r8\n\t"
 #if defined(__clang__) || defined(WOLFSSL_KEIL)
         "subs   %[hi], %[hi], r4\n\t"
@@ -2756,7 +2756,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 #else
         "add    r3, r3, r5\n\t"
 #endif
-        "# r * d - Start\n\t"
+        /* r * d - Start */
         "uxth   %[hi], r3\n\t"
         "uxth   r4, %[d]\n\t"
 #ifdef WOLFSSL_KEIL
@@ -2847,7 +2847,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 #else
         "adc    r5, r6\n\t"
 #endif
-        "# r * d - Done\n\t"
+        /* r * d - Done */
         "mov    %[hi], r8\n\t"
         "mov    r6, r9\n\t"
 #ifdef WOLFSSL_KEIL
@@ -2872,7 +2872,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 #else
         "add    r3, r3, r5\n\t"
 #endif
-        "# r * d - Start\n\t"
+        /* r * d - Start */
         "uxth   %[hi], r3\n\t"
         "uxth   r4, %[d]\n\t"
 #ifdef WOLFSSL_KEIL
@@ -2963,7 +2963,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 #else
         "adc    r5, r6\n\t"
 #endif
-        "# r * d - Done\n\t"
+        /* r * d - Done */
         "mov    %[hi], r8\n\t"
         "mov    r6, r9\n\t"
 #ifdef WOLFSSL_KEIL
