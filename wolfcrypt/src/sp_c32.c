@@ -17517,7 +17517,7 @@ SP_NOINLINE static void sp_4096_rshift_81(sp_digit* r, const sp_digit* a,
 {
     int i;
 
-    for (i=0; i<72; i += 8) {
+    for (i=0; i<80; i += 8) {
         r[i+0] = (a[i+0] >> n) | ((a[i+1] << (26 - n)) & 0x3ffffff);
         r[i+1] = (a[i+1] >> n) | ((a[i+2] << (26 - n)) & 0x3ffffff);
         r[i+2] = (a[i+2] >> n) | ((a[i+3] << (26 - n)) & 0x3ffffff);
@@ -17527,14 +17527,6 @@ SP_NOINLINE static void sp_4096_rshift_81(sp_digit* r, const sp_digit* a,
         r[i+6] = (a[i+6] >> n) | ((a[i+7] << (26 - n)) & 0x3ffffff);
         r[i+7] = (a[i+7] >> n) | ((a[i+8] << (26 - n)) & 0x3ffffff);
     }
-    r[72] = (a[72] >> n) | ((a[73] << (26 - n)) & 0x3ffffff);
-    r[73] = (a[73] >> n) | ((a[74] << (26 - n)) & 0x3ffffff);
-    r[74] = (a[74] >> n) | ((a[75] << (26 - n)) & 0x3ffffff);
-    r[75] = (a[75] >> n) | ((a[76] << (26 - n)) & 0x3ffffff);
-    r[76] = (a[76] >> n) | ((a[77] << (26 - n)) & 0x3ffffff);
-    r[77] = (a[77] >> n) | ((a[78] << (26 - n)) & 0x3ffffff);
-    r[78] = (a[78] >> n) | ((a[79] << (26 - n)) & 0x3ffffff);
-    r[79] = (a[79] >> n) | ((a[80] << (26 - n)) & 0x3ffffff);
     r[80] = a[80] >> n;
 }
 
@@ -25420,7 +25412,7 @@ SP_NOINLINE static void sp_256_rshift_9(sp_digit* r, const sp_digit* a,
         r[i] = ((a[i] >> n) | (a[i + 1] << (29 - n))) & 0x1fffffff;
     }
 #else
-    for (i=0; i<0; i += 8) {
+    for (i=0; i<8; i += 8) {
         r[i+0] = (a[i+0] >> n) | ((a[i+1] << (29 - n)) & 0x1fffffff);
         r[i+1] = (a[i+1] >> n) | ((a[i+2] << (29 - n)) & 0x1fffffff);
         r[i+2] = (a[i+2] >> n) | ((a[i+3] << (29 - n)) & 0x1fffffff);
@@ -25430,14 +25422,6 @@ SP_NOINLINE static void sp_256_rshift_9(sp_digit* r, const sp_digit* a,
         r[i+6] = (a[i+6] >> n) | ((a[i+7] << (29 - n)) & 0x1fffffff);
         r[i+7] = (a[i+7] >> n) | ((a[i+8] << (29 - n)) & 0x1fffffff);
     }
-    r[0] = (a[0] >> n) | ((a[1] << (29 - n)) & 0x1fffffff);
-    r[1] = (a[1] >> n) | ((a[2] << (29 - n)) & 0x1fffffff);
-    r[2] = (a[2] >> n) | ((a[3] << (29 - n)) & 0x1fffffff);
-    r[3] = (a[3] >> n) | ((a[4] << (29 - n)) & 0x1fffffff);
-    r[4] = (a[4] >> n) | ((a[5] << (29 - n)) & 0x1fffffff);
-    r[5] = (a[5] >> n) | ((a[6] << (29 - n)) & 0x1fffffff);
-    r[6] = (a[6] >> n) | ((a[7] << (29 - n)) & 0x1fffffff);
-    r[7] = (a[7] >> n) | ((a[8] << (29 - n)) & 0x1fffffff);
 #endif /* WOLFSSL_SP_SMALL */
     r[8] = a[8] >> n;
 }
@@ -41230,6 +41214,34 @@ int sp_ecc_secret_gen_521(const mp_int* priv, const ecc_point* pub, byte* out,
 #endif /* HAVE_ECC_DHE */
 
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+SP_NOINLINE static void sp_521_rshift_21(sp_digit* r, const sp_digit* a,
+        byte n)
+{
+    int i;
+
+#ifdef WOLFSSL_SP_SMALL
+    for (i=0; i<20; i++) {
+        r[i] = ((a[i] >> n) | (a[i + 1] << (25 - n))) & 0x1ffffff;
+    }
+#else
+    for (i=0; i<16; i += 8) {
+        r[i+0] = (a[i+0] >> n) | ((a[i+1] << (25 - n)) & 0x1ffffff);
+        r[i+1] = (a[i+1] >> n) | ((a[i+2] << (25 - n)) & 0x1ffffff);
+        r[i+2] = (a[i+2] >> n) | ((a[i+3] << (25 - n)) & 0x1ffffff);
+        r[i+3] = (a[i+3] >> n) | ((a[i+4] << (25 - n)) & 0x1ffffff);
+        r[i+4] = (a[i+4] >> n) | ((a[i+5] << (25 - n)) & 0x1ffffff);
+        r[i+5] = (a[i+5] >> n) | ((a[i+6] << (25 - n)) & 0x1ffffff);
+        r[i+6] = (a[i+6] >> n) | ((a[i+7] << (25 - n)) & 0x1ffffff);
+        r[i+7] = (a[i+7] >> n) | ((a[i+8] << (25 - n)) & 0x1ffffff);
+    }
+    r[16] = (a[16] >> n) | ((a[17] << (25 - n)) & 0x1ffffff);
+    r[17] = (a[17] >> n) | ((a[18] << (25 - n)) & 0x1ffffff);
+    r[18] = (a[18] >> n) | ((a[19] << (25 - n)) & 0x1ffffff);
+    r[19] = (a[19] >> n) | ((a[20] << (25 - n)) & 0x1ffffff);
+#endif /* WOLFSSL_SP_SMALL */
+    r[20] = a[20] >> n;
+}
+
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 /* Multiply a by scalar b into r. (r = a * b)
@@ -41738,8 +41750,8 @@ int sp_ecc_sign_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
     case 0: /* INIT */
         ctx->s = ctx->e;
         ctx->kInv = ctx->k;
-        if (hashLen > 65U) {
-            hashLen = 65U;
+        if (hashLen > 66U) {
+            hashLen = 66U;
         }
 
         ctx->i = SP_ECC_MAX_SIG_GEN;
@@ -41777,6 +41789,10 @@ int sp_ecc_sign_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
 
         sp_521_from_mp(ctx->x, 21, priv);
         sp_521_from_bin(ctx->e, 21, hash, (int)hashLen);
+        if (hashLen == 66U) {
+            sp_521_rshift_21(ctx->e, ctx->e, 7);
+            ctx->e[20] |= ((sp_digit)hash[0]) << 13;
+        }
         ctx->state = 4;
         break;
     }
@@ -41913,8 +41929,8 @@ int sp_ecc_sign_521(const byte* hash, word32 hashLen, WC_RNG* rng,
         tmp = e + 8 * 21;
         s = e;
 
-        if (hashLen > 65U) {
-            hashLen = 65U;
+        if (hashLen > 66U) {
+            hashLen = 66U;
         }
     }
 
@@ -41942,6 +41958,11 @@ int sp_ecc_sign_521(const byte* hash, word32 hashLen, WC_RNG* rng,
 
             sp_521_from_mp(x, 21, priv);
             sp_521_from_bin(e, 21, hash, (int)hashLen);
+
+            if (hashLen == 66U) {
+                sp_521_rshift_21(e, e, 7);
+                e[20] |= ((sp_digit)hash[0]) << 13;
+            }
 
             err = sp_521_calc_s_21(s, r, k, x, e, tmp);
         }
@@ -42292,8 +42313,8 @@ int sp_ecc_verify_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
 
     switch (ctx->state) {
     case 0: /* INIT */
-        if (hashLen > 65U) {
-            hashLen = 65U;
+        if (hashLen > 66U) {
+            hashLen = 66U;
         }
 
         sp_521_from_bin(ctx->u1, 21, hash, (int)hashLen);
@@ -42302,6 +42323,10 @@ int sp_ecc_verify_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
         sp_521_from_mp(ctx->p2.x, 21, pX);
         sp_521_from_mp(ctx->p2.y, 21, pY);
         sp_521_from_mp(ctx->p2.z, 21, pZ);
+        if (hashLen == 66U) {
+            sp_521_rshift_21(ctx->u1, ctx->u1, 7);
+            ctx->u1[20] |= ((sp_digit)hash[0]) << 13;
+        }
         ctx->state = 1;
         break;
     case 1: /* NORMS0 */
@@ -42453,8 +42478,8 @@ int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
         tmp = u1 + 6 * 21;
         p2 = p1 + 1;
 
-        if (hashLen > 65U) {
-            hashLen = 65U;
+        if (hashLen > 66U) {
+            hashLen = 66U;
         }
 
         sp_521_from_bin(u1, 21, hash, (int)hashLen);
@@ -42463,6 +42488,11 @@ int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
         sp_521_from_mp(p2->x, 21, pX);
         sp_521_from_mp(p2->y, 21, pY);
         sp_521_from_mp(p2->z, 21, pZ);
+
+        if (hashLen == 66U) {
+            sp_521_rshift_21(u1, u1, 7);
+            u1[20] |= ((sp_digit)hash[0]) << 13;
+        }
 
         err = sp_521_calc_vfy_point_21(p1, p2, s, u1, u2, tmp, heap);
     }

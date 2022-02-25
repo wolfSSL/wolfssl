@@ -22201,6 +22201,8 @@ int sp_ecc_secret_gen_256(const mp_int* priv, const ecc_point* pub, byte* out,
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+#endif
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 #ifdef WOLFSSL_SP_SMALL
 /* Sub b from a into a. (a -= b)
  *
@@ -29364,6 +29366,8 @@ int sp_ecc_secret_gen_384(const mp_int* priv, const ecc_point* pub, byte* out,
 }
 #endif /* HAVE_ECC_DHE */
 
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+#endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
@@ -37687,6 +37691,100 @@ int sp_ecc_secret_gen_521(const mp_int* priv, const ecc_point* pub, byte* out,
 #endif /* HAVE_ECC_DHE */
 
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+SP_NOINLINE static void sp_521_rshift_17(sp_digit* r, const sp_digit* a, byte n)
+{
+    __asm__ __volatile__ (
+        "mov	r6, #32\n\t"
+        "sub	r6, r6, %[n]\n\t"
+        "ldrd	r2, r3, [%[a]]\n\t"
+        "lsr	r2, r2, %[n]\n\t"
+        "lsl	r5, r3, r6\n\t"
+        "lsr	r3, r3, %[n]\n\t"
+        "orr	r2, r2, r5\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "str	r2, [%[r], #0]\n\t"
+        "lsl	r5, r4, r6\n\t"
+        "lsr	r4, r4, %[n]\n\t"
+        "orr	r3, r3, r5\n\t"
+        "ldr	r2, [%[a], #12]\n\t"
+        "str	r3, [%[r], #4]\n\t"
+        "lsl	r5, r2, r6\n\t"
+        "lsr	r2, r2, %[n]\n\t"
+        "orr	r4, r4, r5\n\t"
+        "ldr	r3, [%[a], #16]\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "lsl	r5, r3, r6\n\t"
+        "lsr	r3, r3, %[n]\n\t"
+        "orr	r2, r2, r5\n\t"
+        "ldr	r4, [%[a], #20]\n\t"
+        "str	r2, [%[r], #12]\n\t"
+        "lsl	r5, r4, r6\n\t"
+        "lsr	r4, r4, %[n]\n\t"
+        "orr	r3, r3, r5\n\t"
+        "ldr	r2, [%[a], #24]\n\t"
+        "str	r3, [%[r], #16]\n\t"
+        "lsl	r5, r2, r6\n\t"
+        "lsr	r2, r2, %[n]\n\t"
+        "orr	r4, r4, r5\n\t"
+        "ldr	r3, [%[a], #28]\n\t"
+        "str	r4, [%[r], #20]\n\t"
+        "lsl	r5, r3, r6\n\t"
+        "lsr	r3, r3, %[n]\n\t"
+        "orr	r2, r2, r5\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "str	r2, [%[r], #24]\n\t"
+        "lsl	r5, r4, r6\n\t"
+        "lsr	r4, r4, %[n]\n\t"
+        "orr	r3, r3, r5\n\t"
+        "ldr	r2, [%[a], #36]\n\t"
+        "str	r3, [%[r], #28]\n\t"
+        "lsl	r5, r2, r6\n\t"
+        "lsr	r2, r2, %[n]\n\t"
+        "orr	r4, r4, r5\n\t"
+        "ldr	r3, [%[a], #40]\n\t"
+        "str	r4, [%[r], #32]\n\t"
+        "lsl	r5, r3, r6\n\t"
+        "lsr	r3, r3, %[n]\n\t"
+        "orr	r2, r2, r5\n\t"
+        "ldr	r4, [%[a], #44]\n\t"
+        "str	r2, [%[r], #36]\n\t"
+        "lsl	r5, r4, r6\n\t"
+        "lsr	r4, r4, %[n]\n\t"
+        "orr	r3, r3, r5\n\t"
+        "ldr	r2, [%[a], #48]\n\t"
+        "str	r3, [%[r], #40]\n\t"
+        "lsl	r5, r2, r6\n\t"
+        "lsr	r2, r2, %[n]\n\t"
+        "orr	r4, r4, r5\n\t"
+        "ldr	r3, [%[a], #52]\n\t"
+        "str	r4, [%[r], #44]\n\t"
+        "lsl	r5, r3, r6\n\t"
+        "lsr	r3, r3, %[n]\n\t"
+        "orr	r2, r2, r5\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "str	r2, [%[r], #48]\n\t"
+        "lsl	r5, r4, r6\n\t"
+        "lsr	r4, r4, %[n]\n\t"
+        "orr	r3, r3, r5\n\t"
+        "ldr	r2, [%[a], #60]\n\t"
+        "str	r3, [%[r], #52]\n\t"
+        "lsl	r5, r2, r6\n\t"
+        "lsr	r2, r2, %[n]\n\t"
+        "orr	r4, r4, r5\n\t"
+        "ldr	r3, [%[a], #64]\n\t"
+        "str	r4, [%[r], #56]\n\t"
+        "lsl	r5, r3, r6\n\t"
+        "lsr	r3, r3, %[n]\n\t"
+        "orr	r2, r2, r5\n\t"
+        "strd	r2, r3, [%[r], #60]\n\t"
+      :
+      : [r] "r" (r), [a] "r" (a), [n] "r" (n)
+      : "memory", "r2", "r3", "r4", "r5", "r6"
+  );
+}
+
+#endif
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 static void sp_521_lshift_17(sp_digit* r, const sp_digit* a, byte n)
@@ -38015,98 +38113,6 @@ static void sp_521_lshift_34(sp_digit* r, const sp_digit* a, byte n)
         : [r] "r" (r), [a] "r" (a), [n] "r" (n)
         : "memory", "r2", "r3", "r4", "r5", "r6"
     );
-}
-
-SP_NOINLINE static void sp_521_rshift_17(sp_digit* r, const sp_digit* a, byte n)
-{
-    __asm__ __volatile__ (
-        "mov	r6, #32\n\t"
-        "sub	r6, r6, %[n]\n\t"
-        "ldrd	r2, r3, [%[a]]\n\t"
-        "lsr	r2, r2, %[n]\n\t"
-        "lsl	r5, r3, r6\n\t"
-        "lsr	r3, r3, %[n]\n\t"
-        "orr	r2, r2, r5\n\t"
-        "ldr	r4, [%[a], #8]\n\t"
-        "str	r2, [%[r], #0]\n\t"
-        "lsl	r5, r4, r6\n\t"
-        "lsr	r4, r4, %[n]\n\t"
-        "orr	r3, r3, r5\n\t"
-        "ldr	r2, [%[a], #12]\n\t"
-        "str	r3, [%[r], #4]\n\t"
-        "lsl	r5, r2, r6\n\t"
-        "lsr	r2, r2, %[n]\n\t"
-        "orr	r4, r4, r5\n\t"
-        "ldr	r3, [%[a], #16]\n\t"
-        "str	r4, [%[r], #8]\n\t"
-        "lsl	r5, r3, r6\n\t"
-        "lsr	r3, r3, %[n]\n\t"
-        "orr	r2, r2, r5\n\t"
-        "ldr	r4, [%[a], #20]\n\t"
-        "str	r2, [%[r], #12]\n\t"
-        "lsl	r5, r4, r6\n\t"
-        "lsr	r4, r4, %[n]\n\t"
-        "orr	r3, r3, r5\n\t"
-        "ldr	r2, [%[a], #24]\n\t"
-        "str	r3, [%[r], #16]\n\t"
-        "lsl	r5, r2, r6\n\t"
-        "lsr	r2, r2, %[n]\n\t"
-        "orr	r4, r4, r5\n\t"
-        "ldr	r3, [%[a], #28]\n\t"
-        "str	r4, [%[r], #20]\n\t"
-        "lsl	r5, r3, r6\n\t"
-        "lsr	r3, r3, %[n]\n\t"
-        "orr	r2, r2, r5\n\t"
-        "ldr	r4, [%[a], #32]\n\t"
-        "str	r2, [%[r], #24]\n\t"
-        "lsl	r5, r4, r6\n\t"
-        "lsr	r4, r4, %[n]\n\t"
-        "orr	r3, r3, r5\n\t"
-        "ldr	r2, [%[a], #36]\n\t"
-        "str	r3, [%[r], #28]\n\t"
-        "lsl	r5, r2, r6\n\t"
-        "lsr	r2, r2, %[n]\n\t"
-        "orr	r4, r4, r5\n\t"
-        "ldr	r3, [%[a], #40]\n\t"
-        "str	r4, [%[r], #32]\n\t"
-        "lsl	r5, r3, r6\n\t"
-        "lsr	r3, r3, %[n]\n\t"
-        "orr	r2, r2, r5\n\t"
-        "ldr	r4, [%[a], #44]\n\t"
-        "str	r2, [%[r], #36]\n\t"
-        "lsl	r5, r4, r6\n\t"
-        "lsr	r4, r4, %[n]\n\t"
-        "orr	r3, r3, r5\n\t"
-        "ldr	r2, [%[a], #48]\n\t"
-        "str	r3, [%[r], #40]\n\t"
-        "lsl	r5, r2, r6\n\t"
-        "lsr	r2, r2, %[n]\n\t"
-        "orr	r4, r4, r5\n\t"
-        "ldr	r3, [%[a], #52]\n\t"
-        "str	r4, [%[r], #44]\n\t"
-        "lsl	r5, r3, r6\n\t"
-        "lsr	r3, r3, %[n]\n\t"
-        "orr	r2, r2, r5\n\t"
-        "ldr	r4, [%[a], #56]\n\t"
-        "str	r2, [%[r], #48]\n\t"
-        "lsl	r5, r4, r6\n\t"
-        "lsr	r4, r4, %[n]\n\t"
-        "orr	r3, r3, r5\n\t"
-        "ldr	r2, [%[a], #60]\n\t"
-        "str	r3, [%[r], #52]\n\t"
-        "lsl	r5, r2, r6\n\t"
-        "lsr	r2, r2, %[n]\n\t"
-        "orr	r4, r4, r5\n\t"
-        "ldr	r3, [%[a], #64]\n\t"
-        "str	r4, [%[r], #56]\n\t"
-        "lsl	r5, r3, r6\n\t"
-        "lsr	r3, r3, %[n]\n\t"
-        "orr	r2, r2, r5\n\t"
-        "strd	r2, r3, [%[r], #60]\n\t"
-      :
-      : [r] "r" (r), [a] "r" (a), [n] "r" (n)
-      : "memory", "r2", "r3", "r4", "r5", "r6"
-  );
 }
 
 #ifdef WOLFSSL_SP_SMALL
@@ -38695,8 +38701,8 @@ int sp_ecc_sign_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
     case 0: /* INIT */
         ctx->s = ctx->e;
         ctx->kInv = ctx->k;
-        if (hashLen > 65U) {
-            hashLen = 65U;
+        if (hashLen > 66U) {
+            hashLen = 66U;
         }
 
         ctx->i = SP_ECC_MAX_SIG_GEN;
@@ -38734,6 +38740,9 @@ int sp_ecc_sign_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
 
         sp_521_from_mp(ctx->x, 17, priv);
         sp_521_from_bin(ctx->e, 17, hash, (int)hashLen);
+        if (hashLen == 66U) {
+            sp_521_rshift_17(ctx->e, ctx->e, 7);
+        }
         ctx->state = 4;
         break;
     }
@@ -38870,8 +38879,8 @@ int sp_ecc_sign_521(const byte* hash, word32 hashLen, WC_RNG* rng,
         tmp = e + 8 * 17;
         s = e;
 
-        if (hashLen > 65U) {
-            hashLen = 65U;
+        if (hashLen > 66U) {
+            hashLen = 66U;
         }
     }
 
@@ -38899,6 +38908,10 @@ int sp_ecc_sign_521(const byte* hash, word32 hashLen, WC_RNG* rng,
 
             sp_521_from_mp(x, 17, priv);
             sp_521_from_bin(e, 17, hash, (int)hashLen);
+
+            if (hashLen == 66U) {
+                sp_521_rshift_17(e, e, 7);
+            }
 
             err = sp_521_calc_s_17(s, r, k, x, e, tmp);
         }
@@ -39512,8 +39525,8 @@ int sp_ecc_verify_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
 
     switch (ctx->state) {
     case 0: /* INIT */
-        if (hashLen > 65U) {
-            hashLen = 65U;
+        if (hashLen > 66U) {
+            hashLen = 66U;
         }
 
         sp_521_from_bin(ctx->u1, 17, hash, (int)hashLen);
@@ -39522,6 +39535,9 @@ int sp_ecc_verify_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
         sp_521_from_mp(ctx->p2.x, 17, pX);
         sp_521_from_mp(ctx->p2.y, 17, pY);
         sp_521_from_mp(ctx->p2.z, 17, pZ);
+        if (hashLen == 66U) {
+            sp_521_rshift_17(ctx->u1, ctx->u1, 7);
+        }
         ctx->state = 1;
         break;
     case 1: /* NORMS0 */
@@ -39673,8 +39689,8 @@ int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
         tmp = u1 + 6 * 17;
         p2 = p1 + 1;
 
-        if (hashLen > 65U) {
-            hashLen = 65U;
+        if (hashLen > 66U) {
+            hashLen = 66U;
         }
 
         sp_521_from_bin(u1, 17, hash, (int)hashLen);
@@ -39683,6 +39699,10 @@ int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
         sp_521_from_mp(p2->x, 17, pX);
         sp_521_from_mp(p2->y, 17, pY);
         sp_521_from_mp(p2->z, 17, pZ);
+
+        if (hashLen == 66U) {
+            sp_521_rshift_17(u1, u1, 7);
+        }
 
         err = sp_521_calc_vfy_point_17(p1, p2, s, u1, u2, tmp, heap);
     }
