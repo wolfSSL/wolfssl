@@ -48,7 +48,7 @@
 
 /* benchmark multi-threading - disable for FIPS self test */
 #elif !defined(SINGLE_THREADED) && !defined(WC_NO_BENCH_THREADING) && \
-      !defined(HAVE_SELFTEST) && !defined(HAVE_RENESAS_SYNC)
+       defined(HAVE_PTHREAD) && !defined(HAVE_RENESAS_SYNC)
 
     #define WC_ENABLE_BENCH_THREADING
     #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
