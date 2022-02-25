@@ -11,7 +11,7 @@
 #
 #     $ ./fips-check [flavor] [keep]
 #
-#     - flavor: linux (default), ios, android, windows, freertos, linux-ecc, netbsd-selftest, linuxv2, fips-ready, stm32l4-v2, linuxv5, linuxv5-ready, linuxv5-dev
+#     - flavor: linux (default), ios, android, windows, freertos, linux-ecc, netbsd-selftest, linuxv2, fipsv2-OE-ready, fips-ready, stm32l4-v2, linuxv5, linuxv5-ready, linuxv5-dev
 #
 #     - keep: (default off) XXX-fips-test temp dir around for inspection
 #
@@ -173,7 +173,7 @@ linux-ecc)
   CRYPT_VERSION=$LINUX_ECC_CRYPT_VERSION
   CRYPT_REPO=$LINUX_ECC_CRYPT_REPO
   ;;
-linuxv2)
+linuxv2 | fipsv2-OE-ready)
   FIPS_VERSION=WCv4-stable
   FIPS_REPO=git@github.com:wolfssl/fips.git
   CRYPT_VERSION=WCv4-stable
@@ -396,6 +396,19 @@ for INC in "${FIPS_INCS[@]}"
 do
     cp "fips/$INC" "$CRYPT_INC_PATH"
 done
+
+# When checking out cert 3389 ready code, NIST will no longer perform
+# new certifications on 140-2 modules. If we were to use the latest files from
+# master that would require re-cert due to changes in the module boundary.
+# Since OE additions can still be processed for cert3389 we will call 140-2
+# ready "fipsv2-OE-ready" indicating it is read to use for an OE addition but
+# would not be good for a new certification effort with the latest files.
+if [ "$FLAVOR" = "fipsv2-OE-ready" ]; then
+    OLD_VERSION="    return \"v4.0.0-alpha\";"
+    OE_READY_VERSION="    return \"fipsv2-OE-ready\";"
+    cp "${CRYPT_SRC_PATH}/fips.c" "${CRYPT_SRC_PATH}/fips.c.bak"
+    sed "s/^${OLD_VERSION}/${OE_READY_VERSION}/" "${CRYPT_SRC_PATH}/fips.c.bak" >"${CRYPT_SRC_PATH}/fips.c"
+fi
 
 # run the make test
 ./autogen.sh
