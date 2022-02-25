@@ -15769,6 +15769,9 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
         sessRow = NULL;
     }
 
+    /* Note: the `session` variable cannot be used below, since the row is
+     * un-locked */
+
     if (ret != WOLFSSL_SUCCESS)
         return ret;
 

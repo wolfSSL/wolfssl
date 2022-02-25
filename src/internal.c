@@ -30626,6 +30626,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 id = ssl->session->altSessionID;
                 idSz = ID_LEN;
             }
+            /* make sure idSz is not larger than ID_LEN */
+            if (idSz > ID_LEN)
+                idSz = ID_LEN;
             XMEMCPY(it.id, id, idSz);
         }
 #endif
