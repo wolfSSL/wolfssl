@@ -1575,7 +1575,7 @@ struct DecodedCert {
     char*   subjectSND;
     int     subjectSNDLen;
     char    subjectSNDEnc;
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
     char*   subjectStreet;
     int     subjectStreetLen;
     char    subjectStreetEnc;
