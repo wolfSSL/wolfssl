@@ -2852,7 +2852,8 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
     WOLFSSL_API int wolfSSL_Unload_trust_peers(WOLFSSL* ssl);
 #endif
     WOLFSSL_API int wolfSSL_CTX_trust_peer_buffer(WOLFSSL_CTX* ctx,
-                                               const unsigned char*, long, int);
+                                       const unsigned char* in,
+                                       long sz, int format);
 #endif
     WOLFSSL_API int wolfSSL_CTX_load_verify_buffer_ex(WOLFSSL_CTX* ctx,
                                                const unsigned char* in, long sz, int format,

@@ -4611,13 +4611,13 @@ struct WOLFSSL {
  */
 #ifdef WOLFSSL_HAVE_ERROR_QUEUE
 #define CLEAR_ASN_NO_PEM_HEADER_ERROR(err)                  \
-    err = wolfSSL_ERR_peek_last_error();                    \
+    (err) = wolfSSL_ERR_peek_last_error();                  \
     if (ERR_GET_LIB(err) == ERR_LIB_PEM &&                  \
             ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {   \
         wc_RemoveErrorNode(-1);                             \
     }
 #else
-#define CLEAR_ASN_NO_PEM_HEADER_ERROR(err) (void)err;
+#define CLEAR_ASN_NO_PEM_HEADER_ERROR(err) (void)(err);
 #endif
 
 /*

@@ -5266,7 +5266,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         #define SESSIONS_PER_ROW 3
         #define SESSION_ROWS 11
     #endif
-    #define INVALID_SESSION_ROW -1
+    #define INVALID_SESSION_ROW (-1)
 
     #ifdef NO_SESSION_CACHE_ROW_LOCK
         #undef ENABLE_SESSION_CACHE_ROW_LOCK
@@ -15511,6 +15511,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
         return WOLFSSL_FAILURE;
 #endif
 
+    XMEMSET(bogusID, 0, sizeof(bogusID));
     if (!IsAtLeastTLSv1_3(ssl->version) && ssl->arrays != NULL)
         id = ssl->arrays->sessionID;
     else if (ssl->session->haveAltSessionID) {
@@ -15767,8 +15768,6 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
         SESSION_ROW_UNLOCK(sessRow);
         sessRow = NULL;
     }
-    /* Make sure we don't access this anymore */
-    session = NULL;
 
     if (ret != WOLFSSL_SUCCESS)
         return ret;
@@ -24095,10 +24094,10 @@ int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
             }
             else {
                 tmp = (byte*)XREALLOC(ticBuff, input->ticketLen,
-                        input->heap, DYNAMIC_TYPE_SESSION_TICK);
+                        output->heap, DYNAMIC_TYPE_SESSION_TICK);
                 if (tmp == NULL) {
                     WOLFSSL_MSG("Failed to allocate memory for ticket");
-                    XFREE(ticBuff, input->heap, DYNAMIC_TYPE_SESSION_TICK);
+                    XFREE(ticBuff, output->heap, DYNAMIC_TYPE_SESSION_TICK);
                     output->ticket = NULL;
                     output->ticketLen = 0;
                     output->ticketLenAlloc = 0;
@@ -24142,7 +24141,7 @@ int wolfSSL_DupSession(const WOLFSSL_SESSION* input, WOLFSSL_SESSION* output,
         }
         else {
             if (ticBuff != NULL)
-                XFREE(ticBuff, input->heap, DYNAMIC_TYPE_SESSION_TICK);
+                XFREE(ticBuff, output->heap, DYNAMIC_TYPE_SESSION_TICK);
             output->ticket = output->_staticTicket;
             output->ticketLenAlloc = 0;
         }
