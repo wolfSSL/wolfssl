@@ -42,6 +42,44 @@
 #ifdef HAVE_STACK_SIZE
     #include <wolfssl/ssl.h>
     #include <wolfssl/test.h>
+#elif !defined(SINGLE_THREADED)
+    #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
+        typedef void*         THREAD_RETURN;
+        typedef pthread_t     THREAD_TYPE;
+        #define WOLFSSL_THREAD
+        #define INFINITE (-1)
+        #define WAIT_OBJECT_0 0L
+    #elif defined(WOLFSSL_MDK_ARM)|| defined(WOLFSSL_KEIL_TCP_NET) || defined(FREESCALE_MQX)
+        typedef unsigned int  THREAD_RETURN;
+        typedef int           THREAD_TYPE;
+        #define WOLFSSL_THREAD
+    #elif defined(WOLFSSL_TIRTOS)
+        typedef void          THREAD_RETURN;
+        typedef Task_Handle   THREAD_TYPE;
+        #ifdef HAVE_STACK_SIZE
+          #undef EXIT_TEST
+          #define EXIT_TEST(ret)
+        #endif
+        #define WOLFSSL_THREAD
+    #elif defined(WOLFSSL_ZEPHYR)
+        typedef void            THREAD_RETURN;
+        typedef struct k_thread THREAD_TYPE;
+        #ifdef HAVE_STACK_SIZE
+          #undef EXIT_TEST
+          #define EXIT_TEST(ret)
+        #endif
+        #define WOLFSSL_THREAD
+    #elif defined(NETOS)
+        typedef UINT        THREAD_RETURN;
+        typedef TX_THREAD   THREAD_TYPE;
+        #define WOLFSSL_THREAD
+        #define INFINITE TX_WAIT_FOREVER
+        #define WAIT_OBJECT_0 TX_NO_WAIT
+    #else
+        typedef unsigned int  THREAD_RETURN;
+        typedef intptr_t      THREAD_TYPE;
+        #define WOLFSSL_THREAD __stdcall
+    #endif
 #endif
 
 #ifdef USE_FLAT_BENCHMARK_H
@@ -928,6 +966,15 @@ static THREAD_LS_T int devId = WOLFSSL_CAAM_DEVID;
 static THREAD_LS_T int devId = INVALID_DEVID;
 #endif
 
+#if (defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)) || \
+    !defined(SINGLE_THREADED)
+    typedef struct ThreadData {
+        pthread_t thread_id;
+    } ThreadData;
+    static ThreadData* g_threadData;
+    static int g_threadCount;
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     static WOLF_EVENT_QUEUE eventQueue;
 
@@ -935,13 +982,6 @@ static THREAD_LS_T int devId = INVALID_DEVID;
     #define BENCH_ASYNC_GET_NAME(doAsync) (doAsync) ? "HW" : "SW"
     #define BENCH_MAX_PENDING             (WOLF_ASYNC_MAX_PENDING)
 
-#ifndef WC_NO_ASYNC_THREADING
-    typedef struct ThreadData {
-        pthread_t thread_id;
-    } ThreadData;
-    static ThreadData* g_threadData;
-    static int g_threadCount;
-#endif
 
     static int bench_async_check(int* ret, WC_ASYNC_DEV* asyncDev,
         int callAgain, int* times, int limit, int* pending)
@@ -1196,7 +1236,14 @@ static int gPrintStats = 0;
 typedef enum bench_stat_type {
     BENCH_STAT_ASYM,
     BENCH_STAT_SYM,
+    BENCH_STAT_IGNORE,
 } bench_stat_type_t;
+
+#if (defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)) || \
+    !defined(SINGLE_THREADED)
+static pthread_mutex_t bench_lock = PTHREAD_MUTEX_INITIALIZER;
+#endif
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
     #ifndef BENCH_MAX_NAME_SZ
     #define BENCH_MAX_NAME_SZ 24
@@ -1216,7 +1263,6 @@ typedef enum bench_stat_type {
     } bench_stats_t;
     static bench_stats_t* bench_stats_head;
     static bench_stats_t* bench_stats_tail;
-    static pthread_mutex_t bench_lock = PTHREAD_MUTEX_INITIALIZER;
 
     static bench_stats_t* bench_stats_add(bench_stat_type_t type,
         const char* algo, int strength, const char* desc, int doAsync,
@@ -1242,7 +1288,8 @@ typedef enum bench_stat_type {
 
         if (bstat == NULL) {
             /* allocate new and put on list */
-            bstat = (bench_stats_t*)XMALLOC(sizeof(bench_stats_t), NULL, DYNAMIC_TYPE_INFO);
+            bstat = (bench_stats_t*)XMALLOC(sizeof(bench_stats_t), NULL,
+                DYNAMIC_TYPE_INFO);
             if (bstat) {
                 XMEMSET(bstat, 0, sizeof(bench_stats_t));
 
@@ -1312,7 +1359,8 @@ typedef enum bench_stat_type {
         bench_stat_type_t type;
         int ret;
     } bench_stats_t;
-    #define MAX_BENCH_STATS 50
+    /* 16 threads and 8 different operations. */
+    #define MAX_BENCH_STATS (16 * 8)
     static bench_stats_t gStats[MAX_BENCH_STATS];
     static int gStatsCount;
 
@@ -1324,8 +1372,30 @@ typedef enum bench_stat_type {
         if (gStatsCount >= MAX_BENCH_STATS)
             return bstat;
 
+    #ifndef SINGLE_THREADED
+        /* protect bench_stats_head and bench_stats_tail access */
+        pthread_mutex_lock(&bench_lock);
+    #endif
+
         bstat = &gStats[gStatsCount++];
-        bstat->algo = algo;
+    #ifndef SINGLE_THREADED
+        if (g_threadCount > 1) {
+            int algoLen = (int)(XSTRLEN(algo) + 1);
+            bstat->algo = (const char* )XMALLOC(algoLen, HEAP_HINT,
+                DYNAMIC_TYPE_TMP_BUFFER);
+            if (bstat->algo == NULL) {
+                bstat->algo = "UNKNOWN";
+                type = BENCH_STAT_IGNORE;
+            }
+            else {
+                XSTRNCPY((char* )bstat->algo, algo, algoLen);
+            }
+        }
+        else
+    #endif
+        {
+            bstat->algo = algo;
+        }
         bstat->desc = desc;
         bstat->perfsec = perfsec;
         bstat->perftype = perftype;
@@ -1335,6 +1405,10 @@ typedef enum bench_stat_type {
 
         (void)doAsync;
 
+    #ifndef SINGLE_THREADED
+        pthread_mutex_unlock(&bench_lock);
+    #endif
+
         return bstat;
     }
 
@@ -1342,16 +1416,49 @@ typedef enum bench_stat_type {
     {
         int i;
         bench_stats_t* bstat;
+
+    #ifndef SINGLE_THREADED
+        if (g_threadCount > 1) {
+            int j;
+            bench_stats_t* bstat2;
+
+            /* Merge results and mark duplicates with type ignore. */
+            for (i=0; i<gStatsCount; i++) {
+                bstat = &gStats[i];
+                if (bstat->type == BENCH_STAT_IGNORE)
+                    continue;
+                for (j=i+1; j<gStatsCount; j++) {
+                    bstat2 = &gStats[j];
+                    if (bstat2->type == BENCH_STAT_IGNORE)
+                        continue;
+
+                    if ((XSTRNCMP(bstat->algo, bstat2->algo,
+                                  XSTRLEN(bstat->algo)) == 0) &&
+                        (XSTRNCMP(bstat->desc, bstat2->desc,
+                                  XSTRLEN(bstat->desc)) == 0)) {
+                        bstat2->type = BENCH_STAT_IGNORE;
+                        bstat->perfsec += bstat2->perfsec;
+                    }
+                }
+            }
+        }
+    #endif
+
         for (i=0; i<gStatsCount; i++) {
             bstat = &gStats[i];
             if (bstat->type == BENCH_STAT_SYM) {
                 printf("%-16s %8.3f %s/s\n", bstat->desc, bstat->perfsec,
                     base2 ? "MB" : "mB");
             }
-            else {
+            else if (bstat->type == BENCH_STAT_ASYM) {
                 printf("%-5s %4d %-9s %.3f ops/sec\n",
                     bstat->algo, bstat->strength, bstat->desc, bstat->perfsec);
             }
+        #ifndef SINGLE_THREADED
+            if (g_threadCount > 1) {
+                free((void*)bstat->algo);
+            }
+        #endif
         }
     }
 #endif /* WOLFSSL_ASYNC_CRYPT && !WC_NO_ASYNC_THREADING */
@@ -1434,8 +1541,8 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
         SHOW_INTEL_CYCLES_CSV(msg, sizeof(msg), countSz);
     } else {
         XSNPRINTF(msg, sizeof(msg), "%-16s%s %5.0f %s %s %5.3f %s, %8.3f %s/s",
-        desc, BENCH_ASYNC_GET_NAME(doAsync), blocks, blockType, word[0], total, word[1],
-        persec, blockType);
+            desc, BENCH_ASYNC_GET_NAME(doAsync), blocks, blockType, word[0],
+            total, word[1], persec, blockType);
         SHOW_INTEL_CYCLES(msg, sizeof(msg), countSz);
     }
     printf("%s", msg);
@@ -1446,7 +1553,7 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
     }
 
     /* Add to thread stats */
-    bench_stats_add(BENCH_STAT_SYM, NULL, 0, desc, doAsync, persec, blockType, ret);
+    bench_stats_add(BENCH_STAT_SYM, desc, 0, desc, doAsync, persec, blockType, ret);
 
     (void)doAsync;
     (void)ret;
@@ -2363,6 +2470,43 @@ int benchmark_free(void)
     return ret;
 }
 
+
+#ifndef SINGLE_THREADED
+static THREAD_RETURN WOLFSSL_THREAD run_bench(void* args)
+{
+    benchmark_test(args);
+
+    EXIT_TEST(0);
+}
+
+static int benchmark_test_threaded(void* args)
+{
+    int i;
+
+    printf("Threads: %d\n", g_threadCount);
+
+    g_threadData = (ThreadData*)XMALLOC(sizeof(ThreadData) * g_threadCount,
+        HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (g_threadData == NULL) {
+        printf("Thread data alloc failed!\n");
+        return EXIT_FAILURE;
+    }
+
+    for (i = 0; i < g_threadCount; i++) {
+        pthread_create(&g_threadData[i].thread_id, NULL, run_bench, args);
+    }
+
+    for (i = 0; i < g_threadCount; i++) {
+        pthread_join(g_threadData[i].thread_id, 0);
+    }
+
+    printf("\n");
+    bench_stats_print();
+
+    return 0;
+}
+#endif
+
 /* so embedded projects can pull in tests on their own */
 #ifdef HAVE_STACK_SIZE
 THREAD_RETURN WOLFSSL_THREAD benchmark_test(void* args)
@@ -2413,6 +2557,7 @@ int benchmark_test(void *args)
         EXIT_TEST(EXIT_FAILURE);
     }
 
+#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
     /* Create threads */
     for (i = 0; i < g_threadCount; i++) {
         ret = wc_AsyncThreadCreate(&g_threadData[i].thread_id,
@@ -2427,6 +2572,7 @@ int benchmark_test(void *args)
     for (i = 0; i < g_threadCount; i++) {
         wc_AsyncThreadJoin(&g_threadData[i].thread_id);
     }
+#endif
 
     XFREE(g_threadData, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 }
@@ -7457,7 +7603,8 @@ int main(int argc, char** argv)
             csv_header_count = 1;
         }
 #endif
-#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
+#if (defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)) || \
+    !defined(SINGLE_THREADED)
         else if (string_matches(argv[1], "-threads")) {
             argc--;
             argv++;
@@ -7542,11 +7689,19 @@ int main(int argc, char** argv)
     }
 #endif /* MAIN_NO_ARGS */
 
-#ifdef HAVE_STACK_SIZE
-    ret = StackSizeCheck(NULL, benchmark_test);
-#else
-    ret = benchmark_test(NULL);
+#if !defined(WOLFSSL_ASYNC_CRYPT) && !defined(SINGLE_THREADED)
+    if (g_threadCount > 1) {
+        ret = benchmark_test_threaded(NULL);
+    }
+    else
 #endif
+    {
+    #ifdef HAVE_STACK_SIZE
+        ret = StackSizeCheck(NULL, benchmark_test);
+    #else
+        ret = benchmark_test(NULL);
+    #endif
+    }
 
     return ret;
 }
