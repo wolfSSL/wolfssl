@@ -44817,6 +44817,7 @@ static void test_wolfSSL_X509_get_ext_by_NID(void)
     int rc;
     FILE* f;
     WOLFSSL_X509* x509;
+    ASN1_OBJECT* obj = NULL;
 
     AssertNotNull(f = fopen("./certs/server-cert.pem", "rb"));
     AssertNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
@@ -44838,6 +44839,13 @@ static void test_wolfSSL_X509_get_ext_by_NID(void)
     rc = wolfSSL_X509_get_ext_by_NID(x509, NID_undef, -1);
     AssertIntEQ(rc, -1);
 
+    /* NID_ext_key_usage, check also its nid and oid */
+    rc = wolfSSL_X509_get_ext_by_NID(x509, NID_ext_key_usage, -1);
+    AssertIntGT(rc, -1);
+    AssertNotNull(obj = wolfSSL_X509_EXTENSION_get_object(wolfSSL_X509_get_ext(x509, rc)));
+    AssertIntEQ(obj->nid, NID_ext_key_usage);
+    AssertIntEQ(obj->type, EXT_KEY_USAGE_OID);
+    
     wolfSSL_X509_free(x509);
 #endif
 }

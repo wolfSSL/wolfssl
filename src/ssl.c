@@ -33252,7 +33252,7 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
                                                         "X509v3 Key Usage"},
     { NID_inhibit_any_policy, INHIBIT_ANY_OID, oidCertExtType,
                            "inhibitAnyPolicy", "X509v3 Inhibit Any Policy"},
-    { NID_ext_key_usage, KEY_USAGE_OID, oidCertExtType,
+    { NID_ext_key_usage, EXT_KEY_USAGE_OID, oidCertExtType,
                            "extendedKeyUsage", "X509v3 Extended Key Usage"},
     { NID_name_constraints, NAME_CONS_OID, oidCertExtType,
                               "nameConstraints", "X509v3 Name Constraints"},
