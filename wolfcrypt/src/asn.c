@@ -10653,7 +10653,7 @@ static const CertNameData certNameSubject[] = {
     /* Street Address */
     {
         "/street=", 8,
-#ifdef WOLFSSL_CERT_EXT
+#ifdef WOLFSSL_CERT_GEN
         OFFSETOF(DecodedCert, subjectStreet),
         OFFSETOF(DecodedCert, subjectStreetLen),
         OFFSETOF(DecodedCert, subjectStreetEnc),
