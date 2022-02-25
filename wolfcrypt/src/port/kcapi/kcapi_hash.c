@@ -164,13 +164,13 @@ static int KcapiHashFinal(wolfssl_KCAPI_Hash* hash, byte* out, word32 outSz,
         heap = hash->heap; /* keep because KcapiHashInit clears the pointer */
     #ifdef WOLFSSL_KCAPI_HASH_KEEP
         /* keep full message to out at end instead of incremental updates */
-        ret = kcapi_md_update(hash->handle, hash->msg, hash->used);
+        ret = (int)kcapi_md_update(hash->handle, hash->msg, hash->used);
         XFREE(hash->msg, heap, DYNAMIC_TYPE_TMP_BUFFER);
         hash->msg = NULL;
     #endif
 
         if (ret == 0) {
-            ret = kcapi_md_final(hash->handle, out, outSz);
+            ret = (int)kcapi_md_final(hash->handle, out, outSz);
         }
 
         KcapiHashFree(hash);
@@ -198,9 +198,9 @@ static int KcapiHashGet(wolfssl_KCAPI_Hash* hash, byte* out, word32 outSz)
         ret = kcapi_md_init(&hash->handle, hash->type, 0);
     }
     if (ret == 0) {
-        ret = kcapi_md_update(hash->handle, hash->msg, hash->used);
+        ret = (int)kcapi_md_update(hash->handle, hash->msg, hash->used);
         if (ret >= 0) {
-            ret = kcapi_md_final(hash->handle, out, outSz);
+            ret = (int)kcapi_md_final(hash->handle, out, outSz);
             if (ret >= 0) {
                 ret = 0;
             }

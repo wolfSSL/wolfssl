@@ -6604,7 +6604,7 @@ int wc_ecc_set_deterministic(ecc_key* key, byte flag)
     key->deterministic = flag;
     return 0;
 }
-#endif
+#endif /* end sign_ex and deterministic sign */
 
 
 #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP)

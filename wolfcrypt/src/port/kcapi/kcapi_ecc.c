@@ -117,7 +117,7 @@ int KcapiEcc_MakeKey(ecc_key* key, int keysize, int curve_id)
         ret = kcapi_kpp_ecdh_setcurve(key->handle, kcapiCurveId);
     }
     if (ret == 0) {
-        ret = kcapi_kpp_keygen(key->handle, key->pubkey_raw,
+        ret = (int)kcapi_kpp_keygen(key->handle, key->pubkey_raw,
                                sizeof(key->pubkey_raw), KCAPI_ACCESS_HEURISTIC);
     }
     if (ret >= 0) {
@@ -141,9 +141,9 @@ int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
 {
     int ret;
 
-    ret = kcapi_kpp_ssgen(private_key->handle, public_key->pubkey_raw,
-                          public_key->dp->size * 2, out, *outlen,
-                          KCAPI_ACCESS_HEURISTIC);
+    ret = (int)kcapi_kpp_ssgen(private_key->handle, public_key->pubkey_raw,
+                               public_key->dp->size * 2, out, *outlen,
+                               KCAPI_ACCESS_HEURISTIC);
     if (ret >= 0) {
         *outlen = ret;
         ret = 0;
@@ -210,9 +210,9 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
             hash_aligned = buf_aligned + pageSz;
             XMEMCPY(hash_aligned, hash, hashLen);
         }
-        ret = kcapi_akcipher_sign(key->handle, hash_aligned, hashLen,
-                                  sig_aligned, *sigLen,
-                                  KCAPI_ACCESS_HEURISTIC);
+        ret = (int)kcapi_akcipher_sign(key->handle, hash_aligned, hashLen,
+                                       sig_aligned, *sigLen,
+                                       KCAPI_ACCESS_HEURISTIC);
         if (ret >= 0) {
             *sigLen = ret;
             ret = 0;
@@ -277,7 +277,7 @@ int KcapiEcc_Verify(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
         XMEMCPY(sigHash_aligned, sig, sigLen);
         XMEMCPY(sigHash_aligned + sigLen, hash, hashLen);
 
-        ret = kcapi_akcipher_verify(key->handle, sigHash_aligned,
+        ret = (int)kcapi_akcipher_verify(key->handle, sigHash_aligned,
                 sigLen + hashLen, NULL, hashLen, KCAPI_ACCESS_HEURISTIC);
         if (ret >= 0) {
             ret = 0;
@@ -294,4 +294,3 @@ int KcapiEcc_Verify(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
 #endif
 
 #endif /* WOLFSSL_KCAPI_ECC */
-
