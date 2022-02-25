@@ -142,8 +142,8 @@ int esp_sha_process(struct wc_Sha* sha, const byte* data);
 
 #if !defined(NO_RSA) || defined(HAVE_ECC)
 
-#ifndef ESP_RSA_TIMEOUT
-    #define ESP_RSA_TIMEOUT 0xFFFFF
+#if !defined(ESP_RSA_TIMEOUT_CNT)
+    #define ESP_RSA_TIMEOUT_CNT     0x249F00
 #endif
 
 struct fp_int;
