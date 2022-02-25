@@ -42,7 +42,15 @@
 #ifdef HAVE_STACK_SIZE
     #include <wolfssl/ssl.h>
     #include <wolfssl/test.h>
-#elif !defined(SINGLE_THREADED)
+
+#elif defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
+    #define WC_ENABLE_BENCH_THREADING
+
+/* benchmark multi-threading - disable for FIPS self test */
+#elif !defined(SINGLE_THREADED) && !defined(WC_NO_BENCH_THREADING) && \
+      !defined(HAVE_SELFTEST) && !defined(HAVE_RENESAS_SYNC)
+
+    #define WC_ENABLE_BENCH_THREADING
     #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
         typedef void*         THREAD_RETURN;
         typedef pthread_t     THREAD_TYPE;
@@ -966,13 +974,12 @@ static THREAD_LS_T int devId = WOLFSSL_CAAM_DEVID;
 static THREAD_LS_T int devId = INVALID_DEVID;
 #endif
 
-#if (defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)) || \
-    !defined(SINGLE_THREADED)
+#ifdef WC_ENABLE_BENCH_THREADING
     typedef struct ThreadData {
         pthread_t thread_id;
     } ThreadData;
     static ThreadData* g_threadData;
-    static int g_threadCount;
+    static volatile int g_threadCount;
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -1239,12 +1246,9 @@ typedef enum bench_stat_type {
     BENCH_STAT_IGNORE,
 } bench_stat_type_t;
 
-#if (defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)) || \
-    !defined(SINGLE_THREADED)
-static pthread_mutex_t bench_lock = PTHREAD_MUTEX_INITIALIZER;
-#endif
+#ifdef WC_ENABLE_BENCH_THREADING
+    static pthread_mutex_t bench_lock = PTHREAD_MUTEX_INITIALIZER;
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
     #ifndef BENCH_MAX_NAME_SZ
     #define BENCH_MAX_NAME_SZ 24
     #endif
@@ -1372,13 +1376,15 @@ static pthread_mutex_t bench_lock = PTHREAD_MUTEX_INITIALIZER;
         if (gStatsCount >= MAX_BENCH_STATS)
             return bstat;
 
-    #ifndef SINGLE_THREADED
+    #ifdef WC_ENABLE_BENCH_THREADING
         /* protect bench_stats_head and bench_stats_tail access */
         pthread_mutex_lock(&bench_lock);
     #endif
 
         bstat = &gStats[gStatsCount++];
-    #ifndef SINGLE_THREADED
+        bstat->algo = algo;
+    #ifdef WC_ENABLE_BENCH_THREADING
+        pthread_mutex_lock(&bench_lock);
         if (g_threadCount > 1) {
             int algoLen = (int)(XSTRLEN(algo) + 1);
             bstat->algo = (const char* )XMALLOC(algoLen, HEAP_HINT,
@@ -1391,11 +1397,8 @@ static pthread_mutex_t bench_lock = PTHREAD_MUTEX_INITIALIZER;
                 XSTRNCPY((char* )bstat->algo, algo, algoLen);
             }
         }
-        else
+        pthread_mutex_unlock(&bench_lock);
     #endif
-        {
-            bstat->algo = algo;
-        }
         bstat->desc = desc;
         bstat->perfsec = perfsec;
         bstat->perftype = perftype;
@@ -1405,7 +1408,7 @@ static pthread_mutex_t bench_lock = PTHREAD_MUTEX_INITIALIZER;
 
         (void)doAsync;
 
-    #ifndef SINGLE_THREADED
+    #ifdef WC_ENABLE_BENCH_THREADING
         pthread_mutex_unlock(&bench_lock);
     #endif
 
@@ -1417,7 +1420,8 @@ static pthread_mutex_t bench_lock = PTHREAD_MUTEX_INITIALIZER;
         int i;
         bench_stats_t* bstat;
 
-    #ifndef SINGLE_THREADED
+    #ifdef WC_ENABLE_BENCH_THREADING
+        pthread_mutex_lock(&bench_lock);
         if (g_threadCount > 1) {
             int j;
             bench_stats_t* bstat2;
@@ -1442,6 +1446,7 @@ static pthread_mutex_t bench_lock = PTHREAD_MUTEX_INITIALIZER;
                 }
             }
         }
+        pthread_mutex_unlock(&bench_lock);
     #endif
 
         for (i=0; i<gStatsCount; i++) {
@@ -1454,10 +1459,12 @@ static pthread_mutex_t bench_lock = PTHREAD_MUTEX_INITIALIZER;
                 printf("%-5s %4d %-9s %.3f ops/sec\n",
                     bstat->algo, bstat->strength, bstat->desc, bstat->perfsec);
             }
-        #ifndef SINGLE_THREADED
+        #ifdef WC_ENABLE_BENCH_THREADING
+            pthread_mutex_lock(&bench_lock);
             if (g_threadCount > 1) {
                 free((void*)bstat->algo);
             }
+            pthread_mutex_unlock(&bench_lock);
         #endif
         }
     }
@@ -2428,7 +2435,7 @@ int benchmark_free(void)
 {
     int ret;
 
-#ifndef HAVE_RENESAS_SYNC
+#ifdef WC_ENABLE_BENCH_THREADING
     if (gPrintStats || devId != INVALID_DEVID) {
         bench_stats_print();
     }
@@ -2471,7 +2478,7 @@ int benchmark_free(void)
 }
 
 
-#ifndef SINGLE_THREADED
+#if defined(WC_ENABLE_BENCH_THREADING) && !defined(WOLFSSL_ASYNC_CRYPT)
 static THREAD_RETURN WOLFSSL_THREAD run_bench(void* args)
 {
     benchmark_test(args);
@@ -2518,10 +2525,6 @@ int benchmark_test(void *args)
 
     (void)args;
 
-    printf("------------------------------------------------------------------------------\n");
-    printf(" wolfSSL version %s\n", LIBWOLFSSL_VERSION_STRING);
-    printf("------------------------------------------------------------------------------\n");
-
 #ifdef HAVE_FIPS
     wolfCrypt_SetCb_fips(myFipsCb);
 #endif
@@ -2557,7 +2560,6 @@ int benchmark_test(void *args)
         EXIT_TEST(EXIT_FAILURE);
     }
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
     /* Create threads */
     for (i = 0; i < g_threadCount; i++) {
         ret = wc_AsyncThreadCreate(&g_threadData[i].thread_id,
@@ -2572,7 +2574,6 @@ int benchmark_test(void *args)
     for (i = 0; i < g_threadCount; i++) {
         wc_AsyncThreadJoin(&g_threadData[i].thread_id);
     }
-#endif
 
     XFREE(g_threadData, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 }
@@ -7489,7 +7490,7 @@ static void Usage(void)
 #endif
     printf("%s", bench_Usage_msg1[lng_index][14]);   /* option -lng */
     printf("%s", bench_Usage_msg1[lng_index][15]);   /* option <num> */
-#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
+#ifdef WC_ENABLE_BENCH_THREADING
     printf("%s", bench_Usage_msg1[lng_index][16]);   /* option -threads <num> */
 #endif
     printf("%s", bench_Usage_msg1[lng_index][17]);   /* option -print */
@@ -7530,6 +7531,10 @@ int main(int argc, char** argv)
 
     benchmark_static_init();
 
+    printf("------------------------------------------------------------------------------\n");
+    printf(" wolfSSL version %s\n", LIBWOLFSSL_VERSION_STRING);
+    printf("------------------------------------------------------------------------------\n");
+
 #ifndef MAIN_NO_ARGS
     while (argc > 1) {
         if (string_matches(argv[1], "-?")) {
@@ -7540,13 +7545,6 @@ int main(int argc, char** argv)
                 }
             }
             Usage();
-            return 0;
-        }
-        else if (string_matches(argv[1], "-v")) {
-            printf("-----------------------------------------------------------"
-                   "-------------------\n wolfSSL version %s\n-----------------"
-                   "-----------------------------------------------------------"
-                   "--\n", LIBWOLFSSL_VERSION_STRING);
             return 0;
         }
         else if (string_matches(argv[1], "-lng")) {
@@ -7603,8 +7601,7 @@ int main(int argc, char** argv)
             csv_header_count = 1;
         }
 #endif
-#if (defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)) || \
-    !defined(SINGLE_THREADED)
+#ifdef WC_ENABLE_BENCH_THREADING
         else if (string_matches(argv[1], "-threads")) {
             argc--;
             argv++;
@@ -7689,7 +7686,7 @@ int main(int argc, char** argv)
     }
 #endif /* MAIN_NO_ARGS */
 
-#if !defined(WOLFSSL_ASYNC_CRYPT) && !defined(SINGLE_THREADED)
+#if defined(WC_ENABLE_BENCH_THREADING) && !defined(WOLFSSL_ASYNC_CRYPT)
     if (g_threadCount > 1) {
         ret = benchmark_test_threaded(NULL);
     }
