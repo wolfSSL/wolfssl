@@ -33957,7 +33957,7 @@ static void test_wolfSSL_Tls13_postauth(void)
 
 static void test_wolfSSL_X509_NID(void)
 {
-    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
     !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_ASN)
     int   sigType;
     int   nameSz;
@@ -34027,7 +34027,7 @@ static void test_wolfSSL_X509_NID(void)
     X509_free(cert);
 
     printf(resultFmt, passed);
-    #endif
+#endif
 }
 
 static void test_wolfSSL_CTX_set_srp_username(void)
@@ -41921,7 +41921,7 @@ static void test_wolfSSL_X509_check_ip_asc(void){
 #endif
 }
 
-static void test_wolfSSL_DC_cert(void)
+static void test_wolfSSL_make_cert(void)
 {
 #if !defined(NO_RSA) && defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
     int      ret;
@@ -41942,7 +41942,7 @@ static void test_wolfSSL_DC_cert(void)
     ASN1_STRING*         entryValue;
 #endif
 
-    printf(testingFmt, "wolfSSL Certs with DC");
+    printf(testingFmt, "wolfSSL Make Certs");
 
     XMEMSET(&name, 0, sizeof(CertName));
 
@@ -41963,6 +41963,8 @@ static void test_wolfSSL_DC_cert(void)
     name.commonNameEnc = CTC_UTF8;
     XMEMCPY(name.serialDev, "wolfSSL12345", sizeof("wolfSSL12345"));
     name.serialDevEnc = CTC_PRINTABLE;
+    XMEMCPY(name.userId, "TestUserID", sizeof("TestUserID"));
+    name.userIdEnc = CTC_PRINTABLE;
 #ifdef WOLFSSL_MULTI_ATTRIB
     #if CTC_MAX_ATTRIB > 2
     {
@@ -52703,7 +52705,7 @@ void ApiTest(void)
     test_wolfSSL_i2c_ASN1_INTEGER();
     test_wolfSSL_X509_check_ca();
     test_wolfSSL_X509_check_ip_asc();
-    test_wolfSSL_DC_cert();
+    test_wolfSSL_make_cert();
     test_wolfSSL_DES_ncbc();
     test_wolfSSL_AES_cbc_encrypt();
     test_wolfSSL_CRYPTO_cts128();

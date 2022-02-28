@@ -33287,6 +33287,7 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
     { NID_surname, NID_surname, oidCertNameType, "SN", "surname"},
     { NID_serialNumber, NID_serialNumber, oidCertNameType, "serialNumber",
                                                             "serialNumber"},
+    { NID_userId, NID_userId, oidCertNameType, "UID", "userid"},
     { NID_countryName, NID_countryName, oidCertNameType, "C", "countryName"},
     { NID_localityName, NID_localityName, oidCertNameType, "L", "localityName"},
     { NID_stateOrProvinceName, NID_stateOrProvinceName, oidCertNameType, "ST",
@@ -44658,6 +44659,7 @@ static int ConvertNIDToWolfSSL(int nid)
         case NID_organizationalUnitName: return ASN_ORGUNIT_NAME;
         case NID_emailAddress: return ASN_EMAIL_NAME;
         case NID_serialNumber: return ASN_SERIAL_NUMBER;
+        case NID_userId: return ASN_USER_ID;
         case NID_businessCategory: return ASN_BUS_CAT;
         case NID_domainComponent: return ASN_DOMAIN_COMPONENT;
         case NID_postalCode: return ASN_POSTAL_CODE;
@@ -53470,6 +53472,8 @@ int oid2nid(word32 oid, int grp)
                     return NID_pkcs9_challengePassword;
                 case SERIAL_NUMBER_OID:
                     return NID_serialNumber;
+                case USER_ID_OID:
+                    return NID_userId;
             }
             break;
 #endif

@@ -3812,7 +3812,18 @@ typedef struct Arrays {
 } Arrays;
 
 #ifndef ASN_NAME_MAX
-#define ASN_NAME_MAX 256
+    #ifndef NO_ASN
+        /* use value from asn.h */
+        #define ASN_NAME_MAX WC_ASN_NAME_MAX
+    #else
+        /* calculate for WOLFSSL_X509 */
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+            defined(WOLFSSL_CERT_EXT)
+            #define ASN_NAME_MAX 330
+        #else
+            #define ASN_NAME_MAX 256
+        #endif
+    #endif
 #endif
 
 #ifndef MAX_DATE_SZ

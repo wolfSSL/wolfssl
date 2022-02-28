@@ -20,10 +20,7 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/mem_track.h>
 #include <wolfssl/wolfio.h>
-#if defined(SHOW_CERTS) && \
-    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
-    #include <wolfssl/wolfcrypt/asn.h> /* for domain component NID value */
-#endif
+#include <wolfssl/wolfcrypt/asn.h>
 
 #ifdef ATOMIC_USER
     #include <wolfssl/wolfcrypt/aes.h>
@@ -31,7 +28,6 @@
     #include <wolfssl/wolfcrypt/hmac.h>
 #endif
 #ifdef HAVE_PK_CALLBACKS
-    #include <wolfssl/wolfcrypt/asn.h>
     #ifndef NO_RSA
         #include <wolfssl/wolfcrypt/rsa.h>
     #endif
@@ -1053,7 +1049,7 @@ static WC_INLINE void ShowX509Ex(WOLFSSL_X509* x509, const char* hdr,
 #if defined(SHOW_CERTS) && defined(OPENSSL_EXTRA)
     {
         WOLFSSL_BIO* bio;
-        char buf[256]; /* should be size of ASN_NAME_MAX */
+        char buf[WC_ASN_NAME_MAX];
         int  textSz;
 
         /* print out domain component if certificate has it */
