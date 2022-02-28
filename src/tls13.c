@@ -3958,6 +3958,10 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, byte* suite, int* err)
             /* Derive the early secret using the PSK. */
             ret = DeriveEarlySecret(ssl);
         }
+        if ((ret == 0) && found) {
+            /* PSK negotiation has succeeded */
+            ssl->options.isPSK = 1;
+        }
     }
 
     *err = ret;
@@ -6912,6 +6916,13 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* verify the client sent certificate if required */
     if (ssl->options.side == WOLFSSL_SERVER_END && !ssl->options.resuming &&
             (ssl->options.mutualAuth || ssl->options.failNoCert)) {
+#ifdef OPENSSL_COMPATIBLE_DEFAULTS
+        if (ssl->options.isPSK) {
+            WOLFSSL_MSG("TLS v1.3 client used PSK but cert required. Allowing "
+                        "for OpenSSL compatibility");
+        }
+        else
+#endif
         if (!ssl->options.havePeerCert || !ssl->options.havePeerVerify) {
             ret = NO_PEER_CERT; /* NO_PEER_VERIFY */
             WOLFSSL_MSG("TLS v1.3 client did not present peer cert");
