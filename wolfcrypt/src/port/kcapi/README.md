@@ -17,7 +17,34 @@ wolfSSL can be configured to use libkcapi for the following operations:
 Note: Linux kernel does not support public key operations without patching.
 
 
-## Build
+## Building libkcapi
+
+Based on README from https://github.com/smuellerDD/libkcapi
+
+```sh
+git clone https://github.com/smuellerDD/libkcapi
+cd libkcapi
+
+autoreconf -i
+
+./configure	--enable-kcapi-test \
+    --enable-kcapi-speed \
+    --enable-kcapi-hasher \
+    --enable-kcapi-rngapp \
+    --enable-kcapi-encapp \
+    --enable-kcapi-dgstapp \
+    --enable-lib-asym \
+    --enable-lib-kpp \
+    --prefix=/usr/
+make
+sudo make install
+
+# Optional testing
+cd test
+./test.sh
+```
+
+## Building wolfSSL
 
 #### Basic configuration
 
@@ -38,7 +65,10 @@ If AES-CCM is enabled then the following define is also added:
 
 #### Other defines
 
-If hash operations need to be copied or have an intermediate hash result returned then add 'WOLFSSL_KCAPI_HASH_KEEP' to the compile line. For example:
+If hash operations need to be copied or have an intermediate hash result
+returned then add 'WOLFSSL_KCAPI_HASH_KEEP' to the compile line.
+
+For example:
 
 ```
 ./configure --enable-kcapi C_EXTRA_FLAGS=-DWOLFSSL_KCAPI_HASH_KEEP
@@ -73,7 +103,7 @@ To enable libkcapi support in wolfSSL for ECC:
 ./configure --enable-kcapi --enable-kcapi-ecc
 ```
 
-This enanbles support for ECDH and ECDSA.
+This enables support for ECDH and ECDSA.
 
 #### Make
 
@@ -114,7 +144,8 @@ Cipher Name: "sha224", "sha256", "sha384", "sha512"
 When partial results are needed from a hash then define: WOLFSSL_KCAPI_HASH_KEEP
 
 This will keep a copy of all the message data. When a hash result is required,
-the data is passed to libkcapi to perform the operation. When the final hash is requested (eg wc_Sha256Final) then the message data is disposed of. (Required for TLS)
+the data is passed to libkcapi to perform the operation. When the final hash is
+requested (eg wc_Sha256Final) then the message data is disposed of. (Required for TLS)
 
 #### HMAC
 
@@ -143,7 +174,7 @@ Cipher Name: "rsa"
 RSA operations are supported by using the raw RSA encrypt/decrypt operations
 through libkcapi.
 This means that wolfSSL performs the padding. Therefore the following padding schemes are supported:
-* PKCS 1.5 for sign/verify and encrypt/decrypt
+* PKCS v1.5 for sign/verify and encrypt/decrypt
 * PSS for sign/verify
 * OAEP for encrypt/decrypt
 
@@ -163,7 +194,7 @@ The curve is set using kcapi_kpp_ecdh_setcurve().
 
 The Linux kernel does not support ECDSA operations.
 
-Support for specific harware has been added with the following details.
+Support for specific hardware has been added with the following details.
 
 Cipher Name: "ecdsa"
 
@@ -175,4 +206,3 @@ curve-id - one byte and has the same value as used by ECDH.
 private-key - big-endian encoded number the length of the curve.
 x-ord - big-endian encoded number the length of the curve in bytes.
 y-ord - big-endian encoded number the length of the curve in bytes.
-

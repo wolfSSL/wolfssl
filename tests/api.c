@@ -25788,8 +25788,8 @@ static int test_wc_ecc_verify_hash_ex (void)
     int             ret = 0;
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN) && defined(WOLFSSL_PUBLIC_MP) \
-     && !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A)
+    && !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
+       !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_KCAPI_ECC)
     ecc_key         key;
     WC_RNG          rng;
     mp_int          r;

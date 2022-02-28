@@ -22680,7 +22680,8 @@ done:
 }
 #endif /* !NO_ECC256 || HAVE_ALL_CURVES */
 
-#ifdef WOLFSSL_CERT_EXT
+#if defined(WOLFSSL_CERT_EXT) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
 static int ecc_decode_test(void)
 {
     int        ret;
@@ -23268,7 +23269,8 @@ exit:
 /* Requires SP math and supports P384 or P256 */
 /* ./configure --enable-ecc=nonblock --enable-sp=yes,nonblock CFLAGS="-DWOLFSSL_PUBLIC_MP" */
 #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_PUBLIC_MP) && \
-    defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY)
+    defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && \
+    defined(WOLFSSL_HAVE_SP_ECC)
 /* Test Data - Random */
 static const uint8_t kMsg[] = {
     0x69, 0xbc, 0x9f, 0xce, 0x68, 0x17, 0xc2, 0x10, 0xea, 0xfc, 0x10, 0x65, 0x67, 0x52, 0xed, 0x78,
@@ -23831,7 +23833,8 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test(void)
     int ret;
     WC_RNG rng;
 
-#ifdef WOLFSSL_CERT_EXT
+#if defined(WOLFSSL_CERT_EXT) && \
+    (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
     ret = ecc_decode_test();
     if (ret < 0)
         return ret;

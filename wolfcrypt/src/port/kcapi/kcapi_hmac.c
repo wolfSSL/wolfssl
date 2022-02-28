@@ -234,7 +234,7 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
             ret = wc_HmacUpdate_Software(hmac, msg, length);
             break;
         default:
-            ret = kcapi_md_update(hmac->handle, msg, length);
+            ret = (int)kcapi_md_update(hmac->handle, msg, length);
             if (ret >= 0) {
                 ret = 0;
             }
@@ -325,7 +325,7 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
                 return wc_HmacFinal_Software(hmac, hash);
         #endif
         }
-        ret = kcapi_md_final(hmac->handle, hash, len);
+        ret = (int)kcapi_md_final(hmac->handle, hash, len);
     }
     if (ret >= 0) {
         ret = 0;
