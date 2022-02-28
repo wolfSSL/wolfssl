@@ -834,10 +834,12 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
         return -1;
     }
 
+#if !defined(HAVE_GETADDRINFO)
 #ifdef WOLFSSL_IPV6
     sockaddr_len = sizeof(SOCKADDR_IN6);
 #else
     sockaddr_len = sizeof(SOCKADDR_IN);
+#endif
 #endif
     XMEMSET(&addr, 0, sizeof(addr));
 

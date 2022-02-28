@@ -39320,6 +39320,8 @@ static void test_wolfSSL_SESSION(void)
     #else
     AssertIntEQ(wolfSSL_SESSION_has_ticket(sess), 0);
     #endif
+#else
+    (void)sess;
 #endif /* OPENSSL_EXTRA */
 
     /* Retain copy of the session for later testing */

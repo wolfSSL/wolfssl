@@ -2568,9 +2568,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         }
         #ifdef WOLFSSL_TRUST_PEER_CERT
         if (trustCert) {
-            if ((ret = wolfSSL_CTX_trust_peer_cert(ctx, trustCert,
-                                                   WOLFSSL_FILETYPE_PEM))
-                                                   != WOLFSSL_SUCCESS) {
+            if (wolfSSL_CTX_trust_peer_cert(ctx, trustCert,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
                 err_sys_ex(runWithErrors, "can't load trusted peer cert file");
             }
         }
@@ -2790,8 +2789,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             }
             #ifdef WOLFSSL_TRUST_PEER_CERT
             if (trustCert) {
-                if ((ret = wolfSSL_trust_peer_cert(ssl, trustCert,
-                                    WOLFSSL_FILETYPE_PEM)) != WOLFSSL_SUCCESS) {
+                if (wolfSSL_trust_peer_cert(ssl, trustCert,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
                     err_sys_ex(runWithErrors, "can't load trusted peer cert "
                                               "file");
                 }

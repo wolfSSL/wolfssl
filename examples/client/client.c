@@ -3191,8 +3191,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #endif /* HAVE_ECC */
     #if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_FILESYSTEM)
         if (trustCert) {
-            if ((ret = wolfSSL_CTX_trust_peer_cert(ctx, trustCert,
-                                    WOLFSSL_FILETYPE_PEM)) != WOLFSSL_SUCCESS) {
+            if (wolfSSL_CTX_trust_peer_cert(ctx, trustCert,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
                 wolfSSL_CTX_free(ctx); ctx = NULL;
                 err_sys("can't load trusted peer cert file");
             }
