@@ -23268,7 +23268,7 @@ exit:
 /* ./configure --enable-ecc=nonblock --enable-sp=yes,nonblock CFLAGS="-DWOLFSSL_PUBLIC_MP" */
 #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_PUBLIC_MP) && \
     defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY) && \
-    !defined(WOLFSSL_KCAPI_ECC)
+    defined(WOLFSSL_HAVE_SP_ECC)
 /* Test Data - Random */
 static const uint8_t kMsg[] = {
     0x69, 0xbc, 0x9f, 0xce, 0x68, 0x17, 0xc2, 0x10, 0xea, 0xfc, 0x10, 0x65, 0x67, 0x52, 0xed, 0x78,
