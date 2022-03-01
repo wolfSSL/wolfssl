@@ -8322,6 +8322,19 @@ static void test_wolfSSL_PKCS12(void)
     AssertNotNull(pkcs12 = d2i_PKCS12_bio(bio, NULL));
     AssertIntEQ((ret = PKCS12_parse(pkcs12, "", &pkey, &cert, &ca)),
             WOLFSSL_SUCCESS);
+
+    /* check use of pkey after parse */
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
+    || defined(WOLFSSL_NGINX)) && defined(SESSION_CERTS)
+#if !defined(NO_WOLFSSL_CLIENT) && defined(SESSION_CERTS)
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#else
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#endif
+    AssertIntEQ(SSL_CTX_use_PrivateKey(ctx, pkey), WOLFSSL_SUCCESS);
+    SSL_CTX_free(ctx);
+#endif
+
     AssertNotNull(pkey);
     AssertNotNull(cert);
     AssertNotNull(ca);
