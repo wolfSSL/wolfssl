@@ -4066,12 +4066,16 @@ int TLSX_SupportedCurve_CheckPriority(WOLFSSL* ssl)
     if (extension == NULL)
         return 0;
 
-    if ((ret = TLSX_PopulateSupportedGroups(ssl, &priority)) != WOLFSSL_SUCCESS)
+    ret = TLSX_PopulateSupportedGroups(ssl, &priority);
+    if (ret != WOLFSSL_SUCCESS) {
+        TLSX_FreeAll(priority, ssl->heap);
         return ret;
+    }
 
     ext = TLSX_Find(priority, TLSX_SUPPORTED_GROUPS);
     if (ext == NULL) {
         WOLFSSL_MSG("Could not find supported groups extension");
+        TLSX_FreeAll(priority, ssl->heap);
         return 0;
     }
 
@@ -4103,64 +4107,13 @@ int TLSX_SupportedCurve_CheckPriority(WOLFSSL* ssl)
 #endif /* WOLFSSL_TLS13 && !WOLFSSL_NO_SERVER_GROUPS_EXT */
 
 #if defined(HAVE_FFDHE) && !defined(WOLFSSL_NO_TLS12)
-/* Set the highest priority common FFDHE group on the server as compared to
- * client extensions.
- *
- * ssl    SSL/TLS object.
- * returns 0 on success, otherwise an error.
- */
-int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
+#ifdef HAVE_PUBLIC_FFDHE
+static int tlsx_ffdhe_find_group(WOLFSSL* ssl, SupportedCurve* clientGroup,
+    SupportedCurve* serverGroup)
 {
     int ret = 0;
-    TLSX* extension;
-    TLSX* priority = NULL;
-    TLSX* ext = NULL;
-    SupportedCurve* serverGroup;
-    SupportedCurve* clientGroup;
     SupportedCurve* group;
-#ifdef HAVE_PUBLIC_FFDHE
     const DhParams* params = NULL;
-#else
-    word32 p_len;
-#endif
-    int found = 0;
-
-    extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
-    /* May be doing PSK with no key exchange. */
-    if (extension == NULL)
-        return 0;
-    clientGroup = (SupportedCurve*)extension->data;
-    for (group = clientGroup; group != NULL; group = group->next) {
-        if (group->name >= MIN_FFHDE_GROUP && group->name <= MAX_FFHDE_GROUP) {
-            found = 1;
-            break;
-        }
-    }
-    if (!found)
-        return 0;
-
-    if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH) {
-        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap,
-                                                       DYNAMIC_TYPE_PUBLIC_KEY);
-    }
-    if (ssl->buffers.serverDH_G.buffer && ssl->buffers.weOwnDH) {
-        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap,
-                                                       DYNAMIC_TYPE_PUBLIC_KEY);
-    }
-    ssl->buffers.serverDH_P.buffer = NULL;
-    ssl->buffers.serverDH_G.buffer = NULL;
-    ssl->buffers.weOwnDH = 0;
-    ssl->options.haveDH = 0;
-
-
-    if ((ret = TLSX_PopulateSupportedGroups(ssl, &priority)) != WOLFSSL_SUCCESS) {
-        TLSX_FreeAll(priority, ssl->heap);
-        return ret;
-    }
-    ret = 0;
-
-    ext = TLSX_Find(priority, TLSX_SUPPORTED_GROUPS);
-    serverGroup = (SupportedCurve*)ext->data;
 
     for (; serverGroup != NULL; serverGroup = serverGroup->next) {
         if (serverGroup->name < MIN_FFHDE_GROUP ||
@@ -4171,7 +4124,6 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
             if (serverGroup->name != group->name)
                 continue;
 
-#ifdef HAVE_PUBLIC_FFDHE
             switch (serverGroup->name) {
             #ifdef HAVE_FFDHE_2048
                 case WOLFSSL_FFDHE_2048:
@@ -4201,34 +4153,73 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
                 default:
                     break;
             }
-            if (params == NULL)
-                return BAD_FUNC_ARG;
-            if (params->p_len >= ssl->options.minDhKeySz &&
-                                     params->p_len <= ssl->options.maxDhKeySz) {
-                 break;
-             }
-#else
-            wc_DhGetNamedKeyParamSize(serverGroup->name, &p_len, NULL, NULL);
-            if (p_len == 0)
-                return BAD_FUNC_ARG;
-            if (p_len >= ssl->options.minDhKeySz &&
-                                     p_len <= ssl->options.maxDhKeySz) {
+            if (params == NULL) {
+                ret = BAD_FUNC_ARG;
                 break;
             }
-#endif
+            if (params->p_len >= ssl->options.minDhKeySz &&
+                                     params->p_len <= ssl->options.maxDhKeySz) {
+                break;
+            }
         }
 
-        if (group != NULL && serverGroup->name == group->name)
+        if (ret != 0)
+            break;
+        if ((group != NULL) && (serverGroup->name == group->name))
             break;
     }
 
-    if (serverGroup) {
-    #ifdef HAVE_PUBLIC_FFDHE
+    if ((ret == 0) && (serverGroup != NULL) && (params != NULL)) {
         ssl->buffers.serverDH_P.buffer = (unsigned char *)params->p;
         ssl->buffers.serverDH_P.length = params->p_len;
         ssl->buffers.serverDH_G.buffer = (unsigned char *)params->g;
         ssl->buffers.serverDH_G.length = params->g_len;
-    #else
+
+        ssl->namedGroup = serverGroup->name;
+    #if !defined(WOLFSSL_OLD_PRIME_CHECK) && \
+        !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+        ssl->options.dhDoKeyTest = 0;
+    #endif
+        ssl->options.haveDH = 1;
+    }
+
+    return ret;
+}
+#else
+static int tlsx_ffdhe_find_group(WOLFSSL* ssl, SupportedCurve* clientGroup,
+    SupportedCurve* serverGroup)
+{
+    int ret = 0;
+    SupportedCurve* group;
+    word32 p_len;
+
+    for (; serverGroup != NULL; serverGroup = serverGroup->next) {
+        if (serverGroup->name < MIN_FFHDE_GROUP ||
+            serverGroup->name > MAX_FFHDE_GROUP)
+            continue;
+
+        for (group = clientGroup; group != NULL; group = group->next) {
+            if (serverGroup->name != group->name)
+                continue;
+
+            wc_DhGetNamedKeyParamSize(serverGroup->name, &p_len, NULL, NULL);
+            if (p_len == 0) {
+                ret = BAD_FUNC_ARG;
+                break;
+            }
+            if (p_len >= ssl->options.minDhKeySz &&
+                                             p_len <= ssl->options.maxDhKeySz) {
+                break;
+            }
+        }
+
+        if (ret != 0)
+            break;
+        if ((group != NULL) && (serverGroup->name == group->name))
+            break;
+    }
+
+    if ((ret == 0) && (serverGroup != NULL)) {
         word32 pSz, gSz;
 
         ssl->buffers.serverDH_P.buffer = NULL;
@@ -4258,27 +4249,84 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
         }
         if (ret == 0) {
             ssl->buffers.weOwnDH = 1;
-        } else {
+
+            ssl->namedGroup = serverGroup->name;
+        #if !defined(WOLFSSL_OLD_PRIME_CHECK) && \
+            !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+            ssl->options.dhDoKeyTest = 0;
+        #endif
+            ssl->options.haveDH = 1;
+        }
+        else {
             if (ssl->buffers.serverDH_P.buffer != NULL) {
-                XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap,
+                    DYNAMIC_TYPE_PUBLIC_KEY);
                 ssl->buffers.serverDH_P.length = 0;
                 ssl->buffers.serverDH_P.buffer = NULL;
             }
             if (ssl->buffers.serverDH_G.buffer != NULL) {
-                XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap,
+                    DYNAMIC_TYPE_PUBLIC_KEY);
                 ssl->buffers.serverDH_G.length = 0;
                 ssl->buffers.serverDH_G.buffer = NULL;
             }
-            return ret;
         }
-    #endif
+    }
 
-        ssl->namedGroup = serverGroup->name;
-    #if !defined(WOLFSSL_OLD_PRIME_CHECK) && \
-        !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-        ssl->options.dhDoKeyTest = 0;
-    #endif
-        ssl->options.haveDH = 1;
+    return ret;
+}
+#endif
+
+/* Set the highest priority common FFDHE group on the server as compared to
+ * client extensions.
+ *
+ * ssl    SSL/TLS object.
+ * returns 0 on success, otherwise an error.
+ */
+int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
+{
+    int ret;
+    TLSX* priority = NULL;
+    TLSX* ext = NULL;
+    TLSX* extension;
+    SupportedCurve* clientGroup;
+    SupportedCurve* serverGroup;
+    SupportedCurve* group;
+    int found = 0;
+
+    extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
+    /* May be doing PSK with no key exchange. */
+    if (extension == NULL)
+        return 0;
+    clientGroup = (SupportedCurve*)extension->data;
+    for (group = clientGroup; group != NULL; group = group->next) {
+        if (group->name >= MIN_FFHDE_GROUP && group->name <= MAX_FFHDE_GROUP) {
+            found = 1;
+            break;
+        }
+    }
+    if (!found)
+        return 0;
+
+    if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH) {
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap,
+                                                       DYNAMIC_TYPE_PUBLIC_KEY);
+    }
+    if (ssl->buffers.serverDH_G.buffer && ssl->buffers.weOwnDH) {
+        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap,
+                                                       DYNAMIC_TYPE_PUBLIC_KEY);
+    }
+    ssl->buffers.serverDH_P.buffer = NULL;
+    ssl->buffers.serverDH_G.buffer = NULL;
+    ssl->buffers.weOwnDH = 0;
+    ssl->options.haveDH = 0;
+
+    ret = TLSX_PopulateSupportedGroups(ssl, &priority);
+    if (ret == WOLFSSL_SUCCESS) {
+        ext = TLSX_Find(priority, TLSX_SUPPORTED_GROUPS);
+        serverGroup = (SupportedCurve*)ext->data;
+
+        ret = tlsx_ffdhe_find_group(ssl, clientGroup, serverGroup);
     }
 
     TLSX_FreeAll(priority, ssl->heap);
