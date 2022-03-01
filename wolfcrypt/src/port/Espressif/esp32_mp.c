@@ -66,7 +66,7 @@ static int esp_mp_hw_wait_clean()
                 DPORT_REG_READ(RSA_CLEAN_REG) != 1) { }
 
     if(ESP_TIMEOUT(timeout)) {
-        ESP_LOGE(TAG, "waiting hw ready is time-outed.");
+        ESP_LOGE(TAG, "waiting hw ready is timed out.");
         return MP_NG;
     }
     return MP_OKAY; 
@@ -158,7 +158,7 @@ static int wait_uitil_done(word32 reg)
     DPORT_REG_WRITE(RSA_INTERRUPT_REG, 1);
 
     if(ESP_TIMEOUT(timeout)) {
-        ESP_LOGE(TAG, "rsa operation is time-outed.");
+        ESP_LOGE(TAG, "rsa operation is timed out.");
         return MP_NG;
     }
 
