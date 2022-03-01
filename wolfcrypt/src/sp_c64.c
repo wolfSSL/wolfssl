@@ -41249,6 +41249,30 @@ int sp_ecc_secret_gen_521(const mp_int* priv, const ecc_point* pub, byte* out,
 #endif /* HAVE_ECC_DHE */
 
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+SP_NOINLINE static void sp_521_rshift_9(sp_digit* r, const sp_digit* a,
+        byte n)
+{
+    int i;
+
+#ifdef WOLFSSL_SP_SMALL
+    for (i=0; i<8; i++) {
+        r[i] = ((a[i] >> n) | (a[i + 1] << (58 - n))) & 0x3ffffffffffffffL;
+    }
+#else
+    for (i=0; i<8; i += 8) {
+        r[i+0] = (a[i+0] >> n) | ((a[i+1] << (58 - n)) & 0x3ffffffffffffffL);
+        r[i+1] = (a[i+1] >> n) | ((a[i+2] << (58 - n)) & 0x3ffffffffffffffL);
+        r[i+2] = (a[i+2] >> n) | ((a[i+3] << (58 - n)) & 0x3ffffffffffffffL);
+        r[i+3] = (a[i+3] >> n) | ((a[i+4] << (58 - n)) & 0x3ffffffffffffffL);
+        r[i+4] = (a[i+4] >> n) | ((a[i+5] << (58 - n)) & 0x3ffffffffffffffL);
+        r[i+5] = (a[i+5] >> n) | ((a[i+6] << (58 - n)) & 0x3ffffffffffffffL);
+        r[i+6] = (a[i+6] >> n) | ((a[i+7] << (58 - n)) & 0x3ffffffffffffffL);
+        r[i+7] = (a[i+7] >> n) | ((a[i+8] << (58 - n)) & 0x3ffffffffffffffL);
+    }
+#endif /* WOLFSSL_SP_SMALL */
+    r[8] = a[8] >> n;
+}
+
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 /* Multiply a by scalar b into r. (r = a * b)
@@ -41803,8 +41827,8 @@ int sp_ecc_sign_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
     case 0: /* INIT */
         ctx->s = ctx->e;
         ctx->kInv = ctx->k;
-        if (hashLen > 65U) {
-            hashLen = 65U;
+        if (hashLen > 66U) {
+            hashLen = 66U;
         }
 
         ctx->i = SP_ECC_MAX_SIG_GEN;
@@ -41842,6 +41866,10 @@ int sp_ecc_sign_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
 
         sp_521_from_mp(ctx->x, 9, priv);
         sp_521_from_bin(ctx->e, 9, hash, (int)hashLen);
+        if (hashLen == 66U) {
+            sp_521_rshift_9(ctx->e, ctx->e, 7);
+            ctx->e[8] |= ((sp_digit)hash[0]) << 49;
+        }
         ctx->state = 4;
         break;
     }
@@ -41978,8 +42006,8 @@ int sp_ecc_sign_521(const byte* hash, word32 hashLen, WC_RNG* rng,
         tmp = e + 8 * 9;
         s = e;
 
-        if (hashLen > 65U) {
-            hashLen = 65U;
+        if (hashLen > 66U) {
+            hashLen = 66U;
         }
     }
 
@@ -42007,6 +42035,11 @@ int sp_ecc_sign_521(const byte* hash, word32 hashLen, WC_RNG* rng,
 
             sp_521_from_mp(x, 9, priv);
             sp_521_from_bin(e, 9, hash, (int)hashLen);
+
+            if (hashLen == 66U) {
+                sp_521_rshift_9(e, e, 7);
+                e[8] |= ((sp_digit)hash[0]) << 49;
+            }
 
             err = sp_521_calc_s_9(s, r, k, x, e, tmp);
         }
@@ -42350,8 +42383,8 @@ int sp_ecc_verify_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
 
     switch (ctx->state) {
     case 0: /* INIT */
-        if (hashLen > 65U) {
-            hashLen = 65U;
+        if (hashLen > 66U) {
+            hashLen = 66U;
         }
 
         sp_521_from_bin(ctx->u1, 9, hash, (int)hashLen);
@@ -42360,6 +42393,10 @@ int sp_ecc_verify_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
         sp_521_from_mp(ctx->p2.x, 9, pX);
         sp_521_from_mp(ctx->p2.y, 9, pY);
         sp_521_from_mp(ctx->p2.z, 9, pZ);
+        if (hashLen == 66U) {
+            sp_521_rshift_9(ctx->u1, ctx->u1, 7);
+            ctx->u1[8] |= ((sp_digit)hash[0]) << 49;
+        }
         ctx->state = 1;
         break;
     case 1: /* NORMS0 */
@@ -42511,8 +42548,8 @@ int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
         tmp = u1 + 6 * 9;
         p2 = p1 + 1;
 
-        if (hashLen > 65U) {
-            hashLen = 65U;
+        if (hashLen > 66U) {
+            hashLen = 66U;
         }
 
         sp_521_from_bin(u1, 9, hash, (int)hashLen);
@@ -42521,6 +42558,11 @@ int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
         sp_521_from_mp(p2->x, 9, pX);
         sp_521_from_mp(p2->y, 9, pY);
         sp_521_from_mp(p2->z, 9, pZ);
+
+        if (hashLen == 66U) {
+            sp_521_rshift_9(u1, u1, 7);
+            u1[8] |= ((sp_digit)hash[0]) << 49;
+        }
 
         err = sp_521_calc_vfy_point_9(p1, p2, s, u1, u2, tmp, heap);
     }

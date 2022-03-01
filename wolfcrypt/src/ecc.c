@@ -1971,27 +1971,41 @@ done:
 
    return err;
 #else
+    int modBits;
+
     if (P == NULL || Q == NULL || R == NULL || modulus == NULL) {
         return ECC_BAD_ARG_E;
     }
+
+    modBits = mp_count_bits(modulus);
+#ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
+    if ((mp_count_bits(P->x) > modBits) ||
+        (mp_count_bits(P->y) > modBits) ||
+        (mp_count_bits(P->z) > modBits) ||
+        (mp_count_bits(Q->x) > modBits) ||
+        (mp_count_bits(Q->y) > modBits) ||
+        (mp_count_bits(Q->z) > modBits)) {
+        return ECC_OUT_OF_RANGE_E;
+    }
+#endif
 
     (void)a;
     (void)mp;
 
 #ifndef WOLFSSL_SP_NO_256
-    if (mp_count_bits(modulus) == 256) {
+    if (modBits == 256) {
         return sp_ecc_proj_add_point_256(P->x, P->y, P->z, Q->x, Q->y, Q->z,
                                          R->x, R->y, R->z);
     }
 #endif
 #ifdef WOLFSSL_SP_384
-    if (mp_count_bits(modulus) == 384) {
+    if (modBits == 384) {
         return sp_ecc_proj_add_point_384(P->x, P->y, P->z, Q->x, Q->y, Q->z,
                                          R->x, R->y, R->z);
     }
 #endif
 #ifdef WOLFSSL_SP_521
-    if (mp_count_bits(modulus) == 521) {
+    if (modBits == 521) {
         return sp_ecc_proj_add_point_521(P->x, P->y, P->z, Q->x, Q->y, Q->z,
                                          R->x, R->y, R->z);
     }
@@ -2315,24 +2329,35 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
 
    return err;
 #else
+    int modBits;
+
     if (P == NULL || R == NULL || modulus == NULL)
         return ECC_BAD_ARG_E;
+
+    modBits = mp_count_bits(modulus);
+#ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
+    if ((mp_count_bits(P->x) > modBits) ||
+        (mp_count_bits(P->y) > modBits) ||
+        (mp_count_bits(P->z) > modBits)) {
+        return ECC_OUT_OF_RANGE_E;
+    }
+#endif
 
     (void)a;
     (void)mp;
 
 #ifndef WOLFSSL_SP_NO_256
-    if (mp_count_bits(modulus) == 256) {
+    if (modBits == 256) {
         return sp_ecc_proj_dbl_point_256(P->x, P->y, P->z, R->x, R->y, R->z);
     }
 #endif
 #ifdef WOLFSSL_SP_384
-    if (mp_count_bits(modulus) == 384) {
+    if (modBits == 384) {
         return sp_ecc_proj_dbl_point_384(P->x, P->y, P->z, R->x, R->y, R->z);
     }
 #endif
 #ifdef WOLFSSL_SP_521
-    if (mp_count_bits(modulus) == 521) {
+    if (modBits == 521) {
         return sp_ecc_proj_dbl_point_521(P->x, P->y, P->z, R->x, R->y, R->z);
     }
 #endif
