@@ -63271,13 +63271,14 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
             }
         }
     #endif /* HAVE_ECC */
+        if (pk != NULL)
+            XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
         if (ret != 0) { /* if is in fail state and no PKEY then fail */
             wolfSSL_X509_free(*cert); *cert = NULL;
             if (ca != NULL) {
                 wolfSSL_sk_X509_pop_free(*ca, NULL); *ca = NULL;
             }
             wolfSSL_EVP_PKEY_free(*pkey); *pkey = NULL;
-            XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
             WOLFSSL_MSG("Bad PKCS12 key format");
             return WOLFSSL_FAILURE;
         }
