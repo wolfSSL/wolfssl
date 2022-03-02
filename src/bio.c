@@ -134,6 +134,11 @@ static int wolfSSL_BIO_MEMORY_read(WOLFSSL_BIO* bio, void* buf, int len)
     return sz;
 }
 
+int wolfSSL_BIO_method_type(const WOLFSSL_BIO *b)
+{
+    return b != NULL ? b->type : (int)WOLFSSL_BIO_UNDEF;
+}
+
 #ifndef WOLFCRYPT_ONLY
 /* Helper function to read from WOLFSSL_BIO_SSL type
  *
@@ -1738,8 +1743,6 @@ long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
 
     return WOLFSSL_SUCCESS;
 }
-
-
 
 /* creates a new custom WOLFSSL_BIO_METHOD */
 WOLFSSL_BIO_METHOD *wolfSSL_BIO_meth_new(int type, const char *name)

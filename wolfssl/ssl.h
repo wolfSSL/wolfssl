@@ -446,6 +446,7 @@ struct WOLFSSL_X509_PUBKEY {
 };
 
 enum BIO_TYPE {
+    WOLFSSL_BIO_UNDEF  = 0,
     WOLFSSL_BIO_BUFFER = 1,
     WOLFSSL_BIO_SOCKET = 2,
     WOLFSSL_BIO_SSL    = 3,
@@ -1609,6 +1610,7 @@ WOLFSSL_API long wolfSSL_BIO_set_fd(WOLFSSL_BIO* b, int fd, int flag);
 #endif
 WOLFSSL_API int wolfSSL_BIO_set_close(WOLFSSL_BIO *b, long flag);
 WOLFSSL_API void wolfSSL_set_bio(WOLFSSL* ssl, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr);
+WOLFSSL_API int wolfSSL_BIO_method_type(const WOLFSSL_BIO *b);
 
 #ifndef NO_FILESYSTEM
 WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_file(void);

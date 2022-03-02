@@ -170,8 +170,8 @@ int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
     recvd = wolfSSL_BIO_read(ssl->biord, buf, sz);
     if (recvd <= 0) {
         if (/* ssl->biowr->wrIdx is checked for Bind9 */
-            ssl->biowr != NULL && ssl->biowr->type == WOLFSSL_BIO_BIO &&
-            ssl->biowr->wrIdx != 0 &&
+            wolfSSL_BIO_method_type(ssl->biowr) == WOLFSSL_BIO_BIO &&
+            wolfSSL_BIO_wpending(ssl->biowr) != 0 &&
             /* Not sure this pending check is necessary but let's double
              * check that the read BIO is empty before we signal a write
              * need */
