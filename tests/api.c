@@ -44862,7 +44862,7 @@ static void test_wolfSSL_X509_get_ext_by_NID(void)
     AssertNotNull(obj = wolfSSL_X509_EXTENSION_get_object(wolfSSL_X509_get_ext(x509, rc)));
     AssertIntEQ(obj->nid, NID_ext_key_usage);
     AssertIntEQ(obj->type, EXT_KEY_USAGE_OID);
-    
+
     wolfSSL_X509_free(x509);
 #endif
 }

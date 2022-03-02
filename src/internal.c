@@ -30492,8 +30492,16 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef HAVE_SESSION_TICKET
 
 #define WOLFSSL_TICKET_FIXED_SZ (WOLFSSL_TICKET_NAME_SZ + \
-                WOLFSSL_TICKET_IV_SZ + WOLFSSL_TICKET_MAC_SZ + LENGTH_SZ)
-#define WOLFSSL_TICKET_ENC_SZ (SESSION_TICKET_LEN - WOLFSSL_TICKET_FIXED_SZ)
+                WOLFSSL_TICKET_IV_SZ + WOLFSSL_TICKET_MAC_SZ + OPAQUE32_LEN)
+
+#if defined(WOLFSSL_GENERAL_ALIGNMENT) && WOLFSSL_GENERAL_ALIGNMENT > 0
+    /* round up to WOLFSSL_GENERAL_ALIGNMENT */
+    #define WOLFSSL_TICKET_ENC_SZ \
+        (((SESSION_TICKET_LEN - WOLFSSL_TICKET_FIXED_SZ) + \
+            WOLFSSL_GENERAL_ALIGNMENT - 1) & ~(WOLFSSL_GENERAL_ALIGNMENT-1))
+#else
+    #define WOLFSSL_TICKET_ENC_SZ (SESSION_TICKET_LEN - WOLFSSL_TICKET_FIXED_SZ)
+#endif
 
     /* Our ticket format. All members need to be a byte or array of byte to
      * avoid alignment issues */
@@ -30547,11 +30555,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* RFC 5077 defines this for session tickets */
     /* fit within SESSION_TICKET_LEN */
     typedef struct ExternalTicket {
-        byte key_name[WOLFSSL_TICKET_NAME_SZ];  /* key context name */
-        byte iv[WOLFSSL_TICKET_IV_SZ];          /* this ticket's iv */
-        byte enc_len[LENGTH_SZ];                /* encrypted length */
+        byte key_name[WOLFSSL_TICKET_NAME_SZ];  /* key context name - 16 */
+        byte iv[WOLFSSL_TICKET_IV_SZ];          /* this ticket's iv - 16 */
+        byte enc_len[OPAQUE32_LEN];             /* encrypted length - 4 */
         byte enc_ticket[WOLFSSL_TICKET_ENC_SZ]; /* encrypted internal ticket */
-        byte mac[WOLFSSL_TICKET_MAC_SZ];        /* total mac */
+        byte mac[WOLFSSL_TICKET_MAC_SZ];        /* total mac - 32 */
         /* !! if add to structure, add to TICKET_FIXED_SZ !! */
     } ExternalTicket;
 
@@ -30701,7 +30709,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
 
             /* set size */
-            c16toa((word16)encLen, et->enc_len);
+            c32toa((word32)encLen, et->enc_len);
             ssl->session->ticketLen = (word16)(encLen + WOLFSSL_TICKET_FIXED_SZ);
             if (encLen < WOLFSSL_TICKET_ENC_SZ) {
                 /* move mac up since whole enc buffer not used */
@@ -30720,7 +30728,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         InternalTicket* it;
         int             ret;
         int             outLen;
-        word16          inLen;
+        word32          inLen;
 
         WOLFSSL_START(WC_FUNC_TICKET_DO);
         WOLFSSL_ENTER("DoClientTicket");
@@ -30733,11 +30741,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         et = (ExternalTicket*)input;
 
         /* decrypt */
-        ato16(et->enc_len, &inLen);
+        ato32(et->enc_len, &inLen);
         if (inLen > (word16)(len - WOLFSSL_TICKET_FIXED_SZ)) {
             return BAD_TICKET_MSG_SZ;
         }
-        outLen = inLen;   /* may be reduced by user padding */
+        outLen = (int)inLen;   /* may be reduced by user padding */
 
         if (ssl->ctx->ticketEncCb == NULL
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
