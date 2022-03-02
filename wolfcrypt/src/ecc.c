@@ -6311,6 +6311,11 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         return BAD_FUNC_ARG;
     }
 
+    if (hashSz != WC_SHA256_DIGEST_SIZE) {
+        WOLFSSL_MSG("Currently only SHA256 digest is supported");
+        return BAD_FUNC_ARG;
+    }
+
     if (mp_unsigned_bin_size(priv) > MAX_ECC_BYTES) {
         WOLFSSL_MSG("private key larger than max expected!");
         return BAD_FUNC_ARG;
