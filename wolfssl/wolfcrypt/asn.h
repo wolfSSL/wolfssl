@@ -513,7 +513,7 @@ WOLFSSL_LOCAL void SetASN_OID(ASNSetData *dataASN, int oid, int oidType);
  */
 #define SetASN_Buffer(dataASN, d, l)                                   \
     do {                                                               \
-        (dataASN)->data.buffer.data   = (const byte *) d;              \
+        (dataASN)->data.buffer.data   = d;                             \
         (dataASN)->data.buffer.length = l;                             \
     } while (0)
 
