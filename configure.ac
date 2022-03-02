@@ -6821,6 +6821,14 @@ AC_ARG_ENABLE([iotsafe-hwrng],
     [ ENABLED_IOTSAFE_HWRNG=no ]
     )
 
+# Make clean
+AC_ARG_ENABLE([makeclean],
+    [AS_HELP_STRING([--enable-makeclean], [Enables forced "make clean" at the
+    end of configure (default: enabled)])],
+    [ ENABLED_MAKECLEAN=$enableval ],
+    [ ENABLED_MAKECLEAN=yes ]
+    )
+
 # User Settings
 AC_ARG_ENABLE([usersettings],
     [AS_HELP_STRING([--enable-usersettings],[Use your own user_settings.h and do not add Makefile CFLAGS (default: disabled)])],
@@ -7707,13 +7715,16 @@ AX_OUT_OF_TREE_FILE([wolfssl/wolfcrypt/port/intel/quickassist_mem.h])
 AC_OUTPUT
 
 
-# force make clean
-AC_MSG_NOTICE([---])
-AC_MSG_NOTICE([Running make clean...])
-if test "$verbose" = "yes"; then
-    make clean
-else
-    make clean >/dev/null
+if test "$ENABLED_MAKECLEAN" = "yes"
+then
+    # force make clean
+    AC_MSG_NOTICE([---])
+    AC_MSG_NOTICE([Running make clean...])
+    if test "$verbose" = "yes"; then
+        make clean
+    else
+        make clean >/dev/null
+    fi
 fi
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes"
