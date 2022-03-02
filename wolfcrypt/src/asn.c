@@ -19709,7 +19709,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     word32      algId = 0;
     word32      idx;
 #if defined(WOLFSSL_ENCRYPTED_KEYS)
-    #if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3) && \
+    #if ((defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3)) || \
+         (!defined(NO_AES) && defined(HAVE_AES_CBC) && \
+          defined(HAVE_AES_DECRYPT))) && \
         !defined(NO_WOLFSSL_SKIP_TRAILING_PAD)
         int     padVal = 0;
     #endif
@@ -20051,6 +20053,17 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                         }
                     }
                 #endif /* !NO_DES3 */
+                #if !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+                    defined(HAVE_AES_DECRYPT)
+                    if (info->cipherType == WC_CIPHER_AES_CBC) {
+                        if (der->length > AES_BLOCK_SIZE) {
+                            padVal = der->buffer[der->length-1];
+                            if (padVal <= AES_BLOCK_SIZE) {
+                                der->length -= padVal;
+                            }
+                        }
+                    }
+                #endif
 #endif /* !NO_WOLFSSL_SKIP_TRAILING_PAD */
                 }
             }
