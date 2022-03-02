@@ -51442,6 +51442,15 @@ static void test_wolfSSL_DH(void)
     AssertPtrEq(q, NULL);
     AssertPtrEq(g, NULL);
     DH_free(dh);
+
+    /* Test DH_up_ref() */
+    dh = wolfSSL_DH_new();
+    AssertNotNull(dh);
+    AssertIntEQ(wolfSSL_DH_up_ref(NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_DH_up_ref(dh), WOLFSSL_SUCCESS);
+    DH_free(dh); /* decrease ref count */
+    DH_free(dh); /* free WOLFSSL_DH */
+
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA && !NO_DH */
 }

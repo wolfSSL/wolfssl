@@ -33996,6 +33996,17 @@ WOLFSSL_DH* wolfSSL_DH_new(void)
     }
 
     InitwolfSSL_DH(external);
+
+    external->refCount = 1;
+#ifndef SINGLE_THREADED
+    if (wc_InitMutex(&external->refMutex) != 0) {
+        WOLFSSL_MSG("wc_InitMutex WOLFSSL_DH failure");
+        XFREE(key, NULL, DYNAMIC_TYPE_DH);
+        XFREE(external, NULL, DYNAMIC_TYPE_DH);
+        return NULL;
+    }
+#endif
+
     if (wc_InitDhKey(key) != 0) {
         WOLFSSL_MSG("wolfSSL_DH_new InitDhKey failure");
         XFREE(key, NULL, DYNAMIC_TYPE_DH);
@@ -34011,9 +34022,30 @@ WOLFSSL_DH* wolfSSL_DH_new(void)
 
 void wolfSSL_DH_free(WOLFSSL_DH* dh)
 {
+    int doFree = 0;
+
     WOLFSSL_ENTER("wolfSSL_DH_free");
 
     if (dh) {
+
+    #ifndef SINGLE_THREADED
+        if (wc_LockMutex(&dh->refMutex) != 0) {
+            WOLFSSL_MSG("Could not lock DH mutex");
+        }
+    #endif
+        /* only free if all references to it are done */
+        dh->refCount--;
+        if (dh->refCount == 0) {
+            doFree = 1;
+        }
+    #ifndef SINGLE_THREADED
+        wc_UnLockMutex(&dh->refMutex);
+    #endif
+
+        if (doFree == 0) {
+            return;
+        }
+
         if (dh->internal) {
             wc_FreeDhKey((DhKey*)dh->internal);
             XFREE(dh->internal, NULL, DYNAMIC_TYPE_DH);
@@ -34028,6 +34060,26 @@ void wolfSSL_DH_free(WOLFSSL_DH* dh)
 
         XFREE(dh, NULL, DYNAMIC_TYPE_DH);
     }
+}
+
+int wolfSSL_DH_up_ref(WOLFSSL_DH* dh)
+{
+    WOLFSSL_ENTER("wolfSSL_DH_up_ref");
+
+    if (dh) {
+    #ifndef SINGLE_THREADED
+        if (wc_LockMutex(&dh->refMutex) != 0) {
+            WOLFSSL_MSG("Failed to lock DH mutex");
+        }
+    #endif
+        dh->refCount++;
+    #ifndef SINGLE_THREADED
+        wc_UnLockMutex(&dh->refMutex);
+    #endif
+        return WOLFSSL_SUCCESS;
+    }
+
+    return WOLFSSL_FAILURE;
 }
 
 int SetDhInternal(WOLFSSL_DH* dh)
