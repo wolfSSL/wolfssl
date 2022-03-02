@@ -5119,14 +5119,16 @@ static int DumpOID(const byte* oidData, word32 oidSz, word32 oid,
 
     #ifdef HAVE_OID_DECODING
     {
-        word16 decOid[16];
-        word32 decOidSz = sizeof(decOid);
+        byte decOid[MAX_OID_SZ];
+        word16 *out = decOid;
+        word32 decOidSz = sizeof(decOid) / 2;
         /* Decode the OID into dotted form. */
-        ret = DecodeObjectId(oidData, oidSz, decOid, &decOidSz);
+        ret = DecodeObjectId(oidData, oidSz, (word16*)decOid, &decOidSz);
         if (ret == 0) {
             printf("  Decoded (Sz %d): ", decOidSz);
-            for (i=0; i<decOidSz; i++) {
-                printf("%d.", decOid[i]);
+            for (i=0; i<decOidSz; i += 2) {
+                printf("%d.", *out);
+                out ++;
             }
             printf("\n");
         }
@@ -16565,13 +16567,14 @@ exit:
  * @return  Other -ve value on error.
  */
 static int DecodeExtensionType(const byte* input, int length, word32 oid,
-                               byte critical, DecodedCert* cert, int *unknown)
+                               byte critical, DecodedCert* cert,
+                               int *isUnknownExt)
 {
     int ret = 0;
     word32 idx = 0;
 
-    if (unknown != NULL)
-        *unknown = 0;
+    if (isUnknownExt != NULL)
+        *isUnknownExt = 0;
 
     switch (oid) {
         /* Basic Constraints. */
@@ -16756,8 +16759,8 @@ static int DecodeExtensionType(const byte* input, int length, word32 oid,
                 return ASN_PARSE_E;
             break;
         default:
-            if (unknown != NULL)
-                *unknown = 1;
+            if (isUnknownExt != NULL)
+                *isUnknownExt = 1;
         #ifndef WOLFSSL_NO_ASN_STRICT
             /* While it is a failure to not support critical extensions,
              * still parse the certificate ignoring the unsupported
@@ -16813,11 +16816,14 @@ enum {
 
 #if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
     && defined(HAVE_OID_DECODING)
-WOLFSSL_ASN_API void SetUnknownExtCallback(DecodedCert* cert,
-                                           wc_UnknownExtCallback cb) {
-    if (cert != NULL) {
-        cert->unknownExtCallback = cb;
+int wc_SetUnknownExtCallback(DecodedCert* cert,
+                             wc_UnknownExtCallback cb) {
+    if (cert == NULL) {
+        return BAD_FUNC_ARG;
     }
+
+    cert->unknownExtCallback = cb;
+    return 0;
 }
 #endif
 
@@ -16954,7 +16960,7 @@ end:
     /* Parse each extension. */
     while ((ret == 0) && (idx < (word32)sz)) {
         byte critical = 0;
-        int unknown = 0;
+        int isUnknownExt = 0;
 
         /* Clear dynamic data. */
         XMEMSET(dataASN, 0, sizeof(*dataASN) * certExtASN_Length);
@@ -16971,28 +16977,29 @@ end:
 
             /* Decode the extension by type. */
             ret = DecodeExtensionType(input + idx, length, oid, critical, cert,
-                                      &unknown);
+                                      &isUnknownExt);
 #if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
     && defined(HAVE_OID_DECODING)
-            if (unknown && (cert->unknownExtCallback != NULL)) {
-                word16 decOid[16];
-                word32 decOidSz = sizeof(decOid);
+            if (isUnknownExt && (cert->unknownExtCallback != NULL)) {
+                byte decOid[MAX_OID_SZ];
+                word32 decOidSz = sizeof(decOid) / 2;
                 ret = DecodeObjectId(
                           dataASN[CERTEXTASN_IDX_OID].data.oid.data,
                           dataASN[CERTEXTASN_IDX_OID].data.oid.length,
-                          decOid, &decOidSz);
+                          (word16*)decOid, &decOidSz);
                 if (ret != 0) {
                     /* Should never get here as the extension was successfully
-                     * decoded earlier. */
-                    printf("DecodeObjectId failed: %d\n", ret);
+                     * decoded earlier. Something might be corrupted. */
+                    WOLFSSL_MSG("DecodeObjectId() failed. Corruption?");
+                    WOLFSSL_ERROR(ret);
                 }
 
-                ret = cert->unknownExtCallback(decOid, decOidSz, critical,
+                ret = cert->unknownExtCallback(decOid, decOidSz * 2, critical,
                           dataASN[CERTEXTASN_IDX_VAL].data.buffer.data,
                           dataASN[CERTEXTASN_IDX_VAL].length);
             }
 #endif
-            (void)unknown;
+            (void)isUnknownExt;
 
             /* Move index on to next extension. */
             idx += length;
