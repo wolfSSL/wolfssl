@@ -251,7 +251,7 @@ WOLFSSL_API int  wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out,
     if (ret < 0) {
         return -1;
     }
-    ret = wc_RsaPrivateDecrypt(out, ret, plain, sizeof(plain), &key);
+    ret = wc_RsaPrivateDecrypt(out, sizeof(out), plain, sizeof(plain), &key);
     if (ret < 0) {
         return -1;
     }
