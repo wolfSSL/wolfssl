@@ -32557,8 +32557,8 @@ MimeParam* wc_MIME_find_param_attr(const char* attribute,
 }
 
 /*****************************************************************************
-* wc_MIME_canonicalize - Canonicalize a line by converting all line endings
-* to CRLF.
+* wc_MIME_single_canonicalize - Canonicalize a line by converting the trailing
+* line ending to CRLF.
 *
 * line - input line to canonicalize
 * len  - length of line in chars on input, length of output array on return
@@ -32566,7 +32566,7 @@ MimeParam* wc_MIME_find_param_attr(const char* attribute,
 * RETURNS:
 * returns a pointer to a canonicalized line on success, NULL on error.
 */
-char* wc_MIME_canonicalize(const char* line, word32* len)
+char* wc_MIME_single_canonicalize(const char* line, word32* len)
 {
     size_t end = 0;
     char* canonLine = NULL;
@@ -32575,7 +32575,7 @@ char* wc_MIME_canonicalize(const char* line, word32* len)
         return NULL;
     }
 
-    end = *len - 1 ;
+    end = *len;
     while (end >= 1 && ((line[end-1] == '\r') || (line[end-1] == '\n'))) {
         end--;
     }

@@ -46923,16 +46923,20 @@ static void test_wolfSSL_PKCS7_sign(void)
         AssertIntEQ(wc_PKCS7_VerifySignedData(p7Ver, out, outLen), 0);
         wc_PKCS7_Free(p7Ver);
 
-        if (out != NULL) {
-            XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            out = NULL;
-        }
+        AssertNotNull(out);
+        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        out = NULL;
         PKCS7_free(p7);
     }
 
     /* TEST SUCCESS: Not detached, streaming, not MIME. Also bad arg
      * tests for PKCS7_final() while we have a PKCS7 pointer to use */
     {
+        /* re-populate input BIO, may have been consumed */
+        BIO_free(inBio);
+        AssertNotNull(inBio = BIO_new(BIO_s_mem()));
+        AssertIntGT(BIO_write(inBio, data, sizeof(data)), 0);
+
         flags = PKCS7_BINARY | PKCS7_STREAM;
         AssertNotNull(p7 = PKCS7_sign(signCert, signKey, NULL, inBio, flags));
         AssertIntEQ(PKCS7_final(p7, inBio, flags), 1);
@@ -46948,15 +46952,19 @@ static void test_wolfSSL_PKCS7_sign(void)
         AssertIntEQ(PKCS7_verify(p7Ver, NULL, store, NULL, NULL, flags), 1);
         PKCS7_free(p7Ver);
 
-        if (out != NULL) {
-            XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            out = NULL;
-        }
+        AssertNotNull(out);
+        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        out = NULL;
         PKCS7_free(p7);
     }
 
     /* TEST SUCCESS: Detached, not streaming, not MIME */
     {
+        /* re-populate input BIO, may have been consumed */
+        BIO_free(inBio);
+        AssertNotNull(inBio = BIO_new(BIO_s_mem()));
+        AssertIntGT(BIO_write(inBio, data, sizeof(data)), 0);
+
         flags = PKCS7_BINARY | PKCS7_DETACHED;
         AssertNotNull(p7 = PKCS7_sign(signCert, signKey, NULL, inBio, flags));
         AssertIntGT((outLen = i2d_PKCS7(p7, &out)), 0);
@@ -46968,15 +46976,25 @@ static void test_wolfSSL_PKCS7_sign(void)
         AssertIntEQ(wc_PKCS7_VerifySignedData(p7Ver, out, outLen), 0);
         wc_PKCS7_Free(p7Ver);
 
-        if (out != NULL) {
-            XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            out = NULL;
-        }
+        /* verify expected failure (NULL return) from d2i_PKCS7, it does not
+         * yet support detached content */
+        tmpPtr = out;
+        AssertNull(p7Ver = d2i_PKCS7(NULL, (const byte**)&tmpPtr, outLen));
+        PKCS7_free(p7Ver);
+
+        AssertNotNull(out);
+        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        out = NULL;
         PKCS7_free(p7);
     }
 
     /* TEST SUCCESS: Detached, streaming, not MIME */
     {
+        /* re-populate input BIO, may have been consumed */
+        BIO_free(inBio);
+        AssertNotNull(inBio = BIO_new(BIO_s_mem()));
+        AssertIntGT(BIO_write(inBio, data, sizeof(data)), 0);
+
         flags = PKCS7_BINARY | PKCS7_DETACHED | PKCS7_STREAM;
         AssertNotNull(p7 = PKCS7_sign(signCert, signKey, NULL, inBio, flags));
         AssertIntEQ(PKCS7_final(p7, inBio, flags), 1);
@@ -46989,10 +47007,8 @@ static void test_wolfSSL_PKCS7_sign(void)
         AssertIntEQ(wc_PKCS7_VerifySignedData(p7Ver, out, outLen), 0);
         wc_PKCS7_Free(p7Ver);
 
-        if (out != NULL) {
-            XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            out = NULL;
-        }
+        AssertNotNull(out);
+        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         PKCS7_free(p7);
     }
 
@@ -47210,7 +47226,7 @@ static void test_wolfSSL_SMIME_read_PKCS7(void)
     AssertIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, out,
                 PKCS7_NOVERIFY | PKCS7_TEXT), SSL_SUCCESS);
     AssertIntGT((outBufLen = BIO_get_mem_data(out, &outBuf)), 0);
-    /* Content-Type should not show up in output buffer */
+    /* Content-Type should not show up at beginning of output buffer */
     AssertIntGT(outBufLen, XSTRLEN(contTypeText));
     AssertIntGT(XMEMCMP(outBuf, contTypeText, XSTRLEN(contTypeText)), 0);
 

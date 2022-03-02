@@ -20907,7 +20907,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
 
 #if (defined(KEEP_PEER_CERT) && defined(SESSION_CERTS)) || \
-    (defined(OPENSSL_ALL) && defined(SESSION_CERTS))
+    (defined(OPENSSL_EXTRA) && defined(SESSION_CERTS))
     /* Decode the X509 DER encoded certificate into a WOLFSSL_X509 object.
      *
      * x509  WOLFSSL_X509 object to decode into.
@@ -20949,7 +20949,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         return ret;
     }
-#endif /* (KEEP_PEER_CERT && SESSION_CERTS) || (OPENSSL_ALL && HAVE_PKCS7) */
+#endif /* (KEEP_PEER_CERT & SESSION_CERTS) || (OPENSSL_EXTRA & SESSION_CERTS) */
 
 
 #ifdef KEEP_PEER_CERT
@@ -62007,7 +62007,7 @@ PKCS7* wolfSSL_d2i_PKCS7_ex(PKCS7** p7, const unsigned char** in, int len,
 
     WOLFSSL_ENTER("wolfSSL_d2i_PKCS7_ex");
 
-    if (in == NULL || *in == NULL)
+    if (in == NULL || *in == NULL || len < 0)
         return NULL;
 
     if ((pkcs7 = (WOLFSSL_PKCS7*)wolfSSL_PKCS7_new()) == NULL)
@@ -62090,6 +62090,18 @@ error:
     return NULL;
 }
 
+/**
+ * Return stack of signers contained in PKCS7 cert.
+ * Notes:
+ * - Currently only PKCS#7 messages with a single signer cert is supported.
+ * - Returned WOLFSSL_STACK must be freed by caller.
+ *
+ * pkcs7 - PKCS7 struct to retrieve signer certs from.
+ * certs - currently unused
+ * flags - flags to control function behavior.
+ *
+ * Return WOLFSSL_STACK of signers on success, NULL on error.
+ */
 WOLFSSL_STACK* wolfSSL_PKCS7_get0_signers(PKCS7* pkcs7, WOLFSSL_STACK* certs,
                                           int flags)
 {
@@ -62201,7 +62213,6 @@ int wolfSSL_i2d_PKCS7(PKCS7 *p7, unsigned char **out)
             WOLFSSL_MSG("malloc error");
             goto cleanup;
         }
-        XMEMSET(output, 0, len);
         localBuf = 1;
     }
     else {
@@ -62260,24 +62271,24 @@ cleanup:
  *
  * Inner content type is set to DATA to match OpenSSL behavior.
  *
- * signer - certificate to sign bundle with
- * pkey     - private key matching signcert
+ * signer   - certificate to sign bundle with
+ * pkey     - private key matching signer
  * certs    - optional additional set of certificates to include
  * in       - input data to be signed
  * flags    - optional set of flags to control sign behavior
  *
- *    PKCS7_BINARY - Do not translate input data to MIME canonical
- *                   format (\r\n line endings), thus preventing corruption of
- *                   binary content.
- *    PKCS7_TEXT - Prepend MIME headers for text/plain to content.
+ *    PKCS7_BINARY   - Do not translate input data to MIME canonical
+ *                     format (\r\n line endings), thus preventing corruption of
+ *                     binary content.
+ *    PKCS7_TEXT     - Prepend MIME headers for text/plain to content.
  *    PKCS7_DETACHED - Set signature detached, omit content from output bundle.
- *    PKCS7_STREAM - initialize PKCS7 struct for signing, do not read data.
+ *    PKCS7_STREAM   - initialize PKCS7 struct for signing, do not read data.
  *
  * Flags not currently supported:
- *    PKCS7_NOCERTS - Do not include the signer cert in the output bundle.
- *    PKCS7_PARTIAL - Allow for PKCS7_sign() to be only partially set up,
- *                    then signers etc to be added separately before
- *                    calling PKCS7_final().
+ *    PKCS7_NOCERTS  - Do not include the signer cert in the output bundle.
+ *    PKCS7_PARTIAL  - Allow for PKCS7_sign() to be only partially set up,
+ *                     then signers etc to be added separately before
+ *                     calling PKCS7_final().
  *
  * Returns valid PKCS7 structure pointer, or NULL if an error occurred.
  */
@@ -62341,18 +62352,16 @@ PKCS7* wolfSSL_PKCS7_sign(WOLFSSL_X509* signer, WOLFSSL_EVP_PKEY* pkey,
     }
 
     /* add additional chain certs if provided */
-    if (err == 0) {
-        while (cert && (err == 0)) {
-            if (cert->data.x509 != NULL && cert->data.x509->derCert != NULL) {
-                if (wc_PKCS7_AddCertificate(&p7->pkcs7,
-                                    cert->data.x509->derCert->buffer,
-                                    cert->data.x509->derCert->length) != 0) {
-                    WOLFSSL_MSG("Error in wc_PKCS7_AddCertificate");
-                    err = 1;
-                }
+    while (cert && (err == 0)) {
+        if (cert->data.x509 != NULL && cert->data.x509->derCert != NULL) {
+            if (wc_PKCS7_AddCertificate(&p7->pkcs7,
+                                cert->data.x509->derCert->buffer,
+                                cert->data.x509->derCert->length) != 0) {
+                WOLFSSL_MSG("Error in wc_PKCS7_AddCertificate");
+                err = 1;
             }
-            cert = cert->next;
         }
+        cert = cert->next;
     }
 
     if ((err == 0) && (flags & PKCS7_DETACHED)) {
@@ -62424,9 +62433,9 @@ static int wolfSSL_BIO_to_MIME_crlf(WOLFSSL_BIO* in, WOLFSSL_BIO* out)
 
         if (line[lineLen - 1] == '\r' || line[lineLen - 1] == '\n') {
             canonLineLen = (word32)lineLen;
-            if ((canonLine = wc_MIME_canonicalize(
+            if ((canonLine = wc_MIME_single_canonicalize(
                                 line, &canonLineLen)) == NULL) {
-                ret = 1;
+                ret = -1;
                 break;
             }
 
@@ -62436,23 +62445,23 @@ static int wolfSSL_BIO_to_MIME_crlf(WOLFSSL_BIO* in, WOLFSSL_BIO* out)
             }
 
             if (wolfSSL_BIO_write(out, canonLine, (int)canonLineLen) < 0) {
-                ret = 1;
+                ret = -1;
                 break;
             }
-            XFREE(canonLine, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(canonLine, NULL, DYNAMIC_TYPE_PKCS7);
             canonLine = NULL;
         }
         else {
             /* no line ending in current line, write direct to out */
             if (wolfSSL_BIO_write(out, line, lineLen) < 0) {
-                ret = 1;
+                ret = -1;
                 break;
             }
         }
     }
 
     if (canonLine != NULL) {
-        XFREE(canonLine, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(canonLine, NULL, DYNAMIC_TYPE_PKCS7);
     }
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(line, in->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -62463,10 +62472,13 @@ static int wolfSSL_BIO_to_MIME_crlf(WOLFSSL_BIO* in, WOLFSSL_BIO* out)
 
 #endif /* HAVE_SMIME */
 
+/* Used by both PKCS7_final() and PKCS7_verify() */
+static const char contTypeText[] = "Content-Type: text/plain\r\n\r\n";
+
 /**
  * Finalize PKCS7 structure, currently supports signedData only.
  *
- * Does not do generation of final bundle (ie: signedData), but finalizes
+ * Does not generate final bundle (ie: signedData), but finalizes
  * the PKCS7 structure in preparation for a output function to be called next.
  *
  * pkcs7 - initialized PKCS7 structure, populated with signer, etc
@@ -62477,7 +62489,7 @@ static int wolfSSL_BIO_to_MIME_crlf(WOLFSSL_BIO* in, WOLFSSL_BIO* out)
  *    PKCS7_BINARY - Do not translate input data to MIME canonical
  *                   format (\r\n line endings), thus preventing corruption of
  *                   binary content.
- *    PKCS7_TEXT - Prepend MIME headers for text/plain to content.
+ *    PKCS7_TEXT   - Prepend MIME headers for text/plain to content.
  *
  * Returns 1 on success, 0 on error
  */
@@ -62488,7 +62500,6 @@ int wolfSSL_PKCS7_final(PKCS7* pkcs7, WOLFSSL_BIO* in, int flags)
     unsigned char* mem = NULL;
     WOLFSSL_PKCS7* p7 = (WOLFSSL_PKCS7*)pkcs7;
     WOLFSSL_BIO* data = NULL;
-    static const char contTypeText[] = "Content-Type: text/plain\r\n\r\n";
 
     WOLFSSL_ENTER("wolfSSL_PKCS7_final");
 
@@ -62504,11 +62515,11 @@ int wolfSSL_PKCS7_final(PKCS7* pkcs7, WOLFSSL_BIO* in, int flags)
         }
     }
 
-    /* append Content-Type header if PKCS7_TEXT */
+    /* prepend Content-Type header if PKCS7_TEXT */
     if ((ret == 1) && (flags & PKCS7_TEXT)) {
         if (wolfSSL_BIO_write(data, contTypeText,
-                              (int)XSTRLEN(contTypeText)) < 0) {
-            WOLFSSL_MSG("Error appending Content-Type header");
+                              (int)XSTR_SIZEOF(contTypeText)) < 0) {
+            WOLFSSL_MSG("Error prepending Content-Type header");
             ret = 0;
         }
     }
@@ -62516,15 +62527,33 @@ int wolfSSL_PKCS7_final(PKCS7* pkcs7, WOLFSSL_BIO* in, int flags)
     /* convert line endings to CRLF if !PKCS7_BINARY */
     if (ret == 1) {
         if (flags & PKCS7_BINARY) {
+
             /* no CRLF conversion, direct copy content */
-            if ((memSz = wolfSSL_BIO_get_mem_data(in, &mem)) < 0) {
+            if ((memSz = wolfSSL_BIO_get_len(in)) <= 0) {
                 ret = 0;
             }
-            else if (wolfSSL_BIO_write(data, mem, memSz) < 0) {
-                ret = 0;
+            if (ret == 1) {
+                mem = (unsigned char*)XMALLOC(memSz, in->heap,
+                                              DYNAMIC_TYPE_TMP_BUFFER);
+                if (mem == NULL) {
+                    WOLFSSL_MSG("Failed to allocate memory for input data");
+                    ret = 0;
+                }
             }
-            mem = NULL;
-            memSz = 0;
+
+            if (ret == 1) {
+                if (wolfSSL_BIO_read(in, mem, memSz) != memSz) {
+                    WOLFSSL_MSG("Error reading from input BIO");
+                    ret = 0;
+                }
+                else if (wolfSSL_BIO_write(data, mem, memSz) < 0) {
+                    ret = 0;
+                }
+            }
+
+            if (mem != NULL) {
+                XFREE(mem, in->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            }
         }
         else {
     #ifdef HAVE_SMIME
@@ -62582,7 +62611,6 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
     unsigned char* mem = NULL;
     int memSz = 0;
     WOLFSSL_PKCS7* p7 = (WOLFSSL_PKCS7*)pkcs7;
-    static const char contTypeText[] = "Content-Type: text/plain\r\n\r\n";
     int contTypeLen;
     WOLFSSL_X509* signer = NULL;
     WOLFSSL_STACK* signers = NULL;
@@ -62631,7 +62659,7 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
                         signer->derCert->length,
                         WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("Failed to verify signer certificate");
-                wolfSSL_sk_X509_free(signers);
+                wolfSSL_sk_X509_pop_free(signers, NULL);
                 return WOLFSSL_FAILURE;
             }
         }
@@ -62653,6 +62681,8 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
     if (out != NULL) {
         wolfSSL_BIO_write(out, p7->pkcs7.content, p7->pkcs7.contentSz);
     }
+
+    WOLFSSL_LEAVE("wolfSSL_PKCS7_verify", WOLFSSL_SUCCESS);
 
     return WOLFSSL_SUCCESS;
 }
@@ -62903,6 +62933,7 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
     static const char kAppPkcs7Mime[] = "application/pkcs7-mime";
     static const char kAppXPkcs7Mime[] = "application/x-pkcs7-mime";
 
+    WOLFSSL_ENTER("wolfSSL_SMIME_read_PKCS7");
 
     if (in == NULL || bcont == NULL) {
         goto error;
@@ -63000,8 +63031,8 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
             while (XSTRNCMP(&section[sectionLen], boundary, boundLen) &&
                             remainLen > 0) {
                 canonLineLen = lineLen;
-                canonLine = wc_MIME_canonicalize(&section[sectionLen],
-                                                 &canonLineLen);
+                canonLine = wc_MIME_single_canonicalize(&section[sectionLen],
+                                                        &canonLineLen);
                 if (canonLine == NULL) {
                     goto error;
                 }
@@ -63265,7 +63296,6 @@ int wolfSSL_SMIME_write_PKCS7(WOLFSSL_BIO* out, PKCS7* pkcs7, WOLFSSL_BIO* in,
     byte* p7out = NULL;
     int len = 0;
 
-    WC_RNG rng;
     char boundary[33]; /* 32 chars + \0 */
     byte* sigBase64 = NULL;
     word32 sigBase64Len = 0;
@@ -63321,22 +63351,22 @@ int wolfSSL_SMIME_write_PKCS7(WOLFSSL_BIO* out, PKCS7* pkcs7, WOLFSSL_BIO* in,
         if (flags & PKCS7_DETACHED) {
 
             /* generate random boundary */
-            if (wc_InitRng(&rng) != 0) {
-                WOLFSSL_MSG("Error in wc_InitRng");
+            if (initGlobalRNG == 0 && wolfSSL_RAND_Init() != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("No RNG to use");
                 ret = 0;
             }
 
-            if ((ret > 0) && (wc_RNG_GenerateBlock(&rng, (byte*)boundary,
-                                  sizeof(boundary)) != 0)) {
+            /* no need to generate random byte for null terminator (size-1) */
+            if ((ret > 0) && (wc_RNG_GenerateBlock(&globalRNG, (byte*)boundary,
+                                  sizeof(boundary) - 1 ) != 0)) {
                     WOLFSSL_MSG("Error in wc_RNG_GenerateBlock");
                     ret = 0;
             }
-            wc_FreeRng(&rng);
 
             if (ret > 0) {
                 for (i = 0; i < (int)sizeof(boundary) - 1; i++) {
                     boundary[i] =
-                        alphanum[boundary[i] % (sizeof(alphanum) - 1)];
+                        alphanum[boundary[i] % XSTR_SIZEOF(alphanum)];
                 }
                 boundary[sizeof(boundary)-1] = 0;
             }
@@ -63411,10 +63441,10 @@ int wolfSSL_SMIME_write_PKCS7(WOLFSSL_BIO* out, PKCS7* pkcs7, WOLFSSL_BIO* in,
     }
 
     if (ret > 0) {
-        return 1;
+        return WOLFSSL_SUCCESS;
     }
 
-    return 0;
+    return WOLFSSL_FAILURE;
 }
 
 #endif /* HAVE_SMIME */
