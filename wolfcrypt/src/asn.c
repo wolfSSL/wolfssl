@@ -15876,13 +15876,16 @@ static int DecodeNsCertType(const byte* input, int sz, DecodedCert* cert)
     int len = 0;
 
     WOLFSSL_ENTER("DecodeNsCertType");
-    if (CheckBitString(input, &idx, &len, (word32)sz, 0, NULL) < 0) {
+
+    if (CheckBitString(input, &idx, &len, (word32)sz, 0, NULL) < 0)
         return ASN_PARSE_E;
-    }
 
     /* Don't need to worry about unused bits as CheckBitString makes sure
      * they're zero. */
-    cert->nsCertType = input[idx];
+    if (idx < (word32)sz)
+        cert->nsCertType = input[idx];
+    else
+        return ASN_PARSE_E;
 
     return 0;
 }
