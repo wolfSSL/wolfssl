@@ -6299,7 +6299,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     byte *x  = NULL;
     mp_int *z1 = NULL;
 #endif
-    word32 xSz, VSz, KSz, h1len;
+    word32 xSz, VSz, KSz, h1len, qLen;
     byte intOct;
 
     if (hash == NULL || k == NULL || order == NULL) {
@@ -6366,7 +6366,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 #endif
 
     VSz = KSz = hashSz;
-    xSz = h1len = mp_unsigned_bin_size(order);
+    qLen = xSz = h1len = mp_unsigned_bin_size(order);
 
     /* 3.2 b. Set V = 0x01 0x01 ... */
     XMEMSET(V, 0x01, VSz);
@@ -6375,7 +6375,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     XMEMSET(K, 0x00, KSz);
 
     mp_init(z1); /* always init z1 and free z1 */
-    ret = mp_to_unsigned_bin_len(priv, x, xSz);
+    ret = mp_to_unsigned_bin_len(priv, x, qLen);
     if (ret == 0) {
         qbits = mp_count_bits(order);
         ret = mp_read_unsigned_bin(z1, hash, hashSz);
@@ -6440,7 +6440,6 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 
     /* 3.2 step h. loop through the next steps until a valid value is found */
     if (ret == 0 ) {
-        word32 qLen = (qbits+7)/8;
         int err;
 
         intOct = 0x00;
@@ -6473,10 +6472,10 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
                 ret = mp_read_unsigned_bin(k, x, xSz);
             }
 
-            if ((ret == 0) && ((int)(VSz * WOLFSSL_BIT_SIZE) != qbits)) {
+            if ((ret == 0) && ((int)(xSz * WOLFSSL_BIT_SIZE) != qbits)) {
                 /* handle odd case where shift of 'k' is needed with RFC 6979
                  *  k = bits2int(T) in section 3.2 h.3 */
-                mp_rshb(k, (VSz * WOLFSSL_BIT_SIZE) - qbits);
+                mp_rshb(k, (xSz * WOLFSSL_BIT_SIZE) - qbits);
             }
 
             /* 3.2 step h.3 the key should be smaller than the order of base
