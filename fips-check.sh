@@ -401,7 +401,7 @@ done
 # new certifications on 140-2 modules. If we were to use the latest files from
 # master that would require re-cert due to changes in the module boundary.
 # Since OE additions can still be processed for cert3389 we will call 140-2
-# ready "fipsv2-OE-ready" indicating it is read to use for an OE addition but
+# ready "fipsv2-OE-ready" indicating it is ready to use for an OE addition but
 # would not be good for a new certification effort with the latest files.
 if [ "$FLAVOR" = "fipsv2-OE-ready" ]; then
     OLD_VERSION="    return \"v4.0.0-alpha\";"
