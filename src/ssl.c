@@ -38862,6 +38862,15 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_ex(void* heap, int devId)
 
     InitwolfSSL_ECKey(external);
 
+    external->refCount = 1;
+#ifndef SINGLE_THREADED
+    if (wc_InitMutex(&external->refMutex) != 0) {
+        WOLFSSL_MSG("wc_InitMutex WOLFSSL_EC_KEY failure");
+        XFREE(external, heap, DYNAMIC_TYPE_ECC);
+        return NULL;
+    }
+#endif
+
     external->internal = (ecc_key*)XMALLOC(sizeof(ecc_key), heap,
                                            DYNAMIC_TYPE_ECC);
     if (external->internal == NULL) {
@@ -38909,10 +38918,32 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new(void)
 
 void wolfSSL_EC_KEY_free(WOLFSSL_EC_KEY *key)
 {
+    int doFree = 0;
+
     WOLFSSL_ENTER("wolfSSL_EC_KEY_free");
 
     if (key != NULL) {
         void* heap = key->heap;
+
+    #ifndef SINGLE_THREADED
+        if (wc_LockMutex(&key->refMutex) != 0) {
+            WOLFSSL_MSG("Could not lock EC_KEY mutex");
+        }
+    #endif
+
+        /* only free if all references to it are done */
+        key->refCount--;
+        if (key->refCount == 0) {
+            doFree = 1;
+        }
+    #ifndef SINGLE_THREADED
+        wc_UnLockMutex(&key->refMutex);
+    #endif
+
+        if (doFree == 0) {
+            return;
+        }
+
         if (key->internal != NULL) {
             wc_ecc_free((ecc_key*)key->internal);
             XFREE(key->internal, heap, DYNAMIC_TYPE_ECC);
@@ -38926,6 +38957,26 @@ void wolfSSL_EC_KEY_free(WOLFSSL_EC_KEY *key)
         (void)heap;
         /* key = NULL, don't try to access or double free it */
     }
+}
+
+/* Increments ref count of WOLFSSL_EC_KEY.
+ * Return WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE on error */
+int wolfSSL_EC_KEY_up_ref(WOLFSSL_EC_KEY* key)
+{
+    if (key) {
+    #ifndef SINGLE_THREADED
+        if (wc_LockMutex(&key->refMutex) != 0) {
+            WOLFSSL_MSG("Failed to lock EC_KEY mutex");
+        }
+    #endif
+        key->refCount++;
+    #ifndef SINGLE_THREADED
+        wc_UnLockMutex(&key->refMutex);
+    #endif
+        return WOLFSSL_SUCCESS;
+    }
+
+    return WOLFSSL_FAILURE;
 }
 
 /* set the group in WOLFSSL_EC_KEY and return WOLFSSL_SUCCESS on success */

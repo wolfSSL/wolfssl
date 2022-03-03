@@ -42909,6 +42909,21 @@ static void test_wolfSSL_EC_KEY_dup(void)
     wolfSSL_EC_KEY_free(ecKey);
     wolfSSL_EC_KEY_free(dupKey);
 
+    /* Test EC_KEY_up_ref */
+    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
+    AssertIntEQ(wolfSSL_EC_KEY_up_ref(NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EC_KEY_up_ref(ecKey), WOLFSSL_SUCCESS);
+    /* reference count doesn't follow duplicate */
+    AssertNotNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
+    AssertIntEQ(wolfSSL_EC_KEY_up_ref(dupKey), WOLFSSL_SUCCESS); /* +1 */
+    AssertIntEQ(wolfSSL_EC_KEY_up_ref(dupKey), WOLFSSL_SUCCESS); /* +2 */
+    wolfSSL_EC_KEY_free(dupKey); /* 3 */
+    wolfSSL_EC_KEY_free(dupKey); /* 2 */
+    wolfSSL_EC_KEY_free(dupKey); /* 1, free */
+    wolfSSL_EC_KEY_free(ecKey);  /* 2 */
+    wolfSSL_EC_KEY_free(ecKey);  /* 1, free */
+
     printf(resultFmt, passed);
 #endif
 }
