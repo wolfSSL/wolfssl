@@ -585,6 +585,8 @@ then
     test "$enable_trusted_ca" = "" && enable_trusted_ca=yes
     test "$enable_session_ticket" = "" && enable_session_ticket=yes
 
+    test "$enable_earlydata" = "" && enable_earlydata=yes
+
     if test "$ENABLED_32BIT" != "yes"
     then
         test "$enable_sha512" = "" && enable_sha512=yes
