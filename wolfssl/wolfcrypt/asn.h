@@ -1461,7 +1461,7 @@ typedef struct CertSignCtx  CertSignCtx;
 
 #if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
     && defined(HAVE_OID_DECODING)
-typedef int (*wc_UnknownExtCallback)(const byte* oid, word32 oidSz, int crit,
+typedef int (*wc_UnknownExtCallback)(const word16* oid, word32 oidSz, int crit,
                                      const unsigned char* der, word32 derSz);
 #endif
 

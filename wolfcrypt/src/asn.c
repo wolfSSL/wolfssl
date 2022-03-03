@@ -5119,16 +5119,14 @@ static int DumpOID(const byte* oidData, word32 oidSz, word32 oid,
 
     #ifdef HAVE_OID_DECODING
     {
-        byte decOid[MAX_OID_SZ];
-        word16 *out = decOid;
-        word32 decOidSz = sizeof(decOid) / 2;
+        word16 decOid[16];
+        word32 decOidSz = sizeof(decOid);
         /* Decode the OID into dotted form. */
-        ret = DecodeObjectId(oidData, oidSz, (word16*)decOid, &decOidSz);
+        ret = DecodeObjectId(oidData, oidSz, decOid, &decOidSz);
         if (ret == 0) {
             printf("  Decoded (Sz %d): ", decOidSz);
-            for (i=0; i<decOidSz; i += 2) {
-                printf("%d.", *out);
-                out ++;
+            for (i=0; i<decOidSz; i++) {
+                printf("%d.", decOid[i]);
             }
             printf("\n");
         }
@@ -16981,12 +16979,12 @@ end:
 #if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
     && defined(HAVE_OID_DECODING)
             if (isUnknownExt && (cert->unknownExtCallback != NULL)) {
-                byte decOid[MAX_OID_SZ];
-                word32 decOidSz = sizeof(decOid) / 2;
+                word16 decOid[16];
+                word32 decOidSz = sizeof(decOid);
                 ret = DecodeObjectId(
                           dataASN[CERTEXTASN_IDX_OID].data.oid.data,
                           dataASN[CERTEXTASN_IDX_OID].data.oid.length,
-                          (word16*)decOid, &decOidSz);
+                          decOid, &decOidSz);
                 if (ret != 0) {
                     /* Should never get here as the extension was successfully
                      * decoded earlier. Something might be corrupted. */
@@ -16994,7 +16992,7 @@ end:
                     WOLFSSL_ERROR(ret);
                 }
 
-                ret = cert->unknownExtCallback(decOid, decOidSz * 2, critical,
+                ret = cert->unknownExtCallback(decOid, decOidSz, critical,
                           dataASN[CERTEXTASN_IDX_VAL].data.buffer.data,
                           dataASN[CERTEXTASN_IDX_VAL].length);
             }
