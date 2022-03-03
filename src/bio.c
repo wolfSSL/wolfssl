@@ -2204,11 +2204,22 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
     int wolfSSL_BIO_eof(WOLFSSL_BIO* b)
     {
+        int ret = 0;
         WOLFSSL_ENTER("BIO_eof");
-        if ((b != NULL) && (b->eof))
-            return 1;
 
-        return 0;
+        if (b == NULL)
+            return 1; /* Undefined in OpenSSL. Let's signal we're done. */
+
+        switch (b->type) {
+            case WOLFSSL_BIO_SSL:
+                ret = b->eof;
+                break;
+            default:
+                ret = wolfSSL_BIO_get_len(b) != 0;
+                break;
+        }
+
+        return ret;
     }
 
     long wolfSSL_BIO_do_handshake(WOLFSSL_BIO *b)
