@@ -7720,10 +7720,14 @@ then
     # force make clean
     AC_MSG_NOTICE([---])
     AC_MSG_NOTICE([Running make clean...])
+    if test -z "$MAKE"; then
+        MAKE="make"
+    fi
+
     if test "$verbose" = "yes"; then
-        make clean
+        $MAKE clean
     else
-        make clean >/dev/null
+        $MAKE clean >/dev/null
     fi
 fi
 
