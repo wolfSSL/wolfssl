@@ -79,6 +79,7 @@ then
     enable_shared=yes
     enable_static=yes
     enable_all=yes
+    enable_earlydata=no
     REPRODUCIBLE_BUILD_DEFAULT=yes
 else
     REPRODUCIBLE_BUILD_DEFAULT=no
