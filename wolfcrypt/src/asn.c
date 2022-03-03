@@ -23374,7 +23374,9 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_CERT_EXT)
     byte *encodedOids;
+#endif
     ASNItem *certExtsASN = (ASNItem *)XMALLOC(certExtsASN_Length *
                                               sizeof(ASNItem), cert->heap,
                                               DYNAMIC_TYPE_TMP_BUFFER);
@@ -23382,16 +23384,19 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
         return MEMORY_E;
     }
 
+#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_CERT_EXT)
     encodedOids = (byte *)XMALLOC(NUM_CUSTOM_EXT * MAX_OID_SZ, cert->heap,
                                   DYNAMIC_TYPE_TMP_BUFFER);
     if (encodedOids == NULL) {
         XFREE(certExtsASN, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
-
+#endif
 #else
     ASNItem certExtsASN[certExtsASN_Length];
+#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_CERT_EXT)
     byte encodedOids[NUM_CUSTOM_EXT * MAX_OID_SZ];
+#endif
 #endif
 
     /* Clone static_certExtsASN into a certExtsASN and then fill the rest of it
@@ -23651,7 +23656,9 @@ static int EncodeExtensions(Cert* cert, byte* output, word32 maxSz,
 
     FREE_ASNSETDATA(dataASN, cert->heap);
 #ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_CERT_EXT)
     XFREE(encodedOids, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     XFREE(certExtsASN, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
