@@ -43527,8 +43527,17 @@ static void test_wolfSSL_EVP_PKEY_paramgen(void)
 
 static void test_wolfSSL_EVP_PKEY_keygen(void)
 {
-    WOLFSSL_EVP_PKEY*   pkey;
-    EVP_PKEY_CTX        *ctx;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    EVP_PKEY_CTX*     ctx = NULL;
+#ifndef NO_DH
+    WOLFSSL_EVP_PKEY* params = NULL;
+    DH* dh = NULL;
+    const BIGNUM* pubkey = NULL;
+    const BIGNUM* privkey = NULL;
+    ASN1_INTEGER* asn1int = NULL;
+    unsigned int length = 0;
+    byte* derBuffer = NULL;
+#endif
 
     printf(testingFmt, "wolfSSL_EVP_PKEY_keygen");
 
@@ -43543,9 +43552,40 @@ static void test_wolfSSL_EVP_PKEY_keygen(void)
     /* Good case */
     AssertIntEQ(wolfSSL_EVP_PKEY_keygen(ctx, &pkey), 0);
 
-
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+#if !defined(NO_DH) && (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+    (HAVE_FIPS_VERSION>2)))
+    /* Test DH keygen */
+    {
+        AssertNotNull(params = wolfSSL_EVP_PKEY_new());
+        AssertNotNull(dh = DH_get_2048_256());
+        AssertIntEQ(EVP_PKEY_set1_DH(params, dh), WOLFSSL_SUCCESS);
+        AssertNotNull(ctx = EVP_PKEY_CTX_new(params, NULL));
+        AssertIntEQ(EVP_PKEY_keygen_init(ctx), WOLFSSL_SUCCESS);
+        AssertIntEQ(EVP_PKEY_keygen(ctx, &pkey), WOLFSSL_SUCCESS);
+
+        DH_free(dh);
+        EVP_PKEY_CTX_free(ctx);
+        EVP_PKEY_free(params);
+
+        /* try exporting generated key to DER, to verify */
+        AssertNotNull(dh = EVP_PKEY_get1_DH(pkey));
+        DH_get0_key(dh, &pubkey, &privkey);
+        AssertNotNull(pubkey);
+        AssertNotNull(privkey);
+        AssertNotNull(asn1int = BN_to_ASN1_INTEGER(pubkey, NULL));
+        AssertIntGT((length = i2d_ASN1_INTEGER(asn1int, &derBuffer)), 0);
+
+        ASN1_INTEGER_free(asn1int);
+        DH_free(dh);
+        XFREE(derBuffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        EVP_PKEY_free(pkey);
+    }
+#endif
 
     printf(resultFmt, passed);
 }
