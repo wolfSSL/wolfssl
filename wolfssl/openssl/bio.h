@@ -56,6 +56,7 @@
 #define BIO_s_file                      wolfSSL_BIO_s_file
 #define BIO_s_bio                       wolfSSL_BIO_s_bio
 #define BIO_s_socket                    wolfSSL_BIO_s_socket
+#define BIO_s_accept                    wolfSSL_BIO_s_socket
 #define BIO_set_fd                      wolfSSL_BIO_set_fd
 #define BIO_set_close                   wolfSSL_BIO_set_close
 #define BIO_ctrl_reset_read_request     wolfSSL_BIO_ctrl_reset_read_request
