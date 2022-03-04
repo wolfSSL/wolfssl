@@ -1535,7 +1535,18 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
 #ifndef NO_DH
     case EVP_PKEY_DH:
         /* Use DH */
-        if (!ctx->pkey->dh || !ctx->peerKey->dh || !ctx->peerKey->dh->pub_key) {
+        if (!ctx->pkey->dh || !ctx->peerKey->dh) {
+            return WOLFSSL_FAILURE;
+        }
+        /* set internal peer key if not done */
+        if (!ctx->peerKey->dh->inSet) {
+            if (SetDhInternal(ctx->peerKey->dh) != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("SetDhInternal failed");
+                return WOLFSSL_FAILURE;
+            }
+        }
+        if (!ctx->peerKey->dh->pub_key) {
+            WOLFSSL_MSG("SetDhInternal failed, pub_key is NULL");
             return WOLFSSL_FAILURE;
         }
         if ((len = wolfSSL_DH_size(ctx->pkey->dh)) <= 0) {
