@@ -5381,7 +5381,8 @@ int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
 
 #ifndef HAVE_USER_RSA
 #if defined(WOLFSSL_ASN_TEMPLATE) || (!defined(NO_CERTS) && \
-    (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)))
+    (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || \
+     defined(WOLFSSL_KCAPI_RSA)))
 /* Byte offset of numbers in RSA key. */
 size_t rsaIntOffset[] = {
     OFFSETOF(RsaKey, n),

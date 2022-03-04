@@ -158,23 +158,75 @@ int KcapiDh_MakeKey(DhKey* key, byte* pub, word32* pubSz)
         ret = KcapiDh_SetParams(key);
     }
     if (ret == 0) {
-        ret = kcapi_kpp_keygen(key->handle, pub, *pubSz,
+        ret = kcapi_kpp_setkey(key->handle, NULL, 0);
+        if (ret >= 0) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = (int)kcapi_kpp_keygen(key->handle, pub, *pubSz,
                                KCAPI_ACCESS_HEURISTIC);
     }
 
     return ret;
 }
 
+#ifdef WOLFSSL_DH_EXTRA
+static int KcapiDh_SetPrivKey(DhKey* key)
+{
+    int ret;
+    unsigned char* priv;
+    int len;
+
+    len = ret = mp_unsigned_bin_size(&key->priv);
+    if (ret >= 0) {
+        priv = (unsigned char*)XMALLOC(len, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (priv == NULL) {
+            ret = MEMORY_E;
+        }
+    }
+    if (ret >= 0) {
+        ret = mp_to_unsigned_bin(&key->priv, priv);
+    }
+    if (ret >= 0) {
+        ret = kcapi_kpp_setkey(key->handle, priv, len);
+        if (ret >= 0) {
+            ret = 0;
+        }
+    }
+
+    return ret;
+}
+#endif
+
 int KcapiDh_SharedSecret(DhKey* private_key, const byte* pub, word32 pubSz,
                          byte* out, word32* outlen)
 {
-    int ret;
+    int ret = 0;
 
-    ret = kcapi_kpp_ssgen(private_key->handle, pub, pubSz, out, *outlen,
-                          KCAPI_ACCESS_HEURISTIC);
-    if (ret >= 0) {
-        *outlen = ret;
-        ret = 0;
+    if (private_key->handle == NULL) {
+        ret = kcapi_kpp_init(&private_key->handle, WC_NAME_DH, 0);
+        if (ret != 0) {
+            WOLFSSL_MSG("KcapiDh_SharedSecret: Failed to initialization");
+        }
+        if (ret == 0) {
+            ret = KcapiDh_SetParams(private_key);
+        }
+    }
+
+#ifdef WOLFSSL_DH_EXTRA
+    if (!mp_iszero(&private_key->priv)) {
+        ret = KcapiDh_SetPrivKey(private_key);
+    }
+#endif
+
+    if (ret == 0) {
+        ret = (int)kcapi_kpp_ssgen(private_key->handle, pub, pubSz, out,
+                                   *outlen, KCAPI_ACCESS_HEURISTIC);
+        if (ret >= 0) {
+            *outlen = ret;
+            ret = 0;
+        }
     }
 
     return ret;

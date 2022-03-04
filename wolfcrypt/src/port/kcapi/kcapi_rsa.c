@@ -254,7 +254,7 @@ int KcapiRsa_Decrypt(RsaKey* key, const byte* in, word32 inLen, byte* out,
         }
     }
     if (ret == 0) {
-        ret = kcapi_akcipher_decrypt(key->handle, in, inLen, out, *outLen,
+        ret = (int)kcapi_akcipher_decrypt(key->handle, in, inLen, out, *outLen,
                                   KCAPI_ACCESS_HEURISTIC);
         if (ret >= 0) {
             *outLen = ret;
@@ -345,7 +345,7 @@ int KcapiRsa_Encrypt(RsaKey* key, const byte* in, word32 inLen, byte* out,
         }
     }
     if (ret == 0) {
-        ret = kcapi_akcipher_encrypt(key->handle, in, inLen, out, *outLen,
+        ret = (int)kcapi_akcipher_encrypt(key->handle, in, inLen, out, *outLen,
                                     KCAPI_ACCESS_HEURISTIC);
         if (ret >= 0) {
             *outLen = ret;
