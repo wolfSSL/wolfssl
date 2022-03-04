@@ -579,6 +579,10 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         #define XS_ISREG(s) S_ISREG(s)
         #define SEPARATOR_CHAR ':'
     #endif
+
+    #ifndef XSTAT_TYPE
+        #define XSTAT_TYPE struct XSTAT
+    #endif
     #endif
 #endif
 
@@ -598,7 +602,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #ifdef USE_WINDOWS_API
         WIN32_FIND_DATAA FindFileData;
         HANDLE hFind;
-        struct XSTAT s;
+        XSTAT_TYPE s;
     #elif defined(WOLFSSL_ZEPHYR)
         struct fs_dirent entry;
         struct fs_dir_t  dir;
@@ -619,7 +623,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #else
         struct dirent* entry;
         DIR*   dir;
-        struct XSTAT s;
+        XSTAT_TYPE s;
     #endif
         char name[MAX_FILENAME_SZ];
     } ReadDirCtx;
