@@ -6454,11 +6454,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
                 if (ret == 0) {
                     int sz;
 
-                    sz = (qLen - xSz < VSz) ? qLen-xSz : VSz;
-                    if (xSz + sz > qLen) {
-                        ret = BUFFER_E;
-                        break;
-                    }
+                    sz = MIN(qLen - xSz, VSz);
                     XMEMCPY(x + xSz, V, sz);
                     xSz += sz;
                 }

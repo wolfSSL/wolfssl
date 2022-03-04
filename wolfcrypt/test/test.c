@@ -20875,6 +20875,7 @@ done:
 }
 
 #ifdef WOLFSSL_PUBLIC_MP
+#if defined(HAVE_ECC384)
 /* KAT from RFC6979 */
 static int ecc384_test_deterministic_k(WC_RNG* rng)
 {
@@ -20945,10 +20946,11 @@ done:
     wc_ecc_free(&key);
     return ret;
 }
+#endif /* HAVE_ECC384 */
 
 #if defined(HAVE_ECC521)
 /* KAT from RFC6979 */
-static int ecc512_test_deterministic_k(WC_RNG* rng)
+static int ecc521_test_deterministic_k(WC_RNG* rng)
 {
     int ret;
     ecc_key key;
@@ -23965,13 +23967,15 @@ WOLFSSL_TEST_SUBROUTINE int ecc_test(void)
         goto done;
     }
     #ifdef WOLFSSL_PUBLIC_MP
+    #if defined(HAVE_ECC384)
     ret = ecc384_test_deterministic_k(&rng);
     if (ret != 0) {
         printf("ecc384_test_deterministic_k failed! %d\n", ret);
         goto done;
     }
+    #endif
     #if defined(HAVE_ECC521)
-    ret = ecc512_test_deterministic_k(&rng);
+    ret = ecc521_test_deterministic_k(&rng);
     if (ret != 0) {
         printf("ecc512_test_deterministic_k failed! %d\n", ret);
         goto done;
