@@ -1416,7 +1416,12 @@ WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_E
     ctx->padding = RSA_PKCS1_PADDING;
 #endif
 #ifdef HAVE_ECC
-    ctx->curveNID = ECC_CURVE_DEF;
+    if (pkey->ecc && pkey->ecc->group) {
+        /* set curve NID from pkey if available */
+        ctx->curveNID = pkey->ecc->group->curve_nid;
+    } else {
+        ctx->curveNID = ECC_CURVE_DEF;
+    }
 #endif
     if (wolfSSL_EVP_PKEY_up_ref(pkey) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Couldn't increase key reference count");
