@@ -1941,11 +1941,58 @@ WOLFSSL_API time_t wc_Time(time_t* t);
 /*!
     \ingroup ASN
 
+    \brief This function injects a custom extension in to an X.509 certificate.
+
+    \return 0 Returned on success.
+    \return Other negative values on failure.
+
+    \param cert Pointer to an initialized DecodedCert object.
+    \param critical If 0, the extension will not be marked critical, otherwise
+     it will be marked critical.
+    \param oid Dot separted oid as a string. For example "1.2.840.10045.3.1.7"
+    \param der The der encoding of the content of the extension.
+    \param derSz The size in bytes of the der encoding.
+
+
+    _Example_
+    \code
+    int ret = 0;
+    Cert newCert;
+    wc_InitCert(&newCert);
+
+    // Code to setup subject, public key, issuer, and other things goes here.
+
+    ret = wc_SetCustomExtension(&newCert, 1, "1.2.3.4.5",
+              (const byte *)"This is a critical extension", 28);
+    if (ret < 0) {
+        // Failed to set the extension.
+    }
+
+    ret = wc_SetCustomExtension(&newCert, 0, "1.2.3.4.6",
+              (const byte *)"This is NOT a critical extension", 32)
+    if (ret < 0) {
+        // Failed to set the extension.
+    }
+
+    // Code to sign the certificate and then write it out goes here.
+
+    \endcode
+
+    \sa wc_InitCert
+    \sa wc_SetUnknownExtCallback
+*/
+WOLFSSL_API int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
+                                      const byte *der, word32 derSz);
+
+/*!
+    \ingroup ASN
+
     \brief This function registers a callback that will be used anytime
     wolfSSL encounters an unknown X.509 extension in a certificate while parsing
     a certificate. The prototype of the callback should be:
 
     \return 0 Returned on success.
+    \return Other negative values on failure.
 
     \param cert the DecodedCert struct that is to be associated with this
     callback.
@@ -1986,6 +2033,7 @@ WOLFSSL_API time_t wc_Time(time_t* t);
     \endcode
 
     \sa ParseCert
+    \sa wc_SetCustomExtension
 */
 WOLFSSL_ASN_API int wc_SetUnknownExtCallback(DecodedCert* cert,
                                              wc_UnknownExtCallback cb);
