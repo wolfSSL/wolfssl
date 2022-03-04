@@ -33,6 +33,7 @@
     extern "C" {
 #endif
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* Padding types */
 #define RSA_PKCS1_PADDING      0
 #define RSA_PKCS1_OAEP_PADDING 1
@@ -55,6 +56,7 @@
 #define RSA_PSS_SALTLEN_MAX_SIGN (-2)
 /* Max salt length */
 #define RSA_PSS_SALTLEN_MAX      (-3)
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 typedef struct WOLFSSL_RSA_METHOD {
     int flags;
@@ -98,8 +100,10 @@ typedef struct WOLFSSL_RSA {
 } WOLFSSL_RSA;
 #endif
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 typedef WOLFSSL_RSA                   RSA;
 typedef WOLFSSL_RSA_METHOD            RSA_METHOD;
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSA_new_ex(void* heap, int devId);
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSA_new(void);
@@ -184,6 +188,7 @@ WOLFSSL_API int wolfSSL_RSA_set_ex_data_with_cleanup(
     wolfSSL_ex_data_cleanup_routine_t cleanup_routine);
 #endif
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #define WOLFSSL_RSA_LOAD_PRIVATE 1
 #define WOLFSSL_RSA_LOAD_PUBLIC  2
 #define WOLFSSL_RSA_F4           0x10001L
@@ -234,6 +239,8 @@ WOLFSSL_API int wolfSSL_RSA_set_ex_data_with_cleanup(
 #define RSA_get0_key       wolfSSL_RSA_get0_key
 
 #define RSA_F4             WOLFSSL_RSA_F4
+
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #ifdef __cplusplus
     }  /* extern "C" */

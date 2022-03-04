@@ -30650,7 +30650,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                  * "stateful" tickets for 1.3 so just use the regular
                  * stateless ones. */
                 (!IsAtLeastTLSv1_3(ssl->version) &&
-                        (ssl->options.mask & SSL_OP_NO_TICKET) != 0)
+                        (ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0)
 #endif
                         ) {
             ret = WOLFSSL_TICKET_RET_FATAL;
@@ -30754,7 +30754,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                  * "stateful" tickets for 1.3 so just use the regular
                  * stateless ones. */
                 (!IsAtLeastTLSv1_3(ssl->version) &&
-                        (ssl->options.mask & SSL_OP_NO_TICKET) != 0)
+                        (ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0)
 #endif
                         ) {
             ret = WOLFSSL_TICKET_RET_FATAL;

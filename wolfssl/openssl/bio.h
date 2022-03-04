@@ -30,6 +30,7 @@
     extern "C" {
 #endif
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
 #define BIO_FLAGS_BASE64_NO_NL WOLFSSL_BIO_FLAG_BASE64_NO_NL
 #define BIO_FLAGS_READ         WOLFSSL_BIO_FLAG_READ
@@ -166,11 +167,11 @@
 
 #define BIO_FP_WRITE               0x04
 
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
 
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif
 
-
 #endif /* WOLFSSL_BIO_H_ */
-

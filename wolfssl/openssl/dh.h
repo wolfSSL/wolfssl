@@ -33,11 +33,9 @@
 #endif
 
 #ifndef WOLFSSL_DH_TYPE_DEFINED /* guard on redeclaration */
-typedef struct WOLFSSL_DH            WOLFSSL_DH;
-#define WOLFSSL_DH_TYPE_DEFINED
+    typedef struct WOLFSSL_DH       WOLFSSL_DH;
+    #define WOLFSSL_DH_TYPE_DEFINED
 #endif
-
-typedef WOLFSSL_DH                   DH;
 
 struct WOLFSSL_DH {
     WOLFSSL_BIGNUM* p;
@@ -73,6 +71,11 @@ WOLFSSL_API int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
     WOLFSSL_BIGNUM *q, WOLFSSL_BIGNUM *g);
 
 WOLFSSL_API WOLFSSL_DH* wolfSSL_DH_get_2048_256(void);
+
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+
+typedef WOLFSSL_DH                   DH;
 
 #define DH_new  wolfSSL_DH_new
 #define DH_free wolfSSL_DH_free
@@ -113,13 +116,15 @@ WOLFSSL_API WOLFSSL_DH* wolfSSL_DH_get_2048_256(void);
 
 #define DH_get_2048_256 wolfSSL_DH_get_2048_256
 
-#ifdef __cplusplus
-    }  /* extern "C" */
-#endif
-
 #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL)
 #define DH_generate_parameters    wolfSSL_DH_generate_parameters
 #define DH_generate_parameters_ex wolfSSL_DH_generate_parameters_ex
 #endif /* OPENSSL_ALL || HAVE_STUNNEL */
+
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
+#ifdef __cplusplus
+    }  /* extern "C" */
+#endif
 
 #endif /* WOLFSSL_DH_H_ */

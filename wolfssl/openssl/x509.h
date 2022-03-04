@@ -31,6 +31,8 @@
 #include <wolfssl/openssl/ecdsa.h>
 #include <wolfssl/openssl/pkcs7.h>
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+
 /* wolfSSL_X509_print_ex flags */
 #define X509_FLAG_COMPAT        (0UL)
 #define X509_FLAG_NO_HEADER     (1UL << 0)
@@ -70,5 +72,7 @@
 #define X509_EXTENSION_set_critical wolfSSL_X509_EXTENSION_set_critical
 #define X509_EXTENSION_set_object   wolfSSL_X509_EXTENSION_set_object
 #define X509_EXTENSION_set_data     wolfSSL_X509_EXTENSION_set_data
+
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #endif /* WOLFSSL_OPENSSL_509_H_ */

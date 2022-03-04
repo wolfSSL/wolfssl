@@ -34,6 +34,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
 
 #ifndef FOURK_BUF
     #define FOURK_BUF 4096
@@ -7462,8 +7463,8 @@ static void test_wolfSSL_UseTrustedCA(void)
 
 #ifndef NO_WOLFSSL_SERVER
     AssertNotNull((ctx = wolfSSL_CTX_new(wolfSSLv23_server_method())));
-    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
-    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, WOLFSSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM));
 #else
     AssertNotNull((ctx = wolfSSL_CTX_new(wolfSSLv23_client_method())));
 #endif

@@ -2015,7 +2015,7 @@ int wolfSSL_EVP_PKEY_paramgen(WOLFSSL_EVP_PKEY_CTX* ctx,
  * The difference is nicely explained and illustrated in section
  * "ECDH and Named Curves" of
  * https://wiki.openssl.org/index.php/Elliptic_Curve_Diffie_Hellman */
-int EVP_PKEY_CTX_set_ec_param_enc(WOLFSSL_EVP_PKEY_CTX *ctx,
+int wolfSSL_EVP_PKEY_CTX_set_ec_param_enc(WOLFSSL_EVP_PKEY_CTX *ctx,
         int flag)
 {
     (void)ctx;
@@ -2727,7 +2727,7 @@ int wolfSSL_EVP_add_cipher(const WOLFSSL_EVP_CIPHER *cipher)
 }
 
 
-WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_mac_key(int type, ENGINE* e,
+WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_mac_key(int type, WOLFSSL_ENGINE* e,
                                           const unsigned char* key, int keylen)
 {
     WOLFSSL_EVP_PKEY* pkey;

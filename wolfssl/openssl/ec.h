@@ -32,6 +32,7 @@
 extern "C" {
 #endif
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* Map OpenSSL NID value */
 enum {
     POINT_CONVERSION_COMPRESSED = 2,
@@ -79,22 +80,18 @@ enum {
     OPENSSL_EC_EXPLICIT_CURVE  = 0x000,
     OPENSSL_EC_NAMED_CURVE  = 0x001,
 };
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #ifndef WOLFSSL_EC_TYPE_DEFINED /* guard on redeclaration */
-typedef struct WOLFSSL_EC_KEY         WOLFSSL_EC_KEY;
-typedef struct WOLFSSL_EC_POINT       WOLFSSL_EC_POINT;
-typedef struct WOLFSSL_EC_GROUP       WOLFSSL_EC_GROUP;
-typedef struct WOLFSSL_EC_BUILTIN_CURVE WOLFSSL_EC_BUILTIN_CURVE;
-/* WOLFSSL_EC_METHOD is just an alias of WOLFSSL_EC_GROUP for now */
-typedef struct WOLFSSL_EC_GROUP       WOLFSSL_EC_METHOD;
-#define WOLFSSL_EC_TYPE_DEFINED
-#endif
+    typedef struct WOLFSSL_EC_KEY           WOLFSSL_EC_KEY;
+    typedef struct WOLFSSL_EC_POINT         WOLFSSL_EC_POINT;
+    typedef struct WOLFSSL_EC_GROUP         WOLFSSL_EC_GROUP;
+    typedef struct WOLFSSL_EC_BUILTIN_CURVE WOLFSSL_EC_BUILTIN_CURVE;
+    /* WOLFSSL_EC_METHOD is just an alias of WOLFSSL_EC_GROUP for now */
+    typedef struct WOLFSSL_EC_GROUP         WOLFSSL_EC_METHOD;
 
-typedef WOLFSSL_EC_KEY                EC_KEY;
-typedef WOLFSSL_EC_GROUP              EC_GROUP;
-typedef WOLFSSL_EC_GROUP              EC_METHOD;
-typedef WOLFSSL_EC_POINT              EC_POINT;
-typedef WOLFSSL_EC_BUILTIN_CURVE      EC_builtin_curve;
+    #define WOLFSSL_EC_TYPE_DEFINED
+#endif
 
 struct WOLFSSL_EC_POINT {
     WOLFSSL_BIGNUM *X;
@@ -295,6 +292,14 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
                                  WOLFSSL_BN_CTX* ctx);
 #endif
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+
+typedef WOLFSSL_EC_KEY                EC_KEY;
+typedef WOLFSSL_EC_GROUP              EC_GROUP;
+typedef WOLFSSL_EC_GROUP              EC_METHOD;
+typedef WOLFSSL_EC_POINT              EC_POINT;
+typedef WOLFSSL_EC_BUILTIN_CURVE      EC_builtin_curve;
+
 #ifndef HAVE_ECC
 #define OPENSSL_NO_EC
 #endif
@@ -371,6 +376,8 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 
 #define EC_curve_nid2nist               wolfSSL_EC_curve_nid2nist
 #define EC_curve_nist2nid               wolfSSL_EC_curve_nist2nid
+
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #ifdef __cplusplus
 }  /* extern "C" */

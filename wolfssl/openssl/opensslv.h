@@ -24,6 +24,7 @@
 #ifndef WOLFSSL_OPENSSLV_H_
 #define WOLFSSL_OPENSSLV_H_
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
 /* api version compatibility */
 #if defined(OPENSSL_VERSION_NUMBER) && (OPENSSL_VERSION_NUMBER == 0x0090810fL) ||\
@@ -51,5 +52,7 @@
 
 #define OPENSSL_VERSION_TEXT             "wolfSSL " LIBWOLFSSL_VERSION_STRING
 #define OPENSSL_VERSION                  0
+
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #endif /* header */
