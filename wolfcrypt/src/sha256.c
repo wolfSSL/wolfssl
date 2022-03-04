@@ -1725,7 +1725,7 @@ void wc_Sha256Free(wc_Sha256* sha256)
         dst->silabsCtx.hash_ctx.hash_type_ctx = &(dst->silabsCtx.hash_type_ctx);
     #endif
 
-    #ifdef WOLFSSL_ASYNC_CRYPT
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224)
         ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
     #endif
     #ifdef WOLFSSL_HASH_FLAGS
@@ -1831,7 +1831,7 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     dst->silabsCtx.hash_ctx.hash_type_ctx = &(dst->silabsCtx.hash_type_ctx);
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256)
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
 #endif
 #ifdef WOLFSSL_PIC32MZ_HASH

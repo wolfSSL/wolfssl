@@ -1517,7 +1517,7 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     dst->silabsCtx.hash_ctx.hash_type_ctx = &(dst->silabsCtx.hash_type_ctx);
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
 #endif
 #if  defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
@@ -1735,7 +1735,7 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
     dst->silabsCtx.hash_ctx.hash_type_ctx = &(dst->silabsCtx.hash_type_ctx);
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA384)
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
 #endif
 #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
