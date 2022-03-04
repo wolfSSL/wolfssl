@@ -440,9 +440,13 @@ static int iotsafe_readfile(uint8_t *file_id, uint16_t file_id_sz,
 {
     char *resp;
     int ret;
-    char *filesz_s;
-    int file_sz = 0;
     uint16_t off = 0;
+#ifdef IOTSAFE_NO_GETDATA
+    int file_sz = max_size;
+#else
+    int file_sz = 0;
+    char *filesz_s;
+
     iotsafe_cmd_start(csim_cmd, IOTSAFE_CLASS, IOTSAFE_INS_GETDATA,
             IOTSAFE_GETDATA_FILE, 0);
     iotsafe_cmd_add_tlv(csim_cmd, IOTSAFE_TAG_FILE_ID, file_id_sz, file_id);
@@ -471,6 +475,7 @@ static int iotsafe_readfile(uint8_t *file_id, uint16_t file_id_sz,
         WOLFSSL_MSG("iotsafe_readfile: insufficient space in buffer");
         return -1;
     }
+#endif
 
     while (off < file_sz) {
         byte off_p1, off_p2;
@@ -488,6 +493,11 @@ static int iotsafe_readfile(uint8_t *file_id, uint16_t file_id_sz,
                 return -1;
             }
             off += ret/2;
+#ifdef IOTSAFE_NO_GETDATA
+            if (XSTRNCMP(&resp[ret-4], "0000", 4) == 0) {
+                break;
+            }
+#endif
         } else {
             WOLFSSL_MSG("IoTSafe: Error reading file.");
             return -1;
@@ -859,6 +869,14 @@ static int iotsafe_sign_hash(byte *privkey_idx, uint16_t id_size,
             byte sig_hdr[3];
             if (hex_to_bytes(resp, sig_hdr, 3) < 0) {
                ret = BAD_FUNC_ARG;
+#ifdef IOTSAFE_SIGN_NO_PADDING
+            } else if ((sig_hdr[0] == IOTSAFE_TAG_SIGNATURE_FIELD) &&
+                       (sig_hdr[1] == 2 * IOTSAFE_ECC_KSIZE)) {
+                XSTRNCPY(R, resp + 4, IOTSAFE_ECC_KSIZE * 2);
+                XSTRNCPY(S, resp + 4 + IOTSAFE_ECC_KSIZE * 2,
+                        IOTSAFE_ECC_KSIZE * 2);
+                ret = wc_ecc_rs_to_sig(R, S, signature, sigLen);
+#endif
             } else if ((sig_hdr[0] == IOTSAFE_TAG_SIGNATURE_FIELD) &&
                        (sig_hdr[1] == 0) &&
                        (sig_hdr[2] == 2 * IOTSAFE_ECC_KSIZE)) {
@@ -868,9 +886,10 @@ static int iotsafe_sign_hash(byte *privkey_idx, uint16_t id_size,
                 ret = wc_ecc_rs_to_sig(R, S, signature, sigLen);
             } else {
                 ret = WC_HW_E;
+                WOLFSSL_MSG("Invalid response from EC sign update");
             }
         } else {
-            WOLFSSL_MSG("Invalid response from EC sign update");
+            WOLFSSL_MSG("Invalid/no response from EC sign update");
         }
 
         /* Terminate sign/sign session. */
