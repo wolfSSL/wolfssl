@@ -43480,12 +43480,27 @@ static void test_wolfSSL_EVP_PKEY_paramgen(void)
 
     printf(testingFmt, "wolfSSL_EVP_PKEY_paramgen");
 
+    /* Test error conditions. */
+    AssertIntEQ(EVP_PKEY_paramgen(NULL, &pkey), WOLFSSL_FAILURE);
     AssertNotNull(ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL));
-    AssertIntEQ(EVP_PKEY_paramgen_init(ctx), 1);
-    AssertIntEQ(EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx, NID_X9_62_prime256v1), 1);
-    AssertIntEQ(EVP_PKEY_CTX_set_ec_param_enc(ctx, OPENSSL_EC_NAMED_CURVE), 1);
-    AssertIntEQ(EVP_PKEY_keygen_init(ctx), 1);
-    AssertIntEQ(EVP_PKEY_keygen(ctx, &pkey), 1);
+    AssertIntEQ(EVP_PKEY_paramgen(ctx, NULL), WOLFSSL_FAILURE);
+    EVP_PKEY_CTX_free(ctx);
+#ifndef NO_RSA
+    /* Parameter generation for RSA not supported yet. */
+    AssertNotNull(ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL));
+    AssertIntEQ(EVP_PKEY_paramgen(ctx, &pkey), WOLFSSL_FAILURE);
+    EVP_PKEY_CTX_free(ctx);
+#endif
+
+    AssertNotNull(ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL));
+    AssertIntEQ(EVP_PKEY_paramgen_init(ctx), WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx,
+                    NID_X9_62_prime256v1), WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_PKEY_paramgen(ctx, &pkey), WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_PKEY_CTX_set_ec_param_enc(ctx, OPENSSL_EC_NAMED_CURVE),
+                    WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_PKEY_keygen_init(ctx), WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_PKEY_keygen(ctx, &pkey), WOLFSSL_SUCCESS);
 
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(pkey);

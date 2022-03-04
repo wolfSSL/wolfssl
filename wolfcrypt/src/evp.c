@@ -1946,6 +1946,69 @@ int wolfSSL_EVP_PKEY_CTX_set_ec_paramgen_curve_nid(WOLFSSL_EVP_PKEY_CTX *ctx,
     }
 }
 
+int wolfSSL_EVP_PKEY_paramgen(WOLFSSL_EVP_PKEY_CTX* ctx,
+                              WOLFSSL_EVP_PKEY** pkey)
+{
+    int ret = WOLFSSL_SUCCESS;
+    int ownPkey = 0;
+
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_paramgen");
+
+    if (ctx == NULL || pkey == NULL) {
+        WOLFSSL_MSG("Bad parameter");
+        ret = WOLFSSL_FAILURE;
+    }
+
+    if (ret == WOLFSSL_SUCCESS && *pkey == NULL) {
+        /* Only ECC is supported currently. */
+        if (ctx->pkey == NULL || ctx->pkey->type != EVP_PKEY_EC) {
+            WOLFSSL_MSG("Key not set or key type not supported.");
+            ret = WOLFSSL_FAILURE;
+        }
+        else {
+            *pkey = wolfSSL_EVP_PKEY_new();
+            if (*pkey == NULL) {
+                WOLFSSL_MSG("Failed to create WOLFSSL_EVP_PKEY.");
+                ret = WOLFSSL_FAILURE;
+            }
+            else {
+                (*pkey)->type = ctx->pkey->type;
+                ownPkey = 1;
+            }
+        }
+    }
+    if (ret == WOLFSSL_SUCCESS) {
+        switch ((*pkey)->type) {
+        #ifdef HAVE_ECC
+            /* For ECC parameter generation we just need to set the group, which
+             * wolfSSL_EC_KEY_new_by_curve_name will do. */
+            case EVP_PKEY_EC:
+                (*pkey)->ecc = wolfSSL_EC_KEY_new_by_curve_name(ctx->curveNID);
+                if ((*pkey)->ecc == NULL) {
+                    WOLFSSL_MSG("Failed to create WOLFSSL_EC_KEY.");
+                    ret = WOLFSSL_FAILURE;
+                }
+                else {
+                    (*pkey)->ownEcc = 1;
+                }
+                break;
+        #endif
+            default:
+                ret = WOLFSSL_FAILURE;
+                break;
+        }
+    }
+
+    if (ret != WOLFSSL_SUCCESS && ownPkey) {
+        wolfSSL_EVP_PKEY_free(*pkey);
+        *pkey = NULL;
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_EVP_PKEY_paramgen", ret);
+
+    return ret;
+}
+
 /* wolfSSL only supports writing out named curves so no need to store the flag.
  * In short, it is preferred to write out the name of the curve chosen instead
  * of the explicit parameters.
@@ -2011,7 +2074,11 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
 #endif
 #ifdef HAVE_ECC
         case EVP_PKEY_EC:
-            pkey->ecc = wolfSSL_EC_KEY_new_by_curve_name(ctx->curveNID);
+            /* pkey->ecc may not be NULL, if, for example, it was populated by a
+             * prior call to wolfSSL_EVP_PKEY_paramgen. */
+            if (pkey->ecc == NULL) {
+                pkey->ecc = wolfSSL_EC_KEY_new_by_curve_name(ctx->curveNID);
+            }
             if (pkey->ecc) {
                 ret = wolfSSL_EC_KEY_generate_key(pkey->ecc);
                 if (ret == WOLFSSL_SUCCESS) {
