@@ -54,7 +54,7 @@ static void set_time()
     /* please update the time if seeing unknown failure when loading cert.  */
     /* this could cause TLS communication failure due to time expiration    */
     /* incleasing 31536000 seconds is close to spend 356 days.              */
-    utctime.tv_sec = 1619650800; /* dummy time: Wed April 28 23:00:00 2021 */
+    utctime.tv_sec = 1645797600; /* dummy time: Fri 25 Feb 2022 02:00:00 2022 */
     utctime.tv_usec = 0;
     tz.tz_minuteswest = 0;
     tz.tz_dsttime = 0;
