@@ -105,7 +105,8 @@ extern "C" {
 #define NO_PWDBASED
 #define NO_RC4
 #define WOLFSSL_NO_SHAKE256
-
+#define NO_RABBIT
+#define NO_HC128
 
 #ifdef __cplusplus
 }

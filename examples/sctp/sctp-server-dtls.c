@@ -49,8 +49,10 @@ static int err_sys(const char* msg)
 }
 #endif /* WOLFSSL_SCTP && WOLFSSL_DTLS */
 
-int main()
+int main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
 #if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
     int sd = socket(PF_INET, SOCK_STREAM, IPPROTO_SCTP);
 
