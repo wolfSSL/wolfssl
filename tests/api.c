@@ -38778,7 +38778,7 @@ static void test_wolfSSL_BIO_connect(void)
 
 static void test_wolfSSL_BIO_Qt_usecase()
 {
-#if !defined(NO_BIO) && defined(OPENSSL_EXTRA)
+#if !defined(NO_BIO) && defined(OPENSSL_EXTRA) && !defined(NO_WOLFSSL_CLIENT)
     
     printf(testingFmt, "test_wolfSSL_BIO_Qt_usecase()");
     
