@@ -256,8 +256,11 @@ if [ "$early_data" = "yes" ]; then
     remove_ready_file
     grep 'Session Ticket' "$client_out_file"
     session_ticket=$?
-    early_data_cnt=`grep 'Early Data' "$server_out_file" | wc -l`
-    if [ $session_ticket -eq 0 -a $early_data_cnt -ne 4 ]; then
+    
+    ed_srv_msgcnt=`grep 'Early Data Client message' "$server_out_file" | wc -l`
+    ed_srv_status_cnt=`grep 'Early Data was' "$server_out_file" | wc -l`
+    if [ $session_ticket -eq 0 -a $ed_srv_msgcnt -ne 2 \
+        -a $ed_srv_status_cnt -ne 2]; then
         RESULT=1
     fi
     if [ $RESULT -ne 0 ]; then
@@ -283,15 +286,16 @@ if [ "$early_data" = "yes" -a "$psk" = "yes" ]; then
     # wait for the server to quit and write output
     wait $server_pid
 
-    early_data_cnt=`grep 'Early Data' "$server_out_file" | wc -l`
-    if [ $early_data_cnt -ne 3 -a $early_data_cnt -ne 5 ]; then
+    ed_srv_msgcnt=`grep 'Early Data Client message' "$server_out_file" | wc -l`
+    ed_srv_status_cnt=`grep 'Early Data was' "$server_out_file" | wc -l`
+    if [ $ed_srv_msgcnt -ne 2 -a $ed_srv_status_cnt -ne 1 ]; then
         echo
         echo "Server out file"
         cat "$server_out_file"
         echo
         echo "Found lines"
         grep 'Early Data' "$server_out_file"
-        echo -e "\n\nToo few 'Early Data' lines - $early_data_cnt"
+        echo -e "\n\nUnexpected 'Early Data' lines - $early_data_cnt"
         RESULT=1
     fi
     if [ $RESULT -ne 0 ]; then

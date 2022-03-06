@@ -79,6 +79,7 @@ then
     enable_shared=yes
     enable_static=yes
     enable_all=yes
+    enable_earlydata=no
     REPRODUCIBLE_BUILD_DEFAULT=yes
 else
     REPRODUCIBLE_BUILD_DEFAULT=no
@@ -584,6 +585,8 @@ then
     test "$enable_truncatedhmac" = "" && enable_truncatedhmac=yes
     test "$enable_trusted_ca" = "" && enable_trusted_ca=yes
     test "$enable_session_ticket" = "" && enable_session_ticket=yes
+
+    test "$enable_earlydata" = "" && enable_earlydata=yes
 
     if test "$ENABLED_32BIT" != "yes"
     then
