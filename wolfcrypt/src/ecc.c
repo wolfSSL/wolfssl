@@ -6405,7 +6405,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 {
     int ret = 0, qbits = 0;
 #ifndef WOLFSSL_SMALL_STACK
-    byte h1[WC_MAX_DIGEST_SIZE];
+    byte h1[MAX_ECC_BYTES];
     byte V[WC_MAX_DIGEST_SIZE];
     byte K[WC_MAX_DIGEST_SIZE];
     byte x[MAX_ECC_BYTES];
@@ -6417,7 +6417,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     byte *x  = NULL;
     mp_int *z1 = NULL;
 #endif
-    word32 xSz, VSz, KSz, h1len;
+    word32 xSz, VSz, KSz, h1len, qLen;
     byte intOct;
 
     if (hash == NULL || k == NULL || order == NULL) {
@@ -6429,13 +6429,18 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         return BAD_FUNC_ARG;
     }
 
+    if (hashSz != WC_SHA256_DIGEST_SIZE) {
+        WOLFSSL_MSG("Currently only SHA256 digest is supported");
+        return BAD_FUNC_ARG;
+    }
+
     if (mp_unsigned_bin_size(priv) > MAX_ECC_BYTES) {
         WOLFSSL_MSG("private key larger than max expected!");
         return BAD_FUNC_ARG;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    h1 = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, heap, DYNAMIC_TYPE_DIGEST);
+    h1 = (byte*)XMALLOC(MAX_ECC_BYTES, heap, DYNAMIC_TYPE_DIGEST);
     if (h1 == NULL) {
         ret = MEMORY_E;
     }
@@ -6478,7 +6483,8 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     }
 #endif
 
-    VSz = KSz = h1len = xSz = hashSz;
+    VSz = KSz = hashSz;
+    qLen = xSz = h1len = mp_unsigned_bin_size(order);
 
     /* 3.2 b. Set V = 0x01 0x01 ... */
     XMEMSET(V, 0x01, VSz);
@@ -6487,7 +6493,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     XMEMSET(K, 0x00, KSz);
 
     mp_init(z1); /* always init z1 and free z1 */
-    ret = mp_to_unsigned_bin_len(priv, x, hashSz);
+    ret = mp_to_unsigned_bin_len(priv, x, qLen);
     if (ret == 0) {
         qbits = mp_count_bits(order);
         ret = mp_read_unsigned_bin(z1, hash, hashSz);
@@ -6495,9 +6501,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 
     /* bits2octets on h1 */
     if (ret == 0) {
-        /* right shift by bits in hash minus bits in order */
-        mp_rshb(z1, (hashSz * WOLFSSL_BIT_SIZE) - qbits);
-        XMEMSET(h1, 0, WC_MAX_DIGEST_SIZE);
+        XMEMSET(h1, 0, MAX_ECC_BYTES);
 
     #if !defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
         /* mod reduce by order using conditional subtract
@@ -6509,20 +6513,18 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 
             mp_sub(z1, order, z1);
             z1Sz = mp_unsigned_bin_size(z1);
-            if (z1Sz < 0 || z1Sz > WC_MAX_DIGEST_SIZE) {
+            if (z1Sz < 0 || z1Sz > MAX_ECC_BYTES) {
                 ret = BUFFER_E;
             }
             else {
-                h1len = (word32)z1Sz;
-                ret = mp_to_unsigned_bin(z1, h1);
+                ret = mp_to_unsigned_bin_len(z1, h1, h1len);
             }
         }
         else
     #endif
         {
             /* use original hash and keep leading 0's */
-            h1len = hashSz;
-            XMEMCPY(h1, hash, hashSz);
+            mp_to_unsigned_bin_len(z1, h1, h1len);
         }
     }
     mp_free(z1);
@@ -6560,20 +6562,34 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 
         intOct = 0x00;
         do {
+            xSz = 0; /* used as tLen */
             err = 0; /* start as good until generated k is tested */
 
             /* 3.2 step h.2 when tlen < qlen do V = HMAC_K(V); T = T || V */
-            ret = _HMAC_K(K, KSz, V, VSz, NULL, 0, NULL, 0, NULL, V, hashType,
-                    heap);
-            if (ret == 0) {
-                mp_clear(k); /* 3.2 step h.1 clear T */
-                ret = mp_read_unsigned_bin(k, V, VSz);
+            while (xSz < qLen) {
+                ret = _HMAC_K(K, KSz, V, VSz, NULL, 0, NULL, 0, NULL, V,
+                        hashType, heap);
+                if (ret == 0) {
+                    int sz;
+
+                    sz = MIN(qLen - xSz, VSz);
+                    XMEMCPY(x + xSz, V, sz);
+                    xSz += sz;
+                }
+                else {
+                    break; /* error case */
+                }
             }
 
-            if ((ret == 0) && ((int)(VSz * WOLFSSL_BIT_SIZE) != qbits)) {
+            if (ret == 0) {
+                mp_clear(k); /* 3.2 step h.1 clear T */
+                ret = mp_read_unsigned_bin(k, x, xSz);
+            }
+
+            if ((ret == 0) && ((int)(xSz * WOLFSSL_BIT_SIZE) != qbits)) {
                 /* handle odd case where shift of 'k' is needed with RFC 6979
                  *  k = bits2int(T) in section 3.2 h.3 */
-                mp_rshb(k, (VSz * WOLFSSL_BIT_SIZE) - qbits);
+                mp_rshb(k, (xSz * WOLFSSL_BIT_SIZE) - qbits);
             }
 
             /* 3.2 step h.3 the key should be smaller than the order of base
