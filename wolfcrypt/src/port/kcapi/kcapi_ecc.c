@@ -42,6 +42,7 @@
 #endif
 
 #define ECDSA_KEY_VERSION       1
+#define ECDH_KEY_VERSION        1
 
 static const char WC_NAME_ECDH[] = "ecdh";
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
@@ -81,6 +82,7 @@ static int KcapiEcc_CurveId(int curve_id, word32* kcapiCurveId)
 int KcapiEcc_MakeKey(ecc_key* key, int keysize, int curve_id)
 {
     int ret = 0;
+    int sz = 0;
     word32 kcapiCurveId;
 
     if (curve_id == ECC_CURVE_DEF) {
@@ -117,15 +119,24 @@ int KcapiEcc_MakeKey(ecc_key* key, int keysize, int curve_id)
         ret = kcapi_kpp_ecdh_setcurve(key->handle, kcapiCurveId);
     }
     if (ret == 0) {
-        ret = (int)kcapi_kpp_keygen(key->handle, key->pubkey_raw,
+        ret = kcapi_kpp_setkey(key->handle, NULL, 0);
+        if (ret >= 0) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        sz = ret = (int)kcapi_kpp_keygen(key->handle, key->pubkey_raw,
                                sizeof(key->pubkey_raw), KCAPI_ACCESS_HEURISTIC);
     }
     if (ret >= 0) {
-        ret = mp_read_unsigned_bin(key->pubkey.x, key->pubkey_raw, ret / 2);
+        ret = mp_read_unsigned_bin(key->pubkey.x, key->pubkey_raw, sz / 2);
     }
     if (ret == 0) {
-        ret = mp_read_unsigned_bin(key->pubkey.y, key->pubkey_raw + ret / 2,
-                                   ret / 2);
+        ret = mp_read_unsigned_bin(key->pubkey.y, key->pubkey_raw + sz / 2,
+                                   sz / 2);
+    }
+    if (ret == 0) {
+        key->type = ECC_PRIVATEKEY;
     }
     if ((ret != 0) && (key->handle != NULL)) {
         kcapi_kpp_destroy(key->handle);
@@ -140,13 +151,70 @@ int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
                           word32* outlen)
 {
     int ret;
+    word32 kcapiCurveId = 0;
+    byte* buf_aligned = NULL;
+    byte* pub_aligned = NULL;
+    byte* out_aligned = NULL;
+    size_t pageSz = (size_t)sysconf(_SC_PAGESIZE);
+    byte* pub = public_key->pubkey_raw;
 
-    ret = (int)kcapi_kpp_ssgen(private_key->handle, public_key->pubkey_raw,
-                               public_key->dp->size * 2, out, *outlen,
-                               KCAPI_ACCESS_HEURISTIC);
-    if (ret >= 0) {
-        *outlen = ret;
-        ret = 0;
+    ret = KcapiEcc_CurveId(private_key->dp->id, &kcapiCurveId);
+    if (ret == 0 && private_key->handle == NULL) {
+        ret = kcapi_kpp_init(&private_key->handle, WC_NAME_ECDH, 0);
+        if (ret == 0) {
+            ret = kcapi_kpp_ecdh_setcurve(private_key->handle, kcapiCurveId);
+        }
+    }
+
+    /* if a private key value is set, load and use it */
+    if (mp_iszero(&private_key->k) != MP_YES) {
+        byte priv[MAX_ECC_BYTES];
+        word32 keySz = private_key->dp->size;
+        ret = wc_export_int(&private_key->k, priv, &keySz, keySz,
+                            WC_TYPE_UNSIGNED_BIN);
+        if (ret == 0) {
+            ret = kcapi_kpp_setkey(private_key->handle, priv, keySz);
+            if (ret >= 0) {
+                ret = 0;
+            }
+        }
+    }
+    if (ret == 0) {
+        /* setup aligned pointers */
+        if (((size_t)pub % pageSz != 0) ||
+            ((size_t)out % pageSz != 0)) {
+            ret = posix_memalign((void*)&buf_aligned, pageSz, pageSz * 2);
+            if (ret < 0) {
+                ret = MEMORY_E;
+            }
+        }
+    }
+    if (ret == 0) {
+        out_aligned = ((size_t)out % pageSz == 0) ? out : buf_aligned;
+        if ((size_t)pub % pageSz == 0) {
+            pub_aligned = (byte*)pub;
+        }
+        else {
+            pub_aligned = buf_aligned + pageSz;
+            XMEMCPY(pub_aligned, pub, public_key->dp->size * 2);
+        }
+
+        ret = (int)kcapi_kpp_ssgen(private_key->handle, pub_aligned,
+                                   public_key->dp->size * 2, out_aligned,
+                                   *outlen, KCAPI_ACCESS_HEURISTIC);
+        if (ret >= 0) {
+            *outlen = ret/2;
+            if (out_aligned != out) {
+                XMEMCPY(out, out_aligned, ret);
+            }
+            ret = 0;
+        }
+    }
+
+    /* Using free as this is in an environment that will have it
+     * available along with posix_memalign. */
+    if (buf_aligned != NULL) {
+        free(buf_aligned);
     }
 
     return ret;
@@ -157,19 +225,22 @@ int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
 static int KcapiEcc_SetPrivKey(ecc_key* key)
 {
     int ret;
-    unsigned char priv[KCAPI_PARAM_SZ + MAX_ECC_BYTES];
+    byte priv[KCAPI_PARAM_SZ + MAX_ECC_BYTES];
     word32 keySz = key->dp->size;
     word32 kcapiCurveId;
 
     ret = KcapiEcc_CurveId(key->dp->id, &kcapiCurveId);
-    if (ret == MP_OKAY) {
+    if (ret == 0) {
         priv[0] = ECDSA_KEY_VERSION;
         priv[1] = kcapiCurveId;
         ret = wc_export_int(&key->k, priv + 2, &keySz, keySz,
                             WC_TYPE_UNSIGNED_BIN);
     }
-    if (ret == MP_OKAY) {
+    if (ret == 0) {
         ret = kcapi_akcipher_setkey(key->handle, priv, KCAPI_PARAM_SZ + keySz);
+        if (ret >= 0) {
+            ret = 0;
+        }
     }
 
     return ret;
@@ -179,9 +250,9 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
                   word32* sigLen)
 {
     int ret = 0;
-    unsigned char* buf_aligned = NULL;
-    unsigned char* hash_aligned = NULL;
-    unsigned char* sig_aligned = NULL;
+    byte* buf_aligned = NULL;
+    byte* hash_aligned = NULL;
+    byte* sig_aligned = NULL;
     size_t pageSz = (size_t)sysconf(_SC_PAGESIZE);
 
     if (key->handle == NULL) {
@@ -204,7 +275,7 @@ int KcapiEcc_Sign(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
     if (ret == 0) {
         sig_aligned = ((size_t)sig % pageSz == 0) ? sig : buf_aligned;
         if ((size_t)hash % pageSz == 0) {
-            hash_aligned = (unsigned char*)hash;
+            hash_aligned = (byte*)hash;
         }
         else {
             hash_aligned = buf_aligned + pageSz;
@@ -240,11 +311,14 @@ int KcapiEcc_SetPubKey(ecc_key* key)
     word32 kcapiCurveId;
 
     ret = KcapiEcc_CurveId(key->dp->id, &kcapiCurveId);
-    if (ret == MP_OKAY) {
+    if (ret == 0) {
         key->pubkey_raw[0] = ECDSA_KEY_VERSION;
         key->pubkey_raw[1] = kcapiCurveId;
 
         ret = kcapi_akcipher_setpubkey(key->handle, key->pubkey_raw, len);
+        if (ret >= 0) {
+            ret = 0;
+        }
     }
 
     return ret;
@@ -254,7 +328,7 @@ int KcapiEcc_Verify(ecc_key* key, const byte* hash, word32 hashLen, byte* sig,
                     word32 sigLen)
 {
     int ret = 0;
-    unsigned char* sigHash_aligned = NULL;
+    byte* sigHash_aligned = NULL;
     size_t pageSz = (size_t)sysconf(_SC_PAGESIZE);
 
     if (key->handle == NULL) {

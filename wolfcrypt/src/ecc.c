@@ -9867,7 +9867,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
             &keySz, keySz, WC_TYPE_UNSIGNED_BIN);
         if (err == MP_OKAY) {
             err = wc_export_int(key->pubkey.y,
-                &key->pubkey_raw[WOLFSSL_KCAPI_ECC + keySz], &keySz, keySz,
+                &key->pubkey_raw[KCAPI_PARAM_SZ + keySz], &keySz, keySz,
                 WC_TYPE_UNSIGNED_BIN);
         }
     }
