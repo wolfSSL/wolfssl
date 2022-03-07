@@ -1055,7 +1055,7 @@ static int Hmac_UpdateFinal(Hmac* hmac, byte* digest, const byte* in,
     blocks     += ((maxSz + padSz) % blockSz) < padSz;
     msgBlocks   = realSz >> blockBits;
     /* #Extra blocks to process. */
-    blocks -= (msgBlocks + (((realSz + padSz) % blockSz) < padSz)) ? 1 : 0;
+    blocks -= msgBlocks + ((((realSz + padSz) % blockSz) < padSz) ? 1 : 0);
     /* Calculate whole blocks. */
     msgBlocks--;
 
