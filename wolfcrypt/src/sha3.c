@@ -828,7 +828,7 @@ static int wc_Sha3Copy(wc_Sha3* src, wc_Sha3* dst)
 
     XMEMCPY(dst, src, sizeof(wc_Sha3));
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
 #endif
 #ifdef WOLFSSL_HASH_FLAGS

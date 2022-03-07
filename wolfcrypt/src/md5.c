@@ -539,7 +539,7 @@ int wc_Md5Copy(wc_Md5* src, wc_Md5* dst)
 
     XMEMCPY(dst, src, sizeof(wc_Md5));
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_MD5)
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
 #endif
 #ifdef WOLFSSL_PIC32MZ_HASH
