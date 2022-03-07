@@ -1146,6 +1146,25 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_SESSION_get0_peer(WOLFSSL_SESSION* session);
 typedef int (*VerifyCallback)(int, WOLFSSL_X509_STORE_CTX*);
 typedef void (CallbackInfoState)(const WOLFSSL* ssl, int, int);
 
+/* class index for wolfSSL_CRYPTO_get_ex_new_index */
+#define WOLF_CRYPTO_EX_INDEX_SSL             0
+#define WOLF_CRYPTO_EX_INDEX_SSL_CTX         1
+#define WOLF_CRYPTO_EX_INDEX_SSL_SESSION     2
+#define WOLF_CRYPTO_EX_INDEX_X509            3
+#define WOLF_CRYPTO_EX_INDEX_X509_STORE      4
+#define WOLF_CRYPTO_EX_INDEX_X509_STORE_CTX  5
+#define WOLF_CRYPTO_EX_INDEX_DH              6
+#define WOLF_CRYPTO_EX_INDEX_DSA             7
+#define WOLF_CRYPTO_EX_INDEX_EC_KEY          8
+#define WOLF_CRYPTO_EX_INDEX_RSA             9
+#define WOLF_CRYPTO_EX_INDEX_ENGINE          10
+#define WOLF_CRYPTO_EX_INDEX_UI              11
+#define WOLF_CRYPTO_EX_INDEX_BIO             12
+#define WOLF_CRYPTO_EX_INDEX_APP             13
+#define WOLF_CRYPTO_EX_INDEX_UI_METHOD       14
+#define WOLF_CRYPTO_EX_INDEX_DRBG            15
+#define WOLF_CRYPTO_EX_INDEX__COUNT          16
+
 #ifdef HAVE_EX_DATA
 typedef int  (WOLFSSL_CRYPTO_EX_new)(void* p, void* ptr,
         WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);

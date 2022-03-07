@@ -47574,32 +47574,32 @@ static int get_ex_new_index(int class_index)
     int idx = -1;
 
     switch(class_index) {
-        case CRYPTO_EX_INDEX_SSL:
+        case WOLF_CRYPTO_EX_INDEX_SSL:
             idx = ssl_idx++;
             break;
-        case CRYPTO_EX_INDEX_SSL_CTX:
+        case WOLF_CRYPTO_EX_INDEX_SSL_CTX:
             idx = ctx_idx++;
             break;
-        case CRYPTO_EX_INDEX_X509:
+        case WOLF_CRYPTO_EX_INDEX_X509:
             idx = x509_idx++;
             break;
-        case CRYPTO_EX_INDEX_SSL_SESSION:
+        case WOLF_CRYPTO_EX_INDEX_SSL_SESSION:
             idx = ssl_session_idx++;
             break;
 
         /* following class indexes are not supoprted */
-        case CRYPTO_EX_INDEX_X509_STORE:
-        case CRYPTO_EX_INDEX_X509_STORE_CTX:
-        case CRYPTO_EX_INDEX_DH:
-        case CRYPTO_EX_INDEX_DSA:
-        case CRYPTO_EX_INDEX_EC_KEY:
-        case CRYPTO_EX_INDEX_RSA:
-        case CRYPTO_EX_INDEX_ENGINE:
-        case CRYPTO_EX_INDEX_UI:
-        case CRYPTO_EX_INDEX_BIO:
-        case CRYPTO_EX_INDEX_APP:
-        case CRYPTO_EX_INDEX_UI_METHOD:
-        case CRYPTO_EX_INDEX_DRBG:
+        case WOLF_CRYPTO_EX_INDEX_X509_STORE:
+        case WOLF_CRYPTO_EX_INDEX_X509_STORE_CTX:
+        case WOLF_CRYPTO_EX_INDEX_DH:
+        case WOLF_CRYPTO_EX_INDEX_DSA:
+        case WOLF_CRYPTO_EX_INDEX_EC_KEY:
+        case WOLF_CRYPTO_EX_INDEX_RSA:
+        case WOLF_CRYPTO_EX_INDEX_ENGINE:
+        case WOLF_CRYPTO_EX_INDEX_UI:
+        case WOLF_CRYPTO_EX_INDEX_BIO:
+        case WOLF_CRYPTO_EX_INDEX_APP:
+        case WOLF_CRYPTO_EX_INDEX_UI_METHOD:
+        case WOLF_CRYPTO_EX_INDEX_DRBG:
         default:
             break;
     }
@@ -47633,7 +47633,7 @@ int wolfSSL_CTX_get_ex_new_index(long idx, void* arg, void* a, void* b,
     (void)b;
     (void)c;
 
-    return get_ex_new_index(CRYPTO_EX_INDEX_SSL_CTX);
+    return get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_CTX);
 }
 
 /* Return the index that can be used for the WOLFSSL structure to store
@@ -47653,7 +47653,7 @@ int wolfSSL_get_ex_new_index(long argValue, void* arg,
     (void)cb2;
     (void)cb3;
 
-    return get_ex_new_index(CRYPTO_EX_INDEX_SSL);
+    return get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL);
 }
 
 
@@ -49121,7 +49121,7 @@ int wolfSSL_SESSION_get_ex_new_index(long idx, void* data, void* cb1,
     (void)cb2;
     (void)cb3;
     (void)data;
-    return get_ex_new_index(CRYPTO_EX_INDEX_SSL_SESSION);
+    return get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_SESSION);
 }
 #endif
 
@@ -58123,9 +58123,9 @@ int wolfSSL_CRYPTO_set_ex_data_with_cleanup(
  * Issues unique index for the class specified by class_index.
  * Other parameter except class_index are ignored.
  * Currently, following class_index are accepted:
- *  - CRYPTO_EX_INDEX_SSL
- *  - CRYPTO_EX_INDEX_SSL_CTX
- *  - CRYPTO_EX_INDEX_X509
+ *  - WOLF_CRYPTO_EX_INDEX_SSL
+ *  - WOLF_CRYPTO_EX_INDEX_SSL_CTX
+ *  - WOLF_CRYPTO_EX_INDEX_X509
  * @param class_index index one of CRYPTO_EX_INDEX_xxx
  * @param argp  parameters to be saved
  * @param argl  parameters to be saved
