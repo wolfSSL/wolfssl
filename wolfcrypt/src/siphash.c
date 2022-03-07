@@ -85,7 +85,7 @@
  */
 #define GET_U16(a)      (*(word16*)(a))
 /**
- * Encode 64-bit nuumber to a little-endian byte array.
+ * Encode 64-bit number to a little-endian byte array.
  *
  * @param [out] a  Byte array to write into.
  * @param [in]  n  Number to encode.
@@ -125,7 +125,7 @@
 #define GET_U16(a)      (((word16)((a)[1]) <<  8) |     \
                          ((word16)((a)[0])      ))
 /**
- * Encode 64-bit nuumber to a little-endian byte array.
+ * Encode 64-bit number to a little-endian byte array.
  *
  * @param [out] a  Byte array to write into.
  * @param [in]  n  Number to encode.

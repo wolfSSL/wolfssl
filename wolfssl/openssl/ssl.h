@@ -71,9 +71,7 @@
     #undef ASN1_INTEGER
 #endif
 
-#ifdef OPENSSL_EXTRA
-WOLFSSL_API int wolfSSL_OPENSSL_init_ssl(word64 opts, const OPENSSL_INIT_SETTINGS *settings);
-#endif
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
 typedef WOLFSSL          SSL;
 typedef WOLFSSL_SESSION  SSL_SESSION;
@@ -1491,7 +1489,6 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 
 
 #ifdef HAVE_SESSION_TICKET
-#define SSL_OP_NO_TICKET                  SSL_OP_NO_TICKET
 #define SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB 72
 #endif
 
@@ -1626,8 +1623,10 @@ typedef WOLFSSL_CONF_CTX SSL_CONF_CTX;
 #define SSL_CONF_cmd                    wolfSSL_CONF_cmd
 #define SSL_CONF_cmd_value_type         wolfSSL_CONF_cmd_value_type
 
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
 
-#endif /* wolfSSL_openssl_h__ */
+#endif /* !WOLFSSL_OPENSSL_H_ */

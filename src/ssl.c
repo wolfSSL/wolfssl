@@ -29865,12 +29865,12 @@ int wolfSSL_PEM_def_callback(char* name, int num, int w, void* key)
 static long wolf_set_options(long old_op, long op)
 {
     /* if SSL_OP_ALL then turn all bug workarounds on */
-    if ((op & SSL_OP_ALL) == SSL_OP_ALL) {
+    if ((op & WOLFSSL_OP_ALL) == WOLFSSL_OP_ALL) {
         WOLFSSL_MSG("\tSSL_OP_ALL");
     }
 
     /* by default cookie exchange is on with DTLS */
-    if ((op & SSL_OP_COOKIE_EXCHANGE) == SSL_OP_COOKIE_EXCHANGE) {
+    if ((op & WOLFSSL_OP_COOKIE_EXCHANGE) == WOLFSSL_OP_COOKIE_EXCHANGE) {
         WOLFSSL_MSG("\tSSL_OP_COOKIE_EXCHANGE : on by default");
     }
 
@@ -29879,7 +29879,7 @@ static long wolf_set_options(long old_op, long op)
     }
 
 #ifdef SSL_OP_NO_TLSv1_3
-    if ((op & SSL_OP_NO_TLSv1_3) == SSL_OP_NO_TLSv1_3) {
+    if ((op & WOLFSSL_OP_NO_TLSv1_3) == WOLFSSL_OP_NO_TLSv1_3) {
         WOLFSSL_MSG("\tSSL_OP_NO_TLSv1_3");
     }
 #endif
@@ -41985,7 +41985,7 @@ WOLFSSL_EC_GROUP* wolfSSL_PEM_read_bio_ECPKParameters(WOLFSSL_BIO* bio,
 #endif /* !NO_BIO */
 
 #if !defined(NO_FILESYSTEM)
-WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PUBKEY(XFILE fp, EVP_PKEY **x,
+WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PUBKEY(XFILE fp, WOLFSSL_EVP_PKEY **x,
                                           wc_pem_password_cb *cb, void *u)
 {
     (void)fp;

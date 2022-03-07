@@ -26,8 +26,10 @@
 
 #include <cyassl/ctaocrypt/settings.h>
 /* let's use cyassl layer AND cyassl openssl layer */
+#undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
 #include <cyassl/ssl.h>
-#include <cyassl/openssl/ssl.h>
+
+/* Force enable the compatibility macros for this example */
 #ifdef CYASSL_DTLS
     #include <cyassl/error-ssl.h>
 #endif
@@ -42,6 +44,11 @@
 #endif
 
 #include <cyassl/test.h>
+
+#ifndef OPENSSL_EXTRA_X509_SMALL
+#define OPENSSL_EXTRA_X509_SMALL
+#endif
+#include <cyassl/openssl/ssl.h>
 
 #include <examples/echoclient/echoclient.h>
 

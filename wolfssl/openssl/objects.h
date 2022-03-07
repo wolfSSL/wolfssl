@@ -33,6 +33,8 @@
     extern "C" {
 #endif
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+
 #define OBJ_NAME_TYPE_UNDEF     WOLFSSL_OBJ_NAME_TYPE_UNDEF
 #define OBJ_NAME_TYPE_MD_METH   WOLFSSL_OBJ_NAME_TYPE_MD_METH
 #define OBJ_NAME_TYPE_CIPHER_METH   WOLFSSL_OBJ_NAME_TYPE_CIPHER_METH
@@ -63,6 +65,8 @@
 
 #define NID_ad_OCSP                     178
 #define NID_ad_ca_issuers               179
+
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 
 #ifdef __cplusplus

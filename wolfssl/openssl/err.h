@@ -24,6 +24,7 @@
 
 #include <wolfssl/wolfcrypt/logging.h>
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* err.h for openssl */
 #define ERR_load_ERR_strings             wolfSSL_ERR_load_ERR_strings
 #define ERR_load_crypto_strings          wolfSSL_ERR_load_crypto_strings
@@ -53,6 +54,8 @@
 #define RSAerr(f,r)  ERR_put_error(0,(f),(r),__FILE__,__LINE__)
 #define SSLerr(f,r)  ERR_put_error(0,(f),(r),__FILE__,__LINE__)
 #define ECerr(f,r)   ERR_put_error(0,(f),(r),__FILE__,__LINE__)
+
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #endif /* WOLFSSL_OPENSSL_ERR_ */
 

@@ -47,10 +47,12 @@ typedef struct WOLFSSL_BIGNUM {
 #endif
 } WOLFSSL_BIGNUM;
 
-#define BN_ULONG WOLFSSL_BN_ULONG
 #define WOLFSSL_BN_ULONG unsigned long
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#define BN_ULONG         WOLFSSL_BN_ULONG
+#endif
 
-typedef struct WOLFSSL_BN_CTX WOLFSSL_BN_CTX;
+typedef struct WOLFSSL_BN_CTX   WOLFSSL_BN_CTX;
 typedef struct WOLFSSL_BN_GENCB WOLFSSL_BN_GENCB;
 
 WOLFSSL_API WOLFSSL_BN_CTX* wolfSSL_BN_CTX_new(void);
@@ -156,8 +158,11 @@ WOLFSSL_API WOLFSSL_BIGNUM *wolfSSL_BN_mod_inverse(
     const WOLFSSL_BIGNUM *n,
     WOLFSSL_BN_CTX *ctx);
 
-typedef WOLFSSL_BIGNUM BIGNUM;
-typedef WOLFSSL_BN_CTX BN_CTX;
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+
+typedef WOLFSSL_BIGNUM   BIGNUM;
+typedef WOLFSSL_BN_CTX   BN_CTX;
 typedef WOLFSSL_BN_GENCB BN_GENCB;
 
 #define BN_CTX_new        wolfSSL_BN_CTX_new
@@ -248,6 +253,9 @@ typedef WOLFSSL_BN_GENCB BN_GENCB;
 #endif
 
 #define BN_prime_checks 0
+
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
 
 #ifdef __cplusplus
     }  /* extern "C" */

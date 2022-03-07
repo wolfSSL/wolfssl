@@ -80,6 +80,7 @@
         #include <openssl/ec.h>
         #include <openssl/hmac.h>
         #include <openssl/bn.h>
+        #include <openssl/crypto.h>
     #endif
 
 #elif (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
@@ -1145,25 +1146,6 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_SESSION_get0_peer(WOLFSSL_SESSION* session);
 typedef int (*VerifyCallback)(int, WOLFSSL_X509_STORE_CTX*);
 typedef void (CallbackInfoState)(const WOLFSSL* ssl, int, int);
 
-/* class index for wolfSSL_CRYPTO_get_ex_new_index */
-#define CRYPTO_EX_INDEX_SSL             0
-#define CRYPTO_EX_INDEX_SSL_CTX         1
-#define CRYPTO_EX_INDEX_SSL_SESSION     2
-#define CRYPTO_EX_INDEX_X509            3
-#define CRYPTO_EX_INDEX_X509_STORE      4
-#define CRYPTO_EX_INDEX_X509_STORE_CTX  5
-#define CRYPTO_EX_INDEX_DH              6
-#define CRYPTO_EX_INDEX_DSA             7
-#define CRYPTO_EX_INDEX_EC_KEY          8
-#define CRYPTO_EX_INDEX_RSA             9
-#define CRYPTO_EX_INDEX_ENGINE          10
-#define CRYPTO_EX_INDEX_UI              11
-#define CRYPTO_EX_INDEX_BIO             12
-#define CRYPTO_EX_INDEX_APP             13
-#define CRYPTO_EX_INDEX_UI_METHOD       14
-#define CRYPTO_EX_INDEX_DRBG            15
-#define CRYPTO_EX_INDEX__COUNT          16
-
 #ifdef HAVE_EX_DATA
 typedef int  (WOLFSSL_CRYPTO_EX_new)(void* p, void* ptr,
         WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
@@ -1856,7 +1838,7 @@ WOLFSSL_API int wolfSSL_i2d_PublicKey(const WOLFSSL_EVP_PKEY* key,
 WOLFSSL_API int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
                                     const WOLFSSL_EVP_PKEY* pkey,
                                     int indent, WOLFSSL_ASN1_PCTX* pctx);
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA && !WOLFCRYPT_ONLY */
 WOLFSSL_API int       wolfSSL_X509_cmp_current_time(const WOLFSSL_ASN1_TIME* asnTime);
 #ifdef OPENSSL_EXTRA
 WOLFSSL_API int wolfSSL_X509_cmp_time(const WOLFSSL_ASN1_TIME* asnTime,
@@ -2090,29 +2072,29 @@ enum {
 
 /* Separated out from other enums because of size */
 enum {
-    SSL_OP_MICROSOFT_SESS_ID_BUG                  = 0x00000001,
-    SSL_OP_NETSCAPE_CHALLENGE_BUG                 = 0x00000002,
-    SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG       = 0x00000004,
-    SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG            = 0x00000008,
-    SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER             = 0x00000010,
-    SSL_OP_MSIE_SSLV2_RSA_PADDING                 = 0x00000020,
-    SSL_OP_SSLEAY_080_CLIENT_DH_BUG               = 0x00000040,
-    SSL_OP_TLS_D5_BUG                             = 0x00000080,
-    SSL_OP_TLS_BLOCK_PADDING_BUG                  = 0x00000100,
-    SSL_OP_TLS_ROLLBACK_BUG                       = 0x00000200,
-    SSL_OP_EPHEMERAL_RSA                          = 0x00000800,
+    WOLFSSL_OP_MICROSOFT_SESS_ID_BUG                  = 0x00000001,
+    WOLFSSL_OP_NETSCAPE_CHALLENGE_BUG                 = 0x00000002,
+    WOLFSSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG       = 0x00000004,
+    WOLFSSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG            = 0x00000008,
+    WOLFSSL_OP_MICROSOFT_BIG_SSLV3_BUFFER             = 0x00000010,
+    WOLFSSL_OP_MSIE_SSLV2_RSA_PADDING                 = 0x00000020,
+    WOLFSSL_OP_SSLEAY_080_CLIENT_DH_BUG               = 0x00000040,
+    WOLFSSL_OP_TLS_D5_BUG                             = 0x00000080,
+    WOLFSSL_OP_TLS_BLOCK_PADDING_BUG                  = 0x00000100,
+    WOLFSSL_OP_TLS_ROLLBACK_BUG                       = 0x00000200,
+    WOLFSSL_OP_EPHEMERAL_RSA                          = 0x00000800,
     WOLFSSL_OP_NO_SSLv3                           = 0x00001000,
     WOLFSSL_OP_NO_TLSv1                           = 0x00002000,
-    SSL_OP_PKCS1_CHECK_1                          = 0x00004000,
-    SSL_OP_PKCS1_CHECK_2                          = 0x00008000,
-    SSL_OP_NETSCAPE_CA_DN_BUG                     = 0x00010000,
-    SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG        = 0x00020000,
+    WOLFSSL_OP_PKCS1_CHECK_1                          = 0x00004000,
+    WOLFSSL_OP_PKCS1_CHECK_2                          = 0x00008000,
+    WOLFSSL_OP_NETSCAPE_CA_DN_BUG                     = 0x00010000,
+    WOLFSSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG        = 0x00020000,
     WOLFSSL_OP_SINGLE_DH_USE                      = 0x00040000,
-    SSL_OP_NO_TICKET                              = 0x00080000,
-    SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS            = 0x00100000,
-    SSL_OP_NO_QUERY_MTU                           = 0x00200000,
-    SSL_OP_COOKIE_EXCHANGE                        = 0x00400000,
-    SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION = 0x00800000,
+    WOLFSSL_OP_NO_TICKET                              = 0x00080000,
+    WOLFSSL_OP_DONT_INSERT_EMPTY_FRAGMENTS            = 0x00100000,
+    WOLFSSL_OP_NO_QUERY_MTU                           = 0x00200000,
+    WOLFSSL_OP_COOKIE_EXCHANGE                        = 0x00400000,
+    WOLFSSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION = 0x00800000,
     WOLFSSL_OP_SINGLE_ECDH_USE                    = 0x01000000,
     WOLFSSL_OP_CIPHER_SERVER_PREFERENCE           = 0x02000000,
     WOLFSSL_OP_NO_TLSv1_1                         = 0x04000000,
@@ -2120,35 +2102,65 @@ enum {
     WOLFSSL_OP_NO_COMPRESSION                     = 0x10000000,
     WOLFSSL_OP_NO_TLSv1_3                         = 0x20000000,
     WOLFSSL_OP_NO_SSLv2                           = 0x40000000,
-    SSL_OP_ALL   =
-                    (SSL_OP_MICROSOFT_SESS_ID_BUG
-                  | SSL_OP_NETSCAPE_CHALLENGE_BUG
-                  | SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG
-                  | SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG
-                  | SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER
-                  | SSL_OP_MSIE_SSLV2_RSA_PADDING
-                  | SSL_OP_SSLEAY_080_CLIENT_DH_BUG
-                  | SSL_OP_TLS_D5_BUG
-                  | SSL_OP_TLS_BLOCK_PADDING_BUG
-                  | SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS
-                  | SSL_OP_TLS_ROLLBACK_BUG),
+    WOLFSSL_OP_ALL   =
+                   (WOLFSSL_OP_MICROSOFT_SESS_ID_BUG
+                  | WOLFSSL_OP_NETSCAPE_CHALLENGE_BUG
+                  | WOLFSSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG
+                  | WOLFSSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG
+                  | WOLFSSL_OP_MICROSOFT_BIG_SSLV3_BUFFER
+                  | WOLFSSL_OP_MSIE_SSLV2_RSA_PADDING
+                  | WOLFSSL_OP_SSLEAY_080_CLIENT_DH_BUG
+                  | WOLFSSL_OP_TLS_D5_BUG
+                  | WOLFSSL_OP_TLS_BLOCK_PADDING_BUG
+                  | WOLFSSL_OP_DONT_INSERT_EMPTY_FRAGMENTS
+                  | WOLFSSL_OP_TLS_ROLLBACK_BUG),
 };
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
     defined(HAVE_WEBSERVER)
 /* for compatibility these must be macros */
+
+#define SSL_OP_MICROSOFT_SESS_ID_BUG            WOLFSSL_OP_MICROSOFT_SESS_ID_BUG
+#define SSL_OP_NETSCAPE_CHALLENGE_BUG           WOLFSSL_OP_NETSCAPE_CHALLENGE_BUG
+#define SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG WOLFSSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG
+#define SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG      WOLFSSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG
+#define SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER       WOLFSSL_OP_MICROSOFT_BIG_SSLV3_BUFFER
+#define SSL_OP_MSIE_SSLV2_RSA_PADDING           WOLFSSL_OP_MSIE_SSLV2_RSA_PADDING
+#define SSL_OP_SSLEAY_080_CLIENT_DH_BUG         WOLFSSL_OP_SSLEAY_080_CLIENT_DH_BUG
+#define SSL_OP_TLS_D5_BUG                       WOLFSSL_OP_TLS_D5_BUG
+#define SSL_OP_TLS_BLOCK_PADDING_BUG            WOLFSSL_OP_TLS_BLOCK_PADDING_BUG
+#define SSL_OP_TLS_ROLLBACK_BUG                 WOLFSSL_OP_TLS_ROLLBACK_BUG
+#define SSL_OP_EPHEMERAL_RSA                    WOLFSSL_OP_EPHEMERAL_RSA
+#define SSL_OP_PKCS1_CHECK_1                    WOLFSSL_OP_PKCS1_CHECK_1
+#define SSL_OP_PKCS1_CHECK_2                    WOLFSSL_OP_PKCS1_CHECK_2
+#define SSL_OP_NETSCAPE_CA_DN_BUG               WOLFSSL_OP_NETSCAPE_CA_DN_BUG
+#define SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG  WOLFSSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG
+#define SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS      WOLFSSL_OP_DONT_INSERT_EMPTY_FRAGMENTS
+#define SSL_OP_NO_QUERY_MTU                     WOLFSSL_OP_NO_QUERY_MTU
+#define SSL_OP_COOKIE_EXCHANGE                  WOLFSSL_OP_COOKIE_EXCHANGE
+#define SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION \
+                                                WOLFSSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION
+#define SSL_OP_ALL                              WOLFSSL_OP_ALL
+
 #define SSL_OP_NO_SSLv2       WOLFSSL_OP_NO_SSLv2
 #define SSL_OP_NO_SSLv3       WOLFSSL_OP_NO_SSLv3
 #define SSL_OP_NO_TLSv1       WOLFSSL_OP_NO_TLSv1
 #define SSL_OP_NO_TLSv1_1     WOLFSSL_OP_NO_TLSv1_1
 #define SSL_OP_NO_TLSv1_2     WOLFSSL_OP_NO_TLSv1_2
 #define SSL_OP_NO_COMPRESSION WOLFSSL_OP_NO_COMPRESSION
-#if !(!defined(WOLFSSL_TLS13) && defined(WOLFSSL_APACHE_HTTPD)) /* apache uses this to determine if TLS 1.3 is enabled */
+
+/* apache uses SSL_OP_NO_TLSv1_3 to determine if TLS 1.3 is enabled */
+#if !(!defined(WOLFSSL_TLS13) && defined(WOLFSSL_APACHE_HTTPD))
 #define SSL_OP_NO_TLSv1_3 WOLFSSL_OP_NO_TLSv1_3
+#endif
+
+#ifdef HAVE_SESSION_TICKET
+#define SSL_OP_NO_TICKET WOLFSSL_OP_NO_TICKET
 #endif
 
 #define SSL_OP_NO_SSL_MASK (SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | \
     SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 | SSL_OP_NO_TLSv1_3)
+
 
 #define SSL_NOTHING 1
 #define SSL_WRITING 2
@@ -4674,6 +4686,10 @@ WOLFSSL_API int wolfSSL_SSL_CTX_remove_session(WOLFSSL_CTX* ctx,
 WOLFSSL_API WOLFSSL_BIO *wolfSSL_SSL_get_rbio(const WOLFSSL *s);
 WOLFSSL_API WOLFSSL_BIO *wolfSSL_SSL_get_wbio(const WOLFSSL *s);
 WOLFSSL_API int wolfSSL_SSL_do_handshake(WOLFSSL *s);
+#ifdef OPENSSL_EXTRA
+WOLFSSL_API int wolfSSL_OPENSSL_init_ssl(word64 opts,
+    const OPENSSL_INIT_SETTINGS *settings);
+#endif
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 WOLFSSL_API int wolfSSL_SSL_in_init(const WOLFSSL* ssl);
 #else
