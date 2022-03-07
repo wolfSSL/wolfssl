@@ -3054,8 +3054,12 @@ static void bench_aesecb_internal(int useDeviceID, const byte* key, word32 keySz
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0,
                                                  &times, numBlocks, &pending)) {
+                #ifdef HAVE_FIPS
+                    wc_AesEncryptDirect(&enc[i], bench_cipher, bench_plain);
+                #else
                     wc_AesEcbEncrypt(&enc[i], bench_cipher, bench_plain,
                         AES_BLOCK_SIZE);
+                #endif
                     ret = 0;
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&enc[i]),
                                                          0, &times, &pending)) {
@@ -3089,8 +3093,12 @@ exit_aes_enc:
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0,
                                                  &times, numBlocks, &pending)) {
+                #ifdef HAVE_FIPS
+                    wc_AesDecryptDirect(&enc[i], bench_plain, bench_cipher);
+                #else
                     wc_AesEcbDecrypt(&enc[i], bench_plain, bench_cipher,
                         AES_BLOCK_SIZE);
+                #endif
                     ret = 0;
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&enc[i]),
                                                          0, &times, &pending)) {
@@ -4770,8 +4778,12 @@ static void bench_cmac_helper(int keySz, const char* outMsg)
 
     bench_stats_start(&count, &start);
     do {
+    #ifdef HAVE_FIPS
+        ret = wc_InitCmac(&cmac, bench_key, keySz, WC_CMAC_AES, NULL);
+    #else
         ret = wc_InitCmac_ex(&cmac, bench_key, keySz, WC_CMAC_AES, NULL,
             HEAP_HINT, devId);
+    #endif
         if (ret != 0) {
             printf("InitCmac failed, ret = %d\n", ret);
             return;
