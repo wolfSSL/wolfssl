@@ -23284,7 +23284,7 @@ static const ASNItem static_certExtsASN[] = {
 /* POLICIES_SEQ, */    { 0, ASN_SEQUENCE, 1, 1, 0 },
 /* POLICIES_OID, */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
 /* POLICIES_STR, */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
-/* POLICIES_INFO */            { 2, ASN_SEQUENCE, 0, 0, 0 },
+/* POLICIES_INFO */            { 2, ASN_SEQUENCE, 1, 0, 0 },
                                        /* Netscape Certificate Type */
 /* NSTYPE_SEQ    */    { 0, ASN_SEQUENCE, 1, 1, 0 },
 /* NSTYPE_OID    */        { 1, ASN_OBJECT_ID, 0, 0, 0 },
