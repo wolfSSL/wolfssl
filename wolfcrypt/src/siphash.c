@@ -453,21 +453,21 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
 
         "cmp    $7, %[inSz]\n\t"
         "jl     L_siphash_n7\n\t"
-        "movzxb 6(%[in]), %%r12\n\t"
+        "movzbq 6(%[in]), %%r12\n\t"
         "shlq   $48, %%r12\n\t"
         "orq    %%r12, %%r13\n\t"
         "L_siphash_n7:\n\t"
 
         "cmp    $6, %[inSz]\n\t"
         "jl     L_siphash_n6\n\t"
-        "movzxb 5(%[in]), %%r12\n\t"
+        "movzbq 5(%[in]), %%r12\n\t"
         "shlq   $40, %%r12\n\t"
         "orq    %%r12, %%r13\n\t"
         "L_siphash_n6:\n\t"
 
         "cmp    $5, %[inSz]\n\t"
         "jl     L_siphash_n5\n\t"
-        "movzxb 4(%[in]), %%r12\n\t"
+        "movzbq 4(%[in]), %%r12\n\t"
         "shlq   $32, %%r12\n\t"
         "orq    %%r12, %%r13\n\t"
         "L_siphash_n5:\n\t"
@@ -483,7 +483,7 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
 
         "cmp    $3, %[inSz]\n\t"
         "jl     L_siphash_n3\n\t"
-        "movzxb 2(%[in]), %%r12\n\t"
+        "movzbq 2(%[in]), %%r12\n\t"
         "shlq   $16, %%r12\n\t"
         "orq    %%r12, %%r13\n\t"
         "L_siphash_n3:\n\t"
