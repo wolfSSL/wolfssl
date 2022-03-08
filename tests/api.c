@@ -51226,61 +51226,61 @@ static void test_wolfSSL_CRYPTO_get_ex_new_index(void)
     printf(testingFmt, "test_wolfSSL_CRYPTO_get_ex_new_index()");
 
     /* test for unsupported class index */
-    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_X509_STORE,
+    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_X509_STORE,
                                          0,NULL, NULL, NULL, NULL ), -1);
-    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_X509_STORE_CTX,
+    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_X509_STORE_CTX,
                                          0,NULL, NULL, NULL, NULL ), -1);
-    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_DH,
+    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_DH,
                                          0,NULL, NULL, NULL, NULL ), -1);
-    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_DSA,
+    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_DSA,
                                          0,NULL, NULL, NULL, NULL ), -1);
-    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_EC_KEY,
+    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_EC_KEY,
                                          0,NULL, NULL, NULL, NULL ), -1);
-    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_RSA,
+    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_RSA,
                                          0,NULL, NULL, NULL, NULL ), -1);
-    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_ENGINE,
+    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_ENGINE,
                                          0,NULL, NULL, NULL, NULL ), -1);
-    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_UI,
+    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_UI,
                                          0,NULL, NULL, NULL, NULL ), -1);
-    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_BIO,
+    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_BIO,
                                          0,NULL, NULL, NULL, NULL ), -1);
-    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_APP,
+    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_APP,
                                          0,NULL, NULL, NULL, NULL ), -1);
-    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_UI_METHOD,
+    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_UI_METHOD,
                                          0,NULL, NULL, NULL, NULL ), -1);
-    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_DRBG,
+    AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_DRBG,
                                          0,NULL, NULL, NULL, NULL ), -1);
     AssertIntEQ(wolfSSL_CRYPTO_get_ex_new_index(20, 0,NULL, NULL, NULL, NULL ), -1);
 
     /* test for supported class index */
-    idx1 = wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_SSL,
+    idx1 = wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL,
                                          0,NULL, NULL, NULL, NULL );
-    idx2 = wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_SSL,
-                                         0,NULL, NULL, NULL, NULL );
-    AssertIntNE(idx1, -1);
-    AssertIntNE(idx2, -1);
-    AssertIntNE(idx1, idx2);
-
-    idx1 = wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_SSL_CTX,
-                                         0,NULL, NULL, NULL, NULL );
-    idx2 = wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_SSL_CTX,
+    idx2 = wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL,
                                          0,NULL, NULL, NULL, NULL );
     AssertIntNE(idx1, -1);
     AssertIntNE(idx2, -1);
     AssertIntNE(idx1, idx2);
 
-    idx1 = wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_X509,
+    idx1 = wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_CTX,
                                          0,NULL, NULL, NULL, NULL );
-    idx2 = wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_X509,
+    idx2 = wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_CTX,
+                                         0,NULL, NULL, NULL, NULL );
+    AssertIntNE(idx1, -1);
+    AssertIntNE(idx2, -1);
+    AssertIntNE(idx1, idx2);
+
+    idx1 = wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_X509,
+                                         0,NULL, NULL, NULL, NULL );
+    idx2 = wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_X509,
                                          0,NULL, NULL, NULL, NULL );
     AssertIntNE(idx1, -1);
     AssertIntNE(idx2, -1);
     AssertIntNE(idx1, idx2);
 
 
-    idx1 = wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_SSL_SESSION,
+    idx1 = wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_SESSION,
                                          0,NULL, NULL, NULL, NULL );
-    idx2 = wolfSSL_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_SSL_SESSION,
+    idx2 = wolfSSL_CRYPTO_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_SSL_SESSION,
                                          0,NULL, NULL, NULL, NULL );
     AssertIntNE(idx1, -1);
     AssertIntNE(idx2, -1);

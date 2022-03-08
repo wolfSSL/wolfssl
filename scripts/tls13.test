@@ -23,12 +23,12 @@ counter=0
 # let's use absolute path to a local dir (make distcheck may be in sub dir)
 # also let's add some randomness by adding pid in case multiple 'make check's
 # per source tree
-ready_file=`pwd`/wolfssl_tls13_ready$$
-client_file=`pwd`/wolfssl_tls13_client$$
+ready_file="$(pwd)/wolfssl_tls13_ready$$"
+client_file="$(pwd)/wolfssl_tls13_client$$"
 # Server output
-server_out_file=`pwd`/wolfssl_tls13_server_out$$
+server_out_file="$(pwd)/wolfssl_tls13_server_out$$"
 # Client output
-client_out_file=`pwd`/wolfssl_tls13_client_out$$
+client_out_file="$(pwd)/wolfssl_tls13_client_out$$"
 
 echo "ready file "$ready_file""
 
@@ -49,7 +49,7 @@ create_port() {
         sleep 0.1
 
         # get created port 0 ephemeral port
-        port=`cat "$ready_file"`
+        port="$(cat "$ready_file")"
     else
         echo -e "NO ready file ending test..."
         do_cleanup
@@ -69,7 +69,7 @@ do_cleanup() {
     if  [ $server_pid != $no_pid ]
     then
         echo "killing server"
-        kill -9 $server_pid
+        kill -9 $server_pid 2>/dev/null
         server_pid=$no_pid
     fi
     remove_ready_file
@@ -124,7 +124,7 @@ echo ""
 # TLS 1.3 cipher suites server / client.
 echo -e "\n\nTLS v1.3 cipher suite mismatch"
 port=0
-./examples/server/server -v 4 -R "$ready_file" -p $port -l TLS13-CHACHA20-POLY1305-SHA256 &
+./examples/server/server -v 4 -R "$ready_file" -p $port -l TLS13-AES128-GCM-SHA256 &
 server_pid=$!
 create_port
 ./examples/client/client -v 4 -p $port -l TLS13-AES256-GCM-SHA384
@@ -138,9 +138,9 @@ fi
 do_cleanup
 echo ""
 
-cat ./wolfssl/options.h | grep -- 'NO_CERTS'
+cat ./wolfssl/options.h | grep -F -e 'NO_CERTS'
 NO_CERTS=$?
-cat ./wolfssl/options.h | grep -- 'WOLFSSL_NO_CLIENT_AUTH'
+cat ./wolfssl/options.h | grep -F -e 'WOLFSSL_NO_CLIENT_AUTH'
 NO_CLIENT_AUTH=$?
 if [ $NO_CERTS -ne 0 -a $NO_CLIENT_AUTH -ne 0 ]; then
     # TLS 1.3 mutual auth required but client doesn't send certificates.
@@ -162,7 +162,7 @@ if [ $NO_CERTS -ne 0 -a $NO_CLIENT_AUTH -ne 0 ]; then
 fi
 
 # Check for TLS 1.2 support
-./examples/client/client -v 3 2>&1 | grep -- 'Bad SSL version'
+./examples/client/client -v 3 2>&1 | grep -F -e 'Bad SSL version'
 if [ $? -ne 0 ]; then
     # TLS 1.3 server / TLS 1.2 client.
     echo -e "\n\nTLS v1.3 server downgrading to TLS v1.2"
@@ -202,7 +202,7 @@ if [ $? -ne 0 ]; then
     for CS in ECDHE-RSA-AES128-GCM-SHA256 DHE-RSA-AES128-GCM-SHA256
     do
         echo $CS
-        ./examples/client/client -e | grep $CS >/dev/null
+        ./examples/client/client -e | grep -F -e "$CS" >/dev/null
         if [ "$?" = "0" ]; then
             TLS12_CS=$CS
             break
@@ -234,11 +234,11 @@ if [ $? -ne 0 ]; then
 fi
 
 # Check for EarlyData support
-./examples/client/client -? 2>&1 | grep -- 'Early data'
+./examples/client/client -? 2>&1 | grep -F -e 'Early data'
 if [ $? -eq 0 ]; then
     early_data=yes
 fi
-./examples/client/client -? 2>&1 | grep -- 'Shared keys'
+./examples/client/client -? 2>&1 | grep -F -e 'Shared keys'
 if [ $? -eq 0 ]; then
     psk=yes
 fi
@@ -254,13 +254,13 @@ if [ "$early_data" = "yes" ]; then
     RESULT=$?
     cat "$client_out_file"
     remove_ready_file
-    grep 'Session Ticket' "$client_out_file"
+    grep -F -e 'Session Ticket' "$client_out_file"
     session_ticket=$?
-    
-    ed_srv_msgcnt=`grep 'Early Data Client message' "$server_out_file" | wc -l`
-    ed_srv_status_cnt=`grep 'Early Data was' "$server_out_file" | wc -l`
-    if [ $session_ticket -eq 0 -a $ed_srv_msgcnt -ne 2 \
-        -a $ed_srv_status_cnt -ne 2]; then
+
+    ed_srv_msg_cnt="$(grep -c -F -e 'Early Data Client message' "$server_out_file")"
+    ed_srv_status_cnt="$(grep -c -F -e 'Early Data was' "$server_out_file")"
+    if [ $session_ticket -eq 0 -a $ed_srv_msg_cnt -ne 2 \
+        -a $ed_srv_status_cnt -ne 2 ]; then
         RESULT=1
     fi
     if [ $RESULT -ne 0 ]; then
@@ -286,15 +286,15 @@ if [ "$early_data" = "yes" -a "$psk" = "yes" ]; then
     # wait for the server to quit and write output
     wait $server_pid
 
-    ed_srv_msgcnt=`grep 'Early Data Client message' "$server_out_file" | wc -l`
-    ed_srv_status_cnt=`grep 'Early Data was' "$server_out_file" | wc -l`
+    ed_srv_msgcnt="$(grep -c -F -e 'Early Data Client message' "$server_out_file")"
+    ed_srv_status_cnt="$(grep -c -F -e 'Early Data was' "$server_out_file")"
     if [ $ed_srv_msgcnt -ne 2 -a $ed_srv_status_cnt -ne 1 ]; then
         echo
         echo "Server out file"
         cat "$server_out_file"
         echo
         echo "Found lines"
-        grep 'Early Data' "$server_out_file"
+        grep -F -e 'Early Data' "$server_out_file"
         echo -e "\n\nUnexpected 'Early Data' lines - $early_data_cnt"
         RESULT=1
     fi

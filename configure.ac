@@ -97,12 +97,10 @@ AC_CHECK_FUNCS([gethostbyname getaddrinfo gettimeofday gmtime_r inet_ntoa memset
 AC_CHECK_DECLS([gethostbyname, getaddrinfo, gettimeofday, gmtime_r, inet_ntoa, memset, socket, strftime], [], [
 if test "$(eval echo \$"$(eval 'echo ac_cv_func_${as_decl_name}')")" = "yes"
 then
-    echo "    note: earlier check for $(eval 'echo ${as_decl_name}') superseded."
-    eval "$(eval 'echo ac_cv_func_${as_decl_name}=no')"
+    AC_MSG_NOTICE([    note: earlier check for $(eval 'echo ${as_decl_name}') superseded.])
+    eval "ac_cv_func_${as_decl_name}=no"
     _mask_varname=HAVE_`eval "echo '${as_decl_name}'" | tr 'a-z' 'A-Z'`
-    echo "g/#define $_mask_varname 1/s//\/* #undef $_mask_varname *\//
-wq
-." | ed -s confdefs.h
+    sed --in-place "s~^#define ${_mask_varname} 1$~~" confdefs.h
 fi
 ], [[
 #ifdef HAVE_SYS_SOCKET_H
@@ -586,7 +584,10 @@ then
     test "$enable_trusted_ca" = "" && enable_trusted_ca=yes
     test "$enable_session_ticket" = "" && enable_session_ticket=yes
 
-    test "$enable_earlydata" = "" && enable_earlydata=yes
+    # don't add earlydata when assynccrypt, pending fix:
+    if test "$enable_asynccrypt" != "yes"; then
+        test "$enable_earlydata" = "" && enable_earlydata=yes
+    fi
 
     if test "$ENABLED_32BIT" != "yes"
     then
